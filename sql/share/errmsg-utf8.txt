@@ -1272,29 +1272,7 @@ ER_BAD_FIELD_ERROR 42S22 S0022
         swe "Okänd kolumn '%-.192s' i %-.192s"
         ukr "Невідомий стовбець '%-.192s' у '%-.192s'"
 ER_WRONG_FIELD_WITH_GROUP 42000 S1009
-        cze "Použité '%-.192s' nebylo v group by"
-        dan "Brugte '%-.192s' som ikke var i group by"
-        nla "Opdracht gebruikt '%-.192s' dat niet in de GROUP BY voorkomt"
-        eng "'%-.192s' isn't in GROUP BY"
-        est "'%-.192s' puudub GROUP BY klauslis"
-        fre "'%-.192s' n'est pas dans 'group by'"
-        ger "'%-.192s' ist nicht in GROUP BY vorhanden"
-        greek "Χρησιμοποιήθηκε '%-.192s' που δεν υπήρχε στο group by"
-        hun "Used '%-.192s' with wasn't in group by"
-        ita "Usato '%-.192s' che non e` nel GROUP BY"
-        jpn "'%-.192s' はGROUP BY句で指定されていません。"
-        kor "'%-.192s'은 GROUP BY속에 없음"
-        nor "Brukte '%-.192s' som ikke var i group by"
-        norwegian-ny "Brukte '%-.192s' som ikkje var i group by"
-        pol "Użyto '%-.192s' bez umieszczenia w group by"
-        por "'%-.192s' não está em 'GROUP BY'"
-        rum "'%-.192s' nu exista in clauza GROUP BY"
-        rus "'%-.192s' не присутствует в GROUP BY"
-        serbian "Entitet '%-.192s' nije naveden u komandi 'GROUP BY'"
-        slo "Použité '%-.192s' nebolo v 'group by'"
-        spa "Usado '%-.192s' el cual no esta group by"
-        swe "'%-.192s' finns inte i GROUP BY"
-        ukr "'%-.192s' не є у GROUP BY"
+        eng "Expression #%d of %s is not in GROUP BY clause and contains nonaggregated column '%-.192s' which is not functionally dependent on columns in GROUP BY clause; this is incompatible with sql_mode=only_full_group_by"
 ER_WRONG_GROUP_FIELD 42000 S1009
         cze "Nemohu použít group na '%-.192s'"
         dan "Kan ikke gruppere på '%-.192s'"
@@ -3182,24 +3160,7 @@ ER_REGEXP_ERROR 42000
         swe "Fick fel '%-.64s' från REGEXP"
         ukr "Отримано помилку '%-.64s' від регулярного виразу"
 ER_MIX_OF_GROUP_FUNC_AND_FIELDS 42000 
-        cze "Pokud není žádná GROUP BY klauzule, není dovoleno současné použití GROUP položek (MIN(),MAX(),COUNT()...) s ne GROUP položkami"
-        dan "Sammenblanding af GROUP kolonner (MIN(),MAX(),COUNT()...) uden GROUP kolonner er ikke tilladt, hvis der ikke er noget GROUP BY prædikat"
-        nla "Het mixen van GROUP kolommen (MIN(),MAX(),COUNT()...) met no-GROUP kolommen is foutief indien er geen GROUP BY clausule is"
-        eng "Mixing of GROUP columns (MIN(),MAX(),COUNT(),...) with no GROUP columns is illegal if there is no GROUP BY clause"
-        est "GROUP tulpade (MIN(),MAX(),COUNT()...) kooskasutamine tavaliste tulpadega ilma GROUP BY klauslita ei ole lubatud"
-        fre "Mélanger les colonnes GROUP (MIN(),MAX(),COUNT()...) avec des colonnes normales est interdit s'il n'y a pas de clause GROUP BY"
-        ger "Das Vermischen von GROUP-Feldern (MIN(),MAX(),COUNT()...) mit Nicht-GROUP-Feldern ist nicht zulässig, wenn keine GROUP-BY-Klausel vorhanden ist"
-        hun "A GROUP mezok (MIN(),MAX(),COUNT()...) kevert hasznalata nem lehetseges GROUP BY hivatkozas nelkul"
-        ita "Il mescolare funzioni di aggregazione (MIN(),MAX(),COUNT()...) e non e` illegale se non c'e` una clausula GROUP BY"
-        jpn "GROUP BY句が無い場合、集計関数(MIN(),MAX(),COUNT(),...)と通常の列を同時に使用できません。"
-        kor "Mixing of GROUP 칼럼s (MIN(),MAX(),COUNT(),...) with no GROUP 칼럼s is illegal if there is no GROUP BY clause"
-        por "Mistura de colunas agrupadas (com MIN(), MAX(), COUNT(), ...) com colunas não agrupadas é ilegal, se não existir uma cláusula de agrupamento (cláusula GROUP BY)"
-        rum "Amestecarea de coloane GROUP (MIN(),MAX(),COUNT()...) fara coloane GROUP este ilegala daca nu exista o clauza GROUP BY"
-        rus "Одновременное использование сгруппированных (GROUP) столбцов (MIN(),MAX(),COUNT(),...) с несгруппированными столбцами является некорректным, если в выражении есть GROUP BY"
-        serbian "Upotreba agregatnih funkcija (MIN(),MAX(),COUNT()...) bez 'GROUP' kolona je pogrešna ako ne postoji 'GROUP BY' iskaz"
-        spa "Mezcla de columnas GROUP (MIN(),MAX(),COUNT()...) con no GROUP columnas es ilegal si no hat la clausula GROUP BY"
-        swe "Man får ha både GROUP-kolumner (MIN(),MAX(),COUNT()...) och fält i en fråga om man inte har en GROUP BY-del"
-        ukr "Змішування GROUP стовбців (MIN(),MAX(),COUNT()...) з не GROUP стовбцями є забороненим, якщо не має GROUP BY"
+        eng "In aggregated query without GROUP BY, expression #%u of %s contains nonaggregated column '%-.192s'; this is incompatible with sql_mode=only_full_group_by"
 ER_NONEXISTING_GRANT 42000 
         cze "Neexistuje odpovídající grant pro uživatele '%-.48s' na stroji '%-.64s'"
         dan "Denne tilladelse findes ikke for brugeren '%-.48s' på vært '%-.64s'"
@@ -3979,21 +3940,21 @@ ER_ERROR_DURING_CHECKPOINT
         swe "Fick fel %d vid CHECKPOINT"
         ukr "Отримано помилку %d під час CHECKPOINT"
 ER_NEW_ABORTING_CONNECTION 08S01 
-        cze "Spojení %ld do databáze: '%-.192s' uživatel: '%-.48s' stroj: '%-.64s' (%-.64s) bylo přerušeno"
-        dan "Afbrød forbindelsen %ld til databasen '%-.192s' bruger: '%-.48s' vært: '%-.64s' (%-.64s)"
-        nla "Afgebroken verbinding %ld naar db: '%-.192s' gebruiker: '%-.48s' host: '%-.64s' (%-.64s)"
-        eng "Aborted connection %ld to db: '%-.192s' user: '%-.48s' host: '%-.64s' (%-.64s)"
-        est "Ühendus katkestatud %ld andmebaas: '%-.192s' kasutaja: '%-.48s' masin: '%-.64s' (%-.64s)"
-        fre "Connection %ld avortée vers la bd: '%-.192s' utilisateur: '%-.48s' hôte: '%-.64s' (%-.64s)"
-        ger "Abbruch der Verbindung %ld zur Datenbank '%-.192s'. Benutzer: '%-.48s', Host: '%-.64s' (%-.64s)"
-        ita "Interrotta la connessione %ld al db: ''%-.192s' utente: '%-.48s' host: '%-.64s' (%-.64s)"
-        jpn "接続 %ld が中断されました。データベース: '%-.192s' ユーザー: '%-.48s' ホスト: '%-.64s' (%-.64s)"
-        por "Conexão %ld abortada para banco de dados '%-.192s' - usuário '%-.48s' - 'host' '%-.64s' ('%-.64s')"
-        rus "Прервано соединение %ld к базе данных '%-.192s' пользователя '%-.48s' с хоста '%-.64s' (%-.64s)"
-        serbian "Prekinuta konekcija broj %ld ka bazi: '%-.192s' korisnik je bio: '%-.48s' a host: '%-.64s' (%-.64s)"
-        spa "Abortada conexión %ld para db: '%-.192s' usuario: '%-.48s' servidor: '%-.64s' (%-.64s)"
-        swe "Avbröt länken för tråd %ld till db '%-.192s', användare '%-.48s', host '%-.64s' (%-.64s)"
-        ukr "Перервано з'єднання %ld до бази данних: '%-.192s' користувач: '%-.48s' хост: '%-.64s' (%-.64s)"
+        cze "Spojení %u do databáze: '%-.192s' uživatel: '%-.48s' stroj: '%-.64s' (%-.64s) bylo přerušeno"
+        dan "Afbrød forbindelsen %u til databasen '%-.192s' bruger: '%-.48s' vært: '%-.64s' (%-.64s)"
+        nla "Afgebroken verbinding %u naar db: '%-.192s' gebruiker: '%-.48s' host: '%-.64s' (%-.64s)"
+        eng "Aborted connection %u to db: '%-.192s' user: '%-.48s' host: '%-.64s' (%-.64s)"
+        est "Ühendus katkestatud %u andmebaas: '%-.192s' kasutaja: '%-.48s' masin: '%-.64s' (%-.64s)"
+        fre "Connection %u avortée vers la bd: '%-.192s' utilisateur: '%-.48s' hôte: '%-.64s' (%-.64s)"
+        ger "Abbruch der Verbindung %u zur Datenbank '%-.192s'. Benutzer: '%-.48s', Host: '%-.64s' (%-.64s)"
+        ita "Interrotta la connessione %u al db: ''%-.192s' utente: '%-.48s' host: '%-.64s' (%-.64s)"
+        jpn "接続 %u が中断されました。データベース: '%-.192s' ユーザー: '%-.48s' ホスト: '%-.64s' (%-.64s)"
+        por "Conexão %u abortada para banco de dados '%-.192s' - usuário '%-.48s' - 'host' '%-.64s' ('%-.64s')"
+        rus "Прервано соединение %u к базе данных '%-.192s' пользователя '%-.48s' с хоста '%-.64s' (%-.64s)"
+        serbian "Prekinuta konekcija broj %u ka bazi: '%-.192s' korisnik je bio: '%-.48s' a host: '%-.64s' (%-.64s)"
+        spa "Abortada conexión %u para db: '%-.192s' usuario: '%-.48s' servidor: '%-.64s' (%-.64s)"
+        swe "Avbröt länken för tråd %u till db '%-.192s', användare '%-.48s', host '%-.64s' (%-.64s)"
+        ukr "Перервано з'єднання %u до бази данних: '%-.192s' користувач: '%-.48s' хост: '%-.64s' (%-.64s)"
 ER_DUMP_NOT_IMPLEMENTED  
         cze "Handler tabulky nepodporuje binární dump"
         dan "Denne tabeltype unserstøtter ikke binært tabeldump"
@@ -5633,6 +5594,7 @@ ER_MAX_PREPARED_STMT_COUNT_REACHED 42000
 ER_VIEW_RECURSIVE
         eng "`%-.192s`.`%-.192s` contains view recursion"
         ger "`%-.192s`.`%-.192s` enthält View-Rekursion"
+# the one below is not used anymore:
 ER_NON_GROUPING_FIELD_USED 42000
         eng "Non-grouping field '%-.192s' is used in %-.64s clause"
         ger "In der %-.192s-Klausel wird das die Nicht-Gruppierungsspalte '%-.64s' verwendet"
@@ -6524,7 +6486,6 @@ ER_UNSUPPORTED_ENGINE
 
 ER_BINLOG_UNSAFE_AUTOINC_NOT_FIRST
   eng "INSERT into autoincrement field which is not the first part in the composed primary key is unsafe."
-
 #
 #  End of 5.5 error messages.
 #
@@ -6821,8 +6782,8 @@ ER_INNODB_INDEX_CORRUPT
   eng "Index corrupt: %s"
 
 ER_INVALID_YEAR_COLUMN_LENGTH
-  eng "YEAR(%lu) column type is deprecated. Creating YEAR(4) column instead."
-  rus "Тип YEAR(%lu) более не поддерживается, вместо него будет создана колонка с типом YEAR(4)."
+  eng "Supports only YEAR or YEAR(4) column."
+  rus "Поддерживаются только типы колонок YEAR или YEAR(4)."
 
 ER_NOT_VALID_PASSWORD
   eng "Your password does not satisfy the current policy requirements"
@@ -7236,6 +7197,50 @@ ER_USER_LOCK_WRONG_NAME 42000
 ER_USER_LOCK_DEADLOCK
   eng "Deadlock found when trying to get user-level lock; try rolling back transaction/releasing locks and restarting lock acquisition."
 
+ER_REPLACE_INACCESSIBLE_ROWS
+  eng "REPLACE cannot be executed as it requires deleting rows that are not in the view"
+
+ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_GIS
+  eng "Do not support online operation on table with GIS index"
+
+ER_ILLEGAL_USER_VAR 42000 S1009
+  eng "User variable name '%-.100s' is illegal"
+
+ER_GTID_MODE_OFF
+  eng "Cannot %s when GTID_MODE = OFF."
+
+ER_UNSUPPORTED_BY_REPLICATION_THREAD
+  eng "Cannot %s from a replication slave thread."
+
+ER_INCORRECT_TYPE
+  eng "Incorrect type for argument %s in function %s."
+
+ER_FIELD_IN_ORDER_NOT_SELECT
+  eng "Expression #%u of ORDER BY clause is not in SELECT list, references column '%-.192s' which is not in SELECT list; this is incompatible with %s"
+
+ER_AGGREGATE_IN_ORDER_NOT_SELECT
+  eng "Expression #%u of ORDER BY clause is not in SELECT list, contains aggregate function; this is incompatible with %s"
+
+ER_INVALID_RPL_WILD_TABLE_FILTER_PATTERN
+  eng "Supplied filter list contains a value which is not in the required format 'db_pattern.table_pattern'"
+
+ER_NET_OK_PACKET_TOO_LARGE 08S01
+  eng "OK packet too large"
+
+ER_INVALID_JSON_DATA
+  eng "Invalid JSON data provided to function %s: %s"
+
+ER_INVALID_GEOJSON_MISSING_MEMBER
+  eng "Invalid GeoJSON data provided to function %s: Missing required member '%s'"
+
+ER_INVALID_GEOJSON_WRONG_TYPE
+  eng "Invalid GeoJSON data provided to function %s: Member '%s' must be of type '%s'"
+
+ER_INVALID_GEOJSON_UNSPECIFIED
+  eng "Invalid GeoJSON data provided to function %s"
+
+ER_DIMENSION_UNSUPPORTED
+  eng "Unsupported number of coordinate dimensions in function %s: Found %u, expected %u"
 #
 #  End of 5.7 error messages.
 #

@@ -548,9 +548,9 @@ DROP TABLE t1;
 # Bug#11764994  57900: CREATE TABLE .. SELECT ASSERTS SCALE >= 0 && PRECISION > 0 && SCALE <= PR
 #
 CREATE TABLE t1 SELECT CEIL(LINESTRINGFROMWKB(1) DIV NULL);
-ERROR 22023: Invalid GIS data provided to function st_geometryfromwkb.
+ERROR HY000: Incorrect arguments to DIV
 CREATE TABLE t1 SELECT FLOOR(LINESTRINGFROMWKB(1) DIV NULL);
-ERROR 22023: Invalid GIS data provided to function st_geometryfromwkb.
+ERROR HY000: Incorrect arguments to DIV
 #
 # Bug#11765923  58937: MANY VALGRIND ERRORS AFTER GROUPING BY RESULT OF DECIMAL COLUMN FUNCTION
 #
@@ -678,6 +678,8 @@ ERROR 22003: DECIMAL value is out of range in '((@`a`) / 0.5)'
 SELECT COT(1/0);
 COT(1/0)
 NULL
+Warnings:
+Warning	1365	Division by 0
 SELECT -1 + 9223372036854775808;
 -1 + 9223372036854775808
 9223372036854775807
@@ -687,6 +689,9 @@ SELECT 2 DIV -2;
 SELECT -(1 DIV 0);
 -(1 DIV 0)
 NULL
+Warnings:
+Warning	1365	Division by 0
+Warning	1365	Division by 0
 SELECT -9223372036854775808 MOD -1;
 -9223372036854775808 MOD -1
 0
@@ -702,7 +707,7 @@ foo
 #            my_gcvt: Assertion `width > 0 && to != ((void *)0)' failed
 #
 CREATE TABLE t1(a char(0));
-INSERT INTO t1 (SELECT -pi());
+INSERT IGNORE INTO t1 (SELECT -pi());
 Warnings:
 Warning	1265	Data truncated for column 'a' at row 1
 DROP TABLE t1;
@@ -715,6 +720,7 @@ SELECT ((@a:=@b:=1.0) div (@b:=@a:=get_format(datetime, 'usa')));
 NULL
 Warnings:
 Warning	1366	Incorrect DECIMAL value: '0' for column '' at row -1
+Warning	1365	Division by 0
 #
 # Bug #59498 div function broken in mysql-trunk
 #
@@ -754,6 +760,8 @@ foo
 select 999999999999999999999999999999999999999999999999999999999999999999999999999999999 % 0.0 as foo;
 foo
 NULL
+Warnings:
+Warning	1365	Division by 0
 #
 # Bug#12711164 - 61676:
 # RESULT OF DIV WITH DECIMAL AND INTEGER DOES NOT MAKE SENSE 
@@ -894,3 +902,7 @@ SELECT * FROM t1 ORDER BY a;
 a
 DROP TABLE t1;
 SET sql_mode='';
+#
+# Bug#19047527 SQRT() : UNINITIALISED VALUE IN MY_STRTOD
+#
+do sqrt(weight_string(_eucjpms "0E+"));

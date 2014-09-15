@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2006, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2006, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -31,11 +31,11 @@ Created September 2006 Marko Makela
 #include "data0types.h"
 #include "mem0mem.h"
 #include "dict0types.h"
+#include "page0size.h"
 
 /********************************************************************//**
 Creates a cache of column prefixes of externally stored columns.
 @return own: column prefix cache */
-
 row_ext_t*
 row_ext_create(
 /*===========*/
@@ -92,6 +92,9 @@ struct row_ext_t{
 				REC_ANTELOPE_MAX_INDEX_COL_LEN or
 				REC_VERSION_56_MAX_INDEX_COL_LEN depending
 				on row format */
+	page_size_t	page_size;
+				/*!< page size of the externally stored
+				columns */
 	ulint		len[1];	/*!< prefix lengths; 0 if not cached */
 };
 

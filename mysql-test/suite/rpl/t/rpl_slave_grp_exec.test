@@ -21,7 +21,6 @@
 #############################################################
 --source include/have_innodb.inc
 --source include/have_myisam.inc
---source include/have_slave_parallel_type_database.inc
 --source include/master-slave.inc
 --echo
 

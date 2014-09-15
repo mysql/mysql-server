@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2011, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2011, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -68,7 +68,6 @@ Wakes up the buffer pool dump/load thread and instructs it to start
 a dump. This function is called by MySQL code via buffer_pool_dump_now()
 and it should return immediately because the whole MySQL is frozen during
 its execution. */
-
 void
 buf_dump_start()
 /*============*/
@@ -82,7 +81,6 @@ Wakes up the buffer pool dump/load thread and instructs it to start
 a load. This function is called by MySQL code via buffer_pool_load_now()
 and it should return immediately because the whole MySQL is frozen during
 its execution. */
-
 void
 buf_load_start()
 /*============*/
@@ -235,8 +233,8 @@ buf_dump(
 			}
 		}
 
-		dump = static_cast<buf_dump_t*>(
-			ut_malloc(n_pages * sizeof(*dump))) ;
+		dump = static_cast<buf_dump_t*>(ut_malloc_nokey(
+				n_pages * sizeof(*dump)));
 
 		if (dump == NULL) {
 			buf_pool_mutex_exit(buf_pool);
@@ -469,7 +467,8 @@ buf_load()
 		dump_n = total_buffer_pools_pages;
 	}
 
-	dump = static_cast<buf_dump_t*>(ut_malloc(dump_n * sizeof(*dump)));
+	dump = static_cast<buf_dump_t*>(ut_malloc_nokey(dump_n
+							* sizeof(*dump)));
 
 	if (dump == NULL) {
 		fclose(f);
@@ -541,13 +540,12 @@ buf_load()
 	ulint		last_check_time = 0;
 	ulint		last_activity_cnt = 0;
 
-	/* Avoid calling the expensive fil_space_get_page_size() for each
+	/* Avoid calling the expensive fil_space_acquire() for each
 	page within the same tablespace. dump[] is sorted by (space, page),
 	so all pages from a given tablespace are consecutive. */
 	ulint		cur_space_id = BUF_DUMP_SPACE(dump[0]);
-	bool		found;
-	page_size_t	page_size(fil_space_get_page_size(
-					cur_space_id, &found));
+	fil_space_t*	space = fil_space_acquire(cur_space_id);
+	page_size_t	page_size(space ? space->flags : 0);
 
 	for (i = 0; i < dump_n && !SHUTTING_DOWN(); i++) {
 
@@ -555,17 +553,21 @@ buf_load()
 		const ulint	this_space_id = BUF_DUMP_SPACE(dump[i]);
 
 		if (this_space_id != cur_space_id) {
+			if (space) {
+				fil_space_release(space);
+			}
+
 			cur_space_id = this_space_id;
+			space = fil_space_acquire(cur_space_id);
 
-			const page_size_t	cur_page_size(
-				fil_space_get_page_size(cur_space_id, &found));
-
-			if (found) {
+			if (space) {
+				const page_size_t	cur_page_size(
+					space->flags);
 				page_size.copy_from(cur_page_size);
 			}
 		}
 
-		if (!found) {
+		if (!space) {
 			continue;
 		}
 
@@ -584,6 +586,9 @@ buf_load()
 		}
 
 		if (buf_load_abort_flag) {
+			if (space) {
+				fil_space_release(space);
+			}
 			buf_load_abort_flag = FALSE;
 			ut_free(dump);
 			buf_load_status(
@@ -594,6 +599,10 @@ buf_load()
 
 		buf_load_throttle_if_needed(
 			&last_check_time, &last_activity_cnt, i);
+	}
+
+	if (space) {
+		fil_space_release(space);
 	}
 
 	ut_free(dump);
@@ -608,7 +617,6 @@ buf_load()
 Aborts a currently running buffer pool load. This function is called by
 MySQL code via buffer_pool_load_abort() and it should return immediately
 because the whole MySQL is frozen during its execution. */
-
 void
 buf_load_abort()
 /*============*/
@@ -629,6 +637,10 @@ DECLARE_THREAD(buf_dump_thread)(
 						required by os_thread_create */
 {
 	ut_ad(!srv_read_only_mode);
+
+#ifdef UNIV_PFS_THREAD
+	pfs_register_thread(buf_dump_thread_key);
+#endif /* UNIV_PFS_THREAD */
 
 	srv_buf_dump_thread_active = TRUE;
 

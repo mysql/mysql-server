@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2010, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2010, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -62,7 +62,6 @@ integer value)
 3) Word's position in original doc.
 
 @return dict_index_t structure for the fts sort index */
-
 dict_index_t*
 row_merge_create_fts_sort_index(
 /*============================*/
@@ -171,7 +170,6 @@ row_merge_create_fts_sort_index(
 /*********************************************************************//**
 Initialize FTS parallel sort structures.
 @return TRUE if all successful */
-
 ibool
 row_fts_psort_info_init(
 /*====================*/
@@ -199,7 +197,7 @@ row_fts_psort_info_init(
 
 	block_size = 3 * srv_sort_buf_size;
 
-	*psort = psort_info = static_cast<fts_psort_t*>(ut_zalloc(
+	*psort = psort_info = static_cast<fts_psort_t*>(ut_zalloc_nokey(
 		 fts_sort_pll_degree * sizeof *psort_info));
 
 	if (!psort_info) {
@@ -209,7 +207,7 @@ row_fts_psort_info_init(
 
 	/* Common Info for all sort threads */
 	common_info = static_cast<fts_psort_common_t*>(
-		ut_malloc(sizeof *common_info));
+		ut_malloc_nokey(sizeof *common_info));
 
 	if (!common_info) {
 		ut_free(dup);
@@ -237,7 +235,7 @@ row_fts_psort_info_init(
 
 			psort_info[j].merge_file[i] =
 				 static_cast<merge_file_t*>(
-					ut_zalloc(sizeof(merge_file_t)));
+					ut_zalloc_nokey(sizeof(merge_file_t)));
 
 			if (!psort_info[j].merge_file[i]) {
 				ret = FALSE;
@@ -254,7 +252,7 @@ row_fts_psort_info_init(
 
 			/* Need to align memory for O_DIRECT write */
 			psort_info[j].block_alloc[i] =
-				static_cast<row_merge_block_t*>(ut_malloc(
+				static_cast<row_merge_block_t*>(ut_malloc_nokey(
 					block_size + 1024));
 
 			psort_info[j].merge_block[i] =
@@ -279,7 +277,7 @@ row_fts_psort_info_init(
 	/* Initialize merge_info structures parallel merge and insert
 	into auxiliary FTS tables (FTS_INDEX_TABLE) */
 	*merge = merge_info = static_cast<fts_psort_t*>(
-		ut_malloc(FTS_NUM_AUX_INDEX * sizeof *merge_info));
+		ut_malloc_nokey(FTS_NUM_AUX_INDEX * sizeof *merge_info));
 
 	for (j = 0; j < FTS_NUM_AUX_INDEX; j++) {
 
@@ -298,7 +296,6 @@ func_exit:
 /*********************************************************************//**
 Clean up and deallocate FTS parallel sort structures, and close the
 merge sort files  */
-
 void
 row_fts_psort_info_destroy(
 /*=======================*/
@@ -334,7 +331,6 @@ row_fts_psort_info_destroy(
 }
 /*********************************************************************//**
 Free up merge buffers when merge sort is done */
-
 void
 row_fts_free_pll_merge_buf(
 /*=======================*/
@@ -389,7 +385,7 @@ row_merge_fts_doc_add_word_for_parser(
 
 	ut_ad(boolean_info->position >= 0);
 
-	ptr = static_cast<byte*>(ut_malloc(sizeof(row_fts_token_t)
+	ptr = static_cast<byte*>(ut_malloc_nokey(sizeof(row_fts_token_t)
 			+ sizeof(fts_string_t) + str.f_len));
 	fts_token = reinterpret_cast<row_fts_token_t*>(ptr);
 	fts_token->text = reinterpret_cast<fts_string_t*>(
@@ -714,7 +710,6 @@ row_merge_fts_get_next_doc_item(
 Function performs parallel tokenization of the incoming doc strings.
 It also performs the initial in memory sort of the parsed records.
 @return OS_THREAD_DUMMY_RETURN */
-
 os_thread_ret_t
 fts_parallel_tokenization(
 /*======================*/
@@ -1021,7 +1016,6 @@ func_exit:
 
 /*********************************************************************//**
 Start the parallel tokenization and parallel merge sort */
-
 void
 row_fts_start_psort(
 /*================*/
@@ -1041,7 +1035,6 @@ row_fts_start_psort(
 /*********************************************************************//**
 Function performs the merge and insertion of the sorted records.
 @return OS_THREAD_DUMMY_RETURN */
-
 os_thread_ret_t
 fts_parallel_merge(
 /*===============*/
@@ -1069,7 +1062,6 @@ fts_parallel_merge(
 
 /*********************************************************************//**
 Kick off the parallel merge and insert thread */
-
 void
 row_fts_start_parallel_merge(
 /*=========================*/
@@ -1185,7 +1177,6 @@ row_merge_write_fts_word(
 /*********************************************************************//**
 Read sorted FTS data files and insert data tuples to auxillary tables.
 @return DB_SUCCESS or error number */
-
 void
 row_fts_insert_tuple(
 /*=================*/
@@ -1490,7 +1481,6 @@ row_fts_build_sel_tree(
 Read sorted file containing index data tuples and insert these data
 tuples to the index
 @return DB_SUCCESS or error number */
-
 dberr_t
 row_fts_merge_insert(
 /*=================*/
@@ -1622,7 +1612,7 @@ row_fts_merge_insert(
 	aux_index->is_redo_skipped = index->is_redo_skipped;
 
 	/* Create bulk load instance */
-	ins_ctx.btr_bulk = new BtrBulk(aux_index, trx->id);
+	ins_ctx.btr_bulk = UT_NEW_NOKEY(BtrBulk(aux_index, trx->id));
 	ins_ctx.btr_bulk->init();
 
 	/* Create tuple for insert */
@@ -1747,7 +1737,7 @@ exit:
 	mem_heap_free(tuple_heap);
 
 	error = ins_ctx.btr_bulk->finish(error);
-	delete ins_ctx.btr_bulk;
+	UT_DELETE(ins_ctx.btr_bulk);
 
 	trx_free_for_background(trx);
 

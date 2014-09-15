@@ -1,4 +1,4 @@
-/* Copyright (c) 2001, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2001, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -36,6 +36,7 @@ char *my_demangle(const char *mangled_name, int *status);
 #endif
 #ifdef _WIN32
 void my_set_exception_pointers(EXCEPTION_POINTERS *ep);
+void my_create_minidump(const char *name, HANDLE process, DWORD pid);
 #endif
 #endif /* HAVE_BACKTRACE || HAVE_PRINTSTACK || _WIN32 */
 
@@ -103,6 +104,11 @@ size_t my_safe_printf_stderr(const char* fmt, ...)
   @returns Number of bytes written.
 */
 size_t my_write_stderr(const void *buf, size_t count);
+
+/**
+  Writes system time to STDERR without allocating new memory.
+*/
+void my_safe_print_system_time();
 
 C_MODE_END
 

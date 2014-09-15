@@ -37,13 +37,17 @@ Created 11/5/1995 Heikki Tuuri
 #include "buf0rea.h"
 #include "sync0debug.h"
 #include "fsp0types.h"
+#include "ut0new.h"
 
 /** A chunk of buffers. The buffer pool is allocated in chunks. */
 struct buf_chunk_t{
-	ulint		mem_size;	/*!< allocated size of the chunk */
 	ulint		size;		/*!< size of frames[] and blocks[] */
-	void*		mem;		/*!< pointer to the memory area which
+	unsigned char*	mem;		/*!< pointer to the memory area which
 					was allocated for the frames */
+	ut_new_pfx_t	mem_pfx;	/*!< Auxiliary structure, describing
+					"mem". It is filled by the allocator's
+					alloc method and later passed to the
+					deallocate method. */
 	buf_block_t*	blocks;		/*!< array of buffer control blocks */
 };
 
@@ -209,7 +213,7 @@ buf_page_get_state(
 /*===============*/
 	const buf_page_t*	bpage)	/*!< in: pointer to the control block */
 {
-	enum buf_page_state	state = (enum buf_page_state) bpage->state;
+	enum buf_page_state	state	= bpage->state;
 
 #ifdef UNIV_DEBUG
 	switch (state) {
@@ -425,7 +429,8 @@ buf_page_get_io_fix(
 {
 	ut_ad(bpage != NULL);
 
-	enum buf_io_fix	io_fix = (enum buf_io_fix) bpage->io_fix;
+	enum buf_io_fix	io_fix	= bpage->io_fix;
+
 #ifdef UNIV_DEBUG
 	switch (io_fix) {
 	case BUF_IO_NONE:
@@ -778,7 +783,7 @@ buf_page_alloc_descriptor(void)
 {
 	buf_page_t*	bpage;
 
-	bpage = (buf_page_t*) ut_zalloc(sizeof *bpage);
+	bpage = (buf_page_t*) ut_zalloc_nokey(sizeof *bpage);
 	ut_ad(bpage);
 	UNIV_MEM_ALLOC(bpage, sizeof *bpage);
 
@@ -913,21 +918,25 @@ buf_block_get_modify_clock(
 }
 
 /** Increments the bufferfix count.
-@param[in,out]	block	block to bufferfix */
+@param[in,out]	bpage	block to bufferfix
+@return the count */
 UNIV_INLINE
-void
+ulint
+buf_block_fix(
+	buf_page_t*	bpage)
+{
+	return(os_atomic_increment_uint32(&bpage->buf_fix_count, 1));
+}
+
+/** Increments the bufferfix count.
+@param[in,out]	block	block to bufferfix
+@return the count */
+UNIV_INLINE
+ulint
 buf_block_fix(
 	buf_block_t*	block)
 {
-#ifdef PAGE_ATOMIC_REF_COUNT
-	os_atomic_increment_uint32(&block->page.buf_fix_count, 1);
-#else
-	BPageMutex*	block_mutex = buf_page_get_mutex(&block->page);
-
-	mutex_enter(block_mutex);
-	++block->page.buf_fix_count;
-	mutex_exit(block_mutex);
-#endif /* PAGE_ATOMIC_REF_COUNT */
+	return(buf_block_fix(&block->page));
 }
 
 /*******************************************************************//**
@@ -953,33 +962,31 @@ buf_block_buf_fix_inc_func(
 	}
 #endif /* UNIV_SYNC_DEBUG */
 
-#ifdef PAGE_ATOMIC_REF_COUNT
-	os_atomic_increment_uint32(&block->page.buf_fix_count, 1);
-#else
-	ut_ad(buf_page_mutex_own(block));
-
-	++block->page.buf_fix_count;
-#endif /* PAGE_ATOMIC_REF_COUNT */
+	buf_block_fix(block);
 }
 
 /** Decrements the bufferfix count.
-@param[in,out]	block	block to bufferunfix */
+@param[in,out]	bpage	block to bufferunfix
+@return	the remaining buffer-fix count */
 UNIV_INLINE
-void
+ulint
+buf_block_unfix(
+	buf_page_t*	bpage)
+{
+	ulint	count = os_atomic_decrement_uint32(&bpage->buf_fix_count, 1);
+	ut_ad(count + 1 != 0);
+	return(count);
+}
+
+/** Decrements the bufferfix count.
+@param[in,out]	block	block to bufferunfix
+@return the remaining buffer-fix count */
+UNIV_INLINE
+ulint
 buf_block_unfix(
 	buf_block_t*	block)
 {
-	ut_ad(block->page.buf_fix_count > 0);
-
-#ifdef PAGE_ATOMIC_REF_COUNT
-	os_atomic_decrement_uint32(&block->page.buf_fix_count, 1);
-#else
-	BPageMutex*	block_mutex = buf_page_get_mutex(&block->page);
-
-	mutex_enter(block_mutex);
-	--block->page.buf_fix_count;
-	mutex_exit(block_mutex);
-#endif /* PAGE_ATOMIC_REF_COUNT */
+	return(buf_block_unfix(&block->page));
 }
 
 /*******************************************************************//**
@@ -990,15 +997,7 @@ buf_block_buf_fix_dec(
 /*==================*/
 	buf_block_t*	block)	/*!< in/out: block to bufferunfix */
 {
-
-#ifdef PAGE_ATOMIC_REF_COUNT
-	os_atomic_decrement_uint32(&block->page.buf_fix_count, 1);
-#else
-	ut_ad(buf_page_mutex_own(block));
-
-	--block->page.buf_fix_count;
-
-#endif /* PAGE_ATOMIC_REF_COUNT */
+	buf_block_unfix(block);
 
 #ifdef UNIV_SYNC_DEBUG
 	/* No debug latch is acquired if block belongs to system temporary.
@@ -1122,8 +1121,15 @@ buf_page_hash_get_locked(
 
 	if (mode == RW_LOCK_S) {
 		rw_lock_s_lock(hash_lock);
+
+		/* If not own buf_pool_mutex, page_hash can be changed. */
+		hash_lock = hash_lock_s_confirm(
+			hash_lock, buf_pool->page_hash, page_id.fold());
 	} else {
 		rw_lock_x_lock(hash_lock);
+		/* If not own buf_pool_mutex, page_hash can be changed. */
+		hash_lock = hash_lock_x_confirm(
+			hash_lock, buf_pool->page_hash, page_id.fold());
 	}
 
 	bpage = buf_page_hash_get_low(buf_pool, page_id);
@@ -1357,6 +1363,37 @@ buf_get_nth_chunk_block(
 	chunk = buf_pool->chunks + n;
 	*chunk_size = chunk->size;
 	return(chunk->blocks);
+}
+
+/** Verify the possibility that a stored page is not in buffer pool.
+@param[in]	withdraw_clock	withdraw clock when stored the page
+@retval true	if the page might be relocated */
+UNIV_INLINE
+bool
+buf_pool_is_obsolete(
+	ulint	withdraw_clock)
+{
+	return(buf_pool_withdrawing
+	       || buf_withdraw_clock != withdraw_clock);
+}
+
+/** Calculate aligned buffer pool size based on srv_buf_pool_chunk_unit,
+if needed.
+@param[in]	size	size in bytes
+@return	aligned size */
+UNIV_INLINE
+ulint
+buf_pool_size_align(
+	ulint	size)
+{
+	const ulint	m = srv_buf_pool_instances * srv_buf_pool_chunk_unit;
+	size = ut_max(size, srv_buf_pool_min_size);
+
+	if (size % m == 0) {
+		return(size);
+	} else {
+		return((size / m + 1) * m);
+	}
 }
 
 #endif /* !UNIV_HOTBACKUP */

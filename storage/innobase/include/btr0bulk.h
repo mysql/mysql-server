@@ -28,13 +28,9 @@ Created 03/11/2014 Shaohua Wang
 
 #include "dict0dict.h"
 #include "page0cur.h"
+#include "ut0new.h"
 
 #include <vector>
-
-#ifdef UNIV_DEBUG
-/** Print bulk load performance data.*/
-#define BULK_LOAD_PFS_PRINT
-#endif /* UNIV_DEBUG */
 
 /** Innodb B-tree index fill factor for bulk load. */
 extern	long	innobase_fill_factor;
@@ -49,7 +45,7 @@ public:
 	@param[in]	trx_id	transaction id */
 	PageBulk(
 		dict_index_t* index,
-		ulint trx_id,
+		trx_id_t trx_id,
 		ulint page_no,
 		ulint level)
 		:
@@ -59,6 +55,7 @@ public:
 		m_page_no(page_no),
 		m_level(level)
 	{
+		ut_ad(!dict_index_is_spatial(m_index));
 	}
 
 	/** Deconstructor */
@@ -178,7 +175,7 @@ private:
 	mtr_t*		m_mtr;
 
 	/** The transaction id */
-	ulint		m_trx_id;
+	trx_id_t	m_trx_id;
 
 	/** The buffer block */
 	buf_block_t*	m_block;
@@ -222,7 +219,8 @@ private:
 #endif /* UNIV_DEBUG */
 };
 
-typedef std::vector<PageBulk*>	page_bulk_vector;
+typedef std::vector<PageBulk*, ut_allocator<PageBulk*> >
+	page_bulk_vector;
 
 class BtrBulk
 {
@@ -232,7 +230,7 @@ public:
 	@param[in]	trx_id	transaction id */
 	BtrBulk(
 		dict_index_t* index,
-		ulint trx_id)
+		trx_id_t trx_id)
 		:
 		m_heap(NULL),
 		m_index(index),
@@ -248,7 +246,7 @@ public:
 	~BtrBulk()
 	{
 		mem_heap_free(m_heap);
-		delete m_page_bulks;
+		UT_DELETE(m_page_bulks);
 
 #ifdef UNIV_DEBUG
 		fil_space_dec_redo_skipped_count(m_index->space);
@@ -262,7 +260,7 @@ public:
 		ut_ad(m_heap == NULL);
 		m_heap = mem_heap_create(1000);
 
-		m_page_bulks = new page_bulk_vector();
+		m_page_bulks = UT_NEW_NOKEY(page_bulk_vector());
 	}
 
 	/** Insert a tuple
@@ -278,6 +276,12 @@ public:
 	@param[in]	err	error code of insert.
 	@return	error code */
 	dberr_t finish(dberr_t	err);
+
+	/** Release all latches */
+	void release();
+
+	/** Re-latch all latches */
+	void latch();
 
 private:
 	/** Insert a tuple to a page in a level

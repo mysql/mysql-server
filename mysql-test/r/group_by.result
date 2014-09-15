@@ -1,4 +1,5 @@
 drop table if exists t1,t2,t3;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 SELECT 1 FROM (SELECT 1) as a  GROUP BY SUM(1);
 ERROR HY000: Invalid use of group function
 CREATE TABLE t1 (
@@ -829,7 +830,7 @@ SELECT a FROM t1 GROUP BY `a`;
 a
 1
 2
-set sql_mode='';
+set sql_mode=DEFAULT;
 SELECT a FROM t1 HAVING 'a' > 1;
 a
 Warnings:
@@ -986,7 +987,7 @@ b	sum(1)
 18	6
 19	6
 DROP TABLE t1;
-CREATE TABLE t1 (a INT PRIMARY KEY, b INT);
+CREATE TABLE t1 (a INT, b INT);
 INSERT INTO t1 VALUES (1,1),(2,1),(3,2),(4,2),(5,3),(6,3);
 SET SQL_MODE = 'ONLY_FULL_GROUP_BY';
 SELECT MAX(a)-MIN(a) FROM t1 GROUP BY b;
@@ -1014,7 +1015,7 @@ a + 1
 6
 7
 SELECT a + b FROM t1 GROUP BY b;
-ERROR 42000: 'test.t1.a' isn't in GROUP BY
+ERROR 42000: Expression #1 of SELECT list is not in GROUP BY clause and contains nonaggregated column 'test.t1.a' which is not functionally dependent on columns in GROUP BY clause; this is incompatible with sql_mode=only_full_group_by
 SELECT (SELECT t1_outer.a FROM t1 AS t1_inner GROUP BY b LIMIT 1) 
 FROM t1 AS t1_outer;
 (SELECT t1_outer.a FROM t1 AS t1_inner GROUP BY b LIMIT 1)
@@ -1035,7 +1036,7 @@ HAVING (SELECT t1_outer.a FROM t1 AS t1_inner GROUP BY b LIMIT 1);
 1
 SELECT (SELECT t1_outer.a FROM t1 AS t1_inner LIMIT 1) 
 FROM t1 AS t1_outer GROUP BY t1_outer.b;
-ERROR 42000: 'test.t1_outer.a' isn't in GROUP BY
+ERROR 42000: Expression #1 of SELECT list is not in GROUP BY clause and contains nonaggregated column 'test.t1_outer.a' which is not functionally dependent on columns in GROUP BY clause; this is incompatible with sql_mode=only_full_group_by
 SELECT 1 FROM t1 as t1_outer GROUP BY a 
 HAVING (SELECT t1_outer.b FROM t1 AS t1_inner LIMIT 1);
 ERROR 42S22: Unknown column 'test.t1_outer.b' in 'field list'
@@ -1056,7 +1057,29 @@ FROM t1 AS t1_outer;
 3
 SELECT (SELECT SUM(t1_outer.a) FROM t1 AS t1_inner LIMIT 1) 
 FROM t1 AS t1_outer GROUP BY t1_outer.b;
-ERROR 42000: 'test.t1_outer.a' isn't in GROUP BY
+(SELECT SUM(t1_outer.a) FROM t1 AS t1_inner LIMIT 1)
+3
+7
+11
+SET SQL_MODE = '';
+SELECT (SELECT SUM(t1_outer.a) FROM t1 AS t1_inner LIMIT 1) 
+FROM t1 AS t1_outer GROUP BY t1_outer.b;
+(SELECT SUM(t1_outer.a) FROM t1 AS t1_inner LIMIT 1)
+3
+7
+11
+SET SQL_MODE = 'ONLY_FULL_GROUP_BY';
+SELECT (SELECT SUM(t1_outer.a+0*t1_inner.a) FROM t1 AS t1_inner LIMIT 1) 
+FROM t1 AS t1_outer GROUP BY t1_outer.b;
+ERROR 42000: Expression #1 of SELECT list is not in GROUP BY clause and contains nonaggregated column 'test.t1_outer.a' which is not functionally dependent on columns in GROUP BY clause; this is incompatible with sql_mode=only_full_group_by
+SET SQL_MODE = '';
+SELECT (SELECT SUM(t1_outer.a+0*t1_inner.a) FROM t1 AS t1_inner LIMIT 1) 
+FROM t1 AS t1_outer GROUP BY t1_outer.b;
+(SELECT SUM(t1_outer.a+0*t1_inner.a) FROM t1 AS t1_inner LIMIT 1)
+6
+18
+30
+SET SQL_MODE = 'ONLY_FULL_GROUP_BY';
 SELECT 1 FROM t1 as t1_outer 
 WHERE (SELECT t1_outer.b FROM t1 AS t1_inner GROUP BY t1_inner.b LIMIT 1);
 1
@@ -1085,21 +1108,21 @@ ERROR HY000: Invalid use of group function
 SELECT b FROM t1 AS t1_outer GROUP BY a HAVING t1_outer.a IN 
 (SELECT SUM(t1_inner.b)+t1_outer.b FROM t1 AS t1_inner GROUP BY t1_inner.a
 HAVING SUM(t1_inner.b)+t1_outer.b > 5);
-ERROR 42000: 'test.t1_outer.b' isn't in GROUP BY
+ERROR 42000: Expression #1 of SELECT list is not in GROUP BY clause and contains nonaggregated column 'test.t1_outer.b' which is not functionally dependent on columns in GROUP BY clause; this is incompatible with sql_mode=only_full_group_by
 DROP TABLE t1;
 SET SQL_MODE = '';
 SET SQL_MODE = 'ONLY_FULL_GROUP_BY';
 create table t1(f1 int, f2 int);
 select * from t1 group by f1;
-ERROR 42000: 'test.t1.f2' isn't in GROUP BY
+ERROR 42000: Expression #2 of SELECT list is not in GROUP BY clause and contains nonaggregated column 'test.t1.f2' which is not functionally dependent on columns in GROUP BY clause; this is incompatible with sql_mode=only_full_group_by
 select * from t1 group by f2;
-ERROR 42000: 'test.t1.f1' isn't in GROUP BY
+ERROR 42000: Expression #1 of SELECT list is not in GROUP BY clause and contains nonaggregated column 'test.t1.f1' which is not functionally dependent on columns in GROUP BY clause; this is incompatible with sql_mode=only_full_group_by
 select * from t1 group by f1, f2;
 f1	f2
 select t1.f1,t.* from t1, t1 t group by 1;
-ERROR 42000: 'test.t.f1' isn't in GROUP BY
+ERROR 42000: Expression #2 of SELECT list is not in GROUP BY clause and contains nonaggregated column 'test.t.f1' which is not functionally dependent on columns in GROUP BY clause; this is incompatible with sql_mode=only_full_group_by
 drop table t1;
-SET SQL_MODE = '';
+SET SQL_MODE = DEFAULT;
 CREATE TABLE t1(
 id INT AUTO_INCREMENT PRIMARY KEY, 
 c1 INT NOT NULL, 
@@ -1179,12 +1202,14 @@ SELECT COUNT(*) FROM t1 ORDER BY COUNT(*) + 1;
 COUNT(*)
 6
 SELECT COUNT(*) FROM t1 ORDER BY COUNT(*) + a;
-ERROR 42000: Mixing of GROUP columns (MIN(),MAX(),COUNT(),...) with no GROUP columns is illegal if there is no GROUP BY clause
+COUNT(*)
+6
 SELECT COUNT(*) FROM t1 ORDER BY COUNT(*), 1;
 COUNT(*)
 6
 SELECT COUNT(*) FROM t1 ORDER BY COUNT(*), a;
-ERROR 42000: Mixing of GROUP columns (MIN(),MAX(),COUNT(),...) with no GROUP columns is illegal if there is no GROUP BY clause
+COUNT(*)
+6
 SELECT COUNT(*) FROM t1 ORDER BY SUM(a);
 COUNT(*)
 6
@@ -1195,7 +1220,8 @@ SELECT COUNT(*) FROM t1 ORDER BY SUM(a) + 1;
 COUNT(*)
 6
 SELECT COUNT(*) FROM t1 ORDER BY SUM(a), b;
-ERROR 42000: Mixing of GROUP columns (MIN(),MAX(),COUNT(),...) with no GROUP columns is illegal if there is no GROUP BY clause
+COUNT(*)
+6
 SELECT SUM(a) FROM t1 ORDER BY COUNT(b);
 SUM(a)
 17
@@ -1208,9 +1234,15 @@ a
 3
 4
 SELECT t1.a FROM t1 ORDER BY (SELECT SUM(t2.a), t2.a FROM t2);
-ERROR 42000: Mixing of GROUP columns (MIN(),MAX(),COUNT(),...) with no GROUP columns is illegal if there is no GROUP BY clause
+ERROR 21000: Operand should contain 1 column(s)
 SELECT t1.a FROM t1 ORDER BY (SELECT SUM(t2.a) FROM t2 ORDER BY t2.a);
-ERROR 42000: Mixing of GROUP columns (MIN(),MAX(),COUNT(),...) with no GROUP columns is illegal if there is no GROUP BY clause
+a
+3
+2
+3
+2
+3
+4
 SELECT t1.a FROM t1 ORDER BY (SELECT t2.a FROM t2 ORDER BY SUM(t2.b) LIMIT 1);
 ERROR HY000: Expression #1 of ORDER BY contains aggregate function and applies to the result of a non-aggregated query
 SELECT t1.a FROM t1
@@ -1248,19 +1280,22 @@ HAVING (SELECT AVG(SUM(t1.b) + t2.b) FROM t2 ORDER BY SUM(t2.a) LIMIT 1);
 1
 SELECT 1 FROM t1 GROUP BY t1.a
 HAVING (SELECT AVG(t1.b + t2.b) FROM t2 ORDER BY SUM(t2.a) LIMIT 1);
-1
-1
-1
-1
+ERROR 42000: Expression #1 of HAVING clause is not in GROUP BY clause and contains nonaggregated column 'test.t1.b' which is not functionally dependent on columns in GROUP BY clause; this is incompatible with sql_mode=only_full_group_by
 SELECT 1 FROM t1 GROUP BY t1.a
 HAVING (SELECT AVG(SUM(t1.b) + 1) FROM t2 ORDER BY t2.a LIMIT 1);
-ERROR 42000: Mixing of GROUP columns (MIN(),MAX(),COUNT(),...) with no GROUP columns is illegal if there is no GROUP BY clause
+1
+1
+1
+1
 SELECT 1 FROM t1 GROUP BY t1.a
 HAVING (SELECT AVG(SUM(t1.b) + t2.b) FROM t2 ORDER BY t2.a LIMIT 1);
-ERROR 42000: Mixing of GROUP columns (MIN(),MAX(),COUNT(),...) with no GROUP columns is illegal if there is no GROUP BY clause
+1
+1
+1
+1
 SELECT 1 FROM t1 GROUP BY t1.a
 HAVING (SELECT AVG(t1.b + t2.b) FROM t2 ORDER BY t2.a LIMIT 1);
-ERROR 42000: Mixing of GROUP columns (MIN(),MAX(),COUNT(),...) with no GROUP columns is illegal if there is no GROUP BY clause
+ERROR 42000: Expression #1 of HAVING clause is not in GROUP BY clause and contains nonaggregated column 'test.t1.b' which is not functionally dependent on columns in GROUP BY clause; this is incompatible with sql_mode=only_full_group_by
 SELECT t1.a FROM t1 
 WHERE t1.a = (SELECT t2.a FROM t2 GROUP BY t2.a
 ORDER BY SUM(t2.b), SUM(t1.b) LIMIT 1);
@@ -1790,7 +1825,7 @@ c	(SELECT a FROM t1 WHERE b = c)
 SELECT b c, (SELECT a FROM t1 WHERE b = c)
 FROM t1 
 HAVING b = 10;
-ERROR 42000: Non-grouping field 'b' is used in HAVING clause
+c	(SELECT a FROM t1 WHERE b = c)
 SELECT MAX(b) c, (SELECT a FROM t1 WHERE b = c)
 FROM t1 
 HAVING b = 10;
@@ -2082,6 +2117,8 @@ SET BIG_TABLES=0;
 #
 # Bug#49771: Incorrect MIN (date) when minimum value is 0000-00-00
 #
+SET @save_sql_mode=@@sql_mode;
+SET @@sql_mode='ONLY_FULL_GROUP_BY';
 CREATE TABLE t1 (f1 int, f2 DATE);
 INSERT INTO t1 VALUES (1,'2004-04-19'), (1,'0000-00-00'), (1,'2004-04-18'),
 (2,'2004-05-19'), (2,'0001-01-01'), (3,'2004-04-10');
@@ -2107,6 +2144,7 @@ f1	MIN(f2)	MAX(f2)
 3	05:45:11	10:55:12
 4	00:25:00	00:25:00
 DROP TABLE t1;
+SET sql_mode=@save_sql_mode;
 #End of test#49771
 #
 # Bug #58782
@@ -2454,6 +2492,8 @@ NULL
 DROP TABLE t1,t2;
 # Bug 11923239 - ERROR WITH CORRELATED SUBQUERY IN VIEW WITH
 # ONLY_FULL_GROUP_BY SQL MODE
+SET @old_sql_mode = @@sql_mode;
+SET sql_mode='';
 CREATE TABLE t1 (
 pk INT,
 col_int_key INT,
@@ -2515,7 +2555,6 @@ GROUP BY field1, field2;
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `alias1`.`col_int_nokey` AS `field1`,(select `alias2`.`col_int_key` from `t1` `alias2` where (`alias1`.`col_varchar_key` <= `alias1`.`col_varchar_nokey`)) AS `field2` from `t1` `alias1` group by `field1`,`field2`	latin1	latin1_swedish_ci
-SET @old_sql_mode = @@sql_mode;
 SET @@sql_mode='ONLY_FULL_GROUP_BY';
 SELECT alias1.col_int_nokey AS field1,
 (SELECT alias2.col_int_key
@@ -2555,7 +2594,7 @@ GROUP BY field1,
 FROM t1 AS alias2
 WHERE alias1.col_varchar_key <= alias1.col_varchar_nokey
 );
-ERROR 42000: 'test.alias1.col_varchar_key' isn't in GROUP BY
+ERROR 42000: Expression #2 of SELECT list is not in GROUP BY clause and contains nonaggregated column 'test.alias1.col_varchar_key' which is not functionally dependent on columns in GROUP BY clause; this is incompatible with sql_mode=only_full_group_by
 DROP VIEW v1;
 SET @@sql_mode = @old_sql_mode;
 # Verify that if an alias is used in GROUP BY/ORDER BY it
@@ -2691,19 +2730,19 @@ SET @old_sql_mode = @@sql_mode;
 SET @@sql_mode='ONLY_FULL_GROUP_BY';
 create table t1(a int, b int);
 select a from t1 group by b;
-ERROR 42000: 'test.t1.a' isn't in GROUP BY
+ERROR 42000: Expression #1 of SELECT list is not in GROUP BY clause and contains nonaggregated column 'test.t1.a' which is not functionally dependent on columns in GROUP BY clause; this is incompatible with sql_mode=only_full_group_by
 select 1 from t1 group by b;
 1
 select 1 from t1 group by b order by a;
-ERROR 42000: 'test.t1.a' isn't in GROUP BY
+ERROR 42000: Expression #1 of ORDER BY clause is not in GROUP BY clause and contains nonaggregated column 'test.t1.a' which is not functionally dependent on columns in GROUP BY clause; this is incompatible with sql_mode=only_full_group_by
 select a from t1 group by b order by b;
-ERROR 42000: 'test.t1.a' isn't in GROUP BY
+ERROR 42000: Expression #1 of SELECT list is not in GROUP BY clause and contains nonaggregated column 'test.t1.a' which is not functionally dependent on columns in GROUP BY clause; this is incompatible with sql_mode=only_full_group_by
 drop table t1;
 CREATE TABLE t1 (pk int, i1 int,  v1 varchar(1), primary key (pk));
 INSERT INTO t1 VALUES (0,2,'b'),(1,4,'a'),(2,0,'a'),(3,7,'b'),(4,7,'c');
 SELECT a1.v1,a2.v1 FROM t1 AS a1 JOIN t1 AS a2 ON a2.pk = a1.i1 group by
 a1.v1,a2.v1 ORDER BY a1.i1,a2.pk,a2.v1 ASC;
-ERROR 42000: 'test.a2.pk' isn't in GROUP BY
+ERROR 42000: Expression #1 of ORDER BY clause is not in GROUP BY clause and contains nonaggregated column 'test.a1.i1' which is not functionally dependent on columns in GROUP BY clause; this is incompatible with sql_mode=only_full_group_by
 SELECT a1.v1,a2.v1 FROM t1 AS a1 JOIN t1 AS a2 ON a2.pk = a1.i1 group by
 a1.v1,a2.v1 ORDER BY             a2.v1 ASC;
 v1	v1
@@ -2722,7 +2761,7 @@ NULL, PRIMARY KEY (pk), KEY col_int_key (col_int_key), KEY col_varchar_key
 SELECT SUM(alias2.col_varchar_nokey) , alias2.pk AS field2 FROM t1 AS alias1
 STRAIGHT_JOIN t2 AS alias2 ON alias2.pk = alias1.col_int_key WHERE alias1.pk
 group by field2 ORDER BY alias1.col_int_key,alias2.pk ;
-ERROR 42000: 'test.alias1.col_int_key' isn't in GROUP BY
+SUM(alias2.col_varchar_nokey)	field2
 DROP TABLE t1,t2;
 CREATE TABLE t1 (pk int(11) NOT NULL AUTO_INCREMENT, col_int_key int(11) NOT
 NULL, col_datetime_key datetime NOT NULL, col_varchar_key varchar(1) NOT
@@ -2740,14 +2779,14 @@ FROM t1 AS alias1
 RIGHT JOIN t2 AS alias2 ON alias2.pk = alias1.col_int_key
 GROUP BY field1 , field4
 ORDER BY alias1.col_datetime_key ;
-ERROR 42000: 'test.alias1.col_datetime_key' isn't in GROUP BY
+ERROR 42000: Expression #1 of ORDER BY clause is not in GROUP BY clause and contains nonaggregated column 'test.alias1.col_datetime_key' which is not functionally dependent on columns in GROUP BY clause; this is incompatible with sql_mode=only_full_group_by
 DROP TABLE t1,t2;
 create table t1 (a int, b int);
 select count(*) > 3 from t1 group by a order by b;
-ERROR 42000: 'test.t1.b' isn't in GROUP BY
+ERROR 42000: Expression #1 of ORDER BY clause is not in GROUP BY clause and contains nonaggregated column 'test.t1.b' which is not functionally dependent on columns in GROUP BY clause; this is incompatible with sql_mode=only_full_group_by
 create table t2 (a int, b int);
 select a from t2 group by a order by (select a from t1 order by t2.b);
-ERROR 42000: 'test.t2.b' isn't in GROUP BY
+ERROR 42000: Expression #1 of ORDER BY clause is not in GROUP BY clause and contains nonaggregated column 'test.t2.b' which is not functionally dependent on columns in GROUP BY clause; this is incompatible with sql_mode=only_full_group_by
 SET @@sql_mode = @old_sql_mode;
 DROP TABLE t1,t2;
 create table t1 (branch varchar(40), id int);
@@ -2761,11 +2800,11 @@ branch	count(*)/max(id)
 SET @@sql_mode='ONLY_FULL_GROUP_BY';
 select count(*) from t1 group by branch having
 branch<>'mumbai' order by id desc,branch desc limit 100;
-ERROR 42000: 'test.t1.id' isn't in GROUP BY
+ERROR 42000: Expression #1 of ORDER BY clause is not in GROUP BY clause and contains nonaggregated column 'test.t1.id' which is not functionally dependent on columns in GROUP BY clause; this is incompatible with sql_mode=only_full_group_by
 select branch, count(*)/max(id) from t1 group by branch
 having (branch<>'mumbai' OR count(*)<2)
 order by id desc,branch desc limit 100;
-ERROR 42000: 'test.t1.id' isn't in GROUP BY
+ERROR 42000: Expression #1 of ORDER BY clause is not in GROUP BY clause and contains nonaggregated column 'test.t1.id' which is not functionally dependent on columns in GROUP BY clause; this is incompatible with sql_mode=only_full_group_by
 DROP TABLE t1;
 create table t1 (a int, b int);
 insert into t1 values (1, 2), (1, 3), (null, null);
@@ -3005,3 +3044,68 @@ SELECT 1 FROM r GROUP BY MAKE_SET(1,c) WITH ROLLUP;
 1
 1
 DROP TABLE r;
+#
+# Bug #18921626 	DEBUG CRASH IN PLAN_CHANGE_WATCHDOG::~PLAN_CHANGE_WATCHDOG AT SQL_OPTIMIZER.CC
+#
+SET @old_sql_mode = @@sql_mode;
+set sql_mode='';
+CREATE TABLE AA (
+col_varchar_1024_latin1 varchar(1024)  CHARACTER SET latin1,
+pk integer auto_increment,
+col_varchar_1024_utf8_key varchar(1024)  CHARACTER SET utf8,
+col_varchar_1024_latin1_key varchar(1024)  CHARACTER SET latin1,
+col_varchar_10_utf8_key varchar(10)  CHARACTER SET utf8,
+col_varchar_10_latin1_key varchar(10)  CHARACTER SET latin1,
+col_int int,
+col_varchar_10_latin1 varchar(10)  CHARACTER SET latin1,
+col_varchar_10_utf8 varchar(10)  CHARACTER SET utf8,
+col_varchar_1024_utf8 varchar(1024)  CHARACTER SET utf8,
+col_int_key int,
+primary key (pk),
+key (col_varchar_1024_utf8_key ),
+key (col_varchar_1024_latin1_key ),
+key (col_varchar_10_utf8_key ),
+key (col_varchar_10_latin1_key ),
+key (col_int_key )) ENGINE=innodb;
+Warnings:
+Warning	1071	Specified key was too long; max key length is 767 bytes
+Warning	1071	Specified key was too long; max key length is 767 bytes
+CREATE OR REPLACE VIEW view_AA AS SELECT * FROM AA;
+CREATE TABLE B (
+col_varchar_1024_latin1_key varchar(1024)  CHARACTER SET latin1,
+col_varchar_10_latin1 varchar(10)  CHARACTER SET latin1,
+col_varchar_10_utf8_key varchar(10)  CHARACTER SET utf8,
+col_int_key int,
+col_varchar_1024_latin1 varchar(1024)  CHARACTER SET latin1,
+col_varchar_1024_utf8_key varchar(1024)  CHARACTER SET utf8,
+col_varchar_10_utf8 varchar(10)  CHARACTER SET utf8,
+col_int int,
+pk integer auto_increment,
+col_varchar_10_latin1_key varchar(10)  CHARACTER SET latin1,
+col_varchar_1024_utf8 varchar(1024)  CHARACTER SET utf8,
+key (col_varchar_1024_latin1_key ),
+key (col_varchar_10_utf8_key ),
+key (col_int_key ),
+key (col_varchar_1024_utf8_key ),
+primary key (pk),
+key (col_varchar_10_latin1_key )) ENGINE=myisam;
+Warnings:
+Warning	1071	Specified key was too long; max key length is 1000 bytes
+Warning	1071	Specified key was too long; max key length is 1000 bytes
+INSERT INTO B VALUES  ('at', repeat('a',1000), 'the',
+-1622540288, 'as', repeat('a',1000), 'want', 1810890752, NULL, 'v', 'just');
+Warnings:
+Warning	1265	Data truncated for column 'col_varchar_10_latin1' at row 1
+SELECT
+DISTINCT table1 . pk AS field1
+FROM  view_AA AS table1  LEFT  JOIN B AS table2
+ON  table1 . col_varchar_10_latin1_key =  table2 .
+col_varchar_1024_latin1_key
+WHERE ( ( table2 . pk > table1 . col_int_key AND table1 . pk NOT
+BETWEEN 3 AND ( 3 + 3 ) ) AND table2 . pk <> 6 )
+GROUP BY table1 . pk;
+field1
+DROP TABLE AA,B;
+DROP VIEW view_AA;
+SET @@sql_mode = @old_sql_mode;
+SET sql_mode = default;

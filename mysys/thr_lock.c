@@ -332,9 +332,8 @@ void thr_lock_delete(THR_LOCK *lock)
 
 void thr_lock_info_init(THR_LOCK_INFO *info)
 {
-  struct st_my_thread_var *tmp= my_thread_var;
   info->thread=    pthread_self();
-  info->thread_id= tmp->id;
+  info->thread_id= mysys_thread_var()->id;
 }
 
 	/* Initialize a lock instance */
@@ -367,7 +366,7 @@ static enum enum_thr_lock_result
 wait_for_lock(struct st_lock_list *wait, THR_LOCK_DATA *data,
               my_bool in_wait_list, ulong lock_wait_timeout)
 {
-  struct st_my_thread_var *thread_var= my_thread_var;
+  struct st_my_thread_var *thread_var= mysys_thread_var();
   mysql_cond_t *cond= &thread_var->suspend;
   struct timespec wait_timeout;
   enum enum_thr_lock_result result= THR_LOCK_ABORTED;
@@ -427,7 +426,7 @@ wait_for_lock(struct st_lock_list *wait, THR_LOCK_DATA *data,
   if ((!thread_var->abort || in_wait_list) && before_lock_wait)
     (*before_lock_wait)();
 
-  set_timespec(wait_timeout, lock_wait_timeout);
+  set_timespec(&wait_timeout, lock_wait_timeout);
   while (!thread_var->abort || in_wait_list)
   {
     int rc= mysql_cond_timedwait(cond, &data->lock->mutex, &wait_timeout);
@@ -524,7 +523,7 @@ thr_lock(THR_LOCK_DATA *data, THR_LOCK_INFO *owner,
                               PSI_TABLE_LOCK, lock_type);
 
   mysql_mutex_lock(&lock->mutex);
-  DBUG_PRINT("lock",("data: 0x%lx  thread: 0x%lx  lock: 0x%lx  type: %d",
+  DBUG_PRINT("lock",("data: 0x%lx  thread: 0x%x  lock: 0x%lx  type: %d",
                      (long) data, data->owner->thread_id,
                      (long) lock, (int) lock_type));
   check_locks(lock,(uint) lock_type <= (uint) TL_READ_NO_INSERT ?
@@ -562,7 +561,7 @@ thr_lock(THR_LOCK_DATA *data, THR_LOCK_INFO *owner,
         See Bug#42147 for more information.
       */
 
-      DBUG_PRINT("lock",("write locked 1 by thread: 0x%lx",
+      DBUG_PRINT("lock",("write locked 1 by thread: 0x%x",
                          lock->write.data->owner->thread_id));
       if (thr_lock_owner_equal(data->owner, lock->write.data->owner) ||
           (lock->write.data->type < TL_WRITE_CONCURRENT_INSERT) ||
@@ -685,7 +684,7 @@ thr_lock(THR_LOCK_DATA *data, THR_LOCK_INFO *owner,
 	locks_immediate++;
 	goto end;
       }
-      DBUG_PRINT("lock",("write locked 2 by thread: 0x%lx",
+      DBUG_PRINT("lock",("write locked 2 by thread: 0x%x",
 			 lock->write.data->owner->thread_id));
     }
     else
@@ -721,7 +720,7 @@ thr_lock(THR_LOCK_DATA *data, THR_LOCK_INFO *owner,
 	  goto end;
 	}
       }
-      DBUG_PRINT("lock",("write locked 3 by thread: 0x%lx  type: %d",
+      DBUG_PRINT("lock",("write locked 3 by thread: 0x%x  type: %d",
 			 lock->read.data->owner->thread_id, data->type));
     }
     wait_queue= &lock->write_wait;
@@ -775,7 +774,7 @@ static inline void free_all_read_locks(THR_LOCK *lock,
       lock->read_no_write_count++;
     }      
     /* purecov: begin inspected */
-    DBUG_PRINT("lock",("giving read lock to thread: 0x%lx",
+    DBUG_PRINT("lock",("giving read lock to thread: 0x%x",
 		       data->owner->thread_id));
     /* purecov: end */
     data->cond=0;				/* Mark thread free */
@@ -794,7 +793,7 @@ void thr_unlock(THR_LOCK_DATA *data)
   THR_LOCK *lock=data->lock;
   enum thr_lock_type lock_type=data->type;
   DBUG_ENTER("thr_unlock");
-  DBUG_PRINT("lock",("data: 0x%lx  thread: 0x%lx  lock: 0x%lx",
+  DBUG_PRINT("lock",("data: 0x%lx  thread: 0x%x  lock: 0x%lx",
                      (long) data, data->owner->thread_id, (long) lock));
   mysql_mutex_lock(&lock->mutex);
   check_locks(lock,"start of release lock",0);
@@ -876,7 +875,7 @@ static void wake_up_waiters(THR_LOCK *lock)
 	      (*lock->check_status)(data->status_param))
 	    data->type=TL_WRITE;			/* Upgrade lock */
           /* purecov: begin inspected */
-	  DBUG_PRINT("lock",("giving write lock of type %d to thread: 0x%lx",
+	  DBUG_PRINT("lock",("giving write lock of type %d to thread: 0x%x",
 			     data->type, data->owner->thread_id));
           /* purecov: end */
 	  {
@@ -1002,8 +1001,9 @@ thr_multi_lock(THR_LOCK_DATA **data, uint count, THR_LOCK_INFO *owner,
     }
     DEBUG_SYNC_C("thr_multi_lock_after_thr_lock");
 #ifdef MAIN
-    printf("Thread: %s  Got lock: 0x%lx  type: %d\n",my_thread_name(),
-	   (long) pos[0]->lock, pos[0]->type); fflush(stdout);
+    printf("Thread: T@%u  Got lock: 0x%lx  type: %d\n",
+           mysys_thread_var()->id, (long) pos[0]->lock, pos[0]->type);
+    fflush(stdout);
 #endif
   }
   thr_lock_merge_status(data, count);
@@ -1095,15 +1095,15 @@ void thr_multi_unlock(THR_LOCK_DATA **data,uint count)
   for (pos=data,end=data+count; pos < end ; pos++)
   {
 #ifdef MAIN
-    printf("Thread: %s  Rel lock: 0x%lx  type: %d\n",
-	   my_thread_name(), (long) pos[0]->lock, pos[0]->type);
+    printf("Thread: T@%u  Rel lock: 0x%lx  type: %d\n",
+	   mysys_thread_var()->id, (long) pos[0]->lock, pos[0]->type);
     fflush(stdout);
 #endif
     if ((*pos)->type != TL_UNLOCK)
       thr_unlock(*pos);
     else
     {
-      DBUG_PRINT("lock",("Free lock: data: 0x%lx  thread: 0x%lx  lock: 0x%lx",
+      DBUG_PRINT("lock",("Free lock: data: 0x%lx  thread: 0x%x  lock: 0x%lx",
                          (long) *pos, (*pos)->owner->thread_id,
                          (long) (*pos)->lock));
     }
@@ -1254,7 +1254,7 @@ static void thr_print_lock(const char* name,struct st_lock_list *list)
     prev= &list->data;
     for (data=list->data; data && count++ < MAX_LOCKS ; data=data->next)
     {
-      printf("0x%lx (%lu:%d); ", (ulong) data, data->owner->thread_id,
+      printf("0x%lx (%u:%d); ", (ulong) data, data->owner->thread_id,
              (int) data->type);
       if (data->prev != prev)
 	printf("\nWarning: prev didn't point at previous lock\n");
@@ -1393,7 +1393,8 @@ static void *test_thread(void *arg)
   THR_LOCK_DATA *multi_locks[MAX_LOCK_COUNT];
   my_thread_init();
 
-  printf("Thread %s (%d) started\n",my_thread_name(),param); fflush(stdout);
+  printf("Thread T@%u (%d) started\n", mysys_thread_var()->id, param);
+  fflush(stdout);
 
 
   thr_lock_info_init(&lock_info);
@@ -1425,7 +1426,8 @@ static void *test_thread(void *arg)
     thr_multi_unlock(multi_locks,lock_counts[param]);
   }
 
-  printf("Thread %s (%d) ended\n",my_thread_name(),param); fflush(stdout);
+  printf("Thread T@%u (%d) ended\n", mysys_thread_var()->id, param);
+  fflush(stdout);
   thr_print_locks();
   mysql_mutex_lock(&LOCK_thread_count);
   thread_count--;
@@ -1445,7 +1447,7 @@ int main(int argc __attribute__((unused)),char **argv __attribute__((unused)))
   if (argc > 1 && argv[1][0] == '-' && argv[1][1] == '#')
     DBUG_PUSH(argv[1]+2);
 
-  printf("Main thread: %s\n",my_thread_name());
+  printf("Main thread: T@%u\n", mysys_thread_var()->id);
 
   if ((error= mysql_cond_init(0, &COND_thread_count)))
   {
@@ -1477,14 +1479,12 @@ int main(int argc __attribute__((unused)),char **argv __attribute__((unused)))
                       "pthread_attr_setdetachstate", errno);
     exit(1);
   }
-#ifndef pthread_attr_setstacksize		/* void return value */
   if ((error=pthread_attr_setstacksize(&thr_attr,65536L)))
   {
     my_message_stderr(0, "Got error %d from "
                       "pthread_attr_setstacksize", error);
     exit(1);
   }
-#endif
   for (i=0 ; i < (int) array_elements(lock_counts) ; i++)
   {
     param=(int*) malloc(sizeof(int));

@@ -1,6 +1,4 @@
 set global innodb_file_per_table = on;
-call mtr.add_suppression("Have you deleted or moved.*");
-call mtr.add_suppression("Failed to open truncate log file");
 "1. Test some basic dml action involving truncate of table."
 use test;
 set global innodb_file_per_table = 0;
@@ -891,6 +889,7 @@ count(*)
 drop table t1;
 drop procedure populate_t1;
 use test;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 create procedure populate_t1()
 begin
 declare i int default 1;
@@ -912,6 +911,7 @@ commit;
 select count(*) from t1;
 count(*)
 200
+SET sql_mode = default;
 set session debug = "+d,ib_trunc_crash_before_log_checkpoint";
 truncate table t1;
 ERROR HY000: Lost connection to MySQL server during query
@@ -1061,7 +1061,7 @@ i	j
 3	3
 set session debug="+d,ib_err_trunc_oom_logging";
 truncate table t;
-ERROR HY000: Got error -1 from storage engine
+ERROR HY000: Got error 168 from storage engine
 set session debug="-d,ib_err_trunc_oom_logging";
 select * from t;
 i	j
@@ -1084,6 +1084,7 @@ i	j
 2	2
 3	3
 # Restart the MySQL server
+# restart
 select * from t;
 i	j
 1	1

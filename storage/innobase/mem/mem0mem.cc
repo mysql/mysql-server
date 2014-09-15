@@ -38,7 +38,6 @@ Created 6/9/1994 Heikki Tuuri
 @param[in]	heap,	memory heap where string is allocated
 @param[in]	str)	string to be copied
 @return own: a copy of the string */
-
 char*
 mem_heap_strdup(
 	mem_heap_t*	heap,
@@ -50,7 +49,6 @@ mem_heap_strdup(
 /**********************************************************************//**
 Duplicate a block of data, allocated from a memory heap.
 @return own: a copy of the data */
-
 void*
 mem_heap_dup(
 /*=========*/
@@ -64,7 +62,6 @@ mem_heap_dup(
 /**********************************************************************//**
 Concatenate two strings and return the result, using a memory heap.
 @return own: the result */
-
 char*
 mem_heap_strcat(
 /*============*/
@@ -202,7 +199,6 @@ formatted string from the given heap. This supports a very limited set of
 the printf syntax: types 's' and 'u' and length modifier 'l' (which is
 required for the 'u' type).
 @return heap-allocated formatted string */
-
 char*
 mem_heap_printf(
 /*============*/
@@ -234,7 +230,6 @@ mem_heap_printf(
 Checks a memory heap for consistency, prints the contents if any error
 is detected. A fatal error is logged if an error is detected.
 @param[in]	heap	Memory heap to validate. */
-
 void
 mem_heap_validate(
 	const mem_heap_t*	heap)
@@ -269,7 +264,6 @@ mem_heap_validate(
 Creates a memory heap block where data can be allocated.
 @return own: memory heap block, NULL if did not succeed (only possible
 for MEM_HEAP_BTR_SEARCH type heaps) */
-
 mem_block_t*
 mem_heap_create_block_func(
 /*=======================*/
@@ -305,7 +299,7 @@ mem_heap_create_block_func(
 
 		ut_ad(type == MEM_HEAP_DYNAMIC || n <= MEM_MAX_ALLOC_IN_BUF);
 
-		block = static_cast<mem_block_t*>(ut_malloc(len));
+		block = static_cast<mem_block_t*>(ut_malloc_nokey(len));
 	} else {
 		len = UNIV_PAGE_SIZE;
 
@@ -329,15 +323,15 @@ mem_heap_create_block_func(
 	}
 
 	if (block == NULL) {
-		ib_logf(IB_LOG_LEVEL_FATAL,
-			"Unable to allocate memory of size %lu.", len);
+		ib::fatal() << "Unable to allocate memory of size "
+			<< len << ".";
 	}
 
 	block->buf_block = buf_block;
 	block->free_block = NULL;
 #else /* !UNIV_HOTBACKUP */
 	len = MEM_BLOCK_HEADER_SIZE + MEM_SPACE_NEEDED(n);
-	block = ut_malloc(len);
+	block = ut_malloc_nokey(len);
 	ut_ad(block);
 #endif /* !UNIV_HOTBACKUP */
 
@@ -374,7 +368,6 @@ mem_heap_create_block_func(
 Adds a new block to a memory heap.
 @return created block, NULL if did not succeed (only possible for
 MEM_HEAP_BTR_SEARCH type heaps) */
-
 mem_block_t*
 mem_heap_add_block(
 /*===============*/
@@ -427,7 +420,6 @@ mem_heap_add_block(
 
 /******************************************************************//**
 Frees a block from a memory heap. */
-
 void
 mem_heap_block_free(
 /*================*/
@@ -473,7 +465,6 @@ mem_heap_block_free(
 #ifndef UNIV_HOTBACKUP
 /******************************************************************//**
 Frees the free_block field from a memory heap. */
-
 void
 mem_heap_free_block_free(
 /*=====================*/

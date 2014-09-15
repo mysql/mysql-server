@@ -112,7 +112,9 @@ INSERT INTO t2 VALUES (7,3,1000,2000,0,0,746294,937484,'yes');
 # right table, when selecting on an id that does not exist in the right table
 # t2 but this select returns an empty set!!!!
 SELECT t1.usr_id,t1.uniq_id,t1.increment,t2.usr2_id,t2.c_amount,t2.max FROM t1 LEFT JOIN t2 ON t2.id = t1.uniq_id WHERE t1.uniq_id = 4 ORDER BY t2.c_amount;
+--source include/turn_off_only_full_group_by.inc
 SELECT t1.usr_id,t1.uniq_id,t1.increment,t2.usr2_id,t2.c_amount,t2.max FROM t1 LEFT JOIN t2 ON t2.id = t1.uniq_id WHERE t1.uniq_id = 4 GROUP BY t2.c_amount;
+--source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
 # Removing the ORDER BY works:
 SELECT t1.usr_id,t1.uniq_id,t1.increment,t2.usr2_id,t2.c_amount,t2.max FROM t1 LEFT JOIN t2 ON t2.id = t1.uniq_id WHERE t1.uniq_id = 4;
 
@@ -371,16 +373,19 @@ CREATE TABLE t2 (
   KEY pcode (pcode)
 );
 INSERT INTO t2 VALUES ('kvw2000'),('kvw2000'),('kvw2000'),('kvw2000'),('kvw2000'),('kvw2000'),('kvw2000'),('kvw2000'),('kvw2000'),('kvw2000'),('kvw2000'),('kvw2000'),('kvw2000'),('kvw2000'),('kvw2000'),('kvw2000'),('kvw2000'),('kvw2000'),('kvw2000'),('kvw2000'),('kvw2000'),('kvw2000'),('kvw2000'),('kvw2000'),('kvw2000'),('kvw2000'),('kvw3000'),('kvw3000'),('kvw3000'),('kvw3000'),('kvw3000'),('kvw3000'),('kvw3000'),('kvw3000'),('kvw3000'),('kvw3000'),('kvw3000'),('kvw3000'),('kvw3000'),('kvw3000'),('kvw3000'),('kvw3000'),('kvw3000'),('kvw3000'),('kvw3000'),('kvw3000'),('kvw3000'),('kvw3000'),('kvw3000'),('kvw3000'),('kvw3000'),('kvw3000'),('kvw3000'),('kvw3000'),('kvw3000'),('kvw3000'),('kvw3000'),('kvw3000'),('kvw3000'),('kvw3000'),('kvw3000'),('kvw3000'),('kvw3500'),('kvw3500'),('kvw3500'),('kvw3500'),('kvw3500'),('kvw3500'),('kvw3500'),('kvw3500'),('kvw3500'),('kvw3500'),('kvw3500'),('kvw3500'),('kvw3500'),('kvw3500'),('kvw3500'),('kvw3500'),('kvw3500'),('kvw3500'),('kvw3500'),('kvw3500'),('kvw3500'),('kvw3500'),('kvw3500'),('kvw3500'),('kvw3500'),('kvw3500'),('kvw6000'),('kvw6000'),('kld2000');
+--source include/turn_off_only_full_group_by.inc
 
 SELECT t1.pcode, IF(ISNULL(t2.pcode), 0, COUNT(*)) AS count FROM t1
 LEFT JOIN t2 ON t1.pcode = t2.pcode GROUP BY t1.pcode;
 SELECT SQL_BIG_RESULT t1.pcode, IF(ISNULL(t2.pcode), 0, COUNT(*)) AS count FROM t1 LEFT JOIN t2 ON t1.pcode = t2.pcode GROUP BY t1.pcode;
+
+--source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
 drop table t1,t2;
 
 #
 # Another left join problem
 #
-
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 CREATE TABLE t1 (
   id int(11),
   pid int(11),
@@ -410,7 +415,7 @@ INSERT INTO t2 VALUES (1,1);
 explain SELECT * from t1 left join t2 on t1.id=t2.id where t2.id IS NULL;
 SELECT * from t1 left join t2 on t1.id=t2.id where t2.id IS NULL;
 drop table t1,t2;
-
+SET sql_mode = default;
 #
 # Test problem with using key_column= constant in ON and WHERE
 #
@@ -794,6 +799,8 @@ INSERT INTO t2 VALUES (2), (3);
 
 CREATE VIEW v1 AS SELECT a FROM t1 JOIN t2 ON t1.a=t2.b;
 CREATE VIEW v2 AS SELECT b FROM t2 JOIN t1 ON t2.b=t1.a;
+
+# We see the functional dependency implied by ON:
 
 SELECT v1.a, v2. b 
   FROM v1 LEFT OUTER JOIN v2 ON (v1.a=v2.b) AND (v1.a >= 3)
@@ -1570,3 +1577,17 @@ CREATE TABLE t1(a INT) ENGINE=INNODB;
 SET @a:=(SELECT ROW(1, 2)=
                 ROW((SELECT 1 FROM t1 LEFT JOIN t1 t2 ON 1), 1));
 DROP TABLE t1;
+
+--echo #
+--echo # Coverage for "unique row not found"
+--echo #
+
+create table t1(a int, unique key(a)) engine=innodb;
+insert into t1 values(1);
+let $query=
+select * from t1 left join t1 as t2
+              on t2.a=12
+         where t1.a=1;
+eval explain $query;
+eval $query;
+drop table t1;

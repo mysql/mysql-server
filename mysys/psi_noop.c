@@ -199,6 +199,11 @@ static void set_thread_id_noop(PSI_thread *thread NNN, ulonglong id NNN)
   return;
 }
 
+static void set_thread_THD_noop(PSI_thread *thread NNN, THD *thd NNN)
+{
+  return;
+}
+
 static PSI_thread*
 get_thread_noop(void NNN)
 {
@@ -382,7 +387,8 @@ start_table_io_wait_noop(struct PSI_table_locker_state_v1 *state NNN,
   return NULL;
 }
 
-static void end_table_io_wait_noop(PSI_table_locker* locker NNN)
+static void end_table_io_wait_noop(PSI_table_locker* locker NNN,
+                                   ulonglong numrows NNN)
 {
   return;
 }
@@ -874,6 +880,7 @@ static PSI PSI_noop=
   spawn_thread_noop,
   new_thread_noop,
   set_thread_id_noop,
+  set_thread_THD_noop,
   get_thread_noop,
   set_thread_user_noop,
   set_thread_user_host_noop,

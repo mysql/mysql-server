@@ -1,14 +1,13 @@
-#Turn on the geometry data print.
-SET SESSION debug="+d,row_print_geometry_data";
 #Confirming the storage engine
 SHOW VARIABLES LIKE '%engine%';
 Variable_name	Value
 default_storage_engine	MyISAM
 default_tmp_storage_engine	MyISAM
+internal_tmp_disk_storage_engine	MYISAM
 #Creating the spatial Geometry object
 USE test;
 DROP TABLE IF EXISTS gis_geometrycollection;
-CREATE TABLE gis_geometrycollection  (fid INTEGER NOT NULL PRIMARY KEY, g GEOMETRYCOLLECTION);
+CREATE TABLE gis_geometrycollection (fid INTEGER NOT NULL PRIMARY KEY, g GEOMETRYCOLLECTION);
 #INSERT Points and MultiPoints to the Geometry Collection class
 INSERT INTO gis_geometrycollection VALUES
 (101, PointFromText('POINT(10 10)')),
@@ -90,16 +89,16 @@ count(distinct(g))
 24
 select count(distinct(astext(g))) from gis_geometrycollection;
 count(distinct(astext(g)))
-24
+23
 #Displaying the inserted spatial Data
 Select fid, AsText(g) from gis_geometrycollection;
 fid	AsText(g)
 101	POINT(10 10)
 102	POINT(7895647.2837465275 -0.112323454345)
 103	POINT(0 0)
-104	POINT(-0 -0)
+104	POINT(0 0)
 105	POINT(5.49 -6.49)
-106	POINT(-1 -0)
+106	POINT(-1 0)
 107	POINT(1e308 1e308)
 201	LINESTRING(0 0,0 10,10 0)
 202	LINESTRING(0 0,0 0,0 0)
@@ -525,34 +524,9 @@ Select Dimension(0x0000000007000000030000000001402400000000000040240000000000000
 ERROR HY000: Geometry byte string must be little endian.
 #Checking the Envelope for the geometrycollection class 
 select fid,AsText(Envelope(g)) from gis_geometrycollection where g is not NULL;
-fid	AsText(Envelope(g))
-101	POLYGON((10 10,10 10,10 10,10 10,10 10))
-102	POLYGON((7895647.2837465275 -0.112323454345,7895647.2837465275 -0.112323454345,7895647.2837465275 -0.112323454345,7895647.2837465275 -0.112323454345,7895647.2837465275 -0.112323454345))
-103	POLYGON((0 0,0 0,0 0,0 0,0 0))
-104	POLYGON((-0 -0,-0 -0,-0 -0,-0 -0,-0 -0))
-105	POLYGON((5.49 -6.49,5.49 -6.49,5.49 -6.49,5.49 -6.49,5.49 -6.49))
-106	POLYGON((-1 -0,-1 -0,-1 -0,-1 -0,-1 -0))
-107	POLYGON((1e308 1e308,1e308 1e308,1e308 1e308,1e308 1e308,1e308 1e308))
-201	POLYGON((0 0,10 0,10 10,0 10,0 0))
-202	POLYGON((0 0,0 0,0 0,0 0,0 0))
-203	POLYGON((0 0,1 0,1 1,0 1,0 0))
-204	POLYGON((1 0,10 0,10 1,1 1,1 0))
-301	POLYGON((0 -3,100 -3,100 0,0 0,0 -3))
-302	POLYGON((1 0,100 0,100 100,1 100,1 0))
-303	POLYGON((8 8,8 8,8 8,8 8,8 8))
-304	POLYGON((10 10,20 10,20 20,10 20,10 10))
-305	POLYGON((10 10,20 10,20 20,10 20,10 10))
-306	POLYGON((1 0,100 0,100 100,1 100,1 0))
-307	POLYGON((20 20,80 20,80 80,20 80,20 20))
-308	POLYGON((0 0,5 0,5 0,0 0,0 0))
-309	POLYGON((0 0,5 0,5 0,0 0,0 0))
-701	POLYGON((0 0,10 0,10 10,0 10,0 0))
-702	POLYGON((10 10,20 10,20 20,10 20,10 10))
-703	POLYGON((99.99 -0.1111,200.99 -0.1111,200.99 11111,99.99 11111,99.99 -0.1111))
-704	POLYGON((0 0,84 0,84 50,0 50,0 0))
+ERROR 22023: Invalid GIS data provided to function st_envelope.
 select count(AsText(Envelope(g))) FROM gis_geometrycollection;
-count(AsText(Envelope(g)))
-24
+ERROR 22023: Invalid GIS data provided to function st_envelope.
 #Checking the geometry types of some random Geometry Collections.
 Select AsText(Envelope(GeomCollFromText('GEOMETRYCOLLECTION(POINT(0 0), LINESTRING(0 0,10 10), POLYGON((10 10, 0 10, 0 0, 10 0, 10 10)), POLYGON((10 10, 10 0, 0 0, 0 10, 10 10)))')));
 AsText(Envelope(GeomCollFromText('GEOMETRYCOLLECTION(POINT(0 0), LINESTRING(0 0,10 10), POLYGON((10 10, 0 10, 0 0, 10 0, 10 10)), POLYGON((10 10, 10 0, 0 0, 0 10, 10 10)))')))
@@ -632,7 +606,7 @@ AsText(Envelope(GeometryFromWKB(AsWKB(GeometryCollection(Point(5, 5), Point(0.00
 POLYGON((0.0009 0,9.99999 0,9.99999 9.99999,0.0009 9.99999,0.0009 0))
 Select AsText(Envelope(GeomCollFromText('GEOMETRYCOLLECTION(MULTIPOLYGON(((-0 -0, 10.00001 0, 10.00001 10.00001, 0.000009 9.999999, 0 0),(4 4, 6 4, 6 8, 4 8, 4 4)),((4 4, 6 4, 6 8, 4 8, 4 4))), MULTILINESTRING((0.0009 0.0, 4.999999 4.999999, 9.99999 9.99999),(0 10, 5 5, 10 10)), MULTIPOINT(0 10, 5 5, 10 10))')));
 AsText(Envelope(GeomCollFromText('GEOMETRYCOLLECTION(MULTIPOLYGON(((-0 -0, 10.00001 0, 10.00001 10.00001, 0.000009 9.999999, 0 0),(4 4, 6 4, 6 8, 4 8, 4 4)),((4 4, 6 4, 6 8, 4 8, 4 4))), MULTILINESTRING((0.0009 0.0, 4.999999 4.999999, 9.99999 9.99999),(0 
-POLYGON((-0 -0,10.00001 -0,10.00001 10.00001,-0 10.00001,-0 -0))
+POLYGON((0 0,10.00001 0,10.00001 10.00001,0 10.00001,0 0))
 Select AsText(Envelope(GeometryCollectionFromText('GEOMETRYCOLLECTION(POINT(5 5), LINESTRING(0 0, 10 10), POLYGON((0 0, 10 0, 10 10, 0 10, 0 0)))')));
 AsText(Envelope(GeometryCollectionFromText('GEOMETRYCOLLECTION(POINT(5 5), LINESTRING(0 0, 10 10), POLYGON((0 0, 10 0, 10 10, 0 10, 0 0)))')))
 POLYGON((0 0,10 0,10 10,0 10,0 0))
@@ -894,34 +868,9 @@ Select IsEmpty(0x000000000700000003000000000140240000000000004024000000000000000
 ERROR HY000: Geometry byte string must be little endian.
 #Checking the Area for the geometrycollection class 
 select fid,Area(g) from gis_geometrycollection where g is not NULL;
-fid	Area(g)
-101	0
-102	0
-103	0
-104	0
-105	0
-106	0
-107	0
-201	0
-202	0
-203	0
-204	0
-301	149.5
-302	6300
-303	0
-304	50
-305	0
-306	6300
-307	3600
-308	0
-309	0
-701	0
-702	96
-703	0
-704	4084.5
+ERROR 22023: Invalid GIS data provided to function st_area.
 select count(Area(g)) FROM gis_geometrycollection;
-count(Area(g))
-24
+ERROR 22023: Invalid GIS data provided to function st_area.
 #Checking the geometry types of some random Geometry Collections.
 Select Area(GeomCollFromText('GEOMETRYCOLLECTION(POINT(0 0), LINESTRING(0 0,10 10), POLYGON((10 10, 0 10, 0 0, 10 0, 10 10)), POLYGON((10 10, 10 0, 0 0, 0 10, 10 10)))'));
 Area(GeomCollFromText('GEOMETRYCOLLECTION(POINT(0 0), LINESTRING(0 0,10 10), POLYGON((10 10, 0 10, 0 0, 10 0, 10 10)), POLYGON((10 10, 10 0, 0 0, 0 10, 10 10)))'))
@@ -933,8 +882,7 @@ Select Area(GeometryFromWKB(AsWKB(GeometryCollection(Point(99.99, -0.1111), Poin
 Area(GeometryFromWKB(AsWKB(GeometryCollection(Point(99.99, -0.1111), Point(200.99, 11111),LineString(Point(99.99, -0.1111), Point(200.99, 11111))))))
 0
 Select Area(GeomCollFromText('GEOMETRYCOLLECTION(MULTIPOLYGON(((-100 -100, -100 0, 0 0, 0 -100, -100 -100),(-50 -50)),((-100 -100, -100 0, 0 0, 0 -100, -100 -100))), MULTILINESTRING((0 0, -50 -50, -100 -100),(-100 0, -50 -50, 0 -100)), MULTIPOINT(-50 -50))'));
-Area(GeomCollFromText('GEOMETRYCOLLECTION(MULTIPOLYGON(((-100 -100, -100 0, 0 0, 0 -100, -100 -100),(-50 -50)),((-100 -100, -100 0, 0 0, 0 -100, -100 -100))), MULTILINESTRING((0 0, -50 -50, -100 -100),(-100 0, -50 -50, 0 -100)), MULTIPOINT(-50 -50))'))
-20000
+ERROR 22023: Invalid GIS data provided to function st_area.
 Select Area(GeometryCollectionFromText('GEOMETRYCOLLECTION(POINT(5 5), LINESTRING(0 0, 10 10), POLYGON((0 0, 10 0, 10 10, 0 10, 0 0)))'));
 Area(GeometryCollectionFromText('GEOMETRYCOLLECTION(POINT(5 5), LINESTRING(0 0, 10 10), POLYGON((0 0, 10 0, 10 10, 0 10, 0 0)))'))
 100
@@ -988,8 +936,7 @@ ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 Select Area(GeometryCollectionFromText('GEOMETRYCOLLECTION(POINT(@ $), LINESTRING(ëô ôÑ, ëô ôÑ, ëô ôÑ), POLYGON((ëô ôÑ, ëô ôÑ, ëô ôÑ)))'));
 ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 Select Area(GeometryFromWKB(AsWKB(GeometryCollection(POINT('@', '$'), MULTIPOLYGON(Polygon(LineString(Point('ëô', 'ôÑ'), Point('%', '-&'), Point(15, 0), Point(0, 0)))), MULTILINESTRING(LINESTRING(point('0.1', 48), point(10, 21), point(10, 0)), LINESTRING(point(16, 0), point(16, 23), point(16, 48))), LINESTRING(point(0, 0),point(10, 10))))));
-Area(GeometryFromWKB(AsWKB(GeometryCollection(POINT('@', '$'), MULTIPOLYGON(Polygon(LineString(Point('ëô', 'ôÑ'), Point('%', '-&'), Point(15, 0), Point(0, 0)))), MULTILINESTRING(LINESTRING(point('0.1', 48), point(10, 21), point(10, 0)), LINES
-0
+ERROR 22023: Invalid GIS data provided to function st_area.
 Select Area(GeomCollFromText('GEOMETRYCOLLECTION(POINT(5 5), LINESTRING(0.0009 0.0, 4.999999 4.999999, 9.99999 9.99999), POLYGON((-0 -0, 10.00001 0, 10.00001 10.00001, 0.000009 9.999999, 0 0)), POLYGON((5 -1, 11 5, 5 11, -1 5, 5 -1)))'));
 Area(GeomCollFromText('GEOMETRYCOLLECTION(POINT(5 5), LINESTRING(0.0009 0.0, 4.999999 4.999999, 9.99999 9.99999), POLYGON((-0 -0, 10.00001 0, 10.00001 10.00001, 0.000009 9.999999, 0 0)), POLYGON((5 -1, 11 5, 5 11, -1 5, 5 -1)))'))
 172.0001
@@ -1015,7 +962,7 @@ Select Area(0x0000000006000000020000000001BFF0000000000000C130F44700000000000000
 ERROR HY000: Geometry byte string must be little endian.
 Select Area(0x000000000700000003000000000140240000000000004024000000000000000000000200000002402400000000000040240000000000004034000000000000403400000000000000000000030000000200000005402400000000000040240000000000004034000000000000402400000000000040340000000000004034000000000000402400000000000040340000000000004024000000000000402400000000000000000005402C000000000000402C0000000000004030000000000000402C00000000000040300000000000004030000000000000402C0000000000004030000000000000402C000000000000402C000000000000);
 ERROR HY000: Geometry byte string must be little endian.
-#Checking the  NumGeometries for the geometrycollection class 
+#Checking the NumGeometries for the geometrycollection class 
 select fid, NumGeometries(g) from gis_geometrycollection where g is not NULL;
 fid	NumGeometries(g)
 101	NULL
@@ -1046,22 +993,22 @@ select count( NumGeometries(g)) FROM gis_geometrycollection;
 count( NumGeometries(g))
 4
 #Checking the geometry types of some random Geometry Collections.
-Select  NumGeometries(GeomCollFromText('GEOMETRYCOLLECTION(POINT(0 0), LINESTRING(0 0,10 10), POLYGON((10 10, 0 10, 0 0, 10 0, 10 10)), POLYGON((10 10, 10 0, 0 0, 0 10, 10 10)))'));
+Select NumGeometries(GeomCollFromText('GEOMETRYCOLLECTION(POINT(0 0), LINESTRING(0 0,10 10), POLYGON((10 10, 0 10, 0 0, 10 0, 10 10)), POLYGON((10 10, 10 0, 0 0, 0 10, 10 10)))'));
 NumGeometries(GeomCollFromText('GEOMETRYCOLLECTION(POINT(0 0), LINESTRING(0 0,10 10), POLYGON((10 10, 0 10, 0 0, 10 0, 10 10)), POLYGON((10 10, 10 0, 0 0, 0 10, 10 10)))'))
 4
-Select  NumGeometries(GeometryCollectionFromText('GEOMETRYCOLLECTION(POINT(10 10), LINESTRING(10 10,20 20), POLYGON((10 10, 20 10, 20 20, 10 20, 10 10), (14 14, 16 14, 16 16, 14 16, 14 14)))'));
+Select NumGeometries(GeometryCollectionFromText('GEOMETRYCOLLECTION(POINT(10 10), LINESTRING(10 10,20 20), POLYGON((10 10, 20 10, 20 20, 10 20, 10 10), (14 14, 16 14, 16 16, 14 16, 14 14)))'));
 NumGeometries(GeometryCollectionFromText('GEOMETRYCOLLECTION(POINT(10 10), LINESTRING(10 10,20 20), POLYGON((10 10, 20 10, 20 20, 10 20, 10 10), (14 14, 16 14, 16 16, 14 16, 14 14)))'))
 3
-Select  NumGeometries(GeometryFromWKB(AsWKB(GeometryCollection(Point(99.99, -0.1111), Point(200.99, 11111),LineString(Point(99.99, -0.1111), Point(200.99, 11111))))));
+Select NumGeometries(GeometryFromWKB(AsWKB(GeometryCollection(Point(99.99, -0.1111), Point(200.99, 11111),LineString(Point(99.99, -0.1111), Point(200.99, 11111))))));
 NumGeometries(GeometryFromWKB(AsWKB(GeometryCollection(Point(99.99, -0.1111), Point(200.99, 11111),LineString(Point(99.99, -0.1111), Point(200.99, 11111))))))
 3
-Select  NumGeometries(GeomCollFromText('GEOMETRYCOLLECTION(MULTIPOLYGON(((-100 -100, -100 0, 0 0, 0 -100, -100 -100),(-50 -50)),((-100 -100, -100 0, 0 0, 0 -100, -100 -100))), MULTILINESTRING((0 0, -50 -50, -100 -100),(-100 0, -50 -50, 0 -100)), MULTIPOINT(-50 -50))'));
+Select NumGeometries(GeomCollFromText('GEOMETRYCOLLECTION(MULTIPOLYGON(((-100 -100, -100 0, 0 0, 0 -100, -100 -100),(-50 -50)),((-100 -100, -100 0, 0 0, 0 -100, -100 -100))), MULTILINESTRING((0 0, -50 -50, -100 -100),(-100 0, -50 -50, 0 -100)), MULTIPOINT(-50 -50))'));
 NumGeometries(GeomCollFromText('GEOMETRYCOLLECTION(MULTIPOLYGON(((-100 -100, -100 0, 0 0, 0 -100, -100 -100),(-50 -50)),((-100 -100, -100 0, 0 0, 0 -100, -100 -100))), MULTILINESTRING((0 0, -50 -50, -100 -100),(-100 0, -50 -50, 0 -100)), MULTIPOINT(-50 -5
 3
-Select  NumGeometries(GeometryCollectionFromText('GEOMETRYCOLLECTION(POINT(5 5), LINESTRING(0 0, 10 10), POLYGON((0 0, 10 0, 10 10, 0 10, 0 0)))'));
+Select NumGeometries(GeometryCollectionFromText('GEOMETRYCOLLECTION(POINT(5 5), LINESTRING(0 0, 10 10), POLYGON((0 0, 10 0, 10 10, 0 10, 0 0)))'));
 NumGeometries(GeometryCollectionFromText('GEOMETRYCOLLECTION(POINT(5 5), LINESTRING(0 0, 10 10), POLYGON((0 0, 10 0, 10 10, 0 10, 0 0)))'))
 3
-Select  NumGeometries(GeometryFromWKB(AsWKB(GeometryCollection(POINT(15, 5), MULTIPOLYGON(Polygon(LineString(Point(10, 10), Point(20, 10), Point(15, 0), Point(10, 10)))), MULTILINESTRING(LINESTRING(point(10, 48), point(10, 21), point(10, 0)), LINESTRING(point(16, 0), point(16, 23), point(16, 48))), LINESTRING(point(0, 0),point(10, 10))))));
+Select NumGeometries(GeometryFromWKB(AsWKB(GeometryCollection(POINT(15, 5), MULTIPOLYGON(Polygon(LineString(Point(10, 10), Point(20, 10), Point(15, 0), Point(10, 10)))), MULTILINESTRING(LINESTRING(point(10, 48), point(10, 21), point(10, 0)), LINESTRING(point(16, 0), point(16, 23), point(16, 48))), LINESTRING(point(0, 0),point(10, 10))))));
 NumGeometries(GeometryFromWKB(AsWKB(GeometryCollection(POINT(15, 5), MULTIPOLYGON(Polygon(LineString(Point(10, 10), Point(20, 10), Point(15, 0), Point(10, 10)))), MULTILINESTRING(LINESTRING(point(10, 48), point(10, 21), point(10, 0)), LINESTRING(point(16,
 4
 Select NumGeometries(GeometryFromWKB(AsWKB(GeometryCollection(POINT(0, 0),MULTIPOINT(point(0, 0), point(1, 1)), LINESTRING(point(0, 0),point(10, 10)),MULTILINESTRING(LINESTRING(point(1, 2), point(1, 3))),POLYGON(LineString(Point(10, 20), Point(1, 1), Point(2, 2))),MULTIPOLYGON(Polygon(LineString(Point(0, 0), Point(1, 0), Point(1, 1),Point(0, 0))))))));
@@ -1087,48 +1034,48 @@ NumGeometries(GeometryFromWKB(0x000000000700000003000000000140240000000000004024
 Select NumGeometries(GeometryFromWKB(0x00000000070000000600000000010000000000000000000000000000000000000000060000000200000000030000000200000005403C000000000000403A000000000000403C00000000000000000000000000004055000000000000000000000000000040550000000000004045000000000000403C000000000000403A00000000000000000005404A0000000000004032000000000000405080000000000040370000000000004052400000000000402200000000000040480000000000004018000000000000404A000000000000403200000000000000000000030000000100000005404D80000000000040320000000000004050C0000000000040320000000000004050C00000000000402A000000000000404D800000000000402A000000000000404D80000000000040320000000000000000000005000000020000000002000000034024000000000000404800000000000040240000000000004035000000000000402400000000000000000000000000000000000002000000034030000000000000000000000000000040300000000000004037000000000000403000000000000040480000000000000000000002000000020000000000000000000000000000000040240000000000004024000000000000000000000400000004000000000100000000000000000000000000000000000000000140240000000000004024000000000000000000000140240000000000004034000000000000000000000140340000000000004034000000000000000000000300000002000000050000000000000000000000000000000040490000000000000000000000000000404900000000000040490000000000000000000000000000404900000000000000000000000000000000000000000000000000054024000000000000402400000000000040340000000000004024000000000000403400000000000040340000000000004024000000000000403400000000000040240000000000004024000000000000));
 NumGeometries(GeometryFromWKB(0x00000000070000000600000000010000000000000000000000000000000000000000060000000200000000030000000200000005403C000000000000403A000000000000403C00000000000000000000000000004055000000000000000000000000000040550000000000004045000
 6
-Select  NumGeometries(GeomCollFromText('GEOMETRYCOLLECTION(POINT(), LINESTRING(), POLYGON(()), POLYGON(()))'));
+Select NumGeometries(GeomCollFromText('GEOMETRYCOLLECTION(POINT(), LINESTRING(), POLYGON(()), POLYGON(()))'));
 ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
-Select  NumGeometries(GeometryCollectionFromText('GEOMETRYCOLLECTION(POINT(), LINESTRING(), POLYGON((), ()))'));
+Select NumGeometries(GeometryCollectionFromText('GEOMETRYCOLLECTION(POINT(), LINESTRING(), POLYGON((), ()))'));
 ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
-Select  NumGeometries(GeometryFromWKB(AsWKB(GeometryCollection(Point(), Point(),LineString(Point(), Point())))));
+Select NumGeometries(GeometryFromWKB(AsWKB(GeometryCollection(Point(), Point(),LineString(Point(), Point())))));
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '), Point(),LineString(Point(), Point())))))' at line 1
-Select  NumGeometries(GeomCollFromText('GEOMETRYCOLLECTION(MULTIPOLYGON(((),()),(())), MULTILINESTRING((),()), MULTIPOINT())'));
+Select NumGeometries(GeomCollFromText('GEOMETRYCOLLECTION(MULTIPOLYGON(((),()),(())), MULTILINESTRING((),()), MULTIPOINT())'));
 ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
-Select  NumGeometries(GeometryCollectionFromText('GEOMETRYCOLLECTION(POINT(), LINESTRING(), POLYGON(()))'));
+Select NumGeometries(GeometryCollectionFromText('GEOMETRYCOLLECTION(POINT(), LINESTRING(), POLYGON(()))'));
 ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
-Select  NumGeometries(GeometryFromWKB(AsWKB(GeometryCollection(POINT(), MULTIPOLYGON(Polygon(LineString(Point(), Point(), Point(), Point()))), MULTILINESTRING(LINESTRING(point(), point(), point()), LINESTRING(point(), point(), point())), LINESTRING(point(),point())))));
+Select NumGeometries(GeometryFromWKB(AsWKB(GeometryCollection(POINT(), MULTIPOLYGON(Polygon(LineString(Point(), Point(), Point(), Point()))), MULTILINESTRING(LINESTRING(point(), point(), point()), LINESTRING(point(), point(), point())), LINESTRING(point(),point())))));
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '), MULTIPOLYGON(Polygon(LineString(Point(), Point(), Point(), Point()))), MULTIL' at line 1
-Select  NumGeometries(GeomCollFromText('GEOMETRYCOLLECTION(POINT(ëô ôÑ), LINESTRING(ëô ôÑ, ëô ôÑ, ëô ôÑ), POLYGON((ëô ôÑ, ëô ôÑ, ëô ôÑ)))'));
+Select NumGeometries(GeomCollFromText('GEOMETRYCOLLECTION(POINT(ëô ôÑ), LINESTRING(ëô ôÑ, ëô ôÑ, ëô ôÑ), POLYGON((ëô ôÑ, ëô ôÑ, ëô ôÑ)))'));
 ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
-Select  NumGeometries(GeometryCollectionFromText('GEOMETRYCOLLECTION(POINT(ëô ôÑ), LINESTRING(ëô ôÑ, ëô ôÑ, ëô ôÑ), POLYGON((ëô ôÑ, ëô ôÑ, ëô ôÑ), (ëô ôÑ, ëô ôÑ, ëô ôÑ)))'));
+Select NumGeometries(GeometryCollectionFromText('GEOMETRYCOLLECTION(POINT(ëô ôÑ), LINESTRING(ëô ôÑ, ëô ôÑ, ëô ôÑ), POLYGON((ëô ôÑ, ëô ôÑ, ëô ôÑ), (ëô ôÑ, ëô ôÑ, ëô ôÑ)))'));
 ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
-Select  NumGeometries(GeometryFromWKB(AsWKB(GeometryCollection(Point('ëô', 'ôÑ'), Point('ëô', 'ôÑ'),LineString(Point('ëô', 'ôÑ'), Point('ëô', 'ôÑ'))))));
+Select NumGeometries(GeometryFromWKB(AsWKB(GeometryCollection(Point('ëô', 'ôÑ'), Point('ëô', 'ôÑ'),LineString(Point('ëô', 'ôÑ'), Point('ëô', 'ôÑ'))))));
 NumGeometries(GeometryFromWKB(AsWKB(GeometryCollection(Point('ëô', 'ôÑ'), Point('ëô', 'ôÑ'),LineString(Point('ëô', 'ôÑ'), Point('ëô', 'ôÑ'))))))
 3
-Select  NumGeometries(GeomCollFromText('GEOMETRYCOLLECTION(MULTIPOLYGON(((@ $),(% -&)),((1, 2))), MULTILINESTRING((@ $, % -&, -100 -100),(-100 0, -50 -50, 0 -100)), MULTIPOINT(-50 -50))'));
+Select NumGeometries(GeomCollFromText('GEOMETRYCOLLECTION(MULTIPOLYGON(((@ $),(% -&)),((1, 2))), MULTILINESTRING((@ $, % -&, -100 -100),(-100 0, -50 -50, 0 -100)), MULTIPOINT(-50 -50))'));
 ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
-Select  NumGeometries(GeometryCollectionFromText('GEOMETRYCOLLECTION(POINT(@ $), LINESTRING(ëô ôÑ, ëô ôÑ, ëô ôÑ), POLYGON((ëô ôÑ, ëô ôÑ, ëô ôÑ)))'));
+Select NumGeometries(GeometryCollectionFromText('GEOMETRYCOLLECTION(POINT(@ $), LINESTRING(ëô ôÑ, ëô ôÑ, ëô ôÑ), POLYGON((ëô ôÑ, ëô ôÑ, ëô ôÑ)))'));
 ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
-Select  NumGeometries(GeometryFromWKB(AsWKB(GeometryCollection(POINT('@', '$'), MULTIPOLYGON(Polygon(LineString(Point('ëô', 'ôÑ'), Point('%', '-&'), Point(15, 0), Point(0, 0)))), MULTILINESTRING(LINESTRING(point('0.1', 48), point(10, 21), point(10, 0)), LINESTRING(point(16, 0), point(16, 23), point(16, 48))), LINESTRING(point(0, 0),point(10, 10))))));
+Select NumGeometries(GeometryFromWKB(AsWKB(GeometryCollection(POINT('@', '$'), MULTIPOLYGON(Polygon(LineString(Point('ëô', 'ôÑ'), Point('%', '-&'), Point(15, 0), Point(0, 0)))), MULTILINESTRING(LINESTRING(point('0.1', 48), point(10, 21), point(10, 0)), LINESTRING(point(16, 0), point(16, 23), point(16, 48))), LINESTRING(point(0, 0),point(10, 10))))));
 NumGeometries(GeometryFromWKB(AsWKB(GeometryCollection(POINT('@', '$'), MULTIPOLYGON(Polygon(LineString(Point('ëô', 'ôÑ'), Point('%', '-&'), Point(15, 0), Point(0, 0)))), MULTILINESTRING(LINESTRING(point('0.1', 48), point(10, 21), point(10, 0
 4
-Select  NumGeometries(GeomCollFromText('GEOMETRYCOLLECTION(POINT(5 5), LINESTRING(0.0009 0.0, 4.999999 4.999999, 9.99999 9.99999), POLYGON((-0 -0, 10.00001 0, 10.00001 10.00001, 0.000009 9.999999, 0 0)), POLYGON((5 -1, 11 5, 5 11, -1 5, 5 -1)))'));
+Select NumGeometries(GeomCollFromText('GEOMETRYCOLLECTION(POINT(5 5), LINESTRING(0.0009 0.0, 4.999999 4.999999, 9.99999 9.99999), POLYGON((-0 -0, 10.00001 0, 10.00001 10.00001, 0.000009 9.999999, 0 0)), POLYGON((5 -1, 11 5, 5 11, -1 5, 5 -1)))'));
 NumGeometries(GeomCollFromText('GEOMETRYCOLLECTION(POINT(5 5), LINESTRING(0.0009 0.0, 4.999999 4.999999, 9.99999 9.99999), POLYGON((-0 -0, 10.00001 0, 10.00001 10.00001, 0.000009 9.999999, 0 0)), POLYGON((5 -1, 11 5, 5 11, -1 5, 5 -1)))'))
 4
-Select  NumGeometries(GeometryCollectionFromText('GEOMETRYCOLLECTION(POINT(5 5), LINESTRING(0.0009 0.0, 4.999999 4.999999, 9.99999 9.99999), POLYGON((-0 -0, 10.00001 0, 10.00001 10.00001, 0.000009 9.999999, 0 0), (5 -1, 11 5, 5 11, -1 5, 5 -1)))'));
+Select NumGeometries(GeometryCollectionFromText('GEOMETRYCOLLECTION(POINT(5 5), LINESTRING(0.0009 0.0, 4.999999 4.999999, 9.99999 9.99999), POLYGON((-0 -0, 10.00001 0, 10.00001 10.00001, 0.000009 9.999999, 0 0), (5 -1, 11 5, 5 11, -1 5, 5 -1)))'));
 NumGeometries(GeometryCollectionFromText('GEOMETRYCOLLECTION(POINT(5 5), LINESTRING(0.0009 0.0, 4.999999 4.999999, 9.99999 9.99999), POLYGON((-0 -0, 10.00001 0, 10.00001 10.00001, 0.000009 9.999999, 0 0), (5 -1, 11 5, 5 11, -1 5, 5 -1)))'))
 3
-Select  NumGeometries(GeometryFromWKB(AsWKB(GeometryCollection(Point(5, 5), Point(0.0009, 0.0),LineString(Point(4.999999, 4.999999), Point(9.99999, 9.99999))))));
+Select NumGeometries(GeometryFromWKB(AsWKB(GeometryCollection(Point(5, 5), Point(0.0009, 0.0),LineString(Point(4.999999, 4.999999), Point(9.99999, 9.99999))))));
 NumGeometries(GeometryFromWKB(AsWKB(GeometryCollection(Point(5, 5), Point(0.0009, 0.0),LineString(Point(4.999999, 4.999999), Point(9.99999, 9.99999))))))
 3
-Select  NumGeometries(GeomCollFromText('GEOMETRYCOLLECTION(MULTIPOLYGON(((-0 -0, 10.00001 0, 10.00001 10.00001, 0.000009 9.999999, 0 0),(4 4, 6 4, 6 8, 4 8, 4 4)),((4 4, 6 4, 6 8, 4 8, 4 4))), MULTILINESTRING((0.0009 0.0, 4.999999 4.999999, 9.99999 9.99999),(0 10, 5 5, 10 10)), MULTIPOINT(0 10, 5 5, 10 10))'));
+Select NumGeometries(GeomCollFromText('GEOMETRYCOLLECTION(MULTIPOLYGON(((-0 -0, 10.00001 0, 10.00001 10.00001, 0.000009 9.999999, 0 0),(4 4, 6 4, 6 8, 4 8, 4 4)),((4 4, 6 4, 6 8, 4 8, 4 4))), MULTILINESTRING((0.0009 0.0, 4.999999 4.999999, 9.99999 9.99999),(0 10, 5 5, 10 10)), MULTIPOINT(0 10, 5 5, 10 10))'));
 NumGeometries(GeomCollFromText('GEOMETRYCOLLECTION(MULTIPOLYGON(((-0 -0, 10.00001 0, 10.00001 10.00001, 0.000009 9.999999, 0 0),(4 4, 6 4, 6 8, 4 8, 4 4)),((4 4, 6 4, 6 8, 4 8, 4 4))), MULTILINESTRING((0.0009 0.0, 4.999999 4.999999, 9.99999 9.99999),(0 10
 3
-Select  NumGeometries(GeometryCollectionFromText('GEOMETRYCOLLECTION(POINT(5 5), LINESTRING(0 0, 10 10), POLYGON((0 0, 10 0, 10 10, 0 10, 0 0)))'));
+Select NumGeometries(GeometryCollectionFromText('GEOMETRYCOLLECTION(POINT(5 5), LINESTRING(0 0, 10 10), POLYGON((0 0, 10 0, 10 10, 0 10, 0 0)))'));
 NumGeometries(GeometryCollectionFromText('GEOMETRYCOLLECTION(POINT(5 5), LINESTRING(0 0, 10 10), POLYGON((0 0, 10 0, 10 10, 0 10, 0 0)))'))
 3
-Select  NumGeometries(GeometryFromWKB(AsWKB(GeometryCollection(POINT(5, 5), MULTIPOLYGON(Polygon(LineString(Point(0.0009, 0.0), Point(4.999999, 4.999999), Point(15, 0), Point(0.0009, 0)))), MULTILINESTRING(LINESTRING(point(10, 48), point(10, 21), point(10, 0)), LINESTRING(point(16, 0), point(16, 23), point(16, 48))), LINESTRING(point(0, 0),point(10, 10))))));
+Select NumGeometries(GeometryFromWKB(AsWKB(GeometryCollection(POINT(5, 5), MULTIPOLYGON(Polygon(LineString(Point(0.0009, 0.0), Point(4.999999, 4.999999), Point(15, 0), Point(0.0009, 0)))), MULTILINESTRING(LINESTRING(point(10, 48), point(10, 21), point(10, 0)), LINESTRING(point(16, 0), point(16, 23), point(16, 48))), LINESTRING(point(0, 0),point(10, 10))))));
 NumGeometries(GeometryFromWKB(AsWKB(GeometryCollection(POINT(5, 5), MULTIPOLYGON(Polygon(LineString(Point(0.0009, 0.0), Point(4.999999, 4.999999), Point(15, 0), Point(0.0009, 0)))), MULTILINESTRING(LINESTRING(point(10, 48), point(10, 21), point(10, 0)), L
 4
 #Invalid WKB data
@@ -1139,7 +1086,7 @@ ERROR HY000: Geometry byte string must be little endian.
 Select NumGeometries(0x000000000700000003000000000140240000000000004024000000000000000000000200000002402400000000000040240000000000004034000000000000403400000000000000000000030000000200000005402400000000000040240000000000004034000000000000402400000000000040340000000000004034000000000000402400000000000040340000000000004024000000000000402400000000000000000005402C000000000000402C0000000000004030000000000000402C00000000000040300000000000004030000000000000402C0000000000004030000000000000402C000000000000402C000000000000);
 ERROR HY000: Geometry byte string must be little endian.
 #Checking the GeometryN for the geometrycollection class 
-select fid,  AsText(GeometryN(g,0)) from gis_geometrycollection where g is not NULL;
+select fid, AsText(GeometryN(g,0)) from gis_geometrycollection where g is not NULL;
 fid	AsText(GeometryN(g,0))
 101	NULL
 102	NULL
@@ -1165,7 +1112,7 @@ fid	AsText(GeometryN(g,0))
 702	NULL
 703	NULL
 704	NULL
-select fid,  AsText(GeometryN(g,1)) from gis_geometrycollection where g is not NULL;
+select fid, AsText(GeometryN(g,1)) from gis_geometrycollection where g is not NULL;
 fid	AsText(GeometryN(g,1))
 101	NULL
 102	NULL
@@ -1191,7 +1138,7 @@ fid	AsText(GeometryN(g,1))
 702	POINT(10 10)
 703	POINT(99.99 -0.1111)
 704	POINT(0 0)
-select fid,  AsText(GeometryN(g,2)) from gis_geometrycollection where g is not NULL;
+select fid, AsText(GeometryN(g,2)) from gis_geometrycollection where g is not NULL;
 fid	AsText(GeometryN(g,2))
 101	NULL
 102	NULL
@@ -1217,7 +1164,7 @@ fid	AsText(GeometryN(g,2))
 702	LINESTRING(10 10,20 20)
 703	POINT(200.99 11111)
 704	MULTIPOLYGON(((28 26,28 0,84 0,84 42,28 26),(52 18,66 23,73 9,48 6,52 18)),((59 18,67 18,67 13,59 13,59 18)))
-select fid,  AsText(GeometryN(g,3)) from gis_geometrycollection where g is not NULL;
+select fid, AsText(GeometryN(g,3)) from gis_geometrycollection where g is not NULL;
 fid	AsText(GeometryN(g,3))
 101	NULL
 102	NULL
@@ -1247,28 +1194,28 @@ select count(GeometryN(g,1)) FROM gis_geometrycollection;
 count(GeometryN(g,1))
 4
 #Checking the geometry types of some random Geometry Collections.
-Select   AsText(GeometryN(GeomCollFromText('GEOMETRYCOLLECTION(POINT(0 0), LINESTRING(0 0,10 10), POLYGON((10 10, 0 10, 0 0, 10 0, 10 10)), POLYGON((10 10, 10 0, 0 0, 0 10, 10 10)))'),1));
+Select AsText(GeometryN(GeomCollFromText('GEOMETRYCOLLECTION(POINT(0 0), LINESTRING(0 0,10 10), POLYGON((10 10, 0 10, 0 0, 10 0, 10 10)), POLYGON((10 10, 10 0, 0 0, 0 10, 10 10)))'),1));
 AsText(GeometryN(GeomCollFromText('GEOMETRYCOLLECTION(POINT(0 0), LINESTRING(0 0,10 10), POLYGON((10 10, 0 10, 0 0, 10 0, 10 10)), POLYGON((10 10, 10 0, 0 0, 0 10, 10 10)))'),1))
 POINT(0 0)
-Select   AsText(GeometryN(GeomCollFromText('GEOMETRYCOLLECTION(POINT(0 0), LINESTRING(0 0,10 10), POLYGON((10 10, 0 10, 0 0, 10 0, 10 10)), POLYGON((10 10, 10 0, 0 0, 0 10, 10 10)))'),3));
+Select AsText(GeometryN(GeomCollFromText('GEOMETRYCOLLECTION(POINT(0 0), LINESTRING(0 0,10 10), POLYGON((10 10, 0 10, 0 0, 10 0, 10 10)), POLYGON((10 10, 10 0, 0 0, 0 10, 10 10)))'),3));
 AsText(GeometryN(GeomCollFromText('GEOMETRYCOLLECTION(POINT(0 0), LINESTRING(0 0,10 10), POLYGON((10 10, 0 10, 0 0, 10 0, 10 10)), POLYGON((10 10, 10 0, 0 0, 0 10, 10 10)))'),3))
 POLYGON((10 10,0 10,0 0,10 0,10 10))
-Select   AsText(GeometryN(GeomCollFromText('GEOMETRYCOLLECTION(POINT(0 0), LINESTRING(0 0,10 10), POLYGON((10 10, 0 10, 0 0, 10 0, 10 10)), POLYGON((10 10, 10 0, 0 0, 0 10, 10 10)))'),4));
+Select AsText(GeometryN(GeomCollFromText('GEOMETRYCOLLECTION(POINT(0 0), LINESTRING(0 0,10 10), POLYGON((10 10, 0 10, 0 0, 10 0, 10 10)), POLYGON((10 10, 10 0, 0 0, 0 10, 10 10)))'),4));
 AsText(GeometryN(GeomCollFromText('GEOMETRYCOLLECTION(POINT(0 0), LINESTRING(0 0,10 10), POLYGON((10 10, 0 10, 0 0, 10 0, 10 10)), POLYGON((10 10, 10 0, 0 0, 0 10, 10 10)))'),4))
 POLYGON((10 10,10 0,0 0,0 10,10 10))
-Select   AsText(GeometryN(GeometryCollectionFromText('GEOMETRYCOLLECTION(POINT(10 10), LINESTRING(10 10,20 20), POLYGON((10 10, 20 10, 20 20, 10 20, 10 10), (14 14, 16 14, 16 16, 14 16, 14 14)))'),3));
+Select AsText(GeometryN(GeometryCollectionFromText('GEOMETRYCOLLECTION(POINT(10 10), LINESTRING(10 10,20 20), POLYGON((10 10, 20 10, 20 20, 10 20, 10 10), (14 14, 16 14, 16 16, 14 16, 14 14)))'),3));
 AsText(GeometryN(GeometryCollectionFromText('GEOMETRYCOLLECTION(POINT(10 10), LINESTRING(10 10,20 20), POLYGON((10 10, 20 10, 20 20, 10 20, 10 10), (14 14, 16 14, 16 16, 14 16, 14 14)))'),3))
 POLYGON((10 10,20 10,20 20,10 20,10 10),(14 14,16 14,16 16,14 16,14 14))
-Select   AsText(GeometryN(GeometryFromWKB(AsWKB(GeometryCollection(Point(99.99, -0.1111), Point(200.99, 11111),LineString(Point(99.99, -0.1111), Point(200.99, 11111))))),3));
+Select AsText(GeometryN(GeometryFromWKB(AsWKB(GeometryCollection(Point(99.99, -0.1111), Point(200.99, 11111),LineString(Point(99.99, -0.1111), Point(200.99, 11111))))),3));
 AsText(GeometryN(GeometryFromWKB(AsWKB(GeometryCollection(Point(99.99, -0.1111), Point(200.99, 11111),LineString(Point(99.99, -0.1111), Point(200.99, 11111))))),3))
 LINESTRING(99.99 -0.1111,200.99 11111)
-Select   AsText(GeometryN(GeomCollFromText('GEOMETRYCOLLECTION(MULTIPOLYGON(((-100 -100, -100 0, 0 0, 0 -100, -100 -100),(-50 -50)),((-100 -100, -100 0, 0 0, 0 -100, -100 -100))), MULTILINESTRING((0 0, -50 -50, -100 -100),(-100 0, -50 -50, 0 -100)), MULTIPOINT(-50 -50))'),1));
+Select AsText(GeometryN(GeomCollFromText('GEOMETRYCOLLECTION(MULTIPOLYGON(((-100 -100, -100 0, 0 0, 0 -100, -100 -100),(-50 -50)),((-100 -100, -100 0, 0 0, 0 -100, -100 -100))), MULTILINESTRING((0 0, -50 -50, -100 -100),(-100 0, -50 -50, 0 -100)), MULTIPOINT(-50 -50))'),1));
 AsText(GeometryN(GeomCollFromText('GEOMETRYCOLLECTION(MULTIPOLYGON(((-100 -100, -100 0, 0 0, 0 -100, -100 -100),(-50 -50)),((-100 -100, -100 0, 0 0, 0 -100, -100 -100))), MULTILINESTRING((0 0, -50 -50, -100 -100),(-100 0, -50 -50, 0 -100)), MULTIPOINT(-50
 MULTIPOLYGON(((-100 -100,-100 0,0 0,0 -100,-100 -100),(-50 -50)),((-100 -100,-100 0,0 0,0 -100,-100 -100)))
-Select   AsText(GeometryN(GeometryCollectionFromText('GEOMETRYCOLLECTION(POINT(5 5), LINESTRING(0 0, 10 10), POLYGON((0 0, 10 0, 10 10, 0 10, 0 0)))'),2));
+Select AsText(GeometryN(GeometryCollectionFromText('GEOMETRYCOLLECTION(POINT(5 5), LINESTRING(0 0, 10 10), POLYGON((0 0, 10 0, 10 10, 0 10, 0 0)))'),2));
 AsText(GeometryN(GeometryCollectionFromText('GEOMETRYCOLLECTION(POINT(5 5), LINESTRING(0 0, 10 10), POLYGON((0 0, 10 0, 10 10, 0 10, 0 0)))'),2))
 LINESTRING(0 0,10 10)
-Select   AsText(GeometryN(GeometryFromWKB(AsWKB(GeometryCollection(POINT(15, 5), MULTIPOLYGON(Polygon(LineString(Point(10, 10), Point(20, 10), Point(15, 0), Point(10, 10)))), MULTILINESTRING(LINESTRING(point(10, 48), point(10, 21), point(10, 0)), LINESTRING(point(16, 0), point(16, 23), point(16, 48))), LINESTRING(point(0, 0),point(10, 10))))),2));
+Select AsText(GeometryN(GeometryFromWKB(AsWKB(GeometryCollection(POINT(15, 5), MULTIPOLYGON(Polygon(LineString(Point(10, 10), Point(20, 10), Point(15, 0), Point(10, 10)))), MULTILINESTRING(LINESTRING(point(10, 48), point(10, 21), point(10, 0)), LINESTRING(point(16, 0), point(16, 23), point(16, 48))), LINESTRING(point(0, 0),point(10, 10))))),2));
 AsText(GeometryN(GeometryFromWKB(AsWKB(GeometryCollection(POINT(15, 5), MULTIPOLYGON(Polygon(LineString(Point(10, 10), Point(20, 10), Point(15, 0), Point(10, 10)))), MULTILINESTRING(LINESTRING(point(10, 48), point(10, 21), point(10, 0)), LINESTRING(point(
 MULTIPOLYGON(((10 10,20 10,15 0,10 10)))
 Select AsText(GeometryN(GeometryFromWKB(AsWKB(GeometryCollection(POINT(0, 0),MULTIPOINT(point(0, 0), point(1, 1)), LINESTRING(point(0, 0),point(10, 10)),MULTILINESTRING(LINESTRING(point(1, 2), point(1, 3))),POLYGON(LineString(Point(10, 20), Point(1, 1), Point(2, 2))),MULTIPOLYGON(Polygon(LineString(Point(0, 0), Point(1, 0), Point(1, 1),Point(0, 0))))))),5));
@@ -1294,51 +1241,51 @@ NULL
 Select AsText(GeometryN(GeometryFromWKB(0x00000000070000000600000000010000000000000000000000000000000000000000060000000200000000030000000200000005403C000000000000403A000000000000403C00000000000000000000000000004055000000000000000000000000000040550000000000004045000000000000403C000000000000403A00000000000000000005404A0000000000004032000000000000405080000000000040370000000000004052400000000000402200000000000040480000000000004018000000000000404A000000000000403200000000000000000000030000000100000005404D80000000000040320000000000004050C0000000000040320000000000004050C00000000000402A000000000000404D800000000000402A000000000000404D80000000000040320000000000000000000005000000020000000002000000034024000000000000404800000000000040240000000000004035000000000000402400000000000000000000000000000000000002000000034030000000000000000000000000000040300000000000004037000000000000403000000000000040480000000000000000000002000000020000000000000000000000000000000040240000000000004024000000000000000000000400000004000000000100000000000000000000000000000000000000000140240000000000004024000000000000000000000140240000000000004034000000000000000000000140340000000000004034000000000000000000000300000002000000050000000000000000000000000000000040490000000000000000000000000000404900000000000040490000000000000000000000000000404900000000000000000000000000000000000000000000000000054024000000000000402400000000000040340000000000004024000000000000403400000000000040340000000000004024000000000000403400000000000040240000000000004024000000000000),6));
 AsText(GeometryN(GeometryFromWKB(0x00000000070000000600000000010000000000000000000000000000000000000000060000000200000000030000000200000005403C000000000000403A000000000000403C00000000000000000000000000004055000000000000000000000000000040550000000000004045
 POLYGON((0 0,50 0,50 50,0 50,0 0),(10 10,20 10,20 20,10 20,10 10))
-Select   AsText(GeometryN(GeomCollFromText('GEOMETRYCOLLECTION(POINT(), LINESTRING(), POLYGON(()), POLYGON(()))'),2));
+Select AsText(GeometryN(GeomCollFromText('GEOMETRYCOLLECTION(POINT(), LINESTRING(), POLYGON(()), POLYGON(()))'),2));
 ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
-Select   AsText(GeometryN(GeometryCollectionFromText('GEOMETRYCOLLECTION(POINT(), LINESTRING(), POLYGON((), ()))'),1));
+Select AsText(GeometryN(GeometryCollectionFromText('GEOMETRYCOLLECTION(POINT(), LINESTRING(), POLYGON((), ()))'),1));
 ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
-Select   AsText(GeometryN(GeometryFromWKB(AsWKB(GeometryCollection(Point(), Point(),LineString(Point(), Point())))),1));
+Select AsText(GeometryN(GeometryFromWKB(AsWKB(GeometryCollection(Point(), Point(),LineString(Point(), Point())))),1));
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '), Point(),LineString(Point(), Point())))),1))' at line 1
-Select   AsText(GeometryN(GeomCollFromText('GEOMETRYCOLLECTION(MULTIPOLYGON(((),()),(())), MULTILINESTRING((),()), MULTIPOINT())'),1));
+Select AsText(GeometryN(GeomCollFromText('GEOMETRYCOLLECTION(MULTIPOLYGON(((),()),(())), MULTILINESTRING((),()), MULTIPOINT())'),1));
 ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
-Select   AsText(GeometryN(GeometryCollectionFromText('GEOMETRYCOLLECTION(POINT(), LINESTRING(), POLYGON(()))'),1));
+Select AsText(GeometryN(GeometryCollectionFromText('GEOMETRYCOLLECTION(POINT(), LINESTRING(), POLYGON(()))'),1));
 ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
-Select   AsText(GeometryN(GeometryFromWKB(AsWKB(GeometryCollection(POINT(), MULTIPOLYGON(Polygon(LineString(Point(), Point(), Point(), Point()))), MULTILINESTRING(LINESTRING(point(), point(), point()), LINESTRING(point(), point(), point())), LINESTRING(point(),point())))),1));
+Select AsText(GeometryN(GeometryFromWKB(AsWKB(GeometryCollection(POINT(), MULTIPOLYGON(Polygon(LineString(Point(), Point(), Point(), Point()))), MULTILINESTRING(LINESTRING(point(), point(), point()), LINESTRING(point(), point(), point())), LINESTRING(point(),point())))),1));
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '), MULTIPOLYGON(Polygon(LineString(Point(), Point(), Point(), Point()))), MULTIL' at line 1
-Select   AsText(GeometryN(GeomCollFromText('GEOMETRYCOLLECTION(POINT(ëô ôÑ), LINESTRING(ëô ôÑ, ëô ôÑ, ëô ôÑ), POLYGON((ëô ôÑ, ëô ôÑ, ëô ôÑ)))'),1));
+Select AsText(GeometryN(GeomCollFromText('GEOMETRYCOLLECTION(POINT(ëô ôÑ), LINESTRING(ëô ôÑ, ëô ôÑ, ëô ôÑ), POLYGON((ëô ôÑ, ëô ôÑ, ëô ôÑ)))'),1));
 ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
-Select   AsText(GeometryN(GeometryCollectionFromText('GEOMETRYCOLLECTION(POINT(ëô ôÑ), LINESTRING(ëô ôÑ, ëô ôÑ, ëô ôÑ), POLYGON((ëô ôÑ, ëô ôÑ, ëô ôÑ), (ëô ôÑ, ëô ôÑ, ëô ôÑ)))'),1));
+Select AsText(GeometryN(GeometryCollectionFromText('GEOMETRYCOLLECTION(POINT(ëô ôÑ), LINESTRING(ëô ôÑ, ëô ôÑ, ëô ôÑ), POLYGON((ëô ôÑ, ëô ôÑ, ëô ôÑ), (ëô ôÑ, ëô ôÑ, ëô ôÑ)))'),1));
 ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
-Select   AsText(GeometryN(GeometryFromWKB(AsWKB(GeometryCollection(Point('ëô', 'ôÑ'), Point('ëô', 'ôÑ'),LineString(Point('ëô', 'ôÑ'), Point('ëô', 'ôÑ'))))),1));
+Select AsText(GeometryN(GeometryFromWKB(AsWKB(GeometryCollection(Point('ëô', 'ôÑ'), Point('ëô', 'ôÑ'),LineString(Point('ëô', 'ôÑ'), Point('ëô', 'ôÑ'))))),1));
 AsText(GeometryN(GeometryFromWKB(AsWKB(GeometryCollection(Point('ëô', 'ôÑ'), Point('ëô', 'ôÑ'),LineString(Point('ëô', 'ôÑ'), Point('ëô', 'ôÑ'))))),1))
 POINT(0 0)
-Select   AsText(GeometryN(GeomCollFromText('GEOMETRYCOLLECTION(MULTIPOLYGON(((@ $),(% -&)),((1, 2))), MULTILINESTRING((@ $, % -&, -100 -100),(-100 0, -50 -50, 0 -100)), MULTIPOINT(-50 -50))'),4));
+Select AsText(GeometryN(GeomCollFromText('GEOMETRYCOLLECTION(MULTIPOLYGON(((@ $),(% -&)),((1, 2))), MULTILINESTRING((@ $, % -&, -100 -100),(-100 0, -50 -50, 0 -100)), MULTIPOINT(-50 -50))'),4));
 ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
-Select   AsText(GeometryN(GeometryCollectionFromText('GEOMETRYCOLLECTION(POINT(@ $), LINESTRING(ëô ôÑ, ëô ôÑ, ëô ôÑ), POLYGON((ëô ôÑ, ëô ôÑ, ëô ôÑ)))'),5));
+Select AsText(GeometryN(GeometryCollectionFromText('GEOMETRYCOLLECTION(POINT(@ $), LINESTRING(ëô ôÑ, ëô ôÑ, ëô ôÑ), POLYGON((ëô ôÑ, ëô ôÑ, ëô ôÑ)))'),5));
 ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
-Select  AsText( GeometryN(GeometryFromWKB(AsWKB(GeometryCollection(POINT('@', '$'), MULTIPOLYGON(Polygon(LineString(Point('ëô', 'ôÑ'), Point('%', '-&'), Point(15, 0), Point(0, 0)))), MULTILINESTRING(LINESTRING(point('0.1', 48), point(10, 21), point(10, 0)), LINESTRING(point(16, 0), point(16, 23), point(16, 48))), LINESTRING(point(0, 0),point(10, 10))))),4));
+Select AsText( GeometryN(GeometryFromWKB(AsWKB(GeometryCollection(POINT('@', '$'), MULTIPOLYGON(Polygon(LineString(Point('ëô', 'ôÑ'), Point('%', '-&'), Point(15, 0), Point(0, 0)))), MULTILINESTRING(LINESTRING(point('0.1', 48), point(10, 21), point(10, 0)), LINESTRING(point(16, 0), point(16, 23), point(16, 48))), LINESTRING(point(0, 0),point(10, 10))))),4));
 AsText( GeometryN(GeometryFromWKB(AsWKB(GeometryCollection(POINT('@', '$'), MULTIPOLYGON(Polygon(LineString(Point('ëô', 'ôÑ'), Point('%', '-&'), Point(15, 0), Point(0, 0)))), MULTILINESTRING(LINESTRING(point('0.1', 48), point(10, 21), point(1
 LINESTRING(0 0,10 10)
-Select  AsText( GeometryN(GeometryFromWKB(AsWKB(GeometryCollection(POINT('@', '$'), MULTIPOLYGON(Polygon(LineString(Point('ëô', 'ôÑ'), Point('%', '-&'), Point(15, 0), Point(0, 0)))), MULTILINESTRING(LINESTRING(point('0.1', 48), point(10, 21), point(10, 0)), LINESTRING(point(16, 0), point(16, 23), point(16, 48))), LINESTRING(point(0, 0),point(10, 10))))),99999999999));
+Select AsText( GeometryN(GeometryFromWKB(AsWKB(GeometryCollection(POINT('@', '$'), MULTIPOLYGON(Polygon(LineString(Point('ëô', 'ôÑ'), Point('%', '-&'), Point(15, 0), Point(0, 0)))), MULTILINESTRING(LINESTRING(point('0.1', 48), point(10, 21), point(10, 0)), LINESTRING(point(16, 0), point(16, 23), point(16, 48))), LINESTRING(point(0, 0),point(10, 10))))),99999999999));
 AsText( GeometryN(GeometryFromWKB(AsWKB(GeometryCollection(POINT('@', '$'), MULTIPOLYGON(Polygon(LineString(Point('ëô', 'ôÑ'), Point('%', '-&'), Point(15, 0), Point(0, 0)))), MULTILINESTRING(LINESTRING(point('0.1', 48), point(10, 21), point(1
 NULL
-Select  AsText( GeometryN(GeomCollFromText('GEOMETRYCOLLECTION(POINT(5 5), LINESTRING(0.0009 0.0, 4.999999 4.999999, 9.99999 9.99999), POLYGON((-0 -0, 10.00001 0, 10.00001 10.00001, 0.000009 9.999999, 0 0)), POLYGON((5 -1, 11 5, 5 11, -1 5, 5 -1)))'),2));
+Select AsText( GeometryN(GeomCollFromText('GEOMETRYCOLLECTION(POINT(5 5), LINESTRING(0.0009 0.0, 4.999999 4.999999, 9.99999 9.99999), POLYGON((-0 -0, 10.00001 0, 10.00001 10.00001, 0.000009 9.999999, 0 0)), POLYGON((5 -1, 11 5, 5 11, -1 5, 5 -1)))'),2));
 AsText( GeometryN(GeomCollFromText('GEOMETRYCOLLECTION(POINT(5 5), LINESTRING(0.0009 0.0, 4.999999 4.999999, 9.99999 9.99999), POLYGON((-0 -0, 10.00001 0, 10.00001 10.00001, 0.000009 9.999999, 0 0)), POLYGON((5 -1, 11 5, 5 11, -1 5, 5 -1)))'),2))
 LINESTRING(0.0009 0,4.999999 4.999999,9.99999 9.99999)
-Select  AsText( GeometryN(GeometryCollectionFromText('GEOMETRYCOLLECTION(POINT(5 5), LINESTRING(0.0009 0.0, 4.999999 4.999999, 9.99999 9.99999), POLYGON((-0 -0, 10.00001 0, 10.00001 10.00001, 0.000009 9.999999, 0 0), (5 -1, 11 5, 5 11, -1 5, 5 -1)))'),2));
+Select AsText( GeometryN(GeometryCollectionFromText('GEOMETRYCOLLECTION(POINT(5 5), LINESTRING(0.0009 0.0, 4.999999 4.999999, 9.99999 9.99999), POLYGON((-0 -0, 10.00001 0, 10.00001 10.00001, 0.000009 9.999999, 0 0), (5 -1, 11 5, 5 11, -1 5, 5 -1)))'),2));
 AsText( GeometryN(GeometryCollectionFromText('GEOMETRYCOLLECTION(POINT(5 5), LINESTRING(0.0009 0.0, 4.999999 4.999999, 9.99999 9.99999), POLYGON((-0 -0, 10.00001 0, 10.00001 10.00001, 0.000009 9.999999, 0 0), (5 -1, 11 5, 5 11, -1 5, 5 -1)))'),2))
 LINESTRING(0.0009 0,4.999999 4.999999,9.99999 9.99999)
-Select   AsText(GeometryN(GeometryFromWKB(AsWKB(GeometryCollection(Point(5, 5), Point(0.0009, 0.0),LineString(Point(4.999999, 4.999999), Point(9.99999, 9.99999))))),2));
+Select AsText(GeometryN(GeometryFromWKB(AsWKB(GeometryCollection(Point(5, 5), Point(0.0009, 0.0),LineString(Point(4.999999, 4.999999), Point(9.99999, 9.99999))))),2));
 AsText(GeometryN(GeometryFromWKB(AsWKB(GeometryCollection(Point(5, 5), Point(0.0009, 0.0),LineString(Point(4.999999, 4.999999), Point(9.99999, 9.99999))))),2))
 POINT(0.0009 0)
-Select   AsText(GeometryN(GeomCollFromText('GEOMETRYCOLLECTION(MULTIPOLYGON(((-0 -0, 10.00001 0, 10.00001 10.00001, 0.000009 9.999999, 0 0),(4 4, 6 4, 6 8, 4 8, 4 4)),((4 4, 6 4, 6 8, 4 8, 4 4))), MULTILINESTRING((0.0009 0.0, 4.999999 4.999999, 9.99999 9.99999),(0 10, 5 5, 10 10)), MULTIPOINT(0 10, 5 5, 10 10))'),3));
+Select AsText(GeometryN(GeomCollFromText('GEOMETRYCOLLECTION(MULTIPOLYGON(((-0 -0, 10.00001 0, 10.00001 10.00001, 0.000009 9.999999, 0 0),(4 4, 6 4, 6 8, 4 8, 4 4)),((4 4, 6 4, 6 8, 4 8, 4 4))), MULTILINESTRING((0.0009 0.0, 4.999999 4.999999, 9.99999 9.99999),(0 10, 5 5, 10 10)), MULTIPOINT(0 10, 5 5, 10 10))'),3));
 AsText(GeometryN(GeomCollFromText('GEOMETRYCOLLECTION(MULTIPOLYGON(((-0 -0, 10.00001 0, 10.00001 10.00001, 0.000009 9.999999, 0 0),(4 4, 6 4, 6 8, 4 8, 4 4)),((4 4, 6 4, 6 8, 4 8, 4 4))), MULTILINESTRING((0.0009 0.0, 4.999999 4.999999, 9.99999 9.99999),(0
 MULTIPOINT(0 10,5 5,10 10)
-Select   AsText(GeometryN(GeometryCollectionFromText('GEOMETRYCOLLECTION(POINT(5 5), LINESTRING(0 0, 10 10), POLYGON((0 0, 10 0, 10 10, 0 10, 0 0)))'),1));
+Select AsText(GeometryN(GeometryCollectionFromText('GEOMETRYCOLLECTION(POINT(5 5), LINESTRING(0 0, 10 10), POLYGON((0 0, 10 0, 10 10, 0 10, 0 0)))'),1));
 AsText(GeometryN(GeometryCollectionFromText('GEOMETRYCOLLECTION(POINT(5 5), LINESTRING(0 0, 10 10), POLYGON((0 0, 10 0, 10 10, 0 10, 0 0)))'),1))
 POINT(5 5)
-Select   AsText(GeometryN(GeometryFromWKB(AsWKB(GeometryCollection(POINT(5, 5), MULTIPOLYGON(Polygon(LineString(Point(0.0009, 0.0), Point(4.999999, 4.999999), Point(15, 0), Point(0.0009, 0)))), MULTILINESTRING(LINESTRING(point(10, 48), point(10, 21), point(10, 0)), LINESTRING(point(16, 0), point(16, 23), point(16, 48))), LINESTRING(point(0, 0),point(10, 10))))),2));
+Select AsText(GeometryN(GeometryFromWKB(AsWKB(GeometryCollection(POINT(5, 5), MULTIPOLYGON(Polygon(LineString(Point(0.0009, 0.0), Point(4.999999, 4.999999), Point(15, 0), Point(0.0009, 0)))), MULTILINESTRING(LINESTRING(point(10, 48), point(10, 21), point(10, 0)), LINESTRING(point(16, 0), point(16, 23), point(16, 48))), LINESTRING(point(0, 0),point(10, 10))))),2));
 AsText(GeometryN(GeometryFromWKB(AsWKB(GeometryCollection(POINT(5, 5), MULTIPOLYGON(Polygon(LineString(Point(0.0009, 0.0), Point(4.999999, 4.999999), Point(15, 0), Point(0.0009, 0)))), MULTILINESTRING(LINESTRING(point(10, 48), point(10, 21), point(10, 0))
 MULTIPOLYGON(((0.0009 0,4.999999 4.999999,15 0,0.0009 0)))
 #Invalid WKB data

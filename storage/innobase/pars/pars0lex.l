@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -59,7 +59,7 @@ Created 12/14/1997 Heikki Tuuri
 #include "mem0mem.h"
 #include "os0proc.h"
 
-#define malloc(A)	ut_malloc(A)
+#define malloc(A)	ut_malloc_nokey(A)
 #define free(A)		ut_free(A)
 #define realloc(P, A)	ut_realloc(P, A)
 #define exit(A) 	ut_error
@@ -692,7 +692,6 @@ In the state 'id', only two actions are possible (defined below). */
 
 /**********************************************************************
 Release any resources used by the lexer. */
-
 void
 pars_lexer_close(void)
 /*==================*/

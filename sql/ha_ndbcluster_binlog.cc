@@ -479,6 +479,14 @@ static void ndbcluster_binlog_wait(THD *thd)
     */
     if (!wait_epoch)
       DBUG_VOID_RETURN;
+
+    /*
+      Binlog Injector should not wait for itself
+    */
+    if (thd && 
+        thd->system_thread == SYSTEM_THREAD_NDBCLUSTER_BINLOG)
+      DBUG_VOID_RETURN;
+
     const char *save_info= thd ? thd->proc_info : 0;
     int count= 30;
     if (thd)
@@ -492,16 +500,16 @@ static void ndbcluster_binlog_wait(THD *thd)
     {
       count--;
       struct timespec abstime;
-      set_timespec(abstime, 1);
+      set_timespec(&abstime, 1);
       native_cond_timedwait(&injector_cond, &injector_mutex, &abstime);
     }
     native_mutex_unlock(&injector_mutex);
 
     if (count == 0)
     {
-      sql_print_warning("NDB: Thread id %llu timed out (30s) waiting for epoch %u/%u "
+      sql_print_warning("NDB: Thread id %u timed out (30s) waiting for epoch %u/%u "
                         "to be handled.  Progress : %u/%u -> %u/%u.",
-                        (ulonglong) thd->thread_id,
+                        thd->thread_id(),
                         Uint32((wait_epoch >> 32) & 0xffffffff),
                         Uint32(wait_epoch & 0xffffffff),
                         Uint32((start_handled_epoch >> 32) & 0xffffffff),
@@ -568,7 +576,6 @@ ndb_create_thd(char * stackptr)
   }
   THD_CHECK_SENTRY(thd);
 
-  thd->thread_id= 0;
   thd->thread_stack= stackptr; /* remember where our stack is */
   if (thd->store_globals())
   {
@@ -2009,7 +2016,7 @@ end:
       struct timespec abstime;
       int i;
       int no_storage_nodes= g_ndb_cluster_connection->no_db_nodes();
-      set_timespec(abstime, 1);
+      set_timespec(&abstime, 1);
       int ret= native_cond_timedwait(&injector_cond,
                                      &ndb_schema_object->mutex,
                                      &abstime);
@@ -2404,19 +2411,20 @@ class Ndb_schema_event_handler {
 
     uint32 thd_server_id_save= thd->server_id;
     DBUG_ASSERT(sizeof(thd_server_id_save) == sizeof(thd->server_id));
-    char *thd_db_save= thd->db;
+    LEX_CSTRING thd_db_save= thd->db();
     thd->server_id = loggedServerId;
-    thd->db= schema->db;
+    LEX_CSTRING schema_db_lex_cstr= {schema->db, strlen(schema->db)};
+    thd->reset_db(schema_db_lex_cstr);
     int errcode = query_error_code(thd, thd->killed == THD::NOT_KILLED);
     thd->binlog_query(THD::STMT_QUERY_TYPE, schema->query,
                       schema->query_length, FALSE,
   #ifdef NDB_THD_BINLOG_QUERY_HAS_DIRECT
                       TRUE,
   #endif
-                      schema->name[0] == 0 || thd->db[0] == 0,
+                      schema->name[0] == 0 || thd->db().str[0] == 0,
                       errcode);
     thd->server_id= thd_server_id_save;
-    thd->db= thd_db_save;
+    thd->reset_db(thd_db_save);
 
     // Commit the binlog write
     (void)trans_commit_stmt(thd);
@@ -3945,19 +3953,53 @@ ndb_binlog_index_table__write_rows(THD *thd,
         ->store((ulonglong)first->n_schemaops, true);
     }
 
-    if ((error= ndb_binlog_index->file->ha_write_row(ndb_binlog_index->record[0])))
-    {
-      char tmp[128];
-      if (ndb_binlog_index->s->fields > NBICOL_ORIG_SERVERID)
-        my_snprintf(tmp, sizeof(tmp), "%u/%u,%u,%u/%u",
-                    uint(epoch >> 32), uint(epoch),
-                    orig_server_id,
-                    uint(orig_epoch >> 32), uint(orig_epoch));
+    error= ndb_binlog_index->file->ha_write_row(ndb_binlog_index->record[0]);
 
-      else
-        my_snprintf(tmp, sizeof(tmp), "%u/%u", uint(epoch >> 32), uint(epoch));
-      sql_print_error("NDB Binlog: Writing row (%s) to ndb_binlog_index: %d",
-                      tmp, error);
+    /* Fault injection to test logging */
+    DBUG_EXECUTE_IF("ndb_injector_binlog_index_write_fail_random",
+                    {
+                      if ((((uint32) rand()) % 10) == 9)
+                      {
+                        sql_print_error("NDB Binlog: Injecting random write failure");
+                        error= ndb_binlog_index->file->ha_write_row(ndb_binlog_index->record[0]);
+                      }
+                    });
+    
+    if (error)
+    {
+      sql_print_error("NDB Binlog: Failed writing to ndb_binlog_index for epoch %u/%u "
+                      " orig_server_id %u orig_epoch %u/%u "
+                      "with error %d.",
+                      uint(epoch >> 32), uint(epoch),
+                      orig_server_id,
+                      uint(orig_epoch >> 32), uint(orig_epoch),
+                      error);
+      
+      bool seen_error_row = false;
+      ndb_binlog_index_row* cursor= first;
+      do
+      {
+        char tmp[128];
+        if (ndb_binlog_index->s->fields > NBICOL_ORIG_SERVERID)
+          my_snprintf(tmp, sizeof(tmp), "%u/%u,%u,%u/%u",
+                      uint(epoch >> 32), uint(epoch),
+                      uint(cursor->orig_server_id),
+                      uint(cursor->orig_epoch >> 32), 
+                      uint(cursor->orig_epoch));
+        
+        else
+          my_snprintf(tmp, sizeof(tmp), "%u/%u", uint(epoch >> 32), uint(epoch));
+        
+        bool error_row = (row == (cursor->next));
+        sql_print_error("NDB Binlog: Writing row (%s) to ndb_binlog_index - %s",
+                        tmp,
+                        (error_row?"ERROR":
+                         (seen_error_row?"Discarded":
+                          "OK")));
+        seen_error_row |= error_row;
+
+      } while ((cursor = cursor->next));
+      
       error= -1;
       goto add_ndb_binlog_index_err;
     }
@@ -5861,7 +5903,7 @@ ndbcluster_handle_drop_table(THD *thd, Ndb *ndb, NDB_SHARE *share,
   while (share->op)
   {
     struct timespec abstime;
-    set_timespec(abstime, 1);
+    set_timespec(&abstime, 1);
     int ret= native_cond_timedwait(&injector_cond,
                                    &share->mutex,
                                    &abstime);
@@ -6624,6 +6666,32 @@ injectApplyStatusWriteRow(injector::transaction& trans,
     DBUG_RETURN(false);
   }
 
+  longlong gci_to_store = (longlong) gci;
+
+#ifndef DBUG_OFF
+  DBUG_EXECUTE_IF("ndb_binlog_injector_cycle_gcis",
+                  {
+                    ulonglong gciHi = ((gci_to_store >> 32) 
+                                       & 0xffffffff);
+                    ulonglong gciLo = (gci_to_store & 0xffffffff);
+                    gciHi = (gciHi % 3);
+                    sql_print_warning("NDB Binlog injector cycling gcis (%llu -> %llu)",
+                                      gci_to_store, (gciHi << 32) + gciLo);
+                    gci_to_store = (gciHi << 32) + gciLo;
+                  });
+  DBUG_EXECUTE_IF("ndb_binlog_injector_repeat_gcis",
+                  {
+                    ulonglong gciHi = ((gci_to_store >> 32) 
+                                       & 0xffffffff);
+                    ulonglong gciLo = (gci_to_store & 0xffffffff);
+                    gciHi=0xffffff00;
+                    gciLo=0;
+                    sql_print_warning("NDB Binlog injector repeating gcis (%llu -> %llu)",
+                                      gci_to_store, (gciHi << 32) + gciLo);
+                    gci_to_store = (gciHi << 32) + gciLo;
+                  });
+#endif
+
   /* Build row buffer for generated ndb_apply_status
      WRITE_ROW event
      First get the relevant table structure.
@@ -6652,12 +6720,12 @@ injectApplyStatusWriteRow(injector::transaction& trans,
   empty_record(apply_status_table);
 
   apply_status_table->field[0]->store((longlong)::server_id, true);
-  apply_status_table->field[1]->store((longlong)gci, true);
+  apply_status_table->field[1]->store((longlong)gci_to_store, true);
   apply_status_table->field[2]->store("", 0, &my_charset_bin);
   apply_status_table->field[3]->store((longlong)0, true);
   apply_status_table->field[4]->store((longlong)0, true);
 #ifndef DBUG_OFF
-  const LEX_STRING& name= apply_status_table->s->table_name;
+  const LEX_STRING &name= apply_status_table->s->table_name;
   DBUG_PRINT("info", ("use_table: %.*s",
                       (int) name.length, name.str));
 #endif
@@ -6742,7 +6810,7 @@ Ndb_binlog_thread::do_run()
   /* We need to set thd->thread_id before thd->store_globals, or it will
      set an invalid value for thd->variables.pseudo_thread_id.
   */
-  thd->thread_id= thd_manager->get_inc_thread_id();
+  thd->set_new_thread_id();
 
   thd->thread_stack= (char*) &thd; /* remember where our stack is */
   if (thd->store_globals())
@@ -6788,6 +6856,7 @@ restart_cluster_failure:
   }
 
   if (!(s_ndb= new Ndb(g_ndb_cluster_connection, NDB_REP_DB)) ||
+      s_ndb->setNdbObjectName("Ndb Binlog schema change monitoring") ||
       s_ndb->init())
   {
     log_error("Creating schema Ndb object failed");
@@ -6798,6 +6867,7 @@ restart_cluster_failure:
 
   // empty database
   if (!(i_ndb= new Ndb(g_ndb_cluster_connection, "")) ||
+      i_ndb->setNdbObjectName("Ndb Binlog data change monitoring") ||
       i_ndb->init())
   {
     log_error("Creating injector Ndb object failed");
@@ -6806,8 +6876,12 @@ restart_cluster_failure:
     goto err;
   }
 
-  log_verbose(10, "Exposing global references");
+  sql_print_information("NDB Binlog: Ndb object created with reference : 0x%x, name : %s",
+			s_ndb->getReference(), s_ndb->getNdbObjectName());
+  sql_print_information("NDB Binlog: Ndb object created with reference : 0x%x, name : %s",
+                      i_ndb->getReference(), i_ndb->getNdbObjectName());
 
+  log_verbose(10, "Exposing global references");
   /*
     Expose global reference to our ndb object.
 
@@ -6839,7 +6913,7 @@ restart_cluster_failure:
   while (!mysqld_server_started)
   {
     struct timespec abstime;
-    set_timespec(abstime, 1);
+    set_timespec(&abstime, 1);
     mysql_cond_timedwait(&COND_server_started, &LOCK_server_started,
                          &abstime);
     if (is_stop_requested())
@@ -6915,7 +6989,7 @@ restart_cluster_failure:
       }
       /* ndb not connected yet */
       struct timespec abstime;
-      set_timespec(abstime, 1);
+      set_timespec(&abstime, 1);
       native_cond_timedwait(&injector_cond, &injector_mutex, &abstime);
       if (is_stop_requested())
       {
@@ -7028,8 +7102,8 @@ restart_cluster_failure:
   ndb_notify_tables_writable();
 
   {
-    static char db[]= "";
-    thd->db= db;
+    static LEX_CSTRING db_lex_cstr= EMPTY_CSTR;
+    thd->reset_db(db_lex_cstr);
   }
 
   log_verbose(1, "Startup and setup completed");
@@ -7246,6 +7320,18 @@ restart_cluster_failure:
         DBUG_ASSERT(pOp->getEventType() == NdbDictionary::Event::TE_ALTER ||
                     ! IS_NDB_BLOB_PREFIX(pOp->getEvent()->getTable()->getName()));
         DBUG_ASSERT(gci <= ndb_latest_received_binlog_epoch);
+
+        /* Update our thread-local debug settings based on the global */
+#ifndef DBUG_OFF
+        /* Get value of global...*/
+        {
+          char buf[256];
+          DBUG_EXPLAIN_INITIAL(buf, sizeof(buf));
+          //  fprintf(stderr, "Ndb Binlog Injector, setting debug to %s\n",
+          //          buf);
+          DBUG_SET(buf);
+        }
+#endif
 
         /* initialize some variables for this epoch */
 
@@ -7558,7 +7644,7 @@ restart_cluster_failure:
   injector_ndb= 0;
   schema_ndb= 0;
   native_mutex_unlock(&injector_mutex);
-  thd->db= 0; // as not to try to free memory
+  thd->reset_db(NULL_CSTR); // as not to try to free memory
 
   /*
     This will cause the util thread to start to try to initialize again

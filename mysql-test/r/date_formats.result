@@ -25,6 +25,8 @@ STR_TO_DATE('2004.12.12 22.30.61','%Y.%m.%d %T')
 NULL
 Warnings:
 Warning	1411	Incorrect time value: '22.30.61' for function str_to_date
+Warning	1411	Incorrect datetime value: '2004.12.12 22.30.61' for function str_to_date
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 create table t1 (date char(30), format char(30) not null);
 insert into t1 values
 ('2003-01-02 10:11:12', '%Y-%m-%d %H:%i:%S'),
@@ -365,6 +367,7 @@ date	format	con
 Warnings:
 Warning	1292	Truncated incorrect datetime value: '10:20:10AM'
 drop table t1;
+SET sql_mode = default;
 select get_format(DATE, 'USA') as a;
 a
 %m.%d.%Y
@@ -385,6 +388,7 @@ str_to_date('15-01-2001 12:59:59', GET_FORMAT(DATE,'USA'))
 NULL
 Warnings:
 Warning	1411	Incorrect datetime value: '15-01-2001 12:59:59' for function str_to_date
+Warning	1411	Incorrect datetime value: '15-01-2001 12:59:59' for function str_to_date
 explain extended select makedate(1997,1), addtime("31.12.97 11.59.59.999999 PM", "1 1.1.1.000002"),subtime("31.12.97 11.59.59.999999 PM", "1 1.1.1.000002"),timediff("01.01.97 11:59:59.000001 PM","31.12.95 11:59:59.000002 PM"),cast(str_to_date("15-01-2001 12:59:59", "%d-%m-%Y %H:%i:%S") as TIME), maketime(23,11,12),microsecond("1997-12-31 23:59:59.000001");
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
@@ -401,6 +405,7 @@ drop table t1;
 select str_to_date("2003-....01ABCD-02 10:11:12.0012", "%Y-%.%m%@-%d %H:%i:%S.%f") as a;
 a
 2003-01-02 10:11:12.001200
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 create table t1 select str_to_date("2003-01-02 10:11:12.0012", "%Y-%m-%d %H:%i:%S.%f") as f1,
 str_to_date("10:11:12.0012", "%H:%i:%S.%f") as f2,
 str_to_date("2003-01-02", "%Y-%m-%d") as f3,
@@ -451,6 +456,7 @@ f1	f2
 Warnings:
 Warning	1292	Truncated incorrect date value: '2003-04-05  g'
 Warning	1292	Truncated incorrect datetime value: '2003-04-05 10:11:12.101010234567'
+SET sql_mode = default;
 set names latin1;
 select date_format('2004-01-01','%W (%a), %e %M (%b) %Y');
 date_format('2004-01-01','%W (%a), %e %M (%b) %Y')
@@ -478,12 +484,16 @@ drop table t1;
 select str_to_date( 1, NULL );
 str_to_date( 1, NULL )
 NULL
+Warnings:
+Warning	1411	Incorrect datetime value: '1' for function str_to_date
 select str_to_date( NULL, 1 );
 str_to_date( NULL, 1 )
 NULL
 select str_to_date( 1, IF(1=1,NULL,NULL) );
 str_to_date( 1, IF(1=1,NULL,NULL) )
 NULL
+Warnings:
+Warning	1411	Incorrect datetime value: '1' for function str_to_date
 SELECT TIME_FORMAT("24:00:00", '%r');
 TIME_FORMAT("24:00:00", '%r')
 12:00:00 AM
@@ -590,3 +600,17 @@ NULL
 #
 # End of 5.6 tests
 #
+#
+# Bug#19047644 EXTRACT_DATE_TIME MISBEHAVES WITH
+#              UNINITIALISED VALUE ON GARBAGE INPUTS
+#
+do str_to_date(1, "%#");
+Warnings:
+Warning	1411	Incorrect datetime value: '1' for function str_to_date
+#
+# Bug#19047488 MAKE_DATE_TIME WITH TOO BIG STRING ARGUMENT, 
+#              INVALID MEMORY READS
+#
+do timestamp(date_format('2011-11-11', right("12345" + 1, 3)));
+Warnings:
+Warning	1292	Incorrect datetime value: '346'

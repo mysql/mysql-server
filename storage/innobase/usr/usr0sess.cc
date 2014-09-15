@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -34,14 +34,13 @@ Created 6/25/1996 Heikki Tuuri
 /*********************************************************************//**
 Opens a session.
 @return own: session object */
-
 sess_t*
 sess_open(void)
 /*===========*/
 {
 	sess_t*	sess;
 
-	sess = static_cast<sess_t*>(ut_zalloc(sizeof(*sess)));
+	sess = static_cast<sess_t*>(ut_zalloc_nokey(sizeof(*sess)));
 
 	sess->state = SESS_ACTIVE;
 
@@ -53,7 +52,6 @@ sess_open(void)
 
 /*********************************************************************//**
 Closes a session, freeing the memory occupied by it. */
-
 void
 sess_close(
 /*=======*/

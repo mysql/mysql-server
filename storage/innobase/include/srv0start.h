@@ -49,10 +49,13 @@ struct dict_table_t;
 /** Log 'spaces' have id's >= this */
 #define SRV_LOG_SPACE_FIRST_ID		0xFFFFFFF0UL
 
+/** If buffer pool is less than the size,
+only one buffer pool instance is used. */
+#define BUF_POOL_SIZE_THRESHOLD		(1024 * 1024 * 1024)
+
 /*********************************************************************//**
 Parse temporary tablespace configuration.
 @return true if ok, false on parse error */
-
 bool
 srv_parse_temp_data_file_paths_and_sizes(
 /*=====================================*/
@@ -60,7 +63,6 @@ srv_parse_temp_data_file_paths_and_sizes(
 /*********************************************************************//**
 Frees the memory allocated by srv_parse_data_file_paths_and_sizes()
 and srv_parse_log_group_home_dirs(). */
-
 void
 srv_free_paths_and_sizes(void);
 /*==========================*/
@@ -68,7 +70,6 @@ srv_free_paths_and_sizes(void);
 Adds a slash or a backslash to the end of a string if it is missing
 and the string is not empty.
 @return string which has the separator if the string is not empty */
-
 char*
 srv_add_path_separator_if_needed(
 /*=============================*/
@@ -78,21 +79,18 @@ srv_add_path_separator_if_needed(
 Starts Innobase and creates a new database if database files
 are not found and the user wants.
 @return DB_SUCCESS or error code */
-
 dberr_t
 innobase_start_or_create_for_mysql(void);
 /*====================================*/
 /****************************************************************//**
 Shuts down the Innobase database.
 @return DB_SUCCESS or error code */
-
 dberr_t
 innobase_shutdown_for_mysql(void);
 
 /********************************************************************
 Signal all per-table background threads to shutdown, and wait for them to do
 so. */
-
 void
 srv_shutdown_table_bg_threads(void);
 /*=============================*/
@@ -102,7 +100,6 @@ Copy the file path component of the physical file to parameter. It will
 copy up to and including the terminating path separator.
 @return number of bytes copied or ULINT_UNDEFINED if destination buffer
 	is smaller than the path to be copied. */
-
 ulint
 srv_path_copy(
 /*==========*/
@@ -114,7 +111,6 @@ srv_path_copy(
 
 /*****************************************************************//**
 Get the meta-data filename from the table name. */
-
 void
 srv_get_meta_data_filename(
 /*======================*/

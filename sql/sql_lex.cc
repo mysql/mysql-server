@@ -2164,12 +2164,10 @@ st_select_lex::st_select_lex
   sj_pullout_done(false),
   no_wrap_view_item(false),
   exclude_from_table_unique_test(false),
-  non_agg_fields(),
-  cur_pos_in_all_fields(ALL_FIELDS_UNDEF_POS),
   prev_join_using(NULL),
   select_list_tables(0),
+  outer_join(0),
   removed_select(NULL),
-  m_non_agg_field_used(false),
   m_agg_func_used(false),
   sj_candidates(NULL)
 {
@@ -2730,7 +2728,7 @@ static void print_table_array(THD *thd, String *str, TABLE_LIST **table,
     // Print join condition
     Item *const cond=
       (curr->select_lex->join && curr->select_lex->join->optimized) ?
-      curr->optim_join_cond() : curr->join_cond();
+      curr->join_cond_optim() : curr->join_cond();
     if (cond)
     {
       str->append(STRING_WITH_LEN(" on("));
@@ -2811,12 +2809,12 @@ static void print_join(THD *thd,
 */
 bool db_is_default_db(const char *db, size_t db_len, const THD *thd)
 {
-  return thd != NULL && thd->db != NULL &&
-    thd->db_length == db_len && !memcmp(db, thd->db, db_len);
+  return thd != NULL && thd->db().str != NULL &&
+    thd->db().length == db_len && !memcmp(db, thd->db().str, db_len);
 }
 
 
-/**
+/*.*
   Print table as it should be in join list.
 
   @param str   string where table should be printed
@@ -4188,12 +4186,12 @@ static bool get_optimizable_join_conditions(THD *thd,
     Item *const jc= table->join_cond();
     if (jc && !thd->stmt_arena->is_conventional())
     {
-      table->set_optim_join_cond(jc->copy_andor_structure(thd));
-      if (!table->optim_join_cond())
+      table->set_join_cond_optim(jc->copy_andor_structure(thd));
+      if (!table->join_cond_optim())
         return true;
     }
     else
-      table->set_optim_join_cond(jc);
+      table->set_join_cond_optim(jc);
   }
   return false;
 }
@@ -4211,7 +4209,7 @@ static bool get_optimizable_join_conditions(THD *thd,
    @param[out] new_where  copy of WHERE
    @param[out] new_having copy of HAVING (if passed pointer is not NULL)
 
-   Copies of join (ON) conditions are placed in TABLE_LIST::m_optim_join_cond.
+   Copies of join (ON) conditions are placed in TABLE_LIST::m_join_cond_optim.
 
    @returns true if OOM
 */

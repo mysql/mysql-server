@@ -260,12 +260,11 @@ Mts_submode_database::detach_temp_tables(THD *thd, const Relay_log_info* rli,
  */
 Slave_worker *
 Mts_submode_database::get_least_occupied_worker(Relay_log_info *rli,
-                                                DYNAMIC_ARRAY *ws,
+                                                Slave_worker_array *ws,
                                                 Log_event *ev)
 {
  long usage= LONG_MAX;
   Slave_worker **ptr_current_worker= NULL, *worker= NULL;
-  ulong i= 0;
 
   DBUG_ENTER("Mts_submode_database::get_least_occupied_worker");
 
@@ -273,18 +272,18 @@ Mts_submode_database::get_least_occupied_worker(Relay_log_info *rli,
 
   if (DBUG_EVALUATE_IF("mts_distribute_round_robin", 1, 0))
   {
-    worker= *((Slave_worker **)dynamic_array_ptr(ws,
-                                                 w_rr % ws->elements));
+    worker= ws->at(w_rr % ws->size());
     sql_print_information("Chosing worker id %lu, the following is"
-                          " going to be %lu", worker->id, w_rr % ws->elements);
+                          " going to be %lu", worker->id,
+                          static_cast<ulong>(w_rr % ws->size()));
     DBUG_ASSERT(worker != NULL);
     DBUG_RETURN(worker);
   }
 #endif
 
-  for (i= 0; i< ws->elements; i++)
+  for (Slave_worker **it= ws->begin(); it != ws->end(); ++it)
   {
-    ptr_current_worker= (Slave_worker **) dynamic_array_ptr(ws, i);
+    ptr_current_worker= it;
     if ((*ptr_current_worker)->usage_partition <= usage)
     {
       worker= *ptr_current_worker;
@@ -300,110 +299,211 @@ Mts_submode_logical_clock::Mts_submode_logical_clock()
 {
   type= MTS_PARALLEL_TYPE_LOGICAL_CLOCK;
   first_event= true;
-  mts_last_known_commit_parent= SEQ_UNINIT;
   force_new_group= false;
-  defer_new_group= false;
   is_new_group= true;
   delegated_jobs = 0;
   jobs_done= 0;
+  last_lwm_timestamp= SEQ_UNINIT;
+  last_lwm_index= INDEX_UNDEF;
+  is_error= false;
+  min_waited_timestamp= SEQ_UNINIT;
+  last_committed= SEQ_UNINIT;
+  sequence_number= SEQ_UNINIT;
 }
 
 /**
- Logic to assign the parent id to the transaction
- @param rli Relay_log_info of the coordinator
- @return true is error
-         false otherwise
+   The method finds the minimum logical timestamp (low-water-mark) of
+   committed transactions.
+   The successful search results in a pair of a logical timestamp value and a GAQ
+   index that contains it. last_lwm_timestamp may still be raised though
+   the search does not find any satisfying running index.
+   Search is implemented as headway scanning of GAQ from a point of a
+   previous search's stop position (last_lwm_index).
+   Whether the cached (memorized) index value is considered to be stale
+   when its timestamp gets less than the current "stable" LWM:
+
+        last_lwm_timestamp <= GAQ.lwm.sequence_number           (*)
+
+   Staleness is caused by GAQ garbage collection that increments the rhs of (*),
+   see ::move_queue_head(). When that's diagnozed, the search in GAQ needs
+   restarting from the queue tail.
+
+   Formally, the undefined cached value of last_lwm_timestamp is also stale.
+
+              the last time index containg lwm
+                  +------+
+                  | LWM  |
+                  |  |   |
+                  V  V   V
+   GAQ:   xoooooxxxxxXXXXX...X
+                ^   ^
+                |   | LWM+1
+                |
+                +- tne new current_lwm
+
+         <---- logical (commit) time ----
+
+   here `x' stands for committed, `X' for committed and discarded from
+   the running range of the queue, `o' for not committed.
+
+   @param  rli         Relay_log_info pointer
+   @param  need_look   Either the caller or the function must hold a mutex
+                       to avoid race with concurrent GAQ update.
+
+   @return possibly updated current_lwm
 */
-bool
-Mts_submode_logical_clock::assign_group(Relay_log_info* rli,
-                                            Log_event *ev)
+longlong Mts_submode_logical_clock::get_lwm_timestamp(Relay_log_info *rli,
+                                                      bool need_lock)
 {
-  bool var_events= false;
-  commit_seq_no= SEQ_UNINIT;
+  longlong lwm_estim;
+  Slave_job_group* ptr_g;
+  bool is_stale= false;
+
+  if (!need_lock)
+    mysql_mutex_lock(&rli->mts_gaq_LOCK);
+
   /*
-    A group id updater must satisfy the following:
-      - A query log event ("BEGIN" ) or a GTID EVENT
-      - A DDL or an implicit DML commit.
-   */
-  switch (ev->get_type_code())
+    Make the "stable" LWM-based estimate which will be compared
+    against the cached "instant" value.
+  */
+  lwm_estim= rli->gaq->lwm.sequence_number;
+  /*
+    timestamp continuity invariant: if the queue has any item
+    its timestamp is greater on one than the estimate.
+  */
+  DBUG_ASSERT(lwm_estim == SEQ_UNINIT || rli->gaq->empty() ||
+              lwm_estim + 1 ==
+              rli->gaq->get_job_group(rli->gaq->entry)->sequence_number);
+
+  last_lwm_index=
+    rli->gaq->find_lwm(&ptr_g,
+                       /*
+                         The underfined "stable" forces the scan's restart
+                         as the stale value does.
+                       */
+                       lwm_estim == SEQ_UNINIT ||
+                       (is_stale= clock_leq(last_lwm_timestamp, lwm_estim)) ?
+                       rli->gaq->entry :
+                       last_lwm_index);
+  /*
+    if the returned index is sane update the timestamp.
+  */
+  if (last_lwm_index != rli->gaq->size)
   {
-  case QUERY_EVENT:
-    commit_seq_no= static_cast<Query_log_event*>(ev)->commit_seq_no;
-    break;
+    // non-decreasing lwm invariant
+    DBUG_ASSERT(clock_leq(last_lwm_timestamp, ptr_g->sequence_number));
 
-  case GTID_LOG_EVENT:
-    commit_seq_no= static_cast<Gtid_log_event*>(ev)->commit_seq_no;
-    break;
-  case USER_VAR_EVENT:
-  case INTVAR_EVENT:
-  case RAND_EVENT:
-    var_events= true;
-    force_new_group= true;
-    break;
-
-  default:
-    // these can never be a group changer
-    commit_seq_no= SEQ_UNINIT;
-    break;
+    last_lwm_timestamp= ptr_g->sequence_number;
+  }
+  else if (is_stale)
+  {
+    my_atomic_store64(&last_lwm_timestamp, lwm_estim);
   }
 
-  if (first_event && commit_seq_no == SEQ_UNINIT && !var_events
-      && !defer_new_group)
-  {
-    // This is the first event and the master has not sent us the commit
-    // sequence number. The possible reason may be that the master is old and
-    // doesnot support BGC based parallelization, or someone tried to start
-    // replication from within a transaction.
-    return true;
-  }
+  if (!need_lock)
+    mysql_mutex_unlock(&rli->mts_gaq_LOCK);
 
-  if (commit_seq_no != SEQ_UNINIT ||
-      (first_event && !var_events && !defer_new_group))
-    first_event= false;
+  return last_lwm_timestamp;
+};
 
-  if (/* Rewritten event without commit seq_number. */
-      commit_seq_no == SEQ_UNINIT ||
-      /* Not same as last seq number. */
-      commit_seq_no != mts_last_known_commit_parent ||
-      /* First event after a submode switch. */
-      first_event ||
-      /* Require a fresh group to be started. */
-      force_new_group)
+/**
+   The method implements logical timestamp conflict detection
+   and resolution through waiting by the calling thread.
+   The conflict or waiting condition is like the following
+
+           lwm < last_committed,
+
+   where lwm is a minimum logical timestamp of committed transactions.
+   Since the lwm's exact value is not always available its pessimistic
+   estimate (an old version) is improved (get_lwm_timestamp()) as the
+   first step before to the actual waiting commitment.
+
+   Special cases include:
+
+   When @c last_committed_arg is uninitialized the calling thread must
+   proceed without waiting for anyone. Any possible dependency with unknown
+   commit parent transaction shall be sorted out by the parent;
+
+   When the gaq index is subsequent to the last lwm index
+   there's no dependency of the current transaction with any regardless of
+   lwm timestamp should it be SEQ_UNINIT.
+   Consequently when GAQ consists of just one item there's none to wait.
+   Such latter case is left to the caller to handle.
+
+   @note The caller must make sure the current transaction won't be waiting
+         for itself. That is the method should not be caller by a Worker
+         whose group assignment is in the GAQ front item.
+
+   @param last_committed_arg  logical timestamp of a parent transaction
+   @param gaq_index           Index of the current transaction in GAQ
+   @return false as success,
+           true  when the error flag is raised or
+                 the caller thread is found killed.
+*/
+bool Mts_submode_logical_clock::
+wait_for_last_committed_trx(Relay_log_info* rli,
+                            longlong last_committed_arg,
+                            longlong lwm_estimate_arg)
+{
+  THD* thd= rli->info_thd;
+
+  DBUG_ENTER("Mts_submode_logical_clock::wait_for_last_committed_trx");
+
+  if (last_committed_arg == SEQ_UNINIT)
+    DBUG_RETURN(false);
+
+  mysql_mutex_lock(&rli->mts_gaq_LOCK);
+
+  DBUG_ASSERT(min_waited_timestamp == SEQ_UNINIT);
+
+  my_atomic_store64(&min_waited_timestamp, last_committed_arg);
+  /*
+    This transaction is a candidate for insertion into the waiting list.
+    That fact is descibed by incrementing waited_timestamp_cnt.
+    When the candidate won't make it the counter is decremented at once
+    while the mutex is hold.
+  */
+  if ((!rli->info_thd->killed && !is_error) &&
+      !clock_leq(last_committed_arg, get_lwm_timestamp(rli, true)))
   {
-    DBUG_PRINT("info", ("mts_last_known_commit_parent is %lld, "
-                        "commit_seq_no is %lld", mts_last_known_commit_parent,
-                        commit_seq_no));
-    mts_last_known_commit_parent= commit_seq_no;
-    worker_seq= 0;
-    if (ev->get_type_code() == GTID_LOG_EVENT ||
-        ev->get_type_code() == USER_VAR_EVENT ||
-        ev->get_type_code() == INTVAR_EVENT   ||
-        ev->get_type_code() == RAND_EVENT )
-      defer_new_group= true;
-    else
-      is_new_group= true;
-    force_new_group= false;
+    PSI_stage_info old_stage;
+    struct timespec ts[2];
+    set_timespec_nsec(&ts[0], 0);
+
+    DBUG_ASSERT(rli->gaq->len >= 2); // there's someone to wait
+
+    thd->ENTER_COND(&rli->logical_clock_cond, &rli->mts_gaq_LOCK,
+                    &stage_worker_waiting_for_commit_parent, &old_stage);
+    do
+    {
+      mysql_cond_wait(&rli->logical_clock_cond, &rli->mts_gaq_LOCK);
+    }
+    while ((!rli->info_thd->killed && !is_error) &&
+           !clock_leq(last_committed_arg, estimate_lwm_timestamp()));
+    my_atomic_store64(&min_waited_timestamp, SEQ_UNINIT);  // reset waiting flag
+    thd->EXIT_COND(&old_stage);
+    set_timespec_nsec(&ts[1], 0);
+    my_atomic_add64(&rli->mts_total_wait_overlap, diff_timespec(&ts[1], &ts[0]));
   }
   else
   {
-    if (defer_new_group)
-    {
-      is_new_group= true;
-      defer_new_group= false;
-    }
-    else
-     is_new_group= false;
+    my_atomic_store64(&min_waited_timestamp, SEQ_UNINIT);
+    mysql_mutex_unlock(&rli->mts_gaq_LOCK);
   }
 
-  DBUG_PRINT("info", ("MTS::slave c=%lld first_event=%s", commit_seq_no,
-                      YESNO(first_event)));
-  DBUG_PRINT("info", ("defer_new_group %d, is_new_group %d, force_new_group %d",
-                      defer_new_group, is_new_group, force_new_group));
-  return false;
+  DBUG_RETURN(rli->info_thd->killed || is_error);
 }
 
 /**
  Does necessary arrangement before scheduling next event.
+ The method computes the meta-group status of the being scheduled
+ transaction represented by the event argument. When the status
+ is found OUT (of the current meta-group) as encoded as is_new_group == true
+ the global Scheduler (Coordinator thread) requests full synchronization
+ with all Workers.
+ The current being assigned group descriptor gets associated with
+ the group's logical timestamp aka sequence_number.
+
  @param:  Relay_log_info* rli
           Log_event *ev
  @return: ER_MTS_CANT_PARALLEL, ER_MTS_INCONSISTENT_DATA
@@ -413,36 +513,163 @@ int
 Mts_submode_logical_clock::schedule_next_event(Relay_log_info* rli,
                                                Log_event *ev)
 {
+  longlong last_sequence_number= sequence_number;
+
   DBUG_ENTER("Mts_submode_logical_clock::schedule_next_event");
   // We should check if the SQL thread was already killed before we schedule
   // the next transaction
   if (sql_slave_killed(rli->info_thd, rli))
     DBUG_RETURN(0);
 
-  if (assign_group(rli, ev))
-    DBUG_RETURN (ER_MTS_CANT_PARALLEL);
-
-  if (commit_seq_no == SEQ_UNINIT && gtid_mode == 3)
+  Slave_job_group *ptr_group=
+    rli->gaq->get_job_group(rli->gaq->assigned_group_index);
+  /*
+    A group id updater must satisfy the following:
+    - A query log event ("BEGIN" ) or a GTID EVENT
+    - A DDL or an implicit DML commit.
+  */
+  switch (ev->get_type_code())
   {
-    rli->mts_group_status= Relay_log_info::MTS_IN_GROUP;
-    DBUG_RETURN (0);
+  case QUERY_EVENT:
+    ptr_group->sequence_number= sequence_number=
+      static_cast<Query_log_event*>(ev)->sequence_number;
+    ptr_group->last_committed= last_committed=
+      static_cast<Query_log_event*>(ev)->last_committed;
+    break;
+
+  case GTID_LOG_EVENT:
+    // TODO: control continuity
+    ptr_group->sequence_number= sequence_number=
+      static_cast<Gtid_log_event*>(ev)->sequence_number;
+    ptr_group->last_committed= last_committed=
+      static_cast<Gtid_log_event*>(ev)->last_committed;
+    break;
+
+  default:
+
+    sequence_number= last_committed= SEQ_UNINIT;
+
+    break;
+  }
+  if (clock_leq(sequence_number, last_committed) && last_committed != SEQ_UNINIT)
+  {
+    /* inconsistent (buggy) timestamps */
+    sql_print_error("Event contains inconsistent logical timestamps: "
+                    "sequence_number (%llu) <= last_committed (%llu)",
+                    sequence_number, last_committed);
+    DBUG_RETURN(ER_MTS_CANT_PARALLEL);
+  }
+  if (first_event)
+  {
+    if (sequence_number == SEQ_UNINIT)
+    {
+      /*
+        Either master is old, or the current group of events is malformed.
+        In either case execution is allowed in effectively sequential mode, and warned.
+      */
+      sql_print_warning("Either event (relay log name:position) (%s:%llu) "
+                        "is from an old master not logically timestamping "
+                        "transactions in binlog, or the current group of "
+                        "events miss a proper group header event. Execution is "
+                        "proceeded, but it is recommended to make sure "
+                        "replication is resumed from a valid start group "
+                        "position.",
+                        rli->get_event_relay_log_name(),
+                        rli->get_event_relay_log_pos());
+    }
+    first_event= false;
   }
   /*
-    The coordinator waits till the last group was completely applied before
-    the events from the next group is scheduled for the workers.
-    data locks are handled for a short duration while updating the
-    log positions.
+    The new group flag is practically the same as the force flag
+    when up to indicate syncronization with Workers.
+  */
+  is_new_group=
+    (/* First event after a submode switch; */
+     first_event ||
+     /* Require a fresh group to be started; */
+     // todo: turn `force_new_group' into sequence_number == SEQ_UNINIT condition
+     force_new_group ||
+     /* Rewritten event without commit point timestamp (todo: find use case) */
+     sequence_number == SEQ_UNINIT ||
+     /*
+       undefined parent (e.g the very first trans from the master),
+       or old master.
+     */
+     last_committed == SEQ_UNINIT ||
+     /*
+       previous group did not have sequence number assigned.
+       It's execution must be finished until the current group
+       can be assigned.
+       Dependency of the current group on the previous
+       can't be tracked. So let's wait till the former is over.
+     */
+     last_sequence_number == SEQ_UNINIT);
+  /*
+    The coordinator waits till all transactions on which the current one
+    depends on are applied.
   */
   if (!is_new_group)
+  {
+    longlong lwm_estimate= estimate_lwm_timestamp();
+
+    if (!clock_leq(last_committed, lwm_estimate) &&
+        rli->gaq->assigned_group_index != rli->gaq->entry)
+    {
+      /*
+        "Unlikely" branch.
+
+        The following block improves possibly stale lwm and when the
+        waiting condition stays, recompute min_waited_timestamp and go
+        waiting.
+        At awakening set min_waited_timestamp to commit_parent in the
+        subsequent GAQ index (could be NIL).
+      */
+      if (wait_for_last_committed_trx(rli, last_committed, lwm_estimate))
+      {
+        DBUG_RETURN(-1);
+      }
+
+      DBUG_ASSERT(!clock_leq(sequence_number, estimate_lwm_timestamp()));
+    }
+
     delegated_jobs++;
+
+    DBUG_ASSERT(!force_new_group);
+  }
   else
   {
+    DBUG_ASSERT(delegated_jobs >= jobs_done);
+    DBUG_ASSERT(is_error || (rli->gaq->len + jobs_done == 1 + delegated_jobs));
+    DBUG_ASSERT(rli->mts_group_status == Relay_log_info::MTS_IN_GROUP);
+
+    /*
+      Under the new group fall the following use cases:
+      - events from an OLD (sequence_number unaware) master;
+      - malformed (missed BEGIN or GTID_NEXT) group incl. its
+        particular form of CREATE..SELECT..from..@user_var (or rand- and
+        int- var in place of @user- var).
+        The malformed group is handled exceptionally each event is executed
+        as a solitary group yet by the same (zero id) worker.
+    */
     if (-1 == wait_for_workers_to_finish(rli))
       DBUG_RETURN (ER_MTS_INCONSISTENT_DATA);
+
+    rli->mts_group_status= Relay_log_info::MTS_IN_GROUP; //wait set it to NOT
+    DBUG_ASSERT(min_waited_timestamp == SEQ_UNINIT);
+    /*
+      the instant last lwm timestamp must reset when force flag is up.
+    */
+    rli->gaq->lwm.sequence_number= last_lwm_timestamp= SEQ_UNINIT;
     delegated_jobs= 1;
     jobs_done= 0;
+    force_new_group= false;
   }
-  rli->mts_group_status= Relay_log_info::MTS_IN_GROUP;
+
+#ifndef DBUG_OFF
+  mysql_mutex_lock(&rli->mts_gaq_LOCK);
+  DBUG_ASSERT(is_error || (rli->gaq->len + jobs_done == delegated_jobs));
+  mysql_mutex_unlock(&rli->mts_gaq_LOCK);
+#endif
   DBUG_RETURN(0);
 }
 
@@ -548,12 +775,12 @@ Mts_submode_logical_clock::detach_temp_tables( THD *thd, const Relay_log_info* r
 
 Slave_worker *
 Mts_submode_logical_clock::get_least_occupied_worker(Relay_log_info *rli,
-                                              DYNAMIC_ARRAY *ws,
-                                              Log_event * ev)
+                                                     Slave_worker_array *ws,
+                                                     Log_event * ev)
 {
   Slave_committed_queue *gaq= rli->gaq;
   Slave_worker *worker= NULL;
-  Slave_job_group* ptr_group;
+  Slave_job_group* ptr_group __attribute__((unused));
   PSI_stage_info *old_stage= 0;
   THD* thd= rli->info_thd;
   DBUG_ENTER("Mts_submode_logical_clock::get_least_occupied_worker");
@@ -561,10 +788,10 @@ Mts_submode_logical_clock::get_least_occupied_worker(Relay_log_info *rli,
 
   if (DBUG_EVALUATE_IF("mts_distribute_round_robin", 1, 0))
   {
-    worker= *((Slave_worker **)dynamic_array_ptr(ws,
-                                                 w_rr % ws->elements));
+    worker= ws->at(w_rr % ws->size());
     sql_print_information("Chosing worker id %lu, the following is"
-                          " going to be %lu", worker->id, w_rr % ws->elements);
+                          " going to be %lu", worker->id,
+                          static_cast<ulong>(w_rr % ws->size()));
     DBUG_ASSERT(worker != NULL);
     DBUG_RETURN(worker);
   }
@@ -579,45 +806,42 @@ Mts_submode_logical_clock::get_least_occupied_worker(Relay_log_info *rli,
        workers
       -If the i-th transaction is being scheduled in this group where "i" >
        number of available workers then schedule this to the forst worker that
-       becomes free..Ankit
+       becomes free.
    */
   if (rli->last_assigned_worker)
     worker= rli->last_assigned_worker;
   else
   {
-    if (worker_seq < ws->elements)
+    worker= get_free_worker(rli);
+    if (worker == NULL)
     {
-      worker= *((Slave_worker **)dynamic_array_ptr(ws, worker_seq));
-      worker_seq++;
-    }
-    else
-    {
-      worker= get_free_worker(rli);
-      if (worker == NULL)
+      struct timespec ts[2];
+
+      set_timespec_nsec(&ts[0], 0);
+      // Update thd info as waiting for workers to finish.
+      thd->enter_stage(&stage_slave_waiting_for_workers_to_finish, old_stage,
+                       __func__, __FILE__, __LINE__);
+      while (!worker && !thd->killed)
       {
-        // Update thd info as waiting for workers to finish.
-        thd->enter_stage(&stage_slave_waiting_for_workers_to_finish, old_stage,
-                         __func__, __FILE__, __LINE__);
-        do
-        {
-          /* wait and get a free worker */
-          worker= get_free_worker(rli);
-        } while (!worker && !thd->killed &&
-                 (my_sleep(rli->mts_coordinator_basic_nap), 1));
-
-        // Restore old stage info.
-        THD_STAGE_INFO(thd, *old_stage);
-
         /*
-          Even OPTION_BEGIN is set, the 'BEGIN' event is not dispatched to
-          any worker thread. So The flag is removed and Coordinator thread
-          will not try to finish the group before abort.
+          wait and get a free worker.
+          todo: replace with First Available assignement policy
         */
-        if (worker == NULL)
-          rli->info_thd->variables.option_bits&= ~OPTION_BEGIN;
+        my_sleep(rli->mts_coordinator_basic_nap);
+        worker= get_free_worker(rli);
       }
+      THD_STAGE_INFO(thd, *old_stage);
+      set_timespec_nsec(&ts[1], 0);
+      rli->mts_total_wait_worker_avail += diff_timespec(&ts[1], &ts[0]);
+      rli->mts_wq_no_underrun_cnt++;
+      /*
+        Even OPTION_BEGIN is set, the 'BEGIN' event is not dispatched to
+        any worker thread. So The flag is removed and Coordinator thread
+        will not try to finish the group before abort.
+      */
+      if (worker == NULL)
+        rli->info_thd->variables.option_bits&= ~OPTION_BEGIN;
     }
-
     if (rli->get_commit_order_manager() != NULL && worker != NULL)
       rli->get_commit_order_manager()->register_trx(worker);
   }
@@ -629,21 +853,26 @@ Mts_submode_logical_clock::get_least_occupied_worker(Relay_log_info *rli,
   /* The master my have send  db partition info. make sure we never use them*/
   if (ev->get_type_code() == QUERY_EVENT)
     static_cast<Query_log_event*>(ev)->mts_accessed_dbs= 0;
+
   DBUG_RETURN(worker);
 }
 
 /**
-  Protected method to fetch a free  worker. returns NULL if none are free.
-  It is up to caller to make sure that it polls using this function for
-  any free workers.
- */
+  Protected method to fetch a worker having no events assigned.
+  The method is supposed to be called by Coordinator, therefore
+  comparison like w_i->jobs.len == 0 must (eventually) succeed.
+
+  todo: consider to optimize scan that is getting more expensive with
+  more # of Workers.
+
+  @return  a pointer to Worker or NULL if none is free.
+*/
 Slave_worker*
 Mts_submode_logical_clock::get_free_worker(Relay_log_info *rli)
 {
-  Slave_worker *w_i;
-  for (uint i= 0; i < rli->workers.elements; i++)
+  for (Slave_worker **it= rli->workers.begin(); it != rli->workers.end(); ++it)
   {
-    get_dynamic(&rli->workers, (uchar *) &w_i, i);
+    Slave_worker *w_i= *it;
     if (w_i->jobs.len == 0)
       return w_i;
   }
@@ -652,8 +881,8 @@ Mts_submode_logical_clock::get_free_worker(Relay_log_info *rli)
 
 /**
   Waits for slave workers to finish off the pending tasks before returning.
-  Used in this submode to make sure that the previous group has been applied
-  before a new group is scheduled.
+  Used in this submode to make sure that all assigned jobs have been done.
+
   @param Relay_log info *rli  coordinator rli.
   @param Slave worker to ignore.
   @return -1 for error.
@@ -672,11 +901,15 @@ Mts_submode_logical_clock::
   // Update thd info as waiting for workers to finish.
   thd->enter_stage(&stage_slave_waiting_for_workers_to_finish, old_stage,
                     __func__, __FILE__, __LINE__);
-  while (delegated_jobs > jobs_done && !thd->killed)
+  while (delegated_jobs > jobs_done && !thd->killed && !is_error)
   {
+    // Todo: consider to replace with a. GAQ::get_lwm_timestamp() or
+    // b. (better) pthread wait+signal similarly to DB type.
     if (mts_checkpoint_routine(rli, 0, true, true /*need_data_lock=true*/))
       DBUG_RETURN(-1);
   }
+  // The current commit point sequence may end here (e.g Rotate to new log)
+  rli->gaq->lwm.sequence_number= SEQ_UNINIT;
   // Restore previous info.
   THD_STAGE_INFO(thd, *old_stage);
   DBUG_PRINT("info",("delegated %d, jobs_done %d, Workers have finished their"

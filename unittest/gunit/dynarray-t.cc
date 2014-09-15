@@ -40,8 +40,8 @@
 */
 static inline bool operator<(const Key_use &a, const Key_use &b)
 {
-  if (a.table->tablenr != b.table->tablenr)
-    return a.table->tablenr < b.table->tablenr;
+  if (a.table_ref->tableno() != b.table_ref->tableno())
+    return a.table_ref->tableno() < b.table_ref->tableno();
   if (a.key != b.key)
     return a.key < b.key;
   if (a.keypart != b.keypart)
@@ -63,7 +63,7 @@ static inline bool operator<(const Key_use &a, const Key_use &b)
 static inline bool operator==(const Key_use &lhs, const Key_use &rhs)
 {
   return
-    lhs.table->tablenr == rhs.table->tablenr &&
+    lhs.table_ref->tableno() == rhs.table_ref->tableno() &&
     lhs.key            == rhs.key            &&
     lhs.keypart        == rhs.keypart        &&
     MY_TEST((lhs.used_tables & ~OUTER_REF_TABLE_BIT))
@@ -78,7 +78,7 @@ static inline bool operator==(const Key_use &lhs, const Key_use &rhs)
 static inline std::ostream &operator<<(std::ostream &s, const Key_use &v)
 {
   return s << "{"
-           << v.table->tablenr << ", "
+           << v.table_ref->tableno() << ", "
            << v.key            << ", "
            << v.keypart        << ", "
            << v.used_tables    << ", "
@@ -90,6 +90,12 @@ static inline std::ostream &operator<<(std::ostream &s, const Key_use &v)
 
 namespace dynarray_unittest {
 
+// We still want to unit-test this, to compare performance.
+#undef my_init_dynamic_array
+extern "C" 
+my_bool my_init_dynamic_array(DYNAMIC_ARRAY *array, uint element_size,
+                              void *init_buffer, uint init_alloc,
+                              uint alloc_increment);
 /*
   Cut'n paste this function from sql_select.cc,
   to avoid linking in the entire server for this unit test.
@@ -97,8 +103,8 @@ namespace dynarray_unittest {
 inline int sort_keyuse(Key_use *a, Key_use *b)
 {
   int res;
-  if (a->table->tablenr != b->table->tablenr)
-    return (int) (a->table->tablenr - b->table->tablenr);
+  if (a->table_ref->tableno() != b->table_ref->tableno())
+    return (int) (a->table_ref->tableno() - b->table_ref->tableno());
   if (a->key != b->key)
     return (int) (a->key - b->key);
   if (a->keypart != b->keypart)
@@ -114,12 +120,12 @@ inline int sort_keyuse(Key_use *a, Key_use *b)
 
 
 // We generate some random data at startup, for testing of sorting.
-void generate_test_data(Key_use *keys, TABLE *tables, int n)
+void generate_test_data(Key_use *keys, TABLE_LIST *tables, int n)
 {
   int ix;
   for (ix= 0; ix < n; ++ix)
   {
-    tables[ix].tablenr= ix % 3;
+    tables[ix].set_tableno(ix % 3);
     keys[ix]=
       Key_use(&tables[ix],
               NULL,                           // Item      *val
@@ -160,7 +166,8 @@ public:
 
   virtual void SetUp()
   {
-    my_init_dynamic_array(&m_keyuse_dyn, sizeof(Key_use), num_elements, 64);
+    my_init_dynamic_array(&m_keyuse_dyn, sizeof(Key_use), NULL,
+                          num_elements, 64);
     m_keyuse_vec.reserve(num_elements);
   }
 
@@ -194,13 +201,13 @@ public:
   std::vector<Key_use>    m_keyuse_vec;
 private:
   static Key_use test_data[num_elements];
-  static TABLE   table_list[num_elements];
+  static TABLE_LIST table_list[num_elements];
 
   GTEST_DISALLOW_COPY_AND_ASSIGN_(DynArrayTest);
 };
 
 Key_use DynArrayTest::test_data[num_elements];
-TABLE   DynArrayTest::table_list[num_elements];
+TABLE_LIST DynArrayTest::table_list[num_elements];
 
 
 // Test insert_dynamic() and my_qsort().
@@ -234,8 +241,8 @@ protected:
   virtual void SetUp()
   {
     init_sql_alloc(PSI_NOT_INSTRUMENTED, &m_mem_root, 1024, 0);
-    ASSERT_EQ(0, my_pthread_setspecific_ptr(THR_MALLOC, &m_mem_root_p));
-    MEM_ROOT *root= *my_pthread_getspecific_ptr(MEM_ROOT**, THR_MALLOC);
+    ASSERT_EQ(0, my_set_thread_local(THR_MALLOC, &m_mem_root_p));
+    MEM_ROOT *root= *static_cast<MEM_ROOT**>(my_get_thread_local(THR_MALLOC));
     ASSERT_EQ(root, m_mem_root_p);
 
     m_array_mysys.reserve(num_elements);
@@ -251,17 +258,17 @@ protected:
   static void SetUpTestCase()
   {
     generate_test_data(test_data, table_list, num_elements);
-    ASSERT_EQ(0, pthread_key_create(&THR_THD, NULL));
+    ASSERT_EQ(0, my_create_thread_local_key(&THR_THD, NULL));
     THR_THD_initialized= true;
-    ASSERT_EQ(0, pthread_key_create(&THR_MALLOC, NULL));
+    ASSERT_EQ(0, my_create_thread_local_key(&THR_MALLOC, NULL));
     THR_MALLOC_initialized= true;
   }
 
   static void TearDownTestCase()
   {
-    pthread_key_delete(THR_THD);
+    my_delete_thread_local_key(THR_THD);
     THR_THD_initialized= false;
-    pthread_key_delete(THR_MALLOC);
+    my_delete_thread_local_key(THR_MALLOC);
     THR_MALLOC_initialized= false;
   }
 
@@ -295,14 +302,14 @@ public:
   static size_t  destroy_counter;
 private:
   static Key_use test_data[num_elements];
-  static TABLE   table_list[num_elements];
+  static TABLE_LIST table_list[num_elements];
 
   GTEST_DISALLOW_COPY_AND_ASSIGN_(MemRootTest);
 };
 
 size_t  MemRootTest::destroy_counter;
 Key_use MemRootTest::test_data[num_elements];
-TABLE   MemRootTest::table_list[num_elements];
+TABLE_LIST MemRootTest::table_list[num_elements];
 
 
 // Test Mem_root_array::push_back() and my_qsort()

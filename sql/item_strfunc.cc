@@ -43,8 +43,7 @@
 #include "mysqld.h"                             // LOCK_uuid_generator
 #include "auth_common.h"                        // SUPER_ACL
 #include "des_key_file.h"       // st_des_keyschedule, st_des_keyblock
-#include "password.h"           // my_make_scrambled_password,
-                                // my_make_scrambled_password_323
+#include "password.h"           // my_make_scrambled_password
 #include "crypt_genhash_impl.h"
 #include <m_ctype.h>
 #include <base64.h>
@@ -58,6 +57,8 @@ C_MODE_START
 C_MODE_END
 
 #include "template_utils.h"
+#include <rapidjson/writer.h>
+#include <rapidjson/stringbuffer.h>
 
 using std::min;
 using std::max;
@@ -232,19 +233,22 @@ void Item_func_sha::fix_length_and_dec()
   fix_length_and_charset(SHA1_HASH_SIZE * 2, default_charset());
 }
 
+/*
+  SHA2(str, hash_length)
+  The second argument indicates the desired bit length of the
+  result, which must have a value of 224, 256, 384, 512, or 0 
+  (which is equivalent to 256).
+*/
 String *Item_func_sha2::val_str_ascii(String *str)
 {
   DBUG_ASSERT(fixed == 1);
 #if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
   unsigned char digest_buf[SHA512_DIGEST_LENGTH];
-  String *input_string;
-  unsigned char *input_ptr;
-  size_t input_len;
   uint digest_length= 0;
 
   str->set_charset(&my_charset_bin);
 
-  input_string= args[0]->val_str(str);
+  String *input_string= args[0]->val_str(str);
   if (input_string == NULL)
   {
     null_value= TRUE;
@@ -253,12 +257,19 @@ String *Item_func_sha2::val_str_ascii(String *str)
 
   null_value= args[0]->null_value;
   if (null_value)
-    return (String *) NULL;
+    return NULL;
 
-  input_ptr= (unsigned char *) input_string->ptr();
-  input_len= input_string->length();
+  const unsigned char *input_ptr=
+    pointer_cast<const unsigned char*>(input_string->ptr());
+  size_t input_len= input_string->length();
 
-  switch ((uint) args[1]->val_int()) {
+  longlong hash_length= args[1]->val_int();
+  null_value= args[1]->null_value;
+  // Give error message in switch below.
+  if (null_value)
+    hash_length= -1;
+
+  switch (hash_length) {
 #ifndef OPENSSL_NO_SHA512
   case 512:
     digest_length= SHA512_DIGEST_LENGTH;
@@ -281,6 +292,7 @@ String *Item_func_sha2::val_str_ascii(String *str)
     break;
 #endif
   default:
+    // For const values we have already warned in fix_length_and_dec.
     if (!args[1]->const_item())
       push_warning_printf(current_thd,
         Sql_condition::SL_WARNING,
@@ -323,7 +335,18 @@ void Item_func_sha2::fix_length_and_dec()
   max_length = 0;
 
 #if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
-  int sha_variant= args[1]->const_item() ? args[1]->val_int() : 512;
+  longlong sha_variant;
+  if (args[1]->const_item())
+  {
+    sha_variant= args[1]->val_int();
+    // Give error message in switch below.
+    if (args[1]->null_value)
+      sha_variant= -1;
+  }
+  else
+  {
+    sha_variant= 512;
+  }
 
   switch (sha_variant) {
 #ifndef OPENSSL_NO_SHA512
@@ -434,6 +457,638 @@ public:
     return iv_str;
   }
 };
+
+
+/**
+  Create a GeoJSON object, according to GeoJSON specification revison 1.0.
+
+  NOTE: The rapidjson library does not handle out of memory situations, and the
+  server will thus crash if the output string gets too long.
+*/
+String *Item_func_as_geojson::val_str_ascii(String *str)
+{
+  DBUG_ASSERT(fixed == 1);
+  String arg_val;
+  String *swkb= args[0]->val_str(&arg_val);
+  if ((null_value= args[0]->null_value))
+    return NULL;
+
+  if ((arg_count > 1 && parse_maxdecimaldigits_argument()) ||
+      (arg_count > 2 && parse_options_argument()))
+  {
+    return error_str();
+  }
+
+  Geometry::wkb_parser parser(swkb->ptr(), swkb->ptr() + swkb->length());
+  if (parser.scan_uint4(&m_geometry_srid))
+  {
+    my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
+    return error_str();
+  }
+
+  m_stringbuffer.Clear();
+  rapidjson::Writer<rapidjson::StringBuffer> writer(m_stringbuffer);
+  /*
+    Set maximum number of decimal digits. If maxdecimaldigis argument was not
+    specified, set unlimited number of decimal digits.
+  */
+  if (arg_count < 2)
+    m_max_decimal_digits= INT_MAX32;
+  writer.SetDoublePrecision(m_max_decimal_digits);
+
+  /*
+    append_geometry() will go through the WKB and call itself recursivly if
+    geometry collections are encountered. For each recursive call, a new MBR
+    is created. The function will fail if it encounters invalid data in the
+    WKB input.
+  */
+  MBR mbr;
+  if (append_geometry(&parser, &writer, true, &mbr))
+    return error_str();
+
+  // Check if the GeoJSON string is too long for the packet length.
+  if (m_stringbuffer.GetSize() > current_thd->variables.max_allowed_packet)
+  {
+    push_warning_printf(current_thd, Sql_condition::SL_WARNING,
+                        ER_WARN_ALLOWED_PACKET_OVERFLOWED,
+                        ER(ER_WARN_ALLOWED_PACKET_OVERFLOWED),
+                        func_name(),
+                        current_thd->variables.max_allowed_packet);
+    null_value= TRUE;
+    return NULL;
+  }
+
+  /*
+    Move data from rapidjson buffer to output buffer. For extremely large output
+    or very small memory applications, this could be improved to move data and
+    reallocate/deallocate buffers in steps, so we don't use twice as much memory
+    as we actually need.
+  */
+  if (str->copy(m_stringbuffer.GetString(), m_stringbuffer.GetSize(),
+                str->charset()))
+  {
+    my_error(ER_OUTOFMEMORY, MYF(0), m_stringbuffer.GetSize());
+    return error_str();
+  }
+  return str;
+}
+
+
+/**
+  Parse the value in options argument.
+  
+  Options is a 3-bit bitmask with the following options:
+
+    0  No options (default values).
+    1  Add a bounding box to the output.
+    2  Add a short CRS URN to the output. The default format is a
+       short format ("EPSG:<srid>").
+    4  Add a long format CRS URN ("urn:ogc:def:crs:EPSG::<srid>"). This
+       will override option 2. E.g., bitmask 5 and 7 mean the
+       same: add a bounding box and a long format CRS URN.
+
+  If value is out of range (below zero or greater than seven), an error will be
+  raised. This function expects that the options argument is the third argument
+  in the function call.
+
+  @return false on success, true otherwise (value out of range or similar).
+*/
+bool Item_func_as_geojson::parse_options_argument()
+{
+  DBUG_ASSERT(arg_count > 2);
+  longlong options_argument= args[2]->val_int();
+  if ((null_value = args[2]->null_value))
+    return true;
+
+  if (options_argument < 0 || options_argument > 7)
+  {
+    char options_string[MAX_BIGINT_WIDTH];
+    llstr(options_argument, options_string);
+    
+    my_error(ER_WRONG_VALUE_FOR_TYPE, MYF(0), "options", options_string,
+             func_name());
+    return true;
+  }
+
+  m_add_bounding_box= options_argument & (1 << 0);
+  m_add_short_crs_urn= options_argument & (1 << 1);
+  m_add_long_crs_urn= options_argument & (1 << 2);
+
+  if (m_add_long_crs_urn)
+    m_add_short_crs_urn= false;
+  return false;
+}
+
+
+/**
+  Parse the value in maxdecimaldigits argument.
+  
+  This value MUST be a positive integer. If value is out of range (negative
+  value or greater than INT_MAX), an error will be raised. This function expects
+  that the maxdecimaldigits argument is the second argument in the function
+  call.
+
+  @return false on success, true otherwise (negative value of similar).
+*/
+bool Item_func_as_geojson::parse_maxdecimaldigits_argument()
+{
+  DBUG_ASSERT(arg_count > 1);
+  longlong max_decimal_digits_argument = args[1]->val_int();
+  if ((null_value = args[1]->null_value))
+    return true;
+
+  if (max_decimal_digits_argument < 0 ||
+      max_decimal_digits_argument > INT_MAX32)
+  {
+    char max_decimal_digits_string[MAX_BIGINT_WIDTH];
+    llstr(max_decimal_digits_argument, max_decimal_digits_string);
+
+    my_error(ER_WRONG_VALUE_FOR_TYPE, MYF(0), "max decimal digits",
+             max_decimal_digits_string, func_name());
+    return true;
+  }
+
+  m_max_decimal_digits= static_cast<int>(max_decimal_digits_argument);
+  return false;
+}
+
+
+/**
+  Reads a WKB GEOMETRY from input and writes the equivalent GeoJSON to the
+  output. If a GEOMETRYCOLLECTION is found, this function will call itself for
+  each GEOMETRY in the collection.
+
+  @param parser The WKB input to read from, positioned at the start of
+         GEOMETRY header.
+  @param writer Output buffer to append the result to.
+  @param is_root_object Indicating if the current GEOMETRY is the root object
+         in the output GeoJSON.
+  @param mbr A bounding box, which will be updated with data from all the
+         GEOMETRIES found in the input.
+
+  @return false on success, true otherwise.
+*/
+bool Item_func_as_geojson::
+append_geometry(Geometry::wkb_parser *parser,
+                rapidjson::Writer<rapidjson::StringBuffer> *writer,
+                bool is_root_object, MBR *mbr)
+{
+  // Check of wkb_type is within allowed range.
+  wkb_header header;
+  if (parser->scan_wkb_header(&header) ||
+      header.wkb_type < Geometry::wkb_first ||
+      header.wkb_type > Geometry::wkb_geometrycollection)
+  {
+    my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
+    return true;
+  }
+
+  /*
+    Use is_mbr_empty to check if we encounter any empty GEOMETRY collections.
+    In that case, we don't want to write a bounding box to the GeoJSON output.
+  */
+  bool is_mbr_empty= false;
+  writer->StartObject();
+  writer->String("type");
+  writer->String(
+    wkbtype_to_geojson_type(static_cast<Geometry::wkbType>(header.wkb_type)));
+
+  if (header.wkb_type == Geometry::wkb_geometrycollection)
+    writer->String("geometries");
+  else
+    writer->String("coordinates");
+
+  switch (header.wkb_type)
+  {
+  case Geometry::wkb_point:
+    {
+      if (append_coordinates(parser, writer, mbr))
+        return true;
+      break;
+    }
+  case Geometry::wkb_linestring:
+    {
+      if (append_linestring(parser, writer, mbr))
+        return true;
+      break;
+    }
+  case Geometry::wkb_polygon:
+    {
+      if (append_polygon(parser, writer, mbr))
+        return true;
+      break;
+    }
+  case Geometry::wkb_multipoint:
+  case Geometry::wkb_multipolygon:
+  case Geometry::wkb_multilinestring:
+    {
+      uint32 num_items= 0;
+      if (parser->scan_non_zero_uint4(&num_items))
+      {
+        my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
+        return true;
+      }
+
+      writer->StartArray();
+      while (num_items--)
+      {
+        if (parser->skip_wkb_header())
+        {
+          my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
+          return true;
+        }
+        else
+        {
+          bool result;
+          if (header.wkb_type == Geometry::wkb_multipoint)
+            result= append_coordinates(parser, writer, mbr);
+          else if (header.wkb_type == Geometry::wkb_multipolygon)
+            result= append_polygon(parser, writer, mbr);
+          else if (Geometry::wkb_multilinestring)
+            result= append_linestring(parser, writer, mbr);
+          else
+            DBUG_ASSERT(false);
+
+          if (result)
+            return true;
+        }
+      }
+      writer->EndArray();
+      break;
+    }
+  case Geometry::wkb_geometrycollection:
+    {
+      uint32 num_geometries= 0;
+      if (parser->scan_uint4(&num_geometries))
+      {
+        my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
+        return true;
+      }
+
+      is_mbr_empty= (num_geometries == 0);
+      writer->StartArray();
+      while (num_geometries--)
+      {
+        // Create a new MBR for the collection.
+        MBR subcollection_mbr;
+        if (append_geometry(parser, writer, false, &subcollection_mbr))
+          return true;
+
+        if (m_add_bounding_box)
+          mbr->add_mbr(&subcollection_mbr);
+      }
+      writer->EndArray();
+      break;
+    }
+  default:
+    {
+      // This should not happen, since we did a check on wkb_type earlier.
+      DBUG_ASSERT(false);
+      return true;
+    }
+  }
+
+  // Only add a CRS object if the SRID of the GEOMETRY is not 0.
+  if (is_root_object && (m_add_long_crs_urn || m_add_short_crs_urn) &&
+      m_geometry_srid > 0)
+  {
+    append_crs(writer);
+  }
+
+  if (m_add_bounding_box && !is_mbr_empty)
+    append_bounding_box(mbr, writer);
+
+  writer->EndObject();
+  return false;
+}
+
+
+/**
+  Appends a GeoJSON bounding box to the rapidjson output buffer.
+
+  @param mbr Bounding box to write.
+  @param writer The output buffer to append the bounding box to.
+*/
+void Item_func_as_geojson::
+append_bounding_box(MBR *mbr,
+                    rapidjson::Writer<rapidjson::StringBuffer> *writer)
+{
+  DBUG_ASSERT(m_add_bounding_box);
+  DBUG_ASSERT(GEOM_DIM == 2);
+  writer->String("bbox");
+  writer->StartArray();
+  writer->Double(mbr->xmin);
+  writer->Double(mbr->ymin);
+  writer->Double(mbr->xmax);
+  writer->Double(mbr->ymax);
+  writer->EndArray();
+}
+
+
+/**
+  Appends a GeoJSON CRS object to the rapidjson output buffer.
+  
+  If both add_long_crs_urn and add_short_crs_urn is specified, the long CRS URN
+  is preferred as mentioned in the GeoJSON specification:
+    
+    "OGC CRS URNs such as "urn:ogc:def:crs:OGC:1.3:CRS84" shall be preferred
+    over legacy identifiers such as "EPSG:4326""
+
+  @param writer The output buffer to append the CRS object to.
+*/
+void Item_func_as_geojson::
+append_crs(rapidjson::Writer<rapidjson::StringBuffer> *writer)
+{
+  DBUG_ASSERT(m_add_long_crs_urn || m_add_short_crs_urn);
+  DBUG_ASSERT(m_geometry_srid > 0);
+
+  writer->String("crs");
+
+  writer->StartObject();
+  writer->String("type");
+  writer->String("name");
+  writer->String("properties");
+
+  writer->StartObject();
+  writer->String("name");
+
+  // Max width of SRID + '\0'
+  char srid_string[MAX_INT_WIDTH + 1];
+  llstr(m_geometry_srid, srid_string);
+
+  char crs_name[MAX_CRS_WIDTH];
+  if (m_add_long_crs_urn)
+    strcpy(crs_name, Item_func_geomfromgeojson::LONG_EPSG_PREFIX);
+  else if (m_add_short_crs_urn)
+    strcpy(crs_name, Item_func_geomfromgeojson::SHORT_EPSG_PREFIX);
+
+  strcat(crs_name, srid_string);
+  writer->String(crs_name);
+
+  writer->EndObject();
+  writer->EndObject();
+}
+
+
+/**
+  Append a GeoJSON Polygon object to the writer at the current position.
+
+  The parser must be positioned after the Polygon header, and all coordinate
+  arrays must contain at least one value.
+  
+  @param parser WKB parser with position set to after the Polygon header.
+  @param writer Output buffer to append the result to.
+  @param mbr A bounding box, which will be updated with data from the Polygon.
+
+  @return false on success, true otherwise.
+*/
+bool Item_func_as_geojson::
+append_polygon(Geometry::wkb_parser *parser,
+               rapidjson::Writer<rapidjson::StringBuffer> *writer, MBR *mbr)
+{
+  uint32 num_inner_rings= 0;
+  if (parser->scan_non_zero_uint4(&num_inner_rings))
+  {
+    my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
+    return true;
+  }
+
+  writer->StartArray();
+  while (num_inner_rings--)
+  {
+    uint32 num_points= 0;
+    if (parser->scan_non_zero_uint4(&num_points))
+    {
+      my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
+      return true;
+    }
+
+    writer->StartArray();
+    while (num_points--)
+    {
+      if (append_coordinates(parser, writer, mbr))
+        return true;
+    }
+    writer->EndArray();
+  }
+  writer->EndArray();
+  return false;
+}
+
+
+/**
+  Append a GeoJSON LineString object to the writer at the current position.
+
+  The parser must be positioned after the LineString header, and there must be
+  at least one coordinate array in the linestring.
+
+  @param parser WKB parser with position set to after the LineString header.
+  @param writer Output buffer to append the result to.
+  @param mbr A bounding box, which will be updated with data from the
+         LineString.
+
+  @return false on success, true otherwise.
+*/
+bool Item_func_as_geojson::
+append_linestring(Geometry::wkb_parser *parser,
+                  rapidjson::Writer<rapidjson::StringBuffer> *writer, MBR *mbr)
+{
+  uint32 num_points= 0;
+  if (parser->scan_non_zero_uint4(&num_points))
+  {
+    my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
+    return true;
+  }
+
+  writer->StartArray();
+  while (num_points--)
+  {
+    if (append_coordinates(parser, writer, mbr))
+      return true;
+  }
+  writer->EndArray();
+  return false;
+}
+
+
+/**
+  Append a GeoJSON array with coordinates to the writer at the current position.
+
+  The WKB parser must be positioned at the beginning of the coordinates.
+  There must exactly two coordinates in the array (x and y). The coordinates are
+  rounded to the number of decimals specified in the variable
+  max_decimal_digits.:
+
+    max_decimal_digits == 2: 12.789 => 12.79
+                             10     => 10.00
+
+  @param parser WKB parser with position set to the beginning of the
+         coordinates.
+  @param writer Output buffer to append the result to.
+  @param mbr A bounding box, which will be updated with data from the
+         coordinates.
+
+  @return false on success, true otherwise.
+*/
+bool Item_func_as_geojson::
+append_coordinates(Geometry::wkb_parser *parser,
+                   rapidjson::Writer<rapidjson::StringBuffer> *writer, MBR *mbr)
+{
+  point_xy coordinates;
+  if (parser->scan_xy(&coordinates))
+  {
+    my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
+    return true;
+  }
+
+  double x_value=
+    my_double_round(coordinates.x, m_max_decimal_digits, true, false);
+  double y_value=
+    my_double_round(coordinates.y, m_max_decimal_digits, true, false);
+
+  writer->StartArray();
+  writer->Double(x_value);
+  writer->Double(y_value);
+  writer->EndArray();
+
+  if (m_add_bounding_box)
+    mbr->add_xy(x_value, y_value);
+  return false;
+}
+
+
+/**
+  Converts a wkbType to the corresponding GeoJSON type.
+
+  @param type The WKB Type to convert.
+
+  @return The corresponding GeoJSON type, or NULL if no such type exists.
+*/
+const char *
+Item_func_as_geojson::wkbtype_to_geojson_type(Geometry::wkbType type)
+{
+  switch (type)
+  {
+  case Geometry::wkb_geometrycollection:
+    return Item_func_geomfromgeojson::GEOMETRYCOLLECTION_TYPE;
+  case Geometry::wkb_point:
+    return Item_func_geomfromgeojson::POINT_TYPE;
+  case Geometry::wkb_multipoint:
+    return Item_func_geomfromgeojson::MULTIPOINT_TYPE;
+  case Geometry::wkb_linestring:
+    return Item_func_geomfromgeojson::LINESTRING_TYPE;
+  case Geometry::wkb_multilinestring:
+    return Item_func_geomfromgeojson::MULTILINESTRING_TYPE;
+  case Geometry::wkb_polygon:
+    return Item_func_geomfromgeojson::POLYGON_TYPE;
+  case Geometry::wkb_multipolygon:
+    return Item_func_geomfromgeojson::MULTIPOLYGON_TYPE;
+  case Geometry::wkb_invalid_type:
+  case Geometry::wkb_polygon_inner_rings:
+  default:
+    return NULL;
+  }
+}
+
+
+/**
+  Perform type checking on all arguments:
+
+    <geometry> argument must be a geometry.
+    <maxdecimaldigits> must be an integer value.
+    <options> must be an integer value.
+
+  Set maybe_null to the correct value.
+*/
+bool Item_func_as_geojson::fix_fields(THD *thd, Item **ref)
+{
+  if (Item_str_ascii_func::fix_fields(thd, ref))
+    return true;
+
+  /*
+    We must set maybe_null to true, since the GeoJSON string may be longer than
+    the packet size.
+  */
+  maybe_null= true;
+
+  // Check if geometry argument is a geometry type.
+  bool is_parameter_marker= (args[0]->type() == PARAM_ITEM);
+  switch (args[0]->field_type())
+  {
+  case MYSQL_TYPE_GEOMETRY:
+  case MYSQL_TYPE_NULL:
+    break;
+  default:
+    {
+      if (!is_parameter_marker)
+      {
+        my_error(ER_INCORRECT_TYPE, MYF(0), "geojson", func_name());
+        return true;
+      }
+    }
+  }
+
+  if (arg_count > 1)
+  {
+    if (!check_argument_is_integer_type(args[1]))
+    {
+      my_error(ER_INCORRECT_TYPE, MYF(0), "max decimal digits", func_name());
+      return true;
+    }
+  }
+
+  if (arg_count > 2)
+  {
+    if (!check_argument_is_integer_type(args[2]))
+    {
+      my_error(ER_INCORRECT_TYPE, MYF(0), "options", func_name());
+      return true;
+    }
+  }
+  return false;
+}
+
+
+/**
+  Check if the supplied argument is a valid integer type.
+
+  @param argument The argument to validate.
+
+  @return True if the argument is a valid integer type, false otherwise.
+*/
+bool Item_func_as_geojson::check_argument_is_integer_type(Item *argument)
+{
+  bool is_binary_charset= (argument->collation.collation == &my_charset_bin);
+  bool is_parameter_marker= (argument->type() == PARAM_ITEM);
+
+  switch (argument->field_type())
+  {
+  case MYSQL_TYPE_NULL:
+    return true;
+  case MYSQL_TYPE_TINY:
+  case MYSQL_TYPE_SHORT:
+  case MYSQL_TYPE_LONG:
+  case MYSQL_TYPE_LONGLONG:
+  case MYSQL_TYPE_INT24:
+    return true;
+  case MYSQL_TYPE_VARCHAR:
+  case MYSQL_TYPE_STRING:
+  case MYSQL_TYPE_VAR_STRING:
+  case MYSQL_TYPE_TINY_BLOB:
+  case MYSQL_TYPE_MEDIUM_BLOB:
+  case MYSQL_TYPE_LONG_BLOB:
+  case MYSQL_TYPE_BLOB:
+    return (!is_binary_charset || is_parameter_marker);
+  default:
+    return false;
+  }
+}
+
+
+void Item_func_as_geojson::fix_length_and_dec()
+{
+  collation.set(default_charset());
+}
 
 
 bool Item_func_aes_encrypt::itemize(Parse_context *pc, Item **res)
@@ -1447,6 +2102,14 @@ String *Item_func_insert::val_str(String *str)
 
   null_value=0;
   res=args[0]->val_str(str);
+  // TODO: After fixing Bug#11765149, pls remove the following changes
+  // Copy result to avoid destroying constants
+  if (res && (res!= str))
+  {
+    str->set(*res, 0, res->length());
+    res= str;
+  }
+
   res2=args[3]->val_str(&tmp_value);
   start= args[1]->val_int() - 1;
   length= args[2]->val_int();
@@ -1493,7 +2156,6 @@ String *Item_func_insert::val_str(String *str)
 			func_name(), current_thd->variables.max_allowed_packet);
     goto null;
   }
-  res=copy_if_not_alloced(str,res,res->length());
   res->replace((uint32) start,(uint32) length,*res2);
   return res;
 null:
@@ -2026,24 +2688,24 @@ void Item_func_trim::print(String *str, enum_query_type query_type)
   @return Size of the password.
 */
 
-static int calculate_password(String *str, char *buffer)
+static size_t calculate_password(String *str, char *buffer)
 {
   DBUG_ASSERT(str);
   if (str->length() == 0) // PASSWORD('') returns ''
     return 0;
-  
-  int buffer_len= 0;
+
+  size_t buffer_len= 0;
   THD *thd= current_thd;
   int old_passwords= 0;
   if (thd)
     old_passwords= thd->variables.old_passwords;
-  
+
 #if defined(HAVE_OPENSSL)
   if (old_passwords == 2)
   {
     my_make_scrambled_password(buffer, str->ptr(),
                                str->length());
-    buffer_len= (int) strlen(buffer) + 1;
+    buffer_len= strlen(buffer) + 1;
   }
   else
 #endif
@@ -2052,13 +2714,6 @@ static int calculate_password(String *str, char *buffer)
     my_make_scrambled_password_sha1(buffer, str->ptr(),
                                     str->length());
     buffer_len= SCRAMBLED_PASSWORD_CHAR_LENGTH;
-  }
-  else
-  if (old_passwords == 1)
-  {
-    my_make_scrambled_password_323(buffer, str->ptr(),
-                                   str->length());
-    buffer_len= SCRAMBLED_PASSWORD_CHAR_LENGTH_323;
   }
   return buffer_len;
 }
@@ -2140,58 +2795,6 @@ char *Item_func_password::
   return buff;
 }
 
-/* Item_func_old_password */
-
-bool Item_func_old_password::itemize(Parse_context *pc, Item **res)
-{
-  if (skip_itemize(res))
-    return false;
-  if (super::itemize(pc, res))
-    return true;
-
-  pc->thd->lex->contains_plaintext_password= true;
-  return false;
-}
-
-String *Item_func_old_password::val_str_ascii(String *str)
-{
-  String *res;
-
-  DBUG_ASSERT(fixed == 1);
-
-  res= args[0]->val_str(str);
-
-  if ((null_value= args[0]->null_value))
-    res= make_empty_result();
- 
-  /* we treat NULLs as equal to empty string when calling the plugin */
-  check_password_policy(res);
-
-  if (null_value)
-    return 0;
-
-  if (res->length() == 0)
-    return make_empty_result();
-
-  my_make_scrambled_password_323(tmp_value, res->ptr(), res->length());
-  str->set(tmp_value, SCRAMBLED_PASSWORD_CHAR_LENGTH_323, &my_charset_latin1);
-  return str;
-}
-
-char *Item_func_old_password::alloc(THD *thd, const char *password,
-                                    size_t pass_len)
-{
-  char *buff= (char *) thd->alloc(SCRAMBLED_PASSWORD_CHAR_LENGTH_323+1);
-  if (buff)
-  {
-    String *password_str= new (thd->mem_root)String(password, thd->variables.
-                                                    character_set_client);
-    check_password_policy(password_str);
-    my_make_scrambled_password_323(buff, password, pass_len);
-  }
-  return buff;
-}
-
 bool Item_func_encrypt::itemize(Parse_context *pc, Item **res)
 {
   if (skip_itemize(res))
@@ -2240,7 +2843,7 @@ String *Item_func_encrypt::val_str(String *str)
     null_value= 1;
     return 0;
   }
-  str->set(tmp, (uint) strlen(tmp), &my_charset_bin);
+  str->set(tmp, strlen(tmp), &my_charset_bin);
   str->copy();
   mysql_mutex_unlock(&LOCK_crypt);
   return str;
@@ -2356,13 +2959,13 @@ String *Item_func_database::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
   THD *thd= current_thd;
-  if (thd->db == NULL)
+  if (thd->db().str == NULL)
   {
     null_value= 1;
     return 0;
   }
   else
-    str->copy(thd->db, thd->db_length, system_charset_info);
+    str->copy(thd->db().str, thd->db().length, system_charset_info);
   return str;
 }
 
@@ -2601,6 +3204,376 @@ String *Item_func_soundex::val_str(String *str)
 }
 
 
+void Item_func_geohash::fix_length_and_dec()
+{
+  fix_length_and_charset(Item_func_geohash::upper_limit_output_length,
+                         default_charset());
+}
+
+
+/**
+  Here we check for valid types. We have to accept geometry of any type,
+  and determine if it's really a POINT in val_str(). 
+*/
+bool Item_func_geohash::fix_fields(THD *thd, Item **ref)
+{
+  if (Item_str_func::fix_fields(thd, ref))
+    return true;
+
+  int geohash_length_arg_index;
+  if (arg_count == 2)
+  {
+    /*
+      First argument expected to be a point and second argument is expected
+      to be geohash output length.
+    */
+    geohash_length_arg_index= 1;
+    maybe_null= (args[0]->maybe_null || args[1]->maybe_null);
+    if (args[0]->field_type() != MYSQL_TYPE_GEOMETRY &&
+        args[0]->field_type() != MYSQL_TYPE_NULL)
+    {
+      my_error(ER_INCORRECT_TYPE, MYF(0), "point", func_name());
+      return true;
+    }
+  }
+  else if (arg_count == 3)
+  {
+    /*
+      First argument is expected to be longitude, second argument is expected
+      to be latitude and third argument is expected to be geohash
+      output length.
+    */
+    geohash_length_arg_index= 2;
+    maybe_null= (args[0]->maybe_null || args[1]->maybe_null ||
+                 args[2]->maybe_null);
+    if (!check_valid_latlong_type(args[0]))
+    {
+      my_error(ER_INCORRECT_TYPE, MYF(0), "longitude", func_name());
+      return true;
+    }
+    else if (!check_valid_latlong_type(args[1]))
+    {
+      my_error(ER_INCORRECT_TYPE, MYF(0), "latitude", func_name());
+      return true;
+    }
+  }
+  else
+  {
+    /*
+      This should never happen, since function
+      only supports two or three arguments.
+    */
+    DBUG_ASSERT(false);
+    return true;
+  }
+
+  // Check if geohash length argument is of valid type.
+  bool is_binary_charset=
+    (args[geohash_length_arg_index]->collation.collation == &my_charset_bin);
+
+  switch (args[geohash_length_arg_index]->field_type())
+  {
+  case MYSQL_TYPE_NULL:
+    break;
+  case MYSQL_TYPE_TINY:
+  case MYSQL_TYPE_SHORT:
+  case MYSQL_TYPE_LONG:
+  case MYSQL_TYPE_LONGLONG:
+  case MYSQL_TYPE_INT24:
+  case MYSQL_TYPE_VARCHAR:
+  case MYSQL_TYPE_STRING:
+  case MYSQL_TYPE_VAR_STRING:
+  case MYSQL_TYPE_TINY_BLOB:
+  case MYSQL_TYPE_MEDIUM_BLOB:
+  case MYSQL_TYPE_LONG_BLOB:
+  case MYSQL_TYPE_BLOB:
+    if (is_binary_charset)
+    {
+      my_error(ER_INCORRECT_TYPE, MYF(0), "geohash max length", func_name());
+      return true;
+    }
+    break;
+  default:
+    my_error(ER_INCORRECT_TYPE, MYF(0), "geohash max length", func_name());
+    return true;
+  }
+  return false;
+}
+
+
+/**
+  Checks if supplied item is a valid latitude or longitude, based on which
+  type it is. Implemented as a whitelist of allowed types, where binary data is
+  not allowed.
+
+  @param ref Item to check for valid latitude/longitude.
+  @return false if item is not valid, true otherwise.
+*/
+bool Item_func_geohash::check_valid_latlong_type(Item *arg)
+{
+  bool is_binary_charset= (arg->collation.collation == &my_charset_bin);
+
+  switch (arg->field_type())
+  {
+  case MYSQL_TYPE_NULL:
+    return true;
+  case MYSQL_TYPE_DECIMAL:
+  case MYSQL_TYPE_NEWDECIMAL:
+  case MYSQL_TYPE_TINY:
+  case MYSQL_TYPE_SHORT:
+  case MYSQL_TYPE_LONG:
+  case MYSQL_TYPE_FLOAT:
+  case MYSQL_TYPE_DOUBLE:
+  case MYSQL_TYPE_LONGLONG:
+  case MYSQL_TYPE_INT24:
+  case MYSQL_TYPE_VARCHAR:
+  case MYSQL_TYPE_STRING:
+  case MYSQL_TYPE_VAR_STRING:
+  case MYSQL_TYPE_TINY_BLOB:
+  case MYSQL_TYPE_MEDIUM_BLOB:
+  case MYSQL_TYPE_LONG_BLOB:
+  case MYSQL_TYPE_BLOB:
+    return !is_binary_charset;
+  default:
+    return false;
+  }
+}
+
+
+/**
+  Populate member variables with values from arguments.
+
+  In this function we populate the member variables 'latitude', 'longitude'
+  and 'geohash_length' with values from the arguments supplied by the user.
+  We also do type checking on the geometry object, as well as out-of-range
+  check for both longitude, latitude and geohash length.
+
+  If an expection is raised, null_value will not be set. If a null argument
+  was detected, null_value will be set to true.
+
+  @return false if class variables was populated, or true if the function
+          failed to populate them.
+*/
+bool Item_func_geohash::fill_and_check_fields()
+{
+  longlong geohash_length_arg= -1;
+  if (arg_count == 2)
+  {
+    // First argument is point, second argument is geohash output length.
+    String string_buffer;
+    String *swkb= args[0]->val_str(&string_buffer);
+    geohash_length_arg= args[1]->val_int();
+
+    if ((null_value= args[0]->null_value || args[1]->null_value || !swkb))
+    {
+      return true;
+    }
+    else
+    {
+      Geometry *geom;
+      Geometry_buffer geometry_buffer;
+      if (!(geom= Geometry::construct(&geometry_buffer, swkb)))
+      {
+        my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
+        return true;
+      }
+      else if (geom->get_type() != Geometry::wkb_point ||
+               geom->get_x(&longitude) || geom->get_y(&latitude))
+      {
+        my_error(ER_INCORRECT_TYPE, MYF(0), "point", func_name());
+        return true;
+      }
+    }
+  }
+  else if (arg_count == 3)
+  {
+    /*
+      First argument is longitude, second argument is latitude
+      and third argument is geohash output length.
+    */
+    longitude= args[0]->val_real();
+    latitude= args[1]->val_real();
+    geohash_length_arg= args[2]->val_int();
+
+    if ((null_value= args[0]->null_value || args[1]->null_value || 
+         args[2]->null_value))
+      return true;
+  }
+
+  // Check if supplied arguments are within allowed range.
+  if (longitude > max_longitude || longitude < min_longitude)
+  {
+    my_error(ER_DATA_OUT_OF_RANGE, MYF(0), "longitude", func_name());
+    return true;
+  }
+  else if (latitude > max_latitude || latitude < min_latitude)
+  {
+    my_error(ER_DATA_OUT_OF_RANGE, MYF(0), "latitude", func_name());
+    return true;
+  }
+
+  if (geohash_length_arg <= 0 ||
+      geohash_length_arg > upper_limit_output_length)
+  {
+    char geohash_length_string[MAX_BIGINT_WIDTH + 1];
+    llstr(geohash_length_arg, geohash_length_string);
+    my_error(ER_DATA_OUT_OF_RANGE, MYF(0), "max geohash length", func_name());
+    return true;
+  }
+
+  geohash_max_output_length= static_cast<uint>(geohash_length_arg);
+  return false;
+}
+
+
+/**
+  Encodes a pair of longitude and latitude values into a geohash string.
+  The length of the output string will be no longer than the value of
+  geohash_max_output_length member variable, but it might be shorter. The stop
+  condition is the following:
+
+  After appending a character to the output string, check if the encoded values
+  of latitude and longitude matches the input arguments values. If so, return
+  the result to the user.
+
+  It does exist latitudes/longitude values which will cause the algorithm to
+  loop until MAX(max_geohash_length, upper_geohash_limit), no matter how large
+  these arguments are (eg. SELECT GEOHASH(0.01, 1, 100); ). It is thus
+  important to supply an reasonable max geohash length argument.
+*/
+String *Item_func_geohash::val_str_ascii(String *str)
+{
+  DBUG_ASSERT(fixed == TRUE);
+
+  if (fill_and_check_fields())
+  {
+    if (null_value)
+    {
+      return NULL;
+    }
+    else
+    {
+      /*
+        Since null_value == false, my_error() was raised inside
+        fill_and_check_fields().
+      */
+      return error_str();
+    }
+  }
+
+  // Allocate one extra byte, for trailing '\0'.
+  if (str->alloc(geohash_max_output_length + 1))
+    return make_empty_result();
+  str->length(0);
+
+  double upper_latitude= max_latitude;
+  double lower_latitude= min_latitude;
+  double upper_longitude= max_longitude;
+  double lower_longitude= min_longitude;
+  bool even_bit= true;
+
+  for (uint i= 0; i < geohash_max_output_length; i++)
+  {
+    /*
+      We must encode in blocks of five bits, so we don't risk stopping
+      in the middle of a character. If we stop in the middle of a character,
+      some encoded geohash values will differ from geohash.org.
+    */
+    char current_char= 0;
+    for (uint bit_number= 0; bit_number < 5; bit_number++)
+    {
+      if (even_bit)
+      {
+        // Encode one longitude bit.
+        encode_bit(&upper_longitude, &lower_longitude, longitude,
+                   &current_char, bit_number);
+      }
+      else
+      {
+        // Encode one latitude bit.
+        encode_bit(&upper_latitude, &lower_latitude, latitude,
+                   &current_char, bit_number);
+      }
+      even_bit = !even_bit;
+    }
+    str->q_append(char_to_base32(current_char));
+
+    /*
+      If encoded values of latitude and longitude matches the supplied
+      arguments, there is no need to do more calculation.
+    */
+    if (latitude == (lower_latitude + upper_latitude) / 2.0 &&
+        longitude == (lower_longitude + upper_longitude) / 2.0)
+      break;
+  }
+  return str;
+}
+
+
+/**
+  Sets the bit number in char_value, determined by following formula:
+
+  IF target_value < (middle between lower_value and upper_value)
+  set bit to 0
+  ELSE
+  set bit to 1
+
+  When the function returns, upper_value OR lower_value are adjusted
+  to the middle value between lower and upper.
+
+  @param upper_value The upper error range for latitude or longitude.
+  @param lower_value The lower error range for latitude or longitude.
+  @param target_value Latitude or longitude value supplied as argument
+  by the user.
+  @param char_value The character we want to set the bit on.
+  @param bit_number Wich bit number in char_value to set.
+*/
+void Item_func_geohash::encode_bit(double *upper_value, double *lower_value,
+                                   double target_value, char *char_value,
+                                   int bit_number)
+{
+  DBUG_ASSERT(bit_number >= 0 && bit_number <= 4);
+
+  double middle_value= (*upper_value + *lower_value) / 2.0;
+  if (target_value < middle_value)
+  {
+    *upper_value= middle_value;
+    *char_value |= 0 << (4 - bit_number);
+  }
+  else
+  {
+    *lower_value= middle_value;
+    *char_value |= 1 << (4 - bit_number);
+  }
+}
+
+/**
+  Converts a char value to it's base32 representation, where 0 = a,
+  1 = b, ... , 30 = y, 31 = z.
+
+  The function expects that the input character is within allowed range.
+
+  @param char_input The value to convert.
+
+  @return the ASCII equivalent.
+*/
+char Item_func_geohash::char_to_base32(char char_input)
+{
+  DBUG_ASSERT(char_input <= 31);
+
+  if (char_input < 10)
+    return char_input + '0';
+  else if (char_input < 17)
+    return char_input + ('b' - 10);
+  else if (char_input < 19)
+    return char_input + ('b' - 10 + 1);
+  else if (char_input < 21)
+    return char_input + ('b' - 10 + 2);
+  else
+    return char_input + ('b' - 10 + 3);
+}
+
+
 /**
   Change a number to format '3,333,333,333.000'.
 
@@ -2637,6 +3610,7 @@ void Item_func_format::fix_length_and_dec()
     locale= args[2]->basic_const_item() ? get_locale(args[2]) : NULL;
   else
     locale= &my_locale_en_US; /* Two arguments */
+  reject_geometry_args(arg_count, args, this);
 }
 
 
@@ -3238,6 +4212,14 @@ String *Item_func_rpad::val_str(String *str)
     rpad->set_charset(&my_charset_bin);
   }
 
+  if (use_mb(rpad->charset()))
+  {
+    // This will chop off any trailing illegal characters from rpad.
+    String *well_formed_pad= args[2]->check_well_formed_result(rpad, false);
+    if (!well_formed_pad)
+      goto err;
+  }
+
   res_char_length= res->numchars();
 
   if (count <= static_cast<longlong>(res_char_length))
@@ -3345,6 +4327,14 @@ String *Item_func_lpad::val_str(String *str)
     pad->set_charset(&my_charset_bin);
   }
 
+  if (use_mb(pad->charset()))
+  {
+    // This will chop off any trailing illegal characters from pad.
+    String *well_formed_pad= args[2]->check_well_formed_result(pad, false);
+    if (!well_formed_pad)
+      goto err;
+  }
+
   res_char_length= res->numchars();
 
   if (count <= static_cast<longlong>(res_char_length))
@@ -3387,6 +4377,15 @@ String *Item_func_lpad::val_str(String *str)
 err:
   null_value= 1;
   return 0;
+}
+
+
+void Item_func_conv::fix_length_and_dec()
+{
+  collation.set(default_charset());
+  max_length=64;
+  maybe_null= 1;
+  reject_geometry_args(arg_count, args, this);
 }
 
 
@@ -3564,7 +4563,7 @@ String *Item_func_charset::val_str(String *str)
 
   const CHARSET_INFO *cs= args[0]->charset_for_protocol(); 
   null_value= 0;
-  str->copy(cs->csname, (uint) strlen(cs->csname),
+  str->copy(cs->csname, strlen(cs->csname),
 	    &my_charset_latin1, collation.collation, &dummy_errors);
   return str;
 }
@@ -3576,7 +4575,7 @@ String *Item_func_collation::val_str(String *str)
   const CHARSET_INFO *cs= args[0]->charset_for_protocol(); 
 
   null_value= 0;
-  str->copy(cs->name, (uint) strlen(cs->name),
+  str->copy(cs->name, strlen(cs->name),
 	    &my_charset_latin1, collation.collation, &dummy_errors);
   return str;
 }
@@ -4317,9 +5316,8 @@ longlong Item_func_uncompressed_length::val_int()
   */
   if (res->length() <= 4)
   {
-    push_warning_printf(current_thd, Sql_condition::SL_WARNING,
-                        ER_ZLIB_Z_DATA_ERROR,
-                        ER(ER_ZLIB_Z_DATA_ERROR));
+    push_warning(current_thd, Sql_condition::SL_WARNING,
+                 ER_ZLIB_Z_DATA_ERROR, ER(ER_ZLIB_Z_DATA_ERROR));
     return 0;
   }
 
@@ -4430,9 +5428,8 @@ String *Item_func_uncompress::val_str(String *str)
   /* If length is less than 4 bytes, data is corrupt */
   if (res->length() <= 4)
   {
-    push_warning_printf(current_thd, Sql_condition::SL_WARNING,
-			ER_ZLIB_Z_DATA_ERROR,
-			ER(ER_ZLIB_Z_DATA_ERROR));
+    push_warning(current_thd, Sql_condition::SL_WARNING,
+                 ER_ZLIB_Z_DATA_ERROR, ER(ER_ZLIB_Z_DATA_ERROR));
     goto err;
   }
 
@@ -4679,14 +5676,16 @@ String *Item_func_gtid_subtract::val_str_ascii(String *str)
       Gtid_set set2(&sid_map, charp2, &status);
       int length;
       // subtract, save result, return result
-      if (status == RETURN_STATUS_OK &&
-          set1.remove_gtid_set(&set2) == 0 &&
-          !str->realloc((length= set1.get_string_length()) + 1))
+      if (status == RETURN_STATUS_OK)
       {
-        null_value= false;
-        set1.to_string((char *)str->ptr());
-        str->length(length);
-        DBUG_RETURN(str);
+        set1.remove_gtid_set(&set2);
+        if (!str->realloc((length= set1.get_string_length()) + 1))
+        {
+          null_value= false;
+          set1.to_string((char *)str->ptr());
+          str->length(length);
+          DBUG_RETURN(str);
+        }
       }
     }
   }

@@ -44,16 +44,16 @@ class Opt_trace_object;
 class Optimize_table_order
 {
 public:
-  Optimize_table_order(THD *thd, JOIN *join, TABLE_LIST *sjm_nest)
-  : search_depth(determine_search_depth(thd->variables.optimizer_search_depth,
+  Optimize_table_order(THD *thd_arg, JOIN *join_arg, TABLE_LIST *sjm_nest_arg)
+  : thd(thd_arg), join(join_arg),
+    search_depth(determine_search_depth(thd->variables.optimizer_search_depth,
                                         join->tables - join->const_tables)),
     prune_level(thd->variables.optimizer_prune_level),
-    thd(thd), join(join),
-    cur_embedding_map(0), emb_sjm_nest(sjm_nest),
-    excluded_tables((sjm_nest ?
-                     (join->all_table_map & ~sjm_nest->sj_inner_tables) : 0) |
+    cur_embedding_map(0), emb_sjm_nest(sjm_nest_arg),
+    excluded_tables((emb_sjm_nest ?
+                     (join->all_table_map & ~emb_sjm_nest->sj_inner_tables) : 0) |
                     (join->allow_outer_refs ? 0 : OUTER_REF_TABLE_BIT)),
-    has_sj(!(join->select_lex->sj_nests.is_empty() || sjm_nest)),
+    has_sj(!(join->select_lex->sj_nests.is_empty() || emb_sjm_nest)),
     test_all_ref_keys(false)
   {}
   ~Optimize_table_order()
@@ -67,11 +67,11 @@ public:
   bool choose_table_order();
 
 private:
+  THD *const thd;            // Pointer to current THD
+  JOIN *const join;          // Pointer to the current plan being developed
   const uint search_depth;   // Maximum search depth to apply in greedy search
   const uint prune_level;    // pruning heuristics to be applied
                              // (0 = EXHAUSTIVE, 1 = PRUNE_BY_TIME_OR_ROWS)
-  THD *const thd;            // Pointer to current THD
-  JOIN *const join;          // Pointer to the current plan being developed
   /**
     Bitmap of all join nests embedding the last table appended to the current 
     partial join.
@@ -183,7 +183,7 @@ void get_partial_join_cost(JOIN *join, uint n_tables, double *cost_arg,
   access method. The source of information with highest accuracy is 
   always preferred and is as follows:
     1) Row estimates from the range optimizer
-    2) Row estimates from index statistics (rec_per_key)
+    2) Row estimates from index statistics (records per key)
     3) Guesstimates
 
   Thus, after identifying columns that are used by the access method,

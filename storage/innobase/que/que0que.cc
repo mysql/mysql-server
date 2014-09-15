@@ -120,7 +120,6 @@ que_thr_move_to_run_state(
 /***********************************************************************//**
 Creates a query graph fork node.
 @return own: fork node */
-
 que_fork_t*
 que_fork_create(
 /*============*/
@@ -157,7 +156,6 @@ que_fork_create(
 /***********************************************************************//**
 Creates a query graph thread node.
 @return own: query thread node */
-
 que_thr_t*
 que_thr_create(
 /*===========*/
@@ -193,7 +191,6 @@ a worker thread to execute it. This function should be used to end
 the wait state of a query thread waiting for a lock or a stored procedure
 completion.
 @return the query thread that needs to be released. */
-
 que_thr_t*
 que_thr_end_lock_wait(
 /*==================*/
@@ -247,7 +244,6 @@ Round robin scheduler.
 @return a query thread of the graph moved to QUE_THR_RUNNING state, or
 NULL; the query thread should be executed by que_run_threads by the
 caller */
-
 que_thr_t*
 que_fork_scheduler_round_robin(
 /*===========================*/
@@ -297,7 +293,6 @@ is returned.
 @return a query thread of the graph moved to QUE_THR_RUNNING state, or
 NULL; the query thread should be executed by que_run_threads by the
 caller */
-
 que_thr_t*
 que_fork_start_command(
 /*===================*/
@@ -356,9 +351,10 @@ que_fork_start_command(
 
 			break;
 
+		case QUE_THR_RUNNING:
 		case QUE_THR_LOCK_WAIT:
+		case QUE_THR_PROCEDURE_WAIT:
 			ut_error;
-
 		}
 	}
 
@@ -396,7 +392,6 @@ que_graph_free_stat_list(
 /**********************************************************************//**
 Frees a query graph, but not the heap where it was created. Does not free
 explicit cursor declarations, they are freed in que_graph_free. */
-
 void
 que_graph_free_recursive(
 /*=====================*/
@@ -565,7 +560,6 @@ que_graph_free_recursive(
 
 /**********************************************************************//**
 Frees a query graph. */
-
 void
 que_graph_free(
 /*===========*/
@@ -666,7 +660,6 @@ que_thr_move_to_run_state(
 Stops a query thread if graph or trx is in a state requiring it. The
 conditions are tested in the order (1) graph, (2) trx.
 @return TRUE if stopped */
-
 ibool
 que_thr_stop(
 /*=========*/
@@ -781,7 +774,6 @@ A patch for MySQL used to 'stop' a dummy query thread used in MySQL. The
 query thread is stopped and made inactive, except in the case where
 it was put to the lock wait state in lock0lock.cc, but the lock has already
 been granted or the transaction chosen as a victim in deadlock resolution. */
-
 void
 que_thr_stop_for_mysql(
 /*===================*/
@@ -827,7 +819,6 @@ que_thr_stop_for_mysql(
 Moves a thread from another state to the QUE_THR_RUNNING state. Increments
 the n_active_thrs counters of the query graph and transaction if thr was
 not active. */
-
 void
 que_thr_move_to_run_state_for_mysql(
 /*================================*/
@@ -851,7 +842,6 @@ que_thr_move_to_run_state_for_mysql(
 /**********************************************************************//**
 A patch for MySQL used to 'stop' a dummy query thread used in MySQL
 select, when there is no error or lock wait. */
-
 void
 que_thr_stop_for_mysql_no_error(
 /*============================*/
@@ -876,7 +866,6 @@ que_thr_stop_for_mysql_no_error(
 Get the first containing loop node (e.g. while_node_t or for_node_t) for the
 given node, or NULL if the node is not within a loop.
 @return containing loop node, or NULL. */
-
 que_node_t*
 que_node_get_containing_loop_node(
 /*==============================*/
@@ -1141,7 +1130,6 @@ que_run_threads_low(
 
 /**********************************************************************//**
 Run a query thread. Handles lock waits. */
-
 void
 que_run_threads(
 /*============*/
@@ -1194,7 +1182,6 @@ loop:
 /*********************************************************************//**
 Evaluate the given SQL.
 @return error code or DB_SUCCESS */
-
 dberr_t
 que_eval_sql(
 /*=========*/
@@ -1223,8 +1210,6 @@ que_eval_sql(
 		mutex_exit(&dict_sys->mutex);
 	}
 
-	ut_a(graph);
-
 	graph->trx = trx;
 	trx->graph = NULL;
 
@@ -1244,12 +1229,13 @@ que_eval_sql(
 		mutex_exit(&dict_sys->mutex);
 	}
 
+	ut_a(trx->error_state != 0);
+
 	DBUG_RETURN(trx->error_state);
 }
 
 /*********************************************************************//**
 Initialise the query sub-system. */
-
 void
 que_init(void)
 /*==========*/
@@ -1259,7 +1245,6 @@ que_init(void)
 
 /*********************************************************************//**
 Close the query sub-system. */
-
 void
 que_close(void)
 /*===========*/

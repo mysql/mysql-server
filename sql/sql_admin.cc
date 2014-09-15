@@ -158,8 +158,8 @@ static int prepare_for_repair(THD *thd, TABLE_LIST *table_list,
   if (!mysql_file_stat(key_file_misc, from, &stat_info, MYF(0)))
     goto end;				// Can't use USE_FRM flag
 
-  my_snprintf(tmp, sizeof(tmp), "%s-%lx_%lx",
-	      from, current_pid, thd->thread_id);
+  my_snprintf(tmp, sizeof(tmp), "%s-%lx_%x",
+	      from, current_pid, thd->thread_id());
 
   if (table_list->table)
   {
@@ -319,7 +319,7 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
   for (table= tables; table; table= table->next_local)
   {
     char table_name[NAME_LEN*2+2];
-    char* db = table->db;
+    const char* db = table->db;
     bool fatal_error=0;
     bool open_error;
 
@@ -440,7 +440,10 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
             goto err;
           }
 
-          if (set_part_state(alter_info, table->table->part_info, PART_ADMIN))
+          if (set_part_state(alter_info,
+                             table->table->part_info,
+                             PART_ADMIN,
+                             true))
           {
             char buff[FN_REFLEN + MYSQL_ERRMSG_SIZE];
             size_t length;
@@ -832,9 +835,10 @@ send_result_message:
       if (!result_code) // recreation went ok
       {
         DEBUG_SYNC(thd, "ha_admin_open_ltable");
-        table->mdl_request.set_type(MDL_SHARED_WRITE);
+        table->mdl_request.set_type(MDL_SHARED_READ);
         if (!open_temporary_tables(thd, table) &&
-            (table->table= open_n_lock_single_table(thd, table, lock_type, 0)))
+            (table->table= open_n_lock_single_table(thd, table,
+                                                    TL_READ_NO_INSERT, 0)))
         {
           /*
            Reset the ALTER_ADMIN_PARTITION bit in alter_info->flags

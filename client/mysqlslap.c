@@ -88,8 +88,11 @@ TODO:
 #include <stdarg.h>
 #include <sslopt-vars.h>
 #include <sys/types.h>
-#ifndef _WIN32
+#ifdef HAVE_SYS_WAIT_H
 #include <sys/wait.h>
+#endif
+#ifdef HAVE_SYS_TIME_H
+#include <sys/time.h>
 #endif
 #include <ctype.h>
 #include <welcome_copyright_notice.h>   /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
@@ -170,6 +173,7 @@ static ulonglong auto_generate_sql_unique_query_number;
 static unsigned int auto_generate_sql_secondary_indexes;
 static ulonglong num_of_query;
 static ulonglong auto_generate_sql_number;
+static const char *sql_mode= NULL;
 const char *concurrency_str= NULL;
 static char *create_string;
 uint *concurrency;
@@ -258,6 +262,7 @@ static int generate_primary_key_list(MYSQL *mysql, option_string *engine_stmt);
 static int drop_primary_key_list(void);
 static int create_schema(MYSQL *mysql, const char *db, statement *stmt, 
               option_string *engine_stmt);
+static void set_sql_mode(MYSQL *mysql);
 static int run_scheduler(stats *sptr, statement *stmts, uint concur, 
                          ulonglong limit);
 pthread_handler_t run_task(void *p);
@@ -336,8 +341,6 @@ int main(int argc, char **argv)
   SSL_SET_OPTIONS(&mysql);
   if (opt_protocol)
     mysql_options(&mysql,MYSQL_OPT_PROTOCOL,(char*)&opt_protocol);
-  if (!opt_secure_auth && slap_connect(&mysql))
-    mysql_options(&mysql, MYSQL_SECURE_AUTH,(char*)&opt_secure_auth);
 #if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
   if (shared_memory_base_name)
     mysql_options(&mysql,MYSQL_SHARED_MEMORY_BASE_NAME,shared_memory_base_name);
@@ -369,6 +372,7 @@ int main(int argc, char **argv)
       exit(1);
     }
   }
+  set_sql_mode(&mysql);
 
   native_mutex_init(&counter_mutex, NULL);
   native_cond_init(&count_threshold);
@@ -683,8 +687,8 @@ static struct my_option my_long_options[] =
     &user_supplied_query, &user_supplied_query,
     0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"secure-auth", OPT_SECURE_AUTH, "Refuse client connecting to server if it"
-    " uses old (pre-4.1.1) protocol.", &opt_secure_auth,
-    &opt_secure_auth, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
+    " uses old (pre-4.1.1) protocol. Deprecated. Always TRUE",
+    &opt_secure_auth, &opt_secure_auth, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
 #if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
   {"shared-memory-base-name", OPT_SHARED_MEMORY_BASE_NAME,
     "Base name of shared memory.", &shared_memory_base_name,
@@ -697,6 +701,8 @@ static struct my_option my_long_options[] =
   {"socket", 'S', "The socket file to use for connection.",
     &opt_mysql_unix_port, &opt_mysql_unix_port, 0, GET_STR,
     REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"sql_mode", 0, "Specify sql-mode to run mysqlslap tool.", &sql_mode,
+    &sql_mode, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #include <sslopt-longopts.h>
   {"user", 'u', "User for login if not current user.", &user,
     &user, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -783,6 +789,14 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     exit(0);
   case OPT_ENABLE_CLEARTEXT_PLUGIN:
     using_opt_enable_cleartext_plugin= TRUE;
+    break;
+  case OPT_SECURE_AUTH:
+    CLIENT_WARN_DEPRECATED_NO_REPLACEMENT("--secure-auth");
+    if (!opt_secure_auth)
+    {
+      usage();
+      exit(1);
+    }
     break;
   }
   DBUG_RETURN(0);
@@ -1399,9 +1413,9 @@ get_options(int *argc,char ***argv)
         exit(1);
       }
       tmp_string= (char *)my_malloc(PSI_NOT_INSTRUMENTED,
-                                    sbuf.st_size + 1,
+                                    (size_t)sbuf.st_size + 1,
                               MYF(MY_ZEROFILL|MY_FAE|MY_WME));
-      my_read(data_file, (uchar*) tmp_string, sbuf.st_size, MYF(0));
+      my_read(data_file, (uchar*) tmp_string, (size_t)sbuf.st_size, MYF(0));
       tmp_string[sbuf.st_size]= '\0';
       my_close(data_file,MYF(0));
       parse_delimiter(tmp_string, &create_statements, delimiter[0]);
@@ -1427,9 +1441,9 @@ get_options(int *argc,char ***argv)
         exit(1);
       }
       tmp_string= (char *)my_malloc(PSI_NOT_INSTRUMENTED,
-                                    sbuf.st_size + 1,
+                                    (size_t)sbuf.st_size + 1,
                                     MYF(MY_ZEROFILL|MY_FAE|MY_WME));
-      my_read(data_file, (uchar*) tmp_string, sbuf.st_size, MYF(0));
+      my_read(data_file, (uchar*) tmp_string, (size_t)sbuf.st_size, MYF(0));
       tmp_string[sbuf.st_size]= '\0';
       my_close(data_file,MYF(0));
       if (user_supplied_query)
@@ -1459,9 +1473,9 @@ get_options(int *argc,char ***argv)
       exit(1);
     }
     tmp_string= (char *)my_malloc(PSI_NOT_INSTRUMENTED,
-                                  sbuf.st_size + 1,
+                                  (size_t)sbuf.st_size + 1,
                                   MYF(MY_ZEROFILL|MY_FAE|MY_WME));
-    my_read(data_file, (uchar*) tmp_string, sbuf.st_size, MYF(0));
+    my_read(data_file, (uchar*) tmp_string, (size_t)sbuf.st_size, MYF(0));
     tmp_string[sbuf.st_size]= '\0';
     my_close(data_file,MYF(0));
     if (user_supplied_pre_statements)
@@ -1491,9 +1505,9 @@ get_options(int *argc,char ***argv)
       exit(1);
     }
     tmp_string= (char *)my_malloc(PSI_NOT_INSTRUMENTED,
-                                  sbuf.st_size + 1,
+                                  (size_t)sbuf.st_size + 1,
                                   MYF(MY_ZEROFILL|MY_FAE|MY_WME));
-    my_read(data_file, (uchar*) tmp_string, sbuf.st_size, MYF(0));
+    my_read(data_file, (uchar*) tmp_string, (size_t)sbuf.st_size, MYF(0));
     tmp_string[sbuf.st_size]= '\0';
     my_close(data_file,MYF(0));
     if (user_supplied_post_statements)
@@ -1611,6 +1625,22 @@ drop_primary_key_list(void)
   }
 
   return 0;
+}
+
+static void set_sql_mode(MYSQL *mysql)
+{
+  if (sql_mode != NULL)
+  {
+    char query[512];
+    size_t len;
+    len=  my_snprintf(query, HUGE_STRING_LENGTH, "SET sql_mode = `%s`", sql_mode);
+
+    if (run_query(mysql, query, len))
+    {
+      fprintf(stderr,"%s:%s\n", my_progname, mysql_error(mysql));
+      exit(1);
+    }
+  }
 }
 
 static int
@@ -1806,7 +1836,7 @@ run_scheduler(stats *sptr, statement *stmts, uint concur, ulonglong limit)
   {
     struct timespec abstime;
 
-    set_timespec(abstime, 3);
+    set_timespec(&abstime, 3);
     native_cond_timedwait(&count_threshold, &counter_mutex, &abstime);
   }
   native_mutex_unlock(&counter_mutex);

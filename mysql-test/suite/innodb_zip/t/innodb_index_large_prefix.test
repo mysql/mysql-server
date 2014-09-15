@@ -136,7 +136,7 @@ create table worklog5743_16(a1 int, a2 TEXT, a3 TEXT) KEY_BLOCK_SIZE=16;
 # The maximum overall index record (not prefix) length of a
 # compressed table is dependent on innodb-page-size (IPS),
 # key_block_size (KBS) and the number of fields (NF).
-# "Too big row" error (HA_ERR_TO_BIG_ROW) will be returned if this
+# "Too big row" error (HA_ERR_TOO_BIG_ROW) will be returned if this
 # limit is exceeded.
 # See page_zip_empty_size() and Bug #47495 for more detail.
 
@@ -146,8 +146,10 @@ set global innodb_large_prefix=0;
 create index idx1 on worklog5743_1(a2(4000));
 show warnings;
 set global innodb_large_prefix=1;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 -- error ER_TOO_BIG_ROWSIZE
 create index idx2 on worklog5743_1(a2(4000));
+SET sql_mode = default;
 show warnings;
 -- error ER_TOO_BIG_ROWSIZE
 create index idx3 on worklog5743_1(a2(436));

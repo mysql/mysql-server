@@ -25,7 +25,6 @@
 #include "binlog.h"                      /* MYSQL_BIN_LOG */
 #include "sql_class.h"                   /* THD */
 #include<vector>
-#include "rpl_mts_submode.h"
 #include "prealloced_array.h"
 
 struct RPL_TABLE_LIST;
@@ -33,6 +32,15 @@ class Master_info;
 class Mts_submode;
 class Commit_order_manager;
 extern uint sql_slave_skip_counter;
+
+typedef Prealloced_array<Slave_worker*, 4> Slave_worker_array;
+
+typedef struct slave_job_item
+{
+  Log_event *data;
+  uint relay_number;
+  my_off_t relay_pos;
+} Slave_job_item;
 
 /*******************************************************************************
 Replication SQL Thread
@@ -142,7 +150,12 @@ public:
      worker thread to coordinator thread and vice-versa
    */
   mysql_mutex_t mts_temp_table_LOCK;
-
+  /*
+     Lock to acquire by methods that concurrently update lwm of committed
+     transactions and the min waited timestamp and its index.
+  */
+  mysql_mutex_t mts_gaq_LOCK;
+  mysql_cond_t  logical_clock_cond;
   /*
     If true, events with the same server id should be replicated. This
     field is set on creation of a relay log info structure by copying
@@ -221,9 +234,13 @@ protected:
   char group_relay_log_name[FN_REFLEN];
   ulonglong group_relay_log_pos;
   char event_relay_log_name[FN_REFLEN];
+  /* The suffix number of relay log name */
+  uint event_relay_log_number;
   ulonglong event_relay_log_pos;
   ulonglong future_event_relay_log_pos;
 
+  /* current event's start position in relay log */
+  my_off_t event_start_pos;
   /*
      Original log name and position of the group we're currently executing
      (whose coordinates are group_relay_log_name/pos in the relay log)
@@ -257,15 +274,12 @@ private:
 public:
   Gtid *get_last_retrieved_gtid() { return &last_retrieved_gtid; }
   void set_last_retrieved_gtid(Gtid gtid) { last_retrieved_gtid= gtid; }
-  int add_logged_gtid(rpl_sidno sidno, rpl_gno gno)
+  void add_logged_gtid(rpl_sidno sidno, rpl_gno gno)
   {
-    int ret= 0;
     global_sid_lock->assert_some_lock();
     DBUG_ASSERT(sidno <= global_sid_map->get_max_sidno());
     gtid_set.ensure_sidno(sidno);
-    if (gtid_set._add_gtid(sidno, gno) != RETURN_STATUS_OK)
-      ret= 1;
-    return ret;
+    gtid_set._add_gtid(sidno, gno);
   }
   const Gtid_set *get_gtid_set() const { return &gtid_set; }
 
@@ -514,7 +528,8 @@ public:
     W  - Worker;
     WQ - Worker Queue containing event assignments
   */
-  DYNAMIC_ARRAY workers; // number's is determined by global slave_parallel_workers
+  // number's is determined by global slave_parallel_workers
+  Slave_worker_array workers;
 
   /*
     For the purpose of reporting the worker status in performance schema table,
@@ -555,8 +570,11 @@ public:
   /*
     Container for references of involved partitions for the current event group
   */
-  DYNAMIC_ARRAY curr_group_assigned_parts;
-  DYNAMIC_ARRAY curr_group_da;  // deferred array to hold partition-info-free events
+  // CGAP dynarray holds id:s of partitions of the Current being executed Group
+  Prealloced_array<db_worker_hash_entry*, 4, true> curr_group_assigned_parts;
+  // deferred array to hold partition-info-free events
+  Prealloced_array<Slave_job_item, 8, true> curr_group_da;  
+
   bool curr_group_seen_gtid;   // current group started with Gtid-event or not
   bool curr_group_seen_begin;   // current group started with B-event or not
   bool curr_group_isolated;     // current group requires execution in isolation
@@ -595,14 +613,14 @@ public:
             V                            |
     MTS_NOT_IN_GROUP =>                  |
         {MTS_IN_GROUP => MTS_END_GROUP --+} while (!killed) => MTS_KILLED_GROUP
-      
+
     MTS_END_GROUP has `->' loop breaking link to MTS_NOT_IN_GROUP when
     Coordinator synchronizes with Workers by demanding them to
     complete their assignments.
   */
   enum
   {
-    /* 
+    /*
        no new events were scheduled after last synchronization,
        includes Single-Threaded-Slave case.
     */
@@ -614,22 +632,39 @@ public:
   } mts_group_status;
 
   /*
-    MTS statistics: 
+    MTS statistics:
   */
   ulonglong mts_events_assigned; // number of events (statements) scheduled
   ulonglong mts_groups_assigned; // number of groups (transactions) scheduled
   volatile ulong mts_wq_overrun_cnt; // counter of all mts_wq_excess_cnt increments
   ulong wq_size_waits_cnt;    // number of times C slept due to WQ:s oversize
   /*
-    a counter for sleeps due to Coordinator 
-    experienced waiting when Workers get hungry again
+    Counter of how many times Coordinator saw Workers are filled up
+    "enough" with assignements. The enough definition depends on
+    the scheduler type.
   */
   ulong mts_wq_no_underrun_cnt;
+  longlong mts_total_wait_overlap; // Waiting time corresponding to above
+  /*
+    Stats to compute Coordinator waiting time for any Worker available,
+    applies solely to the Commit-clock scheduler.
+  */
+  ulonglong mts_total_wait_worker_avail;
   ulong mts_wq_overfill_cnt;  // counter of C waited due to a WQ queue was full
-  /* 
+  /*
+    Statistics (todo: replace with WL5631) applies to either Coordinator and Worker.
+    The exec time in the Coordinator case means scheduling.
+    The read time in the Worker case means getting an event out of Worker queue
+  */
+  ulonglong stats_exec_time;
+  ulonglong stats_read_time;
+  struct timespec ts_exec[2];  // per event pre- and post- exec timestamp
+  struct timespec stats_begin; // applier's bootstrap time
+
+  /*
      A sorted array of the Workers' current assignement numbers to provide
      approximate view on Workers loading.
-     The first row of the least occupied Worker is queried at assigning 
+     The first row of the least occupied Worker is queried at assigning
      a new partition. Is updated at checkpoint commit to the main RLI.
   */
   Prealloced_array<ulong, 16> least_occupied_workers;
@@ -637,28 +672,26 @@ public:
   /* end of MTS statistics */
 
   /* Returns the number of elements in workers array/vector. */
-  inline uint get_worker_count()
+  inline size_t get_worker_count()
   {
     if (workers_array_initialized)
-      return workers.elements;
+      return workers.size();
     else
-      return static_cast<uint>(workers_copy_pfs.size());
+      return workers_copy_pfs.size();
   }
 
   /*
     Returns a pointer to the worker instance at index n in workers
     array/vector.
   */
-  Slave_worker* get_worker(uint n)
+  Slave_worker* get_worker(size_t n)
   {
     if (workers_array_initialized)
     {
-      if (n >= workers.elements)
+      if (n >= workers.size())
         return NULL;
 
-      Slave_worker *ret_worker;
-      get_dynamic(&workers, (uchar *) &ret_worker, n);
-      return ret_worker;
+      return workers[n];
     }
     else if (workers_copy_pfs.size())
     {
@@ -702,7 +735,7 @@ public:
   {
     bool ret= (slave_parallel_workers > 0) && !is_mts_recovery();
 
-    DBUG_ASSERT(!ret || workers.elements > 0);
+    DBUG_ASSERT(!ret || !workers.empty());
 
     return ret;
   }
@@ -806,13 +839,16 @@ public:
      Replication is inside a group if either:
      - The OPTION_BEGIN flag is set, meaning we're inside a transaction
      - The RLI_IN_STMT flag is set, meaning we're inside a statement
+     - There is an GTID owned by the thd, meaning we've passed a SET GTID_NEXT
 
      @retval true Replication thread is currently inside a group
      @retval false Replication thread is currently not inside a group
    */
   bool is_in_group() const {
     return (info_thd->variables.option_bits & OPTION_BEGIN) ||
-      (m_flags & (1UL << IN_STMT));
+      (m_flags & (1UL << IN_STMT)) ||
+      /* If a SET GTID_NEXT was issued we are inside of a group */
+      info_thd->owned_gtid.sidno;
   }
 
   int count_relay_log_space();
@@ -859,12 +895,22 @@ public:
   inline ulonglong get_event_relay_log_pos() { return event_relay_log_pos; }
   inline void set_event_relay_log_name(const char *log_file_name)
   {
-     strmake(event_relay_log_name,log_file_name, sizeof(event_relay_log_name)-1);
+    strmake(event_relay_log_name,log_file_name, sizeof(event_relay_log_name)-1);
+    set_event_relay_log_number(relay_log_name_to_number(log_file_name));
   }
-  inline void set_event_relay_log_name(const char *log_file_name, size_t len)
+
+  uint get_event_relay_log_number() { return event_relay_log_number; }
+  void set_event_relay_log_number(uint number)
   {
-     strmake(event_relay_log_name,log_file_name, len);
+    event_relay_log_number= number;
   }
+
+  void relay_log_number_to_name(uint number, char name[FN_REFLEN+1]);
+  uint relay_log_name_to_number(const char *name);
+
+  void set_event_start_pos(my_off_t pos) { event_start_pos= pos; }
+  my_off_t get_event_start_pos() { return event_start_pos; }
+
   inline void set_event_relay_log_pos(ulonglong log_pos)
   {
     event_relay_log_pos= log_pos;

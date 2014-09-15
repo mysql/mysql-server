@@ -3,6 +3,7 @@
 # for every table and instruments.
 
 --source include/not_embedded.inc
+--source include/no_valgrind_without_big.inc
 --source include/have_perfschema.inc
 
 --disable_warnings
@@ -211,10 +212,10 @@ delimiter ;$
 
 # Check the configuration is ok
 show variables like "performance_schema%";
-show status like "performance_schema%";
 
 call check_instrument("wait/synch/mutex/");
 call check_instrument("wait/synch/rwlock/");
+call check_instrument("wait/synch/sxlock/");
 call check_instrument("wait/synch/cond/");
 call check_instrument("wait/synch/");
 call check_instrument("wait/io/file/");

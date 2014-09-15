@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2006, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2006, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -88,7 +88,6 @@ row_ext_cache_fill(
 /********************************************************************//**
 Creates a cache of column prefixes of externally stored columns.
 @return own: column prefix cache */
-
 row_ext_t*
 row_ext_create(
 /*===========*/
@@ -120,6 +119,7 @@ row_ext_create(
 	ret->n_ext = n_ext;
 	ret->ext = ext;
 	ret->max_len = DICT_MAX_FIELD_LEN_BY_FORMAT_FLAG(flags);
+	ret->page_size.copy_from(page_size);
 
 	ret->buf = static_cast<byte*>(
 		mem_heap_alloc(heap, n_ext * ret->max_len));

@@ -1,4 +1,4 @@
-
+-- source include/no_valgrind_without_big.inc
 -- source include/mysql_upgrade_preparation.inc
 
 #
@@ -14,7 +14,7 @@ file_exists $MYSQLD_DATADIR/mysql_upgrade_info;
 
 --echo Run it again - should say already completed
 --replace_result $MYSQL_SERVER_VERSION VERSION
---error 1
+--error 2
 --exec $MYSQL_UPGRADE --skip-verbose 2>&1
 
 # It should have created a file in the MySQL Servers datadir
@@ -48,7 +48,7 @@ DROP USER mysqltest1@'%';
 --echo Run mysql_upgrade with a non existing server socket
 --replace_result $MYSQLTEST_VARDIR var
 --replace_regex /.*mysqlcheck.*: Got/mysqlcheck: Got/ /\([0-9]*\)/(errno)/
---error 1
+--error 11
 # NC: Added --skip-version-check, as the version check would fail when
 # mysql_upgrade tries to get the server version.
 --exec $MYSQL_UPGRADE --skip-verbose --force --host=not_existing_host --skip-version-check 2>&1
@@ -67,11 +67,11 @@ set GLOBAL sql_mode='STRICT_ALL_TABLES,ANSI_QUOTES';
 eval set GLOBAL sql_mode=default;
 
 --echo #
---echo # Bug #41569 mysql_upgrade (ver 5.1) add 3 fields to mysql.proc table 
+--echo # Bug #41569 mysql_upgrade (ver 5.1) add 3 fields to mysql.proc table
 --echo # but does not set values.
 --echo #
 
-# Create a stored procedure and set the fields in question to null. 
+# Create a stored procedure and set the fields in question to null.
 # When running mysql_upgrade, a warning should be written.
 
 CREATE PROCEDURE testproc() BEGIN END;
@@ -86,7 +86,7 @@ DROP PROCEDURE testproc;
 
 
 --echo #
---echo # Bug #53613: mysql_upgrade incorrectly revokes 
+--echo # Bug #53613: mysql_upgrade incorrectly revokes
 --echo #   TRIGGER privilege on given table
 --echo #
 
@@ -135,21 +135,59 @@ let $MYSQLD_DATADIR= `select @@datadir`;
 --replace_result $MYSQLTEST_VARDIR var
 --exec $MYSQL_UPGRADE --skip-verbose --write-binlog
 
-# mysql_upgrade must have created mysql_upgrade_info file,
-# so the following command should never fail.
---remove_file $MYSQLD_DATADIR/mysql_upgrade_info
+--echo # Running mysql_upgrade with --max-allowed-packet=4096..
+--exec $MYSQL_UPGRADE --max-allowed-packet=4096 --skip-verbose --force 2>&1
 
---echo #
---echo # Bug# 13586336: issue deprecation warning
---echo #   for legacy authentication method
---echo #
+--echo # Running mysql_upgrade with --max-allowed-packet=2147483648..
+--exec $MYSQL_UPGRADE --max-allowed-packet=2147483648 --skip-verbose --force 2>&1
 
-CREATE USER 'bug13586336'@'localhost' IDENTIFIED WITH 'mysql_old_password';
-SET PASSWORD FOR 'bug13586336'@'localhost' = OLD_PASSWORD('a');
---echo Run mysql_upgrade with all privileges on a user
---exec $MYSQL_UPGRADE --skip-verbose --force 2>&1
-DROP USER 'bug13586336'@'localhost';
+--echo # Running mysql_upgrade with --max-allowed-packet=4095..
+--exec $MYSQL_UPGRADE --max-allowed-packet=4095 --skip-verbose --force 2>&1
 
+--echo # Running mysql_upgrade with --max-allowed-packet=1000..
+--exec $MYSQL_UPGRADE --max-allowed-packet=1000 --skip-verbose --force 2>&1
+
+--echo # Running mysql_upgrade with --max-allowed-packet=2147483649..
+--exec $MYSQL_UPGRADE --max-allowed-packet=2147483649 --skip-verbose --force 2>&1
+
+--echo # Running mysql_upgrade with --max-allowed-packet=21474836480..
+--exec $MYSQL_UPGRADE --max-allowed-packet=2147484652 --skip-verbose --force 2>&1
+
+--echo # Running mysql_upgrade with --net-buffer-length=4096..
+--exec $MYSQL_UPGRADE --net-buffer-length=4096 --skip-verbose --force 2>&1
+
+--echo # Running mysql_upgrade with --net-buffer-length=16777216..
+--exec $MYSQL_UPGRADE --net-buffer-length=16777216 --skip-verbose --force 2>&1
+
+--echo # Running mysql_upgrade with --net-buffer-length=4095..
+--exec $MYSQL_UPGRADE --net-buffer-length=4095 --skip-verbose --force 2>&1
+
+--echo # Running mysql_upgrade with --net-buffer-length=1024..
+--exec $MYSQL_UPGRADE --net-buffer-length=1024 --skip-verbose --force 2>&1
+
+--echo # Running mysql_upgrade with --net-buffer-length=16777217..
+--exec $MYSQL_UPGRADE --net-buffer-length=16777217 --skip-verbose --force 2>&1
+
+--echo # Running mysql_upgrade with --net-buffer-length=167772160..
+--exec $MYSQL_UPGRADE --net-buffer-length=167772160 --skip-verbose --force 2>&1
+
+--echo # Running mysql_upgrade with --bind-address..
+--exec $MYSQL_UPGRADE --bind-address=127.0.0.1 --skip-verbose --force 2>&1
+
+--echo # Running mysql_upgrade with -C option..
+--exec $MYSQL_UPGRADE -C --skip-verbose --force 2>&1
+
+--echo # Running mysql_upgrade with --compress..
+--exec $MYSQL_UPGRADE --compress --skip-verbose --force 2>&1
+
+--echo # Running mysql_upgrade with --verbose..
+--exec $MYSQL_UPGRADE --verbose --force 2>&1
+
+--echo # Running mysql_upgrade with --protocol..
+--exec $MYSQL_UPGRADE --protocol=TCP --skip-verbose --force 2>&1
+
+--echo # Test positional arguments
+--exec $MYSQL_UPGRADE --force --skip-verbose not_used_positional_argument 2>&1
 
 --echo #
 --echo # WL#7010: Remove unused --basedir and --datadir options
@@ -158,14 +196,25 @@ DROP USER 'bug13586336'@'localhost';
 
 --echo Run mysql_upgrade with --datadir : should fail
 --replace_regex /.*mysql_upgrade.*: unk/mysql_upgrade: unk/
---error 1
+--error 7
 --exec $MYSQL_UPGRADE --skip-verbose --force --datadir=somedir 2>&1
 
 --echo Run mysql_upgrade with --basedir : should fail
 --replace_regex /.*mysql_upgrade.*: unk/mysql_upgrade: unk/
---error 1
+--error 7
 --exec $MYSQL_UPGRADE --skip-verbose --force --basedir=somedir 2>&1
 
+--echo # Running mysql_upgrade with invalid/incorrect options
+--error 2
+--exec $MYSQL_UPGRADE -c --force 2>&1
+
+--error 2
+--exec $MYSQL_UPGRADE -t --force 2>&1
+
+--error 1
+--exec $MYSQL_UPGRADE --protocol=AAA --force 2>&1
+
+--source include/mysql_upgrade_cleanup.inc
 
 --echo
 --echo End of tests

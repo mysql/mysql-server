@@ -26,6 +26,7 @@ Created 2012-09-23 Sunny Bains
 #include "os0event.h"
 #include "ut0mutex.h"
 #include "ha_prototypes.h"
+#include "ut0new.h"
 
 #ifdef _WIN32
 #include <windows.h>
@@ -83,8 +84,8 @@ static WakeConditionVariableProc wake_condition_variable;
 typedef pthread_cond_t		os_cond_t;
 #endif /* _WIN32 */
 
-typedef std::list<os_event_t> os_event_list_t;
-typedef os_event_list_t::iterator event_iter_t;
+typedef std::list<os_event_t, ut_allocator<os_event_t> >	os_event_list_t;
+typedef os_event_list_t::iterator				event_iter_t;
 
 /** InnoDB condition variable. */
 struct os_event {
@@ -389,11 +390,9 @@ os_event::timed_wait(
 		break;
 
 	default:
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"pthread_cond_timedwait() returned:"
-			" %d: abstime={%lu,%lu}",
-			ret, (ulong) abstime->tv_sec,
-			(ulong) abstime->tv_nsec);
+		ib::error() << "pthread_cond_timedwait() returned: " << ret
+			<< ": abstime={" << abstime->tv_sec << ","
+			<< abstime->tv_nsec << "}";
 		ut_error;
 	}
 
@@ -563,10 +562,8 @@ os_event::os_event(const char* name) UNIV_NOTHROW
 		handle = CreateEvent(0, TRUE, FALSE, (LPCTSTR) name);
 
 		if (!handle) {
-			ib_logf(IB_LOG_LEVEL_ERROR,
-				"Could not create a Windows event"
-				" semaphore; Windows error %lu",
-				(ulong) GetLastError());
+			ib::error() << "Could not create a Windows event"
+				" semaphore; Windows error " << GetLastError();
 		}
 
 	} else /* Windows with condition variables */
@@ -610,7 +607,6 @@ Creates an event semaphore, i.e., a semaphore which may just have two
 states: signaled and nonsignaled. The created event is manual reset: it
 must be reset explicitly by calling sync_os_reset_event.
 @return	the event handle */
-
 os_event_t
 os_event_create(
 /*============*/
@@ -618,13 +614,12 @@ os_event_create(
 						event, if NULL the event
 						is created without a name */
 {
-	return(new(std::nothrow) os_event(name));
+	return(UT_NEW_NOKEY(os_event(name)));
 }
 
 /**
 Check if the event is set.
 @return true if set */
-
 bool
 os_event_is_set(
 /*============*/
@@ -636,7 +631,6 @@ os_event_is_set(
 /**
 Sets an event semaphore to the signaled state: lets waiting threads
 proceed. */
-
 void
 os_event_set(
 /*=========*/
@@ -653,7 +647,6 @@ that this thread should not wait in case of an intervening call to
 os_event_set() between this os_event_reset() and the
 os_event_wait_low() call. See comments for os_event_wait_low().
 @return	current signal_count. */
-
 int64_t
 os_event_reset(
 /*===========*/
@@ -666,7 +659,6 @@ os_event_reset(
 Waits for an event object until it is in the signaled state or
 a timeout is exceeded.
 @return	0 if success, OS_SYNC_TIME_EXCEEDED if timeout was exceeded */
-
 ulint
 os_event_wait_time_low(
 /*===================*/
@@ -687,7 +679,6 @@ Waits for an event object until it is in the signaled state.
 Where such a scenario is possible, to avoid infinite wait, the
 value returned by os_event_reset() should be passed in as
 reset_sig_count. */
-
 void
 os_event_wait_low(
 /*==============*/
@@ -701,22 +692,20 @@ os_event_wait_low(
 
 /**
 Frees an event object. */
-
 void
 os_event_destroy(
 /*=============*/
 	os_event_t&	event)			/*!< in/own: event to free */
 
 {
-	if (event != 0) {
-		delete event;
-		event = 0;
+	if (event != NULL) {
+		UT_DELETE(event);
+		event = NULL;
 	}
 }
 
 /**
 Initialise the event sub-system. */
-
 void
 os_event_init()
 {

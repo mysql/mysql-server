@@ -32,6 +32,8 @@ Created 9/20/1997 Heikki Tuuri
 #include "hash0hash.h"
 #include "log0log.h"
 #include "mtr0types.h"
+#include "ut0new.h"
+
 #include <list>
 
 #ifdef UNIV_HOTBACKUP
@@ -40,7 +42,6 @@ extern ibool	recv_replay_file_ops;
 /*******************************************************************//**
 Reads the checkpoint info needed in hot backup.
 @return TRUE if success */
-
 ibool
 recv_read_checkpoint_info_for_backup(
 /*=================================*/
@@ -56,7 +57,6 @@ recv_read_checkpoint_info_for_backup(
 /*******************************************************************//**
 Scans the log segment and n_bytes_scanned is set to the length of valid
 log scanned. */
-
 void
 recv_scan_log_seg_for_backup(
 /*=========================*/
@@ -83,7 +83,6 @@ recv_recovery_is_on(void);
 Applies the hashed log records to the page, if the page lsn is less than the
 lsn of a log record. This can be called when a buffer page has just been
 read in, or also for a page already in the buffer pool. */
-
 void
 recv_recover_page_func(
 /*===================*/
@@ -119,23 +118,19 @@ a freshly read page)
 @param[in]	flush_lsn	FIL_PAGE_FILE_FLUSH_LSN
 of first system tablespace page
 @return error code or DB_SUCCESS */
-
 dberr_t
 recv_recovery_from_checkpoint_start(
 	lsn_t	flush_lsn);
 /** Complete recovery from a checkpoint. */
-
 void
 recv_recovery_from_checkpoint_finish(void);
 /********************************************************//**
 Initiates the rollback of active transactions. */
-
 void
 recv_recovery_rollback_active(void);
 /*===============================*/
 /******************************************************//**
 Resets the logs. The contents of log files will be lost! */
-
 void
 recv_reset_logs(
 /*============*/
@@ -147,7 +142,6 @@ recv_reset_logs(
 #ifdef UNIV_HOTBACKUP
 /******************************************************//**
 Creates new log files after a backup has been restored. */
-
 void
 recv_reset_log_files_for_backup(
 /*============================*/
@@ -159,33 +153,33 @@ recv_reset_log_files_for_backup(
 #endif /* UNIV_HOTBACKUP */
 /********************************************************//**
 Creates the recovery system. */
-
 void
 recv_sys_create(void);
 /*=================*/
 /**********************************************************//**
 Release recovery system mutexes. */
-
 void
 recv_sys_close(void);
 /*================*/
 /********************************************************//**
 Frees the recovery system memory. */
-
 void
 recv_sys_mem_free(void);
 /*===================*/
 /********************************************************//**
 Inits the recovery system for a recovery operation. */
-
 void
 recv_sys_init(
 /*==========*/
 	ulint	available_memory);	/*!< in: available memory in bytes */
 #ifndef UNIV_HOTBACKUP
 /********************************************************//**
+Frees the recovery system. */
+void
+recv_sys_debug_free(void);
+/*=====================*/
+/********************************************************//**
 Reset the state of the recovery system variables. */
-
 void
 recv_sys_var_init(void);
 /*===================*/
@@ -193,7 +187,6 @@ recv_sys_var_init(void);
 /*******************************************************************//**
 Empties the hash table of stored log records, applying them to appropriate
 pages. */
-
 void
 recv_apply_hashed_log_recs(
 /*=======================*/
@@ -207,7 +200,6 @@ recv_apply_hashed_log_recs(
 #ifdef UNIV_HOTBACKUP
 /*******************************************************************//**
 Applies log records in the hash table to a backup. */
-
 void
 recv_apply_log_recs_for_backup(void);
 /*================================*/
@@ -293,10 +285,10 @@ struct recv_dblwr_t {
 	@retval NULL if no page was found */
 	const byte* find_page(ulint space_id, ulint page_no);
 
-	typedef std::list<const byte*> list;
+	typedef std::list<const byte*, ut_allocator<const byte*> >	list;
 
 	/** Recovered doublewrite buffer page frames */
-	list pages;
+	list	pages;
 };
 
 /** Recovery system data structure */
@@ -308,6 +300,13 @@ struct recv_sys_t{
 	ib_mutex_t		writer_mutex;/*!< mutex coordinating
 				flushing between recv_writer_thread and
 				the recovery thread. */
+	os_event_t		flush_start;/*!< event to acticate
+				page cleaner threads */
+	os_event_t		flush_end;/*!< event to signal that the page
+				cleaner has finished the request */
+	buf_flush_t		flush_type;/*!< type of the flush request.
+				BUF_FLUSH_LRU: flush end of LRU, keeping free blocks.
+				BUF_FLUSH_LIST: flush all of blocks. */
 #endif /* !UNIV_HOTBACKUP */
 	ibool		apply_log_recs;
 				/*!< this is TRUE when log rec application to
@@ -342,11 +341,14 @@ struct recv_sys_t{
 	lsn_t		recovered_lsn;
 				/*!< the log records have been parsed up to
 				this lsn */
-	ibool		found_corrupt_log;
-				/*!< this is set to TRUE if we during log
-				scan find a corrupt log block, or a corrupt
-				log record, or there is a log parsing
-				buffer overflow */
+	bool		found_corrupt_log;
+				/*!< set when finding a corrupt log
+				block or record, or there is a log
+				parsing buffer overflow */
+	bool		found_corrupt_fs;
+				/*!< set when an inconsistency with
+				the file system contents is detected
+				during log scan or apply */
 	lsn_t		mlog_checkpoint_lsn;
 				/*!< the LSN of a MLOG_CHECKPOINT
 				record, or 0 if none was parsed */
@@ -365,7 +367,7 @@ extern recv_sys_t*	recv_sys;
 /** TRUE when applying redo log records during crash recovery; FALSE
 otherwise.  Note that this is FALSE while a background thread is
 rolling back incomplete transactions. */
-extern ibool		recv_recovery_on;
+extern volatile ibool	recv_recovery_on;
 /** If the following is TRUE, the buffer pool file pages must be invalidated
 after recovery and no ibuf operations are allowed; this becomes TRUE if
 the log record hash table becomes too full, and log records must be merged
@@ -392,6 +394,11 @@ extern ibool		recv_lsn_checks_on;
 /** TRUE when the redo log is being backed up */
 extern ibool		recv_is_making_a_backup;
 #endif /* UNIV_HOTBACKUP */
+
+#ifndef UNIV_HOTBACKUP
+/** Flag indicating if recv_writer thread is active. */
+extern volatile bool	recv_writer_thread_active;
+#endif /* !UNIV_HOTBACKUP */
 
 /** Size of the parsing buffer; it must accommodate RECV_SCAN_SIZE many
 times! */

@@ -25,7 +25,6 @@ let $engine_type       = InnoDB;
 let $other_engine_type = InnoDB;
 
 let $is_table = COLUMNS;
-
 # The table INFORMATION_SCHEMA.COLUMNS must exist
 eval SHOW TABLES FROM information_schema LIKE '$is_table';
 
@@ -79,6 +78,7 @@ eval SHOW TABLES FROM information_schema LIKE '$is_table';
 --source suite/funcs_1/datadict/datadict_bug_12777.inc
 eval DESCRIBE          information_schema.$is_table;
 --source suite/funcs_1/datadict/datadict_bug_12777.inc
+--replace_result InnoDB TMP_TABLE_ENGINE MyISAM TMP_TABLE_ENGINE 
 eval SHOW CREATE TABLE information_schema.$is_table;
 --source suite/funcs_1/datadict/datadict_bug_12777.inc
 eval SHOW COLUMNS FROM information_schema.$is_table;
@@ -361,6 +361,7 @@ FROM information_schema.columns
 WHERE table_name = 't1_my_tablex';
 #
 # Check a VIEW
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 CREATE VIEW test.t1_my_tablex
 AS SELECT 1 AS "col1", 'A' collate latin1_german1_ci AS "col2";
 --vertical_results
@@ -371,6 +372,7 @@ ORDER BY table_name, column_name;
 DROP VIEW test.t1_my_tablex;
 SELECT table_name FROM information_schema.columns
 WHERE table_name = 't1_my_tablex';
+SET sql_mode = default;
 #
 # Check impact of DROP SCHEMA
 --replace_result $engine_type <engine_type>
@@ -444,4 +446,3 @@ ALTER TABLE information_schema.columns RENAME information_schema.xcolumns;
 # Cleanup
 DROP TABLE test.t1;
 DROP DATABASE db_datadict;
-

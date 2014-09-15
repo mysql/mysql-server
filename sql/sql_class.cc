@@ -46,9 +46,6 @@
 #include "sql_audit.h"
 #include <m_ctype.h>
 #include <sys/stat.h>
-#ifdef	_WIN32
-#include <io.h>
-#endif
 #include <mysys_err.h>
 #include <limits.h>
 
@@ -64,6 +61,7 @@
 #include "mysqld_thd_manager.h"           // Global_THD_manager
 #include "sql_timer.h"                          // thd_timer_destroy
 #include "parse_tree_nodes.h"
+#include "sql_prepare.h"                  // Prepared_statement
 
 #include <mysql/psi/mysql_statement.h>
 #include "mysql/psi/mysql_ps.h"
@@ -84,6 +82,210 @@ LEX_CSTRING EMPTY_CSTR= { "", 0 };
 LEX_CSTRING NULL_CSTR=  { NULL, 0 };
 
 const char * const THD::DEFAULT_WHERE= "field list";
+
+/****************************************************************************
+** Transaction_state definition.
+****************************************************************************/
+
+struct Transaction_state
+{
+  void backup(THD *thd);
+  void restore(THD *thd);
+
+  /// SQL-command.
+  enum_sql_command m_sql_command;
+
+  Query_tables_list m_query_tables_list;
+
+  /// Open-tables state.
+  Open_tables_backup m_open_tables_state;
+
+  /// SQL_MODE.
+  sql_mode_t m_sql_mode;
+
+  /// Transaction isolation level.
+  enum_tx_isolation m_tx_isolation;
+
+  /// Ha_data array.
+  Ha_data m_ha_data[MAX_HA];
+
+  /// Transaction_ctx instance.
+  Transaction_ctx *m_trx;
+
+  /// Transaction read-only state.
+  my_bool m_tx_read_only;
+
+  /// THD options.
+  ulonglong m_thd_option_bits;
+
+  /// Current transaction instrumentation.
+  PSI_transaction_locker *m_transaction_psi;
+
+  /// Server status flags.
+  uint m_server_status;
+};
+
+
+void Transaction_state::backup(THD *thd)
+{
+  this->m_sql_command= thd->lex->sql_command;
+  this->m_trx= thd->get_transaction();
+
+  for (int i= 0; i < MAX_HA; ++i)
+    this->m_ha_data[i]= thd->ha_data[i];
+
+  this->m_tx_isolation= thd->tx_isolation;
+  this->m_tx_read_only= thd->tx_read_only;
+  this->m_thd_option_bits= thd->variables.option_bits;
+  this->m_sql_mode= thd->variables.sql_mode;
+  this->m_transaction_psi= thd->m_transaction_psi;
+  this->m_server_status= thd->server_status;
+}
+
+
+void Transaction_state::restore(THD *thd)
+{
+  thd->set_transaction(this->m_trx);
+
+  for (int i= 0; i < MAX_HA; ++i)
+    thd->ha_data[i]= this->m_ha_data[i];
+
+  thd->tx_isolation= this->m_tx_isolation;
+  thd->variables.sql_mode= this->m_sql_mode;
+  thd->tx_read_only= this->m_tx_read_only;
+  thd->variables.option_bits= this->m_thd_option_bits;
+
+  thd->m_transaction_psi= this->m_transaction_psi;
+  thd->server_status= this->m_server_status;
+  thd->lex->sql_command= this->m_sql_command;
+}
+
+/****************************************************************************
+** Attachable_trx definition.
+****************************************************************************/
+
+class THD::Attachable_trx
+{
+public:
+  Attachable_trx(THD *thd);
+  ~Attachable_trx();
+
+private:
+  /// THD instance.
+  THD *m_thd;
+
+  /// Transaction state data.
+  Transaction_state m_trx_state;
+
+private:
+  Attachable_trx(const Attachable_trx &);
+  Attachable_trx &operator =(const Attachable_trx &);
+};
+
+
+THD::Attachable_trx::Attachable_trx(THD *thd)
+ :m_thd(thd)
+{
+  // The THD::transaction_rollback_request is expected to be unset in the
+  // attachable transaction. It's weird to start attachable transaction when the
+  // SE asked to rollback the regular transaction.
+  DBUG_ASSERT(!m_thd->transaction_rollback_request);
+
+  // Save the transaction state.
+
+  m_trx_state.backup(m_thd);
+
+  // Save and reset query-tables-list and reset the sql-command.
+  //
+  // NOTE: ha_innobase::store_lock() takes the current sql-command into account.
+  // It must be SQLCOM_SELECT.
+  //
+  // Do NOT reset LEX if we're running tests. LEX is used by SELECT statements.
+
+  if (DBUG_EVALUATE_IF("use_attachable_trx", false, true))
+  {
+    m_thd->lex->reset_n_backup_query_tables_list(&m_trx_state.m_query_tables_list);
+    m_thd->lex->sql_command= SQLCOM_SELECT;
+  }
+
+  // Save and reset open-tables.
+
+  m_thd->reset_n_backup_open_tables_state(&m_trx_state.m_open_tables_state);
+
+  // Reset transaction state.
+
+  m_thd->m_transaction.release(); // it's been backed up.
+  m_thd->m_transaction.reset(new Transaction_ctx());
+
+  // Prepare for a new attachable transaction for read-only DD-transaction.
+
+  for (int i= 0; i < MAX_HA; ++i)
+    m_thd->ha_data[i]= Ha_data();
+
+  // The attachable transaction must used READ COMMITTED isolation level.
+
+  m_thd->tx_isolation= ISO_READ_COMMITTED;
+
+  // The attachable transaction must be read-only.
+
+  m_thd->tx_read_only= true;
+
+  // The attachable transaction must be AUTOCOMMIT.
+
+  m_thd->variables.option_bits|= OPTION_AUTOCOMMIT;
+  m_thd->variables.option_bits&= ~OPTION_NOT_AUTOCOMMIT;
+  m_thd->variables.option_bits&= ~OPTION_BEGIN;
+
+  // Reset SQL_MODE during system operations.
+
+  m_thd->variables.sql_mode= 0;
+
+  // Reset transaction instrumentation.
+
+  m_thd->m_transaction_psi= NULL;
+}
+
+
+THD::Attachable_trx::~Attachable_trx()
+{
+  // Ensure that the SE didn't request rollback in the attachable transaction.
+  // Having THD::transaction_rollback_request set most likely means that we've
+  // experienced some sort of deadlock/timeout while processing the attachable
+  // transaction. That is not possible by the definition of an attachable
+  // transaction.
+  DBUG_ASSERT(!m_thd->transaction_rollback_request);
+
+  // NOTE: the attachable transaction is AUTOCOMMIT, thus there is no need for
+  // explicit commit calls.
+
+  // Remember the handlerton of an open table to call the handlerton after the
+  // tables are closed.
+
+  handlerton *ht= m_thd->open_tables ?
+                  m_thd->open_tables->file->ht :
+                  innodb_hton;
+
+  // Close all the tables that are open till now.
+
+  close_thread_tables(m_thd);
+
+  // Remove the attachable transaction from InnoDB mysql_trx_list.
+
+  if (ht && ht->close_connection)
+    ht->close_connection(ht, m_thd);
+
+  // Restore the transaction state.
+
+  m_trx_state.restore(m_thd);
+
+  m_thd->restore_backup_open_tables_state(&m_trx_state.m_open_tables_state);
+
+  if (DBUG_EVALUATE_IF("use_attachable_trx", false, true))
+  {
+    m_thd->lex->restore_backup_query_tables_list(
+      &m_trx_state.m_query_tables_list);
+  }
+}
 
 /****************************************************************************
 ** User variables
@@ -377,17 +579,16 @@ void thd_binlog_pos(const THD *thd,
 void thd_new_connection_setup(THD *thd, char *stack_start)
 {
   DBUG_ENTER("thd_new_connection_setup");
-  Global_THD_manager *thd_manager= Global_THD_manager::get_instance();
-  thd->variables.pseudo_thread_id= thd_manager->get_inc_thread_id();
-  thd->thread_id= thd->variables.pseudo_thread_id;
+  thd->set_new_thread_id();
 #ifdef HAVE_PSI_INTERFACE
   thd_set_psi(thd,
               PSI_THREAD_CALL(new_thread)
-                (key_thread_one_connection, thd, thd->thread_id));
+              (key_thread_one_connection, thd, thd->thread_id()));
 #endif
   thd->set_time();
   thd->thr_create_utime= thd->start_utime= my_micro_time();
 
+  Global_THD_manager *thd_manager= Global_THD_manager::get_instance();
   thd_manager->add_thd(thd);
 
   DBUG_PRINT("info", ("init new connection. thd: 0x%lx fd: %d",
@@ -717,6 +918,12 @@ int thd_tx_is_read_only(const THD *thd)
 }
 
 extern "C"
+int thd_tx_is_dd_trx(const THD *thd)
+{
+  return (int) thd->is_attachable_transaction_active();
+}
+
+extern "C"
 void thd_inc_row_count(THD *thd)
 {
   thd->get_stmt_da()->inc_current_row_for_condition();
@@ -755,8 +962,8 @@ char *thd_security_context(THD *thd, char *buffer, size_t length,
   const char *proc_info= thd->proc_info;
 
   len= my_snprintf(header, sizeof(header),
-                   "MySQL thread id %lu, OS thread handle %lu, query id %lu",
-                   thd->thread_id, (ulong) thd->real_id, (ulong) thd->query_id);
+                   "MySQL thread id %u, OS thread handle %lu, query id %lu",
+                   thd->thread_id(), (ulong)thd->real_id, (ulong)thd->query_id);
   str.length(0);
   str.append(header, len);
 
@@ -874,7 +1081,6 @@ void Open_tables_state::set_open_tables_state(Open_tables_state *state)
   this->extra_lock= state->extra_lock;
 
   this->locked_tables_mode= state->locked_tables_mode;
-  this->current_tablenr= state->current_tablenr;
 
   this->state_flags= state->state_flags;
 
@@ -896,8 +1102,11 @@ void Open_tables_state::reset_open_tables_state()
 
 
 THD::THD(bool enable_plugins)
-   :Statement(&main_lex, &main_mem_root, STMT_CONVENTIONAL_EXECUTION,
-              /* statement id */ 0),
+  :Query_arena(&main_mem_root, STMT_CONVENTIONAL_EXECUTION),
+   mark_used_columns(MARK_COLUMNS_READ),
+   lex(&main_lex),
+   m_query_string(NULL_CSTR),
+   m_db(NULL_CSTR),
    rli_fake(0), rli_slave(NULL),
 #ifdef EMBEDDED_LIBRARY
    mysql(NULL),
@@ -912,6 +1121,8 @@ THD::THD(bool enable_plugins)
    m_trans_log_file(NULL),
    m_trans_fixed_log_file(NULL),
    m_trans_end_pos(0),
+   m_transaction(new Transaction_ctx()),
+   m_attachable_trx(NULL),
    table_map_for_update(0),
    m_examined_row_count(0),
    m_stage_progress_psi(NULL),
@@ -952,12 +1163,13 @@ THD::THD(bool enable_plugins)
                  global_system_variables.query_prealloc_size);
   stmt_arena= this;
   thread_stack= 0;
-  catalog= (char*)"std"; // the only catalog we have for now
+  m_catalog.str= "std";
+  m_catalog.length= 3;
   main_security_ctx.init();
   security_ctx= &main_security_ctx;
   no_errors= 0;
   password= 0;
-  query_start_used= query_start_usec_used= 0;
+  query_start_usec_used= 0;
   count_cuted_fields= CHECK_FIELD_IGNORE;
   killed= NOT_KILLED;
   col_access=0;
@@ -978,7 +1190,7 @@ THD::THD(bool enable_plugins)
   current_linfo =  0;
   slave_thread = 0;
   memset(&variables, 0, sizeof(variables));
-  thread_id= 0;
+  m_thread_id= Global_THD_manager::reserved_thread_id;
   one_shot_set= 0;
   file_id = 0;
   query_id= 0;
@@ -1050,13 +1262,23 @@ THD::THD(bool enable_plugins)
   binlog_next_event_pos.file_name= NULL;
   binlog_next_event_pos.pos= 0;
 
+#ifdef HAVE_MY_TIMER
   timer= NULL;
   timer_cache= NULL;
+#endif
 #ifndef DBUG_OFF
   gis_debug= 0;
 #endif
 }
 
+
+void THD::set_transaction(Transaction_ctx *transaction_ctx)
+{
+  DBUG_ASSERT(is_attachable_transaction_active());
+
+  delete m_transaction.release();
+  m_transaction.reset(transaction_ctx);
+}
 
 void THD::push_internal_handler(Internal_error_handler *handler)
 {
@@ -1197,7 +1419,6 @@ struct timeval THD::query_start_timeval_trunc(uint decimals)
 {
   struct timeval tv;
   tv.tv_sec= start_time.tv_sec;
-  query_start_used= 1;
   if (decimals)
   {
     tv.tv_usec= start_time.tv_usec;
@@ -1342,7 +1563,7 @@ void THD::init(void)
     variables.pseudo_thread_id to 0. We need to correct it here to
     avoid temporary tables replication failure.
   */
-  variables.pseudo_thread_id= thread_id;
+  variables.pseudo_thread_id= m_thread_id;
   mysql_mutex_unlock(&LOCK_global_system_variables);
 
   /*
@@ -1430,6 +1651,13 @@ void THD::init_for_queries(Relay_log_info *rli)
     DBUG_ASSERT(rli_slave->info_thd == this && slave_thread);
   }
 #endif
+}
+
+
+void THD::set_new_thread_id()
+{
+  m_thread_id= Global_THD_manager::get_instance()->get_new_thread_id();
+  variables.pseudo_thread_id= m_thread_id;
 }
 
 
@@ -1538,7 +1766,11 @@ void THD::cleanup(void)
   /* All metadata locks must have been released by now. */
   DBUG_ASSERT(!mdl_context.has_locks());
 
+  /* Protects user_vars. */
+  mysql_mutex_lock(&LOCK_thd_data);
   my_hash_free(&user_vars);
+  mysql_mutex_unlock(&LOCK_thd_data);
+
   close_temporary_tables(this);
   sp_cache_clear(&sp_proc_cache);
   sp_cache_clear(&sp_func_cache);
@@ -1571,6 +1803,8 @@ void THD::cleanup(void)
 void THD::release_resources()
 {
   DBUG_ASSERT(m_release_resources_done == false);
+
+  Global_THD_manager::get_instance()->release_thread_id(m_thread_id);
 
   mysql_mutex_lock(&LOCK_status);
   add_to_status(&global_status_var, &status_var);
@@ -1646,10 +1880,12 @@ THD::~THD()
   mysql_mutex_lock(&LOCK_thd_query);
   mysql_mutex_unlock(&LOCK_thd_query);
 
+  DBUG_ASSERT(!m_attachable_trx);
+
   DBUG_PRINT("info", ("freeing security context"));
   main_security_ctx.destroy();
-  my_free(db);
-  db= NULL;
+  my_free(const_cast<char*>(m_db.str));
+  m_db= NULL_CSTR;
   get_transaction()->free_memory(MYF(0));
   mysql_mutex_destroy(&LOCK_query_plan);
   mysql_mutex_destroy(&LOCK_thd_data);
@@ -1956,13 +2192,13 @@ bool THD::store_globals()
     have the mysys_var reference (which in fact refers to the worker
     threads local storage with key THR_KEY_mysys. 
   */
-  mysys_var=my_thread_var;
+  mysys_var= mysys_thread_var();
   DBUG_PRINT("debug", ("mysys_var: 0x%llx", (ulonglong) mysys_var));
   /*
     Let mysqld define the thread id (not mysys)
     This allows us to move THD to different threads if needed.
   */
-  mysys_var->id= thread_id;
+  mysys_var->id= m_thread_id;
   real_id= pthread_self();                      // For debugging
 
   /*
@@ -2623,7 +2859,8 @@ static File create_file(THD *thd, char *path, sql_exchange *exchange,
 
   if (!dirname_length(exchange->file_name))
   {
-    strxnmov(path, FN_REFLEN-1, mysql_real_data_home, thd->db ? thd->db : "",
+    strxnmov(path, FN_REFLEN-1, mysql_real_data_home,
+             thd->db().str ? thd->db().str : "",
              NullS);
     (void) fn_format(path, exchange->file_name, path, "", option);
   }
@@ -2668,7 +2905,7 @@ select_export::prepare(List<Item> &list, SELECT_LEX_UNIT *u)
   bool blob_flag=0;
   bool string_results= FALSE, non_string_results= FALSE;
   unit= u;
-  if ((uint) strlen(exchange->file_name) + NAME_LEN >= FN_REFLEN)
+  if (strlen(exchange->file_name) + NAME_LEN >= FN_REFLEN)
     strmake(path,exchange->file_name,FN_REFLEN-1);
 
   write_cs= exchange->cs ? exchange->cs : &my_charset_bin;
@@ -3377,13 +3614,6 @@ void select_dumpvar::cleanup()
 }
 
 
-Query_arena::Type Query_arena::type() const
-{
-  DBUG_ASSERT(0); /* Should never be called */
-  return STATEMENT;
-}
-
-
 void Query_arena::free_items()
 {
   Item *next;
@@ -3410,60 +3640,6 @@ void Query_arena::set_query_arena(Query_arena *set)
 void Query_arena::cleanup_stmt()
 {
   DBUG_ASSERT(! "Query_arena::cleanup_stmt() not implemented");
-}
-
-/*
-  Statement functions
-*/
-
-Statement::Statement(LEX *lex_arg, MEM_ROOT *mem_root_arg,
-                     enum_state state_arg, ulong id_arg)
-  :Query_arena(mem_root_arg, state_arg),
-  id(id_arg),
-  mark_used_columns(MARK_COLUMNS_READ),
-  lex(lex_arg),
-  db(NULL),
-  db_length(0)
-{
-  name.str= NULL;
-  m_query_string= NULL_CSTR;
-}
-
-
-Query_arena::Type Statement::type() const
-{
-  return STATEMENT;
-}
-
-
-void Statement::set_statement(Statement *stmt)
-{
-  id=             stmt->id;
-  mark_used_columns=   stmt->mark_used_columns;
-  lex=            stmt->lex;
-  set_query(stmt->query());
-}
-
-
-void THD::set_n_backup_statement(Statement *stmt, Statement *backup)
-{
-  DBUG_ENTER("Statement::set_n_backup_statement");
-  mysql_mutex_lock(&LOCK_thd_data);
-  backup->set_statement(this);
-  set_statement(stmt);
-  mysql_mutex_unlock(&LOCK_thd_data);
-  DBUG_VOID_RETURN;
-}
-
-
-void THD::restore_backup_statement(Statement *stmt, Statement *backup)
-{
-  DBUG_ENTER("Statement::restore_backup_statement");
-  mysql_mutex_lock(&LOCK_thd_data);
-  stmt->set_statement(this);
-  set_statement(backup);
-  mysql_mutex_unlock(&LOCK_thd_data);
-  DBUG_VOID_RETURN;
 }
 
 
@@ -3508,37 +3684,33 @@ void THD::restore_active_arena(Query_arena *set, Query_arena *backup)
   DBUG_VOID_RETURN;
 }
 
-Statement::~Statement()
-{
-}
-
 C_MODE_START
 
 static uchar *
 get_statement_id_as_hash_key(const uchar *record, size_t *key_length,
                              my_bool not_used __attribute__((unused)))
 {
-  const Statement *statement= (const Statement *) record; 
+  const Prepared_statement *statement= (const Prepared_statement *) record;
   *key_length= sizeof(statement->id);
-  return (uchar *) &((const Statement *) statement)->id;
+  return (uchar *) &((const Prepared_statement *) statement)->id;
 }
 
 static void delete_statement_as_hash_key(void *key)
 {
-  delete (Statement *) key;
+  delete (Prepared_statement *) key;
 }
 
-static uchar *get_stmt_name_hash_key(Statement *entry, size_t *length,
-                                    my_bool not_used __attribute__((unused)))
+static uchar *get_stmt_name_hash_key(Prepared_statement *entry, size_t *length,
+                                     my_bool not_used __attribute__((unused)))
 {
-  *length= entry->name.length;
-  return (uchar*) entry->name.str;
+  *length= entry->name().length;
+  return reinterpret_cast<uchar *>(const_cast<char *>(entry->name().str));
 }
 
 C_MODE_END
 
-Statement_map::Statement_map() :
-  last_found_statement(0)
+Prepared_statement_map::Prepared_statement_map()
+ :m_last_found_statement(NULL)
 {
   enum
   {
@@ -3554,28 +3726,7 @@ Statement_map::Statement_map() :
 }
 
 
-/*
-  Insert a new statement to the thread-local statement map.
-
-  DESCRIPTION
-    If there was an old statement with the same name, replace it with the
-    new one. Otherwise, check if max_prepared_stmt_count is not reached yet,
-    increase prepared_stmt_count, and insert the new statement. It's okay
-    to delete an old statement and fail to insert the new one.
-
-  POSTCONDITIONS
-    All named prepared statements are also present in names_hash.
-    Statement names in names_hash are unique.
-    The statement is added only if prepared_stmt_count < max_prepard_stmt_count
-    last_found_statement always points to a valid statement or is 0
-
-  RETURN VALUE
-    0  success
-    1  error: out of resources or max_prepared_stmt_count limit has been
-       reached. An error is sent to the client, the statement is deleted.
-*/
-
-int Statement_map::insert(THD *thd, Statement *statement)
+int Prepared_statement_map::insert(THD *thd, Prepared_statement *statement)
 {
   if (my_hash_insert(&st_hash, (uchar*) statement))
   {
@@ -3587,7 +3738,7 @@ int Statement_map::insert(THD *thd, Statement *statement)
     my_error(ER_OUT_OF_RESOURCES, MYF(0));
     goto err_st_hash;
   }
-  if (statement->name.str && my_hash_insert(&names_hash, (uchar*) statement))
+  if (statement->name().str && my_hash_insert(&names_hash, (uchar*) statement))
   {
     my_error(ER_OUT_OF_RESOURCES, MYF(0));
     goto err_names_hash;
@@ -3610,11 +3761,11 @@ int Statement_map::insert(THD *thd, Statement *statement)
   prepared_stmt_count++;
   mysql_mutex_unlock(&LOCK_prepared_stmt_count);
 
-  last_found_statement= statement;
+  m_last_found_statement= statement;
   return 0;
 
 err_max:
-  if (statement->name.str)
+  if (statement->name().str)
     my_hash_delete(&names_hash, (uchar*) statement);
 err_names_hash:
   my_hash_delete(&st_hash, (uchar*) statement);
@@ -3623,11 +3774,34 @@ err_st_hash:
 }
 
 
-void Statement_map::erase(Statement *statement)
+Prepared_statement
+*Prepared_statement_map::find_by_name(const LEX_CSTRING &name)
 {
-  if (statement == last_found_statement)
-    last_found_statement= 0;
-  if (statement->name.str)
+  return reinterpret_cast<Prepared_statement*>
+    (my_hash_search(&names_hash, (uchar*)name.str, name.length));
+}
+
+
+Prepared_statement *Prepared_statement_map::find(ulong id)
+{
+  if (m_last_found_statement == NULL || id != m_last_found_statement->id)
+  {
+    Prepared_statement *stmt=
+      reinterpret_cast<Prepared_statement*>
+      (my_hash_search(&st_hash, (uchar *) &id, sizeof(id)));
+    if (stmt && stmt->name().str)
+      return NULL;
+    m_last_found_statement= stmt;
+  }
+  return m_last_found_statement;
+}
+
+
+void Prepared_statement_map::erase(Prepared_statement *statement)
+{
+  if (statement == m_last_found_statement)
+    m_last_found_statement= NULL;
+  if (statement->name().str)
     my_hash_delete(&names_hash, (uchar *) statement);
 
   my_hash_delete(&st_hash, (uchar *) statement);
@@ -3638,7 +3812,7 @@ void Statement_map::erase(Statement *statement)
 }
 
 
-void Statement_map::reset()
+void Prepared_statement_map::reset()
 {
   /* Must be first, hash_free will reset st_hash.records */
   if (st_hash.records > 0)
@@ -3646,7 +3820,8 @@ void Statement_map::reset()
 #ifdef HAVE_PSI_PS_INTERFACE
     for (uint i=0 ; i < st_hash.records ; i++)
     {
-      Statement *stmt= (Statement *)my_hash_element(&st_hash, i);
+      Prepared_statement *stmt=
+        reinterpret_cast<Prepared_statement *>(my_hash_element(&st_hash, i));
       MYSQL_DESTROY_PS(stmt->get_PS_prepared_stmt());
     }
 #endif
@@ -3657,11 +3832,11 @@ void Statement_map::reset()
   }
   my_hash_reset(&names_hash);
   my_hash_reset(&st_hash);
-  last_found_statement= 0;
+  m_last_found_statement= NULL;
 }
 
 
-Statement_map::~Statement_map()
+Prepared_statement_map::~Prepared_statement_map()
 {
   /*
     We do not want to grab the global LOCK_prepared_stmt_count mutex here.
@@ -3672,6 +3847,7 @@ Statement_map::~Statement_map()
   my_hash_free(&names_hash);
   my_hash_free(&st_hash);
 }
+
 
 bool select_dumpvar::send_data(List<Item> &items)
 {
@@ -4004,6 +4180,24 @@ void THD::restore_backup_open_tables_state(Open_tables_backup *backup)
   DBUG_VOID_RETURN;
 }
 
+
+void THD::begin_attachable_transaction()
+{
+  DBUG_ASSERT(!m_attachable_trx);
+
+  m_attachable_trx= new Attachable_trx(this);
+}
+
+
+void THD::end_attachable_transaction()
+{
+  DBUG_ASSERT(m_attachable_trx);
+
+  delete m_attachable_trx;
+  m_attachable_trx= NULL;
+}
+
+
 /**
   Check the killed state of a user thread
   @param thd  user thread
@@ -4032,7 +4226,7 @@ extern "C" void thd_set_kill_status(const MYSQL_THD thd)
 */
 extern "C" unsigned long thd_get_thread_id(const MYSQL_THD thd)
 {
-  return((unsigned long)thd->thread_id);
+  return((unsigned long)thd->thread_id());
 }
 
 /**
@@ -4121,6 +4315,7 @@ extern "C" int thd_binlog_format(const MYSQL_THD thd)
 
 extern "C" void thd_mark_transaction_to_rollback(MYSQL_THD thd, int all)
 {
+  DBUG_ENTER("thd_mark_transaction_to_rollback");
   DBUG_ASSERT(thd);
   /*
     The parameter "all" has type int since the function is defined
@@ -4130,11 +4325,12 @@ extern "C" void thd_mark_transaction_to_rollback(MYSQL_THD thd, int all)
     specifically.
   */
   thd->mark_transaction_to_rollback((all != 0));
+  DBUG_VOID_RETURN;
 }
 
 extern "C" bool thd_binlog_filter_ok(const MYSQL_THD thd)
 {
-  return binlog_filter->db_ok(thd->db);
+  return binlog_filter->db_ok(thd->db().str);
 }
 
 extern "C" bool thd_sqlcom_can_generate_row_events(const MYSQL_THD thd)
@@ -4483,7 +4679,8 @@ void THD::inc_status_sort_rows(ha_rows count)
 {
   status_var.filesort_rows+= count;
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
-  PSI_STATEMENT_CALL(inc_statement_sort_rows)(m_statement_psi, count);
+  PSI_STATEMENT_CALL(inc_statement_sort_rows)(m_statement_psi,
+                                              static_cast<ulong>(count));
 #endif
 }
 
@@ -4520,13 +4717,11 @@ void THD::set_command(enum enum_server_command command)
 }
 
 
-/** Assign a new value to thd->query.  */
-
 void THD::set_query(const LEX_CSTRING& query_arg)
 {
   DBUG_ASSERT(this == current_thd);
   mysql_mutex_lock(&LOCK_thd_query);
-  Statement::set_query(query_arg);
+  m_query_string= query_arg;
   mysql_mutex_unlock(&LOCK_thd_query);
 
 #ifdef HAVE_PSI_THREAD_INTERFACE

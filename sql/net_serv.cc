@@ -39,7 +39,6 @@
 #include <mysqld_error.h>
 #include <my_sys.h>
 #include <m_string.h>
-#include <my_net.h>
 #include <violite.h>
 #include <signal.h>
 #include <errno.h>
@@ -87,7 +86,6 @@ extern void thd_increment_bytes_received(size_t length);
 #endif
 
 #define VIO_SOCKET_ERROR  ((size_t) -1)
-#define MAX_PACKET_LENGTH (256L*256L*256L-1)
 
 static my_bool net_write_buff(NET *, const uchar *, size_t);
 
@@ -949,11 +947,16 @@ my_net_read(NET *net)
         {
           if (multi_byte_packet)
           {
+            /* 
+              It's never the buffer on the first loop iteration that will have
+              multi_byte_packet on.
+              Thus there shall never be a non-zero first_packet_offset here.
+            */
+            DBUG_ASSERT(first_packet_offset == 0);
             /* Remove packet header for second packet */
-            memmove(net->buff + first_packet_offset + start_of_packet,
-              net->buff + first_packet_offset + start_of_packet +
-              NET_HEADER_SIZE,
-              buf_length - start_of_packet);
+            memmove(net->buff + start_of_packet,
+              net->buff + start_of_packet + NET_HEADER_SIZE,
+              buf_length - start_of_packet - NET_HEADER_SIZE);
             start_of_packet += read_length;
             buf_length -= NET_HEADER_SIZE;
           }

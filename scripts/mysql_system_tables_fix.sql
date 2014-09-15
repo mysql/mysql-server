@@ -609,7 +609,6 @@ drop procedure mysql.die;
 ALTER TABLE user ADD plugin char(64) DEFAULT 'mysql_native_password' NOT NULL,  ADD authentication_string TEXT;
 ALTER TABLE user MODIFY plugin char(64) DEFAULT 'mysql_native_password' NOT NULL;
 UPDATE user SET plugin=IF((length(password) = 41) OR (length(password) = 0), 'mysql_native_password', '') WHERE plugin = '';
-UPDATE user SET plugin=IF(length(password) = 16, 'mysql_old_password', '') WHERE plugin = '';
 ALTER TABLE user MODIFY authentication_string TEXT;
 
 -- establish if the field is already there.
@@ -629,6 +628,21 @@ CREATE TEMPORARY TABLE tmp_proxies_priv LIKE proxies_priv;
 INSERT INTO tmp_proxies_priv VALUES ('localhost', 'root', '', '', TRUE, '', now());
 INSERT INTO proxies_priv SELECT * FROM tmp_proxies_priv WHERE @had_proxies_priv_table=0;
 DROP TABLE tmp_proxies_priv;
+
+-- Checking for any duplicate hostname and username combination are exists.
+-- If exits we will throw error.
+DROP PROCEDURE IF EXISTS mysql.warn_duplicate_host_names;
+CREATE PROCEDURE mysql.warn_duplicate_host_names() SIGNAL SQLSTATE '45000'  SET MESSAGE_TEXT = 'Multiple accounts exist for @user_name, @host_name that differ only in Host lettercase; remove all except one of them';
+SET @cmd='call mysql.warn_duplicate_host_names()';
+SET @duplicate_hosts=(SELECT count(*) FROM mysql.user GROUP BY user, lower(host) HAVING count(*) > 1 LIMIT 1);
+SET @str=IF(@duplicate_hosts > 1, @cmd, 'SET @dummy=0');
+
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+-- Get warnings (if any)
+SHOW WARNINGS;
+DROP PREPARE stmt;
+DROP PROCEDURE mysql.warn_duplicate_host_names;
 
 # Convering the host name to lower case for existing users
 UPDATE user SET host=LOWER( host ) WHERE LOWER( host ) <> host;
@@ -708,25 +722,25 @@ ALTER TABLE ndb_binlog_index
 --
 
 DROP PROCEDURE IF EXISTS mysql.warn_host_table_nonempty;
-DELIMITER //
-CREATE PROCEDURE mysql.warn_host_table_nonempty()
-BEGIN
-  SET @have_host_table=0;
-  SET @host_table_nonempty=0;
-  SET @have_host_table=(SELECT COUNT(*) FROM information_schema.tables WHERE table_name LIKE 'host' AND table_schema LIKE 'mysql' AND table_type LIKE 'BASE TABLE');
+CREATE PROCEDURE mysql.warn_host_table_nonempty() SIGNAL SQLSTATE '01000' SET MESSAGE_TEXT='Table mysql.host is not empty. It is deprecated and will be removed in a future release.';
+SET @cmd='call mysql.warn_host_table_nonempty()';
 
-  IF @have_host_table > 0 THEN
-    SET @host_table_nonempty=(SELECT COUNT(*) FROM mysql.host);
-  END IF;
+SET @have_host_table=0;
+SET @host_table_nonempty=0;
+SET @have_host_table=(SELECT COUNT(*) FROM information_schema.tables WHERE table_name LIKE 'host' AND table_schema LIKE 'mysql' AND table_type LIKE 'BASE TABLE');
 
-  IF @host_table_nonempty > 0 THEN
-    SIGNAL SQLSTATE '01000' SET MESSAGE_TEXT='Table mysql.host is not empty. It is deprecated and will be removed in a future release.';
-  END IF;
-END //
-DELIMITER ;
-CALL mysql.warn_host_table_nonempty();
+SET @host_table_nonempty_str=IF(@have_host_table > 0, 'SET @host_table_nonempty=(SELECT COUNT(*) FROM mysql.host)', 'SET @dummy=0');
+PREPARE stmt FROM @host_table_nonempty_str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+SET @str=IF(@host_table_nonempty > 0, @cmd, 'SET @dummy=0');
+
+PREPARE stmt FROM @str;
+EXECUTE stmt;
 -- Get warnings (if any)
 SHOW WARNINGS;
+DROP PREPARE stmt;
 DROP PROCEDURE mysql.warn_host_table_nonempty;
 
 --
@@ -737,10 +751,26 @@ ALTER TABLE help_category MODIFY url TEXT NOT NULL;
 ALTER TABLE help_topic MODIFY url TEXT NOT NULL;
 
 --
+-- Upgrade a table engine from MyISAM to InnoDB for the system tables
+-- help_topic, help_category, help_relation, help_keyword, time_zone,
+-- time_zone_leap_second, time_zone_name, time_zone_transition,
+-- time_zone_transition_type.
+
+ALTER TABLE help_topic ENGINE=InnoDB STATS_PERSISTENT=0;
+ALTER TABLE help_category ENGINE=InnoDB STATS_PERSISTENT=0;
+ALTER TABLE help_relation ENGINE=InnoDB STATS_PERSISTENT=0;
+ALTER TABLE help_keyword ENGINE=InnoDB STATS_PERSISTENT=0;
+ALTER TABLE time_zone ENGINE=InnoDB STATS_PERSISTENT=0;
+ALTER TABLE time_zone_leap_second ENGINE=InnoDB STATS_PERSISTENT=0;
+ALTER TABLE time_zone_name ENGINE=InnoDB STATS_PERSISTENT=0;
+ALTER TABLE time_zone_transition ENGINE=InnoDB STATS_PERSISTENT=0;
+ALTER TABLE time_zone_transition_type ENGINE=InnoDB STATS_PERSISTENT=0;
+
+--
 -- Add timestamp and expiry columns
 --
 
 ALTER TABLE user ADD password_last_changed timestamp NULL;
-UPDATE user SET password_last_changed = CURRENT_TIMESTAMP WHERE plugin in ('mysql_native_password','mysql_old_password','sha256_password') and password_last_changed is NULL;
+UPDATE user SET password_last_changed = CURRENT_TIMESTAMP WHERE plugin in ('mysql_native_password','sha256_password') and password_last_changed is NULL;
 
 ALTER TABLE user ADD password_lifetime smallint unsigned NULL;

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2006, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2006, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -64,7 +64,6 @@ freeing it when done with the vector.
 
 /********************************************************************
 Create a new vector with the given initial size. */
-
 ib_vector_t*
 ib_vector_create(
 /*=============*/
@@ -124,7 +123,6 @@ ib_vector_size(
 
 /********************************************************************
 Increase the size of the vector. */
-
 void
 ib_vector_resize(
 /*=============*/
@@ -261,53 +259,6 @@ UNIV_INLINE
 void
 ib_heap_allocator_free(
 /*===================*/
-	ib_alloc_t*	ib_ut_alloc);	/* in: alloc instace to free */
-
-/********************************************************************
-Wrapper for ut_free(). */
-UNIV_INLINE
-void
-ib_ut_free(
-/*=======*/
-	ib_alloc_t*	allocator,	/* in: allocator */
-	void*		ptr);		/* in: size in bytes */
-
-/********************************************************************
-Wrapper for ut_malloc(). */
-UNIV_INLINE
-void*
-ib_ut_malloc(
-/*=========*/
-					/* out: pointer to allocated memory */
-	ib_alloc_t*	allocator,	/* in: allocator */
-	ulint		size);		/* in: size in bytes */
-
-/********************************************************************
-Wrapper for ut_realloc(). */
-UNIV_INLINE
-void*
-ib_ut_resize(
-/*=========*/
-					/* out: pointer to reallocated
-					memory */
-	ib_alloc_t*	allocator,	/* in: allocator */
-	void*		old_ptr,	/* in: pointer to memory */
-	ulint		old_size,	/* in: old size in bytes */
-	ulint		new_size);	/* in: new size in bytes */
-
-/********************************************************************
-Create a heap allocator that uses the passed in heap. */
-UNIV_INLINE
-ib_alloc_t*
-ib_ut_allocator_create(void);
-/*=========================*/
-
-/********************************************************************
-Create a heap allocator that uses the passed in heap. */
-UNIV_INLINE
-void
-ib_ut_allocator_free(
-/*=================*/
 	ib_alloc_t*	ib_ut_alloc);	/* in: alloc instace to free */
 
 /* Allocator used by ib_vector_t. */

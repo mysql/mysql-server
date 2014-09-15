@@ -2899,6 +2899,7 @@ hex(a)	STRCMP(a,'a')	STRCMP(a,'a ')
 6109	-1	-1
 61	0	0
 DROP TABLE t1;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 CREATE TABLE t1 (
 `id` int(11) NOT NULL auto_increment,
 `url` varchar(200) NOT NULL default '',
@@ -3075,6 +3076,7 @@ select c1 as c2h from t1 where c1 like 'ab#_def' escape '#';
 c2h
 ab_def
 drop table t1;
+SET sql_mode = default;
 #
 # Start of 5.6 tests
 #
@@ -3329,6 +3331,10 @@ NULL
 SELECT inet6_aton(soundex('a'));
 inet6_aton(soundex('a'))
 NULL
+#
+# Bug#19047425 UNINITIALISED VALUE IN STR_TO_IPV6
+#
+do is_ipv4_mapped(inet6_aton(convert(_ascii "a:" using tis620)));
 #
 # End of 5.6 tests
 #

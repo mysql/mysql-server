@@ -50,6 +50,7 @@ Created July 18, 2007 Vasil Dimov
 #include "btr0btr.h"
 #include "page0zip.h"
 #include "fsp0sysspace.h"
+#include "ut0new.h"
 
 /** structure associates a name string with a file page type and/or buffer
 page state. */
@@ -59,16 +60,27 @@ struct buf_page_desc_t{
 	ulint		type_value;	/*!< Page type or page state */
 };
 
-/** Change buffer B-tree page */
-#define	I_S_PAGE_TYPE_IBUF		(FIL_PAGE_TYPE_LAST + 1)
-
-/** Any states greater than I_S_PAGE_TYPE_IBUF would be treated as
-unknown. */
-#define	I_S_PAGE_TYPE_UNKNOWN		(I_S_PAGE_TYPE_IBUF + 1)
-
 /** We also define I_S_PAGE_TYPE_INDEX as the Index Page's position
 in i_s_page_type[] array */
 #define I_S_PAGE_TYPE_INDEX		1
+
+/** Any unassigned FIL_PAGE_TYPE will be treated as unknown. */
+#define	I_S_PAGE_TYPE_UNKNOWN		FIL_PAGE_TYPE_UNKNOWN
+
+/** R-tree index page */
+#define	I_S_PAGE_TYPE_RTREE		(FIL_PAGE_TYPE_LAST + 1)
+
+/** Change buffer B-tree page */
+#define	I_S_PAGE_TYPE_IBUF		(FIL_PAGE_TYPE_LAST + 2)
+
+#define I_S_PAGE_TYPE_LAST		I_S_PAGE_TYPE_IBUF
+
+#define I_S_PAGE_TYPE_BITS		4
+
+/* Check if we can hold all page types */
+#if I_S_PAGE_TYPE_LAST >= 1 << I_S_PAGE_TYPE_BITS
+# error i_s_page_type[] is too large
+#endif
 
 /** Name string for File Page Types */
 static buf_page_desc_t	i_s_page_type[] = {
@@ -85,14 +97,10 @@ static buf_page_desc_t	i_s_page_type[] = {
 	{"BLOB", FIL_PAGE_TYPE_BLOB},
 	{"COMPRESSED_BLOB", FIL_PAGE_TYPE_ZBLOB},
 	{"COMPRESSED_BLOB2", FIL_PAGE_TYPE_ZBLOB2},
+	{"UNKNOWN", I_S_PAGE_TYPE_UNKNOWN},
+	{"RTREE_INDEX", I_S_PAGE_TYPE_RTREE},
 	{"IBUF_INDEX", I_S_PAGE_TYPE_IBUF},
-	{"UNKNOWN", I_S_PAGE_TYPE_UNKNOWN}
 };
-
-/* Check if we can hold all page type in a 4 bit value */
-#if I_S_PAGE_TYPE_UNKNOWN > 1<<4
-# error "i_s_page_type[] is too large"
-#endif
 
 /** This structure defines information we will fetch from pages
 currently cached in the buffer pool. It will be used to populate
@@ -118,7 +126,7 @@ struct buf_page_info_t{
 	unsigned	zip_ssize:PAGE_ZIP_SSIZE_BITS;
 					/*!< Compressed page size */
 	unsigned	page_state:BUF_PAGE_STATE_BITS; /*!< Page state */
-	unsigned	page_type:4;	/*!< Page type */
+	unsigned	page_type:I_S_PAGE_TYPE_BITS;	/*!< Page type */
 	unsigned	num_recs:UNIV_PAGE_SIZE_SHIFT_MAX-2;
 					/*!< Number of records on Page */
 	unsigned	data_size:UNIV_PAGE_SIZE_SHIFT_MAX;
@@ -130,8 +138,8 @@ struct buf_page_info_t{
 	index_id_t	index_id;	/*!< Index ID if a index page */
 };
 
-/** maximum number of buffer page info we would cache. */
-#define MAX_BUF_INFO_CACHED		10000
+/** Maximum number of buffer page info we would cache. */
+const ulint	MAX_BUF_INFO_CACHED = 10000;
 
 #define OK(expr)		\
 	if ((expr) != 0) {	\
@@ -3295,7 +3303,7 @@ i_s_fts_index_cache_fill_one_index(
 	index_charset = index_cache->charset;
 	conv_str.f_len = system_charset_info->mbmaxlen
 		* FTS_MAX_WORD_LEN_IN_CHAR;
-	conv_str.f_str = static_cast<byte*>(ut_malloc(conv_str.f_len));
+	conv_str.f_str = static_cast<byte*>(ut_malloc_nokey(conv_str.f_len));
 	conv_str.f_n_char = 0;
 
 	/* Go through each word in the index cache */
@@ -3774,7 +3782,7 @@ i_s_fts_index_table_fill_one_index(
 	index_charset = fts_index_get_charset(index);
 	conv_str.f_len = system_charset_info->mbmaxlen
 		* FTS_MAX_WORD_LEN_IN_CHAR;
-	conv_str.f_str = static_cast<byte*>(ut_malloc(conv_str.f_len));
+	conv_str.f_str = static_cast<byte*>(ut_malloc_nokey(conv_str.f_len));
 	conv_str.f_n_char = 0;
 
 	/* Iterate through each auxiliary table as described in
@@ -4205,7 +4213,8 @@ struct temp_table_info_t{
 	char		m_is_compressed[64];
 };
 
-typedef std::vector<temp_table_info_t> temp_table_info_cache_t;
+typedef std::vector<temp_table_info_t, ut_allocator<temp_table_info_t> >
+	temp_table_info_cache_t;
 
 /*******************************************************************//**
 Fill Information Schema table INNODB_TEMP_TABLE_INFO for a particular
@@ -4871,7 +4880,7 @@ i_s_innodb_buffer_stats_fill_table(
 		DBUG_RETURN(0);
 	}
 
-	pool_info = (buf_pool_info_t*) ut_zalloc(
+	pool_info = (buf_pool_info_t*) ut_zalloc_nokey(
 		srv_buf_pool_instances *  sizeof *pool_info);
 
 	/* Walk through each buffer pool */
@@ -5355,14 +5364,14 @@ i_s_innodb_set_page_type(
 	ulint		page_type,	/*!< in: page type */
 	const byte*	frame)		/*!< in: buffer frame */
 {
-	if (page_type == FIL_PAGE_INDEX) {
+	if (fil_page_type_is_index(page_type)) {
 		const page_t*	page = (const page_t*) frame;
 
 		page_info->index_id = btr_page_get_index_id(page);
 
-		/* FIL_PAGE_INDEX is a bit special, its value
-		is defined as 17855, so we cannot use FIL_PAGE_INDEX
-		to index into i_s_page_type[] array, its array index
+		/* FIL_PAGE_INDEX and FIL_PAGE_RTREE are a bit special,
+		their values are defined as 17855 and 17854, so we cannot
+		use them to index into i_s_page_type[] array, its array index
 		in the i_s_page_type[] array is I_S_PAGE_TYPE_INDEX
 		(1) for index pages or I_S_PAGE_TYPE_IBUF for
 		change buffer index pages */
@@ -5370,6 +5379,8 @@ i_s_innodb_set_page_type(
 		    == static_cast<index_id_t>(DICT_IBUF_ID_MIN
 					       + IBUF_SPACE_ID)) {
 			page_info->page_type = I_S_PAGE_TYPE_IBUF;
+		} else if (page_type == FIL_PAGE_RTREE) {
+			page_info->page_type = I_S_PAGE_TYPE_RTREE;
 		} else {
 			page_info->page_type = I_S_PAGE_TYPE_INDEX;
 		}
@@ -5504,7 +5515,8 @@ i_s_innodb_fill_buffer_pool(
 
 	/* Go through each chunk of buffer pool. Currently, we only
 	have one single chunk for each buffer pool */
-	for (ulint n = 0; n < buf_pool->n_chunks; n++) {
+	for (ulint n = 0;
+	     n < ut_min(buf_pool->n_chunks, buf_pool->n_chunks_new); n++) {
 		const buf_block_t*	block;
 		ulint			n_blocks;
 		buf_page_info_t*	info_buffer;
@@ -6418,7 +6430,7 @@ i_s_sys_tables_fill_table(
 	}
 
 	heap = mem_heap_create(1000);
-	mutex_enter(&(dict_sys->mutex));
+	mutex_enter(&dict_sys->mutex);
 	mtr_start(&mtr);
 
 	rec = dict_startscan_system(&pcur, &mtr, SYS_TABLES);

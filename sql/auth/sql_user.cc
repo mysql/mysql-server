@@ -56,8 +56,6 @@ void append_user(THD *thd, String *str, LEX_USER *user, bool comma= true,
   {
     if (user->plugin.str && (user->plugin.length > 0) &&
         memcmp(user->plugin.str, native_password_plugin_name.str,
-               user->plugin.length) &&
-        memcmp(user->plugin.str, old_password_plugin_name.str,
                user->plugin.length))
     {
       /** 
@@ -105,11 +103,9 @@ void append_user(THD *thd, String *str, LEX_USER *user, bool comma= true,
         else
         {
           /*
-            Legacy password algorithm is just an obfuscation of a plain text
-            so we're not going to write this.
-            Same with old_passwords == 2 since the scrambled password will
-            be binary anyway.
+            With old_passwords == 2 the scrambled password will be binary.
           */
+          DBUG_ASSERT(thd->variables.old_passwords = 2);
           str->append("<secret>");
         }
         str->append("'");
@@ -192,7 +188,7 @@ bool change_password(THD *thd, const char *host, const char *user,
   char buff[512];
   ulong query_length= 0;
   bool save_binlog_row_based;
-  uint new_password_len= (uint) strlen(new_password);
+  size_t new_password_len= strlen(new_password);
   bool result= 1;
   enum mysql_user_table_field password_field= MYSQL_USER_FIELD_PASSWORD;
   DBUG_ENTER("change_password");
@@ -342,13 +338,12 @@ bool change_password(THD *thd, const char *host, const char *user,
       goto end;
     }
     thd->variables.time_zone->gmt_sec_to_TIME(&acl_user->password_last_changed,
-	thd->query_start());
+      static_cast<my_time_t>(thd->query_start()));
 
   }
   else
 #endif
-  if ((acl_user->plugin.str == native_password_plugin_name.str) ||
-      (acl_user->plugin.str == old_password_plugin_name.str))
+  if (acl_user->plugin.str == native_password_plugin_name.str)
   {
     password_field= MYSQL_USER_FIELD_PASSWORD;
     
@@ -362,14 +357,6 @@ bool change_password(THD *thd, const char *host, const char *user,
 	  new_password_len != SCRAMBLED_PASSWORD_CHAR_LENGTH)
       {
 	my_error(ER_PASSWD_LENGTH, MYF(0), SCRAMBLED_PASSWORD_CHAR_LENGTH);
-	result= 1;
-	mysql_mutex_unlock(&acl_cache->lock);
-	goto end;
-      }
-      else if ((acl_user->plugin.str == old_password_plugin_name.str) &&
-	       new_password_len != SCRAMBLED_PASSWORD_CHAR_LENGTH_323)
-      {
-	my_error(ER_PASSWD_LENGTH, MYF(0), SCRAMBLED_PASSWORD_CHAR_LENGTH_323);
 	result= 1;
 	mysql_mutex_unlock(&acl_cache->lock);
 	goto end;
@@ -400,7 +387,7 @@ bool change_password(THD *thd, const char *host, const char *user,
       goto end;
     }
     thd->variables.time_zone->gmt_sec_to_TIME(&acl_user->password_last_changed,
-         thd->query_start());
+      static_cast<my_time_t>(thd->query_start()));
   }
   else
   {
@@ -484,34 +471,18 @@ int digest_password(THD *thd, LEX_USER *user_record)
   }
   else
 #endif
-  if (user_record->plugin.str == native_password_plugin_name.str ||
-      user_record->plugin.str == old_password_plugin_name.str)
+  if (user_record->plugin.str == native_password_plugin_name.str)
   {
-    if (thd->variables.old_passwords == 1)
-    {
-      char *buff= 
-        (char *) thd->alloc(SCRAMBLED_PASSWORD_CHAR_LENGTH_323+1);
-      if (buff == NULL)
-        return 1;
+    char *buff= 
+      (char *) thd->alloc(SCRAMBLED_PASSWORD_CHAR_LENGTH+1);
+    if (buff == NULL)
+      return 1;
 
-      my_make_scrambled_password_323(buff, user_record->password.str,
-                                     user_record->password.length);
-      user_record->password.str= buff;
-      user_record->password.length= SCRAMBLED_PASSWORD_CHAR_LENGTH_323;
-    }
-    else
-    {
-      char *buff= 
-        (char *) thd->alloc(SCRAMBLED_PASSWORD_CHAR_LENGTH+1);
-      if (buff == NULL)
-        return 1;
-
-      my_make_scrambled_password_sha1(buff, user_record->password.str,
-                                      user_record->password.length);
-      user_record->password.str= buff;
-      user_record->password.length= SCRAMBLED_PASSWORD_CHAR_LENGTH;
-    }
-  } // end if native_password_plugin_name || old_password_plugin_name
+    my_make_scrambled_password_sha1(buff, user_record->password.str,
+                                    user_record->password.length);
+    user_record->password.str= buff;
+    user_record->password.length= SCRAMBLED_PASSWORD_CHAR_LENGTH;
+  } // end if native_password_plugin_name
   else
   {
     user_record->password.str= 0;

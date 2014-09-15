@@ -23,9 +23,8 @@
 #
 # create test bed.
 #
-let $innodb_int = `select@@innodb_create_intrinsic`;
 
-call mtr.add_suppression("InnoDB: Tablespace innodb_temporary_tablespace ran out of space. Please add another file or use \'autoextend\' for the last file in setting innodb_temp_data_file_path");
+call mtr.add_suppression("InnoDB: Tablespace innodb_temporary ran out of space. Please add another file or use \'autoextend\' for the last file in setting innodb_temp_data_file_path");
 call mtr.add_suppression("The table \'t1\' is full");
 
 #-----------------------------------------------------------------------------
@@ -39,15 +38,8 @@ set session innodb_create_intrinsic = 1;
 #
 # Workload in read-only mode.
 #
---echo "Restarting in read only mode"
---exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server 60
---source include/wait_until_disconnected.inc
---enable_reconnect
---exec echo "restart: --innodb-read-only " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
---source include/wait_until_connected_again.inc
---disable_reconnect
+let $restart_paramameters = restart: --innodb-read-only;
+--source include/restart_mysqld.inc
 #
 #
 set session innodb_create_intrinsic = 1;
@@ -55,14 +47,8 @@ set session innodb_create_intrinsic = 1;
 #
 #
 --echo "Restarting Server with temp-tablespace auto-extension turned off"
---exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server
---source include/wait_until_disconnected.inc
---enable_reconnect
---exec echo "restart: --innodb_temp_data_file_path=ibtmp1:12M" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
---source include/wait_until_connected_again.inc
---disable_reconnect
+let $restart_parameters = restart: --innodb_temp_data_file_path=ibtmp1:12M;
+--source include/restart_mysqld.inc
 
 # Test an undo log that spans multiple undo pages,
 # both for temporary and non-temporary tables.
@@ -119,12 +105,5 @@ drop procedure populate_t1;
 drop table t1;
 #
 #
---echo "Restarting Server in normal mode"
+let $restart_parameters = restart;
 --source include/restart_mysqld.inc
-
-#-----------------------------------------------------------------------------
-#
-# remove test bed.
-#
-eval set session innodb_create_intrinsic = $innodb_int;
-

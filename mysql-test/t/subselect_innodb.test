@@ -3,7 +3,7 @@
 --disable_warnings
 drop table if exists t1,t2,t3;
 --enable_warnings
-
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 #
 # key field overflow test
 #
@@ -488,3 +488,4 @@ SELECT 1 FROM t1
 WHERE a != (SELECT 1 FROM t2 WHERE a <=> b OR a > '' AND 6 = 7 ORDER BY b, c);
 
 DROP TABLE t1, t2;
+SET sql_mode = default;

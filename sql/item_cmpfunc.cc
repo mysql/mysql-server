@@ -34,6 +34,7 @@
 #include <algorithm>
 using std::min;
 using std::max;
+#include "aggregate_check.h"
 
 static bool convert_constant_item(THD *, Item_field *, Item **);
 static longlong
@@ -604,6 +605,18 @@ void Item_bool_func2::fix_length_and_dec()
     set_cmp_func();
     DBUG_VOID_RETURN;
   }
+
+  /*
+    Geometry item cannot participate in an arithmetic or string comparison or
+    a full text search, except in equal/not equal comparison.
+    We allow geometry arguments in equal/not equal, since such
+    comparisons are used now and are meaningful, although it simply compares
+    the GEOMETRY byte string rather than doing a geometric equality comparison.
+  */
+  const Functype func_type= functype();
+  if (func_type == LT_FUNC || func_type == LE_FUNC || func_type == GE_FUNC ||
+      func_type == GT_FUNC || func_type == FT_FUNC)
+    reject_geometry_args(arg_count, args, this);
 
   thd= current_thd;
   if (!thd->lex->is_ps_or_view_context_analysis())
@@ -1310,29 +1323,8 @@ get_year_value(THD *thd, Item ***item_arg, Item **cache_arg,
   if (*is_null)
     return ~(ulonglong) 0;
 
-  /*
-    Coerce value to the 19XX form in order to correctly compare
-    YEAR(2) & YEAR(4) types.
-    Here we are converting all item values but YEAR(4) fields since
-      1) YEAR(4) already has a regular YYYY form and
-      2) we don't want to convert zero/bad YEAR(4) values to the
-         value of 2000.
-  */
-  Item *real_item= item->real_item();
-  Field *field= NULL;
-  if (real_item->type() == Item::FIELD_ITEM)
-    field= ((Item_field *)real_item)->field;
-  else if (real_item->type() == Item::CACHE_ITEM)
-    field= ((Item_cache *)real_item)->field();
-  if (!(field && field->type() == MYSQL_TYPE_YEAR && field->field_length == 4))
-  {
-    if (value < 70)
-      value+= 100;
-    if (value <= 1900)
-      value+= 1900;
-  }
   /* Convert year to DATETIME packed format */
-  return year_to_longlong_datetime_packed(value);
+  return year_to_longlong_datetime_packed(static_cast<long>(value));
 }
 
 
@@ -2698,6 +2690,12 @@ void Item_func_between::fix_length_and_dec()
   if (cmp_type == STRING_RESULT &&
       agg_arg_charsets_for_comparison(cmp_collation, args, 3))
    return;
+
+  /*
+    See comments for the code block doing similar checks in
+    Item_bool_func2::fix_length_and_dec().
+  */
+  reject_geometry_args(arg_count, args, this);
 
   /*
     Detect the comparison of DATE/DATETIME items.
@@ -5540,6 +5538,8 @@ Item *Item_cond::compile(Item_analyzer analyzer, uchar **arg_p,
     if (new_item != item)
       current_thd->change_item_tree(li.ref(), new_item);
   }
+  // strange to call transform(): each argument will thus have the transformer
+  // called twice on it (in compile() above and Item_func::transform below)??
   return Item_func::transform(transformer, arg_t);
 }
 
@@ -7009,14 +7009,11 @@ float Item_equal::get_filtering_effect(table_map filter_for_table,
 
           for (uint j= 0; j < tab->s->keys; j++)
           {
-            if (cur_field->field->key_start.is_set(j))
+            if (cur_field->field->key_start.is_set(j) &&
+                tab->key_info[j].has_records_per_key(0))
             {
-              const uint rec_estimate= tab->key_info[j].rec_per_key[0];
-              if (rec_estimate)
-              {
-                cur_filter= rec_estimate / rows_in_table;
-                break;
-              }
+              cur_filter= static_cast<float>(tab->key_info[j].records_per_key(0) / rows_in_table);
+              break;
             }
           }
           /*
@@ -7150,6 +7147,27 @@ void Item_equal::print(String *str, enum_query_type query_type)
 }
 
 
+longlong Item_func_trig_cond::val_int()
+{
+  if (trig_var == NULL)
+  {
+    DBUG_ASSERT(m_join != NULL && m_idx >= 0);
+    switch(trig_type)
+    {
+    case IS_NOT_NULL_COMPL:
+      trig_var= &m_join->qep_tab[m_idx].not_null_compl;
+      break;
+    case FOUND_MATCH:
+      trig_var= &m_join->qep_tab[m_idx].found;
+      break;
+    default:
+      DBUG_ASSERT(false); /* purecov: inspected */
+      return 0;
+    }
+  }
+  return *trig_var ? args[0]->val_int() : 1;
+}
+
 void Item_func_trig_cond::print(String *str, enum_query_type query_type)
 {
   /*
@@ -7175,15 +7193,35 @@ void Item_func_trig_cond::print(String *str, enum_query_type query_type)
   default:
     DBUG_ASSERT(0);
   }
-  if (trig_tab != NULL)
+  if (m_join != NULL)
   {
+    /*
+      Item printing is done at various stages of optimization, so there can
+      be a JOIN_TAB or a QEP_TAB.
+    */
+    TABLE *table, *last_inner_table;
+    plan_idx last_inner;
+    if (m_join->qep_tab)
+    {
+      QEP_TAB *qep_tab= &m_join->qep_tab[m_idx];
+      table= qep_tab->table();
+      last_inner= qep_tab->last_inner();
+      last_inner_table= m_join->qep_tab[last_inner].table();
+    }
+    else
+    {
+      JOIN_TAB *join_tab= m_join->best_ref[m_idx];
+      table= join_tab->table();
+      last_inner= join_tab->last_inner();
+      last_inner_table= m_join->best_ref[last_inner]->table();
+    }
     str->append("(");
-    str->append(trig_tab->table->alias);
-    if (trig_tab->last_inner != trig_tab)
+    str->append(table->alias);
+    if (last_inner != m_idx)
     {
       /* case of t1 LEFT JOIN (t2,t3,...): print range of inner tables */
       str->append("..");
-      str->append(trig_tab->last_inner->table->alias);
+      str->append(last_inner_table->alias);
     }
     str->append(")");
   }
@@ -7254,16 +7292,13 @@ Item_field* Item_equal::get_subst_item(const Item_field *field)
     */
     List_iterator<Item_field> it(fields);
     Item_field *item;
-    const JOIN_TAB *first= field_tab->first_sj_inner_tab;
-    const JOIN_TAB *last=  field_tab->last_sj_inner_tab;
+    plan_idx first= field_tab->first_sj_inner(), last= field_tab->last_sj_inner();
 
     while ((item= it++))
     {
-      if (item->field->table->reginfo.join_tab >= first &&
-          item->field->table->reginfo.join_tab <= last)
-      {
+      plan_idx idx= item->field->table->reginfo.join_tab->idx();
+      if (idx >= first && idx <= last)
         return item;
-      }
     }
   }
   else
@@ -7380,4 +7415,24 @@ float Item_func_eq::get_filtering_effect(table_map filter_for_table,
 
   return fld->get_cond_filter_default_probability(rows_in_table,
                                                   COND_FILTER_EQUALITY);
+}
+
+
+bool Item_func_any_value::aggregate_check_group(uchar *arg)
+{
+  Group_check *gc= reinterpret_cast<Group_check *>(arg);
+  if (gc->is_stopped(this))
+    return false;
+  gc->stop_at(this);
+  return false;
+}
+
+
+bool Item_func_any_value::aggregate_check_distinct(uchar *arg)
+{
+  Distinct_check *dc= reinterpret_cast<Distinct_check *>(arg);
+  if (dc->is_stopped(this))
+    return false;
+  dc->stop_at(this);
+  return false;
 }

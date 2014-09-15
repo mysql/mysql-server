@@ -270,8 +270,8 @@ public:
 			+ strlen(TruncateLogger::s_log_prefix)
 			+ strlen(TruncateLogger::s_log_ext);
 
-		m_log_file_name = new (std::nothrow) char[log_file_name_buf_sz];
-		if (m_log_file_name == 0) {
+		m_log_file_name = UT_NEW_ARRAY_NOKEY(char, log_file_name_buf_sz);
+		if (m_log_file_name == NULL) {
 			return(DB_OUT_OF_MEMORY);
 		}
 		memset(m_log_file_name, 0, log_file_name_buf_sz);
@@ -306,7 +306,7 @@ public:
 			bool exist;
 			os_file_delete_if_exists(
 				innodb_log_file_key, m_log_file_name, &exist);
-			delete[] m_log_file_name;
+			UT_DELETE_ARRAY(m_log_file_name);
 			m_log_file_name = NULL;
 		}
 	}
@@ -348,7 +348,7 @@ public:
 
 
 		ulint	sz = UNIV_PAGE_SIZE;
-		void*	buf = ut_zalloc(sz + UNIV_PAGE_SIZE);
+		void*	buf = ut_zalloc_nokey(sz + UNIV_PAGE_SIZE);
 		if (buf == 0) {
 			os_file_close(handle);
 			return(DB_OUT_OF_MEMORY);
@@ -376,7 +376,7 @@ public:
 				ut_ad(err == DB_FAIL);
 				ut_free(buf);
 				sz *= 2;
-				buf = ut_zalloc(sz + UNIV_PAGE_SIZE);
+				buf = ut_zalloc_nokey(sz + UNIV_PAGE_SIZE);
 				DBUG_EXECUTE_IF("ib_err_trunc_oom_logging",
 						ut_free(buf);
 						buf = 0;);
@@ -417,12 +417,11 @@ public:
 				os_file_close(handle);
 				ret = false;);
 		if (!ret) {
-			ib_logf(IB_LOG_LEVEL_ERROR,
-				"Failed to open truncate log file %s."
+			ib::error() << "Failed to open truncate log file "
+				<< m_log_file_name << "."
 				" If server crashes before truncate log is"
 				" removed make sure it is manually removed"
-				" before restarting server",
-				m_log_file_name);
+				" before restarting server";
 			os_file_delete(innodb_log_file_key, m_log_file_name);
 			return;
 		}
@@ -542,8 +541,8 @@ TruncateLogParser::scan(
 
 			/* Construct file name by appending directory path */
 			ulint	sz = dir_len + 22 + 22 + 1 + ext_len + prefix_len;
-			char*	log_file_name = new (std::nothrow) char[sz];
-			if (log_file_name == 0) {
+			char*	log_file_name = UT_NEW_ARRAY_NOKEY(char, sz);
+			if (log_file_name == NULL) {
 				err = DB_OUT_OF_MEMORY;
 				break;
 			}
@@ -589,14 +588,13 @@ TruncateLogParser::parse(
 		innodb_log_file_key, log_file_name,
 		OS_FILE_OPEN, OS_FILE_READ_ONLY, srv_read_only_mode, &ret);
 	if (!ret) {
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Error opening truncate log file: %s",
-			log_file_name);
+		ib::error() << "Error opening truncate log file: "
+			<< log_file_name;
 		return(DB_IO_ERROR);
 	}
 
 	ulint	sz = UNIV_PAGE_SIZE;
-	void*	buf = ut_zalloc(sz + UNIV_PAGE_SIZE);
+	void*	buf = ut_zalloc_nokey(sz + UNIV_PAGE_SIZE);
 	if (buf == 0) {
 		os_file_close(handle);
 		return(DB_OUT_OF_MEMORY);
@@ -624,8 +622,8 @@ TruncateLogParser::parse(
 		}
 
 		if (truncate == NULL) {
-			truncate = new (std::nothrow) truncate_t(log_file_name);
-			if (truncate == 0) {
+			truncate = UT_NEW_NOKEY(truncate_t(log_file_name));
+			if (truncate == NULL) {
 				os_file_close(handle);
 				err = DB_OUT_OF_MEMORY;
 				break;
@@ -643,13 +641,13 @@ TruncateLogParser::parse(
 
 			sz *= 2;
 
-			buf = ut_zalloc(sz + UNIV_PAGE_SIZE);
+			buf = ut_zalloc_nokey(sz + UNIV_PAGE_SIZE);
 
 			if (buf == 0) {
 				os_file_close(handle);
 				err = DB_OUT_OF_MEMORY;
-				delete truncate;
-				truncate = 0;
+				UT_DELETE(truncate);
+				truncate = NULL;
 				break;
 			}
 
@@ -698,7 +696,7 @@ TruncateLogParser::scan_and_parse(
 	     it != end;
 	     ++it) {
 		if (*it != NULL) {
-			delete[] (*it);
+			UT_DELETE_ARRAY(*it);
 		}
 	}
 	log_files.clear();
@@ -852,9 +850,8 @@ TruncateLogger::operator()(mtr_t* mtr, btr_pcur_t* pcur)
 			}
 
 		} else {
-			ib_logf(IB_LOG_LEVEL_WARN,
-				"Index id " IB_ID_FMT " not found",
-				index.m_id);
+			ib::warn() << "Index id " << index.m_id
+				<< " not found";
 		}
 	}
 
@@ -1106,7 +1103,8 @@ row_truncate_rollback(
 
 		if (has_internal_doc_id) {
 
-			ut_ad(trx->state == TRX_STATE_NOT_STARTED);
+			ut_ad(!trx_is_started(trx));
+
 			table_id_t      id = table->id;
 
 			table->id = new_id;
@@ -1114,7 +1112,8 @@ row_truncate_rollback(
 			fts_drop_tables(trx, table);
 
 			table->id = id;
-			ut_ad(trx->state != TRX_STATE_NOT_STARTED);
+
+			ut_ad(trx_is_started(trx));
 
 			trx_commit_for_mysql(trx);
 		}
@@ -1183,10 +1182,10 @@ row_truncate_complete(
 		DBUG_EXECUTE_IF("ib_trunc_crash_after_log_checkpoint",
 				DBUG_SUICIDE(););
 
-		if (logger) {
+		if (logger != NULL) {
 			logger->done();
-			delete logger;
-			logger = 0;
+			UT_DELETE(logger);
+			logger = NULL;
 		}
 	}
 
@@ -1216,7 +1215,8 @@ row_truncate_complete(
 	the dict operation flags. */
 	trx->ddl = false;
 	trx->dict_operation = TRX_DICT_OP_NONE;
-	ut_ad(trx->state == TRX_STATE_NOT_STARTED);
+
+	ut_ad(!trx_is_started(trx));
 
 	srv_wake_master_thread();
 
@@ -1273,11 +1273,11 @@ row_truncate_fts(
 		innobase_format_name(
 			table_name, sizeof(table_name), table->name, FALSE);
 
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Unable to truncate FTS index for table %s",
-			table_name);
+		ib::error() << "Unable to truncate FTS index for table "
+			<< table_name;
 	} else {
-		ut_ad(trx->state != TRX_STATE_NOT_STARTED);
+
+		ut_ad(trx_is_started(trx));
 	}
 
 	return(err);
@@ -1424,18 +1424,20 @@ row_truncate_update_system_tables(
 		char	table_name[MAX_FULL_NAME_LEN + 1];
 		innobase_format_name(
 			table_name, sizeof(table_name), table->name, FALSE);
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Unable to assign a new identifier to table %s"
-			" after truncating it. Marked the table as corrupted."
-			" In-memory representation is now different from the"
-			" on-disk representation.", table_name);
+		ib::error() << "Unable to assign a new identifier to table "
+			<< table_name << " after truncating it. Marked the"
+			" table as corrupted. In-memory representation is now"
+			" different from the on-disk representation.";
 		err = DB_ERROR;
 	} else {
 		/* Drop the old FTS index */
 		if (has_internal_doc_id) {
-			ut_ad(trx->state != TRX_STATE_NOT_STARTED);
+
+			ut_ad(trx_is_started(trx));
+
 			fts_drop_tables(trx, table);
-			ut_ad(trx->state != TRX_STATE_NOT_STARTED);
+
+			ut_ad(trx_is_started(trx));
 		}
 
 		DBUG_EXECUTE_IF("ib_trunc_crash_after_fts_drop",
@@ -1550,9 +1552,9 @@ row_truncate_foreign_key_checks(
 		innobase_format_name(
 			table_name, sizeof(table_name), table->name, FALSE);
 
-		ib_logf(IB_LOG_LEVEL_WARN,
-			"Cannot truncate table %s because there is a"
-			" foreign key check running on it.", table_name);
+		ib::warn() << "Cannot truncate table " << table_name
+			<< " because there is a foreign key check running on"
+			" it.";
 
 		return(DB_ERROR);
 	}
@@ -1571,11 +1573,10 @@ row_truncate_sanity_checks(
 {
 	if (srv_sys_space.created_new_raw()) {
 
-		ib_logf(IB_LOG_LEVEL_INFO,
-			"A new raw disk partition was initialized:"
+		ib::info() << "A new raw disk partition was initialized:"
 			" we do not allow database modifications by the"
 			" user. Shut down mysqld and edit my.cnf so that"
-			" newraw is replaced with raw.");
+			" newraw is replaced with raw.";
 
 		return(DB_ERROR);
 
@@ -1600,7 +1601,6 @@ Truncates a table for MySQL.
 @param table		table being truncated
 @param trx		transaction covering the truncate
 @return	error code or DB_SUCCESS */
-
 dberr_t
 row_truncate_table_for_mysql(
 	dict_table_t* table,
@@ -1716,7 +1716,7 @@ row_truncate_table_for_mysql(
 	trx->op_info = "truncating table";
 	ut_a(trx->dict_operation_lock_mode == 0);
 	row_mysql_lock_data_dictionary(trx);
-	ut_ad(mutex_own(&(dict_sys->mutex)));
+	ut_ad(mutex_own(&dict_sys->mutex));
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_X));
 #endif /* UNIV_SYNC_DEBUG */
@@ -1737,11 +1737,10 @@ row_truncate_table_for_mysql(
 	/* Check if memcached DML is running on this table. if is, we don't
 	allow truncate this table. */
 	if (table->memcached_sync_count != 0) {
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Cannot truncate table %s by DROP+CREATE"
-			" because there are memcached operations"
-			" running on it.",
-			ut_get_name(trx, TRUE, table->name).c_str());
+		ib::error() << "Cannot truncate table "
+			<< ut_get_name(trx, TRUE, table->name)
+			<< " by DROP+CREATE because there are memcached"
+			" operations running on it.";
 		err = DB_ERROR;
 		trx_rollback_to_savepoint(trx, NULL);
 		return(row_truncate_complete(table, trx, flags, logger, err));
@@ -1839,7 +1838,7 @@ row_truncate_table_for_mysql(
 			}
 		}
 
-		logger = new TruncateLogger(table, flags, new_id);
+		logger = UT_NEW_NOKEY(TruncateLogger(table, flags, new_id));
 
 		err = logger->init();
 		if (err != DB_SUCCESS) {
@@ -2015,7 +2014,8 @@ row_truncate_table_for_mysql(
 	dict_table_autoinc_initialize(table, 1);
 	dict_table_autoinc_unlock(table);
 
-	if (trx->state != TRX_STATE_NOT_STARTED) {
+	if (trx_is_started(trx)) {
+
 		trx_commit_for_mysql(trx);
 	}
 
@@ -2042,11 +2042,9 @@ truncate_t::fixup_tables()
 		/* Step-1: Drop tablespace (only for single-tablespace),
 		drop indexes and re-create indexes. */
 
-		ib_logf(IB_LOG_LEVEL_INFO,
-			"Completing truncate for table with id (" IB_ID_FMT ")"
-			" residing in space with id (%lu)",
-			(*it)->m_old_table_id,
-			(ulong) (*it)->m_space_id);
+		ib::info() << "Completing truncate for table with id ("
+			<< (*it)->m_old_table_id << ") residing in space with"
+			" id (" << (*it)->m_space_id << ")";
 
 		if (!is_system_tablespace((*it)->m_space_id)) {
 
@@ -2070,10 +2068,10 @@ truncate_t::fixup_tables()
 					and table is dropped and then we might
 					still have REDO entries for this table
 					which are INVALID. Ignore them. */
-					ib_logf(IB_LOG_LEVEL_WARN,
-						"Failed to create tablespace"
-						" for %lu space-id",
-						(*it)->m_space_id);
+					ib::warn() << "Failed to create"
+						" tablespace for "
+						<< (*it)->m_space_id
+						<< " space-id";
 					err = DB_ERROR;
 					break;
 				}
@@ -2128,7 +2126,7 @@ truncate_t::fixup_tables()
 	for (ulint i = 0; i < s_tables.size(); ++i) {
 		os_file_delete(
 			innodb_log_file_key, s_tables[i]->m_log_file_name);
-		delete s_tables[i];
+		UT_DELETE(s_tables[i]);
 	}
 
 	s_tables.clear();
@@ -2161,7 +2159,7 @@ truncate_t::truncate_t(
 	m_log_file_name()
 {
 	if (dir_path != NULL) {
-		m_dir_path = ::strdup(dir_path);
+		m_dir_path = mem_strdup(dir_path);
 	}
 }
 
@@ -2184,10 +2182,9 @@ truncate_t::truncate_t(
 	m_log_lsn(),
 	m_log_file_name()
 {
-	m_log_file_name = ::strdup(log_file_name);
+	m_log_file_name = mem_strdup(log_file_name);
 	if (m_log_file_name == NULL) {
-		ib_logf(IB_LOG_LEVEL_FATAL,
-			"Failed creating truncate_t; out of memory");
+		ib::fatal() << "Failed creating truncate_t; out of memory";
 	}
 }
 
@@ -2211,17 +2208,17 @@ truncate_t::index_t::index_t()
 truncate_t::~truncate_t()
 {
 	if (m_dir_path != NULL) {
-		::free(m_dir_path);
+		ut_free(m_dir_path);
 		m_dir_path = NULL;
 	}
 
 	if (m_tablename != NULL) {
-		::free(m_tablename);
+		ut_free(m_tablename);
 		m_tablename = NULL;
 	}
 
 	if (m_log_file_name != NULL) {
-		::free(m_log_file_name);
+		ut_free(m_log_file_name);
 		m_log_file_name = NULL;
 	}
 
@@ -2354,7 +2351,7 @@ truncate_t::parse(
 		if (end_ptr < start_ptr + n_tablename_len) {
 			return(DB_FAIL);
 		}
-		m_tablename = strdup(reinterpret_cast<char*>(start_ptr));
+		m_tablename = mem_strdup(reinterpret_cast<char*>(start_ptr));
 		ut_ad(m_tablename[n_tablename_len - 1] == 0);
 		start_ptr += n_tablename_len;
 	}
@@ -2387,7 +2384,7 @@ truncate_t::parse(
 
 		if (n_tabledirpath_len > 0) {
 
-			m_dir_path = strdup(reinterpret_cast<char*>(start_ptr));
+			m_dir_path = mem_strdup(reinterpret_cast<char*>(start_ptr));
 			ut_ad(m_dir_path[n_tabledirpath_len - 1] == 0);
 			start_ptr += n_tabledirpath_len;
 		}
@@ -2481,9 +2478,9 @@ truncate_t::index_t::set(
 
 	/* See requirements of page_zip_fields_encode for size. */
 	ulint	encoded_buf_size = (m_n_fields + 1) * 2;
-	byte*	encoded_buf = new (std::nothrow) byte[encoded_buf_size];
+	byte*	encoded_buf = UT_NEW_ARRAY_NOKEY(byte, encoded_buf_size);
 
-	if (encoded_buf == 0) {
+	if (encoded_buf == NULL) {
 		return(DB_OUT_OF_MEMORY);
 	}
 
@@ -2497,7 +2494,7 @@ truncate_t::index_t::set(
 	/* NUL terminate the encoded data */
 	m_fields.push_back(0);
 
-	delete[] encoded_buf;
+	UT_DELETE_ARRAY(encoded_buf);
 
 	return(DB_SUCCESS);
 }
@@ -2530,14 +2527,11 @@ truncate_t::create_index(
 
 	if (root_page_no == FIL_NULL) {
 
-		ib_logf(IB_LOG_LEVEL_INFO,
-			"innodb_force_recovery was set to %lu."
-			" Continuing crash recovery even though"
-			" we failed to create index " IB_ID_FMT " for"
-			" compressed table '%s' with tablespace"
-			" %lu during recovery",
-			srv_force_recovery,
-			index_id, table_name, (ulong) space_id);
+		ib::info() << "innodb_force_recovery was set to "
+			<< srv_force_recovery << ". Continuing crash recovery"
+			" even though we failed to create index " << index_id
+			<< " for compressed table '" << table_name << "' with"
+			" tablespace " << space_id << " during recovery";
 	}
 
 	return(root_page_no);
@@ -2563,9 +2557,21 @@ truncate_t::is_index_modified_since_logged(
 
 	mtr_start(&mtr);
 
-	page_t* root = btr_page_get(
-		page_id_t(space_id, root_page_no), page_size,
-		RW_X_LATCH, NULL, &mtr);
+	/* Root page could be in free state if truncate crashed after drop_index
+	and page was not allocated for any other object. */
+	buf_block_t* block= buf_page_get_gen(
+		page_id_t(space_id, root_page_no), page_size, RW_X_LATCH, NULL,
+		BUF_GET_POSSIBLY_FREED, __FILE__, __LINE__, &mtr);
+
+	page_t* root = buf_block_get_frame(block);
+
+#ifdef UNIV_DEBUG
+	/* If the root page has been freed as part of truncate drop_index action
+	and not yet allocated for any object still the pagelsn > snapshot lsn */
+	if (block->page.file_page_was_freed) {
+		ut_ad(mach_read_from_8(root + FIL_PAGE_LSN) > m_log_lsn);
+	}
+#endif /* UNIV_DEBUG */
 
 	lsn_t page_lsn = mach_read_from_8(root + FIL_PAGE_LSN);
 

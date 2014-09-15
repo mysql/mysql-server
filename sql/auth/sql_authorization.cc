@@ -500,6 +500,10 @@ bool create_table_precheck(THD *thd, TABLE_LIST *tables,
     if (check_table_access(thd, SELECT_ACL, tables, FALSE, UINT_MAX, FALSE))
       goto err;
   }
+
+  if (check_fk_parent_table_access(thd, &lex->create_info, &lex->alter_info))
+    goto err;
+
   error= FALSE;
 
 err:
@@ -604,7 +608,7 @@ deny:
 
 
 bool
-check_routine_access(THD *thd, ulong want_access,char *db, char *name,
+check_routine_access(THD *thd, ulong want_access, const char *db, char *name,
 		     bool is_proc, bool no_errors)
 {
   TABLE_LIST tables[1];
@@ -767,7 +771,7 @@ check_access(THD *thd, ulong want_access, const char *db, ulong *save_priv,
   }
 
   THD_STAGE_INFO(thd, stage_checking_permissions);
-  if ((!db || !db[0]) && !thd->db && !dont_check_global_grants)
+  if ((!db || !db[0]) && !thd->db().str && !dont_check_global_grants)
   {
     DBUG_PRINT("error",("No database"));
     if (!no_errors)
@@ -818,7 +822,8 @@ check_access(THD *thd, ulong want_access, const char *db, ulong *save_priv,
     */
     if (!(sctx->master_access & SELECT_ACL))
     {
-      if (db && (!thd->db || db_is_pattern || strcmp(db, thd->db)))
+      if (db && (!thd->db().str || db_is_pattern ||
+                 strcmp(db, thd->db().str)))
         db_access= acl_get(sctx->get_host()->ptr(), sctx->get_ip()->ptr(),
                            sctx->priv_user, db, db_is_pattern);
       else
@@ -867,7 +872,7 @@ check_access(THD *thd, ulong want_access, const char *db, ulong *save_priv,
     DBUG_RETURN(FALSE);
   }
 
-  if (db && (!thd->db || db_is_pattern || strcmp(db,thd->db)))
+  if (db && (!thd->db().str || db_is_pattern || strcmp(db,thd->db().str)))
     db_access= acl_get(sctx->get_host()->ptr(), sctx->get_ip()->ptr(),
                        sctx->priv_user, db, db_is_pattern);
   else
@@ -914,8 +919,8 @@ check_access(THD *thd, ulong want_access, const char *db, ulong *save_priv,
   if (!no_errors)
     my_error(ER_DBACCESS_DENIED_ERROR, MYF(0),
              sctx->priv_user, sctx->priv_host,
-             (db ? db : (thd->db ?
-                         thd->db :
+             (db ? db : (thd->db().str ?
+                         thd->db().str :
                          "unknown")));
   DBUG_RETURN(TRUE);
 
@@ -1088,7 +1093,7 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
   LEX_USER *Str, *tmp_Str;
   TABLE_LIST tables[3];
   bool create_new_users=0;
-  char *db_name, *table_name;
+  const char *db_name, *table_name;
   bool save_binlog_row_based;
   bool transactional_tables;
   DBUG_ENTER("mysql_table_grant");
@@ -1439,7 +1444,7 @@ bool mysql_routine_grant(THD *thd, TABLE_LIST *table_list, bool is_proc,
   LEX_USER *Str, *tmp_Str;
   TABLE_LIST tables[2];
   bool create_new_users=0, result=0;
-  char *db_name, *table_name;
+  const char *db_name, *table_name;
   bool save_binlog_row_based;
   bool transactional_tables;
   DBUG_ENTER("mysql_routine_grant");
@@ -2268,9 +2273,8 @@ bool check_grant_all_columns(THD *thd, ulong want_access_arg,
 
     if (want_access)
     {
-      GRANT_COLUMN *grant_column= 
-        column_hash_search(grant_table, field_name,
-                           (uint) strlen(field_name));
+      GRANT_COLUMN *grant_column=
+        column_hash_search(grant_table, field_name, strlen(field_name));
       if (grant_column)
         using_column_privileges= TRUE;
       if (!grant_column || (~grant_column->rights & want_access))
@@ -2485,7 +2489,7 @@ ulong get_table_grant(THD *thd, TABLE_LIST *table)
 {
   ulong privilege;
   Security_context *sctx= thd->security_ctx;
-  const char *db = table->db ? table->db : thd->db;
+  const char *db = table->db ? table->db : thd->db().str;
   GRANT_TABLE *grant_table;
 
   mysql_rwlock_rdlock(&LOCK_grant);
@@ -2549,7 +2553,7 @@ ulong get_column_grant(THD *thd, GRANT_INFO *grant,
   else
   {
     grant_column= column_hash_search(grant_table, field_name,
-                                     (uint) strlen(field_name));
+                                     strlen(field_name));
     if (!grant_column)
       priv= (grant->privilege | grant_table->privs);
     else
@@ -2825,10 +2829,9 @@ bool mysql_show_grants(THD *thd,LEX_USER *lex_user)
     {
       global.append(STRING_WITH_LEN(" IDENTIFIED BY PASSWORD"));
       char passwd_buff[SCRAMBLED_PASSWORD_CHAR_LENGTH+1];
-      if (acl_user->salt_len == SCRAMBLE_LENGTH)
-        make_password_from_salt(passwd_buff, acl_user->salt);
-      else
-        make_password_from_salt_323(passwd_buff, (ulong *) acl_user->salt);
+
+      DBUG_ASSERT(acl_user->salt_len == SCRAMBLE_LENGTH);
+      make_password_from_salt(passwd_buff, acl_user->salt);
       if ((thd->security_ctx->master_access & SUPER_ACL) == SUPER_ACL)
       {
         global.append(" \'");
@@ -4185,4 +4188,117 @@ bool check_global_access(THD *thd, ulong want_access)
 #else
   DBUG_RETURN(0);
 #endif /*NO_EMBEDDED_ACCESS_CHECKS */
+}
+
+
+/**
+  Checks foreign key's parent table access.
+
+  @param thd	       [in]	Thread handler
+  @param create_info   [in]     Create information (like MAX_ROWS, ENGINE or
+                                temporary table flag)
+  @param alter_info    [in]     Initial list of columns and indexes for the
+                                table to be created
+
+  @retval
+   false  ok.
+  @retval
+   true	  error or access denied. Error is sent to client in this case.
+*/
+bool check_fk_parent_table_access(THD *thd,
+                                  HA_CREATE_INFO *create_info,
+                                  Alter_info *alter_info)
+{
+  Key *key;
+  List_iterator<Key> key_iterator(alter_info->key_list);
+  handlerton *db_type= create_info->db_type ? create_info->db_type :
+                                             ha_default_handlerton(thd);
+
+  // Return if engine does not support Foreign key Constraint.
+  if (!ha_check_storage_engine_flag(db_type, HTON_SUPPORTS_FOREIGN_KEYS))
+    return false;
+
+  while ((key= key_iterator++))
+  {
+    if (key->type == Key::FOREIGN_KEY)
+    {
+      TABLE_LIST parent_table;
+      bool is_qualified_table_name;
+      Foreign_key *fk_key= (Foreign_key *)key;
+      LEX_STRING db_name;
+      LEX_STRING table_name= { (char *) fk_key->ref_table.str,
+                               fk_key->ref_table.length };
+
+      // Check if tablename is valid or not.
+      DBUG_ASSERT(table_name.str != NULL);
+      if (check_table_name(table_name.str, table_name.length, false))
+      {
+        my_error(ER_WRONG_TABLE_NAME, MYF(0), table_name.str);
+        return true;
+      }
+
+      if (fk_key->ref_db.str)
+      {
+        is_qualified_table_name= true;
+        db_name.str= (char *) thd->memdup(fk_key->ref_db.str,
+                                          fk_key->ref_db.length+1);
+        db_name.length= fk_key->ref_db.length;
+
+        // Check if database name is valid or not.
+        if (fk_key->ref_db.str && check_and_convert_db_name(&db_name, false))
+          return true;
+      }
+      else if (thd->lex->copy_db_to(&db_name.str, &db_name.length))
+        return true;
+      else
+        is_qualified_table_name= false;
+
+      // if lower_case_table_names is set then convert tablename to lower case.
+      if (lower_case_table_names)
+      {
+        table_name.str= (char *) thd->memdup(fk_key->ref_table.str,
+                                             fk_key->ref_table.length+1);
+        table_name.length= my_casedn_str(files_charset_info, table_name.str);
+      }
+
+      parent_table.init_one_table(db_name.str, db_name.length,
+                                  table_name.str, table_name.length,
+                                  table_name.str, TL_IGNORE);
+
+      /*
+       Check if user has REFERENCES_ACL privilege at table level on
+       "parent_table".
+       Having privilege on any of the parent_table column is not
+       enough so checking whether user has REFERENCES_ACL privilege
+       at table level here.
+      */
+      if ((check_access(thd, REFERENCES_ACL, parent_table.db,
+                        &parent_table.grant.privilege,
+                        &parent_table.grant.m_internal, false, true) ||
+           check_grant(thd, REFERENCES_ACL, &parent_table, false, 1, true)) ||
+          parent_table.grant.want_privilege)
+      {
+        if (is_qualified_table_name)
+        {
+          const size_t qualified_table_name_len= NAME_LEN + 1 + NAME_LEN + 1;
+          char *qualified_table_name=
+            (char *) thd->alloc(qualified_table_name_len);
+
+          my_snprintf(qualified_table_name, qualified_table_name_len, "%s.%s",
+                      db_name.str, table_name.str);
+          table_name.str= qualified_table_name;
+        }
+
+        my_error(ER_TABLEACCESS_DENIED_ERROR, MYF(0),
+                 "REFERENCES",
+                 thd->security_ctx->priv_user,
+                 thd->security_ctx->host_or_ip,
+                 table_name.str);
+
+        return true;
+      }
+    }
+  }
+
+  return false;
 }

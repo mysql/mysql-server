@@ -368,7 +368,7 @@ ndb_pushed_builder_ctx::ndb_pushed_builder_ctx(const AQP::Join_plan& plan)
     for (uint i= 0; i < count; i++)
     {
       const AQP::Table_access* const table = m_plan.get_table_access(i);
-      uint external= table->get_table()->tablenr;
+      uint external= table->get_table()->pos_in_table_list->tableno();
       DBUG_ASSERT(external <= MAX_TABLES);
 
       m_remap[i].to_external= external;

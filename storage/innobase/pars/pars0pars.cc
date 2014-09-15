@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -260,7 +260,6 @@ pars_func_low(
 /*********************************************************************//**
 Parses a function expression.
 @return own: function node in a query tree */
-
 func_node_t*
 pars_func(
 /*======*/
@@ -273,7 +272,6 @@ pars_func(
 /*************************************************************************
 Rebind a LIKE search string. NOTE: We ignore any '%' characters embedded
 within the search string.*/
-
 int
 pars_like_rebind(
 /*=============*/
@@ -413,7 +411,6 @@ pars_like_op(
 /*********************************************************************//**
 Parses an operator expression.
 @return own: function node in a query tree */
-
 func_node_t*
 pars_op(
 /*====*/
@@ -448,7 +445,6 @@ pars_op(
 /*********************************************************************//**
 Parses an ORDER BY clause. Order by a single column only is supported.
 @return own: order-by node in a query tree */
-
 order_node_t*
 pars_order_by(
 /*==========*/
@@ -897,7 +893,6 @@ pars_select_all_columns(
 Parses a select list; creates a query graph node for the whole SELECT
 statement.
 @return own: select node in a query tree */
-
 sel_node_t*
 pars_select_list(
 /*=============*/
@@ -962,7 +957,6 @@ pars_check_aggregate(
 /*********************************************************************//**
 Parses a select statement.
 @return own: select node in a query tree */
-
 sel_node_t*
 pars_select_statement(
 /*==================*/
@@ -1045,7 +1039,6 @@ pars_select_statement(
 /*********************************************************************//**
 Parses a cursor declaration.
 @return sym_node */
-
 que_node_t*
 pars_cursor_declaration(
 /*====================*/
@@ -1066,7 +1059,6 @@ pars_cursor_declaration(
 /*********************************************************************//**
 Parses a function declaration.
 @return sym_node */
-
 que_node_t*
 pars_function_declaration(
 /*======================*/
@@ -1086,7 +1078,6 @@ pars_function_declaration(
 /*********************************************************************//**
 Parses a delete or update statement start.
 @return own: update node in a query tree */
-
 upd_node_t*
 pars_update_statement_start(
 /*========================*/
@@ -1110,7 +1101,6 @@ pars_update_statement_start(
 /*********************************************************************//**
 Parses a column assignment in an update.
 @return column assignment node */
-
 col_assign_node_t*
 pars_column_assignment(
 /*===================*/
@@ -1223,7 +1213,6 @@ pars_process_assign_list(
 /*********************************************************************//**
 Parses an update or delete statement.
 @return own: update node in a query tree */
-
 upd_node_t*
 pars_update_statement(
 /*==================*/
@@ -1309,7 +1298,6 @@ pars_update_statement(
 /*********************************************************************//**
 Parses an insert statement.
 @return own: update node in a query tree */
-
 ins_node_t*
 pars_insert_statement(
 /*==================*/
@@ -1420,7 +1408,6 @@ pars_set_dfield_type(
 /*********************************************************************//**
 Parses a variable declaration.
 @return own: symbol table node of type SYM_VAR */
-
 sym_node_t*
 pars_variable_declaration(
 /*======================*/
@@ -1441,7 +1428,6 @@ pars_variable_declaration(
 /*********************************************************************//**
 Parses a procedure parameter declaration.
 @return own: symbol table node of type SYM_VAR */
-
 sym_node_t*
 pars_parameter_declaration(
 /*=======================*/
@@ -1484,7 +1470,6 @@ pars_set_parent_in_list(
 /*********************************************************************//**
 Parses an elsif element.
 @return elsif node */
-
 elsif_node_t*
 pars_elsif_element(
 /*===============*/
@@ -1511,7 +1496,6 @@ pars_elsif_element(
 /*********************************************************************//**
 Parses an if-statement.
 @return if-statement node */
-
 if_node_t*
 pars_if_statement(
 /*==============*/
@@ -1565,7 +1549,6 @@ pars_if_statement(
 /*********************************************************************//**
 Parses a while-statement.
 @return while-statement node */
-
 while_node_t*
 pars_while_statement(
 /*=================*/
@@ -1594,7 +1577,6 @@ pars_while_statement(
 /*********************************************************************//**
 Parses a for-loop-statement.
 @return for-statement node */
-
 for_node_t*
 pars_for_statement(
 /*===============*/
@@ -1631,7 +1613,6 @@ pars_for_statement(
 /*********************************************************************//**
 Parses an exit statement.
 @return exit statement node */
-
 exit_node_t*
 pars_exit_statement(void)
 /*=====================*/
@@ -1648,7 +1629,6 @@ pars_exit_statement(void)
 /*********************************************************************//**
 Parses a return-statement.
 @return return-statement node */
-
 return_node_t*
 pars_return_statement(void)
 /*=======================*/
@@ -1666,7 +1646,6 @@ pars_return_statement(void)
 /*********************************************************************//**
 Parses an assignment statement.
 @return assignment statement node */
-
 assign_node_t*
 pars_assignment_statement(
 /*======================*/
@@ -1695,7 +1674,6 @@ pars_assignment_statement(
 /*********************************************************************//**
 Parses a procedure call.
 @return function node */
-
 func_node_t*
 pars_procedure_call(
 /*================*/
@@ -1715,7 +1693,6 @@ pars_procedure_call(
 Parses a fetch statement. into_list or user_func (but not both) must be
 non-NULL.
 @return fetch statement node */
-
 fetch_node_t*
 pars_fetch_statement(
 /*=================*/
@@ -1769,7 +1746,6 @@ pars_fetch_statement(
 /*********************************************************************//**
 Parses an open or close cursor statement.
 @return fetch statement node */
-
 open_node_t*
 pars_open_statement(
 /*================*/
@@ -1801,7 +1777,6 @@ pars_open_statement(
 /*********************************************************************//**
 Parses a row_printf-statement.
 @return row_printf-statement node */
-
 row_printf_node_t*
 pars_row_printf_statement(
 /*======================*/
@@ -1824,7 +1799,6 @@ pars_row_printf_statement(
 /*********************************************************************//**
 Parses a commit statement.
 @return own: commit node struct */
-
 commit_node_t*
 pars_commit_statement(void)
 /*=======================*/
@@ -1835,7 +1809,6 @@ pars_commit_statement(void)
 /*********************************************************************//**
 Parses a rollback statement.
 @return own: rollback node struct */
-
 roll_node_t*
 pars_rollback_statement(void)
 /*=========================*/
@@ -1846,7 +1819,6 @@ pars_rollback_statement(void)
 /*********************************************************************//**
 Parses a column definition at a table creation.
 @return column sym table node */
-
 sym_node_t*
 pars_column_def(
 /*============*/
@@ -1877,7 +1849,6 @@ pars_column_def(
 /*********************************************************************//**
 Parses a table creation operation.
 @return table create subgraph */
-
 tab_node_t*
 pars_create_table(
 /*==============*/
@@ -1990,7 +1961,6 @@ pars_create_table(
 /*********************************************************************//**
 Parses an index creation operation.
 @return index create subgraph */
-
 ind_node_t*
 pars_create_index(
 /*==============*/
@@ -2047,7 +2017,6 @@ pars_create_index(
 /*********************************************************************//**
 Parses a procedure definition.
 @return query fork node */
-
 que_fork_t*
 pars_procedure_definition(
 /*======================*/
@@ -2098,7 +2067,6 @@ procedure, that is, the client issues a procedure call directly.
 In MySQL/InnoDB, stored InnoDB procedures are invoked via the
 parsed procedure tree, not via InnoDB SQL, so this function is not used.
 @return query graph */
-
 que_fork_t*
 pars_stored_procedure_call(
 /*=======================*/
@@ -2111,7 +2079,6 @@ pars_stored_procedure_call(
 
 /*************************************************************//**
 Retrieves characters to the lexical analyzer. */
-
 int
 pars_get_lex_chars(
 /*===============*/
@@ -2142,7 +2109,6 @@ pars_get_lex_chars(
 
 /*************************************************************//**
 Called by yyparse on error. */
-
 void
 yyerror(
 /*====*/
@@ -2151,13 +2117,12 @@ yyerror(
 {
 	ut_ad(s);
 
-	ib_logf(IB_LOG_LEVEL_FATAL, "PARSER: Syntax error in SQL string");
+	ib::fatal() << "PARSER: Syntax error in SQL string";
 }
 
 /*************************************************************//**
 Parses an SQL string returning the query graph.
 @return own: the query graph */
-
 que_t*
 pars_sql(
 /*=====*/
@@ -2173,7 +2138,7 @@ pars_sql(
 	heap = mem_heap_create(16000);
 
 	/* Currently, the parser is not reentrant: */
-	ut_ad(mutex_own(&(dict_sys->mutex)));
+	ut_ad(mutex_own(&dict_sys->mutex));
 
 	pars_sym_tab_global = sym_tab_create(heap);
 
@@ -2210,7 +2175,6 @@ Completes a query graph by adding query thread and fork nodes
 above it and prepares the graph for running. The fork created is of
 type QUE_FORK_MYSQL_INTERFACE.
 @return query thread node to run */
-
 que_thr_t*
 pars_complete_graph_for_exec(
 /*=========================*/
@@ -2241,7 +2205,6 @@ pars_complete_graph_for_exec(
 /****************************************************************//**
 Create parser info struct.
 @return own: info struct */
-
 pars_info_t*
 pars_info_create(void)
 /*==================*/
@@ -2264,7 +2227,6 @@ pars_info_create(void)
 
 /****************************************************************//**
 Free info struct and everything it contains. */
-
 void
 pars_info_free(
 /*===========*/
@@ -2275,7 +2237,6 @@ pars_info_free(
 
 /****************************************************************//**
 Add bound literal. */
-
 void
 pars_info_add_literal(
 /*==================*/
@@ -2315,7 +2276,6 @@ pars_info_add_literal(
 /****************************************************************//**
 Equivalent to pars_info_add_literal(info, name, str, strlen(str),
 DATA_VARCHAR, DATA_ENGLISH). */
-
 void
 pars_info_add_str_literal(
 /*======================*/
@@ -2330,7 +2290,6 @@ pars_info_add_str_literal(
 /********************************************************************
 If the literal value already exists then it rebinds otherwise it
 creates a new entry.*/
-
 void
 pars_info_bind_literal(
 /*===================*/
@@ -2359,7 +2318,6 @@ pars_info_bind_literal(
 /********************************************************************
 If the literal value already exists then it rebinds otherwise it
 creates a new entry.*/
-
 void
 pars_info_bind_varchar_literal(
 /*===========================*/
@@ -2393,7 +2351,6 @@ pars_info_add_literal(info, name, buf, 4, DATA_INT, 0);
 
 except that the buffer is dynamically allocated from the info struct's
 heap. */
-
 void
 pars_info_add_int4_literal(
 /*=======================*/
@@ -2410,7 +2367,6 @@ pars_info_add_int4_literal(
 /********************************************************************
 If the literal value already exists then it rebinds otherwise it
 creates a new entry. */
-
 void
 pars_info_bind_int4_literal(
 /*========================*/
@@ -2436,7 +2392,6 @@ pars_info_bind_int4_literal(
 /********************************************************************
 If the literal value already exists then it rebinds otherwise it
 creates a new entry. */
-
 void
 pars_info_bind_int8_literal(
 /*========================*/
@@ -2469,7 +2424,6 @@ pars_info_add_literal(info, name, buf, 8, DATA_FIXBINARY, 0);
 
 except that the buffer is dynamically allocated from the info struct's
 heap. */
-
 void
 pars_info_add_ull_literal(
 /*======================*/
@@ -2487,7 +2441,6 @@ pars_info_add_ull_literal(
 /****************************************************************//**
 If the literal value already exists then it rebinds otherwise it
 creates a new entry. */
-
 void
 pars_info_bind_ull_literal(
 /*=======================*/
@@ -2513,7 +2466,6 @@ pars_info_bind_ull_literal(
 
 /****************************************************************//**
 Add user function. */
-
 void
 pars_info_bind_function(
 /*====================*/
@@ -2548,7 +2500,6 @@ pars_info_bind_function(
 
 /********************************************************************
 Add bound id. */
-
 void
 pars_info_bind_id(
 /*==============*/
@@ -2585,7 +2536,6 @@ pars_info_bind_id(
 
 /********************************************************************
 Get bound identifier with the given name.*/
-
 pars_bound_id_t*
 pars_info_get_bound_id(
 /*===================*/
@@ -2600,7 +2550,6 @@ pars_info_get_bound_id(
 /****************************************************************//**
 Get bound literal with the given name.
 @return bound literal, or NULL if not found */
-
 pars_bound_lit_t*
 pars_info_get_bound_lit(
 /*====================*/

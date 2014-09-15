@@ -47,6 +47,7 @@ Created 1/8/1996 Heikki Tuuri
 #endif /* !UNIV_HOTBACKUP */
 
 #include "sync0sync.h"
+#include <iostream>
 
 #define	DICT_HEAP_SIZE		100	/*!< initial memory heap size when
 					creating a table or index object */
@@ -58,7 +59,6 @@ static ib_uint32_t	dict_temp_file_num;
 /**********************************************************************//**
 Creates a table memory object.
 @return own: table object */
-
 dict_table_t*
 dict_mem_table_create(
 /*==================*/
@@ -91,7 +91,7 @@ dict_mem_table_create(
 
 	table->flags = (unsigned int) flags;
 	table->flags2 = (unsigned int) flags2;
-	table->name = static_cast<char*>(ut_malloc(strlen(name) + 1));
+	table->name = static_cast<char*>(ut_malloc_nokey(strlen(name) + 1));
 	memcpy(table->name, name, strlen(name) + 1);
 	table->space = (unsigned int) space;
 	table->n_cols = (unsigned int) (n_cols +
@@ -141,7 +141,6 @@ dict_mem_table_create(
 
 /****************************************************************//**
 Free a table memory object. */
-
 void
 dict_mem_table_free(
 /*================*/
@@ -225,7 +224,6 @@ dict_add_col_name(
 
 /**********************************************************************//**
 Adds a column definition to a table. */
-
 void
 dict_mem_table_add_col(
 /*===================*/
@@ -398,7 +396,6 @@ dict_mem_table_col_rename_low(
 
 /**********************************************************************//**
 Renames a column of a table in the data dictionary cache. */
-
 void
 dict_mem_table_col_rename(
 /*======================*/
@@ -427,7 +424,6 @@ dict_mem_table_col_rename(
 /**********************************************************************//**
 This function populates a dict_col_t memory structure with
 supplied information. */
-
 void
 dict_mem_fill_column_struct(
 /*========================*/
@@ -458,7 +454,6 @@ dict_mem_fill_column_struct(
 /**********************************************************************//**
 Creates an index memory object.
 @return own: index object */
-
 dict_index_t*
 dict_mem_index_create(
 /*==================*/
@@ -494,7 +489,7 @@ dict_mem_index_create(
 						sizeof(*index->rtr_track)));
 		mutex_create("rtr_active_mutex",
 			     &index->rtr_track->rtr_active_mutex);
-		index->rtr_track->rtr_active = new(std::nothrow) rtr_info_active();
+		index->rtr_track->rtr_active = UT_NEW_NOKEY(rtr_info_active());
 	}
 
 	return(index);
@@ -504,7 +499,6 @@ dict_mem_index_create(
 /**********************************************************************//**
 Creates and initializes a foreign constraint memory object.
 @return own: foreign constraint struct */
-
 dict_foreign_t*
 dict_mem_foreign_create(void)
 /*=========================*/
@@ -530,7 +524,6 @@ Sets the foreign_table_name_lookup pointer based on the value of
 lower_case_table_names.  If that is 0 or 1, foreign_table_name_lookup
 will point to foreign_table_name.  If 2, then another string is
 allocated from foreign->heap and set to lower case. */
-
 void
 dict_mem_foreign_table_name_lookup_set(
 /*===================================*/
@@ -561,7 +554,6 @@ Sets the referenced_table_name_lookup pointer based on the value of
 lower_case_table_names.  If that is 0 or 1, referenced_table_name_lookup
 will point to referenced_table_name.  If 2, then another string is
 allocated from foreign->heap and set to lower case. */
-
 void
 dict_mem_referenced_table_name_lookup_set(
 /*======================================*/
@@ -592,7 +584,6 @@ dict_mem_referenced_table_name_lookup_set(
 Adds a field definition to an index. NOTE: does not take a copy
 of the column name if the field is a column. The memory occupied
 by the column name may be released only after publishing the index. */
-
 void
 dict_mem_index_add_field(
 /*=====================*/
@@ -617,7 +608,6 @@ dict_mem_index_add_field(
 
 /**********************************************************************//**
 Frees an index memory object. */
-
 void
 dict_mem_index_free(
 /*================*/
@@ -641,7 +631,7 @@ dict_mem_index_free(
 
 		mutex_destroy(&index->rtr_ssn.mutex);
 		mutex_destroy(&index->rtr_track->rtr_active_mutex);
-		delete index->rtr_track->rtr_active;
+		UT_DELETE(index->rtr_track->rtr_active);
 	}
 
 	mem_heap_free(index->heap);
@@ -659,7 +649,6 @@ reasonably unique temporary file name.
 @param[in]	dbtab	Table name in the form database/table name
 @param[in]	id	Table id
 @return A unique temporary tablename suitable for InnoDB use */
-
 char*
 dict_mem_create_temporary_tablename(
 	mem_heap_t*	heap,
@@ -686,7 +675,6 @@ dict_mem_create_temporary_tablename(
 }
 
 /** Initialize dict memory variables */
-
 void
 dict_mem_init(void)
 {
@@ -702,3 +690,61 @@ dict_mem_init(void)
 		   ("Starting Temporary file number is " UINT32PF,
 		   dict_temp_file_num));
 }
+
+/** Validate the search order in the foreign key set.
+@param[in]	fk_set	the foreign key set to be validated
+@return true if search order is fine in the set, false otherwise. */
+bool
+dict_foreign_set_validate(
+	const dict_foreign_set&	fk_set)
+{
+	dict_foreign_not_exists	not_exists(fk_set);
+
+	dict_foreign_set::iterator it = std::find_if(
+		fk_set.begin(), fk_set.end(), not_exists);
+
+	if (it == fk_set.end()) {
+		return(true);
+	}
+
+	dict_foreign_t*	foreign = *it;
+	std::cerr << "Foreign key lookup failed: " << *foreign;
+	std::cerr << fk_set;
+	ut_ad(0);
+	return(false);
+}
+
+/** Validate the search order in the foreign key sets of the table
+(foreign_set and referenced_set).
+@param[in]	table	table whose foreign key sets are to be validated
+@return true if foreign key sets are fine, false otherwise. */
+bool
+dict_foreign_set_validate(
+	const dict_table_t&	table)
+{
+	return(dict_foreign_set_validate(table.foreign_set)
+	       && dict_foreign_set_validate(table.referenced_set));
+}
+
+std::ostream&
+operator<< (std::ostream& out, const dict_foreign_t& foreign)
+{
+	out << "[dict_foreign_t: id='" << foreign.id << "'";
+
+	if (foreign.foreign_table_name != NULL) {
+		out << ",for: '" << foreign.foreign_table_name << "'";
+	}
+
+	out << "]";
+	return(out);
+}
+
+std::ostream&
+operator<< (std::ostream& out, const dict_foreign_set& fk_set)
+{
+	out << "[dict_foreign_set:";
+	std::for_each(fk_set.begin(), fk_set.end(), dict_foreign_print(out));
+	out << "]" << std::endl;
+	return(out);
+}
+

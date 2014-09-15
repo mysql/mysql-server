@@ -123,13 +123,11 @@ f102 time not null default 20,
 f103 datetime not null default '2/2/2',
 f104 timestamp not null default 20001231235959,
 f105 year not null default 2000,
-f106 year(3) not null default 2000,
+f106 year(4) not null default 2000,
 f107 year(4) not null default 2000,
 f108 enum("1enum","2enum") not null default "1enum",
 f109 set("1set","2set") not null default "1set"
 ) engine = memory;
-Warnings:
-Warning	1818	YEAR(3) column type is deprecated. Creating YEAR(4) column instead.
 load data infile '<MYSQLTEST_VARDIR>/std_data/funcs_1/memory_tb2.txt'
 into table tb2 ;
 drop table if exists tb3;
@@ -242,7 +240,7 @@ f219 time,
 f220 datetime,
 f221 timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 f222 year,
-f223 year(3),
+f223 year(4),
 f224 year(4),
 f225 enum("1enum","2enum"),
 f226 set("1set","2set"),
@@ -253,8 +251,6 @@ f238 varchar(25000) binary,
 f239 varbinary(0),
 f240 varchar(1200)
 ) engine = memory;
-Warnings:
-Warning	1818	YEAR(3) column type is deprecated. Creating YEAR(4) column instead.
 load data infile '<MYSQLTEST_VARDIR>/std_data/funcs_1/memory_tb4.txt'
 into table tb4;
 USE test1;
@@ -307,16 +303,15 @@ f102 time not null default 20,
 f103 datetime not null default '2/2/2',
 f104 timestamp not null default 20001231235959,
 f105 year not null default 2000,
-f106 year(3) not null default 2000,
+f106 year(4) not null default 2000,
 f107 year(4) not null default 2000,
 f108 enum("1enum","2enum") not null default "1enum",
 f109 set("1set","2set") not null default "1set"
 ) engine = memory;
-Warnings:
-Warning	1818	YEAR(3) column type is deprecated. Creating YEAR(4) column instead.
 load data infile '<MYSQLTEST_VARDIR>/std_data/funcs_1/memory_tb2.txt'
 into table tb2 ;
 USE test;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 USE test;
 DROP TABLE IF EXISTS t1, t2, t4, t10, t11;
 CREATE TABLE t1  (f1 char(20),f2 char(25),f3 date,f4 int,f5 char(25),f6 int)
@@ -374,6 +369,8 @@ Warning	1265	Data truncated for column 'f3' at row 10
 drop TABLE if exists t9;
 CREATE TABLE t9 (f1 int, f2 char(25), f3 int) ENGINE = MEMORY;
 LOAD DATA INFILE '<MYSQLTEST_VARDIR>/std_data/funcs_1/t9.txt' INTO TABLE t9;
+SET sql_mode = default;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 SELECT * FROM information_schema.columns
 WHERE table_schema LIKE 'test%'
 ORDER BY table_schema, table_name, column_name;
@@ -1070,6 +1067,7 @@ NULL	test4	t6	f3	date	NULL	NULL	NULL	NULL	date
 NULL	test4	t6	f4	int	NULL	NULL	NULL	NULL	int(11)
 1.0000	test4	t6	f5	char	25	25	latin1	latin1_swedish_ci	char(25)
 NULL	test4	t6	f6	int	NULL	NULL	NULL	NULL	int(11)
+SET sql_mode = default;
 DROP DATABASE test1;
 DROP DATABASE test4;
 DROP TABLE test.t1;

@@ -57,10 +57,6 @@
 #include "sql_trigger.h"               // change_trigger_table_name
 #include <mysql/psi/mysql_table.h>
 
-#ifdef _WIN32
-#include <io.h>
-#endif
-
 #include <algorithm>
 using std::max;
 using std::min;
@@ -610,9 +606,10 @@ size_t build_tmptable_filename(THD* thd, char *buff, size_t bufflen)
   DBUG_ENTER("build_tmptable_filename");
 
   char *p= my_stpnmov(buff, mysql_tmpdir, bufflen);
+  DBUG_ASSERT(sizeof(my_thread_id) == 4);
   my_snprintf(p, bufflen - (p - buff), "/%s%lx_%lx_%x",
               tmp_file_prefix, current_pid,
-              thd->thread_id, thd->tmp_table++);
+              thd->thread_id(), thd->tmp_table++);
 
   if (lower_case_table_names)
   {
@@ -2213,7 +2210,8 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
                             bool dont_log_query)
 {
   TABLE_LIST *table;
-  char path[FN_REFLEN + 1], *alias= NULL;
+  char path[FN_REFLEN + 1];
+  const char *alias= NULL;
   size_t path_length= 0;
   String wrong_tables;
   int error= 0;
@@ -2295,7 +2293,7 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
   for (table= tables; table; table= table->next_local)
   {
     bool is_trans;
-    char *db=table->db;
+    const char *db= table->db;
     size_t db_len= table->db_length;
     handlerton *table_type;
     enum legacy_db_type frm_db_type= DB_TYPE_UNKNOWN;
@@ -2363,7 +2361,7 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
           thd->db is NULL or 'IF EXISTS' clause is present in 'DROP TEMPORARY'
           query.
         */
-        if (thd->db == NULL || strcmp(db,thd->db) != 0
+        if (thd->db().str == NULL || strcmp(db, thd->db().str) != 0
             || is_drop_tmp_if_exists_added )
         {
           append_identifier(thd, built_ptr_query, db, db_len,
@@ -2432,7 +2430,7 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
           Don't write the database name if it is the current one (or if
           thd->db is NULL).
         */
-        if (thd->db == NULL || strcmp(db,thd->db) != 0)
+        if (thd->db().str == NULL || strcmp(db, thd->db().str) != 0)
         {
           append_identifier(thd, &built_query, db, db_len,
                             system_charset_info, thd->charset());
@@ -7018,9 +7016,8 @@ upgrade_old_temporal_types(THD *thd, Alter_info *alter_info)
   }
 
   // Report a NOTE informing about the upgrade.
-  push_warning_printf(thd, Sql_condition::SL_NOTE,
-                      ER_OLD_TEMPORALS_UPGRADED,
-                      ER(ER_OLD_TEMPORALS_UPGRADED));
+  push_warning(thd, Sql_condition::SL_NOTE,
+               ER_OLD_TEMPORALS_UPGRADED, ER(ER_OLD_TEMPORALS_UPGRADED));
   DBUG_RETURN(false);
 }
 
@@ -8022,7 +8019,7 @@ simple_rename_or_index_change(THD *thd, TABLE_LIST *table_list,
   based on information about the table changes from fill_alter_inplace_info().
 */
 
-bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
+bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
                        HA_CREATE_INFO *create_info,
                        TABLE_LIST *table_list,
                        Alter_info *alter_info)
@@ -8210,6 +8207,18 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
   }
 
   /*
+   If foreign key is added then check permission to access parent table.
+
+   In function "check_fk_parent_table_access", create_info->db_type is used
+   to identify whether engine supports FK constraint or not. Since
+   create_info->db_type is set here, check to parent table access is delayed
+   till this point for the alter operation.
+  */
+  if ((alter_info->flags & Alter_info::ADD_FOREIGN_KEY) &&
+      check_fk_parent_table_access(thd, create_info, alter_info))
+    DBUG_RETURN(true);
+
+  /*
    If this is an ALTER TABLE and no explicit row type specified reuse
    the table's row type.
    Note : this is the same as if the row type was specified explicitly.
@@ -8277,7 +8286,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
     DBUG_RETURN(true);
   }
 
-  set_table_default_charset(thd, create_info, alter_ctx.db);
+  set_table_default_charset(thd, create_info, const_cast<char*>(alter_ctx.db));
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
   if (fast_alter_partition)
@@ -8318,11 +8327,12 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
       DBUG_RETURN(true);
     }
 
+    char* table_name= const_cast<char*>(alter_ctx.table_name);
     // In-place execution of ALTER TABLE for partitioning.
     DBUG_RETURN(fast_alter_partition_table(thd, table, alter_info,
                                            create_info, table_list,
-                                           alter_ctx.db,
-                                           alter_ctx.table_name));
+                                           const_cast<char*>(alter_ctx.db),
+                                           table_name));
   }
 #endif
 
@@ -8819,8 +8829,9 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
     anything goes wrong while renaming the new table.
   */
   char backup_name[32];
+  DBUG_ASSERT(sizeof(my_thread_id) == 4);
   my_snprintf(backup_name, sizeof(backup_name), "%s2-%lx-%lx", tmp_file_prefix,
-              current_pid, thd->thread_id);
+              current_pid, thd->thread_id());
   if (lower_case_table_names)
     my_casedn_str(files_charset_info, backup_name);
   if (mysql_rename_table(old_db_type, alter_ctx.db, alter_ctx.table_name,
@@ -9066,6 +9077,8 @@ copy_data_between_tables(PSI_stage_progress *psi,
   ha_rows found_rows;
   bool auto_increment_field_copied= 0;
   sql_mode_t save_sql_mode;
+  QEP_TAB_standalone qep_tab_st;
+  QEP_TAB &qep_tab= qep_tab_st.as_QEP_TAB();
   DBUG_ENTER("copy_data_between_tables");
 
   if (mysql_trans_prepare_alter_copy_data(thd))
@@ -9144,8 +9157,9 @@ copy_data_between_tables(PSI_stage_progress *psi,
       if (setup_order(thd, select_lex->ref_pointer_array,
                       &tables, fields, all_fields, order))
         goto err;
-      Filesort fsort(order, HA_POS_ERROR, NULL);
-      if ((from->sort.found_records= filesort(thd, from, &fsort,
+      qep_tab.set_table(from);
+      Filesort fsort(order, HA_POS_ERROR);
+      if ((from->sort.found_records= filesort(thd, &qep_tab, &fsort,
                                               true,
                                               &examined_rows, &found_rows)) ==
           HA_POS_ERROR)
@@ -9155,7 +9169,7 @@ copy_data_between_tables(PSI_stage_progress *psi,
 
   /* Tell handler that we have values for all columns in the to table */
   to->use_all_columns();
-  if (init_read_record(&info, thd, from, (SQL_SELECT *) 0, 1, 1, FALSE))
+  if (init_read_record(&info, thd, from, NULL, 1, 1, FALSE))
   {
     error= 1;
     goto err;

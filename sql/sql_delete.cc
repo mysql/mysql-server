@@ -52,8 +52,6 @@ bool mysql_delete(THD *thd, ha_rows limit, ulonglong options)
   myf           error_flags= MYF(0);            /**< Flag for fatal errors */
   bool          will_batch;
   int           error, loc_error;
-  SQL_SELECT   *select= NULL;
-  SQL_SELECT   *saved_select= NULL;
   READ_RECORD   info;
   bool          using_limit= limit != HA_POS_ERROR;
   bool          transactional_table, safe_update, const_cond;
@@ -93,8 +91,6 @@ bool mysql_delete(THD *thd, ha_rows limit, ulonglong options)
   TABLE_LIST *const delete_table_ref= table_list->updatable_base_table();
   TABLE *const table= delete_table_ref->table;
 
-  table->map= 1;
-
   if (mysql_prepare_delete(thd, delete_table_ref))
     DBUG_RETURN(TRUE);
 
@@ -122,6 +118,9 @@ bool mysql_delete(THD *thd, ha_rows limit, ulonglong options)
       DBUG_RETURN(TRUE);
     }
   }
+
+  QEP_TAB_standalone qep_tab_st;
+  QEP_TAB &qep_tab= qep_tab_st.as_QEP_TAB();
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
   /*
@@ -171,6 +170,15 @@ bool mysql_delete(THD *thd, ha_rows limit, ulonglong options)
     /* Error evaluating val_int(). */
     DBUG_RETURN(TRUE);
   }
+  /*
+    We are passing HA_EXTRA_IGNORE_DUP_KEY flag here to recreate query with
+    IGNORE keyword within federated storage engine. If federated engine is
+    removed in the future, use of HA_EXTRA_IGNORE_DUP_KEY and
+    HA_EXTRA_NO_IGNORE_DUP_KEY flag should be removed from mysql_delete(),
+    multi_delete::initialize_tables() and multi_delete destructor.
+  */
+  if (thd->lex->is_ignore())
+    table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
 
   /*
     Test if the user wants to delete all rows and deletion doesn't have
@@ -286,15 +294,26 @@ bool mysql_delete(THD *thd, ha_rows limit, ulonglong options)
   }
 #endif
 
-  saved_select= select= make_select(table, 0, 0, conds, 0, &error);
-  if (error)
-    DBUG_RETURN(TRUE);
+  error= 0;
+  qep_tab.set_table(table);
+  qep_tab.set_condition(conds);
 
   { // Enter scope for optimizer trace wrapper
     Opt_trace_object wrapper(&thd->opt_trace);
     wrapper.add_utf8_table(table);
-
-    if ((select && select->check_quick(thd, safe_update, limit)) || !limit)
+    bool zero_rows= false; // True if it's sure that we'll find no rows
+    if (limit == 0)
+      zero_rows= true;
+    else if (conds != NULL)
+    {
+      key_map keys_to_use(key_map::ALL_BITS), needed_reg_dummy;
+      QUICK_SELECT_I *qck;
+      zero_rows= test_quick_select(thd, keys_to_use, 0, limit, safe_update,
+                                   ORDER::ORDER_NOT_RELEVANT, &qep_tab,
+                                   conds, &needed_reg_dummy, &qck) < 0;
+      qep_tab.set_quick(qck);
+    }
+    if (zero_rows)
     {
       if (thd->lex->describe && !error && !thd->is_error())
       {
@@ -305,7 +324,6 @@ bool mysql_delete(THD *thd, ha_rows limit, ulonglong options)
         goto exit_without_my_ok;
       }
 
-      delete select;
       free_underlaid_joins(thd, select_lex);
       /*
          Error was already created by quick select evaluation (check_quick()).
@@ -326,7 +344,6 @@ bool mysql_delete(THD *thd, ha_rows limit, ulonglong options)
     thd->server_status|=SERVER_QUERY_NO_INDEX_USED;
     if (safe_update && !using_limit)
     {
-      delete select;
       free_underlaid_joins(thd, select_lex);
       my_message(ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE,
                  ER(ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE), MYF(0));
@@ -339,23 +356,25 @@ bool mysql_delete(THD *thd, ha_rows limit, ulonglong options)
     table->update_const_key_parts(conds);
     order= simple_remove_const(order, conds);
 
-    usable_index= get_index_for_order(order, table, select, limit,
+    usable_index= get_index_for_order(order, &qep_tab, limit,
                                       &need_sort, &reverse);
   }
 
   {
     ha_rows rows;
-    if (select && select->quick)
-      rows= select->quick->records;
-    else if (!select && !need_sort && limit != HA_POS_ERROR)
+    if (qep_tab.quick())
+      rows= qep_tab.quick()->records;
+    else if (!conds && !need_sort && limit != HA_POS_ERROR)
       rows= limit;
     else
     {
-      table->pos_in_table_list->fetch_number_of_rows();
+      delete_table_ref->fetch_number_of_rows();
       rows= table->file->stats.records;
     }
-    Modification_plan plan(thd, MT_DELETE, table,
-                           select, usable_index, limit, false, need_sort,
+    qep_tab.set_quick_optim();
+    qep_tab.set_condition_optim();
+    Modification_plan plan(thd, MT_DELETE, &qep_tab,
+                           usable_index, limit, false, need_sort,
                            false, rows);
     DEBUG_SYNC(thd, "planned_single_delete");
 
@@ -375,13 +394,13 @@ bool mysql_delete(THD *thd, ha_rows limit, ulonglong options)
       ha_rows found_rows;
 
       {
-        Filesort fsort(order, HA_POS_ERROR, select);
+        Filesort fsort(order, HA_POS_ERROR);
         DBUG_ASSERT(usable_index == MAX_KEY);
         table->sort.io_cache= (IO_CACHE *) my_malloc(key_memory_TABLE_sort_io_cache,
                                                      sizeof(IO_CACHE),
                                                      MYF(MY_FAE | MY_ZEROFILL));
 
-        if ((table->sort.found_records= filesort(thd, table, &fsort, true,
+        if ((table->sort.found_records= filesort(thd, &qep_tab, &fsort, true,
                                                  &examined_rows, &found_rows))
             == HA_POS_ERROR)
         {
@@ -389,18 +408,19 @@ bool mysql_delete(THD *thd, ha_rows limit, ulonglong options)
           goto exit_without_my_ok;
         }
         thd->inc_examined_row_count(examined_rows);
+        free_underlaid_joins(thd, select_lex);
         /*
           Filesort has already found and selected the rows we want to delete,
           so we don't need the where clause
         */
-        free_underlaid_joins(thd, select_lex);
-        select= 0;
+        qep_tab.set_quick(NULL);
+        qep_tab.set_condition(NULL);
         table->file->ha_index_or_rnd_end();
       }
     }
 
     /* If quick select is used, initialize it before retrieving rows. */
-    if (select && select->quick && (error= select->quick->reset()))
+    if (qep_tab.quick() && (error= qep_tab.quick()->reset()))
     {
       if (table->file->is_fatal_error(error))
         error_flags|= ME_FATALERROR;
@@ -410,8 +430,8 @@ bool mysql_delete(THD *thd, ha_rows limit, ulonglong options)
       goto exit_without_my_ok;
     }
 
-    if (usable_index==MAX_KEY || (select && select->quick))
-      error= init_read_record(&info, thd, table, select, 1, 1, FALSE);
+    if (usable_index==MAX_KEY || qep_tab.quick())
+      error= init_read_record(&info, thd, NULL, &qep_tab, 1, 1, FALSE);
     else
       error= init_read_record_idx(&info, thd, table, 1, usable_index, reverse);
 
@@ -443,15 +463,15 @@ bool mysql_delete(THD *thd, ha_rows limit, ulonglong options)
 
     if ((table->file->ha_table_flags() & HA_READ_BEFORE_WRITE_REMOVAL) &&
         !using_limit &&
-        select && select->quick && select->quick->index != MAX_KEY)
-      read_removal= table->check_read_removal(select->quick->index);
+        qep_tab.quick() && qep_tab.quick()->index != MAX_KEY)
+      read_removal= table->check_read_removal(qep_tab.quick()->index);
 
     while (!(error=info.read_record(&info)) && !thd->killed &&
            ! thd->is_error())
     {
       thd->inc_examined_row_count(1);
       // thd->is_error() is tested to disallow delete row on error
-      if (!select || (!select->skip_record(thd, &skip_record) && !skip_record))
+      if (!qep_tab.skip_record(thd, &skip_record) && !skip_record)
       {
 
         if (table->triggers &&
@@ -530,6 +550,8 @@ bool mysql_delete(THD *thd, ha_rows limit, ulonglong options)
       /* Only handler knows how many records were really written */
       deleted= table->file->end_read_removal();
     }
+    if (thd->lex->is_ignore())
+      table->file->extra(HA_EXTRA_NO_IGNORE_DUP_KEY);
     THD_STAGE_INFO(thd, stage_end);
     end_read_record(&info);
     if (options & OPTION_QUICK)
@@ -545,9 +567,6 @@ cleanup:
   if (deleted)
     query_cache.invalidate_single(thd, delete_table_ref, true);
 
-  delete saved_select;
-  saved_select= NULL;
-  select= NULL;
   transactional_table= table->file->has_transactions();
 
   if (!transactional_table && deleted > 0)
@@ -596,7 +615,6 @@ cleanup:
   DBUG_RETURN(thd->is_error() || thd->killed);
 
 exit_without_my_ok:
-  delete saved_select;
   free_underlaid_joins(thd, select_lex);
   table->set_keyread(false);
   DBUG_RETURN((err || thd->is_error() || thd->killed) ? 1 : 0);
@@ -792,7 +810,7 @@ bool
 multi_delete::initialize_tables(JOIN *join)
 {
   DBUG_ENTER("multi_delete::initialize_tables");
-
+  ASSERT_BEST_REF_IN_JOIN_ORDER(join);
   DBUG_ASSERT(join == unit->first_select()->join);
 
   if ((thd->variables.option_bits & OPTION_SAFE_UPDATES) &&
@@ -809,7 +827,7 @@ multi_delete::initialize_tables(JOIN *join)
   for (TABLE_LIST *walk= delete_tables; walk; walk= walk->next_local)
   {
     TABLE_LIST *const ref= walk->correspondent_table->updatable_base_table();
-    delete_table_map|= ref->table->map;
+    delete_table_map|= ref->map();
     if (delete_while_scanning &&
         unique_table(thd, ref, join->tables_list, false))
     {
@@ -823,8 +841,9 @@ multi_delete::initialize_tables(JOIN *join)
 
   for (uint i= 0; i < join->primary_tables; i++)
   {
-    TABLE *const table= join->join_tab[i].table;
-    if (!(table->map & delete_table_map))
+    TABLE *const table= join->best_ref[i]->table();
+    const table_map map= join->best_ref[i]->table_ref->map();
+    if (!(map & delete_table_map))
       continue;
 
     // We are going to delete from this table
@@ -832,9 +851,9 @@ multi_delete::initialize_tables(JOIN *join)
     table->no_cache= 1;
     table->covering_keys.clear_all();
     if (table->file->has_transactions())
-      transactional_table_map|= table->map;
+      transactional_table_map|= map;
     else
-      non_transactional_table_map|= table->map;
+      non_transactional_table_map|= map;
     if (table->triggers &&
         table->triggers->has_triggers(TRG_EVENT_DELETE,
                                       TRG_ACTION_AFTER))
@@ -846,6 +865,8 @@ multi_delete::initialize_tables(JOIN *join)
       */
       (void) table->file->extra(HA_EXTRA_DELETE_CANNOT_BATCH);
     }
+    if (thd->lex->is_ignore())
+      table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
     table->prepare_for_position();
     table->mark_columns_needed_for_delete();
   }
@@ -855,9 +876,9 @@ multi_delete::initialize_tables(JOIN *join)
       1. deleting from one of the const tables, or
       2. deleting from the first non-const table
   */
-  table_map possible_tables= join->const_table_map;                   // 1
+  table_map possible_tables= join->const_table_map;                       // 1
   if (join->primary_tables > join->const_tables)
-    possible_tables|= join->join_tab[join->const_tables].table->map;  // 2
+    possible_tables|= join->best_ref[join->const_tables]->table_ref->map();// 2
   if (delete_while_scanning)
     delete_immediate= delete_table_map & possible_tables;
 
@@ -867,11 +888,12 @@ multi_delete::initialize_tables(JOIN *join)
   TABLE  **table_ptr= tables;
   for (uint i= 0; i < join->primary_tables; i++)
   {
-    TABLE *const table= join->join_tab[i].table;
+    const table_map map= join->best_ref[i]->table_ref->map();
 
-    if (!(table->map & delete_table_map & ~delete_immediate))
+    if (!(map & delete_table_map & ~delete_immediate))
       continue;
 
+    TABLE *const table= join->best_ref[i]->table();
     if (!(*tempfile++= new Unique(refpos_order_cmp,
                                   (void *) table->file,
                                   table->file->ref_length,
@@ -891,6 +913,8 @@ multi_delete::~multi_delete()
        tbl_ref= tbl_ref->next_local)
   {
     TABLE *table= tbl_ref->correspondent_table->updatable_base_table()->table;
+    if (thd->lex->is_ignore())
+      table->file->extra(HA_EXTRA_NO_IGNORE_DUP_KEY);
     table->no_keyread=0;
   }
 
@@ -913,13 +937,15 @@ bool multi_delete::send_data(List<Item> &values)
 
   for (uint i= 0; i < join->primary_tables; i++)
   {
-    TABLE *const table= join->join_tab[i].table;
+    const table_map map= join->qep_tab[i].table_ref->map();
 
     // Check whether this table is being deleted from
-    if (!(table->map & delete_table_map))
+    if (!(map & delete_table_map))
       continue;
 
-    const bool immediate= table->map & delete_immediate;
+    const bool immediate= map & delete_immediate;
+
+    TABLE *const table= join->qep_tab[i].table();
 
     DBUG_ASSERT(immediate || table == tables[unique_counter]);
 
@@ -944,7 +970,7 @@ bool multi_delete::send_data(List<Item> &values)
                                             TRG_ACTION_BEFORE, FALSE))
         DBUG_RETURN(true);
       table->status|= STATUS_DELETED;
-      if (table->map & non_transactional_table_map)
+      if (map & non_transactional_table_map)
         non_transactional_deleted= true;
       if (!(error=table->file->ha_delete_row(table->record[0])))
       {
@@ -1181,7 +1207,7 @@ int multi_delete::do_table_deletes(TABLE *table)
     if (!local_error)
     {
       deleted++;
-      if (table->map & non_transactional_table_map)
+      if (table->pos_in_table_list->map() & non_transactional_table_map)
         non_transactional_deleted= true;
 
       if (table->triggers &&

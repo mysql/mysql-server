@@ -27,6 +27,11 @@ typedef int opaque_mdl_duration;
 typedef int opaque_mdl_status;
 struct TABLE_SHARE;
 struct sql_digest_storage;
+  struct opaque_THD
+  {
+    int dummy;
+  };
+  typedef struct opaque_THD THD;
 struct PSI_mutex;
 typedef struct PSI_mutex PSI_mutex;
 struct PSI_rwlock;
@@ -95,7 +100,13 @@ enum PSI_rwlock_operation
   PSI_RWLOCK_READLOCK= 0,
   PSI_RWLOCK_WRITELOCK= 1,
   PSI_RWLOCK_TRYREADLOCK= 2,
-  PSI_RWLOCK_TRYWRITELOCK= 3
+  PSI_RWLOCK_TRYWRITELOCK= 3,
+  PSI_RWLOCK_SHAREDLOCK= 4,
+  PSI_RWLOCK_SHAREDEXCLUSIVELOCK= 5,
+  PSI_RWLOCK_EXCLUSIVELOCK= 6,
+  PSI_RWLOCK_TRYSHAREDLOCK= 7,
+  PSI_RWLOCK_TRYSHAREDEXCLUSIVELOCK= 8,
+  PSI_RWLOCK_TRYEXCLUSIVELOCK= 9
 };
 typedef enum PSI_rwlock_operation PSI_rwlock_operation;
 enum PSI_cond_operation
@@ -430,6 +441,8 @@ typedef int (*spawn_thread_v1_t)(PSI_thread_key key,
                                  void *(*start_routine)(void*), void *arg);
 typedef struct PSI_thread* (*new_thread_v1_t)
   (PSI_thread_key key, const void *identity, ulonglong thread_id);
+typedef void (*set_thread_THD_v1_t)(struct PSI_thread *thread,
+                                    THD *thd);
 typedef void (*set_thread_id_v1_t)(struct PSI_thread *thread,
                                    ulonglong id);
 typedef struct PSI_thread* (*get_thread_v1_t)(void);
@@ -501,7 +514,9 @@ typedef struct PSI_table_locker* (*start_table_io_wait_v1_t)
    enum PSI_table_io_operation op,
    uint index,
    const char *src_file, uint src_line);
-typedef void (*end_table_io_wait_v1_t)(struct PSI_table_locker *locker);
+typedef void (*end_table_io_wait_v1_t)
+  (struct PSI_table_locker *locker,
+   ulonglong numrows);
 typedef struct PSI_table_locker* (*start_table_lock_wait_v1_t)
   (struct PSI_table_locker_state_v1 *state,
    struct PSI_table *table,
@@ -694,6 +709,7 @@ struct PSI_v1
   spawn_thread_v1_t spawn_thread;
   new_thread_v1_t new_thread;
   set_thread_id_v1_t set_thread_id;
+  set_thread_THD_v1_t set_thread_THD;
   get_thread_v1_t get_thread;
   set_thread_user_v1_t set_thread_user;
   set_thread_account_v1_t set_thread_account;

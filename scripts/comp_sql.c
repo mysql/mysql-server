@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -83,7 +83,7 @@ static void print_query(FILE *out, const char *query)
     {
       /* Wrap to the next line, tabulated. */
       fprintf(out, "\"\n  \"");
-      column= 2;
+      column= 3;
     }
     switch(*ptr)
     {
@@ -93,13 +93,17 @@ static void print_query(FILE *out, const char *query)
         and wrap to the next line, tabulated.
       */
       fprintf(out, "\\n\"\n  \"");
-      column= 2;
+      column= 3;
       break;
     case '\r':
       /* Skipped */
       break;
     case '\"':
       fprintf(out, "\\\"");
+      column+= 2;
+      break;
+    case '\\':
+      fprintf(out, "\\\\");
       column++;
       break;
     default:
@@ -162,7 +166,7 @@ int main(int argc, char *argv[])
         die("Failed to read the bootstrap input file. Query size exceeded %d bytes.\n"
             "Last query: '%s'.\n", MAX_BOOTSTRAP_LINE_SIZE, err_ptr);
         break;
-    
+
       default:
         die("Failed to read the bootstrap input file. Unknown error.\n");
         break;

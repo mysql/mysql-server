@@ -45,18 +45,22 @@ public:
   MOCK_JOIN_TAB(uint recs, uint table_no) : JOIN_TAB()
   {
     found_records= recs;
-    m_table.map= 1ULL << table_no;
-    this->table= &m_table;
+    set_qs(&m_shared);
+    this->set_table(&m_table);
+    m_table_list.set_tableno(table_no);
+    this->table_ref= &m_table_list;
   }
-  
+
   TABLE       m_table;
+  TABLE_LIST  m_table_list;
+  QEP_shared  m_shared;
 };
 
 std::ostream &operator<<(std::ostream &s, const MOCK_JOIN_TAB &jt)
 {
   return s << "{"
            << jt.found_records << ", "
-           << jt.m_table.map
+           << jt.m_table_list.map()
            << "}";
 }
 

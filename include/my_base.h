@@ -19,20 +19,7 @@
 #ifndef _my_base_h
 #define _my_base_h
 
-#ifndef stdin				/* Included first in handler */
-#define CHSIZE_USED
-#include <my_global.h>
-#include <my_dir.h>			/* This includes types */
-#include <my_sys.h>
-#include <m_string.h>
-#include <errno.h>
-
-#ifndef EOVERFLOW
-#define EOVERFLOW 84
-#endif
-
-#endif	/* stdin */
-#include <my_list.h>
+#include "my_global.h"
 
 /* The following is bits in the flag parameter to ha_open() */
 
@@ -431,7 +418,7 @@ is the global server default. */
 #define HA_ERR_INDEX_FILE_FULL	136	/* No more room in file */
 #define HA_ERR_END_OF_FILE	137	/* end in next/prev/first/last */
 #define HA_ERR_UNSUPPORTED	138	/* unsupported extension used */
-#define HA_ERR_TO_BIG_ROW	139	/* Too big row */
+#define HA_ERR_TOO_BIG_ROW	139	/* Too big row */
 #define HA_WRONG_CREATE_OPTION	140	/* Wrong create option */
 #define HA_ERR_FOUND_DUPP_UNIQUE 141	/* Dupplicate unique on write */
 #define HA_ERR_UNKNOWN_CHARSET	 142	/* Can't open charset */
@@ -502,7 +489,8 @@ is the global server default. */
 #define HA_MISSING_CREATE_OPTION  193    /* Option Missing during Create */
 #define HA_ERR_SE_OUT_OF_MEMORY   194    /* Out of memory in storage engine */
 #define HA_ERR_TABLE_CORRUPT      195    /* Table/Clustered index is corrupted. */
-#define HA_ERR_LAST               195    /* Copy of last error nr */
+#define HA_ERR_QUERY_INTERRUPTED  196
+#define HA_ERR_LAST               196    /* Copy of last error nr */
 
 /* Number of different errors */
 #define HA_ERR_ERRORS            (HA_ERR_LAST - HA_ERR_FIRST + 1)

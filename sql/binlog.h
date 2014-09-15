@@ -27,18 +27,42 @@ class Master_info;
 class Format_description_log_event;
 
 /**
-  Logical timestamp generator for binlog Prepare stage.
- */
+  Logical timestamp generator for logical timestamping binlog transactions.
+  A transaction is associated with two sequence numbers see
+  @c Transaction_ctx::last_committed and @c Transaction_ctx::sequence_number.
+  The class provides necessary interfaces including that of
+  generating a next consecutive value for the latter.
+*/
 class  Logical_clock
 {
 private:
   int64 state;
-protected:
-  void init(){ state= 0; }
+  /*
+    Offset is subtracted from the actual "absolute time" value at
+    logging a replication event. That is the event holds logical
+    timestamps in the "relative" format. They are meaningful only in
+    the context of the current binlog.
+    The member is updated (incremented) per binary log rotation.
+  */
+  int64 offset;
 public:
   Logical_clock();
   int64 step();
+  int64 set_if_greater(int64 new_val);
   int64 get_timestamp();
+  int64 get_offset() { return offset; }
+  /*
+    Updates the offset.
+    This operation is invoked when binlog rotates and at that time
+    there can't any concurrent step() callers so no need to guard
+    the assignement.
+  */
+  void update_offset(int64 new_offset)
+  {
+    DBUG_ASSERT(offset <= new_offset);
+
+    offset= new_offset;
+  }
   ~Logical_clock() { }
 };
 
@@ -567,8 +591,10 @@ public:
 #endif
 
 public:
-  /* Clock to timestamp the commits */
-   Logical_clock commit_clock;
+  /* Committed transactions timestamp */
+   Logical_clock max_committed_transaction;
+  /* "Prepared" transactions timestamp */
+   Logical_clock transaction_counter;
 
   /**
     Find the oldest binary log that contains any GTID that
@@ -576,12 +602,15 @@ public:
 
     @param[out] binlog_file_name, the file name of oldest binary log found
     @param[in]  gtid_set, the given gtid set
+    @param[out] first_gtid, the first GTID information from the binary log
+                file returned at binlog_file_name
     @param[out] errmsg, the error message outputted, which is left untouched
                 if the function returns false
     @return false on success, true on error.
   */
   bool find_first_log_not_in_gtid_set(char *binlog_file_name,
                                       const Gtid_set *gtid_set,
+                                      Gtid *first_gtid,
                                       const char **errmsg);
 
   /**
@@ -599,11 +628,12 @@ public:
     @param need_lock If true, LOCK_log, LOCK_index, and
     global_sid_lock->wrlock are acquired; otherwise they are asserted
     to be taken already.
+    @param is_server_starting True if the server is starting.
     @return false on success, true on error.
   */
   bool init_gtid_sets(Gtid_set *gtid_set, Gtid_set *lost_groups,
                       Gtid *last_gtid, bool verify_checksum,
-                      bool need_lock);
+                      bool need_lock, bool is_server_starting= false);
 
   void set_previous_gtid_set_relaylog(Gtid_set *previous_gtid_set_param)
   {
@@ -732,7 +762,8 @@ public:
 
   bool write_event(Log_event* event_info);
   bool write_cache(THD *thd, class binlog_cache_data *binlog_cache_data);
-  int  do_write_cache(IO_CACHE *cache);
+  int  do_write_cache(IO_CACHE *cache,
+                      int64 last_committed, int64 sequence_number);
 
   void set_write_error(THD *thd, bool is_transactional);
   bool check_write_error(THD *thd);
@@ -804,6 +835,7 @@ public:
   int find_log_pos(LOG_INFO* linfo, const char* log_name,
                    bool need_lock_index);
   int find_next_log(LOG_INFO* linfo, bool need_lock_index);
+  int find_next_relay_log(char log_name[FN_REFLEN+1]);
   int get_current_log(LOG_INFO* linfo);
   int raw_get_current_log(LOG_INFO* linfo);
   uint next_file_id();

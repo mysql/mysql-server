@@ -200,7 +200,7 @@ drop table t1;
 create table t1 (id int);
 create table t2 (id int, date date);
 insert into t1 values (1);
-insert into t2 values (1, "0000-00-00");
+insert ignore into t2 values (1, "0000-00-00");
 insert into t1 values (2);
 insert into t2 values (2, "2000-01-01");
 select monthname(date) from t1 inner join t2 on t1.id = t2.id;
@@ -222,7 +222,7 @@ drop table t1;
 #
 
 create table t1 (d date, dt datetime, t timestamp, c char(10));
-insert into t1 values ("0000-00-00", "0000-00-00", "0000-00-00", "0000-00-00");
+insert ignore into t1 values ("0000-00-00", "0000-00-00", "0000-00-00", "0000-00-00");
 select dayofyear("0000-00-00"),dayofyear(d),dayofyear(dt),dayofyear(t),dayofyear(c) from t1;
 select dayofmonth("0000-00-00"),dayofmonth(d),dayofmonth(dt),dayofmonth(t),dayofmonth(c) from t1;
 select month("0000-00-00"),month(d),month(dt),month(t),month(c) from t1;
@@ -238,7 +238,7 @@ drop table t1;
 #
 # Test problem with TIMESTAMP and BETWEEN
 #
-
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 CREATE TABLE t1 ( start datetime default NULL);
 INSERT INTO t1 VALUES ('2002-10-21 00:00:00'),('2002-10-28 00:00:00'),('2002-11-04 00:00:00');
 CREATE TABLE t2 ( ctime1 timestamp NOT NULL, ctime2 timestamp NOT NULL);
@@ -251,7 +251,7 @@ select * from t1, t2 where t1.start between t2.ctime1 and t2.ctime2;
 select * from t1, t2 where t1.start >= t2.ctime1 and t1.start <= t2.ctime2;
 select * from t1, t3 where t1.start between t3.ctime1 and t3.ctime2;
 drop table t1,t2,t3;
-
+SET sql_mode = default;
 #
 # Test unix timestamp
 #
@@ -529,7 +529,7 @@ SELECT EXTRACT(HOUR FROM '100000:02:03');
 # check if we get proper warnings if both input string truncation
 # and out-of-range value occur
 CREATE TABLE t1(f1 TIME);
-INSERT INTO t1 VALUES('916:00:00 a');
+INSERT IGNORE INTO t1 VALUES('916:00:00 a');
 SELECT * FROM t1;
 DROP TABLE t1;
 
@@ -757,6 +757,8 @@ SELECT TIME_FORMAT(SEC_TO_TIME(a),"%H:%i:%s") FROM (SELECT 3020399 AS a UNION SE
 set names latin1;
 create table t1 (a varchar(15) character set ascii not null);
 insert into t1 values ('070514-000000');
+--source include/turn_off_only_full_group_by.inc
+
 # Conversion of date_format() result to ASCII
 # is safe with the default locale en_US
 --replace_column 1 #
@@ -773,6 +775,8 @@ set lc_time_names=fr_FR;
 --error 1267
 select concat(a,ifnull(min(date_format(now(), '%Y-%m-%d')),' ull')) from t1;
 set lc_time_names=en_US;
+
+--source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
 drop table t1;
 
 #
@@ -933,7 +937,7 @@ SELECT LEAST(TIMESTAMP('0000-01-00','0'),'2011-10-24') > 0;
 --echo # BUG#13458237 INCONSISTENT HANDLING OF INVALIDE DATES WITH ZERO DAY
 --echo # SIMILAR TO '2009-10-00' 
 --echo #
-
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 query_vertical SELECT
   DATE('20091000'),
   STR_TO_DATE('200910','%Y%m'),
@@ -989,7 +993,7 @@ query_vertical SELECT
   TO_DAYs(DATE('0000-01-00')),
   TO_DAYs(DATE'0000-01-00'),
   TO_DAYs(STR_TO_DATE('000001','%Y%m'));
-
+SET sql_mode = default;
 --echo End of 5.1 tests
 
 --echo #
@@ -1043,7 +1047,7 @@ SET default_storage_engine=NULL;
 SET time_zone='+03:00';
 CREATE TABLE t1 (a DATETIME NOT NULL);
 INSERT INTO t1 VALUES ('2009-09-20 07:32:39.06');
-INSERT INTO t1 VALUES ('0000-00-00 00:00:00.00');
+INSERT IGNORE INTO t1 VALUES ('0000-00-00 00:00:00.00');
 CREATE VIEW v1 AS SELECT * FROM t1;
 SELECT CAST(UNIX_TIMESTAMP(a) AS DECIMAL(25,3)) AS c1 FROM v1 ORDER BY 1; 
 DROP VIEW v1;
@@ -1073,6 +1077,7 @@ drop table t1;
 --echo #
 --echo # BUG#13545236 - ASSERT IN SEC_SINCE_EPOCH
 --echo #
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 CREATE TABLE t1 (a TIME NOT NULL);
 INSERT INTO t1 VALUES ('04:39:24');
 INSERT INTO t1 VALUES ('00:20:09');
@@ -1090,7 +1095,7 @@ SELECT * FROM t1 WHERE TIMESTAMPDIFF(MONTH, a, TIMESTAMP'0000-00-01 00:00:00') I
 SELECT * FROM t1 WHERE TIMESTAMPDIFF(MONTH, a, DATE('0000-00-01')) IS NULL;
 SELECT * FROM t1 WHERE TIMESTAMPDIFF(MONTH, a, DATE'0000-00-01') IS NULL;
 DROP TABLE t1;
-
+SET sql_mode = default;
 --echo #
 --echo # BUG#13354387 - CRASH IN IN MY_DECIMAL::OPERATOR FOR VIEW AND FUNCTION UNIX_TIMESTAMP 
 --echo # Part2 (5.6)
@@ -1127,3 +1132,32 @@ DO maketime(~0, 49, 0.123456789);
 --echo #
 
 DO is_used_lock(ifnull(now(), CASE 1 WHEN 1 THEN NULL END));
+
+
+--echo #
+--echo # BUG#18675237  NOW() : MISSING FRACTIONAL SECONDS FROM A VIEW
+--echo #
+
+SET @@TIMESTAMP= UNIX_TIMESTAMP('2014-05-27 10:20:30.123456');
+
+CREATE VIEW v1 AS SELECT NOW(6), CURTIME(4), LOCALTIME(3), CURRENT_TIME(2),
+CURRENT_TIMESTAMP(0), LOCALTIMESTAMP(1), UTC_TIME(4), UTC_TIMESTAMP(4);
+
+--echo # After the patch, the decimal value is printed for the temporal
+--echo # functions. 
+SHOW CREATE VIEW v1;
+
+--echo # After the patch, the fractional seconds are displayed.
+SELECT * FROM v1;
+
+--echo #Adding separate case for SYSDATE, since its value cannot
+--echo #be fixed and varies with every run.
+CREATE VIEW v2 AS SELECT LOCATE(".", SYSDATE(6)) != 0;
+SHOW CREATE VIEW v2;
+
+--echo #After the patch, will return the value as '1'(Condition is true).
+SELECT * FROM v2;
+
+--echo # Cleanup
+DROP VIEW v1, v2;
+SET @@TIMESTAMP= DEFAULT;

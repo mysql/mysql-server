@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,10 +19,10 @@
 #include "mysql.h"
 #include "sql_list.h"                           /* I_List */
 #include "hash.h"                               /* HASH */
+#include "prealloced_array.h"
 
 class String;
 struct TABLE_LIST;
-typedef struct st_dynamic_array DYNAMIC_ARRAY;
 
 typedef struct st_table_rule_ent
 {
@@ -102,20 +102,23 @@ public:
 private:
   bool table_rules_on;
 
-  void init_table_rule_hash(HASH* h, bool* h_inited);
-  void init_table_rule_array(DYNAMIC_ARRAY* a, bool* a_inited);
+  typedef Prealloced_array<TABLE_RULE_ENT*, 16, true> Table_rule_array;
 
-  int add_table_rule_to_array(DYNAMIC_ARRAY* a, const char* table_spec);
+  void init_table_rule_hash(HASH* h, bool* h_inited);
+  void init_table_rule_array(Table_rule_array*, bool* a_inited);
+
+  int add_table_rule_to_array(Table_rule_array* a, const char* table_spec);
   int add_table_rule_to_hash(HASH* h, const char* table_spec, uint len);
 
-  void free_string_array(DYNAMIC_ARRAY *a);
+  void free_string_array(Table_rule_array *a);
 
   void table_rule_ent_hash_to_str(String* s, HASH* h, bool inited);
-  void table_rule_ent_dynamic_array_to_str(String* s, DYNAMIC_ARRAY* a,
+  void table_rule_ent_dynamic_array_to_str(String* s, Table_rule_array* a,
                                            bool inited);
-  TABLE_RULE_ENT* find_wild(DYNAMIC_ARRAY *a, const char* key, int len);
+  TABLE_RULE_ENT* find_wild(Table_rule_array *a, const char* key, size_t len);
 
-  int build_table_hash_from_array(DYNAMIC_ARRAY *table_array, HASH *table_hash,
+  int build_table_hash_from_array(Table_rule_array *table_array,
+                                  HASH *table_hash,
                                   bool array_inited, bool *hash_inited);
 
   /*
@@ -126,11 +129,11 @@ private:
   HASH do_table_hash;
   HASH ignore_table_hash;
 
-  DYNAMIC_ARRAY do_table_array;
-  DYNAMIC_ARRAY ignore_table_array;
+  Table_rule_array do_table_array;
+  Table_rule_array ignore_table_array;
 
-  DYNAMIC_ARRAY wild_do_table;
-  DYNAMIC_ARRAY wild_ignore_table;
+  Table_rule_array wild_do_table;
+  Table_rule_array wild_ignore_table;
 
   bool do_table_hash_inited;
   bool ignore_table_hash_inited;

@@ -1,8 +1,7 @@
 Run mysql_upgrade once
-mysqlcheck: [Warning] Using a password on the command line interface can be insecure.
-mysqlcheck: [Warning] Using a password on the command line interface can be insecure.
 mysql.columns_priv                                 OK
 mysql.db                                           OK
+mysql.engine_cost                                  OK
 mysql.event                                        OK
 mysql.func                                         OK
 mysql.general_log                                  OK
@@ -18,6 +17,7 @@ mysql.plugin                                       OK
 mysql.proc                                         OK
 mysql.procs_priv                                   OK
 mysql.proxies_priv                                 OK
+mysql.server_cost                                  OK
 mysql.servers                                      OK
 mysql.slave_master_info                            OK
 mysql.slave_relay_log_info                         OK
@@ -30,18 +30,14 @@ mysql.time_zone_name                               OK
 mysql.time_zone_transition                         OK
 mysql.time_zone_transition_type                    OK
 mysql.user                                         OK
-mysql: [Warning] Using a password on the command line interface can be insecure.
-mysqlcheck: [Warning] Using a password on the command line interface can be insecure.
-mysqlcheck: [Warning] Using a password on the command line interface can be insecure.
 mtr.global_suppressions                            OK
 mtr.test_suppressions                              OK
 Run it again - should say already completed
 This installation of MySQL is already upgraded to VERSION, use --force if you still need to run mysql_upgrade
 Force should run it regardless of wether it's been run before
-mysqlcheck: [Warning] Using a password on the command line interface can be insecure.
-mysqlcheck: [Warning] Using a password on the command line interface can be insecure.
 mysql.columns_priv                                 OK
 mysql.db                                           OK
+mysql.engine_cost                                  OK
 mysql.event                                        OK
 mysql.func                                         OK
 mysql.general_log                                  OK
@@ -57,6 +53,7 @@ mysql.plugin                                       OK
 mysql.proc                                         OK
 mysql.procs_priv                                   OK
 mysql.proxies_priv                                 OK
+mysql.server_cost                                  OK
 mysql.servers                                      OK
 mysql.slave_master_info                            OK
 mysql.slave_relay_log_info                         OK
@@ -69,19 +66,15 @@ mysql.time_zone_name                               OK
 mysql.time_zone_transition                         OK
 mysql.time_zone_transition_type                    OK
 mysql.user                                         OK
-mysql: [Warning] Using a password on the command line interface can be insecure.
-mysqlcheck: [Warning] Using a password on the command line interface can be insecure.
-mysqlcheck: [Warning] Using a password on the command line interface can be insecure.
 mtr.global_suppressions                            OK
 mtr.test_suppressions                              OK
 CREATE USER mysqltest1@'%' IDENTIFIED by 'sakila';
 GRANT ALL ON *.* TO mysqltest1@'%';
 Run mysql_upgrade with password protected account
 mysql_upgrade: [Warning] Using a password on the command line interface can be insecure.
-mysqlcheck: [Warning] Using a password on the command line interface can be insecure.
-mysqlcheck: [Warning] Using a password on the command line interface can be insecure.
 mysql.columns_priv                                 OK
 mysql.db                                           OK
+mysql.engine_cost                                  OK
 mysql.event                                        OK
 mysql.func                                         OK
 mysql.general_log                                  OK
@@ -97,6 +90,7 @@ mysql.plugin                                       OK
 mysql.proc                                         OK
 mysql.procs_priv                                   OK
 mysql.proxies_priv                                 OK
+mysql.server_cost                                  OK
 mysql.servers                                      OK
 mysql.slave_master_info                            OK
 mysql.slave_relay_log_info                         OK
@@ -109,21 +103,16 @@ mysql.time_zone_name                               OK
 mysql.time_zone_transition                         OK
 mysql.time_zone_transition_type                    OK
 mysql.user                                         OK
-mysql: [Warning] Using a password on the command line interface can be insecure.
-mysqlcheck: [Warning] Using a password on the command line interface can be insecure.
-mysqlcheck: [Warning] Using a password on the command line interface can be insecure.
 mtr.global_suppressions                            OK
 mtr.test_suppressions                              OK
 DROP USER mysqltest1@'%';
 Run mysql_upgrade with a non existing server socket
-mysqlcheck: [Warning] Using a password on the command line interface can be insecure.
-mysqlcheck: Got error: 2005: Unknown MySQL server host 'not_existing_host' (errno) when trying to connect
-FATAL ERROR: Upgrade failed
+mysql_upgrade: Got error: 2005: Unknown MySQL server host 'not_existing_host' (errno) when trying to connect
+Upgrade process encountered error and will not continue.
 set GLOBAL sql_mode='STRICT_ALL_TABLES,ANSI_QUOTES';
-mysqlcheck: [Warning] Using a password on the command line interface can be insecure.
-mysqlcheck: [Warning] Using a password on the command line interface can be insecure.
 mysql.columns_priv                                 OK
 mysql.db                                           OK
+mysql.engine_cost                                  OK
 mysql.event                                        OK
 mysql.func                                         OK
 mysql.general_log                                  OK
@@ -139,6 +128,7 @@ mysql.plugin                                       OK
 mysql.proc                                         OK
 mysql.procs_priv                                   OK
 mysql.proxies_priv                                 OK
+mysql.server_cost                                  OK
 mysql.servers                                      OK
 mysql.slave_master_info                            OK
 mysql.slave_relay_log_info                         OK
@@ -151,14 +141,11 @@ mysql.time_zone_name                               OK
 mysql.time_zone_transition                         OK
 mysql.time_zone_transition_type                    OK
 mysql.user                                         OK
-mysql: [Warning] Using a password on the command line interface can be insecure.
-mysqlcheck: [Warning] Using a password on the command line interface can be insecure.
-mysqlcheck: [Warning] Using a password on the command line interface can be insecure.
 mtr.global_suppressions                            OK
 mtr.test_suppressions                              OK
 set GLOBAL sql_mode=default;
 #
-# Bug #41569 mysql_upgrade (ver 5.1) add 3 fields to mysql.proc table 
+# Bug #41569 mysql_upgrade (ver 5.1) add 3 fields to mysql.proc table
 # but does not set values.
 #
 CREATE PROCEDURE testproc() BEGIN END;
@@ -167,6 +154,7 @@ UPDATE mysql.proc SET collation_connection = NULL WHERE name LIKE 'testproc';
 UPDATE mysql.proc SET db_collation = NULL WHERE name LIKE 'testproc';
 mysql.columns_priv                                 OK
 mysql.db                                           OK
+mysql.engine_cost                                  OK
 mysql.event                                        OK
 mysql.func                                         OK
 mysql.general_log                                  OK
@@ -182,6 +170,7 @@ mysql.plugin                                       OK
 mysql.proc                                         OK
 mysql.procs_priv                                   OK
 mysql.proxies_priv                                 OK
+mysql.server_cost                                  OK
 mysql.servers                                      OK
 mysql.slave_master_info                            OK
 mysql.slave_relay_log_info                         OK
@@ -198,25 +187,19 @@ mtr.global_suppressions                            OK
 mtr.test_suppressions                              OK
 CALL testproc();
 DROP PROCEDURE testproc;
-mysqlcheck: [Warning] Using a password on the command line interface can be insecure.
-mysqlcheck: [Warning] Using a password on the command line interface can be insecure.
-mysql: [Warning] Using a password on the command line interface can be insecure.
 WARNING: NULL values of the 'character_set_client' column ('mysql.proc' table) have been updated with a default value (latin1). Please verify if necessary.
 WARNING: NULL values of the 'collation_connection' column ('mysql.proc' table) have been updated with a default value (latin1_swedish_ci). Please verify if necessary.
 WARNING: NULL values of the 'db_collation' column ('mysql.proc' table) have been updated with default values. Please verify if necessary.
-mysqlcheck: [Warning] Using a password on the command line interface can be insecure.
-mysqlcheck: [Warning] Using a password on the command line interface can be insecure.
 #
-# Bug #53613: mysql_upgrade incorrectly revokes 
+# Bug #53613: mysql_upgrade incorrectly revokes
 #   TRIGGER privilege on given table
 #
 GRANT USAGE ON *.* TO 'user3'@'%';
 GRANT ALL PRIVILEGES ON `roelt`.`test2` TO 'user3'@'%';
 Run mysql_upgrade with all privileges on a user
-mysqlcheck: [Warning] Using a password on the command line interface can be insecure.
-mysqlcheck: [Warning] Using a password on the command line interface can be insecure.
 mysql.columns_priv                                 OK
 mysql.db                                           OK
+mysql.engine_cost                                  OK
 mysql.event                                        OK
 mysql.func                                         OK
 mysql.general_log                                  OK
@@ -232,6 +215,7 @@ mysql.plugin                                       OK
 mysql.proc                                         OK
 mysql.procs_priv                                   OK
 mysql.proxies_priv                                 OK
+mysql.server_cost                                  OK
 mysql.servers                                      OK
 mysql.slave_master_info                            OK
 mysql.slave_relay_log_info                         OK
@@ -244,9 +228,6 @@ mysql.time_zone_name                               OK
 mysql.time_zone_transition                         OK
 mysql.time_zone_transition_type                    OK
 mysql.user                                         OK
-mysql: [Warning] Using a password on the command line interface can be insecure.
-mysqlcheck: [Warning] Using a password on the command line interface can be insecure.
-mysqlcheck: [Warning] Using a password on the command line interface can be insecure.
 mtr.global_suppressions                            OK
 mtr.test_suppressions                              OK
 SHOW GRANTS FOR 'user3'@'%';
@@ -260,10 +241,9 @@ The --upgrade-system-tables option was used, databases won't be touched.
 # Bug#12688860 : SECURITY RECOMMENDATION: PASSWORDS ON CLI
 #
 mysql_upgrade: [Warning] Using a password on the command line interface can be insecure.
-mysqlcheck: [Warning] Using a password on the command line interface can be insecure.
-mysqlcheck: [Warning] Using a password on the command line interface can be insecure.
 mysql.columns_priv                                 OK
 mysql.db                                           OK
+mysql.engine_cost                                  OK
 mysql.event                                        OK
 mysql.func                                         OK
 mysql.general_log                                  OK
@@ -279,6 +259,7 @@ mysql.plugin                                       OK
 mysql.proc                                         OK
 mysql.procs_priv                                   OK
 mysql.proxies_priv                                 OK
+mysql.server_cost                                  OK
 mysql.servers                                      OK
 mysql.slave_master_info                            OK
 mysql.slave_relay_log_info                         OK
@@ -291,9 +272,6 @@ mysql.time_zone_name                               OK
 mysql.time_zone_transition                         OK
 mysql.time_zone_transition_type                    OK
 mysql.user                                         OK
-mysql: [Warning] Using a password on the command line interface can be insecure.
-mysqlcheck: [Warning] Using a password on the command line interface can be insecure.
-mysqlcheck: [Warning] Using a password on the command line interface can be insecure.
 mtr.global_suppressions                            OK
 mtr.test_suppressions                              OK
 #
@@ -304,6 +282,7 @@ mtr.test_suppressions                              OK
 # Running mysql_upgrade with --skip-write-binlog..
 mysql.columns_priv                                 OK
 mysql.db                                           OK
+mysql.engine_cost                                  OK
 mysql.event                                        OK
 mysql.func                                         OK
 mysql.general_log                                  OK
@@ -319,6 +298,7 @@ mysql.plugin                                       OK
 mysql.proc                                         OK
 mysql.procs_priv                                   OK
 mysql.proxies_priv                                 OK
+mysql.server_cost                                  OK
 mysql.servers                                      OK
 mysql.slave_master_info                            OK
 mysql.slave_relay_log_info                         OK
@@ -336,6 +316,7 @@ mtr.test_suppressions                              OK
 # Running mysql_upgrade with --write-binlog..
 mysql.columns_priv                                 OK
 mysql.db                                           OK
+mysql.engine_cost                                  OK
 mysql.event                                        OK
 mysql.func                                         OK
 mysql.general_log                                  OK
@@ -351,6 +332,7 @@ mysql.plugin                                       OK
 mysql.proc                                         OK
 mysql.procs_priv                                   OK
 mysql.proxies_priv                                 OK
+mysql.server_cost                                  OK
 mysql.servers                                      OK
 mysql.slave_master_info                            OK
 mysql.slave_relay_log_info                         OK
@@ -365,19 +347,10 @@ mysql.time_zone_transition_type                    OK
 mysql.user                                         OK
 mtr.global_suppressions                            OK
 mtr.test_suppressions                              OK
-#
-# Bug# 13586336: issue deprecation warning
-#   for legacy authentication method
-#
-CREATE USER 'bug13586336'@'localhost' IDENTIFIED WITH 'mysql_old_password';
-SET PASSWORD FOR 'bug13586336'@'localhost' = OLD_PASSWORD('a');
-Warnings:
-Warning	1287	'pre-4.1 password hash' is deprecated and will be removed in a future release. Please use post-4.1 password hash instead
-Run mysql_upgrade with all privileges on a user
-mysqlcheck: [Warning] Using a password on the command line interface can be insecure.
-mysqlcheck: [Warning] Using a password on the command line interface can be insecure.
+# Running mysql_upgrade with --max-allowed-packet=4096..
 mysql.columns_priv                                 OK
 mysql.db                                           OK
+mysql.engine_cost                                  OK
 mysql.event                                        OK
 mysql.func                                         OK
 mysql.general_log                                  OK
@@ -393,6 +366,7 @@ mysql.plugin                                       OK
 mysql.proc                                         OK
 mysql.procs_priv                                   OK
 mysql.proxies_priv                                 OK
+mysql.server_cost                                  OK
 mysql.servers                                      OK
 mysql.slave_master_info                            OK
 mysql.slave_relay_log_info                         OK
@@ -405,20 +379,616 @@ mysql.time_zone_name                               OK
 mysql.time_zone_transition                         OK
 mysql.time_zone_transition_type                    OK
 mysql.user                                         OK
-mysql: [Warning] Using a password on the command line interface can be insecure.
-Warning	1642	Pre-4.1 password hash found. It is deprecated and will be removed in a future release. Please upgrade it to a new format.
-mysqlcheck: [Warning] Using a password on the command line interface can be insecure.
-mysqlcheck: [Warning] Using a password on the command line interface can be insecure.
 mtr.global_suppressions                            OK
 mtr.test_suppressions                              OK
-DROP USER 'bug13586336'@'localhost';
+# Running mysql_upgrade with --max-allowed-packet=2147483648..
+mysql.columns_priv                                 OK
+mysql.db                                           OK
+mysql.engine_cost                                  OK
+mysql.event                                        OK
+mysql.func                                         OK
+mysql.general_log                                  OK
+mysql.gtid_executed                                OK
+mysql.help_category                                OK
+mysql.help_keyword                                 OK
+mysql.help_relation                                OK
+mysql.help_topic                                   OK
+mysql.innodb_index_stats                           OK
+mysql.innodb_table_stats                           OK
+mysql.ndb_binlog_index                             OK
+mysql.plugin                                       OK
+mysql.proc                                         OK
+mysql.procs_priv                                   OK
+mysql.proxies_priv                                 OK
+mysql.server_cost                                  OK
+mysql.servers                                      OK
+mysql.slave_master_info                            OK
+mysql.slave_relay_log_info                         OK
+mysql.slave_worker_info                            OK
+mysql.slow_log                                     OK
+mysql.tables_priv                                  OK
+mysql.time_zone                                    OK
+mysql.time_zone_leap_second                        OK
+mysql.time_zone_name                               OK
+mysql.time_zone_transition                         OK
+mysql.time_zone_transition_type                    OK
+mysql.user                                         OK
+mtr.global_suppressions                            OK
+mtr.test_suppressions                              OK
+# Running mysql_upgrade with --max-allowed-packet=4095..
+mysql_upgrade: [Warning] option 'max_allowed_packet': unsigned value 4095 adjusted to 4096
+mysql.columns_priv                                 OK
+mysql.db                                           OK
+mysql.engine_cost                                  OK
+mysql.event                                        OK
+mysql.func                                         OK
+mysql.general_log                                  OK
+mysql.gtid_executed                                OK
+mysql.help_category                                OK
+mysql.help_keyword                                 OK
+mysql.help_relation                                OK
+mysql.help_topic                                   OK
+mysql.innodb_index_stats                           OK
+mysql.innodb_table_stats                           OK
+mysql.ndb_binlog_index                             OK
+mysql.plugin                                       OK
+mysql.proc                                         OK
+mysql.procs_priv                                   OK
+mysql.proxies_priv                                 OK
+mysql.server_cost                                  OK
+mysql.servers                                      OK
+mysql.slave_master_info                            OK
+mysql.slave_relay_log_info                         OK
+mysql.slave_worker_info                            OK
+mysql.slow_log                                     OK
+mysql.tables_priv                                  OK
+mysql.time_zone                                    OK
+mysql.time_zone_leap_second                        OK
+mysql.time_zone_name                               OK
+mysql.time_zone_transition                         OK
+mysql.time_zone_transition_type                    OK
+mysql.user                                         OK
+mtr.global_suppressions                            OK
+mtr.test_suppressions                              OK
+# Running mysql_upgrade with --max-allowed-packet=1000..
+mysql_upgrade: [Warning] option 'max_allowed_packet': unsigned value 1000 adjusted to 4096
+mysql.columns_priv                                 OK
+mysql.db                                           OK
+mysql.engine_cost                                  OK
+mysql.event                                        OK
+mysql.func                                         OK
+mysql.general_log                                  OK
+mysql.gtid_executed                                OK
+mysql.help_category                                OK
+mysql.help_keyword                                 OK
+mysql.help_relation                                OK
+mysql.help_topic                                   OK
+mysql.innodb_index_stats                           OK
+mysql.innodb_table_stats                           OK
+mysql.ndb_binlog_index                             OK
+mysql.plugin                                       OK
+mysql.proc                                         OK
+mysql.procs_priv                                   OK
+mysql.proxies_priv                                 OK
+mysql.server_cost                                  OK
+mysql.servers                                      OK
+mysql.slave_master_info                            OK
+mysql.slave_relay_log_info                         OK
+mysql.slave_worker_info                            OK
+mysql.slow_log                                     OK
+mysql.tables_priv                                  OK
+mysql.time_zone                                    OK
+mysql.time_zone_leap_second                        OK
+mysql.time_zone_name                               OK
+mysql.time_zone_transition                         OK
+mysql.time_zone_transition_type                    OK
+mysql.user                                         OK
+mtr.global_suppressions                            OK
+mtr.test_suppressions                              OK
+# Running mysql_upgrade with --max-allowed-packet=2147483649..
+mysql_upgrade: [Warning] option 'max_allowed_packet': unsigned value 2147483649 adjusted to 2147483648
+mysql.columns_priv                                 OK
+mysql.db                                           OK
+mysql.engine_cost                                  OK
+mysql.event                                        OK
+mysql.func                                         OK
+mysql.general_log                                  OK
+mysql.gtid_executed                                OK
+mysql.help_category                                OK
+mysql.help_keyword                                 OK
+mysql.help_relation                                OK
+mysql.help_topic                                   OK
+mysql.innodb_index_stats                           OK
+mysql.innodb_table_stats                           OK
+mysql.ndb_binlog_index                             OK
+mysql.plugin                                       OK
+mysql.proc                                         OK
+mysql.procs_priv                                   OK
+mysql.proxies_priv                                 OK
+mysql.server_cost                                  OK
+mysql.servers                                      OK
+mysql.slave_master_info                            OK
+mysql.slave_relay_log_info                         OK
+mysql.slave_worker_info                            OK
+mysql.slow_log                                     OK
+mysql.tables_priv                                  OK
+mysql.time_zone                                    OK
+mysql.time_zone_leap_second                        OK
+mysql.time_zone_name                               OK
+mysql.time_zone_transition                         OK
+mysql.time_zone_transition_type                    OK
+mysql.user                                         OK
+mtr.global_suppressions                            OK
+mtr.test_suppressions                              OK
+# Running mysql_upgrade with --max-allowed-packet=21474836480..
+mysql_upgrade: [Warning] option 'max_allowed_packet': unsigned value 2147484652 adjusted to 2147483648
+mysql.columns_priv                                 OK
+mysql.db                                           OK
+mysql.engine_cost                                  OK
+mysql.event                                        OK
+mysql.func                                         OK
+mysql.general_log                                  OK
+mysql.gtid_executed                                OK
+mysql.help_category                                OK
+mysql.help_keyword                                 OK
+mysql.help_relation                                OK
+mysql.help_topic                                   OK
+mysql.innodb_index_stats                           OK
+mysql.innodb_table_stats                           OK
+mysql.ndb_binlog_index                             OK
+mysql.plugin                                       OK
+mysql.proc                                         OK
+mysql.procs_priv                                   OK
+mysql.proxies_priv                                 OK
+mysql.server_cost                                  OK
+mysql.servers                                      OK
+mysql.slave_master_info                            OK
+mysql.slave_relay_log_info                         OK
+mysql.slave_worker_info                            OK
+mysql.slow_log                                     OK
+mysql.tables_priv                                  OK
+mysql.time_zone                                    OK
+mysql.time_zone_leap_second                        OK
+mysql.time_zone_name                               OK
+mysql.time_zone_transition                         OK
+mysql.time_zone_transition_type                    OK
+mysql.user                                         OK
+mtr.global_suppressions                            OK
+mtr.test_suppressions                              OK
+# Running mysql_upgrade with --net-buffer-length=4096..
+mysql.columns_priv                                 OK
+mysql.db                                           OK
+mysql.engine_cost                                  OK
+mysql.event                                        OK
+mysql.func                                         OK
+mysql.general_log                                  OK
+mysql.gtid_executed                                OK
+mysql.help_category                                OK
+mysql.help_keyword                                 OK
+mysql.help_relation                                OK
+mysql.help_topic                                   OK
+mysql.innodb_index_stats                           OK
+mysql.innodb_table_stats                           OK
+mysql.ndb_binlog_index                             OK
+mysql.plugin                                       OK
+mysql.proc                                         OK
+mysql.procs_priv                                   OK
+mysql.proxies_priv                                 OK
+mysql.server_cost                                  OK
+mysql.servers                                      OK
+mysql.slave_master_info                            OK
+mysql.slave_relay_log_info                         OK
+mysql.slave_worker_info                            OK
+mysql.slow_log                                     OK
+mysql.tables_priv                                  OK
+mysql.time_zone                                    OK
+mysql.time_zone_leap_second                        OK
+mysql.time_zone_name                               OK
+mysql.time_zone_transition                         OK
+mysql.time_zone_transition_type                    OK
+mysql.user                                         OK
+mtr.global_suppressions                            OK
+mtr.test_suppressions                              OK
+# Running mysql_upgrade with --net-buffer-length=16777216..
+mysql.columns_priv                                 OK
+mysql.db                                           OK
+mysql.engine_cost                                  OK
+mysql.event                                        OK
+mysql.func                                         OK
+mysql.general_log                                  OK
+mysql.gtid_executed                                OK
+mysql.help_category                                OK
+mysql.help_keyword                                 OK
+mysql.help_relation                                OK
+mysql.help_topic                                   OK
+mysql.innodb_index_stats                           OK
+mysql.innodb_table_stats                           OK
+mysql.ndb_binlog_index                             OK
+mysql.plugin                                       OK
+mysql.proc                                         OK
+mysql.procs_priv                                   OK
+mysql.proxies_priv                                 OK
+mysql.server_cost                                  OK
+mysql.servers                                      OK
+mysql.slave_master_info                            OK
+mysql.slave_relay_log_info                         OK
+mysql.slave_worker_info                            OK
+mysql.slow_log                                     OK
+mysql.tables_priv                                  OK
+mysql.time_zone                                    OK
+mysql.time_zone_leap_second                        OK
+mysql.time_zone_name                               OK
+mysql.time_zone_transition                         OK
+mysql.time_zone_transition_type                    OK
+mysql.user                                         OK
+mtr.global_suppressions                            OK
+mtr.test_suppressions                              OK
+# Running mysql_upgrade with --net-buffer-length=4095..
+mysql_upgrade: [Warning] option 'net_buffer_length': unsigned value 4095 adjusted to 4096
+mysql.columns_priv                                 OK
+mysql.db                                           OK
+mysql.engine_cost                                  OK
+mysql.event                                        OK
+mysql.func                                         OK
+mysql.general_log                                  OK
+mysql.gtid_executed                                OK
+mysql.help_category                                OK
+mysql.help_keyword                                 OK
+mysql.help_relation                                OK
+mysql.help_topic                                   OK
+mysql.innodb_index_stats                           OK
+mysql.innodb_table_stats                           OK
+mysql.ndb_binlog_index                             OK
+mysql.plugin                                       OK
+mysql.proc                                         OK
+mysql.procs_priv                                   OK
+mysql.proxies_priv                                 OK
+mysql.server_cost                                  OK
+mysql.servers                                      OK
+mysql.slave_master_info                            OK
+mysql.slave_relay_log_info                         OK
+mysql.slave_worker_info                            OK
+mysql.slow_log                                     OK
+mysql.tables_priv                                  OK
+mysql.time_zone                                    OK
+mysql.time_zone_leap_second                        OK
+mysql.time_zone_name                               OK
+mysql.time_zone_transition                         OK
+mysql.time_zone_transition_type                    OK
+mysql.user                                         OK
+mtr.global_suppressions                            OK
+mtr.test_suppressions                              OK
+# Running mysql_upgrade with --net-buffer-length=1024..
+mysql_upgrade: [Warning] option 'net_buffer_length': unsigned value 1024 adjusted to 4096
+mysql.columns_priv                                 OK
+mysql.db                                           OK
+mysql.engine_cost                                  OK
+mysql.event                                        OK
+mysql.func                                         OK
+mysql.general_log                                  OK
+mysql.gtid_executed                                OK
+mysql.help_category                                OK
+mysql.help_keyword                                 OK
+mysql.help_relation                                OK
+mysql.help_topic                                   OK
+mysql.innodb_index_stats                           OK
+mysql.innodb_table_stats                           OK
+mysql.ndb_binlog_index                             OK
+mysql.plugin                                       OK
+mysql.proc                                         OK
+mysql.procs_priv                                   OK
+mysql.proxies_priv                                 OK
+mysql.server_cost                                  OK
+mysql.servers                                      OK
+mysql.slave_master_info                            OK
+mysql.slave_relay_log_info                         OK
+mysql.slave_worker_info                            OK
+mysql.slow_log                                     OK
+mysql.tables_priv                                  OK
+mysql.time_zone                                    OK
+mysql.time_zone_leap_second                        OK
+mysql.time_zone_name                               OK
+mysql.time_zone_transition                         OK
+mysql.time_zone_transition_type                    OK
+mysql.user                                         OK
+mtr.global_suppressions                            OK
+mtr.test_suppressions                              OK
+# Running mysql_upgrade with --net-buffer-length=16777217..
+mysql_upgrade: [Warning] option 'net_buffer_length': unsigned value 16777217 adjusted to 16777216
+mysql.columns_priv                                 OK
+mysql.db                                           OK
+mysql.engine_cost                                  OK
+mysql.event                                        OK
+mysql.func                                         OK
+mysql.general_log                                  OK
+mysql.gtid_executed                                OK
+mysql.help_category                                OK
+mysql.help_keyword                                 OK
+mysql.help_relation                                OK
+mysql.help_topic                                   OK
+mysql.innodb_index_stats                           OK
+mysql.innodb_table_stats                           OK
+mysql.ndb_binlog_index                             OK
+mysql.plugin                                       OK
+mysql.proc                                         OK
+mysql.procs_priv                                   OK
+mysql.proxies_priv                                 OK
+mysql.server_cost                                  OK
+mysql.servers                                      OK
+mysql.slave_master_info                            OK
+mysql.slave_relay_log_info                         OK
+mysql.slave_worker_info                            OK
+mysql.slow_log                                     OK
+mysql.tables_priv                                  OK
+mysql.time_zone                                    OK
+mysql.time_zone_leap_second                        OK
+mysql.time_zone_name                               OK
+mysql.time_zone_transition                         OK
+mysql.time_zone_transition_type                    OK
+mysql.user                                         OK
+mtr.global_suppressions                            OK
+mtr.test_suppressions                              OK
+# Running mysql_upgrade with --net-buffer-length=167772160..
+mysql_upgrade: [Warning] option 'net_buffer_length': unsigned value 167772160 adjusted to 16777216
+mysql.columns_priv                                 OK
+mysql.db                                           OK
+mysql.engine_cost                                  OK
+mysql.event                                        OK
+mysql.func                                         OK
+mysql.general_log                                  OK
+mysql.gtid_executed                                OK
+mysql.help_category                                OK
+mysql.help_keyword                                 OK
+mysql.help_relation                                OK
+mysql.help_topic                                   OK
+mysql.innodb_index_stats                           OK
+mysql.innodb_table_stats                           OK
+mysql.ndb_binlog_index                             OK
+mysql.plugin                                       OK
+mysql.proc                                         OK
+mysql.procs_priv                                   OK
+mysql.proxies_priv                                 OK
+mysql.server_cost                                  OK
+mysql.servers                                      OK
+mysql.slave_master_info                            OK
+mysql.slave_relay_log_info                         OK
+mysql.slave_worker_info                            OK
+mysql.slow_log                                     OK
+mysql.tables_priv                                  OK
+mysql.time_zone                                    OK
+mysql.time_zone_leap_second                        OK
+mysql.time_zone_name                               OK
+mysql.time_zone_transition                         OK
+mysql.time_zone_transition_type                    OK
+mysql.user                                         OK
+mtr.global_suppressions                            OK
+mtr.test_suppressions                              OK
+# Running mysql_upgrade with --bind-address..
+mysql.columns_priv                                 OK
+mysql.db                                           OK
+mysql.engine_cost                                  OK
+mysql.event                                        OK
+mysql.func                                         OK
+mysql.general_log                                  OK
+mysql.gtid_executed                                OK
+mysql.help_category                                OK
+mysql.help_keyword                                 OK
+mysql.help_relation                                OK
+mysql.help_topic                                   OK
+mysql.innodb_index_stats                           OK
+mysql.innodb_table_stats                           OK
+mysql.ndb_binlog_index                             OK
+mysql.plugin                                       OK
+mysql.proc                                         OK
+mysql.procs_priv                                   OK
+mysql.proxies_priv                                 OK
+mysql.server_cost                                  OK
+mysql.servers                                      OK
+mysql.slave_master_info                            OK
+mysql.slave_relay_log_info                         OK
+mysql.slave_worker_info                            OK
+mysql.slow_log                                     OK
+mysql.tables_priv                                  OK
+mysql.time_zone                                    OK
+mysql.time_zone_leap_second                        OK
+mysql.time_zone_name                               OK
+mysql.time_zone_transition                         OK
+mysql.time_zone_transition_type                    OK
+mysql.user                                         OK
+mtr.global_suppressions                            OK
+mtr.test_suppressions                              OK
+# Running mysql_upgrade with -C option..
+mysql.columns_priv                                 OK
+mysql.db                                           OK
+mysql.engine_cost                                  OK
+mysql.event                                        OK
+mysql.func                                         OK
+mysql.general_log                                  OK
+mysql.gtid_executed                                OK
+mysql.help_category                                OK
+mysql.help_keyword                                 OK
+mysql.help_relation                                OK
+mysql.help_topic                                   OK
+mysql.innodb_index_stats                           OK
+mysql.innodb_table_stats                           OK
+mysql.ndb_binlog_index                             OK
+mysql.plugin                                       OK
+mysql.proc                                         OK
+mysql.procs_priv                                   OK
+mysql.proxies_priv                                 OK
+mysql.server_cost                                  OK
+mysql.servers                                      OK
+mysql.slave_master_info                            OK
+mysql.slave_relay_log_info                         OK
+mysql.slave_worker_info                            OK
+mysql.slow_log                                     OK
+mysql.tables_priv                                  OK
+mysql.time_zone                                    OK
+mysql.time_zone_leap_second                        OK
+mysql.time_zone_name                               OK
+mysql.time_zone_transition                         OK
+mysql.time_zone_transition_type                    OK
+mysql.user                                         OK
+mtr.global_suppressions                            OK
+mtr.test_suppressions                              OK
+# Running mysql_upgrade with --compress..
+mysql.columns_priv                                 OK
+mysql.db                                           OK
+mysql.engine_cost                                  OK
+mysql.event                                        OK
+mysql.func                                         OK
+mysql.general_log                                  OK
+mysql.gtid_executed                                OK
+mysql.help_category                                OK
+mysql.help_keyword                                 OK
+mysql.help_relation                                OK
+mysql.help_topic                                   OK
+mysql.innodb_index_stats                           OK
+mysql.innodb_table_stats                           OK
+mysql.ndb_binlog_index                             OK
+mysql.plugin                                       OK
+mysql.proc                                         OK
+mysql.procs_priv                                   OK
+mysql.proxies_priv                                 OK
+mysql.server_cost                                  OK
+mysql.servers                                      OK
+mysql.slave_master_info                            OK
+mysql.slave_relay_log_info                         OK
+mysql.slave_worker_info                            OK
+mysql.slow_log                                     OK
+mysql.tables_priv                                  OK
+mysql.time_zone                                    OK
+mysql.time_zone_leap_second                        OK
+mysql.time_zone_name                               OK
+mysql.time_zone_transition                         OK
+mysql.time_zone_transition_type                    OK
+mysql.user                                         OK
+mtr.global_suppressions                            OK
+mtr.test_suppressions                              OK
+# Running mysql_upgrade with --verbose..
+Checking server version.
+Checking system database.
+mysql.columns_priv                                 OK
+mysql.db                                           OK
+mysql.engine_cost                                  OK
+mysql.event                                        OK
+mysql.func                                         OK
+mysql.general_log                                  OK
+mysql.gtid_executed                                OK
+mysql.help_category                                OK
+mysql.help_keyword                                 OK
+mysql.help_relation                                OK
+mysql.help_topic                                   OK
+mysql.innodb_index_stats                           OK
+mysql.innodb_table_stats                           OK
+mysql.ndb_binlog_index                             OK
+mysql.plugin                                       OK
+mysql.proc                                         OK
+mysql.procs_priv                                   OK
+mysql.proxies_priv                                 OK
+mysql.server_cost                                  OK
+mysql.servers                                      OK
+mysql.slave_master_info                            OK
+mysql.slave_relay_log_info                         OK
+mysql.slave_worker_info                            OK
+mysql.slow_log                                     OK
+mysql.tables_priv                                  OK
+mysql.time_zone                                    OK
+mysql.time_zone_leap_second                        OK
+mysql.time_zone_name                               OK
+mysql.time_zone_transition                         OK
+mysql.time_zone_transition_type                    OK
+mysql.user                                         OK
+Running queries to upgrade MySQL server.
+Checking databases.
+mtr.global_suppressions                            OK
+mtr.test_suppressions                              OK
+Upgrade process completed successfully.
+Checking if update is needed.
+# Running mysql_upgrade with --protocol..
+mysql.columns_priv                                 OK
+mysql.db                                           OK
+mysql.engine_cost                                  OK
+mysql.event                                        OK
+mysql.func                                         OK
+mysql.general_log                                  OK
+mysql.gtid_executed                                OK
+mysql.help_category                                OK
+mysql.help_keyword                                 OK
+mysql.help_relation                                OK
+mysql.help_topic                                   OK
+mysql.innodb_index_stats                           OK
+mysql.innodb_table_stats                           OK
+mysql.ndb_binlog_index                             OK
+mysql.plugin                                       OK
+mysql.proc                                         OK
+mysql.procs_priv                                   OK
+mysql.proxies_priv                                 OK
+mysql.server_cost                                  OK
+mysql.servers                                      OK
+mysql.slave_master_info                            OK
+mysql.slave_relay_log_info                         OK
+mysql.slave_worker_info                            OK
+mysql.slow_log                                     OK
+mysql.tables_priv                                  OK
+mysql.time_zone                                    OK
+mysql.time_zone_leap_second                        OK
+mysql.time_zone_name                               OK
+mysql.time_zone_transition                         OK
+mysql.time_zone_transition_type                    OK
+mysql.user                                         OK
+mtr.global_suppressions                            OK
+mtr.test_suppressions                              OK
+# Test positional arguments
+mysql.columns_priv                                 OK
+mysql.db                                           OK
+mysql.engine_cost                                  OK
+mysql.event                                        OK
+mysql.func                                         OK
+mysql.general_log                                  OK
+mysql.gtid_executed                                OK
+mysql.help_category                                OK
+mysql.help_keyword                                 OK
+mysql.help_relation                                OK
+mysql.help_topic                                   OK
+mysql.innodb_index_stats                           OK
+mysql.innodb_table_stats                           OK
+mysql.ndb_binlog_index                             OK
+mysql.plugin                                       OK
+mysql.proc                                         OK
+mysql.procs_priv                                   OK
+mysql.proxies_priv                                 OK
+mysql.server_cost                                  OK
+mysql.servers                                      OK
+mysql.slave_master_info                            OK
+mysql.slave_relay_log_info                         OK
+mysql.slave_worker_info                            OK
+mysql.slow_log                                     OK
+mysql.tables_priv                                  OK
+mysql.time_zone                                    OK
+mysql.time_zone_leap_second                        OK
+mysql.time_zone_name                               OK
+mysql.time_zone_transition                         OK
+mysql.time_zone_transition_type                    OK
+mysql.user                                         OK
+mtr.global_suppressions                            OK
+mtr.test_suppressions                              OK
 #
 # WL#7010: Remove unused --basedir and --datadir options
 #   from mysql_upgrade
 #
 Run mysql_upgrade with --datadir : should fail
 mysql_upgrade: [ERROR] unknown variable 'datadir=somedir'
+Upgrade process encountered error and will not continue.
 Run mysql_upgrade with --basedir : should fail
 mysql_upgrade: [ERROR] unknown variable 'basedir=somedir'
+Upgrade process encountered error and will not continue.
+# Running mysql_upgrade with invalid/incorrect options
+mysql_upgrade: [ERROR] mysql_upgrade: unknown option '-c'
+Upgrade process encountered error and will not continue.
+mysql_upgrade: [ERROR] mysql_upgrade: unknown option '-t'
+Upgrade process encountered error and will not continue.
+Unknown option to protocol: AAA
+Alternatives are: 'TCP','SOCKET','PIPE','MEMORY'
 
 End of tests

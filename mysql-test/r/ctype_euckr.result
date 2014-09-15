@@ -55,7 +55,7 @@ want1result
 location
 DROP TABLE t1;
 create table t1 (a set('a') not null);
-insert into t1 values (),();
+insert ignore into t1 values (),();
 Warnings:
 Warning	1364	Field 'a' doesn't have a default value
 select cast(a as char(1)) from t1;
@@ -156,9 +156,9 @@ F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F225
 3 rows expected
 SELECT a, hex(b), c FROM t1 WHERE b LIKE concat(repeat(0xF1F2,10), '%');
 a	hex(b)	c
-2	F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2	
-3	F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2	
-4	F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2	
+2	F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2	NULL
+3	F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2	NULL
+4	F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2	NULL
 DROP TABLE t1;
 SET collation_connection='euckr_bin';
 create table t1 select repeat('a',4000) a;
@@ -223,9 +223,9 @@ F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F225
 3 rows expected
 SELECT a, hex(b), c FROM t1 WHERE b LIKE concat(repeat(0xF1F2,10), '%');
 a	hex(b)	c
-2	F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2	
-3	F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2	
-4	F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2	
+2	F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2	NULL
+3	F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2	NULL
+4	F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2	NULL
 DROP TABLE t1;
 SET NAMES euckr;
 CREATE TABLE t1 (a text) character set euckr;
@@ -235,6 +235,7 @@ hex(a)
 A2E6
 FEF7
 DROP TABLE t1;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 create table t1 (s1 varchar(5) character set euckr);
 insert into t1 values (0xA141);
 insert into t1 values (0xA15A);
@@ -275,6 +276,7 @@ A17A	ECA3A5
 A181	ECA3A6
 A1FE	EFBFA2
 drop table t1;
+SET sql_mode = default;
 End of 5.0 tests
 Start of 5.4 tests
 #
@@ -292,6 +294,7 @@ DROP TABLE t1;
 # WL#3332 Korean Enhancements
 # euckr valid codes are now [81..FE][41..5A,61..7A,81..FE]
 #
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 CREATE TABLE t1 (a binary(1), key(a));
 CREATE TABLE t2 (s VARCHAR(4), a VARCHAR(1) CHARACTER SET euckr);
 INSERT INTO t2
@@ -24254,6 +24257,7 @@ FDFC	FDFC	E7A880	FDFC
 FDFD	FDFD	E7BEB2	FDFD
 FDFE	FDFE	E8A9B0	FDFE
 DROP TABLE t1, t2;
+SET sql_mode = default;
 End of 5.4 tests
 #
 # Start of 5.5 tests
@@ -24261,6 +24265,7 @@ End of 5.4 tests
 #
 # Testing WL#4583 Case conversion in Asian character sets 
 #
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 SET NAMES utf8;
 SET collation_connection=euckr_korean_ci;
 CREATE TABLE t1 (b VARCHAR(2));
@@ -24599,6 +24604,7 @@ A8E5	ⓨ
 A8E6	ⓩ
 A9A2	đ
 DROP TABLE t1;
+SET sql_mode = default;
 #
 # End of 5.5 tests
 #
@@ -25013,6 +25019,10 @@ NULL
 SELECT inet6_aton(soundex('a'));
 inet6_aton(soundex('a'))
 NULL
+#
+# Bug#19047425 UNINITIALISED VALUE IN STR_TO_IPV6
+#
+do is_ipv4_mapped(inet6_aton(convert(_ascii "a:" using euckr)));
 #
 # End of 5.6 tests
 #

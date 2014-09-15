@@ -855,7 +855,7 @@ col_varchar_nokey VARCHAR(1),
 PRIMARY KEY (pk),
 KEY (col_varchar_key,col_int_key)
 ) ENGINE=MYISAM;
-INSERT INTO t4 (
+INSERT IGNORE INTO t4 (
 col_int_key,col_int_nokey,
 col_date_key,col_date_nokey,
 col_time_key,col_time_nokey,
@@ -1003,7 +1003,7 @@ field4,field5,field6	{
             } /* join_preparation */
           },
           {
-            "expanded_query": "/* select#1 */ select distinct `alias1`.`col_varchar_key` AS `field1`,`alias1`.`col_date_key` AS `field2`,(/* select#2 */ select min(`sq1_alias1`.`col_varchar_nokey`) AS `sq1_field1` from `t1` `sq1_alias1` join `t5` `sq1_alias2` join `t5` `sq1_alias3` where (exists(/* select#3 */ select `c_sq1_alias2`.`col_int_nokey` AS `c_sq1_field1` from `t4` `c_sq1_alias2` left join `t3` `c_sq1_alias1` on((`c_sq1_alias2`.`col_int_nokey` = `c_sq1_alias1`.`pk`)) where (`c_sq1_alias2`.`col_varchar_key` = `sq1_alias2`.`col_varchar_nokey`)) and (`sq1_alias3`.`col_varchar_nokey` = `sq1_alias2`.`col_varchar_key`) and (`sq1_alias3`.`col_varchar_nokey` = `sq1_alias2`.`col_varchar_key`))) AS `field3`,(/* select#4 */ select max(`sq2_alias1`.`pk`) AS `sq2_field1` from `t5` `sq2_alias1`) AS `field4`,`alias2`.`col_varchar_nokey` AS `field5`,`alias2`.`col_varchar_nokey` AS `field6` from `t4` `alias3` join ((/* select#5 */ select `sq3_alias2`.`pk` AS `pk`,`sq3_alias2`.`col_int_nokey` AS `col_int_nokey`,`sq3_alias2`.`col_int_key` AS `col_int_key`,`sq3_alias2`.`col_date_key` AS `col_date_key`,`sq3_alias2`.`col_date_nokey` AS `col_date_nokey`,`sq3_alias2`.`col_time_key` AS `col_time_key`,`sq3_alias2`.`col_time_nokey` AS `col_time_nokey`,`sq3_alias2`.`col_datetime_key` AS `col_datetime_key`,`sq3_alias2`.`col_datetime_nokey` AS `col_datetime_nokey`,`sq3_alias2`.`col_varchar_key` AS `col_varchar_key`,`sq3_alias2`.`col_varchar_nokey` AS `col_varchar_nokey` from `t5` `sq3_alias1` join `t4` `sq3_alias2`)) `alias2` join `t5` `alias1` where (<in_optimizer>(`alias1`.`col_varchar_nokey`,<exists>(/* select#6 */ select `sq4_alias1`.`col_varchar_key` AS `sq4_field1` from `t3` `sq4_alias1` join `t3` `sq4_alias3` join `t2` `sq4_alias2` where ((`sq4_alias2`.`col_int_key` < `alias1`.`col_int_nokey`) and (`sq4_alias3`.`col_varchar_nokey` <> `alias1`.`col_varchar_key`) and (<cache>(`alias1`.`col_varchar_nokey`) = `sq4_alias1`.`col_varchar_key`) and (`sq4_alias3`.`col_varchar_nokey` = `sq4_alias2`.`col_varchar_key`) and (`sq4_alias3`.`pk` = `sq4_alias2`.`col_int_key`)))) and (`alias1`.`col_int_key` <> 214) and (`alias3`.`col_int_key` = `alias2`.`pk`) and (`alias3`.`col_varchar_key` = `alias2`.`col_varchar_key`)) group by `field1`,`field2`,`field3`,`field4`,`field5`,`field6`"
+            "expanded_query": "/* select#1 */ select `alias1`.`col_varchar_key` AS `field1`,`alias1`.`col_date_key` AS `field2`,(/* select#2 */ select min(`sq1_alias1`.`col_varchar_nokey`) AS `sq1_field1` from `t1` `sq1_alias1` join `t5` `sq1_alias2` join `t5` `sq1_alias3` where (exists(/* select#3 */ select `c_sq1_alias2`.`col_int_nokey` AS `c_sq1_field1` from `t4` `c_sq1_alias2` left join `t3` `c_sq1_alias1` on((`c_sq1_alias2`.`col_int_nokey` = `c_sq1_alias1`.`pk`)) where (`c_sq1_alias2`.`col_varchar_key` = `sq1_alias2`.`col_varchar_nokey`)) and (`sq1_alias3`.`col_varchar_nokey` = `sq1_alias2`.`col_varchar_key`) and (`sq1_alias3`.`col_varchar_nokey` = `sq1_alias2`.`col_varchar_key`))) AS `field3`,(/* select#4 */ select max(`sq2_alias1`.`pk`) AS `sq2_field1` from `t5` `sq2_alias1`) AS `field4`,`alias2`.`col_varchar_nokey` AS `field5`,`alias2`.`col_varchar_nokey` AS `field6` from `t4` `alias3` join ((/* select#5 */ select `sq3_alias2`.`pk` AS `pk`,`sq3_alias2`.`col_int_nokey` AS `col_int_nokey`,`sq3_alias2`.`col_int_key` AS `col_int_key`,`sq3_alias2`.`col_date_key` AS `col_date_key`,`sq3_alias2`.`col_date_nokey` AS `col_date_nokey`,`sq3_alias2`.`col_time_key` AS `col_time_key`,`sq3_alias2`.`col_time_nokey` AS `col_time_nokey`,`sq3_alias2`.`col_datetime_key` AS `col_datetime_key`,`sq3_alias2`.`col_datetime_nokey` AS `col_datetime_nokey`,`sq3_alias2`.`col_varchar_key` AS `col_varchar_key`,`sq3_alias2`.`col_varchar_nokey` AS `col_varchar_nokey` from `t5` `sq3_alias1` join `t4` `sq3_alias2`)) `alias2` join `t5` `alias1` where (<in_optimizer>(`alias1`.`col_varchar_nokey`,<exists>(/* select#6 */ select `sq4_alias1`.`col_varchar_key` AS `sq4_field1` from `t3` `sq4_alias1` join `t3` `sq4_alias3` join `t2` `sq4_alias2` where ((`sq4_alias2`.`col_int_key` < `alias1`.`col_int_nokey`) and (`sq4_alias3`.`col_varchar_nokey` <> `alias1`.`col_varchar_key`) and (<cache>(`alias1`.`col_varchar_nokey`) = `sq4_alias1`.`col_varchar_key`) and (`sq4_alias3`.`col_varchar_nokey` = `sq4_alias2`.`col_varchar_key`) and (`sq4_alias3`.`pk` = `sq4_alias2`.`col_int_key`)))) and (`alias1`.`col_int_key` <> 214) and (`alias3`.`col_int_key` = `alias2`.`pk`) and (`alias3`.`col_varchar_key` = `alias2`.`col_varchar_key`)) group by `field1`,`field2`,`field3`,`field4`,`field5`,`field6`"
           }
         ] /* steps */
       } /* join_preparation */
@@ -1664,7 +1664,10 @@ field4,field5,field6	{
                 "table": " `alias2`"
               },
               {
-                "table": "`t5` `alias1`"
+                "table": "`t5` `alias1`",
+                "unknown_key_1": {
+                  "constant_condition_in_bnl": "(<in_optimizer>(`alias1`.`col_varchar_nokey`,<exists>(/* select#6 */ select `sq4_alias1`.`col_varchar_key` AS `sq4_field1` from `t3` `sq4_alias1` join `t3` `sq4_alias3` join `t2` `sq4_alias2` where ((`sq4_alias2`.`col_int_key` < `alias1`.`col_int_nokey`) and (`sq4_alias3`.`col_varchar_nokey` <> `alias1`.`col_varchar_key`) and (<cache>(`alias1`.`col_varchar_nokey`) = `sq4_alias1`.`col_varchar_key`) and (`sq4_alias3`.`col_varchar_nokey` = `sq4_alias2`.`col_varchar_key`) and (`sq4_alias3`.`pk` = `sq4_alias2`.`col_int_key`)))) and (`alias1`.`col_int_key` <> 214))"
+                }
               }
             ] /* refine_plan */
           }
@@ -2410,7 +2413,10 @@ table2.`col_int_nokey` <> any ( select 5 from t2 ) ) and table1.`pk` in
                 "table_condition_attached": null
               },
               {
-                "table": "`t1` `table2`"
+                "table": "`t1` `table2`",
+                "unknown_key_1": {
+                  "constant_condition_in_bnl": "<nop>(<in_optimizer>(`table2`.`col_int_nokey`,<exists>(/* select#3 */ select 5 from `t2` where <if>(outer_field_is_not_null, (<cache>(`table2`.`col_int_nokey`) <> 5), true))))"
+                }
               }
             ] /* refine_plan */
           }

@@ -2211,11 +2211,23 @@ int decimal_mul(const decimal_t *from1, const decimal_t *from2, decimal_t *to)
 static int do_div_mod(const decimal_t *from1, const decimal_t *from2,
                       decimal_t *to, decimal_t *mod, int scale_incr)
 {
+
+  /*
+    frac* - number of digits in fractional part of the number
+    prec* - precision of the number
+    intg* - number of digits in the integer part
+    buf* - buffer having the actual number
+    All variables ending with 0 - like frac0, intg0 etc are
+    for the final result. Similarly frac1, intg1 etc are for
+    the first number and frac2, intg2 etc are for the second number
+   */
   int frac1=ROUND_UP(from1->frac)*DIG_PER_DEC1, prec1=from1->intg+frac1,
       frac2=ROUND_UP(from2->frac)*DIG_PER_DEC1, prec2=from2->intg+frac2,
-      error= 0, i, intg0, frac0, len1, len2, dintg, div_mod=(!mod);
-  dec1 *buf0, *buf1=from1->buf, *buf2=from2->buf, *tmp1,
-       *start2, *stop2, *stop1, *stop0, norm2, carry, *start1, dcarry;
+      error= 0, i, intg0, frac0, len1, len2,
+      dintg, /* Holds the estimate of number of integer digits in final result */
+      div_mod=(!mod) /*true if this is division */;
+  dec1 *buf0, *buf1=from1->buf, *buf2=from2->buf, *start1, *stop1,
+       *start2, *stop2, *stop0 ,norm2, carry, dcarry, *tmp1;
   dec2 norm_factor, x, guess, y;
 
   if (mod)
@@ -2223,7 +2235,10 @@ static int do_div_mod(const decimal_t *from1, const decimal_t *from2,
 
   sanity(to);
 
-  /* removing all the leading zeroes */
+  /*
+    removing all the leading zeroes in the second number. Leading zeroes are
+    added later to the result.
+   */
   i= ((prec2 - 1) % DIG_PER_DEC1) + 1;
   while (prec2 > 0 && *buf2 == 0)
   {
@@ -2233,8 +2248,19 @@ static int do_div_mod(const decimal_t *from1, const decimal_t *from2,
   }
   if (prec2 <= 0) /* short-circuit everything: from2 == 0 */
     return E_DEC_DIV_ZERO;
+
+  /*
+    Remove the remanining zeroes . For ex: for 0.000000000001
+    the above while loop removes 9 zeroes and the result will have 0.0001
+    these remaining zeroes are removed here
+   */
   for (i= (prec2 - 1) % DIG_PER_DEC1; *buf2 < powers10[i--]; prec2--) ;
   DBUG_ASSERT(prec2 > 0);
+
+  /*
+   Do the same for the first number. Remove the leading zeroes.
+   Check if the number is actually 0. Then remove the remaining zeroes.
+   */
 
   i=((prec1-1) % DIG_PER_DEC1)+1;
   while (prec1 > 0 && *buf1 == 0)
@@ -2255,6 +2281,7 @@ static int do_div_mod(const decimal_t *from1, const decimal_t *from2,
   if ((scale_incr-= frac1 - from1->frac + frac2 - from2->frac) < 0)
     scale_incr=0;
 
+  /* Calculate the integer digits in final result */
   dintg=(prec1-frac1)-(prec2-frac2)+(*buf1 >= *buf2);
   if (dintg < 0)
   {
@@ -2399,13 +2426,23 @@ static int do_div_mod(const decimal_t *from1, const decimal_t *from2,
   {
     /*
       now the result is in tmp1, it has
-        intg=prec1-frac1
-        frac=max(frac1, frac2)=to->frac
-    */
+      intg=prec1-frac1  if there were no leading zeroes.
+                        If leading zeroes were present, they have been removed
+                        earlier. We need to now add them back to the result.
+      frac=max(frac1, frac2)=to->frac
+     */
     if (dcarry)
       *--start1=dcarry;
     buf0=to->buf;
-    intg0=(int) (ROUND_UP(prec1-frac1)-(start1-tmp1));
+    /* Calculate the final result's integer digits */
+    dintg= (prec1 - frac1) - ((start1 - tmp1) * DIG_PER_DEC1);
+    if (dintg < 0)
+    {
+      /* If leading zeroes in the fractional part were earlier stripped */
+      intg0= dintg / DIG_PER_DEC1;
+    }
+    else
+      intg0= ROUND_UP(dintg);
     frac0=ROUND_UP(to->frac);
     error=E_DEC_OK;
     if (unlikely(frac0==0 && intg0==0))
@@ -2415,13 +2452,14 @@ static int do_div_mod(const decimal_t *from1, const decimal_t *from2,
     }
     if (intg0<=0)
     {
+      /* Add back the leading zeroes that were earlier stripped */
       if (unlikely(-intg0 >= to->len))
       {
         decimal_make_zero(to);
         error=E_DEC_TRUNCATED;
         goto done;
       }
-      stop1=start1+frac0;
+      stop1= start1 + frac0 + intg0;
       frac0+=intg0;
       to->intg=0;
       while (intg0++ < 0)

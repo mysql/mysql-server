@@ -609,6 +609,7 @@ Field	Type	Null	Key	Default	Extra
 col1	char(2)	YES		NULL	
 drop view v1;
 drop table `t1a``b`;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 create table t1 (col1 char(5),col2 char(5));
 create view v1 as select * from t1;
 drop table t1;
@@ -619,6 +620,7 @@ drop table t1;
 select * from v1;
 ERROR HY000: View 'test.v1' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
 drop view v1;
+SET sql_mode = default;
 create view v1 (a,a) as select 'a','a';
 ERROR 42S21: Duplicate column name 'a'
 create table t1 (col1 int,col2 char(22));
@@ -1306,6 +1308,7 @@ s1
 3
 drop view v1;
 drop table t1;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 create table t1 (s1 tinyint);
 create trigger t1_bi before insert on t1 for each row set new.s1 = 500;
 create view v1 as select * from t1 where s1 <> 127 with check option;
@@ -1318,6 +1321,7 @@ s1
 drop trigger t1_bi;
 drop view v1;
 drop table t1;
+SET sql_mode = default;
 create table t1 (s1 tinyint);
 create view v1 as select * from t1 where s1 <> 0;
 create view v2 as select * from v1 where s1 <> 1 with cascaded check option;
@@ -2802,7 +2806,7 @@ DROP VIEW v1;
 DROP TABLE t1,t2;
 CREATE TABLE t1 (a INT NOT NULL, b INT NULL DEFAULT NULL);
 CREATE VIEW v1 AS SELECT a, b FROM t1;
-INSERT INTO v1 (b) VALUES (2);
+INSERT IGNORE INTO v1 (b) VALUES (2);
 Warnings:
 Warning	1423	Field of view 'test.v1' underlying table doesn't have a default value
 SET SQL_MODE = STRICT_ALL_TABLES;
@@ -3771,6 +3775,7 @@ CREATE TABLE t1(a INT UNIQUE);
 CREATE VIEW v1 AS SELECT t1.a FROM t1, t1 AS a;
 INSERT INTO t1 VALUES (1), (2);
 REPLACE INTO v1(a) SELECT 1 FROM t1,t1 AS c;
+ERROR HY000: Can not delete from join view 'test.v1'
 SELECT * FROM v1;
 a
 1
@@ -3778,17 +3783,13 @@ a
 1
 2
 REPLACE INTO v1(a) SELECT 3 FROM t1,t1 AS c;
+ERROR HY000: Can not delete from join view 'test.v1'
 SELECT * FROM v1;
 a
 1
 2
-3
 1
 2
-3
-1
-2
-3
 DELETE FROM t1 WHERE a=3;
 INSERT INTO v1(a) SELECT 1 FROM t1,t1 AS c
 ON DUPLICATE KEY UPDATE `v1`.`a`= 1;
@@ -3800,6 +3801,7 @@ a
 2
 CREATE VIEW v2 AS SELECT t1.a FROM t1, v1 AS a;
 REPLACE INTO v2(a) SELECT 1 FROM t1,t1 AS c;
+ERROR HY000: Can not delete from join view 'test.v2'
 SELECT * FROM v2;
 a
 1
@@ -3811,66 +3813,29 @@ a
 1
 2
 REPLACE INTO v2(a) SELECT 3 FROM t1,t1 AS c;
+ERROR HY000: Can not delete from join view 'test.v2'
 SELECT * FROM v2;
 a
 1
 2
-3
 1
 2
-3
 1
 2
-3
 1
 2
-3
-1
-2
-3
-1
-2
-3
-1
-2
-3
-1
-2
-3
-1
-2
-3
 INSERT INTO v2(a) SELECT 1 FROM t1,t1 AS c
 ON DUPLICATE KEY UPDATE `v2`.`a`= 1;
 SELECT * FROM v2;
 a
 1
 2
-3
 1
 2
-3
 1
 2
-3
 1
 2
-3
-1
-2
-3
-1
-2
-3
-1
-2
-3
-1
-2
-3
-1
-2
-3
 DROP VIEW v1;
 DROP VIEW v2;
 DROP TABLE t1;

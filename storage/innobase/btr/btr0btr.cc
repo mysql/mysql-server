@@ -45,12 +45,12 @@ Created 6/2/1994 Heikki Tuuri
 #include "trx0trx.h"
 #include "srv0mon.h"
 #include "gis0geo.h"
+#include "ut0new.h"
 
 /**************************************************************//**
 Checks if the page in the cursor can be merged with given page.
 If necessary, re-organize the merge_page.
 @return	true if possible to merge. */
-
 bool
 btr_can_merge_with_page(
 /*====================*/
@@ -63,19 +63,17 @@ btr_can_merge_with_page(
 
 /**************************************************************//**
 Report that an index page is corrupted. */
-
 void
 btr_corruption_report(
 /*==================*/
 	const buf_block_t*	block,	/*!< in: corrupted block */
 	const dict_index_t*	index)	/*!< in: index tree */
 {
-	ib_logf(IB_LOG_LEVEL_ERROR,
-		"Flag mismatch in space " UINT32PF " page " UINT32PF
-		" index %s of table %s",
-		block->page.id.space(),
-		block->page.id.page_no(),
-		index->name, index->table_name);
+	ib::error()
+		<< "Flag mismatch in page " << block->page.id
+		<< " index " << ut_get_name(NULL, FALSE, index->name)
+		<< " of table " << ut_get_name(NULL, TRUE, index->table_name);
+
 	if (block->page.size.is_compressed()) {
 		ut_ad(block->page.zip.data != NULL);
 		buf_page_print(block->page.zip.data,
@@ -164,7 +162,6 @@ btr_root_fseg_validate(
 /**************************************************************//**
 Gets the root node of a tree and x- or s-latches it.
 @return root page, x- or s-latched */
-
 buf_block_t*
 btr_root_block_get(
 /*===============*/
@@ -198,7 +195,6 @@ btr_root_block_get(
 /**************************************************************//**
 Gets the root node of a tree and sx-latches it for segment access.
 @return root page, sx-latched */
-
 page_t*
 btr_root_get(
 /*=========*/
@@ -217,7 +213,6 @@ Gets the height of the B-tree (the level of the root, when the leaf
 level is assumed to be 0). The caller must hold an S or X latch on
 the index.
 @return tree height (level of the root) */
-
 ulint
 btr_height_get(
 /*===========*/
@@ -285,7 +280,6 @@ btr_root_fseg_adjust_on_import(
 /**************************************************************//**
 Checks and adjusts the root node of a tree during IMPORT TABLESPACE.
 @return error code, or DB_SUCCESS */
-
 dberr_t
 btr_root_adjust_on_import(
 /*======================*/
@@ -313,10 +307,10 @@ btr_root_adjust_on_import(
 	page = buf_block_get_frame(block);
 	page_zip = buf_block_get_page_zip(block);
 
-	/* Check that this is a B-tree page and both the PREV and NEXT
-	pointers are FIL_NULL, because the root page does not have any
-	siblings. */
-	if (fil_page_get_type(page) != FIL_PAGE_INDEX
+	/* Check that this is a B-tree or R-tree page and both the PREV
+	and NEXT pointers are FIL_NULL, because the root page does not
+	have any siblings. */
+	if (!fil_page_index_page_check(page)
 	    || fil_page_get_prev(page) != FIL_NULL
 	    || fil_page_get_next(page) != FIL_NULL) {
 
@@ -368,7 +362,6 @@ btr_root_adjust_on_import(
 /**************************************************************//**
 Creates a new index page (not the root, and also not
 used in page reorganization).  @see btr_page_empty(). */
-
 void
 btr_page_create(
 /*============*/
@@ -385,12 +378,11 @@ btr_page_create(
 	if (page_zip) {
 		page_create_zip(block, index, level, 0, NULL, mtr);
 	} else {
-		page_create(block, mtr, dict_table_is_comp(index->table));
+		page_create(block, mtr, dict_table_is_comp(index->table),
+			    dict_index_is_spatial(index));
 		/* Set the level of the new index page */
 		btr_page_set_level(page, NULL, level, mtr);
 	}
-
-	block->check_index_page_at_flush = TRUE;
 
 	/* For Spatial Index, initialize the Split Sequence Number */
 	if (dict_index_is_spatial(index)) {
@@ -492,7 +484,6 @@ that the caller has made the reservation for free extents!
 @retval block, rw_lock_x_lock_count(&block->lock) == 1 if allocation succeeded
 (init_mtr == mtr, or the page was not previously freed in mtr)
 @retval block (not allocated or initialized) otherwise */
-
 buf_block_t*
 btr_page_alloc(
 /*===========*/
@@ -528,7 +519,6 @@ btr_page_alloc(
 /**************************************************************//**
 Gets the number of pages in a B-tree.
 @return number of pages, or ULINT_UNDEFINED if the index is unavailable */
-
 ulint
 btr_get_size(
 /*=========*/
@@ -601,7 +591,6 @@ btr_page_free_for_ibuf(
 /**************************************************************//**
 Frees a file page used in an index tree. Can be used also to (BLOB)
 external storage pages. */
-
 void
 btr_page_free_low(
 /*==============*/
@@ -659,7 +648,6 @@ btr_page_free_low(
 /**************************************************************//**
 Frees a file page used in an index tree. NOTE: cannot free field external
 storage pages because the page must contain info on its level. */
-
 void
 btr_page_free(
 /*==========*/
@@ -670,7 +658,7 @@ btr_page_free(
 	const page_t*	page	= buf_block_get_frame(block);
 	ulint		level	= btr_page_get_level(page, mtr);
 
-	ut_ad(fil_page_get_type(block->frame) == FIL_PAGE_INDEX);
+	ut_ad(fil_page_index_page_check(block->frame));
 	ut_ad(level != ULINT_UNDEFINED);
 	btr_page_free_low(index, block, level, mtr);
 }
@@ -815,14 +803,14 @@ btr_page_get_father_node_ptr_func(
 		buf_page_print(page_align(node_ptr), univ_page_size,
 			       BUF_PAGE_PRINT_NO_CRASH);
 
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Corruption of an index tree: table %s index %s,"
-			" father ptr page no %lu, child page no %lu",
-			ut_get_name(NULL, TRUE, index->table_name).c_str(),
-			ut_get_name(NULL, FALSE, index->name).c_str(),
-			(ulong)
-			btr_node_ptr_get_child_page_no(node_ptr, offsets),
-			(ulong) page_no);
+		ib::error()
+			<< "Corruption of an index tree: table "
+			<< ut_get_name(NULL, TRUE, index->table_name)
+			<< " index "
+			<< ut_get_name(NULL, FALSE, index->name)
+			<< ", father ptr page no "
+			<< btr_node_ptr_get_child_page_no(node_ptr, offsets)
+			<< ", child page no " << page_no;
 
 		print_rec = page_rec_get_next(
 			page_get_infimum_rec(page_align(user_rec)));
@@ -833,11 +821,11 @@ btr_page_get_father_node_ptr_func(
 					  ULINT_UNDEFINED, &heap);
 		page_rec_print(node_ptr, offsets);
 
-		ib_logf(IB_LOG_LEVEL_FATAL,
-			"You should dump + drop + reimport the table to"
-			" fix the corruption. If the crash happens at"
-			" database startup. %s Then dump + drop + reimport.",
-			FORCE_RECOVERY_MSG);
+		ib::fatal()
+			<< "You should dump + drop + reimport the table to"
+			<< " fix the corruption. If the crash happens at"
+			<< " database startup. " << FORCE_RECOVERY_MSG
+			<< " Then dump + drop + reimport.";
 	}
 
 	return(offsets);
@@ -909,7 +897,6 @@ log record during recovery
 @param[in]	mtr			mini-transaction handle
 record during recovery
 @return page number of the created root, FIL_NULL if did not succeed */
-
 ulint
 btr_create(
 	ulint			type,
@@ -1027,17 +1014,17 @@ btr_create(
 	} else {
 		if (index != NULL) {
 			page = page_create(block, mtr,
-					   dict_table_is_comp(index->table));
+					   dict_table_is_comp(index->table),
+					   dict_index_is_spatial(index));
 		} else {
 			ut_ad(btr_redo_create_info != NULL);
 			page = page_create(
-				block, mtr, btr_redo_create_info->format_flags);
+				block, mtr, btr_redo_create_info->format_flags,
+				type == DICT_SPATIAL);
 		}
 		/* Set the level of the new index page */
 		btr_page_set_level(page, NULL, 0, mtr);
 	}
-
-	block->check_index_page_at_flush = TRUE;
 
 	/* Set the index id of the page */
 	btr_page_set_index_id(page, page_zip, index_id, mtr);
@@ -1134,7 +1121,6 @@ top_loop:
 /** Frees the B-tree root page. Other tree MUST already have been freed.
 @param[in]	root_page_id	id of the root page
 @param[in,out]	mtr		mini-transaction */
-
 void
 btr_free_root(
 	const page_id_t&	root_page_id,
@@ -1172,7 +1158,6 @@ IBUF_BITMAP_FREE is unaffected by reorganization.
 
 @retval true if the operation was successful
 @retval false if it is a compressed page, and recompression failed */
-
 bool
 btr_page_reorganize_low(
 /*====================*/
@@ -1202,6 +1187,7 @@ btr_page_reorganize_low(
 	bool		success		= false;
 	ulint		pos;
 	bool		log_compressed;
+	bool		is_spatial;
 
 	ut_ad(mtr_is_block_fix(mtr, block, MTR_MEMO_PAGE_X_FIX, index->table));
 	btr_assert_not_corrupted(block, index);
@@ -1224,6 +1210,11 @@ btr_page_reorganize_low(
 
 	MONITOR_INC(MONITOR_INDEX_REORG_ATTEMPTS);
 
+	/* This function can be called by log redo with a "dummy" index.
+	So we would trust more on the original page's type */
+	is_spatial = (fil_page_get_type(page) == FIL_PAGE_RTREE
+		      || dict_index_is_spatial(index));
+
 	/* Copy the old page to temporary space */
 	buf_frame_copy(temp_page, page);
 
@@ -1231,8 +1222,6 @@ btr_page_reorganize_low(
 	if (!recovery) {
 		btr_search_drop_page_hash_index(block);
 	}
-
-	block->check_index_page_at_flush = TRUE;
 #endif /* !UNIV_HOTBACKUP */
 
 	/* Save the cursor position. */
@@ -1241,7 +1230,7 @@ btr_page_reorganize_low(
 	/* Recreate the page: note that global data on page (possible
 	segment headers, next page-field, etc.) is preserved intact */
 
-	page_create(block, mtr, dict_table_is_comp(index->table));
+	page_create(block, mtr, dict_table_is_comp(index->table), is_spatial);
 
 	/* Copy the records from the temporary space to the recreated page;
 	do not copy the lock bits yet */
@@ -1318,13 +1307,13 @@ btr_page_reorganize_low(
 		buf_page_print(temp_page, univ_page_size,
 			       BUF_PAGE_PRINT_NO_CRASH);
 
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Page old data size %lu new data size %lu,"
-			" page old max ins size %lu new max ins size %lu",
-			(unsigned long) data_size1, (unsigned long) data_size2,
-			(unsigned long) max_ins_size1,
-			(unsigned long) max_ins_size2);
-		ib_logf(IB_LOG_LEVEL_ERROR, "%s", BUG_REPORT_MSG);
+		ib::error()
+			<< "Page old data size " << data_size1
+			<< " new data size " << data_size2
+			<< ", page old max ins size " << max_ins_size1
+			<< " new max ins size " << max_ins_size2;
+
+		ib::error() << BUG_REPORT_MSG;
 		ut_ad(0);
 	} else {
 		success = true;
@@ -1426,7 +1415,6 @@ IBUF_BITMAP_FREE is unaffected by reorganization.
 
 @retval true if the operation was successful
 @retval false if it is a compressed page, and recompression failed */
-
 bool
 btr_page_reorganize(
 /*================*/
@@ -1442,7 +1430,6 @@ btr_page_reorganize(
 /***********************************************************//**
 Parses a redo log record of reorganizing a page.
 @return end of log record or NULL */
-
 byte*
 btr_parse_page_reorganize(
 /*======================*/
@@ -1509,11 +1496,10 @@ btr_page_empty(
 	if (page_zip) {
 		page_create_zip(block, index, level, 0, NULL, mtr);
 	} else {
-		page_create(block, mtr, dict_table_is_comp(index->table));
+		page_create(block, mtr, dict_table_is_comp(index->table),
+			    dict_index_is_spatial(index));
 		btr_page_set_level(page, NULL, level, mtr);
 	}
-
-	block->check_index_page_at_flush = TRUE;
 }
 
 /*************************************************************//**
@@ -1523,7 +1509,6 @@ NOTE that the operation of this function must always succeed,
 we cannot reverse it: therefore enough free disk space must be
 guaranteed to be available before this function is called.
 @return inserted record */
-
 rec_t*
 btr_root_raise_and_insert(
 /*======================*/
@@ -1712,7 +1697,6 @@ btr_root_raise_and_insert(
 Decides if the page should be split at the convergence point of inserts
 converging to the left.
 @return TRUE if split recommended */
-
 ibool
 btr_page_get_split_rec_to_left(
 /*===========================*/
@@ -1757,7 +1741,6 @@ btr_page_get_split_rec_to_left(
 Decides if the page should be split at the convergence point of inserts
 converging to the right.
 @return TRUE if split recommended */
-
 ibool
 btr_page_get_split_rec_to_right(
 /*============================*/
@@ -2026,7 +2009,6 @@ btr_page_insert_fits(
 /*******************************************************//**
 Inserts a data tuple to a tree on a non-leaf level. It is assumed
 that mtr holds an x-latch on the tree. */
-
 void
 btr_insert_on_non_leaf_level_func(
 /*==============================*/
@@ -2294,6 +2276,144 @@ btr_page_tuple_smaller(
 	return(cmp_dtuple_rec(tuple, first_rec, *offsets) < 0);
 }
 
+/** Insert the tuple into the right sibling page, if the cursor is at the end
+of a page.
+@param[in]	flags	undo logging and locking flags
+@param[in,out]	cursor	cursor at which to insert; when the function succeeds,
+			the cursor is positioned before the insert point.
+@param[out]	offsets	offsets on inserted record
+@param[in,out]	heap	memory heap for allocating offsets
+@param[in]	tuple	tuple to insert
+@param[in]	n_ext	number of externally stored columns
+@param[in,out]	mtr	mini-transaction
+@return	inserted record (first record on the right sibling page);
+	the cursor will be positioned on the page infimum
+@retval	NULL if the operation was not performed */
+static
+rec_t*
+btr_insert_into_right_sibling(
+	ulint		flags,
+	btr_cur_t*	cursor,
+	ulint**		offsets,
+	mem_heap_t*	heap,
+	const dtuple_t*	tuple,
+	ulint		n_ext,
+	mtr_t*		mtr)
+{
+	buf_block_t*	block = btr_cur_get_block(cursor);
+	page_t*		page = buf_block_get_frame(block);
+	ulint		next_page_no = btr_page_get_next(page, mtr);
+
+	ut_ad(dict_table_is_intrinsic(cursor->index->table)
+	      || mtr_memo_contains_flagged(
+			mtr, dict_index_get_lock(cursor->index),
+			MTR_MEMO_X_LOCK | MTR_MEMO_SX_LOCK));
+	ut_ad(mtr_is_block_fix(
+		mtr, block, MTR_MEMO_PAGE_X_FIX, cursor->index->table));
+	ut_ad(heap);
+
+	if (next_page_no == FIL_NULL || !page_rec_is_supremum(
+			page_rec_get_next(btr_cur_get_rec(cursor)))) {
+
+		return(NULL);
+	}
+
+	page_cur_t	next_page_cursor;
+	buf_block_t*	next_block;
+	page_t*		next_page;
+	btr_cur_t	next_father_cursor;
+	rec_t*		rec = NULL;
+	ulint		max_size;
+
+	const ulint	space = block->page.id.space();
+
+	next_block = btr_block_get(
+		page_id_t(space, next_page_no), block->page.size,
+		RW_X_LATCH, cursor->index, mtr);
+	next_page = buf_block_get_frame(next_block);
+
+	bool	is_leaf = page_is_leaf(next_page);
+
+	btr_page_get_father(
+		cursor->index, next_block, mtr, &next_father_cursor);
+
+	page_cur_search(
+		next_block, cursor->index, tuple, PAGE_CUR_LE,
+		&next_page_cursor);
+
+	max_size = page_get_max_insert_size_after_reorganize(next_page, 1);
+
+	/* Extends gap lock for the next page */
+	if (!dict_table_is_locking_disabled(cursor->index->table)) {
+		lock_update_split_left(next_block, block);
+	}
+
+	rec = page_cur_tuple_insert(
+		&next_page_cursor, tuple, cursor->index, offsets, &heap,
+		n_ext, mtr);
+
+	if (rec == NULL) {
+		if (is_leaf
+		    && next_block->page.size.is_compressed()
+		    && !dict_index_is_clust(cursor->index)
+		    && !dict_table_is_temporary(cursor->index->table)) {
+			/* Reset the IBUF_BITMAP_FREE bits, because
+			page_cur_tuple_insert() will have attempted page
+			reorganize before failing. */
+			ibuf_reset_free_bits(next_block);
+		}
+		return(NULL);
+	}
+
+	ibool	compressed;
+	dberr_t	err;
+	ulint	level = btr_page_get_level(next_page, mtr);
+
+	/* adjust cursor position */
+	*btr_cur_get_page_cur(cursor) = next_page_cursor;
+
+	ut_ad(btr_cur_get_rec(cursor) == page_get_infimum_rec(next_page));
+	ut_ad(page_rec_get_next(page_get_infimum_rec(next_page)) == rec);
+
+	/* We have to change the parent node pointer */
+
+	compressed = btr_cur_pessimistic_delete(
+		&err, TRUE, &next_father_cursor,
+		BTR_CREATE_FLAG, false, mtr);
+
+	ut_a(err == DB_SUCCESS);
+
+	if (!compressed) {
+		btr_cur_compress_if_useful(&next_father_cursor, FALSE, mtr);
+	}
+
+	dtuple_t*	node_ptr = dict_index_build_node_ptr(
+		cursor->index, rec, next_block->page.id.page_no(),
+		heap, level);
+
+	btr_insert_on_non_leaf_level(
+		flags, cursor->index, level + 1, node_ptr, mtr);
+
+	ut_ad(rec_offs_validate(rec, cursor->index, *offsets));
+
+	if (is_leaf
+	    && !dict_index_is_clust(cursor->index)
+	    && !dict_table_is_temporary(cursor->index->table)) {
+		/* Update the free bits of the B-tree page in the
+		insert buffer bitmap. */
+
+		if (next_block->page.size.is_compressed()) {
+			ibuf_update_free_bits_zip(next_block, mtr);
+		} else {
+			ibuf_update_free_bits_if_full(
+				next_block, max_size,
+				rec_offs_size(*offsets) + PAGE_DIR_SLOT_SIZE);
+		}
+	}
+
+	return(rec);
+}
+
 /*************************************************************//**
 Splits an index page to halves and inserts the tuple. It is assumed
 that mtr holds an x-latch to the index tree. NOTE: the tree x-latch is
@@ -2303,7 +2423,6 @@ free disk space (2 pages) must be guaranteed to be available before
 this function is called.
 
 @return inserted record */
-
 rec_t*
 btr_page_split_and_insert(
 /*======================*/
@@ -2377,6 +2496,14 @@ func_start:
 	ut_ad(mtr_is_block_fix(
 		mtr, block, MTR_MEMO_PAGE_X_FIX, cursor->index->table));
 	ut_ad(!page_is_empty(page));
+
+	/* try to insert to the next page if possible before split */
+	rec = btr_insert_into_right_sibling(
+		flags, cursor, offsets, *heap, tuple, n_ext, mtr);
+
+	if (rec != NULL) {
+		return(rec);
+	}
 
 	page_no = block->page.id.page_no();
 
@@ -2457,8 +2584,9 @@ func_start:
 insert_empty:
 		ut_ad(!split_rec);
 		ut_ad(!insert_left);
-		buf = (byte*) ut_malloc(rec_get_converted_size(cursor->index,
-							       tuple, n_ext));
+		buf = UT_NEW_ARRAY_NOKEY(
+			byte,
+			rec_get_converted_size(cursor->index, tuple, n_ext));
 
 		first_rec = rec_convert_dtuple_to_rec(buf, cursor->index,
 						      tuple, n_ext);
@@ -2481,7 +2609,7 @@ insert_empty:
 						offsets, tuple, n_ext, heap);
 	} else {
 		if (!insert_left) {
-			ut_free(buf);
+			UT_DELETE_ARRAY(buf);
 			buf = NULL;
 		}
 
@@ -2491,6 +2619,7 @@ insert_empty:
 	}
 
 	if (!srv_read_only_mode
+	    && !dict_table_is_intrinsic(cursor->index->table)
 	    && insert_will_fit
 	    && page_is_leaf(page)
 	    && !dict_index_is_online_ddl(cursor->index)) {
@@ -2806,7 +2935,6 @@ btr_set_min_rec_mark_log(
 Parses the redo log record for setting an index record as the predefined
 minimum record.
 @return end of log record or NULL */
-
 byte*
 btr_parse_set_min_rec_mark(
 /*=======================*/
@@ -2836,7 +2964,6 @@ btr_parse_set_min_rec_mark(
 
 /****************************************************************//**
 Sets a record as the predefined minimum record. */
-
 void
 btr_set_min_rec_mark(
 /*=================*/
@@ -2863,7 +2990,6 @@ btr_set_min_rec_mark(
 #ifndef UNIV_HOTBACKUP
 /*************************************************************//**
 Deletes on the upper level the node pointer to a page. */
-
 void
 btr_node_ptr_delete(
 /*================*/
@@ -3066,7 +3192,6 @@ tree height. It is assumed that mtr holds an x-latch on the tree and on the
 page. If cursor is on the leaf level, mtr must also hold x-latches to the
 brothers, if they exist.
 @return TRUE on success */
-
 ibool
 btr_compress(
 /*=========*/
@@ -3146,10 +3271,9 @@ btr_compress(
 		ulint page_no = btr_node_ptr_get_child_page_no(my_rec, offsets);
 
 		if (page_no != block->page.id.page_no()) {
-			ib_logf(IB_LOG_LEVEL_INFO,
-				"father positioned on page %lu" 
-				"instead of " UINT32PF, page_no,
-				block->page.id.page_no());
+			ib::info() << "father positioned on page "
+				<< page_no << "instead of "
+				<< block->page.id.page_no();
 			offsets = btr_page_get_father_block(
 				NULL, heap, index, block, mtr, &father_cursor);
 		}
@@ -3281,10 +3405,11 @@ retry:
 						my_rec, offsets);
 
 			if (page_no != block->page.id.page_no()) {
-				ib_logf(IB_LOG_LEVEL_FATAL,
-					"father positioned on %ld instead of %ld",
-					(long)page_no,
-					(long)block->page.id.page_no());
+
+				ib::fatal() << "father positioned on "
+					<< page_no << " instead of "
+					<< block->page.id.page_no();
+
 				ut_ad(0);
 			}
 
@@ -3641,7 +3766,6 @@ btr_discard_only_page_on_level(
 Discards a page from a B-tree. This is used to remove the last record from
 a B-tree page: the whole page must be removed at the same time. This cannot
 be used for the root page, which is allowed to be empty. */
-
 void
 btr_discard_page(
 /*=============*/
@@ -3783,7 +3907,6 @@ btr_discard_page(
 #ifdef UNIV_BTR_PRINT
 /*************************************************************//**
 Prints size info of a B-tree. */
-
 void
 btr_print_size(
 /*===========*/
@@ -3842,10 +3965,8 @@ btr_print_recursive(
 
 	ut_ad(mtr_is_block_fix(mtr, block, MTR_MEMO_PAGE_SX_FIX, index->table));
 
-	ib_logf(IB_LOG_LEVEL_INFO,
-		"NODE ON LEVEL %lu page number " UINT32PF,
-		(ulong) btr_page_get_level(page, mtr),
-		block->page.id.page_no());
+	ib::info() << "NODE ON LEVEL " << btr_page_get_level(page, mtr)
+		<< " page " << block->page.id;
 
 	page_print(block, index, width, width);
 
@@ -3886,7 +4007,6 @@ btr_print_recursive(
 
 /**************************************************************//**
 Prints directories and other info of all nodes in the tree. */
-
 void
 btr_print_index(
 /*============*/
@@ -3923,7 +4043,6 @@ btr_print_index(
 /************************************************************//**
 Checks that the node pointer to a page is appropriate.
 @return TRUE */
-
 ibool
 btr_check_node_ptr(
 /*===============*/
@@ -3984,18 +4103,19 @@ btr_index_rec_validate_report(
 	const rec_t*		rec,	/*!< in: index record */
 	const dict_index_t*	index)	/*!< in: index */
 {
-	ib_logf(IB_LOG_LEVEL_INFO,
-		"Record in index %s of table %s, page %lu, at offset %lu",
-		ut_get_name(NULL, FALSE, index->name).c_str(),
-		ut_get_name(NULL, TRUE, index->table_name).c_str(),
-		page_get_page_no(page), (ulint) page_offset(rec));
+	ib::info() << "Record in index "
+		<< ut_get_name(NULL, FALSE, index->name)
+		<< " of table "
+		<< ut_get_name(NULL, TRUE, index->table_name)
+		<< ", page " << page_id_t(page_get_space_id(page),
+					  page_get_page_no(page))
+		<< ", at offset " << page_offset(rec);
 }
 
 /************************************************************//**
 Checks the size and number of fields in a record based on the definition of
 the index.
 @return TRUE if ok */
-
 ibool
 btr_index_rec_validate(
 /*===================*/
@@ -4026,9 +4146,9 @@ btr_index_rec_validate(
 
 	if ((ibool)!!page_is_comp(page) != dict_table_is_comp(index->table)) {
 		btr_index_rec_validate_report(page, rec, index);
-		ib_logf(IB_LOG_LEVEL_ERROR, "Compact flag=%lu, should be %lu",
-			(ulong) !!page_is_comp(page),
-			(ulong) dict_table_is_comp(index->table));
+
+		ib::error() << "Compact flag=" << !!page_is_comp(page)
+			<< ", should be " << dict_table_is_comp(index->table);
 
 		return(FALSE);
 	}
@@ -4037,9 +4157,9 @@ btr_index_rec_validate(
 
 	if (!page_is_comp(page) && rec_get_n_fields_old(rec) != n) {
 		btr_index_rec_validate_report(page, rec, index);
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Has %lu fields, should have %lu",
-			(ulong) rec_get_n_fields_old(rec), (ulong) n);
+
+		ib::error() << "Has " << rec_get_n_fields_old(rec)
+			<< " fields, should have " << n;
 
 		if (dump_on_error) {
 			buf_page_print(page, univ_page_size,
@@ -4055,29 +4175,49 @@ btr_index_rec_validate(
 	offsets = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED, &heap);
 
 	for (i = 0; i < n; i++) {
-		ulint	fixed_size = dict_col_get_fixed_size(
-			dict_index_get_nth_col(index, i), page_is_comp(page));
+		dict_field_t*	field = dict_index_get_nth_field(index, i);
+		ulint		fixed_size = dict_col_get_fixed_size(
+						dict_field_get_col(field),
+						page_is_comp(page));
 
 		rec_get_nth_field_offs(offsets, i, &len);
 
 		/* Note that if fixed_size != 0, it equals the
-		length of a fixed-size column in the clustered index.
+		length of a fixed-size column in the clustered index,
+		except the DATA_POINT, whose length would be MBR_LEN
+		when it's indexed in a R-TREE. We should adjust it here.
 		A prefix index of the column is of fixed, but different
 		length.  When fixed_size == 0, prefix_len is the maximum
 		length of the prefix index column. */
 
-		if ((dict_index_get_nth_field(index, i)->prefix_len == 0
+		if (dict_field_get_col(field)->mtype == DATA_POINT) {
+			ut_ad(fixed_size == DATA_POINT_LEN);
+			if (dict_index_is_spatial(index)) {
+				/* For DATA_POINT data, when it has R-tree
+				index, the fixed_len is the MBR of the point.
+				But if it's a primary key and on R-TREE
+				as the PK pointer, the length shall be
+				DATA_POINT_LEN as well. */
+				ut_ad((field->fixed_len == DATA_MBR_LEN
+				       && i == 0)
+				      || (field->fixed_len == DATA_POINT_LEN
+					  && i != 0));
+				fixed_size = field->fixed_len;
+			}
+		}
+
+		if ((field->prefix_len == 0
 		     && len != UNIV_SQL_NULL && fixed_size
 		     && len != fixed_size)
-		    || (dict_index_get_nth_field(index, i)->prefix_len > 0
+		    || (field->prefix_len > 0
 			&& len != UNIV_SQL_NULL
 			&& len
-			> dict_index_get_nth_field(index, i)->prefix_len)) {
+			> field->prefix_len)) {
 
 			btr_index_rec_validate_report(page, rec, index);
-			ib_logf(IB_LOG_LEVEL_ERROR,
-				"Field %lu len is %lu, should be %lu",
-				(ulong) i, (ulong) len, (ulong) fixed_size);
+
+			ib::error() << "Field " << i << " len is " << len
+				<< ", should be " << fixed_size;
 
 			if (dump_on_error) {
 				buf_page_print(page, univ_page_size,
@@ -4169,20 +4309,21 @@ btr_validate_report1(
 	const buf_block_t*	block)	/*!< in: index page */
 {
 	if (!level) {
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"In page " UINT32PF " of index %s of table %s",
-			block->page.id.page_no(),
-			ut_get_name(NULL, FALSE, index->name).c_str(),
-			ut_get_name(NULL, TRUE, index->table_name).c_str());
+
+		ib::error() << "In page " << block->page.id.page_no()
+			<< " of index "
+			<< ut_get_name(NULL, FALSE, index->name)
+			<< " of table "
+			<< ut_get_name(NULL, TRUE, index->table_name);
+
 	} else {
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"In page " UINT32PF " of index %s of table %s,"
-			" index tree level %lu",
-			block->page.id.page_no(),
-			ut_get_name(NULL, FALSE, index->name).c_str(),
-			ut_get_name(NULL, TRUE,
-			index->table_name).c_str(),
-			level);
+
+		ib::error() << "In page " << block->page.id.page_no()
+			<< " of index "
+			<< ut_get_name(NULL, FALSE, index->name)
+			<< " of table "
+			<< ut_get_name(NULL, TRUE, index->table_name)
+			<< ", index tree level " << level;
 	}
 }
 
@@ -4198,22 +4339,20 @@ btr_validate_report2(
 	const buf_block_t*	block2)	/*!< in: second index page */
 {
 	if (!level) {
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"In pages " UINT32PF " and " UINT32PF
-			" of index %s of table %s",
-			block1->page.id.page_no(),
-			block2->page.id.page_no(),
-			ut_get_name(NULL, FALSE, index->name).c_str(),
-			ut_get_name(NULL, TRUE, index->table_name).c_str());
+
+		ib::error() << "In pages " << block1->page.id
+			<< " and " << block2->page.id << " of index "
+			<< ut_get_name(NULL, FALSE, index->name)
+			<< " of table "
+			<< ut_get_name(NULL, TRUE, index->table_name);
 	} else {
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"In pages " UINT32PF " and " UINT32PF
-			" of index %s of table %s, index tree level %lu",
-			block1->page.id.page_no(),
-			block2->page.id.page_no(),
-			ut_get_name(NULL, FALSE, index->name).c_str(),
-			ut_get_name(NULL, TRUE, index->table_name).c_str(),
-			level);
+
+		ib::error() << "In pages " << block1->page.id
+			<< " and " << block2->page.id << " of index "
+			<< ut_get_name(NULL, FALSE, index->name)
+			<< " of table "
+			<< ut_get_name(NULL, TRUE, index->table_name)
+			<< ", index tree level " << level;
 	}
 }
 
@@ -4289,9 +4428,8 @@ btr_validate_level(
 
 	if (!table_page_size.equals_to(space_page_size)) {
 
-		ib_logf(IB_LOG_LEVEL_WARN,
-			"Flags mismatch: table=%lu, tablespace=%lu",
-			(ulint) index->table->flags, (ulint) space_flags);
+		ib::warn() << "Flags mismatch: table=" << index->table->flags
+			<< ", tablespace=" << space_flags;
 
 		mtr_commit(&mtr);
 
@@ -4307,7 +4445,7 @@ btr_validate_level(
 
 			btr_validate_report1(index, level, block);
 
-			ib_logf(IB_LOG_LEVEL_WARN, "Page is free");
+			ib::warn() << "Page is free";
 
 			ret = false;
 		}
@@ -4391,15 +4529,13 @@ loop:
 
 		btr_validate_report1(index, level, block);
 
-		ib_logf(IB_LOG_LEVEL_WARN, "Page is marked as free");
+		ib::warn() << "Page is marked as free";
 		ret = false;
 
 	} else if (btr_page_get_index_id(page) != index->id) {
 
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Page index id " IB_ID_FMT " != data dictionary"
-			" index id " IB_ID_FMT,
-			btr_page_get_index_id(page), index->id);
+		ib::error() << "Page index id " << btr_page_get_index_id(page)
+			<< " != data dictionary index id " << index->id;
 
 		ret = false;
 
@@ -4592,8 +4728,8 @@ loop:
 					page, univ_page_size,
 					BUF_PAGE_PRINT_NO_CRASH);
 
-				ib_logf(IB_LOG_LEVEL_ERROR,
-					"Node ptrs differ on levels > 0");
+				ib::error() << "Node ptrs differ on levels > 0";
+
 				fputs("InnoDB: node ptr ",stderr);
 				rec_print_new(stderr, node_ptr, offsets);
 				fputs("InnoDB: first rec ", stderr);
@@ -4788,7 +4924,6 @@ node_ptr_fails:
 /**************************************************************//**
 Do an index level validation of spaital index tree.
 @return	true if no error found */
-
 bool
 btr_validate_spatial_index(
 /*=======================*/
@@ -4829,7 +4964,6 @@ btr_validate_spatial_index(
 /**************************************************************//**
 Checks the consistency of an index tree.
 @return true if ok */
-
 bool
 btr_validate_index(
 /*===============*/
@@ -4880,7 +5014,6 @@ btr_validate_index(
 Checks if the page in the cursor can be merged with given page.
 If necessary, re-organize the merge_page.
 @return	true if possible to merge. */
-
 bool
 btr_can_merge_with_page(
 /*====================*/

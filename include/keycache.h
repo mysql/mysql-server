@@ -52,8 +52,8 @@ typedef struct st_key_cache
   my_bool can_be_used;           /* usage of cache for read/write is allowed */
   size_t key_cache_mem_size;      /* specified size of the cache memory       */
   uint key_cache_block_size;     /* size of the page buffer of a cache block */
-  ulong min_warm_blocks;         /* min number of warm blocks;               */
-  ulong age_threshold;           /* age threshold for hot blocks             */
+  ulonglong min_warm_blocks;     /* min number of warm blocks;               */
+  ulonglong age_threshold;       /* age threshold for hot blocks             */
   ulonglong keycache_time;       /* total number of block link operations    */
   uint hash_entries;             /* max number of entries in the hash table  */
   int hash_links;                /* max number of hash links                 */
@@ -109,14 +109,14 @@ typedef struct st_key_cache
 /* The default key cache */
 extern KEY_CACHE dflt_key_cache_var, *dflt_key_cache;
 
-extern int init_key_cache(KEY_CACHE *keycache, uint key_cache_block_size,
-			  size_t use_mem, uint division_limit,
-			  uint age_threshold);
-extern int resize_key_cache(KEY_CACHE *keycache, uint key_cache_block_size,
-			    size_t use_mem, uint division_limit,
-			    uint age_threshold);
-extern void change_key_cache_param(KEY_CACHE *keycache, uint division_limit,
-				   uint age_threshold);
+extern int init_key_cache(KEY_CACHE *keycache, ulonglong key_cache_block_size,
+			  size_t use_mem, ulonglong division_limit,
+			  ulonglong age_threshold);
+extern int resize_key_cache(KEY_CACHE *keycache, ulonglong key_cache_block_size,
+			    size_t use_mem, ulonglong division_limit,
+			    ulonglong age_threshold);
+extern void change_key_cache_param(KEY_CACHE *keycache, ulonglong division_limit,
+				   ulonglong age_threshold);
 extern uchar *key_cache_read(KEY_CACHE *keycache,
                             File file, my_off_t filepos, int level,
                             uchar *buff, uint length,

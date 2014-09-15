@@ -1,5 +1,6 @@
 --source include/have_innodb.inc
 --source include/not_embedded.inc
+--source include/no_valgrind_without_big.inc
 
 let $n=250;
 let $t=veryLongTableNameToCreateMLOG_FILE_NAMErecords;
@@ -16,16 +17,8 @@ while ($i)
 dec $i;
 }
 
-# Write file to make mysql-test-run.pl restart the server
---exec echo "restart: --innodb-log-files-in-group=2 --innodb-log-file-size=1M" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
-
---shutdown_server 0
---error 2013
-SHOW TABLES;
-
---enable_reconnect
---source include/wait_until_connected_again.inc
---disable_reconnect
+let $restart_parameters = restart: --innodb-log-files-in-group=2 --innodb-log-file-size=1M;
+--source include/kill_and_restart_mysqld.inc
 
 --disable_query_log
 let $i=$n;

@@ -17,8 +17,11 @@
 #define HOSTNAME_INCLUDED
 
 #include "my_global.h"                          /* uint */
-#include "my_net.h"
 #include "hash_filo.h"
+
+#ifdef HAVE_NETINET_IN_H
+#include <netinet/in.h>
+#endif
 
 struct Host_errors
 {

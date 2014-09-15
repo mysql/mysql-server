@@ -59,6 +59,7 @@ Created 12/19/1997 Heikki Tuuri
 #include "buf0lru.h"
 #include "ha_prototypes.h"
 #include "srv0mon.h"
+#include "ut0new.h"
 
 /* Maximum number of rows to prefetch; MySQL interface has another parameter */
 #define SEL_MAX_N_PREFETCH	16
@@ -282,7 +283,6 @@ func_exit:
 /*********************************************************************//**
 Creates a select node struct.
 @return own: select node struct */
-
 sel_node_t*
 sel_node_create(
 /*============*/
@@ -304,7 +304,6 @@ sel_node_create(
 /*********************************************************************//**
 Frees the memory private to a select node when a query graph is freed,
 does not free the heap where the node was originally created. */
-
 void
 sel_node_free_private(
 /*==================*/
@@ -522,7 +521,7 @@ sel_col_prefetch_buf_alloc(
 	ut_ad(que_node_get_type(column) == QUE_NODE_SYMBOL);
 
 	column->prefetch_buf = static_cast<sel_buf_t*>(
-		ut_malloc(SEL_MAX_N_PREFETCH * sizeof(sel_buf_t)));
+		ut_malloc_nokey(SEL_MAX_N_PREFETCH * sizeof(sel_buf_t)));
 
 	for (i = 0; i < SEL_MAX_N_PREFETCH; i++) {
 		sel_buf = column->prefetch_buf + i;
@@ -536,7 +535,6 @@ sel_col_prefetch_buf_alloc(
 /*********************************************************************//**
 Frees a prefetch buffer for a column, including the dynamically allocated
 memory for data stored there. */
-
 void
 sel_col_prefetch_buf_free(
 /*======================*/
@@ -914,7 +912,7 @@ row_sel_get_clust_rec(
 		err = lock_clust_rec_read_check_and_lock(
 			0, btr_pcur_get_block(&plan->clust_pcur),
 			clust_rec, index, offsets,
-			static_cast<enum lock_mode>(node->row_lock_mode),
+			static_cast<lock_mode>(node->row_lock_mode),
 			lock_type,
 			thr);
 
@@ -994,8 +992,6 @@ err_exit:
 	return(err);
 }
 
-typedef std::vector<rtr_rec_t>             rtr_rec_vector;
-
 /*********************************************************************//**
 Sets a lock on a page of R-Tree record. This is all or none action,
 mostly due to we cannot reposition a record in R-Tree (with the
@@ -1046,7 +1042,7 @@ retry:
 
 	err = lock_sec_rec_read_check_and_lock(
 		0, cur_block, rec, index, my_offsets,
-		static_cast<enum lock_mode>(mode), type, thr);
+		static_cast<lock_mode>(mode), type, thr);
 
 	if (err == DB_LOCK_WAIT) {
 re_scan:
@@ -1140,7 +1136,7 @@ re_scan:
 
 		err = lock_sec_rec_read_check_and_lock(
 			0, &match->block, rtr_rec->r_rec, index,
-			my_offsets, static_cast<enum lock_mode>(mode),
+			my_offsets, static_cast<lock_mode>(mode),
 			type, thr);
 
 		if (err == DB_SUCCESS || err == DB_SUCCESS_LOCKED_REC) {
@@ -1202,14 +1198,15 @@ sel_set_rec_lock(
 	if (dict_index_is_clust(index)) {
 		err = lock_clust_rec_read_check_and_lock(
 			0, block, rec, index, offsets,
-			static_cast<enum lock_mode>(mode), type, thr);
+			static_cast<lock_mode>(mode), type, thr);
 	} else {
 
 		if (dict_index_is_spatial(index)) {
 			if (type == LOCK_GAP || type == LOCK_ORDINARY) {
 				ut_ad(0);
 				ib_logf(IB_LOG_LEVEL_ERROR,
-					"Incorrectly request GAP lock on RTree");
+					"Incorrectly request GAP lock "
+					"on RTree");
 				return(DB_SUCCESS);
 			}
 			err = sel_set_rtr_rec_lock(pcur, rec, index, offsets,
@@ -1217,7 +1214,7 @@ sel_set_rec_lock(
 		} else {
 			err = lock_sec_rec_read_check_and_lock(
 				0, block, rec, index, offsets,
-				static_cast<enum lock_mode>(mode), type, thr);
+				static_cast<lock_mode>(mode), type, thr);
 		}
 	}
 
@@ -1520,7 +1517,7 @@ func_exit:
 /*********************************************************************//**
 Performs a select step.
 @return DB_SUCCESS or error code */
-static __attribute__((nonnull, warn_unused_result))
+static __attribute__((warn_unused_result))
 dberr_t
 row_sel(
 /*====*/
@@ -2258,7 +2255,6 @@ func_exit:
 Performs a select step. This is a high-level function used in SQL execution
 graphs.
 @return query thread to run next or NULL */
-
 que_thr_t*
 row_sel_step(
 /*=========*/
@@ -2302,7 +2298,7 @@ row_sel_step(
 
 		} else {
 			sym_node_t*	table_node;
-			enum lock_mode	i_lock_mode;
+			lock_mode	i_lock_mode;
 
 			if (node->set_x_locks) {
 				i_lock_mode = LOCK_IX;
@@ -2370,7 +2366,6 @@ row_sel_step(
 /**********************************************************************//**
 Performs a fetch for a cursor.
 @return query thread to run next or NULL */
-
 que_thr_t*
 fetch_step(
 /*=======*/
@@ -2432,7 +2427,6 @@ fetch_step(
 /****************************************************************//**
 Sample callback function for fetch that prints each row.
 @return always returns non-NULL */
-
 void*
 row_fetch_print(
 /*============*/
@@ -2474,7 +2468,6 @@ row_fetch_print(
 /***********************************************************//**
 Prints a row in a select result.
 @return query thread to run next or NULL */
-
 que_thr_t*
 row_printf_step(
 /*============*/
@@ -2541,7 +2534,6 @@ the parameter key_len. But currently we do not allow search keys where the
 last field is only a prefix of the full key field len and print a warning if
 such appears. A counterpart of this function is
 ha_innobase::store_key_val_for_row() in ha_innodb.cc. */
-
 void
 row_sel_convert_mysql_key_to_innobase(
 /*==================================*/
@@ -2623,7 +2615,7 @@ row_sel_convert_mysql_key_to_innobase(
 		}
 
 		/* Calculate data length and data field total length */
-		if (DATA_LARGE_MTYPE(type)) {
+		if (DATA_LARGE_MTYPE(type) || DATA_GEOMETRY_MTYPE(type)) {
 
 			/* For R-tree index, data length should be the
 			total size of the wkb data.*/
@@ -2632,28 +2624,38 @@ row_sel_convert_mysql_key_to_innobase(
 				data_len = key_len;
 				data_field_len = data_offset + data_len;
 			} else {
-				/* The key field is a column prefix of a BLOB or
-				TEXT */
+				/* The key field is a column prefix of a BLOB
+				or TEXT, except DATA_POINT of GEOMETRY. */
 
-				ut_a(field->prefix_len > 0);
+				ut_a(field->prefix_len > 0
+				     || DATA_POINT_MTYPE(type));
 
-				/* MySQL stores the actual data length to the first 2
-				bytes after the optional SQL NULL marker byte. The
-				storage format is little-endian, that is, the most
-				significant byte at a higher address. In UTF-8, MySQL
+				/* MySQL stores the actual data length to the
+				first 2 bytes after the optional SQL NULL
+				marker byte. The storage format is
+				little-endian, that is, the most significant
+				byte at a higher address. In UTF-8, MySQL
 				seems to reserve field->prefix_len bytes for
-				storing this field in the key value buffer, even
-				though the actual value only takes data_len bytes
-				from the start. */
+				storing this field in the key value buffer,
+				even though the actual value only takes data
+				len bytes from the start.
+				For POINT of GEOMETRY, which has no prefix
+				because it's now a fixed length type in
+				InnoDB, we have to get DATA_POINT_LEN bytes,
+				which is original prefix length of POINT. */
 
 				data_len = key_ptr[data_offset]
-					+ 256 * key_ptr[data_offset + 1];
-				data_field_len = data_offset + 2 + field->prefix_len;
+					   + 256 * key_ptr[data_offset + 1];
+				data_field_len = data_offset + 2
+						 + (type == DATA_POINT
+						    ? DATA_POINT_LEN
+						    : field->prefix_len);
 
 				data_offset += 2;
 
-				/* Now that we know the length, we store the column
-				value like it would be a fixed char field */
+				/* Now that we know the length, we store the
+				column value like it would be a fixed char
+				field */
 			}
 
 
@@ -2696,13 +2698,12 @@ row_sel_convert_mysql_key_to_innobase(
 		/* Storing may use at most data_len bytes of buf */
 
 		if (UNIV_LIKELY(!is_null)) {
-			ut_a(buf + data_len <= original_buf + buf_len);
-			row_mysql_store_col_in_innobase_format(
-				dfield, buf,
-				FALSE, /* MySQL key value format col */
-				key_ptr + data_offset, data_len,
-				dict_table_is_comp(index->table));
-			buf += data_len;
+			buf = row_mysql_store_col_in_innobase_format(
+					dfield, buf,
+					FALSE, /* MySQL key value format col */
+					key_ptr + data_offset, data_len,
+					dict_table_is_comp(index->table));
+			ut_a(buf <= original_buf + buf_len);
 		}
 
 		key_ptr += data_field_len;
@@ -2741,9 +2742,6 @@ row_sel_convert_mysql_key_to_innobase(
 		field++;
 		dfield++;
 	}
-
-	DBUG_EXECUTE_IF("innodb_srch_key_buffer_full",
-		ut_a(buf == (original_buf + buf_len)););
 
 	ut_a(buf <= original_buf + buf_len);
 
@@ -2928,8 +2926,10 @@ row_sel_field_store_in_mysql_format_func(
 					 len);
 		break;
 
+	case DATA_POINT:
+	case DATA_VAR_POINT:
 	case DATA_GEOMETRY:
-		/* We store geometry data as BLOB data. */
+		/* We store all geometry data as BLOB data at server layer. */
 		row_mysql_store_geometry(dest, templ->mysql_col_len, data, len);
 		break;
 
@@ -3040,6 +3040,7 @@ row_sel_store_mysql_field_func(
 
 		ut_a(!prebuilt->trx->has_search_latch);
 		ut_ad(field_no == templ->clust_rec_field_no);
+		ut_ad(templ->type != DATA_POINT);
 
 		if (DATA_LARGE_MTYPE(templ->type)) {
 			if (prebuilt->blob_heap == NULL) {
@@ -3107,7 +3108,8 @@ row_sel_store_mysql_field_func(
 			return(TRUE);
 		}
 
-		if (DATA_LARGE_MTYPE(templ->type)) {
+		if (DATA_LARGE_MTYPE(templ->type)
+		    || DATA_GEOMETRY_MTYPE(templ->type)) {
 
 			/* It is a BLOB field locally stored in the
 			InnoDB record: we MUST copy its contents to
@@ -3117,7 +3119,10 @@ row_sel_store_mysql_field_func(
 			will be invalid as soon as the
 			mini-transaction is committed and the page
 			latch on the clustered index page is
-			released. */
+			released.
+			For DATA_POINT, it's stored like CHAR in InnoDB,
+			but it should be a BLOB field in MySQL layer. So we
+			still treated it as BLOB here. */
 
 			if (prebuilt->blob_heap == NULL) {
 				prebuilt->blob_heap = mem_heap_create(
@@ -3421,7 +3426,7 @@ row_sel_get_clust_rec_for_mysql(
 		err = lock_clust_rec_read_check_and_lock(
 			0, btr_pcur_get_block(&prebuilt->clust_pcur),
 			clust_rec, clust_index, *offsets,
-			static_cast<enum lock_mode>(prebuilt->select_lock_type),
+			static_cast<lock_mode>(prebuilt->select_lock_type),
 			LOCK_REC_NOT_GAP,
 			thr);
 
@@ -3712,7 +3717,7 @@ row_sel_prefetch_cache_init(
 
 	/* Reserve space for the magic number. */
 	sz = UT_ARR_SIZE(prebuilt->fetch_cache) * (prebuilt->mysql_row_len + 8);
-	ptr = static_cast<byte*>(ut_malloc(sz));
+	ptr = static_cast<byte*>(ut_malloc_nokey(sz));
 
 	for (i = 0; i < UT_ARR_SIZE(prebuilt->fetch_cache); i++) {
 
@@ -3979,7 +3984,6 @@ The cursor is an iterator over the table/index.
 				pcur with stored position! In opening of a
 				cursor 'direction' should be 0.
 @return DB_SUCCESS or error code */
-
 dberr_t
 row_search_no_mvcc(
 	byte*			buf,
@@ -4250,7 +4254,6 @@ It also has optimization such as pre-caching the rows, using AHI, etc.
 				pcur with stored position! In opening of a
 				cursor 'direction' should be 0.
 @return DB_SUCCESS or error code */
-
 dberr_t
 row_search_mvcc(
 	byte*		buf,
@@ -4332,7 +4335,10 @@ row_search_mvcc(
 	adaptive hash index latch if there is someone waiting behind */
 
 	if (trx->has_search_latch
-	    && rw_lock_get_writer(&btr_search_latch) != RW_LOCK_NOT_LOCKED) {
+#ifndef INNODB_RW_LOCKS_USE_ATOMICS
+	    && rw_lock_get_writer(&btr_search_latch) != RW_LOCK_NOT_LOCKED
+#endif /* !INNODB_RW_LOCKS_USE_ATOMICS */
+	    ) {
 
 		/* There is an x-latch request on the adaptive hash index:
 		release the s-latch to reduce starvation and wait for
@@ -4566,7 +4572,9 @@ release_search_latch_if_needed:
 				if (trx->search_latch_timeout > 0
 				    && trx->has_search_latch) {
 
+#ifndef INNODB_RW_LOCKS_USE_ATOMICS
 					trx->search_latch_timeout--;
+#endif /* !INNODB_RW_LOCKS_USE_ATOMICS */
 
 					rw_lock_s_unlock(&btr_search_latch);
 					trx->has_search_latch = false;
@@ -4605,8 +4613,7 @@ release_search_latch_if_needed:
 	mutex. */
 	ut_ad(prebuilt->sql_stat_start || trx->state == TRX_STATE_ACTIVE);
 
-	ut_ad(trx->state == TRX_STATE_NOT_STARTED
-	      || trx->state == TRX_STATE_ACTIVE);
+	ut_ad(!trx_is_started(trx) || trx->state == TRX_STATE_ACTIVE);
 
 	ut_ad(prebuilt->sql_stat_start
 	      || prebuilt->select_lock_type != LOCK_NONE
@@ -4923,7 +4930,7 @@ wrong_offs:
 
 	/* Calculate the 'offsets' associated with 'rec' */
 
-	ut_ad(fil_page_get_type(btr_pcur_get_page(pcur)) == FIL_PAGE_INDEX);
+	ut_ad(fil_page_index_page_check(btr_pcur_get_page(pcur)));
 	ut_ad(btr_page_get_index_id(btr_pcur_get_page(pcur)) == index->id);
 
 	offsets = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED, &heap);
@@ -5434,6 +5441,7 @@ requires_clust_rec:
 	     || prebuilt->n_rows_fetched >= MYSQL_FETCH_CACHE_THRESHOLD)
 	    && prebuilt->select_lock_type == LOCK_NONE
 	    && !prebuilt->templ_contains_blob
+	    && !prebuilt->templ_contains_fixed_point
 	    && !prebuilt->clust_index_was_generated
 	    && !prebuilt->used_in_HANDLER
 	    && !prebuilt->innodb_api
@@ -5788,7 +5796,7 @@ normal_return:
 
 func_exit:
 	trx->op_info = "";
-	if (UNIV_LIKELY_NULL(heap)) {
+	if (heap != NULL) {
 		mem_heap_free(heap);
 	}
 
@@ -5798,8 +5806,8 @@ func_exit:
 	ut_ad(prebuilt->row_read_type != ROW_READ_WITH_LOCKS
 	      || !did_semi_consistent_read);
 
-	if (UNIV_UNLIKELY(prebuilt->row_read_type != ROW_READ_WITH_LOCKS)) {
-		if (UNIV_UNLIKELY(did_semi_consistent_read)) {
+	if (prebuilt->row_read_type != ROW_READ_WITH_LOCKS) {
+		if (did_semi_consistent_read) {
 			prebuilt->row_read_type = ROW_READ_DID_SEMI_CONSISTENT;
 		} else {
 			prebuilt->row_read_type = ROW_READ_TRY_SEMI_CONSISTENT;
@@ -5820,7 +5828,6 @@ func_exit:
 /********************************************************************//**
 Count rows in a R-Tree leaf level.
 @return DB_SUCCESS if successful */
-
 dberr_t
 row_count_rtree_recs(
 /*=================*/
@@ -5899,7 +5906,7 @@ rec_loop:
 		goto next_rec;
 	}
 
-	ut_ad(fil_page_get_type(btr_pcur_get_page(pcur)) == FIL_PAGE_INDEX);
+	ut_ad(fil_page_index_page_check(btr_pcur_get_page(pcur)));
 	ut_ad(btr_page_get_index_id(btr_pcur_get_page(pcur)) == index->id);
 
 	if (rec_get_deleted_flag(rec, comp)) {
@@ -5931,7 +5938,6 @@ normal_return:
 Checks if MySQL at the moment is allowed for this table to retrieve a
 consistent read result, or store it to the query cache.
 @return TRUE if storing or retrieving from the query cache is permitted */
-
 ibool
 row_search_check_if_query_cache_permitted(
 /*======================================*/
@@ -6106,7 +6112,6 @@ row_search_get_max_rec(
 Read the max AUTOINC value from an index.
 @return DB_SUCCESS if all OK else error code, DB_RECORD_NOT_FOUND if
 column name can't be found in index */
-
 dberr_t
 row_search_max_autoinc(
 /*===================*/

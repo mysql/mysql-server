@@ -943,7 +943,7 @@ static void debug_sync_reset(THD *thd)
 static void debug_sync_remove_action(st_debug_sync_control *ds_control,
                                      st_debug_sync_action *action)
 {
-  uint dsp_idx= action - ds_control->ds_action;
+  uint dsp_idx= static_cast<uint>(action - ds_control->ds_action);
   DBUG_ENTER("debug_sync_remove_action");
   DBUG_ASSERT(ds_control);
   DBUG_ASSERT(ds_control == current_thd->debug_sync_control);
@@ -1014,7 +1014,7 @@ static void debug_sync_remove_action(st_debug_sync_control *ds_control,
 
 static st_debug_sync_action *debug_sync_get_action(THD *thd,
                                                    const char *dsp_name,
-                                                   uint name_len)
+                                                   size_t name_len)
 {
   st_debug_sync_control *ds_control= thd->debug_sync_control;
   st_debug_sync_action  *action;
@@ -1294,7 +1294,7 @@ static inline const char *get_token_end_ptr(const char *ptr)
     to the string terminator ASCII NUL ('\0').
 */
 
-static char *debug_sync_token(char **token_p, uint *token_length_p, char *ptr)
+static char *debug_sync_token(char **token_p, size_t *token_length_p, char *ptr)
 {
   DBUG_ASSERT(token_p);
   DBUG_ASSERT(token_length_p);
@@ -1366,7 +1366,7 @@ static char *debug_sync_number(ulong *number_p, char *actstrptr)
   char                  *ptr;
   char                  *ept;
   char                  *token;
-  uint                  token_length;
+  size_t                token_length;
   DBUG_ASSERT(number_p);
   DBUG_ASSERT(actstrptr);
 
@@ -1421,7 +1421,7 @@ static bool debug_sync_eval_action(THD *thd, char *action_str)
   const char            *errmsg;
   char                  *ptr;
   char                  *token;
-  uint                  token_length= 0;
+  size_t                token_length= 0;
   DBUG_ENTER("debug_sync_eval_action");
   DBUG_ASSERT(thd);
   DBUG_ASSERT(action_str);
@@ -1925,7 +1925,7 @@ static void debug_sync_execute(THD *thd, st_debug_sync_action *action)
       else
         old_mutex= NULL;
 
-      set_timespec(abstime, action->timeout);
+      set_timespec(&abstime, action->timeout);
       DBUG_EXECUTE("debug_sync_exec", {
           DBUG_PRINT("debug_sync_exec",
                      ("wait for '%s'  at: '%s'",

@@ -24,7 +24,7 @@ insert into t1 values(null);
 select count(*) from t1;
 
 set @@sql_mode=@org_mode;
-insert into t1 values(null);
+insert ignore into t1 values(null);
 select * from t1;
 
 drop table t1;

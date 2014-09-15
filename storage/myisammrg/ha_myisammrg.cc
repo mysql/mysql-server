@@ -1594,7 +1594,8 @@ void ha_myisammrg::append_create_info(String *packet)
   for (first= open_table= children_l;;
        open_table= open_table->next_global)
   {
-    LEX_STRING db= { open_table->db, open_table->db_length };
+    LEX_STRING db= { const_cast<char*>(open_table->db),
+                    open_table->db_length };  
 
     if (open_table != first)
       packet->append(',');
@@ -1632,9 +1633,10 @@ int ha_myisammrg::check(THD* thd, HA_CHECK_OPT* check_opt)
 }
 
 
-ha_rows ha_myisammrg::records()
+int ha_myisammrg::records(ha_rows *num_rows)
 {
-  return myrg_records(file);
+  *num_rows= myrg_records(file);
+  return 0;
 }
 
 

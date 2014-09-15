@@ -322,7 +322,7 @@ CREATE TABLE t1 (
   KEY `varchar_key` (`varchar_key`)
 );
 
-INSERT INTO t1 VALUES 
+INSERT IGNORE INTO t1 VALUES 
 (1,5,5,'2009-10-16','2009-10-16','09:28:15','09:28:15','2007-09-14 05:34:08','2007-09-14 05:34:08','qk','qk'),
 (2,6,6,'0000-00-00','0000-00-00','23:06:39','23:06:39','0000-00-00 00:00:00','0000-00-00 00:00:00','j','j'),
 (3,10,10,'2000-12-18','2000-12-18','22:16:19','22:16:19','2006-11-04 15:42:50','2006-11-04 15:42:50','aew','aew'),
@@ -360,6 +360,7 @@ ANALYZE TABLE t1;
 
 SELECT id FROM t1 WHERE parent_id IS NOT NULL ORDER BY id DESC LIMIT 1;
 --echo This must show type=index, extra=Using where
+# The filtering effect of IS NOT NULL is from stats of the range optimizer.
 explain SELECT * FROM t1 WHERE parent_id IS NOT NULL ORDER BY id DESC LIMIT 1;
 SELECT * FROM t1 WHERE parent_id IS NOT NULL ORDER BY id DESC LIMIT 1;
 drop table t1;

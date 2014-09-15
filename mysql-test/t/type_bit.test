@@ -172,7 +172,7 @@ drop table t1;
 #
 
 create table t1 (a bit(8)) engine=heap;
-insert into t1 values ('1111100000');
+insert ignore into t1 values ('1111100000');
 select a+0 from t1;
 drop table t1;
 
@@ -227,6 +227,8 @@ insert into t2 values (2, 1), (3, 0), (4, 1), (5, 2);
 select a1, a2, b1+0, b2+0 from t1 join t2 on a1 = a2;
 select a1, a2, b1+0, b2+0 from t1 join t2 on a1 = a2 order by a1;
 select a1, a2, b1+0, b2+0 from t1 join t2 on b1 = b2;
+
+# We see the functional dependency implied by ON
 select sum(a1), b1+0, b2+0 from t1 join t2 on b1 = b2 group by b1 order by 1;
 select 1 from t1 join t2 on b1 = b2 group by b1 order by 1;
 select b1+0,sum(b1), sum(b2) from t1 join t2 on b1 = b2 group by b1 order by 1;
@@ -261,7 +263,7 @@ drop table bug15583;
 #
 
 create table t1(a bit(1), b smallint unsigned);
-insert into t1 (b, a) values ('2', '1');
+insert ignore into t1 (b, a) values ('2', '1');
 select hex(a), b from t1;
 drop table t1;
 
@@ -328,10 +330,10 @@ DROP TABLE t2;
 
 CREATE TABLE t1(a BIT(13), KEY(a));
 --disable_warnings
-INSERT INTO t1(a) VALUES (65535),(65525),(65535),(65535),(65535),
-                         (65535),(65535),(65535),(65535),(65535),
-                         (65535),(65525),(65535),(65535),(65535),
-                         (65535),(65535),(65535),(65535),(65535);
+INSERT IGNORE INTO t1(a) VALUES (65535),(65525),(65535),(65535),(65535),
+                                (65535),(65535),(65535),(65535),(65535),
+                                (65535),(65525),(65535),(65535),(65535),
+                                (65535),(65535),(65535),(65535),(65535);
 --enable_warnings
 
 EXPLAIN SELECT 1 FROM t1 GROUP BY a;

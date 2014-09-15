@@ -1,3 +1,4 @@
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 drop table if exists t1,t2,t3,t4,t5;
 drop database if exists mysqltest;
 drop view if exists v1;
@@ -364,7 +365,7 @@ show create table t3;
 Table	Create Table
 t3	CREATE TEMPORARY TABLE `t3` (
   `id` int(11) NOT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=TMP_TABLE_ENGINE DEFAULT CHARSET=latin1
 select * from t3;
 id
 drop table t3;
@@ -385,7 +386,7 @@ Table	Create Table
 t3	CREATE TEMPORARY TABLE `t3` (
   `id` int(11) NOT NULL,
   `name` char(20) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=TMP_TABLE_ENGINE DEFAULT CHARSET=latin1
 create table t2 like t3;
 show create table t2;
 Table	Create Table
@@ -1131,7 +1132,7 @@ t1	CREATE TABLE `t1` (
   `TIME` int(7) NOT NULL DEFAULT '0',
   `STATE` varchar(64) DEFAULT NULL,
   `INFO` longtext
-) ENGINE=MyISAM DEFAULT CHARSET=utf8
+) ENGINE=TMP_TABLE_ENGINE DEFAULT CHARSET=utf8
 drop table t1;
 create temporary table t1 like information_schema.processlist;
 show create table t1;
@@ -1145,7 +1146,7 @@ t1	CREATE TEMPORARY TABLE `t1` (
   `TIME` int(7) NOT NULL DEFAULT '0',
   `STATE` varchar(64) DEFAULT NULL,
   `INFO` longtext
-) ENGINE=MyISAM DEFAULT CHARSET=utf8
+) ENGINE=TMP_TABLE_ENGINE DEFAULT CHARSET=utf8
 drop table t1;
 create table t1 like information_schema.character_sets;
 show create table t1;
@@ -1857,3 +1858,4 @@ CREATE TABLE t012345678901234567890123456789012345678901234567890123456789012345
 ERROR 42000: Identifier name 't01234567890123456789012345678901234567890123456789012345678901234567890123456789' is too long
 CREATE DATABASE t01234567890123456789012345678901234567890123456789012345678901234567890123456789;
 ERROR 42000: Identifier name 't01234567890123456789012345678901234567890123456789012345678901234567890123456789' is too long
+SET sql_mode = default;

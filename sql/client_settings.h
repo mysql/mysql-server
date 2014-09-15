@@ -29,14 +29,14 @@
 */
 #define CLIENT_CAPABILITIES (CLIENT_LONG_PASSWORD | \
                              CLIENT_LONG_FLAG |     \
-                             CLIENT_SECURE_CONNECTION | \
                              CLIENT_TRANSACTIONS |  \
                              CLIENT_PROTOCOL_41 |   \
-                             CLIENT_SECURE_CONNECTION | \
+                             CLIENT_RESERVED2 | \
                              CLIENT_PLUGIN_AUTH | \
                              CLIENT_PLUGIN_AUTH_LENENC_CLIENT_DATA | \
                              CLIENT_CONNECT_ATTRS | \
-                             CLIENT_SESSION_TRACK)
+                             CLIENT_SESSION_TRACK | \
+                             CLIENT_DEPRECATE_EOF)
 
 #define read_user_name(A) {}
 

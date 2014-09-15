@@ -42,10 +42,12 @@ let $MYSQL_TMP_DIR = `select @@tmpdir`;
 let $MYSQL_DATA_DIR = `select @@datadir`;
 let SEARCH_FILE = $MYSQLTEST_VARDIR/log/my_restart.err;
 
+--disable_query_log
 # suppress expected warnings.
 call mtr.add_suppression("Have you deleted or moved.*");
 call mtr.add_suppression("Failed to open truncate log file");
-#
+--enable_query_log
+
 #-----------------------------------------------------------------------------
 #
 # 1. Test some basic dml action involving truncate of table.
@@ -212,6 +214,7 @@ drop procedure populate_t1;
 # 4. Compressed table with small key-block-size.
 #
 use test;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 delimiter |;
 create procedure populate_t1()
 begin
@@ -235,6 +238,7 @@ begin;
 call populate_t1();
 commit;
 select count(*) from t1;
+SET sql_mode = default;
 #
 set session debug = "+d,ib_trunc_crash_before_log_checkpoint";
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect

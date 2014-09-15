@@ -79,6 +79,8 @@ ibool	srv_error_monitor_active = FALSE;
 
 ibool	srv_buf_dump_thread_active = FALSE;
 
+bool	srv_buf_resize_thread_active = false;
+
 ibool	srv_dict_stats_thread_active = FALSE;
 
 const char*	srv_main_thread_op_info = "";
@@ -105,9 +107,26 @@ ulint	srv_undo_tablespaces_open = 0;
 /* The number of rollback segments to use */
 ulong	srv_undo_logs = 1;
 
+/** Rate at which UNDO records should be purged. */
+ulong	srv_purge_rseg_truncate_frequency = 128;
+
+/** Enable or Disable Truncate of UNDO tablespace.
+Note: If enabled then UNDO tablespace will be selected for truncate.
+While Server waits for undo-tablespace to truncate if user disables
+it, truncate action is completed but no new tablespace is marked
+for truncate (action is never aborted). */
+my_bool	srv_undo_log_truncate = FALSE;
+
+/** Maximum size of undo tablespace. */
+unsigned long long	srv_max_undo_log_size;
+
 /** UNDO logs that are not redo logged.
 These logs reside in the temp tablespace.*/
 const ulong		srv_tmp_undo_logs = 32;
+
+/** Default undo tablespace size in UNIV_PAGEs count (10MB). */
+const ulint SRV_UNDO_TABLESPACE_SIZE_IN_PAGES =
+	((1024 * 1024) * 10) / UNIV_PAGE_SIZE_DEF;
 
 /** Set if InnoDB must operate in read-only mode. We don't do any
 recovery and open all tables in RO mode instead of RW mode. We don't
@@ -172,23 +191,32 @@ srv_printf_innodb_monitor() will request mutex acquisition
 with mutex_enter(), which will wait until it gets the mutex. */
 #define MUTEX_NOWAIT(mutex_skipped)	((mutex_skipped) < MAX_MUTEX_NOWAIT)
 
-/* requested size in kilobytes */
+/** Requested size in bytes */
 ulint	srv_buf_pool_size	= ULINT_MAX;
-/* requested number of buffer pool instances */
+/** Minimum pool size in bytes */
+const ulint	srv_buf_pool_min_size	= 5 * 1024 * 1024;
+/** Requested buffer pool chunk size. Each buffer pool instance consists
+of one or more chunks. */
+ulong	srv_buf_pool_chunk_unit;
+/** Requested number of buffer pool instances */
 ulong	srv_buf_pool_instances;
-/* number of locks to protect buf_pool->page_hash */
+/** Default number of buffer pool instances */
+const ulong	srv_buf_pool_instances_default = 0;
+/** Number of locks to protect buf_pool->page_hash */
 ulong	srv_n_page_hash_locks = 16;
 /** Scan depth for LRU flush batch i.e.: number of blocks scanned*/
 ulong	srv_LRU_scan_depth	= 1024;
-/** whether or not to flush neighbors of a block */
+/** Whether or not to flush neighbors of a block */
 ulong	srv_flush_neighbors	= 1;
-/* previously requested size */
-ulint	srv_buf_pool_old_size;
-/* current size in kilobytes */
+/** Previously requested size */
+ulint	srv_buf_pool_old_size	= 0;
+/** Current size as scaling factor for the other components */
+ulint	srv_buf_pool_base_size	= 0;
+/** Current size in bytes */
 ulint	srv_buf_pool_curr_size	= 0;
-/* dump that may % of each buffer pool during BP dump */
+/** Dump this % of each buffer pool during BP dump */
 ulong	srv_buf_pool_dump_pct;
-/* size in bytes */
+/** Lock table size in bytes */
 ulint	srv_lock_table_size	= ULINT_MAX;
 
 /* This parameter is deprecated. Use srv_n_io_[read|write]_threads
@@ -203,6 +231,10 @@ my_bool	srv_random_read_ahead	= FALSE;
 in the buffer cache and accessed sequentially for InnoDB to trigger a
 readahead request. */
 ulong	srv_read_ahead_threshold	= 56;
+
+/** Maximum on-disk size of change buffer in terms of percentage
+of the buffer pool. */
+uint	srv_change_buffer_max_size = CHANGE_BUFFER_DEFAULT_SIZE;
 
 /* This parameter is used to throttle the number of insert buffers that are
 merged in a batch. By increasing this parameter on a faster disk you can
@@ -516,6 +548,9 @@ os_event_t	srv_error_event;
 /** Event to signal the buffer pool dump/load thread */
 os_event_t	srv_buf_dump_event;
 
+/** Event to signal the buffer pool resize thread */
+os_event_t	srv_buf_resize_event;
+
 /** The buffer pool dump/load file name */
 char*	srv_buf_dump_filename;
 
@@ -549,7 +584,6 @@ srv_print_master_thread_info(
 
 /*********************************************************************//**
 Sets the info describing an i/o thread current state. */
-
 void
 srv_set_io_thread_op_info(
 /*======================*/
@@ -564,7 +598,6 @@ srv_set_io_thread_op_info(
 
 /*********************************************************************//**
 Resets the info describing an i/o thread current state. */
-
 void
 srv_reset_io_thread_op_info()
 /*=========================*/
@@ -737,7 +770,6 @@ Releases threads of the type given from suspension in the thread table.
 NOTE! The server mutex has to be reserved by the caller!
 @return number of threads released: this may be less than n if not
         enough threads were suspended at the moment. */
-
 ulint
 srv_release_threads(
 /*================*/
@@ -830,7 +862,6 @@ srv_free_slot(
 
 /*********************************************************************//**
 Initializes the server. */
-
 void
 srv_init(void)
 /*==========*/
@@ -848,7 +879,7 @@ srv_init(void)
 		srv_sys_sz += n_sys_threads * sizeof(*srv_sys->sys_threads);
 	}
 
-	srv_sys = static_cast<srv_sys_t*>(ut_zalloc(srv_sys_sz));
+	srv_sys = static_cast<srv_sys_t*>(ut_zalloc_nokey(srv_sys_sz));
 
 	srv_sys->n_sys_threads = n_sys_threads;
 
@@ -881,6 +912,8 @@ srv_init(void)
 		UT_LIST_INIT(srv_sys->tasks, &que_thr_t::queue);
 	}
 
+	srv_buf_resize_event = os_event_create(0);
+
 	/* page_zip_stat_per_index_mutex is acquired from:
 	1. page_zip_compress() (after SYNC_FSP)
 	2. page_zip_decompress()
@@ -907,7 +940,6 @@ srv_init(void)
 
 /*********************************************************************//**
 Frees the data structures created in srv_init(). */
-
 void
 srv_free(void)
 /*==========*/
@@ -931,6 +963,8 @@ srv_free(void)
 		os_event_destroy(buf_flush_event);
 	}
 
+	os_event_destroy(srv_buf_resize_event);
+
 	trx_i_s_cache_free(trx_i_s_cache);
 
 	ut_free(srv_sys);
@@ -941,7 +975,6 @@ srv_free(void)
 /*********************************************************************//**
 Initializes the synchronization primitives, memory system, and the thread
 local storage. */
-
 void
 srv_general_init(void)
 /*==================*/
@@ -976,7 +1009,6 @@ srv_normalize_init_values(void)
 
 /*********************************************************************//**
 Boots the InnoDB server. */
-
 void
 srv_boot(void)
 /*==========*/
@@ -1029,7 +1061,6 @@ srv_refresh_innodb_monitor_stats(void)
 Outputs to a file the output of the InnoDB Monitor.
 @return FALSE if not all information printed
 due to failure to obtain necessary mutex */
-
 ibool
 srv_printf_innodb_monitor(
 /*======================*/
@@ -1137,7 +1168,9 @@ srv_printf_innodb_monitor(
 	      "-------------------------------------\n", file);
 	ibuf_print(file);
 
+	rw_lock_s_lock(&btr_search_latch);
 	ha_print_info(file, btr_search_sys->hash_index);
+	rw_lock_s_unlock(&btr_search_latch);
 
 	fprintf(file,
 		"%.2f hash searches/s, %.2f non-hash searches/s\n",
@@ -1225,7 +1258,6 @@ srv_printf_innodb_monitor(
 
 /******************************************************************//**
 Function to pass InnoDB status variables to MySQL */
-
 void
 srv_export_innodb_status(void)
 /*==========================*/
@@ -1428,8 +1460,8 @@ DECLARE_THREAD(srv_monitor_thread)(
 	ut_ad(!srv_read_only_mode);
 
 #ifdef UNIV_DEBUG_THREAD_CREATION
-	ib_logf(IB_LOG_LEVEL_INFO, "Lock timeout thread starts, id %lu",
-		os_thread_pf(os_thread_get_curr_id()));
+	ib::info() << "Lock timeout thread starts, id "
+		<< os_thread_pf(os_thread_get_curr_id());
 #endif /* UNIV_DEBUG_THREAD_CREATION */
 
 #ifdef UNIV_PFS_THREAD
@@ -1549,8 +1581,8 @@ DECLARE_THREAD(srv_error_monitor_thread)(
 	old_lsn = srv_start_lsn;
 
 #ifdef UNIV_DEBUG_THREAD_CREATION
-	ib_logf(IB_LOG_LEVEL_INFO, "Error monitor thread starts, id %lu",
-		os_thread_pf(os_thread_get_curr_id()));
+	ib::info() << "Error monitor thread starts, id "
+		<< os_thread_pf(os_thread_get_curr_id());
 #endif /* UNIV_DEBUG_THREAD_CREATION */
 
 #ifdef UNIV_PFS_THREAD
@@ -1565,11 +1597,10 @@ loop:
 	new_lsn = log_get_lsn();
 
 	if (new_lsn < old_lsn) {
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Old log sequence number " LSN_PF "was greater than"
-			" the new log sequence number " LSN_PF "!."
-			" Please submit a bug report to http://bugs.mysql.com",
-			old_lsn, new_lsn);
+		ib::error() << "Old log sequence number " << old_lsn << " was"
+			<< " greater than the new log sequence number "
+			<< new_lsn << ". Please submit a bug report to"
+			" http://bugs.mysql.com";
 		ut_ad(0);
 	}
 
@@ -1596,11 +1627,10 @@ loop:
 	    && sema == old_sema && os_thread_eq(waiter, old_waiter)) {
 		fatal_cnt++;
 		if (fatal_cnt > 10) {
-			ib_logf(IB_LOG_LEVEL_FATAL,
-				"Semaphore wait has lasted > %lu seconds."
-				" We intentionally crash the server because"
-				" it appears to be hung.",
-				(ulong) srv_fatal_semaphore_wait_threshold);
+			ib::fatal() << "Semaphore wait has lasted > "
+				<< srv_fatal_semaphore_wait_threshold
+				<< " seconds. We intentionally crash the"
+				" server because it appears to be hung.";
 		}
 	} else {
 		fatal_cnt = 0;
@@ -1634,7 +1664,6 @@ loop:
 
 /******************************************************************//**
 Increment the server activity count. */
-
 void
 srv_inc_activity_count(void)
 /*========================*/
@@ -1647,7 +1676,6 @@ Check whether any background thread is active. If so return the thread
 type.
 @return SRV_NONE if all are suspended or have exited, thread
 type if any are still active. */
-
 srv_thread_type
 srv_get_active_thread_type(void)
 /*============================*/
@@ -1685,7 +1713,6 @@ srv_get_active_thread_type(void)
 Check whether any background thread are active. If so print which thread
 is active. Send the threads wakeup signal.
 @return name of thread that is active or NULL */
-
 const char*
 srv_any_background_threads_are_active(void)
 /*=======================================*/
@@ -1693,7 +1720,11 @@ srv_any_background_threads_are_active(void)
 	const char*	thread_active = NULL;
 
 	if (srv_read_only_mode) {
-		return(NULL);
+		if (srv_buf_resize_thread_active) {
+			thread_active = "buf_resize_thread";
+		}
+		os_event_set(srv_buf_resize_event);
+		return(thread_active);
 	} else if (srv_error_monitor_active) {
 		thread_active = "srv_error_monitor_thread";
 	} else if (lock_sys->timeout_thread_active) {
@@ -1702,6 +1733,8 @@ srv_any_background_threads_are_active(void)
 		thread_active = "srv_monitor_thread";
 	} else if (srv_buf_dump_thread_active) {
 		thread_active = "buf_dump_thread";
+	} else if (srv_buf_resize_thread_active) {
+		thread_active = "buf_resize_thread";
 	} else if (srv_dict_stats_thread_active) {
 		thread_active = "dict_stats_thread";
 	}
@@ -1711,6 +1744,7 @@ srv_any_background_threads_are_active(void)
 	os_event_set(srv_buf_dump_event);
 	os_event_set(lock_sys->timeout_event);
 	os_event_set(dict_stats_event);
+	os_event_set(srv_buf_resize_event);
 
 	return(thread_active);
 }
@@ -1721,7 +1755,6 @@ and wakes up the master thread if it is suspended (not sleeping). Used
 in the MySQL interface. Note that there is a small chance that the master
 thread stays suspended (we do not protect our operation with the
 srv_sys_t->mutex, for performance reasons). */
-
 void
 srv_active_wake_master_thread_low()
 /*===============================*/
@@ -1763,7 +1796,6 @@ and wakes up the purge thread if it is suspended (not sleeping).  Note
 that there is a small chance that the purge thread stays suspended
 (we do not protect our check with the srv_sys_t:mutex and the
 purge_sys->latch, for performance reasons). */
-
 void
 srv_wake_purge_thread_if_not_active(void)
 /*=====================================*/
@@ -1779,7 +1811,6 @@ srv_wake_purge_thread_if_not_active(void)
 
 /*******************************************************************//**
 Wakes up the master thread if it is suspended or being suspended. */
-
 void
 srv_wake_master_thread(void)
 /*========================*/
@@ -1795,7 +1826,6 @@ srv_wake_master_thread(void)
 Get current server activity count. We don't hold srv_sys::mutex while
 reading this value as it is only used in heuristics.
 @return activity count. */
-
 ulint
 srv_get_activity_count(void)
 /*========================*/
@@ -1806,7 +1836,6 @@ srv_get_activity_count(void)
 /*******************************************************************//**
 Check if there has been any activity.
 @return FALSE if no change in activity counter. */
-
 ibool
 srv_check_activity(
 /*===============*/
@@ -1885,19 +1914,16 @@ srv_shutdown_print_master_pending(
 		*last_print_time = ut_time();
 
 		if (n_tables_to_drop) {
-			ib_logf(IB_LOG_LEVEL_INFO,
-				"Waiting for %lu table(s) to be dropped",
-				(ulong) n_tables_to_drop);
+			ib::info() << "Waiting for " << n_tables_to_drop
+				<< " table(s) to be dropped";
 		}
 
 		/* Check change buffer merge, we only wait for change buffer
 		merge if it is a slow shutdown */
 		if (!srv_fast_shutdown && n_bytes_merged) {
-			ib_logf(IB_LOG_LEVEL_INFO,
-				"Waiting for change buffer merge to complete"
-				" number of bytes of change buffer"
-				" just merged:  %lu",
-				n_bytes_merged);
+			ib::info() << "Waiting for change buffer merge to"
+				" complete number of bytes of change buffer"
+				" just merged: " << n_bytes_merged;
 		}
 	}
 }
@@ -2157,8 +2183,8 @@ DECLARE_THREAD(srv_master_thread)(
 	ut_ad(!srv_read_only_mode);
 
 #ifdef UNIV_DEBUG_THREAD_CREATION
-	ib_logf(IB_LOG_LEVEL_INFO, "Master thread starts, id %lu",
-		os_thread_pf(os_thread_get_curr_id()));
+	ib::info() << "Master thread starts, id "
+		<< os_thread_pf(os_thread_get_curr_id());
 #endif /* UNIV_DEBUG_THREAD_CREATION */
 
 #ifdef UNIV_PFS_THREAD
@@ -2300,8 +2326,8 @@ DECLARE_THREAD(srv_worker_thread)(
 	ut_a(srv_force_recovery < SRV_FORCE_NO_BACKGROUND);
 
 #ifdef UNIV_DEBUG_THREAD_CREATION
-	ib_logf(IB_LOG_LEVEL_INFO, "Worker thread starting, id %lu",
-		os_thread_pf(os_thread_get_curr_id()));
+	ib::info() << "Worker thread starting, id "
+		<< os_thread_pf(os_thread_get_curr_id());
 #endif /* UNIV_DEBUG_THREAD_CREATION */
 
 	slot = srv_reserve_slot(SRV_WORKER);
@@ -2346,8 +2372,8 @@ DECLARE_THREAD(srv_worker_thread)(
 	rw_lock_x_unlock(&purge_sys->latch);
 
 #ifdef UNIV_DEBUG_THREAD_CREATION
-	ib_logf(IB_LOG_LEVEL_INFO, "Purge worker thread exiting, id %lu",
-		os_thread_pf(os_thread_get_curr_id()));
+	ib::info() << "Purge worker thread exiting, id "
+		<< os_thread_pf(os_thread_get_curr_id());
 #endif /* UNIV_DEBUG_THREAD_CREATION */
 
 	/* We count the number of threads in os_thread_exit(). A created
@@ -2424,7 +2450,14 @@ srv_do_purge(
 		n_pages_purged = trx_purge(
 			n_use_threads, srv_purge_batch_size, false);
 
-		if (!(count++ % TRX_SYS_N_RSEGS)) {
+		ulint	undo_trunc_freq =
+			purge_sys->undo_trunc.get_rseg_truncate_frequency();
+
+		ulint	rseg_truncate_frequency = ut_min(
+			static_cast<ulint>(srv_purge_rseg_truncate_frequency),
+			undo_trunc_freq);
+
+		if (!(count++ % rseg_truncate_frequency)) {
 			/* Force a truncate of the history list. */
 			n_pages_purged += trx_purge(
 				1, srv_purge_batch_size, true);
@@ -2553,6 +2586,7 @@ DECLARE_THREAD(srv_purge_coordinator_thread)(
 	void*	arg __attribute__((unused)))	/*!< in: a dummy parameter
 						required by os_thread_create */
 {
+	my_thread_init();
 	srv_slot_t*	slot;
 	ulint           n_total_purged = ULINT_UNDEFINED;
 
@@ -2573,8 +2607,8 @@ DECLARE_THREAD(srv_purge_coordinator_thread)(
 #endif /* UNIV_PFS_THREAD */
 
 #ifdef UNIV_DEBUG_THREAD_CREATION
-	ib_logf(IB_LOG_LEVEL_INFO, "Purge coordinator thread created, id %lu",
-		os_thread_pf(os_thread_get_curr_id()));
+	ib::info() << "Purge coordinator thread created, id "
+		<< os_thread_pf(os_thread_get_curr_id());
 #endif /* UNIV_DEBUG_THREAD_CREATION */
 
 	slot = srv_reserve_slot(SRV_PURGE);
@@ -2638,8 +2672,8 @@ DECLARE_THREAD(srv_purge_coordinator_thread)(
 	rw_lock_x_unlock(&purge_sys->latch);
 
 #ifdef UNIV_DEBUG_THREAD_CREATION
-	ib_logf(IB_LOG_LEVEL_INFO, "Purge coordinator exiting, id %lu",
-		os_thread_pf(os_thread_get_curr_id()));
+	ib::info() << "Purge coordinator exiting, id "
+		<< os_thread_pf(os_thread_get_curr_id());
 #endif /* UNIV_DEBUG_THREAD_CREATION */
 
 	/* Ensure that all the worker threads quit. */
@@ -2647,6 +2681,7 @@ DECLARE_THREAD(srv_purge_coordinator_thread)(
 		srv_release_threads(SRV_WORKER, srv_n_purge_threads - 1);
 	}
 
+	my_thread_end();
 	/* We count the number of threads in os_thread_exit(). A created
 	thread should always use that to exit and not use return() to exit. */
 	os_thread_exit(NULL);
@@ -2657,7 +2692,6 @@ DECLARE_THREAD(srv_purge_coordinator_thread)(
 /**********************************************************************//**
 Enqueues a task to server task queue and releases a worker thread, if there
 is a suspended one. */
-
 void
 srv_que_task_enqueue_low(
 /*=====================*/
@@ -2676,7 +2710,6 @@ srv_que_task_enqueue_low(
 /**********************************************************************//**
 Get count of tasks in the queue.
 @return number of tasks in queue */
-
 ulint
 srv_get_task_queue_length(void)
 /*===========================*/
@@ -2696,7 +2729,6 @@ srv_get_task_queue_length(void)
 
 /**********************************************************************//**
 Wakeup the purge threads. */
-
 void
 srv_purge_wakeup(void)
 /*==================*/
@@ -2722,7 +2754,6 @@ for independent tablespace are not applicable to system-tablespace).
 @param	space_id	space_id to check for truncate action
 @return true		if being truncated, false if not being
 			truncated or tablespace is system-tablespace. */
-
 bool
 srv_is_tablespace_truncated(ulint space_id)
 {
@@ -2730,7 +2761,8 @@ srv_is_tablespace_truncated(ulint space_id)
 		return(false);
 	}
 
-	return(truncate_t::is_tablespace_truncated(space_id));
+	return(truncate_t::is_tablespace_truncated(space_id)
+	       || undo::Truncate::is_tablespace_truncated(space_id));
 
 }
 

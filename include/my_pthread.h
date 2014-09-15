@@ -20,6 +20,10 @@
 
 #include "my_global.h"                          /* myf */
 
+#if !defined(_WIN32)
+#include <pthread.h>
+#endif
+
 #ifndef ETIME
 #define ETIME ETIMEDOUT				/* For FreeBSD */
 #endif
@@ -142,15 +146,6 @@ extern int pthread_dummy(int);
 #define ETIMEDOUT 145		    /* Win32 doesn't have this */
 #endif
 
-#define pthread_key(T,V)  DWORD V
-#define pthread_key_create(A,B) ((*A=TlsAlloc())==0xFFFFFFFF)
-#define pthread_key_delete(A) TlsFree(A)
-#define my_pthread_setspecific_ptr(T,V) (!TlsSetValue((T),(V)))
-#define pthread_setspecific(A,B) (!TlsSetValue((A),(B)))
-#define pthread_getspecific(A) (TlsGetValue(A))
-#define my_pthread_getspecific(T,A) ((T) TlsGetValue(A))
-#define my_pthread_getspecific_ptr(T,V) ((T) TlsGetValue(V))
-
 #define pthread_kill(A,B) pthread_dummy((A) ? 0 : ESRCH)
 
 static inline int pthread_attr_getguardsize(pthread_attr_t *attr,
@@ -163,33 +158,26 @@ static inline int pthread_attr_getguardsize(pthread_attr_t *attr,
 /* Dummy defines for easier code */
 #define pthread_attr_setdetachstate(A,B) pthread_dummy(0)
 #define pthread_attr_setscope(A,B) pthread_dummy(0)
-#define pthread_yield() SwitchToThread()
 
 #else /* Normal threads */
 
-#include <pthread.h>
-#include <sched.h>
-#ifdef HAVE_SYNCH_H
-#include <synch.h>
-#endif
-
-#define pthread_key(T,V) pthread_key_t V
-#define my_pthread_getspecific_ptr(T,V) my_pthread_getspecific(T,(V))
-#define my_pthread_setspecific_ptr(T,V) pthread_setspecific(T,(void*) (V))
 #define pthread_handler_t EXTERNC void *
 typedef void *(* pthread_handler)(void *);
 
 #define my_pthread_once_t pthread_once_t
 #define MY_PTHREAD_ONCE_INIT PTHREAD_ONCE_INIT
 #define my_pthread_once(C,F) pthread_once(C,F)
-#define my_pthread_getspecific(A,B) ((A) pthread_getspecific(B))
-
-#if !defined(HAVE_PTHREAD_YIELD_ZERO_ARG)
-/* no pthread_yield() available */
-#define pthread_yield() sched_yield()
-#endif
 
 #endif /* defined(_WIN32) */
+
+static inline void my_thread_yield()
+{
+#ifdef _WIN32
+  SwitchToThread();
+#else
+  sched_yield();
+#endif
+}
 
 /* Define mutex types, see my_thr_init.c */
 #define MY_MUTEX_INIT_SLOW   NULL
@@ -211,15 +199,13 @@ extern native_mutexattr_t my_errorcheck_mutexattr;
 #define ESRCH 1
 #endif
 
-typedef ulong my_thread_id;
+typedef uint32 my_thread_id;
 
 extern my_bool my_thread_global_init(void);
 extern void my_thread_global_reinit(void);
 extern void my_thread_global_end(void);
 extern my_bool my_thread_init(void);
 extern void my_thread_end(void);
-extern const char *my_thread_name(void);
-extern my_thread_id my_thread_dbug_id(void);
 
 #ifndef DEFAULT_THREAD_STACK
 #if SIZEOF_CHARP > 4
@@ -240,45 +226,7 @@ extern my_thread_id my_thread_dbug_id(void);
 #endif /* MYSQL_SERVER */
 
 #include <mysql/psi/mysql_thread.h>
-
-/* All thread specific variables are in the following struct */
-#define THREAD_NAME_SIZE 10
-struct st_my_thread_var
-{
-  int thr_errno;
-#if defined(_WIN32)
-/*
-  thr_winerr is used for returning the original OS error-code in Windows,
-  my_osmaperr() returns EINVAL for all unknown Windows errors, hence we
-  preserve the original Windows Error code in thr_winerr.
-*/
-  int thr_winerr;
-#endif
-  mysql_cond_t suspend;
-  mysql_mutex_t mutex;
-  mysql_mutex_t * volatile current_mutex;
-  mysql_cond_t * volatile current_cond;
-  my_thread_id id;
-  int volatile abort;
-  my_bool init;
-  struct st_my_thread_var *next,**prev;
-  void *opt_info;
-  void  *stack_ends_here;
-#ifndef DBUG_OFF
-  void *dbug;
-  char name[THREAD_NAME_SIZE+1];
-#endif
-};
-
-extern struct st_my_thread_var *_my_thread_var(void) __attribute__ ((const));
-extern int set_mysys_var(struct st_my_thread_var *mysys_var);
-extern void **my_thread_var_dbug();
-#define my_thread_var (_my_thread_var())
-#define my_errno my_thread_var->thr_errno
-
-#if defined(_WIN32)
-#define my_winerr my_thread_var->thr_winerr
-#endif
+#include "my_thread_local.h"
 
 #ifdef  __cplusplus
 }

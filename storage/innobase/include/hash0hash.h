@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -58,7 +58,6 @@ enum hash_table_sync_t {
 Creates a hash table with >= n array cells. The actual number
 of cells is chosen to be a prime number slightly bigger than n.
 @return own: created table */
-
 hash_table_t*
 hash_create(
 /*========*/
@@ -68,7 +67,6 @@ hash_create(
 Creates a sync object array array to protect a hash table.
 ::sync_obj can be mutexes or rw_locks depening on the type of
 hash table. */
-
 void
 hash_create_sync_obj(
 /*=================*/
@@ -82,7 +80,6 @@ hash_create_sync_obj(
 
 /*************************************************************//**
 Frees a hash table. */
-
 void
 hash_table_free(
 /*============*/
@@ -327,10 +324,12 @@ do {\
 	cell_count2222 = hash_get_n_cells(OLD_TABLE);\
 \
 	for (i2222 = 0; i2222 < cell_count2222; i2222++) {\
-		NODE_TYPE*	node2222 = HASH_GET_FIRST((OLD_TABLE), i2222);\
+		NODE_TYPE*	node2222 = static_cast<NODE_TYPE*>(\
+			HASH_GET_FIRST((OLD_TABLE), i2222));\
 \
 		while (node2222) {\
-			NODE_TYPE*	next2222 = node2222->PTR_NAME;\
+			NODE_TYPE*	next2222 = static_cast<NODE_TYPE*>(\
+				node2222->PTR_NAME);\
 			ulint		fold2222 = FOLD_FUNC(node2222);\
 \
 			HASH_INSERT(NODE_TYPE, PTR_NAME, (NEW_TABLE),\
@@ -404,9 +403,35 @@ hash_get_lock(
 /*==========*/
 	hash_table_t*	table,	/*!< in: hash table */
 	ulint		fold);	/*!< in: fold */
+
+/** If not appropriate rw_lock for a fold value in a hash table,
+relock S-lock the another rw_lock until appropriate for a fold value.
+@param[in]	hash_lock	latched rw_lock to be confirmed
+@param[in]	table		hash table
+@param[in]	fold		fold value
+@return	latched rw_lock */
+UNIV_INLINE
+rw_lock_t*
+hash_lock_s_confirm(
+	rw_lock_t*	hash_lock,
+	hash_table_t*	table,
+	ulint		fold);
+
+/** If not appropriate rw_lock for a fold value in a hash table,
+relock X-lock the another rw_lock until appropriate for a fold value.
+@param[in]	hash_lock	latched rw_lock to be confirmed
+@param[in]	table		hash table
+@param[in]	fold		fold value
+@return	latched rw_lock */
+UNIV_INLINE
+rw_lock_t*
+hash_lock_x_confirm(
+	rw_lock_t*	hash_lock,
+	hash_table_t*	table,
+	ulint		fold);
+
 /************************************************************//**
 Reserves the mutex for a fold value in a hash table. */
-
 void
 hash_mutex_enter(
 /*=============*/
@@ -414,7 +439,6 @@ hash_mutex_enter(
 	ulint		fold);	/*!< in: fold */
 /************************************************************//**
 Releases the mutex for a fold value in a hash table. */
-
 void
 hash_mutex_exit(
 /*============*/
@@ -422,21 +446,18 @@ hash_mutex_exit(
 	ulint		fold);	/*!< in: fold */
 /************************************************************//**
 Reserves all the mutexes of a hash table, in an ascending order. */
-
 void
 hash_mutex_enter_all(
 /*=================*/
 	hash_table_t*	table);	/*!< in: hash table */
 /************************************************************//**
 Releases all the mutexes of a hash table. */
-
 void
 hash_mutex_exit_all(
 /*================*/
 	hash_table_t*	table);	/*!< in: hash table */
 /************************************************************//**
 Releases all but the passed in mutex of a hash table. */
-
 void
 hash_mutex_exit_all_but(
 /*====================*/
@@ -444,7 +465,6 @@ hash_mutex_exit_all_but(
 	ib_mutex_t*	keep_mutex);	/*!< in: mutex to keep */
 /************************************************************//**
 s-lock a lock for a fold value in a hash table. */
-
 void
 hash_lock_s(
 /*========*/
@@ -452,7 +472,6 @@ hash_lock_s(
 	ulint		fold);	/*!< in: fold */
 /************************************************************//**
 x-lock a lock for a fold value in a hash table. */
-
 void
 hash_lock_x(
 /*========*/
@@ -460,7 +479,6 @@ hash_lock_x(
 	ulint		fold);	/*!< in: fold */
 /************************************************************//**
 unlock an s-lock for a fold value in a hash table. */
-
 void
 hash_unlock_s(
 /*==========*/
@@ -469,7 +487,6 @@ hash_unlock_s(
 	ulint		fold);	/*!< in: fold */
 /************************************************************//**
 unlock x-lock for a fold value in a hash table. */
-
 void
 hash_unlock_x(
 /*==========*/
@@ -477,21 +494,18 @@ hash_unlock_x(
 	ulint		fold);	/*!< in: fold */
 /************************************************************//**
 Reserves all the locks of a hash table, in an ascending order. */
-
 void
 hash_lock_x_all(
 /*============*/
 	hash_table_t*	table);	/*!< in: hash table */
 /************************************************************//**
 Releases all the locks of a hash table, in an ascending order. */
-
 void
 hash_unlock_x_all(
 /*==============*/
 	hash_table_t*	table);	/*!< in: hash table */
 /************************************************************//**
 Releases all but passed in lock of a hash table, */
-
 void
 hash_unlock_x_all_but(
 /*==================*/

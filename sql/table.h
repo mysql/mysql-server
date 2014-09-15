@@ -921,7 +921,7 @@ public:
      @retval Pointer to the copied string.
      @retval 0 if an error occured.
   */
-  char *store(const char *from, uint length)
+  char *store(const char *from, size_t length)
   {
     return (char*) memdup_root(&storage, from, length);
   }
@@ -988,7 +988,6 @@ public:
   */
   key_map covering_keys;
   key_map quick_keys, merge_keys;
-  key_map used_keys;  /* Indexes that cover all fields used by the query */
   
   /*
     possible_quick_keys is a superset of quick_keys to use with EXPLAIN of
@@ -1022,6 +1021,10 @@ public:
 
   Field *next_number_field;		/* Set if next_number is activated */
   Field *found_next_number_field;	/* Set on open */
+  Field *hash_field;                    /* Field used by unique constraint */
+  /* Mask and bitmap are used along with hash_field */
+  uchar *hash_field_mask;
+  MY_BITMAP hash_field_bitmap;
   Field *fts_doc_id_field;              /* Set if FTS_DOC_ID field is present */
 
   /* Table's triggers, 0 if there are no of them */
@@ -1109,12 +1112,10 @@ public:
     this table and constants)
   */
   ha_rows       quick_condition_rows;
-  table_map	map;                    /* ID bit of table (1,2,4,8,16...) */
 
   uint          lock_position;          /* Position in MYSQL_LOCK.table */
   uint          lock_data_start;        /* Start pos. in MYSQL_LOCK.locks */
   uint          lock_count;             /* Number of locks */
-  uint		tablenr,used_fields;
   uint          temp_pool_slot;		/* Used by intern temp tables */
   uint		db_stat;		/* mode of file as in handler.h */
   int		current_lock;           /* Type of lock on table */
@@ -1152,7 +1153,9 @@ public:
     See TABLE_LIST::process_index_hints().
   */
   my_bool force_index_group;
-  my_bool distinct,const_table,no_rows;
+  my_bool distinct;
+  my_bool const_table;
+  my_bool no_rows;
 
   /**
      If set, the optimizer has found that row retrieval should access index 
@@ -1213,8 +1216,8 @@ private:
 public:
 
   void init(THD *thd, TABLE_LIST *tl);
-  bool fill_item_list(List<Item> *item_list) const;
-  void reset_item_list(List<Item> *item_list) const;
+  bool fill_item_list(List<Item> *item_list, uint limit= MAX_FIELDS) const;
+  void reset_item_list(List<Item> *item_list, uint limit) const;
   void clear_column_bitmaps(void);
   void prepare_for_position(void);
   void mark_columns_used_by_index_no_reset(uint index, MY_BITMAP *map);
@@ -1311,7 +1314,7 @@ public:
   */
   void init_cost_model(const Cost_model_server* cost_model_server)
   {
-    m_cost_model.init(cost_model_server);
+    m_cost_model.init(cost_model_server, this);
   }
 
   /**
@@ -1570,6 +1573,7 @@ struct TABLE_LIST
                              enum thr_lock_type lock_type_arg)
   {
     memset(this, 0, sizeof(*this));
+    m_map= 1;
     db= (char*) db_name_arg;
     db_length= db_length_arg;
     table_name= (char*) table_name_arg;
@@ -1595,12 +1599,12 @@ struct TABLE_LIST
   void          set_join_cond(Item *val)
   {
     // If optimization has started, it's too late to change m_join_cond.
-    DBUG_ASSERT(m_optim_join_cond == NULL ||
-                m_optim_join_cond == (Item*)1);
+    DBUG_ASSERT(m_join_cond_optim == NULL ||
+                m_join_cond_optim == (Item*)1);
     m_join_cond= val;
   }
-  Item *optim_join_cond() const { return m_optim_join_cond; }
-  void set_optim_join_cond(Item *cond)
+  Item *join_cond_optim() const { return m_join_cond_optim; }
+  void set_join_cond_optim(Item *cond)
   {
     /*
       Either we are setting to "empty", or there must pre-exist a
@@ -1608,9 +1612,9 @@ struct TABLE_LIST
     */
     DBUG_ASSERT(cond == NULL || cond == (Item*)1 ||
                 m_join_cond != NULL);
-    m_optim_join_cond= cond;
+    m_join_cond_optim= cond;
   }
-  Item **optim_join_cond_ref() { return &m_optim_join_cond; }
+  Item **join_cond_optim_ref() { return &m_join_cond_optim; }
 
   /*
     List of tables local to a subquery or the top-level SELECT (used by
@@ -1621,8 +1625,9 @@ struct TABLE_LIST
   TABLE_LIST *next_local;
   /* link in a global list of all queries tables */
   TABLE_LIST *next_global, **prev_global;
-  char		*db, *alias, *table_name, *schema_table_name;
-  char          *option;                /* Used by cache index  */
+  const char *db, *table_name, *alias;
+  char *schema_table_name;
+  char *option;                /* Used by cache index  */
   /**
      Context which should be used to resolve identifiers contained in the ON
      condition of the embedding join nest.
@@ -1632,6 +1637,13 @@ struct TABLE_LIST
   Name_resolution_context *context_of_embedding;
 
 private:
+  /**
+    The members below must be kept aligned so that (1 << m_tableno) == m_map.
+    A table that takes part in a join operation must be assigned a unique
+    table number.
+  */
+  uint          m_tableno;              ///< Table number within query block
+  table_map     m_map;                  ///< Table map, derived from m_tableno
   /**
      If this table or join nest is the Y in "X [LEFT] JOIN Y ON C", this
      member points to C. May also be generated from JOIN ... USING clause.
@@ -1776,8 +1788,8 @@ public:
   LEX_STRING	select_stmt;		/* text of (CREATE/SELECT) statement */
   LEX_STRING	md5;			/* md5 of query text */
   LEX_STRING	source;			/* source of CREATE VIEW */
-  LEX_STRING	view_db;		/* saved view database */
-  LEX_STRING	view_name;		/* saved view name */
+  LEX_CSTRING	view_db;		/* saved view database */
+  LEX_CSTRING	view_name;		/* saved view name */
   LEX_STRING	timestamp;		/* GMT time stamp of last operation */
   st_lex_user   definer;                /* definer of view */
   ulonglong	file_version;		/* version of file's field set */
@@ -1926,6 +1938,23 @@ public:
   List<String> *partition_names;
 #endif /* WITH_PARTITION_STORAGE_ENGINE */
 
+  /// Set table number
+  void set_tableno(uint tableno)
+  {
+    DBUG_ASSERT(tableno < MAX_TABLES);
+    m_tableno= tableno;
+    m_map= (table_map)1 << tableno;
+  }
+  /// Return table number
+  uint tableno() const { return m_tableno; }
+
+  /// Return table map derived from table number
+  table_map map() const
+  {
+    DBUG_ASSERT(((table_map)1 << m_tableno) == m_map);
+    return m_map;
+  }
+
 private:
   /*
     A group of members set and used only during JOIN::optimize().
@@ -1936,7 +1965,7 @@ private:
      @todo it would be good to reset it in reinit_before_use(), if
      reinit_stmt_before_use() had a loop including join nests.
   */
-  Item          *m_optim_join_cond;
+  Item          *m_join_cond_optim;
 public:
 
   COND_EQUAL    *cond_equal;            ///< Used with outer join
@@ -2076,7 +2105,7 @@ public:
      @brief Returns the name of the database that the referenced table belongs
      to.
   */
-  char *get_db_name() const { return view != NULL ? view_db.str : db; }
+  const char *get_db_name() const { return view != NULL ? view_db.str : db; }
 
   /**
      @brief Returns the name of the table that this TABLE_LIST represents.
@@ -2084,7 +2113,10 @@ public:
      @details The unqualified table name or view name for a table or view,
      respectively.
    */
-  char *get_table_name() const { return view != NULL ? view_name.str : table_name; }
+  const char *get_table_name() const
+  {
+    return view != NULL ? view_name.str : table_name;
+  }
   int fetch_number_of_rows();
   bool update_derived_keys(Field*, Item**, uint);
   bool generate_keys();
@@ -2293,6 +2325,7 @@ struct Semijoin_mat_optimize
   Item_field **mat_fields;
 };
 
+
 /**
   Struct st_nested_join is used to represent how tables are connected through
   outer join operations and semi-join operations to form a query block.
@@ -2310,7 +2343,7 @@ typedef struct st_nested_join
     Used for pointing out the first table in the plan being covered by this
     join nest. It is used exclusively within make_outerjoin_info().
    */
-  struct st_join_table *first_nested;
+  plan_idx first_nested;
   /**
     Number of tables and outer join nests administered by this nested join
     object for the sake of cost analysis. Includes direct member tables as

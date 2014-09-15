@@ -141,7 +141,7 @@ select 1;     # To test that the previous command didn't cause problems
 #
 # Bug#4898 User privileges depending on ORDER BY Settings of table db
 #
-insert into mysql.user (host, user) values ('localhost', 'test11');
+insert ignore into mysql.user (host, user) values ('localhost', 'test11');
 insert into mysql.db (host, db, user, select_priv) values
 ('localhost', 'a%', 'test11', 'Y'), ('localhost', 'ab%', 'test11', 'Y');
 alter table mysql.db order by db asc;
@@ -1257,8 +1257,10 @@ CREATE SQL SECURITY INVOKER VIEW db27878.v1 AS SELECT * FROM test.t1;
 connect (user1,localhost,mysqltest_1,,test);
 connection user1;
 USE db27878;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 --error 1356
 UPDATE v1 SET f2 = 4;
+SET sql_mode = default;
 SELECT * FROM test.t1;
 disconnect user1;
 connection default;

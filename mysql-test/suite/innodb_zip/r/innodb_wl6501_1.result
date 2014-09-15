@@ -1,9 +1,3 @@
-call mtr.add_suppression("InnoDB.*table did not exist in the InnoDB data dictionary.*");
-call mtr.add_suppression("InnoDB: A page in the doublewrite buffer is not within space bounds.*");
-call mtr.add_suppression("InnoDB: Cannot create file.*");
-call mtr.add_suppression("InnoDB: Error number 17 means 'File exists'.*");
-call mtr.add_suppression("InnoDB: A page in the doublewrite buffer is not within space bounds");
-call mtr.add_suppression("InnoDB: Error: table .* does not exist in the InnoDB internal");
 set global innodb_file_per_table=on;
 # Verify that 'TRUNCATE TABLE' statement works fine and the size
 # of .ibd file is equal to the initial size after truncation.

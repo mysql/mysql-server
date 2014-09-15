@@ -69,7 +69,6 @@ fts_config_fetch_value(
 Get value from the config table. The caller must ensure that enough
 space is allocated for value to hold the column contents.
 @return DB_SUCCESS or error code */
-
 dberr_t
 fts_config_get_value(
 /*=================*/
@@ -135,7 +134,6 @@ fts_config_get_value(
 /*********************************************************************//**
 Create the config table name for retrieving index specific value.
 @return index config parameter name */
-
 char*
 fts_config_create_index_param_name(
 /*===============================*/
@@ -149,7 +147,7 @@ fts_config_create_index_param_name(
 	len = strlen(param);
 
 	/* Caller is responsible for deleting name. */
-	name = static_cast<char*>(ut_malloc(
+	name = static_cast<char*>(ut_malloc_nokey(
 		len + FTS_AUX_MIN_TABLE_ID_LENGTH + 2));
 	::strcpy(name, param);
 	name[len] = '_';
@@ -166,7 +164,6 @@ Get value specific to an FTS index from the config table. The caller
 must ensure that enough space is allocated for value to hold the
 column contents.
 @return DB_SUCCESS or error code */
-
 dberr_t
 fts_config_get_index_value(
 /*=======================*/
@@ -197,7 +194,6 @@ fts_config_get_index_value(
 /******************************************************************//**
 Set the value in the config table for name.
 @return DB_SUCCESS or error code */
-
 dberr_t
 fts_config_set_value(
 /*=================*/
@@ -273,7 +269,6 @@ fts_config_set_value(
 /******************************************************************//**
 Set the value specific to an FTS index in the config table.
 @return DB_SUCCESS or error code */
-
 dberr_t
 fts_config_set_index_value(
 /*=======================*/
@@ -304,7 +299,6 @@ fts_config_set_index_value(
 /******************************************************************//**
 Get an ulint value from the config table.
 @return DB_SUCCESS if all OK else error code */
-
 dberr_t
 fts_config_get_index_ulint(
 /*=======================*/
@@ -319,14 +313,14 @@ fts_config_get_index_ulint(
 	/* We set the length of value to the max bytes it can hold. This
 	information is used by the callback that reads the value.*/
 	value.f_len = FTS_MAX_CONFIG_VALUE_LEN;
-	value.f_str = static_cast<byte*>(ut_malloc(value.f_len + 1));
+	value.f_str = static_cast<byte*>(ut_malloc_nokey(value.f_len + 1));
 
 	error = fts_config_get_index_value(trx, index, name, &value);
 
 	if (UNIV_UNLIKELY(error != DB_SUCCESS)) {
 
-		ib_logf(IB_LOG_LEVEL_ERROR, "(%s) reading `%s'",
-			ut_strerr(error), name);
+		ib::error() << "(" << ut_strerr(error) << ") reading `"
+			<< name << "'";
 	} else {
 		*int_value = strtoul((char*) value.f_str, NULL, 10);
 	}
@@ -339,7 +333,6 @@ fts_config_get_index_ulint(
 /******************************************************************//**
 Set an ulint value in the config table.
 @return DB_SUCCESS if all OK else error code */
-
 dberr_t
 fts_config_set_index_ulint(
 /*=======================*/
@@ -354,7 +347,7 @@ fts_config_set_index_ulint(
 	/* We set the length of value to the max bytes it can hold. This
 	information is used by the callback that reads the value.*/
 	value.f_len = FTS_MAX_CONFIG_VALUE_LEN;
-	value.f_str = static_cast<byte*>(ut_malloc(value.f_len + 1));
+	value.f_str = static_cast<byte*>(ut_malloc_nokey(value.f_len + 1));
 
 	// FIXME: Get rid of snprintf
 	ut_a(FTS_MAX_INT_LEN < FTS_MAX_CONFIG_VALUE_LEN);
@@ -366,8 +359,8 @@ fts_config_set_index_ulint(
 
 	if (UNIV_UNLIKELY(error != DB_SUCCESS)) {
 
-		ib_logf(IB_LOG_LEVEL_ERROR, "(%s) writing `%s'",
-			ut_strerr(error), name);
+		ib::error() << "(" << ut_strerr(error) << ") writing `"
+			<< name << "'";
 	}
 
 	ut_free(value.f_str);
@@ -378,7 +371,6 @@ fts_config_set_index_ulint(
 /******************************************************************//**
 Get an ulint value from the config table.
 @return DB_SUCCESS if all OK else error code */
-
 dberr_t
 fts_config_get_ulint(
 /*=================*/
@@ -394,13 +386,13 @@ fts_config_get_ulint(
 	/* We set the length of value to the max bytes it can hold. This
 	information is used by the callback that reads the value.*/
 	value.f_len = FTS_MAX_CONFIG_VALUE_LEN;
-	value.f_str = static_cast<byte*>(ut_malloc(value.f_len + 1));
+	value.f_str = static_cast<byte*>(ut_malloc_nokey(value.f_len + 1));
 
 	error = fts_config_get_value(trx, fts_table, name, &value);
 
 	if (UNIV_UNLIKELY(error != DB_SUCCESS)) {
-		ib_logf(IB_LOG_LEVEL_ERROR, "(%s) reading `%s'",
-			ut_strerr(error), name);
+		ib::error() <<  "(" << ut_strerr(error) << ") reading `"
+			<< name << "'";
 	} else {
 		*int_value = strtoul((char*) value.f_str, NULL, 10);
 	}
@@ -413,7 +405,6 @@ fts_config_get_ulint(
 /******************************************************************//**
 Set an ulint value in the config table.
 @return DB_SUCCESS if all OK else error code */
-
 dberr_t
 fts_config_set_ulint(
 /*=================*/
@@ -429,7 +420,7 @@ fts_config_set_ulint(
 	/* We set the length of value to the max bytes it can hold. This
 	information is used by the callback that reads the value.*/
 	value.f_len = FTS_MAX_CONFIG_VALUE_LEN;
-	value.f_str = static_cast<byte*>(ut_malloc(value.f_len + 1));
+	value.f_str = static_cast<byte*>(ut_malloc_nokey(value.f_len + 1));
 
 	ut_a(FTS_MAX_INT_LEN < FTS_MAX_CONFIG_VALUE_LEN);
 
@@ -439,8 +430,8 @@ fts_config_set_ulint(
 	error = fts_config_set_value(trx, fts_table, name, &value);
 
 	if (UNIV_UNLIKELY(error != DB_SUCCESS)) {
-		ib_logf(IB_LOG_LEVEL_ERROR, "(%s) writing `%s'",
-			ut_strerr(error), name);
+		ib::error() <<  "(" << ut_strerr(error) << ") writing `"
+			<< name << "'";
 	}
 
 	ut_free(value.f_str);
@@ -451,7 +442,6 @@ fts_config_set_ulint(
 /******************************************************************//**
 Increment the value in the config table for column name.
 @return DB_SUCCESS or error code */
-
 dberr_t
 fts_config_increment_value(
 /*=======================*/
@@ -473,7 +463,7 @@ fts_config_increment_value(
 	/* We set the length of value to the max bytes it can hold. This
 	information is used by the callback that reads the value.*/
 	value.f_len = FTS_MAX_CONFIG_VALUE_LEN;
-	value.f_str = static_cast<byte*>(ut_malloc(value.f_len + 1));
+	value.f_str = static_cast<byte*>(ut_malloc_nokey(value.f_len + 1));
 
 	*value.f_str = '\0';
 
@@ -525,8 +515,8 @@ fts_config_increment_value(
 
 	if (UNIV_UNLIKELY(error != DB_SUCCESS)) {
 
-		ib_logf(IB_LOG_LEVEL_ERROR, "(%s) while incrementing %s.",
-			ut_strerr(error), name);
+		ib::error() << "(" << ut_strerr(error) << ") while"
+			" incrementing " << name << ".";
 	}
 
 	ut_free(value.f_str);
@@ -537,7 +527,6 @@ fts_config_increment_value(
 /******************************************************************//**
 Increment the per index value in the config table for column name.
 @return DB_SUCCESS or error code */
-
 dberr_t
 fts_config_increment_index_value(
 /*=============================*/

@@ -169,6 +169,8 @@ create table t8 (col1 blob, index(col1(767)))
 
 drop table t1, t2, t3, t4, t5, t6, t7, t8;
 
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
+
 # these should have their index length trimmed
 create table t1 (col1 varchar(768), index(col1))
  character set = latin1 engine = innodb;
@@ -182,6 +184,8 @@ create table t4 (col1 blob, index(col1(768)))
 show create table t1;
 
 drop table t1, t2, t3, t4;
+
+SET sql_mode = default;
 
 # these should be refused
 --error ER_TOO_LONG_KEY
@@ -405,8 +409,10 @@ update t1 set s1=0x123456 where a=2;
 select hex(s1) from t2;
 -- error 1451
 update t1 set s1=0x12 where a=1;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 -- error 1451
 update t1 set s1=0x12345678 where a=1;
+SET sql_mode = default;
 -- error 1451
 update t1 set s1=0x123457 where a=1;
 update t1 set s1=0x1220 where a=1;
@@ -1172,3 +1178,6 @@ DISCONNECT c1;
 CONNECTION default;
 
 SET GLOBAL innodb_thread_concurrency = @innodb_thread_concurrency_orig;
+
+-- enable_query_log
+-- source suite/innodb/include/check_pfs_mem_other_is_zero.inc

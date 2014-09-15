@@ -300,7 +300,6 @@ mem_strdupl(
 @param[in]	heap	memory heap where string is allocated
 @param[in]	str	string to be copied
 @return own: a copy of the string */
-
 char*
 mem_heap_strdup(
 	mem_heap_t*	heap,
@@ -321,7 +320,6 @@ mem_heap_strdupl(
 /**********************************************************************//**
 Concatenate two strings and return the result, using a memory heap.
 @return own: the result */
-
 char*
 mem_heap_strcat(
 /*============*/
@@ -332,7 +330,6 @@ mem_heap_strcat(
 /**********************************************************************//**
 Duplicate a block of data, allocated from a memory heap.
 @return own: a copy of the data */
-
 void*
 mem_heap_dup(
 /*=========*/
@@ -346,7 +343,6 @@ formatted string from the given heap. This supports a very limited set of
 the printf syntax: types 's' and 'u' and length modifier 'l' (which is
 required for the 'u' type).
 @return heap-allocated formatted string */
-
 char*
 mem_heap_printf(
 /*============*/
@@ -365,7 +361,6 @@ mem_block_validate(
 /** Validates the contents of a memory heap.
 Asserts that the memory heap is consistent
 @param[in]	heap	Memory heap to validate */
-
 void
 mem_heap_validate(
 	const mem_heap_t*	heap);
@@ -412,62 +407,6 @@ struct mem_block_info_t {
 #endif /* !UNIV_HOTBACKUP */
 };
 
-/** Custom allocator for STL that uses an InnoDB heap. */
-template <typename T>
-struct heap_alloc_t
-{
-	// Required by the standard
-	typedef T value_type;
-	typedef size_t size_type;
-	typedef value_type* pointer;
-	typedef value_type& reference;
-	typedef ptrdiff_t difference_type;
-	typedef const value_type* const_pointer;
-	typedef const value_type& const_reference;
-
-	/**
-	@param heap	The heap to use */
-	heap_alloc_t(mem_heap_t* heap) : m_heap(heap) UNIV_NOTHROW { }
-
-	/** Destructor */
-	~heap_alloc_t() UNIV_NOTHROW { }
-
-	// Required by the standard
-	template<typename Type>
-	struct rebind
-	{
-		typedef heap_alloc_t<Type> other;
-	};
-
-	/** @return address of a non const reference */
-	pointer address(reference ref) { return(&ref); }
-
-	/** @return address of a const reference */
-	const_pointer address(const_reference ref) { return(&ref); }
-
-	/** For placement new */
-	void construct(pointer ptr, const T& t){ new(ptr) T(t); }
-
-	/* Destroy the object, call the destructor */
-	void destroy(pointer ptr) { ptr->~T(); }
-
-	/** Allocate the memory */
-	pointer allocate(size_type n_bytes, const void*)
-	{
-		return(mem_heap_alloc(m_heap, n_bytes));
-	}
-
-	/** Free the memory, note we don't free from the heap */
-	void deallocate(pointer ptr, size_type n_bytes) { }
-
-private:
-	// Disable copying
-	heap_alloc_t(const heap_alloc_t& heap);
-	heap_alloc_t& operator=(const heap_alloc_t&);
-
-	/** The heap to use */
-	mem_heap_t*		m_heap;
-};
 #define MEM_BLOCK_MAGIC_N	764741555
 #define MEM_FREED_BLOCK_MAGIC_N	547711122
 

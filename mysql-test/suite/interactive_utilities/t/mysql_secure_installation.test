@@ -1,7 +1,3 @@
-#
-# Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
-#
-
 # Checking if perl Expect module is installed on the system.
 # If not, the test will be skipped.
 --source include/have_expect.inc
@@ -26,13 +22,13 @@ my $i;
 # mysql_secure_installation into a function with the values no. 
 sub after_commands()
 {
-   $texp[$i]->expect(1,' -re ',[ 'anonymous users' => sub {
+   $texp[$i]->expect(10,' -re ',[ 'anonymous users' => sub {
 $texp[$i]->send("n\n");}]);
-   $texp[$i]->expect(1,' -re ',[ 'root login' => sub {
+   $texp[$i]->expect(10,' -re ',[ 'root login' => sub {
 $texp[$i]->send("n\n");}]);
-   $texp[$i]->expect(1,' -re ',[ 'test database' => sub {
+   $texp[$i]->expect(10,' -re ',[ 'test database' => sub {
 $texp[$i]->send("n\n");}]);
-   $texp[$i]->expect(1,' -re ',[ 'Reload' => sub { $texp[$i]->send("n\n");}]);
+   $texp[$i]->expect(10,' -re ',[ 'Reload' => sub { $texp[$i]->send("n\n");}]);
    print "Execution number $i was successful\n";
 }
 
@@ -47,13 +43,13 @@ sub initial_commands()
 # mysql_secure_installation into a function with the values yes.
 sub after_effects()
 {
-   $texp[$i]->expect(1,' -re ',[ 'anonymous users' => sub {
+   $texp[$i]->expect(10,' -re ',[ 'anonymous users' => sub {
 $texp[$i]->send("y\n");}]);
-   $texp[$i]->expect(1,' -re ',[ 'root login' => sub {
+   $texp[$i]->expect(10,' -re ',[ 'root login' => sub {
 $texp[$i]->send("y\n");}]);
-   $texp[$i]->expect(1,' -re ',[ 'test database' => sub {
+   $texp[$i]->expect(10,' -re ',[ 'test database' => sub {
 $texp[$i]->send("y\n");}]);
-   $texp[$i]->expect(1,' -re ',[ 'Reload' => sub { $texp[$i]->send("y\n");}]);
+   $texp[$i]->expect(10,' -re ',[ 'Reload' => sub { $texp[$i]->send("y\n");}]);
    print "Execution number $i was successful\n";
 }
 
@@ -64,11 +60,11 @@ initial_commands();
 if (-e $ENV{MASTER_MYSOCK} ){
    $texp[$i]->spawn("$ENV{MYSQL_SECURE_INSTALLATION} -S $ENV{MASTER_MYSOCK }");
 }
-$texp[$i]->expect(1,' -re ',[ 'any other key for No' => sub {
+$texp[$i]->expect(10,' -re ',[ 'any other key for No' => sub {
 $texp[$i]->send("n\n");}]);
-$texp[$i]->expect(1,' -re ',[ 'New password' => sub {
+$texp[$i]->expect(10,' -re ',[ 'New password' => sub {
 $texp[$i]->send("1\n");}]);
-$texp[$i]->expect(1,' -re ',[ 'Re-enter' => sub { $texp[$i]->send("1\n");}]);
+$texp[$i]->expect(10,' -re ',[ 'Re-enter' => sub { $texp[$i]->send("1\n");}]);
 after_commands();
 $i++;
 
@@ -78,15 +74,15 @@ initial_commands();
 if (-e $ENV{MASTER_MYSOCK} ){
    $texp[$i]->spawn("$ENV{MYSQL_SECURE_INSTALLATION} -S $ENV{MASTER_MYSOCK } -p");
 }
-$texp[$i]->expect(1,' -re ',[ 'password' => sub {
+$texp[$i]->expect(10,' -re ',[ 'password' => sub {
 $texp[$i]->send("1\n");}]);
-$texp[$i]->expect(1,' -re ',[ 'any other key for No' => sub {
+$texp[$i]->expect(10,' -re ',[ 'any other key for No' => sub {
 $texp[$i]->send("n\n");}]);
-$texp[$i]->expect(1,' -re ',[ 'Change the root password' => sub {
+$texp[$i]->expect(10,' -re ',[ 'Change the root password' => sub {
 $texp[$i]->send("y\n");}]);
-$texp[$i]->expect(1,' -re ',[ 'New password' => sub {
+$texp[$i]->expect(10,' -re ',[ 'New password' => sub {
 $texp[$i]->send("null\n");}]);
-$texp[$i]->expect(1,' -re ',[ 'Re-enter' => sub { $texp[$i]->send("null\n");}]);
+$texp[$i]->expect(10,' -re ',[ 'Re-enter' => sub { $texp[$i]->send("null\n");}]);
 after_effects();
 $i++;
 
@@ -95,19 +91,19 @@ initial_commands();
 if (-e $ENV{MASTER_MYSOCK} ){
    $texp[$i]->spawn("$ENV{MYSQL_SECURE_INSTALLATION} -S $ENV{MASTER_MYSOCK } -p");
 }
-$texp[$i]->expect(1,' -re ',[ 'password' => sub {
+$texp[$i]->expect(10,' -re ',[ 'password' => sub {
 $texp[$i]->send("null\n");}]);
-$texp[$i]->expect(1,' -re ',[ 'any other key for No' => sub {
+$texp[$i]->expect(10,' -re ',[ 'any other key for No' => sub {
 $texp[$i]->send("y\n");}]);
-$texp[$i]->expect(1,' -re ',[ 'Please enter' => sub {
+$texp[$i]->expect(10,' -re ',[ 'Please enter' => sub {
 $texp[$i]->send("1\n");}]);
-$texp[$i]->expect(1,' -re ',[ 'root password' => sub {
+$texp[$i]->expect(10,' -re ',[ 'root password' => sub {
 $texp[$i]->send("y\n");}]);
-$texp[$i]->expect(1,' -re ',[ 'New password' => sub {
+$texp[$i]->expect(10,' -re ',[ 'New password' => sub {
 $texp[$i]->send("passPASS1234!@#\n");}]);
-$texp[$i]->expect(1,' -re ',[ 'Re-enter' => sub {
+$texp[$i]->expect(10,' -re ',[ 'Re-enter' => sub {
 $texp[$i]->send("passPASS1234!@#\n");}]);
-$texp[$i]->expect(1,' -re ',[ 'Do you' => sub { $texp[$i]->send("y\n");}]);
+$texp[$i]->expect(10,' -re ',[ 'Do you' => sub { $texp[$i]->send("y\n");}]);
 after_effects();
 $i++;
 
@@ -115,20 +111,20 @@ initial_commands();
 if (-e $ENV{MASTER_MYSOCK} ){
    $texp[$i]->spawn("$ENV{MYSQL_SECURE_INSTALLATION} -S $ENV{MASTER_MYSOCK } -p");
 }
-$texp[$i]->expect(1,' -re ',[ 'password' => sub {
+$texp[$i]->expect(10,' -re ',[ 'password' => sub {
 $texp[$i]->send("passPASS1234!@#\n");}]);
-$texp[$i]->expect(1,' -re ',[ 'any other key for No' => sub {
+$texp[$i]->expect(10,' -re ',[ 'any other key for No' => sub {
 $texp[$i]->send("y\n");}]);
-$texp[$i]->expect(1,' -re ',[ 'New password' => sub {
+$texp[$i]->expect(10,' -re ',[ 'New password' => sub {
 $texp[$i]->send("secure\n");}]);
-$texp[$i]->expect(1,' -re ',[ 'Re-enter new password' => sub {
+$texp[$i]->expect(10,' -re ',[ 'Re-enter new password' => sub {
 $texp[$i]->send("secure\n");}]);
-$texp[$i]->expect(1,' -re ',[ 'Do you' => sub { $texp[$i]->send("y\n");}]);
-$texp[$i]->expect(1,' -re ',[ 'New password' => sub {
+$texp[$i]->expect(10,' -re ',[ 'Do you' => sub { $texp[$i]->send("y\n");}]);
+$texp[$i]->expect(10,' -re ',[ 'New password' => sub {
 $texp[$i]->send("secureINSTALL09)(\n");}]);
-$texp[$i]->expect(1,' -re ',[ 'Re-enter new password' => sub {
+$texp[$i]->expect(10,' -re ',[ 'Re-enter new password' => sub {
 $texp[$i]->send("secureINSTALL09)(\n");}]);
-$texp[$i]->expect(1,' -re ',[ 'Do you' => sub { $texp[$i]->send("y\n");}]);
+$texp[$i]->expect(10,' -re ',[ 'Do you' => sub { $texp[$i]->send("y\n");}]);
 after_effects();
 $i++;
 
@@ -136,7 +132,7 @@ initial_commands();
 if (-e $ENV{MASTER_MYSOCK} ){
    $texp[$i]->spawn("$ENV{MYSQL_SECURE_INSTALLATION} -S $ENV{MASTER_MYSOCK } -D -p");
 }
-$texp[$i]->expect(1,' -re ',[ 'password' => sub {
+$texp[$i]->expect(10,' -re ',[ 'password' => sub {
 $texp[$i]->send("secureINSTALL09)(\n");}]);
 print("Execution ".$i." was successful\n");
 $i++;

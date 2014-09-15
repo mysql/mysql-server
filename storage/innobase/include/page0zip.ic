@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2005, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2005, 2014, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -100,17 +100,6 @@ In summary, the compressed page looks like this:
   - existing records in ascending collation order
   - deleted records (free list) in link order
 */
-
-/** Start offset of the area that will be compressed */
-#define PAGE_ZIP_START		PAGE_NEW_SUPREMUM_END
-/** Size of an compressed page directory entry */
-#define PAGE_ZIP_DIR_SLOT_SIZE	2
-/** Mask of record offsets */
-#define PAGE_ZIP_DIR_SLOT_MASK	0x3fff
-/** 'owned' flag */
-#define PAGE_ZIP_DIR_SLOT_OWNED	0x4000
-/** 'deleted' flag */
-#define PAGE_ZIP_DIR_SLOT_DEL	0x8000
 
 /**********************************************************************//**
 Determine the size of a compressed page in bytes.
@@ -338,7 +327,6 @@ page_zip_des_init(
 
 /**********************************************************************//**
 Write a log record of writing to the uncompressed header portion of a page. */
-
 void
 page_zip_write_header_log(
 /*======================*/

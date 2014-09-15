@@ -40,8 +40,6 @@ Created 7/1/1994 Heikki Tuuri
 #include <page0cur.h>
 #include <algorithm>
 
-using std::min;
-
 /*		ALPHABETICAL ORDER
 		==================
 
@@ -109,7 +107,6 @@ innobase_mysql_cmp(
 /*************************************************************//**
 Returns TRUE if two columns are equal for comparison purposes.
 @return TRUE if the columns are considered equal in comparisons */
-
 ibool
 cmp_cols_are_equal(
 /*===============*/
@@ -312,6 +309,8 @@ cmp_gis_field(
 					not UNIV_SQL_NULL */
 {
 	if (mode == PAGE_CUR_MBR_EQUAL) {
+		/* TODO: Since the DATA_GEOMETRY is not used in compare
+		function, we could pass it instead of a specific type now */
 		return(cmp_geometry_field(DATA_GEOMETRY, DATA_GIS_MBR,
 					  a, a_length, b, b_length));
 	} else {
@@ -387,6 +386,8 @@ cmp_whole_field(
 	case DATA_MYSQL:
 		return(innobase_mysql_cmp(prtype,
 					  a, a_length, b, b_length));
+	case DATA_POINT:
+	case DATA_VAR_POINT:
 	case DATA_GEOMETRY:
 		return(cmp_geometry_field(mtype, prtype, a, a_length, b,
 				b_length));
@@ -446,6 +447,11 @@ cmp_data(
 	case DATA_SYS:
 		pad = ULINT_UNDEFINED;
 		break;
+	case DATA_POINT:
+	case DATA_VAR_POINT:
+		/* Since DATA_POINT has a fixed length of DATA_POINT_LEN,
+		currently, pad is not needed. Meanwhile, DATA_VAR_POINT acts
+		the same as DATA_GEOMETRY */
 	case DATA_GEOMETRY:
 		ut_ad(prtype & DATA_BINARY_TYPE);
 		pad = ULINT_UNDEFINED;
@@ -556,7 +562,6 @@ cmp_data(
 @param[in] offsets rec_get_offsets(rec)
 @param[in] mode compare mode
 @retval negative if dtuple is less than rec */
-
 int
 cmp_dtuple_rec_with_gis(
 /*====================*/
@@ -598,7 +603,6 @@ cmp_dtuple_rec_with_gis(
 @retval 0 if data1 is equal to data2
 @retval negative if data1 is less than data2
 @retval positive if data1 is greater than data2 */
-
 int
 cmp_data_data(
 	ulint		mtype,
@@ -621,7 +625,6 @@ cmp_data_data(
 @retval 0 if dtuple is equal to rec
 @retval negative if dtuple is less than rec
 @retval positive if dtuple is greater than rec */
-
 int
 cmp_dtuple_rec_with_match_low(
 	const dtuple_t*	dtuple,
@@ -708,7 +711,6 @@ for ROW_FORMAT=REDUNDANT
 @retval 0 if dtuple is equal to rec
 @retval negative if dtuple is less than rec
 @retval positive if dtuple is greater than rec */
-
 int
 cmp_dtuple_rec(
 	const dtuple_t*	dtuple,
@@ -726,7 +728,6 @@ cmp_dtuple_rec(
 Checks if a dtuple is a prefix of a record. The last field in dtuple
 is allowed to be a prefix of the corresponding field in the record.
 @return TRUE if prefix */
-
 ibool
 cmp_dtuple_is_prefix_of_rec(
 /*========================*/
@@ -786,7 +787,6 @@ none of which are stored externally.
 @retval positive if rec1 (including non-ordering columns) is greater than rec2
 @retval negative if rec1 (including non-ordering columns) is less than rec2
 @retval 0 if rec1 is a duplicate of rec2 */
-
 int
 cmp_rec_rec_simple(
 /*===============*/
@@ -874,7 +874,6 @@ within the first field not completely matched
 @retval 0 if rec1 is equal to rec2
 @retval negative if rec1 is less than rec2
 @retval positive if rec2 is greater than rec2 */
-
 int
 cmp_rec_rec_with_match(
 	const rec_t*		rec1,

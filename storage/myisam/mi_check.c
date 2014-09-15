@@ -45,9 +45,6 @@
 #include <m_ctype.h>
 #include <stdarg.h>
 #include <my_getopt.h>
-#ifdef HAVE_SYS_VADVISE_H
-#include <sys/vadvise.h>
-#endif
 #ifdef HAVE_SYS_MMAN_H
 #include <sys/mman.h>
 #endif
@@ -1540,7 +1537,7 @@ int mi_repair(MI_CHECK *param, MI_INFO *info,
 
   if (!param->using_global_keycache)
     (void) init_key_cache(dflt_key_cache, param->key_cache_block_size,
-                        param->use_buffers, 0, 0);
+                          (size_t)param->use_buffers, 0, 0);
 
   if (init_io_cache(&param->read_cache,info->dfile,
 		    (uint) param->read_buffer_length,

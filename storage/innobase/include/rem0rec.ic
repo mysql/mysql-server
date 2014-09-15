@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -136,7 +136,6 @@ and the shift needed to obtain each bit-field of the record. */
 
 /***********************************************************//**
 Sets the value of the ith field SQL null bit of an old-style record. */
-
 void
 rec_set_nth_field_null_bit(
 /*=======================*/
@@ -146,7 +145,6 @@ rec_set_nth_field_null_bit(
 /***********************************************************//**
 Sets an old-style record field to SQL null.
 The physical size of the field is not changed. */
-
 void
 rec_set_nth_field_sql_null(
 /*=======================*/
@@ -566,6 +564,19 @@ rec_set_n_owned_new(
 	}
 }
 
+#ifdef UNIV_DEBUG
+/** Check if the info bits are valid.
+@param[in]	bits	info bits to check
+@return true if valid */
+inline
+bool
+rec_info_bits_valid(
+	ulint	bits)
+{
+	return(0 == (bits & ~(REC_INFO_DELETED_FLAG | REC_INFO_MIN_REC_FLAG)));
+}
+#endif /* UNIV_DEBUG */
+
 /******************************************************//**
 The following function is used to retrieve the info bits of a record.
 @return info bits */
@@ -576,9 +587,11 @@ rec_get_info_bits(
 	const rec_t*	rec,	/*!< in: physical record */
 	ulint		comp)	/*!< in: nonzero=compact page format */
 {
-	return(rec_get_bit_field_1(
-		       rec, comp ? REC_NEW_INFO_BITS : REC_OLD_INFO_BITS,
-		       REC_INFO_BITS_MASK, REC_INFO_BITS_SHIFT));
+	const ulint	val = rec_get_bit_field_1(
+		rec, comp ? REC_NEW_INFO_BITS : REC_OLD_INFO_BITS,
+		REC_INFO_BITS_MASK, REC_INFO_BITS_SHIFT);
+	ut_ad(rec_info_bits_valid(val));
+	return(val);
 }
 
 /******************************************************//**
@@ -590,6 +603,7 @@ rec_set_info_bits_old(
 	rec_t*	rec,	/*!< in: old-style physical record */
 	ulint	bits)	/*!< in: info bits */
 {
+	ut_ad(rec_info_bits_valid(bits));
 	rec_set_bit_field_1(rec, bits, REC_OLD_INFO_BITS,
 			    REC_INFO_BITS_MASK, REC_INFO_BITS_SHIFT);
 }
@@ -602,6 +616,7 @@ rec_set_info_bits_new(
 	rec_t*	rec,	/*!< in/out: new-style physical record */
 	ulint	bits)	/*!< in: info bits */
 {
+	ut_ad(rec_info_bits_valid(bits));
 	rec_set_bit_field_1(rec, bits, REC_NEW_INFO_BITS,
 			    REC_INFO_BITS_MASK, REC_INFO_BITS_SHIFT);
 }

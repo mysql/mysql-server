@@ -514,7 +514,7 @@ void Item_func::print_op(String *str, enum_query_type query_type)
   str->append(')');
 }
 
-
+/// @note Please keep in sync with Item_sum::eq().
 bool Item_func::eq(const Item *item, bool binary_cmp) const
 {
   /* Assume we don't have rtti */
@@ -1032,13 +1032,44 @@ void Item_func_num1::fix_num_length_and_dec()
   max_length= args[0]->max_length;
 }
 
+/*
+  Reject geometry arguments, should be called in fix_length_and_dec for
+  SQL functions/operators where geometries are not suitable as operands.
+ */
+void reject_geometry_args(uint arg_count, Item **args, Item_result_field *me)
+{
+  /*
+    We want to make sure the operands are not GEOMETRY strings because
+    it's meaningless for them to participate in arithmetic and/or numerical
+    calculations.
+
+    When a variable holds a MySQL Geometry byte string, it is regarded as a
+    string rather than a MYSQL_TYPE_GEOMETRY, so here we can't catch an illegal
+    variable argument which was assigned with a geometry.
+
+    Item::field_type() requires the item not be of ROW_RESULT, since a row
+    isn't a field.
+  */
+  for (uint i= 0; i < arg_count; i++)
+  {
+    if (args[i]->result_type() != ROW_RESULT &&
+        args[i]->field_type() == MYSQL_TYPE_GEOMETRY)
+    {
+      my_error(ER_WRONG_ARGUMENTS, MYF(0), me->func_name());
+      break;
+    }
+  }
+
+  return;
+}
+
 
 void Item_func_numhybrid::fix_length_and_dec()
 {
   fix_num_length_and_dec();
   find_num_type();
+  reject_geometry_args(arg_count, args, this);
 }
-
 
 String *Item_func_numhybrid::val_str(String *str)
 {
@@ -1272,6 +1303,14 @@ void Item_func_signed::print(String *str, enum_query_type query_type)
   args[0]->print(str, query_type);
   str->append(STRING_WITH_LEN(" as signed)"));
 
+}
+
+
+void Item_func_signed::fix_length_and_dec()
+{
+  fix_char_length(std::min<uint32>(args[0]->max_char_length(),
+                                   MY_INT64_NUM_DECIMAL_DIGITS));
+  reject_geometry_args(arg_count, args, this);
 }
 
 
@@ -1682,7 +1721,7 @@ err:
 my_decimal *Item_func_minus::decimal_op(my_decimal *decimal_value)
 {
   my_decimal value1, *val1;
-  my_decimal value2, *val2= 
+  my_decimal value2, *val2;
 
   val1= args[0]->val_decimal(&value1);
   if ((null_value= args[0]->null_value))
@@ -2002,6 +2041,7 @@ void Item_func_int_div::fix_length_and_dec()
                   MY_INT64_NUM_DECIMAL_DIGITS : char_length);
   maybe_null=1;
   unsigned_flag=args[0]->unsigned_flag | args[1]->unsigned_flag;
+  reject_geometry_args(arg_count, args, this);
 }
 
 
@@ -2217,6 +2257,269 @@ void Item_func_abs::fix_length_and_dec()
 {
   Item_func_num1::fix_length_and_dec();
   unsigned_flag= args[0]->unsigned_flag;
+}
+
+
+void Item_func_latlongfromgeohash::fix_length_and_dec()
+{
+  Item_real_func::fix_length_and_dec();
+  unsigned_flag= FALSE;
+}
+
+
+bool Item_func_latlongfromgeohash::fix_fields(THD *thd, Item **ref)
+{
+  if (Item_real_func::fix_fields(thd, ref))
+    return true;
+
+  maybe_null= args[0]->maybe_null;
+
+  if (!check_geohash_argument_valid_type(args[0]))
+  {
+    my_error(ER_INCORRECT_TYPE, MYF(0), "geohash", func_name());
+    return true;
+  }
+
+  return false;
+}
+
+
+/**
+  Checks if geohash arguments is of valid type
+
+  We must enforce that input actually is text/char, since
+  SELECT LongFromGeohash(0123) would give different (and wrong) result,
+  as opposed to SELECT LongFromGeohash("0123").
+
+  @param item Item to validate.
+
+  @return false if validation failed. true if item is a valid type.
+*/
+bool
+Item_func_latlongfromgeohash::check_geohash_argument_valid_type(Item *item)
+{
+  /*
+    If charset is not binary and field_type() is BLOB,
+    we have a TEXT column (which is allowed).
+  */
+  bool is_binary_charset= (item->collation.collation == &my_charset_bin);
+
+  switch (item->field_type())
+  {
+  case MYSQL_TYPE_NULL:
+    return true;
+  case MYSQL_TYPE_VARCHAR:
+  case MYSQL_TYPE_VAR_STRING:
+  case MYSQL_TYPE_BLOB:
+  case MYSQL_TYPE_TINY_BLOB:
+  case MYSQL_TYPE_MEDIUM_BLOB:
+  case MYSQL_TYPE_LONG_BLOB:
+    return !is_binary_charset;
+  default:
+    return false;
+  }
+}
+
+
+/**
+  Decodes a geohash string into longitude and latitude.
+
+  The results are rounded,  based on the length of input geohash. The function
+  will stop evaluating when the error range, or "accuracy", has become 0.0 for
+  both latitude and longitude since no more changes can happen after this.
+
+  @param geohash The geohash to decode.
+  @param upper_latitude Upper limit of returned latitude (normally 90.0).
+  @param upper_latitude Lower limit of returned latitude (normally -90.0).
+  @param upper_latitude Upper limit of returned longitude (normally 180.0).
+  @param upper_latitude Lower limit of returned longitude (normally -180.0).
+  @param[out] result_latitude Calculated latitude.
+  @param[out] result_longitude Calculated longitude.
+
+  @return false on success, true on failure (invalid geohash string).
+*/
+bool
+Item_func_latlongfromgeohash::decode_geohash(String *geohash,
+                                             double upper_latitude,
+                                             double lower_latitude,
+                                             double upper_longitude,
+                                             double lower_longitude,
+                                             double *result_latitude,
+                                             double *result_longitude)
+{
+  double latitiude_accuracy= (upper_latitude - lower_latitude) / 2.0;
+  double longitude_accuracy= (upper_longitude - lower_longitude) / 2.0;
+
+  double latitude_value= (upper_latitude + lower_latitude) / 2.0;
+  double longitude_value= (upper_longitude + lower_longitude) / 2.0;
+
+  uint number_of_bits_used= 0;
+  uint input_length= geohash->length();
+
+  for (uint i= 0;
+       i < input_length && latitiude_accuracy > 0.0 && longitude_accuracy > 0.0;
+       i++)
+  {
+    char input_character= my_tolower(geohash->charset(), (*geohash)[i]);
+
+    /*
+     The following part will convert from character value to a
+     contiguous value from 0 to 31, where "0" = 0, "1" = 1 ... "z" = 31.
+     It will also detect characters that aren't allowed.
+    */
+    int converted_character;
+    if (input_character >= '0' && input_character <= '9')
+    {
+      converted_character= input_character - '0';
+    }
+    else if (input_character >= 'b' && input_character <= 'z' &&
+             input_character != 'i' &&
+             input_character != 'l' &&
+             input_character != 'o')
+    {
+      if (input_character > 'o')
+        converted_character= input_character - ('b' - 10 + 3);
+      else if (input_character > 'l')
+        converted_character= input_character - ('b' - 10 + 2);
+      else if (input_character > 'i')
+        converted_character= input_character - ('b' - 10 + 1);
+      else
+        converted_character= input_character - ('b' - 10);
+    }
+    else
+    {
+      return true;
+    }
+
+    DBUG_ASSERT(converted_character >= 0 && converted_character <= 31);
+
+    /*
+     This loop decodes 5 bits of data. Every even bit (counting from 0) is 
+     used for longitude value, and odd bits are used for latitude value.
+    */
+    for (int bit_number= 4; bit_number >= 0; bit_number-= 1)
+    {
+      if (number_of_bits_used % 2 == 0)
+      {
+        longitude_accuracy/= 2.0;
+
+        if (converted_character & (1 << bit_number))
+          longitude_value+= longitude_accuracy;
+        else
+          longitude_value-= longitude_accuracy;
+      }
+      else
+      {
+        latitiude_accuracy/= 2.0;
+
+        if (converted_character & (1 << bit_number))
+          latitude_value+= latitiude_accuracy;
+        else
+          latitude_value-= latitiude_accuracy;
+      }
+
+      number_of_bits_used++;
+
+      DBUG_ASSERT(latitude_value >= lower_latitude &&
+                  latitude_value <= upper_latitude &&
+                  longitude_value >= lower_longitude &&
+                  longitude_value <= upper_longitude);
+    }
+  }
+
+  *result_latitude= round_latlongitude(latitude_value,
+                                       latitiude_accuracy * 2.0);
+  *result_longitude= round_latlongitude(longitude_value,
+                                        longitude_accuracy * 2.0);
+
+  return false;
+}
+
+
+/**
+  Rounds a latitude or longitude value.
+
+  This will round a latitude or longitude value, based on error_range.
+  The error_range is the difference between upper and lower lat/longitude
+  (e.g upper value of 45.0 and a lower value of 22.5, gives an error range of
+  22.5).
+
+  @param latlongitude The latitude or longitude to round.
+  @param error_range The total error range of the calculated laglongitude.
+
+  @return A rounded latitude or longitude.
+*/
+double Item_func_latlongfromgeohash::round_latlongitude(double latlongitude,
+                                                        double error_range)
+{
+  if (error_range == 0.0)
+  {
+    return latlongitude;
+  }
+  else
+  {
+    uint number_of_decimals= 0;
+    while (error_range < 0.1)
+    {
+      number_of_decimals++;
+      error_range*= 10.0;
+    }
+
+    double rounded_result= my_double_round(latlongitude,
+                                           number_of_decimals,
+                                           false,
+                                           false);
+    // Avoid printing signed zero.
+    return rounded_result + 0.0;
+  }
+}
+
+
+/**
+  Decodes a geohash into longitude if start_on_even_bit == true, or latitude if
+  start_on_even_bit == false. The output will be rounded based on the length
+  of the geohash.
+*/
+double Item_func_latlongfromgeohash::val_real()
+{
+  DBUG_ASSERT(fixed == TRUE);
+
+  String buf;
+  String *input_value= args[0]->val_str_ascii(&buf);
+
+  if ((null_value= args[0]->null_value))
+    return 0.0;
+
+  if (input_value->length() == 0)
+  {
+    my_error(ER_WRONG_VALUE_FOR_TYPE, MYF(0), "geohash", input_value->c_ptr(),
+             func_name());
+    return error_real();
+  }
+
+  double latitude= 0.0;
+  double longitude= 0.0;
+  if (decode_geohash(input_value, upper_latitude, lower_latitude,
+                     upper_longitude, lower_longitude, &latitude, &longitude))
+  {
+    my_error(ER_WRONG_VALUE_FOR_TYPE, MYF(0), "geohash", input_value->c_ptr(),
+             func_name());
+    return error_real();
+  }
+
+  // Return longitude if start_on_even_bit == true. Otherwise, return latitude.
+  if (start_on_even_bit)
+    return longitude;
+  return latitude;
+}
+
+
+void Item_dec_func::fix_length_and_dec()
+{
+  decimals= NOT_FIXED_DEC;
+  max_length= float_length(decimals);
+  maybe_null= 1;
+  reject_geometry_args(arg_count, args, this);
 }
 
 
@@ -2455,6 +2758,7 @@ void Item_func_integer::fix_length_and_dec()
   uint tmp=float_length(decimals);
   set_if_smaller(max_length,tmp);
   decimals=0;
+  reject_geometry_args(arg_count, args, this);
 }
 
 void Item_func_int_val::fix_num_length_and_dec()
@@ -2611,6 +2915,8 @@ void Item_func_round::fix_length_and_dec()
   bool     val1_unsigned;
   
   unsigned_flag= args[0]->unsigned_flag;
+  reject_geometry_args(arg_count, args, this);
+
   if (!args[1]->const_item())
   {
     decimals= args[0]->decimals;
@@ -2822,6 +3128,13 @@ void Item_func_rand::seed_random(Item *arg)
 }
 
 
+void Item_func_rand::fix_length_and_dec()
+{
+  Item_real_func::fix_length_and_dec();
+  reject_geometry_args(arg_count, args, this);
+}
+
+
 bool Item_func_rand::fix_fields(THD *thd,Item **ref)
 {
   if (Item_real_func::fix_fields(thd, ref))
@@ -2881,12 +3194,28 @@ double Item_func_rand::val_real()
   return my_rnd(rand);
 }
 
+
+void Item_func_sign::fix_length_and_dec()
+{
+  Item_int_func::fix_length_and_dec();
+  reject_geometry_args(arg_count, args, this);
+}
+
+
 longlong Item_func_sign::val_int()
 {
   DBUG_ASSERT(fixed == 1);
   double value= args[0]->val_real();
   null_value=args[0]->null_value;
   return value < 0.0 ? -1 : (value > 0 ? 1 : 0);
+}
+
+
+void Item_func_units::fix_length_and_dec()
+{
+  decimals= NOT_FIXED_DEC;
+  max_length= float_length(decimals);
+  reject_geometry_args(arg_count, args, this);
 }
 
 
@@ -2959,6 +3288,7 @@ void Item_func_min_max::fix_length_and_dec()
   else if (cmp_type == REAL_RESULT)
     fix_char_length(float_length(decimals));
   cached_field_type= agg_field_type(args, arg_count);
+  reject_geometry_args(arg_count, args, this);
 }
 
 
@@ -4211,6 +4541,64 @@ longlong Item_master_pos_wait::val_int()
   return event_count;
 }
 
+bool Item_wait_for_executed_gtid_set::itemize(Parse_context *pc, Item **res)
+{
+  if (skip_itemize(res))
+    return false;
+  if (super::itemize(pc, res))
+    return true;
+  /*
+    It is unsafe because the return value depends on timing. If the timeout
+    happens, the return value is different from the one in which the function
+    returns with success.
+  */
+  pc->thd->lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_SYSTEM_FUNCTION);
+  pc->thd->lex->safe_to_cache_query= false;
+  return false;
+}
+
+/**
+  Wait until the given gtid_set is found in the executed gtid_set independent
+  of the slave threads.
+*/
+longlong Item_wait_for_executed_gtid_set::val_int()
+{
+  DBUG_ASSERT(fixed == 1);
+  THD* thd= current_thd;
+  String *gtid= args[0]->val_str(&value);
+  int result= 0;
+
+  null_value= 0;
+
+  if (gtid_mode == 0)
+  {
+    my_error(ER_GTID_MODE_OFF, MYF(0), "use WAIT_FOR_EXECUTED_GTID_SET");
+    null_value= 1;
+    return result;
+  }
+
+  if (gtid == NULL)
+  {
+    my_error(ER_MALFORMED_GTID_SET_SPECIFICATION, MYF(0), "NULL");
+    null_value= 1;
+    return result;
+  }
+
+  // Since the function is independent of the slave threads we need to return
+  // with null value being set to 1.
+  if (thd->slave_thread)
+  {
+    null_value= 1;
+    return result;
+  }
+
+  longlong timeout= (arg_count== 2) ? args[1]->val_int() : 0;
+  result= gtid_state->wait_for_gtid_set(thd, gtid, timeout);
+  if (result == -1)
+    null_value= 1;
+  return result;
+}
+
 bool Item_master_gtid_set_wait::itemize(Parse_context *pc, Item **res)
 {
   if (skip_itemize(res))
@@ -4328,7 +4716,7 @@ class Interruptible_wait
         the absolute time passes, the timed wait call will fail
         automatically with a timeout error.
       */
-      set_timespec_nsec(m_abs_timeout, timeout);
+      set_timespec_nsec(&m_abs_timeout, timeout);
     }
 
     /** The timed wait. */
@@ -4359,17 +4747,17 @@ int Interruptible_wait::wait(mysql_cond_t *cond, mysql_mutex_t *mutex)
   while (1)
   {
     /* Wait for a fixed interval. */
-    set_timespec_nsec(timeout, m_interrupt_interval);
+    set_timespec_nsec(&timeout, m_interrupt_interval);
 
     /* But only if not past the absolute timeout. */
-    if (cmp_timespec(timeout, m_abs_timeout) > 0)
+    if (cmp_timespec(&timeout, &m_abs_timeout) > 0)
       timeout= m_abs_timeout;
 
     error= mysql_cond_timedwait(cond, mutex, &timeout);
     if (error == ETIMEDOUT || error == ETIME)
     {
       /* Return error if timed out or connection is broken. */
-      if (!cmp_timespec(timeout, m_abs_timeout) || !m_thd->is_connected())
+      if (!cmp_timespec(&timeout, &m_abs_timeout) || !m_thd->is_connected())
         break;
     }
     /* Otherwise, propagate status to the caller. */
@@ -4525,7 +4913,7 @@ public:
 
   void visit_context(const MDL_context *ctx)
   {
-    m_owner_id= ctx->get_owner()->get_thd()->thread_id;
+    m_owner_id= ctx->get_owner()->get_thd()->thread_id();
   }
 
   my_thread_id get_owner_id() const { return m_owner_id; }
@@ -4678,7 +5066,8 @@ longlong Item_func_get_lock::val_int()
   User_level_lock_wait_error_handler error_handler;
 
   thd->push_internal_handler(&error_handler);
-  bool error= thd->mdl_context.acquire_lock(&ull_request, timeout);
+  bool error= thd->mdl_context.acquire_lock(&ull_request,
+                                            static_cast<ulong>(timeout));
   (void) thd->pop_internal_handler();
 
   if (error)
@@ -5203,10 +5592,14 @@ longlong Item_func_sleep::val_int()
   @param cs  character set; IF we are creating the user_var_entry,
              we give it this character set.
 */
-static user_var_entry *get_variable(HASH *hash, const Name_string &name,
+static user_var_entry *get_variable(THD *thd, const Name_string &name,
                                     const CHARSET_INFO *cs)
 {
   user_var_entry *entry;
+  HASH *hash= & thd->user_vars;
+
+  /* Protects thd->user_vars. */
+  mysql_mutex_assert_owner(&thd->LOCK_thd_data);
 
   if (!(entry= (user_var_entry*) my_hash_search(hash, (uchar*) name.ptr(),
                                                  name.length())) &&
@@ -5214,7 +5607,7 @@ static user_var_entry *get_variable(HASH *hash, const Name_string &name,
   {
     if (!my_hash_inited(hash))
       return 0;
-    if (!(entry= user_var_entry::create(name, cs)))
+    if (!(entry= user_var_entry::create(thd, name, cs)))
       return 0;
     if (my_hash_insert(hash,(uchar*) entry))
     {
@@ -5235,7 +5628,7 @@ void Item_func_set_user_var::cleanup()
 
 bool Item_func_set_user_var::set_entry(THD *thd, bool create_if_not_exists)
 {
-  if (entry && thd->thread_id == entry_thread_id)
+  if (entry && thd->thread_id() == entry_thread_id)
   {} // update entry->update_query_id for PS
   else
   {
@@ -5243,12 +5636,17 @@ bool Item_func_set_user_var::set_entry(THD *thd, bool create_if_not_exists)
           (args[0]->collation.derivation == DERIVATION_NUMERIC ?
           default_charset() : args[0]->collation.collation) : NULL;
 
-    if (!(entry= get_variable(&thd->user_vars, name, cs)))
+    /* Protects thd->user_vars. */
+    mysql_mutex_lock(&thd->LOCK_thd_data);
+    entry= get_variable(thd, name, cs);
+    mysql_mutex_unlock(&thd->LOCK_thd_data);
+
+    if (entry == NULL)
     {
       entry_thread_id= 0;
       return TRUE;
     }
-    entry_thread_id= thd->thread_id;
+    entry_thread_id= thd->thread_id();
   }
   /* 
     Remember the last query which updated it, this way a query can later know
@@ -5366,6 +5764,8 @@ bool user_var_entry::realloc(size_t length)
 */
 bool user_var_entry::store(const void *from, size_t length, Item_result type)
 {
+  assert_locked();
+
   // Store strings with end \0
   if (realloc(length + MY_TEST(type == STRING_RESULT)))
     return true;
@@ -5412,6 +5812,8 @@ bool user_var_entry::store(const void *ptr, size_t length, Item_result type,
                            const CHARSET_INFO *cs, Derivation dv,
                            bool unsigned_arg)
 {
+  assert_locked();
+
   if (store(ptr, length, type))
     return true;
   collation.set(cs, dv);
@@ -5419,6 +5821,17 @@ bool user_var_entry::store(const void *ptr, size_t length, Item_result type,
   return false;
 }
 
+void user_var_entry::lock()
+{
+  DBUG_ASSERT(m_owner != NULL);
+  mysql_mutex_lock(&m_owner->LOCK_thd_data);
+}
+
+void user_var_entry::unlock()
+{
+  DBUG_ASSERT(m_owner != NULL);
+  mysql_mutex_unlock(&m_owner->LOCK_thd_data);
+}
 
 bool
 Item_func_set_user_var::update_hash(const void *ptr, uint length,
@@ -5426,6 +5839,8 @@ Item_func_set_user_var::update_hash(const void *ptr, uint length,
                                     const CHARSET_INFO *cs, Derivation dv,
                                     bool unsigned_arg)
 {
+  entry->lock();
+
   /*
     If we set a variable explicitely to NULL then keep the old
     result type of the variable
@@ -5449,16 +5864,18 @@ Item_func_set_user_var::update_hash(const void *ptr, uint length,
     entry->set_null_value(res_type);
   else if (entry->store(ptr, length, res_type, cs, dv, unsigned_arg))
   {
+    entry->unlock();
     null_value= 1;
     return 1;
   }
+  entry->unlock();
   return 0;
 }
 
 
 /** Get the value of a variable as a double. */
 
-double user_var_entry::val_real(my_bool *null_value)
+double user_var_entry::val_real(my_bool *null_value) const
 {
   if ((*null_value= (m_ptr == 0)))
     return 0.0;
@@ -5518,7 +5935,7 @@ longlong user_var_entry::val_int(my_bool *null_value) const
 /** Get the value of a variable as a string. */
 
 String *user_var_entry::val_str(my_bool *null_value, String *str,
-				uint decimals)
+				uint decimals) const
 {
   if ((*null_value= (m_ptr == 0)))
     return (String*) 0;
@@ -5548,7 +5965,7 @@ String *user_var_entry::val_str(my_bool *null_value, String *str,
 
 /** Get the value of a variable as a decimal. */
 
-my_decimal *user_var_entry::val_decimal(my_bool *null_value, my_decimal *val)
+my_decimal *user_var_entry::val_decimal(my_bool *null_value, my_decimal *val) const
 {
   if ((*null_value= (m_ptr == 0)))
     return 0;
@@ -6037,7 +6454,11 @@ get_var_with_binlog(THD *thd, enum_sql_command sql_command,
 {
   BINLOG_USER_VAR_EVENT *user_var_event;
   user_var_entry *var_entry;
-  var_entry= get_variable(&thd->user_vars, name, NULL);
+
+  /* Protects thd->user_vars. */
+  mysql_mutex_lock(&thd->LOCK_thd_data);
+  var_entry= get_variable(thd, name, NULL);
+  mysql_mutex_unlock(&thd->LOCK_thd_data);
 
   /*
     Any reference to user-defined variable which is done from stored
@@ -6085,7 +6506,11 @@ get_var_with_binlog(THD *thd, enum_sql_command sql_command,
       goto err;
     }
     thd->lex= sav_lex;
-    if (!(var_entry= get_variable(&thd->user_vars, name, NULL)))
+    mysql_mutex_lock(&thd->LOCK_thd_data);
+    var_entry= get_variable(thd, name, NULL);
+    mysql_mutex_unlock(&thd->LOCK_thd_data);
+
+    if (var_entry == NULL)
       goto err;
   }
   else if (var_entry->used_query_id == thd->query_id ||
@@ -6172,7 +6597,7 @@ void Item_func_get_user_var::fix_length_and_dec()
 
   /*
     If the variable didn't exist it has been created as a STRING-type.
-    'var_entry' is NULL only if there occured an error during the call to
+    'var_entry' is NULL only if there occurred an error during the call to
     get_var_with_binlog.
   */
   if (!error && var_entry)
@@ -6270,26 +6695,42 @@ bool Item_user_var_as_out_param::fix_fields(THD *thd, Item **ref)
   */
   const CHARSET_INFO *cs= thd->lex->exchange->cs ?
     thd->lex->exchange->cs : thd->variables.collation_database;
-  if (Item::fix_fields(thd, ref) ||
-      !(entry= get_variable(&thd->user_vars, name, cs)))
+
+  if (Item::fix_fields(thd, ref))
     return true;
-  entry->set_type(STRING_RESULT);
-  entry->update_query_id= thd->query_id;
-  return FALSE;
+
+  /* Protects thd->user_vars. */
+  mysql_mutex_lock(&thd->LOCK_thd_data);
+  entry= get_variable(thd, name, cs);
+  if (entry != NULL)
+  {
+    entry->set_type(STRING_RESULT);
+    entry->update_query_id= thd->query_id;
+  }
+  mysql_mutex_unlock(&thd->LOCK_thd_data);
+
+  if (entry == NULL)
+    return true;
+
+  return false;
 }
 
 
 void Item_user_var_as_out_param::set_null_value(const CHARSET_INFO* cs)
 {
+  entry->lock();
   entry->set_null_value(STRING_RESULT);
+  entry->unlock();
 }
 
 
 void Item_user_var_as_out_param::set_value(const char *str, size_t length,
                                            const CHARSET_INFO* cs)
 {
+  entry->lock();
   entry->store((void*) str, length, STRING_RESULT, cs,
                DERIVATION_IMPLICIT, 0 /* unsigned_arg */);
+  entry->unlock();
 }
 
 
@@ -6824,6 +7265,7 @@ void Item_func_match::init_search()
   if (!fixed)
     DBUG_VOID_RETURN;
 
+  TABLE *const table= table_ref->table;
   /* Check if init_search() has been called before */
   if (ft_handler && !master)
   {
@@ -6923,10 +7365,7 @@ static void update_table_read_set(Field *field)
   TABLE *table= field->table;
 
   if (!bitmap_fast_test_and_set(table->read_set, field->field_index))
-  {
-    table->used_fields++;
     table->covering_keys.intersect(field->part_of_key);
-  }
 }
 
 
@@ -6973,7 +7412,7 @@ bool Item_func_match::fix_fields(THD *thd, Item **ref)
       return TRUE;
     }
     allows_multi_table_search &= 
-      allows_search_on_non_indexed_columns(((Item_field *)item)->field->table);
+      allows_search_on_non_indexed_columns(((Item_field *)item)->table_ref);
   }
 
   /*
@@ -6989,8 +7428,8 @@ bool Item_func_match::fix_fields(THD *thd, Item **ref)
     my_error(ER_WRONG_ARGUMENTS,MYF(0),"MATCH");
     return TRUE;
   }
-  table=((Item_field *)item)->field->table;
-  if (!(table->file->ha_table_flags() & HA_CAN_FULLTEXT))
+  table_ref= ((Item_field *)item)->table_ref;
+  if (!(table_ref->table->file->ha_table_flags() & HA_CAN_FULLTEXT))
   {
     my_error(ER_TABLE_CANT_HANDLE_FT, MYF(0));
     return 1;
@@ -7002,6 +7441,8 @@ bool Item_func_match::fix_fields(THD *thd, Item **ref)
     can have FTS_DOC_ID column. Atm this is the only way
     to distinguish MyISAM and InnoDB engines.
   */
+  TABLE *const table= table_ref->table;
+
   if ((table->file->ha_table_flags() & HA_CAN_FULLTEXT_EXT))
   {
     Field *doc_id_field= table->fts_doc_id_field;
@@ -7048,6 +7489,7 @@ bool Item_func_match::fix_fields(THD *thd, Item **ref)
 bool Item_func_match::fix_index()
 {
   Item_field *item;
+  TABLE *table;
   uint ft_to_key[MAX_KEY], ft_cnt[MAX_KEY], fts=0, keynr;
   uint max_cnt=0, mkeys=0, i;
 
@@ -7061,9 +7503,10 @@ bool Item_func_match::fix_index()
   if (key == NO_SUCH_KEY)
     return 0;
   
-  if (!table) 
+  if (!table_ref) 
     goto err;
 
+  table= table_ref->table;
   for (keynr=0 ; keynr < table->s->keys ; keynr++)
   {
     if ((table->key_info[keynr].flags & HA_FULLTEXT) &&
@@ -7127,7 +7570,7 @@ bool Item_func_match::fix_index()
   }
 
 err:
-  if (allows_search_on_non_indexed_columns(table))
+  if (allows_search_on_non_indexed_columns(table_ref))
   {
     key=NO_SUCH_KEY;
     return 0;
@@ -7149,7 +7592,7 @@ bool Item_func_match::eq(const Item *item, bool binary_cmp) const
 
   Item_func_match *ifm=(Item_func_match*) item;
 
-  if (key == ifm->key && table == ifm->table &&
+  if (key == ifm->key && table_ref == ifm->table_ref &&
       key_item()->eq(ifm->key_item(), binary_cmp))
     return 1;
 
@@ -7164,6 +7607,7 @@ double Item_func_match::val_real()
   if (ft_handler == NULL)
     DBUG_RETURN(-1.0);
 
+  TABLE *const table= table_ref->table;
   if (key != NO_SUCH_KEY && table->null_row) /* NULL row from an outer join */
     DBUG_RETURN(0.0);
 
@@ -7347,7 +7791,8 @@ Item_func_sp::Item_func_sp(const POS &pos,
   maybe_null= 1;
   with_stored_program= true;
   THD *thd= current_thd;
-  m_name= new (thd->mem_root) sp_name(db_name, fn_name, use_explicit_name);
+  m_name= new (thd->mem_root) sp_name(to_lex_cstring(db_name), fn_name,
+                                      use_explicit_name);
 }
 
 
@@ -7369,13 +7814,12 @@ bool Item_func_sp::itemize(Parse_context *pc, Item **res)
   if (m_name->m_db.str == NULL) // use the default database name
   {
     /* Cannot match the function since no database is selected */
-    if (thd->db == NULL)
+    if (thd->db().str == NULL)
     {
       my_error(ER_NO_DB_ERROR, MYF(0));
       return true;
     }
-    m_name->m_db.str= thd->db;
-    m_name->m_db.length= thd->db_length;
+    m_name->m_db= thd->db();
   }
 
   m_name->init_qname(thd);

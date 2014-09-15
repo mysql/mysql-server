@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -59,7 +59,6 @@ flst_init(
 	mtr_t*			mtr);	/*!< in: mini-transaction handle */
 /********************************************************************//**
 Adds a node as the last node in a list. */
-
 void
 flst_add_last(
 /*==========*/
@@ -68,7 +67,6 @@ flst_add_last(
 	mtr_t*			mtr);	/*!< in: mini-transaction handle */
 /********************************************************************//**
 Adds a node as the first node in a list. */
-
 void
 flst_add_first(
 /*===========*/
@@ -77,7 +75,6 @@ flst_add_first(
 	mtr_t*			mtr);	/*!< in: mini-transaction handle */
 /********************************************************************//**
 Inserts a node after another in a list. */
-
 void
 flst_insert_after(
 /*==============*/
@@ -87,7 +84,6 @@ flst_insert_after(
 	mtr_t*			mtr);	/*!< in: mini-transaction handle */
 /********************************************************************//**
 Inserts a node before another in a list. */
-
 void
 flst_insert_before(
 /*===============*/
@@ -97,7 +93,6 @@ flst_insert_before(
 	mtr_t*			mtr);	/*!< in: mini-transaction handle */
 /********************************************************************//**
 Removes a node. */
-
 void
 flst_remove(
 /*========*/
@@ -108,7 +103,6 @@ flst_remove(
 Cuts off the tail of the list, including the node given. The number of
 nodes which will be removed must be provided by the caller, as this function
 does not measure the length of the tail. */
-
 void
 flst_cut_end(
 /*=========*/
@@ -121,7 +115,6 @@ flst_cut_end(
 Cuts off the tail of the list, not including the given node. The number of
 nodes which will be removed must be provided by the caller, as this function
 does not measure the length of the tail. */
-
 void
 flst_truncate_end(
 /*==============*/
@@ -195,7 +188,6 @@ flst_read_addr(
 /********************************************************************//**
 Validates a file-based list.
 @return TRUE if ok */
-
 ibool
 flst_validate(
 /*==========*/
@@ -203,7 +195,6 @@ flst_validate(
 	mtr_t*			mtr1);	/*!< in: mtr */
 /********************************************************************//**
 Prints info of a file-based list. */
-
 void
 flst_print(
 /*=======*/

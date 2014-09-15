@@ -79,8 +79,10 @@ PageBulk::init()
 			page_create_zip(new_block, m_index, m_level, 0,
 					NULL, mtr);
 		} else {
+			ut_ad(!dict_index_is_spatial(m_index));
 			page_create(new_block, mtr,
-				    dict_table_is_comp(m_index->table));
+				    dict_table_is_comp(m_index->table),
+				    false);
 			btr_page_set_level(new_page, NULL, m_level, mtr);
 		}
 
@@ -105,8 +107,6 @@ PageBulk::init()
 		btr_page_set_level(new_page, NULL, m_level, mtr);
 	}
 
-	new_block->check_index_page_at_flush = FALSE;
-
         if (dict_index_is_sec_or_ibuf(m_index)
             && !dict_table_is_temporary(m_index->table)
 	    && page_is_leaf(new_page)) {
@@ -128,11 +128,9 @@ PageBulk::init()
 	m_heap_top = page_header_get_ptr(new_page, PAGE_HEAP_TOP);
 	m_rec_no = page_header_get_field(new_page, PAGE_N_RECS);
 
-#ifdef UNIV_DEBUG
-	m_total_data = 0;
-	page_header_set_ptr(m_page, NULL, PAGE_HEAP_TOP,
-			    m_page + UNIV_PAGE_SIZE - 1);
-#endif /* UNIV_DEBUG */
+	ut_d(m_total_data = 0);
+	mach_write_to_2(m_page + FIL_PAGE_TYPE, FIL_PAGE_TYPE_SYS);
+	page_header_set_field(m_page, NULL, PAGE_HEAP_TOP, UNIV_PAGE_SIZE - 1);
 }
 
 /** Insert a record in the page.
@@ -160,8 +158,8 @@ PageBulk::insert(
 		      > 0);
 	}
 
-	page_header_set_ptr(m_page, NULL, PAGE_HEAP_TOP,
-			    m_page + UNIV_PAGE_SIZE - 1);
+	page_header_set_field(m_page, NULL, PAGE_HEAP_TOP,
+			      UNIV_PAGE_SIZE - 1);
 
 	m_total_data += rec_size;
 #endif /* UNIV_DEBUG */
@@ -194,7 +192,7 @@ PageBulk::insert(
 		- page_dir_calc_reserved_space(m_rec_no);
 
 	ut_ad(m_free_space >= rec_size + slot_size);
-	ut_ad(m_heap_top < m_page + UNIV_PAGE_SIZE);
+	ut_ad(m_heap_top + rec_size < m_page + UNIV_PAGE_SIZE);
 
 	m_free_space -= rec_size + slot_size;
 	m_heap_top += rec_size;
@@ -267,6 +265,8 @@ PageBulk::finish()
 	page_dir_slot_set_rec(slot, page_get_supremum_rec(m_page));
 	page_dir_slot_set_n_owned(slot, NULL, count + 1);
 
+	ut_ad(!dict_index_is_spatial(m_index));
+	mach_write_to_2(m_page + FIL_PAGE_TYPE, FIL_PAGE_INDEX);
 	page_dir_set_n_slots(m_page, NULL, 2 + slot_index);
 	page_header_set_ptr(m_page, NULL, PAGE_HEAP_TOP, m_heap_top);
 	page_dir_set_n_heap(m_page, NULL, PAGE_HEAP_NO_USER_LOW + m_rec_no);
@@ -275,8 +275,6 @@ PageBulk::finish()
 	page_header_set_ptr(m_page, NULL, PAGE_LAST_INSERT, m_cur_rec);
 	page_header_set_field(m_page, NULL, PAGE_DIRECTION, PAGE_RIGHT);
 	page_header_set_field(m_page, NULL, PAGE_N_DIRECTION, 0);
-
-	m_block->check_index_page_at_flush = TRUE;
 }
 
 /** Commit inserts done to the page
@@ -561,15 +559,15 @@ Note: log_free_check requires holding no lock/latch in current thread. */
 void
 PageBulk::release()
 {
-#ifdef UNIV_DEBUG
+	ut_ad(!dict_index_is_spatial(m_index));
+	mach_write_to_2(m_page + FIL_PAGE_TYPE, FIL_PAGE_INDEX);
+#ifdef UNIV_DEBUG // TODO: update PAGE_HEAP_TOP, or do not update FIL_PAGE_TYPE
 	page_header_set_ptr(m_page, NULL, PAGE_HEAP_TOP,
 			    m_heap_top - m_total_data);
-#endif /* UNIV_DEBUG */
+#endif
 
 	/* We fix the block because we will re-pin it soon. */
-	buf_page_mutex_enter(m_block);
 	buf_block_buf_fix_inc(m_block, __FILE__, __LINE__);
-	buf_page_mutex_exit(m_block);
 
 	mtr_commit(m_mtr);
 }
@@ -597,16 +595,12 @@ PageBulk::latch()
 		ut_ad(m_block != NULL);
 	}
 
-	buf_page_mutex_enter(m_block);
-	buf_block_buf_fix_dec(m_block);
-	buf_page_mutex_exit(m_block);
+	mach_write_to_2(m_page + FIL_PAGE_TYPE, FIL_PAGE_TYPE_SYS);
+	page_header_set_field(m_page, NULL, PAGE_HEAP_TOP, UNIV_PAGE_SIZE - 1);
 
-#ifdef UNIV_DEBUG
-	page_header_set_ptr(m_page, NULL, PAGE_HEAP_TOP,
-			    m_page + UNIV_PAGE_SIZE - 1);
+	buf_block_buf_fix_dec(m_block);
 
 	ut_ad(m_cur_rec > m_page && m_cur_rec < m_heap_top);
-#endif /* UNIV_DEBUG */
 }
 
 /** Split a page
@@ -705,6 +699,17 @@ BtrBulk::pageCommit(
 void
 BtrBulk::logFreeCheck()
 {
+	release();
+
+	log_free_check();
+
+	latch();
+}
+
+/** Release all latches */
+void
+BtrBulk::release()
+{
 	ut_ad(m_root_level + 1 == m_page_bulks->size());
 
 	for (ulint level = 0; level <= m_root_level; level++) {
@@ -712,8 +717,13 @@ BtrBulk::logFreeCheck()
 
 		page_bulk->release();
 	}
+}
 
-	log_free_check();
+/** Re-latch all latches */
+void
+BtrBulk::latch()
+{
+	ut_ad(m_root_level + 1 == m_page_bulks->size());
 
 	for (ulint level = 0; level <= m_root_level; level++) {
 		PageBulk*    page_bulk = m_page_bulks->at(level);
@@ -736,8 +746,9 @@ BtrBulk::insert(
 
 	/* Check if we need to create a PageBulk for the level. */
 	if (level + 1 > m_page_bulks->size()) {
-		PageBulk* new_page_bulk = new PageBulk(m_index, m_trx_id,
-						       FIL_NULL, level);
+		PageBulk*	new_page_bulk
+			= UT_NEW_NOKEY(PageBulk(m_index, m_trx_id, FIL_NULL,
+						level));
 		new_page_bulk->init();
 
 		m_page_bulks->push_back(new_page_bulk);
@@ -780,15 +791,15 @@ BtrBulk::insert(
 		dberr_t		err;
 
 		/* Create a sibling page_bulk. */
-		sibling_page_bulk = new PageBulk(m_index, m_trx_id,
-						 FIL_NULL, level);
+		sibling_page_bulk = UT_NEW_NOKEY(PageBulk(m_index, m_trx_id,
+							  FIL_NULL, level));
 		sibling_page_bulk->init();
 
 		/* Commit page bulk. */
 		err = pageCommit(page_bulk, sibling_page_bulk, true);
 		if (err != DB_SUCCESS) {
 			pageAbort(sibling_page_bulk);
-			delete sibling_page_bulk;
+			UT_DELETE(sibling_page_bulk);
 			return(err);
 		}
 
@@ -796,7 +807,7 @@ BtrBulk::insert(
 		ut_ad(sibling_page_bulk->getLevel() <= m_root_level);
 		m_page_bulks->at(level) = sibling_page_bulk;
 
-		delete page_bulk;
+		UT_DELETE(page_bulk);
 		page_bulk = sibling_page_bulk;
 
 		/* Important: log_free_check whether we need a checkpoint. */
@@ -828,7 +839,7 @@ BtrBulk::insert(
 		ut_ad(page_bulk->getLevel() == 0);
 		ut_ad(page_bulk == m_page_bulks->at(0));
 
-		/* Release */
+		/* Release all latched but leaf node. */
 		for (ulint level = 1; level <= m_root_level; level++) {
 			PageBulk*    page_bulk = m_page_bulks->at(level);
 
@@ -882,7 +893,7 @@ BtrBulk::finish(
 			pageAbort(page_bulk);
 		}
 
-		delete page_bulk;
+		UT_DELETE(page_bulk);
 	}
 
 	if (err == DB_SUCCESS) {
@@ -898,7 +909,11 @@ BtrBulk::finish(
 					       root_page_no, m_root_level);
 
 		mtr_start(&mtr);
-		mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
+		if (m_index->is_redo_skipped) {
+			mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
+                } else {
+			mtr.set_named_space(dict_index_get_space(m_index));
+		}
 		mtr_x_lock(dict_index_get_lock(m_index), &mtr);
 
 		ut_ad(last_page_no != FIL_NULL);

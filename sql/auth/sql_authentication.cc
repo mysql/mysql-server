@@ -25,6 +25,13 @@
 #include "sql_db.h"                     /* mysql_change_db */
 #include "connection_handler_manager.h"
 #include <mysql/plugin_validate_password.h> /* validate_password plugin */
+#include "sys_vars.h"
+#include <fstream>                      /* std::fstream */
+#include <string>                       /* std::string */
+#include <algorithm>                    /* for_each */
+#include <stdexcept>                    /* Exception handling */
+#include <vector>                       /* std::vector */
+#include <stdint.h>
 
 #if defined(HAVE_OPENSSL) && !defined(HAVE_YASSL)
 #include <openssl/rsa.h>
@@ -49,10 +56,6 @@ LEX_CSTRING native_password_plugin_name= {
   C_STRING_WITH_LEN("mysql_native_password")
 };
   
-LEX_CSTRING old_password_plugin_name= {
-  C_STRING_WITH_LEN("mysql_old_password")
-};
-
 LEX_CSTRING sha256_password_plugin_name= {
   C_STRING_WITH_LEN("sha256_password")
 };
@@ -63,9 +66,6 @@ LEX_CSTRING validate_password_plugin_name= {
 
 LEX_CSTRING default_auth_plugin_name;
 
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
-plugin_ref old_password_plugin;
-#endif /* NO_EMBEDDED_ACCESS_CHECKS */
 plugin_ref native_password_plugin;
 
 my_bool disconnect_on_expired_password= TRUE;
@@ -80,9 +80,20 @@ my_bool disconnect_on_expired_password= TRUE;
 #define AUTH_DEFAULT_RSA_PRIVATE_KEY "private_key.pem"
 #define AUTH_DEFAULT_RSA_PUBLIC_KEY "public_key.pem"
 
+#define DEFAULT_SSL_CA_CERT     "ca.pem"
+#define DEFAULT_SSL_CA_KEY      "ca-key.pem"
+#define DEFAULT_SSL_SERVER_CERT "server-cert.pem"
+#define DEFAULT_SSL_SERVER_KEY  "server-key.pem"
+#define DEFAULT_SSL_CLIENT_CERT "client-cert.pem"
+#define DEFAULT_SSL_CLIENT_KEY  "client-key.pem"
+
+my_bool opt_auto_generate_certs= TRUE;
+
 char *auth_rsa_private_key_path;
 char *auth_rsa_public_key_path;
+my_bool auth_rsa_auto_generate_rsa_keys= TRUE;
 
+static bool do_auto_rsa_keys_generation();
 static Rsa_authentication_keys g_rsa_keys;
 
 #endif /* HAVE_YASSL */
@@ -338,9 +349,6 @@ Rsa_authentication_keys::read_rsa_keys()
  
  @param plugin_name Name of the plugin
  @param plugin_name_length Length of the string
- 
- Setting default_auth_plugin may also affect old_passwords
-
 */
 
 int set_default_auth_plugin(char *plugin_name, size_t plugin_name_length)
@@ -384,13 +392,6 @@ void optimize_plugin_compare_by_pointer(LEX_CSTRING *plugin_name)
     {
       plugin_name->str= native_password_plugin_name.str;
       plugin_name->length= native_password_plugin_name.length;
-  }
-  else
-  if (my_strcasecmp(system_charset_info, old_password_plugin_name.str,
-                    plugin_name->str) == 0)
-  {
-    plugin_name->str= old_password_plugin_name.str;
-    plugin_name->length= old_password_plugin_name.length;
   }
 }
 
@@ -449,11 +450,11 @@ int check_password_policy(String *password)
 
 bool auth_plugin_is_built_in(const char *plugin_name)
 {
- return (plugin_name == native_password_plugin_name.str ||
+ return (plugin_name == native_password_plugin_name.str
 #if defined(HAVE_OPENSSL)
-         plugin_name == sha256_password_plugin_name.str ||
+         || plugin_name == sha256_password_plugin_name.str
 #endif
-         plugin_name == old_password_plugin_name.str);
+         );
 }
 
 
@@ -469,11 +470,11 @@ bool auth_plugin_is_built_in(const char *plugin_name)
 bool auth_plugin_supports_expiration(const char *plugin_name)
 {
  return (!plugin_name || !*plugin_name ||
-         plugin_name == native_password_plugin_name.str ||
+         plugin_name == native_password_plugin_name.str
 #if defined(HAVE_OPENSSL)
-         plugin_name == sha256_password_plugin_name.str ||
+         || plugin_name == sha256_password_plugin_name.str
 #endif
-         plugin_name == old_password_plugin_name.str);
+         );
 }
 
 
@@ -624,6 +625,8 @@ static bool send_server_handshake_packet(MPVIO_EXT *mpvio,
   }
 
   end= my_stpnmov(end, server_version, SERVER_VERSION_LENGTH) + 1;
+
+  DBUG_ASSERT(sizeof(my_thread_id) == 4);
   int4store((uchar*) end, mpvio->thread_id);
   end+= 4;
 
@@ -632,8 +635,8 @@ static bool send_server_handshake_packet(MPVIO_EXT *mpvio,
     tail: that's why first part of the scramble is placed here, and second
     part at the end of packet.
   */
-  end= (char*) memcpy(end, data, SCRAMBLE_LENGTH_323);
-  end+= SCRAMBLE_LENGTH_323;
+  end= (char*) memcpy(end, data, AUTH_PLUGIN_DATA_PART_1_LENGTH);
+  end+= AUTH_PLUGIN_DATA_PART_1_LENGTH;
   *end++= 0;
  
   int2store(end, static_cast<uint16>(mpvio->client_capabilities));
@@ -646,9 +649,9 @@ static bool send_server_handshake_packet(MPVIO_EXT *mpvio,
   memset(end + 8, 0, 10);
   end+= 18;
   /* write scramble tail */
-  end= (char*) memcpy(end, data + SCRAMBLE_LENGTH_323,
-                      data_len - SCRAMBLE_LENGTH_323);
-  end+= data_len - SCRAMBLE_LENGTH_323;
+  end= (char*) memcpy(end, data + AUTH_PLUGIN_DATA_PART_1_LENGTH,
+                      data_len - AUTH_PLUGIN_DATA_PART_1_LENGTH);
+  end+= data_len - AUTH_PLUGIN_DATA_PART_1_LENGTH;
   end= strmake(end, plugin_name(mpvio->plugin)->str,
                     plugin_name(mpvio->plugin)->length);
 
@@ -656,37 +659,6 @@ static bool send_server_handshake_packet(MPVIO_EXT *mpvio,
            net_flush(mpvio->net);
   my_afree(buff);
   DBUG_RETURN (res);
-}
-
-
-static bool secure_auth(MPVIO_EXT *mpvio)
-{
-  THD *thd;
-  if (!opt_secure_auth)
-    return 0;
-  /*
-    If the server is running in secure auth mode, short scrambles are 
-    forbidden. Extra juggling to report the same error as the old code.
-  */
-
-  thd= current_thd;
-  if (mpvio->client_capabilities & CLIENT_PROTOCOL_41)
-  {
-    my_error(ER_SERVER_IS_IN_SECURE_AUTH_MODE, MYF(0),
-             mpvio->auth_info.user_name,
-             mpvio->auth_info.host_or_ip);
-    query_logger.general_log_print(thd, COM_CONNECT,
-                                   ER(ER_SERVER_IS_IN_SECURE_AUTH_MODE),
-                                   mpvio->auth_info.user_name,
-                                   mpvio->auth_info.host_or_ip);
-  }
-  else
-  {
-    my_error(ER_NOT_SUPPORTED_AUTH_MODE, MYF(0));
-    query_logger.general_log_print(thd, COM_CONNECT,
-                                   ER(ER_NOT_SUPPORTED_AUTH_MODE));
-  }
-  return 1;
 }
 
 
@@ -701,12 +673,6 @@ static bool secure_auth(MPVIO_EXT *mpvio)
     1           byte with the value 254
     n           client plugin to use, \0-terminated
     n           plugin provided data
-
-  In a special case of switching from native_password_plugin to
-  old_password_plugin, the packet contains only one - the first - byte,
-  plugin name is omitted, plugin data aren't needed as the scramble was
-  already sent. This one-byte packet is identical to the "use the short
-  scramble" packet in the protocol before plugins were introduced.
 
   @retval 0 ok
   @retval 1 error
@@ -726,41 +692,6 @@ static bool send_plugin_request_packet(MPVIO_EXT *mpvio,
     ((st_mysql_auth *) (plugin_decl(mpvio->plugin)->info))->client_auth_plugin;
 
   DBUG_ASSERT(client_auth_plugin);
-
-  /*
-    we send an old "short 4.0 scramble request", if we need to request a
-    client to use 4.0 auth plugin (short scramble) and the scramble was
-    already sent to the client
-
-    below, cached_client_reply.plugin is the plugin name that client has used,
-    client_auth_plugin is derived from mysql.user table, for the given
-    user account, it's the plugin that the client need to use to login.
-  */
-  bool switch_from_long_to_short_scramble=
-    native_password_plugin_name.str == mpvio->cached_client_reply.plugin &&
-    client_auth_plugin == old_password_plugin_name.str;
-
-  if (switch_from_long_to_short_scramble)
-    DBUG_RETURN (secure_auth(mpvio) ||
-                 my_net_write(net, switch_plugin_request_buf, 1) ||
-                 net_flush(net));
-
-  /*
-    We never request a client to switch from a short to long scramble.
-    Plugin-aware clients can do that, but traditionally it meant to
-    ask an old 4.0 client to use the new 4.1 authentication protocol.
-  */
-  bool switch_from_short_to_long_scramble=
-    old_password_plugin_name.str == mpvio->cached_client_reply.plugin && 
-    client_auth_plugin == native_password_plugin_name.str;
-
-  if (switch_from_short_to_long_scramble)
-  {
-    my_error(ER_NOT_SUPPORTED_AUTH_MODE, MYF(0));
-    query_logger.general_log_print(current_thd, COM_CONNECT,
-                                   ER(ER_NOT_SUPPORTED_AUTH_MODE));
-    DBUG_RETURN (1);
-  }
 
   /*
     If we're dealing with an older client we can't just send a change plugin
@@ -921,15 +852,11 @@ static bool find_mpvio_user(MPVIO_EXT *mpvio)
 
   if (my_strcasecmp(system_charset_info, mpvio->acl_user->plugin.str,
                     native_password_plugin_name.str) != 0 &&
-      my_strcasecmp(system_charset_info, mpvio->acl_user->plugin.str,
-                    old_password_plugin_name.str) != 0 &&
       !(mpvio->client_capabilities & CLIENT_PLUGIN_AUTH))
   {
     /* user account requires non-default plugin and the client is too old */
     DBUG_ASSERT(my_strcasecmp(system_charset_info, mpvio->acl_user->plugin.str,
                               native_password_plugin_name.str));
-    DBUG_ASSERT(my_strcasecmp(system_charset_info, mpvio->acl_user->plugin.str,
-                              old_password_plugin_name.str));
     my_error(ER_NOT_SUPPORTED_AUTH_MODE, MYF(0));
     query_logger.general_log_print(current_thd, COM_CONNECT,
                                    ER(ER_NOT_SUPPORTED_AUTH_MODE));
@@ -963,7 +890,7 @@ read_client_connect_attrs(char **ptr, size_t *max_bytes_available,
 
   /* read the length */
   ptr_save= *ptr;
-  length= net_field_length_ll((uchar **) ptr);
+  length= static_cast<size_t>(net_field_length_ll((uchar **) ptr));
   length_length= *ptr - ptr_save;
   if (*max_bytes_available < length_length)
     return true;
@@ -1135,17 +1062,12 @@ static bool parse_com_change_user_packet(MPVIO_EXT *mpvio, size_t packet_length)
   }
 
   /*
-    Old clients send null-terminated string as password; new clients send
-    the size (1 byte) + string (not null-terminated). Hence in case of empty
-    password both send '\0'.
-
-    This strlen() can't be easily deleted without changing protocol.
+    Clients send the size (1 byte) + string (not null-terminated).
 
     Cast *passwd to an unsigned char, so that it doesn't extend the sign for
     *passwd > 127 and become 2**32-127+ after casting to uint.
   */
-  size_t passwd_len= (mpvio->client_capabilities & CLIENT_SECURE_CONNECTION ?
-                     (uchar) (*passwd++) : strlen(passwd));
+  size_t passwd_len= (uchar) (*passwd++);
 
   db+= passwd_len + 1;
   /*
@@ -1224,22 +1146,7 @@ static bool parse_com_change_user_packet(MPVIO_EXT *mpvio, size_t packet_length)
     }
   }
   else
-  {
-    if (mpvio->client_capabilities & CLIENT_SECURE_CONNECTION)
-      client_plugin= native_password_plugin_name.str;
-    else
-    {
-      client_plugin=  old_password_plugin_name.str;
-      /*
-        For a passwordless accounts we use native_password_plugin.
-        But when an old 4.0 client connects to it, we change it to
-        old_password_plugin, otherwise MySQL will think that server 
-        and client plugins don't match.
-      */
-      if (mpvio->acl_user->salt_len == 0)
-        mpvio->acl_user_plugin= old_password_plugin_name;
-    }
-  }
+    client_plugin= native_password_plugin_name.str;
 
   size_t bytes_remaining_in_packet= end - ptr;
 
@@ -1512,7 +1419,7 @@ static size_t parse_client_handshake_packet(MPVIO_EXT *mpvio,
       return packet_error;
     goto skip_to_ssl;
   }
-  
+
   if (mpvio->client_capabilities & CLIENT_PROTOCOL_41)
     packet_has_required_size= bytes_remaining_in_packet >= 
       AUTH_PACKET_HEADER_SIZE_PROTO_41;
@@ -1652,15 +1559,6 @@ skip_to_ssl:
     get_length_encoded_string= get_41_lenc_string;
 
   /*
-    The CLIENT_PLUGIN_AUTH_LENENC_CLIENT_DATA capability depends on the
-    CLIENT_SECURE_CONNECTION. Refuse any connection which have the first but
-    not the latter.
-  */
-  if ((mpvio->client_capabilities & CLIENT_PLUGIN_AUTH_LENENC_CLIENT_DATA) &&
-      !(mpvio->client_capabilities & CLIENT_SECURE_CONNECTION))
-    return packet_error;
-
-  /*
     In order to safely scan a head for '\0' string terminators
     we must keep track of how many bytes remain in the allocated
     buffer or we might read past the end of the buffer.
@@ -1680,22 +1578,8 @@ skip_to_ssl:
   size_t passwd_len= 0;
   char *passwd= NULL;
 
-  if (mpvio->client_capabilities & CLIENT_SECURE_CONNECTION)
-  {
-    /*
-      Get the password field.
-    */
-    passwd= get_length_encoded_string(&end, &bytes_remaining_in_packet,
-                                      &passwd_len);
-  }
-  else
-  {
-    /*
-      Old passwords are zero terminated strings.
-    */
-    passwd= get_string(&end, &bytes_remaining_in_packet, &passwd_len);
-  }
-
+  passwd= get_length_encoded_string(&end, &bytes_remaining_in_packet,
+                                    &passwd_len);
   if (passwd == NULL)
     return packet_error;
 
@@ -1785,26 +1669,8 @@ skip_to_ssl:
 
   if (!(mpvio->client_capabilities & CLIENT_PLUGIN_AUTH))
   {
-    /*
-      An old client is connecting
-    */
-    if (mpvio->client_capabilities & CLIENT_SECURE_CONNECTION)
-      client_plugin= native_password_plugin_name.str;
-    else
-    {
-      /*
-        A really old client is connecting
-      */
-      client_plugin= old_password_plugin_name.str;
-      /*
-        For a passwordless accounts we use native_password_plugin.
-        But when an old 4.0 client connects to it, we change it to
-        old_password_plugin, otherwise MySQL will think that server 
-        and client plugins don't match.
-      */
-      if (mpvio->acl_user->salt_len == 0)
-        mpvio->acl_user_plugin= old_password_plugin_name;
-    }
+    /* An old client is connecting */
+    client_plugin= native_password_plugin_name.str;
   }
   
   /*
@@ -2042,9 +1908,6 @@ static int do_auth_once(THD *thd, const LEX_CSTRING &auth_plugin_name,
     plugin= native_password_plugin;
 #ifndef EMBEDDED_LIBRARY
   else
-  if (auth_plugin_name.str == old_password_plugin_name.str)
-    plugin= old_password_plugin;
-  else
   {
     if ((plugin= my_plugin_lock_by_name(thd, auth_plugin_name,
                                         MYSQL_AUTHENTICATION_PLUGIN)))
@@ -2114,7 +1977,7 @@ server_mpvio_initialize(THD *thd, MPVIO_EXT *mpvio,
   mpvio->mem_root= thd->mem_root;
   mpvio->scramble= thd->scramble;
   mpvio->rand= &thd->rand;
-  mpvio->thread_id= thd->thread_id;
+  mpvio->thread_id= thd->thread_id();
   mpvio->server_status= &thd->server_status;
   mpvio->net= &thd->net;
   mpvio->ip= (char *) thd->security_ctx->get_ip()->ptr();
@@ -2161,7 +2024,8 @@ check_password_lifetime(THD *thd, const ACL_USER *acl_user)
     INTERVAL interval;
 
     thd->set_time();
-    thd->variables.time_zone->gmt_sec_to_TIME(&cur_time, thd->query_start());
+    thd->variables.time_zone->gmt_sec_to_TIME(&cur_time,
+      static_cast<my_time_t>(thd->query_start()));
     password_change_by= acl_user->password_last_changed;
     memset(&interval, 0, sizeof(interval));
 
@@ -2219,7 +2083,7 @@ acl_authenticate(THD *thd, size_t com_change_user_pkt_len)
     connection is closed. We don't want to accidentally free a wrong
     pointer if connect failed.
   */
-  thd->reset_db(NULL, 0);
+  thd->reset_db(NULL_CSTR);
 
   if (command == COM_CHANGE_USER)
   {
@@ -2271,8 +2135,6 @@ acl_authenticate(THD *thd, size_t com_change_user_pkt_len)
     {
       if (auth_plugin_name.str == native_password_plugin_name.str)
         thd->variables.old_passwords= 0;
-      if (auth_plugin_name.str == old_password_plugin_name.str)
-        thd->variables.old_passwords= 1;
       if (auth_plugin_name.str == sha256_password_plugin_name.str)
         thd->variables.old_passwords= 2;
     }
@@ -2524,7 +2386,7 @@ acl_authenticate(THD *thd, size_t com_change_user_pkt_len)
   /* Change a database if necessary */
   if (mpvio.db.length)
   {
-    if (mysql_change_db(thd, &mpvio.db, FALSE))
+    if (mysql_change_db(thd, to_lex_cstring(mpvio.db), false))
     {
       /* mysql_change_db() has pushed the error message. */
       release_user_connection(thd);
@@ -2650,61 +2512,6 @@ static int native_password_authenticate(MYSQL_PLUGIN_VIO *vio,
   DBUG_RETURN(CR_AUTH_HANDSHAKE);
 }
 
-static int old_password_authenticate(MYSQL_PLUGIN_VIO *vio, 
-                                     MYSQL_SERVER_AUTH_INFO *info)
-{
-  uchar *pkt;
-  MPVIO_EXT *mpvio= (MPVIO_EXT *) vio;
-
-  /* generate the scramble, or reuse the old one */
-  if (mpvio->scramble[SCRAMBLE_LENGTH])
-    create_random_string(mpvio->scramble, SCRAMBLE_LENGTH, mpvio->rand);
-
-  /* send it to the client */
-  if (mpvio->write_packet(mpvio, (uchar*) mpvio->scramble, SCRAMBLE_LENGTH + 1))
-    return CR_AUTH_HANDSHAKE;
-
-  /* read the reply and authenticate */
-  int res= mpvio->read_packet(mpvio, &pkt);
-  if (res < 0)
-    return CR_AUTH_HANDSHAKE;
-
-  size_t pkt_len= res;
-#ifdef NO_EMBEDDED_ACCESS_CHECKS
-  return CR_OK;
-#endif /* NO_EMBEDDED_ACCESS_CHECKS */
-
-  /*
-    legacy: if switch_from_long_to_short_scramble,
-    the password is sent \0-terminated, the pkt_len is always 9 bytes.
-    We need to figure out the correct scramble length here.
-  */
-  if (pkt_len == SCRAMBLE_LENGTH_323 + 1)
-    pkt_len= strnlen((char*)pkt, pkt_len);
-
-  if (pkt_len == 0) /* no password */
-    return mpvio->acl_user->salt_len != 0 ? CR_AUTH_USER_CREDENTIALS : CR_OK;
-
-  if (secure_auth(mpvio))
-    return CR_AUTH_HANDSHAKE;
-
-  info->password_used= PASSWORD_USED_YES;
-
-  if (pkt_len == SCRAMBLE_LENGTH_323)
-  {
-    if (!mpvio->acl_user->salt_len)
-      return CR_AUTH_USER_CREDENTIALS;
-
-    return check_scramble_323(pkt, mpvio->scramble,
-                             (ulong *) mpvio->acl_user->salt) ?
-                             CR_AUTH_USER_CREDENTIALS : CR_OK;
-  }
-
-  my_error(ER_HANDSHAKE_ERROR, MYF(0));
-  return CR_AUTH_HANDSHAKE;
-}
-
-
 /**
   Interface for querying the MYSQL_PUBLIC_VIO about encryption state.
  
@@ -2757,7 +2564,8 @@ public:
 
 bool init_rsa_keys(void)
 {
-  return (g_rsa_keys.read_rsa_keys());
+  return ((do_auto_rsa_keys_generation() == false) ||
+          g_rsa_keys.read_rsa_keys());
 }
 #endif /* HAVE_YASSL */
 
@@ -2964,12 +2772,949 @@ static MYSQL_SYSVAR_STR(public_key_path, auth_rsa_public_key_path,
         PLUGIN_VAR_READONLY,
         "A fully qualified path to the public RSA key used for authentication",
         NULL, NULL, AUTH_DEFAULT_RSA_PUBLIC_KEY);
+static MYSQL_SYSVAR_BOOL(auto_generate_rsa_keys, auth_rsa_auto_generate_rsa_keys,
+        PLUGIN_VAR_READONLY | PLUGIN_VAR_OPCMDARG,
+        "Auto generate RSA keys at server startup if correpsonding "
+        "system variables are not specified and key files are not present "
+        "at the default location.",
+        NULL, NULL, TRUE);
 
 static struct st_mysql_sys_var* sha256_password_sysvars[]= {
   MYSQL_SYSVAR(private_key_path),
   MYSQL_SYSVAR(public_key_path),
+  MYSQL_SYSVAR(auto_generate_rsa_keys),
   0
 };
+
+
+typedef std::string Sql_string_t;
+
+/*
+  Exception free resize
+
+  @param content [in/out] : string handle
+  @param size [in] : New size
+
+
+  @returns
+    @retval false : Error
+    @retval true : Successfully resized
+*/
+static
+bool resize_no_exception(Sql_string_t &content, size_t size)
+{
+  try
+  {
+    content.resize(size);
+  }
+  catch (const std::length_error& le)
+  {
+    return false;
+  }
+  catch (std::bad_alloc& ba)
+  {
+    return false;
+  }
+  return true;
+}
+
+
+/**
+
+  FILE_IO : Wrapper around std::fstream
+  1> Provides READ/WRITE handle to a file
+  2> Records error on READ/WRITE operations
+  3> Closes file before destruction
+
+*/
+
+class File_IO
+{
+public:
+  File_IO(const File_IO& src)
+    : m_file_name(src.file_name()),
+      m_read(src.read_mode()),
+      m_error_state(src.get_error())
+  {
+    m_file.open(m_file_name.c_str(),
+                m_read ? std::ios::in :
+                         std::ios::out|std::ios::trunc);
+  }
+
+  File_IO & operator=(const File_IO& src)
+  {
+    m_file_name= src.file_name();
+    m_read= src.read_mode();
+    m_file.open(m_file_name.c_str(),
+                m_read ? std::ios::in :
+                         std::ios::out|std::ios::trunc);
+
+    return *this;
+  }
+
+  ~File_IO()
+  {
+    close();
+  }
+
+  /*
+    Close an already open file.
+  */
+  void close()
+  {
+    if (m_file.is_open())
+      m_file.close();
+  }
+
+  /*
+    Get name of the file. Used by copy constructor
+  */
+  const Sql_string_t & file_name() const
+  { return m_file_name; }
+
+  /*
+    Get file IO mode. Used by copy constructor.
+  */
+  bool read_mode() const
+  { return m_read; }
+
+  /*
+    Get READ/WRITE error status.
+  */
+  bool get_error() const
+  { return m_error_state; }
+
+  /*
+    Set error. Used by >> and << functions.
+  */
+  void set_error()
+  { m_error_state= true; }
+
+  void reset_error()
+  { m_error_state= false; }
+
+  File_IO & operator>>(Sql_string_t &s);
+  File_IO & operator<<(const Sql_string_t &output_string);
+
+protected:
+  File_IO() {};
+  File_IO(const Sql_string_t filename, bool read)
+    : m_file_name(filename),
+      m_read(read),
+      m_error_state(false)
+  {
+    m_file.open(m_file_name.c_str(),
+                m_read ? std::ios::in :
+                         std::ios::out|std::ios::trunc);
+  }
+private:
+  Sql_string_t m_file_name;
+  bool m_read;
+  bool m_error_state;
+  std::fstream m_file;
+  /* Only File_creator can create File_IO */
+  friend class File_creator;
+};
+
+
+/*
+  Read an open file.
+
+  @param op [in/out] : Handle to FILE_IO
+  @param s [out] : String buffer
+
+  Assumption : Caller will free string buffer
+
+  returns File_IO reference. Optionally sets error.
+*/
+File_IO &
+File_IO::operator>>(Sql_string_t &s)
+{
+  DBUG_ASSERT(read_mode() && m_file.is_open());
+
+  m_file.seekg(0, std::ios::end);
+  if (resize_no_exception(s, m_file.tellg()) == false)
+    set_error();
+  else
+  {
+    m_file.seekg(0, std::ios::beg);
+    m_file.read(&s[0], s.size());
+    close();
+  }
+  return *this;
+}
+
+
+/*
+  Write into an open file
+
+  @param op [in/out] : Handle to File_IO
+  @parma output_string[in] : content to be written
+
+  Assumption : string must be non-empty.
+
+  @returns File_IO reference. Optionally sets error.
+*/
+File_IO &
+File_IO::operator<<(const Sql_string_t &output_string)
+{
+  DBUG_ASSERT(!read_mode() && m_file.is_open());
+
+  if (!output_string.size())
+    set_error();
+  else
+    m_file << output_string;
+
+  close();
+  return *this;
+}
+
+
+/*
+  Helper class to create a File_IO handle.
+  Can be extended in future to set more file specific properties.
+  Frees allocated memory in destructor.
+*/
+class File_creator
+{
+public:
+  File_creator() {};
+
+  ~File_creator()
+  {
+    for(std::vector<File_IO *>::iterator it= m_file_vector.begin();
+        it != m_file_vector.end();
+        ++it)
+      delete(*it);
+  }
+
+  /*
+    Note : Do not free memory.
+  */
+  File_IO * operator()(const Sql_string_t filename, bool read=false)
+  {
+    File_IO * f= new File_IO(filename, read);
+    m_file_vector.push_back(f);
+    return f;
+  }
+
+private:
+  std::vector<File_IO *> m_file_vector;
+};
+
+
+/*
+  This class encapsulates OpenSSL specific details of RSA key generation.
+  It provides interfaces to:
+
+  1> Get RSA structure
+  2> Get EVP_PKEY structure
+  3> Write Private/Public key into a string
+  4> Free RSA/EVP_PKEY structures
+*/
+class RSA_gen
+{
+public:
+  RSA_gen(uint32_t key_size= 2048, uint32_t exponent= RSA_F4)
+    : m_key_size(key_size),
+      m_exponent(exponent) {};
+
+  ~RSA_gen() {};
+
+  /**
+    Passing key type is a violation against the principle of generic
+    programming when this operator is used in an algorithm
+    but it at the same time increases usefulness of this class when used
+    stand alone.
+   */
+  RSA *operator()(void)
+  {
+    /* generate RSA keys */
+    RSA *rsa= RSA_generate_key(m_key_size, m_exponent, NULL, NULL);
+    return rsa; // pass ownership
+  }
+
+private:
+
+  uint32_t m_key_size;
+  uint32_t m_exponent;
+};
+
+
+EVP_PKEY *evp_pkey_generate(RSA *rsa)
+{
+  if (rsa)
+  {
+    EVP_PKEY *pkey= EVP_PKEY_new();
+    EVP_PKEY_assign_RSA(pkey, rsa);
+    return pkey;
+  }
+  return NULL;
+}
+
+
+/*
+  Write private key in a string buffer
+
+  @param rsa [in] : Handle to RSA structure where private key is stored
+
+  @returns Sql_string_t object with private key stored in it.
+*/
+static
+Sql_string_t rsa_priv_key_write(RSA *rsa)
+{
+  DBUG_ASSERT(rsa);
+  BIO *buf= BIO_new(BIO_s_mem());
+  Sql_string_t read_buffer;
+  if (PEM_write_bio_RSAPrivateKey(buf, rsa, NULL, NULL,
+                                  0, NULL, NULL))
+  {
+    size_t len= BIO_pending(buf);
+    if (resize_no_exception(read_buffer, len+1) == true)
+    {
+      BIO_read(buf, (void *)read_buffer.c_str(), len);
+      read_buffer[len]='\0';
+    }
+  }
+  BIO_free(buf);
+  return read_buffer;
+}
+
+
+/*
+  Write public key in a string buffer
+
+  @param rsa [in] : Handle to RSA structure where public key is stored
+
+  @returns Sql_string_t object with public key stored in it.
+*/
+static
+Sql_string_t rsa_pub_key_write(RSA *rsa)
+{
+  DBUG_ASSERT(rsa);
+  BIO *buf= BIO_new(BIO_s_mem());
+  Sql_string_t read_buffer;
+  if (PEM_write_bio_RSA_PUBKEY(buf, rsa))
+  {
+    size_t len= BIO_pending(buf);
+    if (resize_no_exception(read_buffer, len+1) == true)
+    {
+      BIO_read(buf, (void *)read_buffer.c_str(), len);
+      read_buffer[len]='\0';
+    }
+  }
+  BIO_free(buf);
+  return read_buffer;
+}
+
+
+/*
+  This class encapsulates OpenSSL specific details of X509 certificate
+  generation. It provides interfaces to:
+
+  1> Generate X509 certificate
+  2> Read/Write X509 certificate from/to a string
+  3> Read/Write Private key from/to a string
+  4> Free X509/EVP_PKEY structures
+*/
+class X509_gen
+{
+public:
+  X509 * operator()(EVP_PKEY *pkey,
+                    const Sql_string_t cn,
+                    uint32_t serial,
+                    uint32_t notbefore,
+                    uint32_t notafter,
+                    bool self_sign= true,
+                    X509 *ca_x509= NULL,
+                    EVP_PKEY *ca_pkey= NULL)
+  {
+    X509 *x509= X509_new();
+    ASN1_INTEGER_set(X509_get_serialNumber(x509), serial);
+    X509_gmtime_adj(X509_get_notBefore(x509), notbefore);
+    X509_gmtime_adj(X509_get_notAfter(x509), notafter);
+    /* Set public key */
+    X509_set_pubkey(x509, pkey);
+    X509_NAME *name= X509_get_subject_name(x509);
+    X509_NAME_add_entry_by_txt(name, "CN", MBSTRING_ASC,
+      (const unsigned char *)cn.c_str(), -1, -1, 0);
+
+    X509_set_issuer_name(x509,
+                         self_sign ? name : X509_get_subject_name(ca_x509));
+    X509_sign(x509, self_sign ? pkey : ca_pkey, EVP_sha256());
+
+    return x509;
+  }
+};
+
+
+/*
+  Read a X509 certificate into X509 format
+
+  @param input_string [in] : Content of X509 certificate file.
+
+  @returns Handle to X509 structure.
+
+  Assumption : Caller will free X509 object
+*/
+static
+X509 * x509_cert_read(const Sql_string_t &input_string)
+{
+  X509 * x509= NULL;
+
+  if (!input_string.size())
+    return x509;
+
+  BIO *buf= BIO_new(BIO_s_mem());
+  BIO_write(buf, input_string.c_str(), input_string.size());
+  x509= PEM_read_bio_X509(buf, NULL, NULL, NULL);
+  BIO_free(buf);
+  return x509;
+}
+
+
+/*
+  Write X509 certificate into a string
+
+  @param cert [in] : Certificate information in X509 format.
+
+  @returns certificate information in string format.
+*/
+static
+Sql_string_t x509_cert_write(X509 *cert)
+{
+  DBUG_ASSERT(cert);
+  BIO *buf= BIO_new(BIO_s_mem());
+  Sql_string_t read_buffer;
+  if (PEM_write_bio_X509(buf, cert))
+  {
+    size_t len= BIO_pending(buf);
+    if (resize_no_exception(read_buffer, len+1) == true)
+    {
+      BIO_read(buf, (void *)read_buffer.c_str(), len);
+      read_buffer[len]='\0';
+    }
+  }
+  BIO_free(buf);
+  return read_buffer;
+}
+
+
+/*
+  Read Private key into EVP_PKEY structure
+
+  @param input_string [in] : Content of private key file.
+
+  @returns Handle to EVP_PKEY structure.
+
+  Assumption : Caller will free EVP_PKEY object
+*/
+static
+EVP_PKEY * x509_key_read(const Sql_string_t &input_string)
+{
+  EVP_PKEY *pkey= NULL;
+  RSA *rsa= NULL;
+
+  if (!input_string.size())
+    return pkey;
+
+  BIO *buf= BIO_new(BIO_s_mem());
+  BIO_write(buf, input_string.c_str(), input_string.size());
+  rsa= PEM_read_bio_RSAPrivateKey(buf, NULL, NULL, NULL);
+  pkey= evp_pkey_generate(rsa);
+  BIO_free(buf);
+  return pkey;
+}
+
+
+/*
+  Write X509 certificate into a string
+
+  @param pkey [in] : Private key information.
+
+  @returns private key information in string format.
+*/
+static
+Sql_string_t x509_key_write(EVP_PKEY *pkey)
+{
+  DBUG_ASSERT(pkey);
+  BIO *buf= BIO_new(BIO_s_mem());
+  RSA *rsa= EVP_PKEY_get1_RSA(pkey);
+  Sql_string_t read_buffer;
+  if (PEM_write_bio_RSAPrivateKey(buf, rsa, NULL, NULL,
+                                  10, NULL, NULL))
+  {
+    size_t len= BIO_pending(buf);
+    if (resize_no_exception(read_buffer, len+1) == true)
+    {
+      BIO_read(buf, (void *)read_buffer.c_str(), len);
+      read_buffer[len]='\0';
+    }
+  }
+  BIO_free(buf);
+  RSA_free(rsa);
+  return read_buffer;
+}
+
+
+/*
+  Algorithm to create X509 certificate.
+  Relies on:
+  1> RSA key generator
+  2> X509 certificate generator
+  3> FILE reader/writer
+
+  Overwrites key/certificate files if already present.
+
+  @param rsa_gen [in] : RSA generator
+  @param cn [in] : Common name field of X509 certificate.
+  @param serial [in] : Certificate serial number
+  @param cert_filename [in] : File name for X509 certificate
+  @param key_filename [in] : File name for private key
+  @param filecr [in] : File creator
+  @param ca_key_file [in] : CA private key file
+  @param ca_cert_file [in] : CA certificate file
+
+  @returns generation status
+    @retval false : Error in key/certificate generation.
+    @retval true : key/certificate files are generated successfully.
+*/
+
+template <typename RSA_generator_func, typename File_creation_func>
+bool create_x509_certificate(RSA_generator_func &rsa_gen,
+                             const Sql_string_t cn,
+                             uint32_t serial,
+                             const Sql_string_t cert_filename,
+                             const Sql_string_t key_filename,
+                             File_creation_func &filecr,
+                             const Sql_string_t ca_key_file= "",
+                             const Sql_string_t ca_cert_file= "")
+{
+  bool ret_val= true;
+  bool self_sign= true;
+  Sql_string_t ca_key_str;
+  Sql_string_t ca_cert_str;
+  RSA *rsa= NULL;
+  EVP_PKEY *pkey= NULL;
+  EVP_PKEY *ca_key= NULL;
+  X509 *x509= NULL;
+  X509 *ca_x509= NULL;
+  File_IO *x509_key_file_ostream= NULL;
+  File_IO *x509_cert_file_ostream= NULL;
+  File_IO *x509_ca_key_file_istream= NULL;
+  File_IO *x509_ca_cert_file_istream= NULL;
+  X509_gen x509_gen;
+
+  x509_key_file_ostream= filecr(key_filename);
+
+  /* Generate private key for X509 certificate */
+  rsa= rsa_gen();
+  DBUG_EXECUTE_IF("null_rsa_error",
+                  {
+                    RSA_free(rsa);
+                    rsa= NULL;
+                  });
+
+  if (!rsa)
+  {
+    sql_print_error("Could not generate RSA private key "
+                    "required for X509 certificate.");
+    ret_val= false;
+    goto end;
+  }
+
+  /* Obtain EVP_PKEY */
+  pkey= evp_pkey_generate(rsa);
+
+  /* Write private key information to file and set file permission */
+  (*x509_key_file_ostream) << x509_key_write(pkey);
+  DBUG_EXECUTE_IF("key_file_write_error",
+                  {
+                    x509_key_file_ostream->set_error();
+                  });
+  if (x509_key_file_ostream->get_error())
+  {
+    sql_print_error("Could not write key file: %s", key_filename.c_str());
+    ret_val= false;
+    goto end;
+  }
+
+  if (MY_TEST(my_chmod(key_filename.c_str(),
+      USER_READ|USER_WRITE, MYF(MY_FAE+MY_WME))))
+  {
+    sql_print_error("Could not set file permission for %s",
+                    key_filename.c_str());
+    ret_val= false;
+    goto end;
+  }
+
+  /*
+    Read CA key/certificate files in PEM format.
+  */
+  if (ca_key_file.size() && ca_cert_file.size())
+  {
+    x509_ca_key_file_istream= filecr(ca_key_file, true);
+    x509_ca_cert_file_istream= filecr(ca_cert_file, true);
+    (*x509_ca_key_file_istream) >> ca_key_str;
+    ca_key= x509_key_read(ca_key_str);
+    DBUG_EXECUTE_IF("ca_key_read_error",
+                    {
+                      EVP_PKEY_free(ca_key);
+                      ca_key= NULL;
+                    });
+    if (!ca_key)
+    {
+      sql_print_error("Could not read CA key file: %s", ca_key_file.c_str());
+      ret_val= false;
+      goto end;
+    }
+
+    (*x509_ca_cert_file_istream) >> ca_cert_str;
+    ca_x509= x509_cert_read(ca_cert_str);
+    DBUG_EXECUTE_IF("ca_cert_read_error",
+                    {
+                      X509_free(ca_x509);
+                      ca_x509= NULL;
+                    });
+    if (!ca_x509)
+    {
+      sql_print_error("Could not read CA certificate file: %s", ca_cert_file.c_str());
+      ret_val= false;
+      goto end;
+    }
+
+    self_sign= false;
+  }
+
+  /* Create X509 certificate with validity of 1 year */
+  x509= x509_gen(pkey, cn, serial, 0, 365L*24*60*60,
+                 self_sign, ca_x509, ca_key);
+  DBUG_EXECUTE_IF("x509_cert_generation_error",
+                  {
+                    X509_free(x509);
+                    x509= NULL;
+                  });
+  if (!x509)
+  {
+    sql_print_error("Could not generate X509 certificate.");
+    ret_val= false;
+    goto end;
+  }
+
+  /* Write X509 certificate to file and set permission */
+  x509_cert_file_ostream= filecr(cert_filename);
+  (*x509_cert_file_ostream)<< x509_cert_write(x509);
+  DBUG_EXECUTE_IF("cert_pub_key_write_error",
+                  {
+                    x509_cert_file_ostream->set_error();
+                  });
+  if (x509_cert_file_ostream->get_error())
+  {
+    sql_print_error("Could not write certificate file: %s", cert_filename.c_str());
+    ret_val= false;
+    goto end;
+  }
+
+  if (MY_TEST(my_chmod(cert_filename.c_str(),
+               USER_READ|USER_WRITE|GROUP_READ|OTHERS_READ,
+               MYF(MY_FAE+MY_WME))))
+  {
+    sql_print_error("Could not set file permission for %s",
+                    cert_filename.c_str());
+    ret_val= false;
+    goto end;
+  }
+
+end:
+
+  if (pkey)
+    EVP_PKEY_free(pkey);                /* Frees rsa too */
+  if (ca_key)
+    EVP_PKEY_free(ca_key);
+  if (x509)
+    X509_free(x509);
+  if (ca_x509)
+    X509_free(ca_x509);
+  return ret_val;
+}
+
+
+/*
+  Algorithm to generate RSA key pair.
+  Relies on:
+  1> RSA generator
+  2> File reader/writer
+
+  Overwrites existing Private/Public key file if any.
+
+  @param rsa_gen [in] : RSA key pair generator
+  @param priv_key_filename [in] : File name of private key
+  @param pub_key_filename [in] : File name of public key
+  @param filecr [in] : File creator
+
+  @returns status of RSA key pair generation.
+    @retval false Error in RSA key pair generation.
+    @retval true Private/Public keys are successfully generated.
+*/
+template <typename RSA_generator_func, typename File_creation_func>
+bool create_RSA_key_pair(RSA_generator_func &rsa_gen,
+                         const Sql_string_t priv_key_filename,
+                         const Sql_string_t pub_key_filename,
+                         File_creation_func &filecr)
+{
+  bool ret_val= true;
+  File_IO * priv_key_file_ostream= NULL;
+  File_IO * pub_key_file_ostream= NULL;
+
+  DBUG_ASSERT(priv_key_filename.size() && pub_key_filename.size());
+
+  RSA *rsa= rsa_gen();
+  DBUG_EXECUTE_IF("null_rsa_error",
+                  {
+                    RSA_free(rsa);
+                    rsa= NULL;
+                  });
+
+  if (!rsa)
+  {
+    sql_print_error("Could not generate RSA Private/Public key pair");
+    ret_val= false;
+    goto end;
+  }
+
+  priv_key_file_ostream= filecr(priv_key_filename);
+  (*priv_key_file_ostream)<< rsa_priv_key_write(rsa);
+
+  DBUG_EXECUTE_IF("key_file_write_error",
+                  {
+                    priv_key_file_ostream->set_error();
+                  });
+  if (priv_key_file_ostream->get_error())
+  {
+    sql_print_error("Could not write private key file: %s", priv_key_filename.c_str());
+    ret_val= false;
+    goto end;
+  }
+  if (MY_TEST(my_chmod(priv_key_filename.c_str(),
+               USER_READ|USER_WRITE, MYF(MY_FAE+MY_WME))))
+  {
+    sql_print_error("Could not set file permission for %s",
+                    priv_key_filename.c_str());
+    ret_val= false;
+    goto end;
+  }
+
+  pub_key_file_ostream= filecr(pub_key_filename);
+  (*pub_key_file_ostream)<< rsa_pub_key_write(rsa);
+  DBUG_EXECUTE_IF("cert_pub_key_write_error",
+                  {
+                    pub_key_file_ostream->set_error();
+                  });
+
+  if (pub_key_file_ostream->get_error())
+  {
+    sql_print_error("Could not write public key file: %s", pub_key_filename.c_str());
+    ret_val= false;
+    goto end;
+  }
+  if (MY_TEST(my_chmod(pub_key_filename.c_str(),
+               USER_READ|USER_WRITE|GROUP_READ|OTHERS_READ,
+               MYF(MY_FAE+MY_WME))))
+  {
+    sql_print_error("Could not set file permission for %s",
+                    pub_key_filename.c_str());
+    ret_val= false;
+    goto end;
+  }
+
+end:
+  if (rsa)
+    RSA_free(rsa);
+  return ret_val;
+}
+
+
+/*
+  Check auto_generate_certs option and generate
+  SSL certificates if required.
+
+  SSL Certificates are generated iff following conditions are met.
+  1> auto_generate_certs is set to ON.
+  2> None of the SSL system variables are specified.
+  3> Following files are not present in data directory.
+     a> ca.pem
+     b> server_cert.pem
+     c> server_key.pem
+
+  If above mentioned conditions are satisfied, following action will be taken:
+
+  1> 6 File are generated and placed data directory:
+     a> ca.pem
+     b> ca_key.pem
+     c> server_cert.pem
+     d> server_key.pem
+     e> client_cert.pem
+     f> client_key.pem
+
+     ca.pem is self signed auto generated CA certificate. server_cert.pem
+     and client_cert.pem are signed using auto genreated CA.
+
+     ca_key.pem, client_cert.pem and client_key.pem are overwritten if
+     they are present in data directory.
+
+  Path of following system variables are set if certificates are either
+  generated or already present in data directory.
+  a> ssl-ca
+  b> ssl-cert
+  c> ssl-key
+*/
+bool do_auto_cert_generation()
+{
+  if (opt_auto_generate_certs == true)
+  {
+    MY_STAT cert_stat, cert_key, ca_stat;
+    /*
+      Do not generate SSL certificates/RSA keys,
+      If any of the SSL/RSA key option was given.
+    */
+
+    if ((opt_ssl_cert && opt_ssl_cert[0]) |
+        (opt_ssl_key && opt_ssl_key[0]) ||
+        (opt_ssl_ca && opt_ssl_ca[0]) ||
+        (opt_ssl_capath && opt_ssl_capath[0]) ||
+        (opt_ssl_crl && opt_ssl_crl[0]) ||
+        (opt_ssl_crlpath && opt_ssl_crlpath[0]) ||
+        (opt_ssl_cipher && opt_ssl_cipher[0]))
+    {
+      sql_print_information("Skipping generation of SSL certificates "
+                            "as options related to SSL are specified.");
+      return true;
+    }
+    else if (my_stat(DEFAULT_SSL_SERVER_CERT, &cert_stat, MYF(0)) ||
+             my_stat(DEFAULT_SSL_SERVER_KEY, &cert_key, MYF(0)) ||
+             my_stat(DEFAULT_SSL_CA_CERT, &ca_stat, MYF(0)))
+    {
+      /*
+        We only care for ca certificate, server certificate and server key
+        files. Rest of the files will be overwritten if present.
+      */
+      opt_ssl_ca= (char *)DEFAULT_SSL_CA_CERT;
+      opt_ssl_cert= (char *)DEFAULT_SSL_SERVER_CERT;
+      opt_ssl_key= (char *)DEFAULT_SSL_SERVER_KEY;
+      sql_print_information("Skipping generation of SSL certificates as "
+                            "certificate files are present in data "
+                            "directory.");
+      return true;
+    }
+    else
+    {
+      /* Initialize the key pair generator. It can also be used stand alone */
+      RSA_gen rsa_gen;
+      /*
+         Initialize the file creator.
+       */
+      File_creator fcr;
+      Sql_string_t ca_name= "MySQL_Server_";
+      Sql_string_t server_name= "MySQL_Server_";
+      Sql_string_t client_name= "MySQL_Server_";
+
+      ca_name.append(server_version);
+      ca_name.append("_Auto_Generated_CA_Certificate");
+      server_name.append(server_version);
+      server_name.append("_Auto_Generated_Server_Certificate");
+      client_name.append(server_version);
+      client_name.append("_Auto_Generated_Client_Certificate");
+      /* Create and write the certa and keys on disk */
+      if ((create_x509_certificate(rsa_gen, ca_name, 1, DEFAULT_SSL_CA_CERT,
+                                   DEFAULT_SSL_CA_KEY, fcr) == false) ||
+          (create_x509_certificate(rsa_gen, server_name, 2,
+                                   DEFAULT_SSL_SERVER_CERT,
+                                   DEFAULT_SSL_SERVER_KEY, fcr,
+                                   DEFAULT_SSL_CA_KEY,
+                                   DEFAULT_SSL_CA_CERT) == false) ||
+          (create_x509_certificate(rsa_gen, client_name, 3,
+                                   DEFAULT_SSL_CLIENT_CERT,
+                                   DEFAULT_SSL_CLIENT_KEY, fcr,
+                                   DEFAULT_SSL_CA_KEY,
+                                   DEFAULT_SSL_CA_CERT) == false))
+      {
+        return false;
+      }
+      opt_ssl_ca= (char *)DEFAULT_SSL_CA_CERT;
+      opt_ssl_cert= (char *)DEFAULT_SSL_SERVER_CERT;
+      opt_ssl_key= (char *)DEFAULT_SSL_SERVER_KEY;
+      sql_print_information("Auto generated SSL certificates are placed "
+                            "in data directory.");
+    }
+    return true;
+  }
+  else
+  {
+    sql_print_information("Skipping generation of SSL certificates as "
+                          "--auto_generate_certs is set to OFF.");
+    return true;
+  }
+}
+
+
+/*
+  Check sha256_password_auto_generate_rsa_keys option and generate
+  RSA key pair if required.
+
+  RSA key pair is generated iff following conditions are met.
+  1> sha256_password_auto_generate_rsa_keys is set to ON.
+  2> sha256_password_private_key_path or sha256_password_public_key_path
+     are pointing to non-default locations.
+  3> Following files are not present in data directory.
+     a> private_key.pem
+     b> public_key.pem
+
+  If above mentioned conditions are satified private_key.pem and
+  public_key.pem files are generated and placed in data directory.
+*/
+static bool do_auto_rsa_keys_generation()
+{
+  if (auth_rsa_auto_generate_rsa_keys == true)
+  {
+    MY_STAT priv_stat, pub_stat;
+    if (strcmp(auth_rsa_private_key_path, AUTH_DEFAULT_RSA_PRIVATE_KEY) ||
+        strcmp(auth_rsa_public_key_path, AUTH_DEFAULT_RSA_PUBLIC_KEY))
+    {
+      sql_print_information("Skipping generation of RSA key pair as "
+                            "options related to RSA keys are specified.");
+      return true;
+    }
+    else if (my_stat(AUTH_DEFAULT_RSA_PRIVATE_KEY, &priv_stat, MYF(0)) ||
+             my_stat(AUTH_DEFAULT_RSA_PUBLIC_KEY, &pub_stat, MYF(0)))
+    {
+      sql_print_information("Skipping generation of RSA key pair as "
+                            "key files are present in data directory.");
+      return true;
+    }
+    else
+    {
+      /* Initialize the key pair generator. */
+      RSA_gen rsa_gen;
+      /* Initialize the file creator. */
+      File_creator fcr;
+
+      if (create_RSA_key_pair(rsa_gen, "private_key.pem", "public_key.pem",
+                              fcr) == false)
+        return false;
+
+      sql_print_information("Auto generated RSA key files are "
+                            "placed in data directory.");
+      return true;
+    }
+  }
+  else
+  {
+    sql_print_information("Skipping generation of RSA key pair as "
+                          "--sha256_password_auto_generate_rsa_keys "
+                          "is set to OFF.");
+    return true;
+  }
+}
 #endif /* HAVE_YASSL */
 #endif /* HAVE_OPENSSL */
 
@@ -2978,13 +3723,6 @@ static struct st_mysql_auth native_password_handler=
   MYSQL_AUTHENTICATION_INTERFACE_VERSION,
   native_password_plugin_name.str,
   native_password_authenticate
-};
-
-static struct st_mysql_auth old_password_handler=
-{
-  MYSQL_AUTHENTICATION_INTERFACE_VERSION,
-  old_password_plugin_name.str,
-  old_password_authenticate
 };
 
 #if defined(HAVE_OPENSSL)
@@ -3004,21 +3742,6 @@ mysql_declare_plugin(mysql_password)
   native_password_plugin_name.str,              /* Name             */
   "R.J.Silk, Sergei Golubchik",                 /* Author           */
   "Native MySQL authentication",                /* Description      */
-  PLUGIN_LICENSE_GPL,                           /* License          */
-  NULL,                                         /* Init function    */
-  NULL,                                         /* Deinit function  */
-  0x0100,                                       /* Version (1.0)    */
-  NULL,                                         /* status variables */
-  NULL,                                         /* system variables */
-  NULL,                                         /* config options   */
-  0,                                            /* flags            */
-},
-{
-  MYSQL_AUTHENTICATION_PLUGIN,                  /* type constant    */
-  &old_password_handler,                        /* type descriptor  */
-  old_password_plugin_name.str,                 /* Name             */
-  "R.J.Silk, Sergei Golubchik",                 /* Author           */
-  "Old MySQL-4.0 authentication",               /* Description      */
   PLUGIN_LICENSE_GPL,                           /* License          */
   NULL,                                         /* Init function    */
   NULL,                                         /* Deinit function  */

@@ -1,7 +1,7 @@
 #ifndef AUTH_COMMON_INCLUDED
 #define AUTH_COMMON_INCLUDED
 
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -126,7 +126,7 @@ public:
 class ACL_internal_schema_registry
 {
 public:
-  static void register_schema(const LEX_STRING *name,
+  static void register_schema(const LEX_STRING &name,
                               const ACL_internal_schema_access *access);
   static const ACL_internal_schema_access *lookup(const char *name);
 };
@@ -411,7 +411,7 @@ ulong acl_get(const char *host, const char *ip,
               const char *user, const char *db, my_bool db_is_pattern);
 bool is_acl_user(const char *host, const char *user);
 bool acl_getroot(Security_context *sctx, char *user,
-                 char *host, char *ip, char *db);
+                 char *host, char *ip, const char *db);
 
 /* sql_authorization */
 bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &user_list,
@@ -470,14 +470,17 @@ bool insert_precheck(THD *thd, TABLE_LIST *tables);
 bool lock_tables_precheck(THD *thd, TABLE_LIST *tables);
 bool create_table_precheck(THD *thd, TABLE_LIST *tables,
                            TABLE_LIST *create_table);
+bool check_fk_parent_table_access(THD *thd,
+                                  HA_CREATE_INFO *create_info,
+                                  Alter_info *alter_info);
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
 
 bool check_one_table_access(THD *thd, ulong privilege, TABLE_LIST *tables);
 bool check_single_table_access(THD *thd, ulong privilege,
 			   TABLE_LIST *tables, bool no_errors);
-bool check_routine_access(THD *thd,ulong want_access,char *db,char *name,
-			  bool is_proc, bool no_errors);
+bool check_routine_access(THD *thd, ulong want_access, const char *db,
+                          char *name, bool is_proc, bool no_errors);
 bool check_some_access(THD *thd, ulong want_access, TABLE_LIST *table);
 bool check_some_routine_access(THD *thd, const char *db, const char *name, bool is_proc);
 bool check_access(THD *thd, ulong want_access, const char *db, ulong *save_priv,
@@ -493,7 +496,7 @@ inline bool check_one_table_access(THD *thd, ulong privilege, TABLE_LIST *tables
 inline bool check_single_table_access(THD *thd, ulong privilege,
 			   TABLE_LIST *tables, bool no_errors)
 { return false; }
-inline bool check_routine_access(THD *thd,ulong want_access,char *db,
+inline bool check_routine_access(THD *thd,ulong want_access,const char *db,
                                  char *name, bool is_proc, bool no_errors)
 { return false; }
 inline bool check_some_access(THD *thd, ulong want_access, TABLE_LIST *table)
@@ -530,4 +533,9 @@ bool check_global_access(THD *thd, ulong want_access);
 
 /* sql_user_table */
 void close_acl_tables(THD *thd);
+
+#if defined(HAVE_OPENSSL) && !defined(HAVE_YASSL)
+extern my_bool opt_auto_generate_certs;
+bool do_auto_cert_generation();
+#endif /* HAVE_OPENSSL && !HAVE_YASSL */
 #endif /* AUTH_COMMON_INCLUDED */

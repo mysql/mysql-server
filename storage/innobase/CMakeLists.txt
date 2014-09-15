@@ -131,12 +131,12 @@ SET(INNOBASE_SOURCES
 	trx/trx0trx.cc
 	trx/trx0undo.cc
 	usr/usr0sess.cc
-	ut/ut0bh.cc
 	ut/ut0byte.cc
 	ut/ut0crc32.cc
 	ut/ut0dbg.cc
 	ut/ut0list.cc
 	ut/ut0mem.cc
+	ut/ut0new.cc
 	ut/ut0rbt.cc
 	ut/ut0rnd.cc
 	ut/ut0ut.cc
@@ -149,7 +149,7 @@ IF(WITH_INNODB)
 ENDIF()
 
 MYSQL_ADD_PLUGIN(innobase ${INNOBASE_SOURCES} STORAGE_ENGINE
-  DEFAULT
+  MANDATORY
   MODULE_OUTPUT_NAME ha_innodb
   LINK_LIBRARIES ${ZLIB_LIBRARY})
 

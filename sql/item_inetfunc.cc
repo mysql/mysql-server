@@ -15,7 +15,9 @@
 
 #include "item_inetfunc.h"
 
-#include "my_net.h"
+#ifdef HAVE_NETINET_IN_H
+#include <netinet/in.h>
+#endif
 
 ///////////////////////////////////////////////////////////////////////////
 
@@ -400,7 +402,7 @@ static bool str_to_ipv6(const char *str, int str_length, in6_addr *ipv6_address)
         continue;
       }
 
-      if (!*p || ((p - str) >= str_length))
+      if (((p - str) >= str_length) || !*p)
       {
         DBUG_PRINT("error", ("str_to_ipv6(%.*s): invalid IPv6 address: "
                              "ending at ':'.", str_length, str));
@@ -496,11 +498,11 @@ static bool str_to_ipv6(const char *str, int str_length, in6_addr *ipv6_address)
       return false;
     }
 
-    int bytes_to_move= dst - gap_ptr;
+    size_t bytes_to_move= dst - gap_ptr;
 
-    for (int i= 1; i <= bytes_to_move; ++i)
+    for (size_t i= 1; i <= bytes_to_move; ++i)
     {
-      ipv6_bytes_end[-i]= gap_ptr[bytes_to_move - i];
+      ipv6_bytes_end[-(static_cast<ssize_t>(i))]= gap_ptr[bytes_to_move - i];
       gap_ptr[bytes_to_move - i]= 0;
     }
 
@@ -734,7 +736,7 @@ bool Item_func_inet6_ntoa::calc_value(String *arg, String *buffer)
     ipv4_to_str((const in_addr *) arg->ptr(), str);
 
     buffer->length(0);
-    buffer->append(str, (uint32) strlen(str), &my_charset_latin1);
+    buffer->append(str, strlen(str), &my_charset_latin1);
 
     return true;
   }
@@ -745,7 +747,7 @@ bool Item_func_inet6_ntoa::calc_value(String *arg, String *buffer)
     ipv6_to_str((const in6_addr *) arg->ptr(), str);
 
     buffer->length(0);
-    buffer->append(str, (uint32) strlen(str), &my_charset_latin1);
+    buffer->append(str, strlen(str), &my_charset_latin1);
 
     return true;
   }

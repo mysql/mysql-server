@@ -523,8 +523,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
   Modification_plan plan(thd,
                          (thd->lex->sql_command == SQLCOM_INSERT) ?
                          MT_INSERT : MT_REPLACE, insert_table,
-                         NULL, MAX_KEY, HA_POS_ERROR, false, false, false,
-                         0);
+                         NULL, false, 0);
   DEBUG_SYNC(thd, "planned_single_insert");
 
   if (thd->lex->describe)
@@ -1089,6 +1088,14 @@ bool mysql_prepare_insert(THD *thd, TABLE_LIST *table_list,
                        (ulong)table_list,
                        (int)insert_into_view));
 
+  // REPLACE for a JOIN view is not permitted.
+  if (table_list->multitable_view && duplic == DUP_REPLACE)
+  {
+    my_error(ER_VIEW_DELETE_MERGE_VIEW, MYF(0),
+             table_list->view_db.str, table_list->view_name.str);
+    DBUG_RETURN(true);
+  }
+
   *insert_table_ref= NULL;
   /*
     For subqueries in VALUES() we should not see the table in which we are
@@ -1143,7 +1150,7 @@ bool mysql_prepare_insert(THD *thd, TABLE_LIST *table_list,
                                !insert_into_view, insert_table_ref);
     table_map map= 0;
     if (!res)
-      map= (*insert_table_ref)->table->map;
+      map= (*insert_table_ref)->map();
 
     if (!res)
       res= setup_fields(thd, Ref_ptr_array(),
@@ -1195,7 +1202,7 @@ bool mysql_prepare_insert(THD *thd, TABLE_LIST *table_list,
                              !insert_into_view, insert_table_ref);
     table_map map= 0;
     if (!res)
-      map= (*insert_table_ref)->table->map;
+      map= (*insert_table_ref)->map();
 
     if (!res && duplic == DUP_UPDATE)
     {
@@ -1557,6 +1564,42 @@ int write_record(THD *thd, TABLE *table, COPY_INFO *info, COPY_INFO *update)
       }
       else /* DUP_REPLACE */
       {
+        TABLE_LIST *view= table->pos_in_table_list->belong_to_view;
+
+        if (view && view->where)
+        {
+          const size_t record_length= table->s->reclength;
+
+          void *record0_saved= my_malloc(PSI_NOT_INSTRUMENTED, record_length,
+                                         MYF(MY_WME));
+
+          if (!record0_saved)
+          {
+            error= ENOMEM;
+            goto err;
+          }
+
+          // Save the record used for comparison.
+          memcpy(record0_saved, table->record[0], record_length);
+
+          // Preparing the record for comparison.
+          memcpy(table->record[0], table->record[1], record_length);
+
+          // Checking if the row being conflicted is visible by the view.
+          bool found_row_in_view= MY_TEST(view->where->val_int());
+
+          // Restoring the record back.
+          memcpy(table->record[0], record0_saved, record_length);
+
+          my_free(record0_saved);
+
+          if (!found_row_in_view)
+          {
+            my_error(ER_REPLACE_INACCESSIBLE_ROWS, MYF(0));
+            goto err;
+          }
+        }
+
 	/*
 	  The manual defines the REPLACE semantics that it is either
 	  an INSERT or DELETE(s) + INSERT; FOREIGN KEY checks in

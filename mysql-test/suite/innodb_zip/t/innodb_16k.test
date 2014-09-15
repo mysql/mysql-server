@@ -45,7 +45,16 @@ SELECT variable_value FROM information_schema.global_status
 --let $rep_table_1 = `SELECT table_id FROM information_schema.innodb_sys_tables WHERE name = 'mysql/slave_master_info'`
 --let $rep_table_2 = `SELECT table_id FROM information_schema.innodb_sys_tables WHERE name = 'mysql/slave_relay_log_info'`
 --let $rep_table_3 = `SELECT table_id FROM information_schema.innodb_sys_tables WHERE name = 'mysql/slave_worker_info'`
---eval SELECT INDEX_ID, NAME, TABLE_ID, TYPE, N_FIELDS, SPACE FROM INFORMATION_SCHEMA.INNODB_SYS_INDEXES WHERE table_id NOT IN ($table_stats_id, $index_stats_id, $rep_table_1, $rep_table_2, $rep_table_3)
+--let $help_table_1 = `SELECT table_id FROM information_schema.innodb_sys_tables WHERE name = 'mysql/help_topic'`
+--let $help_table_2 = `SELECT table_id FROM information_schema.innodb_sys_tables WHERE name = 'mysql/help_category'`
+--let $help_table_3 = `SELECT table_id FROM information_schema.innodb_sys_tables WHERE name = 'mysql/help_relation'`
+--let $help_table_4 = `SELECT table_id FROM information_schema.innodb_sys_tables WHERE name = 'mysql/help_keyword'`
+--let $timezone_table_1 = `SELECT table_id FROM information_schema.innodb_sys_tables WHERE name = 'mysql/time_zone'`
+--let $timezone_table_2 = `SELECT table_id FROM information_schema.innodb_sys_tables WHERE name = 'mysql/time_zone_leap_second'`
+--let $timezone_table_3 = `SELECT table_id FROM information_schema.innodb_sys_tables WHERE name = 'mysql/time_zone_name'`
+--let $timezone_table_4 = `SELECT table_id FROM information_schema.innodb_sys_tables WHERE name = 'mysql/time_zone_transition'`
+--let $timezone_table_5 = `SELECT table_id FROM information_schema.innodb_sys_tables WHERE name = 'mysql/time_zone_transition_type'`
+--eval SELECT INDEX_ID, NAME, TABLE_ID, TYPE, N_FIELDS, SPACE FROM INFORMATION_SCHEMA.INNODB_SYS_INDEXES WHERE table_id NOT IN ($table_stats_id, $index_stats_id, $rep_table_1, $rep_table_2, $rep_table_3, $help_table_1, $help_table_2, $help_table_3, $help_table_4, $timezone_table_1, $timezone_table_2, $timezone_table_3, $timezone_table_4, $timezone_table_5)
 --enable_query_log
 CREATE TABLE t1 (a INT KEY, b TEXT) ROW_FORMAT=REDUNDANT ENGINE=innodb;
 CREATE TABLE t2 (a INT KEY, b TEXT) ROW_FORMAT=COMPACT ENGINE=innodb;
@@ -326,7 +335,8 @@ SELECT a,LEFT(REPEAT(d,100*a),65535),REPEAT(d,20*a),d FROM t2,t3;
 DROP TABLE t2, t3;
 SELECT COUNT(*) FROM t1 WHERE a=44;
 SELECT a,
-LENGTH(b),b=LEFT(REPEAT(d,100*a),65535),LENGTH(c),c=REPEAT(d,20*a),d FROM t1;
+LENGTH(b),b=LEFT(REPEAT(d,100*a),65535),LENGTH(c),c=REPEAT(d,20*a),d FROM t1
+ORDER BY 1, 2, 3, 4, 5, 6;
 # in-place alter table should trigger ER_PRIMARY_CANT_HAVE_NULL
 --error ER_DUP_ENTRY
 ALTER TABLE t1 ADD PRIMARY KEY (a), ADD KEY (b(20));

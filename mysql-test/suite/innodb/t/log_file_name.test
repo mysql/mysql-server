@@ -10,6 +10,10 @@ SET GLOBAL innodb_file_per_table=ON;
 let MYSQLD_DATADIR= `select @@datadir`;
 
 CREATE TABLE t1(a INT PRIMARY KEY) ENGINE=InnoDB;
+
+--replace_regex /.*Last checkpoint at[[:space:]]*([0-9]+).*/\1/gso
+let CHECKPOINT_LSN=`SHOW ENGINE INNODB STATUS`;
+
 CREATE TABLE t3(a INT PRIMARY KEY) ENGINE=InnoDB;
 
 BEGIN;
@@ -19,11 +23,40 @@ RENAME TABLE t1 TO t2;
 UPDATE t2 SET a=347 where a=42;
 COMMIT;
 
-# Kill the server to inject faults.
---exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server 0
+--source include/kill_mysqld.inc
 
---source include/wait_until_disconnected.inc
+# Check that the latest checkpoint in the redo log files
+# is not newer than our checkpoint.
+perl;
+my $cp = $ENV{CHECKPOINT_LSN};
+$cp =~ s/^InnoDB\t\t//;
+my $log = "$ENV{MYSQLD_DATADIR}ib_logfile0";
+open(LOG, "<$log") || die "Unable to open $log";
+seek(LOG, 512, 0) || die "Unable to seek $log";
+die unless read(LOG, $_, 16) == 16;
+my ($no1hi,$no1lo,$cp1hi,$cp1lo) = unpack("N*", $_);
+seek(LOG, 3 * 512, 0) || die "Unable to seek $log";
+die unless read(LOG, $_, 16) == 16;
+my ($no2hi,$no2lo,$cp2hi,$cp2lo) = unpack("N*", $_);
+close(LOG);
+
+my $cp1 = $cp1hi << 32 | $cp1lo;
+my $cp2 = $cp2hi << 32 | $cp2lo;
+
+open(OUT, ">$ENV{MYSQLTEST_VARDIR}/log/check.txt") || die;
+
+if ($cp1 > $cp || $cp2 > $cp) {
+   print OUT "--source include/start_mysqld.inc\n";
+   print OUT "DROP TABLE t2,t3;\n";
+   print OUT "--skip Extra checkpoint 1 after $cp";
+   print OUT " ($no1hi:$no1lo=$cp1,$no2hi:$no2lo=$cp2)\n";
+}
+
+close(OUT);
+EOF
+
+--source $MYSQLTEST_VARDIR/log/check.txt
+--remove_file $MYSQLTEST_VARDIR/log/check.txt
 
 --echo # Fault 0 (no real fault): Orphan file with duplicate space_id.
 --copy_file $MYSQLD_DATADIR/test/t2.ibd $MYSQLD_DATADIR/test/t0.ibd
@@ -32,21 +65,21 @@ COMMIT;
 --copy_file $MYSQLD_DATADIR/test/t2.ibd $MYSQLD_DATADIR/test/t1.ibd
 
 let SEARCH_FILE= $MYSQLTEST_VARDIR/log/my_restart.err;
-let $mysqld=$MYSQLD_CMD --console > $SEARCH_FILE 2>&1;
+let $mysqld=$MYSQLD_CMD --core-file --console > $SEARCH_FILE 2>&1;
 
-# TODO: This could fail to refuse startup, in case there was a log
-# checkpoint after the INSERT.
+# This could fail to refuse startup, in case there was a log
+# checkpoint after the INSERT. That is what we checked above.
 --error 1
 --exec $mysqld
 
-let SEARCH_PATTERN= InnoDB: Attempted to open a previously opened tablespace.*t1\.ibd.*t2\.ibd;
+let SEARCH_PATTERN= InnoDB: Attempted to open a previously opened tablespace;
 --source include/search_pattern_in_file.inc
 
 --remove_file $MYSQLD_DATADIR/test/t1.ibd
 --remove_file $SEARCH_FILE
 
-# TODO: This could fail to refuse startup, in case there was a log
-# checkpoint after the CREATE TABLE t3.
+# This could fail to refuse startup, in case there was a log
+# checkpoint after the CREATE TABLE t3. That is what we checked above.
 --echo # Fault 2: Wrong space_id in a dirty file, and a missing file.
 --move_file $MYSQLD_DATADIR/test/t3.ibd $MYSQLD_DATADIR/test/t1.ibd
 
@@ -74,9 +107,9 @@ let SEARCH_PATTERN= InnoDB: Tablespace \d+ was not found at.*t3.ibd;
 let SEARCH_PATTERN= InnoDB: Ignoring data file '.*t[23].ibd' with space ID \d+, which used to be space ID;
 --source include/search_pattern_in_file.inc
 
-let SEARCH_PATTERN= InnoDB: Tablespace \d+ was not found at .*t1.ibd\.
-.*InnoDB: Set innodb_force_recovery=1 to ignore this and to permanently lose all changes to the tablespace\.
-.*InnoDB: Tablespace \d+ was not found at .*t3.ibd\.;
+let SEARCH_PATTERN= InnoDB: Tablespace \d+ was not found at .*t1.ibd.
+.*InnoDB: Set innodb_force_recovery=1 to ignore this and to permanently lose all changes to the tablespace.
+.*InnoDB: Tablespace \d+ was not found at .*t3.ibd;
 --source include/search_pattern_in_file.inc
 
 # Swap back t3.ibd, but hide t2.ibd (which the redo log also knows as t1.ibd).
@@ -90,8 +123,8 @@ let SEARCH_PATTERN= InnoDB: Tablespace \d+ was not found at .*t1.ibd\.
 --error 1
 --exec $mysqld
 
-let SEARCH_PATTERN= InnoDB: Tablespace \d+ was not found at .*t[12].ibd\.
-.*InnoDB: Set innodb_force_recovery=1 to ignore this and to permanently lose all changes to the tablespace\.;
+let SEARCH_PATTERN= InnoDB: Tablespace \d+ was not found at .*t[12].ibd.
+.*InnoDB: Set innodb_force_recovery=1 to ignore this and to permanently lose all changes to the tablespace;
 --source include/search_pattern_in_file.inc
 
 --remove_file $SEARCH_FILE
@@ -120,12 +153,7 @@ let SEARCH_PATTERN= \[ERROR\] InnoDB: File .unknown.: 'read' returned OS error;
 --remove_file $MYSQLD_DATADIR/test/t2.ibd
 --move_file $MYSQLD_DATADIR/test/t.ibd $MYSQLD_DATADIR/test/t2.ibd
 
---echo # Normal restart after removing the injected faults.
---exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
-
---enable_reconnect
---source include/wait_until_connected_again.inc
---disable_reconnect
+--source include/start_mysqld.inc
 
 SELECT * FROM t2;
 SELECT * FROM t3;
@@ -156,6 +184,9 @@ call mtr.add_suppression("InnoDB: Tablespace open failed for .test.\..u[1-5]., i
 call mtr.add_suppression("InnoDB: Failed to find tablespace for table .test.\..u[1-5]. in the cache");
 --enable_query_log
 
+--replace_regex /.*Last checkpoint at[[:space:]]*([0-9]+).*/\1/gso
+let CHECKPOINT_LSN=`SHOW ENGINE INNODB STATUS`;
+
 CREATE TABLE u1(a INT PRIMARY KEY) ENGINE=InnoDB;
 CREATE TABLE u2(a INT PRIMARY KEY) ENGINE=InnoDB;
 CREATE TABLE u3(a INT PRIMARY KEY) ENGINE=InnoDB;
@@ -165,10 +196,40 @@ RENAME TABLE u4 TO u5;
 RENAME TABLE u5 TO u6;
 INSERT INTO u6 VALUES(2);
 
-# Kill the server again to inject a fault and force a recovery.
---exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server 0
---source include/wait_until_disconnected.inc
+--source include/kill_mysqld.inc
+
+# Check that the latest checkpoint in the redo log files
+# is not newer than our checkpoint.
+perl;
+my $cp = $ENV{CHECKPOINT_LSN};
+$cp =~ s/^InnoDB\t\t//;
+my $log = "$ENV{MYSQLD_DATADIR}ib_logfile0";
+open(LOG, "<$log") || die "Unable to open $log";
+seek(LOG, 512, 0) || die "Unable to seek $log";
+die unless read(LOG, $_, 16) == 16;
+my ($no1hi,$no1lo,$cp1hi,$cp1lo) = unpack("N*", $_);
+seek(LOG, 3 * 512, 0) || die "Unable to seek $log";
+die unless read(LOG, $_, 16) == 16;
+my ($no2hi,$no2lo,$cp2hi,$cp2lo) = unpack("N*", $_);
+close(LOG);
+
+my $cp1 = $cp1hi << 32 | $cp1lo;
+my $cp2 = $cp2hi << 32 | $cp2lo;
+
+open(OUT, ">$ENV{MYSQLTEST_VARDIR}/log/check.txt") || die;
+
+if ($cp1 > $cp || $cp2 > $cp) {
+   print OUT "--source include/start_mysqld.inc\n";
+   print OUT "DROP TABLE u1,u2,u3,u6;\n";
+   print OUT "--skip Extra checkpoint 2 after $cp";
+   print OUT " ($no1hi:$no1lo=$cp1,$no2hi:$no2lo=$cp2)\n";
+}
+
+close(OUT);
+EOF
+
+--source $MYSQLTEST_VARDIR/log/check.txt
+--remove_file $MYSQLTEST_VARDIR/log/check.txt
 
 --echo # Fault 6: All-zero data file and innodb_force_recovery
 
@@ -195,7 +256,7 @@ EOF
 --error 3
 --exec $mysqld --innodb-force-recovery=1
 
-let SEARCH_PATTERN= \[ERROR\] InnoDB: Header page consists of zero bytes in tablespace.*u1\.ibd;
+let SEARCH_PATTERN= \[ERROR\] InnoDB: Header page consists of zero bytes in tablespace.*u1.ibd;
 --source include/search_pattern_in_file.inc
 
 let SEARCH_PATTERN= \[ERROR\] InnoDB: Datafile .*u1.*\. Cannot determine the space ID from the first 64 pages;
@@ -222,13 +283,13 @@ let SEARCH_PATTERN= \[ERROR] InnoDB: File .unknown.: 'read' returned OS error;
 --error 1
 --exec $mysqld --innodb-force-recovery=1
 
-let SEARCH_PATTERN= \[ERROR\] InnoDB: Header page consists of zero bytes in tablespace.*u1\.ibd;
+let SEARCH_PATTERN= \[ERROR\] InnoDB: Header page consists of zero bytes in tablespace.*u1.ibd;
 --source include/search_pattern_in_file.inc
 
-let SEARCH_PATTERN= InnoDB: At \d+: unable to open file .*u[1-5]\.ibd for tablespace;
+let SEARCH_PATTERN= InnoDB: At \d+: unable to open file .*u[1-5].ibd for tablespace;
 --source include/search_pattern_in_file.inc
 
-let SEARCH_PATTERN= \[ERROR\] InnoDB: Cannot replay rename '.*u5\.ibd' to '.*u6\.ibd' for space ID \d+ because the target file exists;
+let SEARCH_PATTERN= \[ERROR\] InnoDB: Cannot replay rename '.*u5.ibd' to '.*u6.ibd' for space ID \d+ because the target file exists;
 --source include/search_pattern_in_file.inc
 
 let SEARCH_PATTERN= InnoDB: innodb_force_recovery was set to 1\. Continuing crash recovery even though we cannot access the files for tablespace;
@@ -241,13 +302,13 @@ let SEARCH_PATTERN= InnoDB: innodb_force_recovery was set to 1\. Continuing cras
 let SEARCH_PATTERN= \[ERROR\] unknown option '--innodb-nonexistent-option';
 --source include/search_pattern_in_file.inc
 
-let SEARCH_PATTERN= \[ERROR\] InnoDB: Header page consists of zero bytes in tablespace.*u1\.ibd;
+let SEARCH_PATTERN= \[ERROR\] InnoDB: Header page consists of zero bytes in tablespace.*u1.ibd;
 --source include/search_pattern_in_file.inc
 
-let SEARCH_PATTERN= InnoDB: At \d+: unable to open file .*u[1-5]\.ibd for tablespace;
+let SEARCH_PATTERN= InnoDB: At \d+: unable to open file .*u[1-5].ibd for tablespace;
 --source include/search_pattern_in_file.inc
 
-let SEARCH_PATTERN= \[Warning\] InnoDB: Tablespace \d+ was not found at .*u[1-5]\.ibd, and innodb_force_recovery was set. All redo log for this tablespace will be ignored!;
+let SEARCH_PATTERN= \[Warning\] InnoDB: Tablespace \d+ was not found at .*u[1-5].ibd, and innodb_force_recovery was set. All redo log for this tablespace will be ignored!;
 --source include/search_pattern_in_file.inc
 
 --remove_file $SEARCH_FILE
@@ -258,11 +319,7 @@ let SEARCH_PATTERN= \[Warning\] InnoDB: Tablespace \d+ was not found at .*u[1-5]
 
 --remove_file $MYSQLD_DATADIR/test/u1.ibd
 
---exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
-
---enable_reconnect
---source include/wait_until_connected_again.inc
---disable_reconnect
+--source include/start_mysqld.inc
 
 DROP TABLE u1,u2,u3,u6;
 

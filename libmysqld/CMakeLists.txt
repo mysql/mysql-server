@@ -29,18 +29,23 @@ INCLUDE_DIRECTORIES(
   ${SSL_INCLUDE_DIRS}
   ${SSL_INTERNAL_INCLUDE_DIRS}
   ${CMAKE_SOURCE_DIR}/sql/backup
-  ${BOOST_PATCHES_DIR}
-  ${BOOST_INCLUDE_DIR}
+)
+
+# We should generate these separately for libmysqld to avoid
+# compiling them for libmysqld while they are generated for sql.
+SET(GEN_YACC_SOURCES
+  ${CMAKE_CURRENT_BINARY_DIR}/sql_yacc.h 
+  ${CMAKE_CURRENT_BINARY_DIR}/sql_yacc.cc
 )
 
 SET(GEN_SOURCES
-  ${CMAKE_BINARY_DIR}/sql/sql_yacc.h 
-  ${CMAKE_BINARY_DIR}/sql/sql_yacc.cc
   ${CMAKE_BINARY_DIR}/sql/sql_builtin.cc
   ${CMAKE_BINARY_DIR}/sql/lex_hash.h 
 )
 
-SET_SOURCE_FILES_PROPERTIES(${GEN_SOURCES} PROPERTIES GENERATED TRUE)
+SET_SOURCE_FILES_PROPERTIES(${GEN_YACC_SOURCES}
+                            ${GEN_SOURCES}
+                            PROPERTIES GENERATED TRUE)
 
 FOREACH(file ${SQL_EXPORTED_SOURCES})
   LIST(APPEND IMPORTED_SOURCES "../sql/${file}")
@@ -51,6 +56,7 @@ SET(SQL_EMBEDDED_SOURCES
   lib_sql.cc 
   libmysqld.c
   ${GEN_SOURCES}
+  ${GEN_YACC_SOURCES}
   ../client/get_password.c
   ../libmysql/errmsg.c
   ../libmysql/libmysql.c
@@ -80,15 +86,30 @@ SET(SQL_EMBEDDED_SOURCES
   ../sql/rpl_gtid_execution.cc
   ../sql/rpl_gtid_mutex_cond_array.cc
   ../sql/rpl_gtid_persist.cc
+  ../sql/rpl_table_access.cc
   ${IMPORTED_SOURCES}
+)
+
+INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/compile_flags.cmake)
+ADD_COMPILE_FLAGS(
+  ../sql/item_geofunc.cc
+  COMPILE_FLAGS -I${BOOST_PATCHES_DIR} -I${BOOST_INCLUDE_DIR}
 )
 
 # Boost Geometry source has unused local typedefs.
 MY_CHECK_CXX_COMPILER_FLAG("-Wno-unused-local-typedefs" HAVE_NO_UNUSED_TYPEDEFS)
 IF(HAVE_NO_UNUSED_TYPEDEFS)
-  SET_SOURCE_FILES_PROPERTIES(
+  ADD_COMPILE_FLAGS(
     ../sql/item_geofunc.cc
-    PROPERTIES COMPILE_FLAGS "-Wno-unused-local-typedefs"
+    COMPILE_FLAGS "-Wno-unused-local-typedefs"
+  )
+ENDIF()
+# Boost Geometry source has uninitialized variables. Fixed in Boost 1.56
+MY_CHECK_CXX_COMPILER_FLAG("-Wno-uninitialized" HAVE_NO_UNINITIALIZED)
+IF(HAVE_NO_UNINITIALIZED)
+  ADD_COMPILE_FLAGS(
+    ../sql/item_geofunc.cc
+    COMPILE_FLAGS "-Wno-uninitialized"
   )
 ENDIF()
 
@@ -96,9 +117,29 @@ IF(HAVE_MY_TIMER)
   SET(SQL_EMBEDDED_SOURCES ${SQL_EMBEDDED_SOURCES} ../sql/sql_timer.cc)
 ENDIF()
 
+
+# Handle out-of-source build from source package with possibly broken 
+# bison. Copy bison output to from source to build directory, if not already 
+# there
+INCLUDE(${CMAKE_SOURCE_DIR}/cmake/bison.cmake)
+COPY_BISON_OUTPUT(
+  ${CMAKE_SOURCE_DIR}/sql/sql_yacc.cc
+  ${CMAKE_SOURCE_DIR}/sql/sql_yacc.h
+  ${CMAKE_CURRENT_BINARY_DIR}/sql_yacc.cc
+  ${CMAKE_CURRENT_BINARY_DIR}/sql_yacc.h
+)
+
+RUN_BISON(
+  ${CMAKE_SOURCE_DIR}/sql/sql_yacc.yy 
+  ${CMAKE_CURRENT_BINARY_DIR}/sql_yacc.cc
+  ${CMAKE_CURRENT_BINARY_DIR}/sql_yacc.h
+)
+
+ADD_CUSTOM_TARGET(GenYaccEmbeddedSource DEPENDS ${GEN_YACC_SOURCES})
+
 ADD_CONVENIENCE_LIBRARY(sql_embedded ${SQL_EMBEDDED_SOURCES})
 DTRACE_INSTRUMENT(sql_embedded)
-ADD_DEPENDENCIES(sql_embedded GenError GenServerSource)
+ADD_DEPENDENCIES(sql_embedded GenError GenServerSource GenYaccEmbeddedSource)
 
 # On Windows, static embedded server library is called mysqlserver.lib
 # On Unix, it is libmysqld.a

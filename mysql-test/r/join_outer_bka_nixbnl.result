@@ -587,6 +587,7 @@ kvw5600	0
 kvw5601	0
 kvw6000	2
 drop table t1,t2;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 CREATE TABLE t1 (
 id int(11),
 pid int(11),
@@ -630,6 +631,7 @@ SELECT * from t1 left join t2 on t1.id=t2.id where t2.id IS NULL;
 id	name	id	idx
 2	no	NULL	NULL
 drop table t1,t2;
+SET sql_mode = default;
 create table t1 (bug_id mediumint, reporter mediumint);
 create table t2 (bug_id mediumint, who mediumint, index(who));
 insert into t2 values (1,1),(1,2);
@@ -1509,7 +1511,7 @@ ON t1.col_int_unique = t2.col_int_unique AND t1.col_int = t2.col_int
 WHERE t1.pk=1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	const	PRIMARY	PRIMARY	4	const	1	100.00	NULL
-1	SIMPLE	t2	NULL	const	col_int_unique	col_int_unique	5	const	1	100.00	NULL
+1	SIMPLE	t2	NULL	const	col_int_unique	col_int_unique	5	const	1	100.00	Impossible ON condition
 Warnings:
 Note	1003	/* select#1 */ select '1' AS `pk`,NULL AS `col_int`,'2' AS `col_int_unique`,NULL AS `pk`,NULL AS `col_int`,NULL AS `col_int_unique` from `test`.`t1` left join `test`.`t2` on((multiple equal('2', NULL) and multiple equal(NULL, NULL))) where 1
 SELECT * FROM t1 LEFT JOIN t2
@@ -2217,4 +2219,23 @@ CREATE TABLE t1(a INT) ENGINE=INNODB;
 SET @a:=(SELECT ROW(1, 2)=
 ROW((SELECT 1 FROM t1 LEFT JOIN t1 t2 ON 1), 1));
 DROP TABLE t1;
+#
+# Coverage for "unique row not found"
+#
+create table t1(a int, unique key(a)) engine=innodb;
+insert into t1 values(1);
+explain select * from t1 left join t1 as t2
+on t2.a=12
+where t1.a=1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	const	a	a	5	const	1	100.00	Using index
+1	SIMPLE	t2	NULL	const	a	a	5	const	0	0.00	unique row not found
+Warnings:
+Note	1003	/* select#1 */ select '1' AS `a`,NULL AS `a` from `test`.`t1` left join `test`.`t1` `t2` on(multiple equal(12, NULL)) where 1
+select * from t1 left join t1 as t2
+on t2.a=12
+where t1.a=1;
+a	a
+1	NULL
+drop table t1;
 set optimizer_switch=default;

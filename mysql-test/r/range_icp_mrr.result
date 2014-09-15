@@ -1,5 +1,6 @@
 set optimizer_switch='index_condition_pushdown=on,mrr=on,mrr_cost_based=off';
 drop table if exists t1, t2, t3;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 CREATE TABLE t1 (
 event_date date DEFAULT '0000-00-00' NOT NULL,
 type int(11) DEFAULT '0' NOT NULL,
@@ -2200,7 +2201,7 @@ EXPLAIN SELECT t1.*,t2.* FROM t1 straight_join t2
 ON t2.col_int_key = t1.col_int WHERE t2.pk < t1.pk;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
-1	SIMPLE	t2	NULL	ALL	PRIMARY,col_int_key	NULL	NULL	NULL	6	16.66	Range checked for each record (index map: 0x3)
+1	SIMPLE	t2	NULL	ALL	PRIMARY,col_int_key	NULL	NULL	NULL	6	33.33	Range checked for each record (index map: 0x3)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`col_int` AS `col_int`,`test`.`t1`.`pk` AS `pk`,`test`.`t2`.`col_int_key` AS `col_int_key`,`test`.`t2`.`col_varchar` AS `col_varchar`,`test`.`t2`.`pk` AS `pk` from `test`.`t1` straight_join `test`.`t2` where ((`test`.`t2`.`col_int_key` = `test`.`t1`.`col_int`) and (`test`.`t2`.`pk` < `test`.`t1`.`pk`))
 SELECT t1.*,t2.* FROM t1 straight_join t2
@@ -3249,4 +3250,46 @@ field1
 n
 xm
 DROP TABLE t1;
+#
+# Bug#18535226 	DEBUG CRASH ON QUICK_RANGE_SELECT::RESET
+#
+SET @old_tmp_table_size=@@tmp_table_size;
+SET tmp_table_size=1024;
+CREATE TABLE t1 (
+pk INT NOT NULL,
+col_int_key INT,
+col_date_key date,
+col_date_nokey date,
+col_time_key time,
+col_time_nokey time,
+col_datetime_key datetime,
+col_datetime_nokey datetime,
+col_varchar_key varchar(1),
+col_varchar_nokey varchar(1),
+PRIMARY KEY (pk),
+KEY col_int_key (col_int_key)
+) ENGINE=MyISAM;
+INSERT INTO t1 VALUES
+(5,0,'2001-05-06','2001-05-06','16:21:18','16:21:18','2001-11-08 21:02:12',
+'2001-11-08 21:02:12','x','x'),(6,7,'2006-03-03','2006-03-03','18:56:33',
+'18:56:33','2003-04-01 00:00:00','2003-04-01 00:00:00','i','i'),
+(7,7,'2007-12-28','2007-12-28',NULL,NULL,'1900-01-01 00:00:00',
+'1900-01-01 00:00:00','e','e'),(8,1,'2004-10-20','2004-10-20','09:29:08',
+'09:29:08','2007-07-12 00:00:00','2007-07-12 00:00:00','p','p'),
+(9,7,'2008-04-09','2008-04-09','19:11:10','19:11:10',
+'2005-04-04 01:21:01','2005-04-04 01:21:01','s','s'),
+(10,1,'2005-12-25','2005-12-25','11:57:26','11:57:26',
+'1900-01-01 00:00:00','1900-01-01 00:00:00','j','j');
+SELECT alias1.col_int_key
+FROM
+( SELECT SQ1_alias1.* FROM t1 AS SQ1_alias1, t1 AS SQ1_alias2 ) AS alias1,
+(SELECT 7 AS col_int_nokey) AS alias2
+WHERE
+alias2.col_int_nokey = alias1.pk
+AND alias1.col_varchar_nokey < alias1.col_varchar_key
+ORDER BY alias1.col_varchar_key;
+col_int_key
+DROP TABLE t1;
+SET tmp_table_size=@old_tmp_table_size;
+SET sql_mode = default;
 set optimizer_switch=default;

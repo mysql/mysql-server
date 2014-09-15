@@ -1,4 +1,5 @@
 drop table if exists t1,t2,t3;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 create table t1 (bandID MEDIUMINT UNSIGNED NOT NULL PRIMARY KEY, payoutID SMALLINT UNSIGNED NOT NULL);
 insert into t1 (bandID,payoutID) VALUES (1,6),(2,6),(3,4),(4,9),(5,10),(6,1),(7,12),(8,12);
 create table t2 (payoutID SMALLINT UNSIGNED NOT NULL PRIMARY KEY);
@@ -840,6 +841,7 @@ drop table t1,t2;
 #
 # Bug #46075: Assertion failed: 0, file .\protocol.cc, line 416
 #
+set global internal_tmp_disk_storage_engine = 'myisam';
 CREATE TABLE t1(a INT);
 SET max_heap_table_size = 16384;
 SET @old_myisam_data_pointer_size = @@myisam_data_pointer_size;
@@ -848,6 +850,8 @@ INSERT INTO t1 VALUES (1), (2), (3), (4), (5);
 call mtr.add_suppression("mysqld.*: The table '.*#sql.*' is full");
 INSERT IGNORE INTO t1 SELECT t1.a FROM t1,t1 t2,t1 t3,t1 t4,t1 t5,t1 t6,t1 t7;
 Got one of the listed errors
+set global internal_tmp_disk_storage_engine = TMP_TABLE_ENGINE;
 SET GLOBAL myisam_data_pointer_size = @old_myisam_data_pointer_size;
 DROP TABLE t1;
+SET sql_mode = default;
 End of 5.0 tests

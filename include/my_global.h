@@ -19,6 +19,52 @@
 
 /* This is the include file that should be included 'first' in every C file. */
 
+#include "my_config.h"
+
+#define __STDC_LIMIT_MACROS	/* Enable C99 limit macros */
+#define __STDC_FORMAT_MACROS	/* Enable C99 printf format macros */
+
+#ifdef _WIN32
+/* Include common headers.*/
+# include <winsock2.h>
+# include <ws2tcpip.h> /* SOCKET */
+# include <io.h>       /* access(), chmod() */
+#endif
+
+#include <stdio.h>
+#include <stdarg.h>
+#include <stdlib.h>
+#include <stddef.h>
+#include <math.h>
+#include <limits.h>
+#include <float.h>
+#include <fcntl.h>
+#include <time.h>
+#include <errno.h>				/* Recommended by debian */
+#include <sys/types.h>
+
+#ifdef HAVE_SYS_SOCKET_H
+#include <sys/socket.h>
+#endif
+#if !defined(_WIN32)
+#include <netdb.h>
+#endif
+
+/*
+  A lot of our programs uses asserts, so better to always include it
+  This also fixes a problem when people uses DBUG_ASSERT without including
+  assert.h
+*/
+#include <assert.h>
+
+/* Include standard definitions of operator new and delete. */
+#ifdef __cplusplus
+# include <new>
+#endif
+
+#include "my_compiler.h"
+
+
 /*
   InnoDB depends on some MySQL internals which other plugins should not
   need.  This is because of InnoDB's foreign key support, "safe" binlog
@@ -38,9 +84,6 @@
 #define C_MODE_START
 #define C_MODE_END
 #endif
-
-#include <my_config.h>
-#include "my_compiler.h"
 
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
 #define HAVE_PSI_INTERFACE
@@ -62,12 +105,6 @@
 #undef SIZEOF_OFF_T
 #define SIZEOF_OFF_T 8
 
-/* Include common headers.*/
-#include <winsock2.h>
-#include <ws2tcpip.h> /* SOCKET */
-#include <io.h>       /* access(), chmod() */
-#include <process.h>  /* getpid() */
-
 #define sleep(a) Sleep((a)*1000)
 
 /* Define missing access() modes. */
@@ -81,99 +118,19 @@
 #define F_UNLCK 3
 #define F_TO_EOF 0x3FFFFFFF
 
+#define O_NONBLOCK 1    /* For emulation of fcntl() */
+
+/*
+  SHUT_RDWR is called SD_BOTH in windows and
+  is defined to 2 in winsock2.h
+  #define SD_BOTH 0x02
+*/
+#define SHUT_RDWR 0x02
+
 /* Shared memory and named pipe connections are supported. */
 #define shared_memory_buffer_length 16000
 #define default_shared_memory_base_name "MYSQL"
 #endif /* _WIN32*/
-
-/*
-  The macros below are borrowed from include/linux/compiler.h in the
-  Linux kernel. Use them to indicate the likelyhood of the truthfulness
-  of a condition. This serves two purposes - newer versions of gcc will be
-  able to optimize for branch predication, which could yield siginficant
-  performance gains in frequently executed sections of the code, and the
-  other reason to use them is for documentation
-*/
-#ifdef HAVE_BUILTIN_EXPECT
-#  define likely(x)    __builtin_expect((x),1)
-#  define unlikely(x)  __builtin_expect((x),0)
-#else
-#  define likely(x)    (x)
-#  define unlikely(x)  (x)
-#endif
-
-/*
-  Temporary solution to solve bug#7156. Include "sys/types.h" before
-  the thread headers, else the function madvise() will not be defined
-*/
-#if defined(sun) || defined(__sun)
-#include <sys/types.h>
-#endif
-
-/*
-  Solaris 9 include file <sys/feature_tests.h> refers to X/Open document
-
-    System Interfaces and Headers, Issue 5
-
-  saying we should define _XOPEN_SOURCE=500 to get POSIX.1c prototypes,
-  but apparently other systems (namely FreeBSD) don't agree.
-
-  On a newer Solaris 10, the above file recognizes also _XOPEN_SOURCE=600.
-  Furthermore, it tests that if a program requires older standard
-  (_XOPEN_SOURCE<600 or _POSIX_C_SOURCE<200112L) it cannot be
-  run on a new compiler (that defines _STDC_C99) and issues an #error.
-  It's also an #error if a program requires new standard (_XOPEN_SOURCE=600
-  or _POSIX_C_SOURCE=200112L) and a compiler does not define _STDC_C99.
-
-  To add more to this mess, Sun Studio C compiler defines _STDC_C99 while
-  C++ compiler does not!
-
-  So, in a desperate attempt to get correct prototypes for both
-  C and C++ code, we define either _XOPEN_SOURCE=600 or _XOPEN_SOURCE=500
-  depending on the compiler's announced C standard support.
-
-  Cleaner solutions are welcome.
-*/
-#ifdef __sun
-#if __STDC_VERSION__ - 0 >= 199901L
-#define _XOPEN_SOURCE 600
-#else
-#define _XOPEN_SOURCE 500
-#endif
-#endif
-
-#if !defined(_WIN32)
-#include <pthread.h>
-#endif /* !defined(_WIN32) */
-
-#include <stdio.h>
-#include <stdarg.h>
-#include <stdlib.h>
-#include <stddef.h>
-
-#include <math.h>
-#include <limits.h>
-#include <float.h>
-#include <fenv.h> /* For fesetround() */
-
-#include <sys/types.h>
-#include <fcntl.h>
-#if TIME_WITH_SYS_TIME
-# include <sys/time.h>
-#endif
-#include <time.h>
-#ifdef HAVE_UNISTD_H
-#include <unistd.h>
-#endif
-#ifdef HAVE_ALLOCA_H
-#include <alloca.h>
-#endif
-
-#include <errno.h>				/* Recommended by debian */
-/* We need the following to go around a problem with openssl on solaris */
-#if defined(HAVE_CRYPT_H)
-#include <crypt.h>
-#endif
 
 /**
   Cast a member of a structure to the structure that contains it.
@@ -184,13 +141,6 @@
 */
 #define my_container_of(ptr, type, member)              \
   ((type *)((char *)ptr - offsetof(type, member)))
-
-/*
-  A lot of our programs uses asserts, so better to always include it
-  This also fixes a problem when people uses DBUG_ASSERT without including
-  assert.h
-*/
-#include <assert.h>
 
 /* an assert that works at compile-time. only for constant expression */
 #define compile_time_assert(X)                                              \
@@ -253,14 +203,15 @@ C_MODE_START
 typedef int	(*qsort_cmp)(const void *,const void *);
 typedef int	(*qsort_cmp2)(const void*, const void *,const void *);
 C_MODE_END
-#ifdef HAVE_SYS_SOCKET_H
-#include <sys/socket.h>
+#ifdef _WIN32
+typedef int       socket_len_t;
+typedef int       sigset_t;
+typedef int       mode_t;
+typedef SSIZE_T   ssize_t;
+#else
+typedef socklen_t socket_len_t;
 #endif
-typedef SOCKET_SIZE_TYPE size_socket;
-
-#ifndef SOCKOPT_OPTLEN_TYPE
-#define SOCKOPT_OPTLEN_TYPE size_socket
-#endif
+typedef socket_len_t SOCKET_SIZE_TYPE; /* Used by NDB */
 
 /* file create flags */
 
@@ -316,7 +267,6 @@ typedef SOCKET_SIZE_TYPE size_socket;
 #define FN_ROOTDIR	"\\"
 #define FN_DEVCHAR	':'
 #define FN_NETWORK_DRIVES	/* Uses \\ to indicate network drives */
-#define FN_NO_CASE_SENCE	/* Files are not case-sensitive */
 #else
 #define FN_LIBCHAR	'/'
 #define FN_LIBCHAR2	'/'
@@ -388,7 +338,7 @@ typedef SOCKET_SIZE_TYPE size_socket;
 
 /* Some defines of functions for portability */
 
-#if (_MSC_VER)
+#if (_WIN32)
 #if !defined(_WIN64)
 inline double my_ulonglong2double(unsigned long long value)
 {
@@ -409,7 +359,7 @@ inline unsigned long long my_double2ulonglong(double d)
   return (unsigned long long) d;
 }
 #define double2ulonglong my_double2ulonglong
-#endif
+#endif /* _WIN32 */
 
 #ifndef ulonglong2double
 #define ulonglong2double(A) ((double) (ulonglong) (A))
@@ -418,8 +368,6 @@ inline unsigned long long my_double2ulonglong(double d)
 #ifndef double2ulonglong
 #define double2ulonglong(A) ((ulonglong) (double) (A))
 #endif
-
-#define ulong_to_double(X) ((double) (ulong) (X))
 
 #ifndef LONGLONG_MIN
 #define LONGLONG_MIN	LLONG_MIN
@@ -449,8 +397,6 @@ inline unsigned long long my_double2ulonglong(double d)
 #ifndef SIZE_T_MAX
 #define SIZE_T_MAX      (~((size_t) 0))
 #endif
-
-#include <math.h>
 
 #if (__cplusplus >= 201103L)
   /* For C++11 use the new std functions rather than C99 macros. */
@@ -672,18 +618,9 @@ typedef char		my_bool; /* Small bool */
 #define dlopen_errno GetLastError()
 
 #else /* _WIN32 */
-#include <dlfcn.h>
 #define DLERROR_GENERATE(errmsg, error_number) errmsg= dlerror()
 #define dlopen_errno errno
 #endif /* _WIN32 */
-
-
-/*
- *  Include standard definitions of operator new and delete.
- */
-#ifdef __cplusplus
-#include <new>
-#endif
 
 /* Length of decimal number represented by INT32. */
 #define MY_INT32_NUM_DECIMAL_DIGITS 11U
@@ -695,21 +632,8 @@ typedef char		my_bool; /* Small bool */
 #define MY_MAX(a, b)	((a) > (b) ? (a) : (b))
 #define MY_MIN(a, b)	((a) < (b) ? (a) : (b))
 
-/*
-  Only Linux is known to need an explicit sync of the directory to make sure a
-  file creation/deletion/renaming in(from,to) this directory durable.
-*/
-#ifdef __linux__
-#define NEED_EXPLICIT_SYNC_DIR 1
-#endif
-
 #if !defined(__cplusplus) && !defined(bool)
 #define bool In_C_you_should_use_my_bool_instead()
-#endif
-
-/* Provide __func__ macro definition for Visual Studio. */
-#if defined(_MSC_VER)
-#  define __func__ __FUNCTION__
 #endif
 
 /* 
@@ -744,7 +668,7 @@ enum loglevel {
 ** Replacements for localtime_r and gmtime_r
 ****************************************************************************/
 
-static inline struct tm *localtime_r(const time_t *timep,struct tm *tmp)
+static inline struct tm *localtime_r(const time_t *timep, struct tm *tmp)
 {
   localtime_s(tmp, timep);
   return tmp;
@@ -758,84 +682,93 @@ static inline struct tm *gmtime_r(const time_t *clock, struct tm *res)
 
 
 /*
-   Declare a union to make sure FILETIME is properly aligned
-   so it can be used directly as a 64 bit value. The value
-   stored is in 100ns units.
- */
- union ft64 {
+  Declare a union to make sure FILETIME is properly aligned
+  so it can be used directly as a 64 bit value. The value
+  stored is in 100ns units.
+*/
+union ft64 {
   FILETIME ft;
   __int64 i64;
  };
+
 struct timespec {
   union ft64 tv;
   /* The max timeout value in millisecond for native_cond_timedwait */
   long max_timeout_msec;
 };
-#define set_timespec_time_nsec(ABSTIME,TIME,NSEC) do {          \
-  (ABSTIME).tv.i64= (TIME)+(__int64)(NSEC)/100;                 \
-  (ABSTIME).max_timeout_msec= (long)((NSEC)/1000000);           \
-} while(0)
-
-#define set_timespec_nsec(ABSTIME,NSEC) do {                    \
-  union ft64 tv;                                                \
-  GetSystemTimeAsFileTime(&tv.ft);                              \
-  set_timespec_time_nsec((ABSTIME), tv.i64, (NSEC));            \
-} while(0)
-
-/**
-   Compare two timespec structs.
-
-   @retval  1 If TS1 ends after TS2.
-
-   @retval  0 If TS1 is equal to TS2.
-
-   @retval -1 If TS1 ends before TS2.
-*/
-#define cmp_timespec(TS1, TS2) \
-  ((TS1.tv.i64 > TS2.tv.i64) ? 1 : \
-   ((TS1.tv.i64 < TS2.tv.i64) ? -1 : 0))
-
-#define diff_timespec(TS1, TS2) \
-  ((TS1.tv.i64 - TS2.tv.i64) * 100)
-
-#else /* _WIN32 */
-
-#define set_timespec_nsec(ABSTIME,NSEC)                                 \
-  set_timespec_time_nsec((ABSTIME),my_getsystime(),(NSEC))
-
-#define set_timespec_time_nsec(ABSTIME,TIME,NSEC) do {                  \
-  ulonglong nsec= (NSEC);                                               \
-  ulonglong now= (TIME) + (nsec/100);                                   \
-  (ABSTIME).tv_sec=  (now / 10000000ULL);                          \
-  (ABSTIME).tv_nsec= (now % 10000000ULL * 100 + (nsec % 100));     \
-} while(0)
-
-/**
-   Compare two timespec structs.
-
-   @retval  1 If TS1 ends after TS2.
-
-   @retval  0 If TS1 is equal to TS2.
-
-   @retval -1 If TS1 ends before TS2.
-*/
-#define cmp_timespec(TS1, TS2) \
-  ((TS1.tv_sec > TS2.tv_sec || \
-    (TS1.tv_sec == TS2.tv_sec && TS1.tv_nsec > TS2.tv_nsec)) ? 1 : \
-   ((TS1.tv_sec < TS2.tv_sec || \
-     (TS1.tv_sec == TS2.tv_sec && TS1.tv_nsec < TS2.tv_nsec)) ? -1 : 0))
-
-#define diff_timespec(TS1, TS2) \
-  ((TS1.tv_sec - TS2.tv_sec) * 1000000000ULL + TS1.tv_nsec - TS2.tv_nsec)
 
 #endif /* _WIN32 */
 
-/*
-  The defines set_timespec and set_timespec_nsec should be used
-  for calculating an absolute time at which
-  pthread_cond_timedwait should timeout
+C_MODE_START
+extern ulonglong my_getsystime(void);
+C_MODE_END
+
+static inline void set_timespec_nsec(struct timespec *abstime, ulonglong nsec)
+{
+#ifndef _WIN32
+  ulonglong now= my_getsystime() + (nsec / 100);
+  abstime->tv_sec=   now / 10000000ULL;
+  abstime->tv_nsec= (now % 10000000ULL) * 100 + (nsec % 100);
+#else
+  union ft64 tv;
+  GetSystemTimeAsFileTime(&tv.ft);
+  abstime->tv.i64= tv.i64 + (__int64)(nsec / 100);
+  abstime->max_timeout_msec= (long)(nsec / 1000000);
+#endif
+}
+
+static inline void set_timespec(struct timespec *abstime, ulonglong sec)
+{
+  set_timespec_nsec(abstime, sec * 1000000000ULL);
+}
+
+/**
+   Compare two timespec structs.
+
+   @retval  1 If ts1 ends after ts2.
+   @retval -1 If ts1 ends before ts2.
+   @retval  0 If ts1 is equal to ts2.
 */
-#define set_timespec(ABSTIME,SEC) \
-  set_timespec_nsec((ABSTIME),(SEC)*1000000000ULL)
+static inline int cmp_timespec(struct timespec *ts1, struct timespec *ts2)
+{
+#ifndef _WIN32
+  if (ts1->tv_sec > ts2->tv_sec ||
+      (ts1->tv_sec == ts2->tv_sec && ts1->tv_nsec > ts2->tv_nsec))
+    return 1;
+  if (ts1->tv_sec < ts2->tv_sec ||
+      (ts1->tv_sec == ts2->tv_sec && ts1->tv_nsec < ts2->tv_nsec))
+    return -1;
+#else
+  if (ts1->tv.i64 > ts2->tv.i64)
+    return 1;
+  if (ts1->tv.i64 < ts2->tv.i64)
+    return -1;
+#endif
+  return 0;
+}
+
+static inline ulonglong diff_timespec(struct timespec *ts1, struct timespec *ts2)
+{
+#ifndef _WIN32
+  return (ts1->tv_sec - ts2->tv_sec) * 1000000000ULL +
+    ts1->tv_nsec - ts2->tv_nsec;
+#else
+  return (ts1->tv.i64 - ts2->tv.i64) * 100;
+#endif
+}
+
+/* File permissions */
+#define USER_READ       (1L << 0)
+#define USER_WRITE      (1L << 1)
+#define USER_EXECUTE    (1L << 2)
+#define GROUP_READ      (1L << 3)
+#define GROUP_WRITE     (1L << 4)
+#define GROUP_EXECUTE   (1L << 5)
+#define OTHERS_READ     (1L << 6)
+#define OTHERS_WRITE    (1L << 7)
+#define OTHERS_EXECUTE  (1L << 8)
+#define USER_RWX        USER_READ | USER_WRITE | USER_EXECUTE
+#define GROUP_RWX       GROUP_READ | GROUP_WRITE | GROUP_EXECUTE
+#define OTHERS_RWX      OTHERS_READ | OTHERS_WRITE | OTHERS_EXECUTE
 
 #endif  // MY_GLOBAL_INCLUDED

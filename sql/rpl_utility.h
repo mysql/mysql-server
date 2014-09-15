@@ -27,6 +27,7 @@
 #endif
 #include "mysql_com.h"
 #include <hash.h>
+#include "prealloced_array.h"
 
 
 class Relay_log_info;
@@ -372,12 +373,16 @@ public:
     @param[out] tmp_table_var Pointer to temporary table for holding
     conversion table.
 
+    @param mem_root mem_root from which memory should be allocated.
+    Default value is NULL and thread's mem_root will be considered in
+    that case.
+
     @retval 1  if the table definition is not compatible with @c table
     @retval 0  if the table definition is compatible with @c table
   */
 #ifndef MYSQL_CLIENT
   bool compatible_with(THD *thd, Relay_log_info *rli, TABLE *table,
-                      TABLE **conv_table_var) const;
+                      TABLE **conv_table_var, MEM_ROOT* mem_root= NULL) const;
 
   /**
    Create a virtual in-memory temporary table structure.
@@ -397,11 +402,15 @@ public:
    @param thd Thread to allocate memory from.
    @param rli Relay log info structure, for error reporting.
    @param target_table Target table for fields.
+   @param mem_root mem_root from which memory should be allocated.
+   Default value is NULL and thread's mem_root will be considered in
+   that case.
 
    @return A pointer to a temporary table with memory allocated in the
    thread's memroot, NULL if the table could not be created
    */
-  TABLE *create_conversion_table(THD *thd, Relay_log_info *rli, TABLE *target_table) const;
+  TABLE *create_conversion_table(THD *thd, Relay_log_info *rli, TABLE
+                                 *target_table, MEM_ROOT *mem_root= NULL) const;
 #endif
 
 
@@ -463,7 +472,7 @@ namespace {
 class Deferred_log_events
 {
 private:
-  DYNAMIC_ARRAY array;
+  Prealloced_array<Log_event*, 32, true> m_array;
 
 public:
   Deferred_log_events(Relay_log_info *rli);

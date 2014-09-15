@@ -64,7 +64,6 @@ prdt_get_mbr_from_prdt(
 /*********************************************************************//**
 Get a predicate from a lock
 @return	the predicate */
-
 lock_prdt_t*
 lock_get_prdt_from_lock(
 /*====================*/
@@ -98,7 +97,6 @@ lock_prdt_get_mbr_from_lock(
 
 /*********************************************************************//**
 Append a predicate to the lock */
-
 void
 lock_prdt_set_prdt(
 /*===============*/
@@ -114,7 +112,6 @@ lock_prdt_set_prdt(
 Checks if a predicate lock request for a new lock has to wait for
 another lock.
 @return	true if new lock has to wait for lock2 to be released */
-
 bool
 lock_prdt_has_to_wait(
 /*==================*/
@@ -219,7 +216,7 @@ lock_prdt_has_lock(
 		    && !lock_get_wait(lock)
 		    && lock_mode_stronger_or_eq(
 			    lock_get_mode(lock),
-			    static_cast<enum lock_mode>(
+			    static_cast<lock_mode>(
 				    precise_mode & LOCK_MODE_MASK))) {
 			if (lock->type_mode & LOCK_PRDT_PAGE) {
 				return(lock);
@@ -251,7 +248,7 @@ static
 const lock_t*
 lock_prdt_other_has_conflicting(
 /*============================*/
-	enum lock_mode		mode,	/*!< in: LOCK_S or LOCK_X,
+	ulint			mode,	/*!< in: LOCK_S or LOCK_X,
 					possibly ORed to LOCK_PREDICATE or
 					LOCK_PRDT_PAGE, LOCK_INSERT_INTENTION */
 	const buf_block_t*	block,	/*!< in: buffer block containing
@@ -261,11 +258,9 @@ lock_prdt_other_has_conflicting(
 					the new lock will be on */
 	const trx_t*		trx)	/*!< in: our transaction */
 {
-	const lock_t*		lock;
-
 	ut_ad(lock_mutex_own());
 
-	for (lock = lock_rec_get_first(
+	for (const lock_t* lock = lock_rec_get_first(
 		lock_hash_get(mode), block, PRDT_HEAPNO);
 	     lock != NULL;
 	     lock = lock_rec_get_next_const(PRDT_HEAPNO, lock)) {
@@ -400,12 +395,10 @@ lock_prdt_add_to_queue(
 	trx_t*			trx,	/*!< in/out: transaction */
 	lock_prdt_t*		prdt,	/*!< in: Minimum Bounding Rectangle
 					the new lock will be on */
-	ibool			caller_owns_trx_mutex)
+	bool			caller_owns_trx_mutex)
 					/*!< in: TRUE if caller owns the
 					transaction mutex */
 {
-	lock_t*		lock;
-
 	ut_ad(lock_mutex_own());
 	ut_ad(caller_owns_trx_mutex == trx_mutex_own(trx));
 	ut_ad(!dict_index_is_clust(index) && !dict_index_is_online_ddl(index));
@@ -425,6 +418,8 @@ lock_prdt_add_to_queue(
 
 	/* Look for a waiting lock request on the same record or on a gap */
 
+	lock_t*		lock;
+
 	for (lock = lock_rec_get_first_on_page(lock_hash_get(type_mode), block);
 	     lock != NULL;
 	     lock = lock_rec_get_next_on_page(lock)) {
@@ -433,11 +428,11 @@ lock_prdt_add_to_queue(
 		    && lock_rec_get_nth_bit(lock, PRDT_HEAPNO)
 		    && lock->type_mode & (LOCK_PREDICATE | LOCK_PRDT_PAGE)) {
 
-			goto somebody_waits;
+			break;
 		}
 	}
 
-	if (!(type_mode & LOCK_WAIT)) {
+	if (lock == NULL && !(type_mode & LOCK_WAIT)) {
 
 		/* Look for a similar record lock on the same page:
 		if one is found and there are no waiting lock requests,
@@ -445,7 +440,8 @@ lock_prdt_add_to_queue(
 
 		lock = lock_prdt_find_on_page(type_mode, block, prdt, trx);
 
-		if (lock) {
+		if (lock != NULL) {
+
 			if (lock->type_mode & LOCK_PREDICATE) {
 				lock_prdt_enlarge_prdt(lock, prdt);
 			}
@@ -454,7 +450,6 @@ lock_prdt_add_to_queue(
 		}
 	}
 
-somebody_waits:
 	lock = lock_rec_create(
 		type_mode, block, PRDT_HEAPNO, index, trx,
 		caller_owns_trx_mutex);
@@ -470,7 +465,6 @@ somebody_waits:
 Checks if locks of other transactions prevent an immediate insert of
 a predicate record.
 @return	DB_SUCCESS, DB_LOCK_WAIT, DB_DEADLOCK, or DB_QUE_THR_SUSPENDED */
-
 dberr_t
 lock_prdt_insert_check_and_lock(
 /*============================*/
@@ -484,10 +478,6 @@ lock_prdt_insert_check_and_lock(
 	lock_prdt_t*	prdt)	/*!< in: Predicates with Minimum Bound
 				Rectangle */
 {
-	trx_t*		trx;
-	lock_t*		lock;
-	dberr_t		err;
-
 	ut_ad(block->frame == page_align(rec));
 
 	if (flags & BTR_NO_LOCKING_FLAG) {
@@ -498,7 +488,7 @@ lock_prdt_insert_check_and_lock(
 	ut_ad(!dict_table_is_temporary(index->table));
 	ut_ad(!dict_index_is_clust(index));
 
-	trx = thr_get_trx(thr);
+	trx_t*	trx = thr_get_trx(thr);
 
 	lock_mutex_enter();
 
@@ -507,6 +497,8 @@ lock_prdt_insert_check_and_lock(
 	to hold trx->mutex here. */
 
 	ut_ad(lock_table_has(trx, index->table, LOCK_IX));
+
+	lock_t*		lock;
 
 	/* Only need to check locks on prdt_hash */
 	lock = lock_rec_get_first(lock_sys->prdt_hash, block, PRDT_HEAPNO);
@@ -522,6 +514,8 @@ lock_prdt_insert_check_and_lock(
 	}
 
 	ut_ad(lock->type_mode & LOCK_PREDICATE);
+
+	dberr_t		err;
 
 	/* If another transaction has an explicit lock request which locks
 	the predicate, waiting or granted, on the successor, the insert
@@ -574,7 +568,6 @@ lock_prdt_insert_check_and_lock(
 /**************************************************************//**
 Check whether any predicate lock in parent needs to propagate to
 child page after split. */
-
 void
 lock_prdt_update_parent(
 /*====================*/
@@ -710,7 +703,6 @@ lock_prdt_update_split_low(
 
 /**************************************************************//**
 Update predicate lock when page splits */
-
 void
 lock_prdt_update_split(
 /*===================*/
@@ -730,7 +722,6 @@ lock_prdt_update_split(
 
 /*********************************************************************//**
 Initiate a Predicate Lock from a MBR */
-
 void
 lock_init_prdt_from_mbr(
 /*====================*/
@@ -754,7 +745,6 @@ lock_init_prdt_from_mbr(
 /*********************************************************************//**
 Checks two predicate locks are compatible with each other
 @return	true if consistent */
-
 bool
 lock_prdt_consistent(
 /*=================*/
@@ -794,8 +784,7 @@ lock_prdt_consistent(
 		ret = MBR_WITHIN_CMP(mbr1, mbr2);
 		break;
 	default:
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"invalid operator %lu", (ulong) action);
+		ib::error() << "invalid operator " << action;
 		ut_error;
 	}
 
@@ -805,14 +794,13 @@ lock_prdt_consistent(
 /*********************************************************************//**
 Acquire a predicate lock on a block
 @return	DB_SUCCESS, DB_LOCK_WAIT, DB_DEADLOCK, or DB_QUE_THR_SUSPENDED */
-
 dberr_t
 lock_prdt_lock(
 /*===========*/
 	buf_block_t*	block,	/*!< in/out: buffer block of rec */
 	lock_prdt_t*	prdt,	/*!< in: Predicate for the lock */
 	dict_index_t*	index,	/*!< in: secondary index */
-	enum lock_mode	mode,	/*!< in: mode of the lock which
+	lock_mode	mode,	/*!< in: mode of the lock which
 				the read cursor should set on
 				records: LOCK_S or LOCK_X; the
 				latter is possible in
@@ -823,13 +811,9 @@ lock_prdt_lock(
 				(can be NULL if BTR_NO_LOCKING_FLAG) */
 	mtr_t*		mtr)	/*!< in/out: mini-transaction */
 {
-	dberr_t			err = DB_SUCCESS;
-	lock_t*                 lock;
-        trx_t*                  trx;
-        enum lock_rec_req_status status = LOCK_REC_SUCCESS;
-	hash_table_t*		hash;
-
-	trx = thr_get_trx(thr);
+	trx_t*		trx = thr_get_trx(thr);
+	dberr_t		err = DB_SUCCESS;
+	lock_rec_req_status	status = LOCK_REC_SUCCESS;
 
 	if (trx->read_only || dict_table_is_temporary(index->table)) {
 		return(DB_SUCCESS);
@@ -837,10 +821,9 @@ lock_prdt_lock(
 
 	ut_ad(!dict_index_is_clust(index));
 	ut_ad(!dict_index_is_online_ddl(index));
-
 	ut_ad(type_mode & (LOCK_PREDICATE | LOCK_PRDT_PAGE));
 
-	hash = type_mode == LOCK_PREDICATE
+	hash_table_t*	hash = type_mode == LOCK_PREDICATE
 		? lock_sys->prdt_hash
 		: lock_sys->prdt_page_hash;
 
@@ -851,46 +834,56 @@ lock_prdt_lock(
 
 	lock_mutex_enter();
 
-	lock = lock_rec_get_first_on_page(hash, block);
+	const ulint	prdt_mode = mode | type_mode;
+	lock_t*		lock = lock_rec_get_first_on_page(hash, block);
 
 	if (lock == NULL) {
+
 		lock = lock_rec_create(
-                                mode | type_mode, block, PRDT_HEAPNO,
-				index, trx, FALSE);
+			mode | type_mode, block, PRDT_HEAPNO,
+			index, trx, FALSE);
+
 		status = LOCK_REC_SUCCESS_CREATED;
+
 	} else {
 		trx_mutex_enter(trx);
+
 		if (lock_rec_get_next_on_page(lock)
 		    || lock->trx != trx
-		    || lock->type_mode != (mode | LOCK_REC | type_mode)
+		    || lock->type_mode != (LOCK_REC | prdt_mode)
 		    || lock_rec_get_n_bits(lock) == 0
-		    || (type_mode & LOCK_PREDICATE
+		    || ((type_mode & LOCK_PREDICATE)
 		        && (!lock_prdt_consistent(
 				lock_get_prdt_from_lock(lock), prdt, 0)))) {
 
-			lock = lock_prdt_has_lock(mode, type_mode, block,
-						  prdt, trx);
+			lock = lock_prdt_has_lock(
+				mode, type_mode, block, prdt, trx);
 
-			if (!lock) {
-				if (lock_prdt_other_has_conflicting(
-					static_cast<enum lock_mode>(
-						mode | type_mode),
-					block, prdt, trx)) {
+			if (lock == NULL) {
+
+				const lock_t*	wait_for;
+
+				wait_for = lock_prdt_other_has_conflicting(
+					prdt_mode, block, prdt, trx);
+
+				if (wait_for != NULL) {
 
 					err = lock_rec_enqueue_waiting(
 						mode | type_mode,
 						block, PRDT_HEAPNO,
 						index, thr, prdt);
 				} else {
+
 					lock_prdt_add_to_queue(
-						mode | type_mode, block,
-						index, trx, prdt,
-						TRUE);
+						prdt_mode, block, index, trx,
+						prdt, true);
+
 					status = LOCK_REC_SUCCESS;
 				}
 			}
 
 			trx_mutex_exit(trx);
+
 		} else {
 			trx_mutex_exit(trx);
 
@@ -914,7 +907,6 @@ lock_prdt_lock(
 /*********************************************************************//**
 Acquire a "Page" lock on a block
 @return	DB_SUCCESS, DB_LOCK_WAIT, DB_DEADLOCK, or DB_QUE_THR_SUSPENDED */
-
 dberr_t
 lock_place_prdt_page_lock(
 /*======================*/
@@ -923,16 +915,7 @@ lock_place_prdt_page_lock(
 	dict_index_t*	index,		/*!< in: secondary index */
 	que_thr_t*	thr)		/*!< in: query thread */
 {
-	dberr_t			err = DB_SUCCESS;
-	lock_t*                 lock;
-        trx_t*                  trx;
-	enum lock_mode		mode = LOCK_S;
-
-	if (!thr) {
-		return(err);
-	}
-
-	trx = thr_get_trx(thr);
+	ut_ad(thr != NULL);
 
 	ut_ad(!dict_index_is_clust(index));
 	ut_ad(!dict_index_is_online_ddl(index));
@@ -944,55 +927,48 @@ lock_place_prdt_page_lock(
 
 	lock_mutex_enter();
 
-	lock = lock_rec_get_first_on_page_addr(
+	const lock_t*	lock = lock_rec_get_first_on_page_addr(
 		lock_sys->prdt_page_hash, space, page_no);
 
-	if (lock == NULL) {
-		lock = lock_rec_create_low(
-                                mode | LOCK_PRDT_PAGE, space, page_no, NULL,
-				PRDT_HEAPNO, index, trx, FALSE);
-#ifdef PRDT_DIAG
-		printf("GIS_DIAGNOSTIC: page lock %d\n", (int)page_no);
-#endif /* PRDT_DIAG */
-	} else {
-		bool	lock_exists = false;
+	const ulint	mode = LOCK_S | LOCK_PRDT_PAGE;
+	trx_t*		trx = thr_get_trx(thr);
+
+	if (lock != NULL) {
 
 		trx_mutex_enter(trx);
 
-		for (; lock != NULL;
-		     lock = lock_rec_get_next_on_page(lock)) {
+		/* Find a matching record lock owned by this transaction. */
 
-			if (lock->trx == trx) {
-				ut_ad(lock->type_mode ==
-					(LOCK_S | LOCK_REC | LOCK_PRDT_PAGE));
-				ut_ad(lock_rec_get_n_bits(lock) != 0);
-				lock_exists = true;
-				break;
-			}
+		while (lock != NULL && lock->trx != trx) {
+
+			lock = lock_rec_get_next_on_page_const(lock);
 		}
+
+		ut_ad(lock == NULL || lock->type_mode == (mode | LOCK_REC));
+		ut_ad(lock == NULL || lock_rec_get_n_bits(lock) != 0);
 
 		trx_mutex_exit(trx);
+	}
 
-		if (!lock_exists) {
-			lock = lock_rec_create_low(
-					mode | LOCK_PRDT_PAGE, space,
-					page_no, NULL, PRDT_HEAPNO,
-					index, trx, FALSE);
+	if (lock == NULL) {
+
+		lock = lock_rec_create_low(
+			mode, space, page_no, NULL, PRDT_HEAPNO,
+			index, trx, FALSE);
+
 #ifdef PRDT_DIAG
-			printf("GIS_DIAGNOSTIC: page lock %d\n", (int)page_no);
+		printf("GIS_DIAGNOSTIC: page lock %d\n", (int) page_no);
 #endif /* PRDT_DIAG */
-		}
 	}
 
 	lock_mutex_exit();
 
-	return(err);
+	return(DB_SUCCESS);
 }
 
 /*********************************************************************//**
 Check whether there are R-tree Page lock on a page
 @return	true if there is none */
-
 bool
 lock_test_prdt_page_lock(
 /*=====================*/
@@ -1014,7 +990,6 @@ lock_test_prdt_page_lock(
 /*************************************************************//**
 Moves the locks of a page to another page and resets the lock bits of
 the donating records. */
-
 void
 lock_prdt_rec_move(
 /*===============*/

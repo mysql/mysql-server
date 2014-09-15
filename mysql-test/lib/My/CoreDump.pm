@@ -1,5 +1,5 @@
 # -*- cperl -*-
-# Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2008, 2014, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -168,6 +168,10 @@ sub _cdb {
     {
       # On x64 computer
       $ENV{'PATH'}.= ";".$ENV{'ProgramW6432'}."\\Debugging Tools For Windows (x64)";
+      if ($ENV{'WindowsSdkDir'})
+      {
+        $ENV{'PATH'}.= ";".$ENV{'WindowsSdkDir'}."\\Debuggers\\x64";
+      }
     }
     else
     {
@@ -175,6 +179,10 @@ sub _cdb {
      # directory with (x86) suffix, older versions did not have this suffix.
      $ENV{'PATH'}.= ";".$ENV{'ProgramFiles'}."\\Debugging Tools For Windows (x86)";
      $ENV{'PATH'}.= ";".$ENV{'ProgramFiles'}."\\Debugging Tools For Windows";
+      if ($ENV{'WindowsSdkDir'})
+      {
+        $ENV{'PATH'}.= ";".$ENV{'WindowsSdkDir'}."\\Debuggers\\x86";
+      }
     }
   }
   

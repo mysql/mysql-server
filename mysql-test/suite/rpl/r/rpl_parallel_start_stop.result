@@ -28,6 +28,8 @@ insert into t1 values (3);
 insert into t1 values (3);
 include/wait_for_slave_sql_to_stop.inc
 delete from t1 where a=3;
+set @save.slave_transaction_retries= @@global.slave_transaction_retries;
+set @@global.slave_transaction_retries= 10;
 include/start_slave.inc
 include/sync_slave_sql_with_master.inc
 delete from t1;
@@ -46,9 +48,7 @@ insert into t2m values (2);
 update t1 set a=30 where a=3;
 commit;
 update t1 set a=21 where a=2;
-include/wait_for_slave_sql_error.inc [errno=1213, 1205]
 rollback;
-include/start_slave.inc
 include/sync_slave_sql_with_master.inc
 stop slave sql_thread;
 set @@global.sql_slave_skip_counter=7;
@@ -64,11 +64,7 @@ begin;
 select max(a) + 1 from t1 into @a;
 insert into t1 set a=@a;
 commit;
-set @save.slave_transaction_retries= @@global.slave_transaction_retries;
-set @@global.slave_transaction_retries= 1;
 start slave sql_thread;
-Warnings:
-Note	1753	slave_transaction_retries is not supported in multi-threaded slave mode. In the event of a transient failure, the slave will not retry the transaction and will stop.
 include/sync_slave_sql_with_master.inc
 include/stop_slave.inc
 create table t2 (a int);
@@ -78,15 +74,13 @@ Warnings:
 Note	1753	UNTIL condtion is not supported in multi-threaded slave mode. Slave is started in the sequential execution mode.
 include/wait_for_slave_sql_to_stop.inc
 include/start_slave.inc
-Warnings:
-Note	1753	slave_transaction_retries is not supported in multi-threaded slave mode. In the event of a transient failure, the slave will not retry the transaction and will stop.
 drop table t1;
 drop table t2m;
 drop table t2;
 include/sync_slave_sql_with_master.inc
 drop view worker_proc_list;
 drop view coord_proc_list;
-set @@global.slave_transaction_retries= @save.slave_transaction_retries;
+set @@global.slave_transaction_retries= 0;
 include/stop_slave.inc
 start slave until sql_after_mts_gaps relay_log_file='dummy';
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'relay_log_file='dummy'' at line 1
@@ -117,17 +111,20 @@ update d1.t1 set a=20 where a=2;
 insert into d1.t2m values (2);
 update d1.t1 set a=30 where a=3;
 insert into d1.t1 values (4);
-commit;
+begin;
 delete from d2.t1;
+commit;
+commit;
 delete from d1.t1;
 update d1.t1 set a=21 where a=2;
 include/wait_for_slave_sql_error.inc [errno=1213, 1205]
 rollback;
 start slave until sql_after_mts_gaps;
 include/wait_for_slave_sql_to_stop.inc
+set @@global.slave_parallel_workers= @save.slave_parallel_workers;
 include/start_slave.inc
 drop database d1;
 drop database d2;
 include/sync_slave_sql_with_master.inc
-set @@global.slave_parallel_workers= @save.slave_parallel_workers;
+set @@global.slave_transaction_retries= @save.slave_transaction_retries;
 include/rpl_end.inc

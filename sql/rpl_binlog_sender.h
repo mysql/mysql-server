@@ -40,6 +40,7 @@ public:
     m_start_pos(start_pos), m_exclude_gtid(exclude_gtids),
     m_using_gtid_protocol(exclude_gtids != NULL),
     m_check_previous_gtid_event(exclude_gtids != NULL),
+    m_gtid_clear_fd_created_flag(exclude_gtids == NULL),
     m_diag_area(false),
     m_errmsg(NULL), m_errno(0), m_last_file(NULL), m_last_pos(0),
     m_half_buffer_size_req_counter(0), m_new_shrink_size(PACKET_MIN_SIZE),
@@ -68,6 +69,7 @@ private:
   Gtid_set *m_exclude_gtid;
   bool m_using_gtid_protocol;
   bool m_check_previous_gtid_event;
+  bool m_gtid_clear_fd_created_flag;
 
   /* The binlog file it is reading */
   LOG_INFO m_linfo;
@@ -406,7 +408,7 @@ private:
    * @param extra_size  The size in bytes that the caller wants to add to the buffer.
    * @return true if an error occurred, false otherwise.
    */
-  inline bool grow_packet(uint32 extra_size);
+  inline bool grow_packet(size_t extra_size);
 
   /**
    * This function SHALL shrink the size of the buffer used.

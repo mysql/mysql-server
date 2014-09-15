@@ -1,4 +1,3 @@
-call mtr.add_suppression("\\[Warning\\] InnoDB: cannot calculate statistics for table \"test\"\.\"t1\" because the \.ibd file is missing");
 DROP TABLE IF EXISTS t1;
 SET GLOBAL innodb_file_per_table = 1;
 SELECT @@innodb_file_per_table;
@@ -44,6 +43,7 @@ a	b	c
 t1.frm
 t1.ibd
 # Restarting server
+# restart
 # Done restarting server
 FLUSH TABLE t1 FOR EXPORT;
 # List before copying files
@@ -66,6 +66,7 @@ a	b	c
 1462	Devotion	asdfuihknaskdf
 1461	Cavalry	..asdasdfaeraf
 # Restarting server
+# restart
 # Done restarting server
 # List before t1 DISCARD
 t1.frm

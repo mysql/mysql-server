@@ -71,7 +71,6 @@ int gtid_acquire_ownership_single(THD *thd)
     // GTID owned by someone (other thread)
     else
     {
-      DBUG_ASSERT(owner != thd->id);
       // The call below releases the read lock on global_sid_lock and
       // the mutex lock on SIDNO.
       gtid_state->wait_for_gtid(thd, gtid_next);
@@ -202,13 +201,13 @@ int gtid_acquire_ownership_multiple(THD *thd)
   {
     if (!gtid_state->is_executed(g))
     {
-      if (gtid_state->acquire_ownership(thd, g) != RETURN_STATUS_OK ||
-          thd->owned_gtid_set._add_gtid(g))
+      if (gtid_state->acquire_ownership(thd, g) != RETURN_STATUS_OK)
       {
         /// @todo release ownership on error
         ret= 1;
         break;
       }
+      thd->owned_gtid_set._add_gtid(g);
     }
     git.next();
     g= git.get();
@@ -292,11 +291,11 @@ static inline enum_gtid_statement_status skip_statement(const THD *thd)
 
   DBUG_PRINT("info", ("skipping statement '%s'. "
                       "gtid_next->type=%d sql_command=%d "
-                      "thd->thread_id=%lu",
+                      "thd->thread_id=%u",
                       thd->query().str,
                       thd->variables.gtid_next.type,
                       thd->lex->sql_command,
-                      thd->thread_id));
+                      thd->thread_id()));
 
 #ifndef DBUG_OFF
   const Gtid_set* executed_gtids= gtid_state->get_executed_gtids();
@@ -409,11 +408,11 @@ enum_gtid_statement_status gtid_pre_statement_checks(THD *thd)
 
   DBUG_PRINT("info", ("gtid_next_list=%p gtid_next->type=%d "
                       "thd->owned_gtid.gtid.{sidno,gno}={%d,%lld} "
-                      "thd->thread_id=%lu",
+                      "thd->thread_id=%u",
                       gtid_next_list, gtid_next->type,
                       thd->owned_gtid.sidno,
                       thd->owned_gtid.gno,
-                      (ulong)thd->thread_id));
+                      thd->thread_id()));
 
   const bool skip_transaction= is_already_logged_transaction(thd);
   if (gtid_next_list == NULL)

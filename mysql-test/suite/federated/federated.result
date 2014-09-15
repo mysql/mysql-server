@@ -982,6 +982,7 @@ AND other IS NULL;
 count(*)
 2
 DROP TABLE IF EXISTS federated.t1;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 CREATE TABLE federated.t1 (
 `blurb_id` int NOT NULL DEFAULT 0,
 `blurb` text default '',
@@ -989,7 +990,9 @@ PRIMARY KEY (blurb_id))
 DEFAULT CHARSET=latin1;
 Warnings:
 Warning	1101	BLOB/TEXT column 'blurb' can't have a default value
+SET sql_mode = default;
 DROP TABLE IF EXISTS federated.t1;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 CREATE TABLE federated.t1 (
 `blurb_id` int NOT NULL DEFAULT 0,
 `blurb` text default '',
@@ -999,6 +1002,7 @@ ENGINE="FEDERATED"
 CONNECTION='mysql://root@127.0.0.1:SLAVE_PORT/federated/t1';
 Warnings:
 Warning	1101	BLOB/TEXT column 'blurb' can't have a default value
+SET sql_mode = default;
 INSERT INTO federated.t1 VALUES (1, " MySQL supports a number of column types in several categories: numeric types, date and time types, and string (character) types.  This chapter first gives an overview of these column types, and then provides a more detailed description of the properties of the types in each category, and a summary of the column type storage requirements.  The overview is intentionally brief.  The more detailed descriptions should be consulted for additional information about particular column types, such as the allowable formats in which you can specify values.");
 INSERT INTO federated.t1 VALUES (2, "All arithmetic is done using signed BIGINT or DOUBLE values, so you should not use unsigned big integers larger than 9223372036854775807 (63 bits) except with bit functions! If you do that, some of the last digits in the result may be wrong because of rounding errors when converting a BIGINT value to a DOUBLE.");
 INSERT INTO federated.t1 VALUES (3, " A floating-point number.  p represents the precision. It can be from 0 to 24 for a single-precision floating-point number and from 25 to 53 for a double-precision floating-point number. These types are like the FLOAT and DOUBLE types described immediately following.  FLOAT(p) has the same range as the corresponding FLOAT and DOUBLE types, but the display size and number of decimals are undefined.  ");
@@ -2180,6 +2184,65 @@ abc
 DROP TABLE federated.t1;
 DROP TABLE federated.t1;
 End of 5.1 tests
+#
+# BUG#11751864 - FEDERATED DOESN'T DISTINGUISH BETWEEN DELETE FROM
+#                 T1 AND TRUNCATE T1 NOT NULL NOT SPECIFIED
+# BUG#17564775 - FEDERATED DOES NOT SUPPORT DELETE IGNORE
+connection master;
+CREATE TABLE federated.t1 (a INT PRIMARY KEY, b varchar(64)) ENGINE=InnoDB;
+connection slave;
+CREATE TABLE federated.t2 (a INT PRIMARY KEY, b varchar(64))
+ENGINE=FEDERATED
+connection='mysql://root@127.0.0.1:MASTER_PORT/federated/t1'
+  DEFAULT CHARSET=utf8;
+connection master;
+INSERT INTO federated.t1 VALUES (1,"Larry"), (2,"Curly"), (3,"Moe");
+CREATE TABLE federated.t1_child(a int);
+ALTER TABLE federated.t1_child ADD CONSTRAINT dc FOREIGN KEY (a) REFERENCES federated.t1(a);
+INSERT INTO federated.t1_child VALUES (1), (3);
+connection slave;
+SELECT * FROM federated.t2;
+a	b
+1	Larry
+2	Curly
+3	Moe
+#We will use the error message returned from server to differentiate between DELETE and TRUNCATE
+DELETE FROM federated.t2;
+ERROR HY000: Got error 10000 'Error on remote system: 1451: Cannot delete or update a parent row: a foreign key constraint fails (' from FEDERATED
+TRUNCATE TABLE federated.t2;
+ERROR HY000: Got error 10000 'Error on remote system: 1701: Cannot truncate a table referenced in a foreign key constraint (`feder' from FEDERATED
+SELECT * FROM federated.t2;
+a	b
+1	Larry
+2	Curly
+3	Moe
+DELETE IGNORE FROM federated.t2;
+SELECT * FROM federated.t2;
+a	b
+1	Larry
+3	Moe
+DELETE IGNORE FROM federated.t2 where a>1;
+SELECT * FROM federated.t2;
+a	b
+1	Larry
+3	Moe
+INSERT INTO federated.t2 VALUES (2,"Curly"),(6,"James");
+SELECT * FROM federated.t2;
+a	b
+1	Larry
+2	Curly
+3	Moe
+6	James
+DELETE IGNORE federated.t2.* FROM federated.t2 where federated.t2.a<5;
+SELECT * FROM federated.t2;
+a	b
+1	Larry
+3	Moe
+6	James
+DROP TABLE federated.t2;
+connection master;
+DROP TABLE federated.t1_child;
+DROP TABLE federated.t1;
 SET @@GLOBAL.CONCURRENT_INSERT= @OLD_MASTER_CONCURRENT_INSERT;
 SET @@GLOBAL.CONCURRENT_INSERT= @OLD_SLAVE_CONCURRENT_INSERT;
 DROP TABLE IF EXISTS federated.t1;

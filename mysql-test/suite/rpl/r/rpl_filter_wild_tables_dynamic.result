@@ -22,7 +22,23 @@ include/sync_slave_sql_with_master.inc
 SHOW TABLES LIKE '%1';
 Tables_in_test (%1)
 a1
-[on master]
+[on slave]
+Replicate_Wild_Do_Table = 'test.a%'
+Replicate_Wild_Ignore_Table = 'test.b%'
+include/stop_slave.inc
+CHANGE REPLICATION FILTER REPLICATE_WILD_DO_TABLE=('testa%');
+ERROR HY000: Supplied filter list contains a value which is not in the required format 'db_pattern.table_pattern'
+CHANGE REPLICATION FILTER REPLICATE_WILD_IGNORE_TABLE=('testb%');
+ERROR HY000: Supplied filter list contains a value which is not in the required format 'db_pattern.table_pattern'
+CHANGE REPLICATION FILTER REPLICATE_WILD_DO_TABLE=('db1.t1%', 'testa%');
+ERROR HY000: Supplied filter list contains a value which is not in the required format 'db_pattern.table_pattern'
+CHANGE REPLICATION FILTER REPLICATE_WILD_IGNORE_TABLE=('db2.t2%', 'testb%');
+ERROR HY000: Supplied filter list contains a value which is not in the required format 'db_pattern.table_pattern'
+CHANGE REPLICATION FILTER REPLICATE_WILD_IGNORE_TABLE=('');
+ERROR HY000: Supplied filter list contains a value which is not in the required format 'db_pattern.table_pattern'
+include/start_slave.inc
+Replicate_Wild_Do_Table = 'test.a%'
+Replicate_Wild_Ignore_Table = 'test.b%'
 [on master]
 DROP TABLE IF EXISTS a1,b1,c1;
 include/rpl_end.inc

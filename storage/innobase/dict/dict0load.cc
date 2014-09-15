@@ -121,7 +121,6 @@ name_of_col_is(
 Finds the first table name in the given database.
 @return own: table name, NULL if does not exist; the caller must free
 the memory in the string! */
-
 char*
 dict_get_first_table_name_in_db(
 /*============================*/
@@ -138,7 +137,7 @@ dict_get_first_table_name_in_db(
 	ulint		len;
 	mtr_t		mtr;
 
-	ut_ad(mutex_own(&(dict_sys->mutex)));
+	ut_ad(mutex_own(&dict_sys->mutex));
 
 	heap = mem_heap_create(1000);
 
@@ -236,7 +235,6 @@ dict_getnext_system_low(
 /********************************************************************//**
 This function opens a system table, and returns the first record.
 @return first record of the system table */
-
 const rec_t*
 dict_startscan_system(
 /*==================*/
@@ -266,7 +264,6 @@ dict_startscan_system(
 /********************************************************************//**
 This function gets the next system table record as it scans the table.
 @return the next record if found, NULL if end of scan */
-
 const rec_t*
 dict_getnext_system(
 /*================*/
@@ -290,7 +287,6 @@ This function processes one SYS_TABLES record and populate the dict_table_t
 struct for the table. Extracted out of dict_print() to be used by
 both monitor table output and information schema innodb_sys_tables output.
 @return error message, or NULL on success */
-
 const char*
 dict_process_sys_tables_rec_and_mtr_commit(
 /*=======================================*/
@@ -348,7 +344,6 @@ This function parses a SYS_INDEXES record and populate a dict_index_t
 structure with the information from the record. For detail information
 about SYS_INDEXES fields, please refer to dict_boot() function.
 @return error message, or NULL on success */
-
 const char*
 dict_process_sys_indexes_rec(
 /*=========================*/
@@ -375,7 +370,6 @@ dict_process_sys_indexes_rec(
 This function parses a SYS_COLUMNS record and populate a dict_column_t
 structure with the information from the record.
 @return error message, or NULL on success */
-
 const char*
 dict_process_sys_columns_rec(
 /*=========================*/
@@ -398,7 +392,6 @@ dict_process_sys_columns_rec(
 This function parses a SYS_FIELDS record and populates a dict_field_t
 structure with the information from the record.
 @return error message, or NULL on success */
-
 const char*
 dict_process_sys_fields_rec(
 /*========================*/
@@ -433,7 +426,6 @@ This function parses a SYS_FOREIGN record and populate a dict_foreign_t
 structure with the information from the record. For detail information
 about SYS_FOREIGN fields, please refer to dict_load_foreign() function.
 @return error message, or NULL on success */
-
 const char*
 dict_process_sys_foreign_rec(
 /*=========================*/
@@ -514,7 +506,6 @@ err_len:
 This function parses a SYS_FOREIGN_COLS record and extract necessary
 information from the record and return to caller.
 @return error message, or NULL on success */
-
 const char*
 dict_process_sys_foreign_col_rec(
 /*=============================*/
@@ -584,7 +575,6 @@ err_len:
 This function parses a SYS_TABLESPACES record, extracts necessary
 information from the record and returns to caller.
 @return error message, or NULL on success */
-
 const char*
 dict_process_sys_tablespaces(
 /*=========================*/
@@ -651,7 +641,6 @@ err_len:
 This function parses a SYS_DATAFILES record, extracts necessary
 information from the record and returns it to the caller.
 @return error message, or NULL on success */
-
 const char*
 dict_process_sys_datafiles(
 /*=======================*/
@@ -743,8 +732,7 @@ dict_sys_tables_get_flags(
 	return(dict_sys_tables_type_to_tf(type, n_cols));
 }
 
-/********************************************************************//**
-Gets the filepath for a spaceid from SYS_DATAFILES and checks it against
+/** Get the filepath for a spaceid from SYS_DATAFILES and checks it against
 the contents of a link file. This function is called when there is no
 fil_node_t entry for this space ID so both durable locations on  disk
 must be checked and compared.
@@ -752,14 +740,14 @@ We use a temporary heap here for the table lookup, but not for the path
 returned which the caller must free.
 This function can return NULL if the space ID is not found in SYS_DATAFILES,
 then the caller will assume that the ibd file is in the normal datadir.
+@param[in]	space_id	Tablespace ID
+@param[in]	name		Tablespace Name
 @return own: A copy of the first datafile found in SYS_DATAFILES.PATH for
 the given space ID. NULL if space ID is zero or not found. */
-
 char*
 dict_get_first_path(
-/*================*/
-	ulint		space,	/*!< in: space id */
-	const char*	name)	/*!< in: tablespace name */
+	ulint		space_id,
+	const char*	name)
 {
 	mtr_t		mtr;
 	dict_table_t*	sys_datafiles;
@@ -774,7 +762,7 @@ dict_get_first_path(
 	char*		dict_filepath = NULL;
 	mem_heap_t*	heap = mem_heap_create(1024);
 
-	ut_ad(mutex_own(&(dict_sys->mutex)));
+	ut_ad(mutex_own(&dict_sys->mutex));
 
 	mtr_start(&mtr);
 
@@ -790,7 +778,7 @@ dict_get_first_path(
 	dfield = dtuple_get_nth_field(tuple, DICT_FLD__SYS_DATAFILES__SPACE);
 
 	buf = static_cast<byte*>(mem_heap_alloc(heap, 4));
-	mach_write_to_4(buf, space);
+	mach_write_to_4(buf, space_id);
 
 	dfield_set_data(dfield, buf, 4);
 	dict_index_copy_types(tuple, sys_index, 1);
@@ -821,15 +809,14 @@ dict_get_first_path(
 	return(dict_filepath);
 }
 
-/********************************************************************//**
-Update the record for space_id in SYS_TABLESPACES to this filepath.
+/** Update the record for space_id in SYS_TABLESPACES to this filepath.
+@param[in]	space_id	Tablespace ID
+@param[in]	filepath	Tablespace filepath
 @return DB_SUCCESS if OK, dberr_t if the insert failed */
-
 dberr_t
 dict_update_filepath(
-/*=================*/
-	ulint		space_id,	/*!< in: space id */
-	const char*	filepath)	/*!< in: filepath */
+	ulint		space_id,
+	const char*	filepath)
 {
 	dberr_t		err = DB_SUCCESS;
 	trx_t*		trx;
@@ -837,7 +824,7 @@ dict_update_filepath(
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_X));
 #endif /* UNIV_SYNC_DEBUG */
-	ut_ad(mutex_own(&(dict_sys->mutex)));
+	ut_ad(mutex_own(&dict_sys->mutex));
 
 	trx = trx_allocate_for_background();
 	trx->op_info = "update filepath";
@@ -864,32 +851,32 @@ dict_update_filepath(
 	if (err == DB_SUCCESS) {
 		/* We just updated SYS_DATAFILES due to the contents in
 		a link file.  Make a note that we did this. */
-		ib_logf(IB_LOG_LEVEL_INFO,
-			"The InnoDB data dictionary table SYS_DATAFILES"
-			" for tablespace ID %lu was updated to use file %s.",
-			(ulong) space_id, filepath);
+		ib::info() << "The InnoDB data dictionary table SYS_DATAFILES"
+			" for tablespace ID " << space_id
+			<< " was updated to use file " << filepath << ".";
 	} else {
-		ib_logf(IB_LOG_LEVEL_WARN,
-			"Problem updating InnoDB data dictionary table"
-			" SYS_DATAFILES for tablespace ID %lu to file %s.",
-			(ulong) space_id, filepath);
+		ib::warn() << "Error occurred while updating InnoDB data"
+			" dictionary table SYS_DATAFILES for tablespace ID "
+			<< space_id << " to file " << filepath << ": "
+			<< ut_strerr(err) << ".";
 	}
 
 	return(err);
 }
 
-/********************************************************************//**
-Insert records into SYS_TABLESPACES and SYS_DATAFILES using an
-independent transaction.
+/** Insert records into SYS_TABLESPACES and SYS_DATAFILES associated with
+the given space_id using an independent transaction.
+@param[in]	space_id	Tablespace ID
+@param[in]	name		Tablespace name
+@param[in]	filepath,	First filepath
+@param[in]	fsp_flags	Tablespace flags
 @return DB_SUCCESS if OK, dberr_t if the insert failed */
-
 dberr_t
 dict_insert_tablespace_and_filepath(
-/*================================*/
-	ulint		space,		/*!< in: space id */
-	const char*	name,		/*!< in: talespace name */
-	const char*	filepath,	/*!< in: filepath */
-	ulint		fsp_flags)	/*!< in: tablespace flags */
+	ulint		space_id,
+	const char*	name,
+	const char*	filepath,
+	ulint		fsp_flags)
 {
 	dberr_t		err = DB_SUCCESS;
 	trx_t*		trx;
@@ -897,7 +884,7 @@ dict_insert_tablespace_and_filepath(
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_X));
 #endif /* UNIV_SYNC_DEBUG */
-	ut_ad(mutex_own(&(dict_sys->mutex)));
+	ut_ad(mutex_own(&dict_sys->mutex));
 	ut_ad(filepath);
 
 	trx = trx_allocate_for_background();
@@ -909,7 +896,7 @@ dict_insert_tablespace_and_filepath(
 	SYS_DATAFILES. Assume the record is also missing in
 	SYS_TABLESPACES.  Insert records into them both. */
 	err = dict_create_add_tablespace_to_dictionary(
-		space, name, fsp_flags, filepath, trx, false);
+		space_id, name, fsp_flags, filepath, trx, false);
 
 	trx_commit_for_mysql(trx);
 	trx->dict_operation_lock_mode = 0;
@@ -918,23 +905,23 @@ dict_insert_tablespace_and_filepath(
 	return(err);
 }
 
-/********************************************************************//**
-This function looks at each table defined in SYS_TABLES.  It checks the
-tablespace for any table with a space_id > 0.  It looks up the tablespace
-in SYS_DATAFILES to ensure the correct path.
+/** Look at each table defined in SYS_TABLES. Check the tablespace for
+any table with a space_id > 0. Look up the tablespace in SYS_DATAFILES
+to ensure the correct path.
 
-In a crash recovery we already have all the tablespace objects created.
+In a crash recovery we already have some tablespace objects created.
 This function compares the space id information in the InnoDB data dictionary
 to what we already read with fil_load_single_file_tablespace().
 
 In a normal startup, we create the tablespace objects for every table in
 InnoDB's data dictionary, if the corresponding .ibd file exists.
-We also scan the biggest space id, and store it to fil_system. */
-
+We also scan the biggest space id, and store it to fil_system.
+@param[in]	validate	whether the previous shutdown was not clean
+@param[in]	dict_check	how to check */
 void
 dict_check_tablespaces_and_store_max_id(
-/*====================================*/
-	dict_check_t	dict_check)	/*!< in: how to check */
+	bool		validate,
+	dict_check_t	dict_check)
 {
 	dict_table_t*	sys_tables;
 	dict_index_t*	sys_index;
@@ -945,7 +932,7 @@ dict_check_tablespaces_and_store_max_id(
 	DBUG_ENTER("dict_check_tablespaces_and_store_max_id");
 
 	rw_lock_x_lock(&dict_operation_lock);
-	mutex_enter(&(dict_sys->mutex));
+	mutex_enter(&dict_sys->mutex);
 
 	mtr_start(&mtr);
 
@@ -978,7 +965,7 @@ loop:
 		max_space_id); */
 		fil_set_max_space_id_if_bigger(max_space_id);
 
-		mutex_exit(&(dict_sys->mutex));
+		mutex_exit(&dict_sys->mutex);
 		rw_lock_x_unlock(&dict_operation_lock);
 
 		DBUG_VOID_RETURN;
@@ -1014,9 +1001,9 @@ loop:
 			ut_ad(len == 4); /* this was checked earlier */
 			flags = mach_read_from_4(field);
 
-			ib_logf(IB_LOG_LEVEL_ERROR,
-				"Table '%s' in InnoDB data dictionary"
-				" has unknown type %lx", table_name, flags);
+			ib::error() << "Table '" << table_name
+				<< "' in InnoDB data dictionary"
+				" has unknown type " << flags;
 
 			ut_free(name);
 			goto loop;
@@ -1077,10 +1064,8 @@ loop:
 			/* fall through */
 		case DICT_CHECK_NONE_LOADED:
 			if (discarded) {
-				ib_logf(IB_LOG_LEVEL_INFO,
-					"DISCARD flag set for table '%s',"
-					" ignored.",
-					table_name);
+				ib::info() << "DISCARD flag set for table '"
+					<< table_name << "', ignored.";
 				break;
 			}
 
@@ -1103,15 +1088,14 @@ loop:
 			If the filepath is not known, it will need to
 			be discovered. */
 			dberr_t	err = fil_open_single_table_tablespace(
-				false, !srv_read_only_mode,
-				FIL_TYPE_TABLESPACE,
+				validate && srv_force_recovery == 0,
+				!srv_read_only_mode, FIL_TYPE_TABLESPACE,
 				space_id, dict_tf_to_fsp_flags(flags),
 				name, filepath);
 
 			if (err != DB_SUCCESS) {
-				ib_logf(IB_LOG_LEVEL_ERROR,
-					"Tablespace open failed for %s,"
-					" ignored.", table_name);
+				ib::error() << "Tablespace open failed for "
+					<< table_name << ", ignored.";
 			}
 
 			ut_free(filepath);
@@ -1136,7 +1120,6 @@ next_tablespace:
 Loads a table column definition from a SYS_COLUMNS record to
 dict_table_t.
 @return error message, or NULL on success */
-
 const char*
 dict_load_column_low(
 /*=================*/
@@ -1298,7 +1281,7 @@ dict_load_columns(
 	ulint		i;
 	mtr_t		mtr;
 
-	ut_ad(mutex_own(&(dict_sys->mutex)));
+	ut_ad(mutex_own(&dict_sys->mutex));
 
 	mtr_start(&mtr);
 
@@ -1334,7 +1317,7 @@ dict_load_columns(
 					       &name, rec);
 
 		if (err_msg) {
-			ib_logf(IB_LOG_LEVEL_FATAL, "%s", err_msg);
+			ib::fatal() << err_msg;
 		}
 
 		/* Note: Currently we have one DOC_ID column that is
@@ -1385,7 +1368,6 @@ static const char* dict_load_field_del = "delete-marked record in SYS_FIELDS";
 Loads an index field definition from a SYS_FIELDS record to
 dict_index_t.
 @return error message, or NULL on success */
-
 const char*
 dict_load_field_low(
 /*================*/
@@ -1525,7 +1507,7 @@ dict_load_fields(
 	mtr_t		mtr;
 	dberr_t		error;
 
-	ut_ad(mutex_own(&(dict_sys->mutex)));
+	ut_ad(mutex_own(&dict_sys->mutex));
 
 	mtr_start(&mtr);
 
@@ -1563,7 +1545,7 @@ dict_load_fields(
 
 			goto next_rec;
 		} else if (err_msg) {
-			ib_logf(IB_LOG_LEVEL_ERROR, "%s", err_msg);
+			ib::error() << err_msg;
 			error = DB_CORRUPTION;
 			goto func_exit;
 		}
@@ -1589,7 +1571,6 @@ If allocate=TRUE, we will create a dict_index_t structure and fill it
 accordingly. If allocated=FALSE, the dict_index_t will be supplied by
 the caller and filled with information read from the record.  @return
 error message, or NULL on success */
-
 const char*
 dict_load_index_low(
 /*================*/
@@ -1743,7 +1724,7 @@ dict_load_indexes(
 	mtr_t		mtr;
 	dberr_t		error = DB_SUCCESS;
 
-	ut_ad(mutex_own(&(dict_sys->mutex)));
+	ut_ad(mutex_own(&dict_sys->mutex));
 
 	mtr_start(&mtr);
 
@@ -1778,11 +1759,10 @@ dict_load_indexes(
 			for drop table */
 			if (dict_table_get_first_index(table) == NULL
 			    && !(ignore_err & DICT_ERR_IGNORE_CORRUPT)) {
-				ib_logf(IB_LOG_LEVEL_WARN,
-					"Cannot load table %s"
-					" because it has no indexes in"
-					" InnoDB internal data dictionary.",
-					table->name);
+				ib::warn() << "Cannot load table "
+					<< ut_get_name(NULL, TRUE, table->name)
+					<< " because it has no indexes in"
+					" InnoDB internal data dictionary.";
 				error = DB_CORRUPTION;
 				goto func_exit;
 			}
@@ -1820,13 +1800,15 @@ dict_load_indexes(
 
 			if (dict_table_get_first_index(table) == NULL
 			    && !(ignore_err & DICT_ERR_IGNORE_CORRUPT)) {
-				ib_logf(IB_LOG_LEVEL_WARN,
-					"Failed to load the"
-					" clustered index for table %s"
-					" because of the following error: %s."
+
+				ib::warn() << "Failed to load the"
+					" clustered index for table "
+					<< ut_get_name(NULL, TRUE, table->name)
+					<< " because of the following error: "
+					<< err_msg << "."
 					" Refusing to load the rest of the"
 					" indexes (if any) and the whole table"
-					" altogether.", table->name, err_msg);
+					" altogether.";
 				error = DB_CORRUPTION;
 				goto func_exit;
 			}
@@ -1836,7 +1818,7 @@ dict_load_indexes(
 			/* Skip delete-marked records. */
 			goto next_rec;
 		} else if (err_msg) {
-			ib_logf(IB_LOG_LEVEL_ERROR, "%s", err_msg);
+			ib::error() << err_msg;
 			if (ignore_err & DICT_ERR_IGNORE_CORRUPT) {
 				goto next_rec;
 			}
@@ -1848,10 +1830,12 @@ dict_load_indexes(
 
 		/* Check whether the index is corrupted */
 		if (dict_index_is_corrupted(index)) {
-			ib_logf(IB_LOG_LEVEL_ERROR,
-			"Index %s of table %s is corrupted",
-			ut_get_name(NULL, FALSE, index->name).c_str(),
-			ut_get_name(NULL, TRUE, index->table_name).c_str());
+
+			ib::error() << "Index "
+				<< ut_get_name(NULL, FALSE, index->name)
+				<< " of table "
+				<< ut_get_name(NULL, TRUE, index->table_name)
+				<< " is corrupted";
 
 			if (!srv_load_corrupted
 			    && !(ignore_err & DICT_ERR_IGNORE_CORRUPT)
@@ -1867,12 +1851,12 @@ dict_load_indexes(
 				DICT_ERR_IGNORE_CORRUPT
 				3) if the index corrupted is a secondary
 				index */
-				ib_logf(IB_LOG_LEVEL_INFO,
-					"Load corrupted index %s of table %s",
-					ut_get_name(NULL, FALSE,
-						    index->name).c_str(),
-					ut_get_name(NULL, FALSE,
-						    index->table_name).c_str());
+				ib::info() << "Load corrupted index "
+					<< ut_get_name(NULL, FALSE,
+						       index->name)
+					<< " of table "
+					<< ut_get_name(NULL, FALSE,
+						       index->table_name);
 			}
 		}
 
@@ -1888,9 +1872,12 @@ dict_load_indexes(
 		if (index->type & ~(DICT_CLUSTERED | DICT_UNIQUE
 				    | DICT_CORRUPT | DICT_FTS
 				    | DICT_SPATIAL)) {
-			ib_logf(IB_LOG_LEVEL_ERROR,
-				"Unknown type %lu of index %s of table %s",
-				(ulong) index->type, index->name, table->name);
+
+			ib::error() << "Unknown type " << index->type
+				<< " of index "
+				<< ut_get_name(NULL, FALSE, index->name)
+				<< " of table "
+				<< ut_get_name(NULL, TRUE, table->name);
 
 			error = DB_UNSUPPORTED;
 			dict_mem_index_free(index);
@@ -1899,10 +1886,11 @@ dict_load_indexes(
 			   && !table->ibd_file_missing
 			   && (!(index->type & DICT_FTS))) {
 
-			ib_logf(IB_LOG_LEVEL_ERROR,
-				"Trying to load index %s for table %s,"
-				" but the index tree has been freed!",
-				index->name, table->name);
+			ib::error() << "Trying to load index "
+				<< ut_get_name(NULL, FALSE, index->name)
+				<< " for table "
+				<< ut_get_name(NULL, TRUE, table->name)
+				<< ", but the index tree has been freed!";
 
 			if (ignore_err & DICT_ERR_IGNORE_INDEX_ROOT) {
 				/* If caller can tolerate this error,
@@ -1916,9 +1904,8 @@ dict_load_indexes(
 				dict_set_corrupted_index_cache_only(
 					index, table);
 
-				ib_logf(IB_LOG_LEVEL_INFO,
-					"Index is corrupt but forcing"
-					" load into data dictionary");
+				ib::info() << "Index is corrupt but forcing"
+					" load into data dictionary";
 			} else {
 corrupted:
 				dict_mem_index_free(index);
@@ -1928,12 +1915,11 @@ corrupted:
 		} else if (!dict_index_is_clust(index)
 			   && NULL == dict_table_get_first_index(table)) {
 
-			ib_logf(IB_LOG_LEVEL_ERROR,
-				"Trying to load index %s for table %s,"
-				" but the first index is not clustered!",
-				ut_get_name(NULL, FALSE, index->name).c_str(),
-				ut_get_name(NULL, TRUE, table->name).c_str());
-
+			ib::error() << "Trying to load index "
+				<< ut_get_name(NULL, FALSE, index->name)
+				<< " for table "
+				<< ut_get_name(NULL, TRUE, table->name)
+				<< ", but the first index is not clustered!";
 
 			goto corrupted;
 		} else if (dict_is_sys_table(table->id)
@@ -1982,7 +1968,6 @@ func_exit:
 Loads a table definition from a SYS_TABLES record to dict_table_t.
 Does not load any columns or indexes.
 @return error message, or NULL on success */
-
 const char*
 dict_load_table_low(
 /*================*/
@@ -2081,10 +2066,9 @@ err_len:
 		ut_ad(len == 4); /* this was checked earlier */
 		flags = mach_read_from_4(field);
 
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Table %s in InnoDB data dictionary"
-			" has unknown type %lx.",
-			name, (ulong) flags);
+		ib::error() << "Table " << name << " in InnoDB data dictionary"
+			" has unknown type " << ib::hex(flags) << ".";
+
 		return("incorrect flags in SYS_TABLES");
 	}
 
@@ -2094,10 +2078,11 @@ err_len:
 		ut_ad(flags & DICT_TF_COMPACT);
 
 		if (flags2 & ~DICT_TF2_BIT_MASK) {
-			ib_logf(IB_LOG_LEVEL_WARN,
-				"Table %s in InnoDB data dictionary"
-				" has unknown flags %lx.",
-				name, (ulong) flags2);
+
+			ib::warn() << "Table " << name
+				<< " in InnoDB data dictionary"
+				" has unknown flags "
+				<< ib::hex(flags2) << ".";
 
 			/* Clean it up and keep going */
 			flags2 &= DICT_TF2_BIT_MASK;
@@ -2128,14 +2113,13 @@ table->data_dir_path and replace the 'databasename/tablename.ibd'
 portion with 'tablename'.
 This allows SHOW CREATE TABLE to return the correct DATA DIRECTORY path.
 Make this data directory path only if it has not yet been saved. */
-
 void
 dict_save_data_dir_path(
 /*====================*/
 	dict_table_t*	table,		/*!< in/out: table */
 	char*		filepath)	/*!< in: filepath of tablespace */
 {
-	ut_ad(mutex_own(&(dict_sys->mutex)));
+	ut_ad(mutex_own(&dict_sys->mutex));
 	ut_a(DICT_TF_HAS_DATA_DIR(table->flags));
 
 	ut_a(!table->data_dir_path);
@@ -2159,16 +2143,14 @@ dict_save_data_dir_path(
 	}
 }
 
-/*****************************************************************//**
-Make sure the data_file_name is saved in dict_table_t if needed. Try to
-read it from the file dictionary first, then from SYS_DATAFILES. */
-
+/** Make sure the data_file_name is saved in dict_table_t if needed.
+Try to read it from the fil_system first, then from SYS_DATAFILES.
+@param[in]	table		Table object
+@param[in]	dict_mutex_own	true if dict_sys->mutex is owned already */
 void
 dict_get_and_save_data_dir_path(
-/*============================*/
-	dict_table_t*	table,		/*!< in/out: table */
-	bool		dict_mutex_own)	/*!< in: true if dict_sys->mutex
-					is owned already */
+	dict_table_t*	table,
+	bool		dict_mutex_own)
 {
 	if (DICT_TF_HAS_DATA_DIR(table->flags)
 	    && (!table->data_dir_path)) {
@@ -2206,7 +2188,6 @@ dict_get_and_save_data_dir_path(
 Loads the given table and the set of tables referenced (foreign key) by the
 given table.
 @return same as dict_load_table_one() function */
-
 dict_table_t*
 dict_load_table(
 /*============*/
@@ -2295,7 +2276,7 @@ dict_load_table_one(
 	DBUG_ENTER("dict_load_table_one");
 	DBUG_PRINT("dict_load_table_one", ("table: %s", name));
 
-	ut_ad(mutex_own(&(dict_sys->mutex)));
+	ut_ad(mutex_own(&dict_sys->mutex));
 
 	heap = mem_heap_create(32000);
 
@@ -2349,7 +2330,7 @@ err_exit:
 
 	if (err_msg) {
 
-		ib_logf(IB_LOG_LEVEL_ERROR,"%s", err_msg);
+		ib::error() << err_msg;
 		goto err_exit;
 	}
 
@@ -2364,9 +2345,8 @@ err_exit:
 		/* The system tablespace is always available. */
 	} else if (table->flags2 & DICT_TF2_DISCARDED) {
 
-		ib_logf(IB_LOG_LEVEL_WARN,
-			"Table %s tablespace is set as discarded.",
-			table_name);
+		ib::warn() << "Table " << table_name
+			<< " tablespace is set as discarded.";
 
 		table->ibd_file_missing = TRUE;
 
@@ -2379,12 +2359,12 @@ err_exit:
 
 		} else {
 			if (!(ignore_err & DICT_ERR_IGNORE_RECOVER_LOCK)) {
-				ib_logf(IB_LOG_LEVEL_ERROR,
-					"Failed to find tablespace for"
-					" table %s in the cache."
+
+				ib::error() << "Failed to find tablespace for"
+					" table " << table_name << " in the cache."
 					" Attempting to load the tablespace"
-					" with space id %lu.",
-					table_name, (ulong) table->space);
+					" with space id " << table->space
+					<< ".";
 			}
 
 			/* Use the remote filepath if needed. */
@@ -2417,7 +2397,7 @@ err_exit:
 			}
 
 			if (filepath != NULL) {
-				::ut_free(filepath);
+				ut_free(filepath);
 			}
 		}
 	}
@@ -2448,12 +2428,12 @@ err_exit:
 		/* Refuse to load the table if the table has a corrupted
 		cluster index */
 		if (!srv_load_corrupted) {
-			ib_logf(IB_LOG_LEVEL_ERROR,
-				"Load table %s failed, the table has"
-				" corrupted clustered indexes. Turn on"
-				" 'innodb_force_load_corrupted' to drop it",
-				ut_get_name(NULL, TRUE, table->name).c_str());
 
+			ib::error() << "Load table "
+				<< ut_get_name(NULL, TRUE, table->name)
+				<< " failed, the table has"
+				" corrupted clustered indexes. Turn on"
+				" 'innodb_force_load_corrupted' to drop it";
 			dict_table_remove_from_cache(table);
 			table = NULL;
 			goto func_exit;
@@ -2483,11 +2463,10 @@ err_exit:
 					 ignore_err, fk_tables);
 
 		if (err != DB_SUCCESS) {
-			ib_logf(IB_LOG_LEVEL_WARN,
-				"Load table '%s' failed, the table has missing"
+			ib::warn() << "Load table '" << table->name
+				<< "' failed, the table has missing"
 				" foreign key indexes. Turn off"
-				" 'foreign_key_checks' and try again.",
-				table->name);
+				" 'foreign_key_checks' and try again.";
 
 			dict_table_remove_from_cache(table);
 			table = NULL;
@@ -2539,13 +2518,14 @@ func_exit:
 		}
 	}
 
+	ut_ad(err != DB_SUCCESS || dict_foreign_set_validate(*table));
+
 	DBUG_RETURN(table);
 }
 
 /***********************************************************************//**
 Loads a table object based on the table id.
 @return table; NULL if table does not exist */
-
 dict_table_t*
 dict_load_table_on_id(
 /*==================*/
@@ -2566,7 +2546,7 @@ dict_load_table_on_id(
 	dict_table_t*	table;
 	mtr_t		mtr;
 
-	ut_ad(mutex_own(&(dict_sys->mutex)));
+	ut_ad(mutex_own(&dict_sys->mutex));
 
 	table = NULL;
 
@@ -2644,7 +2624,6 @@ check_rec:
 This function is called when the database is booted. Loads system table
 index definitions except for the clustered index which is added to the
 dictionary cache at booting before calling this function. */
-
 void
 dict_load_sys_table(
 /*================*/
@@ -2652,7 +2631,7 @@ dict_load_sys_table(
 {
 	mem_heap_t*	heap;
 
-	ut_ad(mutex_own(&(dict_sys->mutex)));
+	ut_ad(mutex_own(&dict_sys->mutex));
 
 	heap = mem_heap_create(1000);
 
@@ -2689,7 +2668,7 @@ dict_load_foreign_cols(
 	mtr_t		mtr;
 	size_t		id_len;
 
-	ut_ad(mutex_own(&(dict_sys->mutex)));
+	ut_ad(mutex_own(&dict_sys->mutex));
 
 	id_len = strlen(foreign->id);
 
@@ -2746,18 +2725,21 @@ dict_load_foreign_cols(
 				rec, DICT_FLD__SYS_FOREIGN_COLS__REF_COL_NAME,
 				&ref_col_name_len);
 
-			ib_logf(IB_LOG_LEVEL_FATAL,
-				"Unable to load column names for foreign"
-				" key '%s' because it was not found in"
+			ib::fatal	sout;
+
+			sout << "Unable to load column names for foreign"
+				" key '" << foreign->id
+				<< "' because it was not found in"
 				" InnoDB internal table SYS_FOREIGN_COLS. The"
 				" closest entry we found is:"
-				" (ID='%.*s', POS=%lu, FOR_COL_NAME='%.*s',"
-				" REF_COL_NAME='%.*s')",
-				foreign->id,
-				(int) len, field,
-				mach_read_from_4(pos),
-				(int) for_col_name_len, for_col_name,
-				(int) ref_col_name_len, ref_col_name);
+				" (ID='";
+			sout.write(field, len);
+			sout << "', POS=" << mach_read_from_4(pos)
+				<< ", FOR_COL_NAME='";
+			sout.write(for_col_name, for_col_name_len);
+			sout << "', REF_COL_NAME='";
+			sout.write(ref_col_name, ref_col_name_len);
+			sout << "')";
 		}
 
 		field = rec_get_nth_field_old(
@@ -2833,7 +2815,7 @@ dict_load_foreign(
 	DBUG_PRINT("dict_load_foreign",
 		   ("id: '%s', check_recursive: %d", id, check_recursive));
 
-	ut_ad(mutex_own(&(dict_sys->mutex)));
+	ut_ad(mutex_own(&dict_sys->mutex));
 
 	id_len = strlen(id);
 
@@ -2860,9 +2842,9 @@ dict_load_foreign(
 	    || rec_get_deleted_flag(rec, 0)) {
 		/* Not found */
 
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Cannot load foreign constraint %s: could not find the"
-			" relevant record in SYS_FOREIGN", id);
+		ib::error() << "Cannot load foreign constraint " << id
+			<< ": could not find the relevant record in "
+			<< "SYS_FOREIGN";
 
 		btr_pcur_close(&pcur);
 		mtr_commit(&mtr);
@@ -2876,10 +2858,13 @@ dict_load_foreign(
 	/* Check if the id in record is the searched one */
 	if (len != id_len || ut_memcmp(id, field, len) != 0) {
 
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Cannot load foreign constraint"
-			" %s: found %.*s instead in SYS_FOREIGN",
-			id, (int) len, field);
+		{
+			ib::error	err;
+			err << "Cannot load foreign constraint " << id
+				<< ": found ";
+			err.write(field, len);
+			err << " instead in SYS_FOREIGN";
+		}
 
 		btr_pcur_close(&pcur);
 		mtr_commit(&mtr);
@@ -2960,7 +2945,6 @@ in the dictionary cache.  If the referenced table is not in dictionary
 cache, then it is added to the output parameter (fk_tables).
 
 @return DB_SUCCESS or error code */
-
 dberr_t
 dict_load_foreigns(
 /*===============*/
@@ -2994,16 +2978,14 @@ dict_load_foreigns(
 
 	DBUG_ENTER("dict_load_foreigns");
 
-	ut_ad(mutex_own(&(dict_sys->mutex)));
+	ut_ad(mutex_own(&dict_sys->mutex));
 
 	sys_foreign = dict_table_get_low("SYS_FOREIGN");
 
 	if (sys_foreign == NULL) {
 		/* No foreign keys defined yet in this database */
 
-		ib_logf(IB_LOG_LEVEL_INFO,
-			"No foreign key system tables in the database");
-
+		ib::info() << "No foreign key system tables in the database";
 		DBUG_RETURN(DB_ERROR);
 	}
 

@@ -33,6 +33,7 @@
 #include "sql_audit.h"
 #include <mysql/plugin_auth.h>
 #include "lock.h"                               // MYSQL_LOCK_IGNORE_TIMEOUT
+#include "sql_tmp_table.h"
 #include <mysql/plugin_validate_password.h>
 #include "my_default.h"
 #include "debug_sync.h"
@@ -40,6 +41,10 @@
 #include "prealloced_array.h"
 
 #include <algorithm>
+
+#ifdef HAVE_DLFCN_H
+#include <dlfcn.h>
+#endif
 
 using std::min;
 using std::max;
@@ -1063,7 +1068,7 @@ static void intern_plugin_unlock(LEX *lex, plugin_ref plugin)
       could be unlocked faster - optimizing for LIFO semantics.
     */
     plugin_ref *iter= lex->plugins.end() - 1;
-    bool found_it= false;
+    bool found_it __attribute__((unused)) = false;
     for (; iter >= lex->plugins.begin() - 1; --iter)
     {
       if (plugin == *iter)
@@ -1528,9 +1533,8 @@ static void plugin_load(MEM_ROOT *tmp_root, int *argc, char **argv)
 
   new_thd->thread_stack= (char*) &tables;
   new_thd->store_globals();
-  new_thd->db= my_strdup(key_memory_THD_db,
-                         "mysql", MYF(0));
-  new_thd->db_length= 5;
+  LEX_CSTRING db_lex_cstr= { STRING_WITH_LEN("mysql") };
+  new_thd->set_db(db_lex_cstr);
   memset(&thd.net, 0, sizeof(thd.net));
   tables.init_one_table("mysql", 5, "plugin", 6, "plugin", TL_READ);
 
@@ -2178,7 +2182,7 @@ bool plugin_foreach_with_mask(THD *thd, plugin_foreach_func *func,
     if (unlikely(version != plugin_array_version))
     {
       mysql_mutex_lock(&LOCK_plugin);
-      for (uint i=idx; i < total; i++)
+      for (size_t i=idx; i < total; i++)
         if (plugins[i] && plugins[i]->state & state_mask)
           plugins[i]=0;
       mysql_mutex_unlock(&LOCK_plugin);

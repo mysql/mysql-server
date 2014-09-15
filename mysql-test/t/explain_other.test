@@ -171,12 +171,16 @@ let $query= SELECT * FROM t1 UNION ALL SELECT * FROM t1 ORDER BY 1;
 let $query= SELECT * FROM t1 WHERE 1=0;
 --source include/explain_other.inc
 
+--source include/turn_off_only_full_group_by.inc
+
 let $query= SELECT * FROM t1
 GROUP BY f1 NOT IN
  (SELECT f1+10 AS f2 FROM t1 AS t2
   GROUP BY f2 NOT IN
   (SELECT f1+100 AS f3 FROM t1 AS t3));
 --source include/explain_other.inc
+
+--source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
 
 --echo Explain for non-select queries
 let $point= planned_single_insert;
@@ -431,7 +435,13 @@ CREATE TABLE tbl2 (
 ) ;
 
 insert into tbl1 (login) values(1),(2);
-insert into tbl2 (login) values(1),(2);
+insert ignore into tbl2 (login) values(1),(2);
+
+-- disable_query_log
+-- disable_result_log
+ANALYZE TABLE tbl1, tbl2;
+-- enable_result_log
+-- enable_query_log
 
 let $point= before_reset_query_plan;
 let $query= 

@@ -23,6 +23,8 @@ The memory management
 Created 6/8/1994 Heikki Tuuri
 *************************************************************************/
 
+#include "ut0new.h"
+
 #ifdef UNIV_DEBUG
 # define mem_heap_create_block(heap, n, type, file_name, line)		\
 	mem_heap_create_block_func(heap, n, file_name, line, type)
@@ -38,7 +40,6 @@ Created 6/8/1994 Heikki Tuuri
 Creates a memory heap block where data can be allocated.
 @return own: memory heap block, NULL if did not succeed (only possible
 for MEM_HEAP_BTR_SEARCH type heaps) */
-
 mem_block_t*
 mem_heap_create_block_func(
 /*=======================*/
@@ -54,7 +55,6 @@ mem_heap_create_block_func(
 
 /******************************************************************//**
 Frees a block from a memory heap. */
-
 void
 mem_heap_block_free(
 /*================*/
@@ -64,7 +64,6 @@ mem_heap_block_free(
 #ifndef UNIV_HOTBACKUP
 /******************************************************************//**
 Frees the free_block field from a memory heap. */
-
 void
 mem_heap_free_block_free(
 /*=====================*/
@@ -77,7 +76,6 @@ Adds a new block to a memory heap.
 @param[in]	n	number of bytes needed
 @return created block, NULL if did not succeed (only possible for
 MEM_HEAP_BTR_SEARCH type heaps) */
-
 mem_block_t*
 mem_heap_add_block(
 	mem_heap_t*	heap,
@@ -499,6 +497,10 @@ mem_heap_create_func(
 		return(NULL);
 	}
 
+	/* The first block should not be in buffer pool,
+	because it might be relocated to resize buffer pool. */
+	ut_ad(block->buf_block == NULL);
+
 	UT_LIST_INIT(block->base, &mem_block_t::list);
 
 	/* Add the created block itself as the first block in the list */
@@ -573,7 +575,7 @@ mem_strdup(
 	const char*	str)	/*!< in: string to be copied */
 {
 	ulint	len = strlen(str) + 1;
-	return(static_cast<char*>(memcpy(ut_malloc(len), str, len)));
+	return(static_cast<char*>(memcpy(ut_malloc_nokey(len), str, len)));
 }
 
 /**********************************************************************//**
@@ -586,7 +588,7 @@ mem_strdupl(
 	const char*	str,	/*!< in: string to be copied */
 	ulint		len)	/*!< in: length of str, in bytes */
 {
-	char*	s = static_cast<char*>(ut_malloc(len + 1));
+	char*	s = static_cast<char*>(ut_malloc_nokey(len + 1));
 	s[len] = 0;
 	return(static_cast<char*>(memcpy(s, str, len)));
 }

@@ -329,9 +329,9 @@ int get_parts_for_update(const uchar *old_data, uchar *new_data,
     DBUG_RETURN(error);
   }
   {
-    if (unlikely(error= part_info->get_partition_id(part_info,
-                                                    new_part_id,
-                                                    new_func_value)))
+    if (unlikely((error= part_info->get_partition_id(part_info,
+                                                     new_part_id,
+                                                     new_func_value))))
     {
       DBUG_RETURN(error);
     }
@@ -918,8 +918,8 @@ init_lex_with_single_table(THD *thd, TABLE *table, LEX *lex)
   */
   thd->lex= lex;
   if ((!(table_ident= new Table_ident(thd,
-                                      table->s->table_name,
-                                      table->s->db, TRUE))) ||
+                                      to_lex_cstring(table->s->table_name),
+                                      to_lex_cstring(table->s->db), TRUE))) ||
       (!(table_list= select_lex->add_table_to_list(thd,
                                                    table_ident,
                                                    NULL,
@@ -927,7 +927,6 @@ init_lex_with_single_table(THD *thd, TABLE *table, LEX *lex)
     return TRUE;
   context->resolve_in_table_list_only(table_list);
   lex->use_only_table_context= TRUE;
-  table->map= 1; //To ensure correct calculation of const item
   table->get_fields_in_item_tree= TRUE;
   table_list->table= table;
   table_list->cacheable_table= false;
@@ -953,7 +952,6 @@ static void
 end_lex_with_single_table(THD *thd, TABLE *table, LEX *old_lex)
 {
   LEX *lex= thd->lex;
-  table->map= 0;
   table->get_fields_in_item_tree= FALSE;
   lex_end(lex);
   thd->lex= old_lex;
@@ -1034,7 +1032,6 @@ static bool fix_fields_part_func(THD *thd, Item* func_expr, TABLE *table,
     of interesting side effects, both desirable and undesirable.
   */
   {
-    const bool save_agg_field= thd->lex->current_select()->non_agg_field_used();
     const bool save_agg_func=  thd->lex->current_select()->agg_func_used();
     const nesting_map saved_allow_sum_func= thd->lex->allow_sum_func;
     thd->lex->allow_sum_func= 0;
@@ -1042,10 +1039,9 @@ static bool fix_fields_part_func(THD *thd, Item* func_expr, TABLE *table,
     error= func_expr->fix_fields(thd, (Item**)&func_expr);
 
     /*
-      Restore agg_field/agg_func  and allow_sum_func,
+      Restore agg_func and allow_sum_func,
       fix_fields should not affect mysql_select later, see Bug#46923.
     */
-    thd->lex->current_select()->set_non_agg_field_used(save_agg_field);
     thd->lex->current_select()->set_agg_func_used(save_agg_func);
     thd->lex->allow_sum_func= saved_allow_sum_func;
   }
@@ -4455,8 +4451,8 @@ bool mysql_unpack_partition(THD *thd,
     cases it is not needed. This is a consequence of that item trees are
     not serialisable.
   */
-    uint part_func_len= part_info->part_func_len;
-    uint subpart_func_len= part_info->subpart_func_len;
+    size_t part_func_len= part_info->part_func_len;
+    size_t subpart_func_len= part_info->subpart_func_len;
     char *part_func_string= NULL;
     char *subpart_func_string= NULL;
     if ((part_func_len &&
@@ -4639,14 +4635,17 @@ error:
   @param alter_info     Alter_info pointer holding partition names and flags.
   @param tab_part_info  partition_info holding all partitions.
   @param part_state     Which state to set for the named partitions.
+  @param include_subpartitions Also include subpartitions in the search.
 
   @return Operation status
     @retval false  Success
     @retval true   Failure
 */
 
-bool set_part_state(Alter_info *alter_info, partition_info *tab_part_info,
-                    enum partition_state part_state)
+bool set_part_state(Alter_info *alter_info,
+                    partition_info *tab_part_info,
+                    enum partition_state part_state,
+                    bool include_subpartitions)
 {
   uint part_count= 0;
   uint num_parts_found= 0;
@@ -4669,7 +4668,7 @@ bool set_part_state(Alter_info *alter_info, partition_info *tab_part_info,
       DBUG_PRINT("info", ("Setting part_state to %u for partition %s",
                           part_state, part_elem->partition_name));
     }
-    else if (tab_part_info->is_sub_partitioned())
+    else if (include_subpartitions && tab_part_info->is_sub_partitioned())
     {
       List_iterator<partition_element> sub_it(part_elem->subpartitions);
       partition_element *sub_elem;
@@ -5321,7 +5320,7 @@ that are reorganised.
     {
       set_engine_all_partitions(tab_part_info,
                                 tab_part_info->default_engine_type);
-      if (set_part_state(alter_info, tab_part_info, PART_CHANGED))
+      if (set_part_state(alter_info, tab_part_info, PART_CHANGED, false))
       {
         my_error(ER_DROP_PARTITION_NON_EXISTENT, MYF(0), "REBUILD");
         goto err;

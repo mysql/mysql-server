@@ -31,13 +31,14 @@ extern char *	mysql_unix_port;
                              CLIENT_LONG_FLAG |     \
                              CLIENT_TRANSACTIONS |  \
                              CLIENT_PROTOCOL_41 | \
-                             CLIENT_SECURE_CONNECTION | \
+                             CLIENT_RESERVED2 | \
                              CLIENT_MULTI_RESULTS | \
                              CLIENT_PS_MULTI_RESULTS | \
                              CLIENT_PLUGIN_AUTH | \
                              CLIENT_PLUGIN_AUTH_LENENC_CLIENT_DATA | \
                              CLIENT_CONNECT_ATTRS | \
-                             CLIENT_SESSION_TRACK)
+                             CLIENT_SESSION_TRACK | \
+                             CLIENT_DEPRECATE_EOF)
 
 void read_user_name(char *name);
 my_bool handle_local_infile(MYSQL *mysql, const char *net_filename);

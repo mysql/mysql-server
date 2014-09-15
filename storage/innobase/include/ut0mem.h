@@ -62,43 +62,6 @@ UNIV_INLINE
 int
 ut_memcmp(const void* str1, const void* str2, ulint n);
 
-/** Allocate memory.
-@param[in]	n number of bytes to allocate
-@return		allocated memory block */
-
-void*
-ut_malloc(
-	ulint	n)
-	__attribute__((malloc));
-
-/** Allocate zero-filled memory.
-@param[in]	n number of bytes to allocate
-@return		zero-filled allocated memory block */
-
-void*
-ut_zalloc(
-	ulint	n)
-	__attribute__((malloc));
-
-/** Free a memory block allocated with ut_malloc.
-Freeing a NULL pointer is a no-op.
-@param[in,out]	mem	memory block, can be NULL */
-
-void
-ut_free(void* ptr);
-
-#ifndef UNIV_HOTBACKUP
-/** Wrapper for realloc().
-@param[in,out]	ptr	Pointer to old block or NULL
-@param[in]	size	Desired size
-@return own: pointer to new mem block or NULL */
-
-void*
-ut_realloc(
-	void*	ptr,
-	ulint	size);
-#endif /* !UNIV_HOTBACKUP */
-
 /** Wrapper for strcpy(3).  Copy a NUL-terminated string.
 @param[in,out]	dest	Destination to copy to
 @param[in]	src	Source to copy from
@@ -128,7 +91,6 @@ Copies up to size - 1 characters from the NUL-terminated string src to
 dst, NUL-terminating the result. Returns strlen(src), so truncation
 occurred if the return value >= size.
 @return strlen(src) */
-
 ulint
 ut_strlcpy(
 /*=======*/
@@ -140,7 +102,6 @@ ut_strlcpy(
 Like ut_strlcpy, but if src doesn't fit in dst completely, copies the last
 (size - 1) bytes of src, not the first.
 @return strlen(src) */
-
 ulint
 ut_strlcpy_rev(
 /*===========*/
@@ -152,7 +113,6 @@ ut_strlcpy_rev(
 Return the number of times s2 occurs in s1. Overlapping instances of s2
 are only counted once.
 @return the number of times s2 occurs in s1 */
-
 ulint
 ut_strcount(
 /*========*/
@@ -163,7 +123,6 @@ ut_strcount(
 Replace every occurrence of s1 in str with s2. Overlapping instances of s1
 are only replaced once.
 @return own: modified string, must be freed with ut_free() */
-
 char*
 ut_strreplace(
 /*==========*/
@@ -173,7 +132,6 @@ ut_strreplace(
 
 /********************************************************************
 Concatenate 3 strings.*/
-
 char*
 ut_str3cat(
 /*=======*/

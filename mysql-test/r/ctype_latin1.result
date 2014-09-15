@@ -431,7 +431,7 @@ create table t1 as select concat(1) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varchar(1) NOT NULL DEFAULT ''
+  `c1` varchar(1) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 select hex(c1) from t1;
 hex(c1)
@@ -444,7 +444,7 @@ create table t1 as select concat(18446744073709551615) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varchar(20) NOT NULL DEFAULT ''
+  `c1` varchar(20) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 select hex(c1) from t1;
 hex(c1)
@@ -457,7 +457,7 @@ create table t1 as select concat(1.1) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varchar(4) NOT NULL DEFAULT ''
+  `c1` varchar(4) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 select hex(c1) from t1;
 hex(c1)
@@ -470,7 +470,7 @@ create table t1 as select concat(1+2) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varchar(3) NOT NULL DEFAULT ''
+  `c1` varchar(3) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
 select hex(concat(1-2));
@@ -480,7 +480,7 @@ create table t1 as select concat(1-2) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varchar(3) NOT NULL DEFAULT ''
+  `c1` varchar(3) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
 select hex(concat(1*2));
@@ -490,7 +490,7 @@ create table t1 as select concat(1*2) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varchar(3) NOT NULL DEFAULT ''
+  `c1` varchar(3) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
 select hex(concat(1/2));
@@ -530,7 +530,7 @@ create table t1 as select concat(-1) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varchar(2) NOT NULL DEFAULT ''
+  `c1` varchar(2) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
 select hex(concat(-(1+2)));
@@ -540,7 +540,7 @@ create table t1 as select concat(-(1+2)) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varchar(4) NOT NULL DEFAULT ''
+  `c1` varchar(4) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
 select hex(concat(1|2));
@@ -550,7 +550,7 @@ create table t1 as select concat(1|2) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varchar(21) NOT NULL DEFAULT ''
+  `c1` varchar(21) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
 select hex(concat(1&2));
@@ -560,7 +560,7 @@ create table t1 as select concat(1&2) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varchar(21) NOT NULL DEFAULT ''
+  `c1` varchar(21) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
 select hex(concat(bit_count(12)));
@@ -570,7 +570,7 @@ create table t1 as select concat(bit_count(12)) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varchar(2) NOT NULL DEFAULT ''
+  `c1` varchar(2) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
 select hex(concat(2<<1));
@@ -580,7 +580,7 @@ create table t1 as select concat(2<<1) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varchar(21) NOT NULL DEFAULT ''
+  `c1` varchar(21) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
 select hex(concat(2>>1));
@@ -590,7 +590,7 @@ create table t1 as select concat(2>>1) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varchar(21) NOT NULL DEFAULT ''
+  `c1` varchar(21) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
 select hex(concat(~0));
@@ -600,7 +600,7 @@ create table t1 as select concat(~0) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varchar(21) NOT NULL DEFAULT ''
+  `c1` varchar(21) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
 select hex(concat(3^2));
@@ -610,7 +610,7 @@ create table t1 as select concat(3^2) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varchar(21) NOT NULL DEFAULT ''
+  `c1` varchar(21) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
 select hex(concat(abs(-2)));
@@ -620,7 +620,7 @@ create table t1 as select concat(abs(-2)) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varchar(2) NOT NULL DEFAULT ''
+  `c1` varchar(2) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
 select hex(left(concat(exp(2)),1));
@@ -750,7 +750,7 @@ create table t1 as select concat(degrees(0)) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varchar(23) NOT NULL DEFAULT ''
+  `c1` varchar(23) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
 select hex(concat(radians(0)));
@@ -760,7 +760,7 @@ create table t1 as select concat(radians(0)) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varchar(23) NOT NULL DEFAULT ''
+  `c1` varchar(23) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
 select hex(concat(ceiling(0.5)));
@@ -770,7 +770,7 @@ create table t1 as select concat(ceiling(0.5)) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varchar(4) NOT NULL DEFAULT ''
+  `c1` varchar(4) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
 select hex(concat(floor(0.5)));
@@ -780,7 +780,7 @@ create table t1 as select concat(floor(0.5)) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varchar(4) NOT NULL DEFAULT ''
+  `c1` varchar(4) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
 select hex(concat(round(0.5)));
@@ -790,7 +790,7 @@ create table t1 as select concat(round(0.5)) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varchar(3) NOT NULL DEFAULT ''
+  `c1` varchar(3) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
 select hex(concat(sign(0.5)));
@@ -800,14 +800,14 @@ create table t1 as select concat(sign(0.5)) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varchar(21) NOT NULL DEFAULT ''
+  `c1` varchar(21) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
 create table t1 as select concat(rand()) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varchar(23) NOT NULL DEFAULT ''
+  `c1` varchar(23) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
 select hex(concat(length('a')));
@@ -817,7 +817,7 @@ create table t1 as select concat(length('a')) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varchar(10) NOT NULL DEFAULT ''
+  `c1` varchar(10) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
 select hex(concat(char_length('a')));
@@ -827,7 +827,7 @@ create table t1 as select concat(char_length('a')) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varchar(10) NOT NULL DEFAULT ''
+  `c1` varchar(10) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
 select hex(concat(bit_length('a')));
@@ -837,7 +837,7 @@ create table t1 as select concat(bit_length('a')) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varchar(10) NOT NULL DEFAULT ''
+  `c1` varchar(10) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
 select hex(concat(coercibility('a')));
@@ -847,7 +847,7 @@ create table t1 as select concat(coercibility('a')) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varchar(10) NOT NULL DEFAULT ''
+  `c1` varchar(10) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
 select hex(concat(locate('a','a')));
@@ -857,7 +857,7 @@ create table t1 as select concat(locate('a','a')) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varchar(11) NOT NULL DEFAULT ''
+  `c1` varchar(11) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
 select hex(concat(field('c','a','b','c')));
@@ -867,7 +867,7 @@ create table t1 as select concat(field('c','a','b','c')) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varchar(3) NOT NULL DEFAULT ''
+  `c1` varchar(3) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
 select hex(concat(ascii(61)));
@@ -877,7 +877,7 @@ create table t1 as select concat(ascii(61)) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varchar(3) NOT NULL DEFAULT ''
+  `c1` varchar(3) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
 select hex(concat(ord(61)));
@@ -887,7 +887,7 @@ create table t1 as select concat(ord(61)) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varchar(21) NOT NULL DEFAULT ''
+  `c1` varchar(21) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
 select hex(concat(find_in_set('b','a,b,c,d')));
@@ -897,7 +897,7 @@ create table t1 as select concat(find_in_set('b','a,b,c,d')) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varchar(3) NOT NULL DEFAULT ''
+  `c1` varchar(3) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
 select md5('a'), hex(md5('a'));
@@ -907,17 +907,7 @@ create table t1 as select md5('a') as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varchar(32) NOT NULL DEFAULT ''
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-drop table t1;
-select old_password('a'), hex(old_password('a'));
-old_password('a')	hex(old_password('a'))
-60671c896665c3fa	36303637316338393636363563336661
-create table t1 as select old_password('a') as c1;
-show create table t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `c1` varchar(16) NOT NULL DEFAULT ''
+  `c1` varchar(32) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
 select password('a'), hex(password('a'));
@@ -927,7 +917,7 @@ create table t1 as select password('a') as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varchar(41) NOT NULL DEFAULT ''
+  `c1` varchar(41) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
 select sha('a'), hex(sha('a'));
@@ -937,7 +927,7 @@ create table t1 as select sha('a') as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varchar(40) NOT NULL DEFAULT ''
+  `c1` varchar(40) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
 select sha1('a'), hex(sha1('a'));
@@ -947,7 +937,7 @@ create table t1 as select sha1('a') as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varchar(40) NOT NULL DEFAULT ''
+  `c1` varchar(40) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
 select hex(concat(cast('-1' as signed)));
@@ -957,7 +947,7 @@ create table t1 as select concat(cast('-1' as signed)) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varchar(2) NOT NULL DEFAULT ''
+  `c1` varchar(2) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
 select hex(concat(cast('1' as unsigned)));
@@ -967,7 +957,7 @@ create table t1 as select concat(cast('1' as unsigned)) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varchar(1) NOT NULL DEFAULT ''
+  `c1` varchar(1) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
 select hex(concat(cast(1/2 as decimal(5,5))));
@@ -1026,7 +1016,7 @@ create table t1 as select concat(least(1,2)) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varchar(2) NOT NULL DEFAULT ''
+  `c1` varchar(2) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
 select hex(concat(greatest(1,2)));
@@ -1036,7 +1026,7 @@ create table t1 as select concat(greatest(1,2)) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varchar(2) NOT NULL DEFAULT ''
+  `c1` varchar(2) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
 select hex(concat(case when 11 then 22 else 33 end));
@@ -1046,7 +1036,7 @@ create table t1 as select concat(case when 11 then 22 else 33 end) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varchar(2) NOT NULL DEFAULT ''
+  `c1` varchar(2) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
 select hex(concat(coalesce(1,2)));
@@ -1056,7 +1046,7 @@ create table t1 as select concat(coalesce(1,2)) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varchar(1) NOT NULL DEFAULT ''
+  `c1` varchar(1) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
 select hex(concat_ws(1,2,3));
@@ -1066,7 +1056,7 @@ create table t1 as select concat_ws(1,2,3) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varchar(3) NOT NULL DEFAULT ''
+  `c1` varchar(3) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
 select hex(group_concat(1,2,3));
@@ -1094,7 +1084,7 @@ create table t1 as select concat(last_insert_id()) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varchar(21) NOT NULL DEFAULT ''
+  `c1` varchar(21) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
 select hex(concat(benchmark(0,0)));
@@ -1114,7 +1104,7 @@ create table t1 as select concat(sleep(0)) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varchar(21) NOT NULL DEFAULT ''
+  `c1` varchar(21) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
 select hex(concat(is_free_lock('xxxx')));
@@ -1148,7 +1138,7 @@ create table t1 as select concat(crc32('')) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varchar(10) NOT NULL DEFAULT ''
+  `c1` varchar(10) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
 select hex(concat(uncompressed_length('')));
@@ -1158,14 +1148,14 @@ create table t1 as select concat(uncompressed_length('')) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varchar(10) NOT NULL DEFAULT ''
+  `c1` varchar(10) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
 create table t1 as select concat(connection_id()) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varchar(21) NOT NULL DEFAULT ''
+  `c1` varchar(21) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
 select hex(concat(inet_aton('127.1.1.1')));
@@ -1201,7 +1191,7 @@ create table t1 as select concat(row_count()) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varchar(21) NOT NULL DEFAULT ''
+  `c1` varchar(21) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
 select hex(concat(found_rows()));
@@ -1211,21 +1201,21 @@ create table t1 as select concat(found_rows()) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varchar(21) NOT NULL DEFAULT ''
+  `c1` varchar(21) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
 create table t1 as select concat(uuid_short()) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varchar(21) NOT NULL DEFAULT ''
+  `c1` varchar(21) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
 create table t1 as select concat(uuid()) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varchar(36) CHARACTER SET utf8 NOT NULL DEFAULT ''
+  `c1` varchar(36) CHARACTER SET utf8 DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
 select coercibility(uuid()), coercibility(cast('a' as char character set latin1));
@@ -1238,7 +1228,7 @@ create table t1 as select concat(uuid(), cast('a' as char character set latin1))
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varchar(37) NOT NULL DEFAULT ''
+  `c1` varchar(37) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
 create table t1 as select concat(master_pos_wait('non-existent',0,2)) as c1;
@@ -1258,7 +1248,7 @@ hex(c1)
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varchar(1) NOT NULL DEFAULT '',
+  `c1` varchar(1) DEFAULT NULL,
   `c2` int(1) NOT NULL DEFAULT '0'
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
@@ -1316,7 +1306,7 @@ hex(c1)
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varchar(4) NOT NULL DEFAULT '',
+  `c1` varchar(4) DEFAULT NULL,
   `c2` decimal(2,1) NOT NULL DEFAULT '0.0'
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
@@ -1355,7 +1345,7 @@ create table t1 as select concat('a'='a' IS TRUE) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varchar(1) NOT NULL DEFAULT ''
+  `c1` varchar(1) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
 select hex(concat('a'='a' IS NOT TRUE));
@@ -1365,7 +1355,7 @@ create table t1 as select concat('a'='a' IS NOT TRUE) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varchar(1) NOT NULL DEFAULT ''
+  `c1` varchar(1) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
 select hex(concat(NOT 'a'='a'));
@@ -1375,7 +1365,7 @@ create table t1 as select concat(NOT 'a'='a') as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varchar(1) NOT NULL DEFAULT ''
+  `c1` varchar(1) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
 select hex(concat('a' IS NULL));
@@ -1385,7 +1375,7 @@ create table t1 as select concat('a' IS NULL) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varchar(1) NOT NULL DEFAULT ''
+  `c1` varchar(1) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
 select hex(concat('a' IS NOT NULL));
@@ -1395,7 +1385,7 @@ create table t1 as select concat('a' IS NOT NULL) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varchar(1) NOT NULL DEFAULT ''
+  `c1` varchar(1) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
 select hex(concat('a' rlike 'a'));
@@ -1405,7 +1395,7 @@ create table t1 as select concat('a' IS NOT NULL) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varchar(1) NOT NULL DEFAULT ''
+  `c1` varchar(1) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
 select hex(concat(strcmp('a','b')));
@@ -1415,7 +1405,7 @@ create table t1 as select concat(strcmp('a','b')) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varchar(2) NOT NULL DEFAULT ''
+  `c1` varchar(2) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
 select hex(concat('a' like 'a'));
@@ -1425,7 +1415,7 @@ create table t1 as select concat('a' like 'b') as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varchar(1) NOT NULL DEFAULT ''
+  `c1` varchar(1) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
 select hex(concat('a' between 'b' and 'c'));
@@ -1435,7 +1425,7 @@ create table t1 as select concat('a' between 'b' and 'c') as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varchar(1) NOT NULL DEFAULT ''
+  `c1` varchar(1) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
 select hex(concat('a' in ('a','b')));
@@ -1445,7 +1435,7 @@ create table t1 as select concat('a' in ('a','b')) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varchar(1) NOT NULL DEFAULT ''
+  `c1` varchar(1) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
 select hex(concat(interval(23, 1, 15, 17, 30, 44, 200)));
@@ -1455,7 +1445,7 @@ create table t1 as select concat(interval(23, 1, 15, 17, 30, 44, 200)) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varchar(2) NOT NULL DEFAULT ''
+  `c1` varchar(2) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
 create table t1 (a varchar(10), fulltext key(a));
@@ -1487,7 +1477,7 @@ create table t1 as select concat(ifnull(1,1)) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varchar(1) NOT NULL DEFAULT ''
+  `c1` varchar(1) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
 select hex(concat(ifnull(1.1,1.1)));
@@ -1497,7 +1487,7 @@ create table t1 as select concat(ifnull(1.1,1.1)) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varchar(4) NOT NULL DEFAULT ''
+  `c1` varchar(4) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
 select hex(if(1,'b',1));
@@ -1527,7 +1517,7 @@ create table t1 as select concat(if(1,1,1)) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varchar(1) NOT NULL DEFAULT ''
+  `c1` varchar(1) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
 select hex(concat(nullif(1,2)));
@@ -1687,9 +1677,10 @@ create table t1 as select concat(period_add(200902, 2)) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varchar(6) NOT NULL DEFAULT ''
+  `c1` varchar(6) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
+SET sql_mode = '';
 select hex(concat(period_diff(200902, 200802)));
 hex(concat(period_diff(200902, 200802)))
 3132
@@ -1702,6 +1693,7 @@ t1	CREATE TABLE `t1` (
   `c1` varchar(6) NOT NULL DEFAULT ''
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
+SET sql_mode = default;
 select hex(concat(to_days(20090224)));
 hex(concat(to_days(20090224)))
 373333383237
@@ -1829,7 +1821,7 @@ create table t1 as select concat(unix_timestamp(20090224)) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varchar(11) NOT NULL DEFAULT ''
+  `c1` varchar(11) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
 select hex(concat(time_to_sec('10:11:12')));
@@ -1886,7 +1878,7 @@ create table t1 as select concat(from_days(730669)) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varchar(10) NOT NULL DEFAULT ''
+  `c1` varchar(10) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 select c1, hex(c1) from t1;
 c1	hex(c1)
@@ -1896,21 +1888,21 @@ create table t1 as select concat(curdate()) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varchar(10) NOT NULL DEFAULT ''
+  `c1` varchar(10) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
 create table t1 as select concat(utc_date()) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varchar(10) NOT NULL DEFAULT ''
+  `c1` varchar(10) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
 create table t1 as select concat(curtime()) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varchar(8) NOT NULL DEFAULT ''
+  `c1` varchar(8) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
 create table t1 as select repeat('a',20) as c1 limit 0;
@@ -1926,7 +1918,7 @@ create table t1 as select concat(utc_time()) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varchar(8) NOT NULL DEFAULT ''
+  `c1` varchar(8) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
 select hex(concat(sec_to_time(2378)));
@@ -2019,21 +2011,21 @@ create table t1 as select concat(now()) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varchar(19) NOT NULL DEFAULT ''
+  `c1` varchar(19) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
 create table t1 as select concat(utc_timestamp()) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varchar(19) NOT NULL DEFAULT ''
+  `c1` varchar(19) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
 create table t1 as select concat(sysdate()) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varchar(19) NOT NULL DEFAULT ''
+  `c1` varchar(19) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
 select hex(concat(addtime('00:00:00','11:22:33')));
@@ -2073,7 +2065,7 @@ create table t1 as select export_set(1,2,3,4,2) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varchar(127) NOT NULL DEFAULT ''
+  `c1` varchar(127) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
 select hex(insert(1133,3,0,22));
@@ -2083,7 +2075,7 @@ create table t1 as select insert(1133,3,0,22) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varchar(6) NOT NULL DEFAULT ''
+  `c1` varchar(6) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
 select hex(lcase(123));
@@ -2093,7 +2085,7 @@ create table t1 as select lcase(123) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varchar(3) NOT NULL DEFAULT ''
+  `c1` varchar(3) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
 select hex(left(123,1));
@@ -2103,7 +2095,7 @@ create table t1 as select left(123,1) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varchar(1) NOT NULL DEFAULT ''
+  `c1` varchar(1) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
 select hex(lower(123));
@@ -2113,7 +2105,7 @@ create table t1 as select lower(123) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varchar(3) NOT NULL DEFAULT ''
+  `c1` varchar(3) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
 select hex(lpad(1,2,0));
@@ -2123,7 +2115,7 @@ create table t1 as select lpad(1,2,0) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varchar(2) NOT NULL DEFAULT ''
+  `c1` varchar(2) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
 select hex(ltrim(1));
@@ -2133,7 +2125,7 @@ create table t1 as select ltrim(1) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varchar(1) NOT NULL DEFAULT ''
+  `c1` varchar(1) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
 select hex(mid(1,1,1));
@@ -2143,7 +2135,7 @@ create table t1 as select mid(1,1,1) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varchar(1) NOT NULL DEFAULT ''
+  `c1` varchar(1) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
 select hex(repeat(1,2));
@@ -2153,7 +2145,7 @@ create table t1 as select repeat(1,2) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varchar(2) NOT NULL DEFAULT ''
+  `c1` varchar(2) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
 select hex(replace(1,1,2));
@@ -2163,7 +2155,7 @@ create table t1 as select replace(1,1,2) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varchar(1) NOT NULL DEFAULT ''
+  `c1` varchar(1) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
 select hex(reverse(12));
@@ -2173,7 +2165,7 @@ create table t1 as select reverse(12) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varchar(2) NOT NULL DEFAULT ''
+  `c1` varchar(2) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
 select hex(right(123,1));
@@ -2183,7 +2175,7 @@ create table t1 as select right(123,1) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varchar(1) NOT NULL DEFAULT ''
+  `c1` varchar(1) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
 select hex(rpad(1,2,0));
@@ -2193,7 +2185,7 @@ create table t1 as select rpad(1,2,0) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varchar(2) NOT NULL DEFAULT ''
+  `c1` varchar(2) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
 select hex(rtrim(1));
@@ -2203,7 +2195,7 @@ create table t1 as select rtrim(1) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varchar(1) NOT NULL DEFAULT ''
+  `c1` varchar(1) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
 select hex(soundex(1));
@@ -2213,7 +2205,7 @@ create table t1 as select soundex(1) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varchar(4) NOT NULL DEFAULT ''
+  `c1` varchar(4) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
 select hex(substring(1,1,1));
@@ -2223,7 +2215,7 @@ create table t1 as select substring(1,1,1) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varchar(1) NOT NULL DEFAULT ''
+  `c1` varchar(1) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
 select hex(trim(1));
@@ -2233,7 +2225,7 @@ create table t1 as select trim(1) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varchar(1) NOT NULL DEFAULT ''
+  `c1` varchar(1) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
 select hex(ucase(1));
@@ -2243,7 +2235,7 @@ create table t1 as select ucase(1) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varchar(1) NOT NULL DEFAULT ''
+  `c1` varchar(1) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
 select hex(upper(1));
@@ -2253,14 +2245,14 @@ create table t1 as select upper(1) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varchar(1) NOT NULL DEFAULT ''
+  `c1` varchar(1) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
 create table t1 as select repeat(' ', 64) as a limit 0;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` varchar(64) NOT NULL DEFAULT ''
+  `a` varchar(64) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 insert into t1 values ("1.1"), ("2.1");
 select a, hex(a) from t1;
@@ -2451,9 +2443,7 @@ hex(concat(a))	a
 30303030303030303030303030303030313030302E31	00000000000000001000.1
 30303030303030303030303030303031303030302E31	00000000000000010000.1
 drop table t1;
-create table t1 (a year(2));
-Warnings:
-Warning	1818	YEAR(2) column type is deprecated. Creating YEAR(4) column instead.
+create table t1 (a year(4));
 insert into t1 values (1);
 select hex(concat(a)) from t1;
 hex(concat(a))
@@ -2490,7 +2480,9 @@ t2	CREATE TABLE `t2` (
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1, t2;
 create table t1 (a timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP);
-insert into t1 values (0);
+insert ignore into t1 values (0);
+Warnings:
+Warning	1264	Out of range value for column 'a' at row 1
 insert into t1 values (20010203040506);
 insert into t1 values (19800203040506);
 insert into t1 values ('2001-02-03 04:05:06');
@@ -2510,7 +2502,7 @@ create table t2 as select concat(a) from t1;
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `concat(a)` varchar(19) NOT NULL DEFAULT ''
+  `concat(a)` varchar(19) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1, t2;
 create table t1 (a date);
@@ -2766,9 +2758,7 @@ hex(a)
 30303030303030303030303030303031303030302E31
 drop table t1;
 drop view v1;
-create table t1 (a year(2));
-Warnings:
-Warning	1818	YEAR(2) column type is deprecated. Creating YEAR(4) column instead.
+create table t1 (a year(4));
 insert into t1 values (1);
 create view v1(a) as select concat(a) from t1;
 show columns from v1;
@@ -2802,14 +2792,16 @@ hex(a)
 drop table t1;
 drop view v1;
 create table t1 (a timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP);
-insert into t1 values (0);
+insert ignore into t1 values (0);
+Warnings:
+Warning	1264	Out of range value for column 'a' at row 1
 insert into t1 values (20010203040506);
 insert into t1 values (19800203040506);
 insert into t1 values ('2001-02-03 04:05:06');
 create view v1(a) as select concat(a) from t1;
 show columns from v1;
 Field	Type	Null	Key	Default	Extra
-a	varchar(19)	NO			
+a	varchar(19)	YES		NULL	
 select hex(a) from v1;
 hex(a)
 303030302D30302D30302030303A30303A3030
@@ -2991,10 +2983,6 @@ SET @x=md5('a');
 SELECT charset(@x), collation(@x);
 charset(@x)	collation(@x)
 latin1	latin1_swedish_ci
-SET @x=old_password('a');
-SELECT charset(@x), collation(@x);
-charset(@x)	collation(@x)
-latin1	latin1_swedish_ci
 SET @x=password('a');
 SELECT charset(@x), collation(@x);
 charset(@x)	collation(@x)
@@ -3060,14 +3048,14 @@ CREATE TABLE t2 AS SELECT CONCAT_WS(1,2,3) FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `CONCAT_WS(1,2,3)` varchar(3) NOT NULL DEFAULT ''
+  `CONCAT_WS(1,2,3)` varchar(3) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 DROP TABLE t2;
 CREATE TABLE t2 AS SELECT INSERT(1133,3,0,22) FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `INSERT(1133,3,0,22)` varchar(6) NOT NULL DEFAULT ''
+  `INSERT(1133,3,0,22)` varchar(6) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 DROP TABLE t2;
 CREATE TABLE t2 AS SELECT LCASE(a) FROM t1;
@@ -3088,35 +3076,35 @@ CREATE TABLE t2 AS SELECT REPEAT(1,2) FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `REPEAT(1,2)` varchar(2) NOT NULL DEFAULT ''
+  `REPEAT(1,2)` varchar(2) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 DROP TABLE t2;
 CREATE TABLE t2 AS SELECT LEFT(123,2) FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `LEFT(123,2)` varchar(2) NOT NULL DEFAULT ''
+  `LEFT(123,2)` varchar(2) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 DROP TABLE t2;
 CREATE TABLE t2 AS SELECT RIGHT(123,2) FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `RIGHT(123,2)` varchar(2) NOT NULL DEFAULT ''
+  `RIGHT(123,2)` varchar(2) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 DROP TABLE t2;
 CREATE TABLE t2 AS SELECT LTRIM(123) FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `LTRIM(123)` varchar(3) NOT NULL DEFAULT ''
+  `LTRIM(123)` varchar(3) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 DROP TABLE t2;
 CREATE TABLE t2 AS SELECT RTRIM(123) FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `RTRIM(123)` varchar(3) NOT NULL DEFAULT ''
+  `RTRIM(123)` varchar(3) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 DROP TABLE t2;
 CREATE TABLE t2 AS SELECT ELT(1,111,222,333) FROM t1;
@@ -3130,14 +3118,14 @@ CREATE TABLE t2 AS SELECT REPLACE(111,2,3) FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `REPLACE(111,2,3)` varchar(3) NOT NULL DEFAULT ''
+  `REPLACE(111,2,3)` varchar(3) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 DROP TABLE t2;
 CREATE TABLE t2 AS SELECT SUBSTRING_INDEX(111,111,1) FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `SUBSTRING_INDEX(111,111,1)` varchar(3) NOT NULL DEFAULT ''
+  `SUBSTRING_INDEX(111,111,1)` varchar(3) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 DROP TABLE t2;
 CREATE TABLE t2 AS SELECT MAKE_SET(111,222,3) FROM t1;
@@ -3151,14 +3139,14 @@ CREATE TABLE t2 AS SELECT SOUNDEX(1) FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `SOUNDEX(1)` varchar(4) NOT NULL DEFAULT ''
+  `SOUNDEX(1)` varchar(4) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 DROP TABLE t2;
 CREATE TABLE t2 AS SELECT EXPORT_SET(1,'Y','N','',8);
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `EXPORT_SET(1,'Y','N','',8)` varchar(64) NOT NULL DEFAULT ''
+  `EXPORT_SET(1,'Y','N','',8)` varchar(64) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 DROP TABLE t2;
 DROP TABLE t1;
@@ -3172,7 +3160,7 @@ CREATE TABLE t1 AS SELECT TO_BASE64('test') AS to_base64;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `to_base64` varchar(8) NOT NULL DEFAULT ''
+  `to_base64` varchar(8) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 SELECT to_base64, LENGTH(to_base64), HEX(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)	HEX(to_base64)
@@ -4070,6 +4058,10 @@ NULL
 SELECT inet6_aton(soundex('a'));
 inet6_aton(soundex('a'))
 NULL
+#
+# Bug#19047425 UNINITIALISED VALUE IN STR_TO_IPV6
+#
+do is_ipv4_mapped(inet6_aton(convert(_ascii "a:" using latin1)));
 #
 # End of 5.6 tests
 #

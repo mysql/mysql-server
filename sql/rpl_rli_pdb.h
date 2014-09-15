@@ -24,6 +24,7 @@
 #include <my_sys.h>
 #include <my_bitmap.h>
 #include "rpl_slave.h"
+#include "prealloced_array.h"
 
 #ifndef DBUG_OFF
 extern ulong w_rr;
@@ -73,80 +74,12 @@ Slave_worker *map_db_to_worker(const char *dbname, Relay_log_info *rli,
                                db_worker_hash_entry **ptr_entry,
                                bool need_temp_tables, Slave_worker *w);
 Slave_worker *get_least_occupied_worker(Relay_log_info *rli,
-                                        DYNAMIC_ARRAY *workers, Log_event* ev);
+                                        Slave_worker_array *workers,
+                                        Log_event* ev);
 
 #define SLAVE_INIT_DBS_IN_GROUP 4     // initial allocation for CGEP dynarray
 
 #define NUMBER_OF_FIELDS_TO_IDENTIFY_WORKER 2
-
-typedef struct slave_job_item
-{
-  void *data;
-} Slave_job_item;
-
-/**
-   The class defines a type of queue with a predefined max size that is
-   implemented using the circular memory buffer.
-   That is items of the queue are accessed as indexed elements of
-   the array buffer in a way that when the index value reaches
-   a max value it wraps around to point to the first buffer element.
-*/
-class circular_buffer_queue
-{
-public:
-
-  DYNAMIC_ARRAY Q;
-  ulong size;           // the Size of the queue in terms of element
-  ulong avail;          // first Available index to append at (next to tail)
-  ulong entry;          // the head index or the entry point to the queue.
-  volatile ulong len;   // actual length
-  bool inited_queue;
-
-  circular_buffer_queue(uint el_size, ulong max, uint alloc_inc= 0) :
-    size(max), avail(0), entry(max), len(0), inited_queue(FALSE)
-  {
-    DBUG_ASSERT(size < (ulong) -1);
-    if (!my_init_dynamic_array(&Q, el_size, size, alloc_inc))
-      inited_queue= TRUE;
-  }
-  circular_buffer_queue () : inited_queue(FALSE) {}
-  ~circular_buffer_queue ()
-  {
-    if (inited_queue)
-      delete_dynamic(&Q);
-  }
-
-   /**
-      Content of the being dequeued item is copied to the arg-pointer
-      location.
-      
-      @return the queue's array index that the de-queued item
-      located at, or
-      an error encoded in beyond the index legacy range.
-   */
-  ulong de_queue(uchar *);
-  /**
-     Similar to de_queue but extracting happens from the tail side.
-  */
-  ulong de_tail(uchar *val);
-
-  /**
-    return the index where the arg item locates
-           or an error encoded as a value in beyond of the legacy range
-           [0, size) (value `size' is excluded).
-  */
-  ulong en_queue(void *item);
-  /**
-     return the value of @c data member of the head of the queue.
-  */
-  void* head_queue();
-  bool   gt(ulong i, ulong k); // comparision of ordering of two entities
-  /* index is within the valid range */
-  bool in(ulong k) { return !empty() && 
-      (entry > avail ? (k >= entry || k < avail) : (k >= entry && k < avail)); }
-  bool empty() { return entry == size; }
-  bool full() { return avail == size; }
-};
 
 typedef struct st_slave_job_group
 {
@@ -156,7 +89,7 @@ typedef struct st_slave_job_group
   */
   my_off_t group_master_log_pos;
 
-  /* 
+  /*
      When relay-log name changes  allocates and fill in a new name of relay-log,
      otherwise it fills in NULL.
      Coordinator keeps track of each Worker has been notified on the updating
@@ -165,7 +98,7 @@ typedef struct st_slave_job_group
      W checks the value at commit and memoriezes a not-NULL.
      Freeing unless NULL is left to Coordinator at CP.
   */
-  char     *group_relay_log_name; // The value is last seen relay-log 
+  char     *group_relay_log_name; // The value is last seen relay-log
   my_off_t group_relay_log_pos;  // filled by W
   ulong worker_id;
   Slave_worker *worker;
@@ -178,14 +111,18 @@ typedef struct st_slave_job_group
   char*    checkpoint_log_name;
   my_off_t checkpoint_relay_log_pos; // T-event lop_pos filled by W for CheckPoint
   char*    checkpoint_relay_log_name;
-  volatile uchar done;  // Flag raised by W,  read and reset by Coordinator
+  int32    done;  // Flag raised by W,  read and reset by Coordinator
   ulong    shifted;     // shift the last CP bitmap at receiving a new CP
   time_t   ts;          // Group's timestampt to update Seconds_behind_master
 #ifndef DBUG_OFF
   bool     notified;    // to debug group_master_log_name change notification
 #endif
+  /* Clock-based scheduler requirement: */
+  longlong last_committed; // commit parent timestamp
+  longlong sequence_number;   // transaction's logical timestamp
+
   /*
-    Coordinator fills the struct with defaults and options at starting of 
+    Coordinator fills the struct with defaults and options at starting of
     a group distribution.
   */
   void reset(my_off_t master_pos, ulonglong seqno)
@@ -205,18 +142,86 @@ typedef struct st_slave_job_group
 #ifndef DBUG_OFF
     notified= false;
 #endif
+    last_committed= SEQ_UNINIT;
+    sequence_number= SEQ_UNINIT;
   }
 } Slave_job_group;
 
 /**
-  Group Assigned Queue whose first element identifies first gap
-  in committed sequence. The head of the queue is therefore next to 
-  the low-water-mark.
+   The class defines a type of queue with a predefined max size that is
+   implemented using the circular memory buffer.
+   That is items of the queue are accessed as indexed elements of
+   the array buffer in a way that when the index value reaches
+   a max value it wraps around to point to the first buffer element.
 */
-class Slave_committed_queue : public circular_buffer_queue
+template<typename Element_type>
+class circular_buffer_queue
 {
 public:
-  
+
+  Prealloced_array<Element_type, 1, true> m_Q;
+  ulong size;           // the Size of the queue in terms of element
+  ulong avail;          // first Available index to append at (next to tail)
+  ulong entry;          // the head index or the entry point to the queue.
+  volatile ulong len;   // actual length
+  bool inited_queue;
+
+  circular_buffer_queue(ulong max) :
+    m_Q(PSI_INSTRUMENT_ME),
+    size(max), avail(0), entry(max), len(0), inited_queue(false)
+  {
+    if (!m_Q.reserve(size))
+      inited_queue= true;
+    m_Q.resize(size);
+  }
+  circular_buffer_queue() : m_Q(PSI_INSTRUMENT_ME), inited_queue(false) {}
+  ~circular_buffer_queue ()
+  {
+  }
+
+   /**
+      Content of the being dequeued item is copied to the arg-pointer
+      location.
+
+      @return the queue's array index that the de-queued item
+      located at, or
+      an error encoded in beyond the index legacy range.
+   */
+  ulong de_queue(Element_type *val);
+  /**
+     Similar to de_queue but extracting happens from the tail side.
+  */
+  ulong de_tail(Element_type *val);
+
+  /**
+    return the index where the arg item locates
+           or an error encoded as a value in beyond of the legacy range
+           [0, size) (value `size' is excluded).
+  */
+  ulong en_queue(Element_type *item);
+  /**
+     return the value of @c data member of the head of the queue.
+  */
+  Element_type* head_queue();
+
+  bool   gt(ulong i, ulong k); // comparision of ordering of two entities
+  /* index is within the valid range */
+  bool in(ulong k) { return !empty() &&
+      (entry > avail ? (k >= entry || k < avail) : (k >= entry && k < avail)); }
+  bool empty() { return entry == size; }
+  bool full() { return avail == size; }
+};
+
+
+/**
+  Group Assigned Queue whose first element identifies first gap
+  in committed sequence. The head of the queue is therefore next to
+  the low-water-mark.
+*/
+class Slave_committed_queue : public circular_buffer_queue<Slave_job_group>
+{
+public:
+
   bool inited;
 
   /* master's Rot-ev exec */
@@ -226,37 +231,35 @@ public:
      The last checkpoint time Low-Water-Mark
   */
   Slave_job_group lwm;
-  
+
   /* last time processed indexes for each worker */
-  DYNAMIC_ARRAY last_done;
+  Prealloced_array<ulonglong, 1> last_done;
 
   /* the being assigned group index in GAQ */
   ulong assigned_group_index;
 
-  Slave_committed_queue (const char *log, uint el_size, ulong max, uint n,
-                         uint inc= 0)
-    : circular_buffer_queue(el_size, max, inc), inited(FALSE)
+  Slave_committed_queue (const char *log, ulong max, uint n)
+    : circular_buffer_queue<Slave_job_group>(max), inited(false),
+      last_done(key_memory_Slave_job_group_group_relay_log_name)
   {
-    uint k;
-    ulonglong l= 0;
-    
-    if (max >= (ulong) -1 || !circular_buffer_queue::inited_queue)
+    if (max >= (ulong) -1 || !inited_queue)
       return;
     else
       inited= TRUE;
-    my_init_dynamic_array(&last_done, sizeof(lwm.total_seqno), n, 0);
-    for (k= 0; k < n; k++)
-      insert_dynamic(&last_done, (uchar*) &l);  // empty for each Worker
-    lwm.group_relay_log_name= (char *) my_malloc(key_memory_Slave_job_group_group_relay_log_name,
-                                                 FN_REFLEN + 1, MYF(0));
+
+    last_done.resize(n);
+
+    lwm.group_relay_log_name=
+      (char *) my_malloc(key_memory_Slave_job_group_group_relay_log_name,
+                         FN_REFLEN + 1, MYF(0));
     lwm.group_relay_log_name[0]= 0;
+    lwm.sequence_number= SEQ_UNINIT;
   }
 
   ~Slave_committed_queue ()
-  { 
+  {
     if (inited)
     {
-      delete_dynamic(&last_done);
       my_free(lwm.group_relay_log_name);
       free_dynamic_items();  // free possibly left allocated strings in GAQ list
     }
@@ -267,34 +270,78 @@ public:
 #endif
 
   /* Checkpoint routine refreshes the queue */
-  ulong move_queue_head(DYNAMIC_ARRAY *ws);
+  ulong move_queue_head(Slave_worker_array *ws);
   /* Method is for slave shutdown time cleanup */
   void free_dynamic_items();
-  /* 
+  /*
      returns a pointer to Slave_job_group struct instance as indexed by arg
-     in the circular buffer dyn-array 
+     in the circular buffer dyn-array
   */
   Slave_job_group* get_job_group(ulong ind)
   {
-    return (Slave_job_group*) dynamic_array_ptr(&Q, ind);
+    DBUG_ASSERT(ind < size);
+    return &m_Q[ind];
   }
 
   /**
      Assignes @c assigned_group_index to an index of enqueued item
      and returns it.
   */
-  ulong en_queue(void *item)
+  ulong en_queue(Slave_job_group *item)
   {
-    return assigned_group_index= circular_buffer_queue::en_queue(item);
+    return assigned_group_index=
+      circular_buffer_queue<Slave_job_group>::en_queue(item);
   }
 
+  ulong find_lwm(Slave_job_group**, ulong);
 };
 
-class Slave_jobs_queue : public circular_buffer_queue
+
+/**
+    @return  the index where the arg item has been located
+             or an error.
+*/
+template <typename Element_type>
+ulong circular_buffer_queue<Element_type>::en_queue(Element_type *item)
+{
+  ulong ret;
+  if (avail == size)
+  {
+    DBUG_ASSERT(avail == m_Q.size());
+    return (ulong) -1;
+  }
+
+  // store
+
+  ret= avail;
+  m_Q[avail]= *item;
+
+  // pre-boundary cond
+  if (entry == size)
+    entry= avail;
+
+  avail= (avail + 1) % size;
+  len++;
+
+  // post-boundary cond
+  if (avail == entry)
+    avail= size;
+
+  DBUG_ASSERT(avail == entry ||
+              len == (avail >= entry) ?
+              (avail - entry) : (size + avail - entry));
+  DBUG_ASSERT(avail != entry);
+
+  return ret;
+}
+
+
+
+class Slave_jobs_queue : public circular_buffer_queue<Slave_job_item>
 {
 public:
-
-  /* 
+  Slave_jobs_queue() : circular_buffer_queue<Slave_job_item>() {}
+  /*
      Coordinator marks with true, Worker signals back at queue back to
      available
   */
@@ -325,8 +372,14 @@ public:
   mysql_mutex_t jobs_lock; // mutex for the jobs queue
   mysql_cond_t  jobs_cond; // condition variable for the jobs queue
   Relay_log_info *c_rli;   // pointer to Coordinator's rli
-  DYNAMIC_ARRAY curr_group_exec_parts; // Current Group Executed Partitions
+
+  Prealloced_array<db_worker_hash_entry*, SLAVE_INIT_DBS_IN_GROUP>
+  curr_group_exec_parts; // Current Group Executed Partitions
+
   bool curr_group_seen_begin; // is set to TRUE with explicit B-event
+#ifndef DBUG_OFF
+  bool curr_group_seen_sequence_number; // is set to TRUE about starts_group()
+#endif
   ulong id;                 // numberic identifier of the Worker
 
   /*
@@ -417,6 +470,13 @@ public:
   ulonglong get_master_log_pos() { return master_log_pos; };
   ulonglong set_master_log_pos(ulong val) { return master_log_pos= val; };
   bool commit_positions(Log_event *evt, Slave_job_group *ptr_g, bool force);
+  /*
+    When commit fails clear bitmap for executed worker group. Revert back the
+    positions to the old positions that existed before commit using the checkpoint.
+
+    @param Slave_job_group a pointer to Slave_job_group struct instance which
+    holds group master log pos, group relay log pos and checkpoint positions.
+  */
   void rollback_positions(Slave_job_group *ptr_g);
   bool reset_recovery_info();
   /**
@@ -469,6 +529,10 @@ public:
       gaq_index= val;
   };
 
+  int slave_worker_exec_event(Log_event *ev);
+  bool retry_transaction(uint start_relay_number, my_off_t start_relay_pos,
+                         uint end_relay_number, my_off_t end_relay_pos);
+
 protected:
 
   virtual void do_report(loglevel level, int err_code,
@@ -482,6 +546,10 @@ private:
   bool write_info(Rpl_info_handler *to);
   Slave_worker& operator=(const Slave_worker& info);
   Slave_worker(const Slave_worker& info);
+  bool worker_sleep(ulong seconds);
+  bool read_and_apply_events(uint start_relay_number, my_off_t start_relay_pos,
+                             uint end_relay_number, my_off_t end_relay_pos);
+  void assign_partition_db(Log_event *ev);
 };
 
 TABLE* mts_move_temp_table_to_entry(TABLE*, THD*, db_worker_hash_entry*);

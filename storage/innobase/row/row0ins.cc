@@ -68,7 +68,6 @@ introduced where a call to log_free_check() is bypassed. */
 /*********************************************************************//**
 Creates an insert node struct.
 @return own: insert node struct */
-
 ins_node_t*
 ins_node_create(
 /*============*/
@@ -196,7 +195,6 @@ row_ins_alloc_sys_fields(
 Sets a new row to insert for an INS_DIRECT node. This function is only used
 if we have constructed the row separately, which is a rare case; this
 function is quite slow. */
-
 void
 ins_node_set_new_row(
 /*=================*/
@@ -926,18 +924,8 @@ row_ins_invalidate_query_cache(
 	const char*	name)		/*!< in: table name prefixed with
 					database name and a '/' character */
 {
-	char*	buf;
-	char*	ptr;
 	ulint	len = strlen(name) + 1;
-
-	buf = mem_strdupl(name, len);
-
-	ptr = strchr(buf, '/');
-	ut_a(ptr);
-	*ptr = '\0';
-
-	innobase_invalidate_query_cache(thr_get_trx(thr), buf, len);
-	ut_free(buf);
+	innobase_invalidate_query_cache(thr_get_trx(thr), name, len);
 }
 
 /*********************************************************************//**
@@ -1411,7 +1399,6 @@ Checks if foreign key constraint fails for an index entry. Sets shared locks
 which lock either the success or the failure of the constraint. NOTE that
 the caller must have a shared latch on dict_operation_lock.
 @return DB_SUCCESS, DB_NO_REFERENCED_ROW, or DB_ROW_IS_REFERENCED */
-
 dberr_t
 row_ins_check_foreign_constraint(
 /*=============================*/
@@ -1925,7 +1912,8 @@ row_ins_scan_sec_index_for_duplicate(
 
 
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(s_latch == rw_lock_own(&index->lock, RW_LOCK_S));
+	ut_ad(s_latch == rw_lock_own_flagged(
+			&index->lock, RW_LOCK_FLAG_S | RW_LOCK_FLAG_SX));
 #endif /* UNIV_SYNC_DEBUG */
 
 	n_unique = dict_index_get_n_unique(index);
@@ -2319,7 +2307,6 @@ the delete marked record.
 @retval DB_LOCK_WAIT on lock wait when !(flags & BTR_NO_LOCKING_FLAG)
 @retval DB_FAIL if retry with BTR_MODIFY_TREE is needed
 @return error code */
-
 dberr_t
 row_ins_clust_index_entry_low(
 /*==========================*/
@@ -2551,7 +2538,7 @@ last successful insert. To be used when data is sorted.
 @param[in]	thr	query thread
 
 @return error code */
-
+static
 dberr_t
 row_ins_sorted_clust_index_entry(
 	ulint		flags,
@@ -2744,7 +2731,6 @@ It is then unmarked. Otherwise, the entry is just inserted to the index.
 @retval DB_LOCK_WAIT on lock wait when !(flags & BTR_NO_LOCKING_FLAG)
 @retval DB_FAIL if retry with BTR_MODIFY_TREE is needed
 @return error code */
-
 dberr_t
 row_ins_sec_index_entry_low(
 /*========================*/
@@ -3091,7 +3077,6 @@ func_exit:
 Tries to insert the externally stored fields (off-page columns)
 of a clustered index entry.
 @return DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
-
 dberr_t
 row_ins_index_entry_big_rec_func(
 /*=============================*/
@@ -3148,7 +3133,6 @@ then pessimistic descent down the tree. If the entry matches enough
 to a delete marked record, performs the insert by updating or delete
 unmarking the delete marked record.
 @return DB_SUCCESS, DB_LOCK_WAIT, DB_DUPLICATE_KEY, or some other error code */
-
 dberr_t
 row_ins_clust_index_entry(
 /*======================*/
@@ -3226,7 +3210,6 @@ then pessimistic descent down the tree. If the entry matches enough
 to a delete marked record, performs the insert by updating or delete
 unmarking the delete marked record.
 @return DB_SUCCESS, DB_LOCK_WAIT, DB_DUPLICATE_KEY, or some other error code */
-
 dberr_t
 row_ins_sec_index_entry(
 /*====================*/
@@ -3355,7 +3338,6 @@ columns in row.
 @param[in]	row	row
 
 @return DB_SUCCESS if the set is successful */
-
 dberr_t
 row_ins_index_entry_set_vals(
 	const dict_index_t*	index,
@@ -3393,6 +3375,19 @@ row_ins_index_entry_set_vals(
 					dfield_get_data(row_field)));
 
 			ut_ad(!dfield_is_ext(row_field));
+		}
+
+		/* Since DATA_POINT is of fixed length, and no other geometry
+		data would be of length less than POINT, if we get data
+		longer than DATA_POINT_LEN, there must be an error,
+		unless it's a field of length 0 resulting from ADD COLUMN.
+		Currently, server doesn't do geometry data type checking,
+		we should do this for POINT specially. */
+		if (DATA_POINT_MTYPE(row_field->type.mtype)
+		    && !(len == DATA_POINT_LEN
+			 || len == 0
+			 || len == UNIV_SQL_NULL)) {
+			return (DB_CANT_CREATE_GEOMETRY_OBJECT);
 		}
 
 		/* Handle spatial index. For the first field, replace
@@ -3662,7 +3657,6 @@ row_ins(
 Inserts a row to a table. This is a high-level function used in SQL execution
 graphs.
 @return query thread to run next or NULL */
-
 que_thr_t*
 row_ins_step(
 /*=========*/

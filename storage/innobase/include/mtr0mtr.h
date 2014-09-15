@@ -137,6 +137,12 @@ savepoint. */
 @return true if the mtr is dirtying a clean page. */
 #define mtr_block_dirtied(b)	mtr_t::is_block_dirtied((b))
 
+/** Append records to the system-wide redo log buffer.
+@param[in]	log	redo log records */
+void
+mtr_write_log(
+	const mtr_buf_t*	log);
+
 /** Mini-transaction memo stack slot. */
 struct mtr_memo_slot_t {
 	/** pointer to the object */

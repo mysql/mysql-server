@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2006, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2006, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -69,6 +69,24 @@ buf_buddy_free(
 	ulint		size)		/*!< in: block size,
 					up to UNIV_PAGE_SIZE */
 	__attribute__((nonnull));
+
+/** Reallocate a block.
+@param[in]	buf_pool	buffer pool instance
+@param[in]	buf		block to be reallocated, must be pointed
+to by the buffer pool
+@param[in]	size		block size, up to UNIV_PAGE_SIZE
+@retval false	if failed because of no free blocks. */
+bool
+buf_buddy_realloc(
+	buf_pool_t*	buf_pool,
+	void*		buf,
+	ulint		size);
+
+/** Combine all pairs of free buddies.
+@param[in]	buf_pool	buffer pool instance */
+void
+buf_buddy_condense_free(
+	buf_pool_t*	buf_pool);
 
 #ifndef UNIV_NONINL
 # include "buf0buddy.ic"

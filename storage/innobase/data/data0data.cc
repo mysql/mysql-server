@@ -60,7 +60,6 @@ ulint	data_dummy;
 @param[in] tuple2 second data tuple
 @return positive, 0, negative if tuple1 is greater, equal, less, than tuple2,
 respectively */
-
 int
 dtuple_coll_cmp(
 	const dtuple_t*	tuple1,
@@ -92,7 +91,6 @@ dtuple_coll_cmp(
 /*********************************************************************//**
 Sets number of fields used in a tuple. Normally this is set in
 dtuple_create, but if you want later to set it smaller, you can use this. */
-
 void
 dtuple_set_n_fields(
 /*================*/
@@ -117,10 +115,10 @@ dfield_check_typed_no_assert(
 	if (dfield_get_type(field)->mtype > DATA_MTYPE_CURRENT_MAX
 	    || dfield_get_type(field)->mtype < DATA_MTYPE_CURRENT_MIN) {
 
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Data field type %lu, len %lu",
-			(ulong) dfield_get_type(field)->mtype,
-			(ulong) dfield_get_len(field));
+		ib::error() << "Data field type "
+			<< dfield_get_type(field)->mtype
+			<< ", len " << dfield_get_len(field);
+
 		return(FALSE);
 	}
 
@@ -130,7 +128,6 @@ dfield_check_typed_no_assert(
 /**********************************************************//**
 Checks that a data tuple is typed.
 @return TRUE if ok */
-
 ibool
 dtuple_check_typed_no_assert(
 /*=========================*/
@@ -140,9 +137,8 @@ dtuple_check_typed_no_assert(
 	ulint		i;
 
 	if (dtuple_get_n_fields(tuple) > REC_MAX_N_FIELDS) {
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Index entry has %lu fields",
-			(ulong) dtuple_get_n_fields(tuple));
+		ib::error() << "Index entry has "
+			<< dtuple_get_n_fields(tuple) << " fields";
 dump:
 		fputs("InnoDB: Tuple contents: ", stderr);
 		dtuple_print(stderr, tuple);
@@ -168,7 +164,6 @@ dump:
 /**********************************************************//**
 Checks that a data field is typed. Asserts an error if not.
 @return TRUE if ok */
-
 ibool
 dfield_check_typed(
 /*===============*/
@@ -177,10 +172,9 @@ dfield_check_typed(
 	if (dfield_get_type(field)->mtype > DATA_MTYPE_CURRENT_MAX
 	    || dfield_get_type(field)->mtype < DATA_MTYPE_CURRENT_MIN) {
 
-		ib_logf(IB_LOG_LEVEL_FATAL,
-			"Data field type %lu, len %lu",
-			(ulong) dfield_get_type(field)->mtype,
-			(ulong) dfield_get_len(field));
+		ib::fatal() << "Data field type "
+			<< dfield_get_type(field)->mtype
+			<< ", len " << dfield_get_len(field);
 	}
 
 	return(TRUE);
@@ -189,7 +183,6 @@ dfield_check_typed(
 /**********************************************************//**
 Checks that a data tuple is typed. Asserts an error if not.
 @return TRUE if ok */
-
 ibool
 dtuple_check_typed(
 /*===============*/
@@ -212,7 +205,6 @@ dtuple_check_typed(
 Validates the consistency of a tuple which must be complete, i.e,
 all fields must have been set.
 @return TRUE if ok */
-
 ibool
 dtuple_validate(
 /*============*/
@@ -265,7 +257,6 @@ dtuple_validate(
 #ifndef UNIV_HOTBACKUP
 /*************************************************************//**
 Pretty prints a dfield value according to its data type. */
-
 void
 dfield_print(
 /*=========*/
@@ -308,7 +299,6 @@ dfield_print(
 /*************************************************************//**
 Pretty prints a dfield value according to its data type. Also the hex string
 is printed if a string contains non-printable characters. */
-
 void
 dfield_print_also_hex(
 /*==================*/
@@ -476,7 +466,7 @@ dfield_print_raw(
 {
 	ulint	len	= dfield_get_len(dfield);
 	if (!dfield_is_null(dfield)) {
-		ulint	print_len = ut_min(len, 1000);
+		ulint	print_len = ut_min(len, static_cast<ulint>(1000));
 		ut_print_buf(f, dfield_get_data(dfield), print_len);
 		if (len != print_len) {
 			fprintf(f, "(total %lu bytes%s)",
@@ -490,7 +480,6 @@ dfield_print_raw(
 
 /**********************************************************//**
 The following function prints the contents of a tuple. */
-
 void
 dtuple_print(
 /*=========*/
@@ -521,7 +510,6 @@ dtuple_print(
 @param o output stream
 @param field array of data fields
 @param n number of data fields */
-
 void
 dfield_print(
 	std::ostream&	o,
@@ -559,7 +547,6 @@ dfield_print(
 /** Print the contents of a tuple.
 @param o output stream
 @param tuple data tuple */
-
 void
 dtuple_print(
 /*=========*/
@@ -585,7 +572,6 @@ to determine uniquely the insertion place of the tuple in the index.
 @return own: created big record vector, NULL if we are not able to
 shorten the entry enough, i.e., if there are too many fixed-length or
 short fields in entry or the index is clustered */
-
 big_rec_t*
 dtuple_convert_big_rec(
 /*===================*/
@@ -622,9 +608,7 @@ dtuple_convert_big_rec(
 	size = rec_get_converted_size(index, entry, *n_ext);
 
 	if (UNIV_UNLIKELY(size > 1000000000)) {
-		ib_logf(IB_LOG_LEVEL_WARN,
-			"Tuple size very big: %lu",
-			(ulong) size);
+		ib::warn() << "Tuple size is very big: " << size;
 		fputs("InnoDB: Tuple contents: ", stderr);
 		dtuple_print(stderr, entry);
 		putc('\n', stderr);
@@ -776,7 +760,6 @@ skip_field:
 Puts back to entry the data stored in vector. Note that to ensure the
 fields in entry can accommodate the data, vector must have been created
 from entry with dtuple_convert_big_rec. */
-
 void
 dtuple_convert_back_big_rec(
 /*========================*/
@@ -825,8 +808,10 @@ big_rec_t::alloc(
 	mem_heap_t*	heap,
 	ulint		n_fld)
 {
-	void *mem = mem_heap_alloc(heap, sizeof(big_rec_t));
-	big_rec_t* rec = new (mem) big_rec_t(n_fld);
+	big_rec_t*	rec = static_cast<big_rec_t*>(
+		mem_heap_alloc(heap, sizeof(big_rec_t)));
+
+	new(rec) big_rec_t(n_fld);
 
 	rec->heap = heap;
 	rec->fields = static_cast<big_rec_field_t*>(

@@ -46,6 +46,10 @@ SELECT COUNT(*) FROM t2;
 COUNT(*)
 0
 COMMIT;
+
+# Test that the performance schema coulumn shows > 0 values.
+
+include/assert.inc [current number of retries should be more than the value saved before deadlock.]
 include/check_slave_is_running.inc
 SELECT * FROM t1;
 a
@@ -139,5 +143,7 @@ include/start_slave.inc
 *** Clean up ***
 DROP TABLE t1,t2,t3;
 SET global max_relay_log_size= @my_max_relay_log_size;
+CALL mtr.add_suppression(".*worker thread retried transaction.*");
+CALL mtr.add_suppression(".*The slave coordinator and worker threads are stopped.*");
 End of 5.1 tests
 include/rpl_end.inc

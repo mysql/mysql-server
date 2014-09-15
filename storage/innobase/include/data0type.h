@@ -76,19 +76,25 @@ binary strings */
 				charset-collation for tables created with it
 				can also be latin1_swedish_ci */
 
-/* DATA_GEOMETRY includes all standard geometry datatypes as described
-in OGC standard(point, line_string, polygon, multi_point, multi_polygon,
+/* DATA_POINT&DATA_VAR_POINT are for standard geometry datatype 'point' and
+DATA_GEOMETRY include all other standard geometry datatypes as described in
+OGC standard(line_string, polygon, multi_point, multi_polygon,
 multi_line_string, geometry_collection, geometry).
 Currently, geometry data is stored in the standard Well-Known Binary(WKB)
-format (http://www.opengeospatial.org/standards/sfa), and we still use BLOB
-as underlying datatype  */
-#define DATA_GEOMETRY	14	/* geometry datatype. */
+format (http://www.opengeospatial.org/standards/sfa).
+We use BLOB as underlying datatype for DATA_GEOMETRY and DATA_VAR_POINT
+while CHAR for DATA_POINT */
+#define DATA_GEOMETRY	14	/* geometry datatype of variable length */
+#define DATA_POINT	15	/* geometry datatype of fixed length POINT */
+#define DATA_VAR_POINT	16	/* geometry datatype of variable length
+				POINT, used when we want to store POINT
+				as BLOB internally */
 
 #define DATA_MTYPE_MAX	63	/* dtype_store_for_order_and_null_size()
 				requires the values are <= 63 */
 
 #define DATA_MTYPE_CURRENT_MIN	DATA_VARCHAR	/* minimum value of mtype */
-#define DATA_MTYPE_CURRENT_MAX	DATA_GEOMETRY	/* maximum value of mtype */
+#define DATA_MTYPE_CURRENT_MAX	DATA_VAR_POINT	/* maximum value of mtype */
 /*-------------------------------------------*/
 /* The 'PRECISE TYPE' of a column */
 /*
@@ -198,6 +204,15 @@ store the charset-collation number; one byte is left unused, though */
 /* Maximum multi-byte character length in bytes, plus 1 */
 #define DATA_MBMAX	5
 
+/* For DATA_POINT of dimension 2, the length of value in btree is always 25,
+which is the summary of:
+SRID_SIZE(4) + WKB_HEADER_SIZE(1+4) + POINT_DATA_SIZE(8*2).
+So the length of physical record or POINT KEYs on btree are 25.
+GIS_TODO: When we support multi-dimensions DATA_POINT, we should get the
+length from corresponding column or index definition, instead of this MACRO
+*/
+#define DATA_POINT_LEN	25
+
 /* Pack mbminlen, mbmaxlen to mbminmaxlen. */
 #define DATA_MBMINMAXLEN(mbminlen, mbmaxlen)	\
 	((mbmaxlen) * DATA_MBMAX + (mbminlen))
@@ -209,18 +224,24 @@ because in GCC it returns a long. */
 /* Get mbmaxlen from mbminmaxlen. */
 #define DATA_MBMAXLEN(mbminmaxlen) ((ulint) ((mbminmaxlen) / DATA_MBMAX))
 
+/* For checking if a geom_type is POINT */
+#define DATA_POINT_MTYPE(mtype) ((mtype) == DATA_POINT			\
+				 || (mtype) == DATA_VAR_POINT)
+
 /* For checking if mtype is GEOMETRY datatype */
-#define DATA_GEOMETRY_MTYPE(mtype)	((mtype) == DATA_GEOMETRY)
+#define DATA_GEOMETRY_MTYPE(mtype)	(DATA_POINT_MTYPE(mtype)	\
+					 || (mtype) == DATA_GEOMETRY)
 
 /* For checking if mtype is BLOB or GEOMETRY, since we use BLOB as
-the underling datatype of GEOMETRY data. */
-#define DATA_LARGE_MTYPE(mtype) ((mtype) == DATA_BLOB	\
-				 || DATA_GEOMETRY_MTYPE(mtype))
+the underling datatype of GEOMETRY(not DATA_POINT) data. */
+#define DATA_LARGE_MTYPE(mtype) ((mtype) == DATA_BLOB			\
+				 || (mtype) == DATA_VAR_POINT		\
+				 || (mtype) == DATA_GEOMETRY)
 
 /* For checking if data type is big length data type. */
 #define DATA_BIG_LEN_MTYPE(len, mtype) ((len) > 255 || DATA_LARGE_MTYPE(mtype))
 
-/* For checking if the column is a  big length column. */
+/* For checking if the column is a big length column. */
 #define DATA_BIG_COL(col) DATA_BIG_LEN_MTYPE((col)->len, (col)->mtype)
 
 /* For checking if data type is large binary data type. */
@@ -247,7 +268,6 @@ Determine how many bytes the first n characters of the given string occupy.
 If the string is shorter than n characters, returns the number of bytes
 the characters in the string occupy.
 @return length of the prefix, in bytes */
-
 ulint
 dtype_get_at_most_n_mbchars(
 /*========================*/
@@ -265,7 +285,6 @@ dtype_get_at_most_n_mbchars(
 Checks if a data main type is a string type. Also a BLOB is considered a
 string type.
 @return TRUE if string type */
-
 ibool
 dtype_is_string_type(
 /*=================*/
@@ -275,7 +294,6 @@ Checks if a type is a binary string type. Note that for tables created with
 < 4.0.14, we do not know if a DATA_BLOB column is a BLOB or a TEXT column. For
 those DATA_BLOB columns this function currently returns FALSE.
 @return TRUE if binary string type */
-
 ibool
 dtype_is_binary_string_type(
 /*========================*/
@@ -287,7 +305,6 @@ TRUE and dtype_is_binary_string_type is FALSE. Note that for tables created
 with < 4.0.14, we do not know if a DATA_BLOB column is a BLOB or a TEXT column.
 For those DATA_BLOB columns this function currently returns TRUE.
 @return TRUE if non-binary string type */
-
 ibool
 dtype_is_non_binary_string_type(
 /*============================*/
@@ -352,7 +369,6 @@ dtype_get_charset_coll(
 Forms a precise type from the < 4.1.2 format precise type plus the
 charset-collation code.
 @return precise type, including the charset-collation code */
-
 ulint
 dtype_form_prtype(
 /*==============*/
@@ -511,14 +527,12 @@ dtype_sql_name(
 /*********************************************************************//**
 Validates a data type structure.
 @return TRUE if ok */
-
 ibool
 dtype_validate(
 /*===========*/
 	const dtype_t*	type);	/*!< in: type struct to validate */
 /*********************************************************************//**
 Prints a data type structure. */
-
 void
 dtype_print(
 /*========*/

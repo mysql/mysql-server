@@ -40,6 +40,49 @@
 #  define MY_GNUC_PREREQ(maj, min) (0)
 #endif
 
+/*
+  The macros below are borrowed from include/linux/compiler.h in the
+  Linux kernel. Use them to indicate the likelyhood of the truthfulness
+  of a condition. This serves two purposes - newer versions of gcc will be
+  able to optimize for branch predication, which could yield siginficant
+  performance gains in frequently executed sections of the code, and the
+  other reason to use them is for documentation
+*/
+#ifdef HAVE_BUILTIN_EXPECT
+
+// likely/unlikely are likely to clash with other symbols, do not #define
+#if defined(__cplusplus)
+inline bool likely(bool expr)
+{
+  return __builtin_expect(expr, true);
+}
+inline bool unlikely(bool expr)
+{
+  return __builtin_expect(expr, false);
+}
+#else
+#  define likely(x)    __builtin_expect((x),1)
+#  define unlikely(x)  __builtin_expect((x),0)
+#endif
+
+#else  /* HAVE_BUILTIN_EXPECT */
+
+#if defined(__cplusplus)
+inline bool likely(bool expr)
+{
+  return expr;
+}
+inline bool unlikely(bool expr)
+{
+  return expr;
+}
+#else
+#  define likely(x)    (x)
+#  define unlikely(x)  (x)
+#endif
+
+#endif  /* HAVE_BUILTIN_EXPECT */
+
 /* Comunicate to the compiler the unreachability of the code. */
 #ifdef HAVE_BUILTIN_UNREACHABLE
 #  define MY_ASSERT_UNREACHABLE()   __builtin_unreachable()
@@ -61,6 +104,15 @@
 # define MY_ALIGNED(size)
 #endif
 
+/* Visual Studio requires '__inline' for C code */
+#if !defined(__cplusplus) && defined(_MSC_VER)
+# define inline __inline
+#endif
+
+/* Provide __func__ macro definition for Visual Studio. */
+#if defined(_MSC_VER)
+#  define __func__ __FUNCTION__
+#endif
 
 /**
   C++ Type Traits

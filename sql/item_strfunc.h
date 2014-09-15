@@ -19,6 +19,8 @@
 
 /* This file defines all string functions */
 #include "crypt_genhash_impl.h"
+#include <rapidjson/writer.h>
+#include <rapidjson/stringbuffer.h>
 
 class MY_LOCALE;
 
@@ -164,6 +166,89 @@ public:
   String *val_str(String *);
   void fix_length_and_dec();
   const char *func_name() const { return "from_base64"; }
+};
+
+
+/**
+  This class handles the following function:
+
+    <string> = ST_ASGEOJSON(<geometry>[, <maxdecimaldigits>[, <options>]])
+
+  It converts a GEOMETRY into a valid GeoJSON string. If maxdecimaldigits is
+  specified, the coordinates written are rounded to the number of decimals
+  specified (e.g with decimaldigits = 3: 10.12399 => 10.124).
+
+  Options is a bitmask with the following flags:
+    0  No options (default values).
+    1  Add a bounding box to the output.
+    2  Add a short CRS URN to the output. The default format is a
+       short format ("EPSG:<srid>").
+    4  Add a long format CRS URN ("urn:ogc:def:crs:EPSG::<srid>"). This
+       implies 2. This means that, e.g., bitmask 5 and 7 mean the
+       same: add a bounding box and a long format CRS URN.
+*/
+class Item_func_as_geojson :public Item_str_ascii_func
+{
+private:
+  /// Maximum number of decimal digits in printed coordinates.
+  int m_max_decimal_digits;
+  /// If true, the output GeoJSON has a bounding box for each GEOMETRY.
+  bool m_add_bounding_box;
+  /**
+    If true, the output GeoJSON has a CRS object in the short
+    form (e.g "EPSG:4326").
+  */
+  bool m_add_short_crs_urn;
+  /**
+    If true, the output GeoJSON has a CRS object in the long
+    form (e.g "urn:ogc:def:crs:EPSG::4326").
+  */
+  bool m_add_long_crs_urn;
+  /// The SRID found in the input GEOMETRY.
+  uint32 m_geometry_srid;
+  /// Max width of long CRS URN supported + max width of SRID + '\0'.
+  static const int MAX_CRS_WIDTH= (22 + MAX_INT_WIDTH + 1);
+  /// Output buffer to be used by the rapidjson writer.
+  rapidjson::StringBuffer m_stringbuffer;
+public:
+  Item_func_as_geojson(const POS &pos, Item *geometry)
+    :Item_str_ascii_func(pos, geometry), m_add_bounding_box(false),
+    m_add_short_crs_urn(false), m_add_long_crs_urn(false)
+  {}
+  Item_func_as_geojson(const POS &pos, Item *geometry, Item *maxdecimaldigits)
+    :Item_str_ascii_func(pos, geometry, maxdecimaldigits),
+    m_add_bounding_box(false), m_add_short_crs_urn(false),
+    m_add_long_crs_urn(false)
+  {}
+  Item_func_as_geojson(const POS &pos, Item *geometry, Item *maxdecimaldigits,
+                       Item *options)
+    :Item_str_ascii_func(pos, geometry, maxdecimaldigits, options),
+    m_add_bounding_box(false), m_add_short_crs_urn(false),
+    m_add_long_crs_urn(false)
+  {}
+  bool fix_fields(THD *thd, Item **ref);
+  String *val_str_ascii(String *);
+  void fix_length_and_dec();
+  const char *func_name() const { return "st_asgeojson"; }
+  bool append_geometry(Geometry::wkb_parser *parser,
+                       rapidjson::Writer<rapidjson::StringBuffer> *writer,
+                       bool is_root_object, MBR *mbr);
+  const char *wkbtype_to_geojson_type(Geometry::wkbType type);
+  bool append_coordinates(Geometry::wkb_parser *parser,
+                          rapidjson::Writer<rapidjson::StringBuffer> *writer,
+                          MBR *mbr);
+  bool append_linestring(Geometry::wkb_parser *parser,
+                         rapidjson::Writer<rapidjson::StringBuffer> *writer,
+                         MBR *mbr);
+  bool append_polygon(Geometry::wkb_parser *parser,
+                      rapidjson::Writer<rapidjson::StringBuffer> *writer,
+                      MBR *mbr);
+  bool parse_options_argument();
+  bool parse_maxdecimaldigits_argument();
+  void append_bounding_box(MBR *mbr,
+                           rapidjson::Writer<rapidjson::StringBuffer> *writer);
+  void append_crs(rapidjson::Writer<rapidjson::StringBuffer> *writer);
+  bool check_argument_is_integer_type(Item *argument);
 };
 
 
@@ -485,34 +570,6 @@ public:
 };
 
 
-/*
-  Item_func_old_password -- PASSWORD() implementation used in MySQL 3.21 - 4.0
-  compatibility mode. This item is created in sql_yacc.yy when
-  'old_passwords' session variable is set, and to handle OLD_PASSWORD()
-  function.
-*/
-
-class Item_func_old_password :public Item_str_ascii_func
-{
-  typedef Item_str_ascii_func super;
-
-  char tmp_value[SCRAMBLED_PASSWORD_CHAR_LENGTH_323+1];
-public:
-  Item_func_old_password(Item *a) :Item_str_ascii_func(a) {}
-  Item_func_old_password(const POS &pos, Item *a) :super(pos, a) {}
-
-  virtual bool itemize(Parse_context *pc, Item **res);
-
-  String *val_str_ascii(String *str);
-  void fix_length_and_dec()
-  {
-    fix_length_and_charset(SCRAMBLED_PASSWORD_CHAR_LENGTH_323, default_charset());
-  } 
-  const char *func_name() const { return "old_password"; }
-  static char *alloc(THD *thd, const char *password, size_t pass_len);
-};
-
-
 class Item_func_des_encrypt :public Item_str_func
 {
   String tmp_value,tmp_arg;
@@ -726,6 +783,78 @@ public:
 };
 
 
+/**
+  This class handles two forms of the same function:
+
+  <string> = ST_GEOHASH(<point>, <maxlength>);
+  <string> = ST_GEOHASH(<longitude>, <latitude>, <maxlength>)
+
+  It returns an encoded geohash string, no longer than <maxlength> characters
+  long. Note that it might be shorter than <maxlength>.
+*/
+class Item_func_geohash :public Item_str_ascii_func
+{
+private:
+  /// The latitude argument supplied by the user (directly or by a POINT).
+  double latitude;
+  /// The longitude argument supplied by the user (directly or by a POINT).
+  double longitude;
+  /// The maximum output length of the geohash, supplied by the user.
+  uint geohash_max_output_length;
+
+  /** 
+    The maximum input latitude. For now, this is set to 90.0. It can be
+    changed to support a different range than the normal [90, -90].
+  */
+  const double max_latitude;
+
+  /**
+    The minimum input latitude. For now, this is set to -90.0. It can be
+    changed to support a different range than the normal [90, -90].
+  */
+  const double min_latitude;
+
+  /**
+    The maximum input longitude. For now, this is set to 180.0. It can be
+    changed to support a different range than the normal [180, -180].
+  */
+  const double max_longitude;
+
+  /**
+    The minimum input longitude. For now, this is set to -180.0. It can be
+    changed to support a different range than the normal [180, -180].
+  */
+  const double min_longitude;
+
+  /**
+    The absolute upper limit of geohash output length. User will get an error
+    if they supply a max geohash length argument greater than this.
+  */
+  const uint upper_limit_output_length;
+public:
+  Item_func_geohash(const POS &pos, Item *point, Item *length)
+    :Item_str_ascii_func(pos, point, length), max_latitude(90.0),
+    min_latitude(-90.0), max_longitude(180.0), min_longitude(-180.0),
+    upper_limit_output_length(100)
+  {}
+  Item_func_geohash(const POS &pos, Item *longitude, Item *latitude,
+                    Item *length)
+    :Item_str_ascii_func(pos, longitude, latitude, length), max_latitude(90.0),
+    min_latitude(-90.0), max_longitude(180.0), min_longitude(-180.0),
+    upper_limit_output_length(100)
+  {}
+  String *val_str_ascii(String *);
+  void fix_length_and_dec();
+  bool fix_fields(THD *thd, Item **ref);
+  const char *func_name() const { return "st_geohash"; }
+  char char_to_base32(char char_input);
+  void encode_bit(double *upper_value, double *lower_value,
+                  double target_value, char *char_value, int bit_number);
+  bool fill_and_check_fields();
+  bool check_valid_latlong_type(Item *ref);
+};
+
+
 class Item_func_elt :public Item_str_func
 {
 public:
@@ -882,12 +1011,7 @@ public:
   {}
   const char *func_name() const { return "conv"; }
   String *val_str(String *);
-  void fix_length_and_dec()
-  {
-    collation.set(default_charset());
-    max_length=64;
-    maybe_null= 1;
-  }
+  void fix_length_and_dec();
 };
 
 

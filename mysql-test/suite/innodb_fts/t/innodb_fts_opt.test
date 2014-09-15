@@ -240,12 +240,14 @@ SHOW SESSION STATUS LIKE 'Handler_read%';
 FLUSH STATUS;
 
 --echo Optimization does not apply for GROUP BY
+--source include/turn_off_only_full_group_by.inc
 SELECT FTS_DOC_ID, MATCH(title, text) AGAINST ('database') AS score
 FROM wp
 WHERE MATCH(title, text) AGAINST ('database')
 GROUP BY score;
 
 SHOW SESSION STATUS LIKE 'Handler_read%';
+--source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
 
 #
 #  Putting all three optimizations together
@@ -781,6 +783,8 @@ ORDER BY  MATCH(title, text) AGAINST ('database') DESC;
 
 --echo # MATCH and GROUP BY, DISTINCT
 
+--source include/turn_off_only_full_group_by.inc
+
 EXPLAIN SELECT FTS_DOC_ID FROM t1
 WHERE MATCH (title, text) AGAINST ('fast database' IN NATURAL LANGUAGE MODE)
 GROUP BY FTS_DOC_ID
@@ -830,6 +834,8 @@ SELECT DISTINCT(FTS_DOC_ID) FROM t1
 WHERE MATCH (title, text) AGAINST ('fast database' IN NATURAL LANGUAGE MODE)
 ORDER BY MATCH (title, text) AGAINST ('fast database' IN NATURAL LANGUAGE MODE) DESC
 LIMIT 3;
+
+--source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
 
 --echo # FTS index access
 
@@ -907,4 +913,13 @@ EXPLAIN SELECT FTS_DOC_ID FROM t1
 WHERE MATCH(title, text) AGAINST ('+(Мога τίποτα)' IN BOOLEAN MODE);
 SELECT FTS_DOC_ID  FROM t1
 WHERE MATCH(title, text) AGAINST ('+(Мога τίποτα)' IN BOOLEAN MODE);
+DROP TABLE t1;
+
+
+--echo #
+--echo # Bug #18924341 CRASH IN TEST_IF_SKIP_SORT_ORDER, GROUP BY MATCH AGAINST DESC
+--echo #
+
+CREATE TABLE t1 (f1 CHAR(1), FULLTEXT KEY (f1));
+SELECT 1 FROM t1 NATURAL JOIN t1 a GROUP BY MATCH(t1.f1) AGAINST ("1") DESC;
 DROP TABLE t1;

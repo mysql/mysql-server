@@ -415,9 +415,7 @@ class Fk_util
       }
 
       char fk_name[FN_REFLEN+1];
-      my_snprintf(fk_name, sizeof(fk_name), "%u/%u/%s",
-                  new_parent_tab.get_table()->getObjectId(),
-                  child_id,
+      my_snprintf(fk_name, sizeof(fk_name), "%s",
                   name);
       DBUG_PRINT("info", ("Setting new fk name: %s", fk_name));
       new_fk.setName(fk_name);
@@ -1420,16 +1418,12 @@ ha_ndbcluster::create_fks(THD *thd, Ndb *ndb)
     char fk_name[FN_REFLEN];
     if (!isnull(fk->name))
     {
-      my_snprintf(fk_name, sizeof(fk_name), "%u/%u/%s",
-                  parent_tab.get_table()->getObjectId(),
-                  child_tab.get_table()->getObjectId(),
+      my_snprintf(fk_name, sizeof(fk_name), "%s",
                   lex2str(fk->name, tmpbuf, sizeof(tmpbuf)));
     }
     else
     {
-      my_snprintf(fk_name, sizeof(fk_name), "%u/%u/FK_%u_%u",
-                  parent_tab.get_table()->getObjectId(),
-                  child_tab.get_table()->getObjectId(),
+      my_snprintf(fk_name, sizeof(fk_name), "FK_%u_%u",
                   parent_index ?
                   parent_index->getObjectId() :
                   parent_tab.get_table()->getObjectId(),
@@ -1672,7 +1666,7 @@ fk_split_name(char dst[], const char * src, bool index)
 
 struct Ndb_mem_root_guard {
   Ndb_mem_root_guard(MEM_ROOT *new_root) {
-    root_ptr= my_pthread_getspecific(MEM_ROOT**, THR_MALLOC);
+    root_ptr= my_pthread_get_THR_MALLOC();
     DBUG_ASSERT(root_ptr != 0);
     old_root= *root_ptr;
     *root_ptr= new_root;
@@ -2247,7 +2241,7 @@ ha_ndbcluster::free_foreign_key_create_info(char* str)
 int
 ha_ndbcluster::copy_fk_for_offline_alter(THD * thd, Ndb* ndb, NDBTAB* _dsttab)
 {
-  DBUG_ENTER("copy_fk_for_offline_alter");
+  DBUG_ENTER("ha_ndbcluster::copy_fk_for_offline_alter");
   if (thd->lex == 0)
   {
     assert(false);
@@ -2285,7 +2279,10 @@ ha_ndbcluster::copy_fk_for_offline_alter(THD * thd, Ndb* ndb, NDBTAB* _dsttab)
 
   setDbName(ndb, src_db);
   NDBDICT::List obj_list;
-  dict->listDependentObjects(obj_list, *srctab.get_table());
+  if (dict->listDependentObjects(obj_list, *srctab.get_table()) != 0)
+  {
+    ERR_RETURN(dict->getNdbError());
+  }
 
   // check if fk to drop exists
   {
@@ -2300,7 +2297,20 @@ ha_ndbcluster::copy_fk_for_offline_alter(THD * thd, Ndb* ndb, NDBTAB* _dsttab)
       {
         char db_and_name[FN_LEN + 1];
         const char * name= fk_split_name(db_and_name,obj_list.elements[i].name);
-        if (ndb_fk_casecmp(drop_item->name, name) == 0)
+        if (ndb_fk_casecmp(drop_item->name, name) != 0)
+          continue;
+
+        NdbDictionary::ForeignKey fk;
+        if (dict->getForeignKey(fk, obj_list.elements[i].name) != 0)
+        {
+          ERR_RETURN(dict->getNdbError());
+        }
+
+        char child_db_and_name[FN_LEN + 1];
+        const char* child_name = fk_split_name(child_db_and_name,
+                                               fk.getChildTable());
+        if (strcmp(child_db_and_name, src_db) == 0 &&
+            strcmp(child_name, src_tab) == 0)
         {
           found= true;
           break;
@@ -2319,6 +2329,12 @@ ha_ndbcluster::copy_fk_for_offline_alter(THD * thd, Ndb* ndb, NDBTAB* _dsttab)
   {
     if (obj_list.elements[i].type == NdbDictionary::Object::ForeignKey)
     {
+      NdbDictionary::ForeignKey fk;
+      if (dict->getForeignKey(fk, obj_list.elements[i].name) != 0)
+      {
+        ERR_RETURN(dict->getNdbError());
+      }
+
       {
         /**
          * Check if it should be copied
@@ -2333,7 +2349,14 @@ ha_ndbcluster::copy_fk_for_offline_alter(THD * thd, Ndb* ndb, NDBTAB* _dsttab)
         {
           if (drop_item->type != Alter_drop::FOREIGN_KEY)
             continue;
-          if (ndb_fk_casecmp(drop_item->name, name) == 0)
+          if (ndb_fk_casecmp(drop_item->name, name) != 0)
+            continue;
+
+          char child_db_and_name[FN_LEN + 1];
+          const char* child_name = fk_split_name(child_db_and_name,
+                                                 fk.getChildTable());
+          if (strcmp(child_db_and_name, src_db) == 0 &&
+              strcmp(child_name, src_tab) == 0)
           {
             found= true;
             break;
@@ -2347,12 +2370,6 @@ ha_ndbcluster::copy_fk_for_offline_alter(THD * thd, Ndb* ndb, NDBTAB* _dsttab)
            */
           continue;
         }
-      }
-
-      NdbDictionary::ForeignKey fk;
-      if (dict->getForeignKey(fk, obj_list.elements[i].name) != 0)
-      {
-        ERR_RETURN(dict->getNdbError());
       }
 
       unsigned parentObjectId= 0;
@@ -2477,9 +2494,7 @@ ha_ndbcluster::copy_fk_for_offline_alter(THD * thd, Ndb* ndb, NDBTAB* _dsttab)
 
       char new_name[FN_LEN + 1];
       name= fk_split_name(db_and_name, fk.getName());
-      my_snprintf(new_name, sizeof(new_name), "%u/%u/%s",
-                  parentObjectId,
-                  childObjectId,
+      my_snprintf(new_name, sizeof(new_name), "%s",
                   name);
       fk.setName(new_name);
       setDbName(ndb, db_and_name);
@@ -2502,7 +2517,7 @@ int
 ha_ndbcluster::drop_fk_for_online_alter(THD * thd, Ndb* ndb, NDBDICT * dict,
                                         const NDBTAB* tab)
 {
-  DBUG_ENTER("drop_fk_for_online");
+  DBUG_ENTER("ha_ndbcluster::drop_fk_for_online_alter");
   if (thd->lex == 0)
   {
     assert(false);
@@ -2517,7 +2532,10 @@ ha_ndbcluster::drop_fk_for_online_alter(THD * thd, Ndb* ndb, NDBDICT * dict,
   }
 
   NDBDICT::List obj_list;
-  dict->listDependentObjects(obj_list, *srctab.get_table());
+  if (dict->listDependentObjects(obj_list, *srctab.get_table()) != 0)
+  {
+    ERR_RETURN(dict->getNdbError());
+  }
 
   Alter_drop * drop_item= 0;
   List_iterator<Alter_drop> drop_iterator(thd->lex->alter_info.drop_list);
@@ -2527,7 +2545,7 @@ ha_ndbcluster::drop_fk_for_online_alter(THD * thd, Ndb* ndb, NDBDICT * dict,
       continue;
 
     bool found= false;
-    for (unsigned i = 0; i < obj_list.count && !found; i++)
+    for (unsigned i = 0; i < obj_list.count; i++)
     {
       if (obj_list.elements[i].type != NdbDictionary::Object::ForeignKey)
       {
@@ -2537,22 +2555,20 @@ ha_ndbcluster::drop_fk_for_online_alter(THD * thd, Ndb* ndb, NDBDICT * dict,
       char db_and_name[FN_LEN + 1];
       const char * name= fk_split_name(db_and_name,obj_list.elements[i].name);
 
-      /*
-       * sql_yacc allows "..drop foreign key;" with no FK name
-       * (or column list) and passes NULL name here from opt_ident
-       *
-       * Edit: mysql-5.6 parser now catches this with ER_PARSE_ERROR
-       * but we leave the old check here.
-       */
-      if (drop_item->name == 0)
+      if (ndb_fk_casecmp(drop_item->name, name) != 0)
+        continue;
+
+      NdbDictionary::ForeignKey fk;
+      if (dict->getForeignKey(fk, obj_list.elements[i].name) != 0)
       {
-        my_printf_error(ER_SYNTAX_ERROR,
-                        "Drop foreign key must specify key name",
-                        MYF(0));
-        DBUG_RETURN(1);
+        ERR_RETURN(dict->getNdbError());
       }
 
-      if (ndb_fk_casecmp(drop_item->name, name) == 0)
+      char child_db_and_name[FN_LEN + 1];
+      const char* child_name = fk_split_name(child_db_and_name,
+                                             fk.getChildTable());
+      if (strcmp(child_db_and_name, ndb->getDatabaseName()) == 0 &&
+          strcmp(child_name, tab->getName()) == 0)
       {
         found= true;
         Fk_util fk_util(thd);

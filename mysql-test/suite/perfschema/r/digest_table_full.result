@@ -79,7 +79,7 @@ CREATE TABLE dup_table (c char(4));
 CREATE TABLE dup_table (c char(4));
 ERROR 42S01: Table 'dup_table' already exists
 DROP TABLE dup_table;
-INSERT INTO t11 VALUES("MySQL");
+INSERT IGNORE INTO t11 VALUES("MySQL");
 Warnings:
 Warning	1265	Data truncated for column 'c' at row 1
 PREPARE stmt FROM "SELECT * FROM t12";

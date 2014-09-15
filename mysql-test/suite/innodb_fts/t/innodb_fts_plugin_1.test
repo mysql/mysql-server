@@ -1,9 +1,8 @@
 --source include/have_innodb.inc
 --source include/have_simple_parser.inc
-# Don't test this under valgrind, memory leaks will occur due restart
---source include/not_valgrind.inc
-# Not supported in embedded
+# Restart is not supported in embedded
 --source include/not_embedded.inc
+--source include/no_valgrind_without_big.inc
 
 #-----------------------------------------------------------------------------
 # wl6943 : Support external parser
@@ -259,19 +258,9 @@ INSERT INTO t1 (a,b) VALUES
         ('adding record using session 1','for verifying multiple concurrent transactions'),
         ('Мога да ям стъкло', 'то Mне ми вреди'),(NULL,NULL);
 
+let $restart_parameters = restart:--innodb_ft_min_token_size=5 --innodb_ft_max_token_size=10;
+--source include/restart_mysqld.inc
 
---exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server 60
---source include/wait_until_disconnected.inc
---enable_reconnect
-# Write file to make mysql-test-run.pl start up the server again
---exec echo "restart:--innodb_ft_min_token_size=5 --innodb_ft_max_token_size=10" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---source include/wait_until_connected_again.inc
-#
- --enable_reconnect
- --source include/wait_until_connected_again.inc
- --disable_reconnect
-#
 SELECT @@innodb_ft_min_token_size,@@innodb_ft_max_token_size;
 
 ALTER TABLE t1 DROP INDEX idx;
@@ -309,8 +298,7 @@ CREATE TABLE t1_join AS SELECT * FROM t1;
 CREATE FULLTEXT INDEX idx on t1_join (a,b) WITH PARSER simple_parser;
 SELECT t1.id,t1_join.id FROM t1,t1_join WHERE MATCH (t1.a,t1.b) AGAINST ('Tutorial') AND t1.id = t1_join.id ;
 
---error 1191
-#invalid query - no index on column a
+--error ER_FT_MATCHING_KEY_NOT_FOUND
 SELECT * FROM t1 WHERE MATCH (a) AGAINST ('NULL');
 
 DROP TABLE t1;

@@ -23,8 +23,6 @@ INCLUDE_DIRECTORIES(
   ${ZLIB_INCLUDE_DIR}
   ${SSL_INCLUDE_DIRS}
   ${CMAKE_BINARY_DIR}/sql
-  ${BOOST_PATCHES_DIR}
-  ${BOOST_INCLUDE_DIR}
 )
 
 SET(CONF_SOURCES
@@ -78,6 +76,7 @@ SET(SQL_SHARED_SOURCES
   field_conv.cc 
   filesort.cc
   filesort_utils.cc
+  aggregate_check.cc
   gcalc_slicescan.cc
   gcalc_tools.cc
   gstream.cc
@@ -104,6 +103,8 @@ SET(SQL_SHARED_SOURCES
   mdl.cc
   my_decimal.cc
   net_serv.cc
+  opt_costconstantcache.cc
+  opt_costconstants.cc
   opt_costmodel.cc
   opt_explain.cc
   opt_explain_traditional.cc
@@ -252,28 +253,42 @@ IF(WIN32)
       )
 ENDIF()
 
+INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/compile_flags.cmake)
+ADD_COMPILE_FLAGS(
+  item_geofunc.cc
+  COMPILE_FLAGS -I${BOOST_PATCHES_DIR} -I${BOOST_INCLUDE_DIR}
+)
+
 # Boost Geometry source has unused local typedefs.
 MY_CHECK_CXX_COMPILER_FLAG("-Wno-unused-local-typedefs" HAVE_NO_UNUSED_TYPEDEFS)
 IF(HAVE_NO_UNUSED_TYPEDEFS)
-  SET_SOURCE_FILES_PROPERTIES(
+  ADD_COMPILE_FLAGS(
     item_geofunc.cc
-    PROPERTIES COMPILE_FLAGS "-Wno-unused-local-typedefs"
+    COMPILE_FLAGS "-Wno-unused-local-typedefs"
+  )
+ENDIF()
+# Boost Geometry source has uninitialized variables. Fixed in Boost 1.56
+MY_CHECK_CXX_COMPILER_FLAG("-Wno-uninitialized" HAVE_NO_UNINITIALIZED)
+IF(HAVE_NO_UNINITIALIZED)
+  ADD_COMPILE_FLAGS(
+    item_geofunc.cc
+    COMPILE_FLAGS "-Wno-uninitialized"
   )
 ENDIF()
 
 MY_CHECK_CXX_COMPILER_FLAG("-fno-builtin-memcmp" HAVE_NO_BUILTIN_MEMCMP)
 # See comments in filesort_compare-t.cc about __builtin_memcmp
 IF(HAVE_NO_BUILTIN_MEMCMP)
-  SET_SOURCE_FILES_PROPERTIES(
+  ADD_COMPILE_FLAGS(
     filesort_utils.cc
-    PROPERTIES COMPILE_FLAGS "-fno-builtin-memcmp"
+    COMPILE_FLAGS "-fno-builtin-memcmp"
   )
 ENDIF()
 
 IF (WIN32 AND OPENSSL_APPLINK_C)
-  SET_SOURCE_FILES_PROPERTIES(
+  ADD_COMPILE_FLAGS(
     ../sql-common/client_authentication.cc
-    PROPERTIES COMPILE_FLAGS "-DHAVE_OPENSSL_APPLINK_C"
+    COMPILE_FLAGS "-DHAVE_OPENSSL_APPLINK_C"
   )
 ENDIF()
 
@@ -309,7 +324,7 @@ SET (BINLOG_SOURCE uuid.cc rpl_gtid_misc.cc
                    rpl_gtid_mutex_cond_array.cc rpl_gtid_persist.cc
                    log_event.cc log_event_old.cc binlog.cc sql_binlog.cc
                    rpl_filter.cc rpl_record.cc rpl_record_old.cc
-                   rpl_utility.cc rpl_injector.cc)
+                   rpl_utility.cc rpl_injector.cc rpl_table_access.cc)
 ADD_LIBRARY(binlog ${BINLOG_SOURCE})
 SET (RPL_SOURCE rpl_handler.cc rpl_tblmap.cc)
 ADD_DEPENDENCIES(binlog GenError)
@@ -444,19 +459,14 @@ ENDIF()
 # Handle out-of-source build from source package with possibly broken 
 # bison. Copy bison output to from source to build directory, if not already 
 # there
-IF (NOT ${CMAKE_CURRENT_SOURCE_DIR} STREQUAL ${CMAKE_CURRENT_BINARY_DIR})
-  IF(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/sql_yacc.cc)
-    IF(NOT EXISTS ${CMAKE_CURRENT_BINARY_DIR}/sql_yacc.cc)
-      CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/sql_yacc.cc 
-        ${CMAKE_CURRENT_BINARY_DIR}/sql_yacc.cc COPYONLY)
-      CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/sql_yacc.h
-        ${CMAKE_CURRENT_BINARY_DIR}/sql_yacc.h COPYONLY)
-    ENDIF()
-  ENDIF()
-ENDIF()
-
-
 INCLUDE(${CMAKE_SOURCE_DIR}/cmake/bison.cmake)
+COPY_BISON_OUTPUT(
+  ${CMAKE_CURRENT_SOURCE_DIR}/sql_yacc.cc
+  ${CMAKE_CURRENT_SOURCE_DIR}/sql_yacc.h
+  ${CMAKE_CURRENT_BINARY_DIR}/sql_yacc.cc
+  ${CMAKE_CURRENT_BINARY_DIR}/sql_yacc.h
+)
+
 RUN_BISON(
   ${CMAKE_CURRENT_SOURCE_DIR}/sql_yacc.yy 
   ${CMAKE_CURRENT_BINARY_DIR}/sql_yacc.cc
@@ -530,10 +540,6 @@ ADD_CUSTOM_TARGET(distclean
 
 IF(INSTALL_LAYOUT STREQUAL "STANDALONE")
 
-# Copy db.opt into data/test/
-SET(DBOPT_FILE ${CMAKE_CURRENT_SOURCE_DIR}/db.opt ) 
-INSTALL(FILES ${DBOPT_FILE} DESTINATION data/test COMPONENT DataFiles)
-
 # Install initial database on windows
 IF(NOT CMAKE_CROSSCOMPILING)
   IF(DEBUG_EXTNAME)
@@ -553,6 +559,10 @@ IF(WIN32 AND MYSQLD_EXECUTABLE)
     SET (CONFIG_PARAM -DCONFIG=${CMAKE_CFG_INTDIR})
   ENDIF()
   MAKE_DIRECTORY(${CMAKE_CURRENT_BINARY_DIR}/data)
+  # Copy db.opt into data/test/
+  SET(DBOPT_FILE ${CMAKE_CURRENT_SOURCE_DIR}/db.opt ) 
+  INSTALL(FILES ${DBOPT_FILE} DESTINATION data/test COMPONENT DataFiles)
+
   ADD_CUSTOM_COMMAND(
      OUTPUT initdb.dep
      COMMAND ${CMAKE_COMMAND}

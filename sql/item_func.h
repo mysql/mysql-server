@@ -26,6 +26,10 @@ extern "C"				/* Bug in BSDI include file */
 }
 #endif
 
+extern void reject_geometry_args(uint arg_count, Item **args,
+                                 Item_result_field *me);
+
+
 class Item_func :public Item_result_field
 {
   typedef Item_result_field super;
@@ -728,11 +732,7 @@ public:
   const char *func_name() const { return "cast_as_signed"; }
   longlong val_int();
   longlong val_int_from_str(int *error);
-  void fix_length_and_dec()
-  {
-    fix_char_length(std::min<uint32>(args[0]->max_char_length(),
-                                     MY_INT64_NUM_DECIMAL_DIGITS));
-  }
+  void fix_length_and_dec();
   virtual void print(String *str, enum_query_type query_type);
   uint decimal_precision() const { return args[0]->decimal_precision(); }
 };
@@ -920,6 +920,95 @@ public:
   bool check_partition_func_processor(uchar *int_arg) {return false;}
 };
 
+
+/**
+  This is a superclass for Item_func_longfromgeohash and
+  Item_func_latfromgeohash, since they share almost all code.
+*/
+class Item_func_latlongfromgeohash :public Item_real_func
+{
+private:
+  /**
+   The lower limit for latitude output value. Normally, this will be
+   set to -90.0.
+  */
+  const double lower_latitude;
+
+  /**
+   The upper limit for latitude output value. Normally, this will be
+   set to 90.0.
+  */
+  const double upper_latitude;
+
+  /**
+   The lower limit for longitude output value. Normally, this will
+   be set to -180.0.
+  */
+  const double lower_longitude;
+
+  /**
+   The upper limit for longitude output value. Normally, this will
+   be set to 180.0.
+  */
+  const double upper_longitude;
+
+  /**
+   If this is set to TRUE the algorithm will start decoding on the first bit,
+   which decodes a longitude value. If it is FALSE, it will start on the
+   second bit which decodes a latitude value.
+  */
+  const bool start_on_even_bit;
+public:
+  Item_func_latlongfromgeohash(const POS &pos, Item *a,
+                               double lower_latitude, double upper_latitude,
+                               double lower_longitude, double upper_longitude,
+                               bool start_on_even_bit_arg)
+    :Item_real_func(pos, a), lower_latitude(lower_latitude),
+    upper_latitude(upper_latitude), lower_longitude(lower_longitude),
+    upper_longitude(upper_longitude), start_on_even_bit(start_on_even_bit_arg)
+  {}
+  double val_real();
+  void fix_length_and_dec();
+  bool fix_fields(THD *thd, Item **ref);
+  static bool decode_geohash(String *geohash, double upper_latitude,
+                             double lower_latitude, double upper_longitude,
+                             double lower_longitude, double *result_latitude,
+                             double *result_longitude);
+  static double round_latlongitude(double latlongitude, double error_range);
+  static bool check_geohash_argument_valid_type(Item *item);
+};
+
+
+/**
+  This handles the <double> = ST_LATFROMGEOHASH(<string>) funtion.
+  It returns the latitude-part of a geohash, in the range of [-90, 90].
+*/
+class Item_func_latfromgeohash :public Item_func_latlongfromgeohash
+{
+public:
+  Item_func_latfromgeohash(const POS &pos, Item *a)
+    :Item_func_latlongfromgeohash(pos, a, -90.0, 90.0, -180.0, 180.0, false)
+  {}
+
+  const char *func_name() const { return "ST_LATFROMGEOHASH"; }
+};
+
+
+/**
+  This handles the <double> = ST_LONGFROMGEOHASH(<string>) funtion.
+  It returns the longitude-part of a geohash, in the range of [-180, 180].
+*/
+class Item_func_longfromgeohash :public Item_func_latlongfromgeohash
+{
+public:
+  Item_func_longfromgeohash(const POS &pos, Item *a) 
+    :Item_func_latlongfromgeohash(pos, a, -90.0, 90.0, -180.0, 180.0, true)
+  {}
+
+  const char *func_name() const { return "ST_LONGFROMGEOHASH"; }
+};
+
+
 // A class to handle logarithmic and trigonometric functions
 
 class Item_dec_func :public Item_real_func
@@ -929,11 +1018,7 @@ class Item_dec_func :public Item_real_func
   Item_dec_func(const POS &pos, Item *a) :Item_real_func(pos, a) {}
 
   Item_dec_func(const POS &pos, Item *a,Item *b) :Item_real_func(pos, a,b) {}
-  void fix_length_and_dec()
-  {
-    decimals=NOT_FIXED_DEC; max_length=float_length(decimals);
-    maybe_null=1;
-  }
+  void fix_length_and_dec();
 };
 
 class Item_func_exp :public Item_dec_func
@@ -1145,6 +1230,7 @@ public:
   */
   table_map get_initial_pseudo_tables() const { return RAND_TABLE_BIT; }
   bool fix_fields(THD *thd, Item **ref);
+  void fix_length_and_dec();
   void cleanup() { first_eval= TRUE; Item_real_func::cleanup(); }
 private:
   void seed_random (Item * val);  
@@ -1157,6 +1243,7 @@ public:
   Item_func_sign(const POS &pos, Item *a) :Item_int_func(pos, a) {}
   const char *func_name() const { return "sign"; }
   longlong val_int();
+  void fix_length_and_dec();
 };
 
 
@@ -1171,8 +1258,7 @@ public:
   {}
   double val_real();
   const char *func_name() const { return name; }
-  void fix_length_and_dec()
-  { decimals= NOT_FIXED_DEC; max_length= float_length(decimals); }
+  void fix_length_and_dec();
 };
 
 
@@ -1836,6 +1922,28 @@ public:
   void fix_length_and_dec() { max_length=21; maybe_null=1;}
 };
 
+/**
+  This class is used for implementing the new wait_for_executed_gtid_set
+  function and the functions related to them. This new function is independent
+  of the slave threads.
+*/
+class Item_wait_for_executed_gtid_set :public Item_int_func
+{
+  typedef Item_int_func super;
+
+  String value;
+public:
+  Item_wait_for_executed_gtid_set(const POS &pos, Item *a) :Item_int_func(pos, a) {}
+  Item_wait_for_executed_gtid_set(const POS &pos, Item *a, Item *b)
+    :Item_int_func(pos, a, b)
+  {}
+
+  virtual bool itemize(Parse_context *pc, Item **res);
+  longlong val_int();
+  const char *func_name() const { return "wait_for_executed_gtid_set"; }
+  void fix_length_and_dec() { max_length= 21; maybe_null= 1; }
+};
+
 class Item_master_gtid_set_wait :public Item_int_func
 {
   typedef Item_int_func super;
@@ -2147,7 +2255,7 @@ public:
   bool join_key;
   DTCollation cmp_collation;
   FT_INFO *ft_handler;
-  TABLE *table;
+  TABLE_LIST *table_ref;
   /**
      Master item means that if idendical items are present in the
      statement, they use the same FT handler. FT handler is initialized
@@ -2168,9 +2276,9 @@ public:
   */
   Item_func_match(const POS &pos, PT_item_list *a, Item *against_arg, uint b):
     Item_real_func(pos, a), against(against_arg), key(0), flags(b),
-    join_key(0), ft_handler(0), table(0), master(0), concat_ws(0),
-    hints(NULL), simple_expression(false)
-  { }
+    join_key(false), ft_handler(NULL), table_ref(NULL),
+    master(NULL), concat_ws(NULL), hints(NULL), simple_expression(false)
+  {}
   
   virtual bool itemize(Parse_context *pc, Item **res);
 
@@ -2183,9 +2291,9 @@ public:
       ft_handler->please->close_search(ft_handler);
       delete hints;
     }
-    ft_handler= 0;
-    concat_ws= 0;
-    table= 0;           // required by Item_func_match::eq()
+    ft_handler= NULL;
+    concat_ws= NULL;
+    table_ref= NULL;           // required by Item_func_match::eq()
     DBUG_VOID_RETURN;
   }
   virtual Item *key_item() const { return against; }
@@ -2213,7 +2321,7 @@ public:
   ulonglong get_count()
   {
     DBUG_ASSERT(ft_handler);
-    DBUG_ASSERT(table->file->ha_table_flags() & HA_CAN_FULLTEXT_EXT);
+    DBUG_ASSERT(table_ref->table->file->ha_table_flags() & HA_CAN_FULLTEXT_EXT);
 
     return ((FT_INFO_EXT *)ft_handler)->could_you->
       count_matches((FT_INFO_EXT *)ft_handler);
@@ -2231,7 +2339,7 @@ public:
     if (hints->get_flags() & FT_SORTED)
       return true;
 
-    if ((table->file->ha_table_flags() & HA_CAN_FULLTEXT_EXT) == 0)
+    if ((table_ref->table->file->ha_table_flags() & HA_CAN_FULLTEXT_EXT) == 0)
       return false;
 
     DBUG_ASSERT(ft_handler);
@@ -2249,7 +2357,7 @@ public:
   {
     DBUG_ASSERT(ft_handler);
 
-    if ((table->file->ha_table_flags() & HA_CAN_FULLTEXT_EXT) == 0)
+    if ((table_ref->table->file->ha_table_flags() & HA_CAN_FULLTEXT_EXT) == 0)
       return false;
 
     return ((FT_INFO_EXT *)ft_handler)->could_you->get_flags() & 
@@ -2381,22 +2489,22 @@ private:
            fulltext API (e.g., MyISAM), while it is not supported for other 
            engines (e.g., InnoDB)
 
-     @param table_arg Table for which storage engine to check
+     @param tr Table for which storage engine to check
 
      @retval true if BOOLEAN search on non-indexed columns is supported
      @retval false otherwise
    */
-  bool allows_search_on_non_indexed_columns(TABLE* table_arg)
+  bool allows_search_on_non_indexed_columns(const TABLE_LIST *tr)
   {
     // Only Boolean search may support non_indexed columns
     if (!(flags & FT_BOOL))
       return false;
 
-    DBUG_ASSERT(table_arg && table_arg->file);
+    DBUG_ASSERT(tr && tr->table->file);
 
     // Assume that if extended fulltext API is not supported,
     // non-indexed columns are allowed.  This will be true for MyISAM.
-    if ((table_arg->file->ha_table_flags() & HA_CAN_FULLTEXT_EXT) == 0)
+    if ((tr->table->file->ha_table_flags() & HA_CAN_FULLTEXT_EXT) == 0)
       return true;
 
     return false;
@@ -2636,7 +2744,7 @@ public:
   explicit Item_func_version(const POS &pos)
     : Item_static_string_func(pos, NAME_STRING("version()"),
                               server_version,
-                              (uint) strlen(server_version),
+                              strlen(server_version),
                               system_charset_info,
                               DERIVATION_SYSCONST)
   {}

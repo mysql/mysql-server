@@ -1271,7 +1271,6 @@ ib_mutex_t	monitor_mutex;
 
 /****************************************************************//**
 Initialize the monitor subsystem. */
-
 void
 srv_mon_create(void)
 /*================*/
@@ -1280,7 +1279,6 @@ srv_mon_create(void)
 }
 /****************************************************************//**
 Close the monitor subsystem. */
-
 void
 srv_mon_free(void)
 /*==============*/
@@ -1294,7 +1292,6 @@ Get a monitor's "monitor_info" by its monitor id (index into the
 innodb_counter_info array.
 @return Point to corresponding monitor_info_t, or NULL if no such
 monitor */
-
 monitor_info_t*
 srv_mon_get_info(
 /*=============*/
@@ -1313,7 +1310,6 @@ Get monitor's name by its monitor id (indexing into the
 innodb_counter_info array.
 @return corresponding monitor name, or NULL if no such
 monitor */
-
 const char*
 srv_mon_get_name(
 /*=============*/
@@ -1331,7 +1327,6 @@ srv_mon_get_name(
 Turn on/off, reset monitor counters in a module. If module_id
 is MONITOR_ALL_COUNTER then turn on all monitor counters.
 turned on because it has already been turned on. */
-
 void
 srv_mon_set_module_control(
 /*=======================*/
@@ -1392,9 +1387,9 @@ srv_mon_set_module_control(
 		should be aware some counters are already on before
 		turn them on again (which could reset counter value) */
 		if (MONITOR_IS_ON(ix) && (set_option == MONITOR_TURN_ON)) {
-			ib_logf(IB_LOG_LEVEL_INFO,
-				"Monitor '%s' is already enabled.",
-				srv_mon_get_name((monitor_id_t) ix));
+			ib::info() << "Monitor '"
+				<< srv_mon_get_name((monitor_id_t) ix)
+				<< "' is already enabled.";
 			continue;
 		}
 
@@ -1469,7 +1464,6 @@ corresponding monitors are turned on/off/reset, and do appropriate
 mathematics to deduct the actual value. Please also refer to
 srv_export_innodb_status() for related global counters used by
 the existing status variables.*/
-
 void
 srv_mon_process_existing_counter(
 /*=============================*/
@@ -1910,7 +1904,6 @@ srv_mon_process_existing_counter(
 /*************************************************************//**
 Reset a monitor, create a new base line with the current monitor
 value. This baseline is recorded by MONITOR_VALUE_RESET(monitor) */
-
 void
 srv_mon_reset(
 /*==========*/
@@ -1958,7 +1951,6 @@ srv_mon_reset(
 
 /*************************************************************//**
 Turn on monitor counters that are marked as default ON. */
-
 void
 srv_mon_default_on(void)
 /*====================*/

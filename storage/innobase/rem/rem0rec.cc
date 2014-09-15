@@ -33,6 +33,7 @@ Created 5/30/1994 Heikki Tuuri
 #include "mtr0mtr.h"
 #include "mtr0log.h"
 #include "fts0fts.h"
+#include "gis0geo.h"
 #include "trx0sys.h"
 
 /*			PHYSICAL RECORD (OLD STYLE)
@@ -160,7 +161,6 @@ rec_validate_old(
 Determine how many of the first n columns in a compact
 physical record are stored externally.
 @return number of externally stored columns */
-
 ulint
 rec_get_n_extern_new(
 /*=================*/
@@ -311,6 +311,7 @@ rec_init_offsets_comp_ordinary(
 
 		if (!field->fixed_len
 		    || (temp && !dict_col_get_fixed_size(col, temp))) {
+			ut_ad(col->mtype != DATA_POINT);
 			/* Variable-length field: read the length */
 			len = *lens--;
 			/* If the maximum length of the field is up
@@ -444,9 +445,12 @@ rec_init_offsets(
 			}
 
 			if (UNIV_UNLIKELY(!field->fixed_len)) {
-				/* Variable-length field: read the length */
 				const dict_col_t*	col
 					= dict_field_get_col(field);
+				/* DATA_POINT should always be a fixed
+				length column. */
+				ut_ad(col->mtype != DATA_POINT);
+				/* Variable-length field: read the length */
 				len = *lens--;
 				/* If the maximum length of the field
 				is up to 255 bytes, the actual length
@@ -526,7 +530,6 @@ resolved:
 The following function determines the offsets to each field
 in the record.	It can reuse a previously returned array.
 @return the new offsets */
-
 ulint*
 rec_get_offsets_func(
 /*=================*/
@@ -605,7 +608,6 @@ rec_get_offsets_func(
 /******************************************************//**
 The following function determines the offsets to each field
 in the record.  It can reuse a previously allocated array. */
-
 void
 rec_get_offsets_reverse(
 /*====================*/
@@ -727,7 +729,6 @@ resolved:
 The following function is used to get the offset to the nth
 data field in an old-style record.
 @return offset to the field */
-
 ulint
 rec_get_nth_field_offs_old(
 /*=======================*/
@@ -850,6 +851,8 @@ rec_get_converted_size_comp_prefix_low(
 		}
 
 		ut_ad(len <= col->len || DATA_LARGE_MTYPE(col->mtype)
+                      || (DATA_POINT_MTYPE(col->mtype)
+			  && len == DATA_MBR_LEN)
 		      || (col->len == 0 && col->mtype == DATA_VARCHAR));
 
 		fixed_len = field->fixed_len;
@@ -903,7 +906,6 @@ rec_get_converted_size_comp_prefix_low(
 /**********************************************************//**
 Determines the size of a data tuple prefix in ROW_FORMAT=COMPACT.
 @return total size */
-
 ulint
 rec_get_converted_size_comp_prefix(
 /*===============================*/
@@ -920,7 +922,6 @@ rec_get_converted_size_comp_prefix(
 /**********************************************************//**
 Determines the size of a data tuple in ROW_FORMAT=COMPACT.
 @return total size */
-
 ulint
 rec_get_converted_size_comp(
 /*========================*/
@@ -965,7 +966,6 @@ rec_get_converted_size_comp(
 
 /***********************************************************//**
 Sets the value of the ith field SQL null bit of an old-style record. */
-
 void
 rec_set_nth_field_null_bit(
 /*=======================*/
@@ -1004,7 +1004,6 @@ rec_set_nth_field_null_bit(
 /***********************************************************//**
 Sets an old-style record field to SQL null.
 The physical size of the field is not changed. */
-
 void
 rec_set_nth_field_sql_null(
 /*=======================*/
@@ -1275,6 +1274,8 @@ rec_convert_dtuple_to_rec_comp(
 			*lens-- = (byte) (len >> 8) | 0xc0;
 			*lens-- = (byte) len;
 		} else {
+			/* DATA_POINT would have a fixed_len */
+			ut_ad(dtype_get_mtype(type) != DATA_POINT);
 			ut_ad(len <= dtype_get_len(type)
 			      || DATA_LARGE_MTYPE(dtype_get_mtype(type))
 			      || !strcmp(index->name,
@@ -1330,7 +1331,6 @@ rec_convert_dtuple_to_rec_new(
 Builds a physical record out of a data tuple and
 stores it beginning from the start of the given buffer.
 @return pointer to the origin of physical record */
-
 rec_t*
 rec_convert_dtuple_to_rec(
 /*======================*/
@@ -1384,7 +1384,6 @@ rec_convert_dtuple_to_rec(
 /**********************************************************//**
 Determines the size of a data tuple prefix in ROW_FORMAT=COMPACT.
 @return total size */
-
 ulint
 rec_get_converted_size_temp(
 /*========================*/
@@ -1400,7 +1399,6 @@ rec_get_converted_size_temp(
 /******************************************************//**
 Determine the offset to each field in temporary file.
 @see rec_convert_dtuple_to_temp() */
-
 void
 rec_init_offsets_temp(
 /*==================*/
@@ -1415,7 +1413,6 @@ rec_init_offsets_temp(
 /*********************************************************//**
 Builds a temporary file record out of a data tuple.
 @see rec_init_offsets_temp() */
-
 void
 rec_convert_dtuple_to_temp(
 /*=======================*/
@@ -1431,7 +1428,6 @@ rec_convert_dtuple_to_temp(
 /**************************************************************//**
 Copies the first n fields of a physical record to a data tuple. The fields
 are copied to the memory heap. */
-
 void
 rec_copy_prefix_to_dtuple(
 /*======================*/
@@ -1503,7 +1499,7 @@ rec_copy_prefix_to_buf_old(
 	if ((*buf == NULL) || (*buf_size < prefix_len)) {
 		ut_free(*buf);
 		*buf_size = prefix_len;
-		*buf = static_cast<byte*>(ut_malloc(prefix_len));
+		*buf = static_cast<byte*>(ut_malloc_nokey(prefix_len));
 	}
 
 	ut_memcpy(*buf, rec - area_start, prefix_len);
@@ -1519,7 +1515,6 @@ rec_copy_prefix_to_buf_old(
 Copies the first n fields of a physical record to a new physical record in
 a buffer.
 @return own: copied record */
-
 rec_t*
 rec_copy_prefix_to_buf(
 /*===================*/
@@ -1627,7 +1622,7 @@ rec_copy_prefix_to_buf(
 	if ((*buf == NULL) || (*buf_size < prefix_len)) {
 		ut_free(*buf);
 		*buf_size = prefix_len;
-		*buf = static_cast<byte*>(ut_malloc(prefix_len));
+		*buf = static_cast<byte*>(ut_malloc_nokey(prefix_len));
 	}
 
 	memcpy(*buf, lens + 1, prefix_len);
@@ -1700,7 +1695,6 @@ rec_validate_old(
 /***************************************************************//**
 Validates the consistency of a physical record.
 @return TRUE if ok */
-
 ibool
 rec_validate(
 /*=========*/
@@ -1767,7 +1761,6 @@ rec_validate(
 
 /***************************************************************//**
 Prints an old-style physical record. */
-
 void
 rec_print_old(
 /*==========*/
@@ -1821,7 +1814,6 @@ rec_print_old(
 /***************************************************************//**
 Prints a physical record in ROW_FORMAT=COMPACT.  Ignores the
 record header. */
-
 void
 rec_print_comp(
 /*===========*/
@@ -1866,7 +1858,6 @@ rec_print_comp(
 
 /***************************************************************//**
 Prints an old-style spatial index record. */
-
 void
 rec_print_mbr_old(
 /*==============*/
@@ -1941,7 +1932,6 @@ rec_print_mbr_old(
 
 /***************************************************************//**
 Prints a spatial index record. */
-
 void
 rec_print_mbr_rec(
 /*==============*/
@@ -2013,7 +2003,6 @@ rec_print_mbr_rec(
 Prints a physical record. */
 /***************************************************************//**
 Prints a physical record. */
-
 void
 rec_print_new(
 /*==========*/
@@ -2041,7 +2030,6 @@ rec_print_new(
 
 /***************************************************************//**
 Prints a physical record. */
-
 void
 rec_print(
 /*======*/
@@ -2071,7 +2059,6 @@ rec_print(
 # ifndef DBUG_OFF
 /***************************************************************//**
 Prints a physical record. */
-
 void
 rec_print(
 /*======*/
@@ -2126,7 +2113,6 @@ rec_print(
 /************************************************************//**
 Reads the DB_TRX_ID of a clustered index record.
 @return the value of DB_TRX_ID */
-
 trx_id_t
 rec_get_trx_id(
 /*===========*/
@@ -2144,7 +2130,7 @@ rec_get_trx_id(
 	ulint*		offsets		= offsets_;
 	rec_offs_init(offsets_);
 
-	ut_ad(fil_page_get_type(page) == FIL_PAGE_INDEX);
+	ut_ad(fil_page_index_page_check(page));
 	ut_ad(mach_read_from_8(page + PAGE_HEADER + PAGE_INDEX_ID)
 	      == index->id);
 	ut_ad(dict_index_is_clust(index));

@@ -1298,14 +1298,14 @@ static inline int mysql_mutex_lock(...)
   @ingroup Performance_schema_implementation
 */
 
-pthread_key(PFS_thread*, THR_PFS);
+thread_local_key_t THR_PFS;
 bool THR_PFS_initialized= false;
 
 static inline PFS_thread*
 my_pthread_get_THR_PFS()
 {
   DBUG_ASSERT(THR_PFS_initialized);
-  PFS_thread *thread= my_pthread_getspecific_ptr(PFS_thread*, THR_PFS);
+  PFS_thread *thread= static_cast<PFS_thread*>(my_get_thread_local(THR_PFS));
   DBUG_ASSERT(thread == NULL || sanitize_thread(thread) != NULL);
   return thread;
 }
@@ -1314,7 +1314,7 @@ static inline void
 my_pthread_set_THR_PFS(PFS_thread *pfs)
 {
   DBUG_ASSERT(THR_PFS_initialized);
-  my_pthread_setspecific_ptr(THR_PFS, pfs);
+  my_set_thread_local(THR_PFS, pfs);
 }
 
 /**
@@ -1336,7 +1336,14 @@ static enum_operation_type rwlock_operation_map[]=
   OPERATION_TYPE_READLOCK,
   OPERATION_TYPE_WRITELOCK,
   OPERATION_TYPE_TRYREADLOCK,
-  OPERATION_TYPE_TRYWRITELOCK
+  OPERATION_TYPE_TRYWRITELOCK,
+
+  OPERATION_TYPE_SHAREDLOCK,
+  OPERATION_TYPE_SHAREDEXCLUSIVELOCK,
+  OPERATION_TYPE_EXCLUSIVELOCK,
+  OPERATION_TYPE_TRYSHAREDLOCK,
+  OPERATION_TYPE_TRYSHAREDEXCLUSIVELOCK,
+  OPERATION_TYPE_TRYEXCLUSIVELOCK,
 };
 
 /**
@@ -1541,9 +1548,67 @@ void pfs_register_rwlock_v1(const char *category,
                             PSI_rwlock_info_v1 *info,
                             int count)
 {
-  REGISTER_BODY_V1(PSI_rwlock_key,
-                   rwlock_instrument_prefix,
-                   register_rwlock_class)
+  PSI_rwlock_key key;
+  char rw_formatted_name[PFS_MAX_INFO_NAME_LENGTH];
+  char sx_formatted_name[PFS_MAX_INFO_NAME_LENGTH];
+  size_t rw_prefix_length;
+  size_t sx_prefix_length;
+  size_t len;
+  size_t full_length;
+
+  DBUG_ASSERT(category != NULL);
+  DBUG_ASSERT(info != NULL);
+  if (build_prefix(&rwlock_instrument_prefix, category,
+                   rw_formatted_name, &rw_prefix_length) ||
+      build_prefix(&sxlock_instrument_prefix, category,
+                   sx_formatted_name, &sx_prefix_length) ||
+      ! pfs_initialized)
+  {
+    for (; count>0; count--, info++)
+      *(info->m_key)= 0;
+    return ;
+  }
+
+  for (; count>0; count--, info++)
+  {
+    DBUG_ASSERT(info->m_key != NULL);
+    DBUG_ASSERT(info->m_name != NULL);
+    len= strlen(info->m_name);
+
+    if (info->m_flags & PSI_RWLOCK_FLAG_SX)
+    {
+      full_length= sx_prefix_length + len;
+      if (likely(full_length <= PFS_MAX_INFO_NAME_LENGTH))
+      {
+        memcpy(sx_formatted_name + sx_prefix_length, info->m_name, len);
+        key= register_rwlock_class(sx_formatted_name, (uint)full_length, info->m_flags);
+      }
+      else
+      {
+        pfs_print_error("REGISTER_BODY_V1: (sx) name too long <%s> <%s>\n",
+                        category, info->m_name);
+        key= 0;
+      }
+    }
+    else
+    {
+      full_length= rw_prefix_length + len;
+      if (likely(full_length <= PFS_MAX_INFO_NAME_LENGTH))
+      {
+        memcpy(rw_formatted_name + rw_prefix_length, info->m_name, len);
+        key= register_rwlock_class(rw_formatted_name, (uint)full_length, info->m_flags);
+      }
+      else
+      {
+        pfs_print_error("REGISTER_BODY_V1: (rw) name too long <%s> <%s>\n",
+                        category, info->m_name);
+        key= 0;
+      }
+    }
+
+    *(info->m_key)= key;
+  }
+  return;
 }
 
 /**
@@ -2158,6 +2223,18 @@ void pfs_set_thread_id_v1(PSI_thread *thread, ulonglong processlist_id)
 
 /**
   Implementation of the thread instrumentation interface.
+  @sa PSI_v1::set_thread_THD.
+*/
+void pfs_set_thread_THD_v1(PSI_thread *thread, THD *thd)
+{
+  PFS_thread *pfs= reinterpret_cast<PFS_thread*> (thread);
+  if (unlikely(pfs == NULL))
+    return;
+  pfs->m_thd= thd;
+}
+
+/**
+  Implementation of the thread instrumentation interface.
   @sa PSI_v1::get_thread_id.
 */
 PSI_thread*
@@ -2395,7 +2472,7 @@ void pfs_delete_current_thread_v1(void)
   if (thread != NULL)
   {
     aggregate_thread(thread, thread->m_account, thread->m_user, thread->m_host);
-    my_pthread_setspecific_ptr(THR_PFS, NULL);
+    my_pthread_set_THR_PFS(NULL);
     destroy_thread(thread);
   }
 }
@@ -2518,10 +2595,10 @@ pfs_start_mutex_wait_v1(PSI_mutex_locker_state *state,
   @sa PSI_v1::start_rwlock_wrwait
 */
 PSI_rwlock_locker*
-pfs_start_rwlock_rdwait_v1(PSI_rwlock_locker_state *state,
-                           PSI_rwlock *rwlock,
-                           PSI_rwlock_operation op,
-                           const char *src_file, uint src_line)
+pfs_start_rwlock_wait_v1(PSI_rwlock_locker_state *state,
+                         PSI_rwlock *rwlock,
+                         PSI_rwlock_operation op,
+                         const char *src_file, uint src_line)
 {
   PFS_rwlock *pfs_rwlock= reinterpret_cast<PFS_rwlock*> (rwlock);
   DBUG_ASSERT(static_cast<int> (op) >= 0);
@@ -2529,6 +2606,26 @@ pfs_start_rwlock_rdwait_v1(PSI_rwlock_locker_state *state,
   DBUG_ASSERT(state != NULL);
   DBUG_ASSERT(pfs_rwlock != NULL);
   DBUG_ASSERT(pfs_rwlock->m_class != NULL);
+
+  /* Operations supported for READ WRITE LOCK */
+
+  DBUG_ASSERT(   pfs_rwlock->m_class->is_shared_exclusive()
+              || (op == PSI_RWLOCK_READLOCK)
+              || (op == PSI_RWLOCK_WRITELOCK)
+              || (op == PSI_RWLOCK_TRYREADLOCK)
+              || (op == PSI_RWLOCK_TRYWRITELOCK)
+             );
+
+  /* Operations supported for SHARED EXCLUSIVE LOCK */
+
+  DBUG_ASSERT(   ! pfs_rwlock->m_class->is_shared_exclusive()
+              || (op == PSI_RWLOCK_SHAREDLOCK)
+              || (op == PSI_RWLOCK_SHAREDEXCLUSIVELOCK)
+              || (op == PSI_RWLOCK_EXCLUSIVELOCK)
+              || (op == PSI_RWLOCK_TRYSHAREDLOCK)
+              || (op == PSI_RWLOCK_TRYSHAREDEXCLUSIVELOCK)
+              || (op == PSI_RWLOCK_TRYEXCLUSIVELOCK)
+             );
 
   if (! pfs_rwlock->m_enabled)
     return NULL;
@@ -2607,7 +2704,22 @@ pfs_start_rwlock_rdwait_v1(PSI_rwlock_locker_state *state,
 
   state->m_flags= flags;
   state->m_rwlock= rwlock;
+  state->m_operation= op;
   return reinterpret_cast<PSI_rwlock_locker*> (state);
+}
+
+PSI_rwlock_locker*
+pfs_start_rwlock_rdwait_v1(PSI_rwlock_locker_state *state,
+                           PSI_rwlock *rwlock,
+                           PSI_rwlock_operation op,
+                           const char *src_file, uint src_line)
+{
+  DBUG_ASSERT((op == PSI_RWLOCK_READLOCK) ||
+              (op == PSI_RWLOCK_TRYREADLOCK) ||
+              (op == PSI_RWLOCK_SHAREDLOCK) ||
+              (op == PSI_RWLOCK_TRYSHAREDLOCK));
+
+  return pfs_start_rwlock_wait_v1(state, rwlock, op, src_file, src_line);
 }
 
 PSI_rwlock_locker*
@@ -2616,7 +2728,14 @@ pfs_start_rwlock_wrwait_v1(PSI_rwlock_locker_state *state,
                            PSI_rwlock_operation op,
                            const char *src_file, uint src_line)
 {
-  return pfs_start_rwlock_rdwait_v1(state, rwlock, op, src_file, src_line);
+  DBUG_ASSERT((op == PSI_RWLOCK_WRITELOCK) ||
+              (op == PSI_RWLOCK_TRYWRITELOCK) ||
+              (op == PSI_RWLOCK_SHAREDEXCLUSIVELOCK) ||
+              (op == PSI_RWLOCK_TRYSHAREDEXCLUSIVELOCK) ||
+              (op == PSI_RWLOCK_EXCLUSIVELOCK) ||
+              (op == PSI_RWLOCK_TRYEXCLUSIVELOCK));
+
+  return pfs_start_rwlock_wait_v1(state, rwlock, op, src_file, src_line);
 }
 
 /**
@@ -3878,9 +3997,14 @@ void pfs_end_rwlock_wrwait_v1(PSI_rwlock_locker* locker, int rc)
     /* Thread safe : we are protected by the instrumented rwlock */
     rwlock->m_writer= thread;
     rwlock->m_last_written= timer_end;
-    /* Reset the readers stats, they could be off */
-    rwlock->m_readers= 0;
-    rwlock->m_last_read= 0;
+
+    if ((state->m_operation != PSI_RWLOCK_SHAREDEXCLUSIVELOCK) &&
+        (state->m_operation != PSI_RWLOCK_TRYSHAREDEXCLUSIVELOCK))
+    {
+      /* Reset the readers stats, they could be off */
+      rwlock->m_readers= 0;
+      rwlock->m_last_read= 0;
+    }
   }
 
   if (state->m_flags & STATE_FLAG_THREAD)
@@ -3984,7 +4108,7 @@ void pfs_end_cond_wait_v1(PSI_cond_locker* locker, int rc)
   Implementation of the table instrumentation interface.
   @sa PSI_v1::end_table_io_wait.
 */
-void pfs_end_table_io_wait_v1(PSI_table_locker* locker)
+void pfs_end_table_io_wait_v1(PSI_table_locker* locker, ulonglong numrows)
 {
   PSI_table_locker_state *state= reinterpret_cast<PSI_table_locker_state*> (locker);
   DBUG_ASSERT(state != NULL);
@@ -4030,11 +4154,11 @@ void pfs_end_table_io_wait_v1(PSI_table_locker* locker)
   {
     timer_end= state->m_timer();
     wait_time= timer_end - state->m_timer_start;
-    stat->aggregate_value(wait_time);
+    stat->aggregate_many_value(wait_time, numrows);
   }
   else
   {
-    stat->aggregate_counted();
+    stat->aggregate_counted(numrows);
   }
 
   if (flags & STATE_FLAG_THREAD)
@@ -4051,11 +4175,11 @@ void pfs_end_table_io_wait_v1(PSI_table_locker* locker)
     */
     if (flags & STATE_FLAG_TIMED)
     {
-      event_name_array[GLOBAL_TABLE_IO_EVENT_INDEX].aggregate_value(wait_time);
+      event_name_array[GLOBAL_TABLE_IO_EVENT_INDEX].aggregate_many_value(wait_time, numrows);
     }
     else
     {
-      event_name_array[GLOBAL_TABLE_IO_EVENT_INDEX].aggregate_counted();
+      event_name_array[GLOBAL_TABLE_IO_EVENT_INDEX].aggregate_counted(numrows);
     }
 
     if (flags & STATE_FLAG_EVENT)
@@ -4065,6 +4189,7 @@ void pfs_end_table_io_wait_v1(PSI_table_locker* locker)
 
       wait->m_timer_end= timer_end;
       wait->m_end_event_id= thread->m_event_id;
+      wait->m_number_of_bytes= static_cast<size_t>(numrows);
       if (flag_events_waits_history)
         insert_events_waits_history(thread, wait);
       if (flag_events_waits_history_long)
@@ -6169,7 +6294,7 @@ static PSI_memory_key pfs_memory_alloc_v1(PSI_memory_key key, size_t size)
 
   if (flag_thread_instrumentation)
   {
-    PFS_thread *pfs_thread= my_pthread_getspecific_ptr(PFS_thread*, THR_PFS);
+    PFS_thread *pfs_thread= my_pthread_get_THR_PFS();
     if (unlikely(pfs_thread == NULL))
       return PSI_NOT_INSTRUMENTED;
     if (! pfs_thread->m_enabled)
@@ -6210,7 +6335,7 @@ static PSI_memory_key pfs_memory_realloc_v1(PSI_memory_key key, size_t old_size,
 
   if (flag_thread_instrumentation)
   {
-    PFS_thread *pfs_thread= my_pthread_getspecific_ptr(PFS_thread*, THR_PFS);
+    PFS_thread *pfs_thread= my_pthread_get_THR_PFS();
     if (likely(pfs_thread != NULL))
     {
       /* Aggregate to MEMORY_SUMMARY_BY_THREAD_BY_EVENT_NAME */
@@ -6273,7 +6398,7 @@ static void pfs_memory_free_v1(PSI_memory_key key, size_t size)
 
   if (flag_thread_instrumentation)
   {
-    PFS_thread *pfs_thread= my_pthread_getspecific_ptr(PFS_thread*, THR_PFS);
+    PFS_thread *pfs_thread= my_pthread_get_THR_PFS();
     if (likely(pfs_thread != NULL))
     {
       /*
@@ -6330,7 +6455,7 @@ pfs_create_metadata_lock_v1(
   if (! global_metadata_class.m_enabled)
     return NULL;
 
-  PFS_thread *pfs_thread= my_pthread_getspecific_ptr(PFS_thread*, THR_PFS);
+  PFS_thread *pfs_thread= my_pthread_get_THR_PFS();
   if (pfs_thread == NULL)
     return NULL;
 
@@ -6382,7 +6507,7 @@ pfs_start_metadata_wait_v1(PSI_metadata_locker_state *state,
 
   if (flag_thread_instrumentation)
   {
-    PFS_thread *pfs_thread= my_pthread_getspecific_ptr(PFS_thread*, THR_PFS);
+    PFS_thread *pfs_thread= my_pthread_get_THR_PFS();
     if (unlikely(pfs_thread == NULL))
       return NULL;
     if (! pfs_thread->m_enabled)
@@ -6554,6 +6679,7 @@ PSI_v1 PFS_v1=
   pfs_spawn_thread_v1,
   pfs_new_thread_v1,
   pfs_set_thread_id_v1,
+  pfs_set_thread_THD_v1,
   pfs_get_thread_v1,
   pfs_set_thread_user_v1,
   pfs_set_thread_account_v1,

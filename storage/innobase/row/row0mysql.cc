@@ -38,6 +38,7 @@ Created 9/17/2000 Heikki Tuuri
 #include "btr0sea.h"
 #include "dict0boot.h"
 #include "dict0crea.h"
+#include <sql_const.h>
 #include "dict0dict.h"
 #include "dict0load.h"
 #include "dict0stats.h"
@@ -63,10 +64,12 @@ Created 9/17/2000 Heikki Tuuri
 #include "trx0rec.h"
 #include "trx0roll.h"
 #include "trx0undo.h"
-#include <deque>
 #include "row0ext.h"
-#include <vector>
+#include "ut0new.h"
+
 #include <algorithm>
+#include <deque>
+#include <vector>
 
 const char* MODIFICATIONS_NOT_ALLOWED_MSG_RAW_PARTITION =
 	"A new raw disk partition was initialized. We do not allow database"
@@ -147,7 +150,6 @@ row_mysql_delay_if_needed(void)
 
 /*******************************************************************//**
 Frees the blob heap in prebuilt when no longer needed. */
-
 void
 row_mysql_prebuilt_free_blob_heap(
 /*==============================*/
@@ -163,7 +165,6 @@ Stores a >= 5.0.3 format true VARCHAR length to dest, in the MySQL row
 format.
 @return pointer to the data, we skip the 1 or 2 bytes at the start
 that are used to store the len */
-
 byte*
 row_mysql_store_true_var_len(
 /*=========================*/
@@ -192,7 +193,6 @@ Reads a >= 5.0.3 format true VARCHAR length, in the MySQL row format, and
 returns a pointer to the data.
 @return pointer to the data, we skip the 1 or 2 bytes at the start
 that are used to store the len */
-
 const byte*
 row_mysql_read_true_varchar(
 /*========================*/
@@ -216,7 +216,6 @@ row_mysql_read_true_varchar(
 
 /*******************************************************************//**
 Stores a reference to a BLOB in the MySQL format. */
-
 void
 row_mysql_store_blob_ref(
 /*=====================*/
@@ -254,7 +253,6 @@ row_mysql_store_blob_ref(
 /*******************************************************************//**
 Reads a reference to a BLOB in the MySQL format.
 @return pointer to BLOB data */
-
 const byte*
 row_mysql_read_blob_ref(
 /*====================*/
@@ -275,7 +273,6 @@ row_mysql_read_blob_ref(
 
 /*******************************************************************//**
 Converting InnoDB geometry data format to MySQL data format. */
-
 void
 row_mysql_store_geometry(
 /*=====================*/
@@ -339,7 +336,6 @@ row_mysql_store_geometry(
 /*******************************************************************//**
 Read geometry data in the MySQL format.
 @return pointer to geometry data */
-
 const byte*
 row_mysql_read_geometry(
 /*====================*/
@@ -381,7 +377,6 @@ row_mysql_read_geometry(
 
 /**************************************************************//**
 Pad a column with spaces. */
-
 void
 row_mysql_pad_col(
 /*==============*/
@@ -427,7 +422,6 @@ Stores a non-SQL-NULL field given in the MySQL format in the InnoDB format.
 The counterpart of this function is row_sel_field_store_in_mysql_format() in
 row0sel.cc.
 @return up to which byte we used buf in the conversion */
-
 byte*
 row_mysql_store_col_in_innobase_format(
 /*===================================*/
@@ -599,8 +593,9 @@ row_mysql_store_col_in_innobase_format(
 	} else if (type == DATA_BLOB) {
 
 		ptr = row_mysql_read_blob_ref(&col_len, mysql_data, col_len);
-	} else if (type == DATA_GEOMETRY) {
-		/* We still use blob to store geometry data */
+	} else if (DATA_GEOMETRY_MTYPE(type)) {
+		/* We use blob to store geometry data except DATA_POINT
+		internally, but in MySQL Layer the datatype is always blob. */
 		ptr = row_mysql_read_geometry(&col_len, mysql_data, col_len);
 	}
 
@@ -678,7 +673,6 @@ next_column:
 Handles user errors and lock waits detected by the database engine.
 @return true if it was a lock wait and we should continue running the
 query thread and in that case the thr is ALREADY in the running state. */
-
 bool
 row_mysql_handle_errors(
 /*====================*/
@@ -793,7 +787,6 @@ handle_new_error:
 /********************************************************************//**
 Create a prebuilt struct for a MySQL table handle.
 @return own: a prebuilt struct */
-
 row_prebuilt_t*
 row_create_prebuilt(
 /*================*/
@@ -804,8 +797,10 @@ row_create_prebuilt(
 	row_prebuilt_t*	prebuilt;
 	mem_heap_t*	heap;
 	dict_index_t*	clust_index;
+	dict_index_t*	temp_index;
 	dtuple_t*	ref;
 	ulint		ref_len;
+	uint		srch_key_len = 0;
 	ulint		search_tuple_n_fields;
 
 	search_tuple_n_fields = 2 * dict_table_get_n_cols(table);
@@ -816,6 +811,14 @@ row_create_prebuilt(
 	ut_a(2 * dict_table_get_n_cols(table) >= clust_index->n_fields);
 
 	ref_len = dict_index_get_n_unique(clust_index);
+
+
+        /* Maximum size of the buffer needed for conversion of INTs from
+	little endian format to big endian format in an index. An index
+	can have maximum 16 columns (MAX_REF_PARTS) in it. Therfore
+	Max size for PK: 16 * 8 bytes (BIGINT's size) = 128 bytes
+	Max size Secondary index: 16 * 8 bytes + PK = 256 bytes. */
+#define MAX_SRCH_KEY_VAL_BUFFER         2* (8 * MAX_REF_PARTS)
 
 #define PREBUILT_HEAP_INITIAL_SIZE	\
 	( \
@@ -845,10 +848,38 @@ row_create_prebuilt(
 	+ sizeof(que_thr_t) \
 	)
 
+	/* Calculate size of key buffer used to store search key in
+	InnoDB format. MySQL stores INTs in little endian format and
+	InnoDB stores INTs in big endian format with the sign bit
+	flipped. All other field types are stored/compared the same
+	in MySQL and InnoDB, so we must create a buffer containing
+	the INT key parts in InnoDB format.We need two such buffers
+	since both start and end keys are used in records_in_range(). */
+
+	for (temp_index = dict_table_get_first_index(table); temp_index;
+	     temp_index = dict_table_get_next_index(temp_index)) {
+		DBUG_EXECUTE_IF("innodb_srch_key_buffer_max_value",
+			ut_a(temp_index->n_user_defined_cols
+						== MAX_REF_PARTS););
+		uint temp_len = 0;
+		for (uint i = 0; i < temp_index->n_uniq; i++) {
+			if (temp_index->fields[i].col->mtype == DATA_INT) {
+				temp_len +=
+					temp_index->fields[i].fixed_len;
+			}
+		}
+		srch_key_len = std::max(srch_key_len,temp_len);
+	}
+
+	ut_a(srch_key_len <= MAX_SRCH_KEY_VAL_BUFFER);
+
+	DBUG_EXECUTE_IF("innodb_srch_key_buffer_max_value",
+		ut_a(srch_key_len == MAX_SRCH_KEY_VAL_BUFFER););
+
 	/* We allocate enough space for the objects that are likely to
 	be created later in order to minimize the number of malloc()
 	calls */
-	heap = mem_heap_create(PREBUILT_HEAP_INITIAL_SIZE);
+	heap = mem_heap_create(PREBUILT_HEAP_INITIAL_SIZE + 2 * srch_key_len);
 
 	prebuilt = static_cast<row_prebuilt_t*>(
 		mem_heap_zalloc(heap, sizeof(*prebuilt)));
@@ -860,6 +891,18 @@ row_create_prebuilt(
 
 	prebuilt->sql_stat_start = TRUE;
 	prebuilt->heap = heap;
+
+	prebuilt->srch_key_val_len = srch_key_len;
+	if (prebuilt->srch_key_val_len) {
+		prebuilt->srch_key_val1 = static_cast<byte*>(
+			mem_heap_alloc(prebuilt->heap,
+				       2 * prebuilt->srch_key_val_len));
+		prebuilt->srch_key_val2 = prebuilt->srch_key_val1 +
+						prebuilt->srch_key_val_len;
+	} else {
+		prebuilt->srch_key_val1 = NULL;
+		prebuilt->srch_key_val2 = NULL;
+	}
 
 	btr_pcur_reset(&prebuilt->pcur);
 	btr_pcur_reset(&prebuilt->clust_pcur);
@@ -899,7 +942,6 @@ row_create_prebuilt(
 
 /********************************************************************//**
 Free a prebuilt struct for a MySQL table handle. */
-
 void
 row_prebuilt_free(
 /*==============*/
@@ -970,7 +1012,6 @@ row_prebuilt_free(
 /*********************************************************************//**
 Updates the transaction pointers in query graphs stored in the prebuilt
 struct. */
-
 void
 row_update_prebuilt_trx(
 /*====================*/
@@ -1122,7 +1163,6 @@ table. The lock is reserved only for the duration of an SQL statement.
 It is not compatible with another AUTO_INC or exclusive lock on the
 table.
 @return error code or DB_SUCCESS */
-
 dberr_t
 row_lock_table_autoinc_for_mysql(
 /*=============================*/
@@ -1193,7 +1233,6 @@ run_again:
 /*********************************************************************//**
 Sets a table lock on the table mentioned in prebuilt.
 @return error code or DB_SUCCESS */
-
 dberr_t
 row_lock_table_for_mysql(
 /*=====================*/
@@ -1625,7 +1664,6 @@ error_exit:
 @param[in]	mysql_rec	row in the MySQL format
 @param[in,out]	prebuilt	prebuilt struct in MySQL handle
 @return error code or DB_SUCCESS*/
-
 dberr_t
 row_insert_for_mysql(
 	const byte*		mysql_rec,
@@ -1644,7 +1682,6 @@ row_insert_for_mysql(
 
 /*********************************************************************//**
 Builds a dummy query graph used in selects. */
-
 void
 row_prebuild_sel_graph(
 /*===================*/
@@ -1673,7 +1710,6 @@ row_prebuild_sel_graph(
 Creates an query graph node of 'update' type to be used in the MySQL
 interface.
 @return own: update node */
-
 upd_node_t*
 row_create_update_node_for_mysql(
 /*=============================*/
@@ -1716,7 +1752,6 @@ Gets pointer to a prebuilt update vector used in updates. If the update
 graph has not yet been built in the prebuilt struct, then this function
 first builds it.
 @return prebuilt update vector */
-
 upd_t*
 row_get_prebuilt_update_vector(
 /*===========================*/
@@ -1861,7 +1896,7 @@ private:
 };
 
 
-typedef	std::vector<btr_pcur_t>	cursors_t;
+typedef	std::vector<btr_pcur_t, ut_allocator<btr_pcur_t> >	cursors_t;
 
 /** Delete row from table (corresponding entries from all the indexes).
 Function will maintain cursor to the entries to invoke explicity rollback
@@ -2466,7 +2501,6 @@ error:
 @param[in]	mysql_rec	row in the MySQL format
 @param[in,out]	prebuilt	prebuilt struct in MySQL handle
 @return error code or DB_SUCCESS */
-
 dberr_t
 row_update_for_mysql(
 	const byte*		mysql_rec,
@@ -2484,7 +2518,6 @@ row_update_for_mysql(
 /** Delete all rows for the given table by freeing/truncating indexes.
 @param[in,out]	table	table handler
 @return error code or DB_SUCCESS */
-
 dberr_t
 row_delete_all_rows(
 	dict_table_t*	table)
@@ -2497,7 +2530,7 @@ row_delete_all_rows(
 
 	/* Step-1: Now truncate all the indexes and re-create them.
 	Note: This is ddl action even though delete all rows is
-	dml action. Any error during this action is ir-reversible. */
+	DML action. Any error during this action is ir-reversible. */
 	for (dict_index_t* index = UT_LIST_GET_FIRST(table->indexes);
 	     index != NULL && err == DB_SUCCESS;
 	     index = UT_LIST_GET_NEXT(indexes, index)) {
@@ -2520,7 +2553,6 @@ clustered index record lock under prebuilt->pcur or
 prebuilt->clust_pcur.  Thus, this implements a 'mini-rollback' that
 releases the latest clustered index record lock we set.
 @return error code or DB_SUCCESS */
-
 void
 row_unlock_for_mysql(
 /*=================*/
@@ -2648,7 +2680,6 @@ no_unlock:
 Checks if a table is such that we automatically created a clustered
 index on it (on row id).
 @return TRUE if the clustered index was generated automatically */
-
 ibool
 row_table_got_default_clust_index(
 /*==============================*/
@@ -2664,7 +2695,6 @@ row_table_got_default_clust_index(
 /*********************************************************************//**
 Locks the data dictionary in shared mode from modifications, for performing
 foreign key check, rollback, or other operation invisible to MySQL. */
-
 void
 row_mysql_freeze_data_dictionary_func(
 /*==================================*/
@@ -2681,7 +2711,6 @@ row_mysql_freeze_data_dictionary_func(
 
 /*********************************************************************//**
 Unlocks the data dictionary shared lock. */
-
 void
 row_mysql_unfreeze_data_dictionary(
 /*===============================*/
@@ -2699,7 +2728,6 @@ row_mysql_unfreeze_data_dictionary(
 /*********************************************************************//**
 Locks the data dictionary exclusively for performing a table create or other
 data dictionary modification operation. */
-
 void
 row_mysql_lock_data_dictionary_func(
 /*================================*/
@@ -2716,12 +2744,11 @@ row_mysql_lock_data_dictionary_func(
 	rw_lock_x_lock_inline(&dict_operation_lock, 0, file, line);
 	trx->dict_operation_lock_mode = RW_X_LATCH;
 
-	mutex_enter(&(dict_sys->mutex));
+	mutex_enter(&dict_sys->mutex);
 }
 
 /*********************************************************************//**
 Unlocks the data dictionary exclusive lock. */
-
 void
 row_mysql_unlock_data_dictionary(
 /*=============================*/
@@ -2734,7 +2761,7 @@ row_mysql_unlock_data_dictionary(
 	/* Serialize data dictionary operations with dictionary mutex:
 	no deadlocks can occur then in these operations */
 
-	mutex_exit(&(dict_sys->mutex));
+	mutex_exit(&dict_sys->mutex);
 	rw_lock_x_unlock(&dict_operation_lock);
 
 	trx->dict_operation_lock_mode = 0;
@@ -2744,7 +2771,6 @@ row_mysql_unlock_data_dictionary(
 Creates a table for MySQL. On failure the transaction will be rolled back
 and the 'table' object will be freed.
 @return error code or DB_SUCCESS */
-
 dberr_t
 row_create_table_for_mysql(
 /*=======================*/
@@ -2762,7 +2788,7 @@ row_create_table_for_mysql(
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_X));
 #endif /* UNIV_SYNC_DEBUG */
-	ut_ad(mutex_own(&(dict_sys->mutex)));
+	ut_ad(mutex_own(&dict_sys->mutex));
 	ut_ad(trx->dict_operation_lock_mode == RW_X_LATCH);
 
 	DBUG_EXECUTE_IF(
@@ -2909,7 +2935,6 @@ Does an index creation operation for MySQL. TODO: currently failure
 to create an index results in dropping the whole table! This is no problem
 currently as all indexes must be created at the same time as the table.
 @return error number or DB_SUCCESS */
-
 dberr_t
 row_create_index_for_mysql(
 /*=======================*/
@@ -2954,7 +2979,7 @@ row_create_index_for_mysql(
 #ifdef UNIV_SYNC_DEBUG
 		ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_X));
 #endif /* UNIV_SYNC_DEBUG */
-		ut_ad(mutex_own(&(dict_sys->mutex)));
+		ut_ad(mutex_own(&dict_sys->mutex));
 
 		table = dict_table_open_on_name(table_name, TRUE, TRUE,
 						DICT_ERR_IGNORE_NONE);
@@ -3073,13 +3098,15 @@ error_handling:
 
 		trx->error_state = DB_SUCCESS;
 
-		if (trx->state != TRX_STATE_NOT_STARTED) {
+		if (trx_is_started(trx)) {
+
 			trx_rollback_to_savepoint(trx, NULL);
 		}
 
 		row_drop_table_for_mysql(table_name, trx, FALSE, true, handler);
 
-		if (trx->state != TRX_STATE_NOT_STARTED) {
+		if (trx_is_started(trx)) {
+
 			trx_commit_for_mysql(trx);
 		}
 
@@ -3117,7 +3144,6 @@ fields than mentioned in the constraint.
 				DB_CANNOT_ADD_CONSTRAINT if any
 				foreign keys are found.
 @return error code or DB_SUCCESS */
-
 dberr_t
 row_table_add_foreign_constraints(
 	trx_t*			trx,
@@ -3132,7 +3158,7 @@ row_table_add_foreign_constraints(
 
 	DBUG_ENTER("row_table_add_foreign_constraints");
 
-	ut_ad(mutex_own(&(dict_sys->mutex)) || handler);
+	ut_ad(mutex_own(&dict_sys->mutex) || handler);
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_X) || handler);
 #endif /* UNIV_SYNC_DEBUG */
@@ -3175,13 +3201,15 @@ row_table_add_foreign_constraints(
 
 		trx->error_state = DB_SUCCESS;
 
-		if (trx->state != TRX_STATE_NOT_STARTED) {
+		if (trx_is_started(trx)) {
+
 			trx_rollback_to_savepoint(trx, NULL);
 		}
 
 		row_drop_table_for_mysql(name, trx, FALSE, true, handler);
 
-		if (trx->state != TRX_STATE_NOT_STARTED) {
+		if (trx_is_started(trx)) {
+
 			trx_commit_for_mysql(trx);
 		}
 
@@ -3242,7 +3270,6 @@ The master thread in srv0srv.cc calls this regularly to drop tables which
 we must drop in background after queries to them have ended. Such lazy
 dropping of tables is needed in ALTER TABLE on Unix.
 @return how many tables dropped + remaining tables in list */
-
 ulint
 row_drop_tables_for_mysql_in_background(void)
 /*=========================================*/
@@ -3316,7 +3343,6 @@ already_dropped:
 Get the background drop list length. NOTE: the caller must own the
 drop list mutex!
 @return how many tables in list */
-
 ulint
 row_get_background_drop_list_len_low(void)
 /*======================================*/
@@ -3368,7 +3394,7 @@ row_add_table_to_background_drop_list(
 	}
 
 	drop = static_cast<row_mysql_drop_t*>(
-		ut_malloc(sizeof(row_mysql_drop_t)));
+		ut_malloc_nokey(sizeof(row_mysql_drop_t)));
 
 	drop->table_name = mem_strdup(name);
 
@@ -3388,7 +3414,6 @@ row_add_table_to_background_drop_list(
 /*********************************************************************//**
 Reassigns the table identifier of a table.
 @return error code or DB_SUCCESS */
-
 dberr_t
 row_mysql_table_id_reassign(
 /*========================*/
@@ -3667,7 +3692,6 @@ Discards the tablespace of a table which stored in an .ibd file. Discarding
 means that this function renames the .ibd file and assigns a new table id for
 the table. Also the flag table->ibd_file_missing is set to TRUE.
 @return error code or DB_SUCCESS */
-
 dberr_t
 row_discard_tablespace_for_mysql(
 /*=============================*/
@@ -3728,7 +3752,6 @@ row_discard_tablespace_for_mysql(
 /*********************************************************************//**
 Sets an exclusive lock on a table.
 @return error code or DB_SUCCESS */
-
 dberr_t
 row_mysql_lock_table(
 /*=================*/
@@ -3813,7 +3836,6 @@ Drops a table for MySQL.  If the data dictionary was not already locked
 by the transaction, the transaction will be committed.  Otherwise, the
 data dictionary will remain locked.
 @return error code or DB_SUCCESS */
-
 dberr_t
 row_drop_table_for_mysql(
 /*=====================*/
@@ -3886,7 +3908,7 @@ row_drop_table_for_mysql(
 			nonatomic = true;
 		}
 
-		ut_ad(mutex_own(&(dict_sys->mutex)));
+		ut_ad(mutex_own(&dict_sys->mutex));
 #ifdef UNIV_SYNC_DEBUG
 		ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_X));
 #endif /* UNIV_SYNC_DEBUG */
@@ -3918,7 +3940,8 @@ row_drop_table_for_mysql(
 	}
 
 	/* This function is called recursively via fts_drop_tables(). */
-	if (trx->state == TRX_STATE_NOT_STARTED) {
+	if (!trx_is_started(trx)) {
+
 		if (!dict_table_is_temporary(table)) {
 			trx_start_for_ddl(trx, TRX_DICT_OP_TABLE);
 		} else {
@@ -4293,7 +4316,7 @@ row_drop_table_for_mysql(
 		/* We do not allow temporary tables with a remote path. */
 		ut_a(!(is_temp && DICT_TF_HAS_DATA_DIR(table->flags)));
 
-		/* Make sure the data_dir_path is set. */
+		/* Make sure the data_dir_path is set if needed. */
 		dict_get_and_save_data_dir_path(table, true);
 
 		if (space_id && DICT_TF_HAS_DATA_DIR(table->flags)) {
@@ -4313,8 +4336,10 @@ row_drop_table_for_mysql(
 
 		if (dict_table_has_fts_index(table)
 		    || DICT_TF2_FLAG_IS_SET(table, DICT_TF2_FTS_HAS_DOC_ID)) {
+
 			ut_ad(table->n_ref_count == 0);
-			ut_ad(trx->state != TRX_STATE_NOT_STARTED);
+			ut_ad(trx_is_started(trx));
+
 			err = fts_drop_tables(trx, table);
 
 			if (err != DB_SUCCESS) {
@@ -4449,7 +4474,7 @@ row_drop_table_for_mysql(
 
 	default:
 		/* This is some error we do not expect. Print
-		the error number and rollback transaction */
+		the error number and rollback the transaction */
 		ib_logf(IB_LOG_LEVEL_ERROR,
 			"Unknown error code %lu while dropping table: %s.",
 			(ulong) err, ut_get_name(trx, TRUE, tablename).c_str());
@@ -4481,7 +4506,9 @@ funct_exit:
 	ut_free(filepath);
 
 	if (locked_dictionary) {
-		if (trx->state != TRX_STATE_NOT_STARTED) {
+
+		if (trx_is_started(trx)) {
+
 			trx_commit_for_mysql(trx);
 		}
 
@@ -4502,7 +4529,6 @@ funct_exit:
 
 /*********************************************************************//**
 Drop all temporary tables during crash recovery. */
-
 void
 row_mysql_drop_temp_tables(void)
 /*============================*/
@@ -4657,7 +4683,6 @@ drop_all_foreign_keys_in_db(
 /*********************************************************************//**
 Drops a database for MySQL.
 @return error code or DB_SUCCESS */
-
 dberr_t
 row_drop_database_for_mysql(
 /*========================*/
@@ -4861,7 +4886,6 @@ row_delete_constraint(
 /*********************************************************************//**
 Renames a table for MySQL.
 @return error code or DB_SUCCESS */
-
 dberr_t
 row_rename_table_for_mysql(
 /*=======================*/
@@ -4989,8 +5013,8 @@ row_rename_table_for_mysql(
 			   "END;\n"
 			   , FALSE, trx);
 
-	/* SYS_TABLESPACES and SYS_DATAFILES track non-system tablespaces
-	which have space IDs > 0. */
+	/* SYS_TABLESPACES and SYS_DATAFILES need to be updated if
+	the table is in a single-table tablespace. */
 	if (err == DB_SUCCESS
 	    && !is_system_tablespace(table->space)
 	    && !table->ibd_file_missing) {
@@ -5160,7 +5184,9 @@ row_rename_table_for_mysql(
 			/* If the first fts_rename fails, the trx would
 			be rolled back and committed, we can't use it any more,
 			so we have to start a new background trx here. */
+
 			ut_a(trx_state_eq(trx, TRX_STATE_NOT_STARTED));
+
 			trx_bg->op_info = "Revert the failing rename"
 					  " for fts aux tables";
 			trx_bg->dict_operation_lock_mode = RW_X_LATCH;
@@ -5296,7 +5322,6 @@ If CHECK TABLE; Checks that the index contains entries in an ascending order,
 unique constraint is not broken, and calculates the number of index entries
 in the read view of the current transaction.
 @return DB_SUCCESS or other error */
-
 dberr_t
 row_scan_index_for_mysql(
 /*=====================*/
@@ -5346,7 +5371,7 @@ row_scan_index_for_mysql(
 	}
 
 	ulint bufsize = ut_max(UNIV_PAGE_SIZE, prebuilt->mysql_row_len);
-	buf = static_cast<byte*>(ut_malloc(bufsize));
+	buf = static_cast<byte*>(ut_malloc_nokey(bufsize));
 	heap = mem_heap_create(100);
 
 	cnt = 1000;
@@ -5486,7 +5511,6 @@ next_rec:
 
 /*********************************************************************//**
 Initialize this module */
-
 void
 row_mysql_init(void)
 /*================*/
@@ -5502,7 +5526,6 @@ row_mysql_init(void)
 
 /*********************************************************************//**
 Close this module */
-
 void
 row_mysql_close(void)
 /*================*/

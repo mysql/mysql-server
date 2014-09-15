@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2007, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -49,7 +49,6 @@ static const char* fts_sql_end=
 /******************************************************************//**
 Get the table id.
 @return number of bytes written */
-
 int
 fts_get_table_id(
 /*=============*/
@@ -97,7 +96,6 @@ fts_get_table_id(
 /******************************************************************//**
 Construct the prefix name of an FTS table.
 @return own: table name, must be freed with ut_free() */
-
 char*
 fts_get_table_name_prefix(
 /*======================*/
@@ -123,7 +121,7 @@ fts_get_table_name_prefix(
 
 	prefix_name_len = dbname_len + 4 + len + 1;
 
-	prefix_name = static_cast<char*>(ut_malloc(prefix_name_len));
+	prefix_name = static_cast<char*>(ut_malloc_nokey(prefix_name_len));
 
 	len = sprintf(prefix_name, "%.*sFTS_%s",
 		      dbname_len, fts_table->parent, table_id);
@@ -138,7 +136,6 @@ fts_get_table_name_prefix(
 Construct the name of an ancillary FTS table for the given table.
 Caller must allocate enough memory(usually size of MAX_FULL_NAME_LEN)
 for param 'table_name'. */
-
 void
 fts_get_table_name(
 /*===============*/
@@ -164,7 +161,6 @@ fts_get_table_name(
 /******************************************************************//**
 Parse an SQL string.
 @return query graph */
-
 que_t*
 fts_parse_sql(
 /*==========*/
@@ -183,7 +179,7 @@ fts_parse_sql(
 			   & TABLE_DICT_LOCKED));
 
 	if (!dict_locked) {
-		ut_ad(!mutex_own(&(dict_sys->mutex)));
+		ut_ad(!mutex_own(&dict_sys->mutex));
 
 		/* The InnoDB SQL parser is not re-entrant. */
 		mutex_enter(&dict_sys->mutex);
@@ -204,7 +200,6 @@ fts_parse_sql(
 /******************************************************************//**
 Parse an SQL string.
 @return query graph */
-
 que_t*
 fts_parse_sql_no_dict_lock(
 /*=======================*/
@@ -234,7 +229,6 @@ fts_parse_sql_no_dict_lock(
 /******************************************************************//**
 Evaluate an SQL query graph.
 @return DB_SUCCESS or error code */
-
 dberr_t
 fts_eval_sql(
 /*=========*/
@@ -268,7 +262,6 @@ Two indexed columns named "subject" and "content":
  "$sel0, $sel1",
  info/ids: sel0 -> "subject", sel1 -> "content",
 @return heap-allocated WHERE string */
-
 const char*
 fts_get_select_columns_str(
 /*=======================*/
@@ -299,7 +292,6 @@ fts_get_select_columns_str(
 /******************************************************************//**
 Commit a transaction.
 @return DB_SUCCESS or error code */
-
 dberr_t
 fts_sql_commit(
 /*===========*/
@@ -318,7 +310,6 @@ fts_sql_commit(
 /******************************************************************//**
 Rollback a transaction.
 @return DB_SUCCESS or error code */
-
 dberr_t
 fts_sql_rollback(
 /*=============*/

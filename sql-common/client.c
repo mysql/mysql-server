@@ -107,7 +107,6 @@ my_bool	net_flush(NET *net);
 }
 
 #define native_password_plugin_name "mysql_native_password"
-#define old_password_plugin_name    "mysql_old_password"
 
 PSI_memory_key key_memory_mysql_options;
 PSI_memory_key key_memory_MYSQL_DATA;
@@ -173,8 +172,8 @@ CHARSET_INFO *default_client_charset_info = &my_charset_latin1;
 /* Server error code and message */
 unsigned int mysql_server_last_errno;
 char mysql_server_last_error[MYSQL_ERRMSG_SIZE];
-
-
+/* forward declaration */
+static int read_one_row(MYSQL *mysql,uint fields,MYSQL_ROW row, ulong *lengths);
 /**
   Convert the connect timeout option to a timeout value for VIO
   functions (vio_socket_connect() and vio_io_wait()).
@@ -944,18 +943,30 @@ void read_ok_ex(MYSQL *mysql, ulong length)
   Read a packet from server. Give error message if socket was down
   or packet is an error message
 
-  @retval  packet_error    An error occurred during reading.
-                           Error message is set.
-  @retval  
+  @param[IN]    mysql           connection handle
+  @param[IN]    parse_ok        if set to TRUE then parse OK packet
+                                if it is received
+  @param[OUT]   is_data_packet
+                                if set to TRUE then packet received is
+                                a "data packet", that is not OK or ERR
+                                packet or EOF in case of old servers
+
+  @retval  The length of the packet that was read or packet_error in
+           case of error. In case of error its description is stored
+            in mysql handle.
 */
 
 ulong
-cli_safe_read_with_ok(MYSQL *mysql, my_bool read_ok)
+cli_safe_read_with_ok(MYSQL *mysql, my_bool parse_ok,
+                      my_bool *is_data_packet)
 {
   NET *net= &mysql->net;
   ulong len=0;
 
   MYSQL_TRACE(READ_PACKET, mysql, ());
+
+  if (is_data_packet)
+    *is_data_packet= FALSE;
 
   if (net->vio != 0)
     len=my_net_read(net);
@@ -1027,20 +1038,71 @@ cli_safe_read_with_ok(MYSQL *mysql, my_bool read_ok)
                         net->sqlstate,
                         net->last_error));
     return(packet_error);
-  } else if (net->read_pos[0] == 0 && read_ok)
-    read_ok_ex(mysql, len);
-
+  }
+  else
+  {
+    /* if it is OK packet irrespective of new/old server */
+    if (net->read_pos[0] == 0)
+    {
+      if (parse_ok)
+      {
+        read_ok_ex(mysql, len);
+        return len;
+      }
+    }
+    /*
+      Now we have a data packet, unless it is OK packet starting with
+      0xFE - we detect that case below.
+    */
+    if (is_data_packet)
+      *is_data_packet= TRUE;
+    /*
+       For a packet starting with 0xFE detect if it is OK packet or a
+       huge data packet. Note that old servers do not send OK packets
+       starting with 0xFE.
+    */
+    if ((mysql->server_capabilities & CLIENT_DEPRECATE_EOF) &&
+        (net->read_pos[0] == 254))
+    {
+      /* detect huge data packet */
+      if (len > MAX_PACKET_LENGTH)
+        return len;
+      /* otherwise we have OK packet starting with 0xFE */
+      if (is_data_packet)
+        *is_data_packet= FALSE;
+      /* parse it if requested */
+      if (parse_ok)
+        read_ok_ex(mysql, len);
+      return len;
+    }
+    /* for old client detect EOF packet */
+    if (!(mysql->server_capabilities & CLIENT_DEPRECATE_EOF) &&
+        (net->read_pos[0] == 254) && (len < 8))
+    {
+      if (is_data_packet)
+        *is_data_packet= FALSE;
+    }
+  }
   return len;
 }
 
 
 /**
-  Read a packet from server. Give error message if socket was down
-  or packet is an error message.
+  Read a packet from server. Give error message if connection was broken or
+  ERR packet was received. Detect if the packet received was an OK, ERR or
+  something else (a "data packet").
+
+  @param[IN]  mysql           connection handle
+  @param[OUT] is_data_packet
+                              if set to TRUE then the packet received
+                              was a "data packet".
+
+  @retval The length of the packet that was read or packet_error in case of
+          error. In case of error its description is stored in mysql handle.
 */
-ulong cli_safe_read(MYSQL *mysql)
+ulong cli_safe_read(MYSQL *mysql, my_bool *is_data_packet)
 {
-  return cli_safe_read_with_ok(mysql, 0);
+  return cli_safe_read_with_ok(mysql, 0, is_data_packet);
 }
 
 
@@ -1188,7 +1250,7 @@ cli_advanced_command(MYSQL *mysql, enum enum_server_command command,
   result=0;
   if (!skip_check)
   {
-    result= ((mysql->packet_length= cli_safe_read_with_ok(mysql, 1)) ==
+    result= ((mysql->packet_length= cli_safe_read_with_ok(mysql, 1, NULL)) ==
              packet_error ? 1 : 0);
 
 #if defined(CLIENT_PROTOCOL_TRACING)
@@ -1233,12 +1295,13 @@ void free_old_query(MYSQL *mysql)
 my_bool flush_one_result(MYSQL *mysql)
 {
   ulong packet_length;
+  my_bool is_data_packet;
 
   DBUG_ASSERT(mysql->status != MYSQL_STATUS_READY);
 
   do
   {
-    packet_length= cli_safe_read(mysql);
+    packet_length= cli_safe_read(mysql, &is_data_packet);
     /*
       There is an error reading from the connection,
       or (sic!) there were no error and no
@@ -1251,16 +1314,22 @@ my_bool flush_one_result(MYSQL *mysql)
     if (packet_length == packet_error)
       return TRUE;
   }
-  while (packet_length > 8 || mysql->net.read_pos[0] != 254);
+  while (mysql->net.read_pos[0] == 0 || is_data_packet);
 
-  /* Analyze EOF packet of the result set. */
+  /* Analyse final OK packet (EOF packet if it is old client) */
 
   if (protocol_41(mysql))
   {
     uchar *pos= mysql->net.read_pos + 1;
-    mysql->warning_count=uint2korr(pos);
-    pos+=2;
-    mysql->server_status=uint2korr(pos);
+    if (mysql->server_capabilities & CLIENT_DEPRECATE_EOF &&
+        !is_data_packet)
+      read_ok_ex(mysql, packet_length);
+    else
+    {
+      mysql->warning_count= uint2korr(pos);
+      pos+=2;
+      mysql->server_status=uint2korr(pos);
+    }
     pos+=2;
   }
 #if defined(CLIENT_PROTOCOL_TRACING)
@@ -1283,7 +1352,8 @@ my_bool flush_one_result(MYSQL *mysql)
 
 my_bool opt_flush_ok_packet(MYSQL *mysql, my_bool *is_ok_packet)
 {
-  ulong packet_length= cli_safe_read(mysql);
+  my_bool is_data_packet;
+  ulong packet_length= cli_safe_read(mysql, &is_data_packet);
 
   if (packet_length == packet_error)
     return TRUE;
@@ -1291,7 +1361,10 @@ my_bool opt_flush_ok_packet(MYSQL *mysql, my_bool *is_ok_packet)
   /* cli_safe_read always reads a non-empty packet. */
   DBUG_ASSERT(packet_length);
 
-  *is_ok_packet= mysql->net.read_pos[0] == 0;
+  *is_ok_packet= ((mysql->net.read_pos[0] == 0) ||
+                  ((mysql->server_capabilities & CLIENT_DEPRECATE_EOF) &&
+                   mysql->net.read_pos[0] == 254 &&
+                   packet_length < MAX_PACKET_LENGTH));
   if (*is_ok_packet)
   {
     read_ok_ex(mysql, packet_length);
@@ -1344,16 +1417,24 @@ static void cli_flush_use_result(MYSQL *mysql, my_bool flush_all_results)
       with EOF packet, and result set data, again terminated with
       EOF packet. Read and flush them.
     */
-
     MYSQL_TRACE_STAGE(mysql, WAIT_FOR_FIELD_DEF);
-    if (flush_one_result(mysql))
-      DBUG_VOID_RETURN;                         /* An error occurred. */
-
+    if (!(mysql->server_capabilities & CLIENT_DEPRECATE_EOF))
+    {
+      if (flush_one_result(mysql))
+        DBUG_VOID_RETURN;                         /* An error occurred. */
+    }
+    else
+    {
+      if ((mysql->fields= cli_read_metadata(mysql,
+                       mysql->net.read_pos[0], protocol_41(mysql) ? 7:5)))
+        free_root(&mysql->field_alloc,MYF(0));
+      else
+        DBUG_VOID_RETURN;
+    }
     MYSQL_TRACE_STAGE(mysql, WAIT_FOR_ROW);
     if (flush_one_result(mysql))
-      DBUG_VOID_RETURN;                         /* An error occurred. */
+      DBUG_VOID_RETURN;
   }
-
   DBUG_VOID_RETURN;
 }
 
@@ -1786,7 +1867,7 @@ void mysql_read_default_options(struct st_mysql_options *options,
 	  options->client_flag|= CLIENT_MULTI_STATEMENTS | CLIENT_MULTI_RESULTS;
 	  break;
         case OPT_secure_auth:
-          options->secure_auth= TRUE;
+          /* this is a no-op */
           break;
         case OPT_report_data_truncation:
           options->report_data_truncation= opt_arg ? MY_TEST(atoi(opt_arg)) : 1;
@@ -1859,126 +1940,221 @@ static void cli_fetch_lengths(ulong *to, MYSQL_ROW column,
   }
 }
 
+/**
+  Read field metadata from field descriptor and store it in MYSQL_FIELD structure.
+  String values in MYSQL_FIELD are allocated in a given allocator root.
+
+  @param mysql          connection handle
+  @param alloc          memory allocator root
+  @param default_value  flag telling if default values should be read from
+                        descriptor
+  @param server_capabilities  protocol capability flags which determine format of
+                              the descriptor
+  @param row            field descriptor
+  @param field          address of MYSQL_FIELD structure to store metadata in.
+
+  @returns 0 on success.
+*/
+
+int
+unpack_field(MYSQL *mysql, MEM_ROOT *alloc, my_bool default_value,
+             uint server_capabilities, MYSQL_ROWS *row, MYSQL_FIELD *field)
+{
+  ulong lengths[9];                      /* Max length of each field */
+  DBUG_ENTER("unpack_field");
+
+  if (!field)
+  {
+    set_mysql_error(mysql, CR_UNKNOWN_ERROR, unknown_sqlstate);
+    DBUG_RETURN(1);
+  }
+
+  memset(field, 0, sizeof(MYSQL_FIELD));
+
+  if (server_capabilities & CLIENT_PROTOCOL_41)
+  {
+    uchar *pos;
+    /* fields count may be wrong */
+    cli_fetch_lengths(&lengths[0], row->data, default_value ? 8 : 7);
+    field->catalog=   strmake_root(alloc,(char*) row->data[0], lengths[0]);
+    field->db=        strmake_root(alloc,(char*) row->data[1], lengths[1]);
+    field->table=     strmake_root(alloc,(char*) row->data[2], lengths[2]);
+    field->org_table= strmake_root(alloc,(char*) row->data[3], lengths[3]);
+    field->name=      strmake_root(alloc,(char*) row->data[4], lengths[4]);
+    field->org_name=  strmake_root(alloc,(char*) row->data[5], lengths[5]);
+
+    field->catalog_length=	lengths[0];
+    field->db_length=		lengths[1];
+    field->table_length=	lengths[2];
+    field->org_table_length=	lengths[3];
+    field->name_length=	lengths[4];
+    field->org_name_length=	lengths[5];
+
+    /* Unpack fixed length parts */
+    if (lengths[6] != 12)
+    {
+      /* malformed packet. signal an error. */
+      set_mysql_error(mysql, CR_MALFORMED_PACKET, unknown_sqlstate);
+      DBUG_RETURN(1);
+    }
+
+    pos= (uchar*) row->data[6];
+    field->charsetnr= uint2korr(pos);
+    field->length=	(uint) uint4korr(pos+2);
+    field->type=	(enum enum_field_types) pos[6];
+    field->flags=	uint2korr(pos+7);
+    field->decimals=  (uint) pos[9];
+
+    if (IS_NUM(field->type))
+      field->flags|= NUM_FLAG;
+    if (default_value && row->data[7])
+    {
+      field->def=strmake_root(alloc,(char*) row->data[7], lengths[7]);
+      field->def_length= lengths[7];
+    }
+    else
+      field->def=0;
+    field->max_length= 0;
+  }
+#ifndef DELETE_SUPPORT_OF_4_0_PROTOCOL
+  else
+  {
+    cli_fetch_lengths(&lengths[0], row->data, default_value ? 6 : 5);
+    field->org_table= field->table=  strdup_root(alloc,(char*) row->data[0]);
+    field->name=   strdup_root(alloc,(char*) row->data[1]);
+    field->length= (uint) uint3korr((uchar*) row->data[2]);
+    field->type=   (enum enum_field_types) (uchar) row->data[3][0];
+
+    field->catalog=(char*)  "";
+    field->db=     (char*)  "";
+    field->catalog_length= 0;
+    field->db_length= 0;
+    field->org_table_length=	field->table_length=	lengths[0];
+    field->name_length=	lengths[1];
+
+    if (server_capabilities & CLIENT_LONG_FLAG)
+    {
+      field->flags=   uint2korr((uchar*) row->data[4]);
+      field->decimals=(uint) (uchar) row->data[4][2];
+    }
+    else
+    {
+      field->flags=   (uint) (uchar) row->data[4][0];
+      field->decimals=(uint) (uchar) row->data[4][1];
+    }
+    if (IS_NUM(field->type))
+      field->flags|= NUM_FLAG;
+    if (default_value && row->data[5])
+    {
+      field->def=strdup_root(alloc,(char*) row->data[5]);
+      field->def_length= lengths[5];
+    }
+    else
+      field->def=0;
+    field->max_length= 0;
+  }
+#endif /* DELETE_SUPPORT_OF_4_0_PROTOCOL */
+  DBUG_RETURN(0);
+}
+
 /***************************************************************************
   Change field rows to field structs
 ***************************************************************************/
 
 MYSQL_FIELD *
-unpack_fields(MYSQL *mysql, MYSQL_DATA *data,MEM_ROOT *alloc,uint fields,
+unpack_fields(MYSQL *mysql, MYSQL_ROWS *data,MEM_ROOT *alloc,uint fields,
 	      my_bool default_value, uint server_capabilities)
 {
   MYSQL_ROWS	*row;
   MYSQL_FIELD	*field,*result;
-  ulong lengths[9];				/* Max of fields */
   DBUG_ENTER("unpack_fields");
 
   field= result= (MYSQL_FIELD*) alloc_root(alloc,
-					   (uint) sizeof(*field)*fields);
+			   (uint) sizeof(*field)*fields);
   if (!result)
   {
-    free_rows(data);				/* Free old data */
     set_mysql_error(mysql, CR_OUT_OF_MEMORY, unknown_sqlstate);
     DBUG_RETURN(0);
   }
   memset(field, 0, sizeof(MYSQL_FIELD)*fields);
-  if (server_capabilities & CLIENT_PROTOCOL_41)
+  for (row=data; row ; row = row->next,field++)
   {
-    /* server is 4.1, and returns the new field result format */
-    for (row=data->data; row ; row = row->next,field++)
+    /* fields count may be wrong */
+    DBUG_ASSERT((uint) (field - result) < fields);
+    if (unpack_field(mysql, alloc, default_value, server_capabilities,
+                     row, field))
     {
-      uchar *pos;
-      /* fields count may be wrong */
-      DBUG_ASSERT((uint) (field - result) < fields);
-      cli_fetch_lengths(&lengths[0], row->data, default_value ? 8 : 7);
-      field->catalog=   strmake_root(alloc,(char*) row->data[0], lengths[0]);
-      field->db=        strmake_root(alloc,(char*) row->data[1], lengths[1]);
-      field->table=     strmake_root(alloc,(char*) row->data[2], lengths[2]);
-      field->org_table= strmake_root(alloc,(char*) row->data[3], lengths[3]);
-      field->name=      strmake_root(alloc,(char*) row->data[4], lengths[4]);
-      field->org_name=  strmake_root(alloc,(char*) row->data[5], lengths[5]);
-
-      field->catalog_length=	lengths[0];
-      field->db_length=		lengths[1];
-      field->table_length=	lengths[2];
-      field->org_table_length=	lengths[3];
-      field->name_length=	lengths[4];
-      field->org_name_length=	lengths[5];
-
-      /* Unpack fixed length parts */
-      if (lengths[6] != 12)
-      {
-        /* malformed packet. signal an error. */
-        free_rows(data);			/* Free old data */
-        set_mysql_error(mysql, CR_MALFORMED_PACKET, unknown_sqlstate);
-        DBUG_RETURN(0);
-      }
-
-      pos= (uchar*) row->data[6];
-      field->charsetnr= uint2korr(pos);
-      field->length=	(uint) uint4korr(pos+2);
-      field->type=	(enum enum_field_types) pos[6];
-      field->flags=	uint2korr(pos+7);
-      field->decimals=  (uint) pos[9];
-
-      if (IS_NUM(field->type))
-        field->flags|= NUM_FLAG;
-      if (default_value && row->data[7])
-      {
-        field->def=strmake_root(alloc,(char*) row->data[7], lengths[7]);
-	field->def_length= lengths[7];
-      }
-      else
-        field->def=0;
-      field->max_length= 0;
+      DBUG_RETURN(NULL);
     }
   }
-#ifndef DELETE_SUPPORT_OF_4_0_PROTOCOL
-  else
-  {
-    /* old protocol, for backward compatibility */
-    for (row=data->data; row ; row = row->next,field++)
-    {
-      cli_fetch_lengths(&lengths[0], row->data, default_value ? 6 : 5);
-      field->org_table= field->table=  strdup_root(alloc,(char*) row->data[0]);
-      field->name=   strdup_root(alloc,(char*) row->data[1]);
-      field->length= (uint) uint3korr((uchar*) row->data[2]);
-      field->type=   (enum enum_field_types) (uchar) row->data[3][0];
-
-      field->catalog=(char*)  "";
-      field->db=     (char*)  "";
-      field->catalog_length= 0;
-      field->db_length= 0;
-      field->org_table_length=	field->table_length=	lengths[0];
-      field->name_length=	lengths[1];
-
-      if (server_capabilities & CLIENT_LONG_FLAG)
-      {
-        field->flags=   uint2korr((uchar*) row->data[4]);
-        field->decimals=(uint) (uchar) row->data[4][2];
-      }
-      else
-      {
-        field->flags=   (uint) (uchar) row->data[4][0];
-        field->decimals=(uint) (uchar) row->data[4][1];
-      }
-      if (IS_NUM(field->type))
-        field->flags|= NUM_FLAG;
-      if (default_value && row->data[5])
-      {
-        field->def=strdup_root(alloc,(char*) row->data[5]);
-	field->def_length= lengths[5];
-      }
-      else
-        field->def=0;
-      field->max_length= 0;
-    }
-  }
-#endif /* DELETE_SUPPORT_OF_4_0_PROTOCOL */
-  free_rows(data);				/* Free old data */
   DBUG_RETURN(result);
 }
 
-/* Read all rows (fields or data) from server */
+/**
+  Read metadata resultset from server
+
+  @param[IN]    mysql           connection handle
+  @param[IN]    field_count     total number of fields
+  @param[IN]    field           number of columns in single field descriptor
+
+  @retval an array of field rows
+
+*/
+MYSQL_FIELD *cli_read_metadata(MYSQL *mysql, ulong field_count,
+                              unsigned int field)
+{
+  ulong *len;
+  uint  f;
+  uchar *pos;
+  MYSQL_FIELD *fields, *result;
+  MYSQL_ROWS data;
+  NET *net = &mysql->net;
+
+  DBUG_ENTER("cli_read_metadata");
+
+  len= (ulong*) alloc_root(&mysql->field_alloc, sizeof(ulong)*field);
+
+  fields= result= (MYSQL_FIELD*) alloc_root(&mysql->field_alloc,
+                          (uint) sizeof(MYSQL_FIELD)*field_count);
+  if (!result)
+  {
+    set_mysql_error(mysql, CR_OUT_OF_MEMORY, unknown_sqlstate);
+    DBUG_RETURN(0);
+  }
+  memset(fields, 0, sizeof(MYSQL_FIELD)*field_count);
+
+  data.data= (MYSQL_ROW) alloc_root(&mysql->field_alloc,
+                          sizeof(char *)*(field+1));
+  memset(data.data, 0, sizeof(char *)*(field+1));
+
+  /*
+    In this below loop we read each column info as 1 single row
+    and save it in mysql->fields array
+  */
+  for (f=0 ; f < field_count ; ++f)
+  {
+    if(read_one_row(mysql, field, data.data, len) == -1)
+      DBUG_RETURN(NULL);
+    if(unpack_field(mysql, &mysql->field_alloc, 0,
+                 mysql->server_capabilities, &data, fields++))
+      DBUG_RETURN(NULL);
+  }
+  /* Read EOF packet in case of old client */
+  if (!(mysql->server_capabilities & CLIENT_DEPRECATE_EOF))
+  {
+    if (packet_error == cli_safe_read(mysql, NULL))
+      DBUG_RETURN(0);
+    pos= net->read_pos;
+    if (*pos == 254)
+    {
+      mysql->warning_count= uint2korr(pos + 1);
+      mysql->server_status= uint2korr(pos + 3);
+    }
+  }
+  DBUG_RETURN(result);
+}
+
+/* Read all rows (data) from server */
 
 MYSQL_DATA *cli_read_rows(MYSQL *mysql,MYSQL_FIELD *mysql_fields,
 			  unsigned int fields)
@@ -1991,9 +2167,10 @@ MYSQL_DATA *cli_read_rows(MYSQL *mysql,MYSQL_FIELD *mysql_fields,
   MYSQL_DATA *result;
   MYSQL_ROWS **prev_ptr,*cur;
   NET *net = &mysql->net;
+  my_bool is_data_packet;
   DBUG_ENTER("cli_read_rows");
 
-  if ((pkt_len= cli_safe_read(mysql)) == packet_error)
+  if ((pkt_len= cli_safe_read(mysql, &is_data_packet)) == packet_error)
     DBUG_RETURN(0);
   if (!(result=(MYSQL_DATA*) my_malloc(key_memory_MYSQL_DATA,
                                        sizeof(MYSQL_DATA),
@@ -2011,13 +2188,10 @@ MYSQL_DATA *cli_read_rows(MYSQL *mysql,MYSQL_FIELD *mysql_fields,
 
   /*
     The last EOF packet is either a single 254 character or (in MySQL 4.1)
-    254 followed by 1-7 status bytes.
-
-    This doesn't conflict with normal usage of 254 which stands for a
-    string where the length of the string is 8 bytes. (see net_field_length())
+    254 followed by 1-7 status bytes or an OK packet starting with 0xFE
   */
 
-  while (*(cp=net->read_pos) != 254 || pkt_len >= 8)
+  while (*(cp=net->read_pos) == 0 || is_data_packet)
   {
     result->rows++;
     if (!(cur= (MYSQL_ROWS*) alloc_root(&result->alloc,
@@ -2060,21 +2234,29 @@ MYSQL_DATA *cli_read_rows(MYSQL *mysql,MYSQL_FIELD *mysql_fields,
       }
     }
     cur->data[field]=to;			/* End of last field */
-    if ((pkt_len=cli_safe_read(mysql)) == packet_error)
+    if ((pkt_len= cli_safe_read(mysql, &is_data_packet)) == packet_error)
     {
       free_rows(result);
       DBUG_RETURN(0);
     }
   }
   *prev_ptr=0;					/* last pointer is null */
-  /* EOF packet */
-  if (pkt_len > 1)				/* MySQL 4.1 protocol */
+  /* read EOF packet or OK packet if it is new client */
+  if (pkt_len > 1)
   {
-    mysql->warning_count= uint2korr(cp+1);
-    mysql->server_status= uint2korr(cp+3);
+    if (mysql->server_capabilities & CLIENT_DEPRECATE_EOF &&
+        !is_data_packet)
+      read_ok_ex(mysql, pkt_len);
+    else
+    {
+      mysql->warning_count= uint2korr(cp + 1);
+      mysql->server_status= uint2korr(cp + 3);
+    }
+
     DBUG_PRINT("info",("status: %u  warning_count:  %u",
-		       mysql->server_status, mysql->warning_count));
+                       mysql->server_status, mysql->warning_count));
   }
+
 #if defined(CLIENT_PROTOCOL_TRACING)
   if (mysql->server_status & SERVER_MORE_RESULTS_EXISTS)
     MYSQL_TRACE_STAGE(mysql, WAIT_FOR_RESULT);
@@ -2096,17 +2278,23 @@ read_one_row(MYSQL *mysql,uint fields,MYSQL_ROW row, ulong *lengths)
 {
   uint field;
   ulong pkt_len,len;
+  my_bool is_data_packet;
   uchar *pos, *prev_pos, *end_pos;
   NET *net= &mysql->net;
 
-  if ((pkt_len=cli_safe_read(mysql)) == packet_error)
+  if ((pkt_len= cli_safe_read(mysql, &is_data_packet)) == packet_error)
     return -1;
-  if (pkt_len <= 8 && net->read_pos[0] == 254)
+  if (net->read_pos[0] != 0x00 && !is_data_packet)
   {
     if (pkt_len > 1)				/* MySQL 4.1 protocol */
     {
-      mysql->warning_count= uint2korr(net->read_pos+1);
-      mysql->server_status= uint2korr(net->read_pos+3);
+      if (mysql->server_capabilities & CLIENT_DEPRECATE_EOF)
+        read_ok_ex(mysql, pkt_len);
+      else
+      {
+        mysql->warning_count= uint2korr(net->read_pos + 1);
+        mysql->server_status= uint2korr(net->read_pos+3);
+      }
     }
 #if defined(CLIENT_PROTOCOL_TRACING)
     if (mysql->server_status & SERVER_MORE_RESULTS_EXISTS)
@@ -2211,8 +2399,6 @@ mysql_init(MYSQL *mysql)
     (mysql.reconnect=0) will not see a behaviour change.
   */
   mysql->reconnect= 0;
-
-  mysql->options.secure_auth= TRUE;
 
   return mysql;
 }
@@ -2386,6 +2572,12 @@ static int ssl_verify_server_cert(Vio *vio, const char* server_hostname, const c
     DBUG_RETURN(1);
   }
 
+  if (X509_V_OK != SSL_get_verify_result(ssl))
+  {
+    *errptr= "Failed to verify the server certificate";
+    X509_free(server_cert);
+    DBUG_RETURN(1);
+  }
   /*
     We already know that the certificate exchanged was valid; the SSL library
     handled that. Now we need to verify that the contents of the certificate
@@ -2428,7 +2620,7 @@ static MYSQL_RES *cli_use_result(MYSQL *mysql);
 
 int cli_read_change_user_result(MYSQL *mysql)
 {
-  return cli_safe_read(mysql);
+  return cli_safe_read(mysql, NULL);
 }
 
 static MYSQL_METHODS client_methods=
@@ -2772,7 +2964,6 @@ C_MODE_END
 typedef struct st_mysql_client_plugin_AUTHENTICATION auth_plugin_t;
 static int client_mpvio_write_packet(struct st_plugin_vio*, const uchar*, int);
 static int native_password_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql);
-static int old_password_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql);
 static int clear_password_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql);
 
 static auth_plugin_t native_password_client_plugin=
@@ -2789,22 +2980,6 @@ static auth_plugin_t native_password_client_plugin=
   NULL,
   NULL,
   native_password_auth_client
-};
-
-static auth_plugin_t old_password_client_plugin=
-{
-  MYSQL_CLIENT_AUTHENTICATION_PLUGIN,
-  MYSQL_CLIENT_AUTHENTICATION_PLUGIN_INTERFACE_VERSION,
-  old_password_plugin_name,
-  "R.J.Silk, Sergei Golubchik",
-  "Old MySQL-3.23 authentication",
-  {1, 0, 0},
-  "GPL",
-  NULL,
-  NULL,
-  NULL,
-  NULL,
-  old_password_auth_client
 };
 
 static auth_plugin_t clear_password_client_plugin=
@@ -2858,7 +3033,6 @@ extern auth_plugin_t test_trace_plugin;
 struct st_mysql_client_plugin *mysql_client_builtins[]=
 {
   (struct st_mysql_client_plugin *)&native_password_client_plugin,
-  (struct st_mysql_client_plugin *)&old_password_client_plugin,
   (struct st_mysql_client_plugin *)&clear_password_client_plugin,
 #if defined(HAVE_OPENSSL)
   (struct st_mysql_client_plugin *) &sha256_password_client_plugin,
@@ -3034,21 +3208,13 @@ static int send_change_user_packet(MCPVIO_EXT *mpvio,
     *end++= 0;
   else
   {
-    if (mysql->client_flag & CLIENT_SECURE_CONNECTION)
+    DBUG_ASSERT(data_len <= 255);
+    if (data_len > 255)
     {
-      DBUG_ASSERT(data_len <= 255);
-      if (data_len > 255)
-      {
-        set_mysql_error(mysql, CR_MALFORMED_PACKET, unknown_sqlstate);
-        goto error;
-      }
-      *end++= data_len;
+      set_mysql_error(mysql, CR_MALFORMED_PACKET, unknown_sqlstate);
+      goto error;
     }
-    else
-    {
-      DBUG_ASSERT(data_len == SCRAMBLE_LENGTH_323 + 1);
-      DBUG_ASSERT(data[SCRAMBLE_LENGTH_323] == 0);
-    }
+    *end++= data_len;
     memcpy(end, data, data_len);
     end+= data_len;
   }
@@ -3304,33 +3470,24 @@ static int send_client_reply_packet(MCPVIO_EXT *mpvio,
   end= strend(end) + 1;
   if (data_len)
   {
-    if (mysql->server_capabilities & CLIENT_SECURE_CONNECTION)
-    {
-      /* 
-        Since the older versions of server do not have
-        CLIENT_PLUGIN_AUTH_LENENC_CLIENT_DATA capability,
-        a check is performed on this before sending auth data.
-        If lenenc support is not available, the data is sent
-        in the format of first byte representing the length of
-        the string followed by the actual string.
+    /*
+      Since the older versions of server do not have
+      CLIENT_PLUGIN_AUTH_LENENC_CLIENT_DATA capability,
+      a check is performed on this before sending auth data.
+      If lenenc support is not available, the data is sent
+      in the format of first byte representing the length of
+      the string followed by the actual string.
       */
-      if (mysql->server_capabilities & CLIENT_PLUGIN_AUTH_LENENC_CLIENT_DATA)
-        end= write_length_encoded_string4(end, (char *)(buff + buff_size),
-                                         (char *) data,
-                                         (char *)(data + data_len));
-      else
-        end= write_string(end, (char *)(buff + buff_size),
-                         (char *) data,
-                         (char *)(data + data_len));
-      if (end == NULL)
-        goto error;
-    }
+    if (mysql->server_capabilities & CLIENT_PLUGIN_AUTH_LENENC_CLIENT_DATA)
+      end= write_length_encoded_string4(end, (char *) (buff + buff_size),
+                                       (char *) data,
+                                       (char *) (data + data_len));
     else
-    {
-      DBUG_ASSERT(data_len == SCRAMBLE_LENGTH_323 + 1); /* incl. \0 at the end */
-      memcpy(end, data, data_len);
-      end+= data_len;
-    }
+      end= write_string(end, (char *) (buff + buff_size),
+                       (char *) data,
+                       (char *) (data + data_len));
+    if (end == NULL)
+      goto error;
   }
   else
     *end++= 0;
@@ -3580,8 +3737,7 @@ int run_plugin_auth(MYSQL *mysql, char *data, uint data_len,
   }
   else
   {
-    auth_plugin= mysql->server_capabilities & CLIENT_PROTOCOL_41 ?
-      &native_password_client_plugin : &old_password_client_plugin;
+    auth_plugin= &native_password_client_plugin;
     auth_plugin_name= auth_plugin->name;
   }
 
@@ -3662,17 +3818,15 @@ int run_plugin_auth(MYSQL *mysql, char *data, uint data_len,
   if (mysql->net.read_pos[0] == 254)
   {
     /* The server asked to use a different authentication plugin */
-    if (pkt_length == 1)
-    { 
-      /* old "use short scramble" packet */
-      DBUG_PRINT ("info", ("old use short scramble packet from server"));
-      auth_plugin_name= old_password_plugin_name;
-      mpvio.cached_server_reply.pkt= (uchar*)mysql->scramble;
-      mpvio.cached_server_reply.pkt_len= SCRAMBLE_LENGTH + 1;
+    if (pkt_length < 2)
+    {
+      set_mysql_error(mysql, CR_MALFORMED_PACKET,
+                      unknown_sqlstate);        /* purecov: inspected */
+      DBUG_RETURN(1);
     }
     else
     { 
-      /* new "use different plugin" packet */
+      /* "use different plugin" packet */
       uint len;
       auth_plugin_name= (char*)mysql->net.read_pos + 1;
       len= (uint)strlen(auth_plugin_name); /* safe as my_net_read always appends \0 */
@@ -3712,7 +3866,7 @@ int run_plugin_auth(MYSQL *mysql, char *data, uint data_len,
     if (res != CR_OK_HANDSHAKE_COMPLETE)
     {
       /* Read what server thinks about out new auth message report */
-      if (cli_safe_read(mysql) == packet_error)
+      if (cli_safe_read(mysql, NULL) == packet_error)
       {
         if (mysql->net.last_errno == CR_SERVER_LOST)
           set_mysql_extended_error(mysql, CR_SERVER_LOST, unknown_sqlstate,
@@ -4237,7 +4391,7 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
   */
   DBUG_PRINT("info", ("Read first packet."));
 
-  if ((pkt_length=cli_safe_read(mysql)) == packet_error)
+  if ((pkt_length=cli_safe_read(mysql, NULL)) == packet_error)
   {
     if (mysql->net.last_errno == CR_SERVER_LOST)
       set_mysql_extended_error(mysql, CR_SERVER_LOST, unknown_sqlstate,
@@ -4267,8 +4421,8 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
     long scrambles; here goes the first part.
   */
   scramble_data= end;
-  scramble_data_len= SCRAMBLE_LENGTH_323 + 1;
-  scramble_plugin= old_password_plugin_name;
+  scramble_data_len= AUTH_PLUGIN_DATA_PART_1_LENGTH + 1;
+  scramble_plugin= NULL;
   end+= scramble_data_len;
 
   if (pkt_end >= end + 1)
@@ -4288,13 +4442,6 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
     }
   }
   end+= 18;
-
-  if (mysql->options.secure_auth && passwd[0] &&
-      !(mysql->server_capabilities & CLIENT_SECURE_CONNECTION))
-  {
-    set_mysql_error(mysql, CR_SECURE_AUTH, unknown_sqlstate);
-    goto error;
-  }
 
   if (mysql_init_character_set(mysql))
     goto error;
@@ -4326,16 +4473,16 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
   my_stpcpy(mysql->server_version,(char*) net->read_pos+1);
   mysql->port=port;
 
-  if (pkt_end >= end + SCRAMBLE_LENGTH - SCRAMBLE_LENGTH_323 + 1)
+  if (pkt_end >= end + SCRAMBLE_LENGTH - AUTH_PLUGIN_DATA_PART_1_LENGTH + 1)
   {
     /*
      move the first scramble part - directly in the NET buffer -
      to get a full continuous scramble. We've read all the header,
      and can overwrite it now.
     */
-    memmove(end - SCRAMBLE_LENGTH_323, scramble_data,
-            SCRAMBLE_LENGTH_323);
-    scramble_data= end - SCRAMBLE_LENGTH_323;
+    memmove(end - AUTH_PLUGIN_DATA_PART_1_LENGTH, scramble_data,
+            AUTH_PLUGIN_DATA_PART_1_LENGTH);
+    scramble_data= end - AUTH_PLUGIN_DATA_PART_1_LENGTH;
     if (mysql->server_capabilities & CLIENT_PLUGIN_AUTH)
     {
       scramble_data_len= pkt_scramble_len;
@@ -4350,7 +4497,10 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
     }
   }
   else
-    mysql->server_capabilities&= ~CLIENT_SECURE_CONNECTION;
+  {
+    set_mysql_error(mysql, CR_MALFORMED_PACKET, unknown_sqlstate);
+    goto error;
+  }
 
   mysql->client_flag= client_flag;
 
@@ -4622,12 +4772,15 @@ void mysql_close_free(MYSQL *mysql)
 */
 static void mysql_prune_stmt_list(MYSQL *mysql)
 {
-  LIST *element= mysql->stmts;
-  LIST *pruned_list= 0;
+  LIST *pruned_list= NULL;
 
-  for (; element; element= element->next)
+  while(mysql->stmts)
   {
-    MYSQL_STMT *stmt= (MYSQL_STMT *) element->data;
+    LIST *element= mysql->stmts;
+    MYSQL_STMT *stmt;
+
+    mysql->stmts= list_delete(element, element);
+    stmt= (MYSQL_STMT *) element->data;
     if (stmt->state != MYSQL_STMT_INIT_DONE)
     {
       stmt->mysql= 0;
@@ -4715,11 +4868,10 @@ static my_bool cli_read_query_result(MYSQL *mysql)
 {
   uchar *pos;
   ulong field_count;
-  MYSQL_DATA *fields;
   ulong length;
   DBUG_ENTER("cli_read_query_result");
 
-  if ((length = cli_safe_read(mysql)) == packet_error)
+  if ((length = cli_safe_read(mysql, NULL)) == packet_error)
     DBUG_RETURN(1);
   free_old_query(mysql);		/* Free old result */
 #ifdef MYSQL_CLIENT			/* Avoid warn of unused labels*/
@@ -4754,7 +4906,7 @@ get_info:
 
     MYSQL_TRACE_STAGE(mysql, WAIT_FOR_RESULT);
 
-    if ((length= cli_safe_read(mysql)) == packet_error || error)
+    if ((length= cli_safe_read(mysql, NULL)) == packet_error || error)
       DBUG_RETURN(1);
     goto get_info;				/* Get info packet */
   }
@@ -4764,11 +4916,7 @@ get_info:
 
   MYSQL_TRACE_STAGE(mysql, WAIT_FOR_FIELD_DEF);
 
-  if (!(fields=cli_read_rows(mysql,(MYSQL_FIELD*)0, protocol_41(mysql) ? 7:5)))
-    DBUG_RETURN(1);
-  if (!(mysql->fields=unpack_fields(mysql, fields,&mysql->field_alloc,
-				    (uint) field_count,0,
-				    mysql->server_capabilities)))
+  if (!(mysql->fields=cli_read_metadata(mysql, field_count, protocol_41(mysql) ? 7:5)))
     DBUG_RETURN(1);
   mysql->status= MYSQL_STATUS_GET_RESULT;
   mysql->field_count= (uint) field_count;
@@ -5059,7 +5207,8 @@ mysql_options(MYSQL *mysql,enum mysql_option option, const void *arg)
                                            arg, MYF(MY_WME));
     break;
   case MYSQL_SECURE_AUTH:
-    mysql->options.secure_auth= *(my_bool *) arg;
+    if (!*(my_bool *) arg)
+      DBUG_RETURN(1);
     break;
   case MYSQL_REPORT_DATA_TRUNCATION:
     mysql->options.report_data_truncation= MY_TEST(*(my_bool *) arg);
@@ -5266,7 +5415,7 @@ mysql_get_option(MYSQL *mysql, enum mysql_option option, const void *arg)
     *((char **)arg) = mysql->options.ci.client_ip;
     break;
   case MYSQL_SECURE_AUTH:
-    *((my_bool *)arg)= mysql->options.secure_auth;
+    *((my_bool *)arg)= TRUE;
     break;
   case MYSQL_REPORT_DATA_TRUNCATION:
     *((my_bool *)arg)= mysql->options.report_data_truncation;
@@ -5700,76 +5849,6 @@ static int native_password_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql)
     if (vio->write_packet(vio, 0, 0)) /* no password */
       DBUG_RETURN(CR_ERROR);
   }
-
-  DBUG_RETURN(CR_OK);
-}
-
-/**
-  client authentication plugin that does old MySQL authentication
-  using an 8-byte (4.0-) scramble
-*/
-static int old_password_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql)
-{
-  uchar *pkt;
-  int pkt_len;
-
-  DBUG_ENTER("old_password_auth_client");
-
-  if (((MCPVIO_EXT *)vio)->mysql_change_user)
-  {
-    /*
-      in mysql_change_user() the client sends the first packet.
-      we use the old scramble.
-    */
-    pkt= (uchar*)mysql->scramble;
-    pkt_len= SCRAMBLE_LENGTH_323 + 1;
-  }
-  else
-  {
-    /* read the scramble */
-    if ((pkt_len= vio->read_packet(vio, &pkt)) < 0)
-      DBUG_RETURN(CR_ERROR);
-
-    if (pkt_len != SCRAMBLE_LENGTH_323 + 1 &&
-        pkt_len != SCRAMBLE_LENGTH + 1)
-        DBUG_RETURN(CR_SERVER_HANDSHAKE_ERR);
-
-    /*
-      save it in MYSQL.
-      Copy data of length SCRAMBLE_LENGTH_323 or SCRAMBLE_LENGTH
-      to ensure that buffer overflow does not occur.
-    */
-    memcpy(mysql->scramble, pkt, (pkt_len - 1));
-    mysql->scramble[pkt_len-1] = 0;
-  }
-
-  if (mysql->passwd[0])
-  {
-    /*
-       If --secure-auth option is used, throw an error.
-       Note that, we do not need to check for CLIENT_SECURE_CONNECTION
-       capability of server. If server is not capable of handling secure
-       connections, we would have raised error before reaching here.
-
-       TODO: Change following code to access MYSQL structure through
-       client-side plugin service.
-    */
-    if (mysql->options.secure_auth)
-    {
-      set_mysql_error(mysql, CR_SECURE_AUTH, unknown_sqlstate);
-      DBUG_RETURN(CR_ERROR);
-    }
-    else
-    {
-      char scrambled[SCRAMBLE_LENGTH_323 + 1];
-      scramble_323(scrambled, (char*)pkt, mysql->passwd);
-      if (vio->write_packet(vio, (uchar*)scrambled, SCRAMBLE_LENGTH_323 + 1))
-        DBUG_RETURN(CR_ERROR);
-    }
-  }
-  else
-    if (vio->write_packet(vio, 0, 0)) /* no password */
-      DBUG_RETURN(CR_ERROR);
 
   DBUG_RETURN(CR_OK);
 }

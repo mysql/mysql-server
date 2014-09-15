@@ -35,148 +35,11 @@ Created 5/11/1994 Heikki Tuuri
 # include <stdlib.h>
 #endif /* !UNIV_HOTBACKUP */
 
-const char*	OUT_OF_MEMORY_MSG =
-	"Check if you should increase the swap file or ulimits of your"
-	" operating system.  On FreeBSD check that you have compiled the OS"
-	" with a big enough maximum process size.  Note that on most 32-bit"
-	" computers the process memory space is limited to 2 GB or 4 GB.";
-
-/** The number of attempts to make when trying to allcate memory, pausing
-for 1 second between attempts to allow some memory to be freed. */
-static const int	max_attempts = 60;
-
-/** Allocate memory.
-@param[in]	size	number of bytes to allocate
-@return allocated memory block */
-
-void*
-ut_malloc(
-	ulint	size)
-{
-	void*	ptr = malloc(size);
-
-	for (int retry = 1; ; retry++) {
-		if (ptr != NULL) {
-			return(ptr);
-		}
-		if (retry > max_attempts) {
-			break;
-		}
-
-		/* Sleep for a second and retry the allocation;
-		maybe this is just a temporary shortage of memory */
-
-		os_thread_sleep(1000000);
-
-		ptr = malloc(size);
-	}
-
-	ib_logf(IB_LOG_LEVEL_FATAL,
-		"Cannot allocate " ULINTPF " bytes of memory after %d"
-		" tries over %d seconds. OS error: %d-%s. %s",
-		size, max_attempts, max_attempts,
-		errno, strerror(errno), OUT_OF_MEMORY_MSG);
-
-	return(NULL);
-}
-
-/** Allocate zero-filled memory.
-@param[in]	n number of bytes to allocate
-@return zero-filled allocated memory block */
-
-void*
-ut_zalloc(
-	ulint	size)
-{
-	void*	ptr = calloc(size, 1);
-
-	for (int retry = 1; ; retry++) {
-		if (ptr != NULL) {
-			return(ptr);
-		}
-		if (retry > max_attempts) {
-			break;
-		}
-
-		/* Sleep for a second and retry the allocation;
-		maybe this is just a temporary shortage of memory */
-
-		os_thread_sleep(1000000);
-
-		ptr = calloc(size, 1);
-	}
-
-	ib_logf(IB_LOG_LEVEL_FATAL,
-		"Cannot allocate " ULINTPF " bytes of memory after %d"
-		" tries over %d seconds. OS error: %d-%s. %s",
-		size, max_attempts, max_attempts,
-		errno, strerror(errno), OUT_OF_MEMORY_MSG);
-
-	return(NULL);
-}
-
-/**********************************************************************//**
-Frees a memory block allocated with ut_malloc.
-Freeing a NULL pointer is a no-op.
-@param[in,out]	mem	memory block, can be NULL */
-
-void
-ut_free(
-	void* ptr)
-{
-	free(ptr);
-}
-
-#ifndef UNIV_HOTBACKUP
-/** Wrapper for realloc().
-@param[in,out]	ptr	pointer to old memory block or NULL
-@param[in]	size	desired size
-@return own: pointer to new memory block or NULL */
-
-void*
-ut_realloc(
-	void*	ptr,
-	ulint	size)
-{
-	if (size == 0) {
-		free(ptr);
-		return(NULL);
-	}
-
-	void*	new_ptr = realloc(ptr, size);
-
-	for (int retry = 1; ; retry++) {
-		if (new_ptr != NULL) {
-			return(new_ptr);
-		}
-		if (retry > max_attempts) {
-			break;
-		}
-
-		/* Sleep for a second and retry the re-allocation;
-		maybe this is just a temporary shortage of memory */
-
-		os_thread_sleep(1000000);
-
-		new_ptr = realloc(ptr, size);
-	}
-
-	ib_logf(IB_LOG_LEVEL_FATAL,
-		"Cannot re-allocate " ULINTPF " bytes of memory after %d"
-		" tries over %d seconds. OS error: %d-%s. %s",
-		size, max_attempts, max_attempts,
-		errno, strerror(errno), OUT_OF_MEMORY_MSG);
-
-	return(NULL);
-}
-#endif /* !UNIV_HOTBACKUP */
-
 /**********************************************************************//**
 Copies up to size - 1 characters from the NUL-terminated string src to
 dst, NUL-terminating the result. Returns strlen(src), so truncation
 occurred if the return value >= size.
 @return strlen(src) */
-
 ulint
 ut_strlcpy(
 /*=======*/
@@ -200,7 +63,6 @@ ut_strlcpy(
 Like ut_strlcpy, but if src doesn't fit in dst completely, copies the last
 (size - 1) bytes of src, not the first.
 @return strlen(src) */
-
 ulint
 ut_strlcpy_rev(
 /*===========*/
@@ -224,7 +86,6 @@ ut_strlcpy_rev(
 Return the number of times s2 occurs in s1. Overlapping instances of s2
 are only counted once.
 @return the number of times s2 occurs in s1 */
-
 ulint
 ut_strcount(
 /*========*/
@@ -256,7 +117,6 @@ ut_strcount(
 
 /********************************************************************
 Concatenate 3 strings.*/
-
 char*
 ut_str3cat(
 /*=======*/
@@ -271,7 +131,7 @@ ut_str3cat(
 	ulint	s2_len = strlen(s2);
 	ulint	s3_len = strlen(s3);
 
-	s = static_cast<char*>(ut_malloc(s1_len + s2_len + s3_len + 1));
+	s = static_cast<char*>(ut_malloc_nokey(s1_len + s2_len + s3_len + 1));
 
 	memcpy(s, s1, s1_len);
 	memcpy(s + s1_len, s2, s2_len);
@@ -285,7 +145,6 @@ ut_str3cat(
 Replace every occurrence of s1 in str with s2. Overlapping instances of s1
 are only replaced once.
 @return own: modified string, must be freed with ut_free() */
-
 char*
 ut_strreplace(
 /*==========*/
@@ -311,7 +170,7 @@ ut_strreplace(
 	}
 
 	new_str = static_cast<char*>(
-		ut_malloc(str_len + count * len_delta + 1));
+		ut_malloc_nokey(str_len + count * len_delta + 1));
 
 	ptr = new_str;
 

@@ -30,7 +30,6 @@
 #include <functional>
 using std::min;
 
-bool mysql_user_table_is_in_short_password_format= false;
 struct ACL_internal_schema_registry_entry
 {
   const LEX_STRING *m_name;
@@ -78,12 +77,12 @@ my_bool validate_user_plugins= TRUE;
   @param access the schema ACL specific rules
 */
 void ACL_internal_schema_registry::register_schema
-  (const LEX_STRING *name, const ACL_internal_schema_access *access)
+  (const LEX_STRING &name, const ACL_internal_schema_access *access)
 {
   DBUG_ASSERT(m_registry_array_size < array_elements(registry_array));
 
   /* Not thread safe, and does not need to be. */
-  registry_array[m_registry_array_size].m_name= name;
+  registry_array[m_registry_array_size].m_name= &name;
   registry_array[m_registry_array_size].m_access= access;
   m_registry_array_size++;
 }
@@ -1044,7 +1043,7 @@ void rebuild_check_host(void)
 */
 
 bool acl_getroot(Security_context *sctx, char *user, char *host,
-                 char *ip, char *db)
+                 char *ip, const char *db)
 {
   int res= 1;
   ACL_USER *acl_user= 0;
@@ -1176,18 +1175,12 @@ bool set_user_salt(ACL_USER *acl_user,
     get_salt_from_password(acl_user->salt, password);
     acl_user->salt_len= SCRAMBLE_LENGTH;
   }
-  else if (password_len == SCRAMBLED_PASSWORD_CHAR_LENGTH_323)
-  {
-    get_salt_from_password_323((ulong *) acl_user->salt, password);
-    acl_user->salt_len= SCRAMBLE_LENGTH_323;
-  }
   else if (password_len == 0 || password == NULL)
   {
     /* This account doesn't use a password */
     acl_user->salt_len= 0;
   }
-  else if (acl_user->plugin.str == native_password_plugin_name.str ||
-           acl_user->plugin.str == old_password_plugin_name.str)
+  else if (acl_user->plugin.str == native_password_plugin_name.str)
   {
     /* Unexpected format of the hash; login will probably be impossible */
     result= true;
@@ -1300,10 +1293,7 @@ my_bool acl_init(bool dont_read_acl_tables)
   */
   native_password_plugin= my_plugin_lock_by_name(0,
            native_password_plugin_name, MYSQL_AUTHENTICATION_PLUGIN);
-  old_password_plugin= my_plugin_lock_by_name(0,
-           old_password_plugin_name, MYSQL_AUTHENTICATION_PLUGIN);
-
-  if (!native_password_plugin || !old_password_plugin)
+  if (!native_password_plugin)
     DBUG_RETURN(1);
 
   if (dont_read_acl_tables)
@@ -1526,10 +1516,6 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
             if (my_strcasecmp(system_charset_info, tmpstr,
                               native_password_plugin_name.str) == 0)
               user.plugin= native_password_plugin_name;
-            else
-              if (my_strcasecmp(system_charset_info, tmpstr,
-                                old_password_plugin_name.str) == 0)
-                user.plugin= old_password_plugin_name;
 #if defined(HAVE_OPENSSL)
             else
               if (my_strcasecmp(system_charset_info, tmpstr,
@@ -1542,8 +1528,7 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
                 user.plugin.length= strlen(tmpstr);
               }
             if (user.auth_string.length &&
-                user.plugin.str != native_password_plugin_name.str &&
-                user.plugin.str != old_password_plugin_name.str)
+                user.plugin.str != native_password_plugin_name.str)
             {
               sql_print_warning("'user' entry '%s@%s' has both a password "
                                 "and an authentication plugin specified. The "
@@ -1671,44 +1656,15 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
   { 
     password_length= table->field[MYSQL_USER_FIELD_PASSWORD]->field_length /
       table->field[MYSQL_USER_FIELD_PASSWORD]->charset()->mbmaxlen;
-    if (password_length < SCRAMBLED_PASSWORD_CHAR_LENGTH_323)
+    if (password_length < SCRAMBLED_PASSWORD_CHAR_LENGTH)
     {
       sql_print_error("Fatal error: mysql.user table is damaged or in "
-                      "unsupported 3.20 format.");
+                      "unsupported pre-4.1 format.");
       goto end;
     }
   
     DBUG_PRINT("info",("user table fields: %d, password length: %d",
                table->s->fields, password_length));
-
-    mysql_mutex_lock(&LOCK_global_system_variables);
-    if (password_length < SCRAMBLED_PASSWORD_CHAR_LENGTH)
-    { 
-      if (opt_secure_auth)
-      {
-        mysql_mutex_unlock(&LOCK_global_system_variables);
-        sql_print_error("Fatal error: mysql.user table is in old format, "
-                        "but server started with --secure-auth option.");
-        goto end;
-      }
-      mysql_user_table_is_in_short_password_format= true;
-      if (global_system_variables.old_passwords)
-        mysql_mutex_unlock(&LOCK_global_system_variables);
-      else
-      {
-        global_system_variables.old_passwords= 1;
-        mysql_mutex_unlock(&LOCK_global_system_variables);
-        sql_print_warning("mysql.user table is not updated to new password format; "
-                          "Disabling new password usage until "
-                          "mysql_fix_privilege_tables is run");
-      }
-      thd->variables.old_passwords= 1;
-    }
-    else
-    {
-      mysql_user_table_is_in_short_password_format= false;
-      mysql_mutex_unlock(&LOCK_global_system_variables);
-    }
   } /* End legacy password integrity checks ----------------------------------*/
   
   /*
@@ -1834,7 +1790,6 @@ void acl_free(bool end)
   acl_proxy_users= NULL;
   my_hash_free(&acl_check_hosts);
   plugin_unlock(0, native_password_plugin);
-  plugin_unlock(0, old_password_plugin);
   if (!end)
     acl_cache->clear(1); /* purecov: inspected */
   else
@@ -2497,8 +2452,7 @@ void acl_insert_user(const char *user, const char *host,
   }
   else
   {
-    acl_user.plugin= password_len == SCRAMBLED_PASSWORD_CHAR_LENGTH_323 ?
-      old_password_plugin_name : native_password_plugin_name;
+    acl_user.plugin= native_password_plugin_name;
     acl_user.auth_string.str= const_cast<char*>("");
     acl_user.auth_string.length= 0;
   }

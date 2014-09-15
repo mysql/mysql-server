@@ -2255,15 +2255,15 @@ ROLLBACK/*!*/;
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Previous-GTIDs
 # [empty]
 # at #
-#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	GTID [commit=yes]
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	GTID [commit=yes]	last_committed=#	sequence_number=#
 SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
 # at #
-#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0	last_committed=#	sequence_number=#
 use `test`/*!*/;
 SET TIMESTAMP=1000000000/*!*/;
 SET @@session.pseudo_thread_id=#/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
-SET @@session.sql_mode=1073741824/*!*/;
+SET @@session.sql_mode=1075839008/*!*/;
 SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
 /*!\C utf8 *//*!*/;
 SET @@session.character_set_client=33,@@session.collation_connection=33,@@session.collation_server=8/*!*/;
@@ -2360,10 +2360,10 @@ crn INT -- row number
 ) ENGINE=MyISAM DEFAULT CHARSET latin1
 /*!*/;
 # at #
-#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	GTID [commit=yes]
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	GTID [commit=yes]	last_committed=#	sequence_number=#
 SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
 # at #
-#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0	last_committed=#	sequence_number=#
 SET TIMESTAMP=1000000000/*!*/;
 SET @@session.time_zone='SYSTEM'/*!*/;
 BEGIN
@@ -2454,15 +2454,15 @@ BEGIN
 ###   @78=b'00000000' /* SET(1 bytes) meta=63489 nullable=1 is_null=0 */
 ###   @79=1 /* INT meta=0 nullable=1 is_null=0 */
 # at #
-#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0	last_committed=#	sequence_number=#
 SET TIMESTAMP=1000000000/*!*/;
 COMMIT
 /*!*/;
 # at #
-#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	GTID [commit=yes]
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	GTID [commit=yes]	last_committed=#	sequence_number=#
 SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
 # at #
-#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0	last_committed=#	sequence_number=#
 SET TIMESTAMP=1000000000/*!*/;
 BEGIN
 /*!*/;
@@ -2552,15 +2552,15 @@ BEGIN
 ###   @78=b'00000111' /* SET(1 bytes) meta=63489 nullable=1 is_null=0 */
 ###   @79=2 /* INT meta=0 nullable=1 is_null=0 */
 # at #
-#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0	last_committed=#	sequence_number=#
 SET TIMESTAMP=1000000000/*!*/;
 COMMIT
 /*!*/;
 # at #
-#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	GTID [commit=yes]
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	GTID [commit=yes]	last_committed=#	sequence_number=#
 SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
 # at #
-#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0	last_committed=#	sequence_number=#
 SET TIMESTAMP=1000000000/*!*/;
 BEGIN
 /*!*/;
@@ -2731,15 +2731,15 @@ BEGIN
 ###   @78=b'00000110' /* SET(1 bytes) meta=63489 nullable=1 is_null=0 */
 ###   @79=4 /* INT meta=0 nullable=1 is_null=0 */
 # at #
-#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0	last_committed=#	sequence_number=#
 SET TIMESTAMP=1000000000/*!*/;
 COMMIT
 /*!*/;
 # at #
-#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	GTID [commit=yes]
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	GTID [commit=yes]	last_committed=#	sequence_number=#
 SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
 # at #
-#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0	last_committed=#	sequence_number=#
 SET TIMESTAMP=1000000000/*!*/;
 BEGIN
 /*!*/;
@@ -2909,15 +2909,15 @@ BEGIN
 ###   @78=b'00000111' /* SET(1 bytes) meta=63489 nullable=1 is_null=0 */
 ###   @79=1 /* INT meta=0 nullable=1 is_null=0 */
 # at #
-#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0	last_committed=#	sequence_number=#
 SET TIMESTAMP=1000000000/*!*/;
 COMMIT
 /*!*/;
 # at #
-#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	GTID [commit=yes]
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	GTID [commit=yes]	last_committed=#	sequence_number=#
 SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
 # at #
-#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0	last_committed=#	sequence_number=#
 SET TIMESTAMP=1000000000/*!*/;
 BEGIN
 /*!*/;
@@ -3087,15 +3087,15 @@ BEGIN
 ###   @78=b'00000000' /* SET(1 bytes) meta=63489 nullable=1 is_null=0 */
 ###   @79=2 /* INT meta=0 nullable=1 is_null=0 */
 # at #
-#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0	last_committed=#	sequence_number=#
 SET TIMESTAMP=1000000000/*!*/;
 COMMIT
 /*!*/;
 # at #
-#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	GTID [commit=yes]
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	GTID [commit=yes]	last_committed=#	sequence_number=#
 SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
 # at #
-#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0	last_committed=#	sequence_number=#
 SET TIMESTAMP=1000000000/*!*/;
 BEGIN
 /*!*/;
@@ -3265,15 +3265,15 @@ BEGIN
 ###   @78=b'00000110' /* SET(1 bytes) meta=63489 nullable=1 is_null=0 */
 ###   @79=3 /* INT meta=0 nullable=1 is_null=0 */
 # at #
-#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0	last_committed=#	sequence_number=#
 SET TIMESTAMP=1000000000/*!*/;
 COMMIT
 /*!*/;
 # at #
-#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	GTID [commit=yes]
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	GTID [commit=yes]	last_committed=#	sequence_number=#
 SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
 # at #
-#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0	last_committed=#	sequence_number=#
 SET TIMESTAMP=1000000000/*!*/;
 BEGIN
 /*!*/;
@@ -3443,15 +3443,15 @@ BEGIN
 ###   @78=NULL /* SET(1 bytes) meta=63489 nullable=1 is_null=1 */
 ###   @79=4 /* INT meta=0 nullable=1 is_null=0 */
 # at #
-#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0	last_committed=#	sequence_number=#
 SET TIMESTAMP=1000000000/*!*/;
 COMMIT
 /*!*/;
 # at #
-#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	GTID [commit=yes]
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	GTID [commit=yes]	last_committed=#	sequence_number=#
 SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
 # at #
-#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0	last_committed=#	sequence_number=#
 SET TIMESTAMP=1000000000/*!*/;
 BEGIN
 /*!*/;
@@ -3541,15 +3541,15 @@ BEGIN
 ###   @78=b'00000111' /* SET(1 bytes) meta=63489 nullable=1 is_null=0 */
 ###   @79=1 /* INT meta=0 nullable=1 is_null=0 */
 # at #
-#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0	last_committed=#	sequence_number=#
 SET TIMESTAMP=1000000000/*!*/;
 COMMIT
 /*!*/;
 # at #
-#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	GTID [commit=yes]
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	GTID [commit=yes]	last_committed=#	sequence_number=#
 SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
 # at #
-#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0	last_committed=#	sequence_number=#
 SET TIMESTAMP=1000000000/*!*/;
 BEGIN
 /*!*/;
@@ -3639,15 +3639,15 @@ BEGIN
 ###   @78=b'00000000' /* SET(1 bytes) meta=63489 nullable=1 is_null=0 */
 ###   @79=2 /* INT meta=0 nullable=1 is_null=0 */
 # at #
-#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0	last_committed=#	sequence_number=#
 SET TIMESTAMP=1000000000/*!*/;
 COMMIT
 /*!*/;
 # at #
-#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	GTID [commit=yes]
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	GTID [commit=yes]	last_committed=#	sequence_number=#
 SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
 # at #
-#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0	last_committed=#	sequence_number=#
 SET TIMESTAMP=1000000000/*!*/;
 BEGIN
 /*!*/;
@@ -3737,15 +3737,15 @@ BEGIN
 ###   @78=b'00000110' /* SET(1 bytes) meta=63489 nullable=1 is_null=0 */
 ###   @79=3 /* INT meta=0 nullable=1 is_null=0 */
 # at #
-#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0	last_committed=#	sequence_number=#
 SET TIMESTAMP=1000000000/*!*/;
 COMMIT
 /*!*/;
 # at #
-#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	GTID [commit=yes]
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	GTID [commit=yes]	last_committed=#	sequence_number=#
 SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
 # at #
-#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0	last_committed=#	sequence_number=#
 SET TIMESTAMP=1000000000/*!*/;
 BEGIN
 /*!*/;
@@ -3835,7 +3835,7 @@ BEGIN
 ###   @78=NULL /* SET(1 bytes) meta=63489 nullable=1 is_null=1 */
 ###   @79=4 /* INT meta=0 nullable=1 is_null=0 */
 # at #
-#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0	last_committed=#	sequence_number=#
 SET TIMESTAMP=1000000000/*!*/;
 COMMIT
 /*!*/;
@@ -3939,15 +3939,15 @@ ROLLBACK/*!*/;
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Previous-GTIDs
 # [empty]
 # at #
-#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	GTID [commit=yes]
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	GTID [commit=yes]	last_committed=#	sequence_number=#
 SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
 # at #
-#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0	last_committed=#	sequence_number=#
 use `test`/*!*/;
 SET TIMESTAMP=1000000000/*!*/;
 SET @@session.pseudo_thread_id=#/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
-SET @@session.sql_mode=1073741824/*!*/;
+SET @@session.sql_mode=1075839008/*!*/;
 SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
 /*!\C utf8 *//*!*/;
 SET @@session.character_set_client=33,@@session.collation_connection=33,@@session.collation_server=8/*!*/;
@@ -3960,10 +3960,10 @@ crn INT -- row number
 ) ENGINE=MyISAM DEFAULT CHARSET latin1
 /*!*/;
 # at #
-#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	GTID [commit=yes]
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	GTID [commit=yes]	last_committed=#	sequence_number=#
 SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
 # at #
-#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0	last_committed=#	sequence_number=#
 SET TIMESTAMP=1000000000/*!*/;
 BEGIN
 /*!*/;
@@ -4017,15 +4017,15 @@ BEGIN
 ###   @2='VARCHAR-09' /* VARSTRING(24) meta=24 nullable=1 is_null=0 */
 ###   @3=9 /* INT meta=0 nullable=1 is_null=0 */
 # at #
-#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0	last_committed=#	sequence_number=#
 SET TIMESTAMP=1000000000/*!*/;
 COMMIT
 /*!*/;
 # at #
-#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	GTID [commit=yes]
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	GTID [commit=yes]	last_committed=#	sequence_number=#
 SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
 # at #
-#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0	last_committed=#	sequence_number=#
 SET TIMESTAMP=1000000000/*!*/;
 BEGIN
 /*!*/;
@@ -4097,15 +4097,15 @@ BEGIN
 ###   @2='VARCHAR-07' /* VARSTRING(24) meta=24 nullable=1 is_null=0 */
 ###   @3=7 /* INT meta=0 nullable=1 is_null=0 */
 # at #
-#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0	last_committed=#	sequence_number=#
 SET TIMESTAMP=1000000000/*!*/;
 COMMIT
 /*!*/;
 # at #
-#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	GTID [commit=yes]
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	GTID [commit=yes]	last_committed=#	sequence_number=#
 SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
 # at #
-#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0	last_committed=#	sequence_number=#
 SET TIMESTAMP=1000000000/*!*/;
 BEGIN
 /*!*/;
@@ -4149,7 +4149,7 @@ BEGIN
 ###   @2='VARCHAR-07' /* VARSTRING(24) meta=24 nullable=1 is_null=0 */
 ###   @3=7 /* INT meta=0 nullable=1 is_null=0 */
 # at #
-#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0	last_committed=#	sequence_number=#
 SET TIMESTAMP=1000000000/*!*/;
 COMMIT
 /*!*/;
@@ -4341,15 +4341,15 @@ ROLLBACK/*!*/;
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Previous-GTIDs
 # [empty]
 # at #
-#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	GTID [commit=yes]
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	GTID [commit=yes]	last_committed=#	sequence_number=#
 SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
 # at #
-#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0	last_committed=#	sequence_number=#
 use `test`/*!*/;
 SET TIMESTAMP=1000000000/*!*/;
 SET @@session.pseudo_thread_id=#/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
-SET @@session.sql_mode=1073741824/*!*/;
+SET @@session.sql_mode=1075839008/*!*/;
 SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
 /*!\C utf8 *//*!*/;
 SET @@session.character_set_client=33,@@session.collation_connection=33,@@session.collation_server=8/*!*/;
@@ -4362,10 +4362,10 @@ c_1_n INT -- row number
 ) ENGINE=MyISAM DEFAULT CHARSET latin1
 /*!*/;
 # at #
-#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	GTID [commit=yes]
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	GTID [commit=yes]	last_committed=#	sequence_number=#
 SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
 # at #
-#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0	last_committed=#	sequence_number=#
 SET TIMESTAMP=1000000000/*!*/;
 CREATE TABLE t2 (
 c_2_1 DATE,
@@ -4374,10 +4374,10 @@ c_2_n INT -- row number
 ) ENGINE=MyISAM DEFAULT CHARSET latin1
 /*!*/;
 # at #
-#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	GTID [commit=yes]
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	GTID [commit=yes]	last_committed=#	sequence_number=#
 SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
 # at #
-#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0	last_committed=#	sequence_number=#
 SET TIMESTAMP=1000000000/*!*/;
 CREATE TABLE t3 (
 c_3_1 DATE,
@@ -4386,10 +4386,10 @@ c_3_n INT -- row number
 ) ENGINE=MyISAM DEFAULT CHARSET latin1
 /*!*/;
 # at #
-#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	GTID [commit=yes]
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	GTID [commit=yes]	last_committed=#	sequence_number=#
 SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
 # at #
-#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0	last_committed=#	sequence_number=#
 SET TIMESTAMP=1000000000/*!*/;
 BEGIN
 /*!*/;
@@ -4443,15 +4443,15 @@ BEGIN
 ###   @2='VARCHAR-01-09' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
 ###   @3=19 /* INT meta=0 nullable=1 is_null=0 */
 # at #
-#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0	last_committed=#	sequence_number=#
 SET TIMESTAMP=1000000000/*!*/;
 COMMIT
 /*!*/;
 # at #
-#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	GTID [commit=yes]
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	GTID [commit=yes]	last_committed=#	sequence_number=#
 SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
 # at #
-#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0	last_committed=#	sequence_number=#
 SET TIMESTAMP=1000000000/*!*/;
 BEGIN
 /*!*/;
@@ -4505,15 +4505,15 @@ BEGIN
 ###   @2='VARCHAR-02-09' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
 ###   @3=29 /* INT meta=0 nullable=1 is_null=0 */
 # at #
-#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0	last_committed=#	sequence_number=#
 SET TIMESTAMP=1000000000/*!*/;
 COMMIT
 /*!*/;
 # at #
-#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	GTID [commit=yes]
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	GTID [commit=yes]	last_committed=#	sequence_number=#
 SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
 # at #
-#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0	last_committed=#	sequence_number=#
 SET TIMESTAMP=1000000000/*!*/;
 BEGIN
 /*!*/;
@@ -4567,39 +4567,39 @@ BEGIN
 ###   @2='VARCHAR-03-09' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
 ###   @3=39 /* INT meta=0 nullable=1 is_null=0 */
 # at #
-#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0	last_committed=#	sequence_number=#
 SET TIMESTAMP=1000000000/*!*/;
 COMMIT
 /*!*/;
 # at #
-#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	GTID [commit=yes]
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	GTID [commit=yes]	last_committed=#	sequence_number=#
 SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
 # at #
-#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0	last_committed=#	sequence_number=#
 SET TIMESTAMP=1000000000/*!*/;
 ANALYZE TABLE t1
 /*!*/;
 # at #
-#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	GTID [commit=yes]
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	GTID [commit=yes]	last_committed=#	sequence_number=#
 SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
 # at #
-#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0	last_committed=#	sequence_number=#
 SET TIMESTAMP=1000000000/*!*/;
 ANALYZE TABLE t2
 /*!*/;
 # at #
-#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	GTID [commit=yes]
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	GTID [commit=yes]	last_committed=#	sequence_number=#
 SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
 # at #
-#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0	last_committed=#	sequence_number=#
 SET TIMESTAMP=1000000000/*!*/;
 ANALYZE TABLE t3
 /*!*/;
 # at #
-#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	GTID [commit=yes]
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	GTID [commit=yes]	last_committed=#	sequence_number=#
 SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
 # at #
-#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0	last_committed=#	sequence_number=#
 SET TIMESTAMP=1000000000/*!*/;
 BEGIN
 /*!*/;
@@ -4778,15 +4778,15 @@ BEGIN
 ###   @2='VARCHAR-03-07' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
 ###   @3=7 /* INT meta=0 nullable=1 is_null=0 */
 # at #
-#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0	last_committed=#	sequence_number=#
 SET TIMESTAMP=1000000000/*!*/;
 COMMIT
 /*!*/;
 # at #
-#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	GTID [commit=yes]
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	GTID [commit=yes]	last_committed=#	sequence_number=#
 SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
 # at #
-#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0	last_committed=#	sequence_number=#
 SET TIMESTAMP=1000000000/*!*/;
 BEGIN
 /*!*/;
@@ -4893,7 +4893,7 @@ BEGIN
 ###   @2='VARCHAR-03-07' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
 ###   @3=7 /* INT meta=0 nullable=1 is_null=0 */
 # at #
-#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0	last_committed=#	sequence_number=#
 SET TIMESTAMP=1000000000/*!*/;
 COMMIT
 /*!*/;
@@ -4965,15 +4965,15 @@ ROLLBACK/*!*/;
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Previous-GTIDs
 # [empty]
 # at #
-#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	GTID [commit=yes]
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	GTID [commit=yes]	last_committed=#	sequence_number=#
 SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
 # at #
-#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0	last_committed=#	sequence_number=#
 use `test`/*!*/;
 SET TIMESTAMP=1000000000/*!*/;
 SET @@session.pseudo_thread_id=#/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
-SET @@session.sql_mode=1073741824/*!*/;
+SET @@session.sql_mode=1075839008/*!*/;
 SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
 /*!\C utf8 *//*!*/;
 SET @@session.character_set_client=33,@@session.collation_connection=33,@@session.collation_server=8/*!*/;
@@ -4986,10 +4986,10 @@ c3 VARCHAR(60)
 ) ENGINE=MyISAM DEFAULT CHARSET latin1
 /*!*/;
 # at #
-#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	GTID [commit=yes]
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	GTID [commit=yes]	last_committed=#	sequence_number=#
 SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
 # at #
-#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0	last_committed=#	sequence_number=#
 SET TIMESTAMP=1000000000/*!*/;
 BEGIN
 /*!*/;
@@ -5013,7 +5013,7 @@ BEGIN
 ###   @2=6 /* INT meta=0 nullable=1 is_null=0 */
 ###   @3='Wow' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
 # at #
-#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0	last_committed=#	sequence_number=#
 SET TIMESTAMP=1000000000/*!*/;
 COMMIT
 /*!*/;

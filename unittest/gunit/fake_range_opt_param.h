@@ -58,7 +58,7 @@ public:
     if (number_columns != 0)
     {
       table= &fake_table;
-      current_table= table->map;
+      current_table= table->pos_in_table_list->map();
     }
     else
     {
@@ -103,7 +103,7 @@ public:
       key_parts_end->store_length= kpi->store_length;
       key_parts_end->field=        kpi->field;
       key_parts_end->null_bit=     kpi->null_bit;
-      key_parts_end->flag=         kpi->key_part_flag;
+      key_parts_end->flag=         static_cast<uint8>(kpi->key_part_flag);
       key_parts_end->image_type =  Field::itRAW;
 
       key_parts_end++;

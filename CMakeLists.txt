@@ -34,10 +34,12 @@ ENDIF()
 
 # We use the LOCATION target property (CMP0026)
 # and get_target_property() for non-existent targets (CMP0045)
+# and INSTALL_NAME_DIR (CMP0042)
 IF(CMAKE_VERSION VERSION_EQUAL "3.0.0" OR
    CMAKE_VERSION VERSION_GREATER "3.0.0")
  CMAKE_POLICY(SET CMP0026 OLD)
  CMAKE_POLICY(SET CMP0045 OLD)
+ CMAKE_POLICY(SET CMP0042 OLD)
 ENDIF()
 
 MESSAGE(STATUS "Running cmake version ${CMAKE_VERSION}")
@@ -230,7 +232,8 @@ ENDIF()
 IF(NOT WITHOUT_SERVER)
   OPTION (WITH_UNIT_TESTS "Compile MySQL with unit tests" ON)
 ENDIF()
-MARK_AS_ADVANCED(WITHOUT_SERVER DISABLE_SHARED)
+OPTION(FORCE_UNSUPPORTED_COMPILER "Disable compiler version checks" OFF)
+MARK_AS_ADVANCED(WITHOUT_SERVER DISABLE_SHARED FORCE_UNSUPPORTED_COMPILER)
 
 
 include(CheckCSourceCompiles)
@@ -467,7 +470,10 @@ INCLUDE(configure.cmake)
 
 # Common defines and includes
 ADD_DEFINITIONS(-DHAVE_CONFIG_H)
-INCLUDE_DIRECTORIES(${CMAKE_CURRENT_BINARY_DIR}/include)
+INCLUDE_DIRECTORIES(
+  ${CMAKE_CURRENT_BINARY_DIR}/include
+  ${CMAKE_SOURCE_DIR}/extra/rapidjson/include
+)
 
 # Add bundled or system zlib.
 MYSQL_CHECK_ZLIB_WITH_COMPRESS()
@@ -483,7 +489,7 @@ MYSQL_CHECK_LIBEVENT()
 # not run with the warning options as to not perturb fragile checks
 # (i.e. do not make warnings into errors).
 #
-# Why doesn't these flags affect the entire build?
+# Why don't these flags affect the entire build?
 # Because things may already have been included with ADD_SUBDIRECTORY
 #
 OPTION(MYSQL_MAINTAINER_MODE
@@ -563,6 +569,7 @@ IF(NOT WITHOUT_SERVER)
   ENDIF()
   ADD_SUBDIRECTORY(packaging/rpm-oel)
   ADD_SUBDIRECTORY(packaging/rpm-fedora)
+  ADD_SUBDIRECTORY(packaging/rpm-sles)
 ENDIF()
 
 INCLUDE(cmake/abi_check.cmake)

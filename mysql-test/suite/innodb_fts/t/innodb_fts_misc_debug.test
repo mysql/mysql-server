@@ -2,14 +2,12 @@
 # Misc FTS test on debug servers only
 #------------------------------------------------------------------------------
 --source include/have_innodb.inc
+--source include/no_valgrind_without_big.inc
 
 # Must have debug code to use SET SESSION debug
 --source include/have_debug.inc
 
-# Valgrind would complain about memory leaks when we crash on purpose.
---source include/not_valgrind.inc
-
-# Embedded server does not support crashing
+# Embedded server does not support restarting
 --source include/not_embedded.inc
 
 # Avoid CrashReporter popup on Mac
@@ -46,27 +44,7 @@ BEGIN;
 INSERT INTO articles (title,body) VALUES
         ('MySQL Tutorial','DBMS stands for DataBase ...');
 
-# Request a crash on next execution of commit.
-SET SESSION debug="+d,crash_commit_before";
-#
-# Write file to make mysql-test-run.pl start up the server again
---exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
-#
-# Execute the statement that causes the crash.
---error 2013
-COMMIT;
-
---source include/wait_until_disconnected.inc
---sleep 2
-
-# Turn on reconnect
---enable_reconnect
-#
-# Call script that will poll the server waiting for it to be back online again
---source include/wait_until_connected_again.inc
-#
-# Turn off reconnect again
---disable_reconnect
+--source include/kill_and_restart_mysqld.inc
 
 # This insert will re-initialize the Doc ID counter, it should not crash
 INSERT INTO articles (title,body) VALUES
@@ -90,33 +68,12 @@ INSERT INTO articles (title,body) VALUES
         ('MySQL vs. YourSQL','In the following database comparison ...'),
         ('MySQL Security','When configured properly, MySQL ...');
 
-# Now let's crash the server with "crash_commit_before"
 BEGIN;
 
 INSERT INTO articles (title,body) VALUES
         ('MySQL Tutorial','DBMS stands for DataBase ...');
 
-# Request a crash on next execution of commit.
-SET SESSION debug="+d,crash_commit_before";
-#
-# Write file to make mysql-test-run.pl start up the server again
---exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
-#
-# Execute the statement that causes the crash.
---error 2013
-COMMIT;
-
---source include/wait_until_disconnected.inc
---sleep 2
-
-# Turn on reconnect
---enable_reconnect
-#
-# Call script that will poll the server waiting for it to be back online again
---source include/wait_until_connected_again.inc
-#
-# Turn off reconnect again
---disable_reconnect
+--source include/kill_and_restart_mysqld.inc
 
 # This insert will re-initialize the Doc ID counter, it should not crash
 INSERT INTO articles (title,body) VALUES
@@ -150,31 +107,12 @@ INSERT INTO articles VALUES
         (5, 6, 'MySQL vs. YourSQL','In the following database comparison ...'),
         (7, 4, 'MySQL Security','When configured properly, MySQL ...');
 
-# Now let's crash the server with "crash_commit_before"
 BEGIN;
 
 INSERT INTO articles VALUES
         (100, 200, 'MySQL Tutorial','DBMS stands for DataBase ...');
 
-# Request a crash on next execution of commit.
-SET SESSION debug="+d,crash_commit_before";
-#
-# Write file to make mysql-test-run.pl start up the server again
---exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
-#
-# Execute the statement that causes the crash.
---error 2013
-COMMIT;
-
---source include/wait_until_disconnected.inc
---sleep 2
-
-# Turn on reconnect
---enable_reconnect
-#
-# Call script that will poll the server waiting for it to be back online again
---source include/wait_until_connected_again.inc
-#
+--source include/kill_and_restart_mysqld.inc
 
 # This would re-initialize the FTS index and do the re-tokenization
 # of above records

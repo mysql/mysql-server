@@ -118,7 +118,7 @@ extern bool opt_disable_networking, opt_skip_show_db;
 extern bool opt_skip_name_resolve;
 extern bool opt_ignore_builtin_innodb;
 extern my_bool opt_character_set_client_handshake;
-extern bool volatile abort_loop;
+extern MYSQL_PLUGIN_IMPORT bool volatile abort_loop;
 extern my_bool opt_bootstrap;
 extern my_bool opt_safe_user_create;
 extern my_bool opt_safe_show_db, opt_local_infile, opt_myisam_use_mmap;
@@ -152,6 +152,7 @@ extern char *default_tz_name;
 extern Time_zone *default_tz;
 extern char *default_storage_engine;
 extern char *default_tmp_storage_engine;
+extern ulong internal_tmp_disk_storage_engine;
 extern bool opt_endinfo, using_udf_functions;
 extern my_bool locked_in_memory;
 extern bool opt_using_transactions;
@@ -234,6 +235,7 @@ extern my_bool opt_master_verify_checksum;
 extern my_bool opt_slave_sql_verify_checksum;
 extern my_bool enforce_gtid_consistency;
 extern uint executed_gtids_compression_period;
+extern my_bool simplified_binlog_gtid_recovery;
 extern ulong binlogging_impossible_mode;
 enum enum_binlogging_impossible_mode
 {
@@ -279,6 +281,7 @@ extern const char *opt_date_time_formats[];
 extern handlerton *partition_hton;
 extern handlerton *myisam_hton;
 extern handlerton *heap_hton;
+extern handlerton *innodb_hton;
 extern uint opt_server_id_bits;
 extern ulong opt_server_id_mask;
 #ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
@@ -302,6 +305,12 @@ extern ulong connection_errors_internal;
 extern ulong connection_errors_peer_addr;
 #endif
 extern ulong log_warnings;
+extern bool  opt_log_syslog_enable;
+extern char *opt_log_syslog_tag;
+#ifndef _WIN32
+extern bool  opt_log_syslog_include_pid;
+extern char *opt_log_syslog_facility;
+#endif
 /** The size of the host_cache. */
 extern uint host_cache_size;
 extern ulong log_error_verbosity;
@@ -309,23 +318,40 @@ extern LEX_CSTRING sql_statement_names[(uint) SQLCOM_END + 1];
 
 /*
   THR_MALLOC is a key which will be used to set/get MEM_ROOT** for a thread,
-  using my_pthread_setspecific_ptr()/my_thread_getspecific_ptr().
+  using my_set_thread_local()/my_get_thread_local().
 */
-extern pthread_key(MEM_ROOT**,THR_MALLOC);
+extern thread_local_key_t THR_MALLOC;
 extern bool THR_MALLOC_initialized;
 
-static inline MEM_ROOT **
-my_pthread_get_THR_MALLOC()
+static inline MEM_ROOT ** my_pthread_get_THR_MALLOC()
 {
   DBUG_ASSERT(THR_MALLOC_initialized);
-  return my_pthread_getspecific(MEM_ROOT **, THR_MALLOC);
+  return (MEM_ROOT**) my_get_thread_local(THR_MALLOC);
 }
 
-static inline int
-my_pthread_set_THR_MALLOC(MEM_ROOT ** hdl)
+static inline int my_pthread_set_THR_MALLOC(MEM_ROOT ** hdl)
 {
   DBUG_ASSERT(THR_MALLOC_initialized);
-  return my_pthread_setspecific_ptr(THR_MALLOC, hdl);
+  return my_set_thread_local(THR_MALLOC, hdl);
+}
+
+/*
+  THR_THD is a key which will be used to set/get THD* for a thread,
+  using my_set_thread_local()/my_get_thread_local().
+*/
+extern MYSQL_PLUGIN_IMPORT thread_local_key_t THR_THD;
+extern bool THR_THD_initialized;
+
+static inline THD * my_pthread_get_THR_THD()
+{
+  DBUG_ASSERT(THR_THD_initialized);
+  return (THD*)my_get_thread_local(THR_THD);
+}
+
+static inline int my_pthread_set_THR_THD(THD *thd)
+{
+  DBUG_ASSERT(THR_THD_initialized);
+  return my_set_thread_local(THR_THD, thd);
 }
 
 extern bool load_perfschema_engine;
@@ -334,9 +360,7 @@ extern bool load_perfschema_engine;
 
 C_MODE_START
 
-#ifdef HAVE_MMAP
 extern PSI_mutex_key key_LOCK_tc;
-#endif /* HAVE_MMAP */
 
 #ifdef HAVE_OPENSSL
 extern PSI_mutex_key key_LOCK_des_key_file;
@@ -372,7 +396,8 @@ extern PSI_mutex_key
   key_mutex_slave_parallel_worker,
   key_structure_guard_mutex, key_TABLE_SHARE_LOCK_ha_data,
   key_LOCK_error_messages,
-  key_LOCK_log_throttle_qni, key_LOCK_query_plan, key_LOCK_thd_query;
+  key_LOCK_log_throttle_qni, key_LOCK_query_plan, key_LOCK_thd_query,
+  key_LOCK_cost_const;
 extern PSI_mutex_key key_RELAYLOG_LOCK_commit;
 extern PSI_mutex_key key_RELAYLOG_LOCK_commit_queue;
 extern PSI_mutex_key key_RELAYLOG_LOCK_done;
@@ -386,6 +411,7 @@ extern PSI_mutex_key key_LOCK_sql_rand;
 extern PSI_mutex_key key_gtid_ensure_index_mutex;
 extern PSI_mutex_key key_mts_temp_table_LOCK;
 extern PSI_mutex_key key_LOCK_compress_gtid_table;
+extern PSI_mutex_key key_mts_gaq_LOCK;
 #ifdef HAVE_MY_TIMER
 extern PSI_mutex_key key_thd_timer_mutex;
 #endif
@@ -400,10 +426,7 @@ extern PSI_rwlock_key key_rwlock_LOCK_grant, key_rwlock_LOCK_logger,
   key_rwlock_LOCK_system_variables_hash, key_rwlock_query_cache_query_lock,
   key_rwlock_global_sid_lock;
 
-#ifdef HAVE_MMAP
 extern PSI_cond_key key_PAGE_cond, key_COND_active, key_COND_pool;
-#endif /* HAVE_MMAP */
-
 extern PSI_cond_key key_BINLOG_update_cond,
   key_COND_cache_status_changed, key_COND_manager,
   key_COND_server_started,
@@ -413,7 +436,7 @@ extern PSI_cond_key key_BINLOG_update_cond,
   key_relay_log_info_data_cond, key_relay_log_info_log_space_cond,
   key_relay_log_info_start_cond, key_relay_log_info_stop_cond,
   key_relay_log_info_sleep_cond, key_cond_slave_parallel_pend_jobs,
-  key_cond_slave_parallel_worker,
+  key_cond_slave_parallel_worker, key_cond_mts_gaq,
   key_TABLE_SHARE_cond, key_user_level_lock_cond;
 extern PSI_cond_key key_BINLOG_COND_done;
 extern PSI_cond_key key_RELAYLOG_COND_done;
@@ -435,10 +458,7 @@ extern PSI_thread_key key_thread_bootstrap,
 extern PSI_thread_key key_thread_timer_notifier;
 #endif
 
-#ifdef HAVE_MMAP
 extern PSI_file_key key_file_map;
-#endif /* HAVE_MMAP */
-
 extern PSI_file_key key_file_binlog, key_file_binlog_index, key_file_casetest,
   key_file_dbopt, key_file_des_key_file, key_file_ERRMSG, key_select_to_file,
   key_file_fileparser, key_file_frm, key_file_global_ddl_log, key_file_load,
@@ -483,7 +503,7 @@ extern PSI_memory_key key_memory_quick_index_merge_root;
 extern PSI_memory_key key_memory_quick_ror_intersect_select_root;
 extern PSI_memory_key key_memory_quick_ror_union_select_root;
 extern PSI_memory_key key_memory_quick_group_min_max_select_root;
-extern PSI_memory_key key_memory_sql_select_test_quick_select_exec;
+extern PSI_memory_key key_memory_test_quick_select_exec;
 extern PSI_memory_key key_memory_prune_partitions_exec;
 extern PSI_memory_key key_memory_binlog_recover_exec;
 extern PSI_memory_key key_memory_blob_mem_storage;
@@ -608,7 +628,7 @@ extern PSI_stage_info stage_checking_query_cache_for_query;
 extern PSI_stage_info stage_cleaning_up;
 extern PSI_stage_info stage_closing_tables;
 extern PSI_stage_info stage_connecting_to_master;
-extern PSI_stage_info stage_converting_heap_to_myisam;
+extern PSI_stage_info stage_converting_heap_to_ondisk;
 extern PSI_stage_info stage_copying_to_group_table;
 extern PSI_stage_info stage_copying_to_tmp_table;
 extern PSI_stage_info stage_copy_to_tmp_table;
@@ -699,6 +719,7 @@ extern PSI_stage_info stage_compressing_gtid_table;
 extern PSI_stage_info stage_suspending;
 #ifdef HAVE_REPLICATION
 extern PSI_stage_info stage_worker_waiting_for_its_turn_to_commit;
+extern PSI_stage_info stage_worker_waiting_for_commit_parent;
 #endif
 extern PSI_stage_info stage_starting;
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
@@ -785,23 +806,6 @@ extern int32 thread_running;
 extern char *opt_ssl_ca, *opt_ssl_capath, *opt_ssl_cert, *opt_ssl_cipher,
             *opt_ssl_key, *opt_ssl_crl, *opt_ssl_crlpath;
 
-extern MYSQL_PLUGIN_IMPORT pthread_key(THD*, THR_THD);
-extern bool THR_THD_initialized;
-
-static inline THD *
-my_pthread_get_THR_THD()
-{
-  DBUG_ASSERT(THR_THD_initialized);
-  return my_pthread_getspecific(THD *, THR_THD);
-}
-
-static inline int
-my_pthread_set_THR_THD(THD *thd)
-{
-  DBUG_ASSERT(THR_THD_initialized);
-  return my_pthread_setspecific_ptr(THR_THD, thd);
-}
-
 /**
   only options that need special treatment in get_one_option() deserve
   to be listed below
@@ -865,7 +869,8 @@ enum options_mysqld
   OPT_HOST_CACHE_SIZE,
   OPT_TABLE_DEFINITION_CACHE,
   OPT_MDL_CACHE_SIZE,
-  OPT_MDL_HASH_INSTANCES
+  OPT_MDL_HASH_INSTANCES,
+  OPT_SKIP_INNODB
 };
 
 
@@ -913,24 +918,11 @@ extern "C" void unireg_clear(int exit_code);
 #define unireg_abort(exit_code) do { unireg_clear(exit_code); DBUG_RETURN(exit_code); } while(0)
 #endif
 
-inline void table_case_convert(char * name, uint length)
-{
-  if (lower_case_table_names)
-    files_charset_info->cset->casedn(files_charset_info,
-                                     name, length, name, length);
-}
-
 #if defined(MYSQL_DYNAMIC_PLUGIN) && defined(_WIN32)
 extern "C" THD *_current_thd_noinline();
 #define _current_thd() _current_thd_noinline()
 #else
-/*
-  THR_THD is a key which will be used to set/get THD* for a thread,
-  using my_pthread_setspecific_ptr()/my_thread_getspecific_ptr().
-*/
-extern pthread_key(THD*, THR_THD);
-extern bool THR_THD_initialized;
-inline THD *_current_thd(void)
+static inline THD *_current_thd(void)
 {
   return my_pthread_get_THR_THD();
 }

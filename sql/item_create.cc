@@ -346,6 +346,20 @@ protected:
 };
 
 
+class Create_func_any_value : public Create_func_arg1
+{
+public:
+  virtual Item *create(THD *thd, Item *arg1)
+  { return new (thd->mem_root) Item_func_any_value(POS(), arg1); }
+
+  static Create_func_any_value s_singleton;
+
+protected:
+  Create_func_any_value() {}
+  virtual ~Create_func_any_value() {}
+};
+
+
 class Create_func_area : public Create_func_arg1
 {
 public:
@@ -356,6 +370,20 @@ public:
 protected:
   Create_func_area() {}
   virtual ~Create_func_area() {}
+};
+
+
+class Create_func_as_geojson : public Create_native_func
+{
+public:
+  virtual Item *create_native(THD *thd, LEX_STRING name,
+                              PT_item_list *item_list);
+
+  static Create_func_as_geojson s_singleton;
+
+protected:
+  Create_func_as_geojson() {}
+  virtual ~Create_func_as_geojson() {}
 };
 
 
@@ -565,6 +593,19 @@ public:
 protected:
   Create_func_connection_id() {}
   virtual ~Create_func_connection_id() {}
+};
+
+
+class Create_func_convex_hull : public Create_func_arg1
+{
+public:
+  virtual Item *create(THD *thd, Item *arg1);
+
+  static Create_func_convex_hull s_singleton;
+
+protected:
+  Create_func_convex_hull() {}
+  virtual ~Create_func_convex_hull() {}
 };
 
 
@@ -1082,6 +1123,20 @@ protected:
 };
 
 
+class Create_func_geohash : public Create_native_func
+{
+public:
+  virtual Item *create_native(THD *thd, LEX_STRING name,
+                              PT_item_list *item_list);
+
+  static Create_func_geohash s_singleton;
+
+protected:
+  Create_func_geohash() {}
+  virtual ~Create_func_geohash() {}
+};
+
+
 class Create_func_geometry_from_text : public Create_native_func
 {
 public:
@@ -1133,6 +1188,20 @@ public:
 protected:
   Create_func_geometryn() {}
   virtual ~Create_func_geometryn() {}
+};
+
+
+class Create_func_geomfromgeojson : public Create_native_func
+{
+public:
+  virtual Item *create_native(THD *thd, LEX_STRING name,
+                              PT_item_list *item_list);
+
+  static Create_func_geomfromgeojson s_singleton;
+
+protected:
+  Create_func_geomfromgeojson() {}
+  virtual ~Create_func_geomfromgeojson() {}
 };
 
 
@@ -1542,6 +1611,32 @@ protected:
 };
 
 
+class Create_func_latfromgeohash : public Create_func_arg1
+{
+public:
+  virtual Item *create(THD *thd, Item *arg1);
+
+  static Create_func_latfromgeohash s_singleton;
+
+protected:
+  Create_func_latfromgeohash() {}
+  virtual ~Create_func_latfromgeohash() {}
+};
+
+
+class Create_func_longfromgeohash : public Create_func_arg1
+{
+public:
+  virtual Item *create(THD *thd, Item *arg1);
+
+  static Create_func_longfromgeohash s_singleton;
+
+protected:
+  Create_func_longfromgeohash() {}
+  virtual ~Create_func_longfromgeohash() {}
+};
+
+
 class Create_func_last_day : public Create_func_arg1
 {
 public:
@@ -1796,6 +1891,19 @@ protected:
   virtual ~Create_func_master_pos_wait() {}
 };
 
+class Create_func_executed_gtid_set_wait : public Create_native_func
+{
+public:
+  virtual Item *create_native(THD *thd, LEX_STRING name,
+                              PT_item_list *item_list);
+
+  static Create_func_executed_gtid_set_wait s_singleton;
+
+protected:
+  Create_func_executed_gtid_set_wait() {}
+  virtual ~Create_func_executed_gtid_set_wait() {}
+};
+
 class Create_func_master_gtid_set_wait : public Create_native_func
 {
 public:
@@ -1988,6 +2096,19 @@ public:
 protected:
   Create_func_pi() {}
   virtual ~Create_func_pi() {}
+};
+
+
+class Create_func_pointfromgeohash : public Create_func_arg2
+{
+public:
+  virtual Item *create(THD *thd, Item *arg1, Item *arg2);
+
+  static Create_func_pointfromgeohash s_singleton;
+
+protected:
+  Create_func_pointfromgeohash() {}
+  virtual ~Create_func_pointfromgeohash() {}
 };
 
 
@@ -2872,12 +2993,62 @@ Create_func_aes_decrypt Create_func_aes_decrypt::s_singleton;
 Create_func_random_bytes Create_func_random_bytes::s_singleton;
 
 
+Create_func_any_value Create_func_any_value::s_singleton;
+
 Create_func_area Create_func_area::s_singleton;
 
 Item*
 Create_func_area::create(THD *thd, Item *arg1)
 {
   return new (thd->mem_root) Item_func_area(POS(), arg1);
+}
+
+
+Create_func_as_geojson Create_func_as_geojson::s_singleton;
+
+Item*
+Create_func_as_geojson::create_native(THD *thd, LEX_STRING name,
+                                      PT_item_list *item_list)
+{
+  Item* func= NULL;
+  int arg_count= 0;
+
+  if (item_list != NULL)
+    arg_count= item_list->elements();
+
+  switch (arg_count)
+  {
+  case 1:
+    {
+      Item *geometry= item_list->pop_front();
+      func= new (thd->mem_root) Item_func_as_geojson(POS(), geometry);
+      break;
+    }
+  case 2:
+    {
+      Item *geometry= item_list->pop_front();
+      Item *maxdecimaldigits= item_list->pop_front();
+      func= new (thd->mem_root) Item_func_as_geojson(POS(), geometry,
+                                                     maxdecimaldigits);
+      break;
+    }
+  case 3:
+    {
+      Item *geometry= item_list->pop_front();
+      Item *maxdecimaldigits= item_list->pop_front();
+      Item *options= item_list->pop_front();
+      func= new (thd->mem_root) Item_func_as_geojson(POS(), geometry,
+                                                     maxdecimaldigits, options);
+      break;
+    }
+  default:
+    {
+      my_error(ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT, MYF(0), name.str);
+      break;
+    }
+  }
+
+  return func;
 }
 
 
@@ -3001,6 +3172,14 @@ Create_func_centroid::create(THD *thd, Item *arg1)
   return new (thd->mem_root) Item_func_centroid(POS(), arg1);
 }
 
+
+Create_func_convex_hull Create_func_convex_hull::s_singleton;
+
+Item*
+Create_func_convex_hull::create(THD *thd, Item *arg1)
+{
+  return new (thd->mem_root) Item_func_convex_hull(POS(), arg1);
+}
 
 Create_func_char_length Create_func_char_length::s_singleton;
 
@@ -3629,6 +3808,47 @@ Create_func_from_unixtime::create_native(THD *thd, LEX_STRING name,
 }
 
 
+Create_func_geohash Create_func_geohash::s_singleton;
+
+Item*
+Create_func_geohash::create_native(THD *thd, LEX_STRING name,
+PT_item_list *item_list)
+{
+  Item *func= NULL;
+  int arg_count= 0;
+
+  if (item_list != NULL)
+    arg_count= item_list->elements();
+
+  switch (arg_count)
+  {
+  case 2:
+    {
+      Item *param_1= item_list->pop_front();
+      Item *param_2= item_list->pop_front();
+      func= new (thd->mem_root) Item_func_geohash(POS(), param_1, param_2);
+      break;
+    }
+  case 3:
+    {
+      Item *param_1= item_list->pop_front();
+      Item *param_2= item_list->pop_front();
+      Item *param_3= item_list->pop_front();
+      func= new (thd->mem_root) Item_func_geohash(POS(), param_1, param_2,
+                                                  param_3);
+      break;
+    }
+  default:
+    {
+      my_error(ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT, MYF(0), name.str);
+      break;
+    }
+  }
+
+  return func;
+}
+
+
 Create_func_geometry_from_text Create_func_geometry_from_text::s_singleton;
 
 Item*
@@ -3721,6 +3941,55 @@ Create_func_geometryn::create(THD *thd, Item *arg1, Item *arg2)
 {
   return new (thd->mem_root) Item_func_spatial_decomp_n(POS(), arg1, arg2,
                                                         Item_func::SP_GEOMETRYN);
+}
+
+
+Create_func_geomfromgeojson Create_func_geomfromgeojson::s_singleton;
+
+Item*
+Create_func_geomfromgeojson::create_native(THD *thd, LEX_STRING name,
+                                           PT_item_list *item_list)
+{
+  Item *func= NULL;
+  int arg_count= 0;
+
+  if (item_list != NULL)
+    arg_count= item_list->elements();
+
+  POS pos;
+  switch (arg_count)
+  {
+  case 1:
+    {
+      Item *geojson_str= item_list->pop_front();
+      func= new (thd->mem_root) Item_func_geomfromgeojson(pos, geojson_str);
+      break;
+    }
+  case 2:
+    {
+      Item *geojson_str= item_list->pop_front();
+      Item *options= item_list->pop_front();
+      func= new (thd->mem_root) Item_func_geomfromgeojson(pos, geojson_str,
+                                                          options);
+      break;
+    }
+  case 3:
+    {
+      Item *geojson_str= item_list->pop_front();
+      Item *options= item_list->pop_front();
+      Item *srid= item_list->pop_front();
+      func= new (thd->mem_root) Item_func_geomfromgeojson(pos, geojson_str,
+                                                          options, srid);
+      break;
+    }
+  default:
+    {
+      my_error(ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT, MYF(0), name.str);
+      break;
+    }
+  }
+
+  return func;
 }
 
 
@@ -4033,6 +4302,15 @@ Create_func_last_day::create(THD *thd, Item *arg1)
 }
 
 
+Create_func_latfromgeohash Create_func_latfromgeohash::s_singleton;
+
+Item*
+Create_func_latfromgeohash::create(THD *thd, Item *arg1)
+{
+  return new (thd->mem_root) Item_func_latfromgeohash(POS(), arg1);
+}
+
+
 Create_func_last_insert_id Create_func_last_insert_id::s_singleton;
 
 Item*
@@ -4243,6 +4521,15 @@ Create_func_log2::create(THD *thd, Item *arg1)
 }
 
 
+Create_func_longfromgeohash Create_func_longfromgeohash::s_singleton;
+
+Item*
+Create_func_longfromgeohash::create(THD *thd, Item *arg1)
+{
+  return new (thd->mem_root) Item_func_longfromgeohash(POS(), arg1);
+}
+
+
 Create_func_lpad Create_func_lpad::s_singleton;
 
 Item*
@@ -4369,6 +4656,44 @@ Create_func_master_gtid_set_wait::create_native(THD *thd, LEX_STRING name,
     Item *param_1= item_list->pop_front();
     Item *param_2= item_list->pop_front();
     func= new (thd->mem_root) Item_master_gtid_set_wait(pos, param_1, param_2);
+    break;
+  }
+  default:
+  {
+    my_error(ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT, MYF(0), name.str);
+    break;
+  }
+  }
+
+  return func;
+}
+
+Create_func_executed_gtid_set_wait Create_func_executed_gtid_set_wait::s_singleton;
+
+Item*
+Create_func_executed_gtid_set_wait::create_native(THD *thd, LEX_STRING name,
+                                                  PT_item_list *item_list)
+
+{
+  Item *func= NULL;
+  int arg_count= 0;
+
+  if (item_list != NULL)
+    arg_count= item_list->elements();
+
+  POS pos;
+  switch (arg_count) {
+  case 1:
+  {
+    Item *param_1= item_list->pop_front();
+    func= new (thd->mem_root) Item_wait_for_executed_gtid_set(pos, param_1);
+    break;
+  }
+  case 2:
+  {
+    Item *param_1= item_list->pop_front();
+    Item *param_2= item_list->pop_front();
+    func= new (thd->mem_root) Item_wait_for_executed_gtid_set(pos, param_1, param_2);
     break;
   }
   default:
@@ -4510,6 +4835,15 @@ Create_func_pi::create(THD *thd)
   return new (thd->mem_root) Item_static_float_func(POS(),
                                                     NAME_STRING("pi()"),
                                                     M_PI, 6, 8);
+}
+
+
+Create_func_pointfromgeohash Create_func_pointfromgeohash::s_singleton;
+
+Item*
+Create_func_pointfromgeohash::create(THD *thd, Item *arg1, Item *arg2)
+{
+  return new (thd->mem_root) Item_func_pointfromgeohash(POS(), arg1, arg2);
 }
 
 
@@ -5132,6 +5466,7 @@ static Native_func_registry func_array[] =
   { { C_STRING_WITH_LEN("ADDTIME") }, BUILDER(Create_func_addtime)},
   { { C_STRING_WITH_LEN("AES_DECRYPT") }, BUILDER(Create_func_aes_decrypt)},
   { { C_STRING_WITH_LEN("AES_ENCRYPT") }, BUILDER(Create_func_aes_encrypt)},
+  { { C_STRING_WITH_LEN("ANY_VALUE") }, BUILDER(Create_func_any_value)},
   { { C_STRING_WITH_LEN("AREA") }, GEOM_BUILDER(Create_func_area)},
   { { C_STRING_WITH_LEN("ASBINARY") }, GEOM_BUILDER(Create_func_as_wkb)},
   { { C_STRING_WITH_LEN("ASIN") }, BUILDER(Create_func_asin)},
@@ -5157,6 +5492,7 @@ static Native_func_registry func_array[] =
   { { C_STRING_WITH_LEN("CONNECTION_ID") }, BUILDER(Create_func_connection_id)},
   { { C_STRING_WITH_LEN("CONV") }, BUILDER(Create_func_conv)},
   { { C_STRING_WITH_LEN("CONVERT_TZ") }, BUILDER(Create_func_convert_tz)},
+  { { C_STRING_WITH_LEN("CONVEXHULL") }, GEOM_BUILDER(Create_func_convex_hull)},
   { { C_STRING_WITH_LEN("COS") }, BUILDER(Create_func_cos)},
   { { C_STRING_WITH_LEN("COT") }, BUILDER(Create_func_cot)},
   { { C_STRING_WITH_LEN("CRC32") }, BUILDER(Create_func_crc32)},
@@ -5173,6 +5509,7 @@ static Native_func_registry func_array[] =
   { { C_STRING_WITH_LEN("DES_ENCRYPT") }, BUILDER(Create_func_des_encrypt)},
   { { C_STRING_WITH_LEN("DIMENSION") }, GEOM_BUILDER(Create_func_dimension)},
   { { C_STRING_WITH_LEN("DISJOINT") }, GEOM_BUILDER(Create_func_mbr_disjoint)},
+  { { C_STRING_WITH_LEN("DISTANCE") }, GEOM_BUILDER(Create_func_distance)},
   { { C_STRING_WITH_LEN("ELT") }, BUILDER(Create_func_elt)},
   { { C_STRING_WITH_LEN("ENCODE") }, BUILDER(Create_func_encode)},
   { { C_STRING_WITH_LEN("ENCRYPT") }, BUILDER(Create_func_encrypt)},
@@ -5311,6 +5648,7 @@ static Native_func_registry func_array[] =
   { { C_STRING_WITH_LEN("SLEEP") }, BUILDER(Create_func_sleep)},
   { { C_STRING_WITH_LEN("SOUNDEX") }, BUILDER(Create_func_soundex)},
   { { C_STRING_WITH_LEN("SPACE") }, BUILDER(Create_func_space)},
+  { { C_STRING_WITH_LEN("WAIT_FOR_EXECUTED_GTID_SET") }, BUILDER(Create_func_executed_gtid_set_wait)},
   { { C_STRING_WITH_LEN("WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS") }, BUILDER(Create_func_master_gtid_set_wait)},
   { { C_STRING_WITH_LEN("SQRT") }, BUILDER(Create_func_sqrt)},
   { { C_STRING_WITH_LEN("SRID") }, GEOM_BUILDER(Create_func_srid)},
@@ -5319,12 +5657,14 @@ static Native_func_registry func_array[] =
   { { C_STRING_WITH_LEN("STR_TO_DATE") }, BUILDER(Create_func_str_to_date)},
   { { C_STRING_WITH_LEN("ST_AREA") }, GEOM_BUILDER(Create_func_area)},
   { { C_STRING_WITH_LEN("ST_ASBINARY") }, GEOM_BUILDER(Create_func_as_wkb)},
+  { { C_STRING_WITH_LEN("ST_ASGEOJSON") }, GEOM_BUILDER(Create_func_as_geojson)},
   { { C_STRING_WITH_LEN("ST_ASTEXT") }, GEOM_BUILDER(Create_func_as_wkt)},
   { { C_STRING_WITH_LEN("ST_ASWKB") }, GEOM_BUILDER(Create_func_as_wkb)},
   { { C_STRING_WITH_LEN("ST_ASWKT") }, GEOM_BUILDER(Create_func_as_wkt)},
   { { C_STRING_WITH_LEN("ST_BUFFER") }, GEOM_BUILDER(Create_func_buffer)},
   { { C_STRING_WITH_LEN("ST_CENTROID") }, GEOM_BUILDER(Create_func_centroid)},
   { { C_STRING_WITH_LEN("ST_CONTAINS") }, GEOM_BUILDER(Create_func_contains)},
+  { { C_STRING_WITH_LEN("ST_CONVEXHULL") }, GEOM_BUILDER(Create_func_convex_hull)},
   { { C_STRING_WITH_LEN("ST_CROSSES") }, GEOM_BUILDER(Create_func_crosses)},
   { { C_STRING_WITH_LEN("ST_DIFFERENCE") }, GEOM_BUILDER(Create_func_difference)},
   { { C_STRING_WITH_LEN("ST_DIMENSION") }, GEOM_BUILDER(Create_func_dimension)},
@@ -5334,6 +5674,7 @@ static Native_func_registry func_array[] =
   { { C_STRING_WITH_LEN("ST_ENVELOPE") }, GEOM_BUILDER(Create_func_envelope)},
   { { C_STRING_WITH_LEN("ST_EQUALS") }, GEOM_BUILDER(Create_func_mbr_equals)},
   { { C_STRING_WITH_LEN("ST_EXTERIORRING") }, GEOM_BUILDER(Create_func_exteriorring)},
+  { { C_STRING_WITH_LEN("ST_GEOHASH") }, GEOM_BUILDER(Create_func_geohash)},
   { { C_STRING_WITH_LEN("ST_GEOMCOLLFROMTEXT") }, GEOM_BUILDER(Create_func_geometry_from_text)},
   { { C_STRING_WITH_LEN("ST_GEOMCOLLFROMWKB") }, GEOM_BUILDER(Create_func_geometry_from_wkb)},
   { { C_STRING_WITH_LEN("ST_GEOMETRYCOLLECTIONFROMTEXT") }, GEOM_BUILDER(Create_func_geometry_from_text)},
@@ -5342,6 +5683,7 @@ static Native_func_registry func_array[] =
   { { C_STRING_WITH_LEN("ST_GEOMETRYFROMWKB") }, GEOM_BUILDER(Create_func_geometry_from_wkb)},
   { { C_STRING_WITH_LEN("ST_GEOMETRYN") }, GEOM_BUILDER(Create_func_geometryn)},
   { { C_STRING_WITH_LEN("ST_GEOMETRYTYPE") }, GEOM_BUILDER(Create_func_geometry_type)},
+  { { C_STRING_WITH_LEN("ST_GEOMFROMGEOJSON") }, GEOM_BUILDER(Create_func_geomfromgeojson)},
   { { C_STRING_WITH_LEN("ST_GEOMFROMTEXT") }, GEOM_BUILDER(Create_func_geometry_from_text)},
   { { C_STRING_WITH_LEN("ST_GEOMFROMWKB") }, GEOM_BUILDER(Create_func_geometry_from_wkb)},
 #ifndef DBUG_OFF
@@ -5354,15 +5696,18 @@ static Native_func_registry func_array[] =
   { { C_STRING_WITH_LEN("ST_ISCLOSED") }, GEOM_BUILDER(Create_func_isclosed)},
   { { C_STRING_WITH_LEN("ST_ISEMPTY") }, GEOM_BUILDER(Create_func_isempty)},
   { { C_STRING_WITH_LEN("ST_ISSIMPLE") }, GEOM_BUILDER(Create_func_issimple)},
+  { { C_STRING_WITH_LEN("ST_LATFROMGEOHASH") }, GEOM_BUILDER(Create_func_latfromgeohash)},
   { { C_STRING_WITH_LEN("ST_LENGTH") }, GEOM_BUILDER(Create_func_glength)},
   { { C_STRING_WITH_LEN("ST_LINEFROMTEXT") }, GEOM_BUILDER(Create_func_geometry_from_text)},
   { { C_STRING_WITH_LEN("ST_LINEFROMWKB") }, GEOM_BUILDER(Create_func_geometry_from_wkb)},
   { { C_STRING_WITH_LEN("ST_LINESTRINGFROMTEXT") }, GEOM_BUILDER(Create_func_geometry_from_text)},
   { { C_STRING_WITH_LEN("ST_LINESTRINGFROMWKB") }, GEOM_BUILDER(Create_func_geometry_from_wkb)},
+  { { C_STRING_WITH_LEN("ST_LONGFROMGEOHASH") }, GEOM_BUILDER(Create_func_longfromgeohash)},
   { { C_STRING_WITH_LEN("ST_NUMGEOMETRIES") }, GEOM_BUILDER(Create_func_numgeometries)},
   { { C_STRING_WITH_LEN("ST_NUMINTERIORRINGS") }, GEOM_BUILDER(Create_func_numinteriorring)},
   { { C_STRING_WITH_LEN("ST_NUMPOINTS") }, GEOM_BUILDER(Create_func_numpoints)},
   { { C_STRING_WITH_LEN("ST_OVERLAPS") }, GEOM_BUILDER(Create_func_overlaps)},
+  { { C_STRING_WITH_LEN("ST_POINTFROMGEOHASH") }, GEOM_BUILDER(Create_func_pointfromgeohash)},
   { { C_STRING_WITH_LEN("ST_POINTFROMTEXT") }, GEOM_BUILDER(Create_func_geometry_from_text)},
   { { C_STRING_WITH_LEN("ST_POINTFROMWKB") }, GEOM_BUILDER(Create_func_geometry_from_wkb)},
   { { C_STRING_WITH_LEN("ST_POINTN") }, GEOM_BUILDER(Create_func_pointn)},

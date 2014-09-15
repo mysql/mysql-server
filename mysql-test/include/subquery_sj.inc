@@ -1593,7 +1593,8 @@ CREATE TABLE t1 (
   KEY time_key (time_key),
   KEY datetime_key (datetime_key),
   KEY varchar_key (varchar_key)
-);
+) ENGINE=MyISaM;
+
 INSERT INTO t1 VALUES 
 (1,0, '00:16:10','2008-09-03 14:25:40','2008-09-03 14:25:40','h','h'),
 (2,7, '00:00:00','2001-01-13 00:00:00','2001-01-13 00:00:00','',''),
@@ -1629,7 +1630,7 @@ CREATE TABLE t2 (
   KEY datetime_key (datetime_key),
   KEY varchar_key (varchar_key)
 );
-INSERT INTO t2 VALUES 
+INSERT IGNORE INTO t2 VALUES 
 (10,0,'19:39:13','0000-00-00 00:00:00','0000-00-00 00:00:00','g','g'),
 (11,8,'03:43:53','0000-00-00 00:00:00','0000-00-00 00:00:00','b','b');
 SELECT OUTR.datetime_nokey AS X FROM t1 AS OUTR 
@@ -1822,8 +1823,8 @@ INSERT INTO t1 VALUES (10,7,5,'2009-06-16','2002-04-10 14:25:30','w'),
 		      (15,6,5,'2001-11-12','0000-00-00 00:00:00',''), 
 		      (16,2,9,'0000-00-00','0000-00-00 00:00:00','j'), 
 		      (29,9,1,'0000-00-00','2003-08-11 00:00:00','m');
-INSERT INTO t3 VALUES (1,9,'0000-00-00','b','b'),
-                      (2,2,'2002-09-17','h','h');
+INSERT IGNORE INTO t3 VALUES (1,9,'0000-00-00','b','b'),
+                             (2,2,'2002-09-17','h','h');
 
 SELECT t1.varchar_nokey FROM t1 JOIN t3 ON t1.datetime_nokey
 WHERE t1.varchar_nokey 
@@ -1851,7 +1852,7 @@ CREATE TABLE t1 (
   KEY datetime_key (datetime_key),
   KEY varchar_key (varchar_key)
 );
-INSERT INTO t1 VALUES
+INSERT IGNORE INTO t1 VALUES
 (1,9,'0000-00-00 00:00:00','p'),(2,0,'2002-02-09 07:38:13','v'),
 (3,8,'2001-05-03 12:08:14','t'),(4,3,'0000-00-00 00:00:00','u'),
 (5,7,'2009-07-28 03:43:30','n'),(6,0,'2009-08-04 00:00:00','l'),
@@ -4172,7 +4173,8 @@ INSERT INTO t1 VALUES
 (15,2,'a','x'),
 (16,1,'d','d'),
 (17,8,'y','y'),
-(18,6,'t','u');
+(18,6,'t','u'),
+(19,6,'t','u');
 
 CREATE TABLE t2 (
   pk int NOT NULL,
@@ -5433,9 +5435,12 @@ HAVING (1, 2) IN (
     ON t2.col_varchar_key = t1_inner.col_varchar_key
 );
 
+--source include/turn_off_only_full_group_by.inc
 
 --eval explain $query
 --eval $query
+
+--source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
 
 DROP TABLE t1,t2;
 
@@ -6444,7 +6449,140 @@ DROP TABLE t1, t2;
 
 --echo # End of test for bug#14064201.
 
+--echo #
+--echo # Bug#18223655:ASSERTION FAILED: (INT)IDX >= 0
+--echo #               && IDX < PARENT_JOIN->TABLES
+--echo #
+
+CREATE TABLE b (d INT);
+CREATE TABLE c (a INT, b INT,c INT,d BLOB NOT NULL);
+
+SELECT(SELECT  1
+       FROM b WHERE(SELECT 1 IN (SELECT 1 FROM b WHERE 1 NOT BETWEEN d AND 1)
+         FROM  b) IN (SELECT d FROM c)) as cc FROM  b;
+
+INSERT INTO b VALUE(1);
+INSERT INTO c VALUES(1,2,3,'1'),(2,3,4,'1'),(3,4,5,'C');
+SELECT(SELECT d FROM b WHERE(SELECT d IN 
+	(SELECT d FROM b WHERE 1 NOT BETWEEN d AND 1) FROM b) IN
+  	(SELECT d FROM c)) as cc FROM  c;
+DROP TABLE b,c;
+
+--echo #
+--echo # Bug#18447874:WRONG RESULT COMING FROM SEMI-JOIN 
+--echo #
+CREATE TABLE b (
+  d INT(11)
+);
+CREATE TABLE c (
+  d BLOB
+) ;
+CREATE TABLE d (
+  b INT(11)
+);
+
+INSERT INTO b VALUES(1),(2),(4);
+INSERT INTO c VALUES(1),(2),(3);
+SELECT  1 FROM b  WHERE (SELECT 1 FROM d ) IN (SELECT d FROM c) ;
+INSERT INTO d VALUES(2);
+SELECT  1 FROM b  WHERE (SELECT 1 FROM d ) IN (SELECT d FROM c) ;
+
+DROP TABLE b,c,d;
+
+--echo #
+--echo # Bug#17292723:INCORRECT RESULT FOR (SELECT...) IN (SELECT...) STATEMENT
+--echo #
+CREATE TABLE t1 (
+  ID int(11) NOT NULL AUTO_INCREMENT,
+  id2 int(11) DEFAULT NULL,
+  id3 int(11) DEFAULT NULL,
+  id4 varchar(150) COLLATE utf8_spanish_ci NOT NULL,
+  id5 int(11) DEFAULT NULL,
+  PRIMARY KEY (ID),
+  KEY id2 (id2),
+  KEY id3 (id3),
+  KEY id5 (id5)
+) ENGINE=InnoDB;
+
+INSERT INTO t1 VALUES
+(123,1,1,'1',NULL),
+(124,1,1,'2',NULL),
+(125,1,1,'4',NULL),
+(126,1,1,'3',NULL),
+(127,1,1,'6',NULL),
+(128,1,1,'8',NULL);
+
+CREATE TABLE t2 (
+  id6 int(11) NOT NULL,
+  id7 int(11) NOT NULL,
+  PRIMARY KEY (id6,id7),
+  KEY id7 (id7)
+) ENGINE=InnoDB;
+
+INSERT INTO t2 VALUES (126,123),(130,123),(135,123);
+
+SELECT ID
+   FROM t1 p0
+   WHERE  p0.id3=1
+   AND ( (SELECT p1.id FROM t1 p1 WHERE p1.id=123) IN (SELECT p3.id FROM t2
+p2, t1 p3 WHERE p0.id=p2.id6 AND p2.id7=p3.id));
+
+DROP TABLE t1,t2;
+
 set @@optimizer_switch=@old_opt_switch;
-# New tests go here.
 
 --echo # End of 5.6 tests
+
+--echo #
+--echo # Bug#19336348 DEBUG CRASH AT SETUP_SEMIJOIN_DUPS_ELIMINATION IN SQL/SQL_SELECT.CC
+--echo #
+
+CREATE TABLE t1 (
+  col_varchar_nokey varchar(1)
+) ENGINE=InnoDB;
+
+INSERT INTO t1 VALUES ('c'),(NULL),('x');
+
+CREATE TABLE t2 (
+  pk int,
+  col_varchar_key varchar(1),
+  PRIMARY KEY (pk),
+  KEY col_varchar_key (col_varchar_key)
+) ENGINE=InnoDB;
+
+INSERT INTO t2 VALUES (10,'l'),(11,'p');
+
+ANALYZE TABLE t1,t2;
+
+let $query=
+SELECT 1
+FROM t1 AS outr
+WHERE outr.col_varchar_nokey IN
+  (
+    SELECT innr.col_varchar_key
+    FROM t2 AS innr
+    WHERE innr.pk <= 7
+  )
+;
+
+eval EXPLAIN $query;
+eval $query;
+DROP TABLE t1,t2;
+
+--echo #
+--echo # Bug#18174394 BLOBS: CRASH AFTER UNINITIALIZED VALUES IN ITEM_FIELD::STR_RESULT
+--echo #
+## Fixed by the patch for
+## BUG#18447874: WRONG RESULT COMING FROM SEMI-JOIN
+## BUG#18223655: ASSERTION FAILED: (INT)IDX >= 0 && IDX < PARENT_JOIN->TABLES
+
+CREATE TABLE t1(d BLOB, b BLOB);
+INSERT INTO t1(d,b) VALUES ('aaaa',''),('bnbb','');
+
+--error ER_SUBQUERY_NO_1_ROW
+SELECT 1 FROM t1
+WHERE (SELECT b FROM t1) IN (SELECT (d>=1) FROM t1);
+
+DROP TABLE t1;
+
+# New tests go here.

@@ -44,7 +44,6 @@ Created 4/18/1996 Heikki Tuuri
 /**********************************************************************//**
 Gets a pointer to the dictionary header and x-latches its page.
 @return pointer to the dictionary header, page x-latched */
-
 dict_hdr_t*
 dict_hdr_get(
 /*=========*/
@@ -64,7 +63,6 @@ dict_hdr_get(
 
 /**********************************************************************//**
 Returns a new table, index, or space id. */
-
 void
 dict_hdr_get_new_id(
 /*================*/
@@ -149,7 +147,6 @@ dict_hdr_get_new_id(
 /**********************************************************************//**
 Writes the current value of the row id counter to the dictionary header file
 page. */
-
 void
 dict_hdr_flush_row_id(void)
 /*=======================*/
@@ -158,7 +155,7 @@ dict_hdr_flush_row_id(void)
 	row_id_t	id;
 	mtr_t		mtr;
 
-	ut_ad(mutex_own(&(dict_sys->mutex)));
+	ut_ad(mutex_own(&dict_sys->mutex));
 
 	id = dict_sys->row_id;
 
@@ -282,7 +279,6 @@ dict_hdr_create(
 Initializes the data dictionary memory structures when the database is
 started. This function is also called when the data dictionary is created.
 @return DB_SUCCESS or error code. */
-
 dberr_t
 dict_boot(void)
 /*===========*/
@@ -319,7 +315,7 @@ dict_boot(void)
 
 	heap = mem_heap_create(450);
 
-	mutex_enter(&(dict_sys->mutex));
+	mutex_enter(&dict_sys->mutex);
 
 	/* Get the dictionary header */
 	dict_hdr = dict_hdr_get(&mtr);
@@ -496,9 +492,8 @@ dict_boot(void)
 
 	if (srv_read_only_mode && !ibuf_is_empty()) {
 
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Change buffer must be empty when --innodb-read-only"
-			" is set!");
+		ib::error() << "Change buffer must be empty when"
+			" --innodb-read-only is set!";
 
 		err = DB_ERROR;
 	} else {
@@ -510,7 +505,7 @@ dict_boot(void)
 		dict_load_sys_table(dict_sys->sys_fields);
 	}
 
-	mutex_exit(&(dict_sys->mutex));
+	mutex_exit(&dict_sys->mutex);
 
 	return(err);
 }
@@ -529,7 +524,6 @@ dict_insert_initial_data(void)
 /*****************************************************************//**
 Creates and initializes the data dictionary at the server bootstrap.
 @return DB_SUCCESS or error code. */
-
 dberr_t
 dict_create(void)
 /*=============*/

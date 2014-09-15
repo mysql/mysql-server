@@ -275,11 +275,6 @@ create table t1 as select md5('a') as c1;
 show create table t1;
 drop table t1;
 
-select old_password('a'), hex(old_password('a'));
-create table t1 as select old_password('a') as c1;
-show create table t1;
-drop table t1;
-
 select password('a'), hex(password('a'));
 create table t1 as select password('a') as c1;
 show create table t1;
@@ -734,12 +729,12 @@ select hex(concat(period_add(200902, 2)));
 create table t1 as select concat(period_add(200902, 2)) as c1;
 show create table t1;
 drop table t1;
-
+SET sql_mode = '';
 select hex(concat(period_diff(200902, 200802)));
 create table t1 as select concat(period_add(200902, 200802)) as c1;
 show create table t1;
 drop table t1;
-
+SET sql_mode = default;
 select hex(concat(to_days(20090224)));
 create table t1 as select concat(to_days(20090224)) as c1;
 show create table t1;
@@ -1141,7 +1136,7 @@ insert into t1 values (1.1), (10.1), (100.1), (1000.1), (10000.1);
 select hex(concat(a)), a from t1;
 drop table t1;
 
-create table t1 (a year(2));
+create table t1 (a year(4));
 insert into t1 values (1);
 select hex(concat(a)) from t1;
 create table t2 as select concat(a) from t1;
@@ -1164,7 +1159,7 @@ show create table t2;
 drop table t1, t2;
 
 create table t1 (a timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP);
-insert into t1 values (0);
+insert ignore into t1 values (0);
 insert into t1 values (20010203040506);
 insert into t1 values (19800203040506);
 insert into t1 values ('2001-02-03 04:05:06');
@@ -1450,7 +1445,7 @@ select hex(a) from v1;
 drop table t1;
 drop view v1;
 
-create table t1 (a year(2));
+create table t1 (a year(4));
 insert into t1 values (1);
 create view v1(a) as select concat(a) from t1;
 show columns from v1;
@@ -1476,7 +1471,7 @@ drop table t1;
 drop view v1;
 
 create table t1 (a timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP);
-insert into t1 values (0);
+insert ignore into t1 values (0);
 insert into t1 values (20010203040506);
 insert into t1 values (19800203040506);
 insert into t1 values ('2001-02-03 04:05:06');
@@ -1609,8 +1604,6 @@ drop function f1;
 --echo # Bug#54668 User variable assignments get wrong type
 --echo #
 SET @x=md5('a');
-SELECT charset(@x), collation(@x);
-SET @x=old_password('a');
 SELECT charset(@x), collation(@x);
 SET @x=password('a');
 SELECT charset(@x), collation(@x);

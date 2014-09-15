@@ -1519,8 +1519,8 @@ static struct my_option my_long_options[] =
    &output_file, &output_file, 0, GET_STR, REQUIRED_ARG,
    0, 0, 0, 0, 0, 0},
   {"secure-auth", OPT_SECURE_AUTH, "Refuse client connecting to server if it"
-    " uses old (pre-4.1.1) protocol.", &opt_secure_auth,
-    &opt_secure_auth, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
+    " uses old (pre-4.1.1) protocol. Deprecated. Always TRUE",
+    &opt_secure_auth, &opt_secure_auth, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
   {"server-id", OPT_SERVER_ID,
    "Extract only binlog entries created by the server having the given id.",
    &filter_server_id, &filter_server_id, 0, GET_ULONG,
@@ -1870,6 +1870,15 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   case '?':
     usage();
     exit(0);
+  case OPT_SECURE_AUTH:
+    CLIENT_WARN_DEPRECATED_NO_REPLACEMENT("--secure-auth");
+    if (!opt_secure_auth)
+    {
+      usage();
+      exit(1);
+    }
+    break;
+
   }
   if (tty_password)
     pass= get_tty_password(NullS);
@@ -1922,8 +1931,6 @@ static Exit_status safe_connect()
     mysql_options(mysql, MYSQL_OPT_PROTOCOL, (char*) &opt_protocol);
   if (opt_bind_addr)
     mysql_options(mysql, MYSQL_OPT_BIND, opt_bind_addr);
-  if (!opt_secure_auth)
-    mysql_options(mysql, MYSQL_SECURE_AUTH,(char*)&opt_secure_auth);
 #if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
   if (shared_memory_base_name)
     mysql_options(mysql, MYSQL_SHARED_MEMORY_BASE_NAME,
@@ -2201,13 +2208,13 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
     if (stop_never_slave_server_id == -1)
       server_id= 1;
     else
-      server_id= stop_never_slave_server_id;
+      server_id= static_cast<uint>(stop_never_slave_server_id);
   }
   else
     server_id= 0;
 
   if (connection_server_id != -1)
-    server_id= connection_server_id;
+    server_id= static_cast<uint>(connection_server_id);
 
   size_t tlen = strlen(logname);
   if (tlen > UINT_MAX) 
@@ -2304,7 +2311,7 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
     Log_event *ev= NULL;
     Log_event_type type= UNKNOWN_EVENT;
 
-    len= cli_safe_read(mysql);
+    len= cli_safe_read(mysql, NULL);
     if (len == packet_error)
     {
       error("Got error reading packet from server: %s", mysql_error(mysql));
@@ -2771,8 +2778,8 @@ static Exit_status dump_local_log_entries(PRINT_EVENT_INFO *print_event_info,
       my_off_t length,tmp;
       for (length= start_position_mot ; length > 0 ; length-=tmp)
       {
-	tmp= min<size_t>(length, sizeof(buff));
-	if (my_b_read(file, buff, (uint) tmp))
+        tmp= min(static_cast<size_t>(length), sizeof(buff));
+        if (my_b_read(file, buff, (uint) tmp))
         {
           error("Failed reading from file.");
           goto err;
@@ -2860,23 +2867,22 @@ static int args_post_process(void)
 
     if (opt_remote_proto == BINLOG_LOCAL)
     {
-      error("You need to set --read-from-remote-master={BINLOG_DUMP_NON_GTID, "
-            "BINLOG_DUMP_GTID} for --raw mode");
+      error("The --raw flag requires one of --read-from-remote-master or --read-from-remote-server");
+      DBUG_RETURN(ERROR_STOP);
+    }
+
+    if (opt_include_gtids_str != NULL)
+    {
+      error("You cannot use --include-gtids and --raw together.");
       DBUG_RETURN(ERROR_STOP);
     }
 
     if (opt_remote_proto == BINLOG_DUMP_NON_GTID &&
-        (opt_exclude_gtids_str != NULL || opt_include_gtids_str != NULL))
+        opt_exclude_gtids_str != NULL)
     {
-      error("You cannot set --exclude-gtids or --include-gtids for --raw-mode "
-            "when --read-from-remote-master=BINLOG_DUMP_NON_GTID");
-      DBUG_RETURN(ERROR_STOP);
-    }
-
-    if (opt_remote_proto == BINLOG_DUMP_GTID && opt_include_gtids_str != NULL)
-    {
-      error("You cannot set --include-gtids for --raw-mode "
-            "when --read-from-remote-master=BINLOG_DUMP_GTID for");
+      error("You cannot use both of --exclude-gtids and --raw together "
+            "with one of --read-from-remote-server or "
+            "--read-from-remote-master=BINLOG-DUMP-NON-GTID.");
       DBUG_RETURN(ERROR_STOP);
     }
 

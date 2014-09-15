@@ -36,9 +36,12 @@
 
  ***************************************************************/
 
-#include <my_base.h> /* for EOVERFLOW on Windows */
 #include <my_global.h>
 #include <m_string.h>  /* for memcpy and NOT_FIXED_DEC */
+
+#ifndef EOVERFLOW
+#define EOVERFLOW 84
+#endif
 
 /**
    Appears to suffice to not call malloc() in most cases.
@@ -1473,7 +1476,8 @@ static double my_strtod_int(const char *s00, char **se, int *error, char *buf, s
       case '-':
         esign= 1;
       case '+':
-        c= *++s;
+        if (++s < end)
+          c= *s;
       }
     if (s < end && c >= '0' && c <= '9')
     {

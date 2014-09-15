@@ -29,6 +29,7 @@ Created 2013-7-26 by Kevin Lewis
 #include "os0file.h"
 #include "page0page.h"
 #include "srv0start.h"
+#include "ut0new.h"
 
 /** Initialize the name, size and order of this datafile
 @param[in]	name		space name, shutdown() will free it
@@ -100,10 +101,7 @@ Datafile::open_or_create(bool read_only_mode)
 
 	if (!success) {
 		m_last_os_error = os_file_get_last_error(true);
-
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Cannot open datafile '%s'", m_filepath);
-
+		ib::error() << "Cannot open datafile '" << m_filepath << "'";
 		return(DB_CANNOT_OPEN_FILE);
 	}
 
@@ -138,10 +136,8 @@ Datafile::open_read_only(bool strict)
 
 	if (strict) {
 		m_last_os_error = os_file_get_last_error(true);
-
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Cannot open datafile for read-only: '%s'",
-			m_filepath);
+		ib::error() << "Cannot open datafile for read-only: '"
+			<< m_filepath << "'";
 	}
 
 	return(DB_CANNOT_OPEN_FILE);
@@ -170,11 +166,8 @@ Datafile::open_read_write(bool read_only_mode)
 
 	if (!success) {
 		m_last_os_error = os_file_get_last_error(true);
-
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Cannot open datafile for read-write: '%s'",
-			m_filepath);
-
+		ib::error() << "Cannot open datafile for read-write: '"
+			<< m_filepath << "'";
 		return(DB_CANNOT_OPEN_FILE);
 	}
 
@@ -242,7 +235,7 @@ void
 Datafile::set_filepath(const char* filepath)
 {
 	free_filepath();
-	m_filepath = static_cast<char*>(ut_malloc(::strlen(filepath) + 1));
+	m_filepath = static_cast<char*>(ut_malloc_nokey(strlen(filepath) + 1));
 	::strcpy(m_filepath, filepath);
 	set_filename();
 }
@@ -253,7 +246,7 @@ void
 Datafile::free_filepath()
 {
 	if (m_filepath != NULL) {
-		::ut_free(m_filepath);
+		ut_free(m_filepath);
 		m_filepath = NULL;
 		m_filename = NULL;
 	}
@@ -274,7 +267,7 @@ Datafile::read_first_page(bool read_only_mode)
 	}
 
 	m_first_page_buf = static_cast<byte*>
-		(ut_malloc(2 * UNIV_PAGE_SIZE));
+		(ut_malloc_nokey(2 * UNIV_PAGE_SIZE));
 
 	/* Align the memory for a possible read from a raw device */
 
@@ -282,10 +275,8 @@ Datafile::read_first_page(bool read_only_mode)
 		(ut_align(m_first_page_buf, UNIV_PAGE_SIZE));
 
 	if (!os_file_read(m_handle, m_first_page, 0, UNIV_PAGE_SIZE)) {
-			ib_logf(IB_LOG_LEVEL_ERROR,
-				"Cannot read first page of '%s'",
-				m_filepath);
-
+			ib::error() << "Cannot read first page of '"
+				<< m_filepath << "'";
 			return(DB_IO_ERROR);
 		}
 
@@ -304,7 +295,7 @@ void
 Datafile::free_first_page()
 {
 	if (m_first_page_buf) {
-		::ut_free(m_first_page_buf);
+		ut_free(m_first_page_buf);
 		m_first_page_buf = NULL;
 		m_first_page = NULL;
 	}
@@ -347,13 +338,12 @@ Datafile::validate_to_dd(
 	/* else do not use this tablespace. */
 	m_is_valid = false;
 
-	ib_logf(IB_LOG_LEVEL_ERROR,
-		"In file '%s', tablespace id and flags are %lu and %lu,"
-		" but in the InnoDB data dictionary they are %lu and %lu."
-		" Have you moved InnoDB .ibd files around without using the"
-		" commands DISCARD TABLESPACE and IMPORT TABLESPACE? %s",
-		m_filepath, ulong(m_space_id), ulong(m_flags),
-		ulong(space_id), ulong(flags), TROUBLESHOOT_DATADICT_MSG);
+	ib::error() << "In file '" << m_filepath << "', tablespace id and"
+		" flags are " << m_space_id << " and " << m_flags << ", but in"
+		" the InnoDB data dictionary they are " << space_id << " and "
+		<< flags << ". Have you moved InnoDB .ibd files around without"
+		" using the commands DISCARD TABLESPACE and IMPORT TABLESPACE?"
+		" " << TROUBLESHOOT_DATADICT_MSG;
 
 	return(DB_ERROR);
 }
@@ -388,19 +378,17 @@ Datafile::validate_for_recovery()
 		close();
 		err = open_read_write(srv_read_only_mode);
 		if (err != DB_SUCCESS) {
-			ib_logf(IB_LOG_LEVEL_ERROR,
-				"Datafile '%s' could not be opened in"
-				" read-write mode so that the doublewrite"
-				" pages could be restored.", m_name);
+			ib::error() << "Datafile '" << m_name << "' could not"
+				" be opened in read-write mode so that the"
+				" doublewrite pages could be restored.";
 			return(err);
 		};
 
 		err = find_space_id();
 		if (err != DB_SUCCESS || m_space_id == 0) {
-			ib_logf(IB_LOG_LEVEL_ERROR,
-				"Datafile '%s' is corrupted. Cannot determine"
-				" the space ID from the first 64 pages.",
-				m_name);
+			ib::error() << "Datafile '" << m_name << "' is"
+				" corrupted. Cannot determine the space ID from"
+				" the first 64 pages.";
 			return(err);
 		}
 
@@ -471,11 +459,10 @@ Datafile::validate_first_page(lsn_t* flush_lsn)
 		error_txt = "Tablespace flags are invalid";
 	} else if (univ_page_size.logical() != page_size.logical()) {
 		/* Page size must be univ_page_size. */
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Data file '%s' uses page size %lu, but the"
-			" innodb_page_size start-up parameter is %lu",
-			m_name,
-			page_size.logical(), univ_page_size.logical());
+		ib::error() << "Data file '" << m_name << "' uses page size "
+			<< page_size.logical() << ", but the innodb_page_size"
+			" start-up parameter is "
+			<< univ_page_size.logical();
 		free_first_page();
 		return(DB_ERROR);
 	} else if (page_get_page_no(m_first_page) != 0) {
@@ -492,28 +479,25 @@ Datafile::validate_first_page(lsn_t* flush_lsn)
 	}
 
 	if (error_txt != NULL) {
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"%s in tablespace: %s, Datafile: %s, Space ID:%lu,"
-			" Flags: %lu. %s",
-			error_txt, m_name, m_filepath,
-			ulong(m_space_id), ulong(m_flags),
-			TROUBLESHOOT_DATADICT_MSG);
+		ib::error() << error_txt << " in tablespace: " << m_name
+			<< ", Datafile: " << m_filepath << ", Space ID:"
+			<< m_space_id  << ", Flags: " << m_flags << ". "
+			<< TROUBLESHOOT_DATADICT_MSG;
 		m_is_valid = false;
 		free_first_page();
 		return(DB_CORRUPTION);
 	} else if (fil_space_read_name_and_filepath(
 			   m_space_id, &prev_name, &prev_filepath)) {
 		/* Make sure the space_id has not already been opened. */
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Attempted to open a previously opened tablespace. "
-			" Previous tablespace %s at filepath: %s uses"
-			" space ID: " ULINTPF ". Cannot open tablespace %s at"
-			" filepath: %s which uses the same space ID.",
-			prev_name, prev_filepath, m_space_id,
-			m_name, m_filepath);
+		ib::error() << "Attempted to open a previously opened"
+			" tablespace. Previous tablespace" << prev_name
+			<< " at filepath: " << prev_filepath << " uses"
+			" space ID: " << m_space_id << ". Cannot open"
+			" tablespace " << m_name << " at filepath: "
+			<< m_filepath << " which uses the same space ID.";
 
-		::ut_free(prev_name);
-		::ut_free(prev_filepath);
+		ut_free(prev_name);
+		ut_free(prev_filepath);
 
 		m_is_valid = false;
 		free_first_page();
@@ -538,9 +522,8 @@ Datafile::find_space_id()
 	file_size = os_file_get_size(m_handle);
 
 	if (file_size == (os_offset_t) -1) {
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Could not get file size of datafile '%s'",
-			m_name);
+		ib::error() << "Could not get file size of datafile '"
+			<< m_name << "'";
 		return(DB_CORRUPTION);
 	}
 
@@ -551,20 +534,27 @@ Datafile::find_space_id()
 	     page_size <= UNIV_PAGE_SIZE_MAX; page_size <<= 1) {
 
 		/* map[space_id] = count of pages */
-		std::map<ulint, ulint> verify;
+		typedef std::map<
+			ulint,
+			ulint,
+			std::less<ulint>,
+			ut_allocator<std::pair<const ulint, ulint > > >
+			verify_t;
 
-		ulint page_count = 64;
-		ulint valid_pages = 0;
+		verify_t	verify;
+
+		ulint		page_count = 64;
+		ulint		valid_pages = 0;
 
 		/* Adjust the number of pages to analyze based on file size */
 		while ((page_count * page_size) > file_size) {
 			--page_count;
 		}
 
-		ib_logf(IB_LOG_LEVEL_INFO, "Page size:%lu Pages to analyze:"
-			"%lu", page_size, page_count);
+		ib::info() << "Page size:" << page_size
+			<< ". Pages to analyze:" << page_count;
 
-		byte* buf = static_cast<byte*>(ut_malloc(2*page_size));
+		byte* buf = static_cast<byte*>(ut_malloc_nokey(2*page_size));
 		byte* page = static_cast<byte*>(ut_align(buf, page_size));
 
 		for (ulint j = 0; j < page_count; ++j) {
@@ -572,8 +562,7 @@ Datafile::find_space_id()
 			st = os_file_read(m_handle, page, (j* page_size), page_size);
 
 			if (!st) {
-				ib_logf(IB_LOG_LEVEL_INFO,
-					"READ FAIL: page_no:%lu", j);
+				ib::info() << "READ FAIL: page_no:" << j;
 				continue;
 			}
 
@@ -599,41 +588,36 @@ Datafile::find_space_id()
 					+ FIL_PAGE_SPACE_ID);
 
 				if (space_id > 0) {
-					ib_logf(IB_LOG_LEVEL_INFO,
-						"VALID: space:%lu "
-						"page_no:%lu page_size:%lu",
-						space_id, j, page_size);
+					ib::info() << "VALID: space:"
+						<< space_id << " page_no:" << j
+						<< " page_size:" << page_size;
 					verify[space_id]++;
 					++valid_pages;
 				}
 			}
 		}
 
-		::ut_free(buf);
-
-		ib_logf(IB_LOG_LEVEL_INFO,
-			"Page size: %lu, Possible space_id count:%lu",
-			page_size, (ulint) verify.size());
+		ut_free(buf);
+		ib::info() << "Page size: " << page_size
+			<< ". Possible space_id count:" << verify.size();
 
 		const ulint	pages_corrupted = 3;
 		for (ulint missed = 0; missed <= pages_corrupted; ++missed) {
 
-			for (std::map<ulint, ulint>::iterator m = verify.begin();
-			     m != verify.end();
-			     ++m) {
+			for (verify_t::const_iterator it = verify.begin();
+			     it != verify.end();
+			     ++it) {
 
-				ib_logf(IB_LOG_LEVEL_INFO, "space_id:%lu, "
-					"Number of pages matched: %lu/%lu "
-					"(%lu)", m->first, m->second,
-					valid_pages, page_size);
+				ib::info() << "space_id:" << it->first
+					<< ", Number of pages matched: "
+					<< it->second << "/" << valid_pages
+					<< " (" << page_size << ")";
 
-				if (m->second == (valid_pages - missed)) {
+				if (it->second == (valid_pages - missed)) {
+					ib::info() << "Chosen space:"
+						<< it->first;
 
-					ib_logf(IB_LOG_LEVEL_INFO,
-						"Chosen space:%lu\n",
-						m->first);
-
-					m_space_id = m->first;
+					m_space_id = it->first;
 					return(DB_SUCCESS);
 				}
 			}
@@ -662,10 +646,10 @@ Datafile::restore_from_doublewrite(
 		/* If the first page of the given user tablespace is not there
 		in the doublewrite buffer, then the recovery is going to fail
 		now. Hence this is treated as an error. */
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Corrupted page " ULINTPF ":" ULINTPF " of datafile '%s'"
-			" could not be found in the doublewrite buffer.",
-			m_space_id, restore_page_no, m_name);
+		ib::error() << "Corrupted page "
+			<< page_id_t(m_space_id, restore_page_no)
+			<< " of datafile '" << m_name << "' could not be"
+			" found in the doublewrite buffer.";
 
 		return(DB_CORRUPTION);
 	}
@@ -677,12 +661,11 @@ Datafile::restore_from_doublewrite(
 
 	ut_a(page_get_page_no(page) == restore_page_no);
 
-	ib_logf(IB_LOG_LEVEL_INFO,
-		"Restoring page " ULINTPF ":" ULINTPF " of datafile '%s' from"
-		" the doublewrite buffer."
-		" Writing " ULINTPF " bytes into file '%s'",
-		m_space_id, restore_page_no, m_name,
-		page_size.physical(), m_filepath);
+	ib::info() << "Restoring page "
+		<< page_id_t(m_space_id, restore_page_no)
+		<< " of datafile '" << m_name << "' from the doublewrite"
+		<< " buffer. Writing " << page_size.physical() << " bytes into"
+		<< " file '" << m_filepath << "'";
 
 	if (!os_file_write(m_filepath, m_handle, page, 0,
 			   page_size.physical())) {
@@ -714,11 +697,9 @@ RemoteDatafile::open_read_only(bool strict)
 	if (err != DB_SUCCESS && strict) {
 		/* The following call prints an error message */
 		os_file_get_last_error(true);
-
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"A link file was found named '%s' but the linked"
-			" tablespace '%s' could not be opened read-only.",
-			m_link_filepath, m_filepath);
+		ib::error() << "A link file was found named '"
+			<< m_link_filepath << "' but the linked tablespace '"
+			<< m_filepath << "' could not be opened read-only.";
 	}
 
 	return(err);
@@ -746,11 +727,9 @@ RemoteDatafile::open_read_write(bool read_only_mode)
 	if (err != DB_SUCCESS) {
 		/* The following call prints an error message */
 		m_last_os_error = os_file_get_last_error(true);
-
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"A link file was found named '%s' but the linked"
-			" data file '%s' could not be opened for writing.",
-			m_link_filepath, m_filepath);
+		ib::error() << "A link file was found named '"
+			<< m_link_filepath << "' but the linked data file '"
+			<< m_filepath << "' could not be opened for writing.";
 	}
 
 	return(err);
@@ -764,7 +743,7 @@ RemoteDatafile::shutdown()
 	Datafile::shutdown();
 
 	if (m_link_filepath != 0) {
-		::ut_free(m_link_filepath);
+		ut_free(m_link_filepath);
 		m_link_filepath = 0;
 	}
 }
@@ -795,9 +774,9 @@ RemoteDatafile::create_link_file(
 		/* Truncate will call this with an existing
 		link file which contains the same filepath. */
 		bool same = !strcmp(prev_filepath, filepath);
-		::ut_free(prev_filepath);
+		ut_free(prev_filepath);
 		if (same) {
-			::ut_free(link_filepath);
+			ut_free(link_filepath);
 			return(DB_SUCCESS);
 		}
 	}
@@ -814,13 +793,11 @@ RemoteDatafile::create_link_file(
 	if (!success) {
 		/* The following call will print an error message */
 		ulint	error = os_file_get_last_error(true);
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Cannot create file %s.", link_filepath);
+		ib::error() << "Cannot create file " << link_filepath << ".";
 
 		if (error == OS_FILE_ALREADY_EXISTS) {
-			ib_logf(IB_LOG_LEVEL_ERROR,
-				"The link file: %s already exists.",
-				filepath);
+			ib::error() << "The link file: " << filepath
+				<< " already exists.";
 			err = DB_TABLESPACE_EXISTS;
 
 		} else if (error == OS_FILE_DISK_FULL) {
@@ -831,7 +808,7 @@ RemoteDatafile::create_link_file(
 		}
 
 		/* file is not open, no need to close it. */
-		::ut_free(link_filepath);
+		ut_free(link_filepath);
 		return(err);
 	}
 
@@ -843,7 +820,7 @@ RemoteDatafile::create_link_file(
 	/* Close the file, we only need it at startup */
 	os_file_close(file);
 
-	::ut_free(link_filepath);
+	ut_free(link_filepath);
 
 	return(err);
 }
@@ -860,7 +837,7 @@ RemoteDatafile::delete_link_file(
 	if (link_filepath != NULL) {
 		os_file_delete_if_exists(innodb_data_file_key, link_filepath, NULL);
 
-		::ut_free(link_filepath);
+		ut_free(link_filepath);
 	}
 }
 
@@ -893,7 +870,8 @@ RemoteDatafile::read_link_file(
 
 	file = fopen(*link_filepath, "r+b");
 	if (file) {
-		filepath = static_cast<char*>(ut_malloc(OS_FILE_MAX_PATH));
+		filepath = static_cast<char*>(
+			ut_malloc_nokey(OS_FILE_MAX_PATH));
 
 		os_file_read_string(file, filepath, OS_FILE_MAX_PATH);
 		fclose(file);

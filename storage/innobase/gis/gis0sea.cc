@@ -462,7 +462,6 @@ Find the next matching record. This function will first exhaust
 the copied record listed in the rtr_info->matches vector before
 moving to the next page
 @return true if there is suitable record found, otherwise false */
-
 bool
 rtr_pcur_move_to_next(
 /*==================*/
@@ -528,7 +527,6 @@ rtr_compare_cursor_rec(
 /**************************************************************//**
 Initializes and opens a persistent cursor to an index tree. It should be
 closed with btr_pcur_close. Mainly called by row_search_index_entry() */
-
 void
 rtr_pcur_open_low(
 /*==============*/
@@ -645,7 +643,6 @@ rtr_pcur_open_low(
 Returns the father block to a page. It is assumed that mtr holds
 an X or SX latch on the tree.
 @return rec_get_offsets() of the node pointer record */
-
 ulint*
 rtr_page_get_father_block(
 /*======================*/
@@ -671,7 +668,6 @@ rtr_page_get_father_block(
 Returns the upper level node pointer to a R-Tree page. It is assumed
 that mtr holds an x-latch on the tree.
 @return	rec_get_offsets() of the node pointer record */
-
 ulint*
 rtr_page_get_father_node_ptr_func(
 /*==============================*/
@@ -754,12 +750,11 @@ rtr_page_get_father_node_ptr_func(
 					  ULINT_UNDEFINED, &heap);
 		page_rec_print(node_ptr, offsets);
 
-		ib_logf(IB_LOG_LEVEL_FATAL,
-			"You should dump + drop + reimport the table to"
+		ib::fatal() << "You should dump + drop + reimport the table to"
 			" fix the corruption. If the crash happens at"
 			" database startup, see " REFMAN
 			"forcing-innodb-recovery.html about forcing"
-			" recovery. Then dump + drop + reimport.");
+			" recovery. Then dump + drop + reimport.";
 	}
 
 	return(offsets);
@@ -768,7 +763,6 @@ rtr_page_get_father_node_ptr_func(
 /********************************************************************//**
 Returns the upper level node pointer to a R-Tree page. It is assumed
 that mtr holds an x-latch on the tree. */
-
 void
 rtr_get_father_node(
 /*================*/
@@ -892,9 +886,9 @@ get_parent:
 					index, index->table);
 				mutex_exit(&dict_sys->mutex);
 
-				ib_logf(IB_LOG_LEVEL_INFO,
-					"InnoDB: Corruption of a spatail index %s "
-					"of table %s", index->name, index->table_name);
+				ib::info() << "InnoDB: Corruption of a"
+					" spatial index " << index->name
+					<< " of table " << index->table_name;
 				break;
 			}
 			r_cursor = rtr_get_parent_cursor(btr_cur, level, false);
@@ -925,7 +919,6 @@ func_exit:
 
 /*******************************************************************//**
 Create a RTree search info structure */
-
 rtr_info_t*
 rtr_create_rtr_info(
 /******************/
@@ -942,7 +935,7 @@ rtr_create_rtr_info(
 	index = index ? index : cursor->index;
 	ut_ad(index);
 
-	rtr_info = static_cast<rtr_info_t*>(ut_zalloc(sizeof(*rtr_info)));
+	rtr_info = static_cast<rtr_info_t*>(ut_zalloc_nokey(sizeof(*rtr_info)));
 
 	rtr_info->allocated = true;
 	rtr_info->cursor = cursor;
@@ -954,7 +947,10 @@ rtr_create_rtr_info(
 					mem_heap_zalloc(
 						rtr_info->heap,
 						sizeof(*rtr_info->matches)));
-		rtr_info->matches->matched_recs = new rtr_rec_vector;
+
+		rtr_info->matches->matched_recs
+			= UT_NEW_NOKEY(rtr_rec_vector());
+
 		rtr_info->matches->bufp = page_align(rtr_info->matches->rec_buf
 						     + UNIV_PAGE_SIZE_MAX + 1);
 		mutex_create("rtr_match_mutex",
@@ -964,8 +960,8 @@ rtr_create_rtr_info(
 			      SYNC_LEVEL_VARYING);
 	}
 
-	rtr_info->path = new rtr_node_path_t();
-	rtr_info->parent_path = new rtr_node_path_t();
+	rtr_info->path = UT_NEW_NOKEY(rtr_node_path_t());
+	rtr_info->parent_path = UT_NEW_NOKEY(rtr_node_path_t());
 	rtr_info->need_prdt_lock = need_prdt;
 	mutex_create("rtr_path_mutex",
 		     &rtr_info->rtr_path_mutex);
@@ -978,7 +974,6 @@ rtr_create_rtr_info(
 
 /*******************************************************************//**
 Update a btr_cur_t with rtr_info */
-
 void
 rtr_info_update_btr(
 /******************/
@@ -993,7 +988,6 @@ rtr_info_update_btr(
 
 /*******************************************************************//**
 Initialize a R-Tree Search structure */
-
 void
 rtr_init_rtr_info(
 /****************/
@@ -1013,8 +1007,8 @@ rtr_init_rtr_info(
 
 	ut_ad(!rtr_info->matches || rtr_info->matches->matched_recs->empty());
 
-	rtr_info->path = new rtr_node_path_t();
-	rtr_info->parent_path = new rtr_node_path_t();
+	rtr_info->path = UT_NEW_NOKEY(rtr_node_path_t());
+	rtr_info->parent_path = UT_NEW_NOKEY(rtr_node_path_t());
 	rtr_info->need_prdt_lock = need_prdt;
 	rtr_info->cursor = cursor;
 	rtr_info->index = index;
@@ -1030,7 +1024,6 @@ rtr_init_rtr_info(
 
 /**************************************************************//**
 Clean up R-Tree search structure */
-
 void
 rtr_clean_rtr_info(
 /*===============*/
@@ -1060,11 +1053,11 @@ rtr_clean_rtr_info(
 		}
 	}
 
-	delete (rtr_info->parent_path);
+	UT_DELETE(rtr_info->parent_path);
 	rtr_info->parent_path = NULL;
 
-	if (rtr_info->path) {
-		delete (rtr_info->path);
+	if (rtr_info->path != NULL) {
+		UT_DELETE(rtr_info->path);
 		rtr_info->path = NULL;
 		initialized = true;
 	}
@@ -1083,8 +1076,8 @@ rtr_clean_rtr_info(
 
 	if (free_all) {
 		if (rtr_info->matches) {
-			if (rtr_info->matches->matched_recs) {
-				delete rtr_info->matches->matched_recs;
+			if (rtr_info->matches->matched_recs != NULL) {
+				UT_DELETE(rtr_info->matches->matched_recs);
 			}
 
 			rw_lock_free(&(rtr_info->matches->block.lock));
@@ -1115,7 +1108,9 @@ rtr_rebuild_path(
 	rtr_info_t*	rtr_info,	/*!< in: RTree search info */
 	ulint		page_no)	/*!< in: need to free rtr_info itself */
 {
-	rtr_node_path_t*	new_path = new rtr_node_path_t();
+	rtr_node_path_t*		new_path
+		= UT_NEW_NOKEY(rtr_node_path_t());
+
 	rtr_node_path_t::iterator	rit;
 #ifdef UNIV_DEBUG
 	ulint	before_size = rtr_info->path->size();
@@ -1137,14 +1132,16 @@ rtr_rebuild_path(
 #endif
 	}
 
-	delete (rtr_info->path);
+	UT_DELETE(rtr_info->path);
 #ifdef UNIV_DEBUG
 	ut_ad(new_path->size() == before_size - 1);
 #endif
 	rtr_info->path = new_path;
 
 	if (!rtr_info->parent_path->empty()) {
-		rtr_node_path_t*	new_parent_path = new rtr_node_path_t();
+		rtr_node_path_t*	new_parent_path = UT_NEW_NOKEY(
+			rtr_node_path_t());
+
 		for (rit = rtr_info->parent_path->begin();
 		     rit != rtr_info->parent_path->end(); ++rit) {
 			node_visit_t	next_rec = *rit;
@@ -1162,7 +1159,7 @@ rtr_rebuild_path(
 
 			new_parent_path->push_back(next_rec);
 		}
-		delete (rtr_info->parent_path);
+		UT_DELETE(rtr_info->parent_path);
 		rtr_info->parent_path = new_parent_path;
 	}
 
@@ -1170,7 +1167,6 @@ rtr_rebuild_path(
 
 /**************************************************************//**
 Check whether a discarding page is in anyone's search path */
-
 void
 rtr_check_discard_page(
 /*===================*/
@@ -1237,7 +1233,6 @@ rtr_check_discard_page(
 
 /**************************************************************//**
 Restores the stored position of a persistent cursor bufferfixing the page */
-
 bool
 rtr_cur_restore_position_func(
 /*==========================*/
@@ -1272,7 +1267,8 @@ rtr_cur_restore_position_func(
 
 	ut_ad(latch_mode == BTR_CONT_MODIFY_TREE);
 
-	if (buf_page_optimistic_get(RW_X_LATCH,
+	if (!buf_pool_is_obsolete(r_cursor->withdraw_clock)
+	    && buf_page_optimistic_get(RW_X_LATCH,
 				    r_cursor->block_when_stored,
 				    r_cursor->modify_clock, file, line, mtr)) {
 		ut_ad(r_cursor->pos_state == BTR_PCUR_IS_POSITIONED);
@@ -1435,7 +1431,6 @@ rtr_leaf_push_match_rec(
 /**************************************************************//**
 Store the parent path cursor
 @return number of cursor stored */
-
 ulint
 rtr_store_parent_path(
 /*==================*/
@@ -1494,7 +1489,9 @@ rtr_non_leaf_insert_stack_push(
 	btr_pcur_t*	my_cursor;
 	ulint		page_no = block->page.id.page_no();
 
-	my_cursor = static_cast<btr_pcur_t*>(ut_malloc(sizeof(*my_cursor)));
+	my_cursor = static_cast<btr_pcur_t*>(
+		ut_malloc_nokey(sizeof(*my_cursor)));
+
 	btr_pcur_init(my_cursor);
 
 	page_cur_position(rec, block, btr_pcur_get_page_cur(my_cursor));
@@ -1569,7 +1566,6 @@ rtr_init_match(
 
 /****************************************************************//**
 Get the bounding box content from an index record */
-
 void
 rtr_get_mbr_from_rec(
 /*=================*/
@@ -1587,7 +1583,6 @@ rtr_get_mbr_from_rec(
 
 /****************************************************************//**
 Get the bounding box content from a MBR data record */
-
 void
 rtr_get_mbr_from_tuple(
 /*===================*/
@@ -1609,7 +1604,6 @@ rtr_get_mbr_from_tuple(
 
 /****************************************************************//**
 Searches the right position in rtree for a page cursor. */
-
 bool
 rtr_cur_search_with_match(
 /*======================*/

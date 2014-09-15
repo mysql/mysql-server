@@ -112,12 +112,12 @@ inline int read_identifier(const sql_digest_storage* digest_storage,
 */
 inline void store_token_identifier(sql_digest_storage* digest_storage,
                                    uint token,
-                                   uint id_length, const char *id_name)
+                                   size_t id_length, const char *id_name)
 {
   DBUG_ASSERT(digest_storage->m_byte_count >= 0);
   DBUG_ASSERT(digest_storage->m_byte_count <= MAX_DIGEST_STORAGE_SIZE);
 
-  uint bytes_needed= 2 * SIZE_OF_A_TOKEN + id_length;
+  size_t bytes_needed= 2 * SIZE_OF_A_TOKEN + id_length;
   if (digest_storage->m_byte_count + bytes_needed <= MAX_DIGEST_STORAGE_SIZE)
   {
     unsigned char* dest= & digest_storage->m_token_array[digest_storage->m_byte_count];
@@ -380,16 +380,66 @@ sql_digest_state* digest_add_token(sql_digest_state *state,
 
   switch (token)
   {
-    case BIN_NUM:
+    case NUM:
+    case LONG_NUM:
+    case ULONGLONG_NUM:
     case DECIMAL_NUM:
     case FLOAT_NUM:
+    case BIN_NUM:
     case HEX_NUM:
+    {
+      bool found_unary;
+      do
+      {
+        found_unary= false;
+        peek_last_two_tokens(digest_storage, state->m_last_id_index,
+                             &last_token, &last_token2);
+
+        if ((last_token == '-') || (last_token == '+'))
+        {
+          /*
+            We need to differentiate:
+            - a <unary minus> operator
+            - a <unary plus> operator
+            from
+            - a <binary minus> operator
+            - a <binary plus> operator
+            to only reduce "a = -1" to "a = ?", and not change "b - 1" to "b ?"
+
+            Binary operators are found inside an expression,
+            while unary operators are found at the beginning of an expression, or after operators.
+
+            To achieve this, every token that is followed by an <expr> expression
+            in the SQL grammar is flagged.
+            See sql/sql_yacc.yy
+            See sql/gen_lex_token.cc
+
+            For example,
+            "(-1)" is parsed as "(", "-", NUM, ")", and lex_token_array["("].m_start_expr is true,
+            so reduction of the "-" NUM is done, the result is "(?)".
+            "(a-1)" is parsed as "(", ID, "-", NUM, ")", and lex_token_array[ID].m_start_expr is false,
+            so the operator is binary, no reduction is done, and the result is "(a-?)".
+          */
+          if (lex_token_array[last_token2].m_start_expr)
+          {
+            /*
+              REDUCE:
+              TOK_GENERIC_VALUE := (UNARY_PLUS | UNARY_MINUS) (NUM | LOG_NUM | ... | FLOAT_NUM)
+
+              REDUCE:
+              TOK_GENERIC_VALUE := (UNARY_PLUS | UNARY_MINUS) TOK_GENERIC_VALUE
+            */
+            token= TOK_GENERIC_VALUE;
+            digest_storage->m_byte_count-= SIZE_OF_A_TOKEN;
+            found_unary= true;
+          }
+        }
+      } while (found_unary);
+    }
+    /* fall through, for case NULL_SYM below */
     case LEX_HOSTNAME:
-    case LONG_NUM:
-    case NUM:
     case TEXT_STRING:
     case NCHAR_STRING:
-    case ULONGLONG_NUM:
     case PARAM_MARKER:
     {
       /*

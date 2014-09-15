@@ -6,6 +6,8 @@
 --source include/not_embedded.inc
 # Avoid CrashReporter popup on Mac
 --source include/not_crashrep.inc
+# innodb-force-recovery-crash needs debug
+--source include/have_debug.inc
 
 if (`SELECT @@innodb_log_file_size = 1048576`) {
   --skip Test requires innodb_log_file_size>1M.
@@ -20,15 +22,8 @@ CREATE TABLE t1(a INT PRIMARY KEY) ENGINE=InnoDB;
 BEGIN;
 INSERT INTO t1 VALUES (42);
 
-# Write file to make mysql-test-run.pl restart the server
---exec echo "restart: --innodb-log-file-size=6M" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server 0
---error 2013
-COMMIT;
-
---enable_reconnect
---source include/wait_until_connected_again.inc
---disable_reconnect
+let $restart_parameters = restart: --innodb-log-file-size=6M;
+--source include/kill_and_restart_mysqld.inc
 
 SELECT * FROM t1;
 
@@ -36,15 +31,8 @@ INSERT INTO t1 VALUES (42);
 BEGIN;
 DELETE FROM t1;
 
-# Write file to make mysql-test-run.pl restart the server
---exec echo "restart: --innodb-log-files-in-group=3 --innodb-log-file-size=5M" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server 0
---error 2013
-COMMIT;
-
---enable_reconnect
---source include/wait_until_connected_again.inc
---disable_reconnect
+let $restart_parameters = restart: --innodb-log-files-in-group=3 --innodb-log-file-size=5M;
+--source include/kill_and_restart_mysqld.inc
 
 SELECT * FROM t1;
 
@@ -52,17 +40,13 @@ INSERT INTO t1 VALUES (123);
 
 let MYSQLD_DATADIR= `select @@datadir`;
 let SEARCH_FILE= $MYSQLTEST_VARDIR/log/my_restart.err;
-let $args=--loose-console > $SEARCH_FILE 2>&1;
-let crash=$args --innodb-force-recovery-crash;
+let $args=--loose-console --core-file > $SEARCH_FILE 2>&1;
+let crash=--loose-console > $SEARCH_FILE 2>&1 --innodb-force-recovery-crash;
 
 BEGIN;
 DELETE FROM t1;
 
-# Write file to make mysql-test-run.pl restart the server
---exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server 0
---error 2013
-COMMIT;
+--source include/kill_mysqld.inc
 
 --error 1
 --exec $MYSQLD_CMD $args --innodb-log-group-home-dir=foo\;bar
@@ -196,11 +180,7 @@ let SEARCH_PATTERN= InnoDB: Renaming log file .*ib_logfile101 to .*ib_logfile0;
 --source include/search_pattern_in_file.inc
 --remove_file $SEARCH_FILE
 
---exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
-
---enable_reconnect
---source include/wait_until_connected_again.inc
---disable_reconnect
+--source include/start_mysqld.inc
 
 SELECT * FROM t1;
 DROP TABLE t1;

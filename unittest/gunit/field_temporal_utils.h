@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -57,10 +57,13 @@ void test_store_string(Field_temporal *field,
                        const int expected_error_no,
                        const type_conversion_status expected_status)
 {
+  THD *thd= field->table->in_use;
+  sql_mode_t save_mode= thd->variables.sql_mode;
+  thd->variables.sql_mode= MODE_NO_ENGINE_SUBSTITUTION;
   char buff[MAX_FIELD_WIDTH];
   String str(buff, sizeof(buff), &my_charset_bin);
   String unused;
-  
+
   Mock_error_handler error_handler(field->table->in_use, expected_error_no);
   type_conversion_status err= field->store(store_value, length,
                                            &my_charset_latin1);
@@ -70,6 +73,7 @@ void test_store_string(Field_temporal *field,
   EXPECT_FALSE(field->is_null());
   EXPECT_EQ(expected_status, err);
   EXPECT_EQ((expected_error_no == 0 ? 0 : 1), error_handler.handle_called());
+  thd->variables.sql_mode= save_mode;
 }
 
 

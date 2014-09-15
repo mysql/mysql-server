@@ -216,7 +216,7 @@ View_creation_ctx * View_creation_ctx::create(THD *thd,
 static uchar *get_field_name(Field **buff, size_t *length,
                              my_bool not_used __attribute__((unused)))
 {
-  *length= (uint) strlen((*buff)->field_name);
+  *length= strlen((*buff)->field_name);
   return (uchar*) (*buff)->field_name;
 }
 
@@ -250,62 +250,63 @@ char *fn_rext(char *name)
   return name + strlen(name);
 }
 
-TABLE_CATEGORY get_table_category(const LEX_STRING *db, const LEX_STRING *name)
+TABLE_CATEGORY get_table_category(const LEX_STRING &db,
+                                  const LEX_STRING &name)
 {
-  DBUG_ASSERT(db != NULL);
-  DBUG_ASSERT(name != NULL);
+  DBUG_ASSERT(db.str != NULL);
+  DBUG_ASSERT(name.str != NULL);
 
-  if (is_infoschema_db(db->str, db->length))
+  if (is_infoschema_db(db.str, db.length))
     return TABLE_CATEGORY_INFORMATION;
 
-  if ((db->length == PERFORMANCE_SCHEMA_DB_NAME.length) &&
+  if ((db.length == PERFORMANCE_SCHEMA_DB_NAME.length) &&
       (my_strcasecmp(system_charset_info,
                      PERFORMANCE_SCHEMA_DB_NAME.str,
-                     db->str) == 0))
+                     db.str) == 0))
     return TABLE_CATEGORY_PERFORMANCE;
 
-  if ((db->length == MYSQL_SCHEMA_NAME.length) &&
+  if ((db.length == MYSQL_SCHEMA_NAME.length) &&
       (my_strcasecmp(system_charset_info,
                      MYSQL_SCHEMA_NAME.str,
-                     db->str) == 0))
+                     db.str) == 0))
   {
-    if (is_system_table_name(name->str, name->length))
+    if (is_system_table_name(name.str, name.length))
       return TABLE_CATEGORY_SYSTEM;
 
-    if ((name->length == GENERAL_LOG_NAME.length) &&
+    if ((name.length == GENERAL_LOG_NAME.length) &&
         (my_strcasecmp(system_charset_info,
                        GENERAL_LOG_NAME.str,
-                       name->str) == 0))
+                       name.str) == 0))
       return TABLE_CATEGORY_LOG;
 
-    if ((name->length == SLOW_LOG_NAME.length) &&
+    if ((name.length == SLOW_LOG_NAME.length) &&
         (my_strcasecmp(system_charset_info,
                        SLOW_LOG_NAME.str,
-                       name->str) == 0))
+                       name.str) == 0))
       return TABLE_CATEGORY_LOG;
 
-    if ((name->length == RLI_INFO_NAME.length) &&
+    if ((name.length == RLI_INFO_NAME.length) &&
         (my_strcasecmp(system_charset_info,
                       RLI_INFO_NAME.str,
-                      name->str) == 0))
+                      name.str) == 0))
       return TABLE_CATEGORY_RPL_INFO;
 
-    if ((name->length == MI_INFO_NAME.length) &&
+    if ((name.length == MI_INFO_NAME.length) &&
         (my_strcasecmp(system_charset_info,
                       MI_INFO_NAME.str,
-                      name->str) == 0))
+                      name.str) == 0))
       return TABLE_CATEGORY_RPL_INFO;
 
-    if ((name->length == WORKER_INFO_NAME.length) &&
+    if ((name.length == WORKER_INFO_NAME.length) &&
         (my_strcasecmp(system_charset_info,
                       WORKER_INFO_NAME.str,
-                      name->str) == 0))
+                      name.str) == 0))
       return TABLE_CATEGORY_RPL_INFO;
 
-    if ((name->length == GTID_EXECUTED_NAME.length) &&
+    if ((name.length == GTID_EXECUTED_NAME.length) &&
         (my_strcasecmp(system_charset_info,
                        GTID_EXECUTED_NAME.str,
-                       name->str) == 0))
+                       name.str) == 0))
       return TABLE_CATEGORY_GTID;
 
   }
@@ -800,7 +801,7 @@ int open_table_def(THD *thd, TABLE_SHARE *share, uint db_flags)
       error= 0;
   }
 
-  share->table_category= get_table_category(& share->db, & share->table_name);
+  share->table_category= get_table_category(share->db, share->table_name);
 
   if (!error)
     thd->status_var.opened_shares++;
@@ -1732,6 +1733,22 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
                           share->table_name.str,
                           share->table_name.str);
       share->crashed= 1;                        // Marker for CHECK TABLE
+    }
+
+    if (field_type == MYSQL_TYPE_YEAR && field_length != 4)
+    {
+      sql_print_error("Found incompatible YEAR(x) field '%s' in %s; "
+                      "Please do \"ALTER TABLE `%s` FORCE\" to fix it!",
+                      share->fieldnames.type_names[i], share->table_name.str,
+                      share->table_name.str);
+      push_warning_printf(thd, Sql_condition::SL_WARNING,
+                          ER_CRASHED_ON_USAGE,
+                          "Found incompatible YEAR(x) field '%s' in %s; "
+                          "Please do \"ALTER TABLE `%s` FORCE\" to fix it!",
+                          share->fieldnames.type_names[i],
+                          share->table_name.str,
+                          share->table_name.str);
+      share->crashed= 1;
     }
 
     *field_ptr= reg_field=
@@ -3694,14 +3711,12 @@ void TABLE::init(THD *thd, TABLE_LIST *tl)
   /* Fix alias if table name changes. */
   if (strcmp(alias, tl->alias))
   {
-    uint length= (uint) strlen(tl->alias)+1;
+    size_t length= strlen(tl->alias)+1;
     alias= (char*) my_realloc(key_memory_TABLE,
                               (char*) alias, length, MYF(MY_WME));
     memcpy((char*) alias, tl->alias, length);
   }
 
-  tablenr= thd->current_tablenr++;
-  used_fields= 0;
   const_table= 0;
   null_row= 0;
   maybe_null= 0;
@@ -3735,6 +3750,11 @@ void TABLE::init(THD *thd, TABLE_LIST *tl)
   SYNPOSIS
     TABLE::fill_item_list()
       item_list          a pointer to an empty list used to store items
+      limit              maximum number of fields to add
+  @pre 'limit' is MAX_FIELDS or the number of columns in the table except
+  that the temporary table includes 'hash_field' which is at the end of
+  column lists and should be skipped because 'hash_field' is a pesudo
+  column.
 
   DESCRIPTION
     Create Item_field object for each column in the table and
@@ -3746,13 +3766,14 @@ void TABLE::init(THD *thd, TABLE_LIST *tl)
     1                    out of memory
 */
 
-bool TABLE::fill_item_list(List<Item> *item_list) const
+bool TABLE::fill_item_list(List<Item> *item_list, uint limit) const
 {
   /*
     All Item_field's created using a direct pointer to a field
     are fixed in Item_field constructor.
   */
-  for (Field **ptr= field; *ptr; ptr++)
+  uint i= 0;
+  for (Field **ptr= field; *ptr && i < limit; ptr++, i++)
   {
     Item_field *item= new Item_field(*ptr);
     if (!item || item_list->push_back(item))
@@ -3768,18 +3789,22 @@ bool TABLE::fill_item_list(List<Item> *item_list) const
   SYNPOSIS
     TABLE::fill_item_list()
       item_list          a non-empty list with Item_fields
+      limit              maximum number of fields to set 
+  @pre 'limit' is MAX_FIELDS or the number of columns in the table except
+  that the temporary table includes 'hash_field' which is at the end of
+  column lists and should be skipped because 'hash_field' is a pesudo
+  column.
 
   DESCRIPTION
     This is a counterpart of fill_item_list used to redirect
     Item_fields to the fields of a newly created table.
-    The caller must ensure that number of items in the item_list
-    is the same as the number of columns in the table.
 */
 
-void TABLE::reset_item_list(List<Item> *item_list) const
+void TABLE::reset_item_list(List<Item> *item_list, uint limit) const
 {
   List_iterator_fast<Item> it(*item_list);
-  for (Field **ptr= field; *ptr; ptr++)
+  uint i= 0;
+  for (Field **ptr= field; *ptr && i < limit; ptr++, i++)
   {
     Item_field *item_field= (Item_field*) it++;
     DBUG_ASSERT(item_field != 0);
@@ -4310,7 +4335,7 @@ bool TABLE_LIST::check_single_table(TABLE_LIST **table_arg,
   {
     if (tbl->table)
     {
-      if (tbl->table->map & map)
+      if (tbl->map() & map)
       {
 	if (*table_arg)
 	  return TRUE;
@@ -4544,7 +4569,7 @@ bool TABLE_LIST::prepare_view_securety_context(THD *thd)
                     const_cast<char*>(definer.user.str),
                     const_cast<char*>(definer.host.str),
                     const_cast<char*>(definer.host.str),
-                    thd->db))
+                    thd->db().str))
     {
       if ((thd->lex->sql_command == SQLCOM_SHOW_CREATE) ||
           (thd->lex->sql_command == SQLCOM_SHOW_FIELDS))
@@ -4649,7 +4674,7 @@ bool TABLE_LIST::prepare_security(THD *thd)
   while ((tbl= tb++))
   {
     DBUG_ASSERT(tbl->referencing_view);
-    char *local_db, *local_table_name;
+    const char *local_db, *local_table_name;
     if (tbl->view)
     {
       local_db= tbl->view_db.str;
@@ -4797,15 +4822,9 @@ Item *Field_iterator_table::create_item(THD *thd)
     code in Item_field::fix_fields().
     */
   if (item && !thd->lex->in_sum_func &&
-      select->cur_pos_in_all_fields != SELECT_LEX::ALL_FIELDS_UNDEF_POS)
+      select->resolve_place == st_select_lex::RESOLVE_SELECT_LIST)
   {
-    if (thd->variables.sql_mode & MODE_ONLY_FULL_GROUP_BY)
-    {
-      item->push_to_non_agg_fields(select);
-      select->set_non_agg_field_used(true);
-    }
-    if (thd->lex->current_select()->with_sum_func &&
-        !thd->lex->current_select()->group_list.elements)
+    if (select->with_sum_func && !select->group_list.elements)
       item->maybe_null= true;
   }
   return item;

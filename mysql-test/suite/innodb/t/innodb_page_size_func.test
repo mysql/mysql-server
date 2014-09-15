@@ -104,18 +104,14 @@ if ($test_debug)
 
 # We let our server restart attempts write to the file $error_log.
 let $error_log= $MYSQLTEST_VARDIR/log/my_restart.err;
---error 0,1
---remove_file $error_log
 # $error_log has to be processed by include/search_pattern_in_file.inc which
 # contains Perl code requiring that the environment variable SEARCH_FILE points
 # to this file.
 let SEARCH_FILE= $error_log;
-# Stop the server
-let $restart_file= $MYSQLTEST_VARDIR/tmp/mysqld.1.expect;
---exec echo "wait" > $restart_file
---shutdown_server 10
---source include/wait_until_disconnected.inc
 
+--source include/shutdown_mysqld.inc
+
+let $mysqld=$MYSQLD_CMD --core-file --console > $error_log 2>&1 --innodb-page-size;
 
 --echo # 1. Try to restart the server with some other legal innodb page size value.
 --echo #    It must fail because we had a different value before.
@@ -123,7 +119,7 @@ let $restart_file= $MYSQLTEST_VARDIR/tmp/mysqld.1.expect;
 --echo # 1.1 The value assigned is a number.
 # Detailed explanations of what happens are placed nearby the checks.
 --error 1
---exec $MYSQLD_CMD --innodb-page-size=$other_page_size --loose-console > $error_log 2>&1
+--exec $mysqld=$other_page_size
 if ( $default_page_size != $other_page_size )
 {
    # It gets detected that the assigned page size is not the default one
@@ -131,16 +127,13 @@ if ( $default_page_size != $other_page_size )
    --source include/search_pattern_in_file.inc
 }
 let SEARCH_PATTERN=Data file 'ibdata1' uses page size $start_page_size, but the innodb_page_size start-up parameter is $other_page_size;
---source include/search_pattern_in_file.inc
-# Finally InnoDB becomes an Unknown/unsupported storage engine
-let SEARCH_PATTERN= \[ERROR\] Unknown/unsupported storage engine: InnoDB;
 --source include/search_pattern_in_file.inc
 # The server restart aborts
 let SEARCH_PATTERN= \[ERROR\] Aborting;
 --source include/search_pattern_in_file.inc
 --echo # 1.2 The value assigned is a number followed by 'k'.
 --error 1
---exec $MYSQLD_CMD --innodb-page-size=$other_page_size_nk --loose-console > $error_log 2>&1
+--exec $mysqld=$other_page_size_nk
 if ( $default_page_size != $other_page_size )
 {
    # It gets detected that the assigned page size is not the default one
@@ -149,10 +142,6 @@ if ( $default_page_size != $other_page_size )
 }
 
 let SEARCH_PATTERN=Data file 'ibdata1' uses page size $start_page_size, but the innodb_page_size start-up parameter is $other_page_size;
---source include/search_pattern_in_file.inc
-
-# Finally InnoDB becomes an Unknown/unsupported storage engine
-let SEARCH_PATTERN= \[ERROR\] Unknown/unsupported storage engine: InnoDB;
 --source include/search_pattern_in_file.inc
 
 # The server restart aborts
@@ -169,7 +158,7 @@ let SEARCH_PATTERN= \[ERROR\] Aborting;
 # 2. below the smallest supported one
 # The restart attempt has to fail.
 --error 1
---exec $MYSQLD_CMD --innodb-page-size=$out_range_page_size --loose-console > $error_log 2>&1
+--exec $mysqld=$out_range_page_size
 # The innodb page size gets raised to the lowest or biggest legal value.
 let SEARCH_PATTERN= \[Warning\] option 'innodb-page-size': unsigned value $out_range_page_size adjusted to $adjust_page_size;
 --source include/search_pattern_in_file.inc
@@ -180,9 +169,6 @@ if ( $default_page_size != $adjust_page_size )
    --source include/search_pattern_in_file.inc
 }
 # Some checks omitted because they are already in 1.
-# Finally InnoDB becomes an Unknown/unsupported storage engine
-let SEARCH_PATTERN= \[ERROR\] Unknown/unsupported storage engine: InnoDB;
---source include/search_pattern_in_file.inc
 
 
 --echo # 3. Try to restart the server with the plain wrong innodb page size value "garbage".
@@ -198,7 +184,7 @@ if ($zero_test)
      --echo # We do not omit the test.
    }
 --error 1
---exec $MYSQLD_CMD --innodb-page-size=garbage --loose-console > $error_log 2>&1
+--exec $mysqld=garbage
 # General server properties cause that
 # - the plain wrong value "garbage" assigned to innodb page size gets
 #   mangled to 0.
@@ -210,9 +196,6 @@ let SEARCH_PATTERN= \[Warning\] option 'innodb-page-size': unsigned value 0 adju
 let SEARCH_PATTERN= InnoDB: innodb-page-size has been changed from the default value $default_page_size to $minimal_page_size;
 --source include/search_pattern_in_file.inc
 # Some checks omitted because they are already in 1.
-# Finally InnoDB becomes an Unknown/unsupported storage engine
-let SEARCH_PATTERN= \[ERROR\] Unknown/unsupported storage engine: InnoDB;
---source include/search_pattern_in_file.inc
 }
 
 
@@ -224,14 +207,11 @@ let SEARCH_PATTERN= \[ERROR\] Unknown/unsupported storage engine: InnoDB;
 # 1. not supported
 # 2. between smallest (4k) and biggest (16k) supported one
 --error 1
---exec $MYSQLD_CMD --innodb-page-size=$illegal_pagesize --loose-console > $error_log 2>&1
+--exec $mysqld=$illegal_pagesize
 # InnoDB cannot handle this value.
 let SEARCH_PATTERN= \[ERROR\] InnoDB: Invalid page size=$illegal_pagesize;
 --source include/search_pattern_in_file.inc
 # Some checks omitted because they are already in 1.
-# Finally InnoDB becomes an Unknown/unsupported storage engine
-let SEARCH_PATTERN= \[ERROR\] Unknown/unsupported storage engine: InnoDB;
---source include/search_pattern_in_file.inc
 
 
 --echo # 5. Try to restart the server with wrong innodb page size <number>karamel.
@@ -239,7 +219,7 @@ let SEARCH_PATTERN= \[ERROR\] Unknown/unsupported storage engine: InnoDB;
 #---------------------------------------------------------------------------------
 # The restart attempt has to fail.
 --error 1
---exec $MYSQLD_CMD --innodb-page-size=$other_page_size_nkaramel --loose-console > $error_log 2>&1
+--exec $mysqld=$other_page_size_nkaramel
 # The plain wrong value "<number>karamel" assigned to innodb page size seems
 # to get mangled to "<number>k" which is a legal value.
 if ( $default_page_size != $adjust_page_size )
@@ -250,9 +230,6 @@ if ( $default_page_size != $adjust_page_size )
 }
 # But this change does not fit to the history of the data.
 # Some checks omitted because they are already in 1.
-# Finally InnoDB becomes an Unknown/unsupported storage engine
-let SEARCH_PATTERN= \[ERROR\] Aborting;
---source include/search_pattern_in_file.inc
 
 
 --echo # 6. Try to restart the server with the plain wrong innodb page size <number>caramel
@@ -269,7 +246,7 @@ if ($zero_test)
      --echo # We do not omit the test.
    }
 --error 1
---exec $MYSQLD_CMD --innodb-page-size=$other_page_size_ncaramel --loose-console > $error_log 2>&1
+--exec $mysqld=$other_page_size_ncaramel
 # The server dislikes the assigned value.
 let SEARCH_PATTERN= Unknown suffix 'c' used for variable 'innodb-page-size' \(value '$other_page_size_ncaramel'\);
 --source include/search_pattern_in_file.inc
@@ -280,18 +257,9 @@ let SEARCH_PATTERN= \[Warning\] option 'innodb-page-size': unsigned value 0 adju
 # Some other layer has also something to tell.
 let SEARCH_PATTERN= mysqld.*: Error while setting value '$other_page_size_ncaramel' to 'innodb-page-size';
 --source include/search_pattern_in_file.inc
-#    Finally InnoDB becomes an Unknown/unsupported storage engine
-let SEARCH_PATTERN= \[ERROR\] Unknown/unsupported storage engine: InnoDB;
---source include/search_pattern_in_file.inc
 }
 
 --echo # 7. Restart the server and cleanup
 #-----------------------------------------
---enable_reconnect
---exec echo "restart" > $restart_file
---source include/wait_until_connected_again.inc
---error 0,1
---remove_file $restart_file
 --remove_file $error_log
-
-
+--source include/start_mysqld.inc

@@ -36,24 +36,28 @@ Created 2012-08-21 Sunny Bains
 #include "sync0sync.h"
 
 #include "srv0start.h"
+#include "ut0new.h"
 
 #include "ha_prototypes.h"
 
 #include <map>
 #include <vector>
 #include <string>
+#include <algorithm>
 
-extern	ulint	srv_max_n_threads;
+extern ulint	srv_max_n_threads;
 
 /** For checking whether this module has been initialised or not. */
-static bool sync_check_initialised = false;
+static bool	sync_check_initialised = false;
 
 /** Debug mutex for control structures, should not be tracked
 by this module. */
-typedef OSTrackMutex<TrackPolicy> SyncMutex;
+typedef OSTrackMutex<TrackPolicy>
+	SyncMutex;
 
 /** Thread specific latches. This is ordered on level in descending order. */
-typedef std::vector<const latch_t*> Latches;
+typedef std::vector<const latch_t*, ut_allocator<const latch_t*> >
+	Latches;
 
 /** Latch meta-data */
 struct latch_meta_t {
@@ -121,7 +125,12 @@ struct latch_meta_t {
 
 
 /** Map from latch name to latch meta-data */
-typedef std::map<std::string, latch_meta_t> LatchMap;
+typedef std::map<
+	std::string,
+	latch_meta_t,
+	std::less<std::string>,
+	ut_allocator<std::pair<const std::string, latch_meta_t> > >
+	LatchMap;
 
 /** Mapping from latch name to latch meta data. This map is created and
 populated at startup and deleted on shutdown. It is read-only at all
@@ -196,7 +205,12 @@ struct SyncDebug {
 	};
 
 	/** For tracking a thread's latches. */
-	typedef std::map<os_thread_id_t, Latches*, os_thread_id_less> ThreadMap;
+	typedef std::map<
+		os_thread_id_t,
+		Latches*,
+		os_thread_id_less,
+		ut_allocator<std::pair<const os_thread_id_t, Latches*> > >
+		ThreadMap;
 
 	/**
 	Construct */
@@ -301,15 +315,22 @@ struct SyncDebug {
 		    && latch->m_level != SYNC_LEVEL_VARYING) {
 
 			Latches*	latches = thread_latches(true);
+			Latches::iterator	it = std::find(
+				latches->begin(), latches->end(), latch);
 
 			ut_a(latches->empty()
 			     || latch->m_level == SYNC_LEVEL_VARYING
 			     || latch->m_level == SYNC_NO_ORDER_CHECK
 			     || latches->back()->m_level == SYNC_LEVEL_VARYING
 			     || latches->back()->m_level == SYNC_NO_ORDER_CHECK
-			     || latches->back()->m_level >= latch->m_level);
+			     || latches->back()->m_level >= latch->m_level
+			     || it != latches->end());
 
-			latches->push_back(latch);
+			if (it == latches->end()) {
+				latches->push_back(latch);
+			} else {
+				latches->insert(it, latch);
+			}
 		}
 	}
 
@@ -443,9 +464,10 @@ SyncDebug::thread_latches(bool add) UNIV_NOTHROW
 	} else {
 		typedef ThreadMap::value_type value_type;
 
-		Latches*	latches = new(std::nothrow) Latches();
+		Latches*	latches = UT_NEW(Latches(),
+						 mem_key_sync_debug_latches);
 
-		ut_a(latches != 0);
+		ut_a(latches != NULL);
 
 		latches->reserve(32);
 
@@ -806,7 +828,7 @@ SyncDebug::unlock(const latch_t* latch)
 		     it != rend;
 		     ++it) {
 
-			if ((*it)->m_level != latch->m_level) {
+			if (*it != latch) {
 				continue;
 			}
 
@@ -831,7 +853,7 @@ SyncDebug::unlock(const latch_t* latch)
 
 				mutex_exit(&m_mutex);
 
-				delete latches;
+				UT_DELETE(latches);
 			}
 
 			return;
@@ -1208,7 +1230,6 @@ sync_latch_meta_init()
 Add the latch meta data of Latch level is SYNC_NO_ORDER_CHECK.
 @param name		Latch name
 @param key		Performance schema key */
-
 void
 sync_latch_add_no_check(
 	const char*		name
@@ -1224,7 +1245,6 @@ sync_latch_add_no_check(
 
 /**
 Initializes the synchronization data structures. */
-
 void
 sync_check_init()
 {
@@ -1232,8 +1252,8 @@ sync_check_init()
 
 	sync_check_initialised = true;
 
-	ut_a(SrvLatches == 0);
-	SrvLatches = new(std::nothrow) LatchMap();
+	ut_a(SrvLatches == NULL);
+	SrvLatches = UT_NEW_NOKEY(LatchMap());
 	ut_ad(SrvLatches != NULL);
 
 	sync_latch_meta_init();
@@ -1257,7 +1277,6 @@ sync_check_init()
 /**
 Frees the resources in InnoDB's own synchronization data structures. Use
 os_sync_free() after calling this. */
-
 void
 sync_check_close()
 {
@@ -1265,8 +1284,9 @@ sync_check_close()
 
 	sync_check_initialised = false;
 
-	delete SrvLatches;
-	SrvLatches = 0;
+	UT_DELETE(SrvLatches);
+
+	SrvLatches = NULL;
 
 #ifdef UNIV_SYNC_DEBUG
 	mutex_free(&rw_lock_debug_mutex);
@@ -1282,7 +1302,6 @@ sync_check_close()
 /**
 Get the sync level for a latch name.
 @return SYNC_UNKNOWN - if not found. */
-
 latch_level_t
 sync_latch_get_level(
 	const char*	name)			/*!< in: Latch name */
@@ -1299,7 +1318,6 @@ sync_latch_get_level(
 /**
 Get the latch name from a sync level.
 @return 0 if not found. */
-
 const char*
 sync_latch_get_name(
 	latch_level_t	level)			/*!< in: Latch level */
@@ -1323,7 +1341,6 @@ sync_latch_get_name(
 /**
 Get the sync level for a latch name.
 @return SYNC_UNKNOWN - if not found. */
-
 mysql_pfs_key_t
 sync_latch_get_pfs_key(
 	const char*	name)			/*!< Latch name */
@@ -1344,7 +1361,6 @@ sync_latch_get_pfs_key(
 /**
 Check if it is OK to acquire the latch.
 @param latch - latch type */
-
 void
 sync_check_lock(const latch_t* latch)
 {
@@ -1355,7 +1371,6 @@ sync_check_lock(const latch_t* latch)
 Check if it is OK to acquire the latch.
 @param latch - latch type
 @param level - latch order */
-
 void
 sync_check_lock(const latch_t* latch, latch_level_t level)
 {
@@ -1364,7 +1379,6 @@ sync_check_lock(const latch_t* latch, latch_level_t level)
 
 /**
 Check if it is OK to re-acquire the lock. */
-
 void
 sync_check_relock(const latch_t* latch)
 {
@@ -1374,7 +1388,6 @@ sync_check_relock(const latch_t* latch)
 /**
 Removes a latch from the thread level array if it is found there.
 @param latch - to unlock */
-
 void
 sync_check_unlock(const latch_t* latch)
 {
@@ -1386,7 +1399,6 @@ Checks if the level array for the current thread contains a
 mutex or rw-latch at the specified level.
 @param level - to find
 @return	a matching latch, or NULL if not found */
-
 const latch_t*
 sync_check_find(latch_level_t level)
 {
@@ -1396,7 +1408,6 @@ sync_check_find(latch_level_t level)
 /**
 Iterate over the thread's latches.
 @param functor - called for each element. */
-
 bool
 sync_check_iterate(sync_check_functor_t& functor)
 {
@@ -1405,7 +1416,6 @@ sync_check_iterate(sync_check_functor_t& functor)
 
 /**
 Enable sync order checking. */
-
 void
 sync_check_enable()
 {

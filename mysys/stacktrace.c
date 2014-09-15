@@ -13,15 +13,16 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include <my_stacktrace.h>
+#include "my_stacktrace.h"
 
 #ifndef _WIN32
+#include "my_pthread.h"
+#include "m_string.h"
 #include <signal.h>
-#include <my_pthread.h>
-#include <m_string.h>
-#ifdef HAVE_STACKTRACE
+#ifdef HAVE_UNISTD_H
 #include <unistd.h>
-#include <strings.h>
+#endif
+#ifdef HAVE_STACKTRACE
 
 #ifdef __linux__
 #include <ctype.h>          /* isprint */
@@ -481,45 +482,67 @@ void my_write_core(int unused)
 {
   char path[MAX_PATH];
   char dump_fname[MAX_PATH]= "core.dmp";
-  MINIDUMP_EXCEPTION_INFORMATION info;
-  HANDLE hFile;
 
   if(!exception_ptrs)
     return;
-
-  info.ExceptionPointers= exception_ptrs;
-  info.ClientPointers= FALSE;
-  info.ThreadId= GetCurrentThreadId();
 
   if(GetModuleFileName(NULL, path, sizeof(path)))
   {
     _splitpath(path, NULL, NULL,dump_fname,NULL);
     strncat(dump_fname, ".dmp", sizeof(dump_fname));
   }
+  my_create_minidump(dump_fname, 0, 0);
+}
 
-  hFile= CreateFile(dump_fname, GENERIC_WRITE, 0, 0, CREATE_ALWAYS,
+
+/** Create a minidump.
+  @param name    path of minidump file.
+  @param process HANDLE to process. (0 for own process).
+  @param pid     Process id.
+*/
+
+void my_create_minidump(const char *name, HANDLE process, DWORD pid)
+{
+  char path[MAX_PATH];
+  MINIDUMP_EXCEPTION_INFORMATION info;
+  HANDLE hFile;
+
+  if (process == 0)
+  {
+    /* Does not need to CloseHandle() for the below. */
+    process= GetCurrentProcess();
+    pid= GetCurrentProcessId();
+    info.ExceptionPointers= exception_ptrs;
+    info.ClientPointers= FALSE;
+    info.ThreadId= GetCurrentThreadId();
+  }
+
+  hFile= CreateFile(name, GENERIC_WRITE, 0, 0, CREATE_ALWAYS,
     FILE_ATTRIBUTE_NORMAL, 0);
   if(hFile)
   {
-    /* Create minidump */
-    if(MiniDumpWriteDump(GetCurrentProcess(), GetCurrentProcessId(),
-      hFile, MiniDumpNormal, &info, 0, 0))
+    MINIDUMP_TYPE mdt= (MINIDUMP_TYPE) (MiniDumpNormal |
+                                        MiniDumpWithThreadInfo |
+                                        MiniDumpWithProcessThreadData);
+    /* Create minidump, use info only if same process. */
+    if(MiniDumpWriteDump(process, pid, hFile, mdt,
+                         process ? NULL : &info, 0, 0))
     {
       my_safe_printf_stderr("Minidump written to %s\n",
-                            _fullpath(path, dump_fname, sizeof(path)) ?
-                            path : dump_fname);
+                            _fullpath(path, name, sizeof(path)) ?
+                            path : name);
     }
     else
     {
-      my_safe_printf_stderr("MiniDumpWriteDump() failed, last error %u\n",
-                            (uint) GetLastError());
+      my_safe_printf_stderr("MiniDumpWriteDump() failed, last error %d\n",
+                            GetLastError());
     }
     CloseHandle(hFile);
   }
   else
   {
-    my_safe_printf_stderr("CreateFile(%s) failed, last error %u\n",
-                          dump_fname, (uint) GetLastError());
+    my_safe_printf_stderr("CreateFile(%s) failed, last error %d\n",
+                          name, GetLastError());
   }
 }
 
@@ -741,3 +764,37 @@ size_t my_safe_printf_stderr(const char* fmt, ...)
   my_write_stderr(to, result);
   return result;
 }
+
+
+void my_safe_print_system_time()
+{
+  char hrs_buf[3]= "00";
+  char mins_buf[3]= "00";
+  char secs_buf[3]= "00";
+  int base= 10;
+#ifdef _WIN32
+  SYSTEMTIME utc_time;
+  long hrs, mins, secs;
+  GetSystemTime(&utc_time);
+  hrs=  utc_time.wHour;
+  mins= utc_time.wMinute;
+  secs= utc_time.wSecond;
+#else
+  /* Using time() instead of my_time() to avoid looping */
+  const time_t curr_time= time(NULL);
+  /* Calculate time of day */
+  const long tmins = curr_time / 60;
+  const long thrs  = tmins / 60;
+  const long hrs   = thrs  % 24;
+  const long mins  = tmins % 60;
+  const long secs  = curr_time % 60;
+#endif
+
+  my_safe_itoa(base, hrs, &hrs_buf[2]);
+  my_safe_itoa(base, mins, &mins_buf[2]);
+  my_safe_itoa(base, secs, &secs_buf[2]);
+
+  my_safe_printf_stderr("---------- %s:%s:%s UTC - ",
+                        hrs_buf, mins_buf, secs_buf);
+}
+

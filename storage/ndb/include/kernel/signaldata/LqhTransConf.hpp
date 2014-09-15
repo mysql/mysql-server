@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -41,13 +41,14 @@ class LqhTransConf {
 
   friend bool printLQH_TRANSCONF(FILE *, const Uint32 *, Uint32, Uint16);  
 public:
-  STATIC_CONST( SignalLength = 17 );
+  STATIC_CONST( SignalLength = 18 );
 
   /**
    * Upgrade
    */
   STATIC_CONST( SignalLength_GCI_LO = 16 );
   STATIC_CONST( SignalLength_FRAG_ID = 17 );
+  STATIC_CONST( SignalLength_INST_ID = 18 );
 private:
 
   /**
@@ -88,6 +89,7 @@ private:
   Uint32 tableId;
   Uint32 gci_lo;
   Uint32 fragId;
+  Uint32 maxInstanceId;
 
   /**
    * Getters

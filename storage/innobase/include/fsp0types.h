@@ -70,11 +70,13 @@ typedef	byte	fseg_header_t;
 					header, in bytes */
 /* @} */
 
-/** Flags for fsp_reserve_free_extents @{ */
-#define FSP_NORMAL	1000000
-#define	FSP_UNDO	2000000
-#define FSP_CLEANING	3000000
-/* @} */
+/** Flags for fsp_reserve_free_extents */
+enum fsp_reserve_t {
+	FSP_NORMAL,	/* reservation during normal B-tree operations */
+	FSP_UNDO,	/* reservation done for undo logging */
+	FSP_CLEANING,	/* reservation done during purge operations */
+	FSP_BLOB	/* reservation being done for BLOB insertion */
+};
 
 /* Number of pages described in a single descriptor page: currently each page
 description takes less than 1 byte; a descriptor page is repeated every
@@ -122,7 +124,6 @@ ROW_FORMAT=COMPACT and ROW_FORMAT=REDUNDANT. The newer row formats,
 COMPRESSED and DYNAMIC, use a file format > Antelope so they should
 have a file format number plus the DICT_TF_COMPACT bit set.
 @return true if check ok */
-
 bool
 fsp_flags_is_valid(
 /*===============*/
@@ -132,7 +133,6 @@ fsp_flags_is_valid(
 /** Check if tablespace is system temporary.
 @param[in]      space_id        verify is checksum is enabled for given space.
 @return true if tablespace is system temporary. */
-
 bool
 fsp_is_system_temporary(
 	ulint	space_id);
@@ -140,7 +140,6 @@ fsp_is_system_temporary(
 /** Check if checksum is disabled for the given space.
 @param[in]	space_id	verify is checksum is enabled for given space.
 @return true if checksum is disabled for given space. */
-
 bool
 fsp_is_checksum_disabled(
 	ulint	space_id);
@@ -183,7 +182,7 @@ is found in a remote location, not the default data directory. */
 /** Zero relative shift position of the PAGE_SSIZE field */
 #define FSP_FLAGS_POS_PAGE_SSIZE	(FSP_FLAGS_POS_ATOMIC_BLOBS	\
 					+ FSP_FLAGS_WIDTH_ATOMIC_BLOBS)
-/** Zero relative shift position of the start of the UNUSED bits */
+/** Zero relative shift position of the start of the DATA_DIR bit */
 #define FSP_FLAGS_POS_DATA_DIR		(FSP_FLAGS_POS_PAGE_SSIZE	\
 					+ FSP_FLAGS_WIDTH_PAGE_SSIZE)
 /** Zero relative shift position of the start of the UNUSED bits */

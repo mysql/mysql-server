@@ -41,6 +41,7 @@ Created 2012-02-08 by Sunny Bains.
 #include "row0mysql.h"
 #include "srv0start.h"
 #include "row0quiesce.h"
+#include "ut0new.h"
 
 #include <vector>
 
@@ -369,7 +370,7 @@ public:
 	/** Free any extent descriptor instance */
 	virtual ~AbstractCallback()
 	{
-		delete [] m_xdes;
+		UT_DELETE_ARRAY(m_xdes);
 	}
 
 	/** Determine the page size to use for traversing the tablespace
@@ -440,9 +441,8 @@ protected:
 	{
 		m_xdes_page_no = page_no;
 
-		delete[] m_xdes;
-
-		m_xdes = 0;
+		UT_DELETE_ARRAY(m_xdes);
+		m_xdes = NULL;
 
 		ulint		state;
 		const xdes_t*	xdesc = page + XDES_ARR_OFFSET;
@@ -451,14 +451,17 @@ protected:
 
 		if (state != XDES_FREE) {
 
-			m_xdes = new(std::nothrow)
-				xdes_t[m_page_size.physical()];
+			m_xdes = UT_NEW_ARRAY_NOKEY(xdes_t,
+						    m_page_size.physical());
 
 			/* Trigger OOM */
-			DBUG_EXECUTE_IF("ib_import_OOM_13",
-					delete [] m_xdes; m_xdes = 0;);
+			DBUG_EXECUTE_IF(
+				"ib_import_OOM_13",
+				UT_DELETE_ARRAY(m_xdes);
+				m_xdes = NULL;
+			);
 
-			if (m_xdes == 0) {
+			if (m_xdes == NULL) {
 				return(DB_OUT_OF_MEMORY);
 			}
 
@@ -472,7 +475,7 @@ protected:
 	@return true if it is a root page */
 	bool is_root_page(const page_t* page) const UNIV_NOTHROW
 	{
-		ut_ad(fil_page_get_type(page) == FIL_PAGE_INDEX);
+		ut_ad(fil_page_index_page_check(page));
 
 		return(mach_read_from_4(page + FIL_PAGE_NEXT) == FIL_NULL
 		       && mach_read_from_4(page + FIL_PAGE_PREV) == FIL_NULL);
@@ -596,7 +599,7 @@ struct FetchIndexRootPages : public AbstractCallback {
 		ulint		m_page_no;	/*!< Root page number */
 	};
 
-	typedef std::vector<Index> Indexes;
+	typedef std::vector<Index, ut_allocator<Index> >	Indexes;
 
 	/** Constructor
 	@param trx covering (user) transaction
@@ -629,7 +632,7 @@ struct FetchIndexRootPages : public AbstractCallback {
 
 			ib_errf(m_trx->mysql_thd, IB_LOG_LEVEL_ERROR,
 				ER_TABLE_SCHEMA_MISMATCH,
-				".ibd file has invlad table flags: %lx",
+				".ibd file has invalid table flags: %lx",
 				ibd_table_flags);
 
 			return(DB_CORRUPTION);
@@ -707,7 +710,7 @@ FetchIndexRootPages::operator() (
 		err = DB_CORRUPTION;
 	} else if (page_type == FIL_PAGE_TYPE_XDES) {
 		err = set_current_xdes(block->page.id.page_no(), page);
-	} else if (page_type == FIL_PAGE_INDEX
+	} else if (fil_page_index_page_check(page)
 		   && !is_free(block->page.id.page_no())
 		   && is_root_page(page)) {
 
@@ -747,13 +750,16 @@ FetchIndexRootPages::build_row_import(row_import* cfg) const UNIV_NOTHROW
 		return(DB_CORRUPTION);
 	}
 
-	cfg->m_indexes = new(std::nothrow) row_index_t[cfg->m_n_indexes];
+	cfg->m_indexes = UT_NEW_ARRAY_NOKEY(row_index_t, cfg->m_n_indexes);
 
 	/* Trigger OOM */
-	DBUG_EXECUTE_IF("ib_import_OOM_11",
-			delete [] cfg->m_indexes; cfg->m_indexes = 0;);
+	DBUG_EXECUTE_IF(
+		"ib_import_OOM_11",
+		UT_DELETE_ARRAY(cfg->m_indexes);
+		cfg->m_indexes = NULL;
+	);
 
-	if (cfg->m_indexes == 0) {
+	if (cfg->m_indexes == NULL) {
 		return(DB_OUT_OF_MEMORY);
 	}
 
@@ -771,14 +777,16 @@ FetchIndexRootPages::build_row_import(row_import* cfg) const UNIV_NOTHROW
 
 		ulint	len = strlen(name) + 1;
 
-		cfg_index->m_name = new(std::nothrow) byte[len];
+		cfg_index->m_name = UT_NEW_ARRAY_NOKEY(byte, len);
 
 		/* Trigger OOM */
-		DBUG_EXECUTE_IF("ib_import_OOM_12",
-				delete [] cfg_index->m_name;
-				cfg_index->m_name = 0;);
+		DBUG_EXECUTE_IF(
+			"ib_import_OOM_12",
+			UT_DELETE_ARRAY(cfg_index->m_name);
+			cfg_index->m_name = NULL;
+		);
 
-		if (cfg_index->m_name == 0) {
+		if (cfg_index->m_name == NULL) {
 			return(DB_OUT_OF_MEMORY);
 		}
 
@@ -994,9 +1002,9 @@ row_import destructor. */
 row_import::~row_import() UNIV_NOTHROW
 {
 	for (ulint i = 0; m_indexes != 0 && i < m_n_indexes; ++i) {
-		delete [] m_indexes[i].m_name;
+		UT_DELETE_ARRAY(m_indexes[i].m_name);
 
-		if (m_indexes[i].m_fields == 0) {
+		if (m_indexes[i].m_fields == NULL) {
 			continue;
 		}
 
@@ -1004,21 +1012,21 @@ row_import::~row_import() UNIV_NOTHROW
 		ulint		n_fields = m_indexes[i].m_n_fields;
 
 		for (ulint j = 0; j < n_fields; ++j) {
-			delete [] fields[j].name;
+			UT_DELETE_ARRAY(const_cast<char*>(fields[j].name));
 		}
 
-		delete [] fields;
+		UT_DELETE_ARRAY(fields);
 	}
 
 	for (ulint i = 0; m_col_names != 0 && i < m_n_cols; ++i) {
-		delete [] m_col_names[i];
+		UT_DELETE_ARRAY(m_col_names[i]);
 	}
 
-	delete [] m_cols;
-	delete [] m_indexes;
-	delete [] m_col_names;
-	delete [] m_table_name;
-	delete [] m_hostname;
+	UT_DELETE_ARRAY(m_cols);
+	UT_DELETE_ARRAY(m_indexes);
+	UT_DELETE_ARRAY(m_col_names);
+	UT_DELETE_ARRAY(m_table_name);
+	UT_DELETE_ARRAY(m_hostname);
 }
 
 /** Find the index entry in in the indexes array.
@@ -1432,18 +1440,20 @@ row_import::set_root_by_heuristic() UNIV_NOTHROW
 				"Skipping FTS index: %s", index->name);
 		} else if (i < m_n_indexes) {
 
-			delete [] cfg_index[i].m_name;
+			UT_DELETE_ARRAY(cfg_index[i].m_name);
 
 			ulint	len = strlen(index->name) + 1;
 
-			cfg_index[i].m_name = new(std::nothrow) byte[len];
+			cfg_index[i].m_name = UT_NEW_ARRAY_NOKEY(byte, len);
 
 			/* Trigger OOM */
-			DBUG_EXECUTE_IF("ib_import_OOM_14",
-					delete[] cfg_index[i].m_name;
-					cfg_index[i].m_name = 0;);
+			DBUG_EXECUTE_IF(
+				"ib_import_OOM_14",
+				UT_DELETE_ARRAY(cfg_index[i].m_name);
+				cfg_index[i].m_name = NULL;
+			);
 
-			if (cfg_index[i].m_name == 0) {
+			if (cfg_index[i].m_name == NULL) {
 				err = DB_OUT_OF_MEMORY;
 				break;
 			}
@@ -1961,6 +1971,7 @@ PageConverter::update_page(
 		return(update_header(block));
 
 	case FIL_PAGE_INDEX:
+	case FIL_PAGE_RTREE:
 		/* We need to decompress the contents into block->frame
 		before we can do any thing with Btree pages. */
 
@@ -2090,7 +2101,8 @@ PageConverter::operator() (
 		out the descriptor contents and not block->frame for compressed
 		pages. */
 
-		if (!is_compressed_table() || page_type == FIL_PAGE_INDEX) {
+		if (!is_compressed_table()
+		    || fil_page_type_is_index(page_type)) {
 
 			buf_flush_init_for_writing(
 				!is_compressed_table()
@@ -2522,13 +2534,16 @@ row_import_cfg_read_index_fields(
 	byte			row[sizeof(ib_uint32_t) * 3];
 	ulint			n_fields = index->m_n_fields;
 
-	index->m_fields = new(std::nothrow) dict_field_t[n_fields];
+	index->m_fields = UT_NEW_ARRAY_NOKEY(dict_field_t, n_fields);
 
 	/* Trigger OOM */
-	DBUG_EXECUTE_IF("ib_import_OOM_4",
-			delete [] index->m_fields; index->m_fields = 0;);
+	DBUG_EXECUTE_IF(
+		"ib_import_OOM_4",
+		UT_DELETE_ARRAY(index->m_fields);
+		index->m_fields = NULL;
+	);
 
-	if (index->m_fields == 0) {
+	if (index->m_fields == NULL) {
 		return(DB_OUT_OF_MEMORY);
 	}
 
@@ -2562,12 +2577,16 @@ row_import_cfg_read_index_fields(
 		/* Include the NUL byte in the length. */
 		ulint	len = mach_read_from_4(ptr);
 
-		byte*	name = new(std::nothrow) byte[len];
+		byte*	name = UT_NEW_ARRAY_NOKEY(byte, len);
 
 		/* Trigger OOM */
-		DBUG_EXECUTE_IF("ib_import_OOM_5", delete [] name; name = 0;);
+		DBUG_EXECUTE_IF(
+			"ib_import_OOM_5",
+			UT_DELETE_ARRAY(name);
+			name = NULL;
+		);
 
-		if (name == 0) {
+		if (name == NULL) {
 			return(DB_OUT_OF_MEMORY);
 		}
 
@@ -2609,13 +2628,16 @@ row_import_read_index_data(
 	ut_a(cfg->m_n_indexes > 0);
 	ut_a(cfg->m_n_indexes < 1024);
 
-	cfg->m_indexes = new(std::nothrow) row_index_t[cfg->m_n_indexes];
+	cfg->m_indexes = UT_NEW_ARRAY_NOKEY(row_index_t, cfg->m_n_indexes);
 
 	/* Trigger OOM */
-	DBUG_EXECUTE_IF("ib_import_OOM_6",
-			delete [] cfg->m_indexes; cfg->m_indexes = 0;);
+	DBUG_EXECUTE_IF(
+		"ib_import_OOM_6",
+		UT_DELETE_ARRAY(cfg->m_indexes);
+		cfg->m_indexes = NULL;
+	);
 
-	if (cfg->m_indexes == 0) {
+	if (cfg->m_indexes == NULL) {
 		return(DB_OUT_OF_MEMORY);
 	}
 
@@ -2700,14 +2722,16 @@ row_import_read_index_data(
 			return(DB_CORRUPTION);
 		}
 
-		cfg_index->m_name = new(std::nothrow) byte[len];
+		cfg_index->m_name = UT_NEW_ARRAY_NOKEY(byte, len);
 
 		/* Trigger OOM */
-		DBUG_EXECUTE_IF("ib_import_OOM_7",
-				delete [] cfg_index->m_name;
-				cfg_index->m_name = 0;);
+		DBUG_EXECUTE_IF(
+			"ib_import_OOM_7",
+			UT_DELETE_ARRAY(cfg_index->m_name);
+			cfg_index->m_name = NULL;
+		);
 
-		if (cfg_index->m_name == 0) {
+		if (cfg_index->m_name == NULL) {
 			return(DB_OUT_OF_MEMORY);
 		}
 
@@ -2803,23 +2827,29 @@ row_import_read_columns(
 	ut_a(cfg->m_n_cols > 0);
 	ut_a(cfg->m_n_cols < 1024);
 
-	cfg->m_cols = new(std::nothrow) dict_col_t[cfg->m_n_cols];
+	cfg->m_cols = UT_NEW_ARRAY_NOKEY(dict_col_t, cfg->m_n_cols);
 
 	/* Trigger OOM */
-	DBUG_EXECUTE_IF("ib_import_OOM_8",
-			delete [] cfg->m_cols; cfg->m_cols = 0;);
+	DBUG_EXECUTE_IF(
+		"ib_import_OOM_8",
+		UT_DELETE_ARRAY(cfg->m_cols);
+		cfg->m_cols = NULL;
+	);
 
-	if (cfg->m_cols == 0) {
+	if (cfg->m_cols == NULL) {
 		return(DB_OUT_OF_MEMORY);
 	}
 
-	cfg->m_col_names = new(std::nothrow) byte* [cfg->m_n_cols];
+	cfg->m_col_names = UT_NEW_ARRAY_NOKEY(byte*, cfg->m_n_cols);
 
 	/* Trigger OOM */
-	DBUG_EXECUTE_IF("ib_import_OOM_9",
-			delete [] cfg->m_col_names; cfg->m_col_names = 0;);
+	DBUG_EXECUTE_IF(
+		"ib_import_OOM_9",
+		UT_DELETE_ARRAY(cfg->m_col_names);
+		cfg->m_col_names = NULL;
+	);
 
-	if (cfg->m_col_names == 0) {
+	if (cfg->m_col_names == NULL) {
 		return(DB_OUT_OF_MEMORY);
 	}
 
@@ -2880,14 +2910,16 @@ row_import_read_columns(
 			return(DB_CORRUPTION);
 		}
 
-		cfg->m_col_names[i] = new(std::nothrow) byte[len];
+		cfg->m_col_names[i] = UT_NEW_ARRAY_NOKEY(byte, len);
 
 		/* Trigger OOM */
-		DBUG_EXECUTE_IF("ib_import_OOM_10",
-				delete [] cfg->m_col_names[i];
-				cfg->m_col_names[i] = 0;);
+		DBUG_EXECUTE_IF(
+			"ib_import_OOM_10",
+			UT_DELETE_ARRAY(cfg->m_col_names[i]);
+			cfg->m_col_names[i] = NULL;
+		);
 
-		if (cfg->m_col_names[i] == 0) {
+		if (cfg->m_col_names[i] == NULL) {
 			return(DB_OUT_OF_MEMORY);
 		}
 
@@ -2940,13 +2972,16 @@ row_import_read_v1(
 	ulint	len = mach_read_from_4(value);
 
 	/* NUL byte is part of name length. */
-	cfg->m_hostname = new(std::nothrow) byte[len];
+	cfg->m_hostname = UT_NEW_ARRAY_NOKEY(byte, len);
 
 	/* Trigger OOM */
-	DBUG_EXECUTE_IF("ib_import_OOM_1",
-			delete [] cfg->m_hostname; cfg->m_hostname = 0;);
+	DBUG_EXECUTE_IF(
+		"ib_import_OOM_1",
+		UT_DELETE_ARRAY(cfg->m_hostname);
+		cfg->m_hostname = NULL;
+	);
 
-	if (cfg->m_hostname == 0) {
+	if (cfg->m_hostname == NULL) {
 		return(DB_OUT_OF_MEMORY);
 	}
 
@@ -2979,13 +3014,16 @@ row_import_read_v1(
 	len = mach_read_from_4(value);
 
 	/* NUL byte is part of name length. */
-	cfg->m_table_name = new(std::nothrow) byte[len];
+	cfg->m_table_name = UT_NEW_ARRAY_NOKEY(byte, len);
 
 	/* Trigger OOM */
-	DBUG_EXECUTE_IF("ib_import_OOM_2",
-			delete [] cfg->m_table_name; cfg->m_table_name = 0;);
+	DBUG_EXECUTE_IF(
+		"ib_import_OOM_2",
+		UT_DELETE_ARRAY(cfg->m_table_name);
+		cfg->m_table_name = NULL;
+	);
 
-	if (cfg->m_table_name == 0) {
+	if (cfg->m_table_name == NULL) {
 		return(DB_OUT_OF_MEMORY);
 	}
 
@@ -3174,7 +3212,6 @@ row_import_read_cfg(
 Update the <space, root page> of a table's indexes from the values
 in the data dictionary.
 @return DB_SUCCESS or error code */
-
 dberr_t
 row_import_update_index_root(
 /*=========================*/
@@ -3342,7 +3379,6 @@ row_import_set_discarded(
 /*****************************************************************//**
 Update the DICT_TF2_DISCARDED flag in SYS_TABLES.
 @return DB_SUCCESS or error code. */
-
 dberr_t
 row_import_update_discarded_flag(
 /*=============================*/
@@ -3406,7 +3442,6 @@ row_import_update_discarded_flag(
 Imports a tablespace. The space id in the .ibd file must match the space id
 of the table in the data dictionary.
 @return error code or DB_SUCCESS */
-
 dberr_t
 row_import_for_mysql(
 /*=================*/
@@ -3486,7 +3521,7 @@ row_import_for_mysql(
 
 	if (err == DB_SUCCESS) {
 
-		/* We have a schema file, try and match it with the our
+		/* We have a schema file, try and match it with our
 		data dictionary. */
 
 		err = cfg.match_schema(trx->mysql_thd);

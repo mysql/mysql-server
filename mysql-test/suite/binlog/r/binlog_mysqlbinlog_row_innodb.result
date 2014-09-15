@@ -2252,12 +2252,12 @@ DELIMITER /*!*/;
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Start: binlog v 4, server v #.##.## created 010909  4:46:40 at startup
 ROLLBACK/*!*/;
 # at #
-#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0	last_committed=#	sequence_number=#
 use `test`/*!*/;
 SET TIMESTAMP=1000000000/*!*/;
 SET @@session.pseudo_thread_id=#/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
-SET @@session.sql_mode=1073741824/*!*/;
+SET @@session.sql_mode=1075839008/*!*/;
 SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
 /*!\C utf8 *//*!*/;
 SET @@session.character_set_client=33,@@session.collation_connection=33,@@session.collation_server=8/*!*/;
@@ -2354,7 +2354,7 @@ crn INT -- row number
 ) ENGINE=InnoDB DEFAULT CHARSET latin1
 /*!*/;
 # at #
-#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0	last_committed=#	sequence_number=#
 SET TIMESTAMP=1000000000/*!*/;
 SET @@session.time_zone='SYSTEM'/*!*/;
 BEGIN
@@ -2448,7 +2448,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Xid = #
 COMMIT/*!*/;
 # at #
-#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0	last_committed=#	sequence_number=#
 SET TIMESTAMP=1000000000/*!*/;
 BEGIN
 /*!*/;
@@ -2541,7 +2541,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Xid = #
 COMMIT/*!*/;
 # at #
-#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0	last_committed=#	sequence_number=#
 SET TIMESTAMP=1000000000/*!*/;
 BEGIN
 /*!*/;
@@ -2715,7 +2715,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Xid = #
 COMMIT/*!*/;
 # at #
-#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0	last_committed=#	sequence_number=#
 SET TIMESTAMP=1000000000/*!*/;
 BEGIN
 /*!*/;
@@ -2888,7 +2888,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Xid = #
 COMMIT/*!*/;
 # at #
-#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0	last_committed=#	sequence_number=#
 SET TIMESTAMP=1000000000/*!*/;
 BEGIN
 /*!*/;
@@ -3061,7 +3061,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Xid = #
 COMMIT/*!*/;
 # at #
-#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0	last_committed=#	sequence_number=#
 SET TIMESTAMP=1000000000/*!*/;
 BEGIN
 /*!*/;
@@ -3234,7 +3234,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Xid = #
 COMMIT/*!*/;
 # at #
-#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0	last_committed=#	sequence_number=#
 SET TIMESTAMP=1000000000/*!*/;
 BEGIN
 /*!*/;
@@ -3407,7 +3407,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Xid = #
 COMMIT/*!*/;
 # at #
-#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0	last_committed=#	sequence_number=#
 SET TIMESTAMP=1000000000/*!*/;
 BEGIN
 /*!*/;
@@ -3500,7 +3500,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Xid = #
 COMMIT/*!*/;
 # at #
-#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0	last_committed=#	sequence_number=#
 SET TIMESTAMP=1000000000/*!*/;
 BEGIN
 /*!*/;
@@ -3593,7 +3593,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Xid = #
 COMMIT/*!*/;
 # at #
-#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0	last_committed=#	sequence_number=#
 SET TIMESTAMP=1000000000/*!*/;
 BEGIN
 /*!*/;
@@ -3686,7 +3686,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Xid = #
 COMMIT/*!*/;
 # at #
-#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0	last_committed=#	sequence_number=#
 SET TIMESTAMP=1000000000/*!*/;
 BEGIN
 /*!*/;
@@ -3874,12 +3874,12 @@ DELIMITER /*!*/;
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Start: binlog v 4, server v #.##.## created 010909  4:46:40 at startup
 ROLLBACK/*!*/;
 # at #
-#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0	last_committed=#	sequence_number=#
 use `test`/*!*/;
 SET TIMESTAMP=1000000000/*!*/;
 SET @@session.pseudo_thread_id=#/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
-SET @@session.sql_mode=1073741824/*!*/;
+SET @@session.sql_mode=1075839008/*!*/;
 SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
 /*!\C utf8 *//*!*/;
 SET @@session.character_set_client=33,@@session.collation_connection=33,@@session.collation_server=8/*!*/;
@@ -3892,7 +3892,7 @@ crn INT -- row number
 ) ENGINE=InnoDB DEFAULT CHARSET latin1
 /*!*/;
 # at #
-#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0	last_committed=#	sequence_number=#
 SET TIMESTAMP=1000000000/*!*/;
 BEGIN
 /*!*/;
@@ -3949,7 +3949,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Xid = #
 COMMIT/*!*/;
 # at #
-#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0	last_committed=#	sequence_number=#
 SET TIMESTAMP=1000000000/*!*/;
 BEGIN
 /*!*/;
@@ -4024,7 +4024,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Xid = #
 COMMIT/*!*/;
 # at #
-#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0	last_committed=#	sequence_number=#
 SET TIMESTAMP=1000000000/*!*/;
 BEGIN
 /*!*/;
@@ -4254,12 +4254,12 @@ DELIMITER /*!*/;
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Start: binlog v 4, server v #.##.## created 010909  4:46:40 at startup
 ROLLBACK/*!*/;
 # at #
-#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0	last_committed=#	sequence_number=#
 use `test`/*!*/;
 SET TIMESTAMP=1000000000/*!*/;
 SET @@session.pseudo_thread_id=#/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
-SET @@session.sql_mode=1073741824/*!*/;
+SET @@session.sql_mode=1075839008/*!*/;
 SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
 /*!\C utf8 *//*!*/;
 SET @@session.character_set_client=33,@@session.collation_connection=33,@@session.collation_server=8/*!*/;
@@ -4272,7 +4272,7 @@ c_1_n INT -- row number
 ) ENGINE=InnoDB DEFAULT CHARSET latin1
 /*!*/;
 # at #
-#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0	last_committed=#	sequence_number=#
 SET TIMESTAMP=1000000000/*!*/;
 CREATE TABLE t2 (
 c_2_1 DATE,
@@ -4281,7 +4281,7 @@ c_2_n INT -- row number
 ) ENGINE=InnoDB DEFAULT CHARSET latin1
 /*!*/;
 # at #
-#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0	last_committed=#	sequence_number=#
 SET TIMESTAMP=1000000000/*!*/;
 CREATE TABLE t3 (
 c_3_1 DATE,
@@ -4290,7 +4290,7 @@ c_3_n INT -- row number
 ) ENGINE=InnoDB DEFAULT CHARSET latin1
 /*!*/;
 # at #
-#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0	last_committed=#	sequence_number=#
 SET TIMESTAMP=1000000000/*!*/;
 BEGIN
 /*!*/;
@@ -4347,7 +4347,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Xid = #
 COMMIT/*!*/;
 # at #
-#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0	last_committed=#	sequence_number=#
 SET TIMESTAMP=1000000000/*!*/;
 BEGIN
 /*!*/;
@@ -4404,7 +4404,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Xid = #
 COMMIT/*!*/;
 # at #
-#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0	last_committed=#	sequence_number=#
 SET TIMESTAMP=1000000000/*!*/;
 BEGIN
 /*!*/;
@@ -4461,22 +4461,22 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Xid = #
 COMMIT/*!*/;
 # at #
-#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0	last_committed=#	sequence_number=#
 SET TIMESTAMP=1000000000/*!*/;
 ANALYZE TABLE t1
 /*!*/;
 # at #
-#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0	last_committed=#	sequence_number=#
 SET TIMESTAMP=1000000000/*!*/;
 ANALYZE TABLE t2
 /*!*/;
 # at #
-#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0	last_committed=#	sequence_number=#
 SET TIMESTAMP=1000000000/*!*/;
 ANALYZE TABLE t3
 /*!*/;
 # at #
-#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0	last_committed=#	sequence_number=#
 SET TIMESTAMP=1000000000/*!*/;
 BEGIN
 /*!*/;
@@ -4658,7 +4658,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Xid = #
 COMMIT/*!*/;
 # at #
-#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0	last_committed=#	sequence_number=#
 SET TIMESTAMP=1000000000/*!*/;
 BEGIN
 /*!*/;
@@ -4831,12 +4831,12 @@ DELIMITER /*!*/;
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Start: binlog v 4, server v #.##.## created 010909  4:46:40 at startup
 ROLLBACK/*!*/;
 # at #
-#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0	last_committed=#	sequence_number=#
 use `test`/*!*/;
 SET TIMESTAMP=1000000000/*!*/;
 SET @@session.pseudo_thread_id=#/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
-SET @@session.sql_mode=1073741824/*!*/;
+SET @@session.sql_mode=1075839008/*!*/;
 SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
 /*!\C utf8 *//*!*/;
 SET @@session.character_set_client=33,@@session.collation_connection=33,@@session.collation_server=8/*!*/;
@@ -4849,7 +4849,7 @@ c3 VARCHAR(60)
 ) ENGINE=InnoDB DEFAULT CHARSET latin1
 /*!*/;
 # at #
-#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0	last_committed=#	sequence_number=#
 SET TIMESTAMP=1000000000/*!*/;
 BEGIN
 /*!*/;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -120,7 +120,7 @@ public:
   inline bool append_element(MY_XPATH_FLT *flt)
   {
     String *str= this;
-    return str->append((const char*)flt, (uint32) sizeof(MY_XPATH_FLT));
+    return str->append((const char*)flt, sizeof(MY_XPATH_FLT));
   }
   inline bool append_element(uint32 num, uint32 pos)
   {
@@ -130,7 +130,7 @@ public:
     add.size= 0;
     return append_element(&add);
   }
-  inline bool append_element(uint32 num, uint32 pos, uint32 size)
+  inline bool append_element(uint32 num, uint32 pos, size_t size)
   {
     MY_XPATH_FLT add;
     add.num= num;
@@ -493,7 +493,7 @@ public:
     String *res= args[0]->val_nodeset(&tmp_value);
     MY_XPATH_FLT *fltbeg= (MY_XPATH_FLT*) res->ptr();
     MY_XPATH_FLT *fltend= (MY_XPATH_FLT*) (res->ptr() + res->length());
-    uint numnodes= pxml->length() / sizeof(MY_XML_NODE);
+    size_t numnodes= pxml->length() / sizeof(MY_XML_NODE);
     MY_XML_NODE *nodebeg= (MY_XML_NODE*) pxml->ptr();
   
     for (MY_XPATH_FLT *flt= fltbeg; flt < fltend; flt++)
@@ -540,7 +540,7 @@ public:
     MY_XPATH_FLT *fltbeg= (MY_XPATH_FLT*) res->ptr();
     MY_XPATH_FLT *fltend= (MY_XPATH_FLT*) (res->ptr() + res->length());
     MY_XML_NODE *nodebeg= (MY_XML_NODE*) pxml->ptr();
-    uint numnodes= pxml->length() / sizeof(MY_XML_NODE);
+    size_t numnodes= pxml->length() / sizeof(MY_XML_NODE);
 
     for (MY_XPATH_FLT *flt= fltbeg; flt < fltend; flt++)
     {
@@ -575,7 +575,7 @@ String *Item_nodeset_func_rootelement::val_nodeset(String *nodeset)
 
 String * Item_nodeset_func_union::val_nodeset(String *nodeset)
 {
-  uint num_nodes= pxml->length() / sizeof(MY_XML_NODE);
+  size_t num_nodes= pxml->length() / sizeof(MY_XML_NODE);
   String set0, *s0= args[0]->val_nodeset(&set0);
   String set1, *s1= args[1]->val_nodeset(&set1);
   String both_str;
@@ -751,7 +751,8 @@ String *Item_nodeset_func_predicate::val_nodeset(String *str)
 {
   Item_nodeset_func *nodeset_func= (Item_nodeset_func*) args[0];
   Item_func *comp_func= (Item_func*)args[1];
-  uint pos= 0, size;
+  uint pos= 0;
+  size_t size;
   prepare(str);
   size= fltend - fltbeg;
   for (MY_XPATH_FLT *flt= fltbeg; flt < fltend; flt++)
@@ -772,7 +773,7 @@ String *Item_nodeset_func_elementbyindex::val_nodeset(String *nodeset)
   Item_nodeset_func *nodeset_func= (Item_nodeset_func*) args[0];
   prepare(nodeset);
   MY_XPATH_FLT *flt;
-  uint pos, size= fltend - fltbeg;
+  size_t pos, size= fltend - fltbeg;
   for (pos= 0, flt= fltbeg; flt < fltend; flt++)
   {
     nodeset_func->context_cache.length(0);
@@ -928,12 +929,12 @@ static Item *create_comparator(MY_XPATH *xpath,
   else if (a->type() == Item::XPATH_NODESET &&
            b->type() == Item::XPATH_NODESET)
   {
-    uint len= xpath->query.end - context->beg;
+    size_t len= xpath->query.end - context->beg;
     set_if_smaller(len, 32);
     my_printf_error(ER_UNKNOWN_ERROR,
                     "XPATH error: "
                     "comparison of two nodesets is not supported: '%.*s'",
-                    MYF(0), len, context->beg);
+                    MYF(0), static_cast<int>(len), context->beg);
 
     return 0; // TODO: Comparison of two nodesets
   }
@@ -978,7 +979,7 @@ static Item *create_comparator(MY_XPATH *xpath,
     The newly created item.
 */
 static Item* nametestfunc(MY_XPATH *xpath,
-                          int type, Item *arg, const char *beg, uint len)
+                          int type, Item *arg, const char *beg, size_t len)
 {
   DBUG_ASSERT(arg != 0);
   DBUG_ASSERT(arg->type() == Item::XPATH_NODESET);
@@ -1258,7 +1259,7 @@ static MY_XPATH_FUNC my_func_names5[]=
 static MY_XPATH_FUNC my_func_names6[]=
 {
   {"concat", 6, 2, 255, create_func_concat},
-  {"number", 6, 0, 1  , create_func_number},
+  {"number", 6, 1, 1  , create_func_number},
   {"string", 6, 0, 1  , 0},
   {0       , 0, 0, 0  , 0}
 };
@@ -2358,6 +2359,12 @@ static int my_xpath_parse_MultiplicativeExpr(MY_XPATH *xpath)
 */
 static int my_xpath_parse_UnaryExpr(MY_XPATH *xpath)
 {
+  THD *thd= current_thd;
+  uchar stack_top;
+
+  if (check_stack_overrun(thd, STACK_MIN_SIZE, &stack_top))
+    return 0;
+
   if (!my_xpath_parse_term(xpath, MY_XPATH_LEX_MINUS))
     return my_xpath_parse_UnionExpr(xpath);
   if (!my_xpath_parse_UnaryExpr(xpath))
@@ -2531,10 +2538,10 @@ my_xpath_parse_VariableReference(MY_XPATH *xpath)
     {
       xpath->item= NULL;
       DBUG_ASSERT(xpath->query.end > dollar_pos);
-      uint len= xpath->query.end - dollar_pos;
+      size_t len= xpath->query.end - dollar_pos;
       set_if_smaller(len, 32);
-      my_printf_error(ER_UNKNOWN_ERROR, "Unknown XPATH variable at: '%.*s'", 
-                      MYF(0), len, dollar_pos);
+      my_printf_error(ER_UNKNOWN_ERROR, "Unknown XPATH variable at: '%.*s'",
+                      MYF(0), static_cast<int>(len), dollar_pos);
     }
   }
   return xpath->item ? 1 : 0;
@@ -2559,7 +2566,7 @@ my_xpath_parse_NodeTest_QName(MY_XPATH *xpath)
   if (!my_xpath_parse_QName(xpath))
     return 0;
   DBUG_ASSERT(xpath->context);
-  uint len= xpath->prevtok.end - xpath->prevtok.beg;
+  size_t len= xpath->prevtok.end - xpath->prevtok.beg;
   xpath->context= nametestfunc(xpath, xpath->axis, xpath->context,
                                xpath->prevtok.beg, len);
   return 1;
@@ -2654,10 +2661,10 @@ void Item_xml_str_func::parse_xpath(Item* xpath_expr)
 
   if (!rc)
   {
-    uint clen= xpath.query.end - xpath.lasttok.beg;
+    size_t clen= xpath.query.end - xpath.lasttok.beg;
     set_if_smaller(clen, 32);
     my_printf_error(ER_UNKNOWN_ERROR, "XPATH syntax error: '%.*s'",
-                    MYF(0), clen, xpath.lasttok.beg);
+                    MYF(0), static_cast<int>(clen), xpath.lasttok.beg);
     return;
   }
 
@@ -2715,7 +2722,7 @@ extern "C" int xml_enter(MY_XML_PARSER *st,const char *attr, size_t len);
 int xml_enter(MY_XML_PARSER *st,const char *attr, size_t len)
 {
   MY_XML_USER_DATA *data= (MY_XML_USER_DATA*)st->user_data;
-  uint numnodes= data->pxml->length() / sizeof(MY_XML_NODE);
+  size_t numnodes= data->pxml->length() / sizeof(MY_XML_NODE);
   MY_XML_NODE node;
 
   node.parent= data->parent; // Set parent for the new node to old parent

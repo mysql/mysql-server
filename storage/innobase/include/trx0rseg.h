@@ -119,7 +119,6 @@ trx_rseg_header_create(
 /*********************************************************************//**
 Creates the memory copies for rollback segments and initializes the
 rseg array in trx_sys at a database startup. */
-
 void
 trx_rseg_array_init(
 /*================*/
@@ -128,7 +127,6 @@ trx_rseg_array_init(
 	mtr_t*		mtr);		/*!< in/out: mtr */
 /***************************************************************************
 Free's an instance of the rollback segment in memory. */
-
 void
 trx_rseg_mem_free(
 /*==============*/
@@ -137,7 +135,6 @@ trx_rseg_mem_free(
 					central array. */
 /*********************************************************************
 Creates a rollback segment. */
-
 trx_rseg_t*
 trx_rseg_create(
 /*============*/
@@ -151,7 +148,6 @@ The last space id will be the sentinel value ULINT_UNDEFINED. The array
 will be sorted on space id. Note: space_ids should have have space for
 TRX_SYS_N_RSEGS + 1 elements.
 @return number of unique rollback tablespaces in use. */
-
 ulint
 trx_rseg_get_n_undo_tablespaces(
 /*============================*/
@@ -219,6 +215,13 @@ struct trx_rseg_t {
 
 	/** TRUE if the last not yet purged log needs purging */
 	ibool				last_del_marks;
+
+	/** Reference counter to track rseg allocated transactions. */
+	ulint				trx_ref_count;
+
+	/** If true, then skip allocating this rseg as it reside in
+	UNDO-tablespace marked for truncate. */
+	bool				skip_allocation;
 };
 
 /* Undo log segment slot in a rollback segment header */

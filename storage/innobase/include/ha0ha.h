@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -47,7 +47,6 @@ ha_search_and_get_data(
 Looks for an element when we know the pointer to the data and updates
 the pointer to data if found.
 @return TRUE if found */
-
 ibool
 ha_search_and_update_if_found_func(
 /*===============================*/
@@ -85,7 +84,6 @@ updates the pointer to data if found.
 Creates a hash table with at least n array cells.  The actual number
 of cells is chosen to be a prime number slightly bigger than n.
 @return own: created table */
-
 hash_table_t*
 ib_create(
 /*======*/
@@ -97,9 +95,21 @@ ib_create(
 				the memory heap is going to be used e.g.:
 				MEM_HEAP_FOR_BTR_SEARCH or
 				MEM_HEAP_FOR_PAGE_HASH */
+
+/** Recreate a hash table with at least n array cells. The actual number
+of cells is chosen to be a prime number slightly bigger than n.
+The new cells are all cleared. The heaps are recreated.
+The sync objects are reused.
+@param[in,out]	table	hash table to be resuzed (to be freed later)
+@param[in]	n	number of array cells
+@return	resized new table */
+hash_table_t*
+ib_recreate(
+	hash_table_t*	table,
+	ulint		n);
+
 /*************************************************************//**
 Empties a hash table and frees the memory heaps. */
-
 void
 ha_clear(
 /*=====*/
@@ -110,7 +120,6 @@ Inserts an entry into a hash table. If an entry with the same fold number
 is found, its node is updated to point to the new data, and no new node
 is inserted.
 @return TRUE if succeed, FALSE if no more memory could be allocated */
-
 ibool
 ha_insert_for_fold_func(
 /*====================*/
@@ -169,7 +178,6 @@ ha_search_and_delete_if_found(
 /*****************************************************************//**
 Removes from the chain determined by fold all nodes whose data pointer
 points to the page given. */
-
 void
 ha_remove_all_nodes_to_page(
 /*========================*/
@@ -180,7 +188,6 @@ ha_remove_all_nodes_to_page(
 /*************************************************************//**
 Validates a given range of the cells in hash table.
 @return TRUE if ok */
-
 ibool
 ha_validate(
 /*========*/
@@ -190,7 +197,6 @@ ha_validate(
 #endif /* defined UNIV_AHI_DEBUG || defined UNIV_DEBUG */
 /*************************************************************//**
 Prints info of a hash table. */
-
 void
 ha_print_info(
 /*==========*/

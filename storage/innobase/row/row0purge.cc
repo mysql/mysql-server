@@ -60,7 +60,6 @@ introduced where a call to log_free_check() is bypassed. */
 /********************************************************************//**
 Creates a purge node to a query graph.
 @return own: purge node */
-
 purge_node_t*
 row_purge_node_create(
 /*==================*/
@@ -235,7 +234,6 @@ However, in that case, the user transaction would also re-insert the
 secondary index entry after purge has removed it and released the leaf
 page latch.
 @return true if the secondary index record can be purged */
-
 bool
 row_purge_poss_sec(
 /*===============*/
@@ -343,9 +341,24 @@ row_purge_remove_sec_if_poss_tree(
 	if (row_purge_poss_sec(node, index, entry)) {
 		/* Remove the index record, which should have been
 		marked for deletion. */
-		ut_ad(REC_INFO_DELETED_FLAG
-		      & rec_get_info_bits(btr_cur_get_rec(btr_cur),
-					  dict_table_is_comp(index->table)));
+		if (!rec_get_deleted_flag(btr_cur_get_rec(btr_cur),
+					  dict_table_is_comp(index->table))) {
+			fputs("InnoDB: tried to purge sec index entry not"
+			      " marked for deletion in\n"
+			      "InnoDB: ", stderr);
+			dict_index_name_print(stderr, NULL, index);
+			fputs("\n"
+			      "InnoDB: tuple ", stderr);
+			dtuple_print(stderr, entry);
+			fputs("\n"
+			      "InnoDB: record ", stderr);
+			rec_print(stderr, btr_cur_get_rec(btr_cur), index);
+			putc('\n', stderr);
+
+			ut_ad(0);
+
+			goto func_exit;
+		}
 
 		btr_cur_pessimistic_delete(&err, FALSE, btr_cur, 0,
 					   false, &mtr);
@@ -393,6 +406,11 @@ row_purge_remove_sec_if_poss_leaf(
 	mtr.set_named_space(index->space);
 
 	if (*index->name == TEMP_INDEX_PREFIX) {
+		/* For temp spatial index, we also skip the purge. */
+		if (dict_index_is_spatial(index)) {
+			goto func_exit_no_pcur;
+		}
+
 		/* The index->online_status may change if the
 		index->name starts with TEMP_INDEX_PREFIX (meaning
 		that the index is or was being created online). It is
@@ -456,10 +474,29 @@ row_purge_remove_sec_if_poss_leaf(
 			btr_cur_t* btr_cur = btr_pcur_get_btr_cur(&pcur);
 
 			/* Only delete-marked records should be purged. */
-			ut_ad(REC_INFO_DELETED_FLAG
-			      & rec_get_info_bits(
-				      btr_cur_get_rec(btr_cur),
-				      dict_table_is_comp(index->table)));
+			if (!rec_get_deleted_flag(
+				btr_cur_get_rec(btr_cur),
+				dict_table_is_comp(index->table))) {
+
+				fputs("InnoDB: tried to purge sec index"
+				      " entry not marked for deletion in\n"
+				      "InnoDB: ", stderr);
+				dict_index_name_print(stderr, NULL, index);
+				fputs("\n"
+				      "InnoDB: tuple ", stderr);
+				dtuple_print(stderr, entry);
+				fputs("\n"
+				      "InnoDB: record ", stderr);
+				rec_print(stderr, btr_cur_get_rec(btr_cur),
+					  index);
+				putc('\n', stderr);
+
+				ut_ad(0);
+
+				btr_pcur_close(&pcur);
+
+				goto func_exit_no_pcur;
+			}
 
 			if (dict_index_is_spatial(index)) {
 				const page_t*   page = btr_cur_get_page(btr_cur);
@@ -980,7 +1017,6 @@ row_purge_end(
 Does the purge operation for a single undo log record. This is a high-level
 function used in an SQL execution graph.
 @return query thread to run next or NULL */
-
 que_thr_t*
 row_purge_step(
 /*===========*/

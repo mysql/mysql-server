@@ -96,6 +96,8 @@ lock_rec_set_nth_bit(
 	bit_index = i % 8;
 
 	((byte*) &lock[1])[byte_index] |= 1 << bit_index;
+
+	++lock->trx->lock.n_rec_locks;
 }
 
 /*********************************************************************//**
@@ -122,11 +124,9 @@ lock_rec_get_first_on_page_addr(
 	ulint		space,		/*!< in: space */
 	ulint		page_no)	/*!< in: page number */
 {
-	lock_t*	lock;
-
 	ut_ad(lock_mutex_own());
 
-	for (lock = static_cast<lock_t*>(
+	for (lock_t* lock = static_cast<lock_t*>(
 			HASH_GET_FIRST(lock_hash,
 				       lock_rec_hash(space, page_no)));
 	     lock != NULL;
@@ -135,11 +135,11 @@ lock_rec_get_first_on_page_addr(
 		if (lock->un_member.rec_lock.space == space
 		    && lock->un_member.rec_lock.page_no == page_no) {
 
-			break;
+			return(lock);
 		}
 	}
 
-	return(lock);
+	return(NULL);
 }
 
 /*********************************************************************//**
@@ -153,28 +153,25 @@ lock_rec_get_first_on_page(
 	hash_table_t*		lock_hash,	/*!< in: lock hash table */
 	const buf_block_t*	block)		/*!< in: buffer block */
 {
-	ulint	hash;
-	lock_t*	lock;
-	ulint	space	= block->page.id.space();
-	ulint	page_no	= block->page.id.page_no();
-
 	ut_ad(lock_mutex_own());
 
-	hash = buf_block_get_lock_hash_val(block);
+	ulint	space	= block->page.id.space();
+	ulint	page_no	= block->page.id.page_no();
+	ulint	hash = buf_block_get_lock_hash_val(block);
 
-	for (lock = static_cast<lock_t*>(
+	for (lock_t* lock = static_cast<lock_t*>(
 			HASH_GET_FIRST(lock_hash, hash));
 	     lock != NULL;
 	     lock = static_cast<lock_t*>(HASH_GET_NEXT(hash, lock))) {
 
-		if ((lock->un_member.rec_lock.space == space)
-		    && (lock->un_member.rec_lock.page_no == page_no)) {
+		if (lock->un_member.rec_lock.space == space
+		    && lock->un_member.rec_lock.page_no == page_no) {
 
-			break;
+			return(lock);
 		}
 	}
 
-	return(lock);
+	return(NULL);
 }
 
 /*********************************************************************//**
@@ -221,18 +218,16 @@ lock_rec_get_first(
 	const buf_block_t*	block,	/*!< in: block containing the record */
 	ulint			heap_no)/*!< in: heap number of the record */
 {
-	lock_t*	lock;
-
 	ut_ad(lock_mutex_own());
 
-	for (lock = lock_rec_get_first_on_page(hash, block); lock;
+	for (lock_t* lock = lock_rec_get_first_on_page(hash, block); lock;
 	     lock = lock_rec_get_next_on_page(lock)) {
 		if (lock_rec_get_nth_bit(lock, heap_no)) {
-			break;
+			return(lock);
 		}
 	}
 
-	return(lock);
+	return(NULL);
 }
 
 /*********************************************************************//**
@@ -269,32 +264,25 @@ lock_rec_get_next_on_page_const(
 /*============================*/
 	const lock_t*	lock)	/*!< in: a record lock */
 {
-	ulint	space;
-	ulint	page_no;
-
 	ut_ad(lock_mutex_own());
 	ut_ad(lock_get_type_low(lock) == LOCK_REC);
 
-	space = lock->un_member.rec_lock.space;
-	page_no = lock->un_member.rec_lock.page_no;
+	ulint	space = lock->un_member.rec_lock.space;
+	ulint	page_no = lock->un_member.rec_lock.page_no;
 
-	for (;;) {
-		lock = static_cast<const lock_t*>(HASH_GET_NEXT(hash, lock));
+	while ((lock = static_cast<const lock_t*>(HASH_GET_NEXT(hash, lock)))
+	       != NULL) {
 
-		if (!lock) {
+		if (lock->un_member.rec_lock.space == space
+		    && lock->un_member.rec_lock.page_no == page_no) {
 
-			break;
-		}
-
-		if ((lock->un_member.rec_lock.space == space)
-		    && (lock->un_member.rec_lock.page_no == page_no)) {
-
-			break;
+			return(lock);
 		}
 	}
 
-	return(lock);
+	return(NULL);
 }
+
 /*********************************************************************//**
 Gets the mode of a lock.
 @return mode */
@@ -396,35 +384,34 @@ lock_table_has(
 /*===========*/
 	const trx_t*		trx,	/*!< in: transaction */
 	const dict_table_t*	table,	/*!< in: table */
-	enum lock_mode		mode)	/*!< in: lock mode */
+	lock_mode		in_mode)/*!< in: lock mode */
 {
-	lint	i;
-
-	if (ib_vector_is_empty(trx->lock.table_locks)) {
+	if (trx->lock.table_locks.empty()) {
 		return(NULL);
 	}
 
+	typedef lock_pool_t::const_reverse_iterator iterator;
+
+	iterator	end = trx->lock.table_locks.rend();
+
 	/* Look for stronger locks the same trx already has on the table */
 
-	for (i = ib_vector_size(trx->lock.table_locks) - 1; i >= 0; --i) {
-		const lock_t*	lock;
-		enum lock_mode	lock_mode;
+	for (iterator it = trx->lock.table_locks.rbegin(); it != end; ++it) {
 
-		lock = *static_cast<const lock_t**>(
-			ib_vector_get(trx->lock.table_locks, i));
+		const lock_t*	lock = *it;
 
 		if (lock == NULL) {
 			continue;
 		}
 
-		lock_mode = lock_get_mode(lock);
+		lock_mode	mode = lock_get_mode(lock);
 
 		ut_ad(trx == lock->trx);
 		ut_ad(lock_get_type_low(lock) & LOCK_TABLE);
 		ut_ad(lock->un_member.tab_lock.table != NULL);
 
 		if (table == lock->un_member.tab_lock.table
-		    && lock_mode_stronger_or_eq(lock_mode, mode)) {
+		    && lock_mode_stronger_or_eq(mode, in_mode)) {
 
 			ut_ad(!lock_get_wait(lock));
 

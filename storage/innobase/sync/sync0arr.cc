@@ -198,11 +198,11 @@ sync_array_create(
 	ut_a(n_cells > 0);
 
 	/* Allocate memory for the data structures */
-	sync_array_t*	arr = new(std::nothrow) sync_array_t;
+	sync_array_t*	arr = UT_NEW_NOKEY(sync_array_t());
 
 	memset(arr, 0x0, sizeof(*arr));
 
-	arr->array = new(std::nothrow) sync_cell_t[n_cells];
+	arr->array = UT_NEW_ARRAY_NOKEY(sync_cell_t, n_cells);
 
 	ulint	sz = sizeof(sync_cell_t) * n_cells;
 
@@ -234,14 +234,13 @@ sync_array_free(
 
 	mutex_free(&arr->mutex);
 
-	delete[] arr->array;
-	delete arr;
+	UT_DELETE_ARRAY(arr->array);
+	UT_DELETE(arr);
 }
 
 /********************************************************************//**
 Validates the integrity of the wait array. Checks
 that the number of reserved cells equals the count variable. */
-
 void
 sync_array_validate(
 /*================*/
@@ -294,7 +293,6 @@ sync_cell_get_event(
 Reserves a wait array cell for waiting for an object.
 The event of the cell is reset to nonsignalled state.
 @return sync cell to wait on */
-
 sync_cell_t*
 sync_array_reserve_cell(
 /*====================*/
@@ -369,7 +367,6 @@ sync_array_reserve_cell(
 /******************************************************************//**
 Frees the cell. NOTE! sync_array_wait_event frees the cell
 automatically! */
-
 void
 sync_array_free_cell(
 /*=================*/
@@ -415,7 +412,6 @@ This function should be called when a thread starts to wait on
 a wait array cell. In the debug version this function checks
 if the wait for a semaphore will result in a deadlock, in which
 case prints info and asserts. */
-
 void
 sync_array_wait_event(
 /*==================*/
@@ -634,7 +630,6 @@ Report an error to stderr.
 @param lock		rw-lock instance
 @param debug		rw-lock debug information
 @param cell		thread context */
-
 void
 sync_array_report_error(
 	rw_lock_t*		lock,
@@ -919,7 +914,6 @@ sync_arr_cell_can_wake_up(
 
 /**********************************************************************//**
 Increments the signalled count. */
-
 void
 sync_array_object_signalled()
 /*=========================*/
@@ -968,7 +962,6 @@ function should be called about every 1 second in the server.
 Note that there's a race condition between this thread and mutex_exit
 changing the lock_word and calling signal_object, so sometimes this finds
 threads to wake up even when nothing has gone wrong. */
-
 void
 sync_arr_wake_threads_if_sema_free(void)
 /*====================================*/
@@ -1055,7 +1048,6 @@ sync_array_print_long_waits_low(
 /**********************************************************************//**
 Prints warnings of long semaphore waits to stderr.
 @return TRUE if fatal semaphore wait threshold was exceeded */
-
 ibool
 sync_array_print_long_waits(
 /*========================*/
@@ -1162,7 +1154,6 @@ sync_array_print_info(
 
 /**********************************************************************//**
 Create the primary system wait array(s), they are protected by an OS mutex */
-
 void
 sync_array_init(
 /*============*/
@@ -1175,11 +1166,7 @@ sync_array_init(
 
 	sync_array_size = srv_sync_array_size;
 
-	/* We have to use ut_malloc() because the mutex infrastructure
-	hasn't been initialised yet. It is required by ut_malloc() and
-	the heap functions. */
-
-	sync_wait_array = new(std::nothrow) sync_array_t*[sync_array_size];
+	sync_wait_array = UT_NEW_ARRAY_NOKEY(sync_array_t*, sync_array_size);
 
 	ulint	n_slots = 1 + (n_threads - 1) / sync_array_size;
 
@@ -1191,7 +1178,6 @@ sync_array_init(
 
 /**********************************************************************//**
 Close sync array wait sub-system. */
-
 void
 sync_array_close(void)
 /*==================*/
@@ -1200,13 +1186,12 @@ sync_array_close(void)
 		sync_array_free(sync_wait_array[i]);
 	}
 
-	delete[] sync_wait_array;
+	UT_DELETE_ARRAY(sync_wait_array);
 	sync_wait_array = NULL;
 }
 
 /**********************************************************************//**
 Print info about the sync array(s). */
-
 void
 sync_array_print(
 /*=============*/

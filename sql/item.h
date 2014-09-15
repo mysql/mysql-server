@@ -1293,7 +1293,7 @@ protected:
 
     @return The value val_int() should return.
   */
-  longlong error_int()
+  int error_int()
   {
     null_value= maybe_null;
     return 0;
@@ -1616,8 +1616,8 @@ public:
                        WALK_POSTFIX: call processor after invoking children
                        WALK_SUBQUERY go down into subqueries
                        walk values are bit-coded and may be combined.
-                       Omitting both WALK_PREFIX and WALK_POSTFIX is "undefined
-                       behaviour" but will traverse all leaf nodes of the tree.
+                       Omitting both WALK_PREFIX and WALK_POSTFIX is undefined
+                       behaviour.
     @param arg         Optional pointer to a walk-specific object
 
     @retval      false walk succeeded
@@ -1713,6 +1713,20 @@ public:
                 the st_select_lex that contained the clause that was removed.
   */
   virtual bool clean_up_after_removal(uchar *arg) { return false; }
+  /// @see Distinct_check::check_query()
+  virtual bool aggregate_check_distinct(uchar *arg)
+  { return false; }
+  /// @see Group_check::check_query()
+  virtual bool aggregate_check_group(uchar *arg)
+  { return false; }
+  /// @see Group_check::analyze_conjunct()
+  virtual bool is_strong_side_column_not_in_fd(uchar *arg)
+  { return false; }
+  /// @see Group_check::is_in_fd_of_underlying()
+  virtual bool is_column_not_in_fd(uchar *arg)
+  { return false; }
+  virtual Bool3 local_column(const st_select_lex *sl) const
+  { return Bool3::false3(); }
 
   virtual bool cache_const_expr_analyzer(uchar **arg);
   virtual Item* cache_const_expr_transformer(uchar *arg);
@@ -2362,13 +2376,14 @@ protected:
   const char *orig_db_name;
   const char *orig_table_name;
   const char *orig_field_name;
+  bool m_alias_of_expr; ///< if this Item's name is alias of SELECT expression
 
 public:
   Name_resolution_context *context;
   const char *db_name;
   const char *table_name;
   const char *field_name;
-  bool alias_name_used; /* true if item was resolved against alias */
+
   /* 
     Cached value of index for this field in table->field array, used by prep. 
     stmts for speeding up their re-execution. Holds NO_CACHED_FIELD_INDEX 
@@ -2399,6 +2414,10 @@ public:
                                  st_select_lex *removed_select);
   void cleanup();
   bool remove_dependence_processor(uchar * arg);
+  virtual bool aggregate_check_distinct(uchar *arg);
+  virtual bool aggregate_check_group(uchar *arg);
+  Bool3 local_column(const st_select_lex *sl) const;
+
   virtual void print(String *str, enum_query_type query_type);
   virtual bool change_context_processor(uchar *cntx)
   {
@@ -2406,10 +2425,33 @@ public:
     return false;
   }
 
+  /// @returns true if this Item's name is alias of SELECT expression
+  bool is_alias_of_expr() const { return m_alias_of_expr; }
+  /// Marks that this Item's name is alias of SELECT expression
+  void set_alias_of_expr() { m_alias_of_expr= true; }
+
+  bool walk(Item_processor processor, enum_walk walk, uchar *arg)
+  {
+    /*
+      Item_ident processors like aggregate_check*() use
+      WALK_PREFIX|WALK_POSTFIX and depend on the processor being called twice
+      then.
+    */
+    return ((walk & WALK_PREFIX) && (this->*processor)(arg)) ||
+           ((walk & WALK_POSTFIX) && (this->*processor)(arg));
+  }
+
+  /**
+     @returns true if a part of this Item's full name (name or table name) is
+     an alias.
+  */
+  virtual bool alias_name_used() const { return m_alias_of_expr; }
   friend bool insert_fields(THD *thd, Name_resolution_context *context,
                             const char *db_name,
                             const char *table_name, List_iterator<Item> *it,
                             bool any_privileges);
+  bool is_strong_side_column_not_in_fd(uchar *arg);
+  bool is_column_not_in_fd(uchar *arg);
 };
 
 
@@ -2454,7 +2496,18 @@ class Item_field :public Item_ident
 protected:
   void set_field(Field *field);
 public:
-  Field *field,*result_field;
+  /**
+    Table containing this resolved field. This is required e.g for calculation
+    of table map. Notice that for the following types of "tables",
+    no TABLE_LIST object is assigned and hence table_ref is NULL:
+     - Temporary tables assigned by join optimizer for sorting and aggregation.
+     - Stored procedure dummy tables.
+    For fields referencing such tables, table number is always 0, and other
+    uses of table_ref is not needed.
+  */
+  TABLE_LIST *table_ref;
+  Field *field;
+  Field *result_field;
   Item_equal *item_equal;
   bool no_const_subst;
   /*
@@ -2569,8 +2622,7 @@ public:
   bool is_outer_field() const
   {
     DBUG_ASSERT(fixed);
-    return field->table->pos_in_table_list->outer_join ||
-           field->table->pos_in_table_list->outer_join_nest();
+    return table_ref->outer_join || table_ref->outer_join_nest();
   }
   Field::geometry_type get_geometry_type() const
   {
@@ -2605,9 +2657,6 @@ public:
   }
 #endif
 
-  /// Pushes the item to select_lex->non_agg_fields() and updates its marker.
-  bool push_to_non_agg_fields(st_select_lex *select_lex);
-
   float get_filtering_effect(table_map filter_for_table,
                              table_map read_tables,
                              const MY_BITMAP *fields_to_ignore,
@@ -2637,6 +2686,16 @@ public:
   friend class Item_default_value;
   friend class Item_insert_value;
   friend class st_select_lex_unit;
+
+  /**
+     @note that field->table->alias_name_used is reliable only if
+     thd->lex->need_correct_ident() is true.
+  */
+  virtual bool alias_name_used() const
+  { return m_alias_of_expr ||
+      // maybe the qualifying table was given an alias ("t1 AS foo"):
+      (field ? field->table->alias_name_used : false);
+ }
 };
 
 class Item_null :public Item_basic_constant
@@ -3652,7 +3711,7 @@ public:
   */
   Item_ref(Name_resolution_context *context_arg, Item **item,
            const char *table_name_arg, const char *field_name_arg,
-           bool alias_name_used_arg= FALSE);
+           bool alias_of_expr_arg= false);
 
   /* Constructor need to process subselect with temporary tables (see Item) */
   Item_ref(THD *thd, Item_ref *item)
@@ -3751,7 +3810,7 @@ public:
   void cleanup();
   Item_field *field_for_view_update()
     { return (*ref)->field_for_view_update(); }
-  virtual Ref_Type ref_type() { return REF; }
+  virtual Ref_Type ref_type() const { return REF; }
 
   // Row emulation: forwarding of ROW-related calls to ref
   uint cols()
@@ -3828,9 +3887,9 @@ public:
   Item_direct_ref(Name_resolution_context *context_arg, Item **item,
                   const char *table_name_arg,
                   const char *field_name_arg,
-                  bool alias_name_used_arg= FALSE)
+                  bool alias_of_expr_arg= false)
     :Item_ref(context_arg, item, table_name_arg,
-              field_name_arg, alias_name_used_arg)
+              field_name_arg, alias_of_expr_arg)
   {}
   /* Constructor need to process subselect with temporary tables (see Item) */
   Item_direct_ref(THD *thd, Item_direct_ref *item) : Item_ref(thd, item) {}
@@ -3844,7 +3903,7 @@ public:
   bool val_bool();
   bool is_null();
   bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate);
-  virtual Ref_Type ref_type() { return DIRECT_REF; }
+  virtual Ref_Type ref_type() const { return DIRECT_REF; }
 };
 
 /*
@@ -3886,7 +3945,7 @@ public:
     item->item_name= item_name;
     return item;
   }
-  virtual Ref_Type ref_type() { return VIEW_REF; }
+  virtual Ref_Type ref_type() const { return VIEW_REF; }
 };
 
 
@@ -3926,9 +3985,9 @@ public:
   }
   Item_outer_ref(Name_resolution_context *context_arg, Item **item,
                  const char *table_name_arg, const char *field_name_arg,
-                 bool alias_name_used_arg)
+                 bool alias_of_expr_arg)
     :Item_direct_ref(context_arg, item, table_name_arg, field_name_arg,
-                     alias_name_used_arg),
+                     alias_of_expr_arg),
     outer_ref(0), in_sum_func(0), found_in_select_list(1)
   {}
   void save_in_result_field(bool no_conversions)
@@ -3944,7 +4003,7 @@ public:
   }
   table_map not_null_tables() const { return 0; }
 
-  virtual Ref_Type ref_type() { return OUTER_REF; }
+  virtual Ref_Type ref_type() const { return OUTER_REF; }
 };
 
 
@@ -5025,7 +5084,7 @@ extern const String my_null_string;
 void convert_and_print(String *from_str, String *to_str,
                        const CHARSET_INFO *to_cs);
 #ifndef DBUG_OFF
-bool is_fixed_or_outer_ref(Item *ref);
+bool is_fixed_or_outer_ref(const Item *ref);
 #endif
 
 #endif /* ITEM_INCLUDED */

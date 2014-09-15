@@ -293,31 +293,31 @@ static ib_mutex_t	ibuf_mutex;
 static ib_mutex_t	ibuf_bitmap_mutex;
 
 /** The area in pages from which contract looks for page numbers for merge */
-#define	IBUF_MERGE_AREA			8UL
+const ulint		IBUF_MERGE_AREA = 8;
 
 /** Inside the merge area, pages which have at most 1 per this number less
 buffered entries compared to maximum volume that can buffered for a single
 page are merged along with the page whose buffer became full */
-#define IBUF_MERGE_THRESHOLD		4
+const ulint		IBUF_MERGE_THRESHOLD = 4;
 
 /** In ibuf_contract at most this number of pages is read to memory in one
 batch, in order to merge the entries for them in the insert buffer */
-#define	IBUF_MAX_N_PAGES_MERGED		IBUF_MERGE_AREA
+const ulint		IBUF_MAX_N_PAGES_MERGED = IBUF_MERGE_AREA;
 
 /** If the combined size of the ibuf trees exceeds ibuf->max_size by this
 many pages, we start to contract it in connection to inserts there, using
 non-synchronous contract */
-#define IBUF_CONTRACT_ON_INSERT_NON_SYNC	0
+const ulint		IBUF_CONTRACT_ON_INSERT_NON_SYNC = 0;
 
 /** If the combined size of the ibuf trees exceeds ibuf->max_size by this
 many pages, we start to contract it in connection to inserts there, using
 synchronous contract */
-#define IBUF_CONTRACT_ON_INSERT_SYNC		5
+const ulint		IBUF_CONTRACT_ON_INSERT_SYNC = 5;
 
 /** If the combined size of the ibuf trees exceeds ibuf->max_size by
 this many pages, we start to contract it synchronous contract, but do
 not insert */
-#define IBUF_CONTRACT_DO_NOT_INSERT		10
+const ulint		IBUF_CONTRACT_DO_NOT_INSERT = 10;
 
 /* TODO: how to cope with drop table if there are records in the insert
 buffer for the indexes of the table? Is there actually any problem,
@@ -453,7 +453,6 @@ ibuf_count_set(
 
 /******************************************************************//**
 Closes insert buffer and frees the data structures. */
-
 void
 ibuf_close(void)
 /*============*/
@@ -496,7 +495,6 @@ ibuf_size_update(
 /******************************************************************//**
 Creates the insert buffer data structure at a database startup and initializes
 the data structures for the insert buffer. */
-
 void
 ibuf_init_at_db_start(void)
 /*=======================*/
@@ -510,7 +508,7 @@ ibuf_init_at_db_start(void)
 	page_t*		header_page;
 	dberr_t		error;
 
-	ibuf = static_cast<ibuf_t*>(ut_zalloc(sizeof(ibuf_t)));
+	ibuf = static_cast<ibuf_t*>(ut_zalloc_nokey(sizeof(ibuf_t)));
 
 	/* At startup we intialize ibuf to have a maximum of
 	CHANGE_BUFFER_DEFAULT_SIZE in terms of percentage of the
@@ -590,7 +588,6 @@ ibuf_init_at_db_start(void)
 
 /*********************************************************************//**
 Updates the max_size value for ibuf. */
-
 void
 ibuf_max_size_update(
 /*=================*/
@@ -608,7 +605,6 @@ ibuf_max_size_update(
 #endif /* !UNIV_HOTBACKUP */
 /*********************************************************************//**
 Initializes an ibuf bitmap page. */
-
 void
 ibuf_bitmap_page_init(
 /*==================*/
@@ -638,7 +634,6 @@ ibuf_bitmap_page_init(
 /*********************************************************************//**
 Parses a redo log record of an ibuf bitmap page init.
 @return end of log record or NULL */
-
 byte*
 ibuf_parse_bitmap_init(
 /*===================*/
@@ -892,7 +887,6 @@ Sets the free bit of the page in the ibuf bitmap. This is done in a separate
 mini-transaction, hence this operation does not restrict further work to only
 ibuf bitmap operations, which would result if the latch to the bitmap page
 were kept. */
-
 void
 ibuf_set_free_bits_func(
 /*====================*/
@@ -932,6 +926,7 @@ ibuf_set_free_bits_func(
 			break;
 		}
 		/* fall through */
+	case FIL_TYPE_TEMPORARY:
 	case FIL_TYPE_IMPORT:
 		mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
 	}
@@ -979,7 +974,6 @@ buffer bitmap must never exceed the free space on a page.  It is safe
 to decrement or reset the bits in the bitmap in a mini-transaction
 that is committed before the mini-transaction that affects the free
 space. */
-
 void
 ibuf_reset_free_bits(
 /*=================*/
@@ -998,7 +992,6 @@ thread until mtr is committed.  NOTE: The free bits in the insert
 buffer bitmap must never exceed the free space on a page.  It is safe
 to set the free bits in the same mini-transaction that updated the
 page. */
-
 void
 ibuf_update_free_bits_low(
 /*======================*/
@@ -1038,7 +1031,6 @@ thread until mtr is committed.  NOTE: The free bits in the insert
 buffer bitmap must never exceed the free space on a page.  It is safe
 to set the free bits in the same mini-transaction that updated the
 page. */
-
 void
 ibuf_update_free_bits_zip(
 /*======================*/
@@ -1077,7 +1069,6 @@ virtually prevent any further operations until mtr is committed.
 NOTE: The free bits in the insert buffer bitmap must never exceed the
 free space on a page.  It is safe to set the free bits in the same
 mini-transaction that updated the pages. */
-
 void
 ibuf_update_free_bits_for_two_pages_low(
 /*====================================*/
@@ -1416,7 +1407,6 @@ Read the first two bytes from a record's fourth field (counter field in new
 records; something else in older records).
 @return "counter" field, or ULINT_UNDEFINED if for some reason it
 can't be read */
-
 ulint
 ibuf_rec_get_counter(
 /*=================*/
@@ -2229,7 +2219,6 @@ ibuf_remove_free_page(void)
 Frees excess pages from the ibuf free list. This function is called when an OS
 thread calls fsp services to allocate a new file segment, or a new page to a
 file segment, and the thread did not own the fsp latch before this call. */
-
 void
 ibuf_free_excess_pages(void)
 /*========================*/
@@ -2326,7 +2315,8 @@ ibuf_get_merge_page_nos_func(
 
 	*n_stored = 0;
 
-	limit = ut_min(IBUF_MAX_N_PAGES_MERGED, buf_pool_get_curr_size() / 4);
+	limit = ut_min(IBUF_MAX_N_PAGES_MERGED,
+		       buf_pool_get_curr_size() / 4);
 
 	if (page_rec_is_supremum(rec)) {
 
@@ -2771,7 +2761,6 @@ Contracts insert buffer trees by reading pages to the buffer pool.
 @return a lower limit for the combined size in bytes of entries which
 will be merged from ibuf trees to the pages read, 0 if ibuf is
 empty */
-
 ulint
 ibuf_contract_in_background(
 /*========================*/
@@ -3242,7 +3231,6 @@ count_later:
 /*********************************************************************//**
 Reads the biggest tablespace id from the high end of the insert buffer
 tree and updates the counter in fil_system. */
-
 void
 ibuf_update_max_tablespace_id(void)
 /*===============================*/
@@ -4539,7 +4527,7 @@ ibuf_merge_or_delete_for_page(
 	ulint		volume			= 0;
 #endif
 	page_zip_des_t*	page_zip		= NULL;
-	bool		tablespace_being_deleted = false;
+	fil_space_t*	space			= NULL;
 	bool		corruption_noticed	= false;
 	mtr_t		mtr;
 
@@ -4579,14 +4567,9 @@ ibuf_merge_or_delete_for_page(
 			return;
 		}
 
-		/* If the following returns FALSE, we get the counter
-		incremented, and must decrement it when we leave this
-		function. When the counter is > 0, that prevents tablespace
-		from being dropped. */
+		space = fil_space_acquire(page_id.space());
 
-		tablespace_being_deleted = fil_inc_pending_ops(page_id.space());
-
-		if (tablespace_being_deleted) {
+		if (space == NULL) {
 			/* Do not try to read the bitmap page from space;
 			just delete the ibuf records for the page */
 
@@ -4610,10 +4593,7 @@ ibuf_merge_or_delete_for_page(
 			if (!bitmap_bits) {
 				/* No inserts buffered for this page */
 
-				if (!tablespace_being_deleted) {
-					fil_decr_pending_ops(page_id.space());
-				}
-
+				fil_space_release(space);
 				return;
 			}
 		}
@@ -4638,7 +4618,7 @@ ibuf_merge_or_delete_for_page(
 		rw_lock_x_lock_move_ownership(&(block->lock));
 		page_zip = buf_block_get_page_zip(block);
 
-		if (fil_page_get_type(block->frame) != FIL_PAGE_INDEX
+		if (!fil_page_index_page_check(block->frame)
 		    || !page_is_leaf(block->frame)) {
 
 			page_t*	bitmap_page;
@@ -4917,9 +4897,8 @@ reset_bit:
 	mutex_exit(&ibuf_mutex);
 #endif /* HAVE_ATOMIC_BUILTINS */
 
-	if (update_ibuf_bitmap && !tablespace_being_deleted) {
-
-		fil_decr_pending_ops(page_id.space());
+	if (space != NULL) {
+		fil_space_release(space);
 	}
 
 #ifdef UNIV_IBUF_COUNT_DEBUG
@@ -4932,7 +4911,6 @@ Deletes all entries in the insert buffer for a given space id. This is used
 in DISCARD TABLESPACE, IMPORT TABLESPACE and TRUNCATE TABLESPACE.
 NOTE: this does not update the page free bitmaps in the space. The space will
 become CORRUPT when you call this function! */
-
 void
 ibuf_delete_for_discarded_space(
 /*============================*/
@@ -5024,7 +5002,6 @@ leave_loop:
 /******************************************************************//**
 Looks if the insert buffer is empty.
 @return true if empty */
-
 bool
 ibuf_is_empty(void)
 /*===============*/
@@ -5048,7 +5025,6 @@ ibuf_is_empty(void)
 
 /******************************************************************//**
 Prints info of ibuf. */
-
 void
 ibuf_print(
 /*=======*/
@@ -5096,7 +5072,6 @@ ibuf_print(
 /******************************************************************//**
 Checks the insert buffer bitmaps on IMPORT TABLESPACE.
 @return DB_SUCCESS or error code */
-
 dberr_t
 ibuf_check_bitmap_on_import(
 /*========================*/

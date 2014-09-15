@@ -35,6 +35,7 @@ Created Jan 06, 2010 Vasil Dimov
 #include "pars0pars.h"
 #include "dict0stats.h"
 #include "ha_prototypes.h"
+#include "ut0new.h"
 #include <mysql_com.h>
 
 #include <algorithm>
@@ -135,18 +136,15 @@ of keys. For example if a btree level is:
 index: 0,1,2,3,4,5,6,7,8,9,10,11,12
 data:  b,b,b,b,b,b,g,g,j,j,j, x, y
 then we would store 5,7,10,11,12 in the array. */
-typedef std::vector<ib_uint64_t>	boundaries_t;
+typedef std::vector<ib_uint64_t, ut_allocator<ib_uint64_t> >	boundaries_t;
 
-/* This is used to arrange the index based on the index name.
-@return true if index_name1 is smaller than index_name2. */
-struct index_cmp
-{
-	bool operator()(const char* index_name1, const char* index_name2) const {
-		return(strcmp(index_name1, index_name2) < 0);
-	}
-};
+/** Allocator type used for index_map_t. */
+typedef ut_allocator<std::pair<const char*, dict_index_t*> >
+	index_map_t_allocator;
 
-typedef std::map<const char*, dict_index_t*, index_cmp>	index_map_t;
+/** Auxiliary map used for sorting indexes by name in dict_stats_save(). */
+typedef std::map<const char*, dict_index_t*, ut_strcmp_functor,
+		index_map_t_allocator>	index_map_t;
 
 /*********************************************************************//**
 Checks whether an index should be ignored in stats manipulations:
@@ -244,7 +242,7 @@ dict_stats_persistent_storage_check(
 	dberr_t		ret;
 
 	if (!caller_has_dict_sys_mutex) {
-		mutex_enter(&(dict_sys->mutex));
+		mutex_enter(&dict_sys->mutex);
 	}
 
 	ut_ad(mutex_own(&dict_sys->mutex));
@@ -259,11 +257,11 @@ dict_stats_persistent_storage_check(
 	}
 
 	if (!caller_has_dict_sys_mutex) {
-		mutex_exit(&(dict_sys->mutex));
+		mutex_exit(&dict_sys->mutex);
 	}
 
 	if (ret != DB_SUCCESS) {
-		ib_logf(IB_LOG_LEVEL_ERROR, "%s", errstr);
+		ib::error() << errstr;
 		return(false);
 	}
 	/* else */
@@ -871,7 +869,6 @@ is relatively quick and is used to calculate transient statistics that
 are not saved on disk.
 This was the only way to calculate statistics before the
 Persistent Statistics feature was introduced. */
-
 void
 dict_stats_update_transient(
 /*========================*/
@@ -893,10 +890,10 @@ dict_stats_update_transient(
 		/* Table definition is corrupt */
 
 		char	buf[MAX_FULL_NAME_LEN];
-		ib_logf(IB_LOG_LEVEL_WARN,
-			"Table %s has no indexes."
-			" Cannot calculate statistics.",
-			ut_format_name(table->name, TRUE, buf, sizeof(buf)));
+
+		ib::warn() << "Table "
+			<< ut_format_name(table->name, TRUE, buf, sizeof(buf))
+			<< " has no indexes. Cannot calculate statistics.";
 		dict_stats_empty_table(table);
 		return;
 	}
@@ -1975,16 +1972,18 @@ dict_stats_analyze_index(
 
 	/* For each level that is being scanned in the btree, this contains the
 	number of different key values for all possible n-column prefixes. */
-	ib_uint64_t*		n_diff_on_level = new ib_uint64_t[n_uniq];
+	ib_uint64_t*	n_diff_on_level = UT_NEW_ARRAY(
+		ib_uint64_t, n_uniq, mem_key_dict_stats_n_diff_on_level);
 
 	/* For each level that is being scanned in the btree, this contains the
 	index of the last record from each group of equal records (when
 	comparing only the first n columns, n=1..n_uniq). */
-	boundaries_t*		n_diff_boundaries = new boundaries_t[n_uniq];
+	boundaries_t*	n_diff_boundaries = UT_NEW_ARRAY_NOKEY(boundaries_t,
+							       n_uniq);
 
 	/* For each n-column prefix this array contains the input data that is
 	used to calculate dict_index_t::stat_n_diff_key_vals[]. */
-	n_diff_data_t*		n_diff_data = new n_diff_data_t[n_uniq];
+	n_diff_data_t*	n_diff_data = UT_NEW_ARRAY_NOKEY(n_diff_data_t, n_uniq);
 
 	/* total_recs is also used to estimate the number of pages on one
 	level below, so at the start we have 1 page (the root) */
@@ -2152,9 +2151,9 @@ found_level:
 
 	mtr_commit(&mtr);
 
-	delete[] n_diff_boundaries;
+	UT_DELETE_ARRAY(n_diff_boundaries);
 
-	delete[] n_diff_on_level;
+	UT_DELETE_ARRAY(n_diff_on_level);
 
 	/* n_prefix == 0 means that the above loop did not end up prematurely
 	due to tree being changed and so n_diff_data[] is set up. */
@@ -2162,7 +2161,7 @@ found_level:
 		dict_stats_index_set_n_diff(n_diff_data, index);
 	}
 
-	delete[] n_diff_data;
+	UT_DELETE_ARRAY(n_diff_data);
 
 	dict_stats_assert_initialized_index(index);
 	DBUG_VOID_RETURN;
@@ -2275,8 +2274,8 @@ dict_stats_save_index_stat(
 	const char*	stat_description,
 	trx_t*		trx)
 {
-	pars_info_t*	pinfo;
 	dberr_t		ret;
+	pars_info_t*	pinfo;
 	char		db_utf8[MAX_DB_UTF8_LEN];
 	char		table_utf8[MAX_TABLE_UTF8_LEN];
 
@@ -2339,14 +2338,15 @@ dict_stats_save_index_stat(
 	if (ret != DB_SUCCESS) {
 		char	buf_table[MAX_FULL_NAME_LEN];
 		char	buf_index[MAX_FULL_NAME_LEN];
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Cannot save index statistics for table"
-			" %s, index %s, stat name \"%s\": %s",
-			ut_format_name(index->table->name, TRUE,
-				       buf_table, sizeof(buf_table)),
-			ut_format_name(index->name, FALSE,
-				       buf_index, sizeof(buf_index)),
-			stat_name, ut_strerr(ret));
+
+		ib::error() << "Cannot save index statistics for table "
+			<< ut_format_name(index->table->name, TRUE,
+					  buf_table, sizeof(buf_table))
+			<< ", index "
+			<< ut_format_name(index->name, FALSE,
+					  buf_index, sizeof(buf_index))
+			<< ", stat name \"" << stat_name << "\": "
+			<< ut_strerr(ret);
 	}
 
 	return(ret);
@@ -2419,10 +2419,9 @@ dict_stats_save(
 
 	if (ret != DB_SUCCESS) {
 		char	buf[MAX_FULL_NAME_LEN];
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Cannot save table statistics for table %s: %s",
-			ut_format_name(table->name, TRUE, buf, sizeof(buf)),
-			ut_strerr(ret));
+		ib::error() << "Cannot save table statistics for table "
+			<< ut_format_name(table->name, TRUE, buf, sizeof(buf))
+			<< ": " << ut_strerr(ret);
 
 		mutex_exit(&dict_sys->mutex);
 		rw_lock_x_unlock(&dict_operation_lock);
@@ -2441,7 +2440,9 @@ dict_stats_save(
 	}
 
 	dict_index_t*	index;
-	index_map_t	indexes;
+	index_map_t	indexes(
+		(ut_strcmp_functor()),
+		index_map_t_allocator(mem_key_dict_stats_index_map_t));
 
 	/* Below we do all the modifications in innodb_index_stats in a single
 	transaction for performance reasons. Modifying more than one row in a
@@ -2815,17 +2816,15 @@ dict_stats_fetch_index_stats_step(
 			dict_fs2utf8(table->name, db_utf8, sizeof(db_utf8),
 				     table_utf8, sizeof(table_utf8));
 
-			ib_logf(IB_LOG_LEVEL_INFO,
-				"Ignoring strange row from %s WHERE"
-				" database_name = '%s' AND table_name = '%s'"
-				" AND index_name = '%s' AND stat_name = '%.*s';"
-				" because stat_name is malformed",
-				INDEX_STATS_NAME_PRINT,
-				db_utf8,
-				table_utf8,
-				index->name,
-				(int) stat_name_len,
-				stat_name);
+			ib::info	out;
+			out << "Ignoring strange row from "
+				<< INDEX_STATS_NAME_PRINT << " WHERE"
+				" database_name = '" << db_utf8
+				<< "' AND table_name = '" << table_utf8
+				<< "' AND index_name = '" << index->name
+				<< "' AND stat_name = '";
+			out.write(stat_name, stat_name_len);
+			out << "'; because stat_name is malformed";
 			return(TRUE);
 		}
 		/* else */
@@ -2844,19 +2843,17 @@ dict_stats_fetch_index_stats_step(
 			dict_fs2utf8(table->name, db_utf8, sizeof(db_utf8),
 				     table_utf8, sizeof(table_utf8));
 
-			ib_logf(IB_LOG_LEVEL_INFO,
-				"Ignoring strange row from %s WHERE"
-				" database_name = '%s' AND table_name = '%s'"
-				" AND index_name = '%s' AND stat_name = '%.*s';"
-				" because stat_name is out of range, the index"
-				" has %lu unique columns",
-				INDEX_STATS_NAME_PRINT,
-				db_utf8,
-				table_utf8,
-				index->name,
-				(int) stat_name_len,
-				stat_name,
-				n_uniq);
+			ib::info	out;
+			out << "Ignoring strange row from "
+				<< INDEX_STATS_NAME_PRINT << " WHERE"
+				" database_name = '" << db_utf8
+				<< "' AND table_name = '" << table_utf8
+				<< "' AND index_name = '" << index->name
+				<< "' AND stat_name = '";
+			out.write(stat_name, stat_name_len);
+			out << "'; because stat_name is out of range, the index"
+				" has " << n_uniq << " unique columns";
+
 			return(TRUE);
 		}
 		/* else */
@@ -3012,7 +3009,6 @@ dict_stats_fetch_from_ps(
 
 /*********************************************************************//**
 Fetches or calculates new estimates for index statistics. */
-
 void
 dict_stats_update_for_index(
 /*========================*/
@@ -3038,15 +3034,16 @@ dict_stats_update_for_index(
 		char	buf_table[MAX_FULL_NAME_LEN];
 		char	buf_index[MAX_FULL_NAME_LEN];
 
-		ib_logf(IB_LOG_LEVEL_INFO,
-			"Recalculation of persistent statistics"
-			" requested for table %s index %s but the required"
+		ib::info() << "Recalculation of persistent statistics"
+			" requested for table "
+			<< ut_format_name(index->table->name, TRUE,
+					  buf_table, sizeof(buf_table))
+			<< " index "
+			<< ut_format_name(index->name, FALSE,
+					  buf_index, sizeof(buf_index))
+			<< " but the required"
 			" persistent statistics storage is not present or is"
-			" corrupted. Using transient stats instead.",
-			ut_format_name(index->table->name, TRUE,
-				       buf_table, sizeof(buf_table)),
-			ut_format_name(index->name, FALSE,
-				       buf_index, sizeof(buf_index)));
+			" corrupted. Using transient stats instead.";
 	}
 
 	dict_table_stats_lock(index->table, RW_X_LATCH);
@@ -3060,7 +3057,6 @@ dict_stats_update_for_index(
 Calculates new estimates for table and index statistics. The statistics
 are used in query optimization.
 @return DB_SUCCESS or error code */
-
 dberr_t
 dict_stats_update(
 /*==============*/
@@ -3076,11 +3072,12 @@ dict_stats_update(
 	ut_ad(!mutex_own(&dict_sys->mutex));
 
 	if (table->ibd_file_missing) {
-		ib_logf(IB_LOG_LEVEL_WARN,
-			"Cannot calculate statistics for table %s"
-			" because the .ibd file is missing. %s",
-			ut_format_name(table->name, TRUE, buf, sizeof(buf)),
-			TROUBLESHOOTING_MSG);
+
+		ib::warn() << "Cannot calculate statistics for table "
+			<< ut_format_name(table->name, TRUE, buf, sizeof(buf))
+			<< " because the .ibd file is missing. "
+			<< TROUBLESHOOTING_MSG;
+
 		dict_stats_empty_table(table);
 		return(DB_TABLESPACE_DELETED);
 	} else if (srv_force_recovery >= SRV_FORCE_NO_IBUF_MERGE) {
@@ -3130,12 +3127,12 @@ dict_stats_update(
 		/* Fall back to transient stats since the persistent
 		storage is not present or is corrupted */
 
-		ib_logf(IB_LOG_LEVEL_WARN,
-			"Recalculation of persistent statistics"
-			" requested for table %s but the required persistent"
+		ib::warn() << "Recalculation of persistent statistics"
+			" requested for table "
+			<< ut_format_name(table->name, TRUE, buf, sizeof(buf))
+			<< " but the required persistent"
 			" statistics storage is not present or is corrupted."
-			" Using transient stats instead.",
-			ut_format_name(table->name, TRUE, buf, sizeof(buf)));
+			" Using transient stats instead.";
 
 		goto transient;
 
@@ -3179,15 +3176,15 @@ dict_stats_update(
 			/* persistent statistics storage does not exist
 			or is corrupted, calculate the transient stats */
 
-			ib_logf(IB_LOG_LEVEL_ERROR,
-				"Fetch of persistent statistics requested for"
-				" table %s but the required system tables %s"
-				" and %s are not present or have unexpected"
-				" structure. Using transient stats instead.",
-				ut_format_name(table->name, TRUE,
-					       buf, sizeof(buf)),
-				TABLE_STATS_NAME_PRINT,
-				INDEX_STATS_NAME_PRINT);
+			ib::error() << "Fetch of persistent statistics"
+				" requested for table "
+				<< ut_format_name(table->name, TRUE,
+						  buf, sizeof(buf))
+				<< " but the required system tables "
+				<< TABLE_STATS_NAME_PRINT
+				<< " and " << INDEX_STATS_NAME_PRINT
+				<< " are not present or have unexpected"
+				" structure. Using transient stats instead.";
 
 			goto transient;
 		}
@@ -3238,32 +3235,31 @@ dict_stats_update(
 			}
 
 			ut_format_name(table->name, TRUE, buf, sizeof(buf));
-			ib_logf(IB_LOG_LEVEL_INFO,
-				"Trying to use table %s which has persistent"
-				" statistics enabled, but auto recalculation"
-				" turned off and the statistics do not exist in"
-				" %s and %s. Please either run"
-				" \"ANALYZE TABLE %s;\" manually or enable the"
-				" auto recalculation with"
-				" \"ALTER TABLE %s STATS_AUTO_RECALC=1;\"."
+
+			ib::info() << "Trying to use table " << buf
+				<< " which has persistent statistics enabled,"
+				" but auto recalculation turned off and the"
+				" statistics do not exist in " TABLE_STATS_NAME
+				" and " INDEX_STATS_NAME ". Please either run"
+				" \"ANALYZE TABLE "
+				<< buf << ";\" manually or enable the"
+				" auto recalculation with \"ALTER TABLE "
+				<< buf << " STATS_AUTO_RECALC=1;\"."
 				" InnoDB will now use transient statistics for"
-				" %s.",
-				buf, TABLE_STATS_NAME, INDEX_STATS_NAME, buf,
-				buf, buf);
+				" %s." << buf << ".";
 
 			goto transient;
 		default:
 
 			dict_stats_table_clone_free(t);
-			ib_logf(IB_LOG_LEVEL_ERROR,
-				"Error fetching persistent statistics"
-				" for table %s from %s and %s: %s."
-				" Using transient stats method instead.",
-				ut_format_name(table->name, TRUE, buf,
-					       sizeof(buf)),
-				TABLE_STATS_NAME,
-				INDEX_STATS_NAME,
-				ut_strerr(err));
+
+			ib::error() << "Error fetching persistent statistics"
+				" for table "
+				<< ut_format_name(table->name, TRUE, buf,
+						  sizeof(buf))
+				<< " from " TABLE_STATS_NAME " and "
+				INDEX_STATS_NAME ": " << ut_strerr(err)
+				<< ". Using transient stats method instead.";
 
 			goto transient;
 		}
@@ -3293,7 +3289,6 @@ marko: If ibuf merges are not disabled, we need to scan the *.ibd files.
 But we shouldn't open *.ibd files before we have rolled back dict
 transactions and opened the SYS_* records for the *.ibd files.
 @return DB_SUCCESS or error code */
-
 dberr_t
 dict_stats_drop_index(
 /*==================*/
@@ -3455,7 +3450,6 @@ Removes the statistics for a table and all of its indexes from the
 persistent statistics storage if it exists and if there is data stored for
 the table. This function creates its own transaction and commits it.
 @return DB_SUCCESS or error code */
-
 dberr_t
 dict_stats_drop_table(
 /*==================*/
@@ -3623,7 +3617,6 @@ dict_stats_rename_table_in_index_stats(
 Renames a table in InnoDB persistent stats storage.
 This function creates its own transaction and commits it.
 @return DB_SUCCESS or error code */
-
 dberr_t
 dict_stats_rename_table(
 /*====================*/
@@ -3781,7 +3774,6 @@ Renames an index in InnoDB persistent stats storage.
 This function creates its own transaction and commits it.
 @return DB_SUCCESS or error code. DB_STATS_DO_NOT_EXIST will be returned
 if the persistent stats do not exist. */
-
 dberr_t
 dict_stats_rename_index(
 /*====================*/
@@ -3879,7 +3871,7 @@ test_dict_table_schema_check()
 	/* prevent any data dictionary modifications while we are checking
 	the tables' structure */
 
-	mutex_enter(&(dict_sys->mutex));
+	mutex_enter(&dict_sys->mutex);
 
 	/* check that a valid table is reported as valid */
 	schema.n_cols = 7;
@@ -3955,7 +3947,7 @@ test_dict_table_schema_check()
 
 test_dict_table_schema_check_end:
 
-	mutex_exit(&(dict_sys->mutex));
+	mutex_exit(&dict_sys->mutex);
 }
 /* @} */
 

@@ -131,6 +131,7 @@ select str_to_date(concat('15-01-2001',' 2:59:58.999'),
 select STR_TO_DATE('2004.12.12 22.30.61','%Y.%m.%d %T');
 --enable_ps_protocol
 
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 create table t1 (date char(30), format char(30) not null);
 insert into t1 values
 ('2003-01-02 10:11:12', '%Y-%m-%d %H:%i:%S'),
@@ -218,7 +219,7 @@ drop table t1;
 #
 # Test of get_format
 #
-
+SET sql_mode = default;
 select get_format(DATE, 'USA') as a;
 select get_format(TIME, 'internal') as a;
 select get_format(DATETIME, 'eur') as a;
@@ -241,7 +242,7 @@ drop table t1;
 --disable_ps_protocol
 select str_to_date("2003-....01ABCD-02 10:11:12.0012", "%Y-%.%m%@-%d %H:%i:%S.%f") as a;
 
-
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 create table t1 select str_to_date("2003-01-02 10:11:12.0012", "%Y-%m-%d %H:%i:%S.%f") as f1,
 			str_to_date("10:11:12.0012", "%H:%i:%S.%f") as f2,
 			str_to_date("2003-01-02", "%Y-%m-%d") as f3,
@@ -267,6 +268,7 @@ select str_to_date("2003-01-02 10:11:12.0012ABCD", "%Y-%m-%d %H:%i:%S.%f") as f1
 
 select str_to_date("2003-04-05  g", "%Y-%m-%d") as f1,
        str_to_date("2003-04-05 10:11:12.101010234567", "%Y-%m-%d %H:%i:%S.%f") as f2;
+SET sql_mode = default;
 --enable_ps_protocol
 
 #
@@ -393,3 +395,17 @@ SELECT TIME_FORMAT(NULL, '%s')+0e0;
 --echo #
 --echo # End of 5.6 tests
 --echo #
+
+--echo #
+--echo # Bug#19047644 EXTRACT_DATE_TIME MISBEHAVES WITH
+--echo #              UNINITIALISED VALUE ON GARBAGE INPUTS
+--echo #
+
+do str_to_date(1, "%#");
+
+--echo #
+--echo # Bug#19047488 MAKE_DATE_TIME WITH TOO BIG STRING ARGUMENT, 
+--echo #              INVALID MEMORY READS
+--echo #
+
+do timestamp(date_format('2011-11-11', right("12345" + 1, 3)));

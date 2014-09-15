@@ -232,14 +232,12 @@ bool mysql_update(THD *thd,
 #endif
   ha_rows       updated, found;
   key_map       old_covering_keys;
-  SQL_SELECT   *select= NULL;
   READ_RECORD   info;
   SELECT_LEX   *select_lex= thd->lex->select_lex;
   ulonglong     id;
   List<Item> all_fields;
   THD::killed_state killed_status= THD::NOT_KILLED;
   COPY_INFO update(COPY_INFO::UPDATE_OPERATION, &fields, &values);
-  SQL_SELECT *saved_selects[2]= {NULL, NULL};
   TABLE_LIST *const table_list= select_lex->get_table_list();
   DBUG_ENTER("mysql_update");
 
@@ -335,6 +333,9 @@ bool mysql_update(THD *thd,
   */
   if (table->triggers)
     table->triggers->mark_fields(TRG_EVENT_UPDATE);
+
+  QEP_TAB_standalone qep_tab_st;
+  QEP_TAB &qep_tab= qep_tab_st.as_QEP_TAB();
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
   if (table->part_info)
@@ -467,14 +468,28 @@ bool mysql_update(THD *thd,
   table->file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK);
 
   table->mark_columns_needed_for_update();
-  saved_selects[0]= select= make_select(table, 0, 0, conds, 0, &error);
+
+  error= 0;
+  qep_tab.set_table(table);
+  qep_tab.set_condition(conds);
 
   { // Enter scope for optimizer trace wrapper
     Opt_trace_object wrapper(&thd->opt_trace);
     wrapper.add_utf8_table(table);
 
-    if (error || !limit ||
-        (select && select->check_quick(thd, safe_update, limit)))
+    bool impossible= false;
+    if (error || limit == 0)
+      impossible= true;
+    else if (conds != NULL)
+    {
+      key_map keys_to_use(key_map::ALL_BITS), needed_reg_dummy;
+      QUICK_SELECT_I *qck;
+      impossible= test_quick_select(thd, keys_to_use, 0, limit, safe_update,
+                                    ORDER::ORDER_NOT_RELEVANT, &qep_tab,
+                                    conds, &needed_reg_dummy, &qck) < 0;
+      qep_tab.set_quick(qck);
+    }
+    if (impossible)
     {
       if (thd->lex->describe && !error && !thd->is_error())
       {
@@ -483,7 +498,6 @@ bool mysql_update(THD *thd,
         error= explain_single_table_modification(thd, &plan, select_lex);
         goto exit_without_my_ok;
       }
-      delete select;
       free_underlaid_joins(thd, select_lex);
       /*
         There was an error or the error was already sent by
@@ -523,7 +537,7 @@ bool mysql_update(THD *thd,
   table->update_const_key_parts(conds);
   order= simple_remove_const(order, conds);
         
-  used_index= get_index_for_order(order, table, select, limit,
+  used_index= get_index_for_order(order, &qep_tab, limit,
                                   &need_sort, &reverse);
   if (need_sort)
   { // Assign table scan index to check below for modified key fields:
@@ -533,14 +547,14 @@ bool mysql_update(THD *thd,
   { // Check if we are modifying a key that we are used to search with:
     used_key_is_modified= is_key_used(table, used_index, table->write_set);
   }
-  else if (select && select->quick)
+  else if (qep_tab.quick())
   {
     /*
       select->quick != NULL and used_index == MAX_KEY happens for index
       merge and should be handled in a different way.
     */
-    used_key_is_modified= (!select->quick->unique_key_range() &&
-                           select->quick->is_keys_used(table->write_set));
+    used_key_is_modified= (!qep_tab.quick()->unique_key_range() &&
+                           qep_tab.quick()->is_keys_used(table->write_set));
   }
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
@@ -551,18 +565,21 @@ bool mysql_update(THD *thd,
 
   {
     ha_rows rows;
-    if (select && select->quick)
-      rows= select->quick->records;
-    else if (!select && !need_sort && limit != HA_POS_ERROR)
+    if (qep_tab.quick())
+      rows= qep_tab.quick()->records;
+    else if (!conds && !need_sort && limit != HA_POS_ERROR)
       rows= limit;
     else
     {
-      table->pos_in_table_list->fetch_number_of_rows();
+      DBUG_ASSERT(table->pos_in_table_list == update_table_ref);
+      update_table_ref->fetch_number_of_rows();
       rows= table->file->stats.records;
     }
+    qep_tab.set_quick_optim();
+    qep_tab.set_condition_optim();
     DEBUG_SYNC(thd, "before_single_update");
-    Modification_plan plan(thd, MT_UPDATE, table,
-                           select, used_index, limit,
+    Modification_plan plan(thd, MT_UPDATE, &qep_tab,
+                           used_index, limit,
                            (!using_filesort && (used_key_is_modified || order)),
                            using_filesort, used_key_is_modified, rows);
     DEBUG_SYNC(thd, "planned_single_update");
@@ -592,12 +609,14 @@ bool mysql_update(THD *thd,
         */
         ha_rows examined_rows;
         ha_rows found_rows;
-        Filesort fsort(order, limit, select);
+        Filesort fsort(order, limit);
 
-        table->sort.io_cache = (IO_CACHE *) my_malloc(key_memory_TABLE_sort_io_cache,
-                                                      sizeof(IO_CACHE),
-                                                      MYF(MY_FAE | MY_ZEROFILL));
-        if ((table->sort.found_records= filesort(thd, table, &fsort, true,
+        DBUG_ASSERT(table->sort.io_cache == NULL);
+        table->sort.io_cache= (IO_CACHE*) my_malloc(key_memory_TABLE_sort_io_cache,
+                                                    sizeof(IO_CACHE),
+                                                    MYF(MY_FAE | MY_ZEROFILL));
+
+        if ((table->sort.found_records= filesort(thd, &qep_tab, &fsort, true,
                                                  &examined_rows, &found_rows))
             == HA_POS_ERROR)
         {
@@ -608,7 +627,8 @@ bool mysql_update(THD *thd,
           Filesort has already found and selected the rows we want to update,
           so we don't need the where clause
         */
-        select= NULL; // will be freed at the end
+        qep_tab.set_quick(NULL);
+        qep_tab.set_condition(NULL);
       }
       else
       {
@@ -625,7 +645,7 @@ bool mysql_update(THD *thd,
           goto exit_without_my_ok;
 
         /* If quick select is used, initialize it before retrieving rows. */
-        if (select && select->quick && (error= select->quick->reset()))
+        if (qep_tab.quick() && (error= qep_tab.quick()->reset()))
         {
           close_cached_file(&tempfile);
           if (table->file->is_fatal_error(error))
@@ -647,8 +667,8 @@ bool mysql_update(THD *thd,
           Full index scan must be started with init_read_record_idx
         */
 
-        if (used_index == MAX_KEY || (select && select->quick))
-          error= init_read_record(&info, thd, table, select, 0, 1, FALSE);
+        if (used_index == MAX_KEY || (qep_tab.quick()))
+          error= init_read_record(&info, thd, NULL, &qep_tab, 0, 1, FALSE);
         else
           error= init_read_record_idx(&info, thd, table, 1, used_index, reverse);
 
@@ -665,7 +685,7 @@ bool mysql_update(THD *thd,
         {
           thd->inc_examined_row_count(1);
           bool skip_record= FALSE;
-          if (select && select->skip_record(thd, &skip_record))
+          if (qep_tab.skip_record(thd, &skip_record))
           {
             error= 1;
             /*
@@ -701,15 +721,21 @@ bool mysql_update(THD *thd,
         table->file->try_semi_consistent_read(0);
         end_read_record(&info);
         /* Change select to use tempfile */
-        // Leave original select untouched for EXPLAIN FOR CONNECTION
-        saved_selects[1]= select= new SQL_SELECT;
-        select->head= table;
         if (reinit_io_cache(&tempfile,READ_CACHE,0L,0,0))
           error=1; /* purecov: inspected */
         // Read row ptrs from this file.
-        // TODO table->sort.io_cache could be used instead of creating new
-        // select
-        select->file= tempfile;
+        DBUG_ASSERT(table->sort.io_cache == NULL);
+        table->sort.io_cache= (IO_CACHE*) my_malloc(key_memory_TABLE_sort_io_cache,
+                                                    sizeof(IO_CACHE),
+                                                    MYF(MY_FAE | MY_ZEROFILL));
+        /*
+          After this assignment, init_read_record() will run, and decide to
+          read from sort.io_cache. This cache will be freed when qep_tab is
+          destroyed.
+         */
+        *table->sort.io_cache= tempfile;
+        qep_tab.set_quick(NULL);
+        qep_tab.set_condition(NULL);
         if (error >= 0)
           goto exit_without_my_ok;
       }
@@ -721,7 +747,7 @@ bool mysql_update(THD *thd,
     if (thd->lex->is_ignore())
       table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
   
-    if (select && select->quick && (error= select->quick->reset()))
+    if (qep_tab.quick() && (error= qep_tab.quick()->reset()))
     {
       if (table->file->is_fatal_error(error))
         error_flags|= ME_FATALERROR;
@@ -731,7 +757,7 @@ bool mysql_update(THD *thd,
     }
 
     table->file->try_semi_consistent_read(1);
-    if ((error= init_read_record(&info, thd, table, select, 0, 1, FALSE)))
+    if ((error= init_read_record(&info, thd, NULL, &qep_tab, 0, 1, FALSE)))
       goto exit_without_my_ok;
 
     updated= found= 0;
@@ -762,15 +788,18 @@ bool mysql_update(THD *thd,
 
     if ((table->file->ha_table_flags() & HA_READ_BEFORE_WRITE_REMOVAL) &&
         !thd->lex->is_ignore() && !using_limit &&
-        select && select->quick && select->quick->index != MAX_KEY &&
+        qep_tab.quick() && qep_tab.quick()->index != MAX_KEY &&
         check_constant_expressions(values))
-      read_removal= table->check_read_removal(select->quick->index);
+      read_removal= table->check_read_removal(qep_tab.quick()->index);
 
-    while (!(error=info.read_record(&info)) && !thd->killed)
+    while (true)
     {
+      error= info.read_record(&info);
+      if (error || thd->killed)
+        break;
       thd->inc_examined_row_count(1);
       bool skip_record;
-      if (!select || (!select->skip_record(thd, &skip_record) && !skip_record))
+      if ((!qep_tab.skip_record(thd, &skip_record) && !skip_record))
       {
         if (table->file->was_semi_consistent_read())
           continue;  /* repeat the read of the same row if it still exists */
@@ -992,8 +1021,6 @@ bool mysql_update(THD *thd,
       Transaction_ctx::STMT);
 
   end_read_record(&info);
-  delete saved_selects[0];
-  delete saved_selects[1];
   THD_STAGE_INFO(thd, stage_end);
   (void) table->file->extra(HA_EXTRA_NO_IGNORE_DUP_KEY);
 
@@ -1057,8 +1084,6 @@ bool mysql_update(THD *thd,
   DBUG_RETURN((error >= 0 || thd->is_error()) ? 1 : 0);
 
 exit_without_my_ok:
-  delete saved_selects[0];
-  delete saved_selects[1];
   free_underlaid_joins(thd, select_lex);
   table->set_keyread(FALSE);
   DBUG_RETURN(error);
@@ -1173,7 +1198,7 @@ bool unsafe_key_update(TABLE_LIST *leaves, table_map tables_for_update)
 
   for (tl= leaves; tl ; tl= tl->next_leaf)
   {
-    if (tl->table->map & tables_for_update)
+    if (tl->map() & tables_for_update)
     {
       TABLE *table1= tl->table;
       bool primkey_clustered= (table1->file->primary_key_is_clustered() &&
@@ -1194,7 +1219,7 @@ bool unsafe_key_update(TABLE_LIST *leaves, table_map tables_for_update)
           already been checked
         */
         TABLE *table2= tl2->table;
-        if (table2->map & tables_for_update && table1->s == table2->s)
+        if (tl2->map() & tables_for_update && table1->s == table2->s)
         {
 #ifdef WITH_PARTITION_STORAGE_ENGINE
           // A table is updated through two aliases
@@ -1286,7 +1311,7 @@ static bool multi_update_check_table_access(THD *thd, TABLE_LIST *table,
     */
     DBUG_ASSERT(table->merge_underlying_list ||
                 (!table->updatable &&
-                 !(table->table->map & tables_for_update)));
+                 !(table->map() & tables_for_update)));
 
     for (TABLE_LIST *tbl= table->merge_underlying_list; tbl;
          tbl= tbl->next_local)
@@ -1304,7 +1329,7 @@ static bool multi_update_check_table_access(THD *thd, TABLE_LIST *table,
   else
   {
     /* Must be a base or derived table. */
-    const bool updated= table->table->map & tables_for_update;
+    const bool updated= table->map() & tables_for_update;
     if (check_table_access(thd, updated ? UPDATE_ACL : SELECT_ACL, table,
                            FALSE, 1, FALSE))
       return true;
@@ -1407,10 +1432,8 @@ int mysql_multi_update_prepare(THD *thd)
   */
   for (tl= leaves; tl; tl= tl->next_leaf)
   {
-    TABLE *table= tl->table;
-
     /* if table will be updated then check that it is unique */
-    if (table->map & tables_for_update)
+    if (tl->map() & tables_for_update)
     {
       if (!tl->updatable || check_key_in_view(thd, tl, tl))
       {
@@ -1621,9 +1644,9 @@ int multi_update::prepare(List<Item> &not_used_values,
   */
   for (table_ref= leaves; table_ref; table_ref= table_ref->next_leaf)
   {
-    TABLE *table= table_ref->table;
-    if (tables_to_update & table->map)
+    if (tables_to_update & table_ref->map())
     {
+      TABLE *const table= table_ref->table;
       DBUG_ASSERT(table->read_set == &table->def_read_set);
       table->read_set= &table->tmp_set;
       bitmap_clear_all(table->read_set);
@@ -1640,9 +1663,9 @@ int multi_update::prepare(List<Item> &not_used_values,
 
   for (table_ref= leaves; table_ref; table_ref= table_ref->next_leaf)
   {
-    TABLE *table= table_ref->table;
-    if (tables_to_update & table->map)
+    if (tables_to_update & table_ref->map())
     {
+      TABLE *const table= table_ref->table;
       table->read_set= &table->def_read_set;
       bitmap_union(table->read_set, &table->tmp_set);
       bitmap_clear_all(&table->tmp_set);
@@ -1662,16 +1685,18 @@ int multi_update::prepare(List<Item> &not_used_values,
   for (table_ref= leaves; table_ref; table_ref= table_ref->next_leaf)
   {
     /* TODO: add support of view of join support */
-    TABLE *table=table_ref->table;
     leaf_table_count++;
-    if (tables_to_update & table->map)
+    if (tables_to_update & table_ref->map())
     {
       TABLE_LIST *tl= (TABLE_LIST*) thd->memdup(table_ref,
 						sizeof(*tl));
       if (!tl)
 	DBUG_RETURN(1);
+
+      TABLE *const table= table_ref->table;
+
       update.link_in_list(tl, &tl->next_local);
-      tl->shared= table_count++;
+      table_ref->shared= tl->shared= table_count++;
       table->no_keyread=1;
       table->covering_keys.clear_all();
       table->pos_in_table_list= tl;
@@ -1719,7 +1744,7 @@ int multi_update::prepare(List<Item> &not_used_values,
   while ((item= (Item_field *) field_it++))
   {
     Item *value= value_it++;
-    uint offset= item->field->table->pos_in_table_list->shared;
+    uint offset= item->table_ref->shared;
     fields_for_table[offset]->push_back(item);
     values_for_table[offset]->push_back(value);
   }
@@ -1735,12 +1760,13 @@ int multi_update::prepare(List<Item> &not_used_values,
 
   for (TABLE_LIST *ref= leaves; ref != NULL; ref= ref->next_leaf)
   {
-    TABLE *table= ref->table;
-    if (tables_to_update & table->map)
+    if (tables_to_update & ref->map())
     {
-      const uint position= table->pos_in_table_list->shared;
+      const uint position= ref->shared;
       List<Item> *cols= fields_for_table[position];
       List<Item> *vals= values_for_table[position];
+      TABLE *const table= ref->table;
+
       COPY_INFO *update=
         new (thd->mem_root) COPY_INFO(COPY_INFO::UPDATE_OPERATION, cols, vals);
       if (update == NULL ||
@@ -1811,23 +1837,23 @@ int multi_update::prepare(List<Item> &not_used_values,
 static bool safe_update_on_fly(THD *thd, JOIN_TAB *join_tab,
                                TABLE_LIST *table_ref, TABLE_LIST *all_tables)
 {
-  TABLE *table= join_tab->table;
+  TABLE *table= join_tab->table();
   if (unique_table(thd, table_ref, all_tables, 0))
     return 0;
-  switch (join_tab->type) {
+  switch (join_tab->type()) {
   case JT_SYSTEM:
   case JT_CONST:
   case JT_EQ_REF:
     return TRUE;				// At most one matching row
   case JT_REF:
   case JT_REF_OR_NULL:
-    return !is_key_used(table, join_tab->ref.key, table->write_set);
+    return !is_key_used(table, join_tab->ref().key, table->write_set);
   case JT_ALL:
     if (bitmap_is_overlapping(&table->tmp_set, table->write_set))
       return FALSE;
     /* If range search on index */
-    if (join_tab->select && join_tab->select->quick)
-      return !join_tab->select->quick->is_keys_used(table->write_set);
+    if (join_tab->quick())
+      return !join_tab->quick()->is_keys_used(table->write_set);
     /* If scanning in clustered key */
     if ((table->file->ha_table_flags() & HA_PRIMARY_KEY_IN_READ_INDEX) &&
 	table->s->primary_key < MAX_KEY)
@@ -1855,10 +1881,11 @@ multi_update::initialize_tables(JOIN *join)
 {
   TABLE_LIST *table_ref;
   DBUG_ENTER("initialize_tables");
+  ASSERT_BEST_REF_IN_JOIN_ORDER(join);
 
   if ((thd->variables.option_bits & OPTION_SAFE_UPDATES) && error_if_full_join(join))
     DBUG_RETURN(1);
-  main_table=join->join_tab->table;
+  main_table= join->best_ref[0]->table();
   table_to_update= 0;
 
   /* Any update has at least one pair (field, value) */
@@ -1869,7 +1896,7 @@ multi_update::initialize_tables(JOIN *join)
    table.
    For a regular multi-update it refers to some updated table.
   */ 
-  TABLE *first_table_for_update= ((Item_field *) fields->head())->field->table;
+  TABLE_LIST *first_table_for_update= ((Item_field *)fields->head())->table_ref;
 
   /* Create a temporary table for keys to all tables, except main table */
   for (table_ref= update_tables; table_ref; table_ref= table_ref->next_local)
@@ -1894,16 +1921,16 @@ multi_update::initialize_tables(JOIN *join)
       */
       if (update_tables->next_local)
       {
-        for (JOIN_TAB *tab= join->join_tab + 1;
-             tab < join->join_tab + join->tables; tab++)
+        for (uint i= 1; i < join->tables; ++i)
         {
+          JOIN_TAB *tab= join->best_ref[i];
           if (tab->condition())
             tab->condition()->walk(&Item::add_field_to_set_processor,
                       Item::enum_walk(Item::WALK_POSTFIX | Item::WALK_SUBQUERY),
                       reinterpret_cast<uchar *>(table));
         }
       }
-      if (safe_update_on_fly(thd, join->join_tab, table_ref, all_tables))
+      if (safe_update_on_fly(thd, join->best_ref[0], table_ref, all_tables))
       {
         table->mark_columns_needed_for_update();
 	table_to_update= table;			// Update table on the fly
@@ -1938,16 +1965,17 @@ multi_update::initialize_tables(JOIN *join)
     }
 loop_end:
 
-    if (table == first_table_for_update && table_ref->check_option)
+    if (table_ref->table == first_table_for_update->table &&
+        table_ref->check_option)
     {
       table_map unupdated_tables= table_ref->check_option->used_tables() &
-                                  ~first_table_for_update->map;
+                                  ~first_table_for_update->map();
       for (TABLE_LIST *tbl_ref =leaves;
            unupdated_tables && tbl_ref;
            tbl_ref= tbl_ref->next_leaf)
       {
-        if (unupdated_tables & tbl_ref->table->map)
-          unupdated_tables&= ~tbl_ref->table->map;
+        if (unupdated_tables & tbl_ref->map())
+          unupdated_tables&= ~tbl_ref->map();
         else
           continue;
         if (unupdated_check_opt_tables.push_back(tbl_ref->table))
@@ -2214,7 +2242,7 @@ bool multi_update::send_data(List<Item> &not_used_values)
       if (error != HA_ERR_FOUND_DUPP_KEY && error != HA_ERR_FOUND_DUPP_UNIQUE)
       {
         if (error &&
-            create_myisam_from_heap(thd, tmp_table,
+            create_ondisk_from_heap(thd, tmp_table,
                                          tmp_table_param[offset].start_recinfo,
                                          &tmp_table_param[offset].recinfo,
                                          error, TRUE, NULL))

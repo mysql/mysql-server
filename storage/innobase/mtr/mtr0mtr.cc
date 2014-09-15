@@ -408,6 +408,23 @@ struct mtr_write_log_t {
 	}
 };
 
+/** Append records to the system-wide redo log buffer.
+@param[in]	log	redo log records */
+void
+mtr_write_log(
+	const mtr_buf_t*	log)
+{
+	mtr_write_log_t	write_log;
+
+	DBUG_PRINT("ib_log",
+		   (ULINTPF "extra bytes written at " LSN_PF,
+		    log->size(), log_sys->lsn));
+
+	log_reserve_and_open(log->size());
+	log->for_each_block(write_log);
+	log_close();
+}
+
 /** Start a mini-transaction.
 @param sync		true if it is a synchronous mini-transaction
 @param read_only	true if read only mini-transaction */

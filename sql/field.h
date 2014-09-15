@@ -797,8 +797,10 @@ public:
 
   /*
     data_length() return the "real size" of the data in memory.
+    Useful only for variable length datatypes where it's overloaded.
+    By default assume the length is constant.
   */
-  virtual uint32 data_length() { return pack_length(); }
+  virtual uint32 data_length(uint row_offset= 0) { return pack_length(); }
   virtual uint32 sort_length() const { return pack_length(); }
 
   /**
@@ -936,6 +938,8 @@ public:
   virtual int key_cmp(const uchar *str, uint length)
   { return cmp(ptr,str); }
   virtual uint decimals() const { return 0; }
+  virtual bool is_text_key_type() const { return false; }
+
   /*
     Caller beware: sql_type can change str.Ptr, so check
     ptr() to see if it changed if you are using your own buffer
@@ -1352,7 +1356,7 @@ public:
     return field_length / charset()->mbmaxlen;
   }
 
-  virtual geometry_type get_geometry_type()
+  virtual geometry_type get_geometry_type() const
   {
     /* shouldn't get here. */
     DBUG_ASSERT(0);
@@ -1418,6 +1422,8 @@ public:
     return 0ULL;
   }
 
+  /* Return pointer to the actual data in memory */
+  virtual void get_ptr(uchar **str) { *str= ptr; }
   friend int cre_myisam(char * name, TABLE *form, uint options,
 			ulonglong auto_increment_value);
   friend class Copy_field;
@@ -3309,10 +3315,10 @@ public:
 
   enum_field_types type() const
   {
-    return ((can_alter_field_type && orig_table &&
-             orig_table->s->db_create_options & HA_OPTION_PACK_RECORD &&
+    return ((can_alter_field_type && table && table->s &&
+             table->s->db_create_options & HA_OPTION_PACK_RECORD &&
 	     field_length >= 4) &&
-            orig_table->s->frm_version < FRM_VER_TRUE_VARCHAR ?
+            table->s->frm_version < FRM_VER_TRUE_VARCHAR ?
 	    MYSQL_TYPE_VAR_STRING : MYSQL_TYPE_STRING);
   }
   bool match_collation_to_optimize_range() const { return true; }
@@ -3369,6 +3375,7 @@ public:
     return new Field_string(*this);
   }
   virtual size_t get_key_image(uchar *buff, size_t length, imagetype type);
+  virtual bool is_text_key_type() const { return binary() ? false : true; }
 private:
   int do_save_field_metadata(uchar *first_byte);
 };
@@ -3448,7 +3455,7 @@ public:
   int key_cmp(const uchar *str, uint length);
   uint packed_col_length(const uchar *to, uint length);
 
-  uint32 data_length();
+  uint32 data_length(uint row_offset= 0);
   enum_field_types real_type() const { return MYSQL_TYPE_VARCHAR; }
   bool has_charset(void) const
   { return charset() == &my_charset_bin ? FALSE : TRUE; }
@@ -3468,6 +3475,11 @@ public:
   }
   uint is_equal(Create_field *new_field);
   void hash(ulong *nr, ulong *nr2);
+  void get_ptr(uchar **str)
+  {
+    *str= ptr + length_bytes;
+  }
+  virtual bool is_text_key_type() const { return binary() ? false : true; }
 private:
   int do_save_field_metadata(uchar *first_byte);
 };
@@ -3593,6 +3605,7 @@ public:
   {
     store_length(ptr, packlength, number);
   }
+  uint32 data_length(uint row_offset= 0) { return get_length(row_offset); }
   inline uint32 get_length(uint row_offset= 0)
   { return get_length(ptr+row_offset, this->packlength, table->s->db_low_byte_first); }
   uint32 get_length(const uchar *ptr, uint packlength, bool low_byte_first);
@@ -3663,6 +3676,7 @@ public:
   uint is_equal(Create_field *new_field);
   inline bool in_read_set() { return bitmap_is_set(table->read_set, field_index); }
   inline bool in_write_set() { return bitmap_is_set(table->write_set, field_index); }
+  virtual bool is_text_key_type() const { return binary() ? false : true; }
 private:
   int do_save_field_metadata(uchar *first_byte);
 };
@@ -3706,12 +3720,12 @@ public:
     return maybe_null() ? TYPE_OK : TYPE_ERR_NULL_CONSTRAINT_VIOLATION;
   }
 
-  geometry_type get_geometry_type() { return geom_type; };
+  geometry_type get_geometry_type() const { return geom_type; };
   Field_geom *clone(MEM_ROOT *mem_root) const {
     DBUG_ASSERT(type() == MYSQL_TYPE_GEOMETRY);
     return new (mem_root) Field_geom(*this);
   }
-  Field_geom *clone() const { 
+  Field_geom *clone() const {
     DBUG_ASSERT(type() == MYSQL_TYPE_GEOMETRY);
     return new Field_geom(*this);
   }
@@ -3995,7 +4009,7 @@ public:
     At various stages in execution this can be length of field in bytes or
     max number of characters. 
   */
-  ulong length;
+  size_t length;
   /*
     The value of `length' as set by parser: is the number of characters
     for most of the types, or of bytes for BLOBs or numeric types.
@@ -4147,16 +4161,17 @@ public:
 };
 
 
-Field *make_field(TABLE_SHARE *share, uchar *ptr, uint32 field_length,
+Field *make_field(TABLE_SHARE *share, uchar *ptr, size_t field_length,
 		  uchar *null_pos, uchar null_bit,
 		  uint pack_flag, enum_field_types field_type,
 		  const CHARSET_INFO *cs,
 		  Field::geometry_type geom_type,
 		  Field::utype unireg_check,
-		  TYPELIB *interval, const char *field_name);
+		  TYPELIB *interval, const char *field_name,
+		  MEM_ROOT *mem_root= NULL);
 uint pack_length_to_packflag(uint type);
 enum_field_types get_blob_type_from_length(ulong length);
-uint32 calc_pack_length(enum_field_types type,uint32 length);
+size_t calc_pack_length(enum_field_types type, size_t length);
 type_conversion_status set_field_to_null(Field *field);
 type_conversion_status set_field_to_null_with_conversions(Field *field,
                                                           bool no_conversions);

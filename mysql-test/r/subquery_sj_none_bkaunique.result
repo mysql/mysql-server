@@ -74,7 +74,7 @@ a
 explain extended select * from t2 where t2.a in (select a from t1 where t1.b <> 30);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t2	NULL	index	NULL	a	5	NULL	4	100.00	Using where; Using index
-2	DEPENDENT SUBQUERY	t1	NULL	index_subquery	a	a	5	func	1001	99.50	Using index; Using where
+2	DEPENDENT SUBQUERY	t1	NULL	index_subquery	a	a	5	func	1001	99.50	Using where; Using index
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`a`,<exists>(<index_lookup>(<cache>(`test`.`t2`.`a`) in t1 on a where ((`test`.`t1`.`b` <> 30) and (<cache>(`test`.`t2`.`a`) = `test`.`t1`.`a`)))))
@@ -103,7 +103,7 @@ a
 explain extended select * from t2 where t2.a in (select a from t1 where t1.b <> 30);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t2	NULL	index	NULL	a	5	NULL	4	100.00	Using where; Using index
-2	DEPENDENT SUBQUERY	t1	NULL	index_subquery	a	a	5	func	1001	99.50	Using index; Using where
+2	DEPENDENT SUBQUERY	t1	NULL	index_subquery	a	a	5	func	1001	99.50	Using where; Using index
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`a`,<exists>(<index_lookup>(<cache>(`test`.`t2`.`a`) in t1 on a where ((`test`.`t1`.`b` <> 30) and (<cache>(`test`.`t2`.`a`) = `test`.`t1`.`a`)))))
@@ -322,7 +322,7 @@ insert into t1 select (A.a + 10 * B.a),1 from t0 A, t0 B;
 explain extended select * from t1 where a in (select pk from t10 where pk<3);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	103	100.00	Using where
-2	DEPENDENT SUBQUERY	t10	NULL	unique_subquery	PRIMARY	PRIMARY	4	func	1	100.00	Using index; Using where
+2	DEPENDENT SUBQUERY	t10	NULL	unique_subquery	PRIMARY	PRIMARY	4	func	1	100.00	Using where; Using index
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a`,<exists>(<primary_index_lookup>(<cache>(`test`.`t1`.`a`) in t10 on PRIMARY where ((`test`.`t10`.`pk` < 3) and (<cache>(`test`.`t1`.`a`) = `test`.`t10`.`pk`)))))
@@ -3615,7 +3615,7 @@ insert into t3 select A.a + 10*B.a from t0 A, t0 B;
 explain select * from t3 where a in (select kp1 from t1 where kp1<20);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t3	NULL	ALL	NULL	NULL	NULL	NULL	100	100.00	Using where
-2	DEPENDENT SUBQUERY	t1	NULL	index_subquery	kp1	kp1	5	func	1	100.00	Using index; Using where
+2	DEPENDENT SUBQUERY	t1	NULL	index_subquery	kp1	kp1	5	func	1	100.00	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t3`.`a` AS `a` from `test`.`t3` where <in_optimizer>(`test`.`t3`.`a`,<exists>(<index_lookup>(<cache>(`test`.`t3`.`a`) in t1 on kp1 where ((`test`.`t1`.`kp1` < 20) and (<cache>(`test`.`t3`.`a`) = `test`.`t1`.`kp1`)))))
 select * from t3 where a in (select kp1 from t1 where kp1<20);
@@ -3643,7 +3643,7 @@ a
 explain select * from t3 where a in (select kp1 from t1 where kp1<20) and a<20;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t3	NULL	ALL	NULL	NULL	NULL	NULL	100	33.33	Using where
-2	DEPENDENT SUBQUERY	t1	NULL	index_subquery	kp1	kp1	5	func	1	100.00	Using index; Using where
+2	DEPENDENT SUBQUERY	t1	NULL	index_subquery	kp1	kp1	5	func	1	100.00	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t3`.`a` AS `a` from `test`.`t3` where (<in_optimizer>(`test`.`t3`.`a`,<exists>(<index_lookup>(<cache>(`test`.`t3`.`a`) in t1 on kp1 where ((`test`.`t1`.`kp1` < 20) and (<cache>(`test`.`t3`.`a`) = `test`.`t1`.`kp1`))))) and (`test`.`t3`.`a` < 20))
 select * from t3 where a in (select kp1 from t1 where kp1<20) and a<20;
@@ -5576,7 +5576,7 @@ PRIMARY KEY (pk),
 KEY time_key (time_key),
 KEY datetime_key (datetime_key),
 KEY varchar_key (varchar_key)
-);
+) ENGINE=MyISaM;
 INSERT INTO t1 VALUES 
 (1,0, '00:16:10','2008-09-03 14:25:40','2008-09-03 14:25:40','h','h'),
 (2,7, '00:00:00','2001-01-13 00:00:00','2001-01-13 00:00:00','',''),
@@ -5598,6 +5598,27 @@ INSERT INTO t1 VALUES
 (18,0,'00:00:00','0000-00-00 00:00:00','0000-00-00 00:00:00','h','h'),
 (19,0,'14:13:26','2008-11-09 05:53:48','2008-11-09 05:53:48','o','o'),
 (20,0,'00:00:00','2009-10-11 06:58:04','2009-10-11 06:58:04','k','k');
+Warnings:
+Warning	1264	Out of range value for column 'datetime_key' at row 3
+Warning	1264	Out of range value for column 'datetime_nokey' at row 3
+Warning	1264	Out of range value for column 'datetime_key' at row 5
+Warning	1264	Out of range value for column 'datetime_nokey' at row 5
+Warning	1264	Out of range value for column 'datetime_key' at row 8
+Warning	1264	Out of range value for column 'datetime_nokey' at row 8
+Warning	1264	Out of range value for column 'datetime_key' at row 9
+Warning	1264	Out of range value for column 'datetime_nokey' at row 9
+Warning	1264	Out of range value for column 'datetime_key' at row 10
+Warning	1264	Out of range value for column 'datetime_nokey' at row 10
+Warning	1264	Out of range value for column 'datetime_key' at row 11
+Warning	1264	Out of range value for column 'datetime_nokey' at row 11
+Warning	1264	Out of range value for column 'datetime_key' at row 12
+Warning	1264	Out of range value for column 'datetime_nokey' at row 12
+Warning	1264	Out of range value for column 'datetime_key' at row 14
+Warning	1264	Out of range value for column 'datetime_nokey' at row 14
+Warning	1264	Out of range value for column 'datetime_key' at row 15
+Warning	1264	Out of range value for column 'datetime_nokey' at row 15
+Warning	1264	Out of range value for column 'datetime_key' at row 18
+Warning	1264	Out of range value for column 'datetime_nokey' at row 18
 CREATE TABLE t2 (
 pk int(11) NOT NULL AUTO_INCREMENT,
 int_nokey int(11) NOT NULL,
@@ -5611,9 +5632,14 @@ KEY time_key (time_key),
 KEY datetime_key (datetime_key),
 KEY varchar_key (varchar_key)
 );
-INSERT INTO t2 VALUES 
+INSERT IGNORE INTO t2 VALUES 
 (10,0,'19:39:13','0000-00-00 00:00:00','0000-00-00 00:00:00','g','g'),
 (11,8,'03:43:53','0000-00-00 00:00:00','0000-00-00 00:00:00','b','b');
+Warnings:
+Warning	1264	Out of range value for column 'datetime_key' at row 1
+Warning	1264	Out of range value for column 'datetime_nokey' at row 1
+Warning	1264	Out of range value for column 'datetime_key' at row 2
+Warning	1264	Out of range value for column 'datetime_nokey' at row 2
 SELECT OUTR.datetime_nokey AS X FROM t1 AS OUTR 
 WHERE 
 OUTR.varchar_nokey IN (SELECT 
@@ -5793,8 +5819,19 @@ INSERT INTO t1 VALUES (10,7,5,'2009-06-16','2002-04-10 14:25:30','w'),
 (15,6,5,'2001-11-12','0000-00-00 00:00:00',''), 
 (16,2,9,'0000-00-00','0000-00-00 00:00:00','j'), 
 (29,9,1,'0000-00-00','2003-08-11 00:00:00','m');
-INSERT INTO t3 VALUES (1,9,'0000-00-00','b','b'),
+Warnings:
+Warning	1264	Out of range value for column 'date_key' at row 2
+Warning	1264	Out of range value for column 'datetime_nokey' at row 2
+Warning	1264	Out of range value for column 'datetime_nokey' at row 4
+Warning	1264	Out of range value for column 'datetime_nokey' at row 5
+Warning	1264	Out of range value for column 'datetime_nokey' at row 6
+Warning	1264	Out of range value for column 'date_key' at row 7
+Warning	1264	Out of range value for column 'datetime_nokey' at row 7
+Warning	1264	Out of range value for column 'date_key' at row 8
+INSERT IGNORE INTO t3 VALUES (1,9,'0000-00-00','b','b'),
 (2,2,'2002-09-17','h','h');
+Warnings:
+Warning	1264	Out of range value for column 'date_key' at row 1
 SELECT t1.varchar_nokey FROM t1 JOIN t3 ON t1.datetime_nokey
 WHERE t1.varchar_nokey 
 IN (SELECT varchar_nokey FROM t1 
@@ -5819,7 +5856,7 @@ PRIMARY KEY (pk),
 KEY datetime_key (datetime_key),
 KEY varchar_key (varchar_key)
 );
-INSERT INTO t1 VALUES
+INSERT IGNORE INTO t1 VALUES
 (1,9,'0000-00-00 00:00:00','p'),(2,0,'2002-02-09 07:38:13','v'),
 (3,8,'2001-05-03 12:08:14','t'),(4,3,'0000-00-00 00:00:00','u'),
 (5,7,'2009-07-28 03:43:30','n'),(6,0,'2009-08-04 00:00:00','l'),
@@ -5830,6 +5867,15 @@ INSERT INTO t1 VALUES
 (15,8,'2008-11-02 00:00:00','n'),(16,5,'2006-03-15 00:00:00','b'),
 (17,1,'0000-00-00 00:00:00','x'),(18,7,'0000-00-00 00:00:00',''),
 (19,0,'2008-12-17 20:15:40','q'),(20,9,'0000-00-00 00:00:00','u');
+Warnings:
+Warning	1264	Out of range value for column 'datetime_key' at row 1
+Warning	1264	Out of range value for column 'datetime_key' at row 4
+Warning	1264	Out of range value for column 'datetime_key' at row 7
+Warning	1264	Out of range value for column 'datetime_key' at row 8
+Warning	1264	Out of range value for column 'datetime_key' at row 12
+Warning	1264	Out of range value for column 'datetime_key' at row 17
+Warning	1264	Out of range value for column 'datetime_key' at row 18
+Warning	1264	Out of range value for column 'datetime_key' at row 20
 CREATE TABLE t2 LIKE t1;
 INSERT INTO t2 VALUES 
 (10,0,'2006-07-07 07:26:28','q'),(11,5,'2002-09-23 00:00:00','m'),
@@ -5842,6 +5888,14 @@ INSERT INTO t2 VALUES
 (24,0,'2009-04-27 00:00:00','w'),(25,4,'2006-10-20 14:52:15','x'),
 (26,0,'0000-00-00 00:00:00','e'),(27,0,'2002-03-22 11:48:37','e'),
 (28,2,'0000-00-00 00:00:00','p'),(29,0,'2001-01-04 03:55:07','x');
+Warnings:
+Warning	1264	Out of range value for column 'datetime_key' at row 3
+Warning	1264	Out of range value for column 'datetime_key' at row 7
+Warning	1264	Out of range value for column 'datetime_key' at row 9
+Warning	1264	Out of range value for column 'datetime_key' at row 10
+Warning	1264	Out of range value for column 'datetime_key' at row 13
+Warning	1264	Out of range value for column 'datetime_key' at row 17
+Warning	1264	Out of range value for column 'datetime_key' at row 19
 CREATE TABLE t3 LIKE t1;
 INSERT INTO t3 VALUES
 (10,8,'2007-08-19 08:08:38','i'),(11,0,'2000-05-21 03:51:51','');
@@ -6196,6 +6250,18 @@ INSERT INTO it2 VALUES
 (7,'0000-00-00 00:00:00'), (0,'0000-00-00 00:00:00'),
 (0,'2007-02-13 00:00:00'), (1,'0000-00-00 00:00:00'),
 (0,'0000-00-00 00:00:00'), (1,'2003-08-11 00:00:00');
+Warnings:
+Warning	1264	Out of range value for column 'datetime_key' at row 2
+Warning	1264	Out of range value for column 'datetime_key' at row 4
+Warning	1264	Out of range value for column 'datetime_key' at row 5
+Warning	1264	Out of range value for column 'datetime_key' at row 6
+Warning	1264	Out of range value for column 'datetime_key' at row 7
+Warning	1264	Out of range value for column 'datetime_key' at row 9
+Warning	1264	Out of range value for column 'datetime_key' at row 14
+Warning	1264	Out of range value for column 'datetime_key' at row 15
+Warning	1264	Out of range value for column 'datetime_key' at row 16
+Warning	1264	Out of range value for column 'datetime_key' at row 18
+Warning	1264	Out of range value for column 'datetime_key' at row 19
 CREATE TABLE ot1 (
 int_nokey int(11) NOT NULL,
 int_key int(11) NOT NULL,
@@ -6265,7 +6331,7 @@ FROM t1
 WHERE t1field IN (SELECT v1field FROM v1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	index	NULL	PRIMARY	4	NULL	2	100.00	Using where; Using index
-2	DEPENDENT SUBQUERY	a	NULL	unique_subquery	PRIMARY	PRIMARY	4	func	1	100.00	Using index; Using where
+2	DEPENDENT SUBQUERY	a	NULL	unique_subquery	PRIMARY	PRIMARY	4	func	1	100.00	Using where; Using index
 4	DEPENDENT SUBQUERY	t1	NULL	unique_subquery	PRIMARY	PRIMARY	4	func	1	100.00	Using index
 Warnings:
 Note	1003	/* select#1 */ select `t1`.`t1field` AS `t1field` from `test`.`t1` where <in_optimizer>(`t1`.`t1field`,<exists>(<primary_index_lookup>(<cache>(`t1`.`t1field`) in t1 on PRIMARY where (<in_optimizer>(`test`.`a`.`t1field`,<exists>(<primary_index_lookup>(<cache>(`test`.`a`.`t1field`) in t1 on PRIMARY))) and (<cache>(`t1`.`t1field`) = `test`.`a`.`t1field`)))))
@@ -6282,7 +6348,7 @@ FROM t1
 WHERE t1field IN (SELECT v1field FROM v1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	index	NULL	PRIMARY	4	NULL	2	100.00	Using where; Using index
-2	DEPENDENT SUBQUERY	a	NULL	unique_subquery	PRIMARY	PRIMARY	4	func	1	100.00	Using index; Using where
+2	DEPENDENT SUBQUERY	a	NULL	unique_subquery	PRIMARY	PRIMARY	4	func	1	100.00	Using where; Using index
 4	DEPENDENT SUBQUERY	t1	NULL	unique_subquery	PRIMARY	PRIMARY	4	func	1	100.00	Using index
 Warnings:
 Note	1003	/* select#1 */ select `t1`.`t1field` AS `t1field` from `test`.`t1` where <in_optimizer>(`t1`.`t1field`,<exists>(<primary_index_lookup>(<cache>(`t1`.`t1field`) in t1 on PRIMARY where (<in_optimizer>(`test`.`a`.`t1field`,<exists>(<primary_index_lookup>(<cache>(`test`.`a`.`t1field`) in t1 on PRIMARY))) and (<cache>(`t1`.`t1field`) = `test`.`a`.`t1field`)))))
@@ -6544,7 +6610,7 @@ CREATE INDEX I2 ON t1 (b);
 EXPLAIN SELECT a,b FROM t1 WHERE b IN (SELECT a FROM t1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
-2	DEPENDENT SUBQUERY	t1	NULL	index_subquery	I1	I1	2	func	2	100.00	Using index; Using where
+2	DEPENDENT SUBQUERY	t1	NULL	index_subquery	I1	I1	2	func	2	100.00	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`b`,<exists>(<index_lookup>(<cache>(`test`.`t1`.`b`) in t1 on I1 where (<cache>(`test`.`t1`.`b`) = `test`.`t1`.`a`))))
 SELECT a,b FROM t1 WHERE b IN (SELECT a FROM t1);
@@ -6556,7 +6622,7 @@ CREATE INDEX I2 ON t2 (b);
 EXPLAIN SELECT a,b FROM t2 WHERE b IN (SELECT a FROM t2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
-2	DEPENDENT SUBQUERY	t2	NULL	index_subquery	I1	I1	4	func	2	100.00	Using index; Using where
+2	DEPENDENT SUBQUERY	t2	NULL	index_subquery	I1	I1	4	func	2	100.00	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`b`,<exists>(<index_lookup>(<cache>(`test`.`t2`.`b`) in t2 on I1 where (<cache>(`test`.`t2`.`b`) = `test`.`t2`.`a`))))
 SELECT a,b FROM t2 WHERE b IN (SELECT a FROM t2);
@@ -6565,7 +6631,7 @@ EXPLAIN
 SELECT a,b FROM t1 WHERE b IN (SELECT a FROM t1 WHERE LENGTH(a)<500);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
-2	DEPENDENT SUBQUERY	t1	NULL	index_subquery	I1	I1	2	func	2	100.00	Using index; Using where
+2	DEPENDENT SUBQUERY	t1	NULL	index_subquery	I1	I1	2	func	2	100.00	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`b`,<exists>(<index_lookup>(<cache>(`test`.`t1`.`b`) in t1 on I1 where ((length(`test`.`t1`.`a`) < 500) and (<cache>(`test`.`t1`.`b`) = `test`.`t1`.`a`)))))
 SELECT a,b FROM t1 WHERE b IN (SELECT a FROM t1 WHERE LENGTH(a)<500);
@@ -7098,7 +7164,7 @@ EXPLAIN
                 "Language",
                 "Percentage"
               ],
-              "attached_condition": "((`test`.`t3`.`Percentage` > 10) and (`test`.`t2`.`Population` > 100000))"
+              "attached_condition": "((`test`.`t3`.`Language` = 'English') and (`test`.`t3`.`Percentage` > 10) and (`test`.`t2`.`Population` > 100000) and (<cache>(`test`.`t2`.`Code`) = `test`.`t3`.`Country`))"
             }
           }
         },
@@ -7595,7 +7661,7 @@ EXPLAIN
 SELECT * FROM t1 WHERE (i) IN (SELECT i FROM t2 where j > 0);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where
-2	DEPENDENT SUBQUERY	t2	NULL	index_subquery	k	k	5	func	2	33.33	Using index; Using where
+2	DEPENDENT SUBQUERY	t2	NULL	index_subquery	k	k	5	func	2	33.33	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`i`,<exists>(<index_lookup>(<cache>(`test`.`t1`.`i`) in t2 on k where ((`test`.`t2`.`j` > 0) and (<cache>(`test`.`t1`.`i`) = `test`.`t2`.`i`)))))
 SELECT * FROM t1 WHERE (i) IN (SELECT i FROM t2 where j > 0);
@@ -8265,7 +8331,8 @@ INSERT INTO t1 VALUES
 (15,2,'a','x'),
 (16,1,'d','d'),
 (17,8,'y','y'),
-(18,6,'t','u');
+(18,6,'t','u'),
+(19,6,'t','u');
 CREATE TABLE t2 (
 pk int NOT NULL,
 col_int_key int NOT NULL,
@@ -8302,8 +8369,8 @@ WHERE innr.col_varchar_key = 'a' OR innr.pk = 8)
 AND outr.col_varchar_nokey < 't'
 ORDER BY outr.col_varchar_key, outr.pk;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	outr	NULL	ALL	NULL	NULL	NULL	NULL	16	33.33	Using where; Using filesort
-2	DEPENDENT SUBQUERY	innr	NULL	index_subquery	PRIMARY,col_varchar_key	col_varchar_key	3	func	1	100.00	Using index; Using where
+1	PRIMARY	outr	NULL	ALL	NULL	NULL	NULL	NULL	17	33.33	Using where; Using filesort
+2	DEPENDENT SUBQUERY	innr	NULL	index_subquery	PRIMARY,col_varchar_key	col_varchar_key	3	func	1	100.00	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`outr`.`col_varchar_key` AS `x`,`test`.`outr`.`pk` AS `y` from `test`.`t1` `outr` where (<in_optimizer>(`test`.`outr`.`col_varchar_key`,<exists>(<index_lookup>(<cache>(`test`.`outr`.`col_varchar_key`) in t2 on col_varchar_key where (((`test`.`innr`.`col_varchar_key` = 'a') or (`test`.`innr`.`pk` = 8)) and (<cache>(`test`.`outr`.`col_varchar_key`) = `test`.`innr`.`col_varchar_key`))))) and (`test`.`outr`.`col_varchar_nokey` < 't')) order by `test`.`outr`.`col_varchar_key`,`test`.`outr`.`pk`
 SELECT outr.col_varchar_key AS x, outr.pk AS y
@@ -8789,7 +8856,7 @@ WHERE alias1.pk = 58 OR alias1.col_varchar_key = 'o'
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 2	DEPENDENT SUBQUERY	alias1	NULL	index_merge	PRIMARY,col_int_key,col_varchar_key	col_varchar_key,PRIMARY	4,4	NULL	2	8.33	Using sort_union(col_varchar_key,PRIMARY); Using where
-2	DEPENDENT SUBQUERY	alias2	NULL	ALL	col_int_key	NULL	NULL	NULL	12	15.97	Range checked for each record (index map: 0x2)
+2	DEPENDENT SUBQUERY	alias2	NULL	ALL	col_int_key	NULL	NULL	NULL	12	26.53	Range checked for each record (index map: 0x2)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`field1` AS `field1` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`field1`,<exists>(/* select#2 */ select 1 from `test`.`t1` `alias1` join `test`.`t1` `alias2` where (((`test`.`alias1`.`pk` = 58) or (`test`.`alias1`.`col_varchar_key` = 'o')) and (<cache>(`test`.`t2`.`field1`) = `test`.`alias1`.`col_varchar_nokey`) and ((`test`.`alias2`.`col_int_key` = `test`.`alias1`.`pk`) or (`test`.`alias2`.`col_int_key` = `test`.`alias1`.`col_int_key`)))))
 SELECT *
@@ -10082,10 +10149,10 @@ explain SELECT * FROM v1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	table1	NULL	index	NULL	col_int_key	5	NULL	20	100.00	Using index
 1	PRIMARY	table2	NULL	ALL	PRIMARY	NULL	NULL	NULL	20	100.00	Using where; Using join buffer (Block Nested Loop)
-1	PRIMARY	table3	NULL	ref	col_int_key	col_int_key	5	test.table2.pk	1	100.00	Using where
-3	DEPENDENT SUBQUERY	subquery2_t1	NULL	ref	col_int_key	col_int_key	5	func	1	100.00	Using index
-3	DEPENDENT SUBQUERY	subquery2_t3	NULL	index	PRIMARY,col_varchar_key	col_varchar_key	4	NULL	20	100.00	Using where; Using index; Using join buffer (Block Nested Loop)
-3	DEPENDENT SUBQUERY	subquery2_t2	NULL	eq_ref	PRIMARY,col_varchar_key	PRIMARY	4	test.subquery2_t3.pk	1	5.00	Using where
+1	PRIMARY	table3	NULL	ref	col_int_key	col_int_key	5	test.table2.pk	2	100.00	Using where
+3	DEPENDENT SUBQUERY	subquery2_t3	NULL	index	PRIMARY,col_varchar_key	col_varchar_key	4	NULL	20	100.00	Using where; Using index
+3	DEPENDENT SUBQUERY	subquery2_t2	NULL	eq_ref	PRIMARY,col_varchar_key	PRIMARY	4	test.subquery2_t3.pk	1	7.14	Using where
+3	DEPENDENT SUBQUERY	subquery2_t1	NULL	ref	col_int_key	col_int_key	5	func	2	100.00	Using index
 4	DEPENDENT SUBQUERY	subquery1_t2	NULL	ALL	PRIMARY	NULL	NULL	NULL	20	5.00	Using where
 4	DEPENDENT SUBQUERY	subquery1_t3	NULL	ref	col_varchar_key	col_varchar_key	4	test.subquery1_t2.col_varchar_nokey	1	5.00	Using where
 4	DEPENDENT SUBQUERY	subquery1_t1	NULL	index	PRIMARY	col_int_key	5	NULL	20	100.00	Using where; Using index; Using join buffer (Block Nested Loop)
@@ -10526,7 +10593,7 @@ WHERE (alias1.col_varchar_key, alias1.col_varchar_nokey) IN
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	alias2	NULL	ALL	NULL	NULL	NULL	NULL	11	100.00	Using where
 1	PRIMARY	<derived2>	NULL	ref	<auto_key0>	<auto_key0>	4	test.alias2.col_varchar_key	2	100.00	Using where
-4	DEPENDENT SUBQUERY	<derived7>	NULL	index_subquery	<auto_key0>	<auto_key0>	6	func,func	2	100.00	Using index; Using where
+4	DEPENDENT SUBQUERY	<derived7>	NULL	index_subquery	<auto_key0>	<auto_key0>	6	func,func	2	100.00	Using where; Using index
 7	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 8	UNION	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 NULL	UNION RESULT	<union7,8>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary
@@ -11014,7 +11081,7 @@ EXPLAIN
                     "col_varchar_key",
                     "col_varchar_nokey"
                   ],
-                  "attached_condition": "(<cache>(`derived1`.`col_varchar_nokey`) = `test`.`derived2`.`col_varchar_nokey`)"
+                  "attached_condition": "((<cache>(`derived1`.`col_varchar_nokey`) = `test`.`derived2`.`col_varchar_nokey`) and (<cache>(`derived1`.`col_varchar_nokey`) = `test`.`derived2`.`col_varchar_key`))"
                 }
               }
             }
@@ -11179,7 +11246,7 @@ EXPLAIN
                     "col_int_nokey",
                     "col_int_key"
                   ],
-                  "attached_condition": "(<cache>(`test`.`grandparent1`.`col_int_nokey`) = `test`.`t2`.`col_int_nokey`)"
+                  "attached_condition": "((<cache>(`test`.`grandparent1`.`col_int_nokey`) = `test`.`t2`.`col_int_nokey`) and (<cache>(`test`.`grandparent1`.`col_int_nokey`) = `test`.`t2`.`col_int_key`))"
                 }
               }
             }
@@ -11536,7 +11603,138 @@ col_datetime_key
 2002-08-25 20:35:06
 DROP TABLE t1, t2;
 # End of test for bug#14064201.
+#
+# Bug#18223655:ASSERTION FAILED: (INT)IDX >= 0
+#               && IDX < PARENT_JOIN->TABLES
+#
+CREATE TABLE b (d INT);
+CREATE TABLE c (a INT, b INT,c INT,d BLOB NOT NULL);
+SELECT(SELECT  1
+FROM b WHERE(SELECT 1 IN (SELECT 1 FROM b WHERE 1 NOT BETWEEN d AND 1)
+FROM  b) IN (SELECT d FROM c)) as cc FROM  b;
+cc
+INSERT INTO b VALUE(1);
+INSERT INTO c VALUES(1,2,3,'1'),(2,3,4,'1'),(3,4,5,'C');
+SELECT(SELECT d FROM b WHERE(SELECT d IN 
+(SELECT d FROM b WHERE 1 NOT BETWEEN d AND 1) FROM b) IN
+(SELECT d FROM c)) as cc FROM  c;
+cc
+1
+1
+1
+DROP TABLE b,c;
+#
+# Bug#18447874:WRONG RESULT COMING FROM SEMI-JOIN 
+#
+CREATE TABLE b (
+d INT(11)
+);
+CREATE TABLE c (
+d BLOB
+) ;
+CREATE TABLE d (
+b INT(11)
+);
+INSERT INTO b VALUES(1),(2),(4);
+INSERT INTO c VALUES(1),(2),(3);
+SELECT  1 FROM b  WHERE (SELECT 1 FROM d ) IN (SELECT d FROM c) ;
+1
+INSERT INTO d VALUES(2);
+SELECT  1 FROM b  WHERE (SELECT 1 FROM d ) IN (SELECT d FROM c) ;
+1
+1
+1
+1
+DROP TABLE b,c,d;
+#
+# Bug#17292723:INCORRECT RESULT FOR (SELECT...) IN (SELECT...) STATEMENT
+#
+CREATE TABLE t1 (
+ID int(11) NOT NULL AUTO_INCREMENT,
+id2 int(11) DEFAULT NULL,
+id3 int(11) DEFAULT NULL,
+id4 varchar(150) COLLATE utf8_spanish_ci NOT NULL,
+id5 int(11) DEFAULT NULL,
+PRIMARY KEY (ID),
+KEY id2 (id2),
+KEY id3 (id3),
+KEY id5 (id5)
+) ENGINE=InnoDB;
+INSERT INTO t1 VALUES
+(123,1,1,'1',NULL),
+(124,1,1,'2',NULL),
+(125,1,1,'4',NULL),
+(126,1,1,'3',NULL),
+(127,1,1,'6',NULL),
+(128,1,1,'8',NULL);
+CREATE TABLE t2 (
+id6 int(11) NOT NULL,
+id7 int(11) NOT NULL,
+PRIMARY KEY (id6,id7),
+KEY id7 (id7)
+) ENGINE=InnoDB;
+INSERT INTO t2 VALUES (126,123),(130,123),(135,123);
+SELECT ID
+FROM t1 p0
+WHERE  p0.id3=1
+AND ( (SELECT p1.id FROM t1 p1 WHERE p1.id=123) IN (SELECT p3.id FROM t2
+p2, t1 p3 WHERE p0.id=p2.id6 AND p2.id7=p3.id));
+ID
+126
+DROP TABLE t1,t2;
 set @@optimizer_switch=@old_opt_switch;
 # End of 5.6 tests
+#
+# Bug#19336348 DEBUG CRASH AT SETUP_SEMIJOIN_DUPS_ELIMINATION IN SQL/SQL_SELECT.CC
+#
+CREATE TABLE t1 (
+col_varchar_nokey varchar(1)
+) ENGINE=InnoDB;
+INSERT INTO t1 VALUES ('c'),(NULL),('x');
+CREATE TABLE t2 (
+pk int,
+col_varchar_key varchar(1),
+PRIMARY KEY (pk),
+KEY col_varchar_key (col_varchar_key)
+) ENGINE=InnoDB;
+INSERT INTO t2 VALUES (10,'l'),(11,'p');
+ANALYZE TABLE t1,t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+EXPLAIN SELECT 1
+FROM t1 AS outr
+WHERE outr.col_varchar_nokey IN
+(
+SELECT innr.col_varchar_key
+FROM t2 AS innr
+WHERE innr.pk <= 7
+)
+;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	outr	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+2	DEPENDENT SUBQUERY	innr	NULL	index_subquery	PRIMARY,col_varchar_key	col_varchar_key	4	func	1	50.00	Using where; Using index
+Warnings:
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` `outr` where <in_optimizer>(`test`.`outr`.`col_varchar_nokey`,<exists>(<index_lookup>(<cache>(`test`.`outr`.`col_varchar_nokey`) in t2 on col_varchar_key where ((`test`.`innr`.`pk` <= 7) and (<cache>(`test`.`outr`.`col_varchar_nokey`) = `test`.`innr`.`col_varchar_key`)))))
+SELECT 1
+FROM t1 AS outr
+WHERE outr.col_varchar_nokey IN
+(
+SELECT innr.col_varchar_key
+FROM t2 AS innr
+WHERE innr.pk <= 7
+)
+;
+1
+DROP TABLE t1,t2;
+#
+# Bug#18174394 BLOBS: CRASH AFTER UNINITIALIZED VALUES IN ITEM_FIELD::STR_RESULT
+#
+CREATE TABLE t1(d BLOB, b BLOB);
+INSERT INTO t1(d,b) VALUES ('aaaa',''),('bnbb','');
+SELECT 1 FROM t1
+WHERE (SELECT b FROM t1) IN (SELECT (d>=1) FROM t1);
+ERROR 21000: Subquery returns more than 1 row
+DROP TABLE t1;
 set optimizer_switch=default;
 set optimizer_switch=default;

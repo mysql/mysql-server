@@ -17,7 +17,6 @@
 
 #include "socket_connection.h"
 
-#include "my_net.h"                     // addrinfo
 #include "violite.h"                    // Vio
 #include "channel_info.h"               // Channel_info
 #include "connection_handler_manager.h" // Connection_handler_manager
@@ -26,6 +25,7 @@
 #include "sql_class.h"                  // THD
 
 #include <algorithm>
+#include <signal.h>
 #ifdef HAVE_SYS_UN_H
 #include <sys/un.h>
 #endif
@@ -90,7 +90,8 @@ void net_after_header_psi(struct st_net *net, void *user_data, size_t /* unused:
       DBUG_ASSERT(thd->m_statement_psi == NULL);
       thd->m_statement_psi= MYSQL_START_STATEMENT(&thd->m_statement_state,
                                                   stmt_info_new_packet.m_key,
-                                                  thd->db, thd->db_length,
+                                                  thd->db().str,
+                                                  thd->db().length,
                                                   thd->charset(), NULL);
 
       THD_STAGE_INFO(thd, stage_starting);
@@ -540,7 +541,15 @@ class Unix_socket
 {
   std::string m_unix_sockname; // pathname for socket to bind to.
   uint m_backlog; // backlog specifying lenght of pending queue connection.
+  /**
+    Create a lockfile which contains the pid of the mysqld instance started
+    and pathname as name of unix socket pathname appended with .lock
 
+    @retval   FALSE if lockfile creation is successful else TRUE if lockfile
+              file could not be created.
+
+  */
+  bool create_lockfile();
 public:
   /**
     Constructor that takes pathname for unix socket to bind to
@@ -575,7 +584,12 @@ public:
       return MYSQL_INVALID_SOCKET;
     }
 
-    // where to bring ps variables, socket creation
+    if (create_lockfile())
+    {
+      sql_print_error("Unable to setup unix socket lock file.");
+      return MYSQL_INVALID_SOCKET;
+    }
+
     MYSQL_SOCKET listener_socket= mysql_socket_socket(key_socket_unix, AF_UNIX,
                                                       SOCK_STREAM, 0);
 
@@ -615,7 +629,7 @@ public:
     if (mysql_socket_listen(listener_socket, (int)m_backlog) < 0)
       sql_print_warning("listen() on Unix socket failed with error %d", socket_errno);
 
-    // set sock fd non blocking? to decide accept etc.
+    // set sock fd non blocking.
 #if !defined(NO_FCNTL_NONBLOCK)
     (void) mysql_sock_set_nonblocking(listener_socket);
 #endif
@@ -623,6 +637,124 @@ public:
     return listener_socket;
   }
 };
+
+
+bool Unix_socket::create_lockfile()
+{
+  int fd;
+  char buffer[8];
+  pid_t cur_pid= getpid();
+  std::string lock_filename= m_unix_sockname + ".lock";
+
+  compile_time_assert(sizeof(pid_t) == 4);
+  int retries= 3;
+  while (true)
+  {
+    if (!retries--)
+    {
+      sql_print_error("Unable to create unix socket lock file %s after retries."
+                      ,lock_filename.c_str());
+      return true;
+    }
+
+    fd= open(lock_filename.c_str(), O_RDWR | O_CREAT | O_EXCL, 0600);
+
+    if (fd >= 0)
+      break;
+
+    if (errno != EEXIST)
+    {
+      sql_print_error("Could not create unix socket lock file %s.",
+                      lock_filename.c_str());
+      return true;
+    }
+
+    fd= open(lock_filename.c_str(), O_RDONLY, 0600);
+    if (fd < 0)
+    {
+      sql_print_error("Could not open unix socket lock file %s.",
+                      lock_filename.c_str());
+      return true;
+    }
+
+    ssize_t len;
+    if ((len= read(fd, buffer, sizeof(buffer)-1)) < 0)
+    {
+      sql_print_error("Could not read unix socket lock file %s.",
+                       lock_filename.c_str());
+      close(fd);
+      return true;
+    }
+
+    close(fd);
+
+    if (len == 0)
+    {
+      sql_print_error("Unix socket lock file is empty %s.",
+                       lock_filename.c_str());
+      return true;
+    }
+    buffer[len]= '\0';
+
+    pid_t parent_pid= getppid();
+    pid_t read_pid= atoi(buffer);
+
+    if (read_pid <= 0)
+    {
+      sql_print_error("Invalid pid in unix socket lock file %s.",
+                      lock_filename.c_str());
+      return true;
+    }
+
+    if (read_pid != cur_pid && read_pid != parent_pid)
+    {
+      if (kill(read_pid, 0) == 0)
+      {
+        sql_print_error("Another process with pid %d is using "
+                        "unix socket file.", static_cast<int>(read_pid));
+        return true;
+      }
+    }
+
+    /*
+      Unlink the lock file as it is not associated with any process and
+      retry.
+    */
+    if (unlink(lock_filename.c_str()) < 0)
+    {
+      sql_print_error("Could not remove unix socket lock file %s.",
+                      lock_filename.c_str());
+      return true;
+    }
+  }
+
+  snprintf(buffer, sizeof(buffer), "%d\n", static_cast<int>(cur_pid));
+  if (write(fd, buffer, strlen(buffer)) !=
+      static_cast<signed>(strlen(buffer)))
+  {
+    close(fd);
+    sql_print_error("Could not write unix socket lock file %s errno %d.",
+                    lock_filename.c_str(), errno);
+    return true;
+  }
+
+  if (fsync(fd) != 0)
+  {
+    close(fd);
+    sql_print_error("Could not sync unix socket lock file %s errno %d.",
+                    lock_filename.c_str(), errno);
+    return true;
+  }
+
+  if (close(fd) != 0)
+  {
+    sql_print_error("Could not close unix socket lock file %s errno %d.",
+                    lock_filename.c_str(), errno);
+    return true;
+  }
+  return false;
+}
+
 #endif // HAVE_SYS_UN_H
 
 
@@ -640,12 +772,14 @@ Mysqld_socket_listener::Mysqld_socket_listener(std::string bind_addr_str,
     m_backlog(backlog),
     m_port_timeout(port_timeout),
     m_unix_sockname(unix_sockname),
+    m_unlink_sockname(false),
     m_error_count(0)
 {
 #ifdef HAVE_LIBWRAP
   m_deny_severity = LOG_WARNING;
   m_libwrap_name= my_progname + dirname_length(my_progname);
-  openlog(m_libwrap_name, LOG_PID, LOG_AUTH);
+  if (!opt_log_syslog_enable)
+    openlog(m_libwrap_name, LOG_PID, LOG_AUTH);
 #endif /* HAVE_LIBWRAP */
 }
 
@@ -675,6 +809,7 @@ bool Mysqld_socket_listener::setup_listener()
       return true;
 
     m_socket_map.insert(std::pair<MYSQL_SOCKET,bool>(mysql_socket, true));
+    m_unlink_sockname= true;
   }
 #endif /* HAVE_SYS_UN_H */
 
@@ -759,7 +894,7 @@ Channel_info* Mysqld_socket_listener::listen_for_connection_event()
   struct sockaddr_storage cAddr;
   for (uint retry= 0; retry < MAX_ACCEPT_RETRY; retry++)
   {
-    size_socket length= sizeof(struct sockaddr_storage);
+    socket_len_t length= sizeof(struct sockaddr_storage);
     connect_sock= mysql_socket_accept(key_socket_client_connection, listen_sock,
                                       (struct sockaddr *)(&cAddr), &length);
     if (mysql_socket_getfd(connect_sock) != INVALID_SOCKET ||
@@ -797,7 +932,8 @@ Channel_info* Mysqld_socket_listener::listen_for_connection_event()
         which we surely don't want...
         clean_exit() - same stupid thing ...
       */
-      syslog(m_deny_severity, "refused connect from %s", eval_client(&req));
+      syslog(LOG_AUTH | m_deny_severity,
+             "refused connect from %s", eval_client(&req));
 
       if (req.sink)
         (req.sink)(req.fd);
@@ -841,8 +977,12 @@ void Mysqld_socket_listener::close_listener()
   }
 
 #if defined(HAVE_SYS_UN_H)
-  if (m_unix_sockname != "")
+  if (m_unix_sockname != "" && m_unlink_sockname)
+  {
+    std::string lock_filename= m_unix_sockname + ".lock";
+    (void) unlink(lock_filename.c_str());
     (void) unlink(m_unix_sockname.c_str());
+  }
 #endif
 
   if (!m_socket_map.empty())

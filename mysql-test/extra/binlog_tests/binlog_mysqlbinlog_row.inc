@@ -448,6 +448,7 @@ INSERT INTO t1 VALUES (NOW(6), NOW(6), NOW(6), NOW(6), NOW(6), NOW(6));
 DROP TABLE t1;
 
 SET @ts='2001-01-01 00:00:00.123456';
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 CREATE TABLE t1 (
   c85 TIMESTAMP(6), c86 TIMESTAMP(5), c87 TIMESTAMP(4),
   c88 TIMESTAMP(3), c89 TIMESTAMP(2), c90 TIMESTAMP(1)
@@ -459,6 +460,7 @@ DROP TABLE t1;
 
 SET timestamp=1000000000;
 SET time_zone=default;
+SET sql_mode = default;
 #
 # End of FSP-enabled data types
 #
@@ -480,5 +482,5 @@ flush logs;
 
 let $MYSQLD_DATADIR= `select @@datadir`;
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
---replace_regex /SQL_LOAD_MB-[0-9]-[0-9]/SQL_LOAD_MB-#-#/ /exec_time=[0-9]*/exec_time=#/ /end_log_pos [0-9]*/end_log_pos #/ /# at [0-9]*/# at #/ /thread_id=[0-9]*/thread_id=#/ /table id [0-9]*/table id #/ /mapped to number [0-9]*/mapped to number #/ /server v [^ ]*/server v #.##.##/ /(@[0-9]*=[0-9]*[.][0-9]{1,3})[0-9e+-]*[^ ]*(.*(FLOAT|DOUBLE).*[*].)/\1...\2/ /SET @@SESSION.GTID_NEXT= '.*'/SET @@SESSION.GTID_NEXT= 'GTID'/ /CRC32 0x[0-9a-f]{8}/CRC32 #/ /Xid = [0-9]*/XID/
+--replace_regex /SQL_LOAD_MB-[0-9]-[0-9]/SQL_LOAD_MB-#-#/ /exec_time=[0-9]*/exec_time=#/ /last_committed=[0-9]*/last_committed=#/ /sequence_number=[0-9]*/sequence_number=#/ /end_log_pos [0-9]*/end_log_pos #/ /# at [0-9]*/# at #/ /thread_id=[0-9]*/thread_id=#/ /table id [0-9]*/table id #/ /mapped to number [0-9]*/mapped to number #/ /server v [^ ]*/server v #.##.##/ /(@[0-9]*=[0-9]*[.][0-9]{1,3})[0-9e+-]*[^ ]*(.*(FLOAT|DOUBLE).*[*].)/\1...\2/ /SET @@SESSION.GTID_NEXT= '.*'/SET @@SESSION.GTID_NEXT= 'GTID'/ /CRC32 0x[0-9a-f]{8}/CRC32 #/ /Xid = [0-9]*/XID/
 --exec $MYSQL_BINLOG --base64-output=decode-rows -v -v $MYSQLD_DATADIR/master-bin.000001

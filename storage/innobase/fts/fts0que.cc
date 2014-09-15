@@ -35,12 +35,14 @@ Completed 2011/7/10 Sunny and Jimmy Yang
 #include "fts0pars.h"
 #include "fts0types.h"
 #include "fts0plugin.h"
+#include "ut0new.h"
 
 #ifdef UNIV_NONINL
 #include "fts0types.ic"
 #include "fts0vlc.ic"
 #endif
 
+#include <iomanip>
 #include <vector>
 
 #define FTS_ELEM(t, n, i, j) (t[(i) * n + (j)])
@@ -60,7 +62,7 @@ Completed 2011/7/10 Sunny and Jimmy Yang
 
 // FIXME: Need to have a generic iterator that traverses the ilist.
 
-typedef std::vector<fts_string_t>	word_vector_t;
+typedef std::vector<fts_string_t, ut_allocator<fts_string_t> >	word_vector_t;
 
 struct fts_word_freq_t;
 
@@ -181,7 +183,7 @@ struct fts_select_t {
 					the FTS index */
 };
 
-typedef std::vector<ulint>       pos_vector_t;
+typedef std::vector<ulint, ut_allocator<ulint> >       pos_vector_t;
 
 /** structure defines a set of ranges for original documents, each of which
 has a minimum position and maximum position. Text in such range should
@@ -430,7 +432,7 @@ fts_query_lcs(
 	ulint	r = len_p1;
 	ulint	c = len_p2;
 	ulint	size = (r + 1) * (c + 1) * sizeof(ulint);
-	ulint*	table = (ulint*) ut_malloc(size);
+	ulint*	table = (ulint*) ut_malloc_nokey(size);
 
 	/* Traverse the table backwards, from the last row to the first and
 	also from the last column to the first. We compute the smaller
@@ -517,7 +519,7 @@ fts_tolower(
 	ulint		len)		/*!< in: src string length */
 {
 	fts_string_t	str;
-	byte*		lc_str = ut_malloc(len + 1);
+	byte*		lc_str = ut_malloc_nokey(len + 1);
 
 	str.f_len = len;
 	str.f_str = lc_str;
@@ -1177,8 +1179,12 @@ fts_query_difference(
 	ut_a(query->oper == FTS_IGNORE);
 
 #ifdef FTS_INTERNAL_DIAG_PRINT
-	ib_logf(IB_LOG_LEVEL_INFO, "DIFFERENCE: Searching: '%.*s'",
-		(int) token->f_len, token->f_str);
+	{
+		ib::info	out;
+		out << "DIFFERENCE: Searching: '";
+		out.write(token->f_str, token->f_len);
+		out << "'";
+	}
 #endif
 
 	if (query->doc_ids) {
@@ -1268,8 +1274,12 @@ fts_query_intersect(
 	ut_a(query->oper == FTS_EXIST);
 
 #ifdef FTS_INTERNAL_DIAG_PRINT
-	ib_logf(IB_LOG_LEVEL_INFO, "INTERSECT: Searching: '%.*s'",
-		(int) token->f_len, token->f_str);
+	{
+		ib::info	out;
+		out << "INTERSECT: Searching: '";
+		out.write(token->f_str, token->f_len);
+		out << "'";
+	}
 #endif
 
 	/* If the words set is not empty and multi exist is true,
@@ -1450,8 +1460,12 @@ fts_query_union(
 	     query->oper == FTS_NEGATE || query->oper == FTS_INCR_RATING);
 
 #ifdef FTS_INTERNAL_DIAG_PRINT
-	ib_logf(IB_LOG_LEVEL_INFO, "UNION: Searching: '%.*s'",
-		(int) token->f_len, token->f_str);
+	{
+		ib::info	out;
+		out << "UNION: Searching: '";
+		out.write(token->f_str, token->f_len);
+		out << "'";
+	}
 #endif
 
 	if (query->doc_ids) {
@@ -2244,15 +2258,13 @@ fts_query_find_term(
 		} else {
 
 			if (error == DB_LOCK_WAIT_TIMEOUT) {
-				ib_logf(IB_LOG_LEVEL_WARN,
-					"lock wait timeout reading FTS index."
-					" Retrying!");
+				ib::warn() << "lock wait timeout reading FTS"
+					" index. Retrying!";
 
 				trx->error_state = DB_SUCCESS;
 			} else {
-				ib_logf(IB_LOG_LEVEL_ERROR,
-					"%lu while reading FTS index.",
-					error);
+				ib::error() << error
+					<< " while reading FTS index.";
 
 				break;			/* Exit the loop. */
 			}
@@ -2365,15 +2377,13 @@ fts_query_total_docs_containing_term(
 		} else {
 
 			if (error == DB_LOCK_WAIT_TIMEOUT) {
-				ib_logf(IB_LOG_LEVEL_WARN,
-					"lock wait timeout reading FTS index."
-					" Retrying!");
+				ib::warn() << "lock wait timeout reading FTS"
+					" index. Retrying!";
 
 				trx->error_state = DB_SUCCESS;
 			} else {
-				ib_logf(IB_LOG_LEVEL_ERROR,
-					"%lu while reading FTS index.",
-					error);
+				ib::error() << error
+					<< " while reading FTS index.";
 
 				break;			/* Exit the loop. */
 			}
@@ -2449,15 +2459,13 @@ fts_query_terms_in_document(
 		} else {
 
 			if (error == DB_LOCK_WAIT_TIMEOUT) {
-				ib_logf(IB_LOG_LEVEL_WARN,
-					"lock wait timeout reading FTS"
-					" doc id table. Retrying!");
+				ib::warn() << "lock wait timeout reading FTS"
+					" doc id table. Retrying!";
 
 				trx->error_state = DB_SUCCESS;
 			} else {
-				ib_logf(IB_LOG_LEVEL_ERROR,
-					"%lu while reading FTS doc id table.",
-					error);
+				ib::error() << error << " while reading FTS"
+					" doc id table.";
 
 				break;			/* Exit the loop. */
 			}
@@ -2501,8 +2509,8 @@ fts_query_match_document(
 		fts_query_fetch_document, &phrase);
 
 	if (error != DB_SUCCESS) {
-		ib_logf(IB_LOG_LEVEL_ERROR, "(%s) matching document.",
-			ut_strerr(error));
+		ib::error() << "(" << ut_strerr(error)
+			<< ") matching document.";
 	} else {
 		*found = phrase.found;
 	}
@@ -2549,9 +2557,8 @@ fts_query_is_in_proximity_range(
 		fts_query_fetch_document, &phrase);
 
 	if (err != DB_SUCCESS) {
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"(%s) in verification phase of proximity search",
-			ut_strerr(err));
+		ib::error() << "(" << ut_strerr(err) << ") in verification"
+			" phase of proximity search";
 	}
 
 	/* Free the prepared statement. */
@@ -2602,7 +2609,7 @@ fts_query_search_phrase(
 	rw_lock_x_unlock(&cache->lock);
 
 #ifdef FTS_INTERNAL_DIAG_PRINT
-	ib_logf(IB_LOG_LEVEL_INFO, "Start phrase search");
+	ib::info() << "Start phrase search";
 #endif
 
 	/* Read the document from disk and do the actual
@@ -2990,7 +2997,7 @@ fts_query_execute(
 
 /*****************************************************************//**
 Create a wildcard string. It's the responsibility of the caller to
-free the byte* pointer. It's allocated using ut_malloc().
+free the byte* pointer. It's allocated using ut_malloc_nokey().
 @return ptr to allocated memory */
 static
 byte*
@@ -3011,7 +3018,7 @@ fts_query_get_token(
 
 	if (node->term.wildcard) {
 
-		token->f_str = static_cast<byte*>(ut_malloc(str_len + 2));
+		token->f_str = static_cast<byte*>(ut_malloc_nokey(str_len + 2));
 		token->f_len = str_len + 1;
 
 		memcpy(token->f_str, node->term.ptr->str, str_len);
@@ -3545,12 +3552,11 @@ fts_query_calculate_idf(
 		}
 
 		if (fts_enable_diag_print) {
-			ib_logf(IB_LOG_LEVEL_INFO,
-				"'%s' -> " UINT64PF "/" UINT64PF
-				" %6.5lf",
-				word_freq->word.f_str,
-				query->total_docs, word_freq->doc_count,
-				word_freq->idf);
+			ib::info() << "'" << word_freq->word.f_str << "' -> "
+				<< query->total_docs << "/"
+				<< word_freq->doc_count << " "
+				<< std::setw(6) << std::setprecision(5)
+				<< word_freq->idf;
 		}
 	}
 }
@@ -3675,7 +3681,8 @@ fts_query_prepare_result(
 	bool			result_is_null = false;
 
 	if (result == NULL) {
-		result = static_cast<fts_result_t*>(ut_zalloc(sizeof(*result)));
+		result = static_cast<fts_result_t*>(
+			ut_zalloc_nokey(sizeof(*result)));
 
 		result->rankings_by_id = rbt_create(
 			sizeof(fts_ranking_t), fts_ranking_doc_id_cmp);
@@ -3799,7 +3806,8 @@ fts_query_get_result(
 		result = fts_query_prepare_result(query, result);
 	} else {
 		/* Create an empty result instance. */
-		result = static_cast<fts_result_t*>(ut_zalloc(sizeof(*result)));
+		result = static_cast<fts_result_t*>(
+			ut_zalloc_nokey(sizeof(*result)));
 	}
 
 	return(result);
@@ -3856,8 +3864,8 @@ fts_query_free(
 		rbt_free(query->word_map);
 	}
 
-	if (query->word_vector) {
-		delete query->word_vector;
+	if (query->word_vector != NULL) {
+		UT_DELETE(query->word_vector);
 	}
 
 	if (query->heap) {
@@ -3967,7 +3975,7 @@ fts_query_str_preprocess(
 	the ut_malloc'ed result and so remember to free it before return. */
 
 	str_len = query_len * charset->casedn_multiply + 1;
-	str_ptr = static_cast<byte*>(ut_malloc(str_len));
+	str_ptr = static_cast<byte*>(ut_malloc_nokey(str_len));
 
 	*result_len = innobase_fts_casedn_str(
 		charset, const_cast<char*>(reinterpret_cast<const char*>(
@@ -4028,7 +4036,6 @@ fts_query_str_preprocess(
 /*******************************************************************//**
 FTS Query entry point.
 @return DB_SUCCESS if successful otherwise error code */
-
 dberr_t
 fts_query(
 /*======*/
@@ -4081,7 +4088,7 @@ fts_query(
 
 	query.word_map = rbt_create_arg_cmp(
 		sizeof(fts_string_t), innobase_fts_text_cmp, charset);
-	query.word_vector = new word_vector_t;
+	query.word_vector = UT_NEW_NOKEY(word_vector_t());
 	query.error = DB_SUCCESS;
 
 	/* Setup the RB tree that will be used to collect per term
@@ -4102,9 +4109,8 @@ fts_query(
 			goto func_exit;
 		}
 
-		ib_logf(IB_LOG_LEVEL_INFO,
-			"Total docs: " UINT64PF " Total words: %lu",
-			query.total_docs, query.total_words);
+		ib::info() << "Total docs: " << query.total_docs
+			<< " Total words: " << query.total_words;
 	}
 #endif /* FTS_DOC_STATS_DEBUG */
 
@@ -4140,7 +4146,7 @@ fts_query(
 	the ut_malloc'ed result and so remember to free it before return. */
 
 	lc_query_str_len = query_len * charset->casedn_multiply + 1;
-	lc_query_str = static_cast<byte*>(ut_malloc(lc_query_str_len));
+	lc_query_str = static_cast<byte*>(ut_malloc_nokey(lc_query_str_len));
 
 	result_len = innobase_fts_casedn_str(
 		charset, (char*) query_str, query_len,
@@ -4203,28 +4209,28 @@ fts_query(
 	} else {
 		/* still return an empty result set */
 		*result = static_cast<fts_result_t*>(
-			ut_zalloc(sizeof(**result)));
+			ut_zalloc_nokey(sizeof(**result)));
 	}
 
 	ut_free(lc_query_str);
 
 	if (fts_enable_diag_print && (*result)) {
 		ulint	diff_time = ut_time_ms() - start_time_ms;
-		ib_logf(IB_LOG_LEVEL_INFO,
-			"FTS Search Processing time: %ld secs:"
-			" %ld millisec: row(s) %d",
-			diff_time / 1000, diff_time % 1000,
-			(*result)->rankings_by_id
-				? (int) rbt_size((*result)->rankings_by_id)
-				: -1);
+
+		ib::info() << "FTS Search Processing time: "
+			<< diff_time / 1000 << " secs: " << diff_time % 1000
+			<< " millisec: row(s) "
+			<< ((*result)->rankings_by_id
+			    ? rbt_size((*result)->rankings_by_id)
+			    : -1);
 
 		/* Log memory consumption & result size */
-		ib_logf(IB_LOG_LEVEL_INFO,
-			"Full Search Memory: %lu (bytes),  Row: %lu .",
-			query.total_size,
-			(*result)->rankings_by_id
-				?  rbt_size((*result)->rankings_by_id)
-				: 0);
+		ib::info() << "Full Search Memory: " << query.total_size
+			<< " (bytes),  Row: "
+			<< ((*result)->rankings_by_id
+			    ? rbt_size((*result)->rankings_by_id)
+			    : 0)
+			<< ".";
 	}
 
 func_exit:
@@ -4237,7 +4243,6 @@ func_exit:
 
 /*****************************************************************//**
 FTS Query free result, returned by fts_query(). */
-
 void
 fts_query_free_result(
 /*==================*/
@@ -4260,7 +4265,6 @@ fts_query_free_result(
 
 /*****************************************************************//**
 FTS Query sort result, returned by fts_query() on fts_ranking_t::rank. */
-
 void
 fts_query_sort_result_on_rank(
 /*==========================*/
@@ -4314,14 +4318,13 @@ fts_print_doc_id(
 		fts_ranking_t*	ranking;
 		ranking = rbt_value(fts_ranking_t, node);
 
-		ib_logf(IB_LOG_LEVEL_INFO, "doc_ids info, doc_id: %ld",
-			(ulint) ranking->doc_id);
+		ib::info() << "doc_ids info, doc_id: " << ranking->doc_id;
 
 		ulint		pos = 0;
 		fts_string_t	word;
 
 		while (fts_ranking_words_get_next(query, ranking, &pos, &word)) {
-			ib_logf(IB_LOG_LEVEL_INFO, "doc_ids info, value: %s \n", word.f_str);
+			ib::info() << "doc_ids info, value: " << word.f_str;
 		}
 	}
 }
@@ -4408,10 +4411,10 @@ fts_expand_query(
 
 			/* The word must exist in the doc we found */
 			if (!ret) {
-				ib_logf(IB_LOG_LEVEL_ERROR,
-					"Did not find word %s in doc %ld for"
-					" query expansion search.", word.f_str,
-					(ulint) ranking->doc_id);
+				ib::error() << "Did not find word "
+					<< word.f_str << " in doc "
+					<< ranking->doc_id << " for query"
+					" expansion search.";
 			}
 		}
 

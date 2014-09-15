@@ -1,4 +1,3 @@
-call mtr.add_suppression("\\[Warning\\] InnoDB: cannot calculate statistics for table \"test_wl5522\"\.\"t1\" because the \.ibd file is missing");
 SET GLOBAL innodb_file_per_table = 1;
 SELECT @@innodb_file_per_table;
 @@innodb_file_per_table
@@ -34,7 +33,6 @@ SELECT * FROM test_wl5522.t1;
 ERROR HY000: Tablespace has been discarded for table 't1'
 ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
 ERROR HY000: Lost connection to MySQL server during query
-SET SESSION debug="-d,ib_import_before_commit_crash";
 SET SESSION debug="+d,ib_import_before_checkpoint_crash";
 SELECT COUNT(*) FROM test_wl5522.t1;
 ERROR HY000: Tablespace has been discarded for table 't1'
@@ -43,7 +41,6 @@ ERROR HY000: Lost connection to MySQL server during query
 unlink: t1.ibd
 unlink: t1.cfg
 # Restart and reconnect to the server
-SET SESSION debug="-d,ib_import_before_checkpoint_crash";
 DROP TABLE test_wl5522.t1;
 SET GLOBAL innodb_file_per_table = 1;
 SELECT @@innodb_file_per_table;
@@ -447,7 +444,7 @@ t1	CREATE TABLE `t1` (
 DROP TABLE test_wl5522.t1;
 CREATE TABLE test_wl5522.t1 (c1 INT, c2 VARCHAR(1024), c3 BLOB) ENGINE = Innodb
 ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=4;
-INSERT INTO test_wl5522.t1 VALUES
+INSERT IGNORE INTO test_wl5522.t1 VALUES
 (100, REPEAT('Karanbir', 899), REPEAT('Ajeeth', 1200));
 Warnings:
 Warning	1265	Data truncated for column 'c2' at row 1
@@ -538,7 +535,7 @@ ERROR HY000: Tablespace has been discarded for table 't1'
 restore: t1 .ibd and .cfg files
 SET SESSION debug="+d,fil_space_create_failure";
 ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
-ERROR HY000: Can't find file: 'test_wl5522\t1.ibd' (errno: 11 - Generic error)
+ERROR HY000: Can't find file: './test_wl5522/t1.ibd' (errno: 11 - Generic error)
 SET SESSION debug="-d,fil_space_create_failure";
 DROP TABLE test_wl5522.t1;
 unlink: t1.ibd
@@ -551,7 +548,7 @@ ERROR HY000: Tablespace has been discarded for table 't1'
 restore: t1 .ibd and .cfg files
 SET SESSION debug="+d,dict_tf_to_fsp_flags_failure";
 ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
-ERROR HY000: Can't find file: 'test_wl5522\t1.ibd' (errno: 39 - Data structure corruption)
+ERROR HY000: Can't find file: './test_wl5522/t1.ibd' (errno: 39 - Data structure corruption)
 SET SESSION debug="-d,dict_tf_to_fsp_flags_failure";
 DROP TABLE test_wl5522.t1;
 unlink: t1.ibd

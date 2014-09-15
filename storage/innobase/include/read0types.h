@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -48,7 +48,7 @@ class ReadView {
 
 		/**
 		Destructor */
-		~ids_t() { delete[] m_ptr; }
+		~ids_t() { UT_DELETE_ARRAY(m_ptr); }
 
 		/**
 		Try and increase the size of the array. Old elements are
@@ -79,7 +79,7 @@ class ReadView {
 		Copy and overwrite the current array contents
 
 		@param start		Source array
-		@paran end		Pointer to end of array */
+		@param end		Pointer to end of array */
 		void assign(const value_type* start, const value_type* end);
 
 		/**

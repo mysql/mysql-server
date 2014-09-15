@@ -356,9 +356,9 @@ DROP TABLE t1;
 --echo # Bug#11764994  57900: CREATE TABLE .. SELECT ASSERTS SCALE >= 0 && PRECISION > 0 && SCALE <= PR
 --echo #
 
---error ER_GIS_INVALID_DATA
+--error ER_WRONG_ARGUMENTS
 CREATE TABLE t1 SELECT CEIL(LINESTRINGFROMWKB(1) DIV NULL);
---error ER_GIS_INVALID_DATA
+--error ER_WRONG_ARGUMENTS
 CREATE TABLE t1 SELECT FLOOR(LINESTRINGFROMWKB(1) DIV NULL);
 
 --echo #
@@ -525,7 +525,7 @@ as foo;
 --echo #            my_gcvt: Assertion `width > 0 && to != ((void *)0)' failed
 --echo #
 CREATE TABLE t1(a char(0));
-INSERT INTO t1 (SELECT -pi());
+INSERT IGNORE INTO t1 (SELECT -pi());
 DROP TABLE t1;
 
 --echo #
@@ -630,3 +630,9 @@ SELECT * FROM t1 ORDER BY a;
 
 DROP TABLE t1;
 SET sql_mode='';
+
+--echo #
+--echo # Bug#19047527 SQRT() : UNINITIALISED VALUE IN MY_STRTOD
+--echo #
+
+do sqrt(weight_string(_eucjpms "0E+"));

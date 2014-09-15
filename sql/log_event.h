@@ -34,6 +34,7 @@
 #include "sql_list.h"                           /* I_List */
 #include "hash.h"
 #include "table_id.h"
+#include <set>
 
 #ifdef MYSQL_CLIENT
 #include "sql_const.h"
@@ -55,6 +56,7 @@ extern I_List<i_string_pair> binlog_rewrite_db;
 #include "sql_class.h"                          /* THD */
 #include "rpl_utility.h"                        /* Hash_slave_rows */
 #include "rpl_filter.h"
+#include "key.h"                                /* key_copy, compare_keys */
 #endif
 
 extern PSI_memory_key key_memory_log_event;
@@ -299,10 +301,11 @@ struct sql_ex_info
 */
 #define OVER_MAX_DBS_IN_EVENT_MTS 254
 
-/* size of prepare and commit sequence numbers in the status vars in bytes */
-#define COMMIT_SEQ_LEN  8
+/* total size of two transaction logical timestamps in the status vars in bytes */
+#define COMMIT_SEQ_LEN  16
+#define COMMIT_SEQ_LEN_OLD 8
 
-/* 
+/*
   Max number of possible extra bytes in a replication event compared to a
   packet (i.e. a query) sent from client to master;
   First, an auxiliary log_event status vars estimation:
@@ -410,18 +413,27 @@ struct sql_ex_info
 #define Q_MICROSECONDS 13
 
 /*
-  Q_COMMIT_TS status variable stores the logical timestamp when the transaction
-  entered the commit phase. This wll be used to apply transactions in parallel
-  on the slave.
- */
-#define Q_COMMIT_TS 14
+  A old (unused now) code for Query_log_event status similar to G_COMMIT_TS.
+*/
+#define Q_COMMIT_TS  14
+/*
+  A code for Query_log_event status, similar to G_COMMIT_TS2.
+*/
+#define Q_COMMIT_TS2 15
 
 /*
-  G_COMMIT_TS status variable stores the logical timestamp when the transaction
-  entered the commit phase. This wll be used to apply transactions in parallel
+  G_COMMIT_TS is left defined but won't be used anymore, being superceded by
+  G_COMMIT_TS2.
+  Old master event may have Q_COMMIT_TS status variable/value
+  but that info will not be used by slave applier.
+*/
+#define G_COMMIT_TS   1 /* single logical timestamp introduced by 5.7.2 */
+/*
+  Status variable stores two logical timestamps when the transaction
+  entered the commit phase. They wll be used to apply transactions in parallel
   on the slave.
- */
-#define G_COMMIT_TS  1
+*/
+#define G_COMMIT_TS2  2 /* two logical timestamps introduced by 7.5.6 */
 
 /* Intvar event post-header */
 
@@ -660,7 +672,15 @@ enum enum_binlog_checksum_alg {
 */
 #define BINLOG_CHECKSUM_LEN CHECKSUM_CRC32_SIGNATURE_LEN
 #define BINLOG_CHECKSUM_ALG_DESC_LEN 1  /* 1 byte checksum alg descriptor */
-#define SEQ_UNINIT -1LL
+/**
+   Uninitialized timestamp value (for either last committed or sequence number).
+   Often carries meaning of the minimum value in the logical timestamp domain.
+*/
+const int64 SEQ_UNINIT= 0;
+/**
+   Maximum value of binlog logical timestamp.
+*/
+const int64 SEQ_MAX_TIMESTAMP= LONGLONG_MAX;
 
 /**
   @enum Log_event_type
@@ -817,7 +837,7 @@ typedef struct st_print_event_info
   char time_zone_str[MAX_TIME_ZONE_NAME_LENGTH];
   uint lc_time_names_number;
   uint charset_database_number;
-  uint thread_id;
+  my_thread_id thread_id;
   bool thread_id_printed;
 
   st_print_event_info();
@@ -1333,7 +1353,7 @@ public:
 #endif /* HAVE_REPLICATION */
   virtual const char* get_db()
   {
-    return thd ? thd->db : 0;
+    return thd ? thd->db().str : NULL;
   }
 #else // ifdef MYSQL_SERVER
   Log_event(enum_event_cache_type cache_type_arg= EVENT_INVALID_CACHE,
@@ -1430,7 +1450,13 @@ public:
   }
   Log_event(const char* buf, const Format_description_log_event
             *description_event);
-  virtual ~Log_event() { free_temp_buf();}
+  virtual ~Log_event()
+  {
+    free_temp_buf();
+#if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
+    free_root(&m_event_mem_root, MYF(MY_KEEP_PREALLOC));
+#endif //!MYSQL_CLIENT && HAVE_REPLICATION
+  }
   void register_temp_buf(char* buf) { temp_buf = buf; }
   void free_temp_buf()
   {
@@ -1461,6 +1487,40 @@ public:
   /* Return start of query time or current time */
 
 #if defined(MYSQL_SERVER) && defined(HAVE_REPLICATION)
+  /**
+     Is called from get_mts_execution_mode() to
+
+     @param  is_scheduler_dbname
+                   The current scheduler type.
+                   In case the db-name scheduler certain events
+                   can't be applied in parallel.
+
+     @return TRUE  if the event needs applying with synchronization
+                   agaist Workers, otherwise
+             FALSE
+
+     @note There are incompatile combinations such as referred further events
+           are wrapped with BEGIN/COMMIT. Such cases should be identified
+           by the caller and treats correspondingly.
+
+           todo: to mts-support Old master Load-data related events
+  */
+  bool is_mts_sequential_exec(bool is_scheduler_dbname)
+  {
+    return
+      ((get_type_code() == LOAD_EVENT         ||
+        get_type_code() == CREATE_FILE_EVENT  ||
+        get_type_code() == DELETE_FILE_EVENT  ||
+        get_type_code() == NEW_LOAD_EVENT     ||
+        get_type_code() == EXEC_LOAD_EVENT)    &&
+       is_scheduler_dbname)                      ||
+      get_type_code() == START_EVENT_V3          ||
+      get_type_code() == STOP_EVENT              ||
+      get_type_code() == ROTATE_EVENT            ||
+      get_type_code() == SLAVE_EVENT             ||
+      get_type_code() == FORMAT_DESCRIPTION_EVENT||
+      get_type_code() == INCIDENT_EVENT;
+  }
 
 private:
 
@@ -1491,41 +1551,18 @@ private:
   };
 
   /**
-     Is called from get_mts_execution_mode() to
-
-     @return TRUE  if the event needs applying with synchronization
-                   agaist Workers, otherwise
-             FALSE
-
-     @note There are incompatile combinations such as referred further events
-           are wrapped with BEGIN/COMMIT. Such cases should be identified
-           by the caller and treats correspondingly.
-
-           todo: to mts-support Old master Load-data related events
-  */
-  bool is_mts_sequential_exec()
-  {
-    return
-      get_type_code() == START_EVENT_V3          ||
-      get_type_code() == STOP_EVENT              ||
-      get_type_code() == ROTATE_EVENT            ||
-      get_type_code() == LOAD_EVENT              ||
-      get_type_code() == SLAVE_EVENT             ||
-      get_type_code() == CREATE_FILE_EVENT       ||
-      get_type_code() == DELETE_FILE_EVENT       ||
-      get_type_code() == NEW_LOAD_EVENT          ||
-      get_type_code() == EXEC_LOAD_EVENT         ||
-      get_type_code() == FORMAT_DESCRIPTION_EVENT||
-
-      get_type_code() == INCIDENT_EVENT;
-  }
-
-  /**
      MTS Coordinator finds out a way how to execute the current event.
 
      Besides the parallelizable case, some events have to be applied by
      Coordinator concurrently with Workers and some to require synchronization
      with Workers (@c see wait_for_workers_to_finish) before to apply them.
+
+     @param slave_server_id   id of the server, extracted from event
+     @param mts_in_group      the being group parsing status, true
+                              means inside the group
+     @param  is_scheduler_dbname
+                              true when the current submode (scheduler)
+                              is of DB_NAME type.
 
      @retval EVENT_EXEC_PARALLEL  if event is executed by a Worker
      @retval EVENT_EXEC_ASYNC     if event is executed by Coordinator
@@ -1533,7 +1570,8 @@ private:
                                   with synchronization against the Workers
   */
   enum enum_mts_event_exec_mode get_mts_execution_mode(ulong slave_server_id,
-                                                   bool mts_in_group)
+                                                       bool mts_in_group,
+                                                       bool is_dbname_type)
   {
     if ((get_type_code() == FORMAT_DESCRIPTION_EVENT &&
          ((server_id == (uint32) ::server_id) || (log_pos == 0))) ||
@@ -1542,7 +1580,7 @@ private:
           (log_pos == 0    /* very first fake Rotate (R_f) */
            && mts_in_group /* ignored event turned into R_f at slave stop */))))
       return EVENT_EXEC_ASYNC;
-    else if (is_mts_sequential_exec())
+    else if (is_mts_sequential_exec(is_dbname_type))
       return EVENT_EXEC_SYNC;
     else
       return EVENT_EXEC_PARALLEL;
@@ -1554,25 +1592,6 @@ private:
              M is the max index of the worker pool.
   */
   Slave_worker *get_slave_worker(Relay_log_info *rli);
-
-  /**
-     The method fills in pointers to event's database name c-strings
-     to a supplied array.
-     In other than Query-log-event case the returned array contains
-     just one item.
-     @param[out] arg pointer to a struct containing char* array
-                     pointers to be filled in and the number
-                     of filled instances.
-
-     @return     number of the filled intances indicating how many
-                 databases the event accesses.
-  */
-  virtual uint8 get_mts_dbs(Mts_db_names *arg)
-  {
-    arg->name[0]= get_db();
-
-    return arg->num= mts_number_dbs();
-  }
 
   /*
     Group of events can be marked to force its execution
@@ -1593,6 +1612,25 @@ private:
 
 
 public:
+  /**
+     The method fills in pointers to event's database name c-strings
+     to a supplied array.
+     In other than Query-log-event case the returned array contains
+     just one item.
+     @param[out] arg pointer to a struct containing char* array
+                     pointers to be filled in and the number
+                     of filled instances.
+
+     @return     number of the filled intances indicating how many
+                 databases the event accesses.
+  */
+  virtual uint8 get_mts_dbs(Mts_db_names *arg)
+  {
+    arg->name[0]= get_db();
+
+    return arg->num= mts_number_dbs();
+  }
+
 
   /**
      @return TRUE  if events carries partitioning data (database names).
@@ -1690,6 +1728,13 @@ public:
   }
 
   virtual int do_apply_event_worker(Slave_worker *w);
+
+  /*
+    Mem root whose scope is equalent to event's scope.
+    This mem_root will be initialized in constructor
+    Log_event() and freed in destructor ~Log_event().
+   */
+  MEM_ROOT m_event_mem_root;
 
 protected:
 
@@ -2174,14 +2219,14 @@ public:
   size_t q_len;
   size_t db_len;
   uint16 error_code;
-  ulong thread_id;
+  my_thread_id thread_id;
   /*
     For events created by Query_log_event::do_apply_event (and
     Load_log_event::do_apply_event()) we need the *original* thread
     id, to be able to log the event with the original (=master's)
     thread id (fix for BUG#1686).
   */
-  ulong slave_proxy_id;
+  my_thread_id slave_proxy_id;
 
   /*
     Binlog format 3 and 4 start to differ (as far as class members are
@@ -2248,7 +2293,7 @@ public:
     it reads this augmented event. SQL thread does not write 
     Q_MASTER_DATA_WRITTEN_CODE to the slave's server binlog.
   */
-  uint32 master_data_written;
+  size_t master_data_written;
   /*
     number of updated databases by the query and their names. This info
     is requested by both Coordinator and Worker.
@@ -2370,10 +2415,11 @@ public:        /* !!! Public in this patch to allow old usage */
       !native_strncasecmp(query, "ROLLBACK", 8);
   }
   /*
-    Prepare and commit sequence number. will be set to 0 if the event is not a
+    Commit parent and point. will be set to 0 if the event is not a
     transaction starter.
    */
-  int64 commit_seq_no;
+  int64 last_committed;
+  int64 sequence_number;
   /**
      Notice, DDL queries are logged without BEGIN/COMMIT parentheses
      and identification of such single-query group
@@ -2381,7 +2427,7 @@ public:        /* !!! Public in this patch to allow old usage */
   */
   bool starts_group() { return !strncmp(query, "BEGIN", q_len); }
   virtual bool ends_group()
-  {  
+  {
     return
       !strncmp(query, "COMMIT", q_len) ||
       (!native_strncasecmp(query, STRING_WITH_LEN("ROLLBACK"))
@@ -2601,15 +2647,15 @@ public:
   uint get_query_buffer_length();
   void print_query(bool need_db, const char *cs, char *buf, char **end,
                    char **fn_start, char **fn_end);
-  ulong thread_id;
-  ulong slave_proxy_id;
-  uint32 table_name_len;
+  my_thread_id thread_id;
+  my_thread_id slave_proxy_id;
+  size_t table_name_len;
   /*
     No need to have a catalog, as these events can only come from 4.x.
     TODO: this may become false if Dmitri pushes his new LOAD DATA INFILE in
     5.0 only (not in 4.x).
   */
-  uint32 db_len;
+  size_t db_len;
   size_t fname_len;
   uint32 num_fields;
   const char* fields;
@@ -4356,10 +4402,39 @@ protected:
   const uchar *m_curr_row;     /* Start of the row being processed */
   const uchar *m_curr_row_end; /* One-after the end of the current row */
   uchar    *m_key;      /* Buffer to keep key value during searches */
-  uchar    *last_hashed_key;
   uint     m_key_index;
-  List<uchar> m_distinct_key_list;
-  List_iterator_fast<uchar> m_itr;
+  KEY      *m_key_info; /* Points to description of index #m_key_index */
+  class Key_compare
+  {
+public:
+    /**
+       @param  ki  Where to find KEY description
+       @note m_distinct_keys is instantiated when Rows_log_event is constructed; it
+       stores a Key_compare object internally. However at that moment, the
+       index (KEY*) to use for comparisons, is not yet known. So, at
+       instantiation, we indicate the Key_compare the place where it can
+       find the KEY* when needed (this place is Rows_log_event::m_key_info),
+       Key_compare remembers the place in member m_key_info.
+       Before we need to do comparisons - i.e. before we need to insert
+       elements, we update Rows_log_event::m_key_info once for all.
+    */
+    Key_compare(KEY **ki= NULL) : m_key_info(ki) {}
+    bool operator()(uchar *k1, uchar *k2) const
+    {
+      return key_cmp2((*m_key_info)->key_part,
+                      k1, (*m_key_info)->key_length,
+                      k2, (*m_key_info)->key_length) < 0 ;
+    }
+private:
+    KEY **m_key_info;
+  };
+  std::set<uchar *, Key_compare> m_distinct_keys;
+  std::set<uchar *, Key_compare>::iterator m_itr;
+  /**
+    A spare buffer which will be used when saving the distinct keys
+    for doing an index scan with HASH_SCAN search algorithm.
+  */
+  uchar *m_distinct_key_spare_buf;
 
   // Unpack the current row into m_table->record[0]
   int unpack_current_row(const Relay_log_info *const rli,
@@ -4517,14 +4592,13 @@ private:
 
   /**
     Initializes scanning of rows. Opens an index and initailizes an iterator
-    over a list of distinct keys (m_distinct_key_list) if it is a HASH_SCAN
+    over a list of distinct keys (m_distinct_keys) if it is a HASH_SCAN
     over an index or the table if its a HASH_SCAN over the table.
   */
   int open_record_scan();
 
   /**
     Does the cleanup
-    - deallocates all the elements in m_distinct_key_list if any
     - closes the index if opened by open_record_scan
     - closes the table if opened for scanning.
   */
@@ -4545,7 +4619,7 @@ private:
   int next_record_scan(bool first_read);
 
   /**
-    Populates the m_distinct_key_list with unique keys to be modified
+    Populates the m_distinct_keys with unique keys to be modified
     during HASH_SCAN over keys.
     @return_value -0 success
                   -Err_code
@@ -5049,7 +5123,8 @@ public:
     Prepare and commit sequence number. will be set to 0 if the event is not a
     transaction starter.
    */
-  int64 commit_seq_no;
+  int64 last_committed;
+  int64 sequence_number;
 #ifndef MYSQL_CLIENT
   /**
     Create a new event using the GTID from the given Gtid_specification,

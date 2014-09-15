@@ -19,8 +19,6 @@
 #define ABSTRACT_QUERY_PLAN_H_INCLUDED
 
 struct TABLE;
-struct st_join_table;
-typedef st_join_table JOIN_TAB;
 class JOIN;
 class Item;
 class Item_field;
@@ -30,7 +28,7 @@ class Item_equal_iterator;
 
 /**
   Abstract query plan (AQP) is an interface for examining certain aspects of 
-  query plans without accessing mysqld internal classes (JOIN_TAB, SQL_SELECT 
+  query plans without accessing mysqld internal classes (JOIN_TAB, QEP_TAB, 
   etc.) directly.
 
   AQP maps join execution plans, as represented by mysqld internals, to a set 
@@ -73,16 +71,16 @@ namespace AQP
 
   private:
     /** 
-      Array of the JOIN_TABs that are the internal representation of table
+      Array of the QEP_TABs that are the internal representation of table
       access operations.
     */
-    const JOIN_TAB* const m_join_tabs;
+    const QEP_TAB* const m_qep_tabs;
 
     /** Number of table access operations. */
     const uint m_access_count;
     Table_access* m_table_accesses;
 
-    const JOIN_TAB* get_join_tab(uint join_tab_no) const;
+    const QEP_TAB* get_qep_tab(uint qep_tab_no) const;
 
     // No copying.
     Join_plan(const Join_plan&);
@@ -224,7 +222,7 @@ namespace AQP
 
     explicit Table_access();
 
-    const JOIN_TAB* get_join_tab() const;
+    const QEP_TAB* get_qep_tab() const;
 
     void compute_type_and_index() const;
 

@@ -16,6 +16,8 @@
 #ifndef MY_TIMER_H
 #define MY_TIMER_H
 
+#ifdef HAVE_MY_TIMER
+
 #include "my_global.h"    /* C_MODE_START, C_MODE_END */
 #include "my_config.h"    /* HAVE_*_TIMERS */
 #include "mysql/psi/psi.h" /* PSI_thread_key, PSI_mutex_key, PSI_memory_key */
@@ -68,5 +70,7 @@ int my_timer_cancel(my_timer_t *timer, int *state);
 void my_timer_delete(my_timer_t *timer);
 
 C_MODE_END
+
+#endif /* HAVE_MY_TIMER */
 
 #endif /* MY_TIMER_H */

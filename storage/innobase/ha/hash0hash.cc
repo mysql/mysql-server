@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -36,7 +36,6 @@ Created 5/20/1997 Heikki Tuuri
 
 /************************************************************//**
 Reserves the mutex for a fold value in a hash table. */
-
 void
 hash_mutex_enter(
 /*=============*/
@@ -49,7 +48,6 @@ hash_mutex_enter(
 
 /************************************************************//**
 Releases the mutex for a fold value in a hash table. */
-
 void
 hash_mutex_exit(
 /*============*/
@@ -62,7 +60,6 @@ hash_mutex_exit(
 
 /************************************************************//**
 Reserves all the mutexes of a hash table, in an ascending order. */
-
 void
 hash_mutex_enter_all(
 /*=================*/
@@ -78,7 +75,6 @@ hash_mutex_enter_all(
 
 /************************************************************//**
 Releases all the mutexes of a hash table. */
-
 void
 hash_mutex_exit_all(
 /*================*/
@@ -94,7 +90,6 @@ hash_mutex_exit_all(
 
 /************************************************************//**
 Releases all but the passed in mutex of a hash table. */
-
 void
 hash_mutex_exit_all_but(
 /*====================*/
@@ -117,7 +112,6 @@ hash_mutex_exit_all_but(
 
 /************************************************************//**
 s-lock a lock for a fold value in a hash table. */
-
 void
 hash_lock_s(
 /*========*/
@@ -140,7 +134,6 @@ hash_lock_s(
 
 /************************************************************//**
 x-lock a lock for a fold value in a hash table. */
-
 void
 hash_lock_x(
 /*========*/
@@ -163,7 +156,6 @@ hash_lock_x(
 
 /************************************************************//**
 unlock an s-lock for a fold value in a hash table. */
-
 void
 hash_unlock_s(
 /*==========*/
@@ -186,7 +178,6 @@ hash_unlock_s(
 
 /************************************************************//**
 unlock x-lock for a fold value in a hash table. */
-
 void
 hash_unlock_x(
 /*==========*/
@@ -207,7 +198,6 @@ hash_unlock_x(
 
 /************************************************************//**
 Reserves all the locks of a hash table, in an ascending order. */
-
 void
 hash_lock_x_all(
 /*============*/
@@ -229,7 +219,6 @@ hash_lock_x_all(
 
 /************************************************************//**
 Releases all the locks of a hash table, in an ascending order. */
-
 void
 hash_unlock_x_all(
 /*==============*/
@@ -250,7 +239,6 @@ hash_unlock_x_all(
 
 /************************************************************//**
 Releases all but passed in lock of a hash table, */
-
 void
 hash_unlock_x_all_but(
 /*==================*/
@@ -278,7 +266,6 @@ hash_unlock_x_all_but(
 Creates a hash table with >= n array cells. The actual number of cells is
 chosen to be a prime number slightly bigger than n.
 @return own: created table */
-
 hash_table_t*
 hash_create(
 /*========*/
@@ -290,10 +277,11 @@ hash_create(
 
 	prime = ut_find_prime(n);
 
-	table = static_cast<hash_table_t*>(ut_malloc(sizeof(hash_table_t)));
+	table = static_cast<hash_table_t*>(
+		ut_malloc_nokey(sizeof(hash_table_t)));
 
 	array = static_cast<hash_cell_t*>(
-		ut_malloc(sizeof(hash_cell_t) * prime));
+		ut_malloc_nokey(sizeof(hash_cell_t) * prime));
 
 	/* The default type of hash_table is HASH_TABLE_SYNC_NONE i.e.:
 	the caller is responsible for access control to the table. */
@@ -319,7 +307,6 @@ hash_create(
 
 /*************************************************************//**
 Frees a hash table. */
-
 void
 hash_table_free(
 /*============*/
@@ -336,7 +323,6 @@ hash_table_free(
 Creates a sync object array to protect a hash table.
 ::sync_obj can be mutexes or rw_locks depening on the type of
 hash table. */
-
 void
 hash_create_sync_obj(
 /*=================*/
@@ -356,7 +342,7 @@ hash_create_sync_obj(
 	switch (table->type) {
 	case HASH_TABLE_SYNC_MUTEX:
 		table->sync_obj.mutexes = static_cast<ib_mutex_t*>(
-			ut_malloc(n_sync_obj * sizeof(ib_mutex_t)));
+			ut_malloc_nokey(n_sync_obj * sizeof(ib_mutex_t)));
 
 		for (ulint i = 0; i < n_sync_obj; i++) {
 			mutex_create(name, table->sync_obj.mutexes + i);
@@ -371,7 +357,7 @@ hash_create_sync_obj(
 		ut_a(level != SYNC_UNKNOWN);
 
 		table->sync_obj.rw_locks = static_cast<rw_lock_t*>(
-			ut_malloc(n_sync_obj * sizeof(rw_lock_t)));
+			ut_malloc_nokey(n_sync_obj * sizeof(rw_lock_t)));
 
 		for (ulint i = 0; i < n_sync_obj; i++) {
 			rw_lock_create(hash_table_locks_key,

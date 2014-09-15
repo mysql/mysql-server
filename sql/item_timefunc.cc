@@ -123,7 +123,7 @@ static bool sec_to_time(lldiv_t seconds, MYSQL_TIME *ltime)
   uint sec= (uint) (seconds.quot % 3600);
   ltime->minute= sec / 60;
   ltime->second= sec % 60;
-  time_add_nanoseconds_with_round(ltime, seconds.rem, &warning);
+  time_add_nanoseconds_with_round(ltime, static_cast<uint>(seconds.rem), &warning);
   
   adjust_time_range(ltime, &warning);
 
@@ -387,15 +387,15 @@ static bool extract_date_time(DATE_TIME_FORMAT *format,
 
         /* Conversion specifiers that match classes of characters */
       case '.':
-	while (my_ispunct(cs, *val) && val != val_end)
+	while (val < val_end && my_ispunct(cs, *val))
 	  val++;
 	break;
       case '@':
-	while (my_isalpha(cs, *val) && val != val_end)
+	while (val < val_end && my_isalpha(cs, *val))
 	  val++;
 	break;
       case '#':
-	while (my_isdigit(cs, *val) && val != val_end)
+	while (val < val_end && my_isdigit(cs, *val))
 	  val++;
 	break;
       default:
@@ -546,14 +546,14 @@ bool make_date_time(DATE_TIME_FORMAT *format, MYSQL_TIME *l_time,
         if (!l_time->month)
           return 1;
         str->append(locale->month_names->type_names[l_time->month-1],
-                    (uint) strlen(locale->month_names->type_names[l_time->month-1]),
+                    strlen(locale->month_names->type_names[l_time->month-1]),
                     system_charset_info);
         break;
       case 'b':
         if (!l_time->month)
           return 1;
         str->append(locale->ab_month_names->type_names[l_time->month-1],
-                    (uint) strlen(locale->ab_month_names->type_names[l_time->month-1]),
+                    strlen(locale->ab_month_names->type_names[l_time->month-1]),
                     system_charset_info);
         break;
       case 'W':
@@ -562,7 +562,7 @@ bool make_date_time(DATE_TIME_FORMAT *format, MYSQL_TIME *l_time,
         weekday= calc_weekday(calc_daynr(l_time->year,l_time->month,
                               l_time->day),0);
         str->append(locale->day_names->type_names[weekday],
-                    (uint) strlen(locale->day_names->type_names[weekday]),
+                    strlen(locale->day_names->type_names[weekday]),
                     system_charset_info);
         break;
       case 'a':
@@ -571,7 +571,7 @@ bool make_date_time(DATE_TIME_FORMAT *format, MYSQL_TIME *l_time,
         weekday=calc_weekday(calc_daynr(l_time->year,l_time->month,
                              l_time->day),0);
         str->append(locale->ab_day_names->type_names[weekday],
-                    (uint) strlen(locale->ab_day_names->type_names[weekday]),
+                    strlen(locale->ab_day_names->type_names[weekday]),
                     system_charset_info);
         break;
       case 'D':
@@ -828,6 +828,37 @@ bool Item_temporal_func::check_precision()
     return true;
   }
   return false;
+}
+
+/**
+  Appends function name with argument list or fractional seconds part
+  to the String str.
+
+  @param[in/out]  str         String to which the func_name and decimals/
+                              argument list should be appended.
+  @param[in]      query_type  Query type
+
+*/
+
+void Item_temporal_func::print(String *str, enum_query_type query_type)
+{
+  str->append(func_name());
+  str->append('(');
+
+  // When the functions have arguments specified
+  if (arg_count)
+    print_args(str, 0, query_type);
+  else if (decimals)
+  {
+    /*
+      For temporal functions like NOW, CURTIME and SYSDATE which can specify
+      fractional seconds part.
+    */
+    str_value.set_int(decimals, unsigned_flag, &my_charset_bin);
+    str->append(str_value);
+  }
+
+  str->append(')');
 }
 
 
@@ -1224,7 +1255,7 @@ String* Item_func_monthname::val_str(String* str)
     return (String *) 0;
 
   month_name= locale->month_names->type_names[ltime.month - 1];
-  str->copy(month_name, (uint) strlen(month_name), &my_charset_utf8_bin,
+  str->copy(month_name, strlen(month_name), &my_charset_utf8_bin,
 	    collation.collation, &err);
   return str;
 }
@@ -1388,7 +1419,7 @@ String* Item_func_dayname::val_str(String* str)
     return (String*) 0;
   
   day_name= locale->day_names->type_names[weekday];
-  str->copy(day_name, (uint) strlen(day_name), &my_charset_utf8_bin,
+  str->copy(day_name, strlen(day_name), &my_charset_utf8_bin,
 	    collation.collation, &err);
   return str;
 }
@@ -2178,8 +2209,9 @@ String *Item_func_date_format::val_str(String *str)
   if (size < MAX_DATE_STRING_REP_LENGTH)
     size= MAX_DATE_STRING_REP_LENGTH;
 
-  if (format == str)
-    str= &value;				// Save result here
+  // If format uses the buffer provided by 'str' then store result locally.
+  if (format == str || format->uses_buffer_owned_by(str))
+    str= &value;
   if (str->alloc(size))
     goto null_date;
 
@@ -2238,7 +2270,7 @@ bool Item_func_from_unixtime::get_date(MYSQL_TIME *ltime,
 
   thd->variables.time_zone->gmt_sec_to_TIME(ltime, (my_time_t) lld.quot);
   int warnings= 0;
-  ltime->second_part= decimals ? lld.rem / 1000 : 0;
+  ltime->second_part= decimals ? static_cast<ulong>(lld.rem / 1000) : 0;
   return datetime_add_nanoseconds_with_round(ltime, lld.rem % 1000, &warnings);
 }
 
@@ -2957,7 +2989,7 @@ bool Item_func_maketime::get_time(MYSQL_TIME *ltime)
     ltime->minute= (uint) minute;
     ltime->second= (uint) second.quot;
     int warnings= 0;
-    ltime->second_part= second.rem / 1000;
+    ltime->second_part= static_cast<ulong>(second.rem / 1000);
     adjust_time_range_with_warn(ltime, decimals);
     time_add_nanoseconds_with_round(ltime, second.rem % 1000, &warnings);
     if (!warnings)
@@ -3169,15 +3201,15 @@ String *Item_func_get_format::val_str_ascii(String *str)
        (format_name= format->format_name);
        format++)
   {
-    uint format_name_len;
-    format_name_len= (uint) strlen(format_name);
+    size_t format_name_len;
+    format_name_len= strlen(format_name);
     if (val_len == format_name_len &&
-	!my_strnncoll(&my_charset_latin1, 
-		      (const uchar *) val->ptr(), val_len, 
+	!my_strnncoll(&my_charset_latin1,
+		      (const uchar *) val->ptr(), val_len,
 		      (const uchar *) format_name, val_len))
     {
       const char *format_str= get_date_time_format_str(format, type);
-      str->set(format_str, (uint) strlen(format_str), &my_charset_numeric);
+      str->set(format_str, strlen(format_str), &my_charset_numeric);
       return str;
     }
   }

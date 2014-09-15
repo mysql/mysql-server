@@ -136,9 +136,8 @@ buf_read_page_low(
 	if (page_id.space() == TRX_SYS_SPACE
 	    && buf_dblwr_page_inside(page_id.page_no())) {
 
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Trying to read doublewrite buffer page %u",
-			(unsigned) page_id.page_no());
+		ib::error() << "Trying to read doublewrite buffer page "
+			<< page_id;
 		return(0);
 	}
 
@@ -279,22 +278,23 @@ buf_read_ahead_random(
 		return(0);
 	}
 
-	/* Remember the tablespace version before we ask te tablespace size
-	below: if DISCARD + IMPORT changes the actual .ibd file meanwhile, we
-	do not try to read outside the bounds of the tablespace! */
-
-	tablespace_version = fil_space_get_version(page_id.space());
-
 	low  = (page_id.page_no() / buf_read_ahead_random_area)
 		* buf_read_ahead_random_area;
 
 	high = (page_id.page_no() / buf_read_ahead_random_area + 1)
 		* buf_read_ahead_random_area;
 
-	const ulint	space_size = fil_space_get_size(page_id.space());
-
-	if (high > space_size) {
-		high = space_size;
+	/* Remember the tablespace version before we ask the tablespace size
+	below: if DISCARD + IMPORT changes the actual .ibd file meanwhile, we
+	do not try to read outside the bounds of the tablespace! */
+	if (fil_space_t* space = fil_space_acquire(page_id.space())) {
+		tablespace_version = space->tablespace_version;
+		if (high > space->size) {
+			high = space->size;
+		}
+		fil_space_release(space);
+	} else {
+		return(0);
 	}
 
 	buf_pool_mutex_enter(buf_pool);
@@ -356,12 +356,10 @@ read_ahead:
 				cur_page_id, page_size, FALSE,
 				tablespace_version);
 			if (err == DB_TABLESPACE_DELETED) {
-				ib_logf(IB_LOG_LEVEL_WARN,
-					"Random readahead trying to access"
-					" page %u:%u in nonexisting or"
-					" being-dropped tablespace",
-					(unsigned) cur_page_id.space(),
-					(unsigned) cur_page_id.page_no());
+				ib::warn() << "Random readahead trying to"
+					" access page " << cur_page_id
+					<< " in nonexisting or"
+					" being-dropped tablespace";
 				break;
 			}
 		}
@@ -414,10 +412,8 @@ buf_read_page(
 				  page_size, FALSE, tablespace_version);
 	srv_stats.buf_pool_reads.add(count);
 	if (err == DB_TABLESPACE_DELETED) {
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"trying to read page " UINT32PF ":" UINT32PF
-			" in nonexisting or being-dropped tablespace",
-			page_id.space(), page_id.page_no());
+		ib::error() << "trying to read page " << page_id
+			<< " in nonexisting or being-dropped tablespace";
 	}
 
 	/* Increment number of I/O operations used for LRU policy. */
@@ -547,17 +543,23 @@ buf_read_ahead_linear(
 	/* Remember the tablespace version before we ask te tablespace size
 	below: if DISCARD + IMPORT changes the actual .ibd file meanwhile, we
 	do not try to read outside the bounds of the tablespace! */
+	ulint	space_size;
 
-	tablespace_version = fil_space_get_version(page_id.space());
+	if (fil_space_t* space = fil_space_acquire(page_id.space())) {
+		tablespace_version = space->tablespace_version;
+		space_size = space->size;
+		fil_space_release(space);
 
-	buf_pool_mutex_enter(buf_pool);
-
-	if (high > fil_space_get_size(page_id.space())) {
-		buf_pool_mutex_exit(buf_pool);
-		/* The area is not whole, return */
-
+		if (high > space->size) {
+			/* The area is not whole */
+			return(0);
+		}
+	} else {
 		return(0);
 	}
+
+
+	buf_pool_mutex_enter(buf_pool);
 
 	if (buf_pool->n_pend_reads
 	    > buf_pool->curr_size / BUF_READ_AHEAD_PEND_LIMIT) {
@@ -578,7 +580,7 @@ buf_read_ahead_linear(
 
 	/* How many out of order accessed pages can we ignore
 	when working out the access pattern for linear readahead */
-	threshold = ut_min((64 - srv_read_ahead_threshold),
+	threshold = ut_min(static_cast<ulint>(64 - srv_read_ahead_threshold),
 			   BUF_READ_AHEAD_AREA(buf_pool));
 
 	fail_count = 0;
@@ -682,7 +684,7 @@ buf_read_ahead_linear(
 		return(0);
 	}
 
-	if (high > fil_space_get_size(page_id.space())) {
+	if (high > space_size) {
 		/* The area is not whole, return */
 
 		return(0);
@@ -713,12 +715,11 @@ buf_read_ahead_linear(
 				&err, false, ibuf_mode, cur_page_id,
 				page_size, FALSE, tablespace_version);
 			if (err == DB_TABLESPACE_DELETED) {
-				ib_logf(IB_LOG_LEVEL_WARN,
-					"linear readahead trying to access "
-					"page " UINT32PF ":%lu in "
-					"nonexisting or being-dropped "
-					"tablespace",
-					page_id.space(), i);
+				ib::warn() << "linear readahead trying to"
+					" access page "
+					<< page_id_t(page_id.space(), i)
+					<< " in nonexisting or being-dropped"
+					" tablespace";
 			}
 		}
 	}
@@ -749,7 +750,6 @@ buf_read_ahead_linear(
 Issues read requests for pages which the ibuf module wants to read in, in
 order to contract the insert buffer tree. Technically, this function is like
 a read-ahead function. */
-
 void
 buf_read_ibuf_merge_pages(
 /*======================*/
@@ -825,16 +825,17 @@ buf_read_ibuf_merge_pages(
 }
 
 /** Issues read requests for pages which recovery wants to read in.
-@param[in]	sync		TRUE if the caller wants this function to wait
+@param[in]	sync		true if the caller wants this function to wait
 for the highest address page to get read in, before this function returns
-@param[in]	space		space id
+@param[in]	space_id	tablespace id
 @param[in]	page_nos	array of page numbers to read, with the
 highest page number the last in the array
 @param[in]	n_stored	number of page numbers in the array */
+
 void
 buf_read_recv_pages(
-	ibool		sync,
-	ulint		space,
+	bool		sync,
+	ulint		space_id,
 	const ulint*	page_nos,
 	ulint		n_stored)
 {
@@ -842,22 +843,22 @@ buf_read_recv_pages(
 	ulint			count;
 	dberr_t			err;
 	ulint			i;
-	bool			found;
-	const page_size_t	page_size(fil_space_get_page_size(space,
-								  &found));
+	ulint			space_flags;
 
-	if (!found) {
-		/* It is a single table tablespace and the .ibd file is
-		missing: do nothing */
-
+	if (fil_space_t* space = fil_space_acquire(space_id)) {
+		tablespace_version = space->tablespace_version;
+		space_flags = space->flags;
+		fil_space_release(space);
+	} else {
+		/* The tablespace is missing: do nothing */
 		return;
 	}
 
-	tablespace_version = fil_space_get_version(space);
+	const page_size_t	page_size(space_flags);
 
 	for (i = 0; i < n_stored; i++) {
 		buf_pool_t*		buf_pool;
-		const page_id_t	cur_page_id(space, page_nos[i]);
+		const page_id_t	cur_page_id(space_id, page_nos[i]);
 
 		count = 0;
 
@@ -870,12 +871,12 @@ buf_read_recv_pages(
 			count++;
 
 			if (!(count % 1000)) {
-				ib_logf(IB_LOG_LEVEL_ERROR,
-					"Waited for %u seconds for %u pending"
-					" reads (%u pread calls) to finish",
-					unsigned(count / 100),
-					unsigned(buf_pool->n_pend_reads),
-					unsigned(os_file_n_pending_preads));
+				ib::error() << "Waited for " << count / 100
+					<< " seconds for "
+					<< buf_pool->n_pend_reads
+					<< " pending reads ("
+					<< os_file_n_pending_preads
+					<< " pread calls) to finish";
 			}
 		}
 

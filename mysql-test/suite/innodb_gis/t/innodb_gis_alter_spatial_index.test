@@ -132,41 +132,41 @@ WHERE Within(tab.c4, @g1);
 SELECT c1,AsText(c2),AsText(c4) FROM tab WHERE Within(tab.c4, @g1);
 
 DELETE FROM tab WHERE Within(tab.c4, @g1);
- 
---error 1252
+
+--error ER_SPATIAL_CANT_HAVE_NULL
 ALTER TABLE tab MODIFY COLUMN c2 MULTIPOINT;
 
---error 1252
+--error ER_SPATIAL_CANT_HAVE_NULL
 ALTER TABLE tab MODIFY COLUMN c3 MULTILINESTRING;
 
---error 1252
+--error ER_SPATIAL_CANT_HAVE_NULL
 ALTER TABLE tab MODIFY COLUMN c4 MULTIPOLYGON;
 
---error 1252
+--error ER_SPATIAL_CANT_HAVE_NULL
 ALTER TABLE tab MODIFY COLUMN c3 MULTILINESTRING NULL;
 
---error 1252
+--error ER_SPATIAL_CANT_HAVE_NULL
 ALTER TABLE tab MODIFY COLUMN c4 MULTIPOLYGON NULL;
 
---error 1252
+--error ER_SPATIAL_CANT_HAVE_NULL
 ALTER TABLE tab MODIFY COLUMN c4 Geometry NULL;
 
---error 1252
+--error ER_SPATIAL_CANT_HAVE_NULL
 ALTER TABLE tab CHANGE COLUMN c2 c22 POINT;
 
---error 1252
+--error ER_SPATIAL_CANT_HAVE_NULL
 ALTER TABLE tab CHANGE COLUMN c3 c33 LINESTRING;
 
---error 1252
+--error ER_SPATIAL_CANT_HAVE_NULL
 ALTER TABLE tab CHANGE COLUMN c4 c44 POLYGON;
 
---error 1687
+--error ER_SPATIAL_MUST_HAVE_GEOM_COL
 ALTER TABLE tab add SPATIAL INDEX idx1(c1);
 
---error 1064
+--error ER_PARSE_ERROR
 ALTER TABLE tab ADD SPATIAL INDEX idx6(c2 ASC) USING BTREE;
 
---error 1064
+--error ER_PARSE_ERROR
 ALTER TABLE tab ADD SPATIAL INDEX idx6(c2 ASC) USING HASH;
 
 
@@ -258,7 +258,7 @@ ALTER TABLE tab DISCARD TABLESPACE;
 
 --disable_warnings
 
---error 1814
+--error ER_TABLESPACE_DISCARDED
 SELECT c1,Astext(c2),Astext(c4) FROM tab;
 
 --copy_file $MYSQLD_DATADIR/test/tab.ibd.bk $MYSQLD_DATADIR/test/tab.ibd
@@ -279,7 +279,7 @@ SET @g1 = GeomFromText('LINESTRING( 3010 3010,4010 4010,5010 5010)');
 
 SELECT c1,Astext(c2),Astext(c4) FROM tab WHERE Intersects(tab.c4, @g1) order by c1;
 
---error 1062
+--error ER_DUP_ENTRY
 UPDATE tab SET c2 = GeomFromText('POINT(4000 4000)')
 WHERE Intersects(tab.c4, @g1);
 
@@ -349,7 +349,6 @@ SHOW CREATE TABLE tab;
 --replace_column 7 #
 SHOW INDEX FROM tab;
 
-# The following comments will be removed once the patch is available
 INSERT INTO tab(c1,c2,c3,c4,c5)
 VALUES(1,GeomFromText('POINT(10 10)'),GeomFromText('LINESTRING(5 5,20 20,30 30)'),
 GeomFromText('POLYGON((30 30,40 40,50 50,30 50,30 40,30 30))'),
@@ -372,7 +371,6 @@ SHOW CREATE TABLE tab;
 --replace_column 7 #
 SHOW INDEX FROM tab;
 
-# The following comments will be removed once the patch is available
 INSERT INTO tab(c1,c2,c3,c4,c5)
 VALUES(1,GeomFromText('POINT(10 10)'),GeomFromText('LINESTRING(5 5,20 20,30 30)'),
 GeomFromText('POLYGON((30 30,40 40,50 50,30 50,30 40,30 30))'),
@@ -458,7 +456,14 @@ ALTER TABLE tab MODIFY COLUMN c2 GEOMETRY NOT NULL;
 
 ALTER TABLE tab MODIFY COLUMN c3 POLYGON NOT NULL;
 
+# When the Non-point type data exist in the column, restrict DDL operation
+--error ER_CANT_CREATE_GEOMETRY_OBJECT
 ALTER TABLE tab MODIFY COLUMN c4 POINT NOT NULL;
+
+ALTER TABLE tab add COLUMN c7 POINT NOT NULL;
+
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+ALTER TABLE tab add COLUMN c8 POINT NOT NULL, ALGORITHM = INPLACE, LOCK=NONE;
 
 SHOW CREATE TABLE tab;
 
@@ -478,6 +483,8 @@ SELECT c1,Astext(c2),Astext(c4) FROM tab WHERE Contains(tab.c4, @g1) ORDER BY c1
 
 ALTER TABLE tab MODIFY COLUMN c2 POLYGON NOT NULL;
 
+# When the Non-point type data exist in the column, restrict DDL operation
+--error ER_CANT_CREATE_GEOMETRY_OBJECT
 ALTER TABLE tab MODIFY COLUMN c3 POINT NOT NULL;
 
 ALTER TABLE tab MODIFY COLUMN c4 GEOMETRY NOT NULL;
@@ -513,6 +520,7 @@ SET @g1 = GeomFromText('POLYGON((4010 4010,4020 4020,4030 4030,4040 4030,4020 40
 
 SET @g2 = GeomFromText('LINESTRING(1 1,2 2,3 3)');
 
+# When Point type data exist in the column allow DDL operation
 ALTER TABLE tab MODIFY COLUMN c2 POINT NOT NULL;
 
 ALTER TABLE tab MODIFY COLUMN c3 LINESTRING NOT NULL;
@@ -564,10 +572,10 @@ DELETE FROM tab WHERE Touches(tab.c4, @g1) OR Touches(tab.c3,@g2);
 SELECT c1,Astext(c2),AsText(c3),Astext(c4) FROM tab WHERE Touches(tab.c4, @g1)
 OR Touches(tab.c3,@g2);
 
---error 1687
+--error ER_SPATIAL_MUST_HAVE_GEOM_COL
 ALTER TABLE tab MODIFY COLUMN c4 INT NOT NULL;
 
---error 1687
+--error ER_SPATIAL_MUST_HAVE_GEOM_COL
 ALTER TABLE tab MODIFY COLUMN c4 BLOB NOT NULL;
 
 # Test InnoDB to Myisam to InnoDB
@@ -646,7 +654,6 @@ SHOW INDEX FROM child;
 
 --error ER_CANNOT_ADD_FOREIGN
 ALTER TABLE child ADD FOREIGN KEY(parent_id) REFERENCES parent(id) ;
-
 
 #cleanup
 DROP table child,parent;

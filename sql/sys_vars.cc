@@ -67,6 +67,7 @@
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
 #include "../storage/perfschema/pfs_server.h"
 #endif /* WITH_PERFSCHEMA_STORAGE_ENGINE */
+#include "sql_tmp_table.h"  // internal_tmp_disk_storage_engine
 
 TYPELIB bool_typelib={ array_elements(bool_values)-1, "", bool_values, 0 };
 
@@ -568,7 +569,7 @@ static Sys_var_ulong Sys_pfs_max_memory_classes(
        "performance_schema_max_memory_classes",
        "Maximum number of memory pool instruments.",
        READ_ONLY GLOBAL_VAR(pfs_param.m_memory_class_sizing),
-       CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, 256),
+       CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, 1024),
        DEFAULT(PFS_MAX_MEMORY_CLASS),
        BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
 
@@ -1781,6 +1782,104 @@ static Sys_var_enum Sys_log_timestamps(
        timestamp_type_names, DEFAULT(0),
        NO_MUTEX_GUARD, NOT_IN_BINLOG);
 
+/* logging to host OS's syslog */
+
+static bool fix_syslog(sys_var *self, THD *thd, enum_var_type type)
+{
+  return log_syslog_update_settings();
+}
+
+static bool check_syslog_tag(sys_var *self, THD *THD, set_var *var)
+{
+  bool ret;
+  char *old= opt_log_syslog_tag;
+  opt_log_syslog_tag= (var->value) ? var->save_result.string_value.str : NULL;
+  ret= log_syslog_update_settings();
+  opt_log_syslog_tag= old;
+  return ret;
+}
+
+static bool check_syslog_enable(sys_var *self, THD *THD, set_var *var)
+{
+  my_bool save= opt_log_syslog_enable;
+  opt_log_syslog_enable= var->save_result.ulonglong_value;
+  if (log_syslog_update_settings())
+  {
+    opt_log_syslog_enable= save;
+    return true;
+  }
+  return false;
+}
+
+static Sys_var_mybool Sys_log_syslog_enable(
+       "log_syslog",
+       "Errors, warnings, and similar issues eligible for MySQL's error log "
+       "file may additionally be sent to the host operating system's system "
+       "log (\"syslog\").",
+       GLOBAL_VAR(opt_log_syslog_enable),
+       CMD_LINE(OPT_ARG),
+       // preserve current defaults for both platforms:
+#ifndef _WIN32
+       DEFAULT(FALSE),
+#else
+       DEFAULT(TRUE),
+#endif
+       NO_MUTEX_GUARD, NOT_IN_BINLOG,
+       ON_CHECK(check_syslog_enable), ON_UPDATE(0));
+
+
+static Sys_var_charptr Sys_log_syslog_tag(
+       "log_syslog_tag",
+       "When logging issues using the host operating system's syslog, "
+       "tag the entries from this particular MySQL server with this ident. "
+       "This will help distinguish entries from MySQL servers co-existing "
+       "on the same host machine. A non-empty tag will be appended to the "
+       "default ident of 'mysqld', connected by a hyphen.",
+       GLOBAL_VAR(opt_log_syslog_tag), CMD_LINE(REQUIRED_ARG),
+       IN_SYSTEM_CHARSET, DEFAULT(""), NO_MUTEX_GUARD, NOT_IN_BINLOG,
+       ON_CHECK(check_syslog_tag), ON_UPDATE(fix_syslog));
+
+
+#ifndef _WIN32
+
+static bool check_syslog_facility(sys_var *self, THD *THD, set_var *var)
+{
+  SYSLOG_FACILITY rsf;
+
+  if (var->value &&
+      log_syslog_find_facility(var->save_result.string_value.str, &rsf))
+    return true;
+  return false;
+}
+
+static bool fix_syslog_facility(sys_var *self, THD *thd, enum_var_type type)
+{
+  if (opt_log_syslog_facility == NULL)
+    return true;
+
+  return log_syslog_update_settings();
+}
+
+static Sys_var_charptr Sys_log_syslog_facility(
+       "log_syslog_facility",
+       "When logging issues using the host operating system's syslog, "
+       "identify as a facility of the given type (to aid in log filtering).",
+       GLOBAL_VAR(opt_log_syslog_facility), CMD_LINE(REQUIRED_ARG),
+       IN_SYSTEM_CHARSET, DEFAULT("daemon"), NO_MUTEX_GUARD, NOT_IN_BINLOG,
+       ON_CHECK(check_syslog_facility), ON_UPDATE(fix_syslog_facility));
+
+static Sys_var_mybool Sys_log_syslog_log_pid(
+       "log_syslog_include_pid",
+       "When logging issues using the host operating system's syslog, "
+       "include this MySQL server's process ID (PID). This setting does "
+       "not affect MySQL's own error log file.",
+       GLOBAL_VAR(opt_log_syslog_include_pid),
+       CMD_LINE(OPT_ARG), DEFAULT(TRUE),
+       NO_MUTEX_GUARD, NOT_IN_BINLOG,
+       ON_CHECK(0), ON_UPDATE(fix_syslog));
+
+#endif
+
 static bool update_cached_long_query_time(sys_var *self, THD *thd,
                                           enum_var_type type)
 {
@@ -2011,11 +2110,12 @@ static Sys_var_ulong Sys_metadata_locks_hash_instances(
        VALID_RANGE(1, 1024), DEFAULT(8), BLOCK_SIZE(1), NO_MUTEX_GUARD,
        NOT_IN_BINLOG, ON_CHECK(0), ON_UPDATE(0), DEPRECATED(""));
 
-static Sys_var_ulong Sys_pseudo_thread_id(
+// relies on DBUG_ASSERT(sizeof(my_thread_id) == 4);
+static Sys_var_uint Sys_pseudo_thread_id(
        "pseudo_thread_id",
        "This variable is for internal server use",
        SESSION_ONLY(pseudo_thread_id),
-       NO_CMD_LINE, VALID_RANGE(0, ULONG_MAX), DEFAULT(0),
+       NO_CMD_LINE, VALID_RANGE(0, UINT_MAX32), DEFAULT(0),
        BLOCK_SIZE(1), NO_MUTEX_GUARD, IN_BINLOG,
        ON_CHECK(check_has_super));
 
@@ -2210,12 +2310,21 @@ static Sys_var_mybool Sys_old_alter_table(
        "old_alter_table", "Use old, non-optimized alter table",
        SESSION_VAR(old_alter_table), CMD_LINE(OPT_ARG), DEFAULT(FALSE));
 
+static bool old_passwords_check(sys_var *self  __attribute__((unused)),
+                                THD *thd  __attribute__((unused)),
+                                set_var *var)
+{
+  /* 1 used to be old passwords */
+  return var->save_result.ulonglong_value == 1;
+}
+
 static Sys_var_uint Sys_old_passwords(
        "old_passwords",
        "Determine which hash algorithm to use when generating passwords using "
        "the PASSWORD() function",
        SESSION_VAR(old_passwords), CMD_LINE(REQUIRED_ARG),
-       VALID_RANGE(0, 2), DEFAULT(0), BLOCK_SIZE(1));
+       VALID_RANGE(0, 2), DEFAULT(0), BLOCK_SIZE(1), NO_MUTEX_GUARD,
+       NOT_IN_BINLOG, ON_CHECK(old_passwords_check));
 
 static Sys_var_ulong Sys_open_files_limit(
        "open_files_limit",
@@ -2719,18 +2828,14 @@ static Sys_var_mybool Sys_query_cache_wlock_invalidate(
 static bool
 on_check_opt_secure_auth(sys_var *self, THD *thd, set_var *var)
 {
-  if (!var->save_result.ulonglong_value)
-  {
-    push_deprecated_warn(thd, "pre-4.1 password hash",
-                         "post-4.1 password hash");
-  }
-  return false;
+  push_deprecated_warn_no_replacement(thd, "--secure-auth");
+  return (!var->save_result.ulonglong_value);
 }
 
 static Sys_var_mybool Sys_secure_auth(
        "secure_auth",
        "Disallow authentication for accounts that have old (pre-4.1) "
-       "passwords",
+       "passwords. Deprecated. Always TRUE.",
        GLOBAL_VAR(opt_secure_auth), CMD_LINE(OPT_ARG, OPT_SECURE_AUTH),
        DEFAULT(TRUE),
        NO_MUTEX_GUARD, NOT_IN_BINLOG,
@@ -3022,12 +3127,9 @@ export sql_mode_t expand_sql_mode(sql_mode_t sql_mode)
       Note that we dont set
       MODE_NO_KEY_OPTIONS | MODE_NO_TABLE_OPTIONS | MODE_NO_FIELD_OPTIONS
       to allow one to get full use of MySQL in this mode.
-
-      MODE_ONLY_FULL_GROUP_BY was removed from ANSI mode because it is
-      currently overly restrictive (see BUG#8510).
     */
     sql_mode|= (MODE_REAL_AS_FLOAT | MODE_PIPES_AS_CONCAT | MODE_ANSI_QUOTES |
-                MODE_IGNORE_SPACE);
+                MODE_IGNORE_SPACE | MODE_ONLY_FULL_GROUP_BY);
   }
   if (sql_mode & MODE_ORACLE)
     sql_mode|= (MODE_PIPES_AS_CONCAT | MODE_ANSI_QUOTES |
@@ -3117,7 +3219,11 @@ static Sys_var_set Sys_sql_mode(
        "Syntax: sql-mode=mode[,mode[,mode...]]. See the manual for the "
        "complete list of valid sql modes",
        SESSION_VAR(sql_mode), CMD_LINE(REQUIRED_ARG),
-       sql_mode_names, DEFAULT(MODE_NO_ENGINE_SUBSTITUTION), NO_MUTEX_GUARD,
+       sql_mode_names,
+       DEFAULT(MODE_NO_ENGINE_SUBSTITUTION |
+               MODE_ONLY_FULL_GROUP_BY |
+               MODE_STRICT_TRANS_TABLES),
+       NO_MUTEX_GUARD,
        NOT_IN_BINLOG, ON_CHECK(check_sql_mode), ON_UPDATE(fix_sql_mode));
 
 static Sys_var_ulong Sys_max_statement_time(
@@ -3131,6 +3237,12 @@ static Sys_var_ulong Sys_max_statement_time(
 #else
 #define SSL_OPT(X) NO_CMD_LINE
 #endif
+
+/*
+  If you are adding new system variable for SSL communication, please take a
+  look at do_auto_cert_generation() function in sql_authentication.cc and
+  add new system variable in checks if required.
+*/
 
 static Sys_var_charptr Sys_ssl_ca(
        "ssl_ca",
@@ -3171,6 +3283,21 @@ static Sys_var_charptr Sys_ssl_crlpath(
        READ_ONLY GLOBAL_VAR(opt_ssl_crlpath), SSL_OPT(OPT_SSL_CRLPATH),
        IN_FS_CHARSET, DEFAULT(0));
 
+#if defined(HAVE_OPENSSL) && !defined(HAVE_YASSL)
+static Sys_var_mybool Sys_auto_generate_certs(
+       "auto_generate_certs",
+       "Auto generate SSL certificates at server startup if --ssl is set to "
+       "ON and none of the other SSL system variables are specified and "
+       "certificate/key files are not present in data directory.",
+       READ_ONLY GLOBAL_VAR(opt_auto_generate_certs),
+       CMD_LINE(OPT_ARG),
+       DEFAULT(TRUE),
+       NO_MUTEX_GUARD,
+       NOT_IN_BINLOG,
+       ON_CHECK(NULL),
+       ON_UPDATE(NULL),
+       NULL);
+#endif /* HAVE_OPENSSL && !HAVE_YASSL */
 
 // why ENUM and not BOOL ?
 static const char *updatable_views_with_limit_names[]= {"NO", "YES", 0};
@@ -3386,6 +3513,13 @@ static Sys_var_plugin Sys_default_storage_engine(
        SESSION_VAR(table_plugin), NO_CMD_LINE,
        MYSQL_STORAGE_ENGINE_PLUGIN, DEFAULT(&default_storage_engine),
        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_not_null));
+
+const char *internal_tmp_disk_storage_engine_names[] = { "MYISAM", "INNODB", 0};
+static Sys_var_enum Sys_internal_tmp_disk_storage_engine(
+       "internal_tmp_disk_storage_engine",
+       "The default storage engine for on-disk internal tmp table",
+       GLOBAL_VAR(internal_tmp_disk_storage_engine), CMD_LINE(OPT_ARG),
+       internal_tmp_disk_storage_engine_names, DEFAULT(TMP_TABLE_MYISAM));
 
 static Sys_var_plugin Sys_default_tmp_storage_engine(
        "default_tmp_storage_engine", "The default storage engine for new explict temporary tables",
@@ -4236,9 +4370,9 @@ static bool fix_slave_net_timeout(sys_var *self, THD *thd, enum_var_type type)
                      slave_net_timeout,
                      (active_mi ? active_mi->heartbeat_period : 0.0)));
   if (active_mi != NULL && slave_net_timeout < active_mi->heartbeat_period)
-    push_warning_printf(thd, Sql_condition::SL_WARNING,
-                        ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE_MAX,
-                        ER(ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE_MAX));
+    push_warning(thd, Sql_condition::SL_WARNING,
+                 ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE_MAX,
+                 ER(ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE_MAX));
   mysql_mutex_unlock(&LOCK_active_mi);
   mysql_mutex_lock(&LOCK_global_system_variables);
   mysql_mutex_lock(&LOCK_slave_net_timeout);
@@ -4535,6 +4669,21 @@ static Sys_var_mybool Sys_enforce_gtid_consistency(
        );
 #endif
 
+static Sys_var_mybool Sys_simplified_binlog_gtid_recovery(
+       "simplified_binlog_gtid_recovery",
+       "If this option is enabled, the server does not scan more than one "
+       "binary log for every iteration when initializing GTID sets on server "
+       "restart. Enabling this option is very useful when restarting a server "
+       "which has already generated lots of binary logs without GTID events. "
+       "Note: If this option is enabled, GLOBAL.GTID_EXECUTED and "
+       "GLOBAL.GTID_PURGED cannot be initialized correctly if binary log(s) "
+       "with GTID events were generated before binary log(s) without GTID "
+       "events, for example if gtid_mode is disabled when the server has "
+       "already generated binary log(s) with GTID events and not purged "
+       "them. ",
+       READ_ONLY GLOBAL_VAR(simplified_binlog_gtid_recovery),
+       CMD_LINE(OPT_ARG), DEFAULT(FALSE));
+
 static Sys_var_ulong Sys_sp_cache_size(
        "stored_program_cache",
        "The soft upper limit for number of cached stored routines for "
@@ -4676,7 +4825,7 @@ static bool check_gtid_next(sys_var *self, THD *thd, set_var *var)
     DBUG_ASSERT(thd->owned_gtid.sidno > 0);
     global_sid_lock->wrlock();
     DBUG_ASSERT(gtid_state->get_owned_gtids()->
-                thread_owns_anything(thd->thread_id));
+                thread_owns_anything(thd->thread_id()));
 #else
     global_sid_lock->rdlock();
 #endif

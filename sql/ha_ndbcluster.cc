@@ -595,6 +595,7 @@ static int update_status_variables(Thd_ndb *thd_ndb,
   }
   ns->number_of_data_nodes= c->no_db_nodes();
   ns->connect_count= c->get_connect_count();
+  ns->last_commit_epoch_server= ndb_get_latest_trans_gci();
   if (thd_ndb)
   {
     ns->execute_count= thd_ndb->m_execute_count;
@@ -605,6 +606,7 @@ static int update_status_variables(Thd_ndb *thd_ndb,
     ns->pushed_queries_dropped= thd_ndb->m_pushed_queries_dropped;
     ns->pushed_queries_executed= thd_ndb->m_pushed_queries_executed;
     ns->pushed_reads= thd_ndb->m_pushed_reads;
+    ns->last_commit_epoch_session = thd_ndb->m_last_commit_epoch_session;
     for (int i= 0; i < MAX_NDB_NODES; i++)
     {
       ns->transaction_no_hint_count[i]= thd_ndb->m_transaction_no_hint_count[i];
@@ -708,6 +710,12 @@ SHOW_VAR ndb_status_variables_dynamic[]= {
   {"pushed_queries_executed", (char*) &g_ndb_status.pushed_queries_executed,
    SHOW_LONG},
   {"pushed_reads",       (char*) &g_ndb_status.pushed_reads,          SHOW_LONG},
+  {"last_commit_epoch_server", 
+                         (char*) &g_ndb_status.last_commit_epoch_server,
+                                                                      SHOW_LONGLONG},
+  {"last_commit_epoch_session", 
+                         (char*) &g_ndb_status.last_commit_epoch_session, 
+                                                                      SHOW_LONGLONG},
   {NullS, NullS, SHOW_LONG}
 };
 
@@ -735,6 +743,7 @@ SHOW_VAR ndb_status_injector_variables[]= {
 
 SHOW_VAR ndb_status_slave_variables[]= {
   NDBAPI_COUNTERS("_slave", &g_slave_api_client_stats),
+  {"slave_last_conflict_epoch",    (char*) &g_ndb_slave_state.last_conflicted_epoch, SHOW_LONGLONG},
   {"slave_max_replicated_epoch", (char*) &g_ndb_slave_state.max_rep_epoch, SHOW_LONGLONG},
   {NullS, NullS, SHOW_LONG}
 };
@@ -1143,12 +1152,26 @@ execute_commit(Thd_ndb *thd_ndb, NdbTransaction *trans,
                                    ignore_count);
   } while (0);
 
+  if (likely(rc == 0))
+  {
+    /* Committed ok, update session GCI, if it's available
+     * (Not available for reads, empty transactions etc...)
+     */
+    Uint64 reportedGCI;
+    if (trans->getGCI(&reportedGCI) == 0 &&
+        reportedGCI != 0)
+    {
+      assert(reportedGCI >= thd_ndb->m_last_commit_epoch_session);
+      thd_ndb->m_last_commit_epoch_session = reportedGCI;
+    }
+  }
+
   if (thd_ndb->is_slave_thread())
   {
     if (likely(rc == 0))
     {
       /* Success */
-      g_ndb_slave_state.atTransactionCommit();
+      g_ndb_slave_state.atTransactionCommit(thd_ndb->m_last_commit_epoch_session);
     }
     else
     {
@@ -1193,7 +1216,8 @@ Thd_ndb::Thd_ndb(THD* thd) :
   m_thd(thd),
   m_slave_thread(thd->slave_thread),
   m_skip_binlog_setup_in_find_files(false),
-  schema_locks_count(0)
+  schema_locks_count(0),
+  m_last_commit_epoch_session(0)
 {
   connection= ndb_get_cluster_connection();
   m_connect_count= connection->get_connect_count();
@@ -1240,7 +1264,7 @@ Thd_ndb::~Thd_ndb()
       {
         sql_print_information("tid %u: node[%u] "
                               "transaction_hint=%u, transaction_no_hint=%u",
-                              (unsigned)m_thd->thread_id, i,
+                              m_thd->thread_id(), i,
                               m_transaction_hint_count[i],
                               m_transaction_no_hint_count[i]);
       }
@@ -1334,21 +1358,22 @@ void ha_ndbcluster::set_rec_per_key()
   DBUG_VOID_RETURN;
 }
 
-ha_rows ha_ndbcluster::records()
+int ha_ndbcluster::records(ha_rows* num_rows)
 {
   DBUG_ENTER("ha_ndbcluster::records");
   DBUG_PRINT("info", ("id=%d, no_uncommitted_rows_count=%d",
-                      ((const NDBTAB *)m_table)->getTableId(),
+                      m_table->getTableId(),
                       m_table_info->no_uncommitted_rows_count));
 
-  if (update_stats(table->in_use, 1) == 0)
+  int error = update_stats(table->in_use, 1);
+  if (error != 0)
   {
-    DBUG_RETURN(stats.records);
+    *num_rows = HA_POS_ERROR;
+    DBUG_RETURN(error);
   }
-  else
-  {
-    DBUG_RETURN(HA_POS_ERROR);
-  }
+
+  *num_rows = stats.records;
+  DBUG_RETURN(0);
 }
 
 void ha_ndbcluster::no_uncommitted_rows_execute_failure()
@@ -1364,7 +1389,7 @@ void ha_ndbcluster::no_uncommitted_rows_update(int c)
   struct Ndb_local_table_statistics *local_info= m_table_info;
   local_info->no_uncommitted_rows_count+= c;
   DBUG_PRINT("info", ("id=%d, no_uncommitted_rows_count=%d",
-                      ((const NDBTAB *)m_table)->getTableId(),
+                      m_table->getTableId(),
                       local_info->no_uncommitted_rows_count));
   DBUG_VOID_RETURN;
 }
@@ -4812,10 +4837,18 @@ handle_conflict_op_error(NdbTransaction* trans,
 
     if (table_has_trans_conflict_detection)
     {
-      /* Perform special transactional conflict-detected handling */
-      int res = g_ndb_slave_state.atTransConflictDetected(ex_data.trans_id);
-      if (res)
-        DBUG_RETURN(res);
+      /* Mark this transaction as in-conflict, unless this is a 
+       * Delete-Delete conflict, which we can't currently handle
+       * in the normal way
+       */
+      if (! ((causing_op_type == DELETE_ROW) &&
+             (conflict_cause == ROW_DOES_NOT_EXIST)))
+      {
+        /* Perform special transactional conflict-detected handling */
+        int res = g_ndb_slave_state.atTransConflictDetected(ex_data.trans_id);
+        if (res)
+          DBUG_RETURN(res);
+      }
     }
 
     if (cfn_share)
@@ -4889,10 +4922,15 @@ int ha_ndbcluster::write_row(uchar *record)
            sizeof(row_server_id));
     memcpy(&row_epoch, table->field[1]->ptr + (record - table->record[0]),
            sizeof(row_epoch));
-    g_ndb_slave_state.atApplyStatusWrite(master_server_id,
-                                         row_server_id,
-                                         row_epoch,
-                                         is_serverid_local(row_server_id));
+    int rc = g_ndb_slave_state.atApplyStatusWrite(master_server_id,
+                                                  row_server_id,
+                                                  row_epoch,
+                                                  is_serverid_local(row_server_id));
+    if (rc != 0)
+    {
+      /* Stop Slave */
+      DBUG_RETURN(rc);
+    }
   }
 #endif /* HAVE_NDB_BINLOG */
   DBUG_RETURN(ndb_write_row(record, FALSE, FALSE));
@@ -12126,7 +12164,7 @@ static int ndb_wait_setup_func_impl(ulong max_wait)
   native_mutex_lock(&ndbcluster_mutex);
 
   struct timespec abstime;
-  set_timespec(abstime, 1);
+  set_timespec(&abstime, 1);
 
   while (max_wait &&
          (!ndb_setup_complete || !ndb_index_stat_thread.is_setup_complete()))
@@ -12140,7 +12178,7 @@ static int ndb_wait_setup_func_impl(ulong max_wait)
       {
         DBUG_PRINT("info", ("1s elapsed waiting"));
         max_wait--;
-        set_timespec(abstime, 1); /* 1 second from now*/
+        set_timespec(&abstime, 1); /* 1 second from now*/
       }
       else
       {
@@ -13466,8 +13504,7 @@ NDB_SHARE::create(const char* key, size_t key_length,
                                       MYF(MY_WME | MY_ZEROFILL))))
     return NULL;
 
-  MEM_ROOT **root_ptr=
-    my_pthread_getspecific_ptr(MEM_ROOT**, THR_MALLOC);
+  MEM_ROOT **root_ptr= my_pthread_get_THR_MALLOC();
   MEM_ROOT *old_root= *root_ptr;
 
   init_sql_alloc(PSI_INSTRUMENT_ME, &share->mem_root, 1024, 0);
@@ -15466,7 +15503,7 @@ Ndb_util_thread::do_run()
   mysql_mutex_lock(&LOCK_server_started);
   while (!mysqld_server_started)
   {
-    set_timespec(abstime, 1);
+    set_timespec(&abstime, 1);
     mysql_cond_timedwait(&COND_server_started, &LOCK_server_started,
                          &abstime);
     if (is_stop_requested())
@@ -15511,7 +15548,7 @@ Ndb_util_thread::do_run()
 
   log_info("Started");
 
-  set_timespec(abstime, 0);
+  set_timespec(&abstime, 0);
   for (;;)
   {
     native_mutex_lock(&LOCK);
@@ -15534,7 +15571,7 @@ Ndb_util_thread::do_run()
     */
     if (!check_ndb_in_thd(thd, false))
     {
-      set_timespec(abstime, 1);
+      set_timespec(&abstime, 1);
       continue;
     }
 
@@ -15548,14 +15585,14 @@ Ndb_util_thread::do_run()
     if (!ndb_binlog_setup(thd))
     {
       /* Failed to setup binlog, try again in 1 second */
-      set_timespec(abstime, 1);
+      set_timespec(&abstime, 1);
       continue;
     }
 
     if (opt_ndb_cache_check_time == 0)
     {
       /* Wake up in 1 second to check if value has changed */
-      set_timespec(abstime, 1);
+      set_timespec(&abstime, 1);
       continue;
     }
 
@@ -15665,7 +15702,7 @@ Ndb_util_thread::do_run()
     }
 next:
     /* Calculate new time to wake up */
-    set_timespec_nsec(abstime, opt_ndb_cache_check_time * 1000000ULL);
+    set_timespec_nsec(&abstime, opt_ndb_cache_check_time * 1000000ULL);
   }
 
   log_info("Stopping...");
@@ -15720,7 +15757,7 @@ ha_ndbcluster::cond_push(const Item *cond)
   DBUG_ENTER("ha_ndbcluster::cond_push");
 
 #if 1
-  if (cond->used_tables() & ~table->map)
+  if (cond->used_tables() & ~table->pos_in_table_list->map())
   {
     /**
      * 'cond' refers fields from other tables, or other instances 
@@ -15737,7 +15774,7 @@ ha_ndbcluster::cond_push(const Item *cond)
     or other instances of this table.
     (This was a legacy bug in optimizer)
   */
-  DBUG_ASSERT(!(cond->used_tables() & ~table->map));
+  DBUG_ASSERT(!(cond->used_tables() & ~table->pos_in_table_list->map()));
 #endif
   if (!m_cond) 
     m_cond= new ha_ndbcluster_cond;
@@ -18238,6 +18275,114 @@ static MYSQL_SYSVAR_UINT(
   0                                 /* block */
 );
 
+static const char* slave_conflict_role_names[] =
+{
+  "NONE",
+  "SECONDARY",
+  "PRIMARY",
+  "PASS",
+  NullS
+};
+
+static ulong opt_ndb_slave_conflict_role;
+
+static TYPELIB slave_conflict_role_typelib = 
+{
+  array_elements(slave_conflict_role_names) - 1,
+  "",
+  slave_conflict_role_names,
+  NULL
+};
+
+
+/**
+ * slave_conflict_role_check_func.
+ * 
+ * Perform most validation of a role change request.
+ * Inspired by sql_plugin.cc::check_func_enum()
+ */
+static int slave_conflict_role_check_func(THD *thd, struct st_mysql_sys_var *var,
+                                          void *save, st_mysql_value *value)
+{
+  char buff[STRING_BUFFER_USUAL_SIZE];
+  const char *str;
+  long long tmp;
+  long result;
+  int length;
+
+  do
+  {
+    if (value->value_type(value) == MYSQL_VALUE_TYPE_STRING)
+    {
+      length= sizeof(buff);
+      if (!(str= value->val_str(value, buff, &length)))
+        break;
+      if ((result= (long)find_type(str, &slave_conflict_role_typelib, 0) - 1) < 0)
+        break;
+    }
+    else
+    {
+      if (value->val_int(value, &tmp))
+        break;
+      if (tmp < 0 || tmp >= slave_conflict_role_typelib.count)
+        break;
+      result= (long) tmp;
+    }
+    
+    const char* failure_cause_str = NULL;
+    if (!st_ndb_slave_state::checkSlaveConflictRoleChange(
+               (enum_slave_conflict_role) opt_ndb_slave_conflict_role,
+               (enum_slave_conflict_role) result,
+               &failure_cause_str))
+    {
+      char msgbuf[256];
+      my_snprintf(msgbuf, 
+                  sizeof(msgbuf), 
+                  "Role change from %s to %s failed : %s",
+                  get_type(&slave_conflict_role_typelib, opt_ndb_slave_conflict_role),
+                  get_type(&slave_conflict_role_typelib, result),
+                  failure_cause_str);
+      
+      thd->raise_error_printf(ER_ERROR_WHEN_EXECUTING_COMMAND,
+                              "SET GLOBAL ndb_slave_conflict_role",
+                              msgbuf);
+      
+      break;
+    }
+    
+    /* Ok */
+    *(long*)save= result;
+    return 0;
+  } while (0);
+  /* Error */
+  return 1;
+};
+
+/**
+ * slave_conflict_role_update_func
+ *
+ * Perform actual change of role, using saved 'long' enum value
+ * prepared by the update func above.
+ *
+ * Inspired by sql_plugin.cc::update_func_long()
+ */
+static void slave_conflict_role_update_func(THD *thd, struct st_mysql_sys_var *var,
+                                            void *tgt, const void *save)
+{
+  *(long *)tgt= *(long *) save;
+};
+
+static MYSQL_SYSVAR_ENUM(
+  slave_conflict_role,               /* Name */
+  opt_ndb_slave_conflict_role,       /* Var */
+  PLUGIN_VAR_RQCMDARG,
+  "Role for Slave to play in asymmetric conflict algorithms.",
+  slave_conflict_role_check_func,    /* Check func */
+  slave_conflict_role_update_func,   /* Update func */
+  SCR_NONE,                          /* Default value */
+  &slave_conflict_role_typelib       /* typelib */
+);
+
 #ifndef DBUG_OFF
 
 static
@@ -18346,6 +18491,7 @@ static struct st_mysql_sys_var* system_variables[]= {
   MYSQL_SYSVAR(version),
   MYSQL_SYSVAR(version_string),
   MYSQL_SYSVAR(show_foreign_key_mock_tables),
+  MYSQL_SYSVAR(slave_conflict_role),
   NULL
 };
 

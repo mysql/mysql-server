@@ -33,6 +33,7 @@
 #include "opt_explain_format.h"
 #include "sql_view.h"            // repoint_contexts_of_join_nests
 #include "sql_test.h"            // print_where
+#include "aggregate_check.h"
 
 static const Item::enum_walk walk_subquery=
   Item::enum_walk(Item::WALK_POSTFIX | Item::WALK_SUBQUERY);
@@ -54,14 +55,9 @@ setup_without_group(THD *thd, Ref_ptr_array ref_pointer_array,
 static int
 setup_group(THD *thd, Ref_ptr_array ref_pointer_array, TABLE_LIST *tables,
             List<Item> &fields, List<Item> &all_fields, ORDER *order);
-static bool
-match_exprs_for_only_full_group_by(THD *thd, List<Item> &all_fields,
-                                   int hidden_group_exprs_count,
-                                   int hidden_order_exprs_count,
-                                   int select_exprs_count,
-                                   ORDER *group_exprs);
 uint build_bitmap_for_nested_joins(List<TABLE_LIST> *join_list,
                                    uint first_unused);
+
 
 /**
   Prepare of whole select (including sub queries in future).
@@ -172,16 +168,19 @@ int SELECT_LEX::prepare(JOIN *join)
   DBUG_ASSERT(parsing_place == CTX_NONE);
   parsing_place= CTX_NONE;
 
+  resolve_place= RESOLVE_SELECT_LIST;
   if (setup_wild(thd, join->fields_list, &join->all_fields, with_wild))
     DBUG_RETURN(-1);
   if (setup_ref_array(thd))
     DBUG_RETURN(-1);
 
   join->ref_ptrs= join->ref_ptr_array_slice(0);
-  
+
   if (setup_fields(thd, join->ref_ptrs, join->fields_list, MARK_COLUMNS_READ,
                    &join->all_fields, 1))
     DBUG_RETURN(-1);
+
+  resolve_place= RESOLVE_NONE;
 
   int hidden_order_field_count;
   if (setup_without_group(thd, join->ref_ptrs, get_table_list(),
@@ -208,6 +207,25 @@ int SELECT_LEX::prepare(JOIN *join)
     remove_redundant_subquery_clauses(this, join->hidden_group_field_count,
                                       hidden_order_field_count,
                                       join->all_fields, join->ref_ptrs);
+  }
+
+  if (join->group_list || agg_func_used())
+  {
+    if (join->hidden_group_field_count == 0 &&
+        olap == UNSPECIFIED_OLAP_TYPE)
+    {
+      /*
+        All GROUP expressions are in SELECT list, so resulting rows are
+        distinct. ROLLUP is not specified, so adds no row. So all rows in the
+        result set are distinct, DISTINCT is useless.
+        @todo could remove DISTINCT if ROLLUP were specified and all GROUP
+        expressions were non-nullable, because ROLLUP adds only NULL
+        values. Currently, ROLLUP+DISTINCT is rejected because executor
+        cannot handle it in all cases.
+      */
+      options&= ~SELECT_DISTINCT;
+      join->select_distinct= false;
+    }
   }
 
   if (m_having_cond)
@@ -336,19 +354,7 @@ int SELECT_LEX::prepare(JOIN *join)
 
   if (setup_ftfuncs(this)) /* should be after having->fix_fields */
     DBUG_RETURN(-1);
-  
 
-  /*
-    Check if there are references to un-aggregated columns when computing 
-    aggregate functions with implicit grouping (there is no GROUP BY).
-  */
-  if (thd->variables.sql_mode & MODE_ONLY_FULL_GROUP_BY &&
-      !join->group_list && non_agg_field_used() && agg_func_used())
-  {
-    my_message(ER_MIX_OF_GROUP_FUNC_AND_FIELDS,
-               ER(ER_MIX_OF_GROUP_FUNC_AND_FIELDS), MYF(0));
-    DBUG_RETURN(-1);
-  }
   {
     /* Caclulate the number of groups */
     join->send_group_parts= 0;
@@ -357,7 +363,6 @@ int SELECT_LEX::prepare(JOIN *join)
          group_tmp= group_tmp->next)
       join->send_group_parts++;
   }
-
 
   if (join->result && join->result->prepare(join->fields_list, unit))
     DBUG_RETURN(-1); /* purecov: inspected */
@@ -469,10 +474,11 @@ bool SELECT_LEX::apply_local_transforms()
       DBUG_RETURN(true);
   }
 
-  THD *const thd= join->thd;
+  if (!first_execution)
+      DBUG_RETURN(false);
 
-  if (first_execution &&
-      !(thd->lex->context_analysis_only & CONTEXT_ANALYSIS_ONLY_VIEW))
+  THD *const thd= join->thd;
+  if (!(thd->lex->context_analysis_only & CONTEXT_ANALYSIS_ONLY_VIEW))
   {
     /*
       The following code will allocate the new items in a permanent
@@ -486,6 +492,30 @@ bool SELECT_LEX::apply_local_transforms()
       DBUG_RETURN(true);
     build_bitmap_for_nested_joins(&top_join_list, 0);
   }
+
+  /*
+    Here are reasons why we do the following check here (i.e. late).
+    * setup_fields () may have done split_sum_func () on aggregate items of
+    the SELECT list, so for reliable comparison of the ORDER BY list with the
+    SELECT list, we need to wait until split_sum_func() has been done on the
+    ORDER BY list.
+    * we get "most of the time" fixed items, which is always a good
+    thing. Some outer references may not be fixed, though.
+    * we need nested_join::used_tables, and this member is set in
+    simplify_joins()
+    * simplify_joins() does outer-join-to-inner conversion, which increases
+    opportunities for functional dependencies (weak-to-strong, which is
+    unusable, becomes strong-to-strong).
+
+    The drawback is that the checks are after resolve_subquery(), so can meet
+    strange "internally added" items.
+  */
+  if ((thd->variables.sql_mode & MODE_ONLY_FULL_GROUP_BY) &&
+      ((options & SELECT_DISTINCT) || group_list.elements ||
+       agg_func_used()) &&
+      check_only_full_group_by(thd))
+    DBUG_RETURN(true);
+
   fix_prepare_information(thd);
   DBUG_RETURN(false);
 }
@@ -1106,7 +1136,7 @@ SELECT_LEX::simplify_joins(THD *thd,
     }
     else
     {
-      used_tables= table->table->map;
+      used_tables= table->map();
       if (*cond)
         not_null_tables= (*cond)->not_null_tables();
     }
@@ -1182,17 +1212,15 @@ SELECT_LEX::simplify_joins(THD *thd,
     */ 
     if (table->join_cond())
     {
-      table->dep_tables|= table->join_cond()->used_tables(); 
-      if (table->embedding)
-      {
-        table->dep_tables&= ~table->embedding->nested_join->used_tables;
+      table->dep_tables|= table->join_cond()->used_tables();
 
-        // Embedding table depends on tables used in embedded join conditions. 
-        table->embedding->on_expr_dep_tables|=
-          table->join_cond()->used_tables();
-      }
-      else
-        table->dep_tables&= ~table->table->map;
+      // At this point the joined tables always have an embedding join nest:
+      DBUG_ASSERT(table->embedding);
+
+      table->dep_tables&= ~table->embedding->nested_join->used_tables;
+
+      // Embedding table depends on tables used in embedded join conditions. 
+      table->embedding->on_expr_dep_tables|= table->join_cond()->used_tables();
     }
 
     if (prev_table)
@@ -1205,7 +1233,7 @@ SELECT_LEX::simplify_joins(THD *thd,
         prev_table->dep_tables|= table->on_expr_dep_tables;
         table_map prev_used_tables= prev_table->nested_join ?
 	                            prev_table->nested_join->used_tables :
-	                            prev_table->table->map;
+	                            prev_table->map();
         /* 
           If join condition contains only references to inner tables
           we still make the inner tables dependent on the outer tables.
@@ -1306,7 +1334,11 @@ bool SELECT_LEX::record_join_nest_info(List<TABLE_LIST> *tables)
   while ((table= li++))
   {
     if (table->nested_join == NULL)
+    {
+      if (table->join_cond())
+        outer_join|= table->map();
       continue;
+    }
 
     if (record_join_nest_info(&table->nested_join->join_list))
       DBUG_RETURN(true);
@@ -1319,6 +1351,9 @@ bool SELECT_LEX::record_join_nest_info(List<TABLE_LIST> *tables)
       table->sj_inner_tables= table->nested_join->used_tables;
     if (table->sj_on_expr && sj_nests.push_back(table))
       DBUG_RETURN(true);
+
+    if (table->join_cond())
+      outer_join|= table->nested_join->used_tables;
   }
   DBUG_RETURN(false);
 }
@@ -1591,10 +1626,7 @@ SELECT_LEX::convert_subquery_to_semijoin(Item_exists_subselect *subq_pred)
   uint table_no= leaf_table_count;
   /* n. Walk through child's tables and adjust table->map */
   for (tl= subq_select->leaf_tables; tl; tl= tl->next_leaf, table_no++)
-  {
-    tl->table->tablenr= table_no;
-    tl->table->map= ((table_map)1) << table_no;
-  }
+    tl->set_tableno(table_no);
 
   derived_table_count+= subq_select->derived_table_count;
   materialized_table_count+=
@@ -1648,21 +1680,49 @@ SELECT_LEX::convert_subquery_to_semijoin(Item_exists_subselect *subq_pred)
        Item_direct_view_ref::fix_fields.
     */
 
-    for (uint i= 0; i < in_subq_pred->left_expr->cols(); i++)
+    if (in_subq_pred->left_expr->type() == Item::SUBSELECT_ITEM)
     {
-      nested_join->sj_outer_exprs.push_back(in_subq_pred->left_expr->
-                                            element_index(i));
-      nested_join->sj_inner_exprs.push_back(subq_select->ref_pointer_array[i]);
+      List<Item> ref_list;
+      uint i;
 
-      Item_func_eq *item_eq= 
-        new Item_func_eq(in_subq_pred->left_expr->element_index(i), 
-                         subq_select->ref_pointer_array[i]);
+      Item *header= subq_select->ref_pointer_array[0];
+      for (i= 1; i < in_subq_pred->left_expr->cols(); i++)
+      {
+        ref_list.push_back(subq_select->ref_pointer_array[i]);
+      }
+
+      Item_row *right_expr= new Item_row(header, ref_list);
+
+      nested_join->sj_outer_exprs.push_back(in_subq_pred->left_expr);
+      nested_join->sj_inner_exprs.push_back(right_expr);
+      Item_func_eq *item_eq=
+        new Item_func_eq(in_subq_pred->left_expr,
+                         right_expr);
       if (item_eq == NULL)
         DBUG_RETURN(TRUE);
 
       sj_nest->sj_on_expr= and_items(sj_nest->sj_on_expr, item_eq);
       if (sj_nest->sj_on_expr == NULL)
         DBUG_RETURN(TRUE);
+    }
+    else
+    {
+      for (uint i= 0; i < in_subq_pred->left_expr->cols(); i++)
+      {
+        nested_join->sj_outer_exprs.push_back(in_subq_pred->left_expr->
+                                              element_index(i));
+        nested_join->sj_inner_exprs.push_back(subq_select->ref_pointer_array[i]);
+
+        Item_func_eq *item_eq= 
+          new Item_func_eq(in_subq_pred->left_expr->element_index(i), 
+                           subq_select->ref_pointer_array[i]);
+        if (item_eq == NULL)
+          DBUG_RETURN(TRUE);
+
+        sj_nest->sj_on_expr= and_items(sj_nest->sj_on_expr, item_eq);
+        if (sj_nest->sj_on_expr == NULL)
+          DBUG_RETURN(TRUE);
+      }
     }
     /* Fix the created equality and AND */
 
@@ -2110,9 +2170,9 @@ fix_inner_refs(THD *thd, List<Item> &all_fields, SELECT_LEX *select,
     }
     new_ref= direct_ref ?
               new Item_direct_ref(ref->context, item_ref, ref->table_name,
-                          ref->field_name, ref->alias_name_used) :
+                                  ref->field_name, ref->is_alias_of_expr()) :
               new Item_ref(ref->context, item_ref, ref->table_name,
-                          ref->field_name, ref->alias_name_used);
+                           ref->field_name, ref->is_alias_of_expr());
     if (!new_ref)
       return TRUE;
     ref->outer_ref= new_ref;
@@ -2269,19 +2329,11 @@ setup_without_group(THD *thd, Ref_ptr_array ref_pointer_array,
   int res;
   st_select_lex *const select= thd->lex->current_select();
   nesting_map save_allow_sum_func=thd->lex->allow_sum_func;
-  /* 
-    Need to save the value, so we can turn off only any new non_agg_field_used
-    additions coming from the WHERE
-  */
-  const bool saved_non_agg_field_used= select->non_agg_field_used();
   DBUG_ENTER("setup_without_group");
 
   thd->lex->allow_sum_func&= ~((nesting_map)1 << select->nest_level);
   DBUG_ASSERT(tables == select->get_table_list());
   res= select->setup_conds(thd);
-
-  /* it's not wrong to have non-aggregated columns in a WHERE */
-  select->set_non_agg_field_used(saved_non_agg_field_used);
 
   // GROUP BY
   int all_fields_count= all_fields.elements;
@@ -2295,12 +2347,6 @@ setup_without_group(THD *thd, Ref_ptr_array ref_pointer_array,
   res= res || setup_order(thd, ref_pointer_array, tables, fields, all_fields,
                           order);
   *hidden_order_field_count= all_fields.elements - all_fields_count;
-
-  res= res || match_exprs_for_only_full_group_by(thd, all_fields,
-                                                 *hidden_group_field_count,
-                                                 *hidden_order_field_count,
-                                                 fields.elements, group);
-
   thd->lex->allow_sum_func= save_allow_sum_func;
   DBUG_RETURN(res);
 }
@@ -2522,8 +2568,6 @@ int setup_order(THD *thd, Ref_ptr_array ref_pointer_array, TABLE_LIST *tables,
   SELECT_LEX *const select= thd->lex->current_select();
 
   thd->where="order clause";
-  DBUG_ASSERT(select->cur_pos_in_all_fields ==
-              SELECT_LEX::ALL_FIELDS_UNDEF_POS);
 
   const bool for_union= select->master_unit()->is_union() &&
                         select == select->master_unit()->fake_select_lex;
@@ -2532,8 +2576,6 @@ int setup_order(THD *thd, Ref_ptr_array ref_pointer_array, TABLE_LIST *tables,
 
   for (uint number= 1; order; order=order->next, number++)
   {
-    select->cur_pos_in_all_fields=
-      fields.elements - all_fields.elements - 1;
     if (find_order_in_list(thd, ref_pointer_array, tables, order, fields,
 			   all_fields, FALSE))
       return 1;
@@ -2567,166 +2609,49 @@ int setup_order(THD *thd, Ref_ptr_array ref_pointer_array, TABLE_LIST *tables,
       }
     }
   }
-  select->cur_pos_in_all_fields= SELECT_LEX::ALL_FIELDS_UNDEF_POS;
-
   return 0;
 }
 
 
 /**
-   Scans the SELECT list and ORDER BY list: for each expression, if it is not
-   present in GROUP BY, examines the non-aggregated columns contained in the
-   expression; if those columns are not all in GROUP BY, raise an error.
-
-   Examples:
-   1) "SELECT a+1 FROM t GROUP BY a+1"
-   "a+1" in SELECT list was found, by setup_group() (exactly
-   find_order_in_list()), to be the same as "a+1" in GROUP BY; as it is a
-   GROUP BY expression, setup_group() has marked this expression with
-   ALL_FIELDS_UNDEF_POS (item->marker= ALL_FIELDS_UNDEF_POS).
-   2) "SELECT a+1 FROM t GROUP BY a"
-   "a+1" is not found in GROUP BY; its non-aggregated column is "a", "a" is
-   present in GROUP BY so it's ok.
-
-   A "hidden" GROUP BY / ORDER BY expression is a member of GROUP BY / ORDER
-   BY which was not found (by setup_order() or setup_group()) to be also
-   present in the SELECT list. setup_order() and setup_group() have thus added
-   the expression to the front of JOIN::all_fields.
+   Runs checks mandated by ONLY_FULL_GROUP_BY
 
    @param  thd                     THD pointer
-   @param  all_fields              list of expressions, including SELECT list
-                                   and hidden ORDER BY expressions
-   @param  hidden_group_exprs_count number of hidden GROUP BY expressions
-   @param  hidden_order_exprs_count number of hidden ORDER BY expressions
-   @param  select_exprs_count      number of SELECT list expressions (there may
-                                   be a gap between hidden GROUP BY expressions
-                                   and SELECT list expressions)
-   @param  group_exprs             GROUP BY expressions
+   @param  select                  Query block
 
    @returns true if ONLY_FULL_GROUP_BY is violated.
 */
 
-static bool
-match_exprs_for_only_full_group_by(THD *thd, List<Item> &all_fields,
-                                   int hidden_group_exprs_count,
-                                   int hidden_order_exprs_count,
-                                   int select_exprs_count,
-                                   ORDER *group_exprs)
+bool SELECT_LEX::check_only_full_group_by(THD *thd)
 {
-  if (!group_exprs ||
-      !(thd->variables.sql_mode & MODE_ONLY_FULL_GROUP_BY))
-    return false;
+  bool rc= false;
 
-  /*
-    For all expressions of the SELECT list and ORDER BY, a list of columns
-    which aren't under an aggregate function, 'select_lex->non_agg_fields',
-    has been created (see Item_field::fix_fields()). Each column in that list
-    keeps in Item::marker the position, in all_fields, of the (SELECT
-    list or ORDER BY) expression which it belongs to (see
-    st_select_lex::cur_pos_in_all_fields). all_fields looks like this:
-    (front) HIDDEN ORDER BY - HIDDEN GROUP BY - gap - SELECT LIST (back)
-    "Gap" may contain some aggregate expressions (see Item::split_sum_func2())
-    which are irrelevant to us.
-
-    We take an expressions of the SELECT list or a hidden ORDER BY expression
-    ('expr' variable).
-    - (1) If it also belongs to the GROUP BY list, it's ok.
-    - (2) If it is an aggregate function, it's ok.
-    - (3) If is is a constant, it's ok.
-    - (4) If it is a column resolved to an outer SELECT it's ok;
-    indeed, it is a constant from the point of view of one execution of the
-    inner SELECT - it does not introduce any randomness in the result.
-    - Otherwise we scan the list of non-aggregated columns and if we find at
-    least one column belonging to this expression and NOT occuring
-    in the GROUP BY list, we throw an error.
-  */
-  List_iterator<Item> exprs_it(all_fields);
-  /*
-    All "idx*" variables below are indices in all_fields, with "index of
-    front" = 0 and "index of back" = all_fields.elements - 1.
-  */
-  int idx= -1;
-  const int idx_of_first_hidden_group= hidden_order_exprs_count;
-  const int idx_of_first_select= all_fields.elements - select_exprs_count;
-  /*
-    Also an index in all_fields, but with the same counting convention as
-    st_select_lex::cur_pos_in_all_fields.
-  */
-  int cur_pos_in_all_fields;
-  Item *expr;
-  Item_field *non_agg_field;
-  List_iterator<Item_field>
-    non_agg_fields_it(thd->lex->current_select()->non_agg_fields);
-
-  non_agg_field= non_agg_fields_it++;
-  while (non_agg_field && (expr= exprs_it++))
+  if (group_list.elements || agg_func_used())
   {
-    idx++;
-    if (idx >= idx_of_first_hidden_group &&     // In or after hidden GROUP BY
-         idx < idx_of_first_select)             // but not yet in SELECT list
-      continue;
-    cur_pos_in_all_fields= idx - idx_of_first_select;
-
-    if ((expr->marker == SELECT_LEX::ALL_FIELDS_UNDEF_POS) ||  // (1)
-        expr->type() == Item::SUM_FUNC_ITEM ||                 // (2)
-        expr->const_item() ||                                  // (3)
-        (expr->real_item()->type() == Item::FIELD_ITEM &&
-         expr->used_tables() & OUTER_REF_TABLE_BIT))           // (4)
-      continue; // Ignore this expression.
-
-    while (non_agg_field)
+    MEM_ROOT root;
+    /*
+      "root" has very short lifetime, and should not consume much
+      => not instrumented.
+    */
+    init_sql_alloc(PSI_NOT_INSTRUMENTED, &root, MEM_ROOT_BLOCK_SIZE, 0);
     {
-      /*
-        All non-aggregated columns contained in 'expr' have their
-        'marker' equal to 'cur_pos_in_all_fields' OR equal to
-        ALL_FIELDS_UNDEF_POS. The latter case happens in:
-        "SELECT a FROM t GROUP BY a"
-        when setup_group() finds that "a" in GROUP BY is also in the
-        SELECT list ('fields' list); setup_group() marks the "a" expression
-        with ALL_FIELDS_UNDEF_POS; at the same time, "a" is also a
-        non-aggregated column of the "a" expression; thus, non-aggregated
-        column "a" had its marker change from >=0 to
-        ALL_FIELDS_UNDEF_POS. Such non-aggregated column can be ignored (and
-        that is why ALL_FIELDS_UNDEF_POS is a very negative number).
-      */
-      if (non_agg_field->marker < cur_pos_in_all_fields)
-      {
-        /*
-          Ignorable column, or the owning expression was found to be
-          ignorable (cases 1-2-3-4 above); ignore it and switch to next
-          column.
-        */
-        goto next_non_agg_field;
-      }
-      if (non_agg_field->marker > cur_pos_in_all_fields)
-      {
-        /*
-          'expr' has been passed (we have scanned all its non-aggregated
-          columns and are seeing one which belongs to a next expression),
-          switch to next expression.
-        */
-        break;
-      }
-      // Check whether the non-aggregated column occurs in the GROUP BY list
-      for (ORDER *grp= group_exprs; grp; grp= grp->next)
-        if ((*grp->item)->eq(static_cast<Item *>(non_agg_field), false))
-        {
-          // column is in GROUP BY so is ok; check the next
-          goto next_non_agg_field;
-        }
-      /*
-        If we come here, one non-aggregated column belonging to 'expr' was
-        not found in GROUP BY, we raise an error.
-        TODO: change ER_WRONG_FIELD_WITH_GROUP to more detailed
-        ER_NON_GROUPING_FIELD_USED
-      */
-      my_error(ER_WRONG_FIELD_WITH_GROUP, MYF(0), non_agg_field->full_name());
-      return true;
-  next_non_agg_field:
-      non_agg_field= non_agg_fields_it++;
-    }
+      Group_check gc(this, &root);
+      rc= gc.check_query(thd);
+      gc.to_opt_trace(thd);
+    } // scope, to let any destructor run before free_root().
+    free_root(&root, MYF(0));
   }
-  return false;
+
+  if (!rc &&
+      (options & SELECT_DISTINCT) &&
+      // aggregate without GROUP => single-row result => don't bother user
+      !(!group_list.elements && agg_func_used()))
+  {
+    Distinct_check dc(this);
+    rc= dc.check_query(thd);
+  }
+
+  return rc;
 }
 
 
@@ -2743,10 +2668,6 @@ match_exprs_for_only_full_group_by(THD *thd, List<Item> &all_fields,
                                select. All items in 'order' that was not part
                                of fields will be added first to this list.
   @param order			The fields we should do GROUP BY on.
-
-  @todo
-    change ER_WRONG_FIELD_WITH_GROUP to more detailed
-    ER_NON_GROUPING_FIELD_USED
 
   @retval
     0  ok
@@ -2767,8 +2688,6 @@ setup_group(THD *thd, Ref_ptr_array ref_pointer_array, TABLE_LIST *tables,
     if (find_order_in_list(thd, ref_pointer_array, tables, ord, fields,
 			   all_fields, TRUE))
       return 1;
-    // ONLY_FULL_GROUP_BY needn't verify this expression:
-    (*ord->item)->marker= SELECT_LEX::ALL_FIELDS_UNDEF_POS;
     if ((*ord->item)->with_sum_func)
     {
       my_error(ER_WRONG_GROUP_FIELD, MYF(0), (*ord->item)->full_name());
@@ -2953,6 +2872,7 @@ bool JOIN::rollup_init()
   }
   return 0;
 }
+
 
 /**
   @} (end of group Query_Resolver)

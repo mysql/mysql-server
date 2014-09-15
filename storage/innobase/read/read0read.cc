@@ -227,7 +227,7 @@ ReadView::ids_t::reserve(ulint n)
 
 	value_type*	p = m_ptr;
 
-	m_ptr = new(std::nothrow) value_type[n];
+	m_ptr = UT_NEW_ARRAY_NOKEY(value_type, n);
 
 	if (m_ptr == NULL) {
 		ib_logf(IB_LOG_LEVEL_FATAL,
@@ -242,14 +242,14 @@ ReadView::ids_t::reserve(ulint n)
 
 		::memmove(m_ptr, p, size() * sizeof(value_type));
 
-		delete[] p;
+		UT_DELETE_ARRAY(p);
 	}
 }
 
 /**
 Copy and overwrite this array contents
 @param start		Source array
-@paran end		Pointer to end of array */
+@param end		Pointer to end of array */
 
 void
 ReadView::ids_t::assign(const value_type* start, const value_type* end)
@@ -350,7 +350,7 @@ MVCC::MVCC(ulint size)
 	UT_LIST_INIT(m_views, &ReadView::m_view_list);
 
 	for (ulint i = 0; i < size; ++i) {
-		ReadView*	view = new(std::nothrow) ReadView();
+		ReadView*	view = UT_NEW_NOKEY(ReadView());
 
 		if (view == NULL) {
 			ib_logf(IB_LOG_LEVEL_FATAL,
@@ -370,7 +370,7 @@ MVCC::~MVCC()
 
 		UT_LIST_REMOVE(m_free, view);
 
-		delete view;
+		UT_DELETE(view);
 	}
 
 	ut_a(UT_LIST_GET_LEN(m_views) == 0);
@@ -496,7 +496,7 @@ MVCC::get_view()
 		view = UT_LIST_GET_FIRST(m_free);
 		UT_LIST_REMOVE(m_free, view);
 	} else {
-		view = new(std::nothrow) ReadView();
+		view = UT_NEW_NOKEY(ReadView());
 
 		if (view == NULL) {
 			ib_logf(IB_LOG_LEVEL_ERROR,
@@ -665,11 +665,8 @@ ReadView::copy_complete()
 	}
 
 	if (!m_ids.empty()) {
-
-		using std::min;
-
 		/* The last active transaction has the smallest id. */
-		m_up_limit_id = min(m_ids.front(), m_up_limit_id);
+		m_up_limit_id = std::min(m_ids.front(), m_up_limit_id);
 	}
 
 	ut_ad(m_up_limit_id <= m_low_limit_id);

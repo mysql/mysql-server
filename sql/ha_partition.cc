@@ -98,6 +98,13 @@ static handler *partition_create_handler(handlerton *hton,
 static uint partition_flags();
 static uint alter_table_flags(uint flags);
 
+
+/****************************************************************************
+    Check whether the partition column order changes after alter
+****************************************************************************/
+static bool check_partition_column_order(List<Create_field> *create_list,
+                                         Field** field_arary);
+
 #ifdef HAVE_PSI_INTERFACE
 PSI_mutex_key key_partition_auto_inc_mutex;
 
@@ -220,6 +227,34 @@ static uint alter_table_flags(uint flags __attribute__((unused)))
 {
   return (HA_PARTITION_FUNCTION_SUPPORTED |
           HA_FAST_CHANGE_PARTITION);
+}
+
+static bool check_partition_column_order(List<Create_field> *create_list,
+                                         Field** field_arary)
+{
+
+  Field **f_ptr;
+  List_iterator_fast<Create_field> new_field_it;
+  Create_field *new_field;
+  new_field_it.init(*create_list);
+
+  for (f_ptr= field_arary ; *f_ptr; f_ptr++)
+  {
+    while ((new_field= new_field_it++))
+    {
+      if (new_field->field == *f_ptr)
+        break;
+    }
+    if (!new_field)
+      break;
+  }
+
+  if (!new_field)
+  {
+    /* Not same order, INPLACE cannot be allowed!*/
+    return false;
+  }
+  return true;
 }
 
 const uint32 ha_partition::NO_CURRENT_PART_ID= NOT_A_PARTITION_ID;
@@ -1616,6 +1651,35 @@ void ha_partition::cleanup_new_partition(uint part_count)
       file++;
       part_count--;
     }
+    if (m_new_file && m_added_file)
+    {
+      /*
+        Remove m_added_file partitions from m_new_file since they are already
+        cleaned up.
+      */
+      file= m_new_file;
+      handler **new_file= file;
+      while (*file)
+      {
+        handler **added_file;
+        for (added_file= m_added_file; *added_file; added_file++)
+        {
+          if (*added_file == *file)
+          {
+            /* Skip this since it is already cleaned up. */
+            file++;
+            break;
+          }
+        }
+        if (*added_file)
+        {
+          /* Check next file. */
+          continue;
+        }
+        *(new_file++)= *(file++);
+      }
+      *new_file= NULL;
+    }
     m_added_file= NULL;
   }
   DBUG_VOID_RETURN;
@@ -2033,6 +2097,18 @@ int ha_partition::copy_partitions(ulonglong * const copied,
       }
       else
       {
+        if (m_new_file[new_part]->get_lock_type() != F_WRLCK)
+        {
+          /*
+             Technically HA_ERR_NOT_IN_LOCK_PARTITIONS, but all correct
+             partitions should be locked, hence we found a misplaced row.
+             Also good to get some extra info from print_error.
+          */
+          result= HA_ERR_ROW_IN_WRONG_PARTITION;
+          m_last_part= reorg_part;
+          m_err_rec= m_rec0;
+          goto error;
+        }
         THD *thd= ha_thd();
         /* Copy record to new handler */
         (*copied)++;
@@ -2571,7 +2647,7 @@ bool ha_partition::create_handler_file(const char *name)
   int4store(file_buffer + PAR_NUM_PARTS_OFFSET, tot_parts);
   int4store(file_buffer + PAR_ENGINES_OFFSET +
             (tot_partition_words * PAR_WORD_SIZE),
-            tot_name_len);
+            static_cast<uint32>(tot_name_len));
   for (i= 0; i < tot_len_words; i++)
     chksum^= uint4korr(file_buffer + PAR_WORD_SIZE * i);
   int4store(file_buffer + PAR_CHECKSUM_OFFSET, chksum);
@@ -4303,7 +4379,7 @@ int ha_partition::truncate_partition(Alter_info *alter_info, bool *binlog_stmt)
   /* Only binlog when it starts any call to the partitions handlers */
   *binlog_stmt= false;
 
-  if (set_part_state(alter_info, m_part_info, PART_ADMIN))
+  if (set_part_state(alter_info, m_part_info, PART_ADMIN, true))
     DBUG_RETURN(HA_ERR_NO_PARTITION_FOUND);
 
   /*
@@ -6766,7 +6842,7 @@ void ha_partition::get_dynamic_partition_info(PARTITION_STATS *stat_info,
   stat_info->max_data_file_length= file->stats.max_data_file_length;
   stat_info->index_file_length=    file->stats.index_file_length;
   stat_info->delete_length=        file->stats.delete_length;
-  stat_info->create_time=          file->stats.create_time;
+  stat_info->create_time=          static_cast<ulong>(file->stats.create_time);
   stat_info->update_time=          file->stats.update_time;
   stat_info->check_time=           file->stats.check_time;
   stat_info->check_sum= 0;
@@ -7727,13 +7803,13 @@ double ha_partition::read_time(uint index, uint ranges, ha_rows rows)
 
 /**
   Number of rows in table. see handler.h
-
-  @return Number of records in the table (after pruning!)
+  @param[out] num_rows Number of records in the table (after pruning!)
+  @return possible error code.
 */
 
-ha_rows ha_partition::records()
+int ha_partition::records(ha_rows *num_rows)
 {
-  ha_rows rows, tot_rows= 0;
+  ha_rows tot_rows= 0;
   uint i;
   DBUG_ENTER("ha_partition::records");
 
@@ -7741,12 +7817,13 @@ ha_rows ha_partition::records()
        i < m_tot_parts;
        i= bitmap_get_next_set(&m_part_info->read_partitions, i))
   {
-    rows= m_file[i]->records();
-    if (rows == HA_POS_ERROR)
-      DBUG_RETURN(HA_POS_ERROR);
-    tot_rows+= rows;
+    int error= m_file[i]->ha_records(num_rows);
+    if (error != 0)
+      DBUG_RETURN(error);
+    tot_rows+= *num_rows;
   }
-  DBUG_RETURN(tot_rows);
+  *num_rows= tot_rows;
+  DBUG_RETURN(0);
 }
 
 
@@ -8020,27 +8097,45 @@ void ha_partition::print_error(int error, myf errflag)
   }
   else if (error == HA_ERR_ROW_IN_WRONG_PARTITION)
   {
-    /* Should only happen on DELETE or UPDATE! */
+    /*
+      Should only happen on DELETE or UPDATE!
+      Or in ALTER TABLE REBUILD/REORGANIZE where there are a misplaced
+      row that needed to move to an old partition (not in the given set).
+    */
     DBUG_ASSERT(thd_sql_command(thd) == SQLCOM_DELETE ||
                 thd_sql_command(thd) == SQLCOM_DELETE_MULTI ||
                 thd_sql_command(thd) == SQLCOM_UPDATE ||
-                thd_sql_command(thd) == SQLCOM_UPDATE_MULTI);
+                thd_sql_command(thd) == SQLCOM_UPDATE_MULTI ||
+                thd_sql_command(thd) == SQLCOM_ALTER_TABLE);
     DBUG_ASSERT(m_err_rec);
     if (m_err_rec)
     {
-      uint max_length;
+      size_t max_length;
       char buf[MAX_KEY_LENGTH];
       String str(buf,sizeof(buf),system_charset_info);
       uint32 part_id;
       str.length(0);
-      str.append("(");
-      str.append_ulonglong(m_last_part);
-      str.append(" != ");
-      if (get_part_for_delete(m_err_rec, m_rec0, m_part_info, &part_id))
-        str.append("?");
+      if (thd_sql_command(thd) == SQLCOM_ALTER_TABLE)
+      {
+        str.append("from REBUILD/REORGANIZED partition: ");
+        str.append_ulonglong(m_last_part);
+        str.append(" to non included partition (new definition): ");
+        if (get_part_for_delete(m_err_rec, m_rec0, m_part_info, &part_id))
+          str.append("?");
+        else
+          str.append_ulonglong(part_id);
+      }
       else
-        str.append_ulonglong(part_id);
-      str.append(")");
+      {
+        str.append("(");
+        str.append_ulonglong(m_last_part);
+        str.append(" != ");
+        if (get_part_for_delete(m_err_rec, m_rec0, m_part_info, &part_id))
+          str.append("?");
+        else
+          str.append_ulonglong(part_id);
+        str.append(")");
+      }
       append_row_to_str(str);
 
       /* Log this error, so the DBA can notice it and fix it! */
@@ -8049,7 +8144,7 @@ void ha_partition::print_error(int error, myf errflag)
                       table->s->table_name.str,
                       str.c_ptr_safe());
 
-      max_length= (MYSQL_ERRMSG_SIZE - (uint) strlen(ER(ER_ROW_IN_WRONG_PARTITION)));
+      max_length= (MYSQL_ERRMSG_SIZE - strlen(ER(ER_ROW_IN_WRONG_PARTITION)));
       if (str.length() >= max_length)
       {
         str.length(max_length-4);
@@ -8213,6 +8308,26 @@ ha_partition::check_if_supported_inplace_alter(TABLE *altered_table,
   */
   if (ha_alter_info->alter_info->flags == Alter_info::ALTER_PARTITION)
     DBUG_RETURN(HA_ALTER_INPLACE_NO_LOCK);
+
+  /* We cannot allow INPLACE to change order of KEY partitioning fields! */
+  if (ha_alter_info->handler_flags & Alter_inplace_info::ALTER_COLUMN_ORDER)
+  {
+    /* If column partitioning is used then no need to check partition order */
+    if (m_part_info->list_of_part_fields && !m_part_info->column_list)
+    {
+      if(!check_partition_column_order(&ha_alter_info->alter_info->create_list,
+                                       table->part_info->part_field_array))
+        DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
+    }
+
+    /* Check subpartition ordering */
+    if (m_part_info->list_of_subpart_fields)
+    {
+      if(!check_partition_column_order(&ha_alter_info->alter_info->create_list,
+                                       table->part_info->subpart_field_array))
+        DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
+    }
+  }
 
   part_inplace_ctx=
     new (thd->mem_root) ha_partition_inplace_ctx(thd, m_tot_parts);

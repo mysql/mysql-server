@@ -1,4 +1,4 @@
-call mtr.add_suppression("InnoDB: Tablespace innodb_temporary_tablespace ran out of space. Please add another file or use \'autoextend\' for the last file in setting innodb_temp_data_file_path");
+call mtr.add_suppression("InnoDB: Tablespace innodb_temporary ran out of space. Please add another file or use \'autoextend\' for the last file in setting innodb_temp_data_file_path");
 call mtr.add_suppression("The table \'t1\' is full");
 set session innodb_create_intrinsic = 1;
 create temporary table t1 (i int, j int, primary key pk(i)) engine = innodb;
@@ -360,8 +360,9 @@ b	count(a)	sum(a)	avg(a)	std(a)	min(a)	max(a)	bit_and(a)	bit_or(a)
 a	1	9	9.0000	0	9	9	9	9
 b	1	2	2.0000	0	2	2	2	2
 c	3	10	3.3333	0.4714045207910316	3	4	0	7
-select sql_big_result * from information_schema.global_variables where variable_name like 'internal_tmp_storage_engine';
+select sql_big_result * from information_schema.global_variables where variable_name like 'internal_tmp_disk_storage_engine';
 VARIABLE_NAME	VARIABLE_VALUE
+INTERNAL_TMP_DISK_STORAGE_ENGINE	TMP_TABLE_ENGINE
 select 1 union distinct select 1 union all select 1;
 1
 1
@@ -568,7 +569,7 @@ select * from t2;
 c1	c2
 100	aaaaaaaaaa
 drop table t1, t2;
-"Restarting in read only mode"
+# restart
 set session innodb_create_intrinsic = 1;
 create temporary table t1 (i int, j int, primary key pk(i)) engine = innodb;
 create temporary table t2 (i int, j int, primary key pk(i)) engine = innodb;
@@ -909,6 +910,7 @@ a	b
 4	c
 set optimizer_switch=default;
 update t1, t2 set t1.a = 9, t2.a = 10 where t1.b = 'a';
+update t1, t2 set t1.a = 9, t2.a = 10 where t1.b = 'a';
 select count(distinct a) from t1;
 count(distinct a)
 4
@@ -928,8 +930,9 @@ b	count(a)	sum(a)	avg(a)	std(a)	min(a)	max(a)	bit_and(a)	bit_or(a)
 a	1	9	9.0000	0	9	9	9	9
 b	1	2	2.0000	0	2	2	2	2
 c	3	10	3.3333	0.4714045207910316	3	4	0	7
-select sql_big_result * from information_schema.global_variables where variable_name like 'internal_tmp_storage_engine';
+select sql_big_result * from information_schema.global_variables where variable_name like 'internal_tmp_disk_storage_engine';
 VARIABLE_NAME	VARIABLE_VALUE
+INTERNAL_TMP_DISK_STORAGE_ENGINE	TMP_TABLE_ENGINE
 select 1 union distinct select 1 union all select 1;
 1
 1
@@ -1137,6 +1140,7 @@ c1	c2
 100	aaaaaaaaaa
 drop table t1, t2;
 "Restarting Server with temp-tablespace auto-extension turned off"
+# restart: --innodb_temp_data_file_path=ibtmp1:12M
 create table t0(a serial) engine=innodb;
 create temporary table t0t(a serial) engine=innodb;
 begin;
@@ -1177,5 +1181,4 @@ count(*)
 NUMBER
 drop procedure populate_t1;
 drop table t1;
-"Restarting Server in normal mode"
-set session innodb_create_intrinsic = 0;
+# restart

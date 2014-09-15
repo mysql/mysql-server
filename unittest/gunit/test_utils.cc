@@ -20,6 +20,7 @@
 #include "test_utils.h"
 #include "rpl_handler.h"                        // delegates_init()
 #include "mysqld_thd_manager.h"                 // Global_THD_manager
+#include "opt_costconstantcache.h"              // optimizer cost constant cache
 
 namespace my_testing {
 
@@ -56,6 +57,7 @@ void setup_server_for_unit_tests()
   error_handler_hook= test_error_handler_hook;
   // Initialize Query_logger last, to avoid spurious warnings to stderr.
   query_logger.init();
+  init_optimizer_cost_module();
 }
 
 void teardown_server_for_unit_tests()
@@ -66,6 +68,7 @@ void teardown_server_for_unit_tests()
   gtid_server_cleanup();
   mysql_mutex_destroy(&LOCK_error_log);
   query_logger.cleanup();
+  delete_optimizer_cost_module();
 }
 
 void Server_initializer::set_expected_error(uint val)
@@ -78,16 +81,13 @@ void Server_initializer::SetUp()
   expected_error= 0;
   m_thd= new THD(false);
   THD *stack_thd= m_thd;
+
+  m_thd->set_new_thread_id();
+
   m_thd->thread_stack= (char*) &stack_thd;
   m_thd->store_globals();
   lex_start(m_thd);
   m_thd->set_current_time();
-
-  Global_THD_manager *thd_manager= Global_THD_manager::get_instance();
-  m_thd->variables.pseudo_thread_id= thd_manager->get_inc_thread_id();
-  m_thd->thread_id= m_thd->variables.pseudo_thread_id;
-
-  my_pthread_setspecific_ptr(THR_THD, m_thd);
 }
 
 void Server_initializer::TearDown()

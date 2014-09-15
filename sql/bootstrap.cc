@@ -28,7 +28,7 @@ static int bootstrap_error= 0;
 
 static char *fgets_fn(char *buffer, size_t size, MYSQL_FILE* input, int *error)
 {
-  char *line= mysql_file_fgets(buffer, size, input);
+  char *line= mysql_file_fgets(buffer, static_cast<int>(size), input);
   if (error)
     *error= (line == NULL) ? ferror(input->m_file) : 0;
   return line;
@@ -160,7 +160,7 @@ pthread_handler_t handle_bootstrap(void *arg)
 {
   THD *thd=(THD*) arg;
 
-  mysql_thread_set_psi_id(thd->thread_id);
+  mysql_thread_set_psi_id(thd->thread_id());
 
   /* The following must be called before DBUG_ENTER */
   thd->thread_stack= (char*) &thd;
@@ -195,13 +195,12 @@ int bootstrap(MYSQL_FILE *file)
   DBUG_ENTER("bootstrap");
 
   THD *thd= new THD;
-  Global_THD_manager *thd_manager= Global_THD_manager::get_instance();
   thd->bootstrap= 1;
   my_net_init(&thd->net,(st_vio*) 0);
   thd->max_client_packet_length= thd->net.max_packet;
   thd->security_ctx->master_access= ~(ulong)0;
-  thd->variables.pseudo_thread_id= thd_manager->get_inc_thread_id();
-  thd->thread_id= thd->variables.pseudo_thread_id;
+
+  thd->set_new_thread_id();
 
   bootstrap_file=file;
 

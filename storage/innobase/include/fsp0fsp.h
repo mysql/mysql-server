@@ -243,7 +243,6 @@ the extent are free and which contain old tuple version to clean. */
 
 /**********************************************************************//**
 Initializes the file space system. */
-
 void
 fsp_init(void);
 /*==========*/
@@ -254,14 +253,12 @@ we do not have an auto-extending data file, this should be equal to
 the size of the data files.  If there is an auto-extending data file,
 this can be smaller.
 @return size in pages */
-
 ulint
 fsp_header_get_tablespace_size(void);
 /*================================*/
 /**********************************************************************//**
 Reads the file space size stored in the header page.
 @return tablespace size stored in the space header */
-
 ulint
 fsp_get_size_low(
 /*=============*/
@@ -269,7 +266,6 @@ fsp_get_size_low(
 /**********************************************************************//**
 Reads the space id from the first page of a tablespace.
 @return space id, ULINT UNDEFINED if error */
-
 ulint
 fsp_header_get_space_id(
 /*====================*/
@@ -277,7 +273,6 @@ fsp_header_get_space_id(
 /**********************************************************************//**
 Reads the space flags from the first page of a tablespace.
 @return flags */
-
 ulint
 fsp_header_get_flags(
 /*=================*/
@@ -294,7 +289,6 @@ fsp_header_get_page_size(
 Writes the space id and flags to a tablespace header.  The flags contain
 row type, physical/compressed page size, and logical/uncompressed page
 size of the tablespace. */
-
 void
 fsp_header_init_fields(
 /*===================*/
@@ -305,7 +299,6 @@ fsp_header_init_fields(
 /**********************************************************************//**
 Initializes the space header of a new created space and creates also the
 insert buffer tree root if space == 0. */
-
 void
 fsp_header_init(
 /*============*/
@@ -314,7 +307,6 @@ fsp_header_init(
 	mtr_t*	mtr);		/*!< in/out: mini-transaction */
 /**********************************************************************//**
 Increases the space size field of a space. */
-
 void
 fsp_header_inc_size(
 /*================*/
@@ -325,7 +317,6 @@ fsp_header_inc_size(
 Creates a new segment.
 @return the block where the segment header is placed, x-latched, NULL
 if could not create segment because of lack of space */
-
 buf_block_t*
 fseg_create(
 /*========*/
@@ -341,7 +332,6 @@ fseg_create(
 Creates a new segment.
 @return the block where the segment header is placed, x-latched, NULL
 if could not create segment because of lack of space */
-
 buf_block_t*
 fseg_create_general(
 /*================*/
@@ -363,7 +353,6 @@ fseg_create_general(
 Calculates the number of pages reserved by a segment, and how many pages are
 currently used.
 @return number of reserved pages */
-
 ulint
 fseg_n_reserved_pages(
 /*==================*/
@@ -394,7 +383,6 @@ fragmentation.
 @retval block, rw_lock_x_lock_count(&block->lock) == 1 if allocation succeeded
 (init_mtr == mtr, or the page was not previously freed in mtr)
 @retval block (not allocated or initialized) otherwise */
-
 buf_block_t*
 fseg_alloc_free_page_general(
 /*=========================*/
@@ -443,7 +431,6 @@ split or merge in a B-tree. But we do not want to waste disk space if the table
 only occupies < 32 pages. That is why we apply different rules in that special
 case, just ensuring that there are 3 free pages available.
 @return TRUE if we were able to make the reservation */
-
 bool
 fsp_reserve_free_extents(
 /*=====================*/
@@ -452,22 +439,21 @@ fsp_reserve_free_extents(
 			then this can be 0, otherwise it is n_ext */
 	ulint	space,	/*!< in: space id */
 	ulint	n_ext,	/*!< in: number of extents to reserve */
-	ulint	alloc_type,/*!< in: FSP_NORMAL, FSP_UNDO, or FSP_CLEANING */
-	mtr_t*	mtr);	/*!< in: mini-transaction */
+	fsp_reserve_t	alloc_type,
+			/*!< in: page reservation type */
+	mtr_t*	mtr);	/*!< in/out: mini-transaction */
 /**********************************************************************//**
 This function should be used to get information on how much we still
 will be able to insert new data to the database without running out the
 tablespace. Only free extents are taken into account and we also subtract
 the safety margin required by the above function fsp_reserve_free_extents.
 @return available space in kB */
-
 uintmax_t
 fsp_get_available_space_in_free_extents(
 /*====================================*/
 	ulint	space);	/*!< in: space id */
 /**********************************************************************//**
 Frees a single page of a segment. */
-
 void
 fseg_free_page(
 /*===========*/
@@ -481,7 +467,6 @@ fseg_free_page(
 /**********************************************************************//**
 Checks if a single page of a segment is free.
 @return true if free */
-
 bool
 fseg_page_is_free(
 /*==============*/
@@ -495,7 +480,6 @@ by repeatedly calling this function in different mini-transactions.
 Doing the freeing in a single mini-transaction might result in
 too big a mini-transaction.
 @return TRUE if freeing completed */
-
 ibool
 fseg_free_step(
 /*===========*/
@@ -511,7 +495,6 @@ fseg_free_step(
 Frees part of a segment. Differs from fseg_free_step because this function
 leaves the header page unfreed.
 @return TRUE if freeing completed, except the header page */
-
 ibool
 fseg_free_step_not_header(
 /*======================*/
@@ -535,7 +518,6 @@ fsp_descr_page(
 /***********************************************************//**
 Parses a redo log record of a file page init.
 @return end of log record or NULL */
-
 byte*
 fsp_parse_init_file_page(
 /*=====================*/
@@ -546,7 +528,6 @@ fsp_parse_init_file_page(
 /*******************************************************************//**
 Validates a segment.
 @return TRUE if ok */
-
 ibool
 fseg_validate(
 /*==========*/
@@ -556,7 +537,6 @@ fseg_validate(
 #ifdef UNIV_BTR_PRINT
 /*******************************************************************//**
 Writes info of a segment. */
-
 void
 fseg_print(
 /*=======*/
@@ -564,14 +544,13 @@ fseg_print(
 	mtr_t*		mtr);	/*!< in/out: mini-transaction */
 #endif /* UNIV_BTR_PRINT */
 
-/********************************************************************//**
-Determine if the tablespace is compressed from dict_table_t::flags.
-@return TRUE if compressed, FALSE if not compressed */
+/** Determine if the tablespace is compressed from tablespace flags.
+@param[in]	flags	Tablespace flags
+@return true if compressed, false if not compressed */
 UNIV_INLINE
-ibool
+bool
 fsp_flags_is_compressed(
-/*====================*/
-	ulint	flags);	/*!< in: tablespace flags */
+	ulint	flags);
 
 /** Calculates the descriptor index within a descriptor page.
 @param[in]	page_size	page size

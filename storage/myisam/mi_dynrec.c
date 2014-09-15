@@ -41,8 +41,6 @@ static int _mi_cmp_buffer(File file, const uchar *buff, my_off_t filepos,
 
 	/* Interface function from MI_INFO */
 
-#ifdef HAVE_MMAP
-
 /*
   Create mmaped area for MyISAM handler
 
@@ -111,7 +109,8 @@ int mi_munmap_file(MI_INFO *info)
 {
   int ret;
   DBUG_ENTER("mi_unmap_file");
-  if ((ret= my_munmap((void*) info->s->file_map, info->s->mmaped_length)))
+  if ((ret= my_munmap((void*) info->s->file_map,
+                      (size_t)info->s->mmaped_length)))
     DBUG_RETURN(ret);
   info->s->file_read= mi_nommap_pread;
   info->s->file_write= mi_nommap_pwrite;
@@ -139,7 +138,6 @@ void mi_remap_file(MI_INFO *info, my_off_t size)
     mi_dynmap_file(info, size);
   }
 }
-#endif
 
 
 /*

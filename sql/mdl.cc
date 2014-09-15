@@ -1218,6 +1218,7 @@ MDL_lock* MDL_map::find(LF_PINS *pins, const MDL_key *mdl_key, bool *pinned)
   if (lock == NULL || lock == MY_ERRPTR)
   {
     lf_hash_search_unpin(pins);
+    *pinned= false; // Avoid warnings on older compilers.
     return lock;
   }
 
@@ -3457,7 +3458,7 @@ MDL_context::acquire_lock(MDL_request *mdl_request, ulong lock_wait_timeout)
   struct timespec abs_timeout;
   MDL_wait::enum_wait_status wait_status;
   /* Do some work outside the critical section. */
-  set_timespec(abs_timeout, lock_wait_timeout);
+  set_timespec(&abs_timeout, lock_wait_timeout);
 
   if (try_acquire_lock_impl(mdl_request, &ticket))
     return TRUE;
@@ -3517,10 +3518,10 @@ MDL_context::acquire_lock(MDL_request *mdl_request, ulong lock_wait_timeout)
   if (lock->needs_notification(ticket))
   {
     struct timespec abs_shortwait;
-    set_timespec(abs_shortwait, 1);
+    set_timespec(&abs_shortwait, 1);
     wait_status= MDL_wait::EMPTY;
 
-    while (cmp_timespec(abs_shortwait, abs_timeout) <= 0)
+    while (cmp_timespec(&abs_shortwait, &abs_timeout) <= 0)
     {
       /* abs_timeout is far away. Wait a short while and notify locks. */
       wait_status= m_wait.timed_wait(m_owner, &abs_shortwait, FALSE,
@@ -3550,7 +3551,7 @@ MDL_context::acquire_lock(MDL_request *mdl_request, ulong lock_wait_timeout)
       lock->notify_conflicting_locks(this);
       mysql_prlock_unlock(&lock->m_rwlock);
 
-      set_timespec(abs_shortwait, 1);
+      set_timespec(&abs_shortwait, 1);
     }
     if (wait_status == MDL_wait::EMPTY)
       wait_status= m_wait.timed_wait(m_owner, &abs_timeout, TRUE,

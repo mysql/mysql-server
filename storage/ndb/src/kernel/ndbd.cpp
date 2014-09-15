@@ -93,6 +93,79 @@ systemInfo(const Configuration & config, const LogLevel & logLevel)
   }
 }
 
+static
+Uint64
+parse_size(const char * src)
+{
+  Uint64 num = 0;
+  char * endptr = 0;
+  num = strtoll(src, &endptr, 10);
+
+  if (endptr)
+  {
+    switch(* endptr){
+    case 'k':
+    case 'K':
+      num *= 1024;
+      break;
+    case 'm':
+    case 'M':
+      num *= 1024;
+      num *= 1024;
+      break;
+    case 'g':
+    case 'G':
+      num *= 1024;
+      num *= 1024;
+      num *= 1024;
+      break;
+    }
+  }
+  return num;
+}
+
+/*
+  Return the value given by specified key in semicolon separated list
+  of name=value and name:value pairs which is found before first
+  name:value pair
+
+  i.e list looks like
+    [name1=value1][;name2=value2][;name3:value3][;name4:value4][;name5=value5]
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    searches this part of list
+
+  the function will terminate it's search when first name:value pair
+  is found
+
+  NOTE! This is anlogue to how the InitialLogFileGroup and
+  InitialTablespace strings are parsed in NdbCntrMain.cpp
+*/
+
+static void
+parse_key_value_before_filespecs(const char *src,
+                                 const char* key, Uint64& value)
+{
+  const size_t keylen = strlen(key);
+  BaseString arg(src);
+  Vector<BaseString> list;
+  arg.split(list, ";");
+
+  for (unsigned i = 0; i < list.size(); i++)
+  {
+    list[i].trim();
+    if (native_strncasecmp(list[i].c_str(), key, keylen) == 0)
+    {
+      // key found, save its value
+      value = parse_size(list[i].c_str() + keylen);
+    }
+
+    if (strchr(list[i].c_str(), ':'))
+    {
+      // found name:value pair, look no further
+      return;
+    }
+  }
+}
 
 Uint32
 compute_acc_32kpages(const ndb_mgm_configuration_iterator * p)
@@ -288,8 +361,48 @@ init_global_memory_manager(EmulatorData &ed, Uint32 *watchCounter)
     ed.m_mem_manager->set_resource_limit(rl);
   }
 
+  Uint32 undopages = 0;
+  {
+    /**
+     * Request extra undo buffer memory to be allocated when
+     * InitialLogFileGroup is specifed in config.
+     *
+     *  - Use default size or the value specified by the
+     *    undo_buffer_size= key.
+     *
+     * Note! The default value should be aligned with code in NdbCntrMain.cpp
+     * which does the full parse of InitialLogFileGroup. This code only peeks
+     * at the undo_buffer_size value
+     *
+     */
+    Uint32 dl = 0;
+    ndb_mgm_get_int_parameter(p, CFG_DB_DISCLESS, &dl);
+
+    if (dl == 0)
+    {
+      const char * lgspec = 0;
+      if (!ndb_mgm_get_string_parameter(p, CFG_DB_DD_LOGFILEGROUP_SPEC,
+                                        &lgspec))
+      {
+        Uint64 undo_buffer_size = 64 * 1024 * 1024; // Default
+        parse_key_value_before_filespecs(lgspec,
+                                         "undo_buffer_size=",
+                                         undo_buffer_size);
+
+        undopages = Uint32(undo_buffer_size / GLOBAL_PAGE_SIZE);
+        g_eventLogger->info("reserving %u extra pages for undo buffer memory",
+                            undopages);
+        Resource_limit rl;
+        rl.m_min = undopages;
+        rl.m_max = 0;
+        rl.m_resource_id = RG_DISK_OPERATIONS;
+        ed.m_mem_manager->set_resource_limit(rl);
+      }
+    }
+  }
+
   Uint32 sum = shared_pages + tupmem + filepages + jbpages + sbpages +
-    pgman_pages + stpages;
+    pgman_pages + stpages + undopages;
 
   if (sum)
   {
@@ -491,7 +604,11 @@ catchsigs(bool foreground){
 #elif defined SIGINFO
     SIGINFO,
 #endif
+#ifdef _WIN32
+    SIGTERM,
+#else
     SIGQUIT,
+#endif
     SIGTERM,
 #ifdef SIGTSTP
     SIGTSTP,
@@ -527,7 +644,11 @@ catchsigs(bool foreground){
   };
 
   static const int signals_ignore[] = {
+#ifdef _WIN32
+    SIGINT
+#else
     SIGPIPE
+#endif
   };
 
   size_t i;

@@ -39,6 +39,7 @@
 #include "log_event.h"                 // append_query_string
 #include "sql_test.h"                  // print_where
 #include "sql_optimizer.h"             // JOIN
+#include "aggregate_check.h"
 
 using std::min;
 using std::max;
@@ -857,10 +858,11 @@ Item_ident::Item_ident(Name_resolution_context *context_arg,
                        const char *db_name_arg,const char *table_name_arg,
 		       const char *field_name_arg)
   :orig_db_name(db_name_arg), orig_table_name(table_name_arg),
-   orig_field_name(field_name_arg), context(context_arg),
+   orig_field_name(field_name_arg), m_alias_of_expr(false),
+   context(context_arg),
    db_name(db_name_arg), table_name(table_name_arg),
    field_name(field_name_arg),
-   alias_name_used(FALSE), cached_field_index(NO_CACHED_FIELD_INDEX),
+   cached_field_index(NO_CACHED_FIELD_INDEX),
    cached_table(0), depended_from(0)
 {
   item_name.set(field_name_arg);
@@ -871,10 +873,10 @@ Item_ident::Item_ident(const POS &pos,
                        const char *db_name_arg,const char *table_name_arg,
 		       const char *field_name_arg)
   :super(pos), orig_db_name(db_name_arg), orig_table_name(table_name_arg),
-   orig_field_name(field_name_arg),
+   orig_field_name(field_name_arg), m_alias_of_expr(false),
    db_name(db_name_arg), table_name(table_name_arg),
    field_name(field_name_arg),
-   alias_name_used(FALSE), cached_field_index(NO_CACHED_FIELD_INDEX),
+   cached_field_index(NO_CACHED_FIELD_INDEX),
    cached_table(0), depended_from(0)
 {
   item_name.set(field_name_arg);
@@ -901,11 +903,11 @@ Item_ident::Item_ident(THD *thd, Item_ident *item)
    orig_db_name(item->orig_db_name),
    orig_table_name(item->orig_table_name), 
    orig_field_name(item->orig_field_name),
+   m_alias_of_expr(item->m_alias_of_expr),
    context(item->context),
    db_name(item->db_name),
    table_name(item->table_name),
    field_name(item->field_name),
-   alias_name_used(item->alias_name_used),
    cached_field_index(item->cached_field_index),
    cached_table(item->cached_table),
    depended_from(item->depended_from)
@@ -971,7 +973,7 @@ bool Item_field::add_field_to_set_processor(uchar *arg)
   DBUG_ENTER("Item_field::add_field_to_set_processor");
   DBUG_PRINT("info", ("%s", field->field_name ? field->field_name : "noname"));
   TABLE *table= (TABLE *) arg;
-  if (field->table == table)
+  if (table_ref->table == table)
     bitmap_set_bit(&table->tmp_set, field->field_index);
   DBUG_RETURN(FALSE);
 }
@@ -2021,7 +2023,7 @@ public:
     else
       Item_ident::print(str, query_type);
   }
-  virtual Ref_Type ref_type() { return AGGREGATE_REF; }
+  virtual Ref_Type ref_type() const { return AGGREGATE_REF; }
 };
 
 
@@ -2493,8 +2495,8 @@ void Item_ident_for_show::make_field(Send_field *tmp_field)
 
 Item_field::Item_field(Field *f)
   :Item_ident(0, NullS, *f->table_name, f->field_name),
-   item_equal(0), no_const_subst(0),
-   have_privileges(0), any_privileges(0)
+   item_equal(NULL), no_const_subst(false),
+   have_privileges(0), any_privileges(false)
 {
   set_field(f);
   /*
@@ -2515,8 +2517,8 @@ Item_field::Item_field(Field *f)
 Item_field::Item_field(THD *thd, Name_resolution_context *context_arg,
                        Field *f)
   :Item_ident(context_arg, f->table->s->db.str, *f->table_name, f->field_name),
-   item_equal(0), no_const_subst(0),
-   have_privileges(0), any_privileges(0)
+   item_equal(NULL), no_const_subst(false),
+   have_privileges(0), any_privileges(false)
 {
   /*
     We always need to provide Item_field with a fully qualified field
@@ -2557,8 +2559,9 @@ Item_field::Item_field(Name_resolution_context *context_arg,
                        const char *db_arg,const char *table_name_arg,
                        const char *field_name_arg)
   :Item_ident(context_arg, db_arg,table_name_arg,field_name_arg),
-   field(0), result_field(0), item_equal(0), no_const_subst(0),
-   have_privileges(0), any_privileges(0)
+   table_ref(NULL), field(NULL), result_field(NULL),
+   item_equal(NULL), no_const_subst(false),
+   have_privileges(0), any_privileges(false)
 {
   SELECT_LEX *select= current_thd->lex->current_select();
   collation.set(DERIVATION_IMPLICIT);
@@ -2570,8 +2573,9 @@ Item_field::Item_field(const POS &pos,
                        const char *db_arg,const char *table_name_arg,
                        const char *field_name_arg)
   :Item_ident(pos, db_arg,table_name_arg, field_name_arg),
-   field(0), result_field(0), item_equal(0), no_const_subst(0),
-   have_privileges(0), any_privileges(0)
+   table_ref(NULL), field(NULL), result_field(NULL),
+   item_equal(NULL), no_const_subst(false),
+   have_privileges(0), any_privileges(false)
 {
   collation.set(DERIVATION_IMPLICIT);
 }
@@ -2600,6 +2604,7 @@ bool Item_field::itemize(Parse_context *pc, Item **res)
 
 Item_field::Item_field(THD *thd, Item_field *item)
   :Item_ident(thd, item),
+   table_ref(item->table_ref),
    field(item->field),
    result_field(item->result_field),
    item_equal(item->item_equal),
@@ -2667,13 +2672,15 @@ adjust_max_effective_column_length(Field *field_par, uint32 max_length)
 
 void Item_field::set_field(Field *field_par)
 {
+  table_ref= field_par->table->pos_in_table_list;
+  DBUG_ASSERT(!table_ref || table_ref->table == field_par->table);
+
   field=result_field=field_par;			// for easy coding with fields
   maybe_null= field->maybe_null() || field->is_tmp_nullable();
   decimals= field->decimals();
   table_name= *field_par->table_name;
   field_name= field_par->field_name;
   db_name= field_par->table->s->db.str;
-  alias_name_used= field_par->table->alias_name_used;
   unsigned_flag= MY_TEST(field_par->flags & UNSIGNED_FLAG);
   collation.set(field_par->charset(), field_par->derivation(),
                 field_par->repertoire());
@@ -2707,16 +2714,16 @@ const char *Item_ident::full_name() const
     return field_name ? field_name : item_name.is_set() ? item_name.ptr() : "tmp_field";
   if (db_name && db_name[0])
   {
-    tmp=(char*) sql_alloc((uint) strlen(db_name)+(uint) strlen(table_name)+
-			  (uint) strlen(field_name)+3);
+    tmp=(char*) sql_alloc(strlen(db_name) + strlen(table_name) +
+			  strlen(field_name) + 3);
     strxmov(tmp,db_name,".",table_name,".",field_name,NullS);
   }
   else
   {
     if (table_name[0])
     {
-      tmp= (char*) sql_alloc((uint) strlen(table_name) +
-			     (uint) strlen(field_name) + 2);
+      tmp= (char*) sql_alloc(strlen(table_name) +
+			     strlen(field_name) + 2);
       strxmov(tmp, table_name, ".", field_name, NullS);
     }
     else
@@ -2732,7 +2739,8 @@ void Item_ident::print(String *str, enum_query_type query_type)
   const char *d_name= db_name, *t_name= table_name;
 
   if (lower_case_table_names== 1 ||
-      (lower_case_table_names == 2 && !alias_name_used))
+      // mode '2' does not apply to aliases:
+      (lower_case_table_names == 2 && !alias_name_used()))
   {
     if (table_name && table_name[0])
     {
@@ -2752,37 +2760,28 @@ void Item_ident::print(String *str, enum_query_type query_type)
   {
     const char *nm= (field_name && field_name[0]) ?
                       field_name : item_name.is_set() ? item_name.ptr() : "tmp_field";
-    append_identifier(thd, str, nm, (uint) strlen(nm));
+    append_identifier(thd, str, nm, strlen(nm));
     return;
   }
 
-  if (db_name && db_name[0] && !alias_name_used)
+  if (db_name && db_name[0] &&
+      !(query_type & QT_COMPACT_FORMAT) &&
+      !alias_name_used())
   {
-    if (!(query_type & QT_COMPACT_FORMAT))
+    const size_t d_name_len= strlen(d_name);
+    if (!((query_type & QT_NO_DEFAULT_DB) &&
+          db_is_default_db(d_name, d_name_len, thd)))
     {
-      const size_t d_name_len= strlen(d_name);
-      if (!((query_type & QT_NO_DEFAULT_DB) &&
-            db_is_default_db(d_name, d_name_len, thd)))
-      {
-        append_identifier(thd, str, d_name, (uint)d_name_len);
-        str->append('.');
-      }
-    }
-    append_identifier(thd, str, t_name, (uint)strlen(t_name));
-    str->append('.');
-    append_identifier(thd, str, field_name, (uint)strlen(field_name));
-  }
-  else
-  {
-    if (table_name[0])
-    {
-      append_identifier(thd, str, t_name, (uint) strlen(t_name));
+      append_identifier(thd, str, d_name, d_name_len);
       str->append('.');
-      append_identifier(thd, str, field_name, (uint) strlen(field_name));
     }
-    else
-      append_identifier(thd, str, field_name, (uint) strlen(field_name));
   }
+  if (table_name[0])
+  {
+    append_identifier(thd, str, t_name, strlen(t_name));
+    str->append('.');
+  }
+  append_identifier(thd, str, field_name, strlen(field_name));
 }
 
 /* ARGSUSED */
@@ -2987,17 +2986,19 @@ bool Item_field::eq(const Item *item, bool binary_cmp) const
 
 table_map Item_field::used_tables() const
 {
-  if (field->table->const_table)
-    return 0;					// const item
-  return (depended_from ? OUTER_REF_TABLE_BIT : field->table->map);
+  if (!table_ref)
+    return 1;                      // Temporary table; always table 0
+  if (table_ref->table->const_table)
+    return 0;                      // const item
+  return depended_from ? OUTER_REF_TABLE_BIT : table_ref->map();
 }
 
 
 table_map Item_field::resolved_used_tables() const
 {
-  if (field->table->const_table)
-    return 0;					// const item
-  return field->table->map;
+  // Used by resolver only, so can never reach a "const" table.
+  DBUG_ASSERT(!table_ref->table->const_table);
+  return table_ref->map();
 }
 
 void Item_ident::fix_after_pullout(st_select_lex *parent_select,
@@ -3081,8 +3082,12 @@ void Item_ident::fix_after_pullout(st_select_lex *parent_select,
 Item *Item_field::get_tmp_table_item(THD *thd)
 {
   Item_field *new_item= new Item_field(thd, this);
-  if (new_item)
-    new_item->field= new_item->result_field;
+  if (!new_item)
+    return NULL;                   /* purecov: inspected */
+
+  new_item->field= new_item->result_field;
+  new_item->table_ref= NULL;      // Internal temporary table has no table_ref
+
   return new_item;
 }
 
@@ -3344,6 +3349,9 @@ void Item_string::print(String *str, enum_query_type query_type)
   }
   else if(query_type & QT_TO_ARGUMENT_CHARSET)
   {
+    if (print_introducer)
+      convert_and_print(&str_value, str, collation.collation);
+    else
     /*
       Convert the string literals to str->charset(),
       which is typically equal to charset_set_client.
@@ -4752,9 +4760,9 @@ bool Item_ref_null_helper::get_date(MYSQL_TIME *ltime,
   @param thd             thread handler
   @param last            select from which current item depend
   @param current         current select
-  @param resolved_item   item which was resolved in outer SELECT(for warning)
-  @param mark_item       item which should be marked (can be differ in case of
-                         substitution)
+  @param resolved_item   item which was resolved in outer SELECT
+  @param mark_item       item which should be marked; resolved_item will be
+  marked anyway.
 */
 
 static void mark_as_dependent(THD *thd, SELECT_LEX *last, SELECT_LEX *current,
@@ -4768,6 +4776,14 @@ static void mark_as_dependent(THD *thd, SELECT_LEX *last, SELECT_LEX *current,
   /* store pointer on SELECT_LEX from which item is dependent */
   if (mark_item)
     mark_item->depended_from= last;
+  /*
+    resolved_item is the one we are resolving (and we just found that it is an
+    outer ref), its context is surely the subquery (see assertion below), so
+    we set depended_from for it.
+  */
+  resolved_item->depended_from= last;
+  DBUG_ASSERT(resolved_item->context->select_lex == current);
+
   current->mark_as_dependent(last);
   if (thd->lex->describe)
   {
@@ -4845,7 +4861,7 @@ void mark_select_range_as_dependent(THD *thd,
     }
     else
       prev_subselect_item->used_tables_cache|=
-        found_field->table->map;
+        found_field->table->pos_in_table_list->map();
     prev_subselect_item->const_item_cache= 0;
     mark_as_dependent(thd, last_select, current_sel, resolved_item,
                       dependent);
@@ -4970,7 +4986,7 @@ static Item** find_field_in_group_list(Item *find_item, ORDER *group_list)
   statements and therefore not included in optimized builds.
 */
 #ifndef DBUG_OFF
-bool is_fixed_or_outer_ref(Item *ref)
+bool is_fixed_or_outer_ref(const Item *ref)
 {
   /*
     The requirements are that the Item pointer
@@ -4981,7 +4997,7 @@ bool is_fixed_or_outer_ref(Item *ref)
   return (ref != NULL &&                     // 1
           (ref->fixed ||                     // 2a
            (ref->type() == Item::REF_ITEM && // 2b
-            static_cast<Item_ref *>(ref)->ref_type() == Item_ref::OUTER_REF)));
+            static_cast<const Item_ref *>(ref)->ref_type() == Item_ref::OUTER_REF)));
 }
 #endif
 
@@ -4996,8 +5012,7 @@ bool is_fixed_or_outer_ref(Item *ref)
   both clauses contain different fields with the same names, a warning is
   issued that name of 'ref' is ambiguous. We extend ANSI SQL in that when no
   GROUP BY column is found, then a HAVING name is resolved as a possibly
-  derived SELECT column. This extension is allowed only if the
-  MODE_ONLY_FULL_GROUP_BY sql mode isn't enabled.
+  derived SELECT column.
 
   @param thd     current thread
   @param ref     column reference being resolved
@@ -5009,11 +5024,10 @@ bool is_fixed_or_outer_ref(Item *ref)
     in the SELECT clause of Q.
     - Search for a column named col_ref_i [in table T_j]
     in the GROUP BY clause of Q.
-    - If found different columns with the same name in GROUP BY and SELECT
-    - issue a warning and return the GROUP BY column,
-    - otherwise
-    - if the MODE_ONLY_FULL_GROUP_BY mode is enabled return error
-    - else return the found SELECT column.
+    - If found different columns with the same name in GROUP BY and SELECT,
+    issue a warning
+    - return the found GROUP BY column if any,
+    - else return the found SELECT column if any.
 
 
   @return
@@ -5041,7 +5055,7 @@ resolve_ref_in_select_and_group(THD *thd, Item_ident *ref, SELECT_LEX *select)
                                       &resolution)))
     return NULL; /* Some error occurred. */
   if (resolution == RESOLVED_AGAINST_ALIAS)
-    ref->alias_name_used= TRUE;
+    ref->set_alias_of_expr();
 
   /* If this is a non-aggregated field inside HAVING, search in GROUP BY. */
   if (select->having_fix_field && !ref->with_sum_func && group_list)
@@ -5060,18 +5074,6 @@ resolve_ref_in_select_and_group(THD *thd, Item_ident *ref, SELECT_LEX *select)
     }
   }
 
-  if (thd->variables.sql_mode & MODE_ONLY_FULL_GROUP_BY &&
-      select->having_fix_field  &&
-      select_ref != not_found_item && !group_by_ref)
-  {
-    /*
-      Report the error if fields was found only in the SELECT item list and
-      the strict mode is enabled.
-    */
-    my_error(ER_NON_GROUPING_FIELD_USED, MYF(0),
-             ref->item_name.ptr(), "HAVING");
-    return NULL;
-  }
   if (select_ref != not_found_item || group_by_ref)
   {
     if (select_ref != not_found_item && !ambiguous_fields)
@@ -5200,18 +5202,10 @@ Item_field::fix_outer_field(THD *thd, Field **from_field, Item **reference)
     {
       if (*from_field)
       {
-        if (thd->variables.sql_mode & MODE_ONLY_FULL_GROUP_BY &&
-            select->cur_pos_in_all_fields != SELECT_LEX::ALL_FIELDS_UNDEF_POS)
-        {
-          /*
-            As this is an outer field it should be added to the list of
-            non aggregated fields of the outer select.
-          */
-          push_to_non_agg_fields(select);
-        }
         if (*from_field != view_ref_found)
         {
-          prev_subselect_item->used_tables_cache|= (*from_field)->table->map;
+          prev_subselect_item->used_tables_cache|=
+            (*from_field)->table->pos_in_table_list->map();
           prev_subselect_item->const_item_cache= 0;
           set_field(*from_field);
           if (!last_checked_context->select_lex->having_fix_field &&
@@ -5345,12 +5339,15 @@ Item_field::fix_outer_field(THD *thd, Field **from_field, Item **reference)
     *ref= NULL;                             // Don't call set_properties()
     rf= (place == CTX_HAVING ?
          new Item_ref(context, ref, (char*) table_name,
-                      (char*) field_name, alias_name_used) :
+                      (char*) field_name,
+                      m_alias_of_expr) :
          (!select->group_list.elements ?
          new Item_direct_ref(context, ref, (char*) table_name,
-                             (char*) field_name, alias_name_used) :
+                             (char*) field_name,
+                             m_alias_of_expr) :
          new Item_outer_ref(context, ref, (char*) table_name,
-                            (char*) field_name, alias_name_used)));
+                            (char*) field_name,
+                            m_alias_of_expr)));
     *ref= save;
     if (!rf)
       return -1;
@@ -5399,21 +5396,6 @@ Item_field::fix_outer_field(THD *thd, Field **from_field, Item **reference)
     }
   }
   return 1;
-}
-
-
-bool Item_field::push_to_non_agg_fields(SELECT_LEX *select_lex)
-{
-  marker= select_lex->cur_pos_in_all_fields;
-  /*
-    Push expressions from the SELECT list to the back of the list, and
-    expressions from GROUP BY/ORDER BY to the front of the list
-    (non_agg_fields must have the same ordering as all_fields, see
-    match_exprs_for_only_full_group_by()).
-  */
-  return (marker < 0) ?
-    select_lex->non_agg_fields.push_front(this) :
-    select_lex->non_agg_fields.push_back(this);
 }
 
 
@@ -5482,7 +5464,7 @@ bool Item_field::fix_fields(THD *thd, Item **reference)
                                      thd->lex->use_only_table_context ?
                                        REPORT_ALL_ERRORS : 
                                        IGNORE_EXCEPT_NON_UNIQUE,
-                                     !any_privileges, TRUE);
+                                     !any_privileges, true);
     if (thd->is_error())
       goto error;
     if (from_field == not_found_field)
@@ -5499,7 +5481,7 @@ bool Item_field::fix_fields(THD *thd, Item **reference)
         if (!res)
           return 1;
         if (resolution == RESOLVED_AGAINST_ALIAS)
-          alias_name_used= TRUE;
+          set_alias_of_expr();
         if (res != (Item **)not_found_item)
         {
           if ((*res)->type() == Item::FIELD_ITEM)
@@ -5556,22 +5538,22 @@ bool Item_field::fix_fields(THD *thd, Item **reference)
             bool ret= rf->fix_fields(thd, (Item **) &rf) || rf->check_cols(1);
             thd->lex->current_select()->group_fix_field= save_group_fix_field;
             if (ret)
-              return TRUE;
+              return true;
 
-            if (save_group_fix_field && alias_name_used)
+            if (save_group_fix_field && m_alias_of_expr)
               thd->change_item_tree(reference, *rf->ref);
             else
               thd->change_item_tree(reference, rf);
 
-            return FALSE;
+            return false;
           }
         }
       }
       if ((ret= fix_outer_field(thd, &from_field, reference)) < 0)
         goto error;
-      outer_fixed= TRUE;
+      outer_fixed= true;
       if (!ret)
-        goto mark_non_agg_field;
+        return false;
     }
     else if (!from_field)
       goto error;
@@ -5590,9 +5572,9 @@ bool Item_field::fix_fields(THD *thd, Item **reference)
       int ret;
       if ((ret= fix_outer_field(thd, &from_field, reference)) < 0)
         goto error;
-      outer_fixed= 1;
+      outer_fixed= true;
       if (!ret)
-        goto mark_non_agg_field;
+        return false;
     }
 
     /*
@@ -5608,7 +5590,7 @@ bool Item_field::fix_fields(THD *thd, Item **reference)
       Also we suppose that view can't be changed during PS/SP life.
     */
     if (from_field == view_ref_found)
-      return FALSE;
+      return false;
 
     set_field(from_field);
     if (thd->lex->in_sum_func &&
@@ -5636,7 +5618,6 @@ bool Item_field::fix_fields(THD *thd, Item **reference)
       if (!bitmap_is_set(other_bitmap, field->field_index))
       {
         /* First usage of column */
-        table->used_fields++;                     // Used to optimize loops
         /* purecov: begin inspected */
         table->covering_keys.intersect(field->part_of_key);
         /* purecov: end */
@@ -5646,7 +5627,7 @@ bool Item_field::fix_fields(THD *thd, Item **reference)
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   if (any_privileges)
   {
-    char *db, *tab;
+    const char *db, *tab;
     db= cached_table->get_db_name();
     tab= cached_table->get_table_name();
     if (!(have_privileges= (get_column_grant(thd, &field->table->grant,
@@ -5662,54 +5643,24 @@ bool Item_field::fix_fields(THD *thd, Item **reference)
 #endif
   fixed= 1;
   if (!outer_fixed && !thd->lex->in_sum_func &&
-      thd->lex->current_select()->cur_pos_in_all_fields !=
-      SELECT_LEX::ALL_FIELDS_UNDEF_POS)
+      thd->lex->current_select()->resolve_place ==
+      st_select_lex::RESOLVE_SELECT_LIST)
   {
-    // See same code in Field_iterator_table::create_item()
-    if (thd->variables.sql_mode & MODE_ONLY_FULL_GROUP_BY)
-      push_to_non_agg_fields(thd->lex->current_select());
     /*
       If (1) aggregation (2) without grouping, we may have to return a result
       row even if the nested loop finds nothing; in this result row,
       non-aggregated table columns present in the SELECT list will show a NULL
       value even if the table column itself is not nullable.
     */
-    if (thd->lex->current_select()->with_sum_func && // (1)
+    if (thd->lex->current_select()->with_sum_func &&      // (1)
         !thd->lex->current_select()->group_list.elements) // (2)
       maybe_null= true;
   }
-
-mark_non_agg_field:
-  if (fixed && thd->variables.sql_mode & MODE_ONLY_FULL_GROUP_BY)
-  {
-    /*
-      Mark selects according to presence of non aggregated columns.
-      Columns from outer selects added to the aggregate function
-      outer_fields list as its unknown at the moment whether it's
-      aggregated or not.
-      We're using either the select lex of the cached table (if present)
-      or the field's resolution context. context->select_lex is 
-      safe for use because it's either the SELECT we want to use 
-      (the current level) or a stub added by non-SELECT queries.
-    */
-    SELECT_LEX *select_lex= cached_table ? 
-      cached_table->select_lex : context->select_lex;
-    if (!thd->lex->in_sum_func)
-      select_lex->set_non_agg_field_used(true);
-    else
-    {
-      if (outer_fixed)
-        thd->lex->in_sum_func->outer_fields.push_back(this);
-      else if (thd->lex->in_sum_func->nest_level !=
-          thd->lex->current_select()->nest_level)
-        select_lex->set_non_agg_field_used(true);
-    }
-  }
-  return FALSE;
+  return false;
 
 error:
   context->process_error(thd);
-  return TRUE;
+  return true;
 }
 
 Item *Item_field::safe_charset_converter(const CHARSET_INFO *tocs)
@@ -5728,6 +5679,7 @@ void Item_field::cleanup()
     it will be linked correctly next time by name of field and table alias.
     I.e. we can drop 'field'.
    */
+  table_ref= NULL;
   field= result_field= 0;
   item_equal= NULL;
   null_value= FALSE;
@@ -5949,7 +5901,9 @@ Item *Item_field::replace_equal_field(uchar *arg)
     }
     Item_field *subst= item_equal->get_subst_item(this);
     DBUG_ASSERT(subst);
-    if (field->table != subst->field->table && !field->eq(subst->field))
+    DBUG_ASSERT(table_ref == subst->table_ref ||
+                table_ref->table != subst->table_ref->table);
+    if (table_ref != subst->table_ref && !field->eq(subst->field))
       return subst;
   }
   return this;
@@ -6014,6 +5968,18 @@ enum_field_types Item::field_type() const
 }
 
 
+/**
+  Verifies that the input string is well-formed according to its character set.
+  @param send_error   If true, call my_error if string is not well-formed.
+
+  Will truncate input string if it is not well-formed.
+
+  @return
+  If well-formed: input string.
+  If not well-formed:
+    if strict mode: NULL pointer and we set this Item's value to NULL
+    if not strict mode: input string truncated up to last good character
+ */
 String *Item::check_well_formed_result(String *str, bool send_error)
 {
   /* Check whether we got a well-formed string */
@@ -6129,7 +6095,7 @@ bool Item::can_be_evaluated_now() const
 
   If max_length > CONVERT_IF_BIGGER_TO_BLOB create a blob @n
   If max_length > 0 create a varchar @n
-  If max_length == 0 create a CHAR(0) 
+  If max_length == 0 create a CHAR(0) (or VARCHAR(0) if we are grouping)
 
   @param table		Table for which the field is created
 */
@@ -6147,8 +6113,19 @@ Field *Item::make_string_field(TABLE *table)
     field= new Field_varstring(max_length, maybe_null, item_name.ptr(),
                                table->s, collation.collation);
   else
-    field= new Field_string(max_length, maybe_null, item_name.ptr(),
-                            collation.collation);
+  {
+    /*
+     marker == 4 : see create_tmp_table()
+     With CHAR(0) end_update() may write garbage into the next field.
+    */
+    if (max_length == 0 && marker == 4 && maybe_null &&
+        field_type() == MYSQL_TYPE_VAR_STRING && type() != Item::TYPE_HOLDER)
+      field= new Field_varstring(max_length, maybe_null, item_name.ptr(),
+                                 table->s, collation.collation);
+    else
+      field= new Field_string(max_length, maybe_null, item_name.ptr(),
+                              collation.collation);
+  }
   if (field)
     field->init(table);
   return field;
@@ -7292,11 +7269,11 @@ Item_field::get_cond_filter_default_probability(double max_distinct_values,
 Item_ref::Item_ref(Name_resolution_context *context_arg,
                    Item **item, const char *table_name_arg,
                    const char *field_name_arg,
-                   bool alias_name_used_arg)
+                   bool alias_of_expr_arg)
   :Item_ident(context_arg, NullS, table_name_arg, field_name_arg),
    result_field(0), ref(item), chop_ref(!ref)
 {
-  alias_name_used= alias_name_used_arg;
+  m_alias_of_expr= alias_of_expr_arg;
   /*
     This constructor used to create some internals references over fixed items
   */
@@ -7505,7 +7482,8 @@ bool Item_ref::fix_fields(THD *thd, Item **reference)
               } while (outer_context && outer_context->select_lex &&
                        cached_table->select_lex != outer_context->select_lex);
             }
-            prev_subselect_item->used_tables_cache|= from_field->table->map;
+            prev_subselect_item->used_tables_cache|=
+              from_field->table->pos_in_table_list->map();
             prev_subselect_item->const_item_cache= 0;
             break;
           }
@@ -7617,12 +7595,9 @@ void Item_ref::set_properties()
   with_sum_func= (*ref)->with_sum_func;
   unsigned_flag= (*ref)->unsigned_flag;
   fixed= 1;
-  if (alias_name_used)
-    return;
-  if ((*ref)->type() == FIELD_ITEM)
-    alias_name_used= ((Item_ident *) (*ref))->alias_name_used;
-  else
-    alias_name_used= TRUE; // it is not field, so it is was resolved by alias
+  if ((*ref)->type() == FIELD_ITEM &&
+      ((Item_ident *) (*ref))->is_alias_of_expr())
+    set_alias_of_expr();
 }
 
 
@@ -7726,12 +7701,10 @@ void Item_ref::print(String *str, enum_query_type query_type)
 {
   if (ref)
   {
-    if ((*ref)->type() != Item::CACHE_ITEM && ref_type() != VIEW_REF &&
-        !table_name && item_name.ptr() && alias_name_used)
-    {
-      THD *thd= current_thd;
-      append_identifier(thd, str, (*ref)->real_item()->item_name);
-    }
+    if (m_alias_of_expr &&
+        (*ref)->type() != Item::CACHE_ITEM && ref_type() != VIEW_REF &&
+        !table_name && item_name.ptr())
+      append_identifier(current_thd, str, (*ref)->real_item()->item_name);
     else
       (*ref)->print(str, query_type);
   }
@@ -9863,3 +9836,135 @@ void convert_and_print(String *from_str, String *to_str,
   }
 }
 
+
+/**
+   Tells if this is a column of a table whose qualifying query block is 'sl'.
+   I.e. Item_field or Item_direct_view_ref resolved in 'sl'. Used for
+   aggregate checks.
+
+   @Note that this returns false for an alias to a SELECT list expression,
+   even though the SELECT list expression might itself be a column of the
+   <table expression>; i.e. when the function runs on "foo" in HAVING of
+   "select t1.a as foo from t1 having foo>1", it returns false. First, it
+   pedantically makes sense: "foo" in HAVING is a reference to a column of the
+   <query expression>, not of the <table expression>. Second, this behaviour
+   makes sense for our purpose:
+     - This is an alias to a SELECT list expression.
+     - If doing DISTINCT-related checks, this alias can be ignored.
+     - If doing GROUP-BY-related checks, the aliased expression was already
+   checked when we checked the SELECT list, so can be ignored.
+
+   @retval TRUE3: yes
+   @retval FALSE3: no
+   @retval UNKNOWN3: it's a non-direct-view Item_ref, we don't know if it
+   contains a column => caller please analyze "*ref"
+*/
+Bool3 Item_ident::local_column(const SELECT_LEX *sl) const
+
+{
+  DBUG_ASSERT(is_fixed_or_outer_ref(this));
+  if (m_alias_of_expr)
+    return Bool3::false3();
+  const Type t= type();
+  if (t == FIELD_ITEM ||
+      (t == REF_ITEM &&
+       static_cast<const Item_ref *>(this)->ref_type() == Item_ref::VIEW_REF))
+  {
+    if (depended_from) // outer reference
+    {
+      if (depended_from == sl)
+        return Bool3::true3();                    // qualifying query is 'sl'
+    }
+    else if (context->select_lex == sl)
+      return Bool3::true3();                           // qualifying query is 'sl'
+  }
+  else if (t == REF_ITEM)
+  {
+    /*
+      We also know that this is not an alias. Must be an internal Item_ref
+      (like Item_aggregate_ref, Item_outer_ref), go down into it:
+    */
+    return Bool3::unknown3();
+  }
+  return Bool3::false3();
+}
+
+
+bool Item_ident::aggregate_check_distinct(uchar *arg)
+{
+  Distinct_check *const dc=
+    reinterpret_cast<Distinct_check *>(arg);
+
+  if (dc->is_stopped(this))
+    return false;
+
+  SELECT_LEX *const sl= dc->select;
+  const Bool3 local= local_column(sl);
+  if (local.is_false())
+  {
+    // not a column => ignored, skip child. Other tree parts deserve checking.
+    dc->stop_at(this);
+    return false;
+  }
+  if (local.is_unknown())
+    return false; // dive in child item
+
+  /*
+    Point (2) of Distinct_check::check_query() is true: column is
+    from table whose qualifying query block is 'sl'.
+  */
+  uint counter;
+  enum_resolution_type resolution;
+  Item **const res=
+    find_item_in_list(this,
+                      sl->item_list,
+                      &counter, REPORT_EXCEPT_NOT_FOUND,
+                      &resolution);
+
+  if (res == not_found_item)
+  {
+    /*
+      Point (3) of Distinct_check::check_query() is true: column is
+      not in SELECT list.
+    */
+    dc->failed_ident= this;
+    // Abort processing of the entire item tree.
+    return true;
+  }
+  /*
+    If success, do not dive in the child either! Indeed if this is
+    Item_.*view_ref to an expression coming from a merged view, we mustn't
+    check its underlying base-table columns, it may give false errors,
+    consider:
+    create view v as select x*2 as b from ...;
+    select distinct b from v order by b+1;
+    'b' of ORDER BY is in SELECT list so query is valid, we mustn't check
+    the underlying 'x' (which is not in SELECT list).
+  */
+  dc->stop_at(this);
+  return false;
+}
+
+
+bool Item_ident::aggregate_check_group(uchar *arg)
+{
+  Group_check *const gc= reinterpret_cast<Group_check *>(arg);
+  return gc->do_ident_check(this, 0, Group_check::CHECK_GROUP);
+}
+
+
+bool Item_ident::is_strong_side_column_not_in_fd(uchar *arg)
+{
+  std::pair<Group_check *, table_map> *p=
+    reinterpret_cast<std::pair<Group_check *, table_map> * >(arg);
+  // p->first is Group_check, p->second is map of strong tables.
+  return p->first->do_ident_check(this, p->second,
+                                  Group_check::CHECK_STRONG_SIDE_COLUMN);
+}
+
+
+bool Item_ident::is_column_not_in_fd(uchar *arg)
+{
+  Group_check *const gc= reinterpret_cast<Group_check *>(arg);
+  return gc->do_ident_check(this, 0, Group_check::CHECK_COLUMN);
+}

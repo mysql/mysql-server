@@ -152,11 +152,13 @@ INSERT INTO t2 VALUES (13,'f');
 INSERT INTO t2 VALUES (20,'f');
 CREATE TABLE t3 (f1 INT, f2 VARCHAR(1));
 INSERT INTO t3 VALUES (7,'f');
+--source include/turn_off_only_full_group_by.inc
 
 EXPLAIN SELECT t1.f2 FROM t1
 STRAIGHT_JOIN (t2 JOIN t3 ON t3.f2  = t2.f2  ) ON t3 .f2  = t2 .f2
 HAVING ('v', 'i') NOT IN (SELECT f2, MIN(f2) FROM t1)
 ORDER BY f2;
+
 SELECT t1.f2 FROM t1
 STRAIGHT_JOIN (t2 JOIN t3 ON t3.f2  = t2.f2  ) ON t3 .f2  = t2 .f2
 HAVING ('v', 'i') NOT IN (SELECT f2, MIN(f2) FROM t1)
@@ -164,6 +166,7 @@ ORDER BY f2;
 --replace_regex /("sort_buffer_size":) [0-9]+/\1 "NNN"/
 select TRACE from information_schema.OPTIMIZER_TRACE;
 
+--source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
 DROP TABLES t1,t2,t3;
 
 --echo
@@ -494,7 +497,7 @@ PRIMARY KEY (seq_0_id,seq_1_id)
 INSERT INTO t2 VALUES (1,1);
 INSERT INTO t2 VALUES (2,1);
 INSERT INTO t2 VALUES (2,2);
-
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 CREATE TABLE t3 (
 t3_id bigint(21) NOT NULL auto_increment,
 _field_131 varchar(128),
@@ -516,7 +519,7 @@ KEY _field_148 (_field_148)
 );
 INSERT INTO t3 VALUES (1,'test job 1',0,'0000-00-00 00:00:00',0,'1999-02-25 22:43:32','test\r\njob\r\n1',0,0,0);
 INSERT INTO t3 VALUES (2,'test job 2',0,'0000-00-00 00:00:00',0,'1999-02-26 21:08:04','',0,0,0);
-
+SET sql_mode = default;
 CREATE TABLE t4 (
 seq_0_id bigint(21) DEFAULT '0' NOT NULL,
 seq_1_id bigint(21) DEFAULT '0' NOT NULL,
@@ -565,9 +568,42 @@ KEY _field_166 (_field_166)
 INSERT INTO t7 VALUES (1,0,'High',1);
 INSERT INTO t7 VALUES (2,0,'Medium',2);
 INSERT INTO t7 VALUES (3,0,'Low',3);
+--source include/turn_off_only_full_group_by.inc
 
-select replace(t3._field_140, "\r","^M"),t3_id,min(t3._field_131), min(t3._field_135), min(t3._field_139), min(t3._field_137), min(link_alias_142._field_165), min(link_alias_133._field_72), min(t3._field_145), min(link_alias_148._field_156), replace(min(t3._field_140), "\r","^M"),t3.t3_id from t3 left join t4 on t4.seq_0_id = t3.t3_id left join t7 link_alias_142 on t4.seq_1_id = link_alias_142.t7_id left join t6 on t6.seq_0_id = t3.t3_id left join t1 link_alias_133 on t6.seq_1_id = link_alias_133.t1_id left join t2 on t2.seq_0_id = t3.t3_id left join t5 link_alias_148 on t2.seq_1_id = link_alias_148.t5_id where t3.t3_id in (1) group by t3.t3_id order by link_alias_142._field_166, _field_139, link_alias_133._field_72, _field_135, link_alias_148._field_156;
+select
+replace(t3._field_140, "\r","^M"),
+ t3_id,
+ min(t3._field_131),
+ min(t3._field_135),
+ min(t3._field_139),
+ min(t3._field_137),
+ min(link_alias_142._field_165),
+ min(link_alias_133._field_72),
+ min(t3._field_145),
+ min(link_alias_148._field_156),
+ replace(min(t3._field_140), "\r","^M"),
+ t3.t3_id
+from
+ t3 left join t4 on t4.seq_0_id = t3.t3_id
+ left join t7 link_alias_142 on t4.seq_1_id = link_alias_142.t7_id
+ left join t6 on t6.seq_0_id = t3.t3_id
+ left join t1 link_alias_133 on t6.seq_1_id = link_alias_133.t1_id
+ left join t2 on t2.seq_0_id = t3.t3_id
+ left join t5 link_alias_148 on t2.seq_1_id = link_alias_148.t5_id
+where
+ t3.t3_id in (1)
+group by
+ t3.t3_id
+order by
+ link_alias_142._field_166,
+ _field_139,
+ link_alias_133._field_72,
+ _field_135,
+  link_alias_148._field_156
+;
 select * from information_schema.optimizer_trace;
+
+--source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
 drop table t1,t2,t3,t4,t5,t6,t7;
 
 --echo #
@@ -612,6 +648,8 @@ INSERT INTO t2 VALUES
 (86,4,'t','t'),(87,7,'b','b'),(88,3,'y','y'),(89,8,'k','k'),(90,4,'c','c'),
 (91,6,'z','z'),(92,1,'t','t'),(93,7,'o','o'),(94,1,'u','u'),(95,0,'t','t'),
 (96,2,'k','k'),(97,7,'u','u'),(98,2,'b','b'),(99,1,'m','m'),(100,5,'o','o');
+
+# We see the functional dependency implied by ON
 
 let $query=
 SELECT SUM(alias2.col_varchar_nokey) , alias2.pk AS field2 FROM t1 AS alias1

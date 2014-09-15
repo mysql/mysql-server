@@ -26,12 +26,16 @@ CREATE TABLE t1 (
 
 INSERT INTO t1 SELECT pk, col1, col1 FROM tmp;
 
+--source include/turn_off_only_full_group_by.inc
+
 # Uses MyISAM temporary table due to long VARCHAR in GROUP BY clause. 
 SELECT uniq, col1 FROM t1 GROUP BY col2,uniq LIMIT 3;
+--replace_result InnoDB TMP_TABLE_ENGINE MyISAM TMP_TABLE_ENGINE 
 SELECT * FROM information_schema.OPTIMIZER_TRACE;
 
 # Uses HEAP temporary table
 SELECT uniq, col1, col2 FROM t1 GROUP BY uniq ;   
+--replace_result InnoDB TMP_TABLE_ENGINE MyISAM TMP_TABLE_ENGINE 
 SELECT * FROM information_schema.OPTIMIZER_TRACE;
 
 select @@tmp_table_size;
@@ -42,6 +46,7 @@ INSERT INTO t1 SELECT pk+8, col1, col1 FROM tmp;
 
 # Uses HEAP temporary table. Converts it to MyISAM due to heap size limitation
 SELECT uniq, col1, col2 FROM t1 GROUP BY uniq;   
+--replace_result InnoDB TMP_TABLE_ENGINE MyISAM TMP_TABLE_ENGINE 
 SELECT * FROM information_schema.OPTIMIZER_TRACE;
 
 SET GLOBAL tmp_table_size= @old_size;
@@ -49,8 +54,10 @@ SET GLOBAL tmp_table_size= @old_size;
 # Temp tables for I_S tables. Uses HEAP temporary table. 
 # Converts it to MyISAM packed record format due to heap size limitation
 SELECT pool_id FROM information_schema.innodb_buffer_page LIMIT 1;
+--replace_result InnoDB TMP_TABLE_ENGINE MyISAM TMP_TABLE_ENGINE 
 SELECT * FROM information_schema.OPTIMIZER_TRACE;
 
+--source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
 DROP TABLE t1, tmp;
 
 --echo #
@@ -79,6 +86,7 @@ SELECT c1,GROUP_CONCAT(c2) cc FROM
   (SELECT * FROM t1 UNION SELECT c1, 'a' FROM t1) tt
   GROUP BY c1
   ORDER BY cc;
+--replace_result InnoDB TMP_TABLE_ENGINE MyISAM TMP_TABLE_ENGINE 
 SELECT * FROM information_schema.OPTIMIZER_TRACE;
 DROP TABLE t1;
 --echo #

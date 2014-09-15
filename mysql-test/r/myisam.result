@@ -1,5 +1,6 @@
 drop table if exists t1,t2;
 SET SQL_WARNINGS=1;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 CREATE TABLE t1 (
 STRING_DATA char(255) default NULL,
 KEY string_data (STRING_DATA)
@@ -40,14 +41,14 @@ test.t1	optimize	status	OK
 show index from t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
 t1	0	PRIMARY	1	a	A	5	NULL	NULL		BTREE		
-t1	1	b	1	b	A	1	NULL	NULL		BTREE		
+t1	1	b	1	b	A	2	NULL	NULL		BTREE		
 optimize table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	optimize	status	Table is already up to date
 show index from t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
 t1	0	PRIMARY	1	a	A	5	NULL	NULL		BTREE		
-t1	1	b	1	b	A	1	NULL	NULL		BTREE		
+t1	1	b	1	b	A	2	NULL	NULL		BTREE		
 drop table t1;
 create table t1 (a int not null, b int not null, c int not null, primary key (a),key(b)) engine=myisam;
 insert into t1 values (3,3,3),(1,1,1),(2,2,2),(4,4,4);
@@ -355,7 +356,7 @@ show index from t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
 t1	1	b	1	b	A	5	NULL	NULL	YES	BTREE		
 t1	1	c	1	c	A	5	NULL	NULL	YES	BTREE		
-t1	1	a	1	a	A	1	NULL	NULL		BTREE		
+t1	1	a	1	a	A	2	NULL	NULL		BTREE		
 t1	1	a	2	b	A	5	NULL	NULL	YES	BTREE		
 t1	1	c_2	1	c	A	5	NULL	NULL	YES	BTREE		
 t1	1	c_2	2	a	A	5	NULL	NULL		BTREE		
@@ -2690,3 +2691,4 @@ SELECT count(*) FROM t1 WHERE col1= '5cm';
 count(*)
 0
 DROP TABLE t1;
+SET sql_mode = default;

@@ -55,7 +55,7 @@ want1result
 location
 DROP TABLE t1;
 create table t1 (a set('a') not null);
-insert into t1 values (),();
+insert ignore into t1 values (),();
 Warnings:
 Warning	1364	Field 'a' doesn't have a default value
 select cast(a as char(1)) from t1;
@@ -156,9 +156,9 @@ F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F225
 3 rows expected
 SELECT a, hex(b), c FROM t1 WHERE b LIKE concat(repeat(0xF1F2,10), '%');
 a	hex(b)	c
-2	F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2	
-3	F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2	
-4	F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2	
+2	F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2	NULL
+3	F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2	NULL
+4	F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2	NULL
 DROP TABLE t1;
 drop table if exists t1;
 create table t1 select repeat('a',10) as c1;
@@ -304,9 +304,9 @@ F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F225
 3 rows expected
 SELECT a, hex(b), c FROM t1 WHERE b LIKE concat(repeat(0xF1F2,10), '%');
 a	hex(b)	c
-2	F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2	
-3	F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2	
-4	F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2	
+2	F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2	NULL
+3	F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2	NULL
+4	F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2	NULL
 DROP TABLE t1;
 SET NAMES gb2312;
 CREATE TABLE t1 (a text) character set gb2312;
@@ -342,7 +342,7 @@ t1	CREATE TABLE `t1` (
   `code` varchar(8) DEFAULT NULL,
   `a` varchar(1) CHARACTER SET gb2312 NOT NULL DEFAULT ''
 ) ENGINE=default_engine DEFAULT CHARSET=latin1
-UPDATE t1 SET a=unhex(code) ORDER BY code;
+UPDATE IGNORE t1 SET a=unhex(code) ORDER BY code;
 Warnings:
 Warning	1366	Incorrect string value: '\x80 ' for column 'a' at row 1
 Warning	1366	Incorrect string value: '\x80!' for column 'a' at row 2
@@ -1044,6 +1044,10 @@ NULL
 SELECT inet6_aton(soundex('a'));
 inet6_aton(soundex('a'))
 NULL
+#
+# Bug#19047425 UNINITIALISED VALUE IN STR_TO_IPV6
+#
+do is_ipv4_mapped(inet6_aton(convert(_ascii "a:" using gb2312)));
 #
 # End of 5.6 tests
 #

@@ -50,7 +50,7 @@ fts_ast_node_create(void)
 {
 	fts_ast_node_t*	node;
 
-	node = (fts_ast_node_t*) ut_zalloc(sizeof(*node));
+	node = (fts_ast_node_t*) ut_zalloc_nokey(sizeof(*node));
 
 	return(node);
 }
@@ -58,7 +58,6 @@ fts_ast_node_create(void)
 /******************************************************************//**
 Create a operator fts_ast_node_t.
 @return new node */
-
 fts_ast_node_t*
 fts_ast_create_node_oper(
 /*=====================*/
@@ -79,7 +78,6 @@ fts_ast_create_node_oper(
 This function takes ownership of the ptr and is responsible
 for free'ing it
 @return new node or a node list with tokenized words */
-
 fts_ast_node_t*
 fts_ast_create_node_term(
 /*=====================*/
@@ -181,7 +179,6 @@ fts_ast_create_node_term_for_parser(
 This function takes ownership of the ptr and is responsible
 for free'ing it.
 @return new node */
-
 fts_ast_node_t*
 fts_ast_create_node_text(
 /*=====================*/
@@ -243,7 +240,6 @@ fts_ast_create_node_phrase_list(
 This function takes ownership of the expr and is responsible
 for free'ing it.
 @return new node */
-
 fts_ast_node_t*
 fts_ast_create_node_list(
 /*=====================*/
@@ -264,7 +260,6 @@ fts_ast_create_node_list(
 Create a sub-expression list node. This function takes ownership of
 expr and is responsible for deleting it.
 @return new node */
-
 fts_ast_node_t*
 fts_ast_create_node_subexp_list(
 /*============================*/
@@ -304,7 +299,6 @@ fts_ast_free_list(
 /********************************************************************//**
 Free a fts_ast_node_t instance.
 @return next node to free */
-
 fts_ast_node_t*
 fts_ast_free_node(
 /*==============*/
@@ -353,7 +347,6 @@ fts_ast_free_node(
 This AST takes ownership of the expr and is responsible
 for free'ing it.
 @return in param "list" */
-
 fts_ast_node_t*
 fts_ast_add_node(
 /*=============*/
@@ -386,7 +379,6 @@ fts_ast_add_node(
 /******************************************************************//**
 For tracking node allocations, in case there is an error during
 parsing. */
-
 void
 fts_ast_state_add_node(
 /*===================*/
@@ -405,7 +397,6 @@ fts_ast_state_add_node(
 
 /******************************************************************//**
 Set the wildcard attribute of a term. */
-
 void
 fts_ast_term_set_wildcard(
 /*======================*/
@@ -430,7 +421,6 @@ fts_ast_term_set_wildcard(
 
 /******************************************************************//**
 Set the proximity attribute of a text node. */
-
 void
 fts_ast_text_set_distance(
 /*======================*/
@@ -450,7 +440,6 @@ fts_ast_text_set_distance(
 
 /******************************************************************//**
 Free node and expr allocations. */
-
 void
 fts_ast_state_free(
 /*===============*/
@@ -700,7 +689,6 @@ has one more byte than len
 @param[in] str		pointer to string
 @param[in] len		length of the string
 @return ast string with NUL-terminator */
-
 fts_ast_string_t*
 fts_ast_string_create(
 	const byte*	str,
@@ -710,9 +698,10 @@ fts_ast_string_create(
 
 	ut_ad(len > 0);
 
-	ast_str = static_cast<fts_ast_string_t*>
-			(ut_malloc(sizeof(fts_ast_string_t)));
-	ast_str->str = static_cast<byte*>(ut_malloc(len + 1));
+	ast_str = static_cast<fts_ast_string_t*>(
+		ut_malloc_nokey(sizeof(fts_ast_string_t)));
+
+	ast_str->str = static_cast<byte*>(ut_malloc_nokey(len + 1));
 
 	ast_str->len = len;
 	memcpy(ast_str->str, str, len);
@@ -724,7 +713,6 @@ fts_ast_string_create(
 /**
 Free an ast string instance
 @param[in,out] ast_str		string to free */
-
 void
 fts_ast_string_free(
 	fts_ast_string_t*	ast_str)
@@ -740,7 +728,6 @@ Translate ast string of type FTS_AST_NUMB to unsigned long by strtoul
 @param[in] str		string to translate
 @param[in] base		the base
 @return translated number */
-
 ulint
 fts_ast_string_to_ul(
 	const fts_ast_string_t*	ast_str,
@@ -753,7 +740,6 @@ fts_ast_string_to_ul(
 /**
 Print the ast string
 @param[in] str		string to print */
-
 void
 fts_ast_string_print(
 	const fts_ast_string_t*	ast_str)

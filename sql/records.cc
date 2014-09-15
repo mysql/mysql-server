@@ -25,7 +25,6 @@
 #include "records.h"
 #include "sql_list.h"
 #include "filesort.h"            // filesort_free_buffers
-#include "opt_range.h"                          // SQL_SELECT
 #include "sql_class.h"                          // THD
 #include "sql_select.h"          // JOIN_TAB
 
@@ -111,9 +110,10 @@ bool init_read_record_idx(READ_RECORD *info, THD *thd, TABLE *table,
     init_read_record()
       info              OUT read structure
       thd               Thread handle
-      table             Table the data [originally] comes from.
-      select            SQL_SELECT structure. We may select->quick or 
-                        select->file as data source
+      table             Table the data [originally] comes from; if NULL,
+      'table' is inferred from 'qep_tab'; if non-NULL, 'qep_tab' must be NULL.
+      qep_tab           QEP_TAB for 'table', if there is one; we may use
+      qep_tab->quick() as data source
       use_record_cache  Call file->extra_opt(HA_EXTRA_CACHE,...)
                         if we're going to do sequential read and some
                         additional conditions are satisfied.
@@ -179,14 +179,19 @@ bool init_read_record_idx(READ_RECORD *info, THD *thd, TABLE *table,
   @retval true   error
   @retval false  success
 */
-bool init_read_record(READ_RECORD *info,THD *thd, TABLE *table,
-		      SQL_SELECT *select,
+bool init_read_record(READ_RECORD *info,THD *thd,
+                      TABLE *table, QEP_TAB *qep_tab,
 		      int use_record_cache, bool print_error, 
                       bool disable_rr_cache)
 {
   int error= 0;
   IO_CACHE *tempfile;
   DBUG_ENTER("init_read_record");
+
+  // If only 'table' is given, assume no quick, no condition.
+  DBUG_ASSERT(!(table && qep_tab));
+  if (!table)
+    table= qep_tab->table();
 
   memset(info, 0, sizeof(*info));
   info->thd=thd;
@@ -208,15 +213,13 @@ bool init_read_record(READ_RECORD *info,THD *thd, TABLE *table,
     info->record= table->record[0];
     info->ref_length= table->file->ref_length;
   }
-  info->select=select;
+  info->quick= qep_tab ? qep_tab->quick() : NULL;
   info->print_error=print_error;
   info->unlock_row= rr_unlock_row;
   info->ignore_not_found_rows= 0;
   table->status=0;			/* And it's always found */
 
-  if (select && my_b_inited(&select->file))
-    tempfile= &select->file;
-  else if (select && select->quick && select->quick->clustered_pk_range())
+  if (info->quick && info->quick->clustered_pk_range())
   {
     /*
       In case of QUICK_INDEX_MERGE_SELECT with clustered pk range we have to
@@ -275,7 +278,7 @@ bool init_read_record(READ_RECORD *info,THD *thd, TABLE *table,
       info->read_record=rr_from_cache;
     }
   }
-  else if (select && select->quick)
+  else if (info->quick)
   {
     DBUG_PRINT("info",("using rr_quick"));
     info->read_record=rr_quick;
@@ -328,10 +331,10 @@ bool init_read_record(READ_RECORD *info,THD *thd, TABLE *table,
     when we're running a SELECT and the condition cannot be pushed down.
   */
   if (thd->optimizer_switch_flag(OPTIMIZER_SWITCH_ENGINE_CONDITION_PUSHDOWN) &&
-      select && select->cond && 
-      (select->cond->used_tables() & table->map) &&
+      qep_tab && qep_tab->condition() &&
+      (qep_tab->condition()->used_tables() & table->pos_in_table_list->map()) &&
       !table->file->pushed_cond)
-    table->file->cond_push(select->cond);
+    table->file->cond_push(qep_tab->condition());
 
   DBUG_RETURN(false);
 
@@ -390,7 +393,7 @@ static int rr_handle_error(READ_RECORD *info, int error)
 static int rr_quick(READ_RECORD *info)
 {
   int tmp;
-  while ((tmp= info->select->quick->get_next()))
+  while ((tmp= info->quick->get_next()))
   {
     if (info->thd->killed || (tmp != HA_ERR_RECORD_DELETED))
     {
@@ -582,7 +585,7 @@ static int rr_unpack_from_tempfile(READ_RECORD *info)
 {
   uchar *destination= info->rec_buf;
 #ifndef DBUG_OFF
-  size_t where= my_b_tell(info->io_cache);
+  my_off_t where= my_b_tell(info->io_cache);
 #endif
   if (Packed_addon_fields)
   {
@@ -659,7 +662,8 @@ static int rr_unpack_from_buffer(READ_RECORD *info)
   if (info->unpack_counter == info->table->sort.found_records)
     return -1;                      /* End of buffer */
 
-  uchar *record= info->table->sort.get_sorted_record(info->unpack_counter);
+  uchar *record= info->table->sort.get_sorted_record(
+    static_cast<uint>(info->unpack_counter));
   uchar *plen= record + info->table->sort.get_sort_length();
   info->table->sort.unpack_addon_fields<Packed_addon_fields>(plen);
   info->unpack_counter++;
@@ -786,7 +790,7 @@ static int rr_from_cache(READ_RECORD *info)
   used in all access methods.
 */
 
-void rr_unlock_row(st_join_table *tab)
+void rr_unlock_row(QEP_TAB *tab)
 {
   READ_RECORD *info= &tab->read_record;
   info->table->file->unlock_row();

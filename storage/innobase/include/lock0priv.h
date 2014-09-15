@@ -67,8 +67,9 @@ struct lock_t {
 
 	dict_index_t*	index;		/*!< index for a record lock */
 
-	hash_node_t	hash;		/*!< hash chain node for a record
-					lock */
+	lock_t*		hash;		/*!< hash chain node for a record
+					lock. The link node in a singly linked
+					list, used during hashing. */
 
 	union {
 		lock_table_t	tab_lock;/*!< table lock */
@@ -411,7 +412,6 @@ lock_get_type_low(
 /*********************************************************************//**
 Gets the previous record lock set on a record.
 @return previous lock on the same record, NULL if none exists */
-
 const lock_t*
 lock_rec_get_prev(
 /*==============*/
@@ -421,7 +421,6 @@ lock_rec_get_prev(
 /*********************************************************************//**
 Cancels a waiting lock request and releases possible other transactions
 waiting behind it. */
-
 void
 lock_cancel_waiting_and_release(
 /*============================*/
@@ -438,7 +437,7 @@ lock_clust_rec_some_has_impl(
 	const rec_t*		rec,	/*!< in: user record */
 	const dict_index_t*	index,	/*!< in: clustered index */
 	const ulint*		offsets)/*!< in: rec_get_offsets(rec, index) */
-	__attribute__((nonnull, warn_unused_result));
+	__attribute__((warn_unused_result));
 
 /*********************************************************************//**
 Gets the first or next record lock on a page.

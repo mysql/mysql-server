@@ -101,8 +101,9 @@ static const byte supremum_extra_data[] = {
 Compare at most sizeof(field_ref_zero) bytes.
 @param b in: memory block
 @param s in: size of the memory block, in bytes */
-#define ASSERT_ZERO(b, s) \
-	ut_ad(!memcmp(b, field_ref_zero, ut_min(s, sizeof field_ref_zero)))
+#define ASSERT_ZERO(b, s)			\
+	ut_ad(!memcmp(b, field_ref_zero,	\
+		      ut_min(static_cast<size_t>(s), sizeof field_ref_zero)));
 /** Assert that a BLOB pointer is filled with zero bytes.
 @param b in: BLOB pointer */
 #define ASSERT_ZERO_BLOB(b) \
@@ -147,7 +148,6 @@ page_zip_fail_func(
 /**********************************************************************//**
 Determine the guaranteed free space on an empty page.
 @return minimum payload size on the page */
-
 ulint
 page_zip_empty_size(
 /*================*/
@@ -158,8 +158,7 @@ page_zip_empty_size(
 		/* subtract the page header and the longest
 		uncompressed data needed for one record */
 		- (PAGE_DATA
-		   + PAGE_ZIP_DIR_SLOT_SIZE
-		   + DATA_TRX_ID_LEN + DATA_ROLL_PTR_LEN
+		   + PAGE_ZIP_CLUST_LEAF_SLOT_SIZE
 		   + 1/* encoded heap_no==2 in page_zip_write_rec() */
 		   + 1/* end of modification log */
 		   - REC_N_NEW_EXTRA_BYTES/* omitted bytes */)
@@ -469,7 +468,6 @@ page_zip_fixed_field_encode(
 /**********************************************************************//**
 Write the index information for the compressed page.
 @return used size of buf */
-
 ulint
 page_zip_fields_encode(
 /*===================*/
@@ -742,7 +740,6 @@ page_zip_free(
 
 /**********************************************************************//**
 Configure the zlib allocator to use the given memory heap. */
-
 void
 page_zip_set_alloc(
 /*===============*/
@@ -1195,7 +1192,6 @@ func_exit:
 Compress a page.
 @return TRUE on success, FALSE on failure; page_zip will be left
 intact on failure. */
-
 ibool
 page_zip_compress(
 /*==============*/
@@ -1245,7 +1241,7 @@ page_zip_compress(
 	cmp_per_index_enabled	= srv_cmp_per_index_enabled;
 
 	ut_a(page_is_comp(page));
-	ut_a(fil_page_get_type(page) == FIL_PAGE_INDEX);
+	ut_a(fil_page_index_page_check(page));
 	ut_ad(page_simple_validate_new((page_t*) page));
 	ut_ad(page_zip_simple_validate(page_zip));
 	ut_ad(!index
@@ -2689,9 +2685,7 @@ page_zip_decompress_clust(
 
 	/* Subtract the space reserved for uncompressed data. */
 	d_stream->avail_in -= static_cast<uInt>(n_dense)
-			    * (PAGE_ZIP_DIR_SLOT_SIZE
-			      + DATA_TRX_ID_LEN
-			      + DATA_ROLL_PTR_LEN);
+			    * (PAGE_ZIP_CLUST_LEAF_SLOT_SIZE);
 
 	/* Decompress the records in heap_no order. */
 	for (slot = 0; slot < n_dense; slot++) {
@@ -3175,7 +3169,6 @@ Decompress a page.  This function should tolerate errors on the compressed
 page.  Instead of letting assertions fail, it will return FALSE if an
 inconsistency is detected.
 @return TRUE on success, FALSE on failure */
-
 ibool
 page_zip_decompress(
 /*================*/
@@ -3261,7 +3254,6 @@ ibool	page_zip_validate_header_only = FALSE;
 /**********************************************************************//**
 Check that the compressed and decompressed pages match.
 @return TRUE if valid, FALSE if not */
-
 ibool
 page_zip_validate_low(
 /*==================*/
@@ -3296,7 +3288,7 @@ page_zip_validate_low(
 
 	/* page_zip_decompress() expects the uncompressed page to be
 	UNIV_PAGE_SIZE aligned. */
-	temp_page_buf = static_cast<byte*>(ut_malloc(2 * UNIV_PAGE_SIZE));
+	temp_page_buf = static_cast<byte*>(ut_malloc_nokey(2 * UNIV_PAGE_SIZE));
 	temp_page = static_cast<byte*>(ut_align(temp_page_buf, UNIV_PAGE_SIZE));
 
 	UNIV_MEM_ASSERT_RW(page, UNIV_PAGE_SIZE);
@@ -3459,7 +3451,6 @@ func_exit:
 /**********************************************************************//**
 Check that the compressed and decompressed pages match.
 @return TRUE if valid, FALSE if not */
-
 ibool
 page_zip_validate(
 /*==============*/
@@ -3619,7 +3610,6 @@ page_zip_write_rec_ext(
 /**********************************************************************//**
 Write an entire record on the compressed page.  The data must already
 have been written to the uncompressed page. */
-
 void
 page_zip_write_rec(
 /*===============*/
@@ -3805,7 +3795,6 @@ page_zip_write_rec(
 /***********************************************************//**
 Parses a log record of writing a BLOB pointer of a record.
 @return end of log record or NULL */
-
 byte*
 page_zip_parse_write_blob_ptr(
 /*==========================*/
@@ -3864,7 +3853,6 @@ corrupt:
 /**********************************************************************//**
 Write a BLOB pointer of a record on the leaf page of a clustered index.
 The information must already have been updated on the uncompressed page. */
-
 void
 page_zip_write_blob_ptr(
 /*====================*/
@@ -3910,8 +3898,7 @@ page_zip_write_blob_ptr(
 
 	externs = page_zip->data + page_zip_get_size(page_zip)
 		- (page_dir_get_n_heap(page) - PAGE_HEAP_NO_USER_LOW)
-		* (PAGE_ZIP_DIR_SLOT_SIZE
-		   + DATA_TRX_ID_LEN + DATA_ROLL_PTR_LEN);
+		* PAGE_ZIP_CLUST_LEAF_SLOT_SIZE;
 
 	field = rec_get_nth_field(rec, offsets, n, &len);
 
@@ -3948,7 +3935,6 @@ page_zip_write_blob_ptr(
 /***********************************************************//**
 Parses a log record of writing the node pointer of a record.
 @return end of log record or NULL */
-
 byte*
 page_zip_parse_write_node_ptr(
 /*==========================*/
@@ -4021,7 +4007,6 @@ corrupt:
 
 /**********************************************************************//**
 Write the node pointer of a record on a non-leaf compressed page. */
-
 void
 page_zip_write_node_ptr(
 /*====================*/
@@ -4088,7 +4073,6 @@ page_zip_write_node_ptr(
 
 /**********************************************************************//**
 Write the trx_id and roll_ptr of a record on a B-tree leaf node page. */
-
 void
 page_zip_write_trx_id_and_roll_ptr(
 /*===============================*/
@@ -4247,7 +4231,6 @@ page_zip_clear_rec(
 /**********************************************************************//**
 Write the "deleted" flag of a record on a compressed page.  The flag must
 already have been written on the uncompressed page. */
-
 void
 page_zip_rec_set_deleted(
 /*=====================*/
@@ -4271,7 +4254,6 @@ page_zip_rec_set_deleted(
 /**********************************************************************//**
 Write the "owned" flag of a record on a compressed page.  The n_owned field
 must already have been written on the uncompressed page. */
-
 void
 page_zip_rec_set_owned(
 /*===================*/
@@ -4291,7 +4273,6 @@ page_zip_rec_set_owned(
 
 /**********************************************************************//**
 Insert a record to the dense page directory. */
-
 void
 page_zip_dir_insert(
 /*================*/
@@ -4370,7 +4351,6 @@ page_zip_dir_insert(
 /**********************************************************************//**
 Shift the dense page directory and the array of BLOB pointers
 when a record is deleted. */
-
 void
 page_zip_dir_delete(
 /*================*/
@@ -4443,8 +4423,7 @@ page_zip_dir_delete(
 
 		externs = page_zip->data + page_zip_get_size(page_zip)
 			- (page_dir_get_n_heap(page) - PAGE_HEAP_NO_USER_LOW)
-			* (PAGE_ZIP_DIR_SLOT_SIZE
-			   + DATA_TRX_ID_LEN + DATA_ROLL_PTR_LEN);
+			* PAGE_ZIP_CLUST_LEAF_SLOT_SIZE;
 
 		ext_end = externs - page_zip->n_blobs
 			* BTR_EXTERN_FIELD_REF_SIZE;
@@ -4468,7 +4447,6 @@ skip_blobs:
 
 /**********************************************************************//**
 Add a slot to the dense page directory. */
-
 void
 page_zip_dir_add_slot(
 /*==================*/
@@ -4502,19 +4480,15 @@ page_zip_dir_add_slot(
 			* (DATA_TRX_ID_LEN + DATA_ROLL_PTR_LEN);
 		externs = stored
 			- page_zip->n_blobs * BTR_EXTERN_FIELD_REF_SIZE;
-		ASSERT_ZERO(externs
-			    - (PAGE_ZIP_DIR_SLOT_SIZE
-			       + DATA_TRX_ID_LEN + DATA_ROLL_PTR_LEN),
-			    PAGE_ZIP_DIR_SLOT_SIZE
-			    + DATA_TRX_ID_LEN + DATA_ROLL_PTR_LEN);
-		memmove(externs - (PAGE_ZIP_DIR_SLOT_SIZE
-				   + DATA_TRX_ID_LEN + DATA_ROLL_PTR_LEN),
+		ASSERT_ZERO(externs - PAGE_ZIP_CLUST_LEAF_SLOT_SIZE,
+			               PAGE_ZIP_CLUST_LEAF_SLOT_SIZE);
+		memmove(externs - PAGE_ZIP_CLUST_LEAF_SLOT_SIZE,
 			externs, stored - externs);
 	} else {
 		stored = dir
 			- page_zip->n_blobs * BTR_EXTERN_FIELD_REF_SIZE;
 		ASSERT_ZERO(stored - PAGE_ZIP_DIR_SLOT_SIZE,
-			    PAGE_ZIP_DIR_SLOT_SIZE);
+			    static_cast<size_t>(PAGE_ZIP_DIR_SLOT_SIZE));
 	}
 
 	/* Move the uncompressed area backwards to make space
@@ -4525,7 +4499,6 @@ page_zip_dir_add_slot(
 /***********************************************************//**
 Parses a log record of writing to the header of a page.
 @return end of log record or NULL */
-
 byte*
 page_zip_parse_write_header(
 /*========================*/
@@ -4583,7 +4556,6 @@ corrupt:
 #ifndef UNIV_HOTBACKUP
 /**********************************************************************//**
 Write a log record of writing to the uncompressed header portion of a page. */
-
 void
 page_zip_write_header_log(
 /*======================*/
@@ -4628,7 +4600,6 @@ bits in the same mini-transaction in such a way that the modification
 will be redo-logged.
 @return TRUE on success, FALSE on failure; page_zip will be left
 intact on failure, but page will be overwritten. */
-
 ibool
 page_zip_reorganize(
 /*================*/
@@ -4660,7 +4631,6 @@ page_zip_reorganize(
 #ifndef UNIV_HOTBACKUP
 	temp_block = buf_block_alloc(buf_pool);
 	btr_search_drop_page_hash_index(block);
-	block->check_index_page_at_flush = TRUE;
 #else /* !UNIV_HOTBACKUP */
 	ut_ad(block == back_block1);
 	temp_block = back_block2;
@@ -4673,7 +4643,7 @@ page_zip_reorganize(
 	/* Recreate the page: note that global data on page (possible
 	segment headers, next page-field, etc.) is preserved intact */
 
-	page_create(block, mtr, TRUE);
+	page_create(block, mtr, TRUE, dict_index_is_spatial(index));
 
 	/* Copy the records from the temporary space to the recreated page;
 	do not copy the lock bits yet */
@@ -4722,7 +4692,6 @@ Copy the records of a page byte for byte.  Do not copy the page header
 or trailer, except those B-tree header fields that are directly
 related to the storage of records.  Also copy PAGE_MAX_TRX_ID.
 NOTE: The caller must update the lock table and the adaptive hash index. */
-
 void
 page_zip_copy_recs(
 /*===============*/
@@ -4816,7 +4785,6 @@ page_zip_copy_recs(
 /**********************************************************************//**
 Parses a log record of compressing an index page.
 @return end of log record or NULL */
-
 byte*
 page_zip_parse_compress(
 /*====================*/
@@ -4877,7 +4845,6 @@ corrupt:
 /**********************************************************************//**
 Calculate the compressed page checksum.
 @return page checksum */
-
 ib_uint32_t
 page_zip_calc_checksum(
 /*===================*/
@@ -4933,7 +4900,6 @@ page_zip_calc_checksum(
 Verify a compressed page's checksum.
 @return TRUE if the stored checksum is valid according to the value of
 innodb_checksum_algorithm */
-
 ibool
 page_zip_verify_checksum(
 /*=====================*/

@@ -489,6 +489,7 @@ drop table `t1a``b`;
 #
 # Changing of underlying table
 #
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 create table t1 (col1 char(5),col2 char(5));
 create view v1 as select * from t1;
 drop table t1;
@@ -499,7 +500,7 @@ drop table t1;
 -- error ER_VIEW_INVALID
 select * from v1;
 drop view v1;
-
+SET sql_mode = default;
 #
 # check of duplication of column names
 #
@@ -1213,6 +1214,7 @@ drop table t1;
 #
 # changing value by trigger and CHECK OPTION
 #
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 create table t1 (s1 tinyint);
 create trigger t1_bi before insert on t1 for each row set new.s1 = 500;
 create view v1 as select * from t1 where s1 <> 127 with check option;
@@ -1223,7 +1225,7 @@ select * from t1;
 drop trigger t1_bi;
 drop view v1;
 drop table t1;
-
+SET sql_mode = default;
 #
 # CASCADED should be used for all underlaying VIEWs
 #
@@ -2075,7 +2077,9 @@ drop table t1;
 create table t1 (f1 int, f2 int,f3 int);
 insert into t1 values (1,10,20),(2,0,0);
 create view v1 as select * from t1;
+--source include/turn_off_only_full_group_by.inc
 select if(sum(f1)>1,f2,f3) from v1 group by f1;
+--source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
 drop view v1;
 drop table t1;
 
@@ -2677,7 +2681,7 @@ DROP TABLE t1,t2;
 CREATE TABLE t1 (a INT NOT NULL, b INT NULL DEFAULT NULL);
 CREATE VIEW v1 AS SELECT a, b FROM t1;
 
-INSERT INTO v1 (b) VALUES (2);
+INSERT IGNORE INTO v1 (b) VALUES (2);
 
 SET SQL_MODE = STRICT_ALL_TABLES;
 --error ER_NO_DEFAULT_FOR_VIEW_FIELD
@@ -3709,8 +3713,10 @@ CREATE TABLE t1(a INT UNIQUE);
 CREATE VIEW v1 AS SELECT t1.a FROM t1, t1 AS a;
 INSERT INTO t1 VALUES (1), (2);
 
+--error ER_VIEW_DELETE_MERGE_VIEW
 REPLACE INTO v1(a) SELECT 1 FROM t1,t1 AS c;
 SELECT * FROM v1;
+--error ER_VIEW_DELETE_MERGE_VIEW
 REPLACE INTO v1(a) SELECT 3 FROM t1,t1 AS c;
 SELECT * FROM v1;
 DELETE FROM t1 WHERE a=3;
@@ -3720,8 +3726,10 @@ SELECT * FROM v1;
 
 CREATE VIEW v2 AS SELECT t1.a FROM t1, v1 AS a;
 
+--error ER_VIEW_DELETE_MERGE_VIEW
 REPLACE INTO v2(a) SELECT 1 FROM t1,t1 AS c;
 SELECT * FROM v2;
+--error ER_VIEW_DELETE_MERGE_VIEW
 REPLACE INTO v2(a) SELECT 3 FROM t1,t1 AS c;
 SELECT * FROM v2;
 INSERT INTO v2(a) SELECT 1 FROM t1,t1 AS c

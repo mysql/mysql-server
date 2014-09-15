@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2013, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -30,6 +30,8 @@ Created 2013-04-25 Krunal Bauskar
 #include "dict0boot.h"
 #include "fil0fil.h"
 #include "srv0start.h"
+#include "ut0new.h"
+
 #include <vector>
 
 /** The information of TRUNCATE log record.
@@ -86,7 +88,7 @@ public:
 		@return DB_CORRUPTION or error code */
 		dberr_t set(const dict_index_t* index);
 
-		typedef std::vector<byte> fields_t;
+		typedef std::vector<byte, ut_allocator<byte> >	fields_t;
 
 		/** Index id */
 		index_id_t	m_id;
@@ -296,7 +298,7 @@ public:
 	static bool is_tablespace_truncated(ulint space_id);
 
 private:
-	typedef std::vector<index_t>	indexes_t;
+	typedef std::vector<index_t, ut_allocator<index_t> >	indexes_t;
 
 	/** Space ID of tablespace */
 	ulint			m_space_id;
@@ -329,7 +331,8 @@ private:
 	char*			m_log_file_name;
 
 	/** Vector of tables to truncate. */
-	typedef	std::vector<truncate_t*> tables_t;
+	typedef	std::vector<truncate_t*, ut_allocator<truncate_t*> >
+		tables_t;
 
 	/** Information about tables to truncate post recovery */
 	static	tables_t	s_tables;
@@ -356,7 +359,8 @@ public:
 		const char*	dir_path);
 
 private:
-	typedef std::vector<char*>	trunc_log_files_t;
+	typedef std::vector<char*, ut_allocator<char*> >
+		trunc_log_files_t;
 
 private:
 	/**
@@ -386,7 +390,6 @@ Truncates a table for MySQL.
 @param table		table being truncated
 @param trx		transaction covering the truncate
 @return	error code or DB_SUCCESS */
-
 dberr_t
 row_truncate_table_for_mysql(dict_table_t* table, trx_t* trx);
 

@@ -12,11 +12,9 @@
 #                                                                    #
 ######################################################################
 
-# Don't test this under valgrind, memory leaks will occur due restart
---source include/not_valgrind.inc
-
 # Not supported in embedded
 --source include/not_embedded.inc
+--source include/no_valgrind_without_big.inc
 
 -- source include/have_innodb.inc
 # *nix specific command to remove write permission
@@ -68,15 +66,8 @@ SELECT i,LEFT(j,20) FROM t1 ORDER BY i;
 --exec chmod a-w $MYSQLD_DATADIR/ib_logfile0
 #
 
-
---exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server 60
---source include/wait_until_disconnected.inc
-# Do something while server is down
---enable_reconnect
-# Write file to make mysql-test-run.pl start up the server again
---exec echo "restart: --innodb-read-only " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---source include/wait_until_connected_again.inc
+let $restart_parameters = restart: --innodb-read-only;
+--source include/restart_mysqld.inc
 
 USE testdb_wl6445;
 SELECT i FROM t1 ORDER BY i;
@@ -102,21 +93,17 @@ UNLOCK TABLES;
 
 
 #------------------------------------------------------------------------------
-#clenaup
+#cleanup
 #------------------------------------------------------------------------------
 #
---exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server 60
---source include/wait_until_disconnected.inc
+--source include/shutdown_mysqld.inc
 # Do something while server is down
 --exec chmod 0644 $MYSQLD_DATADIR/ibdata1
 --exec chmod 0644 $MYSQLD_DATADIR/ib_logfile0
 --exec chmod 0660 $MYSQLD_DATADIR/testdb_wl6445/t1.ibd
---enable_reconnect
-# Write file to make mysql-test-run.pl start up the server again
---exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---source include/wait_until_connected_again.inc
-DROP DATABASE IF EXISTS testdb_wl6445;
+let $restart_parameters = restart;
+--source include/start_mysqld.inc
+DROP DATABASE testdb_wl6445;
 
 
 #------------------------------------------------------------------------------
@@ -126,9 +113,6 @@ DROP DATABASE IF EXISTS testdb_wl6445;
 # c) restart server in --innodb-read-only mode and verfiy DDL/DML/DCL in read only mode
 #------------------------------------------------------------------------------
 --echo case # 2
---disable_warnings
-DROP DATABASE IF EXISTS testdb_wl6445;
---enable_warnings
 CREATE DATABASE testdb_wl6445;
 
 USE testdb_wl6445;
@@ -151,15 +135,8 @@ SELECT i,LEFT(j,20) FROM t2 ORDER BY i;
 DELETE FROM t2;
 SELECT i,LEFT(j,20) FROM t2 ORDER BY i;
 
-
---exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server 60
---source include/wait_until_disconnected.inc
-# Do something while server is down
---enable_reconnect
-# Write file to make mysql-test-run.pl start up the server again
---exec echo "restart: --innodb-read-only " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---source include/wait_until_connected_again.inc
+let $restart_parameters = restart: --innodb-read-only;
+--source include/restart_mysqld.inc
 
 USE testdb_wl6445;
 SELECT i FROM t1 ORDER BY i;
@@ -200,16 +177,12 @@ UNLOCK TABLES;
 
 # We let our server restart attempts write to the file $error_log.
 let $error_log= $MYSQLTEST_VARDIR/log/my_restart.err;
---error 0,1
---remove_file $error_log
 # $error_log has to be processed by include/search_pattern_in_file.inc which
 # contains Perl code requiring that the environment variable SEARCH_FILE points
 # to this file.
 let SEARCH_FILE= $error_log;
 
---exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server 60
---source include/wait_until_disconnected.inc
+--source include/shutdown_mysqld.inc
 
 --echo #    Try to restart the server without --innodb-read-only after removing
 --echo #    write permissions of system tablespace. Server should not start.
@@ -217,10 +190,10 @@ let SEARCH_FILE= $error_log;
 #----------------------------------------------------------------------------------
 # Detailed explanations of what happens are placed nearby the checks.
 --error 1
---exec $MYSQLD_CMD --loose-console > $error_log 2>&1
+--exec $MYSQLD_CMD --core-file --loose-console > $error_log 2>&1
 
 # We get depending on the platform either "./ibdata1" or ".\ibdata1".
-let SEARCH_PATTERN=InnoDB: The innodb_system_tablespace data file 'ibdata1' must be writable;
+let SEARCH_PATTERN=InnoDB: The innodb_system data file 'ibdata1' must be writable;
 --source include/search_pattern_in_file.inc
 
 
@@ -232,14 +205,8 @@ let SEARCH_PATTERN=InnoDB: The innodb_system_tablespace data file 'ibdata1' must
 --exec chmod 0644 $MYSQLD_DATADIR/ibdata1
 --exec chmod 0644 $MYSQLD_DATADIR/ib_logfile0
 --exec chmod 0660 $MYSQLD_DATADIR/testdb_wl6445/t1.ibd
---error 0,1
 --remove_file $error_log
---enable_reconnect
-# Write file to make mysql-test-run.pl start up the server again
---exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---source include/wait_until_connected_again.inc
-USE testdb_wl6445;
+
+let $restart_parameters = restart;
+--source include/start_mysqld.inc
 DROP DATABASE testdb_wl6445;
-eval SET GLOBAL INNODB_FILE_FORMAT=$innodb_file_format;
-eval SET GLOBAL INNODB_FILE_PER_TABLE=$innodb_file_per_table;
-eval SET GLOBAL innodb_large_prefix = $innodb_large_prefix_orig;

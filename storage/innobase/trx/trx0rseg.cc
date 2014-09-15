@@ -118,7 +118,6 @@ trx_rseg_header_create(
 
 /***********************************************************************//**
 Free's an instance of the rollback segment in memory. */
-
 void
 trx_rseg_mem_free(
 /*==============*/
@@ -197,12 +196,14 @@ trx_rseg_mem_create(
 	trx_ulogf_t*	undo_log_hdr;
 	ulint		sum_of_undo_sizes;
 
-	rseg = static_cast<trx_rseg_t*>(ut_zalloc(sizeof(trx_rseg_t)));
+	rseg = static_cast<trx_rseg_t*>(ut_zalloc_nokey(sizeof(trx_rseg_t)));
 
 	rseg->id = id;
 	rseg->space = space;
 	rseg->page_size.copy_from(page_size);
 	rseg->page_no = page_no;
+	rseg->trx_ref_count = 0;
+	rseg->skip_allocation = false;
 
 	if (fsp_is_system_temporary(space)) {
 		mutex_create("noredo_rseg", &rseg->mutex);
@@ -376,7 +377,6 @@ trx_rseg_create_instance(
 /*********************************************************************
 Creates a rollback segment.
 @return pointer to new rollback segment if create successful */
-
 trx_rseg_t*
 trx_rseg_create(
 /*============*/
@@ -445,7 +445,6 @@ trx_rseg_create(
 /*********************************************************************//**
 Creates the memory copies for rollback segments and initializes the
 rseg array in trx_sys at a database startup. */
-
 void
 trx_rseg_array_init(
 /*================*/
@@ -464,7 +463,6 @@ The last space id will be the sentinel value ULINT_UNDEFINED. The array
 will be sorted on space id. Note: space_ids should have have space for
 TRX_SYS_N_RSEGS + 1 elements.
 @return number of unique rollback tablespaces in use. */
-
 ulint
 trx_rseg_get_n_undo_tablespaces(
 /*============================*/

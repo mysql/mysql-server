@@ -126,6 +126,13 @@ public:
   */
   static void set_field_longtext_utf8(Field *f, const char *str, uint len);
   /**
+    Helper, assign a value to a blob field.
+    @param f the field to set
+    @param val the value to assign
+    @param len the length of the string to assign
+  */
+  static void set_field_blob(Field *f, const char *val, uint len);
+  /**
     Helper, assign a value to an enum field.
     @param f the field to set
     @param value the value to assign
@@ -137,6 +144,12 @@ public:
     @param value the value to assign
   */
   static void set_field_timestamp(Field *f, ulonglong value);
+  /**
+    Helper, assign a value to a double field.
+    @param f the field to set
+    @param value the value to assign
+  */
+  static void set_field_double(Field *f, double value);
   /**
     Helper, read a value from an enum field.
     @param f the field to read

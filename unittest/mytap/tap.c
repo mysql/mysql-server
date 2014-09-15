@@ -27,6 +27,9 @@
 #include <stdio.h>
 #include <string.h>
 #include <signal.h>
+#ifdef HAVE_UNISTD_H
+#include <unistd.h>
+#endif
 
 /*
   Visual Studio 2003 does not know vsnprintf but knows _vsnprintf.
@@ -167,7 +170,11 @@ typedef struct signal_entry {
 } signal_entry;
 
 static signal_entry install_signal[]= {
+#ifdef _WIN32
+  { SIGTERM, handle_core_signal },
+#else
   { SIGQUIT, handle_core_signal },
+#endif
   { SIGILL,  handle_core_signal },
   { SIGABRT, handle_core_signal },
   { SIGFPE,  handle_core_signal },

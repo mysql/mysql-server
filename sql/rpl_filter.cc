@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -22,13 +22,17 @@
 #include "auth_common.h"                // for SUPER_ACL
 #include "rpl_slave.h"                  // for SLAVE_SQL and thread_mask
 #include "rpl_mi.h"                     // for Master_info
+#include "template_utils.h"
 
 #define TABLE_RULE_HASH_SIZE   16
-#define TABLE_RULE_ARR_SIZE   16
 extern PSI_memory_key key_memory_array_buffer;
 
 Rpl_filter::Rpl_filter() :
-  table_rules_on(0),
+  table_rules_on(false),
+  do_table_array(key_memory_TABLE_RULE_ENT),
+  ignore_table_array(key_memory_TABLE_RULE_ENT),
+  wild_do_table(key_memory_TABLE_RULE_ENT),
+  wild_ignore_table(key_memory_TABLE_RULE_ENT),
   do_table_hash_inited(0), ignore_table_hash_inited(0),
   do_table_array_inited(0), ignore_table_array_inited(0),
   wild_do_table_inited(0), wild_ignore_table_inited(0)
@@ -45,14 +49,12 @@ Rpl_filter::~Rpl_filter()
     my_hash_free(&do_table_hash);
   if (ignore_table_hash_inited)
     my_hash_free(&ignore_table_hash);
-  if (do_table_array_inited)
-    free_string_array(&do_table_array);
-  if (ignore_table_array_inited)
-    free_string_array(&ignore_table_array);
-  if (wild_do_table_inited)
-    free_string_array(&wild_do_table);
-  if (wild_ignore_table_inited)
-    free_string_array(&wild_ignore_table);
+
+  free_string_array(&do_table_array);
+  free_string_array(&ignore_table_array);
+  free_string_array(&wild_do_table);
+  free_string_array(&wild_ignore_table);
+
   free_string_list(&do_db);
   free_string_list(&ignore_db);
   free_string_pair_list(&rewrite_db);
@@ -248,7 +250,7 @@ Rpl_filter::db_ok_with_wild_table(const char *db)
 
   char hash_key[NAME_LEN+2];
   char *end;
-  int len;
+  size_t len;
   end= my_stpcpy(hash_key, db);
   *end++= '.';
   len= end - hash_key ;
@@ -339,7 +341,7 @@ Rpl_filter::add_db_rewrite(const char* from_db, const char* to_db)
 }
 
 /*
-  Build do_table rules to HASH from DYNAMIC_ARRAY
+  Build do_table rules to HASH from dynamic array
   for faster filter checking.
 
   @return
@@ -366,7 +368,7 @@ Rpl_filter::build_do_table_hash()
 }
 
 /*
-  Build ignore_table rules to HASH from DYNAMIC_ARRAY
+  Build ignore_table rules to HASH from dynamic array
   for faster filter checking.
 
   @return
@@ -398,9 +400,9 @@ Rpl_filter::build_ignore_table_hash()
   when the charset to use for tables has been established,
   inserted into a HASH for faster filter checking.
 
-  @param[in] table_array         DYNAMIC_ARRAY stored table rules
+  @param[in] table_array         dynamic array stored table rules
   @param[in] table_hash          HASH for storing table rules
-  @param[in] array_inited        Table rules are added to DYNAMIC_ARRAY
+  @param[in] array_inited        Table rules are added to dynamic array
   @param[in] hash_inited         Table rules are added to HASH
 
   @return
@@ -408,18 +410,18 @@ Rpl_filter::build_ignore_table_hash()
              1           error
 */
 int
-Rpl_filter::build_table_hash_from_array(DYNAMIC_ARRAY *table_array, HASH *table_hash,
-                             bool array_inited, bool *hash_inited)
+Rpl_filter::build_table_hash_from_array(Table_rule_array *table_array,
+                                        HASH *table_hash,
+                                        bool array_inited, bool *hash_inited)
 {
   DBUG_ENTER("Rpl_filter::build_table_hash");
 
   if (array_inited)
   {
     init_table_rule_hash(table_hash, hash_inited);
-    for (uint i= 0; i < table_array->elements; i++)
+    for (size_t i= 0; i < table_array->size(); i++)
     {
-      TABLE_RULE_ENT* e;
-      get_dynamic(table_array, (uchar*)&e, i);
+      TABLE_RULE_ENT* e= table_array->at(i);
       if (add_table_rule_to_hash(table_hash, e->db, e->key_len))
         DBUG_RETURN(1);
     }
@@ -469,11 +471,11 @@ Rpl_filter::add_table_rule_to_hash(HASH* h, const char* table_spec, uint len)
 */
 
 int
-Rpl_filter::add_table_rule_to_array(DYNAMIC_ARRAY* a, const char* table_spec)
+Rpl_filter::add_table_rule_to_array(Table_rule_array* a, const char* table_spec)
 {
   const char* dot = strchr(table_spec, '.');
   if (!dot) return 1;
-  uint len = (uint)strlen(table_spec);
+  size_t len = strlen(table_spec);
   TABLE_RULE_ENT* e = (TABLE_RULE_ENT*)my_malloc(key_memory_TABLE_RULE_ENT,
                                                  sizeof(TABLE_RULE_ENT)
 						 + len, MYF(MY_WME));
@@ -483,7 +485,7 @@ Rpl_filter::add_table_rule_to_array(DYNAMIC_ARRAY* a, const char* table_spec)
   e->key_len= len;
   memcpy(e->db, table_spec, len);
 
-  if (insert_dynamic(a, &e))
+  if (a->push_back(e))
   {
     my_free(e);
     return 1;
@@ -593,9 +595,9 @@ Rpl_filter::set_wild_do_table(List<Item> *wild_do_table_list)
 
   status= parse_filter_list(wild_do_table_list, &Rpl_filter::add_wild_do_table);
 
-  if (!wild_do_table.elements)
+  if (wild_do_table.empty())
   {
-    delete_dynamic(&wild_do_table);
+    wild_do_table.shrink_to_fit();
     wild_do_table_inited= 0;
   }
   DBUG_RETURN(status);
@@ -613,9 +615,9 @@ Rpl_filter::set_wild_ignore_table(List<Item> *wild_ignore_table_list)
 
   status= parse_filter_list(wild_ignore_table_list, &Rpl_filter::add_wild_ignore_table);
 
-  if (!wild_ignore_table.elements)
+  if (wild_ignore_table.empty())
   {
-    delete_dynamic(&wild_ignore_table);
+    wild_ignore_table.shrink_to_fit();
     wild_ignore_table_inited= 0;
   }
   DBUG_RETURN(status);
@@ -749,24 +751,21 @@ Rpl_filter::init_table_rule_hash(HASH* h, bool* h_inited)
 
 
 void 
-Rpl_filter::init_table_rule_array(DYNAMIC_ARRAY* a, bool* a_inited)
+Rpl_filter::init_table_rule_array(Table_rule_array* a, bool* a_inited)
 {
-  my_init_dynamic_array(a, sizeof(TABLE_RULE_ENT*), TABLE_RULE_ARR_SIZE,
-			TABLE_RULE_ARR_SIZE);
+  a->clear();
   *a_inited = 1;
 }
 
 
 TABLE_RULE_ENT* 
-Rpl_filter::find_wild(DYNAMIC_ARRAY *a, const char* key, int len)
+Rpl_filter::find_wild(Table_rule_array *a, const char* key, size_t len)
 {
-  uint i;
   const char* key_end= key + len;
 
-  for (i= 0; i < a->elements; i++)
+  for (size_t i= 0; i < a->size(); i++)
   {
-    TABLE_RULE_ENT* e ;
-    get_dynamic(a, (uchar*)&e, i);
+    TABLE_RULE_ENT* e= a->at(i);
     /*
       Filters will follow the setting of lower_case_table_name
       to be case sensitive when setting lower_case_table_name=0.
@@ -784,16 +783,10 @@ Rpl_filter::find_wild(DYNAMIC_ARRAY *a, const char* key, int len)
 
 
 void 
-Rpl_filter::free_string_array(DYNAMIC_ARRAY *a)
+Rpl_filter::free_string_array(Table_rule_array *a)
 {
-  uint i;
-  for (i= 0; i < a->elements; i++)
-  {
-    char* p;
-    get_dynamic(a, (uchar*) &p, i);
-    my_free(p);
-  }
-  delete_dynamic(a);
+  my_free_container_pointers(*a);
+  a->shrink_to_fit();
 }
 
 void
@@ -857,16 +850,15 @@ Rpl_filter::table_rule_ent_hash_to_str(String* s, HASH* h, bool inited)
 
 
 void 
-Rpl_filter::table_rule_ent_dynamic_array_to_str(String* s, DYNAMIC_ARRAY* a,
+Rpl_filter::table_rule_ent_dynamic_array_to_str(String* s, Table_rule_array* a,
                                                 bool inited)
 {
   s->length(0);
   if (inited)
   {
-    for (uint i= 0; i < a->elements; i++)
+    for (size_t i= 0; i < a->size(); i++)
     {
-      TABLE_RULE_ENT* e;
-      get_dynamic(a, (uchar*)&e, i);
+      TABLE_RULE_ENT* e= a->at(i);
       if (s->length())
         s->append(',');
       s->append(e->db,e->key_len);
