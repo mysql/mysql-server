@@ -304,35 +304,45 @@ enum	fts_status {
 typedef	enum fts_status	fts_status_t;
 
 /** The state of the FTS sub system. */
-struct fts_t {
-					/*!< mutex protecting bg_threads* and
-					fts_add_wq. */
-	ib_mutex_t		bg_threads_mutex;
+class fts_t {
+public:
+	/** fts_t constructor.
+	@param[in]	table	table with FTS indexes
+	@param[in,out]	heap	memory heap where 'this' is stored */
+	fts_t(
+		const dict_table_t*	table,
+		mem_heap_t*		heap);
 
-	ulint		bg_threads;	/*!< number of background threads
-					accessing this table */
+	/** fts_t destructor. */
+	~fts_t();
 
-					/*!< TRUE if background threads running
-					should stop themselves */
-	ulint		fts_status;	/*!< Status bit regarding fts
-					running state */
+	/** Mutex protecting bg_threads* and fts_add_wq. */
+	ib_mutex_t	bg_threads_mutex;
 
-	ib_wqueue_t*	add_wq;		/*!< Work queue for scheduling jobs
-					for the FTS 'Add' thread, or NULL
-					if the thread has not yet been
-					created. Each work item is a
-					fts_trx_doc_ids_t*. */
+	/** Number of background threads accessing this table. */
+	ulint		bg_threads;
 
-	fts_cache_t*	cache;		/*!< FTS memory buffer for this table,
-					or NULL if the table has no FTS
-					index. */
+	/** Status bit regarding fts running state. TRUE if background
+	threads running should stop themselves. */
+	ulint		fts_status;
 
-	ulint		doc_col;	/*!< FTS doc id hidden column number
-					in the CLUSTERED index. */
+	/** Work queue for scheduling jobs for the FTS 'Add' thread, or NULL
+	if the thread has not yet been created. Each work item is a
+	fts_trx_doc_ids_t*. */
+	ib_wqueue_t*	add_wq;
 
-	ib_vector_t*	indexes;	/*!< Vector of FTS indexes, this is
-					mainly for caching purposes. */
-	mem_heap_t*	fts_heap;	/*!< heap for fts_t allocation */
+	/** FTS memory buffer for this table, or NULL if the table has no FTS
+	index. */
+	fts_cache_t*	cache;
+
+	/** FTS doc id hidden column number in the CLUSTERED index. */
+	ulint		doc_col;
+
+	/** Vector of FTS indexes, this is mainly for caching purposes. */
+	ib_vector_t*	indexes;
+
+	/** Heap for fts_t allocation. */
+	mem_heap_t*	fts_heap;
 };
 
 struct fts_stopword_t;
