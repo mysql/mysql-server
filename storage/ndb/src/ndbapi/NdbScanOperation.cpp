@@ -1703,7 +1703,7 @@ NdbScanOperation::executeCursor(int nodeId)
     if (theImpl->get_node_alive(nodeId) &&
         (theImpl->getNodeSequence(nodeId) == seq)) {
       
-      tCon->theMagicNumber = 0x37412619;
+      tCon->theMagicNumber = tCon->getMagicNumber();
       
       if (doSendScan(nodeId) == -1)
       {

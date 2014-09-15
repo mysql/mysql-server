@@ -162,7 +162,6 @@ NdbObjectIdMap::getObject(Uint32 id)
 {
   // DBUG_PRINT("info",("NdbObjectIdMap::getObject(%u) obj=0x%x", id,  m_map[id>>2].m_obj));
   id >>= 2;
-  assert(id < m_size);
   if(id < m_size)
   {
     if(m_map[id].isFree())
