@@ -4,7 +4,7 @@ Priority: optional
 Maintainer: MariaDB Developers <maria-developers@lists.launchpad.net>
 XSBC-Original-Maintainer: Maria Developers <maria-developers@lists.launchpad.net>
 Uploaders: MariaDB Developers <maria-developers@lists.launchpad.net>
-Build-Depends: libtool (>= 1.4.2-7), procps | hurd,  debhelper, file (>= 3.28), libncurses5-dev (>= 5.0-6), perl (>= 5.6.0), libwrap0-dev (>= 7.6-8.3), zlib1g-dev (>= 1:1.1.3-5), ${LIBREADLINE_DEV}, libevent-dev, libssl-dev, libpam0g-dev, psmisc, po-debconf, chrpath, automake1.9, doxygen, texlive-latex-base, ghostscript | gs-gpl, dpatch, gawk, bison, lsb-release, hardening-wrapper, ${CMAKE_DEP}libaio-dev, libjemalloc-dev
+Build-Depends: libtool (>= 1.4.2-7), procps | hurd,  debhelper, file (>= 3.28), libncurses5-dev (>= 5.0-6), perl (>= 5.6.0), libwrap0-dev (>= 7.6-8.3), zlib1g-dev (>= 1:1.1.3-5), ${LIBREADLINE_DEV}, libevent-dev, libssl-dev, libpam0g-dev, psmisc, po-debconf, chrpath, automake1.9, doxygen, texlive-latex-base, ghostscript | gs-gpl, dpatch, gawk, bison, lsb-release, hardening-wrapper, ${CMAKE_DEP}libaio-dev, libjemalloc-dev (>= 3.0.0)
 Standards-Version: 3.8.2
 Homepage: http://mariadb.org/
 Vcs-Browser: http://bazaar.launchpad.net/~maria-captains/maria/5.5/files
@@ -146,7 +146,7 @@ Description: MariaDB database client binaries
 
 Package: mariadb-server-core-5.5
 Architecture: any
-Depends: ${shlibs:Depends}, ${misc:Depends}, libmariadbclient18 (>= ${binary:Version}), libjemalloc1
+Depends: ${shlibs:Depends}, ${misc:Depends}, libmariadbclient18 (>= ${binary:Version}), libjemalloc1 (>= 3.0.0)
 Provides: mysql-server-core, mysql-server-core-5.1, mysql-server-core-5.5
 Conflicts: mysql-server-5.0,
     mysql-server-core-5.0, mysql-server-core-5.1, mysql-server-core-5.5,
@@ -185,7 +185,7 @@ Architecture: any
 Suggests: tinyca, mailx, mariadb-test
 Recommends: libhtml-template-perl
 Pre-Depends: mariadb-common, adduser (>= 3.40), debconf
-Depends: mariadb-client-5.5 (>= ${source:Version}), libdbi-perl, perl (>= 5.6), ${shlibs:Depends}, ${misc:Depends}, psmisc, passwd, lsb-base (>= 3.0-10), mariadb-server-core-5.5 (>= ${binary:Version}), libjemalloc1
+Depends: mariadb-client-5.5 (>= ${source:Version}), libdbi-perl, perl (>= 5.6), ${shlibs:Depends}, ${misc:Depends}, psmisc, passwd, lsb-base (>= 3.0-10), mariadb-server-core-5.5 (>= ${binary:Version}), libjemalloc1 (>= 3.0.0)
 Provides: mariadb-server, mysql-server, virtual-mysql-server
 Conflicts: mariadb-server (<< ${source:Version}), mysql-server (<< ${source:Version}),
     mysql-server-4.1, mysql-server-5.0, mysql-server-5.1, mysql-server-5.5,
