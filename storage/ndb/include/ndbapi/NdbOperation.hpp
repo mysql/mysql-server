@@ -46,7 +46,6 @@ class NdbOperation
 {
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
   friend class Ndb;
-  friend class NdbImpl;
   friend class NdbTransaction;
   friend class NdbScanOperation;
   friend class NdbScanReceiver;
@@ -1300,7 +1299,6 @@ protected:
   int	 receiveTCKEYREF(const NdbApiSignal*);
 
   int	 checkMagicNumber(bool b = true); // Verify correct object
-  static Uint32 getMagicNumber() { return (Uint32)0xABCDEF01; }
 
   int    checkState_TransId(const NdbApiSignal* aSignal);
 
@@ -1566,7 +1564,7 @@ NdbOperation::checkMagicNumber(bool b)
 #ifndef NDB_NO_DROPPED_SIGNAL
   (void)b;  // unused param in this context
 #endif
-  if (theMagicNumber != getMagicNumber()){
+  if (theMagicNumber != 0xABCDEF01){
 #ifdef NDB_NO_DROPPED_SIGNAL
     if(b) abort();
 #endif

@@ -153,7 +153,7 @@ NdbTransaction::init()
   theReleaseOnClose       = false;
   theSimpleState          = true;
   theSendStatus           = InitState;
-  theMagicNumber          = getMagicNumber();
+  theMagicNumber          = 0x37412619;
 
   // Query operations
   m_firstQuery            = NULL;
@@ -2155,7 +2155,7 @@ from other transactions.
     Uint32 tNoComp = theNoOfOpCompleted;
     for (Uint32 i = 0; i < tNoOfOperations ; i++) {
       NdbReceiver* const tReceiver = 
-        NdbImpl::void2rec(theNdb->theImpl->int2void(*tPtr++));
+        theNdb->void2rec(theNdb->int2void(*tPtr++));
       const Uint32 tAttrInfoLen = *tPtr++;
       if(tReceiver && tReceiver->checkMagicNumber()){
         Uint32 done;
