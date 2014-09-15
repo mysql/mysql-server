@@ -20,12 +20,12 @@ include/assert.inc [Assert that I_S.GLOBAL_VARIABLES captures the variable value
 include/assert.inc [Assert that I_S.SESSION_VARIABLES captures the variable value.]
 include/assert.inc [Assert that COUNT(@@session_track_gtids)=1]
 include/assert.inc [Assert that COUNT(@@local.session_track_gtids)=1]
-include/assert.inc [Assert that COUNT(@@SESSION.session_track_gtids)=1]
-include/assert.inc [Assert that COUNT(@@SESSION.session_track_gtids)=1]
+include/assert.inc [Assert that COUNT(@@global.session_track_gtids)=1]
+include/assert.inc [Assert that COUNT(@@session.session_track_gtids)=1]
 SET @@GLOBAL.session_track_gtids=DEFAULT;
 include/assert.inc [Assert that the global default value is OFF]
 SET @@SESSION.session_track_gtids=DEFAULT;
-include/assert.inc [Assert that the global default value is OFF]
+include/assert.inc [Assert that the session default value is OFF]
 BEGIN;
 SET @@SESSION.session_track_gtids=OFF;
 ERROR HY000: The system variable session_track_gtids cannot be set when there is an ongoing transaction.
