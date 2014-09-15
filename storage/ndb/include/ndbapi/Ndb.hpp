@@ -1934,11 +1934,6 @@ private:
   Uint32                insert_completed_list(NdbTransaction*);
   Uint32                insert_sent_list(NdbTransaction*);
 
-  // Handle a received signal. Used by both
-  // synchronous and asynchronous interface
-  void handleReceivedSignal(const NdbApiSignal* anApiSignal,
-			    const struct LinearSectionPtr ptr[3]);
-  
   int			sendRecSignal(Uint16 aNodeId,
 				      Uint32 aWaitState,
 				      NdbApiSignal* aSignal,
@@ -2030,13 +2025,6 @@ private:
   const BaseString getDatabaseFromInternalName(const char * internalName);
   static 
   const BaseString getSchemaFromInternalName(const char * internalName);
-
-  void*              int2void     (Uint32 val);
-  NdbReceiver*       void2rec     (void* val);
-  NdbTransaction*     void2con     (void* val);
-  NdbOperation*      void2rec_op  (void* val);
-  NdbIndexOperation* void2rec_iop (void* val);
-  NdbTransaction* lookupTransactionFromOperation(const class TcKeyConf *);
 
   Uint64 allocate_transaction_id();
 

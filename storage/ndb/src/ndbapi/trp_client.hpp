@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -111,18 +111,27 @@ private:
   /**
    * This is used for polling
    */
+  bool m_locked_for_poll;
 public:
   NdbMutex* m_mutex; // thread local mutex...
+  void set_locked_for_poll(bool val)
+  {
+    m_locked_for_poll = val;
+  }
+  bool is_locked_for_poll()
+  {
+    return m_locked_for_poll;
+  }
 private:
   struct PollQueue
   {
     PollQueue();
     void assert_destroy() const;
 
+    enum { PQ_WOKEN, PQ_IDLE, PQ_WAITING } m_waiting;
     bool m_locked;
     bool m_poll_owner;
     bool m_poll_queue;
-    enum { PQ_WOKEN, PQ_IDLE, PQ_WAITING } m_waiting;
     trp_client *m_prev;
     trp_client *m_next;
     NdbCondition * m_condition;
@@ -180,7 +189,10 @@ inline
 void
 trp_client::lock_client()
 {
-  m_facade->m_poll_owner->m_poll.lock_client(this);
+  if (!check_if_locked())
+  {
+    m_facade->m_poll_owner->m_poll.lock_client(this);
+  }
 }
 
 inline

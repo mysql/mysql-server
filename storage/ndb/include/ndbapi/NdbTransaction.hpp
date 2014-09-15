@@ -146,6 +146,7 @@ class NdbTransaction
 {
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
   friend class Ndb;
+  friend class NdbImpl;
   friend class NdbOperation;
   friend class NdbScanOperation;
   friend class NdbIndexOperation;
@@ -1034,6 +1035,9 @@ private:
   void		setOperationErrorCodeAbort(int anErrorCode, int abortOption = -1);
 
   int		checkMagicNumber();		       // Verify correct object
+  Uint32        getMagicNumberFromObject() const;
+  static Uint32 getMagicNumber() { return (Uint32)0x37412619; }
+
   NdbOperation* getNdbOperation(const class NdbTableImpl* aTable,
                                 NdbOperation* aNextOp = 0,
                                 bool useRec= false);
@@ -1240,10 +1244,17 @@ NdbTransaction::set_send_size(Uint32 send_size)
 #endif
 
 inline
+Uint32
+NdbTransaction::getMagicNumberFromObject() const
+{
+  return theMagicNumber;
+}
+
+inline
 int
 NdbTransaction::checkMagicNumber()
 {
-  if (theMagicNumber == 0x37412619)
+  if (theMagicNumber == getMagicNumber())
     return 0;
   else {
 #ifdef NDB_NO_DROPPED_SIGNAL
@@ -1255,11 +1266,14 @@ NdbTransaction::checkMagicNumber()
 
 inline
 bool
-NdbTransaction::checkState_TransId(const Uint32 * transId) const {
+NdbTransaction::checkState_TransId(const Uint32 * transId) const
+{
+  const NdbTransaction::ConStatusType tStatus = theStatus;
+  const Uint64 tTransactionId = theTransactionId;
   const Uint32 tTmp1 = transId[0];
   const Uint32 tTmp2 = transId[1];
   Uint64 tRecTransId = (Uint64)tTmp1 + ((Uint64)tTmp2 << 32);
-  bool b = theStatus == Connected && theTransactionId == tRecTransId;
+  bool b = (tStatus == Connected) && (tTransactionId == tRecTransId);
   return b;
 }
 
