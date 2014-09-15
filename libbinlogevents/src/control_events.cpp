@@ -593,7 +593,7 @@ Gtid_event::Gtid_event(const char *buffer, uint32_t event_len,
     ptr_buffer++;
     memcpy(&last_committed, ptr_buffer, sizeof(last_committed));
     last_committed= (int64_t)le64toh(last_committed);
-    memcpy(&sequence_number, ptr_buffer, sizeof(sequence_number));
+    memcpy(&sequence_number, ptr_buffer + 8, sizeof(sequence_number));
     sequence_number= (int64_t)le64toh(sequence_number);
     ptr_buffer+= COMMIT_SEQ_LEN;
   }

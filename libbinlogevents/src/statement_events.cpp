@@ -360,8 +360,8 @@ break;
       last_committed= 0;
       memcpy(&last_committed, pos, 8);
       last_committed= le64toh(last_committed);
-      sequence_number= 0;                                                        
-      memcpy(&sequence_number, pos + 8, 8);                                          
+      sequence_number= 0;
+      memcpy(&sequence_number, pos + 8, 8);
       sequence_number= le64toh(sequence_number);
       pos+= COMMIT_SEQ_LEN;
       break;
@@ -546,12 +546,12 @@ User_var_event(const char* buf, unsigned int event_len,
   unsigned int bytes_read= ((val + val_len) - start);
 #ifndef DBUG_OFF
   bool old_pre_checksum_fd= description_event->is_version_before_checksum();
-  bool bytes_read_verify= bytes_read == header()->data_written;
   bool checksum_verify= (old_pre_checksum_fd ||
-          (description_event->footer()->checksum_alg == BINLOG_CHECKSUM_ALG_OFF));
-
-  assert((bytes_read_verify - checksum_verify ? 0 : BINLOG_CHECKSUM_LEN) ||
-         ((bytes_read_verify - 1 - checksum_verify)? 0 : BINLOG_CHECKSUM_LEN));
+                         (description_event->footer()->checksum_alg ==
+                          BINLOG_CHECKSUM_ALG_OFF));
+  size_t data_written= (header()->data_written- checksum_verify);
+  assert(((bytes_read == data_written) ? 0 : BINLOG_CHECKSUM_LEN)||
+         ((bytes_read == data_written - 1) ? 0 : BINLOG_CHECKSUM_LEN));
 #endif
     if ((header()->data_written - bytes_read) > 0)
     {
