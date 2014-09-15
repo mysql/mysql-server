@@ -1,20 +1,20 @@
 #
-# WL#5569 MTS
+# WL#5569/7165 MTS
 #
-# The test checks START and STOP, graceful, killing or 
+# The test checks START and STOP, graceful, killing or
 # due to an error of a Worker.
 # START is considered to be with UNTIL that forces the sequential execution mode
 # and with non-zero @@global.sql_slave_skip_counter that is compatible to
 # the parallel mode.
+# The test is MTS scheduler agnostic.
 #
 
 --source include/master-slave.inc
---source include/have_slave_parallel_type_database.inc
 --source include/have_binlog_format_row.inc
 --source include/not_gtid_enabled.inc
 --source include/have_myisam.inc
 
-connection slave;
+--connection slave
 
 call mtr.add_suppression('Slave SQL:.* Could not execute Write_rows event on table test.t1');
 call mtr.add_suppression("Slave SQL:.* Could not execute Update_rows event on table d1.t1; Deadlock found when trying to get lock");
@@ -79,10 +79,10 @@ source include/start_slave.inc;
 # Errored-out Worker stops the pool and the Coordinator
 ##
 
-# 
+#
 # A. A regular error case
 #
-connection master;
+--connection master
 
 # make some load
 
@@ -100,12 +100,12 @@ source include/wait_until_rows_count.inc;
 # create an offending record
 insert into t1 values (3);
 
-connection master;
+--connection master
 
 # hit it
 insert into t1 values (3);
 
-connection slave;
+--connection slave
 
 let $count= 0;
 let $table= worker_proc_list;
@@ -114,9 +114,11 @@ source include/wait_until_rows_count.inc;
 source include/wait_for_slave_sql_to_stop.inc;
 delete from t1 where a=3;
 
+set @save.slave_transaction_retries= @@global.slave_transaction_retries;
+set @@global.slave_transaction_retries= 10;
 source include/start_slave.inc;
 
-connection master;
+--connection master
 
 --source include/sync_slave_sql_with_master.inc
 #connection slave;
@@ -129,17 +131,17 @@ if (`select count(*) != 3 from t1`)
 
 # cleanup but leaving on t1
 
-connection master;
+--connection master
 delete from t1;
 
 --source include/sync_slave_sql_with_master.inc
 #connection slave;
 
 #
-# B. In a temporary error execution is not retried
+# B. In a temporary error execution is retried
 #
 
-connection master;
+--connection master
 insert into t1 values (1),(2),(3);
 create table t2m (a int) engine=myisam; # non-trans engine to detect deadlock
 insert into t2m values (1);
@@ -153,7 +155,7 @@ update t1 set a=31 where a=3;
 insert into t1 values (5),(6),(7);
 update t1 set a=a+10;
 
-connection master;
+--connection master
 
 begin;
 update t1 set a=20 where a=2;
@@ -162,7 +164,7 @@ update t1 set a=30 where a=3;
 commit;
 
 
-connection slave;
+--connection slave
 
 let $count= 2;
 let $table= t2m;
@@ -171,38 +173,25 @@ source include/wait_until_rows_count.inc;
 # must victimize the master trans because of deadlock or timeout
 update t1 set a=21 where a=2;
 
-# slave is stopped
-
-# setting timeout to be as twice as greater than innodb's.
---let $slave_timeout=`select 2*@@global.innodb_lock_wait_timeout`
-
-let $slave_sql_errno= 1213, 1205; 
-source include/wait_for_slave_sql_error.inc;
-
-##source include/wait_for_slave_sql_to_stop.inc;
-
 rollback;
 
-source include/start_slave.inc;
-
-connection master;
+--connection master
 
 # recovery is proved
+#--connection slave
 --source include/sync_slave_sql_with_master.inc
-#connection slave;
-
 
 #
 # Skipping works with Parallel slave
 #
 
-connection slave;
+--connection slave
 stop slave sql_thread;
 set @@global.sql_slave_skip_counter=7;
 
-connection master;
+--connection master
 
-# the following creates 8 events 
+# the following creates 8 events
 begin;
 select max(a) + 1 from t1 into @a;
 insert into t1 set a=@a;
@@ -220,13 +209,11 @@ select max(a) + 1 from t1 into @a;
 insert into t1 set a=@a;
 commit;
 
-connection slave;
+--connection slave
 
-set @save.slave_transaction_retries= @@global.slave_transaction_retries;
-set @@global.slave_transaction_retries= 1; # must cause a warning
 start slave sql_thread;
 
-connection master;
+--connection master
 let $a=`select max(a) from t1`;
 
 --source include/sync_slave_sql_with_master.inc
@@ -240,15 +227,15 @@ if (`select $a - max(a) from t1`)
 }
 
 #
-# UNTIL condition other than SQL_AFTER_MTS_GAPS 
+# UNTIL condition other than SQL_AFTER_MTS_GAPS
 # is not supported by Parallel slave to reject
 # with a warning and no Worker thread is started
 #
 
-connection slave;
+--connection slave
 source include/stop_slave.inc;
 
-connection master;
+--connection master
 create table t2 (a int);
 
 let $master_log_file= query_get_value(SHOW MASTER STATUS, File, 1);
@@ -256,7 +243,7 @@ let $master_log_pos= query_get_value(SHOW MASTER STATUS, Position, 1);
 
 insert into t2 values (1);
 
-connection slave;
+--connection slave
 --replace_regex /master_log_pos=[0-9]+/master_log_pos=MASTER_LOG_POS/
 eval start slave until master_log_file='$master_log_file', master_log_pos=$master_log_pos;
 
@@ -272,23 +259,18 @@ source include/start_slave.inc;
 ##
 # cleanup
 ##
-connection master;
+--connection master
 drop table t1;
 drop table t2m;
 drop table t2;
 
 --source include/sync_slave_sql_with_master.inc
-#connection slave;
-
 drop view worker_proc_list;
 drop view coord_proc_list;
-# reuse non-zero Workers value in the follwing tests
-#set @@global.slave_parallel_workers= @save.slave_parallel_workers;
-set @@global.slave_transaction_retries= @save.slave_transaction_retries;
 
 #
 # START SLAVE UNTIL SQL_AFTER_MTS_GAPS
-# 
+#
 # A new UNTIL condition is introduced as a tool to
 # fill gaps in the sequence of executed transaction started
 # at Exec_Master_Log_Pos.
@@ -296,11 +278,16 @@ set @@global.slave_transaction_retries= @save.slave_transaction_retries;
 # with an error, or it was killed, or the server crashed.
 #
 
-connection slave;
+--connection slave
 
+#
+# Retry is supported now, but the following block of the test is written
+# in assumption that it's not yet.
+#
+set @@global.slave_transaction_retries= 0;
 source include/stop_slave.inc;
 
-# Show SQL_AFTER_MTS_GAPS is meaningless in combination with coordinates 
+# Show SQL_AFTER_MTS_GAPS is meaningless in combination with coordinates
 # related options
 --error 1064
 start slave until sql_after_mts_gaps relay_log_file='dummy';
@@ -319,7 +306,7 @@ call mtr.add_suppression('Slave SQL: Could not execute Update_rows event on tabl
 source include/start_slave.inc;
 
 # set up gaps when slave sql errors out
-connection master;
+--connection master
 
 create database d1;
 create database d2;
@@ -338,17 +325,25 @@ update d1.t1 set a=31 where a=3;
 insert into d1.t1 values (5),(6),(7);
 
 # create the 1st job to get blocked on the slave
-connection master;
+--connection master
 begin;
 update d1.t1 set a=20 where a=2;
 insert into d1.t2m values (2);
 update d1.t1 set a=30 where a=3;
 insert into d1.t1 values (4);
-commit;
 
 # create the 2nd job for another worker
+--connection master1
+begin;
 delete from d2.t1;
 
+# the two jobs are parallelizable now regardless of the type of MTS scheduler
+--connection master
+commit;
+--connection master1
+commit;
+
+--connection master
 # create the 3nd job to help UNTIL SQL_AFTER_MTS_GAPS be reached
 # (todo: if the last gap event ends the relay-log SQL thread will
 # hang - to be fixed with MTS support for regular UNTIL:s)
@@ -361,7 +356,7 @@ let $table= d2.t1;
 source include/wait_until_rows_count.inc;
 
 # proceed with 1st job into its middle
-connection slave;
+--connection slave
 let $count= 2;
 let $table= d1.t2m;
 source include/wait_until_rows_count.inc;
@@ -373,7 +368,7 @@ update d1.t1 set a=21 where a=2;
 # setting timeout to be as twice as greater than innodb's.
 --let $slave_timeout=`select 2*@@global.innodb_lock_wait_timeout`
 
-let $slave_sql_errno= 1213, 1205; 
+let $slave_sql_errno= 1213, 1205;
 source include/wait_for_slave_sql_error.inc;
 
 rollback; # the blocker
@@ -409,12 +404,13 @@ if (`select $exec_pos_1 - $exec_pos_0 <= 0`)
 }
 
 # UNTIL SQL_AFTER_MTS_GAPS cleanup
+set @@global.slave_parallel_workers= @save.slave_parallel_workers;
 source include/start_slave.inc;
-connection master;
+--connection master
 drop database d1;
 drop database d2;
 
 --source include/sync_slave_sql_with_master.inc
-set @@global.slave_parallel_workers= @save.slave_parallel_workers;
+set @@global.slave_transaction_retries= @save.slave_transaction_retries;
 
 --source include/rpl_end.inc

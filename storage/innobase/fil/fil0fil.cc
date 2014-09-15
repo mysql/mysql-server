@@ -638,17 +638,14 @@ fil_node_create(
 	return(node->name);
 }
 
-/********************************************************************//**
-Opens a file of a node of a tablespace. The caller must own the fil_system
-mutex.
+/** Open a file node of a tablespace.
+The caller must own the fil_system mutex.
+@param[in,out]	node	File node
 @return false if the file can't be opened, otherwise true */
 static
 bool
 fil_node_open_file(
-/*===============*/
-	fil_node_t*	node,	/*!< in: file node */
-	fil_system_t*	system,	/*!< in: tablespace memory cache */
-	fil_space_t*	space)	/*!< in: space */
+	fil_node_t*	node)
 {
 	os_offset_t	size_bytes;
 	bool		success;
@@ -658,8 +655,9 @@ fil_node_open_file(
 	ulint		flags;
 	ulint		min_size;
 	bool		read_only_mode;
+	fil_space_t*	space = node->space;
 
-	ut_ad(mutex_own(&(system->mutex)));
+	ut_ad(mutex_own(&fil_system->mutex));
 	ut_a(node->n_pending == 0);
 	ut_a(!node->is_open);
 
@@ -809,31 +807,28 @@ add_size:
 
 	node->is_open = true;
 
-	system->n_open++;
+	fil_system->n_open++;
 	fil_n_file_opened++;
 
 	if (fil_space_belongs_in_lru(space)) {
 
 		/* Put the node to the LRU list */
-		UT_LIST_ADD_FIRST(system->LRU, node);
+		UT_LIST_ADD_FIRST(fil_system->LRU, node);
 	}
 
 	return(true);
 }
 
-/**********************************************************************//**
-Closes a file. */
+/** Close a file node.
+@param[in,out]	node	File node */
 static
 void
 fil_node_close_file(
-/*================*/
-	fil_node_t*	node,	/*!< in: file node */
-	fil_system_t*	system)	/*!< in: tablespace memory cache */
+	fil_node_t*	node)
 {
 	bool	ret;
 
-	ut_ad(node && system);
-	ut_ad(mutex_own(&(system->mutex)));
+	ut_ad(mutex_own(&(fil_system->mutex)));
 	ut_a(node->is_open);
 	ut_a(node->n_pending == 0);
 	ut_a(node->n_pending_flushes == 0);
@@ -850,16 +845,16 @@ fil_node_close_file(
 	/* printf("Closing file %s\n", node->name); */
 
 	node->is_open = false;
-	ut_a(system->n_open > 0);
-	system->n_open--;
+	ut_a(fil_system->n_open > 0);
+	fil_system->n_open--;
 	fil_n_file_opened--;
 
 	if (fil_space_belongs_in_lru(node->space)) {
 
-		ut_a(UT_LIST_GET_LEN(system->LRU) > 0);
+		ut_a(UT_LIST_GET_LEN(fil_system->LRU) > 0);
 
 		/* The node is in the LRU list, remove it */
-		UT_LIST_REMOVE(system->LRU, node);
+		UT_LIST_REMOVE(fil_system->LRU, node);
 	}
 }
 
@@ -895,7 +890,7 @@ fil_try_to_close_file_in_LRU(
 		    && node->n_pending_flushes == 0
 		    && !node->being_extended) {
 
-			fil_node_close_file(node, fil_system);
+			fil_node_close_file(node);
 
 			return(true);
 		}
@@ -1098,7 +1093,7 @@ fil_node_free(
 			UT_LIST_REMOVE(system->unflushed_spaces, space);
 		}
 
-		fil_node_close_file(node, system);
+		fil_node_close_file(node);
 	}
 
 	space->size -= node->size;
@@ -1232,8 +1227,8 @@ fil_space_create(
 	if (space != NULL) {
 		mutex_exit(&fil_system->mutex);
 
-		ib::warn() << "Tablespace '" << name << "' exists in the cache"
-			" with id " << space->id << " != " << id;
+		ib::warn() << "Tablespace '" << name << "' exists in the"
+			" cache with id " << space->id << " != " << id;
 
 		return(NULL);
 	}
@@ -1523,6 +1518,66 @@ fil_space_is_being_truncated(
 	return(mark_for_truncate);
 }
 
+/** Open each fil_node_t of a named fil_space_t if not already open.
+@param[in]	name	Tablespace name
+@return true if all nodes are open  */
+bool
+fil_space_open(
+	const char*	name)
+{
+	ut_ad(fil_system != NULL);
+
+	mutex_enter(&fil_system->mutex);
+
+	fil_space_t*	space = fil_space_get_by_name(name);
+	fil_node_t*	node;
+
+	for (node = UT_LIST_GET_FIRST(space->chain);
+	     node != NULL;
+	     node = UT_LIST_GET_NEXT(chain, node)) {
+
+		if (!node->is_open
+		    && !fil_node_open_file(node)) {
+			mutex_exit(&fil_system->mutex);
+			return(false);
+		}
+	}
+
+	mutex_exit(&fil_system->mutex);
+
+	return(true);
+}
+
+/** Close each fil_node_t of a named fil_space_t if open.
+@param[in]	name	Tablespace name */
+void
+fil_space_close(
+	const char*	name)
+{
+	if (fil_system == NULL) {
+		return;
+	}
+
+	mutex_enter(&fil_system->mutex);
+
+	fil_space_t*	space = fil_space_get_by_name(name);
+	if (space == NULL) {
+		mutex_exit(&fil_system->mutex);
+		return;
+	}
+
+	for (fil_node_t* node = UT_LIST_GET_FIRST(space->chain);
+	     node != NULL;
+	     node = UT_LIST_GET_NEXT(chain, node)) {
+
+		if (node->is_open) {
+			fil_node_close_file(node);
+		}
+	}
+
+	mutex_exit(&fil_system->mutex);
+}
+
 /** Returns the page size of the space and whether it is compressed or not.
 The tablespace must be cached in the memory cache.
 @param[in]	id	space id
@@ -1624,8 +1679,7 @@ fil_open_log_and_system_tablespace_files(void)
 		     node = UT_LIST_GET_NEXT(chain, node)) {
 
 			if (!node->is_open) {
-				if (!fil_node_open_file(node, fil_system,
-							space)) {
+				if (!fil_node_open_file(node)) {
 					/* This func is called during server's
 					startup. If some file of log or system
 					tablespace is missing, the server
@@ -1680,7 +1734,7 @@ fil_close_all_files(void)
 		     node = UT_LIST_GET_NEXT(chain, node)) {
 
 			if (node->is_open) {
-				fil_node_close_file(node, fil_system);
+				fil_node_close_file(node);
 			}
 		}
 
@@ -1720,7 +1774,7 @@ fil_close_log_files(
 		     node = UT_LIST_GET_NEXT(chain, node)) {
 
 			if (node->is_open) {
-				fil_node_close_file(node, fil_system);
+				fil_node_close_file(node);
 			}
 		}
 
@@ -2568,17 +2622,17 @@ fil_close_tablespace(
 	return(err);
 }
 
-/*******************************************************************//**
-Deletes a single-table tablespace. The tablespace must be cached in the
-memory cache.
+/** Deletes an IBD tablespace.
+The tablespace must be cached in the memory cache. This will delete the
+datafile, fil_space_t & fil_node_t entries from the file_system_t cache.
+@param[in]	space_id	Tablespace id
+@param[in]	buf_remove	Specify the action to take on the pages
+for this table in the buffer pool.
 @return DB_SUCCESS or error */
 dberr_t
 fil_delete_tablespace(
-/*==================*/
-	ulint		id,		/*!< in: space id */
-	buf_remove_t	buf_remove)	/*!< in: specify the action to take
-					on the tables pages in the buffer
-					pool */
+	ulint		id,
+	buf_remove_t	buf_remove)
 {
 	char*		path = 0;
 	fil_space_t*	space = 0;
@@ -3229,7 +3283,7 @@ retry:
 	} else if (node->is_open) {
 		/* Close the file */
 
-		fil_node_close_file(node, fil_system);
+		fil_node_close_file(node);
 	}
 
 	if (sleep) {
@@ -4861,7 +4915,7 @@ fil_node_prepare_for_io(
 		/* File is closed: open it */
 		ut_a(node->n_pending == 0);
 
-		if (!fil_node_open_file(node, system, space)) {
+		if (!fil_node_open_file(node)) {
 			return(false);
 		}
 	}
