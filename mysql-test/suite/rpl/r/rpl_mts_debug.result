@@ -15,10 +15,15 @@ SET @@global.slave_parallel_workers= 2;
 ALTER TABLE mysql.slave_relay_log_info ENGINE= Innodb;
 ALTER TABLE mysql.slave_worker_info ENGINE= Innodb;
 include/start_slave.inc
+INSERT INTO db_1.test_1 VALUES(0);
 include/sync_slave_sql_with_master.inc
 SET GLOBAL debug="d,mts_debug_concurrent_access";
+BEGIN;
 INSERT INTO db_1.test_1 VALUES(1);
+BEGIN;
 INSERT INTO db_2.test_1 VALUES(1);
+COMMIT;
+COMMIT;
 DROP DATABASE db_1;
 DROP DATABASE db_2;
 include/sync_slave_sql_with_master.inc

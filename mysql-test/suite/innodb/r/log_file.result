@@ -1,11 +1,17 @@
 # Testcase for the following bugs
 # Bug#16691130 - ASSERT WHEN INNODB_LOG_GROUP_HOME_DIR DOES NOT EXIST
 # Bug#16418661 - CHANGING NAME IN FOR INNODB_DATA_FILE_PATH SHOULD NOT SUCCEED WITH LOG FILES
+# Write tmp/log_file/my.cnf
+# Start mysqld without the possibility to create innodb_undo_tablespaces
+# Remove  undo001,undo002,ibdata1,ibdata2,ib_logfile1,ib_logfile2,ib_logfile101
 my.cnf
 my_restart.err
+# Start mysqld with non existent innodb_log_group_home_dir
+# Remove ibdata1 & ibdata2
 my.cnf
 my_restart.err
 # Start mysqld to create tablespaces according to my.cnf
+# Backup tmp/logfile/*
 # 1. With ibdata2, Without ibdata1
 bak_ib_logfile0
 bak_ib_logfile1
@@ -171,6 +177,7 @@ undo001
 undo002
 undo003
 # 12. With ibdata*, without ib_logfile2
+# Cleanup
 bak_ib_logfile0
 bak_ib_logfile1
 bak_ib_logfile2

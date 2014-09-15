@@ -17,20 +17,21 @@
 #
 # II. An event requires the sequential execution
 #
-# Coordinator does not schedule the event and is waiting till all workers have 
+# Coordinator does not schedule the event and is waiting till all workers have
 # released their partitions and signalled.
 
 --source include/master-slave.inc
+--source include/have_slave_parallel_type_database.inc
 
-# 
-#  Testing with the statement format requires 
+#
+#  Testing with the statement format requires
 #  @@global.slave_run_query_in_parallel = 1.
 #  Notice, parallelization for Query-log-event is limitted
 #  to the default dababase. That's why 'use db'.
 #  With the default @@global.slave_run_query_in_parallel == 0
 #  the tests in stmt format still run to prove switching to the sequential.
 
-#  TODO: convert this file into two tests for either value of 
+#  TODO: convert this file into two tests for either value of
 #        @@global.slave_run_query_in_parallel
 --source include/have_binlog_format_row.inc
 
