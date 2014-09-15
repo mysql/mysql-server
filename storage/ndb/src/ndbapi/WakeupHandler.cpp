@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2014 Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -234,10 +234,7 @@ void MultiNdbWakeupHandler::swapNdbsInArray(Uint32 indexA, Uint32 indexB)
 void MultiNdbWakeupHandler::notifyTransactionCompleted(Ndb* from)
 {
   Uint32 num_completed_trans;
-  if (!wakeNdb->theImpl->is_locked_for_poll())
-  {
-    wakeNdb->theImpl->lock_client();
-  }
+  wakeNdb->theImpl->lock_client();
 
   assert(wakeNdb->theImpl->wakeHandler == this);
   assert(from != wakeNdb);
@@ -260,10 +257,7 @@ void MultiNdbWakeupHandler::notifyTransactionCompleted(Ndb* from)
 
 void MultiNdbWakeupHandler::notifyWakeup()
 {
-  if (!wakeNdb->theImpl->is_locked_for_poll())
-  {
-    wakeNdb->theImpl->lock_client();
-  }
+  wakeNdb->theImpl->lock_client();
   assert(wakeNdb->theImpl->wakeHandler == this);
 
   woken = true;

@@ -164,7 +164,7 @@ NdbOperation::init(const NdbTableImpl* tab, NdbTransaction* myConnection,
   theDistrKeyIndicator_  = 0;
   theScanInfo        	= 0;
   theTotalNrOfKeyWordInSignal = 8;
-  theMagicNumber        = getMagicNumber();
+  theMagicNumber        = 0xABCDEF01;
   m_attribute_record= NULL;
   theBlobList = NULL;
   m_abortOption = -1;

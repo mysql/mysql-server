@@ -7298,10 +7298,10 @@ NdbDictionaryImpl::createRecord(const NdbTableImpl *table,
      5. An extra int array attrId_indexes (length max attrId)
   */
   const Uint32 ndbRecBytes= sizeof(NdbRecord);
-  const Uint32 colArrayBytes= length*sizeof(NdbRecord::Attr);
+  const Uint32 colArrayBytes= (length-1)*sizeof(NdbRecord::Attr);
   const Uint32 tableKeyMapBytes= tableNumKeys*sizeof(Uint32);
   const Uint32 tableDistKeyMapBytes= tableNumDistKeys*sizeof(Uint32);
-  const Uint32 attrIdMapBytes= (attrId_indexes_length + 1)*sizeof(int);
+  const Uint32 attrIdMapBytes= attrId_indexes_length*sizeof(int);
   rec= (NdbRecord *)calloc(1, ndbRecBytes +
                               colArrayBytes +
                               tableKeyMapBytes + 
@@ -7324,16 +7324,8 @@ NdbDictionaryImpl::createRecord(const NdbTableImpl *table,
                                 colArrayBytes + 
                                 tableKeyMapBytes + 
                                 tableDistKeyMapBytes);
-  /**
-   * We overallocate one word of attribute index words. This is to be able
-   * to speed up receive_packed_ndbrecord by reading ahead, the value we read
-   * there will never be used, but to ensure we don't crash because of it we
-   * allocate a word and set it to -1.
-   */
-  for (i = 0; i < (attrId_indexes_length + 1); i++)
-  {
+  for (i = 0; i < attrId_indexes_length; i++)
     attrId_indexes[i] = -1;
-  }
 
   rec->table= table;
   rec->tableId= table->m_id;

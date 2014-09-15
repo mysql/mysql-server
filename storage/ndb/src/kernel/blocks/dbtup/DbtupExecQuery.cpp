@@ -637,7 +637,6 @@ bool Dbtup::execTUPKEYREQ(Signal* signal)
 
 #ifdef VM_TRACE
    {
-     bool error_found = false;
      Local_key key;
      key.m_page_no = tupKeyReq->keyRef1;
      key.m_page_idx = tupKeyReq->keyRef2;
@@ -645,24 +644,18 @@ bool Dbtup::execTUPKEYREQ(Signal* signal)
      {
        ndbout << "page_no = " << prepare_orig_local_key.m_page_no;
        ndbout << " keyRef1 = " << key.m_page_no << endl;
-       error_found = true;
      }
      if (key.m_page_idx != prepare_orig_local_key.m_page_idx)
      {
        ndbout << "page_idx = " << prepare_orig_local_key.m_page_idx;
        ndbout << " keyRef2 = " << key.m_page_idx << endl;
-       error_found = true;
      }
      if (prepare_fragptr.i != tupKeyReq->fragPtr)
      {
        ndbout << "fragptr.i = " << prepare_fragptr.i;
        ndbout << " keyRef1 = " << tupKeyReq->fragPtr << endl;
-       error_found = true;
      }
-     if (error_found)
-     {
-       ndbout << flush;
-     }
+     ndbout << flush;
      ndbassert(prepare_orig_local_key.m_page_no == key.m_page_no);
      ndbassert(prepare_orig_local_key.m_page_idx == key.m_page_idx);
      ndbassert(prepare_fragptr.i == tupKeyReq->fragPtr);

@@ -30,7 +30,7 @@ class TcKeyConf {
   /**
    * Reciver(s)
    */
-  friend class NdbImpl;
+  friend class Ndb;
   friend class NdbTransaction;
   friend class Ndbcntr;
   friend class DbUtil;
@@ -55,8 +55,9 @@ public:
   STATIC_CONST( StaticLength = 5 );
   STATIC_CONST( OperationLength = 2 );
   STATIC_CONST( DirtyReadBit = (((Uint32)1) << 31) );
+  
+private:
 
-protected:
   /**
    * DATA VARIABLES
    */
@@ -79,7 +80,7 @@ protected:
   // No of actually sent = getNoOfOperations(confInfo)
   //-------------------------------------------------------------
   OperationConf operations[10];
-
+  
   /**
    * Get:ers for confInfo
    */
