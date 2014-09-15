@@ -806,7 +806,7 @@ bool sp_head::execute(THD *thd, bool merge_da_on_success)
       start.
     */
     if (thd->rewritten_query.length())
-      thd->rewritten_query.free();
+      thd->rewritten_query.mem_free();
 
     err_status= i->execute(thd, &ip);
 
@@ -2080,7 +2080,7 @@ bool sp_head::merge_table_list(THD *thd,
       }
       else
       {
-        if (!(tab= (SP_TABLE *)thd->calloc(sizeof(SP_TABLE))))
+        if (!(tab= (SP_TABLE *)thd->mem_calloc(sizeof(SP_TABLE))))
           return false;
         if (lex_for_tmp_check->sql_command == SQLCOM_CREATE_TABLE &&
             lex_for_tmp_check->query_tables == table &&
@@ -2129,7 +2129,7 @@ void sp_head::add_used_tables_to_table_list(THD *thd,
     if (stab->temp)
       continue;
 
-    if (!(tab_buff= (char *)thd->calloc(ALIGN_SIZE(sizeof(TABLE_LIST)) *
+    if (!(tab_buff= (char *)thd->mem_calloc(ALIGN_SIZE(sizeof(TABLE_LIST)) *
                                         stab->lock_count)) ||
         !(key_buff= (char*)thd->memdup(stab->qname.str,
                                        stab->qname.length)))

@@ -53,7 +53,6 @@ Created 10/25/1995 Heikki Tuuri
 #else /* !UNIV_HOTBACKUP */
 # include "srv0srv.h"
 #endif /* !UNIV_HOTBACKUP */
-#include "fsp0file.h"
 #include "fsp0sysspace.h"
 #include "ut0new.h"
 
@@ -1844,65 +1843,48 @@ fil_write_flushed_lsn(
 	return(err);
 }
 
-/*================ SINGLE-TABLE TABLESPACES ==========================*/
-
 #ifndef UNIV_HOTBACKUP
-/*******************************************************************//**
-Increments the count of pending operation, if space is not being deleted
-or truncated.
-@return	true if being deleted/truncated, and operations should be skipped */
-bool
-fil_inc_pending_ops(
-/*================*/
-	ulint	id)	/*!< in: space id */
+/** Acquire a tablespace when it could be dropped concurrently.
+Used by background threads that do not necessarily hold proper locks
+for concurrency control.
+@param[in]	id	tablespace ID
+@return the tablespace, or NULL if deleted or being deleted */
+
+fil_space_t*
+fil_space_acquire(
+	ulint	id)
 {
 	fil_space_t*	space;
-	bool skip_inc_pending_ops = true;
 
 	mutex_enter(&fil_system->mutex);
 
 	space = fil_space_get_by_id(id);
 
 	if (space == NULL) {
-
 		ib::error() << "Trying to do an operation on a dropped"
 			" tablespace. Space ID: " << id;
+	} else if (space->stop_new_ops || space->is_being_truncated) {
+		space = NULL;
 	} else {
-
-		skip_inc_pending_ops = (space->stop_new_ops
-					|| space->is_being_truncated);
-		if (!skip_inc_pending_ops) {
-			space->n_pending_ops++;
-		}
+		space->n_pending_ops++;
 	}
 
 	mutex_exit(&fil_system->mutex);
 
-	return(skip_inc_pending_ops);
+	return(space);
 }
 
-/*******************************************************************//**
-Decrements the count of pending operations. */
+/** Release a tablespace acquired with fil_space_acquire().
+@param[in,out]	space	tablespace to release  */
+
 void
-fil_decr_pending_ops(
-/*=================*/
-	ulint	id)	/*!< in: space id */
+fil_space_release(
+	fil_space_t*	space)
 {
-	fil_space_t*	space;
-
 	mutex_enter(&fil_system->mutex);
-
-	space = fil_space_get_by_id(id);
-
-	if (space == NULL) {
-		ib::error() << "Decrementing pending operation"
-			" of a dropped tablespace " << id;
-	}
-
-	if (space != NULL) {
-		space->n_pending_ops--;
-	}
-
+	ut_ad(space->magic_n == FIL_SPACE_MAGIC_N);
+	ut_ad(space->n_pending_ops > 0);
+	space->n_pending_ops--;
 	mutex_exit(&fil_system->mutex);
 }
 #endif /* !UNIV_HOTBACKUP */
@@ -2403,25 +2385,27 @@ enum fil_operation_t {
 	FIL_OPERATION_TRUNCATE	/*!< truncate a single-table tablespace */
 };
 
-/*******************************************************************//**
-Check for change buffer merges.
-@return 0 if no merges else count + 1. */
+/** Check for pending operations.
+@param[in]	space	tablespace
+@param[in]	count	number of attempts so far
+@return 0 if no operations else count + 1. */
 static
 ulint
-fil_ibuf_check_pending_ops(
-/*=======================*/
-	fil_space_t*	space,	/*!< in/out: Tablespace to check */
-	ulint		count)	/*!< in: number of attempts so far */
+fil_check_pending_ops(
+	fil_space_t*	space,
+	ulint		count)
 {
 	ut_ad(mutex_own(&fil_system->mutex));
 
-	if (space != 0 && space->n_pending_ops != 0) {
+	const ulint	n_pending_ops = space ? space->n_pending_ops : 0;
+
+	if (n_pending_ops) {
 
 		if (count > 5000) {
 			ib::warn() << "Trying to close/delete/truncate"
 				" tablespace '" << space->name
-				<< "' but there are " << space->n_pending_ops
-				<< " pending change buffer merges on it.";
+				<< "' but there are " << n_pending_ops
+				<< " pending operations on it.";
 		}
 
 		return(count + 1);
@@ -2506,14 +2490,14 @@ fil_check_pending_operations(
 	}
 	mutex_exit(&fil_system->mutex);
 
-	/* Check for pending change buffer merges. */
+	/* Check for pending operations. */
 
 	do {
 		mutex_enter(&fil_system->mutex);
 
 		sp = fil_space_get_by_id(id);
 
-		count = fil_ibuf_check_pending_ops(sp, count);
+		count = fil_check_pending_ops(sp, count);
 
 		mutex_exit(&fil_system->mutex);
 
@@ -6198,8 +6182,8 @@ fil_names_write(
 	while fil_check_pending_operations() is waiting for operations
 	to quiesce. This is not a problem, because
 	ibuf_merge_or_delete_for_page() would call
-	fil_inc_pending_ops() before mtr_start() and
-	fil_decr_pending_ops() after mtr_commit(). This is why
+	fil_space_acquire() before mtr_start() and
+	fil_space_release() after mtr_commit(). This is why
 	n_pending_ops should not be zero if stop_new_ops is set. */
 	ut_ad(!space->stop_new_ops
 	      || space->is_being_truncated /* TRUNCATE sets stop_new_ops */
