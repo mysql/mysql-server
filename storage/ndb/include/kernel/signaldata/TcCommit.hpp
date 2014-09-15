@@ -37,6 +37,7 @@ class TcCommitConf {
    *  Reciver(s)
    */
   friend class Ndb;
+  friend class NdbImpl;
   friend class NdbTransaction;
 
   friend class TransporterFacade;

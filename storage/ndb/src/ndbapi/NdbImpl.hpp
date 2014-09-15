@@ -217,6 +217,12 @@ public:
                            const LinearSectionPtr ptr[3], Uint32 secs);
   int sendFragmentedSignal(NdbApiSignal*, Uint32 nodeId,
                            const GenericSectionPtr ptr[3], Uint32 secs);
+  void* int2void(Uint32 val);
+  static NdbReceiver* void2rec(void* val);
+  static NdbTransaction* void2con(void* val);
+  static NdbOperation* void2rec_op(void* val);
+  static NdbIndexOperation* void2rec_iop(void* val);
+  NdbTransaction* lookupTransactionFromOperation(const TcKeyConf* conf);
 };
 
 #ifdef VM_TRACE
@@ -236,38 +242,45 @@ public:
 
 inline
 void *
-Ndb::int2void(Uint32 val){
-  return theImpl->theNdbObjectIdMap.getObject(val);
+NdbImpl::int2void(Uint32 val)
+{
+  return theNdbObjectIdMap.getObject(val);
 }
 
 inline
-NdbReceiver *
-Ndb::void2rec(void* val){
+NdbReceiver*
+NdbImpl::void2rec(void* val)
+{
   return (NdbReceiver*)val;
 }
 
 inline
-NdbTransaction *
-Ndb::void2con(void* val){
+NdbTransaction*
+NdbImpl::void2con(void* val)
+{
   return (NdbTransaction*)val;
 }
 
 inline
 NdbOperation*
-Ndb::void2rec_op(void* val){
+NdbImpl::void2rec_op(void* val)
+{
   return (NdbOperation*)(void2rec(val)->getOwner());
 }
 
 inline
 NdbIndexOperation*
-Ndb::void2rec_iop(void* val){
+NdbImpl::void2rec_iop(void* val)
+{
   return (NdbIndexOperation*)(void2rec(val)->getOwner());
 }
 
 inline 
 NdbTransaction * 
-NdbReceiver::getTransaction() const {
-  switch(getType()){
+NdbReceiver::getTransaction(ReceiverType type) const
+{
+  switch(type)
+  {
   case NDB_UNINITIALIZED:
     assert(false);
     return NULL;
