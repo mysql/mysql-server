@@ -12976,6 +12976,7 @@ user:
 keyword:
           keyword_sp            {}
         | ASCII_SYM             {}
+        | ALWAYS_SYM            {}
         | BACKUP_SYM            {}
         | BEGIN_SYM             {}
         | BYTE_SYM              {}

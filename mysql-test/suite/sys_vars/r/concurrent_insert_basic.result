@@ -36,7 +36,7 @@ SET @@global.concurrent_insert = AUTO;
 SELECT @@global.concurrent_insert;
 @@global.concurrent_insert
 AUTO
-SET @@global.concurrent_insert = 'ALWAYS';
+SET @@global.concurrent_insert = ALWAYS;
 SELECT @@global.concurrent_insert;
 @@global.concurrent_insert
 ALWAYS
