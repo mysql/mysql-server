@@ -886,10 +886,10 @@ struct thr_send_queue
 struct thr_data
 {
   thr_data() : m_jba_write_lock("jbalock"),
+               m_signal_id_counter(0),
                m_send_buffer_pool(0,
                                   THR_SEND_BUFFER_MAX_FREE,
-                                  THR_SEND_BUFFER_ALLOC_SIZE),
-               m_signal_id_counter(0) {}
+                                  THR_SEND_BUFFER_ALLOC_SIZE) {}
 
   /**
    * We start with the data structures that are shared globally to
