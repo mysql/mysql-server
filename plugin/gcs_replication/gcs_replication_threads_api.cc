@@ -23,6 +23,8 @@ Replication_thread_api::initialize_repositories(char* relay_log_name,
   DBUG_ENTER("Replication_thread_api::initialize");
   int error= 0;
 
+  mysql_mutex_lock(&LOCK_active_mi);
+
   /*
     TODO: Modify the slave code allowing the MI/RLI initialization methods
     to receive these variables as input.
@@ -44,20 +46,22 @@ Replication_thread_api::initialize_repositories(char* relay_log_name,
     Master info repositories are not important here.
     They only function as holders for the SQL thread/Relay log variables.
   */
-  if ((error= Rpl_info_factory::create_coordinators(INFO_REPOSITORY_DUMMY,
-                                                    &this->mi,
-                                                    INFO_REPOSITORY_FILE,
-                                                    &this->rli)))
+  if (Rpl_info_factory::create_coordinators(INFO_REPOSITORY_DUMMY,
+                                            &this->mi,
+                                            INFO_REPOSITORY_FILE,
+                                            &this->rli))
   {
-    DBUG_RETURN(REPLICATION_THREAD_REPOSITORY_CREATION_ERROR);
+    error= REPLICATION_THREAD_REPOSITORY_CREATION_ERROR;
+    goto end;
   }
 
   mysql_mutex_lock(&mi->data_lock);
   mysql_mutex_lock(&mi->rli->data_lock);
 
-  if ((error= mi->mi_init_info()))
+  if (mi->mi_init_info())
   {
-    DBUG_RETURN(REPLICATION_THREAD_MI_INIT_ERROR);
+    error= REPLICATION_THREAD_MI_INIT_ERROR;
+    goto end;
   }
 
   mi->set_mi_description_event(
@@ -65,23 +69,30 @@ Replication_thread_api::initialize_repositories(char* relay_log_name,
 
   mi->set_auto_position(true);
 
-  if ((error= rli->rli_init_info()))
+  if (rli->rli_init_info())
   {
-    DBUG_RETURN(REPLICATION_THREAD_RLI_INIT_ERROR);
+    error= REPLICATION_THREAD_RLI_INIT_ERROR;
+    goto end;
   }
+
+  //MTS is disable for now
+  mi->rli->opt_slave_parallel_workers= 0;
+  mi->rli->replicate_same_server_id= true;
+
+end:
 
   //return the server variable to their original state
   set_relay_log_name(orig_relay_log_name);
   set_relay_log_index_name(orig_relay_log_index_name);
   set_relay_log_info_name(original_relay_info_file);
 
+  if(error != REPLICATION_THREAD_REPOSITORY_CREATION_ERROR)
+  {
+    mysql_mutex_unlock(&mi->rli->data_lock);
+    mysql_mutex_unlock(&mi->data_lock);
+  }
 
-  //MTS is disable for now
-  mi->rli->opt_slave_parallel_workers= 0;
-  mi->rli->replicate_same_server_id= true;
-
-  mysql_mutex_unlock(&mi->rli->data_lock);
-  mysql_mutex_unlock(&mi->data_lock);
+  mysql_mutex_unlock(&LOCK_active_mi);
 
   DBUG_RETURN(error);
 }

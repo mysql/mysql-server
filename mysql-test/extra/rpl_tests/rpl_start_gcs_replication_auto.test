@@ -26,4 +26,16 @@ START GCS_REPLICATION;
 --error ER_GCS_REPLICATION_RUNNING
 START GCS_REPLICATION;
 
+#Check if the node information is correct on the table
+
+--let $server_uuid= `SELECT @@GLOBAL.SERVER_UUID`
+
+--let $wait_condition= SELECT count(*)=1 FROM performance_schema.replication_connection_nodes WHERE node_id= '$server_uuid' ;
+--source include/wait_condition.inc
+
+if (!$success)
+{
+  --die Timeout in wait_condition.inc
+}
+
 STOP GCS_REPLICATION;

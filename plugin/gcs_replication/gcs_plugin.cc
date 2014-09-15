@@ -474,12 +474,12 @@ int gcs_rpl_start()
     DBUG_RETURN(GCS_CONFIGURATION_ERROR);
   }
 
-  configure_cluster_member_manager();
-
-  initialize_recovery_module();
-
   if (server_engine_initialized())
   {
+    configure_cluster_member_manager();
+
+    initialize_recovery_module();
+
     //we can only start the applier if the log has been initialized
     if (configure_and_start_applier_module())
       DBUG_RETURN(GCS_REPLICATION_APPLIER_INIT_ERROR);
