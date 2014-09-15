@@ -393,8 +393,6 @@ static const uint MYSQL_START_TRANS_OPT_WITH_CONS_SNAPSHOT = 1;
 static const uint MYSQL_START_TRANS_OPT_READ_ONLY          = 2;
 // READ WRITE option
 static const uint MYSQL_START_TRANS_OPT_READ_WRITE         = 4;
-// HIGH PRIORITY option
-static const uint MYSQL_START_TRANS_OPT_HIGH_PRIORITY      = 8;
 
 enum legacy_db_type
 {
@@ -965,6 +963,10 @@ struct handlerton
 */
 
 #define HTON_SUPPORTS_EXTENDED_KEYS  (1 << 10)
+
+// Engine support foreign key constraint.
+
+#define HTON_SUPPORTS_FOREIGN_KEYS   (1 << 11)
 
 
 enum enum_tx_isolation { ISO_READ_UNCOMMITTED, ISO_READ_COMMITTED,
@@ -1803,7 +1805,7 @@ public:
   ha_rows records;
   ha_rows deleted;			/* Deleted records */
   ulong mean_rec_length;		/* physical reclength */
-  ulong create_time;			/* When table was created */
+  time_t create_time;			/* When table was created */
   ulong check_time;
   ulong update_time;
   uint block_size;			/* index block size */

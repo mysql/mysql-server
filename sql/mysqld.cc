@@ -4390,7 +4390,7 @@ int mysqld_main(int argc, char **argv)
 
 #ifndef DBUG_OFF
   test_lc_time_sz();
-  srand(time(NULL));
+  srand(static_cast<uint>(time(NULL)));
 #endif
 
   /*
@@ -4568,7 +4568,8 @@ int mysqld_main(int argc, char **argv)
           Previous_gtids_log_event prev_gtids_ev(&logged_gtids_binlog);
           global_sid_lock->unlock();
 
-          prev_gtids_ev.checksum_alg= binlog_checksum_options;
+          prev_gtids_ev.checksum_alg=
+            static_cast<uint8>(binlog_checksum_options);
 
           if (prev_gtids_ev.write(mysql_bin_log.get_log_file()))
             unireg_abort(1);
@@ -5817,7 +5818,7 @@ static int show_slave_last_heartbeat(THD *thd, SHOW_VAR *var, char *buff)
     else
     {
       thd->variables.time_zone->gmt_sec_to_TIME(&received_heartbeat_time, 
-        active_mi->last_heartbeat);
+        static_cast<my_time_t>(active_mi->last_heartbeat));
       my_datetime_to_str(&received_heartbeat_time, buff, 0);
     }
   }
@@ -7794,6 +7795,7 @@ PSI_mutex_key key_LOCK_sql_rand;
 PSI_mutex_key key_gtid_ensure_index_mutex;
 PSI_mutex_key key_mts_temp_table_LOCK;
 PSI_mutex_key key_LOCK_compress_gtid_table;
+PSI_mutex_key key_mts_gaq_LOCK;
 #ifdef HAVE_MY_TIMER
 PSI_mutex_key key_thd_timer_mutex;
 #endif
@@ -7876,8 +7878,9 @@ static PSI_mutex_info all_server_mutexes[]=
   { &key_LOCK_log_throttle_qni, "LOCK_log_throttle_qni", PSI_FLAG_GLOBAL},
   { &key_gtid_ensure_index_mutex, "Gtid_state", PSI_FLAG_GLOBAL},
   { &key_LOCK_query_plan, "THD::LOCK_query_plan", 0},
-  { &key_mts_temp_table_LOCK, "key_mts_temp_table_LOCK",0},
+  { &key_mts_temp_table_LOCK, "key_mts_temp_table_LOCK", 0},
   { &key_LOCK_compress_gtid_table, "LOCK_compress_gtid_table", PSI_FLAG_GLOBAL},
+  { &key_mts_gaq_LOCK, "key_mts_gaq_LOCK", 0},
 #ifdef HAVE_MY_TIMER
   { &key_thd_timer_mutex, "thd_timer_mutex", 0},
 #endif
@@ -7929,7 +7932,8 @@ PSI_cond_key key_BINLOG_update_cond,
   key_relay_log_info_data_cond, key_relay_log_info_log_space_cond,
   key_relay_log_info_start_cond, key_relay_log_info_stop_cond,
   key_relay_log_info_sleep_cond, key_cond_slave_parallel_pend_jobs,
-  key_cond_slave_parallel_worker,
+  key_cond_slave_parallel_worker, key_cond_mts_gaq,
+  key_cond_mts_submode_logical_clock,
   key_TABLE_SHARE_cond, key_user_level_lock_cond;
 PSI_cond_key key_RELAYLOG_update_cond;
 PSI_cond_key key_BINLOG_COND_done;
@@ -7975,6 +7979,7 @@ static PSI_cond_info all_server_conds[]=
   { &key_relay_log_info_sleep_cond, "Relay_log_info::sleep_cond", 0},
   { &key_cond_slave_parallel_pend_jobs, "Relay_log_info::pending_jobs_cond", 0},
   { &key_cond_slave_parallel_worker, "Worker_info::jobs_cond", 0},
+  { &key_cond_mts_gaq, "Relay_log_info::mts_gaq_cond", 0},
   { &key_TABLE_SHARE_cond, "TABLE_SHARE::cond", 0},
   { &key_user_level_lock_cond, "User_level_lock::cond", 0},
   { &key_gtid_ensure_index_cond, "Gtid_state", PSI_FLAG_GLOBAL},
@@ -8161,6 +8166,7 @@ PSI_stage_info stage_compressing_gtid_table= { 0, "Compressing gtid_executed tab
 PSI_stage_info stage_suspending= { 0, "Suspending", 0};
 #ifdef HAVE_REPLICATION
 PSI_stage_info stage_worker_waiting_for_its_turn_to_commit= { 0, "Waiting for its turn to commit.", 0};
+PSI_stage_info stage_worker_waiting_for_commit_parent= { 0, "Waiting for dependent transaction to commit.", 0};
 #endif
 PSI_stage_info stage_starting= { 0, "starting", 0};
 #ifdef HAVE_PSI_INTERFACE

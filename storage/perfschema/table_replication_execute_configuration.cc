@@ -182,7 +182,7 @@ int table_replication_execute_configuration::read_row_values(TABLE *table,
       switch(f->field_index)
       {
       case 0: /** desired_delay */
-        set_field_ulong(f, m_row.desired_delay);
+        set_field_ulong(f, static_cast<ulong>(m_row.desired_delay));
         break;
       default:
         DBUG_ASSERT(false);

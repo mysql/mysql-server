@@ -2,6 +2,7 @@
 #  to work this file properly.
 --perl
   use strict;
+  my $verbose= $ENV{'GREP_PRINT_NOT_VERBOSE'} ? 0 : 1;
   my $file= $ENV{'GREP_FILE'} or die "grep file not set";
   my $pattern= $ENV{'GREP_PATTERN'} or die "pattern is not set";
   open(FILE, "$file") or die("Unable to open $file: $!\n");
@@ -10,7 +11,9 @@
   while (<FILE>) {
     my $line = $_;
     if ($line =~ /$pattern/) {
-      print "$line\n";
+      if ($verbose == 1) {
+        print "$line\n";
+      }
       $count++;
     }
   }

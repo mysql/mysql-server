@@ -87,7 +87,6 @@ InnoDB's data dictionary, if the corresponding .ibd file exists.
 We also scan the biggest space id, and store it to fil_system.
 @param[in]	validate	whether the previous shutdown was not clean
 @param[in]	dict_check	how to check */
-
 void
 dict_check_tablespaces_and_store_max_id(
 	bool		validate,
@@ -96,7 +95,6 @@ dict_check_tablespaces_and_store_max_id(
 Finds the first table name in the given database.
 @return own: table name, NULL if does not exist; the caller must free
 the memory in the string! */
-
 char*
 dict_get_first_table_name_in_db(
 /*============================*/
@@ -106,7 +104,6 @@ dict_get_first_table_name_in_db(
 Loads a table definition from a SYS_TABLES record to dict_table_t.
 Does not load any columns or indexes.
 @return error message, or NULL on success */
-
 const char*
 dict_load_table_low(
 /*================*/
@@ -117,7 +114,6 @@ dict_load_table_low(
 Loads a table column definition from a SYS_COLUMNS record to
 dict_table_t.
 @return error message, or NULL on success */
-
 const char*
 dict_load_column_low(
 /*=================*/
@@ -138,7 +134,6 @@ If allocate=TRUE, we will create a dict_index_t structure and fill it
 accordingly. If allocated=FALSE, the dict_index_t will be supplied by
 the caller and filled with information read from the record.  @return
 error message, or NULL on success */
-
 const char*
 dict_load_index_low(
 /*================*/
@@ -156,7 +151,6 @@ dict_load_index_low(
 Loads an index field definition from a SYS_FIELDS record to
 dict_index_t.
 @return error message, or NULL on success */
-
 const char*
 dict_load_field_low(
 /*================*/
@@ -179,7 +173,6 @@ Using the table->heap, copy the null-terminated filepath into
 table->data_dir_path and put a null byte before the extension.
 This allows SHOW CREATE TABLE to return the correct DATA DIRECTORY path.
 Make this data directory path only if it has not yet been saved. */
-
 void
 dict_save_data_dir_path(
 /*====================*/
@@ -190,7 +183,6 @@ dict_save_data_dir_path(
 Try to read it from the fil_system first, then from SYS_DATAFILES.
 @param[in]	table		Table object
 @param[in]	dict_mutex_own	true if dict_sys->mutex is owned already */
-
 void
 dict_get_and_save_data_dir_path(
 	dict_table_t*	table,
@@ -204,7 +196,6 @@ a foreign key references columns in this table.
 @return table, NULL if does not exist; if the table is stored in an
 .ibd file, but the file does not exist, then we set the
 ibd_file_missing flag TRUE in the table object we return */
-
 dict_table_t*
 dict_load_table(
 /*============*/
@@ -217,7 +208,6 @@ dict_load_table(
 /***********************************************************************//**
 Loads a table object based on the table id.
 @return table; NULL if table does not exist */
-
 dict_table_t*
 dict_load_table_on_id(
 /*==================*/
@@ -228,7 +218,6 @@ dict_load_table_on_id(
 This function is called when the database is booted.
 Loads system table index definitions except for the clustered index which
 is added to the dictionary cache at booting before calling this function. */
-
 void
 dict_load_sys_table(
 /*================*/
@@ -243,7 +232,6 @@ in the dictionary cache.  If the referenced table is not in dictionary
 cache, then it is added to the output parameter (fk_tables).
 
 @return DB_SUCCESS or error code */
-
 dberr_t
 dict_load_foreigns(
 /*===============*/
@@ -265,7 +253,6 @@ dict_load_foreigns(
 /********************************************************************//**
 This function opens a system table, and return the first record.
 @return first record of the system table */
-
 const rec_t*
 dict_startscan_system(
 /*==================*/
@@ -276,7 +263,6 @@ dict_startscan_system(
 /********************************************************************//**
 This function get the next system table record as we scan the table.
 @return the record if found, NULL if end of scan. */
-
 const rec_t*
 dict_getnext_system(
 /*================*/
@@ -288,7 +274,6 @@ This function processes one SYS_TABLES record and populate the dict_table_t
 struct for the table. Extracted out of dict_print() to be used by
 both monitor table output and information schema innodb_sys_tables output.
 @return error message, or NULL on success */
-
 const char*
 dict_process_sys_tables_rec_and_mtr_commit(
 /*=======================================*/
@@ -306,7 +291,6 @@ This function parses a SYS_INDEXES record and populate a dict_index_t
 structure with the information from the record. For detail information
 about SYS_INDEXES fields, please refer to dict_boot() function.
 @return error message, or NULL on success */
-
 const char*
 dict_process_sys_indexes_rec(
 /*=========================*/
@@ -319,7 +303,6 @@ dict_process_sys_indexes_rec(
 This function parses a SYS_COLUMNS record and populate a dict_column_t
 structure with the information from the record.
 @return error message, or NULL on success */
-
 const char*
 dict_process_sys_columns_rec(
 /*=========================*/
@@ -332,7 +315,6 @@ dict_process_sys_columns_rec(
 This function parses a SYS_FIELDS record and populate a dict_field_t
 structure with the information from the record.
 @return error message, or NULL on success */
-
 const char*
 dict_process_sys_fields_rec(
 /*========================*/
@@ -348,7 +330,6 @@ This function parses a SYS_FOREIGN record and populate a dict_foreign_t
 structure with the information from the record. For detail information
 about SYS_FOREIGN fields, please refer to dict_load_foreign() function
 @return error message, or NULL on success */
-
 const char*
 dict_process_sys_foreign_rec(
 /*=========================*/
@@ -360,7 +341,6 @@ dict_process_sys_foreign_rec(
 This function parses a SYS_FOREIGN_COLS record and extract necessary
 information from the record and return to caller.
 @return error message, or NULL on success */
-
 const char*
 dict_process_sys_foreign_col_rec(
 /*=============================*/
@@ -375,7 +355,6 @@ dict_process_sys_foreign_col_rec(
 This function parses a SYS_TABLESPACES record, extracts necessary
 information from the record and returns to caller.
 @return error message, or NULL on success */
-
 const char*
 dict_process_sys_tablespaces(
 /*=========================*/
@@ -388,7 +367,6 @@ dict_process_sys_tablespaces(
 This function parses a SYS_DATAFILES record, extracts necessary
 information from the record and returns to caller.
 @return error message, or NULL on success */
-
 const char*
 dict_process_sys_datafiles(
 /*=======================*/
@@ -409,7 +387,6 @@ then the caller will assume that the ibd file is in the normal datadir.
 @param[in]	name		Tablespace Name
 @return own: A copy of the first datafile found in SYS_DATAFILES.PATH for
 the given space ID. NULL if space ID is zero or not found. */
-
 char*
 dict_get_first_path(
 	ulint		space,
@@ -419,7 +396,6 @@ dict_get_first_path(
 @param[in]	space_id	Tablespace ID
 @param[in]	filepath	Tablespace filepath
 @return DB_SUCCESS if OK, dberr_t if the insert failed */
-
 dberr_t
 dict_update_filepath(
 	ulint		space_id,
@@ -432,7 +408,6 @@ the given space_id using an independent transaction.
 @param[in]	filepath,	First filepath
 @param[in]	fsp_flags	Tablespace flags
 @return DB_SUCCESS if OK, dberr_t if the insert failed */
-
 dberr_t
 dict_insert_tablespace_and_filepath(
 	ulint		space_id,

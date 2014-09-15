@@ -148,7 +148,6 @@ log_buf_pool_get_oldest_modification(void)
 
 /** Extends the log buffer.
 @param[in]	len	requested minimum size in bytes */
-
 void
 log_buffer_extend(
 	ulint	len)
@@ -240,7 +239,6 @@ log_buffer_extend(
 /** Open the log for log_write_low. The log must be closed with log_close.
 @param[in]	len	length of the data to be written
 @return start lsn of the log record */
-
 lsn_t
 log_reserve_and_open(
 	ulint	len)
@@ -295,7 +293,6 @@ loop:
 /************************************************************//**
 Writes to the log the string given. It is assumed that the caller holds the
 log mutex. */
-
 void
 log_write_low(
 /*==========*/
@@ -367,7 +364,6 @@ part_loop:
 /************************************************************//**
 Closes the log.
 @return lsn */
-
 lsn_t
 log_close(void)
 /*===========*/
@@ -444,7 +440,6 @@ function_exit:
 Calculates the data capacity of a log group, when the log file headers are not
 included.
 @return capacity in bytes */
-
 lsn_t
 log_group_get_capacity(
 /*===================*/
@@ -540,7 +535,6 @@ log_group_calc_lsn_offset(
 /*******************************************************************//**
 Calculates where in log files we find a specified lsn.
 @return log file number */
-
 ulint
 log_calc_where_lsn_is(
 /*==================*/
@@ -582,7 +576,6 @@ log_calc_where_lsn_is(
 Sets the field values in group to correspond to a given lsn. For this function
 to work, the values must already be correctly initialized to correspond to
 some lsn, for instance, a checkpoint lsn. */
-
 void
 log_group_set_fields(
 /*=================*/
@@ -680,7 +673,6 @@ failure:
 
 /******************************************************//**
 Initializes the log. */
-
 void
 log_init(void)
 /*==========*/
@@ -843,7 +835,6 @@ log_sys_write_completion(void)
 
 /******************************************************//**
 Completes an i/o to a log file. */
-
 void
 log_io_complete(
 /*============*/
@@ -1074,7 +1065,6 @@ wait and check if an already running write is covering the request.
 included in the redo log file write
 @param[in]	flush_to_disk	whether the written log should also
 be flushed to the file system */
-
 void
 log_write_up_to(
 	lsn_t	lsn,
@@ -1278,7 +1268,6 @@ loop:
 
 /****************************************************************//**
 Does a syncronous flush of the log buffer to disk. */
-
 void
 log_buffer_flush_to_disk(void)
 /*==========================*/
@@ -1300,7 +1289,6 @@ This functions writes the log buffer to the log file and if 'flush'
 is set it forces a flush of the log file as well. This is meant to be
 called from background master thread only as it does not wait for
 the write (+ possible flush) to finish. */
-
 void
 log_buffer_sync_in_background(
 /*==========================*/
@@ -1462,7 +1450,6 @@ log_checkpoint_set_nth_group_info(
 
 /*******************************************************************//**
 Gets info from a checkpoint about a log group. */
-
 void
 log_checkpoint_get_nth_group_info(
 /*==============================*/
@@ -1571,7 +1558,6 @@ log_group_checkpoint(
 /******************************************************//**
 Writes info to a buffer of a log group when log files are created in
 backup restoration. */
-
 void
 log_reset_first_header_and_checkpoint(
 /*==================================*/
@@ -1625,7 +1611,6 @@ log_reset_first_header_and_checkpoint(
 #ifndef UNIV_HOTBACKUP
 /******************************************************//**
 Reads a checkpoint info from a log group header to log_sys->checkpoint_buf. */
-
 void
 log_group_read_checkpoint_info(
 /*===========================*/
@@ -1646,7 +1631,6 @@ log_group_read_checkpoint_info(
 
 /** Write checkpoint info to the log header and invoke log_mutex_exit().
 @param[in]	sync	whether to wait for the write to complete */
-
 void
 log_write_checkpoint_info(
 	bool	sync)
@@ -1678,7 +1662,6 @@ log_write_checkpoint_info(
 /** Set extra data to be written to the redo log during checkpoint.
 @param[in]	buf	data to be appended on checkpoint, or NULL
 @return pointer to previous data to be appended on checkpoint */
-
 mtr_buf_t*
 log_append_on_checkpoint(
 	mtr_buf_t*	buf)
@@ -1698,7 +1681,6 @@ log files. Use log_make_checkpoint_at() to flush also the pool.
 @param[in]	write_always	force a write even if no log
 has been generated since the latest checkpoint
 @return true if success, false if a checkpoint write was already running */
-
 bool
 log_checkpoint(
 	bool	sync,
@@ -1808,7 +1790,6 @@ log_checkpoint(
 for the latest LSN
 @param[in]	write_always	force a write even if no log
 has been generated since the latest checkpoint */
-
 void
 log_make_checkpoint_at(
 	lsn_t	lsn,
@@ -1914,7 +1895,6 @@ loop:
 
 /******************************************************//**
 Reads a specified log segment to a buffer. */
-
 void
 log_group_read_log_seg(
 /*===================*/
@@ -1973,7 +1953,6 @@ Checks that there is enough free space in the log to start a new query step.
 Flushes the log buffer or makes a new checkpoint if necessary. NOTE: this
 function may only be called if the calling thread owns no synchronization
 objects! */
-
 void
 log_check_margins(void)
 {
@@ -1994,7 +1973,6 @@ Makes a checkpoint at the latest lsn and writes it to first page of each
 data file in the database, so that we know that the file spaces contain
 all modifications up to that lsn. This can only be called at database
 shutdown. This function also writes all log in log files to the log archive. */
-
 void
 logs_empty_and_mark_files_at_shutdown(void)
 /*=======================================*/
@@ -2274,7 +2252,6 @@ loop:
 /******************************************************//**
 Peeks the current lsn.
 @return TRUE if success, FALSE if could not get the log system mutex */
-
 ibool
 log_peek_lsn(
 /*=========*/
@@ -2293,7 +2270,6 @@ log_peek_lsn(
 
 /******************************************************//**
 Prints info of the log. */
-
 void
 log_print(
 /*======*/
@@ -2342,7 +2318,6 @@ log_print(
 
 /**********************************************************************//**
 Refreshes the statistics used to print per-second averages. */
-
 void
 log_refresh_stats(void)
 /*===================*/
@@ -2373,7 +2348,6 @@ log_group_close(
 
 /********************************************************//**
 Closes all log groups. */
-
 void
 log_group_close_all(void)
 /*=====================*/
@@ -2395,7 +2369,6 @@ log_group_close_all(void)
 
 /********************************************************//**
 Shutdown the log system but do not release all the memory. */
-
 void
 log_shutdown(void)
 /*==============*/
@@ -2421,7 +2394,6 @@ log_shutdown(void)
 
 /********************************************************//**
 Free the log system data structures. */
-
 void
 log_mem_free(void)
 /*==============*/

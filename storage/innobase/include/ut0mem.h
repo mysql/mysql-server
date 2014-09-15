@@ -91,7 +91,6 @@ Copies up to size - 1 characters from the NUL-terminated string src to
 dst, NUL-terminating the result. Returns strlen(src), so truncation
 occurred if the return value >= size.
 @return strlen(src) */
-
 ulint
 ut_strlcpy(
 /*=======*/
@@ -103,7 +102,6 @@ ut_strlcpy(
 Like ut_strlcpy, but if src doesn't fit in dst completely, copies the last
 (size - 1) bytes of src, not the first.
 @return strlen(src) */
-
 ulint
 ut_strlcpy_rev(
 /*===========*/
@@ -115,7 +113,6 @@ ut_strlcpy_rev(
 Return the number of times s2 occurs in s1. Overlapping instances of s2
 are only counted once.
 @return the number of times s2 occurs in s1 */
-
 ulint
 ut_strcount(
 /*========*/
@@ -126,7 +123,6 @@ ut_strcount(
 Replace every occurrence of s1 in str with s2. Overlapping instances of s1
 are only replaced once.
 @return own: modified string, must be freed with ut_free() */
-
 char*
 ut_strreplace(
 /*==========*/
@@ -136,7 +132,6 @@ ut_strreplace(
 
 /********************************************************************
 Concatenate 3 strings.*/
-
 char*
 ut_str3cat(
 /*=======*/
