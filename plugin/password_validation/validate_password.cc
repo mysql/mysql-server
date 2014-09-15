@@ -66,7 +66,7 @@ static char *validate_password_dictionary_file;
 static void read_dictionary_file()
 {
   string_type words;
-  long file_length;
+  std::streamoff file_length;
 
   if (validate_password_dictionary_file == NULL)
   {

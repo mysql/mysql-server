@@ -72,7 +72,7 @@ public:
   {
     ulonglong max_elems_in_tree=
       (max_in_memory_size / ALIGN_SIZE(sizeof(TREE_ELEMENT)+key_size));
-    return 1 + nkeys/max_elems_in_tree;
+    return 1 + static_cast<size_t>(nkeys/max_elems_in_tree);
   }
 
   void reset();

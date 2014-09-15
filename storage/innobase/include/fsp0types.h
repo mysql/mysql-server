@@ -124,7 +124,6 @@ ROW_FORMAT=COMPACT and ROW_FORMAT=REDUNDANT. The newer row formats,
 COMPRESSED and DYNAMIC, use a file format > Antelope so they should
 have a file format number plus the DICT_TF_COMPACT bit set.
 @return true if check ok */
-
 bool
 fsp_flags_is_valid(
 /*===============*/
@@ -134,7 +133,6 @@ fsp_flags_is_valid(
 /** Check if tablespace is system temporary.
 @param[in]      space_id        verify is checksum is enabled for given space.
 @return true if tablespace is system temporary. */
-
 bool
 fsp_is_system_temporary(
 	ulint	space_id);
@@ -142,7 +140,6 @@ fsp_is_system_temporary(
 /** Check if checksum is disabled for the given space.
 @param[in]	space_id	verify is checksum is enabled for given space.
 @return true if checksum is disabled for given space. */
-
 bool
 fsp_is_checksum_disabled(
 	ulint	space_id);

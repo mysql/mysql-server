@@ -39,8 +39,6 @@ struct innodb_idx_translate_t {
 
 /** InnoDB table share */
 typedef struct st_innobase_share {
-	THR_LOCK	lock;		/*!< MySQL lock protecting
-					this structure */
 	const char*	table_name;	/*!< InnoDB table name */
 	uint		use_count;	/*!< reference count,
 					incremented in get_share()
@@ -346,6 +344,8 @@ class ha_innobase: public handler
 		HA_CREATE_INFO*		info,
 		uint			table_changes);
 private:
+	int update_row_low(const uchar * old_data, uchar * new_data);
+
 	uint store_key_val_for_row(
 		uint			keynr,
 		char*			buff,
@@ -388,7 +388,6 @@ private:
 
 	int info_low(uint, bool);
 
-	int update_row_low(const uchar * old_data, uchar * new_data);
 public:
 	/** @name Multi Range Read interface @{ */
 
@@ -462,9 +461,6 @@ private:
 	/** Thread handle of the user currently using the handler;
 	this is set in external_lock function */
 	THD*			m_user_thd;
-
-	/** Server meta-data locking data structure for this handler */
-	THR_LOCK_DATA		m_lock;
 
 	/** information for MySQL table locking */
 	INNOBASE_SHARE*		m_share;
@@ -579,7 +575,6 @@ system default primary index name 'GEN_CLUST_INDEX'. If a name
 matches, this function pushes an warning message to the client,
 and returns true.
 @return true if the index name matches the reserved name */
-
 bool
 innobase_index_name_is_reserved(
 	THD*			thd,		/*!< in/out: MySQL connection */
@@ -599,7 +594,6 @@ If strict_mode=OFF, this will adjust the flags to what should be assumed.
 @param[out]	flags		DICT_TF flags
 @param[out]	flags2		DICT_TF2 flags
 @retval true if successful, false if error */
-
 bool
 innobase_table_flags(
 	const TABLE*		form,
@@ -620,7 +614,6 @@ code ER_ILLEGAL_HA_CREATE_OPTION, not its built-in message.
 @param[in]	create_info	Information for the create operation
 @param[in]	file_per_table	Whether to create a single-table tablespace.
 @return NULL if valid, string name of bad option if not. */
-
 const char*
 create_options_are_invalid(
 	THD*		thd,
@@ -632,7 +625,6 @@ create_options_are_invalid(
 Retrieve the FTS Relevance Ranking result for doc with doc_id
 of prebuilt->fts_doc_id
 @return the relevance ranking value */
-
 float
 innobase_fts_retrieve_ranking(
 	FT_INFO*	fts_hdl);	/*!< in: FTS handler */
@@ -641,7 +633,6 @@ innobase_fts_retrieve_ranking(
 Find and Retrieve the FTS Relevance Ranking result for doc with doc_id
 of prebuilt->fts_doc_id
 @return the relevance ranking value */
-
 float
 innobase_fts_find_ranking(
 	FT_INFO*	fts_hdl,	/*!< in: FTS handler */
@@ -650,7 +641,6 @@ innobase_fts_find_ranking(
 
 /**
 Free the memory for the FTS handler */
-
 void
 innobase_fts_close_ranking(
 	FT_INFO*	fts_hdl);	/*!< in: FTS handler */
@@ -658,7 +648,6 @@ innobase_fts_close_ranking(
 /**
 Initialize the table FTS stopword list
 @return TRUE if success */
-
 ibool
 innobase_fts_load_stopword(
 /*=======================*/
@@ -678,7 +667,6 @@ enum fts_doc_id_index_enum {
 Check whether the table has a unique index with FTS_DOC_ID_INDEX_NAME
 on the Doc ID column.
 @return the status of the FTS_DOC_ID index */
-
 fts_doc_id_index_enum
 innobase_fts_check_doc_id_index(
 	const dict_table_t*	table,		/*!< in: table definition */
@@ -693,7 +681,6 @@ Check whether the table has a unique index with FTS_DOC_ID_INDEX_NAME
 on the Doc ID column in MySQL create index definition.
 @return FTS_EXIST_DOC_ID_INDEX if there exists the FTS_DOC_ID index,
 FTS_INCORRECT_DOC_ID_INDEX if the FTS_DOC_ID index is of wrong format */
-
 fts_doc_id_index_enum
 innobase_fts_check_doc_id_index_in_def(
 	ulint		n_key,		/*!< in: Number of keys */
@@ -729,7 +716,6 @@ Copy table flags from MySQL's HA_CREATE_INFO into an InnoDB table object.
 Those flags are stored in .frm file and end up in the MySQL table object,
 but are frequently used inside InnoDB so we keep their copies into the
 InnoDB table object. */
-
 void
 innobase_copy_frm_flags_from_create_info(
 	dict_table_t*		innodb_table,	/*!< in/out: InnoDB table */
@@ -740,7 +726,6 @@ Copy table flags from MySQL's TABLE_SHARE into an InnoDB table object.
 Those flags are stored in .frm file and end up in the MySQL table object,
 but are frequently used inside InnoDB so we keep their copies into the
 InnoDB table object. */
-
 void
 innobase_copy_frm_flags_from_table_share(
 	dict_table_t*		innodb_table,	/*!< in/out: InnoDB table */

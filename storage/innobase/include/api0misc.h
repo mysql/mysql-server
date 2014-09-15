@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2008, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2008, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -51,7 +51,6 @@ extern ulong			ib_bk_commit_interval;
 Handles user errors and lock waits detected by the database engine.
 @return TRUE if it was a lock wait and we should continue running
 the query thread */
-
 ibool
 ib_handle_errors(
 /*=============*/
@@ -67,7 +66,6 @@ ib_handle_errors(
 /*************************************************************************
 Sets a lock on a table.
 @return error code or DB_SUCCESS */
-
 dberr_t
 ib_trx_lock_table_with_retry(
 /*=========================*/

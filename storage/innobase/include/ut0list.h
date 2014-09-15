@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2006, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2006, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -55,7 +55,6 @@ struct ib_list_node_t;
 Create a new list using mem_alloc. Lists created with this function must be
 freed with ib_list_free.
 @return list */
-
 ib_list_t*
 ib_list_create(void);
 /*=================*/
@@ -65,7 +64,6 @@ ib_list_create(void);
 Create a new list using the given heap. ib_list_free MUST NOT BE CALLED for
 lists created with this function.
 @return list */
-
 ib_list_t*
 ib_list_create_heap(
 /*================*/
@@ -73,7 +71,6 @@ ib_list_create_heap(
 
 /****************************************************************//**
 Free a list. */
-
 void
 ib_list_free(
 /*=========*/
@@ -82,7 +79,6 @@ ib_list_free(
 /****************************************************************//**
 Add the data to the start of the list.
 @return new list node */
-
 ib_list_node_t*
 ib_list_add_first(
 /*==============*/
@@ -93,7 +89,6 @@ ib_list_add_first(
 /****************************************************************//**
 Add the data to the end of the list.
 @return new list node */
-
 ib_list_node_t*
 ib_list_add_last(
 /*=============*/
@@ -104,7 +99,6 @@ ib_list_add_last(
 /****************************************************************//**
 Add the data after the indicated node.
 @return new list node */
-
 ib_list_node_t*
 ib_list_add_after(
 /*==============*/
@@ -116,7 +110,6 @@ ib_list_add_after(
 
 /****************************************************************//**
 Remove the node from the list. */
-
 void
 ib_list_remove(
 /*===========*/

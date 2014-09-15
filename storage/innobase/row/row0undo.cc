@@ -125,7 +125,6 @@ or if the roll ptr is NULL, i.e., it was a fresh insert. */
 /********************************************************************//**
 Creates a row undo node to a query graph.
 @return own: undo node */
-
 undo_node_t*
 row_undo_node_create(
 /*=================*/
@@ -162,7 +161,6 @@ and stores the position of pcur, and detaches it. The pcur must be closed
 by the caller in any case.
 @return true if found; NOTE the node->pcur must be closed by the
 caller, regardless of the return value */
-
 bool
 row_undo_search_clust_to_pcur(
 /*==========================*/
@@ -335,7 +333,6 @@ row_undo(
 Undoes a row operation in a table. This is a high-level function used
 in SQL execution graphs.
 @return query thread to run next or NULL */
-
 que_thr_t*
 row_undo_step(
 /*==========*/

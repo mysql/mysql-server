@@ -1530,7 +1530,7 @@ int parse_ignore_error()
 
   DBUG_ENTER("parse_ignore_error");
 
-  if (my_init_dynamic_array(&ignore_error, sizeof(uint), 12, 12))
+  if (my_init_dynamic_array(&ignore_error, sizeof(uint), NULL, 12, 12))
     goto error;
 
   token= strtok(opt_ignore_error, search);

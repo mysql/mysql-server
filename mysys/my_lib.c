@@ -105,6 +105,7 @@ MY_DIR	*my_dir(const char *path, myf MyFlags)
                              ALIGN_SIZE(sizeof(DYNAMIC_ARRAY)));
   
   if (my_init_dynamic_array(dir_entries_storage, sizeof(FILEINFO),
+                            NULL,               /* init_buffer */
                             ENTRIES_START_SIZE, ENTRIES_INCREMENT))
   {
     my_free(buffer);
@@ -139,7 +140,7 @@ MY_DIR	*my_dir(const char *path, myf MyFlags)
     else
       finfo.mystat= NULL;
 
-    if (push_dynamic(dir_entries_storage, (uchar*)&finfo))
+    if (insert_dynamic(dir_entries_storage, (uchar*)&finfo))
       goto error;
   }
 
@@ -248,6 +249,7 @@ MY_DIR	*my_dir(const char *path, myf MyFlags)
                              ALIGN_SIZE(sizeof(DYNAMIC_ARRAY)));
   
   if (my_init_dynamic_array(dir_entries_storage, sizeof(FILEINFO),
+                            NULL,               /* init_buffer */
                             ENTRIES_START_SIZE, ENTRIES_INCREMENT))
   {
     my_free(buffer);
@@ -303,7 +305,7 @@ MY_DIR	*my_dir(const char *path, myf MyFlags)
       else
         finfo.mystat= NULL;
 
-      if (push_dynamic(dir_entries_storage, (uchar*)&finfo))
+      if (insert_dynamic(dir_entries_storage, (uchar*)&finfo))
         goto error;
     }
     while (_findnext(handle,&find) == 0);

@@ -259,7 +259,6 @@ mach_u64_read_much_compressed(
 advanced by the number of bytes consumed, or set NULL if out of space
 @param[in]	end_ptr	end of the buffer
 @return unsigned value */
-
 ib_uint32_t
 mach_parse_compressed(
 	const byte**	ptr,

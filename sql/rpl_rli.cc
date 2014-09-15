@@ -107,6 +107,7 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery
    recovery_groups_inited(false), mts_recovery_group_cnt(0),
    mts_recovery_index(0), mts_recovery_group_seen_begin(0),
    mts_group_status(MTS_NOT_IN_GROUP),
+   stats_exec_time(0), stats_read_time(0),
    least_occupied_workers(PSI_NOT_INSTRUMENTED),
    current_mts_submode(0),
    reported_unsafe_warning(false), rli_description_event(NULL),
@@ -151,6 +152,9 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery
     mysql_cond_init(key_cond_slave_parallel_pend_jobs, &pending_jobs_cond);
     mysql_mutex_init(key_mts_temp_table_LOCK, &mts_temp_table_LOCK,
                      MY_MUTEX_INIT_FAST);
+    mysql_mutex_init(key_mts_gaq_LOCK, &mts_gaq_LOCK,
+                     MY_MUTEX_INIT_FAST);
+    mysql_cond_init(key_cond_mts_gaq, &logical_clock_cond);
 
     relay_log.init_pthread_objects();
     do_server_version_split(::server_version, slave_version_split);
@@ -170,6 +174,8 @@ void Relay_log_info::init_workers(ulong n_workers)
   */
   mts_groups_assigned= mts_events_assigned= pending_jobs= wq_size_waits_cnt= 0;
   mts_wq_excess_cnt= mts_wq_no_underrun_cnt= mts_wq_overfill_cnt= 0;
+  mts_total_wait_overlap= 0;
+  mts_total_wait_worker_avail= 0;
   mts_last_online_stat= 0;
 
   workers.reserve(n_workers);
@@ -206,6 +212,8 @@ Relay_log_info::~Relay_log_info()
     mysql_mutex_destroy(&pending_jobs_lock);
     mysql_cond_destroy(&pending_jobs_cond);
     mysql_mutex_destroy(&mts_temp_table_LOCK);
+    mysql_mutex_destroy(&mts_gaq_LOCK);
+    mysql_cond_destroy(&logical_clock_cond);
     relay_log.cleanup();
   }
 
@@ -726,7 +734,7 @@ int Relay_log_info::wait_for_pos(THD* thd, String* log_name,
     goto err;
   }
   // Convert 0-3 to 4
-  log_pos= max<ulong>(log_pos, BIN_LOG_HEADER_SIZE);
+  log_pos= max(log_pos, static_cast<longlong>(BIN_LOG_HEADER_SIZE));
   /* p points to '.' */
   log_name_extension= strtoul(++p, &p_end, 10);
   /*

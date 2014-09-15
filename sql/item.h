@@ -1293,7 +1293,7 @@ protected:
 
     @return The value val_int() should return.
   */
-  longlong error_int()
+  int error_int()
   {
     null_value= maybe_null;
     return 0;

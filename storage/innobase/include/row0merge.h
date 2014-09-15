@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2005, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2005, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -122,7 +122,6 @@ struct row_merge_dup_t {
 
 /*************************************************************//**
 Report a duplicate key. */
-
 void
 row_merge_dup_report(
 /*=================*/
@@ -132,7 +131,6 @@ row_merge_dup_report(
 /*********************************************************************//**
 Sets an exclusive lock on a table, for the duration of creating indexes.
 @return error code or DB_SUCCESS */
-
 dberr_t
 row_merge_lock_table(
 /*=================*/
@@ -144,7 +142,6 @@ row_merge_lock_table(
 Drop indexes that were created before an error occurred.
 The data dictionary must have been locked exclusively by the caller,
 because the transaction will not be committed. */
-
 void
 row_merge_drop_indexes_dict(
 /*========================*/
@@ -155,7 +152,6 @@ row_merge_drop_indexes_dict(
 Drop those indexes which were created before an error occurred.
 The data dictionary must have been locked exclusively by the caller,
 because the transaction will not be committed. */
-
 void
 row_merge_drop_indexes(
 /*===================*/
@@ -166,7 +162,6 @@ row_merge_drop_indexes(
 	__attribute__((nonnull));
 /*********************************************************************//**
 Drop all partially created indexes during crash recovery. */
-
 void
 row_merge_drop_temp_indexes(void);
 /*=============================*/
@@ -175,7 +170,6 @@ row_merge_drop_temp_indexes(void);
 Creates temporary merge files, and if UNIV_PFS_IO defined, register
 the file descriptor with Performance Schema.
 @return File descriptor */
-
 int
 row_merge_file_create_low(void)
 /*===========================*/
@@ -183,7 +177,6 @@ row_merge_file_create_low(void)
 /*********************************************************************//**
 Destroy a merge file. And de-register the file from Performance Schema
 if UNIV_PFS_IO is defined. */
-
 void
 row_merge_file_destroy_low(
 /*=======================*/
@@ -194,7 +187,6 @@ Provide a new pathname for a table that is being renamed if it belongs to
 a file-per-table tablespace.  The caller is responsible for freeing the
 memory allocated for the return value.
 @return new pathname of tablespace file, or NULL if space = 0 */
-
 char*
 row_make_new_pathname(
 /*==================*/
@@ -205,7 +197,6 @@ Rename the tables in the data dictionary.  The data dictionary must
 have been locked exclusively by the caller, because the transaction
 will not be committed.
 @return error code or DB_SUCCESS */
-
 dberr_t
 row_merge_rename_tables_dict(
 /*=========================*/
@@ -222,7 +213,6 @@ Rename an index in the dictionary that was created. The data
 dictionary must have been locked exclusively by the caller, because
 the transaction will not be committed.
 @return DB_SUCCESS if all OK */
-
 dberr_t
 row_merge_rename_index_to_add(
 /*==========================*/
@@ -235,7 +225,6 @@ Rename an index in the dictionary that is to be dropped. The data
 dictionary must have been locked exclusively by the caller, because
 the transaction will not be committed.
 @return DB_SUCCESS if all OK */
-
 dberr_t
 row_merge_rename_index_to_drop(
 /*===========================*/
@@ -246,7 +235,6 @@ row_merge_rename_index_to_drop(
 /*********************************************************************//**
 Create the index and load in to the dictionary.
 @return index, or NULL on error */
-
 dict_index_t*
 row_merge_create_index(
 /*===================*/
@@ -257,7 +245,6 @@ row_merge_create_index(
 /*********************************************************************//**
 Check if a transaction can use an index.
 @return TRUE if index can be used by the transaction else FALSE */
-
 ibool
 row_merge_is_index_usable(
 /*======================*/
@@ -269,7 +256,6 @@ thread is not processing the table. This can be done by calling
 dict_stats_wait_bg_to_stop_using_table() after locking the dictionary and
 before calling this function.
 @return DB_SUCCESS or error code */
-
 dberr_t
 row_merge_drop_table(
 /*=================*/
@@ -281,7 +267,6 @@ Build indexes on a table by reading a clustered index,
 creating a temporary file containing index entries, merge sorting
 these index entries and inserting sorted index entries to indexes.
 @return DB_SUCCESS or error code */
-
 dberr_t
 row_merge_build_indexes(
 /*====================*/
@@ -313,7 +298,6 @@ row_merge_build_indexes(
 	__attribute__((nonnull(1,2,3,5,6,8), warn_unused_result));
 /********************************************************************//**
 Write a buffer to a block. */
-
 void
 row_merge_buf_write(
 /*================*/
@@ -323,7 +307,6 @@ row_merge_buf_write(
 	__attribute__((nonnull));
 /********************************************************************//**
 Sort a buffer. */
-
 void
 row_merge_buf_sort(
 /*===============*/
@@ -334,7 +317,6 @@ row_merge_buf_sort(
 /********************************************************************//**
 Write a merge block to the file system.
 @return TRUE if request was successful, FALSE if fail */
-
 ibool
 row_merge_write(
 /*============*/
@@ -345,7 +327,6 @@ row_merge_write(
 /********************************************************************//**
 Empty a sort buffer.
 @return sort buffer */
-
 row_merge_buf_t*
 row_merge_buf_empty(
 /*================*/
@@ -354,7 +335,6 @@ row_merge_buf_empty(
 /*********************************************************************//**
 Create a merge file.
 @return file descriptor, or -1 on failure */
-
 int
 row_merge_file_create(
 /*==================*/
@@ -363,7 +343,6 @@ row_merge_file_create(
 /*********************************************************************//**
 Merge disk files.
 @return DB_SUCCESS or error code */
-
 dberr_t
 row_merge_sort(
 /*===========*/
@@ -378,7 +357,6 @@ row_merge_sort(
 /*********************************************************************//**
 Allocate a sort buffer.
 @return own: sort buffer */
-
 row_merge_buf_t*
 row_merge_buf_create(
 /*=================*/
@@ -386,7 +364,6 @@ row_merge_buf_create(
 	__attribute__((warn_unused_result, nonnull, malloc));
 /*********************************************************************//**
 Deallocate a sort buffer. */
-
 void
 row_merge_buf_free(
 /*===============*/
@@ -394,7 +371,6 @@ row_merge_buf_free(
 	__attribute__((nonnull));
 /*********************************************************************//**
 Destroy a merge file. */
-
 void
 row_merge_file_destroy(
 /*===================*/
@@ -403,7 +379,6 @@ row_merge_file_destroy(
 /********************************************************************//**
 Read a merge block from the file system.
 @return TRUE if request was successful, FALSE if fail */
-
 ibool
 row_merge_read(
 /*===========*/
@@ -415,7 +390,6 @@ row_merge_read(
 /********************************************************************//**
 Read a merge record.
 @return pointer to next record, or NULL on I/O error or end of list */
-
 const byte*
 row_merge_read_rec(
 /*===============*/

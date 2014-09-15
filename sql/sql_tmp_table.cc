@@ -2011,7 +2011,7 @@ bool create_myisam_tmp_table(TABLE *table, KEY *keyinfo,
 
     /* Create an unique key */
     memset(&keydef, 0, sizeof(keydef));
-    keydef.flag= keyinfo->flags;
+    keydef.flag= static_cast<uint16>(keyinfo->flags);
     keydef.keysegs=  keyinfo->user_defined_key_parts;
     keydef.seg= seg;
 

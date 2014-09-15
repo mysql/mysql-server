@@ -64,7 +64,6 @@ prdt_get_mbr_from_prdt(
 /*********************************************************************//**
 Get a predicate from a lock
 @return	the predicate */
-
 lock_prdt_t*
 lock_get_prdt_from_lock(
 /*====================*/
@@ -98,7 +97,6 @@ lock_prdt_get_mbr_from_lock(
 
 /*********************************************************************//**
 Append a predicate to the lock */
-
 void
 lock_prdt_set_prdt(
 /*===============*/
@@ -114,7 +112,6 @@ lock_prdt_set_prdt(
 Checks if a predicate lock request for a new lock has to wait for
 another lock.
 @return	true if new lock has to wait for lock2 to be released */
-
 bool
 lock_prdt_has_to_wait(
 /*==================*/
@@ -139,7 +136,7 @@ lock_prdt_has_to_wait(
 	ut_ad(type_mode & (LOCK_PREDICATE | LOCK_PRDT_PAGE));
 
 	if (trx != lock2->trx
-	    && !lock_mode_compatible(static_cast<lock_mode>(
+	    && !lock_mode_compatible(static_cast<enum lock_mode>(
 			             LOCK_MODE_MASK & type_mode),
 				     lock_get_mode(lock2))) {
 
@@ -453,16 +450,21 @@ lock_prdt_add_to_queue(
 		}
 	}
 
-	RecLock	rec_lock(index, block, PRDT_HEAPNO, type_mode);
+	lock = lock_rec_create(
+		type_mode, block, PRDT_HEAPNO, index, trx,
+		caller_owns_trx_mutex);
 
-	return(rec_lock.create(trx, caller_owns_trx_mutex, prdt));
+	if (lock->type_mode & LOCK_PREDICATE) {
+		lock_prdt_set_prdt(lock, prdt);
+	}
+
+	return(lock);
 }
 
 /*********************************************************************//**
 Checks if locks of other transactions prevent an immediate insert of
 a predicate record.
 @return	DB_SUCCESS, DB_LOCK_WAIT, DB_DEADLOCK, or DB_QUE_THR_SUSPENDED */
-
 dberr_t
 lock_prdt_insert_check_and_lock(
 /*============================*/
@@ -522,27 +524,24 @@ lock_prdt_insert_check_and_lock(
 	Similar to GAP lock, we do not consider lock from inserts conflicts
 	with each other */
 
-	const ulint	mode = LOCK_X | LOCK_PREDICATE | LOCK_INSERT_INTENTION;
+	if (lock_prdt_other_has_conflicting(
+		    static_cast<enum lock_mode>(
+			    LOCK_X | LOCK_PREDICATE | LOCK_INSERT_INTENTION),
+		    block, prdt, trx)) {
+		rtr_mbr_t*	my_mbr = prdt_get_mbr_from_prdt(prdt);
 
-	const lock_t*	wait_for = lock_prdt_other_has_conflicting(
-		mode, block, prdt, trx);
-
-	if (wait_for != NULL) {
-		rtr_mbr_t*	mbr = prdt_get_mbr_from_prdt(prdt);
-
-		/* Allocate MBR on the lock heap */
-		lock_init_prdt_from_mbr(prdt, mbr, 0, trx->lock.lock_heap);
-
-		RecLock	rec_lock(thr, index, block, PRDT_HEAPNO, mode);
+		/* allocate MBR on lock heap */
+		lock_init_prdt_from_mbr(prdt, my_mbr, 0,
+					trx->lock.lock_heap);
 
 		/* Note that we may get DB_SUCCESS also here! */
-
 		trx_mutex_enter(trx);
 
-		err = rec_lock.add_to_waitq(wait_for, prdt);
+		err = lock_rec_enqueue_waiting(
+			LOCK_X | LOCK_PREDICATE | LOCK_INSERT_INTENTION,
+			block, PRDT_HEAPNO, index, thr, prdt);
 
 		trx_mutex_exit(trx);
-
 	} else {
 		err = DB_SUCCESS;
 	}
@@ -569,7 +568,6 @@ lock_prdt_insert_check_and_lock(
 /**************************************************************//**
 Check whether any predicate lock in parent needs to propagate to
 child page after split. */
-
 void
 lock_prdt_update_parent(
 /*====================*/
@@ -705,7 +703,6 @@ lock_prdt_update_split_low(
 
 /**************************************************************//**
 Update predicate lock when page splits */
-
 void
 lock_prdt_update_split(
 /*===================*/
@@ -725,7 +722,6 @@ lock_prdt_update_split(
 
 /*********************************************************************//**
 Initiate a Predicate Lock from a MBR */
-
 void
 lock_init_prdt_from_mbr(
 /*====================*/
@@ -749,7 +745,6 @@ lock_init_prdt_from_mbr(
 /*********************************************************************//**
 Checks two predicate locks are compatible with each other
 @return	true if consistent */
-
 bool
 lock_prdt_consistent(
 /*=================*/
@@ -789,8 +784,7 @@ lock_prdt_consistent(
 		ret = MBR_WITHIN_CMP(mbr1, mbr2);
 		break;
 	default:
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"invalid operator %lu", (ulong) action);
+		ib::error() << "invalid operator " << action;
 		ut_error;
 	}
 
@@ -800,7 +794,6 @@ lock_prdt_consistent(
 /*********************************************************************//**
 Acquire a predicate lock on a block
 @return	DB_SUCCESS, DB_LOCK_WAIT, DB_DEADLOCK, or DB_QUE_THR_SUSPENDED */
-
 dberr_t
 lock_prdt_lock(
 /*===========*/
@@ -846,9 +839,9 @@ lock_prdt_lock(
 
 	if (lock == NULL) {
 
-		RecLock	rec_lock(index, block, PRDT_HEAPNO, prdt_mode);
-
-		lock = rec_lock.create(trx, false);
+		lock = lock_rec_create(
+			mode | type_mode, block, PRDT_HEAPNO,
+			index, trx, FALSE);
 
 		status = LOCK_REC_SUCCESS_CREATED;
 
@@ -875,12 +868,10 @@ lock_prdt_lock(
 
 				if (wait_for != NULL) {
 
-					RecLock	rec_lock(
-						thr, index, block, PRDT_HEAPNO,
-						prdt_mode, prdt);
-
-					err = rec_lock.add_to_waitq(wait_for);
-
+					err = lock_rec_enqueue_waiting(
+						mode | type_mode,
+						block, PRDT_HEAPNO,
+						index, thr, prdt);
 				} else {
 
 					lock_prdt_add_to_queue(
@@ -916,7 +907,6 @@ lock_prdt_lock(
 /*********************************************************************//**
 Acquire a "Page" lock on a block
 @return	DB_SUCCESS, DB_LOCK_WAIT, DB_DEADLOCK, or DB_QUE_THR_SUSPENDED */
-
 dberr_t
 lock_place_prdt_page_lock(
 /*======================*/
@@ -961,10 +951,10 @@ lock_place_prdt_page_lock(
 	}
 
 	if (lock == NULL) {
-		RecID	rec_id(space, page_no, PRDT_HEAPNO);
-		RecLock	rec_lock(index, rec_id, mode);
 
-		rec_lock.create(trx, false);
+		lock = lock_rec_create_low(
+			mode, space, page_no, NULL, PRDT_HEAPNO,
+			index, trx, FALSE);
 
 #ifdef PRDT_DIAG
 		printf("GIS_DIAGNOSTIC: page lock %d\n", (int) page_no);
@@ -979,7 +969,6 @@ lock_place_prdt_page_lock(
 /*********************************************************************//**
 Check whether there are R-tree Page lock on a page
 @return	true if there is none */
-
 bool
 lock_test_prdt_page_lock(
 /*=====================*/
@@ -1001,7 +990,6 @@ lock_test_prdt_page_lock(
 /*************************************************************//**
 Moves the locks of a page to another page and resets the lock bits of
 the donating records. */
-
 void
 lock_prdt_rec_move(
 /*===============*/
