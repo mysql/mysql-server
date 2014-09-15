@@ -31,6 +31,7 @@ class NdbIndexOperation : public NdbOperation
 {
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
   friend class Ndb;
+  friend class NdbImpl;
   friend class NdbTransaction;
 #endif
 
