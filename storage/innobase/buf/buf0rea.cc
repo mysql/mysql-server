@@ -278,22 +278,23 @@ buf_read_ahead_random(
 		return(0);
 	}
 
-	/* Remember the tablespace version before we ask te tablespace size
-	below: if DISCARD + IMPORT changes the actual .ibd file meanwhile, we
-	do not try to read outside the bounds of the tablespace! */
-
-	tablespace_version = fil_space_get_version(page_id.space());
-
 	low  = (page_id.page_no() / buf_read_ahead_random_area)
 		* buf_read_ahead_random_area;
 
 	high = (page_id.page_no() / buf_read_ahead_random_area + 1)
 		* buf_read_ahead_random_area;
 
-	const ulint	space_size = fil_space_get_size(page_id.space());
-
-	if (high > space_size) {
-		high = space_size;
+	/* Remember the tablespace version before we ask the tablespace size
+	below: if DISCARD + IMPORT changes the actual .ibd file meanwhile, we
+	do not try to read outside the bounds of the tablespace! */
+	if (fil_space_t* space = fil_space_acquire(page_id.space())) {
+		tablespace_version = space->tablespace_version;
+		if (high > space->size) {
+			high = space->size;
+		}
+		fil_space_release(space);
+	} else {
+		return(0);
 	}
 
 	buf_pool_mutex_enter(buf_pool);
@@ -542,17 +543,23 @@ buf_read_ahead_linear(
 	/* Remember the tablespace version before we ask te tablespace size
 	below: if DISCARD + IMPORT changes the actual .ibd file meanwhile, we
 	do not try to read outside the bounds of the tablespace! */
+	ulint	space_size;
 
-	tablespace_version = fil_space_get_version(page_id.space());
+	if (fil_space_t* space = fil_space_acquire(page_id.space())) {
+		tablespace_version = space->tablespace_version;
+		space_size = space->size;
+		fil_space_release(space);
 
-	buf_pool_mutex_enter(buf_pool);
-
-	if (high > fil_space_get_size(page_id.space())) {
-		buf_pool_mutex_exit(buf_pool);
-		/* The area is not whole, return */
-
+		if (high > space->size) {
+			/* The area is not whole */
+			return(0);
+		}
+	} else {
 		return(0);
 	}
+
+
+	buf_pool_mutex_enter(buf_pool);
 
 	if (buf_pool->n_pend_reads
 	    > buf_pool->curr_size / BUF_READ_AHEAD_PEND_LIMIT) {
@@ -677,7 +684,7 @@ buf_read_ahead_linear(
 		return(0);
 	}
 
-	if (high > fil_space_get_size(page_id.space())) {
+	if (high > space_size) {
 		/* The area is not whole, return */
 
 		return(0);
@@ -818,16 +825,17 @@ buf_read_ibuf_merge_pages(
 }
 
 /** Issues read requests for pages which recovery wants to read in.
-@param[in]	sync		TRUE if the caller wants this function to wait
+@param[in]	sync		true if the caller wants this function to wait
 for the highest address page to get read in, before this function returns
-@param[in]	space		space id
+@param[in]	space_id	tablespace id
 @param[in]	page_nos	array of page numbers to read, with the
 highest page number the last in the array
 @param[in]	n_stored	number of page numbers in the array */
+
 void
 buf_read_recv_pages(
-	ibool		sync,
-	ulint		space,
+	bool		sync,
+	ulint		space_id,
 	const ulint*	page_nos,
 	ulint		n_stored)
 {
@@ -835,22 +843,22 @@ buf_read_recv_pages(
 	ulint			count;
 	dberr_t			err;
 	ulint			i;
-	bool			found;
-	const page_size_t	page_size(fil_space_get_page_size(space,
-								  &found));
+	ulint			space_flags;
 
-	if (!found) {
-		/* It is a single table tablespace and the .ibd file is
-		missing: do nothing */
-
+	if (fil_space_t* space = fil_space_acquire(space_id)) {
+		tablespace_version = space->tablespace_version;
+		space_flags = space->flags;
+		fil_space_release(space);
+	} else {
+		/* The tablespace is missing: do nothing */
 		return;
 	}
 
-	tablespace_version = fil_space_get_version(space);
+	const page_size_t	page_size(space_flags);
 
 	for (i = 0; i < n_stored; i++) {
 		buf_pool_t*		buf_pool;
-		const page_id_t	cur_page_id(space, page_nos[i]);
+		const page_id_t	cur_page_id(space_id, page_nos[i]);
 
 		count = 0;
 

@@ -153,7 +153,8 @@ struct fil_space_t {
 				be ibuf merges or lock validation code
 				trying to read a block.
 				Dropping of the tablespace is forbidden
-				if this is positive */
+				if this is positive.
+				Protected by fil_system->mutex. */
 	hash_node_t	hash;	/*!< hash chain node */
 	hash_node_t	name_hash;/*!< hash chain the name_hash table */
 #ifndef UNIV_HOTBACKUP
@@ -541,19 +542,22 @@ dberr_t
 fil_write_flushed_lsn(
 	lsn_t	lsn);
 
-/*******************************************************************//**
-Increments the count of pending operation, if space is not being deleted.
-@return true if being deleted, and operation should be skipped */
-bool
-fil_inc_pending_ops(
-/*================*/
-	ulint	id);	/*!< in: space id */
-/*******************************************************************//**
-Decrements the count of pending operations. */
+/** Acquire a tablespace when it could be dropped concurrently.
+Used by background threads that do not necessarily hold proper locks
+for concurrency control.
+@param[in]	id	tablespace ID
+@return the tablespace, or NULL if deleted or being deleted */
+
+fil_space_t*
+fil_space_acquire(
+	ulint	id)
+	__attribute__((warn_unused_result));
+/** Release a tablespace acquired with fil_space_acquire().
+@param[in,out]	space	tablespace to release  */
+
 void
-fil_decr_pending_ops(
-/*=================*/
-	ulint	id);	/*!< in: space id */
+fil_space_release(
+	fil_space_t*	space);
 #endif /* !UNIV_HOTBACKUP */
 /********************************************************//**
 Creates the database directory for a table if it does not exist yet. */

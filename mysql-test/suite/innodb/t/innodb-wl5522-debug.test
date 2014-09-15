@@ -24,7 +24,6 @@ call mtr.add_suppression("\\[ERROR\\] InnoDB: Cannot open datafile for read-only
 
 let MYSQLD_DATADIR =`SELECT @@datadir`;
 let $innodb_file_per_table = `SELECT @@innodb_file_per_table`;
-let $pathfix=/: '.*test_wl5522.*t1.ibd'/: 'test_wl5522\\t1.ibd'/;
 let $strerrfix=/ (\(.+\))//;
 
 SET GLOBAL innodb_file_per_table = 1;
@@ -1301,8 +1300,6 @@ EOF
 
 SET SESSION debug="+d,ib_import_trigger_corruption_2";
 
---replace_regex $pathfix
-
 --error ER_INNODB_INDEX_CORRUPT
 ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
 
@@ -1330,8 +1327,6 @@ ib_restore_tablespaces("test_wl5522", "t1");
 EOF
 
 SET SESSION debug="+d,ib_import_trigger_corruption_3";
-
---replace_regex $pathfix
 
 --error ER_NOT_KEYFILE
 ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
@@ -1382,8 +1377,6 @@ EOF
 
 SET SESSION debug="+d,fil_space_create_failure";
 
---replace_regex $pathfix
-
 --error ER_FILE_NOT_FOUND
 ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
 
@@ -1412,8 +1405,6 @@ ib_restore_tablespaces("test_wl5522", "t1");
 EOF
 
 SET SESSION debug="+d,dict_tf_to_fsp_flags_failure";
-
---replace_regex $pathfix
 
 --error ER_FILE_NOT_FOUND
 ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;

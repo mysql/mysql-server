@@ -33,7 +33,7 @@ struct TestHeapAllocator
     return p;
   }
 
-  static void* calloc(void* ignore, size_t nelem, size_t bytes)
+  static void* mem_calloc(void* ignore, size_t nelem, size_t bytes)
   {
     void* p = ::calloc(nelem, bytes);
     if (DEBUG_ALLOC)
@@ -44,7 +44,7 @@ struct TestHeapAllocator
     return p;
   }
 
-  static void free(void* ignore, void* mem)
+  static void mem_free(void* ignore, void* mem)
   {
     if (DEBUG_ALLOC)
     {

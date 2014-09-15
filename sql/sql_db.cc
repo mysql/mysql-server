@@ -1102,7 +1102,7 @@ static bool find_db_tables_and_rm_known_files(THD *thd, MY_DIR *dirp,
       /* Drop the table nicely */
       *extension= 0;			// Remove extension
       TABLE_LIST *table_list=(TABLE_LIST*)
-                              thd->calloc(sizeof(*table_list) + 
+                              thd->mem_calloc(sizeof(*table_list) + 
                                           strlen(db) + 1 +
                                           MYSQL50_TABLE_NAME_PREFIX_LENGTH + 
                                           strlen(file->name) + 1);

@@ -2117,7 +2117,7 @@ public:
 
     /* USER */
     if (inspect_sctx->user)
-      thd_info->user= m_client_thd->strdup(inspect_sctx->user);
+      thd_info->user= m_client_thd->mem_strdup(inspect_sctx->user);
     else if (inspect_thd->system_thread)
       thd_info->user= "system user";
     else
@@ -2136,7 +2136,7 @@ public:
     }
     else
       thd_info->host=
-        m_client_thd->strdup(inspect_sctx->host_or_ip[0] ?
+        m_client_thd->mem_strdup(inspect_sctx->host_or_ip[0] ?
                              inspect_sctx->host_or_ip :
                              inspect_sctx->get_host()->length() ?
                              inspect_sctx->get_host()->ptr() : "");
@@ -2151,7 +2151,7 @@ public:
     mysql_mutex_lock(&inspect_thd->LOCK_thd_data);
     const char *db= inspect_thd->db().str;
     if (db)
-      thd_info->db= m_client_thd->strdup(db);
+      thd_info->db= m_client_thd->mem_strdup(db);
 
     if (inspect_thd->mysys_var)
       mysql_mutex_lock(&inspect_thd->mysys_var->mutex);
