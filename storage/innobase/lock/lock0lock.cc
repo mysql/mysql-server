@@ -5188,7 +5188,7 @@ static
 void
 lock_rec_block_validate(
 /*====================*/
-	ulint		space,
+	ulint		space_id,
 	ulint		page_no)
 {
 	/* The lock and the block that it is referring to may be freed at
@@ -5201,17 +5201,12 @@ lock_rec_block_validate(
 
 	/* Make sure that the tablespace is not deleted while we are
 	trying to access the page. */
-	if (!fil_inc_pending_ops(space)) {
+	if (fil_space_t* space = fil_space_acquire(space_id)) {
 		mtr_start(&mtr);
 
-		bool			found;
-		const page_size_t&	page_size
-			= fil_space_get_page_size(space, &found);
-
-		ut_ad(found);
-
 		block = buf_page_get_gen(
-			page_id_t(space, page_no), page_size,
+			page_id_t(space_id, page_no),
+			page_size_t(space->flags),
 			RW_X_LATCH, NULL,
 			BUF_GET_POSSIBLY_FREED,
 			__FILE__, __LINE__, &mtr);
@@ -5221,7 +5216,7 @@ lock_rec_block_validate(
 		ut_ad(lock_rec_validate_page(block));
 		mtr_commit(&mtr);
 
-		fil_decr_pending_ops(space);
+		fil_space_release(space);
 	}
 }
 
