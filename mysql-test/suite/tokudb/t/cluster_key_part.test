@@ -1,0 +1,22 @@
+# Test that clustering keys can be created on partitioned tokudb tables
+
+source include/have_tokudb.inc;
+set default_storage_engine='tokudb';
+
+disable_warnings;
+drop table if exists t;
+enable_warnings;
+
+create table t (
+    x int not null,
+    y int not null, 
+    primary key(x)) 
+partition by hash(x) partitions 2;
+
+show create table t;
+
+alter table t add clustering key(y);
+
+show create table t;
+
+drop table t;
