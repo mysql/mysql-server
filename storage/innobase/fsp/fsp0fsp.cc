@@ -3006,77 +3006,27 @@ the safety margin required by the above function fsp_reserve_free_extents.
 uintmax_t
 fsp_get_available_space_in_free_extents(
 /*====================================*/
-	ulint	space)	/*!< in: space id */
+	ulint	space_id)	/*!< in: space id */
 {
 	fsp_header_t*	space_header;
 	ulint		n_free_list_ext;
 	ulint		free_limit;
 	ulint		size;
-	ulint		flags;
 	ulint		n_free;
 	ulint		n_free_up;
 	ulint		reserve;
-	rw_lock_t*	latch;
 	mtr_t		mtr;
 
-	/* The convoluted mutex acquire is to overcome latching order
-	issues: The problem is that the fil_mutex is at a lower level
-	than the tablespace latch and the buffer pool mutex. We have to
-	first prevent any operations on the file system by acquiring the
-	dictionary mutex. Then acquire the tablespace latch to obey the
-	latching order and then release the dictionary mutex. That way we
-	ensure that the tablespace instance can't be freed while we are
-	examining its contents (see fil_space_free()).
-
-	However, there is one further complication, we release the fil_mutex
-	when we need to invalidate the the pages in the buffer pool and we
-	reacquire the fil_mutex when deleting and freeing the tablespace
-	instance in fil0fil.cc. Here we need to account for that situation
-	too. */
-
-	mutex_enter(&dict_sys->mutex);
-
-	/* At this stage there is no guarantee that the tablespace even
-	exists in the cache. */
-
-	if (fil_tablespace_deleted_or_being_deleted_in_mem(space, -1)) {
-
-		mutex_exit(&dict_sys->mutex);
-
+	fil_space_t*	space = fil_space_acquire(space_id);
+	if (!space) {
 		return(UINTMAX_MAX);
 	}
+
+	const page_size_t	page_size(space->flags);
 
 	mtr_start(&mtr);
 
-	latch = fil_space_get_latch(space, &flags);
-
-	/* This should ensure that the tablespace instance can't be freed
-	by another thread. However, the tablespace pages can still be freed
-	from the buffer pool. We need to check for that again. */
-
-	mtr_x_lock(latch, &mtr);
-
-	mutex_exit(&dict_sys->mutex);
-
-	/* At this point it is possible for the tablespace to be deleted and
-	its pages removed from the buffer pool. We need to check for that
-	situation. However, the tablespace instance can't be deleted because
-	our latching above should ensure that. */
-
-	if (fil_tablespace_is_being_deleted(space)) {
-
-		mtr_commit(&mtr);
-
-		return(UINTMAX_MAX);
-	}
-
-	/* From here on even if the user has dropped the tablespace, the
-	pages _must_ still exist in the buffer pool and the tablespace
-	instance _must_ be in the file system hash table. */
-
-	const page_size_t	page_size(flags);
-
-	space_header = fsp_get_space_header(space, page_size, &mtr);
+	space_header = fsp_get_space_header(space_id, page_size, &mtr);
 
 	size = mtr_read_ulint(space_header + FSP_SIZE, MLOG_4BYTES, &mtr);
 
@@ -3086,9 +3036,11 @@ fsp_get_available_space_in_free_extents(
 				    MLOG_4BYTES, &mtr);
 	mtr_commit(&mtr);
 
+	fil_space_release(space);
+
 	if (size < FSP_EXTENT_SIZE) {
 		/* This must be a single-table tablespace */
-		ut_a(!is_system_tablespace(space));
+		ut_a(!is_system_tablespace(space_id));
 
 		return(0);		/* TODO: count free frag pages and
 					return a value based on that */
