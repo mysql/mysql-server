@@ -5726,7 +5726,7 @@ bool Item_func_set_user_var::register_field_in_read_map(uchar *arg)
 }
 
 
-bool user_var_entry::realloc(size_t length)
+bool user_var_entry::mem_realloc(size_t length)
 {
   if (length <= extra_size)
   {
@@ -5767,7 +5767,7 @@ bool user_var_entry::store(const void *from, size_t length, Item_result type)
   assert_locked();
 
   // Store strings with end \0
-  if (realloc(length + MY_TEST(type == STRING_RESULT)))
+  if (mem_realloc(length + MY_TEST(type == STRING_RESULT)))
     return true;
   if (type == STRING_RESULT)
     m_ptr[length]= 0;     // Store end \0
@@ -7225,7 +7225,7 @@ void Item_func_get_system_var::cleanup()
   Item_func::cleanup();
   cache_present= 0;
   var_type= orig_var_type;
-  cached_strval.free();
+  cached_strval.mem_free();
 }
 
 

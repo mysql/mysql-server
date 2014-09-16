@@ -39,8 +39,6 @@ struct innodb_idx_translate_t {
 
 /** InnoDB table share */
 typedef struct st_innobase_share {
-	THR_LOCK	lock;		/*!< MySQL lock protecting
-					this structure */
 	const char*	table_name;	/*!< InnoDB table name */
 	uint		use_count;	/*!< reference count,
 					incremented in get_share()
@@ -466,9 +464,6 @@ private:
 	/** Thread handle of the user currently using the handler;
 	this is set in external_lock function */
 	THD*			m_user_thd;
-
-	/** Server meta-data locking data structure for this handler */
-	THR_LOCK_DATA		m_lock;
 
 	/** information for MySQL table locking */
 	INNOBASE_SHARE*		m_share;

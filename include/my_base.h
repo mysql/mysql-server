@@ -418,7 +418,7 @@ is the global server default. */
 #define HA_ERR_INDEX_FILE_FULL	136	/* No more room in file */
 #define HA_ERR_END_OF_FILE	137	/* end in next/prev/first/last */
 #define HA_ERR_UNSUPPORTED	138	/* unsupported extension used */
-#define HA_ERR_TO_BIG_ROW	139	/* Too big row */
+#define HA_ERR_TOO_BIG_ROW	139	/* Too big row */
 #define HA_WRONG_CREATE_OPTION	140	/* Wrong create option */
 #define HA_ERR_FOUND_DUPP_UNIQUE 141	/* Dupplicate unique on write */
 #define HA_ERR_UNKNOWN_CHARSET	 142	/* Can't open charset */

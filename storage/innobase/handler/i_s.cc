@@ -60,19 +60,27 @@ struct buf_page_desc_t{
 	ulint		type_value;	/*!< Page type or page state */
 };
 
+/** We also define I_S_PAGE_TYPE_INDEX as the Index Page's position
+in i_s_page_type[] array */
+#define I_S_PAGE_TYPE_INDEX		1
+
+/** Any unassigned FIL_PAGE_TYPE will be treated as unknown. */
+#define	I_S_PAGE_TYPE_UNKNOWN		FIL_PAGE_TYPE_UNKNOWN
+
 /** R-tree index page */
 #define	I_S_PAGE_TYPE_RTREE		(FIL_PAGE_TYPE_LAST + 1)
 
 /** Change buffer B-tree page */
 #define	I_S_PAGE_TYPE_IBUF		(FIL_PAGE_TYPE_LAST + 2)
 
-/** Any states greater than I_S_PAGE_TYPE_IBUF would be treated as
-unknown. */
-#define	I_S_PAGE_TYPE_UNKNOWN		(I_S_PAGE_TYPE_IBUF + 1)
+#define I_S_PAGE_TYPE_LAST		I_S_PAGE_TYPE_IBUF
 
-/** We also define I_S_PAGE_TYPE_INDEX as the Index Page's position
-in i_s_page_type[] array */
-#define I_S_PAGE_TYPE_INDEX		1
+#define I_S_PAGE_TYPE_BITS		4
+
+/* Check if we can hold all page types */
+#if I_S_PAGE_TYPE_LAST >= 1 << I_S_PAGE_TYPE_BITS
+# error i_s_page_type[] is too large
+#endif
 
 /** Name string for File Page Types */
 static buf_page_desc_t	i_s_page_type[] = {
@@ -89,15 +97,10 @@ static buf_page_desc_t	i_s_page_type[] = {
 	{"BLOB", FIL_PAGE_TYPE_BLOB},
 	{"COMPRESSED_BLOB", FIL_PAGE_TYPE_ZBLOB},
 	{"COMPRESSED_BLOB2", FIL_PAGE_TYPE_ZBLOB2},
+	{"UNKNOWN", I_S_PAGE_TYPE_UNKNOWN},
 	{"RTREE_INDEX", I_S_PAGE_TYPE_RTREE},
 	{"IBUF_INDEX", I_S_PAGE_TYPE_IBUF},
-	{"UNKNOWN", I_S_PAGE_TYPE_UNKNOWN}
 };
-
-/* Check if we can hold all page type in a 4 bit value */
-#if I_S_PAGE_TYPE_UNKNOWN > 1<<4
-# error "i_s_page_type[] is too large"
-#endif
 
 /** This structure defines information we will fetch from pages
 currently cached in the buffer pool. It will be used to populate
@@ -123,7 +126,7 @@ struct buf_page_info_t{
 	unsigned	zip_ssize:PAGE_ZIP_SSIZE_BITS;
 					/*!< Compressed page size */
 	unsigned	page_state:BUF_PAGE_STATE_BITS; /*!< Page state */
-	unsigned	page_type:4;	/*!< Page type */
+	unsigned	page_type:I_S_PAGE_TYPE_BITS;	/*!< Page type */
 	unsigned	num_recs:UNIV_PAGE_SIZE_SHIFT_MAX-2;
 					/*!< Number of records on Page */
 	unsigned	data_size:UNIV_PAGE_SIZE_SHIFT_MAX;

@@ -12,6 +12,7 @@
 # Avoid CrashReporter popup on Mac
 --source include/not_crashrep.inc
 
+--disable_query_log
 # suppress expected warnings
 call mtr.add_suppression("Unable to truncate FTS index for table");
 call mtr.add_suppression("Unable to assign a new identifier to table "
@@ -20,6 +21,7 @@ call mtr.add_suppression("Flagged corruption of .* in table "
 			 "\".*\"\.\".*\" in TRUNCATE TABLE");
 call mtr.add_suppression("Parent table of FTS auxiliary table "
 			 ".*\/.* not found");
+--enable_query_log
 ################################################################################
 #
 # Will test following scenarios:

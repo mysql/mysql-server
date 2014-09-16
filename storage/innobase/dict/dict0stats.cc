@@ -3245,8 +3245,8 @@ dict_stats_update(
 				<< buf << ";\" manually or enable the"
 				" auto recalculation with \"ALTER TABLE "
 				<< buf << " STATS_AUTO_RECALC=1;\"."
-				" InnoDB will now use transient statistics for"
-				" %s." << buf << ".";
+				" InnoDB will now use transient statistics for "
+				<< buf << ".";
 
 			goto transient;
 		default:

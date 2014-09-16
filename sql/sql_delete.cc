@@ -170,6 +170,15 @@ bool mysql_delete(THD *thd, ha_rows limit, ulonglong options)
     /* Error evaluating val_int(). */
     DBUG_RETURN(TRUE);
   }
+  /*
+    We are passing HA_EXTRA_IGNORE_DUP_KEY flag here to recreate query with
+    IGNORE keyword within federated storage engine. If federated engine is
+    removed in the future, use of HA_EXTRA_IGNORE_DUP_KEY and
+    HA_EXTRA_NO_IGNORE_DUP_KEY flag should be removed from mysql_delete(),
+    multi_delete::initialize_tables() and multi_delete destructor.
+  */
+  if (thd->lex->is_ignore())
+    table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
 
   /*
     Test if the user wants to delete all rows and deletion doesn't have
@@ -541,6 +550,8 @@ bool mysql_delete(THD *thd, ha_rows limit, ulonglong options)
       /* Only handler knows how many records were really written */
       deleted= table->file->end_read_removal();
     }
+    if (thd->lex->is_ignore())
+      table->file->extra(HA_EXTRA_NO_IGNORE_DUP_KEY);
     THD_STAGE_INFO(thd, stage_end);
     end_read_record(&info);
     if (options & OPTION_QUICK)
@@ -854,6 +865,8 @@ multi_delete::initialize_tables(JOIN *join)
       */
       (void) table->file->extra(HA_EXTRA_DELETE_CANNOT_BATCH);
     }
+    if (thd->lex->is_ignore())
+      table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
     table->prepare_for_position();
     table->mark_columns_needed_for_delete();
   }
@@ -900,6 +913,8 @@ multi_delete::~multi_delete()
        tbl_ref= tbl_ref->next_local)
   {
     TABLE *table= tbl_ref->correspondent_table->updatable_base_table()->table;
+    if (thd->lex->is_ignore())
+      table->file->extra(HA_EXTRA_NO_IGNORE_DUP_KEY);
     table->no_keyread=0;
   }
 
