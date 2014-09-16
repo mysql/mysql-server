@@ -672,15 +672,14 @@ dict_table_autoinc_initialize(
 	table->autoinc = value;
 }
 
-/************************************************************************
-Get all the FTS indexes on a table.
+/** Get all the FTS indexes on a table.
+@param[in]	table	table
+@param[out]	indexes	all FTS indexes on this table
 @return number of FTS indexes */
 ulint
 dict_table_get_all_fts_indexes(
-/*===========================*/
-	dict_table_t*   table,          /*!< in: table */
-	ib_vector_t*    indexes)        /*!< out: all FTS indexes on this
-					table */
+	const dict_table_t*	table,
+	ib_vector_t*		indexes)
 {
 	dict_index_t* index;
 
