@@ -99,8 +99,6 @@ class ha_innobase: public handler
 
 	int write_row(uchar * buf);
 
-	int update_row(const uchar * old_data, uchar * new_data);
-
 	int delete_row(const uchar * buf);
 
 	int delete_all_rows();
@@ -346,8 +344,6 @@ class ha_innobase: public handler
 		HA_CREATE_INFO*		info,
 		uint			table_changes);
 private:
-	int update_row_low(const uchar * old_data, uchar * new_data);
-
 	uint store_key_val_for_row(
 		uint			keynr,
 		char*			buff,
@@ -390,6 +386,7 @@ private:
 
 	int info_low(uint, bool);
 
+	int update_row(const uchar * old_data, uchar * new_data);
 public:
 	/** @name Multi Range Read interface @{ */
 
