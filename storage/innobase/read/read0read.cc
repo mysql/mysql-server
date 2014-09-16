@@ -249,7 +249,7 @@ ReadView::ids_t::reserve(ulint n)
 /**
 Copy and overwrite this array contents
 @param start		Source array
-@paran end		Pointer to end of array */
+@param end		Pointer to end of array */
 
 void
 ReadView::ids_t::assign(const value_type* start, const value_type* end)

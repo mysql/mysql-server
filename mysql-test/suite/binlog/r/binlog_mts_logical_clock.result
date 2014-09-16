@@ -1,0 +1,55 @@
+RESET MASTER;
+CREATE TABLE t1 (a int) ENGINE= innodb;
+Matching lines are:
+Occurrences of the last_committed=0	sequence_number=1 in the input file : 1
+INSERT INTO t1 SET a=1;
+Matching lines are:
+Occurrences of the last_committed=1	sequence_number=2 in the input file : 1
+BEGIN;
+INSERT INTO t1 SET a=1;
+BEGIN;
+INSERT INTO t1 SET a=2;
+COMMIT;
+INSERT INTO t1 SET a=1;
+BEGIN;
+INSERT INTO t1 SET a=2;
+COMMIT;
+Matching lines are:
+Occurrences of the last_committed=3	sequence_number=4 in the input file : 1
+COMMIT;
+Matching lines are:
+Occurrences of the last_committed=3	sequence_number=5 in the input file : 1
+INSERT INTO t1 SET a=1;
+INSERT INTO t1 SET a=2;
+Matching lines are:
+Occurrences of the last_committed=[56]	sequence_number=[67] in the input file : 2
+RESET MASTER;
+INSERT INTO t1 SET a=1;
+BEGIN;
+INSERT INTO t1 SET a=2;
+BEGIN;
+INSERT INTO t1 SET a=3;
+COMMIT;
+Matching lines are:
+Occurrences of the last_committed=1	sequence_number=2 in the input file : 1
+FLUSH LOGS;
+COMMIT;
+Matching lines are:
+Occurrences of the last_committed=0	sequence_number=1 in the input file : 1
+RESET MASTER;
+INSERT INTO t1 SET a=1;
+BEGIN;
+INSERT INTO t1 SET a=2;
+BEGIN;
+INSERT INTO t1 SET a=3;
+BEGIN;
+INSERT INTO t1 SET a=4;
+COMMIT;
+Matching lines are:
+Occurrences of the last_committed=1	sequence_number=2 in the input file : 1
+RESET MASTER;
+COMMIT;
+COMMIT;
+Matching lines are:
+Occurrences of the last_committed=0	sequence_number=[12] in the input file : 2
+DROP TABLE t1;

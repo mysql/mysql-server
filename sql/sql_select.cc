@@ -1306,7 +1306,7 @@ bool create_ref_for_key(JOIN *join, JOIN_TAB *j, Key_use *org_keyuse,
   j->ref().key_parts=keyparts;
   j->ref().key_length=length;
   j->ref().key=(int) key;
-  if (!(j->ref().key_buff= (uchar*) thd->calloc(ALIGN_SIZE(length)*2)) ||
+  if (!(j->ref().key_buff= (uchar*) thd->mem_calloc(ALIGN_SIZE(length)*2)) ||
       !(j->ref().key_copy= (store_key**) thd->alloc((sizeof(store_key*) *
                                                    (keyparts)))) ||
       !(j->ref().items=    (Item**) thd->alloc(sizeof(Item*)*keyparts)) ||
@@ -2353,7 +2353,7 @@ void QEP_TAB::cleanup()
       delete tmp_table_param;
       tmp_table_param= NULL;
     }
-    op->free();
+    op->mem_free();
   }
 
   TRASH(this, sizeof(*this));
@@ -3006,7 +3006,7 @@ bool JOIN::alloc_func_list()
   }
 
   /* This must use calloc() as rollup_make_fields depends on this */
-  sum_funcs= (Item_sum**) thd->calloc(sizeof(Item_sum**) * (func_count+1) +
+  sum_funcs= (Item_sum**) thd->mem_calloc(sizeof(Item_sum**) * (func_count+1) +
 				           sizeof(Item_sum***) * (group_parts+1));
   sum_funcs_end= (Item_sum***) (sum_funcs + func_count + 1);
   DBUG_RETURN(sum_funcs == 0);

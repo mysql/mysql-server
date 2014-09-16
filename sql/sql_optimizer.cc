@@ -10033,7 +10033,7 @@ create_distinct_group(THD *thd, Ref_ptr_array ref_pointer_array,
         if ((*ord_iter->item)->eq(item, 1))
           goto next_item;
       
-      ORDER *ord=(ORDER*) thd->calloc(sizeof(ORDER));
+      ORDER *ord=(ORDER*) thd->mem_calloc(sizeof(ORDER));
       if (!ord)
 	return 0;
 
