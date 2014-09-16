@@ -1444,7 +1444,6 @@ trx_i_s_cache_free(
 	table_cache_free(&cache->innodb_trx);
 	table_cache_free(&cache->innodb_locks);
 	table_cache_free(&cache->innodb_lock_waits);
-	memset(cache, 0, sizeof *cache);
 }
 
 /*******************************************************************//**
