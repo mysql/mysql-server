@@ -114,6 +114,9 @@ os_thread_create_func(
 	os_thread_id_t*		thread_id)	/*!< out: id of the created
 						thread, or NULL */
 {
+	/* the new thread should look recent changes up here so far. */
+	os_wmb;
+
 #ifdef __WIN__
 	os_thread_t	thread;
 	DWORD		win_thread_id;
