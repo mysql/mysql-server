@@ -291,6 +291,7 @@ rw_lock_free_func(
 	ib_mutex_t*	mutex;
 #endif /* !INNODB_RW_LOCKS_USE_ATOMICS */
 
+	os_rmb;
 	ut_ad(rw_lock_validate(lock));
 	ut_a(lock->lock_word == X_LOCK_DECR);
 
