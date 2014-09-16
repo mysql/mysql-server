@@ -163,6 +163,8 @@ static pthread_mutex_t ndb_schema_share_mutex;
 extern my_bool opt_log_slave_updates;
 static my_bool g_ndb_log_slave_updates;
 
+static bool g_injector_v1_warning_emitted = false;
+
 #ifndef DBUG_OFF
 static void print_records(TABLE *table, const uchar *record)
 {
@@ -6250,6 +6252,9 @@ handle_data_event(THD* thd, Ndb *ndb, NdbEventOperation *pOp,
   Ndb_event_data *event_data= (Ndb_event_data *) pOp->getCustomData();
   TABLE *table= event_data->shadow_table;
   NDB_SHARE *share= event_data->share;
+  bool reflected_op = false;
+  bool refresh_op = false;
+
   if (pOp != share->op)
   {
     return 0;
@@ -6258,12 +6263,30 @@ handle_data_event(THD* thd, Ndb *ndb, NdbEventOperation *pOp,
   uint32 anyValue= pOp->getAnyValue();
   if (ndbcluster_anyvalue_is_reserved(anyValue))
   {
-    if (!ndbcluster_anyvalue_is_nologging(anyValue))
+    if (ndbcluster_anyvalue_is_nologging(anyValue))
+      return 0;
+    
+    if (ndbcluster_anyvalue_is_reflect_op(anyValue))
+    {
+      DBUG_PRINT("info", ("Anyvalue -> Reflect"));
+      reflected_op = true;
+      anyValue = 0;
+    }
+    else if (ndbcluster_anyvalue_is_refresh_op(anyValue))
+    {
+      DBUG_PRINT("info", ("Anyvalue -> Refresh"));
+      refresh_op = true;
+      anyValue = 0;
+    }
+    else
+    {
       sql_print_warning("NDB: unknown value for binlog signalling 0x%X, "
                         "event not logged",
                         anyValue);
-    return 0;
+      return 0;
+    }
   }
+
   uint32 originating_server_id= ndbcluster_anyvalue_get_serverid(anyValue);
   bool log_this_slave_update = g_ndb_log_slave_updates;
   bool count_this_event = true;
@@ -6364,6 +6387,7 @@ handle_data_event(THD* thd, Ndb *ndb, NdbEventOperation *pOp,
     originating_server_id= ::server_id;
   else 
   {
+    assert(!reflected_op && !refresh_op);
     /* Track that we received a replicated row event */
     if (likely( count_this_event ))
       trans_slave_row_count++;
@@ -6397,7 +6421,54 @@ handle_data_event(THD* thd, Ndb *ndb, NdbEventOperation *pOp,
   {
     extra_row_info.setFlags(Ndb_binlog_extra_row_info::NDB_ERIF_TRANSID);
     extra_row_info.setTransactionId(pOp->getTransId());
-    extra_row_info_ptr = extra_row_info.generateBuffer();
+  }
+
+  /* Set conflict flags member if necessary */
+  Uint16 event_conflict_flags = 0;
+  assert(! (reflected_op && refresh_op));
+  if (reflected_op)
+  {
+    event_conflict_flags |= NDB_ERIF_CFT_REFLECT_OP;
+  }
+  else if (refresh_op)
+  {
+    event_conflict_flags |= NDB_ERIF_CFT_REFRESH_OP;
+  }
+    
+  DBUG_EXECUTE_IF("ndb_injector_set_event_conflict_flags",
+                  {
+                    event_conflict_flags = 0xfafa;
+                  });
+  if (event_conflict_flags != 0)
+  {
+    extra_row_info.setFlags(Ndb_binlog_extra_row_info::NDB_ERIF_CFT_FLAGS);
+    extra_row_info.setConflictFlags(event_conflict_flags);
+  }
+
+  if (opt_ndb_log_transaction_id ||
+      event_conflict_flags != 0)
+  {
+    if (likely(!log_bin_use_v1_row_events))
+    {
+      extra_row_info_ptr = extra_row_info.generateBuffer();
+    }
+    else
+    {
+      /**
+       * Can't put the metadata in a v1 event
+       * Produce 1 warning at most
+       */
+      if (!g_injector_v1_warning_emitted)
+      {
+        sql_print_error("NDB: Binlog Injector discarding row event "
+                        "meta data as server is using v1 row events. "
+                        "(%u %x)",
+                        opt_ndb_log_transaction_id,
+                        event_conflict_flags);
+
+        g_injector_v1_warning_emitted = true;
+      }
+    }
   }
 
   DBUG_ASSERT(trans.good());

@@ -36,6 +36,17 @@ enum enum_conflict_fn_type
   ,CFT_NUMBER_OF_CFTS /* End marker */
 };
 
+/**
+ * Definitions used when setting the conflict flags
+ * member of the 'extra row info' on a Binlog row
+ * event
+ */
+enum enum_binlog_extra_info_conflict_flags
+{
+  NDB_ERIF_CFT_REFLECT_OP = 0x1,
+  NDB_ERIF_CFT_REFRESH_OP = 0x2
+};
+
 #ifdef HAVE_NDB_BINLOG
 static const Uint32 MAX_CONFLICT_ARGS= 8;
 
