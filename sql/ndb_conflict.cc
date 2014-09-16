@@ -863,7 +863,8 @@ ExceptionsTableWriter::writeRow(NdbTransaction* trans,
    Initialise Ndb Slave state object
 */
 st_ndb_slave_state::st_ndb_slave_state()
-  : current_master_server_epoch(0),
+  : current_delete_delete_count(0),
+    current_master_server_epoch(0),
     current_master_server_epoch_committed(false),
     current_max_rep_epoch(0),
     conflict_flags(0),
@@ -872,6 +873,7 @@ st_ndb_slave_state::st_ndb_slave_state()
     current_trans_row_reject_count(0),
     current_trans_in_conflict_count(0),
     last_conflicted_epoch(0),
+    total_delete_delete_count(0),
     max_rep_epoch(0),
     sql_run_id(~Uint32(0)),
     trans_row_conflict_count(0),
@@ -899,6 +901,7 @@ void
 st_ndb_slave_state::resetPerAttemptCounters()
 {
   memset(current_violation_count, 0, sizeof(current_violation_count));
+  current_delete_delete_count = 0;
   current_trans_row_conflict_count = 0;
   current_trans_row_reject_count = 0;
   current_trans_in_conflict_count = 0;
@@ -950,6 +953,7 @@ st_ndb_slave_state::atTransactionCommit(Uint64 epoch)
     total_conflicts+= current_violation_count[i];
     total_violation_count[i]+= current_violation_count[i];
   }
+  total_delete_delete_count+= current_delete_delete_count;
   trans_row_conflict_count+= current_trans_row_conflict_count;
   trans_row_reject_count+= current_trans_row_reject_count;
   trans_in_conflict_count+= current_trans_in_conflict_count;
