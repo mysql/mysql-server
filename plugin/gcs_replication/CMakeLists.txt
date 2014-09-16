@@ -14,9 +14,16 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
 
 IF(CMAKE_SYSTEM_NAME MATCHES "Linux")
-  SET(LIBCPG_PATH /usr/lib/corosync /usr/lib64/corosync CACHE STRING "Default locations for libcpg (cluster library)" )
+  SET(LIBCPG_PATH /usr/lib/corosync /usr/lib64/corosync /usr/local/lib /usr/local/lib64 CACHE STRING "Default locations for libcpg (cluster library)" )
 
   CHECK_INCLUDE_FILES(corosync/cpg.h HAVE_COROSYNC_CPG_H)
+
+  IF (NOT HAVE_COROSYNC_CPG_H)
+    MESSAGE(STATUS
+            "Skipping GCS replication plugin due to Corosync headers not found.")
+    RETURN()
+  ENDIF (NOT HAVE_COROSYNC_CPG_H)
+
   find_library(LIBCPG cpg ${LIBCPG_PATH})
   find_library(LIBPTHREAD pthread ${LIBPTHREAD_PATH})
   if (LIBCPG)

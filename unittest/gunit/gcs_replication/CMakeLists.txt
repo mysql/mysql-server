@@ -13,30 +13,42 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
 
-MY_CHECK_CXX_COMPILER_FLAG("-Wno-unused-local-typedefs" HAVE_NO_UNUSED_TYPEDEFS)
-IF(HAVE_NO_UNUSED_TYPEDEFS)
-  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-unused-local-typedefs")
-ENDIF()
+IF(CMAKE_SYSTEM_NAME MATCHES "Linux")
+  MY_CHECK_CXX_COMPILER_FLAG("-Wno-unused-local-typedefs" HAVE_NO_UNUSED_TYPEDEFS)
+  IF(HAVE_NO_UNUSED_TYPEDEFS)
+    SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-unused-local-typedefs")
+  ENDIF()
 
-INCLUDE_DIRECTORIES(${GMOCK_INCLUDE_DIRS})
-INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/include)
-INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/plugin/gcs_replication/)
-INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/plugin/gcs_replication/gcs/interface)
-INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/plugin/gcs_replication/gcs/bindings/corosync)
+  SET(LIBCPG_PATH /usr/lib/corosync /usr/lib64/corosync /usr/local/lib /usr/local/lib64 CACHE STRING "Default locations for libcpg (cluster library)" )
 
-# Add tests
-SET(TESTS
-    gcs_message
-    gcs_corosync_statistics_interface
-    gcs_corosync_communication_interface
-    gcs_corosync_control_interface
-    gcs_corosync_interface
-    gcs_state_exchange
-    gcs_member_info
-    )
+  CHECK_INCLUDE_FILES(corosync/cpg.h HAVE_COROSYNC_CPG_H)
 
-FOREACH(test ${TESTS})
-  ADD_EXECUTABLE(${test}-t ${test}-t.cc)
-  TARGET_LINK_LIBRARIES(${test}-t gcs_interface gcs_corosync gcs_unit_test_resource gunit_small)
-  ADD_TEST(${test} ${test}-t)
-ENDFOREACH()
+  IF (NOT HAVE_COROSYNC_CPG_H)
+    MESSAGE(STATUS
+            "Skipping GCS replication plugin unit tests due to Corosync headers not found.")
+    RETURN()
+  ENDIF (NOT HAVE_COROSYNC_CPG_H)
+
+  INCLUDE_DIRECTORIES(${GMOCK_INCLUDE_DIRS})
+  INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/include)
+  INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/plugin/gcs_replication/)
+  INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/plugin/gcs_replication/gcs/interface)
+  INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/plugin/gcs_replication/gcs/bindings/corosync)
+
+  # Add tests
+  SET(TESTS
+      gcs_message
+      gcs_corosync_statistics_interface
+      gcs_corosync_communication_interface
+      gcs_corosync_control_interface
+      gcs_corosync_interface
+      gcs_state_exchange
+      gcs_member_info
+     )
+
+  FOREACH(test ${TESTS})
+    ADD_EXECUTABLE(${test}-t ${test}-t.cc)
+    TARGET_LINK_LIBRARIES(${test}-t gcs_interface gcs_corosync gcs_unit_test_resource gunit_small)
+    ADD_TEST(${test} ${test}-t)
+  ENDFOREACH()
+endif(CMAKE_SYSTEM_NAME MATCHES "Linux")
