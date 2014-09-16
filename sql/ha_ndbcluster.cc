@@ -732,6 +732,7 @@ SHOW_VAR ndb_status_conflict_variables[]= {
   {"trans_detect_iter_count",  (char*) &g_ndb_slave_state.trans_detect_iter_count, SHOW_LONGLONG},
   {"trans_conflict_commit_count",
                                (char*) &g_ndb_slave_state.trans_conflict_commit_count, SHOW_LONGLONG},
+  {"epoch_delete_delete_count", (char*) &g_ndb_slave_state.total_delete_delete_count, SHOW_LONGLONG},
   {NullS, NullS, SHOW_LONG}
 };
 
@@ -5491,6 +5492,7 @@ handle_row_conflict(NDB_CONFLICT_FN_SHARE* cfn_share,
       if ((op_type == DELETE_ROW) &&
           (conflict_cause == ROW_DOES_NOT_EXIST))
       {
+        g_ndb_slave_state.current_delete_delete_count++;
         DBUG_PRINT("info", ("Delete vs Delete detected, NOT refreshing"));
         break;
       }

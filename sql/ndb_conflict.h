@@ -369,6 +369,12 @@ struct st_ndb_slave_state
 {
   /* Counter values for current slave transaction */
   Uint32 current_violation_count[CFT_NUMBER_OF_CFTS];
+
+  /**
+   * Number of delete-delete conflicts detected
+   * (delete op is applied, and row does not exist)
+   */
+  Uint32 current_delete_delete_count;
   
   /* Track the current epoch from the immediate master,
    * and whether we've committed it
@@ -389,6 +395,7 @@ struct st_ndb_slave_state
 
   /* Cumulative counter values */
   Uint64 total_violation_count[CFT_NUMBER_OF_CFTS];
+  Uint64 total_delete_delete_count;
   Uint64 max_rep_epoch;
   Uint32 sql_run_id;
   /* Transactional conflict detection */
