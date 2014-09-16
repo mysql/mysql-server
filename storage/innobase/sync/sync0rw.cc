@@ -302,6 +302,7 @@ rw_lock_free_func(
 /*==============*/
 	rw_lock_t*	lock)	/*!< in/out: rw-lock */
 {
+	os_rmb;
 	ut_ad(rw_lock_validate(lock));
 	ut_a(lock->lock_word == X_LOCK_DECR);
 
