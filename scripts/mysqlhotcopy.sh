@@ -56,6 +56,9 @@ WARNING: THIS PROGRAM IS STILL IN BETA. Comments/patches welcome.
 
 # Documentation continued at end of file
 
+# fix CORE::GLOBAL::die to return a predictable exit code
+BEGIN { *CORE::GLOBAL::die= sub { warn @_; exit 1; }; }
+
 my $VERSION = "1.23";
 
 my $opt_tmpdir = $ENV{TMPDIR} || "/tmp";
