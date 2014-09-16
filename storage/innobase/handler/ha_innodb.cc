@@ -3730,6 +3730,15 @@ innobase_commit(
 		if (!read_only) {
 			trx_commit_complete_for_mysql(trx);
 		}
+
+		/* This transaction locked a temporary table via
+		ha_innobase::start_stmt. */
+		if (trx->lock.start_stmt) {
+			TrxInInnoDB::end_stmt(trx);
+
+			trx->lock.start_stmt = false;
+		}
+
 	} else {
 		/* We just mark the SQL statement ended and do not do a
 		transaction commit */
@@ -3824,6 +3833,14 @@ innobase_rollback(
 		}
 
 		trx_deregister_from_2pc(trx);
+
+		/* This transaction locked a temporary table via
+		ha_innobase::start_stmt. */
+		if (trx->lock.start_stmt) {
+			TrxInInnoDB::end_stmt(trx);
+
+			trx->lock.start_stmt = false;
+		}
 
 	} else if (trx_in_innodb.is_aborted()) {
 
@@ -12742,6 +12759,14 @@ ha_innobase::start_stmt(
 
 	if (!trx_is_started(trx)) {
 		++trx->will_lock;
+	}
+
+	/* Only do it once per transaction. */
+	if (!trx->lock.start_stmt && lock_type != TL_UNLOCK) {
+
+		TrxInInnoDB::begin_stmt(trx);
+
+		trx->lock.start_stmt = true;
 	}
 
 	return(0);

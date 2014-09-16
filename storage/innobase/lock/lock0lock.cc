@@ -6590,6 +6590,7 @@ lock_unlock_table_autoinc(
 	but not COMMITTED transactions. */
 
 	ut_ad(trx_state_eq(trx, TRX_STATE_NOT_STARTED)
+	      || trx_state_eq(trx, TRX_STATE_FORCED_ROLLBACK)
 	      || !trx_state_eq(trx, TRX_STATE_COMMITTED_IN_MEMORY));
 
 	/* This function is invoked for a running transaction by the
