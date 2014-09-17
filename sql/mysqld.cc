@@ -1104,6 +1104,7 @@ public:
 static void close_connections(void)
 {
   DBUG_ENTER("close_connections");
+  (void) RUN_HOOK(server_state, before_server_shutdown, (NULL));
 
   Per_thread_connection_handler::kill_blocked_pthreads();
 
@@ -1187,6 +1188,9 @@ static void close_connections(void)
 
   close_active_mi();
   DBUG_PRINT("quit",("close_connections thread"));
+
+  (void) RUN_HOOK(server_state, after_server_shutdown, (NULL));
+
   DBUG_VOID_RETURN;
 }
 
@@ -1194,7 +1198,6 @@ static void close_connections(void)
 void kill_mysql(void)
 {
   DBUG_ENTER("kill_mysql");
-  (void) RUN_HOOK(server_state, before_server_shutdown, (current_thd));
 
 #if defined(_WIN32)
   {
@@ -1216,7 +1219,6 @@ void kill_mysql(void)
   }
 #endif
   DBUG_PRINT("quit",("After pthread_kill"));
-  (void) RUN_HOOK(server_state, after_server_shutdown, (current_thd));
 
   DBUG_VOID_RETURN;
 }

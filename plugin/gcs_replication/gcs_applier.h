@@ -19,7 +19,7 @@
 #include <vector>
 #include "gcs_plugin_utils.h"
 #include <my_global.h>
-#include <applier_interfaces.h>
+#include <rpl_pipeline_interfaces.h>
 #include "pipeline_factory.h"
 #include "handlers/applier_sql_thread.h"
 #include "handlers/certification_handler.h"

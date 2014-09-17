@@ -17,7 +17,7 @@
 #define SQL_THREAD_APPLIER_INCLUDE
 
 #include "../gcs_applier.h"
-#include <applier_interfaces.h>
+#include <rpl_pipeline_interfaces.h>
 #include "../gcs_replication_threads_api.h"
 
 class Applier_sql_thread : public EventHandler

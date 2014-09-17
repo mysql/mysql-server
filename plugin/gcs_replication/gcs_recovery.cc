@@ -18,7 +18,7 @@
 #include "gcs_recovery_message.h"
 #include "gcs_member_info.h"
 #include "handlers/certification_handler.h"
-#include <applier_interfaces.h>
+#include <rpl_pipeline_interfaces.h>
 #include <mysqld_thd_manager.h>  // Global_THD_manager
 #include <rpl_info_factory.h>
 #include <rpl_slave.h>

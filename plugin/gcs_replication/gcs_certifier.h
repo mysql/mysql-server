@@ -26,7 +26,7 @@
 
 #include <replication.h>
 #include <log_event.h>
-#include <applier_interfaces.h>
+#include <rpl_pipeline_interfaces.h>
 #include <map>
 #include <string>
 #include <list>

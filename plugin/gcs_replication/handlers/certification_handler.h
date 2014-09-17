@@ -18,7 +18,7 @@
 
 #include "../gcs_plugin_utils.h"
 #include "../gcs_certifier.h"
-#include <applier_interfaces.h>
+#include <rpl_pipeline_interfaces.h>
 
 class Certification_handler : public EventHandler
 {

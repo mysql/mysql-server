@@ -17,7 +17,7 @@
 #define EVENT_CATALOGER_INCLUDE
 
 #include "../gcs_applier.h"
-#include <applier_interfaces.h>
+#include <rpl_pipeline_interfaces.h>
 
 class Event_cataloger : public EventHandler
 {

@@ -16,7 +16,7 @@
 #ifndef PIPELINE_FACTORY_INCLUDED
 #define PIPELINE_FACTORY_INCLUDED
 
-#include <applier_interfaces.h>
+#include <rpl_pipeline_interfaces.h>
 
 /**
   @enum Handler_id

@@ -20,7 +20,7 @@
 #include "gcs_applier.h"
 #include "gcs_communication_interface.h"
 #include "gcs_control_interface.h"
-#include <applier_interfaces.h>
+#include <rpl_pipeline_interfaces.h>
 #include <gcs_replication.h>
 #include <rpl_rli.h>
 #include <list>
