@@ -12063,3 +12063,30 @@ innobase_convert_to_filename_charset(
 
 	return(strconvert(cs_from, from, cs_to, to, len, &errors));
 }
+
+
+/**********************************************************************
+Issue a warning that the row is too big. */
+extern "C"
+void
+ib_warn_row_too_big(const dict_table_t*	table)
+{
+	/* If prefix is true then a 768-byte prefix is stored
+	locally for BLOB fields. Refer to dict_table_get_format() */
+	const bool	prefix = ((table->flags & DICT_TF_FORMAT_MASK)
+				  >> DICT_TF_FORMAT_SHIFT) < UNIV_FORMAT_B;
+
+	const ulint	free_space = page_get_free_space_of_empty(
+		table->flags & DICT_TF_COMPACT) / 2;
+
+	THD*	thd = current_thd;
+
+	push_warning_printf(
+		thd, MYSQL_ERROR::WARN_LEVEL_WARN, HA_ERR_TO_BIG_ROW,
+		"Row size too large (> %lu). Changing some columns to TEXT"
+		" or BLOB %smay help. In current row format, BLOB prefix of"
+		" %d bytes is stored inline.", free_space
+		, prefix ? "or using ROW_FORMAT=DYNAMIC or"
+		" ROW_FORMAT=COMPRESSED ": ""
+		, prefix ? DICT_MAX_FIXED_COL_LEN : 0);
+}
