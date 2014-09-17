@@ -1581,8 +1581,9 @@ srv_mbr_print(const byte* data)
         c = mach_double_read(data);
         data += sizeof(double);
         d = mach_double_read(data);
-        ib_logf(IB_LOG_LEVEL_INFO, "GIS MBR INFO: %f and %f, %f, %f\n",
-		a, b , c, d);
+
+        ib::info() << "GIS MBR INFO: " << a << " and " << b << ", " << c
+		<< ", " << d << "\n";
 }
 
 
