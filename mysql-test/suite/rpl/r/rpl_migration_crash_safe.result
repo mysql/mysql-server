@@ -11,6 +11,7 @@ include/rpl_restart_server.inc [server_number=2 parameters: --relay-log-info-rep
 SET @@GLOBAL.relay_log_info_repository= "TABLE";
 SET @@GLOBAL.relay_log_info_repository= "FILE";
 SET @@GLOBAL.relay_log_info_repository= "FILE";
+SET @@GLOBAL.master_info_repository= "FILE";
 include/start_slave.inc
 SET @@GLOBAL.relay_log_info_repository= "TABLE";
 ERROR HY000: This operation cannot be performed with a running replication threads; Run STOP SLAVE FOR CHANNEL '' first
