@@ -212,7 +212,6 @@ void Gtid_state::update_gtids_impl(THD *thd, bool is_commit)
   if (thd->owned_gtid.sidno == -1)
   {
 #ifdef HAVE_GTID_NEXT_LIST
-    bool added= false;
     rpl_sidno prev_sidno= 0;
     Gtid_set::Gtid_iterator git(&thd->owned_gtid_set);
     Gtid g= git.get();
@@ -224,10 +223,7 @@ void Gtid_state::update_gtids_impl(THD *thd, bool is_commit)
       git.next();
       g= git.get();
       if (is_commit)
-      {
         executed_gtids._add_gtid(g);
-        added= true;
-      }
     }
 
     if (is_commit && !thd->owned_gtid_set.is_empty())
