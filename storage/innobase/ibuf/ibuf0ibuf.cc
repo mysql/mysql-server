@@ -458,14 +458,10 @@ ibuf_close(void)
 /*============*/
 {
 	mutex_free(&ibuf_pessimistic_insert_mutex);
-	memset(&ibuf_pessimistic_insert_mutex,
-	       0x0, sizeof(ibuf_pessimistic_insert_mutex));
 
 	mutex_free(&ibuf_mutex);
-	memset(&ibuf_mutex, 0x0, sizeof(ibuf_mutex));
 
 	mutex_free(&ibuf_bitmap_mutex);
-	memset(&ibuf_bitmap_mutex, 0x0, sizeof(ibuf_mutex));
 
 	ut_free(ibuf);
 	ibuf = NULL;

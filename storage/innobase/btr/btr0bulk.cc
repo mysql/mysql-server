@@ -119,7 +119,7 @@ PageBulk::init()
 	m_page_zip = new_page_zip;
 	m_page_no = new_page_no;
 	m_cur_rec = page_get_infimum_rec(new_page);
-	m_is_comp = page_is_comp(new_page);
+	ut_ad(m_is_comp == !!page_is_comp(new_page));
 	m_free_space = page_get_free_space_of_empty(m_is_comp);
 	m_reserved_space =
 		UNIV_PAGE_SIZE * (100 - innobase_fill_factor) / 100;
@@ -157,9 +157,6 @@ PageBulk::insert(
 		ut_ad(cmp_rec_rec(rec, old_rec, offsets, old_offsets, m_index)
 		      > 0);
 	}
-
-	page_header_set_field(m_page, NULL, PAGE_HEAP_TOP,
-			      UNIV_PAGE_SIZE - 1);
 
 	m_total_data += rec_size;
 #endif /* UNIV_DEBUG */
@@ -560,14 +557,12 @@ void
 PageBulk::release()
 {
 	ut_ad(!dict_index_is_spatial(m_index));
-	mach_write_to_2(m_page + FIL_PAGE_TYPE, FIL_PAGE_INDEX);
-#ifdef UNIV_DEBUG // TODO: update PAGE_HEAP_TOP, or do not update FIL_PAGE_TYPE
-	page_header_set_ptr(m_page, NULL, PAGE_HEAP_TOP,
-			    m_heap_top - m_total_data);
-#endif
 
 	/* We fix the block because we will re-pin it soon. */
 	buf_block_buf_fix_inc(m_block, __FILE__, __LINE__);
+
+	/* No other threads can modify this block. */
+	m_modify_clock = buf_block_get_modify_clock(m_block);
 
 	mtr_commit(m_mtr);
 }
@@ -583,8 +578,9 @@ PageBulk::latch()
 	mtr_set_log_mode(m_mtr, MTR_LOG_NO_REDO);
 
 	/* TODO: need a simple and wait version of buf_page_optimistic_get. */
-	ret = buf_page_optimistic_get(RW_X_LATCH, m_block, 1,
+	ret = buf_page_optimistic_get(RW_X_LATCH, m_block, m_modify_clock,
 				      __FILE__, __LINE__, m_mtr);
+	/* In case the block is S-latched by page_cleaner. */
 	if (!ret) {
 		page_id_t       page_id(dict_index_get_space(m_index), m_page_no);
 		page_size_t     page_size(dict_table_page_size(m_index->table));
@@ -594,9 +590,6 @@ PageBulk::latch()
 					   __FILE__, __LINE__, m_mtr);
 		ut_ad(m_block != NULL);
 	}
-
-	mach_write_to_2(m_page + FIL_PAGE_TYPE, FIL_PAGE_TYPE_SYS);
-	page_header_set_field(m_page, NULL, PAGE_HEAP_TOP, UNIV_PAGE_SIZE - 1);
 
 	buf_block_buf_fix_dec(m_block);
 
