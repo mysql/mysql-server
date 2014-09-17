@@ -127,6 +127,9 @@ os_thread_create_func(
 {
 	os_thread_id_t	new_thread_id;
 
+	/* the new thread should look recent changes up here so far. */
+	os_wmb;
+
 #ifdef _WIN32
 	HANDLE		handle;
 

@@ -5477,6 +5477,48 @@ fts_dict_table_has_fts_index(
 	return(dict_table_has_fts_index(table));
 }
 
+/** fts_t constructor.
+@param[in]	table	table with FTS indexes
+@param[in,out]	heap	memory heap where 'this' is stored */
+fts_t::fts_t(
+	const dict_table_t*	table,
+	mem_heap_t*		heap)
+	:
+	bg_threads(0),
+	fts_status(0),
+	add_wq(NULL),
+	cache(NULL),
+	doc_col(ULINT_UNDEFINED),
+	fts_heap(heap)
+{
+	ut_a(table->fts == NULL);
+
+	mutex_create("fts_bg_threads", &bg_threads_mutex);
+
+	ib_alloc_t*	heap_alloc = ib_heap_allocator_create(fts_heap);
+
+	indexes = ib_vector_create(heap_alloc, sizeof(dict_index_t*), 4);
+
+	dict_table_get_all_fts_indexes(table, indexes);
+}
+
+/** fts_t destructor. */
+fts_t::~fts_t()
+{
+	mutex_free(&bg_threads_mutex);
+
+	ut_ad(add_wq == NULL);
+
+	if (cache != NULL) {
+		fts_cache_clear(cache);
+		fts_cache_destroy(cache);
+		cache = NULL;
+	}
+
+	/* There is no need to call ib_vector_free() on this->indexes
+	because it is stored in this->fts_heap. */
+}
+
 /*********************************************************************//**
 Create an instance of fts_t.
 @return instance of fts_t */
@@ -5486,26 +5528,13 @@ fts_create(
 	dict_table_t*	table)		/*!< in/out: table with FTS indexes */
 {
 	fts_t*		fts;
-	ib_alloc_t*	heap_alloc;
 	mem_heap_t*	heap;
-
-	ut_a(!table->fts);
 
 	heap = mem_heap_create(512);
 
 	fts = static_cast<fts_t*>(mem_heap_alloc(heap, sizeof(*fts)));
 
-	memset(fts, 0x0, sizeof(*fts));
-
-	fts->fts_heap = heap;
-
-	fts->doc_col = ULINT_UNDEFINED;
-
-	mutex_create("fts_bg_threads", &fts->bg_threads_mutex);
-
-	heap_alloc = ib_heap_allocator_create(heap);
-	fts->indexes = ib_vector_create(heap_alloc, sizeof(dict_index_t*), 4);
-	dict_table_get_all_fts_indexes(table, fts->indexes);
+	new(fts) fts_t(table, heap);
 
 	return(fts);
 }
@@ -5517,17 +5546,9 @@ fts_free(
 /*=====*/
 	dict_table_t*	table)	/*!< in/out: table with FTS indexes */
 {
-	fts_t*		fts = table->fts;
+	fts_t*	fts = table->fts;
 
-	mutex_free(&fts->bg_threads_mutex);
-
-	ut_ad(!fts->add_wq);
-
-	if (fts->cache) {
-		fts_cache_clear(fts->cache);
-		fts_cache_destroy(fts->cache);
-		fts->cache = NULL;
-	}
+	fts->~fts_t();
 
 	mem_heap_free(fts->fts_heap);
 

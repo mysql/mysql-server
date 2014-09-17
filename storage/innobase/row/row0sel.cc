@@ -3969,7 +3969,7 @@ row_search_traverse(
 }
 
 /** Searches for rows in the database using cursor.
-function is meant for temporary table that are not shared accross connection
+Function is for temporary tables that are not shared accross connections
 and so lot of complexity is reduced especially locking and transaction related.
 The cursor is an iterator over the table/index.
 
@@ -3997,17 +3997,11 @@ row_search_no_mvcc(
 	dict_index_t*	index		= prebuilt->index;
 	const dtuple_t*	search_tuple	= prebuilt->search_tuple;
 	btr_pcur_t*	pcur		= &prebuilt->pcur;
-	dict_index_t*	clust_index;
-	que_thr_t*	thr;
 
-	const rec_t*	rec;
 	const rec_t*	result_rec	= NULL;
 	const rec_t*	clust_rec	= NULL;
 
 	dberr_t		err		= DB_SUCCESS;
-	ibool		moves_up	= FALSE;
-
-	mtr_t*		mtr;
 
 	mem_heap_t*	heap		= NULL;
 	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
@@ -4016,21 +4010,30 @@ row_search_no_mvcc(
 	ut_ad(index && pcur && search_tuple);
 
 	/* Step-0: Re-use the cached mtr. */
-	mtr = &index->last_sel_cur->mtr;
-	clust_index = dict_table_get_first_index(index->table);
+	mtr_t*		mtr = &index->last_sel_cur->mtr;
+	dict_index_t*	clust_index = dict_table_get_first_index(index->table);
 
 	/* Step-1: Build the select graph. */
 	if (direction == 0 && prebuilt->sel_graph == NULL) {
 		row_prebuild_sel_graph(prebuilt);
 	}
-	thr = que_fork_get_first_thr(prebuilt->sel_graph);
+
+	que_thr_t*	thr = que_fork_get_first_thr(prebuilt->sel_graph);
+
+	bool		moves_up;
 
 	if (direction == 0) {
+
 		if (mode == PAGE_CUR_GE || mode == PAGE_CUR_G) {
-			moves_up = TRUE;
+			moves_up = true;
+		} else {
+			moves_up = false;
 		}
+
 	} else if (direction == ROW_SEL_NEXT) {
-		moves_up = TRUE;
+		moves_up = true;
+	} else {
+		moves_up = false;
 	}
 
 	/* Step-2: Open or Restore the cursor.
@@ -4104,11 +4107,11 @@ row_search_no_mvcc(
 	}
 
 	/* Step-3: Traverse the records filtering non-qualifiying records. */
-	for (;
+	for (/* No op */;
 	     err == DB_SUCCESS;
 	     err = row_search_traverse(moves_up, match_mode, pcur, mtr)) {
 
-		rec = btr_pcur_get_rec(pcur);
+		const rec_t*	rec = btr_pcur_get_rec(pcur);
 
 		if (page_rec_is_infimum(rec)
 		    || page_rec_is_supremum(rec)
@@ -4181,6 +4184,7 @@ row_search_no_mvcc(
 			ut_ad(len == DATA_TRX_ID_LEN);
 
 			trx_id = trx_read_trx_id(result_rec + trx_id_off);
+
 			if (trx_id > index->trx_id) {
 				/* This row was recently added skip it from
 				SELECT view. */
@@ -4335,7 +4339,6 @@ row_search_mvcc(
 	} else if (dict_index_is_corrupted(prebuilt->index)) {
 
 		return(DB_CORRUPTION);
-
 	}
 
 	/*-------------------------------------------------------------*/
@@ -4353,8 +4356,7 @@ row_search_mvcc(
 		BTR_SEA_TIMEOUT rounds before trying to keep it again over
 		calls from MySQL */
 
-		rw_lock_s_unlock(&btr_search_latch);
-		trx->has_search_latch = false;
+		trx_search_latch_release_if_reserved(trx);
 
 		trx->search_latch_timeout = BTR_SEA_TIMEOUT;
 	}
@@ -4513,10 +4515,7 @@ row_search_mvcc(
 			and if we try that, we can deadlock on the adaptive
 			hash index semaphore! */
 
-			if (!trx->has_search_latch) {
-				rw_lock_s_lock(&btr_search_latch);
-				trx->has_search_latch = true;
-			}
+			trx_reserve_search_latch_if_not_reserved(trx);
 
 			switch (row_sel_try_search_shortcut_for_mysql(
 					&rec, prebuilt, &offsets, &heap,
@@ -4562,34 +4561,26 @@ row_search_mvcc(
 			shortcut_match:
 				mtr_commit(&mtr);
 
-				/* ut_print_name(stderr, index->name);
-				fputs(" shortcut\n", stderr); */
+				/* NOTE that we do NOT store the cursor
+				position */
 
 				err = DB_SUCCESS;
-				goto release_search_latch_if_needed;
+
+				trx_search_latch_timeout(trx);
+
+				goto func_exit;
 
 			case SEL_EXHAUSTED:
 			shortcut_mismatch:
 				mtr_commit(&mtr);
 
-				/* ut_print_name(stderr, index->name);
-				fputs(" record not found 2\n", stderr); */
-
 				err = DB_RECORD_NOT_FOUND;
-release_search_latch_if_needed:
-				if (trx->search_latch_timeout > 0
-				    && trx->has_search_latch) {
 
-#ifndef INNODB_RW_LOCKS_USE_ATOMICS
-					trx->search_latch_timeout--;
-#endif /* !INNODB_RW_LOCKS_USE_ATOMICS */
-
-					rw_lock_s_unlock(&btr_search_latch);
-					trx->has_search_latch = false;
-				}
+				trx_search_latch_timeout(trx);
 
 				/* NOTE that we do NOT store the cursor
 				position */
+
 				goto func_exit;
 
 			case SEL_RETRY:
@@ -4607,10 +4598,7 @@ release_search_latch_if_needed:
 	/*-------------------------------------------------------------*/
 	/* PHASE 3: Open or restore index cursor position */
 
-	if (trx->has_search_latch) {
-		rw_lock_s_unlock(&btr_search_latch);
-		trx->has_search_latch = false;
-	}
+	trx_search_latch_release_if_reserved(trx);
 
 	spatial_search = dict_index_is_spatial(index)
 			 && mode >= PAGE_CUR_CONTAIN;
@@ -4644,12 +4632,17 @@ release_search_latch_if_needed:
 	naturally moves upward (in fetch next) in alphabetical order,
 	otherwise downward */
 
-	if (UNIV_UNLIKELY(direction == 0)) {
-		if (mode == PAGE_CUR_GE || mode == PAGE_CUR_G
+	if (direction == 0) {
+
+		if (mode == PAGE_CUR_GE
+		    || mode == PAGE_CUR_G
 		    || mode >= PAGE_CUR_CONTAIN) {
+
 			moves_up = TRUE;
 		}
+
 	} else if (direction == ROW_SEL_NEXT) {
+
 		moves_up = TRUE;
 	}
 
