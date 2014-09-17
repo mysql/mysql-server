@@ -494,7 +494,6 @@ int start_slave(THD *thd)
   DBUG_ENTER("start_slave(THD)");
   Master_info *mi;
   int error= 0;
-  bool channel_not_running;
   bool channel_configured;
 
   if (msr_map.get_num_instances() == 1)
@@ -504,12 +503,13 @@ int start_slave(THD *thd)
     DBUG_ASSERT(!strcmp(mi->get_channel(),
                         msr_map.get_default_channel()));
 
-    if ((error= start_slave(thd, mi, 1, false)))
+    error= start_slave(thd, mi, 1, false);
+    if (error)
       goto err;
   }
   else
   {
-    for (mi_map::iterator it=msr_map.begin(); it!=msr_map.end(); it++)
+    for (mi_map::iterator it= msr_map.begin(); it!= msr_map.end(); it++)
     {
       mi= it->second;
 
@@ -517,27 +517,16 @@ int start_slave(THD *thd)
 
       if (channel_configured)
       {
-        /* check if both IO and SQL are not running */
-        channel_not_running= mi &&
-          (!mi->slave_running || !mi->rli->slave_running);
-
-        if (channel_not_running)
+        error= start_slave(thd, mi, 1, false);
+        if (error)
         {
-          if ((error=start_slave(thd, mi, 1, false)))
-          {
-            sql_print_error("Slave: Could not start slave for channel '%s'."
+          sql_print_error("Slave: Could not start slave for channel '%s'."
                             " operation discontinued", mi->get_channel());
-            goto err;
-          }
+          goto err;
         }
-        else
-          push_warning_printf(thd, Sql_condition::SL_WARNING,
-                            ER_SLAVE_CHANNEL_RUNNING,
-                            ER(ER_SLAVE_CHANNEL_RUNNING), mi->get_channel());
       }
     }
   }
-
   /* no error */
   my_ok(thd);
 
@@ -564,7 +553,6 @@ int stop_slave(THD *thd)
    DBUG_ENTER("stop_slave(THD)");
    Master_info *mi=0;
    int error= 0;
-   bool channel_running;
    bool channel_configured;
 
    if (msr_map.get_num_instances() == 1)
@@ -574,35 +562,29 @@ int stop_slave(THD *thd)
      DBUG_ASSERT(!strcmp(mi->get_channel(),
                          msr_map.get_default_channel()));
 
-     if ((error= stop_slave(thd, mi, 1, false)))
+     error= stop_slave(thd, mi, 1, false);
+
+     if (error)
        goto err;
    }
    else
    {
-     for(mi_map::iterator it=msr_map.begin(); it!=msr_map.end(); it++)
+     for(mi_map::iterator it= msr_map.begin(); it!= msr_map.end(); it++)
      {
        mi= it->second;
 
        channel_configured= mi && mi->host[0];
 
-       if(channel_configured)
+       if (channel_configured)
        {
-         /* check if both IO and SQL are running */
-         channel_running= mi && (mi->slave_running || mi->rli->slave_running);
+         error= stop_slave(thd, mi, 1, false);
 
-         if (channel_running)
+         if (error)
          {
-           if ((error= stop_slave(thd, mi, 1, false )))
-           {
-             sql_print_error("Slave: Could not stop slave for  channel '%s'"
-                             " operation discontinued", mi->get_channel());
+           sql_print_error("Slave: Could not stop slave for channel '%s'"
+                           " operation discontinued", mi->get_channel());
            goto err;
-           }
          }
-         else
-           push_warning_printf(thd, Sql_condition::SL_WARNING,
-                               ER_SLAVE_CHANNEL_STOPPED,
-                               ER(ER_SLAVE_CHANNEL_STOPPED), mi->get_channel());
        }
      }
    }
@@ -1312,7 +1294,7 @@ int terminate_slave_threads(Master_info* mi, int thread_mask,
           the condition. In this case, it is assumed that the calling
           function acquires the lock before calling this function.
 
-   @retval 0 All OK, 1 on "STOP SLAVE" command timeout, ER_SLAVE_NOT_RUNNING otherwise.
+   @retval 0 All OK, 1 on "STOP SLAVE" command timeout, ER_SLAVE_CHANNEL_NOT_RUNNING otherwise.
 
    @note  If the executing thread has to acquire term_lock
           (need_lock_term is true, the negative running status does not
@@ -1349,7 +1331,7 @@ terminate_slave_thread(THD *thd,
     }
     else
     {
-      DBUG_RETURN(ER_SLAVE_NOT_RUNNING);
+      DBUG_RETURN(ER_SLAVE_CHANNEL_NOT_RUNNING);
     }
   }
   DBUG_ASSERT(thd != 0);
@@ -1438,7 +1420,7 @@ int start_slave_thread(
       mysql_cond_broadcast(start_cond);
     if (start_lock)
       mysql_mutex_unlock(start_lock);
-    DBUG_RETURN(ER_SLAVE_MUST_STOP);
+    DBUG_RETURN(ER_SLAVE_CHANNEL_MUST_STOP);
   }
   start_id= *slave_run_id;
   DBUG_PRINT("info",("Creating new slave thread"));
@@ -8890,8 +8872,10 @@ int start_slave(THD* thd , Master_info* mi,  bool net_report, bool for_one_chann
   else
   {
     /* no error if all threads are already started, only a warning */
-    push_warning(thd, Sql_condition::SL_NOTE, ER_SLAVE_WAS_RUNNING,
-                 ER(ER_SLAVE_WAS_RUNNING));
+    push_warning_printf(thd, Sql_condition::SL_NOTE,
+                        ER_SLAVE_CHANNEL_WAS_RUNNING,
+                        ER(ER_SLAVE_CHANNEL_WAS_RUNNING),
+                        mi->get_channel());
   }
 
   /*
@@ -8908,8 +8892,9 @@ int start_slave(THD* thd , Master_info* mi,  bool net_report, bool for_one_chann
   {
     if (net_report && !error_reported)
     {
-      if (slave_errno== ER_SLAVE_NOT_RUNNING)
-        my_error(slave_errno, MYF(0), mi->error_str_channel(mi->get_channel()));
+      if ((slave_errno==ER_SLAVE_CHANNEL_NOT_RUNNING)||
+          (slave_errno==ER_SLAVE_CHANNEL_MUST_STOP))
+        my_error(slave_errno, MYF(0), mi->get_channel());
       else
         my_message(slave_errno, ER(slave_errno), MYF(0));
     }
@@ -8975,8 +8960,10 @@ int stop_slave(THD* thd, Master_info* mi, bool net_report, bool for_one_channel 
   {
     //no error if both threads are already stopped, only a warning
     slave_errno= 0;
-    push_warning(thd, Sql_condition::SL_NOTE, ER_SLAVE_WAS_NOT_RUNNING,
-                 ER(ER_SLAVE_WAS_NOT_RUNNING));
+    push_warning_printf(thd, Sql_condition::SL_NOTE,
+                        ER_SLAVE_CHANNEL_WAS_NOT_RUNNING,
+                        ER(ER_SLAVE_CHANNEL_WAS_NOT_RUNNING),
+                         mi->get_channel());
   }
 
   /*
@@ -9115,8 +9102,7 @@ int reset_slave(THD *thd, Master_info* mi)
   init_thread_mask(&thread_mask,mi,0 /* not inverse */);
   if (thread_mask) // We refuse if any slave thread is running
   {
-    char* err=mi->error_str_channel(mi->get_channel());
-    my_error(ER_SLAVE_MUST_STOP, MYF(0), err);
+    my_error(ER_SLAVE_CHANNEL_MUST_STOP, MYF(0), mi->get_channel());
     error=1;
     unlock_slave_threads(mi);
     goto err;
@@ -9660,7 +9646,7 @@ bool change_master(THD* thd, Master_info* mi)
   {
     if (lex_mi->auto_position != LEX_MASTER_INFO::LEX_MI_UNCHANGED)
     {
-      my_error(ER_SLAVE_MUST_STOP,MYF(0), mi->error_str_channel(mi->get_channel()));
+      my_error(ER_SLAVE_CHANNEL_MUST_STOP, MYF(0), mi->get_channel());
       goto err;
     }
     /*
@@ -9716,17 +9702,14 @@ bool change_master(THD* thd, Master_info* mi)
   /* With receiver thread running, we dont allow changing receive options. */
   if (have_receive_option && (thread_mask & SLAVE_IO))
   {
-    my_message(ER_SLAVE_IO_THREAD_MUST_STOP, ER(ER_SLAVE_IO_THREAD_MUST_STOP),
-               MYF(0));
+    my_error(ER_SLAVE_CHANNEL_IO_THREAD_MUST_STOP, MYF(0), mi->get_channel());
     goto err;
   }
 
   /* With an execute thread running, we don't allow changing execute options. */
   if (have_execute_option && (thread_mask & SLAVE_SQL))
   {
-    my_message(ER_SLAVE_SQL_THREAD_MUST_STOP,
-               ER(ER_SLAVE_SQL_THREAD_MUST_STOP),
-               MYF(0));
+    my_error(ER_SLAVE_CHANNEL_SQL_THREAD_MUST_STOP, MYF(0), mi->get_channel());
     goto err;
   }
 
