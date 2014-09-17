@@ -3769,9 +3769,8 @@ innobase_commit(
 			trx_commit_complete_for_mysql(trx);
 		}
 
-		/* This transaction locked a temporary table via
-		ha_innobase::start_stmt. */
-		if (trx->lock.start_stmt) {
+		/* This transaction had called ha_innobase::start_stmt() */
+		if (trx->lock.start_stmt && commit_trx) {
 			TrxInInnoDB::end_stmt(trx);
 
 			trx->lock.start_stmt = false;
@@ -3872,9 +3871,8 @@ innobase_rollback(
 
 		trx_deregister_from_2pc(trx);
 
-		/* This transaction locked a temporary table via
-		ha_innobase::start_stmt. */
-		if (trx->lock.start_stmt) {
+		/* This transaction had called ha_innobase::start_stmt() */
+		if (trx->lock.start_stmt && rollback_trx) {
 			TrxInInnoDB::end_stmt(trx);
 
 			trx->lock.start_stmt = false;
