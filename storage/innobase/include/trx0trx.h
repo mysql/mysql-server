@@ -821,6 +821,10 @@ struct trx_lock_t {
 					Protected by both the lock sys mutex
 					and the trx_t::mutex. */
 	ulint		n_rec_locks;	/*!< number of rec locks in this trx */
+
+	/** The transaction called ha_innobase::start_stmt() to
+	lock a table. Most likely a temporary table. */
+	bool		start_stmt;
 };
 
 /** Type used to store the list of tables that are modified by a given
