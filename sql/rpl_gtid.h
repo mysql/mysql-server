@@ -475,7 +475,7 @@ public:
     @return RETURN_STATUS_OK or RETURN_STAUTS_REPORTED_ERROR
   */
   enum_return_status clear();
-#endif  
+#endif
   /**
     Add the given SID to this map if it does not already exist.
 
