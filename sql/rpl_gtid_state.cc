@@ -230,7 +230,7 @@ void Gtid_state::update_gtids_impl(THD *thd, bool is_commit)
       }
     }
 
-    if (added && !thd->owned_gtid_set.is_empty())
+    if (is_commit && !thd->owned_gtid_set.is_empty())
       thd->rpl_thd_ctx.session_gtids_ctx().
         notify_after_gtid_executed_update(thd);
 #else
