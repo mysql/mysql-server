@@ -28,7 +28,7 @@ SET @@global.debug= @save.debug;
 include/start_slave.inc
 call mtr.add_suppression('Error reading slave worker configuration');
 call mtr.add_suppression('Failed during slave workers initialization');
-call mtr.add_suppression('Failed during slave worker thread create');
+call mtr.add_suppression('Failed during slave worker thread creation for channel ''');
 include/stop_slave.inc
 set @save.slave_checkpoint_group= @@global.slave_checkpoint_group;
 set @save.slave_parallel_workers= @@global.slave_parallel_workers;
@@ -45,7 +45,7 @@ include/rpl_reset.inc
 include/stop_slave.inc
 call mtr.add_suppression("option 'slave_checkpoint_group': unsigned value 524281 adjusted to 524280");
 call mtr.add_suppression("Failed during slave worker thread create");
-call mtr.add_suppression("Slave SQL: Failed during slave workers initialization, Error_code: 1593");
+call mtr.add_suppression("Slave SQL for channel '': Failed during slave workers initialization, Error_code: 1593");
 call mtr.add_suppression("Mismatch between the number of bytes configured to store checkpoint information and the previously stored information");
 set @save.slave_checkpoint_group= @@global.slave_checkpoint_group;
 set @save.slave_parallel_workers= @@global.slave_parallel_workers;
