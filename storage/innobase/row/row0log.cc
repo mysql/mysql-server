@@ -2524,9 +2524,8 @@ next_block:
 	if (UNIV_UNLIKELY(index->online_log->head.blocks
 			  > index->online_log->tail.blocks)) {
 unexpected_eof:
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Unexpected end of temporary file"
-			" for table %s", index->table_name);
+		ib::error() << "Unexpected end of temporary file for table "
+			<< index->table_name;
 corruption:
 		error = DB_CORRUPTION;
 		goto func_exit;
@@ -2586,9 +2585,8 @@ all_done:
 			srv_sort_buf_size);
 
 		if (!success) {
-			ib_logf(IB_LOG_LEVEL_ERROR,
-				"Unable to read temporary file"
-				" for table %s", index->table_name);
+			ib::error() << "Unable to read temporary file"
+				" for table " << index->table_name;
 			goto corruption;
 		}
 
@@ -3351,9 +3349,8 @@ next_block:
 	if (UNIV_UNLIKELY(index->online_log->head.blocks
 			  > index->online_log->tail.blocks)) {
 unexpected_eof:
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Unexpected end of temporary file for index %s",
-			index->name + 1);
+		ib::error() << "Unexpected end of temporary file for index "
+			<< index->name + 1;
 corruption:
 		error = DB_CORRUPTION;
 		goto func_exit;
@@ -3409,9 +3406,8 @@ all_done:
 			srv_sort_buf_size);
 
 		if (!success) {
-			ib_logf(IB_LOG_LEVEL_ERROR,
-				"Unable to read temporary file"
-				" for index %s", index->name + 1);
+			ib::error() << "Unable to read temporary file"
+				" for index " << index->name + 1;
 			goto corruption;
 		}
 
