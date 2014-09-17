@@ -1054,8 +1054,7 @@ static bool repository_check(sys_var *self, THD *thd, set_var *var, SLAVE_THD_TY
     else
     {
       ret= TRUE;
-      my_error(ER_SLAVE_MUST_STOP, MYF(0),
-               mi->error_str_channel(mi->get_channel()));
+      my_error(ER_SLAVE_CHANNEL_MUST_STOP, MYF(0),mi->get_channel());
     }
     unlock_slave_threads(mi);
   }

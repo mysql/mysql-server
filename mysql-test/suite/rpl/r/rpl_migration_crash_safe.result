@@ -13,9 +13,9 @@ SET @@GLOBAL.relay_log_info_repository= "FILE";
 SET @@GLOBAL.relay_log_info_repository= "FILE";
 include/start_slave.inc
 SET @@GLOBAL.relay_log_info_repository= "TABLE";
-ERROR HY000: This operation cannot be performed with a running slave; run STOP SLAVE first
+ERROR HY000: This operation cannot be performed with a running replication threads; Run STOP SLAVE FOR CHANNEL '' first
 SET @@GLOBAL.master_info_repository= "TABLE";
-ERROR HY000: This operation cannot be performed with a running slave; run STOP SLAVE first
+ERROR HY000: This operation cannot be performed with a running replication threads; Run STOP SLAVE FOR CHANNEL '' first
 include/sync_slave_sql_with_master.inc
 DROP TABLE test;
 include/sync_slave_sql_with_master.inc
