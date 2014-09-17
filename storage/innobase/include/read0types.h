@@ -79,7 +79,7 @@ class ReadView {
 		Copy and overwrite the current array contents
 
 		@param start		Source array
-		@paran end		Pointer to end of array */
+		@param end		Pointer to end of array */
 		void assign(const value_type* start, const value_type* end);
 
 		/**

@@ -886,7 +886,7 @@ ERROR HY000: Tablespace has been discarded for table 't1'
 restore: t1 .ibd and .cfg files
 SET SESSION debug="+d,fil_space_create_failure";
 ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
-ERROR HY000: Can't find file: 'test_wl5522\t1.ibd' (errno: 11 - Generic error)
+ERROR HY000: Can't find file: './test_wl5522/t1.ibd' (errno: 11 - Generic error)
 SET SESSION debug="-d,fil_space_create_failure";
 DROP TABLE test_wl5522.t1;
 unlink: t1.ibd
@@ -898,7 +898,7 @@ ERROR HY000: Tablespace has been discarded for table 't1'
 restore: t1 .ibd and .cfg files
 SET SESSION debug="+d,dict_tf_to_fsp_flags_failure";
 ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
-ERROR HY000: Can't find file: 'test_wl5522\t1.ibd' (errno: 39 - Data structure corruption)
+ERROR HY000: Can't find file: './test_wl5522/t1.ibd' (errno: 39 - Data structure corruption)
 SET SESSION debug="-d,dict_tf_to_fsp_flags_failure";
 DROP TABLE test_wl5522.t1;
 unlink: t1.ibd

@@ -1131,14 +1131,46 @@ thd_trx_is_read_only(
 	return(thd != 0 && thd_tx_is_read_only(thd));
 }
 
+/**
+Check if the transaction can be rolled back
+@param[in] requestor	Session requesting the lock
+@param[in] holder	Session that holds the lock
+@return the session that will be rolled back, null don't care */
+
+THD*
+thd_trx_arbitrate(THD* requestor, THD* holder)
+{
+	/* Non-user (thd==0) transactions by default can't rollback, in
+	practice DDL transactions should never rollback and that's because
+	they should never wait on table/record locks either */
+
+	ut_a(holder != NULL);
+	ut_a(holder != requestor);
+
+	THD*	victim = thd_tx_arbitrate(requestor, holder);
+
+	ut_a(victim == NULL || victim == requestor || victim == holder);
+
+	return(victim);
+}
+
+/**
+@param[in] thd		Session to check
+@return the priority */
+
+int
+thd_trx_priority(THD* thd)
+{
+	return(thd == NULL ? 0 : thd_tx_priority(thd));
+}
+
 #ifdef UNIV_DEBUG
-/******************************************************************//**
+/**
 Returns true if transaction should be flagged as DD attachable transaction
+@param[in] thd			Thread handle
 @return true if the thd is marked as read-only */
 bool
-thd_trx_is_dd_trx(
-/*=================*/
-	THD*	thd)	/*!< in: thread handle */
+thd_trx_is_dd_trx(THD* thd)
 {
 	return(thd != NULL && thd_tx_is_dd_trx(thd));
 }
@@ -2881,6 +2913,7 @@ innobase_space_shutdown()
 
 	srv_sys_space.shutdown();
 	if (srv_tmp_space.get_sanity_check_status()) {
+		fil_space_close(srv_tmp_space.name());
 		srv_tmp_space.delete_files();
 	}
 	srv_tmp_space.shutdown();
@@ -3540,12 +3573,7 @@ innobase_start_trx_and_assign_read_view(
 
 	trx_t*	trx = check_trx_exists(thd);
 
-	/* This is just to play safe: release a possible FIFO ticket and
-	search latch. Since we can potentially reserve the trx_sys->mutex,
-	we have to release the search system latch first to obey the latching
-	order. */
-
-	trx_search_latch_release_if_reserved(trx);
+	TrxInInnoDB	trx_in_innodb(trx);
 
 	innobase_srv_conc_force_exit_innodb(trx);
 
@@ -3582,7 +3610,7 @@ innobase_start_trx_and_assign_read_view(
 /*****************************************************************//**
 Commits a transaction in an InnoDB database or marks an SQL statement
 ended.
-@return or deadlock error if the transaction was aborted by another
+@return 0 or deadlock error if the transaction was aborted by another
 	higher priority transaction. */
 static
 int
@@ -3611,13 +3639,6 @@ innobase_commit(
 
 	ut_ad(trx->dict_operation_lock_mode == 0);
 	ut_ad(trx->dict_operation == TRX_DICT_OP_NONE);
-
-	/* Since we will reserve the trx_sys->mutex, we have to release
-	the search system latch first to obey the latching order. */
-
-	if (trx->has_search_latch) {
-		trx_search_latch_release_if_reserved(trx);
-	}
 
 	/* Transaction is deregistered only in a commit or a rollback. If
 	it is deregistered we know there cannot be resources to be freed
@@ -3765,12 +3786,6 @@ innobase_rollback(
 	      || (trx->dict_operation_lock_mode == 0
 		  && trx->dict_operation == TRX_DICT_OP_NONE));
 
-	/* Release a possible FIFO ticket and search latch. Since we will
-	reserve the trx_sys->mutex, we have to release the search system
-	latch first to obey the latching order. */
-
-	trx_search_latch_release_if_reserved(trx);
-
 	innobase_srv_conc_force_exit_innodb(trx);
 
 	/* Reset the number AUTO-INC rows required */
@@ -3803,22 +3818,23 @@ innobase_rollback(
 				thd_security_context(
 					thd, buffer, sizeof(buffer), 512));
 
-			trx->state = TRX_STATE_NOT_STARTED;
-
 			error = DB_FORCED_ABORT;
+
+			trx->state = TRX_STATE_NOT_STARTED;
 		}
 
 		trx_deregister_from_2pc(trx);
+
+	} else if (trx_in_innodb.is_aborted()) {
+
+		error = DB_FORCED_ABORT;
+
 	} else {
+
 		error = trx_rollback_last_sql_stat_for_mysql(trx);
-
-		if (trx_in_innodb.is_aborted()) {
-
-			error = DB_FORCED_ABORT;
-		}
 	}
 
-	DBUG_RETURN(convert_error_code_to_mysql(error, 0, NULL));
+	DBUG_RETURN(convert_error_code_to_mysql(error, 0, trx->mysql_thd));
 }
 
 /*****************************************************************//**
@@ -3855,7 +3871,7 @@ innobase_rollback_trx(
 		trx->will_lock = 0;
 	}
 
-	DBUG_RETURN(convert_error_code_to_mysql(error, 0, NULL));
+	DBUG_RETURN(convert_error_code_to_mysql(error, 0, trx->mysql_thd));
 }
 
 /*****************************************************************//**
@@ -3879,12 +3895,6 @@ innobase_rollback_to_savepoint(
 	trx_t*	trx = check_trx_exists(thd);
 
 	TrxInInnoDB	trx_in_innodb(trx);
-
-	/* Release a possible FIFO ticket and search latch. Since we will
-	reserve the trx_sys->mutex, we have to release the search system
-	latch first to obey the latching order. */
-
-	trx_search_latch_release_if_reserved(trx);
 
 	innobase_srv_conc_force_exit_innodb(trx);
 
@@ -3998,12 +4008,6 @@ innobase_savepoint(
 
 	TrxInInnoDB	trx_in_innodb(trx);
 
-	/* Release a possible FIFO ticket and search latch. Since we will
-	reserve the trx_sys->mutex, we have to release the search system
-	latch first to obey the latching order. */
-
-	trx_search_latch_release_if_reserved(trx);
-
 	innobase_srv_conc_force_exit_innodb(trx);
 
 	/* Cannot happen outside of transaction */
@@ -4055,6 +4059,16 @@ innobase_close_connection(
 
 	if (trx != NULL) {
 
+		TrxInInnoDB	trx_in_innodb(trx);
+
+		if (trx_in_innodb.is_aborted()) {
+
+			while (trx_is_started(trx)) {
+
+				os_thread_sleep(20);
+			}
+		}
+
 		if (!trx_is_registered_for_2pc(trx) && trx_is_started(trx)) {
 
 			sql_print_error("Transaction not registered for MySQL"
@@ -4068,9 +4082,12 @@ innobase_close_connection(
 				" active InnoDB transaction.  " TRX_ID_FMT
 				" row modifications will roll back.",
 				trx->undo_no);
-		}
 
-		TrxInInnoDB	trx_in_innodb(trx);
+			ut_d(ib::warn()
+			     << "trx: " << trx << " started on: "
+			     << innobase_basename(trx->start_file)
+				<< ":" << trx->start_line);
+		}
 
 		innobase_rollback_trx(trx);
 
@@ -5224,9 +5241,6 @@ table_opened:
 
 	/* Index block size in InnoDB: used by MySQL in query optimization */
 	stats.block_size = UNIV_PAGE_SIZE;
-
-	/* Init table lock structure */
-	thr_lock_data_init(&m_share->lock, &m_lock, NULL);
 
 	if (m_prebuilt->table) {
 		/* We update the highest file format in the system table
@@ -7135,14 +7149,8 @@ ha_innobase::update_row(
 
 	dberr_t		error;
 	trx_t*		trx = thd_to_trx(m_user_thd);
-	TrxInInnoDB	trx_in_innodb(trx);
 
 	DBUG_ENTER("ha_innobase::update_row");
-
-	if (trx_in_innodb.is_aborted()) {
-
-		DBUG_RETURN(innobase_rollback(ht, m_user_thd, false));
-	}
 
 	ut_a(m_prebuilt->trx == trx);
 
@@ -7194,6 +7202,11 @@ ha_innobase::update_row(
 
 	if (error != DB_SUCCESS) {
 		goto func_exit;
+	}
+
+	if (TrxInInnoDB::is_aborted(trx)) {
+
+		DBUG_RETURN(innobase_rollback(ht, m_user_thd, false));
 	}
 
 	/* This is not a delete */
@@ -7365,8 +7378,7 @@ ha_innobase::unlock_row(void)
 	DBUG_ENTER("ha_innobase::unlock_row");
 
 	/* Consistent read does not take any locks, thus there is
-	nothing to unlock.
-	There is no locking for intrinsic table. */
+	nothing to unlock.  There is no locking for intrinsic table. */
 
 	if (m_prebuilt->select_lock_type == LOCK_NONE
 	    || dict_table_is_intrinsic(m_prebuilt->table)) {
@@ -7374,6 +7386,10 @@ ha_innobase::unlock_row(void)
 	}
 
 	TrxInInnoDB	trx_in_innodb(m_prebuilt->trx);
+
+	if (trx_in_innodb.is_aborted()) {
+		DBUG_VOID_RETURN;
+	}
 
 	ut_ad(!dict_table_is_intrinsic(m_prebuilt->table));
 
@@ -7593,13 +7609,6 @@ ha_innobase::index_read(
 	DBUG_ENTER("index_read");
 	DEBUG_SYNC_C("ha_innobase_index_read_begin");
 
-	TrxInInnoDB	trx_in_innodb(m_prebuilt->trx);
-
-	if (trx_in_innodb.is_aborted()) {
-
-		DBUG_RETURN(innobase_rollback(ht, m_user_thd, false));
-	}
-
 	ut_a(m_prebuilt->trx == thd_to_trx(m_user_thd));
 	ut_ad(key_len != 0 || find_flag != HA_READ_KEY_EXACT);
 
@@ -7678,6 +7687,12 @@ ha_innobase::index_read(
 		innobase_srv_conc_enter_innodb(m_prebuilt);
 
 		if (!dict_table_is_intrinsic(m_prebuilt->table)) {
+
+			if (TrxInInnoDB::is_aborted(m_prebuilt->trx)) {
+
+				DBUG_RETURN(innobase_rollback(
+						ht, m_user_thd, false));
+			}
 
 			m_prebuilt->ins_sel_stmt = thd_is_ins_sel_stmt(
 				m_user_thd);
@@ -7961,8 +7976,6 @@ ha_innobase::index_read_idx(
 	uint		key_len,	/*!< in: key value length */
 	ha_rkey_function find_flag)/*!< in: search flags from my_base.h */
 {
-	TrxInInnoDB	trx_in_innodb(m_prebuilt->trx);
-
 	if (change_active_index(keynr)) {
 
 		return(1);
@@ -7987,11 +8000,13 @@ ha_innobase::general_fetch(
 {
 	DBUG_ENTER("general_fetch");
 
-	ut_ad(m_prebuilt->trx == thd_to_trx(m_user_thd));
+	const trx_t*	trx = m_prebuilt->trx;
 
-	TrxInInnoDB	trx_in_innodb(m_prebuilt->trx);
+	ut_ad(trx == thd_to_trx(m_user_thd));
 
-	if (trx_in_innodb.is_aborted()) {
+	bool	intrinsic = dict_table_is_intrinsic(m_prebuilt->table);
+
+	if (!intrinsic && TrxInInnoDB::is_aborted(trx)) {
 
 		DBUG_RETURN(innobase_rollback(ht, m_user_thd, false));
 	}
@@ -8000,7 +8015,7 @@ ha_innobase::general_fetch(
 
 	dberr_t	ret;
 
-	if (!dict_table_is_intrinsic(m_prebuilt->table)) {
+	if (!intrinsic) {
 
 		ret = row_search_mvcc(
 			buf, 0, m_prebuilt, match_mode, direction);
@@ -8018,8 +8033,7 @@ ha_innobase::general_fetch(
 	case DB_SUCCESS:
 		error = 0;
 		table->status = 0;
-		srv_stats.n_rows_read.add(
-			thd_get_thread_id(m_prebuilt->trx->mysql_thd), 1);
+		srv_stats.n_rows_read.add(thd_get_thread_id(trx->mysql_thd), 1);
 		break;
 	case DB_RECORD_NOT_FOUND:
 		error = HA_ERR_END_OF_FILE;
@@ -8031,7 +8045,7 @@ ha_innobase::general_fetch(
 		break;
 	case DB_TABLESPACE_DELETED:
 		ib_senderrf(
-			m_prebuilt->trx->mysql_thd, IB_LOG_LEVEL_ERROR,
+			trx->mysql_thd, IB_LOG_LEVEL_ERROR,
 			ER_TABLESPACE_DISCARDED,
 			table->s->table_name.str);
 
@@ -8040,7 +8054,7 @@ ha_innobase::general_fetch(
 		break;
 	case DB_TABLESPACE_NOT_FOUND:
 		ib_senderrf(
-			m_prebuilt->trx->mysql_thd, IB_LOG_LEVEL_ERROR,
+			trx->mysql_thd, IB_LOG_LEVEL_ERROR,
 			ER_TABLESPACE_MISSING,
 			table->s->table_name.str);
 
@@ -10360,10 +10374,6 @@ ha_innobase::discard_or_import_tablespace(
 
 	trx_start_if_not_started(m_prebuilt->trx, true);
 
-	/* In case MySQL calls this in the middle of a SELECT query, release
-	possible adaptive hash latch to avoid deadlocks of threads. */
-	trx_search_latch_release_if_reserved(m_prebuilt->trx);
-
 	/* Obtain an exclusive lock on the table. */
 	dberr_t	err = row_mysql_lock_table(
 		m_prebuilt->trx, dict_table, LOCK_X,
@@ -10558,11 +10568,6 @@ ha_innobase::delete_table(
 			break;
 		}
 	}
-
-	/* In case MySQL calls this in the middle of a SELECT query, release
-	possible adaptive hash latch to avoid deadlocks of threads */
-
-	trx_search_latch_release_if_reserved(parent_trx);
 
 	trx_t*	trx = innobase_trx_allocate(thd);
 
@@ -10846,11 +10851,6 @@ ha_innobase::rename_table(
 
 	TrxInInnoDB	trx_in_innodb(parent_trx);
 
-	/* In case MySQL calls this in the middle of a SELECT query, release
-	possible adaptive hash latch to avoid deadlocks of threads */
-
-	trx_search_latch_release_if_reserved(parent_trx);
-
 	trx_t*	trx = innobase_trx_allocate(thd);
 
 	/* We are doing a DDL operation. */
@@ -11042,10 +11042,7 @@ ha_innobase::records_in_range(
 
 	m_prebuilt->trx->op_info = "estimating records in index range";
 
-	/* In case MySQL calls this in the middle of a SELECT query, release
-	possible adaptive hash latch to avoid deadlocks of threads */
-
-	trx_search_latch_release_if_reserved(m_prebuilt->trx);
+	TrxInInnoDB	trx_in_innodb(m_prebuilt->trx);
 
 	active_index = keynr;
 
@@ -11172,11 +11169,6 @@ ha_innobase::estimate_rows_upper_bound()
 	TrxInInnoDB	trx_in_innodb(m_prebuilt->trx);
 
 	m_prebuilt->trx->op_info = "calculating upper bound for table rows";
-
-	/* In case MySQL calls this in the middle of a SELECT query, release
-	possible adaptive hash latch to avoid deadlocks of threads */
-
-	trx_search_latch_release_if_reserved(m_prebuilt->trx);
 
 	index = dict_table_get_first_index(m_prebuilt->table);
 
@@ -12455,8 +12447,6 @@ ha_innobase::get_foreign_key_list(
 
 	m_prebuilt->trx->op_info = "getting list of foreign keys";
 
-	trx_search_latch_release_if_reserved(m_prebuilt->trx);
-
 	mutex_enter(&dict_sys->mutex);
 
 	for (dict_foreign_set::iterator it
@@ -12496,8 +12486,6 @@ ha_innobase::get_parent_foreign_key_list(
 	TrxInInnoDB	trx_in_innodb(m_prebuilt->trx);
 
 	m_prebuilt->trx->op_info = "getting list of referencing foreign keys";
-
-	trx_search_latch_release_if_reserved(m_prebuilt->trx);
 
 	mutex_enter(&dict_sys->mutex);
 
@@ -12708,15 +12696,6 @@ ha_innobase::start_stmt(
 
 	trx = m_prebuilt->trx;
 
-	/* Here we release the search latch and the InnoDB thread FIFO ticket
-	if they were reserved. They should have been released already at the
-	end of the previous statement, but because inside LOCK TABLES the
-	lock count method does not work to mark the end of a SELECT statement,
-	that may not be the case. We MUST release the search latch before an
-	INSERT, for example. */
-
-	trx_search_latch_release_if_reserved(trx);
-
 	innobase_srv_conc_force_exit_innodb(trx);
 
 	/* Reset the AUTOINC statement level counter for multi-row INSERTs. */
@@ -12812,8 +12791,6 @@ ha_innobase::external_lock(
 
 	trx_t*		trx = m_prebuilt->trx;
 
-	TrxInInnoDB	trx_in_innodb(trx);
-
 	ut_ad(m_prebuilt->table);
 
 	if (dict_table_is_intrinsic(m_prebuilt->table)) {
@@ -12822,6 +12799,8 @@ ha_innobase::external_lock(
 
 			DBUG_RETURN(HA_ERR_WRONG_COMMAND);
 		}
+
+		TrxInInnoDB::begin_stmt(trx);
 
 		DBUG_RETURN(0);
 	}
@@ -12988,26 +12967,25 @@ ha_innobase::external_lock(
 		m_prebuilt->mysql_has_locked = TRUE;
 
 		if (!trx_is_started(trx)
-		    && lock_type != F_UNLCK
 		    && (m_prebuilt->select_lock_type != LOCK_NONE
 			|| m_prebuilt->stored_select_lock_type != LOCK_NONE)) {
 
 			++trx->will_lock;
 		}
 
+		TrxInInnoDB::begin_stmt(trx);
+
 		DBUG_RETURN(0);
+	} else {
+		TrxInInnoDB::end_stmt(trx);
+
+		DEBUG_SYNC_C("ha_innobase_end_statement");
 	}
 
 	/* MySQL is releasing a table lock */
 
 	trx->n_mysql_tables_in_use--;
 	m_prebuilt->mysql_has_locked = FALSE;
-
-	/* Release a possible FIFO ticket and search latch. Since we
-	may reserve the trx_sys->mutex, we have to release the search
-	system latch first to obey the latching order. */
-
-	trx_search_latch_release_if_reserved(trx);
 
 	innobase_srv_conc_force_exit_innodb(trx);
 
@@ -13338,8 +13316,6 @@ get_share(
 		HASH_INSERT(INNOBASE_SHARE, table_name_hash,
 			    innobase_open_tables, fold, share);
 
-		thr_lock_init(&share->lock);
-
 		/* Index translation table initialization */
 		share->idx_trans_tbl.index_mapping = NULL;
 		share->idx_trans_tbl.index_count = 0;
@@ -13382,7 +13358,6 @@ free_share(
 
 		HASH_DELETE(INNOBASE_SHARE, table_name_hash,
 			    innobase_open_tables, fold, share);
-		thr_lock_delete(&share->lock);
 
 		/* Free any memory from index translation table */
 		ut_free(share->idx_trans_tbl.index_mapping);
@@ -13588,73 +13563,6 @@ ha_innobase::store_lock(
 
 		m_prebuilt->select_lock_type = LOCK_NONE;
 		m_prebuilt->stored_select_lock_type = LOCK_NONE;
-	}
-
-	if (lock_type != TL_IGNORE && m_lock.type == TL_UNLOCK) {
-
-		/* Starting from 5.0.7, we weaken also the table locks
-		set at the start of a MySQL stored procedure call, just like
-		we weaken the locks set at the start of an SQL statement.
-		MySQL does set in_lock_tables TRUE there, but in reality
-		we do not need table locks to make the execution of a
-		single transaction stored procedure call deterministic
-		(if it does not use a consistent read). */
-
-		if (lock_type == TL_READ
-		    && sql_command == SQLCOM_LOCK_TABLES) {
-			/* We come here if MySQL is processing LOCK TABLES
-			... READ LOCAL. MyISAM under that table lock type
-			reads the table as it was at the time the lock was
-			granted (new inserts are allowed, but not seen by the
-			reader). To get a similar effect on an InnoDB table,
-			we must use LOCK TABLES ... READ. We convert the lock
-			type here, so that for InnoDB, READ LOCAL is
-			equivalent to READ. This will change the InnoDB
-			behavior in mysqldump, so that dumps of InnoDB tables
-			are consistent with dumps of MyISAM tables. */
-
-			lock_type = TL_READ_NO_INSERT;
-		}
-
-		/* If we are not doing a LOCK TABLE, DISCARD/IMPORT
-		TABLESPACE or TRUNCATE TABLE then allow multiple
-		writers. Note that ALTER TABLE uses a TL_WRITE_ALLOW_READ
-		< TL_WRITE_CONCURRENT_INSERT.
-
-		We especially allow multiple writers if MySQL is at the
-		start of a stored procedure call (SQLCOM_CALL) or a
-		stored function call (MySQL does have in_lock_tables
-		TRUE there). */
-
-		if ((lock_type >= TL_WRITE_CONCURRENT_INSERT
-		     && lock_type <= TL_WRITE)
-		    && !(in_lock_tables
-			 && sql_command == SQLCOM_LOCK_TABLES)
-		    && !thd_tablespace_op(thd)
-		    && sql_command != SQLCOM_TRUNCATE
-		    && sql_command != SQLCOM_OPTIMIZE
-		    && sql_command != SQLCOM_CREATE_TABLE) {
-
-			lock_type = TL_WRITE_ALLOW_WRITE;
-		}
-
-		/* In queries of type INSERT INTO t1 SELECT ... FROM t2 ...
-		MySQL would use the lock TL_READ_NO_INSERT on t2, and that
-		would conflict with TL_WRITE_ALLOW_WRITE, blocking all inserts
-		to t2. Convert the lock to a normal read lock to allow
-		concurrent inserts to t2.
-
-		We especially allow concurrent inserts if MySQL is at the
-		start of a stored procedure call (SQLCOM_CALL)
-		(MySQL does have thd_in_lock_tables() TRUE there). */
-
-		if (lock_type == TL_READ_NO_INSERT
-		    && sql_command != SQLCOM_LOCK_TABLES) {
-
-			lock_type = TL_READ;
-		}
-
-		m_lock.type = lock_type;
 	}
 
 	if (!trx_is_started(trx)
@@ -14203,7 +14111,13 @@ innobase_xa_prepare(
 
 		ut_ad(trx_is_registered_for_2pc(trx));
 
-		trx_prepare_for_mysql(trx);
+		dberr_t	err = trx_prepare_for_mysql(trx);
+
+		ut_ad(err == DB_SUCCESS || err == DB_FORCED_ABORT);
+
+		if (err == DB_FORCED_ABORT) {
+			return(innobase_rollback(hton, thd, prepare_trx));
+		}
 
 	} else {
 		/* We just mark the SQL statement ended and do not do a

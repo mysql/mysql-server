@@ -255,7 +255,6 @@ dict_stats_thread_deinit()
 	dict_stats_recalc_pool_deinit();
 
 	mutex_free(&recalc_pool_mutex);
-	memset(&recalc_pool_mutex, 0x0, sizeof(recalc_pool_mutex));
 
 	os_event_destroy(dict_stats_event);
 	dict_stats_event = NULL;

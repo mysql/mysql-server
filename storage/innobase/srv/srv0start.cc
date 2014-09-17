@@ -1040,14 +1040,13 @@ srv_start_wait_for_purge_to_start()
 	}
 }
 
-/********************************************************************
-Create the temporary file tablespace.
+/** Create the temporary file tablespace.
+@param[in,out]	tmp_space	Shared Temporary SysTablespace
 @return DB_SUCCESS or error code. */
 static
 dberr_t
 srv_open_tmp_tablespace(
-/*====================*/
-	SysTablespace*	tmp_space)	/*!< in/out: SysTablespace */
+	SysTablespace*	tmp_space)
 {
 	ulint	sum_of_new_sizes;
 
@@ -1097,12 +1096,26 @@ srv_open_tmp_tablespace(
 		ut_a(temp_space_id != ULINT_UNDEFINED);
 		ut_a(tmp_space->space_id() == temp_space_id);
 
-		mtr_start(&mtr);
-		mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
+		/* Open this shared temp tablesapce in the fil_system so that
+		it stays open until shutdown. */
+		if (fil_space_open(tmp_space->name())) {
 
-		fsp_header_init(tmp_space->space_id(), size, &mtr);
+			/* Initialize the header page */
+			mtr_start(&mtr);
+			mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
 
-		mtr_commit(&mtr);
+			fsp_header_init(tmp_space->space_id(), size, &mtr);
+
+			mtr_commit(&mtr);
+		} else {
+			/* This file was just opened in the code above! */
+			ib::error() << "The " << tmp_space->name()
+				<< " data file cannot be re-opened"
+				" after check_file_spec() succeeded!";
+
+			err = DB_ERROR;
+		}
+
 	}
 
 	return(err);
@@ -1218,22 +1231,38 @@ srv_shutdown_all_bg_threads()
 	}
 }
 
-#define srv_init_abort(_db_err) srv_init_abort_low(create_new_db, _db_err)
+#ifdef UNIV_DEBUG
+# define srv_init_abort(_db_err)	\
+	srv_init_abort_low(create_new_db, __FILE__, __LINE__, _db_err)
+#else
+# define srv_init_abort(_db_err)	\
+	srv_init_abort_low(create_new_db, _db_err)
+#endif /* UNIV_DEBUG */
 
-/********************************************************************
-Innobase start-up aborted. Perform cleanup actions.
+/** Innobase start-up aborted. Perform cleanup actions.
+@param[in]	create_new_db	TRUE if new db is  being created
+@param[in]	file		File name
+@param[in]	line		Line number
+@param[in]	err		Reason for aborting InnoDB startup
 @return DB_SUCCESS or error code. */
 static
 dberr_t
 srv_init_abort_low(
-/*===============*/
-	bool	create_new_db,	/*!< in: TRUE if new db being created */
-	dberr_t	err)		/*!< in: reason for abort */
+	bool		create_new_db,
+#ifdef UNIV_DEBUG
+	const char*	file,
+	ulint		line,
+#endif /* UNIV_DEBUG */
+	dberr_t		err)
 {
 	if (create_new_db) {
-		ib::error() << "InnoDB Database creation was aborted. You may"
-			" need to delete the ibdata1 file before trying"
-			" to start up again.";
+		ib::error() << "InnoDB Database creation was aborted"
+#ifdef UNIV_DEBUG
+			" at " << file << "[" << line << "]"
+#endif /* UNIV_DEBUG */
+			" with error " << ut_strerr(err) << ". You may need"
+			" to delete the ibdata1 file before trying to start"
+			" up again.";
 	}
 
 	srv_shutdown_all_bg_threads();
@@ -1493,7 +1522,8 @@ innobase_start_or_create_for_mysql(void)
 			limitation that if the user started with =0, we
 			will not emit a warning here, but we should actually
 			do so. */
-			ib::warn() << "Adjusting innodb_buffer_pool_instances"
+			ib::info()
+				<< "Adjusting innodb_buffer_pool_instances"
 				" from " << srv_buf_pool_instances << " to 1"
 				" since innodb_buffer_pool_size is less than "
 				<< BUF_POOL_SIZE_THRESHOLD / (1024 * 1024)

@@ -278,7 +278,7 @@ Blob Handshake_client::process_data(const Blob &data)
   Security_buffer  input(data);
   SECURITY_STATUS  ret;
 
-  m_output.free();
+  m_output.mem_free();
 
   ret= InitializeSecurityContextW(
          &m_cred,

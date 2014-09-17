@@ -4182,7 +4182,7 @@ in_string::~in_string()
 {
   for (uint i= 0; i < base_objects.size(); i++)
   {
-    base_objects[i].free();
+    base_objects[i].mem_free();
   }
 }
 
@@ -4518,7 +4518,7 @@ void cmp_item_row::alloc_comparators(Item *item)
   n= item->cols();
   DBUG_ASSERT(comparators == NULL);
   if (!comparators)
-    comparators= (cmp_item **) current_thd->calloc(sizeof(cmp_item *)*n);
+    comparators= (cmp_item **) current_thd->mem_calloc(sizeof(cmp_item *)*n);
   if (comparators)
   {
     for (uint i= 0; i < n; i++)

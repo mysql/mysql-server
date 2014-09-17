@@ -275,7 +275,7 @@ lock_rec_insert_check_and_lock(
 				inserted record maybe should inherit
 				LOCK_GAP type locks from the successor
 				record */
-	__attribute__((nonnull, warn_unused_result));
+	__attribute__((warn_unused_result));
 
 /*********************************************************************//**
 Enqueues a waiting request for a lock which cannot be granted immediately.
@@ -1030,26 +1030,6 @@ struct lock_sys_t{
 						is running */
 };
 
-/*********************************************************************//**
-Creates a new record lock and inserts it to the lock queue. Does NOT check
-for deadlocks or lock compatibility!
-@return created lock */
-UNIV_INLINE
-lock_t*
-lock_rec_create(
-/*============*/
-	ulint			type_mode,/*!< in: lock mode and wait
-					flag, type is ignored and
-					replaced by LOCK_REC */
-	const buf_block_t*	block,	/*!< in: buffer block containing
-					the record */
-	ulint			heap_no,/*!< in: heap number of the record */
-	dict_index_t*		index,	/*!< in: index of record */
-	trx_t*			trx,	/*!< in/out: transaction */
-	ibool			caller_owns_trx_mutex);
-					/*!< in: TRUE if caller owns
-					trx mutex */
-
 /*************************************************************//**
 Removes a record lock request, waiting or granted, from the queue. */
 void
@@ -1059,25 +1039,6 @@ lock_rec_discard(
 					record locks which are contained
 					in this lock object are removed */
 
-/*********************************************************************//**
-Creates a new record lock and inserts it to the lock queue. Does NOT check
-for deadlocks or lock compatibility!
-@return created lock */
-lock_t*
-lock_rec_create_low(
-/*================*/
-	ulint			type_mode,/*!< in: lock mode and wait
-					flag, type is ignored and
-					replaced by LOCK_REC */
-	ulint			space,	/*!< in: space number */
-	ulint			pageno,	/*!< in: page number */
-	const page_t*		page,	/*!< in: buffer page or NULL*/
-	ulint			heap_no,/*!< in: heap number of the record */
-	dict_index_t*		index,	/*!< in: index of record */
-	trx_t*			trx,	/*!< in/out: transaction */
-	ibool			caller_owns_trx_mutex);
-					/*!< in: TRUE if caller owns
-					trx mutex */
 /*************************************************************//**
 Moves the explicit locks on user records to another page if a record
 list start is moved to another page. */

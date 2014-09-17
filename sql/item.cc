@@ -2539,11 +2539,11 @@ Item_field::Item_field(THD *thd, Name_resolution_context *context_arg,
   */
   {
     if (db_name)
-      orig_db_name= thd->strdup(db_name);
+      orig_db_name= thd->mem_strdup(db_name);
     if (table_name)
-      orig_table_name= thd->strdup(table_name);
+      orig_table_name= thd->mem_strdup(table_name);
     if (field_name)
-      orig_field_name= thd->strdup(field_name);
+      orig_field_name= thd->mem_strdup(field_name);
     /*
       We don't restore 'name' in cleanup because it's not changed
       during execution. Still we need it to point to persistent
@@ -3821,7 +3821,7 @@ void Item_param::reset()
   DBUG_ENTER("Item_param::reset");
   /* Shrink string buffer if it's bigger than max possible CHAR column */
   if (str_value.alloced_length() > MAX_CHAR_WIDTH)
-    str_value.free();
+    str_value.mem_free();
   else
     str_value.length(0);
   str_value_ptr.length(0);
@@ -9291,7 +9291,7 @@ bool Item_cache_row::allocate(uint num)
   item_count= num;
   THD *thd= current_thd;
   return (!(values= 
-	    (Item_cache **) thd->calloc(sizeof(Item_cache *)*item_count)));
+	    (Item_cache **) thd->mem_calloc(sizeof(Item_cache *)*item_count)));
 }
 
 

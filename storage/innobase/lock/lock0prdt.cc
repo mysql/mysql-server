@@ -136,7 +136,7 @@ lock_prdt_has_to_wait(
 	ut_ad(type_mode & (LOCK_PREDICATE | LOCK_PRDT_PAGE));
 
 	if (trx != lock2->trx
-	    && !lock_mode_compatible(static_cast<enum lock_mode>(
+	    && !lock_mode_compatible(static_cast<lock_mode>(
 			             LOCK_MODE_MASK & type_mode),
 				     lock_get_mode(lock2))) {
 
@@ -450,15 +450,9 @@ lock_prdt_add_to_queue(
 		}
 	}
 
-	lock = lock_rec_create(
-		type_mode, block, PRDT_HEAPNO, index, trx,
-		caller_owns_trx_mutex);
+	RecLock	rec_lock(index, block, PRDT_HEAPNO, type_mode);
 
-	if (lock->type_mode & LOCK_PREDICATE) {
-		lock_prdt_set_prdt(lock, prdt);
-	}
-
-	return(lock);
+	return(rec_lock.create(trx, caller_owns_trx_mutex, prdt));
 }
 
 /*********************************************************************//**
@@ -524,24 +518,27 @@ lock_prdt_insert_check_and_lock(
 	Similar to GAP lock, we do not consider lock from inserts conflicts
 	with each other */
 
-	if (lock_prdt_other_has_conflicting(
-		    static_cast<enum lock_mode>(
-			    LOCK_X | LOCK_PREDICATE | LOCK_INSERT_INTENTION),
-		    block, prdt, trx)) {
-		rtr_mbr_t*	my_mbr = prdt_get_mbr_from_prdt(prdt);
+	const ulint	mode = LOCK_X | LOCK_PREDICATE | LOCK_INSERT_INTENTION;
 
-		/* allocate MBR on lock heap */
-		lock_init_prdt_from_mbr(prdt, my_mbr, 0,
-					trx->lock.lock_heap);
+	const lock_t*	wait_for = lock_prdt_other_has_conflicting(
+		mode, block, prdt, trx);
+
+	if (wait_for != NULL) {
+		rtr_mbr_t*	mbr = prdt_get_mbr_from_prdt(prdt);
+
+		/* Allocate MBR on the lock heap */
+		lock_init_prdt_from_mbr(prdt, mbr, 0, trx->lock.lock_heap);
+
+		RecLock	rec_lock(thr, index, block, PRDT_HEAPNO, mode);
 
 		/* Note that we may get DB_SUCCESS also here! */
+
 		trx_mutex_enter(trx);
 
-		err = lock_rec_enqueue_waiting(
-			LOCK_X | LOCK_PREDICATE | LOCK_INSERT_INTENTION,
-			block, PRDT_HEAPNO, index, thr, prdt);
+		err = rec_lock.add_to_waitq(wait_for, prdt);
 
 		trx_mutex_exit(trx);
+
 	} else {
 		err = DB_SUCCESS;
 	}
@@ -839,9 +836,9 @@ lock_prdt_lock(
 
 	if (lock == NULL) {
 
-		lock = lock_rec_create(
-			mode | type_mode, block, PRDT_HEAPNO,
-			index, trx, FALSE);
+		RecLock	rec_lock(index, block, PRDT_HEAPNO, prdt_mode);
+
+		lock = rec_lock.create(trx, false);
 
 		status = LOCK_REC_SUCCESS_CREATED;
 
@@ -868,10 +865,12 @@ lock_prdt_lock(
 
 				if (wait_for != NULL) {
 
-					err = lock_rec_enqueue_waiting(
-						mode | type_mode,
-						block, PRDT_HEAPNO,
-						index, thr, prdt);
+					RecLock	rec_lock(
+						thr, index, block, PRDT_HEAPNO,
+						prdt_mode, prdt);
+
+					err = rec_lock.add_to_waitq(wait_for);
+
 				} else {
 
 					lock_prdt_add_to_queue(
@@ -951,10 +950,10 @@ lock_place_prdt_page_lock(
 	}
 
 	if (lock == NULL) {
+		RecID	rec_id(space, page_no, PRDT_HEAPNO);
+		RecLock	rec_lock(index, rec_id, mode);
 
-		lock = lock_rec_create_low(
-			mode, space, page_no, NULL, PRDT_HEAPNO,
-			index, trx, FALSE);
+		rec_lock.create(trx, false);
 
 #ifdef PRDT_DIAG
 		printf("GIS_DIAGNOSTIC: page lock %d\n", (int) page_no);
