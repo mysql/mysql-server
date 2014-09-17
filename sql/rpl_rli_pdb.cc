@@ -2290,3 +2290,9 @@ err:
   }
   DBUG_RETURN(error);
 }
+
+const char* Slave_worker::get_for_channel_str(bool upper_case) const
+{
+  return c_rli->get_for_channel_str(upper_case);
+}
+
