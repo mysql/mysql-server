@@ -287,6 +287,13 @@ public:
 
   bool shall_ignore_server_id(ulong s_id);
 
+  /*
+     A buffer to hold " for channel <channel_name>
+     used in error messages per channel
+   */
+  char for_channel_str[CHANNEL_NAME_LENGTH+15];
+  char for_channel_uppercase_str[CHANNEL_NAME_LENGTH+15];
+
   virtual ~Master_info();
 
 protected:
@@ -363,6 +370,13 @@ public:
   }
 
   bool set_info_search_keys(Rpl_info_handler *to);
+
+  virtual const char* get_for_channel_str(bool upper_case= false) const
+  {
+    return reinterpret_cast<const char *>(upper_case ?
+                                          for_channel_uppercase_str
+                                          : for_channel_str);
+  }
 
 private:
   void init_master_log_pos();

@@ -135,6 +135,12 @@ Master_info::Master_info(
   start_plugin_auth[0]= 0; start_plugin_dir[0]= 0;
   start_user[0]= 0;
   ignore_server_ids= new Server_ids;
+
+  /*channel is set in base class, rpl_info.cc*/
+  my_snprintf(for_channel_str, sizeof(for_channel_str)-1,
+             " for channel '%s'", channel);
+  my_snprintf(for_channel_uppercase_str, sizeof(for_channel_uppercase_str)-1,
+             " FOR CHANNEL '%s'", channel);
 }
 
 Master_info::~Master_info()

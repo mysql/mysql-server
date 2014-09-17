@@ -1029,6 +1029,8 @@ public:
     return this;
   }
 
+  virtual const char* get_for_channel_str(bool upper_case= false) const;
+
 protected:
   Format_description_log_event *rli_description_event;
 

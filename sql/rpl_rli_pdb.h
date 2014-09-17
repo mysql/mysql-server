@@ -529,10 +529,16 @@ public:
     a slave thread, like this: thd->rli_slave->get_c_rli();
     thd could be a SQL thread or a worker thread.
   */
-  inline virtual Relay_log_info* get_c_rli()
+   virtual Relay_log_info* get_c_rli()
   {
     return c_rli;
   }
+
+  /**
+     return an extension "for channel channel_name"
+     for error messages per channel
+  */
+  const char* get_for_channel_str(bool upper_case= false) const;
 
 protected:
 

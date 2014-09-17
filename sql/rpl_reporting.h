@@ -140,18 +140,7 @@ public:
    error messages and see no %s.
    @TODO: fix this.
  */
-  char*  error_str_channel(char* channel_name)
-  {
-    if (!channel_name || !channel_name[0])
-    {
-      channel_str[0]= 0;
-    }
-    else
-      sprintf(channel_str, " FOR CHANNEL '%s'", channel_name);
-
-    return channel_str;
-  }
-
+  virtual const char* get_for_channel_str(bool upper_case) const = 0;
 
   virtual ~Slave_reporting_capability()= 0;
 

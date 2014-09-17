@@ -2656,3 +2656,13 @@ bool is_mts_db_partitioned(Relay_log_info * rli)
   return (rli->current_mts_submode->get_type() ==
     MTS_PARALLEL_TYPE_DB_NAME);
 }
+
+const char* Relay_log_info::get_for_channel_str(bool upper_case) const
+{
+  if (rli_fake)
+    return "";
+  else
+    return mi->get_for_channel_str(upper_case);
+}
+
+
