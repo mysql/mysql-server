@@ -33,6 +33,8 @@ FIND_PACKAGE(ZLIB REQUIRED)
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/include
                     ${CMAKE_SOURCE_DIR}/libbinlogevents/include
                     ${CMAKE_CURRENT_BINARY_DIR}/../libbinlogevents/include
+                    ${CMAKE_SOURCE_DIR}/libbinlogevents/export
+                    ${CMAKE_CURRENT_BINARY_DIR}/libbinlogevents/export
                     # ZLIB_INCLUDE_DIR points to ${CMAKE_SOURCE_DIR}/zlib,
                     # when compiled with MySQL server version (< 5.7).
                     # It is NULL otherwise.
