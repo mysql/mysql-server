@@ -2488,7 +2488,7 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
       if (frm_db_type != DB_TYPE_UNKNOWN && !table_type)
       {
         my_error(ER_STORAGE_ENGINE_NOT_LOADED, MYF(0), db, table->table_name);
-        wrong_tables.free();
+        wrong_tables.mem_free();
         error= 1;
         goto err;
       }
@@ -2532,7 +2532,7 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
       if (error == HA_ERR_TOO_MANY_CONCURRENT_TRXS)
       {
         my_error(HA_ERR_TOO_MANY_CONCURRENT_TRXS, MYF(0));
-        wrong_tables.free();
+        wrong_tables.mem_free();
         error= 1;
         goto err;
       }

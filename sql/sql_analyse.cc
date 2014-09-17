@@ -243,7 +243,7 @@ bool get_ev_num_info(EV_NUM_INFO *ev_info, NUM_INFO *info, const char *num)
 
 void free_string(String *s)
 {
-  s->free();
+  s->mem_free();
 }
 
 
@@ -1242,7 +1242,7 @@ bool append_escaped(String *to_str, String *from_str)
 {
   char *from, *end, c;
 
-  if (to_str->realloc(to_str->length() + from_str->length()))
+  if (to_str->mem_realloc(to_str->length() + from_str->length()))
     return 1;
 
   from= (char*) from_str->ptr();

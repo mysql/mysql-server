@@ -2240,7 +2240,7 @@ String *Item_func_point::val_str(String *str)
 
   if ((null_value= (args[0]->null_value ||
                     args[1]->null_value ||
-                    str->realloc(4/*SRID*/ + 1 + 4 + SIZEOF_STORED_DOUBLE * 2))))
+                    str->mem_realloc(4/*SRID*/ + 1 + 4 + SIZEOF_STORED_DOUBLE * 2))))
     return 0;
 
   str->set_charset(&my_charset_bin);
@@ -2325,7 +2325,7 @@ String *Item_func_pointfromgeohash::val_str(String *str)
     return error_str();
   }
 
-  if (str->realloc(GEOM_HEADER_SIZE + POINT_DATA_SIZE))
+  if (str->mem_realloc(GEOM_HEADER_SIZE + POINT_DATA_SIZE))
     return make_empty_result();
   
   if (geohash->length() == 0)
@@ -7460,7 +7460,7 @@ geocol_intersection(Geometry *g1, Geometry *g2, String *result, bool *pdone)
          j != bggc2.get_geometries().end(); ++j)
     {
       // Free before using it, wkbres may have WKB data from last execution.
-      wkbres.free();
+      wkbres.mem_free();
       opdone= false;
       g0= bg_geo_set_op<Coord_type, Coordsys>(*i, *j, &wkbres, &opdone);
 
@@ -7570,7 +7570,7 @@ bool BG_geometry_collection::merge_one_run(Item_func_spatial_operation *ifso,
           isdone && !null_value)
       {
         // Free before using it, wkbres may have WKB data from last execution.
-        wkbres.free();
+        wkbres.mem_free();
         gres= ifso->bg_geo_set_op<Coord_type, Coordsys>(*i, *j,
                                                         &wkbres, &opdone);
         null_value= ifso->null_value;

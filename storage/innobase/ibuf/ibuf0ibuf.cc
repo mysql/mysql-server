@@ -458,14 +458,10 @@ ibuf_close(void)
 /*============*/
 {
 	mutex_free(&ibuf_pessimistic_insert_mutex);
-	memset(&ibuf_pessimistic_insert_mutex,
-	       0x0, sizeof(ibuf_pessimistic_insert_mutex));
 
 	mutex_free(&ibuf_mutex);
-	memset(&ibuf_mutex, 0x0, sizeof(ibuf_mutex));
 
 	mutex_free(&ibuf_bitmap_mutex);
-	memset(&ibuf_bitmap_mutex, 0x0, sizeof(ibuf_mutex));
 
 	ut_free(ibuf);
 	ibuf = NULL;
@@ -4521,7 +4517,7 @@ ibuf_merge_or_delete_for_page(
 	ulint		volume			= 0;
 #endif
 	page_zip_des_t*	page_zip		= NULL;
-	bool		tablespace_being_deleted = false;
+	fil_space_t*	space			= NULL;
 	bool		corruption_noticed	= false;
 	mtr_t		mtr;
 
@@ -4561,14 +4557,9 @@ ibuf_merge_or_delete_for_page(
 			return;
 		}
 
-		/* If the following returns FALSE, we get the counter
-		incremented, and must decrement it when we leave this
-		function. When the counter is > 0, that prevents tablespace
-		from being dropped. */
+		space = fil_space_acquire(page_id.space());
 
-		tablespace_being_deleted = fil_inc_pending_ops(page_id.space());
-
-		if (tablespace_being_deleted) {
+		if (space == NULL) {
 			/* Do not try to read the bitmap page from space;
 			just delete the ibuf records for the page */
 
@@ -4592,10 +4583,7 @@ ibuf_merge_or_delete_for_page(
 			if (!bitmap_bits) {
 				/* No inserts buffered for this page */
 
-				if (!tablespace_being_deleted) {
-					fil_decr_pending_ops(page_id.space());
-				}
-
+				fil_space_release(space);
 				return;
 			}
 		}
@@ -4897,9 +4885,8 @@ reset_bit:
 	mutex_exit(&ibuf_mutex);
 #endif /* HAVE_ATOMIC_BUILTINS */
 
-	if (update_ibuf_bitmap && !tablespace_being_deleted) {
-
-		fil_decr_pending_ops(page_id.space());
+	if (space != NULL) {
+		fil_space_release(space);
 	}
 
 #ifdef UNIV_IBUF_COUNT_DEBUG

@@ -53,7 +53,7 @@ bool Protocol_binary::net_store_data(const uchar *from, size_t length)
      9 bytes to be stored (see net_store_length).
   */
   if (packet_length+9+length > packet->alloced_length() &&
-      packet->realloc(packet_length+9+length))
+      packet->mem_realloc(packet_length+9+length))
     return 1;
   uchar *to= net_store_length((uchar*) packet->ptr()+packet_length, length);
   memcpy(to,from,length);
@@ -105,7 +105,7 @@ bool Protocol::net_store_data(const uchar *from, size_t length,
   size_t packet_length= packet->length();
   size_t new_length= packet_length + conv_length + 1;
 
-  if (new_length > packet->alloced_length() && packet->realloc(new_length))
+  if (new_length > packet->alloced_length() && packet->mem_realloc(new_length))
     return 1;
 
   char *length_pos= (char*) packet->ptr() + packet_length;
@@ -880,7 +880,7 @@ bool Protocol::send_result_set_metadata(List<Item> *list, uint flags)
 		     cs, thd_charset) ||
 	  prot.store(field.org_col_name, strlen(field.org_col_name),
 		     cs, thd_charset) ||
-	  local_packet->realloc(local_packet->length()+12))
+	  local_packet->mem_realloc(local_packet->length()+12))
 	goto err;
       /* Store fixed length fields */
       pos= (char*) local_packet->ptr()+local_packet->length();
@@ -936,7 +936,7 @@ bool Protocol::send_result_set_metadata(List<Item> *list, uint flags)
 		     cs, thd_charset) ||
 	  prot.store(field.col_name, strlen(field.col_name),
 		     cs, thd_charset) ||
-	  local_packet->realloc(local_packet->length()+10))
+	  local_packet->mem_realloc(local_packet->length()+10))
 	goto err;
       pos= (char*) local_packet->ptr()+local_packet->length();
       pos[0]=3;
@@ -1014,7 +1014,7 @@ bool Protocol::send_result_set_row(List<Item> *row_items)
     if (item->send(this, &str_buffer))
     {
       // If we're out of memory, reclaim some, to help us recover.
-      this->free();
+      this->mem_free();
       DBUG_RETURN(TRUE);
     }
     /* Item::send() may generate an error. If so, abort the loop. */

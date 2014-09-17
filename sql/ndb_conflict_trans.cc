@@ -322,7 +322,7 @@ st_mem_root_allocator::alloc(void* ctx, size_t bytes)
 };
 
 void*
-st_mem_root_allocator::calloc(void* ctx, size_t nelem, size_t bytes)
+st_mem_root_allocator::mem_calloc(void* ctx, size_t nelem, size_t bytes)
 {
   st_mem_root_allocator* a = (st_mem_root_allocator*) ctx;
   return alloc_root(a->mem_root,
@@ -330,7 +330,7 @@ st_mem_root_allocator::calloc(void* ctx, size_t nelem, size_t bytes)
 }
 
 void
-st_mem_root_allocator::free(void* ctx, void* mem)
+st_mem_root_allocator::mem_free(void* ctx, void* mem)
 {
   /* Do nothing, will be globally freed when arena (mem_root)
    * released
@@ -575,7 +575,7 @@ get_or_create_transaction(Uint64 trans_id)
 
       if (!trans_hash.add(transEntry))
       {
-        st_mem_root_allocator::free(&mra, transEntry); /* For show */
+        st_mem_root_allocator::mem_free(&mra, transEntry); /* For show */
         transEntry = NULL;
       }
     }

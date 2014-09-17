@@ -959,7 +959,7 @@ void Session_tracker::store(THD *thd, String &buf)
 
   /* .. and then the actual info. */
   buf.append(temp);
-  temp.free();
+  temp.mem_free();
 }
 
 

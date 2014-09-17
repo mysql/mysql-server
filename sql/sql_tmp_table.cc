@@ -493,7 +493,7 @@ static const char *create_tmp_table_field_tmp_name(THD *thd, int field_index)
 {
   char buf[64];
   my_snprintf(buf, 64, "tmp_field_%d", field_index);
-  return thd->strdup(buf);
+  return thd->mem_strdup(buf);
 }
 
 /**
@@ -2249,7 +2249,7 @@ free_tmp_table(THD *thd, TABLE *entry)
   }
   /* free blobs */
   for (Field **ptr=entry->field ; *ptr ; ptr++)
-    (*ptr)->free();
+    (*ptr)->mem_free();
   free_io_cache(entry);
 
   if (entry->temp_pool_slot != MY_BIT_NONE)
