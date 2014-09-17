@@ -241,17 +241,6 @@ int Replication_thread_api::test_and_purge_relay_logs()
     {
       DBUG_RETURN(REPLICATION_THREAD_REPOSITORY_PURGE_ERROR);
     }
-
-    /*
-     Due to bad coding on MYSQL_BIN_LOG::reset_logs, the gtid is cleared on
-     the active_mi relay log and not on the calling relay log info object.
-     TODO: On MSR merge, remove this.
-     If MSR merge is not ready on time, this code still has to change before the
-     push for labs release.
-    */
-    global_sid_lock->wrlock();
-    (const_cast<Gtid_set *>(rli->get_gtid_set()))->clear();
-    global_sid_lock->unlock();
   }
   else{
     global_sid_lock->unlock();

@@ -4362,13 +4362,7 @@ bool MYSQL_BIN_LOG::reset_logs(THD* thd)
   }
 
 #ifdef HAVE_REPLICATION
-  if (is_relay_log)
-  {
-    DBUG_ASSERT(active_mi != NULL);
-    DBUG_ASSERT(active_mi->rli != NULL);
-    (const_cast<Gtid_set *>(active_mi->rli->get_gtid_set()))->clear();
-  }
-  else
+  if (!is_relay_log)
   {
     if(gtid_state->clear(thd))
     {

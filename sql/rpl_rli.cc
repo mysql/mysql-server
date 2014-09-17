@@ -1183,6 +1183,11 @@ int Relay_log_info::purge_relay_logs(THD *thd, bool just_reset,
     error=1;
     goto err;
   }
+
+  global_sid_lock->wrlock();
+  (const_cast<Gtid_set *>(get_gtid_set()))->clear();
+  global_sid_lock->unlock();
+
   /* Save name of used relay log file */
   set_group_relay_log_name(relay_log.get_log_fname());
   set_event_relay_log_name(relay_log.get_log_fname());
