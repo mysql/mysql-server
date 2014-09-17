@@ -1058,30 +1058,6 @@ loop:
 	}
 }
 
-/** Flush the log has been written to the log file. */
-static
-void
-log_write_flush_to_disk_low()
-{
-	ut_a(log_sys->n_pending_flushes == 1); /* No other threads here */
-
-#ifndef _WIN32
-	bool	do_flush = srv_unix_file_flush_method != SRV_UNIX_O_DSYNC;
-#else
-	bool	do_flush = true;
-#endif
-	if (do_flush) {
-		log_group_t*	group = UT_LIST_GET_FIRST(log_sys->log_groups);
-		fil_flush(group->space_id);
-		log_sys->flushed_to_disk_lsn = log_sys->current_flush_lsn;
-	}
-
-	log_sys->n_pending_flushes--;
-	MONITOR_DEC(MONITOR_PENDING_LOG_FLUSH);
-
-	os_event_set(log_sys->flush_event);
-}
-
 /** Ensure that the log has been written to the log file up to a given
 log entry (such as that of a transaction commit). Start a new write, or
 wait and check if an already running write is covering the request.
@@ -1191,13 +1167,6 @@ loop:
 		log_sys->current_flush_lsn = log_sys->lsn;
 		MONITOR_INC(MONITOR_PENDING_LOG_FLUSH);
 		os_event_reset(log_sys->flush_event);
-
-		if (log_sys->buf_free == log_sys->buf_next_to_write) {
-			/* Nothing to write, flush only */
-			log_mutex_exit();
-			log_write_flush_to_disk_low();
-			return;
-		}
 	}
 
 	group = UT_LIST_GET_FIRST(log_sys->log_groups);
@@ -1273,9 +1242,28 @@ loop:
 
 	log_mutex_exit();
 
-	if (flush_to_disk) {
-		log_write_flush_to_disk_low();
+	if (!flush_to_disk) {
+		/* Only write requested. */
+		return;
 	}
+
+	ut_a(log_sys->n_pending_flushes == 1); /* No other threads here */
+
+#ifndef _WIN32
+	bool	do_flush = srv_unix_file_flush_method != SRV_UNIX_O_DSYNC;
+#else
+	bool	do_flush = true;
+#endif
+	if (do_flush) {
+		group = UT_LIST_GET_FIRST(log_sys->log_groups);
+		fil_flush(group->space_id);
+		log_sys->flushed_to_disk_lsn = log_sys->current_flush_lsn;
+	}
+
+	log_sys->n_pending_flushes--;
+	MONITOR_DEC(MONITOR_PENDING_LOG_FLUSH);
+
+	os_event_set(log_sys->flush_event);
 }
 
 /****************************************************************//**
