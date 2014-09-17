@@ -124,6 +124,7 @@ enum_return_status Gtid_set::ensure_sidno(rpl_sidno sidno)
                       sidno, get_max_sidno(), sid_map,
                       sid_map != NULL ? sid_map->get_max_sidno() : 0));
   DBUG_ASSERT(sid_map == NULL || sidno <= sid_map->get_max_sidno());
+  DBUG_ASSERT(sid_map == NULL || get_max_sidno() <= sid_map->get_max_sidno());
   rpl_sidno max_sidno= get_max_sidno();
   if (sidno > max_sidno)
   {
@@ -704,12 +705,6 @@ enum_return_status Gtid_set::add_gtid_set(const Gtid_set *other)
   }
   else
   {
-    /*
-      This code is not being used but we will keep it as it may be
-      useful to optimize gtids by avoiding sharing mappings from
-      sid to sidno. For instance, the IO Thread and the SQL Thread
-      may have different mappings in the future.
-    */
     Sid_map *other_sid_map= other->sid_map;
     for (rpl_sidno other_sidno= 1; other_sidno <= max_other_sidno;
          other_sidno++)

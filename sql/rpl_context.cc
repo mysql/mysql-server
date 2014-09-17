@@ -63,7 +63,7 @@ bool Session_consistency_gtids_ctx::notify_after_transaction_commit(const THD* t
 
      NOTE: in the future optimize to collect deltas instead maybe.
     */
-    global_sid_lock->rdlock();
+    global_sid_lock->wrlock();
     res= m_gtid_set->add_gtid_set(gtid_state->get_executed_gtids()) != RETURN_STATUS_OK;
     global_sid_lock->unlock();
 
@@ -86,7 +86,6 @@ bool Session_consistency_gtids_ctx::notify_after_gtid_executed_update(const THD 
 
   if (thd->variables.session_track_gtids == OWN_GTID)
   {
-    bool added= false;
     const Gtid& gtid= thd->owned_gtid;
     if (gtid.sidno == -1) // we need to add thd->owned_gtid_set
     {
@@ -94,8 +93,6 @@ bool Session_consistency_gtids_ctx::notify_after_gtid_executed_update(const THD 
       DBUG_ASSERT(!thd->owned_gtid_set.is_empty());
 #ifdef HAVE_GTID_NEXT_LIST
       res= m_gtid_set->add_gtid_set(&thd->owned_gtid_set) != RETURN_STATUS_OK;
-      if (!res)
-        added= true;
 #else
       DBUG_ASSERT(0);
 #endif
@@ -103,8 +100,6 @@ bool Session_consistency_gtids_ctx::notify_after_gtid_executed_update(const THD 
     else if (gtid.sidno > 0) // only one gtid
     {
       /*
-        Otherwise m_gtid_set->ensure_sidno below would assert.
-
         Note that the interface is such that m_sid_map must contain
         sidno before we add the gtid to m_gtid_set.
 
@@ -115,14 +110,12 @@ bool Session_consistency_gtids_ctx::notify_after_gtid_executed_update(const THD 
       rpl_sidno local_set_sidno= m_sid_map->add_sid(thd->owned_sid);
 
       DBUG_ASSERT(!m_gtid_set->contains_gtid(local_set_sidno, gtid.gno));
-      if (!(res= (m_gtid_set->ensure_sidno(local_set_sidno) != RETURN_STATUS_OK)))
-      {
+      res= m_gtid_set->ensure_sidno(local_set_sidno) != RETURN_STATUS_OK;
+      if (!res)
         m_gtid_set->_add_gtid(local_set_sidno, gtid.gno);
-        added= true;
-      }
     }
 
-    if (added)
+    if (!res)
       notify_ctx_change_listener();
   }
   DBUG_RETURN(res);
@@ -136,11 +129,7 @@ bool Session_consistency_gtids_ctx::notify_after_response_packet(const THD *thd)
     DBUG_RETURN(res);
 
   if (m_gtid_set && !m_gtid_set->is_empty())
-  {
     m_gtid_set->clear();
-    m_sid_map->clear();
-    DBUG_ASSERT(m_sid_map->get_max_sidno() == 0);
-  }
 
   DBUG_RETURN(res);
 }

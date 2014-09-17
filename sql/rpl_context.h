@@ -107,11 +107,11 @@ public:
   */
   virtual ~Session_consistency_gtids_ctx();
 
-    /**
+  /**
    Registers the listener. The pointer MUST not be NULL.
 
    @param listener a pointer to the listener to register.
-   */
+  */
   void register_ctx_change_listener(Session_consistency_gtids_ctx::Ctx_change_listener* listener);
 
   /**
