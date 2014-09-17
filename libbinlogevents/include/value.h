@@ -16,51 +16,18 @@
 #ifndef VALUE_ADAPTER_INCLUDED
 #define	VALUE_ADAPTER_INCLUDED
 
+#include "binary_log_decimal.h"
+#include "transitional_methods.h"
 #include <climits>
 #include <stdint.h>
 #include <stdio.h>
 #include <iostream>
 #include <cassert>
 #include <cstring>
-#include "transitional_methods.h"
 #ifndef DATETIME_MAX_DECIMALS
 #define DATETIME_MAX_DECIMALS 6
 #endif
 
-//TODO: Remove the ifdef condition
-/*
-  The following enum is defined in mysql_com.h. It is not feasible to include
-  the complete header here, therefore it might be a good idea to define it in
-  a header file common to both the server (not only replication code), but the
-  client code here, and binlogevent.
-  //TODO: Add a common header file if reviewers approve the idea.
-*/
-#ifndef   _mysql_com_h
-enum enum_field_types { MYSQL_TYPE_DECIMAL, MYSQL_TYPE_TINY,
-                        MYSQL_TYPE_SHORT,  MYSQL_TYPE_LONG,
-                        MYSQL_TYPE_FLOAT,  MYSQL_TYPE_DOUBLE,
-                        MYSQL_TYPE_NULL,   MYSQL_TYPE_TIMESTAMP,
-                        MYSQL_TYPE_LONGLONG,MYSQL_TYPE_INT24,
-                        MYSQL_TYPE_DATE,   MYSQL_TYPE_TIME,
-                        MYSQL_TYPE_DATETIME, MYSQL_TYPE_YEAR,
-                        MYSQL_TYPE_NEWDATE, MYSQL_TYPE_VARCHAR,
-                        MYSQL_TYPE_BIT,
-                        MYSQL_TYPE_TIMESTAMP2,
-                        MYSQL_TYPE_DATETIME2,
-                        MYSQL_TYPE_TIME2,
-                        MYSQL_TYPE_NEWDECIMAL=246,
-                        MYSQL_TYPE_ENUM=247,
-                        MYSQL_TYPE_SET=248,
-                        MYSQL_TYPE_TINY_BLOB=249,
-                        MYSQL_TYPE_MEDIUM_BLOB=250,
-                        MYSQL_TYPE_LONG_BLOB=251,
-                        MYSQL_TYPE_BLOB=252,
-                        MYSQL_TYPE_VAR_STRING=253,
-                        MYSQL_TYPE_STRING=254,
-                        MYSQL_TYPE_GEOMETRY=255
-
-};
-#endif
 namespace binary_log {
 /**
  This helper function calculates the size in bytes of a particular field in a

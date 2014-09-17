@@ -60,6 +60,7 @@ FOREACH(file ${ABI_HEADERS})
     COMMAND ${COMPILER} 
       -E -nostdinc -dI -DMYSQL_ABI_CHECK -I${SOURCE_DIR}/include
       -I${BINARY_DIR}/include -I${SOURCE_DIR}/include/mysql -I${SOURCE_DIR}/sql
+      -I${SOURCE_DIR}/libbinlogevents/export
       ${file} 
       ERROR_QUIET OUTPUT_FILE ${tmpfile})
   EXECUTE_PROCESS(
