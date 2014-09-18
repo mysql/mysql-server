@@ -424,11 +424,7 @@ static void emb_free_embedded_thd(MYSQL *mysql)
   thd->clear_data_list();
   thd->store_globals();
   thd->release_resources();
-
-  mysql_mutex_lock(&LOCK_thread_count);
   remove_global_thread(thd);
-  mysql_mutex_unlock(&LOCK_thread_count);
-
   delete thd;
   my_pthread_setspecific_ptr(THR_THD,  0);
   mysql->thd=0;

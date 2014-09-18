@@ -2063,10 +2063,22 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
 
   if (!thd->killed)
   {
-    mysql_mutex_lock(&LOCK_thread_count);
+    /* take copy of global_thread_list */
+    std::set<THD*> global_thread_list_copy;
+    DEBUG_SYNC(thd,"before_copying_threads");
+    /*
+      Allow inserts to global_thread_list. Newly added thd
+      will not be accounted for `show processlist` and
+      removal from global_thread_list is blocked as LOCK_thd_remove
+      mutex is not released yet
+     */
+    mysql_mutex_lock(&LOCK_thd_remove);
+    copy_global_thread_list(&global_thread_list_copy);
+
+    DEBUG_SYNC(thd,"after_copying_threads");
     thread_infos.reserve(get_thread_count());
-    Thread_iterator it= global_thread_list_begin();
-    Thread_iterator end= global_thread_list_end();
+    Thread_iterator it= global_thread_list_copy.begin();
+    Thread_iterator end= global_thread_list_copy.end();
     for (; it != end; ++it)
     {
       THD *tmp= *it;
@@ -2094,6 +2106,12 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
                                       tmp_sctx->get_host()->length() ?
                                       tmp_sctx->get_host()->ptr() : "");
         thd_info->command=(int) tmp->get_command();
+        DBUG_EXECUTE_IF("processlist_acquiring_dump_threads_LOCK_thd_data",
+                        {
+                         if (thd_info->command == COM_BINLOG_DUMP ||
+                             thd_info->command == COM_BINLOG_DUMP_GTID)
+                           DEBUG_SYNC(thd, "processlist_after_LOCK_thd_count_before_LOCK_thd_data");
+                        });
         mysql_mutex_lock(&tmp->LOCK_thd_data);
         if ((thd_info->db= tmp->db))             // Safe test
           thd_info->db= thd->strdup(thd_info->db);
@@ -2118,7 +2136,7 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
         thread_infos.push_back(thd_info);
       }
     }
-    mysql_mutex_unlock(&LOCK_thread_count);
+    mysql_mutex_unlock(&LOCK_thd_remove);
   }
 
   // Return list sorted by thread_id.
@@ -2164,9 +2182,19 @@ int fill_schema_processlist(THD* thd, TABLE_LIST* tables, Item* cond)
 
   if (!thd->killed)
   {
-    mysql_mutex_lock(&LOCK_thread_count);
-    Thread_iterator it= global_thread_list_begin();
-    Thread_iterator end= global_thread_list_end();
+    /* take copy of global_thread_list */
+    std::set<THD*> global_thread_list_copy;
+    /*
+      Allow inserts to global_thread_list. Newly added thd
+      will not be accounted for `fill schema processlist` and
+      removal from global_thread_list is blocked as LOCK_thd_remove
+      mutex is not released yet
+     */
+    mysql_mutex_lock(&LOCK_thd_remove);
+    copy_global_thread_list(&global_thread_list_copy);
+
+    Thread_iterator it= global_thread_list_copy.begin();
+    Thread_iterator end= global_thread_list_copy.end();
     for (; it != end; ++it)
     {
       THD* tmp= *it;
@@ -2198,6 +2226,12 @@ int fill_schema_processlist(THD* thd, TABLE_LIST* tables, Item* cond)
       else
         table->field[2]->store(tmp_sctx->host_or_ip,
                                strlen(tmp_sctx->host_or_ip), cs);
+      DBUG_EXECUTE_IF("processlist_acquiring_dump_threads_LOCK_thd_data",
+                      {
+                      if (tmp->get_command() == COM_BINLOG_DUMP ||
+                          tmp->get_command() == COM_BINLOG_DUMP_GTID)
+                      DEBUG_SYNC(thd, "processlist_after_LOCK_thd_count_before_LOCK_thd_data");
+                      });
       /* DB */
       mysql_mutex_lock(&tmp->LOCK_thd_data);
       if ((db= tmp->db))
@@ -2226,11 +2260,7 @@ int fill_schema_processlist(THD* thd, TABLE_LIST* tables, Item* cond)
 
       if (mysys_var)
         mysql_mutex_unlock(&mysys_var->mutex);
-      mysql_mutex_unlock(&tmp->LOCK_thd_data);
-
       /* INFO */
-      /* Lock THD mutex that protects its data when looking at it. */
-      mysql_mutex_lock(&tmp->LOCK_thd_data);
       if (tmp->query())
       {
         size_t const width=
@@ -2242,11 +2272,11 @@ int fill_schema_processlist(THD* thd, TABLE_LIST* tables, Item* cond)
 
       if (schema_table_store_record(thd, table))
       {
-        mysql_mutex_unlock(&LOCK_thread_count);
+        mysql_mutex_unlock(&LOCK_thd_remove);
         DBUG_RETURN(1);
       }
     }
-    mysql_mutex_unlock(&LOCK_thread_count);
+    mysql_mutex_unlock(&LOCK_thd_remove);
   }
 
   DBUG_RETURN(0);
