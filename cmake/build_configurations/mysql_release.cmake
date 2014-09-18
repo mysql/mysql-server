@@ -55,7 +55,7 @@ IF(UNIX)
     ENDIF()
 
     # Enable fast mutexes on Linux
-    OPTION(WITH_FAST_MUTEXES "" ON)
+    #OPTION(WITH_FAST_MUTEXES "" ON)
   ENDIF()
 
 ENDIF()
