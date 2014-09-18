@@ -86,11 +86,23 @@ ADD_CUSTOM_COMMAND(
   ${CMAKE_CURRENT_SOURCE_DIR}/mysql_system_tables.sql
 )
 
+ADD_CUSTOM_COMMAND(
+  OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/sql_commands_help_data.h
+  COMMAND comp_sql
+  fill_help_tables
+  ${CMAKE_CURRENT_SOURCE_DIR}/fill_help_tables.sql
+  sql_commands_help_data.h
+  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+  DEPENDS comp_sql
+  ${CMAKE_CURRENT_SOURCE_DIR}/fill_help_tables.sql
+)
+
 # Add target for the above to be built
 ADD_CUSTOM_TARGET(GenBootstrapPriv
   ALL
   DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/sql_commands_system_data.h
   ${CMAKE_CURRENT_BINARY_DIR}/sql_commands_system_tables.h
+  ${CMAKE_CURRENT_BINARY_DIR}/sql_commands_help_data.h
 )
 ENDIF(UNIX)
 
