@@ -1,8 +1,0 @@
-# WL#7660 - GCS PLUGIN IMPLEMENTATION
-#
-# This test checks the basic functionality of the GCS replication
-# plugin which should work with the .opt file in which the GCS
-# replication options are passed as options.
-
---source include/not_windows.inc
---source ./extra/rpl_tests/rpl_start_gcs_replication_auto.test

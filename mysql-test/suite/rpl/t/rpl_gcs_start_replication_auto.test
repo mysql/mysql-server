@@ -3,8 +3,6 @@
 # This test checks the basic functionality of the GCS replication
 # plugin which should work with the .opt file in which the GCS
 # replication options are passed as options.
-# Synchronous replication will work only for RBR mode of replication so this
-# test is restricted to this mode only.
 
 --source include/have_gcs_replication_plugin.inc
 --source include/force_restart.inc
