@@ -2149,6 +2149,8 @@ buf_pool_withdraw_blocks(
 
 	/* retry is not needed */
 	++buf_withdraw_clock;
+	os_wmb;
+
 	return(false);
 }
 

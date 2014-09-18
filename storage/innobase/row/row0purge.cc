@@ -512,10 +512,10 @@ row_purge_remove_sec_if_poss_leaf(
 					which mean search is still depending
 					on it, so do not delete */
 #ifdef UNIV_DEBUG
-					ib_logf(IB_LOG_LEVEL_INFO,
-						"skip purging last record "
-						"on page %ld.",
-						(ulong) page_get_page_no(page));
+					ib::info() << "skip purging last"
+						" record on page "
+						<< page_get_page_no(page)
+						<< ".";
 #endif
 
 					btr_pcur_close(&pcur);

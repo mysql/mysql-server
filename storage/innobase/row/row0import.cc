@@ -299,9 +299,8 @@ public:
 		m_index(index),
 		m_n_rows(0)
 	{
-		ib_logf(IB_LOG_LEVEL_INFO,
-			"Phase II - Purge records from index %s",
-			index->name);
+		ib::info() << "Phase II - Purge records from index "
+			<< index->name;
 	}
 
 	/** Descructor */
@@ -554,19 +553,17 @@ AbstractCallback::init(
 
 	if (!is_compressed_table() && !m_page_size.equals_to(univ_page_size)) {
 
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Page size " ULINTPF " of ibd file is not the same"
-			" as the server page size " ULINTPF,
-			m_page_size.physical(), univ_page_size.physical());
+		ib::error() << "Page size " << m_page_size.physical()
+			<< " of ibd file is not the same as the server page"
+			" size " << univ_page_size.physical();
 
 		return(DB_CORRUPTION);
 
 	} else if (file_size % m_page_size.physical() != 0) {
 
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"File size " UINT64PF " is not a multiple"
-			" of the page size " ULINTPF,
-			(ib_uint64_t) file_size, m_page_size.physical());
+		ib::error() << "File size " << file_size << " is not a"
+			" multiple of the page size "
+			<< m_page_size.physical();
 
 		return(DB_CORRUPTION);
 	}
@@ -701,11 +698,10 @@ FetchIndexRootPages::operator() (
 
 	if (block->page.id.page_no() * m_page_size.physical() != offset) {
 
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Page offset doesn't match file offset:"
-			" page offset: " UINT32PF ", file offset: " ULINTPF,
-			block->page.id.page_no(),
-			(ulint) (offset / m_page_size.physical()));
+		ib::error() << "Page offset doesn't match file offset:"
+			" page offset: " << block->page.id.page_no()
+			<< ", file offset: "
+			<< (offset / m_page_size.physical());
 
 		err = DB_CORRUPTION;
 	} else if (page_type == FIL_PAGE_TYPE_XDES) {
@@ -745,7 +741,7 @@ FetchIndexRootPages::build_row_import(row_import* cfg) const UNIV_NOTHROW
 
 	if (cfg->m_n_indexes == 0) {
 
-		ib_logf(IB_LOG_LEVEL_ERROR, "No B+Tree found in tablespace");
+		ib::error() << "No B+Tree found in tablespace";
 
 		return(DB_CORRUPTION);
 	}
@@ -1417,12 +1413,9 @@ row_import::set_root_by_heuristic() UNIV_NOTHROW
 		innobase_format_name(
 			table_name, sizeof(table_name), m_table->name, FALSE);
 
-		ib_logf(IB_LOG_LEVEL_WARN,
-			"Table %s should have %lu indexes but the tablespace"
-			" has %lu indexes",
-			table_name,
-			UT_LIST_GET_LEN(m_table->indexes),
-			m_n_indexes);
+		ib::warn() << "Table " << table_name << " should have "
+			<< UT_LIST_GET_LEN(m_table->indexes) << " indexes but"
+			" the tablespace has " << m_n_indexes << " indexes";
 	}
 
 	dict_mutex_enter_for_mysql();
@@ -1436,8 +1429,7 @@ row_import::set_root_by_heuristic() UNIV_NOTHROW
 
 		if (index->type & DICT_FTS) {
 			index->type |= DICT_CORRUPT;
-			ib_logf(IB_LOG_LEVEL_WARN,
-				"Skipping FTS index: %s", index->name);
+			ib::warn() << "Skipping FTS index: " << index->name;
 		} else if (i < m_n_indexes) {
 
 			UT_DELETE_ARRAY(cfg_index[i].m_name);
@@ -1924,16 +1916,15 @@ PageConverter::update_header(
 	case 0:
 		return(DB_CORRUPTION);
 	case ULINT_UNDEFINED:
-		ib_logf(IB_LOG_LEVEL_WARN,
-			"Space id check in the header failed: ignored");
+		ib::warn() << "Space id check in the header failed: ignored";
 	}
 
 	ulint	space_flags = fsp_header_get_flags(get_frame(block));
 
 	if (!fsp_flags_is_valid(space_flags)) {
 
-		ib_logf(IB_LOG_LEVEL_ERROR, "Unsupported tablespace format %lu",
-			(ulong) space_flags);
+		ib::error() <<  "Unsupported tablespace format "
+			<< space_flags;
 
 		return(DB_UNSUPPORTED);
 	}
@@ -2012,7 +2003,7 @@ PageConverter::update_page(
 		return(err);
 	}
 
-	ib_logf(IB_LOG_LEVEL_WARN, "Unknown page type (%lu)", page_type);
+	ib::warn() << "Unknown page type (" << page_type << ")";
 
 	return(DB_CORRUPTION);
 }
@@ -2128,10 +2119,9 @@ PageConverter::operator() (
 
 	case IMPORT_PAGE_STATUS_CORRUPTED:
 
-		ib_logf(IB_LOG_LEVEL_WARN,
-			"%s: Page %lu at offset " UINT64PF " looks corrupted.",
-			m_filepath, (ulong) (offset / m_page_size.physical()),
-			offset);
+		ib::warn() << m_filepath << ": Page "
+			<< (offset / m_page_size.physical()) << " at offset "
+			<< offset << " looks corrupted.";
 
 		return(DB_CORRUPTION);
 	}
@@ -2163,8 +2153,8 @@ row_import_discard_changes(
 		table_name, sizeof(table_name),
 		prebuilt->table->name, FALSE);
 
-	ib_logf(IB_LOG_LEVEL_INFO, "Discarding tablespace of table %s: %s",
-		table_name, ut_strerr(err));
+	ib::info() << "Discarding tablespace of table " << table_name
+		<< ": " << ut_strerr(err);
 
 	if (trx->dict_operation_lock_mode != RW_X_LATCH) {
 		ut_a(trx->dict_operation_lock_mode == 0);
@@ -2298,9 +2288,8 @@ row_import_adjust_root_pages_of_secondary_indexes(
 
 			err = btr_root_adjust_on_import(index);
 		} else {
-			ib_logf(IB_LOG_LEVEL_WARN,
-				"Skip adjustment of root pages for index %s.",
-				index->name);
+			ib::warn() << "Skip adjustment of root pages for"
+				" index " << index->name << ".";
 
 			err = DB_CORRUPTION;
 		}
@@ -2670,7 +2659,7 @@ row_import_read_index_data(
 				thd, IB_LOG_LEVEL_ERROR, ER_IO_READ_ERROR,
 				errno, strerror(errno), msg);
 
-			ib_logf(IB_LOG_LEVEL_ERROR, "IO Error: %s", msg);
+			ib::error() << "IO Error: " << msg;
 
 			return(DB_IO_ERROR);
 		}
@@ -3038,9 +3027,8 @@ row_import_read_v1(
 		return(err);
 	}
 
-	ib_logf(IB_LOG_LEVEL_INFO,
-		"Importing tablespace for table '%s' that was exported"
-		" from host '%s'", cfg->m_table_name, cfg->m_hostname);
+	ib::info() << "Importing tablespace for table '" << cfg->m_table_name
+		<< "' that was exported from host '" << cfg->m_hostname << "'";
 
 	byte		row[sizeof(ib_uint32_t) * 3];
 
@@ -3581,7 +3569,7 @@ row_import_for_mysql(
 
 	prebuilt->trx->op_info = "importing tablespace";
 
-	ib_logf(IB_LOG_LEVEL_INFO, "Phase I - Update all pages");
+	ib::info() << "Phase I - Update all pages";
 
 	/* Iterate over all the pages and do the sanity checking and
 	the conversion required to import the tablespace. */
@@ -3737,7 +3725,7 @@ row_import_for_mysql(
 		}
 	}
 
-	ib_logf(IB_LOG_LEVEL_INFO, "Phase III - Flush changes to disk");
+	ib::info() << "Phase III - Flush changes to disk";
 
 	/* Ensure that all pages dirtied during the IMPORT make it to disk.
 	The only dirty pages generated should be from the pessimistic purge
@@ -3747,11 +3735,11 @@ row_import_for_mysql(
 		prebuilt->table->space, BUF_REMOVE_FLUSH_WRITE, trx);
 
 	if (trx_is_interrupted(trx)) {
-		ib_logf(IB_LOG_LEVEL_INFO, "Phase III - Flush interrupted");
+		ib::info() << "Phase III - Flush interrupted";
 		return(row_import_error(prebuilt, trx, DB_INTERRUPTED));
 	}
 
-	ib_logf(IB_LOG_LEVEL_INFO, "Phase IV - Flush complete");
+	ib::info() << "Phase IV - Flush complete";
 	fil_space_set_imported(prebuilt->table->space);
 
 	/* The dictionary latches will be released in in row_import_cleanup()
@@ -3782,8 +3770,8 @@ row_import_for_mysql(
 		innobase_format_name(
 			table_name, sizeof(table_name), table->name, FALSE);
 
-		ib_logf(IB_LOG_LEVEL_INFO, "%s autoinc value set to " IB_ID_FMT,
-			table_name, autoinc);
+		ib::info() << table_name << " autoinc value set to "
+			<< autoinc;
 
 		dict_table_autoinc_lock(table);
 		dict_table_autoinc_initialize(table, autoinc);

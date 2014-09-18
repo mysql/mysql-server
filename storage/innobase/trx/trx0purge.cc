@@ -1139,6 +1139,12 @@ trx_purge_initiate_truncate(
 
 	undo_trunc->done_logging(undo_trunc->get_marked_space_id());
 
+	/* Completed truncate. Now it is safe to re-use the tablespace. */
+	for (ulint i = 0; i < undo_trunc->rsegs_size(); ++i) {
+		trx_rseg_t*	rseg = undo_trunc->get_ith_rseg(i);
+		rseg->skip_allocation = false;
+	}
+
 	ib_logf(IB_LOG_LEVEL_INFO,
 		"Completed truncate of UNDO tablespace with space identifier "
 		ULINTPF "", undo_trunc->get_marked_space_id());
@@ -1192,9 +1198,14 @@ trx_purge_truncate_history(
 		}
 	}
 
-	/* UNDO tablespace truncate. */
-	trx_purge_mark_undo_for_truncate(&purge_sys->undo_trunc);
-	trx_purge_initiate_truncate(limit, &purge_sys->undo_trunc);
+	/* UNDO tablespace truncate. We will try to truncate as much as we
+	can (greedy approach). This will ensure when the server is idle we
+	try and truncate all the UNDO tablespaces. */
+	ulint	nchances = srv_undo_tablespaces_open;
+	for (i = 0; i < nchances; i++) {
+		trx_purge_mark_undo_for_truncate(&purge_sys->undo_trunc);
+		trx_purge_initiate_truncate(limit, &purge_sys->undo_trunc);
+	}
 }
 
 /***********************************************************************//**
