@@ -146,7 +146,7 @@ Description: MariaDB database client binaries
 
 Package: mariadb-server-core-5.5
 Architecture: any
-Depends: ${shlibs:Depends}, ${misc:Depends}, libmariadbclient18 (>= ${binary:Version}), libjemalloc1 (>= 3.0.0)
+Depends: ${shlibs:Depends}, ${misc:Depends}, libmariadbclient18 (>= ${binary:Version})
 Provides: mysql-server-core, mysql-server-core-5.1, mysql-server-core-5.5
 Conflicts: mariadb-server-5.1 (<< 5.1.60),
     mariadb-server-5.2 (<< 5.2.10),
@@ -191,7 +191,7 @@ Architecture: any
 Suggests: tinyca, mailx, mariadb-test
 Recommends: libhtml-template-perl
 Pre-Depends: mariadb-common, adduser (>= 3.40), debconf
-Depends: mariadb-client-5.5 (>= ${source:Version}), libdbi-perl, perl (>= 5.6), ${shlibs:Depends}, ${misc:Depends}, psmisc, passwd, lsb-base (>= 3.0-10), mariadb-server-core-5.5 (>= ${binary:Version}), libjemalloc1 (>= 3.0.0)
+Depends: mariadb-client-5.5 (>= ${source:Version}), libdbi-perl, perl (>= 5.6), ${shlibs:Depends}, ${misc:Depends}, psmisc, passwd, lsb-base (>= 3.0-10), mariadb-server-core-5.5 (>= ${binary:Version})
 Provides: mariadb-server, mysql-server, virtual-mysql-server
 Conflicts: mariadb-server (<< ${source:Version}), mysql-server (<< ${source:Version}),
     mysql-server-4.1, mysql-server-5.0, mysql-server-5.1, mysql-server-5.5,

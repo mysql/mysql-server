@@ -12,12 +12,23 @@ MACRO (CHECK_JEMALLOC)
     SET(WITH_JEMALLOC "yes")
   ENDIF()
 
-  IF(WITH_JEMALLOC STREQUAL "yes" OR WITH_JEMALLOC STREQUAL "auto")
-    CHECK_LIBRARY_EXISTS(jemalloc malloc_stats_print "" HAVE_JEMALLOC)
+  IF(WITH_JEMALLOC STREQUAL "yes" OR WITH_JEMALLOC STREQUAL "auto" OR
+      WITH_JEMALLOC STREQUAL "static")
+
+    IF(WITH_JEMALLOC STREQUAL "static")
+      SET(libname jemalloc_pic)
+      SET(CMAKE_REQUIRED_LIBRARIES pthread dl m)
+    ELSE()
+      SET(libname jemalloc)
+    ENDIF()
+
+    CHECK_LIBRARY_EXISTS(${libname} malloc_stats_print "" HAVE_JEMALLOC)
+    SET(CMAKE_REQUIRED_LIBRARIES)
+
     IF (HAVE_JEMALLOC)
-      SET(LIBJEMALLOC jemalloc)
-    ELSEIF (WITH_JEMALLOC STREQUAL "yes")
-      MESSAGE(FATAL_ERROR "jemalloc is not found")
+      SET(LIBJEMALLOC ${libname})
+    ELSEIF (NOT WITH_JEMALLOC STREQUAL "auto")
+      MESSAGE(FATAL_ERROR "${libname} is not found")
     ENDIF()
   ENDIF()
 ENDMACRO()

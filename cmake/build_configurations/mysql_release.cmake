@@ -123,7 +123,7 @@ IF(UNIX)
   SET(WITH_EXTRA_CHARSETS all CACHE STRING "")
 
   IF(CMAKE_SYSTEM_NAME STREQUAL "Linux")
-    SET(WITH_JEMALLOC "yes" CACHE STRING "")
+    SET(WITH_JEMALLOC "static" CACHE STRING "")
 
     IF(NOT IGNORE_AIO_CHECK)
       # Ensure aio is available on Linux (required by InnoDB)
