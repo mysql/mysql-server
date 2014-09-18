@@ -4579,6 +4579,7 @@ int mysqld_main(int argc, char **argv)
           if (flush_io_cache(mysql_bin_log.get_log_file()) ||
               mysql_file_sync(mysql_bin_log.get_log_file()->file, MYF(MY_WME)))
             unireg_abort(1);
+          mysql_bin_log.update_binlog_end_pos();
         }
         else
           global_sid_lock->unlock();
