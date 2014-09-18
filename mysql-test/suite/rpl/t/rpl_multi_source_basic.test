@@ -238,24 +238,24 @@ SHOW TABLES;
 --echo # Test case 4: Update tables on both masters with conflicting data
 --echo #              In this case, slave shall stop on a SQL thread.
 
+--echo # 4.a) Do an update on server_1 and sync with the slave.
 --let $rpl_connection_name= server_1
 --source include/rpl_connection.inc
 INSERT INTO dbcommon.t101 values(1729);
 
+--let $rpl_channel_name= channel_1
+--let $sync_slave_connection= server_2
+--source include/sync_slave_sql_with_master.inc
+
+--echo # 4.b) Do a conflicting update on server_3 and check for conflicting error
 --let $rpl_connection_name= server_3
 --source include/rpl_connection.inc
 INSERT INTO dbcommon.t101 values (1729);
 
---echo #
---echo # 4.b sync the slave with server_1
---echo #
---let $rpl_connection_name= server_1
+# connection to be shifted to slave
+--let $rpl_connection_name= server_2
 --source include/rpl_connection.inc
 
---let $rpl_channel_name= channel_1
---let $sync_slave_connection= server_2
---source include/sync_slave_sql_with_master.inc
-# connection shifted to slave
 #suppress warnings and errors due to conflicts in MTS and non MTS mode
 call mtr.add_suppression("Slave SQL.*:.* 'Duplicate entry '1729' for key 'PRIMARY'' on query.*");
 call mtr.add_suppression("Slave SQL.*: Could not execute Write_rows event on table dbcommon.t101; Duplicate entry '1729' for key 'PRIMARY'*");

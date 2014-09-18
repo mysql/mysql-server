@@ -198,15 +198,14 @@ include/assert.inc [Slave should have 20 rows in dbcommon.t101]
 #
 # Test case 4: Update tables on both masters with conflicting data
 #              In this case, slave shall stop on a SQL thread.
+# 4.a) Do an update on server_1 and sync with the slave.
 [connection server_1]
 INSERT INTO dbcommon.t101 values(1729);
+include/sync_slave_sql_with_master.inc
+# 4.b) Do a conflicting update on server_3 and check for conflicting error
 [connection server_3]
 INSERT INTO dbcommon.t101 values (1729);
-#
-# 4.b sync the slave with server_1
-#
-[connection server_1]
-include/sync_slave_sql_with_master.inc
+[connection server_2]
 call mtr.add_suppression("Slave SQL.*:.* 'Duplicate entry '1729' for key 'PRIMARY'' on query.*");
 call mtr.add_suppression("Slave SQL.*: Could not execute Write_rows event on table dbcommon.t101; Duplicate entry '1729' for key 'PRIMARY'*");
 call mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
