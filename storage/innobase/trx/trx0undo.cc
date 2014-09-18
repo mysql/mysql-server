@@ -2163,7 +2163,6 @@ trx_undo_truncate_tablespace(
 		ut_ad(rseg->curr_size == 1);
 
 		rseg->trx_ref_count = 0;
-		rseg->skip_allocation = false;
 		rseg->last_page_no = FIL_NULL;
 		rseg->last_offset = 0;
 		rseg->last_trx_no = 0;
