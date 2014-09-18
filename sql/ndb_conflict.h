@@ -36,6 +36,17 @@ enum enum_conflict_fn_type
   ,CFT_NUMBER_OF_CFTS /* End marker */
 };
 
+/**
+ * Definitions used when setting the conflict flags
+ * member of the 'extra row info' on a Binlog row
+ * event
+ */
+enum enum_binlog_extra_info_conflict_flags
+{
+  NDB_ERIF_CFT_REFLECT_OP = 0x1,
+  NDB_ERIF_CFT_REFRESH_OP = 0x2
+};
+
 #ifdef HAVE_NDB_BINLOG
 static const Uint32 MAX_CONFLICT_ARGS= 8;
 
@@ -369,6 +380,12 @@ struct st_ndb_slave_state
 {
   /* Counter values for current slave transaction */
   Uint32 current_violation_count[CFT_NUMBER_OF_CFTS];
+
+  /**
+   * Number of delete-delete conflicts detected
+   * (delete op is applied, and row does not exist)
+   */
+  Uint32 current_delete_delete_count;
   
   /* Track the current epoch from the immediate master,
    * and whether we've committed it
@@ -389,6 +406,7 @@ struct st_ndb_slave_state
 
   /* Cumulative counter values */
   Uint64 total_violation_count[CFT_NUMBER_OF_CFTS];
+  Uint64 total_delete_delete_count;
   Uint64 max_rep_epoch;
   Uint32 sql_run_id;
   /* Transactional conflict detection */

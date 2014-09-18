@@ -54,6 +54,9 @@ VARIABLE_VALUE-@init_ndb_conflict_fn_max_del_win
 SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_epoch FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_EPOCH";
 VARIABLE_VALUE-@init_ndb_conflict_fn_epoch
 0
+SELECT VARIABLE_VALUE-@init_ndb_epoch_delete_delete FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_EPOCH_DELETE_DELETE_COUNT";
+VARIABLE_VALUE-@init_ndb_epoch_delete_delete
+0
 SELECT server_id, master_server_id, master_epoch, count, a, d FROM `t1$EX` ORDER BY server_id, master_server_id, master_epoch, count;
 server_id	master_server_id	master_epoch	count	a	d
 SELECT * FROM `t1$EX` ORDER BY a, d;
@@ -86,6 +89,9 @@ VARIABLE_VALUE-@init_ndb_conflict_fn_max_del_win
 SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_epoch FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_EPOCH";
 VARIABLE_VALUE-@init_ndb_conflict_fn_epoch
 0
+SELECT VARIABLE_VALUE-@init_ndb_epoch_delete_delete FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_EPOCH_DELETE_DELETE_COUNT";
+VARIABLE_VALUE-@init_ndb_epoch_delete_delete
+0
 SELECT server_id, master_server_id, master_epoch, count, a, d FROM `t1$EX` ORDER BY server_id, master_server_id, master_epoch, count;
 server_id	master_server_id	master_epoch	count	a	d
 SELECT * FROM `t1$EX` ORDER BY a, d;
@@ -111,6 +117,9 @@ VARIABLE_VALUE-@init_ndb_conflict_fn_max_del_win
 0
 SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_epoch FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_EPOCH";
 VARIABLE_VALUE-@init_ndb_conflict_fn_epoch
+0
+SELECT VARIABLE_VALUE-@init_ndb_epoch_delete_delete FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_EPOCH_DELETE_DELETE_COUNT";
+VARIABLE_VALUE-@init_ndb_epoch_delete_delete
 0
 SELECT server_id, master_server_id, master_epoch, count, a, d FROM `t1$EX` ORDER BY server_id, master_server_id, master_epoch, count;
 server_id	master_server_id	master_epoch	count	a	d
@@ -144,6 +153,9 @@ VARIABLE_VALUE-@init_ndb_conflict_fn_max_del_win
 0
 SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_epoch FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_EPOCH";
 VARIABLE_VALUE-@init_ndb_conflict_fn_epoch
+0
+SELECT VARIABLE_VALUE-@init_ndb_epoch_delete_delete FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_EPOCH_DELETE_DELETE_COUNT";
+VARIABLE_VALUE-@init_ndb_epoch_delete_delete
 0
 SELECT server_id, master_server_id, master_epoch, count, a, d FROM `t1$EX` ORDER BY server_id, master_server_id, master_epoch, count;
 server_id	master_server_id	master_epoch	count	a	d
@@ -199,6 +211,9 @@ VARIABLE_VALUE-@init_ndb_conflict_fn_max_del_win
 SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_epoch FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_EPOCH";
 VARIABLE_VALUE-@init_ndb_conflict_fn_epoch
 0
+SELECT VARIABLE_VALUE-@init_ndb_epoch_delete_delete FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_EPOCH_DELETE_DELETE_COUNT";
+VARIABLE_VALUE-@init_ndb_epoch_delete_delete
+0
 SELECT server_id, master_server_id, master_epoch, count, a, d FROM `t1$EX` ORDER BY server_id, master_server_id, master_epoch, count;
 server_id	master_server_id	master_epoch	count	a	d
 2	1	#	1	#	#
@@ -249,6 +264,9 @@ VARIABLE_VALUE-@init_ndb_conflict_fn_max_del_win
 0
 SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_epoch FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_EPOCH";
 VARIABLE_VALUE-@init_ndb_conflict_fn_epoch
+0
+SELECT VARIABLE_VALUE-@init_ndb_epoch_delete_delete FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_EPOCH_DELETE_DELETE_COUNT";
+VARIABLE_VALUE-@init_ndb_epoch_delete_delete
 0
 SELECT server_id, master_server_id, master_epoch, count, a, d FROM `t1$EX` ORDER BY server_id, master_server_id, master_epoch, count;
 server_id	master_server_id	master_epoch	count	a	d
@@ -322,6 +340,9 @@ VARIABLE_VALUE-@init_ndb_conflict_fn_max_del_win
 SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_epoch FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_EPOCH";
 VARIABLE_VALUE-@init_ndb_conflict_fn_epoch
 0
+SELECT VARIABLE_VALUE-@init_ndb_epoch_delete_delete FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_EPOCH_DELETE_DELETE_COUNT";
+VARIABLE_VALUE-@init_ndb_epoch_delete_delete
+0
 SELECT server_id, master_server_id, master_epoch, count, a, d FROM `t1$EX` ORDER BY server_id, master_server_id, master_epoch, count;
 server_id	master_server_id	master_epoch	count	a	d
 SELECT * FROM `t1$EX` ORDER BY a, d;
@@ -354,6 +375,9 @@ VARIABLE_VALUE-@init_ndb_conflict_fn_max_del_win
 SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_epoch FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_EPOCH";
 VARIABLE_VALUE-@init_ndb_conflict_fn_epoch
 0
+SELECT VARIABLE_VALUE-@init_ndb_epoch_delete_delete FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_EPOCH_DELETE_DELETE_COUNT";
+VARIABLE_VALUE-@init_ndb_epoch_delete_delete
+0
 SELECT server_id, master_server_id, master_epoch, count, a, d FROM `t1$EX` ORDER BY server_id, master_server_id, master_epoch, count;
 server_id	master_server_id	master_epoch	count	a	d
 SELECT * FROM `t1$EX` ORDER BY a, d;
@@ -379,6 +403,9 @@ VARIABLE_VALUE-@init_ndb_conflict_fn_max_del_win
 0
 SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_epoch FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_EPOCH";
 VARIABLE_VALUE-@init_ndb_conflict_fn_epoch
+0
+SELECT VARIABLE_VALUE-@init_ndb_epoch_delete_delete FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_EPOCH_DELETE_DELETE_COUNT";
+VARIABLE_VALUE-@init_ndb_epoch_delete_delete
 0
 SELECT server_id, master_server_id, master_epoch, count, a, d FROM `t1$EX` ORDER BY server_id, master_server_id, master_epoch, count;
 server_id	master_server_id	master_epoch	count	a	d
@@ -412,6 +439,9 @@ VARIABLE_VALUE-@init_ndb_conflict_fn_max_del_win
 0
 SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_epoch FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_EPOCH";
 VARIABLE_VALUE-@init_ndb_conflict_fn_epoch
+0
+SELECT VARIABLE_VALUE-@init_ndb_epoch_delete_delete FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_EPOCH_DELETE_DELETE_COUNT";
+VARIABLE_VALUE-@init_ndb_epoch_delete_delete
 0
 SELECT server_id, master_server_id, master_epoch, count, a, d FROM `t1$EX` ORDER BY server_id, master_server_id, master_epoch, count;
 server_id	master_server_id	master_epoch	count	a	d
@@ -467,6 +497,9 @@ VARIABLE_VALUE-@init_ndb_conflict_fn_max_del_win
 SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_epoch FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_EPOCH";
 VARIABLE_VALUE-@init_ndb_conflict_fn_epoch
 0
+SELECT VARIABLE_VALUE-@init_ndb_epoch_delete_delete FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_EPOCH_DELETE_DELETE_COUNT";
+VARIABLE_VALUE-@init_ndb_epoch_delete_delete
+0
 SELECT server_id, master_server_id, master_epoch, count, a, d FROM `t1$EX` ORDER BY server_id, master_server_id, master_epoch, count;
 server_id	master_server_id	master_epoch	count	a	d
 2	1	#	1	#	#
@@ -517,6 +550,9 @@ VARIABLE_VALUE-@init_ndb_conflict_fn_max_del_win
 0
 SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_epoch FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_EPOCH";
 VARIABLE_VALUE-@init_ndb_conflict_fn_epoch
+0
+SELECT VARIABLE_VALUE-@init_ndb_epoch_delete_delete FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_EPOCH_DELETE_DELETE_COUNT";
+VARIABLE_VALUE-@init_ndb_epoch_delete_delete
 0
 SELECT server_id, master_server_id, master_epoch, count, a, d FROM `t1$EX` ORDER BY server_id, master_server_id, master_epoch, count;
 server_id	master_server_id	master_epoch	count	a	d
@@ -593,6 +629,9 @@ VARIABLE_VALUE-@init_ndb_conflict_fn_max_del_win
 SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_epoch FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_EPOCH";
 VARIABLE_VALUE-@init_ndb_conflict_fn_epoch
 0
+SELECT VARIABLE_VALUE-@init_ndb_epoch_delete_delete FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_EPOCH_DELETE_DELETE_COUNT";
+VARIABLE_VALUE-@init_ndb_epoch_delete_delete
+0
 SELECT server_id, master_server_id, master_epoch, count, a, d FROM `t1$EX` ORDER BY server_id, master_server_id, master_epoch, count;
 server_id	master_server_id	master_epoch	count	a	d
 SELECT * FROM `t1$EX` ORDER BY a, d;
@@ -625,6 +664,9 @@ VARIABLE_VALUE-@init_ndb_conflict_fn_max_del_win
 SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_epoch FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_EPOCH";
 VARIABLE_VALUE-@init_ndb_conflict_fn_epoch
 0
+SELECT VARIABLE_VALUE-@init_ndb_epoch_delete_delete FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_EPOCH_DELETE_DELETE_COUNT";
+VARIABLE_VALUE-@init_ndb_epoch_delete_delete
+0
 SELECT server_id, master_server_id, master_epoch, count, a, d FROM `t1$EX` ORDER BY server_id, master_server_id, master_epoch, count;
 server_id	master_server_id	master_epoch	count	a	d
 SELECT * FROM `t1$EX` ORDER BY a, d;
@@ -650,6 +692,9 @@ VARIABLE_VALUE-@init_ndb_conflict_fn_max_del_win
 0
 SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_epoch FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_EPOCH";
 VARIABLE_VALUE-@init_ndb_conflict_fn_epoch
+0
+SELECT VARIABLE_VALUE-@init_ndb_epoch_delete_delete FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_EPOCH_DELETE_DELETE_COUNT";
+VARIABLE_VALUE-@init_ndb_epoch_delete_delete
 0
 SELECT server_id, master_server_id, master_epoch, count, a, d FROM `t1$EX` ORDER BY server_id, master_server_id, master_epoch, count;
 server_id	master_server_id	master_epoch	count	a	d
@@ -683,6 +728,9 @@ VARIABLE_VALUE-@init_ndb_conflict_fn_max_del_win
 0
 SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_epoch FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_EPOCH";
 VARIABLE_VALUE-@init_ndb_conflict_fn_epoch
+0
+SELECT VARIABLE_VALUE-@init_ndb_epoch_delete_delete FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_EPOCH_DELETE_DELETE_COUNT";
+VARIABLE_VALUE-@init_ndb_epoch_delete_delete
 0
 SELECT server_id, master_server_id, master_epoch, count, a, d FROM `t1$EX` ORDER BY server_id, master_server_id, master_epoch, count;
 server_id	master_server_id	master_epoch	count	a	d
@@ -738,6 +786,9 @@ VARIABLE_VALUE-@init_ndb_conflict_fn_max_del_win
 SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_epoch FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_EPOCH";
 VARIABLE_VALUE-@init_ndb_conflict_fn_epoch
 0
+SELECT VARIABLE_VALUE-@init_ndb_epoch_delete_delete FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_EPOCH_DELETE_DELETE_COUNT";
+VARIABLE_VALUE-@init_ndb_epoch_delete_delete
+0
 SELECT server_id, master_server_id, master_epoch, count, a, d FROM `t1$EX` ORDER BY server_id, master_server_id, master_epoch, count;
 server_id	master_server_id	master_epoch	count	a	d
 2	1	#	1	#	#
@@ -788,6 +839,9 @@ VARIABLE_VALUE-@init_ndb_conflict_fn_max_del_win
 0
 SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_epoch FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_EPOCH";
 VARIABLE_VALUE-@init_ndb_conflict_fn_epoch
+0
+SELECT VARIABLE_VALUE-@init_ndb_epoch_delete_delete FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_EPOCH_DELETE_DELETE_COUNT";
+VARIABLE_VALUE-@init_ndb_epoch_delete_delete
 0
 SELECT server_id, master_server_id, master_epoch, count, a, d FROM `t1$EX` ORDER BY server_id, master_server_id, master_epoch, count;
 server_id	master_server_id	master_epoch	count	a	d
@@ -863,6 +917,9 @@ VARIABLE_VALUE-@init_ndb_conflict_fn_max_del_win
 SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_epoch FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_EPOCH";
 VARIABLE_VALUE-@init_ndb_conflict_fn_epoch
 0
+SELECT VARIABLE_VALUE-@init_ndb_epoch_delete_delete FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_EPOCH_DELETE_DELETE_COUNT";
+VARIABLE_VALUE-@init_ndb_epoch_delete_delete
+0
 SELECT server_id, master_server_id, master_epoch, count, a, d FROM `t1$EX` ORDER BY server_id, master_server_id, master_epoch, count;
 server_id	master_server_id	master_epoch	count	a	d
 2	1	#	1	#	#
@@ -901,6 +958,9 @@ VARIABLE_VALUE-@init_ndb_conflict_fn_max_del_win
 SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_epoch FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_EPOCH";
 VARIABLE_VALUE-@init_ndb_conflict_fn_epoch
 0
+SELECT VARIABLE_VALUE-@init_ndb_epoch_delete_delete FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_EPOCH_DELETE_DELETE_COUNT";
+VARIABLE_VALUE-@init_ndb_epoch_delete_delete
+0
 SELECT server_id, master_server_id, master_epoch, count, a, d FROM `t1$EX` ORDER BY server_id, master_server_id, master_epoch, count;
 server_id	master_server_id	master_epoch	count	a	d
 2	1	#	1	#	#
@@ -937,6 +997,9 @@ VARIABLE_VALUE-@init_ndb_conflict_fn_max_del_win
 0
 SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_epoch FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_EPOCH";
 VARIABLE_VALUE-@init_ndb_conflict_fn_epoch
+0
+SELECT VARIABLE_VALUE-@init_ndb_epoch_delete_delete FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_EPOCH_DELETE_DELETE_COUNT";
+VARIABLE_VALUE-@init_ndb_epoch_delete_delete
 0
 SELECT server_id, master_server_id, master_epoch, count, a, d FROM `t1$EX` ORDER BY server_id, master_server_id, master_epoch, count;
 server_id	master_server_id	master_epoch	count	a	d
@@ -984,6 +1047,9 @@ VARIABLE_VALUE-@init_ndb_conflict_fn_max_del_win
 0
 SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_epoch FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_EPOCH";
 VARIABLE_VALUE-@init_ndb_conflict_fn_epoch
+0
+SELECT VARIABLE_VALUE-@init_ndb_epoch_delete_delete FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_EPOCH_DELETE_DELETE_COUNT";
+VARIABLE_VALUE-@init_ndb_epoch_delete_delete
 0
 SELECT server_id, master_server_id, master_epoch, count, a, d FROM `t1$EX` ORDER BY server_id, master_server_id, master_epoch, count;
 server_id	master_server_id	master_epoch	count	a	d
@@ -1042,6 +1108,9 @@ VARIABLE_VALUE-@init_ndb_conflict_fn_max_del_win
 SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_epoch FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_EPOCH";
 VARIABLE_VALUE-@init_ndb_conflict_fn_epoch
 0
+SELECT VARIABLE_VALUE-@init_ndb_epoch_delete_delete FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_EPOCH_DELETE_DELETE_COUNT";
+VARIABLE_VALUE-@init_ndb_epoch_delete_delete
+0
 SELECT server_id, master_server_id, master_epoch, count, a, d FROM `t1$EX` ORDER BY server_id, master_server_id, master_epoch, count;
 server_id	master_server_id	master_epoch	count	a	d
 2	1	#	8	#	#
@@ -1095,6 +1164,9 @@ VARIABLE_VALUE-@init_ndb_conflict_fn_max_del_win
 0
 SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_epoch FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_EPOCH";
 VARIABLE_VALUE-@init_ndb_conflict_fn_epoch
+0
+SELECT VARIABLE_VALUE-@init_ndb_epoch_delete_delete FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_EPOCH_DELETE_DELETE_COUNT";
+VARIABLE_VALUE-@init_ndb_epoch_delete_delete
 0
 SELECT server_id, master_server_id, master_epoch, count, a, d FROM `t1$EX` ORDER BY server_id, master_server_id, master_epoch, count;
 server_id	master_server_id	master_epoch	count	a	d
