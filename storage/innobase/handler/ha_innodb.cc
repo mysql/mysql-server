@@ -3728,13 +3728,6 @@ innobase_commit(
 			trx_commit_complete_for_mysql(trx);
 		}
 
-		/* This transaction had called ha_innobase::start_stmt() */
-		if (trx->lock.start_stmt && commit_trx) {
-			TrxInInnoDB::end_stmt(trx);
-
-			trx->lock.start_stmt = false;
-		}
-
 	} else {
 		/* We just mark the SQL statement ended and do not do a
 		transaction commit */
@@ -3828,13 +3821,6 @@ innobase_rollback(
 		}
 
 		trx_deregister_from_2pc(trx);
-
-		/* This transaction had called ha_innobase::start_stmt() */
-		if (trx->lock.start_stmt && rollback_trx) {
-			TrxInInnoDB::end_stmt(trx);
-
-			trx->lock.start_stmt = false;
-		}
 
 	} else if (trx_in_innodb.is_aborted()) {
 
@@ -12642,18 +12628,19 @@ ha_innobase::extra(
 }
 
 /**
-MySQL calls this method at the end of each statement */
+MySQL calls this method at the end of each statement. This method
+exists for readability only. ha_innobase::reset() doesn't give any
+clue about the method. */
 
 int
-ha_innobase::reset()
+ha_innobase::end_stmt()
 {
-	TrxInInnoDB	trx_in_innodb(m_prebuilt->trx);
-
 	if (m_prebuilt->blob_heap) {
 		row_mysql_prebuilt_free_blob_heap(m_prebuilt);
 	}
 
 	reset_template();
+
 	m_ds_mrr.reset();
 
 	/* TODO: This should really be reset in reset_template() but for now
@@ -12662,7 +12649,25 @@ ha_innobase::reset()
 	/* This is a statement level counter. */
 	m_prebuilt->autoinc_last_value = 0;
 
+	/* This transaction had called ha_innobase::start_stmt() */
+	trx_t*	trx = m_prebuilt->trx;
+
+	if (trx->lock.start_stmt) {
+		TrxInInnoDB::end_stmt(trx);
+
+		trx->lock.start_stmt = false;
+	}
+
 	return(0);
+}
+
+/**
+MySQL calls this method at the end of each statement */
+
+int
+ha_innobase::reset()
+{
+	return(end_stmt());
 }
 
 /******************************************************************//**

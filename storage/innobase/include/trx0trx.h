@@ -1487,6 +1487,8 @@ private:
 
 		/* Avoid excessive mutex acquire/release */
 
+		ut_ad(trx->in_depth > 0);
+
 		--trx->in_depth;
 
 		if (trx->in_depth > 0) {
