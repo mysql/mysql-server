@@ -584,7 +584,6 @@ srv_print_master_thread_info(
 
 /*********************************************************************//**
 Sets the info describing an i/o thread current state. */
-
 void
 srv_set_io_thread_op_info(
 /*======================*/
@@ -599,7 +598,6 @@ srv_set_io_thread_op_info(
 
 /*********************************************************************//**
 Resets the info describing an i/o thread current state. */
-
 void
 srv_reset_io_thread_op_info()
 /*=========================*/
@@ -772,7 +770,6 @@ Releases threads of the type given from suspension in the thread table.
 NOTE! The server mutex has to be reserved by the caller!
 @return number of threads released: this may be less than n if not
         enough threads were suspended at the moment. */
-
 ulint
 srv_release_threads(
 /*================*/
@@ -865,7 +862,6 @@ srv_free_slot(
 
 /*********************************************************************//**
 Initializes the server. */
-
 void
 srv_init(void)
 /*==========*/
@@ -944,7 +940,6 @@ srv_init(void)
 
 /*********************************************************************//**
 Frees the data structures created in srv_init(). */
-
 void
 srv_free(void)
 /*==========*/
@@ -980,7 +975,6 @@ srv_free(void)
 /*********************************************************************//**
 Initializes the synchronization primitives, memory system, and the thread
 local storage. */
-
 void
 srv_general_init(void)
 /*==================*/
@@ -1015,7 +1009,6 @@ srv_normalize_init_values(void)
 
 /*********************************************************************//**
 Boots the InnoDB server. */
-
 void
 srv_boot(void)
 /*==========*/
@@ -1068,7 +1061,6 @@ srv_refresh_innodb_monitor_stats(void)
 Outputs to a file the output of the InnoDB Monitor.
 @return FALSE if not all information printed
 due to failure to obtain necessary mutex */
-
 ibool
 srv_printf_innodb_monitor(
 /*======================*/
@@ -1266,7 +1258,6 @@ srv_printf_innodb_monitor(
 
 /******************************************************************//**
 Function to pass InnoDB status variables to MySQL */
-
 void
 srv_export_innodb_status(void)
 /*==========================*/
@@ -1673,7 +1664,6 @@ loop:
 
 /******************************************************************//**
 Increment the server activity count. */
-
 void
 srv_inc_activity_count(void)
 /*========================*/
@@ -1686,7 +1676,6 @@ Check whether any background thread is active. If so return the thread
 type.
 @return SRV_NONE if all are suspended or have exited, thread
 type if any are still active. */
-
 srv_thread_type
 srv_get_active_thread_type(void)
 /*============================*/
@@ -1724,7 +1713,6 @@ srv_get_active_thread_type(void)
 Check whether any background thread are active. If so print which thread
 is active. Send the threads wakeup signal.
 @return name of thread that is active or NULL */
-
 const char*
 srv_any_background_threads_are_active(void)
 /*=======================================*/
@@ -1767,7 +1755,6 @@ and wakes up the master thread if it is suspended (not sleeping). Used
 in the MySQL interface. Note that there is a small chance that the master
 thread stays suspended (we do not protect our operation with the
 srv_sys_t->mutex, for performance reasons). */
-
 void
 srv_active_wake_master_thread_low()
 /*===============================*/
@@ -1809,7 +1796,6 @@ and wakes up the purge thread if it is suspended (not sleeping).  Note
 that there is a small chance that the purge thread stays suspended
 (we do not protect our check with the srv_sys_t:mutex and the
 purge_sys->latch, for performance reasons). */
-
 void
 srv_wake_purge_thread_if_not_active(void)
 /*=====================================*/
@@ -1825,7 +1811,6 @@ srv_wake_purge_thread_if_not_active(void)
 
 /*******************************************************************//**
 Wakes up the master thread if it is suspended or being suspended. */
-
 void
 srv_wake_master_thread(void)
 /*========================*/
@@ -1841,7 +1826,6 @@ srv_wake_master_thread(void)
 Get current server activity count. We don't hold srv_sys::mutex while
 reading this value as it is only used in heuristics.
 @return activity count. */
-
 ulint
 srv_get_activity_count(void)
 /*========================*/
@@ -1852,7 +1836,6 @@ srv_get_activity_count(void)
 /*******************************************************************//**
 Check if there has been any activity.
 @return FALSE if no change in activity counter. */
-
 ibool
 srv_check_activity(
 /*===============*/
@@ -2709,7 +2692,6 @@ DECLARE_THREAD(srv_purge_coordinator_thread)(
 /**********************************************************************//**
 Enqueues a task to server task queue and releases a worker thread, if there
 is a suspended one. */
-
 void
 srv_que_task_enqueue_low(
 /*=====================*/
@@ -2728,7 +2710,6 @@ srv_que_task_enqueue_low(
 /**********************************************************************//**
 Get count of tasks in the queue.
 @return number of tasks in queue */
-
 ulint
 srv_get_task_queue_length(void)
 /*===========================*/
@@ -2748,7 +2729,6 @@ srv_get_task_queue_length(void)
 
 /**********************************************************************//**
 Wakeup the purge threads. */
-
 void
 srv_purge_wakeup(void)
 /*==================*/
@@ -2774,7 +2754,6 @@ for independent tablespace are not applicable to system-tablespace).
 @param	space_id	space_id to check for truncate action
 @return true		if being truncated, false if not being
 			truncated or tablespace is system-tablespace. */
-
 bool
 srv_is_tablespace_truncated(ulint space_id)
 {

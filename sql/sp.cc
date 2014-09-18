@@ -2643,7 +2643,7 @@ TABLE_LIST *sp_add_to_query_tables(THD *thd, LEX *lex,
                                    thr_lock_type locktype,
                                    enum_mdl_type mdl_type)
 {
-  TABLE_LIST *table= (TABLE_LIST *)thd->calloc(sizeof(TABLE_LIST));
+  TABLE_LIST *table= (TABLE_LIST *)thd->mem_calloc(sizeof(TABLE_LIST));
 
   if (!table)
     return NULL;
@@ -2652,7 +2652,7 @@ TABLE_LIST *sp_add_to_query_tables(THD *thd, LEX *lex,
   table->db= thd->strmake(db, table->db_length);
   table->table_name_length= strlen(name);
   table->table_name= thd->strmake(name, table->table_name_length);
-  table->alias= thd->strdup(name);
+  table->alias= thd->mem_strdup(name);
   table->lock_type= locktype;
   table->select_lex= lex->current_select();
   table->cacheable_table= 1;

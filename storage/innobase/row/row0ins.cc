@@ -68,7 +68,6 @@ introduced where a call to log_free_check() is bypassed. */
 /*********************************************************************//**
 Creates an insert node struct.
 @return own: insert node struct */
-
 ins_node_t*
 ins_node_create(
 /*============*/
@@ -196,7 +195,6 @@ row_ins_alloc_sys_fields(
 Sets a new row to insert for an INS_DIRECT node. This function is only used
 if we have constructed the row separately, which is a rare case; this
 function is quite slow. */
-
 void
 ins_node_set_new_row(
 /*=================*/
@@ -668,23 +666,20 @@ row_ins_cascade_calc_update_vec(
 							&ufield->new_val)));
 
 					if (new_doc_id <= 0) {
-						ib_logf(IB_LOG_LEVEL_ERROR,
-							"FTS Doc ID"
+						ib::error() << "FTS Doc ID"
 							" must be larger than"
-							" 0");
+							" 0";
 						return(ULINT_UNDEFINED);
 					}
 
 					if (new_doc_id < n_doc_id) {
-						ib_logf(IB_LOG_LEVEL_ERROR,
-							"FTS Doc ID"
-							" must be larger than"
-							" " IB_ID_FMT " for"
-							" table %s",
-							n_doc_id -1,
-							ut_get_name(
+						ib::error() << "FTS Doc ID"
+							" must be larger than "
+							<< n_doc_id - 1
+							<< " for table "
+							<< ut_get_name(
 								trx, TRUE,
-								table->name).c_str());
+								table->name);
 
 						return(ULINT_UNDEFINED);
 					}
@@ -719,10 +714,9 @@ row_ins_cascade_calc_update_vec(
 			} else {
 				std::string	str = ut_get_name(
 							trx, TRUE, table->name);
-				ib_logf(IB_LOG_LEVEL_ERROR,
-					"FTS Doc ID must be updated along with"
-					" FTS indexed column for table %s",
-					str.c_str());
+				ib::error() << "FTS Doc ID must be updated"
+					" along with FTS indexed column for"
+					" table " << str;
 				return(ULINT_UNDEFINED);
 			}
 		}
@@ -1109,12 +1103,10 @@ row_ins_foreign_check_on_constraint(
 		    || btr_pcur_get_low_match(cascade->pcur)
 		    < dict_index_get_n_unique(clust_index)) {
 
-			ib_logf(IB_LOG_LEVEL_ERROR,
-				"In cascade of a foreign key op"
-				" index %s of table %s",
-				ut_get_name(trx, FALSE, index->name).c_str(),
-				ut_get_name(trx, TRUE,
-					    index->table_name).c_str());
+			ib::error() << "In cascade of a foreign key op index "
+				<< ut_get_name(trx, FALSE, index->name)
+				<< " of table "
+				<< ut_get_name(trx, TRUE, index->table_name);
 
 			fputs("InnoDB: record ", stderr);
 			rec_print(stderr, rec, index);
@@ -1401,7 +1393,6 @@ Checks if foreign key constraint fails for an index entry. Sets shared locks
 which lock either the success or the failure of the constraint. NOTE that
 the caller must have a shared latch on dict_operation_lock.
 @return DB_SUCCESS, DB_NO_REFERENCED_ROW, or DB_ROW_IS_REFERENCED */
-
 dberr_t
 row_ins_check_foreign_constraint(
 /*=============================*/
@@ -2012,10 +2003,10 @@ row_ins_scan_sec_index_for_duplicate(
 					DICT_TF2_FTS_HAS_DOC_ID)
 				    && strcmp(index->name,
 					      FTS_DOC_ID_INDEX_NAME) == 0) {
-					ib_logf(IB_LOG_LEVEL_ERROR,
-						"Duplicate FTS_DOC_ID value"
-						" on table %s",
-						index->table->name);
+
+					ib::error() << "Duplicate FTS_DOC_ID"
+						" value on table "
+						<< index->table->name;
 				}
 
 				goto end_scan;
@@ -2310,7 +2301,6 @@ the delete marked record.
 @retval DB_LOCK_WAIT on lock wait when !(flags & BTR_NO_LOCKING_FLAG)
 @retval DB_FAIL if retry with BTR_MODIFY_TREE is needed
 @return error code */
-
 dberr_t
 row_ins_clust_index_entry_low(
 /*==========================*/
@@ -2735,7 +2725,6 @@ It is then unmarked. Otherwise, the entry is just inserted to the index.
 @retval DB_LOCK_WAIT on lock wait when !(flags & BTR_NO_LOCKING_FLAG)
 @retval DB_FAIL if retry with BTR_MODIFY_TREE is needed
 @return error code */
-
 dberr_t
 row_ins_sec_index_entry_low(
 /*========================*/
@@ -3082,7 +3071,6 @@ func_exit:
 Tries to insert the externally stored fields (off-page columns)
 of a clustered index entry.
 @return DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
-
 dberr_t
 row_ins_index_entry_big_rec_func(
 /*=============================*/
@@ -3139,7 +3127,6 @@ then pessimistic descent down the tree. If the entry matches enough
 to a delete marked record, performs the insert by updating or delete
 unmarking the delete marked record.
 @return DB_SUCCESS, DB_LOCK_WAIT, DB_DUPLICATE_KEY, or some other error code */
-
 dberr_t
 row_ins_clust_index_entry(
 /*======================*/
@@ -3217,7 +3204,6 @@ then pessimistic descent down the tree. If the entry matches enough
 to a delete marked record, performs the insert by updating or delete
 unmarking the delete marked record.
 @return DB_SUCCESS, DB_LOCK_WAIT, DB_DUPLICATE_KEY, or some other error code */
-
 dberr_t
 row_ins_sec_index_entry(
 /*====================*/
@@ -3346,7 +3332,6 @@ columns in row.
 @param[in]	row	row
 
 @return DB_SUCCESS if the set is successful */
-
 dberr_t
 row_ins_index_entry_set_vals(
 	const dict_index_t*	index,
@@ -3666,7 +3651,6 @@ row_ins(
 Inserts a row to a table. This is a high-level function used in SQL execution
 graphs.
 @return query thread to run next or NULL */
-
 que_thr_t*
 row_ins_step(
 /*=========*/

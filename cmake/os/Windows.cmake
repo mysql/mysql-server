@@ -58,6 +58,11 @@ ADD_DEFINITIONS(-DWIN32_LEAN_AND_MEAN -DNOGDI)
 
 # We want to use std::min/std::max, not the windows.h macros
 ADD_DEFINITIONS(-DNOMINMAX)
+
+IF(WITH_MSCRT_DEBUG)
+  ADD_DEFINITIONS(-DMY_MSCRT_DEBUG)
+  ADD_DEFINITIONS(-D_CRTDBG_MAP_ALLOC)
+ENDIF()
   
 IF(MSVC)
   # Enable debug info also in Release build,

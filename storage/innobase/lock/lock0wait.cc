@@ -183,7 +183,6 @@ occurs during the wait trx->error_state associated with thr is
 != DB_SUCCESS when we return. DB_LOCK_WAIT_TIMEOUT and DB_DEADLOCK
 are possible errors. DB_DEADLOCK is returned if selective deadlock
 resolution chose this transaction as a victim. */
-
 void
 lock_wait_suspend_thread(
 /*=====================*/
@@ -368,7 +367,8 @@ lock_wait_suspend_thread(
 	}
 
 	if (lock_wait_timeout < 100000000
-	    && wait_time > (double) lock_wait_timeout) {
+	    && wait_time > (double) lock_wait_timeout
+	    && !trx_is_high_priority(trx)) {
 
 		trx->error_state = DB_LOCK_WAIT_TIMEOUT;
 
@@ -384,7 +384,6 @@ lock_wait_suspend_thread(
 /********************************************************************//**
 Releases a user OS thread waiting for a lock to be released, if the
 thread is already suspended. */
-
 void
 lock_wait_release_thread_if_suspended(
 /*==================================*/
@@ -452,7 +451,7 @@ lock_wait_check_and_cancel(
 
 		trx_mutex_enter(trx);
 
-		if (trx->lock.wait_lock != NULL) {
+		if (trx->lock.wait_lock != NULL && !trx_is_high_priority(trx)) {
 
 			ut_a(trx->lock.que_state == TRX_QUE_LOCK_WAIT);
 

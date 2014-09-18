@@ -91,7 +91,6 @@ trx_undof_page_add_undo_rec_log(
 /***********************************************************//**
 Parses a redo log record of adding an undo log record.
 @return end of log record or NULL */
-
 byte*
 trx_undo_parse_add_undo_rec(
 /*========================*/
@@ -279,7 +278,6 @@ trx_undo_page_report_insert(
 /**********************************************************************//**
 Reads from an undo log record the general parameters.
 @return remaining part of undo log record after reading these values */
-
 byte*
 trx_undo_rec_get_pars(
 /*==================*/
@@ -370,7 +368,6 @@ trx_undo_rec_get_col_val(
 /*******************************************************************//**
 Builds a row reference from an undo log record.
 @return pointer to remaining part of undo record */
-
 byte*
 trx_undo_rec_get_row_ref(
 /*=====================*/
@@ -416,7 +413,6 @@ trx_undo_rec_get_row_ref(
 /*******************************************************************//**
 Skips a row reference from an undo log record.
 @return pointer to remaining part of undo record */
-
 byte*
 trx_undo_rec_skip_row_ref(
 /*======================*/
@@ -926,7 +922,6 @@ trx_undo_page_report_modify(
 Reads from an undo log update record the system field values of the old
 version.
 @return remaining part of undo log record after reading these values */
-
 byte*
 trx_undo_update_rec_get_sys_cols(
 /*=============================*/
@@ -953,7 +948,6 @@ trx_undo_update_rec_get_sys_cols(
 Builds an update vector based on a remaining part of an undo log record.
 @return remaining part of the record, NULL if an error detected, which
 means that the record is corrupted */
-
 byte*
 trx_undo_update_rec_get_update(
 /*===========================*/
@@ -1083,7 +1077,6 @@ Builds a partial row from an update undo log record, for purge.
 It contains the columns which occur as ordering in any index of the table.
 Any missing columns are indicated by col->mtype == DATA_MISSING.
 @return pointer to remaining part of undo record */
-
 byte*
 trx_undo_rec_get_partial_row(
 /*=========================*/
@@ -1206,7 +1199,6 @@ trx_undo_erase_page_end(
 /***********************************************************//**
 Parses a redo log record of erasing of an undo page end.
 @return end of log record or NULL */
-
 byte*
 trx_undo_parse_erase_page_end(
 /*==========================*/
@@ -1234,7 +1226,6 @@ of a clustered index record. This information is used in a rollback of the
 transaction and in consistent reads that must look to the history of this
 transaction.
 @return DB_SUCCESS or error code */
-
 dberr_t
 trx_undo_report_row_operation(
 /*==========================*/
@@ -1498,7 +1489,6 @@ err_exit:
 Copies an undo record to heap. This function can be called if we know that
 the undo log record exists.
 @return own: copy of the record */
-
 trx_undo_rec_t*
 trx_undo_get_undo_rec_low(
 /*======================*/
@@ -1581,7 +1571,6 @@ hold a latch on the index page of the clustered index record.
 or the table has been rebuilt
 @retval false if the previous version is earlier than purge_view,
 which means that it may have been removed */
-
 bool
 trx_undo_prev_version_build(
 /*========================*/

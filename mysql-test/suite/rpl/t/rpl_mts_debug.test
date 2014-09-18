@@ -11,7 +11,6 @@
 --source include/master-slave.inc
 --source include/have_debug.inc
 --source include/have_innodb.inc
---source include/have_slave_parallel_type_database.inc
 # no format specific tests so we run it only in MIXED mode
 --source include/have_binlog_format_mixed.inc
 
@@ -35,12 +34,25 @@ ALTER TABLE mysql.slave_worker_info ENGINE= Innodb;
 --source include/start_slave.inc
 
 --connection master
+
+# Create two slave side parallelizable transactions.
+# Logical_Clock requires one more which is the first
+# one in binlog as a warmup.
+INSERT INTO db_1.test_1 VALUES(0);
 --source include/sync_slave_sql_with_master.inc
 SET GLOBAL debug="d,mts_debug_concurrent_access";
 
 --connection master
+BEGIN;
 INSERT INTO db_1.test_1 VALUES(1);
+--connection master1
+BEGIN;
 INSERT INTO db_2.test_1 VALUES(1);
+--connection master
+COMMIT;
+--connection master1
+COMMIT;
+
 DROP DATABASE db_1;
 DROP DATABASE db_2;
 --source include/sync_slave_sql_with_master.inc

@@ -1,5 +1,6 @@
 # The embedded server does not support restarting in mysql-test-run.
 -- source include/not_embedded.inc
+-- source include/no_valgrind_without_big.inc
 
 let MYSQLD_DATADIR=`select @@datadir`;
 let PAGE_SIZE=`select @@innodb_page_size`;
@@ -136,7 +137,7 @@ let SEARCH_FILE= $MYSQLTEST_VARDIR/log/my_restart.err;
 -- error 1
 -- exec $MYSQLD_CMD --core-file --console > $SEARCH_FILE 2>&1;
 
-let SEARCH_PATTERN= \[ERROR\] InnoDB: Tablespace [0-9]+ was not found at \..test.bug16735660\.ibd\.;
+let SEARCH_PATTERN= \[ERROR\] InnoDB: Tablespace [0-9]+ was not found at .*test.bug16735660.ibd;
 -- source include/search_pattern_in_file.inc
 
 -- move_file $MYSQLD_DATADIR/bug16735660.omg $MYSQLD_DATADIR/test/bug16735660.ibd

@@ -782,7 +782,7 @@ public:
       if (show_from != buf)
       {
         // The last new line was found in this buf, adjust offset
-        show_offset+= (show_from - buf) + 1;
+        show_offset+= static_cast<int>(show_from - buf) + 1;
         DBUG_PRINT("info", ("adjusted offset to %d", show_offset));
       }
       DBUG_PRINT("info", ("show_offset: %d", show_offset));
@@ -7269,7 +7269,8 @@ void init_win_path_patterns()
                           "$MASTER_MYSOCK",
                           "$MYSQL_SHAREDIR",
                           "$MYSQL_LIBDIR",
-                          "./test/" };
+                          "./test/",
+                          ".ibd"};
   int num_paths= sizeof(paths)/sizeof(char*);
   int i;
   char* p;
@@ -7348,10 +7349,16 @@ void fix_win_paths(const char *val, size_t len)
     char *p;
     DBUG_PRINT("info", ("pattern: %s", *pat));
 
-    /* Search for the path in string */
-    while ((p= strstr(const_cast<char*>(val), *pat)))
+    /* Find and fix each path in this string */
+    p= const_cast<char*>(val);
+    while (p= strstr(p, *pat))
     {
       DBUG_PRINT("info", ("Found %s in val p: %s", *pat, p));
+      /* Found the pattern.  Back up to the start of this path */
+      while (p > val && !my_isspace(charset_info, *(p - 1)))
+      {
+        p--;
+      }
 
       while (*p && !my_isspace(charset_info, *p))
       {
@@ -7359,7 +7366,7 @@ void fix_win_paths(const char *val, size_t len)
           *p= '/';
         p++;
       }
-      DBUG_PRINT("info", ("Converted \\ to /, p: %s", p));
+      DBUG_PRINT("info", ("Converted \\ to / in %s", val));
     }
   }
   DBUG_PRINT("exit", (" val: %s, len: %d", val, len));
@@ -10318,7 +10325,7 @@ int reg_replace(char** buf_p, int* buf_len_p, char *pattern,
   my_regfree(&r);
   *res_p= 0;
   *buf_p= buf;
-  *buf_len_p= buf_len;
+  *buf_len_p= static_cast<int>(buf_len);
   return 0;
 }
 
