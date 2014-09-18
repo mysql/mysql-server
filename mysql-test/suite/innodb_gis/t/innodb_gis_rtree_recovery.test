@@ -4,6 +4,7 @@
 # Restart is not supported in embedded
 --source include/not_embedded.inc
 --source include/have_innodb.inc
+--source include/no_valgrind_without_big.inc
 
 # Create table with R-tree index.
 create table t1 (c1 int, c2 geometry not null, spatial index (c2))engine=innodb;

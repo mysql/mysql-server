@@ -3339,9 +3339,9 @@ static Sys_var_charptr Sys_ssl_crlpath(
 #if defined(HAVE_OPENSSL) && !defined(HAVE_YASSL)
 static Sys_var_mybool Sys_auto_generate_certs(
        "auto_generate_certs",
-       "Auto generate SSL certificates at server startup if none of the SSL "
-       "system variables are specified and certificate files are not present "
-       "in data directory.",
+       "Auto generate SSL certificates at server startup if --ssl is set to "
+       "ON and none of the other SSL system variables are specified and "
+       "certificate/key files are not present in data directory.",
        READ_ONLY GLOBAL_VAR(opt_auto_generate_certs),
        CMD_LINE(OPT_ARG),
        DEFAULT(TRUE),

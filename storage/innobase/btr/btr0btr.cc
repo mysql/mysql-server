@@ -51,7 +51,6 @@ Created 6/2/1994 Heikki Tuuri
 Checks if the page in the cursor can be merged with given page.
 If necessary, re-organize the merge_page.
 @return	true if possible to merge. */
-
 bool
 btr_can_merge_with_page(
 /*====================*/
@@ -64,7 +63,6 @@ btr_can_merge_with_page(
 
 /**************************************************************//**
 Report that an index page is corrupted. */
-
 void
 btr_corruption_report(
 /*==================*/
@@ -164,7 +162,6 @@ btr_root_fseg_validate(
 /**************************************************************//**
 Gets the root node of a tree and x- or s-latches it.
 @return root page, x- or s-latched */
-
 buf_block_t*
 btr_root_block_get(
 /*===============*/
@@ -198,7 +195,6 @@ btr_root_block_get(
 /**************************************************************//**
 Gets the root node of a tree and sx-latches it for segment access.
 @return root page, sx-latched */
-
 page_t*
 btr_root_get(
 /*=========*/
@@ -217,7 +213,6 @@ Gets the height of the B-tree (the level of the root, when the leaf
 level is assumed to be 0). The caller must hold an S or X latch on
 the index.
 @return tree height (level of the root) */
-
 ulint
 btr_height_get(
 /*===========*/
@@ -285,7 +280,6 @@ btr_root_fseg_adjust_on_import(
 /**************************************************************//**
 Checks and adjusts the root node of a tree during IMPORT TABLESPACE.
 @return error code, or DB_SUCCESS */
-
 dberr_t
 btr_root_adjust_on_import(
 /*======================*/
@@ -368,7 +362,6 @@ btr_root_adjust_on_import(
 /**************************************************************//**
 Creates a new index page (not the root, and also not
 used in page reorganization).  @see btr_page_empty(). */
-
 void
 btr_page_create(
 /*============*/
@@ -390,8 +383,6 @@ btr_page_create(
 		/* Set the level of the new index page */
 		btr_page_set_level(page, NULL, level, mtr);
 	}
-
-	block->check_index_page_at_flush = TRUE;
 
 	/* For Spatial Index, initialize the Split Sequence Number */
 	if (dict_index_is_spatial(index)) {
@@ -493,7 +484,6 @@ that the caller has made the reservation for free extents!
 @retval block, rw_lock_x_lock_count(&block->lock) == 1 if allocation succeeded
 (init_mtr == mtr, or the page was not previously freed in mtr)
 @retval block (not allocated or initialized) otherwise */
-
 buf_block_t*
 btr_page_alloc(
 /*===========*/
@@ -529,7 +519,6 @@ btr_page_alloc(
 /**************************************************************//**
 Gets the number of pages in a B-tree.
 @return number of pages, or ULINT_UNDEFINED if the index is unavailable */
-
 ulint
 btr_get_size(
 /*=========*/
@@ -602,7 +591,6 @@ btr_page_free_for_ibuf(
 /**************************************************************//**
 Frees a file page used in an index tree. Can be used also to (BLOB)
 external storage pages. */
-
 void
 btr_page_free_low(
 /*==============*/
@@ -660,7 +648,6 @@ btr_page_free_low(
 /**************************************************************//**
 Frees a file page used in an index tree. NOTE: cannot free field external
 storage pages because the page must contain info on its level. */
-
 void
 btr_page_free(
 /*==========*/
@@ -910,7 +897,6 @@ log record during recovery
 @param[in]	mtr			mini-transaction handle
 record during recovery
 @return page number of the created root, FIL_NULL if did not succeed */
-
 ulint
 btr_create(
 	ulint			type,
@@ -1040,8 +1026,6 @@ btr_create(
 		btr_page_set_level(page, NULL, 0, mtr);
 	}
 
-	block->check_index_page_at_flush = TRUE;
-
 	/* Set the index id of the page */
 	btr_page_set_index_id(page, page_zip, index_id, mtr);
 
@@ -1137,7 +1121,6 @@ top_loop:
 /** Frees the B-tree root page. Other tree MUST already have been freed.
 @param[in]	root_page_id	id of the root page
 @param[in,out]	mtr		mini-transaction */
-
 void
 btr_free_root(
 	const page_id_t&	root_page_id,
@@ -1175,7 +1158,6 @@ IBUF_BITMAP_FREE is unaffected by reorganization.
 
 @retval true if the operation was successful
 @retval false if it is a compressed page, and recompression failed */
-
 bool
 btr_page_reorganize_low(
 /*====================*/
@@ -1240,8 +1222,6 @@ btr_page_reorganize_low(
 	if (!recovery) {
 		btr_search_drop_page_hash_index(block);
 	}
-
-	block->check_index_page_at_flush = TRUE;
 #endif /* !UNIV_HOTBACKUP */
 
 	/* Save the cursor position. */
@@ -1435,7 +1415,6 @@ IBUF_BITMAP_FREE is unaffected by reorganization.
 
 @retval true if the operation was successful
 @retval false if it is a compressed page, and recompression failed */
-
 bool
 btr_page_reorganize(
 /*================*/
@@ -1451,7 +1430,6 @@ btr_page_reorganize(
 /***********************************************************//**
 Parses a redo log record of reorganizing a page.
 @return end of log record or NULL */
-
 byte*
 btr_parse_page_reorganize(
 /*======================*/
@@ -1522,8 +1500,6 @@ btr_page_empty(
 			    dict_index_is_spatial(index));
 		btr_page_set_level(page, NULL, level, mtr);
 	}
-
-	block->check_index_page_at_flush = TRUE;
 }
 
 /*************************************************************//**
@@ -1533,7 +1509,6 @@ NOTE that the operation of this function must always succeed,
 we cannot reverse it: therefore enough free disk space must be
 guaranteed to be available before this function is called.
 @return inserted record */
-
 rec_t*
 btr_root_raise_and_insert(
 /*======================*/
@@ -1722,7 +1697,6 @@ btr_root_raise_and_insert(
 Decides if the page should be split at the convergence point of inserts
 converging to the left.
 @return TRUE if split recommended */
-
 ibool
 btr_page_get_split_rec_to_left(
 /*===========================*/
@@ -1767,7 +1741,6 @@ btr_page_get_split_rec_to_left(
 Decides if the page should be split at the convergence point of inserts
 converging to the right.
 @return TRUE if split recommended */
-
 ibool
 btr_page_get_split_rec_to_right(
 /*============================*/
@@ -2036,7 +2009,6 @@ btr_page_insert_fits(
 /*******************************************************//**
 Inserts a data tuple to a tree on a non-leaf level. It is assumed
 that mtr holds an x-latch on the tree. */
-
 void
 btr_insert_on_non_leaf_level_func(
 /*==============================*/
@@ -2451,7 +2423,6 @@ free disk space (2 pages) must be guaranteed to be available before
 this function is called.
 
 @return inserted record */
-
 rec_t*
 btr_page_split_and_insert(
 /*======================*/
@@ -2964,7 +2935,6 @@ btr_set_min_rec_mark_log(
 Parses the redo log record for setting an index record as the predefined
 minimum record.
 @return end of log record or NULL */
-
 byte*
 btr_parse_set_min_rec_mark(
 /*=======================*/
@@ -2994,7 +2964,6 @@ btr_parse_set_min_rec_mark(
 
 /****************************************************************//**
 Sets a record as the predefined minimum record. */
-
 void
 btr_set_min_rec_mark(
 /*=================*/
@@ -3021,7 +2990,6 @@ btr_set_min_rec_mark(
 #ifndef UNIV_HOTBACKUP
 /*************************************************************//**
 Deletes on the upper level the node pointer to a page. */
-
 void
 btr_node_ptr_delete(
 /*================*/
@@ -3224,7 +3192,6 @@ tree height. It is assumed that mtr holds an x-latch on the tree and on the
 page. If cursor is on the leaf level, mtr must also hold x-latches to the
 brothers, if they exist.
 @return TRUE on success */
-
 ibool
 btr_compress(
 /*=========*/
@@ -3799,7 +3766,6 @@ btr_discard_only_page_on_level(
 Discards a page from a B-tree. This is used to remove the last record from
 a B-tree page: the whole page must be removed at the same time. This cannot
 be used for the root page, which is allowed to be empty. */
-
 void
 btr_discard_page(
 /*=============*/
@@ -3941,7 +3907,6 @@ btr_discard_page(
 #ifdef UNIV_BTR_PRINT
 /*************************************************************//**
 Prints size info of a B-tree. */
-
 void
 btr_print_size(
 /*===========*/
@@ -4042,7 +4007,6 @@ btr_print_recursive(
 
 /**************************************************************//**
 Prints directories and other info of all nodes in the tree. */
-
 void
 btr_print_index(
 /*============*/
@@ -4079,7 +4043,6 @@ btr_print_index(
 /************************************************************//**
 Checks that the node pointer to a page is appropriate.
 @return TRUE */
-
 ibool
 btr_check_node_ptr(
 /*===============*/
@@ -4153,7 +4116,6 @@ btr_index_rec_validate_report(
 Checks the size and number of fields in a record based on the definition of
 the index.
 @return TRUE if ok */
-
 ibool
 btr_index_rec_validate(
 /*===================*/
@@ -4962,7 +4924,6 @@ node_ptr_fails:
 /**************************************************************//**
 Do an index level validation of spaital index tree.
 @return	true if no error found */
-
 bool
 btr_validate_spatial_index(
 /*=======================*/
@@ -5003,7 +4964,6 @@ btr_validate_spatial_index(
 /**************************************************************//**
 Checks the consistency of an index tree.
 @return true if ok */
-
 bool
 btr_validate_index(
 /*===============*/
@@ -5054,7 +5014,6 @@ btr_validate_index(
 Checks if the page in the cursor can be merged with given page.
 If necessary, re-organize the merge_page.
 @return	true if possible to merge. */
-
 bool
 btr_can_merge_with_page(
 /*====================*/

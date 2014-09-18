@@ -1,13 +1,11 @@
 #
-# Test verifies MTS behaviour with regard to 
-# Change-Master.
-# 
+# Test verifies MTS behaviour with regard to Change-Master.
+# It's made the MTS scheduler type insensitive.
 # Related bugs:
-# Bug 12995174 - MTS: UNEXPECTED RECOVERY ATTEMPT ENDS WITH ER_MASTER_INFO OR ASSERTION 
+# Bug 12995174 - MTS: UNEXPECTED RECOVERY ATTEMPT ENDS WITH ER_MASTER_INFO OR ASSERTION
 
 --source include/not_gtid_enabled.inc
 --source include/master-slave.inc
---source include/have_slave_parallel_type_database.inc
 # The test for bug#12995174 is not format-specific but uses sleep
 # so it made to be run in ROW format that is the way the bug is reported.
 --source include/have_binlog_format_row.inc
@@ -69,8 +67,16 @@ INSERT INTO d1.t1 VALUES (13); # to cause the dup key error
 
 INSERT INTO d1.t1 VALUES (6);
 INSERT INTO d2.t1 VALUES (7);
+--connection master1
+BEGIN;
 INSERT INTO d1.t1 VALUES (13);
+--connection master
+BEGIN;
 INSERT INTO d2.t1 VALUES (8);  # this worker will race over one inserting (13)
+--connection master1
+COMMIT;
+--connection master
+COMMIT;
 INSERT INTO d2.t1 VALUES (9);
 
 --connection slave1
@@ -82,7 +88,7 @@ INSERT INTO d2.t1 VALUES (9);
 
 --connection slave
 # make worker executing (13) to error out
-COMMIT; 
+COMMIT;
 
 --let $slave_sql_errno= 1062
 --source include/wait_for_slave_sql_error.inc

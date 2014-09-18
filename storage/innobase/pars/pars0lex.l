@@ -692,7 +692,6 @@ In the state 'id', only two actions are possible (defined below). */
 
 /**********************************************************************
 Release any resources used by the lexer. */
-
 void
 pars_lexer_close(void)
 /*==================*/

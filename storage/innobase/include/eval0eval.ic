@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -30,7 +30,6 @@ Created 12/29/1997 Heikki Tuuri
 
 /*****************************************************************//**
 Evaluates a function node. */
-
 void
 eval_func(
 /*======*/
@@ -42,7 +41,6 @@ freed. If the node already has allocated buffer, that buffer is freed
 here. NOTE that this is the only function where dynamic memory should be
 allocated for a query node val field.
 @return pointer to allocated buffer */
-
 byte*
 eval_node_alloc_val_buf(
 /*====================*/

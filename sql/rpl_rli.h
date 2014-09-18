@@ -150,7 +150,12 @@ public:
      worker thread to coordinator thread and vice-versa
    */
   mysql_mutex_t mts_temp_table_LOCK;
-
+  /*
+     Lock to acquire by methods that concurrently update lwm of committed
+     transactions and the min waited timestamp and its index.
+  */
+  mysql_mutex_t mts_gaq_LOCK;
+  mysql_cond_t  logical_clock_cond;
   /*
     If true, events with the same server id should be replicated. This
     field is set on creation of a relay log info structure by copying
@@ -616,14 +621,14 @@ public:
             V                            |
     MTS_NOT_IN_GROUP =>                  |
         {MTS_IN_GROUP => MTS_END_GROUP --+} while (!killed) => MTS_KILLED_GROUP
-      
+
     MTS_END_GROUP has `->' loop breaking link to MTS_NOT_IN_GROUP when
     Coordinator synchronizes with Workers by demanding them to
     complete their assignments.
   */
   enum
   {
-    /* 
+    /*
        no new events were scheduled after last synchronization,
        includes Single-Threaded-Slave case.
     */
@@ -635,22 +640,39 @@ public:
   } mts_group_status;
 
   /*
-    MTS statistics: 
+    MTS statistics:
   */
   ulonglong mts_events_assigned; // number of events (statements) scheduled
   ulonglong mts_groups_assigned; // number of groups (transactions) scheduled
   volatile ulong mts_wq_overrun_cnt; // counter of all mts_wq_excess_cnt increments
   ulong wq_size_waits_cnt;    // number of times C slept due to WQ:s oversize
   /*
-    a counter for sleeps due to Coordinator 
-    experienced waiting when Workers get hungry again
+    Counter of how many times Coordinator saw Workers are filled up
+    "enough" with assignements. The enough definition depends on
+    the scheduler type.
   */
   ulong mts_wq_no_underrun_cnt;
+  longlong mts_total_wait_overlap; // Waiting time corresponding to above
+  /*
+    Stats to compute Coordinator waiting time for any Worker available,
+    applies solely to the Commit-clock scheduler.
+  */
+  ulonglong mts_total_wait_worker_avail;
   ulong mts_wq_overfill_cnt;  // counter of C waited due to a WQ queue was full
-  /* 
+  /*
+    Statistics (todo: replace with WL5631) applies to either Coordinator and Worker.
+    The exec time in the Coordinator case means scheduling.
+    The read time in the Worker case means getting an event out of Worker queue
+  */
+  ulonglong stats_exec_time;
+  ulonglong stats_read_time;
+  struct timespec ts_exec[2];  // per event pre- and post- exec timestamp
+  struct timespec stats_begin; // applier's bootstrap time
+
+  /*
      A sorted array of the Workers' current assignement numbers to provide
      approximate view on Workers loading.
-     The first row of the least occupied Worker is queried at assigning 
+     The first row of the least occupied Worker is queried at assigning
      a new partition. Is updated at checkpoint commit to the main RLI.
   */
   Prealloced_array<ulong, 16> least_occupied_workers;

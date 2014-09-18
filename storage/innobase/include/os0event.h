@@ -46,7 +46,6 @@ Creates an event semaphore, i.e., a semaphore which may just have two states:
 signaled and nonsignaled. The created event is manual reset: it must be reset
 explicitly by calling os_event_reset().
 @return	the event handle */
-
 os_event_t
 os_event_create(
 /*============*/
@@ -56,7 +55,6 @@ os_event_create(
 /**
 Sets an event semaphore to the signaled state: lets waiting threads
 proceed. */
-
 void
 os_event_set(
 /*=========*/
@@ -65,7 +63,6 @@ os_event_set(
 /**
 Check if the event is set.
 @return true if set */
-
 bool
 os_event_is_set(
 /*============*/
@@ -78,7 +75,6 @@ The return value should be passed to os_even_wait_low() if it is desired
 that this thread should not wait in case of an intervening call to
 os_event_set() between this os_event_reset() and the
 os_event_wait_low() call. See comments for os_event_wait_low(). */
-
 int64_t
 os_event_reset(
 /*===========*/
@@ -86,7 +82,6 @@ os_event_reset(
 
 /**
 Frees an event object. */
-
 void
 os_event_destroy(
 /*=============*/
@@ -109,7 +104,6 @@ thread C calls os_event_wait()  [infinite wait!]
 Where such a scenario is possible, to avoid infinite wait, the
 value returned by os_event_reset() should be passed in as
 reset_sig_count. */
-
 void
 os_event_wait_low(
 /*==============*/
@@ -126,7 +120,6 @@ os_event_wait_low(
 Waits for an event object until it is in the signaled state or
 a timeout is exceeded. In Unix the timeout is always infinite.
 @return 0 if success, OS_SYNC_TIME_EXCEEDED if timeout was exceeded */
-
 ulint
 os_event_wait_time_low(
 /*===================*/
@@ -145,7 +138,6 @@ os_event_wait_time_low(
 
 /**
 Initialise the event sub-system. */
-
 void
 os_event_init();
 

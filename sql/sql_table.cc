@@ -2488,7 +2488,7 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
       if (frm_db_type != DB_TYPE_UNKNOWN && !table_type)
       {
         my_error(ER_STORAGE_ENGINE_NOT_LOADED, MYF(0), db, table->table_name);
-        wrong_tables.free();
+        wrong_tables.mem_free();
         error= 1;
         goto err;
       }
@@ -2532,7 +2532,7 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
       if (error == HA_ERR_TOO_MANY_CONCURRENT_TRXS)
       {
         my_error(HA_ERR_TOO_MANY_CONCURRENT_TRXS, MYF(0));
-        wrong_tables.free();
+        wrong_tables.mem_free();
         error= 1;
         goto err;
       }
@@ -8205,6 +8205,18 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
     my_error(ER_ROW_IS_REFERENCED, MYF(0));
     DBUG_RETURN(true);
   }
+
+  /*
+   If foreign key is added then check permission to access parent table.
+
+   In function "check_fk_parent_table_access", create_info->db_type is used
+   to identify whether engine supports FK constraint or not. Since
+   create_info->db_type is set here, check to parent table access is delayed
+   till this point for the alter operation.
+  */
+  if ((alter_info->flags & Alter_info::ADD_FOREIGN_KEY) &&
+      check_fk_parent_table_access(thd, create_info, alter_info))
+    DBUG_RETURN(true);
 
   /*
    If this is an ALTER TABLE and no explicit row type specified reuse
