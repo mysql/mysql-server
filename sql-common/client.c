@@ -3272,7 +3272,7 @@ mysql_fill_packet_header(MYSQL *mysql, char *buff, size_t buff_size)
   else
   {
     DBUG_ASSERT(buff_size >= 5);
-    DBUG_ASSERT(mysql->client_flag <= MAXUINT16);
+    DBUG_ASSERT(mysql->client_flag <= UINT_MAX16);
 
     int2store(buff_p, (uint16) mysql->client_flag);
     int3store(buff_p + 2, net->max_packet_size);
