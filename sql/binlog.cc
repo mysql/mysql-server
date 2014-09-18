@@ -1862,7 +1862,18 @@ static int log_in_use(const char* log_name)
 {
   size_t log_name_len = strlen(log_name) + 1;
   int thread_count=0;
-
+#ifndef MCP_BUG19553099
+  /*
+    Restarting mysqld with --expire-log-days=1 triggers 'log_in_use'
+    to be called without current_thd. Temporarily circumvent
+    problem by not doing debug sync when thd is NULL.
+  */
+  THD* thd = current_thd;
+  if (thd)
+    DEBUG_SYNC(thd,"purge_logs_after_lock_index_before_thread_count");
+#else
+  DEBUG_SYNC(current_thd,"purge_logs_after_lock_index_before_thread_count");a
+#endif
   mysql_mutex_lock(&LOCK_thread_count);
 
   Thread_iterator it= global_thread_list_begin();
@@ -3672,19 +3683,19 @@ bool MYSQL_BIN_LOG::reset_logs(THD* thd)
   ha_reset_logs(thd);
 
   /*
+    We need to get both locks to be sure that no one is trying to
+    write to the index log file.
+  */
+  mysql_mutex_lock(&LOCK_log);
+  mysql_mutex_lock(&LOCK_index);
+
+  /*
     The following mutex is needed to ensure that no threads call
     'delete thd' as we would then risk missing a 'rollback' from this
     thread. If the transaction involved MyISAM tables, it should go
     into binlog even on rollback.
   */
   mysql_mutex_lock(&LOCK_thread_count);
-
-  /*
-    We need to get both locks to be sure that no one is trying to
-    write to the index log file.
-  */
-  mysql_mutex_lock(&LOCK_log);
-  mysql_mutex_lock(&LOCK_index);
 
   global_sid_lock->wrlock();
 
