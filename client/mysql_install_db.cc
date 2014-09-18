@@ -360,7 +360,7 @@ struct Sql_user
       ss << "'',";
     }
     uint64_t acl= priv.to_int();
-    for(int i= 0; i< 29; ++i)
+    for(int i= 0; i< NUM_ACLS; ++i)
     {
       if( (acl & (1L << i)) != 0 )
         ss << "'Y',";
