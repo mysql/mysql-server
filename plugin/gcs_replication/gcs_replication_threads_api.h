@@ -35,7 +35,8 @@ using std::string;
 #define REPLICATION_THREAD_START_IO_NOT_CONNECTED 6
 #define REPLICATION_THREAD_STOP_ERROR 7
 #define REPLICATION_THREAD_STOP_RL_FLUSH_ERROR 8
-#define REPLICATION_THREAD_REPOSITORY_PURGE_ERROR 9
+#define REPLICATION_THREAD_REPOSITORY_RL_PURGE_ERROR 9
+#define REPLICATION_THREAD_REPOSITORY_MI_PURGE_ERROR 10
 
 
 //Error for the wait event consuption, equal to the server wait for gtid method
@@ -51,7 +52,8 @@ class Replication_thread_api
 {
 
 public:
-  Replication_thread_api(): mi(NULL), rli(NULL) {};
+  Replication_thread_api()
+    :mi(NULL), rli(NULL), stop_wait_timeout(LONG_TIMEOUT) {};
   ~Replication_thread_api(){}
 
   /**
@@ -101,8 +103,6 @@ public:
     Start the SQL/IO threads according to the given thread mask option
 
     @param thread_mask          threads to start (SLAVE_SQL and/or SLAVE_IO)
-    @param test_and_purge       test if the node suffered a reset master and if
-                                so, purge the relay logs
     @param wait_for_connection  wait for the IO thread to connect
 
     @return the operation status
@@ -113,22 +113,29 @@ public:
         Error caused by a not present but needed master info repository
       @retval REPLICATION_THREAD_START_IO_NOT_CONNECTED
         Error when the threads start, but the IO thread cannot connect
-      @retval REPLICATION_THREAD_REPOSITORY_PURGE_ERROR
-        Error when relay log purging fails before the thread starts
   */
-  int start_replication_threads(int thread_mask, bool test_and_purge,
+  int start_replication_threads(int thread_mask,
                                 bool wait_for_connection);
 
   /**
-    Test if the node suffered a RESET MASTER command and if so, purges the
-    relay logs
+    Purges the relay logs and clears the GTID retrieved
 
     @return the operation status
       @retval 0      OK
-      @retval REPLICATION_THREAD_REPOSITORY_PURGE_ERROR
+      @retval REPLICATION_THREAD_REPOSITORY_RL_PURGE_ERROR
         Error when relay log purging fails before the thread starts
   */
-  int test_and_purge_relay_logs();
+  int purge_relay_logs();
+
+  /**
+   Cleans the master info object
+
+    @return the operation status
+      @retval 0      OK
+      @retval REPLICATION_THREAD_REPOSITORY_MI_PURGE_ERROR
+        Error when clearing the master info repository
+  */
+  int purge_master_info();
 
   /**
     Stops the SQL/IO threads according to the given thread mask option.
@@ -222,14 +229,14 @@ public:
 
     @param[in]  timeout      the timeout
   */
-  static void set_stop_wait_timeout (ulong timeout){
+  void set_stop_wait_timeout (ulong timeout){
     stop_wait_timeout= timeout;
   }
 
 private:
   Master_info *mi;
   Relay_log_info *rli;
-  static ulong stop_wait_timeout;
+  ulong stop_wait_timeout;
 };
 
 #endif /* GCS_REPLICATION_THREADS_API_INCLUDE */

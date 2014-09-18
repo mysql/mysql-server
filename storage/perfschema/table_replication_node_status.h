@@ -48,7 +48,7 @@ struct st_row_node_status {
   ulonglong pos_cert;
   ulonglong neg_cert;
   ulonglong cert_db_size;
-  char stable_set[Gtid::MAX_TEXT_LENGTH+1];
+  char *stable_set;
   int stable_set_length;
   char last_cert_trx[Gtid::MAX_TEXT_LENGTH+1];
   int last_cert_trx_length;

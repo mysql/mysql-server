@@ -14,6 +14,7 @@
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 #include "certification_handler.h"
+#include "gcs_pipeline_interface.h"
 #include "../observer_trans.h"
 #include <gcs_replication.h>
 
@@ -28,24 +29,81 @@ Certification_handler::initialize()
   DBUG_ENTER("Certification_handler::initialize");
   DBUG_ASSERT(cert_module == NULL);
   cert_module= new Certifier();
-  int error= cert_module->initialize();
-  DBUG_RETURN(error);
+  DBUG_RETURN(0);
 }
 
 int
 Certification_handler::terminate()
 {
   DBUG_ENTER("Certification_handler::terminate");
-  int error= cert_module->terminate();
+  int error= 0;
+
+  if(cert_module == NULL)
+    DBUG_RETURN(error);
+
+  error= cert_module->terminate();
   delete cert_module;
   cert_module= NULL;
   DBUG_RETURN(error);
 }
 
 int
+Certification_handler::handle_action(PipelineAction* action)
+{
+  DBUG_ENTER("Certification_handler::handle_action");
+
+  int error= 0;
+
+  Plugin_handler_action action_type=
+    (Plugin_handler_action)action->get_action_type();
+
+  if (action_type == HANDLER_CERT_CONF_ACTION)
+  {
+    Handler_certifier_configuration_action* conf_action=
+      (Handler_certifier_configuration_action*) action;
+
+    error= cert_module->initialize(conf_action->get_last_delivered_gno());
+
+    cluster_sidno= conf_action->get_cluster_sidno();
+  }
+  else if (action_type == HANDLER_GCS_INTERF_ACTION)
+  {
+    Handler_GCS_interfaces_action *gcs_intf_action=
+      (Handler_GCS_interfaces_action*) action;
+
+    cert_module->set_local_node_info(gcs_intf_action->get_local_info());
+    cert_module->set_gcs_interfaces(gcs_intf_action->get_comm_interface(),
+                                    gcs_intf_action->get_control_interface());
+  }
+  else if (action_type == HANDLER_CERT_DB_ACTION)
+  {
+    Handler_certifier_information_action *cert_inf_action=
+      (Handler_certifier_information_action*) action;
+
+    cert_module->set_certification_info(cert_inf_action->get_certification_db(),
+                                        cert_inf_action->get_sequence_number());
+  }
+  else if (action_type == HANDLER_VIEW_CHANGE_ACTION)
+  {
+    View_change_pipeline_action *vc_action=
+            (View_change_pipeline_action*) action;
+
+    if (!vc_action->is_leaving())
+    {
+      cert_module->handle_view_change();
+    }
+  }
+
+  if(error)
+    DBUG_RETURN(error);
+
+  DBUG_RETURN(next(action));
+}
+
+int
 Certification_handler::handle_event(PipelineEvent *pevent, Continuation *cont)
 {
-  DBUG_ENTER("Certification_handler::handle");
+  DBUG_ENTER("Certification_handler::handle_event");
 
   Log_event_type ev_type= pevent->get_event_type();
   switch (ev_type)
@@ -60,12 +118,6 @@ Certification_handler::handle_event(PipelineEvent *pevent, Continuation *cont)
       next(pevent, cont);
       DBUG_RETURN(0);
   }
-}
-
-int
-Certification_handler::handle_action(PipelineAction *action)
-{
-  return 0;
 }
 
 int
@@ -148,7 +200,8 @@ Certification_handler::inject_gtid(PipelineEvent *pevent, Continuation *cont)
   Gtid_log_event *gle_old= (Gtid_log_event*)event;
 
   // Create new GTID event.
-  Gtid gtid= { gcs_cluster_sidno, get_and_reset_seq_number() };
+  rpl_gno seq_number = get_and_reset_seq_number();
+  Gtid gtid= { cluster_sidno, seq_number };
   Gtid_specification spec= { GTID_GROUP, gtid };
   Gtid_log_event *gle= new Gtid_log_event(gle_old->server_id,
                                           gle_old->is_using_trans_cache(),
@@ -180,15 +233,6 @@ Certification_handler::extract_certification_db(PipelineEvent *pevent,
 
   next(pevent, cont);
   DBUG_RETURN(0);
-}
-
-void
-Certification_handler::set_certification_info(std::map<std::string,rpl_gno>* cert_db,
-                                              rpl_gno seq_number)
-{
-  DBUG_ENTER("Certification_handler::set_certification_db");
-  cert_module->set_certification_info(cert_db, seq_number);
-  DBUG_VOID_RETURN;
 }
 
 bool Certification_handler::is_unique()

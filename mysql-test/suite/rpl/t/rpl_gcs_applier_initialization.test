@@ -43,7 +43,7 @@ SET @@GLOBAL.DEBUG= @debug_save;
 SET @@GLOBAL.DEBUG= 'd,applier_thd_timeout';
 
 #The applier thread is stuck so the STOP command will timeout
---error ER_STOP_GCS_APPLIER_THREAD_TIMEOUT
+--error ER_GCS_STOP_APPLIER_THREAD_TIMEOUT
 STOP GCS_REPLICATION;
 
 #The start command will fail as the applier is still running

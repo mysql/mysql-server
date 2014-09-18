@@ -41,6 +41,8 @@ private:
 
   rpl_gno seq_number;
 
+  rpl_sidno cluster_sidno;
+
   /**
     Sets the value of the transaction sequence number.
 

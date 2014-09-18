@@ -43,6 +43,8 @@
 #define GCS_REPLICATION_APPLIER_INIT_ERROR 3
 #define GCS_COMMUNICATION_LAYER_JOIN_ERROR 4
 #define GCS_COMMUNICATION_LAYER_SESSION_ERROR 5
+#define GCS_APPLIER_STOP_TIMEOUT 6
+
 
 //Plugin variables
 typedef st_mysql_sys_var SYS_VAR;
@@ -51,6 +53,8 @@ extern rpl_sidno gcs_cluster_sidno;
 extern char gcs_replication_boot;
 extern bool wait_on_engine_initialization;
 extern const char *available_bindings_names[];
+//Flag to register server rest master command invocations
+extern bool known_server_reset;
 
 //The modules
 extern Gcs_interface *gcs_module;
@@ -87,6 +91,7 @@ int initialize_recovery_module();
 int terminate_recovery_module();
 int configure_and_start_gcs();
 void declare_plugin_running();
+void register_server_reset_master();
 
 //Plugin public methods
 int gcs_replication_init(MYSQL_PLUGIN plugin_info);

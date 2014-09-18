@@ -218,7 +218,7 @@ void Certifier::clear_incoming()
 }
 
 
-int Certifier::initialize()
+int Certifier::initialize(rpl_gno last_delivered_gno)
 {
   DBUG_ENTER("Certifier::initialize");
 
@@ -226,7 +226,6 @@ int Certifier::initialize()
     DBUG_RETURN(1);
 
   rpl_gno last_executed_gno= get_last_executed_gno(gcs_cluster_sidno);
-  rpl_gno last_delivered_gno= this->get_last_delivered_gno();
   if (last_delivered_gno < 0)
     DBUG_RETURN(1);
 
@@ -418,8 +417,12 @@ Certifier::set_gcs_interfaces(Gcs_communication_interface* comm_if,
                               Gcs_control_interface* ctrl_if)
 {
   DBUG_ENTER("Certifier::set_gcs_interfaces");
+
   this->gcs_communication= comm_if;
   this->gcs_control= ctrl_if;
+
+  broadcast_thread->set_gcs_communication(comm_if, ctrl_if);
+
   DBUG_VOID_RETURN;
 }
 
@@ -427,7 +430,11 @@ void
 Certifier::set_local_node_info(Cluster_member_info* local_info)
 {
   DBUG_ENTER("Certifier::set_local_node_info");
+
   this->local_node= local_info;
+
+  broadcast_thread->set_local_node_info(local_info);
+
   DBUG_VOID_RETURN;
 }
 
@@ -567,43 +574,6 @@ int Certifier::stable_set_handle()
 
   DBUG_RETURN(error);
 }
-
-
-rpl_gno Certifier::get_last_delivered_gno()
-{
-  DBUG_ENTER("Certifier::get_last_delivered_gno");
-
-  Replication_thread_api sql_thread_interface;
-  int error= sql_thread_interface.initialize_repositories(applier_relay_log_name,
-                                                          applier_relay_log_info_name);
-  if (error)
-  {
-    if (error == REPLICATION_THREAD_REPOSITORY_CREATION_ERROR)
-    {
-      log_message(MY_ERROR_LEVEL,
-                  "Failed to setup the applier module metadata containers at certifier.");
-    }
-    if (error == REPLICATION_THREAD_MI_INIT_ERROR)
-    {
-      log_message(MY_ERROR_LEVEL,
-                  "Failed to setup the applier's (mi) metadata container at certifier.");
-    }
-    if (error == REPLICATION_THREAD_RLI_INIT_ERROR)
-    {
-      log_message(MY_ERROR_LEVEL,
-                  "Failed to setup the applier's (rli) metadata container at certifier.");
-    }
-    DBUG_RETURN(-1);
-  }
-
-  rpl_gno last_delivered_gno=
-      sql_thread_interface.get_last_delivered_gno(gcs_cluster_sidno);
-
-  sql_thread_interface.clean_thread_repositories();
-
-  DBUG_RETURN(last_delivered_gno);
-}
-
 
 void Certifier::handle_view_change()
 {

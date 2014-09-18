@@ -3035,16 +3035,16 @@ end_with_restore_list:
   case SQLCOM_STOP_GCS_REPLICATION:
   {
     res= stop_gcs_rpl();
-    if (res == ER_GCS_REPLICATION_CONFIGURATION)
+    if (res == 1) //GCS_CONFIGURATION_ERROR
     {
       my_message(ER_GCS_REPLICATION_CONFIGURATION,
                  ER(ER_GCS_REPLICATION_CONFIGURATION), MYF(0));
       goto error;
     }
-    if (res == ER_STOP_GCS_APPLIER_THREAD_TIMEOUT)
+    if (res == 6) //GCS_APPLIER_THREAD_TIMEOUT
     {
-      my_message(ER_STOP_GCS_APPLIER_THREAD_TIMEOUT,
-                 ER(ER_STOP_GCS_APPLIER_THREAD_TIMEOUT), MYF(0));
+      my_message(ER_GCS_STOP_APPLIER_THREAD_TIMEOUT,
+                 ER(ER_GCS_STOP_APPLIER_THREAD_TIMEOUT), MYF(0));
       goto error;
     }
     my_ok(thd);

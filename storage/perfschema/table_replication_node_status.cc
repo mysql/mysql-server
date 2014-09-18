@@ -118,12 +118,17 @@ table_replication_node_status::table_replication_node_status()
   : PFS_engine_table(&m_share, &m_pos),
     m_row_exists(false), m_pos(0), m_next_pos(0)
 {
-  m_row.stable_set_length= -1;
+  m_row.stable_set_length= 0;
   m_row.last_cert_trx_length= -1;
 }
 
 table_replication_node_status::~table_replication_node_status()
-{}
+{
+  if (m_row.stable_set_length > 0)
+   {
+     my_free(m_row.stable_set);
+   }
+}
 
 void table_replication_node_status::reset_position(void)
 {
@@ -211,11 +216,17 @@ void table_replication_node_status::make_row()
     if(node_stats_info->stable_set)
     {
       m_row.stable_set_length= strlen(node_stats_info->stable_set);
+      m_row.stable_set= (char*) my_malloc(PSI_NOT_INSTRUMENTED,
+                                          m_row.stable_set_length + 1,
+					  MYF(0));
+
       memcpy(m_row.stable_set, node_stats_info->stable_set,
              m_row.stable_set_length+1);
     }
     else
-      m_row.stable_set[0]= '\0';
+    {
+      m_row.stable_set_length= 0;
+    }
 
     if(node_stats_info->last_certified_transaction)
     {

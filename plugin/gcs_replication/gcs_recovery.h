@@ -156,6 +156,7 @@ public:
   */
   void set_stop_wait_timeout (ulong timeout){
     stop_wait_timeout= timeout;
+    donor_connection_interface.set_stop_wait_timeout(timeout);
   }
 
   /**
@@ -233,6 +234,18 @@ private:
   int terminate_recovery_slave_threads();
 
   /**
+    Purges relay logs and the master info object
+
+    @return the operation status
+      @retval 0      OK
+      @retval REPLICATION_THREAD_REPOSITORY_RL_PURGE_ERROR
+        Error when purging the relay logs
+      @retval REPLICATION_THREAD_REPOSITORY_MI_PURGE_ERROR
+        Error when cleaning the master info repository
+  */
+  int purge_recovery_slave_threads_repos();
+
+  /**
     Terminates the connection to the donor
 
     @return the operation status
@@ -266,11 +279,12 @@ private:
 #endif
   THD *recovery_thd;
 
-  // GCS interfaces for control and communication
+  /* GCS control interface*/
   Gcs_control_interface* gcs_control_interface;
+  /* Communication interface for GCS*/
   Gcs_communication_interface* gcs_communication_interface;
 
-  //Information about the local node
+  /*Information about the local node*/
   Cluster_member_info* local_node_information;
 
   /* The plugin's applier module interface*/
@@ -283,8 +297,8 @@ private:
 
   /* The selected donor node uuid*/
   string selected_donor_uuid;
-  //Pointer to the Cluster Member manager
-  Cluster_member_info_manager_interface* cluster_info;
+  /* Pointer to the Cluster Member manager*/
+  Cluster_member_info_manager_interface *cluster_info;
 
   /* Donors who recovery could not connect */
   list<string> rejected_donors;

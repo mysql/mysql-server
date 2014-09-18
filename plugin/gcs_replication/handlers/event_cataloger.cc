@@ -65,9 +65,8 @@ Event_cataloger::handle_event(PipelineEvent *pevent, Continuation *cont)
   return 0;
 }
 
-int Event_cataloger::handle_action(PipelineAction *action)
-{
-  return 0;
+int Event_cataloger::handle_action(PipelineAction *action){
+  return(next(action));
 }
 
 bool Event_cataloger::is_unique()

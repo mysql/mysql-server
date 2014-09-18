@@ -17,11 +17,8 @@
 #include "gcs_recovery.h"
 #include "gcs_recovery_message.h"
 #include "gcs_member_info.h"
-#include "handlers/certification_handler.h"
 #include <rpl_pipeline_interfaces.h>
 #include <mysqld_thd_manager.h>  // Global_THD_manager
-#include <rpl_info_factory.h>
-#include <rpl_slave.h>
 #include <debug_sync.h>
 
 /** Default user for donor connection*/
@@ -38,15 +35,15 @@ static void *launch_handler_thread(void* arg)
   return 0;
 }
 
-Recovery_module::Recovery_module(Applier_module_interface *applier,
-                                 Gcs_communication_interface *comm_if,
-                                 Gcs_control_interface *ctrl_if,
-                                 Cluster_member_info* local_info,
-                                 Cluster_member_info_manager_interface*
-                                                                cluster_info_if)
+Recovery_module::
+Recovery_module(Applier_module_interface *applier,
+                Gcs_communication_interface *comm_if,
+                Gcs_control_interface *ctrl_if,
+                Cluster_member_info *local_info,
+                Cluster_member_info_manager_interface *cluster_info_if)
   : gcs_control_interface(ctrl_if),gcs_communication_interface(comm_if),
-    local_node_information(local_info), applier_module(applier),
-    view_id(0), cluster_info(cluster_info_if),donor_connection_retry_count(0),
+    local_node_information(local_info), applier_module(applier), view_id(0),
+    cluster_info(cluster_info_if), donor_connection_retry_count(0),
     recovery_running(false), donor_transfer_finished(false),
     connected_to_donor(false), donor_connection_interface(),
     stop_wait_timeout(LONG_TIMEOUT), max_connection_attempts_to_donors(-1)
@@ -348,10 +345,9 @@ Recovery_module::recovery_thread_handle()
 {
   int error= 0;
   donor_transfer_finished= false;
+  Handler_certifier_information_action *cert_action= NULL;
 
   set_recovery_thread_context();
-  Certifier_interface *certifier=
-    applier_module->get_certification_handler()->get_certifier();
 
   mysql_mutex_lock(&run_lock);
   recovery_running= true;
@@ -389,12 +385,12 @@ Recovery_module::recovery_thread_handle()
   }
   mysql_mutex_unlock(&recovery_lock);
 
-  //if there is no certifier, just ignore the info
-  if (certifier != NULL)
-  {
-    certifier->set_certification_info(get_retrieved_cert_db(),
-                                      get_retrieved_seq_number());
-  }
+  //Transmit the certification info into the pipeline
+  cert_action=
+    new Handler_certifier_information_action(get_retrieved_cert_db(),
+                                             get_retrieved_seq_number());
+  applier_module->handle_pipeline_action(cert_action);
+  delete cert_action;
 
   donor_transfer_finished= true;
   connected_to_donor= false;
@@ -687,7 +683,6 @@ int Recovery_module::start_recovery_donor_threads(bool failover)
   int thread_mask= (failover) ? SLAVE_IO : SLAVE_SQL | SLAVE_IO;
 
   error= donor_connection_interface.start_replication_threads(thread_mask,
-                                                              false,
                                                               true);
   if (error)
   {
@@ -719,7 +714,8 @@ int Recovery_module::terminate_recovery_slave_threads()
   DBUG_ENTER("Recovery_module::terminate_slave_threads");
 
   log_message(MY_INFORMATION_LEVEL,
-              "[Recovery:] Terminating existing donor connection.");
+              "[Recovery:] Terminating existing donor connection "
+              "and purging recovery logs.");
   /*
    Lock to avoid concurrent donor failover attempts when we are already
    terminating the threads.
@@ -735,14 +731,37 @@ int Recovery_module::terminate_recovery_slave_threads()
   }
   else
   {
+    error = purge_recovery_slave_threads_repos();
+    //clean the threads anyway
     donor_connection_interface.clean_thread_repositories();
   }
-
-  // TODO: purge the relay logs
 
   mysql_mutex_unlock(&donor_selection_lock);
   DBUG_RETURN(error);
 }
+
+int Recovery_module::purge_recovery_slave_threads_repos()
+{
+  DBUG_ENTER("Recovery_module::purge_recovery_slave_threads_repos");
+
+  int error= 0;
+  if ((error = donor_connection_interface.purge_relay_logs()))
+  {
+    log_message(MY_ERROR_LEVEL,
+                "[Recovery:] Error when purging the recovery's relay logs");
+    DBUG_RETURN(error);
+  }
+
+  if ((error = donor_connection_interface.purge_master_info()))
+  {
+    log_message(MY_ERROR_LEVEL,
+                "[Recovery:] Error when cleaning the master info repository");
+    DBUG_RETURN(error);
+  }
+
+  DBUG_RETURN(error);
+}
+
 
 void Recovery_module::wait_for_applier_module_recovery()
 {

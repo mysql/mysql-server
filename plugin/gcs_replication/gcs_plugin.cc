@@ -17,7 +17,7 @@
 #include "gcs_plugin.h"
 #include "observer_server_state.h"
 #include "observer_trans.h"
-#include <sql_class.h>                          // THD
+#include "observer_server_actions.h"
 #include <gcs_replication.h>
 #include "gcs_event_handlers.h"
 #include "gcs_binding_factory.h"
@@ -43,6 +43,7 @@ rpl_sidno gcs_cluster_sidno;
 
 //Applier module related
 ulong handler_pipeline_type;
+bool known_server_reset;
 
 //Recovery module related
 char gcs_recovery_user[USERNAME_LENGTH + 1];
@@ -355,11 +356,12 @@ bool get_gcs_node_stat_info(RPL_GCS_NODE_STATS_INFO *info)
 
   info->group_name= gcs_group_pointer;
 
-  //Check if the gcs replication has started.
-  if(applier_module)
+  Certification_handler *cert= NULL;
+
+  //Check if the gcs replication has started and a valid certifier exists
+  if(applier_module != NULL &&
+     (cert = applier_module->get_certification_handler()) != NULL)
   {
-    Certification_handler *cert=
-      applier_module->get_certification_handler();
     Certifier_interface *cert_module= cert->get_certifier();
 
     info->positively_certified= cert_module->get_positive_certified();
@@ -640,6 +642,13 @@ int gcs_replication_init(MYSQL_PLUGIN plugin_info)
     return 1;
   }
 
+  if (register_binlog_transmit_observer (&binlog_transmit_observer, (void *)plugin_info_ptr))
+  {
+    log_message(MY_ERROR_LEVEL,
+                "Failure in GCS cluster during registering the binlog state observers");
+    return 1;
+  }
+
   if ((gcs_module=
          Gcs_binding_factory::get_gcs_implementation
                               ((plugin_gcs_bindings)gcs_protocol_opt)) == NULL)
@@ -685,6 +694,13 @@ int gcs_replication_deinit(void *p)
   {
     log_message(MY_ERROR_LEVEL,
                 "Failure in GCS cluster during unregistering the transactions state observers");
+    return 1;
+  }
+
+  if (unregister_binlog_transmit_observer(&binlog_transmit_observer, p))
+  {
+    log_message(MY_ERROR_LEVEL,
+                "Failure in GCS cluster during unregistering the binlog state observers");
     return 1;
   }
 
@@ -758,13 +774,19 @@ int configure_and_start_applier_module()
   //For now, only defined pipelines are accepted.
   error=
     applier_module->setup_applier_module((Handler_pipeline_type)handler_pipeline_type,
-                                         gcs_components_stop_timeout);
+                                         applier_relay_log_name,
+                                         applier_relay_log_info_name,
+                                         known_server_reset,
+                                         gcs_components_stop_timeout,
+                                         gcs_cluster_sidno);
   if (error)
   {
     //Delete the possible existing pipeline
     applier_module->terminate_applier_pipeline();
     DBUG_RETURN(error);
   }
+
+  known_server_reset= false;
 
   if ((error= applier_module->initialize_applier_thread()))
   {
@@ -794,7 +816,7 @@ int terminate_applier_module()
     }
     else
     {
-      error= ER_STOP_GCS_APPLIER_THREAD_TIMEOUT;
+      error= GCS_APPLIER_STOP_TIMEOUT;
     }
   }
   return error;
@@ -827,10 +849,11 @@ int configure_and_start_gcs()
 
   gcs_communication_event_handle= comm_if->add_event_listener(events_handler);
 
-  applier_module->get_certification_handler()->get_certifier()
-                                       ->set_gcs_interfaces(comm_if, gcs_ctrl);
-  applier_module->get_certification_handler()->get_certifier()
-                                       ->set_local_node_info(local_member_info);
+  //Transmit the interfaces to the interested handlers.
+  Handler_GCS_interfaces_action *interf_action=
+    new Handler_GCS_interfaces_action(local_member_info, comm_if, gcs_ctrl);
+  applier_module->handle_pipeline_action(interf_action);
+  delete interf_action;
 
   if (gcs_ctrl->join())
   {
@@ -877,6 +900,10 @@ int terminate_recovery_module()
 
 static bool server_engine_initialized(){
   return is_server_engine_ready();
+}
+
+void register_server_reset_master(){
+  known_server_reset= true;
 }
 
 static int check_group_name_string(const char *str)

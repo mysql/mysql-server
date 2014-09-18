@@ -14,10 +14,6 @@
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 #include "gcs_event_handlers.h"
-#include "gcs_certifier.h"
-#include "gcs_recovery.h"
-#include <sql_class.h>
-#include "gcs_recovery_message.h"
 #include <set>
 #include <string>
 
@@ -149,18 +145,18 @@ Gcs_plugin_events_handler::on_view_changed(Gcs_view *new_view)
   //update the Cluster Manager with all the received states
   this->update_cluster_info_manager(new_view, is_leaving);
 
-  //Handle joining members and calculates if we are joining.
+  //Inform any interested handler that the view changed
+  View_change_pipeline_action *vc_action=
+    new View_change_pipeline_action(is_leaving);
+
+  applier_module->handle_pipeline_action(vc_action);
+  delete vc_action;
+
+  //Handle joining members
   this->handle_joining_nodes(new_view, is_joining);
 
   //Update any recovery running process and handle state changes
   this->handle_leaving_nodes(new_view, is_joining, is_leaving);
-
-  if(!is_leaving)
-  {
-    Certifier_interface *certifier= applier_module->get_certification_handler()
-                                                  ->get_certifier();
-    certifier->handle_view_change();
-  }
 }
 
 void Gcs_plugin_events_handler::update_cluster_info_manager(Gcs_view *new_view,

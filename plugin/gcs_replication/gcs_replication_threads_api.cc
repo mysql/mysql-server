@@ -155,7 +155,6 @@ Replication_thread_api::initialize_view_id_until_condition(ulonglong view_id)
 }
 
 int Replication_thread_api::start_replication_threads(int thread_mask,
-                                                      bool test_and_purge,
                                                       bool wait_for_connection)
 {
   DBUG_ENTER("Slave_thread_api::start_replication_thread");
@@ -165,15 +164,6 @@ int Replication_thread_api::start_replication_threads(int thread_mask,
   if (mi)
   {
     lock_slave_threads(mi);
-
-    //Test to see if a relay log purge is desirable
-    if (test_and_purge)
-    {
-      if ((error = test_and_purge_relay_logs()))
-      {
-        return error;
-      }
-    }
 
     ulong thread_start_id= mi->slave_run_id;
     error= start_slave_threads(false/*need_lock_slave=false*/,
@@ -220,34 +210,30 @@ int Replication_thread_api::start_replication_threads(int thread_mask,
   DBUG_RETURN(error);
 }
 
-int Replication_thread_api::test_and_purge_relay_logs()
+int Replication_thread_api::purge_relay_logs()
 {
-  DBUG_ENTER("Replication_thread_api::test_and_purge_relay_logs");
+  DBUG_ENTER("Replication_thread_api::purge_relay_logs");
 
-  global_sid_lock->wrlock();
+  const char* errmsg= "Unknown error occurred while reseting applier logs";
 
-  const Gtid_set* received_gtid_set= rli->get_gtid_set();
-  const Gtid_set* executed_gtids= gtid_state->get_executed_gtids();
-
-  /*
-   If we have things in the relay log but the executed set is empty, this means
-   that probably the node suffered a RESET MASTER execution.
-   In this case, the best option is to purge the applier relay logs.
-  */
-  if (executed_gtids->is_empty() && !received_gtid_set->is_empty())
+  if(rli->purge_relay_logs(current_thd, 1, &errmsg))
   {
-    const char* errmsg= "Unknown error occurred while reseting applier logs";
-    global_sid_lock->unlock();
-
-    if(rli->purge_relay_logs(current_thd, 1, &errmsg))
-    {
-      DBUG_RETURN(REPLICATION_THREAD_REPOSITORY_PURGE_ERROR);
-    }
-  }
-  else{
-    global_sid_lock->unlock();
+    DBUG_RETURN(REPLICATION_THREAD_REPOSITORY_RL_PURGE_ERROR);
   }
 
+  DBUG_RETURN(0);
+}
+
+int Replication_thread_api::purge_master_info()
+{
+  DBUG_ENTER("Replication_thread_api::purge_master_info");
+
+  mi->clear_in_memory_info(true);
+
+  if (remove_info(mi))
+  {
+    DBUG_RETURN(REPLICATION_THREAD_REPOSITORY_MI_PURGE_ERROR);
+  }
   DBUG_RETURN(0);
 }
 
@@ -267,7 +253,8 @@ int Replication_thread_api::stop_threads(bool flush_relay_logs, int thread_mask)
 
     lock_slave_threads(mi);
 
-    if ((error= terminate_slave_threads(mi, thread_mask, LONG_TIMEOUT, false)))
+    if ((error= terminate_slave_threads(mi, thread_mask,
+                                        stop_wait_timeout, false)))
     {
       error= REPLICATION_THREAD_STOP_ERROR;
     }

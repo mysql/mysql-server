@@ -39,6 +39,7 @@ IF(CMAKE_SYSTEM_NAME MATCHES "Linux")
     gcs_member_info.cc gcs_member_info.h
     gcs_binding_factory.cc gcs_binding_factory.h
     gcs_plugin_utils.h
+    observer_server_actions.cc observer_server_actions.h
     observer_server_state.cc observer_server_state.h
     observer_trans.cc observer_trans.h
     gcs_plugin_messages.cc gcs_plugin_messages.h
@@ -50,6 +51,7 @@ IF(CMAKE_SYSTEM_NAME MATCHES "Linux")
     gcs_recovery_message.cc gcs_recovery_message.h
     gcs_recovery.cc gcs_recovery.h
     gcs_certifier_stats_interface.h
+    handlers/gcs_pipeline_interface.h
     handlers/certification_handler.h
     handlers/certification_handler.cc
     handlers/event_cataloger.h

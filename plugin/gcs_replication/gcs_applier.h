@@ -21,6 +21,7 @@
 #include <my_global.h>
 #include <rpl_pipeline_interfaces.h>
 #include "pipeline_factory.h"
+#include "handlers/gcs_pipeline_interface.h"
 #include "handlers/applier_sql_thread.h"
 #include "handlers/certification_handler.h"
 
@@ -38,30 +39,6 @@ enum enum_packet_action
   SUSPENSION_PACKET,     //Packet to signal something to suspend
   VIEW_CHANGE_PACKET,    //Packet to signal a view change
   ACTION_NUMBER= 3       //The number of actions
-};
-
-/*
-  @enum Event modifier
-  Enumeration type for the different kinds of pipeline event modifiers.
-*/
-enum enum_event_modifier
-{
-  TRANSACTION_BEGIN= 1, //transaction start event
-  TRANSACTION_END= 2,   //transaction end event
-  UNMARKED_EVENT= 3,    //transaction regular event
-};
-
-/**
-  @enum Handler role
-  Enumeration type for the different roles of the used handlers.
-*/
-enum enum_handler_role
-{
-  EVENT_CATALOGER= 0,
-  APPLIER= 1,
-  CERTIFIER= 2,
-  QUEUER= 3,
-  ROLE_NUMBER= 4 //The number of roles
 };
 
 /**
@@ -131,6 +108,7 @@ public:
   virtual void add_suspension_packet()= 0;
   virtual void add_view_change_packet(ulonglong view_id)= 0;
   virtual int handle(uchar *data, uint len)= 0;
+  virtual int handle_pipeline_action(PipelineAction *action)= 0;
 };
 
 class Applier_module: public Applier_module_interface
@@ -185,15 +163,23 @@ public:
   /**
     Configure the applier pipeline according to the given configuration
 
-    @param[in]  pipeline_type    the chosen pipeline
-    @param[in]  stop_timeout     the timeout when waiting on shutdown
+    @param[in] pipeline_type        the chosen pipeline
+    @param[in] relay_log_name       the applier relay log name
+    @param[in] relay_log_info_name  the applier relay log info name
+    @param[in] reset_logs           if a reset happened in the server
+    @param[in] stop_timeout         the timeout when waiting on shutdown
+    @param[in] cluster_sidno        the cluster configured sidno
 
     @return the operation status
       @retval 0      OK
       @retval !=0    Error
   */
   int setup_applier_module(Handler_pipeline_type pipeline_type,
-                           ulong stop_timeout);
+                           char *relay_log_name,
+                           char *relay_log_info_name,
+                           bool reset_logs,
+                           ulong stop_timeout,
+                           rpl_sidno cluster_sidno);
 
   /**
     Runs the applier thread process, reading events and processing them.
@@ -220,6 +206,20 @@ public:
   int handle(uchar *data, uint len)
   {
     return this->incoming->push(new Data_packet(data, len));
+  }
+
+  /**
+    Gives the pipeline an action for execution.
+
+    @param[in]  action      the action to be executed
+
+    @return the operation status
+      @retval 0      OK
+      @retval !=0    Error executing the action
+  */
+  int handle_pipeline_action(PipelineAction *action)
+  {
+    return this->pipeline->handle_action(action);
   }
 
   /**
@@ -252,6 +252,13 @@ public:
   */
   void set_stop_wait_timeout (ulong timeout){
     stop_wait_timeout= timeout;
+
+    //Configure any thread based applier
+    Handler_applier_configuration_action *conf_action=
+      new Handler_applier_configuration_action(timeout);
+    pipeline->handle_action(conf_action);
+
+    delete conf_action;
   }
 
   // Packet based interface methods

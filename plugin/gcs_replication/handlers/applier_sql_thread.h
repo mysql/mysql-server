@@ -16,9 +16,11 @@
 #ifndef SQL_THREAD_APPLIER_INCLUDE
 #define SQL_THREAD_APPLIER_INCLUDE
 
-#include "../gcs_applier.h"
+#include "../gcs_plugin_utils.h"
+#include "gcs_pipeline_interface.h"
 #include <rpl_pipeline_interfaces.h>
 #include "../gcs_replication_threads_api.h"
+
 
 class Applier_sql_thread : public EventHandler
 {
@@ -30,6 +32,32 @@ public:
   int terminate();
   bool is_unique();
   int get_role();
+
+  /**
+    Initializes the SQL thread when receiving a configuration package
+
+    @param relay_log_name            the applier's relay log name
+    @param relay_log_info_name       the applier's relay log index file name
+    @param reset_logs                if a reset was executed in the server
+    @param plugin_shutdown_timeout   the plugin's timeout for component shutdown
+
+    @return the operation status
+      @retval 0      OK
+      @retval !=0    Error
+  */
+  int initialize_repositories(char *relay_log_name,
+                              char *relay_log_info_name,
+                              bool reset_logs,
+                              ulong plugin_shutdown_timeout);
+
+  /**
+    Starts the SQL thread when receiving a action package
+
+    @return the operation status
+      @retval 0      OK
+      @retval !=0    Error
+  */
+  int start_sql_thread();
 
   /**
     Checks if all the queued transactions were executed.

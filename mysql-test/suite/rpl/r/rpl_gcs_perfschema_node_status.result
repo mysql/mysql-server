@@ -1,3 +1,11 @@
+###################
+Cleanup and server setup
+###################
+# restart
+server2
+RESET MASTER;
+server1
+RESET MASTER;
 server1
 SET GLOBAL gcs_replication_plugin_group_name= "8a84f397-aaa4-18df-89ab-c70aa9823561";
 ###################
@@ -47,6 +55,7 @@ include/assert.inc [The value of Certification_db_size should be 5 after startin
 include/assert.inc [The value of Stable_set should be empty currently for the gcs]
 include/assert.inc [The value of Last_certified_transaction should be the gtid of the last applied transaction.]
 include/assert.inc [The value of Applier_module_status should be ON after starting gcs]
+[ The value of stable_set should be equal to the node GTID executed set ]
 DROP TABLE t1;
 ####################################
 The values being checked after stop

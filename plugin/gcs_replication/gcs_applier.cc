@@ -83,9 +83,15 @@ Applier_module::~Applier_module(){
 
 int
 Applier_module::setup_applier_module(Handler_pipeline_type pipeline_type,
-                                     ulong stop_timeout)
+                                     char *relay_log_name,
+                                     char *relay_log_info_name,
+                                     bool reset_logs,
+                                     ulong stop_timeout,
+                                     rpl_sidno cluster_sidno)
 {
   DBUG_ENTER("ApplierModule::setup");
+
+  int error= 0;
 
   //create the receiver queue
   this->incoming= new Synchronized_queue<Packet*>();
@@ -94,7 +100,39 @@ Applier_module::setup_applier_module(Handler_pipeline_type pipeline_type,
 
   pipeline= NULL;
 
-  DBUG_RETURN(get_pipeline(pipeline_type, &pipeline));
+  if ( (error= get_pipeline(pipeline_type, &pipeline)) )
+  {
+    DBUG_RETURN(error);
+  }
+
+  //Configure the applier handler trough a configuration action
+  Handler_applier_configuration_action *applier_conf_action=
+    new Handler_applier_configuration_action(relay_log_name,
+                                             relay_log_info_name,
+                                             reset_logs,
+                                             stop_timeout,
+                                             cluster_sidno);
+
+  error= pipeline->handle_action(applier_conf_action);
+
+  if (error)
+  {
+    delete applier_conf_action;
+    DBUG_RETURN(error);
+  }
+
+  //Extract the last known queued gno to configure the certifier
+  rpl_gno last_queued_gno= applier_conf_action->get_last_queued_gno();
+  delete applier_conf_action;
+
+  Handler_certifier_configuration_action *cert_conf_action=
+    new Handler_certifier_configuration_action(last_queued_gno, cluster_sidno);
+
+  error = pipeline->handle_action(cert_conf_action);
+
+  delete cert_conf_action;
+
+  DBUG_RETURN(error);
 }
 
 void
@@ -250,8 +288,23 @@ Applier_module::initialize_applier_thread()
 {
   DBUG_ENTER("ApplierModule::initialize_applier_thd");
 
+  int error= 0;
+
   //avoid concurrency calls against stop invocations
   mysql_mutex_lock(&run_lock);
+
+  /*
+   Initialize the pipeline first avoiding the launch of the applier thread
+   in case of error
+  */
+  PipelineAction *start_action = new Handler_start_action();
+  error= pipeline->handle_action(start_action);
+  delete start_action;
+  if (error)
+  {
+    mysql_mutex_unlock(&run_lock);
+    DBUG_RETURN(error);
+  }
 
 #ifdef HAVE_PSI_INTERFACE
   PSI_thread_info threads[]= {
@@ -279,7 +332,7 @@ Applier_module::initialize_applier_thread()
   }
 
   mysql_mutex_unlock(&run_lock);
-  DBUG_RETURN(0);
+  DBUG_RETURN(error);
 }
 
 int

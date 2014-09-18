@@ -96,6 +96,29 @@ public:
   */
   void dispatcher();
 
+  /**
+    Sets the broadcast thread's GCS interfaces
+
+    @param gcs_communication  Reference to the GCS Communication Interface
+    @param gcs_control        Reference to the GCS Control Interface
+   */
+  void set_gcs_communication(Gcs_communication_interface* gcs_communication,
+                             Gcs_control_interface* gcs_control)
+  {
+    this->gcs_communication = gcs_communication;
+    this->gcs_control = gcs_control;
+  }
+
+  /**
+    Sets the broadcast thread's GCS local node info
+
+    @param local_node  Reference to the local node information
+   */
+  void set_local_node_info(Cluster_member_info* local_node)
+  {
+    this->local_node = local_node;
+  }
+
 private:
   /**
     Period (in microseconds) between stable transactions set
@@ -157,11 +180,13 @@ public:
   /**
     Initialize certifier.
 
+    @param last_delivered_gno the last certified gno
+
     @return the operation status
       @retval 0      OK
       @retval !=0    Error
   */
-  int initialize();
+  int initialize(rpl_gno last_delivered_gno);
 
   /**
     Terminate certifier.
@@ -367,16 +392,6 @@ private:
     Clear incoming queue.
   */
   void clear_incoming();
-
-  /**
-    Returns last GNO for cluster UUID from applier relay log (already
-    certified transactions).
-
-    @return
-      @retval  -1   Error
-      @retval >=0   GNO value
-  */
-  rpl_gno get_last_delivered_gno();
 
 /*
   Update method to store the count of the positively and negatively
