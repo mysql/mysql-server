@@ -97,6 +97,8 @@ class ha_innobase: public handler
 
 	int write_row(uchar * buf);
 
+	int update_row(const uchar * old_data, uchar * new_data);
+
 	int delete_row(const uchar * buf);
 
 	int delete_all_rows();
@@ -384,7 +386,12 @@ private:
 
 	int info_low(uint, bool);
 
-	int update_row(const uchar * old_data, uchar * new_data);
+	/**
+	MySQL calls this method at the end of each statement. This method
+	exists for readability only, called from reset(). The name reset()
+	doesn't give any clue that it is called at the end of a statement. */
+	int end_stmt();
+
 public:
 	/** @name Multi Range Read interface @{ */
 
