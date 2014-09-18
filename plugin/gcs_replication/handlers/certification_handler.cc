@@ -167,7 +167,7 @@ Certification_handler::certify(PipelineEvent *pevent, Continuation *cont)
       DBUG_RETURN(1);
     }
 
-    if (certification_latch.releaseTicket(tcle->get_thread_id()))
+    if (certification_latch->releaseTicket(tcle->get_thread_id()))
     {
       log_message(MY_ERROR_LEVEL, "Failed to notify certification outcome");
       cont->signal(1,true);

@@ -65,7 +65,7 @@ ulong gcs_recovery_retry_count= 0;
 ulong gcs_components_stop_timeout= LONG_TIMEOUT;
 
 //Certification latch
-Wait_ticket<my_thread_id> certification_latch;
+Wait_ticket<my_thread_id> *certification_latch;
 
 //GCS module variables
 char *gcs_group_pointer= NULL;
@@ -471,6 +471,11 @@ int gcs_rpl_start()
   if (init_cluster_sidno())
     DBUG_RETURN(GCS_CONFIGURATION_ERROR);
 
+  /*
+    Instantiate certification latch.
+  */
+  certification_latch= new Wait_ticket<my_thread_id>();
+
   if(gcs_module->initialize())
   {
     DBUG_RETURN(GCS_CONFIGURATION_ERROR);
@@ -612,6 +617,15 @@ int gcs_rpl_stop()
   */
 
   gcs_module->finalize();
+
+  /*
+    Destroy certification latch.
+  */
+  if (certification_latch != NULL)
+  {
+    delete certification_latch;
+    certification_latch= NULL;
+  }
 
   gcs_running= false;
   DBUG_RETURN(error);

@@ -189,7 +189,7 @@ int gcs_trans_before_commit(Trans_param *param)
     goto err;
   }
 
-  if (certification_latch.registerTicket(param->thread_id))
+  if (certification_latch->registerTicket(param->thread_id))
   {
     log_message(MY_ERROR_LEVEL, "Failed to register for certification outcome");
     error= 1;
@@ -204,7 +204,7 @@ int gcs_trans_before_commit(Trans_param *param)
     goto err;
   }
 
-  if (certification_latch.waitTicket(param->thread_id))
+  if (certification_latch->waitTicket(param->thread_id))
   {
     log_message(MY_ERROR_LEVEL, "Failed to wait for certification outcome");
     error= 1;
