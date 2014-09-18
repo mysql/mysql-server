@@ -732,6 +732,7 @@ SHOW_VAR ndb_status_conflict_variables[]= {
   {"trans_detect_iter_count",  (char*) &g_ndb_slave_state.trans_detect_iter_count, SHOW_LONGLONG},
   {"trans_conflict_commit_count",
                                (char*) &g_ndb_slave_state.trans_conflict_commit_count, SHOW_LONGLONG},
+  {"epoch_delete_delete_count", (char*) &g_ndb_slave_state.total_delete_delete_count, SHOW_LONGLONG},
   {NullS, NullS, SHOW_LONG}
 };
 
@@ -4517,6 +4518,19 @@ ha_ndbcluster::eventSetAnyValue(THD *thd,
     }
   }
 #ifndef DBUG_OFF
+  DBUG_EXECUTE_IF("ndb_set_reflect_anyvalue",
+                  {
+                    fprintf(stderr, "Ndb forcing reflect AnyValue\n");
+                    options->optionsPresent |= NdbOperation::OperationOptions::OO_ANYVALUE;
+                    ndbcluster_anyvalue_set_reflect_op(options->anyValue);
+                  });
+  DBUG_EXECUTE_IF("ndb_set_refresh_anyvalue",
+                  {
+                    fprintf(stderr, "Ndb forcing refresh AnyValue\n");
+                    options->optionsPresent |= NdbOperation::OperationOptions::OO_ANYVALUE;
+                    ndbcluster_anyvalue_set_refresh_op(options->anyValue);
+                  });
+  
   /*
     MySQLD will set the user-portion of AnyValue (if any) to all 1s
     This tests code filtering ServerIds on the value of server-id-bits.
@@ -4589,10 +4603,28 @@ ha_ndbcluster::prepare_conflict_detection(enum_conflicting_op_type op_type,
   if (thd->binlog_row_event_extra_data)
   {
     Ndb_binlog_extra_row_info extra_row_info;
-    extra_row_info.loadFromBuffer(thd->binlog_row_event_extra_data);
+    if (extra_row_info.loadFromBuffer(thd->binlog_row_event_extra_data) != 0)
+    {
+      sql_print_warning("NDB Slave : Malformed event received on table %s "
+                        "cannot parse.  Stopping Slave.",
+                        m_share->key);
+      DBUG_RETURN( ER_SLAVE_CORRUPT_EVENT );
+    }
+    
     if (extra_row_info.getFlags() &
         Ndb_binlog_extra_row_info::NDB_ERIF_TRANSID)
       transaction_id = extra_row_info.getTransactionId();
+
+#ifndef DBUG_OFF
+    if (extra_row_info.getFlags() &
+        Ndb_binlog_extra_row_info::NDB_ERIF_CFT_FLAGS)
+    {
+      DBUG_PRINT("info", 
+                 ("Slave : have conflict flags : %x\n",
+                  extra_row_info.getConflictFlags()));
+      /* No effect currently */
+    }
+#endif
   }
 
   {
@@ -5491,6 +5523,7 @@ handle_row_conflict(NDB_CONFLICT_FN_SHARE* cfn_share,
       if ((op_type == DELETE_ROW) &&
           (conflict_cause == ROW_DOES_NOT_EXIST))
       {
+        g_ndb_slave_state.current_delete_delete_count++;
         DBUG_PRINT("info", ("Delete vs Delete detected, NOT refreshing"));
         break;
       }
