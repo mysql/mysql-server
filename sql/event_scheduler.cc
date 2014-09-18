@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -159,9 +159,7 @@ deinit_event_thread(THD *thd)
 
   dec_thread_running();
   thd->release_resources();
-  mysql_mutex_lock(&LOCK_thread_count);
   remove_global_thread(thd);
-  mysql_mutex_unlock(&LOCK_thread_count);
   delete thd;
 }
 
