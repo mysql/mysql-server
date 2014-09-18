@@ -52,7 +52,6 @@ class mock_gcs_corosync_communication_proxy :
 class CorosyncCommunicationTest : public ::testing::Test
 {
 protected:
-  CorosyncCommunicationTest() { };
 
   virtual void SetUp()
   {
@@ -180,6 +179,69 @@ TEST_F(CorosyncCommunicationTest, SendMessageTest)
                              test_payload.length());
 
   corosync_comm_if->send_message(&message);
+}
+
+TEST_F(CorosyncCommunicationTest, SendMessageTestWithRetryAndSuceed)
+{
+  //Test Expectations
+  EXPECT_CALL(*mock_proxy, cpg_mcast_joined(_,_,_,_))
+             .Times(2)
+             .WillOnce(Return (CS_ERR_TRY_AGAIN))
+             .WillOnce(Return (CS_OK));
+  EXPECT_CALL(*mock_stats, update_message_sent(_))
+              .Times(1);
+
+  EXPECT_CALL(*mock_vce, wait_for_view_change_end())
+              .Times(1);
+
+  Gcs_member_identifier member_id("member");
+  Gcs_group_identifier group_id("group");
+
+  Gcs_message message( member_id, group_id,
+                       (gcs_message_delivery_guarantee)0);
+
+  string test_header("header");
+  string test_payload("payload");
+
+  message.append_to_header((uchar*)test_header.c_str(),
+                           test_header.length());
+
+  message.append_to_payload((uchar*)test_payload.c_str(),
+                             test_payload.length());
+
+  long message_result= corosync_comm_if->send_message(&message);
+
+  ASSERT_EQ(0, message_result);
+}
+
+TEST_F(CorosyncCommunicationTest, SendMessageTestWithRetryAndFail)
+{
+  //Test Expectations
+  EXPECT_CALL(*mock_proxy, cpg_mcast_joined(_,_,_,_))
+             .Times(3)
+             .WillRepeatedly(Return (CS_ERR_TRY_AGAIN));
+
+  EXPECT_CALL(*mock_vce, wait_for_view_change_end())
+              .Times(1);
+
+  Gcs_member_identifier member_id("member");
+  Gcs_group_identifier group_id("group");
+
+  Gcs_message message( member_id, group_id,
+                       (gcs_message_delivery_guarantee)0);
+
+  string test_header("header");
+  string test_payload("payload");
+
+  message.append_to_header((uchar*)test_header.c_str(),
+                           test_header.length());
+
+  message.append_to_payload((uchar*)test_payload.c_str(),
+                             test_payload.length());
+
+  long message_result= corosync_comm_if->send_message(&message);
+
+  ASSERT_EQ(1, message_result);
 }
 
 TEST_F(CorosyncCommunicationTest, ReceiveMessageTest)

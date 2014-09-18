@@ -70,12 +70,28 @@ Gcs_corosync_communication::send_binding_message(Gcs_message* message_to_send)
   iov.iov_base= (void*) &encoded_message->front();
   iov.iov_len= encoded_message->size();
 
-  int res=
-    proxy->cpg_mcast_joined(corosync_handle,
-                            to_corosync_guarantee
-                                    (message_to_send->get_delivery_guarantee()),
-                            &iov, 1);
+  int res= CS_OK;
+  uint number_of_retries= NUMBER_OF_GCS_RETRIES_ON_ERROR;
 
+  while(number_of_retries > 0)
+  {
+    res=
+      proxy->cpg_mcast_joined(corosync_handle,
+                              to_corosync_guarantee
+                                      (message_to_send->
+                                              get_delivery_guarantee()),
+                              &iov, 1);
+
+    if(res == CS_ERR_TRY_AGAIN)
+    {
+      sleep(GCS_SLEEP_TIME_ON_ERROR);
+      number_of_retries--;
+    }
+    else
+    {
+      number_of_retries= 0;
+    }
+  }
   delete encoded_message;
 
   long ret_value= (res != CS_OK) ? -1: (long) iov.iov_len;

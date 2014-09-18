@@ -25,8 +25,12 @@
 
 #include <map>
 #include <cstdlib>
+#include <unistd.h>
 
 using std::map;
+
+#define NUMBER_OF_GCS_RETRIES_ON_ERROR 3
+#define GCS_SLEEP_TIME_ON_ERROR 1
 
 /**
   @class Gcs_corosync_communication_proxy
