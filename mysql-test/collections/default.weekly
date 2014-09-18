@@ -82,3 +82,6 @@ perl mysql-test-run.pl --vardir=var-innodb-zip --force --big-test --comment=comp
 
 # Run large_blob test with embedded-server option
 perl mysql-test-run.pl --vardir=var-innodb-zip --force --big-test --comment=embedded_compressed_log0 --testcase-timeout=60 --parallel=auto --embedded-server --experimental=collections/default.experimental --mysqld=--innodb-log-compressed-pages=0 --suite=innodb_zip innodb-large-blob.test
+
+# Run all tests under the suite interactive_utilities
+perl mysql-test-run.pl --force --timer  --testcase-timeout=60 --parallel=auto --experimental=collections/default.experimental --comment=interactive_tests  --vardir=interactive-tests  --suite=interactive_utilities
