@@ -9173,6 +9173,7 @@ ha_innobase::start_stmt(
 	thr_lock_type	lock_type)
 {
 	trx_t*		trx;
+	DBUG_ENTER("ha_innobase::start_stmt");
 
 	update_thd(thd);
 
@@ -9194,6 +9195,28 @@ ha_innobase::start_stmt(
 	prebuilt->sql_stat_start = TRUE;
 	prebuilt->hint_need_to_fetch_extra_cols = 0;
 	reset_template(prebuilt);
+
+	if (dict_table_is_temporary(prebuilt->table)
+	    && prebuilt->mysql_has_locked
+	    && prebuilt->select_lock_type == LOCK_NONE) {
+		ulint error;
+
+		switch (thd_sql_command(thd)) {
+		case SQLCOM_INSERT:
+		case SQLCOM_UPDATE:
+		case SQLCOM_DELETE:
+			init_table_handle_for_HANDLER();
+			prebuilt->select_lock_type = LOCK_X;
+			error = row_lock_table_for_mysql(prebuilt, NULL, 1);
+
+			if (error != DB_SUCCESS) {
+				error = convert_error_code_to_mysql(
+					(int) error, 0, thd);
+				DBUG_RETURN((int) error);
+			}
+			break;
+		}
+	}
 
 	if (!prebuilt->mysql_has_locked) {
 		/* This handle is for a temporary table created inside
@@ -9227,7 +9250,7 @@ ha_innobase::start_stmt(
 
 	innobase_register_trx(ht, thd, trx);
 
-	return(0);
+	DBUG_RETURN(0);
 }
 
 /******************************************************************//**
