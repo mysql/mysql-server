@@ -1651,9 +1651,7 @@ rec_validate_old(
 	n_fields = rec_get_n_fields_old(rec);
 
 	if ((n_fields == 0) || (n_fields > REC_MAX_N_FIELDS)) {
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Record has %lu fields",
-			(ulong) n_fields);
+		ib::error() << "Record has " << n_fields << " fields";
 		return(FALSE);
 	}
 
@@ -1661,10 +1659,7 @@ rec_validate_old(
 		data = rec_get_nth_field_old(rec, i, &len);
 
 		if (!((len < UNIV_PAGE_SIZE) || (len == UNIV_SQL_NULL))) {
-			ib_logf(IB_LOG_LEVEL_ERROR,
-				"Record field %lu len %lu",
-				(ulong) i,
-				(ulong) len);
+			ib::error() << "Record field " << i << " len " << len;
 			return(FALSE);
 		}
 
@@ -1680,10 +1675,8 @@ rec_validate_old(
 	}
 
 	if (len_sum != rec_get_data_size_old(rec)) {
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Record len should be %lu, len %lu",
-			(ulong) len_sum,
-			rec_get_data_size_old(rec));
+		ib::error() << "Record len should be " << len_sum << ", len "
+			<< rec_get_data_size_old(rec);
 		return(FALSE);
 	}
 
@@ -1712,9 +1705,7 @@ rec_validate(
 	n_fields = rec_offs_n_fields(offsets);
 
 	if ((n_fields == 0) || (n_fields > REC_MAX_N_FIELDS)) {
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Record has %lu fields",
-			(ulong) n_fields);
+		ib::error() << "Record has " << n_fields << " fields";
 		return(FALSE);
 	}
 
@@ -1724,10 +1715,7 @@ rec_validate(
 		data = rec_get_nth_field(rec, offsets, i, &len);
 
 		if (!((len < UNIV_PAGE_SIZE) || (len == UNIV_SQL_NULL))) {
-			ib_logf(IB_LOG_LEVEL_ERROR,
-				"Record field %lu len %lu",
-				(ulong) i,
-				(ulong) len);
+			ib::error() << "Record field " << i << " len " << len;
 			return(FALSE);
 		}
 
@@ -1743,10 +1731,8 @@ rec_validate(
 	}
 
 	if (len_sum != rec_offs_data_size(offsets)) {
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Record len should be %lu, len %lu",
-			(ulong) len_sum,
-			(ulong) rec_offs_data_size(offsets));
+		ib::error() << "Record len should be " << len_sum << ", len "
+			<< rec_offs_data_size(offsets);
 		return(FALSE);
 	}
 

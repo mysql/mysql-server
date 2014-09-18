@@ -707,13 +707,13 @@ public:
   {
     char buf[256];
     DBUG_EXPLAIN(buf, sizeof(buf));
-    return (uchar*) thd->strdup(buf);
+    return (uchar*) thd->mem_strdup(buf);
   }
   uchar *global_value_ptr(THD *thd, LEX_STRING *base)
   {
     char buf[256];
     DBUG_EXPLAIN_INITIAL(buf, sizeof(buf));
-    return (uchar*) thd->strdup(buf);
+    return (uchar*) thd->mem_strdup(buf);
   }
   bool check_update_type(Item_result type)
   { return type != STRING_RESULT; }
@@ -1915,7 +1915,7 @@ public:
     ((Gtid_specification *)session_var_ptr(thd))->
       to_string(global_sid_map, buf);
     global_sid_lock->unlock();
-    char *ret= thd->strdup(buf);
+    char *ret= thd->mem_strdup(buf);
     DBUG_RETURN((uchar *)ret);
   }
   uchar *global_value_ptr(THD *thd, LEX_STRING *base)
@@ -2318,7 +2318,7 @@ public:
     DBUG_ENTER("Sys_var_gtid_owned::session_value_ptr");
     char *buf= NULL;
     if (thd->owned_gtid.sidno == 0)
-      DBUG_RETURN((uchar *)thd->strdup(""));
+      DBUG_RETURN((uchar *)thd->mem_strdup(""));
     if (thd->owned_gtid.sidno == -1)
     {
 #ifdef HAVE_GTID_NEXT_LIST

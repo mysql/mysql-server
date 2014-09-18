@@ -328,8 +328,7 @@ row_quiesce_write_header(
 	if (hostname == 0) {
 		static const char	NullHostname[] = "Hostname unknown";
 
-		ib_logf(IB_LOG_LEVEL_WARN,
-			"Unable to determine server hostname.");
+		ib::warn() << "Unable to determine server hostname.";
 
 		hostname = NullHostname;
 	}
@@ -430,7 +429,7 @@ row_quiesce_write_cfg(
 
 	srv_get_meta_data_filename(table, name, sizeof(name));
 
-	ib_logf(IB_LOG_LEVEL_INFO, "Writing table metadata to '%s'", name);
+	ib::info() << "Writing table metadata to '" << name << "'";
 
 	FILE*	file = fopen(name, "w+b");
 
@@ -524,8 +523,7 @@ row_quiesce_table_start(
 	innobase_format_name(
 		table_name, sizeof(table_name), table->name, FALSE);
 
-	ib_logf(IB_LOG_LEVEL_INFO,
-		"Sync to disk of '%s' started.", table_name);
+	ib::info() << "Sync to disk of '" << table_name << "' started.";
 
 	if (trx_purge_state() != PURGE_STATE_DISABLED) {
 		trx_purge_stop();
@@ -538,9 +536,8 @@ row_quiesce_table_start(
 	     && !trx_is_interrupted(trx);
 	     ++count) {
 		if (!(count % 20)) {
-			ib_logf(IB_LOG_LEVEL_INFO,
-				"Merging change buffer entries for '%s'",
-				table_name);
+			ib::info() << "Merging change buffer entries for '"
+				<< table_name << "'";
 		}
 	}
 
@@ -550,20 +547,19 @@ row_quiesce_table_start(
 
 		if (trx_is_interrupted(trx)) {
 
-			ib_logf(IB_LOG_LEVEL_WARN, "Quiesce aborted!");
+			ib::warn() << "Quiesce aborted!";
 
 		} else if (row_quiesce_write_cfg(table, trx->mysql_thd)
 			   != DB_SUCCESS) {
 
-			ib_logf(IB_LOG_LEVEL_WARN,
-				"There was an error writing to the"
-				" meta data file");
+			ib::warn() << "There was an error writing to the"
+				" meta data file";
 		} else {
-			ib_logf(IB_LOG_LEVEL_INFO,
-				"Table '%s' flushed to disk", table_name);
+			ib::info() << "Table '" << table_name
+				<< "' flushed to disk";
 		}
 	} else {
-		ib_logf(IB_LOG_LEVEL_WARN, "Quiesce aborted!");
+		ib::warn() << "Quiesce aborted!";
 	}
 
 	dberr_t	err = row_quiesce_set_state(table, QUIESCE_COMPLETE, trx);
@@ -593,9 +589,8 @@ row_quiesce_table_complete(
 
 		/* Print a warning after every minute. */
 		if (!(count % 60)) {
-			ib_logf(IB_LOG_LEVEL_WARN,
-				"Waiting for quiesce of '%s' to complete",
-				table_name);
+			ib::warn() << "Waiting for quiesce of '" << table_name
+				<< "' to complete";
 		}
 
 		/* Sleep for a second. */
@@ -613,8 +608,7 @@ row_quiesce_table_complete(
 
 	os_file_delete_if_exists(innodb_data_file_key, cfg_name, NULL);
 
-	ib_logf(IB_LOG_LEVEL_INFO,
-		"Deleting the meta-data file '%s'", cfg_name);
+	ib::info() << "Deleting the meta-data file '" << cfg_name << "'";
 
 	if (trx_purge_state() != PURGE_STATE_DISABLED) {
 		trx_purge_run();

@@ -344,8 +344,6 @@ class ha_innobase: public handler
 		HA_CREATE_INFO*		info,
 		uint			table_changes);
 private:
-	int update_row_low(const uchar * old_data, uchar * new_data);
-
 	uint store_key_val_for_row(
 		uint			keynr,
 		char*			buff,
@@ -387,6 +385,12 @@ private:
 	inline void reset_template();
 
 	int info_low(uint, bool);
+
+	/**
+	MySQL calls this method at the end of each statement. This method
+	exists for readability only, called from reset(). The name reset()
+	doesn't give any clue that it is called at the end of a statement. */
+	int end_stmt();
 
 public:
 	/** @name Multi Range Read interface @{ */

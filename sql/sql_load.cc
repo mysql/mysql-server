@@ -767,7 +767,7 @@ static bool write_execute_load_query_log_event(THD *thd, sql_exchange* ex,
       // Extract exact Item value
       str->copy();
       pfields.append(str->ptr());
-      str->free();
+      str->mem_free();
     }
     /*
       Clear the SET string list once the SET command is reconstructed

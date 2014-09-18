@@ -1656,7 +1656,7 @@ bool mysql_make_view(THD *thd, TABLE_SHARE *share, TABLE_LIST *table,
         objects of the view.
       */
       if (!(table->view_sctx= (Security_context *)
-            thd->stmt_arena->calloc(sizeof(Security_context))))
+            thd->stmt_arena->mem_calloc(sizeof(Security_context))))
         goto err;
       security_ctx= table->view_sctx;
     }
@@ -1764,7 +1764,7 @@ bool mysql_make_view(THD *thd, TABLE_SHARE *share, TABLE_LIST *table,
         /* make nested join structure for view tables */
         NESTED_JOIN *nested_join;
         if (!(nested_join= table->nested_join=
-              (NESTED_JOIN *) thd->calloc(sizeof(NESTED_JOIN))))
+              (NESTED_JOIN *) thd->mem_calloc(sizeof(NESTED_JOIN))))
           goto err;
         nested_join->join_list= view_select->top_join_list;
 

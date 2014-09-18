@@ -44,7 +44,7 @@ void Binlog_sender::init()
   mysql_mutex_unlock(&thd->LOCK_thd_data);
 
   /* Initialize the buffer only once. */
-  m_packet.realloc(PACKET_MIN_SIZE); // size of the buffer
+  m_packet.mem_realloc(PACKET_MIN_SIZE); // size of the buffer
   m_new_shrink_size= PACKET_MIN_SIZE;
   DBUG_PRINT("info", ("Initial packet->alloced_length: %zu",
                       m_packet.alloced_length()));
@@ -1008,7 +1008,7 @@ inline bool Binlog_sender::grow_packet(size_t extra_size)
                          PACKET_GROW_FACTOR, &new_buffer_size))
       DBUG_RETURN(true);
 
-    if (m_packet.realloc(new_buffer_size))
+    if (m_packet.mem_realloc(new_buffer_size))
       DBUG_RETURN(true);
 
     /*

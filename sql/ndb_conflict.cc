@@ -595,7 +595,7 @@ ExceptionsTableWriter::init(const NdbDictionary::Table* mainTable,
 }
 
 void
-ExceptionsTableWriter::free(Ndb* ndb)
+ExceptionsTableWriter::mem_free(Ndb* ndb)
 {
   if (m_ex_tab)
   {

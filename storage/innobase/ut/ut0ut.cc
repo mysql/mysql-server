@@ -137,8 +137,8 @@ ut_usectime(
 
 		if (ret == -1) {
 			errno_gettimeofday = errno;
-			ib_logf(IB_LOG_LEVEL_ERROR, "gettimeofday(): %s",
-				strerror(errno_gettimeofday));
+			ib::error() << "gettimeofday(): "
+				<< strerror(errno_gettimeofday);
 			os_thread_sleep(100000);  /* 0.1 sec */
 			errno = errno_gettimeofday;
 		} else {
