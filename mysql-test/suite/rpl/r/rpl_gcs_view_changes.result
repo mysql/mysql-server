@@ -1,4 +1,3 @@
-include/have_gcs_replication_plugin.inc
 include/master-slave.inc [rpl_server_count=4]
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.

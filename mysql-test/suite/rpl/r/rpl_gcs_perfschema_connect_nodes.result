@@ -1,4 +1,3 @@
-include/have_gcs_replication_plugin.inc
 SET GLOBAL gcs_replication_plugin_group_name= "8a84f357-aaa4-10df-85ab-c70aa9429562";
 include/assert.inc [The value of group name should be 8a84f357-aaa4-10df-85ab-c70aa9429562]
 include/assert.inc [The value of node_id should be empty before starting gcs]

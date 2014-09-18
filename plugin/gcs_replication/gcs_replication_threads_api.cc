@@ -78,6 +78,8 @@ Replication_thread_api::initialize_repositories(char* relay_log_name,
   //MTS is disable for now
   mi->rli->opt_slave_parallel_workers= 0;
   mi->rli->replicate_same_server_id= true;
+  // Set applier thread InnoDB priority
+  mi->rli->set_thd_tx_priority(GCS_APPLIER_THREAD_PRIORITY);
 
 end:
 

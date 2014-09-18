@@ -1,4 +1,6 @@
 --let $include_filename= have_gcs_replication_plugin.inc
+--let $_previous_include_silent= $include_silent
+--let $include_silent= 1
 --source include/begin_include_file.inc
 
 # Synchronous replication will work only for RBR mode of replication thus tests
@@ -38,4 +40,5 @@ if (!$SERVER_MYPORT_2)
 --source include/rpl_gcs_default_connections.inc
 
 --let $include_filename= have_gcs_replication_plugin.inc
+--let $include_silent= $_previous_include_silent
 --source include/end_include_file.inc

@@ -225,6 +225,29 @@ static int mts_event_coord_cmp(LOG_POS_COORD *id1, LOG_POS_COORD *id2);
 static int check_slave_sql_config_conflict(THD *thd, const Relay_log_info *rli);
 
 /*
+  Applier thread InnoDB priority.
+  When two transactions conflict inside InnoDB, the one with
+  greater priority wins.
+
+  @param thd       Thread handler for slave
+  @param priority  Thread priority
+*/
+static void set_thd_tx_priority(THD* thd, int priority)
+{
+  DBUG_ENTER("set_thd_tx_priority");
+  DBUG_ASSERT(thd->system_thread == SYSTEM_THREAD_SLAVE_SQL ||
+              thd->system_thread == SYSTEM_THREAD_SLAVE_WORKER);
+
+  thd->thd_tx_priority= priority;
+  DBUG_EXECUTE_IF("dbug_set_high_prio_sql_thread",
+  {
+    thd->thd_tx_priority= 1;
+  });
+
+  DBUG_VOID_RETURN;
+}
+
+/*
   Function to set the slave's max_allowed_packet based on the value
   of slave_max_allowed_packet.
 
@@ -2995,16 +3018,6 @@ void set_slave_thread_options(THD* thd)
     thd->server_status|= SERVER_STATUS_AUTOCOMMIT;
   }
 
-  /*
-    Set thread InnoDB high priority.
-  */
-  DBUG_EXECUTE_IF("dbug_set_high_prio_sql_thread",
-    {
-      if (thd->system_thread == SYSTEM_THREAD_SLAVE_SQL ||
-          thd->system_thread == SYSTEM_THREAD_SLAVE_WORKER)
-        thd->thd_tx_priority= 1;
-    });
-
   DBUG_VOID_RETURN;
 }
 
@@ -4827,6 +4840,9 @@ pthread_handler_t handle_slave_worker(void *arg)
   }
   thd->rli_slave= w;
   thd->init_for_queries(w);
+  /* Set applier thread InnoDB priority */
+  set_thd_tx_priority(thd, rli->get_thd_tx_priority());
+
   thd_manager->add_thd(thd);
   thd_added= true;
 
@@ -5808,6 +5824,8 @@ pthread_handler_t handle_slave_sql(void *arg)
   thd->init_for_queries(rli);
   thd->temporary_tables = rli->save_temporary_tables; // restore temp tables
   set_thd_in_use_temporary_tables(rli);   // (re)set sql_thd in use for saved temp tables
+  /* Set applier thread InnoDB priority */
+  set_thd_tx_priority(thd, rli->get_thd_tx_priority());
 
   thd_manager->add_thd(thd);
   thd_added= true;

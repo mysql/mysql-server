@@ -1,4 +1,3 @@
-include/have_gcs_replication_plugin.inc
 ############################################################
 # 1. Start servers, on which server2 has applier stopped so
 # that all remote transactions are only queued on relay log.

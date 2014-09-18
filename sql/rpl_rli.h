@@ -1088,6 +1088,27 @@ private:
     SLAVE must be executed and the problem fixed manually.
    */
   bool error_on_rli_init_info;
+
+private:
+  /*
+    Applier thread InnoDB priority.
+    When two transactions conflict inside InnoDB, the one with
+    greater priority wins.
+    Priority must be set before applier thread start so that all
+    executed transactions have the same priority.
+  */
+  int thd_tx_priority;
+
+public:
+  void set_thd_tx_priority(int priority)
+  {
+    thd_tx_priority= priority;
+  }
+
+  int get_thd_tx_priority()
+  {
+    return thd_tx_priority;
+  }
 };
 
 bool mysql_show_relaylog_events(THD* thd);

@@ -1,4 +1,3 @@
-include/have_gcs_replication_plugin.inc
 call mtr.add_suppression("The group name *.*");
 [ON THE NODE]
 SET GLOBAL gcs_replication_plugin_group_name= "8a94f357-aab4-11df-86ab-invalid";

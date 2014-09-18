@@ -42,6 +42,11 @@ using std::string;
 #define REPLICATION_THREAD_WAIT_TIMEOUT_ERROR -1
 #define REPLICATION_THREAD_WAIT_NO_INFO_ERROR -2
 
+
+//Applier thread InnoDB priority
+#define GCS_APPLIER_THREAD_PRIORITY 1
+
+
 class Replication_thread_api
 {
 
