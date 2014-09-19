@@ -867,4 +867,10 @@ ndbd_multi_tc_instance_takeover(Uint32 x)
   }
   return 1;
 }
+
+/**
+ * Support for more parallel fragment LCPs
+ */
+#define NDBD_EXTRA_PARALLEL_FRAG_LCP NDB_MAKE_VERSION(7,4,1)
+
 #endif
