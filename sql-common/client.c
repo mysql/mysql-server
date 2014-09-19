@@ -3452,10 +3452,12 @@ cli_establish_ssl(MYSQL *mysql)
     MYSQL_TRACE_STAGE(mysql, AUTHENTICATE);
   }
 
-#endif /* HAVE_OPENSSL */
-  return 0;
 error:
   return 1;
+
+#endif /* HAVE_OPENSSL */
+  net= NULL; /* avoid warning */
+  return 0;
 }
 
 
