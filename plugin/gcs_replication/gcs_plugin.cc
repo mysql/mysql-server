@@ -463,6 +463,7 @@ int gcs_rpl_start()
   Mutex_autolock a(&gcs_running_mutex);
 
   DBUG_ENTER("gcs_rpl_start");
+  int error= 0;
 
   if (is_gcs_rpl_running())
     DBUG_RETURN(GCS_ALREADY_RUNNING);
@@ -478,7 +479,8 @@ int gcs_rpl_start()
 
   if(gcs_module->initialize())
   {
-    DBUG_RETURN(GCS_CONFIGURATION_ERROR);
+    error= GCS_CONFIGURATION_ERROR;
+    goto err;
   }
 
   if (server_engine_initialized())
@@ -489,7 +491,10 @@ int gcs_rpl_start()
 
     //we can only start the applier if the log has been initialized
     if (configure_and_start_applier_module())
-      DBUG_RETURN(GCS_REPLICATION_APPLIER_INIT_ERROR);
+    {
+      error= GCS_REPLICATION_APPLIER_INIT_ERROR;
+      goto err;
+    }
   }
   else
   {
@@ -497,18 +502,24 @@ int gcs_rpl_start()
     DBUG_RETURN(0); //leave the decision for later
   }
 
-  int error= 0;
   if ((error= configure_and_start_gcs()))
   {
     //terminate the before created pipeline
     log_message(MY_ERROR_LEVEL,
                 "Error on gcs initialization methods, killing the applier");
     applier_module->terminate_applier_thread();
-    DBUG_RETURN(error);
+    goto err;
+  }
+  gcs_running= true;
+
+err:
+  if (error && certification_latch != NULL)
+  {
+    delete certification_latch;
+    certification_latch= NULL;
   }
 
-  gcs_running= true;
-  DBUG_RETURN(0); //All is OK
+  DBUG_RETURN(error); //All is OK
 }
 
 int configure_cluster_member_manager()
