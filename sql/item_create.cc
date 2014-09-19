@@ -4620,6 +4620,16 @@ Create_func_master_pos_wait::create_native(THD *thd, LEX_STRING name,
     func= new (thd->mem_root) Item_master_pos_wait(pos, param_1, param_2, param_3);
     break;
   }
+  case 4:
+  {
+    Item *param_1= item_list->pop_front();
+    Item *param_2= item_list->pop_front();
+    Item *param_3= item_list->pop_front();
+    Item *param_4= item_list->pop_front();
+    func= new (thd->mem_root) Item_master_pos_wait(pos, param_1, param_2, param_3,
+                                                   param_4);
+    break;
+  }
   default:
   {
     my_error(ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT, MYF(0), name.str);
@@ -4656,6 +4666,15 @@ Create_func_master_gtid_set_wait::create_native(THD *thd, LEX_STRING name,
     Item *param_1= item_list->pop_front();
     Item *param_2= item_list->pop_front();
     func= new (thd->mem_root) Item_master_gtid_set_wait(pos, param_1, param_2);
+    break;
+  }
+  case 3:
+  {
+    Item *param_1= item_list->pop_front();
+    Item *param_2= item_list->pop_front();
+    Item *param_3= item_list->pop_front();
+    func= new (thd->mem_root) Item_master_gtid_set_wait(pos, param_1, param_2,
+                                                        param_3);
     break;
   }
   default:
