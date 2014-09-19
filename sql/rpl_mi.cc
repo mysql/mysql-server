@@ -54,8 +54,11 @@ enum {
   /* line for auto_position */
   LINE_FOR_AUTO_POSITION= 23,
 
+  /* line for channel */
+  LINE_FOR_CHANNEL= 24,
+
   /* Number of lines currently used when saving master info file */
-  LINES_IN_MASTER_INFO= LINE_FOR_AUTO_POSITION
+  LINES_IN_MASTER_INFO= LINE_FOR_CHANNEL
 };
 
 /*
@@ -87,7 +90,8 @@ const char *info_mi_fields []=
   "retry_count",
   "ssl_crl",
   "ssl_crlpath",
-  "auto_position"
+  "auto_position",
+  "channel_name"
 };
 
 Master_info::Master_info(
@@ -101,7 +105,7 @@ Master_info::Master_info(
                          PSI_mutex_key *param_key_info_stop_cond,
                          PSI_mutex_key *param_key_info_sleep_cond,
 #endif
-                         uint param_id
+                         uint param_id, const char *param_channel
                         )
    :Rpl_info("I/O"
 #ifdef HAVE_PSI_INTERFACE
@@ -110,7 +114,7 @@ Master_info::Master_info(
              param_key_info_data_cond, param_key_info_start_cond,
              param_key_info_stop_cond, param_key_info_sleep_cond
 #endif
-             ,param_id
+             ,param_id, param_channel
             ),
    start_user_configured(false),
    ssl(0), ssl_verify_server_cert(0),
@@ -131,6 +135,12 @@ Master_info::Master_info(
   start_plugin_auth[0]= 0; start_plugin_dir[0]= 0;
   start_user[0]= 0;
   ignore_server_ids= new Server_ids;
+
+  /*channel is set in base class, rpl_info.cc*/
+  my_snprintf(for_channel_str, sizeof(for_channel_str)-1,
+             " for channel '%s'", channel);
+  my_snprintf(for_channel_uppercase_str, sizeof(for_channel_uppercase_str)-1,
+             " FOR CHANNEL '%s'", channel);
 }
 
 Master_info::~Master_info()
@@ -319,6 +329,12 @@ size_t Master_info::get_number_info_mi_fields()
   return sizeof(info_mi_fields)/sizeof(info_mi_fields[0]); 
 }
 
+uint Master_info::get_channel_field_num()
+{
+  uint channel_field= LINE_FOR_CHANNEL;
+  return channel_field;
+}
+
 bool Master_info::read_info(Rpl_info_handler *from)
 {
   int lines= 0;
@@ -462,6 +478,11 @@ bool Master_info::read_info(Rpl_info_handler *from)
       DBUG_RETURN(true);
   }
 
+  if (lines >= LINE_FOR_CHANNEL)
+  {
+    if (from->get_info(channel, sizeof(channel), (char*)0))
+      DBUG_RETURN(true);
+  }
   ssl= (my_bool) MY_TEST(temp_ssl);
   ssl_verify_server_cert= (my_bool) MY_TEST(temp_ssl_verify_server_cert);
   master_log_pos= (my_off_t) temp_master_log_pos;
@@ -484,6 +505,18 @@ bool Master_info::read_info(Rpl_info_handler *from)
 
   DBUG_RETURN(false);
 }
+
+
+bool Master_info::set_info_search_keys(Rpl_info_handler *to)
+{
+  DBUG_ENTER("Master_info::set_info_search_keys");
+
+  if (to->set_info(LINE_FOR_CHANNEL-1, channel))
+    DBUG_RETURN(TRUE);
+
+  DBUG_RETURN(FALSE);
+}
+
 
 bool Master_info::write_info(Rpl_info_handler *to)
 {
@@ -519,7 +552,8 @@ bool Master_info::write_info(Rpl_info_handler *to)
       to->set_info(retry_count) ||
       to->set_info(ssl_crl) ||
       to->set_info(ssl_crlpath) ||
-      to->set_info((int) auto_position))
+      to->set_info((int) auto_position) ||
+      to->set_info(channel))
     DBUG_RETURN(TRUE);
 
   DBUG_RETURN(FALSE);

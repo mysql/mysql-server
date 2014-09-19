@@ -116,6 +116,9 @@ index_id	pos	name
 27	0	Time_zone_id
 27	1	Transition_type_id
 28	0	Transition_time
+31	0	Channel_name
+32	0	Channel_name
+33	0	Channel_name
 34	0	source_uuid
 34	1	interval_start
 35	0	cost_name
@@ -146,9 +149,9 @@ mysql/help_topic	9	Antelope	Compact
 mysql/innodb_index_stats	11	Antelope	Compact
 mysql/innodb_table_stats	9	Antelope	Compact
 mysql/server_cost	7	Antelope	Compact
-mysql/slave_master_info	26	Antelope	Compact
-mysql/slave_relay_log_info	11	Antelope	Compact
-mysql/slave_worker_info	15	Antelope	Compact
+mysql/slave_master_info	27	Antelope	Compact
+mysql/slave_relay_log_info	12	Antelope	Compact
+mysql/slave_worker_info	16	Antelope	Compact
 mysql/time_zone	5	Antelope	Compact
 mysql/time_zone_leap_second	5	Antelope	Compact
 mysql/time_zone_name	5	Antelope	Compact
@@ -211,9 +214,9 @@ mysql/help_topic	1	9
 mysql/innodb_index_stats	1	11
 mysql/innodb_table_stats	1	9
 mysql/server_cost	1	7
-mysql/slave_master_info	1	26
-mysql/slave_relay_log_info	1	11
-mysql/slave_worker_info	1	15
+mysql/slave_master_info	1	27
+mysql/slave_relay_log_info	1	12
+mysql/slave_worker_info	1	16
 mysql/time_zone	1	5
 mysql/time_zone_leap_second	1	5
 mysql/time_zone_name	1	5
