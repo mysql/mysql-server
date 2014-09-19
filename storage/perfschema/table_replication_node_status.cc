@@ -125,10 +125,11 @@ table_replication_node_status::table_replication_node_status()
 
 table_replication_node_status::~table_replication_node_status()
 {
-  if (m_row.stable_set_length > 0)
-   {
-     my_free(m_row.stable_set);
-   }
+  if (m_row.stable_set != NULL)
+  {
+    my_free(m_row.stable_set);
+    m_row.stable_set= NULL;
+  }
 }
 
 void table_replication_node_status::reset_position(void)
@@ -219,7 +220,7 @@ void table_replication_node_status::make_row()
       m_row.stable_set_length= strlen(node_stats_info->stable_set);
       m_row.stable_set= (char*) my_malloc(PSI_NOT_INSTRUMENTED,
                                           m_row.stable_set_length + 1,
-					  MYF(0));
+                                          MYF(0));
 
       memcpy(m_row.stable_set, node_stats_info->stable_set,
              m_row.stable_set_length+1);
