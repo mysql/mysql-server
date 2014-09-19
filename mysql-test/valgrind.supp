@@ -954,7 +954,6 @@
 {
    Corosync initialize leak when we start GCS replication on server start
    Memcheck:Leak
-   match-leak-kinds: definite
    fun:malloc
    fun:realloc
    obj:*
@@ -975,7 +974,6 @@
 {
    Corosync initialize leak when we start GCS replication on server start
    Memcheck:Leak
-   match-leak-kinds: definite
    fun:malloc
    fun:realloc
    obj:*
@@ -997,7 +995,6 @@
 {
    Corosync initialize leak when we start GCS replication manually
    Memcheck:Leak
-   match-leak-kinds: definite
    fun:malloc
    fun:realloc
    obj:*
@@ -1019,7 +1016,6 @@
 {
    Corosync initialize leak when we start GCS replication manually
    Memcheck:Leak
-   match-leak-kinds: definite
    fun:malloc
    fun:realloc
    obj:*
