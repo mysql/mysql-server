@@ -3452,6 +3452,8 @@ cli_establish_ssl(MYSQL *mysql)
     MYSQL_TRACE_STAGE(mysql, AUTHENTICATE);
   }
 
+  return 0;
+
 error:
   return 1;
 
