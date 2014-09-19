@@ -13552,7 +13552,7 @@ void Dbdih::startNextChkpt(Signal* signal)
 	  //-------------------------------------------------------------------
 	  
           if (nodePtr.p->noOfStartedChkpt <
-              MAX_STARTED_FRAG_CHECKPOINTS_PER_NODE)
+              getMaxStartedFragCheckpointsForNode(nodePtr.i))
 	  {
 	    jam();
 	    /**
@@ -14148,7 +14148,7 @@ void Dbdih::checkStartMoreLcp(Signal* signal, Uint32 nodeId)
   ptrCheckGuard(nodePtr, MAX_NDB_NODES, nodeRecord);
   
   ndbrequire(nodePtr.p->noOfStartedChkpt <
-             MAX_STARTED_FRAG_CHECKPOINTS_PER_NODE);
+             getMaxStartedFragCheckpointsForNode(nodePtr.i));
   
   if (nodePtr.p->noOfQueuedChkpt > 0) {
     jam();
@@ -20044,4 +20044,18 @@ Dbdih::getMinVersion() const
   } while (specNodePtr.i != RNIL);
 
   return ver;
+}
+
+Uint8
+Dbdih::getMaxStartedFragCheckpointsForNode(Uint32 nodeId)
+{
+  if (likely(getNodeInfo(nodeId).m_version >= NDBD_EXTRA_PARALLEL_FRAG_LCP))
+  {
+    return MAX_STARTED_FRAG_CHECKPOINTS_PER_NODE;
+  }
+  else
+  {
+    /* Older node - only 2 parallel frag checkpoints supported */
+    return 2;
+  }
 }
