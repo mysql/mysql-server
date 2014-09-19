@@ -1965,7 +1965,7 @@ private:
   bool c_2pass_inr;
 
   /* Max LCP parallelism is node (version) specific */
-  Uint8 getMaxStartedFragCheckpointsForNode(Uint32 nodeId);
+  Uint8 getMaxStartedFragCheckpointsForNode(Uint32 nodeId) const;
 };
 
 #if (DIH_CDATA_SIZE < _SYSFILE_SIZE32)

@@ -20047,7 +20047,7 @@ Dbdih::getMinVersion() const
 }
 
 Uint8
-Dbdih::getMaxStartedFragCheckpointsForNode(Uint32 nodeId)
+Dbdih::getMaxStartedFragCheckpointsForNode(Uint32 nodeId) const
 {
   if (likely(getNodeInfo(nodeId).m_version >= NDBD_EXTRA_PARALLEL_FRAG_LCP))
   {
