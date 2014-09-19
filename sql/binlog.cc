@@ -4265,7 +4265,7 @@ int MYSQL_BIN_LOG::find_next_relay_log(char log_name[FN_REFLEN+1])
   @retval
     1   error
 */
-bool MYSQL_BIN_LOG::reset_logs(THD* thd)
+bool MYSQL_BIN_LOG::reset_logs(THD* thd, bool delete_only)
 {
   LOG_INFO linfo;
   bool error=0;
@@ -4375,13 +4375,11 @@ bool MYSQL_BIN_LOG::reset_logs(THD* thd)
   }
 
 #ifdef HAVE_REPLICATION
-  if (is_relay_log)
-  {
-    DBUG_ASSERT(active_mi != NULL);
-    DBUG_ASSERT(active_mi->rli != NULL);
-    (const_cast<Gtid_set *>(active_mi->rli->get_gtid_set()))->clear();
-  }
-  else
+  /*
+    For relay logs we clear the gtid state assosiated per channel(i.e rli)
+    in the purge_relay_logs()
+  */
+  if (!is_relay_log)
   {
     if(gtid_state->clear(thd))
     {
@@ -4394,13 +4392,16 @@ bool MYSQL_BIN_LOG::reset_logs(THD* thd)
   }
 #endif
 
-  if (!open_index_file(index_file_name, 0, false/*need_lock_index=false*/))
+  if (!delete_only)
+  {
+    if (!open_index_file(index_file_name, 0, false/*need_lock_index=false*/))
     if ((error= open_binlog(save_name, 0,
                             max_size, false,
                             false/*need_lock_index=false*/,
                             false/*need_sid_lock=false*/,
                             NULL)))
       goto err;
+  }
   my_free((void *) save_name);
 
 err:

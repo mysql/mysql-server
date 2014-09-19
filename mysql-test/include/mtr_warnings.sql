@@ -1,4 +1,4 @@
--- Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
+-- Copyright (c) 2008, 2014, Oracle and/or its affiliates. All rights reserved.
 --
 -- This program is free software; you can redistribute it and/or modify
 -- it under the terms of the GNU General Public License as published by
@@ -209,14 +209,14 @@ INSERT INTO global_suppressions VALUES
    Transient network failures that cause warnings on reconnect.
    BUG#47743 and BUG#47983.
  */
- ("Slave I/O: Get master SERVER_UUID failed with error:.*"),
- ("Slave I/O: Get master SERVER_ID failed with error:.*"),
- ("Slave I/O: Get master clock failed with error:.*"),
- ("Slave I/O: Get master COLLATION_SERVER failed with error:.*"),
- ("Slave I/O: Get master TIME_ZONE failed with error:.*"),
- ("Slave I/O: The slave I/O thread stops because a fatal error is encountered when it tried to SET @master_binlog_checksum on master.*"),
- ("Slave I/O: Get master BINLOG_CHECKSUM failed with error.*"),
- ("Slave I/O: Notifying master by SET @master_binlog_checksum= @@global.binlog_checksum failed with error.*"),
+ ("Slave I/O.*: Get master SERVER_UUID failed with error:.*"),
+ ("Slave I/O.*: Get master SERVER_ID failed with error:.*"),
+ ("Slave I/O.*: Get master clock failed with error:.*"),
+ ("Slave I/O.*: Get master COLLATION_SERVER failed with error:.*"),
+ ("Slave I/O.*: Get master TIME_ZONE failed with error:.*"),
+ ("Slave I/O.*: The slave I/O thread stops because a fatal error is encountered when it tried to SET @master_binlog_checksum on master.*"),
+ ("Slave I/O.*: Get master BINLOG_CHECKSUM failed with error.*"),
+ ("Slave I/O.*: Notifying master by SET @master_binlog_checksum= @@global.binlog_checksum failed with error.*"),
 
  /*
    Warning message is printed out whenever a slave is started with
@@ -234,7 +234,7 @@ INSERT INTO global_suppressions VALUES
   In MTS if the user issues a stop slave sql while it is scheduling a group
   of events, this warning is emitted.
   */
- ("Slave SQL: Coordinator thread of multi-threaded slave is being stopped in the middle of assigning a group of events.*"),
+ ("Slave SQL.*: Coordinator thread of multi-threaded slave is being stopped in the middle of assigning a group of events.*"),
  
  ("Changed limits: max_open_files: *"),
  ("Changed limits: max_connections: *"),

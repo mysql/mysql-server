@@ -271,6 +271,7 @@ private:
   /* Flag that ensures the retrieved GTID set is initialized only once. */
   bool gtid_retrieved_initialized;
 
+
 public:
   Gtid *get_last_retrieved_gtid() { return &last_retrieved_gtid; }
   void set_last_retrieved_gtid(Gtid gtid) { last_retrieved_gtid= gtid; }
@@ -498,7 +499,8 @@ public:
   void cleanup_context(THD *, bool);
   void slave_close_thread_tables(THD *);
   void clear_tables_to_lock();
-  int purge_relay_logs(THD *thd, bool just_reset, const char** errmsg);
+  int purge_relay_logs(THD *thd, bool just_reset, const char** errmsg,
+                       bool delete_only= false);
 
   /*
     Used to defer stopping the SQL thread to give it a chance
@@ -530,6 +532,12 @@ public:
   */
   // number's is determined by global slave_parallel_workers
   Slave_worker_array workers;
+
+  HASH mapping_db_to_worker; // To map a database to a worker
+  bool inited_hash_workers; //  flag to check if mapping_db_to_worker is inited
+
+  mysql_mutex_t slave_worker_hash_lock; // for mapping_db_to_worker
+  mysql_cond_t  slave_worker_hash_cond;// for mapping_db_to_worker
 
   /*
     For the purpose of reporting the worker status in performance schema table,
@@ -956,7 +964,7 @@ public:
                  PSI_mutex_key *param_key_info_stop_cond,
                  PSI_mutex_key *param_key_info_sleep_cond
 #endif
-                 , uint param_id, bool is_rli_fake
+                 , uint param_id, const char* param_channel, bool is_rli_fake
                 );
   virtual ~Relay_log_info();
 
@@ -1031,6 +1039,20 @@ public:
     commit_order_mngr= mngr;
   }
 
+  bool set_info_search_keys(Rpl_info_handler *to);
+
+  /**
+    Get coordinator's RLI. Especially used get the rli from
+    a slave thread, like this: thd->rli_slave->get_c_rli();
+    thd could be a SQL thread or a worker thread
+  */
+  virtual Relay_log_info* get_c_rli()
+  {
+    return this;
+  }
+
+  virtual const char* get_for_channel_str(bool upper_case= false) const;
+
 protected:
   Format_description_log_event *rli_description_event;
 
@@ -1084,6 +1106,11 @@ private:
   */
   static const int LINES_IN_RELAY_LOG_INFO_WITH_ID= 7;
 
+  /*
+    Add a channel in the slave relay log info
+  */
+  static const int LINES_IN_RELAY_LOG_INFO_WITH_CHANNEL= 8;
+
   bool read_info(Rpl_info_handler *from);
   bool write_info(Rpl_info_handler *to);
 
@@ -1103,9 +1130,22 @@ private:
     SLAVE must be executed and the problem fixed manually.
    */
   bool error_on_rli_init_info;
+
+ /**
+   sets the suffix required for relay log names
+   in multisource replication.
+   The extension is "-relay-bin-<channel_name>"
+   @param[in, out]  buff       buffer to store the complete relay log file name
+   @param[in]       buff_size  size of buffer buff
+   @param[in]       base_name  the base name of the relay log file
+ */
+  const char* add_channel_to_relay_log_name(char *buff, uint buff_size,
+                                            const char *base_name);
+
 };
 
 bool mysql_show_relaylog_events(THD* thd);
+
 
 /**
    @param  thd a reference to THD
@@ -1115,6 +1155,7 @@ inline bool is_mts_worker(const THD *thd)
 {
   return thd->system_thread == SYSTEM_THREAD_SLAVE_WORKER;
 }
+
 
 /**
  Auxiliary function to check if we have a db partitioned MTS

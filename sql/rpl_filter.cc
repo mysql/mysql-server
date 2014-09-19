@@ -23,6 +23,7 @@
 #include "rpl_slave.h"                  // for SLAVE_SQL and thread_mask
 #include "rpl_mi.h"                     // for Master_info
 #include "template_utils.h"
+#include "rpl_msr.h"
 
 #define TABLE_RULE_HASH_SIZE   16
 extern PSI_memory_key key_memory_array_buffer;
@@ -1011,50 +1012,91 @@ void Sql_cmd_change_repl_filter::set_filter_value(List<Item>* item_list,
 bool Sql_cmd_change_repl_filter::change_rpl_filter(THD* thd)
 {
   DBUG_ENTER("change_rpl_filter");
-  bool ret= true;
+  bool ret= false;
 #ifdef HAVE_REPLICATION
   int thread_mask;
-  Master_info * mi= active_mi;
+  Master_info *mi= NULL;
+
   if (check_global_access(thd, SUPER_ACL))
-    goto err;
-  mysql_mutex_lock(&LOCK_active_mi);
-  if (mi == NULL)
+    DBUG_RETURN(ret= true);
+
+  /* @Global filter:  Currently, after WL#1697, replication
+    filters should act on all the channels. Before setting
+    the replication filters, we  shall check the status
+    of all SQL threads.
+    Logic is lock all mi->rli->run_locks(),check the status of
+    SQL threads; then set the replication filter and unlock
+    all mi->rli->run_locks()
+
+    however after the advent of WL#7361, replication filters
+    would act on a single channel. This part of the code
+    will be properly fixed in that WL.
+  */
+  mysql_mutex_lock(&LOCK_msr_map);
+
+  mi= msr_map.get_mi(msr_map.get_default_channel());
+
+  if (!mi)
   {
     my_message(ER_SLAVE_CONFIGURATION, ER(ER_SLAVE_CONFIGURATION),
                MYF(0));
-    mysql_mutex_unlock(&LOCK_active_mi);
+    ret= true;
     goto err;
   }
-  mysql_mutex_lock(&mi->rli->run_lock); /* lock slave_sql_thread */
-  init_thread_mask(&thread_mask, mi, 0 /*not inverse*/);
-  if (thread_mask & SLAVE_SQL) /* We refuse if any slave thread is running */
+
+  for (mi_map::iterator it= msr_map.begin(); it!= msr_map.end(); it++)
   {
-    my_message(ER_SLAVE_SQL_THREAD_MUST_STOP, ER(ER_SLAVE_SQL_THREAD_MUST_STOP), MYF(0));
-    mysql_mutex_unlock(&LOCK_active_mi);
-    mysql_mutex_unlock(&mi->rli->run_lock);
-    goto err;
+    mi= it->second;
+    if (mi)
+      mysql_mutex_lock(&mi->rli->run_lock); /* lock slave_sql_thread */
   }
-   if (!rpl_filter->set_do_db(do_db_list)
-      && !rpl_filter->set_ignore_db(ignore_db_list)
-      && !rpl_filter->set_do_table(do_table_list)
-      && !rpl_filter->set_ignore_table(ignore_table_list)
-      && !rpl_filter->set_wild_do_table(wild_do_table_list)
-      && !rpl_filter->set_wild_ignore_table(wild_ignore_table_list)
-      && rpl_filter->set_db_rewrite(rewrite_db_pair_list))
+
+  /* check the running status of all SQL threads */
+
+  for (mi_map::iterator it= msr_map.begin(); it!= msr_map.end(); it++)
   {
-    /* purecov: begin inspected */
-    my_error(ER_OUTOFMEMORY, MYF(ME_FATALERROR), 0);
-    mysql_mutex_unlock(&LOCK_active_mi);
-    mysql_mutex_unlock(&mi->rli->run_lock);
-    goto err;
+    mi= it->second;
+    if (mi)
+      init_thread_mask(&thread_mask, mi, 0 /*not inverse*/);
+    if (thread_mask & SLAVE_SQL) /* We refuse if any slave thread is running */
+    {
+      my_message(ER_SLAVE_SQL_THREAD_MUST_STOP, ER(ER_SLAVE_SQL_THREAD_MUST_STOP), MYF(0));
+      ret= true;
+      break;
+    }
+  }
+
+  if (!ret)
+  {
+    if (!rpl_filter->set_do_db(do_db_list)
+        && !rpl_filter->set_ignore_db(ignore_db_list)
+        && !rpl_filter->set_do_table(do_table_list)
+        && !rpl_filter->set_ignore_table(ignore_table_list)
+        && !rpl_filter->set_wild_do_table(wild_do_table_list)
+        && !rpl_filter->set_wild_ignore_table(wild_ignore_table_list)
+        && rpl_filter->set_db_rewrite(rewrite_db_pair_list))
+    {
+      /* purecov: begin inspected */
+      my_error(ER_OUTOFMEMORY, MYF(ME_FATALERROR), 0);
+      ret= true;
     /* purecov: end */
+    }
   }
+
+  for (mi_map::iterator it= msr_map.begin(); it !=msr_map.end(); it++)
+  {
+   mi= it->second;
+   if (mi)
+     mysql_mutex_unlock(&mi->rli->run_lock);
+  }
+
+  if (ret)
+    goto err;
+
   my_ok(thd);
-  ret= false;
-  mysql_mutex_unlock(&LOCK_active_mi);
-  mysql_mutex_unlock(&mi->rli->run_lock);
 
 err:
+  mysql_mutex_unlock(&LOCK_msr_map);
 #endif //HAVE_REPLICATION
   DBUG_RETURN(ret);
 }

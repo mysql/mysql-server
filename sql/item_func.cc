@@ -30,6 +30,7 @@
 #include "sql_class.h"                          // set_var.h: THD
 #include "set_var.h"
 #include "rpl_slave.h"				// for wait_for_master_pos
+#include "rpl_msr.h"
 #include "sql_show.h"                           // append_identifier
 #include "strfunc.h"                            // find_type
 #include "sql_parse.h"                          // is_update_query
@@ -4529,10 +4530,39 @@ longlong Item_master_pos_wait::val_int()
     return 0;
   }
 #ifdef HAVE_REPLICATION
+  Master_info *mi;
   longlong pos = (ulong)args[1]->val_int();
-  longlong timeout = (arg_count==3) ? args[2]->val_int() : 0 ;
-  if (active_mi == NULL ||
-      (event_count = active_mi->rli->wait_for_pos(thd, log_name, pos, timeout)) == -2)
+  longlong timeout = (arg_count>=3) ? args[2]->val_int() : 0 ;
+
+  mysql_mutex_lock(&LOCK_msr_map);
+
+  if (arg_count == 4)
+  {
+    String *channel_str;
+    if(!(channel_str= args[3]->val_str(&value)))
+    {
+      null_value= 1;
+      return 0;
+    }
+
+    mi= msr_map.get_mi(channel_str->ptr());
+
+  }
+  else
+  {
+    if (msr_map.get_num_instances() > 1)
+    {
+      mi = NULL;
+      my_error(ER_SLAVE_MULTIPLE_CHANNELS_CMD, MYF(0));
+    }
+    else
+      mi= msr_map.get_mi(msr_map.get_default_channel());
+  }
+
+   mysql_mutex_unlock(&LOCK_msr_map);
+
+  if (mi == NULL ||
+      (event_count = mi->rli->wait_for_pos(thd, log_name, pos, timeout)) == -2)
   {
     null_value = 1;
     event_count=0;
@@ -4626,10 +4656,39 @@ longlong Item_master_gtid_set_wait::val_int()
   }
 
 #if defined(HAVE_REPLICATION)
-  longlong timeout = (arg_count== 2) ? args[1]->val_int() : 0;
-  if (active_mi && active_mi->rli)
+  Master_info *mi= NULL;
+  longlong timeout = (arg_count>= 2) ? args[1]->val_int() : 0;
+
+  mysql_mutex_lock(&LOCK_msr_map);
+
+  /* If replication channel is mentioned */
+  if (arg_count == 3)
   {
-    if ((event_count = active_mi->rli->wait_for_gtid_set(thd, gtid, timeout))
+    String *channel_str;
+    if (!(channel_str= args[2]->val_str(&value)))
+    {
+      null_value= 1;
+      return 0;
+    }
+    mi= msr_map.get_mi(channel_str->ptr());
+  }
+  else
+  {
+    if (msr_map.get_num_instances() > 1)
+    {
+      mi = NULL;
+      my_error(ER_SLAVE_MULTIPLE_CHANNELS_CMD, MYF(0));
+    }
+    else
+      mi= msr_map.get_mi(msr_map.get_default_channel());
+  }
+
+  mysql_mutex_unlock(&LOCK_msr_map);
+
+
+  if (mi && mi->rli)
+  {
+    if ((event_count = mi->rli->wait_for_gtid_set(thd, gtid, timeout))
          == -2)
     {
       null_value = 1;

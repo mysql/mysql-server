@@ -73,6 +73,7 @@
 #include "rpl_gtid.h"
 #include "rpl_gtid_persist.h"
 #include "rpl_slave.h"
+#include "rpl_msr.h"
 #include "rpl_master.h"
 #include "rpl_mi.h"
 #include "rpl_filter.h"
@@ -604,7 +605,7 @@ mysql_mutex_t
   LOCK_status, LOCK_error_log, LOCK_uuid_generator,
   LOCK_crypt,
   LOCK_global_system_variables,
-  LOCK_user_conn, LOCK_slave_list, LOCK_active_mi,
+  LOCK_user_conn, LOCK_slave_list, LOCK_msr_map,
   LOCK_error_messages;
 mysql_mutex_t LOCK_sql_rand;
 
@@ -1184,7 +1185,7 @@ static void close_connections(void)
                      thd_manager->get_thd_count()));
   thd_manager->wait_till_no_thd();
 
-  close_active_mi();
+  delete_slave_info_objects();
   DBUG_PRINT("quit",("close_connections thread"));
   DBUG_VOID_RETURN;
 }
@@ -1484,7 +1485,7 @@ static void clean_up_mutexes()
   OPENSSL_free(openssl_stdlocks);
 #endif
 #endif
-  mysql_mutex_destroy(&LOCK_active_mi);
+  mysql_mutex_destroy(&LOCK_msr_map);
   mysql_rwlock_destroy(&LOCK_sys_init_connect);
   mysql_rwlock_destroy(&LOCK_sys_init_slave);
   mysql_mutex_destroy(&LOCK_global_system_variables);
@@ -2518,7 +2519,6 @@ SHOW_VAR com_status_vars[]= {
   {"show_relaylog_events", (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_RELAYLOG_EVENTS]), SHOW_LONG_STATUS},
   {"show_slave_hosts",     (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_SLAVE_HOSTS]), SHOW_LONG_STATUS},
   {"show_slave_status",    (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_SLAVE_STAT]), SHOW_LONG_STATUS},
-  {"show_slave_status_nonblocking",    (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_SLAVE_STAT_NONBLOCKING]), SHOW_LONG_STATUS},
   {"show_status",          (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_STATUS]), SHOW_LONG_STATUS},
   {"show_storage_engines", (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_STORAGE_ENGINES]), SHOW_LONG_STATUS},
   {"show_table_status",    (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_TABLE_STATUS]), SHOW_LONG_STATUS},
@@ -3177,7 +3177,7 @@ static int init_thread_environment()
                    &LOCK_manager, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_LOCK_crypt, &LOCK_crypt, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_LOCK_user_conn, &LOCK_user_conn, MY_MUTEX_INIT_FAST);
-  mysql_mutex_init(key_LOCK_active_mi, &LOCK_active_mi, MY_MUTEX_INIT_FAST);
+  mysql_mutex_init(key_LOCK_msr_map, &LOCK_msr_map, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_LOCK_global_system_variables,
                    &LOCK_global_system_variables, MY_MUTEX_INIT_FAST);
   mysql_rwlock_init(key_rwlock_LOCK_system_variables_hash,
@@ -5769,78 +5769,129 @@ static int show_flushstatustime(THD *thd, SHOW_VAR *var, char *buff)
 #endif
 
 #ifdef HAVE_REPLICATION
+/**
+  After Multisource replication, this function only shows the value
+  of default channel.  default channel if created during init_slave()
+  always exist and is not destroyed, LOCK_msr_map is not needed.
+  Initially, a lock was needed which was removed for the bug????
+
+  To know the status of other channels, performance schema replication
+  tables comes to the rescue.
+
+  @TODO: any warning needed if multiple channels exist to request
+         the users to start using replication performance schema
+         tables.
+*/
 static int show_slave_running(THD *thd, SHOW_VAR *var, char *buff)
 {
-  var->type= SHOW_MY_BOOL;
-  var->value= buff;
-  *((my_bool *)buff)= (my_bool) (active_mi &&
-                                 active_mi->slave_running == MYSQL_SLAVE_RUN_CONNECT &&
-                                 active_mi->rli->slave_running);
+
+  Master_info *mi =msr_map.get_mi(msr_map.get_default_channel());
+
+  if (mi)
+  {
+    var->type= SHOW_MY_BOOL;
+    var->value= buff;
+    *((my_bool *)buff)= (my_bool) (mi &&
+                                   mi->slave_running == MYSQL_SLAVE_RUN_CONNECT &&
+                                   mi->rli->slave_running);
+  }
+  else
+    var->type= SHOW_UNDEF;
+
   return 0;
 }
 
+
+/**
+  This status variable is also exclusively (look comments on
+  show_slave_running()) for default channel.
+*/
 static int show_slave_retried_trans(THD *thd, SHOW_VAR *var, char *buff)
 {
-  /*
-    TODO: with multimaster, have one such counter per line in
-    SHOW SLAVE STATUS, and have the sum over all lines here.
-  */
-  if (active_mi)
+
+  Master_info *mi;
+  mi= msr_map.get_mi(msr_map.get_default_channel());
+
+  if (mi)
   {
     var->type= SHOW_LONG;
     var->value= buff;
-    *((long *)buff)= (long)active_mi->rli->retried_trans;
+    *((long *)buff)= (long)mi->rli->retried_trans;
   }
   else
     var->type= SHOW_UNDEF;
+
   return 0;
 }
 
+/**
+  Only for default channel. Refer to comments on show_slave_running()
+*/
 static int show_slave_received_heartbeats(THD *thd, SHOW_VAR *var, char *buff)
 {
-  if (active_mi)
+  Master_info *mi;
+  mi= msr_map.get_mi(msr_map.get_default_channel());
+
+  if (mi)
   {
     var->type= SHOW_LONGLONG;
     var->value= buff;
-    *((longlong *)buff)= active_mi->received_heartbeats;
+    *((longlong *)buff)= mi->received_heartbeats;
   }
   else
     var->type= SHOW_UNDEF;
+
   return 0;
 }
 
+/**
+  Only for default channel. Refer to comments on show_slave_running()
+*/
 static int show_slave_last_heartbeat(THD *thd, SHOW_VAR *var, char *buff)
 {
   MYSQL_TIME received_heartbeat_time;
-  if (active_mi)
+
+  Master_info *mi;
+  mi= msr_map.get_mi(msr_map.get_default_channel());
+
+  if (mi)
   {
     var->type= SHOW_CHAR;
     var->value= buff;
-    if (active_mi->last_heartbeat == 0)
+    if (mi->last_heartbeat == 0)
       buff[0]='\0';
     else
     {
       thd->variables.time_zone->gmt_sec_to_TIME(&received_heartbeat_time, 
-        static_cast<my_time_t>(active_mi->last_heartbeat));
+        static_cast<my_time_t>(mi->last_heartbeat));
       my_datetime_to_str(&received_heartbeat_time, buff, 0);
     }
   }
   else
     var->type= SHOW_UNDEF;
+
   return 0;
 }
 
+/**
+  Only for default channel. For details, refer to show_slave_running()
+*/
 static int show_heartbeat_period(THD *thd, SHOW_VAR *var, char *buff)
 {
   DEBUG_SYNC(thd, "dsync_show_heartbeat_period");
-  if (active_mi)
+
+  Master_info *mi;
+  mi=  msr_map.get_mi(msr_map.get_default_channel());
+
+  if (mi)
   {
     var->type= SHOW_CHAR;
     var->value= buff;
-    sprintf(buff, "%.3f", active_mi->heartbeat_period);
+    sprintf(buff, "%.3f", mi->heartbeat_period);
   }
   else
     var->type= SHOW_UNDEF;
+
   return 0;
 }
 
@@ -7764,7 +7815,7 @@ PSI_mutex_key key_BINLOG_LOCK_sync;
 PSI_mutex_key key_BINLOG_LOCK_sync_queue;
 PSI_mutex_key key_BINLOG_LOCK_xids;
 PSI_mutex_key
-  key_hash_filo_lock, key_LOCK_active_mi,
+  key_hash_filo_lock, key_LOCK_msr_map,
   key_LOCK_crypt, key_LOCK_error_log,
   key_LOCK_gdl, key_LOCK_global_system_variables,
   key_LOCK_manager,
@@ -7806,6 +7857,7 @@ PSI_mutex_key key_LOCK_offline_mode;
 
 #ifdef HAVE_REPLICATION
 PSI_mutex_key key_commit_order_manager_mutex;
+PSI_mutex_key key_mutex_slave_worker_hash;
 #endif
 
 static PSI_mutex_info all_server_mutexes[]=
@@ -7836,7 +7888,7 @@ static PSI_mutex_info all_server_mutexes[]=
   { &key_RELAYLOG_LOCK_sync_queue, "MYSQL_RELAY_LOG::LOCK_sync_queue", 0 },
   { &key_RELAYLOG_LOCK_xids, "MYSQL_RELAY_LOG::LOCK_xids", 0},
   { &key_hash_filo_lock, "hash_filo::lock", 0},
-  { &key_LOCK_active_mi, "LOCK_active_mi", PSI_FLAG_GLOBAL},
+  { &key_LOCK_msr_map, "LOCK_msr_map", PSI_FLAG_GLOBAL},
   { &key_LOCK_crypt, "LOCK_crypt", PSI_FLAG_GLOBAL},
   { &key_LOCK_error_log, "LOCK_error_log", PSI_FLAG_GLOBAL},
   { &key_LOCK_gdl, "LOCK_gdl", PSI_FLAG_GLOBAL},
@@ -7889,8 +7941,9 @@ static PSI_mutex_info all_server_mutexes[]=
 #endif
 #ifdef HAVE_REPLICATION
   { &key_commit_order_manager_mutex, "Commit_order_manager::m_mutex", 0},
+  { &key_mutex_slave_worker_hash, "Relay_log_info::slave_worker_hash_lock", 0},
 #endif
-  { &key_LOCK_offline_mode, "LOCK_offline_mode", PSI_FLAG_GLOBAL}
+  { &key_LOCK_offline_mode, "LOCK_offline_mode", PSI_FLAG_GLOBAL},
 };
 
 PSI_rwlock_key key_rwlock_LOCK_grant, key_rwlock_LOCK_logger,
@@ -7947,6 +8000,7 @@ PSI_cond_key key_gtid_ensure_index_cond;
 PSI_cond_key key_COND_compress_gtid_table;
 #ifdef HAVE_REPLICATION
 PSI_cond_key key_commit_order_manager_cond;
+PSI_cond_key key_cond_slave_worker_hash;
 #endif
 
 static PSI_cond_info all_server_conds[]=
@@ -7989,7 +8043,8 @@ static PSI_cond_info all_server_conds[]=
   { &key_COND_compress_gtid_table, "COND_compress_gtid_table", PSI_FLAG_GLOBAL}
 #ifdef HAVE_REPLICATION
   ,
-  { &key_commit_order_manager_cond, "Commit_order_manager::m_workers.cond", 0}
+  { &key_commit_order_manager_cond, "Commit_order_manager::m_workers.cond", 0},
+  { &key_cond_slave_worker_hash, "Relay_log_info::slave_worker_hash_lock", 0}
 #endif
 };
 
