@@ -3257,6 +3257,7 @@ mysql_fill_packet_header(MYSQL *mysql, char *buff, size_t buff_size)
   NET *net= &mysql->net;
   char *end;
   uchar *buff_p= (uchar*) buff;
+  (void)buff_size; /* avoid warnings */
 
   if (mysql->client_flag & CLIENT_PROTOCOL_41)
   {
