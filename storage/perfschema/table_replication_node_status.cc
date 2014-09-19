@@ -118,6 +118,7 @@ table_replication_node_status::table_replication_node_status()
   : PFS_engine_table(&m_share, &m_pos),
     m_row_exists(false), m_pos(0), m_next_pos(0)
 {
+  m_row.stable_set= NULL;
   m_row.stable_set_length= 0;
   m_row.last_cert_trx_length= -1;
 }
@@ -235,7 +236,10 @@ void table_replication_node_status::make_row()
       memcpy(m_row.last_cert_trx, node_stats_info->last_certified_transaction, m_row.last_cert_trx_length);
     }
     else
+    {
+      m_row.last_cert_trx_length= 0;
       m_row.last_cert_trx[0]= '\0';
+    }
 
     m_row.applier_state= node_stats_info->applier_state;
     m_row_exists= true;
