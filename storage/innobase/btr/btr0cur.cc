@@ -2372,7 +2372,7 @@ static
 dberr_t
 btr_check_blob_limit(const big_rec_t*	big_rec_vec)
 {
-	const	ulint redo_size = srv_n_log_files * srv_log_file_size
+	const	ib_uint64_t redo_size = srv_n_log_files * srv_log_file_size
 		* UNIV_PAGE_SIZE;
 	const	ulint redo_10p = redo_size / 10;
 	ulint	total_blob_len = 0;
