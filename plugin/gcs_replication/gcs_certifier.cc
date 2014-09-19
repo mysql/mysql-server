@@ -441,9 +441,7 @@ Certifier::set_local_node_info(Cluster_member_info* local_info)
 void Certifier::garbage_collect()
 {
   DBUG_ENTER("Certifier::garbage_collect");
-
   mysql_mutex_lock(&LOCK_certifier_map);
-  cert_db::iterator it;
 
   /*
     When a given transaction is applied on all nodes, we won't need
@@ -452,13 +450,16 @@ void Certifier::garbage_collect()
     So we can iterate through certification DB and remove the already
     applied on all nodes transactions data.
   */
-  for(it= begin(); it!= end(); ++it)
+  cert_db::iterator it= item_to_seqno_map.begin();
+  while (it != item_to_seqno_map.end())
   {
     if(stable_gtid_set->contains_gtid(gcs_cluster_sidno, it->second))
-      item_to_seqno_map.erase(it);
+      item_to_seqno_map.erase(it++);
+    else
+      ++it;
   }
-  mysql_mutex_unlock(&LOCK_certifier_map);
 
+  mysql_mutex_unlock(&LOCK_certifier_map);
   DBUG_VOID_RETURN;
 }
 
