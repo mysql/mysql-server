@@ -5411,6 +5411,7 @@ sub mysqld_arguments ($$$) {
   {
     # Skip --defaults-file option since it's handled above.
     next if $arg =~ /^--defaults-file/;
+   
 
     # Allow --skip-core-file to be set in <testname>-[master|slave].opt file
     if ($arg eq "--skip-core-file")

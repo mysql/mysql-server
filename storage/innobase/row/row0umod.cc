@@ -505,10 +505,9 @@ row_undo_mod_del_mark_or_remove_sec_low(
 			rec_t*	rec = btr_pcur_get_rec(&pcur);
 			if (rec_get_deleted_flag(rec,
 						 dict_table_is_comp(index->table))) {
-				ib_logf(IB_LOG_LEVEL_ERROR,
-					"Record found in index %s is deleted marked"
-					" on rollback update.",
-					index->name);
+				ib::error() << "Record found in index "
+					<< index->name << " is deleted marked"
+					" on rollback update.";
 			}
 		}
 
@@ -677,19 +676,17 @@ row_undo_mod_del_unmark_sec_and_undo_update(
 			      "InnoDB: Submit a detailed bug report"
 			      " to http://bugs.mysql.com\n", stderr);
 
-			ib_logf(IB_LOG_LEVEL_WARN,
-				"Record in index %s was not found"
-				" on rollback, trying to insert",
-				index->name);
+			ib::warn() << "Record in index " << index->name
+				<< " was not found on rollback, trying to"
+				" insert";
 		}
 
 		if (btr_cur->up_match >= dict_index_get_n_unique(index)
 		    || btr_cur->low_match >= dict_index_get_n_unique(index)) {
 			if (*index->name != TEMP_INDEX_PREFIX) {
-				ib_logf(IB_LOG_LEVEL_WARN,
-					"Record in index %s was not found on"
-					" rollback, and a duplicate exists",
-					index->name);
+				ib::warn() << "Record in index " << index->name
+					<< " was not found on rollback, and"
+					" a duplicate exists";
 			}
 			err = DB_DUPLICATE_KEY;
 			break;

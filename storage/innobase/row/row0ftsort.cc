@@ -818,14 +818,13 @@ loop:
 		num_doc_processed++;
 
 		if (fts_enable_diag_print && num_doc_processed % 10000 == 1) {
-			ib_logf(IB_LOG_LEVEL_INFO, "Number of doc processed %d",
-				(int) num_doc_processed);
+			ib::info() << "Number of documents processed: "
+				<< num_doc_processed;
 #ifdef FTS_INTERNAL_DIAG_PRINT
 			for (i = 0; i < FTS_NUM_AUX_INDEX; i++) {
-				ib_logf(IB_LOG_LEVEL_INFO,
-					"ID %d, partition %d, word"
-					" %d",(int) psort_info->psort_id,
-					(int) i, (int) mycount[i]);
+				ib::info() << "ID " << psort_info->psort_id
+					<< ", partition " << i << ", word "
+					<< mycount[i];
 			}
 #endif
 		}
@@ -870,13 +869,12 @@ loop:
 		} else if (retried > 10000) {
 			ut_ad(!doc_item);
 			/* retied too many times and cannot get new record */
-			ib_logf(IB_LOG_LEVEL_ERROR,
-					"FTS parallel sort processed"
-					" %lu records, the sort queue has"
-					" %lu records. But sort cannot get"
-					" the next records", num_doc_processed,
-					UT_LIST_GET_LEN(
-						psort_info->fts_doc_list));
+			ib::error() << "FTS parallel sort processed "
+				<< num_doc_processed
+				<< " records, the sort queue has "
+				<< UT_LIST_GET_LEN(psort_info->fts_doc_list)
+				<< " records. But sort cannot get the next"
+				" records";
 			goto exit;
 		}
 	} else if (psort_info->state == FTS_PARENT_EXITING) {
@@ -1158,10 +1156,10 @@ row_merge_write_fts_word(
 		error = row_merge_write_fts_node(ins_ctx, &word->text, fts_node);
 
 		if (error != DB_SUCCESS) {
-			ib_logf(IB_LOG_LEVEL_ERROR,
-				"Failed to write word %s to FTS auxiliary index"
-				" table, error (%s)",
-				word->text.f_str, ut_strerr(error));
+			ib::error() << "Failed to write word "
+				<< word->text.f_str << " to FTS auxiliary"
+				" index table, error (" << ut_strerr(error)
+				<< ")";
 			ret = error;
 		}
 
@@ -1576,9 +1574,8 @@ row_fts_merge_insert(
 	}
 
 	if (fts_enable_diag_print) {
-		ib_logf(IB_LOG_LEVEL_INFO,
-			"InnoDB_FTS: to inserted %lu records",
-			(ulong) count_diag);
+		ib::info() << "InnoDB_FTS: to inserted " << count_diag
+			<< " records";
 	}
 
 	/* Initialize related variables if creating FTS indexes */
@@ -1744,9 +1741,7 @@ exit:
 	mem_heap_free(heap);
 
 	if (fts_enable_diag_print) {
-		ib_logf(IB_LOG_LEVEL_INFO,
-			"InnoDB_FTS: inserted %lu records",
-			(ulong) count);
+		ib::info() << "InnoDB_FTS: inserted " << count << " records";
 	}
 
 	return(error);

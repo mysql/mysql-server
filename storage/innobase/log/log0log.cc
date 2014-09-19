@@ -1194,6 +1194,7 @@ loop:
 
 		if (log_sys->buf_free == log_sys->buf_next_to_write) {
 			/* Nothing to write, flush only */
+			log_mutex_exit();
 			log_write_flush_to_disk_low();
 			return;
 		}

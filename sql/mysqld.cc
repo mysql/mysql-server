@@ -1672,22 +1672,22 @@ static void set_root(const char *path)
 #endif // !_WIN32
 
 
-static void network_init(void)
+static bool network_init(void)
 {
-  std::string unix_sock_name= "";
-
   if (opt_bootstrap)
-    return;
+    return false;
 
   set_ports();
 
 #ifdef HAVE_SYS_UN_H
-  unix_sock_name= mysqld_unix_port ? mysqld_unix_port : "";
+  std::string const unix_sock_name(mysqld_unix_port ? mysqld_unix_port : "");
+#else
+  std::string const unix_sock_name("");
 #endif
 
   if (!opt_disable_networking || unix_sock_name != "")
   {
-    std::string bind_addr_str= my_bind_addr_str ? my_bind_addr_str : "";
+    std::string const bind_addr_str(my_bind_addr_str ? my_bind_addr_str : "");
 
     Mysqld_socket_listener *mysqld_socket_listener=
       new (std::nothrow) Mysqld_socket_listener(bind_addr_str,
@@ -1695,20 +1695,20 @@ static void network_init(void)
                                                 mysqld_port_timeout,
                                                 unix_sock_name);
     if (mysqld_socket_listener == NULL)
-      unireg_abort(1);
+      return true;
 
     mysqld_socket_acceptor=
       new (std::nothrow) Connection_acceptor<Mysqld_socket_listener>(mysqld_socket_listener);
     if (mysqld_socket_acceptor == NULL)
     {
       delete mysqld_socket_listener;
-      unireg_abort(1);
+      return true;
     }
 
     if (mysqld_socket_acceptor->init_connection_acceptor())
     {
       delete mysqld_socket_acceptor;
-      unireg_abort(1);
+      return true;
     }
 
     if (report_port == 0)
@@ -1726,20 +1726,20 @@ static void network_init(void)
     Named_pipe_listener *named_pipe_listener=
       new (std::nothrow) Named_pipe_listener(&pipe_name);
     if (named_pipe_listener == NULL)
-      unireg_abort(1);
+      return true;
 
     named_pipe_acceptor=
       new (std::nothrow) Connection_acceptor<Named_pipe_listener>(named_pipe_listener);
     if (named_pipe_acceptor == NULL)
     {
       delete named_pipe_listener;
-      unireg_abort(1);
+      return true;
     }
 
     if (named_pipe_acceptor->init_connection_acceptor())
     {
       delete named_pipe_acceptor;
-      unireg_abort(1);
+      return true;
     }
   }
 
@@ -1751,23 +1751,24 @@ static void network_init(void)
     Shared_mem_listener *shared_mem_listener=
       new (std::nothrow) Shared_mem_listener(&shared_mem_base_name);
     if (shared_mem_listener == NULL)
-      unireg_abort(1);
+      return true;
 
     shared_mem_acceptor=
       new (std::nothrow) Connection_acceptor<Shared_mem_listener>(shared_mem_listener);
     if (shared_mem_acceptor == NULL)
     {
       delete shared_mem_acceptor;
-      unireg_abort(1);
+      return true;
     }
 
     if (shared_mem_acceptor->init_connection_acceptor())
     {
       delete shared_mem_acceptor;
-      unireg_abort(1);
+      return true;
     }
   }
 #endif // _WIN32
+  return false;
 }
 
 #ifdef _WIN32
@@ -4578,6 +4579,7 @@ int mysqld_main(int argc, char **argv)
           if (flush_io_cache(mysql_bin_log.get_log_file()) ||
               mysql_file_sync(mysql_bin_log.get_log_file()->file, MYF(MY_WME)))
             unireg_abort(1);
+          mysql_bin_log.update_binlog_end_pos();
         }
         else
           global_sid_lock->unlock();
@@ -4596,7 +4598,8 @@ int mysqld_main(int argc, char **argv)
 
   if (init_ssl())
     unireg_abort(1);
-  network_init();
+  if (network_init())
+    unireg_abort(1);
 
 #ifdef _WIN32
   if (!opt_console)
