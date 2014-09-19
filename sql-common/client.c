@@ -3340,8 +3340,8 @@ Establishes SSL if requested and supported.
 static int
 cli_establish_ssl(MYSQL *mysql)
 {
-  NET *net= &mysql->net;
 #ifdef HAVE_OPENSSL
+  NET *net= &mysql->net;
 
   if (mysql->options.extension && mysql->options.extension->ssl_enforce)
   {
@@ -3455,8 +3455,10 @@ cli_establish_ssl(MYSQL *mysql)
 error:
   return 1;
 
+#else
+  (void)mysql; /* avoid warning */
+
 #endif /* HAVE_OPENSSL */
-  net= NULL; /* avoid warning */
   return 0;
 }
 
