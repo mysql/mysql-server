@@ -360,13 +360,11 @@ row_undo_step(
 		/* SQL error detected */
 
 		if (err == DB_OUT_OF_FILE_SPACE) {
-			ib_logf(IB_LOG_LEVEL_FATAL,
-				"Out of tablespace during rollback."
-				" Consider increasing your tablespace.");
+			ib::fatal() << "Out of tablespace during rollback."
+				" Consider increasing your tablespace.";
 		}
 
-		ib_logf(IB_LOG_LEVEL_FATAL,
-			"Error (%s) in rollback.", ut_strerr(err));
+		ib::fatal() << "Error (" << ut_strerr(err) << ") in rollback.";
 	}
 
 	return(thr);
