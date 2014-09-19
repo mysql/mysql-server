@@ -58,10 +58,10 @@ def	mysql	proxies_priv	0	mysql	PRIMARY	3	Proxied_host	A	#CARD#	NULL	NULL		BTREE
 def	mysql	proxies_priv	0	mysql	PRIMARY	4	Proxied_user	A	#CARD#	NULL	NULL		BTREE		
 def	mysql	servers	0	mysql	PRIMARY	1	Server_name	A	#CARD#	NULL	NULL		BTREE		
 def	mysql	server_cost	0	mysql	PRIMARY	1	cost_name	A	#CARD#	NULL	NULL		BTREE		
-def	mysql	slave_master_info	0	mysql	PRIMARY	1	Host	A	#CARD#	NULL	NULL		BTREE		
-def	mysql	slave_master_info	0	mysql	PRIMARY	2	Port	A	#CARD#	NULL	NULL		BTREE		
-def	mysql	slave_relay_log_info	0	mysql	PRIMARY	1	Id	A	#CARD#	NULL	NULL		BTREE		
-def	mysql	slave_worker_info	0	mysql	PRIMARY	1	Id	A	#CARD#	NULL	NULL		BTREE		
+def	mysql	slave_master_info	0	mysql	PRIMARY	1	Channel_name	A	#CARD#	NULL	NULL		BTREE		
+def	mysql	slave_relay_log_info	0	mysql	PRIMARY	1	Channel_name	A	#CARD#	NULL	NULL		BTREE		
+def	mysql	slave_worker_info	0	mysql	PRIMARY	1	Channel_name	A	#CARD#	NULL	NULL		BTREE		
+def	mysql	slave_worker_info	0	mysql	PRIMARY	2	Id	A	#CARD#	NULL	NULL		BTREE		
 def	mysql	tables_priv	1	mysql	Grantor	1	Grantor	A	#CARD#	NULL	NULL		BTREE		
 def	mysql	tables_priv	0	mysql	PRIMARY	1	Host	A	#CARD#	NULL	NULL		BTREE		
 def	mysql	tables_priv	0	mysql	PRIMARY	2	Db	A	#CARD#	NULL	NULL		BTREE		

@@ -845,48 +845,54 @@ def	performance_schema	prepared_statements_instances	SUM_SORT_ROWS	32	NULL	NO	bi
 def	performance_schema	prepared_statements_instances	SUM_SORT_SCAN	33	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
 def	performance_schema	prepared_statements_instances	SUM_NO_INDEX_USED	34	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
 def	performance_schema	prepared_statements_instances	SUM_NO_GOOD_INDEX_USED	35	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
-def	performance_schema	replication_connection_configuration	HOST	1	NULL	NO	char	60	180	NULL	NULL	NULL	utf8	utf8_bin	char(60)			select,insert,update,references	
-def	performance_schema	replication_connection_configuration	PORT	2	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references	
-def	performance_schema	replication_connection_configuration	USER	3	NULL	NO	char	16	48	NULL	NULL	NULL	utf8	utf8_bin	char(16)			select,insert,update,references	
-def	performance_schema	replication_connection_configuration	NETWORK_INTERFACE	4	NULL	NO	char	60	180	NULL	NULL	NULL	utf8	utf8_bin	char(60)			select,insert,update,references	
-def	performance_schema	replication_connection_configuration	AUTO_POSITION	5	NULL	NO	enum	1	3	NULL	NULL	NULL	utf8	utf8_general_ci	enum('1','0')			select,insert,update,references	
-def	performance_schema	replication_connection_configuration	SSL_ALLOWED	6	NULL	NO	enum	7	21	NULL	NULL	NULL	utf8	utf8_general_ci	enum('YES','NO','IGNORED')			select,insert,update,references	
-def	performance_schema	replication_connection_configuration	SSL_CA_FILE	7	NULL	NO	varchar	512	1536	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(512)			select,insert,update,references	
-def	performance_schema	replication_connection_configuration	SSL_CA_PATH	8	NULL	NO	varchar	512	1536	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(512)			select,insert,update,references	
-def	performance_schema	replication_connection_configuration	SSL_CERTIFICATE	9	NULL	NO	varchar	512	1536	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(512)			select,insert,update,references	
-def	performance_schema	replication_connection_configuration	SSL_CIPHER	10	NULL	NO	varchar	512	1536	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(512)			select,insert,update,references	
-def	performance_schema	replication_connection_configuration	SSL_KEY	11	NULL	NO	varchar	512	1536	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(512)			select,insert,update,references	
-def	performance_schema	replication_connection_configuration	SSL_VERIFY_SERVER_CERTIFICATE	12	NULL	NO	enum	3	9	NULL	NULL	NULL	utf8	utf8_general_ci	enum('YES','NO')			select,insert,update,references	
-def	performance_schema	replication_connection_configuration	SSL_CRL_FILE	13	NULL	NO	varchar	255	765	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(255)			select,insert,update,references	
-def	performance_schema	replication_connection_configuration	SSL_CRL_PATH	14	NULL	NO	varchar	255	765	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(255)			select,insert,update,references	
-def	performance_schema	replication_connection_configuration	CONNECTION_RETRY_INTERVAL	15	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references	
-def	performance_schema	replication_connection_configuration	CONNECTION_RETRY_COUNT	16	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
-def	performance_schema	replication_connection_configuration	HEARTBEAT_INTERVAL	17	NULL	NO	double	NULL	NULL	10	3	NULL	NULL	NULL	double(10,3) unsigned			select,insert,update,references	Number of seconds after which a heartbeat will be sent .
-def	performance_schema	replication_connection_status	SOURCE_UUID	1	NULL	NO	char	36	108	NULL	NULL	NULL	utf8	utf8_bin	char(36)			select,insert,update,references	
-def	performance_schema	replication_connection_status	THREAD_ID	2	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
-def	performance_schema	replication_connection_status	SERVICE_STATE	3	NULL	NO	enum	10	30	NULL	NULL	NULL	utf8	utf8_general_ci	enum('ON','OFF','CONNECTING')			select,insert,update,references	
-def	performance_schema	replication_connection_status	COUNT_RECEIVED_HEARTBEATS	4	0	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
-def	performance_schema	replication_connection_status	LAST_HEARTBEAT_TIMESTAMP	5	CURRENT_TIMESTAMP	NO	timestamp	NULL	NULL	NULL	NULL	0	NULL	NULL	timestamp		on update CURRENT_TIMESTAMP	select,insert,update,references	Shows when the most recent heartbeat signal was received.
-def	performance_schema	replication_connection_status	RECEIVED_TRANSACTION_SET	6	NULL	NO	text	65535	65535	NULL	NULL	NULL	utf8	utf8_general_ci	text			select,insert,update,references	
-def	performance_schema	replication_connection_status	LAST_ERROR_NUMBER	7	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references	
-def	performance_schema	replication_connection_status	LAST_ERROR_MESSAGE	8	NULL	NO	varchar	1024	3072	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(1024)			select,insert,update,references	
-def	performance_schema	replication_connection_status	LAST_ERROR_TIMESTAMP	9	0000-00-00 00:00:00	NO	timestamp	NULL	NULL	NULL	NULL	0	NULL	NULL	timestamp			select,insert,update,references	
-def	performance_schema	replication_execute_configuration	DESIRED_DELAY	1	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references	
-def	performance_schema	replication_execute_status	SERVICE_STATE	1	NULL	NO	enum	3	9	NULL	NULL	NULL	utf8	utf8_general_ci	enum('ON','OFF')			select,insert,update,references	
-def	performance_schema	replication_execute_status	REMAINING_DELAY	2	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(10) unsigned			select,insert,update,references	
-def	performance_schema	replication_execute_status	COUNT_TRANSACTIONS_RETRIES	3	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
-def	performance_schema	replication_execute_status_by_coordinator	THREAD_ID	1	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
-def	performance_schema	replication_execute_status_by_coordinator	SERVICE_STATE	2	NULL	NO	enum	3	9	NULL	NULL	NULL	utf8	utf8_general_ci	enum('ON','OFF')			select,insert,update,references	
-def	performance_schema	replication_execute_status_by_coordinator	LAST_ERROR_NUMBER	3	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references	
-def	performance_schema	replication_execute_status_by_coordinator	LAST_ERROR_MESSAGE	4	NULL	NO	varchar	1024	3072	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(1024)			select,insert,update,references	
-def	performance_schema	replication_execute_status_by_coordinator	LAST_ERROR_TIMESTAMP	5	CURRENT_TIMESTAMP	NO	timestamp	NULL	NULL	NULL	NULL	0	NULL	NULL	timestamp		on update CURRENT_TIMESTAMP	select,insert,update,references	
-def	performance_schema	replication_execute_status_by_worker	WORKER_ID	1	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
-def	performance_schema	replication_execute_status_by_worker	THREAD_ID	2	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
-def	performance_schema	replication_execute_status_by_worker	SERVICE_STATE	3	NULL	NO	enum	3	9	NULL	NULL	NULL	utf8	utf8_general_ci	enum('ON','OFF')			select,insert,update,references	
-def	performance_schema	replication_execute_status_by_worker	LAST_SEEN_TRANSACTION	4	NULL	NO	char	57	171	NULL	NULL	NULL	utf8	utf8_general_ci	char(57)			select,insert,update,references	
-def	performance_schema	replication_execute_status_by_worker	LAST_ERROR_NUMBER	5	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references	
-def	performance_schema	replication_execute_status_by_worker	LAST_ERROR_MESSAGE	6	NULL	NO	varchar	1024	3072	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(1024)			select,insert,update,references	
-def	performance_schema	replication_execute_status_by_worker	LAST_ERROR_TIMESTAMP	7	CURRENT_TIMESTAMP	NO	timestamp	NULL	NULL	NULL	NULL	0	NULL	NULL	timestamp		on update CURRENT_TIMESTAMP	select,insert,update,references	
+def	performance_schema	replication_connection_configuration	CHANNEL_NAME	1	NULL	NO	char	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	char(64)			select,insert,update,references	
+def	performance_schema	replication_connection_configuration	HOST	2	NULL	NO	char	60	180	NULL	NULL	NULL	utf8	utf8_bin	char(60)			select,insert,update,references	
+def	performance_schema	replication_connection_configuration	PORT	3	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references	
+def	performance_schema	replication_connection_configuration	USER	4	NULL	NO	char	16	48	NULL	NULL	NULL	utf8	utf8_bin	char(16)			select,insert,update,references	
+def	performance_schema	replication_connection_configuration	NETWORK_INTERFACE	5	NULL	NO	char	60	180	NULL	NULL	NULL	utf8	utf8_bin	char(60)			select,insert,update,references	
+def	performance_schema	replication_connection_configuration	AUTO_POSITION	6	NULL	NO	enum	1	3	NULL	NULL	NULL	utf8	utf8_general_ci	enum('1','0')			select,insert,update,references	
+def	performance_schema	replication_connection_configuration	SSL_ALLOWED	7	NULL	NO	enum	7	21	NULL	NULL	NULL	utf8	utf8_general_ci	enum('YES','NO','IGNORED')			select,insert,update,references	
+def	performance_schema	replication_connection_configuration	SSL_CA_FILE	8	NULL	NO	varchar	512	1536	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(512)			select,insert,update,references	
+def	performance_schema	replication_connection_configuration	SSL_CA_PATH	9	NULL	NO	varchar	512	1536	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(512)			select,insert,update,references	
+def	performance_schema	replication_connection_configuration	SSL_CERTIFICATE	10	NULL	NO	varchar	512	1536	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(512)			select,insert,update,references	
+def	performance_schema	replication_connection_configuration	SSL_CIPHER	11	NULL	NO	varchar	512	1536	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(512)			select,insert,update,references	
+def	performance_schema	replication_connection_configuration	SSL_KEY	12	NULL	NO	varchar	512	1536	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(512)			select,insert,update,references	
+def	performance_schema	replication_connection_configuration	SSL_VERIFY_SERVER_CERTIFICATE	13	NULL	NO	enum	3	9	NULL	NULL	NULL	utf8	utf8_general_ci	enum('YES','NO')			select,insert,update,references	
+def	performance_schema	replication_connection_configuration	SSL_CRL_FILE	14	NULL	NO	varchar	255	765	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(255)			select,insert,update,references	
+def	performance_schema	replication_connection_configuration	SSL_CRL_PATH	15	NULL	NO	varchar	255	765	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(255)			select,insert,update,references	
+def	performance_schema	replication_connection_configuration	CONNECTION_RETRY_INTERVAL	16	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references	
+def	performance_schema	replication_connection_configuration	CONNECTION_RETRY_COUNT	17	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	replication_connection_configuration	HEARTBEAT_INTERVAL	18	NULL	NO	double	NULL	NULL	10	3	NULL	NULL	NULL	double(10,3) unsigned			select,insert,update,references	Number of seconds after which a heartbeat will be sent .
+def	performance_schema	replication_connection_status	CHANNEL_NAME	1	NULL	NO	char	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	char(64)			select,insert,update,references	
+def	performance_schema	replication_connection_status	SOURCE_UUID	2	NULL	NO	char	36	108	NULL	NULL	NULL	utf8	utf8_bin	char(36)			select,insert,update,references	
+def	performance_schema	replication_connection_status	THREAD_ID	3	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	replication_connection_status	SERVICE_STATE	4	NULL	NO	enum	10	30	NULL	NULL	NULL	utf8	utf8_general_ci	enum('ON','OFF','CONNECTING')			select,insert,update,references	
+def	performance_schema	replication_connection_status	COUNT_RECEIVED_HEARTBEATS	5	0	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	replication_connection_status	LAST_HEARTBEAT_TIMESTAMP	6	CURRENT_TIMESTAMP	NO	timestamp	NULL	NULL	NULL	NULL	0	NULL	NULL	timestamp		on update CURRENT_TIMESTAMP	select,insert,update,references	Shows when the most recent heartbeat signal was received.
+def	performance_schema	replication_connection_status	RECEIVED_TRANSACTION_SET	7	NULL	NO	text	65535	65535	NULL	NULL	NULL	utf8	utf8_general_ci	text			select,insert,update,references	
+def	performance_schema	replication_connection_status	LAST_ERROR_NUMBER	8	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references	
+def	performance_schema	replication_connection_status	LAST_ERROR_MESSAGE	9	NULL	NO	varchar	1024	3072	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(1024)			select,insert,update,references	
+def	performance_schema	replication_connection_status	LAST_ERROR_TIMESTAMP	10	0000-00-00 00:00:00	NO	timestamp	NULL	NULL	NULL	NULL	0	NULL	NULL	timestamp			select,insert,update,references	
+def	performance_schema	replication_execute_configuration	CHANNEL_NAME	1	NULL	NO	char	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	char(64)			select,insert,update,references	
+def	performance_schema	replication_execute_configuration	DESIRED_DELAY	2	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references	
+def	performance_schema	replication_execute_status	CHANNEL_NAME	1	NULL	NO	char	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	char(64)			select,insert,update,references	
+def	performance_schema	replication_execute_status	SERVICE_STATE	2	NULL	NO	enum	3	9	NULL	NULL	NULL	utf8	utf8_general_ci	enum('ON','OFF')			select,insert,update,references	
+def	performance_schema	replication_execute_status	REMAINING_DELAY	3	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(10) unsigned			select,insert,update,references	
+def	performance_schema	replication_execute_status	COUNT_TRANSACTIONS_RETRIES	4	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	replication_execute_status_by_coordinator	CHANNEL_NAME	1	NULL	NO	char	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	char(64)			select,insert,update,references	
+def	performance_schema	replication_execute_status_by_coordinator	THREAD_ID	2	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	replication_execute_status_by_coordinator	SERVICE_STATE	3	NULL	NO	enum	3	9	NULL	NULL	NULL	utf8	utf8_general_ci	enum('ON','OFF')			select,insert,update,references	
+def	performance_schema	replication_execute_status_by_coordinator	LAST_ERROR_NUMBER	4	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references	
+def	performance_schema	replication_execute_status_by_coordinator	LAST_ERROR_MESSAGE	5	NULL	NO	varchar	1024	3072	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(1024)			select,insert,update,references	
+def	performance_schema	replication_execute_status_by_coordinator	LAST_ERROR_TIMESTAMP	6	CURRENT_TIMESTAMP	NO	timestamp	NULL	NULL	NULL	NULL	0	NULL	NULL	timestamp		on update CURRENT_TIMESTAMP	select,insert,update,references	
+def	performance_schema	replication_execute_status_by_worker	CHANNEL_NAME	1	NULL	NO	char	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	char(64)			select,insert,update,references	
+def	performance_schema	replication_execute_status_by_worker	WORKER_ID	2	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	replication_execute_status_by_worker	THREAD_ID	3	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	replication_execute_status_by_worker	SERVICE_STATE	4	NULL	NO	enum	3	9	NULL	NULL	NULL	utf8	utf8_general_ci	enum('ON','OFF')			select,insert,update,references	
+def	performance_schema	replication_execute_status_by_worker	LAST_SEEN_TRANSACTION	5	NULL	NO	char	57	171	NULL	NULL	NULL	utf8	utf8_general_ci	char(57)			select,insert,update,references	
+def	performance_schema	replication_execute_status_by_worker	LAST_ERROR_NUMBER	6	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references	
+def	performance_schema	replication_execute_status_by_worker	LAST_ERROR_MESSAGE	7	NULL	NO	varchar	1024	3072	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(1024)			select,insert,update,references	
+def	performance_schema	replication_execute_status_by_worker	LAST_ERROR_TIMESTAMP	8	CURRENT_TIMESTAMP	NO	timestamp	NULL	NULL	NULL	NULL	0	NULL	NULL	timestamp		on update CURRENT_TIMESTAMP	select,insert,update,references	
 def	performance_schema	rwlock_instances	NAME	1	NULL	NO	varchar	128	384	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(128)			select,insert,update,references	
 def	performance_schema	rwlock_instances	OBJECT_INSTANCE_BEGIN	2	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
 def	performance_schema	rwlock_instances	WRITE_LOCKED_BY_THREAD_ID	3	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	

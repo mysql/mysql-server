@@ -138,8 +138,9 @@ SET @cmd="CREATE TABLE IF NOT EXISTS slave_relay_log_info (
   Master_log_pos BIGINT UNSIGNED NOT NULL COMMENT 'The master log position of the last executed event.', 
   Sql_delay INTEGER NOT NULL COMMENT 'The number of seconds that the slave must lag behind the master.', 
   Number_of_workers INTEGER UNSIGNED NOT NULL,
-  Id INTEGER UNSIGNED NOT NULL COMMENT 'Internal Id that uniquely identifies this record.',  
-  PRIMARY KEY(Id)) DEFAULT CHARSET=utf8 STATS_PERSISTENT=0 COMMENT 'Relay Log Information'";
+  Id INTEGER UNSIGNED NOT NULL COMMENT 'Internal Id that uniquely identifies this record.',
+  Channel_name CHAR(64) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL COMMENT 'The channel on which the slave is connected to a source. Used in Multisource Replication',
+  PRIMARY KEY(Channel_name)) DEFAULT CHARSET=utf8 STATS_PERSISTENT=0 COMMENT 'Relay Log Information'";
 
 SET @str=IF(@have_innodb <> 0, CONCAT(@cmd, ' ENGINE= INNODB;'), CONCAT(@cmd, ' ENGINE= MYISAM;'));
 PREPARE stmt FROM @str;
@@ -169,8 +170,9 @@ SET @cmd= "CREATE TABLE IF NOT EXISTS slave_master_info (
   Retry_count BIGINT UNSIGNED NOT NULL COMMENT 'Number of reconnect attempts, to the master, before giving up.', 
   Ssl_crl TEXT CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The file used for the Certificate Revocation List (CRL)', 
   Ssl_crlpath TEXT CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The path used for Certificate Revocation List (CRL) files', 
-  Enabled_auto_position BOOLEAN NOT NULL COMMENT 'Indicates whether GTIDs will be used to retrieve events from the master.', 
-  PRIMARY KEY(Host, Port)) DEFAULT CHARSET=utf8 STATS_PERSISTENT=0 COMMENT 'Master Information'";
+  Enabled_auto_position BOOLEAN NOT NULL COMMENT 'Indicates whether GTIDs will be used to retrieve events from the master.',
+  Channel_name CHAR(64) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL COMMENT 'The channel on which the slave is connected to a source. Used in Multisource Replication',
+  PRIMARY KEY(Channel_name)) DEFAULT CHARSET=utf8 STATS_PERSISTENT=0 COMMENT 'Master Information'";
 
 SET @str=IF(@have_innodb <> 0, CONCAT(@cmd, ' ENGINE= INNODB;'), CONCAT(@cmd, ' ENGINE= MYISAM;'));
 PREPARE stmt FROM @str;
@@ -190,7 +192,8 @@ SET @cmd= "CREATE TABLE IF NOT EXISTS slave_worker_info (
   Checkpoint_seqno INT UNSIGNED NOT NULL, 
   Checkpoint_group_size INTEGER UNSIGNED NOT NULL, 
   Checkpoint_group_bitmap BLOB NOT NULL, 
-  PRIMARY KEY(Id)) DEFAULT CHARSET=utf8 STATS_PERSISTENT=0 COMMENT 'Worker Information'";
+  Channel_name CHAR(64) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL COMMENT 'The channel on which the slave is connected to a source. Used in Multisource Replication',
+  PRIMARY KEY(Channel_name, Id)) DEFAULT CHARSET=utf8 STATS_PERSISTENT=0 COMMENT 'Worker Information'";
 
 SET @str=IF(@have_innodb <> 0, CONCAT(@cmd, ' ENGINE= INNODB;'), CONCAT(@cmd, ' ENGINE= MYISAM;'));
 PREPARE stmt FROM @str;
@@ -2176,6 +2179,7 @@ DROP PREPARE stmt;
 --
 
 SET @cmd="CREATE TABLE performance_schema.replication_connection_configuration("
+  "CHANNEL_NAME CHAR(64) collate utf8_general_ci not null,"
   "HOST CHAR(60) collate utf8_bin not null,"
   "PORT INTEGER not null,"
   "USER CHAR(16) collate utf8_bin not null,"
@@ -2205,6 +2209,7 @@ DROP PREPARE stmt;
 --
 
 SET @cmd="CREATE TABLE performance_schema.replication_connection_status("
+  "CHANNEL_NAME CHAR(64) collate utf8_general_ci not null,"
   "SOURCE_UUID CHAR(36) collate utf8_bin not null,"
   "THREAD_ID BIGINT unsigned,"
   "SERVICE_STATE ENUM('ON','OFF','CONNECTING') not null,"
@@ -2226,6 +2231,7 @@ DROP PREPARE stmt;
 --
 
 SET @cmd="CREATE TABLE performance_schema.replication_execute_configuration("
+  "CHANNEL_NAME CHAR(64) collate utf8_general_ci not null,"
   "DESIRED_DELAY INTEGER not null"
   ") ENGINE=PERFORMANCE_SCHEMA;";
 
@@ -2239,6 +2245,7 @@ DROP PREPARE stmt;
 --
 
 SET @cmd="CREATE TABLE performance_schema.replication_execute_status("
+  "CHANNEL_NAME CHAR(64) collate utf8_general_ci not null,"
   "SERVICE_STATE ENUM('ON','OFF') not null,"
   "REMAINING_DELAY INTEGER unsigned,"
   "COUNT_TRANSACTIONS_RETRIES BIGINT unsigned not null"
@@ -2254,6 +2261,7 @@ DROP PREPARE stmt;
 --
 
 SET @cmd="CREATE TABLE performance_schema.replication_execute_status_by_coordinator("
+  "CHANNEL_NAME CHAR(64) collate utf8_general_ci not null,"
   "THREAD_ID BIGINT UNSIGNED,"
   "SERVICE_STATE ENUM('ON','OFF') not null,"
   "LAST_ERROR_NUMBER INTEGER not null,"
@@ -2271,6 +2279,7 @@ DROP PREPARE stmt;
 --
 
 SET @cmd="CREATE TABLE performance_schema.replication_execute_status_by_worker("
+  "CHANNEL_NAME CHAR(64) collate utf8_general_ci not null,"
   "WORKER_ID BIGINT UNSIGNED not null,"
   "THREAD_ID BIGINT UNSIGNED,"
   "SERVICE_STATE ENUM('ON','OFF') not null,"
