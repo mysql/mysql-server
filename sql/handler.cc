@@ -295,7 +295,6 @@ void add_pke_to_list(TABLE *table, THD *thd)
   std::string temp_pk;
   char buff[1024];
   String str(buff, sizeof(buff), &my_charset_bin);
-  char* pk_value;
 
   temp_pk.append(table->s->db.str);
   temp_pk.append(".");
@@ -321,21 +320,18 @@ void add_pke_to_list(TABLE *table, THD *thd)
       int index= table->key_info->key_part[i].fieldnr;
       table->field[index-1]->val_str(&str);
 
-      // TODO: This will be moved to transaction memroot..
-      pk_value= new char[sizeof(str.length())+1];
-
-      size_t length= str.length();
-      // TODO: This will be moved to transaction memroot..
-
+      char* pk_value= (char*) my_malloc(PSI_NOT_INSTRUMENTED,
+                                        str.length()+1, MYF(0));
       // buffer to be used for my_safe_itoa.
-      char *buf= (char*) my_malloc(PSI_NOT_INSTRUMENTED, length,
+      char *buf= (char*) my_malloc(PSI_NOT_INSTRUMENTED, str.length(),
                                    MYF(MY_WME));
 
       strmake(pk_value, str.c_ptr_safe(), str.length());
-      const char *lenStr = my_safe_itoa(10, (str.length()), &buf[length-1]);
+      const char *lenStr = my_safe_itoa(10, (str.length()), &buf[str.length()-1]);
       pke.append(lenStr);
       pke.append(pk_value);
       my_free(buf);
+      my_free(pk_value);
     }
 
     const char* pk=NULL;
@@ -343,7 +339,6 @@ void add_pke_to_list(TABLE *table, THD *thd)
     DBUG_PRINT("info", ("The hashed value is %s for %u", pk,
                         thd->thread_id()));
     uint32 temp_1= calc_hash<const char *>(pk);
-    delete[] pk_value;
     thd->add_write_set(temp_1);
   }
 }
