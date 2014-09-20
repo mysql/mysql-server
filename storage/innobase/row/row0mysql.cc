@@ -3816,32 +3816,175 @@ run_again:
 	return(err);
 }
 
-/*********************************************************************//**
-Drops a table for MySQL.  If the data dictionary was not already locked
-by the transaction, the transaction will be committed.  Otherwise, the
-data dictionary will remain locked.
+/** Drop ancillary FTS tables as part of dropping a table.
+@param[in,out]	table		Table cache entry
+@param[in,out]	trx		Transaction handle
+@return error code or DB_SUCCESS */
+UNIV_INLINE
+dberr_t
+row_drop_ancillary_fts_tables(
+	dict_table_t*	table,
+	trx_t*		trx)
+{
+	/* Drop ancillary FTS tables */
+	if (dict_table_has_fts_index(table)
+	    || DICT_TF2_FLAG_IS_SET(table, DICT_TF2_FTS_HAS_DOC_ID)) {
+
+		ut_ad(table->n_ref_count == 0);
+		ut_ad(trx_is_started(trx));
+
+		dberr_t err = fts_drop_tables(trx, table);
+
+		if (err != DB_SUCCESS) {
+			ib::error() << " Unable to remove ancillary FTS"
+				" tables for table "
+				<< ut_get_name(trx, TRUE, table->name)
+				<< " : " << ut_strerr(err);
+
+			return(err);
+		}
+	}
+
+	/* The table->fts flag can be set on the table for which
+	the cluster index is being rebuilt. Such table might not have
+	DICT_TF2_FTS flag set. So keep this out of above
+	dict_table_has_fts_index condition */
+	if (table->fts != NULL) {
+		/* Need to set TABLE_DICT_LOCKED bit, since
+		fts_que_graph_free_check_lock would try to acquire
+		dict mutex lock */
+		table->fts->fts_status |= TABLE_DICT_LOCKED;
+
+		fts_free(table);
+	}
+
+	return(DB_SUCCESS);
+}
+
+/** Drop a table from the memory cache as part of dropping a table.
+@param[in]	tablename	A copy of table->name. Used when table == null
+@param[in,out]	table		Table cache entry
+@param[in,out]	trx		Transaction handle
+@return error code or DB_SUCCESS */
+UNIV_INLINE
+dberr_t
+row_drop_table_from_cache(
+	const char*	tablename,
+	dict_table_t*	table,
+	trx_t*		trx)
+{
+	dberr_t	err = DB_SUCCESS;
+	bool	is_temp = dict_table_is_temporary(table);
+
+	/* Remove the pointer to this table object from the list
+	of modified tables by the transaction because the object
+	is going to be destroyed below. */
+	trx->mod_tables.erase(table);
+
+	if (!dict_table_is_intrinsic(table)) {
+		dict_table_remove_from_cache(table);
+	} else {
+		for (dict_index_t* index = UT_LIST_GET_FIRST(table->indexes);
+		     index != NULL;
+		     index = UT_LIST_GET_FIRST(table->indexes)) {
+
+			rw_lock_free(&index->lock);
+
+			UT_LIST_REMOVE(table->indexes, index);
+
+			dict_mem_index_free(index);
+		}
+
+		dict_mem_table_free(table);
+		table = NULL;
+	}
+
+	if (!is_temp
+	    && dict_load_table(tablename, TRUE,
+			       DICT_ERR_IGNORE_NONE) != NULL) {
+		ib::error() << "Not able to remove table "
+			<< ut_get_name(trx, TRUE, tablename)
+			<< " from the dictionary cache!";
+		err = DB_ERROR;
+	}
+
+	return(err);
+}
+
+/** Drop a single-table tablespace as part of dropping or renaming a table.
+This deletes the fil_space_t if found and the file on disk.
+@param[in]	space_id	Tablespace ID
+@param[in]	tablename	Table name, same as the tablespace name
+@param[in]	filepath	File path of tablespace to delete
+@param[in]	is_temp		Is this a temporary table/tablespace
+@param[in]	trx		Transaction handle
+@return error code or DB_SUCCESS */
+UNIV_INLINE
+dberr_t
+row_drop_single_table_tablespace(
+	ulint	space_id,
+	const char*	tablename,
+	const char*	filepath,
+	bool	is_temp,
+	trx_t*	trx)
+{
+	dberr_t	err = DB_SUCCESS;
+
+	/* This might be a temporary single-table tablespace if the table
+	is compressed and temporary. If so, don't spam the log when we
+	delete one of these or if we can't find the tablespace. */
+	bool	print_msg = !is_temp;
+
+	/* If the tablespace is not in the cache, just delete the file. */
+	if (!fil_space_for_table_exists_in_mem(
+		    space_id, tablename, print_msg, false, NULL, 0)) {
+
+		/* Force a delete of any discarded or temporary files. */
+		fil_delete_file(filepath);
+
+		if (print_msg) {
+			ib::info() << "Removed datafile " << filepath
+				<< " for table " << tablename;
+		}
+
+	} else if (fil_delete_tablespace(space_id, BUF_REMOVE_FLUSH_NO_WRITE)
+		   != DB_SUCCESS) {
+
+		ib::error() << "We removed the InnoDB internal data"
+			" dictionary entry of table " << tablename
+			<< " but we are not able to delete the tablespace "
+			<< space_id << " file " << filepath << "!";
+
+		err = DB_ERROR;
+	}
+
+	return(err);
+}
+
+/** Drop a table for MySQL.
+If the data dictionary was not already locked by the transaction,
+the transaction will be committed.  Otherwise, the data dictionary
+will remain locked.
+@param[in]	name		Table name
+@param[in]	trx		Transaction handle
+@param[in]	drop_db		true=dropping whole database
+@param[in]	nonatomic	Whether it is permitted to release
+and reacquire dict_operation_lock
+@param[in,out]	handler		Table handler
 @return error code or DB_SUCCESS */
 dberr_t
 row_drop_table_for_mysql(
-/*=====================*/
-	const char*	name,	/*!< in: table name */
-	trx_t*		trx,	/*!< in: transaction handle */
-	bool		drop_db,/*!< in: true=dropping whole database */
+	const char*	name,
+	trx_t*		trx,
+	bool		drop_db,
 	bool		nonatomic,
-				/*!< in: whether it is permitted
-				to release and reacquire dict_operation_lock */
 	dict_table_t*	handler)
-				/*!< in/out: table handler. */
 {
 	dberr_t		err;
 	dict_foreign_t*	foreign;
 	dict_table_t*	table			= NULL;
-	bool		print_msg;
-	ulint		space_id;
 	char*		filepath		= NULL;
-	const char*	tablename_minus_db;
 	char*		tablename		= NULL;
-	bool		ibd_file_missing;
 	bool		locked_dictionary	= false;
 	pars_info_t*	info			= NULL;
 	mem_heap_t*	heap			= NULL;
@@ -3855,19 +3998,6 @@ row_drop_table_for_mysql(
 	if (srv_sys_space.created_new_raw()) {
 		ib::info() << MODIFICATIONS_NOT_ALLOWED_MSG_RAW_PARTITION;
 		DBUG_RETURN(DB_ERROR);
-	}
-
-	/* The table name is prefixed with the database name and a '/'.
-	Certain table names starting with 'innodb_' have their special
-	meaning regardless of the database name.  Thus, we need to
-	ignore the database name prefix in the comparisons. */
-	tablename_minus_db = strchr(name, '/');
-
-	if (tablename_minus_db) {
-		tablename_minus_db++;
-	} else {
-		/* Ancillary FTS tables don't have '/' characters. */
-		tablename_minus_db = name;
 	}
 
 	/* Serialize data dictionary operations with dictionary mutex:
@@ -4171,95 +4301,107 @@ row_drop_table_for_mysql(
 
 		pars_info_add_str_literal(info, "table_name", name);
 
-		err = que_eval_sql(info,
-				   "PROCEDURE DROP_TABLE_PROC () IS\n"
-				   "sys_foreign_id CHAR;\n"
-				   "table_id CHAR;\n"
-				   "index_id CHAR;\n"
-				   "foreign_id CHAR;\n"
-				   "space_id INT;\n"
-				   "found INT;\n"
+		std::basic_string<char, std::char_traits<char>,
+				  ut_allocator<char> > sql;
+		sql.reserve(2000);
 
-				   "DECLARE CURSOR cur_fk IS\n"
-				   "SELECT ID FROM SYS_FOREIGN\n"
-				   "WHERE FOR_NAME = :table_name\n"
-				   "AND TO_BINARY(FOR_NAME)\n"
-				   "  = TO_BINARY(:table_name)\n"
-				   "LOCK IN SHARE MODE;\n"
+		sql =	"PROCEDURE DROP_TABLE_PROC () IS\n"
+			"sys_foreign_id CHAR;\n"
+			"table_id CHAR;\n"
+			"index_id CHAR;\n"
+			"foreign_id CHAR;\n"
+			"space_id INT;\n"
+			"found INT;\n";
 
-				   "DECLARE CURSOR cur_idx IS\n"
-				   "SELECT ID FROM SYS_INDEXES\n"
-				   "WHERE TABLE_ID = table_id\n"
-				   "LOCK IN SHARE MODE;\n"
+		sql +=	"DECLARE CURSOR cur_fk IS\n"
+			"SELECT ID FROM SYS_FOREIGN\n"
+			"WHERE FOR_NAME = :table_name\n"
+			"AND TO_BINARY(FOR_NAME)\n"
+			"  = TO_BINARY(:table_name)\n"
+			"LOCK IN SHARE MODE;\n";
 
-				   "BEGIN\n"
-				   "SELECT ID INTO table_id\n"
-				   "FROM SYS_TABLES\n"
-				   "WHERE NAME = :table_name\n"
-				   "LOCK IN SHARE MODE;\n"
-				   "IF (SQL % NOTFOUND) THEN\n"
-				   "       RETURN;\n"
-				   "END IF;\n"
-				   "SELECT SPACE INTO space_id\n"
-				   "FROM SYS_TABLES\n"
-				   "WHERE NAME = :table_name;\n"
-				   "IF (SQL % NOTFOUND) THEN\n"
-				   "       RETURN;\n"
-				   "END IF;\n"
-				   "found := 1;\n"
-				   "SELECT ID INTO sys_foreign_id\n"
-				   "FROM SYS_TABLES\n"
-				   "WHERE NAME = 'SYS_FOREIGN'\n"
-				   "LOCK IN SHARE MODE;\n"
-				   "IF (SQL % NOTFOUND) THEN\n"
-				   "       found := 0;\n"
-				   "END IF;\n"
-				   "IF (:table_name = 'SYS_FOREIGN') THEN\n"
-				   "       found := 0;\n"
-				   "END IF;\n"
-				   "IF (:table_name = 'SYS_FOREIGN_COLS') \n"
-				   "THEN\n"
-				   "       found := 0;\n"
-				   "END IF;\n"
-				   "OPEN cur_fk;\n"
-				   "WHILE found = 1 LOOP\n"
-				   "       FETCH cur_fk INTO foreign_id;\n"
-				   "       IF (SQL % NOTFOUND) THEN\n"
-				   "               found := 0;\n"
-				   "       ELSE\n"
-				   "               DELETE FROM \n"
-				   "		   SYS_FOREIGN_COLS\n"
-				   "               WHERE ID = foreign_id;\n"
-				   "               DELETE FROM SYS_FOREIGN\n"
-				   "               WHERE ID = foreign_id;\n"
-				   "       END IF;\n"
-				   "END LOOP;\n"
-				   "CLOSE cur_fk;\n"
-				   "found := 1;\n"
-				   "OPEN cur_idx;\n"
-				   "WHILE found = 1 LOOP\n"
-				   "       FETCH cur_idx INTO index_id;\n"
-				   "       IF (SQL % NOTFOUND) THEN\n"
-				   "               found := 0;\n"
-				   "       ELSE\n"
-				   "               DELETE FROM SYS_FIELDS\n"
-				   "               WHERE INDEX_ID = index_id;\n"
-				   "               DELETE FROM SYS_INDEXES\n"
-				   "               WHERE ID = index_id\n"
-				   "               AND TABLE_ID = table_id;\n"
-				   "       END IF;\n"
-				   "END LOOP;\n"
-				   "CLOSE cur_idx;\n"
-				   "DELETE FROM SYS_TABLESPACES\n"
-				   "WHERE SPACE = space_id;\n"
-				   "DELETE FROM SYS_DATAFILES\n"
-				   "WHERE SPACE = space_id;\n"
-				   "DELETE FROM SYS_COLUMNS\n"
-				   "WHERE TABLE_ID = table_id;\n"
-				   "DELETE FROM SYS_TABLES\n"
-				   "WHERE NAME = :table_name;\n"
-				   "END;\n"
-				   , FALSE, trx);
+		sql +=	"DECLARE CURSOR cur_idx IS\n"
+			"SELECT ID FROM SYS_INDEXES\n"
+			"WHERE TABLE_ID = table_id\n"
+			"LOCK IN SHARE MODE;\n";
+
+		sql +=	"BEGIN\n";
+
+		sql +=	"SELECT ID INTO table_id\n"
+			"FROM SYS_TABLES\n"
+			"WHERE NAME = :table_name\n"
+			"LOCK IN SHARE MODE;\n"
+			"IF (SQL % NOTFOUND) THEN\n"
+			"       RETURN;\n"
+			"END IF;\n";
+
+		sql +=	"SELECT SPACE INTO space_id\n"
+			"FROM SYS_TABLES\n"
+			"WHERE NAME = :table_name;\n"
+			"IF (SQL % NOTFOUND) THEN\n"
+			"       RETURN;\n"
+			"END IF;\n";
+
+		sql +=	"found := 1;\n"
+			"SELECT ID INTO sys_foreign_id\n"
+			"FROM SYS_TABLES\n"
+			"WHERE NAME = 'SYS_FOREIGN'\n"
+			"LOCK IN SHARE MODE;\n"
+			"IF (SQL % NOTFOUND) THEN\n"
+			"       found := 0;\n"
+			"END IF;\n"
+			"IF (:table_name = 'SYS_FOREIGN') THEN\n"
+			"       found := 0;\n"
+			"END IF;\n"
+			"IF (:table_name = 'SYS_FOREIGN_COLS') \n"
+			"THEN\n"
+			"       found := 0;\n"
+			"END IF;\n";
+
+		sql +=	"OPEN cur_fk;\n"
+			"WHILE found = 1 LOOP\n"
+			"       FETCH cur_fk INTO foreign_id;\n"
+			"       IF (SQL % NOTFOUND) THEN\n"
+			"               found := 0;\n"
+			"       ELSE\n"
+			"               DELETE FROM \n"
+			"		   SYS_FOREIGN_COLS\n"
+			"               WHERE ID = foreign_id;\n"
+			"               DELETE FROM SYS_FOREIGN\n"
+			"               WHERE ID = foreign_id;\n"
+			"       END IF;\n"
+			"END LOOP;\n"
+			"CLOSE cur_fk;\n";
+
+		sql +=	"found := 1;\n"
+			"OPEN cur_idx;\n"
+			"WHILE found = 1 LOOP\n"
+			"       FETCH cur_idx INTO index_id;\n"
+			"       IF (SQL % NOTFOUND) THEN\n"
+			"               found := 0;\n"
+			"       ELSE\n"
+			"               DELETE FROM SYS_FIELDS\n"
+			"               WHERE INDEX_ID = index_id;\n"
+			"               DELETE FROM SYS_INDEXES\n"
+			"               WHERE ID = index_id\n"
+			"               AND TABLE_ID = table_id;\n"
+			"       END IF;\n"
+			"END LOOP;\n"
+			"CLOSE cur_idx;\n";
+
+		sql +=	"DELETE FROM SYS_COLUMNS\n"
+			"WHERE TABLE_ID = table_id;\n"
+			"DELETE FROM SYS_TABLES\n"
+			"WHERE NAME = :table_name;\n";
+
+		sql += "DELETE FROM SYS_TABLESPACES\n"
+			"WHERE SPACE = space_id;\n"
+			"DELETE FROM SYS_DATAFILES\n"
+			"WHERE SPACE = space_id;\n";
+
+		sql.append("END;\n");
+
+		err = que_eval_sql(info, sql.c_str(), FALSE, trx);
 	} else {
 		page_no = page_nos;
 		for (dict_index_t* index = dict_table_get_first_index(table);
@@ -4272,27 +4414,21 @@ row_drop_table_for_mysql(
 	}
 
 	switch (err) {
-		ibool	is_temp;
+		ulint	space_id;
+		bool	is_temp;
+		bool	ibd_file_missing;
+		bool	is_discarded;
 
 	case DB_SUCCESS:
-		/* Clone the name, in case it has been allocated
-		from table->heap, which will be freed by
-		dict_table_remove_from_cache(table) below. */
 		space_id = table->space;
 		ibd_file_missing = table->ibd_file_missing;
-
+		is_discarded = dict_table_is_discarded(table);
 		is_temp = dict_table_is_temporary(table);
 
 		/* If there is a temp path then the temp flag is set.
 		However, during recovery, we might have a temp flag but
 		not know the temp path */
 		ut_a(table->dir_path_of_temp_table == NULL || is_temp);
-		if (dict_table_is_discarded(table)
-		    || table->ibd_file_missing) {
-			/* Do not attempt to drop known-to-be-missing
-			tablespaces. */
-			space_id = 0;
-		}
 
 		/* We do not allow temporary tables with a remote path. */
 		ut_a(!(is_temp && DICT_TF_HAS_DATA_DIR(table->flags)));
@@ -4300,6 +4436,8 @@ row_drop_table_for_mysql(
 		/* Make sure the data_dir_path is set if needed. */
 		dict_get_and_save_data_dir_path(table, true);
 
+		/* Determine the tablespace file name.  Then free this memory
+		after the table has been successfully removed from cache. */
 		if (space_id && DICT_TF_HAS_DATA_DIR(table->flags)) {
 			ut_a(table->data_dir_path);
 
@@ -4312,124 +4450,32 @@ row_drop_table_for_mysql(
 				NULL, IBD, false);
 		} else {
 			filepath = fil_make_filepath(
-				NULL, tablename, IBD, false);
+				NULL, table->name, IBD, false);
 		}
 
-		if (dict_table_has_fts_index(table)
-		    || DICT_TF2_FLAG_IS_SET(table, DICT_TF2_FTS_HAS_DOC_ID)) {
-
-			ut_ad(table->n_ref_count == 0);
-			ut_ad(trx_is_started(trx));
-
-			err = fts_drop_tables(trx, table);
-
-			if (err != DB_SUCCESS) {
-				ib::error() << "(" << ut_strerr(err) << ") not"
-					" able to remove ancillary FTS tables"
-					" for table "
-					<< ut_get_name(trx, TRUE, tablename);
-
-				goto funct_exit;
-			}
+		err = row_drop_ancillary_fts_tables(table, trx);
+		if (err != DB_SUCCESS) {
+			break;
 		}
 
-		/* The table->fts flag can be set on the table for which
-		the cluster index is being rebuilt. Such table might not have
-		DICT_TF2_FTS flag set. So keep this out of above
-		dict_table_has_fts_index condition */
-		if (table->fts) {
-			/* Need to set TABLE_DICT_LOCKED bit, since
-			fts_que_graph_free_check_lock would try to acquire
-			dict mutex lock */
-			table->fts->fts_status |= TABLE_DICT_LOCKED;
-
-			fts_free(table);
+		/* Free the dict_table_t object. */
+		err = row_drop_table_from_cache(tablename, table, trx);
+		if (err != DB_SUCCESS) {
+			break;
 		}
 
-		/* Remove the pointer to this table object from the list
-		of modified tables by the transaction because the object
-		is going to be destroyed below. */
-		trx->mod_tables.erase(table);
-
-		if (!dict_table_is_intrinsic(table)) {
-			dict_table_remove_from_cache(table);
-		} else {
-			for (dict_index_t* index
-				= UT_LIST_GET_FIRST(table->indexes);
-			     index != NULL;
-			     index = UT_LIST_GET_FIRST(table->indexes)) {
-				rw_lock_free(&index->lock);
-
-				UT_LIST_REMOVE(table->indexes, index);
-
-				dict_mem_index_free(index);
-			}
-
-			dict_mem_table_free(table);
-			table = NULL;
+		/* Do not attempt to drop known-to-be-missing tablespaces,
+		nor system or shared general tablespaces. */
+		if (is_discarded || ibd_file_missing
+		    || is_system_tablespace(space_id)) {
+			break;
 		}
 
-		if (!is_temp
-		    && dict_load_table(tablename, TRUE,
-				       DICT_ERR_IGNORE_NONE) != NULL) {
-			ib::error() << "Not able to remove table "
-				<< ut_get_name(trx, TRUE, tablename)
-				<< " from the dictionary cache!";
-			err = DB_ERROR;
-		}
-
-		/* Do not drop possible .ibd tablespace if something went
-		wrong: we do not want to delete valuable data of the user */
-
-		/* Don't spam the log if we can't find the tablespace of
-		a temp table or if the tablesace has been discarded. */
-		print_msg = !(is_temp || ibd_file_missing);
-
-		if (err == DB_SUCCESS
-		    && !is_system_tablespace(space_id)) {
-			if (!is_temp
-			    && !fil_space_for_table_exists_in_mem(
-				    space_id, tablename,
-				    print_msg, false, NULL, 0)) {
-				/* This might happen if we are dropping a
-				discarded tablespace */
-				err = DB_SUCCESS;
-
-				if (print_msg) {
-					char msg_tablename[
-						MAX_FULL_NAME_LEN + 1];
-
-					innobase_format_name(
-						msg_tablename, sizeof(tablename),
-						tablename, FALSE);
-
-					ib::info() << "Removed the table "
-						<< msg_tablename << " from"
-						" InnoDB's data dictionary";
-				}
-
-				/* Force a delete of any discarded
-				or temporary files. */
-
-				fil_delete_file(filepath);
-
-			} else if (fil_delete_tablespace(
-					space_id,
-					BUF_REMOVE_FLUSH_NO_WRITE)
-				   != DB_SUCCESS) {
-
-				std::string str = ut_get_name(
-							trx, TRUE, tablename);
-				ib::error() << "We removed now the InnoDB"
-					" internal data dictionary entry"
-					" of table " << str << ". Not able to"
-					" delete tablespace " << space_id
-					<< " of table " << str << "!";
-
-				err = DB_ERROR;
-			}
-		}
-
+		/* OK so far.  We can now drop the single-table tablespace.
+		We do not want to delete valuable data if something went
+		wrong. */
+		err = row_drop_single_table_tablespace(
+			space_id, tablename, filepath, is_temp, trx);
 		break;
 
 	case DB_OUT_OF_FILE_SPACE:
