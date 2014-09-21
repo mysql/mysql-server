@@ -169,6 +169,14 @@ public:
    */
   bool is_own_event_channel(my_thread_id id);
 
+  /**
+    Marks the need for log reset when initializing the donor connection;
+  */
+  void mark_recovery_needed_reset()
+  {
+    needs_donor_relay_log_reset= true;
+  }
+
 private:
 
    /**
@@ -313,6 +321,8 @@ private:
   bool donor_transfer_finished;
   /* Are we successfully connected to a donor*/
   bool connected_to_donor;
+  /* Does the donor relay logs needs reset on before connection*/
+  bool needs_donor_relay_log_reset;
 
   //Recovery connection related structures
   /** Interface class to interact with the donor connection threads*/

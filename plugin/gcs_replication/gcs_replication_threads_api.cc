@@ -214,6 +214,12 @@ int Replication_thread_api::purge_relay_logs()
 {
   DBUG_ENTER("Replication_thread_api::purge_relay_logs");
 
+  //Never initialized
+  if(rli == NULL)
+  {
+    DBUG_RETURN(0);
+  }
+
   const char* errmsg= "Unknown error occurred while reseting applier logs";
 
   if(rli->purge_relay_logs(current_thd, 1, &errmsg))

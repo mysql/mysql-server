@@ -45,8 +45,9 @@ Recovery_module(Applier_module_interface *applier,
     local_node_information(local_info), applier_module(applier), view_id(0),
     cluster_info(cluster_info_if), donor_connection_retry_count(0),
     recovery_running(false), donor_transfer_finished(false),
-    connected_to_donor(false), donor_connection_interface(),
-    stop_wait_timeout(LONG_TIMEOUT), max_connection_attempts_to_donors(-1)
+    connected_to_donor(false), needs_donor_relay_log_reset(false),
+    donor_connection_interface(), stop_wait_timeout(LONG_TIMEOUT),
+    max_connection_attempts_to_donors(-1)
 {
   selected_donor_uuid.clear();
 
@@ -345,6 +346,7 @@ Recovery_module::recovery_thread_handle()
 {
   int error= 0;
   donor_transfer_finished= false;
+  bool donor_connection_established= false;
   Handler_certifier_information_action *cert_action= NULL;
 
   set_recovery_thread_context();
@@ -376,6 +378,7 @@ Recovery_module::recovery_thread_handle()
     {
       goto cleanup;
     }
+    donor_connection_established= true;
   }
 
   mysql_mutex_lock(&recovery_lock);
@@ -411,7 +414,10 @@ cleanup:
   if (!recovery_aborted && !error)
     notify_cluster_recovery_end();
 
-  terminate_recovery_slave_threads();
+  if(donor_connection_established)
+  {
+    terminate_recovery_slave_threads();
+  }
 
   mysql_mutex_lock(&run_lock);
   recovery_running= false;
@@ -624,6 +630,12 @@ int Recovery_module::initialize_donor_connection(){
                   "metadata container.");
     }
     DBUG_RETURN(error);
+  }
+
+  //If a server reset happened
+  if (needs_donor_relay_log_reset)
+  {
+    donor_connection_interface.purge_relay_logs();
   }
 
   error= initialize_connection_parameters();

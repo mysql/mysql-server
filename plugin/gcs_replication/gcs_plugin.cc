@@ -906,6 +906,10 @@ int initialize_recovery_module()
               ->set_recovery_donor_connection_user(gcs_recovery_user_pointer);
   recovery_module
               ->set_recovery_donor_connection_password(&gcs_recovery_password[0]);
+
+  if(known_server_reset)
+    recovery_module->mark_recovery_needed_reset();
+
   return 0;
 }
 
