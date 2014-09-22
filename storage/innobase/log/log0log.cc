@@ -2185,8 +2185,15 @@ loop:
 	log_mutex_enter();
 
 	lsn = log_sys->lsn;
-	const bool	is_last	= lsn == log_sys->last_checkpoint_lsn;
+
 	ut_ad(lsn >= log_sys->last_checkpoint_lsn);
+	ut_ad(srv_force_recovery != SRV_FORCE_NO_LOG_REDO
+	      || lsn == log_sys->last_checkpoint_lsn + LOG_BLOCK_HDR_SIZE);
+
+	const bool	is_last	= ((srv_force_recovery == SRV_FORCE_NO_LOG_REDO
+				    && lsn == log_sys->last_checkpoint_lsn
+					      + LOG_BLOCK_HDR_SIZE)
+				   || lsn == log_sys->last_checkpoint_lsn);
 
 	log_mutex_exit();
 
