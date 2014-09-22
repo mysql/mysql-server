@@ -3,7 +3,7 @@
 # This test checks the basic functionality of the GCS replication
 # P_S for replication_node_status table.
 
---source include/have_log_bin.inc
+--source include/have_debug.inc
 --source include/have_gcs_replication_plugin.inc
 
 --echo ###################

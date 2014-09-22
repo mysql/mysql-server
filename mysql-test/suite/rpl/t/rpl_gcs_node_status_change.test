@@ -9,6 +9,7 @@
 # 3) Node leaving (after adding another node to guarantee quorum):
 #    Node 3: Online => Offline
 
+--source include/have_debug.inc
 --source include/have_gcs_replication_plugin.inc
 --let $gcs_group_name= 89ab83b0-9f17-11e3-a5e2-0800200c9a66
 --let $rpl_skip_gcs_replication_start= 1
