@@ -190,7 +190,6 @@ table_events_waits_common::table_events_waits_common
 
 void table_events_waits_common::clear_object_columns()
 {
-  m_row.m_object_type= NULL;
   m_row.m_object_type_length= 0;
   m_row.m_object_schema_length= 0;
   m_row.m_object_name_length= 0;
@@ -433,6 +432,7 @@ int table_events_waits_common::make_metadata_lock_object_columns(PFS_events_wait
   }
   else
   {
+    m_row.m_object_type_length= 0;
     m_row.m_object_schema_length= 0;
     m_row.m_object_name_length= 0;
     m_row.m_object_instance_addr= 0;
@@ -756,7 +756,7 @@ int table_events_waits_common::read_row_values(TABLE *table,
           f->set_null();
         break;
       case 12: /* OBJECT_TYPE */
-        if (m_row.m_object_type)
+        if (m_row.m_object_type_length > 0)
         {
           set_field_varchar_utf8(f, m_row.m_object_type,
                                  m_row.m_object_type_length);
