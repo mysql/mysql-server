@@ -271,7 +271,6 @@ net_send_ok(THD *thd,
   */
   String store;
   bool state_changed= false;
-  size_t msg_length;
 
   bool error= FALSE;
   DBUG_ENTER("net_send_ok");
@@ -332,16 +331,8 @@ net_send_ok(THD *thd,
 
   thd->get_stmt_da()->set_overwrite_status(true);
 
-  if (message && message[0])
-    msg_length= strlen(message);
-  else
-    msg_length= 0;
-
   if (thd->client_capabilities & CLIENT_SESSION_TRACK)
   {
-    pos= net_store_length(pos, msg_length);
-    memcpy(pos, message, msg_length);
-    pos+= msg_length;
     /* session state change information */
     if (unlikely(state_changed))
     {
@@ -360,8 +351,8 @@ net_send_ok(THD *thd,
       pos= start+store.length();
     }
   }
-  else
-    pos= net_store_data(pos, (uchar*) message, msg_length);
+  if (message && message[0])
+    pos= net_store_data(pos, (uchar*) message, strlen(message));
 
   /* OK packet length will be restricted to 16777215 bytes */
   if (((size_t) (pos - start)) > MAX_PACKET_LENGTH)
