@@ -31,7 +31,9 @@ include/assert.inc [On node 2, there should be no executed GTIDs]
 include/assert.inc [On node 1, there should be no executed GTIDs]
 #Insert some data to test that the cluster is still running
 INSERT INTO t1 VALUES (4);
+include/sync_slave_sql_with_master.inc
 INSERT INTO t1 VALUES (5);
+include/sync_slave_sql_with_master.inc
 include/assert.inc [On node 2, the table should exist and have 5 elements]
 include/assert.inc [On node 1, the table should exist and have 5 elements]
 DROP TABLE t1;

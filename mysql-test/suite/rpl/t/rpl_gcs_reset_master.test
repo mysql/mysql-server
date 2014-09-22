@@ -7,12 +7,7 @@
 --let $rpl_skip_gcs_replication_start= 1
 --source include/master-slave.inc
 
-#The time we wait for things to appear on both nodes.
-#TODO: replace by a sync call
---let $sync_wait_time= 2
-
 --connection server1
-
 --echo #Test a reset command before start.
 RESET MASTER;
 
@@ -86,14 +81,12 @@ while ($server_count)
 --echo #Insert some data to test that the cluster is still running
 
 INSERT INTO t1 VALUES (4);
-
---connection server2
+--let $sync_slave_connection=server2
+--source include/sync_slave_sql_with_master.inc
 
 INSERT INTO t1 VALUES (5);
-
---connection server1
-
---sleep $sync_wait_time #sleep for the inserts to appear on both nodes
+--let $sync_slave_connection=server1
+--source include/sync_slave_sql_with_master.inc
 
 --let $server_count=2
 while ($server_count)
