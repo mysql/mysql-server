@@ -12688,6 +12688,8 @@ ha_innobase::start_stmt(
 {
 	trx_t*		trx = m_prebuilt->trx;
 
+	DBUG_ENTER("ha_innobase::start_stmt");
+
 	update_thd(thd);
 
 	ut_ad(m_prebuilt->table != NULL);
@@ -12698,10 +12700,10 @@ ha_innobase::start_stmt(
 
 		if (thd_sql_command(thd) == SQLCOM_ALTER_TABLE) {
 
-			return(HA_ERR_WRONG_COMMAND);
+			DBUG_RETURN(HA_ERR_WRONG_COMMAND);
 		}
 
-		return(0);
+		DBUG_RETURN(0);
 	}
 
 	trx = m_prebuilt->trx;
@@ -12714,6 +12716,29 @@ ha_innobase::start_stmt(
 	m_prebuilt->sql_stat_start = TRUE;
 	m_prebuilt->hint_need_to_fetch_extra_cols = 0;
 	reset_template();
+
+	if (dict_table_is_temporary(m_prebuilt->table)
+	    && m_prebuilt->mysql_has_locked
+	    && m_prebuilt->select_lock_type == LOCK_NONE) {
+		dberr_t error;
+
+		switch (thd_sql_command(thd)) {
+		case SQLCOM_INSERT:
+		case SQLCOM_UPDATE:
+		case SQLCOM_DELETE:
+			init_table_handle_for_HANDLER();
+			m_prebuilt->select_lock_type = LOCK_X;
+			m_prebuilt->stored_select_lock_type = LOCK_X;
+			error = row_lock_table_for_mysql(m_prebuilt, NULL, 1);
+
+			if (error != DB_SUCCESS) {
+				int st = convert_error_code_to_mysql(
+					error, 0, thd);
+				DBUG_RETURN(st);
+			}
+			break;
+		}
+	}
 
 	if (!m_prebuilt->mysql_has_locked) {
 		/* This handle is for a temporary table created inside
@@ -12762,7 +12787,7 @@ ha_innobase::start_stmt(
 		trx->lock.start_stmt = true;
 	}
 
-	return(0);
+	DBUG_RETURN(0);
 }
 
 /******************************************************************//**
