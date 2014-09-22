@@ -13047,7 +13047,12 @@ ha_innobase::external_lock(
 			if (trx_is_started(trx)) {
 
 				innobase_commit(ht, thd, TRUE);
-			}
+			} else {
+				/* Since the trx state is TRX_NOT_STARTED,
+				trx_commit() will not be called. Reset
+				trx->is_dd_trx here */
+				ut_d(trx->is_dd_trx = false);
+			}		
 
 		} else if (trx->isolation_level <= TRX_ISO_READ_COMMITTED
 			   && MVCC::is_view_active(trx->read_view)) {

@@ -476,6 +476,7 @@ trx_free(trx_t*& trx)
 	trx->mod_tables.clear();
 
 	ut_ad(trx->read_view == NULL);
+	ut_ad(trx->is_dd_trx == false);
 
 	/* trx locking state should have been reset before returning trx
 	to pool */
