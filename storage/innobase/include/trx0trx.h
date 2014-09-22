@@ -932,6 +932,15 @@ struct trx_t {
 					of lock, which are protected by
 					lock_sys->mutex) */
 
+	/* Note: in_depth was split from in_innodb for fixing a RO
+	performance issue. Acquiring the trx_t::mutex for each row
+	costs ~3% in performance. It is not required for correctness.
+	Therefore we increment/decrement in_depth without holding any
+	mutex. The assumption is that the Server will only ever call
+	the handler from one thread. This is not true for kill_connection.
+	Therefore in innobase_kill_connection. We don't increment this
+	counter via TrxInInnoDB. */
+
 	ib_uint32_t	in_depth;	/*!< Track nested TrxInInnoDB
 					count */
 

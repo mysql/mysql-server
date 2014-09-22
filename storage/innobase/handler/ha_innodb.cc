@@ -4157,8 +4157,6 @@ innobase_kill_connection(
 
 	if (trx != NULL) {
 
-		TrxInInnoDB	trx_in_innodb(trx);
-
 		/* Cancel a pending lock request if there are any */
 		lock_trx_handle_wait(trx);
 	}
@@ -13059,6 +13057,7 @@ ha_innobase::external_lock(
 
 		DBUG_RETURN(0);
 	} else {
+
 		TrxInInnoDB::end_stmt(trx);
 
 		DEBUG_SYNC_C("ha_innobase_end_statement");
