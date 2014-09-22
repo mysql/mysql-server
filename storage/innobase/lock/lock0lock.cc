@@ -5028,9 +5028,10 @@ lock_rec_fetch_page(
 {
 	ut_ad(lock_get_type_low(lock) == LOCK_REC);
 
-	ulint			space = lock->un_member.rec_lock.space;
+	ulint			space_id = lock->un_member.rec_lock.space;
+	fil_space_t*		space;
 	bool			found;
-	const page_size_t&	page_size = fil_space_get_page_size(space,
+	const page_size_t&	page_size = fil_space_get_page_size(space_id,
 								    &found);
 	ulint			page_no = lock->un_member.rec_lock.page_no;
 
@@ -5042,12 +5043,21 @@ lock_rec_fetch_page(
 
 		mutex_exit(&trx_sys->mutex);
 
-		mtr_start(&mtr);
+		DEBUG_SYNC_C("innodb_monitor_before_lock_page_read");
 
-		buf_page_get_with_no_latch(
-			page_id_t(space, page_no), page_size, &mtr);
-
-		mtr_commit(&mtr);
+		/* Check if the space is exists or not. only
+		when the space is valid, try to get the page. */
+		space = fil_space_acquire(space_id);
+		if (space) {
+			mtr_start(&mtr);
+			buf_page_get_gen(
+				page_id_t(space_id, page_no), page_size,
+				RW_NO_LATCH, NULL,
+				BUF_GET_POSSIBLY_FREED,
+				__FILE__, __LINE__, &mtr);
+			mtr_commit(&mtr);
+			fil_space_release(space);
+		}
 
 		lock_mutex_enter();
 
