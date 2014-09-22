@@ -145,6 +145,7 @@ Applier_module::set_applier_thread_context()
   applier_thd->store_globals();
   init_thr_lock();
 
+  my_net_init(&applier_thd->net, 0);
   applier_thd->slave_thread= true;
   //TODO: See of the creation of a new type is desirable.
   applier_thd->system_thread= SYSTEM_THREAD_SLAVE_IO;
@@ -159,6 +160,7 @@ Applier_module::set_applier_thread_context()
 void
 Applier_module::clean_applier_thread_context()
 {
+  net_end(&applier_thd->net);
   applier_thd->release_resources();
   THD_CHECK_SENTRY(applier_thd);
   Global_THD_manager::get_instance()->remove_thd(applier_thd);
