@@ -4,6 +4,22 @@
 #
 # The plugin is only loaded on slave server to capture relay log notifications.
 #
+# Since one wants to test only the hook execution in place, a test
+# plugin was created to serve those needs. The plugin will print once
+# if the hook method is executed and the test will verify if the hook
+# was called.
+#
+# This test will use the hooks related with Event control and SQL/IO
+# thread handling.
+# - after_reset_slave: Called after a RESET SLAVE is invoked
+# - thread_start: Called when the IO Thread starts
+# - before_request_transmit: Called before the slave requests the events
+#                            from a master.
+# - after_read_event: Called after an event is received.
+# - after_queue_event: Called after an event is queued.
+# - consumer_thread_stop: Called after the SQL Thread is stopped
+# - thread_stop: Called after the IO Thread is stopped.
+#
 
 --source include/not_embedded.inc
 --source include/not_windows.inc

@@ -2,7 +2,33 @@
 # The purpose of this test is to demonstrate the capabilities of the
 # Replication Observers example plugin and to assess its correct functionality
 #
-# The plugin is loaded at startup in order to be able to capture Server events
+# The plugin is loaded at startup in order to be able to capture Server events.
+#
+# Since one wants to test only the hook execution in place, a test
+# plugin was created to serve those needs. The plugin will print once
+# if the hook method is executed and the test will verify if the hook
+# was called.
+#
+# This test will use two different groups of hooks/observers:
+# - Server State
+# - Transaction
+#
+# Server State uses hooks:
+# - before_handle_connection: Called before a new client connection.
+# - before_recovery: Called before the server initializes all
+#                    recovery procedures.
+# - after_engine_recovery: After binlog engine is ready.
+# - after_recovery: Called after the server ends all
+#                   recovery procedures.
+# - before_server_shutdown: Called before the server starts a shut down.
+# - after_server_shutdown: Called after the server starts a shut down.
+#
+# Transaction hooks exist on binlog. As such, binlog must be enabled in
+# order for them to be called. They are:
+# - before_commit: Called before a transaction is committed.
+# - before_rollback: Called before a transaction is rollbacked.
+# - after_commit: Called after a transaction is committed.
+# - after_rollback: Called after a transaction is rollbacked.
 #
 
 --source include/not_embedded.inc
