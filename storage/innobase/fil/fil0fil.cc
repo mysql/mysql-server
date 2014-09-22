@@ -2112,7 +2112,8 @@ UNIV_INTERN
 ibool
 fil_inc_pending_ops(
 /*================*/
-	ulint	id)	/*!< in: space id */
+	ulint	id,		/*!< in: space id */
+	ibool	print_err)	/*!< in: need to print error or not */
 {
 	fil_space_t*	space;
 
@@ -2121,10 +2122,12 @@ fil_inc_pending_ops(
 	space = fil_space_get_by_id(id);
 
 	if (space == NULL) {
-		fprintf(stderr,
-			"InnoDB: Error: trying to do an operation on a"
-			" dropped tablespace %lu\n",
-			(ulong) id);
+		if (print_err) {
+			fprintf(stderr,
+				"InnoDB: Error: trying to do an operation on a"
+				" dropped tablespace %lu\n",
+				(ulong) id);
+		}
 	}
 
 	if (space == NULL || space->stop_new_ops) {

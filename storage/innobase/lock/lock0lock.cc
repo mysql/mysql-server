@@ -5366,6 +5366,7 @@ loop:
 			ulint	space	= lock->un_member.rec_lock.space;
 			ulint	zip_size= fil_space_get_zip_size(space);
 			ulint	page_no = lock->un_member.rec_lock.page_no;
+			ibool	tablespace_being_deleted = FALSE;
 
 			if (UNIV_UNLIKELY(zip_size == ULINT_UNDEFINED)) {
 
@@ -5384,12 +5385,28 @@ loop:
 			lock_mutex_exit();
 			mutex_exit(&trx_sys->mutex);
 
-			mtr_start(&mtr);
+			DEBUG_SYNC_C("innodb_monitor_before_lock_page_read");
 
-			buf_page_get_with_no_latch(
-				space, zip_size, page_no, &mtr);
+			/* Check if the space is exists or not. only when the space
+			is valid, try to get the page. */
+			tablespace_being_deleted = fil_inc_pending_ops(space, false);
 
-			mtr_commit(&mtr);
+			if (!tablespace_being_deleted) {
+				mtr_start(&mtr);
+
+				buf_page_get_gen(space, zip_size, page_no,
+						 RW_NO_LATCH, NULL,
+						 BUF_GET_POSSIBLY_FREED,
+						 __FILE__, __LINE__, &mtr);
+
+				mtr_commit(&mtr);
+
+				fil_decr_pending_ops(space);
+			} else {
+				fprintf(file, "RECORD LOCKS on"
+					" non-existing space %lu\n",
+					(ulong) space);
+			}
 
 			load_page_first = FALSE;
 
@@ -5812,7 +5829,7 @@ lock_rec_block_validate(
 
 	/* Make sure that the tablespace is not deleted while we are
 	trying to access the page. */
-	if (!fil_inc_pending_ops(space)) {
+	if (!fil_inc_pending_ops(space, true)) {
 		mtr_start(&mtr);
 		block = buf_page_get_gen(
 			space, fil_space_get_zip_size(space),
