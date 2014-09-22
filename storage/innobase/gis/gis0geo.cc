@@ -363,6 +363,13 @@ mbr_join_square(
 		b += 2;
 	} while (a != end);
 
+	/* Check for infinity or NaN, so we don't get NaN in calculations */
+	if (my_isinf(square)) {
+		return DBL_MAX;
+	}
+
+	ut_ad(!my_isnan(square));
+
 	return square;
 }
 
