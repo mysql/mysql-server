@@ -158,14 +158,9 @@ log_group_init(
 	ulint	id,			/*!< in: group id */
 	ulint	n_files,		/*!< in: number of log files */
 	lsn_t	file_size,		/*!< in: log file size in bytes */
-	ulint	space_id,		/*!< in: space id of the file space
+	ulint	space_id);		/*!< in: space id of the file space
 					which contains the log files of this
 					group */
-	ulint	archive_space_id);	/*!< in: space id of the file space
-					which contains some archived log
-					files for this group; currently, only
-					for the first log group this is
-					used */
 /******************************************************//**
 Completes an i/o to a log file. */
 void

@@ -424,8 +424,7 @@ create_log_files(
 
 	if (!log_group_init(0, srv_n_log_files,
 			    srv_log_file_size * UNIV_PAGE_SIZE,
-			    SRV_LOG_SPACE_FIRST_ID,
-			    SRV_LOG_SPACE_FIRST_ID + 1)) {
+			    SRV_LOG_SPACE_FIRST_ID)) {
 		return(DB_ERROR);
 	}
 
@@ -1951,8 +1950,7 @@ innobase_start_or_create_for_mysql(void)
 		}
 
 		if (!log_group_init(0, i, srv_log_file_size * UNIV_PAGE_SIZE,
-				    SRV_LOG_SPACE_FIRST_ID,
-				    SRV_LOG_SPACE_FIRST_ID + 1)) {
+				    SRV_LOG_SPACE_FIRST_ID)) {
 			return(srv_init_abort(DB_ERROR));
 		}
 	}
