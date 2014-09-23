@@ -3181,18 +3181,12 @@ Item_func_group_concat(Name_resolution_context *context_arg,
   /*
     We need to allocate:
     args - arg_count_field+arg_count_order
-           (for possible order items in temporare tables)
+           (for possible order items in temporary tables)
     order - arg_count_order
   */
-  if (!(args= (Item**) sql_alloc(sizeof(Item*) * arg_count +
+  if (!(args= (Item**) sql_alloc(sizeof(Item*) * arg_count * 2 +
                                  sizeof(ORDER*)*arg_count_order)))
     return;
-
-  if (!(orig_args= (Item **) sql_alloc(sizeof(Item *) * arg_count)))
-  {
-    args= NULL;
-    return;
-  }
 
   order= (ORDER**)(args + arg_count);
 
@@ -3214,6 +3208,9 @@ Item_func_group_concat(Name_resolution_context *context_arg,
       order_item->item= arg_ptr++;
     }
   }
+
+  /* orig_args is only used for print() */
+  orig_args= (Item**) (order + arg_count_order);
   memcpy(orig_args, args, sizeof(Item*) * arg_count);
 }
 
@@ -3296,6 +3293,19 @@ void Item_func_group_concat::cleanup()
       }
     }
     DBUG_ASSERT(tree == 0);
+  }
+
+  /*
+    For prepared statements we have to restore pointers for ORDER BY as
+    they may point to areas that are freed at cleanup().
+  */
+  if (!current_thd->stmt_arena->is_conventional() && arg_count_order)
+  {
+    memcpy(args + arg_count_field, orig_args + arg_count_field,
+           sizeof(Item*) * arg_count_order);
+
+    for (uint i= 0 ; i < arg_count_order ; i++)
+      order[i]->item = args + arg_count_field + i;
   }
   DBUG_VOID_RETURN;
 }
