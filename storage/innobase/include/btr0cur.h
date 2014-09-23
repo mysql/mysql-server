@@ -157,7 +157,7 @@ btr_cur_search_to_nth_level(
 	const dtuple_t*	tuple,	/*!< in: data tuple; NOTE: n_fields_cmp in
 				tuple must be set so that it cannot get
 				compared to the node ptr page number field! */
-	ulint		mode,	/*!< in: PAGE_CUR_L, ...;
+	page_cur_mode_t	mode,	/*!< in: PAGE_CUR_L, ...;
 				NOTE that if the search is made using a unique
 				prefix of a record, mode should be PAGE_CUR_LE,
 				not PAGE_CUR_GE, as the latter may end up on
@@ -206,7 +206,7 @@ btr_cur_search_to_nth_level_with_no_latch(
 	dict_index_t*		index,
 	ulint			level,
 	const dtuple_t*		tuple,
-	ulint			mode,
+	page_cur_mode_t		mode,
 	btr_cur_t*		cursor,
 	const char*		file,
 	ulint			line,
@@ -614,9 +614,9 @@ btr_estimate_n_rows_in_range(
 /*=========================*/
 	dict_index_t*	index,	/*!< in: index */
 	const dtuple_t*	tuple1,	/*!< in: range start, may also be empty tuple */
-	ulint		mode1,	/*!< in: search mode for range start */
+	page_cur_mode_t	mode1,	/*!< in: search mode for range start */
 	const dtuple_t*	tuple2,	/*!< in: range end, may also be empty tuple */
-	ulint		mode2);	/*!< in: search mode for range end */
+	page_cur_mode_t	mode2);	/*!< in: search mode for range end */
 /*******************************************************************//**
 Estimates the number of different key values in a given index, for
 each n-column prefix of the index where 1 <= n <= dict_index_get_n_unique(index).
