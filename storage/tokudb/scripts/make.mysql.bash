@@ -52,7 +52,7 @@ cmake_build_type=RelWithDebInfo
 mysql_tree=
 tokudbengine_tree=
 ftindex_tree=
-jemalloc_version=3.3.0
+jemalloc_version=3.6.0
 jemalloc_tree=
 backup_tree=
 

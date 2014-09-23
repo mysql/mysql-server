@@ -29,7 +29,7 @@ COPYING CONDITIONS NOTICE:
 
 COPYRIGHT NOTICE:
 
-  TokuDB, Tokutek Fractal Tree Indexing Library.
+  TokuFT, Tokutek Fractal Tree Indexing Library.
   Copyright (C) 2007-2013 Tokutek, Inc.
 
 DISCLAIMER:
@@ -88,11 +88,12 @@ PATENT RIGHTS GRANT:
 
 #ident "Copyright (c) 2007-2013 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
-#include "test.h"
-#include "key.h"
 
-void
-toku_test_keycompare (void) {
+#include "test.h"
+#include "ft.h"
+
+static void
+test_keycompare (void) {
     assert(toku_keycompare("a",1, "a",1)==0);
     assert(toku_keycompare("aa",2, "a",1)>0);
     assert(toku_keycompare("a",1, "aa",2)<0);
@@ -109,7 +110,7 @@ int
 test_main (int argc , const char *argv[]) {
     default_parse_args(argc, argv);
 
-    toku_test_keycompare();
+    test_keycompare();
     if (verbose) printf("test ok\n");
     return 0;
 }

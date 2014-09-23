@@ -29,7 +29,7 @@ COPYING CONDITIONS NOTICE:
 
 COPYRIGHT NOTICE:
 
-  TokuDB, Tokutek Fractal Tree Indexing Library.
+  TokuFT, Tokutek Fractal Tree Indexing Library.
   Copyright (C) 2007-2013 Tokutek, Inc.
 
 DISCLAIMER:
@@ -94,90 +94,95 @@ PATENT RIGHTS GRANT:
 #include "test.h"
 
 static void
-test_fifo_create (void) {
-    int r;
-    FIFO f;
+test_create (void) {
+    message_buffer msg_buffer;
+    msg_buffer.create();
+    msg_buffer.destroy();
+}
 
-    f = 0;
-    r = toku_fifo_create(&f); 
-    assert(r == 0); assert(f != 0);
+static char *buildkey(size_t len) {
+    char *XMALLOC_N(len, k);
+    memset(k, 0, len);
+    return k;
+}
 
-    toku_fifo_free(&f);
-    assert(f == 0);
+static char *buildval(size_t len) {
+    char *XMALLOC_N(len, v);
+    memset(v, ~len, len);
+    return v;
 }
 
 static void
-test_fifo_enq (int n) {
-    int r;
-    FIFO f;
+test_enqueue(int n) {
     MSN startmsn = ZERO_MSN;
 
-    f = 0;
-    r = toku_fifo_create(&f); 
-    assert(r == 0); assert(f != 0);
-
-    char *thekey = 0; int thekeylen;
-    char *theval = 0; int thevallen;
-
-    // this was a function but icc cant handle it    
-#define buildkey(len) { \
-        thekeylen = len+1; \
-        XREALLOC_N(thekeylen, thekey); \
-        memset(thekey, len, thekeylen); \
-    }
-
-#define buildval(len) { \
-        thevallen = len+2; \
-        XREALLOC_N(thevallen, theval); \
-        memset(theval, ~len, thevallen); \
-    }
+    message_buffer msg_buffer;
+    msg_buffer.create();
 
     for (int i=0; i<n; i++) {
-        buildkey(i);
-        buildval(i);
+        int thekeylen = i + 1;
+        int thevallen = i + 2;
+        char *thekey = buildkey(thekeylen);
+        char *theval = buildval(thevallen);
         XIDS xids;
-        if (i==0)
-            xids = xids_get_root_xids();
-        else {
-            r = xids_create_child(xids_get_root_xids(), &xids, (TXNID)i);
-            assert(r==0);
+        if (i == 0) {
+            xids = toku_xids_get_root_xids();
+        } else {
+            int r = toku_xids_create_child(toku_xids_get_root_xids(), &xids, (TXNID)i);
+            assert_zero(r);
         }
         MSN msn = next_dummymsn();
         if (startmsn.msn == ZERO_MSN.msn)
             startmsn = msn;
         enum ft_msg_type type = (enum ft_msg_type) i;
-        r = toku_fifo_enq(f, thekey, thekeylen, theval, thevallen, type, msn, xids, true, NULL); assert(r == 0);
-        xids_destroy(&xids);
+        DBT k, v;
+        ft_msg msg(toku_fill_dbt(&k, thekey, thekeylen), toku_fill_dbt(&v, theval, thevallen), type, msn, xids);
+        msg_buffer.enqueue(msg, true, nullptr);
+        toku_xids_destroy(&xids);
+        toku_free(thekey);
+        toku_free(theval);
     }
 
-    int i = 0;
-    FIFO_ITERATE(f, key, keylen, val, vallen, type, msn, xids, UU(is_fresh), {
-        if (verbose) printf("checkit %d %d %" PRIu64 "\n", i, type, msn.msn);
-        assert(msn.msn == startmsn.msn + i);
-        buildkey(i);
-        buildval(i);
-        assert((int) keylen == thekeylen); assert(memcmp(key, thekey, keylen) == 0);
-        assert((int) vallen == thevallen); assert(memcmp(val, theval, vallen) == 0);
-        assert(i % 256 == (int)type);
-	assert((TXNID)i==xids_get_innermost_xid(xids));
-        i += 1;
-    });
-    assert(i == n);
+    struct checkit_fn {
+        MSN startmsn;
+        int verbose;
+        int i;
+        checkit_fn(MSN smsn, bool v)
+            : startmsn(smsn), verbose(v), i(0) {
+        }
+        int operator()(const ft_msg &msg, bool UU(is_fresh)) {
+            int thekeylen = i + 1;
+            int thevallen = i + 2;
+            char *thekey = buildkey(thekeylen);
+            char *theval = buildval(thevallen);
 
-    if (thekey) toku_free(thekey);
-    if (theval) toku_free(theval);
+            MSN msn = msg.msn();
+            enum ft_msg_type type = msg.type();
+            if (verbose) printf("checkit %d %d %" PRIu64 "\n", i, type, msn.msn);
+            assert(msn.msn == startmsn.msn + i);
+            assert((int) msg.kdbt()->size == thekeylen); assert(memcmp(msg.kdbt()->data, thekey, msg.kdbt()->size) == 0);
+            assert((int) msg.vdbt()->size == thevallen); assert(memcmp(msg.vdbt()->data, theval, msg.vdbt()->size) == 0);
+            assert(i % 256 == (int)type);
+            assert((TXNID)i == toku_xids_get_innermost_xid(msg.xids()));
+            i += 1;
+            toku_free(thekey);
+            toku_free(theval);
+            return 0;
+        }
+    } checkit(startmsn, verbose);
+    msg_buffer.iterate(checkit);
+    assert(checkit.i == n);
 
-    toku_fifo_free(&f);
-    assert(f == 0);
+    msg_buffer.destroy();
 }
 
 int
 test_main(int argc, const char *argv[]) {
     default_parse_args(argc, argv);
     initialize_dummymsn();
-    test_fifo_create();
-    test_fifo_enq(4);
-    test_fifo_enq(512);
+    test_create();
+    test_enqueue(4);
+    test_enqueue(512);
     
     return 0;
 }

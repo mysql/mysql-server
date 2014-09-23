@@ -28,7 +28,7 @@ COPYING CONDITIONS NOTICE:
 
 COPYRIGHT NOTICE:
 
-  TokuDB, Tokutek Fractal Tree Indexing Library.
+  TokuFT, Tokutek Fractal Tree Indexing Library.
   Copyright (C) 2007-2013 Tokutek, Inc.
 
 DISCLAIMER:
@@ -341,8 +341,8 @@ static void print_defines (void) {
         dodefine_from_track(txn_flags, DB_TXN_READ_ONLY);
     }
     
-    /* TOKUDB specific error codes*/
-    printf("/* TOKUDB specific error codes */\n");
+    /* TokuFT specific error codes*/
+    printf("/* TokuFT specific error codes */\n");
     dodefine(TOKUDB_OUT_OF_LOCKS);
     dodefine(TOKUDB_SUCCEEDED_EARLY);
     dodefine(TOKUDB_FOUND_BUT_REJECTED);
@@ -422,7 +422,7 @@ static void print_db_env_struct (void) {
                              "int (*cleaner_set_iterations)               (DB_ENV*, uint32_t) /* Change the number of attempts on each cleaner invokation.  0 means disabled. */",
                              "int (*cleaner_get_iterations)               (DB_ENV*, uint32_t*) /* Retrieve the number of attempts on each cleaner invokation.  0 means disabled. */",
                              "int (*checkpointing_postpone)               (DB_ENV*) /* Use for 'rename table' or any other operation that must be disjoint from a checkpoint */",
-                             "int (*checkpointing_resume)                 (DB_ENV*) /* Alert tokudb 'postpone' is no longer necessary */",
+                             "int (*checkpointing_resume)                 (DB_ENV*) /* Alert tokuft that 'postpone' is no longer necessary */",
                              "int (*checkpointing_begin_atomic_operation) (DB_ENV*) /* Begin a set of operations (that must be atomic as far as checkpoints are concerned). i.e. inserting into every index in one table */",
                              "int (*checkpointing_end_atomic_operation)   (DB_ENV*) /* End   a set of operations (that must be atomic as far as checkpoints are concerned). */",
                              "int (*set_default_bt_compare)               (DB_ENV*,int (*bt_compare) (DB *, const DBT *, const DBT *)) /* Set default (key) comparison function for all DBs in this environment.  Required for RECOVERY since you cannot open the DBs manually. */",
@@ -465,6 +465,7 @@ static void print_db_env_struct (void) {
                              "void (*set_loader_memory_size)(DB_ENV *env, uint64_t (*get_loader_memory_size_callback)(void))",
                              "uint64_t (*get_loader_memory_size)(DB_ENV *env)",
                              "void (*set_killed_callback)(DB_ENV *env, uint64_t default_killed_time_msec, uint64_t (*get_killed_time_callback)(uint64_t default_killed_time_msec), int (*killed_callback)(void))",
+                             "void (*do_backtrace)                        (DB_ENV *env)",
                              NULL};
 
         sort_and_dump_fields("db_env", true, extra);
@@ -545,6 +546,7 @@ static void print_db_struct (void) {
 			 "int (*change_fanout)(DB *db, uint32_t fanout)",
 			 "int (*get_fanout)(DB *db, uint32_t *fanout)",
 			 "int (*set_fanout)(DB *db, uint32_t fanout)",
+			 "int (*set_memcmp_magic)(DB *db, uint8_t magic)",
 			 "int (*set_indexer)(DB*, DB_INDEXER*)",
 			 "void (*get_indexer)(DB*, DB_INDEXER**)",
 			 "int (*verify_with_progress)(DB *, int (*progress_callback)(void *progress_extra, float progress), void *progress_extra, int verbose, int keep_going)",
@@ -573,11 +575,10 @@ static void print_db_txn_struct (void) {
     STRUCT_SETUP(DB_TXN, prepare,     "int (*%s) (DB_TXN*, uint8_t gid[DB_GID_SIZE])");
     STRUCT_SETUP(DB_TXN, discard,     "int (*%s) (DB_TXN*, uint32_t)");
     STRUCT_SETUP(DB_TXN, id,          "uint32_t (*%s) (DB_TXN *)");
-    STRUCT_SETUP(DB_TXN, mgrp,        "DB_ENV *%s /*In TokuDB, mgrp is a DB_ENV not a DB_TXNMGR*/");
+    STRUCT_SETUP(DB_TXN, mgrp,        "DB_ENV *%s /* In TokuFT, mgrp is a DB_ENV, not a DB_TXNMGR */");
     STRUCT_SETUP(DB_TXN, parent,      "DB_TXN *%s");
     const char *extra[] = {
 	"int (*txn_stat)(DB_TXN *, struct txn_stat **)", 
-	"struct toku_list open_txns",
 	"int (*commit_with_progress)(DB_TXN*, uint32_t, TXN_PROGRESS_POLL_FUNCTION, void*)",
 	"int (*abort_with_progress)(DB_TXN*, TXN_PROGRESS_POLL_FUNCTION, void*)",
 	"int (*xa_prepare) (DB_TXN*, TOKU_XA_XID *)",
@@ -614,6 +615,7 @@ static void print_dbc_struct (void) {
 	"int (*c_set_bounds)(DBC*, const DBT*, const DBT*, bool pre_acquire, int out_of_range_error)",
         "void (*c_set_check_interrupt_callback)(DBC*, bool (*)(void*), void *)",
 	"void (*c_remove_restriction)(DBC*)",
+        "char _internal[512]",
 	NULL};
     sort_and_dump_fields("dbc", false, extra);
 }
@@ -635,12 +637,11 @@ int main (int argc, char *const argv[] __attribute__((__unused__))) {
     //printf("#include <inttypes.h>\n");
     printf("#if defined(__cplusplus) || defined(__cilkplusplus)\nextern \"C\" {\n#endif\n");
 
-    printf("#define TOKUDB 1\n");
     printf("#define DB_VERSION_MAJOR %d\n", DB_VERSION_MAJOR);
     printf("#define DB_VERSION_MINOR %d\n", DB_VERSION_MINOR);
-    printf("/* As of r40364 (post TokuDB 5.2.7), the patch version number is 100+ the BDB header patch version number.*/\n");
+    printf("/* As of r40364 (post TokuFT 5.2.7), the patch version number is 100+ the BDB header patch version number.*/\n");
     printf("#define DB_VERSION_PATCH %d\n", 100+DB_VERSION_PATCH);
-    printf("#define DB_VERSION_STRING \"Tokutek: TokuDB %d.%d.%d\"\n", DB_VERSION_MAJOR, DB_VERSION_MINOR, 100+DB_VERSION_PATCH);
+    printf("#define DB_VERSION_STRING \"Tokutek: TokuFT %d.%d.%d\"\n", DB_VERSION_MAJOR, DB_VERSION_MINOR, 100+DB_VERSION_PATCH);
 
 #ifndef DB_GID_SIZE
 #define DB_GID_SIZE DB_XIDDATASIZE
@@ -654,7 +655,6 @@ int main (int argc, char *const argv[] __attribute__((__unused__))) {
            "    char data[DB_GID_SIZE];\n"
            "} TOKU_XA_XID;\n");
 
-   //Typedef toku_off_t
     printf("#ifndef TOKU_OFF_T_DEFINED\n"
            "#define TOKU_OFF_T_DEFINED\n"
            "typedef int64_t toku_off_t;\n"
@@ -673,7 +673,10 @@ int main (int argc, char *const argv[] __attribute__((__unused__))) {
     printf("typedef uint32_t db_recno_t;\n");
     printf("typedef int(*YDB_CALLBACK_FUNCTION)(DBT const*, DBT const*, void*);\n");
 
-    printf("#include <tdb-internal.h>\n");
+    printf("struct simple_dbt {\n");
+    printf("    uint32_t len;\n");
+    printf("    void     *data;\n");
+    printf("};\n");
     
     //stat64
     printf("typedef struct __toku_db_btree_stat64 {\n");

@@ -29,7 +29,7 @@ COPYING CONDITIONS NOTICE:
 
 COPYRIGHT NOTICE:
 
-  TokuDB, Tokutek Fractal Tree Indexing Library.
+  TokuFT, Tokutek Fractal Tree Indexing Library.
   Copyright (C) 2007-2013 Tokutek, Inc.
 
 DISCLAIMER:
@@ -89,14 +89,15 @@ PATENT RIGHTS GRANT:
 #ident "Copyright (c) 2007-2013 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
-#include <ft-flusher.h>
-#include <ft-flusher-internal.h>
-#include <ft-cachetable-wrappers.h>
-#include <ft-internal.h>
-#include <ft.h>
-#include <portability/toku_atomic.h>
-#include <util/status.h>
-#include <util/context.h>
+#include "ft/ft.h"
+#include "ft/ft-cachetable-wrappers.h"
+#include "ft/ft-flusher.h"
+#include "ft/ft-flusher-internal.h"
+#include "ft/ft-internal.h"
+#include "ft/node.h"
+#include "portability/toku_atomic.h"
+#include "util/context.h"
+#include "util/status.h"
 
 // Member Descirption:
 // 1. highest_pivot_key - this is the key that corresponds to the 
@@ -119,7 +120,7 @@ struct hot_flusher_extra {
 
 static FT_HOT_STATUS_S hot_status;
 
-#define STATUS_INIT(k,c,t,l,inc) TOKUDB_STATUS_INIT(hot_status, k, c, t, "hot: " l, inc)
+#define STATUS_INIT(k,c,t,l,inc) TOKUFT_STATUS_INIT(hot_status, k, c, t, "hot: " l, inc)
 
 #define STATUS_VALUE(x) hot_status.status[x].value.num
 
@@ -168,7 +169,7 @@ hot_set_start_key(struct hot_flusher_extra *flusher, const DBT* start)
 }
 
 static int
-hot_just_pick_child(FT h,
+hot_just_pick_child(FT ft,
                     FTNODE parent,
                     struct hot_flusher_extra *flusher)
 {
@@ -183,10 +184,7 @@ hot_just_pick_child(FT h,
         childnum = 0;
     } else {
         // Find the pivot boundary.
-        childnum = toku_ftnode_hot_next_child(parent,
-                                               &flusher->highest_pivot_key,
-                                               &h->cmp_descriptor,
-                                               h->compare_fun);
+        childnum = toku_ftnode_hot_next_child(parent, &flusher->highest_pivot_key, ft->cmp);
     }
 
     return childnum;
@@ -201,19 +199,19 @@ hot_update_flusher_keys(FTNODE parent,
     // child node.
     if (childnum < (parent->n_children - 1)) {
         toku_destroy_dbt(&flusher->max_current_key);
-        toku_clone_dbt(&flusher->max_current_key, parent->childkeys[childnum]);
+        toku_clone_dbt(&flusher->max_current_key, parent->pivotkeys.get_pivot(childnum));
     }
 }
 
 // Picks which child toku_ft_flush_some_child will use for flushing and
 // recursion.
 static int
-hot_pick_child(FT h,
+hot_pick_child(FT ft,
                FTNODE parent,
                void *extra)
 {
     struct hot_flusher_extra *flusher = (struct hot_flusher_extra *) extra;
-    int childnum = hot_just_pick_child(h, parent, flusher);
+    int childnum = hot_just_pick_child(ft, parent, flusher);
 
     // Now we determine the percentage of the tree flushed so far.
 
@@ -243,14 +241,14 @@ hot_update_status(FTNODE UU(child),
 // one to flush into.  This gives it a chance to do that, and update the
 // keys it maintains.
 static int
-hot_pick_child_after_split(FT h,
+hot_pick_child_after_split(FT ft,
                            FTNODE parent,
                            int childnuma,
                            int childnumb,
                            void *extra)
 {
     struct hot_flusher_extra *flusher = (struct hot_flusher_extra *) extra;
-    int childnum = hot_just_pick_child(h, parent, flusher);
+    int childnum = hot_just_pick_child(ft, parent, flusher);
     assert(childnum == childnuma || childnum == childnumb);
     hot_update_flusher_keys(parent, childnum, flusher);
     if (parent->height == 1) {
@@ -298,9 +296,9 @@ hot_flusher_destroy(struct hot_flusher_extra *flusher)
 // Entry point for Hot Optimize Table (HOT).  Note, this function is
 // not recursive.  It iterates over root-to-leaf paths.
 int
-toku_ft_hot_optimize(FT_HANDLE brt, DBT* left, DBT* right,
-                      int (*progress_callback)(void *extra, float progress),
-                      void *progress_extra, uint64_t* loops_run)
+toku_ft_hot_optimize(FT_HANDLE ft_handle, DBT* left, DBT* right,
+                     int (*progress_callback)(void *extra, float progress),
+                     void *progress_extra, uint64_t* loops_run)
 {
     toku::context flush_ctx(CTX_FLUSH);
 
@@ -316,7 +314,7 @@ toku_ft_hot_optimize(FT_HANDLE brt, DBT* left, DBT* right,
                                          // start of HOT operation
     (void) toku_sync_fetch_and_add(&STATUS_VALUE(FT_HOT_NUM_STARTED), 1);
 
-    toku_ft_note_hot_begin(brt);
+    toku_ft_note_hot_begin(ft_handle);
 
     // Higher level logic prevents a dictionary from being deleted or
     // truncated during a hot optimize operation.  Doing so would violate
@@ -329,18 +327,17 @@ toku_ft_hot_optimize(FT_HANDLE brt, DBT* left, DBT* right,
         {
             // Get root node (the first parent of each successive HOT
             // call.)
-            toku_calculate_root_offset_pointer(brt->ft, &root_key, &fullhash);
-            struct ftnode_fetch_extra bfe;
-            fill_bfe_for_full_read(&bfe, brt->ft);
-            toku_pin_ftnode_off_client_thread(brt->ft,
-                                               (BLOCKNUM) root_key,
-                                               fullhash,
-                                               &bfe,
-                                               PL_WRITE_EXPENSIVE, 
-                                               0,
-                                               NULL,
-                                               &root);
-            toku_assert_entire_node_in_memory(root);
+            toku_calculate_root_offset_pointer(ft_handle->ft, &root_key, &fullhash);
+            ftnode_fetch_extra bfe;
+            bfe.create_for_full_read(ft_handle->ft);
+            toku_pin_ftnode(ft_handle->ft,
+                            (BLOCKNUM) root_key,
+                            fullhash,
+                            &bfe,
+                            PL_WRITE_EXPENSIVE, 
+                            &root,
+                            true);
+            toku_ftnode_assert_fully_in_memory(root);
         }
 
         // Prepare HOT diagnostics.
@@ -365,12 +362,12 @@ toku_ft_hot_optimize(FT_HANDLE brt, DBT* left, DBT* right,
         // This should recurse to the bottom of the tree and then
         // return.
         if (root->height > 0) {
-            toku_ft_flush_some_child(brt->ft, root, &advice);
+            toku_ft_flush_some_child(ft_handle->ft, root, &advice);
         } else {
             // Since there are no children to flush, we should abort
             // the HOT call.
             flusher.rightmost_leaf_seen = 1;
-            toku_unpin_ftnode_off_client_thread(brt->ft, root);
+            toku_unpin_ftnode(ft_handle->ft, root);
         }
 
         // Set the highest pivot key seen here, since the parent may
@@ -386,8 +383,7 @@ toku_ft_hot_optimize(FT_HANDLE brt, DBT* left, DBT* right,
         else if (right) {
             // if we have flushed past the bounds set for us,
             // set rightmost_leaf_seen so we exit
-            FAKE_DB(db, &brt->ft->cmp_descriptor);
-            int cmp = brt->ft->compare_fun(&db, &flusher.max_current_key, right);
+            int cmp = ft_handle->ft->cmp(&flusher.max_current_key, right);
             if (cmp > 0) {
                 flusher.rightmost_leaf_seen = 1;
             }
@@ -417,7 +413,7 @@ toku_ft_hot_optimize(FT_HANDLE brt, DBT* left, DBT* right,
         if (r == 0) { success = true; }
 
         {
-            toku_ft_note_hot_complete(brt, success, msn_at_start_of_hot);
+            toku_ft_note_hot_complete(ft_handle, success, msn_at_start_of_hot);
         }
 
         if (success) {

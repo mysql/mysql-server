@@ -32,7 +32,7 @@ COPYING CONDITIONS NOTICE:
 
 COPYRIGHT NOTICE:
 
-  TokuDB, Tokutek Fractal Tree Indexing Library.
+  TokuFT, Tokutek Fractal Tree Indexing Library.
   Copyright (C) 2007-2013 Tokutek, Inc.
 
 DISCLAIMER:
@@ -95,7 +95,7 @@ PATENT RIGHTS GRANT:
 #include <unistd.h>
 #include "cachetable-test.h"
 
-#include "checkpoint.h"
+#include "cachetable/checkpoint.h"
 
 const int item_size = 1;
 
@@ -153,7 +153,7 @@ static void cachetable_prefetch_checkpoint_test(int n, enum cachetable_dirty dir
     CACHETABLE ct;
     CACHETABLE_WRITE_CALLBACK wc = def_write_callback(NULL);
     wc.flush_callback = flush;
-    toku_cachetable_create(&ct, test_limit, ZERO_LSN, NULL_LOGGER);
+    toku_cachetable_create(&ct, test_limit, ZERO_LSN, nullptr);
     const char *fname1 = TOKU_TEST_FILENAME;
     unlink(fname1);
     CACHEFILE f1;

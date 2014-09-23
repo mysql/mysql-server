@@ -29,7 +29,7 @@ COPYING CONDITIONS NOTICE:
 
 COPYRIGHT NOTICE:
 
-  TokuDB, Tokutek Fractal Tree Indexing Library.
+  TokuFT, Tokutek Fractal Tree Indexing Library.
   Copyright (C) 2007-2013 Tokutek, Inc.
 
 DISCLAIMER:
@@ -96,11 +96,7 @@ PATENT RIGHTS GRANT:
 // Return the offset
 static int
 grep_for_in_logs (const char *str) {
-#ifdef TOKUDB
 #define lfname "log000000000000.tokulog[0-9]*"
-#else
-#define lfname "log.0000000001"
-#endif
 #define COMMAND "grep -F -q"
     char lname[TOKU_PATH_MAX+1];
     toku_path_join(lname, 2, TOKU_TEST_FILENAME, lfname);

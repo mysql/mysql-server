@@ -29,7 +29,7 @@ COPYING CONDITIONS NOTICE:
 
 COPYRIGHT NOTICE:
 
-  TokuDB, Tokutek Fractal Tree Indexing Library.
+  TokuFT, Tokutek Fractal Tree Indexing Library.
   Copyright (C) 2007-2013 Tokutek, Inc.
 
 DISCLAIMER:
@@ -152,11 +152,7 @@ test_logmax (int logmax) {
     int effective_max;
     if (logmax>0) effective_max = logmax;
     else {
-#ifdef TOKUDB
 	effective_max = 100<<20;
-#else
-	effective_max = 10<<20;
-#endif
     }
 
     r=env->txn_begin(env, 0, &tid, 0); CKERR(r);

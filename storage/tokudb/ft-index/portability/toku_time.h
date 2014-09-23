@@ -29,7 +29,7 @@ COPYING CONDITIONS NOTICE:
 
 COPYRIGHT NOTICE:
 
-  TokuDB, Tokutek Fractal Tree Indexing Library.
+  TokuFT, Tokutek Fractal Tree Indexing Library.
   Copyright (C) 2007-2013 Tokutek, Inc.
 
 DISCLAIMER:
@@ -86,16 +86,15 @@ PATENT RIGHTS GRANT:
   under this License.
 */
 
+#pragma once
+
 #ident "Copyright (c) 2007-2013 Tokutek Inc.  All rights reserved."
 
-#ifndef TOKU_TIME_H
-#define TOKU_TIME_H
-
 #include "toku_config.h"
+
 #include <time.h>
 #include <sys/time.h>
 #include <stdint.h>
-
 
 static inline float toku_tdiff (struct timeval *a, struct timeval *b) {
     return (float)((a->tv_sec - b->tv_sec) + 1e-6 * (a->tv_usec - b->tv_usec));
@@ -161,5 +160,3 @@ static inline uint64_t toku_current_time_microsec(void) {
     gettimeofday(&t, NULL);
     return t.tv_sec * (1UL * 1000 * 1000) + t.tv_usec;
 }
-
-#endif

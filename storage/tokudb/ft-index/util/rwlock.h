@@ -1,7 +1,5 @@
 /* -*- mode: C++; c-basic-offset: 4; indent-tabs-mode: nil -*- */
 // vim: ft=cpp:expandtab:ts=8:sw=4:softtabstop=4:
-#ifndef UTIL_RWLOCK_H
-#define UTIL_RWLOCK_H
 #ident "$Id$"
 /*
 COPYING CONDITIONS NOTICE:
@@ -31,7 +29,7 @@ COPYING CONDITIONS NOTICE:
 
 COPYRIGHT NOTICE:
 
-  TokuDB, Tokutek Fractal Tree Indexing Library.
+  TokuFT, Tokutek Fractal Tree Indexing Library.
   Copyright (C) 2007-2013 Tokutek, Inc.
 
 DISCLAIMER:
@@ -88,6 +86,8 @@ PATENT RIGHTS GRANT:
   under this License.
 */
 
+#pragma once
+
 #ident "Copyright (c) 2007-2013 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
@@ -99,7 +99,7 @@ PATENT RIGHTS GRANT:
  *     Overview
  *****************************************
  *
- * TokuDB employs readers/writers locks for the ephemeral locks (e.g.,
+ * TokuFT employs readers/writers locks for the ephemeral locks (e.g.,
  * on FT nodes) Why not just use the toku_pthread_rwlock API?
  *
  *   1) we need multiprocess rwlocks (not just multithreaded)
@@ -353,4 +353,3 @@ static inline void rwlock_wait_for_users(
     toku_cond_destroy(&cond);
 }
 
-#endif // UTIL_RWLOCK_H

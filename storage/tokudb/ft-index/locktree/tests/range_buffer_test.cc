@@ -29,7 +29,7 @@ COPYING CONDITIONS NOTICE:
 
 COPYRIGHT NOTICE:
 
-  TokuDB, Tokutek Fractal Tree Indexing Library.
+  TokuFT, Tokutek Fractal Tree Indexing Library.
   Copyright (C) 2007-2013 Tokutek, Inc.
 
 DISCLAIMER:
@@ -93,7 +93,7 @@ PATENT RIGHTS GRANT:
 
 #include <string.h>
 
-#include <toku_include/memory.h>
+#include <portability/memory.h>
 
 #include <locktree/range_buffer.h>
 
@@ -121,9 +121,8 @@ static void test_points(void) {
     }
 
     size_t i = 0;
-    range_buffer::iterator iter;
+    range_buffer::iterator iter(&buffer);
     range_buffer::iterator::record rec;
-    iter.create(&buffer);
     while (iter.current(&rec)) {
         const DBT *expected_point = get_dbt_by_iteration(i);
         invariant(compare_dbts(nullptr, expected_point, rec.get_left_key()) == 0);
@@ -151,9 +150,8 @@ static void test_ranges(void) {
     }
 
     size_t i = 0;
-    range_buffer::iterator iter;
+    range_buffer::iterator iter(&buffer);
     range_buffer::iterator::record rec;
-    iter.create(&buffer);
     while (iter.current(&rec)) {
         const DBT *expected_left = get_dbt_by_iteration(i);
         const DBT *expected_right = get_dbt_by_iteration(i + 1);
@@ -187,9 +185,8 @@ static void test_mixed(void) {
     }
 
     size_t i = 0;
-    range_buffer::iterator iter;
+    range_buffer::iterator iter(&buffer);
     range_buffer::iterator::record rec;
-    iter.create(&buffer);
     while (iter.current(&rec)) {
         const DBT *expected_left = get_dbt_by_iteration(i);
         const DBT *expected_right = get_dbt_by_iteration(i + 1);
@@ -232,10 +229,10 @@ static void test_small_and_large_points(void) {
 
     // Append a small dbt, the buf should be able to fit it.
     buffer.append(&small_dbt, &small_dbt);
-    invariant(buffer.m_buf_size >= small_dbt.size);
+    invariant(buffer.total_memory_size() >= small_dbt.size);
     // Append a large dbt, the buf should be able to fit it.
     buffer.append(&large_dbt, &large_dbt);
-    invariant(buffer.m_buf_size >= (small_dbt.size + large_dbt.size));
+    invariant(buffer.total_memory_size() >= (small_dbt.size + large_dbt.size));
 
     toku_free(small_buf);
     toku_free(large_buf);

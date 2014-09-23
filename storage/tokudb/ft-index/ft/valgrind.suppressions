@@ -281,3 +281,16 @@
    fun:_dl_start
    obj:/lib/x86_64-linux-gnu/ld-2.17.so
 }
+{
+    <ld_is_not_clean_on_arch_linux_june_2014>
+    Memcheck:Leak
+    match-leak-kinds: reachable
+    fun:calloc
+    obj:/usr/lib/libdl-2.19.so
+    fun:dlsym
+    fun:_Z19toku_memory_startupv
+    fun:call_init.part.0
+    fun:_dl_init
+    obj:/usr/lib/ld-2.19.so
+}
+

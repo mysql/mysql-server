@@ -29,7 +29,7 @@ COPYING CONDITIONS NOTICE:
 
 COPYRIGHT NOTICE:
 
-  TokuDB, Tokutek Fractal Tree Indexing Library.
+  TokuFT, Tokutek Fractal Tree Indexing Library.
   Copyright (C) 2007-2013 Tokutek, Inc.
 
 DISCLAIMER:
@@ -91,16 +91,15 @@ PATENT RIGHTS GRANT:
 // test the LE_CURSOR next function
 
 
-#include "checkpoint.h"
+#include "cachetable/checkpoint.h"
 #include "le-cursor.h"
 #include "test.h"
 #include <unistd.h>
 
 static TOKUTXN const null_txn = 0;
-static DB * const null_db = 0;
 
 static int
-get_next_callback(ITEMLEN keylen, bytevec key, ITEMLEN vallen UU(), bytevec val UU(), void *extra, bool lock_only) {
+get_next_callback(uint32_t keylen, const void *key, uint32_t vallen UU(), const void *val UU(), void *extra, bool lock_only) {
     DBT *CAST_FROM_VOIDP(key_dbt, extra);
     if (!lock_only) {
         toku_dbt_set(keylen, key, key_dbt, NULL);
@@ -139,8 +138,8 @@ create_populate_tree(const char *logdir, const char *fname, int n) {
     error = toku_txn_begin_txn(NULL, NULL, &txn, logger, TXN_SNAPSHOT_NONE, false);
     assert(error == 0);
 
-    FT_HANDLE brt = NULL;
-    error = toku_open_ft_handle(fname, 1, &brt, 1<<12, 1<<9, TOKU_DEFAULT_COMPRESSION_METHOD, ct, txn, test_ft_cursor_keycompare);
+    FT_HANDLE ft = NULL;
+    error = toku_open_ft_handle(fname, 1, &ft, 1<<12, 1<<9, TOKU_DEFAULT_COMPRESSION_METHOD, ct, txn, test_ft_cursor_keycompare);
     assert(error == 0);
 
     error = toku_txn_commit_txn(txn, true, NULL, NULL);
@@ -159,14 +158,14 @@ create_populate_tree(const char *logdir, const char *fname, int n) {
         toku_fill_dbt(&key, &k, sizeof k);
         DBT val;
         toku_fill_dbt(&val, &v, sizeof v);
-        toku_ft_insert(brt, &key, &val, txn);
+        toku_ft_insert(ft, &key, &val, txn);
     }
 
     error = toku_txn_commit_txn(txn, true, NULL, NULL);
     assert(error == 0);
     toku_txn_close_txn(txn);
 
-    error = toku_close_ft_handle_nolsn(brt, NULL);
+    error = toku_close_ft_handle_nolsn(ft, NULL);
     assert(error == 0);
 
     CHECKPOINTER cp = toku_cachetable_get_checkpointer(ct);
@@ -192,14 +191,14 @@ walk_tree(const char *fname, int n) {
     int error;
 
     CACHETABLE ct = NULL;
-    toku_cachetable_create(&ct, 0, ZERO_LSN, NULL_LOGGER);
+    toku_cachetable_create(&ct, 0, ZERO_LSN, nullptr);
 
-    FT_HANDLE brt = NULL;
-    error = toku_open_ft_handle(fname, 1, &brt, 1<<12, 1<<9, TOKU_DEFAULT_COMPRESSION_METHOD, ct, null_txn, test_ft_cursor_keycompare);
+    FT_HANDLE ft = NULL;
+    error = toku_open_ft_handle(fname, 1, &ft, 1<<12, 1<<9, TOKU_DEFAULT_COMPRESSION_METHOD, ct, null_txn, test_ft_cursor_keycompare);
     assert(error == 0);
 
     LE_CURSOR cursor = NULL;
-    error = toku_le_cursor_create(&cursor, brt, NULL);
+    error = toku_le_cursor_create(&cursor, ft, NULL);
     assert(error == 0);
 
     DBT key;
@@ -224,7 +223,7 @@ walk_tree(const char *fname, int n) {
 
     toku_le_cursor_close(cursor);
 
-    error = toku_close_ft_handle_nolsn(brt, 0);
+    error = toku_close_ft_handle_nolsn(ft, 0);
     assert(error == 0);
 
     toku_cachetable_close(&ct);

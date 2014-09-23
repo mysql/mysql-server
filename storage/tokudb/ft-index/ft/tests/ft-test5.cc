@@ -29,7 +29,7 @@ COPYING CONDITIONS NOTICE:
 
 COPYRIGHT NOTICE:
 
-  TokuDB, Tokutek Fractal Tree Indexing Library.
+  TokuFT, Tokutek Fractal Tree Indexing Library.
   Copyright (C) 2007-2013 Tokutek, Inc.
 
 DISCLAIMER:
@@ -92,7 +92,6 @@ PATENT RIGHTS GRANT:
 #include "test.h"
 
 static TOKUTXN const null_txn = 0;
-static DB * const null_db = 0;
 
 static void test5 (void) {
     int r;
@@ -106,7 +105,7 @@ static void test5 (void) {
     MALLOC_N(limit,values);
     for (i=0; i<limit; i++) values[i]=-1;
     unlink(fname);
-    toku_cachetable_create(&ct, 0, ZERO_LSN, NULL_LOGGER);
+    toku_cachetable_create(&ct, 0, ZERO_LSN, nullptr);
     r = toku_open_ft_handle(fname, 1, &t, 1<<12, 1<<9, TOKU_DEFAULT_COMPRESSION_METHOD, ct, null_txn, toku_builtin_compare_fun);   assert(r==0);
     for (i=0; i<limit/2; i++) {
 	char key[100],val[100];
@@ -128,7 +127,7 @@ static void test5 (void) {
 	    if (i%1000==0 && verbose) { printf("r"); fflush(stdout); }
 	    snprintf(key, 100, "key%d", rk);
 	    snprintf(valexpected, 100, "val%d", values[rk]);
-	    struct check_pair pair = {(ITEMLEN) (1+strlen(key)), key, (ITEMLEN) (1+strlen(valexpected)), valexpected, 0};
+	    struct check_pair pair = {(uint32_t) (1+strlen(key)), key, (uint32_t) (1+strlen(valexpected)), valexpected, 0};
 	    r = toku_ft_lookup(t, toku_fill_dbt(&k, key, 1+strlen(key)), lookup_checkf, &pair);
 	    assert(r==0);
 	    assert(pair.call_count==1);

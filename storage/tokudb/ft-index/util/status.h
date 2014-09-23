@@ -29,7 +29,7 @@ COPYING CONDITIONS NOTICE:
 
 COPYRIGHT NOTICE:
 
-  TokuDB, Tokutek Fractal Tree Indexing Library.
+  TokuFT, Tokutek Fractal Tree Indexing Library.
   Copyright (C) 2007-2013 Tokutek, Inc.
 
 DISCLAIMER:
@@ -90,10 +90,11 @@ PATENT RIGHTS GRANT:
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
 #pragma once
+
 #include <util/partitioned_counter.h>
 #include <util/constexpr.h>
 
-#define TOKUDB_STATUS_INIT(array,k,c,t,l,inc) do { \
+#define TOKUFT_STATUS_INIT(array,k,c,t,l,inc) do {   \
     array.status[k].keyname = #k;                    \
     array.status[k].columnname = #c;                 \
     array.status[k].type    = t;                     \
@@ -104,7 +105,7 @@ PATENT RIGHTS GRANT:
     constexpr_static_assert((inc) == TOKU_ENGINE_STATUS                      \
             || strcmp(#c, "nullptr"), "Missing column name.");               \
     constexpr_static_assert(static_strncasecmp(#c, "TOKU", strlen("TOKU")),  \
-                  "Do not start column names with toku/tokudb.  Names get TOKUDB_ prefix automatically."); \
+                  "Do not start column names with toku."); \
     array.status[k].include = static_cast<toku_engine_status_include_type>(inc);  \
     if (t == PARCOUNT) {                                               \
         array.status[k].value.parcount = create_partitioned_counter(); \

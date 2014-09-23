@@ -28,7 +28,7 @@ COPYING CONDITIONS NOTICE:
 
 COPYRIGHT NOTICE:
 
-  TokuDB, Tokutek Fractal Tree Indexing Library.
+  TokuFT, Tokutek Fractal Tree Indexing Library.
   Copyright (C) 2007-2013 Tokutek, Inc.
 
 DISCLAIMER:
@@ -89,10 +89,9 @@ PATENT RIGHTS GRANT:
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 #ident "$Id$"
 
-#ifndef TOKU_INDEXER_INTERNAL_H
-#define TOKU_INDEXER_INTERNAL_H
+#pragma once
 
-#include <ft/txn_state.h>
+#include <ft/txn/txn_state.h>
 #include <toku_pthread.h>
 
 // the indexer_commit_keys is an ordered set of keys described by a DBT in the keys array.
@@ -168,5 +167,3 @@ void indexer_undo_do_init(DB_INDEXER *indexer);
 void indexer_undo_do_destroy(DB_INDEXER *indexer);
 
 int indexer_undo_do(DB_INDEXER *indexer, DB *hotdb, struct ule_prov_info *prov_info, DBT_ARRAY *hot_keys, DBT_ARRAY *hot_vals);
-
-#endif

@@ -29,7 +29,7 @@ COPYING CONDITIONS NOTICE:
 
 COPYRIGHT NOTICE:
 
-  TokuDB, Tokutek Fractal Tree Indexing Library.
+  TokuFT, Tokutek Fractal Tree Indexing Library.
   Copyright (C) 2007-2013 Tokutek, Inc.
 
 DISCLAIMER:
@@ -106,7 +106,7 @@ test_cursor (void) {
     DB_ENV * env;
     DB *db;
     DB_TXN * const null_txn = 0;
-    const char * const fname = "test.cursor.brt";
+    const char * const fname = "test.cursor.ft";
     int r;
 
     /* create the dup database file */

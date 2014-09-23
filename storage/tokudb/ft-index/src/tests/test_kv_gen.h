@@ -2,10 +2,6 @@
 // vim: ft=cpp:expandtab:ts=8:sw=4:softtabstop=4:
 #ident "$Id$"
 
-#ifndef __TEST_KV_GEN_H
-#define __TEST_KV_GEN_H
-
-
 /*
 COPYING CONDITIONS NOTICE:
 
@@ -34,7 +30,7 @@ COPYING CONDITIONS NOTICE:
 
 COPYRIGHT NOTICE:
 
-  TokuDB, Tokutek Fractal Tree Indexing Library.
+  TokuFT, Tokutek Fractal Tree Indexing Library.
   Copyright (C) 2007-2013 Tokutek, Inc.
 
 DISCLAIMER:
@@ -90,6 +86,8 @@ PATENT RIGHTS GRANT:
   CHALLENGE, then Tokutek may terminate any rights granted to you
   under this License.
 */
+
+#pragma once
 
 #ident "Copyright (c) 2007-2013 Tokutek Inc.  All rights reserved."
 
@@ -279,6 +277,3 @@ put_multiple_generate(DB *dest_db, DB *src_db, DBT *dest_key, DBT *dest_val, con
     }
     return 0;
 }
-
-
-#endif // __TEST_KV_GEN_H

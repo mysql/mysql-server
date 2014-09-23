@@ -29,7 +29,7 @@ COPYING CONDITIONS NOTICE:
 
 COPYRIGHT NOTICE:
 
-  TokuDB, Tokutek Fractal Tree Indexing Library.
+  TokuFT, Tokutek Fractal Tree Indexing Library.
   Copyright (C) 2007-2013 Tokutek, Inc.
 
 DISCLAIMER:
@@ -90,7 +90,7 @@ PATENT RIGHTS GRANT:
 
 // it used to be the case that we copied the left and right keys of a
 // range to be prelocked but never freed them, this test checks that they
-// are freed (as of this time, this happens in destroy_bfe_for_prefetch)
+// are freed (as of this time, this happens in ftnode_fetch_extra::destroy())
 
 #include "test.h"
 
@@ -99,7 +99,6 @@ PATENT RIGHTS GRANT:
 static const char *fname = TOKU_TEST_FILENAME;
 
 static TOKUTXN const null_txn = 0;
-static DB * const null_db = 0;
 static int const nodesize = 1<<12, basementnodesize = 1<<9;
 static const enum toku_compression_method compression_method = TOKU_DEFAULT_COMPRESSION_METHOD;
 static int const count = 1000;
@@ -111,7 +110,7 @@ string_cmp(DB* UU(db), const DBT *a, const DBT *b)
 }
 
 static int
-found(ITEMLEN UU(keylen), bytevec key, ITEMLEN UU(vallen), bytevec UU(val), void *UU(extra), bool lock_only)
+found(uint32_t UU(keylen), const void *key, uint32_t UU(vallen), const void *UU(val), void *UU(extra), bool lock_only)
 {
     assert(key != NULL && !lock_only);
     return 0;
@@ -123,7 +122,7 @@ test_main (int argc __attribute__((__unused__)), const char *argv[] __attribute_
     CACHETABLE ct;
     FT_HANDLE t;
 
-    toku_cachetable_create(&ct, 0, ZERO_LSN, NULL_LOGGER);
+    toku_cachetable_create(&ct, 0, ZERO_LSN, nullptr);
     unlink(fname);
     int r = toku_open_ft_handle(fname, 1, &t, nodesize, basementnodesize, compression_method, ct, null_txn, string_cmp); assert(r==0);
 
@@ -137,7 +136,7 @@ test_main (int argc __attribute__((__unused__)), const char *argv[] __attribute_
     r = toku_close_ft_handle_nolsn(t, 0); assert(r == 0);
     toku_cachetable_close(&ct);
 
-    toku_cachetable_create(&ct, 0, ZERO_LSN, NULL_LOGGER);
+    toku_cachetable_create(&ct, 0, ZERO_LSN, nullptr);
     r = toku_open_ft_handle(fname, 1, &t, nodesize, basementnodesize, compression_method, ct, null_txn, string_cmp); assert(r == 0);
 
     for (int n = 0; n < count/100; ++n) {

@@ -29,7 +29,7 @@ COPYING CONDITIONS NOTICE:
 
 COPYRIGHT NOTICE:
 
-  TokuDB, Tokutek Fractal Tree Indexing Library.
+  TokuFT, Tokutek Fractal Tree Indexing Library.
   Copyright (C) 2007-2013 Tokutek, Inc.
 
 DISCLAIMER:
@@ -89,7 +89,7 @@ PATENT RIGHTS GRANT:
 #ident "Copyright (c) 2007-2013 Tokutek Inc.  All rights reserved."
 #include "test.h"
 
-/* Simple test of logging.  Can I start a TokuDB with logging enabled? */
+/* Simple test of logging.  Can I start TokuFT with logging enabled? */
 
 #include <stdlib.h>
 #include <sys/stat.h>

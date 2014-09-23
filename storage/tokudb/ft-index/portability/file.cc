@@ -29,7 +29,7 @@ COPYING CONDITIONS NOTICE:
 
 COPYRIGHT NOTICE:
 
-  TokuDB, Tokutek Fractal Tree Indexing Library.
+  TokuFT, Tokutek Fractal Tree Indexing Library.
   Copyright (C) 2007-2013 Tokutek, Inc.
 
 DISCLAIMER:
@@ -166,10 +166,10 @@ try_again_after_handling_write_error(int fd, size_t len, ssize_t r_write) {
                 ssize_t n = readlink(fname, symname, MY_MAX_PATH);
 
                 if ((int)n == -1)
-                    fprintf(stderr, "%.24s Tokudb No space when writing %" PRIu64 " bytes to fd=%d ", tstr, (uint64_t) len, fd);
+                    fprintf(stderr, "%.24s TokuFT No space when writing %" PRIu64 " bytes to fd=%d ", tstr, (uint64_t) len, fd);
                 else {
 		    tstr[n] = 0; // readlink doesn't append a NUL to the end of the buffer.
-                    fprintf(stderr, "%.24s Tokudb No space when writing %" PRIu64 " bytes to %*s ", tstr, (uint64_t) len, (int) n, symname);
+                    fprintf(stderr, "%.24s TokuFT No space when writing %" PRIu64 " bytes to %*s ", tstr, (uint64_t) len, (int) n, symname);
 		}
                 fprintf(stderr, "retry in %d second%s\n", toku_write_enospc_sleep, toku_write_enospc_sleep > 1 ? "s" : "");
                 fflush(stderr);

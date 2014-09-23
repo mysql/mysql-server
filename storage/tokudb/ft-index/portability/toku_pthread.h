@@ -30,7 +30,7 @@ COPYING CONDITIONS NOTICE:
 
 COPYRIGHT NOTICE:
 
-  TokuDB, Tokutek Fractal Tree Indexing Library.
+  TokuFT, Tokutek Fractal Tree Indexing Library.
   Copyright (C) 2007-2013 Tokutek, Inc.
 
 DISCLAIMER:
@@ -87,10 +87,9 @@ PATENT RIGHTS GRANT:
   under this License.
 */
 
-#ident "Copyright (c) 2007-2013 Tokutek Inc.  All rights reserved."
+#pragma once
 
-#ifndef TOKU_PTHREAD_H
-#define TOKU_PTHREAD_H
+#ident "Copyright (c) 2007-2013 Tokutek Inc.  All rights reserved."
 
 #include <pthread.h>
 #include <time.h>
@@ -422,5 +421,3 @@ static inline int
 toku_pthread_setspecific(toku_pthread_key_t key, void *data) {
     return pthread_setspecific(key, data);
 }
-
-#endif /* TOKU_PTHREAD_H */

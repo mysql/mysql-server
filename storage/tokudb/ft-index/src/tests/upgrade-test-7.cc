@@ -28,7 +28,7 @@ COPYING CONDITIONS NOTICE:
 
 COPYRIGHT NOTICE:
 
-  TokuDB, Tokutek Fractal Tree Indexing Library.
+  TokuFT, Tokutek Fractal Tree Indexing Library.
   Copyright (C) 2007-2013 Tokutek, Inc.
 
 DISCLAIMER:
@@ -89,8 +89,8 @@ PATENT RIGHTS GRANT:
 #ident "$Id$"
 
 
-// Purpose of this test is to verify that an environment created by TokuDB 3.1.0
-// is properly rejected by the upgrade logic of TokuDB 5.x and later.
+// Purpose of this test is to verify that an environment created by TokuFT 3.1.0
+// is properly rejected by the upgrade logic of TokuFT 5.x and later.
 
 #include "test.h"
 #include "toku_pthread.h"

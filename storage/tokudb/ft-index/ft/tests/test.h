@@ -29,7 +29,7 @@ COPYING CONDITIONS NOTICE:
 
 COPYRIGHT NOTICE:
 
-  TokuDB, Tokutek Fractal Tree Indexing Library.
+  TokuFT, Tokutek Fractal Tree Indexing Library.
   Copyright (C) 2007-2013 Tokutek, Inc.
 
 DISCLAIMER:
@@ -86,6 +86,8 @@ PATENT RIGHTS GRANT:
   under this License.
 */
 
+#pragma once
+
 #ident "Copyright (c) 2007-2013 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
@@ -99,15 +101,19 @@ PATENT RIGHTS GRANT:
 #include <string.h>
 #include <portability/toku_path.h>
 
-#include "ft.h"
-#include "key.h"
-#include "block_table.h"
-#include "log-internal.h"
-#include "logger.h"
-#include "fttypes.h"
-#include "ft-ops.h"
-#include "cachetable.h"
-#include "cachetable-internal.h"
+#include "ft/serialize/block_allocator.h"
+#include "ft/serialize/block_table.h"
+#include "ft/cachetable/cachetable.h"
+#include "ft/cachetable/cachetable-internal.h"
+#include "ft/cursor.h"
+#include "ft/ft.h"
+#include "ft/ft-ops.h"
+#include "ft/serialize/ft-serialize.h"
+#include "ft/serialize/ft_node-serialize.h"
+#include "ft/logger/log-internal.h"
+#include "ft/logger/logger.h"
+#include "ft/node.h"
+#include "util/bytestring.h"
 
 #define CKERR(r) ({ int __r = r; if (__r!=0) fprintf(stderr, "%s:%d error %d %s\n", __FILE__, __LINE__, __r, strerror(r)); assert(__r==0); })
 #define CKERR2(r,r2) do { if (r!=r2) fprintf(stderr, "%s:%d error %d %s, expected %d\n", __FILE__, __LINE__, r, strerror(r), r2); assert(r==r2); } while (0)
@@ -118,14 +124,16 @@ PATENT RIGHTS GRANT:
     fflush(stderr); \
 } while (0)
 
-const ITEMLEN len_ignore = 0xFFFFFFFF;
+const uint32_t len_ignore = 0xFFFFFFFF;
 
+static const prepared_txn_callback_t NULL_prepared_txn_callback         __attribute__((__unused__)) = NULL;
+static const keep_cachetable_callback_t  NULL_keep_cachetable_callback  __attribute__((__unused__)) = NULL;
+static const TOKULOGGER NULL_logger                                     __attribute__((__unused__)) = NULL;
 
-// dummymsn needed to simulate msn because test messages are injected at a lower level than toku_ft_root_put_cmd()
+// dummymsn needed to simulate msn because test messages are injected at a lower level than toku_ft_root_put_msg()
 #define MIN_DUMMYMSN ((MSN) {(uint64_t)1<<62})
 static MSN dummymsn;      
 static int dummymsn_initialized = 0;
-
 
 static void
 initialize_dummymsn(void) {
@@ -150,14 +158,14 @@ last_dummymsn(void) {
 
 
 struct check_pair {
-    ITEMLEN keylen;  // A keylen equal to 0xFFFFFFFF means don't check the keylen or the key.
-    bytevec key;     // A NULL key means don't check the key.
-    ITEMLEN vallen;  // Similarly for vallen and null val.
-    bytevec val;
+    uint32_t keylen;  // A keylen equal to 0xFFFFFFFF means don't check the keylen or the key.
+    const void *key;     // A NULL key means don't check the key.
+    uint32_t vallen;  // Similarly for vallen and null val.
+    const void *val;
     int call_count;
 };
 static int
-lookup_checkf (ITEMLEN keylen, bytevec key, ITEMLEN vallen, bytevec val, void *pair_v, bool lock_only) {
+lookup_checkf (uint32_t keylen, const void *key, uint32_t vallen, const void *val, void *pair_v, bool lock_only) {
     if (!lock_only) {
         struct check_pair *pair = (struct check_pair *) pair_v;
         if (key!=NULL) {
@@ -182,8 +190,8 @@ ft_lookup_and_check_nodup (FT_HANDLE t, const char *keystring, const char *valst
 {
     DBT k;
     toku_fill_dbt(&k, keystring, strlen(keystring) + 1);
-    struct check_pair pair = {(ITEMLEN) (1+strlen(keystring)), keystring,
-                              (ITEMLEN) (1+strlen(valstring)), valstring,
+    struct check_pair pair = {(uint32_t) (1+strlen(keystring)), keystring,
+                              (uint32_t) (1+strlen(valstring)), valstring,
 			      0};
     int r = toku_ft_lookup(t, &k, lookup_checkf, &pair);
     assert(r==0);
@@ -195,7 +203,7 @@ ft_lookup_and_fail_nodup (FT_HANDLE t, char *keystring)
 {
     DBT k;
     toku_fill_dbt(&k, keystring, strlen(keystring) + 1);
-    struct check_pair pair = {(ITEMLEN) (1+strlen(keystring)), keystring,
+    struct check_pair pair = {(uint32_t) (1+strlen(keystring)), keystring,
 			      0, 0,
 			      0};
     int r = toku_ft_lookup(t, &k, lookup_checkf, &pair);
@@ -392,4 +400,3 @@ main(int argc, const char *argv[]) {
     toku_ft_layer_destroy();
     return r;
 }
-

@@ -28,7 +28,7 @@ COPYING CONDITIONS NOTICE:
 
 COPYRIGHT NOTICE:
 
-  TokuDB, Tokutek Fractal Tree Indexing Library.
+  TokuFT, Tokutek Fractal Tree Indexing Library.
   Copyright (C) 2007-2013 Tokutek, Inc.
 
 DISCLAIMER:
@@ -137,18 +137,18 @@ static void db_txn_note_row_lock(DB *db, DB_TXN *txn, const DBT *left_key, const
         map->insert_at(ranges, idx);
 
         // let the manager know we're referencing this lt
-        toku::locktree::manager *ltm = &txn->mgrp->i->ltm;
+        toku::locktree_manager *ltm = &txn->mgrp->i->ltm;
         ltm->reference_lt(ranges.lt);
     } else {
         invariant_zero(r);
     }
 
     // add a new lock range to this txn's row lock buffer
-    size_t old_num_bytes = ranges.buffer->get_num_bytes();
+    size_t old_mem_size = ranges.buffer->total_memory_size();
     ranges.buffer->append(left_key, right_key);
-    size_t new_num_bytes = ranges.buffer->get_num_bytes();
-    invariant(new_num_bytes > old_num_bytes);
-    lt->get_mem_tracker()->note_mem_used(new_num_bytes - old_num_bytes);
+    size_t new_mem_size = ranges.buffer->total_memory_size();
+    invariant(new_mem_size > old_mem_size);
+    lt->get_manager()->note_mem_used(new_mem_size - old_mem_size);
 
     toku_mutex_unlock(&db_txn_struct_i(txn)->txn_mutex);
 }
@@ -201,17 +201,16 @@ void toku_db_txn_escalate_callback(TXNID txnid, const toku::locktree *lt, const 
             //
             // We could theoretically steal the memory from the caller instead of copying
             // it, but it's simpler to have a callback API that doesn't transfer memory ownership.
-            lt->get_mem_tracker()->note_mem_released(ranges.buffer->get_num_bytes());
+            lt->get_manager()->note_mem_released(ranges.buffer->total_memory_size());
             ranges.buffer->destroy();
             ranges.buffer->create();
-            toku::range_buffer::iterator iter;
+            toku::range_buffer::iterator iter(&buffer);
             toku::range_buffer::iterator::record rec;
-            iter.create(&buffer);
             while (iter.current(&rec)) {
                 ranges.buffer->append(rec.get_left_key(), rec.get_right_key());
                 iter.next();
             }
-            lt->get_mem_tracker()->note_mem_used(ranges.buffer->get_num_bytes());
+            lt->get_manager()->note_mem_used(ranges.buffer->total_memory_size());
         } else {
             // In rare cases, we may not find the associated locktree, because we are
             // racing with the transaction trying to add this locktree to the lt map
@@ -315,7 +314,7 @@ void toku_db_release_lt_key_ranges(DB_TXN *txn, txn_lt_key_ranges *ranges) {
     // release all of the locks this txn has ever successfully
     // acquired and stored in the range buffer for this locktree
     lt->release_locks(txnid, ranges->buffer);
-    lt->get_mem_tracker()->note_mem_released(ranges->buffer->get_num_bytes());
+    lt->get_manager()->note_mem_released(ranges->buffer->total_memory_size());
     ranges->buffer->destroy();
     toku_free(ranges->buffer);
 
@@ -324,6 +323,6 @@ void toku_db_release_lt_key_ranges(DB_TXN *txn, txn_lt_key_ranges *ranges) {
     toku::lock_request::retry_all_lock_requests(lt);
 
     // Release our reference on this locktree
-    toku::locktree::manager *ltm = &txn->mgrp->i->ltm;
+    toku::locktree_manager *ltm = &txn->mgrp->i->ltm;
     ltm->release_lt(lt);
 }

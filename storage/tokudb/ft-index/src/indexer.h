@@ -28,7 +28,7 @@ COPYING CONDITIONS NOTICE:
 
 COPYRIGHT NOTICE:
 
-  TokuDB, Tokutek Fractal Tree Indexing Library.
+  TokuFT, Tokutek Fractal Tree Indexing Library.
   Copyright (C) 2007-2013 Tokutek, Inc.
 
 DISCLAIMER:
@@ -89,9 +89,7 @@ PATENT RIGHTS GRANT:
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 #ident "$Id$"
 
-#ifndef TOKU_INDEXER_H
-#define TOKU_INDEXER_H
-
+#pragma once
 
 // locking and unlocking functions to synchronize cursor position with
 // XXX_multiple APIs
@@ -178,6 +176,3 @@ typedef struct {
 } INDEXER_STATUS_S, *INDEXER_STATUS;
 
 void toku_indexer_get_status(INDEXER_STATUS s);
-
-
-#endif // TOKU_INDEXER_H

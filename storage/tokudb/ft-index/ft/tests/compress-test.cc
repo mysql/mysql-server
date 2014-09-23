@@ -30,7 +30,7 @@ COPYING CONDITIONS NOTICE:
 
 COPYRIGHT NOTICE:
 
-  TokuDB, Tokutek Fractal Tree Indexing Library.
+  TokuFT, Tokutek Fractal Tree Indexing Library.
   Copyright (C) 2007-2013 Tokutek, Inc.
 
 DISCLAIMER:
@@ -91,7 +91,7 @@ PATENT RIGHTS GRANT:
 #ident "$Id$"
 
 #include "test.h"
-#include "compress.h"
+#include "serialize/compress.h"
 
 static void test_compress_buf_method (unsigned char *buf, int i, enum toku_compression_method m) {
     int bound = toku_compress_bound(m, i);

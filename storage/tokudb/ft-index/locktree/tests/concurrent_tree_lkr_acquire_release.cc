@@ -29,7 +29,7 @@ COPYING CONDITIONS NOTICE:
 
 COPYRIGHT NOTICE:
 
-  TokuDB, Tokutek Fractal Tree Indexing Library.
+  TokuFT, Tokutek Fractal Tree Indexing Library.
   Copyright (C) 2007-2013 Tokutek, Inc.
 
 DISCLAIMER:
@@ -126,19 +126,19 @@ void concurrent_tree_unit_test::test_lkr_acquire_release(void) {
 
             // if the subtree root does not overlap then one of its children
             // must exist and have an overlapping range.
-            if (!lkr.m_subtree->m_range.overlaps(&cmp, range)) {
+            if (!lkr.m_subtree->m_range.overlaps(cmp, range)) {
                 treenode *left = lkr.m_subtree->m_left_child.ptr;
                 treenode *right = lkr.m_subtree->m_right_child.ptr;
                 if (left != nullptr) {
                     // left exists, so if it does not overlap then the right must
-                    if (!left->m_range.overlaps(&cmp, range)) {
+                    if (!left->m_range.overlaps(cmp, range)) {
                         invariant_notnull(right);
-                        invariant(right->m_range.overlaps(&cmp, range));
+                        invariant(right->m_range.overlaps(cmp, range));
                     }
                 } else {
                     // no left child, so the right must exist and be overlapping
                     invariant_notnull(right);
-                    invariant(right->m_range.overlaps(&cmp, range));
+                    invariant(right->m_range.overlaps(cmp, range));
                 }
             }
 
@@ -160,6 +160,8 @@ void concurrent_tree_unit_test::test_lkr_acquire_release(void) {
         lkr.release();
         tree.destroy();
     }
+
+    cmp.destroy();
 }
 
 } /* namespace toku */

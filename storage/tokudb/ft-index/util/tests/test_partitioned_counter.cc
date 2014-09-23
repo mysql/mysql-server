@@ -29,7 +29,7 @@ COPYING CONDITIONS NOTICE:
 
 COPYRIGHT NOTICE:
 
-  TokuDB, Tokutek Fractal Tree Indexing Library.
+  TokuFT, Tokutek Fractal Tree Indexing Library.
   Copyright (C) 2007-2013 Tokutek, Inc.
 
 DISCLAIMER:
@@ -201,9 +201,6 @@ static inline void increment (void) {
 	    head->prev = cp;
 	}
         head = cp;
-#ifdef __INTEL_COMPILER
-        __memory_barrier(); // for some reason I don't understand, ICC needs a memory barrier here. -Bradley
-#endif
 	cp->counter = 0;
 	cp->inited = true;
 	cp->myid = idcounter++;

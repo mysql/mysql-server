@@ -29,7 +29,7 @@ COPYING CONDITIONS NOTICE:
 
 COPYRIGHT NOTICE:
 
-  TokuDB, Tokutek Fractal Tree Indexing Library.
+  TokuFT, Tokutek Fractal Tree Indexing Library.
   Copyright (C) 2007-2013 Tokutek, Inc.
 
 DISCLAIMER:
@@ -131,7 +131,7 @@ static void test_oldest_referenced_xid_gets_propogated(void) {
     FT_HANDLE t;
     BLOCKNUM grandchild_leaf_blocknum, child_nonleaf_blocknum, root_blocknum;
 
-    toku_cachetable_create(&ct, 500*1024*1024, ZERO_LSN, NULL_LOGGER);
+    toku_cachetable_create(&ct, 500*1024*1024, ZERO_LSN, nullptr);
     unlink("foo1.ft_handle");
     r = toku_open_ft_handle("foo1.ft_handle", 1, &t, NODESIZE, NODESIZE/2, TOKU_DEFAULT_COMPRESSION_METHOD, ct, nullptr, toku_builtin_compare_fun);
     assert(r==0);
@@ -167,17 +167,16 @@ static void test_oldest_referenced_xid_gets_propogated(void) {
 
     // first verify the child
     FTNODE node = NULL;
-    struct ftnode_fetch_extra bfe;
-    fill_bfe_for_min_read(&bfe, t->ft);
-    toku_pin_ftnode_off_client_thread(
+    ftnode_fetch_extra bfe;
+    bfe.create_for_min_read(t->ft);
+    toku_pin_ftnode(
         t->ft,
         child_nonleaf_blocknum,
         toku_cachetable_hash(t->ft->cf, child_nonleaf_blocknum),
         &bfe,
         PL_WRITE_EXPENSIVE,
-        0,
-        NULL,
-        &node
+        &node,
+        true
         );
     assert(node->height == 1);
     assert(node->n_children == 1);
@@ -186,15 +185,14 @@ static void test_oldest_referenced_xid_gets_propogated(void) {
     toku_unpin_ftnode(t->ft, node);
 
     // now verify the root - keep it pinned so we can flush it below
-    toku_pin_ftnode_off_client_thread(
+    toku_pin_ftnode(
         t->ft, 
         root_blocknum,
         toku_cachetable_hash(t->ft->cf, root_blocknum),
         &bfe,
         PL_WRITE_EXPENSIVE, 
-        0,
-        NULL,
-        &node
+        &node,
+        true
         );
     assert(node->height == 2);
     assert(node->n_children == 1);
@@ -222,15 +220,14 @@ static void test_oldest_referenced_xid_gets_propogated(void) {
 
     // pin the child, verify that oldest referenced xid was
     // propogated from parent to child during the flush
-    toku_pin_ftnode_off_client_thread(
+    toku_pin_ftnode(
         t->ft, 
         child_nonleaf_blocknum,
         toku_cachetable_hash(t->ft->cf, child_nonleaf_blocknum),
         &bfe,
         PL_WRITE_EXPENSIVE, 
-        0,
-        NULL,
-        &node
+        &node,
+        true
         );
     assert(node->oldest_referenced_xid_known == flush_xid);
 

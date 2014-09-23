@@ -29,7 +29,7 @@ COPYING CONDITIONS NOTICE:
 
 COPYRIGHT NOTICE:
 
-  TokuDB, Tokutek Fractal Tree Indexing Library.
+  TokuFT, Tokutek Fractal Tree Indexing Library.
   Copyright (C) 2007-2013 Tokutek, Inc.
 
 DISCLAIMER:
@@ -96,10 +96,9 @@ PATENT RIGHTS GRANT:
 #include <ft-cachetable-wrappers.h>
 #include "ft-flusher.h"
 #include "ft-flusher-internal.h"
-#include "checkpoint.h"
+#include "cachetable/checkpoint.h"
 
 static TOKUTXN const null_txn = 0;
-static DB * const null_db = 0;
 
 enum { NODESIZE = 1024, KSIZE=NODESIZE-100, TOKU_PSIZE=20 };
 
@@ -175,7 +174,7 @@ doit (int state) {
 
     toku_flusher_thread_set_callback(flusher_callback, &state);
     
-    toku_cachetable_create(&ct, 500*1024*1024, ZERO_LSN, NULL_LOGGER);
+    toku_cachetable_create(&ct, 500*1024*1024, ZERO_LSN, nullptr);
     unlink("foo3.ft_handle");
     unlink("bar3.ft_handle");
     // note the basement node size is 5 times the node size
@@ -266,17 +265,16 @@ doit (int state) {
     toku_unpin_ftnode(t->ft, node);
 
     
-    struct ftnode_fetch_extra bfe;
-    fill_bfe_for_min_read(&bfe, t->ft);
-    toku_pin_ftnode_off_client_thread(
+    ftnode_fetch_extra bfe;
+    bfe.create_for_min_read(t->ft);
+    toku_pin_ftnode(
         t->ft, 
         node_root,
         toku_cachetable_hash(t->ft->cf, node_root),
         &bfe,
         PL_WRITE_EXPENSIVE, 
-        0,
-        NULL,
-        &node
+        &node,
+        true
         );
     assert(node->height == 1);
     assert(node->n_children == 2);
@@ -286,15 +284,14 @@ doit (int state) {
     assert(checkpoint_callback_called);
 
     // now let's pin the root again and make sure it is has rebalanced
-    toku_pin_ftnode_off_client_thread(
+    toku_pin_ftnode(
         t->ft, 
         node_root,
         toku_cachetable_hash(t->ft->cf, node_root),
         &bfe,
         PL_WRITE_EXPENSIVE, 
-        0,
-        NULL,
-        &node
+        &node,
+        true
         );
     assert(node->height == 1);
     assert(node->n_children == 2);
@@ -324,16 +321,15 @@ doit (int state) {
     //
     // now pin the root, verify that the state is what we expect
     //
-    fill_bfe_for_full_read(&bfe, c_ft->ft);
-    toku_pin_ftnode_off_client_thread(
+    bfe.create_for_full_read(c_ft->ft);
+    toku_pin_ftnode(
         c_ft->ft, 
         node_root,
         toku_cachetable_hash(c_ft->ft->cf, node_root),
         &bfe,
         PL_WRITE_EXPENSIVE, 
-        0,
-        NULL,
-        &node
+        &node,
+        true
         );
     assert(node->height == 1);
     assert(!node->dirty);
@@ -343,41 +339,38 @@ doit (int state) {
     left_child = BP_BLOCKNUM(node,0);
     right_child = BP_BLOCKNUM(node,1);
 
-    toku_unpin_ftnode_off_client_thread(c_ft->ft, node);
+    toku_unpin_ftnode(c_ft->ft, node);
 
     // now let's verify the leaves are what we expect
-    toku_pin_ftnode_off_client_thread(
+    toku_pin_ftnode(
         c_ft->ft, 
         left_child,
         toku_cachetable_hash(c_ft->ft->cf, left_child),
         &bfe,
         PL_WRITE_EXPENSIVE, 
-        0,
-        NULL,
-        &node
+        &node,
+        true
         );
     assert(node->height == 0);
     assert(!node->dirty);
     assert(node->n_children == 1);
-    assert(BLB_DATA(node, 0)->omt_size() == 2);
-    toku_unpin_ftnode_off_client_thread(c_ft->ft, node);
+    assert(BLB_DATA(node, 0)->num_klpairs() == 2);
+    toku_unpin_ftnode(c_ft->ft, node);
     
-    toku_pin_ftnode_off_client_thread(
+    toku_pin_ftnode(
         c_ft->ft, 
         right_child,
         toku_cachetable_hash(c_ft->ft->cf, right_child),
         &bfe,
         PL_WRITE_EXPENSIVE, 
-        0,
-        NULL,
-        &node
+        &node,
+        true
         );
     assert(node->height == 0);
     assert(!node->dirty);
     assert(node->n_children == 1);
-    assert(BLB_DATA(node, 0)->omt_size() == 2);
-    toku_unpin_ftnode_off_client_thread(c_ft->ft, node);
-
+    assert(BLB_DATA(node, 0)->num_klpairs() == 2);
+    toku_unpin_ftnode(c_ft->ft, node);
 
     DBT k;
     struct check_pair pair1 = {2, "a", 0, NULL, 0};

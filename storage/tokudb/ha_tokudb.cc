@@ -136,8 +136,8 @@ static inline uint get_key_parts(const KEY *key);
 #include "tokudb_buffer.h"
 #include "tokudb_status.h"
 #include "tokudb_card.h"
-#include "hatoku_hton.h"
 #include "ha_tokudb.h"
+#include "hatoku_hton.h"
 #include <mysql/plugin.h>
 
 static const char *ha_tokudb_exts[] = {
@@ -1249,6 +1249,7 @@ ha_tokudb::ha_tokudb(handlerton * hton, TABLE_SHARE * table_arg):handler(hton, t
     tokudb_active_index = MAX_KEY;
     invalidate_icp();
     trx_handler_list.data = this;
+    in_rpl_write_rows = in_rpl_delete_rows = in_rpl_update_rows = false;
     TOKUDB_HANDLER_DBUG_VOID_RETURN;
 }
 
@@ -3561,12 +3562,27 @@ cleanup:
     return error;
 }
 
+static void maybe_do_unique_checks_delay(THD *thd) {
+    if (thd->slave_thread) {
+        uint64_t delay_ms = THDVAR(thd, rpl_unique_checks_delay);
+        if (delay_ms)
+            usleep(delay_ms * 1000);
+    }
+}
+
+static bool do_unique_checks(THD *thd, bool do_rpl_event) {
+    if (do_rpl_event && thd->slave_thread && opt_readonly && !THDVAR(thd, rpl_unique_checks))
+        return false;
+    else
+        return !thd_test_options(thd, OPTION_RELAXED_UNIQUE_CHECKS);
+}
+
 int ha_tokudb::do_uniqueness_checks(uchar* record, DB_TXN* txn, THD* thd) {
-    int error;
+    int error = 0;
     //
     // first do uniqueness checks
     //
-    if (share->has_unique_keys && !thd_test_options(thd, OPTION_RELAXED_UNIQUE_CHECKS)) {
+    if (share->has_unique_keys && do_unique_checks(thd, in_rpl_write_rows)) {
         for (uint keynr = 0; keynr < table_share->keys; keynr++) {
             bool is_unique_key = (table->key_info[keynr].flags & HA_NOSAME) || (keynr == primary_key);
             bool is_unique = false;
@@ -3579,13 +3595,18 @@ int ha_tokudb::do_uniqueness_checks(uchar* record, DB_TXN* txn, THD* thd) {
             if (!is_unique_key) {
                 continue;
             }
+
+            maybe_do_unique_checks_delay(thd);
+
             //
             // if unique key, check uniqueness constraint
             // but, we do not need to check it if the key has a null
             // and we do not need to check it if unique_checks is off
             //
             error = is_val_unique(&is_unique, record, &table->key_info[keynr], keynr, txn);
-            if (error) { goto cleanup; }
+            if (error) { 
+                goto cleanup; 
+            }
             if (!is_unique) {
                 error = DB_KEYEXIST;
                 last_dup_key = keynr;
@@ -3593,7 +3614,6 @@ int ha_tokudb::do_uniqueness_checks(uchar* record, DB_TXN* txn, THD* thd) {
             }
         }
     }    
-    error = 0;
 cleanup:
     return error;
 }
@@ -3696,15 +3716,8 @@ void ha_tokudb::test_row_packing(uchar* record, DBT* pk_key, DBT* pk_val) {
     tokudb_my_free(tmp_pk_val_data);
 }
 
-//
 // set the put flags for the main dictionary
-//
-void ha_tokudb::set_main_dict_put_flags(
-    THD* thd, 
-    bool opt_eligible,
-    uint32_t* put_flags
-    ) 
-{
+void ha_tokudb::set_main_dict_put_flags(THD* thd, bool opt_eligible, uint32_t* put_flags) {
     uint32_t old_prelock_flags = 0;
     uint curr_num_DBs = table->s->keys + tokudb_test(hidden_primary_key);
     bool in_hot_index = share->num_DBs > curr_num_DBs;
@@ -3724,8 +3737,7 @@ void ha_tokudb::set_main_dict_put_flags(
     {
         *put_flags = old_prelock_flags;
     }
-    else if (thd_test_options(thd, OPTION_RELAXED_UNIQUE_CHECKS)
-            && !is_replace_into(thd) && !is_insert_ignore(thd))
+    else if (!do_unique_checks(thd, in_rpl_write_rows | in_rpl_update_rows) && !is_replace_into(thd) && !is_insert_ignore(thd))
     {
         *put_flags = old_prelock_flags;
     }
@@ -3747,22 +3759,18 @@ void ha_tokudb::set_main_dict_put_flags(
 
 int ha_tokudb::insert_row_to_main_dictionary(uchar* record, DBT* pk_key, DBT* pk_val, DB_TXN* txn) {
     int error = 0;
-    uint32_t put_flags = mult_put_flags[primary_key];
-    THD *thd = ha_thd();
     uint curr_num_DBs = table->s->keys + tokudb_test(hidden_primary_key);
-
     assert(curr_num_DBs == 1);
-    
+
+    uint32_t put_flags = mult_put_flags[primary_key];
+    THD *thd = ha_thd(); 
     set_main_dict_put_flags(thd, true, &put_flags);
 
-    error = share->file->put(
-        share->file, 
-        txn, 
-        pk_key,
-        pk_val, 
-        put_flags
-        );
+    // for test, make unique checks have a very long duration
+    if ((put_flags & DB_OPFLAGS_MASK) == DB_NOOVERWRITE)
+        maybe_do_unique_checks_delay(thd);
 
+    error = share->file->put(share->file, txn, pk_key, pk_val, put_flags);
     if (error) {
         last_dup_key = primary_key;
         goto cleanup;
@@ -3776,14 +3784,18 @@ int ha_tokudb::insert_rows_to_dictionaries_mult(DBT* pk_key, DBT* pk_val, DB_TXN
     int error = 0;
     uint curr_num_DBs = share->num_DBs;
     set_main_dict_put_flags(thd, true, &mult_put_flags[primary_key]);
-    uint32_t i, flags = mult_put_flags[primary_key];
+    uint32_t flags = mult_put_flags[primary_key];
+
+    // for test, make unique checks have a very long duration
+    if ((flags & DB_OPFLAGS_MASK) == DB_NOOVERWRITE)
+        maybe_do_unique_checks_delay(thd);
 
     // the insert ignore optimization uses DB_NOOVERWRITE_NO_ERROR, 
     // which is not allowed with env->put_multiple. 
     // we have to insert the rows one by one in this case.
     if (flags & DB_NOOVERWRITE_NO_ERROR) {
         DB * src_db = share->key_file[primary_key];
-        for (i = 0; i < curr_num_DBs; i++) {
+        for (uint32_t i = 0; i < curr_num_DBs; i++) {
             DB * db = share->key_file[i];
             if (i == primary_key) {
                 // if it's the primary key, insert the rows
@@ -3844,7 +3856,7 @@ out:
 //      error otherwise
 //
 int ha_tokudb::write_row(uchar * record) {
-    TOKUDB_HANDLER_DBUG_ENTER("");
+    TOKUDB_HANDLER_DBUG_ENTER("%p", record);
 
     DBT row, prim_key;
     int error;
@@ -3882,10 +3894,7 @@ int ha_tokudb::write_row(uchar * record) {
     if (share->has_auto_inc && record == table->record[0]) {
         tokudb_pthread_mutex_lock(&share->mutex);
         ulonglong curr_auto_inc = retrieve_auto_increment(
-            table->field[share->ai_field_index]->key_type(), 
-            field_offset(table->field[share->ai_field_index], table),
-            record
-            );
+            table->field[share->ai_field_index]->key_type(), field_offset(table->field[share->ai_field_index], table), record);
         if (curr_auto_inc > share->last_auto_increment) {
             share->last_auto_increment = curr_auto_inc;
             if (delay_updating_ai_metadata) {
@@ -4053,7 +4062,6 @@ int ha_tokudb::update_row(const uchar * old_row, uchar * new_row) {
     memset((void *) &prim_row, 0, sizeof(prim_row));
     memset((void *) &old_prim_row, 0, sizeof(old_prim_row));
 
-
     ha_statistic_increment(&SSV::ha_update_count);
 #if MYSQL_VERSION_ID < 50600
     if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_UPDATE) {
@@ -4100,7 +4108,6 @@ int ha_tokudb::update_row(const uchar * old_row, uchar * new_row) {
     }
     txn = using_ignore ? sub_trans : transaction;
 
-
     if (hidden_primary_key) {
         memset((void *) &prim_key, 0, sizeof(prim_key));
         prim_key.data = (void *) current_ident;
@@ -4112,10 +4119,8 @@ int ha_tokudb::update_row(const uchar * old_row, uchar * new_row) {
         create_dbt_key_from_table(&old_prim_key, primary_key, primary_key_buff, old_row, &has_null);
     }
 
-    //
     // do uniqueness checks
-    //
-    if (share->has_unique_keys && !thd_test_options(thd, OPTION_RELAXED_UNIQUE_CHECKS)) {
+    if (share->has_unique_keys && do_unique_checks(thd, in_rpl_update_rows)) {
         for (uint keynr = 0; keynr < table_share->keys; keynr++) {
             bool is_unique_key = (table->key_info[keynr].flags & HA_NOSAME) || (keynr == primary_key);
             if (keynr == primary_key && !share->pk_has_string) {
@@ -4155,6 +4160,10 @@ int ha_tokudb::update_row(const uchar * old_row, uchar * new_row) {
     if (error) { goto cleanup; }
 
     set_main_dict_put_flags(thd, false, &mult_put_flags[primary_key]);
+
+    // for test, make unique checks have a very long duration
+    if ((mult_put_flags[primary_key] & DB_OPFLAGS_MASK) == DB_NOOVERWRITE)
+        maybe_do_unique_checks_delay(thd);
 
     error = db_env->update_multiple(
         db_env, 
@@ -5630,13 +5639,11 @@ DBT *ha_tokudb::get_pos(DBT * to, uchar * pos) {
     DBUG_RETURN(to);
 }
 
-//
 // Retrieves a row with based on the primary key saved in pos
 // Returns:
 //      0 on success
 //      HA_ERR_KEY_NOT_FOUND if not found
 //      error otherwise
-//
 int ha_tokudb::rnd_pos(uchar * buf, uchar * pos) {
     TOKUDB_HANDLER_DBUG_ENTER("");
     DBT db_pos;
@@ -5649,12 +5656,20 @@ int ha_tokudb::rnd_pos(uchar * buf, uchar * pos) {
     ha_statistic_increment(&SSV::ha_read_rnd_count);
     tokudb_active_index = MAX_KEY;
 
+    // test rpl slave by inducing a delay before the point query
+    THD *thd = ha_thd();
+    if (thd->slave_thread && (in_rpl_delete_rows || in_rpl_update_rows)) {
+        uint64_t delay_ms = THDVAR(thd, rpl_lookup_rows_delay);
+        if (delay_ms)
+            usleep(delay_ms * 1000);
+    }
+
     info.ha = this;
     info.buf = buf;
     info.keynr = primary_key;
 
     error = share->file->getf_set(share->file, transaction, 
-            get_cursor_isolation_flags(lock.type, ha_thd()), 
+            get_cursor_isolation_flags(lock.type, thd),
             key, smart_dbt_callback_rowread_ptquery, &info);
 
     if (error == DB_NOTFOUND) {
@@ -8175,6 +8190,37 @@ void ha_tokudb::add_to_trx_handler_list() {
 void ha_tokudb::remove_from_trx_handler_list() {
     tokudb_trx_data *trx = (tokudb_trx_data *) thd_get_ha_data(ha_thd(), tokudb_hton);
     trx->handlers = list_delete(trx->handlers, &trx_handler_list);
+}
+
+void ha_tokudb::rpl_before_write_rows() {
+    in_rpl_write_rows = true;
+}
+
+void ha_tokudb::rpl_after_write_rows() {
+    in_rpl_write_rows = false;
+}
+
+void ha_tokudb::rpl_before_delete_rows() {
+    in_rpl_delete_rows = true;
+}
+
+void ha_tokudb::rpl_after_delete_rows() {
+    in_rpl_delete_rows = false;
+}
+
+void ha_tokudb::rpl_before_update_rows() {
+    in_rpl_update_rows = true;
+}
+
+void ha_tokudb::rpl_after_update_rows() {
+    in_rpl_update_rows = false;
+}
+
+bool ha_tokudb::rpl_lookup_rows() {
+    if (!in_rpl_delete_rows && !in_rpl_update_rows)
+        return true;
+    else
+        return THDVAR(ha_thd(), rpl_lookup_rows);
 }
 
 // table admin 

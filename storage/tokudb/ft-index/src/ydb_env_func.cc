@@ -28,7 +28,7 @@ COPYING CONDITIONS NOTICE:
 
 COPYRIGHT NOTICE:
 
-  TokuDB, Tokutek Fractal Tree Indexing Library.
+  TokuFT, Tokutek Fractal Tree Indexing Library.
   Copyright (C) 2007-2013 Tokutek, Inc.
 
 DISCLAIMER:
@@ -94,12 +94,12 @@ PATENT RIGHTS GRANT:
 #include <memory.h>
 #include <db.h>
 
+#include <ft/cachetable/checkpoint.h>
 #include <ft/ft.h>
 #include <ft/ft-ops.h>
 #include <ft/ft-flusher.h>
-#include <ft/checkpoint.h>
-#include <ft/recover.h>
-#include <ft/ftloader.h>
+#include <ft/logger/recover.h>
+#include <ft/loader/loader.h>
 
 #include "ydb_env_func.h"
 

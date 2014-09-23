@@ -29,7 +29,7 @@ COPYING CONDITIONS NOTICE:
 
 COPYRIGHT NOTICE:
 
-  TokuDB, Tokutek Fractal Tree Indexing Library.
+  TokuFT, Tokutek Fractal Tree Indexing Library.
   Copyright (C) 2007-2013 Tokutek, Inc.
 
 DISCLAIMER:
@@ -89,7 +89,7 @@ PATENT RIGHTS GRANT:
 #ident "Copyright (c) 2007-2013 Tokutek Inc.  All rights reserved."
 #include "test.h"
 
-/* Simple test of logging.  Can I start a TokuDB with logging enabled? */
+/* Simple test of logging.  Can I start TokuFT with logging enabled? */
 
 #include <stdlib.h>
 #include <sys/stat.h>
@@ -123,7 +123,6 @@ static void make_db (bool close_env) {
 	CKERR(r);
     }
     char *filename;
-#if USE_TDB
     {
         DBT dname;
         DBT iname;
@@ -135,10 +134,6 @@ static void make_db (bool close_env) {
         CAST_FROM_VOIDP(filename, iname.data);
         assert(filename);
     }
-#else
-    filename = toku_xstrdup("foo.db");
-#endif
-
 
     r=tid->commit(tid, 0);    assert(r==0);
     r=db->close(db, 0);       assert(r==0);

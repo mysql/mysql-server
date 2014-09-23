@@ -29,7 +29,7 @@ COPYING CONDITIONS NOTICE:
 
 COPYRIGHT NOTICE:
 
-  TokuDB, Tokutek Fractal Tree Indexing Library.
+  TokuFT, Tokutek Fractal Tree Indexing Library.
   Copyright (C) 2007-2013 Tokutek, Inc.
 
 DISCLAIMER:
@@ -86,13 +86,11 @@ PATENT RIGHTS GRANT:
   under this License.
 */
 
+#pragma once
+
 #ident "Copyright (c) 2007-2013 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 // This file defines the public interface to the ydb library
-
-#if !defined(TOKU_YDB_CURSOR_H)
-#define TOKU_YDB_CURSOR_H
-
 
 typedef enum {
     YDB_C_LAYER_STATUS_NUM_ROWS = 0             /* number of rows in this status array */
@@ -107,10 +105,9 @@ void ydb_c_layer_get_status(YDB_C_LAYER_STATUS statp);
 
 int toku_c_get(DBC * c, DBT * key, DBT * data, uint32_t flag);
 int toku_c_getf_set(DBC *c, uint32_t flag, DBT *key, YDB_CALLBACK_FUNCTION f, void *extra);
-int toku_c_close(DBC * c);
-int toku_db_cursor_internal(DB *db, DB_TXN * txn, DBC **c, uint32_t flags, int is_temporary_cursor);
+
 int toku_db_cursor(DB *db, DB_TXN *txn, DBC **c, uint32_t flags);
+int toku_db_cursor_internal(DB *db, DB_TXN * txn, DBC *c, uint32_t flags, int is_temporary_cursor);
 
-
-
-#endif
+int toku_c_close(DBC *c);
+int toku_c_close_internal(DBC *c);

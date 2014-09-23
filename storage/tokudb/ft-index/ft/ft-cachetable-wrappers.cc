@@ -29,7 +29,7 @@ COPYING CONDITIONS NOTICE:
 
 COPYRIGHT NOTICE:
 
-  TokuDB, Tokutek Fractal Tree Indexing Library.
+  TokuFT, Tokutek Fractal Tree Indexing Library.
   Copyright (C) 2007-2013 Tokutek, Inc.
 
 DISCLAIMER:
@@ -89,12 +89,13 @@ PATENT RIGHTS GRANT:
 #ident "Copyright (c) 2007-2013 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
-#include <ft-cachetable-wrappers.h>
+#include "ft/serialize/block_table.h"
+#include "ft/ft-cachetable-wrappers.h"
+#include "ft/ft-flusher.h"
+#include "ft/ft-internal.h"
+#include "ft/ft.h"
+#include "ft/node.h"
 
-#include <fttypes.h>
-#include <ft-flusher.h>
-#include <ft-internal.h>
-#include <ft.h>
 #include <util/context.h>
 
 static void
@@ -103,23 +104,23 @@ ftnode_get_key_and_fullhash(
     uint32_t* fullhash,
     void* extra)
 {
-    FT h = (FT) extra;
-    BLOCKNUM name;
-    toku_allocate_blocknum(h->blocktable, &name, h);
-    *cachekey = name;
-    *fullhash = toku_cachetable_hash(h->cf, name);
+    FT ft = (FT) extra;
+    BLOCKNUM blocknum;
+    ft->blocktable.allocate_blocknum(&blocknum, ft);
+    *cachekey = blocknum;
+    *fullhash = toku_cachetable_hash(ft->cf, blocknum);
 }
 
 void
 cachetable_put_empty_node_with_dep_nodes(
-    FT h,
+    FT ft,
     uint32_t num_dependent_nodes,
     FTNODE* dependent_nodes,
-    BLOCKNUM* name, //output
+    BLOCKNUM* blocknum, //output
     uint32_t* fullhash, //output
     FTNODE* result)
 {
-    FTNODE XMALLOC(new_node);
+    FTNODE XCALLOC(new_node);
     PAIR dependent_pairs[num_dependent_nodes];
     enum cachetable_dirty dependent_dirty_bits[num_dependent_nodes];
     for (uint32_t i = 0; i < num_dependent_nodes; i++) {
@@ -128,18 +129,18 @@ cachetable_put_empty_node_with_dep_nodes(
     }
 
     toku_cachetable_put_with_dep_pairs(
-        h->cf,
+        ft->cf,
         ftnode_get_key_and_fullhash,
         new_node,
         make_pair_attr(sizeof(FTNODE)),
-        get_write_callbacks_for_node(h),
-        h,
+        get_write_callbacks_for_node(ft),
+        ft,
         num_dependent_nodes,
         dependent_pairs,
         dependent_dirty_bits,
-        name,
+        blocknum,
         fullhash,
-        toku_node_save_ct_pair);
+        toku_ftnode_save_ct_pair);
     *result = new_node;
 }
 
@@ -153,13 +154,13 @@ create_new_ftnode_with_dep_nodes(
     FTNODE* dependent_nodes)
 {
     uint32_t fullhash = 0;
-    BLOCKNUM name;
+    BLOCKNUM blocknum;
 
     cachetable_put_empty_node_with_dep_nodes(
         ft,
         num_dependent_nodes,
         dependent_nodes,
-        &name,
+        &blocknum,
         &fullhash,
         result);
 
@@ -170,7 +171,7 @@ create_new_ftnode_with_dep_nodes(
 
     toku_initialize_empty_ftnode(
         *result,
-        name,
+        blocknum,
         height,
         n_children,
         ft->h->layout_version,
@@ -201,14 +202,14 @@ toku_create_new_ftnode (
 // then a PL_WRITE_CHEAP lock is grabbed
 //
 int
-toku_pin_ftnode_batched(
-    FT_HANDLE brt,
+toku_pin_ftnode_for_query(
+    FT_HANDLE ft_handle,
     BLOCKNUM blocknum,
     uint32_t fullhash,
     UNLOCKERS unlockers,
     ANCESTORS ancestors,
-    const PIVOT_BOUNDS bounds,
-    FTNODE_FETCH_EXTRA bfe,
+    const pivot_bounds &bounds,
+    ftnode_fetch_extra *bfe,
     bool apply_ancestor_messages, // this bool is probably temporary, for #3972, once we know how range query estimates work, will revisit this
     FTNODE *node_p,
     bool* msgs_applied)
@@ -225,13 +226,13 @@ toku_pin_ftnode_batched(
         paranoid_invariant(bfe->type == ftnode_fetch_subset);
     }
     
-    int r = toku_cachetable_get_and_pin_nonblocking_batched(
-            brt->ft->cf,
+    int r = toku_cachetable_get_and_pin_nonblocking(
+            ft_handle->ft->cf,
             blocknum,
             fullhash,
             &node_v,
             NULL,
-            get_write_callbacks_for_node(brt->ft),
+            get_write_callbacks_for_node(ft_handle->ft),
             toku_ftnode_fetch_callback,
             toku_ftnode_pf_req_callback,
             toku_ftnode_pf_callback,
@@ -245,7 +246,7 @@ toku_pin_ftnode_batched(
     node = static_cast<FTNODE>(node_v);
     if (apply_ancestor_messages && node->height == 0) {
         needs_ancestors_messages = toku_ft_leaf_needs_ancestors_messages(
-            brt->ft, 
+            ft_handle->ft, 
             node, 
             ancestors, 
             bounds, 
@@ -255,20 +256,20 @@ toku_pin_ftnode_batched(
         if (needs_ancestors_messages) {
             toku::context apply_messages_ctx(CTX_MESSAGE_APPLICATION);
 
-            toku_unpin_ftnode_read_only(brt->ft, node);
-            int rr = toku_cachetable_get_and_pin_nonblocking_batched(
-                    brt->ft->cf,
-                    blocknum,
-                    fullhash,
-                    &node_v,
-                    NULL,
-                    get_write_callbacks_for_node(brt->ft),
-                    toku_ftnode_fetch_callback,
-                    toku_ftnode_pf_req_callback,
-                    toku_ftnode_pf_callback,
-                    PL_WRITE_CHEAP,
-                    bfe, //read_extraargs
-                    unlockers);
+            toku_unpin_ftnode_read_only(ft_handle->ft, node);
+            int rr = toku_cachetable_get_and_pin_nonblocking(
+                 ft_handle->ft->cf,
+                 blocknum,
+                 fullhash,
+                 &node_v,
+                 NULL,
+                 get_write_callbacks_for_node(ft_handle->ft),
+                 toku_ftnode_fetch_callback,
+                 toku_ftnode_pf_req_callback,
+                 toku_ftnode_pf_callback,
+                 PL_WRITE_CHEAP,
+                 bfe, //read_extraargs
+                 unlockers);
             if (rr != 0) {
                 assert(rr == TOKUDB_TRY_AGAIN); // Any other error and we should bomb out ASAP.
                 r = TOKUDB_TRY_AGAIN;
@@ -276,7 +277,7 @@ toku_pin_ftnode_batched(
             }
             node = static_cast<FTNODE>(node_v);
             toku_apply_ancestors_messages_to_node(
-                brt, 
+                ft_handle, 
                 node, 
                 ancestors, 
                 bounds, 
@@ -317,54 +318,14 @@ exit:
 }
 
 void
-toku_pin_ftnode_off_client_thread_and_maybe_move_messages(
-    FT h,
+toku_pin_ftnode_with_dep_nodes(
+    FT ft,
     BLOCKNUM blocknum,
     uint32_t fullhash,
-    FTNODE_FETCH_EXTRA bfe,
+    ftnode_fetch_extra *bfe,
     pair_lock_type lock_type,
     uint32_t num_dependent_nodes,
-    FTNODE* dependent_nodes,
-    FTNODE *node_p,
-    bool move_messages)
-{
-    toku_pin_ftnode_off_client_thread_batched_and_maybe_move_messages(
-        h,
-        blocknum,
-        fullhash,
-        bfe,
-        lock_type,
-        num_dependent_nodes,
-        dependent_nodes,
-        node_p,
-        move_messages
-        );
-}
-
-void
-toku_pin_ftnode_off_client_thread(
-    FT h,
-    BLOCKNUM blocknum,
-    uint32_t fullhash,
-    FTNODE_FETCH_EXTRA bfe,
-    pair_lock_type lock_type,
-    uint32_t num_dependent_nodes,
-    FTNODE* dependent_nodes,
-    FTNODE *node_p)
-{
-    toku_pin_ftnode_off_client_thread_and_maybe_move_messages(
-            h, blocknum, fullhash, bfe, lock_type, num_dependent_nodes, dependent_nodes, node_p, true);
-}
-
-void
-toku_pin_ftnode_off_client_thread_batched_and_maybe_move_messages(
-    FT h,
-    BLOCKNUM blocknum,
-    uint32_t fullhash,
-    FTNODE_FETCH_EXTRA bfe,
-    pair_lock_type lock_type,
-    uint32_t num_dependent_nodes,
-    FTNODE* dependent_nodes,
+    FTNODE *dependent_nodes,
     FTNODE *node_p,
     bool move_messages)
 {
@@ -376,13 +337,13 @@ toku_pin_ftnode_off_client_thread_batched_and_maybe_move_messages(
         dependent_dirty_bits[i] = (enum cachetable_dirty) dependent_nodes[i]->dirty;
     }
 
-    int r = toku_cachetable_get_and_pin_with_dep_pairs_batched(
-        h->cf,
+    int r = toku_cachetable_get_and_pin_with_dep_pairs(
+        ft->cf,
         blocknum,
         fullhash,
         &node_v,
         NULL,
-        get_write_callbacks_for_node(h),
+        get_write_callbacks_for_node(ft),
         toku_ftnode_fetch_callback,
         toku_ftnode_pf_req_callback,
         toku_ftnode_pf_callback,
@@ -392,27 +353,22 @@ toku_pin_ftnode_off_client_thread_batched_and_maybe_move_messages(
         dependent_pairs,
         dependent_dirty_bits
         );
-    assert(r==0);
+    invariant_zero(r);
     FTNODE node = (FTNODE) node_v;
-    if ((lock_type != PL_READ) && node->height > 0 && move_messages) {
-        toku_move_ftnode_messages_to_stale(h, node);
+    if (lock_type != PL_READ && node->height > 0 && move_messages) {
+        toku_move_ftnode_messages_to_stale(ft, node);
     }
     *node_p = node;
 }
 
-void
-toku_pin_ftnode_off_client_thread_batched(
-    FT h,
-    BLOCKNUM blocknum,
-    uint32_t fullhash,
-    FTNODE_FETCH_EXTRA bfe,
-    pair_lock_type lock_type,
-    uint32_t num_dependent_nodes,
-    FTNODE* dependent_nodes,
-    FTNODE *node_p)
-{
-    toku_pin_ftnode_off_client_thread_batched_and_maybe_move_messages(
-            h, blocknum, fullhash, bfe, lock_type, num_dependent_nodes, dependent_nodes, node_p, true);
+void toku_pin_ftnode(FT ft,
+                     BLOCKNUM blocknum,
+                     uint32_t fullhash,
+                     ftnode_fetch_extra *bfe,
+                     pair_lock_type lock_type,
+                     FTNODE *node_p,
+                     bool move_messages) {
+    toku_pin_ftnode_with_dep_nodes(ft, blocknum, fullhash, bfe, lock_type, 0, nullptr, node_p, move_messages);
 }
 
 int toku_maybe_pin_ftnode_clean(FT ft, BLOCKNUM blocknum, uint32_t fullhash, pair_lock_type lock_type, FTNODE *nodep) {
@@ -429,24 +385,12 @@ cleanup:
     return r;
 }
 
-void
-toku_unpin_ftnode_off_client_thread(FT ft, FTNODE node)
-{
-    int r = toku_cachetable_unpin(
-        ft->cf,
-        node->ct_pair,
-        (enum cachetable_dirty) node->dirty,
-        make_ftnode_pair_attr(node)
-        );
-    assert(r==0);
-}
-
-void
-toku_unpin_ftnode(FT ft, FTNODE node)
-{
-    // printf("%*sUnpin %ld\n", 8-node->height, "", node->thisnodename.b);
-    //VERIFY_NODE(brt,node);
-    toku_unpin_ftnode_off_client_thread(ft, node);
+void toku_unpin_ftnode(FT ft, FTNODE node) {
+    int r = toku_cachetable_unpin(ft->cf,
+                                  node->ct_pair,
+                                  static_cast<enum cachetable_dirty>(node->dirty),
+                                  make_ftnode_pair_attr(node));
+    invariant_zero(r);
 }
 
 void
@@ -459,4 +403,26 @@ toku_unpin_ftnode_read_only(FT ft, FTNODE node)
         make_invalid_pair_attr()
         );
     assert(r==0);
+}
+
+void toku_ftnode_swap_pair_values(FTNODE a, FTNODE b)
+// Effect: Swap the blocknum, fullhash, and PAIR for for a and b
+// Requires: Both nodes are pinned
+{
+    BLOCKNUM tmp_blocknum = a->blocknum;
+    uint32_t tmp_fullhash = a->fullhash;
+    PAIR tmp_pair = a->ct_pair;
+
+    a->blocknum = b->blocknum;
+    a->fullhash = b->fullhash;
+    a->ct_pair = b->ct_pair;
+
+    b->blocknum = tmp_blocknum;
+    b->fullhash = tmp_fullhash;
+    b->ct_pair = tmp_pair;
+
+    // A and B swapped pair pointers, but we still have to swap
+    // the actual pair values (ie: the FTNODEs they represent)
+    // in the cachetable.
+    toku_cachetable_swap_pair_values(a->ct_pair, b->ct_pair);
 }

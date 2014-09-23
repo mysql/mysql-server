@@ -29,7 +29,7 @@ COPYING CONDITIONS NOTICE:
 
 COPYRIGHT NOTICE:
 
-  TokuDB, Tokutek Fractal Tree Indexing Library.
+  TokuFT, Tokutek Fractal Tree Indexing Library.
   Copyright (C) 2007-2013 Tokutek, Inc.
 
 DISCLAIMER:
@@ -111,11 +111,11 @@ static void ybt_test0 (void) {
     toku_init_dbt(&t0);
     toku_init_dbt(&t1);
     {
-	bytevec temp1 = "hello";
+	const void *temp1 = "hello";
         toku_dbt_set(6, temp1, &t0, &v0);
     }
     {
-        bytevec temp2 = "foo";
+        const void *temp2 = "foo";
 	toku_dbt_set(  4, temp2, &t1, &v1);
     }
     assert(t0.size==6);
@@ -124,7 +124,7 @@ static void ybt_test0 (void) {
     assert(strcmp((char*)t1.data, "foo")==0);
 
     {
-        bytevec temp3 = "byebye";
+        const void *temp3 = "byebye";
 	toku_dbt_set(7, temp3, &t1, &v0);      /* Use v0, not v1 */
     }
     // This assertion would be wrong, since v0 may have been realloc'd, and t0.data may now point
@@ -141,7 +141,7 @@ static void ybt_test0 (void) {
     t0.flags = DB_DBT_USERMEM;
     t0.ulen  = 0;
     {
-        bytevec temp4 = "hello";
+        const void *temp4 = "hello";
 	toku_dbt_set(6, temp4, &t0, 0);
     }
     assert(t0.data==0);
@@ -152,7 +152,7 @@ static void ybt_test0 (void) {
     t0.flags = DB_DBT_REALLOC;
     cleanup(&v0);
     {
-        bytevec temp5 = "internationalization";
+        const void *temp5 = "internationalization";
 	toku_dbt_set(21, temp5, &t0, &v0);
     }
     assert(v0.data==0); /* Didn't change v0 */
@@ -160,7 +160,7 @@ static void ybt_test0 (void) {
     assert(strcmp((char*)t0.data, "internationalization")==0);
 
     {
-        bytevec temp6 = "provincial";
+        const void *temp6 = "provincial";
 	toku_dbt_set(11, temp6, &t0, &v0);
     }
     assert(t0.size==11);

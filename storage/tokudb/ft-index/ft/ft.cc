@@ -29,7 +29,7 @@ COPYING CONDITIONS NOTICE:
 
 COPYRIGHT NOTICE:
 
-  TokuDB, Tokutek Fractal Tree Indexing Library.
+  TokuFT, Tokutek Fractal Tree Indexing Library.
   Copyright (C) 2007-2013 Tokutek, Inc.
 
 DISCLAIMER:
@@ -89,12 +89,15 @@ PATENT RIGHTS GRANT:
 #ident "Copyright (c) 2007-2013 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
-#include "ft.h"
-#include "ft-internal.h"
-#include "ft-cachetable-wrappers.h"
-#include "log-internal.h"
-
-#include <ft/log_header.h>
+#include "ft/serialize/block_table.h"
+#include "ft/ft.h"
+#include "ft/ft-cachetable-wrappers.h"
+#include "ft/ft-internal.h"
+#include "ft/logger/log-internal.h"
+#include "ft/log_header.h"
+#include "ft/node.h"
+#include "ft/serialize/ft-serialize.h"
+#include "ft/serialize/ft_node-serialize.h"
 
 #include <memory.h>
 #include <toku_assert.h>
@@ -107,10 +110,10 @@ toku_reset_root_xid_that_created(FT ft, TXNID new_root_xid_that_created) {
 
     // hold lock around setting and clearing of dirty bit
     // (see cooperative use of dirty bit in ft_begin_checkpoint())
-    toku_ft_lock (ft);
+    toku_ft_lock(ft);
     ft->h->root_xid_that_created = new_root_xid_that_created;
     ft->h->dirty = 1;
-    toku_ft_unlock (ft);
+    toku_ft_unlock(ft);
 }
 
 static void
@@ -118,9 +121,10 @@ ft_destroy(FT ft) {
     //header and checkpoint_header have same Blocktable pointer
     //cannot destroy since it is still in use by CURRENT
     assert(ft->h->type == FT_CURRENT);
-    toku_blocktable_destroy(&ft->blocktable);
-    if (ft->descriptor.dbt.data) toku_free(ft->descriptor.dbt.data);
-    if (ft->cmp_descriptor.dbt.data) toku_free(ft->cmp_descriptor.dbt.data);
+    ft->blocktable.destroy();
+    ft->cmp.destroy();
+    toku_destroy_dbt(&ft->descriptor.dbt);
+    toku_destroy_dbt(&ft->cmp_descriptor.dbt);
     toku_ft_destroy_reflock(ft);
     toku_free(ft->h);
 }
@@ -187,7 +191,7 @@ ft_log_fassociate_during_checkpoint (CACHEFILE cf, void *header_v) {
 }
 
 // Maps to cf->begin_checkpoint_userdata
-// Create checkpoint-in-progress versions of header and translation (btt) (and fifo for now...).
+// Create checkpoint-in-progress versions of header and translation (btt)
 // Has access to fd (it is protected).
 //
 // Not reentrant for a single FT (see ft_checkpoint)
@@ -199,7 +203,7 @@ static void ft_begin_checkpoint (LSN checkpoint_lsn, void *header_v) {
     assert(ft->checkpoint_header == NULL);
     ft_copy_for_checkpoint_unlocked(ft, checkpoint_lsn);
     ft->h->dirty = 0;             // this is only place this bit is cleared        (in currentheader)
-    toku_block_translation_note_start_checkpoint_unlocked(ft->blocktable);
+    ft->blocktable.note_start_checkpoint_unlocked();
     toku_ft_unlock (ft);
 }
 
@@ -235,8 +239,6 @@ ft_hack_highest_unused_msn_for_upgrade_for_checkpoint(FT ft) {
 static void ft_checkpoint (CACHEFILE cf, int fd, void *header_v) {
     FT ft = (FT) header_v;
     FT_HEADER ch = ft->checkpoint_header;
-    //printf("%s:%d allocated_limit=%lu writing queue to %lu\n", __FILE__, __LINE__,
-    //             block_allocator_allocated_limit(h->block_allocator), h->unused_blocks.b*h->nodesize);
     assert(ch);
     assert(ch->type == FT_CHECKPOINT_INPROGRESS);
     if (ch->dirty) {            // this is only place this bit is tested (in checkpoint_header)
@@ -251,16 +253,15 @@ static void ft_checkpoint (CACHEFILE cf, int fd, void *header_v) {
         ft_hack_highest_unused_msn_for_upgrade_for_checkpoint(ft);
                                                              
         // write translation and header to disk (or at least to OS internal buffer)
-        toku_serialize_ft_to(fd, ch, ft->blocktable, ft->cf);
+        toku_serialize_ft_to(fd, ch, &ft->blocktable, ft->cf);
         ch->dirty = 0;                      // this is only place this bit is cleared (in checkpoint_header)
         
         // fsync the cachefile
         toku_cachefile_fsync(cf);
         ft->h->checkpoint_count++;        // checkpoint succeeded, next checkpoint will save to alternate header location
         ft->h->checkpoint_lsn = ch->checkpoint_lsn;  //Header updated.
-    } 
-    else {
-        toku_block_translation_note_skipped_checkpoint(ft->blocktable);
+    } else {
+        ft->blocktable.note_skipped_checkpoint();
     }
 }
 
@@ -268,14 +269,12 @@ static void ft_checkpoint (CACHEFILE cf, int fd, void *header_v) {
 // free unused disk space 
 // (i.e. tell BlockAllocator to liberate blocks used by previous checkpoint).
 // Must have access to fd (protected)
-static void ft_end_checkpoint (CACHEFILE UU(cachefile), int fd, void *header_v) {
+static void ft_end_checkpoint(CACHEFILE UU(cf), int fd, void *header_v) {
     FT ft = (FT) header_v;
     assert(ft->h->type == FT_CURRENT);
-    toku_block_translation_note_end_checkpoint(ft->blocktable, fd);
-    if (ft->checkpoint_header) {
-        toku_free(ft->checkpoint_header);
-        ft->checkpoint_header = NULL;
-    }
+    ft->blocktable.note_end_checkpoint(fd);
+    toku_free(ft->checkpoint_header);
+    ft->checkpoint_header = nullptr;
 }
 
 // maps to cf->close_userdata
@@ -360,11 +359,6 @@ static void ft_note_unpin_by_checkpoint (CACHEFILE UU(cachefile), void *header_v
 // End of Functions that are callbacks to the cachefile
 /////////////////////////////////////////////////////////////////////////
 
-void toku_node_save_ct_pair(CACHEKEY UU(key), void *value_data, PAIR p) {
-    FTNODE CAST_FROM_VOIDP(node, value_data);
-    node->ct_pair = p;
-}
-
 static void setup_initial_ft_root_node(FT ft, BLOCKNUM blocknum) {
     FTNODE XCALLOC(node);
     toku_initialize_empty_ftnode(node, blocknum, 0, 1, ft->h->layout_version, ft->h->flags);
@@ -375,7 +369,7 @@ static void setup_initial_ft_root_node(FT ft, BLOCKNUM blocknum) {
     toku_cachetable_put(ft->cf, blocknum, fullhash,
                         node, make_ftnode_pair_attr(node),
                         get_write_callbacks_for_node(ft),
-                        toku_node_save_ct_pair);
+                        toku_ftnode_save_ct_pair);
     toku_unpin_ftnode(ft, node);
 }
 
@@ -386,7 +380,8 @@ static void ft_init(FT ft, FT_OPTIONS options, CACHEFILE cf) {
 
     toku_list_init(&ft->live_ft_handles);
 
-    ft->compare_fun = options->compare_fun;
+    // intuitively, the comparator points to the FT's cmp descriptor
+    ft->cmp.create(options->compare_fun, &ft->cmp_descriptor, options->memcmp_magic);
     ft->update_fun = options->update_fun;
 
     if (ft->cf != NULL) {
@@ -407,7 +402,7 @@ static void ft_init(FT ft, FT_OPTIONS options, CACHEFILE cf) {
                                 ft_note_pin_by_checkpoint,
                                 ft_note_unpin_by_checkpoint);
 
-    toku_block_verify_no_free_blocknums(ft->blocktable);
+    ft->blocktable.verify_no_free_blocknums();
 }
 
 
@@ -451,55 +446,48 @@ void toku_ft_create(FT *ftp, FT_OPTIONS options, CACHEFILE cf, TOKUTXN txn) {
     invariant(ftp);
 
     FT XCALLOC(ft);
-    memset(&ft->descriptor, 0, sizeof(ft->descriptor));
-    memset(&ft->cmp_descriptor, 0, sizeof(ft->cmp_descriptor));
-
     ft->h = ft_header_create(options, make_blocknum(0), (txn ? txn->txnid.parent_id64: TXNID_NONE));
 
     toku_ft_init_reflock(ft);
 
     // Assign blocknum for root block, also dirty the header
-    toku_blocktable_create_new(&ft->blocktable);
-    toku_allocate_blocknum(ft->blocktable, &ft->h->root_blocknum, ft);
+    ft->blocktable.create();
+    ft->blocktable.allocate_blocknum(&ft->h->root_blocknum, ft);
 
     ft_init(ft, options, cf);
 
     *ftp = ft;
 }
 
-// TODO: (Zardosht) get rid of brt parameter
-int toku_read_ft_and_store_in_cachefile (FT_HANDLE brt, CACHEFILE cf, LSN max_acceptable_lsn, FT *header)
+// TODO: (Zardosht) get rid of ft parameter
+int toku_read_ft_and_store_in_cachefile (FT_HANDLE ft_handle, CACHEFILE cf, LSN max_acceptable_lsn, FT *header)
 // If the cachefile already has the header, then just get it.
 // If the cachefile has not been initialized, then don't modify anything.
 // max_acceptable_lsn is the latest acceptable checkpointed version of the file.
 {
-    {
-        FT h;
-        if ((h = (FT) toku_cachefile_get_userdata(cf))!=0) {
-            *header = h;
-            assert(brt->options.update_fun == h->update_fun);
-            assert(brt->options.compare_fun == h->compare_fun);
-            return 0;
-        }
+    FT ft = nullptr;
+    if ((ft = (FT) toku_cachefile_get_userdata(cf)) != nullptr) {
+        *header = ft;
+        assert(ft_handle->options.update_fun == ft->update_fun);
+        return 0;
     }
-    FT h = nullptr;
-    int r;
-    {
-        int fd = toku_cachefile_get_fd(cf);
-        r = toku_deserialize_ft_from(fd, max_acceptable_lsn, &h);
-        if (r == TOKUDB_BAD_CHECKSUM) {
-            fprintf(stderr, "Checksum failure while reading header in file %s.\n", toku_cachefile_fname_in_env(cf));
-            assert(false);  // make absolutely sure we crash before doing anything else
-        }
+
+    int fd = toku_cachefile_get_fd(cf);
+    int r = toku_deserialize_ft_from(fd, max_acceptable_lsn, &ft);
+    if (r == TOKUDB_BAD_CHECKSUM) {
+        fprintf(stderr, "Checksum failure while reading header in file %s.\n", toku_cachefile_fname_in_env(cf));
+        assert(false);  // make absolutely sure we crash before doing anything else
+    } else if (r != 0) {
+        return r;
     }
-    if (r!=0) return r;
-    // GCC 4.8 seems to get confused by the gotos in the deserialize code and think h is maybe uninitialized.
-    invariant_notnull(h);
-    h->cf = cf;
-    h->compare_fun = brt->options.compare_fun;
-    h->update_fun = brt->options.update_fun;
+
+    invariant_notnull(ft);
+    // intuitively, the comparator points to the FT's cmp descriptor
+    ft->cmp.create(ft_handle->options.compare_fun, &ft->cmp_descriptor, ft_handle->options.memcmp_magic);
+    ft->update_fun = ft_handle->options.update_fun;
+    ft->cf = cf;
     toku_cachefile_set_userdata(cf,
-                                (void*)h,
+                                reinterpret_cast<void *>(ft),
                                 ft_log_fassociate_during_checkpoint,
                                 ft_close,
                                 ft_free,
@@ -508,7 +496,7 @@ int toku_read_ft_and_store_in_cachefile (FT_HANDLE brt, CACHEFILE cf, LSN max_ac
                                 ft_end_checkpoint,
                                 ft_note_pin_by_checkpoint,
                                 ft_note_unpin_by_checkpoint);
-    *header = h;
+    *header = ft;
     return 0;
 }
 
@@ -550,22 +538,22 @@ void toku_ft_evict_from_memory(FT ft, bool oplsn_valid, LSN oplsn) {
 }
 
 // Verifies there exists exactly one ft handle and returns it.
-FT_HANDLE toku_ft_get_only_existing_ft_handle(FT h) {
+FT_HANDLE toku_ft_get_only_existing_ft_handle(FT ft) {
     FT_HANDLE ft_handle_ret = NULL;
-    toku_ft_grab_reflock(h);
-    assert(toku_list_num_elements_est(&h->live_ft_handles) == 1);
-    ft_handle_ret = toku_list_struct(toku_list_head(&h->live_ft_handles), struct ft_handle, live_ft_handle_link);
-    toku_ft_release_reflock(h);
+    toku_ft_grab_reflock(ft);
+    assert(toku_list_num_elements_est(&ft->live_ft_handles) == 1);
+    ft_handle_ret = toku_list_struct(toku_list_head(&ft->live_ft_handles), struct ft_handle, live_ft_handle_link);
+    toku_ft_release_reflock(ft);
     return ft_handle_ret;
 }
 
-// Purpose: set fields in brt_header to capture accountability info for start of HOT optimize.
+// Purpose: set fields in ft_header to capture accountability info for start of HOT optimize.
 // Note: HOT accountability variables in header are modified only while holding header lock.
 //       (Header lock is really needed for touching the dirty bit, but it's useful and 
 //       convenient here for keeping the HOT variables threadsafe.)
 void
-toku_ft_note_hot_begin(FT_HANDLE brt) {
-    FT ft = brt->ft;
+toku_ft_note_hot_begin(FT_HANDLE ft_handle) {
+    FT ft = ft_handle->ft;
     time_t now = time(NULL);
 
     // hold lock around setting and clearing of dirty bit
@@ -578,11 +566,11 @@ toku_ft_note_hot_begin(FT_HANDLE brt) {
 }
 
 
-// Purpose: set fields in brt_header to capture accountability info for end of HOT optimize.
+// Purpose: set fields in ft_header to capture accountability info for end of HOT optimize.
 // Note: See note for toku_ft_note_hot_begin().
 void
-toku_ft_note_hot_complete(FT_HANDLE brt, bool success, MSN msn_at_start_of_hot) {
-    FT ft = brt->ft;
+toku_ft_note_hot_complete(FT_HANDLE ft_handle, bool success, MSN msn_at_start_of_hot) {
+    FT ft = ft_handle->ft;
     time_t now = time(NULL);
 
     toku_ft_lock(ft);
@@ -620,6 +608,7 @@ toku_ft_init(FT ft,
         .compression_method = compression_method,
         .fanout = fanout,
         .flags = 0,
+        .memcmp_magic = 0,
         .compare_fun = NULL,
         .update_fun = NULL
     };
@@ -628,29 +617,29 @@ toku_ft_init(FT ft,
     ft->h->checkpoint_lsn   = checkpoint_lsn;
 }
 
-// Open a brt for use by redirect.  The new brt must have the same dict_id as the old_ft passed in.  (FILENUM is assigned by the ft_handle_open() function.)
+// Open an ft for use by redirect.  The new ft must have the same dict_id as the old_ft passed in.  (FILENUM is assigned by the ft_handle_open() function.)
 static int
-ft_handle_open_for_redirect(FT_HANDLE *new_ftp, const char *fname_in_env, TOKUTXN txn, FT old_h) {
-    FT_HANDLE t;
-    assert(old_h->dict_id.dictid != DICTIONARY_ID_NONE.dictid);
-    toku_ft_handle_create(&t);
-    toku_ft_set_bt_compare(t, old_h->compare_fun);
-    toku_ft_set_update(t, old_h->update_fun);
-    toku_ft_handle_set_nodesize(t, old_h->h->nodesize);
-    toku_ft_handle_set_basementnodesize(t, old_h->h->basementnodesize);
-    toku_ft_handle_set_compression_method(t, old_h->h->compression_method);
-    toku_ft_handle_set_fanout(t, old_h->h->fanout);
-    CACHETABLE ct = toku_cachefile_get_cachetable(old_h->cf);
-    int r = toku_ft_handle_open_with_dict_id(t, fname_in_env, 0, 0, ct, txn, old_h->dict_id);
+ft_handle_open_for_redirect(FT_HANDLE *new_ftp, const char *fname_in_env, TOKUTXN txn, FT old_ft) {
+    FT_HANDLE ft_handle;
+    assert(old_ft->dict_id.dictid != DICTIONARY_ID_NONE.dictid);
+    toku_ft_handle_create(&ft_handle);
+    toku_ft_set_bt_compare(ft_handle, old_ft->cmp.get_compare_func());
+    toku_ft_set_update(ft_handle, old_ft->update_fun);
+    toku_ft_handle_set_nodesize(ft_handle, old_ft->h->nodesize);
+    toku_ft_handle_set_basementnodesize(ft_handle, old_ft->h->basementnodesize);
+    toku_ft_handle_set_compression_method(ft_handle, old_ft->h->compression_method);
+    toku_ft_handle_set_fanout(ft_handle, old_ft->h->fanout);
+    CACHETABLE ct = toku_cachefile_get_cachetable(old_ft->cf);
+    int r = toku_ft_handle_open_with_dict_id(ft_handle, fname_in_env, 0, 0, ct, txn, old_ft->dict_id);
     if (r != 0) {
         goto cleanup;
     }
-    assert(t->ft->dict_id.dictid == old_h->dict_id.dictid);
-    *new_ftp = t;
+    assert(ft_handle->ft->dict_id.dictid == old_ft->dict_id.dictid);
+    *new_ftp = ft_handle;
 
  cleanup:
     if (r != 0) {
-        toku_ft_handle_close(t);
+        toku_ft_handle_close(ft_handle);
     }
     return r;
 }
@@ -658,81 +647,81 @@ ft_handle_open_for_redirect(FT_HANDLE *new_ftp, const char *fname_in_env, TOKUTX
 // This function performs most of the work to redirect a dictionary to different file.
 // It is called for redirect and to abort a redirect.  (This function is almost its own inverse.)
 static int
-dictionary_redirect_internal(const char *dst_fname_in_env, FT src_h, TOKUTXN txn, FT *dst_hp) {
+dictionary_redirect_internal(const char *dst_fname_in_env, FT src_ft, TOKUTXN txn, FT *dst_ftp) {
     int r;
 
-    FILENUM src_filenum = toku_cachefile_filenum(src_h->cf);
+    FILENUM src_filenum = toku_cachefile_filenum(src_ft->cf);
     FILENUM dst_filenum = FILENUM_NONE;
 
-    FT dst_h = NULL;
+    FT dst_ft = NULL;
     struct toku_list *list;
-    // open a dummy brt based off of 
+    // open a dummy ft based off of 
     // dst_fname_in_env to get the header
-    // then we will change all the brt's to have
-    // their headers point to dst_h instead of src_h
+    // then we will change all the ft's to have
+    // their headers point to dst_ft instead of src_ft
     FT_HANDLE tmp_dst_ft = NULL;
-    r = ft_handle_open_for_redirect(&tmp_dst_ft, dst_fname_in_env, txn, src_h);
+    r = ft_handle_open_for_redirect(&tmp_dst_ft, dst_fname_in_env, txn, src_ft);
     if (r != 0) {
         goto cleanup;
     }
-    dst_h = tmp_dst_ft->ft;
+    dst_ft = tmp_dst_ft->ft;
 
     // some sanity checks on dst_filenum
-    dst_filenum = toku_cachefile_filenum(dst_h->cf);
+    dst_filenum = toku_cachefile_filenum(dst_ft->cf);
     assert(dst_filenum.fileid!=FILENUM_NONE.fileid);
     assert(dst_filenum.fileid!=src_filenum.fileid); //Cannot be same file.
 
-    // for each live brt, brt->ft is currently src_h
+    // for each live ft_handle, ft_handle->ft is currently src_ft
     // we want to change it to dummy_dst
-    toku_ft_grab_reflock(src_h);
-    while (!toku_list_empty(&src_h->live_ft_handles)) {
-        list = src_h->live_ft_handles.next;
+    toku_ft_grab_reflock(src_ft);
+    while (!toku_list_empty(&src_ft->live_ft_handles)) {
+        list = src_ft->live_ft_handles.next;
         FT_HANDLE src_handle = NULL;
         src_handle = toku_list_struct(list, struct ft_handle, live_ft_handle_link);
 
         toku_list_remove(&src_handle->live_ft_handle_link);
 
-        toku_ft_note_ft_handle_open(dst_h, src_handle);
+        toku_ft_note_ft_handle_open(dst_ft, src_handle);
         if (src_handle->redirect_callback) {
             src_handle->redirect_callback(src_handle, src_handle->redirect_callback_extra);
         }
     }
-    assert(dst_h);
-    // making sure that we are not leaking src_h
-    assert(toku_ft_needed_unlocked(src_h));
-    toku_ft_release_reflock(src_h);
+    assert(dst_ft);
+    // making sure that we are not leaking src_ft
+    assert(toku_ft_needed_unlocked(src_ft));
+    toku_ft_release_reflock(src_ft);
 
     toku_ft_handle_close(tmp_dst_ft);
 
-    *dst_hp = dst_h;
+    *dst_ftp = dst_ft;
 cleanup:
     return r;
 }
 
 
 
-//This is the 'abort redirect' function.  The redirect of old_h to new_h was done
-//and now must be undone, so here we redirect new_h back to old_h.
+//This is the 'abort redirect' function.  The redirect of old_ft to new_ft was done
+//and now must be undone, so here we redirect new_ft back to old_ft.
 int
-toku_dictionary_redirect_abort(FT old_h, FT new_h, TOKUTXN txn) {
-    char *old_fname_in_env = toku_cachefile_fname_in_env(old_h->cf);
+toku_dictionary_redirect_abort(FT old_ft, FT new_ft, TOKUTXN txn) {
+    char *old_fname_in_env = toku_cachefile_fname_in_env(old_ft->cf);
     int r;
     {
-        FILENUM old_filenum = toku_cachefile_filenum(old_h->cf);
-        FILENUM new_filenum = toku_cachefile_filenum(new_h->cf);
+        FILENUM old_filenum = toku_cachefile_filenum(old_ft->cf);
+        FILENUM new_filenum = toku_cachefile_filenum(new_ft->cf);
         assert(old_filenum.fileid!=new_filenum.fileid); //Cannot be same file.
 
-        //No living brts in old header.
-        toku_ft_grab_reflock(old_h);
-        assert(toku_list_empty(&old_h->live_ft_handles));
-        toku_ft_release_reflock(old_h);
+        //No living fts in old header.
+        toku_ft_grab_reflock(old_ft);
+        assert(toku_list_empty(&old_ft->live_ft_handles));
+        toku_ft_release_reflock(old_ft);
     }
 
-    FT dst_h;
-    // redirect back from new_h to old_h
-    r = dictionary_redirect_internal(old_fname_in_env, new_h, txn, &dst_h);
+    FT dst_ft;
+    // redirect back from new_ft to old_ft
+    r = dictionary_redirect_internal(old_fname_in_env, new_ft, txn, &dst_ft);
     if (r == 0) {
-        assert(dst_h == old_h);
+        assert(dst_ft == old_ft);
     }
     return r;
 }
@@ -740,13 +729,13 @@ toku_dictionary_redirect_abort(FT old_h, FT new_h, TOKUTXN txn) {
 /****
  * on redirect or abort:
  *  if redirect txn_note_doing_work(txn)
- *  if redirect connect src brt to txn (txn modified this brt)
- *  for each src brt
- *    open brt to dst file (create new brt struct)
- *    if redirect connect dst brt to txn 
- *    redirect db to new brt
- *    redirect cursors to new brt
- *  close all src brts
+ *  if redirect connect src ft to txn (txn modified this ft)
+ *  for each src ft
+ *    open ft to dst file (create new ft struct)
+ *    if redirect connect dst ft to txn 
+ *    redirect db to new ft
+ *    redirect cursors to new ft
+ *  close all src fts
  *  if redirect make rollback log entry
  * 
  * on commit:
@@ -758,21 +747,21 @@ int
 toku_dictionary_redirect (const char *dst_fname_in_env, FT_HANDLE old_ft_h, TOKUTXN txn) {
 // Input args:
 //   new file name for dictionary (relative to env)
-//   old_ft_h is a live brt of open handle ({DB, BRT} pair) that currently refers to old dictionary file.
+//   old_ft_h is a live ft of open handle ({DB, FT_HANDLE} pair) that currently refers to old dictionary file.
 //   (old_ft_h may be one of many handles to the dictionary.)
 //   txn that created the loader
 // Requires: 
 //   multi operation lock is held.
-//   The brt is open.  (which implies there can be no zombies.)
+//   The ft is open.  (which implies there can be no zombies.)
 //   The new file must be a valid dictionary.
-//   The block size and flags in the new file must match the existing BRT.
+//   The block size and flags in the new file must match the existing FT.
 //   The new file must already have its descriptor in it (and it must match the existing descriptor).
 // Effect:   
 //   Open new FTs (and related header and cachefile) to the new dictionary file with a new FILENUM.
-//   Redirect all DBs that point to brts that point to the old file to point to brts that point to the new file.
+//   Redirect all DBs that point to fts that point to the old file to point to fts that point to the new file.
 //   Copy the dictionary id (dict_id) from the header of the original file to the header of the new file.
 //   Create a rollback log entry.
-//   The original BRT, header, cachefile and file remain unchanged.  They will be cleaned up on commmit.
+//   The original FT, header, cachefile and file remain unchanged.  They will be cleaned up on commmit.
 //   If the txn aborts, then this operation will be undone
     int r;
 
@@ -881,18 +870,17 @@ toku_ft_stat64 (FT ft, struct ftstat64_s *s) {
     s->verify_time_sec = ft->h->time_of_last_verification;    
 }
 
-void
-toku_ft_get_fractal_tree_info64(FT ft, struct ftinfo64 *s) {
-    toku_blocktable_get_info64(ft->blocktable, s);
+void toku_ft_get_fractal_tree_info64(FT ft, struct ftinfo64 *info) {
+    ft->blocktable.get_info64(info);
 }
 
 int toku_ft_iterate_fractal_tree_block_map(FT ft, int (*iter)(uint64_t,int64_t,int64_t,int64_t,int64_t,void*), void *iter_extra) {
     uint64_t this_checkpoint_count = ft->h->checkpoint_count;
-    return toku_blocktable_iterate_translation_tables(ft->blocktable, this_checkpoint_count, iter, iter_extra);
+    return ft->blocktable.iterate_translation_tables(this_checkpoint_count, iter, iter_extra);
 }
 
 void 
-toku_ft_update_descriptor(FT ft, DESCRIPTOR d) 
+toku_ft_update_descriptor(FT ft, DESCRIPTOR desc) 
 // Effect: Changes the descriptor in a tree (log the change, make sure it makes it to disk eventually).
 // requires: the ft is fully user-opened with a valid cachefile.
 //           descriptor updates cannot happen in parallel for an FT 
@@ -900,7 +888,7 @@ toku_ft_update_descriptor(FT ft, DESCRIPTOR d)
 {
     assert(ft->cf);
     int fd = toku_cachefile_get_fd(ft->cf);
-    toku_ft_update_descriptor_with_fd(ft, d, fd);
+    toku_ft_update_descriptor_with_fd(ft, desc, fd);
 }
 
 // upadate the descriptor for an ft and serialize it using
@@ -909,41 +897,30 @@ toku_ft_update_descriptor(FT ft, DESCRIPTOR d)
 // update a descriptor before the ft is fully opened and has
 // a valid cachefile.
 void
-toku_ft_update_descriptor_with_fd(FT ft, DESCRIPTOR d, int fd) {
+toku_ft_update_descriptor_with_fd(FT ft, DESCRIPTOR desc, int fd) {
     // the checksum is four bytes, so that's where the magic number comes from
     // make space for the new descriptor and write it out to disk
     DISKOFF offset, size;
-    size = toku_serialize_descriptor_size(d) + 4;
-    toku_realloc_descriptor_on_disk(ft->blocktable, size, &offset, ft, fd);
-    toku_serialize_descriptor_contents_to_fd(fd, d, offset);
+    size = toku_serialize_descriptor_size(desc) + 4;
+    ft->blocktable.realloc_descriptor_on_disk(size, &offset, ft, fd);
+    toku_serialize_descriptor_contents_to_fd(fd, desc, offset);
 
     // cleanup the old descriptor and set the in-memory descriptor to the new one
-    if (ft->descriptor.dbt.data) {
-        toku_free(ft->descriptor.dbt.data);
-    }
-    ft->descriptor.dbt.size = d->dbt.size;
-    ft->descriptor.dbt.data = toku_memdup(d->dbt.data, d->dbt.size);
+    toku_destroy_dbt(&ft->descriptor.dbt);
+    toku_clone_dbt(&ft->descriptor.dbt, desc->dbt);
 }
 
-void 
-toku_ft_update_cmp_descriptor(FT ft) {
-    if (ft->cmp_descriptor.dbt.data != NULL) {
-        toku_free(ft->cmp_descriptor.dbt.data);
-    }
-    ft->cmp_descriptor.dbt.size = ft->descriptor.dbt.size;
-    ft->cmp_descriptor.dbt.data = toku_xmemdup(
-        ft->descriptor.dbt.data, 
-        ft->descriptor.dbt.size
-        );
+void toku_ft_update_cmp_descriptor(FT ft) {
+    // cleanup the old cmp descriptor and clone it as the in-memory descriptor
+    toku_destroy_dbt(&ft->cmp_descriptor.dbt);
+    toku_clone_dbt(&ft->cmp_descriptor.dbt, ft->descriptor.dbt);
 }
 
-DESCRIPTOR
-toku_ft_get_descriptor(FT_HANDLE ft_handle) {
+DESCRIPTOR toku_ft_get_descriptor(FT_HANDLE ft_handle) {
     return &ft_handle->ft->descriptor;
 }
 
-DESCRIPTOR
-toku_ft_get_cmp_descriptor(FT_HANDLE ft_handle) {
+DESCRIPTOR toku_ft_get_cmp_descriptor(FT_HANDLE ft_handle) {
     return &ft_handle->ft->cmp_descriptor;
 }
 
@@ -1068,8 +1045,8 @@ garbage_helper(BLOCKNUM blocknum, int64_t UU(size), int64_t UU(address), void *e
     struct garbage_helper_extra *CAST_FROM_VOIDP(info, extra);
     FTNODE node;
     FTNODE_DISK_DATA ndd;
-    struct ftnode_fetch_extra bfe;
-    fill_bfe_for_full_read(&bfe, info->ft);
+    ftnode_fetch_extra bfe;
+    bfe.create_for_full_read(info->ft);
     int fd = toku_cachefile_get_fd(info->ft->cf);
     int r = toku_deserialize_ftnode_from(fd, blocknum, 0, &node, &ndd, &bfe);
     if (r != 0) {
@@ -1079,8 +1056,8 @@ garbage_helper(BLOCKNUM blocknum, int64_t UU(size), int64_t UU(address), void *e
         goto exit;
     }
     for (int i = 0; i < node->n_children; ++i) {
-        BN_DATA bd = BLB_DATA(node, i);
-        r = bd->omt_iterate<struct garbage_helper_extra, garbage_leafentry_helper>(info);
+        bn_data* bd = BLB_DATA(node, i);
+        r = bd->iterate<struct garbage_helper_extra, garbage_leafentry_helper>(info);
         if (r != 0) {
             goto exit;
         }
@@ -1103,7 +1080,7 @@ void toku_ft_get_garbage(FT ft, uint64_t *total_space, uint64_t *used_space) {
         .total_space = 0,
         .used_space = 0
     };
-    toku_blocktable_iterate(ft->blocktable, TRANSLATION_CHECKPOINTED, garbage_helper, &info, true, true);
+    ft->blocktable.iterate(block_table::TRANSLATION_CHECKPOINTED, garbage_helper, &info, true, true);
     *total_space = info.total_space;
     *used_space = info.used_space;
 }
@@ -1112,8 +1089,6 @@ void toku_ft_get_garbage(FT ft, uint64_t *total_space, uint64_t *used_space) {
 #if !defined(TOKUDB_REVISION)
 #error
 #endif
-
-
 
 #define xstr(X) str(X)
 #define str(X) #X
@@ -1124,10 +1099,9 @@ void toku_ft_get_garbage(FT ft, uint64_t *total_space, uint64_t *used_space) {
 struct toku_product_name_strings_struct toku_product_name_strings;
 
 char toku_product_name[TOKU_MAX_PRODUCT_NAME_LENGTH];
-void
-tokudb_update_product_name_strings(void) {
-    //DO ALL STRINGS HERE.. maybe have a separate FT layer version as well
-    { // Version string
+void tokuft_update_product_name_strings(void) {
+    // DO ALL STRINGS HERE.. maybe have a separate FT layer version as well
+    {
         int n = snprintf(toku_product_name_strings.db_version,
                          sizeof(toku_product_name_strings.db_version),
                          "%s %s", toku_product_name, static_version_string);
@@ -1179,7 +1153,7 @@ toku_single_process_lock(const char *lock_dir, const char *which, int *lockfd) {
     *lockfd = toku_os_lock_file(lockfname);
     if (*lockfd < 0) {
         int e = get_error_errno();
-        fprintf(stderr, "Couldn't start tokudb because some other tokudb process is using the same directory [%s] for [%s]\n", lock_dir, which);
+        fprintf(stderr, "Couldn't start tokuft because some other tokuft process is using the same directory [%s] for [%s]\n", lock_dir, which);
         return e;
     }
     return 0;
@@ -1197,10 +1171,10 @@ toku_single_process_unlock(int *lockfd) {
     return 0;
 }
 
-int tokudb_num_envs = 0;
+int tokuft_num_envs = 0;
 int
 db_env_set_toku_product_name(const char *name) {
-    if (tokudb_num_envs > 0) {
+    if (tokuft_num_envs > 0) {
         return EINVAL;
     }
     if (!name || strlen(name) < 1) {
@@ -1211,7 +1185,7 @@ db_env_set_toku_product_name(const char *name) {
     }
     if (strncmp(toku_product_name, name, sizeof(toku_product_name))) {
         strcpy(toku_product_name, name);
-        tokudb_update_product_name_strings();
+        tokuft_update_product_name_strings();
     }
     return 0;
 }

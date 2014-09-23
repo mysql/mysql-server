@@ -29,7 +29,7 @@ COPYING CONDITIONS NOTICE:
 
 COPYRIGHT NOTICE:
 
-  TokuDB, Tokutek Fractal Tree Indexing Library.
+  TokuFT, Tokutek Fractal Tree Indexing Library.
   Copyright (C) 2007-2013 Tokutek, Inc.
 
 DISCLAIMER:
@@ -145,7 +145,7 @@ simple_test(bool unlink_on_close) {
     const int test_limit = 12;
     int r;
     CACHETABLE ct;
-    toku_cachetable_create(&ct, test_limit, ZERO_LSN, NULL_LOGGER);
+    toku_cachetable_create(&ct, test_limit, ZERO_LSN, nullptr);
     const char *fname1 = TOKU_TEST_FILENAME;
     unlink(fname1);
     CACHEFILE f1;
@@ -214,7 +214,7 @@ static void test_pair_stays_in_cache(enum cachetable_dirty dirty) {
     const int test_limit = 12;
     int r;
     CACHETABLE ct;
-    toku_cachetable_create(&ct, test_limit, ZERO_LSN, NULL_LOGGER);
+    toku_cachetable_create(&ct, test_limit, ZERO_LSN, nullptr);
     const char *fname1 = TOKU_TEST_FILENAME;
     unlink(fname1);
     CACHEFILE f1;
@@ -245,7 +245,7 @@ static void test_multiple_cachefiles(bool use_same_hash) {
         const int test_limit = 1000;
         int r;
         CACHETABLE ct;
-        toku_cachetable_create(&ct, test_limit, ZERO_LSN, NULL_LOGGER);
+        toku_cachetable_create(&ct, test_limit, ZERO_LSN, nullptr);
 
         char fname1[strlen(TOKU_TEST_FILENAME) + sizeof("_1")];    
         strcpy(fname1, TOKU_TEST_FILENAME);
@@ -333,7 +333,7 @@ static void test_evictor(void) {
     const int test_limit = 12;
     int r;
     CACHETABLE ct;
-    toku_cachetable_create(&ct, test_limit, ZERO_LSN, NULL_LOGGER);
+    toku_cachetable_create(&ct, test_limit, ZERO_LSN, nullptr);
 
     char fname1[strlen(TOKU_TEST_FILENAME) + sizeof("_1")];    
     strcpy(fname1, TOKU_TEST_FILENAME);

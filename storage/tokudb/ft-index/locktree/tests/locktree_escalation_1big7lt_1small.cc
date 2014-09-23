@@ -29,7 +29,7 @@ COPYING CONDITIONS NOTICE:
 
 COPYRIGHT NOTICE:
 
-  TokuDB, Tokutek Fractal Tree Indexing Library.
+  TokuFT, Tokutek Fractal Tree Indexing Library.
   Copyright (C) 2007-2013 Tokutek, Inc.
 
 DISCLAIMER:
@@ -119,21 +119,7 @@ static int locktree_write_lock(locktree *lt, TXNID txn_id, int64_t left_k, int64
     return lt->acquire_write_lock(txn_id, &left, &right, nullptr, big_txn);
 }
 
-#if 0
-static locktree **big_txn_lt;
-static int n_big_txn_lt;
-
-static int get_locktrees_touched_by_txn(TXNID txn_id UU(), void *txn_extra UU(), locktree ***ret_locktrees, int *ret_num_locktrees) {
-    locktree **locktrees = (locktree **) toku_malloc(n_big_txn_lt * sizeof (locktree *));
-    for (int i = 0; i < n_big_txn_lt; i++)
-        locktrees[i] = big_txn_lt[i];
-    *ret_locktrees = locktrees;
-    *ret_num_locktrees = n_big_txn_lt;
-    return 0;
-}
-#endif
-
-static void run_big_txn(locktree::manager *mgr UU(), locktree **lt, int n_lt, TXNID txn_id) {
+static void run_big_txn(locktree_manager *mgr UU(), locktree **lt, int n_lt, TXNID txn_id) {
     int64_t last_i = -1;
     for (int64_t i = 0; !killed; i++) {
         for (int j = 0; j < n_lt; j++) {
@@ -157,7 +143,7 @@ static void run_big_txn(locktree::manager *mgr UU(), locktree **lt, int n_lt, TX
 }
 
 struct big_arg {
-    locktree::manager *mgr;
+    locktree_manager *mgr;
     locktree **lt;
     int n_lt;
     TXNID txn_id;
@@ -171,7 +157,7 @@ static void *big_f(void *_arg) {
     return arg;
 }
 
-static void run_small_txn(locktree::manager *mgr UU(), locktree *lt, TXNID txn_id, int64_t k) {
+static void run_small_txn(locktree_manager *mgr UU(), locktree *lt, TXNID txn_id, int64_t k) {
     int64_t i;
     for (i = 0; !killed; i++) {
         uint64_t t_start = toku_current_time_microsec();
@@ -190,7 +176,7 @@ static void run_small_txn(locktree::manager *mgr UU(), locktree *lt, TXNID txn_i
 }
 
 struct small_arg {
-    locktree::manager *mgr;
+    locktree_manager *mgr;
     locktree *lt;
     TXNID txn_id;
     int64_t k;
@@ -209,7 +195,7 @@ static void e_callback(TXNID txnid, const locktree *lt, const range_buffer &buff
         printf("%u %s %" PRIu64 " %p %d %p\n", toku_os_gettid(), __FUNCTION__, txnid, lt, buffer.get_num_ranges(), extra);
 }
 
-static uint64_t get_escalation_count(locktree::manager &mgr) {
+static uint64_t get_escalation_count(locktree_manager &mgr) {
     LTM_STATUS_S ltm_status;
     mgr.get_status(&ltm_status);
 
@@ -251,7 +237,7 @@ int main(int argc, const char *argv[]) {
     int r;
 
     // create a manager
-    locktree::manager mgr;
+    locktree_manager mgr;
     mgr.create(nullptr, nullptr, e_callback, nullptr);
     mgr.set_max_lock_memory(max_lock_memory);
 
@@ -261,16 +247,11 @@ int main(int argc, const char *argv[]) {
     locktree *big_lt[n_big];
     for (int i = 0; i < n_big; i++) {
         dict_id = { next_dict_id }; next_dict_id++;
-        big_lt[i] = mgr.get_lt(dict_id, nullptr, compare_dbts, nullptr);
+        big_lt[i] = mgr.get_lt(dict_id, dbt_comparator, nullptr);
     }
 
-#if 0
-    big_txn_lt = big_lt;
-    n_big_txn_lt = n_big;
-#endif
-
     dict_id = { next_dict_id }; next_dict_id++;
-    locktree *small_lt = mgr.get_lt(dict_id, nullptr, compare_dbts, nullptr);
+    locktree *small_lt = mgr.get_lt(dict_id, dbt_comparator, nullptr);
 
     // create the worker threads
     struct big_arg big_arg = { &mgr, big_lt, n_big, 1000 };

@@ -29,7 +29,7 @@ COPYING CONDITIONS NOTICE:
 
 COPYRIGHT NOTICE:
 
-  TokuDB, Tokutek Fractal Tree Indexing Library.
+  TokuFT, Tokutek Fractal Tree Indexing Library.
   Copyright (C) 2007-2013 Tokutek, Inc.
 
 DISCLAIMER:
@@ -88,75 +88,48 @@ PATENT RIGHTS GRANT:
 
 #ident "Copyright (c) 2007-2013 Tokutek Inc.  All rights reserved."
 
-
 #include "test.h"
 
-static void ba_alloc_at (BLOCK_ALLOCATOR ba, uint64_t size, uint64_t offset) {
-    block_allocator_validate(ba);
-    block_allocator_alloc_block_at(ba, size*512, offset*512);
-    block_allocator_validate(ba);
-}
-
-static void ba_alloc (BLOCK_ALLOCATOR ba, uint64_t size, uint64_t *answer) {
-    block_allocator_validate(ba);
+static void ba_alloc(block_allocator *ba, uint64_t size, uint64_t *answer) {
+    ba->validate();
     uint64_t actual_answer;
-    block_allocator_alloc_block(ba, 512*size, &actual_answer);
-    block_allocator_validate(ba);
+    const uint64_t heat = random() % 2;
+    ba->alloc_block(512 * size, heat, &actual_answer);
+    ba->validate();
+
     assert(actual_answer%512==0);
     *answer = actual_answer/512;
 }
 
-static void ba_free (BLOCK_ALLOCATOR ba, uint64_t offset) {
-    block_allocator_validate(ba);
-    block_allocator_free_block(ba, offset*512);
-    block_allocator_validate(ba);
+static void ba_free(block_allocator *ba, uint64_t offset) {
+    ba->validate();
+    ba->free_block(offset * 512);
+    ba->validate();
 }
 
-static void
-ba_check_l (BLOCK_ALLOCATOR ba, uint64_t blocknum_in_layout_order, uint64_t expected_offset, uint64_t expected_size)
-{
+static void ba_check_l(block_allocator *ba, uint64_t blocknum_in_layout_order,
+                       uint64_t expected_offset, uint64_t expected_size) {
     uint64_t actual_offset, actual_size;
-    int r = block_allocator_get_nth_block_in_layout_order(ba, blocknum_in_layout_order, &actual_offset, &actual_size);
+    int r = ba->get_nth_block_in_layout_order(blocknum_in_layout_order, &actual_offset, &actual_size);
     assert(r==0);
     assert(expected_offset*512 == actual_offset);
     assert(expected_size  *512 == actual_size);
 }
 
-static void
-ba_check_none (BLOCK_ALLOCATOR ba, uint64_t blocknum_in_layout_order)
-{
+static void ba_check_none(block_allocator *ba, uint64_t blocknum_in_layout_order) {
     uint64_t actual_offset, actual_size;
-    int r = block_allocator_get_nth_block_in_layout_order(ba, blocknum_in_layout_order, &actual_offset, &actual_size);
+    int r = ba->get_nth_block_in_layout_order(blocknum_in_layout_order, &actual_offset, &actual_size);
     assert(r==-1);
 }
 
 
 // Simple block allocator test
-static void
-test_ba0 (void) {
-    BLOCK_ALLOCATOR ba;
-    uint64_t b0, b1;
-    create_block_allocator(&ba, 100*512, 1*512);
-    assert(block_allocator_allocated_limit(ba)==100*512);
-    ba_alloc_at(ba, 50, 100);
-    assert(block_allocator_allocated_limit(ba)==150*512);
-    ba_alloc_at(ba, 25, 150);
-    ba_alloc   (ba, 10, &b0);
-    ba_check_l (ba, 0, 0,   100);
-    ba_check_l (ba, 1, 100,  50);
-    ba_check_l (ba, 2, 150,  25);
-    ba_check_l (ba, 3, b0,  10);
-    ba_check_none (ba, 4);
-    assert(b0==175);
-    ba_free(ba, 150);
-    ba_alloc_at(ba, 10, 150);
-    ba_alloc(ba, 10, &b0);
-    assert(b0==160);
-    ba_alloc(ba, 10, &b0);
-    ba_alloc(ba, 113, &b1);
-    assert(113*512==block_allocator_block_size(ba, b1 *512));
-    assert(10 *512==block_allocator_block_size(ba, b0 *512));
-    assert(50 *512==block_allocator_block_size(ba, 100*512));
+static void test_ba0(block_allocator::allocation_strategy strategy) {
+    block_allocator allocator;
+    block_allocator *ba = &allocator;
+    ba->create(100*512, 1*512);
+    ba->set_strategy(strategy);
+    assert(ba->allocated_limit()==100*512);
 
     uint64_t b2, b3, b4, b5, b6, b7;
     ba_alloc(ba, 100, &b2);     
@@ -183,27 +156,28 @@ test_ba0 (void) {
     ba_free(ba, b4);           
     ba_alloc(ba, 100, &b4);    
 
-    destroy_block_allocator(&ba);
-    assert(ba==0);
+    ba->destroy();
 }
 
 // Manually to get coverage of all the code in the block allocator.
 static void
-test_ba1 (int n_initial) {
-    BLOCK_ALLOCATOR ba;
-    create_block_allocator(&ba, 0*512, 1*512);
-    int i;
+test_ba1(block_allocator::allocation_strategy strategy, int n_initial) {
+    block_allocator allocator;
+    block_allocator *ba = &allocator;
+    ba->create(0*512, 1*512);
+    ba->set_strategy(strategy);
+
     int n_blocks=0;
     uint64_t blocks[1000];
-    for (i=0; i<1000; i++) {
-	if (i<n_initial || random()%2 == 0) {
-	    if (n_blocks<1000) {
+    for (int i = 0; i < 1000; i++) {
+	if (i < n_initial || random() % 2 == 0) {
+	    if (n_blocks < 1000) {
 		ba_alloc(ba, 1, &blocks[n_blocks]);
 		//printf("A[%d]=%ld\n", n_blocks, blocks[n_blocks]);
 		n_blocks++;
 	    } 
 	} else {
-	    if (n_blocks>0) {
+	    if (n_blocks > 0) {
 		int blocknum = random()%n_blocks;
 		//printf("F[%d]%ld\n", blocknum, blocks[blocknum]);
 		ba_free(ba, blocks[blocknum]);
@@ -213,19 +187,21 @@ test_ba1 (int n_initial) {
 	}
     }
     
-    destroy_block_allocator(&ba);
-    assert(ba==0);
+    ba->destroy();
 }
     
 // Check to see if it is first fit or best fit.
 static void
 test_ba2 (void)
 {
-    BLOCK_ALLOCATOR ba;
+    block_allocator allocator;
+    block_allocator *ba = &allocator;
     uint64_t b[6];
     enum { BSIZE = 1024 };
-    create_block_allocator(&ba, 100*512, BSIZE*512);
-    assert(block_allocator_allocated_limit(ba)==100*512);
+    ba->create(100*512, BSIZE*512);
+    ba->set_strategy(block_allocator::BA_STRATEGY_FIRST_FIT);
+    assert(ba->allocated_limit()==100*512);
+
     ba_check_l    (ba, 0, 0, 100);
     ba_check_none (ba, 1);
 
@@ -234,16 +210,16 @@ test_ba2 (void)
     ba_check_l    (ba, 1, BSIZE, 100);
     ba_check_none (ba, 2);
 
-    ba_alloc (ba, BSIZE+100, &b[1]);
+    ba_alloc (ba, BSIZE + 100, &b[1]);
     ba_check_l    (ba, 0, 0, 100);
     ba_check_l    (ba, 1,   BSIZE,       100);
-    ba_check_l    (ba, 2, 2*BSIZE, BSIZE+100);
+    ba_check_l    (ba, 2, 2*BSIZE, BSIZE + 100);
     ba_check_none (ba, 3);
 
     ba_alloc (ba, 100, &b[2]);
     ba_check_l    (ba, 0, 0, 100);
     ba_check_l    (ba, 1,   BSIZE,       100);
-    ba_check_l    (ba, 2, 2*BSIZE, BSIZE+100);
+    ba_check_l    (ba, 2, 2*BSIZE, BSIZE + 100);
     ba_check_l    (ba, 3, 4*BSIZE,       100);
     ba_check_none (ba, 4);
 
@@ -252,7 +228,7 @@ test_ba2 (void)
     ba_alloc (ba, 100, &b[5]);
     ba_check_l    (ba, 0, 0, 100);
     ba_check_l    (ba, 1,   BSIZE,       100);
-    ba_check_l    (ba, 2, 2*BSIZE, BSIZE+100);
+    ba_check_l    (ba, 2, 2*BSIZE, BSIZE + 100);
     ba_check_l    (ba, 3, 4*BSIZE,       100);
     ba_check_l    (ba, 4, 5*BSIZE,       100);
     ba_check_l    (ba, 5, 6*BSIZE,       100);
@@ -262,7 +238,7 @@ test_ba2 (void)
     ba_free (ba, 4*BSIZE);
     ba_check_l    (ba, 0, 0, 100);
     ba_check_l    (ba, 1,   BSIZE,       100);
-    ba_check_l    (ba, 2, 2*BSIZE, BSIZE+100);
+    ba_check_l    (ba, 2, 2*BSIZE, BSIZE + 100);
     ba_check_l    (ba, 3, 5*BSIZE,       100);
     ba_check_l    (ba, 4, 6*BSIZE,       100);
     ba_check_l    (ba, 5, 7*BSIZE,       100);
@@ -273,7 +249,7 @@ test_ba2 (void)
     assert(b2==4*BSIZE);
     ba_check_l    (ba, 0, 0, 100);
     ba_check_l    (ba, 1,   BSIZE,       100);
-    ba_check_l    (ba, 2, 2*BSIZE, BSIZE+100);
+    ba_check_l    (ba, 2, 2*BSIZE, BSIZE + 100);
     ba_check_l    (ba, 3, 4*BSIZE,       100);
     ba_check_l    (ba, 4, 5*BSIZE,       100);
     ba_check_l    (ba, 5, 6*BSIZE,       100);
@@ -283,7 +259,7 @@ test_ba2 (void)
     ba_free (ba,   BSIZE);
     ba_free (ba, 5*BSIZE);
     ba_check_l    (ba, 0, 0, 100);
-    ba_check_l    (ba, 1, 2*BSIZE, BSIZE+100);
+    ba_check_l    (ba, 1, 2*BSIZE, BSIZE + 100);
     ba_check_l    (ba, 2, 4*BSIZE,       100);
     ba_check_l    (ba, 3, 6*BSIZE,       100);
     ba_check_l    (ba, 4, 7*BSIZE,       100);
@@ -301,7 +277,7 @@ test_ba2 (void)
     assert(b5==5*BSIZE);
     ba_check_l    (ba, 0, 0, 100);
     ba_check_l    (ba, 1,   BSIZE,       100);
-    ba_check_l    (ba, 2, 2*BSIZE, BSIZE+100);
+    ba_check_l    (ba, 2, 2*BSIZE, BSIZE + 100);
     ba_check_l    (ba, 3, 4*BSIZE,       100);
     ba_check_l    (ba, 4, 5*BSIZE,       100);
     ba_check_l    (ba, 5, 6*BSIZE,       100);
@@ -318,7 +294,7 @@ test_ba2 (void)
     assert(b8==10*BSIZE);
     ba_check_l    (ba, 0, 0, 100);
     ba_check_l    (ba, 1,   BSIZE,       100);
-    ba_check_l    (ba, 2, 2*BSIZE, BSIZE+100);
+    ba_check_l    (ba, 2, 2*BSIZE, BSIZE + 100);
     ba_check_l    (ba, 3, 4*BSIZE,       100);
     ba_check_l    (ba, 4, 5*BSIZE,       100);
     ba_check_l    (ba, 5, 6*BSIZE,       100);
@@ -344,15 +320,23 @@ test_ba2 (void)
     ba_alloc(ba, 100, &b11);
     assert(b11==5*BSIZE);
 
-    destroy_block_allocator(&ba);
+    ba->destroy();
 }
 
 int
 test_main (int argc __attribute__((__unused__)), const char *argv[] __attribute__((__unused__))) {
-    test_ba0();
-    test_ba1(0);
-    test_ba1(10);
-    test_ba1(20);
+    enum block_allocator::allocation_strategy strategies[] = {
+        block_allocator::BA_STRATEGY_FIRST_FIT,
+        block_allocator::BA_STRATEGY_BEST_FIT,
+        block_allocator::BA_STRATEGY_PADDED_FIT,
+        block_allocator::BA_STRATEGY_HEAT_ZONE,
+    };
+    for (size_t i = 0; i < sizeof(strategies) / sizeof(strategies[0]); i++) {
+        test_ba0(strategies[i]);
+        test_ba1(strategies[i], 0);
+        test_ba1(strategies[i], 10);
+        test_ba1(strategies[i], 20);
+    }
     test_ba2();
     return 0;
 }

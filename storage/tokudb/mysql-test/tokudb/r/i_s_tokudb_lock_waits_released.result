@@ -5,65 +5,64 @@ create table t (id int primary key);
 select * from information_schema.tokudb_trx;
 trx_id	trx_mysql_thread_id
 select * from information_schema.tokudb_locks;
-locks_trx_id	locks_mysql_thread_id	locks_dname	locks_key_left	locks_key_right
+locks_trx_id	locks_mysql_thread_id	locks_dname	locks_key_left	locks_key_right	locks_table_schema	locks_table_name	locks_table_dictionary_name
 select * from information_schema.tokudb_lock_waits;
-requesting_trx_id	blocking_trx_id	lock_waits_dname	lock_waits_key_left	lock_waits_key_right	lock_waits_start_time
+requesting_trx_id	blocking_trx_id	lock_waits_dname	lock_waits_key_left	lock_waits_key_right	lock_waits_start_time	lock_waits_table_schema	lock_waits_table_name	lock_waits_table_dictionary_name
 set autocommit=0;
 set tokudb_prelock_empty=OFF;
 insert into t values (1);
 set autocommit=0;
 insert into t values (1);
 select * from information_schema.tokudb_locks;
-locks_trx_id	locks_mysql_thread_id	locks_dname	locks_key_left	locks_key_right
-TRX_ID	MYSQL_ID	./test/t-main	0001000000	0001000000
+locks_trx_id	locks_mysql_thread_id	locks_dname	locks_key_left	locks_key_right	locks_table_schema	locks_table_name	locks_table_dictionary_name
+TRX_ID	MYSQL_ID	./test/t-main	0001000000	0001000000	test	t	main
 select * from information_schema.tokudb_lock_waits;
-requesting_trx_id	blocking_trx_id	lock_waits_dname	lock_waits_key_left	lock_waits_key_right	lock_waits_start_time
-REQUEST_TRX_ID	BLOCK_TRX_ID	./test/t-main	0001000000	0001000000	LOCK_WAITS_START_TIME
+requesting_trx_id	blocking_trx_id	lock_waits_dname	lock_waits_key_left	lock_waits_key_right	lock_waits_start_time	lock_waits_table_schema	lock_waits_table_name	lock_waits_table_dictionary_name
+REQUEST_TRX_ID	BLOCK_TRX_ID	./test/t-main	0001000000	0001000000	LOCK_WAITS_START_TIME	test	t	main
 select * from information_schema.tokudb_trx;
 trx_id	trx_mysql_thread_id
 TRX_ID	MYSQL_ID
 TRX_ID	MYSQL_ID
 commit;
 select * from information_schema.tokudb_locks;
-locks_trx_id	locks_mysql_thread_id	locks_dname	locks_key_left	locks_key_right
-TRX_ID	MYSQL_ID	./test/t-main	0001000000	0001000000
-TRX_ID	MYSQL_ID	./test/t-main	0001000000	0001000000
+locks_trx_id	locks_mysql_thread_id	locks_dname	locks_key_left	locks_key_right	locks_table_schema	locks_table_name	locks_table_dictionary_name
+TRX_ID	MYSQL_ID	./test/t-main	0001000000	0001000000	test	t	main
 select * from information_schema.tokudb_lock_waits;
-requesting_trx_id	blocking_trx_id	lock_waits_dname	lock_waits_key_left	lock_waits_key_right	lock_waits_start_time
+requesting_trx_id	blocking_trx_id	lock_waits_dname	lock_waits_key_left	lock_waits_key_right	lock_waits_start_time	lock_waits_table_schema	lock_waits_table_name	lock_waits_table_dictionary_name
 ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
 commit;
 select * from information_schema.tokudb_trx;
 trx_id	trx_mysql_thread_id
 select * from information_schema.tokudb_locks;
-locks_trx_id	locks_mysql_thread_id	locks_dname	locks_key_left	locks_key_right
+locks_trx_id	locks_mysql_thread_id	locks_dname	locks_key_left	locks_key_right	locks_table_schema	locks_table_name	locks_table_dictionary_name
 select * from information_schema.tokudb_lock_waits;
-requesting_trx_id	blocking_trx_id	lock_waits_dname	lock_waits_key_left	lock_waits_key_right	lock_waits_start_time
+requesting_trx_id	blocking_trx_id	lock_waits_dname	lock_waits_key_left	lock_waits_key_right	lock_waits_start_time	lock_waits_table_schema	lock_waits_table_name	lock_waits_table_dictionary_name
 set autocommit=0;
 set tokudb_prelock_empty=OFF;
 replace into t values (1);
 set autocommit=0;
 replace into t values (1);
 select * from information_schema.tokudb_locks;
-locks_trx_id	locks_mysql_thread_id	locks_dname	locks_key_left	locks_key_right
-TRX_ID	MYSQL_ID	./test/t-main	0001000000	0001000000
+locks_trx_id	locks_mysql_thread_id	locks_dname	locks_key_left	locks_key_right	locks_table_schema	locks_table_name	locks_table_dictionary_name
+TRX_ID	MYSQL_ID	./test/t-main	0001000000	0001000000	test	t	main
 select * from information_schema.tokudb_lock_waits;
-requesting_trx_id	blocking_trx_id	lock_waits_dname	lock_waits_key_left	lock_waits_key_right	lock_waits_start_time
-REQUEST_TRX_ID	BLOCK_TRX_ID	./test/t-main	0001000000	0001000000	LOCK_WAITS_START_TIME
+requesting_trx_id	blocking_trx_id	lock_waits_dname	lock_waits_key_left	lock_waits_key_right	lock_waits_start_time	lock_waits_table_schema	lock_waits_table_name	lock_waits_table_dictionary_name
+REQUEST_TRX_ID	BLOCK_TRX_ID	./test/t-main	0001000000	0001000000	LOCK_WAITS_START_TIME	test	t	main
 select * from information_schema.tokudb_trx;
 trx_id	trx_mysql_thread_id
 TRX_ID	MYSQL_ID
 TRX_ID	MYSQL_ID
 commit;
 select * from information_schema.tokudb_locks;
-locks_trx_id	locks_mysql_thread_id	locks_dname	locks_key_left	locks_key_right
-TRX_ID	MYSQL_ID	./test/t-main	0001000000	0001000000
+locks_trx_id	locks_mysql_thread_id	locks_dname	locks_key_left	locks_key_right	locks_table_schema	locks_table_name	locks_table_dictionary_name
+TRX_ID	MYSQL_ID	./test/t-main	0001000000	0001000000	test	t	main
 select * from information_schema.tokudb_lock_waits;
-requesting_trx_id	blocking_trx_id	lock_waits_dname	lock_waits_key_left	lock_waits_key_right	lock_waits_start_time
+requesting_trx_id	blocking_trx_id	lock_waits_dname	lock_waits_key_left	lock_waits_key_right	lock_waits_start_time	lock_waits_table_schema	lock_waits_table_name	lock_waits_table_dictionary_name
 commit;
 select * from information_schema.tokudb_trx;
 trx_id	trx_mysql_thread_id
 select * from information_schema.tokudb_locks;
-locks_trx_id	locks_mysql_thread_id	locks_dname	locks_key_left	locks_key_right
+locks_trx_id	locks_mysql_thread_id	locks_dname	locks_key_left	locks_key_right	locks_table_schema	locks_table_name	locks_table_dictionary_name
 select * from information_schema.tokudb_lock_waits;
-requesting_trx_id	blocking_trx_id	lock_waits_dname	lock_waits_key_left	lock_waits_key_right	lock_waits_start_time
+requesting_trx_id	blocking_trx_id	lock_waits_dname	lock_waits_key_left	lock_waits_key_right	lock_waits_start_time	lock_waits_table_schema	lock_waits_table_name	lock_waits_table_dictionary_name
 drop table t;

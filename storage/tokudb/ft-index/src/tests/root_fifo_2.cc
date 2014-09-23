@@ -29,7 +29,7 @@ COPYING CONDITIONS NOTICE:
 
 COPYRIGHT NOTICE:
 
-  TokuDB, Tokutek Fractal Tree Indexing Library.
+  TokuFT, Tokutek Fractal Tree Indexing Library.
   Copyright (C) 2007-2013 Tokutek, Inc.
 
 DISCLAIMER:
@@ -184,11 +184,7 @@ static void root_fifo_2(int n, int create_outside) {
 
     // cleanup
     r = env->close(env, 0); 
-#if TOKUDB
     assert(r == 0); env = null_env;
-#else
-    printf("%s:%d env close r=%d\n", __FUNCTION__, __LINE__, r);
-#endif
 }
 
 int test_main(int argc, char *const argv[]) {

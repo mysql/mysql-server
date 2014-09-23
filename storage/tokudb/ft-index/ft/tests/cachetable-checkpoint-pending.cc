@@ -30,7 +30,7 @@ COPYING CONDITIONS NOTICE:
 
 COPYRIGHT NOTICE:
 
-  TokuDB, Tokutek Fractal Tree Indexing Library.
+  TokuFT, Tokutek Fractal Tree Indexing Library.
   Copyright (C) 2007-2013 Tokutek, Inc.
 
 DISCLAIMER:
@@ -93,7 +93,7 @@ PATENT RIGHTS GRANT:
 #include <stdio.h>
 #include <unistd.h>
 #include "cachetable-test.h"
-#include "checkpoint.h"
+#include "cachetable/checkpoint.h"
 #include <portability/toku_atomic.h>
 
 static int N; // how many items in the table
@@ -108,13 +108,9 @@ static volatile int n_flush, n_write_me, n_keep_me, n_fetch;
 static void
 sleep_random (void)
 {
-#if TOKU_WINDOWS
-    usleep(random() % 1000); //Will turn out to be almost always 1ms.
-#else
     toku_timespec_t req = {.tv_sec  = 0,
 			   .tv_nsec = random()%1000000}; //Max just under 1ms
     nanosleep(&req, NULL);
-#endif
 }
 
 int expect_value = 42; // initially 42, later 43
@@ -191,7 +187,7 @@ static void checkpoint_pending(void) {
     if (verbose) { printf("%s:%d n=%d\n", __FUNCTION__, __LINE__, N); fflush(stdout); }
     const int test_limit = N;
     int r;
-    toku_cachetable_create(&ct, test_limit*sizeof(int), ZERO_LSN, NULL_LOGGER);
+    toku_cachetable_create(&ct, test_limit*sizeof(int), ZERO_LSN, nullptr);
     const char *fname1 = TOKU_TEST_FILENAME;
     r = unlink(fname1); if (r!=0) CKERR2(get_error_errno(), ENOENT);
     r = toku_cachetable_openf(&cf, ct, fname1, O_RDWR|O_CREAT, S_IRWXU|S_IRWXG|S_IRWXO); assert(r == 0);

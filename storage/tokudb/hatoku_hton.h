@@ -450,18 +450,41 @@ static TYPELIB tokudb_empty_scan_typelib = {
     NULL
 };
 
-static MYSQL_THDVAR_ENUM(empty_scan,
-    PLUGIN_VAR_OPCMDARG,
+static MYSQL_THDVAR_ENUM(empty_scan, PLUGIN_VAR_OPCMDARG,
     "TokuDB algorithm to check if the table is empty when opened. ",
     NULL, NULL, TOKUDB_EMPTY_SCAN_RL, &tokudb_empty_scan_typelib
 );
 
 #if TOKUDB_CHECK_JEMALLOC
 static uint tokudb_check_jemalloc;
-static MYSQL_SYSVAR_UINT(check_jemalloc, tokudb_check_jemalloc, 0, "Check if jemalloc is linked", NULL, NULL, 1, 0, 1, 0);
+static MYSQL_SYSVAR_UINT(check_jemalloc, tokudb_check_jemalloc, 0, "Check if jemalloc is linked",
+                         NULL, NULL, 1, 0, 1, 0);
 #endif
 
-static MYSQL_THDVAR_BOOL(bulk_fetch, PLUGIN_VAR_THDLOCAL, "enable bulk fetch", NULL /*check*/, NULL /*update*/, true /*default*/);
+static MYSQL_THDVAR_BOOL(bulk_fetch, PLUGIN_VAR_THDLOCAL, "enable bulk fetch",
+                         NULL /*check*/, NULL /*update*/, true /*default*/);
+
+#if TOKU_INCLUDE_XA
+static MYSQL_THDVAR_BOOL(support_xa,
+    PLUGIN_VAR_OPCMDARG,
+    "Enable TokuDB support for the XA two-phase commit",
+    NULL, // check
+    NULL, // update
+    true  // default
+);
+#endif
+
+static MYSQL_THDVAR_BOOL(rpl_unique_checks, PLUGIN_VAR_THDLOCAL, "enable unique checks on replication slave",
+                         NULL /*check*/, NULL /*update*/, true /*default*/);
+
+static MYSQL_THDVAR_ULONGLONG(rpl_unique_checks_delay, PLUGIN_VAR_THDLOCAL, "time in milliseconds to add to unique checks test on replication slave",
+                              NULL, NULL, 0 /*default*/, 0 /*min*/, ~0ULL /*max*/, 1 /*blocksize*/);
+
+static MYSQL_THDVAR_BOOL(rpl_lookup_rows, PLUGIN_VAR_THDLOCAL, "lookup a row on rpl slave",
+                         NULL /*check*/, NULL /*update*/, true /*default*/);
+
+static MYSQL_THDVAR_ULONGLONG(rpl_lookup_rows_delay, PLUGIN_VAR_THDLOCAL, "time in milliseconds to add to lookups on replication slave",
+                              NULL, NULL, 0 /*default*/, 0 /*min*/, ~0ULL /*max*/, 1 /*blocksize*/);
 
 extern HASH tokudb_open_tables;
 extern pthread_mutex_t tokudb_mutex;

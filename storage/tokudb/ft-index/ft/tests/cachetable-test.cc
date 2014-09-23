@@ -29,7 +29,7 @@ COPYING CONDITIONS NOTICE:
 
 COPYRIGHT NOTICE:
 
-  TokuDB, Tokutek Fractal Tree Indexing Library.
+  TokuFT, Tokutek Fractal Tree Indexing Library.
   Copyright (C) 2007-2013 Tokutek, Inc.
 
 DISCLAIMER:
@@ -118,7 +118,7 @@ static inline void test_mutex_unlock(void) {
 static void
 test_cachetable_create(void) {
     CACHETABLE ct = NULL;
-    toku_cachetable_create(&ct, 0, ZERO_LSN, NULL_LOGGER);
+    toku_cachetable_create(&ct, 0, ZERO_LSN, nullptr);
     toku_cachetable_close(&ct);
 }
 
@@ -172,7 +172,7 @@ static void test_nested_pin (void) {
     void *vv,*vv2;
     const char *fname = TOKU_TEST_FILENAME;
     if (verbose) printf("creating cachetable\n");
-    toku_cachetable_create(&t, 1, ZERO_LSN, NULL_LOGGER);
+    toku_cachetable_create(&t, 1, ZERO_LSN, nullptr);
     toku_os_recursive_delete(fname);
     r = toku_cachetable_openf(&f, t, fname, O_RDWR|O_CREAT, S_IRWXU|S_IRWXG|S_IRWXO);
     assert(r==0);
@@ -241,8 +241,6 @@ PAIR_ATTR *sizep __attribute__((__unused__)), int * dirtyp, void*extraargs) {
     return 0;
 }
 
-#if !TOKU_WINDOWS
-
 static void test_multi_filehandles (void) {
     CACHETABLE t;
     CACHEFILE f1,f2,f3;
@@ -259,7 +257,7 @@ static void test_multi_filehandles (void) {
     unlink(fname1);
     unlink(fname2);
 
-    toku_cachetable_create(&t, 4, ZERO_LSN, NULL_LOGGER);
+    toku_cachetable_create(&t, 4, ZERO_LSN, nullptr);
     r = toku_cachetable_openf(&f1, t, fname1, O_RDWR|O_CREAT, S_IRWXU|S_IRWXG|S_IRWXO);   assert(r==0);
     r = link(fname1, fname2);                                     assert(r==0);
     r = toku_cachetable_openf(&f2, t, fname2, O_RDWR|O_CREAT, S_IRWXU|S_IRWXG|S_IRWXO);   assert(r==0);
@@ -290,8 +288,6 @@ static void test_multi_filehandles (void) {
 
     toku_cachetable_close(&t);
 }
-
-#endif
 
 static void test_dirty_flush(CACHEFILE f,
                              int UU(fd),
@@ -329,7 +325,7 @@ static void test_dirty(void) {
     int dirty; long long pinned; long entry_size;
     int r;
 
-    toku_cachetable_create(&t, 4, ZERO_LSN, NULL_LOGGER);
+    toku_cachetable_create(&t, 4, ZERO_LSN, nullptr);
 
     const char *fname = TOKU_TEST_FILENAME;
     toku_os_recursive_delete(fname);
@@ -459,7 +455,7 @@ static void test_size_resize(void) {
     int n = 3;
     long size = 1;
 
-    toku_cachetable_create(&t, n*size, ZERO_LSN, NULL_LOGGER);
+    toku_cachetable_create(&t, n*size, ZERO_LSN, nullptr);
 
     const char *fname = TOKU_TEST_FILENAME;
     unlink(fname);
@@ -513,7 +509,7 @@ static void test_size_flush(void) {
 
     const int n = 8;
     long long size = 1*1024*1024;
-    toku_cachetable_create(&t, n*size, ZERO_LSN, NULL_LOGGER);
+    toku_cachetable_create(&t, n*size, ZERO_LSN, nullptr);
 
     const char *fname = TOKU_TEST_FILENAME;
     unlink(fname);
@@ -587,15 +583,11 @@ test_main (int argc, const char *argv[]) {
     test_mutex_init();
 
     // run tests
-#if !TOKU_WINDOWS
     test_multi_filehandles();
-#endif
     test_cachetable_create();
     for (i=0; i<1; i++) {
         test_nested_pin();
-#if !TOKU_WINDOWS
         test_multi_filehandles ();
-#endif
         test_dirty();
         test_size_resize();
         //test_size_flush();

@@ -29,7 +29,7 @@ COPYING CONDITIONS NOTICE:
 
 COPYRIGHT NOTICE:
 
-  TokuDB, Tokutek Fractal Tree Indexing Library.
+  TokuFT, Tokutek Fractal Tree Indexing Library.
   Copyright (C) 2007-2013 Tokutek, Inc.
 
 DISCLAIMER:
@@ -96,7 +96,6 @@ PATENT RIGHTS GRANT:
 #include <unistd.h>
 
 static TOKUTXN const null_txn = 0;
-static DB * const null_db = 0;
 
 static const char *fname = TOKU_TEST_FILENAME;
 static CACHETABLE ct;
@@ -111,7 +110,7 @@ static void close_ft_and_ct (void) {
 static void open_ft_and_ct (bool unlink_old) {
     int r;
     if (unlink_old) unlink(fname);
-    toku_cachetable_create(&ct, 0, ZERO_LSN, NULL_LOGGER);
+    toku_cachetable_create(&ct, 0, ZERO_LSN, nullptr);
     r = toku_open_ft_handle(fname, 1, &t, 1<<12, 1<<9, TOKU_DEFAULT_COMPRESSION_METHOD, ct, null_txn, toku_builtin_compare_fun);   assert(r==0);
 }
 
@@ -132,8 +131,8 @@ static void reload (uint64_t limit) {
 
 enum memory_state {
     LEAVE_IN_MEMORY,       // leave the state in main memory
-    CLOSE_AND_RELOAD,      // close the brts and reload them into main memory (that will cause >1 partitio in many leaves.)
-    CLOSE_AND_REOPEN_LEAVE_ON_DISK   // close the brts, reopen them, but leave the state on disk.
+    CLOSE_AND_RELOAD,      // close the fts and reload them into main memory (that will cause >1 partitio in many leaves.)
+    CLOSE_AND_REOPEN_LEAVE_ON_DISK   // close the fts, reopen them, but leave the state on disk.
 };
 
 static void maybe_reopen (enum memory_state ms, uint64_t limit) {

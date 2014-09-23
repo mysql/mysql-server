@@ -29,7 +29,7 @@ COPYING CONDITIONS NOTICE:
 
 COPYRIGHT NOTICE:
 
-  TokuDB, Tokutek Fractal Tree Indexing Library.
+  TokuFT, Tokutek Fractal Tree Indexing Library.
   Copyright (C) 2007-2013 Tokutek, Inc.
 
 DISCLAIMER:
@@ -90,7 +90,7 @@ PATENT RIGHTS GRANT:
 
 // it used to be the case that we copied the left and right keys of a
 // range to be prelocked but never freed them, this test checks that they
-// are freed (as of this time, this happens in destroy_bfe_for_prefetch)
+// are freed (as of this time, this happens in ftnode_fetch_extra::destroy())
 
 #include "test.h"
 
@@ -111,7 +111,6 @@ static const int vallen = 64 - sizeof(long) - (sizeof(((LEAFENTRY)NULL)->type)  
 #define dummy_msn_3884 ((MSN) { (uint64_t) 3884 * MIN_MSN.msn })
 
 static TOKUTXN const null_txn = 0;
-static DB * const null_db = 0;
 static const char *fname = TOKU_TEST_FILENAME;
 
 static void
@@ -119,13 +118,18 @@ le_add_to_bn(bn_data* bn, uint32_t idx, const  char *key, int keysize, const cha
 {
     LEAFENTRY r = NULL;
     uint32_t size_needed = LE_CLEAN_MEMSIZE(valsize);
+    void *maybe_free = nullptr;
     bn->get_space_for_insert(
         idx, 
         key,
         keysize,
         size_needed,
-        &r
+        &r,
+        &maybe_free
         );
+    if (maybe_free) {
+        toku_free(maybe_free);
+    }
     resource_assert(r);
     r->type = LE_CLEAN;
     r->u.clean.vallen = valsize;
@@ -149,12 +153,11 @@ static void
 setup_ftnode_header(struct ftnode *node)
 {
     node->flags = 0x11223344;
-    node->thisnodename.b = 20;
+    node->blocknum.b = 20;
     node->layout_version = FT_LAYOUT_VERSION;
     node->layout_version_original = FT_LAYOUT_VERSION;
     node->height = 0;
     node->dirty = 1;
-    node->totalchildkeylens = 0;
     node->oldest_referenced_xid_known = TXNID_NONE;
 }
 
@@ -164,12 +167,12 @@ setup_ftnode_partitions(struct ftnode *node, int n_children, const MSN msn, size
     node->n_children = n_children;
     node->max_msn_applied_to_node_on_disk = msn;
     MALLOC_N(node->n_children, node->bp);
-    MALLOC_N(node->n_children - 1, node->childkeys);
     for (int bn = 0; bn < node->n_children; ++bn) {
         BP_STATE(node, bn) = PT_AVAIL;
         set_BLB(node, bn, toku_create_empty_bn());
         BLB_MAX_MSN_APPLIED(node, bn) = msn;
     }
+    node->pivotkeys.create_empty();
 }
 
 static void
@@ -181,7 +184,7 @@ verify_basement_node_msns(FTNODE node, MSN expected)
 }
 
 //
-// Maximum node size according to the BRT: 1024 (expected node size after split)
+// Maximum node size according to the FT: 1024 (expected node size after split)
 // Maximum basement node size: 256
 // Actual node size before split: 2048
 // Actual basement node size before split: 256
@@ -205,38 +208,35 @@ test_split_on_boundary(void)
             insert_dummy_value(&sn, bn, k, i);
         }
         if (bn < sn.n_children - 1) {
-            toku_memdup_dbt(&sn.childkeys[bn], &k, sizeof k);
-            sn.totalchildkeylens += (sizeof k);
+            DBT pivotkey;
+            sn.pivotkeys.insert_at(toku_fill_dbt(&pivotkey, &k, sizeof(k)), bn);
         }
     }
 
     unlink(fname);
     CACHETABLE ct;
-    FT_HANDLE brt;
-    toku_cachetable_create(&ct, 0, ZERO_LSN, NULL_LOGGER);
-    r = toku_open_ft_handle(fname, 1, &brt, nodesize, bnsize, TOKU_DEFAULT_COMPRESSION_METHOD, ct, null_txn, toku_builtin_compare_fun); assert(r==0);
+    FT_HANDLE ft;
+    toku_cachetable_create(&ct, 0, ZERO_LSN, nullptr);
+    r = toku_open_ft_handle(fname, 1, &ft, nodesize, bnsize, TOKU_DEFAULT_COMPRESSION_METHOD, ct, null_txn, toku_builtin_compare_fun); assert(r==0);
 
     FTNODE nodea, nodeb;
     DBT splitk;
     // if we haven't done it right, we should hit the assert in the top of move_leafentries
-    ftleaf_split(brt->ft, &sn, &nodea, &nodeb, &splitk, true, SPLIT_EVENLY, 0, NULL);
+    ftleaf_split(ft->ft, &sn, &nodea, &nodeb, &splitk, true, SPLIT_EVENLY, 0, NULL);
 
     verify_basement_node_msns(nodea, dummy_msn_3884);
     verify_basement_node_msns(nodeb, dummy_msn_3884);
 
-    toku_unpin_ftnode(brt->ft, nodeb);
-    r = toku_close_ft_handle_nolsn(brt, NULL); assert(r == 0);
+    toku_unpin_ftnode(ft->ft, nodeb);
+    r = toku_close_ft_handle_nolsn(ft, NULL); assert(r == 0);
     toku_cachetable_close(&ct);
 
-    if (splitk.data) {
-        toku_free(splitk.data);
-    }
-
+    toku_destroy_dbt(&splitk);
     toku_destroy_ftnode_internals(&sn);
 }
 
 //
-// Maximum node size according to the BRT: 1024 (expected node size after split)
+// Maximum node size according to the FT: 1024 (expected node size after split)
 // Maximum basement node size: 256 (except the last)
 // Actual node size before split: 4095
 // Actual basement node size before split: 256 (except the last, of size 2K)
@@ -265,8 +265,8 @@ test_split_with_everything_on_the_left(void)
                 k = bn * eltsperbn + i;
                 big_val_size += insert_dummy_value(&sn, bn, k, i);
             }
-            toku_memdup_dbt(&sn.childkeys[bn], &k, sizeof k);
-            sn.totalchildkeylens += (sizeof k);
+            DBT pivotkey;
+            sn.pivotkeys.insert_at(toku_fill_dbt(&pivotkey, &k, sizeof(k)), bn);
         } else {
             k = bn * eltsperbn;
             // we want this to be as big as the rest of our data and a
@@ -282,29 +282,26 @@ test_split_with_everything_on_the_left(void)
 
     unlink(fname);
     CACHETABLE ct;
-    FT_HANDLE brt;
-    toku_cachetable_create(&ct, 0, ZERO_LSN, NULL_LOGGER);
-    r = toku_open_ft_handle(fname, 1, &brt, nodesize, bnsize, TOKU_DEFAULT_COMPRESSION_METHOD, ct, null_txn, toku_builtin_compare_fun); assert(r==0);
+    FT_HANDLE ft;
+    toku_cachetable_create(&ct, 0, ZERO_LSN, nullptr);
+    r = toku_open_ft_handle(fname, 1, &ft, nodesize, bnsize, TOKU_DEFAULT_COMPRESSION_METHOD, ct, null_txn, toku_builtin_compare_fun); assert(r==0);
 
     FTNODE nodea, nodeb;
     DBT splitk;
     // if we haven't done it right, we should hit the assert in the top of move_leafentries
-    ftleaf_split(brt->ft, &sn, &nodea, &nodeb, &splitk, true, SPLIT_EVENLY, 0, NULL);
+    ftleaf_split(ft->ft, &sn, &nodea, &nodeb, &splitk, true, SPLIT_EVENLY, 0, NULL);
 
-    toku_unpin_ftnode(brt->ft, nodeb);
-    r = toku_close_ft_handle_nolsn(brt, NULL); assert(r == 0);
+    toku_unpin_ftnode(ft->ft, nodeb);
+    r = toku_close_ft_handle_nolsn(ft, NULL); assert(r == 0);
     toku_cachetable_close(&ct);
 
-    if (splitk.data) {
-        toku_free(splitk.data);
-    }
-
+    toku_destroy_dbt(&splitk);
     toku_destroy_ftnode_internals(&sn);
 }
 
 
 //
-// Maximum node size according to the BRT: 1024 (expected node size after split)
+// Maximum node size according to the FT: 1024 (expected node size after split)
 // Maximum basement node size: 256 (except the last)
 // Actual node size before split: 4095
 // Actual basement node size before split: 256 (except the last, of size 2K)
@@ -334,8 +331,8 @@ test_split_on_boundary_of_last_node(void)
                 k = bn * eltsperbn + i;
                 big_val_size += insert_dummy_value(&sn, bn, k, i);
             }
-            toku_memdup_dbt(&sn.childkeys[bn], &k, sizeof k);
-            sn.totalchildkeylens += (sizeof k);
+            DBT pivotkey;
+            sn.pivotkeys.insert_at(toku_fill_dbt(&pivotkey, &k, sizeof(k)), bn);
         } else {
             k = bn * eltsperbn;
             // we want this to be slightly smaller than all the rest of
@@ -354,23 +351,20 @@ test_split_on_boundary_of_last_node(void)
 
     unlink(fname);
     CACHETABLE ct;
-    FT_HANDLE brt;
-    toku_cachetable_create(&ct, 0, ZERO_LSN, NULL_LOGGER);
-    r = toku_open_ft_handle(fname, 1, &brt, nodesize, bnsize, TOKU_DEFAULT_COMPRESSION_METHOD, ct, null_txn, toku_builtin_compare_fun); assert(r==0);
+    FT_HANDLE ft;
+    toku_cachetable_create(&ct, 0, ZERO_LSN, nullptr);
+    r = toku_open_ft_handle(fname, 1, &ft, nodesize, bnsize, TOKU_DEFAULT_COMPRESSION_METHOD, ct, null_txn, toku_builtin_compare_fun); assert(r==0);
 
     FTNODE nodea, nodeb;
     DBT splitk;
     // if we haven't done it right, we should hit the assert in the top of move_leafentries
-    ftleaf_split(brt->ft, &sn, &nodea, &nodeb, &splitk, true, SPLIT_EVENLY, 0, NULL);
+    ftleaf_split(ft->ft, &sn, &nodea, &nodeb, &splitk, true, SPLIT_EVENLY, 0, NULL);
 
-    toku_unpin_ftnode(brt->ft, nodeb);
-    r = toku_close_ft_handle_nolsn(brt, NULL); assert(r == 0);
+    toku_unpin_ftnode(ft->ft, nodeb);
+    r = toku_close_ft_handle_nolsn(ft, NULL); assert(r == 0);
     toku_cachetable_close(&ct);
 
-    if (splitk.data) {
-        toku_free(splitk.data);
-    }
-
+    toku_destroy_dbt(&splitk);
     toku_destroy_ftnode_internals(&sn);
 }
 
@@ -400,8 +394,8 @@ test_split_at_begin(void)
             totalbytes += insert_dummy_value(&sn, bn, k, i-1);
         }
         if (bn < sn.n_children - 1) {
-            toku_memdup_dbt(&sn.childkeys[bn], &k, sizeof k);
-            sn.totalchildkeylens += (sizeof k);
+            DBT pivotkey;
+            sn.pivotkeys.insert_at(toku_fill_dbt(&pivotkey, &k, sizeof(k)), bn);
         }
     }
     {  // now add the first element
@@ -418,23 +412,20 @@ test_split_at_begin(void)
 
     unlink(fname);
     CACHETABLE ct;
-    FT_HANDLE brt;
-    toku_cachetable_create(&ct, 0, ZERO_LSN, NULL_LOGGER);
-    r = toku_open_ft_handle(fname, 1, &brt, nodesize, bnsize, TOKU_DEFAULT_COMPRESSION_METHOD, ct, null_txn, toku_builtin_compare_fun); assert(r==0);
+    FT_HANDLE ft;
+    toku_cachetable_create(&ct, 0, ZERO_LSN, nullptr);
+    r = toku_open_ft_handle(fname, 1, &ft, nodesize, bnsize, TOKU_DEFAULT_COMPRESSION_METHOD, ct, null_txn, toku_builtin_compare_fun); assert(r==0);
 
     FTNODE nodea, nodeb;
     DBT splitk;
     // if we haven't done it right, we should hit the assert in the top of move_leafentries
-    ftleaf_split(brt->ft, &sn, &nodea, &nodeb, &splitk, true, SPLIT_EVENLY, 0, NULL);
+    ftleaf_split(ft->ft, &sn, &nodea, &nodeb, &splitk, true, SPLIT_EVENLY, 0, NULL);
 
-    toku_unpin_ftnode(brt->ft, nodeb);
-    r = toku_close_ft_handle_nolsn(brt, NULL); assert(r == 0);
+    toku_unpin_ftnode(ft->ft, nodeb);
+    r = toku_close_ft_handle_nolsn(ft, NULL); assert(r == 0);
     toku_cachetable_close(&ct);
 
-    if (splitk.data) {
-        toku_free(splitk.data);
-    }
-
+    toku_destroy_dbt(&splitk);
     toku_destroy_ftnode_internals(&sn);
 }
 
@@ -471,34 +462,31 @@ test_split_at_end(void)
             }
         }
         if (bn < sn.n_children - 1) {
-            toku_memdup_dbt(&sn.childkeys[bn], &k, sizeof k);
-            sn.totalchildkeylens += (sizeof k);
+            DBT pivotkey;
+            sn.pivotkeys.insert_at(toku_fill_dbt(&pivotkey, &k, sizeof(k)), bn);
         }
     }
 
     unlink(fname);
     CACHETABLE ct;
-    FT_HANDLE brt;
-    toku_cachetable_create(&ct, 0, ZERO_LSN, NULL_LOGGER);
-    r = toku_open_ft_handle(fname, 1, &brt, nodesize, bnsize, TOKU_DEFAULT_COMPRESSION_METHOD, ct, null_txn, toku_builtin_compare_fun); assert(r==0);
+    FT_HANDLE ft;
+    toku_cachetable_create(&ct, 0, ZERO_LSN, nullptr);
+    r = toku_open_ft_handle(fname, 1, &ft, nodesize, bnsize, TOKU_DEFAULT_COMPRESSION_METHOD, ct, null_txn, toku_builtin_compare_fun); assert(r==0);
 
     FTNODE nodea, nodeb;
     DBT splitk;
     // if we haven't done it right, we should hit the assert in the top of move_leafentries
-    ftleaf_split(brt->ft, &sn, &nodea, &nodeb, &splitk, true, SPLIT_EVENLY, 0, NULL);
+    ftleaf_split(ft->ft, &sn, &nodea, &nodeb, &splitk, true, SPLIT_EVENLY, 0, NULL);
 
-    toku_unpin_ftnode(brt->ft, nodeb);
-    r = toku_close_ft_handle_nolsn(brt, NULL); assert(r == 0);
+    toku_unpin_ftnode(ft->ft, nodeb);
+    r = toku_close_ft_handle_nolsn(ft, NULL); assert(r == 0);
     toku_cachetable_close(&ct);
 
-    if (splitk.data) {
-        toku_free(splitk.data);
-    }
-
+    toku_destroy_dbt(&splitk);
     toku_destroy_ftnode_internals(&sn);
 }
 
-// Maximum node size according to the BRT: 1024 (expected node size after split)
+// Maximum node size according to the FT: 1024 (expected node size after split)
 // Maximum basement node size: 256
 // Actual node size before split: 2048
 // Actual basement node size before split: 256
@@ -525,33 +513,30 @@ test_split_odd_nodes(void)
             insert_dummy_value(&sn, bn, k, i);
         }
         if (bn < sn.n_children - 1) {
-            toku_memdup_dbt(&sn.childkeys[bn], &k, sizeof k);
-            sn.totalchildkeylens += (sizeof k);
+            DBT pivotkey;
+            sn.pivotkeys.insert_at(toku_fill_dbt(&pivotkey, &k, sizeof(k)), bn);
         }
     }
 
     unlink(fname);
     CACHETABLE ct;
-    FT_HANDLE brt;
-    toku_cachetable_create(&ct, 0, ZERO_LSN, NULL_LOGGER);
-    r = toku_open_ft_handle(fname, 1, &brt, nodesize, bnsize, TOKU_DEFAULT_COMPRESSION_METHOD, ct, null_txn, toku_builtin_compare_fun); assert(r==0);
+    FT_HANDLE ft;
+    toku_cachetable_create(&ct, 0, ZERO_LSN, nullptr);
+    r = toku_open_ft_handle(fname, 1, &ft, nodesize, bnsize, TOKU_DEFAULT_COMPRESSION_METHOD, ct, null_txn, toku_builtin_compare_fun); assert(r==0);
 
     FTNODE nodea, nodeb;
     DBT splitk;
     // if we haven't done it right, we should hit the assert in the top of move_leafentries
-    ftleaf_split(brt->ft, &sn, &nodea, &nodeb, &splitk, true, SPLIT_EVENLY, 0, NULL);
+    ftleaf_split(ft->ft, &sn, &nodea, &nodeb, &splitk, true, SPLIT_EVENLY, 0, NULL);
 
     verify_basement_node_msns(nodea, dummy_msn_3884);
     verify_basement_node_msns(nodeb, dummy_msn_3884);
 
-    toku_unpin_ftnode(brt->ft, nodeb);
-    r = toku_close_ft_handle_nolsn(brt, NULL); assert(r == 0);
+    toku_unpin_ftnode(ft->ft, nodeb);
+    r = toku_close_ft_handle_nolsn(ft, NULL); assert(r == 0);
     toku_cachetable_close(&ct);
 
-    if (splitk.data) {
-        toku_free(splitk.data);
-    }
-
+    toku_destroy_dbt(&splitk);
     toku_destroy_ftnode_internals(&sn);
 }
 

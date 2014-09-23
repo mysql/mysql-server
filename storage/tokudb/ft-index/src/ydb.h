@@ -29,7 +29,7 @@ COPYING CONDITIONS NOTICE:
 
 COPYRIGHT NOTICE:
 
-  TokuDB, Tokutek Fractal Tree Indexing Library.
+  TokuFT, Tokutek Fractal Tree Indexing Library.
   Copyright (C) 2007-2013 Tokutek, Inc.
 
 DISCLAIMER:
@@ -88,11 +88,8 @@ PATENT RIGHTS GRANT:
 
 #ident "Copyright (c) 2007-2013 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
-// This file defines the public interface to the ydb library
 
-#if !defined(TOKU_YDB_INTERFACE_H)
-#define TOKU_YDB_INTERFACE_H
-
+#pragma once
 
 // Initialize the ydb library globals.  
 // Called when the ydb library is loaded.
@@ -114,5 +111,3 @@ extern "C" uint64_t toku_test_get_latest_lsn(DB_ENV *env) __attribute__((__visib
 
 // test-only function
 extern "C" int toku_test_get_checkpointing_user_data_status(void) __attribute__((__visibility__("default")));
-
-#endif

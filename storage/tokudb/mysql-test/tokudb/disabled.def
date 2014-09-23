@@ -58,3 +58,4 @@ hotindex-del-1: No online ALTER in MariaDB 5.5
 mvcc-19: No online ALTER in MariaDB 5.5
 mvcc-20: No online ALTER in MariaDB 5.5
 mvcc-27: No online OPTIMIZE in MariaDB 5.5
+cluster_key_part: engine options on partitioned tables

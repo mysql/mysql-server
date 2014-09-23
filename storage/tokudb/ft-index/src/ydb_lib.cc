@@ -28,7 +28,7 @@ COPYING CONDITIONS NOTICE:
 
 COPYRIGHT NOTICE:
 
-  TokuDB, Tokutek Fractal Tree Indexing Library.
+  TokuFT, Tokutek Fractal Tree Indexing Library.
   Copyright (C) 2007-2013 Tokutek, Inc.
 
 DISCLAIMER:
@@ -98,48 +98,13 @@ PATENT RIGHTS GRANT:
 
 #if defined(__GNUC__)
 
-static void __attribute__((constructor)) libtokudb_init(void) {
-    // printf("%s:%s:%d\n", __FILE__, __FUNCTION__, __LINE__);
+static void __attribute__((constructor)) libtokuft_init(void) {
     int r = toku_ydb_init();
     assert(r==0);
 }
 
-static void __attribute__((destructor)) libtokudb_destroy(void) {
-    // printf("%s:%s:%d\n", __FILE__, __FUNCTION__, __LINE__);
+static void __attribute__((destructor)) libtokuft_destroy(void) {
     toku_ydb_destroy();
 }
 
-#endif
-
-#if TOKU_WINDOWS
-#include <windows.h>
-#define UNUSED(x) x=x
-
-bool WINAPI DllMain(HINSTANCE h, DWORD reason, LPVOID reserved) {
-    UNUSED(h); UNUSED(reserved);
-    // printf("%s:%lu\n", __FUNCTION__, reason);
-    int r = 0;
-    switch(reason) {
-    case DLL_PROCESS_ATTACH:
-        r = toku_ydb_init();
-        break;
-    case DLL_PROCESS_DETACH:
-        toku_ydb_destroy();
-        break;
-    case DLL_THREAD_ATTACH:
-        //TODO: Any new thread code if necessary, i.e. allocate per-thread
-        //      storage.
-        break;
-    case DLL_THREAD_DETACH:
-        //TODO: Any cleanup thread code if necessary, i.e. free per-thread
-        //      storage.
-        break;
-    default:
-        break;
-    }
-    assert(r==0);
-    return true;
-}
-
-#endif
-
+#endif // __GNUC__

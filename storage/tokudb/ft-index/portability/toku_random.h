@@ -29,7 +29,7 @@ COPYING CONDITIONS NOTICE:
 
 COPYRIGHT NOTICE:
 
-  TokuDB, Tokutek Fractal Tree Indexing Library.
+  TokuFT, Tokutek Fractal Tree Indexing Library.
   Copyright (C) 2007-2013 Tokutek, Inc.
 
 DISCLAIMER:
@@ -86,12 +86,11 @@ PATENT RIGHTS GRANT:
   under this License.
 */
 
+#pragma once
+
 #ident "Copyright (c) 2007-2013 Tokutek Inc.  All rights reserved."
 
-#ifndef TOKU_RANDOM_H
-#define TOKU_RANDOM_H
-
-#include "toku_config.h"
+#include <portability/toku_config.h>
 #include <toku_portability.h>
 #include <toku_assert.h>
 #include <stdlib.h>
@@ -169,5 +168,3 @@ rand_choices(struct random_data *buf, uint32_t choices) {
 
     return result;
 }
-
-#endif // TOKU_RANDOM_H

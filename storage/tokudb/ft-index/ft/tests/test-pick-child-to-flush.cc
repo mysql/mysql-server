@@ -29,7 +29,7 @@ COPYING CONDITIONS NOTICE:
 
 COPYRIGHT NOTICE:
 
-  TokuDB, Tokutek Fractal Tree Indexing Library.
+  TokuFT, Tokutek Fractal Tree Indexing Library.
   Copyright (C) 2007-2013 Tokutek, Inc.
 
 DISCLAIMER:
@@ -97,10 +97,9 @@ PATENT RIGHTS GRANT:
 
 #include "ft-flusher.h"
 #include "ft-flusher-internal.h"
-#include "checkpoint.h"
+#include "cachetable/checkpoint.h"
 
 static TOKUTXN const null_txn = 0;
-static DB * const null_db = 0;
 
 enum { NODESIZE = 1024, KSIZE=NODESIZE-100, TOKU_PSIZE=20 };
 
@@ -165,7 +164,7 @@ doit (void) {
     BLOCKNUM node_leaf[2];
     int r;
     
-    toku_cachetable_create(&ct, 500*1024*1024, ZERO_LSN, NULL_LOGGER);
+    toku_cachetable_create(&ct, 500*1024*1024, ZERO_LSN, nullptr);
     unlink(fname);
     r = toku_open_ft_handle(fname, 1, &t, NODESIZE, NODESIZE/2, TOKU_DEFAULT_COMPRESSION_METHOD, ct, null_txn, toku_builtin_compare_fun);
     assert(r==0);
@@ -189,7 +188,7 @@ doit (void) {
     r = toku_testsetup_root(t, node_root);
     assert(r==0);
 
-    char filler[900];
+    char filler[900-2*bn_data::HEADER_LENGTH];
     memset(filler, 0, sizeof(filler));
     // now we insert filler data so that a merge does not happen
     r = toku_testsetup_insert_to_leaf (
@@ -245,7 +244,7 @@ doit (void) {
     // what we say and flushes the child we pick
     FTNODE node = NULL;
     toku_pin_node_with_min_bfe(&node, node_internal, t);
-    toku_assert_entire_node_in_memory(node);
+    toku_ftnode_assert_fully_in_memory(node);
     assert(node->n_children == 2);
     assert(!node->dirty);
     assert(toku_bnc_n_entries(node->bp[0].ptr.u.nonleaf) > 0);
@@ -268,7 +267,7 @@ doit (void) {
     assert(num_flushes_called == 1);
 
     toku_pin_node_with_min_bfe(&node, node_internal, t);
-    toku_assert_entire_node_in_memory(node);
+    toku_ftnode_assert_fully_in_memory(node);
     assert(node->dirty);
     assert(node->n_children == 2);
     // child 0 should have empty buffer because it flushed
@@ -287,7 +286,7 @@ doit (void) {
     
     toku_pin_node_with_min_bfe(&node, node_internal, t);
     assert(node->dirty);
-    toku_assert_entire_node_in_memory(node);
+    toku_ftnode_assert_fully_in_memory(node);
     assert(node->n_children == 2);
     // both buffers should be empty now
     assert(toku_bnc_n_entries(node->bp[0].ptr.u.nonleaf) == 0);
@@ -305,7 +304,7 @@ doit (void) {
 
     toku_pin_node_with_min_bfe(&node, node_internal, t);
     assert(node->dirty); // nothing was flushed, but since we were trying to flush to a leaf, both become dirty
-    toku_assert_entire_node_in_memory(node);
+    toku_ftnode_assert_fully_in_memory(node);
     assert(node->n_children == 2);
     // both buffers should be empty now
     assert(toku_bnc_n_entries(node->bp[0].ptr.u.nonleaf) == 0);
@@ -326,7 +325,7 @@ doit (void) {
     // use a for loop so to get us down both paths
     for (int i = 0; i < 2; i++) {
         toku_pin_node_with_min_bfe(&node, node_root, t);
-        toku_assert_entire_node_in_memory(node); // entire root is in memory
+        toku_ftnode_assert_fully_in_memory(node); // entire root is in memory
         curr_child_to_flush = i;
         num_flushes_called = 0;
         toku_ft_flush_some_child(t->ft, node, &fa);
@@ -376,7 +375,7 @@ doit (void) {
 
     //now let's do the same test as above
     toku_pin_node_with_min_bfe(&node, node_root, t);
-    toku_assert_entire_node_in_memory(node); // entire root is in memory
+    toku_ftnode_assert_fully_in_memory(node); // entire root is in memory
     curr_child_to_flush = 0;
     num_flushes_called = 0;
     toku_ft_flush_some_child(t->ft, node, &fa);

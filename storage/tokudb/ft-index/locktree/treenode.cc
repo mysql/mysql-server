@@ -29,7 +29,7 @@ COPYING CONDITIONS NOTICE:
 
 COPYRIGHT NOTICE:
 
-  TokuDB, Tokutek Fractal Tree Indexing Library.
+  TokuFT, Tokutek Fractal Tree Indexing Library.
   Copyright (C) 2007-2013 Tokutek, Inc.
 
 DISCLAIMER:
@@ -99,7 +99,7 @@ void treenode::mutex_unlock(void) {
     toku_mutex_unlock(&m_mutex);
 }
 
-void treenode::init(comparator *cmp) {
+void treenode::init(const comparator *cmp) {
     m_txnid = TXNID_NONE;
     m_is_root = false;
     m_is_empty = true;
@@ -117,7 +117,7 @@ void treenode::init(comparator *cmp) {
     m_right_child.set(nullptr);
 }
 
-void treenode::create_root(comparator *cmp) {
+void treenode::create_root(const comparator *cmp) {
     init(cmp);
     m_is_root = true;
 }
@@ -145,10 +145,10 @@ bool treenode::is_empty(void) {
 }
 
 bool treenode::range_overlaps(const keyrange &range) {
-    return m_range.overlaps(m_cmp, range);
+    return m_range.overlaps(*m_cmp, range);
 }
 
-treenode *treenode::alloc(comparator *cmp, const keyrange &range, TXNID txnid) {
+treenode *treenode::alloc(const comparator *cmp, const keyrange &range, TXNID txnid) {
     treenode *XCALLOC(node);
     node->init(cmp);
     node->set_range_and_txnid(range, txnid);
@@ -190,7 +190,7 @@ treenode *treenode::find_node_with_overlapping_child(const keyrange &range,
 
     // determine which child to look at based on a comparison. if we were
     // given a comparison hint, use that. otherwise, compare them now.
-    keyrange::comparison c = cmp_hint ? *cmp_hint : range.compare(m_cmp, m_range);
+    keyrange::comparison c = cmp_hint ? *cmp_hint : range.compare(*m_cmp, m_range);
 
     treenode *child;
     if (c == keyrange::comparison::LESS_THAN) {
@@ -209,7 +209,7 @@ treenode *treenode::find_node_with_overlapping_child(const keyrange &range,
     if (child == nullptr) {
         return this;
     } else {
-        c = range.compare(m_cmp, child->m_range);
+        c = range.compare(*m_cmp, child->m_range);
         if (c == keyrange::comparison::EQUALS || c == keyrange::comparison::OVERLAPS) {
             child->mutex_unlock();
             return this;
@@ -225,7 +225,7 @@ treenode *treenode::find_node_with_overlapping_child(const keyrange &range,
 
 template <class F>
 void treenode::traverse_overlaps(const keyrange &range, F *function) {
-    keyrange::comparison c = range.compare(m_cmp, m_range);
+    keyrange::comparison c = range.compare(*m_cmp, m_range);
     if (c == keyrange::comparison::EQUALS) {
         // Doesn't matter if fn wants to keep going, there
         // is nothing left, so return.
@@ -264,7 +264,7 @@ void treenode::traverse_overlaps(const keyrange &range, F *function) {
 void treenode::insert(const keyrange &range, TXNID txnid) {
     // choose a child to check. if that child is null, then insert the new node there.
     // otherwise recur down that child's subtree
-    keyrange::comparison c = range.compare(m_cmp, m_range);
+    keyrange::comparison c = range.compare(*m_cmp, m_range);
     if (c == keyrange::comparison::LESS_THAN) {
         treenode *left_child = lock_and_rebalance_left();
         if (left_child == nullptr) {
@@ -382,7 +382,7 @@ treenode *treenode::remove(const keyrange &range) {
     // if the range is equal to this node's range, then just remove
     // the root of this subtree. otherwise search down the tree
     // in either the left or right children.
-    keyrange::comparison c = range.compare(m_cmp, m_range);
+    keyrange::comparison c = range.compare(*m_cmp, m_range);
     switch (c) {
     case keyrange::comparison::EQUALS:
         return remove_root_of_subtree();

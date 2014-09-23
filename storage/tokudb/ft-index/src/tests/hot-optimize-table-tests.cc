@@ -29,7 +29,7 @@ COPYING CONDITIONS NOTICE:
 
 COPYRIGHT NOTICE:
 
-  TokuDB, Tokutek Fractal Tree Indexing Library.
+  TokuFT, Tokutek Fractal Tree Indexing Library.
   Copyright (C) 2007-2013 Tokutek, Inc.
 
 DISCLAIMER:
@@ -103,7 +103,7 @@ const int envflags = DB_INIT_MPOOL |
 DB_ENV* env;
 unsigned int leaf_hits;
 
-// Custom Update Function for our test BRT.
+// Custom Update Function for our test FT.
 static int
 update_func(DB* UU(db),
             const DBT* key,
@@ -148,7 +148,7 @@ hot_test_setup(void)
     // Remove any previous environment.
     toku_os_recursive_delete(TOKU_TEST_FILENAME);
 
-    // Set up a new TokuDB.
+    // Set up a new environment.
     { int chk_r = toku_os_mkdir(TOKU_TEST_FILENAME, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(chk_r); }
     { int chk_r = db_env_create(&env, 0); CKERR(chk_r); }
     env->set_errfile(env, stderr);
@@ -266,7 +266,7 @@ test_main(int argc, char * const argv[])
     default_parse_args(argc, argv);
     hot_test_setup();
 
-    // Create and Open the Database/BRT
+    // Create and Open the Database/FT
     DB *db = NULL;
     const unsigned int BIG = 4000000;
     const unsigned int SMALL = 10;

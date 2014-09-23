@@ -29,7 +29,7 @@ COPYING CONDITIONS NOTICE:
 
 COPYRIGHT NOTICE:
 
-  TokuDB, Tokutek Fractal Tree Indexing Library.
+  TokuFT, Tokutek Fractal Tree Indexing Library.
   Copyright (C) 2007-2013 Tokutek, Inc.
 
 DISCLAIMER:
@@ -89,7 +89,7 @@ PATENT RIGHTS GRANT:
 #ident "Copyright (c) 2007-2013 Tokutek Inc.  All rights reserved."
 
 #include "test.h"
-#include "cachetable-internal.h"
+#include "cachetable/cachetable-internal.h"
 #include "cachetable-test.h"
 
 //
@@ -111,6 +111,14 @@ struct checkpointer_test {
     uint32_t count,
     uint32_t k);
 };
+
+static void init_cachefile(CACHEFILE cf, int which_cf, bool for_checkpoint) {
+    memset(cf, 0, sizeof(*cf));
+    create_dummy_functions(cf);
+    cf->fileid = { 0, (unsigned) which_cf };
+    cf->filenum = { (unsigned) which_cf };
+    cf->for_checkpoint = for_checkpoint;
+}
 
 //------------------------------------------------------------------------------
 // test_begin_checkpoint() -
@@ -135,33 +143,28 @@ void checkpointer_test::test_begin_checkpoint() {
     // 2. Call checkpoint with ONE cachefile.
     //cachefile cf;
     struct cachefile cf;
-    cf.next = NULL;
-    cf.for_checkpoint = false;
-    m_cp.m_cf_list->m_active_head = &cf;
-    create_dummy_functions(&cf);
+    init_cachefile(&cf, 0, false);
+    m_cp.m_cf_list->add_cf_unlocked(&cf);
 
     m_cp.begin_checkpoint();
     assert(m_cp.m_checkpoint_num_files == 1);
     assert(cf.for_checkpoint == true);
+    m_cp.m_cf_list->remove_cf(&cf);
 
     // 3. Call checkpoint with MANY cachefiles.
     const uint32_t count = 3;
     struct cachefile cfs[count];
-    m_cp.m_cf_list->m_active_head = &cfs[0];
     for (uint32_t i = 0; i < count; ++i) {
-        cfs[i].for_checkpoint = false;
+        init_cachefile(&cfs[i], i, false);
         create_dummy_functions(&cfs[i]);
-        if (i == count - 1) {
-            cfs[i].next = NULL;
-        } else {
-            cfs[i].next = &cfs[i + 1];
-        }
+        m_cp.m_cf_list->add_cf_unlocked(&cfs[i]);
     }
 
     m_cp.begin_checkpoint();
     assert(m_cp.m_checkpoint_num_files == count);
     for (uint32_t i = 0; i < count; ++i) {
         assert(cfs[i].for_checkpoint == true);
+        cfl.remove_cf(&cfs[i]);
     }
     ctbl.list.destroy();
     m_cp.destroy();
@@ -195,10 +198,8 @@ void checkpointer_test::test_pending_bits() {
     //
     struct cachefile cf;
     cf.cachetable = &ctbl;
-    memset(&cf, 0, sizeof(cf));
-    cf.next = NULL;
-    cf.for_checkpoint = true;
-    m_cp.m_cf_list->m_active_head = &cf;
+    init_cachefile(&cf, 0, true);
+    m_cp.m_cf_list->add_cf_unlocked(&cf);
     create_dummy_functions(&cf);
 
     CACHEKEY k;
@@ -258,6 +259,7 @@ void checkpointer_test::test_pending_bits() {
 
     ctbl.list.destroy();
     m_cp.destroy();
+    cfl.remove_cf(&cf);
     cfl.destroy();
 }
 
@@ -337,14 +339,11 @@ void checkpointer_test::test_end_checkpoint() {
     cfl.init();
 
     struct cachefile cf;
-    memset(&cf, 0, sizeof(cf));
-    cf.next = NULL;
-    cf.for_checkpoint = true;
-    create_dummy_functions(&cf);
+    init_cachefile(&cf, 0, true);
 
     ZERO_STRUCT(m_cp);
     m_cp.init(&ctbl.list, NULL, &ctbl.ev, &cfl);
-    m_cp.m_cf_list->m_active_head = &cf;
+    m_cp.m_cf_list->add_cf_unlocked(&cf);
 
     // 2. Add data before running checkpoint.
     const uint32_t count = 6;
@@ -394,6 +393,7 @@ void checkpointer_test::test_end_checkpoint() {
         assert(pp);
         m_cp.m_list->evict_completely(pp);
     }
+    cfl.remove_cf(&cf);
     m_cp.destroy();
     ctbl.list.destroy();
     cfl.destroy();

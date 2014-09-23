@@ -29,7 +29,7 @@ COPYING CONDITIONS NOTICE:
 
 COPYRIGHT NOTICE:
 
-  TokuDB, Tokutek Fractal Tree Indexing Library.
+  TokuFT, Tokutek Fractal Tree Indexing Library.
   Copyright (C) 2007-2013 Tokutek, Inc.
 
 DISCLAIMER:
@@ -91,10 +91,9 @@ PATENT RIGHTS GRANT:
 #include <string.h>
 
 #include "test.h"
-#include "fttypes.h"
 
-#include "ule.h"
-#include "ule-internal.h"
+#include "ft/ule.h"
+#include "ft/ule-internal.h"
 
 static void init_empty_ule(ULE ule) {
     ule->num_cuxrs = 0;
@@ -109,17 +108,6 @@ static void add_committed_entry(ULE ule, DBT *val, TXNID xid) {
     ule->uxrs[index].vallen = val->size;
     ule->uxrs[index].valp   = val->data;
     ule->uxrs[index].xid    = xid;
-}
-
-static FT_MSG_S
-msg_init(enum ft_msg_type type, XIDS xids,
-         DBT *key, DBT *val) {
-    FT_MSG_S msg;
-    msg.type = type;
-    msg.xids = xids;
-    msg.u.id.key = key;
-    msg.u.id.val = val;
-    return msg;
 }
 
 //Test all the different things that can happen to a
@@ -144,14 +132,14 @@ run_test(void) {
 
     // test case where we apply a message and the innermost child_id
     // is the same as the innermost committed TXNID    
-    XIDS root_xids = xids_get_root_xids();
+    XIDS root_xids = toku_xids_get_root_xids();
     TXNID root_txnid = 1000;
     TXNID child_id = 10;
     XIDS msg_xids_1;
     XIDS msg_xids_2;
-    r = xids_create_child(root_xids, &msg_xids_1, root_txnid);
+    r = toku_xids_create_child(root_xids, &msg_xids_1, root_txnid);
     assert(r==0);
-    r = xids_create_child(msg_xids_1, &msg_xids_2, child_id);
+    r = toku_xids_create_child(msg_xids_1, &msg_xids_2, child_id);
     assert(r==0);
 
     init_empty_ule(&ule_initial);
@@ -161,45 +149,49 @@ run_test(void) {
     add_committed_entry(&ule_initial, &val, 10);
 
     // now do the application of xids to the ule    
-    FT_MSG_S msg;
     // do a commit
-    msg = msg_init(FT_COMMIT_ANY, msg_xids_2, &key, &val);
-    test_msg_modify_ule(&ule_initial, &msg);
-    assert(ule->num_cuxrs == 2);
-    assert(ule->uxrs[0].xid == TXNID_NONE);
-    assert(ule->uxrs[1].xid == 10);
-    assert(ule->uxrs[0].valp == &val_data_one);
-    assert(ule->uxrs[1].valp == &val_data_two);
+    {
+        ft_msg msg(&key, &val, FT_COMMIT_ANY, ZERO_MSN, msg_xids_2);
+        test_msg_modify_ule(&ule_initial, msg);
+        assert(ule->num_cuxrs == 2);
+        assert(ule->uxrs[0].xid == TXNID_NONE);
+        assert(ule->uxrs[1].xid == 10);
+        assert(ule->uxrs[0].valp == &val_data_one);
+        assert(ule->uxrs[1].valp == &val_data_two);
+    }
 
     // do an abort
-    msg = msg_init(FT_ABORT_ANY, msg_xids_2, &key, &val);
-    test_msg_modify_ule(&ule_initial, &msg);
-    assert(ule->num_cuxrs == 2);
-    assert(ule->uxrs[0].xid == TXNID_NONE);
-    assert(ule->uxrs[1].xid == 10);
-    assert(ule->uxrs[0].valp == &val_data_one);
-    assert(ule->uxrs[1].valp == &val_data_two);
+    {
+        ft_msg msg(&key, &val, FT_ABORT_ANY, ZERO_MSN, msg_xids_2);
+        test_msg_modify_ule(&ule_initial, msg);
+        assert(ule->num_cuxrs == 2);
+        assert(ule->uxrs[0].xid == TXNID_NONE);
+        assert(ule->uxrs[1].xid == 10);
+        assert(ule->uxrs[0].valp == &val_data_one);
+        assert(ule->uxrs[1].valp == &val_data_two);
+    }
 
     // do an insert
     val.data = &val_data_three;
-    msg = msg_init(FT_INSERT, msg_xids_2, &key, &val);
-    test_msg_modify_ule(&ule_initial, &msg);
-    // now that message applied, verify that things are good
-    assert(ule->num_cuxrs == 2);
-    assert(ule->num_puxrs == 2);
-    assert(ule->uxrs[0].xid == TXNID_NONE);
-    assert(ule->uxrs[1].xid == 10);
-    assert(ule->uxrs[2].xid == 1000);
-    assert(ule->uxrs[3].xid == 10);
-    assert(ule->uxrs[0].valp == &val_data_one);
-    assert(ule->uxrs[1].valp == &val_data_two);
-    assert(ule->uxrs[2].type == XR_PLACEHOLDER);
-    assert(ule->uxrs[3].valp == &val_data_three);
-    
+    {
+        ft_msg msg(&key, &val, FT_INSERT, ZERO_MSN, msg_xids_2);
+        test_msg_modify_ule(&ule_initial, msg);
+        // now that message applied, verify that things are good
+        assert(ule->num_cuxrs == 2);
+        assert(ule->num_puxrs == 2);
+        assert(ule->uxrs[0].xid == TXNID_NONE);
+        assert(ule->uxrs[1].xid == 10);
+        assert(ule->uxrs[2].xid == 1000);
+        assert(ule->uxrs[3].xid == 10);
+        assert(ule->uxrs[0].valp == &val_data_one);
+        assert(ule->uxrs[1].valp == &val_data_two);
+        assert(ule->uxrs[2].type == XR_PLACEHOLDER);
+        assert(ule->uxrs[3].valp == &val_data_three);
+    } 
 
-    xids_destroy(&msg_xids_2);
-    xids_destroy(&msg_xids_1);
-    xids_destroy(&root_xids);
+    toku_xids_destroy(&msg_xids_2);
+    toku_xids_destroy(&msg_xids_1);
+    toku_xids_destroy(&root_xids);
 
 }
 

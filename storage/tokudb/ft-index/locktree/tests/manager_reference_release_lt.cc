@@ -29,7 +29,7 @@ COPYING CONDITIONS NOTICE:
 
 COPYRIGHT NOTICE:
 
-  TokuDB, Tokutek Fractal Tree Indexing Library.
+  TokuFT, Tokutek Fractal Tree Indexing Library.
   Copyright (C) 2007-2013 Tokutek, Inc.
 
 DISCLAIMER:
@@ -107,9 +107,15 @@ static void destroy_cb(locktree *lt) {
     (*k) = false;
 }
 
+static int my_cmp(DB *UU(db), const DBT *UU(a), const DBT *UU(b)) {
+    return 0;
+}
+
 void manager_unit_test::test_reference_release_lt(void) {
-    locktree::manager mgr;
+    locktree_manager mgr;
     mgr.create(create_cb, destroy_cb, nullptr, nullptr);
+    toku::comparator my_comparator;
+    my_comparator.create(my_cmp, nullptr);
 
     DICTIONARY_ID a = { 0 };
     DICTIONARY_ID b = { 1 };
@@ -117,18 +123,12 @@ void manager_unit_test::test_reference_release_lt(void) {
     bool aok = false;
     bool bok = false;
     bool cok = false;
-    
-    int d = 5;
-    DESCRIPTOR_S desc_s;
-    desc_s.dbt.data = &d;
-    desc_s.dbt.size = desc_s.dbt.ulen = sizeof(d);
-    desc_s.dbt.flags = DB_DBT_USERMEM;
 
-    locktree *alt = mgr.get_lt(a, &desc_s, nullptr, &aok);
+    locktree *alt = mgr.get_lt(a, my_comparator, &aok);
     invariant_notnull(alt);
-    locktree *blt = mgr.get_lt(b, &desc_s, nullptr, &bok);
+    locktree *blt = mgr.get_lt(b, my_comparator, &bok);
     invariant_notnull(alt);
-    locktree *clt = mgr.get_lt(c, &desc_s, nullptr, &cok);
+    locktree *clt = mgr.get_lt(c, my_comparator, &cok);
     invariant_notnull(alt);
 
     // three distinct locktrees should have been returned
@@ -152,9 +152,9 @@ void manager_unit_test::test_reference_release_lt(void) {
 
     // get another handle on a and b, they shoudl be the same
     // as the original alt and blt
-    locktree *blt2 = mgr.get_lt(b, &desc_s, nullptr, &bok);
+    locktree *blt2 = mgr.get_lt(b, my_comparator, &bok);
     invariant(blt2 == blt);
-    locktree *alt2 = mgr.get_lt(a, &desc_s, nullptr, &aok);
+    locktree *alt2 = mgr.get_lt(a, my_comparator, &aok);
     invariant(alt2 == alt);
 
     // remove one ref from everything. c should die. a and b are ok.
@@ -171,6 +171,7 @@ void manager_unit_test::test_reference_release_lt(void) {
     invariant(!aok);
     invariant(!bok);
     
+    my_comparator.destroy();
     mgr.destroy();
 }
 

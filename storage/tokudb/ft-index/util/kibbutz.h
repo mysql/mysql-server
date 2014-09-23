@@ -29,7 +29,7 @@ COPYING CONDITIONS NOTICE:
 
 COPYRIGHT NOTICE:
 
-  TokuDB, Tokutek Fractal Tree Indexing Library.
+  TokuFT, Tokutek Fractal Tree Indexing Library.
   Copyright (C) 2007-2013 Tokutek, Inc.
 
 DISCLAIMER:
@@ -86,11 +86,10 @@ PATENT RIGHTS GRANT:
   under this License.
 */
 
+#pragma once
+
 #ident "Copyright (c) 2007-2013 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
-
-#ifndef UTIL_KIBBUTZ_H
-#define UTIL_KIBBUTZ_H
 
 //
 // The kibbutz is another threadpool meant to do arbitrary work.
@@ -116,5 +115,3 @@ void toku_kibbutz_enq (KIBBUTZ k, void (*f)(void*), void *extra);
 // destroys the kibbutz
 //
 void toku_kibbutz_destroy (KIBBUTZ k);
-
-#endif // UTIL_KIBBUTZ_H

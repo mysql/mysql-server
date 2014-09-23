@@ -32,7 +32,7 @@ COPYING CONDITIONS NOTICE:
 
 COPYRIGHT NOTICE:
 
-  TokuDB, Tokutek Fractal Tree Indexing Library.
+  TokuFT, Tokutek Fractal Tree Indexing Library.
   Copyright (C) 2007-2013 Tokutek, Inc.
 
 DISCLAIMER:
@@ -93,7 +93,7 @@ PATENT RIGHTS GRANT:
 
 
 #include "test.h"
-#include "cachetable-internal.h"
+#include "cachetable/cachetable-internal.h"
 
 static int flush_calls = 0;
 static int flush_evict_calls = 0;
@@ -152,7 +152,7 @@ fetch (CACHEFILE f        __attribute__((__unused__)),
 static void cachetable_prefetch_flowcontrol_test (int cachetable_size_limit) {
     int r;
     CACHETABLE ct;
-    toku_cachetable_create(&ct, cachetable_size_limit, ZERO_LSN, NULL_LOGGER);
+    toku_cachetable_create(&ct, cachetable_size_limit, ZERO_LSN, nullptr);
     evictor_test_helpers::set_hysteresis_limits(&ct->ev, cachetable_size_limit, cachetable_size_limit);
     evictor_test_helpers::disable_ev_thread(&ct->ev);
     const char *fname1 = TOKU_TEST_FILENAME;

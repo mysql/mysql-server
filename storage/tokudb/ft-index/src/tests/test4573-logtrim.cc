@@ -29,7 +29,7 @@ COPYING CONDITIONS NOTICE:
 
 COPYRIGHT NOTICE:
 
-  TokuDB, Tokutek Fractal Tree Indexing Library.
+  TokuFT, Tokutek Fractal Tree Indexing Library.
   Copyright (C) 2007-2013 Tokutek, Inc.
 
 DISCLAIMER:
@@ -92,7 +92,7 @@ PATENT RIGHTS GRANT:
 
 const int envflags = DB_INIT_LOCK|DB_INIT_LOG|DB_INIT_MPOOL|DB_INIT_TXN|DB_CREATE|DB_PRIVATE|DB_RECOVER;
 
-const int my_lg_max  = IS_TDB ? 100 : (4096*2);
+const int my_lg_max = 100;
 
 int test_main (int UU(argc), char UU(*const argv[])) {
     int r;

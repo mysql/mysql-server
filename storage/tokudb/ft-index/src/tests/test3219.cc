@@ -29,7 +29,7 @@ COPYING CONDITIONS NOTICE:
 
 COPYRIGHT NOTICE:
 
-  TokuDB, Tokutek Fractal Tree Indexing Library.
+  TokuFT, Tokutek Fractal Tree Indexing Library.
   Copyright (C) 2007-2013 Tokutek, Inc.
 
 DISCLAIMER:
@@ -92,7 +92,7 @@ PATENT RIGHTS GRANT:
 // This test, when run under helgrind, should detect the race problem documented in #3219.
 // The test:
 //   checkpointing runs (in one thread)
-//   another thread does a brt lookup.
+//   another thread does an ft lookup.
 // We expect to see a lock-acquisition error.
 
 

@@ -29,7 +29,7 @@ COPYING CONDITIONS NOTICE:
 
 COPYRIGHT NOTICE:
 
-  TokuDB, Tokutek Fractal Tree Indexing Library.
+  TokuFT, Tokutek Fractal Tree Indexing Library.
   Copyright (C) 2007-2013 Tokutek, Inc.
 
 DISCLAIMER:
@@ -88,11 +88,8 @@ PATENT RIGHTS GRANT:
 
 #ident "Copyright (c) 2007-2013 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
-// This file defines the public interface to the ydb library
 
-#if !defined(TOKU_YDB_WRITE_H)
-#define TOKU_YDB_WRITE_H
-
+#pragma once
 
 typedef enum {
     YDB_LAYER_NUM_INSERTS = 0,
@@ -118,7 +115,6 @@ typedef struct {
 } YDB_WRITE_LAYER_STATUS_S, *YDB_WRITE_LAYER_STATUS;
 
 void ydb_write_layer_get_status(YDB_WRITE_LAYER_STATUS statp);
-
 
 int toku_db_del(DB *db, DB_TXN *txn, DBT *key, uint32_t flags, bool holds_mo_lock);
 int toku_db_put(DB *db, DB_TXN *txn, DBT *key, DBT *val, uint32_t flags, bool holds_mo_lock);
@@ -159,8 +155,3 @@ int env_update_multiple(
     uint32_t num_keys, DBT_ARRAY keys[],
     uint32_t num_vals, DBT_ARRAY vals[]
     );
-
-
-
-
-#endif

@@ -29,7 +29,7 @@ COPYING CONDITIONS NOTICE:
 
 COPYRIGHT NOTICE:
 
-  TokuDB, Tokutek Fractal Tree Indexing Library.
+  TokuFT, Tokutek Fractal Tree Indexing Library.
   Copyright (C) 2007-2013 Tokutek, Inc.
 
 DISCLAIMER:
@@ -94,7 +94,7 @@ PATENT RIGHTS GRANT:
 #include <string.h>
 #include <stdio.h>
 #include <unistd.h>
-#include "ftloader-internal.h"
+#include "loader/loader-internal.h"
 #include "memory.h"
 #include <portability/toku_path.h>
 
@@ -186,7 +186,7 @@ static void test_merge_internal (int a[], int na, int b[], int nb, bool dups) {
 static void test_merge (void) {
     {
 	int avals[]={1,2,3,4,5};
-	int *bvals = NULL; //icc won't let us use a zero-sized array explicitly or by [] = {} construction.
+	int *bvals = NULL;
 	test_merge_internal(avals, 5, bvals, 0, false);
 	test_merge_internal(bvals, 0, avals, 5, false);
     }
@@ -336,7 +336,7 @@ static void verify_dbfile(int n, int sorted_keys[], const char *sorted_vals[], c
     int r;
 
     CACHETABLE ct;
-    toku_cachetable_create(&ct, 0, ZERO_LSN, NULL_LOGGER);
+    toku_cachetable_create(&ct, 0, ZERO_LSN, nullptr);
 
     TOKUTXN const null_txn = NULL;
     FT_HANDLE t = NULL;
@@ -350,7 +350,7 @@ static void verify_dbfile(int n, int sorted_keys[], const char *sorted_vals[], c
     size_t userdata = 0;
     int i;
     for (i=0; i<n; i++) {
-	struct check_pair pair = {sizeof sorted_keys[i], &sorted_keys[i], (ITEMLEN) strlen(sorted_vals[i]), sorted_vals[i], 0};
+	struct check_pair pair = {sizeof sorted_keys[i], &sorted_keys[i], (uint32_t) strlen(sorted_vals[i]), sorted_vals[i], 0};
         r = toku_ft_cursor_get(cursor, NULL, lookup_checkf, &pair, DB_NEXT);
         if (r != 0) {
 	    assert(pair.call_count ==0);
@@ -412,7 +412,7 @@ static void test_merge_files (const char *tf_template, const char *output_name) 
     ft_loader_fi_close_all(&bl.file_infos);
 
     QUEUE q;
-    r = queue_create(&q, 0xFFFFFFFF); // infinite queue.
+    r = toku_queue_create(&q, 0xFFFFFFFF); // infinite queue.
     assert(r==0);
 
     r = merge_files(&fs, &bl, 0, dest_db, compare_ints, 0, q); CKERR(r);
@@ -425,7 +425,7 @@ static void test_merge_files (const char *tf_template, const char *output_name) 
     int fd = open(output_name, O_RDWR | O_CREAT | O_BINARY, S_IRWXU|S_IRWXG|S_IRWXO);
     assert(fd>=0);
     
-    r = toku_loader_write_brt_from_q_in_C(&bl, &desc, fd, 1000, q, size_est, 0, 0, 0, TOKU_DEFAULT_COMPRESSION_METHOD, 16);
+    r = toku_loader_write_ft_from_q_in_C(&bl, &desc, fd, 1000, q, size_est, 0, 0, 0, TOKU_DEFAULT_COMPRESSION_METHOD, 16);
     assert(r==0);
 
     destroy_merge_fileset(&fs);
@@ -436,7 +436,7 @@ static void test_merge_files (const char *tf_template, const char *output_name) 
     // verify the dbfile
     verify_dbfile(10, sorted_keys, sorted_vals, output_name);
 
-    r = queue_destroy(q);
+    r = toku_queue_destroy(q);
     assert(r==0);
 }
 

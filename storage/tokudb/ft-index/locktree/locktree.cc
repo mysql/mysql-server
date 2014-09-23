@@ -29,7 +29,7 @@ COPYING CONDITIONS NOTICE:
 
 COPYRIGHT NOTICE:
 
-  TokuDB, Tokutek Fractal Tree Indexing Library.
+  TokuFT, Tokutek Fractal Tree Indexing Library.
   Copyright (C) 2007-2013 Tokutek, Inc.
 
 DISCLAIMER:
@@ -116,20 +116,16 @@ namespace toku {
 // but does nothing based on the value of the reference count - it is
 // up to the user of the locktree to destroy it when it sees fit.
 
-void locktree::create(manager::memory_tracker *mem_tracker, DICTIONARY_ID dict_id,
-        DESCRIPTOR desc, ft_compare_func cmp) {
-    m_mem_tracker = mem_tracker;
-    m_mgr = mem_tracker->get_manager();
+void locktree::create(locktree_manager *mgr, DICTIONARY_ID dict_id, const comparator &cmp) {
+    m_mgr = mgr;
     m_dict_id = dict_id;
 
-    // the only reason m_cmp is malloc'd here is to prevent gdb from printing
-    // out an entire DB struct every time you inspect a locktree.
-    XCALLOC(m_cmp);
-    m_cmp->create(cmp, desc);
+    m_cmp.create_from(cmp);
     m_reference_count = 1;
     m_userdata = nullptr;
+
     XCALLOC(m_rangetree);
-    m_rangetree->create(m_cmp);
+    m_rangetree->create(&m_cmp);
 
     m_sto_txnid = TXNID_NONE;
     m_sto_buffer.create();
@@ -156,12 +152,23 @@ void locktree::create(manager::memory_tracker *mem_tracker, DICTIONARY_ID dict_i
 
 void locktree::destroy(void) {
     invariant(m_reference_count == 0);
+    m_cmp.destroy();
     m_rangetree->destroy();
-    toku_free(m_cmp);
     toku_free(m_rangetree);
     m_sto_buffer.destroy();
-
     m_lock_request_info.pending_lock_requests.destroy();
+}
+
+void locktree::add_reference(void) {
+    (void) toku_sync_add_and_fetch(&m_reference_count, 1);
+}
+
+uint32_t locktree::release_reference(void) {
+    return toku_sync_sub_and_fetch(&m_reference_count, 1);
+}
+
+uint32_t locktree::get_reference_count(void) {
+    return m_reference_count;
 }
 
 // a container for a range/txnid pair
@@ -174,9 +181,8 @@ struct row_lock {
 // storing each row lock into the given growable array. the
 // caller does not own the range inside the returned row locks,
 // so remove from the tree with care using them as keys.
-static void iterate_and_get_overlapping_row_locks(
-        const concurrent_tree::locked_keyrange *lkr,
-        GrowableArray<row_lock> *row_locks) {
+static void iterate_and_get_overlapping_row_locks(const concurrent_tree::locked_keyrange *lkr,
+                                                  GrowableArray<row_lock> *row_locks) {
     struct copy_fn_obj {
         GrowableArray<row_lock> *row_locks;
         bool fn(const keyrange &range, TXNID txnid) {
@@ -193,7 +199,7 @@ static void iterate_and_get_overlapping_row_locks(
 // which txnids are conflicting, and store them in the conflicts
 // set, if given.
 static bool determine_conflicting_txnids(const GrowableArray<row_lock> &row_locks,
-        const TXNID &txnid, txnid_set *conflicts) {
+                                         const TXNID &txnid, txnid_set *conflicts) {
     bool conflicts_exist = false;
     const size_t num_overlaps = row_locks.get_size();
     for (size_t i = 0; i < num_overlaps; i++) {
@@ -218,19 +224,23 @@ static uint64_t row_lock_size_in_tree(const row_lock &lock) {
 // remove and destroy the given row lock from the locked keyrange,
 // then notify the memory tracker of the newly freed lock.
 static void remove_row_lock_from_tree(concurrent_tree::locked_keyrange *lkr,
-        const row_lock &lock, locktree::manager::memory_tracker *mem_tracker) {
+                                      const row_lock &lock, locktree_manager *mgr) {
     const uint64_t mem_released = row_lock_size_in_tree(lock);
     lkr->remove(lock.range);
-    mem_tracker->note_mem_released(mem_released);
+    if (mgr != nullptr) {
+        mgr->note_mem_released(mem_released);
+    }
 }
 
 // insert a row lock into the locked keyrange, then notify
 // the memory tracker of this newly acquired lock.
 static void insert_row_lock_into_tree(concurrent_tree::locked_keyrange *lkr,
-        const row_lock &lock, locktree::manager::memory_tracker *mem_tracker) {
+                                      const row_lock &lock, locktree_manager *mgr) {
     uint64_t mem_used = row_lock_size_in_tree(lock);
     lkr->insert(lock.range, lock.txnid);
-    mem_tracker->note_mem_used(mem_used);
+    if (mgr != nullptr) {
+        mgr->note_mem_used(mem_used);
+    }
 }
 
 void locktree::sto_begin(TXNID txnid) {
@@ -244,15 +254,19 @@ void locktree::sto_append(const DBT *left_key, const DBT *right_key) {
     keyrange range;
     range.create(left_key, right_key);
 
-    buffer_mem = m_sto_buffer.get_num_bytes();
+    buffer_mem = m_sto_buffer.total_memory_size();
     m_sto_buffer.append(left_key, right_key);
-    delta = m_sto_buffer.get_num_bytes() - buffer_mem;
-    m_mem_tracker->note_mem_used(delta);
+    delta = m_sto_buffer.total_memory_size() - buffer_mem;
+    if (m_mgr != nullptr) {
+        m_mgr->note_mem_used(delta);
+    }
 }
 
 void locktree::sto_end(void) {
-    uint64_t num_bytes = m_sto_buffer.get_num_bytes();
-    m_mem_tracker->note_mem_released(num_bytes);
+    uint64_t mem_size = m_sto_buffer.total_memory_size();
+    if (m_mgr != nullptr) {
+        m_mgr->note_mem_released(mem_size);
+    }
     m_sto_buffer.destroy();
     m_sto_buffer.create();
     m_sto_txnid = TXNID_NONE;
@@ -281,12 +295,11 @@ void locktree::sto_migrate_buffer_ranges_to_tree(void *prepared_lkr) {
 
     concurrent_tree sto_rangetree;
     concurrent_tree::locked_keyrange sto_lkr;
-    sto_rangetree.create(m_cmp);
+    sto_rangetree.create(&m_cmp);
 
     // insert all of the ranges from the single txnid buffer into a new rangtree
-    range_buffer::iterator iter;
+    range_buffer::iterator iter(&m_sto_buffer);
     range_buffer::iterator::record rec;
-    iter.create(&m_sto_buffer);
     while (iter.current(&rec)) {
         sto_lkr.prepare(&sto_rangetree);
         int r = acquire_lock_consolidated(&sto_lkr,
@@ -314,8 +327,9 @@ void locktree::sto_migrate_buffer_ranges_to_tree(void *prepared_lkr) {
     invariant(!m_rangetree->is_empty());
 }
 
-bool locktree::sto_try_acquire(void *prepared_lkr, TXNID txnid,
-        const DBT *left_key, const DBT *right_key) {
+bool locktree::sto_try_acquire(void *prepared_lkr,
+                               TXNID txnid,
+                               const DBT *left_key, const DBT *right_key) {
     if (m_rangetree->is_empty() && m_sto_buffer.is_empty() && m_sto_score >= STO_SCORE_THRESHOLD) {
         // We can do the optimization because the rangetree is empty, and
         // we know its worth trying because the sto score is big enough.
@@ -344,8 +358,10 @@ bool locktree::sto_try_acquire(void *prepared_lkr, TXNID txnid,
 // try to acquire a lock and consolidate it with existing locks if possible
 // param: lkr, a prepared locked keyrange
 // return: 0 on success, DB_LOCK_NOTGRANTED if conflicting locks exist.
-int locktree::acquire_lock_consolidated(void *prepared_lkr, TXNID txnid,
-        const DBT *left_key, const DBT *right_key, txnid_set *conflicts) {
+int locktree::acquire_lock_consolidated(void *prepared_lkr,
+                                        TXNID txnid,
+                                        const DBT *left_key, const DBT *right_key,
+                                        txnid_set *conflicts) {
     int r = 0;
     concurrent_tree::locked_keyrange *lkr;
 
@@ -361,8 +377,8 @@ int locktree::acquire_lock_consolidated(void *prepared_lkr, TXNID txnid,
     size_t num_overlapping_row_locks = overlapping_row_locks.get_size();
 
     // if any overlapping row locks conflict with this request, bail out.
-    bool conflicts_exist = determine_conflicting_txnids(
-            overlapping_row_locks, txnid, conflicts);
+    bool conflicts_exist = determine_conflicting_txnids(overlapping_row_locks,
+                                                        txnid, conflicts);
     if (!conflicts_exist) {
         // there are no conflicts, so all of the overlaps are for the requesting txnid.
         // so, we must consolidate all existing overlapping ranges and the requested
@@ -371,11 +387,11 @@ int locktree::acquire_lock_consolidated(void *prepared_lkr, TXNID txnid,
             row_lock overlapping_lock = overlapping_row_locks.fetch_unchecked(i);
             invariant(overlapping_lock.txnid == txnid);
             requested_range.extend(m_cmp, overlapping_lock.range);
-            remove_row_lock_from_tree(lkr, overlapping_lock, m_mem_tracker);
+            remove_row_lock_from_tree(lkr, overlapping_lock, m_mgr);
         }
 
         row_lock new_lock = { .range = requested_range, .txnid = txnid };
-        insert_row_lock_into_tree(lkr, new_lock, m_mem_tracker);
+        insert_row_lock_into_tree(lkr, new_lock, m_mgr);
     } else {
         r = DB_LOCK_NOTGRANTED;
     }
@@ -388,8 +404,10 @@ int locktree::acquire_lock_consolidated(void *prepared_lkr, TXNID txnid,
 // acquire a lock in the given key range, inclusive. if successful,
 // return 0. otherwise, populate the conflicts txnid_set with the set of
 // transactions that conflict with this request.
-int locktree::acquire_lock(bool is_write_request, TXNID txnid,
-        const DBT *left_key, const DBT *right_key, txnid_set *conflicts) {
+int locktree::acquire_lock(bool is_write_request,
+                           TXNID txnid,
+                           const DBT *left_key, const DBT *right_key,
+                           txnid_set *conflicts) {
     int r = 0;
 
     // we are only supporting write locks for simplicity
@@ -410,9 +428,15 @@ int locktree::acquire_lock(bool is_write_request, TXNID txnid,
     return r;
 }
 
-int locktree::try_acquire_lock(bool is_write_request, TXNID txnid,
-        const DBT *left_key, const DBT *right_key, txnid_set *conflicts, bool big_txn) {
-    int r = m_mgr->check_current_lock_constraints(big_txn);
+int locktree::try_acquire_lock(bool is_write_request,
+                               TXNID txnid,
+                               const DBT *left_key, const DBT *right_key,
+                               txnid_set *conflicts, bool big_txn) {
+    // All ranges in the locktree must have left endpoints <= right endpoints.
+    // Range comparisons rely on this fact, so we make a paranoid invariant here.
+    paranoid_invariant(m_cmp(left_key, right_key) <= 0);
+    int r = m_mgr == nullptr ? 0 :
+            m_mgr->check_current_lock_constraints(big_txn);
     if (r == 0) {
         r = acquire_lock(is_write_request, txnid, left_key, right_key, conflicts);
     }
@@ -420,18 +444,19 @@ int locktree::try_acquire_lock(bool is_write_request, TXNID txnid,
 }
 
 // the locktree silently upgrades read locks to write locks for simplicity
-int locktree::acquire_read_lock(TXNID txnid,
-        const DBT *left_key, const DBT *right_key, txnid_set *conflicts, bool big_txn) {
+int locktree::acquire_read_lock(TXNID txnid, const DBT *left_key, const DBT *right_key,
+                                txnid_set *conflicts, bool big_txn) {
     return acquire_write_lock(txnid, left_key, right_key, conflicts, big_txn);
 }
 
-int locktree::acquire_write_lock(TXNID txnid,
-        const DBT *left_key, const DBT *right_key, txnid_set *conflicts, bool big_txn) {
+int locktree::acquire_write_lock(TXNID txnid, const DBT *left_key, const DBT *right_key,
+                                 txnid_set *conflicts, bool big_txn) {
     return try_acquire_lock(true, txnid, left_key, right_key, conflicts, big_txn);
 }
 
-void locktree::get_conflicts(bool is_write_request, TXNID txnid,
-        const DBT *left_key, const DBT *right_key, txnid_set *conflicts) {
+void locktree::get_conflicts(bool is_write_request,
+                             TXNID txnid, const DBT *left_key, const DBT *right_key,
+                             txnid_set *conflicts) {
     // because we only support write locks, ignore this bit for now.
     (void) is_write_request;
 
@@ -480,8 +505,8 @@ void locktree::get_conflicts(bool is_write_request, TXNID txnid,
 //  whole lock [1,3].  Now, someone else can lock 2 before our txn gets
 //  around to unlocking 2, so we should not remove that lock.
 void locktree::remove_overlapping_locks_for_txnid(TXNID txnid,
-        const DBT *left_key, const DBT *right_key) {
-
+                                                  const DBT *left_key,
+                                                  const DBT *right_key) {
     keyrange release_range;
     release_range.create(left_key, right_key);
 
@@ -501,7 +526,7 @@ void locktree::remove_overlapping_locks_for_txnid(TXNID txnid,
         // If this isn't our lock, that's ok, just don't remove it.
         // See rationale above.
         if (lock.txnid == txnid) {
-            remove_row_lock_from_tree(&lkr, lock, m_mem_tracker);
+            remove_row_lock_from_tree(&lkr, lock, m_mgr);
         }
     }
 
@@ -545,12 +570,14 @@ void locktree::release_locks(TXNID txnid, const range_buffer *ranges) {
     // locks are already released, otherwise we need to do it here.
     bool released = sto_try_release(txnid);
     if (!released) {
-        range_buffer::iterator iter;
+        range_buffer::iterator iter(ranges);
         range_buffer::iterator::record rec;
-        iter.create(ranges);
         while (iter.current(&rec)) {
             const DBT *left_key = rec.get_left_key();
             const DBT *right_key = rec.get_right_key();
+            // All ranges in the locktree must have left endpoints <= right endpoints.
+            // Range comparisons rely on this fact, so we make a paranoid invariant here.
+            paranoid_invariant(m_cmp(left_key, right_key) <= 0);
             remove_overlapping_locks_for_txnid(txnid, left_key, right_key);
             iter.next();
         }
@@ -568,8 +595,8 @@ void locktree::release_locks(TXNID txnid, const range_buffer *ranges) {
 // row locks, storing each one into the given array of size N,
 // then removing each extracted lock from the locked keyrange.
 static int extract_first_n_row_locks(concurrent_tree::locked_keyrange *lkr,
-        locktree::manager::memory_tracker *mem_tracker,
-        row_lock *row_locks, int num_to_extract) { 
+                                     locktree_manager *mgr,
+                                     row_lock *row_locks, int num_to_extract) { 
 
     struct extract_fn_obj {
         int num_extracted;
@@ -600,7 +627,7 @@ static int extract_first_n_row_locks(concurrent_tree::locked_keyrange *lkr,
     int num_extracted = extract_fn.num_extracted;
     invariant(num_extracted <= num_to_extract);
     for (int i = 0; i < num_extracted; i++) {
-        remove_row_lock_from_tree(lkr, row_locks[i], mem_tracker);
+        remove_row_lock_from_tree(lkr, row_locks[i], mgr);
     }
 
     return num_extracted;
@@ -614,10 +641,10 @@ struct txnid_range_buffer {
     TXNID txnid;
     range_buffer buffer;
 
-    static int find_by_txnid(const struct txnid_range_buffer &other_buffer, const TXNID &txnid) {
-        if (txnid < other_buffer.txnid) {
+    static int find_by_txnid(struct txnid_range_buffer *const &other_buffer, const TXNID &txnid) {
+        if (txnid < other_buffer->txnid) {
             return -1;
-        } else if (other_buffer.txnid == txnid) {
+        } else if (other_buffer->txnid == txnid) {
             return 0;
         } else {
             return 1;
@@ -632,8 +659,8 @@ struct txnid_range_buffer {
 // approach works well. if there are many txnids and each
 // has locks in a random/alternating order, then this does
 // not work so well.
-void locktree::escalate(manager::lt_escalate_cb after_escalate_callback, void *after_escalate_callback_extra) {
-    omt<struct txnid_range_buffer, struct txnid_range_buffer *> range_buffers;
+void locktree::escalate(lt_escalate_cb after_escalate_callback, void *after_escalate_callback_extra) {
+    omt<struct txnid_range_buffer *, struct txnid_range_buffer *> range_buffers;
     range_buffers.create();
 
     // prepare and acquire a locked keyrange on the entire locktree
@@ -658,8 +685,9 @@ void locktree::escalate(manager::lt_escalate_cb after_escalate_callback, void *a
 
     // we always remove the "first" n because we are removing n
     // each time we do an extraction. so this loops until its empty.
-    while ((num_extracted = extract_first_n_row_locks(&lkr, m_mem_tracker,
-                    extracted_buf, num_row_locks_per_batch)) > 0) {
+    while ((num_extracted =
+                extract_first_n_row_locks(&lkr, m_mgr, extracted_buf,
+                                          num_row_locks_per_batch)) > 0) {
         int current_index = 0;
         while (current_index < num_extracted) {
             // every batch of extracted locks is in range-sorted order. search
@@ -682,7 +710,6 @@ void locktree::escalate(manager::lt_escalate_cb after_escalate_callback, void *a
             // Try to find a range buffer for the current txnid. Create one if it doesn't exist.
             // Then, append the new escalated range to the buffer.
             uint32_t idx;
-            struct txnid_range_buffer new_range_buffer;
             struct txnid_range_buffer *existing_range_buffer;
             int r = range_buffers.find_zero<TXNID, txnid_range_buffer::find_by_txnid>(
                     current_txnid,
@@ -690,9 +717,10 @@ void locktree::escalate(manager::lt_escalate_cb after_escalate_callback, void *a
                     &idx
                     );
             if (r == DB_NOTFOUND) {
-                new_range_buffer.txnid = current_txnid;
-                new_range_buffer.buffer.create();
-                new_range_buffer.buffer.append(escalated_left_key, escalated_right_key);
+                struct txnid_range_buffer *XMALLOC(new_range_buffer);
+                new_range_buffer->txnid = current_txnid;
+                new_range_buffer->buffer.create();
+                new_range_buffer->buffer.append(escalated_left_key, escalated_right_key);
                 range_buffers.insert_at(new_range_buffer, idx);
             } else {
                 invariant_zero(r);
@@ -720,14 +748,13 @@ void locktree::escalate(manager::lt_escalate_cb after_escalate_callback, void *a
         invariant_zero(r);
 
         const TXNID current_txnid = current_range_buffer->txnid;
-        range_buffer::iterator iter;
+        range_buffer::iterator iter(&current_range_buffer->buffer);
         range_buffer::iterator::record rec;
-        iter.create(&current_range_buffer->buffer);
         while (iter.current(&rec)) {
             keyrange range;
             range.create(rec.get_left_key(), rec.get_right_key());
             row_lock lock = { .range = range, .txnid = current_txnid };
-            insert_row_lock_into_tree(&lkr, lock, m_mem_tracker);
+            insert_row_lock_into_tree(&lkr, lock, m_mgr);
             iter.next();
         }
 
@@ -737,12 +764,21 @@ void locktree::escalate(manager::lt_escalate_cb after_escalate_callback, void *a
         }
         current_range_buffer->buffer.destroy();
     }
+
+    while (range_buffers.size() > 0) {
+        struct txnid_range_buffer *buffer;
+        int r = range_buffers.fetch(0, &buffer);
+        invariant_zero(r);
+        r = range_buffers.delete_at(0);
+        invariant_zero(r);
+        toku_free(buffer);
+    }
     range_buffers.destroy();
 
     lkr.release();
 }
 
-void *locktree::get_userdata(void) {
+void *locktree::get_userdata(void) const {
     return m_userdata;
 }
 
@@ -750,19 +786,19 @@ void locktree::set_userdata(void *userdata) {
     m_userdata = userdata;
 }
 
-struct locktree::lt_lock_request_info *locktree::get_lock_request_info(void) {
+struct lt_lock_request_info *locktree::get_lock_request_info(void) {
     return &m_lock_request_info;
 }
 
-void locktree::set_descriptor(DESCRIPTOR desc) {
-    m_cmp->set_descriptor(desc);
+void locktree::set_comparator(const comparator &cmp) {
+    m_cmp.inherit(cmp);
 }
 
-locktree::manager::memory_tracker *locktree::get_mem_tracker(void) const {
-    return m_mem_tracker;
+locktree_manager *locktree::get_manager(void) const {
+    return m_mgr;
 }
 
-int locktree::compare(const locktree *lt) {
+int locktree::compare(const locktree *lt) const {
     if (m_dict_id.dictid < lt->m_dict_id.dictid) {
         return -1;
     } else if (m_dict_id.dictid == lt->m_dict_id.dictid) {
