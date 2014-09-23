@@ -1128,6 +1128,12 @@ let $rows = 2;
 --echo #
 --echo # XML FUNCTIONS
 --echo #
+--echo # ExtractValue()
+let $cols = a varchar(1024), b varchar(1024) generated always as (ExtractValue(a,'/b')) virtual;
+let $values1 = '<b>text</b>',default;
+let $rows = 1;
+--source suite/vcol/inc/vcol_supported_sql_funcs.inc
+
 --echo # None.
 
 
