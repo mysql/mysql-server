@@ -23,6 +23,7 @@ InnoDB R-tree related functions.
 Created 2013/03/27 Allen Lai and Jimmy Yang
 *******************************************************/
 
+#include "page0types.h"
 #include "gis0geo.h"
 #include "page0cur.h"
 #include "ut0rnd.h"
@@ -622,7 +623,7 @@ Return 0 on success, otherwise 1. */
 int
 rtree_key_cmp(
 /*==========*/
-	int		mode,	/*!< in: compare method. */
+	page_cur_mode_t	mode,	/*!< in: compare method. */
 	const uchar*	b,	/*!< in: first key. */
 	int		b_len,	/*!< in: first key len. */
 	const uchar*	a,	/*!< in: second key. */

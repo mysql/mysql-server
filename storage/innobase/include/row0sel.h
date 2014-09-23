@@ -156,11 +156,11 @@ DB_LOCK_TABLE_FULL, DB_CORRUPTION, or DB_TOO_BIG_RECORD */
 UNIV_INLINE
 dberr_t
 row_search_for_mysql(
-	byte*			buf,
-	ulint			mode,
-	row_prebuilt_t*		prebuilt,
-	ulint			match_mode,
-	ulint			direction)
+	byte*		buf,
+	page_cur_mode_t	mode,
+	row_prebuilt_t*	prebuilt,
+	ulint		match_mode,
+	ulint		direction)
 	__attribute__((warn_unused_result));
 
 /** Searches for rows in the database using cursor.
@@ -183,11 +183,11 @@ The cursor is an iterator over the table/index.
 @return DB_SUCCESS or error code */
 dberr_t
 row_search_no_mvcc(
-	byte*			buf,
-	ulint			mode,
-	row_prebuilt_t*		prebuilt,
-	ulint			match_mode,
-	ulint			direction)
+	byte*		buf,
+	page_cur_mode_t	mode,
+	row_prebuilt_t*	prebuilt,
+	ulint		match_mode,
+	ulint		direction)
 	__attribute__((warn_unused_result));
 
 /** Searches for rows in the database using cursor.
@@ -221,7 +221,7 @@ It also has optimization such as pre-caching the rows, using AHI, etc.
 dberr_t
 row_search_mvcc(
 	byte*		buf,
-	ulint		mode,
+	page_cur_mode_t	mode,
 	row_prebuilt_t*	prebuilt,
 	ulint		match_mode,
 	ulint		direction)
@@ -305,7 +305,7 @@ struct plan_t{
 					for each field in the search
 					tuple */
 	dtuple_t*	tuple;		/*!< search tuple */
-	ulint		mode;		/*!< search mode: PAGE_CUR_G, ... */
+	page_cur_mode_t	mode;		/*!< search mode: PAGE_CUR_G, ... */
 	ulint		n_exact_match;	/*!< number of first fields in
 					the search tuple which must be
 					exactly matched */
