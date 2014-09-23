@@ -49,10 +49,10 @@ default_storage_engine	MyISAM
 default_tmp_storage_engine	MyISAM
 internal_tmp_disk_storage_engine	MYISAM
 SELECT MBROverlaps(ST_Intersection(GeomFromWKB(GeometryCollection(MULTILINESTRING(LineString(POINT(3,3)),LineString(POINT(3,5)),LineString(POINT(8,0),POINT(6,0),POINT(9,7),POINT(5,6),POINT(7,5),POINT(-5.6,4)),LineString(POINT(7,1),POINT(5,9),POINT(5,0),POINT(2,1),POINT(1,5),POINT(5,+.8),POINT(-.8,9),POINT(0,3),POINT(2.0,3)),LineString(POINT(2,8),POINT(0,2),POINT(.5,-.2),POINT(2,1)),LineString(POINT(9,8.8),POINT(-.3,.1),POINT(2,2),POINT(2,8))),Polygon(Linestring(POINT(6,8),POINT(4,1),POINT(6,8),POINT(-.2,2),POINT(6,6.3),POINT(3,7),POINT(4,7.1),POINT(6,8))),MULTILINESTRING(LineString(POINT(9,9))))),GeomFromWKB(AsWKB(GeomFromText('MULTIPOLYGON(((6 4,3 3,-8.4 6,-.0 4,6 4)))')))),ST_Difference(GeomFromText('LINESTRING(3.2 2)'),GeomFromText('LINESTRING(7 3,-2 10.0002,1 6,3 7)',10)));
-ERROR 22023: Invalid GIS data provided to function st_disjoint.
+ERROR HY000: Geometry overlay calculation error: geometry data is invalid in function st_intersection.
 select astext(st_intersection(geomfromtext('polygon((6 8, 4 1, 6 8, -0.2 2,6 6.3, 3 7, 4 7.1, 6 8))'),
 geomfromtext('MULTIPOLYGON(((6 4,3 3,-8.4 6,-.0 4,6 4)))')));
-ERROR 22023: Invalid GIS data provided to function st_disjoint.
+ERROR HY000: Geometry overlay calculation error: geometry data is invalid in function st_intersection.
 #Confirming the storage engine
 SHOW VARIABLES LIKE '%engine%';
 Variable_name	Value
@@ -77,7 +77,7 @@ default_storage_engine	MyISAM
 default_tmp_storage_engine	MyISAM
 internal_tmp_disk_storage_engine	MYISAM
 SELECT AsText(ST_Intersection(GeomFromWKB(GeometryCollection(POINT(7,7),Polygon(Linestring(POINT(4,9),POINT(5,6),POINT(9,-.9),POINT(8,8),POINT(1,1),POINT(5,5),POINT(8,-0.8),POINT(7,4),POINT(0,+.8),POINT(0,8),POINT(5,8),POINT(4,9))),Polygon(Linestring(POINT(2,2),POINT(3,9.5),POINT(2.2,1),POINT(-6.1,0),POINT(1,9),POINT(2,2)),Linestring(POINT(0,8),POINT(0,0),POINT(3,-8.6),POINT(0,7),POINT(2,-.9),POINT(0,9),POINT(8,0),POINT(7,0),POINT(0,8))),Polygon(Linestring(POINT(3,2),POINT(8,8),POINT(0,9),POINT(4,7.9),POINT(3,4),POINT(2,0),POINT(0,0),POINT(4,6.0),POINT(3,2))),LINESTRING(POINT(5,2),POINT(9,2),POINT(7,5),POINT(5,1)),MULTIPOINT(POINT(1,8),POINT(.6,8),POINT(.8,3)))),GeomFromText('POLYGON((3 6,2 3,2 8,3 -1.6,4 -0.7654,3 6))')));
-ERROR 22023: Invalid GIS data provided to function st_disjoint.
+ERROR HY000: Geometry overlay calculation error: geometry data is invalid in function st_intersection.
 #Confirming the storage engine
 SHOW VARIABLES LIKE '%engine%';
 Variable_name	Value
