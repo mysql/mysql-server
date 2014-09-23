@@ -8611,7 +8611,6 @@ static PSI_memory_info all_server_memory[]=
 #ifdef HAVE_MY_TIMER
   { &key_memory_thd_timer, "thd_timer", 0},
 #endif
-  { &key_memory_Table_trigger_dispatcher, "Table_trigger_dispatcher::m_mem_root", 0},
   { &key_memory_THD_Session_tracker, "THD::Session_tracker", 0},
   { &key_memory_THD_Session_sysvar_resource_manager, "THD::Session_sysvar_resource_manager", 0},
   { &key_memory_show_slave_status_io_gtid_set, "show_slave_status_io_gtid_set", 0}
