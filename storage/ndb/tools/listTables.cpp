@@ -326,11 +326,12 @@ int main(int argc, char** argv){
   if (ndb_cluster_connection->wait_until_ready(30,0) < 0)
     fatal("Cluster nodes not ready in 30 seconds.");
 
-  ndb = new Ndb(ndb_cluster_connection, _dbname);
+  ndb = new Ndb(ndb_cluster_connection);
   if (ndb->init() != 0)
     fatal("init");
   if (_dbname == 0 && _tabname != 0)
-        ndb->setDatabaseName("TEST_DB");
+    _dbname = "TEST_DB";
+  ndb->setDatabaseName(_dbname);
   dic = ndb->getDictionary();
   if( argc >0){
     if(!dic->getTable(_tabname)){
