@@ -1,1 +1,1 @@
---loose-tokudb --plugin-load=$HA_TOKUDB_SO
+--loose-tokudb --plugin-load=$HA_TOKUDB_SO --loose-tokudb-check-jemalloc=0
