@@ -427,6 +427,9 @@ pick_seeds(
 	double			max_d = -DBL_MAX;
 	double			d;
 
+	*seed_a = node;
+	*seed_b = node + 1;
+	
 	for (cur1 = node; cur1 < lim1; ++cur1) {
 		for (cur2 = cur1 + 1; cur2 < lim2; ++cur2) {
 			d = mbr_join_square(cur1->coords, cur2->coords, n_dim) -

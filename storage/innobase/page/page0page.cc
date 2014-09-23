@@ -2496,13 +2496,13 @@ page_validate(
 
 			data_size += rec_offs_size(offsets);
 
-#ifdef UNIV_DEBUG
+#if UNIV_GIS_DEBUG
 			/* For spatial index, print the mbr info.*/
 			if (index->type & DICT_SPATIAL) {
 				rec_print_mbr_rec(stderr, rec, offsets);
 				putc('\n', stderr);
 			}
-#endif /* UNIV_DEBUG */
+#endif /* UNIV_GIS_DEBUG */
 		}
 
 		offs = page_offset(rec_get_start(rec, offsets));
