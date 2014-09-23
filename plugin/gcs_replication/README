@@ -1,0 +1,379 @@
+=*= MySQL Group Replication =*=
+===============================
+
+The multi master plugin for MySQL is here. MySQL Group Replication
+ensures virtual synchronous updates on any node in a group of MySQL
+servers, with conflict handling and failure detection. Distributed
+recovery is also in the package to ease the process of adding new
+nodes to your server group.
+
+
+* == Pre requisites == *
+
+Under its hood, the multi master plugin is powered by a group
+communication toolkit. This is what decides which nodes belong to the
+server group, preform failure detection and orders server messages.
+This last being the magic thing that allows the data to be consistent
+across all nodes.
+
+As of now we rely on the Corosync Cluster Engine
+(http://corosync.github.io/corosync/), an well known and reliable
+Group Communication System. With Corosync comes however a limitation:
+there is no Windows version so you will have to use Linux when
+configuring a multi node MySQL group.
+
+To get the basic instructions on how to install Corosync and the
+recommended configurations, please see the file README_COROSYNC
+
+
+* == Plugin's required configurations  == *
+
+As any new feature, the multi master plugin includes some limitations
+and requirements that emerge from its underlying characteristics.
+When configuring a server and your data for multi master you will
+need:
+
+1) Have the binlog active and its logging format set to row.
+
+   Like on standard replication, multi master replication is based on
+   the transmission of log events. Its inner mechanism are however
+   based on the write sets generated during row based logging so row
+   based replication is a requirement.
+
+   Server options:
+     -–log-bin
+     --binlog-format=row
+
+2) Have GTIDs enabled.
+   MySQL Group Replication depends on GTIDs, used to identify what
+   transactions were executed in the group, and for that reason
+   vital to the distributed recovery process.
+
+   Server options:
+     --gtid-mode=on
+     --enforce-gtid-consistency
+     --log-slave-updates
+
+3) Use the InnoDB engine.
+   Synchronous multi master is dependent on transactional tables so
+   only InnoDB is supported. Since this is now the default engine,
+   you only have to be careful when creating individual tables.
+
+4) Every table must have a primary key.
+   Multi master concurrency control is based on primary keys. Every
+   change made to a table line is indexed to its primary key so this
+   is a fundamental requirement.
+
+
+Other current limitations:
+
+1) Binlog Event checksum use must be OFF.
+   Due to needed changes in the checksum mechanism, multi master is
+   incompatible with these features as of now.
+
+   Server options:
+     --binlog-checksum=NONE
+
+
+* == Hands on with MySQL Group Replication == *
+
+First of all set-up a group of servers using the provided binaries
+that come with the release or compile them yourself following the
+generic MySQL compilation instructions. Just be sure to have
+Corosync's development libraries and not only the daemon installed
+when compiling.
+
+You can test this on you desktop, use a group of physical or
+virtual machines, the only requirement is that all your Corosync's
+settings are configured to listen on the same network. In this
+example, three machines are spawn from the same machine with different
+data folders.
+
+
+=> Start the servers with the plugin and all the necessary options
+
+Server 1
+
+ $ ./bin/mysqld --no-defaults --basedir=. --datadir=data01 -P 13001
+   --socket=mysqld1.sock --log-bin=master-bin --server-id=1
+   --gtid-mode=on --enforce-gtid-consistency --log-slave-updates
+   --binlog-checksum=NONE --binlog-format=row --plugin-dir=lib/plugin
+   --plugin-load=gcs_replication_plugin.so
+
+Server 2
+
+  $ ./bin/mysqld --no-defaults --basedir=. --datadir=data02 -P 13002
+    --socket=mysqld2.sock --log-bin=master-bin --server-id=2
+    --gtid-mode=on --enforce-gtid-consistency --log-slave-updates
+    --binlog-checksum=NONE --binlog-format=row --plugin-dir=lib/plugin
+    --plugin-load=gcs_replication_plugin.so
+
+Server 3
+
+  $ ./bin/mysqld --no-defaults --basedir=. --datadir=data03 -P 13003
+    --socket=mysqld3.sock --log-bin=master-bin --server-id=3
+    --gtid-mode=on --enforce-gtid-consistency --log-slave-updates
+    --binlog-checksum=NONE --binlog-format=row --plugin-dir=lib/plugin
+    --plugin-load=gcs_replication_plugin.so
+
+
+Alternatively, if you have a running server without the plugin loaded
+you can install it on run-time. This implies that you have GTID mode
+ON, row based logging and all the above requirements correctly
+configured.
+
+  $ ./bin/mysql -uroot -h 127.0.0.1 -P 13001 --prompt='server1>'
+
+  server1> INSTALL PLUGIN gcs_replication_plugin SONAME 'gcs_replication_plugin.so';
+
+
+==> Configure it
+
+The first step on configuring a MySQL Group node is to define a
+unique name that identifies the group and allows its nodes to join.
+This name must be defined on every node, and since it works also as the
+group UUID, it must be a valid UUID.
+
+  server1> SET GLOBAL gcs_replication_plugin_group_name= "8a94f357-aab4-11df-86ab-c80aa9429562";
+
+
+==> Start multi master replication
+
+  server1> START GCS_REPLICATION;
+
+
+==> Check the node status
+
+  server1> SELECT * FROM performance_schema.replication_connection_status\G
+  *************************** 1. row ***************************
+                 GROUP_NAME: 8a94f357-aab4-11df-86ab-c80aa9429562
+                SOURCE_UUID: 8a94f357-aab4-11df-86ab-c80aa9429562
+                  THREAD_ID: NULL
+              SERVICE_STATE: ON
+  COUNT_RECEIVED_HEARTBEATS: 0
+   LAST_HEARTBEAT_TIMESTAMP: 0000-00-00 00:00:00
+   RECEIVED_TRANSACTION_SET:
+          LAST_ERROR_NUMBER: 0
+         LAST_ERROR_MESSAGE:
+       LAST_ERROR_TIMESTAMP: 0000-00-00 00:00:00
+    TOTAL_MESSAGES_RECEIVED: 0
+        TOTAL_MESSAGES_SENT: 0
+       TOTAL_BYTES_RECEIVED: 0
+           TOTAL_BYTES_SENT: 0
+     LAST_MESSAGE_TIMESTAMP: 2014-09-25 16:05:37
+         MAX_MESSAGE_LENGTH: 0
+         MIN_MESSAGE_LENGTH: 0
+                    VIEW_ID: 1
+            NUMBER_OF_NODES: 1
+
+Here, it can be seen that the service is online, the group node number,
+and what is the configured group name among other stats.
+
+
+==> Check the group nodes
+
+  server1>SELECT * FROM performance_schema.replication_connection_nodes;
+
+  +--------------------------------------+--------------------------------------+-----------------+-----------+------------+
+  | GROUP_NAME                           | NODE_ID                              | NODE_HOST       | NODE_PORT | NODE_STATE |
+  +--------------------------------------+--------------------------------------+-----------------+-----------+------------+
+  | 8a94f357-aab4-11df-86ab-c80aa9429562 | 855060ee-3fe5-11e4-a8d9-6067203feba0 | pgomes-ThinkPad |     13001 | ONLINE     |
+  +--------------------------------------+--------------------------------------+-----------------+-----------+------------+
+
+
+==> Test query execution
+
+Start server 2:
+
+  server2> SET GLOBAL gcs_replication_plugin_group_name= "8a94f357-aab4-11df-86ab-c80aa9429562";
+  server2> START GCS_REPLICATION;
+
+  server2> SELECT * FROM performance_schema.replication_connection_nodes;
+  +--------------------------------------+--------------------------------------+-----------------+-----------+------------+
+  | GROUP_NAME                           | NODE_ID                              | NODE_HOST       | NODE_PORT | NODE_STATE |
+  +--------------------------------------+--------------------------------------+-----------------+-----------+------------+
+  | 8a94f357-aab4-11df-86ab-c80aa9429562 | 855060ee-3fe5-11e4-a8d9-6067203feba0 | pgomes-ThinkPad |     13001 | ONLINE     |
+  | 8a94f357-aab4-11df-86ab-c80aa9429562 | d5aa627e-3fe9-11e4-a8f5-6067203feba0 | pgomes-ThinkPad |     13002 | ONLINE     |
+  +--------------------------------------+--------------------------------------+-----------------+-----------+------------+
+
+
+Insert some data on server 1:
+
+  server1> CREATE DATABASE test;
+  server1> CREATE TABLE test.t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+  server1> INSERT INTO test.t1 VALUES (1);
+
+
+Alternate between servers and check the data flow:
+
+  server2> SELECT * FROM test.t1;
+  +----+
+  | c1 |
+  +----+
+  |  1 |
+  +----+
+
+  server2>INSERT INTO test.t1 VALUES (2);
+
+  server1>SELECT * FROM test.t1;
+  +----+
+  | c1 |
+  +----+
+  |  1 |
+  |  2 |
+  +----+
+
+
+==> See distributed recovery in action
+
+When you start a new node, it will try to get all the data it is
+missing from the other group nodes.
+During this period its state will be shown as 'RECOVERING', and you
+should not preform any action on this node during this phase.
+
+
+  server3> SET GLOBAL gcs_replication_plugin_group_name= "8a94f357-aab4-11df-86ab-c80aa9429562";
+  server3> START GCS_REPLICATION;
+
+  server3>SELECT * FROM performance_schema.replication_connection_nodes;
+  +--------------------------------------+--------------------------------------+-----------------+-----------+------------+
+  | GROUP_NAME                           | NODE_ID                              | NODE_HOST       | NODE_PORT | NODE_STATE |
+  +--------------------------------------+--------------------------------------+-----------------+-----------+------------+
+  | 8a94f357-aab4-11df-86ab-c80aa9429562 | 855060ee-3fe5-11e4-a8d9-6067203feba0 | pgomes-ThinkPad |     13001 | ONLINE     |
+  | 8a94f357-aab4-11df-86ab-c80aa9429562 | d5aa627e-3fe9-11e4-a8f5-6067203feba0 | pgomes-ThinkPad |     13002 | ONLINE     |
+  | 8a94f357-aab4-11df-86ab-c80aa9429562 | ed8c0d79-3fe8-11e4-a8f0-6067203feba0 | pgomes-ThinkPad |     13003 | RECOVERING |
+  +--------------------------------------+--------------------------------------+-----------------+-----------+------------+
+
+
+Wait for it to be online. Truth is that here, with such a small
+amount of data, this state is hard to spot. However, you should be
+aware of this when dealing with real data sets.
+
+
+  server3>SELECT * FROM performance_schema.replication_connection_nodes;
+  +--------------------------------------+--------------------------------------+-----------------+-----------+------------+
+  | GROUP_NAME                           | NODE_ID                              | NODE_HOST       | NODE_PORT | NODE_STATE |
+  +--------------------------------------+--------------------------------------+-----------------+-----------+------------+
+  | 8a94f357-aab4-11df-86ab-c80aa9429562 | 855060ee-3fe5-11e4-a8d9-6067203feba0 | pgomes-ThinkPad |     13001 | ONLINE     |
+  | 8a94f357-aab4-11df-86ab-c80aa9429562 | d5aa627e-3fe9-11e4-a8f5-6067203feba0 | pgomes-ThinkPad |     13002 | ONLINE     |
+  | 8a94f357-aab4-11df-86ab-c80aa9429562 | ed8c0d79-3fe8-11e4-a8f0-6067203feba0 | pgomes-ThinkPad |     13003 | ONLINE     |
+  +--------------------------------------+--------------------------------------+-----------------+-----------+------------+
+
+  server3> SELECT * FROM test.t1;
+  +----+
+  | c1 |
+  +----+
+  |  1 |
+  |  2 |
+  +----+
+
+
+==> Be aware of failures on concurrency scenarios
+
+Due to the distributed nature of MySQL groups, concurrent updates can
+result on query failure if the queries are found to be conflicting.
+Lets perform a concurrent update to the same line in the example table
+
+On server 1
+
+  server1>UPDATE test.t1 SET c1=4 where c1=1;
+
+On server 2
+
+  server2>UPDATE test.t1 SET c1=3 where c1=1;
+
+Execute in parallel
+
+  server1>UPDATE test.t1 SET c1=4 where c1=1;
+  Query OK, 1 row affected (0.06 sec)
+
+  server2>UPDATE test.t1 SET c1=3 where c1=1;
+  ERROR 1180 (HY000): Got error during COMMIT
+
+Note that the scenario where the second update succeeds and the first
+one fails is also equally possible and only depends on the order the
+queries were ordered and certified inside the plugin.
+
+Let's check the tables.
+
+server1>select * from test.t1;
++----+
+| c1 |
++----+
+|  2 |
+|  4 |
++----+
+
+server2>select * from test.t1;
++----+
+| c1 |
++----+
+|  2 |
+|  4 |
++----+
+
+The failed query rollbacks and no node is affected by this.
+
+
+==> Check the execution stats
+
+Check your GTID stats on each node
+
+  server1>SELECT @@GLOBAL.GTID_EXECUTED;
+  +------------------------------------------+
+  | @@GLOBAL.GTID_EXECUTED                   |
+  +------------------------------------------+
+  | 8a94f357-aab4-11df-86ab-c80aa9429562:1-5 |
+  +------------------------------------------+
+
+  server2>SELECT @@GLOBAL.GTID_EXECUTED;
+  +------------------------------------------+
+  | @@GLOBAL.GTID_EXECUTED                   |
+  +------------------------------------------+
+  | 8a94f357-aab4-11df-86ab-c80aa9429562:1-5 |
+  +------------------------------------------+
+
+Note that in all nodes the GTID executed set is the same and belongs
+to the group.
+
+The node execution stats are also available on the performance schema
+tables.
+
+  server1>select * from replication_node_status\G
+  *************************** 1. row ***************************
+                  GROUP_NAME: 8a94f357-aab4-11df-86ab-c80aa9429562
+                     NODE_ID: 855060ee-3fe5-11e4-a8d9-6067203feba0
+       TRANSACTIONS_IN_QUEUE: 0
+      CERTIFIED_TRANSACTIONS: 6
+        POSITIVELY_CERTIFIED: 5
+        NEGATIVELY_CERTIFIED: 1
+       CERTIFICATION_DB_SIZE: 3
+                  STABLE_SET: 8a94f357-aab4-11df-86ab-c80aa9429562:1-5
+  LAST_CERTIFIED_TRANSACTION: 8a94f357-aab4-11df-86ab-c80aa9429562:5
+       APPLIER_MODULE_STATUS: ON
+
+
+Where it can be seen that, from the 6 executed queries on this tutorial,
+5 where positively certified and 1 was found to be conflicting and for
+that reason not certified.
+
+
+==> How to start multi master replication at server boot
+
+To enable the automatic start of multi master replication at server
+start two options are needed.
+
+Set the group name
+
+  --loose-gcs_replication_plugin_group_name
+
+Set the start on boot flag to true
+
+  --loose-gcs_replication_plugin_start_on_boot
+
+
+* == Conclusion == *
+
+On his first steps, MySQL Group Replication is still in development.
+Feel free to try it and get back at us so we can make it even better
+for the community!

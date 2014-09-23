@@ -1,0 +1,142 @@
+=*= MySQL Group Replication: Corosync guide =*=
+===============================================
+
+MySQL Group Replication is here and with it comes the need to install and
+configure the underlying group communication toolkit that supports it:
+Corosync. Corosync is well known and reliable Group Communication
+System that is used in such applications as Pacemaker.
+
+In term of support, we develop MySQL Group Replication based on
+Corosync version 1.4.6, so this tutorial is based on this version.
+Regardless of this, no known problems are know to exists when using
+newer versions, but no extensive testing has been done on those.
+
+Along with Corosync we also encourage the use of NSS to better secure
+your data transmitted in the cluster.
+
+
+* == Installing  == *
+
+To install Corosync, you can rely on your packet manager for most
+distributions or compile it from source.
+
+==> From the package manager
+
+Debian distributions
+
+  $ sudo apt-get install corosync corosync-dev
+
+RPM based distributions
+
+  $ yum install corosync corosynclib corosynclib-devel
+
+
+==> From source
+
+The difference in the Debian release is that if you install Corosync
+1.4.6, this version is not built with NSS support so you will have to
+do it yourself.
+
+To compile it from source, first download Corosync version 1.4.6 from
+
+  http://corosync.github.io/corosync/
+
+Then, follow the INSTALL file inside tarball, not forgetting the
+--enable-nss on the configure phase. To perform this task you should
+need NSS headers installed in the system.
+
+
+* == Configuring  == *
+
+==> Configure network, logging and security options
+
+The first part when configuring Corosync is to edit its main
+configuration file that is on:
+
+  /etc/corosync/corosync.conf
+
+You should have an example configuration on the folder you can use,
+and information exists online about each one of the fields, so we only
+present here information about the basics to get you running.
+
+First of all there are several main set of configurations you can find on
+this file: totem, logging, event, service, aisexec, etc. We only cover
+the basic options.
+
+On totem to the default options you should activate encryption with
+
+  secauth: on         # Turn encryption on
+  crypto_accept: new
+  crypto_type: nss    # Use NSS
+
+Below you should configure your network interface settings
+
+  interface {
+    # Only needed if you use redundant rings
+    ringnumber: 0
+    # Set it to listen on your network, here configured for local
+    # tests, you usually set it to a NNN.NNN.NNN.0 address
+    bindnetaddr: 127.0.0.1
+    # Multicast address settings, the default should work but contact
+    # your network admin for what address to use on a real scenario
+    mcastaddr: 226.94.1.1
+    mcastport: 5405
+  }
+
+On the logging section you can set where Corosync prints its
+messages. You can chose it to print to file, to standard output or
+syslog and what the log level is.
+
+
+==> Create a configuration files to give user access to Corosync
+
+Next step is to create a uidgid file that identifies which users can
+run Corosync. For each of these users:
+
+Create a file with a name at your choice, fill it with:
+
+  uidgid {
+    uid: USERNAME
+    gid: GROUPNAME
+  }
+
+and place it under
+
+  /etc/corosync/uidgid.d
+
+
+==> Generate a cryptographic key for Corosync (when using encryption)
+
+Run the following command as root:
+
+  $ corosync-keygen
+
+
+==> Configure Corosync to start at boot
+
+#Debian distributions:
+
+Go to file:
+
+  /etc/default/corosync
+
+and check that you have "START=yes"
+
+
+#RPM based distributions:
+
+Run as root:
+  $ chkconfig corosync on
+
+
+* == Run it  == *
+
+==> Start corosync daemon
+
+  $ sudo service corosync start
+
+
+==> Check that corosync daemon is running
+
+  $ sudo service corosync status
+  $ corosync-cfgtool -s
