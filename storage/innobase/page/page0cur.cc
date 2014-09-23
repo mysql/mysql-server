@@ -925,15 +925,13 @@ page_cur_parse_insert_rec(
 	/* Build the inserted record to buf */
 
         if (UNIV_UNLIKELY(mismatch_index >= UNIV_PAGE_SIZE)) {
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"is_short %lu, info_and_status_bits %lu, offset %lu,"
-			" o_offset %lu, mismatch index %lu, end_seg_len %lu"
-			" parsed len %lu",
-			(ulong) is_short, (ulong) info_and_status_bits,
-			(ulong) page_offset(cursor_rec),
-			(ulong) origin_offset,
-			(ulong) mismatch_index, (ulong) end_seg_len,
-			(ulong) (ptr - ptr2));
+
+		ib::error() << "is_short " << is_short << ", "
+			<< "info_and_status_bits " << info_and_status_bits
+			<< ", offset " << page_offset(cursor_rec) << ","
+			" o_offset " << origin_offset << ", mismatch index "
+			<< mismatch_index << ", end_seg_len " << end_seg_len
+			<< " parsed len " << (ptr - ptr2);
 
 		fputs("Dump of 300 bytes of log:\n", stderr);
 		ut_print_buf(stderr, ptr2, 300);

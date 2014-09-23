@@ -1684,10 +1684,9 @@ RecLock::mark_trx_for_rollback(trx_t* trx)
 
 		char	buffer[1024];
 
-		ib_logf(IB_LOG_LEVEL_INFO,
-			"Blocking transaction: ID: " TRX_ID_FMT " - %s",
-			trx->id,
-			thd_security_context(thd, buffer, sizeof(buffer), 512));
+		ib::info() << "Blocking transaction: ID: " << trx->id << " - "
+			<< thd_security_context(thd, buffer, sizeof(buffer),
+						512);
 	}
 }
 
@@ -1995,12 +1994,11 @@ RecLock::add_to_waitq(const lock_t* wait_for, const lock_prdt_t* prdt)
 				char	buffer[1024];
 				THD*	thd = victim_trx->mysql_thd;
 
-				ib_logf(IB_LOG_LEVEL_INFO,
-					"High priority transaction selected"
-					" for rollback : %s",
-					thd_security_context(
+				ib::info() << "High priority transaction"
+					" selected for rollback : "
+					<< thd_security_context(
 						thd, buffer, sizeof(buffer),
-						512));
+						512);
 			}
 
 			return(DB_DEADLOCK);

@@ -1670,10 +1670,6 @@ btr_root_raise_and_insert(
 
 	/* We play safe and reset the free bits for the new page */
 
-#if 0
-	ib_logf(IB_LOG_LEVEL_INFO, "Root raise new page no %lu", new_page_no);
-#endif
-
 	if (!dict_index_is_clust(index)
 	    && !dict_table_is_temporary(index->table)) {
 		ibuf_reset_free_bits(new_block);
@@ -2800,8 +2796,6 @@ insert_failed:
 			ibuf_reset_free_bits(block);
 		}
 
-		/* ib_logf(IB_LOG_LEVEL_INFO, "Split second round %lu",
-			   page_get_page_no(page)); */
 		n_iterations++;
 		ut_ad(n_iterations < 2
 		      || buf_block_get_page_zip(insert_block));
@@ -2821,13 +2815,6 @@ func_exit:
 		ibuf_update_free_bits_for_two_pages_low(
 			left_block, right_block, mtr);
 	}
-
-#if 0
-	ib_logf(IB_LOG_LEVEL_INFO,
-		"Split and insert done %lu %lu",
-		left_block->page.id.page_no(),
-		right_block->page.id.page_no());
-#endif
 
 	MONITOR_INC(MONITOR_INDEX_SPLIT);
 
