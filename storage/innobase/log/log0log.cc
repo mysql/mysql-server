@@ -179,11 +179,9 @@ log_buffer_extend(
 				DBUG_SUICIDE(););
 
 		/* log_buffer is too small. try to extend instead of crash. */
-		ib_logf(IB_LOG_LEVEL_WARN,
-			"The transaction log size is too large"
-			" for innodb_log_buffer_size (%lu >= %lu / 2)."
-			" Trying to extend it.",
-			len, LOG_BUFFER_SIZE);
+		ib::warn() << "The transaction log size is too large"
+			" for innodb_log_buffer_size (" << len << " >= "
+			<< LOG_BUFFER_SIZE << " / 2). Trying to extend it.";
 	}
 
 	log_sys->is_extending = true;
@@ -231,9 +229,8 @@ log_buffer_extend(
 
 	log_mutex_exit();
 
-	ib_logf(IB_LOG_LEVEL_INFO,
-		"innodb_log_buffer_size was extended to %lu.",
-		LOG_BUFFER_SIZE);
+	ib::info() << "innodb_log_buffer_size was extended to "
+		<< LOG_BUFFER_SIZE << ".";
 }
 
 /** Open the log for log_write_low. The log must be closed with log_close.
@@ -410,11 +407,10 @@ log_close(void)
 			log_has_printed_chkp_warning = TRUE;
 			log_last_warning_time = time(NULL);
 
-			ib_logf(IB_LOG_LEVEL_ERROR,
-				"The age of the last checkpoint is"
-				" " LSN_PF ", which exceeds the log group"
-				" capacity " LSN_PF ".", checkpoint_age,
-				log->log_group_capacity);
+			ib::error() << "The age of the last checkpoint is "
+				<< checkpoint_age << ", which exceeds the log"
+				" group capacity " << log->log_group_capacity
+				<< ".";
 		}
 	}
 
@@ -656,16 +652,15 @@ failure:
 	log_mutex_exit();
 
 	if (!success) {
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Cannot continue operation. ib_logfiles are too"
-			" small for innodb_thread_concurrency %lu. The"
-			" combined size of ib_logfiles should be bigger than"
+		ib::error() << "Cannot continue operation. ib_logfiles are too"
+			" small for innodb_thread_concurrency "
+			<< srv_thread_concurrency << ". The combined size of"
+			" ib_logfiles should be bigger than"
 			" 200 kB * innodb_thread_concurrency. To get mysqld"
 			" to start up, set innodb_thread_concurrency in"
 			" my.cnf to a lower value, for example, to 8. After"
 			" an ERROR-FREE shutdown of mysqld you can adjust"
-			" the size of ib_logfiles. %s",
-			(ulong) srv_thread_concurrency, INNODB_PARAMETERS_MSG);
+			" the size of ib_logfiles. " << INNODB_PARAMETERS_MSG;
 	}
 
 	return(success);
@@ -1996,7 +1991,7 @@ logs_empty_and_mark_files_at_shutdown(void)
 	enum srv_thread_type	active_thd;
 	const char*		thread_name;
 
-	ib_logf(IB_LOG_LEVEL_INFO, "Starting shutdown...");
+	ib::info() << "Starting shutdown...";
 
 	/* Wait until the master thread and all other operations are idle: our
 	algorithm only works if the server is idle at shutdown */
@@ -2018,8 +2013,8 @@ loop:
 		threads check will be done later. */
 
 		if (srv_print_verbose_log && count > 600) {
-			ib_logf(IB_LOG_LEVEL_INFO,
-				"Waiting for %s to exit", thread_name);
+			ib::info() << "Waiting for " << thread_name
+				<< " to exit";
 			count = 0;
 		}
 
@@ -2036,9 +2031,8 @@ loop:
 	if (total_trx > 0) {
 
 		if (srv_print_verbose_log && count > 600) {
-			ib_logf(IB_LOG_LEVEL_INFO,
-				"Waiting for %lu active transactions to finish",
-				(ulong) total_trx);
+			ib::info() << "Waiting for " << total_trx << " active"
+				<< " transactions to finish";
 
 			count = 0;
 		}
@@ -2082,9 +2076,9 @@ loop:
 				break;
 			}
 
-			ib_logf(IB_LOG_LEVEL_INFO,
-				"Waiting for %s to be suspended",
-				thread_type);
+			ib::info() << "Waiting for " << thread_type
+				<< " to be suspended";
+
 			count = 0;
 		}
 
@@ -2100,9 +2094,8 @@ loop:
 		++count;
 		os_thread_sleep(100000);
 		if (srv_print_verbose_log && count > 600) {
-			ib_logf(IB_LOG_LEVEL_INFO,
-				"Waiting for page_cleaner to"
-				" finish flushing of buffer pool");
+			ib::info() << "Waiting for page_cleaner to"
+				" finish flushing of buffer pool";
 			count = 0;
 		}
 	}
@@ -2114,10 +2107,8 @@ loop:
 
 	if (n_write != 0 || n_flush != 0) {
 		if (srv_print_verbose_log && count > 600) {
-			ib_logf(IB_LOG_LEVEL_INFO,
-				"Pending checkpoint_writes: " ULINTPF "."
-				" Pending log flush writes: " ULINTPF,
-				n_write, n_flush);
+			ib::info() << "Pending checkpoint_writes: " << n_write
+				<< ". Pending log flush writes: " << n_flush;
 			count = 0;
 		}
 		goto loop;
@@ -2127,9 +2118,8 @@ loop:
 
 	if (pending_io) {
 		if (srv_print_verbose_log && count > 600) {
-			ib_logf(IB_LOG_LEVEL_INFO,
-				"Waiting for %lu buffer page I/Os to complete",
-				(ulong) pending_io);
+			ib::info() << "Waiting for " << pending_io << " buffer"
+				" page I/Os to complete";
 			count = 0;
 		}
 
@@ -2138,11 +2128,10 @@ loop:
 
 	if (srv_fast_shutdown == 2) {
 		if (!srv_read_only_mode) {
-			ib_logf(IB_LOG_LEVEL_INFO,
-				"MySQL has requested a very fast shutdown"
-				" without flushing the InnoDB buffer pool to"
-				" data files. At the next mysqld startup"
-				" InnoDB will do a crash recovery!");
+			ib::info() << "MySQL has requested a very fast"
+				" shutdown without flushing the InnoDB buffer"
+				" pool to data files. At the next mysqld"
+				" startup InnoDB will do a crash recovery!";
 
 			/* In this fastest shutdown we do not flush the
 			buffer pool:
@@ -2160,9 +2149,9 @@ loop:
 			thread_name = srv_any_background_threads_are_active();
 
 			if (thread_name != NULL) {
-				ib_logf(IB_LOG_LEVEL_WARN,
-					"Background thread %s woke up"
-					" during shutdown", thread_name);
+				ib::warn() << "Background thread "
+					<< thread_name << " woke up during"
+					" shutdown";
 				goto loop;
 			}
 		}
@@ -2185,8 +2174,15 @@ loop:
 	log_mutex_enter();
 
 	lsn = log_sys->lsn;
-	const bool	is_last	= lsn == log_sys->last_checkpoint_lsn;
+
 	ut_ad(lsn >= log_sys->last_checkpoint_lsn);
+	ut_ad(srv_force_recovery != SRV_FORCE_NO_LOG_REDO
+	      || lsn == log_sys->last_checkpoint_lsn + LOG_BLOCK_HDR_SIZE);
+
+	const bool	is_last	= ((srv_force_recovery == SRV_FORCE_NO_LOG_REDO
+				    && lsn == log_sys->last_checkpoint_lsn
+					      + LOG_BLOCK_HDR_SIZE)
+				   || lsn == log_sys->last_checkpoint_lsn);
 
 	log_mutex_exit();
 
@@ -2197,9 +2193,8 @@ loop:
 	/* Check that the background threads stay suspended */
 	thread_name = srv_any_background_threads_are_active();
 	if (thread_name != NULL) {
-		ib_logf(IB_LOG_LEVEL_WARN,
-			"Background thread %s woke up during shutdown",
-			thread_name);
+		ib::warn() << "Background thread " << thread_name << " woke up"
+			" during shutdown";
 
 		goto loop;
 	}
@@ -2217,8 +2212,8 @@ loop:
 	if (!buf_all_freed()) {
 
 		if (srv_print_verbose_log && count > 600) {
-			ib_logf(IB_LOG_LEVEL_INFO,
-				"Waiting for dirty buffer pages to be flushed");
+			ib::info() << "Waiting for dirty buffer pages to be"
+				" flushed";
 			count = 0;
 		}
 
@@ -2237,10 +2232,9 @@ loop:
 	ut_a(lsn == log_sys->lsn);
 
 	if (lsn < srv_start_lsn) {
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Log sequence number at shutdown " LSN_PF
-			" is lower than at startup " LSN_PF "!",
-			lsn, srv_start_lsn);
+		ib::error() << "Log sequence number at shutdown " << lsn
+			<< " is lower than at startup " << srv_start_lsn
+			<< "!";
 	}
 
 	srv_shutdown_lsn = lsn;

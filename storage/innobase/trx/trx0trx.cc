@@ -476,6 +476,7 @@ trx_free(trx_t*& trx)
 	trx->mod_tables.clear();
 
 	ut_ad(trx->read_view == NULL);
+	ut_ad(trx->is_dd_trx == false);
 
 	/* trx locking state should have been reset before returning trx
 	to pool */
@@ -531,10 +532,9 @@ trx_validate_state_before_free(trx_t* trx)
 {
 	if (trx->declared_to_be_inside_innodb) {
 
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Freeing a trx (%p, " TRX_ID_FMT ") which is declared"
-			" to be processing inside InnoDB", trx,
-			trx_get_id_for_print(trx));
+		ib::error() << "Freeing a trx (" << trx << ", "
+			<< trx_get_id_for_print(trx) << ") which is declared"
+			" to be processing inside InnoDB";
 
 		trx_print(stderr, trx, 600);
 		putc('\n', stderr);
@@ -547,12 +547,11 @@ trx_validate_state_before_free(trx_t* trx)
 	if (trx->n_mysql_tables_in_use != 0
 	    || trx->mysql_n_tables_locked != 0) {
 
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"MySQL is freeing a thd though"
-			" trx->n_mysql_tables_in_use is %lu and"
-			" trx->mysql_n_tables_locked is %lu.",
-			(ulong) trx->n_mysql_tables_in_use,
-			(ulong) trx->mysql_n_tables_locked);
+		ib::error() << "MySQL is freeing a thd though"
+			" trx->n_mysql_tables_in_use is "
+			<< trx->n_mysql_tables_in_use
+			<< " and trx->mysql_n_tables_locked is "
+			<< trx->mysql_n_tables_locked << ".";
 
 		trx_print(stderr, trx, 600);
 		ut_print_buf(stderr, trx, sizeof(trx_t));
@@ -776,9 +775,9 @@ trx_resurrect_insert(
 
 		if (undo->state == TRX_UNDO_PREPARED) {
 
-			ib_logf(IB_LOG_LEVEL_INFO,
-				"Transaction " TRX_ID_FMT " was in the XA"
-				" prepared state.", trx_get_id_for_print(trx));
+			ib::info() << "Transaction "
+				<< trx_get_id_for_print(trx)
+				<< " was in the XA prepared state.";
 
 			if (srv_force_recovery == 0) {
 
@@ -787,9 +786,8 @@ trx_resurrect_insert(
 				++trx_sys->n_prepared_recovered_trx;
 			} else {
 
-				ib_logf(IB_LOG_LEVEL_INFO,
-					"Since innodb_force_recovery > 0, we"
-					" will force a rollback.");
+				ib::info() << "Since innodb_force_recovery"
+					" > 0, we will force a rollback.";
 
 				trx->state = TRX_STATE_ACTIVE;
 			}
@@ -849,9 +847,8 @@ trx_resurrect_update_in_prepared_state(
 	protection of trx->mutex or trx_sys->mutex here. */
 
 	if (undo->state == TRX_UNDO_PREPARED) {
-		ib_logf(IB_LOG_LEVEL_INFO,
-			"Transaction " TRX_ID_FMT " was in the XA"
-			" prepared state.", trx_get_id_for_print(trx));
+		ib::info() << "Transaction " << trx_get_id_for_print(trx)
+			<< " was in the XA prepared state.";
 
 		if (srv_force_recovery == 0) {
 
@@ -866,9 +863,8 @@ trx_resurrect_update_in_prepared_state(
 
 			trx->state = TRX_STATE_PREPARED;
 		} else {
-			ib_logf(IB_LOG_LEVEL_INFO,
-				"Since innodb_force_recovery > 0, we will"
-				" rollback it anyway.");
+			ib::info() << "Since innodb_force_recovery > 0, we"
+				" will rollback it anyway.";
 
 			trx->state = TRX_STATE_ACTIVE;
 		}
@@ -2870,20 +2866,16 @@ trx_recover_for_mysql(
 			xid_list[count] = *trx->xid;
 
 			if (count == 0) {
-				ib_logf(IB_LOG_LEVEL_INFO,
-					"Starting recovery for"
-					" XA transactions...");
+				ib::info() << "Starting recovery for"
+					" XA transactions...";
 			}
 
-			ib_logf(IB_LOG_LEVEL_INFO,
-				"Transaction " TRX_ID_FMT " in"
-				" prepared state after recovery",
-				trx_get_id_for_print(trx));
+			ib::info() << "Transaction "
+				<< trx_get_id_for_print(trx)
+				<< " in prepared state after recovery";
 
-			ib_logf(IB_LOG_LEVEL_INFO,
-				"Transaction contains changes"
-				" to " TRX_ID_FMT " rows",
-				trx->undo_no);
+			ib::info() << "Transaction contains changes to "
+				<< trx->undo_no << " rows";
 
 			count++;
 
@@ -2896,10 +2888,8 @@ trx_recover_for_mysql(
 	trx_sys_mutex_exit();
 
 	if (count > 0){
-		ib_logf(IB_LOG_LEVEL_INFO,
-			"%d transactions in prepared state"
-			" after recovery",
-			int (count));
+		ib::info() << count << " transactions in prepared state"
+			" after recovery";
 	}
 
 	return(int (count));
@@ -3293,12 +3283,10 @@ trx_kill_blocking(trx_t* trx)
 
 			trx_rollback_for_mysql(victim_trx);
 
-			ib_logf(IB_LOG_LEVEL_INFO,
-				"Killed transaction: ID: " TRX_ID_FMT " - %s",
-				id,
-				thd_security_context(
+			ib::info() << "Killed transaction: ID: " << id
+				<< " - " << thd_security_context(
 					victim_trx->mysql_thd,
-					buffer, sizeof(buffer), 512));
+					buffer, sizeof(buffer), 512);
 		}
 
 		trx_mutex_enter(victim_trx);

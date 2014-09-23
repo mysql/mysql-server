@@ -17,6 +17,7 @@
 #include "unireg.h"                             // HAVE_*
 #include "rpl_mi.h"
 #include "rpl_rli.h"
+#include "rpl_msr.h"
 #include "rpl_mts_submode.h"
 #include "sql_base.h"                        // close_thread_tables
 #include <my_dir.h>    // For MY_STAT
@@ -33,6 +34,7 @@
 #include "rpl_slave_commit_order_manager.h"
 #include <mysql/plugin.h>
 #include <mysql/service_thd_wait.h>
+#include "strfunc.h"
 
 using std::min;
 using std::max;
@@ -51,7 +53,8 @@ const char* info_rli_fields[]=
   "group_master_log_pos",
   "sql_delay",
   "number_of_workers",
-  "id"
+  "id",
+  "channel_name"
 };
 
 Relay_log_info::Relay_log_info(bool is_slave_recovery
@@ -65,7 +68,8 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery
                                PSI_mutex_key *param_key_info_stop_cond,
                                PSI_mutex_key *param_key_info_sleep_cond
 #endif
-                               , uint param_id, bool is_rli_fake
+                               , uint param_id, const char *param_channel,
+                               bool is_rli_fake
                               )
    :Rpl_info("SQL"
 #ifdef HAVE_PSI_INTERFACE
@@ -74,7 +78,7 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery
              param_key_info_data_cond, param_key_info_start_cond,
              param_key_info_stop_cond, param_key_info_sleep_cond
 #endif
-             , param_id
+             , param_id, param_channel
             ),
    replicate_same_server_id(::replicate_same_server_id),
    cur_log_fd(-1), relay_log(&sync_relaylog_period, SEQ_READ_APPEND),
@@ -141,6 +145,7 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery
   set_timespec_nsec(&last_clock, 0);
   memset(&cache_buf, 0, sizeof(cache_buf));
   cached_charset_invalidate();
+  inited_hash_workers= FALSE;
 
   if(!rli_fake)
   {
@@ -1128,7 +1133,7 @@ void Relay_log_info::close_temporary_tables()
 */
 
 int Relay_log_info::purge_relay_logs(THD *thd, bool just_reset,
-                                     const char** errmsg)
+                                     const char** errmsg, bool delete_only)
 {
   int error=0;
   DBUG_ENTER("Relay_log_info::purge_relay_logs");
@@ -1184,17 +1189,27 @@ int Relay_log_info::purge_relay_logs(THD *thd, bool just_reset,
     cur_log_fd= -1;
   }
 
-  if (relay_log.reset_logs(thd))
+  if (relay_log.reset_logs(thd, delete_only))
   {
     *errmsg = "Failed during log reset";
     error=1;
     goto err;
   }
+
+  /**
+    Clear the retrieved gtid set for this channel.
+    global_sid_lock->wrlock() is needed.
+  */
+  global_sid_lock->wrlock();
+  (const_cast<Gtid_set *>(get_gtid_set()))->clear();
+  global_sid_lock->unlock();
+
+
   /* Save name of used relay log file */
   set_group_relay_log_name(relay_log.get_log_fname());
   set_event_relay_log_name(relay_log.get_log_fname());
   group_relay_log_pos= event_relay_log_pos= BIN_LOG_HEADER_SIZE;
-  if (count_relay_log_space())
+  if (!delete_only && count_relay_log_space())
   {
     *errmsg= "Error counting relay log space";
     error= 1;
@@ -1212,6 +1227,57 @@ err:
   DBUG_PRINT("info",("log_space_total: %s",llstr(log_space_total,buf)));
   mysql_mutex_unlock(&data_lock);
   DBUG_RETURN(error);
+}
+
+/*
+   When --relay-bin option is not provided, the names of the
+   relay log files are host-relay-bin.0000x or
+   host-relay-bin-CHANNEL.00000x in the case of MSR.
+   However, if that option is provided, then the names of the
+   relay log files are <relay-bin-option>.0000x or
+   <relay-bin-option>-CHANNEL.00000x in the case of MSR.
+
+   The function adds a channel suffix (according to the channel to file name
+   conventions and conversions) to the relay log file.
+
+   @todo: truncate the log file if length exceeds.
+*/
+
+const char*
+Relay_log_info::add_channel_to_relay_log_name(char *buff, uint buff_size,
+                                              const char *base_name)
+{
+  char *ptr;
+  char channel_to_file[FN_REFLEN];
+  uint errors, length;
+  uint base_name_len;
+  uint suffix_buff_size;
+
+  DBUG_ASSERT(base_name !=NULL);
+
+  base_name_len= strlen(base_name);
+  suffix_buff_size= buff_size - base_name_len;
+
+  ptr= strmake(buff, base_name, buff_size-1);
+
+  if (channel[0])
+  {
+
+   /* adding a "-" */
+    ptr= strmake(ptr, "-", suffix_buff_size-1);
+
+    /*
+      Convert the channel name to the file names charset.
+      Channel name is in system_charset which is UTF8_general_ci
+      as it was defined as utf8 in the mysql.slaveinfo tables.
+    */
+    length= strconvert(system_charset_info, channel, &my_charset_filename,
+                       channel_to_file, NAME_LEN, &errors);
+    ptr= strmake(ptr, channel_to_file, suffix_buff_size-length-1);
+
+  }
+
+  return (const char*)buff;
 }
 
 
@@ -1658,8 +1724,14 @@ void Relay_log_info::slave_close_thread_tables(THD *thd)
   clear_tables_to_lock();
   DBUG_VOID_RETURN;
 }
+
+
 /**
   Execute a SHOW RELAYLOG EVENTS statement.
+
+  When multiple replication channels exist on this slave
+  and no channel name is specified through FOR CHANNEL clause
+  this function errors out and exits.
 
   @param thd Pointer to THD object for the client thread executing the
   statement.
@@ -1669,27 +1741,53 @@ void Relay_log_info::slave_close_thread_tables(THD *thd)
 */
 bool mysql_show_relaylog_events(THD* thd)
 {
+
+  Master_info *mi =0;
   Protocol *protocol= thd->protocol;
   List<Item> field_list;
+  bool res;
   DBUG_ENTER("mysql_show_relaylog_events");
 
   DBUG_ASSERT(thd->lex->sql_command == SQLCOM_SHOW_RELAYLOG_EVENTS);
+
+  if (!thd->lex->mi.for_channel && msr_map.get_num_instances() > 1)
+  {
+    my_error(ER_SLAVE_MULTIPLE_CHANNELS_CMD, MYF(0));
+    DBUG_RETURN(true);
+  }
 
   Log_event::init_show_field_list(&field_list);
   if (protocol->send_result_set_metadata(&field_list,
                             Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     DBUG_RETURN(TRUE);
 
-  if (active_mi == NULL)
+  mysql_mutex_lock(&LOCK_msr_map);
+
+  mi= msr_map.get_mi(thd->lex->mi.channel);
+
+  if (!mi && strcmp(thd->lex->mi.channel, msr_map.get_default_channel()))
+  {
+    my_error(ER_SLAVE_CHANNEL_DOES_NOT_EXIST, MYF(0), thd->lex->mi.channel);
+    res= true;
+    goto err;
+  }
+
+  if (mi == NULL)
   {
     my_error(ER_SLAVE_CONFIGURATION, MYF(0));
-    DBUG_RETURN(true);
+    res= true;
+    goto err;
   }
-  
-  DBUG_RETURN(show_binlog_events(thd, &active_mi->rli->relay_log));
-}
 
+  res= show_binlog_events(thd, &mi->rli->relay_log);
+
+err:
+  mysql_mutex_unlock(&LOCK_msr_map);
+
+  DBUG_RETURN(res);
+}
 #endif
+
 
 int Relay_log_info::rli_init_info()
 {
@@ -1763,6 +1861,13 @@ int Relay_log_info::rli_init_info()
 
   char pattern[FN_REFLEN];
   (void) my_realpath(pattern, slave_load_tmpdir, 0);
+  /*
+   @TODO:
+    In MSR, sometimes slave fail with the following error:
+    Unable to use slave's temporary directory /tmp - 
+    Can't create/write to file '/tmp/SQL_LOAD-92d1eee0-9de4-11e3-8874-68730ad50fcb'    (Errcode: 17 - File exists), Error_code: 1
+
+   */
   if (fn_format(pattern, PREFIX_SQL_LOAD, pattern, "",
                 MY_SAFE_PATH | MY_RETURN_REAL_PATH) == NullS)
   {
@@ -1810,10 +1915,34 @@ a file name for --relay-log-index option.", opt_relaylog_index_name);
     }
 
     char buf[FN_REFLEN];
+    /* The base name of the relay log file considering multisource rep */
     const char *ln;
+    /*
+      relay log name without channel prefix taking into account
+      --relay-log option.
+    */
+    const char *ln_without_channel_name;
     static bool name_warning_sent= 0;
-    ln= relay_log.generate_name(opt_relay_logname, "-relay-bin",
-                                buf);
+
+    /*
+      Buffer to add channel name suffix when relay-log option is provided.
+    */
+    char relay_bin_channel[FN_REFLEN];
+    /*
+      Buffer to add channel name suffix when relay-log-index option is provided
+    */
+    char relay_bin_index_channel[FN_REFLEN];
+
+    /* name of the index file if opt_relaylog_index_name is set*/
+    const char* log_index_name;
+
+
+    ln_without_channel_name= relay_log.generate_name(opt_relay_logname,
+                                "-relay-bin", buf);
+
+    ln= add_channel_to_relay_log_name(relay_bin_channel, FN_REFLEN,
+                                      ln_without_channel_name);
+
     /* We send the warning only at startup, not after every RESET SLAVE */
     if (!opt_relay_logname && !opt_relaylog_index_name && !name_warning_sent)
     {
@@ -1828,13 +1957,34 @@ a file name for --relay-log-index option.", opt_relaylog_index_name);
                         " so replication "
                         "may break when this MySQL server acts as a "
                         "slave and has his hostname changed!! Please "
-                        "use '--relay-log=%s' to avoid this problem.", ln);
+                        "use '--relay-log=%s' to avoid this problem.",
+                        ln_without_channel_name);
       name_warning_sent= 1;
     }
 
     relay_log.is_relay_log= TRUE;
 
-    if (relay_log.open_index_file(opt_relaylog_index_name, ln, TRUE))
+    /*
+       If relay log index option is set, convert into channel specific
+       index file. If the opt_relaylog_index has an extension, we strip
+       it too. This is inconsistent to relay log names.
+    */
+    if (opt_relaylog_index_name)
+    {
+      char index_file_withoutext[FN_REFLEN];
+      relay_log.generate_name(opt_relaylog_index_name,"",
+                              index_file_withoutext);
+
+      log_index_name= add_channel_to_relay_log_name(relay_bin_index_channel,
+                                                   FN_REFLEN,
+                                                   index_file_withoutext);
+    }
+    else
+      log_index_name= 0;
+
+
+
+    if (relay_log.open_index_file(log_index_name, ln, TRUE))
     {
       sql_print_error("Failed in open_index_file() called from Relay_log_info::rli_init_info().");
       DBUG_RETURN(1);
@@ -2228,7 +2378,14 @@ bool Relay_log_info::read_info(Rpl_info_handler *from)
     if (from->get_info(&temp_internal_id, (int) 1))
       DBUG_RETURN(TRUE);
   }
- 
+
+  if (lines >= LINES_IN_RELAY_LOG_INFO_WITH_CHANNEL)
+  {
+    /* the default value is empty string"" */
+    if (from->get_info(channel, sizeof(channel), (char*)""))
+      DBUG_RETURN(TRUE);
+  }
+
   group_relay_log_pos=  temp_group_relay_log_pos;
   group_master_log_pos= temp_group_master_log_pos;
   sql_delay= (int32) temp_sql_delay;
@@ -2238,6 +2395,17 @@ bool Relay_log_info::read_info(Rpl_info_handler *from)
              (lines >= LINES_IN_RELAY_LOG_INFO_WITH_ID && internal_id == 1));
   DBUG_RETURN(FALSE);
 }
+
+bool Relay_log_info::set_info_search_keys(Rpl_info_handler *to)
+{
+  DBUG_ENTER("Relay_log_info::set_info_search_keys");
+
+  if (to->set_info(LINES_IN_RELAY_LOG_INFO_WITH_CHANNEL, channel))
+    DBUG_RETURN(TRUE);
+
+  DBUG_RETURN(FALSE);
+}
+
 
 bool Relay_log_info::write_info(Rpl_info_handler *to)
 {
@@ -2257,7 +2425,8 @@ bool Relay_log_info::write_info(Rpl_info_handler *to)
       to->set_info((ulong) group_master_log_pos) ||
       to->set_info((int) sql_delay) ||
       to->set_info(recovery_parallel_workers) ||
-      to->set_info((int) internal_id))
+      to->set_info((int) internal_id) ||
+      to->set_info(channel))
     DBUG_RETURN(TRUE);
 
   DBUG_RETURN(FALSE);
@@ -2495,3 +2664,13 @@ bool is_mts_db_partitioned(Relay_log_info * rli)
   return (rli->current_mts_submode->get_type() ==
     MTS_PARALLEL_TYPE_DB_NAME);
 }
+
+const char* Relay_log_info::get_for_channel_str(bool upper_case) const
+{
+  if (rli_fake)
+    return "";
+  else
+    return mi->get_for_channel_str(upper_case);
+}
+
+

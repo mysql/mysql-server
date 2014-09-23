@@ -1284,12 +1284,13 @@ page_zip_compress(
 	n_dense = page_dir_get_n_heap(page) - PAGE_HEAP_NO_USER_LOW;
 #ifdef PAGE_ZIP_COMPRESS_DBG
 	if (UNIV_UNLIKELY(page_zip_compress_dbg)) {
-		ib_logf(IB_LOG_LEVEL_INFO, "compress %p %p %lu %lu %lu",
-			(void*) page_zip, (void*) page,
-			(ibool) page_is_leaf(page),
-			n_fields, n_dense);
-
+		ib::info() << "compress "
+			<< static_cast<void*>(page_zip) << " "
+			<< static_cast<const void*>(page) << " "
+			<< page_is_leaf(page) << " "
+			<< n_fields << " " << n_dense;
 	}
+
 	if (UNIV_UNLIKELY(page_zip_compress_log)) {
 		/* Create a log file for every compression attempt. */
 		char	logfilename[9];

@@ -6,10 +6,14 @@
 #
 # ==== Usage ====
 #
+# [--let $rpl_channel_name = NAME]
 # [--let $rpl_debug= 1]
 # --source include/check_slave_no_error.inc
 #
 # Parameters:
+#   $rpl_channel_name
+#     See include/check_slave_param.inc
+#
 #   $rpl_debug
 #     See include/rpl_init.inc
 

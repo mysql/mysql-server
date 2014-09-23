@@ -363,6 +363,13 @@ mbr_join_square(
 		b += 2;
 	} while (a != end);
 
+	/* Check for infinity or NaN, so we don't get NaN in calculations */
+	if (my_isinf(square)) {
+		return DBL_MAX;
+	}
+
+	ut_ad(!my_isnan(square));
+
 	return square;
 }
 
@@ -420,6 +427,9 @@ pick_seeds(
 	double			max_d = -DBL_MAX;
 	double			d;
 
+	*seed_a = node;
+	*seed_b = node + 1;
+	
 	for (cur1 = node; cur1 < lim1; ++cur1) {
 		for (cur2 = cur1 + 1; cur2 < lim2; ++cur2) {
 			d = mbr_join_square(cur1->coords, cur2->coords, n_dim) -

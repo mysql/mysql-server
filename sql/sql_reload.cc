@@ -27,6 +27,7 @@
 #include "rpl_slave.h"   // reset_slave
 #include "rpl_rli.h"     // rotate_relay_log
 #include "rpl_mi.h"
+#include "rpl_msr.h"     /* multisource replication */
 #include "debug_sync.h"
 #include "connection_handler_impl.h"
 #include "opt_costconstantcache.h"     // reload_optimizer_cost_constants
@@ -170,15 +171,8 @@ bool reload_acl_and_cache(THD *thd, unsigned long options,
     if (options & REFRESH_RELAY_LOG)
     {
 #ifdef HAVE_REPLICATION
-      mysql_mutex_lock(&LOCK_active_mi);
-      if (active_mi != NULL)
-      {
-        mysql_mutex_lock(&active_mi->data_lock);
-        if (rotate_relay_log(active_mi))
-          *write_to_binlog= -1;
-        mysql_mutex_unlock(&active_mi->data_lock);
-      }
-      mysql_mutex_unlock(&LOCK_active_mi);
+      if (flush_relay_logs_cmd(thd))
+        *write_to_binlog= -1;
 #endif
     }
     if (tmp_thd)
@@ -342,18 +336,11 @@ bool reload_acl_and_cache(THD *thd, unsigned long options,
  if (options & REFRESH_SLAVE)
  {
    tmp_write_to_binlog= 0;
-   mysql_mutex_lock(&LOCK_active_mi);
-   if (active_mi != NULL && reset_slave(thd, active_mi))
+   if (reset_slave_cmd(thd))
    {
-     /* NOTE: my_error() has been already called by reset_slave(). */
+     /*NOTE: my_error() has been already called by reset_slave() */
      result= 1;
    }
-   else if (active_mi == NULL)
-   {
-     result= 1;
-     my_error(ER_SLAVE_CONFIGURATION, MYF(0));
-   }
-   mysql_mutex_unlock(&LOCK_active_mi);
  }
 #endif
  if (options & REFRESH_USER_RESOURCES)

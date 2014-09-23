@@ -3,8 +3,8 @@ Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 [connection master]
-call mtr.add_suppression("Slave SQL: .*Could not execute Write_rows event on table d1.t1; Duplicate entry '13' for key 'a'");
-call mtr.add_suppression("Slave SQL: ... The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state.");
+call mtr.add_suppression("Slave SQL for channel '': .*Could not execute Write_rows event on table d1.t1; Duplicate entry '13' for key 'a'");
+call mtr.add_suppression("Slave SQL for channel '': ... The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state.");
 include/stop_slave.inc
 SET @save.slave_parallel_workers=@@global.slave_parallel_workers;
 SET @@global.slave_parallel_workers=2;
@@ -51,6 +51,7 @@ must be ON
 1
 call mtr.add_suppression("--relay-log-recovery cannot be executed when the slave was stopped with an error or killed in MTS mode; consider using RESET SLAVE or restart the server with --relay-log-recovery = 0");
 call mtr.add_suppression("Failed to initialize the master info structure");
+call mtr.add_suppression("Failed to create or recover replication info repositories.");
 call mtr.add_suppression("It is not possible to change the type of the relay log repository because there are workers repositories with possible execution gaps. The value of --relay_log_info_repository is altered to one of the found Worker repositories");
 include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start]
 SELECT @@global.relay_log_recovery as 'must be OFF';

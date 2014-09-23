@@ -1823,13 +1823,6 @@ check_next_rec:
 		if (!left_side) {
 
 			ha_insert_for_fold(table, ins_fold, block, ins_rec);
-			/*
-			ib_logf(IB_LOG_LEVEL_INFO, "Hash insert for"
-				" index %s of table %s fold %lu",
-				ut_get_name(NULL, FALSE, index->name).c_str(),
-				ut_get_name(NULL, TRUE, index->table_name).c_str(),
-				ins_fold);
-			*/
 		} else {
 			ha_insert_for_fold(table, next_fold, block, next_rec);
 		}

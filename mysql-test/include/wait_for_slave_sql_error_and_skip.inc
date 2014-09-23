@@ -9,6 +9,7 @@
 # [--let $show_sql_error= 1]
 # [--let $slave_skip_counter= 1]
 # [--let $not_switch_connection= 1]
+# [--let $rpl_channel_name= NAME]
 # [--let $rpl_debug= 1]
 # [--let $slave_timeout= NUMBER]
 # --source include/wait_for_slave_sql_error_and_skip.inc
@@ -29,6 +30,9 @@
 #     By default, this script executes on the connection 'slave'.  If
 #     $not_switch_connection is set, this script executes on the current
 #     connection.  In any case, the original connection is restored.
+#
+#   $rpl_channel_name
+#     See include/wait_for_slave_param.inc
 #
 #   $slave_timeout
 #     See include/wait_for_slave_param.inc
