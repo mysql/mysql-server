@@ -1002,7 +1002,30 @@ rtr_init_rtr_info(
 	ut_ad(rtr_info);
 
 	if (!reinit) {
-		memset(rtr_info, 0, sizeof(*rtr_info));
+		/* Reset all members. */
+		rtr_info->path = NULL;
+		rtr_info->parent_path = NULL;
+		rtr_info->matches = NULL;
+		mutex_create("rtr_path_mutex", &rtr_info->rtr_path_mutex);
+		memset(rtr_info->tree_blocks, 0x0,
+		       sizeof(rtr_info->tree_blocks));
+		memset(rtr_info->tree_savepoints, 0x0,
+		       sizeof(rtr_info->tree_savepoints));
+		rtr_info->mbr.xmin = 0.0;
+		rtr_info->mbr.xmax = 0.0;
+		rtr_info->mbr.ymin = 0.0;
+		rtr_info->mbr.ymax = 0.0;
+		rtr_info->thr = NULL;
+		rtr_info->heap = NULL;
+		rtr_info->cursor = NULL;
+		rtr_info->index = NULL;
+		rtr_info->need_prdt_lock = false;
+		rtr_info->need_page_lock = false;
+		rtr_info->allocated = false;
+		rtr_info->mbr_adj = false;
+		rtr_info->fd_del = false;
+		rtr_info->search_tuple = NULL;
+		rtr_info->search_mode = 0;
 	}
 
 	ut_ad(!rtr_info->matches || rtr_info->matches->matched_recs->empty());
@@ -1012,10 +1035,6 @@ rtr_init_rtr_info(
 	rtr_info->need_prdt_lock = need_prdt;
 	rtr_info->cursor = cursor;
 	rtr_info->index = index;
-
-	if (!reinit) {
-		mutex_create("rtr_path_mutex", &rtr_info->rtr_path_mutex);
-	}
 
 	mutex_enter(&index->rtr_track->rtr_active_mutex);
 	index->rtr_track->rtr_active->push_back(rtr_info);

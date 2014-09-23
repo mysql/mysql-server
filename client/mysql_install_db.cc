@@ -49,6 +49,7 @@ using namespace std;
 
 #include "../scripts/sql_commands_system_tables.h"
 #include "../scripts/sql_commands_system_data.h"
+#include "../scripts/sql_commands_help_data.h"
 
 #define PROGRAM_NAME "mysql_install_db"
 #define MYSQLD_EXECUTABLE "mysqld"
@@ -359,7 +360,7 @@ struct Sql_user
       ss << "'',";
     }
     uint64_t acl= priv.to_int();
-    for(int i= 0; i< 29; ++i)
+    for(int i= 0; i< NUM_ACLS; ++i)
     {
       if( (acl & (1L << i)) != 0 )
         ss << "'Y',";
@@ -966,6 +967,7 @@ public:
     }
     else
       info << "done." << endl;
+
     info << "Filling system tables with data...";
     s= sizeof(mysql_system_data)/sizeof(*mysql_system_data);
     for(unsigned i=0, n= 1; i< s && errno != EPIPE && n != 0 &&
@@ -980,9 +982,24 @@ public:
       return false;
     }
     else
-    {
       info << "done." << endl;
+
+    info << "Filling help table with data...";
+    s= sizeof(fill_help_tables)/sizeof(*fill_help_tables);
+    for(unsigned i=0, n= 1; i< s && errno != EPIPE && n != 0 &&
+        fill_help_tables[i] != NULL; ++i)
+    {
+      n= write(fh, fill_help_tables[i],
+               strlen(fill_help_tables[i]));
     }
+    if (errno != 0)
+    {
+      info << "failed." << endl;
+      return false;
+    }
+    else
+      info << "done." << endl;
+
     info << "Creating default user " << m_user->user << "@"
          << m_user->host
          << endl;

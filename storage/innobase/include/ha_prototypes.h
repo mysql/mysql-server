@@ -454,17 +454,6 @@ extern const char*      SET_TRANSACTION_MSG;
 extern const char*      INNODB_PARAMETERS_MSG;
 
 /******************************************************************//**
-Write a message to the MySQL log, prefixed with "InnoDB: ".
-Wrapper around sql_print_information() */
-void
-ib_logf(
-/*====*/
-	ib_log_level_t	level,		/*!< in: warning level */
-	const char*	format,		/*!< printf format */
-	...)				/*!< Args */
-	__attribute__((format(printf, 2, 3)));
-
-/******************************************************************//**
 Returns the NUL terminated value of glob_hostname.
 @return pointer to glob_hostname. */
 const char*

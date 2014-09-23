@@ -24,6 +24,12 @@
 #     stop only the threads that are running.  See
 #     include/rpl_sync.inc and include/stop_slave.inc for details.
 #
+#   $rpl_skip_sync
+#     By default, all slaves are synced using rpl_sync.inc. Set this
+#     option to 1 to disable this behavior (note that you must
+#     manually sync all servers in this case). Normally you want to
+#     sync, but you need to disable sync if you use multi-source.
+#
 #   $rpl_debug
 #     See include/rpl_init.inc
 #
@@ -46,37 +52,29 @@
 --let $include_filename= rpl_reset.inc
 --source include/begin_include_file.inc
 
-
 if (!$rpl_debug)
 {
   --disable_query_log
 }
 
-
---source include/rpl_sync.inc
-
-
-if ($rpl_debug)
+# Sync
+if (!$rpl_skip_sync)
 {
-  --echo ---- Stop and reset all servers ----
-}
---let $_rpl_server= $rpl_server_count
-while ($_rpl_server)
-{
-  --let $rpl_connection_name= server_$_rpl_server
-  --source include/rpl_connection.inc
-
-  # Check if this server is configured to have a master
-  if (`SELECT SUBSTRING('$rpl_master_list', 1 + ($_rpl_server - 1) * $rpl_server_count_length, $rpl_server_count_length) != ''`)
-  {
-    --source include/stop_slave.inc
-    RESET SLAVE;
-  }
-  RESET MASTER;
-  --dec $_rpl_server
+  --source include/rpl_sync.inc
 }
 
+# STOP SLAVE
+--source include/rpl_stop_slaves.inc
 
+# RESET SLAVE
+--let $rpl_source_file= include/rpl_reset_slave_helper.inc
+--source include/rpl_for_each_connection.inc
+
+# RESET MASTER
+--let $rpl_source_file= include/rpl_reset_master_helper.inc
+--source include/rpl_for_each_server.inc
+
+# START SLAVE
 if (!$rpl_no_start_slave)
 {
   --source include/rpl_start_slaves.inc

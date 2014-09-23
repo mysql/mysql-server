@@ -1057,7 +1057,7 @@ struct dict_table_t {
 	/** NULL or the directory path specified by DATA DIRECTORY. */
 	char*					data_dir_path;
 
-	/** Ppace where the clustered index of the table is placed. */
+	/** Space where the clustered index of the table is placed. */
 	unsigned				space:32;
 
 	/** Stores information about:

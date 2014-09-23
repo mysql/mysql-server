@@ -909,18 +909,18 @@ innobase_rollback_by_xid(
 	handlerton*	hton,		/*!< in: InnoDB handlerton */
 	XID*		xid);		/*!< in: X/Open XA transaction
 					identification */
-/*****************************************************************//**
-Removes all tables in the named database inside InnoDB. */
+
+/** Remove all tables in the named database inside InnoDB.
+@param[in]	hton	handlerton from InnoDB
+@param[in]	path	Database path; Inside InnoDB the name of the last
+directory in the path is used as the database name.
+For example, in 'mysql/data/test' the database name is 'test'. */
 static
 void
 innobase_drop_database(
-/*===================*/
-	handlerton*	hton,		/*!< in: handlerton of InnoDB */
-	char*		path);		/*!< in: database path; inside InnoDB
-					the name of the last directory in
-					the path is used as the database name:
-					for example, in 'mysql/data/test' the
-					database name is 'test' */
+	handlerton*	hton,
+	char*		path);
+
 /*******************************************************************//**
 Closes an InnoDB database. */
 static
@@ -4114,8 +4114,6 @@ innobase_kill_connection(
 	trx_t*	trx = thd_to_trx(thd);
 
 	if (trx != NULL) {
-
-		TrxInInnoDB	trx_in_innodb(trx);
 
 		/* Cancel a pending lock request if there are any */
 		lock_trx_handle_wait(trx);
@@ -10635,17 +10633,16 @@ ha_innobase::delete_table(
 	DBUG_RETURN(convert_error_code_to_mysql(err, 0, NULL));
 }
 
-/*****************************************************************//**
-Removes all tables in the named database inside InnoDB. */
+/** Removes all tables in the named database inside InnoDB.
+@param[in]	hton	handlerton from InnoDB
+@param[in]	path	Database path; Inside InnoDB the name of the last
+directory in the path is used as the database name.
+For example, in 'mysql/data/test' the database name is 'test'. */
 static
 void
 innobase_drop_database(
-/*===================*/
-	handlerton*	hton,	/*!< in: handlerton of InnoDB */
-	char*		path)	/*!< in: database path; inside InnoDB the name
-				of the last directory in the path is used as
-				the database name: for example, in
-				'mysql/data/test' the database name is 'test' */
+	handlerton*	hton,
+	char*		path)
 {
 	char*	namebuf;
 
@@ -12691,6 +12688,8 @@ ha_innobase::start_stmt(
 {
 	trx_t*		trx = m_prebuilt->trx;
 
+	DBUG_ENTER("ha_innobase::start_stmt");
+
 	update_thd(thd);
 
 	ut_ad(m_prebuilt->table != NULL);
@@ -12701,10 +12700,10 @@ ha_innobase::start_stmt(
 
 		if (thd_sql_command(thd) == SQLCOM_ALTER_TABLE) {
 
-			return(HA_ERR_WRONG_COMMAND);
+			DBUG_RETURN(HA_ERR_WRONG_COMMAND);
 		}
 
-		return(0);
+		DBUG_RETURN(0);
 	}
 
 	trx = m_prebuilt->trx;
@@ -12717,6 +12716,29 @@ ha_innobase::start_stmt(
 	m_prebuilt->sql_stat_start = TRUE;
 	m_prebuilt->hint_need_to_fetch_extra_cols = 0;
 	reset_template();
+
+	if (dict_table_is_temporary(m_prebuilt->table)
+	    && m_prebuilt->mysql_has_locked
+	    && m_prebuilt->select_lock_type == LOCK_NONE) {
+		dberr_t error;
+
+		switch (thd_sql_command(thd)) {
+		case SQLCOM_INSERT:
+		case SQLCOM_UPDATE:
+		case SQLCOM_DELETE:
+			init_table_handle_for_HANDLER();
+			m_prebuilt->select_lock_type = LOCK_X;
+			m_prebuilt->stored_select_lock_type = LOCK_X;
+			error = row_lock_table_for_mysql(m_prebuilt, NULL, 1);
+
+			if (error != DB_SUCCESS) {
+				int st = convert_error_code_to_mysql(
+					error, 0, thd);
+				DBUG_RETURN(st);
+			}
+			break;
+		}
+	}
 
 	if (!m_prebuilt->mysql_has_locked) {
 		/* This handle is for a temporary table created inside
@@ -12765,7 +12787,7 @@ ha_innobase::start_stmt(
 		trx->lock.start_stmt = true;
 	}
 
-	return(0);
+	DBUG_RETURN(0);
 }
 
 /******************************************************************//**
@@ -12998,6 +13020,7 @@ ha_innobase::external_lock(
 
 		DBUG_RETURN(0);
 	} else {
+
 		TrxInInnoDB::end_stmt(trx);
 
 		DEBUG_SYNC_C("ha_innobase_end_statement");
@@ -13024,7 +13047,12 @@ ha_innobase::external_lock(
 			if (trx_is_started(trx)) {
 
 				innobase_commit(ht, thd, TRUE);
-			}
+			} else {
+				/* Since the trx state is TRX_NOT_STARTED,
+				trx_commit() will not be called. Reset
+				trx->is_dd_trx here */
+				ut_d(trx->is_dd_trx = false);
+			}		
 
 		} else if (trx->isolation_level <= TRX_ISO_READ_COMMITTED
 			   && MVCC::is_view_active(trx->read_view)) {
@@ -17578,68 +17606,6 @@ const char*	SET_TRANSACTION_MSG =
 
 const char*	INNODB_PARAMETERS_MSG =
 	"Please refer to " REFMAN "innodb-parameters.html";
-
-/******************************************************************//**
-Write a message to the MySQL log, prefixed with "InnoDB: " */
-void
-ib_logf(
-/*====*/
-	ib_log_level_t	level,		/*!< in: warning level */
-	const char*	format,		/*!< printf format */
-	...)				/*!< Args */
-{
-	char*		str = NULL;
-	va_list		args;
-
-	va_start(args, format);
-
-#ifdef _WIN32
-	int		size = _vscprintf(format, args) + 1;
-	if (size > 0) {
-		str = static_cast<char*>(malloc(size));
-	}
-	if (str == NULL) {
-		return;	/* Watch for Out-Of-Memory */
-	}
-	str[size - 1] = 0x0;
-	vsnprintf(str, size, format, args);
-#elif HAVE_VASPRINTF
-	int	ret;
-	ret = vasprintf(&str, format, args);
-	if (ret < 0) {
-		return;	/* Watch for Out-Of-Memory */
-	}
-#else
-	/* Use a fixed length string. */
-	str = static_cast<char*>(malloc(BUFSIZ));
-	if (str == NULL) {
-		return;	/* Watch for Out-Of-Memory */
-	}
-	my_vsnprintf(str, BUFSIZ, format, args);
-#endif /* _WIN32 */
-
-	switch (level) {
-	case IB_LOG_LEVEL_INFO:
-		sql_print_information("InnoDB: %s", str);
-		break;
-	case IB_LOG_LEVEL_WARN:
-		sql_print_warning("InnoDB: %s", str);
-		break;
-	case IB_LOG_LEVEL_ERROR:
-		sql_print_error("InnoDB: %s", str);
-		break;
-	case IB_LOG_LEVEL_FATAL:
-		sql_print_error("[FATAL] InnoDB: %s", str);
-		break;
-	}
-
-	va_end(args);
-	free(str);
-
-	if (level == IB_LOG_LEVEL_FATAL) {
-		ut_error;
-	}
-}
 
 /**********************************************************************
 Converts an identifier from my_charset_filename to UTF-8 charset.

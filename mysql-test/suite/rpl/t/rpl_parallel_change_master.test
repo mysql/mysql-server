@@ -12,8 +12,8 @@
 --source include/have_innodb.inc
 
 --connection slave
-call mtr.add_suppression("Slave SQL: .*Could not execute Write_rows event on table d1.t1; Duplicate entry '13' for key 'a'");
-call mtr.add_suppression("Slave SQL: ... The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state.");
+call mtr.add_suppression("Slave SQL for channel '': .*Could not execute Write_rows event on table d1.t1; Duplicate entry '13' for key 'a'");
+call mtr.add_suppression("Slave SQL for channel '': ... The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state.");
 --source include/stop_slave.inc
 SET @save.slave_parallel_workers=@@global.slave_parallel_workers;
 SET @@global.slave_parallel_workers=2;
@@ -114,6 +114,7 @@ SET @@global.slave_parallel_workers= @save.slave_parallel_workers; # cleanup
 SELECT @@global.relay_log_recovery as 'must be ON';
 call mtr.add_suppression("--relay-log-recovery cannot be executed when the slave was stopped with an error or killed in MTS mode; consider using RESET SLAVE or restart the server with --relay-log-recovery = 0");
 call mtr.add_suppression("Failed to initialize the master info structure");
+call mtr.add_suppression("Failed to create or recover replication info repositories.");
 #
 # the following suppression applies to either restart.
 # The reason it was not required when the test run "normally" with the default
