@@ -29,7 +29,7 @@ COPYING CONDITIONS NOTICE:
 
 COPYRIGHT NOTICE:
 
-  TokuDB, Tokutek Fractal Tree Indexing Library.
+  TokuFT, Tokutek Fractal Tree Indexing Library.
   Copyright (C) 2007-2013 Tokutek, Inc.
 
 DISCLAIMER:
@@ -95,11 +95,11 @@ namespace toku {
 
 // test simple, non-overlapping read locks and then write locks
 void locktree_unit_test::test_simple_lock(void) {
-    locktree::manager mgr;
+    locktree_manager mgr;
     mgr.create(nullptr, nullptr, nullptr, nullptr);
-    DESCRIPTOR desc = nullptr;
-    DICTIONARY_ID dict_id = { 1 };
-    locktree *lt = mgr.get_lt(dict_id, desc, compare_dbts, nullptr);
+
+    DICTIONARY_ID dict_id = { .dictid = 1 };
+    locktree *lt = mgr.get_lt(dict_id, dbt_comparator, nullptr);
 
     int r;
     TXNID txnid_a = 1001;

@@ -29,7 +29,7 @@ COPYING CONDITIONS NOTICE:
 
 COPYRIGHT NOTICE:
 
-  TokuDB, Tokutek Fractal Tree Indexing Library.
+  TokuFT, Tokutek Fractal Tree Indexing Library.
   Copyright (C) 2007-2013 Tokutek, Inc.
 
 DISCLAIMER:
@@ -126,7 +126,7 @@ static int locktree_write_lock(locktree *lt, TXNID txn_id, int64_t left_k, int64
     return lt->acquire_write_lock(txn_id, &left, &right, nullptr, big_txn);
 }
 
-static void run_big_txn(locktree::manager *mgr UU(), locktree *lt, TXNID txn_id) {
+static void run_big_txn(locktree_manager *mgr UU(), locktree *lt, TXNID txn_id) {
     int64_t last_i = -1;
     for (int64_t i = 0; !killed; i++) {
         uint64_t t_start = toku_current_time_microsec();
@@ -144,7 +144,7 @@ static void run_big_txn(locktree::manager *mgr UU(), locktree *lt, TXNID txn_id)
         locktree_release_lock(lt, txn_id, 0, last_i); // release the range 0 .. last_i
 }
 
-static void run_small_txn(locktree::manager *mgr UU(), locktree *lt, TXNID txn_id, int64_t k) {
+static void run_small_txn(locktree_manager *mgr UU(), locktree *lt, TXNID txn_id, int64_t k) {
     for (int64_t i = 0; !killed; i++) {
         uint64_t t_start = toku_current_time_microsec();
         int r = locktree_write_lock(lt, txn_id, k, k, false);
@@ -160,7 +160,7 @@ static void run_small_txn(locktree::manager *mgr UU(), locktree *lt, TXNID txn_i
 }
 
 struct arg {
-    locktree::manager *mgr;
+    locktree_manager *mgr;
     locktree *lt;
     TXNID txn_id;
     int64_t k;
@@ -183,7 +183,7 @@ static void e_callback(TXNID txnid, const locktree *lt, const range_buffer &buff
         printf("%u %s %" PRIu64 " %p %d %p\n", toku_os_gettid(), __FUNCTION__, txnid, lt, buffer.get_num_ranges(), extra);
 }
 
-static uint64_t get_escalation_count(locktree::manager &mgr) {
+static uint64_t get_escalation_count(locktree_manager &mgr) {
     LTM_STATUS_S ltm_status;
     mgr.get_status(&ltm_status);
 
@@ -223,18 +223,16 @@ int main(int argc, const char *argv[]) {
     int r;
 
     // create a manager
-    locktree::manager mgr;
+    locktree_manager mgr;
     mgr.create(nullptr, nullptr, e_callback, nullptr);
     mgr.set_max_lock_memory(max_lock_memory);
 
     // create lock trees
-    DESCRIPTOR desc_0 = nullptr;
-    DICTIONARY_ID dict_id_0 = { 1 };
-    locktree *lt_0 = mgr.get_lt(dict_id_0, desc_0, compare_dbts, nullptr);
+    DICTIONARY_ID dict_id_0 = { .dictid = 1 };
+    locktree *lt_0 = mgr.get_lt(dict_id_0, dbt_comparator, nullptr);
 
-    DESCRIPTOR desc_1 = nullptr;
-    DICTIONARY_ID dict_id_1 = { 2 };
-    locktree *lt_1 = mgr.get_lt(dict_id_1, desc_1, compare_dbts, nullptr);
+    DICTIONARY_ID dict_id_1 = { .dictid = 2 };
+    locktree *lt_1 = mgr.get_lt(dict_id_1, dbt_comparator, nullptr);
 
     // create the worker threads
     struct arg big_arg = { &mgr, lt_0, 1000 };

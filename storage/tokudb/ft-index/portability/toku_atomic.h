@@ -28,7 +28,7 @@ COPYING CONDITIONS NOTICE:
 
 COPYRIGHT NOTICE:
 
-  TokuDB, Tokutek Fractal Tree Indexing Library.
+  TokuFT, Tokutek Fractal Tree Indexing Library.
   Copyright (C) 2007-2013 Tokutek, Inc.
 
 DISCLAIMER:
@@ -85,14 +85,14 @@ PATENT RIGHTS GRANT:
   under this License.
 */
 
+#pragma once
+
 #ident "Copyright (c) 2012-2013 Tokutek Inc.  All rights reserved."
 #ident "$Id$"
 
-#ifndef TOKU_ATOMIC_H
-#define TOKU_ATOMIC_H
-
-#include "toku_config.h"
+#include <portability/toku_config.h>
 #include <toku_assert.h>
+
 #include <stdbool.h>
 #include <stdint.h>
 #include <stddef.h>
@@ -158,5 +158,3 @@ static inline bool toku_sync_bool_compare_and_swap(T *addr, U oldval, V newval) 
 #pragma GCC poison __sync_synchronize
 #pragma GCC poison __sync_lock_test_and_set
 #pragma GCC poison __sync_release
-
-#endif // TOKU_ATOMIC_H

@@ -29,7 +29,7 @@ COPYING CONDITIONS NOTICE:
 
 COPYRIGHT NOTICE:
 
-  TokuDB, Tokutek Fractal Tree Indexing Library.
+  TokuFT, Tokutek Fractal Tree Indexing Library.
   Copyright (C) 2007-2013 Tokutek, Inc.
 
 DISCLAIMER:
@@ -95,7 +95,7 @@ PATENT RIGHTS GRANT:
 #define DONT_DEPRECATE_MALLOC
 
 #include "test.h"
-#include "ftloader-internal.h"
+#include "loader/loader-internal.h"
 #include <portability/toku_path.h>
 
 static int event_count, event_count_trigger;
@@ -346,7 +346,7 @@ static void *consumer_thread (void *ctv) {
     struct consumer_thunk *cthunk = (struct consumer_thunk *)ctv;
     while (1) {
 	void *item;
-	int r = queue_deq(cthunk->q, &item, NULL, NULL);
+	int r = toku_queue_deq(cthunk->q, &item, NULL, NULL);
 	if (r==EOF) return NULL;
 	assert(r==0);
 	struct rowset *rowset = (struct rowset *)item;
@@ -385,7 +385,7 @@ static void test (const char *directory, bool is_error) {
     }
 
     FTLOADER bl;
-    FT_HANDLE *XCALLOC_N(N_DEST_DBS, brts);
+    FT_HANDLE *XCALLOC_N(N_DEST_DBS, fts);
     DB* *XCALLOC_N(N_DEST_DBS, dbs);
     const char **XMALLOC_N(N_DEST_DBS, new_fnames_in_env);
     for (int i=0; i<N_DEST_DBS; i++) {
@@ -407,7 +407,7 @@ static void test (const char *directory, bool is_error) {
 					       ct,
 					       (generate_row_for_put_func)NULL,
 					       (DB*)NULL,
-					       N_DEST_DBS, brts, dbs,
+					       N_DEST_DBS, fts, dbs,
 					       new_fnames_in_env,
 					       bt_compare_functions,
 					       "tempxxxxxx",
@@ -423,7 +423,7 @@ static void test (const char *directory, bool is_error) {
     ft_loader_set_fractal_workers_count_from_c(bl);
 
     QUEUE q;
-    { int r = queue_create(&q, 1000); assert(r==0); }
+    { int r = toku_queue_create(&q, 1000); assert(r==0); }
     DBUFIO_FILESET bfs;
     const int MERGE_BUF_SIZE = 100000; // bigger than 64K so that we will trigger malloc issues.
     { int r = create_dbufio_fileset(&bfs, N_SOURCES, fds, MERGE_BUF_SIZE, false);  assert(r==0); }
@@ -474,7 +474,7 @@ static void test (const char *directory, bool is_error) {
             panic_dbufio_fileset(bfs, r);
     }
     {
-	int r = queue_eof(q);
+	int r = toku_queue_eof(q);
 	assert(r==0);
     }
 
@@ -501,7 +501,7 @@ static void test (const char *directory, bool is_error) {
 	}
     }
     {
-	int r = queue_destroy(q);
+	int r = toku_queue_destroy(q);
 	assert(r==0);
     }
     toku_ft_loader_internal_destroy(bl, false);
@@ -517,7 +517,7 @@ static void test (const char *directory, bool is_error) {
     destroy_dbufio_fileset(bfs);
     toku_free(fnames);
     toku_free(fds);
-    toku_free(brts);
+    toku_free(fts);
     toku_free(dbs);
     toku_free(new_fnames_in_env);
     toku_free(bt_compare_functions);

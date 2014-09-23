@@ -29,7 +29,7 @@ COPYING CONDITIONS NOTICE:
 
 COPYRIGHT NOTICE:
 
-  TokuDB, Tokutek Fractal Tree Indexing Library.
+  TokuFT, Tokutek Fractal Tree Indexing Library.
   Copyright (C) 2007-2013 Tokutek, Inc.
 
 DISCLAIMER:
@@ -86,6 +86,8 @@ PATENT RIGHTS GRANT:
   under this License.
 */
 
+#pragma once
+
 #ident "Copyright (c) 2009-2013 Tokutek Inc.  All rights reserved."
 #ident "$Id$"
 
@@ -101,9 +103,6 @@ PATENT RIGHTS GRANT:
 // compressible we want the data. These tests want the table to be populated
 // with keys in the range [0, table_size - 1] unless disperse_keys is true,
 // then the keys are scrambled up in the integer key space.
-
-#ifndef _THREADED_STRESS_TEST_HELPERS_H_
-#define _THREADED_STRESS_TEST_HELPERS_H_
 
 #include "toku_config.h"
 #include "test.h"
@@ -123,7 +122,7 @@ PATENT RIGHTS GRANT:
 
 #include <src/ydb-internal.h>
 
-#include <ft/ybt.h>
+#include <util/dbt.h>
 
 #include <util/rwlock.h>
 #include <util/kibbutz.h>
@@ -209,6 +208,7 @@ struct cli_args {
     bool nocrashstatus; // do not print engine status upon crash
     bool prelock_updates; // update threads perform serial updates on a prelocked range
     bool disperse_keys; // spread the keys out during a load (by reversing the bits in the loop index) to make a wide tree we can spread out random inserts into
+    bool memcmp_keys; // pack keys big endian and use the builtin key comparison function in the fractal tree
     bool direct_io; // use direct I/O
     const char *print_engine_status; // print engine status rows matching a simple regex "a|b|c", matching strings where a or b or c is a subtring.
 };
@@ -833,12 +833,13 @@ fill_key_buf(int64_t key, uint8_t *data, struct cli_args *args) {
     }
     invariant(key >= 0);
     if (args->key_size == sizeof(int)) {
-        const int key32 = key;
+        const int key32 = args->memcmp_keys ? toku_htonl(key) : key;
         memcpy(data, &key32, sizeof(key32));
     } else {
         invariant(args->key_size >= sizeof(key));
-        memcpy(data, &key, sizeof(key));
-        memset(data + sizeof(key), 0, args->key_size - sizeof(key));
+        const int64_t key64 = args->memcmp_keys ? toku_htonl(key) : key;
+        memcpy(data, &key64, sizeof(key64));
+        memset(data + sizeof(key64), 0, args->key_size - sizeof(key64));
     }
 }
 
@@ -1073,6 +1074,16 @@ static int UU() keyrange_op(DB_TXN *txn, ARG arg, void* UU(operation_extra), voi
     int is_exact;
     r = db->key_range64(db, txn, &key, &less, &equal, &greater, &is_exact);
     assert(r == 0);
+    return r;
+}
+
+static int UU() frag_op(DB_TXN *UU(txn), ARG arg, void* UU(operation_extra), void *UU(stats_extra)) {
+    int db_index = myrandom_r(arg->random_data)%arg->cli->num_DBs;
+    DB *db = arg->dbp[db_index];
+
+    TOKU_DB_FRAGMENTATION_S frag;
+    int r = db->get_fragmentation(db, &frag);
+    invariant_zero(r);
     return r;
 }
 
@@ -1966,7 +1977,9 @@ static int create_tables(DB_ENV **env_res, DB **db_res, int num_DBs,
     db_env_set_num_bucket_mutexes(env_args.num_bucket_mutexes);
     r = db_env_create(&env, 0); assert(r == 0);
     r = env->set_redzone(env, 0); CKERR(r);
-    r = env->set_default_bt_compare(env, bt_compare); CKERR(r);
+    if (!cli_args->memcmp_keys) {
+        r = env->set_default_bt_compare(env, bt_compare); CKERR(r);
+    }
     r = env->set_lk_max_memory(env, env_args.lk_max_memory); CKERR(r);
     r = env->set_cachesize(env, env_args.cachetable_size / (1 << 30), env_args.cachetable_size % (1 << 30), 1); CKERR(r);
     r = env->set_lg_bsize(env, env_args.rollback_node_size); CKERR(r);
@@ -2164,7 +2177,9 @@ static int open_tables(DB_ENV **env_res, DB **db_res, int num_DBs,
     db_env_set_num_bucket_mutexes(env_args.num_bucket_mutexes);
     r = db_env_create(&env, 0); assert(r == 0);
     r = env->set_redzone(env, 0); CKERR(r);
-    r = env->set_default_bt_compare(env, bt_compare); CKERR(r);
+    if (!cli_args->memcmp_keys) {
+        r = env->set_default_bt_compare(env, bt_compare); CKERR(r);
+    }
     r = env->set_lk_max_memory(env, env_args.lk_max_memory); CKERR(r);
     env->set_update(env, env_args.update_function);
     r = env->set_cachesize(env, env_args.cachetable_size / (1 << 30), env_args.cachetable_size % (1 << 30), 1); CKERR(r);
@@ -2282,6 +2297,7 @@ static struct cli_args UU() get_default_args(void) {
         .nocrashstatus = false,
         .prelock_updates = false,
         .disperse_keys = false,
+        .memcmp_keys = false,
         .direct_io = false,
         };
     DEFAULT_ARGS.env_args.envdir = TOKU_TEST_FILENAME;
@@ -2669,6 +2685,7 @@ static inline void parse_stress_test_args (int argc, char *const argv[], struct 
         BOOL_ARG("nocrashstatus",                     nocrashstatus),
         BOOL_ARG("prelock_updates",                   prelock_updates),
         BOOL_ARG("disperse_keys",                     disperse_keys),
+        BOOL_ARG("memcmp_keys",                       memcmp_keys),
         BOOL_ARG("direct_io",                         direct_io),
 
         STRING_ARG("--envdir",                        env_args.envdir),
@@ -2924,5 +2941,3 @@ UU() perf_test_main_with_cmp(struct cli_args *args, int (*cmp)(DB *, const DBT *
     // We want to control the row size and its compressibility.
     open_and_stress_tables(args, false, cmp);
 }
-
-#endif

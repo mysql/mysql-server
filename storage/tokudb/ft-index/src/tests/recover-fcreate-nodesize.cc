@@ -29,7 +29,7 @@ COPYING CONDITIONS NOTICE:
 
 COPYRIGHT NOTICE:
 
-  TokuDB, Tokutek Fractal Tree Indexing Library.
+  TokuFT, Tokutek Fractal Tree Indexing Library.
   Copyright (C) 2007-2013 Tokutek, Inc.
 
 DISCLAIMER:
@@ -100,7 +100,6 @@ static const char *namea="a.db"; uint32_t nodesizea = 0;
 static const char *nameb="b.db"; uint32_t nodesizeb = 64*1024;
 
 static void do_remove(DB_ENV *env, const char *filename) {
-#if TOKUDB
     int r;
     DBT dname;
     DBT iname;
@@ -113,12 +112,6 @@ static void do_remove(DB_ENV *env, const char *filename) {
     toku_path_join(rmpath, 2, TOKU_TEST_FILENAME, iname.data);
     toku_os_recursive_delete(rmpath);
     toku_free(iname.data);
-#else
-    (void) env;
-    char rmpath[TOKU_PATH_MAX+1];
-    toku_path_join(rmpath, 2, TOKU_TEST_FILENAME, filename);
-    toku_os_recursive_delete(rmpath);
-#endif
 }    
 
 static void run_test (void) {

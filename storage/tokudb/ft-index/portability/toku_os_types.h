@@ -29,7 +29,7 @@ COPYING CONDITIONS NOTICE:
 
 COPYRIGHT NOTICE:
 
-  TokuDB, Tokutek Fractal Tree Indexing Library.
+  TokuFT, Tokutek Fractal Tree Indexing Library.
   Copyright (C) 2007-2013 Tokutek, Inc.
 
 DISCLAIMER:
@@ -86,10 +86,9 @@ PATENT RIGHTS GRANT:
   under this License.
 */
 
-#ident "Copyright (c) 2007-2013 Tokutek Inc.  All rights reserved."
+#pragma once
 
-#if !defined(TOKU_OS_TYPES_H)
-#define TOKU_OS_TYPES_H
+#ident "Copyright (c) 2007-2013 Tokutek Inc.  All rights reserved."
 
 #include <stdbool.h>
 #include <sys/types.h>
@@ -125,10 +124,6 @@ static inline bool toku_fileids_are_equal(struct fileid *a, struct fileid *b) {
 
 typedef struct stat toku_struct_stat;
 
-// windows compat
 #if !defined(O_BINARY)
 #define O_BINARY 0
-#endif
-
-
 #endif

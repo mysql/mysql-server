@@ -29,7 +29,7 @@ COPYING CONDITIONS NOTICE:
 
 COPYRIGHT NOTICE:
 
-  TokuDB, Tokutek Fractal Tree Indexing Library.
+  TokuFT, Tokutek Fractal Tree Indexing Library.
   Copyright (C) 2007-2013 Tokutek, Inc.
 
 DISCLAIMER:
@@ -89,8 +89,7 @@ PATENT RIGHTS GRANT:
 #ident "Copyright (c) 2007-2013 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
-#ifndef TOKU_YDB_DB_H
-#define TOKU_YDB_DB_H
+#pragma once
 
 #include <ft/ft.h>
 
@@ -128,18 +127,18 @@ static inline int db_opened(DB *db) {
     return db->i->opened != 0;
 }
 
-static inline ft_compare_func
-toku_db_get_compare_fun(DB* db) {
-    return toku_ft_get_bt_compare(db->i->ft_handle);
+static inline const toku::comparator &toku_db_get_comparator(DB *db) {
+    return toku_ft_get_comparator(db->i->ft_handle);
 }
 
+int toku_db_use_builtin_key_cmp(DB *db);
 int toku_db_pre_acquire_fileops_lock(DB *db, DB_TXN *txn);
 int toku_db_open_iname(DB * db, DB_TXN * txn, const char *iname, uint32_t flags, int mode);
 int toku_db_pre_acquire_table_lock(DB *db, DB_TXN *txn);
 int toku_db_get (DB * db, DB_TXN * txn, DBT * key, DBT * data, uint32_t flags);
 int toku_db_create(DB ** db, DB_ENV * env, uint32_t flags);
 int toku_db_close(DB * db);
-int toku_setup_db_internal (DB **dbp, DB_ENV *env, uint32_t flags, FT_HANDLE brt, bool is_open);
+int toku_setup_db_internal (DB **dbp, DB_ENV *env, uint32_t flags, FT_HANDLE ft_handle, bool is_open);
 int db_getf_set(DB *db, DB_TXN *txn, uint32_t flags, DBT *key, YDB_CALLBACK_FUNCTION f, void *extra);
 int autotxn_db_get(DB* db, DB_TXN* txn, DBT* key, DBT* data, uint32_t flags);
 
@@ -173,5 +172,3 @@ toku_db_destruct_autotxn(DB_TXN *txn, int r, bool changed) {
     }
     return r; 
 }
-
-#endif /* TOKU_YDB_DB_H */

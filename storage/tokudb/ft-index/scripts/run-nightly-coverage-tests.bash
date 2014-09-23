@@ -12,7 +12,7 @@ cd $tokudbdir
 if [ ! -d build ] ; then
     mkdir build
     pushd build
-    CC=gcc47 CXX=g++47 cmake \
+    cmake \
         -D CMAKE_BUILD_TYPE=Debug \
         -D USE_VALGRIND=ON \
         -D TOKU_DEBUG_PARANOID=ON \
@@ -20,7 +20,6 @@ if [ ! -d build ] ; then
         -D USE_GTAGS=OFF \
         -D USE_CSCOPE=OFF \
         -D USE_ETAGS=OFF \
-        -D USE_BDB=OFF \
         -D USE_GCOV=ON \
         -D CMAKE_LINK_DEPENDS_NO_SHARED=ON \
         -G Ninja \

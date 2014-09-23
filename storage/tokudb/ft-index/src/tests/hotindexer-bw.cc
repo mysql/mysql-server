@@ -28,7 +28,7 @@ COPYING CONDITIONS NOTICE:
 
 COPYRIGHT NOTICE:
 
-  TokuDB, Tokutek Fractal Tree Indexing Library.
+  TokuFT, Tokutek Fractal Tree Indexing Library.
   Copyright (C) 2007-2013 Tokutek, Inc.
 
 DISCLAIMER:
@@ -103,7 +103,6 @@ static int num_rows;
 static const int FORWARD = 0;
 static const int BACKWARD = 1;
 typedef int Direction;
-static const int TXN_NONE = 0;
 static const int TXN_CREATE = 1;
 static const int TXN_END = 2;
 typedef int TxnWork;

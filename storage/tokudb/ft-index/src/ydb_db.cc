@@ -28,7 +28,7 @@ COPYING CONDITIONS NOTICE:
 
 COPYRIGHT NOTICE:
 
-  TokuDB, Tokutek Fractal Tree Indexing Library.
+  TokuFT, Tokutek Fractal Tree Indexing Library.
   Copyright (C) 2007-2013 Tokutek, Inc.
 
 DISCLAIMER:
@@ -95,8 +95,7 @@ PATENT RIGHTS GRANT:
 #include <locktree/locktree.h>
 #include <ft/ft.h>
 #include <ft/ft-flusher.h>
-#include <ft/checkpoint.h>
-#include <ft/log_header.h>
+#include <ft/cachetable/checkpoint.h>
 
 #include "ydb_cursor.h"
 #include "ydb_row_lock.h"
@@ -115,7 +114,7 @@ static YDB_DB_LAYER_STATUS_S ydb_db_layer_status;
 #endif
 #define STATUS_VALUE(x) ydb_db_layer_status.status[x].value.num
 
-#define STATUS_INIT(k,c,t,l,inc) TOKUDB_STATUS_INIT(ydb_db_layer_status, k, c, t, l, inc)
+#define STATUS_INIT(k,c,t,l,inc) TOKUFT_STATUS_INIT(ydb_db_layer_status, k, c, t, l, inc)
 
 static void
 ydb_db_layer_status_init (void) {
@@ -225,13 +224,13 @@ int
 db_getf_set(DB *db, DB_TXN *txn, uint32_t flags, DBT *key, YDB_CALLBACK_FUNCTION f, void *extra) {
     HANDLE_PANICKED_DB(db);
     HANDLE_DB_ILLEGAL_WORKING_PARENT_TXN(db, txn);
-    DBC *c;
+    DBC c;
     uint32_t create_flags = flags & (DB_ISOLATION_FLAGS | DB_RMW);
     flags &= ~DB_ISOLATION_FLAGS;
     int r = toku_db_cursor_internal(db, txn, &c, create_flags | DBC_DISABLE_PREFETCHING, 1);
     if (r==0) {
-        r = toku_c_getf_set(c, flags, key, f, extra);
-        int r2 = toku_c_close(c);
+        r = toku_c_getf_set(&c, flags, key, f, extra);
+        int r2 = toku_c_close_internal(&c);
         if (r==0) r = r2;
     }
     return r;
@@ -258,12 +257,12 @@ toku_db_get (DB * db, DB_TXN * txn, DBT * key, DBT * data, uint32_t flags) {
     // And DB_GET_BOTH is no longer supported. #2862.
     if (flags != 0) return EINVAL;
 
-    DBC *dbc;
+    DBC dbc;
     r = toku_db_cursor_internal(db, txn, &dbc, iso_flags | DBC_DISABLE_PREFETCHING, 1);
     if (r!=0) return r;
     uint32_t c_get_flags = DB_SET;
-    r = toku_c_get(dbc, key, data, c_get_flags | lock_flags);
-    int r2 = toku_c_close(dbc);
+    r = toku_c_get(&dbc, key, data, c_get_flags | lock_flags);
+    int r2 = toku_c_close_internal(&dbc);
     return r ? r : r2;
 }
 
@@ -390,10 +389,12 @@ toku_db_open(DB * db, DB_TXN * txn, const char *fname, const char *dbname, DBTYP
 // locktree's descriptor pointer if necessary
 static void
 db_set_descriptors(DB *db, FT_HANDLE ft_handle) {
+    const toku::comparator &cmp = toku_ft_get_comparator(ft_handle);
     db->descriptor = toku_ft_get_descriptor(ft_handle);
     db->cmp_descriptor = toku_ft_get_cmp_descriptor(ft_handle);
+    invariant(db->cmp_descriptor == cmp.get_descriptor());
     if (db->i->lt) {
-        db->i->lt->set_descriptor(db->cmp_descriptor);
+        db->i->lt->set_comparator(cmp);
     }
 }
 
@@ -430,8 +431,27 @@ void toku_db_lt_on_destroy_callback(toku::locktree *lt) {
     toku_ft_handle_close(ft_handle);
 }
 
-int 
-toku_db_open_iname(DB * db, DB_TXN * txn, const char *iname_in_env, uint32_t flags, int mode) {
+// Instruct db to use the default (built-in) key comparison function
+// by setting the flag bits in the db and ft structs
+int toku_db_use_builtin_key_cmp(DB *db) {
+    HANDLE_PANICKED_DB(db);
+    int r = 0;
+    if (db_opened(db)) {
+        r = toku_ydb_do_error(db->dbenv, EINVAL, "Comparison functions cannot be set after DB open.\n");
+    } else if (db->i->key_compare_was_set) {
+        r = toku_ydb_do_error(db->dbenv, EINVAL, "Key comparison function already set.\n");
+    } else {
+        uint32_t tflags;
+        toku_ft_get_flags(db->i->ft_handle, &tflags);
+
+        tflags |= TOKU_DB_KEYCMP_BUILTIN;
+        toku_ft_set_flags(db->i->ft_handle, tflags);
+        db->i->key_compare_was_set = true;
+    }
+    return r;
+}
+
+int toku_db_open_iname(DB * db, DB_TXN * txn, const char *iname_in_env, uint32_t flags, int mode) {
     //Set comparison functions if not yet set.
     HANDLE_READ_ONLY_TXN(txn);
     if (!db->i->key_compare_was_set && db->dbenv->i->bt_compare) {
@@ -474,9 +494,9 @@ toku_db_open_iname(DB * db, DB_TXN * txn, const char *iname_in_env, uint32_t fla
     int r = toku_ft_handle_open(ft_handle, iname_in_env,
                       is_db_create, is_db_excl,
                       db->dbenv->i->cachetable,
-                      txn ? db_txn_struct_i(txn)->tokutxn : NULL_TXN);
+                      txn ? db_txn_struct_i(txn)->tokutxn : nullptr);
     if (r != 0) {
-        goto error_cleanup;
+        goto out;
     }
 
     // if the dictionary was opened as a blackhole, mark the
@@ -497,26 +517,27 @@ toku_db_open_iname(DB * db, DB_TXN * txn, const char *iname_in_env, uint32_t fla
             .txn = txn,
             .ft_handle = db->i->ft_handle,
         };
-        db->i->lt = db->dbenv->i->ltm.get_lt(
-                db->i->dict_id,
-                db->cmp_descriptor,
-                toku_ft_get_bt_compare(db->i->ft_handle),
-                &on_create_extra);
+        db->i->lt = db->dbenv->i->ltm.get_lt(db->i->dict_id,
+                                             toku_ft_get_comparator(db->i->ft_handle),
+                                             &on_create_extra);
         if (db->i->lt == nullptr) {
             r = errno;
-            if (r == 0)
+            if (r == 0) {
                 r = EINVAL;
-            goto error_cleanup;
+            }
+            goto out;
         }
     }
-    return 0;
+    r = 0;
  
-error_cleanup:
-    db->i->dict_id = DICTIONARY_ID_NONE;
-    db->i->opened = 0;
-    if (db->i->lt) {
-        db->dbenv->i->ltm.release_lt(db->i->lt);
-        db->i->lt = NULL;
+out:
+    if (r != 0) {
+        db->i->dict_id = DICTIONARY_ID_NONE;
+        db->i->opened = 0;
+        if (db->i->lt) {
+            db->dbenv->i->ltm.release_lt(db->i->lt);
+            db->i->lt = nullptr;
+        }
     }
     return r;
 }
@@ -565,11 +586,12 @@ toku_db_change_descriptor(DB *db, DB_TXN* txn, const DBT* descriptor, uint32_t f
     HANDLE_DB_ILLEGAL_WORKING_PARENT_TXN(db, txn);
     int r = 0;
     TOKUTXN ttxn = txn ? db_txn_struct_i(txn)->tokutxn : NULL;
-    DBT old_descriptor;
     bool is_db_hot_index  = ((flags & DB_IS_HOT_INDEX) != 0);
     bool update_cmp_descriptor = ((flags & DB_UPDATE_CMP_DESCRIPTOR) != 0);
 
-    toku_init_dbt(&old_descriptor);
+    DBT old_descriptor_dbt;
+    toku_init_dbt(&old_descriptor_dbt);
+
     if (!db_opened(db) || !descriptor || (descriptor->size>0 && !descriptor->data)){
         r = EINVAL;
         goto cleanup;
@@ -582,23 +604,12 @@ toku_db_change_descriptor(DB *db, DB_TXN* txn, const DBT* descriptor, uint32_t f
         if (r != 0) { goto cleanup; }    
     }
 
-    // TODO: use toku_clone_dbt(&old-descriptor, db->descriptor);
-    old_descriptor.size = db->descriptor->dbt.size;
-    old_descriptor.data = toku_memdup(db->descriptor->dbt.data, db->descriptor->dbt.size);
-
-    toku_ft_change_descriptor(
-        db->i->ft_handle, 
-        &old_descriptor, 
-        descriptor, 
-        true, 
-        ttxn, 
-        update_cmp_descriptor
-        );
+    toku_clone_dbt(&old_descriptor_dbt, db->descriptor->dbt);
+    toku_ft_change_descriptor(db->i->ft_handle, &old_descriptor_dbt, descriptor, 
+                              true, ttxn, update_cmp_descriptor);
 
 cleanup:
-    if (old_descriptor.data) {
-        toku_free(old_descriptor.data);
-    }
+    toku_destroy_dbt(&old_descriptor_dbt);
     return r;
 }
 
@@ -710,6 +721,15 @@ toku_db_get_fanout(DB *db, unsigned int *fanout) {
     HANDLE_PANICKED_DB(db);
     toku_ft_handle_get_fanout(db->i->ft_handle, fanout);
     return 0;
+}
+
+static int
+toku_db_set_memcmp_magic(DB *db, uint8_t magic) {
+    HANDLE_PANICKED_DB(db);
+    if (db_opened(db)) {
+        return EINVAL;
+    }
+    return toku_ft_handle_set_memcmp_magic(db->i->ft_handle, magic);
 }
 
 static int
@@ -950,7 +970,7 @@ struct last_key_extra {
 };
 
 static int
-db_get_last_key_callback(ITEMLEN keylen, bytevec key, ITEMLEN vallen UU(), bytevec val UU(), void *extra, bool lock_only) {
+db_get_last_key_callback(uint32_t keylen, const void *key, uint32_t vallen UU(), const void *val UU(), void *extra, bool lock_only) {
     if (!lock_only) {
         DBT keydbt;
         toku_fill_dbt(&keydbt, key, keylen);
@@ -1048,7 +1068,7 @@ toku_db_verify_with_progress(DB *db, int (*progress_callback)(void *extra, float
     return r;
 }
 
-int toku_setup_db_internal (DB **dbp, DB_ENV *env, uint32_t flags, FT_HANDLE brt, bool is_open) {
+int toku_setup_db_internal (DB **dbp, DB_ENV *env, uint32_t flags, FT_HANDLE ft_handle, bool is_open) {
     if (flags || env == NULL) 
         return EINVAL;
 
@@ -1067,7 +1087,7 @@ int toku_setup_db_internal (DB **dbp, DB_ENV *env, uint32_t flags, FT_HANDLE brt
         return ENOMEM;
     }
     memset(result->i, 0, sizeof *result->i);
-    result->i->ft_handle = brt;
+    result->i->ft_handle = ft_handle;
     result->i->opened = is_open;
     *dbp = result;
     return 0;
@@ -1082,10 +1102,10 @@ toku_db_create(DB ** db, DB_ENV * env, uint32_t flags) {
         return EINVAL;
     
 
-    FT_HANDLE brt;
-    toku_ft_handle_create(&brt);
+    FT_HANDLE ft_handle;
+    toku_ft_handle_create(&ft_handle);
 
-    int r = toku_setup_db_internal(db, env, flags, brt, false);
+    int r = toku_setup_db_internal(db, env, flags, ft_handle, false);
     if (r != 0) return r;
 
     DB *result=*db;
@@ -1109,6 +1129,7 @@ toku_db_create(DB ** db, DB_ENV * env, uint32_t flags) {
     USDB(change_compression_method);
     USDB(set_fanout);
     USDB(get_fanout);
+    USDB(set_memcmp_magic);
     USDB(change_fanout);
     USDB(set_flags);
     USDB(get_flags);
@@ -1162,7 +1183,7 @@ toku_db_create(DB ** db, DB_ENV * env, uint32_t flags) {
 // The new inames are returned to the caller.  
 // It is the caller's responsibility to free them.
 // If "mark_as_loader" is true, then include a mark in the iname
-// to indicate that the file is created by the brt loader.
+// to indicate that the file is created by the ft loader.
 // Return 0 on success (could fail if write lock not available).
 static int
 load_inames(DB_ENV * env, DB_TXN * txn, int N, DB * dbs[/*N*/], const char * new_inames_in_env[/*N*/], LSN *load_lsn, bool mark_as_loader) {
@@ -1207,13 +1228,13 @@ load_inames(DB_ENV * env, DB_TXN * txn, int N, DB * dbs[/*N*/], const char * new
         int do_fsync = 0;
         LSN *get_lsn = NULL;
         for (i = 0; i < N; i++) {
-            FT_HANDLE brt  = dbs[i]->i->ft_handle;
+            FT_HANDLE ft_handle  = dbs[i]->i->ft_handle;
             //Fsync is necessary for the last one only.
             if (i==N-1) {
                 do_fsync = 1; //We only need a single fsync of logs.
                 get_lsn  = load_lsn; //Set pointer to capture the last lsn.
             }
-            toku_ft_load(brt, ttxn, new_inames_in_env[i], do_fsync, get_lsn);
+            toku_ft_load(ft_handle, ttxn, new_inames_in_env[i], do_fsync, get_lsn);
         }
     }
     return rval;

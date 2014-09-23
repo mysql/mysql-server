@@ -1,7 +1,5 @@
 /* -*- mode: C++; c-basic-offset: 4; indent-tabs-mode: nil -*- */
 // vim: ft=cpp:expandtab:ts=8:sw=4:softtabstop=4:
-#ifndef FT_H
-#define FT_H
 #ident "$Id$"
 /*
 COPYING CONDITIONS NOTICE:
@@ -31,7 +29,7 @@ COPYING CONDITIONS NOTICE:
 
 COPYRIGHT NOTICE:
 
-  TokuDB, Tokutek Fractal Tree Indexing Library.
+  TokuFT, Tokutek Fractal Tree Indexing Library.
   Copyright (C) 2007-2013 Tokutek, Inc.
 
 DISCLAIMER:
@@ -88,17 +86,20 @@ PATENT RIGHTS GRANT:
   under this License.
 */
 
+#pragma once
+
 #ident "Copyright (c) 2007-2013 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
-#include "fttypes.h"
-#include "ybt.h"
 #include <db.h>
-#include "cachetable.h"
-#include "log.h"
-#include "ft-search.h"
-#include "ft-ops.h"
-#include "compress.h"
+
+#include "ft/cachetable/cachetable.h"
+#include "ft/ft-ops.h"
+#include "ft/logger/log.h"
+#include "util/dbt.h"
+
+typedef struct ft *FT;
+typedef struct ft_options *FT_OPTIONS;
 
 // unlink a ft from the filesystem with or without a txn.
 // if with a txn, then the unlink happens on commit.
@@ -110,10 +111,13 @@ void toku_ft_destroy_reflock(FT ft);
 void toku_ft_grab_reflock(FT ft);
 void toku_ft_release_reflock(FT ft);
 
-void toku_ft_create(FT *ftp, FT_OPTIONS options, CACHEFILE cf, TOKUTXN txn);
-void toku_ft_free (FT h);
+void toku_ft_lock(struct ft *ft);
+void toku_ft_unlock(struct ft *ft);
 
-int toku_read_ft_and_store_in_cachefile (FT_HANDLE brt, CACHEFILE cf, LSN max_acceptable_lsn, FT *header);
+void toku_ft_create(FT *ftp, FT_OPTIONS options, CACHEFILE cf, TOKUTXN txn);
+void toku_ft_free (FT ft);
+
+int toku_read_ft_and_store_in_cachefile (FT_HANDLE ft_h, CACHEFILE cf, LSN max_acceptable_lsn, FT *header);
 void toku_ft_note_ft_handle_open(FT ft, FT_HANDLE live);
 
 bool toku_ft_needed_unlocked(FT ft);
@@ -123,10 +127,10 @@ bool toku_ft_has_one_reference_unlocked(FT ft);
 // will have to read in the ft in a new cachefile and new FT object.
 void toku_ft_evict_from_memory(FT ft, bool oplsn_valid, LSN oplsn);
 
-FT_HANDLE toku_ft_get_only_existing_ft_handle(FT h);
+FT_HANDLE toku_ft_get_only_existing_ft_handle(FT ft);
 
-void toku_ft_note_hot_begin(FT_HANDLE brt);
-void toku_ft_note_hot_complete(FT_HANDLE brt, bool success, MSN msn_at_start_of_hot);
+void toku_ft_note_hot_begin(FT_HANDLE ft_h);
+void toku_ft_note_hot_complete(FT_HANDLE ft_h, bool success, MSN msn_at_start_of_hot);
 
 void
 toku_ft_init(
@@ -142,29 +146,29 @@ toku_ft_init(
 
 int toku_dictionary_redirect_abort(FT old_h, FT new_h, TOKUTXN txn) __attribute__ ((warn_unused_result));
 int toku_dictionary_redirect (const char *dst_fname_in_env, FT_HANDLE old_ft, TOKUTXN txn);
-void toku_reset_root_xid_that_created(FT h, TXNID new_root_xid_that_created);
+void toku_reset_root_xid_that_created(FT ft, TXNID new_root_xid_that_created);
 // Reset the root_xid_that_created field to the given value.
 // This redefines which xid created the dictionary.
 
-void toku_ft_add_txn_ref(FT h);
-void toku_ft_remove_txn_ref(FT h);
+void toku_ft_add_txn_ref(FT ft);
+void toku_ft_remove_txn_ref(FT ft);
 
-void toku_calculate_root_offset_pointer ( FT h, CACHEKEY* root_key, uint32_t *roothash);
-void toku_ft_set_new_root_blocknum(FT h, CACHEKEY new_root_key);
-LSN toku_ft_checkpoint_lsn(FT h)  __attribute__ ((warn_unused_result));
-void toku_ft_stat64 (FT h, struct ftstat64_s *s);
-void toku_ft_get_fractal_tree_info64 (FT h, struct ftinfo64 *s);
+void toku_calculate_root_offset_pointer (FT ft, CACHEKEY* root_key, uint32_t *roothash);
+void toku_ft_set_new_root_blocknum(FT ft, CACHEKEY new_root_key);
+LSN toku_ft_checkpoint_lsn(FT ft)  __attribute__ ((warn_unused_result));
+void toku_ft_stat64 (FT ft, struct ftstat64_s *s);
+void toku_ft_get_fractal_tree_info64 (FT ft, struct ftinfo64 *s);
 int toku_ft_iterate_fractal_tree_block_map(FT ft, int (*iter)(uint64_t,int64_t,int64_t,int64_t,int64_t,void*), void *iter_extra);
 
 // unconditionally set the descriptor for an open FT. can't do this when
 // any operation has already occurred on the ft.
 // see toku_ft_change_descriptor(), which is the transactional version
 // used by the ydb layer. it better describes the client contract.
-void toku_ft_update_descriptor(FT ft, DESCRIPTOR d);
+void toku_ft_update_descriptor(FT ft, DESCRIPTOR desc);
 // use this version if the FT is not fully user-opened with a valid cachefile.
 // this is a clean hack to get deserialization code to update a descriptor
 // while the FT and cf are in the process of opening, for upgrade purposes
-void toku_ft_update_descriptor_with_fd(FT ft, DESCRIPTOR d, int fd);
+void toku_ft_update_descriptor_with_fd(FT ft, DESCRIPTOR desc, int fd);
 void toku_ft_update_cmp_descriptor(FT ft);
 
 // get the descriptor for a ft. safe to read as long as clients honor the
@@ -174,9 +178,17 @@ void toku_ft_update_cmp_descriptor(FT ft);
 DESCRIPTOR toku_ft_get_descriptor(FT_HANDLE ft_handle);
 DESCRIPTOR toku_ft_get_cmp_descriptor(FT_HANDLE ft_handle);
 
+typedef struct {
+    // delta versions in basements could be negative
+    int64_t numrows;
+    int64_t numbytes;
+} STAT64INFO_S, *STAT64INFO;
+static const STAT64INFO_S ZEROSTATS = { .numrows = 0, .numbytes = 0};
+
 void toku_ft_update_stats(STAT64INFO headerstats, STAT64INFO_S delta);
 void toku_ft_decrease_stats(STAT64INFO headerstats, STAT64INFO_S delta);
 
+typedef void (*remove_ft_ref_callback)(FT ft, void *extra);
 void toku_ft_remove_reference(FT ft,
                               bool oplsn_valid, LSN oplsn,
                               remove_ft_ref_callback remove_ref, void *extra);
@@ -189,7 +201,6 @@ void toku_ft_set_compression_method(FT ft, enum toku_compression_method method);
 void toku_ft_get_compression_method(FT ft, enum toku_compression_method *methodp);
 void toku_ft_set_fanout(FT ft, unsigned int fanout);
 void toku_ft_get_fanout(FT ft, unsigned int *fanout);
-void toku_node_save_ct_pair(CACHEKEY UU(key), void *value_data, PAIR p);
 
 // mark the ft as a blackhole. any message injections will be a no op.
 void toku_ft_set_blackhole(FT_HANDLE ft_handle);
@@ -198,15 +209,17 @@ void toku_ft_set_blackhole(FT_HANDLE ft_handle);
 //         The difference between the two is MVCC garbage.
 void toku_ft_get_garbage(FT ft, uint64_t *total_space, uint64_t *used_space);
 
+// TODO: Should be in portability
 int get_num_cores(void);
+
+// TODO: Use the cachetable's worker pool instead of something managed by the FT...
 struct toku_thread_pool *get_ft_pool(void);
-void dump_bad_block(unsigned char *vp, uint64_t size);
 
+// TODO: Should be in portability
 int toku_single_process_lock(const char *lock_dir, const char *which, int *lockfd);
-
 int toku_single_process_unlock(int *lockfd);
 
-void tokudb_update_product_name_strings(void);
+void tokuft_update_product_name_strings(void);
 #define TOKU_MAX_PRODUCT_NAME_LENGTH (256)
 extern char toku_product_name[TOKU_MAX_PRODUCT_NAME_LENGTH];
 
@@ -219,5 +232,4 @@ struct toku_product_name_strings_struct {
 };
 
 extern struct toku_product_name_strings_struct toku_product_name_strings;
-extern int tokudb_num_envs;
-#endif
+extern int tokuft_num_envs;

@@ -75,15 +75,12 @@ set_cflags_if_supported(-Wno-missing-field-initializers)
 
 ADD_SUBDIRECTORY(ft-index)
 
-# TODO: clean up includes in ft-index
 INCLUDE_DIRECTORIES(ft-index)
-INCLUDE_DIRECTORIES(ft-index/include)
 INCLUDE_DIRECTORIES(ft-index/portability)
-INCLUDE_DIRECTORIES(ft-index/toku_include)
 INCLUDE_DIRECTORIES(ft-index/util)
 INCLUDE_DIRECTORIES(${CMAKE_CURRENT_BINARY_DIR}/ft-index)
 INCLUDE_DIRECTORIES(${CMAKE_CURRENT_BINARY_DIR}/ft-index/buildheader)
-INCLUDE_DIRECTORIES(${CMAKE_CURRENT_BINARY_DIR}/ft-index/toku_include)
+INCLUDE_DIRECTORIES(${CMAKE_CURRENT_BINARY_DIR}/ft-index/portability)
 
 SET(TOKUDB_PLUGIN_DYNAMIC "ha_tokudb")
 SET(TOKUDB_SOURCES ha_tokudb.cc)

@@ -92,6 +92,7 @@ PATENT RIGHTS GRANT:
 #define MYSQL_SERVER 1
 #include "hatoku_defines.h"
 #include <db.h>
+#include <ctype.h>
 
 #include "stdint.h"
 #if defined(_WIN32)
@@ -330,7 +331,23 @@ static void handle_ydb_error(int error) {
         sql_print_error("                                                            ");
         sql_print_error("************************************************************");
         break;
+    case TOKUDB_UPGRADE_FAILURE:
+        sql_print_error("%s upgrade failed. A clean shutdown of the previous version is required.", tokudb_hton_name);
+        break;
+    default:
+        sql_print_error("%s unknown error %d", tokudb_hton_name, error);
+        break;
     }
+}
+
+static int tokudb_set_product_name(void) {
+    size_t n = strlen(tokudb_hton_name);
+    char tokudb_product_name[n+1];
+    memset(tokudb_product_name, 0, sizeof tokudb_product_name);
+    for (size_t i = 0; i < n; i++)
+        tokudb_product_name[i] = tolower(tokudb_hton_name[i]);
+    int r = db_env_set_toku_product_name(tokudb_product_name);
+    return r;
 }
 
 static int tokudb_init_func(void *p) {
@@ -350,6 +367,12 @@ static int tokudb_init_func(void *p) {
         goto error;
     }
 #endif
+
+    r = tokudb_set_product_name();
+    if (r) {
+        sql_print_error("%s can not set product name error %d", tokudb_hton_name, r);
+        goto error;
+    }
 
     tokudb_pthread_mutex_init(&tokudb_mutex, MY_MUTEX_INIT_FAST);
     (void) my_hash_init(&tokudb_open_tables, table_alias_charset, 32, 0, 0, (my_hash_get_key) tokudb_get_key, 0, 0);
@@ -820,6 +843,12 @@ static int tokudb_rollback(handlerton * hton, THD * thd, bool all) {
 static int tokudb_xa_prepare(handlerton* hton, THD* thd, bool all) {
     TOKUDB_DBUG_ENTER("");
     int r = 0;
+
+    /* if support_xa is disable, just return */
+    if (!THDVAR(thd, support_xa)) {
+        TOKUDB_DBUG_RETURN(r);
+    }
+
     DBUG_PRINT("trans", ("preparing transaction %s", all ? "all" : "stmt"));
     tokudb_trx_data *trx = (tokudb_trx_data *) thd_get_ha_data(thd, hton);
     DB_TXN* txn = all ? trx->all : trx->stmt;
@@ -1423,8 +1452,34 @@ static struct st_mysql_sys_var *tokudb_system_variables[] = {
     MYSQL_SYSVAR(check_jemalloc),
 #endif
     MYSQL_SYSVAR(bulk_fetch),
+#if TOKU_INCLUDE_XA
+    MYSQL_SYSVAR(support_xa),
+#endif
+    MYSQL_SYSVAR(rpl_unique_checks),
+    MYSQL_SYSVAR(rpl_unique_checks_delay),
+    MYSQL_SYSVAR(rpl_lookup_rows),
+    MYSQL_SYSVAR(rpl_lookup_rows_delay),
     NULL
 };
+
+// Split ./database/table-dictionary into database, table and dictionary strings
+static void tokudb_split_dname(const char *dname, String &database_name, String &table_name, String &dictionary_name) {
+    const char *splitter = strchr(dname, '/');
+    if (splitter) {
+        const char *database_ptr = splitter+1;
+        const char *table_ptr = strchr(database_ptr, '/');
+        if (table_ptr) {
+            database_name.append(database_ptr, table_ptr - database_ptr);
+            table_ptr += 1;
+            const char *dictionary_ptr = strchr(table_ptr, '-');
+            if (dictionary_ptr) {
+                table_name.append(table_ptr, dictionary_ptr - table_ptr);
+                dictionary_ptr += 1;
+                dictionary_name.append(dictionary_ptr);
+            }
+        }
+    }
+}
 
 struct st_mysql_storage_engine tokudb_storage_engine = { MYSQL_HANDLERTON_INTERFACE_VERSION };
 
@@ -1471,31 +1526,12 @@ static int tokudb_file_map(TABLE *table, THD *thd) {
             assert(iname_len == curr_val.size - 1);
             table->field[1]->store(iname, iname_len, system_charset_info);
 
-            // denormalize the dname
-            const char *database_name = NULL;
-            size_t database_len = 0;
-            const char *table_name = NULL;
-            size_t table_len = 0;
-            const char *dictionary_name = NULL;
-            size_t dictionary_len = 0;
-            database_name = strchr(dname, '/');
-            if (database_name) {
-                database_name += 1;
-                table_name = strchr(database_name, '/');
-                if (table_name) {
-                    database_len = table_name - database_name;
-                    table_name += 1;
-                    dictionary_name = strchr(table_name, '-');
-                    if (dictionary_name) {
-                        table_len = dictionary_name - table_name;
-                        dictionary_name += 1;
-                        dictionary_len = strlen(dictionary_name);
-                    }
-                }
-            }
-            table->field[2]->store(database_name, database_len, system_charset_info);
-            table->field[3]->store(table_name, table_len, system_charset_info);
-            table->field[4]->store(dictionary_name, dictionary_len, system_charset_info);
+            // split the dname
+            String database_name, table_name, dictionary_name;
+            tokudb_split_dname(dname, database_name, table_name, dictionary_name);
+            table->field[2]->store(database_name.c_ptr(), database_name.length(), system_charset_info);
+            table->field[3]->store(table_name.c_ptr(), table_name.length(), system_charset_info);
+            table->field[4]->store(dictionary_name.c_ptr(), dictionary_name.length(), system_charset_info);
 
             error = schema_table_store_record(thd, table);
         }
@@ -1526,10 +1562,12 @@ static int tokudb_file_map_fill_table(THD *thd, TABLE_LIST *tables, COND *cond) 
     rw_rdlock(&tokudb_hton_initialized_lock);
 
     if (!tokudb_hton_initialized) {
-        my_error(ER_PLUGIN_IS_NOT_LOADED, MYF(0), "TokuDB");
-        error = -1;
+        error = ER_PLUGIN_IS_NOT_LOADED;
+        my_error(error, MYF(0), tokudb_hton_name);
     } else {
         error = tokudb_file_map(table, thd);
+        if (error)
+            my_error(error, MYF(0));
     }
 
     rw_unlock(&tokudb_hton_initialized_lock);
@@ -1556,6 +1594,9 @@ static ST_FIELD_INFO tokudb_fractal_tree_info_field_info[] = {
     {"bt_num_blocks_in_use", 0, MYSQL_TYPE_LONGLONG, 0, 0, NULL, SKIP_OPEN_TABLE },
     {"bt_size_allocated", 0, MYSQL_TYPE_LONGLONG, 0, 0, NULL, SKIP_OPEN_TABLE },
     {"bt_size_in_use", 0, MYSQL_TYPE_LONGLONG, 0, 0, NULL, SKIP_OPEN_TABLE },
+    {"table_schema", 256, MYSQL_TYPE_STRING, 0, 0, NULL, SKIP_OPEN_TABLE },
+    {"table_name", 256, MYSQL_TYPE_STRING, 0, 0, NULL, SKIP_OPEN_TABLE },
+    {"table_dictionary_name", 256, MYSQL_TYPE_STRING, 0, 0, NULL, SKIP_OPEN_TABLE },
     {NULL, 0, MYSQL_TYPE_NULL, 0, 0, NULL, SKIP_OPEN_TABLE}
 };
 
@@ -1593,25 +1634,25 @@ static int tokudb_report_fractal_tree_info_for_db(const DBT *dname, const DBT *i
     // Recalculate and check just to be safe.
     {
         size_t dname_len = strlen((const char *)dname->data);
-        size_t iname_len = strlen((const char *)iname->data);
         assert(dname_len == dname->size - 1);
+        table->field[0]->store((char *)dname->data, dname_len, system_charset_info);
+        size_t iname_len = strlen((const char *)iname->data);
         assert(iname_len == iname->size - 1);
-        table->field[0]->store(
-            (char *)dname->data,
-            dname_len,
-            system_charset_info
-            );
-        table->field[1]->store(
-            (char *)iname->data,
-            iname_len,
-            system_charset_info
-            );
+        table->field[1]->store((char *)iname->data, iname_len, system_charset_info);
     }
     table->field[2]->store(bt_num_blocks_allocated, false);
     table->field[3]->store(bt_num_blocks_in_use, false);
     table->field[4]->store(bt_size_allocated, false);
     table->field[5]->store(bt_size_in_use, false);
 
+    // split the dname
+    {
+        String database_name, table_name, dictionary_name;
+        tokudb_split_dname((const char *)dname->data, database_name, table_name, dictionary_name);
+        table->field[6]->store(database_name.c_ptr(), database_name.length(), system_charset_info);
+        table->field[7]->store(table_name.c_ptr(), table_name.length(), system_charset_info);
+        table->field[8]->store(dictionary_name.c_ptr(), dictionary_name.length(), system_charset_info);
+    }
     error = schema_table_store_record(thd, table);
 
 exit:
@@ -1635,12 +1676,7 @@ static int tokudb_fractal_tree_info(TABLE *table, THD *thd) {
         goto cleanup;
     }
     while (error == 0) {
-        error = tmp_cursor->c_get(
-            tmp_cursor,
-            &curr_key,
-            &curr_val,
-            DB_NEXT
-            );
+        error = tmp_cursor->c_get(tmp_cursor, &curr_key, &curr_val, DB_NEXT);
         if (!error) {
             error = tokudb_report_fractal_tree_info_for_db(&curr_key, &curr_val, table, thd);
         }
@@ -1673,10 +1709,12 @@ static int tokudb_fractal_tree_info_fill_table(THD *thd, TABLE_LIST *tables, CON
     rw_rdlock(&tokudb_hton_initialized_lock);
 
     if (!tokudb_hton_initialized) {
-        my_error(ER_PLUGIN_IS_NOT_LOADED, MYF(0), "TokuDB");
-        error = -1;
+        error = ER_PLUGIN_IS_NOT_LOADED;
+        my_error(error, MYF(0), tokudb_hton_name);
     } else {
         error = tokudb_fractal_tree_info(table, thd);
+        if (error)
+            my_error(error, MYF(0));
     }
 
     //3938: unlock the status flag lock
@@ -1704,6 +1742,9 @@ static ST_FIELD_INFO tokudb_fractal_tree_block_map_field_info[] = {
     {"blocknum", 0, MYSQL_TYPE_LONGLONG, 0, 0, NULL, SKIP_OPEN_TABLE },
     {"offset", 0, MYSQL_TYPE_LONGLONG, 0, MY_I_S_MAYBE_NULL, NULL, SKIP_OPEN_TABLE },
     {"size", 0, MYSQL_TYPE_LONGLONG, 0, MY_I_S_MAYBE_NULL, NULL, SKIP_OPEN_TABLE },
+    {"table_schema", 256, MYSQL_TYPE_STRING, 0, 0, NULL, SKIP_OPEN_TABLE },
+    {"table_name", 256, MYSQL_TYPE_STRING, 0, 0, NULL, SKIP_OPEN_TABLE },
+    {"table_dictionary_name", 256, MYSQL_TYPE_STRING, 0, 0, NULL, SKIP_OPEN_TABLE },
     {NULL, 0, MYSQL_TYPE_NULL, 0, 0, NULL, SKIP_OPEN_TABLE}
 };
 
@@ -1776,19 +1817,13 @@ static int tokudb_report_fractal_tree_block_map_for_db(const DBT *dname, const D
         // See #5789
         // Recalculate and check just to be safe.
         size_t dname_len = strlen((const char *)dname->data);
-        size_t iname_len = strlen((const char *)iname->data);
         assert(dname_len == dname->size - 1);
+        table->field[0]->store((char *)dname->data, dname_len, system_charset_info);
+
+        size_t iname_len = strlen((const char *)iname->data);
         assert(iname_len == iname->size - 1);
-        table->field[0]->store(
-            (char *)dname->data,
-            dname_len,
-            system_charset_info
-            );
-        table->field[1]->store(
-            (char *)iname->data,
-            iname_len,
-            system_charset_info
-            );
+        table->field[1]->store((char *)iname->data, iname_len, system_charset_info);
+
         table->field[2]->store(e.checkpoint_counts[i], false);
         table->field[3]->store(e.blocknums[i], false);
         static const int64_t freelist_null = -1;
@@ -1806,6 +1841,13 @@ static int tokudb_report_fractal_tree_block_map_for_db(const DBT *dname, const D
             table->field[5]->set_notnull();
             table->field[5]->store(e.sizes[i], false);
         }
+
+        // split the dname
+        String database_name, table_name, dictionary_name;
+        tokudb_split_dname((const char *)dname->data, database_name, table_name,dictionary_name);
+        table->field[6]->store(database_name.c_ptr(), database_name.length(), system_charset_info);
+        table->field[7]->store(table_name.c_ptr(), table_name.length(), system_charset_info);
+        table->field[8]->store(dictionary_name.c_ptr(), dictionary_name.length(), system_charset_info);
 
         error = schema_table_store_record(thd, table);
     }
@@ -1847,12 +1889,7 @@ static int tokudb_fractal_tree_block_map(TABLE *table, THD *thd) {
         goto cleanup;
     }
     while (error == 0) {
-        error = tmp_cursor->c_get(
-            tmp_cursor,
-            &curr_key,
-            &curr_val,
-            DB_NEXT
-            );
+        error = tmp_cursor->c_get(tmp_cursor, &curr_key, &curr_val, DB_NEXT);
         if (!error) {
             error = tokudb_report_fractal_tree_block_map_for_db(&curr_key, &curr_val, table, thd);
         }
@@ -1885,10 +1922,12 @@ static int tokudb_fractal_tree_block_map_fill_table(THD *thd, TABLE_LIST *tables
     rw_rdlock(&tokudb_hton_initialized_lock);
 
     if (!tokudb_hton_initialized) {
-        my_error(ER_PLUGIN_IS_NOT_LOADED, MYF(0), "TokuDB");
-        error = -1;
+        error = ER_PLUGIN_IS_NOT_LOADED;
+        my_error(error, MYF(0), tokudb_hton_name);
     } else {
         error = tokudb_fractal_tree_block_map(table, thd);
+        if (error)
+            my_error(error, MYF(0));
     }
 
     //3938: unlock the status flag lock
@@ -2036,11 +2075,13 @@ static int tokudb_trx_fill_table(THD *thd, TABLE_LIST *tables, COND *cond) {
     rw_rdlock(&tokudb_hton_initialized_lock);
 
     if (!tokudb_hton_initialized) {
-        my_error(ER_PLUGIN_IS_NOT_LOADED, MYF(0), "TokuDB");
-        error = -1;
+        error = ER_PLUGIN_IS_NOT_LOADED;
+        my_error(error, MYF(0), tokudb_hton_name);
     } else {
         struct tokudb_trx_extra e = { thd, tables->table };
         error = db_env->iterate_live_transactions(db_env, tokudb_trx_callback, &e);
+        if (error)
+            my_error(error, MYF(0));
     }
 
     rw_unlock(&tokudb_hton_initialized_lock);
@@ -2067,6 +2108,9 @@ static ST_FIELD_INFO tokudb_lock_waits_field_info[] = {
     {"lock_waits_key_left", 256, MYSQL_TYPE_STRING, 0, 0, NULL, SKIP_OPEN_TABLE },
     {"lock_waits_key_right", 256, MYSQL_TYPE_STRING, 0, 0, NULL, SKIP_OPEN_TABLE },
     {"lock_waits_start_time", 0, MYSQL_TYPE_LONGLONG, 0, 0, NULL, SKIP_OPEN_TABLE },
+    {"lock_waits_table_schema", 256, MYSQL_TYPE_STRING, 0, 0, NULL, SKIP_OPEN_TABLE },
+    {"lock_waits_table_name", 256, MYSQL_TYPE_STRING, 0, 0, NULL, SKIP_OPEN_TABLE },
+    {"lock_waits_table_dictionary_name", 256, MYSQL_TYPE_STRING, 0, 0, NULL, SKIP_OPEN_TABLE },
     {NULL, 0, MYSQL_TYPE_NULL, 0, 0, NULL, SKIP_OPEN_TABLE}
 };
 
@@ -2092,6 +2136,13 @@ static int tokudb_lock_waits_callback(DB *db, uint64_t requesting_txnid, const D
     tokudb_pretty_right_key(db, right_key, &right_str);
     table->field[4]->store(right_str.ptr(), right_str.length(), system_charset_info);
     table->field[5]->store(start_time, false);
+
+    String database_name, table_name, dictionary_name;
+    tokudb_split_dname(dname, database_name, table_name, dictionary_name);
+    table->field[6]->store(database_name.c_ptr(), database_name.length(), system_charset_info);
+    table->field[7]->store(table_name.c_ptr(), table_name.length(), system_charset_info);
+    table->field[8]->store(dictionary_name.c_ptr(), dictionary_name.length(), system_charset_info);
+
     int error = schema_table_store_record(thd, table);
     return error;
 }
@@ -2107,11 +2158,13 @@ static int tokudb_lock_waits_fill_table(THD *thd, TABLE_LIST *tables, COND *cond
     rw_rdlock(&tokudb_hton_initialized_lock);
 
     if (!tokudb_hton_initialized) {
-        my_error(ER_PLUGIN_IS_NOT_LOADED, MYF(0), "TokuDB");
-        error = -1;
+        error = ER_PLUGIN_IS_NOT_LOADED;
+        my_error(error, MYF(0), tokudb_hton_name);
     } else {
         struct tokudb_lock_waits_extra e = { thd, tables->table };
         error = db_env->iterate_pending_lock_requests(db_env, tokudb_lock_waits_callback, &e);
+        if (error)
+            my_error(error, MYF(0));
     }
 
     rw_unlock(&tokudb_hton_initialized_lock);
@@ -2137,6 +2190,9 @@ static ST_FIELD_INFO tokudb_locks_field_info[] = {
     {"locks_dname", 256, MYSQL_TYPE_STRING, 0, 0, NULL, SKIP_OPEN_TABLE },
     {"locks_key_left", 256, MYSQL_TYPE_STRING, 0, 0, NULL, SKIP_OPEN_TABLE },
     {"locks_key_right", 256, MYSQL_TYPE_STRING, 0, 0, NULL, SKIP_OPEN_TABLE },
+    {"locks_table_schema", 256, MYSQL_TYPE_STRING, 0, 0, NULL, SKIP_OPEN_TABLE },
+    {"locks_table_name", 256, MYSQL_TYPE_STRING, 0, 0, NULL, SKIP_OPEN_TABLE },
+    {"locks_table_dictionary_name", 256, MYSQL_TYPE_STRING, 0, 0, NULL, SKIP_OPEN_TABLE },
     {NULL, 0, MYSQL_TYPE_NULL, 0, 0, NULL, SKIP_OPEN_TABLE}
 };
 
@@ -2168,6 +2224,12 @@ static int tokudb_locks_callback(uint64_t txn_id, uint64_t client_id, iterate_ro
         tokudb_pretty_right_key(db, &right_key, &right_str);
         table->field[4]->store(right_str.ptr(), right_str.length(), system_charset_info);
 
+        String database_name, table_name, dictionary_name;
+        tokudb_split_dname(dname, database_name, table_name, dictionary_name);
+        table->field[5]->store(database_name.c_ptr(), database_name.length(), system_charset_info);
+        table->field[6]->store(table_name.c_ptr(), table_name.length(), system_charset_info);
+        table->field[7]->store(dictionary_name.c_ptr(), dictionary_name.length(), system_charset_info);
+
         error = schema_table_store_record(thd, table);
     }
     return error;
@@ -2184,11 +2246,13 @@ static int tokudb_locks_fill_table(THD *thd, TABLE_LIST *tables, COND *cond) {
     rw_rdlock(&tokudb_hton_initialized_lock);
 
     if (!tokudb_hton_initialized) {
-        my_error(ER_PLUGIN_IS_NOT_LOADED, MYF(0), "TokuDB");
-        error = -1;
+        error = ER_PLUGIN_IS_NOT_LOADED;
+        my_error(error, MYF(0), tokudb_hton_name);
     } else {
         struct tokudb_locks_extra e = { thd, tables->table };
         error = db_env->iterate_live_transactions(db_env, tokudb_locks_callback, &e);
+        if (error)
+            my_error(error, MYF(0));
     }
 
     rw_unlock(&tokudb_hton_initialized_lock);

@@ -78,26 +78,20 @@ list(APPEND CTEST_NOTES_FILES
   )
 
 set(all_opts
-  -DBDBDIR=/usr/local/BerkeleyDB.5.3
   -DBUILD_TESTING=ON
   -DUSE_CILK=OFF
   )
 set(rel_opts
   ${all_opts}
   -DCMAKE_BUILD_TYPE=Release
-  -DINTEL_CC=ON
-  -DUSE_BDB=ON
   )
 set(dbg_opts
   ${all_opts}
   -DCMAKE_BUILD_TYPE=Debug
-  -DINTEL_CC=ON
-  -DUSE_BDB=ON
   )
 set(cov_opts
   ${all_opts}
   -DCMAKE_BUILD_TYPE=Debug
-  -DINTEL_CC=OFF
   -DUSE_GCOV=ON
   )
 

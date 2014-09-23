@@ -29,7 +29,7 @@ COPYING CONDITIONS NOTICE:
 
 COPYRIGHT NOTICE:
 
-  TokuDB, Tokutek Fractal Tree Indexing Library.
+  TokuFT, Tokutek Fractal Tree Indexing Library.
   Copyright (C) 2007-2013 Tokutek, Inc.
 
 DISCLAIMER:
@@ -91,10 +91,9 @@ PATENT RIGHTS GRANT:
 #include <string.h>
 
 #include "test.h"
-#include "fttypes.h"
 
-#include "ule.h"
-#include "ule-internal.h"
+#include "ft/ule.h"
+#include "ft/ule-internal.h"
 
 enum {MAX_SIZE = 256};
 static XIDS nested_xids[MAX_TRANSACTION_RECORDS];
@@ -213,7 +212,7 @@ test_le_offsets (void) {
 static void
 test_ule_packs_to_nothing (ULE ule) {
     LEAFENTRY le;
-    int r = le_pack(ule, NULL, 0, NULL, 0, 0, &le);
+    int r = le_pack(ule, NULL, 0, NULL, 0, 0, 0, &le, nullptr);
     assert(r==0);
     assert(le==NULL);
 }
@@ -319,7 +318,7 @@ test_le_pack_committed (void) {
 
         size_t memsize;
         LEAFENTRY le;
-        int r = le_pack(&ule, nullptr, 0, nullptr, 0, 0, &le);
+        int r = le_pack(&ule, nullptr, 0, nullptr, 0, 0, 0, &le, nullptr);
         assert(r==0);
         assert(le!=NULL);
         memsize = le_memsize_from_ule(&ule);
@@ -329,7 +328,7 @@ test_le_pack_committed (void) {
         verify_ule_equal(&ule, &tmp_ule);
         LEAFENTRY tmp_le;
         size_t    tmp_memsize;
-        r = le_pack(&tmp_ule, nullptr, 0, nullptr, 0, 0, &tmp_le);
+        r = le_pack(&tmp_ule, nullptr, 0, nullptr, 0, 0, 0, &tmp_le, nullptr);
         tmp_memsize = le_memsize_from_ule(&tmp_ule);
         assert(r==0);
         assert(tmp_memsize == memsize);
@@ -377,7 +376,7 @@ test_le_pack_uncommitted (uint8_t committed_type, uint8_t prov_type, int num_pla
 
         size_t memsize;
         LEAFENTRY le;
-        int r = le_pack(&ule, nullptr, 0, nullptr, 0, 0, &le);
+        int r = le_pack(&ule, nullptr, 0, nullptr, 0, 0, 0, &le, nullptr);
         assert(r==0);
         assert(le!=NULL);
         memsize = le_memsize_from_ule(&ule);
@@ -387,7 +386,7 @@ test_le_pack_uncommitted (uint8_t committed_type, uint8_t prov_type, int num_pla
         verify_ule_equal(&ule, &tmp_ule);
         LEAFENTRY tmp_le;
         size_t    tmp_memsize;
-        r = le_pack(&tmp_ule, nullptr, 0, nullptr, 0, 0, &tmp_le);
+        r = le_pack(&tmp_ule, nullptr, 0, nullptr, 0, 0, 0, &tmp_le, nullptr);
         tmp_memsize = le_memsize_from_ule(&tmp_ule);
         assert(r==0);
         assert(tmp_memsize == memsize);
@@ -442,13 +441,13 @@ test_le_pack (void) {
 }
 
 static void
-test_le_apply(ULE ule_initial, FT_MSG msg, ULE ule_expected) {
+test_le_apply(ULE ule_initial, const ft_msg &msg, ULE ule_expected) {
     int r;
     LEAFENTRY le_initial;
     LEAFENTRY le_expected;
     LEAFENTRY le_result;
 
-    r = le_pack(ule_initial, nullptr, 0, nullptr, 0, 0, &le_initial);
+    r = le_pack(ule_initial, nullptr, 0, nullptr, 0, 0, 0, &le_initial, nullptr);
     CKERR(r);
 
     size_t result_memsize = 0;
@@ -457,6 +456,7 @@ test_le_apply(ULE ule_initial, FT_MSG msg, ULE ule_expected) {
     toku_le_apply_msg(msg,
                       le_initial,
                       nullptr,
+                      0,
                       0,
                       &gc_info,
                       &le_result,
@@ -467,7 +467,7 @@ test_le_apply(ULE ule_initial, FT_MSG msg, ULE ule_expected) {
     }
 
     size_t expected_memsize = 0;
-    r = le_pack(ule_expected, nullptr, 0, nullptr, 0, 0, &le_expected);
+    r = le_pack(ule_expected, nullptr, 0, nullptr, 0, 0, 0, &le_expected, nullptr);
     CKERR(r);
     if (le_expected) {
         expected_memsize = leafentry_memsize(le_expected);
@@ -495,17 +495,6 @@ static const ULE_S ule_committed_delete = {
     .uxrs = (UXR_S *)ule_committed_delete.uxrs_static
 };
 
-static FT_MSG_S
-msg_init(enum ft_msg_type type, XIDS xids,
-         DBT *key, DBT *val) {
-    FT_MSG_S msg;
-    msg.type = type;
-    msg.xids = xids;
-    msg.u.id.key = key;
-    msg.u.id.val = val;
-    return msg;
-}
-
 static uint32_t
 next_nesting_level(uint32_t current) {
     uint32_t rval = current + 1;
@@ -530,13 +519,13 @@ generate_committed_for(ULE ule, DBT *val) {
 }
 
 static void
-generate_provpair_for(ULE ule, FT_MSG msg) {
+generate_provpair_for(ULE ule, const ft_msg &msg) {
     uint32_t level;
-    XIDS xids = msg->xids;
+    XIDS xids = msg.xids();
     ule->uxrs = ule->uxrs_static;
 
     ule->num_cuxrs = 1;
-    ule->num_puxrs = xids_get_num_xids(xids);
+    ule->num_puxrs = toku_xids_get_num_xids(xids);
     uint32_t num_uxrs = ule->num_cuxrs + ule->num_puxrs;
     ule->uxrs[0].type   = XR_DELETE;
     ule->uxrs[0].vallen = 0;
@@ -546,12 +535,12 @@ generate_provpair_for(ULE ule, FT_MSG msg) {
         ule->uxrs[level].type   = XR_PLACEHOLDER;
         ule->uxrs[level].vallen = 0;
         ule->uxrs[level].valp   = NULL;
-        ule->uxrs[level].xid    = xids_get_xid(xids, level-1);
+        ule->uxrs[level].xid    = toku_xids_get_xid(xids, level-1);
     }
     ule->uxrs[num_uxrs - 1].type   = XR_INSERT;
-    ule->uxrs[num_uxrs - 1].vallen = msg->u.id.val->size;
-    ule->uxrs[num_uxrs - 1].valp   = msg->u.id.val->data;
-    ule->uxrs[num_uxrs - 1].xid    = xids_get_innermost_xid(xids);
+    ule->uxrs[num_uxrs - 1].vallen = msg.vdbt()->size;
+    ule->uxrs[num_uxrs - 1].valp   = msg.vdbt()->data;
+    ule->uxrs[num_uxrs - 1].xid    = toku_xids_get_innermost_xid(xids);
 }
 
 //Test all the different things that can happen to a
@@ -559,7 +548,6 @@ generate_provpair_for(ULE ule, FT_MSG msg) {
 static void
 test_le_empty_apply(void) {
     ULE_S ule_initial        = ule_committed_delete;
-    FT_MSG_S msg;
 
     DBT key;
     DBT val;
@@ -584,34 +572,41 @@ test_le_empty_apply(void) {
                     //Abort/commit of an empty le is an empty le
                     ULE_S ule_expected = ule_committed_delete;
 
-                    msg = msg_init(FT_COMMIT_ANY, msg_xids,  &key, &val);
-                    test_le_apply(&ule_initial, &msg, &ule_expected);
-                    msg = msg_init(FT_COMMIT_BROADCAST_TXN, msg_xids,  &key, &val);
-                    test_le_apply(&ule_initial, &msg, &ule_expected);
-
-                    msg = msg_init(FT_ABORT_ANY, msg_xids, &key, &val);
-                    test_le_apply(&ule_initial, &msg, &ule_expected);
-                    msg = msg_init(FT_ABORT_BROADCAST_TXN, msg_xids, &key, &val);
-                    test_le_apply(&ule_initial, &msg, &ule_expected);
+                    {
+                        ft_msg msg(&key, &val, FT_COMMIT_ANY, ZERO_MSN, msg_xids);
+                        test_le_apply(&ule_initial, msg, &ule_expected);
+                    }
+                    {
+                        ft_msg msg(&key, &val, FT_COMMIT_BROADCAST_TXN, ZERO_MSN, msg_xids);
+                        test_le_apply(&ule_initial, msg, &ule_expected);
+                    }
+                    {
+                        ft_msg msg(&key, &val, FT_ABORT_ANY, ZERO_MSN, msg_xids);
+                        test_le_apply(&ule_initial, msg, &ule_expected);
+                    }
+                    {
+                        ft_msg msg(&key, &val, FT_ABORT_BROADCAST_TXN, ZERO_MSN, msg_xids);
+                        test_le_apply(&ule_initial, msg, &ule_expected);
+                    }
                 }
                 {
                     //delete of an empty le is an empty le
                     ULE_S ule_expected = ule_committed_delete;
 
-                    msg = msg_init(FT_DELETE_ANY, msg_xids, &key, &val);
-                    test_le_apply(&ule_initial, &msg, &ule_expected);
+                    ft_msg msg(&key, &val, FT_DELETE_ANY, ZERO_MSN, msg_xids);
+                    test_le_apply(&ule_initial, msg, &ule_expected);
                 }
                 {
-                    msg = msg_init(FT_INSERT, msg_xids, &key, &val);
+                    ft_msg msg(&key, &val, FT_INSERT, ZERO_MSN, msg_xids);
                     ULE_S ule_expected;
-                    generate_provpair_for(&ule_expected, &msg);
-                    test_le_apply(&ule_initial, &msg, &ule_expected);
+                    generate_provpair_for(&ule_expected, msg);
+                    test_le_apply(&ule_initial, msg, &ule_expected);
                 }
                 {
-                    msg = msg_init(FT_INSERT_NO_OVERWRITE, msg_xids, &key, &val);
+                    ft_msg msg(&key, &val, FT_INSERT_NO_OVERWRITE, ZERO_MSN, msg_xids);
                     ULE_S ule_expected;
-                    generate_provpair_for(&ule_expected, &msg);
-                    test_le_apply(&ule_initial, &msg, &ule_expected);
+                    generate_provpair_for(&ule_expected, msg);
+                    test_le_apply(&ule_initial, msg, &ule_expected);
                 }
             }
         }
@@ -619,36 +614,36 @@ test_le_empty_apply(void) {
 }
 
 static void
-generate_provdel_for(ULE ule, FT_MSG msg) {
+generate_provdel_for(ULE ule, const ft_msg &msg) {
     uint32_t level;
-    XIDS xids = msg->xids;
+    XIDS xids = msg.xids();
 
     ule->num_cuxrs = 1;
-    ule->num_puxrs = xids_get_num_xids(xids);
+    ule->num_puxrs = toku_xids_get_num_xids(xids);
     uint32_t num_uxrs = ule->num_cuxrs + ule->num_puxrs;
     ule->uxrs[0].type   = XR_INSERT;
-    ule->uxrs[0].vallen = msg->u.id.val->size;
-    ule->uxrs[0].valp   = msg->u.id.val->data;
+    ule->uxrs[0].vallen = msg.vdbt()->size;
+    ule->uxrs[0].valp   = msg.vdbt()->data;
     ule->uxrs[0].xid    = TXNID_NONE;
     for (level = ule->num_cuxrs; level < ule->num_cuxrs + ule->num_puxrs - 1; level++) {
         ule->uxrs[level].type   = XR_PLACEHOLDER;
         ule->uxrs[level].vallen = 0;
         ule->uxrs[level].valp   = NULL;
-        ule->uxrs[level].xid    = xids_get_xid(xids, level-1);
+        ule->uxrs[level].xid    = toku_xids_get_xid(xids, level-1);
     }
     ule->uxrs[num_uxrs - 1].type   = XR_DELETE;
     ule->uxrs[num_uxrs - 1].vallen = 0;
     ule->uxrs[num_uxrs - 1].valp   = NULL;
-    ule->uxrs[num_uxrs - 1].xid    = xids_get_innermost_xid(xids);
+    ule->uxrs[num_uxrs - 1].xid    = toku_xids_get_innermost_xid(xids);
 }
 
 static void
-generate_both_for(ULE ule, DBT *oldval, FT_MSG msg) {
+generate_both_for(ULE ule, DBT *oldval, const ft_msg &msg) {
     uint32_t level;
-    XIDS xids = msg->xids;
+    XIDS xids = msg.xids();
 
     ule->num_cuxrs = 1;
-    ule->num_puxrs = xids_get_num_xids(xids);
+    ule->num_puxrs = toku_xids_get_num_xids(xids);
     uint32_t num_uxrs = ule->num_cuxrs + ule->num_puxrs;
     ule->uxrs[0].type   = XR_INSERT;
     ule->uxrs[0].vallen = oldval->size;
@@ -658,12 +653,12 @@ generate_both_for(ULE ule, DBT *oldval, FT_MSG msg) {
         ule->uxrs[level].type   = XR_PLACEHOLDER;
         ule->uxrs[level].vallen = 0;
         ule->uxrs[level].valp   = NULL;
-        ule->uxrs[level].xid    = xids_get_xid(xids, level-1);
+        ule->uxrs[level].xid    = toku_xids_get_xid(xids, level-1);
     }
     ule->uxrs[num_uxrs - 1].type   = XR_INSERT;
-    ule->uxrs[num_uxrs - 1].vallen = msg->u.id.val->size;
-    ule->uxrs[num_uxrs - 1].valp   = msg->u.id.val->data;
-    ule->uxrs[num_uxrs - 1].xid    = xids_get_innermost_xid(xids);
+    ule->uxrs[num_uxrs - 1].vallen = msg.vdbt()->size;
+    ule->uxrs[num_uxrs - 1].valp   = msg.vdbt()->data;
+    ule->uxrs[num_uxrs - 1].xid    = toku_xids_get_innermost_xid(xids);
 }
 
 //Test all the different things that can happen to a
@@ -672,7 +667,6 @@ static void
 test_le_committed_apply(void) {
     ULE_S ule_initial;
     ule_initial.uxrs = ule_initial.uxrs_static;
-    FT_MSG_S msg;
 
     DBT key;
     DBT val;
@@ -695,23 +689,30 @@ test_le_committed_apply(void) {
             if (nesting_level > 0) {
                 //Commit/abort will not change a committed le
                 ULE_S ule_expected = ule_initial;
-                msg = msg_init(FT_COMMIT_ANY, msg_xids,  &key, &val);
-                test_le_apply(&ule_initial, &msg, &ule_expected);
-                msg = msg_init(FT_COMMIT_BROADCAST_TXN, msg_xids,  &key, &val);
-                test_le_apply(&ule_initial, &msg, &ule_expected);
-
-                msg = msg_init(FT_ABORT_ANY, msg_xids, &key, &val);
-                test_le_apply(&ule_initial, &msg, &ule_expected);
-                msg = msg_init(FT_ABORT_BROADCAST_TXN, msg_xids, &key, &val);
-                test_le_apply(&ule_initial, &msg, &ule_expected);
+                {
+                    ft_msg msg(&key, &val, FT_COMMIT_ANY, ZERO_MSN, msg_xids);
+                    test_le_apply(&ule_initial, msg, &ule_expected);
+                }
+                {
+                    ft_msg msg(&key, &val, FT_COMMIT_BROADCAST_TXN, ZERO_MSN, msg_xids);
+                    test_le_apply(&ule_initial, msg, &ule_expected);
+                }
+                {
+                    ft_msg msg(&key, &val, FT_ABORT_ANY, ZERO_MSN, msg_xids);
+                    test_le_apply(&ule_initial, msg, &ule_expected);
+                }
+                {
+                    ft_msg msg(&key, &val, FT_ABORT_BROADCAST_TXN, ZERO_MSN, msg_xids);
+                    test_le_apply(&ule_initial, msg, &ule_expected);
+                }
             }
 
             {
-                msg = msg_init(FT_DELETE_ANY, msg_xids, &key, &val);
+                ft_msg msg(&key, &val, FT_DELETE_ANY, ZERO_MSN, msg_xids);
                 ULE_S ule_expected;
                 ule_expected.uxrs = ule_expected.uxrs_static;
-                generate_provdel_for(&ule_expected, &msg);
-                test_le_apply(&ule_initial, &msg, &ule_expected);
+                generate_provdel_for(&ule_expected, msg);
+                test_le_apply(&ule_initial, msg, &ule_expected);
             }
 
             {
@@ -720,11 +721,11 @@ test_le_committed_apply(void) {
                 fillrandom(valbuf2, valsize2);
                 DBT val2;
                 toku_fill_dbt(&val2, valbuf2, valsize2);
-                msg = msg_init(FT_INSERT, msg_xids, &key, &val2);
+                ft_msg msg(&key, &val2, FT_INSERT, ZERO_MSN, msg_xids);
                 ULE_S ule_expected;
                 ule_expected.uxrs = ule_expected.uxrs_static;
-                generate_both_for(&ule_expected, &val, &msg);
-                test_le_apply(&ule_initial, &msg, &ule_expected);
+                generate_both_for(&ule_expected, &val, msg);
+                test_le_apply(&ule_initial, msg, &ule_expected);
             }
             {
                 //INSERT_NO_OVERWRITE will not change a committed insert
@@ -734,8 +735,8 @@ test_le_committed_apply(void) {
                 fillrandom(valbuf2, valsize2);
                 DBT val2;
                 toku_fill_dbt(&val2, valbuf2, valsize2);
-                msg = msg_init(FT_INSERT_NO_OVERWRITE, msg_xids, &key, &val2);
-                test_le_apply(&ule_initial, &msg, &ule_expected);
+                ft_msg msg(&key, &val2, FT_INSERT_NO_OVERWRITE, ZERO_MSN, msg_xids);
+                test_le_apply(&ule_initial, msg, &ule_expected);
             }
         }
     }
@@ -749,7 +750,7 @@ test_le_apply_messages(void) {
 
 static bool ule_worth_running_garbage_collection(ULE ule, TXNID oldest_referenced_xid_known) {
     LEAFENTRY le;
-    int r = le_pack(ule, nullptr, 0, nullptr, 0, 0, &le); CKERR(r);
+    int r = le_pack(ule, nullptr, 0, nullptr, 0, 0, 0, &le, nullptr); CKERR(r);
     invariant_notnull(le);
     txn_gc_info gc_info(nullptr, oldest_referenced_xid_known, oldest_referenced_xid_known, true);
     bool worth_running = toku_le_worth_running_garbage_collection(le, &gc_info);
@@ -854,7 +855,6 @@ static void test_le_garbage_collection_birdie(void) {
 }
 
 static void test_le_optimize(void) {
-    FT_MSG_S msg;
     DBT key;
     DBT val;
     ULE_S ule_initial;
@@ -868,11 +868,11 @@ static void test_le_optimize(void) {
     TXNID optimize_txnid = 1000;
     memset(&key, 0, sizeof(key));
     memset(&val, 0, sizeof(val));
-    XIDS root_xids = xids_get_root_xids();
+    XIDS root_xids = toku_xids_get_root_xids();
     XIDS msg_xids; 
-    int r = xids_create_child(root_xids, &msg_xids, optimize_txnid);
+    int r = toku_xids_create_child(root_xids, &msg_xids, optimize_txnid);
     assert(r==0);
-    msg = msg_init(FT_OPTIMIZE, msg_xids, &key, &val);
+    ft_msg msg(&key, &val, FT_OPTIMIZE, ZERO_MSN, msg_xids);
 
     //
     // create the key
@@ -897,8 +897,8 @@ static void test_le_optimize(void) {
     ule_expected.uxrs[0].vallen = valsize;
     ule_expected.uxrs[0].valp = valbuf;
 
-    test_msg_modify_ule(&ule_initial,&msg);
-    verify_ule_equal(&ule_initial,&ule_expected);
+    test_msg_modify_ule(&ule_initial, msg);
+    verify_ule_equal(&ule_initial, &ule_expected);
 
     //
     // add another committed entry and ensure no effect
@@ -915,8 +915,8 @@ static void test_le_optimize(void) {
     ule_expected.uxrs[1].vallen = 0;
     ule_expected.uxrs[1].valp = NULL;
     
-    test_msg_modify_ule(&ule_initial,&msg);
-    verify_ule_equal(&ule_initial,&ule_expected);
+    test_msg_modify_ule(&ule_initial, msg);
+    verify_ule_equal(&ule_initial, &ule_expected);
 
     //
     // now test when there is one provisional, three cases, after, equal, and before FT_OPTIMIZE's transaction
@@ -928,20 +928,20 @@ static void test_le_optimize(void) {
     ule_expected.num_cuxrs = 1;
     ule_expected.num_puxrs = 1;
     ule_expected.uxrs[1].xid = 1500;
-    test_msg_modify_ule(&ule_initial,&msg);
-    verify_ule_equal(&ule_initial,&ule_expected);
+    test_msg_modify_ule(&ule_initial, msg);
+    verify_ule_equal(&ule_initial, &ule_expected);
 
     ule_initial.uxrs[1].xid = 1000;
     ule_expected.uxrs[1].xid = 1000;
-    test_msg_modify_ule(&ule_initial,&msg);
-    verify_ule_equal(&ule_initial,&ule_expected);
+    test_msg_modify_ule(&ule_initial, msg);
+    verify_ule_equal(&ule_initial, &ule_expected);
 
     ule_initial.uxrs[1].xid = 500;
     ule_expected.uxrs[1].xid = 500;
     ule_expected.num_cuxrs = 2;
     ule_expected.num_puxrs = 0;
-    test_msg_modify_ule(&ule_initial,&msg);
-    verify_ule_equal(&ule_initial,&ule_expected);
+    test_msg_modify_ule(&ule_initial, msg);
+    verify_ule_equal(&ule_initial, &ule_expected);
 
     //
     // now test cases with two provisional
@@ -962,13 +962,13 @@ static void test_le_optimize(void) {
     ule_expected.uxrs[2].vallen = valsize;
     ule_expected.uxrs[2].valp = valbuf;
     ule_expected.uxrs[1].xid = 1200;
-    test_msg_modify_ule(&ule_initial,&msg);
-    verify_ule_equal(&ule_initial,&ule_expected);
+    test_msg_modify_ule(&ule_initial, msg);
+    verify_ule_equal(&ule_initial, &ule_expected);
 
     ule_initial.uxrs[1].xid = 1000;
     ule_expected.uxrs[1].xid = 1000;
-    test_msg_modify_ule(&ule_initial,&msg);
-    verify_ule_equal(&ule_initial,&ule_expected);
+    test_msg_modify_ule(&ule_initial, msg);
+    verify_ule_equal(&ule_initial, &ule_expected);
 
     ule_initial.uxrs[1].xid = 800;
     ule_expected.uxrs[1].xid = 800;
@@ -977,12 +977,12 @@ static void test_le_optimize(void) {
     ule_expected.uxrs[1].type = ule_initial.uxrs[2].type;
     ule_expected.uxrs[1].valp = ule_initial.uxrs[2].valp;
     ule_expected.uxrs[1].vallen = ule_initial.uxrs[2].vallen;
-    test_msg_modify_ule(&ule_initial,&msg);
-    verify_ule_equal(&ule_initial,&ule_expected);
+    test_msg_modify_ule(&ule_initial, msg);
+    verify_ule_equal(&ule_initial, &ule_expected);
 
     
-    xids_destroy(&msg_xids);
-    xids_destroy(&root_xids);
+    toku_xids_destroy(&msg_xids);
+    toku_xids_destroy(&root_xids);
 }
 
 //TODO: #1125 tests:
@@ -1020,9 +1020,9 @@ static void test_le_optimize(void) {
 static void
 init_xids(void) {
     uint32_t i;
-    nested_xids[0] = xids_get_root_xids();
+    nested_xids[0] = toku_xids_get_root_xids();
     for (i = 1; i < MAX_TRANSACTION_RECORDS; i++) {
-        int r = xids_create_child(nested_xids[i-1], &nested_xids[i], i * 37 + random() % 36);
+        int r = toku_xids_create_child(nested_xids[i-1], &nested_xids[i], i * 37 + random() % 36);
         assert(r==0);
     }
 }
@@ -1031,7 +1031,7 @@ static void
 destroy_xids(void) {
     uint32_t i;
     for (i = 0; i < MAX_TRANSACTION_RECORDS; i++) {
-        xids_destroy(&nested_xids[i]);
+        toku_xids_destroy(&nested_xids[i]);
     }
 }
 

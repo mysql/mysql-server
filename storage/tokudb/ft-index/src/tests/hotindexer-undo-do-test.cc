@@ -28,7 +28,7 @@ COPYING CONDITIONS NOTICE:
 
 COPYRIGHT NOTICE:
 
-  TokuDB, Tokutek Fractal Tree Indexing Library.
+  TokuFT, Tokutek Fractal Tree Indexing Library.
   Copyright (C) 2007-2013 Tokutek, Inc.
 
 DISCLAIMER:
@@ -95,15 +95,12 @@ PATENT RIGHTS GRANT:
 
 #include "test.h"
 
-#include <ft/tokuconst.h>
-#include <ft/fttypes.h>
-#include <ft/omt.h>
-#include <ft/leafentry.h>
 #include <ft/ule.h>
 #include <ft/ule-internal.h>
 #include <ft/le-cursor.h>
+#include <ft/txn/xids.h>
+
 #include "indexer-internal.h"
-#include <ft/xids-internal.h>
 
 struct txn {
     TXNID xid;

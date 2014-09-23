@@ -29,7 +29,7 @@ COPYING CONDITIONS NOTICE:
 
 COPYRIGHT NOTICE:
 
-  TokuDB, Tokutek Fractal Tree Indexing Library.
+  TokuFT, Tokutek Fractal Tree Indexing Library.
   Copyright (C) 2007-2013 Tokutek, Inc.
 
 DISCLAIMER:
@@ -89,14 +89,14 @@ PATENT RIGHTS GRANT:
 #ident "Copyright (c) 2010-2013 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
-// The purpose of this test is to test the extractor component of the brt loader.  We insert rowsets into the extractor queue and verify temp files 
+// The purpose of this test is to test the extractor component of the ft loader.  We insert rowsets into the extractor queue and verify temp files 
 // after the extractor is finished.
 
 #define DONT_DEPRECATE_MALLOC
 #define DONT_DEPRECATE_WRITES
 #include "test.h"
-#include "ftloader.h"
-#include "ftloader-internal.h"
+#include "loader/loader.h"
+#include "loader/loader-internal.h"
 #include "memory.h"
 #include <portability/toku_path.h>
 
@@ -387,12 +387,12 @@ static void test_extractor(int nrows, int nrowsets, const char *testdir) {
 
     // open the ft_loader. this runs the extractor.
     const int N = 1;
-    FT_HANDLE brts[N];
+    FT_HANDLE fts[N];
     DB* dbs[N];
     const char *fnames[N];
     ft_compare_func compares[N];
     for (int i = 0; i < N; i++) {
-        brts[i] = NULL;
+        fts[i] = NULL;
         dbs[i] = NULL;
         fnames[i] = "";
         compares[i] = compare_int;
@@ -402,7 +402,7 @@ static void test_extractor(int nrows, int nrowsets, const char *testdir) {
     sprintf(temp, "%s/%s", testdir, "tempXXXXXX");
 
     FTLOADER loader;
-    r = toku_ft_loader_open(&loader, NULL, generate, NULL, N, brts, dbs, fnames, compares, temp, ZERO_LSN, nullptr, true, 0, false, true);
+    r = toku_ft_loader_open(&loader, NULL, generate, NULL, N, fts, dbs, fnames, compares, temp, ZERO_LSN, nullptr, true, 0, false, true);
     assert(r == 0);
 
     struct rowset *rowset[nrowsets];
@@ -415,7 +415,7 @@ static void test_extractor(int nrows, int nrowsets, const char *testdir) {
 
     // feed rowsets to the extractor
     for (int i = 0; i < nrowsets; i++) {
-        r = queue_enq(loader->primary_rowset_queue, rowset[i], 1, NULL);
+        r = toku_queue_enq(loader->primary_rowset_queue, rowset[i], 1, NULL);
         assert(r == 0);
     }
     r = toku_ft_loader_finish_extractor(loader);

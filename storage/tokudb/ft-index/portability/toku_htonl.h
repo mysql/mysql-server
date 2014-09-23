@@ -29,7 +29,7 @@ COPYING CONDITIONS NOTICE:
 
 COPYRIGHT NOTICE:
 
-  TokuDB, Tokutek Fractal Tree Indexing Library.
+  TokuFT, Tokutek Fractal Tree Indexing Library.
   Copyright (C) 2007-2013 Tokutek, Inc.
 
 DISCLAIMER:
@@ -86,16 +86,10 @@ PATENT RIGHTS GRANT:
   under this License.
 */
 
+#pragma once
+
 #ident "Copyright (c) 2007-2013 Tokutek Inc.  All rights reserved."
 
-#ifndef _TOKU_HTONL_H
-#define _TOKU_HTONL_H
-
-#if !__linux__ && !__FreeBSD__ && !__sun__
-//#error
-#endif
-
-// TODO: This byte order stuff should all be in once place (ie: portability layer, not toku_include)
 #include <toku_htod.h>
 #include <arpa/inet.h>
 
@@ -106,5 +100,3 @@ static inline uint32_t toku_htonl(uint32_t i) {
 static inline uint32_t toku_ntohl(uint32_t i) {
     return ntohl(i);
 }
-
-#endif

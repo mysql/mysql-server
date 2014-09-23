@@ -1,7 +1,5 @@
 /* -*- mode: C++; c-basic-offset: 4; indent-tabs-mode: nil -*- */
 // vim: ft=cpp:expandtab:ts=8:sw=4:softtabstop=4:
-#ifndef FT_FLUSHER_INTERNAL_H
-#define FT_FLUSHER_INTERNAL_H
 #ident "$Id$"
 /*
 COPYING CONDITIONS NOTICE:
@@ -31,7 +29,7 @@ COPYING CONDITIONS NOTICE:
 
 COPYRIGHT NOTICE:
 
-  TokuDB, Tokutek Fractal Tree Indexing Library.
+  TokuFT, Tokutek Fractal Tree Indexing Library.
   Copyright (C) 2007-2013 Tokutek, Inc.
 
 DISCLAIMER:
@@ -88,10 +86,10 @@ PATENT RIGHTS GRANT:
   under this License.
 */
 
+#pragma once
+
 #ident "Copyright (c) 2007-2013 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
-
-#include <fttypes.h>
 
 #define flt_flush_before_applying_inbox 1
 #define flt_flush_before_child_pin 2
@@ -115,7 +113,7 @@ typedef struct flusher_advice FLUSHER_ADVICE;
  * Cleaner thread merging leaf nodes: follow down to a key
  * Hot optimize table: follow down to the right of a key
  */
-typedef int (*FA_PICK_CHILD)(FT h, FTNODE parent, void* extra);
+typedef int (*FA_PICK_CHILD)(FT ft, FTNODE parent, void* extra);
 
 /**
  * Decide whether to call `toku_ft_flush_some_child` on the child if it is
@@ -139,7 +137,7 @@ typedef bool (*FA_SHOULD_RECURSIVELY_FLUSH)(FTNODE child, void* extra);
  * Hot optimize table: just do the merge
  */
 typedef void (*FA_MAYBE_MERGE_CHILD)(struct flusher_advice *fa,
-                              FT h,
+                              FT ft,
                               FTNODE parent,
                               int childnum,
                               FTNODE child,
@@ -172,7 +170,7 @@ typedef void (*FA_UPDATE_STATUS)(FTNODE child, int dirtied, void* extra);
  * by `ft_split_child`.  If -1 is returned, `ft_split_child` defaults to
  * the old behavior.
  */
-typedef int (*FA_PICK_CHILD_AFTER_SPLIT)(FT h,
+typedef int (*FA_PICK_CHILD_AFTER_SPLIT)(FT ft,
                                          FTNODE node,
                                          int childnuma,
                                          int childnumb,
@@ -223,18 +221,16 @@ dont_destroy_basement_nodes(void* extra);
 
 void
 default_merge_child(struct flusher_advice *fa,
-                    FT h,
+                    FT ft,
                     FTNODE parent,
                     int childnum,
                     FTNODE child,
                     void* extra);
 
 int
-default_pick_child_after_split(FT h,
+default_pick_child_after_split(FT ft,
                                FTNODE parent,
                                int childnuma,
                                int childnumb,
                                void *extra);
 
-
-#endif // End of header guardian.

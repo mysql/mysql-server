@@ -230,22 +230,16 @@ pthread_handler_t handle_slave_sql(void *arg);
 bool net_request_file(NET* net, const char* fname);
 
 extern bool volatile abort_loop;
-extern Master_info main_mi, *active_mi; /* active_mi for multi-master */
-extern LIST master_list;
+extern Master_info *active_mi; /* active_mi for multi-master */
 extern my_bool replicate_same_server_id;
 
 extern int disconnect_slave_event_count, abort_slave_event_count ;
 
 /* the master variables are defaults read from my.cnf or command line */
-extern uint master_port, master_connect_retry, report_port;
-extern char * master_user, *master_password, *master_host;
+extern uint report_port;
 extern char *master_info_file, *report_user;
 extern char *report_host, *report_password;
 
-extern my_bool master_ssl;
-extern char *master_ssl_ca, *master_ssl_capath, *master_ssl_cert;
-extern char *master_ssl_cipher, *master_ssl_key;
-       
 extern I_List<THD> threads;
 
 #else

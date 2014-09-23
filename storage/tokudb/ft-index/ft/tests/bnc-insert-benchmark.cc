@@ -29,7 +29,7 @@ COPYING CONDITIONS NOTICE:
 
 COPYRIGHT NOTICE:
 
-  TokuDB, Tokutek Fractal Tree Indexing Library.
+  TokuFT, Tokutek Fractal Tree Indexing Library.
   Copyright (C) 2007-2013 Tokutek, Inc.
 
 DISCLAIMER:
@@ -127,15 +127,18 @@ run_test(unsigned long eltsize, unsigned long nodesize, unsigned long repeat)
             *p = (rand() & 0xff);
         }
     }
-    XIDS xids_0 = xids_get_root_xids();
+    XIDS xids_0 = toku_xids_get_root_xids();
     XIDS xids_123;
-    int r = xids_create_child(xids_0, &xids_123, (TXNID)123);
+    int r = toku_xids_create_child(xids_0, &xids_123, (TXNID)123);
     CKERR(r);
 
     NONLEAF_CHILDINFO bnc;
     long long unsigned nbytesinserted = 0;
     struct timeval t[2];
     gettimeofday(&t[0], NULL);
+
+    toku::comparator cmp;
+    cmp.create(long_key_cmp, nullptr);
 
     for (unsigned int i = 0; i < repeat; ++i) {
         bnc = toku_create_empty_nl();
@@ -144,7 +147,7 @@ run_test(unsigned long eltsize, unsigned long nodesize, unsigned long repeat)
                                 &keys[cur % 1024], sizeof keys[cur % 1024],
                                 vals[cur % 1024], eltsize - (sizeof keys[cur % 1024]),
                                 FT_NONE, next_dummymsn(), xids_123, true,
-                                NULL, long_key_cmp); assert_zero(r);
+                                cmp); assert_zero(r);
         }
         nbytesinserted += toku_bnc_nbytesinbuf(bnc);
         destroy_nonleaf_childinfo(bnc);
@@ -157,6 +160,8 @@ run_test(unsigned long eltsize, unsigned long nodesize, unsigned long repeat)
     long long unsigned eltrate = (long) (cur / dt);
     printf("%0.03lf MB/sec\n", mbrate);
     printf("%llu elts/sec\n", eltrate);
+
+    cmp.destroy();
 }
 
 int

@@ -29,7 +29,7 @@ COPYING CONDITIONS NOTICE:
 
 COPYRIGHT NOTICE:
 
-  TokuDB, Tokutek Fractal Tree Indexing Library.
+  TokuFT, Tokutek Fractal Tree Indexing Library.
   Copyright (C) 2007-2013 Tokutek, Inc.
 
 DISCLAIMER:
@@ -96,7 +96,7 @@ static const char *fname = TOKU_TEST_FILENAME;
 static TOKUTXN const null_txn = 0;
 
 static int
-save_data (ITEMLEN UU(keylen), bytevec UU(key), ITEMLEN vallen, bytevec val, void *v, bool lock_only) {
+save_data (uint32_t UU(keylen), const void *UU(key), uint32_t vallen, const void *val, void *v, bool lock_only) {
     if (lock_only) return 0;
     assert(key!=NULL);
     void **CAST_FROM_VOIDP(vp, v);
@@ -106,21 +106,21 @@ save_data (ITEMLEN UU(keylen), bytevec UU(key), ITEMLEN vallen, bytevec val, voi
 
 
 // Verify that different cursors return different data items when a DBT is initialized to all zeros (no flags)
-// Note: The BRT test used to implement DBTs with per-cursor allocated space, but there isn't any such thing any more
+// Note: The ft test used to implement DBTs with per-cursor allocated space, but there isn't any such thing any more
 // so this test is a little bit obsolete.
 static void test_multiple_ft_cursor_dbts(int n) {
     if (verbose) printf("test_multiple_ft_cursors:%d\n", n);
 
     int r;
     CACHETABLE ct;
-    FT_HANDLE brt;
+    FT_HANDLE ft;
     FT_CURSOR cursors[n];
 
     unlink(fname);
 
-    toku_cachetable_create(&ct, 0, ZERO_LSN, NULL_LOGGER);
+    toku_cachetable_create(&ct, 0, ZERO_LSN, nullptr);
 
-    r = toku_open_ft_handle(fname, 1, &brt, 1<<12, 1<<9, TOKU_DEFAULT_COMPRESSION_METHOD, ct, null_txn, toku_builtin_compare_fun);
+    r = toku_open_ft_handle(fname, 1, &ft, 1<<12, 1<<9, TOKU_DEFAULT_COMPRESSION_METHOD, ct, null_txn, toku_builtin_compare_fun);
     assert(r==0);
 
     int i;
@@ -129,14 +129,14 @@ static void test_multiple_ft_cursor_dbts(int n) {
 	char key[10],val[10];
 	snprintf(key, sizeof key, "k%04d", i);
 	snprintf(val, sizeof val, "v%04d", i);
-	toku_ft_insert(brt,
+	toku_ft_insert(ft,
                        toku_fill_dbt(&kbt, key, 1+strlen(key)),
                        toku_fill_dbt(&vbt, val, 1+strlen(val)),
                        0);
     }
 
     for (i=0; i<n; i++) {
-        r = toku_ft_cursor(brt, &cursors[i], NULL, false, false);
+        r = toku_ft_cursor(ft, &cursors[i], NULL, false, false);
         assert(r == 0);
     }
 
@@ -166,7 +166,7 @@ static void test_multiple_ft_cursor_dbts(int n) {
 	toku_free(ptrs[i]);
     }
 
-    r = toku_close_ft_handle_nolsn(brt, 0);
+    r = toku_close_ft_handle_nolsn(ft, 0);
     assert(r==0);
 
     toku_cachetable_close(&ct);

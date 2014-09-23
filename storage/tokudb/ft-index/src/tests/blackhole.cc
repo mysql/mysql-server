@@ -29,7 +29,7 @@ COPYING CONDITIONS NOTICE:
 
 COPYRIGHT NOTICE:
 
-  TokuDB, Tokutek Fractal Tree Indexing Library.
+  TokuFT, Tokutek Fractal Tree Indexing Library.
   Copyright (C) 2007-2013 Tokutek, Inc.
 
 DISCLAIMER:
@@ -92,7 +92,7 @@ PATENT RIGHTS GRANT:
 // Test that a db ignores insert messages in blackhole mode
 
 #include "test.h"
-#include <ft/ybt.h>
+#include <util/dbt.h>
 
 static DB *db;
 static DB *blackhole_db;

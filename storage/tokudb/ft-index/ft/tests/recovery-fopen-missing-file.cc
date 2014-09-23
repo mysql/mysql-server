@@ -29,7 +29,7 @@ COPYING CONDITIONS NOTICE:
 
 COPYRIGHT NOTICE:
 
-  TokuDB, Tokutek Fractal Tree Indexing Library.
+  TokuFT, Tokutek Fractal Tree Indexing Library.
   Copyright (C) 2007-2013 Tokutek, Inc.
 
 DISCLAIMER:
@@ -109,7 +109,7 @@ run_test(void) {
     toku_log_begin_checkpoint(logger, &beginlsn, true, 0, 0);
     toku_log_end_checkpoint(logger, NULL, true, beginlsn, 0, 0, 0);
 
-    BYTESTRING iname  = { (uint32_t) strlen("missing_tokudb_file"), (char *) "missing_tokudb_file" };
+    BYTESTRING iname  = { (uint32_t) strlen("missing_tokuft_file"), (char *) "missing_tokuft_file" };
     FILENUM filenum = {42};
     uint32_t treeflags = 0;
     toku_log_fopen(logger, NULL, true, iname, filenum, treeflags);
@@ -122,7 +122,7 @@ run_test(void) {
     r = close(devnul);                      assert(r==0);
 
     // run recovery
-    r = tokudb_recover(NULL,
+    r = tokuft_recover(NULL,
 		       NULL_prepared_txn_callback,
 		       NULL_keep_cachetable_callback,
 		       NULL_logger, TOKU_TEST_FILENAME, TOKU_TEST_FILENAME, 0, 0, 0, NULL, 0); 

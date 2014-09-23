@@ -29,7 +29,7 @@ COPYING CONDITIONS NOTICE:
 
 COPYRIGHT NOTICE:
 
-  TokuDB, Tokutek Fractal Tree Indexing Library.
+  TokuFT, Tokutek Fractal Tree Indexing Library.
   Copyright (C) 2007-2013 Tokutek, Inc.
 
 DISCLAIMER:
@@ -92,7 +92,7 @@ PATENT RIGHTS GRANT:
 /* Is it feasible to run 4 billion transactions in one test in the regression tests? */
 #include <db.h>
 #include <sys/stat.h>
-#include <ft/log.h>
+#include <ft/logger/log.h>
 #include <src/ydb_txn.h>
 
 static void

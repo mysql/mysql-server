@@ -29,7 +29,7 @@ COPYING CONDITIONS NOTICE:
 
 COPYRIGHT NOTICE:
 
-  TokuDB, Tokutek Fractal Tree Indexing Library.
+  TokuFT, Tokutek Fractal Tree Indexing Library.
   Copyright (C) 2007-2013 Tokutek, Inc.
 
 DISCLAIMER:
@@ -87,15 +87,18 @@ PATENT RIGHTS GRANT:
 */
 
 #ident "Copyright (c) 2009-2013 Tokutek Inc.  All rights reserved."
-#include "test.h"
-#include <stdio.h>
+#include <db.h>
 
+#include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <memory.h>
 #include <sys/stat.h>
-#include <db.h>
-#include <ft/tokuconst.h>
+
+#include "src/tests/test.h"
+
+#include <ft/txn/xids.h>
+
 #define MAX_NEST MAX_TRANSACTION_RECORDS
 #define MAX_SIZE MAX_TRANSACTION_RECORDS
 

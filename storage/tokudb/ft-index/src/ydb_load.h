@@ -1,8 +1,6 @@
 /* -*- mode: C++; c-basic-offset: 4; indent-tabs-mode: nil -*- */
 // vim: ft=cpp:expandtab:ts=8:sw=4:softtabstop=4:
 #ident "$Id$"
-#ifndef YDB_LOAD_H
-#define YDB_LOAD_H
 
 /*
 COPYING CONDITIONS NOTICE:
@@ -32,7 +30,7 @@ COPYING CONDITIONS NOTICE:
 
 COPYRIGHT NOTICE:
 
-  TokuDB, Tokutek Fractal Tree Indexing Library.
+  TokuFT, Tokutek Fractal Tree Indexing Library.
   Copyright (C) 2007-2013 Tokutek, Inc.
 
 DISCLAIMER:
@@ -89,7 +87,7 @@ PATENT RIGHTS GRANT:
   under this License.
 */
 
-#ident "Copyright (c) 2010-2013 Tokutek Inc.  All rights reserved."
+#pragma once
 
 /*  ydb functions used by loader
  */
@@ -104,7 +102,7 @@ PATENT RIGHTS GRANT:
 // The new inames are returned to the caller.  
 // It is the caller's responsibility to free them.
 // If "mark_as_loader" is true, then include a mark in the iname
-// to indicate that the file is created by the brt loader.
+// to indicate that the file is created by the ft loader.
 // Return 0 on success (could fail if write lock not available).
 int locked_load_inames(DB_ENV * env,
                        DB_TXN * txn,
@@ -113,5 +111,3 @@ int locked_load_inames(DB_ENV * env,
                        char * new_inames_in_env[/*N*/], /* out */
                        LSN *load_lsn,
                        bool mark_as_loader);
-
-#endif

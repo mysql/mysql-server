@@ -28,7 +28,7 @@ COPYING CONDITIONS NOTICE:
 
 COPYRIGHT NOTICE:
 
-  TokuDB, Tokutek Fractal Tree Indexing Library.
+  TokuFT, Tokutek Fractal Tree Indexing Library.
   Copyright (C) 2007-2013 Tokutek, Inc.
 
 DISCLAIMER:
@@ -104,7 +104,6 @@ DB** db_array;
 DB* states;
 static const int percent_do_op = 20;
 static const int percent_do_abort = 25;
-static const int commit_abort_ratio = 3;
 static const int start_crashing_iter = 10;
 // iterations_per_crash_in_recovery should be an odd number;
 static const int iterations_per_crash_in_recovery = 7;

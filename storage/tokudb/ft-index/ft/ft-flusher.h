@@ -1,7 +1,5 @@
 /* -*- mode: C++; c-basic-offset: 4; indent-tabs-mode: nil -*- */
 // vim: ft=cpp:expandtab:ts=8:sw=4:softtabstop=4:
-#ifndef FT_FLUSHER_H
-#define FT_FLUSHER_H
 #ident "$Id$"
 /*
 COPYING CONDITIONS NOTICE:
@@ -31,7 +29,7 @@ COPYING CONDITIONS NOTICE:
 
 COPYRIGHT NOTICE:
 
-  TokuDB, Tokutek Fractal Tree Indexing Library.
+  TokuFT, Tokutek Fractal Tree Indexing Library.
   Copyright (C) 2007-2013 Tokutek, Inc.
 
 DISCLAIMER:
@@ -88,11 +86,12 @@ PATENT RIGHTS GRANT:
   under this License.
 */
 
+#pragma once
+
 #ident "Copyright (c) 2007-2013 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
-// This must be first to make the 64-bit file mode work right in Linux
-#include "fttypes.h"
+#include "ft/ft-internal.h"
 
 typedef enum {
     FT_FLUSHER_CLEANER_TOTAL_NODES = 0,     // total number of nodes whose buffers are potentially flushed by cleaner thread
@@ -124,7 +123,7 @@ typedef enum {
     FT_FLUSHER_SPLIT_NONLEAF,               // number of nonleaf nodes split
     FT_FLUSHER_MERGE_LEAF,                  // number of times leaf nodes are merged
     FT_FLUSHER_MERGE_NONLEAF,               // number of times nonleaf nodes are merged
-    FT_FLUSHER_BALANCE_LEAF,                // number of times a leaf node is balanced inside brt
+    FT_FLUSHER_BALANCE_LEAF,                // number of times a leaf node is balanced
     FT_FLUSHER_STATUS_NUM_ROWS
 } ft_flusher_status_entry;
 
@@ -152,10 +151,31 @@ toku_flusher_thread_set_callback(
  * Puts a workitem on the flusher thread queue, scheduling the node to be
  * flushed by toku_ft_flush_some_child.
  */
-void
-toku_ft_flush_node_on_background_thread(
+void toku_ft_flush_node_on_background_thread(FT ft, FTNODE parent);
+
+enum split_mode {
+    SPLIT_EVENLY,
+    SPLIT_LEFT_HEAVY,
+    SPLIT_RIGHT_HEAVY
+};
+
+
+// Given pinned node and pinned child, split child into two
+// and update node with information about its new child.
+void toku_ft_split_child(
     FT ft,
-    FTNODE parent
+    FTNODE node,
+    int childnum,
+    FTNODE child,
+    enum split_mode split_mode
+    );
+
+// Given pinned node, merge childnum with a neighbor and update node with
+// information about the change
+void toku_ft_merge_child(
+    FT ft,
+    FTNODE node,
+    int childnum
     );
 
 /**
@@ -166,9 +186,10 @@ toku_ft_flush_node_on_background_thread(
  *   nodea is the left node that results from the split
  *   splitk is the right-most key of nodea
  */
+// TODO: Rename toku_ft_leaf_split
 void
 ftleaf_split(
-    FT h,
+    FT ft,
     FTNODE node,
     FTNODE *nodea,
     FTNODE *nodeb,
@@ -189,8 +210,9 @@ ftleaf_split(
  *    but it does not guarantee that the resulting nodes are smaller than nodesize.
  */
 void
+// TODO: Rename toku_ft_nonleaf_split
 ft_nonleaf_split(
-    FT h,
+    FT ft,
     FTNODE node,
     FTNODE *nodea,
     FTNODE *nodeb,
@@ -198,8 +220,6 @@ ft_nonleaf_split(
     uint32_t num_dependent_nodes,
     FTNODE* dependent_nodes
     );
-
-
 
 /************************************************************************
  * HOT optimize, should perhaps be factored out to its own header file  *
@@ -230,8 +250,6 @@ void toku_ft_hot_get_status(FT_HOT_STATUS);
  * we go until the end of the FT.
  */
 int
-toku_ft_hot_optimize(FT_HANDLE brt, DBT* left, DBT* right,
-                      int (*progress_callback)(void *extra, float progress),
-                      void *progress_extra, uint64_t* loops_run);
-
-#endif // End of header guardian.
+toku_ft_hot_optimize(FT_HANDLE ft_h, DBT* left, DBT* right,
+                     int (*progress_callback)(void *extra, float progress),
+                     void *progress_extra, uint64_t* loops_run);

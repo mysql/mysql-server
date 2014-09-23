@@ -29,7 +29,7 @@ COPYING CONDITIONS NOTICE:
 
 COPYRIGHT NOTICE:
 
-  TokuDB, Tokutek Fractal Tree Indexing Library.
+  TokuFT, Tokutek Fractal Tree Indexing Library.
   Copyright (C) 2007-2013 Tokutek, Inc.
 
 DISCLAIMER:
@@ -86,11 +86,10 @@ PATENT RIGHTS GRANT:
   under this License.
 */
 
+#pragma once
+
 #ident "Copyright (c) 2007-2013 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
-
-#ifndef KEYRANGE_H
-#define KEYRANGE_H
 
 #include <ft/comparator.h>
 
@@ -118,7 +117,7 @@ public:
     // effect: extends the keyrange by choosing the leftmost and rightmost
     //         endpoints from this range and the given range.
     //         replaced keys in this range are freed, new keys are copied.
-    void extend(comparator *cmp, const keyrange &range);
+    void extend(const comparator &cmp, const keyrange &range);
 
     // returns: the amount of memory this keyrange takes. does not account
     //          for point optimizations or malloc overhead.
@@ -144,10 +143,10 @@ public:
     //          EQUALS       if given range has the same left and right endpoints
     //          OVERLAPS     if at least one of the given range's endpoints falls
     //                       between this range's endpoints
-    comparison compare(comparator *cmp, const keyrange &range) const;
+    comparison compare(const comparator &cmp, const keyrange &range) const;
 
     // returns: true if the range and the given range are equal or overlapping
-    bool overlaps(comparator *cmp, const keyrange &range) const;
+    bool overlaps(const comparator &cmp, const keyrange &range) const;
 
     // returns: a keyrange representing -inf, +inf
     static keyrange get_infinite_range(void);
@@ -184,5 +183,3 @@ private:
 };
 
 } /* namespace toku */
-
-#endif /* KEYRANGE_H */

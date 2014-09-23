@@ -28,7 +28,7 @@ COPYING CONDITIONS NOTICE:
 
 COPYRIGHT NOTICE:
 
-  TokuDB, Tokutek Fractal Tree Indexing Library.
+  TokuFT, Tokutek Fractal Tree Indexing Library.
   Copyright (C) 2007-2013 Tokutek, Inc.
 
 DISCLAIMER:
@@ -193,7 +193,7 @@ static void setup(void) {
         src_db_dir = db_v5_dir;
     }
     else {
-        fprintf(stderr, "unsupported TokuDB version %d to upgrade\n", SRC_VERSION);
+        fprintf(stderr, "unsupported TokuFT version %d to upgrade\n", SRC_VERSION);
         assert(0);
     }
 

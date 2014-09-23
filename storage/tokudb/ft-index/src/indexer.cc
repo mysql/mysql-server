@@ -28,7 +28,7 @@ COPYING CONDITIONS NOTICE:
 
 COPYRIGHT NOTICE:
 
-  TokuDB, Tokutek Fractal Tree Indexing Library.
+  TokuFT, Tokutek Fractal Tree Indexing Library.
   Copyright (C) 2007-2013 Tokutek, Inc.
 
 DISCLAIMER:
@@ -99,13 +99,12 @@ PATENT RIGHTS GRANT:
 #include "ydb-internal.h"
 #include <ft/le-cursor.h>
 #include "indexer.h"
-#include <ft/tokuconst.h>
 #include <ft/ft-ops.h>
 #include <ft/leafentry.h>
 #include <ft/ule.h>
-#include <ft/xids.h>
-#include <ft/log-internal.h>
-#include <ft/checkpoint.h>
+#include <ft/txn/xids.h>
+#include <ft/logger/log-internal.h>
+#include <ft/cachetable/checkpoint.h>
 #include <portability/toku_atomic.h>
 #include "loader.h"
 #include <util/status.h>
@@ -118,7 +117,7 @@ PATENT RIGHTS GRANT:
 
 static INDEXER_STATUS_S indexer_status;
 
-#define STATUS_INIT(k,c,t,l,inc) TOKUDB_STATUS_INIT(indexer_status, k, c, t, "indexer: " l, inc)
+#define STATUS_INIT(k,c,t,l,inc) TOKUFT_STATUS_INIT(indexer_status, k, c, t, "indexer: " l, inc)
 
 static void
 status_init(void) {
@@ -233,32 +232,25 @@ toku_indexer_unlock(DB_INDEXER* indexer) {
 // after grabbing the indexer lock
 bool
 toku_indexer_may_insert(DB_INDEXER* indexer, const DBT* key) {
-    bool retval = false;
+    bool may_insert = false;
     toku_mutex_lock(&indexer->i->indexer_estimate_lock);
+
     // if we have no position estimate, we can't tell, so return false
-    if (indexer->i->position_estimate.data == NULL) {
-        retval = false;
-    }
-    else {
-        FT_HANDLE ft_handle = indexer->i->src_db->i->ft_handle;
-        ft_compare_func keycompare = toku_ft_get_bt_compare(ft_handle);        
-        int r = keycompare(
-            indexer->i->src_db, 
-            &indexer->i->position_estimate, 
-            key
-            );
+    if (indexer->i->position_estimate.data == nullptr) {
+        may_insert = false;
+    } else {
+        DB *db = indexer->i->src_db;
+        const toku::comparator &cmp = toku_ft_get_comparator(db->i->ft_handle);
+        int c = cmp(&indexer->i->position_estimate, key);
+
         // if key > position_estimate, then we know the indexer cursor
         // is past key, and we can safely say that associated values of 
         // key must be inserted into the indexer's db
-        if (r  < 0) {
-            retval = true;
-        }
-        else {
-            retval = false;
-        }
+        may_insert = c < 0;
     }
+
     toku_mutex_unlock(&indexer->i->indexer_estimate_lock);
-    return retval;
+    return may_insert;
 }
 
 void
@@ -546,7 +538,7 @@ struct le_cursor_extra {
 // cachetable pair locks. because no txn can commit on this db, read
 // the provisional info for the newly read ule.
 static int
-le_cursor_callback(ITEMLEN keylen, bytevec key, ITEMLEN UU(vallen), bytevec val, void *extra, bool lock_only) {
+le_cursor_callback(uint32_t keylen, const void *key, uint32_t UU(vallen), const void *val, void *extra, bool lock_only) {
     if (lock_only || val == NULL) {
         ; // do nothing if only locking. do nothing if val==NULL, means DB_NOTFOUND
     } else {
@@ -696,7 +688,7 @@ abort_indexer(DB_INDEXER *indexer) {
 }
 
 
-// derived from ha_tokudb::estimate_num_rows
+// derived from the handlerton's estimate_num_rows()
 static int
 update_estimated_rows(DB_INDEXER *indexer) {
     int error;

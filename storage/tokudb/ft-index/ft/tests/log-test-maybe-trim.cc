@@ -29,7 +29,7 @@ COPYING CONDITIONS NOTICE:
 
 COPYRIGHT NOTICE:
 
-  TokuDB, Tokutek Fractal Tree Indexing Library.
+  TokuFT, Tokutek Fractal Tree Indexing Library.
   Copyright (C) 2007-2013 Tokutek, Inc.
 
 DISCLAIMER:
@@ -91,7 +91,7 @@ PATENT RIGHTS GRANT:
 // verify that the log file trimmer does not delete the log file containing the
 // begin checkpoint when the checkpoint log entries span multiple log files.
 
-#include "logcursor.h"
+#include "logger/logcursor.h"
 #include "test.h"
 
 int

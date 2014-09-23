@@ -6,9 +6,6 @@
  * requirements of the nested transaction logic belongs here.
  */
 
-#ifndef TOKU_ULE_H
-#define TOKU_ULE_H
-
 #ident "$Id$"
 /*
 COPYING CONDITIONS NOTICE:
@@ -38,7 +35,7 @@ COPYING CONDITIONS NOTICE:
 
 COPYRIGHT NOTICE:
 
-  TokuDB, Tokutek Fractal Tree Indexing Library.
+  TokuFT, Tokutek Fractal Tree Indexing Library.
   Copyright (C) 2007-2013 Tokutek, Inc.
 
 DISCLAIMER:
@@ -95,11 +92,13 @@ PATENT RIGHTS GRANT:
   under this License.
 */
 
+#pragma once
+
 #ident "Copyright (c) 2007-2013 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
 #include "leafentry.h"
-#include "txn_manager.h"
+#include "txn/txn_manager.h"
 #include <util/mempool.h>
 
 void toku_ule_status_init(void);
@@ -130,5 +129,3 @@ TXNID uxr_get_txnid(UXRHANDLE uxr);
 
 //1 does much slower debugging
 #define GARBAGE_COLLECTION_DEBUG 0
-
-#endif  // TOKU_ULE_H

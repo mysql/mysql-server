@@ -29,7 +29,7 @@ COPYING CONDITIONS NOTICE:
 
 COPYRIGHT NOTICE:
 
-  TokuDB, Tokutek Fractal Tree Indexing Library.
+  TokuFT, Tokutek Fractal Tree Indexing Library.
   Copyright (C) 2007-2013 Tokutek, Inc.
 
 DISCLAIMER:
@@ -89,21 +89,10 @@ PATENT RIGHTS GRANT:
 #ident "Copyright (c) 2007-2013 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
-#ifndef UTIL_SORT_H
-#define UTIL_SORT_H
+#pragma once
 
 #include <string.h>
 #include <memory.h>
-
-#if defined(HAVE_CILK)
-#include <cilk/cilk.h>
-#define cilk_worker_count (__cilkrts_get_nworkers())
-#else
-#define cilk_spawn
-#define cilk_sync
-#define cilk_for for
-#define cilk_worker_count 1
-#endif
 
 namespace toku {
 
@@ -148,9 +137,8 @@ namespace toku {
             }
             const int mid = n / 2;
             sortdata_t *right_as[2] = { &(as[0])[mid], &(as[1])[mid] };
-            const int r1 = cilk_spawn mergesort_internal(as, which, mid, extra);
+            const int r1 = mergesort_internal(as, which, mid, extra);
             const int r2 = mergesort_internal(right_as, which, n - mid, extra);
-            cilk_sync;
             if (r1 != r2) {
                 // move everything to the same place (r2)
                 memcpy(as[r2], as[r1], mid * (sizeof as[r2][0]));
@@ -222,9 +210,8 @@ namespace toku {
                 const int a2 = an / 2;
                 const sortdata_t *akey = &a[a2];
                 const int b2 = binsearch(*akey, b, bn, 0, extra);
-                cilk_spawn merge(dest, a, a2, b, b2, extra);
+                merge(dest, a, a2, b, b2, extra);
                 merge(&dest[a2 + b2], akey, an - a2, &b[b2], bn - b2, extra);
-                cilk_sync;
             }
         }
 
@@ -272,5 +259,3 @@ namespace toku {
     };
 
 };
-
-#endif // UTIL_SORT_H

@@ -28,7 +28,7 @@ COPYING CONDITIONS NOTICE:
 
 COPYRIGHT NOTICE:
 
-  TokuDB, Tokutek Fractal Tree Indexing Library.
+  TokuFT, Tokutek Fractal Tree Indexing Library.
   Copyright (C) 2007-2013 Tokutek, Inc.
 
 DISCLAIMER:
@@ -115,7 +115,7 @@ const char *toku_patent_string = "COPYING CONDITIONS NOTICE:\n\
 \n\
 COPYRIGHT NOTICE:\n\
 \n\
-  TokuDB, Tokutek Fractal Tree Indexing Library.\n\
+  TokuFT, Tokutek Fractal Tree Indexing Library.\n\
   Copyright (C) 2007-2013 Tokutek, Inc.\n\
 \n\
 DISCLAIMER:\n\

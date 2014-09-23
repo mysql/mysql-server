@@ -29,7 +29,7 @@ COPYING CONDITIONS NOTICE:
 
 COPYRIGHT NOTICE:
 
-  TokuDB, Tokutek Fractal Tree Indexing Library.
+  TokuFT, Tokutek Fractal Tree Indexing Library.
   Copyright (C) 2007-2013 Tokutek, Inc.
 
 DISCLAIMER:
@@ -89,12 +89,12 @@ PATENT RIGHTS GRANT:
 #ident "Copyright (c) 2007-2013 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
-#include <toku_race_tools.h>
+#include "portability/toku_race_tools.h"
 
-#include <ft/ybt.h>
-
-#include "locktree.h"
-#include "lock_request.h"
+#include "ft/txn/txn.h"
+#include "locktree/locktree.h"
+#include "locktree/lock_request.h"
+#include "util/dbt.h"
 
 namespace toku {
 
@@ -338,7 +338,7 @@ int lock_request::retry(void) {
 }
 
 void lock_request::retry_all_lock_requests(locktree *lt) {
-    locktree::lt_lock_request_info *info = lt->get_lock_request_info();
+    lt_lock_request_info *info = lt->get_lock_request_info();
 
     // if a thread reads this bit to be true, then it should go ahead and
     // take the locktree mutex and retry lock requests. we use this bit

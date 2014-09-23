@@ -29,7 +29,7 @@ COPYING CONDITIONS NOTICE:
 
 COPYRIGHT NOTICE:
 
-  TokuDB, Tokutek Fractal Tree Indexing Library.
+  TokuFT, Tokutek Fractal Tree Indexing Library.
   Copyright (C) 2007-2013 Tokutek, Inc.
 
 DISCLAIMER:
@@ -97,13 +97,12 @@ PATENT RIGHTS GRANT:
 
 #include "ft-flusher.h"
 
-#include "checkpoint.h"
+#include "cachetable/checkpoint.h"
 
 static TOKUTXN const null_txn = NULL;
-static DB * const null_db = NULL;
 
 static int
-noop_getf(ITEMLEN UU(keylen), bytevec UU(key), ITEMLEN UU(vallen), bytevec UU(val), void *extra, bool UU(lock_only))
+noop_getf(uint32_t UU(keylen), const void *UU(key), uint32_t UU(vallen), const void *UU(val), void *extra, bool UU(lock_only))
 {
     int *CAST_FROM_VOIDP(calledp, extra);
     (*calledp)++;
@@ -176,7 +175,7 @@ with_open_tree(const char *fname, tree_cb cb, void *cb_extra)
     FT_HANDLE t;
     CACHETABLE ct;
 
-    toku_cachetable_create(&ct, 16*(1<<20), ZERO_LSN, NULL_LOGGER);
+    toku_cachetable_create(&ct, 16*(1<<20), ZERO_LSN, nullptr);
     r = toku_open_ft_handle(fname, 
                       0, 
                       &t, 

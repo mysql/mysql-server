@@ -7,15 +7,17 @@ set_source_files_properties(
   "${CMAKE_CURRENT_BINARY_DIR}/log_header.h"
   PROPERTIES GENERATED TRUE)
 
-add_executable(logformat logformat.cc)
+add_executable(logformat logger/logformat.cc)
 target_link_libraries(logformat ${LIBTOKUPORTABILITY}_static)
+add_space_separated_property(TARGET logformat LINK_FLAGS --coverage)
+
 
 add_custom_command(
   OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/log_code.cc"
   OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/log_print.cc"
   OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/log_header.h"
   COMMAND $<TARGET_FILE:logformat> .
-  DEPENDS logformat
+  DEPENDS logger/logformat
   )
 add_custom_target(
   generate_log_code
@@ -23,55 +25,52 @@ add_custom_target(
   )
 
 set(FT_SOURCES
-  background_job_manager
-  block_allocator
-  block_table
   bndata
-  cachetable
-  checkpoint
-  compress
-  dbufio
-  fifo
+  cachetable/background_job_manager
+  cachetable/cachetable
+  cachetable/checkpoint
+  cursor
   ft
   ft-cachetable-wrappers
   ft-flusher
   ft-hot-flusher
-  ftloader
-  ftloader-callback
-  ft_msg
-  ft_node-serialize
-  ft-node-deserialize
   ft-ops
-  ft-serialize
   ft-test-helpers
   ft-verify
-  key
+  loader/callbacks
+  loader/dbufio
+  loader/loader
+  loader/pqueue
   leafentry
   le-cursor
-  logcursor
-  logfilemgr
-  logger
-  log_upgrade
-  memarena
-  minicron
-  omt
-  pqueue
-  queue
-  quicklz
-  recover
-  rollback
-  rollback-apply
-  rollback-ct-callbacks
-  rollback_log_node_cache
-  roll
-  sub_block
-  txn
-  txn_child_manager
-  txn_manager
+  logger/logcursor
+  logger/logfilemgr
+  logger/logger
+  logger/log_upgrade
+  logger/recover
+  msg
+  msg_buffer
+  node
+  pivotkeys
+  serialize/block_allocator
+  serialize/block_allocator_strategy
+  serialize/block_table
+  serialize/compress
+  serialize/ft_node-serialize
+  serialize/ft-node-deserialize
+  serialize/ft-serialize
+  serialize/quicklz
+  serialize/sub_block
+  txn/rollback
+  txn/rollback-apply
+  txn/rollback-ct-callbacks
+  txn/rollback_log_node_cache
+  txn/roll
+  txn/txn
+  txn/txn_child_manager
+  txn/txn_manager
+  txn/xids
   ule
-  x1764
-  xids
-  ybt
   "${CMAKE_CURRENT_BINARY_DIR}/log_code"
   "${CMAKE_CURRENT_BINARY_DIR}/log_print"
   )
@@ -88,24 +87,7 @@ add_dependencies(ft_static install_tdb_h generate_log_code build_lzma)
 
 ## link with lzma (which should be static) and link dependers with zlib
 target_link_libraries(ft LINK_PRIVATE util_static lzma ${LIBTOKUPORTABILITY})
-target_link_libraries(ft LINK_PUBLIC ${ZLIB_LIBRARY} )
+target_link_libraries(ft LINK_PUBLIC z)
 target_link_libraries(ft_static LINK_PRIVATE lzma)
-
-## build the bins in this directory
-foreach(tool tokuftdump tdb_logprint tdb-recover ftverify)
-  add_executable(${tool} ${tool}.cc)
-  add_dependencies(${tool} install_tdb_h)
-  target_link_libraries(${tool} ft_static util_static ${ZLIB_LIBRARY} lzma ${LIBTOKUPORTABILITY}_static ${CMAKE_THREAD_LIBS_INIT} ${EXTRA_SYSTEM_LIBS})
-  add_space_separated_property(TARGET ${tool} COMPILE_FLAGS -fvisibility=hidden)
-endforeach(tool)
-
-# link in math.h library just for this tool.
-target_link_libraries(ftverify m)
-
-install(
-  TARGETS tokuftdump
-  COMPONENT Server
-  DESTINATION ${INSTALL_BINDIR}
-  )
 
 add_subdirectory(tests)

@@ -29,7 +29,7 @@ COPYING CONDITIONS NOTICE:
 
 COPYRIGHT NOTICE:
 
-  TokuDB, Tokutek Fractal Tree Indexing Library.
+  TokuFT, Tokutek Fractal Tree Indexing Library.
   Copyright (C) 2007-2013 Tokutek, Inc.
 
 DISCLAIMER:
@@ -86,11 +86,10 @@ PATENT RIGHTS GRANT:
   under this License.
 */
 
+#pragma once
+
 #ident "Copyright (c) 2007-2013 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
-
-#ifndef UTIL_PARTITIONED_COUNTER_H
-#define UTIL_PARTITIONED_COUNTER_H
 
 // Overview: A partitioned_counter provides a counter that can be incremented and the running sum can be read at any time.
 //  We assume that increments are frequent, whereas reading is infrequent.
@@ -187,5 +186,3 @@ private:
     friend void destroy_thread_local_part_of_partitioned_counters (void *);
 };
 #endif
-
-#endif // UTIL_PARTITIONED_COUNTER_H

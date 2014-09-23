@@ -28,7 +28,7 @@ COPYING CONDITIONS NOTICE:
 
 COPYRIGHT NOTICE:
 
-  TokuDB, Tokutek Fractal Tree Indexing Library.
+  TokuFT, Tokutek Fractal Tree Indexing Library.
   Copyright (C) 2007-2013 Tokutek, Inc.
 
 DISCLAIMER:
@@ -89,14 +89,16 @@ PATENT RIGHTS GRANT:
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 #ident "$Id$"
 
-#include <toku_race_tools.h>
 
 #include <db.h>
-#include <ft/txn_manager.h>
-#include <ft/log_header.h>
-#include <ft/checkpoint.h>
 
+#include <portability/toku_race_tools.h>
 #include <portability/toku_atomic.h>
+
+#include <ft/cachetable/checkpoint.h>
+#include <ft/log_header.h>
+#include <ft/txn/txn_manager.h>
+
 
 #include "ydb-internal.h"
 #include "ydb_txn.h"

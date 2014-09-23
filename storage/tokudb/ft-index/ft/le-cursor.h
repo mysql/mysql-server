@@ -29,7 +29,7 @@ COPYING CONDITIONS NOTICE:
 
 COPYRIGHT NOTICE:
 
-  TokuDB, Tokutek Fractal Tree Indexing Library.
+  TokuFT, Tokutek Fractal Tree Indexing Library.
   Copyright (C) 2007-2013 Tokutek, Inc.
 
 DISCLAIMER:
@@ -86,13 +86,12 @@ PATENT RIGHTS GRANT:
   under this License.
 */
 
+#pragma once
+
 #ident "Copyright (c) 2010-2013 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
-#ifndef LE_CURSOR_H
-#define LE_CURSOR_H
-
-#include "ft-ops.h"
+#include "ft/ft-internal.h"
 
 // A leaf entry cursor (LE_CURSOR) is a special type of FT_CURSOR that visits all of the leaf entries in a tree
 // and returns the leaf entry to the caller.  It maintains a copy of the key that it was last positioned over to
@@ -104,10 +103,10 @@ PATENT RIGHTS GRANT:
 
 typedef struct le_cursor *LE_CURSOR;
 
-// Create a leaf cursor for a tree (brt) within a transaction (txn)
+// Create a leaf cursor for a tree (ft_h) within a transaction (txn)
 // Success: returns 0, stores the LE_CURSOR in the le_cursor_result
 // Failure: returns a non-zero error number
-int toku_le_cursor_create(LE_CURSOR *le_cursor_result, FT_HANDLE brt, TOKUTXN txn);
+int toku_le_cursor_create(LE_CURSOR *le_cursor_result, FT_HANDLE ft_h, TOKUTXN txn);
 
 // Close and free the LE_CURSOR
 void toku_le_cursor_close(LE_CURSOR le_cursor);
@@ -127,5 +126,3 @@ bool toku_le_cursor_is_key_greater_or_equal(LE_CURSOR le_cursor, const DBT *key)
 // extracts position of le_cursor into estimate. Responsibility of caller to handle
 // thread safety. Caller (the indexer), does so by ensuring indexer lock is held
 void toku_le_cursor_update_estimate(LE_CURSOR le_cursor, DBT* estimate);
-
-#endif

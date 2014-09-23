@@ -29,7 +29,7 @@ COPYING CONDITIONS NOTICE:
 
 COPYRIGHT NOTICE:
 
-  TokuDB, Tokutek Fractal Tree Indexing Library.
+  TokuFT, Tokutek Fractal Tree Indexing Library.
   Copyright (C) 2007-2014 Tokutek, Inc.
 
 DISCLAIMER:
@@ -121,7 +121,7 @@ const toku::context *toku_thread_get_context() {
 // engine status
 
 static struct context_status context_status;
-#define CONTEXT_STATUS_INIT(key, legend) TOKUDB_STATUS_INIT(context_status, key, nullptr, PARCOUNT, "context: " legend, TOKU_ENGINE_STATUS)
+#define CONTEXT_STATUS_INIT(key, legend) TOKUFT_STATUS_INIT(context_status, key, nullptr, PARCOUNT, "context: " legend, TOKU_ENGINE_STATUS)
 
 static void
 context_status_init(void) {

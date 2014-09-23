@@ -29,7 +29,7 @@ COPYING CONDITIONS NOTICE:
 
 COPYRIGHT NOTICE:
 
-  TokuDB, Tokutek Fractal Tree Indexing Library.
+  TokuFT, Tokutek Fractal Tree Indexing Library.
   Copyright (C) 2007-2013 Tokutek, Inc.
 
 DISCLAIMER:
@@ -96,10 +96,9 @@ PATENT RIGHTS GRANT:
 #include <ft-cachetable-wrappers.h>
 #include "ft-flusher.h"
 #include "ft-flusher-internal.h"
-#include "checkpoint.h"
+#include "cachetable/checkpoint.h"
 
 static TOKUTXN const null_txn = 0;
-static DB * const null_db = 0;
 
 enum { NODESIZE = 1024, KSIZE=NODESIZE-100, TOKU_PSIZE=20 };
 
@@ -184,7 +183,7 @@ doit (bool after_child_pin) {
 
     toku_flusher_thread_set_callback(flusher_callback, &after_child_pin);
     
-    toku_cachetable_create(&ct, 500*1024*1024, ZERO_LSN, NULL_LOGGER);
+    toku_cachetable_create(&ct, 500*1024*1024, ZERO_LSN, nullptr);
     unlink("foo1.ft_handle");
     r = toku_open_ft_handle("foo1.ft_handle", 1, &t, NODESIZE, NODESIZE/2, TOKU_DEFAULT_COMPRESSION_METHOD, ct, null_txn, toku_builtin_compare_fun);
     assert(r==0);
@@ -228,17 +227,16 @@ doit (bool after_child_pin) {
         );
     
     FTNODE node = NULL;
-    struct ftnode_fetch_extra bfe;
-    fill_bfe_for_min_read(&bfe, t->ft);
-    toku_pin_ftnode_off_client_thread(
+    ftnode_fetch_extra bfe;
+    bfe.create_for_min_read(t->ft);
+    toku_pin_ftnode(
         t->ft, 
         node_root,
         toku_cachetable_hash(t->ft->cf, node_root),
         &bfe,
         PL_WRITE_EXPENSIVE, 
-        0,
-        NULL,
-        &node
+        &node,
+        true
         );
     assert(node->height == 1);
     assert(node->n_children == 1);
@@ -249,15 +247,14 @@ doit (bool after_child_pin) {
     assert(checkpoint_callback_called);
 
     // now let's pin the root again and make sure it is flushed
-    toku_pin_ftnode_off_client_thread(
+    toku_pin_ftnode(
         t->ft, 
         node_root,
         toku_cachetable_hash(t->ft->cf, node_root),
         &bfe,
         PL_WRITE_EXPENSIVE, 
-        0,
-        NULL,
-        &node
+        &node,
+        true
         );
     assert(node->height == 1);
     assert(node->n_children == 1);
@@ -285,16 +282,15 @@ doit (bool after_child_pin) {
     //
     // now pin the root, verify that we have a message in there, and that it is clean
     //
-    fill_bfe_for_full_read(&bfe, c_ft->ft);
-    toku_pin_ftnode_off_client_thread(
+    bfe.create_for_full_read(c_ft->ft);
+    toku_pin_ftnode(
         c_ft->ft, 
         node_root,
         toku_cachetable_hash(c_ft->ft->cf, node_root),
         &bfe,
         PL_WRITE_EXPENSIVE, 
-        0,
-        NULL,
-        &node
+        &node,
+        true
         );
     assert(node->height == 1);
     assert(!node->dirty);
@@ -305,17 +301,16 @@ doit (bool after_child_pin) {
     else {
         assert(toku_bnc_nbytesinbuf(BNC(node, 0)) > 0);
     }
-    toku_unpin_ftnode_off_client_thread(c_ft->ft, node);
+    toku_unpin_ftnode(c_ft->ft, node);
 
-    toku_pin_ftnode_off_client_thread(
+    toku_pin_ftnode(
         c_ft->ft, 
         node_leaf,
         toku_cachetable_hash(c_ft->ft->cf, node_root),
         &bfe,
         PL_WRITE_EXPENSIVE, 
-        0,
-        NULL,
-        &node
+        &node,
+        true
         );
     assert(node->height == 0);
     assert(!node->dirty);
@@ -326,7 +321,7 @@ doit (bool after_child_pin) {
     else {
         assert(BLB_NBYTESINDATA(node,0) == 0);
     }
-    toku_unpin_ftnode_off_client_thread(c_ft->ft, node);
+    toku_unpin_ftnode(c_ft->ft, node);
 
     struct check_pair pair1 = {2, "a", 0, NULL, 0};
     DBT k;

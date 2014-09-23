@@ -29,7 +29,7 @@ COPYING CONDITIONS NOTICE:
 
 COPYRIGHT NOTICE:
 
-  TokuDB, Tokutek Fractal Tree Indexing Library.
+  TokuFT, Tokutek Fractal Tree Indexing Library.
   Copyright (C) 2007-2013 Tokutek, Inc.
 
 DISCLAIMER:
@@ -94,7 +94,7 @@ PATENT RIGHTS GRANT:
 namespace toku {
 
 void manager_unit_test::test_lt_map(void) {
-    locktree::manager mgr;
+    locktree_manager mgr;
     mgr.create(nullptr, nullptr, nullptr, nullptr);
 
     locktree aa;

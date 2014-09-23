@@ -29,7 +29,7 @@ COPYING CONDITIONS NOTICE:
 
 COPYRIGHT NOTICE:
 
-  TokuDB, Tokutek Fractal Tree Indexing Library.
+  TokuFT, Tokutek Fractal Tree Indexing Library.
   Copyright (C) 2007-2013 Tokutek, Inc.
 
 DISCLAIMER:
@@ -117,17 +117,17 @@ static void verify_unique_keys(void) {
 }
 
 static uint64_t check_for_range_and_count(concurrent_tree::locked_keyrange *lkr,
-        comparator *cmp, const keyrange &range, bool range_should_exist) {
+        const comparator &cmp, const keyrange &range, bool range_should_exist) {
 
     struct check_fn_obj {
-        comparator *cmp;
+        const comparator *cmp;
         uint64_t count;
         keyrange target_range;
         bool target_range_found;
 
         bool fn(const keyrange &query_range, TXNID txnid) { 
             (void) txnid;
-            if (query_range.compare(cmp, target_range) == keyrange::comparison::EQUALS) {
+            if (query_range.compare(*cmp, target_range) == keyrange::comparison::EQUALS) {
                 invariant(!target_range_found);
                 target_range_found = true;
             }
@@ -135,7 +135,7 @@ static uint64_t check_for_range_and_count(concurrent_tree::locked_keyrange *lkr,
             return true;
         }
     } check_fn;
-    check_fn.cmp = cmp;
+    check_fn.cmp = &cmp;
     check_fn.count = 0;
     check_fn.target_range = range;
     check_fn.target_range_found = false;
@@ -174,14 +174,14 @@ void concurrent_tree_unit_test::test_lkr_insert_remove(void) {
         // insert an element. it should exist and the
         // count should be correct.
         lkr.insert(range, i);
-        n = check_for_range_and_count(&lkr, &cmp, range, true);
+        n = check_for_range_and_count(&lkr, cmp, range, true);
         if (i >= cap) {
             invariant(n == cap + 1);
             // remove an element previously inserted. it should
             // no longer exist and the count should be correct.
             range.create(get_ith_key_from_set(i - cap), get_ith_key_from_set(i - cap));
             lkr.remove(range);
-            n = check_for_range_and_count(&lkr, &cmp, range, false);
+            n = check_for_range_and_count(&lkr, cmp, range, false);
             invariant(n == cap);
         } else {
             invariant(n == i + 1);
@@ -193,12 +193,13 @@ void concurrent_tree_unit_test::test_lkr_insert_remove(void) {
         keyrange range;
         range.create(get_ith_key_from_set(num_keys - i - 1), get_ith_key_from_set(num_keys - i - 1));
         lkr.remove(range);
-        n = check_for_range_and_count(&lkr, &cmp, range, false);
+        n = check_for_range_and_count(&lkr, cmp, range, false);
         invariant(n == (cap - i - 1));
     }
 
     lkr.release();
     tree.destroy();
+    cmp.destroy();
 }
 
 } /* namespace toku */

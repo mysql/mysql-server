@@ -29,7 +29,7 @@ COPYING CONDITIONS NOTICE:
 
 COPYRIGHT NOTICE:
 
-  TokuDB, Tokutek Fractal Tree Indexing Library.
+  TokuFT, Tokutek Fractal Tree Indexing Library.
   Copyright (C) 2007-2013 Tokutek, Inc.
 
 DISCLAIMER:
@@ -196,11 +196,7 @@ delete_n (uint32_t ah)
 	ndelete_notfound++;
     else
 	ndelete_failed++;
-#ifdef USE_BDB
-    assert(r==0 || r==DB_NOTFOUND);
-#else
     CKERR(r);
-#endif
 }
 
 static void

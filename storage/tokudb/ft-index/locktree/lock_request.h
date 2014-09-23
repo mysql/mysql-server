@@ -29,7 +29,7 @@ COPYING CONDITIONS NOTICE:
 
 COPYRIGHT NOTICE:
 
-  TokuDB, Tokutek Fractal Tree Indexing Library.
+  TokuFT, Tokutek Fractal Tree Indexing Library.
   Copyright (C) 2007-2013 Tokutek, Inc.
 
 DISCLAIMER:
@@ -86,21 +86,19 @@ PATENT RIGHTS GRANT:
   under this License.
 */
 
+#pragma once
+
 #ident "Copyright (c) 2007-2013 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
-#ifndef TOKU_LOCK_REQUEST_H
-#define TOKU_LOCK_REQUEST_H
-
 #include <db.h>
-#include <toku_pthread.h>
 
-#include <ft/fttypes.h>
-#include <ft/comparator.h>
+#include "portability/toku_pthread.h"
 
-#include "locktree.h"
-#include "txnid_set.h"
-#include "wfg.h"
+#include "locktree/locktree.h"
+#include "locktree/txnid_set.h"
+#include "locktree/wfg.h"
+#include "ft/comparator.h"
 
 namespace toku {
 
@@ -202,7 +200,7 @@ private:
 
     // the lock request info state stored in the
     // locktree that this lock request is for.
-    struct locktree::lt_lock_request_info *m_info;
+    struct lt_lock_request_info *m_info;
 
     // effect: tries again to acquire the lock described by this lock request
     // returns: 0 if retrying the request succeeded and is now complete
@@ -243,5 +241,3 @@ private:
 ENSURE_POD(lock_request);
 
 } /* namespace toku */
-
-#endif /* TOKU_LOCK_REQUEST_H */

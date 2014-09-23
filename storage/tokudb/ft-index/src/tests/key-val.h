@@ -29,7 +29,7 @@ COPYING CONDITIONS NOTICE:
 
 COPYRIGHT NOTICE:
 
-  TokuDB, Tokutek Fractal Tree Indexing Library.
+  TokuFT, Tokutek Fractal Tree Indexing Library.
   Copyright (C) 2007-2013 Tokutek, Inc.
 
 DISCLAIMER:
@@ -86,10 +86,10 @@ PATENT RIGHTS GRANT:
   under this License.
 */
 
+#pragma once
+
 #ident "Copyright (c) 2010-2013 Tokutek Inc.  All rights reserved."
 
-#ifndef KEY_VAL_H
-#define KEY_VAL_H
 //
 //   Functions to create unique key/value pairs, row generators, checkers, ... for each of NUM_DBS
 //
@@ -295,8 +295,3 @@ static int UU() generate_initial_table(DB *db, DB_TXN *txn, uint32_t rows)
     
     return r;
 }
-
-
-
-
-#endif // KEY_VAL_H

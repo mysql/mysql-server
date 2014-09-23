@@ -29,7 +29,7 @@ COPYING CONDITIONS NOTICE:
 
 COPYRIGHT NOTICE:
 
-  TokuDB, Tokutek Fractal Tree Indexing Library.
+  TokuFT, Tokutek Fractal Tree Indexing Library.
   Copyright (C) 2007-2013 Tokutek, Inc.
 
 DISCLAIMER:
@@ -118,7 +118,7 @@ static int locktree_write_lock(locktree *lt, TXNID txn_id, int64_t left_k, int64
     return lt->acquire_write_lock(txn_id, &left, &right, nullptr, big_txn);
 }
 
-static void run_big_txn(locktree::manager *mgr UU(), locktree *lt, TXNID txn_id, int64_t start_i) {
+static void run_big_txn(locktree_manager *mgr UU(), locktree *lt, TXNID txn_id, int64_t start_i) {
     fprintf(stderr, "%u run_big_txn %p %" PRIu64 " %" PRId64 "\n", toku_os_gettid(), lt, txn_id, start_i);
     int64_t last_i = -1;
     for (int64_t i = start_i; !killed; i++) {
@@ -141,7 +141,7 @@ static void run_big_txn(locktree::manager *mgr UU(), locktree *lt, TXNID txn_id,
 }
 
 struct arg {
-    locktree::manager *mgr;
+    locktree_manager *mgr;
     locktree *lt;
     TXNID txn_id;
     int64_t start_i;
@@ -158,7 +158,7 @@ static void e_callback(TXNID txnid, const locktree *lt, const range_buffer &buff
         printf("%u %s %" PRIu64 " %p %d %p\n", toku_os_gettid(), __FUNCTION__, txnid, lt, buffer.get_num_ranges(), extra);
 }
 
-static uint64_t get_escalation_count(locktree::manager &mgr) {
+static uint64_t get_escalation_count(locktree_manager &mgr) {
     LTM_STATUS_S ltm_status;
     mgr.get_status(&ltm_status);
 
@@ -205,18 +205,15 @@ int main(int argc, const char *argv[]) {
     int r;
 
     // create a manager
-    locktree::manager mgr;
+    locktree_manager mgr;
     mgr.create(nullptr, nullptr, e_callback, nullptr);
     mgr.set_max_lock_memory(max_lock_memory);
 
     // create lock trees
-    DESCRIPTOR desc[n_lt];
-    DICTIONARY_ID dict_id[n_lt];
     locktree *lt[n_big];
     for (int i = 0; i < n_lt; i++) {
-        desc[i] = nullptr;
-        dict_id[i] = { (uint64_t)i };
-        lt[i] = mgr.get_lt(dict_id[i], desc[i], compare_dbts, nullptr);
+        DICTIONARY_ID dict_id = { .dictid = (uint64_t) i };
+        lt[i] = mgr.get_lt(dict_id, dbt_comparator, nullptr);
         assert(lt[i]);
     }
 

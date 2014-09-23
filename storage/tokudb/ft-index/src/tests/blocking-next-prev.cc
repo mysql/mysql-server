@@ -29,7 +29,7 @@ COPYING CONDITIONS NOTICE:
 
 COPYRIGHT NOTICE:
 
-  TokuDB, Tokutek Fractal Tree Indexing Library.
+  TokuFT, Tokutek Fractal Tree Indexing Library.
   Copyright (C) 2007-2013 Tokutek, Inc.
 
 DISCLAIMER:
@@ -123,7 +123,6 @@ struct my_callback_context {
     DBT val;
 };
 
-#if TOKUDB
 static int blocking_next_callback(DBT const *a UU(), DBT const *b UU(), void *e UU()) {
     DBT const *found_key = a;
     DBT const *found_val = b;
@@ -132,7 +131,6 @@ static int blocking_next_callback(DBT const *a UU(), DBT const *b UU(), void *e 
     copy_dbt(&context->val, found_val);
     return 0;
 }
-#endif
 
 static void blocking_next(DB_ENV *db_env, DB *db, uint64_t nrows UU(), long sleeptime) {
     int r;
@@ -149,11 +147,7 @@ static void blocking_next(DB_ENV *db_env, DB *db, uint64_t nrows UU(), long slee
 
     uint64_t i;
     for (i = 0; ; i++) {
-#if TOKUDB
         r = cursor->c_getf_next(cursor, 0, blocking_next_callback, &context);
-#else
-        r = cursor->c_get(cursor, &context.key, &context.val, DB_NEXT);
-#endif
         if (r != 0)
             break;
         if (verbose)
@@ -199,11 +193,7 @@ static void blocking_prev(DB_ENV *db_env, DB *db, uint64_t nrows UU(), long slee
 
     uint64_t i;
     for (i = 0; ; i++) {
-#if TOKUDB
         r = cursor->c_getf_prev(cursor, 0, blocking_next_callback, &context);
-#else
-        r = cursor->c_get(cursor, &context.key, &context.val, DB_PREV);
-#endif
         if (r != 0)
             break;
         if (verbose)

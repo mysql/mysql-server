@@ -4,22 +4,21 @@ drop table if exists t;
 create table t (id int primary key);
 set autocommit=0;
 select * from information_schema.tokudb_locks;
-locks_trx_id	locks_mysql_thread_id	locks_dname	locks_key_left	locks_key_right
+locks_trx_id	locks_mysql_thread_id	locks_dname	locks_key_left	locks_key_right	locks_table_schema	locks_table_name	locks_table_dictionary_name
 set autocommit=0;
 set tokudb_prelock_empty=OFF;
 insert into t values (1);
 set autocommit=0;
 insert into t values (1);
 select * from information_schema.tokudb_locks;
-locks_trx_id	locks_mysql_thread_id	locks_dname	locks_key_left	locks_key_right
-TRX_ID	MYSQL_ID	./test/t-main	0001000000	0001000000
+locks_trx_id	locks_mysql_thread_id	locks_dname	locks_key_left	locks_key_right	locks_table_schema	locks_table_name	locks_table_dictionary_name
+TRX_ID	MYSQL_ID	./test/t-main	0001000000	0001000000	test	t	main
 commit;
 select * from information_schema.tokudb_locks;
-locks_trx_id	locks_mysql_thread_id	locks_dname	locks_key_left	locks_key_right
-TRX_ID	MYSQL_ID	./test/t-main	0001000000	0001000000
-TRX_ID	MYSQL_ID	./test/t-main	0001000000	0001000000
+locks_trx_id	locks_mysql_thread_id	locks_dname	locks_key_left	locks_key_right	locks_table_schema	locks_table_name	locks_table_dictionary_name
+TRX_ID	MYSQL_ID	./test/t-main	0001000000	0001000000	test	t	main
 ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
 commit;
 select * from information_schema.tokudb_locks;
-locks_trx_id	locks_mysql_thread_id	locks_dname	locks_key_left	locks_key_right
+locks_trx_id	locks_mysql_thread_id	locks_dname	locks_key_left	locks_key_right	locks_table_schema	locks_table_name	locks_table_dictionary_name
 drop table t;

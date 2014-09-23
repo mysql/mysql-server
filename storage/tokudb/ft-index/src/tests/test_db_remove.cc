@@ -29,7 +29,7 @@ COPYING CONDITIONS NOTICE:
 
 COPYRIGHT NOTICE:
 
-  TokuDB, Tokutek Fractal Tree Indexing Library.
+  TokuFT, Tokutek Fractal Tree Indexing Library.
   Copyright (C) 2007-2013 Tokutek, Inc.
 
 DISCLAIMER:
@@ -114,11 +114,7 @@ static void test_db_remove (void) {
 
     // Now remove it, while it is open.
     r = env->dbremove(env, NULL, fname, 0, 0);
-#ifdef USE_TDB
     assert(r!=0);
-#else
-    assert(r==0);
-#endif
 
     r = db1->close(db1, 0);                                            assert(r==0);
     r = env->close(env, 0); assert(r == 0);

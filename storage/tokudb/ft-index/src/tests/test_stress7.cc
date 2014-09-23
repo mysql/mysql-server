@@ -28,7 +28,7 @@ COPYING CONDITIONS NOTICE:
 
 COPYRIGHT NOTICE:
 
-  TokuDB, Tokutek Fractal Tree Indexing Library.
+  TokuFT, Tokutek Fractal Tree Indexing Library.
   Copyright (C) 2007-2013 Tokutek, Inc.
 
 DISCLAIMER:
@@ -108,7 +108,7 @@ stress_table(DB_ENV *env, DB **dbp, struct cli_args *cli_args) {
     //
 
     if (verbose) printf("starting creation of pthreads\n");
-    const int num_threads = 4 + cli_args->num_update_threads + cli_args->num_ptquery_threads;
+    const int num_threads = 5 + cli_args->num_update_threads + cli_args->num_ptquery_threads;
     struct arg myargs[num_threads];
     for (int i = 0; i < num_threads; i++) {
         arg_init(&myargs[i], dbp, env, cli_args);
@@ -129,19 +129,21 @@ stress_table(DB_ENV *env, DB **dbp, struct cli_args *cli_args) {
     myargs[1].operation_extra = &soe[1];
     myargs[1].operation = scan_op;
 
-    // make the guy that runs HOT in the background
+    // make the guys that run hot optimize, keyrange, and frag stats in the background
     myargs[2].operation = hot_op;
     myargs[3].operation = keyrange_op;
+    myargs[4].operation = frag_op;
+    myargs[4].sleep_ms = 100;
 
     struct update_op_args uoe = get_update_op_args(cli_args, NULL);
     // make the guy that updates the db
-    for (int i = 4; i < 4 + cli_args->num_update_threads; ++i) {
+    for (int i = 5; i < 5 + cli_args->num_update_threads; ++i) {
         myargs[i].operation_extra = &uoe;
         myargs[i].operation = update_op;
     }
 
     // make the guy that does point queries
-    for (int i = 4 + cli_args->num_update_threads; i < num_threads; i++) {
+    for (int i = 5 + cli_args->num_update_threads; i < num_threads; i++) {
         myargs[i].operation = ptquery_op;
     }
     run_workers(myargs, num_threads, cli_args->num_seconds, false, cli_args);

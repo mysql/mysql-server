@@ -29,7 +29,7 @@ COPYING CONDITIONS NOTICE:
 
 COPYRIGHT NOTICE:
 
-  TokuDB, Tokutek Fractal Tree Indexing Library.
+  TokuFT, Tokutek Fractal Tree Indexing Library.
   Copyright (C) 2007-2013 Tokutek, Inc.
 
 DISCLAIMER:
@@ -92,7 +92,7 @@ PATENT RIGHTS GRANT:
 #include <string.h>
 #include <db.h>
 
-#include <toku_include/memory.h>
+#include <portability/memory.h>
 
 namespace toku {
 
@@ -207,6 +207,9 @@ void omt<omtdata_t, omtdataout_t, supports_marks>::clone(const omt &src) {
         src.fill_array_with_subtree_values(&this->d.a.values[0], src.d.t.root);
     }
     this->d.a.num_values = src.size();
+    if (supports_marks) {
+        this->convert_to_tree();
+    }
 }
 
 template<typename omtdata_t, typename omtdataout_t, bool supports_marks>

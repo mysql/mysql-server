@@ -29,7 +29,7 @@ COPYING CONDITIONS NOTICE:
 
 COPYRIGHT NOTICE:
 
-  TokuDB, Tokutek Fractal Tree Indexing Library.
+  TokuFT, Tokutek Fractal Tree Indexing Library.
   Copyright (C) 2007-2013 Tokutek, Inc.
 
 DISCLAIMER:
@@ -94,7 +94,6 @@ PATENT RIGHTS GRANT:
 #include "test.h"
 
 static TOKUTXN const null_txn = 0;
-static DB * const null_db = 0;
 
 int
 test_main(int argc, const char *argv[]) {
@@ -106,7 +105,7 @@ test_main(int argc, const char *argv[]) {
     FILE *f = fopen("test-dump-ft.out", "w");
     unlink(n);
     assert(f);
-    toku_cachetable_create(&ct, 0, ZERO_LSN, NULL_LOGGER);
+    toku_cachetable_create(&ct, 0, ZERO_LSN, nullptr);
     r = toku_open_ft_handle(n, 1, &t, 1<<12, 1<<9, TOKU_DEFAULT_COMPRESSION_METHOD, ct, null_txn, toku_builtin_compare_fun); assert(r==0);
     int i;
     for (i=0; i<10000; i++) {

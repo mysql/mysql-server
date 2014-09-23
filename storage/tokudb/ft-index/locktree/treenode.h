@@ -29,7 +29,7 @@ COPYING CONDITIONS NOTICE:
 
 COPYRIGHT NOTICE:
 
-  TokuDB, Tokutek Fractal Tree Indexing Library.
+  TokuFT, Tokutek Fractal Tree Indexing Library.
   Copyright (C) 2007-2013 Tokutek, Inc.
 
 DISCLAIMER:
@@ -86,20 +86,19 @@ PATENT RIGHTS GRANT:
   under this License.
 */
 
+#pragma once
+
 #ident "Copyright (c) 2007-2013 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
-#ifndef TREENODE_H
-#define TREENODE_H
-
-#include <memory.h>
 #include <string.h>
 
-#include <ft/comparator.h>
+#include "portability/memory.h"
+#include "portability/toku_pthread.h"
 
-#include <portability/toku_pthread.h>
-
-#include "keyrange.h"
+#include "ft/comparator.h"
+#include "ft/txn/txn.h"
+#include "locktree/keyrange.h"
 
 namespace toku {
 
@@ -124,7 +123,7 @@ public:
     // - node may be unlocked if no other thread has visibility
 
     // effect: create the root node
-    void create_root(comparator *cmp);
+    void create_root(const comparator *cmp);
 
     // effect: destroys the root node
     void destroy_root(void);
@@ -211,7 +210,7 @@ private:
     child_ptr m_right_child;
 
     // comparator for ranges
-    comparator *m_cmp;
+    const comparator *m_cmp;
 
     // marked for the root node. the root node is never free()'d
     // when removed, but instead marked as empty.
@@ -221,7 +220,7 @@ private:
     bool m_is_empty;
 
     // effect: initializes an empty node with the given comparator
-    void init(comparator *cmp);
+    void init(const comparator *cmp);
 
     // requires: *parent is initialized to something meaningful.
     // requires: subtree is non-empty
@@ -268,7 +267,7 @@ private:
     treenode *maybe_rebalance(void);
 
     // returns: allocated treenode populated with a copy of the range and txnid
-    static treenode *alloc(comparator *cmp, const keyrange &range, TXNID txnid);
+    static treenode *alloc(const comparator *cmp, const keyrange &range, TXNID txnid);
 
     // requires: node is a locked root node, or an unlocked non-root node
     static void free(treenode *node);
@@ -283,5 +282,3 @@ private:
 #include "treenode.cc"
 
 } /* namespace toku */
-
-#endif /* TREENODE_H */
