@@ -292,10 +292,6 @@ create table t1 (a int, b int generated always as (variance(a)) virtual);
 --echo # XML FUNCTIONS
 --echo #
 
---echo # ExtractValue()
--- error ER_VIRTUAL_COLUMN_FUNCTION_IS_NOT_ALLOWED
-create table t1 (a varchar(1024), b varchar(1024) generated always as (ExtractValue(a,'//b[$@j]')) virtual);
-
 --echo # UpdateXML()
 -- error ER_VIRTUAL_COLUMN_FUNCTION_IS_NOT_ALLOWED
 create table t1 (a varchar(1024), b varchar(1024) generated always as (UpdateXML(a,'/a','<e>fff</e>')) virtual);

@@ -204,9 +204,6 @@ ERROR HY000: Invalid use of group function
 #
 # XML FUNCTIONS
 #
-# ExtractValue()
-create table t1 (a varchar(1024), b varchar(1024) generated always as (ExtractValue(a,'//b[$@j]')) virtual);
-ERROR HY000: Expression of virtual column 'b' contains a disallowed function.
 # UpdateXML()
 create table t1 (a varchar(1024), b varchar(1024) generated always as (UpdateXML(a,'/a','<e>fff</e>')) virtual);
 ERROR HY000: Expression of virtual column 'b' contains a disallowed function.

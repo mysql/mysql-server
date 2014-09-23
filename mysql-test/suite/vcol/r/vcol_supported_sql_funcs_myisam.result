@@ -2713,6 +2713,21 @@ set sql_warnings = 0;
 #
 # XML FUNCTIONS
 #
+# ExtractValue()
+set sql_warnings = 1;
+create table t1 (a varchar(1024), b varchar(1024) generated always as (ExtractValue(a,'/b')) virtual);
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` varchar(1024) DEFAULT NULL,
+  `b` VIRTUAL varchar(1024) AS (ExtractValue(a,'/b'))
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+insert into t1 values ('<b>text</b>',default);
+select * from t1;
+a	b
+<b>text</b>	text
+drop table t1;
+set sql_warnings = 0;
 # None.
 #
 # OTHER FUNCTIONS

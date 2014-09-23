@@ -37,13 +37,7 @@ public:
   }
   void fix_length_and_dec();
   String *parse_xml(String *raw_xml, String *parsed_xml_buf);
-  bool check_vcol_func_processor(uchar *int_arg) 
-  {
-    DBUG_ENTER("Item_xml_str_func::check_vcol_func_processor");
-    DBUG_PRINT("info",
-      ("check_vcol_func_processor returns TRUE: unsupported function"));
-    DBUG_RETURN(TRUE);
-  }
+  bool check_vcol_func_processor(uchar *int_arg) { return false; }
 
 protected:
   /** 
@@ -79,6 +73,13 @@ public:
   {}
   const char *func_name() const { return "updatexml"; }
   String *val_str(String *);
+  bool check_vcol_func_processor(uchar *int_arg) 
+  {
+    DBUG_ENTER("Item_func_xml_update::check_vcol_func_processor");
+    DBUG_PRINT("info",
+      ("check_vcol_func_processor returns TRUE: unsupported function"));
+    DBUG_RETURN(TRUE);
+  }
 };
 
 #endif /* ITEM_XMLFUNC_INCLUDED */
