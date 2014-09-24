@@ -1529,6 +1529,7 @@ bool MYSQL_LOG::open(
                      const char *new_name, enum cache_type io_cache_type_arg)
 {
   char buff[FN_REFLEN];
+  MY_STAT f_stat;
   File file= -1;
   my_off_t pos= 0;
   int open_flags= O_CREAT | O_BINARY;
@@ -1546,6 +1547,10 @@ bool MYSQL_LOG::open(
   if (init_and_set_log_file_name(name, new_name,
                                  log_type_arg, io_cache_type_arg) ||
       DBUG_EVALUATE_IF("fault_injection_init_name", log_type == LOG_BIN, 0))
+    goto err;
+
+  /* File is regular writable file */
+  if (my_stat(log_file_name, &f_stat, MYF(0)) && !MY_S_ISREG(f_stat.st_mode))
     goto err;
 
   if (io_cache_type == SEQ_READ_APPEND)

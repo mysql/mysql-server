@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -162,7 +162,7 @@ bool Rpl_info_table_access::close_table(THD *thd, TABLE* table,
        */
       ha_commit_trans(thd, FALSE, TRUE);
     }
-    if (saved_current_thd != current_thd)
+    if (thd_created)
     {
       if (error)
         ha_rollback_trans(thd, TRUE);
@@ -441,19 +441,17 @@ bool Rpl_info_table_access::store_info_values(uint max_num_field, Field **fields
 */
 THD *Rpl_info_table_access::create_thd()
 {
-  THD *thd= NULL;
-  saved_current_thd= current_thd;
+  THD *thd= current_thd;
 
-  if (!current_thd)
+  if (!thd)
   {
     thd= new THD;
     thd->thread_stack= (char*) &thd;
     thd->store_globals();
     thd->security_ctx->skip_grants();
     thd->system_thread= SYSTEM_THREAD_INFO_REPOSITORY;
+    thd_created= true;
   }
-  else
-    thd= current_thd;
 
   return(thd);
 }
@@ -472,10 +470,11 @@ bool Rpl_info_table_access::drop_thd(THD *thd)
 {
   DBUG_ENTER("Rpl_info::drop_thd");
 
-  if (saved_current_thd != current_thd)
+  if (thd_created)
   {
     delete thd;
     my_pthread_setspecific_ptr(THR_THD,  NULL);
+    thd_created= false;
   }
 
   DBUG_RETURN(FALSE);

@@ -484,6 +484,7 @@ my_bool opt_master_verify_checksum= 0;
 my_bool opt_slave_sql_verify_checksum= 1;
 const char *binlog_format_names[]= {"MIXED", "STATEMENT", "ROW", NullS};
 my_bool enforce_gtid_consistency;
+my_bool simplified_binlog_gtid_recovery;
 ulong binlogging_impossible_mode;
 const char *binlogging_impossible_err[]= {"IGNORE_ERROR", "ABORT_SERVER", NullS};
 ulong gtid_mode;
@@ -5479,7 +5480,7 @@ int mysqld_main(int argc, char **argv)
             const_cast<Gtid_set *>(gtid_state->get_lost_gtids()),
             NULL,
             opt_master_verify_checksum,
-            true/*true=need lock*/))
+            true/*true=need lock*/, true))
         unireg_abort(1);
 
       /*
@@ -8419,6 +8420,9 @@ mysqld_get_one_option(int optid,
   case 'T':
     test_flags= argument ? (uint) atoi(argument) : 0;
     opt_endinfo=1;
+    break;
+  case OPT_THREAD_CONCURRENCY:
+    WARN_DEPRECATED_NO_REPLACEMENT(NULL, "THREAD_CONCURRENCY");
     break;
   case (int) OPT_ISAM_LOG:
     opt_myisam_log=1;

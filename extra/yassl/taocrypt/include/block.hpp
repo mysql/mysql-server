@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -74,7 +74,7 @@ typename A::pointer StdReallocate(A& a, T* p, typename A::size_type oldSize,
     if (preserve) {
         A b = A();
         typename A::pointer newPointer = b.allocate(newSize, 0);
-        memcpy(newPointer, p, sizeof(T) * min((word32) oldSize, (word32) newSize));
+        memcpy(newPointer, p, sizeof(T) * min(oldSize, newSize));
         a.deallocate(p, oldSize);
         STL::swap(a, b);
         return newPointer;
@@ -186,9 +186,9 @@ public:
 
     ~Block() { allocator_.deallocate(buffer_, sz_); }
 private:
+    A      allocator_;
     word32 sz_;     // size in Ts
     T*     buffer_;
-    A      allocator_;
 };
 
 

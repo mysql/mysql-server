@@ -2455,13 +2455,12 @@ row_sel_convert_mysql_key_to_innobase(
 		/* Storing may use at most data_len bytes of buf */
 
 		if (UNIV_LIKELY(!is_null)) {
-			ut_a(buf + data_len <= original_buf + buf_len);
-			row_mysql_store_col_in_innobase_format(
-				dfield, buf,
-				FALSE, /* MySQL key value format col */
-				key_ptr + data_offset, data_len,
-				dict_table_is_comp(index->table));
-			buf += data_len;
+			buf = row_mysql_store_col_in_innobase_format(
+					dfield, buf,
+					FALSE, /* MySQL key value format col */
+					key_ptr + data_offset, data_len,
+					dict_table_is_comp(index->table));
+			ut_a(buf <= original_buf + buf_len);
 		}
 
 		key_ptr += data_field_len;
@@ -2504,9 +2503,6 @@ row_sel_convert_mysql_key_to_innobase(
 		field++;
 		dfield++;
 	}
-
-	DBUG_EXECUTE_IF("innodb_srch_key_buffer_full",
-		ut_a(buf == (original_buf + buf_len)););
 
 	ut_a(buf <= original_buf + buf_len);
 

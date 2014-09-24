@@ -871,6 +871,14 @@ struct row_prebuilt_t {
 	unsigned	innodb_api:1;	/*!< whether this is a InnoDB API
 					query */
 	const rec_t*	innodb_api_rec;	/*!< InnoDB API search result */
+	byte*		srch_key_val1;  /*!< buffer used in converting
+					search key values from MySQL format
+					to InnoDB format.*/
+	byte*		srch_key_val2;  /*!< buffer used in converting
+					search key values from MySQL format
+					to InnoDB format.*/
+	uint		srch_key_val_len; /*!< Size of search key */
+
 };
 
 /** Callback for row_mysql_sys_index_iterate() */

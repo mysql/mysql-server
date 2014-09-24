@@ -1,7 +1,7 @@
 #ifndef SQL_TMP_TABLE_INCLUDED
 #define SQL_TMP_TABLE_INCLUDED
 
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -50,7 +50,8 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
   All methods presume that there is at least one field to change.
 */
 
-TABLE *create_virtual_tmp_table(THD *thd, List<Create_field> &field_list);
+TABLE *create_virtual_tmp_table(THD *thd, List<Create_field> &field_list,
+                                MEM_ROOT *mem_root= NULL);
 bool create_myisam_from_heap(THD *thd, TABLE *table,
                              MI_COLUMNDEF *start_recinfo,
                              MI_COLUMNDEF **recinfo, 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19353,6 +19353,51 @@ static void test_bug17309863()
 }
 #endif
 
+
+/**
+   BUG#17512527: LIST HANDLING INCORRECT IN MYSQL_PRUNE_STMT_LIST()
+*/
+static void test_bug17512527()
+{
+  MYSQL *conn1, *conn2;
+  MYSQL_STMT *stmt1, *stmt2;
+  const char *stmt1_txt= "SELECT NOW();";
+  const char *stmt2_txt= "SELECT 1;";
+  unsigned long thread_id;
+  char query[MAX_TEST_QUERY_LENGTH];
+  int rc;
+
+  conn1= client_connect(0, MYSQL_PROTOCOL_DEFAULT, 1);
+  conn2= client_connect(0, MYSQL_PROTOCOL_DEFAULT, 0);
+
+  stmt1 = mysql_stmt_init(conn1);
+  check_stmt(stmt1);
+  rc= mysql_stmt_prepare(stmt1, stmt1_txt, strlen(stmt1_txt));
+  check_execute(stmt1, rc);
+
+  thread_id= mysql_thread_id(conn1);
+  sprintf(query, "KILL %lu", thread_id);
+  if (thread_query(query))
+    exit(1);
+
+  /*
+    After the connection is killed, the connection is
+    re-established due to the reconnect flag.
+  */
+  stmt2 = mysql_stmt_init(conn1);
+  check_stmt(stmt2);
+
+  rc= mysql_stmt_prepare(stmt2, stmt2_txt, strlen(stmt2_txt));
+  check_execute(stmt1, rc);
+
+  mysql_stmt_close(stmt2);
+  mysql_stmt_close(stmt1);
+
+  mysql_close(conn1);
+  mysql_close(conn2);
+}
+
+
 static struct my_tests_st my_tests[]= {
   { "disable_query_logs", disable_query_logs },
   { "test_view_sp_list_fields", test_view_sp_list_fields },
@@ -19627,6 +19672,7 @@ static struct my_tests_st my_tests[]= {
 #ifndef EMBEDDED_LIBRARY
   { "test_bug17309863", test_bug17309863},
 #endif
+  { "test_bug17512527", test_bug17512527},
   { 0, 0 }
 };
 
