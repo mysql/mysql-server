@@ -3105,10 +3105,7 @@ recv_init_crash_recovery_spaces(void)
 		} else if (i->second.space != NULL) {
 			/* The tablespace was found, and there
 			are some redo log records for it. */
-			if (!fil_names_dirty(i->second.space)) {
-				/* The space should previously be clean. */
-				ut_ad(0);
-			}
+			fil_names_dirty(i->second.space);
 		} else if (srv_force_recovery == 0) {
 			ib::error() << "Tablespace " << i->first << " was not"
 				" found at " << i->second.name << ".";
