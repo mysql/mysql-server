@@ -3444,7 +3444,8 @@ fil_create_new_single_table_tablespace(
 				<< " Operating system error number " << ret
 				<< ". Check"
 				" that the disk is not full or a disk quota"
-				" exceeded. Some operating system error"
+				" exceeded. Make sure the file system supports"
+				" this function. Some operating system error"
 				" numbers are described at " REFMAN
 				" operating-system-error-codes.html";
 
@@ -4629,26 +4630,23 @@ retry:
 				" Operating system error number "
 				<< ret << ". Check"
 				" that the disk is not full or a disk quota"
-				" exceeded. Some operating system error"
-				" numbers are described at " REFMAN ""
+				" exceeded. Make sure the file system supports"
+				" this function. Some operating system error"
+				" numbers are described at " REFMAN
 				" operating-system-error-codes.html";
-			success = false;
 		}
 #endif /* NO_FALLOCATE || !UNIV_LINUX */
 
-		if (success) {
-			success = fil_write_zeros(
-				node, page_size, node_start,
-				static_cast<ulint>(len),
-				(fsp_is_system_temporary(space_id)
-				? false : srv_read_only_mode));
+		success = fil_write_zeros(
+			node, page_size, node_start,
+			static_cast<ulint>(len),
+			(fsp_is_system_temporary(space_id)
+			? false : srv_read_only_mode));
 
-			if (!success) {
-
-				ib::warn() << "Error while writing " << len
-					<< " zeroes to " << node->name
-					<< " starting at offset " << node_start;
-			}
+		if (!success) {
+			ib::warn() << "Error while writing " << len
+				<< " zeroes to " << node->name
+				<< " starting at offset " << node_start;
 		}
 
 		/* Check how many pages actually added */
