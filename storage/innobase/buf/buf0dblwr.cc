@@ -497,11 +497,10 @@ buf_dblwr_process(void)
 					<< page_id_t(space_id, page_no);
 			}
 		} else {
-			bool			found;
-			const page_size_t	page_size(
-				fil_space_get_page_size(space_id, &found));
-
-			ut_ad(found);
+			const fil_space_t*	space
+				= fil_space_get(space_id);
+			ut_ad(space);
+			const page_size_t	page_size(space->flags);
 
 			/* Read in the actual page from the file */
 			fil_io(OS_FILE_READ, true,

@@ -357,7 +357,7 @@ trx_sysf_create(
 	then enter the kernel: we must do it in this order to conform
 	to the latching order rules. */
 
-	mtr_x_lock(fil_space_get_latch(TRX_SYS_SPACE, NULL), mtr);
+	mtr_x_lock_space(TRX_SYS_SPACE, mtr);
 
 	/* Create the trx sys file block in a new allocated file segment */
 	block = fseg_create(TRX_SYS_SPACE, 0, TRX_SYS + TRX_SYS_FSEG_HEADER,

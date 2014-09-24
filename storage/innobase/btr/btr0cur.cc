@@ -5401,12 +5401,9 @@ btr_estimate_n_rows_in_range_on_level(
 
 	page_id_t		page_id(
 		dict_index_get_space(index), slot1->page_no);
-
-	bool			found;
-	const page_size_t&	page_size = fil_space_get_page_size(
-		dict_index_get_space(index), &found);
-
-	ut_ad(found);
+	const fil_space_t*	space = fil_space_get(index->space);
+	ut_ad(space);
+	const page_size_t	page_size(space->flags);
 
 	level = slot1->page_level;
 

@@ -228,7 +228,8 @@ struct fil_system_t {
 					/*!< list of all file spaces
 					for which a MLOG_FILE_NAME
 					record has been written since
-					the latest redo log checkpoint */
+					the latest redo log checkpoint.
+					Protected only by log_sys->mutex. */
 	bool		space_id_reuse_warned;
 					/* !< true if fil_space_create()
 					has issued a warning about
@@ -238,13 +239,6 @@ struct fil_system_t {
 /** The tablespace memory cache. This variable is NULL before the module is
 initialized. */
 static fil_system_t*	fil_system	= NULL;
-
-/** Last element index in fil_sys_lookup[]. This must not be smaller
-than the number of predefined tablespaces. */
-static const ulint	FIL_SYS_LOOKUP_SPACES	= TRX_SYS_N_RSEGS;
-/** Lookup array of the system tablespace and the undo tablespaces,
-and possibly some user tablespaces. */
-static fil_space_t*	fil_sys_lookup[FIL_SYS_LOOKUP_SPACES + 1];
 
 #ifdef UNIV_HOTBACKUP
 static ulint	srv_data_read;
@@ -443,6 +437,24 @@ fil_space_get_by_name(
 }
 
 #ifndef UNIV_HOTBACKUP
+/** Look up a tablespace.
+The caller should hold an InnoDB table lock or a MDL that prevents
+the tablespace from being dropped during the operation.
+If this is not the case, fil_space_acquire() and fil_space_release()
+should be used instead.
+@param[in]	id	tablespace ID
+@return tablespace, or NULL if not found */
+fil_space_t*
+fil_space_get(
+	ulint	id)
+{
+	mutex_enter(&fil_system->mutex);
+	fil_space_t*	space = fil_space_get_by_id(id);
+	mutex_exit(&fil_system->mutex);
+	ut_ad(space->purpose != FIL_TYPE_LOG);
+	return(space);
+}
+
 /*******************************************************************//**
 Returns the version number of a tablespace, -1 if not found.
 @return version number, -1 if the tablespace does not exist in the
@@ -1053,18 +1065,16 @@ fil_mutex_enter_and_prepare_for_io(
 	}
 }
 
-/*******************************************************************//**
-Frees a file node object from a tablespace memory cache. */
+/** Prepare to free a file node object from a tablespace memory cache.
+@param[in,out]	node	file node
+@param[in]	space	tablespace */
 static
 void
-fil_node_free(
-/*==========*/
-	fil_node_t*	node,	/*!< in, own: file node */
-	fil_system_t*	system,	/*!< in: tablespace memory cache */
-	fil_space_t*	space)	/*!< in: space where the file node is chained */
+fil_node_close_to_free(
+	fil_node_t*	node,
+	fil_space_t*	space)
 {
-	ut_ad(node && system && space);
-	ut_ad(mutex_own(&(system->mutex)));
+	ut_ad(mutex_own(&fil_system->mutex));
 	ut_a(node->magic_n == FIL_NODE_MAGIC_N);
 	ut_a(node->n_pending == 0);
 	ut_a(!node->being_extended);
@@ -1086,51 +1096,23 @@ fil_node_free(
 
 			space->is_in_unflushed_spaces = false;
 
-			UT_LIST_REMOVE(system->unflushed_spaces, space);
+			UT_LIST_REMOVE(fil_system->unflushed_spaces, space);
 		}
 
 		fil_node_close_file(node);
 	}
-
-	space->size -= node->size;
-
-	UT_LIST_REMOVE(space->chain, node);
-
-	os_event_destroy(node->sync_event);
-	ut_free(node->name);
-	ut_free(node);
 }
 
-/** Frees a space object from the tablespace memory cache.
+/** Detach a space object from the tablespace memory cache.
 Closes the files in the chain but does not delete them.
 There must not be any pending i/o's or flushes on the files.
-@param[in]	id		tablespace identifier
-@param[in]	x_latched	whether the caller holds X-mode space->latch
-@return true if success */
+@param[in,out]	space		tablespace */
 static
-bool
-fil_space_free_low(
-	ulint		id,
-	bool		x_latched)
+void
+fil_space_detach(
+	fil_space_t*	space)
 {
-	ut_ad(mutex_own(&fil_system->mutex));
-
-	fil_space_t*	space = fil_space_get_by_id(id);
-	ut_ad(id > FIL_SYS_LOOKUP_SPACES || fil_sys_lookup[id] == space);
-
-	if (id <= FIL_SYS_LOOKUP_SPACES) {
-		fil_sys_lookup[id] = NULL;
-	}
-
-	if (space == NULL) {
-
-		ib::error() << "Trying to remove tablespace " << id
-			<< " from the cache but it is not there.";
-
-		return(false);
-	}
-
-	HASH_DELETE(fil_space_t, hash, fil_system->spaces, id, space);
+	HASH_DELETE(fil_space_t, hash, fil_system->spaces, space->id, space);
 
 	fil_space_t*	fnamespace = fil_space_get_by_name(space->name);
 
@@ -1147,14 +1129,6 @@ fil_space_free_low(
 		UT_LIST_REMOVE(fil_system->unflushed_spaces, space);
 	}
 
-	/* Could fil_names_dirty_and_write() access a tablespace
-	that is being freed or has been freed here? As noted there,
-	the answer is no: space->n_pending_flushes > 0 will prevent
-	fil_check_pending_operations() from completing. */
-	if (space->max_lsn != 0) {
-		UT_LIST_REMOVE(fil_system->named_spaces, space);
-	}
-
 	UT_LIST_REMOVE(fil_system->space_list, space);
 
 	ut_a(space->magic_n == FIL_SPACE_MAGIC_N);
@@ -1162,23 +1136,39 @@ fil_space_free_low(
 
 	for (fil_node_t* fil_node = UT_LIST_GET_FIRST(space->chain);
 	     fil_node != NULL;
-	     fil_node = UT_LIST_GET_FIRST(space->chain)) {
+	     fil_node = UT_LIST_GET_NEXT(chain, fil_node)) {
 
-		fil_node_free(fil_node, fil_system, space);
+		fil_node_close_to_free(fil_node, space);
+	}
+}
+
+/** Free a tablespace object on which fil_space_detach() was invoked.
+There must not be any pending i/o's or flushes on the files.
+@param[in,out]	space		tablespace */
+static
+void
+fil_space_free_low(
+	fil_space_t*	space)
+{
+	/* The tablespace must not be in fil_system->named_spaces. */
+	ut_ad(srv_fast_shutdown == 2 || space->max_lsn == 0);
+
+	for (fil_node_t* node = UT_LIST_GET_FIRST(space->chain);
+	     node != NULL; ) {
+		ut_d(space->size -= node->size);
+		os_event_destroy(node->sync_event);
+		::ut_free(node->name);
+		fil_node_t* old_node = node;
+		node = UT_LIST_GET_NEXT(chain, node);
+		::ut_free(old_node);
 	}
 
-	ut_a(UT_LIST_GET_LEN(space->chain) == 0);
-
-	if (x_latched) {
-		rw_lock_x_unlock(&space->latch);
-	}
+	ut_ad(space->size == 0);
 
 	rw_lock_free(&space->latch);
 
 	ut_free(space->name);
 	ut_free(space);
-
-	return(true);
 }
 
 /** Frees a space object from the tablespace memory cache.
@@ -1195,9 +1185,30 @@ fil_space_free(
 	ut_ad(id != TRX_SYS_SPACE);
 
 	mutex_enter(&fil_system->mutex);
-	const bool freed = fil_space_free_low(id, x_latched);
+	fil_space_t*	space = fil_space_get_by_id(id);
+
+	if (space != NULL) {
+		fil_space_detach(space);
+	}
+
 	mutex_exit(&fil_system->mutex);
-	return(freed);
+
+	if (space != NULL) {
+		if (x_latched) {
+			rw_lock_x_unlock(&space->latch);
+		}
+
+		if (space->max_lsn != 0) {
+			log_mutex_enter();
+			ut_d(space->max_lsn = 0);
+			UT_LIST_REMOVE(fil_system->named_spaces, space);
+			log_mutex_exit();
+		}
+
+		fil_space_free_low(space);
+	}
+
+	return(space != NULL);
 }
 
 /** Create a space memory object and put it to the fil_system hash table.
@@ -1285,11 +1296,6 @@ fil_space_create(
 		    ut_fold_string(name), space);
 
 	UT_LIST_ADD_LAST(fil_system->space_list, space);
-
-	if (id <= FIL_SYS_LOOKUP_SPACES) {
-		ut_ad(fil_sys_lookup[id] == NULL);
-		fil_sys_lookup[id] = space;
-	}
 
 	if (id < SRV_LOG_SPACE_FIRST_ID && id > fil_system->max_assigned_id) {
 
@@ -1729,11 +1735,14 @@ fil_close_all_files(void)
 {
 	fil_space_t*	space;
 
+	/* At shutdown, we should not have any files in this list. */
+	ut_ad(srv_fast_shutdown == 2
+	      || UT_LIST_GET_LEN(fil_system->named_spaces) == 0);
+
 	mutex_enter(&fil_system->mutex);
 
-	space = UT_LIST_GET_FIRST(fil_system->space_list);
-
-	while (space != NULL) {
+	for (space = UT_LIST_GET_FIRST(fil_system->space_list);
+	     space != NULL; ) {
 		fil_node_t*	node;
 		fil_space_t*	prev_space = space;
 
@@ -1747,11 +1756,14 @@ fil_close_all_files(void)
 		}
 
 		space = UT_LIST_GET_NEXT(space_list, space);
-
-		fil_space_free_low(prev_space->id, false);
+		fil_space_detach(prev_space);
+		fil_space_free_low(prev_space);
 	}
 
 	mutex_exit(&fil_system->mutex);
+
+	ut_ad(srv_fast_shutdown == 2
+	      || UT_LIST_GET_LEN(fil_system->named_spaces) == 0);
 }
 
 /*******************************************************************//**
@@ -1777,6 +1789,9 @@ fil_close_log_files(
 			continue;
 		}
 
+		/* Log files are not in the fil_system->named_spaces list. */
+		ut_ad(space->max_lsn == 0);
+
 		for (node = UT_LIST_GET_FIRST(space->chain);
 		     node != NULL;
 		     node = UT_LIST_GET_NEXT(chain, node)) {
@@ -1789,7 +1804,8 @@ fil_close_log_files(
 		space = UT_LIST_GET_NEXT(space_list, space);
 
 		if (free) {
-			fil_space_free_low(prev_space->id, false);
+			fil_space_detach(prev_space);
+			fil_space_free_low(prev_space);
 		}
 	}
 
@@ -2827,29 +2843,38 @@ fil_delete_tablespace(
 
 	/* Double check the sanity of pending ops after reacquiring
 	the fil_system::mutex. */
-	if (fil_space_get_by_id(id)) {
+	if (const fil_space_t* s = fil_space_get_by_id(id)) {
+		ut_a(s == space);
 		ut_a(space->n_pending_ops == 0);
 		ut_a(UT_LIST_GET_LEN(space->chain) == 1);
 		fil_node_t* node = UT_LIST_GET_FIRST(space->chain);
 		ut_a(node->n_pending == 0);
-	}
 
-	if (!fil_space_free_low(id, true)) {
-		err = DB_TABLESPACE_NOT_FOUND;
-	}
+		fil_space_detach(space);
+		mutex_exit(&fil_system->mutex);
 
-	mutex_exit(&fil_system->mutex);
-
-	if (err != DB_SUCCESS) {
+		if (space->max_lsn != 0) {
+			log_mutex_enter();
+			ut_d(space->max_lsn = 0);
+			UT_LIST_REMOVE(fil_system->named_spaces, space);
+			log_mutex_exit();
+		}
 		rw_lock_x_unlock(&space->latch);
-	} else if (!os_file_delete(innodb_data_file_key, path)
-		   && !os_file_delete_if_exists(
-			innodb_data_file_key, path, NULL)) {
+		fil_space_free_low(space);
 
-		/* Note: This is because we have removed the
-		tablespace instance from the cache. */
+		if (!os_file_delete(innodb_data_file_key, path)
+		    && !os_file_delete_if_exists(
+			    innodb_data_file_key, path, NULL)) {
 
-		err = DB_IO_ERROR;
+			/* Note: This is because we have removed the
+			tablespace instance from the cache. */
+
+			err = DB_IO_ERROR;
+		}
+	} else {
+		mutex_exit(&fil_system->mutex);
+		rw_lock_x_unlock(&space->latch);
+		err = DB_TABLESPACE_NOT_FOUND;
 	}
 
 	ut_free(path);
@@ -2921,14 +2946,11 @@ fil_index_tree_is_freed(
 	ulint			root_page_no,
 	const page_size_t&	page_size)
 {
-	rw_lock_t*	latch;
 	mtr_t		mtr;
 	xdes_t*		descr;
 
-	latch = fil_space_get_latch(space_id, NULL);
-
 	mtr_start(&mtr);
-	mtr_x_lock(latch, &mtr);
+	mtr_x_lock_space(space_id, &mtr);
 
 	descr = xdes_get_descriptor(space_id, root_page_no, page_size, &mtr);
 
@@ -5793,8 +5815,6 @@ fil_close(void)
 	mutex_free(&fil_system->mutex);
 
 	ut_free(fil_system);
-	ut_d(for(ulint i = 0; i <= FIL_SYS_LOOKUP_SPACES; i++)
-		     ut_ad(fil_sys_lookup[i] == NULL));
 	fil_system = NULL;
 }
 
@@ -6240,6 +6260,7 @@ void
 fil_space_validate_for_mtr_commit(
 	const fil_space_t*	space)
 {
+	ut_ad(!mutex_own(&fil_system->mutex));
 	ut_ad(space != NULL);
 	ut_ad(space->purpose == FIL_TYPE_TABLESPACE);
 
@@ -6261,86 +6282,6 @@ fil_space_validate_for_mtr_commit(
 }
 #endif /* UNIV_DEBUG */
 
-/** Look up a tablespace.
-@param[in]	space_id	tablespace identifier
-@return tablespace object, or NULL if not found or being dropped */
-static
-fil_space_t*
-fil_space_lookup(
-	ulint	space_id)
-{
-	ut_ad(mutex_own(&fil_system->mutex));
-
-	fil_space_t*	space = fil_space_get_by_id(space_id);
-	ut_d(fil_space_validate_for_mtr_commit(space));
-	return(space);
-}
-
-/** Look up some tablespaces for invoking fil_names_write_if_was_clean().
-@param[out]	spaces		tablespace pointers
-@param[in]	user_space_id	modified user tablespace, or 0 if none
-@param[in]	undo_space_id	modified undo tablespace, or 0 if none
-@param[in]	find_system	whether to look up the system tablespace */
-
-void
-fil_spaces_lookup(
-	fil_spaces_t*	spaces,
-	ulint		user_space_id,
-	ulint		undo_space_id,
-	bool		find_system)
-{
-	ut_ad(!mutex_own(&fil_system->mutex));
-	/* Look up the tablespaces in fil_sys_lookup[] if possible.
-	Note: as we are not holding fil_system->mutex,
-	a race condition with fil_space_free() must be
-	prevented by the logic documented and tested in
-	fil_space_validate_for_mtr_commit(). */
-
-	if (user_space_id == TRX_SYS_SPACE) {
-		spaces->user = NULL;
-	} else {
-		mutex_enter(&fil_system->mutex);
-		spaces->user = fil_space_lookup(user_space_id);
-		mutex_exit(&fil_system->mutex);
-	}
-
-	ut_ad(undo_space_id <= FIL_SYS_LOOKUP_SPACES);
-#if TRX_SYS_SPACE != 0
-# error "TRX_SYS_SPACE != 0"
-#endif
-	if (undo_space_id == TRX_SYS_SPACE) {
-		spaces->undo = NULL;
-	} else {
-		spaces->undo = fil_sys_lookup[undo_space_id];
-		ut_d(fil_space_validate_for_mtr_commit(spaces->undo));
-		/* Undo tablespaces are never dropped. */
-		ut_ad(!spaces->undo->stop_new_ops);
-	}
-
-	if (!find_system) {
-		spaces->sys = NULL;
-	} else {
-		spaces->sys = fil_sys_lookup[TRX_SYS_SPACE];
-		ut_d(fil_space_validate_for_mtr_commit(spaces->sys));
-		/* The system tablespace is never dropped. */
-		ut_ad(!spaces->sys->stop_new_ops);
-	}
-
-	ut_d(do {
-			mutex_enter(&fil_system->mutex);
-			ut_ad(spaces->user
-			      == (user_space_id == TRX_SYS_SPACE
-				  ? NULL : fil_space_lookup(user_space_id)));
-			ut_ad(spaces->undo
-			      == (undo_space_id == TRX_SYS_SPACE
-				  ? NULL : fil_space_lookup(undo_space_id)));
-			ut_ad(spaces->sys
-			      == (find_system
-				  ? fil_space_lookup(TRX_SYS_SPACE) : NULL));
-			mutex_exit(&fil_system->mutex);
-		} while (0));
-}
-
 /** Write a MLOG_FILE_NAME record for a persistent tablespace.
 @param[in]	space	tablespace
 @param[in,out]	mtr	mini-transaction */
@@ -6350,8 +6291,6 @@ fil_names_write(
 	const fil_space_t*	space,
 	mtr_t*			mtr)
 {
-	ut_ad(mutex_own(&fil_system->mutex));
-
 	ulint	first_page_no = 0;
 
 	for (const fil_node_t* file = UT_LIST_GET_FIRST(space->chain);
@@ -6362,91 +6301,40 @@ fil_names_write(
 	}
 }
 
-/** Note that a persistent tablespace has been modified.
+/** Note that a persistent tablespace has been modified by redo log.
+@param[in,out]	space	tablespace */
+void
+fil_names_dirty(
+	fil_space_t*	space)
+{
+	ut_ad(log_mutex_own());
+	ut_ad(recv_recovery_is_on());
+	ut_ad(log_sys->lsn != 0);
+	ut_ad(space->max_lsn == 0);
+	ut_d(fil_space_validate_for_mtr_commit(space));
+
+	UT_LIST_ADD_LAST(fil_system->named_spaces, space);
+	space->max_lsn = log_sys->lsn;
+}
+
+/** Write MLOG_FILE_NAME records when a persistent tablespace was modified
+for the first time since the latest fil_names_clear().
 @param[in,out]	space	tablespace
-@param[in,out]	mtr	mini-transaction to be committed, or NULL if none
-@return whether this is the first dirtying since fil_names_clear() */
-template<bool do_write>
-static
-bool
+@param[in,out]	mtr	mini-transaction */
+void
 fil_names_dirty_and_write(
 	fil_space_t*	space,
 	mtr_t*		mtr)
 {
 	ut_ad(log_mutex_own());
-	ut_ad(!mutex_own(&fil_system->mutex));
-
-	if (!space) {
-		return(false);
-	}
-
 	ut_d(fil_space_validate_for_mtr_commit(space));
+	ut_ad(space->max_lsn == log_sys->lsn);
 
-	/* This is the only place where max_lsn can be updated
-	from 0 to nonzero. These changes are protected by
-	log_sys->mutex. */
-	const bool	was_clean	= space->max_lsn == 0;
-
-	if (was_clean) {
-		/* This should only happen once for each tablespace
-		after a log checkpoint. */
-		mutex_enter(&fil_system->mutex);
-		/* Setting max_lsn to nonzero or back to 0
-		should be protected by log_sys->mutex, which
-		we are holding. Thus, it must still be 0. */
-		ut_ad(space->max_lsn == 0);
-		UT_LIST_ADD_LAST(fil_system->named_spaces, space);
-		if (do_write) {
-			fil_names_write(space, mtr);
-		}
-		mutex_exit(&fil_system->mutex);
-	}
-
-	ut_ad(space->max_lsn <= log_sys->lsn);
-	space->max_lsn = log_sys->lsn;
-
-	return(was_clean);
+	UT_LIST_ADD_LAST(fil_system->named_spaces, space);
+	fil_names_write(space, mtr);
 }
 
-/** Check if a persistent tablespace has been modified.
-@param[in,out]	space	tablespace
-@return whether this is the first dirtying since fil_names_clear() */
-
-bool
-fil_names_dirty(
-	fil_space_t*	space)
-{
-	return(fil_names_dirty_and_write<false>(space, NULL));
-}
-
-/** Check if any persistent tablespaces have been modified.
-@param[in,out]	spaces	tablespaces
-@param[in,out]	mtr	mini-transaction
-@return whether this is the first dirtying since fil_names_clear() */
-
-bool
-fil_names_write_if_was_clean(
-	fil_spaces_t*	spaces,
-	mtr_t*		mtr)
-{
-	bool	was_clean = false;
-
-	if (fil_names_dirty_and_write<true>(spaces->user, mtr)) {
-		was_clean = true;
-	}
-
-	if (fil_names_dirty_and_write<true>(spaces->sys, mtr)) {
-		was_clean = true;
-	}
-
-	if (fil_names_dirty_and_write<true>(spaces->undo, mtr)) {
-		was_clean = true;
-	}
-
-	return(was_clean);
-}
-
-/** On a log checkpoint, reset fil_names_dirty() flags
+/** On a log checkpoint, reset fil_names_dirty_and_write() flags
 and write out MLOG_FILE_NAME and MLOG_CHECKPOINT if needed.
 @param[in]	lsn		checkpoint LSN
 @param[in]	do_write	whether to always write MLOG_CHECKPOINT
@@ -6468,8 +6356,6 @@ fil_names_clear(
 	}
 
 	mtr.start();
-
-	mutex_enter(&fil_system->mutex);
 
 	for (fil_space_t* space = UT_LIST_GET_FIRST(fil_system->named_spaces);
 	     space != NULL; ) {
@@ -6496,8 +6382,6 @@ fil_names_clear(
 
 		space = next;
 	}
-
-	mutex_exit(&fil_system->mutex);
 
 	if (do_write) {
 		mtr.commit_checkpoint(lsn);

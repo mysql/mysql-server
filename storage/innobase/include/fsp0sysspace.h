@@ -285,6 +285,7 @@ is_system_or_undo_tablespace(
 	       || id <= srv_undo_tablespaces_open);
 }
 
+#ifdef UNIV_DEBUG
 /** Check if predefined shared tablespace.
 @return true if predefined shared tablespace */
 UNIV_INLINE
@@ -292,8 +293,10 @@ bool
 is_predefined_tablespace(
 	ulint   id)
 {
-	ut_ad(srv_sys_space.space_id() == 0);
+	ut_ad(srv_sys_space.space_id() == TRX_SYS_SPACE);
+	ut_ad(TRX_SYS_SPACE == 0);
 	return(id <= srv_undo_tablespaces_open
 	       || id == srv_tmp_space.space_id());
 }
+#endif /* UNIV_DEBUG */
 #endif /* fsp0sysspace_h */

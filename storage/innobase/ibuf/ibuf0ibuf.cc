@@ -521,7 +521,7 @@ ibuf_init_at_db_start(void)
 	mtr_start(&mtr);
 	mtr.set_sys_modified();
 
-	mtr_x_lock(fil_space_get_latch(IBUF_SPACE_ID, NULL), &mtr);
+	mtr_x_lock_space(IBUF_SPACE_ID, &mtr);
 
 	mutex_enter(&ibuf_mutex);
 
@@ -905,12 +905,12 @@ ibuf_set_free_bits_func(
 	}
 
 	mtr_start(&mtr);
-	mtr.set_named_space(block->page.id.space());
+	const fil_space_t* space = mtr.set_named_space(block->page.id.space());
 
 	bitmap_page = ibuf_bitmap_get_map_page(block->page.id,
 					       block->page.size, &mtr);
 
-	switch (fil_space_get_type(block->page.id.space())) {
+	switch (space->purpose) {
 	case FIL_TYPE_LOG:
 		ut_ad(0);
 		break;
@@ -2018,19 +2018,17 @@ ibuf_add_free_page(void)
 {
 	mtr_t		mtr;
 	page_t*		header_page;
-	ulint		flags;
 	buf_block_t*	block;
 	page_t*		page;
 	page_t*		root;
 	page_t*		bitmap_page;
 
 	mtr_start(&mtr);
-	mtr.set_sys_modified();
+	fil_space_t* space = mtr.set_sys_modified();
 
 	/* Acquire the fsp latch before the ibuf header, obeying the latching
 	order */
-	mtr_x_lock(fil_space_get_latch(IBUF_SPACE_ID, &flags), &mtr);
-
+	mtr_x_lock(&space->latch, &mtr);
 	header_page = ibuf_header_page_get(&mtr);
 
 	/* Allocate a new page: NOTE that if the page has been a part of a
@@ -2076,7 +2074,7 @@ ibuf_add_free_page(void)
 	(level 2 page) */
 
 	const page_id_t		page_id(IBUF_SPACE_ID, block->page.id.page_no());
-	const page_size_t	page_size(flags);
+	const page_size_t	page_size(space->flags);
 
 	bitmap_page = ibuf_bitmap_get_map_page(page_id, page_size, &mtr);
 
@@ -2100,21 +2098,19 @@ ibuf_remove_free_page(void)
 	mtr_t	mtr;
 	mtr_t	mtr2;
 	page_t*	header_page;
-	ulint	flags;
 	ulint	page_no;
 	page_t*	page;
 	page_t*	root;
 	page_t*	bitmap_page;
 
 	mtr_start(&mtr);
-	mtr.set_sys_modified();
+	fil_space_t*		space = mtr.set_sys_modified();
+	const page_size_t	page_size(space->flags);
 
 	/* Acquire the fsp latch before the ibuf header, obeying the latching
 	order */
-	mtr_x_lock(fil_space_get_latch(IBUF_SPACE_ID, &flags), &mtr);
 
-	const page_size_t	page_size(flags);
-
+	mtr_x_lock(&space->latch, &mtr);
 	header_page = ibuf_header_page_get(&mtr);
 
 	/* Prevent pessimistic inserts to insert buffer trees for a while */

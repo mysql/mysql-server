@@ -30,6 +30,7 @@ Created 11/26/1995 Heikki Tuuri
 #include "page0types.h"
 #include "mtr0log.h"
 #include "log0log.h"
+#include "row0trunc.h"
 
 #include "log0recv.h"
 
@@ -450,9 +451,12 @@ mtr_t::start(bool sync, bool read_only)
 	m_impl.m_made_dirty = false;
 	m_impl.m_n_log_recs = 0;
 	m_impl.m_state = MTR_STATE_ACTIVE;
-	m_impl.m_named_space = TRX_SYS_SPACE;
-	m_impl.m_undo_space = TRX_SYS_SPACE;
+	ut_d(m_impl.m_user_space_id = TRX_SYS_SPACE);
+	ut_d(m_impl.m_undo_space_id = TRX_SYS_SPACE);
 	m_impl.m_modifies_sys_space = false;
+	m_impl.m_user_space = NULL;
+	m_impl.m_undo_space = NULL;
+	m_impl.m_sys_space = NULL;
 
 	ut_d(m_impl.m_magic_n = MTR_MAGIC_N);
 }
@@ -568,10 +572,26 @@ mtr_t::commit_checkpoint(lsn_t checkpoint_lsn)
 (needed for generating a MLOG_FILE_NAME record)
 @param[in]	space	tablespace
 @return whether the mini-transaction is associated with the space */
-
 bool
 mtr_t::is_named_space(ulint space) const
 {
+	ut_ad(!m_impl.m_sys_space
+	      || m_impl.m_sys_space->id == TRX_SYS_SPACE);
+	ut_ad(!m_impl.m_undo_space
+	      || m_impl.m_undo_space->id != TRX_SYS_SPACE);
+	ut_ad(!m_impl.m_undo_space
+	      || m_impl.m_undo_space->id == m_impl.m_undo_space_id);
+	ut_ad(!m_impl.m_user_space
+	      || m_impl.m_user_space->id != TRX_SYS_SPACE);
+	ut_ad(!m_impl.m_user_space
+	      || m_impl.m_user_space->id == m_impl.m_user_space_id);
+	ut_ad(!m_impl.m_sys_space
+	      || m_impl.m_sys_space != m_impl.m_user_space);
+	ut_ad(!m_impl.m_sys_space
+	      || m_impl.m_sys_space != m_impl.m_undo_space);
+	ut_ad(!m_impl.m_user_space
+	      || m_impl.m_user_space != m_impl.m_undo_space);
+
 	switch (get_log_mode()) {
 	case MTR_LOG_NONE:
 	case MTR_LOG_NO_REDO:
@@ -581,8 +601,8 @@ mtr_t::is_named_space(ulint space) const
 		if (space == TRX_SYS_SPACE) {
 			return(m_impl.m_modifies_sys_space);
 		} else {
-			return(m_impl.m_undo_space == space
-			       || m_impl.m_named_space == space);
+			return(m_impl.m_undo_space_id == space
+			       || m_impl.m_user_space_id == space);
 		}
 	}
 
@@ -594,7 +614,6 @@ mtr_t::is_named_space(ulint space) const
 (needed for generating a MLOG_FILE_NAME record)
 @param[in]	space	undo tablespace
 @return whether the mini-transaction is associated with the undo */
-
 bool
 mtr_t::is_undo_space(ulint space) const
 {
@@ -608,13 +627,88 @@ mtr_t::is_undo_space(ulint space) const
 	case MTR_LOG_ALL:
 		return(space == TRX_SYS_SPACE
 		       ? m_impl.m_modifies_sys_space
-		       : m_impl.m_undo_space == space);
+		       : m_impl.m_undo_space_id == space);
 	}
 
 	ut_error;
 	return(false);
 }
 #endif /* UNIV_DEBUG */
+
+/** Acquire a tablespace X-latch.
+NOTE: use mtr_x_lock_space().
+@param[in]	space_id	tablespace ID
+@param[in]	file		file name from where called
+@param[in]	line		line number in file
+@return the tablespace object (never NULL) */
+fil_space_t*
+mtr_t::x_lock_space(ulint space_id, const char* file, ulint line)
+{
+	fil_space_t*	space;
+
+	ut_ad(m_impl.m_magic_n == MTR_MAGIC_N);
+	ut_ad(is_active());
+
+	if (space_id == TRX_SYS_SPACE) {
+		space = m_impl.m_sys_space;
+
+		if (!space) {
+			space = m_impl.m_sys_space = fil_space_get(space_id);
+		}
+	} else if ((space = m_impl.m_user_space) && space_id == space->id) {
+	} else if ((space = m_impl.m_undo_space) && space_id == space->id) {
+	} else if (get_log_mode() == MTR_LOG_NO_REDO) {
+		space = fil_space_get(space_id);
+		ut_ad(space->purpose == FIL_TYPE_TEMPORARY
+		      || space->purpose == FIL_TYPE_IMPORT
+		      || space->redo_skipped_count > 0
+		      || srv_is_tablespace_truncated(space->id));
+	} else {
+		/* called from trx_rseg_create() */
+		space = m_impl.m_undo_space = fil_space_get(space_id);
+	}
+
+	ut_ad(space);
+	ut_ad(space->id == space_id);
+	x_lock(&space->latch, file, line);
+	ut_ad(space->purpose == FIL_TYPE_TEMPORARY
+	      || space->purpose == FIL_TYPE_IMPORT
+	      || space->purpose == FIL_TYPE_TABLESPACE);
+	return(space);
+}
+
+/** Look up the system tablespace. */
+void
+mtr_t::lookup_sys_space()
+{
+	ut_ad(!m_impl.m_sys_space);
+	m_impl.m_sys_space = fil_space_get(TRX_SYS_SPACE);
+	ut_ad(m_impl.m_sys_space);
+}
+
+/** Look up an undo tablespace.
+@param[in]	space_id	tablespace ID */
+void
+mtr_t::lookup_undo_space(ulint space_id)
+{
+	ut_ad(space_id != TRX_SYS_SPACE);
+	ut_ad(m_impl.m_undo_space_id == space_id);
+	ut_ad(!m_impl.m_undo_space);
+	m_impl.m_undo_space = fil_space_get(space_id);
+	ut_ad(m_impl.m_undo_space);
+}
+
+/** Look up a user tablespace.
+@param[in]	space_id	tablespace ID */
+void
+mtr_t::lookup_user_space(ulint space_id)
+{
+	ut_ad(space_id != TRX_SYS_SPACE);
+	ut_ad(m_impl.m_user_space_id == space_id);
+	ut_ad(!m_impl.m_user_space);
+	m_impl.m_user_space = fil_space_get(space_id);
+	ut_ad(m_impl.m_user_space);
+}
 
 /** Release an object in the memo stack.
 @return true if released */
@@ -669,18 +763,15 @@ mtr_t::Command::prepare_write()
 		log_buffer_extend((len + 1) * 2);
 	}
 
-	fil_spaces_t	spaces;
-
-	fil_spaces_lookup(&spaces,
-			  m_impl->m_named_space,
-			  m_impl->m_undo_space,
-			  m_impl->m_modifies_sys_space);
-
 	ut_ad(m_impl->m_n_log_recs == n_recs);
 
 	log_mutex_enter();
 
-	if (fil_names_write_if_was_clean(&spaces, m_impl->m_mtr)) {
+	if (fil_names_write_if_was_clean(m_impl->m_sys_space, m_impl->m_mtr)
+	    || fil_names_write_if_was_clean(m_impl->m_undo_space,
+					    m_impl->m_mtr)
+	    || fil_names_write_if_was_clean(m_impl->m_user_space,
+					    m_impl->m_mtr)) {
 		/* This mini-transaction was the first one to modify
 		some tablespace since the latest checkpoint, so
 		some MLOG_FILE_NAME records were appended to m_log. */

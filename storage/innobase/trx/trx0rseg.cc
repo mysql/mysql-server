@@ -380,7 +380,7 @@ Creates a rollback segment.
 trx_rseg_t*
 trx_rseg_create(
 /*============*/
-	ulint	space,		/*!< in: id of UNDO tablespace */
+	ulint	space_id,	/*!< in: id of UNDO tablespace */
 	ulint	nth_free_slot)	/*!< in: allocate nth free slot.
 				0 means next free slots. */
 {
@@ -392,48 +392,47 @@ trx_rseg_create(
 
 	/* To obey the latching order, acquire the file space
 	x-latch before the trx_sys->mutex. */
-	mtr_x_lock(fil_space_get_latch(space, NULL), &mtr);
+	fil_space_t*	space = mtr.set_undo_space(space_id);
 
-	if (space == srv_tmp_space.space_id()) {
+	mtr_x_lock(&space->latch, &mtr);
+
+	switch (space->purpose) {
+	case FIL_TYPE_LOG:
+	case FIL_TYPE_IMPORT:
+		ut_ad(0);
+	case FIL_TYPE_TEMPORARY:
 		mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
-	} else {
+		break;
+	case FIL_TYPE_TABLESPACE:
 		/* We will modify TRX_SYS_RSEGS in TRX_SYS page. */
 		mtr.set_sys_modified();
-		/* We will modify the undo log tablespace too. */
-		mtr.set_undo_space(space);
+		break;
 	}
 
 	slot_no = trx_sysf_rseg_find_free(
-		&mtr, (fsp_is_system_temporary(space)), nth_free_slot);
+		&mtr, space->purpose == FIL_TYPE_TEMPORARY, nth_free_slot);
 
 	if (slot_no != ULINT_UNDEFINED) {
 		ulint		id;
 		ulint		page_no;
 		trx_sysf_t*	sys_header;
+		page_size_t	page_size(space->flags);
 
 		page_no = trx_rseg_header_create(
-			space, univ_page_size, ULINT_MAX, slot_no, &mtr);
+			space_id, page_size, ULINT_MAX, slot_no, &mtr);
 
 		ut_a(page_no != FIL_NULL);
 
 		sys_header = trx_sysf_get(&mtr);
 
 		id = trx_sysf_rseg_get_space(sys_header, slot_no, &mtr);
-		ut_a(trx_sys_is_noredo_rseg_slot(slot_no) || id == space);
-
-		bool			found = true;
-		const page_size_t&	page_size
-			= is_system_tablespace(space)
-			? univ_page_size
-			: fil_space_get_page_size(space, &found);
-
-		ut_ad(found);
+		ut_a(id == space_id || trx_sys_is_noredo_rseg_slot(slot_no));
 
 		trx_rseg_t** rseg_array =
 			((trx_rseg_t**) trx_sys->rseg_array);
 
 		rseg = trx_rseg_mem_create(
-			slot_no, space, page_no, page_size,
+			slot_no, space_id, page_no, page_size,
 			purge_sys->purge_queue, rseg_array, &mtr);
 	}
 
