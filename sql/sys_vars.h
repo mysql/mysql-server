@@ -1823,6 +1823,39 @@ public:
 
 
 /**
+  Class representing the sql_log_bin system variable for controlling
+  whether logging to the binary log is done.
+*/
+
+class Sys_var_sql_log_bin: public Sys_var_mybool
+{
+public:
+  Sys_var_sql_log_bin(const char *name_arg, const char *comment, int flag_args,
+                      ptrdiff_t off, size_t size, CMD_LINE getopt,
+                      my_bool def_val, PolyLock *lock,
+                      enum binlog_status_enum binlog_status_arg,
+                      on_check_function on_check_func,
+                      on_update_function on_update_func)
+    :Sys_var_mybool(name_arg, comment, flag_args, off, size, getopt,
+                    def_val, lock, binlog_status_arg, on_check_func,
+                    on_update_func)
+  {}
+
+  uchar *global_value_ptr(THD *thd, LEX_STRING *base)
+  {
+    /* Reading GLOBAL SQL_LOG_BIN produces a deprecation warning. */
+    if (base != NULL)
+      push_warning_printf(thd, Sql_condition::SL_WARNING,
+                          ER_WARN_DEPRECATED_SYNTAX,
+                          ER(ER_WARN_DEPRECATED_SYNTAX),
+                          "@@global.sql_log_bin", "the constant 1 "
+                          "(since @@global.sql_log_bin is always equal to 1)");
+
+    return Sys_var_mybool::global_value_ptr(thd, base);
+  }
+};
+
+/**
    A class for @@global.binlog_checksum that has
    a specialized update method.
 */
