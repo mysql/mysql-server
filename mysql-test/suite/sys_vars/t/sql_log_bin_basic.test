@@ -109,11 +109,15 @@ SET @@session.sql_log_bin = NO;
 
 --echo '#-------------------FN_DYNVARS_156_05----------------------------#'
 ########################################################################### 
-#       Test if accessing global sql_log_bin gives error                  #
+#       Test if setting global sql_log_bin gives error,                   #
+#       and there is no error on reading it.                              #
 ########################################################################### 
 
+SELECT @@global.sql_log_bin;
+--Error ER_WRONG_VALUE_FOR_VAR
 SET @@global.sql_log_bin = 0;
 SELECT @@global.sql_log_bin;
+--Error ER_WRONG_VALUE_FOR_VAR
 SET @@global.sql_log_bin = 1;
 
 --echo '#----------------------FN_DYNVARS_156_06------------------------#'
