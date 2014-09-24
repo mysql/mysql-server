@@ -1019,11 +1019,6 @@ fil_mutex_enter_and_prepare_for_io(
 			print_info = true;
 		}
 
-		DBUG_EXECUTE_IF(
-			"ib_import_flush_temp",
-			print_info = true;
-		);
-
 		/* Too many files are open, try to close some */
 		do {
 			success = fil_try_to_close_file_in_LRU(print_info);
