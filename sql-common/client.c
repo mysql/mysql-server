@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1858,6 +1858,12 @@ static int ssl_verify_server_cert(Vio *vio, const char* server_hostname, const c
     DBUG_RETURN(1);
   }
 
+  if (X509_V_OK != SSL_get_verify_result(ssl))
+  {
+    *errptr= "Failed to verify the server certificate";
+    X509_free(server_cert);
+    DBUG_RETURN(1);
+  }
   /*
     We already know that the certificate exchanged was valid; the SSL library
     handled that. Now we need to verify that the contents of the certificate
@@ -3985,12 +3991,15 @@ static void mysql_close_free(MYSQL *mysql)
 */
 static void mysql_prune_stmt_list(MYSQL *mysql)
 {
-  LIST *element= mysql->stmts;
-  LIST *pruned_list= 0;
+  LIST *pruned_list= NULL;
 
-  for (; element; element= element->next)
+  while(mysql->stmts)
   {
-    MYSQL_STMT *stmt= (MYSQL_STMT *) element->data;
+    LIST *element= mysql->stmts;
+    MYSQL_STMT *stmt;
+
+    mysql->stmts= list_delete(element, element);
+    stmt= (MYSQL_STMT *) element->data;
     if (stmt->state != MYSQL_STMT_INIT_DONE)
     {
       stmt->mysql= 0;

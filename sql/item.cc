@@ -5878,6 +5878,18 @@ enum_field_types Item::field_type() const
 }
 
 
+/**
+  Verifies that the input string is well-formed according to its character set.
+  @param send_error   If true, call my_error if string is not well-formed.
+
+  Will truncate input string if it is not well-formed.
+
+  @return
+  If well-formed: input string.
+  If not well-formed:
+    if strict mode: NULL pointer and we set this Item's value to NULL
+    if not strict mode: input string truncated up to last good character
+ */
 String *Item::check_well_formed_result(String *str, bool send_error)
 {
   /* Check whether we got a well-formed string */
@@ -5992,7 +6004,7 @@ bool Item::can_be_evaluated_now() const
 
   If max_length > CONVERT_IF_BIGGER_TO_BLOB create a blob @n
   If max_length > 0 create a varchar @n
-  If max_length == 0 create a CHAR(0) 
+  If max_length == 0 create a CHAR(0) (or VARCHAR(0) if we are grouping)
 
   @param table		Table for which the field is created
 */
@@ -6010,8 +6022,19 @@ Field *Item::make_string_field(TABLE *table)
     field= new Field_varstring(max_length, maybe_null, item_name.ptr(),
                                table->s, collation.collation);
   else
-    field= new Field_string(max_length, maybe_null, item_name.ptr(),
-                            collation.collation);
+  {
+    /*
+     marker == 4 : see create_tmp_table()
+     With CHAR(0) end_update() may write garbage into the next field.
+    */
+    if (max_length == 0 && marker == 4 && maybe_null &&
+        field_type() == MYSQL_TYPE_VAR_STRING && type() != Item::TYPE_HOLDER)
+      field= new Field_varstring(max_length, maybe_null, item_name.ptr(),
+                                 table->s, collation.collation);
+    else
+      field= new Field_string(max_length, maybe_null, item_name.ptr(),
+                              collation.collation);
+  }
   if (field)
     field->init(table);
   return field;

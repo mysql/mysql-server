@@ -56,6 +56,30 @@ Item_row::Item_row(List<Item> &arg):
   }
 }
 
+Item_row::Item_row(Item *head, List<Item> &tail):
+  used_tables_cache(0), not_null_tables_cache(0),
+  const_item_cache(1), with_null(0)
+{
+
+  //TODO: think placing 2-3 component items in item (as it done for function)
+  arg_count= 1 + tail.elements;
+  items= (Item**) sql_alloc(sizeof(Item*)*arg_count);
+  if (items == NULL)
+  {
+    arg_count= 0;
+    return; // OOM
+  }
+  items[0]= head;
+  List_iterator<Item> li(tail);
+  uint i= 1;
+  Item *item;
+  while ((item= li++))
+  {
+    items[i]= item;
+    i++;    
+  }
+}
+
 void Item_row::illegal_method_call(const char *method)
 {
   DBUG_ENTER("Item_row::illegal_method_call");
@@ -73,7 +97,7 @@ bool Item_row::fix_fields(THD *thd, Item **ref)
   Item **arg, **arg_end;
   for (arg= items, arg_end= items+arg_count; arg != arg_end ; arg++)
   {
-    if ((*arg)->fix_fields(thd, arg))
+    if (!(*arg)->fixed && (*arg)->fix_fields(thd, arg))
       return TRUE;
     // we can't assign 'item' before, because fix_fields() can change arg
     Item *item= *arg;

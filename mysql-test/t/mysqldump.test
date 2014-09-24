@@ -2488,3 +2488,15 @@ DROP VIEW v1;
 --echo # End of 5.6 tests
 --echo #
 
+--echo #
+--echo # Bug #11752369 : MYSQLDUMP SHOULD CONVERT GEOMETRY COLUMNS TO HEX WITH
+--echo #                 --HEX-BLOB OPTION
+
+CREATE DATABASE dump_gis;
+USE dump_gis;
+CREATE TABLE t1 (a GEOMETRY);
+INSERT INTO t1 VALUES(GeomFromText('LineString(1 1, 2 1, 2 2, 1 2, 1 1)'));
+SELECT HEX(a) FROM t1;
+--exec $MYSQL_DUMP -necqt --compact --hex-blob dump_gis
+DROP DATABASE dump_gis;
+

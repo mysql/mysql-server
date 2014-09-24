@@ -205,9 +205,9 @@ struct ib_tuple_t {
 };
 
 /** The following counter is used to convey information to InnoDB
-about server activity: in selects it is not sensible to call
-srv_active_wake_master_thread after each fetch or search, we only do
-it every INNOBASE_WAKE_INTERVAL'th step. */
+about server activity: in case of normal DML ops it is not
+sensible to call srv_active_wake_master_thread after each
+operation, we only do it every INNOBASE_WAKE_INTERVAL'th step. */
 
 #define INNOBASE_WAKE_INTERVAL	32
 
@@ -706,8 +706,6 @@ ib_trx_rollback(
 
         /* It should always succeed */
         ut_a(err == DB_SUCCESS);
-
-	ib_wake_master_thread();
 
 	return(err);
 }
@@ -1654,7 +1652,7 @@ ib_cursor_insert_row(
 			src_tuple->index->table, q_proc->grph.ins, node->ins);
 	}
 
-	srv_active_wake_master_thread();
+	ib_wake_master_thread();
 
 	return(err);
 }
@@ -1940,7 +1938,7 @@ ib_cursor_update_row(
 		err = ib_execute_update_query_graph(cursor, pcur);
 	}
 
-	srv_active_wake_master_thread();
+	ib_wake_master_thread();
 
 	return(err);
 }
@@ -2082,7 +2080,7 @@ ib_cursor_delete_row(
 		err = DB_RECORD_NOT_FOUND;
 	}
 
-	srv_active_wake_master_thread();
+	ib_wake_master_thread();
 
 	return(err);
 }

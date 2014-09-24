@@ -228,9 +228,9 @@ static TYPELIB innodb_checksum_algorithm_typelib = {
 };
 
 /* The following counter is used to convey information to InnoDB
-about server activity: in selects it is not sensible to call
-srv_active_wake_master_thread after each fetch or search, we only do
-it every INNOBASE_WAKE_INTERVAL'th step. */
+about server activity: in case of normal DML ops it is not
+sensible to call srv_active_wake_master_thread after each
+operation, we only do it every INNOBASE_WAKE_INTERVAL'th step. */
 
 #define INNOBASE_WAKE_INTERVAL	32
 static ulong	innobase_active_counter	= 0;
@@ -2476,11 +2476,25 @@ innobase_invalidate_query_cache(
 	above the InnoDB trx_sys_t->lock. The caller of this function must
 	not have latches of a lower rank. */
 
-	/* Argument TRUE below means we are using transactions */
 #ifdef HAVE_QUERY_CACHE
+	char	qcache_key_name[2 * (NAME_LEN + 1)];
+	size_t	tabname_len;
+	size_t	dbname_len;
+
+	/* Construct the key("db-name\0table$name\0") for the query cache using
+	the path name("db@002dname\0table@0024name\0") of the table in its
+        canonical form. */
+	dbname_len = filename_to_tablename(full_name, qcache_key_name,
+					   sizeof(qcache_key_name));
+	tabname_len = filename_to_tablename(full_name + strlen(full_name) + 1,
+					    qcache_key_name + dbname_len + 1,
+					    sizeof(qcache_key_name)
+                                            - dbname_len - 1);
+
+	/* Argument TRUE below means we are using transactions */
 	mysql_query_cache_invalidate4(trx->mysql_thd,
-				      full_name,
-				      (uint32) full_name_len,
+				      qcache_key_name,
+				      (dbname_len + tabname_len + 2),
 				      TRUE);
 #endif
 }
@@ -3569,10 +3583,6 @@ retry:
 	trx->fts_next_doc_id = 0;
 
 	innobase_srv_conc_force_exit_innodb(trx);
-
-	/* Tell the InnoDB server that there might be work for utility
-	threads: */
-	srv_active_wake_master_thread();
 
 	DBUG_RETURN(0);
 }
@@ -7470,7 +7480,8 @@ ha_innobase::index_read(
 
 		row_sel_convert_mysql_key_to_innobase(
 			prebuilt->search_tuple,
-			srch_key_val1, sizeof(srch_key_val1),
+			prebuilt->srch_key_val1,
+			prebuilt->srch_key_val_len,
 			index,
 			(byte*) key_ptr,
 			(ulint) key_len,
@@ -10050,11 +10061,6 @@ ha_innobase::delete_table(
 
 	log_buffer_flush_to_disk();
 
-	/* Tell the InnoDB server that there might be work for
-	utility threads: */
-
-	srv_active_wake_master_thread();
-
 	innobase_commit_low(trx);
 
 	trx_free_for_mysql(trx);
@@ -10135,11 +10141,6 @@ innobase_drop_database(
 	with innodb_flush_log_at_trx_commit = 0 */
 
 	log_buffer_flush_to_disk();
-
-	/* Tell the InnoDB server that there might be work for
-	utility threads: */
-
-	srv_active_wake_master_thread();
 
 	innobase_commit_low(trx);
 	trx_free_for_mysql(trx);
@@ -10290,11 +10291,6 @@ ha_innobase::rename_table(
 
 	DEBUG_SYNC(thd, "after_innobase_rename_table");
 
-	/* Tell the InnoDB server that there might be work for
-	utility threads: */
-
-	srv_active_wake_master_thread();
-
 	innobase_commit_low(trx);
 	trx_free_for_mysql(trx);
 
@@ -10410,7 +10406,8 @@ ha_innobase::records_in_range(
 
 	row_sel_convert_mysql_key_to_innobase(
 				range_start,
-				srch_key_val1, sizeof(srch_key_val1),
+				prebuilt->srch_key_val1,
+				prebuilt->srch_key_val_len,
 				index,
 				(byte*) (min_key ? min_key->key :
 					 (const uchar*) 0),
@@ -10422,7 +10419,8 @@ ha_innobase::records_in_range(
 
 	row_sel_convert_mysql_key_to_innobase(
 				range_end,
-				srch_key_val2, sizeof(srch_key_val2),
+				prebuilt->srch_key_val2,
+				prebuilt->srch_key_val_len,
 				index,
 				(byte*) (max_key ? max_key->key :
 					 (const uchar*) 0),
@@ -13595,11 +13593,6 @@ innobase_xa_prepare(
 
 		trx_mark_sql_stat_end(trx);
 	}
-
-	/* Tell the InnoDB server that there might be work for utility
-	threads: */
-
-	srv_active_wake_master_thread();
 
 	if (thd_sql_command(thd) != SQLCOM_XA_PREPARE
 	    && (prepare_trx

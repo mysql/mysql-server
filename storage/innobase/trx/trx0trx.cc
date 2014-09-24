@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -1279,6 +1279,12 @@ trx_commit_in_memory(
 		}
 
 		trx->commit_lsn = lsn;
+
+		/* Tell server some activity has happened, since the trx
+		does changes something. Background utility threads like
+		master thread, purge thread or page_cleaner thread might
+		have some work to do. */
+		srv_active_wake_master_thread();
 	}
 
 	/* undo_no is non-zero if we're doing the final commit. */
