@@ -170,6 +170,23 @@ private:
 	unsigned	m_is_compressed:1;
 };
 
+/* Overloading the global output operator to conveniently print an object
+of type the page_size_t.
+@param[in,out]	out	the output stream
+@param[in]	obj	an object of type page_size_t to be printed
+@retval	the output stream */
+inline
+std::ostream&
+operator<<(
+	std::ostream&		out,
+	const page_size_t&	obj)
+{
+	out << "[page size: physical=" << obj.physical()
+		<< ", logical=" << obj.logical()
+		<< ", compressed=" << obj.is_compressed() << "]";
+	return(out);
+}
+
 extern page_size_t	univ_page_size;
 
 #endif /* page0size_t */
