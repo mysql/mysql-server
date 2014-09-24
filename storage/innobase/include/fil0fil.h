@@ -90,21 +90,12 @@ struct fil_space_t {
 				page because it actually was for the
 				previous incarnation of the space */
 	lsn_t		max_lsn;
-				/*!< LSN of the most recent fil_names_dirty().
+				/*!< LSN of the most recent
+				fil_names_write_if_was_clean().
 				Reset to 0 by fil_names_clear().
-				Protected by log_sys->mutex and
-				sometimes by fil_system->mutex:
-
-				Updates from nonzero to nonzero
-				are only protected by log_sys->mutex.
-
-				Updates between 0 and nonzero are
-				protected by log_sys->mutex and
-				fil_system->mutex.
-
+				Protected by log_sys->mutex.
 				If and only if this is nonzero, the
-				tablespace will be in named_spaces,
-				which is protected by fil_system->mutex. */
+				tablespace will be in named_spaces. */
 	bool		stop_ios;/*!< true if we want to rename the
 				.ibd file of tablespace and want to
 				stop temporarily posting of new i/o
@@ -331,6 +322,18 @@ extern ulint	fil_n_pending_tablespace_flushes;
 extern ulint	fil_n_file_opened;
 
 #ifndef UNIV_HOTBACKUP
+/** Look up a tablespace.
+The caller should hold an InnoDB table lock or a MDL that prevents
+the tablespace from being dropped during the operation.
+If this is not the case, fil_space_acquire() and fil_space_release()
+should be used instead.
+@param[in]	id	tablespace ID
+@return tablespace, or NULL if not found */
+fil_space_t*
+fil_space_get(
+	ulint	id)
+	__attribute__((warn_unused_result));
+
 /*******************************************************************//**
 Returns the version number of a tablespace, -1 if not found.
 @return version number, -1 if the tablespace does not exist in the
@@ -1179,25 +1182,52 @@ fil_mtr_rename_log(
 	mtr_t*			mtr)
 	__attribute__((warn_unused_result));
 
-/** Write a MLOG_FILE_NAME record for a non-predefined tablespace.
-@param[in]	space_id	tablespace identifier
-@param[in,out]	mtr		mini-transaction
-@return	tablespace */
-fil_space_t*
-fil_names_write(
-	ulint		space_id,
-	mtr_t*		mtr)
-	__attribute__((warn_unused_result));
-
-/** Note that a non-predefined persistent tablespace has been modified.
-@param[in,out]	space	tablespace
-@return whether this is the first dirtying since fil_names_clear() */
-bool
+/** Note that a non-predefined persistent tablespace has been modified
+by redo log.
+@param[in,out]	space	tablespace */
+void
 fil_names_dirty(
-	fil_space_t*	space)
-	__attribute__((warn_unused_result));
+	fil_space_t*	space);
 
-/** On a log checkpoint, reset fil_names_dirty() flags
+/** Write MLOG_FILE_NAME records when a non-predefined persistent
+tablespace was modified for the first time since the latest
+fil_names_clear().
+@param[in,out]	space	tablespace
+@param[in,out]	mtr	mini-transaction */
+void
+fil_names_dirty_and_write(
+	fil_space_t*	space,
+	mtr_t*		mtr);
+
+/** Write MLOG_FILE_NAME records if a persistent tablespace was modified
+for the first time since the latest fil_names_clear().
+@param[in,out]	space	tablespace
+@param[in,out]	mtr	mini-transaction
+@return whether any MLOG_FILE_NAME record was written */
+inline __attribute__((warn_unused_result))
+bool
+fil_names_write_if_was_clean(
+	fil_space_t*	space,
+	mtr_t*		mtr)
+{
+	ut_ad(log_mutex_own());
+
+	if (space == NULL) {
+		return(false);
+	}
+
+	const bool	was_clean = space->max_lsn == 0;
+	ut_ad(space->max_lsn <= log_sys->lsn);
+	space->max_lsn = log_sys->lsn;
+
+	if (was_clean) {
+		fil_names_dirty_and_write(space, mtr);
+	}
+
+	return(was_clean);
+}
+
+/** On a log checkpoint, reset fil_names_dirty_and_write() flags
 and write out MLOG_FILE_NAME and MLOG_CHECKPOINT if needed.
 @param[in]	lsn		checkpoint LSN
 @param[in]	do_write	whether to always write MLOG_CHECKPOINT

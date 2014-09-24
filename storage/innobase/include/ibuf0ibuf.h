@@ -450,7 +450,7 @@ for the file segment from which the pages for the ibuf tree are allocated */
 #define	IBUF_TREE_SEG_HEADER	0	/* fseg header for ibuf tree */
 
 /* The insert buffer tree itself is always located in space 0. */
-#define IBUF_SPACE_ID		0
+#define IBUF_SPACE_ID		static_cast<ulint>(0)
 
 #ifndef UNIV_NONINL
 #include "ibuf0ibuf.ic"
