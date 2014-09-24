@@ -346,7 +346,8 @@ public:
     The member is assigned, when the transaction is about to commit
     in binlog to a value of the last committed transaction's sequence_number.
     This and last_committed as numbers are kept ever incremented
-    regardless of binary logs being rotated.
+    regardless of binary logs being rotated or when transaction
+    is logged in multiple pieces.
     However the logger to the binary log may convert them
     according to its specification.
   */

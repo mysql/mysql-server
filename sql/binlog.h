@@ -595,6 +595,7 @@ public:
    Logical_clock max_committed_transaction;
   /* "Prepared" transactions timestamp */
    Logical_clock transaction_counter;
+  void update_max_committed(THD *thd);
 
   /**
     Find the oldest binary log that contains any GTID that
@@ -828,7 +829,7 @@ public:
   int register_create_index_entry(const char* entry);
   int purge_index_entry(THD *thd, ulonglong *decrease_log_space,
                         bool need_lock_index);
-  bool reset_logs(THD* thd);
+  bool reset_logs(THD* thd, bool delete_only= false);
   void close(uint exiting);
 
   // iterating through the log index file

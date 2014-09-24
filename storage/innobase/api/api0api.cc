@@ -210,7 +210,7 @@ ib_btr_cursor_is_positioned(
 /*========================*/
 	btr_pcur_t*	pcur)		/*!< in: InnoDB persistent cursor */
 {
-	return(pcur->old_stored == BTR_PCUR_OLD_STORED
+	return(pcur->old_stored
 	       && (pcur->pos_state == BTR_PCUR_IS_POSITIONED
 	           || pcur->pos_state == BTR_PCUR_WAS_POSITIONED));
 }
@@ -1855,7 +1855,7 @@ ib_cursor_position(
 	dtuple_set_n_fields(prebuilt->search_tuple, 0);
 
 	err = static_cast<ib_err_t>(row_search_for_mysql(
-		buf, mode, prebuilt, 0, 0));
+		buf, static_cast<page_cur_mode_t>(mode), prebuilt, 0, 0));
 
 	ut_free(buf);
 
@@ -1936,7 +1936,8 @@ ib_cursor_moveto(
 	buf = static_cast<unsigned char*>(ut_malloc_nokey(UNIV_PAGE_SIZE));
 
 	err = static_cast<ib_err_t>(row_search_for_mysql(
-		buf, ib_srch_mode, prebuilt, cursor->match_mode, 0));
+		buf, static_cast<page_cur_mode_t>(ib_srch_mode), prebuilt,
+		cursor->match_mode, 0));
 
 	ut_free(buf);
 

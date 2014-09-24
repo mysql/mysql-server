@@ -453,10 +453,9 @@ ha_validate(
 		     node = node->next) {
 
 			if (hash_calc_hash(node->fold, table) != i) {
-				ib_logf(IB_LOG_LEVEL_ERROR,
-					"Hash table node fold value %lu does"
-					" not match the cell number %lu.",
-					(ulong) node->fold, (ulong) i);
+				ib::error() << "Hash table node fold value "
+					<< node->fold << " does not match the"
+					" cell number " << i << ".";
 
 				ok = FALSE;
 			}

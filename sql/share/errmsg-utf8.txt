@@ -7081,8 +7081,8 @@ ER_INNODB_UNDO_LOG_FULL
 ER_INVALID_ARGUMENT_FOR_LOGARITHM 2201E
   eng "Invalid argument for logarithm"
 
-ER_SLAVE_IO_THREAD_MUST_STOP
-  eng "This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD first."
+ER_SLAVE_CHANNEL_IO_THREAD_MUST_STOP
+  eng "This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD FOR CHANNEL '%s' first."
 
 ER_WARN_OPEN_TEMP_TABLES_MUST_BE_ZERO
   eng "This operation may not be safe when the slave has temporary tables. The tables will be kept open until the server restarts or until the tables are deleted by any replicated DROP statement. Suggest to wait until slave_open_temp_tables = 0."
@@ -7241,6 +7241,46 @@ ER_INVALID_GEOJSON_UNSPECIFIED
 
 ER_DIMENSION_UNSUPPORTED
   eng "Unsupported number of coordinate dimensions in function %s: Found %u, expected %u"
+
+ER_SLAVE_CHANNEL_DOES_NOT_EXIST
+  eng "Slave channel '%s' does not exist."
+
+ER_SLAVE_MULTIPLE_CHANNELS_HOST_PORT
+  eng "A slave channel '%s' already exists for the given host and port combination."
+
+ER_SLAVE_CHANNEL_NAME_INVALID_OR_TOO_LONG
+  eng "Couldn't create channel: Channel name is either invalid or too long."
+
+ER_SLAVE_NEW_CHANNEL_WRONG_REPOSITORY
+  eng "To have multiple channels, repository cannot be of type FILE; Please check the repository configuration and convert them to TABLE."
+
+ER_SLAVE_CHANNEL_DELETE
+   eng "Cannot delete slave info objects for channel '%s'."
+
+ER_SLAVE_MULTIPLE_CHANNELS_CMD
+   eng "Multiple channels exist on the slave. Please provide channel name as an argument."
+
+ER_SLAVE_MAX_CHANNELS_EXCEEDED
+   eng "Maximum number of replication channels allowed exceeded."
+
+ER_SLAVE_CHANNEL_MUST_STOP
+   eng "This operation cannot be performed with a running replication threads; run STOP SLAVE FOR CHANNEL '%s' first"
+
+ER_SLAVE_CHANNEL_NOT_RUNNING
+   eng "This operation requires a running replication threads; configure slave and run START SLAVE FOR CHANNEL '%s'"
+
+ER_SLAVE_CHANNEL_WAS_RUNNING
+   eng "Replication thread(s) for channel '%s' are already runnning."
+
+ER_SLAVE_CHANNEL_WAS_NOT_RUNNING
+  eng "Replication thread(s) for channel '%s' are already stopped."
+
+ER_SLAVE_CHANNEL_SQL_THREAD_MUST_STOP
+  eng "This operation cannot be performed with a running slave sql thread; run STOP SLAVE SQL_THREAD FOR CHANNEL '%s' first."
+
+ER_SLAVE_CHANNEL_SQL_SKIP_COUNTER
+  eng "When sql_slave_skip_counter > 0, it is not allowed to start SQL threads for multiple channels. To use sql_slave_skip_counter, stop SQL threads of all channels and execute START SLAVE FOR CHANNEL statement."
+
 #
 #  End of 5.7 error messages.
 #

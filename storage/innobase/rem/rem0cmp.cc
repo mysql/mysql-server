@@ -99,8 +99,7 @@ innobase_mysql_cmp(
 			       cs, a, a_length, b, b_length, 0));
 	}
 
-	ib_logf(IB_LOG_LEVEL_FATAL,
-		"Unable to find charset-collation %u", cs_num);
+	ib::fatal() << "Unable to find charset-collation " << cs_num;
 	return(0);
 }
 
@@ -300,7 +299,7 @@ static
 int
 cmp_gis_field(
 /*============*/
-	ulint		mode,		/*!< in: compare mode */
+	page_cur_mode_t	mode,		/*!< in: compare mode */
 	const byte*	a,		/*!< in: data field */
 	unsigned int	a_length,	/*!< in: data field length,
 					not UNIV_SQL_NULL */
@@ -314,8 +313,7 @@ cmp_gis_field(
 		return(cmp_geometry_field(DATA_GEOMETRY, DATA_GIS_MBR,
 					  a, a_length, b, b_length));
 	} else {
-		return(rtree_key_cmp(static_cast<int>(mode),
-				     a, a_length, b, b_length));
+		return(rtree_key_cmp(mode, a, a_length, b, b_length));
 	}
 }
 
@@ -376,9 +374,8 @@ cmp_whole_field(
 			       a, a_length, b, b_length, 0));
 	case DATA_BLOB:
 		if (prtype & DATA_BINARY_TYPE) {
-			ib_logf(IB_LOG_LEVEL_ERROR,
-				"Comparing a binary BLOB"
-				" using a character set collation!");
+			ib::error() << "Comparing a binary BLOB"
+				" using a character set collation!";
 			ut_ad(0);
 		}
 		/* fall through */
@@ -392,9 +389,7 @@ cmp_whole_field(
 		return(cmp_geometry_field(mtype, prtype, a, a_length, b,
 				b_length));
 	default:
-		ib_logf(IB_LOG_LEVEL_FATAL,
-			"Unknown data type number %lu",
-			(ulong) mtype);
+		ib::fatal() << "Unknown data type number " << mtype;
 	}
 
 	return(0);
@@ -571,7 +566,7 @@ cmp_dtuple_rec_with_gis(
 				has an equal number or more fields than
 				dtuple */
 	const ulint*	offsets,/*!< in: array returned by rec_get_offsets() */
-	ulint		mode)	/*!< in: comprare mode */
+	page_cur_mode_t	mode)	/*!< in: compare mode */
 {
 	const dfield_t*	dtuple_field;	/* current field in logical record */
 	ulint		dtuple_f_len;	/* the length of the current field

@@ -469,9 +469,9 @@ trx_undo_seg_create(
 	slot_no = trx_rsegf_undo_find_free(rseg_hdr, mtr);
 
 	if (slot_no == ULINT_UNDEFINED) {
-		ib_logf(IB_LOG_LEVEL_WARN,
-			"Cannot find a free slot for an undo log. Do you have"
-			" too many active transactions running concurrently?");
+		ib::warn() << "Cannot find a free slot for an undo log. Do"
+			" you have too many active transactions running"
+			" concurrently?";
 
 		return(DB_TOO_MANY_CONCURRENT_TRXS);
 	}
@@ -2162,7 +2162,6 @@ trx_undo_truncate_tablespace(
 		ut_ad(rseg->curr_size == 1);
 
 		rseg->trx_ref_count = 0;
-		rseg->skip_allocation = false;
 		rseg->last_page_no = FIL_NULL;
 		rseg->last_offset = 0;
 		rseg->last_trx_no = 0;

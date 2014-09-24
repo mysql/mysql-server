@@ -395,9 +395,9 @@ my_charset_loader_init_mysys(MY_CHARSET_LOADER *loader)
 {
   loader->error[0]= '\0';
   loader->once_alloc= my_once_alloc_c;
-  loader->malloc= my_malloc_c;
-  loader->realloc= my_realloc_c;
-  loader->free= my_free_c;
+  loader->mem_malloc= my_malloc_c;
+  loader->mem_realloc= my_realloc_c;
+  loader->mem_free= my_free_c;
   loader->reporter= my_charset_error_reporter;
   loader->add_collation= add_collation;
 }

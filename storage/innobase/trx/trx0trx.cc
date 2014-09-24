@@ -40,6 +40,7 @@ Created 3/26/1996 Heikki Tuuri
 #include "srv0mon.h"
 #include "srv0srv.h"
 #include "fsp0sysspace.h"
+#include "row0mysql.h"
 #include "srv0start.h"
 #include "trx0purge.h"
 #include "trx0rec.h"
@@ -65,6 +66,15 @@ typedef std::set<
 
 /** Dummy session used currently in MySQL interface */
 sess_t*	trx_dummy_sess = NULL;
+
+/** Constructor */
+TrxVersion::TrxVersion(trx_t* trx)
+	:
+	m_trx(trx),
+	m_version(trx->version)
+{
+	/* No op */
+}
 
 /*************************************************************//**
 Set detailed error message for the transaction. */
@@ -98,11 +108,13 @@ trx_init(
 /*=====*/
 	trx_t*	trx)
 {
+	/* This is called at the end of commit, do not reset the
+	trx_t::state here to NOT_STARTED. The FORCED_ROLLBACK
+	status is required for asynchronous handling. */
+
 	trx->id = 0;
 
 	trx->no = TRX_ID_MAX;
-
-	trx->state = TRX_STATE_NOT_STARTED;
 
 	trx->is_recovered = false;
 
@@ -163,6 +175,23 @@ trx_init(
 	trx->lock.rec_cached = 0;
 
 	trx->lock.table_cached = 0;
+
+	os_thread_id_t	thread_id = trx->killed_by;
+
+	os_compare_and_swap_thread_id(&trx->killed_by, thread_id, 0);
+
+	/* Note: Do not set to 0, the ref count is decremented inside
+	the TrxInInnoDB() destructor. We only need to clear the flags. */
+
+	trx->in_innodb &= TRX_FORCE_ROLLBACK_MASK;
+
+	/* Note: It's possible that this list is not empty if a transaction
+	was interrupted after it collected the victim transactions and before
+	it got a chance to roll them back asynchronously. */
+
+	trx->hit_list.clear();
+
+	++trx->version;
 }
 
 /** For managing the life-cycle of the trx_t instance that we get
@@ -175,7 +204,23 @@ struct TrxFactory {
 	@param trx Transaction instance to initialise */
 	static void init(trx_t* trx)
 	{
+		/* Explicitly call the constructor of the already
+		allocated object. trx_t objects are allocated by
+		ut_zalloc() in Pool::Pool() which would not call
+		the constructors of the trx_t members. */
+		new(&trx->mod_tables) trx_mod_tables_t();
+
+		new(&trx->lock.rec_pool) lock_pool_t();
+
+		new(&trx->lock.table_pool) lock_pool_t();
+
+		new(&trx->lock.table_locks) lock_pool_t();
+
+		new(&trx->hit_list) hit_list_t();
+
 		trx_init(trx);
+
+		trx->state = TRX_STATE_NOT_STARTED;
 
 		trx->dict_operation_lock_mode = 0;
 
@@ -195,18 +240,6 @@ struct TrxFactory {
 
 		mutex_create("trx", &trx->mutex);
 		mutex_create("trx_undo", &trx->undo_mutex);
-
-		/* Explicitly call the constructor of the already
-		allocated object. trx_t objects are allocated by
-		ut_zalloc_nokey() in Pool::Pool() which would not call
-		the constructors of the trx_t members. */
-		new(&trx->mod_tables) trx_mod_tables_t();
-
-		new(&trx->lock.rec_pool) lock_pool_t();
-
-		new(&trx->lock.table_pool) lock_pool_t();
-
-		new(&trx->lock.table_locks) lock_pool_t();
 
 		lock_trx_alloc_locks(trx);
 	}
@@ -264,6 +297,8 @@ struct TrxFactory {
 		trx->lock.table_pool.~lock_pool_t();
 
 		trx->lock.table_locks.~lock_pool_t();
+
+		trx->hit_list.~hit_list_t();
 	}
 
 	/** Enforce any invariants here, this is called before the transaction
@@ -299,6 +334,12 @@ struct TrxFactory {
 		ut_ad(trx->autoinc_locks == NULL);
 
 		ut_ad(trx->lock.table_locks.empty());
+
+		ut_ad(!trx->abort);
+
+		ut_ad(trx->hit_list.empty());
+
+		ut_ad(trx->killed_by == 0);
 
 		return(true);
 	}
@@ -435,12 +476,13 @@ trx_free(trx_t*& trx)
 	trx->mod_tables.clear();
 
 	ut_ad(trx->read_view == NULL);
+	ut_ad(trx->is_dd_trx == false);
 
 	/* trx locking state should have been reset before returning trx
 	to pool */
 	ut_ad(trx->will_lock == 0);
 
-	trx_pools->free(trx);
+	trx_pools->mem_free(trx);
 
 	trx = NULL;
 }
@@ -490,10 +532,9 @@ trx_validate_state_before_free(trx_t* trx)
 {
 	if (trx->declared_to_be_inside_innodb) {
 
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Freeing a trx (%p, " TRX_ID_FMT ") which is declared"
-			" to be processing inside InnoDB", trx,
-			trx_get_id_for_print(trx));
+		ib::error() << "Freeing a trx (" << trx << ", "
+			<< trx_get_id_for_print(trx) << ") which is declared"
+			" to be processing inside InnoDB";
 
 		trx_print(stderr, trx, 600);
 		putc('\n', stderr);
@@ -506,12 +547,11 @@ trx_validate_state_before_free(trx_t* trx)
 	if (trx->n_mysql_tables_in_use != 0
 	    || trx->mysql_n_tables_locked != 0) {
 
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"MySQL is freeing a thd though"
-			" trx->n_mysql_tables_in_use is %lu and"
-			" trx->mysql_n_tables_locked is %lu.",
-			(ulong) trx->n_mysql_tables_in_use,
-			(ulong) trx->mysql_n_tables_locked);
+		ib::error() << "MySQL is freeing a thd though"
+			" trx->n_mysql_tables_in_use is "
+			<< trx->n_mysql_tables_in_use
+			<< " and trx->mysql_n_tables_locked is "
+			<< trx->mysql_n_tables_locked << ".";
 
 		trx_print(stderr, trx, 600);
 		ut_print_buf(stderr, trx, sizeof(trx_t));
@@ -735,9 +775,9 @@ trx_resurrect_insert(
 
 		if (undo->state == TRX_UNDO_PREPARED) {
 
-			ib_logf(IB_LOG_LEVEL_INFO,
-				"Transaction " TRX_ID_FMT " was in the XA"
-				" prepared state.", trx_get_id_for_print(trx));
+			ib::info() << "Transaction "
+				<< trx_get_id_for_print(trx)
+				<< " was in the XA prepared state.";
 
 			if (srv_force_recovery == 0) {
 
@@ -746,9 +786,8 @@ trx_resurrect_insert(
 				++trx_sys->n_prepared_recovered_trx;
 			} else {
 
-				ib_logf(IB_LOG_LEVEL_INFO,
-					"Since innodb_force_recovery > 0, we"
-					" will force a rollback.");
+				ib::info() << "Since innodb_force_recovery"
+					" > 0, we will force a rollback.";
 
 				trx->state = TRX_STATE_ACTIVE;
 			}
@@ -808,9 +847,8 @@ trx_resurrect_update_in_prepared_state(
 	protection of trx->mutex or trx_sys->mutex here. */
 
 	if (undo->state == TRX_UNDO_PREPARED) {
-		ib_logf(IB_LOG_LEVEL_INFO,
-			"Transaction " TRX_ID_FMT " was in the XA"
-			" prepared state.", trx_get_id_for_print(trx));
+		ib::info() << "Transaction " << trx_get_id_for_print(trx)
+			<< " was in the XA prepared state.";
 
 		if (srv_force_recovery == 0) {
 
@@ -825,9 +863,8 @@ trx_resurrect_update_in_prepared_state(
 
 			trx->state = TRX_STATE_PREPARED;
 		} else {
-			ib_logf(IB_LOG_LEVEL_INFO,
-				"Since innodb_force_recovery > 0, we will"
-				" rollback it anyway.");
+			ib::info() << "Since innodb_force_recovery > 0, we"
+				" will rollback it anyway.";
 
 			trx->state = TRX_STATE_ACTIVE;
 		}
@@ -1225,6 +1262,7 @@ trx_start_low(
 {
 	ut_ad(!trx->in_rollback);
 	ut_ad(!trx->is_recovered);
+	ut_ad(trx->hit_list.empty());
 	ut_ad(trx->start_line != 0);
 	ut_ad(trx->start_file != 0);
 	ut_ad(trx->roll_limit == 0);
@@ -1233,6 +1271,13 @@ trx_start_low(
 	ut_ad(trx->rsegs.m_noredo.rseg == NULL);
 	ut_ad(trx_state_eq(trx, TRX_STATE_NOT_STARTED));
 	ut_ad(UT_LIST_GET_LEN(trx->lock.trx_locks) == 0);
+	ut_ad(!(trx->in_innodb & TRX_FORCE_ROLLBACK));
+	ut_ad(!(trx->in_innodb & TRX_FORCE_ROLLBACK_ASYNC));
+	ut_ad(!(trx->in_innodb & TRX_FORCE_ROLLBACK_DISABLE));
+
+	trx->owner_id = os_thread_get_curr_id();
+
+	++trx->version;
 
 	/* Check whether it is an AUTOCOMMIT SELECT */
 	trx->auto_commit = (trx->api_trx && trx->api_auto_commit)
@@ -1819,6 +1864,10 @@ trx_commit_in_memory(
 
 		MONITOR_INC(MONITOR_TRX_NL_RO_COMMIT);
 
+		/* AC-NL-RO transactions can't be rolled back asynchronously. */
+		ut_ad(!trx->abort);
+		ut_ad(!(trx->in_innodb & ~TRX_FORCE_ROLLBACK_MASK));
+
 		trx->state = TRX_STATE_NOT_STARTED;
 
 	} else {
@@ -1957,7 +2006,24 @@ trx_commit_in_memory(
 
 	trx->dict_operation = TRX_DICT_OP_NONE;
 
-	trx->state = TRX_STATE_NOT_STARTED;
+	/* Because we can rollback transactions asynchronously, we change
+	the state at the last step. trx_t::abort cannot change once commit
+	or rollback has started because we will have released the locks by
+	the time we get here. */
+
+	if (trx->abort) {
+
+		trx_mutex_enter(trx);
+
+		trx->abort = false;
+
+		trx->state = TRX_STATE_FORCED_ROLLBACK;
+
+		trx_mutex_exit(trx);
+
+	} else {
+		trx->state = TRX_STATE_NOT_STARTED;
+	}
 
 	/* trx->in_mysql_trx_list would hold between
 	trx_allocate_for_mysql() and trx_free_for_mysql(). It does not
@@ -2266,6 +2332,14 @@ trx_commit_for_mysql(
 /*=================*/
 	trx_t*	trx)	/*!< in/out: transaction */
 {
+	TrxInInnoDB	trx_in_innodb(trx, true);
+
+	if (trx_in_innodb.is_aborted()
+	    && trx->killed_by != os_thread_get_curr_id()) {
+
+		return(DB_FORCED_ABORT);
+	}
+
 	/* Because we do not do the commit by sending an Innobase
 	sig to the transaction, we must here make sure that trx has been
 	started. */
@@ -2686,6 +2760,10 @@ trx_prepare(
 /*========*/
 	trx_t*	trx)	/*!< in/out: transaction */
 {
+	/* This transaction has crossed the point of no return and cannot
+	be rolled back asynchronously now. It must commit or rollback
+	synhronously. */
+
 	lsn_t	lsn = 0;
 
 	/* Only fresh user transactions can be prepared.
@@ -2701,6 +2779,7 @@ trx_prepare(
 
 	if (trx->rsegs.m_noredo.rseg != NULL
 	    && trx_is_noredo_rseg_updated(trx)) {
+
 		trx_prepare_low(trx, &trx->rsegs.m_noredo, true);
 	}
 
@@ -2734,20 +2813,29 @@ trx_prepare(
 	}
 }
 
-/**********************************************************************//**
-Does the transaction prepare for MySQL. */
-void
-trx_prepare_for_mysql(
-/*==================*/
-	trx_t*	trx)		/*!< in/out: trx handle */
+/**
+Does the transaction prepare for MySQL.
+@param[in, out] trx		Transaction instance to prepare */
+dberr_t
+trx_prepare_for_mysql(trx_t* trx)
 {
 	trx_start_if_not_started_xa(trx, false);
+
+	TrxInInnoDB	trx_in_innodb(trx, true);
+
+	if (trx_in_innodb.is_aborted()
+	    && trx->killed_by != os_thread_get_curr_id()) {
+
+		return(DB_FORCED_ABORT);
+	}
 
 	trx->op_info = "preparing";
 
 	trx_prepare(trx);
 
 	trx->op_info = "";
+
+	return(DB_SUCCESS);
 }
 
 /**********************************************************************//**
@@ -2785,20 +2873,16 @@ trx_recover_for_mysql(
 			xid_list[count] = *trx->xid;
 
 			if (count == 0) {
-				ib_logf(IB_LOG_LEVEL_INFO,
-					"Starting recovery for"
-					" XA transactions...");
+				ib::info() << "Starting recovery for"
+					" XA transactions...";
 			}
 
-			ib_logf(IB_LOG_LEVEL_INFO,
-				"Transaction " TRX_ID_FMT " in"
-				" prepared state after recovery",
-				trx_get_id_for_print(trx));
+			ib::info() << "Transaction "
+				<< trx_get_id_for_print(trx)
+				<< " in prepared state after recovery";
 
-			ib_logf(IB_LOG_LEVEL_INFO,
-				"Transaction contains changes"
-				" to " TRX_ID_FMT " rows",
-				trx->undo_no);
+			ib::info() << "Transaction contains changes to "
+				<< trx->undo_no << " rows";
 
 			count++;
 
@@ -2811,10 +2895,8 @@ trx_recover_for_mysql(
 	trx_sys_mutex_exit();
 
 	if (count > 0){
-		ib_logf(IB_LOG_LEVEL_INFO,
-			"%d transactions in prepared state"
-			" after recovery",
-			int (count));
+		ib::info() << count << " transactions in prepared state"
+			" after recovery";
 	}
 
 	return(int (count));
@@ -3104,4 +3186,128 @@ trx_set_rw_mode(
 	}
 
 	mutex_exit(&trx_sys->mutex);
+}
+
+/**
+Kill all transactions that are blocking this transaction from acquiring locks.
+@param[in,out] trx	High priority transaction */
+
+void
+trx_kill_blocking(trx_t* trx)
+{
+	if (trx->hit_list.empty()) {
+		return;
+	}
+
+	ulint	had_dict_lock = trx->dict_operation_lock_mode;
+
+	switch (had_dict_lock) {
+	case 0:
+		break;
+
+	case RW_S_LATCH:
+		/* Release foreign key check latch */
+		row_mysql_unfreeze_data_dictionary(trx);
+		break;
+
+	default:
+		/* There should never be a lock wait when the
+		dictionary latch is reserved in X mode.  Dictionary
+		transactions should only acquire locks on dictionary
+		tables, not other tables. All access to dictionary
+		tables should be covered by dictionary
+		transactions. */
+		ut_error;
+	}
+
+	ut_a(trx->dict_operation_lock_mode == 0);
+
+	/** Kill the transactions in the lock acquisition order old -> new. */
+	hit_list_t::reverse_iterator	end = trx->hit_list.rend();
+
+	for (hit_list_t::reverse_iterator it = trx->hit_list.rbegin();
+	     it != end;
+	     ++it) {
+
+		trx_t*	victim_trx = it->m_trx;
+		ulint	version = it->m_version;
+
+		ut_ad(victim_trx != trx);
+
+		/* We don't kill transactions that are tagged
+		explicitly as READ ONLY. */
+
+		ut_a(!victim_trx->read_only);
+
+
+		/* We should never kill background transactions. */
+
+		ut_ad(victim_trx->mysql_thd != NULL);
+
+		/* Shouldn't commit suicide either. */
+
+		ut_ad(victim_trx->mysql_thd != trx->mysql_thd);
+
+		/* Check that the transaction isn't active inside
+		InnoDB code. We have to wait while it is executing
+		in the InnoDB context. This can potentially take a
+		long time */
+
+		trx_mutex_enter(victim_trx);
+
+		ut_ad(!(trx->in_innodb & TRX_FORCE_ROLLBACK_DISABLE));
+
+		while (victim_trx->version == version
+		       && (victim_trx->in_innodb & TRX_FORCE_ROLLBACK_MASK) > 0
+		       && trx_is_started(victim_trx)) {
+
+			trx_mutex_exit(victim_trx);
+
+			os_thread_sleep(20);
+
+			trx_mutex_enter(victim_trx);
+		}
+
+		ut_ad(it->m_version <= victim_trx->version);
+
+		bool	rollback = victim_trx->version == it->m_version;
+
+		ut_ad(((victim_trx->in_innodb & TRX_FORCE_ROLLBACK)
+		       && victim_trx->killed_by == os_thread_get_curr_id())
+		      || !rollback);
+
+		trx_mutex_exit(victim_trx);
+
+		char	buffer[1024];
+
+		if (trx_is_started(victim_trx) && rollback) {
+
+			trx_id_t	id = victim_trx->id;
+
+			ut_ad(victim_trx->in_innodb & TRX_FORCE_ROLLBACK_ASYNC);
+
+			ut_ad(victim_trx->version == it->m_version);
+
+			trx_rollback_for_mysql(victim_trx);
+
+			ib::info() << "Killed transaction: ID: " << id
+				<< " - " << thd_security_context(
+					victim_trx->mysql_thd,
+					buffer, sizeof(buffer), 512);
+		}
+
+		trx_mutex_enter(victim_trx);
+
+		victim_trx->in_innodb &= TRX_FORCE_ROLLBACK_MASK;
+
+		trx_mutex_exit(victim_trx);
+	}
+
+	trx->hit_list.clear();
+
+	if (had_dict_lock) {
+
+		row_mysql_freeze_data_dictionary(trx);
+	}
+
 }

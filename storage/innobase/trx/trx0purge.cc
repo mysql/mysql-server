@@ -346,8 +346,7 @@ trx_purge_add_update_undo_to_history(
 		/* The undo log segment will not be reused */
 
 		if (UNIV_UNLIKELY(undo->id >= TRX_RSEG_N_SLOTS)) {
-			ib_logf(IB_LOG_LEVEL_FATAL,
-				"undo->id is %lu", (ulong) undo->id);
+			ib::fatal() << "undo->id is " << undo->id;
 		}
 
 		trx_rsegf_set_nth_undo(rseg_header, undo->id, FIL_NULL, mtr);
@@ -910,9 +909,8 @@ trx_purge_mark_undo_for_truncate(
 	}
 
 #ifdef UNIV_DEBUG
-	ib_logf(IB_LOG_LEVEL_INFO,
-		"UNDO tablespace with space identifier " ULINTPF
-		" marked for truncate", undo_trunc->get_marked_space_id());
+	ib::info() << "UNDO tablespace with space identifier "
+		<< undo_trunc->get_marked_space_id() << " marked for truncate";
 #endif /* UNIV_DEBUG */
 
 	/* Step-3: Iterate over all the rsegs of selected UNDO tablespace
@@ -1082,8 +1080,7 @@ trx_purge_initiate_truncate(
 	d. Execute actual truncate
 	e. Remove the DDL log. */
 	DBUG_EXECUTE_IF("ib_undo_trunc_before_checkpoint",
-			ib_logf(IB_LOG_LEVEL_INFO,
-				"ib_undo_trunc_before_checkpoint");
+			ib::info() << "ib_undo_trunc_before_checkpoint";
 			DBUG_SUICIDE(););
 
 	/* After truncate if server crashes then redo logging done for this
@@ -1091,13 +1088,11 @@ trx_purge_initiate_truncate(
 	truncated. */
 	log_make_checkpoint_at(LSN_MAX, TRUE);
 
-	ib_logf(IB_LOG_LEVEL_INFO,
-		"Truncating UNDO tablespace with space identifier " ULINTPF "",
-		undo_trunc->get_marked_space_id());
+	ib::info() << "Truncating UNDO tablespace with space identifier "
+		<< undo_trunc->get_marked_space_id();
 
 	DBUG_EXECUTE_IF("ib_undo_trunc_before_ddl_log_start",
-			ib_logf(IB_LOG_LEVEL_INFO,
-				"ib_undo_trunc_before_ddl_log_start");
+			ib::info() << "ib_undo_trunc_before_ddl_log_start";
 			DBUG_SUICIDE(););
 
 #ifdef UNIV_DEBUG
@@ -1108,8 +1103,7 @@ trx_purge_initiate_truncate(
 	ut_ad(err == DB_SUCCESS);
 
 	DBUG_EXECUTE_IF("ib_undo_trunc_before_truncate",
-			ib_logf(IB_LOG_LEVEL_INFO,
-				"ib_undo_trunc_before_truncate");
+			ib::info() << "ib_undo_trunc_before_truncate";
 			DBUG_SUICIDE(););
 
 	trx_purge_cleanse_purge_queue(undo_trunc);
@@ -1119,10 +1113,9 @@ trx_purge_initiate_truncate(
 		/* Note: In case of error we don't enable the rsegs
 		and neither unmark the tablespace so the tablespace
 		continue to remain inactive. */
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Failed to truncate UNDO tablespace with"
-			" space identifier " ULINTPF "",
-			undo_trunc->get_marked_space_id());
+		ib::error() << "Failed to truncate UNDO tablespace with"
+			" space identifier "
+			<< undo_trunc->get_marked_space_id();
 		return;
 	}
 
@@ -1140,23 +1133,27 @@ trx_purge_initiate_truncate(
 	}
 
 	DBUG_EXECUTE_IF("ib_undo_trunc_before_ddl_log_end",
-			ib_logf(IB_LOG_LEVEL_INFO,
-				"ib_undo_trunc_before_ddl_log_end");
+			ib::info() << "ib_undo_trunc_before_ddl_log_end";
 			DBUG_SUICIDE(););
 
 	log_make_checkpoint_at(LSN_MAX, TRUE);
 
 	undo_trunc->done_logging(undo_trunc->get_marked_space_id());
 
-	ib_logf(IB_LOG_LEVEL_INFO,
-		"Completed truncate of UNDO tablespace with space identifier "
-		ULINTPF "", undo_trunc->get_marked_space_id());
+	/* Completed truncate. Now it is safe to re-use the tablespace. */
+	for (ulint i = 0; i < undo_trunc->rsegs_size(); ++i) {
+		trx_rseg_t*	rseg = undo_trunc->get_ith_rseg(i);
+		rseg->skip_allocation = false;
+	}
+
+	ib::info() << "Completed truncate of UNDO tablespace with space"
+		" identifier " << undo_trunc->get_marked_space_id();
 
 	undo_trunc->reset();
 	undo::Truncate::clear_trunc_list();
 
 	DBUG_EXECUTE_IF("ib_undo_trunc_trunc_done",
-			ib_logf(IB_LOG_LEVEL_INFO, "ib_undo_trunc_trunc_done");
+			ib::info() << "ib_undo_trunc_trunc_done";
 			DBUG_SUICIDE(););
 }
 
@@ -1201,9 +1198,14 @@ trx_purge_truncate_history(
 		}
 	}
 
-	/* UNDO tablespace truncate. */
-	trx_purge_mark_undo_for_truncate(&purge_sys->undo_trunc);
-	trx_purge_initiate_truncate(limit, &purge_sys->undo_trunc);
+	/* UNDO tablespace truncate. We will try to truncate as much as we
+	can (greedy approach). This will ensure when the server is idle we
+	try and truncate all the UNDO tablespaces. */
+	ulint	nchances = srv_undo_tablespaces_open;
+	for (i = 0; i < nchances; i++) {
+		trx_purge_mark_undo_for_truncate(&purge_sys->undo_trunc);
+		trx_purge_initiate_truncate(limit, &purge_sys->undo_trunc);
+	}
 }
 
 /***********************************************************************//**
@@ -1267,12 +1269,11 @@ trx_purge_rseg_get_next_history_log(
 		list cannot be longer than 2000 000 undo logs now. */
 
 		if (trx_sys->rseg_history_len > 2000000) {
-			ib_logf(IB_LOG_LEVEL_WARN,
-				"Purge reached the head of the history list,"
-				" but its length is still reported as %lu! Make"
+			ib::warn() << "Purge reached the head of the history"
+				" list, but its length is still reported as "
+				<< trx_sys->rseg_history_len << "! Make"
 				" a detailed bug report, and submit it to"
-				" http://bugs.mysql.com",
-				(ulong) trx_sys->rseg_history_len);
+				" http://bugs.mysql.com";
 			ut_ad(0);
 		}
 
@@ -1932,7 +1933,7 @@ trx_purge_stop(void)
 	state = purge_sys->state;
 
 	if (state == PURGE_STATE_RUN) {
-		ib_logf(IB_LOG_LEVEL_INFO, "Stopping purge");
+		ib::info() << "Stopping purge";
 
 		/* We need to wakeup the purge thread in case it is suspended,
 		so that it can acknowledge the state change. */
@@ -1958,8 +1959,7 @@ trx_purge_stop(void)
 		while (purge_sys->running) {
 
 			if (once) {
-				ib_logf(IB_LOG_LEVEL_INFO,
-					"Waiting for purge to stop");
+				ib::info() << "Waiting for purge to stop";
 				once = false;
 			}
 
@@ -2003,7 +2003,7 @@ trx_purge_run(void)
 
 		if (purge_sys->n_stop == 0) {
 
-			ib_logf(IB_LOG_LEVEL_INFO, "Resuming purge");
+			ib::info() << "Resuming purge";
 
 			purge_sys->state = PURGE_STATE_RUN;
 		}

@@ -42,6 +42,7 @@
 #include "rpl_mi.h"
 #include "rpl_rli.h"
 #include "rpl_slave.h"
+#include "rpl_msr.h"           /* Multisource replication */
 #include "rpl_info_factory.h"
 #include "transaction.h"
 #include "opt_trace.h"
@@ -982,20 +983,40 @@ static bool repository_check(sys_var *self, THD *thd, set_var *var, SLAVE_THD_TY
   }
 #endif
 #ifdef HAVE_REPLICATION
+  Master_info *mi;
   int running= 0;
   const char *msg= NULL;
-  mysql_mutex_lock(&LOCK_active_mi);
-  if (active_mi != NULL)
+  bool rpl_info_option= static_cast<uint>(var->save_result.ulonglong_value);
+
+  /* don't convert if the repositories are same */
+  if (rpl_info_option == (thread_mask== SLAVE_THD_IO ?
+                          opt_mi_repository_id: opt_rli_repository_id))
+      return FALSE;
+
+  mysql_mutex_lock(&LOCK_msr_map);
+
+  /* Repository conversion not possible, when multiple channels exist */
+  if (msr_map.get_num_instances() > 1)
   {
-    lock_slave_threads(active_mi);
-    init_thread_mask(&running, active_mi, FALSE);
+      msg= "Repository conversion is possible when only default channel exists";
+      my_error(ER_CHANGE_RPL_INFO_REPOSITORY_FAILURE, MYF(0), msg);
+      mysql_mutex_unlock(&LOCK_msr_map);
+      return TRUE;
+  }
+
+  mi= msr_map.get_mi(msr_map.get_default_channel());
+
+  if (mi != NULL)
+  {
+    lock_slave_threads(mi);
+    init_thread_mask(&running, mi, FALSE);
     if(!running)
     {
       switch (thread_mask)
       {
         case SLAVE_THD_IO:
         if (Rpl_info_factory::
-            change_mi_repository(active_mi,
+            change_mi_repository(mi,
                                  static_cast<uint>(var->save_result.
                                                    ulonglong_value),
                                  &msg))
@@ -1005,12 +1026,12 @@ static bool repository_check(sys_var *self, THD *thd, set_var *var, SLAVE_THD_TY
         }
         break;
         case SLAVE_THD_SQL:
-          mts_recovery_groups(active_mi->rli);
-          if (!active_mi->rli->is_mts_recovery())
+          mts_recovery_groups(mi->rli);
+          if (!mi->rli->is_mts_recovery())
           {
-            if (Rpl_info_factory::reset_workers(active_mi->rli) ||
+            if (Rpl_info_factory::reset_workers(mi->rli) ||
                 Rpl_info_factory::
-                change_rli_repository(active_mi->rli,
+                change_rli_repository(mi->rli,
                                       static_cast<uint>(var->save_result.
                                                         ulonglong_value),
                                       &msg))
@@ -1033,11 +1054,11 @@ static bool repository_check(sys_var *self, THD *thd, set_var *var, SLAVE_THD_TY
     else
     {
       ret= TRUE;
-      my_error(ER_SLAVE_MUST_STOP, MYF(0));
+      my_error(ER_SLAVE_CHANNEL_MUST_STOP, MYF(0),mi->get_channel());
     }
-    unlock_slave_threads(active_mi);
+    unlock_slave_threads(mi);
   }
-  mysql_mutex_unlock(&LOCK_active_mi);
+  mysql_mutex_unlock(&LOCK_msr_map);
 #endif
   return ret;
 }
@@ -2014,8 +2035,23 @@ static bool fix_max_binlog_size(sys_var *self, THD *thd, enum_var_type type)
 {
   mysql_bin_log.set_max_size(max_binlog_size);
 #ifdef HAVE_REPLICATION
-  if (active_mi != NULL && !max_relay_log_size)
-    active_mi->rli->relay_log.set_max_size(max_binlog_size);
+  /*
+    For multisource replication, this max size is set to all relay logs
+    per channel. So, run through them
+  */
+  if (!max_relay_log_size)
+  {
+    Master_info *mi =NULL;
+
+    mysql_mutex_lock(&LOCK_msr_map);
+    for (mi_map::iterator it= msr_map.begin(); it!= msr_map.end(); it++)
+    {
+      mi= it->second;
+      if (mi!= NULL)
+        mi->rli->relay_log.set_max_size(max_binlog_size);
+    }
+    mysql_mutex_unlock(&LOCK_msr_map);
+  }
 #endif
   return false;
 }
@@ -2163,9 +2199,18 @@ static Sys_var_ulong Sys_max_prepared_stmt_count(
 static bool fix_max_relay_log_size(sys_var *self, THD *thd, enum_var_type type)
 {
 #ifdef HAVE_REPLICATION
-  if (active_mi != NULL)
-    active_mi->rli->relay_log.set_max_size(max_relay_log_size ?
-                                           max_relay_log_size: max_binlog_size);
+  Master_info *mi= NULL;
+
+  mysql_mutex_lock(&LOCK_msr_map);
+  for (mi_map::iterator it= msr_map.begin(); it!=msr_map.end(); it++)
+  {
+    mi= it->second;
+
+    if (mi != NULL)
+      mi->rli->relay_log.set_max_size(max_relay_log_size ?
+                                      max_relay_log_size: max_binlog_size);
+  }
+  mysql_mutex_unlock(&LOCK_msr_map);
 #endif
   return false;
 }
@@ -2939,20 +2984,28 @@ static bool check_not_null_not_empty(sys_var *self, THD *thd, set_var *var)
 static bool check_slave_stopped(sys_var *self, THD *thd, set_var *var)
 {
   bool result= false;
+  Master_info *mi= 0;
+
   if (check_not_null_not_empty(self, thd, var))
     return true;
-  mysql_mutex_lock(&LOCK_active_mi);
-  if (active_mi != NULL)
+
+  mysql_mutex_lock(&LOCK_msr_map);
+
+  for (mi_map::iterator it= msr_map.begin(); it!= msr_map.end(); it++)
   {
-    mysql_mutex_lock(&active_mi->rli->run_lock);
-    if (active_mi->rli->slave_running)
+    mi= it->second;
+    if (mi)
     {
-      my_error(ER_SLAVE_SQL_THREAD_MUST_STOP, MYF(0));
-      result= true;
+      mysql_mutex_lock(&mi->rli->run_lock);
+      if (mi->rli->slave_running)
+      {
+        my_error(ER_SLAVE_SQL_THREAD_MUST_STOP, MYF(0));
+        result= true;
+      }
+      mysql_mutex_unlock(&mi->rli->run_lock);
     }
-    mysql_mutex_unlock(&active_mi->rli->run_lock);
   }
-  mysql_mutex_unlock(&LOCK_active_mi);
+  mysql_mutex_unlock(&LOCK_msr_map);
   return result;
 }
 
@@ -3663,13 +3716,13 @@ static Sys_var_bit Sys_log_off(
 static bool fix_sql_log_bin_after_update(sys_var *self, THD *thd,
                                          enum_var_type type)
 {
-  if (type == OPT_SESSION)
-  {
-    if (thd->variables.sql_log_bin)
-      thd->variables.option_bits |= OPTION_BIN_LOG;
-    else
-      thd->variables.option_bits &= ~OPTION_BIN_LOG;
-  }
+  DBUG_ASSERT(type == OPT_SESSION);
+
+  if (thd->variables.sql_log_bin)
+    thd->variables.option_bits |= OPTION_BIN_LOG;
+  else
+    thd->variables.option_bits &= ~OPTION_BIN_LOG;
+
   return FALSE;
 }
 
@@ -3691,7 +3744,7 @@ static bool check_sql_log_bin(sys_var *self, THD *thd, set_var *var)
     return TRUE;
 
   if (var->type == OPT_GLOBAL)
-    return FALSE;
+    return TRUE;
 
   /* If in a stored function/trigger, it's too late to change sql_log_bin. */
   if (thd->in_sub_stmt)
@@ -3709,10 +3762,10 @@ static bool check_sql_log_bin(sys_var *self, THD *thd, set_var *var)
   return FALSE;
 }
 
-static Sys_var_mybool Sys_log_binlog(
-       "sql_log_bin", "sql_log_bin",
-       SESSION_VAR(sql_log_bin), NO_CMD_LINE,
-       DEFAULT(TRUE), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_sql_log_bin),
+static Sys_var_sql_log_bin Sys_log_binlog(
+       "sql_log_bin", "Controls whether logging to the binary log is done",
+       SESSION_VAR(sql_log_bin), NO_CMD_LINE, DEFAULT(TRUE),
+       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_sql_log_bin),
        ON_UPDATE(fix_sql_log_bin_after_update));
 
 static Sys_var_bit Sys_transaction_allow_batching(
@@ -4351,29 +4404,42 @@ static Sys_var_charptr Sys_slave_load_tmpdir(
 static bool fix_slave_net_timeout(sys_var *self, THD *thd, enum_var_type type)
 {
   DEBUG_SYNC(thd, "fix_slave_net_timeout");
+  Master_info *mi;
+
+
+  /* @TODO: slave net timeout is for all channels, but does this make
+           sense?
+   */
 
   /*
    Here we have lock on LOCK_global_system_variables and we need
-    lock on LOCK_active_mi. In START_SLAVE handler, we take these
+    lock on LOCK_msr_map. In START_SLAVE handler, we take these
     two locks in different order. This can lead to DEADLOCKs. See
     BUG#14236151 for more details.
    So we release lock on LOCK_global_system_variables before acquiring
-    lock on LOCK_active_mi. But this could lead to isolation issues
+    lock on LOCK_msr_map. But this could lead to isolation issues
     between multiple seters. Hence introducing secondary guard
     for this global variable and releasing the lock here and acquiring
     locks back again at the end of this function.
    */
   mysql_mutex_unlock(&LOCK_slave_net_timeout);
   mysql_mutex_unlock(&LOCK_global_system_variables);
-  mysql_mutex_lock(&LOCK_active_mi);
-  DBUG_PRINT("info", ("slave_net_timeout=%u mi->heartbeat_period=%.3f",
-                     slave_net_timeout,
-                     (active_mi ? active_mi->heartbeat_period : 0.0)));
-  if (active_mi != NULL && slave_net_timeout < active_mi->heartbeat_period)
-    push_warning(thd, Sql_condition::SL_WARNING,
-                 ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE_MAX,
-                 ER(ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE_MAX));
-  mysql_mutex_unlock(&LOCK_active_mi);
+  mysql_mutex_lock(&LOCK_msr_map);
+
+  for (mi_map::iterator it=msr_map.begin(); it!=msr_map.end(); it++)
+  {
+    mi= it->second;
+
+    DBUG_PRINT("info", ("slave_net_timeout=%u mi->heartbeat_period=%.3f",
+                        slave_net_timeout,
+                        (mi ? mi->heartbeat_period : 0.0)));
+    if (mi != NULL && slave_net_timeout < mi->heartbeat_period)
+      push_warning(thd, Sql_condition::SL_WARNING,
+                   ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE_MAX,
+                   ER(ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE_MAX));
+  }
+
+  mysql_mutex_unlock(&LOCK_msr_map);
   mysql_mutex_lock(&LOCK_global_system_variables);
   mysql_mutex_lock(&LOCK_slave_net_timeout);
   return false;
@@ -4390,30 +4456,32 @@ static Sys_var_uint Sys_slave_net_timeout(
 static bool check_slave_skip_counter(sys_var *self, THD *thd, set_var *var)
 {
   bool result= false;
-  mysql_mutex_lock(&LOCK_active_mi);
-  if (active_mi != NULL)
+
+  /* slave_skip_counter becomes per channel in multisource replication*/
+  mysql_mutex_lock(&LOCK_msr_map);
+
+  if (is_any_slave_channel_running(SLAVE_SQL))
   {
-    mysql_mutex_lock(&active_mi->rli->run_lock);
-    if (active_mi->rli->slave_running)
-    {
-      my_message(ER_SLAVE_SQL_THREAD_MUST_STOP,
-                 ER(ER_SLAVE_SQL_THREAD_MUST_STOP), MYF(0));
-      result= true;
-    }
-    if (gtid_mode == 3)
-    {
-      my_message(ER_SQL_SLAVE_SKIP_COUNTER_NOT_SETTABLE_IN_GTID_MODE,
-                 ER(ER_SQL_SLAVE_SKIP_COUNTER_NOT_SETTABLE_IN_GTID_MODE),
-                 MYF(0));
-      result= true;
-    }
-    mysql_mutex_unlock(&active_mi->rli->run_lock);
+    my_message(ER_SLAVE_SQL_THREAD_MUST_STOP,
+               ER(ER_SLAVE_SQL_THREAD_MUST_STOP), MYF(0));
+    result= true;
   }
-  mysql_mutex_unlock(&LOCK_active_mi);
+  if (gtid_mode == 3)
+  {
+    my_message(ER_SQL_SLAVE_SKIP_COUNTER_NOT_SETTABLE_IN_GTID_MODE,
+               ER(ER_SQL_SLAVE_SKIP_COUNTER_NOT_SETTABLE_IN_GTID_MODE),
+               MYF(0));
+    result= true;
+  }
+
+  mysql_mutex_unlock(&LOCK_msr_map);
   return result;
 }
 static bool fix_slave_skip_counter(sys_var *self, THD *thd, enum_var_type type)
 {
+  Master_info *mi;
+
+  /* set for all replication channels in multisource replication */
 
   /*
    To understand the below two unlock statments, please see comments in
@@ -4421,24 +4489,29 @@ static bool fix_slave_skip_counter(sys_var *self, THD *thd, enum_var_type type)
    */
   mysql_mutex_unlock(&LOCK_sql_slave_skip_counter);
   mysql_mutex_unlock(&LOCK_global_system_variables);
-  mysql_mutex_lock(&LOCK_active_mi);
-  if (active_mi != NULL)
+  mysql_mutex_lock(&LOCK_msr_map);
+
+  for (mi_map::iterator it = msr_map.begin(); it!=msr_map.end(); it++)
   {
-    mysql_mutex_lock(&active_mi->rli->run_lock);
-    /*
-      The following test should normally never be true as we test this
-      in the check function;  To be safe against multiple
-      SQL_SLAVE_SKIP_COUNTER request, we do the check anyway
-    */
-    if (!active_mi->rli->slave_running)
+    mi= it->second;
+    if (mi != NULL)
     {
-      mysql_mutex_lock(&active_mi->rli->data_lock);
-      active_mi->rli->slave_skip_counter= sql_slave_skip_counter;
-      mysql_mutex_unlock(&active_mi->rli->data_lock);
+      mysql_mutex_lock(&mi->rli->run_lock);
+      /*
+       The following test should normally never be true as we test this
+       in the check function;  To be safe against multiple
+       SQL_SLAVE_SKIP_COUNTER request, we do the check anyway
+      */
+      if (!mi->rli->slave_running)
+      {
+        mysql_mutex_lock(&mi->rli->data_lock);
+        mi->rli->slave_skip_counter= sql_slave_skip_counter;
+        mysql_mutex_unlock(&mi->rli->data_lock);
+      }
+      mysql_mutex_unlock(&mi->rli->run_lock);
     }
-    mysql_mutex_unlock(&active_mi->rli->run_lock);
   }
-  mysql_mutex_unlock(&LOCK_active_mi);
+  mysql_mutex_unlock(&LOCK_msr_map);
   mysql_mutex_lock(&LOCK_global_system_variables);
   mysql_mutex_lock(&LOCK_sql_slave_skip_counter);
   return 0;

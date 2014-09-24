@@ -734,24 +734,6 @@ void read_ok_ex(MYSQL *mysql, ulong length)
                      mysql->server_status, mysql->warning_count));
   if (mysql->server_capabilities & CLIENT_SESSION_TRACK)
   {
-    size_t length_msg_member= (size_t) net_field_length(&pos);
-    if (length_msg_member)
-    {
-      if (!mysql->info_buffer)
-	mysql->info_buffer= (char *) my_malloc(PSI_NOT_INSTRUMENTED,
-	                                       MYSQL_ERRMSG_SIZE, MYF(MY_WME));
-      /*
-        If memory allocation succeeded, the string is copied.
-	Else, mysql->info remains NULL.
-      */
-      if (mysql->info_buffer)
-      {
-	strmake(mysql->info_buffer, (const char *) pos,
-	        MY_MIN(length_msg_member, MYSQL_ERRMSG_SIZE - 1));
-	mysql->info= mysql->info_buffer;
-      }
-    }
-    pos += (length_msg_member);
     free_state_change_info(mysql->extension);
     if (mysql->server_status & SERVER_SESSION_STATE_CHANGED)
     {
@@ -931,7 +913,7 @@ void read_ok_ex(MYSQL *mysql, ulong length)
 	info->info_list[type].current_node= info->info_list[type].head_node=
 	  list_reverse(info->info_list[type].head_node);
   }
-  else if (pos < mysql->net.read_pos + length && net_field_length(&pos))
+  if (pos < mysql->net.read_pos + length && net_field_length(&pos))
     mysql->info=(char*) pos;
   else
     mysql->info=NULL;
@@ -3239,6 +3221,232 @@ error:
   return res;
 }
 
+/**
+  Fill in the beginning of the client reply packet.
+
+  Used to fill in the beginning of the client reply packet
+  or the ssl request packet.
+
+  @param       mysql     The mysql handler to operate
+  @param[out]  buff      The buffer to receive the packet
+  @param       buff_size The max size of the buffer
+  @return                one past to where the buffer is filled
+
+*/
+static char *
+mysql_fill_packet_header(MYSQL *mysql, char *buff, size_t buff_size)
+{
+  NET *net= &mysql->net;
+  char *end;
+  uchar *buff_p= (uchar*) buff;
+  (void)buff_size; /* avoid warnings */
+
+  if (mysql->client_flag & CLIENT_PROTOCOL_41)
+  {
+    /* 4.1 server and 4.1 client has a 32 byte option flag */
+    DBUG_ASSERT(buff_size >= 32);
+
+    int4store(buff_p, mysql->client_flag);
+    int4store(buff_p + 4, net->max_packet_size);
+    buff[8]= (char) mysql->charset->number;
+    memset(buff + 9, 0, 32 - 9);
+    end= buff + 32;
+  }
+  else
+  {
+    DBUG_ASSERT(buff_size >= 5);
+    DBUG_ASSERT(mysql->client_flag <= UINT_MAX16);
+
+    int2store(buff_p, (uint16) mysql->client_flag);
+    int3store(buff_p + 2, net->max_packet_size);
+    end= buff + 5;
+  }
+  return end;
+}
+
+
+/**
+  Calcualtes client capabilities in effect (mysql->client_flag)
+  
+  Needs to be called immediately after receiving the server handshake packet.
+
+  @param  mysql   the connection context
+  @param  db      The database specified by the client app
+  @param  db      The client flag as specified by the client app
+  */
+
+static void
+cli_calculate_client_flag(MYSQL *mysql, const char *db, ulong client_flag)
+{
+  mysql->client_flag= client_flag;
+  mysql->client_flag|= mysql->options.client_flag;
+  mysql->client_flag|= CLIENT_CAPABILITIES;
+
+  if (mysql->client_flag & CLIENT_MULTI_STATEMENTS)
+    mysql->client_flag|= CLIENT_MULTI_RESULTS;
+
+#if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
+  /* consider SSL if any of the SSL mysql_options() is issued */
+  if (mysql->options.ssl_key || mysql->options.ssl_cert ||
+      mysql->options.ssl_ca || mysql->options.ssl_capath ||
+      mysql->options.ssl_cipher ||
+      (mysql->options.extension && mysql->options.extension->ssl_crl) ||
+      (mysql->options.extension && mysql->options.extension->ssl_crlpath) ||
+      (mysql->options.extension && mysql->options.extension->ssl_enforce))
+      mysql->options.use_ssl= TRUE;
+  if (mysql->options.use_ssl)
+    mysql->client_flag |= CLIENT_SSL;
+#endif /* HAVE_OPENSSL && !EMBEDDED_LIBRARY*/
+  if (db)
+    mysql->client_flag|= CLIENT_CONNECT_WITH_DB;
+  else
+    mysql->client_flag&= ~CLIENT_CONNECT_WITH_DB;
+
+  /* Remove options that server doesn't support */
+  mysql->client_flag= mysql->client_flag &
+    (~(CLIENT_COMPRESS | CLIENT_SSL | CLIENT_PROTOCOL_41)
+    | mysql->server_capabilities);
+
+#ifndef HAVE_COMPRESS
+  mysql->client_flag&= ~CLIENT_COMPRESS;
+#endif
+}
+
+
+/**
+Establishes SSL if requested and supported.
+
+@param  mysql   the connection handle
+@retval 0       success
+@retval 1       failure
+*/
+static int
+cli_establish_ssl(MYSQL *mysql)
+{
+#ifdef HAVE_OPENSSL
+  NET *net= &mysql->net;
+
+  if (mysql->options.extension && mysql->options.extension->ssl_enforce)
+  {
+    /*
+    ssl_enforce=1 means enforce ssl
+    Don't fallback on unencrypted connection.
+    */
+    /* can't turn enforce on without turning on use_ssl too */
+    DBUG_ASSERT(mysql->options.use_ssl);
+    /* enforce=true takes precendence over use=false */
+    if (!(mysql->server_capabilities & CLIENT_SSL))
+    {
+      set_mysql_extended_error(mysql, CR_SSL_CONNECTION_ERROR, unknown_sqlstate,
+                               ER(CR_SSL_CONNECTION_ERROR),
+                               "SSL is required but the server doesn't "
+                               "support it"
+                               );
+      goto error;
+    }
+  }
+
+  /*
+
+  use_ssl=0 => Disable ssl and connect using unencrypted channel if server
+  allows it
+
+  use_ssl=1, ssl_enforce=0 (default) => attempt ssl connection if possible but
+  fallback on unencrypted connection if possible.
+
+  */
+  if ((mysql->server_capabilities & CLIENT_SSL) && mysql->options.use_ssl)
+  {
+    /* Do the SSL layering. */
+    struct st_mysql_options *options= &mysql->options;
+    struct st_VioSSLFd *ssl_fd;
+    enum enum_ssl_init_error ssl_init_error;
+    const char *cert_error;
+    unsigned long ssl_error;
+    char buff[33], *end;
+
+    end= mysql_fill_packet_header(mysql, buff, sizeof(buff));
+
+    if (!mysql->options.ssl_cipher)
+    {
+      SET_OPTION(ssl_cipher, default_ssl_cipher);
+    }
+
+    /*
+    Send mysql->client_flag, max_packet_size - unencrypted otherwise
+    the server does not know we want to do SSL
+    */
+    MYSQL_TRACE(SEND_SSL_REQUEST, mysql, (end - buff, (const unsigned char*) buff));
+    if (my_net_write(net, (uchar*) buff, (size_t) (end - buff)) || net_flush(net))
+    {
+      set_mysql_extended_error(mysql, CR_SERVER_LOST, unknown_sqlstate,
+                               ER(CR_SERVER_LOST_EXTENDED),
+                               "sending connection information to server",
+                               errno);
+      goto error;
+    }
+
+    MYSQL_TRACE_STAGE(mysql, SSL_NEGOTIATION);
+
+    /* Create the VioSSLConnectorFd - init SSL and load certs */
+    if (!(ssl_fd= new_VioSSLConnectorFd(options->ssl_key,
+      options->ssl_cert,
+      options->ssl_ca,
+      options->ssl_capath,
+      options->ssl_cipher,
+      &ssl_init_error,
+      options->extension ?
+      options->extension->ssl_crl : NULL,
+      options->extension ?
+      options->extension->ssl_crlpath : NULL)))
+    {
+      set_mysql_extended_error(mysql, CR_SSL_CONNECTION_ERROR, unknown_sqlstate,
+                               ER(CR_SSL_CONNECTION_ERROR), sslGetErrString(ssl_init_error));
+      goto error;
+    }
+    mysql->connector_fd= (unsigned char *) ssl_fd;
+
+    /* Connect to the server */
+    DBUG_PRINT("info", ("IO layer change in progress..."));
+    MYSQL_TRACE(SSL_CONNECT, mysql, ());
+    if (sslconnect(ssl_fd, net->vio,
+      (long) (mysql->options.connect_timeout), &ssl_error))
+    {
+      char buf[512];
+      ERR_error_string_n(ssl_error, buf, 512);
+      buf[511]= 0;
+      set_mysql_extended_error(mysql, CR_SSL_CONNECTION_ERROR, unknown_sqlstate,
+                               ER(CR_SSL_CONNECTION_ERROR),
+                               buf);
+      goto error;
+    }
+    DBUG_PRINT("info", ("IO layer change done!"));
+
+    /* Verify server cert */
+    if ((mysql->client_flag & CLIENT_SSL_VERIFY_SERVER_CERT) &&
+        ssl_verify_server_cert(net->vio, mysql->host, &cert_error))
+    {
+      set_mysql_extended_error(mysql, CR_SSL_CONNECTION_ERROR, unknown_sqlstate,
+                               ER(CR_SSL_CONNECTION_ERROR), cert_error);
+      goto error;
+    }
+
+    MYSQL_TRACE(SSL_CONNECTED, mysql, ());
+    MYSQL_TRACE_STAGE(mysql, AUTHENTICATE);
+  }
+
+  return 0;
+
+error:
+  return 1;
+
+#else
+  (void)mysql; /* avoid warning */
+
+#endif /* HAVE_OPENSSL */
+  return 0;
+}
+
 
 #define MAX_CONNECTION_ATTR_STORAGE_LENGTH 65536
 
@@ -3246,7 +3454,7 @@ error:
   sends a client authentication packet (second packet in the 3-way handshake)
 
   Packet format (when the server is 4.0 or earlier):
-   
+
     Bytes       Content
     -----       ----
     2           client capabilities
@@ -3255,7 +3463,7 @@ error:
     9           scramble_323, \0-terminated
 
   Packet format (when the server is 4.1 or newer):
-   
+
     Bytes       Content
     -----       ----
     4           client capabilities
@@ -3286,172 +3494,16 @@ static int send_client_reply_packet(MCPVIO_EXT *mpvio,
 
   DBUG_ASSERT(connect_attrs_len < MAX_CONNECTION_ATTR_STORAGE_LENGTH);
 
-  
+
   /*
-    see end= buff+32 below, fixed size of the packet is 32 bytes.
-     +9 because data is a length encoded binary where meta data size is max 9.
+    Fixed size of the packet is 32 bytes. See mysql_fill_packet_header.
+    +9 because data is a length encoded binary where meta data size is max 9.
   */
   buff_size= 33 + USERNAME_LENGTH + data_len + 9 + NAME_LEN + NAME_LEN + connect_attrs_len + 9;
   buff= my_alloca(buff_size);
 
-  mysql->client_flag|= mysql->options.client_flag;
-  mysql->client_flag|= CLIENT_CAPABILITIES;
-
-  if (mysql->client_flag & CLIENT_MULTI_STATEMENTS)
-    mysql->client_flag|= CLIENT_MULTI_RESULTS;
-
-#if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
-  /* consider SSL if any of the SSL mysql_options() is issued */
-  if (mysql->options.ssl_key || mysql->options.ssl_cert ||
-      mysql->options.ssl_ca || mysql->options.ssl_capath ||
-      mysql->options.ssl_cipher ||
-      (mysql->options.extension && mysql->options.extension->ssl_crl) ||
-      (mysql->options.extension && mysql->options.extension->ssl_crlpath) ||
-      (mysql->options.extension && mysql->options.extension->ssl_enforce))
-    mysql->options.use_ssl = TRUE;
-  if (mysql->options.use_ssl)
-    mysql->client_flag |= CLIENT_SSL;
-#endif /* HAVE_OPENSSL && !EMBEDDED_LIBRARY*/
-  if (mpvio->db)
-    mysql->client_flag|= CLIENT_CONNECT_WITH_DB;
-  else
-    mysql->client_flag&= ~CLIENT_CONNECT_WITH_DB;
-
-  /* Remove options that server doesn't support */
-  mysql->client_flag= mysql->client_flag &
-                       (~(CLIENT_COMPRESS | CLIENT_SSL | CLIENT_PROTOCOL_41) 
-                       | mysql->server_capabilities);
-
-#ifndef HAVE_COMPRESS
-  mysql->client_flag&= ~CLIENT_COMPRESS;
-#endif
-
-  if (mysql->client_flag & CLIENT_PROTOCOL_41)
-  {
-    /* 4.1 server and 4.1 client has a 32 byte option flag */
-    uchar *buff_p= (uchar*) buff;
-    int4store(buff_p,mysql->client_flag);
-    int4store(buff_p + 4, net->max_packet_size);
-    buff[8]= (char) mysql->charset->number;
-    memset(buff+9, 0, 32-9);
-    end= buff+32;
-  }
-  else
-  {
-    uchar *buff_p= (uchar*) buff;
-    int2store(buff_p, (uint16)mysql->client_flag);
-    int3store(buff_p + 2, net->max_packet_size);
-    end= buff+5;
-  }
-#ifdef HAVE_OPENSSL
-
-  if (mysql->options.extension && mysql->options.extension->ssl_enforce)
-  {
-    /*
-      ssl_enforce=1 means enforce ssl
-      Don't fallback on unencrypted connection.
-    */
-    /* can't turn enforce on without turning on use_ssl too */
-    DBUG_ASSERT(mysql->options.use_ssl);
-    /* enforce=true takes precendence over use=false */
-    if (!(mysql->server_capabilities & CLIENT_SSL))
-    {
-      set_mysql_extended_error(mysql, CR_SSL_CONNECTION_ERROR, unknown_sqlstate,
-                               ER(CR_SSL_CONNECTION_ERROR),
-                               "SSL is required but the server doesn't "
-                               "support it"
-                               );
-      goto error;
-    }
-  }
-
-  /*
-
-   use_ssl=0 => Disable ssl and connect using unencrypted channel if server
-     allows it
-
-   use_ssl=1, ssl_enforce=0 (default) => attempt ssl connection if possible but
-     fallback on unencrypted connection if possible.
-
-  */
-  if ((mysql->server_capabilities & CLIENT_SSL) && mysql->options.use_ssl)
-  {
-    /* Do the SSL layering. */
-    struct st_mysql_options *options= &mysql->options;
-    struct st_VioSSLFd *ssl_fd;
-    enum enum_ssl_init_error ssl_init_error;
-    const char *cert_error;
-    unsigned long ssl_error;
-
-    if (!mysql->options.ssl_cipher)
-    {
-      SET_OPTION(ssl_cipher, default_ssl_cipher);
-    }
-
-    /*
-      Send mysql->client_flag, max_packet_size - unencrypted otherwise
-      the server does not know we want to do SSL
-    */
-    MYSQL_TRACE(SEND_SSL_REQUEST, mysql, (end - buff, (const unsigned char*)buff));
-    if (my_net_write(net, (uchar*)buff, (size_t) (end-buff)) || net_flush(net))
-    {
-      set_mysql_extended_error(mysql, CR_SERVER_LOST, unknown_sqlstate,
-                               ER(CR_SERVER_LOST_EXTENDED),
-                               "sending connection information to server",
-                               errno);
-      goto error;
-    }
-
-    MYSQL_TRACE_STAGE(mysql, SSL_NEGOTIATION);
-
-    /* Create the VioSSLConnectorFd - init SSL and load certs */
-    if (!(ssl_fd= new_VioSSLConnectorFd(options->ssl_key,
-                                        options->ssl_cert,
-                                        options->ssl_ca,
-                                        options->ssl_capath,
-                                        options->ssl_cipher,
-                                        &ssl_init_error,
-                                        options->extension ? 
-                                        options->extension->ssl_crl : NULL,
-                                        options->extension ? 
-                                        options->extension->ssl_crlpath : NULL)))
-    {
-      set_mysql_extended_error(mysql, CR_SSL_CONNECTION_ERROR, unknown_sqlstate,
-                               ER(CR_SSL_CONNECTION_ERROR), sslGetErrString(ssl_init_error));
-      goto error;
-    }
-    mysql->connector_fd= (unsigned char *) ssl_fd;
-
-    /* Connect to the server */
-    DBUG_PRINT("info", ("IO layer change in progress..."));
-    MYSQL_TRACE(SSL_CONNECT, mysql, ());
-    if (sslconnect(ssl_fd, net->vio,
-                   (long) (mysql->options.connect_timeout), &ssl_error))
-    {    
-      char buf[512];
-      ERR_error_string_n(ssl_error, buf, 512);
-      buf[511]= 0;
-      set_mysql_extended_error(mysql, CR_SSL_CONNECTION_ERROR, unknown_sqlstate,
-                               ER(CR_SSL_CONNECTION_ERROR),
-                               buf);
-      goto error;
-    }    
-    DBUG_PRINT("info", ("IO layer change done!"));
-
-    /* Verify server cert */
-    if ((mysql->client_flag & CLIENT_SSL_VERIFY_SERVER_CERT) &&
-        ssl_verify_server_cert(net->vio, mysql->host, &cert_error))
-    {
-      set_mysql_extended_error(mysql, CR_SSL_CONNECTION_ERROR, unknown_sqlstate,
-                               ER(CR_SSL_CONNECTION_ERROR), cert_error);
-      goto error;
-    }
-
-    MYSQL_TRACE(SSL_CONNECTED, mysql, ());
-    MYSQL_TRACE_STAGE(mysql, AUTHENTICATE);
-  }
-
-#endif /* HAVE_OPENSSL */
+  /* The client_flags is already calculated. Just fill in the packet header */
+  end= mysql_fill_packet_header(mysql, buff, buff_size);
 
   DBUG_PRINT("info",("Server version = '%s'  capabilites: %lu  status: %u  client_flag: %lu",
 		     mysql->server_version, mysql->server_capabilities,
@@ -4502,10 +4554,13 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
     goto error;
   }
 
-  mysql->client_flag= client_flag;
-
   MYSQL_TRACE(INIT_PACKET_RECEIVED, mysql, (pkt_length, net->read_pos));
   MYSQL_TRACE_STAGE(mysql, AUTHENTICATE);
+
+  /* try and bring up SSL if possible */
+  cli_calculate_client_flag(mysql, db, client_flag);
+  if (cli_establish_ssl(mysql))
+    goto error;
 
   /*
     Part 2: invoke the plugin to send the authentication data to the server

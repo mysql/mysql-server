@@ -249,10 +249,8 @@ row_undo_ins_remove_sec_low(
 		rec_t*	rec = btr_pcur_get_rec(&pcur);
 		if (rec_get_deleted_flag(rec,
 					 dict_table_is_comp(index->table))) {
-			ib_logf(IB_LOG_LEVEL_ERROR,
-				"Record found in index %s is deleted marked"
-				" on insert rollback.",
-				index->name);
+			ib::error() << "Record found in index " << index->name
+				<< " is deleted marked on insert rollback.";
 		}
 	}
 
@@ -373,9 +371,8 @@ close_table:
 			std::string	str = ut_get_name(node->trx, TRUE,
 							  node->table->name);
 
-			ib_logf(IB_LOG_LEVEL_WARN,
-				"Table %s has no indexes, ignoring the table",
-				str.c_str());
+			ib::warn() << "Table " << str << " has no indexes,"
+				" ignoring the table";
 			goto close_table;
 		}
 	}

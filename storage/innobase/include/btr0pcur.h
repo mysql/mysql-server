@@ -37,15 +37,17 @@ Created 2/23/1996 Heikki Tuuri
 #include "gis0rtree.h"
 
 /* Relative positions for a stored cursor position */
-#define BTR_PCUR_ON			1
-#define BTR_PCUR_BEFORE			2
-#define BTR_PCUR_AFTER			3
+enum btr_pcur_pos_t {
+	BTR_PCUR_ON		= 1,
+	BTR_PCUR_BEFORE		= 2,
+	BTR_PCUR_AFTER		= 3,
 /* Note that if the tree is not empty, btr_pcur_store_position does not
 use the following, but only uses the above three alternatives, where the
 position is stored relative to a specific record: this makes implementation
 of a scroll cursor easier */
-#define BTR_PCUR_BEFORE_FIRST_IN_TREE	4	/* in an empty tree */
-#define BTR_PCUR_AFTER_LAST_IN_TREE	5	/* in an empty tree */
+	BTR_PCUR_BEFORE_FIRST_IN_TREE	= 4,	/* in an empty tree */
+	BTR_PCUR_AFTER_LAST_IN_TREE	= 5	/* in an empty tree */
+};
 
 /**************************************************************//**
 Allocates memory for a persistent cursor object and initializes the cursor.
@@ -94,7 +96,7 @@ btr_pcur_open_low(
 	dict_index_t*	index,	/*!< in: index */
 	ulint		level,	/*!< in: level in the btree */
 	const dtuple_t*	tuple,	/*!< in: tuple on which search done */
-	ulint		mode,	/*!< in: PAGE_CUR_L, ...;
+	page_cur_mode_t	mode,	/*!< in: PAGE_CUR_L, ...;
 				NOTE that if the search is made using a unique
 				prefix of a record, mode should be
 				PAGE_CUR_LE, not PAGE_CUR_GE, as the latter
@@ -116,7 +118,7 @@ btr_pcur_open_with_no_init_func(
 /*============================*/
 	dict_index_t*	index,	/*!< in: index */
 	const dtuple_t*	tuple,	/*!< in: tuple on which search done */
-	ulint		mode,	/*!< in: PAGE_CUR_L, ...;
+	page_cur_mode_t	mode,	/*!< in: PAGE_CUR_L, ...;
 				NOTE that if the search is made using a unique
 				prefix of a record, mode should be
 				PAGE_CUR_LE, not PAGE_CUR_GE, as the latter
@@ -183,7 +185,7 @@ btr_pcur_open_on_user_rec_func(
 /*===========================*/
 	dict_index_t*	index,		/*!< in: index */
 	const dtuple_t*	tuple,		/*!< in: tuple on which search done */
-	ulint		mode,		/*!< in: PAGE_CUR_L, ... */
+	page_cur_mode_t	mode,		/*!< in: PAGE_CUR_L, ... */
 	ulint		latch_mode,	/*!< in: BTR_SEARCH_LEAF or
 					BTR_MODIFY_LEAF */
 	btr_pcur_t*	cursor,		/*!< in: memory buffer for persistent
@@ -484,59 +486,53 @@ enum pcur_pos_t {
 selects, updates, and deletes. */
 
 struct btr_pcur_t{
-	btr_cur_t	btr_cur;	/*!< a B-tree cursor */
-	ulint		latch_mode;	/*!< see TODO note below!
-					BTR_SEARCH_LEAF, BTR_MODIFY_LEAF,
-					BTR_MODIFY_TREE, or BTR_NO_LATCHES,
-					depending on the latching state of
-					the page and tree where the cursor is
-					positioned; BTR_NO_LATCHES means that
-					the cursor is not currently positioned:
-					we say then that the cursor is
-					detached; it can be restored to
-					attached if the old position was
-					stored in old_rec */
-	ulint		old_stored;	/*!< BTR_PCUR_OLD_STORED
-					or BTR_PCUR_OLD_NOT_STORED */
-	rec_t*		old_rec;	/*!< if cursor position is stored,
-					contains an initial segment of the
-					latest record cursor was positioned
-					either on, before, or after */
-	ulint		old_n_fields;	/*!< number of fields in old_rec */
-	ulint		rel_pos;	/*!< BTR_PCUR_ON, BTR_PCUR_BEFORE, or
-					BTR_PCUR_AFTER, depending on whether
-					cursor was on, before, or after the
-					old_rec record */
-	buf_block_t*	block_when_stored;/* buffer block when the position was
-					stored */
-	ib_uint64_t	modify_clock;	/*!< the modify clock value of the
-					buffer block when the cursor position
-					was stored */
-	ulint		withdraw_clock;	/*!< the withdraw clock value of the
-					buffer pool when the cursor position
-					was stored */
-	enum pcur_pos_t	pos_state;	/*!< btr_pcur_store_position() and
-					btr_pcur_restore_position() state. */
-	ulint		search_mode;	/*!< PAGE_CUR_G, ... */
-	trx_t*		trx_if_known;	/*!< the transaction, if we know it;
-					otherwise this field is not defined;
-					can ONLY BE USED in error prints in
-					fatal assertion failures! */
+	/** a B-tree cursor */
+	btr_cur_t	btr_cur;
+	/** see TODO note below!
+	BTR_SEARCH_LEAF, BTR_MODIFY_LEAF, BTR_MODIFY_TREE or BTR_NO_LATCHES,
+	depending on the latching state of the page and tree where the cursor
+	is positioned; BTR_NO_LATCHES means that the cursor is not currently
+	positioned:
+	we say then that the cursor is detached; it can be restored to
+	attached if the old position was stored in old_rec */
+	ulint		latch_mode;
+	/** true if old_rec is stored */
+	bool		old_stored;
+	/** if cursor position is stored, contains an initial segment of the
+	latest record cursor was positioned either on, before or after */
+	rec_t*		old_rec;
+	/** number of fields in old_rec */
+	ulint		old_n_fields;
+	/** BTR_PCUR_ON, BTR_PCUR_BEFORE, or BTR_PCUR_AFTER, depending on
+	whether cursor was on, before, or after the old_rec record */
+	enum btr_pcur_pos_t	rel_pos;
+	/** buffer block when the position was stored */
+	buf_block_t*	block_when_stored;
+	/** the modify clock value of the buffer block when the cursor position
+	was stored */
+	ib_uint64_t	modify_clock;
+	/** the withdraw clock value of the buffer pool when the cursor
+	position was stored */
+	ulint		withdraw_clock;
+	/** btr_pcur_store_position() and btr_pcur_restore_position() state. */
+	enum pcur_pos_t	pos_state;
+	/** PAGE_CUR_G, ... */
+	page_cur_mode_t	search_mode;
+	/** the transaction, if we know it; otherwise this field is not defined;
+	can ONLY BE USED in error prints in fatal assertion failures! */
+	trx_t*		trx_if_known;
 	/*-----------------------------*/
 	/* NOTE that the following fields may possess dynamically allocated
 	memory which should be freed if not needed anymore! */
 
-	byte*		old_rec_buf;	/*!< NULL, or a dynamically allocated
-					buffer for old_rec */
-	ulint		buf_size;	/*!< old_rec_buf size if old_rec_buf
-					is not NULL */
+	/** NULL, or a dynamically allocated buffer for old_rec */
+	byte*		old_rec_buf;
+	/** old_rec_buf size if old_rec_buf is not NULL */
+	ulint		buf_size;
 
 	/** Return the index of this persistent cursor */
 	dict_index_t*	index() const { return(btr_cur.index); }
 };
-
-#define BTR_PCUR_OLD_STORED	908467085
-#define BTR_PCUR_OLD_NOT_STORED	122766467
 
 #ifndef UNIV_NONINL
 #include "btr0pcur.ic"

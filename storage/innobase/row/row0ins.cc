@@ -666,23 +666,20 @@ row_ins_cascade_calc_update_vec(
 							&ufield->new_val)));
 
 					if (new_doc_id <= 0) {
-						ib_logf(IB_LOG_LEVEL_ERROR,
-							"FTS Doc ID"
+						ib::error() << "FTS Doc ID"
 							" must be larger than"
-							" 0");
+							" 0";
 						return(ULINT_UNDEFINED);
 					}
 
 					if (new_doc_id < n_doc_id) {
-						ib_logf(IB_LOG_LEVEL_ERROR,
-							"FTS Doc ID"
-							" must be larger than"
-							" " IB_ID_FMT " for"
-							" table %s",
-							n_doc_id -1,
-							ut_get_name(
+						ib::error() << "FTS Doc ID"
+							" must be larger than "
+							<< n_doc_id - 1
+							<< " for table "
+							<< ut_get_name(
 								trx, TRUE,
-								table->name).c_str());
+								table->name);
 
 						return(ULINT_UNDEFINED);
 					}
@@ -717,10 +714,9 @@ row_ins_cascade_calc_update_vec(
 			} else {
 				std::string	str = ut_get_name(
 							trx, TRUE, table->name);
-				ib_logf(IB_LOG_LEVEL_ERROR,
-					"FTS Doc ID must be updated along with"
-					" FTS indexed column for table %s",
-					str.c_str());
+				ib::error() << "FTS Doc ID must be updated"
+					" along with FTS indexed column for"
+					" table " << str;
 				return(ULINT_UNDEFINED);
 			}
 		}
@@ -1107,12 +1103,10 @@ row_ins_foreign_check_on_constraint(
 		    || btr_pcur_get_low_match(cascade->pcur)
 		    < dict_index_get_n_unique(clust_index)) {
 
-			ib_logf(IB_LOG_LEVEL_ERROR,
-				"In cascade of a foreign key op"
-				" index %s of table %s",
-				ut_get_name(trx, FALSE, index->name).c_str(),
-				ut_get_name(trx, TRUE,
-					    index->table_name).c_str());
+			ib::error() << "In cascade of a foreign key op index "
+				<< ut_get_name(trx, FALSE, index->name)
+				<< " of table "
+				<< ut_get_name(trx, TRUE, index->table_name);
 
 			fputs("InnoDB: record ", stderr);
 			rec_print(stderr, rec, index);
@@ -2009,10 +2003,10 @@ row_ins_scan_sec_index_for_duplicate(
 					DICT_TF2_FTS_HAS_DOC_ID)
 				    && strcmp(index->name,
 					      FTS_DOC_ID_INDEX_NAME) == 0) {
-					ib_logf(IB_LOG_LEVEL_ERROR,
-						"Duplicate FTS_DOC_ID value"
-						" on table %s",
-						index->table->name);
+
+					ib::error() << "Duplicate FTS_DOC_ID"
+						" value on table "
+						<< index->table->name;
 				}
 
 				goto end_scan;

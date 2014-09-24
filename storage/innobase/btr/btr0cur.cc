@@ -711,7 +711,7 @@ btr_cur_search_to_nth_level(
 	const dtuple_t*	tuple,	/*!< in: data tuple; NOTE: n_fields_cmp in
 				tuple must be set so that it cannot get
 				compared to the node ptr page number field! */
-	ulint		mode,	/*!< in: PAGE_CUR_L, ...;
+	page_cur_mode_t	mode,	/*!< in: PAGE_CUR_L, ...;
 				Inserts should always be made using
 				PAGE_CUR_LE to search the position! */
 	ulint		latch_mode, /*!< in: BTR_SEARCH_LEAF, ..., ORed with
@@ -742,8 +742,8 @@ btr_cur_search_to_nth_level(
 	ulint		low_match;
 	ulint		savepoint;
 	ulint		rw_latch;
-	ulint		page_mode;
-	ulint		search_mode = 0;
+	page_cur_mode_t	page_mode;
+	page_cur_mode_t	search_mode = PAGE_CUR_UNSUPP;
 	ulint		buf_mode;
 	ulint		estimate;
 	ulint		node_ptr_max_size = UNIV_PAGE_SIZE / 2;
@@ -1900,7 +1900,7 @@ btr_cur_search_to_nth_level_with_no_latch(
 	dict_index_t*		index,
 	ulint			level,
 	const dtuple_t*		tuple,
-	ulint			mode,
+	page_cur_mode_t		mode,
 	btr_cur_t*		cursor,
 	const char*		file,
 	ulint			line,
@@ -1913,7 +1913,7 @@ btr_cur_search_to_nth_level_with_no_latch(
 	ulint		up_match;
 	ulint		low_match;
 	ulint		rw_latch;
-	ulint		page_mode;
+	page_cur_mode_t	page_mode;
 	ulint		buf_mode;
 	page_cur_t*	page_cursor;
 	ulint		root_height = 0; /* remove warning */
@@ -5504,9 +5504,9 @@ btr_estimate_n_rows_in_range(
 /*=========================*/
 	dict_index_t*	index,	/*!< in: index */
 	const dtuple_t*	tuple1,	/*!< in: range start, may also be empty tuple */
-	ulint		mode1,	/*!< in: search mode for range start */
+	page_cur_mode_t	mode1,	/*!< in: search mode for range start */
 	const dtuple_t*	tuple2,	/*!< in: range end, may also be empty tuple */
-	ulint		mode2)	/*!< in: search mode for range end */
+	page_cur_mode_t	mode2)	/*!< in: search mode for range end */
 {
 	btr_path_t	path1[BTR_PATH_ARRAY_N_SLOTS];
 	btr_path_t	path2[BTR_PATH_ARRAY_N_SLOTS];

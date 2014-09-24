@@ -349,6 +349,22 @@ thd_trx_is_read_only(
 /*=================*/
 	THD*	thd);	/*!< in/out: thread handle */
 
+/**
+Check if the transaction can be rolled back
+@param[in] requestor	Session requesting the lock
+@param[in] holder	Session that holds the lock
+@return the session that will be rolled back, null don't care */
+
+THD*
+thd_trx_arbitrate(THD* requestor, THD* holder);
+
+/**
+@param[in] thd		Session to check
+@return the priority */
+
+int
+thd_trx_priority(THD* thd);
+
 /******************************************************************//**
 Check if the transaction is an auto-commit transaction. TRUE also
 implies that it is a SELECT (read-only) transaction.
@@ -436,17 +452,6 @@ extern const char*      OPERATING_SYSTEM_ERROR_MSG;
 extern const char*      FOREIGN_KEY_CONSTRAINTS_MSG;
 extern const char*      SET_TRANSACTION_MSG;
 extern const char*      INNODB_PARAMETERS_MSG;
-
-/******************************************************************//**
-Write a message to the MySQL log, prefixed with "InnoDB: ".
-Wrapper around sql_print_information() */
-void
-ib_logf(
-/*====*/
-	ib_log_level_t	level,		/*!< in: warning level */
-	const char*	format,		/*!< printf format */
-	...)				/*!< Args */
-	__attribute__((format(printf, 2, 3)));
 
 /******************************************************************//**
 Returns the NUL terminated value of glob_hostname.

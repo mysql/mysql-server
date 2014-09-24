@@ -89,7 +89,7 @@ Mts_submode_database::wait_for_workers_to_finish(Relay_log_info *rli,
                                                  Slave_worker *ignore)
 {
   uint ret= 0;
-  HASH *hash= &mapping_db_to_worker;
+  HASH *hash= &rli->mapping_db_to_worker;
   THD *thd= rli->info_thd;
   bool cant_sync= FALSE;
   char llbuf[22];
@@ -105,7 +105,7 @@ Mts_submode_database::wait_for_workers_to_finish(Relay_log_info *rli,
   {
     db_worker_hash_entry *entry;
 
-    mysql_mutex_lock(&slave_worker_hash_lock);
+    mysql_mutex_lock(&rli->slave_worker_hash_lock);
 
     entry= (db_worker_hash_entry*) my_hash_element(hash, i);
 
@@ -114,7 +114,7 @@ Mts_submode_database::wait_for_workers_to_finish(Relay_log_info *rli,
     // the ignore Worker retains its active resources
     if (ignore && entry->worker == ignore && entry->usage > 0)
     {
-      mysql_mutex_unlock(&slave_worker_hash_lock);
+      mysql_mutex_unlock(&rli->slave_worker_hash_lock);
       continue;
     }
 
@@ -124,13 +124,13 @@ Mts_submode_database::wait_for_workers_to_finish(Relay_log_info *rli,
       Slave_worker *w_entry= entry->worker;
 
       entry->worker= NULL; // mark Worker to signal when  usage drops to 0
-      thd->ENTER_COND(&slave_worker_hash_cond,
-                      &slave_worker_hash_lock,
+      thd->ENTER_COND(&rli->slave_worker_hash_cond,
+                      &rli->slave_worker_hash_lock,
                       &stage_slave_waiting_worker_to_release_partition,
                       &old_stage);
       do
       {
-        mysql_cond_wait(&slave_worker_hash_cond, &slave_worker_hash_lock);
+        mysql_cond_wait(&rli->slave_worker_hash_cond, &rli->slave_worker_hash_lock);
         DBUG_PRINT("info",
                    ("Either got awakened of notified: "
                     "entry %p, usage %lu, worker %lu",
@@ -142,7 +142,7 @@ Mts_submode_database::wait_for_workers_to_finish(Relay_log_info *rli,
     }
     else
     {
-      mysql_mutex_unlock(&slave_worker_hash_lock);
+      mysql_mutex_unlock(&rli->slave_worker_hash_lock);
     }
     // resources relocation
     mts_move_temp_tables_to_thd(thd, entry->temporary_tables);
@@ -514,6 +514,7 @@ Mts_submode_logical_clock::schedule_next_event(Relay_log_info* rli,
                                                Log_event *ev)
 {
   longlong last_sequence_number= sequence_number;
+  bool gap_successor= false;
 
   DBUG_ENTER("Mts_submode_logical_clock::schedule_next_event");
   // We should check if the SQL thread was already killed before we schedule
@@ -551,14 +552,7 @@ Mts_submode_logical_clock::schedule_next_event(Relay_log_info* rli,
 
     break;
   }
-  if (clock_leq(sequence_number, last_committed) && last_committed != SEQ_UNINIT)
-  {
-    /* inconsistent (buggy) timestamps */
-    sql_print_error("Event contains inconsistent logical timestamps: "
-                    "sequence_number (%llu) <= last_committed (%llu)",
-                    sequence_number, last_committed);
-    DBUG_RETURN(ER_MTS_CANT_PARALLEL);
-  }
+
   if (first_event)
   {
     if (sequence_number == SEQ_UNINIT)
@@ -568,8 +562,8 @@ Mts_submode_logical_clock::schedule_next_event(Relay_log_info* rli,
         In either case execution is allowed in effectively sequential mode, and warned.
       */
       sql_print_warning("Either event (relay log name:position) (%s:%llu) "
-                        "is from an old master not logically timestamping "
-                        "transactions in binlog, or the current group of "
+                        "is from an old master therefore is not tagged "
+                        "with logical timestamps, or the current group of "
                         "events miss a proper group header event. Execution is "
                         "proceeded, but it is recommended to make sure "
                         "replication is resumed from a valid start group "
@@ -579,6 +573,42 @@ Mts_submode_logical_clock::schedule_next_event(Relay_log_info* rli,
     }
     first_event= false;
   }
+  else
+  {
+    if (unlikely(clock_leq(sequence_number, last_committed) &&
+                 last_committed != SEQ_UNINIT))
+    {
+      /* inconsistent (buggy) timestamps */
+      sql_print_error("Transaction is tagged with inconsistent logical "
+                      "timestamps: "
+                      "sequence_number (%lld) <= last_committed (%lld)",
+                      sequence_number, last_committed);
+      DBUG_RETURN(ER_MTS_CANT_PARALLEL);
+    }
+    if (unlikely(clock_leq(sequence_number, last_sequence_number) &&
+                 sequence_number != SEQ_UNINIT))
+    {
+      /* inconsistent (buggy) timestamps */
+      sql_print_error("Transaction's sequence number is inconsistent with that "
+                      "of a preceding one: "
+                      "sequence_number (%lld) <= previous sequence_number (%lld)",
+                      sequence_number, last_sequence_number);
+      DBUG_RETURN(ER_MTS_CANT_PARALLEL);
+    }
+    /*
+      Being scheduled transaction sequence may have gaps, even in
+      relay log. In such case a transaction that succeeds a gap will
+      wait for all ealier that were scheduled to finish. It's marked
+      as gap successor now.
+    */
+    compile_time_assert(SEQ_UNINIT == 0);
+    if (unlikely(sequence_number > last_sequence_number + 1))
+    {
+      DBUG_ASSERT(rli->replicate_same_server_id || true /* TODO: account autopositioning */);
+      gap_successor= true;
+    }
+  }
+
   /*
     The new group flag is practically the same as the force flag
     when up to indicate syncronization with Workers.
@@ -596,6 +626,13 @@ Mts_submode_logical_clock::schedule_next_event(Relay_log_info* rli,
        or old master.
      */
      last_committed == SEQ_UNINIT ||
+     /*
+       When gap successor depends on a gap before it the scheduler has
+       to serialize this transaction execution with previously
+       scheduled ones. Below for simplicity it's assumed that such
+       gap-dependency is always the case.
+     */
+     gap_successor ||
      /*
        previous group did not have sequence number assigned.
        It's execution must be finished until the current group
@@ -628,7 +665,12 @@ Mts_submode_logical_clock::schedule_next_event(Relay_log_info* rli,
       {
         DBUG_RETURN(-1);
       }
-
+      /*
+        Making the slave's max last committed (lwm) to satisfy this
+        transaction's scheduling condition.
+      */
+      if (gap_successor)
+        last_lwm_timestamp= sequence_number - 1;
       DBUG_ASSERT(!clock_leq(sequence_number, estimate_lwm_timestamp()));
     }
 
@@ -663,6 +705,14 @@ Mts_submode_logical_clock::schedule_next_event(Relay_log_info* rli,
     delegated_jobs= 1;
     jobs_done= 0;
     force_new_group= false;
+    /*
+      Not sequenced event can be followed with a logically relating
+      e.g User var to be followed by CREATE table.
+      It's supported to be executed in one-by-one fashion.
+      Todo: remove with the event group parser worklog.
+    */
+    if (sequence_number == SEQ_UNINIT && last_committed == SEQ_UNINIT)
+      rli->last_assigned_worker= *rli->workers.begin();
   }
 
 #ifndef DBUG_OFF
@@ -780,7 +830,6 @@ Mts_submode_logical_clock::get_least_occupied_worker(Relay_log_info *rli,
 {
   Slave_committed_queue *gaq= rli->gaq;
   Slave_worker *worker= NULL;
-  Slave_job_group* ptr_group __attribute__((unused));
   PSI_stage_info *old_stage= 0;
   THD* thd= rli->info_thd;
   DBUG_ENTER("Mts_submode_logical_clock::get_least_occupied_worker");
@@ -795,8 +844,9 @@ Mts_submode_logical_clock::get_least_occupied_worker(Relay_log_info *rli,
     DBUG_ASSERT(worker != NULL);
     DBUG_RETURN(worker);
   }
-#endif
+  Slave_job_group* ptr_group;
   ptr_group= gaq->get_job_group(rli->gaq->assigned_group_index);
+#endif
   /*
     The scheduling works as follows, in this sequence
       -If this is an internal event of a transaction  use the last assigned
@@ -809,10 +859,18 @@ Mts_submode_logical_clock::get_least_occupied_worker(Relay_log_info *rli,
        becomes free.
    */
   if (rli->last_assigned_worker)
+  {
     worker= rli->last_assigned_worker;
+    DBUG_ASSERT(ev->get_type_code() != USER_VAR_EVENT || worker->id == 0 ||
+                rli->curr_group_seen_begin || rli->curr_group_seen_gtid);
+  }
   else
   {
     worker= get_free_worker(rli);
+
+    DBUG_ASSERT(ev->get_type_code() != USER_VAR_EVENT ||
+                rli->curr_group_seen_begin || rli->curr_group_seen_gtid);
+
     if (worker == NULL)
     {
       struct timespec ts[2];

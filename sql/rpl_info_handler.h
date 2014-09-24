@@ -202,6 +202,27 @@ public:
   }
 
   /**
+    set the value of a field pointed at @c pk_cursor to
+    @ value.
+
+    @param[in]   pk_cursor   cursor for the filed value.
+    @param[in]   value       fieled[pk_cursor] would be set
+                             this value.
+
+    @retval      FALSE       ok
+    @retval      TRUE       error.
+  */
+
+  template <class TypeHandler>
+  bool set_info(int pk_cursor, TypeHandler const value)
+  {
+    if (pk_cursor >= ninfo)
+      return TRUE;
+
+    return (do_set_info(pk_cursor, value));
+  }
+
+  /**
     Returns the value of a field.
     Any call must be done in the right order which
     is defined by the caller that wants to return

@@ -73,6 +73,7 @@
 #include "rpl_gtid.h"
 #include "rpl_gtid_persist.h"
 #include "rpl_slave.h"
+#include "rpl_msr.h"
 #include "rpl_master.h"
 #include "rpl_mi.h"
 #include "rpl_filter.h"
@@ -604,7 +605,7 @@ mysql_mutex_t
   LOCK_status, LOCK_error_log, LOCK_uuid_generator,
   LOCK_crypt,
   LOCK_global_system_variables,
-  LOCK_user_conn, LOCK_slave_list, LOCK_active_mi,
+  LOCK_user_conn, LOCK_slave_list, LOCK_msr_map,
   LOCK_error_messages;
 mysql_mutex_t LOCK_sql_rand;
 
@@ -1184,7 +1185,7 @@ static void close_connections(void)
                      thd_manager->get_thd_count()));
   thd_manager->wait_till_no_thd();
 
-  close_active_mi();
+  delete_slave_info_objects();
   DBUG_PRINT("quit",("close_connections thread"));
   DBUG_VOID_RETURN;
 }
@@ -1484,7 +1485,7 @@ static void clean_up_mutexes()
   OPENSSL_free(openssl_stdlocks);
 #endif
 #endif
-  mysql_mutex_destroy(&LOCK_active_mi);
+  mysql_mutex_destroy(&LOCK_msr_map);
   mysql_rwlock_destroy(&LOCK_sys_init_connect);
   mysql_rwlock_destroy(&LOCK_sys_init_slave);
   mysql_mutex_destroy(&LOCK_global_system_variables);
@@ -1672,22 +1673,22 @@ static void set_root(const char *path)
 #endif // !_WIN32
 
 
-static void network_init(void)
+static bool network_init(void)
 {
-  std::string unix_sock_name= "";
-
   if (opt_bootstrap)
-    return;
+    return false;
 
   set_ports();
 
 #ifdef HAVE_SYS_UN_H
-  unix_sock_name= mysqld_unix_port ? mysqld_unix_port : "";
+  std::string const unix_sock_name(mysqld_unix_port ? mysqld_unix_port : "");
+#else
+  std::string const unix_sock_name("");
 #endif
 
   if (!opt_disable_networking || unix_sock_name != "")
   {
-    std::string bind_addr_str= my_bind_addr_str ? my_bind_addr_str : "";
+    std::string const bind_addr_str(my_bind_addr_str ? my_bind_addr_str : "");
 
     Mysqld_socket_listener *mysqld_socket_listener=
       new (std::nothrow) Mysqld_socket_listener(bind_addr_str,
@@ -1695,20 +1696,20 @@ static void network_init(void)
                                                 mysqld_port_timeout,
                                                 unix_sock_name);
     if (mysqld_socket_listener == NULL)
-      unireg_abort(1);
+      return true;
 
     mysqld_socket_acceptor=
       new (std::nothrow) Connection_acceptor<Mysqld_socket_listener>(mysqld_socket_listener);
     if (mysqld_socket_acceptor == NULL)
     {
       delete mysqld_socket_listener;
-      unireg_abort(1);
+      return true;
     }
 
     if (mysqld_socket_acceptor->init_connection_acceptor())
     {
       delete mysqld_socket_acceptor;
-      unireg_abort(1);
+      return true;
     }
 
     if (report_port == 0)
@@ -1726,20 +1727,20 @@ static void network_init(void)
     Named_pipe_listener *named_pipe_listener=
       new (std::nothrow) Named_pipe_listener(&pipe_name);
     if (named_pipe_listener == NULL)
-      unireg_abort(1);
+      return true;
 
     named_pipe_acceptor=
       new (std::nothrow) Connection_acceptor<Named_pipe_listener>(named_pipe_listener);
     if (named_pipe_acceptor == NULL)
     {
       delete named_pipe_listener;
-      unireg_abort(1);
+      return true;
     }
 
     if (named_pipe_acceptor->init_connection_acceptor())
     {
       delete named_pipe_acceptor;
-      unireg_abort(1);
+      return true;
     }
   }
 
@@ -1751,23 +1752,24 @@ static void network_init(void)
     Shared_mem_listener *shared_mem_listener=
       new (std::nothrow) Shared_mem_listener(&shared_mem_base_name);
     if (shared_mem_listener == NULL)
-      unireg_abort(1);
+      return true;
 
     shared_mem_acceptor=
       new (std::nothrow) Connection_acceptor<Shared_mem_listener>(shared_mem_listener);
     if (shared_mem_acceptor == NULL)
     {
       delete shared_mem_acceptor;
-      unireg_abort(1);
+      return true;
     }
 
     if (shared_mem_acceptor->init_connection_acceptor())
     {
       delete shared_mem_acceptor;
-      unireg_abort(1);
+      return true;
     }
   }
 #endif // _WIN32
+  return false;
 }
 
 #ifdef _WIN32
@@ -2517,7 +2519,6 @@ SHOW_VAR com_status_vars[]= {
   {"show_relaylog_events", (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_RELAYLOG_EVENTS]), SHOW_LONG_STATUS},
   {"show_slave_hosts",     (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_SLAVE_HOSTS]), SHOW_LONG_STATUS},
   {"show_slave_status",    (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_SLAVE_STAT]), SHOW_LONG_STATUS},
-  {"show_slave_status_nonblocking",    (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_SLAVE_STAT_NONBLOCKING]), SHOW_LONG_STATUS},
   {"show_status",          (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_STATUS]), SHOW_LONG_STATUS},
   {"show_storage_engines", (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_STORAGE_ENGINES]), SHOW_LONG_STATUS},
   {"show_table_status",    (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_TABLE_STATUS]), SHOW_LONG_STATUS},
@@ -3176,7 +3177,7 @@ static int init_thread_environment()
                    &LOCK_manager, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_LOCK_crypt, &LOCK_crypt, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_LOCK_user_conn, &LOCK_user_conn, MY_MUTEX_INIT_FAST);
-  mysql_mutex_init(key_LOCK_active_mi, &LOCK_active_mi, MY_MUTEX_INIT_FAST);
+  mysql_mutex_init(key_LOCK_msr_map, &LOCK_msr_map, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_LOCK_global_system_variables,
                    &LOCK_global_system_variables, MY_MUTEX_INIT_FAST);
   mysql_rwlock_init(key_rwlock_LOCK_system_variables_hash,
@@ -4578,6 +4579,7 @@ int mysqld_main(int argc, char **argv)
           if (flush_io_cache(mysql_bin_log.get_log_file()) ||
               mysql_file_sync(mysql_bin_log.get_log_file()->file, MYF(MY_WME)))
             unireg_abort(1);
+          mysql_bin_log.update_binlog_end_pos();
         }
         else
           global_sid_lock->unlock();
@@ -4596,7 +4598,8 @@ int mysqld_main(int argc, char **argv)
 
   if (init_ssl())
     unireg_abort(1);
-  network_init();
+  if (network_init())
+    unireg_abort(1);
 
 #ifdef _WIN32
   if (!opt_console)
@@ -5766,78 +5769,129 @@ static int show_flushstatustime(THD *thd, SHOW_VAR *var, char *buff)
 #endif
 
 #ifdef HAVE_REPLICATION
+/**
+  After Multisource replication, this function only shows the value
+  of default channel.  default channel if created during init_slave()
+  always exist and is not destroyed, LOCK_msr_map is not needed.
+  Initially, a lock was needed which was removed for the bug????
+
+  To know the status of other channels, performance schema replication
+  tables comes to the rescue.
+
+  @TODO: any warning needed if multiple channels exist to request
+         the users to start using replication performance schema
+         tables.
+*/
 static int show_slave_running(THD *thd, SHOW_VAR *var, char *buff)
 {
-  var->type= SHOW_MY_BOOL;
-  var->value= buff;
-  *((my_bool *)buff)= (my_bool) (active_mi &&
-                                 active_mi->slave_running == MYSQL_SLAVE_RUN_CONNECT &&
-                                 active_mi->rli->slave_running);
+
+  Master_info *mi =msr_map.get_mi(msr_map.get_default_channel());
+
+  if (mi)
+  {
+    var->type= SHOW_MY_BOOL;
+    var->value= buff;
+    *((my_bool *)buff)= (my_bool) (mi &&
+                                   mi->slave_running == MYSQL_SLAVE_RUN_CONNECT &&
+                                   mi->rli->slave_running);
+  }
+  else
+    var->type= SHOW_UNDEF;
+
   return 0;
 }
 
+
+/**
+  This status variable is also exclusively (look comments on
+  show_slave_running()) for default channel.
+*/
 static int show_slave_retried_trans(THD *thd, SHOW_VAR *var, char *buff)
 {
-  /*
-    TODO: with multimaster, have one such counter per line in
-    SHOW SLAVE STATUS, and have the sum over all lines here.
-  */
-  if (active_mi)
+
+  Master_info *mi;
+  mi= msr_map.get_mi(msr_map.get_default_channel());
+
+  if (mi)
   {
     var->type= SHOW_LONG;
     var->value= buff;
-    *((long *)buff)= (long)active_mi->rli->retried_trans;
+    *((long *)buff)= (long)mi->rli->retried_trans;
   }
   else
     var->type= SHOW_UNDEF;
+
   return 0;
 }
 
+/**
+  Only for default channel. Refer to comments on show_slave_running()
+*/
 static int show_slave_received_heartbeats(THD *thd, SHOW_VAR *var, char *buff)
 {
-  if (active_mi)
+  Master_info *mi;
+  mi= msr_map.get_mi(msr_map.get_default_channel());
+
+  if (mi)
   {
     var->type= SHOW_LONGLONG;
     var->value= buff;
-    *((longlong *)buff)= active_mi->received_heartbeats;
+    *((longlong *)buff)= mi->received_heartbeats;
   }
   else
     var->type= SHOW_UNDEF;
+
   return 0;
 }
 
+/**
+  Only for default channel. Refer to comments on show_slave_running()
+*/
 static int show_slave_last_heartbeat(THD *thd, SHOW_VAR *var, char *buff)
 {
   MYSQL_TIME received_heartbeat_time;
-  if (active_mi)
+
+  Master_info *mi;
+  mi= msr_map.get_mi(msr_map.get_default_channel());
+
+  if (mi)
   {
     var->type= SHOW_CHAR;
     var->value= buff;
-    if (active_mi->last_heartbeat == 0)
+    if (mi->last_heartbeat == 0)
       buff[0]='\0';
     else
     {
       thd->variables.time_zone->gmt_sec_to_TIME(&received_heartbeat_time, 
-        static_cast<my_time_t>(active_mi->last_heartbeat));
+        static_cast<my_time_t>(mi->last_heartbeat));
       my_datetime_to_str(&received_heartbeat_time, buff, 0);
     }
   }
   else
     var->type= SHOW_UNDEF;
+
   return 0;
 }
 
+/**
+  Only for default channel. For details, refer to show_slave_running()
+*/
 static int show_heartbeat_period(THD *thd, SHOW_VAR *var, char *buff)
 {
   DEBUG_SYNC(thd, "dsync_show_heartbeat_period");
-  if (active_mi)
+
+  Master_info *mi;
+  mi=  msr_map.get_mi(msr_map.get_default_channel());
+
+  if (mi)
   {
     var->type= SHOW_CHAR;
     var->value= buff;
-    sprintf(buff, "%.3f", active_mi->heartbeat_period);
+    sprintf(buff, "%.3f", mi->heartbeat_period);
   }
   else
     var->type= SHOW_UNDEF;
+
   return 0;
 }
 
@@ -7761,7 +7815,7 @@ PSI_mutex_key key_BINLOG_LOCK_sync;
 PSI_mutex_key key_BINLOG_LOCK_sync_queue;
 PSI_mutex_key key_BINLOG_LOCK_xids;
 PSI_mutex_key
-  key_hash_filo_lock, key_LOCK_active_mi,
+  key_hash_filo_lock, key_LOCK_msr_map,
   key_LOCK_crypt, key_LOCK_error_log,
   key_LOCK_gdl, key_LOCK_global_system_variables,
   key_LOCK_manager,
@@ -7803,6 +7857,7 @@ PSI_mutex_key key_LOCK_offline_mode;
 
 #ifdef HAVE_REPLICATION
 PSI_mutex_key key_commit_order_manager_mutex;
+PSI_mutex_key key_mutex_slave_worker_hash;
 #endif
 
 static PSI_mutex_info all_server_mutexes[]=
@@ -7833,7 +7888,7 @@ static PSI_mutex_info all_server_mutexes[]=
   { &key_RELAYLOG_LOCK_sync_queue, "MYSQL_RELAY_LOG::LOCK_sync_queue", 0 },
   { &key_RELAYLOG_LOCK_xids, "MYSQL_RELAY_LOG::LOCK_xids", 0},
   { &key_hash_filo_lock, "hash_filo::lock", 0},
-  { &key_LOCK_active_mi, "LOCK_active_mi", PSI_FLAG_GLOBAL},
+  { &key_LOCK_msr_map, "LOCK_msr_map", PSI_FLAG_GLOBAL},
   { &key_LOCK_crypt, "LOCK_crypt", PSI_FLAG_GLOBAL},
   { &key_LOCK_error_log, "LOCK_error_log", PSI_FLAG_GLOBAL},
   { &key_LOCK_gdl, "LOCK_gdl", PSI_FLAG_GLOBAL},
@@ -7886,8 +7941,9 @@ static PSI_mutex_info all_server_mutexes[]=
 #endif
 #ifdef HAVE_REPLICATION
   { &key_commit_order_manager_mutex, "Commit_order_manager::m_mutex", 0},
+  { &key_mutex_slave_worker_hash, "Relay_log_info::slave_worker_hash_lock", 0},
 #endif
-  { &key_LOCK_offline_mode, "LOCK_offline_mode", PSI_FLAG_GLOBAL}
+  { &key_LOCK_offline_mode, "LOCK_offline_mode", PSI_FLAG_GLOBAL},
 };
 
 PSI_rwlock_key key_rwlock_LOCK_grant, key_rwlock_LOCK_logger,
@@ -7944,6 +8000,7 @@ PSI_cond_key key_gtid_ensure_index_cond;
 PSI_cond_key key_COND_compress_gtid_table;
 #ifdef HAVE_REPLICATION
 PSI_cond_key key_commit_order_manager_cond;
+PSI_cond_key key_cond_slave_worker_hash;
 #endif
 
 static PSI_cond_info all_server_conds[]=
@@ -7986,7 +8043,8 @@ static PSI_cond_info all_server_conds[]=
   { &key_COND_compress_gtid_table, "COND_compress_gtid_table", PSI_FLAG_GLOBAL}
 #ifdef HAVE_REPLICATION
   ,
-  { &key_commit_order_manager_cond, "Commit_order_manager::m_workers.cond", 0}
+  { &key_commit_order_manager_cond, "Commit_order_manager::m_workers.cond", 0},
+  { &key_cond_slave_worker_hash, "Relay_log_info::slave_worker_hash_lock", 0}
 #endif
 };
 
@@ -8404,6 +8462,7 @@ PSI_memory_key key_memory_READ_RECORD_cache;
 PSI_memory_key key_memory_Quick_ranges;
 PSI_memory_key key_memory_File_query_log_name;
 PSI_memory_key key_memory_Table_trigger_dispatcher;
+PSI_memory_key key_memory_show_slave_status_io_gtid_set;
 #ifdef HAVE_MY_TIMER
 PSI_memory_key key_memory_thd_timer;
 #endif
@@ -8552,9 +8611,9 @@ static PSI_memory_info all_server_memory[]=
 #ifdef HAVE_MY_TIMER
   { &key_memory_thd_timer, "thd_timer", 0},
 #endif
-  { &key_memory_Table_trigger_dispatcher, "Table_trigger_dispatcher::m_mem_root", 0},
   { &key_memory_THD_Session_tracker, "THD::Session_tracker", 0},
-  { &key_memory_THD_Session_sysvar_resource_manager, "THD::Session_sysvar_resource_manager", 0}
+  { &key_memory_THD_Session_sysvar_resource_manager, "THD::Session_sysvar_resource_manager", 0},
+  { &key_memory_show_slave_status_io_gtid_set, "show_slave_status_io_gtid_set", 0}
 };
 
 /* TODO: find a good header */

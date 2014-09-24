@@ -1204,9 +1204,8 @@ sel_set_rec_lock(
 		if (dict_index_is_spatial(index)) {
 			if (type == LOCK_GAP || type == LOCK_ORDINARY) {
 				ut_ad(0);
-				ib_logf(IB_LOG_LEVEL_ERROR,
-					"Incorrectly request GAP lock "
-					"on RTree");
+				ib::error() << "Incorrectly request GAP lock "
+					"on RTree";
 				return(DB_SUCCESS);
 			}
 			err = sel_set_rtr_rec_lock(pcur, rec, index, offsets,
@@ -2412,7 +2411,7 @@ fetch_step(
 	sel_node->common.parent = node;
 
 	if (sel_node->state == SEL_NODE_CLOSED) {
-		ib_logf(IB_LOG_LEVEL_ERROR, "fetch called on a closed cursor");
+		ib::error() << "fetch called on a closed cursor";
 
 		thr_get_trx(thr)->error_state = DB_ERROR;
 
@@ -2439,7 +2438,7 @@ row_fetch_print(
 
 	UT_NOT_USED(user_arg);
 
-	ib_logf(IB_LOG_LEVEL_INFO, "row_fetch_print: row %p", row);
+	ib::info() << "row_fetch_print: row " << row;
 
 	for (exp = node->select_list;
 	     exp != 0;
@@ -2718,15 +2717,16 @@ row_sel_convert_mysql_key_to_innobase(
 			trick to calculate LIKE 'abc%' type queries there
 			should never be partial-field prefixes in searches. */
 
-			ib_logf(IB_LOG_LEVEL_WARN,
-				"Using a partial-field key prefix in search,"
-				" index %s of table %s. Last data field length"
-				" %lu bytes, key ptr now exceeds key end by %lu"
-				" bytes. Key value in the MySQL format:",
-				ut_get_name(trx, FALSE, index->name).c_str(),
-				ut_get_name(trx, TRUE, index->table_name).c_str(),
-				(ulong) data_field_len,
-				(ulong) (key_ptr - key_end));
+			ib::warn() << "Using a partial-field key prefix in"
+				" search, index "
+				<< ut_get_name(trx, FALSE, index->name)
+				<< " of table "
+				<< ut_get_name(trx, TRUE, index->table_name)
+				<< ". Last data field length "
+				<< data_field_len << " bytes, key ptr now"
+				" exceeds key end by " << (key_ptr - key_end)
+				<< " bytes. Key value in the MySQL format:";
+
 			ut_print_buf(stderr, original_key_ptr, key_len);
 			putc('\n', stderr);
 
@@ -2774,15 +2774,14 @@ row_sel_store_row_id_to_prebuilt(
 
 	if (UNIV_UNLIKELY(len != DATA_ROW_ID_LEN)) {
 
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Row id field is wrong length %lu in index %s of"
-			" table %s, Field number %lu, record:",
-			(ulong) len,
-			ut_get_name(
-				prebuilt->trx, FALSE, index->name).c_str(),
-			ut_get_name(
-				prebuilt->trx, TRUE, index->table_name).c_str(),
-			(ulong) dict_index_get_sys_col_pos(index, DATA_ROW_ID));
+		ib::error() << "Row id field is wrong length " << len << " in"
+			" index "
+			<< ut_get_name(prebuilt->trx, FALSE, index->name)
+			<< " of table "
+			<< ut_get_name(prebuilt->trx, TRUE, index->table_name)
+			<< ", Field number "
+			<< dict_index_get_sys_col_pos(index, DATA_ROW_ID)
+			<< ", record:";
 
 		rec_print_new(stderr, index_rec, offsets);
 		putc('\n', stderr);
@@ -3388,13 +3387,12 @@ row_sel_get_clust_rec_for_mysql(
 			earlier versions of the clustered index record.
 			In that case we know that the clustered index
 			record did not exist in the read view of trx. */
-			ib_logf(IB_LOG_LEVEL_ERROR,
-				"Clustered record for sec rec not found"
-				" index %s of table %s",
-				ut_get_name(trx, FALSE,
-					    sec_index->name).c_str(),
-				ut_get_name(trx, TRUE,
-					    sec_index->table_name).c_str());
+			ib::error() << "Clustered record for sec rec not found"
+				" index "
+				<< ut_get_name(trx, FALSE, sec_index->name)
+				<< " of table "
+				<< ut_get_name(trx, TRUE,
+					       sec_index->table_name);
 
 			fputs("InnoDB: sec index record ", stderr);
 			rec_print(stderr, rec, sec_index);
@@ -3967,7 +3965,7 @@ row_search_traverse(
 }
 
 /** Searches for rows in the database using cursor.
-function is meant for temporary table that are not shared accross connection
+Function is for temporary tables that are not shared accross connections
 and so lot of complexity is reduced especially locking and transaction related.
 The cursor is an iterator over the table/index.
 
@@ -3986,26 +3984,20 @@ The cursor is an iterator over the table/index.
 @return DB_SUCCESS or error code */
 dberr_t
 row_search_no_mvcc(
-	byte*			buf,
-	ulint			mode,
-	row_prebuilt_t*		prebuilt,
-	ulint			match_mode,
-	ulint			direction)
+	byte*		buf,
+	page_cur_mode_t	mode,
+	row_prebuilt_t*	prebuilt,
+	ulint		match_mode,
+	ulint		direction)
 {
 	dict_index_t*	index		= prebuilt->index;
 	const dtuple_t*	search_tuple	= prebuilt->search_tuple;
 	btr_pcur_t*	pcur		= &prebuilt->pcur;
-	dict_index_t*	clust_index;
-	que_thr_t*	thr;
 
-	const rec_t*	rec;
 	const rec_t*	result_rec	= NULL;
 	const rec_t*	clust_rec	= NULL;
 
 	dberr_t		err		= DB_SUCCESS;
-	ibool		moves_up	= FALSE;
-
-	mtr_t*		mtr;
 
 	mem_heap_t*	heap		= NULL;
 	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
@@ -4014,21 +4006,30 @@ row_search_no_mvcc(
 	ut_ad(index && pcur && search_tuple);
 
 	/* Step-0: Re-use the cached mtr. */
-	mtr = &index->last_sel_cur->mtr;
-	clust_index = dict_table_get_first_index(index->table);
+	mtr_t*		mtr = &index->last_sel_cur->mtr;
+	dict_index_t*	clust_index = dict_table_get_first_index(index->table);
 
 	/* Step-1: Build the select graph. */
 	if (direction == 0 && prebuilt->sel_graph == NULL) {
 		row_prebuild_sel_graph(prebuilt);
 	}
-	thr = que_fork_get_first_thr(prebuilt->sel_graph);
+
+	que_thr_t*	thr = que_fork_get_first_thr(prebuilt->sel_graph);
+
+	bool		moves_up;
 
 	if (direction == 0) {
+
 		if (mode == PAGE_CUR_GE || mode == PAGE_CUR_G) {
-			moves_up = TRUE;
+			moves_up = true;
+		} else {
+			moves_up = false;
 		}
+
 	} else if (direction == ROW_SEL_NEXT) {
-		moves_up = TRUE;
+		moves_up = true;
+	} else {
+		moves_up = false;
 	}
 
 	/* Step-2: Open or Restore the cursor.
@@ -4102,11 +4103,11 @@ row_search_no_mvcc(
 	}
 
 	/* Step-3: Traverse the records filtering non-qualifiying records. */
-	for (;
+	for (/* No op */;
 	     err == DB_SUCCESS;
 	     err = row_search_traverse(moves_up, match_mode, pcur, mtr)) {
 
-		rec = btr_pcur_get_rec(pcur);
+		const rec_t*	rec = btr_pcur_get_rec(pcur);
 
 		if (page_rec_is_infimum(rec)
 		    || page_rec_is_supremum(rec)
@@ -4171,8 +4172,10 @@ row_search_no_mvcc(
 		captured while SELECT statement started execution. */
 		{
 			trx_id_t	trx_id;
+
 			trx_id = row_get_rec_trx_id(
 				result_rec, clust_index, offsets);
+
 			if (trx_id > index->trx_id) {
 				/* This row was recently added skip it from
 				SELECT view. */
@@ -4257,7 +4260,7 @@ It also has optimization such as pre-caching the rows, using AHI, etc.
 dberr_t
 row_search_mvcc(
 	byte*		buf,
-	ulint		mode,
+	page_cur_mode_t	mode,
 	row_prebuilt_t*	prebuilt,
 	ulint		match_mode,
 	ulint		direction)
@@ -4327,7 +4330,6 @@ row_search_mvcc(
 	} else if (dict_index_is_corrupted(prebuilt->index)) {
 
 		return(DB_CORRUPTION);
-
 	}
 
 	/*-------------------------------------------------------------*/
@@ -4345,8 +4347,7 @@ row_search_mvcc(
 		BTR_SEA_TIMEOUT rounds before trying to keep it again over
 		calls from MySQL */
 
-		rw_lock_s_unlock(&btr_search_latch);
-		trx->has_search_latch = false;
+		trx_search_latch_release_if_reserved(trx);
 
 		trx->search_latch_timeout = BTR_SEA_TIMEOUT;
 	}
@@ -4505,10 +4506,7 @@ row_search_mvcc(
 			and if we try that, we can deadlock on the adaptive
 			hash index semaphore! */
 
-			if (!trx->has_search_latch) {
-				rw_lock_s_lock(&btr_search_latch);
-				trx->has_search_latch = true;
-			}
+			trx_reserve_search_latch_if_not_reserved(trx);
 
 			switch (row_sel_try_search_shortcut_for_mysql(
 					&rec, prebuilt, &offsets, &heap,
@@ -4554,34 +4552,26 @@ row_search_mvcc(
 			shortcut_match:
 				mtr_commit(&mtr);
 
-				/* ut_print_name(stderr, index->name);
-				fputs(" shortcut\n", stderr); */
+				/* NOTE that we do NOT store the cursor
+				position */
 
 				err = DB_SUCCESS;
-				goto release_search_latch_if_needed;
+
+				trx_search_latch_timeout(trx);
+
+				goto func_exit;
 
 			case SEL_EXHAUSTED:
 			shortcut_mismatch:
 				mtr_commit(&mtr);
 
-				/* ut_print_name(stderr, index->name);
-				fputs(" record not found 2\n", stderr); */
-
 				err = DB_RECORD_NOT_FOUND;
-release_search_latch_if_needed:
-				if (trx->search_latch_timeout > 0
-				    && trx->has_search_latch) {
 
-#ifndef INNODB_RW_LOCKS_USE_ATOMICS
-					trx->search_latch_timeout--;
-#endif /* !INNODB_RW_LOCKS_USE_ATOMICS */
-
-					rw_lock_s_unlock(&btr_search_latch);
-					trx->has_search_latch = false;
-				}
+				trx_search_latch_timeout(trx);
 
 				/* NOTE that we do NOT store the cursor
 				position */
+
 				goto func_exit;
 
 			case SEL_RETRY:
@@ -4599,10 +4589,7 @@ release_search_latch_if_needed:
 	/*-------------------------------------------------------------*/
 	/* PHASE 3: Open or restore index cursor position */
 
-	if (trx->has_search_latch) {
-		rw_lock_s_unlock(&btr_search_latch);
-		trx->has_search_latch = false;
-	}
+	trx_search_latch_release_if_reserved(trx);
 
 	spatial_search = dict_index_is_spatial(index)
 			 && mode >= PAGE_CUR_CONTAIN;
@@ -4636,12 +4623,17 @@ release_search_latch_if_needed:
 	naturally moves upward (in fetch next) in alphabetical order,
 	otherwise downward */
 
-	if (UNIV_UNLIKELY(direction == 0)) {
-		if (mode == PAGE_CUR_GE || mode == PAGE_CUR_G
+	if (direction == 0) {
+
+		if (mode == PAGE_CUR_GE
+		    || mode == PAGE_CUR_G
 		    || mode >= PAGE_CUR_CONTAIN) {
+
 			moves_up = TRUE;
 		}
+
 	} else if (direction == ROW_SEL_NEXT) {
+
 		moves_up = TRUE;
 	}
 
@@ -4660,9 +4652,9 @@ release_search_latch_if_needed:
 		    && !srv_read_only_mode
 		    && prebuilt->select_lock_type == LOCK_NONE) {
 
-			ib_logf(IB_LOG_LEVEL_ERROR,
-				"MySQL is trying to perform a consistent read"
-				" but the read view is not assigned!");
+			ib::error() << "MySQL is trying to perform a"
+				" consistent read but the read view is not"
+				" assigned!";
 			trx_print(stderr, trx, 600);
 			fputc('\n', stderr);
 			ut_error;
@@ -4884,23 +4876,25 @@ wrong_offs:
 		if (srv_force_recovery == 0 || moves_up == FALSE) {
 			buf_page_print(page_align(rec), univ_page_size,
 				       BUF_PAGE_PRINT_NO_CRASH);
-			ib_logf(IB_LOG_LEVEL_ERROR,
-				"Rec address %p,"
-				" buf block fix count %lu",
-				(void*) rec, (ulong)
-				btr_cur_get_block(btr_pcur_get_btr_cur(pcur))
-				->page.buf_fix_count);
-			ib_logf(IB_LOG_LEVEL_ERROR,
-				"Index corruption: rec offs %lu next offs %lu,"
-				" page no %lu, index %s of table %s. Run CHECK"
-				" TABLE. You may need to restore from a backup,"
-				" or dump + drop + reimport the table.",
-				(ulong) page_offset(rec),
-				(ulong) next_offs,
-				(ulong) page_get_page_no(page_align(rec)),
-				ut_get_name(trx, FALSE, index->name).c_str(),
-				ut_get_name(
-					trx, TRUE, index->table_name).c_str());
+
+			ib::error() << "Rec address "
+				<< static_cast<const void*>(rec)
+				<< ", buf block fix count "
+				<< btr_cur_get_block(
+					btr_pcur_get_btr_cur(pcur))->page
+					.buf_fix_count;
+
+			ib::error() << "Index corruption: rec offs "
+				<< page_offset(rec) << " next offs "
+				<< next_offs << ", page no "
+				<< page_get_page_no(page_align(rec))
+				<< ", index "
+				<< ut_get_name(trx, FALSE, index->name)
+				<< " of table "
+				<< ut_get_name(trx, TRUE, index->table_name)
+				<< ". Run CHECK TABLE. You may need to"
+				" restore from a backup, or dump + drop +"
+				" reimport the table.";
 			ut_ad(0);
 			err = DB_CORRUPTION;
 
@@ -4909,17 +4903,15 @@ wrong_offs:
 			/* The user may be dumping a corrupt table. Jump
 			over the corruption to recover as much as possible. */
 
-			ib_logf(IB_LOG_LEVEL_INFO,
-				"Index corruption: rec offs %lu next offs %lu,"
-				" page no %lu, index %s of table %s."
-				" We try to skip the rest of the page.",
-				(ulong) page_offset(rec),
-				(ulong) next_offs,
-				(ulong) page_get_page_no(page_align(rec)),
-				ut_get_name(trx, FALSE,
-					    index->name).c_str(),
-				ut_get_name(trx, TRUE,
-					    index->table_name).c_str());
+			ib::info() << "Index corruption: rec offs "
+				<< page_offset(rec) << " next offs "
+				<< next_offs << ", page no "
+				<< page_get_page_no(page_align(rec))
+				<< ", index "
+				<< ut_get_name(trx, FALSE, index->name)
+				<< " of table "
+				<< ut_get_name(trx, TRUE, index->table_name)
+				<< ". We try to skip the rest of the page.";
 
 			btr_pcur_move_to_last_on_page(pcur, &mtr);
 
@@ -4938,16 +4930,16 @@ wrong_offs:
 	if (UNIV_UNLIKELY(srv_force_recovery > 0)) {
 		if (!rec_validate(rec, offsets)
 		    || !btr_index_rec_validate(rec, index, FALSE)) {
-			ib_logf(IB_LOG_LEVEL_INFO,
-				"Index corruption: rec offs %lu next offs %lu,"
-				" page no %lu, index %s of table %s."
-				" We try to skip the record.",
-				(ulong) page_offset(rec),
-				(ulong) next_offs,
-				(ulong) page_get_page_no(page_align(rec)),
-				ut_get_name(trx, FALSE, index->name).c_str(),
-				ut_get_name(
-					trx, TRUE, index->table_name).c_str());
+
+			ib::info() << "Index corruption: rec offs "
+				<< page_offset(rec) << " next offs "
+				<< next_offs << ", page no "
+				<< page_get_page_no(page_align(rec))
+				<< ", index "
+				<< ut_get_name(trx, FALSE, index->name)
+				<< " of table "
+				<< ut_get_name(trx, TRUE, index->table_name)
+				<< ". We try to skip the record.";
 
 			goto next_rec;
 		}

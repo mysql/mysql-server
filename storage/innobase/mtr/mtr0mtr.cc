@@ -910,10 +910,9 @@ mtr_t::memo_contains_page_flagged(
 void
 mtr_t::print() const
 {
-	ib_logf(IB_LOG_LEVEL_INFO,
-		"Mini-transaction handle: memo size %lu bytes"
-		" log size %lu bytes",
-		m_impl.m_memo.size(), get_log()->size());
+	ib::info() << "Mini-transaction handle: memo size "
+		<< m_impl.m_memo.size() << " bytes log size "
+		<< get_log()->size() << " bytes";
 }
 
 #endif /* UNIV_DEBUG */

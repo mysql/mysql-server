@@ -31,6 +31,7 @@
 #include "rpl_rli.h"
 #include "rpl_mi.h"
 #include "sql_parse.h"
+#include "rpl_msr.h"   /* Multisource replication */
 
 THR_LOCK table_replication_execute_configuration::m_table_lock;
 
@@ -40,6 +41,12 @@ THR_LOCK table_replication_execute_configuration::m_table_lock;
 static const TABLE_FIELD_TYPE field_types[]=
 {
   {
+    {C_STRING_WITH_LEN("CHANNEL_NAME")},
+    {C_STRING_WITH_LEN("char(64)")},
+    {NULL,0}
+  },
+
+  {
     {C_STRING_WITH_LEN("DESIRED_DELAY")},
     {C_STRING_WITH_LEN("int(11)")},
     {NULL, 0}
@@ -48,7 +55,7 @@ static const TABLE_FIELD_TYPE field_types[]=
 
 TABLE_FIELD_DEF
 table_replication_execute_configuration::m_field_def=
-{ 1, field_types };
+{ 2, field_types };
 
 PFS_engine_table_share
 table_replication_execute_configuration::m_share=
@@ -86,68 +93,71 @@ void table_replication_execute_configuration::reset_position(void)
   m_next_pos.m_index= 0;
 }
 
+
 ha_rows table_replication_execute_configuration::get_row_count()
 {
-  uint row_count= 0;
-
-  mysql_mutex_lock(&LOCK_active_mi);
-
-  if (active_mi && active_mi->host[0])
-    row_count= 1;
-
-  mysql_mutex_unlock(&LOCK_active_mi);
-
-  return row_count;
+ return msr_map.get_max_channels();
 }
+
 
 int table_replication_execute_configuration::rnd_next(void)
 {
-  if(get_row_count() == 0)
-    return HA_ERR_END_OF_FILE;
+  Master_info *mi;
 
-  m_pos.set_at(&m_next_pos);
+  mysql_mutex_lock(&LOCK_msr_map);
 
-  if (m_pos.m_index == 0)
+  for (m_pos.set_at(&m_next_pos); m_pos.m_index < msr_map.get_max_channels();
+      m_pos.next())
   {
-    make_row();
-    m_next_pos.set_after(&m_pos);
-    return 0;
+    mi= msr_map.get_mi_at_pos(m_pos.m_index);
+
+    if (mi && mi->host[0])
+    {
+      make_row(mi);
+      m_next_pos.set_after(&m_pos);
+
+      mysql_mutex_unlock(&LOCK_msr_map);
+      return 0;
+    }
   }
+
+  mysql_mutex_unlock(&LOCK_msr_map);
 
   return HA_ERR_END_OF_FILE;
 }
 
 int table_replication_execute_configuration::rnd_pos(const void *pos)
 {
-  if(get_row_count() == 0)
-    return HA_ERR_END_OF_FILE;
+  Master_info *mi;
 
   set_position(pos);
 
-  DBUG_ASSERT(m_pos.m_index < 1);
+  if ((mi= msr_map.get_mi_at_pos(m_pos.m_index)))
+  {
+    make_row(mi);
+    return 0;
+  }
 
-  make_row();
+  return HA_ERR_RECORD_DELETED;
 
-  return 0;
 }
 
-void table_replication_execute_configuration::make_row()
+void table_replication_execute_configuration::make_row(Master_info *mi)
 {
   m_row_exists= false;
 
-  mysql_mutex_lock(&LOCK_active_mi);
+  DBUG_ASSERT(mi != NULL);
+  DBUG_ASSERT(mi->rli != NULL);
 
-  DBUG_ASSERT(active_mi != NULL);
-  DBUG_ASSERT(active_mi->rli != NULL);
+  mysql_mutex_lock(&mi->data_lock);
+  mysql_mutex_lock(&mi->rli->data_lock);
 
-  mysql_mutex_lock(&active_mi->data_lock);
-  mysql_mutex_lock(&active_mi->rli->data_lock);
+  m_row.channel_name_length= mi->get_channel() ? strlen(mi->get_channel()):0;
+  memcpy(m_row.channel_name, mi->get_channel(), m_row.channel_name_length);
+  m_row.desired_delay= mi->rli->get_sql_delay();
 
-  m_row.desired_delay= active_mi->rli->get_sql_delay();
-
-  mysql_mutex_unlock(&active_mi->rli->data_lock);
-  mysql_mutex_unlock(&active_mi->data_lock);
-  mysql_mutex_unlock(&LOCK_active_mi);
+  mysql_mutex_unlock(&mi->rli->data_lock);
+  mysql_mutex_unlock(&mi->data_lock);
 
   m_row_exists= true;
 }
@@ -181,7 +191,10 @@ int table_replication_execute_configuration::read_row_values(TABLE *table,
     {
       switch(f->field_index)
       {
-      case 0: /** desired_delay */
+      case 0: /**channel_name*/
+        set_field_char_utf8(f, m_row.channel_name, m_row.channel_name_length);
+        break;
+      case 1: /** desired_delay */
         set_field_ulong(f, static_cast<ulong>(m_row.desired_delay));
         break;
       default:

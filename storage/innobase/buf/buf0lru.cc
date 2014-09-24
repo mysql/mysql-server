@@ -1983,23 +1983,6 @@ func_exit:
 		mutex_exit(block_mutex);
 
 		rw_lock_x_unlock(hash_lock);
-
-	} else {
-
-		/* There can be multiple threads doing an LRU scan to
-		free a block. The page_cleaner thread can be doing an
-		LRU batch whereas user threads can potentially be doing
-		multiple single page flushes. As we release
-		buf_pool->mutex below we need to make sure that no one
-		else considers this block as a victim for page
-		replacement. This block is already out of page_hash
-		and we are about to remove it from the LRU list and put
-		it on the free list. */
-		mutex_enter(block_mutex);
-
-		buf_page_set_sticky(bpage);
-
-		mutex_exit(block_mutex);
 	}
 
 	buf_pool_mutex_exit(buf_pool);
@@ -2041,11 +2024,13 @@ func_exit:
 
 	buf_pool_mutex_enter(buf_pool);
 
-	mutex_enter(block_mutex);
+	if (b != NULL) {
+		mutex_enter(block_mutex);
 
-	buf_page_unset_sticky(b != NULL ? b : bpage);
+		buf_page_unset_sticky(b);
 
-	mutex_exit(block_mutex);
+		mutex_exit(block_mutex);
+	}
 
 	buf_LRU_block_free_hashed_page((buf_block_t*) bpage);
 

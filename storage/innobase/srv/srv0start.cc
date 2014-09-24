@@ -424,8 +424,7 @@ create_log_files(
 
 	if (!log_group_init(0, srv_n_log_files,
 			    srv_log_file_size * UNIV_PAGE_SIZE,
-			    SRV_LOG_SPACE_FIRST_ID,
-			    SRV_LOG_SPACE_FIRST_ID + 1)) {
+			    SRV_LOG_SPACE_FIRST_ID)) {
 		return(DB_ERROR);
 	}
 
@@ -1526,7 +1525,8 @@ innobase_start_or_create_for_mysql(void)
 			limitation that if the user started with =0, we
 			will not emit a warning here, but we should actually
 			do so. */
-			ib::warn() << "Adjusting innodb_buffer_pool_instances"
+			ib::info()
+				<< "Adjusting innodb_buffer_pool_instances"
 				" from " << srv_buf_pool_instances << " to 1"
 				" since innodb_buffer_pool_size is less than "
 				<< BUF_POOL_SIZE_THRESHOLD / (1024 * 1024)
@@ -1954,8 +1954,7 @@ innobase_start_or_create_for_mysql(void)
 		}
 
 		if (!log_group_init(0, i, srv_log_file_size * UNIV_PAGE_SIZE,
-				    SRV_LOG_SPACE_FIRST_ID,
-				    SRV_LOG_SPACE_FIRST_ID + 1)) {
+				    SRV_LOG_SPACE_FIRST_ID)) {
 			return(srv_init_abort(DB_ERROR));
 		}
 	}

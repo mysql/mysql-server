@@ -88,8 +88,9 @@ int gtid_acquire_ownership_single(THD *thd)
            (SYSTEM_THREAD_SLAVE_SQL | SYSTEM_THREAD_SLAVE_WORKER)) != 0)
       {
         // TODO: error is *not* reported on cancel
-        DBUG_ASSERT(active_mi != NULL && active_mi->rli != NULL);
-        if (active_mi->rli->abort_slave)
+        DBUG_ASSERT(thd->rli_slave!= NULL);
+        Relay_log_info *c_rli= thd->rli_slave->get_c_rli();
+        if (c_rli->abort_slave)
           DBUG_RETURN(1);
       }
 #endif // HAVE_REPLICATION
@@ -177,8 +178,9 @@ int gtid_acquire_ownership_multiple(THD *thd)
     if ((thd->system_thread &
          (SYSTEM_THREAD_SLAVE_SQL | SYSTEM_THREAD_SLAVE_WORKER)) != 0)
     {
-      DBUG_ASSERT(active_mi != NULL && active_mi->rli != NULL);
-      if (active_mi->rli->abort_slave)
+      DBUG_ASSERT(thd->rli_slave != NULL);
+      Relay_log_info *c_rli= thd->rli_slave->get_c_rli();
+      if (c_rli->abort_slave)
         DBUG_RETURN(1);
     }
 #endif // HAVE_REPLICATION

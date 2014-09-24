@@ -267,14 +267,6 @@ IF(HAVE_NO_UNUSED_TYPEDEFS)
     COMPILE_FLAGS "-Wno-unused-local-typedefs"
   )
 ENDIF()
-# Boost Geometry source has uninitialized variables. Fixed in Boost 1.56
-MY_CHECK_CXX_COMPILER_FLAG("-Wno-uninitialized" HAVE_NO_UNINITIALIZED)
-IF(HAVE_NO_UNINITIALIZED)
-  ADD_COMPILE_FLAGS(
-    item_geofunc.cc
-    COMPILE_FLAGS "-Wno-uninitialized"
-  )
-ENDIF()
 
 MY_CHECK_CXX_COMPILER_FLAG("-fno-builtin-memcmp" HAVE_NO_BUILTIN_MEMCMP)
 # See comments in filesort_compare-t.cc about __builtin_memcmp
@@ -334,11 +326,11 @@ ADD_DEPENDENCIES(rpl GenError)
 ADD_LIBRARY(master ${MASTER_SOURCE})
 ADD_DEPENDENCIES(master GenError)
 SET (SLAVE_SOURCE rpl_slave.cc rpl_reporting.cc rpl_mi.cc rpl_rli.cc
-                  rpl_info_handler.cc rpl_info_file.cc
+		  rpl_info_handler.cc rpl_info_file.cc
                   rpl_info_table.cc rpl_info_values.cc rpl_info.cc
                   rpl_info_factory.cc rpl_info_table_access.cc dynamic_ids.cc
                   rpl_rli_pdb.cc rpl_info_dummy.cc rpl_mts_submode.cc
-                  rpl_slave_commit_order_manager.cc)
+                  rpl_slave_commit_order_manager.cc rpl_msr.cc)
 ADD_LIBRARY(slave ${SLAVE_SOURCE})
 ADD_DEPENDENCIES(slave GenError)
 

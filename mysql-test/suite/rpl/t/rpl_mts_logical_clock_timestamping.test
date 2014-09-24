@@ -8,7 +8,7 @@
 --source include/have_binlog_format_mixed.inc
 
 --connection slave
-call mtr.add_suppression("Event contains inconsistent logical timestamps");
+call mtr.add_suppression("Transaction is tagged with inconsistent logical timestamps");
 call mtr.add_suppression("Cannot execute the current event group in the parallel mode.");
 #call mtr.add_suppression("Slave I/O: Got fatal error 1236 from master when reading data from binary log");
 

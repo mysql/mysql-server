@@ -20,7 +20,7 @@ include/wait_for_slave_to_stop.inc
 
 STOP SLAVE SQL_THREAD;
 Warnings:
-Note	1255	Slave already has been stopped
+Note	1969	Replication thread(s) for channel '' are already stopped.
 Warning	1907	This operation may not be safe when the slave has temporary tables. The tables will be kept open until the server restarts or until the tables are deleted by any replicated DROP statement. Suggest to wait until slave_open_temp_tables = 0.
 include/wait_for_slave_sql_to_stop.inc
 
@@ -28,7 +28,7 @@ include/wait_for_slave_sql_to_stop.inc
 
 STOP SLAVE IO_THREAD;
 Warnings:
-Note	1255	Slave already has been stopped
+Note	1969	Replication thread(s) for channel '' are already stopped.
 Warning	1907	This operation may not be safe when the slave has temporary tables. The tables will be kept open until the server restarts or until the tables are deleted by any replicated DROP statement. Suggest to wait until slave_open_temp_tables = 0.
 include/wait_for_slave_io_to_stop.inc
 

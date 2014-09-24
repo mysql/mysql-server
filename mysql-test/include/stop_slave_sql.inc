@@ -11,11 +11,15 @@
 #
 # ==== Usage ====
 #
+# [--let $rpl_channel_name= NAME]
 # [--let $slave_timeout= NUMBER]
 # [--let $rpl_debug= 1]
 # --source include/stop_slave_sql.inc
 #
 # Parameters:
+#   $rpl_channel_name
+#     If this is not '', a FOR CHANNEL  '$rpl_channel_name' is added.
+#
 #   $slave_timeout
 #     See include/wait_for_slave_param.inc
 #
@@ -33,7 +37,15 @@ if (!$rpl_debug)
 }
 
 
-STOP SLAVE SQL_THREAD;
+if ($rpl_channel_name != '')
+{
+  eval STOP SLAVE SQL_THREAD FOR CHANNEL  '$rpl_channel_name';
+}
+if ($rpl_channel_name == '')
+{
+  STOP SLAVE SQL_THREAD;
+}
+
 --source include/wait_for_slave_sql_to_stop.inc
 
 

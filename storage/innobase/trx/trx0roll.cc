@@ -191,17 +191,26 @@ trx_rollback_for_mysql(
 /*===================*/
 	trx_t*	trx)	/*!< in/out: transaction */
 {
+	TrxInInnoDB	trx_in_innodb(trx, true);
+
+	if (trx_in_innodb.is_aborted()
+	    && trx->killed_by != os_thread_get_curr_id()) {
+
+		return(DB_FORCED_ABORT);
+	}
+
 	/* We are reading trx->state without holding trx_sys->mutex
 	here, because the rollback should be invoked for a running
 	active MySQL transaction (or recovered prepared transaction)
 	that is associated with the current thread. */
 
 	switch (trx->state) {
-	case TRX_STATE_NOT_STARTED:
 	case TRX_STATE_FORCED_ROLLBACK:
+	case TRX_STATE_NOT_STARTED:
 		trx->will_lock = 0;
 		ut_ad(trx->in_mysql_trx_list);
-		return(DB_SUCCESS);
+		return(trx->state == TRX_STATE_NOT_STARTED
+		       ? DB_SUCCESS : DB_FORCED_ABORT);
 
 	case TRX_STATE_ACTIVE:
 		ut_ad(trx->in_mysql_trx_list);
@@ -210,6 +219,7 @@ trx_rollback_for_mysql(
 
 	case TRX_STATE_PREPARED:
 		ut_ad(!trx_is_autocommit_non_locking(trx));
+		ut_ad(!(trx->in_innodb & TRX_FORCE_ROLLBACK_ASYNC));
 		return(trx_rollback_for_mysql_low(trx));
 
 	case TRX_STATE_COMMITTED_IN_MEMORY:
@@ -238,8 +248,10 @@ trx_rollback_last_sql_stat_for_mysql(
 	ut_ad(trx->in_mysql_trx_list);
 
 	switch (trx->state) {
-	case TRX_STATE_NOT_STARTED:
 	case TRX_STATE_FORCED_ROLLBACK:
+		return(DB_FORCED_ABORT);
+
+	case TRX_STATE_NOT_STARTED:
 		return(DB_SUCCESS);
 
 	case TRX_STATE_ACTIVE:
@@ -421,10 +433,9 @@ trx_rollback_to_savepoint_for_mysql(
 	case TRX_STATE_NOT_STARTED:
 	case TRX_STATE_FORCED_ROLLBACK:
 
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Transaction has a savepoint %s"
-			" though it is not started",
-			ut_get_name(trx, FALSE, savep->name).c_str());
+		ib::error() << "Transaction has a savepoint "
+			<< ut_get_name(trx, FALSE, savep->name)
+			<< " though it is not started";
 
 		return(DB_ERROR);
 
@@ -596,9 +607,8 @@ trx_rollback_active(
 
 	const trx_id_t	trx_id = trx_get_id_for_print(trx);
 
-	ib_logf(IB_LOG_LEVEL_INFO,
-		"Rolling back trx with id " TRX_ID_FMT ", %lu%s"
-		" rows to undo", trx_id, (ulong) rows_to_undo, unit);
+	ib::info() << "Rolling back trx with id " << trx_id << ", "
+		<< rows_to_undo << unit << " rows to undo";
 
 	if (trx_get_dict_operation(trx) != TRX_DICT_OP_NONE) {
 		row_mysql_lock_data_dictionary(trx);
@@ -631,10 +641,9 @@ trx_rollback_active(
 			trx->table_id, TRUE, DICT_TABLE_OP_NORMAL);
 
 		if (table && !dict_table_is_discarded(table)) {
-			ib_logf(IB_LOG_LEVEL_WARN,
-				"Dropping table '%s', with id " UINT64PF
-				" in recovery",
-				table->name, trx->table_id);
+			ib::warn() << "Dropping table '" << table->name
+				<< "', with id " << trx->table_id
+				<< " in recovery";
 
 			dict_table_close_and_drop(trx, table);
 
@@ -646,8 +655,7 @@ trx_rollback_active(
 		row_mysql_unlock_data_dictionary(trx);
 	}
 
-	ib_logf(IB_LOG_LEVEL_INFO,
-		"Rollback of trx with id " TRX_ID_FMT " completed", trx_id);
+	ib::info() << "Rollback of trx with id " << trx_id << " completed";
 
 	mem_heap_free(heap);
 
@@ -687,9 +695,9 @@ trx_rollback_resurrected(
 	switch (state) {
 	case TRX_STATE_COMMITTED_IN_MEMORY:
 		trx_sys_mutex_exit();
-		ib_logf(IB_LOG_LEVEL_INFO,
-			"Cleaning up trx with id " TRX_ID_FMT,
-			trx_get_id_for_print(trx));
+		ib::info() << "Cleaning up trx with id "
+			<< trx_get_id_for_print(trx);
+
 		trx_cleanup_at_db_startup(trx);
 		trx_free_resurrected(trx);
 		return(TRUE);
@@ -733,9 +741,8 @@ trx_rollback_or_clean_recovered(
 	}
 
 	if (all) {
-		ib_logf(IB_LOG_LEVEL_INFO,
-			"Starting in background the rollback"
-			" of uncommitted transactions");
+		ib::info() << "Starting in background the rollback"
+			" of uncommitted transactions";
 	}
 
 	/* Note: For XA recovered transactions, we rely on MySQL to
@@ -772,9 +779,8 @@ trx_rollback_or_clean_recovered(
 	} while (trx != NULL);
 
 	if (all) {
-		ib_logf(IB_LOG_LEVEL_INFO,
-			"Rollback of non-prepared"
-			" transactions completed");
+		ib::info() << "Rollback of non-prepared transactions"
+			" completed";
 	}
 }
 
