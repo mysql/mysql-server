@@ -6,6 +6,7 @@
 
 --source include/have_innodb.inc
 --source include/big_test.inc
+--source include/not_valgrind.inc
 
 SET GLOBAL innodb_file_per_table=1;
 SET GLOBAL innodb_file_format=Barracuda;

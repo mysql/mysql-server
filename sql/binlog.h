@@ -828,7 +828,7 @@ public:
   int register_create_index_entry(const char* entry);
   int purge_index_entry(THD *thd, ulonglong *decrease_log_space,
                         bool need_lock_index);
-  bool reset_logs(THD* thd);
+  bool reset_logs(THD* thd, bool delete_only= false);
   void close(uint exiting);
 
   // iterating through the log index file

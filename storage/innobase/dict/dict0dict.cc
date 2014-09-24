@@ -41,6 +41,16 @@ Created 1/8/1996 Heikki Tuuri
 /** dummy index for ROW_FORMAT=REDUNDANT supremum and infimum records */
 dict_index_t*	dict_ind_redundant;
 
+#if defined UNIV_DEBUG || defined UNIV_IBUF_DEBUG
+/** Flag to control insert buffer debugging. */
+extern uint	ibuf_debug;
+#endif /* UNIV_DEBUG || UNIV_IBUF_DEBUG */
+
+/**********************************************************************
+Issue a warning that the row is too big. */
+void
+ib_warn_row_too_big(const dict_table_t*	table);
+
 #ifndef UNIV_HOTBACKUP
 #include "btr0btr.h"
 #include "btr0cur.h"
@@ -2499,11 +2509,18 @@ dict_index_add_to_cache(
 	new_index->disable_ahi = index->disable_ahi;
 	new_index->auto_gen_clust_index = index->auto_gen_clust_index;
 
-	if (strict && dict_index_too_big_for_tree(table, new_index)) {
+	if (dict_index_too_big_for_tree(table, new_index)) {
+
+		if (strict) {
 too_big:
-		dict_mem_index_free(new_index);
-		dict_mem_index_free(index);
-		return(DB_TOO_BIG_RECORD);
+			dict_mem_index_free(new_index);
+			dict_mem_index_free(index);
+			return(DB_TOO_BIG_RECORD);
+		} else {
+
+			ib_warn_row_too_big(table);
+
+		}
 	}
 
 	if (dict_index_is_univ(index)) {

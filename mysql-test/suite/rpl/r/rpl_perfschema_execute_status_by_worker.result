@@ -78,7 +78,7 @@ include/rpl_restart_server.inc [server_number=1 gtids=on]
 include/rpl_restart_server.inc [server_number=2 gtids=on]
 stop slave;
 Warnings:
-Note	1255	Slave already has been stopped
+Note	1969	Replication thread(s) for channel '' are already stopped.
 change master to master_host='127.0.0.1',master_port=MASTER_MYPORT, master_user='root';
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
