@@ -25,6 +25,7 @@ class Item_row: public Item
   bool with_null;
 public:
   Item_row(List<Item> &);
+  Item_row(Item *head, List<Item> &tail);
   Item_row(Item_row *item):
     Item(),
     items(item->items),

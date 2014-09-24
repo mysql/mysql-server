@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -84,17 +84,7 @@ namespace STL = STL_NAMESPACE;
 
     }
 
-#ifdef __sun
-
-// Handler for pure virtual functions
-namespace __Crun {
-    void pure_error() {
-    }
-}
-
-#endif
-
-#if defined(__ICC) || defined(__INTEL_COMPILER) || (__GNUC__ > 2)
+#if defined(__ICC) || defined(__INTEL_COMPILER)
 
 extern "C" {
 
@@ -174,6 +164,14 @@ word Crop(word value, unsigned int size)
 
 
 #ifdef TAOCRYPT_X86ASM_AVAILABLE
+
+#ifndef _MSC_VER
+    static jmp_buf s_env;
+    static void SigIllHandler(int)
+    {
+        longjmp(s_env, 1);
+    }
+#endif
 
 
 bool HaveCpuId()

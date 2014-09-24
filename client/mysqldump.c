@@ -3628,7 +3628,8 @@ static void dump_table(char *table, char *db)
                    field->type == MYSQL_TYPE_BLOB ||
                    field->type == MYSQL_TYPE_LONG_BLOB ||
                    field->type == MYSQL_TYPE_MEDIUM_BLOB ||
-                   field->type == MYSQL_TYPE_TINY_BLOB)) ? 1 : 0;
+                   field->type == MYSQL_TYPE_TINY_BLOB ||
+                   field->type == MYSQL_TYPE_GEOMETRY)) ? 1 : 0;
         if (extended_insert && !opt_xml)
         {
           if (i == 0)

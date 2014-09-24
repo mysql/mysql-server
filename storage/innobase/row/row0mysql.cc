@@ -33,6 +33,7 @@ Created 9/17/2000 Heikki Tuuri
 #include <debug_sync.h>
 #include <my_dbug.h>
 
+#include <sql_const.h>
 #include "row0ins.h"
 #include "row0merge.h"
 #include "row0sel.h"
@@ -711,8 +712,10 @@ row_create_prebuilt(
 	row_prebuilt_t*	prebuilt;
 	mem_heap_t*	heap;
 	dict_index_t*	clust_index;
+	dict_index_t*	temp_index;
 	dtuple_t*	ref;
 	ulint		ref_len;
+	uint		srch_key_len = 0;
 	ulint		search_tuple_n_fields;
 
 	search_tuple_n_fields = 2 * dict_table_get_n_cols(table);
@@ -723,6 +726,14 @@ row_create_prebuilt(
 	ut_a(2 * dict_table_get_n_cols(table) >= clust_index->n_fields);
 
 	ref_len = dict_index_get_n_unique(clust_index);
+
+
+        /* Maximum size of the buffer needed for conversion of INTs from
+	little endian format to big endian format in an index. An index
+	can have maximum 16 columns (MAX_REF_PARTS) in it. Therfore
+	Max size for PK: 16 * 8 bytes (BIGINT's size) = 128 bytes
+	Max size Secondary index: 16 * 8 bytes + PK = 256 bytes. */
+#define MAX_SRCH_KEY_VAL_BUFFER         2* (8 * MAX_REF_PARTS)
 
 #define PREBUILT_HEAP_INITIAL_SIZE	\
 	( \
@@ -752,10 +763,38 @@ row_create_prebuilt(
 	+ sizeof(que_thr_t) \
 	)
 
+	/* Calculate size of key buffer used to store search key in
+	InnoDB format. MySQL stores INTs in little endian format and
+	InnoDB stores INTs in big endian format with the sign bit
+	flipped. All other field types are stored/compared the same
+	in MySQL and InnoDB, so we must create a buffer containing
+	the INT key parts in InnoDB format.We need two such buffers
+	since both start and end keys are used in records_in_range(). */
+
+	for (temp_index = dict_table_get_first_index(table); temp_index;
+	     temp_index = dict_table_get_next_index(temp_index)) {
+		DBUG_EXECUTE_IF("innodb_srch_key_buffer_max_value",
+			ut_a(temp_index->n_user_defined_cols
+						== MAX_REF_PARTS););
+		uint temp_len = 0;
+		for (uint i = 0; i < temp_index->n_uniq; i++) {
+			if (temp_index->fields[i].col->mtype == DATA_INT) {
+				temp_len +=
+					temp_index->fields[i].fixed_len;
+			}
+		}
+		srch_key_len = max(srch_key_len,temp_len);
+	}
+
+	ut_a(srch_key_len <= MAX_SRCH_KEY_VAL_BUFFER);
+
+	DBUG_EXECUTE_IF("innodb_srch_key_buffer_max_value",
+		ut_a(srch_key_len == MAX_SRCH_KEY_VAL_BUFFER););
+
 	/* We allocate enough space for the objects that are likely to
 	be created later in order to minimize the number of malloc()
 	calls */
-	heap = mem_heap_create(PREBUILT_HEAP_INITIAL_SIZE);
+	heap = mem_heap_create(PREBUILT_HEAP_INITIAL_SIZE + 2 * srch_key_len);
 
 	prebuilt = static_cast<row_prebuilt_t*>(
 		mem_heap_zalloc(heap, sizeof(*prebuilt)));
@@ -767,6 +806,18 @@ row_create_prebuilt(
 
 	prebuilt->sql_stat_start = TRUE;
 	prebuilt->heap = heap;
+
+	prebuilt->srch_key_val_len = srch_key_len;
+	if (prebuilt->srch_key_val_len) {
+		prebuilt->srch_key_val1 = static_cast<byte*>(
+			mem_heap_alloc(prebuilt->heap,
+				       2 * prebuilt->srch_key_val_len));
+		prebuilt->srch_key_val2 = prebuilt->srch_key_val1 +
+						prebuilt->srch_key_val_len;
+	} else {
+		prebuilt->srch_key_val1 = NULL;
+		prebuilt->srch_key_val2 = NULL;
+	}
 
 	btr_pcur_reset(&prebuilt->pcur);
 	btr_pcur_reset(&prebuilt->clust_pcur);

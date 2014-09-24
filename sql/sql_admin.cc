@@ -815,9 +815,10 @@ send_result_message:
       if (!result_code) // recreation went ok
       {
         DEBUG_SYNC(thd, "ha_admin_open_ltable");
-        table->mdl_request.set_type(MDL_SHARED_WRITE);
+        table->mdl_request.set_type(MDL_SHARED_READ);
         if (!open_temporary_tables(thd, table) &&
-            (table->table= open_n_lock_single_table(thd, table, lock_type, 0)))
+            (table->table= open_n_lock_single_table(thd, table,
+                                                    TL_READ_NO_INSERT, 0)))
         {
           /*
            Reset the ALTER_ADMIN_PARTITION bit in alter_info->flags

@@ -49,6 +49,7 @@ Created 1/8/1996 Heikki Tuuri
 #include "os0once.h"
 #include <set>
 #include <algorithm>
+#include <iterator>
 
 /* Forward declaration. */
 struct ib_rbt_t;
@@ -384,16 +385,29 @@ dict_mem_referenced_table_name_lookup_set(
 	dict_foreign_t*	foreign,	/*!< in/out: foreign struct */
 	ibool		do_alloc);	/*!< in: is an alloc needed */
 
-/*******************************************************************//**
-Create a temporary tablename.
-@return temporary tablename suitable for InnoDB use */
-UNIV_INTERN __attribute__((nonnull, warn_unused_result))
+/** Create a temporary tablename like "#sql-ibtid-inc where
+  tid = the Table ID
+  inc = a randomly initialized number that is incremented for each file
+The table ID is a 64 bit integer, can use up to 20 digits, and is
+initialized at bootstrap. The second number is 32 bits, can use up to 10
+digits, and is initialized at startup to a randomly distributed number.
+It is hoped that the combination of these two numbers will provide a
+reasonably unique temporary file name.
+@param[in]	heap	A memory heap
+@param[in]	dbtab	Table name in the form database/table name
+@param[in]	id	Table id
+@return A unique temporary tablename suitable for InnoDB use */
+UNIV_INTERN
 char*
 dict_mem_create_temporary_tablename(
-/*================================*/
-	mem_heap_t*	heap,	/*!< in: memory heap */
-	const char*	dbtab,	/*!< in: database/table name */
-	table_id_t	id);	/*!< in: InnoDB table id */
+	mem_heap_t*	heap,
+	const char*	dbtab,
+	table_id_t	id);
+
+/** Initialize dict memory variables */
+
+void
+dict_mem_init(void);
 
 /** Data structure for a column in a table */
 struct dict_col_t{
@@ -707,6 +721,22 @@ struct dict_foreign_t{
 	dict_index_t*	referenced_index;/*!< referenced index */
 };
 
+std::ostream&
+operator<< (std::ostream& out, const dict_foreign_t& foreign);
+
+struct dict_foreign_print {
+
+	dict_foreign_print(std::ostream& out)
+		: m_out(out)
+	{}
+
+	void operator()(const dict_foreign_t* foreign) {
+		m_out << *foreign;
+	}
+private:
+	std::ostream&	m_out;
+};
+
 /** Compare two dict_foreign_t objects using their ids. Used in the ordering
 of dict_table_t::foreign_set and dict_table_t::referenced_set.  It returns
 true if the first argument is considered to go before the second in the
@@ -775,6 +805,40 @@ struct dict_foreign_matches_id {
 };
 
 typedef std::set<dict_foreign_t*, dict_foreign_compare> dict_foreign_set;
+
+std::ostream&
+operator<< (std::ostream& out, const dict_foreign_set& fk_set);
+
+/** Function object to check if a foreign key object is there
+in the given foreign key set or not.  It returns true if the
+foreign key is not found, false otherwise */
+struct dict_foreign_not_exists {
+	dict_foreign_not_exists(const dict_foreign_set& obj_)
+		: m_foreigns(obj_)
+	{}
+
+	/* Return true if the given foreign key is not found */
+	bool operator()(dict_foreign_t* const & foreign) const {
+		return(m_foreigns.find(foreign) == m_foreigns.end());
+	}
+private:
+	const dict_foreign_set&	m_foreigns;
+};
+
+/** Validate the search order in the foreign key set.
+@param[in]	fk_set	the foreign key set to be validated
+@return true if search order is fine in the set, false otherwise. */
+bool
+dict_foreign_set_validate(
+	const dict_foreign_set&	fk_set);
+
+/** Validate the search order in the foreign key sets of the table
+(foreign_set and referenced_set).
+@param[in]	table	table whose foreign key sets are to be validated
+@return true if foreign key sets are fine, false otherwise. */
+bool
+dict_foreign_set_validate(
+	const dict_table_t&	table);
 
 /*********************************************************************//**
 Frees a foreign key struct. */
