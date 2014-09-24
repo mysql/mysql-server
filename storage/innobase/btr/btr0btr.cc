@@ -328,15 +328,13 @@ btr_root_adjust_on_import(
 
 			/* Check that the table flags and the tablespace
 			flags match. */
-			ulint	flags = fil_space_get_flags(table->space);
+			const fil_space_t*	space = fil_space_get(
+				table->space);
 
-			if (flags
-			    && flags != dict_tf_to_fsp_flags(table->flags)) {
-
-				err = DB_CORRUPTION;
-			} else {
-				err = DB_SUCCESS;
-			}
+			err = space && space->flags ==
+				dict_tf_to_fsp_flags(table->flags)
+				? DB_SUCCESS
+				: DB_CORRUPTION;
 		}
 	} else {
 		err = DB_SUCCESS;
@@ -4355,7 +4353,6 @@ btr_validate_level(
 	ulint		level,	/*!< in: level number */
 	bool		lockout)/*!< in: true if X-latch index is intended */
 {
-	ulint		space_flags;
 	buf_block_t*	block;
 	page_t*		page;
 	buf_block_t*	right_block = 0; /* remove warning */
@@ -4404,19 +4401,15 @@ btr_validate_level(
 	}
 #endif
 
-	const ulint		space = dict_index_get_space(index);
+	const fil_space_t*	space	= fil_space_get(index->space);
 	const page_size_t	table_page_size(
 		dict_table_page_size(index->table));
-
-	fil_space_get_latch(space, &space_flags);
-
-	const page_size_t	space_page_size(
-		dict_tf_get_page_size(space_flags));
+	const page_size_t	space_page_size(space->flags);
 
 	if (!table_page_size.equals_to(space_page_size)) {
 
 		ib::warn() << "Flags mismatch: table=" << index->table->flags
-			<< ", tablespace=" << space_flags;
+			<< ", tablespace=" << space->flags;
 
 		mtr_commit(&mtr);
 
@@ -4437,8 +4430,8 @@ btr_validate_level(
 			ret = false;
 		}
 
-		ut_a(space == block->page.id.space());
-		ut_a(space == page_get_space_id(page));
+		ut_a(index->space == block->page.id.space());
+		ut_a(index->space == page_get_space_id(page));
 #ifdef UNIV_ZIP_DEBUG
 		page_zip = buf_block_get_page_zip(block);
 		ut_a(!page_zip || page_zip_validate(page_zip, page, index));
@@ -4466,7 +4459,8 @@ btr_validate_level(
 			left_page_no = btr_page_get_prev(page, &mtr);
 
 			while (left_page_no != FIL_NULL) {
-				page_id_t	left_page_id(space, left_page_no);
+				page_id_t	left_page_id(
+					index->space, left_page_no);
 				/* To obey latch order of tree blocks,
 				we should release the right_block once to
 				obtain lock of the uncle block. */
@@ -4508,7 +4502,7 @@ loop:
 	ut_a(!page_zip || page_zip_validate(page_zip, page, index));
 #endif /* UNIV_ZIP_DEBUG */
 
-	ut_a(block->page.id.space() == space);
+	ut_a(block->page.id.space() == index->space);
 
 	if (fseg_page_is_free(seg,
 			      block->page.id.space(),
@@ -4553,7 +4547,8 @@ loop:
 		savepoint = mtr_set_savepoint(&mtr);
 
 		right_block = btr_block_get(
-			page_id_t(space, right_page_no), table_page_size,
+			page_id_t(index->space, right_page_no),
+			table_page_size,
 			RW_SX_LATCH, index, &mtr);
 
 		right_page = buf_block_get_frame(right_block);
@@ -4752,12 +4747,14 @@ loop:
 					&mtr, savepoint, right_block);
 
 				btr_block_get(
-					page_id_t(space, parent_right_page_no),
+					page_id_t(index->space,
+						  parent_right_page_no),
 					table_page_size,
 					RW_SX_LATCH, index, &mtr);
 
 				right_block = btr_block_get(
-					page_id_t(space, right_page_no),
+					page_id_t(index->space,
+						  right_page_no),
 					table_page_size,
 					RW_SX_LATCH, index, &mtr);
 			}
@@ -4881,21 +4878,23 @@ node_ptr_fails:
 				if (parent_right_page_no != FIL_NULL) {
 					btr_block_get(
 						page_id_t(
-							space,
+							index->space,
 							parent_right_page_no),
 						table_page_size,
 						RW_SX_LATCH, index, &mtr);
 				}
 			} else if (parent_page_no != FIL_NULL) {
 				btr_block_get(
-					page_id_t(space, parent_page_no),
+					page_id_t(index->space,
+						  parent_page_no),
 					table_page_size,
 					RW_SX_LATCH, index, &mtr);
 			}
 		}
 
 		block = btr_block_get(
-			page_id_t(space, right_page_no), table_page_size,
+			page_id_t(index->space, right_page_no),
+			table_page_size,
 			RW_SX_LATCH, index, &mtr);
 
 		page = buf_block_get_frame(block);

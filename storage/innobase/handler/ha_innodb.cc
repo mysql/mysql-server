@@ -7484,7 +7484,7 @@ ha_innobase::index_end(void)
 Converts a search mode flag understood by MySQL to a flag understood
 by InnoDB. */
 static inline
-ulint
+page_cur_mode_t
 convert_search_mode_to_innobase(
 /*============================*/
 	ha_rkey_function	find_flag)
@@ -7654,7 +7654,7 @@ ha_innobase::index_read(
 		dtuple_set_n_fields(m_prebuilt->search_tuple, 0);
 	}
 
-	ulint	mode = convert_search_mode_to_innobase(find_flag);
+	page_cur_mode_t	mode = convert_search_mode_to_innobase(find_flag);
 
 	ulint	match_mode = 0;
 
@@ -8007,11 +8007,13 @@ ha_innobase::general_fetch(
 	if (!intrinsic) {
 
 		ret = row_search_mvcc(
-			buf, 0, m_prebuilt, match_mode, direction);
+			buf, PAGE_CUR_UNSUPP, m_prebuilt, match_mode,
+			direction);
 
 	} else {
 		ret = row_search_no_mvcc(
-			buf, 0, m_prebuilt, match_mode, direction);
+			buf, PAGE_CUR_UNSUPP, m_prebuilt, match_mode,
+			direction);
 	}
 
 	innobase_srv_conc_exit_innodb(m_prebuilt);
@@ -11023,8 +11025,8 @@ ha_innobase::records_in_range(
 	dtuple_t*	range_start;
 	dtuple_t*	range_end;
 	int64_t		n_rows;
-	ulint		mode1;
-	ulint		mode2;
+	page_cur_mode_t	mode1;
+	page_cur_mode_t	mode2;
 	mem_heap_t*	heap;
 
 	DBUG_ENTER("records_in_range");

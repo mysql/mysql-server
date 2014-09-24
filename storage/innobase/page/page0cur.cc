@@ -305,7 +305,7 @@ page_cur_search_with_match(
 	const buf_block_t*	block,	/*!< in: buffer block */
 	const dict_index_t*	index,	/*!< in/out: record descriptor */
 	const dtuple_t*		tuple,	/*!< in: data tuple */
-	ulint			mode,	/*!< in: PAGE_CUR_L,
+	page_cur_mode_t		mode,	/*!< in: PAGE_CUR_L,
 					PAGE_CUR_LE, PAGE_CUR_G, or
 					PAGE_CUR_GE */
 	ulint*			iup_matched_fields,

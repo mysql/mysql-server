@@ -267,14 +267,6 @@ IF(HAVE_NO_UNUSED_TYPEDEFS)
     COMPILE_FLAGS "-Wno-unused-local-typedefs"
   )
 ENDIF()
-# Boost Geometry source has uninitialized variables. Fixed in Boost 1.56
-MY_CHECK_CXX_COMPILER_FLAG("-Wno-uninitialized" HAVE_NO_UNINITIALIZED)
-IF(HAVE_NO_UNINITIALIZED)
-  ADD_COMPILE_FLAGS(
-    item_geofunc.cc
-    COMPILE_FLAGS "-Wno-uninitialized"
-  )
-ENDIF()
 
 MY_CHECK_CXX_COMPILER_FLAG("-fno-builtin-memcmp" HAVE_NO_BUILTIN_MEMCMP)
 # See comments in filesort_compare-t.cc about __builtin_memcmp

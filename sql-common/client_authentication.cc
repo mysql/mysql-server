@@ -217,9 +217,26 @@ int sha256_password_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql)
         }
         got_public_key_from_server= true;
       }
+
+      /*
+        An arbitrary limitation based on the assumption that passwords
+        larger than e.g. 15 symbols don't contribute to security.
+        Note also that it's furter restricted to RSA_size() - 41 down
+        below, so this leaves 471 bytes of possible RSA key sizes which
+        should be reasonably future-proof.
+        We avoid heap allocation for speed reasons.
+      */
+      char passwd_scramble[512];
+
+      if (passwd_len > sizeof(passwd_scramble))
+      {
+        /* password too long for the buffer */
+        DBUG_RETURN(CR_ERROR);
+      }
+      memmove(passwd_scramble, mysql->passwd, passwd_len);
       
       /* Obfuscate the plain text password with the session scramble */
-      xor_string(mysql->passwd, strlen(mysql->passwd), (char *) scramble_pkt,
+      xor_string(passwd_scramble, passwd_len - 1, (char *) scramble_pkt,
                  SCRAMBLE_LENGTH);
       /* Encrypt the password and send it to the server */
       int cipher_length= RSA_size(public_key);
@@ -232,7 +249,7 @@ int sha256_password_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql)
         /* password message is to long */
         DBUG_RETURN(CR_ERROR);
       }
-      RSA_public_encrypt(passwd_len, (unsigned char *) mysql->passwd,
+      RSA_public_encrypt(passwd_len, (unsigned char *) passwd_scramble,
                          encrypted_password,
                          public_key, RSA_PKCS1_OAEP_PADDING);
       if (got_public_key_from_server)
@@ -253,8 +270,6 @@ int sha256_password_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql)
       if (vio->write_packet(vio, (uchar*) mysql->passwd, passwd_len))
         DBUG_RETURN(CR_ERROR);
     }
-    
-    memset(mysql->passwd, 0, passwd_len);
   }
     
   DBUG_RETURN(CR_OK);

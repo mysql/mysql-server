@@ -292,9 +292,9 @@ bool
 is_predefined_tablespace(
 	ulint   id)
 {
-	ut_ad(srv_sys_space.space_id() == 0);
-	return(id == TRX_SYS_SPACE
-	       || id <= srv_undo_tablespaces_open
+	ut_ad(srv_sys_space.space_id() == TRX_SYS_SPACE);
+	ut_ad(TRX_SYS_SPACE == 0);
+	return(id <= srv_undo_tablespaces_open
 	       || id == srv_tmp_space.space_id());
 }
 #endif /* fsp0sysspace_h */
