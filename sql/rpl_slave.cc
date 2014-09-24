@@ -329,7 +329,6 @@ void unlock_slave_threads(Master_info* mi)
 #ifdef HAVE_PSI_INTERFACE
 
 static PSI_memory_key key_memory_rli_mts_coor;
-static PSI_memory_key key_SSS_io_gtid_set;
 
 static PSI_thread_key key_thread_slave_io, key_thread_slave_sql, key_thread_slave_worker;
 
@@ -3286,8 +3285,9 @@ bool show_slave_status(THD *thd)
   num_io_gtid_sets= msr_map.get_num_instances();
 
 
-  io_gtid_set_buffer_array= (char**)my_malloc(key_SSS_io_gtid_set, num_io_gtid_sets
-                                       * sizeof(char*), MYF(MY_WME));
+  io_gtid_set_buffer_array=
+    (char**)my_malloc(key_memory_show_slave_status_io_gtid_set,
+                      num_io_gtid_sets * sizeof(char*), MYF(MY_WME));
 
   if (io_gtid_set_buffer_array == NULL)
      DBUG_RETURN(true);

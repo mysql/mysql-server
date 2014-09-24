@@ -1,0 +1,102 @@
+RESET MASTER;
+CREATE TABLE t1 (a int) ENGINE= innodb;
+Must be 1 occurence found
+Matching lines are:
+Occurrences of the last_committed=0	sequence_number=1 in the input file : 1
+INSERT INTO t1 SET a=1;
+Must be 1 occurence found
+Matching lines are:
+Occurrences of the last_committed=1	sequence_number=2 in the input file : 1
+[connection one]
+BEGIN;
+INSERT INTO t1 SET a=1;
+[connection two]
+BEGIN;
+INSERT INTO t1 SET a=2;
+COMMIT;
+[connection one]
+INSERT INTO t1 SET a=1;
+[connection two]
+BEGIN;
+INSERT INTO t1 SET a=2;
+COMMIT;
+Must be 1 occurence found
+Matching lines are:
+Occurrences of the last_committed=3	sequence_number=4 in the input file : 1
+[connection one]
+COMMIT;
+Must be 1 occurence found
+Matching lines are:
+Occurrences of the last_committed=3	sequence_number=5 in the input file : 1
+[connection one]
+INSERT INTO t1 SET a=1;
+[connection two]
+INSERT INTO t1 SET a=2;
+[connection one]
+[connection two]
+Must be 2 occurences found
+Matching lines are:
+Occurrences of the last_committed=[56]	sequence_number=[67] in the input file : 2
+[connection one]
+RESET MASTER;
+INSERT INTO t1 SET a=1;
+[connection two]
+BEGIN;
+INSERT INTO t1 SET a=2;
+[connection one]
+BEGIN;
+INSERT INTO t1 SET a=3;
+[connection two]
+COMMIT;
+Must be 1 occurence found
+Matching lines are:
+Occurrences of the last_committed=1	sequence_number=2 in the input file : 1
+FLUSH LOGS;
+[connection one]
+COMMIT;
+Must be 1 occurence found
+Matching lines are:
+Occurrences of the last_committed=0	sequence_number=1 in the input file : 1
+[connection one]
+RESET MASTER;
+INSERT INTO t1 SET a=1;
+[connection two]
+BEGIN;
+INSERT INTO t1 SET a=2;
+[connection one]
+BEGIN;
+INSERT INTO t1 SET a=3;
+[connection three]
+BEGIN;
+INSERT INTO t1 SET a=4;
+[connection two]
+COMMIT;
+Must be 1 occurence found
+Matching lines are:
+Occurrences of the last_committed=1	sequence_number=2 in the input file : 1
+RESET MASTER;
+[connection one]
+COMMIT;
+[connection three]
+COMMIT;
+Must be 2 occurences found
+Matching lines are:
+Occurrences of the last_committed=0	sequence_number=[12] in the input file : 2
+DROP TABLE t1;
+CREATE TABLE t1 (a int) ENGINE= innodb;
+CREATE TABLE tm (a int) ENGINE= MyISAM;
+RESET MASTER;
+CREATE TEMPORARY TABLE ttm1 (a INT) ENGINE=MyISAM;
+CREATE TEMPORARY TABLE tti1 (a INT) ENGINE=Innodb;
+*** The query is logged in three parts.
+DROP TABLE tm,t1,ttm1,tti1;
+Matching lines are:
+Occurrences of the last_committed=2	sequence_number=3 in the input file : 1
+Matching lines are:
+Occurrences of the last_committed=3	sequence_number=4 in the input file : 1
+Matching lines are:
+Occurrences of the last_committed=4	sequence_number=5 in the input file : 1
+*** must be zero count found in the last grep output ***
+Matching lines are:
+None
+Occurrences of the sequence_number=6 in the input file : 0

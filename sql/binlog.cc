@@ -1199,7 +1199,23 @@ binlog_cache_data::flush(THD *thd, my_off_t *bytes_written, bool *wrote_xid)
   if (flags.finalized)
   {
     my_off_t bytes_in_cache= my_b_tell(&cache_log);
+    Transaction_ctx *trn_ctx= thd->get_transaction();
+
     DBUG_PRINT("debug", ("bytes_in_cache: %llu", bytes_in_cache));
+
+    trn_ctx->sequence_number= mysql_bin_log.transaction_counter.step();
+    /*
+      In case of two caches the transaction is split into two groups.
+      The 2nd group is considered to be a successor of the 1st rather
+      than to have a common commit parent with it.
+      Notice that due to a simple method of detection that the current is
+      the 2nd cache being flushed, the very first few transactions may be logged
+      sequentially (a next one is tagged as if a preceding one is its
+      commit parent).
+    */
+    if (trn_ctx->last_committed == SEQ_UNINIT)
+      trn_ctx->last_committed= trn_ctx->sequence_number - 1;
+
     /*
       The cache is always reset since subsequent rollbacks of the
       transactions might trigger attempts to write to the binary log
@@ -6496,10 +6512,18 @@ bool MYSQL_BIN_LOG::write_cache(THD *thd, binlog_cache_data *cache_data)
         trn_ctx->last_committed <= clock.get_offset() ?
         SEQ_UNINIT : trn_ctx->last_committed - clock.get_offset();
       /*
-        The commit parent info is cleaned now also to not reuse
-        it accidently in a possible next transaction from this connection.
+        In case both the transaction cache and the statement cache are
+        non-empty, both will be flushed in sequence and logged as
+        different transactions. Then the second transaction must only
+        be executed after the first one has committed. Therefore, we
+        need to set last_committed for the second transaction equal to
+        last_committed for the first transaction. This is done in
+        binlog_cache_data::flush. binlog_cache_data::flush uses the
+        condition trn_ctx->last_committed==SEQ_UNINIT to detect this
+        situation, hence the need to set it here.
       */
       trn_ctx->last_committed= SEQ_UNINIT;
+
       DBUG_EXECUTE_IF("crash_before_writing_xid",
                       {
                         if ((write_error=
@@ -7139,9 +7163,6 @@ MYSQL_BIN_LOG::flush_thread_caches(THD *thd)
   binlog_cache_mngr *cache_mngr= thd_get_cache_mngr(thd);
   my_off_t bytes= 0;
   bool wrote_xid= false;
-  Transaction_ctx *trn_ctx= thd->get_transaction();
-
-  trn_ctx->sequence_number= transaction_counter.step();
   int error= cache_mngr->flush(thd, &bytes, &wrote_xid);
   if (!error && bytes > 0)
   {
@@ -7245,6 +7266,29 @@ MYSQL_BIN_LOG::process_flush_stage_queue(my_off_t *total_bytes_var,
   return flush_error;
 }
 
+/**
+  The method is to be executed right before committing time.
+  It must be invoked even if the transaction does not commit
+  to engine being merely logged into the binary log.
+  max_committed_transaction is updated with a greater timestamp
+  value.
+  As a side effect, the transaction context's sequence_number
+  is reset.
+
+  @param THD a pointer to THD instance
+*/
+void MYSQL_BIN_LOG::update_max_committed(THD *thd)
+{
+  Transaction_ctx *trn_ctx= thd->get_transaction();
+  max_committed_transaction.set_if_greater(trn_ctx->sequence_number);
+  /*
+    sequence_number timestamp is unneeded anymore, so it's cleared off.
+  */
+  trn_ctx->sequence_number= SEQ_UNINIT;
+
+  DBUG_ASSERT(trn_ctx->last_committed == SEQ_UNINIT ||
+              thd->commit_error == THD::CE_FLUSH_ERROR);
+}
 
 /**
   Commit a sequence of sessions.
@@ -7284,6 +7328,7 @@ MYSQL_BIN_LOG::process_commit_stage_queue(THD *thd, THD *first)
 #ifndef DBUG_OFF
     stage_manager.clear_preempt_status(head);
 #endif
+    update_max_committed(head);
     if (head->commit_error == THD::CE_NONE)
     {
       excursion.try_to_attach_to(head);
@@ -7292,8 +7337,6 @@ MYSQL_BIN_LOG::process_commit_stage_queue(THD *thd, THD *first)
       {
         /* head is parked to have exited append() */
         DBUG_ASSERT(head->get_transaction()->m_flags.ready_preempt);
-        max_committed_transaction.set_if_greater(head->get_transaction()->
-                                                 sequence_number);
         /*
           storage engine commit
         */
@@ -7474,11 +7517,11 @@ MYSQL_BIN_LOG::sync_binlog_file(bool force)
 int
 MYSQL_BIN_LOG::finish_commit(THD *thd)
 {
+  if (thd->get_transaction()->sequence_number != SEQ_UNINIT)
+    update_max_committed(thd);
   if (thd->get_transaction()->m_flags.commit_low)
   {
     const bool all= thd->get_transaction()->m_flags.real_commit;
-    max_committed_transaction.set_if_greater(thd->get_transaction()->
-                                             sequence_number);
     /*
       storage engine commit
     */

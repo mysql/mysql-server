@@ -3986,11 +3986,11 @@ The cursor is an iterator over the table/index.
 @return DB_SUCCESS or error code */
 dberr_t
 row_search_no_mvcc(
-	byte*			buf,
-	ulint			mode,
-	row_prebuilt_t*		prebuilt,
-	ulint			match_mode,
-	ulint			direction)
+	byte*		buf,
+	page_cur_mode_t	mode,
+	row_prebuilt_t*	prebuilt,
+	ulint		match_mode,
+	ulint		direction)
 {
 	dict_index_t*	index		= prebuilt->index;
 	const dtuple_t*	search_tuple	= prebuilt->search_tuple;
@@ -4267,7 +4267,7 @@ It also has optimization such as pre-caching the rows, using AHI, etc.
 dberr_t
 row_search_mvcc(
 	byte*		buf,
-	ulint		mode,
+	page_cur_mode_t	mode,
 	row_prebuilt_t*	prebuilt,
 	ulint		match_mode,
 	ulint		direction)

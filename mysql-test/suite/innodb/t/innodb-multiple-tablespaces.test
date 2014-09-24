@@ -36,7 +36,7 @@ call mtr.add_suppression("Tablespace open failed for");
 call mtr.add_suppression("tablespace id and flags are.*but in the InnoDB data dictionary they are");
 call mtr.add_suppression("has been found in multiple places");
 call mtr.add_suppression("Will not open the tablespace for");
-call mtr.add_suppression("\(Default\|Remote\|Dictionary\) location;");
+call mtr.add_suppression("\(Default\|Remote\|Dictionary\) location:");
 call mtr.add_suppression("Failed to find tablespace for table");
 call mtr.add_suppression("A link file was found named");
 call mtr.add_suppression("\\[ERROR\\] InnoDB: Operating system error number 2 in a file operation.");

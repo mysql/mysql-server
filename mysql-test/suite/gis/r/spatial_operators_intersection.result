@@ -450,7 +450,7 @@ AsText(ST_Intersection(GeomFromText(@star_lines_near_vertical),GeomFromText(@sta
 MULTIPOINT(15 25)
 SELECT AsText(ST_Intersection(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_elem_horizontal)));
 AsText(ST_Intersection(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_elem_horizontal)))
-MULTILINESTRING((5.172413793103448 11.896551724137932,7.5 15))
+MULTILINESTRING((5.172413793103448 11.89655172413793,7.5 15))
 SELECT AsText(ST_Intersection(g,GeomFromText(@star_elem_vertical))) FROM gis_geometrycollection WHERE fid=114;
 AsText(ST_Intersection(g,GeomFromText(@star_elem_vertical)))
 MULTIPOINT(15 25)
@@ -460,10 +460,10 @@ AsText(ST_Intersection(GeomFromText('MULTILINESTRING((0 25,25 0,25 30))'),GeomFr
 MULTILINESTRING((10.714285714285714 14.285714285714286,25 0))
 SELECT AsText(ST_Intersection(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_of_elems)));
 AsText(ST_Intersection(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_of_elems)))
-MULTILINESTRING((5.172413793103448 11.896551724137932,7.5 15))
+MULTILINESTRING((5.172413793103448 11.89655172413793,7.5 15))
 SELECT AsText(ST_Intersection(g,GeomFromText(@star_of_elems))) FROM gis_geometrycollection WHERE fid=114;
 AsText(ST_Intersection(g,GeomFromText(@star_of_elems)))
-MULTILINESTRING((5.172413793103448 11.896551724137932,7.5 15))
+MULTILINESTRING((5.172413793103448 11.89655172413793,7.5 15))
 #multilinestring,geometrycollection
 SELECT AsText(ST_Intersection(GeomFromText('MULTILINESTRING((0 25,25 0,25 30))'),GeomFromText(@star_collection_elems)));
 AsText(ST_Intersection(GeomFromText('MULTILINESTRING((0 25,25 0,25 30))'),GeomFromText(@star_collection_elems)))
@@ -518,13 +518,13 @@ MULTILINESTRING((15 5,15 25))
 #polygon,multilinestring
 SELECT AsText(ST_Intersection(GeomFromText(@star),GeomFromText(@star_lines_near_vertical)));
 AsText(ST_Intersection(GeomFromText(@star),GeomFromText(@star_lines_near_vertical)))
-MULTILINESTRING((4.883720930232559 11.511627906976745,7.5 15))
+MULTILINESTRING((4.883720930232558 11.511627906976745,7.5 15))
 SELECT AsText(ST_Intersection(GeomFromText(@star_elem_vertical),GeomFromText(@star_lines_near_horizontal)));
 AsText(ST_Intersection(GeomFromText(@star_elem_vertical),GeomFromText(@star_lines_near_horizontal)))
 MULTILINESTRING((25 0,8.870967741935484 9.67741935483871))
 SELECT AsText(ST_Intersection(g,GeomFromText(@star_lines_near_vertical))) FROM gis_geometrycollection WHERE fid=100;
 AsText(ST_Intersection(g,GeomFromText(@star_lines_near_vertical)))
-MULTILINESTRING((4.883720930232559 11.511627906976745,7.5 15))
+MULTILINESTRING((4.883720930232558 11.511627906976745,7.5 15))
 #polygon,polygon
 SELECT AsText(ST_Intersection(GeomFromText(@star),GeomFromText(@star_elem_vertical)));
 AsText(ST_Intersection(GeomFromText(@star),GeomFromText(@star_elem_vertical)))
@@ -561,7 +561,7 @@ AsText(ST_Intersection(g,GeomFromText(@star_collection_elems)))
 GEOMETRYCOLLECTION(MULTIPOLYGON(((0 15,25 0,22 10,30 15,20 15,10 15,0 15)),((15 25,5 0,15 5,25 0,15 25))),MULTIPOLYGON(((7 10,5 0,15 5,25 0,22 10,30 15,20 15,15 25,10 15,0 15,7 10))),MULTILINESTRING((15 25,15 10)),MULTIPOINT(5 0,25 0),POINT(15 25))
 SELECT AsText(ST_Intersection(GeomFromText(@star),GeomFromText(@star_collection_multilinestr)));
 AsText(ST_Intersection(GeomFromText(@star),GeomFromText(@star_collection_multilinestr)))
-GEOMETRYCOLLECTION(MULTIPOLYGON(((0 15,25 0,22 10,30 15,20 15,10 15,0 15)),((15 25,5 0,15 5,25 0,15 25))),MULTIPOLYGON(((7 10,5 0,15 5,25 0,22 10,30 15,20 15,15 25,10 15,0 15,7 10))),MULTILINESTRING((25 0,0 15),(6 15,4.200000000000001 12)),MULTILINESTRING((15 25,15 10)),MULTIPOINT(5 0,25 0),POINT(15 25))
+GEOMETRYCOLLECTION(MULTIPOLYGON(((0 15,25 0,22 10,30 15,20 15,10 15,0 15)),((15 25,5 0,15 5,25 0,15 25))),MULTIPOLYGON(((7 10,5 0,15 5,25 0,22 10,30 15,20 15,15 25,10 15,0 15,7 10))),MULTILINESTRING((25 0,0 15),(6 15,4.2 12)),MULTILINESTRING((15 25,15 10)),MULTIPOINT(5 0,25 0),POINT(15 25))
 #-------------------------------------------------------------------------------------------
 #multipolygon,point
 SELECT AsText(ST_Intersection(GeomFromText(@star_of_elems),GeomFromText(@star_top)));
@@ -596,13 +596,13 @@ MULTILINESTRING((15 15,15 10))
 #multipolygon,multilinestring
 SELECT AsText(ST_Intersection(GeomFromText(@star_of_elems),GeomFromText(@star_lines_near_vertical)));
 AsText(ST_Intersection(GeomFromText(@star_of_elems),GeomFromText(@star_lines_near_vertical)))
-MULTILINESTRING((5.172413793103448 11.896551724137932,7.5 15))
+MULTILINESTRING((5.172413793103448 11.89655172413793,7.5 15))
 SELECT AsText(ST_Intersection(GeomFromText(@star_of_elems),GeomFromText('MULTILINESTRING((0 30,30 30,0 35))')));
 AsText(ST_Intersection(GeomFromText(@star_of_elems),GeomFromText('MULTILINESTRING((0 30,30 30,0 35))')))
 GEOMETRYCOLLECTION()
 SELECT AsText(ST_Intersection(g,GeomFromText(@star_lines_near_vertical))) FROM gis_geometrycollection WHERE fid=103;
 AsText(ST_Intersection(g,GeomFromText(@star_lines_near_vertical)))
-MULTILINESTRING((5.172413793103448 11.896551724137932,7.5 15))
+MULTILINESTRING((5.172413793103448 11.89655172413793,7.5 15))
 #multipolygon,polygon
 SELECT AsText(ST_Intersection(GeomFromText(@star_of_elems),GeomFromText(@star_elem_vertical)));
 ERROR HY000: Geometry overlay calculation error: geometry data is invalid in function st_intersection.
@@ -611,7 +611,7 @@ AsText(ST_Intersection(GeomFromText(@star_of_elems),GeomFromText(@star)))
 MULTIPOLYGON(((0 15,25 0,22 10,30 15,20 15,10 15,0 15)),((15 25,5 0,15 5,25 0,15 25)))
 SELECT AsText(ST_Intersection(GeomFromText(@star_of_elems),GeomFromText('POLYGON((0 0,15 25,35 0,0 0))')));
 AsText(ST_Intersection(GeomFromText(@star_of_elems),GeomFromText('POLYGON((0 0,15 25,35 0,0 0))')))
-MULTIPOLYGON(((15 25,5 0,15 5,25 0,15 25)),((6.617647058823529 11.029411764705882,25 0,22 10,25.333333333333336 12.083333333333332,23 15,9 15,6.617647058823529 11.029411764705882)))
+MULTIPOLYGON(((15 25,5 0,15 5,25 0,15 25)),((6.617647058823529 11.029411764705882,25 0,22 10,25.333333333333336 12.083333333333334,23 15,9 15,6.617647058823529 11.029411764705882)))
 SELECT AsText(ST_Intersection(g,GeomFromText(@star_elem_vertical))) FROM gis_geometrycollection WHERE fid=103;
 ERROR HY000: Geometry overlay calculation error: geometry data is invalid in function st_intersection.
 #multipolygon,multipolygon
@@ -686,7 +686,7 @@ AsText(ST_Intersection(GeomFromText(@star_collection_elems),GeomFromText(@star))
 GEOMETRYCOLLECTION(MULTIPOLYGON(((0 15,25 0,22 10,30 15,20 15,10 15,0 15)),((15 25,5 0,15 5,25 0,15 25))),MULTIPOLYGON(((7 10,5 0,15 5,25 0,22 10,30 15,20 15,15 25,10 15,0 15,7 10))),MULTILINESTRING((15 25,15 10)),MULTIPOINT(5 0,25 0),POINT(15 25))
 SELECT AsText(ST_Intersection(GeomFromText(@star_collection_elems),GeomFromText('POLYGON((0 0,15 25,35 0,0 0))')));
 AsText(ST_Intersection(GeomFromText(@star_collection_elems),GeomFromText('POLYGON((0 0,15 25,35 0,0 0))')))
-GEOMETRYCOLLECTION(MULTIPOLYGON(((15 25,5 0,15 5,25 0,15 25)),((6.617647058823529 11.029411764705882,25 0,22 10,25.333333333333336 12.083333333333332,23 15,9 15,6.617647058823529 11.029411764705882))),MULTIPOLYGON(((6.3 10.5,7 10,5 0,15 5,25 0,22 10,25.333333333333332 12.083333333333332,23 15,20 15,15 25,10 15,9 15,6.3 10.5))),MULTILINESTRING((15 25,15 10)),MULTIPOINT(5 0,25 0),POINT(15 25))
+GEOMETRYCOLLECTION(MULTIPOLYGON(((15 25,5 0,15 5,25 0,15 25)),((6.617647058823529 11.029411764705882,25 0,22 10,25.333333333333336 12.083333333333334,23 15,9 15,6.617647058823529 11.029411764705882))),MULTIPOLYGON(((6.3 10.5,7 10,5 0,15 5,25 0,22 10,25.333333333333336 12.083333333333334,23 15,20 15,15 25,10 15,9 15,6.3 10.5))),MULTILINESTRING((15 25,15 10)),MULTIPOINT(5 0,25 0),POINT(15 25))
 SELECT AsText(ST_Intersection(g,GeomFromText(@star_elem_vertical))) FROM gis_geometrycollection WHERE fid=115;
 ERROR HY000: Geometry overlay calculation error: geometry data is invalid in function st_intersection.
 #geometrycollection,multipolygon
