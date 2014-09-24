@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -56,9 +56,8 @@
     #endif
 #elif defined(_MSC_VER) && defined(_M_IX86)
 /*    #pragma message("You do not seem to have the Visual C++ Processor Pack ")
-     #pragma message("installed, so use of SSE2 intrinsics will be disabled.")
-*/
     #pragma message("installed, so use of SSE2 intrinsics will be disabled.")
+*/
 #elif defined(__GNUC__) && defined(__i386__)
 /*   #warning You do not have GCC 3.3 or later, or did not specify the -msse2 \
              compiler option. Use of SSE2 intrinsics will be disabled.
@@ -282,7 +281,12 @@ DWord() {}
     word GetHighHalfAsBorrow() const {return 0-halfs_.high;}
 
 private:
-    struct dword_struct
+    union
+    {
+    #ifdef TAOCRYPT_NATIVE_DWORD_AVAILABLE
+        dword whole_;
+    #endif
+        struct
         {
         #ifdef LITTLE_ENDIAN_ORDER
             word low;
@@ -291,14 +295,7 @@ private:
             word high;
             word low;
         #endif
-    };
-
-    union
-    {
-    #ifdef TAOCRYPT_NATIVE_DWORD_AVAILABLE
-        dword whole_;
-    #endif
-        struct dword_struct halfs_;
+        } halfs_;
     };
 };
 
@@ -1201,24 +1198,20 @@ public:
     #define AS1(x) #x ";"
     #define AS2(x, y) #x ", " #y ";"
     #define AddPrologue \
-        word res; \
         __asm__ __volatile__ \
         ( \
             "push %%ebx;"	/* save this manually, in case of -fPIC */ \
-            "mov %3, %%ebx;" \
+            "mov %2, %%ebx;" \
             ".intel_syntax noprefix;" \
             "push ebp;"
     #define AddEpilogue \
             "pop ebp;" \
             ".att_syntax prefix;" \
             "pop %%ebx;" \
-            "mov %%eax, %0;" \
-                    : "=g" (res) \
+                    : \
                     : "c" (C), "d" (A), "m" (B), "S" (N) \
                     : "%edi", "memory", "cc" \
-        ); \
-        return res;
-
+        );
     #define MulPrologue \
         __asm__ __volatile__ \
         ( \
