@@ -1,3 +1,4 @@
+set global internal_tmp_disk_storage_engine = myisam;
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY, c2 INT NOT NULL, c3 INT NOT NULL) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (0, 0, 0);
 
@@ -32,3 +33,4 @@ include/assert.inc ['There is a 3.0.0 in t1']
 include/assert.inc ['There is no 0.0.0 in t1']
 include/assert.inc ['There is no 2 in t1.c1']
 DROP TABLE t1;
+set global internal_tmp_disk_storage_engine = INNODB;
