@@ -2381,29 +2381,6 @@ flush_write_state_other_wakeup(thr_data *dstptr,
   wakeup(&(dstptr->m_waiter));
 }
 
-/**
-  This function is used when we need to send immediately, e.g. due to
-  the priority of the signal or as a crashing signal. We don't know
-  the receiver so check if it is to ourselves or to other thread.
-*/
-static inline
-void
-flush_write_state_wakeup(const thr_data *selfptr,
-                         thr_data *dstptr,
-                         thr_job_queue_head *q_head,
-                         thr_jb_write_state *w)
-{
-  if (dstptr == selfptr)
-  {
-    flush_write_state_self(q_head, w);
-  }
-  else
-  {
-    wmb();
-    flush_write_state_other_wakeup(dstptr, q_head, w);
-  }
-}
-
 static
 void
 flush_jbb_write_state(thr_data *selfptr)
@@ -4691,10 +4668,13 @@ sendprioa(Uint32 self, const SignalHeader *s, const uint32 *data,
   w.m_write_pos = buffer->m_len;
   bool buf_used = insert_signal(q, h, &w, true, s, data, secPtr,
                                 selfptr->m_next_buffer);
-  flush_write_state_wakeup(selfptr, dstptr, h, &w);
+  flush_write_state(selfptr, dstptr, h, &w);
 
   unlock(&dstptr->m_jba_write_lock);
-
+  if (w.has_any_pending_signals())
+  {
+    wakeup(&(dstptr->m_waiter));
+  }
   if (buf_used)
     selfptr->m_next_buffer = seize_buffer(rep, self, true);
 }
@@ -4788,9 +4768,13 @@ sendprioa_STOP_FOR_CRASH(const struct thr_data *selfptr, Uint32 dst)
   w.m_write_pos = buffer->m_len;
   insert_signal(q, h, &w, true, &signalT.header, signalT.theData, NULL,
                 &dummy_buffer);
-  flush_write_state_wakeup(selfptr, dstptr, h, &w);
+  flush_write_state(selfptr, dstptr, h, &w);
 
   unlock(&dstptr->m_jba_write_lock);
+  if (w.has_any_pending_signals())
+  {
+    wakeup(&(dstptr->m_waiter));
+  }
 }
 
 /**
