@@ -1863,6 +1863,59 @@ ORDER BY innr.c4)
 AND o.c4=7 XOR o.pk=3 ORDER BY o.pk;
 x
 DROP TABLE t1,t2,t3;
+#
+# Bug#19297190 NOT IN DOESN'T RETURN EXPECTED RESULT
+#
+CREATE TABLE t1 (a VARCHAR(500) CHARACTER SET UTF8) ENGINE=INNODB;
+SET @str= repeat("a",450);
+SET @num=1000;
+INSERT INTO t1 VALUES (CONCAT((@num:=@num+1), @str));
+INSERT INTO t1 SELECT CONCAT((@num:=@num+1), @str) FROM t1;
+INSERT INTO t1 SELECT CONCAT((@num:=@num+1), @str) FROM t1;
+INSERT INTO t1 SELECT CONCAT((@num:=@num+1), @str) FROM t1;
+INSERT INTO t1 SELECT CONCAT((@num:=@num+1), @str) FROM t1;
+INSERT INTO t1 SELECT CONCAT((@num:=@num+1), @str) FROM t1;
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+32
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+set @save_heap_size= @@max_heap_table_size;
+set @@max_heap_table_size= 16384;
+EXPLAIN SELECT COUNT(*)
+FROM t1
+WHERE t1.a NOT IN (
+SELECT t2.a FROM t1 as t2
+);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	32	Using where
+2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	32	Using where
+SELECT COUNT(*)
+FROM t1
+WHERE t1.a NOT IN (
+SELECT t2.a FROM t1 as t2
+);
+COUNT(*)
+0
+ALTER TABLE t1 MODIFY a VARCHAR(332) CHARACTER SET UTF8;
+EXPLAIN SELECT COUNT(*)
+FROM t1
+WHERE t1.a NOT IN (
+SELECT t2.a FROM t1 as t2
+);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	1	Using where
+2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	1	NULL
+SELECT COUNT(*)
+FROM t1
+WHERE t1.a NOT IN (
+SELECT t2.a FROM t1 as t2
+);
+COUNT(*)
+0
+DROP TABLE t1;
+set @@max_heap_table_size= @save_heap_size;
 # End of 5.6 tests
 set @@optimizer_switch=@old_opt_switch;
 set optimizer_switch=default;
