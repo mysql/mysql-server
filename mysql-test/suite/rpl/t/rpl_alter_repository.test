@@ -38,6 +38,7 @@ call mtr.add_suppression(" Error while checking replication metadata.");
 call mtr.add_suppression("Failed to create or recover replication info repository.");
 call mtr.add_suppression("Error in checking.* repository info type of");
 call mtr.add_suppression("Error creating.*: Error checking repositories");
+call mtr.add_suppression("Failed to create or recover replication info repositories.");
 
 ###############################################################################
 #           Checking if replication can fail safely (SQL Thread)
@@ -172,7 +173,7 @@ INSERT INTO t_innodb VALUES (1), (2), (3);
 --connection slave
 --error ER_SLAVE_CONFIGURATION
 START SLAVE SQL_THREAD;
-ALTER TABLE mysql.slave_master_info ADD COLUMN (Enabled_auto_position BOOLEAN NOT NULL COMMENT 'Indicates whether GTIDs will be used to retrieve events from the master.');
+ALTER TABLE mysql.slave_master_info ADD COLUMN Enabled_auto_position BOOLEAN NOT NULL COMMENT 'Indicates whether GTIDs will be used to retrieve events from the master.' AFTER Ssl_crlpath;
 UPDATE mysql.slave_master_info SET Enabled_auto_position= 0;
 
 #

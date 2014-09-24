@@ -170,12 +170,20 @@ file_exists $MYSQLD_DATADIR/relay-log.info;
 ########################################################################################
 --connection slave
 
+#
+# If the slave info repository is X, and the user sets the same repository
+# again there is no need to stop the slave threads and the control return
+# to client thread without doing anything. To make the test case pass in
+#  crash-safe-master i.e when --master-info-repository=TABLE, we convert
+#  the repo to FILE.
+SET @@GLOBAL.master_info_repository= "FILE";
+
 --source include/start_slave.inc
 
---error ER_SLAVE_MUST_STOP
+--error ER_SLAVE_CHANNEL_MUST_STOP
 SET @@GLOBAL.relay_log_info_repository= "TABLE";
 
---error ER_SLAVE_MUST_STOP
+--error ER_SLAVE_CHANNEL_MUST_STOP
 SET @@GLOBAL.master_info_repository= "TABLE";
 
 ########################################################################################
