@@ -2,6 +2,17 @@
 # WL#6965: Truncate UNDO logs.
 #
 
+--source include/have_innodb.inc
+# This test is restarting the server.
+--source include/not_embedded.inc
+# this is to ensure that trx_purge_truncate is called with increased
+# frequency so that undo logs are cleared.
+--source include/have_debug.inc
+# We are printing size of undo log below and if page size keeps on
+# varying then initial size too keeps on varying.
+--source include/have_innodb_16k.inc
+--source include/have_undo_tablespaces.inc
+--source include/big_test.inc
 
 #-----------------------------------------------------------------------------
 #
@@ -67,7 +78,9 @@ drop table t1, t2;
 drop PROCEDURE populate_t1;
 drop PROCEDURE populate_t2;
 #
---sleep 60 
+SET GLOBAL innodb_fast_shutdown=0;
+--source include/restart_mysqld.inc
+
+let SEARCH_FILE = $MYSQLTEST_VARDIR/log/mysqld.1.err;
 let SEARCH_PATTERN = Truncating UNDO tablespace;
 --source include/search_pattern.inc
-

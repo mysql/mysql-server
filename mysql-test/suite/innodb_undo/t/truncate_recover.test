@@ -35,9 +35,10 @@
 #
 # create test-bed
 #
-let MYSQL_DATA_DIR_ENV = `select @@datadir`;
-let $MYSQL_DATA_DIR = `select @@datadir`;
 let SEARCH_FILE = $MYSQLTEST_VARDIR/log/mysqld.1.err;
+--let $_server_id= `SELECT @@server_id`
+--let $_expect_file_name= $MYSQLTEST_VARDIR/tmp/mysqld.$_server_id.expect
+
 #
 delimiter |;
 CREATE PROCEDURE populate_t1()
@@ -88,4 +89,3 @@ let SEARCH_PATTERN = ib_undo_trunc_trunc_done;
 # remove test-bed
 #
 drop PROCEDURE populate_t1;
-
