@@ -1516,9 +1516,25 @@ bool Item::is_blob_field() const
   DBUG_ASSERT(fixed);
 
   enum_field_types type= field_type();
-  return (type == MYSQL_TYPE_BLOB || type == MYSQL_TYPE_GEOMETRY ||
-          // Char length, not the byte one, should be taken into account
-          max_length/collation.collation->mbmaxlen > CONVERT_IF_BIGGER_TO_BLOB);
+  if (type == MYSQL_TYPE_BLOB || type == MYSQL_TYPE_GEOMETRY ||
+      // Char length, not the byte one, should be taken into account
+      (max_length/collation.collation->mbmaxlen > CONVERT_IF_BIGGER_TO_BLOB))
+    return true;
+
+  /*
+    This function is used only for subquery/semijoin materialization;
+    these are not able to handle a tmp table with share->uniques==true; it is
+    possible, if the tmp table has many rows, that it becomes a MyISAM table,
+    which will have share->uniques==true if the column's length in bytes is
+    bigger than MI_MAX_KEY_LENGTH.
+    So we add and extra restriction, only in MySQL 5.6: if longer than this,
+    pretend it's a blob, to disable materialization:
+  */
+  if (max_length >=
+      (MI_MAX_KEY_LENGTH - HA_KEY_NULL_LENGTH - HA_KEY_BLOB_LENGTH))
+    return true;
+
+  return false;
 }
 
 
