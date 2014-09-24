@@ -46,6 +46,7 @@ ndb_mgmd = CHOOSE_host1
 ndbd = CHOOSE_host5,CHOOSE_host6,CHOOSE_host7,CHOOSE_host8
 ndbapi= CHOOSE_host2,CHOOSE_host3,CHOOSE_host4,,,,,,,,
 mysqld = CHOOSE_host1
+Checksum=1
 
 NoOfReplicas = 2
 IndexMemory = 250M
