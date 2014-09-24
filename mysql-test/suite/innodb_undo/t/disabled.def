@@ -1,0 +1,12 @@
+##############################################################################
+#
+#  List the test cases that are to be disabled temporarily.
+#
+#  Separate the test case name and the comment with ':'.
+#
+#    <testcasename> : BUG#<xxxx> <date disabled> <disabler> <comment>
+#
+#  Do not use any TAB characters for whitespace.
+#
+##############################################################################
+truncate_recover : undo_1_trunc.log is incompatible with WL#6205; should write MLOG_FILE_RESIZE records instead
