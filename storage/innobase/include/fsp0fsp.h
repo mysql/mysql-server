@@ -302,7 +302,7 @@ insert buffer tree root if space == 0. */
 void
 fsp_header_init(
 /*============*/
-	ulint	space,		/*!< in: space id */
+	ulint	space_id,	/*!< in: space id */
 	ulint	size,		/*!< in: current size in blocks */
 	mtr_t*	mtr);		/*!< in/out: mini-transaction */
 /**********************************************************************//**
@@ -310,7 +310,7 @@ Increases the space size field of a space. */
 void
 fsp_header_inc_size(
 /*================*/
-	ulint	space,		/*!< in: space id */
+	ulint	space_id,	/*!< in: space id */
 	ulint	size_inc,	/*!< in: size increment in pages */
 	mtr_t*	mtr);		/*!< in/out: mini-transaction */
 /**********************************************************************//**
@@ -320,7 +320,7 @@ if could not create segment because of lack of space */
 buf_block_t*
 fseg_create(
 /*========*/
-	ulint	space,	/*!< in: space id */
+	ulint	space_id,/*!< in: space id */
 	ulint	page,	/*!< in: page where the segment header is placed: if
 			this is != 0, the page must belong to another segment,
 			if this is 0, a new page will be allocated and it
@@ -335,7 +335,7 @@ if could not create segment because of lack of space */
 buf_block_t*
 fseg_create_general(
 /*================*/
-	ulint	space,	/*!< in: space id */
+	ulint	space_id,/*!< in: space id */
 	ulint	page,	/*!< in: page where the segment header is placed: if
 			this is != 0, the page must belong to another segment,
 			if this is 0, a new page will be allocated and it
@@ -437,7 +437,7 @@ fsp_reserve_free_extents(
 	ulint*	n_reserved,/*!< out: number of extents actually reserved; if we
 			return TRUE and the tablespace size is < 64 pages,
 			then this can be 0, otherwise it is n_ext */
-	ulint	space,	/*!< in: space id */
+	ulint	space_id,/*!< in: space id */
 	ulint	n_ext,	/*!< in: number of extents to reserve */
 	fsp_reserve_t	alloc_type,
 			/*!< in: page reservation type */
@@ -451,14 +451,14 @@ the safety margin required by the above function fsp_reserve_free_extents.
 uintmax_t
 fsp_get_available_space_in_free_extents(
 /*====================================*/
-	ulint	space);	/*!< in: space id */
+	ulint	space_id);	/*!< in: space id */
 /**********************************************************************//**
 Frees a single page of a segment. */
 void
 fseg_free_page(
 /*===========*/
 	fseg_header_t*	seg_header, /*!< in: segment header */
-	ulint		space,	/*!< in: space id */
+	ulint		space_id, /*!< in: space id */
 	ulint		page,	/*!< in: page offset */
 	bool		ahi,	/*!< in: whether we may need to drop
 				the adaptive hash index */
@@ -471,7 +471,7 @@ bool
 fseg_page_is_free(
 /*==============*/
 	fseg_header_t*	seg_header,	/*!< in: segment header */
-	ulint		space,		/*!< in: space id */
+	ulint		space_id,	/*!< in: space id */
 	ulint		page)		/*!< in: page offset */
 	__attribute__((nonnull, warn_unused_result));
 /**********************************************************************//**
@@ -568,7 +568,7 @@ is equal to the free limit of the space, adds new extents from above the free
 limit to the space free list, if not free limit == space size. This adding
 is necessary to make the descriptor defined, as they are uninitialized
 above the free limit.
-@param[in]	space		space id
+@param[in]	space_id	space id
 @param[in]	offset		page offset; if equal to the free limit, we
 try to add new extents to the space free list
 @param[in]	page_size	page size
@@ -577,7 +577,7 @@ try to add new extents to the space free list
 exist in the space or if the offset exceeds the free limit */
 xdes_t*
 xdes_get_descriptor(
-	ulint			space,
+	ulint			space_id,
 	ulint			offset,
 	const page_size_t&	page_size,
 	mtr_t*			mtr)

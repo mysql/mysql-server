@@ -3229,12 +3229,13 @@ error:
 
   @param       mysql     The mysql handler to operate
   @param[out]  buff      The buffer to receive the packet
-  @param       buff_size The max size of the buffer
+  @param       buff_size The max size of the buffer. Used in debug only.
   @return                one past to where the buffer is filled
 
 */
 static char *
-mysql_fill_packet_header(MYSQL *mysql, char *buff, size_t buff_size)
+mysql_fill_packet_header(MYSQL *mysql, char *buff,
+                         size_t buff_size  __attribute__((unused)))
 {
   NET *net= &mysql->net;
   char *end;

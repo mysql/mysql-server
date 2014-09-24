@@ -2553,7 +2553,6 @@ truncate_t::is_index_modified_since_logged(
 	ut_ad(found);
 
 	mtr_start(&mtr);
-	mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
 
 	/* Root page could be in free state if truncate crashed after drop_index
 	and page was not allocated for any other object. */
