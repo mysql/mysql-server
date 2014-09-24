@@ -96,7 +96,7 @@ if ($_sss_result == '')
 }
 if ($_sss_result == -1)
 {
-  --let $error_type= Timeout after $slave_timeout seconds.
+  --let $error_type= Timeout after $_sss_slave_timeout seconds.
 }
 
 if ($_sss_result < 0)

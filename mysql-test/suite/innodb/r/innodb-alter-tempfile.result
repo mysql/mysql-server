@@ -1,0 +1,38 @@
+#
+# Bug #18734396	INNODB IN-PLACE ALTER FAILURES BLOCK FUTURE ALTERS
+#
+# Temporary tablename will be unique. This makes sure that future
+# in-place ALTERs of the same table will not be blocked due to
+# temporary tablename.
+# Crash the server in ha_innobase::commit_inplace_alter_table()
+CREATE TABLE t1 (f1 INT NOT NULL, f2 INT NOT NULL) ENGINE=innodb;
+SET debug='d,innodb_alter_commit_crash_before_commit';
+# Write file to make mysql-test-run.pl expect crash
+# Execute the statement that causes the crash
+ALTER TABLE t1 ADD PRIMARY KEY (f2, f1);
+ERROR HY000: Lost connection to MySQL server during query
+# Startup the server after the crash
+# Read and remember the temporary table name
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int(11) NOT NULL,
+  `f2` int(11) NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+# Consecutive Alter table does not create same temporary file name
+ALTER TABLE t1 ADD PRIMARY KEY (f2, f1);
+# Shutdown the server to allow manual recovery
+# Manual recovery begin. The dictionary was not updated
+# and the files were not renamed. The rebuilt table
+# was left behind on purpose, to faciliate data recovery.
+# Manual recovery end
+# Startup the server after manual recovery
+# Drop the orphaned rebuilt table.
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int(11) NOT NULL,
+  `f2` int(11) NOT NULL,
+  PRIMARY KEY (`f2`,`f1`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+drop table t1;

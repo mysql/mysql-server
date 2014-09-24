@@ -854,6 +854,7 @@ void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
   bool searching_first_gtid= using_gtid_protocol;
   bool skip_group= false;
   bool binlog_has_previous_gtids_log_event= false;
+  bool has_transmit_started= false;
   Sid_map *sid_map= slave_gtid_executed ? slave_gtid_executed->get_sid_map() : NULL;
 
   IO_CACHE log;
@@ -867,6 +868,7 @@ void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
   mysql_cond_t *log_cond;
   uint8 current_checksum_alg= BINLOG_CHECKSUM_ALG_UNDEF;
   Format_description_log_event fdle(BINLOG_VERSION), *p_fdle= &fdle;
+  Gtid first_gtid;
 
 #ifndef DBUG_OFF
   int left_events = max_binlog_dump_events;
@@ -918,16 +920,6 @@ void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
     heartbeat_ts= &heartbeat_buf;
     set_timespec_nsec(*heartbeat_ts, 0);
   }
-  if (log_warnings > 1)
-    sql_print_information("Start binlog_dump to master_thread_id(%lu) slave_server(%u), pos(%s, %lu)",
-                        thd->thread_id, thd->server_id, log_ident, (ulong)pos);
-  if (RUN_HOOK(binlog_transmit, transmit_start,
-               (thd, flags, log_ident, pos, &observe_transmission)))
-  {
-    errmsg= "Failed to run hook 'transmit_start'";
-    my_errno= ER_UNKNOWN_ERROR;
-    GOTO_ERR;
-  }
 
 #ifndef DBUG_OFF
   if (opt_sporadic_binlog_dump_fail && (binlog_dump_count++ % 2))
@@ -958,8 +950,10 @@ void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
   {
     if (using_gtid_protocol)
     {
+      first_gtid.clear();
       if (mysql_bin_log.find_first_log_not_in_gtid_set(name,
                                                        slave_gtid_executed,
+                                                       &first_gtid,
                                                        &errmsg))
       {
          my_errno= ER_MASTER_FATAL_ERROR_READING_BINLOG;
@@ -1001,6 +995,17 @@ void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
     GOTO_ERR;
   }
 
+  if (log_warnings > 1)
+    sql_print_information("Start binlog_dump to master_thread_id(%lu) slave_server(%u), pos(%s, %lu)",
+                          thd->thread_id, thd->server_id, log_ident, (ulong)pos);
+  if (RUN_HOOK(binlog_transmit, transmit_start,
+               (thd, flags, log_ident, pos, &observe_transmission)))
+  {
+    errmsg= "Failed to run hook 'transmit_start'";
+    my_errno= ER_UNKNOWN_ERROR;
+    GOTO_ERR;
+  }
+  has_transmit_started= true;
   /* reset transmit packet for the fake rotate event below */
   if (reset_transmit_packet(thd, flags, &ev_offset, &errmsg,
                             observe_transmission))
@@ -1178,6 +1183,7 @@ void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
                                               log_file_name,
                                               &is_active_binlog)))
     {
+      time_t created;
       DBUG_PRINT("info", ("read_log_event returned 0 on line %d", __LINE__));
 #ifndef DBUG_OFF
       if (max_binlog_dump_events && !left_events--)
@@ -1230,6 +1236,33 @@ void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
           GOTO_ERR;
         }
         (*packet)[FLAGS_OFFSET+ev_offset] &= ~LOG_EVENT_BINLOG_IN_USE_F;
+
+        created= uint4korr(packet->ptr()+LOG_EVENT_MINIMAL_HEADER_LEN+
+                           ST_CREATED_OFFSET+ev_offset);
+
+        if (using_gtid_protocol && created > 0)
+        {
+          if (first_gtid.sidno >= 1 && first_gtid.gno >= 1 &&
+              slave_gtid_executed->contains_gtid(first_gtid.sidno,
+                                                 first_gtid.gno))
+          {
+            /*
+              As we are skipping at least the first transaction of the binlog,
+              we must clear the "created" field of the FD event (set it to 0)
+              to avoid cleaning up temp tables on slave.
+            */
+            DBUG_PRINT("info",("setting 'created' to 0 before sending FD event"));
+            int4store((char*) packet->ptr()+LOG_EVENT_MINIMAL_HEADER_LEN+
+                      ST_CREATED_OFFSET+ev_offset, (ulong) 0);
+
+            /* Fix the checksum due to latest changes in header */
+            if (current_checksum_alg != BINLOG_CHECKSUM_ALG_OFF &&
+                current_checksum_alg != BINLOG_CHECKSUM_ALG_UNDEF)
+              fix_checksum(packet, ev_offset);
+
+            first_gtid.clear();
+          }
+        }
         /*
           Fixes the information on the checksum algorithm when a new
           format description is read. Notice that this only necessary
@@ -1816,7 +1849,8 @@ end:
   end_io_cache(&log);
   mysql_file_close(file, MYF(MY_WME));
 
-  (void) RUN_HOOK(binlog_transmit, transmit_stop, (thd, flags));
+  if (has_transmit_started)
+    (void) RUN_HOOK(binlog_transmit, transmit_stop, (thd, flags));
   my_eof(thd);
   THD_STAGE_INFO(thd, stage_waiting_to_finalize_termination);
   mysql_mutex_lock(&LOCK_thread_count);
@@ -1848,7 +1882,8 @@ err:
     error_text[sizeof(error_text) - 1]= '\0';
   }
   end_io_cache(&log);
-  (void) RUN_HOOK(binlog_transmit, transmit_stop, (thd, flags));
+  if (has_transmit_started)
+    (void) RUN_HOOK(binlog_transmit, transmit_stop, (thd, flags));
   /*
     Exclude  iteration through thread list
     this is needed for purge_logs() - it will iterate through
@@ -1947,6 +1982,11 @@ void kill_zombie_dump_threads(String *slave_uuid)
       it will be slow because it will iterate through the list
       again. We just to do kill the thread ourselves.
     */
+    if (log_warnings > 1)
+      sql_print_information("While initializing dump thread for slave with "
+                            "UUID <%s>, found a zombie dump thread with "
+                            "the same UUID. Master is killing the zombie dump "
+                            "thread.", slave_uuid->c_ptr());
     tmp->awake(THD::KILL_QUERY);
     mysql_mutex_unlock(&tmp->LOCK_thd_data);
   }

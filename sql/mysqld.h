@@ -108,7 +108,7 @@ extern bool opt_disable_networking, opt_skip_show_db;
 extern bool opt_skip_name_resolve;
 extern bool opt_ignore_builtin_innodb;
 extern my_bool opt_character_set_client_handshake;
-extern bool volatile abort_loop;
+extern MYSQL_PLUGIN_IMPORT bool volatile abort_loop;
 extern bool in_bootstrap;
 extern my_bool opt_bootstrap;
 extern uint connection_count;
@@ -216,6 +216,7 @@ extern const char *binlog_checksum_type_names[];
 extern my_bool opt_master_verify_checksum;
 extern my_bool opt_slave_sql_verify_checksum;
 extern my_bool enforce_gtid_consistency;
+extern my_bool simplified_binlog_gtid_recovery;
 extern ulong binlogging_impossible_mode;
 enum enum_binlogging_impossible_mode
 {
@@ -650,6 +651,7 @@ enum options_mysqld
   OPT_SSL_CERT,
   OPT_SSL_CIPHER,
   OPT_SSL_KEY,
+  OPT_THREAD_CONCURRENCY,
   OPT_UPDATE_LOG,
   OPT_WANT_CORE,
   OPT_ENGINE_CONDITION_PUSHDOWN,

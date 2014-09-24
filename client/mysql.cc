@@ -1404,6 +1404,17 @@ int main(int argc,char *argv[])
 
 sig_handler mysql_end(int sig)
 {
+#ifndef _WIN32
+  /*
+    Ingnoring SIGQUIT, SIGINT and SIGHUP signals when cleanup process starts.
+    This will help in resolving the double free issues, which occures in case
+    the signal handler function is started in between the clean up function.
+  */
+  signal(SIGQUIT, SIG_IGN);
+  signal(SIGINT, SIG_IGN);
+  signal(SIGHUP, SIG_IGN);
+#endif
+
   mysql_close(&mysql);
 #ifdef HAVE_READLINE
   if (!status.batch && !quick && !opt_html && !opt_xml &&

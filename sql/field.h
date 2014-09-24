@@ -1,7 +1,7 @@
 #ifndef FIELD_INCLUDED
 #define FIELD_INCLUDED
 
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -3893,7 +3893,8 @@ Field *make_field(TABLE_SHARE *share, uchar *ptr, uint32 field_length,
 		  const CHARSET_INFO *cs,
 		  Field::geometry_type geom_type,
 		  Field::utype unireg_check,
-		  TYPELIB *interval, const char *field_name);
+		  TYPELIB *interval, const char *field_name,
+		  MEM_ROOT *mem_root= NULL);
 uint pack_length_to_packflag(uint type);
 enum_field_types get_blob_type_from_length(ulong length);
 uint32 calc_pack_length(enum_field_types type,uint32 length);

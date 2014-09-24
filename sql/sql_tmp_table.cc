@@ -1476,12 +1476,17 @@ err:
 
   @param thd         connection handle
   @param field_list  list of column definitions
+  @param mem_root    mem_root from which allocations happens
+                     inside the function. Default is NULL
+                     and thread's mem_root will be considered
+                     in that case.
 
   @return
     0 if out of memory, TABLE object in case of success
 */
 
-TABLE *create_virtual_tmp_table(THD *thd, List<Create_field> &field_list)
+TABLE *create_virtual_tmp_table(THD *thd, List<Create_field> &field_list,
+                                MEM_ROOT *mem_root /* default = NULL */)
 {
   uint field_count= field_list.elements;
   uint blob_count= 0;
@@ -1495,7 +1500,11 @@ TABLE *create_virtual_tmp_table(THD *thd, List<Create_field> &field_list)
   TABLE *table;
   TABLE_SHARE *share;
 
-  if (!multi_alloc_root(thd->mem_root,
+  /* if mem_root is not supplied, use thd's mem_root.*/
+  if (mem_root == NULL)
+    mem_root= thd->mem_root;
+
+  if (!multi_alloc_root(mem_root,
                         &table, sizeof(*table),
                         &share, sizeof(*share),
                         &field, (field_count + 1) * sizeof(Field*),
@@ -1523,7 +1532,7 @@ TABLE *create_virtual_tmp_table(THD *thd, List<Create_field> &field_list)
                        f_maybe_null(cdef->pack_flag) ? 1 : 0,
                        cdef->pack_flag, cdef->sql_type, cdef->charset,
                        cdef->geom_type, cdef->unireg_check,
-                       cdef->interval, cdef->field_name);
+                       cdef->interval, cdef->field_name, mem_root);
     if (!*field)
       goto error;
     (*field)->init(table);
@@ -1543,7 +1552,7 @@ TABLE *create_virtual_tmp_table(THD *thd, List<Create_field> &field_list)
   null_pack_length= (null_count + 7)/8;
   share->reclength= record_length + null_pack_length;
   share->rec_buff_length= ALIGN_SIZE(share->reclength + 1);
-  table->record[0]= (uchar*) thd->alloc(share->rec_buff_length);
+  table->record[0]= (uchar*) alloc_root(mem_root, share->rec_buff_length);
   if (!table->record[0])
     goto error;
 

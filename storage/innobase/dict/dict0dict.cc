@@ -1694,6 +1694,10 @@ dict_table_rename_in_cache(
 
 		foreign = *it;
 
+		if (foreign->referenced_table) {
+			foreign->referenced_table->referenced_set.erase(foreign);
+		}
+
 		if (ut_strlen(foreign->foreign_table_name)
 		    < ut_strlen(table->name)) {
 			/* Allocate a longer name buffer;
@@ -1845,6 +1849,10 @@ dict_table_rename_in_cache(
 
 		table->foreign_set.erase(it);
 		fk_set.insert(foreign);
+
+		if (foreign->referenced_table) {
+			foreign->referenced_table->referenced_set.insert(foreign);
+		}
 	}
 
 	ut_a(table->foreign_set.empty());
@@ -3252,6 +3260,9 @@ dict_foreign_find(
 	dict_foreign_t*	foreign)	/*!< in: foreign constraint */
 {
 	ut_ad(mutex_own(&(dict_sys->mutex)));
+
+	ut_ad(dict_foreign_set_validate(table->foreign_set));
+	ut_ad(dict_foreign_set_validate(table->referenced_set));
 
 	dict_foreign_set::iterator it = table->foreign_set.find(foreign);
 
@@ -5548,6 +5559,11 @@ dict_find_table_by_space(
 	ulint		count = 0;
 
 	ut_ad(space_id > 0);
+
+	if (dict_sys == NULL) {
+		/* This could happen when it's in redo processing. */
+		return(NULL);
+	}
 
 	table = UT_LIST_GET_FIRST(dict_sys->table_LRU);
 	num_item =  UT_LIST_GET_LEN(dict_sys->table_LRU);

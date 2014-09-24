@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -126,6 +126,9 @@ trx_rollback_to_savepoint_low(
 
 	mem_heap_free(heap);
 
+	/* There might be work for utility threads.*/
+	srv_active_wake_master_thread();
+
 	MONITOR_DEC(MONITOR_TRX_ACTIVE);
 }
 
@@ -143,19 +146,9 @@ trx_rollback_to_savepoint(
 {
 	ut_ad(!trx_mutex_own(trx));
 
-	/* Tell Innobase server that there might be work for
-	utility threads: */
-
-	srv_active_wake_master_thread();
-
 	trx_start_if_not_started_xa(trx);
 
 	trx_rollback_to_savepoint_low(trx, savept);
-
-	/* Tell Innobase server that there might be work for
-	utility threads: */
-
-	srv_active_wake_master_thread();
 
 	return(trx->error_state);
 }
@@ -169,8 +162,6 @@ trx_rollback_for_mysql_low(
 /*=======================*/
 	trx_t*	trx)	/*!< in/out: transaction */
 {
-	srv_active_wake_master_thread();
-
 	trx->op_info = "rollback";
 
 	/* If we are doing the XA recovery of prepared transactions,
@@ -183,8 +174,6 @@ trx_rollback_for_mysql_low(
 	trx->op_info = "";
 
 	ut_a(trx->error_state == DB_SUCCESS);
-
-	srv_active_wake_master_thread();
 
 	return(trx->error_state);
 }

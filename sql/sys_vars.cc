@@ -2418,9 +2418,10 @@ static Sys_var_ulong Sys_thread_concurrency(
        "the desired number of threads that should be run at the same time. "
        "This variable has no effect, and is deprecated. "
        "It will be removed in a future release. ",
-       READ_ONLY GLOBAL_VAR(concurrency), CMD_LINE(REQUIRED_ARG),
+       READ_ONLY GLOBAL_VAR(concurrency),
+       CMD_LINE(REQUIRED_ARG, OPT_THREAD_CONCURRENCY),
        VALID_RANGE(1, 512), DEFAULT(DEFAULT_CONCURRENCY), BLOCK_SIZE(1),
-       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0), ON_UPDATE(0), 
+       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0), ON_UPDATE(0),
        DEPRECATED(""));
 
 static Sys_var_ulong Sys_thread_stack(
@@ -2740,38 +2741,14 @@ void sql_mode_deprecation_warnings(sql_mode_t sql_mode)
     it will go the error-log if the deprecated sql_modes are used.
   */
   THD *thd= current_thd;
-  if (thd)
-  {
-    if (sql_mode & MODE_ERROR_FOR_DIVISION_BY_ZERO)
-      push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
-                          ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT,
-                          ER(ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT),
-                          "ERROR_FOR_DIVISION_BY_ZERO");
+  if (sql_mode & MODE_ERROR_FOR_DIVISION_BY_ZERO)
+    WARN_DEPRECATED_NO_REPLACEMENT(thd, "ERROR_FOR_DIVISION_BY_ZERO");
 
-    if (sql_mode & MODE_NO_ZERO_DATE)
-      push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
-                          ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT,
-                          ER(ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT),
-                          "NO_ZERO_DATE");
+  if (sql_mode & MODE_NO_ZERO_DATE)
+    WARN_DEPRECATED_NO_REPLACEMENT(thd, "NO_ZERO_DATE");
 
-    if (sql_mode & MODE_NO_ZERO_IN_DATE)
-      push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
-                          ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT,
-                          ER(ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT),
-                          "NO_ZERO_IN_DATE");
-  }
-  else
-  {
-    if (sql_mode & MODE_ERROR_FOR_DIVISION_BY_ZERO)
-      sql_print_warning("'ERROR_FOR_DIVISION_BY_ZERO' is deprecated "
-                        "and will be removed in a future release.");
-    if (sql_mode & MODE_NO_ZERO_DATE)
-      sql_print_warning("'NO_ZERO_DATE' is deprecated "
-                        "and will be removed in a future release.");
-    if (sql_mode & MODE_NO_ZERO_IN_DATE)
-      sql_print_warning("'NO_ZERO_IN_DATE' is deprecated "
-                        "and will be removed in a future release.");
-   }
+  if (sql_mode & MODE_NO_ZERO_IN_DATE)
+    WARN_DEPRECATED_NO_REPLACEMENT(thd, "NO_ZERO_IN_DATE");
 }
 
 export sql_mode_t expand_sql_mode(sql_mode_t sql_mode)
@@ -4288,6 +4265,21 @@ static Sys_var_mybool Sys_enforce_gtid_consistency(
 #else
        );
 #endif
+
+static Sys_var_mybool Sys_simplified_binlog_gtid_recovery(
+       "simplified_binlog_gtid_recovery",
+       "If this option is enabled, the server does not scan more than one "
+       "binary log for every iteration when initializing GTID sets on server "
+       "restart. Enabling this option is very useful when restarting a server "
+       "which has already generated lots of binary logs without GTID events. "
+       "Note: If this option is enabled, GLOBAL.GTID_EXECUTED and "
+       "GLOBAL.GTID_PURGED cannot be initialized correctly if binary log(s) "
+       "with GTID events were generated before binary log(s) without GTID "
+       "events, for example if gtid_mode is disabled when the server has "
+       "already generated binary log(s) with GTID events and not purged "
+       "them. ",
+       READ_ONLY GLOBAL_VAR(simplified_binlog_gtid_recovery),
+       CMD_LINE(OPT_ARG), DEFAULT(FALSE));
 
 static Sys_var_ulong Sys_sp_cache_size(
        "stored_program_cache",

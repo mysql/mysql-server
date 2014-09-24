@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -28,7 +28,7 @@ enum enum_return_id { FOUND_ID= 1, NOT_FOUND_ID, ERROR_ID };
 class Rpl_info_table_access
 {
 public:
-  Rpl_info_table_access() { };
+  Rpl_info_table_access(): thd_created(false) { };
   virtual ~Rpl_info_table_access() { };
 
   bool open_table(THD* thd, const LEX_STRING dbstr, const LEX_STRING tbstr,
@@ -47,7 +47,7 @@ public:
   bool drop_thd(THD* thd);
 
 private:
-  THD *saved_current_thd;
+  bool thd_created;
 
   Rpl_info_table_access& operator=(const Rpl_info_table_access& info);
   Rpl_info_table_access(const Rpl_info_table_access& info);

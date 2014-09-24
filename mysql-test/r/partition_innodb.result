@@ -612,3 +612,37 @@ ALTER TABLE t1 IMPORT TABLESPACE;
 ERROR HY000: Table storage engine for 't1' doesn't have this option
 DROP TABLE t1;
 USE test;
+#
+# Bug#13737949: CRASH IN HA_PARTITION::INDEX_INIT
+# Bug#18694052: SERVER CRASH IN HA_PARTITION::INIT_RECORD_PRIORITY_QUEUE
+#
+CREATE TABLE t1
+(a INT,
+b INT,
+PRIMARY KEY (a))
+ENGINE = InnoDB
+PARTITION BY HASH (a) PARTITIONS 3;
+START TRANSACTION WITH CONSISTENT SNAPSHOT;
+# con1
+ALTER TABLE t1 ADD INDEX idx1 (b);
+# con default
+SELECT b FROM t1 WHERE b = 0;
+ERROR HY000: Table definition has changed, please retry transaction
+SELECT b FROM t1 WHERE b = 0;
+ERROR HY000: Table definition has changed, please retry transaction
+DROP TABLE t1;
+# Same test without partitioning
+CREATE TABLE t1
+(a INT,
+b INT,
+PRIMARY KEY (a))
+ENGINE = InnoDB;
+START TRANSACTION WITH CONSISTENT SNAPSHOT;
+# con1
+ALTER TABLE t1 ADD INDEX idx1 (b);
+# con default
+SELECT b FROM t1 WHERE b = 0;
+ERROR HY000: Table definition has changed, please retry transaction
+SELECT b FROM t1 WHERE b = 0;
+ERROR HY000: Table definition has changed, please retry transaction
+DROP TABLE t1;
