@@ -2514,7 +2514,7 @@ toku_cachetable_minicron_shutdown(CACHETABLE ct) {
 
 void toku_cachetable_prepare_close(CACHETABLE ct UU()) {
     extern bool toku_serialize_in_parallel;
-    toku_serialize_in_parallel = true;
+    toku_drd_unsafe_set(&toku_serialize_in_parallel, true);
 }
 
 /* Requires that it all be flushed. */

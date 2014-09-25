@@ -145,7 +145,7 @@ struct toku_thread_pool *get_ft_pool(void) {
 }
 
 void toku_serialize_set_parallel(bool in_parallel) {
-    toku_serialize_in_parallel = in_parallel;
+    toku_drd_unsafe_set(&toku_serialize_in_parallel, in_parallel);
 }
 
 void toku_ft_serialize_layer_init(void) {
@@ -852,7 +852,7 @@ toku_serialize_ftnode_to (int fd, BLOCKNUM blocknum, FTNODE node, FTNODE_DISK_DA
         ft->h->basementnodesize,
         ft->h->compression_method,
         do_rebalancing,
-        toku_serialize_in_parallel, // in_parallel
+        toku_drd_unsafe_fetch(&toku_serialize_in_parallel),
         &n_to_write,
         &n_uncompressed_bytes,
         &compressed_buf
