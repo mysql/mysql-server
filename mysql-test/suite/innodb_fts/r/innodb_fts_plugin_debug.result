@@ -35,12 +35,6 @@ id	title	body
 SELECT * FROM articles WHERE
 MATCH(title, body) AGAINST('"mysql database"' IN BOOLEAN MODE);
 id	title	body
-SET SESSION debug="+d,fts_instrument_query_disable_parser";
-SELECT * FROM articles WHERE
-MATCH(title, body) AGAINST('"mysql database"' IN BOOLEAN MODE);
-id	title	body
-1	MySQL Tutorial	DBMS stands for MySQL DataBase ...
-SET SESSION debug="-d,fts_instrument_query_disable_parser";
 DROP TABLE articles;
 # Test Part 3: Row Merge Create Index Test(ALTER TABLE ADD FULLTEXT INDEX)
 CREATE TABLE articles (
@@ -96,12 +90,6 @@ id	title	body
 SELECT * FROM articles WHERE
 MATCH(title, body) AGAINST('"mysql database"' IN BOOLEAN MODE);
 id	title	body
-SET SESSION debug="+d,fts_instrument_query_disable_parser";
-SELECT * FROM articles WHERE
-MATCH(title, body) AGAINST('"mysql database"' IN BOOLEAN MODE);
-id	title	body
-1	MySQL Tutorial	DBMS stands for MySQL DataBase ...
-SET SESSION debug="-d,fts_instrument_query_disable_parser";
 DROP TABLE articles;
 # Test Part 3 END
 SET SESSION debug="+d,fts_instrument_use_default_parser";
