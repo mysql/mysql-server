@@ -1,11 +1,13 @@
 #
 # The test verifies proper computation of logical timestamps in
-# few situations.
+# few situations having GTID mode OFF.
 # Positive outcome is indicated by non-zero grep counts.
 #
 --source include/have_binlog_format_mixed.inc
 --source include/have_myisam.inc
 --source include/have_innodb.inc
+
+--source include/not_gtid_enabled.inc
 
 #
 # GTID mode non-specific tests are sourced.
