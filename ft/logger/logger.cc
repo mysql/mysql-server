@@ -572,14 +572,18 @@ toku_logger_make_space_in_inbuf (TOKULOGGER logger, int n_bytes_needed)
     release_output(logger, fsynced_lsn);
 }
 
-void toku_logger_fsync (TOKULOGGER logger)
+void toku_logger_fsync(TOKULOGGER logger)
 // Effect: This is the exported fsync used by ydb.c for env_log_flush.  Group commit doesn't have to work.
 // Entry: Holds no locks
 // Exit: Holds no locks
 // Implementation note:  Acquire the output condition lock, then the output permission, then release the output condition lock, then get the input lock.
-// Then release everything.
+// Then release everything.  Hold the input lock while reading the current max lsn in buf to make drd happy that there is no data race.
 {
-    toku_logger_maybe_fsync(logger, logger->inbuf.max_lsn_in_buf, true, false);
+    ml_lock(&logger->input_lock);
+    const LSN max_lsn_in_buf = logger->inbuf.max_lsn_in_buf;
+    ml_unlock(&logger->input_lock);
+
+    toku_logger_maybe_fsync(logger, max_lsn_in_buf, true, false);
 }
 
 void toku_logger_fsync_if_lsn_not_fsynced (TOKULOGGER logger, LSN lsn) {
