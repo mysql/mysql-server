@@ -42,6 +42,7 @@ extern int g_ndb_shm_signum;
 #include <NdbTick.h>
 #include <InputStream.hpp>
 #include <OutputStream.hpp>
+#include <socket_io.h>
 
 #include <mgmapi/mgmapi.h>
 #include <mgmapi_internal.h>
@@ -71,15 +72,17 @@ TransporterRegistry::get_bytes_received(NodeId node_id) const
 SocketServer::Session * TransporterService::newSession(NDB_SOCKET_TYPE sockfd)
 {
   DBUG_ENTER("SocketServer::Session * TransporterService::newSession");
-  if (m_auth && !m_auth->server_authenticate(sockfd)){
-    NDB_CLOSE_SOCKET(sockfd);
+  if (m_auth && !m_auth->server_authenticate(sockfd))
+  {
+    ndb_socket_close(sockfd, true); // Close with reset
     DBUG_RETURN(0);
   }
 
   BaseString msg;
-  if (!m_transporter_registry->connect_server(sockfd, msg))
+  bool close_with_reset = true;
+  if (!m_transporter_registry->connect_server(sockfd, msg, close_with_reset))
   {
-    NDB_CLOSE_SOCKET(sockfd);
+    ndb_socket_close(sockfd, close_with_reset);
     DBUG_RETURN(0);
   }
 
@@ -437,7 +440,8 @@ TransporterRegistry::init(TransporterReceiveHandle& recvhandle)
 
 bool
 TransporterRegistry::connect_server(NDB_SOCKET_TYPE sockfd,
-                                    BaseString & msg) const
+                                    BaseString & msg,
+                                    bool& close_with_reset) const
 {
   DBUG_ENTER("TransporterRegistry::connect_server(sockfd)");
 
@@ -501,6 +505,27 @@ TransporterRegistry::connect_server(NDB_SOCKET_TYPE sockfd,
 
     DBUG_PRINT("error", ("Transporter for node id %d in wrong state",
                          nodeId));
+
+    // Avoid TIME_WAIT on server by requesting client to close connection
+    SocketOutputStream s_output(sockfd);
+    if (s_output.println("BYE") < 0)
+    {
+      // Failed to request client close
+      DBUG_PRINT("error", ("Failed to send client BYE"));
+      DBUG_RETURN(false);
+    }
+
+    // Wait for to close connection by reading EOF(i.e read returns 0)
+    const int read_eof_timeout = 1000; // Fairly short timeout
+    if (read_socket(sockfd, read_eof_timeout,
+                    buf, sizeof(buf)) == 0)
+    {
+      // Client gracefully closed connection, turn off close_with_reset
+      close_with_reset = false;
+      DBUG_RETURN(false);
+    }
+
+    // Failed to request client close
     DBUG_RETURN(false);
   }
 

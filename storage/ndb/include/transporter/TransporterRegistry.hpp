@@ -178,12 +178,24 @@ public:
   bool init(TransporterReceiveHandle&);
 
   /**
-     Handle the handshaking with a new client connection
-     on the server port.
-     NOTE! Connection should be closed if function
+     Perform handshaking of a client connection to accept it
+     as transporter.
+
+     @note Connection should be closed by caller if function
      returns false
+
+     @param sockfd           the socket to handshake
+     @param mgs              error message describing why handshake failed,
+                             to be filled in when function return
+     @param close_with_reset allows the function to indicate to the caller
+                             how the socket should be closed when function
+                             returns false
+
+     @returns false on failure and true on success
   */
-  bool connect_server(NDB_SOCKET_TYPE sockfd, BaseString& errormsg) const;
+  bool connect_server(NDB_SOCKET_TYPE sockfd,
+                      BaseString& msg,
+                      bool& close_with_reset) const;
 
   bool connect_client(NdbMgmHandle *h);
 
