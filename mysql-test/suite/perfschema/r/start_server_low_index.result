@@ -114,7 +114,7 @@ performance_schema_max_cond_instances	1000
 performance_schema_max_file_classes	50
 performance_schema_max_file_handles	32768
 performance_schema_max_file_instances	10000
-performance_schema_max_index_stat	0
+performance_schema_max_index_stat	1
 performance_schema_max_memory_classes	320
 performance_schema_max_metadata_locks	10000
 performance_schema_max_mutex_classes	200
@@ -149,22 +149,32 @@ insert into db1.t1 values('2', 'abc');
 select * from db1.t1 where a='1';
 a	b
 1	abc
-select COUNT_STAR from performance_schema.table_io_waits_summary_by_table
-where OBJECT_SCHEMA='db1' and OBJECT_NAME='t1';
-COUNT_STAR
-3
-select COUNT_STAR from performance_schema.table_io_waits_summary_by_index_usage
-where INDEX_NAME!='NULL';
-COUNT_STAR
-1
-FLUSH TABLES;
-select COUNT_STAR from performance_schema.table_io_waits_summary_by_table
-where OBJECT_SCHEMA='db1' and OBJECT_NAME='t1';
-COUNT_STAR
-0
-select COUNT_STAR from performance_schema.table_io_waits_summary_by_index_usage
-where INDEX_NAME!='NULL';
-COUNT_STAR
+select COUNT_STAR, OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME
+from performance_schema.table_io_waits_summary_by_table
+where OBJECT_SCHEMA='db1'
+  order by OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME;
+COUNT_STAR	OBJECT_TYPE	OBJECT_SCHEMA	OBJECT_NAME
+3	TABLE	db1	t1
+select COUNT_STAR, OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, INDEX_NAME
+from performance_schema.table_io_waits_summary_by_index_usage
+where OBJECT_SCHEMA='db1'
+  order by OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, INDEX_NAME;
+COUNT_STAR	OBJECT_TYPE	OBJECT_SCHEMA	OBJECT_NAME	INDEX_NAME
+2	TABLE	db1	t1	NULL
+1	TABLE	db1	t1	(index 0)
+flush tables;
+select COUNT_STAR, OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME
+from performance_schema.table_io_waits_summary_by_table
+where OBJECT_SCHEMA='db1'
+  order by OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME;
+COUNT_STAR	OBJECT_TYPE	OBJECT_SCHEMA	OBJECT_NAME
+1	TABLE	db1	t1
+select COUNT_STAR, OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, INDEX_NAME
+from performance_schema.table_io_waits_summary_by_index_usage
+where OBJECT_SCHEMA='db1'
+  order by OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, INDEX_NAME;
+COUNT_STAR	OBJECT_TYPE	OBJECT_SCHEMA	OBJECT_NAME	INDEX_NAME
+1	TABLE	db1	t1	uidx
 select variable_value > 0 from information_schema.global_status
 where variable_name like 'PERFORMANCE_SCHEMA_INDEX_STAT_LOST';
 variable_value > 0
@@ -174,4 +184,89 @@ select variable_value from information_schema.global_status
 where variable_name like 'PERFORMANCE_SCHEMA_INDEX_STAT_LOST';
 variable_value
 0
+create table db1.t2 (a int, b char(10) default 'default',
+unique key uidx(a));
+insert into db1.t1 values('3', 'abc');
+insert into db1.t1 values('4', 'abc');
+select * from db1.t1 where a='1';
+a	b
+1	abc
+insert into db1.t2 values('1', 'abc');
+insert into db1.t2 values('2', 'abc');
+select * from db1.t2 where a='1';
+a	b
+1	abc
+select COUNT_STAR, OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME
+from performance_schema.table_io_waits_summary_by_table
+where OBJECT_SCHEMA='db1'
+  order by OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME;
+COUNT_STAR	OBJECT_TYPE	OBJECT_SCHEMA	OBJECT_NAME
+4	TABLE	db1	t1
+3	TABLE	db1	t2
+select COUNT_STAR, OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, INDEX_NAME
+from performance_schema.table_io_waits_summary_by_index_usage
+where OBJECT_SCHEMA='db1'
+  order by OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, INDEX_NAME;
+COUNT_STAR	OBJECT_TYPE	OBJECT_SCHEMA	OBJECT_NAME	INDEX_NAME
+2	TABLE	db1	t1	NULL
+2	TABLE	db1	t1	uidx
+2	TABLE	db1	t2	NULL
+1	TABLE	db1	t2	(index 0)
+flush tables;
+select COUNT_STAR, OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME
+from performance_schema.table_io_waits_summary_by_table
+where OBJECT_SCHEMA='db1'
+  order by OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME;
+COUNT_STAR	OBJECT_TYPE	OBJECT_SCHEMA	OBJECT_NAME
+2	TABLE	db1	t1
+0	TABLE	db1	t2
+select COUNT_STAR, OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, INDEX_NAME
+from performance_schema.table_io_waits_summary_by_index_usage
+where OBJECT_SCHEMA='db1'
+  order by OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, INDEX_NAME;
+COUNT_STAR	OBJECT_TYPE	OBJECT_SCHEMA	OBJECT_NAME	INDEX_NAME
+2	TABLE	db1	t1	uidx
+select variable_value > 0 from information_schema.global_status
+where variable_name like 'PERFORMANCE_SCHEMA_INDEX_STAT_LOST';
+variable_value > 0
+1
+FLUSH STATUS;
+update performance_schema.setup_objects set ENABLED='NO' where OBJECT_TYPE='TABLE';
+insert into db1.t1 values('5', 'abc');
+insert into db1.t1 values('6', 'abc');
+select * from db1.t1 where a='1';
+a	b
+1	abc
+insert into db1.t2 values('3', 'abc');
+insert into db1.t2 values('4', 'abc');
+select * from db1.t2 where a='1';
+a	b
+1	abc
+select COUNT_STAR, OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME
+from performance_schema.table_io_waits_summary_by_table
+where OBJECT_SCHEMA='db1'
+  order by OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME;
+COUNT_STAR	OBJECT_TYPE	OBJECT_SCHEMA	OBJECT_NAME
+select COUNT_STAR, OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, INDEX_NAME
+from performance_schema.table_io_waits_summary_by_index_usage
+where OBJECT_SCHEMA='db1'
+  order by OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, INDEX_NAME;
+COUNT_STAR	OBJECT_TYPE	OBJECT_SCHEMA	OBJECT_NAME	INDEX_NAME
+flush tables;
+select COUNT_STAR, OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME
+from performance_schema.table_io_waits_summary_by_table
+where OBJECT_SCHEMA='db1'
+  order by OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME;
+COUNT_STAR	OBJECT_TYPE	OBJECT_SCHEMA	OBJECT_NAME
+select COUNT_STAR, OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, INDEX_NAME
+from performance_schema.table_io_waits_summary_by_index_usage
+where OBJECT_SCHEMA='db1'
+  order by OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, INDEX_NAME;
+COUNT_STAR	OBJECT_TYPE	OBJECT_SCHEMA	OBJECT_NAME	INDEX_NAME
+select variable_value from information_schema.global_status
+where variable_name like 'PERFORMANCE_SCHEMA_INDEX_STAT_LOST';
+variable_value
+0
 drop database db1;
+update performance_schema.setup_objects set ENABLED='YES'
+  where OBJECT_TYPE='TABLE' and OBJECT_SCHEMA="%";
