@@ -369,8 +369,8 @@ SysTablespace::set_size(
 			<< (file.m_size >> (20 - UNIV_PAGE_SIZE_SHIFT))
 			<< " MB.";
 	} else {
-		ib::error() << "Could not set the file size of '%s'."
-			" Probably out of disk space", file.filepath();
+		ib::error() << "Could not set the file size of '"
+			<< file.filepath() << "'. Probably out of disk space";
 
 		return(DB_ERROR);
 	}

@@ -828,7 +828,6 @@ Mts_submode_logical_clock::get_least_occupied_worker(Relay_log_info *rli,
                                                      Slave_worker_array *ws,
                                                      Log_event * ev)
 {
-  Slave_committed_queue *gaq= rli->gaq;
   Slave_worker *worker= NULL;
   PSI_stage_info *old_stage= 0;
   THD* thd= rli->info_thd;
@@ -844,6 +843,7 @@ Mts_submode_logical_clock::get_least_occupied_worker(Relay_log_info *rli,
     DBUG_ASSERT(worker != NULL);
     DBUG_RETURN(worker);
   }
+  Slave_committed_queue *gaq= rli->gaq;
   Slave_job_group* ptr_group;
   ptr_group= gaq->get_job_group(rli->gaq->assigned_group_index);
 #endif

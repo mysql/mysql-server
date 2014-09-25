@@ -5407,11 +5407,17 @@ sub mysqld_arguments ($$$) {
 
   my $found_skip_core= 0;
   my $found_no_console= 0;
+  my $found_log_error= 0;
   foreach my $arg ( @$extra_opts )
   {
     # Skip --defaults-file option since it's handled above.
     next if $arg =~ /^--defaults-file/;
    
+
+    if ($arg eq "--log-error")
+    {
+      $found_log_error= 1;
+    }
 
     # Allow --skip-core-file to be set in <testname>-[master|slave].opt file
     if ($arg eq "--skip-core-file")
@@ -5442,7 +5448,7 @@ sub mysqld_arguments ($$$) {
     }
   }
   $opt_skip_core = $found_skip_core;
-  if (IS_WINDOWS && !$found_no_console)
+  if (IS_WINDOWS && !$found_no_console && !$found_log_error)
   {
     # Trick the server to send output to stderr, with --console
     mtr_add_arg($args, "--console");
