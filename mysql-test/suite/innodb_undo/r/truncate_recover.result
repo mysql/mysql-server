@@ -58,6 +58,8 @@ commit;
 Pattern "ib_undo_trunc_before_ddl_log_end" found
 # restart
 drop table t1;
+call mtr.add_suppression("Header page consists of zero bytes.*undo001");
+call mtr.add_suppression("Datafile.*undo001' is corrupted");
 set global debug="+d,ib_undo_trunc_trunc_done";
 create table t1
 (keyc int, c1 char(100), c2 char(100),
