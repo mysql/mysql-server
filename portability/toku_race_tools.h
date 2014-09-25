@@ -138,3 +138,22 @@ PATENT RIGHTS GRANT:
 # define RUNNING_ON_VALGRIND (0U)
 
 #endif
+
+// Unsafely fetch and return a `T' from src, telling drd to ignore 
+// racey access to src for the next sizeof(*src) bytes
+template <typename T>
+T toku_drd_unsafe_fetch(T *src) {
+    TOKU_DRD_IGNORE_VAR(*src);
+    T val = *src;
+    TOKU_DRD_STOP_IGNORING_VAR(*src);
+    return val;
+}
+
+// Unsafely set a `T' value into *dest from src, telling drd to ignore 
+// racey access to dest for the next sizeof(*dest) bytes
+template <typename T>
+void toku_drd_unsafe_set(T *dest, const T src) {
+    TOKU_DRD_IGNORE_VAR(*dest);
+    *dest = src;
+    TOKU_DRD_STOP_IGNORING_VAR(*dest);
+}
