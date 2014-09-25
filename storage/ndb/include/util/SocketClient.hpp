@@ -26,6 +26,7 @@ class SocketClient
   struct sockaddr_in m_servaddr;
   unsigned int m_connect_timeout_millisec;
   unsigned short m_port;
+  unsigned short m_last_used_port;
   char *m_server_name;
   SocketAuthenticator *m_auth;
 public:
