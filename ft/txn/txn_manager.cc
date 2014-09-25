@@ -325,7 +325,7 @@ toku_txn_manager_get_oldest_living_xid(TXN_MANAGER txn_manager) {
 }
 
 TXNID toku_txn_manager_get_oldest_referenced_xid_estimate(TXN_MANAGER txn_manager) {
-    return txn_manager->last_calculated_oldest_referenced_xid;
+    return toku_drd_unsafe_fetch(&txn_manager->last_calculated_oldest_referenced_xid);
 }
 
 int live_root_txn_list_iter(const TOKUTXN &live_xid, const uint32_t UU(index), TXNID **const referenced_xids);
@@ -385,7 +385,7 @@ static void set_oldest_referenced_xid(TXN_MANAGER txn_manager) {
         oldest_referenced_xid = txn_manager->last_xid;
     }
     invariant(oldest_referenced_xid != TXNID_MAX);
-    txn_manager->last_calculated_oldest_referenced_xid = oldest_referenced_xid;
+    toku_drd_unsafe_set(&txn_manager->last_calculated_oldest_referenced_xid, oldest_referenced_xid);
 }
 
 //Heaviside function to find a TOKUTXN by TOKUTXN (used to find the index)

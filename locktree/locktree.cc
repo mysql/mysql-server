@@ -275,7 +275,7 @@ void locktree::sto_end(void) {
 void locktree::sto_end_early_no_accounting(void *prepared_lkr) {
     sto_migrate_buffer_ranges_to_tree(prepared_lkr);
     sto_end();
-    m_sto_score = 0;
+    toku_drd_unsafe_set(&m_sto_score, 0);
 }
 
 void locktree::sto_end_early(void *prepared_lkr) {
@@ -536,11 +536,11 @@ void locktree::remove_overlapping_locks_for_txnid(TXNID txnid,
 }
 
 bool locktree::sto_txnid_is_valid_unsafe(void) const {
-    return m_sto_txnid != TXNID_NONE;
+    return toku_drd_unsafe_fetch(&m_sto_txnid) != TXNID_NONE;
 }
 
 int locktree::sto_get_score_unsafe(void) const {
-    return m_sto_score;
+    return toku_drd_unsafe_fetch(&m_sto_score);
 }
 
 bool locktree::sto_try_release(TXNID txnid) {

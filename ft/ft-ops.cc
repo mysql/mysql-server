@@ -1200,7 +1200,7 @@ exit:
 // We need a function to have something a drd suppression can reference
 // see src/tests/drd.suppressions (unsafe_touch_clock)
 static void unsafe_touch_clock(FTNODE node, int i) {
-    BP_TOUCH_CLOCK(node, i);
+    toku_drd_unsafe_set(&node->bp[i].clock_count, static_cast<unsigned char>(1));
 }
 
 // Callback that states if a partial fetch of the node is necessary
@@ -1620,13 +1620,13 @@ static void inject_message_in_locked_node(
     paranoid_invariant(msg_with_msn.msn().msn == node->max_msn_applied_to_node_on_disk.msn);
 
     if (node->blocknum.b == ft->rightmost_blocknum.b) {
-        if (ft->seqinsert_score < FT_SEQINSERT_SCORE_THRESHOLD) {
+        if (toku_drd_unsafe_fetch(&ft->seqinsert_score) < FT_SEQINSERT_SCORE_THRESHOLD) {
             // we promoted to the rightmost leaf node and the seqinsert score has not yet saturated.
             toku_sync_fetch_and_add(&ft->seqinsert_score, 1);
         }
-    } else if (ft->seqinsert_score != 0) {
+    } else if (toku_drd_unsafe_fetch(&ft->seqinsert_score) != 0) {
         // we promoted to something other than the rightmost leaf node and the score should reset
-        ft->seqinsert_score = 0;
+        toku_drd_unsafe_set(&ft->seqinsert_score, static_cast<uint32_t>(0));
     }
 
     // if we call toku_ft_flush_some_child, then that function unpins the root
@@ -1785,19 +1785,19 @@ static inline bool should_inject_in_node(seqinsert_loc loc, int height, int dept
     return (height == 0 || (loc == NEITHER_EXTREME && (height <= 1 || depth >= 2)));
 }
 
-static void ft_set_or_verify_rightmost_blocknum(FT ft, BLOCKNUM b)
+static void ft_verify_or_set_rightmost_blocknum(FT ft, BLOCKNUM b)
 // Given: 'b', the _definitive_ and constant rightmost blocknum of 'ft'
 {
-    if (ft->rightmost_blocknum.b == RESERVED_BLOCKNUM_NULL) {
+    if (toku_drd_unsafe_fetch(&ft->rightmost_blocknum.b) == RESERVED_BLOCKNUM_NULL) {
         toku_ft_lock(ft);
         if (ft->rightmost_blocknum.b == RESERVED_BLOCKNUM_NULL) {
-            ft->rightmost_blocknum = b;
+            toku_drd_unsafe_set(&ft->rightmost_blocknum, b);
         }
         toku_ft_unlock(ft);
     }
     // The rightmost blocknum only transitions from RESERVED_BLOCKNUM_NULL to non-null.
     // If it's already set, verify that the stored value is consistent with 'b'
-    invariant(ft->rightmost_blocknum.b == b.b);
+    invariant(toku_drd_unsafe_fetch(&ft->rightmost_blocknum.b) == b.b);
 }
 
 bool toku_bnc_should_promote(FT ft, NONLEAF_CHILDINFO bnc) {
@@ -1859,7 +1859,7 @@ static void push_something_in_subtree(
         // otherwise. We explicitly skip the root node because then we don't have
         // to worry about changing the rightmost blocknum when the root splits.
         if (subtree_root->height == 0 && loc == RIGHT_EXTREME && subtree_root->blocknum.b != ft->h->root_blocknum.b) {
-            ft_set_or_verify_rightmost_blocknum(ft, subtree_root->blocknum);
+            ft_verify_or_set_rightmost_blocknum(ft, subtree_root->blocknum);
         }
         inject_message_in_locked_node(ft, subtree_root, target_childnum, msg, flow_deltas, gc_info);
     } else {
@@ -2276,20 +2276,21 @@ static int ft_maybe_insert_into_rightmost_leaf(FT ft, DBT *key, DBT *val, XIDS m
     int r = -1;
 
     uint32_t rightmost_fullhash;
-    BLOCKNUM rightmost_blocknum = ft->rightmost_blocknum;
+    BLOCKNUM rightmost_blocknum;
     FTNODE rightmost_leaf = nullptr;
 
     // Don't do the optimization if our heurstic suggests that
     // insertion pattern is not sequential.
-    if (ft->seqinsert_score < FT_SEQINSERT_SCORE_THRESHOLD) {
+    if (toku_drd_unsafe_fetch(&ft->seqinsert_score) < FT_SEQINSERT_SCORE_THRESHOLD) {
         goto cleanup;
     }
 
     // We know the seqinsert score is high enough that we should
-    // attemp to directly insert into the right most leaf. Because
+    // attempt to directly insert into the rightmost leaf. Because
     // the score is non-zero, the rightmost blocknum must have been
     // set. See inject_message_in_locked_node(), which only increases
     // the score if the target node blocknum == rightmost_blocknum
+    rightmost_blocknum = ft->rightmost_blocknum;
     invariant(rightmost_blocknum.b != RESERVED_BLOCKNUM_NULL);
 
     // Pin the rightmost leaf with a write lock.
