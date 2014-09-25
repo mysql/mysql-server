@@ -1152,10 +1152,10 @@ fil_space_free_low(
 	     node != NULL; ) {
 		ut_d(space->size -= node->size);
 		os_event_destroy(node->sync_event);
-		::ut_free(node->name);
+		ut_free(node->name);
 		fil_node_t* old_node = node;
 		node = UT_LIST_GET_NEXT(chain, node);
-		::ut_free(old_node);
+		ut_free(old_node);
 	}
 
 	ut_ad(space->size == 0);
