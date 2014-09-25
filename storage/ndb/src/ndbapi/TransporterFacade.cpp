@@ -2032,11 +2032,6 @@ TransporterFacade::ownId() const
   return theOwnId;
 }
 
-bool
-TransporterFacade::isConnected(NodeId aNodeId){
-  return theTransporterRegistry->is_connected(aNodeId);
-}
-
 NodeId
 TransporterFacade::get_an_alive_node()
 {
