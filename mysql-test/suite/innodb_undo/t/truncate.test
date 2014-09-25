@@ -3,17 +3,10 @@
 #
 
 --source include/have_innodb.inc
-# this is must to ensure that trx_purge_truncate is called with increased
-# frequency so that undo logs are cleared.
---source include/have_debug.inc
-# We are printing size of undo log below and if page size keeps on
-# varying then initial size too keeps on varying.
---source include/have_innodb_16k.inc
 --source include/have_undo_tablespaces.inc
 
-# TC check if truncate is completed in given time frame. When
-# test is run under valgrind there is no such time assurance.
---source include/not_valgrind.inc
+# The test is restarting the server to force undo truncation.
+--source include/not_embedded.inc
 --source include/big_test.inc
 
 
@@ -29,26 +22,13 @@
 #
 # create test-bed
 #
-let MYSQL_DATA_DIR_ENV = `select @@datadir`;
-let $MYSQL_DATA_DIR = `select @@datadir`;
+let MYSQLD_DATADIR = `select @@datadir`;
 
 #-----------------------------------------------------------------------------
 #
 # 1. Perform enough DML action so that undo tablespace size grows beyond
 #    set threshold and then wait and see if it is being truncated.
 #
---echo "List the size of undo tablespace"
-perl;
-	my $datadir = $ENV{'MYSQL_DATA_DIR_ENV'};
-	my $filesize = -s "$datadir/undo001";
-	open (OUTPUT, ">$datadir/wl6965.output");
-	print OUTPUT "let \$size= $filesize;\n";
-	close (OUTPUT);
-EOF
---source $MYSQL_DATA_DIR/wl6965.output
---echo $size;
-#
-use test;
 create table t1
         (keyc int, c1 char(100), c2 char(100),
          primary key(keyc)) engine = innodb;
@@ -68,24 +48,36 @@ delete from t1 where keyc < 20000;
 update t1 set c1 = 'mysql' where  keyc > 20000;
 update t1 set c2 = 'oracle' where  keyc > 20000;
 #
---echo "List the size of undo tablespace"
-perl;
-	my $datadir = $ENV{'MYSQL_DATA_DIR_ENV'};
-	my $filesize = -s "$datadir/undo001";
-	open (OUTPUT, ">$datadir/wl6965.output");
-	print OUTPUT "let \$size= $filesize;\n";
-	close (OUTPUT);
-EOF
---source $MYSQL_DATA_DIR/wl6965.output
---echo $size;
-#
 commit;
 drop table t1;
 drop PROCEDURE populate_t1;
---sleep 40
 
-#-----------------------------------------------------------------------------
-#
-# remove test-bed
-#
+let CHECKFILE = $MYSQLTEST_VARDIR/log/check.txt;
 
+perl;
+($dev,$ino,$mode,$nlink,$uid,$gid,$rdev,$size1)
+	= stat("$ENV{MYSQLD_DATADIR}/undo001");
+($dev,$ino,$mode,$nlink,$uid,$gid,$rdev,$size2)
+	= stat("$ENV{MYSQLD_DATADIR}/undo002");
+open(OUT, ">$ENV{CHECKFILE}") || die;
+print OUT "let \$size1='$size1,$size2';\n";
+close(OUT);
+EOF
+SET GLOBAL innodb_fast_shutdown=0;
+--source include/restart_mysqld.inc
+--source $CHECKFILE
+perl;
+($dev,$ino,$mode,$nlink,$uid,$gid,$rdev,$size1)
+	= stat("$ENV{MYSQLD_DATADIR}/undo001");
+($dev,$ino,$mode,$nlink,$uid,$gid,$rdev,$size2)
+	= stat("$ENV{MYSQLD_DATADIR}/undo002");
+open(OUT, ">$ENV{CHECKFILE}") || die;
+print OUT "let \$size2='$size1,$size2';\n";
+close(OUT);
+EOF
+--source $CHECKFILE
+
+if ($size1 == $size2)
+{
+   echo Truncation did not happen: $size1 == $size2;
+}

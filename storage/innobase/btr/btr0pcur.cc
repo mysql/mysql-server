@@ -360,40 +360,28 @@ btr_pcur_restore_position_func(
 	/* Restore the old search mode */
 	cursor->search_mode = old_mode;
 
-	switch (cursor->rel_pos) {
-	case BTR_PCUR_ON:
-		if (btr_pcur_is_on_user_rec(cursor)
-		    && !cmp_dtuple_rec(
-			    tuple, btr_pcur_get_rec(cursor),
-			    rec_get_offsets(btr_pcur_get_rec(cursor),
-					    index, NULL,
-					    ULINT_UNDEFINED, &heap))) {
+	ut_ad(cursor->rel_pos == BTR_PCUR_ON
+	      || cursor->rel_pos == BTR_PCUR_BEFORE
+	      || cursor->rel_pos == BTR_PCUR_AFTER);
+	if (cursor->rel_pos == BTR_PCUR_ON
+	    && btr_pcur_is_on_user_rec(cursor)
+	    && !cmp_dtuple_rec(tuple, btr_pcur_get_rec(cursor),
+			       rec_get_offsets(btr_pcur_get_rec(cursor),
+			       index, NULL, ULINT_UNDEFINED, &heap))) {
 
-			/* We have to store the NEW value for
-			the modify clock, since the cursor can
-			now be on a different page! But we can
-			retain the value of old_rec */
+		/* We have to store the NEW value for the modify clock,
+		since the cursor can now be on a different page!
+		But we can retain the value of old_rec */
 
-			cursor->block_when_stored =
-				btr_pcur_get_block(cursor);
-			cursor->modify_clock =
-				buf_block_get_modify_clock(
-					cursor->block_when_stored);
-			cursor->old_stored = true;
-			cursor->withdraw_clock = buf_withdraw_clock;
+		cursor->block_when_stored = btr_pcur_get_block(cursor);
+		cursor->modify_clock = buf_block_get_modify_clock(
+						cursor->block_when_stored);
+		cursor->old_stored = true;
+		cursor->withdraw_clock = buf_withdraw_clock;
 
-			mem_heap_free(heap);
+		mem_heap_free(heap);
 
-			return(TRUE);
-		}
-#ifdef UNIV_DEBUG
-		/* fall through */
-	case BTR_PCUR_BEFORE:
-	case BTR_PCUR_AFTER:
-		break;
-	default:
-		ut_error;
-#endif /* UNIV_DEBUG */
+		return(TRUE);
 	}
 
 	mem_heap_free(heap);

@@ -185,20 +185,14 @@ public:
     Only use this method for handles owned by the calling code.
     @sa sanitized_aggregate.
   */
-  void aggregate(void)
+  void aggregate(const TABLE_SHARE *server_share)
   {
-    if (m_has_io_stats && m_has_lock_stats)
+    if (m_has_io_stats)
     {
-      safe_aggregate(& m_table_stat, m_share);
-      m_has_io_stats= false;
-      m_has_lock_stats= false;
-    }
-    else if (m_has_io_stats)
-    {
-      safe_aggregate_io(& m_table_stat, m_share);
+      safe_aggregate_io(server_share, & m_table_stat, m_share);
       m_has_io_stats= false;
     }
-    else if (m_has_lock_stats)
+    if (m_has_lock_stats)
     {
       safe_aggregate_lock(& m_table_stat, m_share);
       m_has_lock_stats= false;
@@ -244,9 +238,8 @@ public:
   PFS_TL_LOCK_TYPE m_external_lock;
 
 private:
-  static void safe_aggregate(PFS_table_stat *stat,
-                             PFS_table_share *safe_share);
-  static void safe_aggregate_io(PFS_table_stat *stat,
+  static void safe_aggregate_io(const TABLE_SHARE *optional_server_share,
+                                PFS_table_stat *stat,
                                 PFS_table_share *safe_share);
   static void safe_aggregate_lock(PFS_table_stat *stat,
                                   PFS_table_share *safe_share);

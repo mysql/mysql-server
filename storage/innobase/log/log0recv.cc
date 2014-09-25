@@ -3150,14 +3150,43 @@ recv_init_crash_recovery(void)
 	recv_needed_recovery = TRUE;
 }
 
+/** Report a missing tablespace for which page-redo log exists.
+@param[in]	err	previous error code
+@param[in]	i	tablespace descriptor
+@return new error code */
+static
+dberr_t
+recv_init_missing_space(dberr_t err, const recv_spaces_t::const_iterator& i)
+{
+	if (srv_force_recovery == 0) {
+		ib::error() << "Tablespace " << i->first << " was not"
+			" found at " << i->second.name << ".";
+
+		if (err == DB_SUCCESS) {
+			ib::error() << "Set innodb_force_recovery=1 to"
+				" ignore this and to permanently lose"
+				" all changes to the tablespace.";
+			err = DB_TABLESPACE_NOT_FOUND;
+		}
+	} else {
+		ib::warn() << "Tablespace " << i->first << " was not"
+			" found at " << i->second.name << ", and"
+			" innodb_force_recovery was set. All redo log"
+			" for this tablespace will be ignored!";
+	}
+
+	return(err);
+}
+
 /** Check if all tablespaces were found for crash recovery.
 @return error code or DB_SUCCESS */
 static __attribute__((warn_unused_result))
 dberr_t
 recv_init_crash_recovery_spaces(void)
 {
-	dberr_t	err		= DB_SUCCESS;
-	bool	flag_deleted	= false;
+	typedef std::set<ulint>	space_set_t;
+	bool		flag_deleted	= false;
+	space_set_t	missing_spaces;
 
 	ut_ad(!srv_read_only_mode);
 	ut_ad(recv_needed_recovery);
@@ -3178,32 +3207,15 @@ recv_init_crash_recovery_spaces(void)
 			fil_names_dirty(i->second.space);
 		} else if (i->first == TRX_SYS_SPACE) {
 			/* The system tablespace is always opened. */
-		} else if (srv_force_recovery == 0) {
-			ib::error() << "Tablespace " << i->first << " was not"
-				" found at " << i->second.name << ".";
-
-			if (err == DB_SUCCESS) {
-				ib::error() << "Set innodb_force_recovery=1 to"
-					" ignore this and to permanently lose"
-					" all changes to the tablespace.";
-				err = DB_TABLESPACE_NOT_FOUND;
-			}
 		} else {
-			ib::warn() << "Tablespace " << i->first << " was not"
-				" found at " << i->second.name << ", and"
-				" innodb_force_recovery was set. All redo log"
-				" for this tablespace will be ignored!";
-
-			i->second.deleted = true;
+			missing_spaces.insert(i->first);
 			flag_deleted = true;
 		}
 	}
 
-	if (err != DB_SUCCESS) {
-		return(err);
-	}
-
 	if (flag_deleted) {
+		dberr_t err = DB_SUCCESS;
+
 		for (ulint h = 0;
 		     h < hash_get_n_cells(recv_sys->addr_hash);
 		     h++) {
@@ -3220,15 +3232,44 @@ recv_init_crash_recovery_spaces(void)
 					continue;
 				}
 
-				recv_spaces_t::const_iterator i
+				recv_spaces_t::iterator i
 					= recv_spaces.find(space);
 				ut_ad(i != recv_spaces.end());
 
 				if (i->second.deleted) {
+					ut_ad(missing_spaces.find(space)
+					      == missing_spaces.end());
 					recv_addr->state = RECV_DISCARDED;
+					continue;
+				}
+
+				space_set_t::iterator m = missing_spaces.find(
+					space);
+
+				if (m != missing_spaces.end()) {
+					missing_spaces.erase(m);
+					err = recv_init_missing_space(err, i);
+					recv_addr->state = RECV_DISCARDED;
+					/* All further redo log for this
+					tablespace should be removed. */
+					i->second.deleted = true;
 				}
 			}
 		}
+
+		if (err != DB_SUCCESS) {
+			return(err);
+		}
+	}
+
+	for (space_set_t::const_iterator m = missing_spaces.begin();
+	     m != missing_spaces.end(); m++) {
+		recv_spaces_t::iterator i = recv_spaces.find(*m);
+		ut_ad(i != recv_spaces.end());
+
+		ib::info() << "Tablespace " << i->first
+			<< " was not found at '" << i->second.name
+			<< "', but there were no modifications either.";
 	}
 
 	buf_dblwr_process();

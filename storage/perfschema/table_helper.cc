@@ -336,21 +336,38 @@ void PFS_object_row::set_nullable_field(uint index, Field *f)
   }
 }
 
-int PFS_index_row::make_row(PFS_table_share *pfs, uint table_index)
+int PFS_index_row::make_row(PFS_table_share *pfs,
+                            PFS_table_share_index *pfs_index,
+                            uint table_index)
 {
   if (m_object_row.make_row(pfs))
     return 1;
 
+  if (pfs_index == NULL)
+  {
+    if (table_index < MAX_INDEXES)
+    {
+      m_index_name_length= sprintf(m_index_name, "(index %d)", table_index);
+    }
+    else
+    {
+      m_index_name_length= 0;
+    }
+    return 0;
+  }
+
   if (table_index < MAX_INDEXES)
   {
-    PFS_table_key *key= &pfs->m_keys[table_index];
-    m_index_name_length= key->m_name_length;
+    m_index_name_length= pfs_index->m_key.m_name_length;
     if (m_index_name_length > sizeof(m_index_name))
       return 1;
-    memcpy(m_index_name, key->m_name, sizeof(m_index_name));
+
+    memcpy(m_index_name, pfs_index->m_key.m_name, sizeof(m_index_name));
   }
   else
+  {
     m_index_name_length= 0;
+  }
 
   return 0;
 }
