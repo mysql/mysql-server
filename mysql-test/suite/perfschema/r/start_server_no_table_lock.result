@@ -126,7 +126,7 @@ performance_schema_max_rwlock_instances	5000
 performance_schema_max_socket_classes	10
 performance_schema_max_socket_instances	1000
 performance_schema_max_stage_classes	150
-performance_schema_max_statement_classes	189
+performance_schema_max_statement_classes	188
 performance_schema_max_statement_stack	10
 performance_schema_max_table_handles	1000
 performance_schema_max_table_instances	500
@@ -152,7 +152,11 @@ select COUNT_STAR from performance_schema.table_lock_waits_summary_by_table
 where OBJECT_SCHEMA='db1' and OBJECT_NAME='t1';
 COUNT_STAR
 3
-flush tables;
+FLUSH TABLES;
+select COUNT_STAR from performance_schema.table_lock_waits_summary_by_table
+where OBJECT_SCHEMA='db1' and OBJECT_NAME='t1';
+COUNT_STAR
+0
 select variable_value > 0 from information_schema.global_status
 where variable_name like 'PERFORMANCE_SCHEMA_TABLE_LOCK_STAT_LOST';
 variable_value > 0
@@ -161,50 +165,5 @@ FLUSH STATUS;
 select variable_value from information_schema.global_status
 where variable_name like 'PERFORMANCE_SCHEMA_TABLE_LOCK_STAT_LOST';
 variable_value
-0
-select variable_value from information_schema.GLOBAL_VARIABLES where variable_name='performance_schema_max_table_lock_stat';
-variable_value
-1048576
-select variable_value from information_schema.GLOBAL_VARIABLES where variable_name='performance_schema_max_table_lock_stat';
-variable_value
-1
-create table db1.t2 (a int, b char(10) default 'default',
-unique key uidx(a));
-insert into db1.t1 values('3', 'abc');
-insert into db1.t1 values('4', 'abc');
-select * from db1.t1 where a='1';
-a	b
-1	abc
-insert into db1.t2 values('1', 'abc');
-insert into db1.t2 values('2', 'abc');
-select * from db1.t2 where a='1';
-a	b
-1	abc
-select COUNT_STAR from performance_schema.table_io_waits_summary_by_table
-where OBJECT_SCHEMA='db1';
-COUNT_STAR
-3
-7
-flush tables;
-select variable_value > 0 from information_schema.global_status
-where variable_name like 'PERFORMANCE_SCHEMA_TABLE_LOCK_STAT_LOST';
-variable_value > 0
-1
-FLUSH STATUS;
-update performance_schema.setup_objects set ENABLED='NO' where OBJECT_TYPE='TABLE';
-insert into db1.t1 values('5', 'abc');
-insert into db1.t1 values('6', 'abc');
-select * from db1.t1 where a='1';
-a	b
-1	abc
-insert into db1.t2 values('3', 'abc');
-insert into db1.t2 values('4', 'abc');
-select * from db1.t2 where a='1';
-a	b
-1	abc
-flush tables;
-select variable_value > 0 from information_schema.global_status
-where variable_name like 'PERFORMANCE_SCHEMA_TABLE_LOCK_STAT_LOST';
-variable_value > 0
 0
 drop database db1;

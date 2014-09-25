@@ -26,10 +26,15 @@ select * from db1.t1 where a='1';
 # Run few queries on Performance Schema stats tables.
 #####################################################
 # There should be 3 entries in following table. 2 for insert and 1 for select.
+# This is because lock stats are still in the table handles
 select COUNT_STAR from performance_schema.table_lock_waits_summary_by_table
        where OBJECT_SCHEMA='db1' and OBJECT_NAME='t1';
 
-flush tables;
+# Now force aggregation by closing table handles
+FLUSH TABLES;
+
+select COUNT_STAR from performance_schema.table_lock_waits_summary_by_table
+       where OBJECT_SCHEMA='db1' and OBJECT_NAME='t1';
 
 # Expect TABLE_LOCK_STAT lost
 select variable_value > 0 from information_schema.global_status
@@ -40,91 +45,6 @@ FLUSH STATUS;
 
 select variable_value from information_schema.global_status
   where variable_name like 'PERFORMANCE_SCHEMA_TABLE_LOCK_STAT_LOST';
-
-
-#######################################
-#Checking with different Startup values
-#######################################
-
-
-# Checking with higher value 
-############################
-let $restart_file= $MYSQLTEST_VARDIR/tmp/mysqld.1.expect;
---exec echo "wait" > $restart_file
---shutdown_server 10
---source include/wait_until_disconnected.inc
--- exec echo "restart:--performance-schema-max-table-lock-stat=1048576 " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
--- enable_reconnect
--- source include/wait_until_connected_again.inc
-
-select variable_value from information_schema.GLOBAL_VARIABLES where variable_name='performance_schema_max_table_lock_stat';
-
-# Checking with value 1 and checking for lost stats when number of index stats is greater than number of tables. 
-################################################################################################################
-let $restart_file= $MYSQLTEST_VARDIR/tmp/mysqld.1.expect;
---exec echo "wait" > $restart_file
---shutdown_server 10
---source include/wait_until_disconnected.inc
--- exec echo "restart:--performance-schema-max-table-lock-stat=1  " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
--- enable_reconnect
--- source include/wait_until_connected_again.inc
-
-select variable_value from information_schema.GLOBAL_VARIABLES where variable_name='performance_schema_max_table_lock_stat';
-
-
-create table db1.t2 (a int, b char(10) default 'default',
-                         unique key uidx(a));
-
-#######################
-# Execute few queries.
-#######################
-insert into db1.t1 values('3', 'abc');
-insert into db1.t1 values('4', 'abc');
-select * from db1.t1 where a='1';
-
-insert into db1.t2 values('1', 'abc');
-insert into db1.t2 values('2', 'abc');
-select * from db1.t2 where a='1';
-
-#####################################################
-# Run few queries on Performance Schema stats tables.
-#####################################################
-
-select COUNT_STAR from performance_schema.table_io_waits_summary_by_table
-       where OBJECT_SCHEMA='db1';
-
-flush tables;
-
-# Expect TABLE_LOCK_STAT lost
-select variable_value > 0 from information_schema.global_status
-  where variable_name like 'PERFORMANCE_SCHEMA_TABLE_LOCK_STAT_LOST';
-
-FLUSH STATUS;
-
-
-#######################################
-# Update setup_objects to DISABLE TABLE
-#######################################
-
-update performance_schema.setup_objects set ENABLED='NO' where OBJECT_TYPE='TABLE';
-
-#######################
-# Execute few queries.
-#######################
-insert into db1.t1 values('5', 'abc');
-insert into db1.t1 values('6', 'abc');
-select * from db1.t1 where a='1';
-
-insert into db1.t2 values('3', 'abc');
-insert into db1.t2 values('4', 'abc');
-select * from db1.t2 where a='1';
-
-flush tables;
-
-# Do not expect lost counter in TABLE_LOCK_STAT 
-select variable_value > 0 from information_schema.global_status
-  where variable_name like 'PERFORMANCE_SCHEMA_TABLE_LOCK_STAT_LOST';
-
 
 ###########
 # Cleanup.
