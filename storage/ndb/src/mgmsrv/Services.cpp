@@ -1774,15 +1774,18 @@ void
 MgmApiSession::transporter_connect(Parser_t::Context &ctx,
 				   Properties const &args)
 {
+  bool close_with_reset = true;
   BaseString errormsg;
-  if (!m_mgmsrv.transporter_connect(m_socket, errormsg))
+  if (!m_mgmsrv.transporter_connect(m_socket, errormsg, close_with_reset))
   {
     // Connection not allowed or failed
     g_eventLogger->warning("Failed to convert connection "
                            "from '%s' to transporter: %s",
                            name(),
                            errormsg.c_str());
-    // Close the socket to indicate failure to other side
+    // Close the socket to indicate failure to client
+    ndb_socket_close(m_socket, close_with_reset);
+    my_socket_invalidate(&m_socket); // Already closed
   }
   else
   {

@@ -24,6 +24,21 @@
 #include <ndb_socket_posix.h>
 #endif
 
+static inline
+void ndb_socket_close(ndb_socket_t sock, bool with_reset = false)
+{
+  if (with_reset)
+  {
+    // Force hard reset of the socket by turning on linger
+    // with timeout 0
+    struct linger hard_reset = {1, 0};
+    my_setsockopt(sock, SOL_SOCKET, SO_LINGER,
+                  (void*)&hard_reset, sizeof(hard_reset));
+  }
+
+  my_socket_close(sock);
+}
+
 C_MODE_START
 
 /*
