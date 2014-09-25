@@ -105,7 +105,28 @@ echo "================== con1 marker ==================";
 
 --connection default
 
-echo "================== Step 3 ==================";
+echo "================== Step 3-A ==================";
+call dump_thread();
+execute dump_waits_account;
+execute dump_waits_user;
+execute dump_waits_host;
+execute dump_waits_global;
+execute dump_waits_history;
+execute dump_waits_index_io;
+execute dump_waits_table_io;
+execute dump_waits_table_lock;
+execute dump_objects_summary;
+
+--connection con1
+
+# This cause aggregation, so that index names are finally recorded
+flush tables;
+
+echo "================== con1 FLUSH ==================";
+
+--connection default
+
+echo "================== Step 3-B ==================";
 call dump_thread();
 execute dump_waits_account;
 execute dump_waits_user;

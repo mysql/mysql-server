@@ -677,6 +677,9 @@ The following options may be given as the first argument:
  --performance-schema-max-file-instances=# 
  Maximum number of instrumented files. Use 0 to disable,
  -1 for automated sizing.
+ --performance-schema-max-index-stat=# 
+ Maximum number of index statistics for instrumented
+ tables. Use 0 to disable, -1 for automated sizing.
  --performance-schema-max-memory-classes=# 
  Maximum number of memory pool instruments.
  --performance-schema-max-metadata-locks=# 
@@ -715,6 +718,9 @@ The following options may be given as the first argument:
  --performance-schema-max-table-instances=# 
  Maximum number of instrumented tables. Use 0 to disable,
  -1 for automated sizing.
+ --performance-schema-max-table-lock-stat=# 
+ Maximum number of lock statistics for instrumented
+ tables. Use 0 to disable, -1 for automated sizing.
  --performance-schema-max-thread-classes=# 
  Maximum number of thread instruments.
  --performance-schema-max-thread-instances=# 
@@ -1301,6 +1307,7 @@ performance-schema-max-cond-instances -1
 performance-schema-max-file-classes 50
 performance-schema-max-file-handles 32768
 performance-schema-max-file-instances -1
+performance-schema-max-index-stat -1
 performance-schema-max-memory-classes 320
 performance-schema-max-metadata-locks -1
 performance-schema-max-mutex-classes 200
@@ -1316,6 +1323,7 @@ performance-schema-max-statement-classes 188
 performance-schema-max-statement-stack 10
 performance-schema-max-table-handles -1
 performance-schema-max-table-instances -1
+performance-schema-max-table-lock-stat -1
 performance-schema-max-thread-classes 50
 performance-schema-max-thread-instances -1
 performance-schema-session-connect-attrs-size -1

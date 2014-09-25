@@ -240,7 +240,7 @@ void table_os_global_by_type::make_table_row(PFS_table_share *share)
   /* This is a dirty read, some thread can write data while we are reading it */
   safe_key_count= sanitize_index_count(share->m_key_count);
 
-  share->m_table_stat.sum(& cumulated_stat, safe_key_count);
+  share->sum(& cumulated_stat, safe_key_count);
 
   if (! share->m_lock.end_optimistic_lock(&lock))
     return;
