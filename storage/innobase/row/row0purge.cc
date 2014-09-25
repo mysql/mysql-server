@@ -735,6 +735,8 @@ skip_secondaries:
 			index = dict_table_get_first_index(node->table);
 			mtr_sx_lock(dict_index_get_lock(index), &mtr);
 
+			mtr.set_named_space(index->space);
+
 			/* NOTE: we must also acquire an X-latch to the
 			root page of the tree. We will need it when we
 			free pages from the tree. If the tree is of height 1,
