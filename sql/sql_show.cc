@@ -2648,12 +2648,11 @@ static bool show_status_array(THD *thd, const char *wild,
         char *value=var->value;
         const char *pos, *end;                  // We assign a lot of const's
 
-        mysql_mutex_lock(&LOCK_global_system_variables);
-
         if (show_type == SHOW_SYS)
         {
           sys_var *var= ((sys_var *) value);
           show_type= var->show_type();
+          mysql_mutex_lock(&LOCK_global_system_variables);
           value= (char*) var->value_ptr(thd, value_type, &null_lex_str);
           charset= var->charset(thd);
         }
@@ -2754,7 +2753,8 @@ static bool show_status_array(THD *thd, const char *wild,
         thd->count_cuted_fields= CHECK_FIELD_IGNORE;
         table->field[1]->set_notnull();
 
-        mysql_mutex_unlock(&LOCK_global_system_variables);
+        if (var->type == SHOW_SYS)
+          mysql_mutex_unlock(&LOCK_global_system_variables);
 
         if (schema_table_store_record(thd, table))
         {
