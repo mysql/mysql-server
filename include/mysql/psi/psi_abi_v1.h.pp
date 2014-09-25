@@ -432,7 +432,8 @@ typedef void (*unbind_table_v1_t)
   (struct PSI_table *table);
 typedef PSI_table* (*rebind_table_v1_t)
   (PSI_table_share *share, const void *identity, PSI_table *table);
-typedef void (*close_table_v1_t)(struct PSI_table *table);
+typedef void (*close_table_v1_t)(struct TABLE_SHARE *server_share,
+                                 struct PSI_table *table);
 typedef void (*create_file_v1_t)(PSI_file_key key, const char *name,
                                  File file);
 typedef int (*spawn_thread_v1_t)(PSI_thread_key key,
