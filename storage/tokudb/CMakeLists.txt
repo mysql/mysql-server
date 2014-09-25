@@ -18,7 +18,7 @@ IF(NOT LIBJEMALLOC)
 ENDIF()
 
 ############################################
-SET(TOKUDB_VERSION "7.1.8")
+SET(TOKUDB_VERSION "7.5.0")
 SET(TOKUDB_DEB_FILES "usr/lib/mysql/plugin/ha_tokudb.so\netc/mysql/conf.d/tokudb.cnf\nusr/bin/tokuftdump\nusr/share/doc/mariadb-server-5.5/README-TOKUDB\nusr/share/doc/mariadb-server-5.5/README.md" PARENT_SCOPE)
 SET(USE_BDB OFF CACHE BOOL "")
 MARK_AS_ADVANCED(BUILDNAME)

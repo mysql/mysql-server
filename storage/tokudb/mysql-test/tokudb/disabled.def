@@ -59,3 +59,5 @@ mvcc-19: No online ALTER in MariaDB 5.5
 mvcc-20: No online ALTER in MariaDB 5.5
 mvcc-27: No online OPTIMIZE in MariaDB 5.5
 cluster_key_part: engine options on partitioned tables
+i_s_tokudb_lock_waits_released: unstable, race conditions
+i_s_tokudb_locks_released: unstable, race conditions
