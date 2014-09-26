@@ -234,6 +234,18 @@ static void apply_heuristic(PFS_global_param *p, PFS_sizing_data *h)
     p->m_table_share_sizing= apply_load_factor(count, h->m_load_factor_static);
   }
 
+  if (p->m_table_lock_stat_sizing < 0)
+  {
+    /* By default, 1 table lock stat per table share. */
+    p->m_table_lock_stat_sizing= p->m_table_share_sizing;
+  }
+
+  if (p->m_index_stat_sizing < 0)
+  {
+    /* By default, 10 index stat per table share. */
+    p->m_index_stat_sizing= 10 * p->m_table_share_sizing;
+  }
+
   if (p->m_account_sizing < 0)
   {
     p->m_account_sizing= h->m_account_sizing;
@@ -393,6 +405,8 @@ void pfs_automated_sizing(PFS_global_param *param)
 #ifndef HAVE_PSI_TABLE_INTERFACE
   param->m_table_share_sizing= 0;
   param->m_table_sizing= 0;
+  param->m_table_lock_stat_sizing= 0;
+  param->m_index_stat_sizing= 0;
 #endif
 
 #ifndef HAVE_PSI_SOCKET_INTERFACE
@@ -462,6 +476,8 @@ void pfs_automated_sizing(PFS_global_param *param)
   DBUG_ASSERT(param->m_thread_sizing >= 0);
   DBUG_ASSERT(param->m_table_sizing >= 0);
   DBUG_ASSERT(param->m_table_share_sizing >= 0);
+  DBUG_ASSERT(param->m_table_lock_stat_sizing >= 0);
+  DBUG_ASSERT(param->m_index_stat_sizing >= 0);
   DBUG_ASSERT(param->m_metadata_lock_sizing >= 0);
 }
 

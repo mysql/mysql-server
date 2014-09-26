@@ -5,12 +5,6 @@
 --source include/have_innodb.inc
 # This test is restarting the server.
 --source include/not_embedded.inc
-# this is to ensure that trx_purge_truncate is called with increased
-# frequency so that undo logs are cleared.
---source include/have_debug.inc
-# We are printing size of undo log below and if page size keeps on
-# varying then initial size too keeps on varying.
---source include/have_innodb_16k.inc
 --source include/have_undo_tablespaces.inc
 --source include/big_test.inc
 

@@ -1,8 +1,6 @@
 --source include/have_innodb.inc
 --source include/have_debug.inc
 --source include/have_simple_parser.inc
-# Restart is not supported in embedded
---source include/not_embedded.inc
 
 # Install fts parser plugin
 --replace_regex /\.dll/.so/
@@ -41,15 +39,6 @@ SELECT * FROM articles WHERE
 # No result here, we get '"mysql' 'database"' by simple parser
 SELECT * FROM articles WHERE
 	MATCH(title, body) AGAINST('"mysql database"' IN BOOLEAN MODE);
-
-# Don't use plugin parse to parse query
-SET SESSION debug="+d,fts_instrument_query_disable_parser";
-
-# Phrase search
-SELECT * FROM articles WHERE
-	MATCH(title, body) AGAINST('"mysql database"' IN BOOLEAN MODE);
-
-SET SESSION debug="-d,fts_instrument_query_disable_parser";
 
 DROP TABLE articles;
 
@@ -95,15 +84,6 @@ SELECT * FROM articles WHERE
 # No result here, we get '"mysql' 'database"' by simple parser
 SELECT * FROM articles WHERE
 	MATCH(title, body) AGAINST('"mysql database"' IN BOOLEAN MODE);
-
-# Don't use plugin parse to parse query
-SET SESSION debug="+d,fts_instrument_query_disable_parser";
-
-# Phrase search
-SELECT * FROM articles WHERE
-	MATCH(title, body) AGAINST('"mysql database"' IN BOOLEAN MODE);
-
-SET SESSION debug="-d,fts_instrument_query_disable_parser";
 
 DROP TABLE articles;
 -- echo # Test Part 3 END

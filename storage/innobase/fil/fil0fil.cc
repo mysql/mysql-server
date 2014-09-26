@@ -1152,10 +1152,10 @@ fil_space_free_low(
 	     node != NULL; ) {
 		ut_d(space->size -= node->size);
 		os_event_destroy(node->sync_event);
-		::ut_free(node->name);
+		ut_free(node->name);
 		fil_node_t* old_node = node;
 		node = UT_LIST_GET_NEXT(chain, node);
-		::ut_free(old_node);
+		ut_free(old_node);
 	}
 
 	ut_ad(space->size == 0);
@@ -6211,6 +6211,14 @@ fil_names_dirty_and_write(
 
 	UT_LIST_ADD_LAST(fil_system->named_spaces, space);
 	fil_names_write(space, mtr);
+
+	DBUG_EXECUTE_IF("fil_names_write_bogus",
+			{
+				char bogus_name[] = "./test/bogus file.ibd";
+				os_normalize_path_for_win(bogus_name);
+				fil_name_write(
+					ULINT32_UNDEFINED, 0, bogus_name, mtr);
+			});
 }
 
 /** On a log checkpoint, reset fil_names_dirty_and_write() flags
