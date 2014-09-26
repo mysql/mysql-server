@@ -2501,6 +2501,39 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     STR_VALUE(NDB_DEFAULT_HASHMAP_BUCKETS)
   },
 
+  {
+    CFG_CONNECTING_BACKOFF_MAX_TIME,
+    "ConnectingBackoffMaxTime",
+    "API",
+    "Specifies the longest time between connection attempts to a "
+    "data node from an api node in milliseconds (with "
+    "approximately 100ms resolution).  Note that this excludes "
+    "any time while a connection attempt are underway, which in "
+    "worst case can take several seconds.  To disable the backoff "
+    "set it to zero.",
+    ConfigInfo::CI_USED,
+    false,
+    ConfigInfo::CI_INT,
+    "1500",
+    "0",
+    STR_VALUE(MAX_INT_RNIL)
+  },
+
+  {
+    CFG_STARTING_CONNECTING_BACKOFF_MAX_TIME,
+    "StartingConnectingBackoffMaxTime",
+    "API",
+    "This has the same meaning as ConnectingBackoffMaxTime, but "
+    "is used instead of it while no data nodes are connected to "
+    "the API node.",
+    ConfigInfo::CI_USED,
+    false,
+    ConfigInfo::CI_INT,
+    "0",
+    "0",
+    STR_VALUE(MAX_INT_RNIL)
+  },
+
   /****************************************************************************
    * MGM
    ***************************************************************************/
