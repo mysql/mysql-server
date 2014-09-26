@@ -32,7 +32,7 @@ struct dict_sys_t;
 struct dict_col_t;
 struct dict_field_t;
 struct dict_index_t;
-class  dict_table_t;
+struct dict_table_t;
 struct dict_foreign_t;
 
 struct ind_node_t;
