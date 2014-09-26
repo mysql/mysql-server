@@ -780,4 +780,59 @@ SELECT ename, COUNT(*) FROM empdept WHERE empno=dname and empno=deptno GROUP BY 
 drop table emp,dept;
 drop view empdept;
 
+--echo #
+--echo # Bug#19636980 ASSERT `TABLE->OUTER_JOIN' FAILED IN GROUP_CHECK::FIND_FD_IN_JOINED_TABLE
+--echo #
+
+CREATE TABLE t1 (
+  c1 INT,
+  c2 INT,
+  c4 DATE,
+  c5 VARCHAR(1)
+);
+
+CREATE TABLE t2 (
+  c1 INT,
+  c2 INT,
+  c3 INT,
+  c5 VARCHAR(1)
+);
+
+# alias1.c5 is not FD, the error is detected at SELECT time
+CREATE VIEW v1 AS
+  SELECT alias1.c4 AS field1
+  FROM t1 AS alias1
+  INNER JOIN t1 AS alias2
+  ON 1
+GROUP BY field1
+ORDER BY alias1.c5;
+
+--error ER_WRONG_FIELD_WITH_GROUP
+SELECT * FROM v1;
+
+DROP VIEW v1;
+
+# alias1.c5 is FD (WHERE contains: alias1.c5='d')
+CREATE VIEW v1 AS
+  SELECT alias1.c4 AS field1, alias1.c4 AS field2
+  FROM t1 AS alias1
+    INNER JOIN t1 AS alias2
+    ON (alias2.c1 = alias1.c2)
+  WHERE ( NOT EXISTS (
+    SELECT SQ1_alias1.c5 AS SQ1_field1
+    FROM t2 AS SQ1_alias1
+    WHERE SQ1_alias1.c3 < alias1.c1
+  ))
+    AND (alias1.c5 = alias1.c5
+      AND alias1.c5 = 'd'
+    )
+GROUP BY field1, field2
+ORDER BY alias1.c5, field1, field2
+;
+
+SELECT * FROM v1;
+
+DROP VIEW v1;
+DROP TABLE t1,t2;
+
 DROP FUNCTION show_json_object;
