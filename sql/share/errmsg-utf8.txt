@@ -7236,6 +7236,9 @@ ER_CONST_EXPR_IN_VCOL
 ER_VIRTUAL_COLUMN_NON_PRIOR
   eng "Virtual column can refer only to virtual columns defined prior it."
 
+ER_DEPENDENT_BY_VIRTUAL_COLUMN
+  eng "Column '%s' has a virtual column dependency."
+
 ER_FIELD_IN_ORDER_NOT_SELECT
   eng "Expression #%u of ORDER BY clause is not in SELECT list, references column '%-.192s' which is not in SELECT list; this is incompatible with %s"
 

@@ -7195,6 +7195,12 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
 	  create_info->auto_increment_value=0;
 	  create_info->used_fields|=HA_CREATE_USED_AUTO;
 	}
+  /*
+    If the base column has a virtual column dependency, it's not allowed
+    to be dropped.
+  */
+  if (table->is_field_dependent_by_virtual_columns(field->field_index))
+    my_error(ER_DEPENDENT_BY_VIRTUAL_COLUMN, MYF(0), field->field_name);
 	break;
       }
     }
