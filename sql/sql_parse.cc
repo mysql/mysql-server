@@ -2924,7 +2924,7 @@ case SQLCOM_PREPARE:
            ON then send session state notification in OK packet */
         if(create_info.options & HA_LEX_CREATE_TMP_TABLE &&
            thd->session_tracker.get_tracker(SESSION_STATE_CHANGE_TRACKER)->is_enabled())
-          thd->session_tracker.get_tracker(SESSION_STATE_CHANGE_TRACKER)->mark_as_changed(NULL);
+          thd->session_tracker.get_tracker(SESSION_STATE_CHANGE_TRACKER)->mark_as_changed(thd, NULL);
         my_ok(thd);
       }
     }
@@ -3560,7 +3560,7 @@ end_with_restore_list:
     if(!res && lex->drop_temporary)
     {
       if (thd->session_tracker.get_tracker(SESSION_STATE_CHANGE_TRACKER)->is_enabled())
-        thd->session_tracker.get_tracker(SESSION_STATE_CHANGE_TRACKER)->mark_as_changed(NULL);
+        thd->session_tracker.get_tracker(SESSION_STATE_CHANGE_TRACKER)->mark_as_changed(thd, NULL);
     }
   }
   break;
