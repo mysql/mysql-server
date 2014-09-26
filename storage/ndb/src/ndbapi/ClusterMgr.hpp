@@ -121,6 +121,7 @@ private:
   Uint32        m_max_api_reg_req_interval;
   Uint32        noOfAliveNodes;
   Uint32        noOfConnectedNodes;
+  Uint32        noOfConnectedDBNodes;
   Uint32        minDbVersion;
   Node          theNodes[MAX_NODES];
   NdbThread*    theClusterMgrThread;
@@ -140,6 +141,15 @@ private:
     API_REGREQ heartbeat messages.
    */
   Uint32 m_hbFrequency;
+
+  /**
+   * The maximal time between connection attempts to data nodes.
+   * starting_connecting_backoff_max_time is used before connection
+   * to the first data node has succeeded.
+   */
+  Uint32	starting_connecting_backoff_max_time;
+  Uint32	connecting_backoff_max_time;
+
   /**
    * Signals received
    */
