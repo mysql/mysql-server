@@ -211,6 +211,7 @@ TransporterRegistry::TransporterRegistry(TransporterCallback *callback,
                                          unsigned _maxTransporters) :
   m_mgm_handle(0),
   localNodeId(0),
+  connectingBackoffMaxTime(0),
   m_transp_count(0),
   m_use_default_send_buffer(use_default_send_buffer),
   m_send_buffers(0), m_page_freelist(0), m_send_buffer_memory(0),
@@ -231,6 +232,8 @@ TransporterRegistry::TransporterRegistry(TransporterCallback *callback,
   theTransporters     = new Transporter     * [maxTransporters];
   performStates       = new PerformState      [maxTransporters];
   ioStates            = new IOState           [maxTransporters]; 
+  peerUpIndicators    = new bool              [maxTransporters];
+  connectingTime      = new Uint32            [maxTransporters];
   m_disconnect_errnum = new int               [maxTransporters];
   m_error_states      = new ErrorState        [maxTransporters];
 
@@ -255,6 +258,9 @@ TransporterRegistry::TransporterRegistry(TransporterCallback *callback,
     theTransporters[i]    = NULL;
     performStates[i]      = DISCONNECTED;
     ioStates[i]           = NoHalt;
+    peerUpIndicators[i]   = true; // Assume all nodes are up, will be
+                                  // cleared at first connect attempt
+    connectingTime[i]     = 0;
     m_disconnect_errnum[i]= 0;
     m_error_states[i]     = default_error_state;
   }
@@ -372,6 +378,8 @@ TransporterRegistry::~TransporterRegistry()
   delete[] theTransporters;
   delete[] performStates;
   delete[] ioStates;
+  delete[] peerUpIndicators;
+  delete[] connectingTime;
   delete[] m_disconnect_errnum;
   delete[] m_error_states;
 
@@ -1970,6 +1978,18 @@ TransporterRegistry::start_clients_thread()
       switch(performStates[nodeId]){
       case CONNECTING:
 	if(!t->isConnected() && !t->isServer) {
+          if (get_and_clear_node_up_indicator(nodeId))
+          {
+            // Other node have indicated that node nodeId is up, try connect
+            // now and restart backoff sequence
+            backoff_reset_connecting_time(nodeId);
+          }
+          if (!backoff_update_and_check_time_for_connect(nodeId))
+          {
+            // Skip connect this time
+            continue;
+          }
+
 	  bool connected= false;
 	  /**
 	   * First, we try to connect (if we have a port number).
@@ -2015,12 +2035,21 @@ TransporterRegistry::start_clients_thread()
 	      {
                 DBUG_PRINT("info", ("got port %d to use for connection to %d",
                                     server_port, nodeId));
-		/**
-		 * Server_port == 0 just means that that a mgmt server
-		 * has not received a new port yet. Keep the old.
-		 */
-		if (server_port)
+
+		if (server_port != 0)
+                {
+                  if (t->get_s_port() != server_port)
+                  {
+                    // Got a different port number, reset backoff
+                    backoff_reset_connecting_time(nodeId);
+                  }
+                  // Save the new port number
 		  t->set_s_port(server_port);
+                }
+                else
+                {
+                  // Got port number 0, port is not known.  Keep the old.
+                }
 	      }
 	      else if(ndb_mgm_is_connected(m_mgm_handle))
 	      {

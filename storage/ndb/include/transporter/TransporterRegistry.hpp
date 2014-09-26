@@ -273,6 +273,18 @@ public:
   IOState ioState(NodeId nodeId);
   void setIOState(NodeId nodeId, IOState state);
 
+  /**
+   * Methods to handle backoff of connection attempts when attempt fails
+   */
+public:
+  void indicate_node_up(NodeId nodeId);
+  void set_connecting_backoff_max_time_in_ms(Uint32 max_time_in_ms);
+private:
+  Uint32 get_connecting_backoff_max_time_in_laps() const;
+  bool get_and_clear_node_up_indicator(NodeId nodeId);
+  void backoff_reset_connecting_time(NodeId nodeId);
+  bool backoff_update_and_check_time_for_connect(NodeId nodeId);
+
 private:
 
   bool createTCPTransporter(TransporterConfiguration * config);
@@ -483,6 +495,26 @@ private:
   struct ErrorState *m_error_states;
 
   /**
+   * peerUpIndicators[nodeId] is set by receiver thread
+   * to indicate that node is probable up.
+   * It is read and cleared by start clients thread.
+   */
+  volatile bool* peerUpIndicators;
+
+  /**
+   * Count of how long time one have been attempting to
+   * connect to node nodeId, in units of 100ms.
+   */
+  Uint32*       connectingTime;
+
+  /**
+   * The current maximal time between connection attempts to a
+   * node in units of 100ms.
+   * Updated by receive thread, read by start clients thread
+   */
+  volatile Uint32 connectingBackoffMaxTime;
+
+  /**
    * Overloaded bits, for fast check.
    * Similarly slowdown bits for fast check.
    */
@@ -680,6 +712,96 @@ inline const NodeBitmask&
 TransporterRegistry::get_status_slowdown() const
 {
   return m_status_slowdown;
+}
+
+inline void
+TransporterRegistry::indicate_node_up(NodeId nodeId) // Called from receive thread
+{
+  assert(nodeId < MAX_NODES);
+
+  if (!peerUpIndicators[nodeId])
+  {
+    peerUpIndicators[nodeId] = true;
+  }
+}
+
+inline bool
+TransporterRegistry::get_and_clear_node_up_indicator(NodeId nodeId) // Called from start client thread
+{
+  assert(nodeId < MAX_NODES);
+
+  bool indicator = peerUpIndicators[nodeId];
+  if (indicator)
+  {
+    peerUpIndicators[nodeId] = false;
+  }
+  return indicator;
+}
+
+inline Uint32
+TransporterRegistry::get_connecting_backoff_max_time_in_laps() const
+{ /* one lap, 100 ms */
+  return connectingBackoffMaxTime;
+}
+
+inline void
+TransporterRegistry::set_connecting_backoff_max_time_in_ms(Uint32 backoff_max_time_in_ms)
+{
+  /**
+   * Round up backoff_max_time to nearest higher 100ms, since that is lap time
+   * in start_client_threads using this function.
+   */
+  connectingBackoffMaxTime = (backoff_max_time_in_ms + 99) / 100;
+}
+
+inline void
+TransporterRegistry::backoff_reset_connecting_time(NodeId nodeId)
+{
+  assert(nodeId < MAX_NODES);
+
+  connectingTime[nodeId] = 0;
+}
+
+inline bool
+TransporterRegistry::backoff_update_and_check_time_for_connect(NodeId nodeId)
+{
+  assert(nodeId < MAX_NODES);
+
+  Uint32 backoff_max_time = get_connecting_backoff_max_time_in_laps();
+
+  if (backoff_max_time == 0)
+  {
+    // Backoff disabled
+    return true;
+  }
+
+  connectingTime[nodeId] ++;
+
+  if (connectingTime[nodeId] >= backoff_max_time)
+  {
+    return (connectingTime[nodeId] % backoff_max_time == 0);
+  }
+
+  /**
+   * Attempt moments from start of connecting.
+   * This function is called from start_clients_thread
+   * roughly every 100ms for each node it is connecting
+   * to.
+   */
+  static const Uint16 attempt_moments[] = {1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024};
+  static const int attempt_moments_count = sizeof(attempt_moments) / sizeof(attempt_moments[0]);
+  for(int i = 0; i < attempt_moments_count; i ++)
+  {
+    if (connectingTime[nodeId] == attempt_moments[i])
+    {
+      return true;
+    }
+    else if (connectingTime[nodeId] < attempt_moments[i])
+    {
+      return false;
+    }
+  }
+  return (connectingTime[nodeId] % attempt_moments[attempt_moments_count - 1] == 0);
 }
 
 #endif // Define of TransporterRegistry_H
