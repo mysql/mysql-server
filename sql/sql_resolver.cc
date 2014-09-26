@@ -469,30 +469,36 @@ bool SELECT_LEX::apply_local_transforms()
     if (record_join_nest_info(&top_join_list))
       DBUG_RETURN(true);
     build_bitmap_for_nested_joins(&top_join_list, 0);
+
+    /*
+      Here are reasons why we do the following check here (i.e. late).
+      * setup_fields () may have done split_sum_func () on aggregate items of
+      the SELECT list, so for reliable comparison of the ORDER BY list with
+      the SELECT list, we need to wait until split_sum_func() has been done on
+      the ORDER BY list.
+      * we get "most of the time" fixed items, which is always a good
+      thing. Some outer references may not be fixed, though.
+      * we need nested_join::used_tables, and this member is set in
+      simplify_joins()
+      * simplify_joins() does outer-join-to-inner conversion, which increases
+      opportunities for functional dependencies (weak-to-strong, which is
+      unusable, becomes strong-to-strong).
+      * check_only_full_group_by() is dependent on processing done by
+      simplify_joins() (for example it uses the value of JOIN::outer_join).
+
+      The drawback is that the checks are after resolve_subquery(), so can
+      meet strange "internally added" items.
+
+      Note that when we are creating a view, simplify_joins() doesn't run so
+      check_only_full_group_by() cannot run, any error will be raised only
+      when the view is later used (SELECTed...)
+    */
+    if ((thd->variables.sql_mode & MODE_ONLY_FULL_GROUP_BY) &&
+        ((options & SELECT_DISTINCT) || group_list.elements ||
+         agg_func_used()) &&
+        check_only_full_group_by(thd))
+      DBUG_RETURN(true);
   }
-
-  /*
-    Here are reasons why we do the following check here (i.e. late).
-    * setup_fields () may have done split_sum_func () on aggregate items of
-    the SELECT list, so for reliable comparison of the ORDER BY list with the
-    SELECT list, we need to wait until split_sum_func() has been done on the
-    ORDER BY list.
-    * we get "most of the time" fixed items, which is always a good
-    thing. Some outer references may not be fixed, though.
-    * we need nested_join::used_tables, and this member is set in
-    simplify_joins()
-    * simplify_joins() does outer-join-to-inner conversion, which increases
-    opportunities for functional dependencies (weak-to-strong, which is
-    unusable, becomes strong-to-strong).
-
-    The drawback is that the checks are after resolve_subquery(), so can meet
-    strange "internally added" items.
-  */
-  if ((thd->variables.sql_mode & MODE_ONLY_FULL_GROUP_BY) &&
-      ((options & SELECT_DISTINCT) || group_list.elements ||
-       agg_func_used()) &&
-      check_only_full_group_by(thd))
-    DBUG_RETURN(true);
 
   fix_prepare_information(thd);
   DBUG_RETURN(false);
