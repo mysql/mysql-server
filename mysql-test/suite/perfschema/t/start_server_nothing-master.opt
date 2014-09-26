@@ -21,6 +21,8 @@
 --loose-performance_schema_max_table_instances=0
 --loose-performance_schema_max_file_handles=0
 --loose-performance_schema_max_table_handles=0
+--loose-performance_schema_max_index_stat=0
+--loose-performance_schema_max_table_lock_stat=0
 
 --loose-performance_schema_setup_actors_size=0
 --loose-performance_schema_setup_objects_size=0
