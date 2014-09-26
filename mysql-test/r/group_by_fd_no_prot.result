@@ -1729,4 +1729,35 @@ SELECT * FROM v1;
 field1	field2
 DROP VIEW v1;
 DROP TABLE t1,t2;
+#
+# Bug#19636409 ASSERT `(MAP_OF_NEW_EQ_FDS...` IN GROUP_CHECK::IS_FD_ON_SOURCE ON SELECT
+#
+CREATE TABLE t1 (
+pk int NOT NULL,
+c1 datetime,
+c2 varchar(1),
+c3 date,
+c4 date,
+c5 varchar(1),
+PRIMARY KEY (pk)
+);
+CREATE VIEW v1 AS
+SELECT c3 AS subfield11,
+pk AS subfield12,
+c2 AS subfield13
+FROM t1
+GROUP BY subfield11, subfield12
+;
+SELECT c5 AS field1,
+c4 AS field2,
+c2 AS field3,
+c1 AS field4
+FROM t1
+WHERE ( c2, c2, pk ) IN (
+SELECT * FROM v1
+)
+GROUP BY field1, field3, field3;
+field1	field2	field3	field4
+DROP TABLE t1;
+DROP VIEW v1;
 DROP FUNCTION show_json_object;

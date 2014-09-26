@@ -413,7 +413,7 @@ bool Group_check::is_fd_on_source(Item *item)
     if (map_of_new_eq_fds != 0)     // something new, check again
     {
       DBUG_ASSERT((map_of_new_eq_fds &
-                   (whole_tables_fd | PSEUDO_TABLE_BITS)) == 0);
+                   (last_whole_tables_fd | PSEUDO_TABLE_BITS)) == 0);
       if (is_in_fd(item))
         return true;
        // Recheck keys only in tables with something new:
@@ -986,9 +986,15 @@ void Group_check::find_fd_in_joined_table(List<TABLE_LIST> *join_list)
     if (table->sj_on_expr)
     {
       /*
-        We can ignore sj-equalities because fields from sj-inner tables cannot
-        belong to GROUP BY or SELECT list of the query block: they're
-        irrelevant to FD detection.
+        We can ignore this nest as:
+        - the subquery's WHERE was copied to sj_on_expr
+        - so where the IN equalities
+        - sj_on_expr is also present in the parent nest's join condition or in
+        the query block's WHERE condition, which we check somewhere else.
+        Note that columns from sj-inner tables can help only as "intermediate
+        link" in the graph of functional dependencies, as they are neither in
+        GROUP BY (the source) nor in the SELECT list / HAVING / ORDER BY (the
+        target).
       */
       continue;
     }
