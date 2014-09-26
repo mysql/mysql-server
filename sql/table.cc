@@ -6175,6 +6175,43 @@ void TABLE::mark_virtual_columns(void)
 }
 
 /*
+  @brief Check whether a base field is dependent by any virtual columns.
+
+  @return      TRUE     The field is dependent by some VC.
+               FALSE    The field has no dependency by any VC.
+
+*/
+bool TABLE::is_field_dependent_by_virtual_columns(uint field_index)
+{
+  Field **vfield_ptr, *tmp_vfield;
+  MY_BITMAP dependent_fields;
+  uint fields_buff_size= bitmap_buffer_size(s->fields);
+  uint32 *bitbuf= (uint32 *)current_thd->alloc(fields_buff_size);
+  if (!bitbuf)
+    return true;
+  bitmap_init(&dependent_fields, bitbuf, s->fields, 0);
+  bitmap_clear_all(&dependent_fields);
+
+  MY_BITMAP *save_old_read_set= read_set;
+  read_set= &dependent_fields;
+
+  for (vfield_ptr= vfield; *vfield_ptr; vfield_ptr++)
+  {
+    tmp_vfield= *vfield_ptr;
+    DBUG_ASSERT(tmp_vfield->vcol_info && tmp_vfield->vcol_info->expr_item);
+    tmp_vfield->vcol_info->expr_item->walk(&Item::register_field_in_read_map,
+                                           Item::WALK_PREFIX, (uchar *) 0);
+    if (bitmap_is_set(&dependent_fields, field_index))
+    {
+      read_set= save_old_read_set;
+      return true;
+    }
+  }
+  read_set= save_old_read_set;
+  return false;
+}
+
+/*
   Cleanup this table for re-execution.
 
   SYNOPSIS
