@@ -835,4 +835,58 @@ SELECT * FROM v1;
 DROP VIEW v1;
 DROP TABLE t1,t2;
 
+--echo #
+--echo # Bug#19636409 ASSERT `(MAP_OF_NEW_EQ_FDS...` IN GROUP_CHECK::IS_FD_ON_SOURCE ON SELECT
+--echo #
+
+CREATE TABLE t1 (
+  pk int NOT NULL,
+  c1 datetime,
+  c2 varchar(1),
+  c3 date,
+  c4 date,
+  c5 varchar(1),
+  PRIMARY KEY (pk)
+);
+
+CREATE VIEW v1 AS
+  SELECT c3 AS subfield11,
+         pk AS subfield12,
+         c2 AS subfield13
+  FROM t1
+  GROUP BY subfield11, subfield12
+;
+
+# This query is valid. Indeed: field3 i.e. t1.c2 is part of GROUP BY,
+# so, in a group:
+# - all rows have the same value of t1.c2, noted val_c2,
+# - so all rows, which necessarily match WHERE, matched with a row of
+# v1 having subfield11=val_c2 and subfield12=val_c2 (due to IN
+# predicate),
+# - thus both grouping columns of v1's query expression are constant
+# (to val_c2)
+# - thus v1.subfield13 is constant too (grouping columns determine the
+# SELECT list)
+# - so, due to IN, this determines the value of t1.pk (t1 is the top
+# query's table).
+# - so t1.pk is constant, so all columns of t1 are constant.
+# Which proves that it makes sense to search FDs in semijoin
+# equalities.
+# In other words: a semijoin is like a join except that it eliminates
+# duplicates, but duplicates are irrelevant to the decision whether a
+# column is functionally dependent on a set of columns.
+
+SELECT c5 AS field1,
+       c4 AS field2,
+       c2 AS field3,
+       c1 AS field4
+FROM t1
+WHERE ( c2, c2, pk ) IN (
+  SELECT * FROM v1
+)
+GROUP BY field1, field3, field3;
+
+DROP TABLE t1;
+DROP VIEW v1;
+
 DROP FUNCTION show_json_object;
