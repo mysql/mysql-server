@@ -41,6 +41,7 @@ Created 10/25/1995 Heikki Tuuri
 
 #include <list>
 
+extern my_bool lower_case_file_system;
 // Forward declaration
 struct trx_t;
 struct fil_space_t;
