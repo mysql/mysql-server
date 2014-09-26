@@ -63,6 +63,7 @@ ClusterMgr::ClusterMgr(TransporterFacade & _facade):
   m_max_api_reg_req_interval(~0),
   noOfAliveNodes(0),
   noOfConnectedNodes(0),
+  noOfConnectedDBNodes(0),
   minDbVersion(0),
   theClusterMgrThread(NULL),
   m_cluster_state(CS_waiting_for_clean_cache),
@@ -178,6 +179,22 @@ ClusterMgr::configure(Uint32 nodeId,
   unsigned hbFrequency = 0;
   iter.get(CFG_MGMD_MGMD_HEARTBEAT_INTERVAL, &hbFrequency);
   m_hbFrequency = static_cast<Uint32>(hbFrequency);
+
+  // Configure max backoff time for connection attempts to first
+  // data node.
+  Uint32 backoff_max_time = 0;
+  iter.get(CFG_STARTING_CONNECTING_BACKOFF_MAX_TIME,
+           &backoff_max_time);
+  starting_connecting_backoff_max_time = backoff_max_time;
+
+  // Configure max backoff time for connection attempts to data
+  // nodes.
+  backoff_max_time = 0;
+  iter.get(CFG_CONNECTING_BACKOFF_MAX_TIME, &backoff_max_time);
+  connecting_backoff_max_time = backoff_max_time;
+
+  theFacade.get_registry()->set_connecting_backoff_max_time_in_ms(
+    starting_connecting_backoff_max_time);
 }
 
 void
@@ -783,6 +800,19 @@ ClusterMgr::execAPI_REGCONF(const NdbApiSignal * signal,
     cm_node.hbFrequency = static_cast<Uint32>(freq);
   }
 
+  // If responding nodes indicates that it is connected to other
+  // nodes, that makes it probable that those nodes are alive and
+  // available also for this node.
+  for (int db_node_id = 1; db_node_id <= MAX_DATA_NODE_ID; db_node_id ++)
+  {
+    if (node.m_state.m_connected_nodes.get(db_node_id))
+    {
+      // Tell this nodes start clients thread that db_node_id
+      // is up and probable connectable.
+      theFacade.theTransporterRegistry->indicate_node_up(db_node_id);
+    }
+  }
+
   // Distribute signal to all threads/blocks
   // TODO only if state changed...
   theFacade.for_each(this, signal, ptr);
@@ -852,15 +882,23 @@ ClusterMgr::reportConnected(NodeId nodeId)
    * us with the real time-out period to use.
    */
   assert(nodeId > 0 && nodeId < MAX_NODES);
-  if (nodeId == getOwnNodeId())
+  if (nodeId != getOwnNodeId())
   {
-    noOfConnectedNodes--; // Don't count self...
+    noOfConnectedNodes++;
   }
-
-  noOfConnectedNodes++;
 
   Node & cm_node = theNodes[nodeId];
   trp_node & theNode = cm_node;
+
+  if (theNode.m_info.m_type == NodeInfo::DB)
+  {
+    noOfConnectedDBNodes++;
+    if (noOfConnectedDBNodes == 1)
+    {
+      // Data node connected, use ConnectingBackoffMaxTime
+      theFacade.get_registry()->set_connecting_backoff_max_time_in_ms(connecting_backoff_max_time);
+    }
+  }
 
   cm_node.hbMissed = 0;
   cm_node.hbCounter = 0;
@@ -972,6 +1010,17 @@ ClusterMgr::execDISCONNECT_REP(const NdbApiSignal* sig,
     if (m_auto_reconnect == 0)
     {
       theStop = 2;
+    }
+  }
+
+  if (theNode.m_info.m_type == NodeInfo::DB)
+  {
+    assert(noOfConnectedDBNodes > 0);
+    noOfConnectedDBNodes--;
+    if (noOfConnectedDBNodes == 0)
+    {
+      // No data nodes connected, use StartingConnectingBackoffMaxTime
+      theFacade.get_registry()->set_connecting_backoff_max_time_in_ms(starting_connecting_backoff_max_time);
     }
   }
 
