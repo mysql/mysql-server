@@ -300,6 +300,7 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
     method is using full unique index
   */
   if (select && select->quick &&
+      select->quick->index != MAX_KEY &&
       will_batch &&
       !using_limit &&
       table->file->read_before_write_removal_supported())
