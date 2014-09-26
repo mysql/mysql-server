@@ -6005,7 +6005,6 @@ int ha_tokudb::reset(void) {
     TOKUDB_HANDLER_DBUG_RETURN(0);
 }
 
-
 //
 // helper function that iterates through all DB's 
 // and grabs a lock (either read or write, but not both)
@@ -6017,6 +6016,7 @@ int ha_tokudb::reset(void) {
 //      error otherwise
 //
 int ha_tokudb::acquire_table_lock (DB_TXN* trans, TABLE_LOCK_TYPE lt) {
+    TOKUDB_HANDLER_DBUG_ENTER("%p %s", trans, lt == lock_read ? "r" : "w");
     int error = ENOSYS;
     if (!num_DBs_locked_in_bulk) {
         rw_rdlock(&share->num_DBs_lock);
@@ -6048,9 +6048,8 @@ cleanup:
     if (!num_DBs_locked_in_bulk) {
         rw_unlock(&share->num_DBs_lock);
     }
-    return error;
+    TOKUDB_HANDLER_DBUG_RETURN(error);
 }
-
 
 int ha_tokudb::create_txn(THD* thd, tokudb_trx_data* trx) {
     int error;
@@ -6228,7 +6227,6 @@ cleanup:
   TABLE LOCK is done.
   Under LOCK TABLES, each used tables will force a call to start_stmt.
 */
-
 int ha_tokudb::start_stmt(THD * thd, thr_lock_type lock_type) {
     TOKUDB_HANDLER_DBUG_ENTER("cmd %d lock %d %s", thd_sql_command(thd), lock_type, share->table_name);
     if (0)
@@ -6257,27 +6255,6 @@ int ha_tokudb::start_stmt(THD * thd, thr_lock_type lock_type) {
             TOKUDB_HANDLER_TRACE("trx->stmt %p already existed", trx->stmt);
         }
     }
-    //
-    // we know we are in lock tables
-    // attempt to grab a table lock
-    // if fail, continue, do not return error
-    // This is because a failure ok, it simply means
-    // another active transaction has some locks.
-    // That other transaction modify this table
-    // until it is unlocked, therefore having acquire_table_lock
-    // potentially grab some locks but not all is ok.
-    //
-    if (lock.type <= TL_READ_NO_INSERT) {
-        acquire_table_lock(trx->sub_sp_level,lock_read);
-    }
-    else {
-        if (!(thd_sql_command(thd) == SQLCOM_CREATE_INDEX ||
-            thd_sql_command(thd) == SQLCOM_ALTER_TABLE ||
-            thd_sql_command(thd) == SQLCOM_DROP_INDEX ||
-            thd_sql_command(thd) == SQLCOM_TRUNCATE)) {
-            acquire_table_lock(trx->sub_sp_level,lock_write);
-        }
-    }    
     if (added_rows > deleted_rows) {
         share->rows_from_locked_table = added_rows - deleted_rows;
     }
