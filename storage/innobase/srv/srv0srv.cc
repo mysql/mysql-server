@@ -2667,6 +2667,10 @@ DECLARE_THREAD(srv_purge_coordinator_thread)(
 
 	purge_sys->state = PURGE_STATE_EXIT;
 
+	/* If there are any pending undo-tablespace truncate then clear
+	it off as we plan to shutdown the purge thread. */
+	purge_sys->undo_trunc.clear();
+
 	purge_sys->running = false;
 
 	rw_lock_x_unlock(&purge_sys->latch);
