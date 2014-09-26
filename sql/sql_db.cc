@@ -1031,7 +1031,7 @@ exit:
     {
       LEX_CSTRING dummy= { C_STRING_WITH_LEN("") };
       dummy.length= dummy.length*1;
-      thd->session_tracker.get_tracker(CURRENT_SCHEMA_TRACKER)->mark_as_changed(&dummy);
+      thd->session_tracker.get_tracker(CURRENT_SCHEMA_TRACKER)->mark_as_changed(thd, &dummy);
     }
   }
   my_dirend(dirp);
@@ -1642,10 +1642,10 @@ done:
   {
     LEX_CSTRING dummy= { C_STRING_WITH_LEN("") };
     dummy.length= dummy.length*1;
-    thd->session_tracker.get_tracker(CURRENT_SCHEMA_TRACKER)->mark_as_changed(&dummy);
+    thd->session_tracker.get_tracker(CURRENT_SCHEMA_TRACKER)->mark_as_changed(thd, &dummy);
   }
   if (thd->session_tracker.get_tracker(SESSION_STATE_CHANGE_TRACKER)->is_enabled())
-    thd->session_tracker.get_tracker(SESSION_STATE_CHANGE_TRACKER)->mark_as_changed(NULL);
+    thd->session_tracker.get_tracker(SESSION_STATE_CHANGE_TRACKER)->mark_as_changed(thd, NULL);
   DBUG_RETURN(FALSE);
 }
 
