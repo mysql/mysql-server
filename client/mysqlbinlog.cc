@@ -66,7 +66,6 @@ static void warning(const char *format, ...)
 
 using std::min;
 using std::max;
-using binary_log::Binary_log_event;
 #define PROBE_HEADER_LEN	(EVENT_LEN_OFFSET+4)
 
 /*

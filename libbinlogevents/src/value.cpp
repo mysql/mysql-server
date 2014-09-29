@@ -15,14 +15,13 @@
 
 #include "byteorder.h"
 #include "value.h"
-#include <iomanip>
-#include <cassert>
-#include <stdio.h>
 #include <stdlib.h>
-#include <cstring>
-#include <sstream>
 #include <string.h>
-
+#include <climits>
+#include <stdint.h>
+#include <stdio.h>
+#include <iostream>
+#include <cassert>
 
 /**
   Calculate binary size of packed numeric time representation.
@@ -35,7 +34,9 @@
 */
 unsigned int my_time_binary_length(unsigned int dec)
 {
+#ifndef DBUG_OFF
   assert(dec <= DATETIME_MAX_DECIMALS);
+#endif
   return 3 + (dec + 1) / 2;
 }
 

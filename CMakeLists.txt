@@ -473,10 +473,11 @@ INCLUDE(configure.cmake)
 
 # Common defines and includes
 ADD_DEFINITIONS(-DHAVE_CONFIG_H)
-INCLUDE_DIRECTORIES(${CMAKE_CURRENT_BINARY_DIR}/include
-                    ${CMAKE_SOURCE_DIR}/extra/rapidjson/include
-                    ${CMAKE_CURRENT_BINARY_DIR}/libbinlogevents/include
-                    ${CMAKE_SOURCE_DIR}/libbinlogevents/export)
+INCLUDE_DIRECTORIES(
+  ${CMAKE_CURRENT_BINARY_DIR}/include
+  ${CMAKE_SOURCE_DIR}/extra/rapidjson/include
+  ${CMAKE_CURRENT_BINARY_DIR}/libbinlogevents/include
+  ${CMAKE_CURRENT_BINARY_DIR}/libbinlogevents/export)
 
 # Add bundled or system zlib.
 MYSQL_CHECK_ZLIB_WITH_COMPRESS()

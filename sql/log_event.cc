@@ -61,7 +61,6 @@ slave_ignored_err_throttle(window_size,
 /* This is necessary for the List manipuation */
 #include "sql_list.h"                           /* I_List */
 #include "hash.h"
-//#include <map>
 
 PSI_memory_key key_memory_log_event;
 PSI_memory_key key_memory_Incident_log_event_message;
@@ -819,14 +818,13 @@ Log_event::Log_event(THD* thd_arg, uint16 flags_arg,
                      enum_event_cache_type cache_type_arg,
                      enum_event_logging_type logging_type_arg,
                      Log_event_header *header, Log_event_footer *footer)
-  : is_valid_param(false), temp_buf(0), exec_time(0), event_cache_type(cache_type_arg),
-  event_logging_type(logging_type_arg),
-  crc(0), common_header(header), common_footer(footer), thd(thd_arg)
+  : is_valid_param(false), temp_buf(0), exec_time(0),
+    event_cache_type(cache_type_arg), event_logging_type(logging_type_arg),
+    crc(0), common_header(header), common_footer(footer), thd(thd_arg)
 {
   server_id= thd->server_id;
   common_header->unmasked_server_id= server_id;
-  struct timeval temp= thd->start_time;
-  common_header->when= temp;
+  common_header->when= thd->start_time;
   common_header->log_pos= 0;
   common_header->flags= flags_arg;
 #ifdef HAVE_REPLICATION
@@ -3772,6 +3770,17 @@ bool Query_log_event::write(IO_CACHE* file)
 
 
 /**
+  The simplest constructor that could possibly work.  This is used for
+  creating static objects that have a special meaning and are invisible
+  to the log.
+*/
+Query_log_event::Query_log_event()
+  : binary_log::Query_event(),
+    Log_event(header(), footer()),
+    data_buf(NULL)
+{}
+
+/**
   Creates a Query Log Event.
 
   @param thd_arg      Thread handle
@@ -4228,7 +4237,7 @@ void Query_log_event::print_query_header(IO_CACHE* file,
   if (print_event_info->auto_increment_increment != auto_increment_increment ||
       print_event_info->auto_increment_offset != auto_increment_offset)
   {
-    my_b_printf(file,"SET @@session.auto_increment_increment=%hu, @@session.auto_increment_offset=%hu%s\n",
+    my_b_printf(file,"SET @@session.auto_increment_increment=%u, @@session.auto_increment_offset=%u%s\n",
                 auto_increment_increment,auto_increment_offset,
                 print_event_info->delimiter);
     print_event_info->auto_increment_increment= auto_increment_increment;

@@ -1256,11 +1256,14 @@ int Update_rows_log_event_old::do_exec_row(TABLE *table)
 
   This constructor calls the header() and footer() methods to initialize
   Log_event::common_header and Log_event::common_footer respectively.
+
+  We don't know the exact type of the event when we call
+  this constructor, so passing ENUM_END_EVENT as the type here.
 */
 Old_rows_log_event::Old_rows_log_event(THD *thd_arg, TABLE *tbl_arg, ulong tid,
                                        MY_BITMAP const *cols,
                                        bool using_trans)
-  : Binary_log_event(),
+  : Binary_log_event(binary_log::ENUM_END_EVENT),
     Log_event(thd_arg, 0,
               using_trans ? Log_event::EVENT_TRANSACTIONAL_CACHE :
                             Log_event::EVENT_STMT_CACHE,

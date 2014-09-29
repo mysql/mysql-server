@@ -16,7 +16,6 @@
 #ifndef FIELD_ITERATOR_INCLUDED
 #define	FIELD_ITERATOR_INCLUDED
 
-#include "binlog_event.h"
 #include "value.h"
 #include "rows_event.h"
 #include "row_of_fields.h"

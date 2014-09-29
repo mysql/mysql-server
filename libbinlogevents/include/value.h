@@ -18,12 +18,9 @@
 
 #include "binary_log_decimal.h"
 #include "transitional_methods.h"
-#include <climits>
 #include <stdint.h>
-#include <stdio.h>
+#include <string.h>
 #include <iostream>
-#include <cassert>
-#include <cstring>
 #ifndef DATETIME_MAX_DECIMALS
 #define DATETIME_MAX_DECIMALS 6
 #endif

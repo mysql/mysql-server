@@ -18,7 +18,6 @@
 
 #include "value.h"
 #include <vector>
-#include <iostream>
 
 namespace binary_log
 {

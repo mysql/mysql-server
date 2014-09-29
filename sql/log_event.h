@@ -1350,16 +1350,7 @@ public:
   void print(FILE* file, PRINT_EVENT_INFO* print_event_info);
 #endif
 
-/**
-  The simplest constructor that could possibly work.  This is used for
-  creating static objects that have a special meaning and are invisible
-  to the log.
-*/
-  Query_log_event()
-    : binary_log::Query_event(),
-      Log_event(header(), footer()),
-      data_buf(NULL)
-  {}
+  Query_log_event();
 
   Query_log_event(const char* buf, uint event_len,
                   const Format_description_event *description_event,

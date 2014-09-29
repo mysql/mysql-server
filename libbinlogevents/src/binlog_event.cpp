@@ -13,14 +13,10 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "binlog_event.h"
-#include "control_events.h"
 #include "statement_events.h"
 #include "transitional_methods.h"
 #include <algorithm>
 #include <cassert>
-#include <cstdio>
-#include <stdio.h>
 #include <stdint.h>
 
 const unsigned char checksum_version_split[3]= {5, 6, 1};
