@@ -429,25 +429,6 @@ cmp_data(
 	ulint	pad;
 
 	switch (mtype) {
-	case DATA_LE_INT:
-		{
-			if (prtype & DATA_UNSIGNED) {
-				ulonglong val1 = 0;
-				ulonglong val2 = 0;
-				memcpy(&val1, data1, len1);
-				memcpy(&val2, data2, len2);
-				return(val1 > val2
-				       ? 1 : ((val1 == val2) ? 0 : -1));
-			} else {
-				longlong val1 = 0;
-				longlong val2 = 0;
-				memcpy(&val1, data1, len1);
-				memcpy(&val2, data2, len2);
-				return(val1 > val2
-				       ? 1 : ((val1 == val2) ? 0 : -1));
-			}
-		}
-		break;
 	case DATA_FIXBINARY:
 	case DATA_BINARY:
 		if (dtype_get_charset_coll(prtype)

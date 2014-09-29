@@ -861,7 +861,7 @@ row_create_prebuilt(
 		uint temp_len = 0;
 		for (int i = 0; i < temp_index->n_uniq; i++) {
 			ulint type = temp_index->fields[i].col->mtype;
-			if (type == DATA_INT || type == DATA_LE_INT) {
+			if (type == DATA_INT) {
 				temp_len +=
 					temp_index->fields[i].fixed_len;
 			}
@@ -1403,7 +1403,7 @@ row_mysql_to_innobase(
 		const dtype_t*	dtype = dfield_get_type(dfield);
 		ulint		col_len = templ->mysql_col_len;
 
-		ut_ad(dtype->mtype == DATA_LE_INT
+		ut_ad(dtype->mtype == DATA_INT
 		      || dtype->mtype == DATA_CHAR
 		      || dtype->mtype == DATA_MYSQL
 		      || dtype->mtype == DATA_VARCHAR
@@ -1426,6 +1426,27 @@ row_mysql_to_innobase(
 
 		/* For now varchar field this has to be always 0 so
 		memcpy of 0 bytes shouldn't affect the original col_len. */
+		if (dtype->mtype == DATA_INT) {
+			/* Convert and Store in big-endian. */
+			byte*	buf = prebuilt->ins_upd_rec_buff
+				+ templ->mysql_col_offset; 
+			byte*	copy_to = buf + col_len;
+			for (;;) {
+				copy_to--;
+				*copy_to = *ptr;
+				if (copy_to == buf) {
+					break;
+				}
+				ptr++;
+			}
+
+			if (!(dtype->prtype & DATA_UNSIGNED)) {
+				*buf ^= 128;
+			}
+
+			ptr = buf;
+			buf += col_len;
+		}
 		if (dtype_get_mysql_type(dtype) == DATA_MYSQL_TRUE_VARCHAR) {
 			col_len = 0;
 			row_mysql_read_true_varchar(

@@ -5602,9 +5602,7 @@ get_innobase_type_from_mysql_type(
 						flag set to zero, even though
 						internally this is an unsigned
 						integer type */
-
-		return((table && dict_table_is_intrinsic(table))
-		       ? DATA_LE_INT : DATA_INT);
+		return(DATA_INT);
 	}
 
 	switch (field->type()) {
@@ -5640,8 +5638,7 @@ get_innobase_type_from_mysql_type(
 	case MYSQL_TYPE_DATE:
 	case MYSQL_TYPE_YEAR:
 	case MYSQL_TYPE_NEWDATE:
-		return((table && dict_table_is_intrinsic(table))
-		       ? DATA_LE_INT : DATA_INT);
+		return(DATA_INT);
 	case MYSQL_TYPE_TIME:
 	case MYSQL_TYPE_DATETIME:
 	case MYSQL_TYPE_TIMESTAMP:
@@ -9230,7 +9227,6 @@ found:
 				prefix_len = key_part->length;
 				break;
 			case DATA_INT:
-			case DATA_LE_INT:
 			case DATA_FLOAT:
 			case DATA_DOUBLE:
 			case DATA_DECIMAL:

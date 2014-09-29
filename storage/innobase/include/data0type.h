@@ -89,13 +89,11 @@ while CHAR for DATA_POINT */
 #define DATA_VAR_POINT	16	/* geometry datatype of variable length
 				POINT, used when we want to store POINT
 				as BLOB internally */
-#define	DATA_LE_INT	17	/* integer in little endian format. */
-
 #define DATA_MTYPE_MAX	63	/* dtype_store_for_order_and_null_size()
 				requires the values are <= 63 */
 
 #define DATA_MTYPE_CURRENT_MIN	DATA_VARCHAR	/* minimum value of mtype */
-#define DATA_MTYPE_CURRENT_MAX	DATA_LE_INT	/* maximum value of mtype */
+#define DATA_MTYPE_CURRENT_MAX	DATA_VAR_POINT	/* maximum value of mtype */
 /*-------------------------------------------*/
 /* The 'PRECISE TYPE' of a column */
 /*
