@@ -56,14 +56,10 @@ PageBulk::init()
 
 		/* We commit redo log for allocation by a separate mtr,
 		because we don't guarantee pages are committed following
-		the allocation order. */
+		the allocation order, and we will always generate redo log
+		for page allocation, even when creating a new tablespace. */
 		mtr_start(&alloc_mtr);
-
-		if (m_index->is_redo_skipped) {
-			mtr_set_log_mode(&alloc_mtr, MTR_LOG_NO_REDO);
-		} else {
-			alloc_mtr.set_named_space(dict_index_get_space(m_index));
-		}
+		alloc_mtr.set_named_space(dict_index_get_space(m_index));
 
 		/* Allocate a new page. */
 		new_block = btr_page_alloc(m_index, 0, FSP_UP, m_level,
@@ -692,11 +688,13 @@ BtrBulk::pageCommit(
 void
 BtrBulk::logFreeCheck()
 {
-	release();
+	if (log_sys->check_flush_or_checkpoint) {
+		release();
 
-	log_free_check();
+		log_free_check();
 
-	latch();
+		latch();
+	}
 }
 
 /** Release all latches */
@@ -809,9 +807,7 @@ BtrBulk::insert(
 			srv_inc_activity_count();
 			os_event_set(buf_flush_event);
 
-			if (!m_index->is_redo_skipped) {
-				logFreeCheck();
-			}
+			logFreeCheck();
 		}
 	}
 
@@ -902,11 +898,7 @@ BtrBulk::finish(
 					       root_page_no, m_root_level);
 
 		mtr_start(&mtr);
-		if (m_index->is_redo_skipped) {
-			mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
-                } else {
-			mtr.set_named_space(dict_index_get_space(m_index));
-		}
+		mtr.set_named_space(dict_index_get_space(m_index));
 		mtr_x_lock(dict_index_get_lock(m_index), &mtr);
 
 		ut_ad(last_page_no != FIL_NULL);

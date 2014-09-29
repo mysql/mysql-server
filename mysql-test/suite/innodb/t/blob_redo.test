@@ -1,14 +1,11 @@
+# Embedded server does not support restarting.
 --source include/not_embedded.inc
---source include/not_crashrep.inc
 --source include/have_innodb.inc
 
 --echo #
 --echo # Bug #19498877 LIMITATION ON BLOB SIZE IS TOO STRICT, BLOB CAN
 --echo # BE 10% OF TOTAL REDO LOG SIZE
 --echo #
-
-# Save the initial number of concurrent sessions.
---source include/count_sessions.inc
 
 call mtr.add_suppression("InnoDB: Resizing redo log from");
 call mtr.add_suppression("InnoDB: Starting to delete and rewrite log files.");
@@ -36,19 +33,7 @@ INSERT INTO t1 (a, b) VALUES (6, REPEAT('a', 6*1024*1024));
 --echo # Connection default:
 connection default;
 
-# We expect a restart.
---exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
-
---echo # Quick shutdown and restart server
---shutdown_server 0
-
-# Wait for the server to come back up, and reconnect.
---enable_reconnect
---source include/wait_until_connected_again.inc
---disable_reconnect
-
---echo # Connection default:
-connection default;
+--source include/kill_and_restart_mysqld.inc
 
 --disconnect big_packets
 
@@ -66,16 +51,7 @@ UPDATE t1 SET b = REPEAT('a', 6*1024*1024) WHERE a = 1;
 --echo # Connection default:
 connection default;
 
-# We expect a restart.
---exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
-
---echo # Quick shutdown and restart server
---shutdown_server 0
-
-# Wait for the server to come back up, and reconnect.
---enable_reconnect
---source include/wait_until_connected_again.inc
---disable_reconnect
+--source include/kill_and_restart_mysqld.inc
 
 --echo # Connection default:
 connection default;
@@ -87,5 +63,3 @@ SELECT a, b FROM t1;
 
 # Clean up.
 DROP TABLE t1;
-
---source include/wait_until_count_sessions.inc

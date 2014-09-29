@@ -3934,7 +3934,6 @@ row_merge_build_indexes(
 	fts_psort_t*		merge_info = NULL;
 	int64_t			sig_count = 0;
 	bool			fts_psort_initiated = false;
-	bool			is_redo_skipped;
 	DBUG_ENTER("row_merge_build_indexes");
 
 	ut_ad(!srv_read_only_mode);
@@ -3967,18 +3966,7 @@ row_merge_build_indexes(
 		merge_files[i].fd = -1;
 	}
 
-	/* Check whether we can skip redo log for page allocation.
-	Since we have a checkpoint at the end of bulk load, the redo
-	log for page allocation is used in case of transaction rollback
-	(drop a B-tree). If we are rebuilding a table with a single file,
-	we can simply remove the file when rollback. */
-	is_redo_skipped = dict_table_is_temporary(new_table)
-		|| (old_table != new_table
-		    && dict_table_use_file_per_table(new_table));
-
 	for (i = 0; i < n_indexes; i++) {
-		indexes[i]->is_redo_skipped = is_redo_skipped;
-
 		if (indexes[i]->type & DICT_FTS) {
 			ibool	opt_doc_id_size = FALSE;
 
