@@ -484,6 +484,11 @@ static int tokudb_killed_callback(void) {
     return thd->killed;
 }
 
+static bool tokudb_killed_thd_callback(void *extra) {
+    THD *thd = static_cast<THD *>(extra);
+    return thd->killed != 0;
+}
+
 enum {
     TOKUDB_EMPTY_SCAN_DISABLED = 0,
     TOKUDB_EMPTY_SCAN_LR = 1,
