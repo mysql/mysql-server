@@ -3738,11 +3738,11 @@ bool MYSQL_BIN_LOG::open_binlog(const char *log_name,
 
     if (need_sid_lock)
       global_sid_lock->unlock();
-    (prev_gtids_ev.common_footer)->checksum_alg=
+    prev_gtids_ev.common_footer->checksum_alg=
                                    (s.common_footer)->checksum_alg;
     if (prev_gtids_ev.write(&log_file))
       goto err;
-    bytes_written+= (prev_gtids_ev.common_header)->data_written;
+    bytes_written+= prev_gtids_ev.common_header->data_written;
   }
   if (extra_description_event &&
       extra_description_event->binlog_version>=4)
@@ -5433,7 +5433,7 @@ int MYSQL_BIN_LOG::new_file_impl(bool need_lock_log, Format_description_log_even
                       errno, my_strerror(errbuf, sizeof(errbuf), errno));
       goto end;
     }
-    bytes_written += (r.common_header)->data_written;
+    bytes_written += r.common_header->data_written;
   }
   flush_io_cache(&log_file);
   DEBUG_SYNC(current_thd, "after_rotate_event_appended");

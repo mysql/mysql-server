@@ -36,9 +36,8 @@
 #include "byteorder.h"
 #include "wrapper_functions.h"
 #include <zlib.h> //for checksum calculations
-#include <stdio.h>
+#include <cstdio>
 #include <iostream>
-#include <sstream>
 
 #if defined(_WIN32)
 #include <Winsock2.h>
@@ -792,7 +791,7 @@ protected:
     We set the type code to ENUM_END_EVENT so that the decoder
     asserts if event type has not been modified by the sub classes
   */
-  explicit Binary_log_event(Log_event_type type_code= ENUM_END_EVENT)
+  explicit Binary_log_event(Log_event_type type_code)
     : m_header(type_code)
   {}
 

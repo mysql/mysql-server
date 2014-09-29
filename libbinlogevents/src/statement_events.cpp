@@ -14,8 +14,6 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "statement_events.h"
-#include "control_events.h"
-#include "transitional_methods.h"
 #include <algorithm>
 
 namespace binary_log
@@ -445,19 +443,19 @@ int Query_event::fill_data_buf(Log_event_header::Byte* buf,
   Explicit instantiation to unsigned int of template available_buffer
   function.
 */
-template unsigned int available_buffer<unsigned int>(const char*,
+/*template unsigned int available_buffer<unsigned int>(const char*,
                                                      const char*,
                                                      unsigned int);
-
+*/
 /*
   Explicit instantiation to unsigned int of template valid_buffer_range
   function.
 */
-template bool valid_buffer_range<unsigned int>(unsigned int,
+/*template bool valid_buffer_range<unsigned int>(unsigned int,
                                                const char*,
                                                const char*,
                                                unsigned int);
-
+*/
 /**
   The constructor for User_var_event.
 */

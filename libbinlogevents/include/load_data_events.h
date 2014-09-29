@@ -28,7 +28,6 @@
 #ifndef LOAD_DATA_EVENTS_INCLUDED
 #define	LOAD_DATA_EVENTS_INCLUDED
 
-#include "binlog_event.h"
 #include "statement_events.h"
 #include "table_id.h"
 #include <cassert>

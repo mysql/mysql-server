@@ -907,7 +907,8 @@ public:
     It is the minimal constructor which sets the commit_flag.
   */
   explicit Gtid_event(bool commit_flag_arg)
-    : commit_flag(commit_flag_arg)
+    : Binary_log_event(GTID_LOG_EVENT),
+      commit_flag(commit_flag_arg)
   {}
 #ifndef HAVE_MYSYS
   //TODO(WL#7684): Implement the method print_event_info and print_long_info

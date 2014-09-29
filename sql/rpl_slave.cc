@@ -6858,7 +6858,7 @@ static int process_io_create_file(Master_info* mi, Create_file_log_event* cev)
         if (unlikely(cev_not_written))
           break;
         Execute_load_log_event xev(thd,0,0);
-        (xev.common_header)->log_pos = cev->common_header->log_pos;
+        xev.common_header->log_pos = cev->common_header->log_pos;
         if (unlikely(mi->rli->relay_log.append_event(&xev, mi) != 0))
         {
           mi->report(ERROR_LEVEL, ER_SLAVE_RELAY_LOG_WRITE_FAILURE,
@@ -6887,7 +6887,7 @@ static int process_io_create_file(Master_info* mi, Create_file_log_event* cev)
       {
         aev.block = net->read_pos;
         aev.block_len = num_bytes;
-        (aev.common_header)->log_pos= cev->common_header->log_pos;
+        aev.common_header->log_pos= cev->common_header->log_pos;
         if (unlikely(mi->rli->relay_log.append_event(&aev, mi) != 0))
         {
           mi->report(ERROR_LEVEL, ER_SLAVE_RELAY_LOG_WRITE_FAILURE,
@@ -7434,7 +7434,7 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
       error_msg.append(STRING_WITH_LEN("the event's data: log_file_name "));
       error_msg.append(hb.get_log_ident(), strlen(hb.get_log_ident()));
       error_msg.append(STRING_WITH_LEN(" log_pos "));
-      llstr((hb.common_header)->log_pos, llbuf);
+      llstr(hb.common_header->log_pos, llbuf);
       error_msg.append(llbuf, strlen(llbuf));
       goto err;
     }
@@ -7457,13 +7457,13 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
       EVENT from the master prior to this will update the file name.
     */
     if (mi->is_auto_position()  && mi->get_master_log_pos() <
-       (hb.common_header)->log_pos &&  mi->get_master_log_name() != NULL)
+       hb.common_header->log_pos &&  mi->get_master_log_name() != NULL)
     {
 
       DBUG_ASSERT(memcmp(const_cast<char*>(mi->get_master_log_name()),
                          hb.get_log_ident(), hb.get_ident_len()) == 0);
 
-      mi->set_master_log_pos((hb.common_header)->log_pos);
+      mi->set_master_log_pos(hb.common_header->log_pos);
 
       /*
          Put this heartbeat event in the relay log as a Rotate Event.
@@ -7492,14 +7492,14 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
     if ((memcmp(const_cast<char *>(mi->get_master_log_name()),
                 hb.get_log_ident(), hb.get_ident_len())
          && mi->get_master_log_name() != NULL)
-        || ((mi->get_master_log_pos() != (hb.common_header)->log_pos
+        || ((mi->get_master_log_pos() != hb.common_header->log_pos
         && gtid_mode == 0) ||
             /*
               When Gtid mode is on only monotocity can be claimed.
               Todo: enhance HB event with the skipped events size
               and to convert HB.pos  == MI.pos to HB.pos - HB.skip_size == MI.pos
             */
-            (mi->get_master_log_pos() > (hb.common_header)->log_pos)))
+            (mi->get_master_log_pos() > hb.common_header->log_pos)))
     {
       /* missed events of heartbeat from the past */
       error= ER_SLAVE_HEARTBEAT_FAILURE;
@@ -7507,7 +7507,7 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
       error_msg.append(STRING_WITH_LEN("the event's data: log_file_name "));
       error_msg.append(hb.get_log_ident(), strlen(hb.get_log_ident()));
       error_msg.append(STRING_WITH_LEN(" log_pos "));
-      llstr((hb.common_header)->log_pos, llbuf);
+      llstr(hb.common_header->log_pos, llbuf);
       error_msg.append(llbuf, strlen(llbuf));
       goto err;
     }

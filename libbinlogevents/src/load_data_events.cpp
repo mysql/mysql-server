@@ -13,9 +13,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "binlog_event.h"
 #include "load_data_events.h"
-#include "transitional_methods.h"
 #include <stdlib.h>
 #include <string.h>
 

@@ -27,7 +27,6 @@
 #ifndef ROWS_EVENT_INCLUDED
 #define	ROWS_EVENT_INCLUDED
 
-#include "binlog_event.h"
 #include "control_events.h"
 #include "table_id.h"
 #include <cassert>
@@ -410,7 +409,8 @@ public:
 
   Table_map_event(const Table_id& tid, unsigned long colcnt, const char *dbnam,
                   size_t dblen, const char *tblnam, size_t tbllen)
-    : m_table_id(tid),
+    : Binary_log_event(TABLE_MAP_EVENT),
+      m_table_id(tid),
       m_data_size(0),
       m_dblen(dblen),
       m_tbllen(tbllen),

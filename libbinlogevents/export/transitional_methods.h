@@ -16,7 +16,8 @@
 /**
   @file transitional_methods.h
 
-  @brief Contains methods and members which are exported by the server.
+  @brief Common definitions between mysql server and libbinlogevents.
+         These definition are also part of ABI of mysql-server.
 */
 
 #ifndef TRANSITIONAL_METHODS_INCLUDED

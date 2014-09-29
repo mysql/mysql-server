@@ -29,9 +29,5 @@
 #include "rowset.h"
 #include "rows_event.h"
 #include "transitional_methods.h"
-#include <iosfwd>
-#include <list>
-#include <cassert>
-#include <algorithm>
 
 #endif	/* BINARY_LOG_INCLUDED */

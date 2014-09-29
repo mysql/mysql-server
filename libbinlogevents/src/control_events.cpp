@@ -13,8 +13,6 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "binlog_event.h"
-#include "control_events.h"
 #include "statement_events.h"
 #include "transitional_methods.h"
 #include <algorithm>
@@ -411,6 +409,7 @@ Format_description_event(const char* buf, unsigned int event_len,
         server_version[4] >= '0' && server_version[4] <= '2' &&
         server_version[12] == '6')))
   {
+    // 22= No of events used in the mysql version mentioned above in the comments
     if (number_of_event_types != 22)
     {
       post_header_len.clear();

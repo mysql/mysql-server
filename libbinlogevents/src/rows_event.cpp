@@ -13,9 +13,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "binlog_event.h"
 #include "rows_event.h"
-#include "transitional_methods.h"
 #include <stdlib.h>
 #include <string.h>
 
@@ -125,7 +123,7 @@ Table_map_event::Table_map_event(const char *buf, unsigned int event_len,
 
   m_coltype= static_cast<unsigned char*>(bapi_malloc(m_colcnt, MEMORY_LOG_EVENT,
                                          16));
-  m_dbnam= std::string((const char*)ptr_dblen  + 1, m_dblen + 1);
+  m_dbnam= std::string((const char*)ptr_dblen  + 1, m_dblen);
   m_tblnam= std::string((const char*)ptr_tbllen  + 1, m_tbllen + 1);
 
   memcpy(m_coltype, ptr_after_colcnt, m_colcnt);
