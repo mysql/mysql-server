@@ -1606,7 +1606,6 @@ row_fts_merge_insert(
 	ut_ad(aux_table != NULL);
 	dict_table_close(aux_table, FALSE, FALSE);
 	aux_index = dict_table_get_first_index(aux_table);
-	aux_index->is_redo_skipped = index->is_redo_skipped;
 
 	/* Create bulk load instance */
 	ins_ctx.btr_bulk = UT_NEW_NOKEY(BtrBulk(aux_index, trx->id));
