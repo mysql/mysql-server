@@ -5778,9 +5778,21 @@ static bool fill_alter_inplace_info(THD *thd,
         ha_alter_info->handler_flags|= Alter_inplace_info::ALTER_COLUMN_TYPE;
       }
 
+      bool field_renamed;
+      /*
+        InnoDB data dictionary is case sensitive so we should use
+        string case sensitive comparison between fields.
+        Note: strcmp branch is to be removed in future when we fix it
+        in InnoDB.
+      */
+      if (ha_alter_info->create_info->db_type->db_type == DB_TYPE_INNODB)
+        field_renamed= strcmp(field->field_name, new_field->field_name);
+      else
+	field_renamed= my_strcasecmp(system_charset_info, field->field_name,
+                                     new_field->field_name);
+
       /* Check if field was renamed */
-      if (my_strcasecmp(system_charset_info, field->field_name,
-                        new_field->field_name))
+      if (field_renamed)
       {
         field->flags|= FIELD_IS_RENAMED;
         ha_alter_info->handler_flags|= Alter_inplace_info::ALTER_COLUMN_NAME;
