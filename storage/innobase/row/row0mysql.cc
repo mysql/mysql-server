@@ -1428,7 +1428,8 @@ row_mysql_to_innobase(
 		memcpy of 0 bytes shouldn't affect the original col_len. */
 		if (dtype_get_mysql_type(dtype) == DATA_MYSQL_TRUE_VARCHAR) {
 			col_len = 0;
-			memcpy(&col_len, ptr, templ->mysql_length_bytes); 
+			row_mysql_read_true_varchar(
+				&col_len, ptr, templ->mysql_length_bytes);
 			ptr += templ->mysql_length_bytes;
 		} else if (dtype->mtype == DATA_BLOB) {
 			ptr = row_mysql_read_blob_ref(&col_len, ptr, col_len);
