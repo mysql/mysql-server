@@ -1086,7 +1086,6 @@ row_raw_format(
 
 	switch (mtype) {
 	case DATA_INT:
-	case DATA_LE_INT:
 
 		ret = row_raw_format_int(data, data_len, prtype,
 					 buf, buf_size, &format_in_hex);

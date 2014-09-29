@@ -2679,7 +2679,7 @@ row_sel_convert_mysql_key_to_innobase(
 
 		if ((dtype_get_mysql_type(dfield_get_type(dfield))
 		     == DATA_MYSQL_TRUE_VARCHAR)
-		    && (type != DATA_INT || type != DATA_LE_INT)) {
+		    && (type != DATA_INT)) {
 			/* In a MySQL key value format, a true VARCHAR is
 			always preceded by 2 bytes of a length field.
 			dfield_get_type(dfield)->len returns the maximum
@@ -2843,9 +2843,6 @@ row_sel_field_store_in_mysql_format_func(
 	switch (templ->type) {
 		const byte*	field_end;
 		byte*		pad;
-	case DATA_LE_INT:
-		memcpy(dest, data, len);
-		break;
 	case DATA_INT:
 		/* Convert integer data from Innobase to a little-endian
 		format, sign bit restored to normal */
@@ -3625,7 +3622,7 @@ row_sel_copy_cached_field_for_mysql(
 	UNIV_MEM_ASSERT_W(buf, templ->mysql_col_len);
 
 	if (templ->mysql_type == DATA_MYSQL_TRUE_VARCHAR
-	    && (templ->type != DATA_INT || templ->type != DATA_LE_INT)) {
+	    && (templ->type != DATA_INT)) {
 		/* Check for != DATA_INT to make sure we do
 		not treat MySQL ENUM or SET as a true VARCHAR!
 		Find the actual length of the true VARCHAR field. */
