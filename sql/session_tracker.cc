@@ -159,7 +159,7 @@ public:
   bool check(THD *thd, set_var *var);
   bool update(THD *thd);
   bool store(THD *thd, String &buf);
-  void mark_as_changed(LEX_CSTRING *tracked_item_name);
+  void mark_as_changed(THD *thd, LEX_CSTRING *tracked_item_name);
   /* callback */
   static uchar *sysvars_get_key(const char *entry, size_t *length,
                                 my_bool not_used __attribute__((unused)));
@@ -193,7 +193,7 @@ public:
   { return false; }
   bool update(THD *thd);
   bool store(THD *thd, String &buf);
-  void mark_as_changed(LEX_CSTRING *tracked_item_name);
+  void mark_as_changed(THD *thd, LEX_CSTRING *tracked_item_name);
 };
 
 static void store_lenenc_string(String &to, const char *from,
@@ -556,7 +556,7 @@ bool Session_sysvars_tracker::store(THD *thd, String &buf)
   @return                   void
 */
 
-void Session_sysvars_tracker::mark_as_changed(LEX_CSTRING *tracked_item_name)
+void Session_sysvars_tracker::mark_as_changed(THD *thd, LEX_CSTRING *tracked_item_name)
 {
   DBUG_ASSERT(tracked_item_name->str);
   sysvar_node_st *node= NULL;
@@ -571,6 +571,8 @@ void Session_sysvars_tracker::mark_as_changed(LEX_CSTRING *tracked_item_name)
   {
     node->m_changed= true;
     m_changed= true;
+    /* do not cache the statement when there is change in session state */
+    thd->lex->safe_to_cache_query= 0;
   }
 }
 
@@ -684,10 +686,12 @@ bool Current_schema_tracker::store(THD *thd, String &buf)
   @return void
 */
 
-void Current_schema_tracker::mark_as_changed(LEX_CSTRING *tracked_item_name
+void Current_schema_tracker::mark_as_changed(THD *thd,
+                                             LEX_CSTRING *tracked_item_name
                                              __attribute__((unused)))
 {
   m_changed= true;
+  thd->lex->safe_to_cache_query= 0;
 }
 
 
@@ -784,7 +788,8 @@ bool Session_state_change_tracker::store(THD *thd, String &buf)
   @return void
 */
 
-void Session_state_change_tracker::mark_as_changed(LEX_CSTRING *tracked_item_name)
+void Session_state_change_tracker::mark_as_changed(THD *thd,
+                                                   LEX_CSTRING *tracked_item_name)
 {
   /* do not send the boolean flag for the tracker itself
      in the OK packet */
@@ -792,7 +797,10 @@ void Session_state_change_tracker::mark_as_changed(LEX_CSTRING *tracked_item_nam
      (strncmp(tracked_item_name->str, "session_track_state_change", 26) == 0))
     m_changed= false;
   else
+  {
     m_changed= true;
+    thd->lex->safe_to_cache_query= 0;
+  }
 }
 
 /**

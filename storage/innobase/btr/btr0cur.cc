@@ -6573,12 +6573,7 @@ btr_store_big_rec_extern_fields(
 				mtr_t	alloc_mtr;
 
 				mtr_start(&alloc_mtr);
-				if (index->is_redo_skipped) {
-					mtr_set_log_mode(&alloc_mtr,
-							 MTR_LOG_NO_REDO);
-				} else {
-					alloc_mtr.set_named_space(index->space);
-				}
+				alloc_mtr.set_named_space(index->space);
 
 				block = btr_page_alloc(index, hint_page_no,
 					FSP_NO_DIR, 0, &alloc_mtr, &mtr);

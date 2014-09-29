@@ -16,8 +16,7 @@ INSERT INTO t1 (a, b) VALUES (5, '5');
 start transaction;
 INSERT INTO t1 (a, b) VALUES (6, REPEAT('a', 6*1024*1024));
 # Connection default:
-# Quick shutdown and restart server
-# Connection default:
+# Kill and restart
 SELECT a, b FROM t1;
 a	b
 1	1
@@ -30,7 +29,7 @@ SET GLOBAL max_allowed_packet = 100*1024*1024;
 start transaction;
 UPDATE t1 SET b = REPEAT('a', 6*1024*1024) WHERE a = 1;
 # Connection default:
-# Quick shutdown and restart server
+# Kill and restart
 # Connection default:
 SELECT a, b FROM t1;
 a	b

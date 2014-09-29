@@ -230,11 +230,8 @@ our %gprof_dirs;
 
 our $glob_debugger= 0;
 our $opt_gdb;
-our $opt_lldb;
 our $opt_client_gdb;
-our $opt_client_lldb;
 my $opt_boot_gdb;
-my $opt_boot_lldb;
 our $opt_dbx;
 our $opt_client_dbx;
 my $opt_boot_dbx;
@@ -1118,13 +1115,10 @@ sub command_line_setup {
              'debug-common'             => \$opt_debug_common,
              'debug-server'             => \$opt_debug_server,
              'gdb'                      => \$opt_gdb,
-             'lldb'                     => \$opt_lldb,
              'client-gdb'               => \$opt_client_gdb,
-             'client-lldb'              => \$opt_client_lldb,
              'manual-gdb'               => \$opt_manual_gdb,
              'manual-lldb'              => \$opt_manual_lldb,
 	     'boot-gdb'                 => \$opt_boot_gdb,
-	     'boot-lldb'                => \$opt_boot_lldb,
              'manual-debug'             => \$opt_manual_debug,
              'ddd'                      => \$opt_ddd,
              'client-ddd'               => \$opt_client_ddd,
@@ -1564,13 +1558,6 @@ sub command_line_setup {
       $opt_gdb= undef;
     }
 
-    if ($opt_lldb)
-    {
-      mtr_warning("Silently converting --lldb to --client-lldb in embedded mode");
-      $opt_client_lldb= $opt_lldb;
-      $opt_lldb= undef;
-    }
-
     if ($opt_ddd)
     {
       mtr_warning("Silently converting --ddd to --client-ddd in embedded mode");
@@ -1591,7 +1578,7 @@ sub command_line_setup {
       $opt_debugger= undef;
     }
 
-    if ( $opt_gdb || $opt_ddd || $opt_lldb || $opt_manual_gdb || $opt_manual_lldb || 
+    if ( $opt_gdb || $opt_ddd || $opt_manual_gdb || $opt_manual_lldb || 
          $opt_manual_ddd || $opt_manual_debug || $opt_debugger || $opt_dbx || 
          $opt_manual_dbx)
     {
@@ -1619,10 +1606,10 @@ sub command_line_setup {
   # --------------------------------------------------------------------------
   # Check debug related options
   # --------------------------------------------------------------------------
-  if ( $opt_gdb || $opt_client_gdb || $opt_lldb || $opt_client_lldb || 
-       $opt_ddd || $opt_client_ddd || $opt_manual_gdb || $opt_manual_gdb || 
-       $opt_manual_ddd || $opt_manual_debug || $opt_dbx || $opt_client_dbx ||
-       $opt_manual_dbx || $opt_debugger || $opt_client_debugger )
+  if ( $opt_gdb || $opt_client_gdb || $opt_ddd || $opt_client_ddd || 
+       $opt_manual_gdb || $opt_manual_lldb || $opt_manual_ddd || 
+       $opt_manual_debug || $opt_dbx || $opt_client_dbx || $opt_manual_dbx || 
+       $opt_debugger || $opt_client_debugger )
   {
     # Indicate that we are using debugger
     $glob_debugger= 1;
@@ -3641,10 +3628,6 @@ sub mysql_install_db {
     gdb_arguments(\$args, \$exe_mysqld_bootstrap, $mysqld->name(),
 		  $bootstrap_sql_file);
   }
-  if ($opt_boot_lldb) {
-    lldb_arguments(\$args, \$exe_mysqld_bootstrap, $mysqld->name(),
-		  $bootstrap_sql_file);
-  }
   if ($opt_boot_dbx) {
     dbx_arguments(\$args, \$exe_mysqld_bootstrap, $mysqld->name(),
 		  $bootstrap_sql_file);
@@ -5510,7 +5493,7 @@ sub mysqld_start ($$) {
   {
     gdb_arguments(\$args, \$exe, $mysqld->name());
   }
-  elsif ( $opt_lldb || $opt_manual_lldb )
+  elsif ( $opt_manual_lldb )
   {
     lldb_arguments(\$args, \$exe, $mysqld->name());
   }
@@ -6295,10 +6278,6 @@ sub start_mysqltest ($) {
   {
     gdb_arguments(\$args, \$exe, "client");
   }
-  if ( $opt_client_lldb )
-  {
-    lldb_arguments(\$args, \$exe, "client");
-  }
   elsif ( $opt_client_ddd )
   {
     ddd_arguments(\$args, \$exe, "client");
@@ -6412,30 +6391,12 @@ sub lldb_arguments {
 	     "b main\n" .
 	     $runline);
 
-  if ( $opt_manual_ddd )
-  {
     print "\nTo start lldb for $type, type in another window:\n";
     print "cd $glob_mysql_test_dir && lldb -s $lldb_init_file $$exe\n";
 
     # Indicate the exe should not be started
     $$exe= undef;
     return;
-  }
-
-  my $save_exe= $$exe;
-  $$args= [];
-  if ( $exe_libtool )
-  {
-    $$exe= $exe_libtool;
-    mtr_add_arg($$args, "--mode=execute");
-    mtr_add_arg($$args, "lldb");
-  }
-  else
-  {
-    $$exe= "lldb";
-  }
-  mtr_add_arg($$args, "--command=$lldb_init_file");
-  mtr_add_arg($$args, "$save_exe");
 }
 
 #
