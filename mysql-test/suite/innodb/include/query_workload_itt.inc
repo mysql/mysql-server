@@ -184,13 +184,6 @@ select * from t1 where t1.a in (select a from t2) ;
 set optimizer_switch=default;
 
 #
-# system table
-if (!`select @@innodb_create_intrinsic`) {
-	explain format = json select * from information_schema.character_sets order by 1 limit 3;
-	select * from information_schema.character_sets order by 1 limit 3;
-}
-
-#
 # muti-update
 if (`select @@innodb_create_intrinsic`) {
 	update t1, t2 set t1.a = 9, t2.a = 10 where t1.b = 'a';
