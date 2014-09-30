@@ -31,6 +31,8 @@ HugoTransactions::HugoTransactions(const NdbDictionary::Table& _tab,
 
   m_thr_count = 0;
   m_thr_no = -1;
+
+  m_empty_update = false;
 }
 
 HugoTransactions::~HugoTransactions(){
@@ -490,7 +492,7 @@ restart:
 	  closeTransaction(pNdb);
 	  return NDBT_FAILED;
 	}
-	const int updates = calc.getUpdatesValue(&row) + 1;
+	const int updates = calc.getUpdatesValue(&row) + (m_empty_update)? 0 : 1;
 	const int r = calc.getIdValue(&row);
         
   	for(a = 0; a<tab.getNoOfColumns(); a++){
@@ -1202,7 +1204,7 @@ HugoTransactions::pkUpdateRecords(Ndb* pNdb,
               return NDBT_FAILED;
             }
             
-            int updates = calc.getUpdatesValue(rows[0]) + 1;
+            int updates = calc.getUpdatesValue(rows[0]) + (m_empty_update)? 0 : 1;
             
             /* Rows may not arrive in the order they were requested
              * (When multiple partitions scanned without ORDERBY)
@@ -1251,7 +1253,7 @@ HugoTransactions::pkUpdateRecords(Ndb* pNdb,
 	  return NDBT_FAILED;
 	}
 	
-	int updates = calc.getUpdatesValue(rows[b]) + 1;
+	int updates = calc.getUpdatesValue(rows[b]) + (m_empty_update)? 0 : 1;
 	
 	if(pkUpdateRecord(pNdb, r+b, 1, updates) != NDBT_OK)
 	{
@@ -1387,7 +1389,7 @@ HugoTransactions::pkInterpretedUpdateRecords(Ndb* pNdb,
       return NDBT_FAILED;
     }
 
-    int updates = calc.getUpdatesValue(&row) + 1;
+    int updates = calc.getUpdatesValue(&row) + (m_empty_update)? 0 : 1;
 
     NdbOperation* pUpdOp;
     pUpdOp = pTrans->getNdbOperation(tab.getName());	
@@ -2214,7 +2216,7 @@ HugoTransactions::indexUpdateRecords(Ndb* pNdb,
 	return NDBT_FAILED;
       }
       
-      int updates = calc.getUpdatesValue(rows[b]) + 1;
+      int updates = calc.getUpdatesValue(rows[b]) + (m_empty_update)? 0 : 1;
       
       NdbOperation* pUpdOp;
       if(!ordered){

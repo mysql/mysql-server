@@ -238,6 +238,25 @@ public:
    */			     
   const struct NdbError & getNdbError() const;
 
+  /**
+   * Set allow empty updates
+   *
+   * To support monitoring of pseudo columns we need to
+   * explicitely allow for receiving events with no updates
+   * to user defined columns.
+   * Normally update events with no changes to monitored columns
+   * are filtered out by NdbApi. By calling setAllowEmptyUpdate(true),
+   * these are passed to the user.
+   */
+  void setAllowEmptyUpdate(bool allow);
+
+  /**
+   * Get allow empty updates value
+   *
+   * @return current value (with initial value being false)
+   */
+  bool getAllowEmptyUpdate();
+
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
   /** these are subject to change at any time */
   const NdbDictionary::Table* getTable() const;

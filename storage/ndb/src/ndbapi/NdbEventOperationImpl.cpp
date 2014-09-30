@@ -96,7 +96,8 @@ NdbEventOperationImpl::NdbEventOperationImpl(NdbEventOperation &f,
   m_facade(&f),
   m_ndb(theNdb),
   m_state(EO_ERROR),
-  m_oid(~(Uint32)0)
+  m_oid(~(Uint32)0),
+  m_allow_empty_update(false)
 {
   DBUG_ENTER("NdbEventOperationImpl::NdbEventOperationImpl");
 
@@ -959,11 +960,11 @@ NdbEventOperationImpl::receive_event()
   }
   
   NdbRecAttr *tWorkingRecAttr = theFirstDataAttrs[0];
-  
   Uint32 tRecAttrId;
   Uint32 tAttrId;
   Uint32 tDataSz;
-  int hasSomeData= (operation != NdbDictionary::Event::_TE_UPDATE);
+  int hasSomeData= (operation != NdbDictionary::Event::_TE_UPDATE) ||
+    m_allow_empty_update;
   while ((aAttrPtr < aAttrEndPtr) && (tWorkingRecAttr != NULL)) {
     tRecAttrId = tWorkingRecAttr->attrId();
     tAttrId = AttributeHeader(*aAttrPtr).getAttributeId();
