@@ -49,6 +49,7 @@ extern ulong opt_ndb_extra_logging;
 extern st_ndb_slave_state g_ndb_slave_state;
 extern my_bool opt_ndb_log_transaction_id;
 extern my_bool log_bin_use_v1_row_events;
+extern my_bool opt_ndb_log_empty_update;
 
 bool ndb_log_empty_epochs(void);
 
@@ -1957,7 +1958,6 @@ int ndbcluster_log_schema_op(THD *thd,
         dbug_ndbcluster_anyvalue_set_userbits(anyValue);
       }
 #endif  
-
       r|= op->setAnyValue(anyValue);
       DBUG_ASSERT(r == 0);
       break;
@@ -4612,6 +4612,7 @@ row_conflict_fn_epoch(NDB_CONFLICT_FN_SHARE* cfn_share,
     DBUG_RETURN(1);
   case UPDATE_ROW:
   case DELETE_ROW:
+  case READ_ROW: /* Read tracking */
   {
     const uint label_0= 0;
     const Uint32
@@ -5754,6 +5755,10 @@ ndbcluster_create_event_ops(THD *thd, NDB_SHARE *share,
     share->event_data= 0;                   // take over event data
     share->op= op; // assign op in NDB_SHARE
 
+    /* Check if user explicitly requires monitoring of empty updates */
+    if (opt_ndb_log_empty_update)
+      op->setAllowEmptyUpdate(true);
+
     if (op->execute())
     {
       share->op= NULL;
@@ -6254,6 +6259,7 @@ handle_data_event(THD* thd, Ndb *ndb, NdbEventOperation *pOp,
   NDB_SHARE *share= event_data->share;
   bool reflected_op = false;
   bool refresh_op = false;
+  bool read_op = false;
 
   if (pOp != share->op)
   {
@@ -6276,6 +6282,12 @@ handle_data_event(THD* thd, Ndb *ndb, NdbEventOperation *pOp,
     {
       DBUG_PRINT("info", ("Anyvalue -> Refresh"));
       refresh_op = true;
+      anyValue = 0;
+    }
+    else if (ndbcluster_anyvalue_is_read_op(anyValue))
+    {
+      DBUG_PRINT("info", ("Anyvalue -> Read"));
+      read_op = true;
       anyValue = 0;
     }
     else
@@ -6417,9 +6429,10 @@ handle_data_event(THD* thd, Ndb *ndb, NdbEventOperation *pOp,
   */
   Ndb_binlog_extra_row_info extra_row_info;
   const uchar* extra_row_info_ptr = NULL;
+  Uint16 erif_flags = 0;
   if (opt_ndb_log_transaction_id)
   {
-    extra_row_info.setFlags(Ndb_binlog_extra_row_info::NDB_ERIF_TRANSID);
+    erif_flags |= Ndb_binlog_extra_row_info::NDB_ERIF_TRANSID;
     extra_row_info.setTransactionId(pOp->getTransId());
   }
 
@@ -6434,6 +6447,10 @@ handle_data_event(THD* thd, Ndb *ndb, NdbEventOperation *pOp,
   {
     event_conflict_flags |= NDB_ERIF_CFT_REFRESH_OP;
   }
+  else if (read_op)
+  {
+    event_conflict_flags |= NDB_ERIF_CFT_READ_OP;
+  }
     
   DBUG_EXECUTE_IF("ndb_injector_set_event_conflict_flags",
                   {
@@ -6441,13 +6458,13 @@ handle_data_event(THD* thd, Ndb *ndb, NdbEventOperation *pOp,
                   });
   if (event_conflict_flags != 0)
   {
-    extra_row_info.setFlags(Ndb_binlog_extra_row_info::NDB_ERIF_CFT_FLAGS);
+    erif_flags |= Ndb_binlog_extra_row_info::NDB_ERIF_CFT_FLAGS;
     extra_row_info.setConflictFlags(event_conflict_flags);
   }
 
-  if (opt_ndb_log_transaction_id ||
-      event_conflict_flags != 0)
+  if (erif_flags != 0)
   {
+    extra_row_info.setFlags(erif_flags);
     if (likely(!log_bin_use_v1_row_events))
     {
       extra_row_info_ptr = extra_row_info.generateBuffer();
@@ -7547,6 +7564,7 @@ restart_cluster_failure:
             DBUG_ASSERT((event_types & pOp->getEventType()) != 0);
           }
 #endif
+
           if ((unsigned) pOp->getEventType() <
               (unsigned) NDBEVENT::TE_FIRST_NON_DATA_EVENT)
             handle_data_event(thd, i_ndb, pOp, &rows, trans,
