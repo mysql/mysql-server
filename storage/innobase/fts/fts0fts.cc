@@ -78,9 +78,6 @@ ulong	fts_min_token_size;
 ib_time_t elapsed_time = 0;
 ulint n_nodes = 0;
 
-/** Error condition reported by fts_utf8_decode() */
-const ulint UTF8_ERROR = 0xFFFFFFFF;
-
 #ifdef FTS_CACHE_SIZE_DEBUG
 /** The cache size permissible lower limit (1K) */
 static const ulint FTS_CACHE_SIZE_LOWER_LIMIT_IN_MB = 1;
