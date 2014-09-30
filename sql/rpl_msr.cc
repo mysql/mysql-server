@@ -122,7 +122,7 @@ Multisource_info::get_channel_with_host_port(char *host, uint port)
   {
     mi= it->second;
 
-    if (mi && mi->host && !strcmp(host, mi->host) && port == mi->port)
+    if (mi && !strcmp(host, mi->host) && port == mi->port)
       DBUG_RETURN((const char*)mi->get_channel());
   }
   DBUG_RETURN(0);
