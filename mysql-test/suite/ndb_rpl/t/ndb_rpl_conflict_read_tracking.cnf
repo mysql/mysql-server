@@ -1,0 +1,49 @@
+# Could be :
+#  !include ndb_rpl_conflict_epoch.cnf
+#  [mysqld]
+#  server-id-bits=24
+#  ndb-serverid-transid-bits=8
+
+!include ../my.cnf
+
+# 2 clusters, each with 2 MySQLDs
+# All MySQLDs log-slave-updates
+# Potential infinite loops are broken by both servers
+# on each cluster having the same server-id
+
+[cluster_config]
+MaxNoOfExecutionThreads=8
+
+[cluster_config.slave]
+mysqld=,
+
+[mysqld]
+log-slave-updates
+ndb-log-apply-status
+ndb-log-transaction-id
+log-bin-use-v1-row-events=false
+ndb-log-empty-update
+
+[mysqld.1.1]
+server-id= 1
+log-bin = pref-master-1
+
+[mysqld.2.1]
+server-id= 2
+log-bin = pref-master-2
+
+[mysqld.1.slave]
+server-id= 3
+log-bin = sec-master-1
+skip-slave-start
+
+[mysqld.2.slave]
+server-id= 4
+log-bin = sec-master-2
+skip-slave-start
+ndb_connectstring=	@mysql_cluster.slave.ndb_connectstring
+
+[ENV]
+
+SLAVE_MYPORT1=		@mysqld.2.slave.port
+SLAVE_MYSOCK1=		@mysqld.2.slave.socket
