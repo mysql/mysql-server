@@ -2948,6 +2948,7 @@ fts_optimize_thread(
 	ib_wqueue_t*	wq = (ib_wqueue_t*) arg;
 
 	ut_ad(!srv_read_only_mode);
+	my_thread_init();
 
 	heap = mem_heap_create(sizeof(dict_table_t*) * 64);
 	heap_alloc = ib_heap_allocator_create(heap);
@@ -3101,6 +3102,7 @@ fts_optimize_thread(
 	ib_logf(IB_LOG_LEVEL_INFO, "FTS optimize thread exiting.");
 
 	os_event_set(exit_event);
+	my_thread_end();
 
 	/* We count the number of threads in os_thread_exit(). A created
 	thread should always use that to exit and not use return() to exit. */
