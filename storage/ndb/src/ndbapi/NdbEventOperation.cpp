@@ -225,3 +225,13 @@ const struct NdbError &
 NdbEventOperation::getNdbError() const {
   return m_impl.getNdbError();
 }
+
+void
+NdbEventOperation::setAllowEmptyUpdate(bool allow) {
+  m_impl.m_allow_empty_update = allow;
+}
+
+bool
+NdbEventOperation::getAllowEmptyUpdate() {
+  return m_impl.m_allow_empty_update;
+}

@@ -474,6 +474,10 @@ public:
   // managed by the ndb object
   NdbEventOperationImpl *m_next;
   NdbEventOperationImpl *m_prev;
+
+  // Used for allowing empty updates be passed to the user
+  bool m_allow_empty_update;
+
 private:
   void receive_data(NdbRecAttr *r, const Uint32 *data, Uint32 sz);
 };

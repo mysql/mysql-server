@@ -530,6 +530,9 @@ int runEventLoad(NDBT_Context* ctx, NDBT_Step* step)
 
   hugoTrans.setAnyValueCallback(setAnyValue);
 
+  if (ctx->getProperty("AllowEmptyUpdates"))
+    hugoTrans.setAllowEmptyUpdates(true);
+
   sleep(1);
 #if 0
   sleep(5);
@@ -1613,7 +1616,7 @@ static int verify_copy(Ndb *ndb,
   return 0;
 }
 
-static int createEventOperations(Ndb * ndb)
+static int createEventOperations(Ndb * ndb, NDBT_Context* ctx)
 {
   DBUG_ENTER("createEventOperations");
   int i;
@@ -1636,6 +1639,9 @@ static int createEventOperations(Ndb * ndb)
       pOp->getPreValue(pTabs[i]->getColumn(j)->getName());
     }
 
+    if (ctx->getProperty("AllowEmptyUpdates"))
+      pOp->setAllowEmptyUpdate(true);
+
     if ( pOp->execute() )
     {
       DBUG_RETURN(NDBT_FAILED);
@@ -1650,7 +1656,7 @@ static int createAllEventOperations(NDBT_Context* ctx, NDBT_Step* step)
 {
   DBUG_ENTER("createAllEventOperations");
   Ndb * ndb= GETNDB(step);
-  int r= createEventOperations(ndb);
+  int r= createEventOperations(ndb, ctx);
   if (r != NDBT_OK)
   {
     DBUG_RETURN(NDBT_FAILED);
@@ -1698,7 +1704,7 @@ static int runMulti(NDBT_Context* ctx, NDBT_Step* step)
   int no_error= 1;
   int i;
 
-  if (createEventOperations(ndb))
+  if (createEventOperations(ndb, ctx))
   {
     DBUG_RETURN(NDBT_FAILED);
   }
@@ -1804,7 +1810,7 @@ static int runMulti_NR(NDBT_Context* ctx, NDBT_Step* step)
 
   int i;
 
-  if (createEventOperations(ndb))
+  if (createEventOperations(ndb, ctx))
   {
     DBUG_RETURN(NDBT_FAILED);
   }
@@ -3966,6 +3972,15 @@ TESTCASE("NextEventRemoveInconsisEvent", "")
   STEP(runEventListenerCheckProgressUntilStopped);
   STEP(runInsertDeleteUntilStopped);
   STEP(errorInjectBufferOverflowOnly);
+  FINALIZER(runDropEvent);
+}
+TESTCASE("EmptyUpdates", 
+	 "Verify that we can monitor empty updates"
+	 "NOTE! No errors are allowed!" ){
+  TC_PROPERTY("AllowEmptyUpdates", 1);
+  INITIALIZER(runCreateEvent);
+  STEP(runEventOperation);
+  STEP(runEventLoad);
   FINALIZER(runDropEvent);
 }
 NDBT_TESTSUITE_END(test_event);

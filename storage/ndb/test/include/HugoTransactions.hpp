@@ -153,6 +153,11 @@ public:
     m_thr_no = thr_no;
   }
 
+  // generate empty updates for testing
+  void setAllowEmptyUpdates(bool allow) {
+    m_empty_update = allow;
+  }
+
 protected:  
   NDBT_ResultRow row;
   int m_defaultScanUpdateMethod;
@@ -162,6 +167,8 @@ protected:
 
   int m_thr_count;      // 0 if no separation between threads
   int m_thr_no;
+
+  bool m_empty_update;
 };
 
 
