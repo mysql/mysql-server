@@ -86,6 +86,7 @@ extern ulong opt_server_id_mask;
 
 #define NDB_ANYVALUE_REFRESH_OP_CODE 0x8000007e
 #define NDB_ANYVALUE_REFLECT_OP_CODE 0x8000007d
+#define NDB_ANYVALUE_READ_OP_CODE    0x8000007c
 
 /* Next reserved code : 0x8000007c */
 
@@ -130,6 +131,18 @@ void ndbcluster_anyvalue_set_refresh_op(Uint32& anyValue)
 {
   anyValue &= ~NDB_ANYVALUE_RESERVED_MASK;
   anyValue |= NDB_ANYVALUE_REFRESH_OP_CODE;
+}
+
+bool ndbcluster_anyvalue_is_read_op(Uint32 anyValue)
+{
+  return ((anyValue & NDB_ANYVALUE_RESERVED_MASK) ==
+          NDB_ANYVALUE_READ_OP_CODE);
+}
+
+void ndbcluster_anyvalue_set_read_op(Uint32& anyValue)
+{
+  anyValue &= ~NDB_ANYVALUE_RESERVED_MASK;
+  anyValue |= NDB_ANYVALUE_READ_OP_CODE;
 }
 
 bool ndbcluster_anyvalue_is_reflect_op(Uint32 anyValue)

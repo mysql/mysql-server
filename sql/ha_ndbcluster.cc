@@ -278,6 +278,17 @@ static MYSQL_THDVAR_BOOL(
   DEFAULT_NDB_JOIN_PUSHDOWN          /* default */
 );
 
+static MYSQL_THDVAR_BOOL(
+  log_exclusive_reads,               /* name */
+  PLUGIN_VAR_OPCMDARG,
+  "Log primary key reads with exclusive locks "
+  "to allow conflict resolution based on read conflicts",
+  NULL,                              /* check func. */
+  NULL,                              /* update func. */
+  0                                  /* default */
+);
+
+
 /*
   Required in index_stat.cc but available only from here
   thanks to use of top level anonymous structs.
@@ -291,6 +302,12 @@ bool ndb_index_stat_get_enable(THD *thd)
 bool ndb_show_foreign_key_mock_tables(THD* thd)
 {
   const bool value = THDVAR(thd, show_foreign_key_mock_tables);
+  return value;
+}
+
+bool ndb_log_exclusive_reads(THD *thd)
+{
+  const bool value = THDVAR(thd, log_exclusive_reads);
   return value;
 }
 
@@ -3462,6 +3479,24 @@ ha_ndbcluster::scan_handle_lock_tuple(NdbScanOperation *scanOp,
       m_lock_tuple= false;
       ERR_RETURN(trans->getNdbError());
     }
+
+    /* Perform 'empty update' to mark the read in the binlog, iff required */
+    /*
+     * Lock_mode = exclusive
+     * Session_state = marking_exclusive_reads
+     * THEN
+     * issue updateCurrentTuple with AnyValue explicitly set
+     */
+    if ((m_lock.type >= TL_WRITE_ALLOW_WRITE) &&
+        ndb_log_exclusive_reads(current_thd))
+    {
+      if (scan_log_exclusive_read(scanOp, trans))
+      { 
+        m_lock_tuple= false;
+        ERR_RETURN(trans->getNdbError());
+      }
+    }
+
     m_thd_ndb->m_unsent_bytes+=12;
     m_lock_tuple= false;
   }
@@ -3715,6 +3750,95 @@ inline int ha_ndbcluster::next_result(uchar *buf)
     DBUG_RETURN(HA_ERR_END_OF_FILE);
 }
 
+int
+ha_ndbcluster::log_exclusive_read(const NdbRecord *key_rec,
+                                  const uchar *key,
+                                  uchar *buf,
+                                  Uint32 *ppartition_id)
+{
+  DBUG_ENTER("log_exclusive_read");
+  NdbOperation::OperationOptions opts;
+  opts.optionsPresent=
+    NdbOperation::OperationOptions::OO_ABORTOPTION |
+    NdbOperation::OperationOptions::OO_ANYVALUE;
+  
+  /* If the key does not exist, that is ok */
+  opts.abortOption= NdbOperation::AO_IgnoreError;
+  
+  /* 
+     Mark the AnyValue as a read operation, so that the update
+     is processed
+  */
+  ndbcluster_anyvalue_set_read_op(opts.anyValue);
+
+  if (ppartition_id != NULL)
+  {
+    assert(m_user_defined_partitioning);
+    opts.optionsPresent|= NdbOperation::OperationOptions::OO_PARTITION_ID;
+    opts.partitionId= *ppartition_id;
+  }
+  
+  const NdbOperation* markingOp=
+    m_thd_ndb->trans->updateTuple(key_rec,
+                                  (const char*) key,
+                                  m_ndb_record,
+                                  (char*)buf,
+                                  empty_mask,
+                                  &opts,
+                                  opts.size());
+  if (!markingOp)
+  {
+    char msg[FN_REFLEN];
+    my_snprintf(msg, sizeof(msg), "Error logging exclusive reads, failed creating markingOp, %u, %s\n",
+                m_thd_ndb->trans->getNdbError().code,
+                m_thd_ndb->trans->getNdbError().message);
+    push_warning_printf(current_thd, Sql_condition::WARN_LEVEL_WARN,
+                        ER_EXCEPTIONS_WRITE_ERROR,
+                        ER(ER_EXCEPTIONS_WRITE_ERROR), msg);
+    /*
+      By returning -1 the caller (pk_unique_index_read_key) will return
+      NULL and error on transaction object will be returned.
+    */
+    DBUG_RETURN(-1);
+  }
+
+  DBUG_RETURN(0);
+}
+
+int
+ha_ndbcluster::scan_log_exclusive_read(NdbScanOperation *cursor,
+                                       NdbTransaction *trans)
+{
+  DBUG_ENTER("ha_ndbcluster::scan_log_exclusive_read");
+  NdbOperation::OperationOptions opts;
+  opts.optionsPresent= NdbOperation::OperationOptions::OO_ANYVALUE;
+
+  /* 
+     Mark the AnyValue as a read operation, so that the update
+     is processed
+  */
+  ndbcluster_anyvalue_set_read_op(opts.anyValue);
+  
+  const NdbOperation* markingOp=
+    cursor->updateCurrentTuple(trans, m_ndb_record,
+                               dummy_row, empty_mask,
+                               &opts,
+                               sizeof(NdbOperation::OperationOptions));
+  if (markingOp == NULL)
+  {
+    char msg[FN_REFLEN];
+    my_snprintf(msg, sizeof(msg), "Error logging exclusive reads during scan, failed creating markingOp, %u, %s\n",
+                m_thd_ndb->trans->getNdbError().code,
+                m_thd_ndb->trans->getNdbError().message);
+    push_warning_printf(current_thd, Sql_condition::WARN_LEVEL_WARN,
+                        ER_EXCEPTIONS_WRITE_ERROR,
+                        ER(ER_EXCEPTIONS_WRITE_ERROR), msg);
+    DBUG_RETURN(-1);
+  }
+
+  DBUG_RETURN(0);
+}
+
 /**
   Do a primary key or unique key index read operation.
   The key value is taken from a buffer in mysqld key format.
@@ -3724,14 +3848,21 @@ ha_ndbcluster::pk_unique_index_read_key(uint idx, const uchar *key, uchar *buf,
                                         NdbOperation::LockMode lm,
                                         Uint32 *ppartition_id)
 {
+  DBUG_ENTER("pk_unique_index_read_key");
   const NdbOperation *op;
   const NdbRecord *key_rec;
   NdbOperation::OperationOptions options;
   NdbOperation::OperationOptions *poptions = NULL;
   options.optionsPresent= 0;
   NdbOperation::GetValueSpec gets[2];
+  ndb_index_type idx_type=
+    (idx != MAX_KEY)?
+    get_index_type(idx)
+    : UNDEFINED_INDEX;
 
   DBUG_ASSERT(m_thd_ndb->trans);
+
+  DBUG_PRINT("info", ("pk_unique_index_read_key of table %s", table->s->table_name.str));
 
   if (idx != MAX_KEY)
     key_rec= m_index[idx].ndb_unique_record_key;
@@ -3763,9 +3894,35 @@ ha_ndbcluster::pk_unique_index_read_key(uint idx, const uchar *key, uchar *buf,
 
   if (uses_blob_value(table->read_set) &&
       get_blob_values(op, buf, table->read_set) != 0)
-    return NULL;
+    DBUG_RETURN(NULL);
 
-  return op;
+  /* Perform 'empty update' to mark the read in the binlog, iff required */
+  /*
+   * Lock_mode = exclusive
+   * Index = primary or unique
+   * Session_state = marking_exclusive_reads
+   * THEN
+   * issue updateTuple with AnyValue explicitly set
+   */
+  if ((lm == NdbOperation::LM_Exclusive) &&
+      /*
+        We don't need to check index type
+        (idx_type == PRIMARY_KEY_INDEX ||
+        idx_type == PRIMARY_KEY_ORDERED_INDEX ||
+        idx_type == UNIQUE_ORDERED_INDEX ||
+        idx_type == UNIQUE_INDEX) 
+        since this method is only invoked for
+        primary or unique indexes, but we do need to check
+        if it was a hidden primary key.
+      */
+      idx_type != UNDEFINED_INDEX &&
+      ndb_log_exclusive_reads(current_thd))
+  {
+    if (log_exclusive_read(key_rec, key, buf, ppartition_id) != 0)
+      DBUG_RETURN(NULL);
+  }
+
+  DBUG_RETURN(op);
 }
 
 
@@ -4600,6 +4757,9 @@ ha_ndbcluster::prepare_conflict_detection(enum_conflicting_op_type op_type,
      table's data will also be reverted.
   */
   Uint64 transaction_id = Ndb_binlog_extra_row_info::InvalidTransactionId;
+  Uint16 conflict_flags = Ndb_binlog_extra_row_info::UnsetConflictFlags;
+  bool op_is_marked_as_read= false;
+
   if (thd->binlog_row_event_extra_data)
   {
     Ndb_binlog_extra_row_info extra_row_info;
@@ -4615,17 +4775,18 @@ ha_ndbcluster::prepare_conflict_detection(enum_conflicting_op_type op_type,
         Ndb_binlog_extra_row_info::NDB_ERIF_TRANSID)
       transaction_id = extra_row_info.getTransactionId();
 
-#ifndef DBUG_OFF
     if (extra_row_info.getFlags() &
         Ndb_binlog_extra_row_info::NDB_ERIF_CFT_FLAGS)
     {
       DBUG_PRINT("info", 
                  ("Slave : have conflict flags : %x\n",
                   extra_row_info.getConflictFlags()));
-      /* No effect currently */
+      conflict_flags = extra_row_info.getConflictFlags();
     }
-#endif
   }
+
+  if (conflict_flags & NDB_ERIF_CFT_READ_OP)
+    op_is_marked_as_read= true;
 
   {
     bool handle_conflict_now = false;
@@ -4642,7 +4803,15 @@ ha_ndbcluster::prepare_conflict_detection(enum_conflicting_op_type op_type,
     {
       DBUG_PRINT("info", ("Conflict handling for row occurring now"));
       NdbError noRealConflictError;
-
+      /*
+       * If the user operation was a read and we receive an update
+       * log event due to an AnyValue update, then the conflicting operation
+       * should be reported as a read. 
+       */
+      enum_conflicting_op_type conflicting_op=
+        (op_type == UPDATE_ROW && op_is_marked_as_read)?
+        READ_ROW
+        : op_type;
       /*
          Directly handle the conflict here - e.g refresh/ write to
          exceptions table etc.
@@ -4655,7 +4824,7 @@ ha_ndbcluster::prepare_conflict_detection(enum_conflicting_op_type op_type,
                                 data_rec,
                                 old_data,
                                 new_data,
-                                op_type,
+                                conflicting_op,
                                 TRANS_IN_CONFLICT,
                                 noRealConflictError,
                                 trans,
@@ -6023,6 +6192,7 @@ int ha_ndbcluster::ndb_update_row(const uchar *old_data, uchar *new_data,
     {
       bool conflict_handled = false;
       /* Conflict resolution in slave thread. */
+      DBUG_PRINT("info", ("Slave thread, preparing conflict resolution for update with mask : %x", *((Uint32*)mask)));
 
       if (unlikely((error = prepare_conflict_detection(UPDATE_ROW,
                                                        key_rec,
@@ -18298,6 +18468,21 @@ static MYSQL_SYSVAR_BOOL(
   1                                  /* default */
 );
 
+my_bool opt_ndb_log_empty_update;
+static MYSQL_SYSVAR_BOOL(
+  log_empty_update,                  /* name */
+  opt_ndb_log_empty_update,          /* var */
+  PLUGIN_VAR_OPCMDARG,
+  "Normally empty updates are filtered away "
+  "before they are logged. However, for read tracking "
+  "in conflict resolution a hidden pesudo attribute is "
+  "set which will result in an empty update along with "
+  "special flags set. For this to work empty updates "
+  "have to be allowed.",
+  NULL,                              /* check func. */
+  NULL,                              /* update func. */
+  0                                  /* default */
+);
 
 my_bool opt_ndb_log_orig;
 static MYSQL_SYSVAR_BOOL(
@@ -18599,6 +18784,7 @@ static struct st_mysql_sys_var* system_variables[]= {
   MYSQL_SYSVAR(eventbuffer_max_alloc),
   MYSQL_SYSVAR(log_update_as_write),
   MYSQL_SYSVAR(log_updated_only),
+  MYSQL_SYSVAR(log_empty_update),
   MYSQL_SYSVAR(log_orig),
   MYSQL_SYSVAR(distribution),
   MYSQL_SYSVAR(autoincrement_prefetch_sz),
@@ -18625,6 +18811,7 @@ static struct st_mysql_sys_var* system_variables[]= {
   MYSQL_SYSVAR(blob_write_batch_bytes),
   MYSQL_SYSVAR(deferred_constraints),
   MYSQL_SYSVAR(join_pushdown),
+  MYSQL_SYSVAR(log_exclusive_reads),
 #ifndef DBUG_OFF
   MYSQL_SYSVAR(dbg_check_shares),
 #endif
