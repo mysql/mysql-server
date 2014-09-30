@@ -177,7 +177,7 @@ word32 RSA_BlockType1::UnPad(const byte* pkcsBlock, word32 pkcsBlockLen,
 
     // skip past the padding until we find the separator
     unsigned i=1;
-    while (i<pkcsBlockLen && pkcsBlock[i++]) { // null body
+    while (i<pkcsBlockLen && pkcsBlock[i++] == 0xFF) { // null body
         }
     if (!(i==pkcsBlockLen || pkcsBlock[i-1]==0))
         return 0;
