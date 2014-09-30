@@ -11139,7 +11139,13 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
          */
         if (!ptr->m_tabledef.compatible_with(thd, const_cast<Relay_log_info*>(rli),
                                              ptr->table,
+#ifndef MCP_BUG19704825
+                                             // Avoid releasing conv_table too early
+                                             // by creating it in THD's mem_root
+                                             &conv_table, NULL))
+#else
                                              &conv_table,&m_event_mem_root))
+#endif
         {
           DBUG_PRINT("debug", ("Table: %s.%s is not compatible with master",
                                ptr->table->s->db.str,
