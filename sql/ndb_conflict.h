@@ -44,7 +44,8 @@ enum enum_conflict_fn_type
 enum enum_binlog_extra_info_conflict_flags
 {
   NDB_ERIF_CFT_REFLECT_OP = 0x1,
-  NDB_ERIF_CFT_REFRESH_OP = 0x2
+  NDB_ERIF_CFT_REFRESH_OP = 0x2,
+  NDB_ERIF_CFT_READ_OP = 0x4
 };
 
 #ifdef HAVE_NDB_BINLOG
@@ -79,7 +80,8 @@ enum enum_conflicting_op_type
   WRITE_ROW   = 1, /* insert (!write) */
   UPDATE_ROW  = 2, /* update          */
   DELETE_ROW  = 3, /* delete          */
-  REFRESH_ROW = 4  /* refresh         */
+  REFRESH_ROW = 4, /* refresh         */
+  READ_ROW    = 5  /* read tracking   */
 };
 
 /*

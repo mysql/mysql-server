@@ -526,6 +526,12 @@ private:
                         NdbOperation::OperationOptions *options) const;
   bool check_index_fields_in_write_set(uint keyno);
 
+  int log_exclusive_read(const NdbRecord *key_rec,
+                         const uchar *key,
+                         uchar *buf,
+                         Uint32 *ppartition_id);
+  int scan_log_exclusive_read(NdbScanOperation*,
+                              NdbTransaction*);
   const NdbOperation *pk_unique_index_read_key(uint idx, 
                                                const uchar *key, uchar *buf,
                                                NdbOperation::LockMode lm,
