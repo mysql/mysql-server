@@ -204,6 +204,7 @@ for unknown bits in order to protect backward incompatibility. */
 /* @{ */
 /** Total number of bits in table->flags2. */
 #define DICT_TF2_BITS			8
+#define DICT_TF2_UNUSED_BIT_MASK	(~0 << DICT_TF2_BITS)
 #define DICT_TF2_BIT_MASK		~(~0 << DICT_TF2_BITS)
 
 /** TEMPORARY; TRUE for tables from CREATE TEMPORARY TABLE. */

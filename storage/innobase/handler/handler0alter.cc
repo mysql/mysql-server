@@ -341,7 +341,8 @@ innobase_need_rebuild(
 		 & (HA_CREATE_USED_ROW_FORMAT
 		    | HA_CREATE_USED_KEY_BLOCK_SIZE))) {
 		/* Any other CHANGE_CREATE_OPTION than changing
-		ROW_FORMAT or KEY_BLOCK_SIZE is ignored. */
+		ROW_FORMAT or KEY_BLOCK_SIZE can be done
+		without rebuilding the table. */
 		return(false);
 	}
 
@@ -445,12 +446,12 @@ ha_innobase::check_if_supported_inplace_alter(
 	/* If a column change from NOT NULL to NULL,
 	and there's a implict pk on this column. the
 	table should be rebuild. The change should
-	only go through the "Copy" method.*/
+	only go through the "Copy" method. */
 	if ((ha_alter_info->handler_flags
 	     & Alter_inplace_info::ALTER_COLUMN_NULLABLE)) {
 		const uint my_primary_key = altered_table->s->primary_key;
 
-		/* See if MYSQL table has no pk but we do.*/
+		/* See if MYSQL table has no pk but we do. */
 		if (UNIV_UNLIKELY(my_primary_key >= MAX_KEY)
 		    && !row_table_got_default_clust_index(m_prebuilt->table)) {
 			ha_alter_info->unsupported_reason = innobase_get_err_msg(
@@ -495,7 +496,7 @@ ha_innobase::check_if_supported_inplace_alter(
 			/* In some special cases InnoDB emits "false"
 			duplicate key errors with NULL key values. Let
 			us play safe and ensure that we can correctly
-			print key values even in such cases .*/
+			print key values even in such cases . */
 			key_part->null_offset = key_part->field->null_offset();
 			key_part->null_bit = key_part->field->null_bit;
 
@@ -2978,6 +2979,7 @@ prepare_inplace_alter_table_dict(
 		ulint		n_cols;
 		dtuple_t*	add_cols;
 		bool		optimize_point_storage;
+		ulint		space_id = 0;
 
 		if (innobase_check_foreigns(
 			    ha_alter_info, altered_table, old_table,
@@ -3007,9 +3009,10 @@ prepare_inplace_alter_table_dict(
 			goto new_clustered_failed;
 		}
 
-		/* The initial space id 0 may be overridden later. */
+		/* The initial space id 0 may be overridden later if this
+		table is going to be a file_per_table tablespace. */
 		ctx->new_table = dict_mem_table_create(
-			new_table_name, 0, n_cols, flags, flags2);
+			new_table_name, space_id, n_cols, flags, flags2);
 		/* The rebuilt indexed_table will use the renamed
 		column names. */
 		ctx->col_names = NULL;
@@ -3909,11 +3912,22 @@ check_if_ok_to_rename:
 		}
 	}
 
+	/* ALTER TABLE will not implicitly move a table from a single-table
+	tablespace to the system tablespace when innodb_file_per_table=OFF.
+	But it will implicitly move a table from the system tablespace to a
+	single-table tablespace if innodb_file_per_table = ON. */
+	bool	in_system_space = is_system_tablespace(indexed_table->space);
+	bool	is_file_per_table = !in_system_space;
+	bool	needs_file_per_table =
+		/* Already file_per_table and staying that way */
+		is_file_per_table
+		/* Moving from the system tablespace to file-per-table */
+		|| (in_system_space && srv_file_per_table);
+
 	if (!innobase_table_flags(altered_table,
 				  ha_alter_info->create_info,
 				  m_user_thd,
-				  srv_file_per_table
-				  || indexed_table->space != 0,
+				  needs_file_per_table,
 				  &flags, &flags2)) {
 		goto err_exit_no_heap;
 	}

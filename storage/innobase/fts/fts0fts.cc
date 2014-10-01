@@ -7153,7 +7153,7 @@ fts_drop_orphaned_tables(void)
 		} else {
 			ulint	len = strlen(*it);
 
-			fts_aux_table->id = fil_get_space_id_for_table(*it);
+			fts_aux_table->id = fil_space_get_id_by_name(*it);
 
 			/* We got this list from fil0fil.cc. The tablespace
 			with this name must exist. */

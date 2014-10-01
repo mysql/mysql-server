@@ -6635,6 +6635,37 @@ dict_index_zip_pad_optimal_page_size(
 	return(ut_max(sz, min_sz));
 }
 
+/** Convert a 32 bit integer table flags to the 32 bit FSP Flags.
+Fsp Flags are written into the tablespace header at the offset
+FSP_SPACE_FLAGS and are also stored in the fil_space_t::flags field.
+The following chart shows the translation of the low order bit.
+Other bits are the same.
+========================= Low order bit ==========================
+                    | REDUNDANT | COMPACT | COMPRESSED | DYNAMIC
+dict_table_t::flags |     0     |    1    |     1      |    1
+fil_space_t::flags  |     0     |    0    |     1      |    1
+==================================================================
+@param[in]	table_flags	dict_table_t::flags
+@return tablespace flags (fil_space_t::flags) */
+ulint
+dict_tf_to_fsp_flags(
+	ulint	table_flags)
+{
+	DBUG_EXECUTE_IF("dict_tf_to_fsp_flags_failure",
+			return(ULINT_UNDEFINED););
+
+	bool		has_atomic_blobs =
+				 DICT_TF_HAS_ATOMIC_BLOBS(table_flags);
+	page_size_t	page_size = dict_tf_get_page_size(table_flags);
+	bool		has_data_dir = DICT_TF_HAS_DATA_DIR(table_flags);
+
+	ulint		fsp_flags = fsp_flags_init(page_size,
+						   has_atomic_blobs,
+						   has_data_dir);
+
+	return(fsp_flags);
+}
+
 /*************************************************************//**
 Convert table flag to row format string.
 @return row format name. */

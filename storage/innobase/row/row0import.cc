@@ -716,9 +716,9 @@ FetchIndexRootPages::operator() (
 
 		if (m_indexes.size() == 1) {
 
-			m_table_flags = dict_sys_tables_type_to_tf(
+			m_table_flags = fsp_flags_to_dict_tf(
 				m_space_flags,
-				page_is_comp(page) ? DICT_N_COLS_COMPACT : 0);
+				page_is_comp(page) ? true : false);
 
 			err = check_row_format(m_table_flags);
 		}
@@ -3431,7 +3431,10 @@ row_import_for_mysql(
 	ib_uint64_t	autoinc = 0;
 	char*		filepath = NULL;
 
+	/* The caller assured that this is not read_only_mode and that no
+	temorary tablespace is being imported. */
 	ut_ad(!srv_read_only_mode);
+	ut_ad(!dict_table_is_temporary(table));
 
 	ut_a(table->space);
 	ut_ad(prebuilt->trx);
@@ -3612,7 +3615,7 @@ row_import_for_mysql(
 	we will not be writing any redo log for it before we have invoked
 	fil_space_set_imported() to declare it a persistent tablespace. */
 
-	err = fil_open_single_table_tablespace(
+	err = fil_open_ibd_tablespace(
 		true, true, FIL_TYPE_IMPORT, table->space,
 		dict_tf_to_fsp_flags(table->flags),
 		table->name.m_name, filepath);
