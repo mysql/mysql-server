@@ -2160,8 +2160,7 @@ acl_authenticate(THD *thd, size_t com_change_user_pkt_len)
       query_logger.general_log_print(thd, command, "%s@%s as %s on %s",
                                      mpvio.auth_info.user_name,
                                      mpvio.auth_info.host_or_ip,
-                                     mpvio.auth_info.authenticated_as ?
-                                     mpvio.auth_info.authenticated_as : "anonymous",
+                                     mpvio.auth_info.authenticated_as,
                                      mpvio.db.str ? mpvio.db.str : (char*) "");
     }
     else

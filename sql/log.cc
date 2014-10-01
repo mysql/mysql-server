@@ -1246,7 +1246,7 @@ bool Query_logger::slow_log_write(THD *thd, const char *query,
   char user_host_buff[MAX_USER_HOST_SIZE + 1];
   Security_context *sctx= thd->security_ctx;
   size_t user_host_len= (strxnmov(user_host_buff, MAX_USER_HOST_SIZE,
-                                  sctx->priv_user ? sctx->priv_user : "", "[",
+                                  sctx->priv_user, "[",
                                   sctx->user ? sctx->user : "", "] @ ",
                                   sctx->get_host()->length() ?
                                   sctx->get_host()->ptr() : "", " [",

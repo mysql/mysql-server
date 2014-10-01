@@ -36,8 +36,6 @@
 partition_info *partition_info::get_clone()
 {
   DBUG_ENTER("partition_info::get_clone");
-  if (!this)
-    DBUG_RETURN(NULL);
   List_iterator<partition_element> part_it(partitions);
   partition_element *part;
   partition_info *clone= new partition_info();
