@@ -326,7 +326,9 @@ public:
   int getConnectionDbParameter(int node1, int node2, int param,
 			       int *value, BaseString& msg);
 
-  bool transporter_connect(NDB_SOCKET_TYPE sockfd, BaseString& errormsg);
+  bool transporter_connect(NDB_SOCKET_TYPE sockfd,
+                           BaseString& errormsg,
+                           bool& close_with_reset);
 
   SocketServer *get_socket_server() { return &m_socket_server; }
 
