@@ -3424,8 +3424,7 @@ fts_add_doc_by_id(
 	heap = mem_heap_create(512);
 
 	clust_index = dict_table_get_first_index(table);
-	fts_id_index = dict_table_get_index_on_name(
-				table, FTS_DOC_ID_INDEX_NAME);
+	fts_id_index = table->fts_doc_id_index;
 
 	/* Check whether the index on FTS_DOC_ID is cluster index */
 	is_id_cluster = (clust_index == fts_id_index);
@@ -3604,7 +3603,7 @@ fts_get_max_doc_id(
 	mtr_t		mtr;
 	btr_pcur_t	pcur;
 
-	index = dict_table_get_index_on_name(table, FTS_DOC_ID_INDEX_NAME);
+	index = table->fts_doc_id_index;
 
 	if (!index) {
 		return(0);
@@ -7604,7 +7603,7 @@ fts_init_index(
 	dropped, and we re-initialize the Doc ID system for subsequent
 	insertion */
 	if (ib_vector_is_empty(cache->get_docs)) {
-		index = dict_table_get_index_on_name(table, FTS_DOC_ID_INDEX_NAME);
+		index = table->fts_doc_id_index;
 
 		ut_a(index);
 

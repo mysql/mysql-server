@@ -1998,11 +1998,10 @@ row_ins_scan_sec_index_for_duplicate(
 
 				/* If the duplicate is on hidden FTS_DOC_ID,
 				state so in the error log */
-				if (DICT_TF2_FLAG_IS_SET(
+				if (index == index->table->fts_doc_id_index
+				    && DICT_TF2_FLAG_IS_SET(
 					index->table,
-					DICT_TF2_FTS_HAS_DOC_ID)
-				    && strcmp(index->name,
-					      FTS_DOC_ID_INDEX_NAME) == 0) {
+					DICT_TF2_FTS_HAS_DOC_ID)) {
 
 					ib::error() << "Duplicate FTS_DOC_ID"
 						" value on table "

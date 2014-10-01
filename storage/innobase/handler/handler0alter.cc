@@ -3309,6 +3309,14 @@ op_ok:
 #endif /* UNIV_SYNC_DEBUG */
 
 		DICT_TF2_FLAG_SET(ctx->new_table, DICT_TF2_FTS);
+		if (new_clustered) {
+			/* For !new_clustered, this will be set at
+			commit_cache_norebuild(). */
+			ctx->new_table->fts_doc_id_index
+				= dict_table_get_index_on_name(
+					ctx->new_table, FTS_DOC_ID_INDEX_NAME);
+			DBUG_ASSERT(ctx->new_table->fts_doc_id_index != NULL);
+		}
 
 		/* This function will commit the transaction and reset
 		the trx_t::dict_operation flag on success. */
@@ -4091,8 +4099,8 @@ found_fk:
 		    && !DICT_TF2_FLAG_IS_SET(
 			indexed_table, DICT_TF2_FTS_HAS_DOC_ID)) {
 			dict_index_t*	fts_doc_index
-				= dict_table_get_index_on_name(
-					indexed_table, FTS_DOC_ID_INDEX_NAME);
+				= indexed_table->fts_doc_id_index;
+			ut_ad(fts_doc_index);
 
 			// Add some fault tolerance for non-debug builds.
 			if (fts_doc_index == NULL) {
@@ -5848,6 +5856,13 @@ commit_cache_norebuild(
 
 		trx_commit_for_mysql(trx);
 	}
+
+	ctx->new_table->fts_doc_id_index
+		= ctx->new_table->fts
+		? dict_table_get_index_on_name(
+			ctx->new_table, FTS_DOC_ID_INDEX_NAME)
+		: NULL;
+	DBUG_ASSERT(!ctx->new_table->fts == !ctx->new_table->fts_doc_id_index);
 
 	DBUG_RETURN(found);
 }

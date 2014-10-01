@@ -8474,7 +8474,7 @@ innobase_fts_create_doc_id_key(
 	dict_field_t*	field = dict_index_get_nth_field(index, 0);
         ut_a(field->col->mtype == DATA_INT);
 	ut_ad(sizeof(*doc_id) == field->fixed_len);
-	ut_ad(innobase_strcasecmp(index->name, FTS_DOC_ID_INDEX_NAME) == 0);
+	ut_ad(!strcmp(index->name, FTS_DOC_ID_INDEX_NAME));
 #endif /* UNIV_DEBUG */
 
 	/* Convert to storage byte order */
@@ -8558,8 +8558,7 @@ next_record:
 
 		dict_index_t*	index;
 
-		index = dict_table_get_index_on_name(
-			m_prebuilt->table, FTS_DOC_ID_INDEX_NAME);
+		index = m_prebuilt->table->fts_doc_id_index;
 
 		/* Must find the index */
 		ut_a(index != NULL);
@@ -10215,6 +10214,13 @@ ha_innobase::create(
 	}
 
 	DBUG_ASSERT(innobase_table != 0);
+	DBUG_ASSERT(innobase_table->fts_doc_id_index == NULL);
+	if (innobase_table->fts != NULL) {
+		innobase_table->fts_doc_id_index
+			= dict_table_get_index_on_name(
+				innobase_table, FTS_DOC_ID_INDEX_NAME);
+		DBUG_ASSERT(innobase_table->fts_doc_id_index != NULL);
+	}
 
 	innobase_copy_frm_flags_from_create_info(innobase_table, create_info);
 

@@ -1950,8 +1950,16 @@ next_rec:
 		btr_pcur_move_to_next_user_rec(&pcur, &mtr);
 	}
 
+	ut_ad(table->fts_doc_id_index == NULL);
+
+	if (table->fts != NULL) {
+		table->fts_doc_id_index = dict_table_get_index_on_name(
+			table, FTS_DOC_ID_INDEX_NAME);
+	}
+
 	/* If the table contains FTS indexes, populate table->fts->indexes */
 	if (dict_table_has_fts_index(table)) {
+		ut_ad(table->fts_doc_id_index != NULL);
 		/* table->fts->indexes should have been created. */
 		ut_a(table->fts->indexes != NULL);
 		dict_table_get_all_fts_indexes(table, table->fts->indexes);
