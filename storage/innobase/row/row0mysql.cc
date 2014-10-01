@@ -843,6 +843,8 @@ row_create_prebuilt(
 	+ DTUPLE_EST_ALLOC(dict_table_get_n_cols(table)) \
 	+ sizeof(que_fork_t) \
 	+ sizeof(que_thr_t) \
+	+ sizeof(*prebuilt->pcur) \
+	+ sizeof(*prebuilt->clust_pcur) \
 	)
 
 	/* Calculate size of key buffer used to store search key in
@@ -901,8 +903,14 @@ row_create_prebuilt(
 		prebuilt->srch_key_val2 = NULL;
 	}
 
-	btr_pcur_reset(&prebuilt->pcur);
-	btr_pcur_reset(&prebuilt->clust_pcur);
+	prebuilt->pcur = static_cast<btr_pcur_t*>(
+				mem_heap_zalloc(prebuilt->heap,
+					       sizeof(btr_pcur_t)));
+	prebuilt->clust_pcur = static_cast<btr_pcur_t*>(
+					mem_heap_zalloc(prebuilt->heap,
+						       sizeof(btr_pcur_t)));
+	btr_pcur_reset(prebuilt->pcur);
+	btr_pcur_reset(prebuilt->clust_pcur);
 
 	prebuilt->select_lock_type = LOCK_NONE;
 	prebuilt->stored_select_lock_type = LOCK_NONE_UNSET;
@@ -951,8 +959,8 @@ row_prebuilt_free(
 	prebuilt->magic_n = ROW_PREBUILT_FREED;
 	prebuilt->magic_n2 = ROW_PREBUILT_FREED;
 
-	btr_pcur_reset(&prebuilt->pcur);
-	btr_pcur_reset(&prebuilt->clust_pcur);
+	btr_pcur_reset(prebuilt->pcur);
+	btr_pcur_reset(prebuilt->clust_pcur);
 
 	ut_free(prebuilt->mysql_template);
 
@@ -2153,11 +2161,11 @@ row_del_upd_for_mysql_using_cursor(
 	/* Step-1: Select the appropriate cursor that will help build
 	the original row and updated row. */
 	node = prebuilt->upd_node;
-	if (prebuilt->pcur.btr_cur.index == clust_index) {
-		btr_pcur_copy_stored_position(node->pcur, &prebuilt->pcur);
+	if (prebuilt->pcur->btr_cur.index == clust_index) {
+		btr_pcur_copy_stored_position(node->pcur, prebuilt->pcur);
 	} else {
 		btr_pcur_copy_stored_position(node->pcur,
-					      &prebuilt->clust_pcur);
+					      prebuilt->clust_pcur);
 	}
 	row_upd_store_row(node);
 
@@ -2284,11 +2292,11 @@ row_update_for_mysql_using_upd_graph(
 
 	clust_index = dict_table_get_first_index(table);
 
-	if (prebuilt->pcur.btr_cur.index == clust_index) {
-		btr_pcur_copy_stored_position(node->pcur, &prebuilt->pcur);
+	if (prebuilt->pcur->btr_cur.index == clust_index) {
+		btr_pcur_copy_stored_position(node->pcur, prebuilt->pcur);
 	} else {
 		btr_pcur_copy_stored_position(node->pcur,
-					      &prebuilt->clust_pcur);
+					      prebuilt->clust_pcur);
 	}
 
 	ut_a(node->pcur->rel_pos == BTR_PCUR_ON);
@@ -2554,8 +2562,8 @@ row_unlock_for_mysql(
 					clust_pcur, and we do not need
 					to reposition the cursors. */
 {
-	btr_pcur_t*	pcur		= &prebuilt->pcur;
-	btr_pcur_t*	clust_pcur	= &prebuilt->clust_pcur;
+	btr_pcur_t*	pcur		= prebuilt->pcur;
+	btr_pcur_t*	clust_pcur	= prebuilt->clust_pcur;
 	trx_t*		trx		= prebuilt->trx;
 
 	ut_ad(prebuilt && trx);
