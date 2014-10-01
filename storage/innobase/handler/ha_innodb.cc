@@ -9738,7 +9738,7 @@ index_bad:
 				ER_ILLEGAL_HA_CREATE_OPTION,
 				"InnoDB: KEY_BLOCK_SIZE requires"
 				" innodb_file_per_table.");
-			zip_allowed = FALSE;
+			zip_allowed = false;
 		}
 
 		if (file_format_allowed < UNIV_FORMAT_B) {
@@ -9747,7 +9747,7 @@ index_bad:
 				ER_ILLEGAL_HA_CREATE_OPTION,
 				"InnoDB: KEY_BLOCK_SIZE requires"
 				" innodb_file_format > Antelope.");
-			zip_allowed = FALSE;
+			zip_allowed = false;
 		}
 
 		if (!zip_allowed
@@ -9780,7 +9780,7 @@ index_bad:
 				"InnoDB: ignoring KEY_BLOCK_SIZE=%lu"
 				" unless ROW_FORMAT=COMPRESSED.",
 				create_info->key_block_size);
-			zip_allowed = FALSE;
+			zip_allowed = false;
 		}
 	} else {
 		/* zip_ssize == 0 means no KEY_BLOCK_SIZE.*/
@@ -9826,7 +9826,7 @@ index_bad:
 					     : REC_FORMAT_COMPRESSED);
 			break;
 		}
-		zip_allowed = FALSE;
+		zip_allowed = false;
 		/* fall through to set row_format = COMPACT */
 	case ROW_TYPE_NOT_USED:
 	case ROW_TYPE_FIXED:
@@ -9977,9 +9977,10 @@ ha_innobase::create(
 		DBUG_RETURN(-1);
 	}
 
-	bool		is_intrinsic_temp_table
-		= (flags2 & DICT_TF2_TEMPORARY)
-		  && (flags2 & DICT_TF2_INTRINSIC);
+	const bool	is_intrinsic_temp_table
+		= (flags2 & DICT_TF2_INTRINSIC) != 0;
+	/* DICT_TF2_INTRINSIC implies DICT_TF2_TEMPORARY */
+	ut_ad(!(flags2 & DICT_TF2_INTRINSIC) || (flags2 & DICT_TF2_TEMPORARY));
 
 	if (srv_read_only_mode && !is_intrinsic_temp_table) {
 		DBUG_RETURN(HA_ERR_INNODB_READ_ONLY);
@@ -10194,13 +10195,11 @@ ha_innobase::create(
 	innobase_commit_low(trx);
 
 	if (!is_intrinsic_temp_table) {
+		ut_ad(!srv_read_only_mode);
 		row_mysql_unlock_data_dictionary(trx);
-	}
-
-	/* Flush the log to reduce probability that the .frm files and
-	the InnoDB data dictionary get out-of-sync if the user runs
-	with innodb_flush_log_at_trx_commit = 0 */
-	if (!srv_read_only_mode && !is_intrinsic_temp_table) {
+		/* Flush the log to reduce probability that the .frm files and
+		the InnoDB data dictionary get out-of-sync if the user runs
+		with innodb_flush_log_at_trx_commit = 0 */
 		log_buffer_flush_to_disk();
 	}
 
@@ -10504,7 +10503,6 @@ ha_innobase::delete_table(
 	dberr_t	err;
 	THD*	thd = ha_thd();
 	char	norm_name[FN_REFLEN];
-	bool	is_intrinsic_temp_table = false;
 
 	DBUG_ENTER("ha_innobase::delete_table");
 
@@ -10525,17 +10523,13 @@ ha_innobase::delete_table(
 	dict_table_t*		handler = priv->lookup_table_handler(norm_name);
 
 	if (handler != NULL) {
-		is_intrinsic_temp_table = true;
-
 		for (dict_index_t* index = UT_LIST_GET_FIRST(handler->indexes);
 		     index != NULL;
 		     index = UT_LIST_GET_NEXT(indexes, index)) {
 			index->last_ins_cur->release();
 			index->last_sel_cur->release();
 		}
-	}
-
-	if (srv_read_only_mode && !is_intrinsic_temp_table) {
+	} else if (srv_read_only_mode) {
 		DBUG_RETURN(HA_ERR_TABLE_READONLY);
 	}
 
@@ -10616,16 +10610,15 @@ ha_innobase::delete_table(
 		}
 	}
 
-	if (err == DB_SUCCESS && is_intrinsic_temp_table) {
-		priv->unregister_table_handler(norm_name);
-	}
+	if (handler == NULL) {
+		ut_ad(!srv_read_only_mode);
+		/* Flush the log to reduce probability that the .frm files and
+		the InnoDB data dictionary get out-of-sync if the user runs
+		with innodb_flush_log_at_trx_commit = 0 */
 
-	/* Flush the log to reduce probability that the .frm files and
-	the InnoDB data dictionary get out-of-sync if the user runs
-	with innodb_flush_log_at_trx_commit = 0 */
-
-	if (!srv_read_only_mode && !is_intrinsic_temp_table) {
 		log_buffer_flush_to_disk();
+	} else if (err == DB_SUCCESS) {
+		priv->unregister_table_handler(norm_name);
 	}
 
 	innobase_commit_low(trx);
