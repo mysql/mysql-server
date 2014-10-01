@@ -506,67 +506,6 @@ fts_query_compare_rank(
 	return(1);
 }
 
-#ifdef FTS_UTF8_DEBUG
-/*******************************************************************//**
-Convert string to lowercase.
-@return lower case string, callers responsibility to delete using
-ut_free() */
-static
-byte*
-fts_tolower(
-/*========*/
-	const byte*	src,		/*!< in: src string */
-	ulint		len)		/*!< in: src string length */
-{
-	fts_string_t	str;
-	byte*		lc_str = ut_malloc_nokey(len + 1);
-
-	str.f_len = len;
-	str.f_str = lc_str;
-
-	memcpy(str.f_str, src, len);
-
-	/* Make sure the last byte is NUL terminated */
-	str.f_str[len] = '\0';
-
-	fts_utf8_tolower(&str);
-
-	return(lc_str);
-}
-
-/*******************************************************************//**
-Do a case insensitive search. Doesn't check for NUL byte end marker
-only relies on len. Convert str2 to lower case before comparing.
-@return 0 if p1 == p2, < 0 if p1 < p2, > 0 if p1 > p2 */
-static
-int
-fts_utf8_strcmp(
-/*============*/
-	const fts_string_t*
-			str1,		/*!< in: should be lower case*/
-
-	fts_string_t*	str2)		/*!< in: any case. We will use the length
-					of this string during compare as it
-					should be the min of the two strings */
-{
-	byte		b = str2->f_str[str2->f_len];
-
-	ut_a(str2->f_len <= str1->f_len);
-
-	/* We need to write a NUL byte at the end of the string because the
-	string is converted to lowercase by a MySQL function which doesn't
-	care about the length. */
-	str2->f_str[str2->f_len] = 0;
-
-	fts_utf8_tolower(str2);
-
-	/* Restore the value we replaced above. */
-	str2->f_str[str2->f_len] = b;
-
-	return(memcmp(str1->f_str, str2->f_str, str2->f_len));
-}
-#endif
-
 /*******************************************************************//**
 Create words in ranking */
 static

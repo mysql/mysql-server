@@ -3717,7 +3717,7 @@ bool Query_log_event::write(IO_CACHE* file)
       invoker_user= thd->get_invoker_user();
       invoker_host= thd->get_invoker_host();
     }
-    else if (thd->security_ctx->priv_user)
+    else
     {
       Security_context *ctx= thd->security_ctx;
 
