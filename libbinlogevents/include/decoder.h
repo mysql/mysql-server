@@ -63,16 +63,12 @@ class Decoder
 {
 public:
   Decoder()
-  : force_read(0)
+  : force_read(false)
   {
   }
   explicit Decoder(bool force_read_arg)
   : force_read(force_read_arg)
   {
-  }
-  ~Decoder()
-  {
-    delete fd_ev;
   }
   /**
     decode_event() functions reads an event.

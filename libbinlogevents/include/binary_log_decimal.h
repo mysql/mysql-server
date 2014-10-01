@@ -23,14 +23,8 @@
 #ifndef BINARY_LOG_DECIMAL_INCLUDED
 #define BINARY_LOG_DECIMAL_INCLUDED
 
-#ifdef __cplusplus
-extern "C" {
-#endif
 unsigned int my_time_binary_length(unsigned int dec);
 unsigned int my_datetime_binary_length(unsigned int dec);
 unsigned int my_timestamp_binary_length(unsigned int dec);
-#ifdef __cplusplus
-}
-#endif // __cplusplus
 
 #endif
