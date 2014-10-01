@@ -32,6 +32,7 @@ Created 1/8/1996 Heikki Tuuri
 #include "que0types.h"
 #include "row0types.h"
 #include "mtr0mtr.h"
+#include "fsp0space.h"
 
 /*********************************************************************//**
 Creates a table create graph.
@@ -65,15 +66,20 @@ dict_create_table_step(
 /*===================*/
 	que_thr_t*	thr);		/*!< in: query thread */
 
-/***************************************************************//**
-Builds a tablespace, if configured.
+/** Builds a tablespace to contain a table, using file-per-table=1.
+@param[in,out]	table	Table to build in its own tablespace.
 @return DB_SUCCESS or error code */
 dberr_t
-dict_build_tablespace(
-/*==================*/
-	dict_table_t*	table,		/*!< in/out: table */
-	trx_t*		trx);		/*!< in/out: InnoDB transaction
-					handle */
+dict_build_tablespace_for_table(
+	dict_table_t*	table);
+
+/** Assign a new table ID and put it into the table cache and the transaction.
+@param[in,out]	table	Table that needs an ID
+@param[in,out]	trx	Transaction */
+void
+dict_table_assign_new_id(
+	dict_table_t*	table,
+	trx_t*		trx);
 
 /***********************************************************//**
 Creates an index. This is a high-level function used in SQL execution

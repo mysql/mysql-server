@@ -25,36 +25,38 @@ Created 10/25/1995 Heikki Tuuri
 
 #include "ha_prototypes.h"
 
-#include "fil0fil.h"
-#include "mem0mem.h"
-#include "hash0hash.h"
-#include "os0file.h"
-#include "mach0data.h"
+#include "btr0btr.h"
 #include "buf0buf.h"
 #include "buf0flu.h"
-#include "log0recv.h"
-#include "fsp0fsp.h"
-#include "srv0srv.h"
-#include "srv0start.h"
-#include "mtr0log.h"
+#include "dict0boot.h"
 #include "dict0dict.h"
+#include "fil0fil.h"
+#include "fsp0file.h"
+#include "fsp0fsp.h"
+#include "fsp0space.h"
+#include "fsp0sysspace.h"
+#include "hash0hash.h"
+#include "log0recv.h"
+#include "mach0data.h"
+#include "mem0mem.h"
+#include "mtr0log.h"
+#include "os0file.h"
 #include "page0page.h"
 #include "page0zip.h"
-#include "trx0sys.h"
-#include "btr0btr.h"
-#include "dict0boot.h"
 #include "row0mysql.h"
 #include "row0trunc.h"
+#include "srv0srv.h"
+#include "srv0start.h"
+#include "trx0sys.h"
+#include "ut0new.h"
 #ifndef UNIV_HOTBACKUP
 # include "buf0lru.h"
 # include "ibuf0ibuf.h"
-# include "sync0sync.h"
 # include "os0event.h"
+# include "sync0sync.h"
 #else /* !UNIV_HOTBACKUP */
 # include "srv0srv.h"
 #endif /* !UNIV_HOTBACKUP */
-#include "fsp0sysspace.h"
-#include "ut0new.h"
 
 /*
 		IMPLEMENTATION OF THE TABLESPACE MEMORY CACHE
@@ -1270,8 +1272,8 @@ fil_space_create(
 		if (!fil_system->space_id_reuse_warned) {
 			fil_system->space_id_reuse_warned = true;
 
-			ib::warn() << "Allocated tablespace " << id
-				<< ", old maximum was "
+			ib::warn() << "Allocated tablespace ID " << id
+				<< " for " << name << ", old maximum was "
 				<< fil_system->max_assigned_id;
 		}
 
@@ -1961,12 +1963,12 @@ fil_op_write_log(
 	byte*		log_ptr;
 	ulint		len;
 
-	/* TODO: support user-created multi-file tablespaces */
 	ut_ad(first_page_no == 0);
-	/* fil_name_parse() requires this */
+
+	/* fil_name_parse() requires that there be at least one path
+	separator and that the file path end with ".ibd". */
 	ut_ad(strchr(path, OS_PATH_SEPARATOR) != NULL);
-	ut_ad(strstr(path, DOT_IBD) != NULL);
-	ut_ad(strstr(path, DOT_IBD)[4] == 0);
+	ut_ad(strcmp(&path[strlen(path) - strlen(DOT_IBD)], DOT_IBD) == 0);
 
 	log_ptr = mlog_open(mtr, 11 + 2 + 1);
 
@@ -2178,7 +2180,7 @@ fil_recreate_tablespace(
 		/* Align the memory for file i/o */
 		page = static_cast<byte*>(ut_align(buf, UNIV_PAGE_SIZE));
 
-		flags = fsp_flags_set_page_size(flags, UNIV_PAGE_SIZE);
+		flags = fsp_flags_set_page_size(flags, univ_page_size);
 
 		fsp_header_init_fields(page, space_id, flags);
 
@@ -3360,35 +3362,30 @@ func_exit:
 	return(success);
 }
 
-/*******************************************************************//**
-Creates a new single-table tablespace to a database directory of MySQL.
-Database directories are under the 'datadir' of MySQL. The datadir is the
-directory of a running mysqld program. We can refer to it by simply the
-path '.'. Tables created with CREATE TEMPORARY TABLE we place in the temp
-dir of the mysqld server.
-
+/** Creates a new Single-Table tablespace
+@param[in]	space_id	Tablespace ID
+@param[in]	name		Tablespace name in dbname/tablename format.
+For general tablespaces, the 'dbname/' part may be missing.
+@param[in]	path		Path and filename of the datafile to create.
+@param[in]	flags		Tablespace flags
+@param[in]	is_temp		true if this is a temporary table
+@param[in]	size		Initial size of the tablespace file in pages,
+must be >= FIL_IBD_FILE_INITIAL_SIZE
 @return DB_SUCCESS or error code */
 dberr_t
-fil_create_new_single_table_tablespace(
-/*===================================*/
-	ulint		space_id,	/*!< in: space id */
-	const char*	tablename,	/*!< in: the table name in the usual
-					databasename/tablename format
-					of InnoDB */
-	const char*	dir_path,	/*!< in: NULL or a dir path */
-	ulint		flags,		/*!< in: tablespace flags */
-	ulint		flags2,		/*!< in: table flags2 */
-	ulint		size)		/*!< in: the initial size of the
-					tablespace file in pages,
-					must be >= FIL_IBD_FILE_INITIAL_SIZE */
+fil_create_ibd_tablespace(
+	ulint		space_id,
+	const char*	name,
+	const char*	path,
+	ulint		flags,
+	bool		is_temp,
+	ulint		size)
 {
 	os_file_t	file;
 	dberr_t		err;
 	byte*		buf2;
 	byte*		page;
-	char*		path;
 	bool		success;
-	bool		is_temp = !!(flags2 & DICT_TF2_TEMPORARY);
 	bool		has_data_dir = FSP_FLAGS_HAS_DATA_DIR(flags);
 	fil_space_t*	space = NULL;
 
@@ -3398,28 +3395,10 @@ fil_create_new_single_table_tablespace(
 	ut_a(size >= FIL_IBD_FILE_INITIAL_SIZE);
 	ut_a(fsp_flags_is_valid(flags));
 
-	if (is_temp) {
-		/* Temporary table filepath */
-		ut_ad(dir_path);
-		path = fil_make_filepath(dir_path, NULL, IBD, false);
-	} else if (has_data_dir) {
-		ut_ad(dir_path);
-		path = fil_make_filepath(dir_path, tablename, IBD, true);
-
-		/* Since this tablespace file will be created in a
-		remote directory, let's create the subdirectories
-		in the path, if they are not there already. */
-		success = os_file_create_subdirs_if_needed(path);
-		if (!success) {
-			ut_free(path);
-			return(DB_ERROR);
-		}
-	} else {
-		path = fil_make_filepath(NULL, tablename, IBD, false);
-	}
-
-	if (path == NULL) {
-		return(DB_OUT_OF_MEMORY);
+	/* Create the subdirectories in the path, if they are
+	not there already. */
+	if (!os_file_create_subdirs_if_needed(path)) {
+		return(DB_ERROR);
 	}
 
 	file = os_file_create(
@@ -3449,16 +3428,14 @@ fil_create_new_single_table_tablespace(
 				" You can resolve the problem by removing"
 				" the file '" << path
 				<< "' under the 'datadir' of MySQL.";
-			ut_free(path);
+
 			return(DB_TABLESPACE_EXISTS);
 		}
 
 		if (error == OS_FILE_DISK_FULL) {
-			ut_free(path);
 			return(DB_OUT_OF_FILE_SPACE);
 		}
 
-		ut_free(path);
 		return(DB_ERROR);
 	}
 
@@ -3500,7 +3477,6 @@ fil_create_new_single_table_tablespace(
 	if (!success) {
 		os_file_close(file);
 		os_file_delete(innodb_data_file_key, path);
-		ut_free(path);
 		return(DB_OUT_OF_FILE_SPACE);
 	}
 
@@ -3523,7 +3499,7 @@ fil_create_new_single_table_tablespace(
 
 	/* Add the UNIV_PAGE_SIZE to the table flags and write them to the
 	tablespace header. */
-	flags = fsp_flags_set_page_size(flags, UNIV_PAGE_SIZE);
+	flags = fsp_flags_set_page_size(flags, univ_page_size);
 	fsp_header_init_fields(page, space_id, flags);
 	mach_write_to_4(page + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID, space_id);
 
@@ -3558,7 +3534,6 @@ fil_create_new_single_table_tablespace(
 			<< " tablespace '" << path << "'";
 		os_file_close(file);
 		os_file_delete(innodb_data_file_key, path);
-		ut_free(path);
 		return(DB_ERROR);
 	}
 
@@ -3569,22 +3544,20 @@ fil_create_new_single_table_tablespace(
 			<< path << "' failed";
 		os_file_close(file);
 		os_file_delete(innodb_data_file_key, path);
-		ut_free(path);
 		return(DB_ERROR);
 	}
 
 	if (has_data_dir) {
 		/* Now that the IBD file is created, make the ISL file. */
-		err = RemoteDatafile::create_link_file(tablename, path);
+		err = RemoteDatafile::create_link_file(name, path);
 		if (err != DB_SUCCESS) {
 			os_file_close(file);
 			os_file_delete(innodb_data_file_key, path);
-			ut_free(path);
 			return(err);
 		}
 	}
 
-	space = fil_space_create(tablename, space_id, flags, is_temp
+	space = fil_space_create(name, space_id, flags, is_temp
 				 ? FIL_TYPE_TEMPORARY : FIL_TYPE_TABLESPACE);
 
 	if (!fil_node_create(path, size, space, false)) {
@@ -3608,16 +3581,14 @@ fil_create_new_single_table_tablespace(
 	These labels reflect the order in which variables are assigned or
 	actions are done. */
 error_exit_1:
-	if (has_data_dir && err != DB_SUCCESS) {
-		RemoteDatafile::delete_link_file(tablename);
+	if (err != DB_SUCCESS && has_data_dir) {
+		RemoteDatafile::delete_link_file(name);
 	}
 
 	os_file_close(file);
 	if (err != DB_SUCCESS) {
 		os_file_delete(innodb_data_file_key, path);
 	}
-
-	ut_free(path);
 
 	return(err);
 }
@@ -3653,7 +3624,7 @@ statement to update the dictionary tables if they are incorrect.
 @param[in]	path_in		Tablespace filepath if found in SYS_DATAFILES
 @return DB_SUCCESS or error code */
 dberr_t
-fil_open_single_table_tablespace(
+fil_open_ibd_tablespace(
 	bool		validate,
 	bool		fix_dict,
 	fil_type_t	purpose,
@@ -3863,13 +3834,12 @@ fil_open_single_table_tablespace(
 		goto skip_validate;
 	}
 
-	/* We may need to change what is stored in SYS_DATAFILES or
-	SYS_TABLESPACES or adjust the link file.
-	Since a failure to update SYS_TABLESPACES or SYS_DATAFILES does
-	not prevent opening and using the single_table_tablespace either
-	this time or the next, we do not check the return code or fail
-	to open the tablespace. But dict_update_filepath() will issue a
-	warning to the log. */
+	/* We may need to update what is stored in SYS_DATAFILES or
+	SYS_TABLESPACES or adjust the link file.  Since a failure to
+	update SYS_TABLESPACES or SYS_DATAFILES does not prevent opening
+	and using the tablespace either this time or the next, we do not
+	check the return code or fail to open the tablespace. But if it
+	fails, dict_update_filepath() will issue a warning to the log. */
 	if (df_dict.filepath()) {
 		if (df_remote.is_open()) {
 			dict_update_filepath(id, df_remote.filepath());
@@ -4032,14 +4002,14 @@ fil_path_to_space_name(
 	return(name);
 }
 
-/** Open a tablespace file and add it to the InnoDB data structures.
+/** Open a single-file tablespace and add it to the InnoDB data structures.
 @param[in]	space_id	tablespace ID
 @param[in]	filename	path/to/databasename/tablename.ibd
 @param[in]	filename_len	the length of the filename, in bytes
 @param[out]	space		the tablespace, or NULL on error
 @return status of the operation */
 enum fil_load_status
-fil_load_single_table_tablespace(
+fil_load_single_file_tablespace(
 	ulint		space_id,
 	const char*	filename,
 	ulint		filename_len,
@@ -4105,8 +4075,8 @@ fil_load_single_table_tablespace(
 
 		} else if (size < minimum_size) {
 #ifndef UNIV_HOTBACKUP
-			ib::error() << "The size of single-table tablespace"
-				" file '" << filename << "' is only " << size
+			ib::error() << "The size of tablespace file '"
+				<< filename << "' is only " << size
 				<< ", should be at least " << minimum_size
 				<< "!";
 #else
@@ -4135,12 +4105,13 @@ fil_load_single_table_tablespace(
 	if (file.space_id() == ULINT_UNDEFINED || file.space_id() == 0) {
 		char*	new_path;
 
-		ib::info << "Renaming tablespace '" << filename << "' of id "
-			<< file.space_id() << ", to " << file.name()
-			<< "_ibbackup_old_vers_<timestamp> because its size"
-			<< size " is too small (< 4 pages 16 kB each), or the"
-			" space id in the file header is not sensible. This can"
-			" happen in an mysqlbackup run, and is not dangerous.";
+		ib::info() << "Renaming tablespace file '" << filename
+			<< "' with space ID " << file.space_id() << " to "
+			<< file.name() << "_ibbackup_old_vers_<timestamp>"
+			" because its size " << size() << " is too small"
+			" (< 4 pages 16 kB each), or the space id in the"
+			" file header is not sensible. This can happen in"
+			" an mysqlbackup run, and is not dangerous.";
 		file.close();
 
 		new_path = fil_make_ibbackup_old_name(filename);
@@ -4323,28 +4294,26 @@ fil_report_missing_tablespace(
 		" exists in the InnoDB internal data dictionary.";
 }
 
-/*******************************************************************//**
-Returns true if a matching tablespace exists in the InnoDB tablespace memory
-cache. Note that if we have not done a crash recovery at the database startup,
-there may be many tablespaces which are not yet in the memory cache.
+/** Returns true if a matching tablespace exists in the InnoDB tablespace
+memory cache. Note that if we have not done a crash recovery at the database
+startup, there may be many tablespaces which are not yet in the memory cache.
+@param[in]	id		Tablespace ID
+@param[in]	name		Tablespace name used in fil_space_create().
+@param[in]	print_error_if_does_not_exist
+				Print detailed error information to the
+error log if a matching tablespace is not found from memory.
+@param[in]	adjust_space	Whether to adjust space id on mismatch
+@param[in]	heap		Heap memory
+@param[in]	table_id	table id
 @return true if a matching tablespace exists in the memory cache */
 bool
 fil_space_for_table_exists_in_mem(
-/*==============================*/
-	ulint		id,		/*!< in: space id */
-	const char*	name,		/*!< in: table name used in
-					fil_space_create().  Either the
-					standard 'dbname/tablename' format
-					or table->dir_path_of_temp_table */
+	ulint		id,
+	const char*	name,
 	bool		print_error_if_does_not_exist,
-					/*!< in: print detailed error
-					information to the .err log if a
-					matching tablespace is not found from
-					memory */
-	bool		adjust_space,	/*!< in: whether to adjust space id
-					when find table space mismatch */
-	mem_heap_t*	heap,		/*!< in: heap memory */
-	table_id_t	table_id)	/*!< in: table id */
+	bool		adjust_space,
+	mem_heap_t*	heap,
+	table_id_t	table_id)
 {
 	fil_space_t*	fnamespace;
 	fil_space_t*	space;
@@ -4464,30 +4433,20 @@ error_exit:
 	return(false);
 }
 
-/*******************************************************************//**
-Checks if a single-table tablespace for a given table name exists in the
-tablespace memory cache.
-@return space id, ULINT_UNDEFINED if not found */
+/** Return the space ID based on the tablespace name.
+The tablespace must be found in the tablespace memory cache.
+This call is made from external to this module, so the mutex is not owned.
+@param[in]	tablespace	Tablespace name
+@return space ID if tablespace found, ULINT_UNDEFINED if space not. */
 ulint
-fil_get_space_id_for_table(
-/*=======================*/
-	const char*	tablename)	/*!< in: table name in the standard
-				'databasename/tablename' format */
+fil_space_get_id_by_name(
+	const char*	tablespace)
 {
-	fil_space_t*	fnamespace;
-	ulint		id		= ULINT_UNDEFINED;
-
-	ut_ad(fil_system);
-
 	mutex_enter(&fil_system->mutex);
 
-	/* Look if there is a space with the same name. */
-
-	fnamespace = fil_space_get_by_name(tablename);
-
-	if (fnamespace) {
-		id = fnamespace->id;
-	}
+	/* Search for a space with the same name. */
+	fil_space_t*	space = fil_space_get_by_name(tablespace);
+	ulint		id = (space == NULL) ? ULINT_UNDEFINED : space->id;
 
 	mutex_exit(&fil_system->mutex);
 

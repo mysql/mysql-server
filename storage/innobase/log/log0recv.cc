@@ -232,7 +232,7 @@ fil_name_process(
 		the space_id. If not, ignore the file after displaying
 		a note. Abort if there are multiple files with the
 		same space_id. */
-		switch (fil_load_single_table_tablespace(
+		switch (fil_load_single_file_tablespace(
 				space_id, name, len - 1, space)) {
 		case FIL_LOAD_OK:
 			ut_ad(space != NULL);

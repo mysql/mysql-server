@@ -1087,7 +1087,7 @@ loop:
 			this is at startup and we are now single threaded.
 			If the filepath is not known, it will need to
 			be discovered. */
-			dberr_t	err = fil_open_single_table_tablespace(
+			dberr_t	err = fil_open_ibd_tablespace(
 				validate && srv_force_recovery == 0,
 				!srv_read_only_mode, FIL_TYPE_TABLESPACE,
 				space_id, dict_tf_to_fsp_flags(flags),
@@ -2390,7 +2390,7 @@ err_exit:
 			/* Try to open the tablespace.  We set the
 			2nd param (fix_dict = false) here because we
 			do not have an x-lock on dict_operation_lock */
-			err = fil_open_single_table_tablespace(
+			err = fil_open_ibd_tablespace(
 				true, false, FIL_TYPE_TABLESPACE,
 				table->space,
 				dict_tf_to_fsp_flags(table->flags),

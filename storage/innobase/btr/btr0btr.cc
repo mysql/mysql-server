@@ -325,16 +325,12 @@ btr_root_adjust_on_import(
 		if (page_is_compact_format != dict_table_is_comp(table)) {
 			err = DB_CORRUPTION;
 		} else {
-
 			/* Check that the table flags and the tablespace
 			flags match. */
-			const fil_space_t*	space = fil_space_get(
-				table->space);
-
-			err = space && space->flags ==
-				dict_tf_to_fsp_flags(table->flags)
-				? DB_SUCCESS
-				: DB_CORRUPTION;
+			ulint	flags = dict_tf_to_fsp_flags(table->flags);
+			ulint	fsp_flags = fil_space_get_flags(table->space);
+			err = fsp_flags_are_equal(flags, fsp_flags)
+			      ? DB_SUCCESS : DB_CORRUPTION;
 		}
 	} else {
 		err = DB_SUCCESS;

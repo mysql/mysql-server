@@ -112,6 +112,8 @@ ut_new_boot()
 		"eval0eval",
 		"fil0fil",
 		"fsp0file",
+		"fsp0space",
+		"fsp0sysspace",
 		"fts0ast",
 		"fts0config",
 		"fts0fts",

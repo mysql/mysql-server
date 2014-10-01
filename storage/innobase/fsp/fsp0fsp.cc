@@ -51,6 +51,7 @@ Created 11/29/1995 Heikki Tuuri
 #endif /* UNIV_HOTBACKUP */
 #include "dict0mem.h"
 #include "fsp0sysspace.h"
+#include "fsp0types.h"
 
 #ifndef UNIV_HOTBACKUP
 
@@ -204,6 +205,36 @@ fsp_get_space_header(
 	return(header);
 }
 
+/** Convert a 32 bit integer tablespace flags to the 32 bit table flags.
+This can only be done for a tablespace that was built as a file-per-table
+tablespace. Note that the fsp_flags cannot show the difference between a
+Compact and Redundant table, so an extra Compact boolean must be supplied.
+========================= Low order bit ==========================
+                    | REDUNDANT | COMPACT | COMPRESSED | DYNAMIC
+fil_space_t::flags  |     0     |    0    |     1      |    1
+dict_table_t::flags |     0     |    1    |     1      |    1
+==================================================================
+@param[in]	fsp_flags	fil_space_t::flags
+@param[in]	compact		true if not Redundant row format
+@return tablespace flags (fil_space_t::flags) */
+ulint
+fsp_flags_to_dict_tf(
+	ulint	fsp_flags,
+	bool	compact)
+{
+	/* If the table in this file-per-table tablespace is Compact
+	row format, the low order bit will not indicate Compact. */
+	bool	post_antelope	= FSP_FLAGS_GET_POST_ANTELOPE(fsp_flags);
+	ulint	zip_ssize	= FSP_FLAGS_GET_ZIP_SSIZE(fsp_flags);
+	bool	atomic_blobs	= FSP_FLAGS_HAS_ATOMIC_BLOBS(fsp_flags);
+	bool	data_dir	= FSP_FLAGS_HAS_DATA_DIR(fsp_flags);
+
+	ulint	flags = dict_tf_init(post_antelope | compact, zip_ssize,
+				     atomic_blobs, data_dir);
+
+	return(flags);
+}
+
 /** Validate and return the tablespace flags, which are stored in the
 tablespace header at offset FSP_SPACE_FLAGS.  They should be 0 for
 ROW_FORMAT=COMPACT and ROW_FORMAT=REDUNDANT. The newer row formats,
@@ -224,46 +255,44 @@ fsp_flags_is_valid(
 
 	DBUG_EXECUTE_IF("fsp_flags_is_valid_failure", return(false););
 
-	/* fsp_flags is zero unless atomic_blobs is set.
-	Make sure there are no bits that we do not know about. */
-	if (unused != 0 || flags == 1) {
-		return(false);
-	} else if (post_antelope) {
-		/* The Antelope row formats REDUNDANT and COMPACT did
-		not use tablespace flags, so this flag and the entire
-		4-byte field is zero for Antelope row formats. */
-
-		if (!atomic_blobs) {
-			return(false);
-		}
+	/* The Antelope row formats REDUNDANT and COMPACT did
+	not use tablespace flags, so the entire 4-byte field
+	is zero for Antelope row formats. */
+	if (flags == 0) {
+		return(true);
 	}
 
-	if (!atomic_blobs) {
-		/* Barracuda row formats COMPRESSED and DYNAMIC build on
-		the page structure introduced for the COMPACT row format
-		by allowing long fields to be broken into prefix and
-		externally stored parts. */
-
-		if (post_antelope || zip_ssize != 0) {
-			return(false);
-		}
-
-	} else if (!post_antelope || zip_ssize > PAGE_ZIP_SSIZE_MAX) {
-		return(false);
-	} else if (page_ssize > UNIV_PAGE_SSIZE_MAX) {
-
-		/* The page size field can be used for any row type, or it may
-		be zero for an original 16k page size.
-		Validate the page shift size is within allowed range. */
-
+	/* Barracuda row formats COMPRESSED and DYNAMIC use a feature called
+	ATOMIC_BLOBS which builds on the page structure introduced for the
+	COMPACT row format by allowing long fields to be broken into prefix
+	and externally stored parts. So if it is Post_antelope, it uses
+	Atomic BLOBs. */
+	if (post_antelope != atomic_blobs) {
 		return(false);
 
-	} else if (UNIV_PAGE_SIZE != UNIV_PAGE_SIZE_ORIG && !page_ssize) {
+	/* Make sure there are no bits that we do not know about. */
+	if (unused != 0)
+		return(false);
+	}
+
+	/* The zip ssize can be zero if it is other than compressed row format,
+	or it could be from 1 to the max. */
+	if (zip_ssize > PAGE_ZIP_SSIZE_MAX) {
+		return(false);
+	}
+
+	/* The actual page size must be within 4k and 16K (3 =< ssize =< 5). */
+	if (page_ssize != 0
+	    && (page_ssize < UNIV_PAGE_SSIZE_MIN
+	        || page_ssize > UNIV_PAGE_SSIZE_MAX)) {
 		return(false);
 	}
 
 #if UNIV_FORMAT_MAX != UNIV_FORMAT_B
-# error "UNIV_FORMAT_MAX != UNIV_FORMAT_B, Add more validations."
+# error UNIV_FORMAT_MAX != UNIV_FORMAT_B, Add more validations.
+#endif
+#if FSP_FLAGS_POS_UNUSED != 11
+# error You have added a new FSP_FLAG without adding a validation check.
 #endif
 
 	/* The DATA_DIR field can be used for any row type so there is

@@ -2039,12 +2039,12 @@ truncate_t::fixup_tables()
 				fil_create_directory_for_tablename(
 					(*it)->m_tablename);
 
-				if (fil_create_new_single_table_tablespace(
+				if (fil_create_ibd_tablespace(
 						(*it)->m_space_id,
 						(*it)->m_tablename,
 						(*it)->m_dir_path,
 						(*it)->m_tablespace_flags,
-						DICT_TF2_USE_FILE_PER_TABLE,
+						false,
 						FIL_IBD_FILE_INITIAL_SIZE)
 					!= DB_SUCCESS) {
 

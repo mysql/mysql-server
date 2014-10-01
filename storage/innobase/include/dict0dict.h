@@ -28,20 +28,20 @@ Created 1/8/1996 Heikki Tuuri
 #define dict0dict_h
 
 #include "univ.i"
-#include "dict0types.h"
-#include "dict0mem.h"
-#include "data0type.h"
 #include "data0data.h"
+#include "data0type.h"
+#include "dict0mem.h"
+#include "dict0types.h"
+#include "fsp0fsp.h"
+#include "hash0hash.h"
 #include "mem0mem.h"
 #include "rem0types.h"
-#include "ut0mem.h"
-#include "hash0hash.h"
-#include "ut0rnd.h"
-#include "ut0byte.h"
-#include "trx0types.h"
 #include "row0types.h"
+#include "trx0types.h"
+#include "ut0byte.h"
+#include "ut0mem.h"
 #include "ut0new.h"
-
+#include "ut0rnd.h"
 #include <deque>
 
 #ifndef UNIV_HOTBACKUP
@@ -870,6 +870,7 @@ dict_table_is_comp(
 /*===============*/
 	const dict_table_t*	table)	/*!< in: table */
 	__attribute__((nonnull, warn_unused_result));
+
 /********************************************************************//**
 Determine the file format of a table.
 @return file format version */
@@ -888,33 +889,48 @@ dict_tf_get_format(
 /*===============*/
 	ulint		flags)		/*!< in: dict_table_t::flags */
 	__attribute__((warn_unused_result));
-/********************************************************************//**
-Set the various values in a dict_table_t::flags pointer. */
+
+/** Set the various values in a dict_table_t::flags pointer.
+@param[in,out]	flags,		Pointer to a 4 byte Table Flags
+@param[in]	format,		File Format
+@param[in]	zip_ssize	Zip Shift Size
+@param[in]	use_data_dir	Table uses DATA DIRECTORY */
 UNIV_INLINE
 void
 dict_tf_set(
-/*========*/
-	ulint*		flags,		/*!< in/out: table */
-	rec_format_t	format,		/*!< in: file format */
-	ulint		zip_ssize,	/*!< in: zip shift size */
-	bool		remote_path)	/*!< in: table uses DATA DIRECTORY */
-	__attribute__((nonnull));
-/********************************************************************//**
-Convert a 32 bit integer table flags to the 32 bit integer that is
-written into the tablespace header at the offset FSP_SPACE_FLAGS and is
-also stored in the fil_space_t::flags field.  The following chart shows
-the translation of the low order bit.  Other bits are the same.
+	ulint*		flags,
+	rec_format_t	format,
+	ulint		zip_ssize,
+	bool		use_data_dir);
+
+/** Initialize a dict_table_t::flags pointer.
+@param[in]	compact,	Table uses Compact or greater
+@param[in]	zip_ssize	Zip Shift Size (log 2 minus 9)
+@param[in]	atomic_blobs	Table uses Compressed or Dynamic
+@param[in]	data_dir	Table uses DATA DIRECTORY */
+UNIV_INLINE
+ulint
+dict_tf_init(
+	bool		compact,
+	ulint		zip_ssize,
+	bool		atomic_blobs,
+	bool		data_dir);
+
+/** Convert a 32 bit integer table flags to the 32 bit FSP Flags.
+Fsp Flags are written into the tablespace header at the offset
+FSP_SPACE_FLAGS and are also stored in the fil_space_t::flags field.
+The following chart shows the translation of the low order bit.
+Other bits are the same.
 ========================= Low order bit ==========================
                     | REDUNDANT | COMPACT | COMPRESSED | DYNAMIC
 dict_table_t::flags |     0     |    1    |     1      |    1
 fil_space_t::flags  |     0     |    0    |     1      |    1
 ==================================================================
+@param[in]	table_flags	dict_table_t::flags
 @return tablespace flags (fil_space_t::flags) */
-UNIV_INLINE
 ulint
 dict_tf_to_fsp_flags(
-/*=================*/
-	ulint	flags)	/*!< in: dict_table_t::flags */
+	ulint	table_flags)
 	__attribute__((const));
 
 /** Extract the page size from table flags.
@@ -1704,6 +1720,17 @@ UNIV_INLINE
 bool
 dict_tf_is_valid(
 	ulint	flags);
+
+/** Validate both table flags and table flags2 and make sure they
+are compatible.
+@param[in]	flags	Table flags
+@param[in]	flags2	Table flags2
+@return true if valid. */
+UNIV_INLINE
+bool
+dict_tf2_is_valid(
+	ulint	flags,
+	ulint	flags2);
 
 /********************************************************************//**
 Check if the tablespace for the table has been discarded.

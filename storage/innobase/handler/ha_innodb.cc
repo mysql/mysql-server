@@ -1068,15 +1068,15 @@ innobase_create_handler(
 
 /* General functions */
 
-/*************************************************************//**
-Check that a page_size is correct for InnoDB.  If correct, set the
-associated page_size_shift which is the power of 2 for this page size.
+/** Check that a page_size is correct for InnoDB.
+If correct, set the associated page_size_shift which is the power of 2
+for this page size.
+@param[in]	page_size	Page Size to evaluate
 @return an associated page_size_shift if valid, 0 if invalid. */
 inline
-int
+ulong
 innodb_page_size_validate(
-/*======================*/
-	ulong	page_size)		/*!< in: Page Size to evaluate */
+	ulong	page_size)
 {
 	ulong		n;
 
@@ -1085,7 +1085,7 @@ innodb_page_size_validate(
 	for (n = UNIV_PAGE_SIZE_SHIFT_MIN;
 	     n <= UNIV_PAGE_SIZE_SHIFT_MAX;
 	     n++) {
-		if (page_size == (ulong) (1 << n)) {
+		if (page_size == static_cast<ulong>(1 << n)) {
 			DBUG_RETURN(n);
 		}
 	}
@@ -3101,6 +3101,16 @@ innobase_init(
 
 	/*--------------- Shared tablespaces -------------------------*/
 
+	/* Check that the value of system variable innodb_page_size was
+	set correctly.  Its value was put into srv_page_size. If valid,
+	return the associated srv_page_size_shift. */
+	srv_page_size_shift = innodb_page_size_validate(srv_page_size);
+	if (!srv_page_size_shift) {
+		sql_print_error("InnoDB: Invalid page size=%lu.\n",
+				srv_page_size);
+		DBUG_RETURN(innobase_init_abort());
+	}
+
 	/* Set default InnoDB temp data file size to 12 MB and let it be
 	auto-extending. */
 	if (!innobase_data_file_path) {
@@ -3108,11 +3118,16 @@ innobase_init(
 	}
 
 	srv_sys_space.set_space_id(TRX_SYS_SPACE);
+
+	/* Create the filespace flags. */
+	ulint	fsp_flags = fsp_flags_init(univ_page_size, false, false);
+	srv_sys_space.set_flags(fsp_flags);
+
 	srv_sys_space.set_name("innodb_system");
 	srv_sys_space.set_path(srv_data_home);
 
 	/* Supports raw devices */
-	if (!srv_sys_space.parse(innobase_data_file_path, true)) {
+	if (!srv_sys_space.parse_params(innobase_data_file_path, true)) {
 		DBUG_RETURN(innobase_init_abort());
 	}
 
@@ -3123,12 +3138,17 @@ innobase_init(
 		innobase_temp_data_file_path = (char*) "ibtmp1:12M:autoextend";
 	}
 
-	/* We set the temporary tablspace id later, after recovery. */
-
-	/* Doesn't support raw devices. */
+	/* We set the temporary tablspace id later, after recovery.
+	The temp tablespace doesn't support raw devices.
+	Set the name and path. */
 	srv_tmp_space.set_name("innodb_temporary");
 	srv_tmp_space.set_path(srv_data_home);
-	if (!srv_tmp_space.parse(innobase_temp_data_file_path, false)) {
+
+	/* Create the filespace flags. */
+	fsp_flags = fsp_flags_init(univ_page_size, false, false);
+	srv_tmp_space.set_flags(fsp_flags);
+
+	if (!srv_tmp_space.parse_params(innobase_temp_data_file_path, false)) {
 		DBUG_RETURN(innobase_init_abort());
 	}
 
@@ -3283,16 +3303,6 @@ innobase_change_buffering_inited_ok:
 	srv_file_flush_method_str = innobase_file_flush_method;
 
 	srv_log_file_size = (ib_uint64_t) innobase_log_file_size;
-
-	/* Check that the value of system variable innodb_page_size was
-	set correctly.  Its value was put into srv_page_size. If valid,
-	return the associated srv_page_size_shift.*/
-	srv_page_size_shift = innodb_page_size_validate(srv_page_size);
-	if (!srv_page_size_shift) {
-		sql_print_error("InnoDB: Invalid page size=%lu.\n",
-				srv_page_size);
-		DBUG_RETURN(innobase_init_abort());
-	}
 
 	if (UNIV_PAGE_SIZE_DEF != srv_page_size) {
 		ib::warn() << "innodb-page-size has been changed from the"
@@ -6136,7 +6146,7 @@ build_template_field(
 		prebuilt->need_to_access_clustered = TRUE;
 	}
 
-	/* For spatial index, we need to access cluster index.*/
+	/* For spatial index, we need to access cluster index. */
 	if (dict_index_is_spatial(index)) {
 		prebuilt->need_to_access_clustered = TRUE;
 	}
@@ -6724,7 +6734,7 @@ no_commit:
 		/* Note the number of rows processed for this statement, used
 		by get_auto_increment() to determine the number of AUTO-INC
 		values to reserve. This is only useful for a mult-value INSERT
-		and is a statement level counter.*/
+		and is a statement level counter. */
 		if (trx->n_autoinc_rows > 0) {
 			--trx->n_autoinc_rows;
 		}
@@ -6734,7 +6744,7 @@ no_commit:
 		col_max_value =
 			table->next_number_field->get_max_int_value();
 
-		/* Get the value that MySQL attempted to store in the table.*/
+		/* Get the value that MySQL attempted to store in the table. */
 		auto_inc = table->next_number_field->val_int();
 
 		switch (error) {
@@ -6768,7 +6778,7 @@ no_commit:
 			/* If the actual value inserted is greater than
 			the upper limit of the interval, then we try and
 			update the table upper limit. Note: last_value
-			will be 0 if get_auto_increment() was not called.*/
+			will be 0 if get_auto_increment() was not called. */
 
 			if (auto_inc >= m_prebuilt->autoinc_last_value) {
 set_max_autoinc:
@@ -7211,7 +7221,7 @@ ha_innobase::update_row(
 
 	We need to use the AUTOINC counter that was actually used by
 	MySQL in the UPDATE statement, which can be different from the
-	value used in the INSERT statement.*/
+	value used in the INSERT statement. */
 
 	if (error == DB_SUCCESS
 	    && table->next_number_field
@@ -8834,8 +8844,8 @@ create_table_def(
 		}
 	}
 
-	/* We pass 0 as the space id, and determine at a lower level the space
-	id where to store the table */
+	/* For single-table tablespaces, we pass 0 as the space id, and then
+	determine the actual space id when the tablespace is created. */
 
 	if (flags2 & DICT_TF2_FTS) {
 		/* Adjust for the FTS hidden field */
@@ -8855,8 +8865,7 @@ create_table_def(
 					      flags, flags2);
 	}
 
-	if (flags2 & DICT_TF2_TEMPORARY) {
-		ut_a(strlen(temp_path));
+	if (strlen(temp_path) != 0) {
 		table->dir_path_of_temp_table =
 			mem_heap_strdup(table->heap, temp_path);
 	}
@@ -8988,8 +8997,13 @@ err_col:
 	on re-start we don't need to restore temp-table and so no entry is
 	needed in SYSTEM tables. */
 	if (dict_table_is_temporary(table)) {
+
+		/* Get a new table ID */
+		dict_table_assign_new_id(table, trx);
+
 		/* Create temp tablespace if configured. */
-		err = dict_build_tablespace(table, trx);
+		err = dict_build_tablespace_for_table(table);
+
 		if (err == DB_SUCCESS) {
 			/* Temp-table are maintained in memory and so
 			can_be_evicted is FALSE. */
@@ -9764,7 +9778,7 @@ index_bad:
 
 	if (zip_ssize && zip_allowed) {
 		/* if ROW_FORMAT is set to default,
-		automatically change it to COMPRESSED.*/
+		automatically change it to COMPRESSED. */
 		if (row_format == ROW_TYPE_DEFAULT) {
 			row_format = ROW_TYPE_COMPRESSED;
 		} else if (row_format != ROW_TYPE_COMPRESSED) {
@@ -9783,7 +9797,7 @@ index_bad:
 			zip_allowed = false;
 		}
 	} else {
-		/* zip_ssize == 0 means no KEY_BLOCK_SIZE.*/
+		/* zip_ssize == 0 means no KEY_BLOCK_SIZE. */
 		if (row_format == ROW_TYPE_COMPRESSED && zip_allowed) {
 			/* ROW_FORMAT=COMPRESSED without KEY_BLOCK_SIZE
 			implies half the maximum KEY_BLOCK_SIZE(*1k) or
@@ -9858,7 +9872,7 @@ index_bad:
 	if (create_info->options & HA_LEX_CREATE_TMP_TABLE) {
 		*flags2 |= DICT_TF2_TEMPORARY;
 
-		/* Intrinsic table reside only in shared temporary tablespace.*/
+		/* Intrinsic table reside only in shared temporary tablespace. */
 		if ((THDVAR(thd, create_intrinsic)
 		     || create_info->options & HA_LEX_CREATE_INTERNAL_TMP_TABLE)
 		    && !file_per_table) {
@@ -9905,7 +9919,6 @@ innobase_table_is_noncompressed_temporary(
 
 	return(is_temp && !is_compressed);
 }
-
 
 /*****************************************************************//**
 Creates a new table to an InnoDB database.
@@ -10635,7 +10648,7 @@ ha_innobase::delete_table(
 	DBUG_RETURN(convert_error_code_to_mysql(err, 0, NULL));
 }
 
-/** Removes all tables in the named database inside InnoDB.
+/** Remove all tables in the named database inside InnoDB.
 @param[in]	hton	handlerton from InnoDB
 @param[in]	path	Database path; Inside InnoDB the name of the last
 directory in the path is used as the database name.
@@ -11063,7 +11076,7 @@ ha_innobase::records_in_range(
 		goto func_exit;
 	}
 	/* GIS_FIXME: Currently, we can't support estimate records on
-	R-tree index.*/
+	R-tree index. */
 	if (dict_index_is_spatial(index)) {
 		n_rows = 2;
 		goto func_exit;

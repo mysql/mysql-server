@@ -400,7 +400,7 @@ create_log_files(
 
 	fil_space_t*	log_space = fil_space_create(
 		logfilename, SRV_LOG_SPACE_FIRST_ID,
-		fsp_flags_set_page_size(0, UNIV_PAGE_SIZE),
+		fsp_flags_set_page_size(0, univ_page_size),
 		FIL_TYPE_LOG);
 	ut_a(fil_validate());
 	ut_a(log_space != NULL);
@@ -634,7 +634,7 @@ srv_undo_tablespace_open(
 		fil_set_max_space_id_if_bigger(space_id);
 
 		/* Set the compressed page size to 0 (non-compressed) */
-		flags = fsp_flags_set_page_size(0, UNIV_PAGE_SIZE);
+		flags = fsp_flags_init(univ_page_size, false, false);
 		space = fil_space_create(
 			name, space_id, flags, FIL_TYPE_TABLESPACE);
 
@@ -1114,7 +1114,6 @@ srv_open_tmp_tablespace(
 
 			err = DB_ERROR;
 		}
-
 	}
 
 	return(err);
@@ -1929,7 +1928,7 @@ innobase_start_or_create_for_mysql(void)
 		fil_space_t*	log_space = fil_space_create(
 			logfilename,
 			SRV_LOG_SPACE_FIRST_ID,
-			fsp_flags_set_page_size(0, UNIV_PAGE_SIZE),
+			fsp_flags_set_page_size(0, univ_page_size),
 			FIL_TYPE_LOG);
 
 		ut_a(fil_validate());
@@ -2125,7 +2124,7 @@ files_checked:
 			In a crash recovery, we check that the info in data
 			dictionary is consistent with what we already know
 			about space id's from the calls to
-			fil_load_single_table_tablespace().
+			fil_load_single_file_tablespace().
 
 			In a normal startup, we create the space objects for
 			every table in the InnoDB data dictionary that has
@@ -2712,14 +2711,16 @@ srv_shutdown_table_bg_threads(void)
 	}
 }
 
-/*****************************************************************//**
-Get the meta-data filename from the table name. */
+/** Get the meta-data filename from the table name for a
+single-table tablespace.
+@param[in]	table		table object
+@param[out]	filename	filename
+@param[in]	max_len		filename max length */
 void
 srv_get_meta_data_filename(
-/*=======================*/
-	dict_table_t*	table,		/*!< in: table */
-	char*		filename,	/*!< out: filename */
-	ulint		max_len)	/*!< in: filename max length */
+	dict_table_t*	table,
+	char*		filename,
+	ulint		max_len)
 {
 	ulint		len;
 	char*		path;
