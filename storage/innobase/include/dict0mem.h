@@ -1126,6 +1126,9 @@ struct dict_table_t {
 	/** Hash chain node. */
 	hash_node_t				id_hash;
 
+	/** The FTS_DOC_ID_INDEX, or NULL if no fulltext indexes exist */
+	dict_index_t*				fts_doc_id_index;
+
 	/** List of indexes of the table. */
 	UT_LIST_BASE_NODE_T(dict_index_t)	indexes;
 
