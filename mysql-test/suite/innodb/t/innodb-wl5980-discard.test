@@ -746,7 +746,7 @@ call mtr.add_suppression("InnoDB: Tablespace open failed for");
 call mtr.add_suppression("InnoDB: Tablespace 'test/t5980' exists in the cache with id");
 call mtr.add_suppression("InnoDB: Freeing existing tablespace 'test/t5980' entry from the cache with");
 call mtr.add_suppression("InnoDB: Failed to find tablespace for table ");
-call mtr.add_suppression("InnoDB: Table test/t5980.* does not have an .ibd file in the database directory.");
+call mtr.add_suppression("InnoDB: Table test/t5980.* does not have an \.ibd file in the database directory.");
 call mtr.add_suppression("Trying to import a tablespace, but could not open the tablespace file");
 call mtr.add_suppression("Cannot delete tablespace .+ because it is not found in the tablespace memory cache");
 call mtr.add_suppression("Cannot delete tablespace .+ in DISCARD TABLESPACE. Tablespace not found");

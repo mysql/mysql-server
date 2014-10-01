@@ -237,7 +237,7 @@ int format_gno(char *s, rpl_gno gno);
   Represents a UUID.
 
   This is a POD.  It has to be a POD because it is a member of
-  Sid_map::Node which is stored in both HASH and DYNAMIC_ARRAY.
+  Sid_map::Node which is stored in HASH.
 */
 struct Uuid
 {
@@ -1808,7 +1808,7 @@ struct Gtid_set_or_null
   lock and then degrades it to a read lock again; there will be a
   short period when the lock is not held at all.
 
-  The internal representation is a DYNAMIC_ARRAY that maps SIDNO to
+  The internal representation is a dynamic array that maps SIDNO to
   HASH, where each HASH maps GNO to my_thread_id.
 */
 class Owned_gtids

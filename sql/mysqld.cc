@@ -1680,22 +1680,22 @@ static void set_root(const char *path)
 #endif // !_WIN32
 
 
-static void network_init(void)
+static bool network_init(void)
 {
-  std::string unix_sock_name= "";
-
   if (opt_bootstrap)
-    return;
+    return false;
 
   set_ports();
 
 #ifdef HAVE_SYS_UN_H
-  unix_sock_name= mysqld_unix_port ? mysqld_unix_port : "";
+  std::string const unix_sock_name(mysqld_unix_port ? mysqld_unix_port : "");
+#else
+  std::string const unix_sock_name("");
 #endif
 
   if (!opt_disable_networking || unix_sock_name != "")
   {
-    std::string bind_addr_str= my_bind_addr_str ? my_bind_addr_str : "";
+    std::string const bind_addr_str(my_bind_addr_str ? my_bind_addr_str : "");
 
     Mysqld_socket_listener *mysqld_socket_listener=
       new (std::nothrow) Mysqld_socket_listener(bind_addr_str,
@@ -1703,20 +1703,20 @@ static void network_init(void)
                                                 mysqld_port_timeout,
                                                 unix_sock_name);
     if (mysqld_socket_listener == NULL)
-      unireg_abort(1);
+      return true;
 
     mysqld_socket_acceptor=
       new (std::nothrow) Connection_acceptor<Mysqld_socket_listener>(mysqld_socket_listener);
     if (mysqld_socket_acceptor == NULL)
     {
       delete mysqld_socket_listener;
-      unireg_abort(1);
+      return true;
     }
 
     if (mysqld_socket_acceptor->init_connection_acceptor())
     {
       delete mysqld_socket_acceptor;
-      unireg_abort(1);
+      return true;
     }
 
     if (report_port == 0)
@@ -1734,20 +1734,20 @@ static void network_init(void)
     Named_pipe_listener *named_pipe_listener=
       new (std::nothrow) Named_pipe_listener(&pipe_name);
     if (named_pipe_listener == NULL)
-      unireg_abort(1);
+      return true;
 
     named_pipe_acceptor=
       new (std::nothrow) Connection_acceptor<Named_pipe_listener>(named_pipe_listener);
     if (named_pipe_acceptor == NULL)
     {
       delete named_pipe_listener;
-      unireg_abort(1);
+      return true;
     }
 
     if (named_pipe_acceptor->init_connection_acceptor())
     {
       delete named_pipe_acceptor;
-      unireg_abort(1);
+      return true;
     }
   }
 
@@ -1759,23 +1759,24 @@ static void network_init(void)
     Shared_mem_listener *shared_mem_listener=
       new (std::nothrow) Shared_mem_listener(&shared_mem_base_name);
     if (shared_mem_listener == NULL)
-      unireg_abort(1);
+      return true;
 
     shared_mem_acceptor=
       new (std::nothrow) Connection_acceptor<Shared_mem_listener>(shared_mem_listener);
     if (shared_mem_acceptor == NULL)
     {
       delete shared_mem_acceptor;
-      unireg_abort(1);
+      return true;
     }
 
     if (shared_mem_acceptor->init_connection_acceptor())
     {
       delete shared_mem_acceptor;
-      unireg_abort(1);
+      return true;
     }
   }
 #endif // _WIN32
+  return false;
 }
 
 #ifdef _WIN32
@@ -4402,7 +4403,7 @@ int mysqld_main(int argc, char **argv)
 
 #ifndef DBUG_OFF
   test_lc_time_sz();
-  srand(time(NULL));
+  srand(static_cast<uint>(time(NULL)));
 #endif
 
   /*
@@ -4580,7 +4581,8 @@ int mysqld_main(int argc, char **argv)
           Previous_gtids_log_event prev_gtids_ev(&logged_gtids_binlog);
           global_sid_lock->unlock();
 
-          prev_gtids_ev.checksum_alg= binlog_checksum_options;
+          prev_gtids_ev.checksum_alg=
+            static_cast<uint8>(binlog_checksum_options);
 
           if (prev_gtids_ev.write(mysql_bin_log.get_log_file()))
             unireg_abort(1);
@@ -4589,6 +4591,7 @@ int mysqld_main(int argc, char **argv)
           if (flush_io_cache(mysql_bin_log.get_log_file()) ||
               mysql_file_sync(mysql_bin_log.get_log_file()->file, MYF(MY_WME)))
             unireg_abort(1);
+          mysql_bin_log.update_binlog_end_pos();
         }
         else
           global_sid_lock->unlock();
@@ -4608,7 +4611,8 @@ int mysqld_main(int argc, char **argv)
 
   if (init_ssl())
     unireg_abort(1);
-  network_init();
+  if (network_init())
+    unireg_abort(1);
 
 #ifdef _WIN32
   if (!opt_console)
@@ -5832,7 +5836,7 @@ static int show_slave_last_heartbeat(THD *thd, SHOW_VAR *var, char *buff)
     else
     {
       thd->variables.time_zone->gmt_sec_to_TIME(&received_heartbeat_time, 
-        active_mi->last_heartbeat);
+        static_cast<my_time_t>(active_mi->last_heartbeat));
       my_datetime_to_str(&received_heartbeat_time, buff, 0);
     }
   }
@@ -7810,6 +7814,7 @@ PSI_mutex_key key_LOCK_sql_rand;
 PSI_mutex_key key_gtid_ensure_index_mutex;
 PSI_mutex_key key_mts_temp_table_LOCK;
 PSI_mutex_key key_LOCK_compress_gtid_table;
+PSI_mutex_key key_mts_gaq_LOCK;
 #ifdef HAVE_MY_TIMER
 PSI_mutex_key key_thd_timer_mutex;
 #endif
@@ -7892,8 +7897,9 @@ static PSI_mutex_info all_server_mutexes[]=
   { &key_LOCK_log_throttle_qni, "LOCK_log_throttle_qni", PSI_FLAG_GLOBAL},
   { &key_gtid_ensure_index_mutex, "Gtid_state", PSI_FLAG_GLOBAL},
   { &key_LOCK_query_plan, "THD::LOCK_query_plan", 0},
-  { &key_mts_temp_table_LOCK, "key_mts_temp_table_LOCK",0},
+  { &key_mts_temp_table_LOCK, "key_mts_temp_table_LOCK", 0},
   { &key_LOCK_compress_gtid_table, "LOCK_compress_gtid_table", PSI_FLAG_GLOBAL},
+  { &key_mts_gaq_LOCK, "key_mts_gaq_LOCK", 0},
 #ifdef HAVE_MY_TIMER
   { &key_thd_timer_mutex, "thd_timer_mutex", 0},
 #endif
@@ -7947,7 +7953,8 @@ PSI_cond_key key_BINLOG_update_cond,
   key_relay_log_info_data_cond, key_relay_log_info_log_space_cond,
   key_relay_log_info_start_cond, key_relay_log_info_stop_cond,
   key_relay_log_info_sleep_cond, key_cond_slave_parallel_pend_jobs,
-  key_cond_slave_parallel_worker,
+  key_cond_slave_parallel_worker, key_cond_mts_gaq,
+  key_cond_mts_submode_logical_clock,
   key_TABLE_SHARE_cond, key_user_level_lock_cond;
 PSI_cond_key key_RELAYLOG_update_cond;
 PSI_cond_key key_BINLOG_COND_done;
@@ -7993,6 +8000,7 @@ static PSI_cond_info all_server_conds[]=
   { &key_relay_log_info_sleep_cond, "Relay_log_info::sleep_cond", 0},
   { &key_cond_slave_parallel_pend_jobs, "Relay_log_info::pending_jobs_cond", 0},
   { &key_cond_slave_parallel_worker, "Worker_info::jobs_cond", 0},
+  { &key_cond_mts_gaq, "Relay_log_info::mts_gaq_cond", 0},
   { &key_TABLE_SHARE_cond, "TABLE_SHARE::cond", 0},
   { &key_user_level_lock_cond, "User_level_lock::cond", 0},
   { &key_gtid_ensure_index_cond, "Gtid_state", PSI_FLAG_GLOBAL},
@@ -8179,6 +8187,7 @@ PSI_stage_info stage_compressing_gtid_table= { 0, "Compressing gtid_executed tab
 PSI_stage_info stage_suspending= { 0, "Suspending", 0};
 #ifdef HAVE_REPLICATION
 PSI_stage_info stage_worker_waiting_for_its_turn_to_commit= { 0, "Waiting for its turn to commit.", 0};
+PSI_stage_info stage_worker_waiting_for_commit_parent= { 0, "Waiting for dependent transaction to commit.", 0};
 #endif
 PSI_stage_info stage_starting= { 0, "starting", 0};
 #ifdef HAVE_PSI_INTERFACE

@@ -49,14 +49,12 @@ extern uint	os_large_page_size;
 
 /** Converts the current process id to a number.
 @return process id as a number */
-
 ulint
 os_proc_get_number(void);
 
 /** Allocates large pages memory.
 @param[in,out]	n	Number of bytes to allocate
 @return allocated memory */
-
 void*
 os_mem_alloc_large(
 	ulint*	n);
@@ -64,7 +62,6 @@ os_mem_alloc_large(
 /** Frees large pages memory.
 @param[in]	ptr	pointer returned by os_mem_alloc_large()
 @param[in]	size	size returned by os_mem_alloc_large() */
-
 void
 os_mem_free_large(
 	void	*ptr,

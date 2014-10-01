@@ -188,7 +188,6 @@ sync_print_wait_info(FILE* file)
 /**
 Prints info of the sync system.
 @param file - where to print */
-
 void
 sync_print(FILE* file)
 {
@@ -203,7 +202,6 @@ sync_print(FILE* file)
 
 /**
 @return total number of spin rounds since startup. */
-
 ib_uint64_t
 mutex_spin_round_count_get()
 {
@@ -212,7 +210,6 @@ mutex_spin_round_count_get()
 
 /**
 @return total number of spin wait calls since startup. */
-
 ib_uint64_t
 mutex_spin_wait_count_get()
 {
@@ -221,7 +218,6 @@ mutex_spin_wait_count_get()
 
 /**
 @return total number of OS waits since startup. */
-
 ib_uint64_t
 mutex_os_wait_count_get()
 {

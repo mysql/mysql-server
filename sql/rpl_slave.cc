@@ -3018,6 +3018,16 @@ void set_slave_thread_options(THD* thd)
     thd->server_status|= SERVER_STATUS_AUTOCOMMIT;
   }
 
+  /*
+    Set thread InnoDB high priority.
+  */
+  DBUG_EXECUTE_IF("dbug_set_high_prio_sql_thread",
+    {
+      if (thd->system_thread == SYSTEM_THREAD_SLAVE_SQL ||
+          thd->system_thread == SYSTEM_THREAD_SLAVE_WORKER)
+        thd->thd_tx_priority= 1;
+    });
+
   DBUG_VOID_RETURN;
 }
 
@@ -3570,6 +3580,9 @@ apply_event_and_update_pos(Log_event** ptr_ev, THD* thd, Relay_log_info* rli)
     sql_slave_skip_counter= --rli->slave_skip_counter;
     skip_event= TRUE;
   }
+  set_timespec_nsec(&rli->ts_exec[0], 0);
+  rli->stats_read_time += diff_timespec(&rli->ts_exec[0], &rli->ts_exec[1]);
+
   if (reason == Log_event::EVENT_SKIP_NOT)
   {
     // Sleeps if needed, and unlocks rli->data_lock.
@@ -3602,13 +3615,9 @@ apply_event_and_update_pos(Log_event** ptr_ev, THD* thd, Relay_log_info* rli)
           rli->curr_group_assigned_parts.clear();
           // reset the B-group and Gtid-group marker
           rli->curr_group_seen_begin= rli->curr_group_seen_gtid= false;
-          if (is_mts_db_partitioned(rli)||
-              (!is_mts_db_partitioned(rli) &&
-             !static_cast<Mts_submode_logical_clock*>
-                (rli->current_mts_submode)->defer_new_group))
-            rli->last_assigned_worker= NULL;
+          rli->last_assigned_worker= NULL;
         }
-        /* 
+        /*
            Stroring GAQ index of the group that the event belongs to
            in the event. Deferred events are handled similarly below.
         */
@@ -3622,7 +3631,7 @@ apply_event_and_update_pos(Log_event** ptr_ev, THD* thd, Relay_log_info* rli)
             belongs to. It's time now to processed deferred array events.
           */
           for (uint i= 0; i < rli->curr_group_da.size(); i++)
-          { 
+          {
             Slave_job_item da_item= rli->curr_group_da[i];
             DBUG_PRINT("mts", ("Assigning job %llu to worker %lu",
                       (da_item.data)->log_pos, w->id));
@@ -3673,14 +3682,18 @@ apply_event_and_update_pos(Log_event** ptr_ev, THD* thd, Relay_log_info* rli)
                                 "worker queues filled over overrun level = %lu; "
                                 "waited due a Worker queue full = %lu; "
                                 "waited due the total size = %lu; "
-                                "slept when Workers occupied = %lu ",
+                                "waited at clock conflicts = %llu "
+                                "waited (count) when Workers occupied = %lu "
+                                "waited when Workers occupied = %llu",
                                 static_cast<unsigned long>
                                 (my_now - rli->mts_last_online_stat),
                                 rli->mts_events_assigned,
                                 rli->mts_wq_overrun_cnt,
                                 rli->mts_wq_overfill_cnt,
                                 rli->wq_size_waits_cnt,
-                                rli->mts_wq_no_underrun_cnt);
+                                rli->mts_total_wait_overlap,
+                                rli->mts_wq_no_underrun_cnt,
+                                rli->mts_total_wait_worker_avail);
           rli->mts_last_online_stat= my_now;
         }
       }
@@ -3688,7 +3701,10 @@ apply_event_and_update_pos(Log_event** ptr_ev, THD* thd, Relay_log_info* rli)
   }
   else
     mysql_mutex_unlock(&rli->data_lock);
- 
+
+  set_timespec_nsec(&rli->ts_exec[1], 0);
+  rli->stats_exec_time += diff_timespec(&rli->ts_exec[1], &rli->ts_exec[0]);
+
   DBUG_PRINT("info", ("apply_event error = %d", exec_res));
   if (exec_res == 0)
   {
@@ -4861,12 +4877,17 @@ pthread_handler_t handle_slave_worker(void *arg)
 
   DBUG_ASSERT(thd->is_slave_error == 0);
 
+  w->stats_exec_time= w->stats_read_time= 0;
+  set_timespec_nsec(&w->ts_exec[0], 0);
+  set_timespec_nsec(&w->ts_exec[1], 0);
+  set_timespec_nsec(&w->stats_begin, 0);
+
   while (!error)
   {
     error= slave_worker_exec_job_group(w, rli);
   }
 
-  /* 
+  /*
      Cleanup after an error requires clear_error() go first.
      Otherwise assert(!all) in binlog_rollback()
   */
@@ -4905,13 +4926,23 @@ pthread_handler_t handle_slave_worker(void *arg)
   }
   mysql_mutex_lock(&w->jobs_lock);
 
-  w->running_status= Slave_worker::NOT_RUNNING;
+  struct timespec stats_end;
+  set_timespec_nsec(&stats_end, 0);
   sql_print_information("Worker %lu statistics: "
                         "events processed = %lu "
+                        "online time = %llu "
+                        "events exec time = %llu "
+                        "events read time = %llu "
                         "hungry waits = %lu "
                         "priv queue overfills = %llu ",
-                        w->id, w->events_done, w->wq_size_waits_cnt,
+                        w->id, w->events_done,
+                        diff_timespec(&stats_end, &w->stats_begin),
+                        w->stats_exec_time,
+                        w->stats_read_time,
+                        w->wq_empty_waits,
                         w->jobs.waited_overfill);
+
+  w->running_status= Slave_worker::NOT_RUNNING;
   mysql_cond_signal(&w->jobs_cond);  // famous last goodbye
 
   mysql_mutex_unlock(&w->jobs_lock);
@@ -5304,7 +5335,13 @@ bool mts_checkpoint_routine(Relay_log_info *rli, ulonglong period,
 
  do
   {
+    if (!is_mts_db_partitioned(rli))
+      mysql_mutex_lock(&rli->mts_gaq_LOCK);
+
     cnt= rli->gaq->move_queue_head(&rli->workers);
+
+    if (!is_mts_db_partitioned(rli))
+      mysql_mutex_unlock(&rli->mts_gaq_LOCK);
 #ifndef DBUG_OFF
     if (DBUG_EVALUATE_IF("check_slave_debug_group", 1, 0) &&
         cnt != opt_mts_checkpoint_period)
@@ -5355,8 +5392,8 @@ bool mts_checkpoint_routine(Relay_log_info *rli, ulonglong period,
   /*
     "Coordinator::commit_positions" {
 
-    rli->gaq->lwm has been updated in move_queue_head() and 
-    to contain all but rli->group_master_log_name which 
+    rli->gaq->lwm has been updated in move_queue_head() and
+    to contain all but rli->group_master_log_name which
     is altered solely by Coordinator at special checkpoints.
   */
   rli->set_group_master_log_pos(rli->gaq->lwm.group_master_log_pos);
@@ -5701,15 +5738,26 @@ void slave_stop_workers(Relay_log_info *rli, bool *mts_inited)
     delete w;
   }
 
+  struct timespec stats_end;
+  set_timespec_nsec(&stats_end, 0);
+
   sql_print_information("Total MTS session statistics: "
                         "events processed = %llu; "
-                        "worker queues filled over overrun level = %lu; "
-                        "waited due a Worker queue full = %lu; "
-                        "waited due the total size = %lu; "
-                        "slept when Workers occupied = %lu ",
-                        rli->mts_events_assigned, rli->mts_wq_overrun_cnt,
+                        "online time = %llu "
+                        "worker queues filled over overrun level = %lu "
+                        "waited due a Worker queue full = %lu "
+                        "waited due the total size = %lu "
+                        "total wait at clock conflicts = %llu "
+                        "found (count) Workers occupied = %lu "
+                        "waited when Workers occupied = %llu",
+                        rli->mts_events_assigned,
+                        diff_timespec(&stats_end, &rli->stats_begin),
+                        rli->mts_wq_overrun_cnt,
                         rli->mts_wq_overfill_cnt, rli->wq_size_waits_cnt,
-                        rli->mts_wq_no_underrun_cnt);
+                        rli->mts_total_wait_overlap,
+                        rli->mts_wq_no_underrun_cnt,
+                        rli->mts_total_wait_worker_avail
+                        );
 
   DBUG_ASSERT(rli->pending_jobs == 0);
   DBUG_ASSERT(rli->mts_pending_jobs_size == 0);
@@ -5829,6 +5877,11 @@ pthread_handler_t handle_slave_sql(void *arg)
 
   thd_manager->add_thd(thd);
   thd_added= true;
+
+  rli->stats_exec_time= rli->stats_read_time= 0;
+  set_timespec_nsec(&rli->ts_exec[0], 0);
+  set_timespec_nsec(&rli->ts_exec[1], 0);
+  set_timespec_nsec(&rli->stats_begin, 0);
 
   /* MTS: starting the worker pool */
   if (slave_start_workers(rli, rli->opt_slave_parallel_workers, &mts_inited) != 0)
@@ -7442,15 +7495,18 @@ static Log_event* next_event(Relay_log_info* rli)
 
       if (hot_log)
         mysql_mutex_unlock(log_lock);
-
       /*
-         MTS checkpoint in the successful read branch
+         MTS checkpoint in the successful read branch.
+         The following block makes sure that
+         a. GAQ the job assignment control resource is not run out of space, and
+         b. Last executed transaction coordinates are advanced whenever
+            there's been progress by Workers.
+         Notice, MTS logical clock scheduler does not introduce any
+         own specfics even though internally it may need to learn about
+         the done status of a job.
       */
       bool force= (rli->checkpoint_seqno > (rli->checkpoint_group - 1));
-      if (rli->is_parallel_exec() && (opt_mts_checkpoint_period != 0 || force) &&
-          /* We don't need this in MTS logical clock slave since this will
-             foil the scheduling logic of coordinator */
-          is_mts_db_partitioned(rli))
+      if (rli->is_parallel_exec() && (opt_mts_checkpoint_period != 0 || force))
       {
         ulonglong period= static_cast<ulonglong>(opt_mts_checkpoint_period * 1000000ULL);
         mysql_mutex_unlock(&rli->data_lock);
@@ -8660,7 +8716,7 @@ static bool change_receive_options(THD* thd, LEX_MASTER_INFO* lex_mi,
       specify it.  (no data loss in conversion as hb period has a max)
     */
     mi->heartbeat_period= min<float>(SLAVE_MAX_HEARTBEAT_PERIOD,
-                                     (slave_net_timeout/2.0));
+                                     (slave_net_timeout/2.0f));
     DBUG_ASSERT(mi->heartbeat_period > (float) 0.001
                 || mi->heartbeat_period == 0);
 

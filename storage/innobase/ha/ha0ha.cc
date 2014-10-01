@@ -39,7 +39,6 @@ Created 8/22/1994 Heikki Tuuri
 Creates a hash table with at least n array cells.  The actual number
 of cells is chosen to be a prime number slightly bigger than n.
 @return own: created table */
-
 hash_table_t*
 ib_create(
 /*======*/
@@ -105,7 +104,6 @@ The sync objects are reused.
 @param[in,out]	table	hash table to be resuzed (to be freed later)
 @param[in]	n	number of array cells
 @return	resized new table */
-
 hash_table_t*
 ib_recreate(
 	hash_table_t*	table,
@@ -143,7 +141,6 @@ ib_recreate(
 
 /*************************************************************//**
 Empties a hash table and frees the memory heaps. */
-
 void
 ha_clear(
 /*=====*/
@@ -201,7 +198,6 @@ is found, its node is updated to point to the new data, and no new node
 is inserted. If btr_search_enabled is set to FALSE, we will only allow
 updating existing nodes, but no new node is allowed to be added.
 @return TRUE if succeed, FALSE if no more memory could be allocated */
-
 ibool
 ha_insert_for_fold_func(
 /*====================*/
@@ -304,7 +300,6 @@ ha_insert_for_fold_func(
 
 /***********************************************************//**
 Deletes a hash node. */
-
 void
 ha_delete_hash_node(
 /*================*/
@@ -332,7 +327,6 @@ ha_delete_hash_node(
 Looks for an element when we know the pointer to the data, and updates
 the pointer to data, if found.
 @return TRUE if found */
-
 ibool
 ha_search_and_update_if_found_func(
 /*===============================*/
@@ -383,7 +377,6 @@ ha_search_and_update_if_found_func(
 /*****************************************************************//**
 Removes from the chain determined by fold all nodes whose data pointer
 points to the page given. */
-
 void
 ha_remove_all_nodes_to_page(
 /*========================*/
@@ -433,7 +426,6 @@ ha_remove_all_nodes_to_page(
 /*************************************************************//**
 Validates a given range of the cells in hash table.
 @return TRUE if ok */
-
 ibool
 ha_validate(
 /*========*/
@@ -461,10 +453,9 @@ ha_validate(
 		     node = node->next) {
 
 			if (hash_calc_hash(node->fold, table) != i) {
-				ib_logf(IB_LOG_LEVEL_ERROR,
-					"Hash table node fold value %lu does"
-					" not match the cell number %lu.",
-					(ulong) node->fold, (ulong) i);
+				ib::error() << "Hash table node fold value "
+					<< node->fold << " does not match the"
+					" cell number " << i << ".";
 
 				ok = FALSE;
 			}
@@ -477,7 +468,6 @@ ha_validate(
 
 /*************************************************************//**
 Prints info of a hash table. */
-
 void
 ha_print_info(
 /*==========*/

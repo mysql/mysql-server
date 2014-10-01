@@ -7,7 +7,6 @@
 # no need to rerun this test three times
 --source include/have_binlog_format_mixed.inc
 
---source include/not_gcs_plugin.inc
 --source include/have_debug.inc
 --source include/have_debug_sync.inc
 --source include/master-slave.inc
@@ -67,6 +66,9 @@ SET DEBUG_SYNC='now SIGNAL waiting1';
 --let $rpl_connection_name= sigcon
 --source include/rpl_connection.inc
 --reap
+# FIXME: This seems to be an error in the server layer. Control doesn't reach
+# the InnoDB handler methods.
+#--error ER_ERROR_DURING_COMMIT
 --error ER_ERROR_DURING_COMMIT
 COMMIT;
 

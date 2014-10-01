@@ -47,7 +47,6 @@ ulong sys_tablespace_auto_extend_increment;
 @param[in]	str	String with a quantity in bytes
 @param[out]	megs	The number in megabytes
 @return next character in string */
-
 char*
 SysTablespace::parse_units(
 	char*	ptr,
@@ -82,7 +81,6 @@ SysTablespace::parse_units(
 @param[in]	filepath	path to data files
 @param[in]	supports_raw	true if the tablespace supports raw devices
 @return true on success parse */
-
 bool
 SysTablespace::parse(
 	const char*	filepath_spec,
@@ -291,7 +289,6 @@ SysTablespace::parse(
 }
 
 /** Frees the memory allocated by the parse method. */
-
 void
 SysTablespace::shutdown()
 {
@@ -307,7 +304,6 @@ SysTablespace::shutdown()
 /** Verify the size of the physical file.
 @param[in]	file	data file object
 @return DB_SUCCESS if OK else error code. */
-
 dberr_t
 SysTablespace::check_size(
 	Datafile&	file)
@@ -352,7 +348,6 @@ SysTablespace::check_size(
 /** Set the size of the file.
 @param[in]	file	data file object
 @return DB_SUCCESS or error code */
-
 dberr_t
 SysTablespace::set_size(
 	Datafile&	file)
@@ -386,7 +381,6 @@ SysTablespace::set_size(
 /** Create a data file.
 @param[in]	file	data file object
 @return DB_SUCCESS or error code */
-
 dberr_t
 SysTablespace::create_file(
 	Datafile&	file)
@@ -428,7 +422,6 @@ SysTablespace::create_file(
 /** Open a data file.
 @param[in]	file	data file object
 @return DB_SUCCESS or error code */
-
 dberr_t
 SysTablespace::open_file(
 	Datafile&	file)
@@ -479,7 +472,6 @@ SysTablespace::open_file(
 /** Check the tablespace header for this tablespace.
 @param[out]	flushed_lsn	the value of FIL_PAGE_FILE_FLUSH_LSN
 @return DB_SUCCESS or error code */
-
 dberr_t
 SysTablespace::read_lsn_and_check_flags(lsn_t* flushed_lsn)
 {
@@ -547,7 +539,6 @@ SysTablespace::read_lsn_and_check_flags(lsn_t* flushed_lsn)
 @param[in]	file	data file object
 @param[out]	reason	exact reason if file_status check failed.
 @return DB_SUCCESS or error code. */
-
 dberr_t
 SysTablespace::check_file_status(
 	const Datafile&		file,
@@ -617,7 +608,6 @@ SysTablespace::check_file_status(
 @param[in]	file		data file object
 @param[out]	create_new_db	true if a new instance to be created
 @return DB_SUCESS or error code */
-
 dberr_t
 SysTablespace::file_not_found(
 	Datafile&	file,
@@ -665,7 +655,6 @@ SysTablespace::file_not_found(
 
 /** Note that the data file was found.
 @param[in,out]	file	data file object */
-
 void
 SysTablespace::file_found(
 	Datafile&	file)
@@ -693,7 +682,6 @@ SysTablespace::file_found(
 @param[out] create_new_db	true if a new database is to be created
 @param[in] min_expected_size	Minimum expected tablespace size in bytes
 @return DB_SUCCESS if all OK else error code */
-
 dberr_t
 SysTablespace::check_file_spec(
 	bool*	create_new_db,
@@ -779,7 +767,6 @@ SysTablespace::check_file_spec(
 @param[out] sum_new_sizes	sum of sizes of the new files added
 @param[out] flush_lsn		FIL_PAGE_FILE_FLUSH_LSN of first file
 @return DB_SUCCESS or error code */
-
 dberr_t
 SysTablespace::open_or_create(
 	bool	is_temp,
@@ -850,8 +837,9 @@ SysTablespace::open_or_create(
 		}
 	}
 
-	/* We can close the handles now and open the tablespace
-	the proper way. */
+	/* Close the curent handles, add space and file info to the
+	fil_system cache and the Data Dictionary, and re-open them
+	in file_system cache so that they stay open until shutdown. */
 	for (files_t::iterator it = begin; it != end; ++it) {
 		it->close();
 		it->m_exists = true;
@@ -866,18 +854,17 @@ SysTablespace::open_or_create(
 			/* Create the tablespace entry for the multi-file
 			tablespace in the tablespace manager. */
 			space = fil_space_create(
-				it->m_filepath, space_id(), flags, is_temp
+				name(), space_id(), flags, is_temp
 				? FIL_TYPE_TEMPORARY : FIL_TYPE_TABLESPACE);
 		}
 
 		ut_a(fil_validate());
 
-		/* Open the data file. */
-		if (!fil_node_create(
-			it->m_filepath, it->m_size,
-			space, it->m_type != SRV_NOT_RAW)) {
-		       err = DB_ERROR;
-		       break;
+		/* Add the datafile to the fil_system cache. */
+		if (!fil_node_create(it->m_filepath, it->m_size,
+				     space, it->m_type != SRV_NOT_RAW)) {
+			err = DB_ERROR;
+			break;
 		}
 	}
 
@@ -885,7 +872,6 @@ SysTablespace::open_or_create(
 }
 
 /** Normalize the file size, convert from megabytes to number of pages. */
-
 void
 SysTablespace::normalize()
 {
@@ -902,7 +888,6 @@ SysTablespace::normalize()
 
 /**
 @return next increment size */
-
 ulint
 SysTablespace::get_increment() const
 {
@@ -932,7 +917,6 @@ SysTablespace::get_increment() const
 
 /**
 @return true if configured to use raw devices */
-
 bool
 SysTablespace::has_raw_device()
 {

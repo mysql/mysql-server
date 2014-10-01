@@ -27,18 +27,42 @@ class Master_info;
 class Format_description_log_event;
 
 /**
-  Logical timestamp generator for binlog Prepare stage.
- */
+  Logical timestamp generator for logical timestamping binlog transactions.
+  A transaction is associated with two sequence numbers see
+  @c Transaction_ctx::last_committed and @c Transaction_ctx::sequence_number.
+  The class provides necessary interfaces including that of
+  generating a next consecutive value for the latter.
+*/
 class  Logical_clock
 {
 private:
   int64 state;
-protected:
-  void init(){ state= 0; }
+  /*
+    Offset is subtracted from the actual "absolute time" value at
+    logging a replication event. That is the event holds logical
+    timestamps in the "relative" format. They are meaningful only in
+    the context of the current binlog.
+    The member is updated (incremented) per binary log rotation.
+  */
+  int64 offset;
 public:
   Logical_clock();
   int64 step();
+  int64 set_if_greater(int64 new_val);
   int64 get_timestamp();
+  int64 get_offset() { return offset; }
+  /*
+    Updates the offset.
+    This operation is invoked when binlog rotates and at that time
+    there can't any concurrent step() callers so no need to guard
+    the assignement.
+  */
+  void update_offset(int64 new_offset)
+  {
+    DBUG_ASSERT(offset <= new_offset);
+
+    offset= new_offset;
+  }
   ~Logical_clock() { }
 };
 
@@ -567,8 +591,10 @@ public:
 #endif
 
 public:
-  /* Clock to timestamp the commits */
-   Logical_clock commit_clock;
+  /* Committed transactions timestamp */
+   Logical_clock max_committed_transaction;
+  /* "Prepared" transactions timestamp */
+   Logical_clock transaction_counter;
 
   /**
     Find the oldest binary log that contains any GTID that
@@ -746,7 +772,8 @@ public:
 
   bool write_event(Log_event* event_info);
   bool write_cache(THD *thd, class binlog_cache_data *binlog_cache_data);
-  int  do_write_cache(IO_CACHE *cache);
+  int  do_write_cache(IO_CACHE *cache,
+                      int64 last_committed, int64 sequence_number);
 
   void set_write_error(THD *thd, bool is_transactional);
   bool check_write_error(THD *thd);

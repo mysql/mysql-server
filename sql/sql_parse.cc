@@ -1077,7 +1077,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     command= COM_SHUTDOWN;
   }
   thd->set_query_id(next_query_id());
-  thd->rewritten_query.free();
+  thd->rewritten_query.mem_free();
   thd_manager->inc_thread_running();
 
   if (!(server_command_flags[command] & CF_SKIP_QUESTIONS))
@@ -5823,7 +5823,7 @@ TABLE_LIST *st_select_lex::add_table_to_list(THD *thd,
     if (!(alias_str= (char*) thd->memdup(alias_str,table->table.length+1)))
       DBUG_RETURN(0);
   }
-  if (!(ptr = (TABLE_LIST *) thd->calloc(sizeof(TABLE_LIST))))
+  if (!(ptr = (TABLE_LIST *) thd->mem_calloc(sizeof(TABLE_LIST))))
     DBUG_RETURN(0);				/* purecov: inspected */
   if (table->db.str)
   {

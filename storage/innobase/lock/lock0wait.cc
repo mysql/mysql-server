@@ -167,13 +167,10 @@ lock_wait_table_reserve_slot(
 		}
 	}
 
-	ib_logf(IB_LOG_LEVEL_ERROR,
-		"There appear to be %lu user threads currently waiting"
-		" inside InnoDB, which is the upper limit."
-		" Cannot continue operation."
-		" Before aborting, we print a list of waiting threads.",
-		(ulong) OS_THREAD_MAX_N);
-
+	ib::error() << "There appear to be " << OS_THREAD_MAX_N << " user"
+		" threads currently waiting inside InnoDB, which is the upper"
+		" limit. Cannot continue operation. Before aborting, we print"
+		" a list of waiting threads.";
 	lock_wait_table_print();
 
 	ut_error;
@@ -186,7 +183,6 @@ occurs during the wait trx->error_state associated with thr is
 != DB_SUCCESS when we return. DB_LOCK_WAIT_TIMEOUT and DB_DEADLOCK
 are possible errors. DB_DEADLOCK is returned if selective deadlock
 resolution chose this transaction as a victim. */
-
 void
 lock_wait_suspend_thread(
 /*=====================*/
@@ -388,7 +384,6 @@ lock_wait_suspend_thread(
 /********************************************************************//**
 Releases a user OS thread waiting for a lock to be released, if the
 thread is already suspended. */
-
 void
 lock_wait_release_thread_if_suspended(
 /*==================================*/

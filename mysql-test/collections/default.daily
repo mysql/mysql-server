@@ -23,8 +23,8 @@ perl mysql-test-run.pl --force --timer --debug-server --parallel=auto --experime
 perl mysql-test-run.pl --force --timer --debug-server --parallel=auto --experimental=collections/default.experimental --comment=rpl_crash_safe_master-debug --vardir=var-rpl_crash_safe_master-debug --suite=rpl --mysqld=--master-info-repository=TABLE --skip-test-list=collections/disabled-daily.list
 
 # Additional modes for rpl. Multi-Threaded Slave
-perl mysql-test-run.pl --timer --debug-server --force --parallel=auto --comment=rpl_MTS-debug_db_part --vardir=var-mts-rpl-debug_db --experimental=collections/default.experimental --mysqld=--slave-parallel-workers=4 --mysqld=--slave-transaction-retries=0 --mysqld=--slave-parallel-type=database --suite=rpl
-perl mysql-test-run.pl --timer --debug-server --force --parallel=auto --comment=rpl_MTS-debug_LC --vardir=var-mts-rpl-debug_LC --experimental=collections/default.experimental --mysqld=--slave-parallel-workers=4 --mysqld=--slave-transaction-retries=0 --mysqld=--slave-parallel-type=logical_clock --suite=rpl
+perl mysql-test-run.pl --timer --debug-server --force --parallel=auto --comment=rpl_MTS-debug_db_part --vardir=var-mts-rpl-debug_db --experimental=collections/default.experimental --mysqld=--slave-parallel-workers=4 --mysqld=--slave-parallel-type=database --suite=rpl
+perl mysql-test-run.pl --timer --debug-server --force --parallel=auto --comment=rpl_MTS-debug_LC --vardir=var-mts-rpl-debug_LC --experimental=collections/default.experimental --mysqld=--slave-parallel-workers=4 --mysqld=--slave-parallel-type=logical_clock --suite=rpl
 
 # Additional GTID coverage (rpl suite with gtid_mode=ON)
 perl mysql-test-run.pl --force --timer --debug-server --parallel=auto --experimental=collections/default.experimental --comment=rpl_gtid-debug --vardir=var-rpl_gtid-debug --suite=rpl --mysqld=--enforce-gtid-consistency --mysqld=--log-slave-updates --mysqld=--gtid-mode=on --skip-test-list=collections/disabled-gtid-on.list
