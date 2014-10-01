@@ -751,14 +751,12 @@ lock_get_table_id(
 /*==============*/
 	const lock_t*	lock);	/*!< in: lock */
 
-/*******************************************************************//**
-Gets the name of the table on which the lock is.
-The string should not be free()'d or modified.
+/** Determine which table a lock is associated with.
+@param[in]	lock	the lock
 @return name of the table */
-const char*
+const table_name_t&
 lock_get_table_name(
-/*================*/
-	const lock_t*	lock);	/*!< in: lock */
+	const lock_t*	lock);
 
 /*******************************************************************//**
 For a record lock, gets the index on which the lock is.

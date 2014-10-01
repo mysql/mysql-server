@@ -1,5 +1,3 @@
-call mtr.add_suppression("\\[ERROR\\] InnoDB: Table \"mysql\".\"innodb_index_stats\" not found");
-call mtr.add_suppression("\\[ERROR\\] InnoDB: Fetch of persistent statistics requested for table");
 ALTER TABLE mysql.innodb_index_stats RENAME TO mysql.innodb_index_stats_;
 CREATE TABLE test_ps_create_on_corrupted
 (a INT, PRIMARY KEY (a))

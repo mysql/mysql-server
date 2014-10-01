@@ -6776,7 +6776,7 @@ ER_INTERNAL_ERROR
   eng "Internal error: %s"
 
 ER_INNODB_IMPORT_ERROR
-  eng "ALTER TABLE '%-.192s' IMPORT TABLESPACE failed with error %lu : '%s'"
+  eng "ALTER TABLE %-.192s IMPORT TABLESPACE failed with error %lu : '%s'"
 
 ER_INNODB_INDEX_CORRUPT
   eng "Index corrupt: %s"

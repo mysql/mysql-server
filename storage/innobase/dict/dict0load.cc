@@ -1760,7 +1760,7 @@ dict_load_indexes(
 			if (dict_table_get_first_index(table) == NULL
 			    && !(ignore_err & DICT_ERR_IGNORE_CORRUPT)) {
 				ib::warn() << "Cannot load table "
-					<< ut_get_name(NULL, TRUE, table->name)
+					<< table->name
 					<< " because it has no indexes in"
 					" InnoDB internal data dictionary.";
 				error = DB_CORRUPTION;
@@ -1789,8 +1789,8 @@ dict_load_indexes(
 			}
 		}
 
-		err_msg = dict_load_index_low(buf, table->name, heap, rec,
-					      TRUE, &index);
+		err_msg = dict_load_index_low(
+			buf, table->name.m_name, heap, rec, TRUE, &index);
 		ut_ad((index == NULL && err_msg != NULL)
 		      || (index != NULL && err_msg == NULL));
 
@@ -1803,7 +1803,7 @@ dict_load_indexes(
 
 				ib::warn() << "Failed to load the"
 					" clustered index for table "
-					<< ut_get_name(NULL, TRUE, table->name)
+					<< table->name
 					<< " because of the following error: "
 					<< err_msg << "."
 					" Refusing to load the rest of the"
@@ -1876,8 +1876,7 @@ dict_load_indexes(
 			ib::error() << "Unknown type " << index->type
 				<< " of index "
 				<< ut_get_name(NULL, FALSE, index->name)
-				<< " of table "
-				<< ut_get_name(NULL, TRUE, table->name);
+				<< " of table " << table->name;
 
 			error = DB_UNSUPPORTED;
 			dict_mem_index_free(index);
@@ -1889,7 +1888,7 @@ dict_load_indexes(
 			ib::error() << "Trying to load index "
 				<< ut_get_name(NULL, FALSE, index->name)
 				<< " for table "
-				<< ut_get_name(NULL, TRUE, table->name)
+				<< table->name
 				<< ", but the index tree has been freed!";
 
 			if (ignore_err & DICT_ERR_IGNORE_INDEX_ROOT) {
@@ -1918,7 +1917,7 @@ corrupted:
 			ib::error() << "Trying to load index "
 				<< ut_get_name(NULL, FALSE, index->name)
 				<< " for table "
-				<< ut_get_name(NULL, TRUE, table->name)
+				<< table->name
 				<< ", but the first index is not clustered!";
 
 			goto corrupted;
@@ -2135,7 +2134,7 @@ dict_save_data_dir_path(
 
 	/* Be sure this filepath is not the default filepath. */
 	char*	default_filepath = fil_make_filepath(
-			NULL, table->name, IBD, false);
+			NULL, table->name.m_name, IBD, false);
 	if (default_filepath) {
 		if (0 != strcmp(filepath, default_filepath)) {
 			ulint pathlen = strlen(filepath);
@@ -2170,7 +2169,7 @@ dict_get_and_save_data_dir_path(
 
 		if (!path) {
 			path = dict_get_first_path(
-				table->space, table->name);
+				table->space, table->name.m_name);
 		}
 
 		if (path) {
@@ -2384,7 +2383,7 @@ err_exit:
 				if (table->data_dir_path) {
 					filepath = fil_make_filepath(
 						table->data_dir_path,
-						table->name, IBD, true);
+						table->name.m_name, IBD, true);
 				}
 			}
 
@@ -2438,7 +2437,7 @@ err_exit:
 		if (!srv_load_corrupted) {
 
 			ib::error() << "Load table "
-				<< ut_get_name(NULL, TRUE, table->name)
+				<< table->name
 				<< " failed, the table has"
 				" corrupted clustered indexes. Turn on"
 				" 'innodb_force_load_corrupted' to drop it";
@@ -2466,13 +2465,13 @@ err_exit:
 	if (!cached || table->ibd_file_missing) {
 		/* Don't attempt to load the indexes from disk. */
 	} else if (err == DB_SUCCESS) {
-		err = dict_load_foreigns(table->name, NULL,
+		err = dict_load_foreigns(table->name.m_name, NULL,
 					 true, true,
 					 ignore_err, fk_tables);
 
 		if (err != DB_SUCCESS) {
-			ib::warn() << "Load table '" << table->name
-				<< "' failed, the table has missing"
+			ib::warn() << "Load table " << table->name
+				<< " failed, the table has missing"
 				" foreign key indexes. Turn off"
 				" 'foreign_key_checks' and try again.";
 

@@ -1408,12 +1408,7 @@ row_import::set_root_by_heuristic() UNIV_NOTHROW
 
 	if (UT_LIST_GET_LEN(m_table->indexes) != m_n_indexes) {
 
-		char	table_name[MAX_FULL_NAME_LEN + 1];
-
-		innobase_format_name(
-			table_name, sizeof(table_name), m_table->name, FALSE);
-
-		ib::warn() << "Table " << table_name << " should have "
+		ib::warn() << "Table " << m_table->name << " should have "
 			<< UT_LIST_GET_LEN(m_table->indexes) << " indexes but"
 			" the tablespace has " << m_n_indexes << " indexes";
 	}
@@ -2147,13 +2142,8 @@ row_import_discard_changes(
 
 	prebuilt->trx->error_info = NULL;
 
-	char	table_name[MAX_FULL_NAME_LEN + 1];
-
-	innobase_format_name(
-		table_name, sizeof(table_name),
-		prebuilt->table->name, FALSE);
-
-	ib::info() << "Discarding tablespace of table " << table_name
+	ib::info() << "Discarding tablespace of table "
+		<< prebuilt->table->name
 		<< ": " << ut_strerr(err);
 
 	if (trx->dict_operation_lock_mode != RW_X_LATCH) {
@@ -2231,7 +2221,7 @@ row_import_error(
 
 		innobase_format_name(
 			table_name, sizeof(table_name),
-			prebuilt->table->name, FALSE);
+			prebuilt->table->name.m_name, FALSE);
 
 		ib_senderrf(
 			trx->mysql_thd, IB_LOG_LEVEL_WARN,
@@ -2303,7 +2293,7 @@ row_import_adjust_root_pages_of_secondary_indexes(
 			ib_errf(trx->mysql_thd,
 				IB_LOG_LEVEL_WARN,
 				ER_INNODB_INDEX_CORRUPT,
-				"Index '%s' not found or corrupt,"
+				"Index %s not found or corrupt,"
 				" you should recreate this index.",
 				index_name);
 
@@ -2340,7 +2330,7 @@ row_import_adjust_root_pages_of_secondary_indexes(
 			ib_errf(trx->mysql_thd,
 				IB_LOG_LEVEL_WARN,
 				ER_INNODB_INDEX_CORRUPT,
-				"Index '%s' contains %lu entries,"
+				"Index %s contains %lu entries,"
 				" should be %lu, you should recreate"
 				" this index.", index_name,
 				(ulong) purge.get_n_rows(),
@@ -2443,7 +2433,7 @@ row_import_set_sys_max_row_id(
 		ib_errf(prebuilt->trx->mysql_thd,
 			IB_LOG_LEVEL_WARN,
 			ER_INNODB_INDEX_CORRUPT,
-			"Index '%s' corruption detected, invalid DB_ROW_ID"
+			"Index %s corruption detected, invalid DB_ROW_ID"
 			" in index.", index_name);
 
 		return(err);
@@ -3439,13 +3429,9 @@ row_import_for_mysql(
 	dberr_t		err;
 	trx_t*		trx;
 	ib_uint64_t	autoinc = 0;
-	char		table_name[MAX_FULL_NAME_LEN + 1];
 	char*		filepath = NULL;
 
 	ut_ad(!srv_read_only_mode);
-
-	innobase_format_name(
-		table_name, sizeof(table_name), table->name, FALSE);
 
 	ut_a(table->space);
 	ut_ad(prebuilt->trx);
@@ -3588,11 +3574,12 @@ row_import_for_mysql(
 		char	table_name[MAX_FULL_NAME_LEN + 1];
 
 		innobase_format_name(
-			table_name, sizeof(table_name), table->name, FALSE);
+			table_name, sizeof(table_name),
+			table->name.m_name, FALSE);
 
 		ib_errf(trx->mysql_thd, IB_LOG_LEVEL_ERROR,
 			ER_INTERNAL_ERROR,
-			"Cannot reset LSNs in table '%s' : %s",
+			"Cannot reset LSNs in table %s : %s",
 			table_name, ut_strerr(err));
 
 		return(row_import_cleanup(prebuilt, trx, err));
@@ -3609,10 +3596,10 @@ row_import_for_mysql(
 		ut_a(table->data_dir_path);
 
 		filepath = fil_make_filepath(
-			table->data_dir_path, table->name, IBD, true);
+			table->data_dir_path, table->name.m_name, IBD, true);
 	} else {
 		filepath = fil_make_filepath(
-			NULL, table->name, IBD, false);
+			NULL, table->name.m_name, IBD, false);
 	}
 	if (filepath == NULL) {
 		return(DB_OUT_OF_MEMORY);
@@ -3628,7 +3615,7 @@ row_import_for_mysql(
 	err = fil_open_single_table_tablespace(
 		true, true, FIL_TYPE_IMPORT, table->space,
 		dict_tf_to_fsp_flags(table->flags),
-		table->name, filepath);
+		table->name.m_name, filepath);
 
 	DBUG_EXECUTE_IF("ib_import_open_tablespace_failure",
 			err = DB_TABLESPACE_NOT_FOUND;);
@@ -3765,12 +3752,7 @@ row_import_for_mysql(
 	table->flags2 &= ~DICT_TF2_DISCARDED;
 
 	if (autoinc != 0) {
-		char	table_name[MAX_FULL_NAME_LEN + 1];
-
-		innobase_format_name(
-			table_name, sizeof(table_name), table->name, FALSE);
-
-		ib::info() << table_name << " autoinc value set to "
+		ib::info() << table->name << " autoinc value set to "
 			<< autoinc;
 
 		dict_table_autoinc_lock(table);

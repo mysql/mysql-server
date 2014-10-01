@@ -1899,7 +1899,7 @@ func_exit:
 
 		trx_rollback_to_savepoint(trx, NULL);
 
-		row_drop_table_for_mysql(table->name, trx, FALSE);
+		row_drop_table_for_mysql(table->name.m_name, trx, FALSE);
 
 		trx->error_state = DB_SUCCESS;
 	}
@@ -2083,7 +2083,8 @@ fts_create_index_tables(
 	table = dict_table_get_low(index->table_name);
 	ut_a(table != NULL);
 
-	err = fts_create_index_tables_low(trx, index, table->name, table->id);
+	err = fts_create_index_tables_low(
+		trx, index, table->name.m_name, table->id);
 
 	if (err == DB_SUCCESS) {
 		trx_commit(trx);
@@ -2663,7 +2664,7 @@ retry:
 	fts_table.type = FTS_COMMON_TABLE;
 	fts_table.table = table;
 
-	fts_table.parent = table->name;
+	fts_table.parent = table->name.m_name;
 
 	trx = trx_allocate_for_background();
 
@@ -2724,7 +2725,7 @@ retry:
 
 	if (doc_id_cmp > *doc_id) {
 		error = fts_update_sync_doc_id(
-			table, table->name, cache->synced_doc_id, trx);
+			table, table->name.m_name, cache->synced_doc_id, trx);
 	}
 
 	*doc_id = cache->next_doc_id;
@@ -2781,7 +2782,7 @@ fts_update_sync_doc_id(
 	if (table_name) {
 		fts_table.parent = table_name;
 	} else {
-		fts_table.parent = table->name;
+		fts_table.parent = table->name.m_name;
 	}
 
 	if (!trx) {
@@ -6260,7 +6261,7 @@ fts_rename_one_aux_table_to_hex_format(
 
 	ut_a(fts_table.suffix != NULL);
 
-	fts_table.parent = parent_table->name;
+	fts_table.parent = parent_table->name.m_name;
 	fts_table.table_id = aux_table->parent_id;
 	fts_table.index_id = aux_table->index_id;
 	fts_table.table = parent_table;
@@ -6410,7 +6411,7 @@ fts_rename_aux_tables_to_hex_format_low(
 			trx_start_for_ddl(trx_bg, TRX_DICT_OP_TABLE);
 
 			DICT_TF2_FLAG_UNSET(table, DICT_TF2_FTS_AUX_HEX_NAME);
-			err = row_rename_table_for_mysql(table->name,
+			err = row_rename_table_for_mysql(table->name.m_name,
 							 aux_table->name,
 							 trx_bg, FALSE);
 
@@ -6838,7 +6839,8 @@ fts_check_and_drop_orphaned_tables(
 		orig_parent_id = aux_table->parent_id;
 		orig_index_id = aux_table->index_id;
 
-		if (table == NULL || strcmp(table->name, aux_table->name)) {
+		if (table == NULL
+		    || strcmp(table->name.m_name, aux_table->name)) {
 
 			bool	fake_aux = false;
 
@@ -7035,7 +7037,7 @@ fts_check_and_drop_orphaned_tables(
 				aux_table->id, TRUE, DICT_TABLE_OP_NORMAL);
 
 			if (table != NULL
-			    && strcmp(table->name, aux_table->name)) {
+			    && strcmp(table->name.m_name, aux_table->name)) {
 				dict_table_close(table, TRUE, FALSE);
 				table = NULL;
 			}

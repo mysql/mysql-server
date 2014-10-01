@@ -1449,7 +1449,7 @@ add_table_to_thread_cache(
 	dict_table_set_big_rows(table);
 
 	innodb_session_t*& priv = thd_to_innodb_session(thd);
-	priv->register_table_handler(table->name, table);
+	priv->register_table_handler(table->name.m_name, table);
 }
 
 /********************************************************************//**
@@ -2672,7 +2672,7 @@ innobase_convert_identifier(
 
 	/* See if the identifier needs to be quoted. */
 	if (!thd) {
-		q = '"';
+		q = '`';
 	} else {
 		q = get_quote_char_for_identifier(thd, s, idlen);
 	}
@@ -4485,26 +4485,26 @@ test_ut_format_name()
 		ulint		buf_size;
 		const char*	expected;
 	} test_data[] = {
-		{"test/t1",	TRUE,	sizeof(buf),	"\"test\".\"t1\""},
-		{"test/t1",	TRUE,	12,		"\"test\".\"t1\""},
-		{"test/t1",	TRUE,	11,		"\"test\".\"t1"},
-		{"test/t1",	TRUE,	10,		"\"test\".\"t"},
-		{"test/t1",	TRUE,	9,		"\"test\".\""},
-		{"test/t1",	TRUE,	8,		"\"test\"."},
-		{"test/t1",	TRUE,	7,		"\"test\""},
-		{"test/t1",	TRUE,	6,		"\"test"},
-		{"test/t1",	TRUE,	5,		"\"tes"},
-		{"test/t1",	TRUE,	4,		"\"te"},
-		{"test/t1",	TRUE,	3,		"\"t"},
-		{"test/t1",	TRUE,	2,		"\""},
+		{"test/t1",	TRUE,	sizeof(buf),	"`test`.`t1`"},
+		{"test/t1",	TRUE,	12,		"`test`.`t1`"},
+		{"test/t1",	TRUE,	11,		"`test`.`t1"},
+		{"test/t1",	TRUE,	10,		"`test`.`t"},
+		{"test/t1",	TRUE,	9,		"`test`.`"},
+		{"test/t1",	TRUE,	8,		"`test`."},
+		{"test/t1",	TRUE,	7,		"`test`"},
+		{"test/t1",	TRUE,	6,		"`test"},
+		{"test/t1",	TRUE,	5,		"`tes"},
+		{"test/t1",	TRUE,	4,		"`te"},
+		{"test/t1",	TRUE,	3,		"`t"},
+		{"test/t1",	TRUE,	2,		"`"},
 		{"test/t1",	TRUE,	1,		""},
 		{"test/t1",	TRUE,	0,		"BUF_NOT_CHANGED"},
-		{"table",	TRUE,	sizeof(buf),	"\"table\""},
-		{"ta'le",	TRUE,	sizeof(buf),	"\"ta'le\""},
-		{"ta\"le",	TRUE,	sizeof(buf),	"\"ta\"\"le\""},
-		{"ta`le",	TRUE,	sizeof(buf),	"\"ta`le\""},
-		{"index",	FALSE,	sizeof(buf),	"\"index\""},
-		{"ind/ex",	FALSE,	sizeof(buf),	"\"ind/ex\""},
+		{"table",	TRUE,	sizeof(buf),	"`table`"},
+		{"ta'le",	TRUE,	sizeof(buf),	"`ta'le`"},
+		{"ta\"le",	TRUE,	sizeof(buf),	"`ta\"le`"},
+		{"ta`le",	TRUE,	sizeof(buf),	"`ta``le`"},
+		{"index",	FALSE,	sizeof(buf),	"`index`"},
+		{"ind/ex",	FALSE,	sizeof(buf),	"`ind/ex`"},
 	};
 
 	for (size_t i = 0; i < UT_ARR_SIZE(test_data); i++) {
@@ -7069,8 +7069,8 @@ calc_row_difference(
 
 				ib::warn() << "FTS Doc ID must be larger than "
 					<< innodb_table->fts->cache->next_doc_id
-					- 1  << " for table " << ut_get_name(
-						trx, TRUE, innodb_table->name);
+					- 1  << " for table "
+					<< innodb_table->name;
 
 				return(DB_FTS_INVALID_DOCID);
 			} else if ((doc_id
@@ -7807,7 +7807,8 @@ ha_innobase::innobase_get_index(
 						  " index translation table",
 						  key ? key->name : "NULL",
 						  keynr,
-						  m_prebuilt->table->name);
+						  m_prebuilt->table->name
+						  .m_name);
 			}
 
 			index = dict_table_get_index_on_name(
@@ -7823,7 +7824,7 @@ ha_innobase::innobase_get_index(
 			"InnoDB could not find key no %u with name %s"
 			" from dict cache for table %s",
 			keynr, key ? key->name : "NULL",
-			m_prebuilt->table->name);
+			m_prebuilt->table->name.m_name);
 	}
 
 	DBUG_RETURN(index);
@@ -7877,7 +7878,7 @@ ha_innobase::change_active_index(
 
 			innobase_format_name(
 				table_name, sizeof table_name,
-				m_prebuilt->index->table->name, FALSE);
+				m_prebuilt->index->table->name.m_name, FALSE);
 
 			if (dict_index_is_clust(m_prebuilt->index)) {
 				ut_ad(m_prebuilt->index->table->corrupted);
@@ -8904,7 +8905,7 @@ create_table_def(
 				" column type and try to re-create"
 				" the table with an appropriate"
 				" column type.",
-				table->name, field->field_name);
+				table->name.m_name, field->field_name);
 			goto err_col;
 		}
 
@@ -10089,7 +10090,7 @@ ha_innobase::create(
 					    " make sure it is of correct"
 					    " type\n",
 					    FTS_DOC_ID_INDEX_NAME,
-					    innobase_table->name);
+					    innobase_table->name.m_name);
 
 			if (innobase_table->fts) {
 				fts_free(innobase_table);
@@ -10396,7 +10397,7 @@ ha_innobase::discard_or_import_tablespace(
 		}
 
 		err = row_discard_tablespace_for_mysql(
-			dict_table->name, m_prebuilt->trx);
+			dict_table->name.m_name, m_prebuilt->trx);
 
 	} else if (!dict_table->ibd_file_missing) {
 		/* Commit the transaction in order to
@@ -10557,7 +10558,7 @@ ha_innobase::delete_table(
 
 		dict_table_t*	table_to_drop = *iter;
 
-		if (strcmp(norm_name, table_to_drop->name) == 0) {
+		if (strcmp(norm_name, table_to_drop->name.m_name) == 0) {
 			parent_trx->mod_tables.erase(table_to_drop);
 			break;
 		}
@@ -11518,7 +11519,7 @@ ha_innobase::info_low(
 		}
 
 		my_snprintf(path, sizeof(path), "%s/%s%s",
-			    mysql_data_home, ib_table->name, reg_ext);
+			    mysql_data_home, ib_table->name.m_name, reg_ext);
 
 		unpack_filename(path,path);
 
@@ -11640,7 +11641,7 @@ ha_innobase::info_low(
 					" the .ibd file is missing. Setting"
 					" the free space to zero."
 					" (errno: %d - %s)",
-					ib_table->name, errno,
+					ib_table->name.m_name, errno,
 					my_strerror(errbuf, sizeof(errbuf),
 						    errno));
 
@@ -11705,8 +11706,8 @@ ha_innobase::info_low(
 					" indexes inside InnoDB, which"
 					" is different from the number of"
 					" indexes %u defined in MySQL",
-					ib_table->name, num_innodb_index,
-					table->s->keys);
+					ib_table->name.m_name,
+					num_innodb_index, table->s->keys);
 		}
 
 		if (!(flag & HA_STATUS_NO_LOCK)) {
@@ -11731,7 +11732,7 @@ ha_innobase::info_low(
 						" .frm file. Have you mixed up"
 						" .frm files from different"
 						" installations? %s\n",
-						ib_table->name,
+						ib_table->name.m_name,
 						TROUBLESHOOTING_MSG);
 
 				break;
@@ -11764,7 +11765,7 @@ ha_innobase::info_low(
 						" up .frm files from different"
 						" installations? %s",
 						index->name,
-						ib_table->name,
+						ib_table->name.m_name,
 						(unsigned long)
 						index->n_uniq, j + 1,
 						TROUBLESHOOTING_MSG);
@@ -13911,13 +13912,13 @@ ha_innobase::get_foreign_dup_key(
 
 	/* copy table name (and convert from filename-safe encoding to
 	system_charset_info) */
-	char*	p = strchr(err_index->table->name, '/');
+	char*	p = strchr(err_index->table->name.m_name, '/');
 
 	/* strip ".../" prefix if any */
 	if (p != NULL) {
 		p++;
 	} else {
-		p = err_index->table->name;
+		p = err_index->table->name.m_name;
 	}
 
 	size_t	len;

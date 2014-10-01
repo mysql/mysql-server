@@ -56,6 +56,13 @@ Created 1/8/1996 Heikki Tuuri
 table name as unuique as possible. */
 static ib_uint32_t	dict_temp_file_num;
 
+/** Display a table name */
+std::ostream&
+operator<<(std::ostream& s, const table_name_t& table_name)
+{
+	return(s << ut_get_name(NULL, TRUE, table_name.m_name));
+}
+
 /**********************************************************************//**
 Creates a table memory object.
 @return own: table object */
@@ -91,8 +98,7 @@ dict_mem_table_create(
 
 	table->flags = (unsigned int) flags;
 	table->flags2 = (unsigned int) flags2;
-	table->name = static_cast<char*>(ut_malloc_nokey(strlen(name) + 1));
-	memcpy(table->name, name, strlen(name) + 1);
+	table->name.m_name = mem_strdup(name);
 	table->space = (unsigned int) space;
 	table->n_cols = (unsigned int) (n_cols +
 			dict_table_get_n_sys_cols(table));
@@ -170,7 +176,7 @@ dict_mem_table_free(
 	table->foreign_set.~dict_foreign_set();
 	table->referenced_set.~dict_foreign_set();
 
-	ut_free(table->name);
+	ut_free(table->name.m_name);
 	mem_heap_free(table->heap);
 }
 

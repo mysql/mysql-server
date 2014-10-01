@@ -2731,9 +2731,9 @@ srv_get_meta_data_filename(
 		ut_a(table->data_dir_path);
 
 		path = fil_make_filepath(
-			table->data_dir_path, table->name, CFG, true);
+			table->data_dir_path, table->name.m_name, CFG, true);
 	} else {
-		path = fil_make_filepath(NULL, table->name, CFG, false);
+		path = fil_make_filepath(NULL, table->name.m_name, CFG, false);
 	}
 
 	ut_a(path);

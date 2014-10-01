@@ -4268,7 +4268,7 @@ innodb_temp_table_populate_cache(
 	char	db_utf8[MAX_DB_UTF8_LEN];
 	char	table_utf8[MAX_TABLE_UTF8_LEN];
 
-	dict_fs2utf8(table->name,
+	dict_fs2utf8(table->name.m_name,
 		     db_utf8, sizeof(db_utf8),
 		     table_utf8, sizeof(table_utf8));
 	strcpy(cache->m_table_name, table_utf8);
@@ -6380,7 +6380,7 @@ i_s_dict_fill_sys_tables(
 
 	OK(fields[SYS_TABLES_ID]->store(longlong(table->id), TRUE));
 
-	OK(field_store_string(fields[SYS_TABLES_NAME], table->name));
+	OK(field_store_string(fields[SYS_TABLES_NAME], table->name.m_name));
 
 	OK(fields[SYS_TABLES_FLAG]->store(table->flags));
 
@@ -6657,7 +6657,8 @@ i_s_dict_fill_sys_tablestats(
 
 	OK(fields[SYS_TABLESTATS_ID]->store(longlong(table->id), TRUE));
 
-	OK(field_store_string(fields[SYS_TABLESTATS_NAME], table->name));
+	OK(field_store_string(fields[SYS_TABLESTATS_NAME],
+			      table->name.m_name));
 
 	dict_table_stats_lock(table, RW_S_LATCH);
 

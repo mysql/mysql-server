@@ -367,10 +367,8 @@ close_table:
 			}
 
 		} else {
-			std::string	str = ut_get_name(node->trx, TRUE,
-							  node->table->name);
-
-			ib::warn() << "Table " << str << " has no indexes,"
+			ib::warn() << "Table " << node->table->name
+				 << " has no indexes,"
 				" ignoring the table";
 			goto close_table;
 		}

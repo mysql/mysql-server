@@ -80,7 +80,8 @@ dict_create_sys_tables_tuple(
 	dfield = dtuple_get_nth_field(
 		entry, DICT_COL__SYS_TABLES__NAME);
 
-	dfield_set_data(dfield, table->name, ut_strlen(table->name));
+	dfield_set_data(dfield,
+			table->name.m_name, strlen(table->name.m_name));
 
 	/* 1: DB_TRX_ID added later */
 	/* 2: DB_ROLL_PTR added later */
@@ -339,7 +340,7 @@ dict_build_tablespace(
 		      || dict_table_get_format(table) >= UNIV_FORMAT_B);
 
 		err = fil_create_new_single_table_tablespace(
-			space, table->name, path,
+			space, table->name.m_name, path,
 			dict_tf_to_fsp_flags(table->flags),
 			table->flags2,
 			FIL_IBD_FILE_INITIAL_SIZE);
@@ -1037,7 +1038,7 @@ dict_recreate_index_tree(
 
 		ib::warn()
 			<< "Trying to TRUNCATE a missing .ibd file of table "
-			<< ut_get_name(NULL, TRUE, table->name) << "!";
+			<< table->name << "!";
 
 		return(FIL_NULL);
 	}
@@ -1078,7 +1079,7 @@ dict_recreate_index_tree(
 	}
 
 	ib::error() << "Failed to create index with index id " << index_id
-		<< " of table " << ut_get_name(NULL, TRUE, table->name);
+		<< " of table " << table->name;
 
 	return(FIL_NULL);
 }
@@ -1109,7 +1110,7 @@ dict_truncate_index_tree_in_mem(
 
 		/* The tree has been freed. */
 		ib::warn() << "Trying to TRUNCATE a missing index of table "
-			<< ut_get_name(NULL, TRUE, index->table->name) << "!";
+			<< index->table->name << "!";
 
 		truncate = false;
 	} else {
@@ -1127,7 +1128,7 @@ dict_truncate_index_tree_in_mem(
 
 		ib::warn()
 			<< "Trying to TRUNCATE a missing .ibd file of table "
-			<< ut_get_name(NULL, TRUE, index->table->name) << "!";
+			<< index->table->name << "!";
 	}
 
 	/* If table to truncate resides in its on own tablespace that will
@@ -1899,8 +1900,8 @@ dict_create_add_foreigns_to_dictionary(
 		foreign = *it;
 		ut_ad(foreign->id != NULL);
 
-		error = dict_create_add_foreign_to_dictionary(table->name,
-							      foreign, trx);
+		error = dict_create_add_foreign_to_dictionary(
+			table->name.m_name, foreign, trx);
 
 		if (error != DB_SUCCESS) {
 

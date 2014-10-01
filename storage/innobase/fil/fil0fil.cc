@@ -5881,10 +5881,10 @@ fil_tablespace_iterate(
 		ut_a(table->data_dir_path);
 
 		filepath = fil_make_filepath(
-			table->data_dir_path, table->name, IBD, true);
+			table->data_dir_path, table->name.m_name, IBD, true);
 	} else {
 		filepath = fil_make_filepath(
-			NULL, table->name, IBD, false);
+			NULL, table->name.m_name, IBD, false);
 	}
 
 	if (filepath == NULL) {
@@ -6105,9 +6105,9 @@ fil_mtr_rename_log(
 		: NULL;
 
 	char*		old_path = fil_make_filepath(
-		new_dir, old_table->name, IBD, false);
+		new_dir, old_table->name.m_name, IBD, false);
 	char*		new_path = fil_make_filepath(
-		new_dir, new_table->name, IBD, false);
+		new_dir, new_table->name.m_name, IBD, false);
 	char*		tmp_path = fil_make_filepath(
 		old_dir, tmp_name, IBD, false);
 

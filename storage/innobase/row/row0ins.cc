@@ -677,9 +677,7 @@ row_ins_cascade_calc_update_vec(
 							" must be larger than "
 							<< n_doc_id - 1
 							<< " for table "
-							<< ut_get_name(
-								trx, TRUE,
-								table->name);
+							<< table->name;
 
 						return(ULINT_UNDEFINED);
 					}
@@ -712,11 +710,9 @@ row_ins_cascade_calc_update_vec(
 				fts_trx_add_op(trx, table, new_doc_id,
 					       FTS_INSERT, NULL);
 			} else {
-				std::string	str = ut_get_name(
-							trx, TRUE, table->name);
 				ib::error() << "FTS Doc ID must be updated"
 					" along with FTS indexed column for"
-					" table " << str;
+					" table " << table->name;
 				return(ULINT_UNDEFINED);
 			}
 		}
@@ -976,7 +972,7 @@ row_ins_foreign_check_on_constraint(
 	the sync0mutex.h rank above the lock_sys_t::mutex. The query cache mutex
 	has a rank just above the lock_sys_t::mutex. */
 
-	row_ins_invalidate_query_cache(thr, table->name);
+	row_ins_invalidate_query_cache(thr, table->name.m_name);
 
 	node = static_cast<upd_node_t*>(thr->run_node);
 
@@ -1705,7 +1701,8 @@ do_possible_lock_wait:
 
 		thr->lock_state = QUE_THR_LOCK_NOLOCK;
 
-		DBUG_PRINT("to_be_dropped", ("table: %s", check_table->name));
+		DBUG_PRINT("to_be_dropped",
+			   ("table: %s", check_table->name.m_name));
 		if (check_table->to_be_dropped) {
 			/* The table is being dropped. We shall timeout
 			this operation */
@@ -3542,7 +3539,7 @@ row_ins(
 
 	DBUG_ENTER("row_ins");
 
-	DBUG_PRINT("row_ins", ("table: %s", node->table->name));
+	DBUG_PRINT("row_ins", ("table: %s", node->table->name.m_name));
 
 	if (node->duplicate) {
 		thr_get_trx(thr)->error_state = DB_DUPLICATE_KEY;
