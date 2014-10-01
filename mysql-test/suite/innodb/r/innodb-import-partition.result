@@ -1140,7 +1140,7 @@ restore: t1#P#p1#SP#p1sp1 .ibd and .cfg files
 restore: t1#P#p1#SP#p1sp2 .ibd and .cfg files
 # Removing p0sp2's .ibd file
 ALTER TABLE t1 IMPORT PARTITION all TABLESPACE;
-ERROR HY000: Internal error: Cannot reset LSNs in table '"test"."t1" /* Partition "p0", Subpartition "p0sp2" */' : Tablespace not found
+ERROR HY000: Internal error: Cannot reset LSNs in table `test`.`t1` /* Partition `p0`, Subpartition `p0sp2` */ : Tablespace not found
 restore: t1#P#p0#SP#p0sp2 .ibd and .cfg files
 ALTER TABLE t1 IMPORT PARTITION all TABLESPACE;
 ERROR HY000: Tablespace for table 't1' exists. Please DISCARD the tablespace before IMPORT.

@@ -520,7 +520,7 @@ dict_table_close(
 	if they have been manually modified. We reset table->stat_initialized
 	only if table reference count is 0 because we do not want too frequent
 	stats re-reads (e.g. in other cases than FLUSH TABLE). */
-	if (strchr(table->name, '/') != NULL
+	if (strchr(table->name.m_name, '/') != NULL
 	    && table->n_ref_count == 0
 	    && dict_stats_is_persistent_enabled(table)) {
 
@@ -1065,7 +1065,7 @@ dict_table_open_on_name(
 			}
 
 			ib::info() << "Table "
-				<< ut_get_name(NULL, TRUE, table->name)
+				<< table->name
 				<< " is corrupted. Please drop the table"
 				" and recreate it";
 			DBUG_RETURN(NULL);
@@ -1191,7 +1191,7 @@ dict_table_add_to_cache(
 
 	table->cached = TRUE;
 
-	fold = ut_fold_string(table->name);
+	fold = ut_fold_string(table->name.m_name);
 	id_fold = ut_fold_ull(table->id);
 
 	dict_table_set_big_rows(table);
@@ -1201,7 +1201,7 @@ dict_table_add_to_cache(
 		dict_table_t*	table2;
 		HASH_SEARCH(name_hash, dict_sys->table_hash, fold,
 			    dict_table_t*, table2, ut_ad(table2->cached),
-			    ut_strcmp(table2->name, table->name) == 0);
+			    !strcmp(table2->name.m_name, table->name.m_name));
 		ut_a(table2 == NULL);
 
 #ifdef UNIV_DEBUG
@@ -1249,7 +1249,7 @@ dict_table_add_to_cache(
 	ut_ad(dict_lru_validate());
 
 	dict_sys->size += mem_heap_get_size(table->heap)
-		+ strlen(table->name) + 1;
+		+ strlen(table->name.m_name) + 1;
 }
 
 /**********************************************************************//**
@@ -1496,11 +1496,11 @@ dict_table_rename_in_cache(
 	ut_ad(mutex_own(&dict_sys->mutex));
 
 	/* store the old/current name to an automatic variable */
-	if (strlen(table->name) + 1 <= sizeof(old_name)) {
-		memcpy(old_name, table->name, strlen(table->name) + 1);
+	if (strlen(table->name.m_name) + 1 <= sizeof(old_name)) {
+		strcpy(old_name, table->name.m_name);
 	} else {
 		ib::fatal() << "Too long table name: "
-			<< ut_get_name(NULL, TRUE, table->name)
+			<< table->name
 			<< ", max length is " << MAX_FULL_NAME_LEN;
 	}
 
@@ -1510,7 +1510,7 @@ dict_table_rename_in_cache(
 	dict_table_t*	table2;
 	HASH_SEARCH(name_hash, dict_sys->table_hash, fold,
 			dict_table_t*, table2, ut_ad(table2->cached),
-			(ut_strcmp(table2->name, new_name) == 0));
+			(ut_strcmp(table2->name.m_name, new_name) == 0));
 	DBUG_EXECUTE_IF("dict_table_rename_in_cache_failure",
 		if (table2 == NULL) {
 			table2 = (dict_table_t*) -1;
@@ -1539,11 +1539,11 @@ dict_table_rename_in_cache(
 			ut_a(table->data_dir_path);
 
 			filepath = fil_make_filepath(
-				table->data_dir_path, table->name,
+				table->data_dir_path, table->name.m_name,
 				IBD, true);
 		} else {
 			filepath = fil_make_filepath(
-				NULL, table->name, IBD, false);
+				NULL, table->name.m_name, IBD, false);
 		}
 
 		if (filepath == NULL) {
@@ -1566,7 +1566,7 @@ dict_table_rename_in_cache(
 	} else if (!is_system_tablespace(table->space)) {
 		if (table->dir_path_of_temp_table != NULL) {
 			ib::error() << "Trying to rename a TEMPORARY TABLE "
-				<< ut_get_name(NULL, TRUE, old_name)
+				<< old_name
 				<< " ( " << table->dir_path_of_temp_table
 				<< " )";
 			return(DB_ERROR);
@@ -1611,16 +1611,16 @@ dict_table_rename_in_cache(
 	HASH_DELETE(dict_table_t, name_hash, dict_sys->table_hash,
 		    ut_fold_string(old_name), table);
 
-	if (strlen(new_name) > strlen(table->name)) {
+	if (strlen(new_name) > strlen(table->name.m_name)) {
 		/* We allocate MAX_FULL_NAME_LEN + 1 bytes here to avoid
 		memory fragmentation, we assume a repeated calls of
 		ut_realloc() with the same size do not cause fragmentation */
 		ut_a(strlen(new_name) <= MAX_FULL_NAME_LEN);
 
-		table->name = static_cast<char*>(
-			ut_realloc(table->name, MAX_FULL_NAME_LEN + 1));
+		table->name.m_name = static_cast<char*>(
+			ut_realloc(table->name.m_name, MAX_FULL_NAME_LEN + 1));
 	}
-	memcpy(table->name, new_name, strlen(new_name) + 1);
+	strcpy(table->name.m_name, new_name);
 
 	/* Add table to hash table of tables */
 	HASH_INSERT(dict_table_t, name_hash, dict_sys->table_hash, fold,
@@ -1634,7 +1634,7 @@ dict_table_rename_in_cache(
 	     index != NULL;
 	     index = dict_table_get_next_index(index)) {
 
-		index->table_name = table->name;
+		index->table_name = table->name.m_name;
 	}
 
 	if (!rename_also_foreigns) {
@@ -1692,15 +1692,16 @@ dict_table_rename_in_cache(
 		}
 
 		if (ut_strlen(foreign->foreign_table_name)
-		    < ut_strlen(table->name)) {
+		    < ut_strlen(table->name.m_name)) {
 			/* Allocate a longer name buffer;
 			TODO: store buf len to save memory */
 
 			foreign->foreign_table_name = mem_heap_strdup(
-				foreign->heap, table->name);
+				foreign->heap, table->name.m_name);
 			dict_mem_foreign_table_name_lookup_set(foreign, TRUE);
 		} else {
-			strcpy(foreign->foreign_table_name, table->name);
+			strcpy(foreign->foreign_table_name,
+			       table->name.m_name);
 			dict_mem_foreign_table_name_lookup_set(foreign, FALSE);
 		}
 		if (strchr(foreign->id, '/')) {
@@ -1776,20 +1777,21 @@ dict_table_rename_in_cache(
 				char	table_name[MAX_TABLE_NAME_LEN] = "";
 				uint	errors = 0;
 
-				if (strlen(table->name) > strlen(old_name)) {
+				if (strlen(table->name.m_name)
+				    > strlen(old_name)) {
 					foreign->id = static_cast<char*>(
 						mem_heap_alloc(
 						foreign->heap,
-						strlen(table->name)
+						strlen(table->name.m_name)
 						+ strlen(old_id) + 1));
 				}
 
 				/* Convert the table name to UTF-8 */
-				strncpy(table_name, table->name,
+				strncpy(table_name, table->name.m_name,
 					MAX_TABLE_NAME_LEN);
 				innobase_convert_to_system_charset(
 					strchr(table_name, '/') + 1,
-					strchr(table->name, '/') + 1,
+					strchr(table->name.m_name, '/') + 1,
 					MAX_TABLE_NAME_LEN, &errors);
 
 				if (errors) {
@@ -1797,7 +1799,7 @@ dict_table_rename_in_cache(
 					from charset my_charset_filename to
 					UTF-8. This means that the table name
 					is already in UTF-8 (#mysql#50). */
-					strncpy(table_name, table->name,
+					strncpy(table_name, table->name.m_name,
 						MAX_TABLE_NAME_LEN);
 				}
 
@@ -1817,9 +1819,10 @@ dict_table_rename_in_cache(
 			} else {
 				/* This is a >= 4.0.18 format id where the user
 				gave the id name */
-				db_len = dict_get_db_name_len(table->name) + 1;
+				db_len = dict_get_db_name_len(
+					table->name.m_name) + 1;
 
-				if (dict_get_db_name_len(table->name)
+				if (db_len - 1
 				    > dict_get_db_name_len(foreign->id)) {
 
 					foreign->id = static_cast<char*>(
@@ -1831,7 +1834,8 @@ dict_table_rename_in_cache(
 				/* Replace the database prefix in id with the
 				one from table->name */
 
-				ut_memcpy(foreign->id, table->name, db_len);
+				ut_memcpy(foreign->id,
+					  table->name.m_name, db_len);
 
 				strcpy(foreign->id + db_len,
 				       dict_remove_db_name(old_id));
@@ -1858,18 +1862,19 @@ dict_table_rename_in_cache(
 		foreign = *it;
 
 		if (ut_strlen(foreign->referenced_table_name)
-		    < ut_strlen(table->name)) {
+		    < ut_strlen(table->name.m_name)) {
 			/* Allocate a longer name buffer;
 			TODO: store buf len to save memory */
 
 			foreign->referenced_table_name = mem_heap_strdup(
-				foreign->heap, table->name);
+				foreign->heap, table->name.m_name);
 
 			dict_mem_referenced_table_name_lookup_set(
 				foreign, TRUE);
 		} else {
 			/* Use the same buffer */
-			strcpy(foreign->referenced_table_name, table->name);
+			strcpy(foreign->referenced_table_name,
+			       table->name.m_name);
 
 			dict_mem_referenced_table_name_lookup_set(
 				foreign, FALSE);
@@ -1951,7 +1956,7 @@ dict_table_remove_from_cache_low(
 	/* Remove table from the hash tables of tables */
 
 	HASH_DELETE(dict_table_t, name_hash, dict_sys->table_hash,
-		    ut_fold_string(table->name), table);
+		    ut_fold_string(table->name.m_name), table);
 
 	HASH_DELETE(dict_table_t, id_hash, dict_sys->table_id_hash,
 		    ut_fold_ull(table->id), table);
@@ -1991,7 +1996,7 @@ dict_table_remove_from_cache_low(
 		trx_free_for_background(trx);
 	}
 
-	size = mem_heap_get_size(table->heap) + strlen(table->name) + 1;
+	size = mem_heap_get_size(table->heap) + strlen(table->name.m_name) + 1;
 
 	ut_ad(dict_sys->size >= size);
 
@@ -2427,9 +2432,9 @@ add_field_size:
 		/* Check the size limit on leaf pages. */
 		if (UNIV_UNLIKELY(rec_max_size >= page_rec_max)) {
 			ib::error() << "Cannot add field "
-				<< ut_get_name(NULL, FALSE, field->name)
+				<< field->name
 				<< " in table "
-				<< ut_get_name(NULL, TRUE, table->name)
+				<< table->name
 				<< " because after adding it, the row size is "
 				<< rec_max_size
 				<< " which is greater than maximum allowed"
@@ -2640,7 +2645,7 @@ undo_size_ok:
 
 	UT_LIST_ADD_LAST(table->indexes, new_index);
 	new_index->table = table;
-	new_index->table_name = table->name;
+	new_index->table_name = table->name.m_name;
 	new_index->search_info = btr_search_info_create(new_index->heap);
 
 	new_index->page = page_no;
@@ -2748,7 +2753,7 @@ dict_index_remove_from_cache_low(
 				" index: "
 				<< ut_get_name(NULL, FALSE, index->name)
 				<< " table: "
-				<< ut_get_name(NULL, TRUE, table->name);
+				<< table->name;
 		}
 
 		/* To avoid a hang here we commit suicide if the
@@ -2838,7 +2843,7 @@ dict_index_find_cols(
 #ifdef UNIV_DEBUG
 		/* It is an error not to find a matching column. */
 		ib::error() << "No matching column for "
-			<< ut_get_name(NULL, FALSE, field->name)
+			<< field->name
 			<< " in index "
 			<< ut_get_name(NULL, FALSE, index->name)
 			<< " of table "
@@ -3044,7 +3049,7 @@ dict_index_build_internal_clust(
 	ut_ad(table->magic_n == DICT_TABLE_MAGIC_N);
 
 	/* Create a new index object with certainly enough fields */
-	new_index = dict_mem_index_create(table->name,
+	new_index = dict_mem_index_create(table->name.m_name,
 					  index->name, table->space,
 					  index->type,
 					  index->n_fields + table->n_cols);
@@ -3225,7 +3230,7 @@ dict_index_build_internal_non_clust(
 
 	/* Create a new index */
 	new_index = dict_mem_index_create(
-		table->name, index->name, index->space, index->type,
+		table->name.m_name, index->name, index->space, index->type,
 		index->n_fields + 1 + clust_index->n_uniq);
 
 	/* Copy other relevant data from the old index
@@ -3313,7 +3318,7 @@ dict_index_build_internal_fts(
 
 	/* Create a new index */
 	new_index = dict_mem_index_create(
-		table->name, index->name, index->space, index->type,
+		table->name.m_name, index->name, index->space, index->type,
 		index->n_fields);
 
 	/* Copy other relevant data from the old index struct to the new
@@ -4281,7 +4286,7 @@ dict_table_get_highest_foreign_id(
 
 	ut_a(table);
 
-	len = ut_strlen(table->name);
+	len = ut_strlen(table->name.m_name);
 
 	for (dict_foreign_set::iterator it = table->foreign_set.begin();
 	     it != table->foreign_set.end();
@@ -4289,7 +4294,7 @@ dict_table_get_highest_foreign_id(
 		foreign = *it;
 
 		if (ut_strlen(foreign->id) > ((sizeof dict_ibfk) - 1) + len
-		    && 0 == ut_memcmp(foreign->id, table->name, len)
+		    && 0 == ut_memcmp(foreign->id, table->name.m_name, len)
 		    && 0 == ut_memcmp(foreign->id + len,
 				      dict_ibfk, (sizeof dict_ibfk) - 1)
 		    && foreign->id[len + ((sizeof dict_ibfk) - 1)] != '0') {
@@ -4648,19 +4653,19 @@ col_loop1:
 		same MySQL 'database' as the table itself. We store the name
 		to foreign->id. */
 
-		db_len = dict_get_db_name_len(table->name);
+		db_len = dict_get_db_name_len(table->name.m_name);
 
 		foreign->id = static_cast<char*>(mem_heap_alloc(
 			foreign->heap, db_len + strlen(constraint_name) + 2));
 
-		ut_memcpy(foreign->id, table->name, db_len);
+		ut_memcpy(foreign->id, table->name.m_name, db_len);
 		foreign->id[db_len] = '/';
 		strcpy(foreign->id + db_len + 1, constraint_name);
 	}
 
 	if (foreign->id == NULL) {
-		error = dict_create_add_foreign_id(&number,
-						   table->name, foreign);
+		error = dict_create_add_foreign_id(
+			&number, table->name.m_name, foreign);
 		if (error != DB_SUCCESS) {
 			dict_foreign_free(foreign);
 			return(error);
@@ -4678,7 +4683,7 @@ col_loop1:
 
 	foreign->foreign_table = table;
 	foreign->foreign_table_name = mem_heap_strdup(
-		foreign->heap, table->name);
+		foreign->heap, table->name.m_name);
 	dict_mem_foreign_table_name_lookup_set(foreign, TRUE);
 
 	foreign->foreign_index = index;
@@ -5098,7 +5103,7 @@ loop:
 			ut_print_timestamp(ef);
 			fputs(" Error in dropping of a foreign key"
 			      " constraint of table ", ef);
-			ut_print_name(ef, NULL, TRUE, table->name);
+			ut_print_name(ef, NULL, TRUE, table->name.m_name);
 			fputs(",\nin SQL command\n", ef);
 			fputs(str, ef);
 			fputs("\nCannot find a constraint with the"
@@ -5124,7 +5129,7 @@ syntax_error:
 		ut_print_timestamp(ef);
 		fputs(" Syntax error in dropping of a"
 		      " foreign key constraint of table ", ef);
-		ut_print_name(ef, NULL, TRUE, table->name);
+		ut_print_name(ef, NULL, TRUE, table->name.m_name);
 		fprintf(ef, ",\n"
 			"close to:\n%s\n in SQL command\n%s\n", ptr, str);
 		mutex_exit(&dict_foreign_err_mutex);
@@ -6221,7 +6226,7 @@ dict_resize()
 
 	for (table = UT_LIST_GET_FIRST(dict_sys->table_LRU); table;
 	     table = UT_LIST_GET_NEXT(table_LRU, table)) {
-		ulint	fold = ut_fold_string(table->name);
+		ulint	fold = ut_fold_string(table->name.m_name);
 		ulint	id_fold = ut_fold_ull(table->id);
 
 		HASH_INSERT(dict_table_t, name_hash, dict_sys->table_hash,
@@ -6233,7 +6238,7 @@ dict_resize()
 
 	for (table = UT_LIST_GET_FIRST(dict_sys->table_non_LRU); table;
 	     table = UT_LIST_GET_NEXT(table_LRU, table)) {
-		ulint	fold = ut_fold_string(table->name);
+		ulint	fold = ut_fold_string(table->name.m_name);
 		ulint	id_fold = ut_fold_ull(table->id);
 
 		HASH_INSERT(dict_table_t, name_hash, dict_sys->table_hash,

@@ -1013,6 +1013,17 @@ a foreign key constraint is enforced, therefore RESTRICT just means no flag */
 #define DICT_FOREIGN_ON_UPDATE_NO_ACTION 32	/*!< ON UPDATE NO ACTION */
 /* @} */
 
+/** Table name wrapper for pretty-printing */
+struct table_name_t
+{
+	/** The name in internal representation */
+	char*	m_name;
+};
+
+/** Display a table name */
+std::ostream&
+operator<<(std::ostream& s, const table_name_t& table_name);
+
 /** List of locks that different transactions have acquired on a table. This
 list has a list node that is embedded in a nested union/structure. We have to
 generate a specific template for it. */
@@ -1043,7 +1054,7 @@ struct dict_table_t {
 	mem_heap_t*				heap;
 
 	/** Table name. */
-	char*					name;
+	table_name_t				name;
 
 	/** NULL or the directory path where a TEMPORARY table that was
 	explicitly created by a user should be placed if innodb_file_per_table

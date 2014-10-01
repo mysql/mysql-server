@@ -380,7 +380,7 @@ dict_stats_table_clone_create(
 
 	heap_size = 0;
 	heap_size += sizeof(dict_table_t);
-	heap_size += strlen(table->name) + 1;
+	heap_size += strlen(table->name.m_name) + 1;
 
 	for (index = dict_table_get_first_index(table);
 	     index != NULL;
@@ -420,8 +420,7 @@ dict_stats_table_clone_create(
 
 	t->heap = heap;
 
-	UNIV_MEM_ASSERT_RW_ABORT(table->name, strlen(table->name) + 1);
-	t->name = (char*) mem_heap_strdup(heap, table->name);
+	t->name.m_name = (char*) mem_heap_strdup(heap, table->name.m_name);
 
 	t->corrupted = table->corrupted;
 
@@ -449,10 +448,9 @@ dict_stats_table_clone_create(
 		UNIV_MEM_ASSERT_RW_ABORT(&index->id, sizeof(index->id));
 		idx->id = index->id;
 
-		UNIV_MEM_ASSERT_RW_ABORT(index->name, strlen(index->name) + 1);
 		idx->name = (char*) mem_heap_strdup(heap, index->name);
 
-		idx->table_name = t->name;
+		idx->table_name = t->name.m_name;
 
 		idx->table = t;
 
@@ -468,11 +466,6 @@ dict_stats_table_clone_create(
 			heap, idx->n_uniq * sizeof(idx->fields[0]));
 
 		for (ulint i = 0; i < idx->n_uniq; i++) {
-
-			UNIV_MEM_ASSERT_RW_ABORT(
-				index->fields[i].name,
-				strlen(index->fields[i].name) + 1);
-
 			idx->fields[i].name = (char*) mem_heap_strdup(
 				heap, index->fields[i].name);
 		}
@@ -889,10 +882,8 @@ dict_stats_update_transient(
 	} else if (index == NULL) {
 		/* Table definition is corrupt */
 
-		char	buf[MAX_FULL_NAME_LEN];
-
 		ib::warn() << "Table "
-			<< ut_format_name(table->name, TRUE, buf, sizeof(buf))
+			<< table->name
 			<< " has no indexes. Cannot calculate statistics.";
 		dict_stats_empty_table(table);
 		return;
@@ -2284,7 +2275,7 @@ dict_stats_save_index_stat(
 #endif /* UNIV_SYNC_DEBUG */
 	ut_ad(mutex_own(&dict_sys->mutex));
 
-	dict_fs2utf8(index->table->name, db_utf8, sizeof(db_utf8),
+	dict_fs2utf8(index->table->name.m_name, db_utf8, sizeof(db_utf8),
 		     table_utf8, sizeof(table_utf8));
 
 	pinfo = pars_info_create();
@@ -2336,12 +2327,10 @@ dict_stats_save_index_stat(
 		"END;", trx);
 
 	if (ret != DB_SUCCESS) {
-		char	buf_table[MAX_FULL_NAME_LEN];
 		char	buf_index[MAX_FULL_NAME_LEN];
 
 		ib::error() << "Cannot save index statistics for table "
-			<< ut_format_name(index->table->name, TRUE,
-					  buf_table, sizeof(buf_table))
+			<< index->table->name
 			<< ", index "
 			<< ut_format_name(index->name, FALSE,
 					  buf_index, sizeof(buf_index))
@@ -2373,7 +2362,7 @@ dict_stats_save(
 
 	table = dict_stats_snapshot_create(table_orig);
 
-	dict_fs2utf8(table->name, db_utf8, sizeof(db_utf8),
+	dict_fs2utf8(table->name.m_name, db_utf8, sizeof(db_utf8),
 		     table_utf8, sizeof(table_utf8));
 
 	rw_lock_x_lock(&dict_operation_lock);
@@ -2418,10 +2407,8 @@ dict_stats_save(
 		"END;", NULL);
 
 	if (ret != DB_SUCCESS) {
-		char	buf[MAX_FULL_NAME_LEN];
 		ib::error() << "Cannot save table statistics for table "
-			<< ut_format_name(table->name, TRUE, buf, sizeof(buf))
-			<< ": " << ut_strerr(ret);
+			<< table->name << ": " << ut_strerr(ret);
 
 		mutex_exit(&dict_sys->mutex);
 		rw_lock_x_unlock(&dict_operation_lock);
@@ -2813,7 +2800,8 @@ dict_stats_fetch_index_stats_step(
 			char	db_utf8[MAX_DB_UTF8_LEN];
 			char	table_utf8[MAX_TABLE_UTF8_LEN];
 
-			dict_fs2utf8(table->name, db_utf8, sizeof(db_utf8),
+			dict_fs2utf8(table->name.m_name,
+				     db_utf8, sizeof(db_utf8),
 				     table_utf8, sizeof(table_utf8));
 
 			ib::info	out;
@@ -2840,7 +2828,8 @@ dict_stats_fetch_index_stats_step(
 			char	db_utf8[MAX_DB_UTF8_LEN];
 			char	table_utf8[MAX_TABLE_UTF8_LEN];
 
-			dict_fs2utf8(table->name, db_utf8, sizeof(db_utf8),
+			dict_fs2utf8(table->name.m_name,
+				     db_utf8, sizeof(db_utf8),
 				     table_utf8, sizeof(table_utf8));
 
 			ib::info	out;
@@ -2918,7 +2907,7 @@ dict_stats_fetch_from_ps(
 		trx_start_internal(trx);
 	}
 
-	dict_fs2utf8(table->name, db_utf8, sizeof(db_utf8),
+	dict_fs2utf8(table->name.m_name, db_utf8, sizeof(db_utf8),
 		     table_utf8, sizeof(table_utf8));
 
 	pinfo = pars_info_create();
@@ -3031,13 +3020,11 @@ dict_stats_update_for_index(
 
 		/* Fall back to transient stats since the persistent
 		storage is not present or is corrupted */
-		char	buf_table[MAX_FULL_NAME_LEN];
 		char	buf_index[MAX_FULL_NAME_LEN];
 
 		ib::info() << "Recalculation of persistent statistics"
 			" requested for table "
-			<< ut_format_name(index->table->name, TRUE,
-					  buf_table, sizeof(buf_table))
+			<< index->table->name
 			<< " index "
 			<< ut_format_name(index->name, FALSE,
 					  buf_index, sizeof(buf_index))
@@ -3067,14 +3054,12 @@ dict_stats_update(
 					the persistent statistics
 					storage */
 {
-	char			buf[MAX_FULL_NAME_LEN];
-
 	ut_ad(!mutex_own(&dict_sys->mutex));
 
 	if (table->ibd_file_missing) {
 
 		ib::warn() << "Cannot calculate statistics for table "
-			<< ut_format_name(table->name, TRUE, buf, sizeof(buf))
+			<< table->name
 			<< " because the .ibd file is missing. "
 			<< TROUBLESHOOTING_MSG;
 
@@ -3103,7 +3088,7 @@ dict_stats_update(
 
 		/* InnoDB internal tables (e.g. SYS_TABLES) cannot have
 		persistent stats enabled */
-		ut_a(strchr(table->name, '/') != NULL);
+		ut_a(strchr(table->name.m_name, '/') != NULL);
 
 		/* check if the persistent statistics storage exists
 		before calling the potentially slow function
@@ -3129,7 +3114,7 @@ dict_stats_update(
 
 		ib::warn() << "Recalculation of persistent statistics"
 			" requested for table "
-			<< ut_format_name(table->name, TRUE, buf, sizeof(buf))
+			<< table->name
 			<< " but the required persistent"
 			" statistics storage is not present or is corrupted."
 			" Using transient stats instead.";
@@ -3170,7 +3155,7 @@ dict_stats_update(
 
 		/* InnoDB internal tables (e.g. SYS_TABLES) cannot have
 		persistent stats enabled */
-		ut_a(strchr(table->name, '/') != NULL);
+		ut_a(strchr(table->name.m_name, '/') != NULL);
 
 		if (!dict_stats_persistent_storage_check(false)) {
 			/* persistent statistics storage does not exist
@@ -3178,8 +3163,7 @@ dict_stats_update(
 
 			ib::error() << "Fetch of persistent statistics"
 				" requested for table "
-				<< ut_format_name(table->name, TRUE,
-						  buf, sizeof(buf))
+				<< table->name
 				<< " but the required system tables "
 				<< TABLE_STATS_NAME_PRINT
 				<< " and " << INDEX_STATS_NAME_PRINT
@@ -3234,19 +3218,17 @@ dict_stats_update(
 						DICT_STATS_RECALC_PERSISTENT));
 			}
 
-			ut_format_name(table->name, TRUE, buf, sizeof(buf));
-
-			ib::info() << "Trying to use table " << buf
+			ib::info() << "Trying to use table " << table->name
 				<< " which has persistent statistics enabled,"
 				" but auto recalculation turned off and the"
 				" statistics do not exist in " TABLE_STATS_NAME
 				" and " INDEX_STATS_NAME ". Please either run"
 				" \"ANALYZE TABLE "
-				<< buf << ";\" manually or enable the"
+				<< table->name << ";\" manually or enable the"
 				" auto recalculation with \"ALTER TABLE "
-				<< buf << " STATS_AUTO_RECALC=1;\"."
+				<< table->name << " STATS_AUTO_RECALC=1;\"."
 				" InnoDB will now use transient statistics for "
-				<< buf << ".";
+				<< table->name << ".";
 
 			goto transient;
 		default:
@@ -3255,8 +3237,7 @@ dict_stats_update(
 
 			ib::error() << "Error fetching persistent statistics"
 				" for table "
-				<< ut_format_name(table->name, TRUE, buf,
-						  sizeof(buf))
+				<< table->name
 				<< " from " TABLE_STATS_NAME " and "
 				INDEX_STATS_NAME ": " << ut_strerr(err)
 				<< ". Using transient stats method instead.";
@@ -3794,7 +3775,7 @@ dict_stats_rename_index(
 	char	dbname_utf8[MAX_DB_UTF8_LEN];
 	char	tablename_utf8[MAX_TABLE_UTF8_LEN];
 
-	dict_fs2utf8(table->name, dbname_utf8, sizeof(dbname_utf8),
+	dict_fs2utf8(table->name.m_name, dbname_utf8, sizeof(dbname_utf8),
 		     tablename_utf8, sizeof(tablename_utf8));
 
 	pars_info_t*	pinfo;

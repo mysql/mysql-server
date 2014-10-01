@@ -364,7 +364,7 @@ public:
 			which is currently 0. */
 			err = m_truncate.write(
 				log_buf + 4, log_buf + sz - 4,
-				m_table->space, m_table->name,
+				m_table->space, m_table->name.m_name,
 				m_flags, m_table->flags, log_get_lsn());
 
 			DBUG_EXECUTE_IF("ib_err_trunc_oom_logging",
@@ -1195,7 +1195,7 @@ row_truncate_complete(
 		dberr_t err2 = truncate_t::truncate(
 			table->space,
 			table->data_dir_path,
-			table->name, flags, false);
+			table->name.m_name, flags, false);
 
 		if (err2 != DB_SUCCESS) {
 			return(err2);
@@ -1241,7 +1241,8 @@ row_truncate_fts(
 
 	dberr_t		err;
 
-	err = fts_create_common_tables(trx, &fts_table, table->name, TRUE);
+	err = fts_create_common_tables(
+		trx, &fts_table, table->name.m_name, TRUE);
 
 	for (ulint i = 0;
 	     i < ib_vector_size(table->fts->indexes) && err == DB_SUCCESS;
@@ -1253,7 +1254,7 @@ row_truncate_fts(
 			ib_vector_getp(table->fts->indexes, i));
 
 		err = fts_create_index_tables_low(
-			trx, fts_index, table->name, new_id);
+			trx, fts_index, table->name.m_name, new_id);
 	}
 
 	DBUG_EXECUTE_IF("ib_err_trunc_during_fts_trunc",
@@ -1265,13 +1266,8 @@ row_truncate_fts(
 		trx_rollback_to_savepoint(trx, NULL);
 		trx->error_state = DB_SUCCESS;
 
-		char	table_name[MAX_FULL_NAME_LEN + 1];
-
-		innobase_format_name(
-			table_name, sizeof(table_name), table->name, FALSE);
-
 		ib::error() << "Unable to truncate FTS index for table "
-			<< table_name;
+			<< table->name;
 	} else {
 
 		ut_ad(trx_is_started(trx));
@@ -1418,11 +1414,8 @@ row_truncate_update_system_tables(
 			table, trx, new_id, has_internal_doc_id,
 			no_redo, true, false);
 
-		char	table_name[MAX_FULL_NAME_LEN + 1];
-		innobase_format_name(
-			table_name, sizeof(table_name), table->name, FALSE);
 		ib::error() << "Unable to assign a new identifier to table "
-			<< table_name << " after truncating it. Marked the"
+			<< table->name << " after truncating it. Marked the"
 			" table as corrupted. In-memory representation is now"
 			" different from the on-disk representation.";
 		err = DB_ERROR;
@@ -1525,7 +1518,7 @@ row_truncate_foreign_key_checks(
 		ut_print_timestamp(ef);
 
 		fputs("  Cannot truncate table ", ef);
-		ut_print_name(ef, trx, TRUE, table->name);
+		ut_print_name(ef, trx, TRUE, table->name.m_name);
 		fputs(" by DROP+CREATE\n"
 		      "InnoDB: because it is referenced by ", ef);
 		ut_print_name(ef, trx, TRUE, foreign->foreign_table_name);
@@ -1543,13 +1536,7 @@ row_truncate_foreign_key_checks(
 	checks take an IS or IX lock on the table. */
 
 	if (table->n_foreign_key_checks_running > 0) {
-
-		char	table_name[MAX_FULL_NAME_LEN + 1];
-
-		innobase_format_name(
-			table_name, sizeof(table_name), table->name, FALSE);
-
-		ib::warn() << "Cannot truncate table " << table_name
+		ib::warn() << "Cannot truncate table " << table->name
 			<< " because there is a foreign key check running on"
 			" it.";
 
@@ -1735,7 +1722,7 @@ row_truncate_table_for_mysql(
 	allow truncate this table. */
 	if (table->memcached_sync_count != 0) {
 		ib::error() << "Cannot truncate table "
-			<< ut_get_name(trx, TRUE, table->name)
+			<< table->name
 			<< " by DROP+CREATE because there are memcached"
 			" operations running on it.";
 		err = DB_ERROR;

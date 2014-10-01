@@ -1623,12 +1623,12 @@ fts_optimize_create(
 
 	optim->trx = trx_allocate_for_background();
 
-	optim->fts_common_table.parent = table->name;
+	optim->fts_common_table.parent = table->name.m_name;
 	optim->fts_common_table.table_id = table->id;
 	optim->fts_common_table.type = FTS_COMMON_TABLE;
 	optim->fts_common_table.table = table;
 
-	optim->fts_index_table.parent = table->name;
+	optim->fts_index_table.parent = table->name.m_name;
 	optim->fts_index_table.table_id = table->id;
 	optim->fts_index_table.type = FTS_INDEX_TABLE;
 	optim->fts_index_table.table = table;
@@ -3104,7 +3104,7 @@ fts_optimize_thread(
 				dict_table_t*	table = NULL;
 
 			        table = dict_table_open_on_name(
-					slot->table->name, FALSE, FALSE,
+					slot->table->name.m_name, FALSE, FALSE,
 					DICT_ERR_IGNORE_INDEX_ROOT);
 
 				if (table) {

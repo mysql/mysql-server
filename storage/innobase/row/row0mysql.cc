@@ -1610,7 +1610,7 @@ error_exit:
 
 				ib::error() << "FTS Doc ID must be large than "
 					<< next_doc_id - 1 << " for table "
-					<< ut_get_name(trx, TRUE, table->name);
+					<< table->name;
 
 				err = DB_FTS_INVALID_DOCID;
 				trx->error_state = DB_FTS_INVALID_DOCID;
@@ -2800,7 +2800,7 @@ err_exit:
 
 	trx->op_info = "creating table";
 
-	if (row_mysql_is_system_table(table->name)) {
+	if (row_mysql_is_system_table(table->name.m_name)) {
 
 		ib::error() << "Trying to create a MySQL system table "
 			<< table->name << " of type InnoDB. MySQL system"
@@ -2821,7 +2821,7 @@ err_exit:
 		/* If the transaction was previously flagged as
 		TRX_DICT_OP_INDEX, we should be creating auxiliary
 		tables for full-text indexes. */
-		ut_ad(strstr(table->name, "/FTS_") != NULL);
+		ut_ad(strstr(table->name.m_name, "/FTS_") != NULL);
 	}
 
 	node = tab_create_graph_create(table, heap, commit);
@@ -2846,7 +2846,7 @@ err_exit:
 			path = fil_space_get_first_path(table->space);
 
 			err = dict_create_add_tablespace_to_dictionary(
-				table->space, table->name,
+				table->space, table->name.m_name,
 				fil_space_get_flags(table->space),
 				path, trx, commit);
 
@@ -2855,7 +2855,7 @@ err_exit:
 
 		if (err != DB_SUCCESS) {
 			/* We must delete the link file. */
-			RemoteDatafile::delete_link_file(table->name);
+			RemoteDatafile::delete_link_file(table->name.m_name);
 		}
 	}
 
@@ -2867,10 +2867,10 @@ err_exit:
 		trx_rollback_to_savepoint(trx, NULL);
 
 		ib::warn() << "Cannot create table "
-			<< ut_get_name(trx, TRUE, table->name)
+			<< table->name
 			<< " because tablespace full";
 
-		if (dict_table_open_on_name(table->name, TRUE, FALSE,
+		if (dict_table_open_on_name(table->name.m_name, TRUE, FALSE,
 					    DICT_ERR_IGNORE_NONE)) {
 
 			dict_table_close_and_drop(trx, table);
@@ -2895,7 +2895,7 @@ err_exit:
 
 			ib::error() << "Not able to delete tablespace "
 				<< table->space << " of table "
-				<< ut_get_name(trx, TRUE, table->name) << "!";
+				<< table->name << "!";
 		}
 		/* fall through */
 
@@ -3510,7 +3510,7 @@ row_discard_tablespace_foreign_key_checks(
 	ut_print_timestamp(ef);
 
 	fputs("  Cannot DISCARD table ", ef);
-	ut_print_name(stderr, trx, TRUE, table->name);
+	ut_print_name(stderr, trx, TRUE, table->name.m_name);
 	fputs("\n"
 	      "because it is referenced by ", ef);
 	ut_print_name(stderr, trx, TRUE, foreign->foreign_table_name);
@@ -3703,7 +3703,8 @@ row_discard_tablespace_for_mysql(
 		char	table_name[MAX_FULL_NAME_LEN + 1];
 
 		innobase_format_name(
-			table_name, sizeof(table_name), table->name, FALSE);
+			table_name, sizeof(table_name),
+			table->name.m_name, FALSE);
 
 		ib_senderrf(trx->mysql_thd, IB_LOG_LEVEL_ERROR,
 			    ER_TABLE_IN_SYSTEM_TABLESPACE, table_name);
@@ -3714,7 +3715,8 @@ row_discard_tablespace_for_mysql(
 		char	table_name[MAX_FULL_NAME_LEN + 1];
 
 		innobase_format_name(
-			table_name, sizeof(table_name), table->name, FALSE);
+			table_name, sizeof(table_name),
+			table->name.m_name, FALSE);
 
 		ib_senderrf(trx->mysql_thd, IB_LOG_LEVEL_ERROR,
 			    ER_DISCARD_FK_CHECKS_RUNNING, table_name);
@@ -3838,8 +3840,7 @@ row_drop_ancillary_fts_tables(
 		if (err != DB_SUCCESS) {
 			ib::error() << " Unable to remove ancillary FTS"
 				" tables for table "
-				<< ut_get_name(trx, TRUE, table->name)
-				<< " : " << ut_strerr(err);
+				<< table->name << " : " << ut_strerr(err);
 
 			return(err);
 		}
@@ -4170,7 +4171,7 @@ row_drop_table_for_mysql(
 
 	if (table->n_foreign_key_checks_running > 0) {
 
-		const char*	save_tablename = table->name;
+		const char*	save_tablename = table->name.m_name;
 		ibool		added;
 
 		added = row_add_table_to_background_drop_list(save_tablename);
@@ -4216,11 +4217,12 @@ row_drop_table_for_mysql(
 
 		ut_ad(!dict_table_is_intrinsic(table));
 
-		added = row_add_table_to_background_drop_list(table->name);
+		added = row_add_table_to_background_drop_list(
+			table->name.m_name);
 
 		if (added) {
 			ib::info() << "MySQL is trying to drop table "
-				<< ut_get_name(trx, TRUE, table->name)
+				<< table->name
 				<< " though there are still open handles to"
 				" it. Adding the table to the background drop"
 				" queue.";
@@ -4258,8 +4260,9 @@ row_drop_table_for_mysql(
 		/* If the transaction was previously flagged as
 		TRX_DICT_OP_INDEX, we should be dropping auxiliary
 		tables for full-text indexes or temp tables. */
-		ut_ad(strstr(table->name, "/FTS_") != NULL
-		      || strstr(table->name, TEMP_FILE_PREFIX_INNODB) != NULL);
+		ut_ad(strstr(table->name.m_name, "/FTS_") != NULL
+		      || strstr(table->name.m_name, TEMP_FILE_PREFIX_INNODB)
+		      != NULL);
 	}
 
 	/* Mark all indexes unavailable in the data dictionary cache
@@ -4443,14 +4446,14 @@ row_drop_table_for_mysql(
 
 			filepath = fil_make_filepath(
 				table->data_dir_path,
-				table->name, IBD, true);
+				table->name.m_name, IBD, true);
 		} else if (table->dir_path_of_temp_table) {
 			filepath = fil_make_filepath(
 				table->dir_path_of_temp_table,
 				NULL, IBD, false);
 		} else {
 			filepath = fil_make_filepath(
-				NULL, table->name, IBD, false);
+				NULL, table->name.m_name, IBD, false);
 		}
 
 		err = row_drop_ancillary_fts_tables(table, trx);
@@ -4748,7 +4751,7 @@ loop:
 
 		}
 
-		if (!row_is_mysql_tmp_table_name(table->name)) {
+		if (!row_is_mysql_tmp_table_name(table->name.m_name)) {
 			/* There could be orphan temp tables left from
 			interrupted alter table. Leave them, and handle
 			the rest.*/
@@ -4759,8 +4762,7 @@ loop:
 			}
 
 			if (table->ibd_file_missing) {
-				ib::warn() << "Missing " << table->name
-					<< ".ibd file for table "
+				ib::warn() << "Missing .ibd file for table "
 					<< table->name << ".";
 			}
 		}
@@ -5192,7 +5194,7 @@ row_rename_table_for_mysql(
 
 		if (err != DB_SUCCESS
 		    && !is_system_tablespace(table->space)) {
-			char*	orig_name = table->name;
+			char*	orig_name = table->name.m_name;
 			trx_t*	trx_bg = trx_allocate_for_background();
 
 			/* If the first fts_rename fails, the trx would
@@ -5213,9 +5215,9 @@ row_rename_table_for_mysql(
 			in cache is not changed yet. If the reverting fails,
 			the ibd data may be left in the new database, which
 			can be fixed only manually. */
-			table->name = const_cast<char*>(new_name);
+			table->name.m_name = const_cast<char*>(new_name);
 			fts_rename_aux_tables(table, old_name, trx_bg);
-			table->name = orig_name;
+			table->name.m_name = orig_name;
 
 			trx_bg->dict_operation_lock_mode = 0;
 			trx_commit_for_mysql(trx_bg);

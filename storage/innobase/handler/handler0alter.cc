@@ -683,12 +683,12 @@ innobase_init_foreign(
                 same MySQL 'database' as the table itself. We store the name
                 to foreign->id. */
 
-                db_len = dict_get_db_name_len(table->name);
+                db_len = dict_get_db_name_len(table->name.m_name);
 
                 foreign->id = static_cast<char*>(mem_heap_alloc(
                         foreign->heap, db_len + strlen(constraint_name) + 2));
 
-                ut_memcpy(foreign->id, table->name, db_len);
+                ut_memcpy(foreign->id, table->name.m_name, db_len);
                 foreign->id[db_len] = '/';
                 strcpy(foreign->id + db_len + 1, constraint_name);
 
@@ -703,7 +703,7 @@ innobase_init_foreign(
 
         foreign->foreign_table = table;
         foreign->foreign_table_name = mem_heap_strdup(
-                foreign->heap, table->name);
+                foreign->heap, table->name.m_name);
         dict_mem_foreign_table_name_lookup_set(foreign, TRUE);
 
         foreign->foreign_index = index;
@@ -1050,7 +1050,7 @@ innobase_get_foreign_key_info(
 		mutex_enter(&dict_sys->mutex);
 
 		referenced_table_name = dict_get_referenced_table(
-			table->name,
+			table->name.m_name,
 			db_namep,
 			db_name_len,
 			tbl_namep,
@@ -2973,7 +2973,7 @@ prepare_inplace_alter_table_dict(
 		const char*	new_table_name
 			= dict_mem_create_temporary_tablename(
 				ctx->heap,
-				ctx->new_table->name,
+				ctx->new_table->name.m_name,
 				ctx->new_table->id);
 		ulint		n_cols;
 		dtuple_t*	add_cols;
@@ -3134,7 +3134,7 @@ prepare_inplace_alter_table_dict(
 			the dict_sys->mutex. */
 			ut_ad(mutex_own(&dict_sys->mutex));
 			temp_table = dict_table_open_on_name(
-				ctx->new_table->name, TRUE, FALSE,
+				ctx->new_table->name.m_name, TRUE, FALSE,
 				DICT_ERR_IGNORE_NONE);
 			ut_a(ctx->new_table == temp_table);
 			/* n_ref_count must be 1, because purge cannot
@@ -3337,7 +3337,7 @@ op_ok:
 		    || ib_vector_size(ctx->new_table->fts->indexes) == 0) {
 			error = fts_create_common_tables(
 				ctx->trx, ctx->new_table,
-				user_table->name, TRUE);
+				user_table->name.m_name, TRUE);
 
 			DBUG_EXECUTE_IF(
 				"innodb_test_fail_after_fts_common_table",
@@ -3615,7 +3615,7 @@ rename_index_in_data_dictionary(
 	trx->op_info = "";
 
 	if (err != DB_SUCCESS) {
-		my_error_innodb(err, index->table->name, 0);
+		my_error_innodb(err, index->table->name.m_name, 0);
 		DBUG_RETURN(true);
 	}
 
@@ -4200,7 +4200,7 @@ check_if_can_drop_indexes:
 			if (index == NULL) {
 				my_error(ER_KEY_DOES_NOT_EXITS, MYF(0),
 					 old_name,
-					 m_prebuilt->table->name);
+					 m_prebuilt->table->name.m_name);
 				goto err_exit;
 			}
 
@@ -5288,7 +5288,7 @@ innobase_update_foreign_try(
 		      || fk->foreign_table == ctx->old_table);
 
 		dberr_t error = dict_create_add_foreign_id(
-			&foreign_id, ctx->old_table->name, fk);
+			&foreign_id, ctx->old_table->name.m_name, fk);
 
 		if (error != DB_SUCCESS) {
 			my_error(ER_TOO_LONG_IDENT, MYF(0),
@@ -5315,7 +5315,7 @@ innobase_update_foreign_try(
 		names, while the columns in ctx->old_table have not
 		been renamed yet. */
 		error = dict_create_add_foreign_to_dictionary(
-			ctx->old_table->name, fk, trx);
+			ctx->old_table->name.m_name, fk, trx);
 
 		DBUG_EXECUTE_IF(
 			"innodb_test_cannot_add_fk_system",
@@ -5393,7 +5393,7 @@ innobase_update_foreign_cache(
 	dictionary cache (work around the lack of WL#6049). */
 	dict_names_t	fk_tables;
 
-	err = dict_load_foreigns(user_table->name,
+	err = dict_load_foreigns(user_table->name.m_name,
 				 ctx->col_names, false, true,
 				 DICT_ERR_IGNORE_NONE,
 				 fk_tables);
@@ -5404,7 +5404,7 @@ innobase_update_foreign_cache(
 		/* It is possible there are existing foreign key are
 		loaded with "foreign_key checks" off,
 		so let's retry the loading with charset_check is off */
-		err = dict_load_foreigns(user_table->name,
+		err = dict_load_foreigns(user_table->name.m_name,
 					 ctx->col_names, false, false,
 					 DICT_ERR_IGNORE_NONE,
 					 fk_tables);
@@ -5419,7 +5419,7 @@ innobase_update_foreign_cache(
 				ER_ALTER_INFO,
 				"Foreign key constraints for table '%s'"
 				" are loaded with charset check off",
-				user_table->name);
+				user_table->name.m_name);
 		}
 	}
 
@@ -5632,7 +5632,7 @@ commit_cache_rebuild(
 		    == dict_table_is_discarded(ctx->new_table));
 
 	const char* old_name = mem_heap_strdup(
-		ctx->heap, ctx->old_table->name);
+		ctx->heap, ctx->old_table->name.m_name);
 
 	/* We already committed and redo logged the renames,
 	so this must succeed. */
@@ -5922,7 +5922,7 @@ alter_stats_norebuild(
 		char	errstr[1024];
 
 		if (dict_stats_drop_index(
-			    ctx->new_table->name, key->name,
+			    ctx->new_table->name.m_name, key->name,
 			    errstr, sizeof errstr) != DB_SUCCESS) {
 			push_warning(thd,
 				     Sql_condition::SL_WARNING,
@@ -6228,7 +6228,7 @@ ha_innobase::commit_inplace_alter_table(
 
 		if (ctx->need_rebuild()) {
 			ctx->tmp_name = dict_mem_create_temporary_tablename(
-				ctx->heap, ctx->new_table->name,
+				ctx->heap, ctx->new_table->name.m_name,
 				ctx->new_table->id);
 
 			fail = commit_try_rebuild(
@@ -6407,7 +6407,7 @@ ha_innobase::commit_inplace_alter_table(
 			ctx->old_table->to_be_dropped = true;
 
 			DBUG_PRINT("to_be_dropped",
-				   ("table: %s", ctx->old_table->name));
+				   ("table: %s", ctx->old_table->name.m_name));
 
 			/* Rename the tablespace files. */
 			commit_cache_rebuild(ctx);
@@ -6549,7 +6549,7 @@ foreign_fail:
 
 			char	errstr[1024];
 
-			DBUG_ASSERT(0 == strcmp(ctx->old_table->name,
+			DBUG_ASSERT(0 == strcmp(ctx->old_table->name.m_name,
 						ctx->tmp_name));
 
 			DBUG_EXECUTE_IF(
@@ -6558,7 +6558,7 @@ foreign_fail:
 			);
 
 			if (dict_stats_drop_table(
-				    ctx->new_table->name,
+				    ctx->new_table->name.m_name,
 				    errstr, sizeof(errstr))
 			    != DB_SUCCESS) {
 				push_warning_printf(

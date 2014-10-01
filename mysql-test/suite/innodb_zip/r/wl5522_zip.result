@@ -328,7 +328,7 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=InnoDB AUTO_INCREMENT=28 DEFAULT CHARSET=latin1
 FLUSH TABLES t1 FOR EXPORT;
 Warnings:
-Warning	1809	InnoDB: Table '"test"."t1"' in system tablespace
+Warning	1809	InnoDB: Table '`test`.`t1`' in system tablespace
 UNLOCK TABLES;
 DROP TABLE t1;
 SET GLOBAL innodb_file_per_table = 1;

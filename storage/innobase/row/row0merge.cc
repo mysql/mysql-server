@@ -2319,7 +2319,8 @@ wait_again:
 
 		if (err == DB_SUCCESS) {
 			fts_update_next_doc_id(
-				0, new_table, old_table->name, max_doc_id);
+				0, new_table,
+				old_table->name.m_name, max_doc_id);
 		}
 	}
 
@@ -3664,8 +3665,8 @@ row_merge_rename_tables_dict(
 
 	info = pars_info_create();
 
-	pars_info_add_str_literal(info, "new_name", new_table->name);
-	pars_info_add_str_literal(info, "old_name", old_table->name);
+	pars_info_add_str_literal(info, "new_name", new_table->name.m_name);
+	pars_info_add_str_literal(info, "old_name", old_table->name.m_name);
 	pars_info_add_str_literal(info, "tmp_name", tmp_name);
 
 	err = que_eval_sql(info,
@@ -3714,11 +3715,12 @@ row_merge_rename_tables_dict(
 	    && !is_system_tablespace(new_table->space)) {
 		/* Make pathname to update SYS_DATAFILES. */
 		char* old_path = row_make_new_pathname(
-			new_table, old_table->name);
+			new_table, old_table->name.m_name);
 
 		info = pars_info_create();
 
-		pars_info_add_str_literal(info, "old_name", old_table->name);
+		pars_info_add_str_literal(info, "old_name",
+					  old_table->name.m_name);
 		pars_info_add_str_literal(info, "old_path", old_path);
 		pars_info_add_int4_literal(info, "new_space",
 					   (lint) new_table->space);
@@ -3811,7 +3813,7 @@ row_merge_create_index(
 	a persistent operation. We pass 0 as the space id, and determine at
 	a lower level the space id where to store the table. */
 
-	index = dict_mem_index_create(table->name, index_def->name,
+	index = dict_mem_index_create(table->name.m_name, index_def->name,
 				      0, index_def->ind_type, n_fields);
 
 	ut_a(index);
@@ -3884,7 +3886,8 @@ row_merge_drop_table(
 	/* There must be no open transactions on the table. */
 	ut_a(table->n_ref_count == 0);
 
-	return(row_drop_table_for_mysql(table->name, trx, false, false));
+	return(row_drop_table_for_mysql(table->name.m_name,
+					trx, false, false));
 }
 
 /*********************************************************************//**

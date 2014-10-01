@@ -728,7 +728,8 @@ trx_resurrect_table_locks(
 			DBUG_PRINT("ib_trx",
 				   ("resurrect" TRX_ID_FMT
 				    "  table '%s' IX lock from %s undo",
-				    trx_get_id_for_print(trx), table->name,
+				    trx_get_id_for_print(trx),
+				    table->name.m_name,
 				    undo == undo_ptr->insert_undo
 				    ? "insert" : "update"));
 

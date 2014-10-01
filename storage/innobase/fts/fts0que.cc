@@ -4013,7 +4013,7 @@ fts_query(
 
 	query.fts_common_table.type = FTS_COMMON_TABLE;
 	query.fts_common_table.table_id = index->table->id;
-	query.fts_common_table.parent = index->table->name;
+	query.fts_common_table.parent = index->table->name.m_name;
 	query.fts_common_table.table = index->table;
 
 	charset = fts_index_get_charset(index);
@@ -4021,7 +4021,7 @@ fts_query(
 	query.fts_index_table.type = FTS_INDEX_TABLE;
 	query.fts_index_table.index_id = index->id;
 	query.fts_index_table.table_id = index->table->id;
-	query.fts_index_table.parent = index->table->name;
+	query.fts_index_table.parent = index->table->name.m_name;
 	query.fts_index_table.charset = charset;
 	query.fts_index_table.table = index->table;
 
