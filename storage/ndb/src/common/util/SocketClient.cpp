@@ -22,7 +22,8 @@
 #include <SocketAuthenticator.hpp>
 
 SocketClient::SocketClient(const char *server_name, unsigned short port, SocketAuthenticator *sa) :
-  m_connect_timeout_millisec(0) // Blocking connect by default
+  m_connect_timeout_millisec(0),// Blocking connect by default
+  m_last_used_port(0)
 {
   m_auth= sa;
   m_port= port;
@@ -76,6 +77,14 @@ SocketClient::bind(const char* bindaddress, unsigned short localport)
   memset(&local, 0, sizeof(local));
   local.sin_family = AF_INET;
   local.sin_port = htons(localport);
+  if (localport == 0 &&
+      m_last_used_port != 0)
+  {
+    // Try to bind to the same port as last successful connect instead of
+    // any ephemeral port. Intention is to reuse any previous TIME_WAIT TCB
+    local.sin_port = htons(m_last_used_port);
+  }
+
   // Convert ip address presentation format to numeric format
   if (Ndb_getInAddr(&local.sin_addr, bindaddress))
   {
@@ -90,8 +99,18 @@ SocketClient::bind(const char* bindaddress, unsigned short localport)
     return ret;
   }
 
-  if (my_bind_inet(m_sockfd, &local) == -1)
+  while (my_bind_inet(m_sockfd, &local) == -1)
   {
+    if (localport == 0 &&
+        m_last_used_port != 0)
+    {
+      // Faild to bind same port as last, retry with any
+      // ephemeral port(as originally requested)
+      m_last_used_port = 0; // Reset last used port
+      local.sin_port = htons(0); // Try bind with any port
+      continue;
+    }
+
     int ret = my_socket_errno();
     my_socket_close(m_sockfd);
     my_socket_invalidate(&m_sockfd);
@@ -110,6 +129,9 @@ SocketClient::bind(const char* bindaddress, unsigned short localport)
 NDB_SOCKET_TYPE
 SocketClient::connect(const char *toaddress, unsigned short toport)
 {
+  // Reset last used port(in case connect fails)
+  m_last_used_port = 0;
+
   if (!my_socket_valid(m_sockfd))
   {
     if (!init())
@@ -196,6 +218,10 @@ done:
     return m_sockfd;
   }
 
+  // Remember the local port used for this connection
+  assert(m_last_used_port == 0);
+  my_socket_get_port(m_sockfd, &m_last_used_port);
+
   if (m_auth) {
     if (!m_auth->client_authenticate(m_sockfd))
     {
@@ -204,6 +230,7 @@ done:
       return m_sockfd;
     }
   }
+
   NDB_SOCKET_TYPE sockfd = m_sockfd;
 
   my_socket_invalidate(&m_sockfd);

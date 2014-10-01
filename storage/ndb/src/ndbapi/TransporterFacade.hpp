@@ -265,8 +265,6 @@ private:
   Uint32 m_num_active_clients;
   NDB_TICKS m_receive_activation_time;
 
-  bool isConnected(NodeId aNodeId);
-
   TransporterRegistry* theTransporterRegistry;
   SocketServer m_socket_server;
   int sendPerformedLastInterval;

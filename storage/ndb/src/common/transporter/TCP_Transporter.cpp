@@ -283,7 +283,6 @@ TCP_Transporter::send_is_possible(NDB_SOCKET_TYPE fd,int timeout_millisec) const
   if (!my_socket_valid(fd))
     return false;
 
-  poller.clear();
   poller.add(fd, false, true, false);
 
   if (poller.poll_unsafe(timeout_millisec) <= 0)
