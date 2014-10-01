@@ -6423,12 +6423,14 @@ fts_rename_aux_tables_to_hex_format_low(
 					<< table->name << ". Please revert"
 					" manually.";
 				fts_sql_rollback(trx_bg);
+				trx_free_for_background(trx_bg);
 				/* Continue to clear aux tables' flags2 */
 				not_rename = true;
 				continue;
 			}
 
 			fts_sql_commit(trx_bg);
+			trx_free_for_background(trx_bg);
 		}
 
 		DICT_TF2_FLAG_UNSET(parent_table, DICT_TF2_FTS_AUX_HEX_NAME);
@@ -6640,6 +6642,7 @@ fts_rename_aux_tables_to_hex_format(
 		fts_parent_all_index_set_corrupt(trx_corrupt, parent_table);
 		trx_corrupt->dict_operation_lock_mode = 0;
 		fts_sql_commit(trx_corrupt);
+		trx_free_for_background(trx_corrupt);
 	} else {
 		fts_sql_commit(trx_rename);
 	}
