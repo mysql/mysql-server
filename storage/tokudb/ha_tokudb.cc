@@ -7925,6 +7925,9 @@ int ha_tokudb::map_to_handler_error(int error) {
     case TOKUDB_INTERRUPTED:
         error = ER_QUERY_INTERRUPTED;
         break;
+    case TOKUDB_OUT_OF_LOCKS:
+        error = HA_ERR_LOCK_TABLE_FULL;
+        break;
     }
     return error;
 }
