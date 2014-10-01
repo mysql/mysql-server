@@ -4062,7 +4062,7 @@ found_fk:
 			const KEY*	key
 				= ha_alter_info->index_drop_buffer[i];
 			dict_index_t*	index
-				= dict_table_get_index_on_name_and_min_id(
+				= dict_table_get_index_on_name(
 					indexed_table, key->name);
 
 			if (!index) {

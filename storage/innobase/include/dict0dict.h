@@ -1457,16 +1457,6 @@ dict_table_get_index_on_name(
 	dict_table_t*	table,	/*!< in: table */
 	const char*	name)	/*!< in: name of the index to find */
 	__attribute__((nonnull, warn_unused_result));
-/**********************************************************************//**
-In case there is more than one index with the same name return the index
-with the min(id).
-@return index, NULL if does not exist */
-dict_index_t*
-dict_table_get_index_on_name_and_min_id(
-/*====================================*/
-	dict_table_t*	table,	/*!< in: table */
-	const char*	name)	/*!< in: name of the index to find */
-	__attribute__((nonnull, warn_unused_result));
 /***************************************************************
 Check whether a column exists in an FTS index. */
 UNIV_INLINE
