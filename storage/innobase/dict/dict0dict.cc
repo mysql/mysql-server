@@ -5814,11 +5814,6 @@ dict_table_get_index_on_name(
 {
 	dict_index_t*	index;
 
-	/* If name is NULL, just return */
-	if (!name) {
-		return(NULL);
-	}
-
 	index = dict_table_get_first_index(table);
 
 	while (index != NULL) {
@@ -5903,37 +5898,6 @@ dict_foreign_replace_index(
 	}
 
 	return(found);
-}
-
-/**********************************************************************//**
-In case there is more than one index with the same name return the index
-with the min(id).
-@return index, NULL if does not exist */
-dict_index_t*
-dict_table_get_index_on_name_and_min_id(
-/*=====================================*/
-	dict_table_t*	table,	/*!< in: table */
-	const char*	name)	/*!< in: name of the index to find */
-{
-	dict_index_t*	index;
-	dict_index_t*	min_index; /* Index with matching name and min(id) */
-
-	min_index = NULL;
-	index = dict_table_get_first_index(table);
-
-	while (index != NULL) {
-		if (ut_strcmp(index->name, name) == 0) {
-			if (!min_index || index->id < min_index->id) {
-
-				min_index = index;
-			}
-		}
-
-		index = dict_table_get_next_index(index);
-	}
-
-	return(min_index);
-
 }
 
 #ifdef UNIV_DEBUG
