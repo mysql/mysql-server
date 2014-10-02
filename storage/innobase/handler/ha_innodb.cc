@@ -3117,6 +3117,9 @@ innobase_init(
 		innobase_data_file_path = (char*) "ibdata1:12M:autoextend";
 	}
 
+	univ_page_size.copy_from(
+		page_size_t(srv_page_size, srv_page_size, false));
+
 	srv_sys_space.set_space_id(TRX_SYS_SPACE);
 
 	/* Create the filespace flags. */
