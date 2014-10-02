@@ -531,8 +531,9 @@ btr_get_size(
 				   MTR_MEMO_S_LOCK)
 	      || dict_table_is_intrinsic(index->table));
 
-	if (index->page == FIL_NULL || dict_index_is_online_ddl(index)
-	    || *index->name == TEMP_INDEX_PREFIX) {
+	if (index->page == FIL_NULL
+	    || dict_index_is_online_ddl(index)
+	    || !index->is_committed()) {
 		return(ULINT_UNDEFINED);
 	}
 

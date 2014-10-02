@@ -1441,7 +1441,8 @@ innobase_check_index_keys(
 		for (index = dict_table_get_first_index(innodb_table);
 		     index; index = dict_table_get_next_index(index)) {
 
-			if (!strcmp(key.name, index->name)) {
+			if (index->is_committed()
+			    && !strcmp(key.name, index->name)) {
 				break;
 			}
 		}
@@ -1668,9 +1669,7 @@ innobase_create_index_def(
 {
 	const KEY*	key = &keys[key_number];
 	ulint		i;
-	ulint		len;
 	ulint		n_fields = key->user_defined_key_parts;
-	char*		index_name;
 	bool		optimize_point_storage;
 
 	DBUG_ENTER("innobase_create_index_def");
@@ -1684,36 +1683,23 @@ innobase_create_index_def(
 	index->fields = static_cast<index_field_t*>(
 		mem_heap_alloc(heap, n_fields * sizeof *index->fields));
 
-	index->ind_type = 0;
 	index->parser = NULL;
 	index->key_number = key_number;
 	index->n_fields = n_fields;
-	len = strlen(key->name) + 1;
-	index->name = index_name = static_cast<char*>(
-		mem_heap_alloc(heap, len + !new_clustered));
-
-	if (!new_clustered) {
-		*index_name++ = TEMP_INDEX_PREFIX;
-	}
-
-	memcpy(index_name, key->name, len);
-
-	if (key->flags & HA_NOSAME) {
-		index->ind_type |= DICT_UNIQUE;
-	}
+	index->name = mem_heap_strdup(heap, key->name);
+	index->rebuild = new_clustered;
 
 	if (key_clustered) {
-		DBUG_ASSERT(!(key->flags & HA_FULLTEXT));
-		index->ind_type |= DICT_CLUSTERED;
+		DBUG_ASSERT(!(key->flags & (HA_FULLTEXT | HA_SPATIAL)));
+		DBUG_ASSERT(key->flags & HA_NOSAME);
+		index->ind_type = DICT_CLUSTERED | DICT_UNIQUE;
 	} else if (key->flags & HA_FULLTEXT) {
-		DBUG_ASSERT(!(key->flags & HA_SPATIAL));
+		DBUG_ASSERT(!(key->flags & (HA_SPATIAL | HA_NOSAME)));
 		DBUG_ASSERT(!(key->flags & HA_KEYFLAG_MASK
 			      & ~(HA_FULLTEXT
 				  | HA_PACK_KEY
 				  | HA_BINARY_PACK_KEY)));
-		DBUG_ASSERT(!(key->flags & HA_NOSAME));
-		DBUG_ASSERT(!index->ind_type);
-		index->ind_type |= DICT_FTS;
+		index->ind_type = DICT_FTS;
 
 		/* Set plugin parser */
 		/* Note: key->parser is only parser name,
@@ -1740,10 +1726,12 @@ innobase_create_index_def(
 		}
 	} else if (key->flags & HA_SPATIAL) {
 		DBUG_ASSERT(!(key->flags & HA_NOSAME));
-		index->ind_type |= DICT_SPATIAL;
+		index->ind_type = DICT_SPATIAL;
 		ut_ad(n_fields == 1);
 		index->fields[0].col_no = key->key_part[0].fieldnr;
 		index->fields[0].prefix_len = 0;
+	} else {
+		index->ind_type = (key->flags & HA_NOSAME) ? DICT_UNIQUE : 0;
 	}
 
 	if (!new_clustered) {
@@ -2073,8 +2061,8 @@ innobase_create_key_defs(
 			index->fields = NULL;
 			index->n_fields = 0;
 			index->ind_type = DICT_CLUSTERED;
-			index->name = mem_heap_strdup(
-				heap, innobase_index_reserve_name);
+			index->name = innobase_index_reserve_name;
+			index->rebuild = true;
 			index->key_number = ~0;
 			primary_key_number = ULINT_UNDEFINED;
 			goto created_clustered;
@@ -2162,22 +2150,12 @@ created_clustered:
 		index->fields->col_no = fts_doc_id_col;
 		index->fields->prefix_len = 0;
 		index->ind_type = DICT_UNIQUE;
+		ut_ad(!rebuild
+		      || !add_fts_doc_id
+		      || fts_doc_id_col == altered_table->s->fields);
 
-		if (rebuild) {
-			index->name = mem_heap_strdup(
-				heap, FTS_DOC_ID_INDEX_NAME);
-			ut_ad(!add_fts_doc_id
-			      || fts_doc_id_col == altered_table->s->fields);
-		} else {
-			char*	index_name;
-			index->name = index_name = static_cast<char*>(
-				mem_heap_alloc(
-					heap,
-					1 + sizeof FTS_DOC_ID_INDEX_NAME));
-			*index_name++ = TEMP_INDEX_PREFIX;
-			memcpy(index_name, FTS_DOC_ID_INDEX_NAME,
-			       sizeof FTS_DOC_ID_INDEX_NAME);
-		}
+		index->name = FTS_DOC_ID_INDEX_NAME;
+		index->rebuild = rebuild;
 
 		/* TODO: assign a real MySQL key number for this */
 		index->key_number = ULINT_UNDEFINED;
@@ -3214,6 +3192,9 @@ prepare_inplace_alter_table_dict(
 			goto error_handling;
 		}
 
+		DBUG_ASSERT(ctx->add_index[a]->is_committed()
+			    == !!new_clustered);
+
 		if (ctx->add_index[a]->type & DICT_FTS) {
 			DBUG_ASSERT(num_fts_index);
 			DBUG_ASSERT(!fts_index);
@@ -3461,12 +3442,14 @@ error_handled:
 	ut_ad(!user_table->drop_aborted);
 
 err_exit:
+#ifdef UNIV_DEBUG
 	/* Clear the to_be_dropped flag in the data dictionary cache. */
 	for (ulint i = 0; i < ctx->num_to_drop_index; i++) {
-		DBUG_ASSERT(*ctx->drop_index[i]->name != TEMP_INDEX_PREFIX);
+		DBUG_ASSERT(ctx->drop_index[i]->is_committed());
 		DBUG_ASSERT(ctx->drop_index[i]->to_be_dropped);
 		ctx->drop_index[i]->to_be_dropped = 0;
 	}
+#endif /* UNIV_DEBUG */
 
 	row_mysql_unlock_data_dictionary(ctx->trx);
 
@@ -4246,8 +4229,7 @@ err_exit:
 				/* Clear the to_be_dropped flags, which might
 				have been set at this point. */
 				for (ulint i = 0; i < n_drop_index; i++) {
-					DBUG_ASSERT(*drop_index[i]->name
-						    != TEMP_INDEX_PREFIX);
+					ut_ad(drop_index[i]->is_committed());
 					drop_index[i]->to_be_dropped = 0;
 				}
 
@@ -4713,8 +4695,7 @@ func_exit:
 			commit_inplace_alter_table(). */
 			for (ulint i = 0; i < ctx->num_to_drop_index; i++) {
 				dict_index_t*	index = ctx->drop_index[i];
-				DBUG_ASSERT(*index->name != TEMP_INDEX_PREFIX);
-
+				DBUG_ASSERT(index->is_committed());
 				index->to_be_dropped = 0;
 			}
 
@@ -5498,7 +5479,7 @@ commit_try_rebuild(
 	     index = dict_table_get_next_index(index)) {
 		DBUG_ASSERT(dict_index_get_online_status(index)
 			    == ONLINE_INDEX_COMPLETE);
-		DBUG_ASSERT(*index->name != TEMP_INDEX_PREFIX);
+		DBUG_ASSERT(index->is_committed());
 		if (dict_index_is_corrupted(index)) {
 			my_error(ER_INDEX_CORRUPT, MYF(0),
 				 index->name);
@@ -5517,7 +5498,7 @@ commit_try_rebuild(
 	for (ulint i = 0; i < ctx->num_to_drop_index; i++) {
 		dict_index_t*	index = ctx->drop_index[i];
 		DBUG_ASSERT(index->table == user_table);
-		DBUG_ASSERT(*index->name != TEMP_INDEX_PREFIX);
+		DBUG_ASSERT(index->is_committed());
 		DBUG_ASSERT(index->to_be_dropped);
 		index->to_be_dropped = 0;
 	}
@@ -5695,7 +5676,7 @@ commit_try_norebuild(
 		dict_index_t*	index = ctx->add_index[i];
 		DBUG_ASSERT(dict_index_get_online_status(index)
 			    == ONLINE_INDEX_COMPLETE);
-		DBUG_ASSERT(*index->name == TEMP_INDEX_PREFIX);
+		DBUG_ASSERT(!index->is_committed());
 		if (dict_index_is_corrupted(index)) {
 			/* Report a duplicate key
 			error for the index that was
@@ -5709,7 +5690,7 @@ commit_try_norebuild(
 			with a detailed reason once
 			WL#6379 has been implemented. */
 			my_error(ER_DUP_UNKNOWN_IN_INDEX,
-				 MYF(0), index->name + 1);
+				 MYF(0), index->name);
 			DBUG_RETURN(true);
 		}
 	}
@@ -5720,14 +5701,12 @@ commit_try_norebuild(
 
 	dberr_t	error;
 
-	/* We altered the table in place. */
-	/* Lose the TEMP_INDEX_PREFIX. */
+	/* We altered the table in place. Mark the indexes as committed. */
 	for (ulint i = 0; i < ctx->num_to_add_index; i++) {
 		dict_index_t*	index = ctx->add_index[i];
 		DBUG_ASSERT(dict_index_get_online_status(index)
 			    == ONLINE_INDEX_COMPLETE);
-		DBUG_ASSERT(*index->name
-			    == TEMP_INDEX_PREFIX);
+		DBUG_ASSERT(!index->is_committed());
 		error = row_merge_rename_index_to_add(
 			trx, ctx->new_table->id, index->id);
 		if (error != DB_SUCCESS) {
@@ -5742,14 +5721,11 @@ commit_try_norebuild(
 	}
 
 	/* Drop any indexes that were requested to be dropped.
-	Rename them to TEMP_INDEX_PREFIX in the data
-	dictionary first. We do not bother to rename
-	index->name in the dictionary cache, because the index
-	is about to be freed after row_merge_drop_indexes_dict(). */
+	Flag them in the data dictionary first. */
 
 	for (ulint i = 0; i < ctx->num_to_drop_index; i++) {
 		dict_index_t*	index = ctx->drop_index[i];
-		DBUG_ASSERT(*index->name != TEMP_INDEX_PREFIX);
+		DBUG_ASSERT(index->is_committed());
 		DBUG_ASSERT(index->table == ctx->new_table);
 		DBUG_ASSERT(index->to_be_dropped);
 
@@ -5814,8 +5790,8 @@ commit_cache_norebuild(
 		dict_index_t*	index = ctx->add_index[i];
 		DBUG_ASSERT(dict_index_get_online_status(index)
 			    == ONLINE_INDEX_COMPLETE);
-		DBUG_ASSERT(*index->name == TEMP_INDEX_PREFIX);
-		index->name++;
+		DBUG_ASSERT(!index->is_committed());
+		index->set_committed(true);
 	}
 
 	if (ctx->num_to_drop_index) {
@@ -5830,7 +5806,7 @@ commit_cache_norebuild(
 
 		for (ulint i = 0; i < ctx->num_to_drop_index; i++) {
 			dict_index_t*	index = ctx->drop_index[i];
-			DBUG_ASSERT(*index->name != TEMP_INDEX_PREFIX);
+			DBUG_ASSERT(index->is_committed());
 			DBUG_ASSERT(index->table == ctx->new_table);
 			DBUG_ASSERT(index->to_be_dropped);
 
@@ -5854,7 +5830,7 @@ commit_cache_norebuild(
 
 		for (ulint i = 0; i < ctx->num_to_drop_index; i++) {
 			dict_index_t*	index = ctx->drop_index[i];
-			DBUG_ASSERT(*index->name != TEMP_INDEX_PREFIX);
+			DBUG_ASSERT(index->is_committed());
 			DBUG_ASSERT(index->table == ctx->new_table);
 
 			if (index->type & DICT_FTS) {

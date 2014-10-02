@@ -476,7 +476,16 @@ dict_create_sys_indexes_tuple(
 	dfield = dtuple_get_nth_field(
 		entry, DICT_COL__SYS_INDEXES__NAME);
 
-	dfield_set_data(dfield, index->name, ut_strlen(index->name));
+	if (!index->is_committed()) {
+		ulint	len	= strlen(index->name) + 1;
+		char*	name	= static_cast<char*>(
+			mem_heap_alloc(heap, len));
+		*name = *TEMP_INDEX_PREFIX_STR;
+		memcpy(name + 1, index->name, len - 1);
+		dfield_set_data(dfield, name, len);
+	} else {
+		dfield_set_data(dfield, index->name, strlen(index->name));
+	}
 
 	/* 5: N_FIELDS ----------------------*/
 	dfield = dtuple_get_nth_field(

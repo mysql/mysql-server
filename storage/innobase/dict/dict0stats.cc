@@ -162,7 +162,7 @@ dict_stats_should_ignore_index(
 	       || dict_index_is_corrupted(index)
 	       || dict_index_is_spatial(index)
 	       || index->to_be_dropped
-	       || *index->name == TEMP_INDEX_PREFIX);
+	       || !index->is_committed());
 }
 
 /*********************************************************************//**
@@ -459,6 +459,7 @@ dict_stats_table_clone_create(
 		idx->to_be_dropped = 0;
 
 		idx->online_status = ONLINE_INDEX_COMPLETE;
+		idx->set_committed(true);
 
 		idx->n_uniq = index->n_uniq;
 
@@ -2684,7 +2685,8 @@ dict_stats_fetch_index_stats_step(
 			     index != NULL;
 			     index = dict_table_get_next_index(index)) {
 
-				if (strlen(index->name) == len
+				if (index->is_committed()
+				    && strlen(index->name) == len
 				    && memcmp(index->name, data, len) == 0) {
 					/* the corresponding index was found */
 					break;

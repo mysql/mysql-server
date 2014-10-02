@@ -720,6 +720,11 @@ struct dict_index_t{
 				by dict_operation_lock and
 				dict_sys->mutex. Other changes are
 				protected by index->lock. */
+	unsigned	uncommitted:1;
+				/*!< a flag that is set for secondary indexes
+				that have not been committed to the
+				data dictionary yet */
+
 #ifdef UNIV_DEBUG
 	uint32_t	magic_n;/*!< magic number */
 /** Value of dict_index_t::magic_n */
@@ -790,6 +795,24 @@ struct dict_index_t{
 				compression failures and successes */
 	rw_lock_t	lock;	/*!< read-write lock protecting the
 				upper levels of the index tree */
+
+	/** Determine if the index has been committed to the
+	data dictionary.
+	@return whether the index definition has been committed */
+	bool is_committed() const
+	{
+		ut_ad(!uncommitted || !(type & DICT_CLUSTERED));
+		return(UNIV_LIKELY(!uncommitted));
+	}
+
+	/** Flag an index committed or uncommitted.
+	@param[in]	committed	whether the index is committed */
+	void set_committed(bool committed)
+	{
+		ut_ad(!to_be_dropped);
+		ut_ad(committed || !(type & DICT_CLUSTERED));
+		uncommitted = !committed;
+	}
 #endif /* !UNIV_HOTBACKUP */
 };
 
