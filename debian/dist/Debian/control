@@ -191,7 +191,10 @@ Architecture: any
 Suggests: tinyca, mailx, mariadb-test
 Recommends: libhtml-template-perl
 Pre-Depends: mariadb-common, adduser (>= 3.40), debconf
-Depends: mariadb-client-5.5 (>= ${source:Version}), libdbi-perl, perl (>= 5.6), ${shlibs:Depends}, ${misc:Depends}, psmisc, passwd, lsb-base (>= 3.0-10), mariadb-server-core-5.5 (>= ${binary:Version})
+Depends: mariadb-client-5.5 (>= ${source:Version}), libdbi-perl,
+         perl (>= 5.6), ${shlibs:Depends}, ${misc:Depends}, psmisc,
+         passwd, lsb-base (>= 3.0-10), bsdutils,
+         mariadb-server-core-5.5 (>= ${binary:Version})
 Provides: mariadb-server, mysql-server, virtual-mysql-server
 Conflicts: mariadb-server (<< ${source:Version}), mysql-server (<< ${source:Version}),
     mysql-server-4.1, mysql-server-5.0, mysql-server-5.1, mysql-server-5.5,
