@@ -524,10 +524,8 @@ row_quiesce_table_start(
 		trx_purge_stop();
 	}
 
-	ut_a(table->id > 0);
-
 	for (ulint count = 0;
-	     ibuf_contract_in_background(table->id, TRUE) != 0
+	     ibuf_merge_in_background(true, table->space) != 0
 	     && !trx_is_interrupted(trx);
 	     ++count) {
 		if (!(count % 20)) {

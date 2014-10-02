@@ -2582,25 +2582,6 @@ ibuf_merge_pages(
 }
 
 /*********************************************************************//**
-Get the table instance from the table id.
-@return table instance */
-static __attribute__((warn_unused_result))
-dict_table_t*
-ibuf_get_table(
-/*===========*/
-	table_id_t	table_id)	/*!< in: valid table id */
-{
-	rw_lock_s_lock_func(&dict_operation_lock, 0, __FILE__, __LINE__);
-
-	dict_table_t*	table = dict_table_open_on_id(
-		table_id, FALSE, DICT_TABLE_OP_NORMAL);
-
-	rw_lock_s_unlock_gen(&dict_operation_lock, 0);
-
-	return(table);
-}
-
-/*********************************************************************//**
 Contracts insert buffer trees by reading pages to the buffer pool.
 @return a lower limit for the combined size in bytes of entries which
 will be merged from ibuf trees to the pages read, 0 if ibuf is
@@ -2616,6 +2597,8 @@ ibuf_merge_space(
 	btr_pcur_t	pcur;
 	mem_heap_t*	heap = mem_heap_create(512);
 	dtuple_t*	tuple = ibuf_search_tuple_build(space, 0, heap);
+
+	ut_ad(space < SRV_LOG_SPACE_FIRST_ID);
 
 	ibuf_mtr_start(&mtr);
 
@@ -2678,28 +2661,22 @@ ibuf_merge_space(
 	return(sum_sizes);
 }
 
-/*********************************************************************//**
-Contracts insert buffer trees by reading pages to the buffer pool.
+/** Contract the change buffer by reading pages to the buffer pool.
+@param[out]	n_pages		number of pages merged
+@param[in]	sync		whether the caller waits for
+the issued reads to complete
+@param[in]	space_id	tablespace for which to merge, or
+ULINT_UNDEFINED for all tablespaces
 @return a lower limit for the combined size in bytes of entries which
 will be merged from ibuf trees to the pages read, 0 if ibuf is
 empty */
-static __attribute__((nonnull, warn_unused_result))
+static __attribute__((warn_unused_result))
 ulint
 ibuf_merge(
-/*=======*/
-	table_id_t	table_id,	/*!< in: if merge should be
-					done only for a specific
-					table, for all tables this
-					should be 0 */
-	ulint*		n_pages,	/*!< out: number of pages to
-					which merged */
-	bool		sync)		/*!< in: TRUE if the caller
-					wants to wait for the issued
-					read with the highest
-					tablespace address to complete */
+	ulint*		n_pages,
+	bool		sync,
+	ulint		space_id)
 {
-	dict_table_t*	table;
-
 	*n_pages = 0;
 
 	/* We perform a dirty read of ibuf->empty, without latching
@@ -2713,54 +2690,41 @@ ibuf_merge(
 	} else if (ibuf_debug) {
 		return(0);
 #endif /* UNIV_DEBUG || UNIV_IBUF_DEBUG */
-	} else if (table_id == 0) {
+	} else if (space_id == ULINT_UNDEFINED) {
 		return(ibuf_merge_pages(n_pages, sync));
-	} else if ((table = ibuf_get_table(table_id)) == 0) {
-		/* Table has been dropped. */
-		return(0);
+	} else {
+		return(ibuf_merge_space(space_id, n_pages));
 	}
-
-	ulint	volume = ibuf_merge_space(table->space, n_pages);
-
-	dict_table_close(table, FALSE, FALSE);
-
-	return(volume);
 }
 
-/*********************************************************************//**
-Contracts insert buffer trees by reading pages to the buffer pool.
+/** Contract the change buffer by reading pages to the buffer pool.
+@param[in]	sync	whether the caller waits for
+the issued reads to complete
 @return a lower limit for the combined size in bytes of entries which
-will be merged from ibuf trees to the pages read, 0 if ibuf is
-empty */
+will be merged from ibuf trees to the pages read, 0 if ibuf is empty */
 static
 ulint
 ibuf_contract(
-/*==========*/
-	ibool	sync)	/*!< in: TRUE if the caller wants to wait for the
-			issued read with the highest tablespace address
-			to complete */
+	bool	sync)
 {
 	ulint	n_pages;
 
-	return(ibuf_merge(0, &n_pages, sync));
+	return(ibuf_merge_pages(&n_pages, sync));
 }
 
-/*********************************************************************//**
-Contracts insert buffer trees by reading pages to the buffer pool.
+/** Contract the change buffer by reading pages to the buffer pool.
+@param[in]	full		If true, do a full contraction based
+on PCT_IO(100). If false, the size of contract batch is determined
+based on the current size of the change buffer.
+@param[in]	space_id	tablespace for which to contract, or
+ULINT_UNDEFINED to contract for all tablespaces
 @return a lower limit for the combined size in bytes of entries which
 will be merged from ibuf trees to the pages read, 0 if ibuf is
 empty */
 ulint
-ibuf_contract_in_background(
-/*========================*/
-	table_id_t	table_id,	/*!< in: if merge should be done only
-					for a specific table, for all tables
-					this should be 0 */
-	ibool		full)		/*!< in: TRUE if the caller wants to
-					do a full contract based on PCT_IO(100).
-					If FALSE then the size of contract
-					batch is determined based on the
-					current size of the ibuf tree. */
+ibuf_merge_in_background(
+	bool	full,
+	ulint	space_id)
 {
 	ulint	sum_bytes	= 0;
 	ulint	sum_pages	= 0;
@@ -2768,7 +2732,7 @@ ibuf_contract_in_background(
 	ulint	n_pages;
 
 #if defined UNIV_DEBUG || defined UNIV_IBUF_DEBUG
-	if (srv_ibuf_disable_background_merge && table_id == 0) {
+	if (srv_ibuf_disable_background_merge && space_id == ULINT_UNDEFINED) {
 		return(0);
 	}
 #endif /* UNIV_DEBUG || UNIV_IBUF_DEBUG */
@@ -2797,7 +2761,7 @@ ibuf_contract_in_background(
 	while (sum_pages < n_pages) {
 		ulint	n_bytes;
 
-		n_bytes = ibuf_merge(table_id, &n_pag2, FALSE);
+		n_bytes = ibuf_merge(&n_pag2, false, space_id);
 
 		if (n_bytes == 0) {
 			return(sum_bytes);
@@ -3469,8 +3433,7 @@ ibuf_insert_low(
 #ifdef UNIV_IBUF_DEBUG
 		fputs("Ibuf too big\n", stderr);
 #endif
-		/* Use synchronous contract (== TRUE) */
-		ibuf_contract(TRUE);
+		ibuf_contract(true);
 
 		return(DB_STRONG_FAIL);
 	}
