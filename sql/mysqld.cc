@@ -2948,9 +2948,6 @@ static void init_signals(void)
   sa.sa_flags = 0;
   sa.sa_handler = print_signal_warning;
   sigaction(SIGHUP, &sa, (struct sigaction*) 0);
-#ifdef SIGTSTP
-  sigaddset(&set,SIGTSTP);
-#endif
   if (thd_lib_detected != THD_LIB_LT)
     sigaddset(&set,THR_SERVER_ALARM);
   if (test_flags & TEST_SIGINT)
@@ -2960,7 +2957,12 @@ static void init_signals(void)
     sigdelset(&set, SIGINT);
   }
   else
+  {
     sigaddset(&set,SIGINT);
+#ifdef SIGTSTP
+    sigaddset(&set,SIGTSTP);
+#endif
+  }
 
   sigprocmask(SIG_SETMASK,&set,NULL);
   pthread_sigmask(SIG_SETMASK,&set,NULL);
