@@ -110,6 +110,8 @@ sub check_socket_path_length {
   # This may not be true, but we can't test for it on AIX due to Perl bug
   # See Bug #45771
   return 0 if ($^O eq 'aix');
+  # See Debian bug #670722 - failing on kFreeBSD even after setting short path
+  return 0 if $^O eq 'gnukfreebsd' and length $path < 40;
 
   require IO::Socket::UNIX;
 
