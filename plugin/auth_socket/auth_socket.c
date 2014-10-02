@@ -37,7 +37,7 @@
 
 #elif defined HAVE_SOCKPEERCRED
 #define level SOL_SOCKET
-#define ucred socketpeercred
+#define ucred sockpeercred
 
 #elif defined HAVE_XUCRED
 #include <sys/un.h>
