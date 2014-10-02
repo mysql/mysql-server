@@ -81,7 +81,7 @@ const char *client_errors[]=
   "Attempt to read a row while there is no result set associated with the statement",
   "This feature is not implemented yet",
   "Lost connection to MySQL server at '%s', system error: %d",
-  "Statement closed indirectly because of a preceeding %s() call",
+  "Statement closed indirectly because of a preceding %s() call",
   "The number of columns in the result set differs from the number of bound buffers. You must reset the statement, rebind the result set columns, and execute the statement again",
   "This handle is already connected. Use a separate handle for each connection.",
   "Authentication plugin '%s' cannot be loaded: %s",

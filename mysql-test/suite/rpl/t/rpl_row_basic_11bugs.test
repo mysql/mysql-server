@@ -244,7 +244,7 @@ sync_slave_with_master;
 UPDATE t1 SET a = 5, b = 'slave' WHERE a = 1;
 SELECT * FROM t1 ORDER BY a;
 # since bug#31552/31609 idempotency is not default any longer. In
-# order for the preceeding test UPDATE t1 to pass, the mode is switched
+# order for the preceding test UPDATE t1 to pass, the mode is switched
 # temprorarily
 set @@global.slave_exec_mode= 'IDEMPOTENT';
 --echo **** On Master ****

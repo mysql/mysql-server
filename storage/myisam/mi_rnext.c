@@ -66,7 +66,7 @@ int mi_rnext(MI_INFO *info, uchar *buf, int inx)
       Normally SQL layer would never request "search next" if
       "search first" failed. But HANDLER may do anything.
 
-      As mi_rnext() without preceeding mi_rkey()/mi_rfirst()
+      As mi_rnext() without preceding mi_rkey()/mi_rfirst()
       equals to mi_rfirst(), we must restore original state
       as if failing mi_rfirst() was not called.
     */

@@ -545,7 +545,7 @@ let $message= Testcase 3.3.1.7 ;
 #                   view names are accepted, at creation time, alteration time,
 #                   and drop time.
 ###############################################################################
-# Note(mleich): non-qualified view name means a view name without preceeding
+# Note(mleich): non-qualified view name means a view name without preceding
 #               database name
 --disable_warnings
 DROP VIEW  IF EXISTS v1 ;
