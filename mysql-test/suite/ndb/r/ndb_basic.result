@@ -76,10 +76,15 @@ Ndb_config_from_host	#
 Ndb_config_from_port	#
 Ndb_conflict_epoch_delete_delete_count	#
 Ndb_conflict_fn_epoch	#
+Ndb_conflict_fn_epoch2	#
+Ndb_conflict_fn_epoch2_trans	#
 Ndb_conflict_fn_epoch_trans	#
 Ndb_conflict_fn_max	#
 Ndb_conflict_fn_max_del_win	#
 Ndb_conflict_fn_old	#
+Ndb_conflict_reflected_op_discard_count	#
+Ndb_conflict_reflected_op_prepare_count	#
+Ndb_conflict_refresh_op_count	#
 Ndb_conflict_trans_conflict_commit_count	#
 Ndb_conflict_trans_detect_iter_count	#
 Ndb_conflict_trans_reject_count	#

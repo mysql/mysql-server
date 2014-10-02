@@ -864,6 +864,9 @@ ExceptionsTableWriter::writeRow(NdbTransaction* trans,
 */
 st_ndb_slave_state::st_ndb_slave_state()
   : current_delete_delete_count(0),
+    current_reflect_op_prepare_count(0),
+    current_reflect_op_discard_count(0),
+    current_refresh_op_count(0),
     current_master_server_epoch(0),
     current_master_server_epoch_committed(false),
     current_max_rep_epoch(0),
@@ -874,6 +877,9 @@ st_ndb_slave_state::st_ndb_slave_state()
     current_trans_in_conflict_count(0),
     last_conflicted_epoch(0),
     total_delete_delete_count(0),
+    total_reflect_op_prepare_count(0),
+    total_reflect_op_discard_count(0),
+    total_refresh_op_count(0),
     max_rep_epoch(0),
     sql_run_id(~Uint32(0)),
     trans_row_conflict_count(0),
@@ -902,6 +908,9 @@ st_ndb_slave_state::resetPerAttemptCounters()
 {
   memset(current_violation_count, 0, sizeof(current_violation_count));
   current_delete_delete_count = 0;
+  current_reflect_op_prepare_count = 0;
+  current_reflect_op_discard_count = 0;
+  current_refresh_op_count = 0;
   current_trans_row_conflict_count = 0;
   current_trans_row_reject_count = 0;
   current_trans_in_conflict_count = 0;
@@ -954,6 +963,9 @@ st_ndb_slave_state::atTransactionCommit(Uint64 epoch)
     total_violation_count[i]+= current_violation_count[i];
   }
   total_delete_delete_count+= current_delete_delete_count;
+  total_reflect_op_prepare_count+= current_reflect_op_prepare_count;
+  total_reflect_op_discard_count+= current_reflect_op_discard_count;
+  total_refresh_op_count+= current_refresh_op_count;
   trans_row_conflict_count+= current_trans_row_conflict_count;
   trans_row_reject_count+= current_trans_row_reject_count;
   trans_in_conflict_count+= current_trans_in_conflict_count;
@@ -971,10 +983,34 @@ st_ndb_slave_state::atTransactionCommit(Uint64 epoch)
 
   if (total_conflicts > 0)
   {
+    /**
+     * Conflict detected locally
+     */
     DBUG_PRINT("info", ("Last conflicted epoch increases from %llu to %llu",
                         last_conflicted_epoch,
                         epoch));
     last_conflicted_epoch = epoch;
+  }
+  else
+  {
+    /**
+     * Update last_conflicted_epoch if we applied reflected or refresh ops
+     * (Implies Secondary role in asymmetric algorithms)
+     */
+    assert(current_reflect_op_prepare_count >= current_reflect_op_discard_count);
+    Uint32 current_reflect_op_apply_count = current_reflect_op_prepare_count - 
+      current_reflect_op_discard_count;
+    if (current_reflect_op_apply_count > 0 ||
+        current_refresh_op_count > 0)
+    {
+      DBUG_PRINT("info", ("Reflected (%u) or Refresh (%u) operations applied this "
+                          "epoch, increasing last conflicted epoch from %llu to %llu.",
+                          current_reflect_op_apply_count,
+                          current_refresh_op_count,
+                          last_conflicted_epoch,
+                          epoch));
+      last_conflicted_epoch = epoch;
+    }
   }
 
   resetPerAttemptCounters();

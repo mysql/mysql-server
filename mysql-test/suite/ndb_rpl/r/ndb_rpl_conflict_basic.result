@@ -271,7 +271,7 @@ server_id	3
 MySQLD error output for server 2.1 matching pattern %NDB Slave%
 relevant
 [warning] ndb slave: table test.t3oneex : no extra row author bits in table.
-[note] ndb slave: table test.t3oneex : cft_ndb_epoch[_trans], low epoch resolution
+[note] ndb slave: table test.t3oneex : ndb$epoch, low epoch resolution
 [note] ndb slave: table test.t2diffex using conflict_fn ndb$max on attribute x.
 [note] ndb slave: table test.t2diffex logging exceptions to test.t2diffex$ex
 [note] ndb slave: table test.t1allsame using conflict_fn ndb$max on attribute x.
