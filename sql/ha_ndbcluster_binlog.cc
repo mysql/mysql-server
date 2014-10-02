@@ -50,6 +50,7 @@ extern st_ndb_slave_state g_ndb_slave_state;
 extern my_bool opt_ndb_log_transaction_id;
 extern my_bool log_bin_use_v1_row_events;
 extern my_bool opt_ndb_log_empty_update;
+extern ulong opt_ndb_slave_conflict_role;
 
 bool ndb_log_empty_epochs(void);
 
@@ -4658,6 +4659,143 @@ row_conflict_fn_epoch(NDB_CONFLICT_FN_SHARE* cfn_share,
   }
 }
 
+/**
+ * CFT_NDB_EPOCH2
+ */
+
+static int
+row_conflict_fn_epoch2_primary(NDB_CONFLICT_FN_SHARE* cfn_share,
+                               enum_conflicting_op_type op_type,
+                               const NdbRecord* data_record,
+                               const uchar* old_data,
+                               const uchar* new_data,
+                               const MY_BITMAP* bi_cols,
+                               const MY_BITMAP* ai_cols,
+                               NdbInterpretedCode* code)
+{
+  DBUG_ENTER("row_conflict_fn_epoch2_primary");
+  
+  /* We use the normal NDB$EPOCH detection function */
+  DBUG_RETURN(row_conflict_fn_epoch(cfn_share,
+                                    op_type,
+                                    data_record,
+                                    old_data,
+                                    new_data,
+                                    bi_cols,
+                                    ai_cols,
+                                    code));
+}
+
+static int
+row_conflict_fn_epoch2_secondary(NDB_CONFLICT_FN_SHARE* cfn_share,
+                                 enum_conflicting_op_type op_type,
+                                 const NdbRecord* data_record,
+                                 const uchar* old_data,
+                                 const uchar* new_data,
+                                 const MY_BITMAP* bi_cols,
+                                 const MY_BITMAP* ai_cols,
+                                 NdbInterpretedCode* code)
+{
+  DBUG_ENTER("row_conflict_fn_epoch2_secondary");
+
+  /* Only called for reflected update and delete operations
+   * on the secondary.
+   * These are returning operations which should only be 
+   * applied if the row in the database was last written
+   * remotely (by the Primary)
+   */
+
+  switch(op_type)
+  {
+  case WRITE_ROW:
+    abort();
+    DBUG_RETURN(1);
+  case UPDATE_ROW:
+  case DELETE_ROW:
+  {
+    const uint label_0= 0;
+    const Uint32
+      RegAuthor= 1, RegZero= 2;
+    int r;
+
+    r= code->load_const_u32(RegZero, 0);
+    assert(r == 0);
+    r= code->read_attr(RegAuthor, NdbDictionary::Column::ROW_AUTHOR);
+    assert(r == 0);
+    r= code->branch_eq(RegZero, RegAuthor, label_0);
+    assert(r == 0);
+    /* Last author was not local, no conflict, apply */
+    r= code->interpret_exit_ok();
+    assert(r == 0);
+    r= code->def_label(label_0);
+    assert(r == 0);
+    /* Last author was secondary-local, conflict, do not apply */
+    r= code->interpret_exit_nok(error_conflict_fn_violation);
+    assert(r == 0);
+
+
+    r= code->finalise();
+    assert(r == 0);
+    DBUG_RETURN(r);
+  }
+  default:
+    abort();
+    DBUG_RETURN(1);
+  }
+}
+
+static int
+row_conflict_fn_epoch2(NDB_CONFLICT_FN_SHARE* cfn_share,
+                       enum_conflicting_op_type op_type,
+                       const NdbRecord* data_record,
+                       const uchar* old_data,
+                       const uchar* new_data,
+                       const MY_BITMAP* bi_cols,
+                       const MY_BITMAP* ai_cols,
+                       NdbInterpretedCode* code)
+{
+  DBUG_ENTER("row_conflict_fn_epoch2");
+  
+  /**
+   * NdbEpoch2 behaviour depends on the Slave conflict role variable
+   *
+   */
+  switch(opt_ndb_slave_conflict_role)
+  {
+  case SCR_NONE:
+    /* This is a problem */
+    DBUG_RETURN(1);
+  case SCR_PRIMARY:
+    DBUG_RETURN(row_conflict_fn_epoch2_primary(cfn_share,
+                                               op_type,
+                                               data_record,
+                                               old_data,
+                                               new_data,
+                                               bi_cols,
+                                               ai_cols,
+                                               code));
+  case SCR_SECONDARY:
+    DBUG_RETURN(row_conflict_fn_epoch2_secondary(cfn_share,
+                                                 op_type,
+                                                 data_record,
+                                                 old_data,
+                                                 new_data,
+                                                 bi_cols,
+                                                 ai_cols,
+                                                 code));
+  case SCR_PASS:
+    /* Do nothing */
+    DBUG_RETURN(0);
+  
+  default:
+    break;
+  }
+
+  abort();
+
+  DBUG_RETURN(1);
+}
+  
 static const st_conflict_fn_arg_def resolve_col_args[]=
 {
   /* Arg type              Optional */
@@ -4680,6 +4818,13 @@ static const st_conflict_fn_def conflict_fns[]=
     &resolve_col_args[0], row_conflict_fn_max,         0 },
   { "NDB$OLD",            CFT_NDB_OLD,
     &resolve_col_args[0], row_conflict_fn_old,         0 },
+  { "NDB$EPOCH2_TRANS",   CFT_NDB_EPOCH2_TRANS,
+    &epoch_fn_args[0],    row_conflict_fn_epoch2,
+    CF_REFLECT_SEC_OPS | CF_USE_ROLE_VAR | CF_TRANSACTIONAL},
+  { "NDB$EPOCH2",         CFT_NDB_EPOCH2,
+    &epoch_fn_args[0],    row_conflict_fn_epoch2,      
+    CF_REFLECT_SEC_OPS | CF_USE_ROLE_VAR
+  },
   { "NDB$EPOCH_TRANS",    CFT_NDB_EPOCH_TRANS,
     &epoch_fn_args[0],    row_conflict_fn_epoch,       CF_TRANSACTIONAL},
   { "NDB$EPOCH",          CFT_NDB_EPOCH,
@@ -4952,6 +5097,26 @@ setup_conflict_fn(THD *thd, NDB_SHARE *share,
                 resolveColName);
     break;
   }
+  case CFT_NDB_EPOCH2:
+  case CFT_NDB_EPOCH2_TRANS:
+  {
+    /* Check how updates will be logged... */
+    bool log_update_as_write = (!get_binlog_use_update(share));
+    
+    if (log_update_as_write)
+    {
+      my_snprintf(msg, msg_len,
+                  "Table %s.%s configured to log updates as writes.  "
+                  "Not suitable for %s.",
+                  share->db,
+                  share->table_name,
+                  conflict_fn->name);
+      DBUG_PRINT("info", ("%s", msg));
+      DBUG_RETURN(-1);
+    }
+    
+    /* Fall through for the rest of the EPOCH* processing... */
+  }
   case CFT_NDB_EPOCH:
   case CFT_NDB_EPOCH_TRANS:
   {
@@ -4966,7 +5131,8 @@ setup_conflict_fn(THD *thd, NDB_SHARE *share,
     /* Check that table doesn't have Blobs as we don't support that */
     if (share->flags & NSF_BLOB_FLAG)
     {
-      my_snprintf(msg, msg_len, "Table has Blob column(s), not suitable for NDB$EPOCH[_TRANS].");
+      my_snprintf(msg, msg_len, "Table has Blob column(s), not suitable for %s.",
+                  conflict_fn->name);
       DBUG_PRINT("info", ("%s", msg));
       DBUG_RETURN(-1);
     }
@@ -4976,9 +5142,10 @@ setup_conflict_fn(THD *thd, NDB_SHARE *share,
      * represent SavePeriod/EpochPeriod
      */
     if (ndbtab->getExtraRowGciBits() == 0)
-      sql_print_information("NDB Slave: Table %s.%s : CFT_NDB_EPOCH[_TRANS], low epoch resolution",
+      sql_print_information("NDB Slave: Table %s.%s : %s, low epoch resolution",
                             share->db,
-                            share->table_name);
+                            share->table_name,
+                            conflict_fn->name);
 
     if (ndbtab->getExtraRowAuthorBits() == 0)
     {
@@ -6274,7 +6441,7 @@ handle_data_event(THD* thd, Ndb *ndb, NdbEventOperation *pOp,
     
     if (ndbcluster_anyvalue_is_reflect_op(anyValue))
     {
-      DBUG_PRINT("info", ("Anyvalue -> Reflect"));
+      DBUG_PRINT("info", ("Anyvalue -> Reflect (%u)", anyValue));
       reflected_op = true;
       anyValue = 0;
     }

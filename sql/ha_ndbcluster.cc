@@ -743,6 +743,8 @@ SHOW_VAR ndb_status_conflict_variables[]= {
   {"fn_max_del_win", (char*) &g_ndb_slave_state.total_violation_count[CFT_NDB_MAX_DEL_WIN], SHOW_LONGLONG},
   {"fn_epoch",     (char*) &g_ndb_slave_state.total_violation_count[CFT_NDB_EPOCH], SHOW_LONGLONG},
   {"fn_epoch_trans", (char*) &g_ndb_slave_state.total_violation_count[CFT_NDB_EPOCH_TRANS], SHOW_LONGLONG},
+  {"fn_epoch2",    (char*) &g_ndb_slave_state.total_violation_count[CFT_NDB_EPOCH2], SHOW_LONGLONG},
+  {"fn_epoch2_trans", (char*) &g_ndb_slave_state.total_violation_count[CFT_NDB_EPOCH2_TRANS], SHOW_LONGLONG},
   {"trans_row_conflict_count", (char*) &g_ndb_slave_state.trans_row_conflict_count, SHOW_LONGLONG},
   {"trans_row_reject_count",   (char*) &g_ndb_slave_state.trans_row_reject_count, SHOW_LONGLONG},
   {"trans_reject_count",       (char*) &g_ndb_slave_state.trans_in_conflict_count, SHOW_LONGLONG},
@@ -750,6 +752,10 @@ SHOW_VAR ndb_status_conflict_variables[]= {
   {"trans_conflict_commit_count",
                                (char*) &g_ndb_slave_state.trans_conflict_commit_count, SHOW_LONGLONG},
   {"epoch_delete_delete_count", (char*) &g_ndb_slave_state.total_delete_delete_count, SHOW_LONGLONG},
+  {"reflected_op_prepare_count", (char*) &g_ndb_slave_state.total_reflect_op_prepare_count, SHOW_LONGLONG},
+  {"reflected_op_discard_count", (char*) &g_ndb_slave_state.total_reflect_op_discard_count, SHOW_LONGLONG},
+  {"refresh_op_count", (char*) &g_ndb_slave_state.total_refresh_op_count, SHOW_LONGLONG},
+
   {NullS, NullS, SHOW_LONG}
 };
 
@@ -861,6 +867,8 @@ int ndb_to_mysql_error(const NdbError *ndberr)
   }
   return error;
 }
+
+ulong opt_ndb_slave_conflict_role;
 
 #ifdef HAVE_NDB_BINLOG
 
@@ -4728,7 +4736,8 @@ ha_ndbcluster::prepare_conflict_detection(enum_conflicting_op_type op_type,
                                           NdbTransaction* trans,
                                           NdbInterpretedCode* code,
                                           NdbOperation::OperationOptions* options,
-                                          bool& conflict_handled)
+                                          bool& conflict_handled,
+                                          bool& avoid_ndbapi_write)
 {
   DBUG_ENTER("prepare_conflict_detection");
   THD* thd = table->in_use;
@@ -4759,6 +4768,8 @@ ha_ndbcluster::prepare_conflict_detection(enum_conflicting_op_type op_type,
   Uint64 transaction_id = Ndb_binlog_extra_row_info::InvalidTransactionId;
   Uint16 conflict_flags = Ndb_binlog_extra_row_info::UnsetConflictFlags;
   bool op_is_marked_as_read= false;
+  bool op_is_marked_as_reflected= false;
+  bool op_is_marked_as_refresh= false;
 
   if (thd->binlog_row_event_extra_data)
   {
@@ -4782,11 +4793,62 @@ ha_ndbcluster::prepare_conflict_detection(enum_conflicting_op_type op_type,
                  ("Slave : have conflict flags : %x\n",
                   extra_row_info.getConflictFlags()));
       conflict_flags = extra_row_info.getConflictFlags();
+
+      if (conflict_flags & NDB_ERIF_CFT_REFLECT_OP)
+      {
+        op_is_marked_as_reflected= true;
+        g_ndb_slave_state.current_reflect_op_prepare_count++;
+      }
+      
+      if (conflict_flags & NDB_ERIF_CFT_REFRESH_OP)
+      {
+        op_is_marked_as_refresh= true;
+        g_ndb_slave_state.current_refresh_op_count++;
+      }
+
+      if (conflict_flags & NDB_ERIF_CFT_READ_OP)
+        op_is_marked_as_read= true;
+
+      /* Sanity - 1 flag at a time at most */
+      assert(! (op_is_marked_as_reflected &&
+                op_is_marked_as_refresh));
+      assert(! (op_is_marked_as_read &&
+                (op_is_marked_as_reflected ||
+                 op_is_marked_as_refresh)));
     }
   }
 
-  if (conflict_flags & NDB_ERIF_CFT_READ_OP)
-    op_is_marked_as_read= true;
+  const st_conflict_fn_def* conflict_fn = (m_share->m_cfn_share?
+                                           m_share->m_cfn_share->m_conflict_fn:
+                                           NULL);
+
+  bool pass_mode = false;
+  if (conflict_fn)
+  {
+    /* Check Slave Conflict Role Variable setting */
+    if (conflict_fn->flags & CF_USE_ROLE_VAR)
+    {
+      switch (opt_ndb_slave_conflict_role)
+      {
+      case SCR_NONE:
+      {
+        sql_print_warning("NDB Slave : Conflict function %s defined on "
+                          "table %s requires ndb_slave_conflict_role variable "
+                          "to be set.  Stopping slave.",
+                          conflict_fn->name,
+                          m_share->key);
+        DBUG_RETURN(ER_SLAVE_CONFIGURATION);
+      }
+      case SCR_PASS:
+      {
+        pass_mode = true;
+      }
+      default:
+        /* PRIMARY, SECONDARY */
+        break;
+      }
+    }
+  }
 
   {
     bool handle_conflict_now = false;
@@ -4845,15 +4907,22 @@ ha_ndbcluster::prepare_conflict_detection(enum_conflicting_op_type op_type,
     }
   }
 
-  if (! (m_share->m_cfn_share &&
-         m_share->m_cfn_share->m_conflict_fn))
+  if (conflict_fn == NULL ||
+      pass_mode)
   {
     /* No conflict function definition required */
     DBUG_RETURN(0);
   }
 
-  const st_conflict_fn_def* conflict_fn = m_share->m_cfn_share->m_conflict_fn;
-  assert( conflict_fn != NULL );
+  /**
+   * By default conflict algorithms use the 'natural' NdbApi ops 
+   * (insert/update/delete) which can detect presence anomalies, 
+   * as opposed to NdbApi write which ignores them.
+   * However in some cases, we want to use NdbApi write to apply 
+   * events received on tables with conflict detection defined 
+   * (e.g. when we want to forcibly align a row with a refresh op).
+   */
+  avoid_ndbapi_write = true;
 
   if (unlikely((conflict_fn->flags & CF_TRANSACTIONAL) &&
                (transaction_id == Ndb_binlog_extra_row_info::InvalidTransactionId)))
@@ -4866,11 +4935,94 @@ ha_ndbcluster::prepare_conflict_detection(enum_conflicting_op_type op_type,
     DBUG_RETURN( ER_SLAVE_CORRUPT_EVENT );
   }
 
+  /**
+   * Normally, update and delete have an attached program executed against
+   * the existing row content.  Insert (and NdbApi write) do not.  
+   * Insert cannot as there is no pre-existing row to examine (and therefore
+   * no non prepare-time deterministic decisions to make).
+   * NdbApi Write technically could if the row already existed, but this is 
+   * not currently supported by NdbApi.
+   */
+  bool prepare_interpreted_program = (op_type != WRITE_ROW);
+
+  if (conflict_fn->flags & CF_REFLECT_SEC_OPS)
+  {
+    /* This conflict function reflects secondary ops at the Primary */
+    
+    if (opt_ndb_slave_conflict_role == SCR_PRIMARY)
+    {
+      /**
+       * Here we mark the applied operations to indicate that they
+       * should be reflected back to the SECONDARY cluster.
+       * This is required so that :
+       *   1.  They are given local Binlog Event source serverids
+       *       and so will pass through to the storage engine layer
+       *       on the SECONDARY.
+       *       (Normally they would be filtered in the Slave IO thread
+       *        as having returned-to-source)
+       *
+       *   2.  They can be tagged as reflected so that the SECONDARY
+       *       can handle them differently
+       *       (They are force-applied)
+       */
+      DBUG_PRINT("info", ("Setting AnyValue to reflect secondary op"));
+
+      options->optionsPresent |=
+        NdbOperation::OperationOptions::OO_ANYVALUE;
+      ndbcluster_anyvalue_set_reflect_op(options->anyValue);
+    }
+    else if (opt_ndb_slave_conflict_role == SCR_SECONDARY)
+    {
+      /**
+       * On the Secondary, we receive reflected operations which
+       * we want to attempt to apply under certain conditions.
+       * This is done to recover from situations where
+       * both PRIMARY and SECONDARY have performed concurrent
+       * DELETEs.
+       * 
+       * For non reflected operations we want to apply Inserts and
+       * Updates using write_tuple() to get an idempotent effect
+       */
+      if (op_is_marked_as_reflected)
+      {
+        /**
+         * Apply operations using their 'natural' operation types
+         * with interpreted programs attached where appropriate.
+         * Natural operation types used so that we become aware
+         * of any 'presence' issues (row does/not exist).
+         */
+        DBUG_PRINT("info", ("Reflected operation"));
+      }
+      else
+      {
+        /**
+         * Either a normal primary sourced change, or a refresh
+         * operation.
+         * In both cases we want to apply the operation idempotently,
+         * and there's no need for an interpreted program.
+         * e.g.
+         *   WRITE_ROW  -> NdbApi write_row
+         *   UPDATE_ROW -> NdbApi write_row
+         *   DELETE_ROW -> NdbApi delete_row
+         *
+         * NdbApi write_row does not fail.
+         * NdbApi delete_row will complain if the row does not exist
+         * but this will be ignored
+         */
+        DBUG_PRINT("info", ("Allowing use of NdbApi write_row "
+                            "for non reflected op (%u)",
+                            op_is_marked_as_refresh));
+        prepare_interpreted_program = false;
+        avoid_ndbapi_write = false;
+      }
+    }
+  }
+
   /*
      Prepare interpreted code for operation (update + delete only) according
      to algorithm used
   */
-  if (op_type != WRITE_ROW)
+  if (prepare_interpreted_program)
   {
     res = conflict_fn->prep_func(m_share->m_cfn_share,
                                  op_type,
@@ -4909,6 +5061,7 @@ ha_ndbcluster::prepare_conflict_detection(enum_conflicting_op_type op_type,
   ex_data.key_rec= key_rec;
   ex_data.data_rec= data_rec;
   ex_data.op_type= op_type;
+  ex_data.reflected_operation = op_is_marked_as_reflected;
   ex_data.trans_id= transaction_id;
   /*
     We need to save the row data for possible conflict resolution after
@@ -5026,6 +5179,8 @@ handle_conflict_op_error(NdbTransaction* trans,
     Ndb_exceptions_data ex_data;
     memcpy(&ex_data, buffer, sizeof(ex_data));
     NDB_SHARE *share= ex_data.share;
+    NDB_CONFLICT_FN_SHARE* cfn_share= share ? share->m_cfn_share : NULL;
+
     const NdbRecord* key_rec= ex_data.key_rec;
     const NdbRecord* data_rec= ex_data.data_rec;
     const uchar* old_row= ex_data.old_row;
@@ -5061,8 +5216,66 @@ handle_conflict_op_error(NdbTransaction* trans,
       }
     }
 
+    if (ex_data.reflected_operation)
+    {
+      DBUG_PRINT("info", ("Reflected operation error : %u.",
+                          err.code));
+      
+      /**
+       * Expected cases are :
+       *   Insert : Row already exists :      Don't care - discard
+       *              Secondary has this row, or a future version
+       *  
+       *   Update : Row does not exist :      Don't care - discard
+       *              Secondary has deleted this row later.
+       *
+       *            Conflict
+       *            (Row written here last) : Don't care - discard
+       *              Secondary has this row, or a future version
+       * 
+       *   Delete : Row does not exist :      Don't care - discard
+       *              Secondary has deleted this row later.
+       * 
+       *            Conflict
+       *            (Row written here last) : Don't care - discard
+       *              Secondary has a future version of this row
+       *
+       *   Presence and authorship conflicts are used to determine
+       *   whether to apply a reflecte operation.
+       *   The presence checks avoid divergence and the authorship
+       *   checks avoid all actions being applied in delayed 
+       *   duplicate.
+       */
+      assert((err.code == (int) error_conflict_fn_violation) ||
+             (err.classification == NdbError::ConstraintViolation) ||
+             (err.classification == NdbError::NoDataFound));
+      
+      g_ndb_slave_state.current_reflect_op_discard_count++;
+
+      DBUG_RETURN(0);
+    }
+
+    {
+      /**
+       * For asymmetric algorithms that use the ROLE variable to 
+       * determine their role, we check whether we are on the
+       * SECONDARY cluster.
+       * This is far as we want to process conflicts on the
+       * SECONDARY.
+       */
+      bool secondary = cfn_share &&
+        cfn_share->m_conflict_fn &&
+        (cfn_share->m_conflict_fn->flags & CF_USE_ROLE_VAR) &&
+        (opt_ndb_slave_conflict_role == SCR_SECONDARY);
+      
+      if (secondary)
+      {
+        DBUG_PRINT("info", ("Conflict detected, on secondary - ignore"));
+        DBUG_RETURN(0);
+      }
+    }
+
     DBUG_ASSERT(share != NULL && row != NULL);
-    NDB_CONFLICT_FN_SHARE* cfn_share= share->m_cfn_share;
     bool table_has_trans_conflict_detection =
       cfn_share &&
       cfn_share->m_conflict_fn &&
@@ -5368,14 +5581,11 @@ int ha_ndbcluster::ndb_write_row(uchar *record,
   uint32 tmpBitmapSpace[bitmapSz];
   MY_BITMAP tmpBitmap;
   MY_BITMAP *user_cols_written_bitmap;
-  bool haveConflictFunction = false;
+  bool avoidNdbApiWriteOp = false; /* ndb_write_row defaults to write */
 #ifdef HAVE_NDB_BINLOG
   /* Conflict resolution in slave thread */
   if (thd->slave_thread)
   {
-    haveConflictFunction =
-      m_share->m_cfn_share &&
-      m_share->m_cfn_share->m_conflict_fn;
     bool conflict_handled = false;
 
     if (unlikely((error = prepare_conflict_detection(WRITE_ROW,
@@ -5387,7 +5597,8 @@ int ha_ndbcluster::ndb_write_row(uchar *record,
                                                      trans,
                                                      NULL,    /* code */
                                                      &options,
-                                                     conflict_handled))))
+                                                     conflict_handled,
+                                                     avoidNdbApiWriteOp))))
       DBUG_RETURN(error);
 
     if (unlikely(conflict_handled))
@@ -5400,7 +5611,7 @@ int ha_ndbcluster::ndb_write_row(uchar *record,
 #endif
 
   if (m_use_write &&
-      !haveConflictFunction) // Conflict detection must use normal insert()
+      !avoidNdbApiWriteOp)
   {
     uchar* mask;
 
@@ -5720,8 +5931,10 @@ handle_row_conflict(NDB_CONFLICT_FN_SHARE* cfn_share,
       options.customData = &StaticRefreshExceptionsData;
       options.anyValue = 0;
 
+      /* Use AnyValue to indicate that this is a refreshTuple op */
+      ndbcluster_anyvalue_set_refresh_op(options.anyValue);
+
       /* Create a refresh to operation to realign other clusters */
-      // TODO AnyValue
       // TODO Do we ever get non-PK key?
       //      Keyless table?
       //      Unique index
@@ -6183,6 +6396,7 @@ int ha_ndbcluster::ndb_update_row(const uchar *old_data, uchar *new_data,
     setup_key_ref_for_ndb_record(&key_rec, &key_row, new_data,
 				 m_read_before_write_removal_used);
 
+    bool avoidNdbApiWriteOp = true; /* Default update op for ndb_update_row */
 #ifdef HAVE_NDB_BINLOG
     Uint32 buffer[ MAX_CONFLICT_INTERPRETED_PROG_SIZE ];
     NdbInterpretedCode code(m_table, buffer,
@@ -6203,7 +6417,8 @@ int ha_ndbcluster::ndb_update_row(const uchar *old_data, uchar *new_data,
                                                        trans,
                                                        &code,
                                                        &options,
-                                                       conflict_handled))))
+                                                       conflict_handled,
+                                                       avoidNdbApiWriteOp))))
         DBUG_RETURN(error);
 
       if (unlikely(conflict_handled))
@@ -6217,11 +6432,23 @@ int ha_ndbcluster::ndb_update_row(const uchar *old_data, uchar *new_data,
     if (options.optionsPresent !=0)
       poptions= &options;
 
-    if (!(op= trans->updateTuple(key_rec, (const char *)key_row,
-                                 m_ndb_record, (const char*)new_data, mask,
-                                 poptions,
-                                 sizeof(NdbOperation::OperationOptions))))
-      ERR_RETURN(trans->getNdbError());  
+    if (likely(avoidNdbApiWriteOp))
+    {
+      if (!(op= trans->updateTuple(key_rec, (const char *)key_row,
+                                   m_ndb_record, (const char*)new_data, mask,
+                                   poptions,
+                                   sizeof(NdbOperation::OperationOptions))))
+        ERR_RETURN(trans->getNdbError());
+    }
+    else
+    {
+      DBUG_PRINT("info", ("Update op using writeTuple"));
+      if (!(op= trans->writeTuple(key_rec, (const char *)key_row,
+                                  m_ndb_record, (const char*)new_data, mask,
+                                  poptions,
+                                  sizeof(NdbOperation::OperationOptions))))
+        ERR_RETURN(trans->getNdbError());
+    }
   }
 
   uint blob_count= 0;
@@ -6513,6 +6740,7 @@ int ha_ndbcluster::ndb_delete_row(const uchar *record,
     if (thd->slave_thread)
     {
        bool conflict_handled = false;
+       bool dummy_delete_does_not_care = false;
 
       /* Conflict resolution in slave thread. */
       if (unlikely((error = prepare_conflict_detection(DELETE_ROW,
@@ -6524,7 +6752,8 @@ int ha_ndbcluster::ndb_delete_row(const uchar *record,
                                                        trans,
                                                        &code,
                                                        &options,
-                                                       conflict_handled))))
+                                                       conflict_handled,
+                                                       dummy_delete_does_not_care))))
         DBUG_RETURN(error);
 
       if (unlikely(conflict_handled))
@@ -9878,6 +10107,8 @@ int ha_ndbcluster::create(const char *name,
     {
     case CFT_NDB_EPOCH:
     case CFT_NDB_EPOCH_TRANS:
+    case CFT_NDB_EPOCH2:
+    case CFT_NDB_EPOCH2_TRANS:
     {
       /* Default 6 extra Gci bits allows 2^6 == 64
        * epochs / saveGCP, a comfortable default
@@ -18608,8 +18839,6 @@ static const char* slave_conflict_role_names[] =
   "PASS",
   NullS
 };
-
-static ulong opt_ndb_slave_conflict_role;
 
 static TYPELIB slave_conflict_role_typelib = 
 {

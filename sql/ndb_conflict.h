@@ -33,6 +33,8 @@ enum enum_conflict_fn_type
   ,CFT_NDB_MAX_DEL_WIN
   ,CFT_NDB_EPOCH
   ,CFT_NDB_EPOCH_TRANS
+  ,CFT_NDB_EPOCH2
+  ,CFT_NDB_EPOCH2_TRANS
   ,CFT_NUMBER_OF_CFTS /* End marker */
 };
 
@@ -107,9 +109,18 @@ typedef int (* prepare_detect_func) (struct st_ndbcluster_conflict_fn_share* cfn
                                      const MY_BITMAP* ai_cols,
                                      class NdbInterpretedCode* code);
 
+/**
+ * enum_conflict_fn_flags
+ *
+ * These are 'features' of a particular conflict resolution algorithm, not
+ * controlled on a per-table basis.
+ * TODO : Encapsulate all these per-algorithm details inside the algorithm
+ */
 enum enum_conflict_fn_flags
 {
-  CF_TRANSACTIONAL = 1
+  CF_TRANSACTIONAL    = 0x1,   /* Conflicts are handled per transaction */
+  CF_REFLECT_SEC_OPS  = 0x2,   /* Secondary operations are reflected back */
+  CF_USE_ROLE_VAR     = 0x4    /* Functionality controlled by role variable */
 };
 
 struct st_conflict_fn_def
@@ -140,6 +151,7 @@ struct Ndb_exceptions_data {
   my_bitmap_map* bitmap_buf; /* Buffer for write_set */
   MY_BITMAP* write_set;
   enum_conflicting_op_type op_type;
+  bool reflected_operation;
   Uint64 trans_id;
 };
 
@@ -388,6 +400,23 @@ struct st_ndb_slave_state
    * (delete op is applied, and row does not exist)
    */
   Uint32 current_delete_delete_count;
+
+  /**
+   * Number of reflected operations received that have been
+   * prepared (defined) to be executed.
+   */
+  Uint32 current_reflect_op_prepare_count;
+  
+  /**
+   * Number of reflected operations that were not applied as
+   * they hit some error during execution
+   */
+  Uint32 current_reflect_op_discard_count;
+  
+  /**
+   * Number of refresh operations that have been prepared
+   */
+  Uint32 current_refresh_op_count;
   
   /* Track the current epoch from the immediate master,
    * and whether we've committed it
@@ -409,6 +438,9 @@ struct st_ndb_slave_state
   /* Cumulative counter values */
   Uint64 total_violation_count[CFT_NUMBER_OF_CFTS];
   Uint64 total_delete_delete_count;
+  Uint64 total_reflect_op_prepare_count;
+  Uint64 total_reflect_op_discard_count;
+  Uint64 total_refresh_op_count;
   Uint64 max_rep_epoch;
   Uint32 sql_run_id;
   /* Transactional conflict detection */

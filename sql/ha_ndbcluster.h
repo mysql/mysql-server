@@ -392,7 +392,8 @@ private:
                                  NdbTransaction* trans,
                                  NdbInterpretedCode* code,
                                  NdbOperation::OperationOptions* options,
-                                 bool& conflict_handled);
+                                 bool& conflict_handled,
+                                 bool& avoid_ndbapi_write);
 #endif
   void setup_key_ref_for_ndb_record(const NdbRecord **key_rec,
                                     const uchar **key_row,
