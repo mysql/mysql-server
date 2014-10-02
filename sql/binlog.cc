@@ -2013,7 +2013,10 @@ private:
 static int log_in_use(const char* log_name)
 {
   Log_in_use log_in_use(log_name);
-  DEBUG_SYNC(current_thd,"purge_logs_after_lock_index_before_thread_count");
+#ifndef DBUG_OFF
+  if (current_thd)
+    DEBUG_SYNC(current_thd,"purge_logs_after_lock_index_before_thread_count");
+#endif
   Global_THD_manager::get_instance()->do_for_all_thd(&log_in_use);
   return log_in_use.get_count();
 }
