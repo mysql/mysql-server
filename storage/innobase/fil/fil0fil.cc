@@ -6152,7 +6152,8 @@ fil_names_dirty_and_write(
 				char bogus_name[] = "./test/bogus file.ibd";
 				os_normalize_path_for_win(bogus_name);
 				fil_name_write(
-					ULINT32_UNDEFINED, 0, bogus_name, mtr);
+					SRV_LOG_SPACE_FIRST_ID, 0,
+					bogus_name, mtr);
 			});
 }
 
