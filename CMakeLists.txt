@@ -85,6 +85,10 @@ ELSE()
 ENDIF()
 PROJECT(${MYSQL_PROJECT_NAME})
 
+SET(CPACK_PACKAGE_NAME "MariaDB")
+SET(CPACK_PACKAGE_DESCRIPTION_SUMMARY "MariaDB: a very fast and robust SQL database server")
+SET(CPACK_PACKAGE_URL "http://mariadb.org")
+
 IF(BUILD_CONFIG)
   INCLUDE(
   ${CMAKE_SOURCE_DIR}/cmake/build_configurations/${BUILD_CONFIG}.cmake)
@@ -410,9 +414,7 @@ ADD_SUBDIRECTORY(libmysql)
 ADD_SUBDIRECTORY(client)
 ADD_SUBDIRECTORY(extra)
 ADD_SUBDIRECTORY(libservices)
-ADD_SUBDIRECTORY(scripts)
 ADD_SUBDIRECTORY(sql/share)
-ADD_SUBDIRECTORY(support-files)
 
 IF(NOT WITHOUT_SERVER)
   ADD_SUBDIRECTORY(tests)
@@ -445,6 +447,10 @@ IF(WIN32)
   ADD_SUBDIRECTORY(win/packaging)
 ENDIF()
 ADD_SUBDIRECTORY(packaging/solaris)
+
+INCLUDE(for_clients)
+ADD_SUBDIRECTORY(scripts)
+ADD_SUBDIRECTORY(support-files)
 
 CONFIGURE_FILE(config.h.cmake   ${CMAKE_BINARY_DIR}/include/my_config.h)
 CONFIGURE_FILE(config.h.cmake   ${CMAKE_BINARY_DIR}/include/config.h)

@@ -1169,3 +1169,4 @@ storage/tokudb/ft-index/tools/tokudb_dump
 storage/tokudb/ft-index/tools/tokuftdump
 libmysql/libmysql_versions.ld
 scripts/mysql_config.pl
+support-files/mariadb.pc
