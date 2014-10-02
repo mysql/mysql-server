@@ -550,7 +550,7 @@ buf_read_ahead_linear(
 		space_size = space->size;
 		fil_space_release(space);
 
-		if (high > space->size) {
+		if (high > space_size) {
 			/* The area is not whole */
 			return(0);
 		}
