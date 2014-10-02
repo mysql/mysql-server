@@ -6,6 +6,8 @@
  * See COPYRIGHT.txt for details.
  */
 
+#include <my_config.h>
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>

@@ -31,6 +31,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #endif
 
 #define MYSQL_SERVER 1
+#include <my_global.h>
 #include "sql_priv.h"
 #include <mysql/plugin.h>
 

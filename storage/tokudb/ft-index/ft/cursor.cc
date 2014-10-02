@@ -86,6 +86,8 @@ PATENT RIGHTS GRANT:
   under this License.
 */
 
+#include <config.h>
+
 #include "ft/ft-internal.h"
 
 #include "ft/cursor.h"

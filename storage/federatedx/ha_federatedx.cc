@@ -312,6 +312,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #endif
 
 #define MYSQL_SERVER 1
+#include <my_global.h>
 #include <mysql/plugin.h>
 #include "ha_federatedx.h"
 #include "sql_servers.h"

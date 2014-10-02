@@ -92,6 +92,8 @@ PATENT RIGHTS GRANT:
 /* rollback and rollforward routines. */
 
 
+#include <config.h>
+
 #include "ft/ft.h"
 #include "ft/ft-ops.h"
 #include "ft/log_header.h"

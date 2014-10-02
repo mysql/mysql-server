@@ -92,6 +92,8 @@ PATENT RIGHTS GRANT:
 /*
  *   The indexer
  */
+#include <config.h>
+
 #include <stdio.h>
 #include <string.h>
 #include <toku_portability.h>

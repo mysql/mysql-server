@@ -126,6 +126,8 @@ PATENT RIGHTS GRANT:
  *
  *****/
 
+#include <config.h>
+
 #include <time.h>
 
 #include "portability/toku_portability.h"

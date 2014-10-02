@@ -94,6 +94,8 @@ PATENT RIGHTS GRANT:
 // fractal tree file, one block at a time.
 ////////////////////////////////////////////////////////////////////
 
+#include <config.h>
+
 #include "portability/toku_assert.h"
 #include "portability/toku_list.h"
 #include "portability/toku_portability.h"

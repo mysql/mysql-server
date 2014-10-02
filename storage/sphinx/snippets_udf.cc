@@ -13,6 +13,7 @@
 // did not, you can find it at http://www.gnu.org/
 //
 
+#include <my_config.h>
 #include <stdio.h>
 #include <string.h>
 #include <assert.h>

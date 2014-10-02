@@ -96,6 +96,8 @@ PATENT RIGHTS GRANT:
   The error handling routines for ydb
 */
 
+#include <config.h>
+
 #include <toku_portability.h>
 #include <stdio.h>
 #include <stdarg.h>

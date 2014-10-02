@@ -93,6 +93,8 @@ PATENT RIGHTS GRANT:
  *   The loader
  */
 
+#include <config.h>
+
 #include <toku_portability.h>
 #include <portability/toku_atomic.h>
 #include <stdio.h>

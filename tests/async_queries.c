@@ -21,15 +21,15 @@
   API, and compare to running same queries with the normal blocking API.
 */
 
-#include <sys/time.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
-
 #include <my_global.h>
 #include <my_sys.h>
 #include <mysql.h>
 #include <my_getopt.h>
+
+#include <sys/time.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
 
 #include <event.h>
 

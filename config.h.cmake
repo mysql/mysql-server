@@ -641,4 +641,17 @@
 #cmakedefine SIZEOF_TIME_T @SIZEOF_TIME_T@
 #cmakedefine TIME_T_UNSIGNED @TIME_T_UNSIGNED@
 
+/*
+  stat structure (from <sys/stat.h>) is conditionally defined
+  to have different layout and size depending on the defined macros.
+  The correct macro is defined in my_config.h, which means it MUST be
+  included first (or at least before <features.h> - so, practically,
+  before including any system headers).
+
+  __GLIBC__ is defined in <features.h>
+*/
+#ifdef __GLIBC__
+#error <my_config.h> MUST be included first!
+#endif
+
 #endif

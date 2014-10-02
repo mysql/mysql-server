@@ -91,6 +91,8 @@ PATENT RIGHTS GRANT:
 
 /* Dump the log from stdin to stdout. */
 
+#include <config.h>
+
 #include "ft/log_header.h"
 #include "ft/logger/logger.h"
 

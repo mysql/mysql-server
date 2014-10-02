@@ -88,6 +88,8 @@ PATENT RIGHTS GRANT:
 #ident "Copyright (c) 2011-2013 Tokutek Inc.  All rights reserved."
 #ident "$Id$"
 
+#include <config.h>
+
 #include <toku_portability.h>
 #include <util/scoped_malloc.h>
 

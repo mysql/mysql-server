@@ -102,6 +102,8 @@ PATENT RIGHTS GRANT:
 // See design documentation for nested transactions at
 // TokuWiki/Imp/TransactionsOverview.
 
+#include <config.h>
+
 #include "portability/toku_portability.h"
 
 #include "ft/ft-internal.h"

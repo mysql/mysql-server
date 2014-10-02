@@ -97,6 +97,8 @@ PATENT RIGHTS GRANT:
  *   For each nonleaf node:  All the messages have keys that are between the associated pivot keys ( left_pivot_key < message <= right_pivot_key)
  */
 
+#include <config.h>
+
 #include "ft/serialize/block_table.h"
 #include "ft/ft.h"
 #include "ft/ft-cachetable-wrappers.h"

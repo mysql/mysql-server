@@ -92,6 +92,8 @@ PATENT RIGHTS GRANT:
 extern const char *toku_patent_string;
 const char *toku_copyright_string = "Copyright (c) 2007-2013 Tokutek Inc.  All rights reserved.";
 
+#include <config.h>
+
 #include <db.h>
 #include <errno.h>
 #include <string.h>

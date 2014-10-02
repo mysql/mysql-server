@@ -200,6 +200,8 @@ basement nodes, bulk fetch,  and partial fetch:
 
 */
 
+#include <config.h>
+
 #include "ft/cachetable/checkpoint.h"
 #include "ft/cursor.h"
 #include "ft/ft.h"

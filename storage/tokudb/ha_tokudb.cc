@@ -92,6 +92,8 @@ PATENT RIGHTS GRANT:
 #pragma implementation          // gcc: Class implementation
 #endif
 
+#include <my_global.h> //  must be first!
+
 extern "C" {
 #include "stdint.h"
 #define __STDC_FORMAT_MACROS
