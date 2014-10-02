@@ -2929,30 +2929,6 @@ fil_reinit_space_header(
 	mtr_commit(&mtr);
 }
 
-/*******************************************************************//**
-Returns true if a single-table tablespace is being deleted.
-@return true if being deleted */
-bool
-fil_tablespace_is_being_deleted(
-/*============================*/
-	ulint		id)	/*!< in: space id */
-{
-	fil_space_t*	space;
-	bool		is_being_deleted;
-
-	mutex_enter(&fil_system->mutex);
-
-	space = fil_space_get_by_id(id);
-
-	ut_a(space != NULL);
-
-	is_being_deleted = (space->stop_new_ops && !space->is_being_truncated);
-
-	mutex_exit(&fil_system->mutex);
-
-	return(is_being_deleted);
-}
-
 #ifdef UNIV_DEBUG
 /** Increase redo skipped count for a tablespace.
 @param[in]	id	space id */
