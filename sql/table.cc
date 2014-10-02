@@ -259,10 +259,7 @@ TABLE_CATEGORY get_table_category(const LEX_STRING &db,
   if (is_infoschema_db(db.str, db.length))
     return TABLE_CATEGORY_INFORMATION;
 
-  if ((db.length == PERFORMANCE_SCHEMA_DB_NAME.length) &&
-      (my_strcasecmp(system_charset_info,
-                     PERFORMANCE_SCHEMA_DB_NAME.str,
-                     db.str) == 0))
+  if (is_perfschema_db(db.str, db.length))
     return TABLE_CATEGORY_PERFORMANCE;
 
   if ((db.length == MYSQL_SCHEMA_NAME.length) &&
