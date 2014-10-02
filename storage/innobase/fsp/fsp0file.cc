@@ -557,12 +557,13 @@ Datafile::find_space_id()
 		ib::info() << "Page size:" << page_size
 			<< ". Pages to analyze:" << page_count;
 
-		byte* buf = static_cast<byte*>(ut_malloc_nokey(2*page_size));
-		byte* page = static_cast<byte*>(ut_align(buf, page_size));
+		byte*	buf = static_cast<byte*>(ut_malloc_nokey(2*page_size));
+		byte*	page = static_cast<byte*>(ut_align(buf, page_size));
 
 		for (ulint j = 0; j < page_count; ++j) {
 
-			st = os_file_read(m_handle, page, (j* page_size), page_size);
+			st = os_file_read(m_handle, page, j * page_size,
+					  page_size);
 
 			if (!st) {
 				ib::info() << "READ FAIL: page_no:" << j;
