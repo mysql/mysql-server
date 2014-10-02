@@ -3216,7 +3216,7 @@ row_merge_drop_indexes(
 			case ONLINE_INDEX_ABORTED_DROPPED:
 				continue;
 			case ONLINE_INDEX_COMPLETE:
-				if (*index->name != TEMP_INDEX_PREFIX) {
+				if (index->is_committed()) {
 					/* Do nothing to already
 					published indexes. */
 				} else if (index->type & DICT_FTS) {
@@ -3269,7 +3269,7 @@ row_merge_drop_indexes(
 				continue;
 			case ONLINE_INDEX_CREATION:
 				rw_lock_x_lock(dict_index_get_lock(index));
-				ut_ad(*index->name == TEMP_INDEX_PREFIX);
+				ut_ad(!index->is_committed());
 				row_log_abort_sec(index);
 			drop_aborted:
 				rw_lock_x_unlock(dict_index_get_lock(index));
@@ -3313,7 +3313,7 @@ row_merge_drop_indexes(
 
 		ut_ad(!dict_index_is_clust(index));
 
-		if (*index->name == TEMP_INDEX_PREFIX) {
+		if (!index->is_committed()) {
 			/* If it is FTS index, drop from table->fts
 			and also drop its auxiliary tables */
 			if (index->type & DICT_FTS) {
@@ -3818,6 +3818,8 @@ row_merge_create_index(
 
 	ut_a(index);
 
+	index->set_committed(index_def->rebuild);
+
 	for (i = 0; i < n_fields; i++) {
 		index_field_t*	ifield = &index_def->fields[i];
 
@@ -3831,7 +3833,8 @@ row_merge_create_index(
 
 	if (err == DB_SUCCESS) {
 
-		index = dict_table_get_index_on_name(table, index_def->name);
+		index = dict_table_get_index_on_name(table, index_def->name,
+						     index_def->rebuild);
 
 		ut_a(index);
 
@@ -4137,14 +4140,8 @@ wait_again:
 		}
 
 		if (indexes[i]->type & DICT_FTS && fts_enable_diag_print) {
-			char*	name = (char*) indexes[i]->name;
-
-			if (*name == TEMP_INDEX_PREFIX)  {
-				name++;
-			}
-
 			ib::info() << "Finished building full-text index "
-				<< name;
+				<< indexes[i]->name;
 		}
 	}
 
@@ -4181,7 +4178,7 @@ func_exit:
 		as aborted. */
 		for (i = 0; i < n_indexes; i++) {
 			ut_ad(!(indexes[i]->type & DICT_FTS));
-			ut_ad(*indexes[i]->name == TEMP_INDEX_PREFIX);
+			ut_ad(!indexes[i]->is_committed());
 			ut_ad(!dict_index_is_clust(indexes[i]));
 
 			/* Completed indexes should be dropped as

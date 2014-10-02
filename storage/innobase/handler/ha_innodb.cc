@@ -2755,17 +2755,6 @@ innobase_convert_name(
 							- (slash - id) - 1,
 							thd, TRUE);
 		}
-	} else if (*id == TEMP_INDEX_PREFIX) {
-		/* Temporary index name (smart ALTER TABLE) */
-		const char temp_index_suffix[]= "--temporary--";
-
-		s = innobase_convert_identifier(buf, buflen, id + 1, idlen - 1,
-						thd, FALSE);
-		if (s - buf + (sizeof temp_index_suffix - 1) < buflen) {
-			memcpy(s, temp_index_suffix,
-			       sizeof temp_index_suffix - 1);
-			s += sizeof temp_index_suffix - 1;
-		}
 	} else {
 		s = innobase_convert_identifier(
 			buf, buflen, id, idlen, thd, table_id);
@@ -11343,7 +11332,7 @@ innobase_get_mysql_key_number_for_index(
 
 		/* Print an error message if we cannot find the index
 		in the "index translation table". */
-		if (*index->name != TEMP_INDEX_PREFIX) {
+		if (index->is_committed()) {
 			sql_print_error("Cannot find index %s in InnoDB index"
 					" translation table.", index->name);
 		}
@@ -11370,7 +11359,7 @@ innobase_get_mysql_key_number_for_index(
 			/* Temp index is internal to InnoDB, that is
 			not present in the MySQL index list, so no
 			need to print such mismatch warning. */
-			if (*(index->name) != TEMP_INDEX_PREFIX) {
+			if (index->is_committed()) {
 				sql_print_warning(
 					"Found index %s in InnoDB index list"
 					" but not its MySQL index number."
@@ -11704,7 +11693,7 @@ ha_innobase::info_low(
 				time frame, dict_index_is_online_ddl()
 				would not hold and the index would
 				still not be included in TABLE_SHARE. */
-				if (*index->name == TEMP_INDEX_PREFIX) {
+				if (!index->is_committed()) {
 					num_innodb_index--;
 				}
 			}
@@ -12074,7 +12063,7 @@ ha_innobase::check(
 		char	index_name[MAX_FULL_NAME_LEN + 1];
 
 		/* If this is an index being created or dropped, skip */
-		if (*index->name == TEMP_INDEX_PREFIX) {
+		if (!index->is_committed()) {
 			continue;
 		}
 

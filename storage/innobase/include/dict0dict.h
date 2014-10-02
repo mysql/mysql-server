@@ -1464,15 +1464,35 @@ dict_tables_have_same_db(
 	const char*	name2)	/*!< in: table name in the form
 				dbname '/' tablename */
 	__attribute__((nonnull, warn_unused_result));
-/**********************************************************************//**
-Get index by name
+/** Get an index by name.
+@param[in]	table		the table where to look for the index
+@param[in]	name		the index name to look for
+@param[in]	committed	true=search for committed,
+false=search for uncommitted
 @return index, NULL if does not exist */
 dict_index_t*
 dict_table_get_index_on_name(
-/*=========================*/
-	dict_table_t*	table,	/*!< in: table */
-	const char*	name)	/*!< in: name of the index to find */
-	__attribute__((nonnull, warn_unused_result));
+	dict_table_t*	table,
+	const char*	name,
+	bool		committed=true)
+	__attribute__((warn_unused_result));
+/** Get an index by name.
+@param[in]	table		the table where to look for the index
+@param[in]	name		the index name to look for
+@param[in]	committed	true=search for committed,
+false=search for uncommitted
+@return index, NULL if does not exist */
+inline
+const dict_index_t*
+dict_table_get_index_on_name(
+	const dict_table_t*	table,
+	const char*		name,
+	bool			committed=true)
+{
+	return(dict_table_get_index_on_name(
+		       const_cast<dict_table_t*>(table), name, committed));
+}
+
 /***************************************************************
 Check whether a column exists in an FTS index. */
 UNIV_INLINE

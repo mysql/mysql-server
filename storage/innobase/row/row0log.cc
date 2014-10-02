@@ -3310,7 +3310,7 @@ row_log_apply_ops(
 		+ dict_index_get_n_fields(index);
 
 	ut_ad(dict_index_is_online_ddl(index));
-	ut_ad(*index->name == TEMP_INDEX_PREFIX);
+	ut_ad(!index->is_committed());
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own(dict_index_get_lock(index), RW_LOCK_X));
 #endif /* UNIV_SYNC_DEBUG */
@@ -3350,7 +3350,7 @@ next_block:
 			  > index->online_log->tail.blocks)) {
 unexpected_eof:
 		ib::error() << "Unexpected end of temporary file for index "
-			<< index->name + 1;
+			<< index->name;
 corruption:
 		error = DB_CORRUPTION;
 		goto func_exit;
@@ -3651,11 +3651,6 @@ row_log_apply(
 
 	log = index->online_log;
 	index->online_log = NULL;
-	/* We could remove the TEMP_INDEX_PREFIX and update the data
-	dictionary to say that this index is complete, if we had
-	access to the .frm file here.  If the server crashes before
-	all requested indexes have been created, this completed index
-	will be dropped. */
 	rw_lock_x_unlock(dict_index_get_lock(index));
 
 	row_log_free(log);

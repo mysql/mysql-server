@@ -1781,7 +1781,8 @@ dict_load_indexes(
 				rec, DICT_FLD__SYS_INDEXES__NAME, &len);
 
 			if (len != UNIV_SQL_NULL
-			    && char(*field) == char(TEMP_INDEX_PREFIX)) {
+			    && static_cast<char>(*field)
+			    == static_cast<char>(*TEMP_INDEX_PREFIX_STR)) {
 				/* Skip indexes whose name starts with
 				TEMP_INDEX_PREFIX, because they will
 				be dropped during crash recovery. */

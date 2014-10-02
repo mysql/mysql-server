@@ -1647,11 +1647,10 @@ row_upd_sec_index_entry(
 		}
 	}
 
-	if (*index->name == TEMP_INDEX_PREFIX) {
-		/* The index->online_status may change if the
-		index->name starts with TEMP_INDEX_PREFIX (meaning
-		that the index is or was being created online). It is
-		protected by index->lock. */
+	if (!index->is_committed()) {
+		/* The index->online_status may change if the index is
+		or was being created online, but not committed yet. It
+		is protected by index->lock. */
 
 		mtr_s_lock(dict_index_get_lock(index), &mtr);
 
@@ -1681,24 +1680,20 @@ row_upd_sec_index_entry(
 
 		/* We can only buffer delete-mark operations if there
 		are no foreign key constraints referring to the index.
-		Insert/Change buffering is block for temp-table
-		and so no point in removing entry from these buffers
-		if not present in buffer-pool */
+		Change buffering is disabled for temporary tables. */
 		mode = (referenced || dict_table_is_temporary(index->table))
 			? BTR_MODIFY_LEAF | BTR_ALREADY_S_LATCHED
 			: BTR_MODIFY_LEAF | BTR_ALREADY_S_LATCHED
 			| BTR_DELETE_MARK;
 	} else {
 		/* For secondary indexes,
-		index->online_status==ONLINE_INDEX_CREATION unless
-		index->name starts with TEMP_INDEX_PREFIX. */
+		index->online_status==ONLINE_INDEX_COMPLETE if
+		index->is_committed(). */
 		ut_ad(!dict_index_is_online_ddl(index));
 
 		/* We can only buffer delete-mark operations if there
 		are no foreign key constraints referring to the index.
-		Insert/Change buffering is block for temp-table
-		and so no point in removing entry from these buffers
-		if not present in buffer-pool */
+		Change buffering is disabled for temporary tables. */
 		mode = (referenced || dict_table_is_temporary(index->table))
 			? BTR_MODIFY_LEAF
 			: BTR_MODIFY_LEAF | BTR_DELETE_MARK;
@@ -1726,17 +1721,16 @@ row_upd_sec_index_entry(
 		break;
 
 	case ROW_NOT_FOUND:
-		if (*index->name == TEMP_INDEX_PREFIX) {
+		if (!index->is_committed()) {
 			/* When online CREATE INDEX copied the update
 			that we already made to the clustered index,
 			and completed the secondary index creation
 			before we got here, the old secondary index
 			record would not exist. The CREATE INDEX
 			should be waiting for a MySQL meta-data lock
-			upgrade at least until this UPDATE
-			returns. After that point, the
-			TEMP_INDEX_PREFIX would be dropped from the
-			index name in commit_inplace_alter_table(). */
+			upgrade at least until this UPDATE returns.
+			After that point, set_committed(true) would be
+			invoked by commit_inplace_alter_table(). */
 			break;
 		}
 

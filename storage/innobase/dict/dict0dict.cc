@@ -2509,6 +2509,7 @@ dict_index_add_to_cache(
 
 	new_index->n_fields = new_index->n_def;
 	new_index->trx_id = index->trx_id;
+	new_index->set_committed(index->is_committed());
 	new_index->allow_duplicates = index->allow_duplicates;
 	new_index->nulls_equal = index->nulls_equal;
 	new_index->disable_ahi = index->disable_ahi;
@@ -5808,21 +5809,25 @@ dict_ind_free(void)
 	dict_mem_table_free(table);
 }
 
-/**********************************************************************//**
-Get index by name
+/** Get an index by name.
+@param[in]	table		the table where to look for the index
+@param[in]	name		the index name to look for
+@param[in]	committed	true=search for committed,
+false=search for uncommitted
 @return index, NULL if does not exist */
 dict_index_t*
 dict_table_get_index_on_name(
-/*=========================*/
-	dict_table_t*	table,	/*!< in: table */
-	const char*	name)	/*!< in: name of the index to find */
+	dict_table_t*	table,
+	const char*	name,
+	bool		committed)
 {
 	dict_index_t*	index;
 
 	index = dict_table_get_first_index(table);
 
 	while (index != NULL) {
-		if (innobase_strcasecmp(index->name, name) == 0) {
+		if (index->is_committed() == committed
+		    && innobase_strcasecmp(index->name, name) == 0) {
 
 			return(index);
 		}
@@ -5930,7 +5935,7 @@ dict_table_check_for_dup_indexes(
 	index1 = UT_LIST_GET_FIRST(table->indexes);
 
 	do {
-		if (*index1->name == TEMP_INDEX_PREFIX) {
+		if (!index1->is_committed()) {
 			ut_a(!dict_index_is_clust(index1));
 
 			switch (check) {
@@ -5955,7 +5960,9 @@ dict_table_check_for_dup_indexes(
 		for (index2 = UT_LIST_GET_NEXT(indexes, index1);
 		     index2 != NULL;
 		     index2 = UT_LIST_GET_NEXT(indexes, index2)) {
-			ut_ad(ut_strcmp(index1->name, index2->name));
+			ut_ad(index1->is_committed()
+			      != index2->is_committed()
+			      || strcmp(index1->name, index2->name) != 0);
 		}
 
 		index1 = UT_LIST_GET_NEXT(indexes, index1);

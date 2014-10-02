@@ -275,11 +275,10 @@ row_ins_sec_index_entry_by_modify(
 		case, the change would already be there. The CREATE
 		INDEX should be waiting for a MySQL meta-data lock
 		upgrade at least until this INSERT or UPDATE
-		returns. After that point, the TEMP_INDEX_PREFIX
-		would be dropped from the index name in
-		commit_inplace_alter_table(). */
+		returns. After that point, set_committed(true)
+		would be invoked in commit_inplace_alter_table(). */
 		ut_a(update->n_fields == 0);
-		ut_a(*cursor->index->name == TEMP_INDEX_PREFIX);
+		ut_a(!cursor->index->is_committed());
 		ut_ad(!dict_index_is_online_ddl(cursor->index));
 		return(DB_SUCCESS);
 	}
@@ -2701,7 +2700,7 @@ row_ins_sec_mtr_start_and_check_if_aborted(
 	switch (index->online_status) {
 	case ONLINE_INDEX_ABORTED:
 	case ONLINE_INDEX_ABORTED_DROPPED:
-		ut_ad(*index->name == TEMP_INDEX_PREFIX);
+		ut_ad(!index->is_committed());
 		return(true);
 	case ONLINE_INDEX_COMPLETE:
 		return(false);
@@ -2785,7 +2784,7 @@ row_ins_sec_index_entry_low(
 	This prevents a concurrent change of index->online_status.
 	The memory object cannot be freed as long as we have an open
 	reference to the table, or index->table->n_ref_count > 0. */
-	const bool check = *index->name == TEMP_INDEX_PREFIX;
+	const bool	check = !index->is_committed();
 	if (check) {
 		DEBUG_SYNC_C("row_ins_sec_index_enter");
 		if (mode == BTR_MODIFY_LEAF) {
@@ -2890,7 +2889,7 @@ row_ins_sec_index_entry_low(
 		case DB_SUCCESS:
 			break;
 		case DB_DUPLICATE_KEY:
-			if (*index->name == TEMP_INDEX_PREFIX) {
+			if (!index->is_committed()) {
 				ut_ad(!thr_get_trx(thr)
 				      ->dict_operation_lock_mode);
 				mutex_enter(&dict_sys->mutex);

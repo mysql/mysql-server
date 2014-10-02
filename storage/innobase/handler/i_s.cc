@@ -306,7 +306,7 @@ field_store_index_name(
 
 	/* Since TEMP_INDEX_PREFIX is not a valid UTF8, we need to convert
 	it to something else. */
-	if (index_name[0] == TEMP_INDEX_PREFIX) {
+	if (*index_name == *TEMP_INDEX_PREFIX_STR) {
 		char	buf[NAME_LEN + 1];
 		buf[0] = '?';
 		memcpy(buf + 1, index_name + 1, strlen(index_name));
