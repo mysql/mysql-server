@@ -129,6 +129,11 @@ fsp_flags_set_page_size(
 	ut_ad(page_size.logical() <= UNIV_PAGE_SIZE_MAX);
 	ut_ad(ut_is_2pow(page_size.logical()));
 
+	/* Remove this assert once we add support for different
+	page size per tablespace. Currently all tablespaces must
+	have a page size that is equal to innodb-page-size */
+	ut_ad(page_size.logical() == UNIV_PAGE_SIZE);
+
 	if (page_size.logical() == UNIV_PAGE_SIZE_ORIG) {
 		ut_ad(0 == FSP_FLAGS_GET_PAGE_SSIZE(flags));
 

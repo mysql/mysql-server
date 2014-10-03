@@ -107,10 +107,6 @@ public:
 	@return physical page size in bytes */
 	inline ulint physical() const
 	{
-		/* Remove this assert once we add support for different
-		page size per tablespace. Currently all tablespaces must
-		have a page size that is equal to --innodb-page-size= */
-		ut_ad(m_logical == srv_page_size);
 		ut_ad(m_physical > 0);
 
 		return(m_physical);
