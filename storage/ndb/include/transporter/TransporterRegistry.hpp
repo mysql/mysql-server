@@ -203,7 +203,8 @@ public:
    * Given a SocketClient, creates a NdbMgmHandle, turns it into a transporter
    * and returns the socket.
    */
-  NDB_SOCKET_TYPE connect_ndb_mgmd(SocketClient *sc);
+  NDB_SOCKET_TYPE connect_ndb_mgmd(const char* server_name,
+                                   unsigned short server_port);
 
   /**
    * Given a connected NdbMgmHandle, turns it into a transporter

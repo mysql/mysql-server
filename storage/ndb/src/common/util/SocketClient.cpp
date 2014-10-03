@@ -21,20 +21,16 @@
 #include <SocketClient.hpp>
 #include <SocketAuthenticator.hpp>
 
-SocketClient::SocketClient(const char *server_name, unsigned short port, SocketAuthenticator *sa) :
+SocketClient::SocketClient(SocketAuthenticator *sa) :
   m_connect_timeout_millisec(0),// Blocking connect by default
-  m_last_used_port(0)
+  m_last_used_port(0),
+  m_auth(sa)
 {
-  m_auth= sa;
-  m_port= port;
-  m_server_name= server_name ? strdup(server_name) : 0;
   my_socket_invalidate(&m_sockfd);
 }
 
 SocketClient::~SocketClient()
 {
-  if (m_server_name)
-    free(m_server_name);
   if (my_socket_valid(m_sockfd))
     NDB_CLOSE_SOCKET(m_sockfd);
   if (m_auth)
@@ -47,16 +43,6 @@ SocketClient::init()
   if (my_socket_valid(m_sockfd))
     NDB_CLOSE_SOCKET(m_sockfd);
 
-  if (m_server_name)
-  {
-    memset(&m_servaddr, 0, sizeof(m_servaddr));
-    m_servaddr.sin_family = AF_INET;
-    m_servaddr.sin_port = htons(m_port);
-    // Convert ip address presentation format to numeric format
-    if (Ndb_getInAddr(&m_servaddr.sin_addr, m_server_name))
-      return false;
-  }
-
   m_sockfd= my_socket_create(AF_INET, SOCK_STREAM, 0);
   if (!my_socket_valid(m_sockfd)) {
     return false;
@@ -68,7 +54,8 @@ SocketClient::init()
 }
 
 int
-SocketClient::bind(const char* bindaddress, unsigned short localport)
+SocketClient::bind(const char* local_hostname,
+                   unsigned short local_port)
 {
   if (!my_socket_valid(m_sockfd))
     return -1;
@@ -76,8 +63,8 @@ SocketClient::bind(const char* bindaddress, unsigned short localport)
   struct sockaddr_in local;
   memset(&local, 0, sizeof(local));
   local.sin_family = AF_INET;
-  local.sin_port = htons(localport);
-  if (localport == 0 &&
+  local.sin_port = htons(local_port);
+  if (local_port == 0 &&
       m_last_used_port != 0)
   {
     // Try to bind to the same port as last successful connect instead of
@@ -85,8 +72,8 @@ SocketClient::bind(const char* bindaddress, unsigned short localport)
     local.sin_port = htons(m_last_used_port);
   }
 
-  // Convert ip address presentation format to numeric format
-  if (Ndb_getInAddr(&local.sin_addr, bindaddress))
+  // Resolve local address
+  if (Ndb_getInAddr(&local.sin_addr, local_hostname))
   {
     return errno ? errno : EINVAL;
   }
@@ -101,7 +88,7 @@ SocketClient::bind(const char* bindaddress, unsigned short localport)
 
   while (my_bind_inet(m_sockfd, &local) == -1)
   {
-    if (localport == 0 &&
+    if (local_port == 0 &&
         m_last_used_port != 0)
     {
       // Faild to bind same port as last, retry with any
@@ -127,7 +114,8 @@ SocketClient::bind(const char* bindaddress, unsigned short localport)
 #endif
 
 NDB_SOCKET_TYPE
-SocketClient::connect(const char *toaddress, unsigned short toport)
+SocketClient::connect(const char* server_hostname,
+                      unsigned short server_port)
 {
   // Reset last used port(in case connect fails)
   m_last_used_port = 0;
@@ -140,22 +128,17 @@ SocketClient::connect(const char *toaddress, unsigned short toport)
     }
   }
 
-  if (toaddress)
+  struct sockaddr_in server_addr;
+  memset(&server_addr, 0, sizeof(server_addr));
+  server_addr.sin_family = AF_INET;
+  server_addr.sin_port = htons(server_port);
+
+  // Resolve server address
+  if (Ndb_getInAddr(&server_addr.sin_addr, server_hostname))
   {
-    if (m_server_name)
-      free(m_server_name);
-    m_server_name = strdup(toaddress);
-    m_port = toport;
-    memset(&m_servaddr, 0, sizeof(m_servaddr));
-    m_servaddr.sin_family = AF_INET;
-    m_servaddr.sin_port = htons(toport);
-    // Convert ip address presentation format to numeric format
-    if (Ndb_getInAddr(&m_servaddr.sin_addr, m_server_name))
-    {
-      my_socket_close(m_sockfd);
-      my_socket_invalidate(&m_sockfd);
-      return m_sockfd;
-    }
+    my_socket_close(m_sockfd);
+    my_socket_invalidate(&m_sockfd);
+    return m_sockfd;
   }
 
   // Set socket non blocking
@@ -167,7 +150,7 @@ SocketClient::connect(const char *toaddress, unsigned short toport)
   }
 
   // Start non blocking connect
-  int r = my_connect_inet(m_sockfd, &m_servaddr);
+  int r = my_connect_inet(m_sockfd, &server_addr);
   if (r == 0)
     goto done; // connected immediately.
 

@@ -2422,7 +2422,9 @@ NDB_SOCKET_TYPE TransporterRegistry::connect_ndb_mgmd(NdbMgmHandle *h)
  * Given a SocketClient, creates a NdbMgmHandle, turns it into a transporter
  * and returns the socket.
  */
-NDB_SOCKET_TYPE TransporterRegistry::connect_ndb_mgmd(SocketClient *sc)
+NDB_SOCKET_TYPE
+TransporterRegistry::connect_ndb_mgmd(const char* server_name,
+                                      unsigned short server_port)
 {
   NdbMgmHandle h= ndb_mgm_create_handle();
   NDB_SOCKET_TYPE s;
@@ -2440,7 +2442,7 @@ NDB_SOCKET_TYPE TransporterRegistry::connect_ndb_mgmd(SocketClient *sc)
    */
   {
     BaseString cs;
-    cs.assfmt("%s:%u",sc->get_server_name(),sc->get_port());
+    cs.assfmt("%s:%u", server_name, server_port);
     ndb_mgm_set_connectstring(h, cs.c_str());
   }
 
