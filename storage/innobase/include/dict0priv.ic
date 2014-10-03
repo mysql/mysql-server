@@ -46,10 +46,10 @@ dict_table_get_low(
 	table = dict_table_check_if_in_cache_low(table_name);
 
 	if (table && table->corrupted) {
-		ib::logger& l = ib::error()
-			<< "Table " << table->name << "is corrupted";
+		ib::error	error;
+		error << "Table " << table->name << "is corrupted";
 		if (srv_load_corrupted) {
-			l << ", but innodb_force_load_corrupted is set";
+			error << ", but innodb_force_load_corrupted is set";
 		} else {
 			return(NULL);
 		}
