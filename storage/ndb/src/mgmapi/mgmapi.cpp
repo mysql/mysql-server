@@ -730,7 +730,7 @@ ndb_mgm_connect(NdbMgmHandle handle, int no_retries,
       if (cfg.ids[i].type != MgmId_TCP)
 	continue;
 
-      SocketClient s(0, 0);
+      SocketClient s;
       const char *bind_address= NULL;
       unsigned short bind_address_port= 0;
       s.set_connect_timeout(handle->timeout);
@@ -1980,7 +1980,7 @@ ndb_mgm_listen_event_internal(NdbMgmHandle handle, const int filter[],
   const char *hostname= ndb_mgm_get_connected_host(handle);
   int port= ndb_mgm_get_connected_port(handle);
   const char *bind_address= ndb_mgm_get_connected_bind_address(handle);
-  SocketClient s(0, 0);
+  SocketClient s;
   s.set_connect_timeout(handle->timeout);
   if (!s.init())
   {

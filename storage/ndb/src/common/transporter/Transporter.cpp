@@ -80,16 +80,13 @@ Transporter::Transporter(TransporterRegistry &t_reg,
   m_timeOutMillis = 3000;
 
   m_connect_address.s_addr= 0;
-  if(s_port<0)
-    s_port= -s_port; // was dynamic
 
   if (isServer)
     m_socket_client= 0;
   else
   {
-    m_socket_client= new SocketClient(remoteHostName, s_port,
-				      new SocketAuthSimple("ndbd",
-							   "ndbd passwd"));
+    m_socket_client= new SocketClient(new SocketAuthSimple("ndbd",
+                                                           "ndbd passwd"));
 
     m_socket_client->set_connect_timeout(m_timeOutMillis);
   }
@@ -168,9 +165,20 @@ Transporter::connect_client() {
   if(m_connected)
     DBUG_RETURN(true);
 
+  int port = m_s_port;
+  if (port<0)
+  {
+    // The port number is stored as negative to indicate it's a port number
+    // which the server side setup dynamically and thus was communicated
+    // to the client via the ndb_mgmd.
+    // Reverse the negative port number to get the connectable port
+    port= -port;
+  }
+
   if(isMgmConnection)
   {
-    sockfd= m_transporter_registry.connect_ndb_mgmd(m_socket_client);
+    sockfd= m_transporter_registry.connect_ndb_mgmd(remoteHostName,
+                                                    port);
   }
   else
   {
@@ -185,7 +193,9 @@ Transporter::connect_client() {
       if (m_socket_client->bind(localHostName, 0) != 0)
         DBUG_RETURN(false);
     }
-    sockfd= m_socket_client->connect();
+
+    sockfd= m_socket_client->connect(remoteHostName,
+                                     port);
   }
 
   DBUG_RETURN(connect_client(sockfd));

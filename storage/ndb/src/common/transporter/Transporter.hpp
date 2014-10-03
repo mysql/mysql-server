@@ -79,18 +79,16 @@ public:
   /**
    * Get port we're connecting to (signed)
    */
-  int get_s_port() { return m_s_port; };
+  int get_s_port() const {
+    return m_s_port;
+  }
   
   /**
    * Set port to connect to (signed)
    */
   void set_s_port(int port) {
     m_s_port = port;
-    if(port<0)
-      port= -port;
-    if(m_socket_client)
-      m_socket_client->set_port(port);
-  };
+  }
 
   void update_status_overloaded(Uint32 used)
   {
