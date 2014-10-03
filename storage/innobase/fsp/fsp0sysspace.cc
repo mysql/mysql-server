@@ -501,8 +501,6 @@ SysTablespace::read_lsn_and_check_flags(lsn_t* flushed_lsn)
 
 	ut_a(it->order() == 0);
 
-	set_flags(it->m_flags);
-
 	buf_dblwr_init_or_load_pages(
 		it->handle(), it->filepath());
 

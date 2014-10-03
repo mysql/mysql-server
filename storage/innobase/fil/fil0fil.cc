@@ -1227,6 +1227,7 @@ fil_space_create(
 
 	ut_ad(fil_system);
 	ut_ad(fsp_flags_is_valid(flags));
+	ut_ad(srv_page_size == UNIV_PAGE_SIZE_ORIG || flags != 0);
 
 	DBUG_EXECUTE_IF("fil_space_create_failure", return(NULL););
 
@@ -1603,7 +1604,7 @@ fil_space_get_page_size(
 
 	if (flags == ULINT_UNDEFINED) {
 		*found = false;
-		return(page_size_t(0, 0, false));
+		return(univ_page_size);
 	}
 
 	*found = true;

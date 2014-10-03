@@ -3106,6 +3106,8 @@ innobase_init(
 		innobase_data_file_path = (char*) "ibdata1:12M:autoextend";
 	}
 
+	/* This is the first time univ_page_size is used.
+	It was initialized to 16k pages before srv_page_size was set */
 	univ_page_size.copy_from(
 		page_size_t(srv_page_size, srv_page_size, false));
 
