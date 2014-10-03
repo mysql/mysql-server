@@ -842,6 +842,7 @@ static ha_rows find_all_keys(Sort_param *param, QEP_TAB *qep_tab,
     }
     else					/* Not quick-select */
     {
+      DBUG_EXECUTE_IF("bug19656296", DBUG_SET("+d,ha_rnd_next_deadlock"););
       {
 	error= file->ha_rnd_next(sort_form->record[0]);
 	if (!flag)
@@ -927,8 +928,17 @@ static ha_rows find_all_keys(Sort_param *param, QEP_TAB *qep_tab,
   DBUG_PRINT("test",("error: %d  indexpos: %d",error,indexpos));
   if (error != HA_ERR_END_OF_FILE)
   {
-    file->print_error(error,MYF(ME_ERROR | ME_WAITTANG)); // purecov: inspected
-    num_records= HA_POS_ERROR;                            // purecov: inspected
+    myf my_flags;
+    switch (error) {
+    case HA_ERR_LOCK_DEADLOCK:
+    case HA_ERR_LOCK_WAIT_TIMEOUT:
+      my_flags= MYF(0);
+      break;
+    default:
+      my_flags= MYF(ME_INFO);
+    }
+    file->print_error(error, my_flags);
+    num_records= HA_POS_ERROR;
     goto cleanup;
   }
   if (indexpos && idx &&
