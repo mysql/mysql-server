@@ -17,7 +17,7 @@ add_c_defines(
 if (NOT CMAKE_SYSTEM_NAME STREQUAL FreeBSD)
   ## on FreeBSD these types of macros actually remove functionality
   add_c_defines(
-    _SVID_SOURCE
+    _DEFAULT_SOURCE
     _XOPEN_SOURCE=600
     )
 endif ()
