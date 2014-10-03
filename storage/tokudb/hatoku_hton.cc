@@ -1522,7 +1522,7 @@ static int tokudb_file_map(TABLE *table, THD *thd) {
 
             error = schema_table_store_record(thd, table);
         }
-        if (!error && thd->killed)
+        if (!error && thd_killed(thd))
             error = ER_QUERY_INTERRUPTED;
     }
     if (error == DB_NOTFOUND) {
@@ -1669,7 +1669,7 @@ static int tokudb_fractal_tree_info(TABLE *table, THD *thd) {
         if (!error) {
             error = tokudb_report_fractal_tree_info_for_db(&curr_key, &curr_val, table, thd);
         }
-        if (!error && thd->killed)
+        if (!error && thd_killed(thd))
             error = ER_QUERY_INTERRUPTED;
     }
     if (error == DB_NOTFOUND) {
@@ -1884,7 +1884,7 @@ static int tokudb_fractal_tree_block_map(TABLE *table, THD *thd) {
         if (!error) {
             error = tokudb_report_fractal_tree_block_map_for_db(&curr_key, &curr_val, table, thd);
         }
-        if (!error && thd->killed)
+        if (!error && thd_killed(thd))
             error = ER_QUERY_INTERRUPTED;
     }
     if (error == DB_NOTFOUND) {
@@ -2054,7 +2054,7 @@ static int tokudb_trx_callback(uint64_t txn_id, uint64_t client_id, iterate_row_
     table->field[0]->store(txn_id, false);
     table->field[1]->store(client_id, false);
     int error = schema_table_store_record(thd, table);
-    if (!error && thd->killed)
+    if (!error && thd_killed(thd))
         error = ER_QUERY_INTERRUPTED;
     return error;
 }
@@ -2140,7 +2140,7 @@ static int tokudb_lock_waits_callback(DB *db, uint64_t requesting_txnid, const D
 
     int error = schema_table_store_record(thd, table);
 
-    if (!error && thd->killed)
+    if (!error && thd_killed(thd))
         error = ER_QUERY_INTERRUPTED;
 
     return error;
@@ -2231,7 +2231,7 @@ static int tokudb_locks_callback(uint64_t txn_id, uint64_t client_id, iterate_ro
 
         error = schema_table_store_record(thd, table);
 
-        if (!error && thd->killed)
+        if (!error && thd_killed(thd))
             error = ER_QUERY_INTERRUPTED;
     }
     return error;
