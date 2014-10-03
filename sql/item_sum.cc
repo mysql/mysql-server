@@ -3295,18 +3295,6 @@ void Item_func_group_concat::cleanup()
     DBUG_ASSERT(tree == 0);
   }
 
-  /*
-    For prepared statements we have to restore pointers for ORDER BY as
-    they may point to areas that are freed at cleanup().
-  */
-  if (!current_thd->stmt_arena->is_conventional() && arg_count_order)
-  {
-    memcpy(args + arg_count_field, orig_args + arg_count_field,
-           sizeof(Item*) * arg_count_order);
-
-    for (uint i= 0 ; i < arg_count_order ; i++)
-      order[i]->item = args + arg_count_field + i;
-  }
   DBUG_VOID_RETURN;
 }
 
