@@ -155,6 +155,8 @@ a	b
 10	Initial data 10
 ndb_conflict_fn_epoch_trans
 0
+ndb_conflict_fn_epoch2_trans
+0
 ndb_conflict_trans_row_conflict_count
 0
 ndb_conflict_trans_row_reject_count
@@ -329,6 +331,8 @@ a	b
 10	Initial data 10
 ndb_conflict_fn_epoch_trans
 1
+ndb_conflict_fn_epoch2_trans
+0
 ndb_conflict_trans_row_conflict_count
 1
 ndb_conflict_trans_row_reject_count
@@ -509,6 +513,8 @@ a	b
 10	Initial data 10
 ndb_conflict_fn_epoch_trans
 0
+ndb_conflict_fn_epoch2_trans
+0
 ndb_conflict_trans_row_conflict_count
 0
 ndb_conflict_trans_row_reject_count
@@ -683,6 +689,8 @@ a	b
 10	Initial data 10
 ndb_conflict_fn_epoch_trans
 2
+ndb_conflict_fn_epoch2_trans
+0
 ndb_conflict_trans_row_conflict_count
 2
 ndb_conflict_trans_row_reject_count
@@ -901,6 +909,8 @@ a	b	c	d
 10	Initial data 10	10	10
 ndb_conflict_fn_epoch_trans
 1
+ndb_conflict_fn_epoch2_trans
+0
 ndb_conflict_trans_row_conflict_count
 1
 ndb_conflict_trans_row_reject_count
@@ -1076,6 +1086,8 @@ a	b	c	d
 10	Initial data 10	10	10
 ndb_conflict_fn_epoch_trans
 1
+ndb_conflict_fn_epoch2_trans
+0
 ndb_conflict_trans_row_conflict_count
 1
 ndb_conflict_trans_row_reject_count
@@ -1251,6 +1263,8 @@ a	b	c	d
 10	Initial data 10	10	10
 ndb_conflict_fn_epoch_trans
 1
+ndb_conflict_fn_epoch2_trans
+0
 ndb_conflict_trans_row_conflict_count
 1
 ndb_conflict_trans_row_reject_count
