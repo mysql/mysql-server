@@ -71,6 +71,9 @@ public:
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
   Ndb_cluster_connection(const char * connectstring,
                          Ndb_cluster_connection *main_connection);
+  Ndb_cluster_connection(const char * connectstring,
+                         Ndb_cluster_connection *main_connection,
+                         int force_api_nodeid);
 #endif
   ~Ndb_cluster_connection();
 

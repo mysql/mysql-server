@@ -19,6 +19,10 @@
 #include <ndbapi/NdbApi.hpp>
 #include <portlib/NdbTick.h>
 #include "ha_ndbcluster_connection.h"
+#include <kernel/ndb_limits.h>
+
+#include <util/Vector.hpp>
+#include <util/BaseString.hpp>
 
 Ndb* g_ndb= NULL;
 Ndb_cluster_connection* g_ndb_cluster_connection= NULL;
@@ -26,6 +30,107 @@ static Ndb_cluster_connection **g_pool= NULL;
 static uint g_pool_alloc= 0;
 static uint g_pool_pos= 0;
 static native_mutex_t g_pool_mutex;
+
+
+/**
+   @brief Parse the --ndb-cluster-connection-pool-nodeids=nodeid[,nodeidN]
+          comma separated list of nodeids to use for the pool
+
+   @param opt_str      string containing list of nodeids to parse.
+   @param pool_size    size used for the connection pool
+   @param force_nodeid nodeid requested with --ndb-nodeid
+   @param nodeids      the parsed list of nodeids
+   @return             true or false when option parsing failed. Error message
+                       describing the problem has been printed to error log.
+ */
+static
+bool parse_pool_nodeids(const char* opt_str,
+                        uint pool_size,
+                        uint force_nodeid,
+                        Vector<uint>& nodeids)
+{
+  if (!opt_str)
+  {
+    // The option was not specified.
+    return true;
+  }
+
+  BaseString tmp(opt_str);
+  Vector<BaseString> list(pool_size);
+  tmp.split(list, ",");
+
+  for (unsigned i = 0; i<list.size(); i++)
+  {
+    list[i].trim();
+
+    // Don't allow empty string
+    if (list[i].empty())
+    {
+      sql_print_error("NDB: Found empty nodeid specified in "
+                      "--ndb-cluster-connection-pool-nodeids='%s'.",
+                      opt_str);
+      return false;
+    }
+
+    // Convert string to number
+    uint nodeid = 0;
+    if (sscanf(list[i].c_str(), "%u", &nodeid) != 1)
+    {
+      sql_print_error("NDB: Could not parse '%s' in "
+                      "--ndb-cluster-connection-pool-nodeids='%s'.",
+                      list[i].c_str(),
+                      opt_str);
+      return false;
+    }
+
+    // Check that number is a valid nodeid
+    if (nodeid <= 0 || nodeid > MAX_NODES_ID)
+    {
+      sql_print_error("NDB: Invalid nodeid %d in "
+                      "--ndb-cluster-connection-pool-nodeids='%s'.",
+                      nodeid, opt_str);
+      return false;
+    }
+
+    // Check that nodeid is unique(not already in the list)
+    for(unsigned j = 0; j<nodeids.size(); j++)
+    {
+      if (nodeid == nodeids[j])
+      {
+        sql_print_error("NDB: Found duplicate nodeid %d in "
+                        "--ndb-cluster-connection-pool-nodeids='%s'.",
+                        nodeid, opt_str);
+        return false;
+      }
+    }
+
+    nodeids.push_back(nodeid);
+  }
+
+  // Check that size of nodeids match the pool size
+  if (nodeids.size() != pool_size)
+  {
+    sql_print_error("NDB: The size of the cluster connection pool must be "
+                    "equal to the number of nodeids in "
+                    "--ndb-cluster-connection-pool-nodeids='%s'.",
+                    opt_str);
+    return false;
+  }
+
+  // Check that --ndb-nodeid(if given) is first in the list
+  if (force_nodeid != 0 &&
+      force_nodeid != nodeids[0])
+  {
+    sql_print_error("NDB: The nodeid specified by --ndb-nodeid must be equal "
+                    "to the first nodeid in "
+                    "--ndb-cluster-connection-pool-nodeids='%s'.",
+                    opt_str);
+    return false;
+  }
+
+  return true;
+}
+
 
 /*
   Global flag in ndbapi to specify if api should wait to connect
@@ -40,6 +145,7 @@ int
 ndbcluster_connect(int (*connect_callback)(void),
                    ulong wait_connected, // Timeout in seconds
                    uint connection_pool_size,
+                   const char* connection_pool_nodeids_str,
                    bool optimized_node_select,
                    const char* connect_string,
                    uint force_nodeid,
@@ -54,6 +160,25 @@ ndbcluster_connect(int (*connect_callback)(void),
   DBUG_ENTER("ndbcluster_connect");
   DBUG_PRINT("enter", ("connect_string: %s, force_nodeid: %d",
                        connect_string, force_nodeid));
+
+  // Parse the --ndb-cluster-connection-pool-nodeids=nodeid[,nodeidN]
+  // comma separated list of nodeids to use for the pool
+  Vector<uint> nodeids;
+  if (!parse_pool_nodeids(connection_pool_nodeids_str, connection_pool_size,
+                          force_nodeid, nodeids))
+  {
+    // Error message already printed
+    DBUG_RETURN(-1);
+  }
+
+  // Find specified nodeid for first connection and let it override
+  // force_nodeid(if both has been specified they are equal).
+  if (nodeids.size())
+  {
+    assert(force_nodeid == 0 || force_nodeid == nodeids[0]);
+    force_nodeid = nodeids[0];
+    sql_print_information("NDB: using nodeid %u", force_nodeid);
+  }
 
   global_flag_skip_waiting_for_clean_cache= 1;
 
@@ -117,9 +242,18 @@ ndbcluster_connect(int (*connect_callback)(void),
     g_pool[0]= g_ndb_cluster_connection;
     for (uint i= 1; i < g_pool_alloc; i++)
     {
+      // Find specified nodeid for this connection or use default zero
+      uint nodeid = 0;
+      if (i < nodeids.size())
+      {
+        nodeid = nodeids[i];
+        sql_print_information("NDB[%u]: using nodeid %u", i, nodeid);
+      }
+
       if ((g_pool[i]=
            new Ndb_cluster_connection(connect_string,
-                                      g_ndb_cluster_connection)) == 0)
+                                      g_ndb_cluster_connection,
+                                      nodeid)) == 0)
       {
         sql_print_error("NDB[%u]: failed to allocate cluster connect object",
                         i);

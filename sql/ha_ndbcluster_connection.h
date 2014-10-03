@@ -17,6 +17,7 @@
 int ndbcluster_connect(int (*connect_callback)(void),
                        ulong wait_connected,
                        uint connection_pool_size,
+                       const char* connection_pool_nodeids_str,
                        bool optimized_node_select,
                        const char* connect_string,
                        uint force_nodeid,

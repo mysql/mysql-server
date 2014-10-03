@@ -24,9 +24,17 @@ NodeId=7
 
 [mysqld.1.1]
 ndb-nodeid=6
+# Specify which nodeid the connection pool on first mysqld should use
+# (since this has already been specified in the default my.cnf)
+ndb-cluster-connection-pool-nodeids=6
 
 [mysqld.2.1]
 ndb-nodeid=7
+# Specify which nodeid the connection pool on second mysqld should use
+# (since this has already been specified in the default my.cnf)
+ndb-cluster-connection-pool-nodeids=7
+
+[mysqld.2.1]
 
 [ENV]
 NDB_CONNECTSTRING=             @mysql_cluster.1.ndb_connectstring

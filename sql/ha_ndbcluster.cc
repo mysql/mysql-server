@@ -79,6 +79,7 @@ static ulong opt_ndb_wait_connected;
 ulong opt_ndb_wait_setup;
 static ulong opt_ndb_cache_check_time;
 static uint opt_ndb_cluster_connection_pool;
+static char* opt_connection_pool_nodeids_str;
 static uint opt_ndb_recv_thread_activation_threshold;
 static char* opt_ndb_recv_thread_cpu_mask;
 static char* opt_ndb_index_stat_option;
@@ -13202,6 +13203,7 @@ int ndbcluster_init(void* p)
   const uint global_opti_node_select= THDVAR(NULL, optimized_node_selection);
   if (ndbcluster_connect(connect_callback, opt_ndb_wait_connected,
                          opt_ndb_cluster_connection_pool,
+                         opt_connection_pool_nodeids_str,
                          (global_opti_node_select & 1),
                          opt_ndb_connectstring,
                          opt_ndb_nodeid,
@@ -18746,6 +18748,18 @@ static MYSQL_SYSVAR_UINT(
   0                                  /* block */
 );
 
+static MYSQL_SYSVAR_STR(
+  cluster_connection_pool_nodeids,  /* name */
+  opt_connection_pool_nodeids_str,  /* var */
+  PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
+  "Comma separated list of nodeids to use for the cluster connection pool. "
+  "Overrides node id specified in --ndb-connectstring. First nodeid "
+  "must be equal to --ndb-nodeid(if specified)." ,
+  NULL,                             /* check func. */
+  NULL,                             /* update func. */
+  NULL                              /* default */
+);
+
 static const int MIN_ACTIVATION_THRESHOLD = 0;
 static const int MAX_ACTIVATION_THRESHOLD = 16;
 
@@ -19316,6 +19330,7 @@ static struct st_mysql_sys_var* system_variables[]= {
   MYSQL_SYSVAR(wait_connected),
   MYSQL_SYSVAR(wait_setup),
   MYSQL_SYSVAR(cluster_connection_pool),
+  MYSQL_SYSVAR(cluster_connection_pool_nodeids),
   MYSQL_SYSVAR(recv_thread_activation_threshold),
   MYSQL_SYSVAR(recv_thread_cpu_mask),
   MYSQL_SYSVAR(report_thresh_binlog_mem_usage),
