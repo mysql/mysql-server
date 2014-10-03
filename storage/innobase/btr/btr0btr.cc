@@ -4290,22 +4290,15 @@ btr_validate_report1(
 	ulint			level,	/*!< in: B-tree level */
 	const buf_block_t*	block)	/*!< in: index page */
 {
-	if (!level) {
+	ib::error	error;
+	error << "In page " << block->page.id.page_no()
+		<< " of index "
+		<< ut_get_name(NULL, FALSE, index->name)
+		<< " of table "
+		<< index->table->name;
 
-		ib::error() << "In page " << block->page.id.page_no()
-			<< " of index "
-			<< ut_get_name(NULL, FALSE, index->name)
-			<< " of table "
-			<< ut_get_name(NULL, TRUE, index->table_name);
-
-	} else {
-
-		ib::error() << "In page " << block->page.id.page_no()
-			<< " of index "
-			<< ut_get_name(NULL, FALSE, index->name)
-			<< " of table "
-			<< ut_get_name(NULL, TRUE, index->table_name)
-			<< ", index tree level " << level;
+	if (level > 0) {
+		error << ", index tree level " << level;
 	}
 }
 
@@ -4320,21 +4313,15 @@ btr_validate_report2(
 	const buf_block_t*	block1,	/*!< in: first index page */
 	const buf_block_t*	block2)	/*!< in: second index page */
 {
-	if (!level) {
+	ib::error	error;
+	error << "In pages " << block1->page.id
+		<< " and " << block2->page.id << " of index "
+		<< ut_get_name(NULL, FALSE, index->name)
+		<< " of table "
+		<< index->table->name;
 
-		ib::error() << "In pages " << block1->page.id
-			<< " and " << block2->page.id << " of index "
-			<< ut_get_name(NULL, FALSE, index->name)
-			<< " of table "
-			<< ut_get_name(NULL, TRUE, index->table_name);
-	} else {
-
-		ib::error() << "In pages " << block1->page.id
-			<< " and " << block2->page.id << " of index "
-			<< ut_get_name(NULL, FALSE, index->name)
-			<< " of table "
-			<< ut_get_name(NULL, TRUE, index->table_name)
-			<< ", index tree level " << level;
+	if (level > 0) {
+		error << ", index tree level " << level;
 	}
 }
 

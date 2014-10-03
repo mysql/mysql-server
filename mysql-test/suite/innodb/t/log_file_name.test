@@ -7,8 +7,6 @@
 
 SET GLOBAL innodb_file_per_table=ON;
 
-let MYSQLD_DATADIR= `select @@datadir`;
-
 CREATE TABLE t1(a INT PRIMARY KEY) ENGINE=InnoDB;
 
 --source include/no_checkpoint_start.inc
