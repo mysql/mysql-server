@@ -1,0 +1,16 @@
+!include suite/ndb/my.cnf
+
+# ndb_single user runs with only one cluster connection
+# per mysqld. The default in suite/ndb/my.cnf is
+# currently three so this is a "downsizing"
+
+[mysqld]
+ndb-cluster-connection-pool=1
+
+[mysqld.1.1]
+# Specify which nodeid the connection pool on first mysqld should use
+ndb-cluster-connection-pool-nodeids=49
+
+[mysqld.2.1]
+# Specify which nodeid the connection pool on second mysqld should use
+ndb-cluster-connection-pool-nodeids=16
