@@ -352,3 +352,14 @@ SELECT '-24:00:00' = (SELECT f1 FROM t1);
 '-24:00:00' = (SELECT f1 FROM t1)
 1
 DROP TABLE t1;
+#
+# MDEV-6592 Assertion `ltime->day == 0' failed with TIMESTAMP, MAKETIME
+#
+CREATE TABLE t1 (d DATE, c VARCHAR(10), KEY(d))  engine=myisam;
+INSERT INTO t1 VALUES ('2008-10-02','2008-10-02'), ('2008-10-02','2008-10-02');
+SELECT * FROM t1 WHERE TIMESTAMP(c,'02:04:42') AND d <=> MAKETIME(97,0,7);
+d	c
+DROP TABLE t1;
+#
+# End of 5.5 tests
+#
