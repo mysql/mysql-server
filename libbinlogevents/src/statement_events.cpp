@@ -15,6 +15,7 @@
 
 #include "statement_events.h"
 #include <algorithm>
+#include <string>
 
 namespace binary_log
 {
