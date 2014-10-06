@@ -115,8 +115,9 @@ exports.getOpenSessionFactories = function() {
 
 exports.closeAllOpenSessionFactories = function() {
   var openFactories = exports.getOpenSessionFactories();
-  for (factory in openFactories) {
-    factory.close();
+  while(openFactories[0]) {
+    openFactories[0].close();
+    openFactories.shift();
   }
 };
 
