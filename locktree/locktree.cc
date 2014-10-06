@@ -330,7 +330,7 @@ void locktree::sto_migrate_buffer_ranges_to_tree(void *prepared_lkr) {
 bool locktree::sto_try_acquire(void *prepared_lkr,
                                TXNID txnid,
                                const DBT *left_key, const DBT *right_key) {
-    if (m_rangetree->is_empty() && m_sto_buffer.is_empty() && m_sto_score >= STO_SCORE_THRESHOLD) {
+    if (m_rangetree->is_empty() && m_sto_buffer.is_empty() && toku_drd_unsafe_fetch(&m_sto_score) >= STO_SCORE_THRESHOLD) {
         // We can do the optimization because the rangetree is empty, and
         // we know its worth trying because the sto score is big enough.
         sto_begin(txnid);
