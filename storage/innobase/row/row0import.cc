@@ -2114,9 +2114,9 @@ PageConverter::operator() (
 
 	case IMPORT_PAGE_STATUS_CORRUPTED:
 
-		ib::warn() << m_filepath << ": Page "
-			<< (offset / m_page_size.physical()) << " at offset "
-			<< offset << " looks corrupted.";
+		ib::warn() << "Page " << (offset / m_page_size.physical())
+			<< " at offset " << offset
+			<< " looks corrupted in file " << m_filepath;
 
 		return(DB_CORRUPTION);
 	}

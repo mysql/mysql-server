@@ -3724,8 +3724,8 @@ fil_open_ibd_tablespace(
 	if (valid_tablespaces_found == 0) {
 		/* The following call prints an error message */
 		os_file_get_last_error(true);
-		ib::error() << "Could not find a valid tablespace file for '"
-			<< tablename << "'. " << TROUBLESHOOT_DATADICT_MSG;
+		ib::error() << "Could not find a valid tablespace file for `"
+			<< tablename << "`. " << TROUBLESHOOT_DATADICT_MSG;
 
 		return(DB_CORRUPTION);
 	}
@@ -3733,8 +3733,8 @@ fil_open_ibd_tablespace(
 	/* Do not open any tablespaces if more than one tablespace with
 	the correct space ID and flags were found. */
 	if (tablespaces_found > 1) {
-		ib::error() << "A tablespace for " << tablename
-			<< " has been found in multiple places;";
+		ib::error() << "A tablespace for `" << tablename
+			<< "` has been found in multiple places;";
 
 		if (df_default.is_open()) {
 			ib::error() << "Default location: "
@@ -3763,8 +3763,8 @@ fil_open_ibd_tablespace(
 		recovery and there is only one good tablespace, ignore
 		any bad tablespaces. */
 		if (valid_tablespaces_found > 1 || srv_force_recovery > 0) {
-			ib::error() << "Will not open the tablespace for '"
-				<< tablename << "'";
+			ib::error() << "Will not open tablespace `"
+				<< tablename << "`";
 
 			/* If the file is not open it cannot be valid. */
 			ut_ad(df_default.is_open() || !df_default.is_valid());
