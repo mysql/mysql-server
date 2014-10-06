@@ -235,14 +235,13 @@ fsp_flags_to_dict_tf(
 	return(flags);
 }
 
-/** Validate and return the tablespace flags, which are stored in the
-tablespace header at offset FSP_SPACE_FLAGS.  They should be 0 for
-ROW_FORMAT=COMPACT and ROW_FORMAT=REDUNDANT. The newer row formats,
-COMPRESSED and DYNAMIC, use a file format > Antelope so they should
-have a file format number plus the DICT_TF_COMPACT bit set.
-
-@param[in]	flags	tablespace flags
-@return true if check ok */
+/** Validate the tablespace flags.
+These flags are stored in the tablespace header at offset FSP_SPACE_FLAGS.
+They should be 0 for ROW_FORMAT=COMPACT and ROW_FORMAT=REDUNDANT.
+The newer row formats, COMPRESSED and DYNAMIC, use a file format > Antelope
+so they should have a file format number plus the DICT_TF_COMPACT bit set.
+@param[in]	flags	Tablespace flags
+@return true if valid, false if not */
 bool
 fsp_flags_is_valid(
 	ulint	flags)
