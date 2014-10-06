@@ -898,6 +898,11 @@ st_ndb_slave_state::st_ndb_slave_state()
   init_alloc_root(&conflict_mem_root, CONFLICT_MEMROOT_BLOCK_SIZE, 0);
 }
 
+st_ndb_slave_state::~st_ndb_slave_state()
+{
+  free_root(&conflict_mem_root, 0);
+}
+
 /**
    resetPerAttemptCounters
 

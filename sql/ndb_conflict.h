@@ -494,6 +494,7 @@ struct st_ndb_slave_state
                                     const char** failure_cause);
 
   st_ndb_slave_state();
+  ~st_ndb_slave_state();
 };
 
 
