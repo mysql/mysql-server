@@ -1,8 +1,20 @@
+#******************************************************************
+# Test 1: Test the interaction between stats and compression level
+#         and logging of compressed pages configuration
+# This testcase is to verify the table/idex level compression stats
+# When the flags are set as follows
+# innodb_cmp_per_index_enabled=ON and innodb_compression_level=0
+# page size 1K,2K,4K,8K,16K
+# check the size and compression stats of the table tab5
+#******************************************************************
 # set the flags
 SET GLOBAL innodb_file_per_table=on;
 SET GLOBAL innodb_file_format='barracuda';
 SET GLOBAL innodb_cmp_per_index_enabled=ON;
 SET GLOBAL innodb_compression_level=0;
+#******************************************************************
+# Test 1-1K: innodb_cmp_per_index_enabled=ON and innodb_compression_level=0 with page size 1K
+#******************************************************************
 # create a table with page size=1K
 # create indexes on each column.(total 9 indexes)
 ===============
@@ -10,7 +22,7 @@ create table & Index
 ===============
 CREATE TABLE tab5(col_1 TINYBLOB, col_2 TINYTEXT,col_3 BLOB,
 col_4 TEXT,col_5 MEDIUMBLOB,col_6 MEDIUMTEXT,
-col_7 LONGBLOB,col_8 LONGTEXT,col_9 VARCHAR(255)) 
+col_7 LONGBLOB,col_8 LONGTEXT,col_9 VARCHAR(255))
 ENGINE=INNODB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=1;
 CREATE INDEX  idx9 ON tab5(col_9(10));
 CREATE INDEX  idx8 ON tab5(col_8(10));
@@ -357,7 +369,10 @@ AND table_name='tab5' AND database_name='test'
 AND index_name like 'idx%' ;
 compress_stat	1
 DROP TABLE tab5;
-#reset the stat table before starting next testcase
+#******************************************************************
+# Test 1-2K: innodb_cmp_per_index_enabled=ON and innodb_compression_level=0 with page size 2K
+#******************************************************************
+# reset the stat table before starting next testcase
 SET GLOBAL innodb_cmp_per_index_enabled=0;
 SET GLOBAL innodb_cmp_per_index_enabled=1;
 # create a table with page size=2K
@@ -367,7 +382,7 @@ create table & Index
 ===============
 CREATE TABLE tab5(col_1 TINYBLOB, col_2 TINYTEXT,col_3 BLOB,
 col_4 TEXT,col_5 MEDIUMBLOB,col_6 MEDIUMTEXT,
-col_7 LONGBLOB,col_8 LONGTEXT,col_9 VARCHAR(255)) 
+col_7 LONGBLOB,col_8 LONGTEXT,col_9 VARCHAR(255))
 ENGINE=INNODB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=2;
 CREATE INDEX  idx9 ON tab5(col_9(10));
 CREATE INDEX  idx8 ON tab5(col_8(10));
@@ -395,7 +410,7 @@ AND index_name like 'idx%' ;
 compress_stat	1
 The size of the tab5.ibd file: 65536
 # for determintic resons simple data should be inserted.
-#insert some 100 records
+# insert some 100 records
 ===============
 Load the data
 ===============
@@ -714,7 +729,10 @@ AND table_name='tab5' AND database_name='test'
 AND index_name like 'idx%' ;
 compress_stat	1
 DROP TABLE tab5;
-#reset the stat table before starting next testcase
+#******************************************************************
+# Test 1-4K: innodb_cmp_per_index_enabled=ON and innodb_compression_level=0 with page size 4K
+#******************************************************************
+# reset the stat table before starting next testcase
 SET GLOBAL innodb_cmp_per_index_enabled=0;
 SET GLOBAL innodb_cmp_per_index_enabled=1;
 # create a table with page size=4K
@@ -724,7 +742,7 @@ create table & Index
 ===============
 CREATE TABLE tab5(col_1 TINYBLOB, col_2 TINYTEXT,col_3 BLOB,
 col_4 TEXT,col_5 MEDIUMBLOB,col_6 MEDIUMTEXT,
-col_7 LONGBLOB,col_8 LONGTEXT,col_9 VARCHAR(255)) 
+col_7 LONGBLOB,col_8 LONGTEXT,col_9 VARCHAR(255))
 ENGINE=INNODB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=4;
 CREATE INDEX  idx9 ON tab5(col_9(10));
 CREATE INDEX  idx8 ON tab5(col_8(10));
@@ -752,7 +770,7 @@ AND index_name like 'idx%' ;
 compress_stat	1
 The size of the tab5.ibd file: 65536
 # for determintic resons simple data should be inserted.
-#insert some 100 records
+# insert some 100 records
 ===============
 Load the data
 ===============
@@ -1036,7 +1054,10 @@ AND index_name like 'idx%' ;
 compress_stat	1
 The size of the tab5.ibd file: 159744
 DROP TABLE tab5;
-#reset the stat table before starting next testcase
+#******************************************************************
+# Test 1-8K: innodb_cmp_per_index_enabled=ON and innodb_compression_level=0 with page size 8K
+#******************************************************************
+# reset the stat table before starting next testcase
 SET GLOBAL innodb_cmp_per_index_enabled=0;
 SET GLOBAL innodb_cmp_per_index_enabled=1;
 # create a table with page size=8K
@@ -1046,7 +1067,7 @@ create table & Index
 ===============
 CREATE TABLE tab5(col_1 TINYBLOB, col_2 TINYTEXT,col_3 BLOB,
 col_4 TEXT,col_5 MEDIUMBLOB,col_6 MEDIUMTEXT,
-col_7 LONGBLOB,col_8 LONGTEXT,col_9 VARCHAR(255)) 
+col_7 LONGBLOB,col_8 LONGTEXT,col_9 VARCHAR(255))
 ENGINE=INNODB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=8;
 CREATE INDEX  idx9 ON tab5(col_9(10));
 CREATE INDEX  idx8 ON tab5(col_8(10));
@@ -1074,7 +1095,7 @@ AND index_name like 'idx%' ;
 compress_stat	1
 The size of the tab5.ibd file: 122880
 # for determintic resons simple data should be inserted.
-#insert some 100 records
+# insert some 100 records
 ===============
 Load the data
 ===============
@@ -1358,7 +1379,10 @@ AND index_name like 'idx%' ;
 compress_stat	1
 The size of the tab5.ibd file: 212992
 DROP TABLE tab5;
-#reset the stat table before starting next testcase
+#******************************************************************
+# Test 1-16K: innodb_cmp_per_index_enabled=ON and innodb_compression_level=0 with page size 16K
+#******************************************************************
+# reset the stat table before starting next testcase
 SET GLOBAL innodb_cmp_per_index_enabled=0;
 SET GLOBAL innodb_cmp_per_index_enabled=1;
 # create a table with page size=16K
@@ -1368,7 +1392,7 @@ create table & Index
 ===============
 CREATE TABLE tab5(col_1 TINYBLOB, col_2 TINYTEXT,col_3 BLOB,
 col_4 TEXT,col_5 MEDIUMBLOB,col_6 MEDIUMTEXT,
-col_7 LONGBLOB,col_8 LONGTEXT,col_9 VARCHAR(255)) 
+col_7 LONGBLOB,col_8 LONGTEXT,col_9 VARCHAR(255))
 ENGINE=INNODB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=16;
 CREATE INDEX  idx9 ON tab5(col_9(10));
 CREATE INDEX  idx8 ON tab5(col_8(10));
@@ -1396,7 +1420,7 @@ AND index_name like 'idx%' ;
 compress_stat	1
 The size of the tab5.ibd file: 245760
 # for determintic resons simple data should be inserted.
-#insert some 100 records
+# insert some 100 records
 ===============
 Load the data
 ===============
@@ -1680,13 +1704,24 @@ AND index_name like 'idx%' ;
 compress_stat	1
 The size of the tab5.ibd file: 327680
 DROP TABLE tab5;
-#reset the stat table before starting next testcase
+#******************************************************************
+# Test 2: test the interaction between wl6347 & wl6344 (2.2)
+# This testcase is to verify the table/idex level compression stats
+# When the flags are set as follows
+# innodb_cmp_per_index_enabled=ON and innodb_compression_level=9
+# page size 1K,2K,4K,8K,16K
+# check the size and compression stats of the table tab5
+#******************************************************************
+# reset the stat table before starting next testcase
 SET GLOBAL innodb_cmp_per_index_enabled=0;
 SET GLOBAL innodb_cmp_per_index_enabled=1;
 # set the flags
 SET GLOBAL innodb_file_per_table=on;
 SET GLOBAL innodb_file_format='barracuda';
 SET GLOBAL innodb_compression_level=9;
+#******************************************************************
+# Test 2-1K: innodb_cmp_per_index_enabled=ON and innodb_compression_level=9 with page size 1K
+#******************************************************************
 # create a table with page size=1K
 # create indexes on each column.(total 9 indexes)
 ===============
@@ -1694,7 +1729,7 @@ create table & Index
 ===============
 CREATE TABLE tab5(col_1 TINYBLOB, col_2 TINYTEXT,col_3 BLOB,
 col_4 TEXT,col_5 MEDIUMBLOB,col_6 MEDIUMTEXT,
-col_7 LONGBLOB,col_8 LONGTEXT,col_9 VARCHAR(255)) 
+col_7 LONGBLOB,col_8 LONGTEXT,col_9 VARCHAR(255))
 ENGINE=INNODB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=1;
 CREATE INDEX  idx9 ON tab5(col_9(10));
 CREATE INDEX  idx8 ON tab5(col_8(10));
@@ -1723,7 +1758,7 @@ AND index_name like 'idx%' ;
 compress_stat	1
 The size of the tab5.ibd file: 65536
 # for determintic resons simple data should be inserted.
-#insert some 100 records
+# insert some 100 records
 ===============
 Load the data
 ===============
@@ -2043,7 +2078,10 @@ AND table_name='tab5' AND database_name='test'
 AND index_name like 'idx%' ;
 compress_stat	1
 DROP TABLE tab5;
-#reset the stat table before starting next testcase
+#******************************************************************
+# Test 2-2K: innodb_cmp_per_index_enabled=ON and innodb_compression_level=9 with page size 2K
+#******************************************************************
+# reset the stat table before starting next testcase
 SET GLOBAL innodb_cmp_per_index_enabled=OFF;
 SET GLOBAL innodb_cmp_per_index_enabled=ON;
 # create a table with page size=2K
@@ -2053,7 +2091,7 @@ create table & Index
 ===============
 CREATE TABLE tab5(col_1 TINYBLOB, col_2 TINYTEXT,col_3 BLOB,
 col_4 TEXT,col_5 MEDIUMBLOB,col_6 MEDIUMTEXT,
-col_7 LONGBLOB,col_8 LONGTEXT,col_9 VARCHAR(255)) 
+col_7 LONGBLOB,col_8 LONGTEXT,col_9 VARCHAR(255))
 ENGINE=INNODB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=2;
 CREATE INDEX  idx9 ON tab5(col_9(10));
 CREATE INDEX  idx8 ON tab5(col_8(10));
@@ -2082,7 +2120,7 @@ AND index_name like 'idx%' ;
 compress_stat	1
 The size of the tab5.ibd file: 65536
 # for determintic resons simple data should be inserted.
-#insert some 100 records
+# insert some 100 records
 ===============
 Load the data
 ===============
@@ -2402,7 +2440,10 @@ AND table_name='tab5' AND database_name='test'
 AND index_name like 'idx%' ;
 compress_stat	1
 DROP TABLE tab5;
-#reset the stat table before starting next testcase
+#******************************************************************
+# Test 2-4K: innodb_cmp_per_index_enabled=ON and innodb_compression_level=9 with page size 4K
+#******************************************************************
+# reset the stat table before starting next testcase
 SET GLOBAL innodb_cmp_per_index_enabled=OFF;
 SET GLOBAL innodb_cmp_per_index_enabled=ON;
 # create a table with page size=4K
@@ -2412,7 +2453,7 @@ create table & Index
 ===============
 CREATE TABLE tab5(col_1 TINYBLOB, col_2 TINYTEXT,col_3 BLOB,
 col_4 TEXT,col_5 MEDIUMBLOB,col_6 MEDIUMTEXT,
-col_7 LONGBLOB,col_8 LONGTEXT,col_9 VARCHAR(255)) 
+col_7 LONGBLOB,col_8 LONGTEXT,col_9 VARCHAR(255))
 ENGINE=INNODB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=4;
 CREATE INDEX  idx9 ON tab5(col_9(10));
 CREATE INDEX  idx8 ON tab5(col_8(10));
@@ -2441,7 +2482,7 @@ AND index_name like 'idx%' ;
 compress_stat	1
 The size of the tab5.ibd file: 65536
 # for determintic resons simple data should be inserted.
-#insert some 100 records
+# insert some 100 records
 ===============
 Load the data
 ===============
@@ -2726,7 +2767,10 @@ AND index_name like 'idx%' ;
 compress_stat	1
 The size of the tab5.ibd file: 81920
 DROP TABLE tab5;
-#reset the stat table before starting next testcase
+#******************************************************************
+# Test 2-8K: innodb_cmp_per_index_enabled=ON and innodb_compression_level=9 with page size 8K
+#******************************************************************
+# reset the stat table before starting next testcase
 SET GLOBAL innodb_cmp_per_index_enabled=OFF;
 SET GLOBAL innodb_cmp_per_index_enabled=ON;
 # create a table with page size=8K
@@ -2736,7 +2780,7 @@ create table & Index
 ===============
 CREATE TABLE tab5(col_1 TINYBLOB, col_2 TINYTEXT,col_3 BLOB,
 col_4 TEXT,col_5 MEDIUMBLOB,col_6 MEDIUMTEXT,
-col_7 LONGBLOB,col_8 LONGTEXT,col_9 VARCHAR(255)) 
+col_7 LONGBLOB,col_8 LONGTEXT,col_9 VARCHAR(255))
 ENGINE=INNODB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=8;
 CREATE INDEX  idx9 ON tab5(col_9(10));
 CREATE INDEX  idx8 ON tab5(col_8(10));
@@ -2765,7 +2809,7 @@ AND index_name like 'idx%' ;
 compress_stat	1
 The size of the tab5.ibd file: 122880
 # for determintic resons simple data should be inserted.
-#insert some 100 records
+# insert some 100 records
 ===============
 Load the data
 ===============
@@ -3050,7 +3094,10 @@ AND index_name like 'idx%' ;
 compress_stat	1
 The size of the tab5.ibd file: 163840
 DROP TABLE tab5;
-#reset the stat table before starting next testcase
+#******************************************************************
+# Test 2-16K: innodb_cmp_per_index_enabled=ON and innodb_compression_level=9 with page size 16K
+#******************************************************************
+# reset the stat table before starting next testcase
 SET GLOBAL innodb_cmp_per_index_enabled=OFF;
 SET GLOBAL innodb_cmp_per_index_enabled=ON;
 # create a table with page size=16K
@@ -3060,7 +3107,7 @@ create table & Index
 ===============
 CREATE TABLE tab5(col_1 TINYBLOB, col_2 TINYTEXT,col_3 BLOB,
 col_4 TEXT,col_5 MEDIUMBLOB,col_6 MEDIUMTEXT,
-col_7 LONGBLOB,col_8 LONGTEXT,col_9 VARCHAR(255)) 
+col_7 LONGBLOB,col_8 LONGTEXT,col_9 VARCHAR(255))
 ENGINE=INNODB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=16;
 CREATE INDEX  idx9 ON tab5(col_9(10));
 CREATE INDEX  idx8 ON tab5(col_8(10));
@@ -3089,7 +3136,7 @@ AND index_name like 'idx%' ;
 compress_stat	1
 The size of the tab5.ibd file: 245760
 # for determintic resons simple data should be inserted.
-#insert some 100 records
+# insert some 100 records
 ===============
 Load the data
 ===============
@@ -3374,7 +3421,19 @@ AND index_name like 'idx%' ;
 compress_stat	1
 The size of the tab5.ibd file: 327680
 DROP TABLE tab5;
-#reset the stat table before starting next testcase
+#******************************************************************
+# Test 3: test the interaction between wl6347 & wl6344 (2.3)
+# This testcase is to verify the table/idex level compression stats
+# When the flags are set as follows
+# innodb_cmp_per_index_enabled=ON and
+# innodb_compression_level=6 (default)
+# page size 1K,2K,4K,8K,16K
+# check the size and compression stats of the table tab5
+#******************************************************************
+#******************************************************************
+# Test 3-1K: innodb_cmp_per_index_enabled=ON and innodb_compression_level=Def with page size 1K
+#******************************************************************
+# reset the stat table before starting next testcase
 SET GLOBAL innodb_cmp_per_index_enabled=OFF;
 SET GLOBAL innodb_cmp_per_index_enabled=ON;
 SET GLOBAL innodb_compression_level=default;
@@ -3385,7 +3444,7 @@ create table & Index
 ===============
 CREATE TABLE tab5(col_1 TINYBLOB, col_2 TINYTEXT,col_3 BLOB,
 col_4 TEXT,col_5 MEDIUMBLOB,col_6 MEDIUMTEXT,
-col_7 LONGBLOB,col_8 LONGTEXT,col_9 VARCHAR(255)) 
+col_7 LONGBLOB,col_8 LONGTEXT,col_9 VARCHAR(255))
 ENGINE=INNODB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=1;
 CREATE INDEX  idx9 ON tab5(col_9(10));
 CREATE INDEX  idx8 ON tab5(col_8(10));
@@ -3414,7 +3473,7 @@ AND index_name like 'idx%' ;
 compress_stat	1
 The size of the tab5.ibd file: 65536
 # for determintic resons simple data should be inserted.
-#insert some 100 records
+# insert some 100 records
 ===============
 Load the data
 ===============
@@ -3699,7 +3758,311 @@ AND index_name like 'idx%' ;
 compress_stat	1
 The size of the tab5.ibd file: 65536
 DROP TABLE tab5;
-#reset the stat table before starting next testcase
+#******************************************************************
+# Test 3-2K: innodb_cmp_per_index_enabled=ON and innodb_compression_level=Def with page size 2K
+#******************************************************************
+# reset the stat table before starting next testcase
+SET GLOBAL innodb_cmp_per_index_enabled=OFF;
+SET GLOBAL innodb_cmp_per_index_enabled=ON;
+SET GLOBAL innodb_compression_level=default;
+# create a table with page size=2K
+# create indexes on each column.(total 9 indexes)
+===============
+create table & Index
+===============
+CREATE TABLE tab5(col_1 TINYBLOB, col_2 TINYTEXT,col_3 BLOB,
+col_4 TEXT,col_5 MEDIUMBLOB,col_6 MEDIUMTEXT,
+col_7 LONGBLOB,col_8 LONGTEXT,col_9 VARCHAR(255))
+ENGINE=INNODB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=2;
+CREATE INDEX  idx9 ON tab5(col_9(10));
+CREATE INDEX  idx8 ON tab5(col_8(10));
+CREATE INDEX  idx7 ON tab5(col_7(10));
+CREATE INDEX  idx6 ON tab5(col_6(10));
+CREATE INDEX  idx5 ON tab5(col_5(10));
+CREATE INDEX  idx4 ON tab5(col_4(10));
+CREATE INDEX  idx3 ON tab5(col_3(10));
+CREATE INDEX  idx2 ON tab5(col_2(10));
+CREATE INDEX  idx1 ON tab5(col_1(10));
+# check the stats of the table & size of the table
+# The size of the file with 0 compress = 65536
+SET @inl_val=1;
+===============
+Check the stats of the table
+Check the size of the ibd file
+===============
+# testcase : pass = 1 fail = 0
+SELECT count(*) > 0 as "compress_stat"
+FROM information_schema.innodb_cmp_per_index
+WHERE
+compress_ops_ok BETWEEN @inl_val AND 1000
+AND compress_ops BETWEEN @inl_val AND 1000
+AND table_name='tab5' AND database_name='test'
+AND index_name like 'idx%' ;
+compress_stat	1
+The size of the tab5.ibd file: 65536
+# for determintic resons simple data should be inserted.
+# insert some 100 records
+===============
+Load the data
+===============
+SET @col_1 = repeat('a', 100);
+SET @col_2 = repeat('b', 100);
+SET @col_3 = repeat('c', 100);
+SET @col_4 = repeat('d', 100);
+SET @col_5 = repeat('e', 100);
+SET @col_6 = repeat('f', 100);
+SET @col_7 = repeat('g', 100);
+SET @col_8 = repeat('h', 100);
+SET @col_9 = repeat('i', 100);
+INSERT INTO tab5
+VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,@col_7,@col_8,@col_9);
+INSERT INTO tab5
+VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,@col_7,@col_8,@col_9);
+INSERT INTO tab5
+VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,@col_7,@col_8,@col_9);
+INSERT INTO tab5
+VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,@col_7,@col_8,@col_9);
+INSERT INTO tab5
+VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,@col_7,@col_8,@col_9);
+INSERT INTO tab5
+VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,@col_7,@col_8,@col_9);
+INSERT INTO tab5
+VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,@col_7,@col_8,@col_9);
+INSERT INTO tab5
+VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,@col_7,@col_8,@col_9);
+INSERT INTO tab5
+VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,@col_7,@col_8,@col_9);
+INSERT INTO tab5
+VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,@col_7,@col_8,@col_9);
+INSERT INTO tab5
+VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,@col_7,@col_8,@col_9);
+INSERT INTO tab5
+VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,@col_7,@col_8,@col_9);
+INSERT INTO tab5
+VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,@col_7,@col_8,@col_9);
+INSERT INTO tab5
+VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,@col_7,@col_8,@col_9);
+INSERT INTO tab5
+VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,@col_7,@col_8,@col_9);
+INSERT INTO tab5
+VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,@col_7,@col_8,@col_9);
+INSERT INTO tab5
+VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,@col_7,@col_8,@col_9);
+INSERT INTO tab5
+VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,@col_7,@col_8,@col_9);
+INSERT INTO tab5
+VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,@col_7,@col_8,@col_9);
+INSERT INTO tab5
+VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,@col_7,@col_8,@col_9);
+INSERT INTO tab5
+VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,@col_7,@col_8,@col_9);
+INSERT INTO tab5
+VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,@col_7,@col_8,@col_9);
+INSERT INTO tab5
+VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,@col_7,@col_8,@col_9);
+INSERT INTO tab5
+VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,@col_7,@col_8,@col_9);
+INSERT INTO tab5
+VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,@col_7,@col_8,@col_9);
+INSERT INTO tab5
+VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,@col_7,@col_8,@col_9);
+INSERT INTO tab5
+VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,@col_7,@col_8,@col_9);
+INSERT INTO tab5
+VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,@col_7,@col_8,@col_9);
+INSERT INTO tab5
+VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,@col_7,@col_8,@col_9);
+INSERT INTO tab5
+VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,@col_7,@col_8,@col_9);
+INSERT INTO tab5
+VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,@col_7,@col_8,@col_9);
+INSERT INTO tab5
+VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,@col_7,@col_8,@col_9);
+INSERT INTO tab5
+VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,@col_7,@col_8,@col_9);
+INSERT INTO tab5
+VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,@col_7,@col_8,@col_9);
+INSERT INTO tab5
+VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,@col_7,@col_8,@col_9);
+INSERT INTO tab5
+VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,@col_7,@col_8,@col_9);
+INSERT INTO tab5
+VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,@col_7,@col_8,@col_9);
+INSERT INTO tab5
+VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,@col_7,@col_8,@col_9);
+INSERT INTO tab5
+VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,@col_7,@col_8,@col_9);
+INSERT INTO tab5
+VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,@col_7,@col_8,@col_9);
+INSERT INTO tab5
+VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,@col_7,@col_8,@col_9);
+INSERT INTO tab5
+VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,@col_7,@col_8,@col_9);
+INSERT INTO tab5
+VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,@col_7,@col_8,@col_9);
+INSERT INTO tab5
+VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,@col_7,@col_8,@col_9);
+INSERT INTO tab5
+VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,@col_7,@col_8,@col_9);
+INSERT INTO tab5
+VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,@col_7,@col_8,@col_9);
+INSERT INTO tab5
+VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,@col_7,@col_8,@col_9);
+INSERT INTO tab5
+VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,@col_7,@col_8,@col_9);
+INSERT INTO tab5
+VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,@col_7,@col_8,@col_9);
+INSERT INTO tab5
+VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,@col_7,@col_8,@col_9);
+INSERT INTO tab5
+VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,@col_7,@col_8,@col_9);
+INSERT INTO tab5
+VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,@col_7,@col_8,@col_9);
+INSERT INTO tab5
+VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,@col_7,@col_8,@col_9);
+INSERT INTO tab5
+VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,@col_7,@col_8,@col_9);
+INSERT INTO tab5
+VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,@col_7,@col_8,@col_9);
+INSERT INTO tab5
+VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,@col_7,@col_8,@col_9);
+INSERT INTO tab5
+VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,@col_7,@col_8,@col_9);
+INSERT INTO tab5
+VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,@col_7,@col_8,@col_9);
+INSERT INTO tab5
+VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,@col_7,@col_8,@col_9);
+INSERT INTO tab5
+VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,@col_7,@col_8,@col_9);
+INSERT INTO tab5
+VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,@col_7,@col_8,@col_9);
+INSERT INTO tab5
+VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,@col_7,@col_8,@col_9);
+INSERT INTO tab5
+VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,@col_7,@col_8,@col_9);
+INSERT INTO tab5
+VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,@col_7,@col_8,@col_9);
+INSERT INTO tab5
+VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,@col_7,@col_8,@col_9);
+INSERT INTO tab5
+VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,@col_7,@col_8,@col_9);
+INSERT INTO tab5
+VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,@col_7,@col_8,@col_9);
+INSERT INTO tab5
+VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,@col_7,@col_8,@col_9);
+INSERT INTO tab5
+VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,@col_7,@col_8,@col_9);
+INSERT INTO tab5
+VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,@col_7,@col_8,@col_9);
+INSERT INTO tab5
+VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,@col_7,@col_8,@col_9);
+INSERT INTO tab5
+VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,@col_7,@col_8,@col_9);
+INSERT INTO tab5
+VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,@col_7,@col_8,@col_9);
+INSERT INTO tab5
+VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,@col_7,@col_8,@col_9);
+INSERT INTO tab5
+VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,@col_7,@col_8,@col_9);
+INSERT INTO tab5
+VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,@col_7,@col_8,@col_9);
+INSERT INTO tab5
+VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,@col_7,@col_8,@col_9);
+INSERT INTO tab5
+VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,@col_7,@col_8,@col_9);
+INSERT INTO tab5
+VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,@col_7,@col_8,@col_9);
+INSERT INTO tab5
+VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,@col_7,@col_8,@col_9);
+INSERT INTO tab5
+VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,@col_7,@col_8,@col_9);
+INSERT INTO tab5
+VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,@col_7,@col_8,@col_9);
+INSERT INTO tab5
+VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,@col_7,@col_8,@col_9);
+INSERT INTO tab5
+VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,@col_7,@col_8,@col_9);
+INSERT INTO tab5
+VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,@col_7,@col_8,@col_9);
+INSERT INTO tab5
+VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,@col_7,@col_8,@col_9);
+INSERT INTO tab5
+VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,@col_7,@col_8,@col_9);
+INSERT INTO tab5
+VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,@col_7,@col_8,@col_9);
+INSERT INTO tab5
+VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,@col_7,@col_8,@col_9);
+INSERT INTO tab5
+VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,@col_7,@col_8,@col_9);
+INSERT INTO tab5
+VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,@col_7,@col_8,@col_9);
+INSERT INTO tab5
+VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,@col_7,@col_8,@col_9);
+INSERT INTO tab5
+VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,@col_7,@col_8,@col_9);
+INSERT INTO tab5
+VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,@col_7,@col_8,@col_9);
+INSERT INTO tab5
+VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,@col_7,@col_8,@col_9);
+INSERT INTO tab5
+VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,@col_7,@col_8,@col_9);
+INSERT INTO tab5
+VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,@col_7,@col_8,@col_9);
+INSERT INTO tab5
+VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,@col_7,@col_8,@col_9);
+INSERT INTO tab5
+VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,@col_7,@col_8,@col_9);
+INSERT INTO tab5
+VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,@col_7,@col_8,@col_9);
+commit;
+# check the stats of the table & size of the table
+# The size of the file with 0 compress = 86016
+SET @inl_val=1;
+===============
+Check the stats of the table
+Check the size of the ibd file
+===============
+# testcase : pass = 1 fail = 0
+SELECT count(*) > 0 as "compress_stat"
+FROM information_schema.innodb_cmp_per_index
+WHERE
+compress_ops_ok BETWEEN @inl_val AND 1000
+AND compress_ops BETWEEN @inl_val AND 1000
+AND table_name='tab5' AND database_name='test'
+AND index_name like 'idx%' ;
+compress_stat	1
+The size of the tab5.ibd file: 65536
+# fetch the compressed page and check the stats
+===============
+Fetch Records
+===============
+SELECT col_7,col_8,col_9 FROM tab5
+WHERE col_2='bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb'
+LIMIT 1;
+col_7	gggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggg
+col_8	hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh
+col_9	iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii
+# check the stats of the table & size of the table
+SET @inl_val=1;
+===============
+Check the stats of the table
+Check the size of the ibd file
+===============
+# testcase : pass = 1 fail = 0
+SELECT count(*) > 0 as "compress_stat"
+FROM information_schema.innodb_cmp_per_index
+WHERE
+compress_ops_ok BETWEEN @inl_val AND 1000
+AND compress_ops BETWEEN @inl_val AND 1000
+AND table_name='tab5' AND database_name='test'
+AND index_name like 'idx%' ;
+compress_stat	1
+The size of the tab5.ibd file: 65536
+DROP TABLE tab5;
+#******************************************************************
+# Test 3-4K: innodb_cmp_per_index_enabled=ON and innodb_compression_level=Def with page size 4K
+#******************************************************************
+# reset the stat table before starting next testcase
 SET GLOBAL innodb_cmp_per_index_enabled=OFF;
 SET GLOBAL innodb_cmp_per_index_enabled=ON;
 SET GLOBAL innodb_compression_level=default;
@@ -3710,7 +4073,7 @@ create table & Index
 ===============
 CREATE TABLE tab5(col_1 TINYBLOB, col_2 TINYTEXT,col_3 BLOB,
 col_4 TEXT,col_5 MEDIUMBLOB,col_6 MEDIUMTEXT,
-col_7 LONGBLOB,col_8 LONGTEXT,col_9 VARCHAR(255)) 
+col_7 LONGBLOB,col_8 LONGTEXT,col_9 VARCHAR(255))
 ENGINE=INNODB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=4;
 CREATE INDEX  idx9 ON tab5(col_9(10));
 CREATE INDEX  idx8 ON tab5(col_8(10));
@@ -3739,7 +4102,7 @@ AND index_name like 'idx%' ;
 compress_stat	1
 The size of the tab5.ibd file: 65536
 # for determintic resons simple data should be inserted.
-#insert some 100 records
+# insert some 100 records
 ===============
 Load the data
 ===============
@@ -3997,7 +4360,10 @@ AND index_name like 'idx%' ;
 compress_stat	1
 The size of the tab5.ibd file: 81920
 DROP TABLE tab5;
-#reset the stat table before starting next testcase
+#******************************************************************
+# Test 3-8K: innodb_cmp_per_index_enabled=ON and innodb_compression_level=Def with page size 8K
+#******************************************************************
+# reset the stat table before starting next testcase
 SET GLOBAL innodb_cmp_per_index_enabled=OFF;
 SET GLOBAL innodb_cmp_per_index_enabled=ON;
 SET GLOBAL innodb_compression_level=default;
@@ -4008,7 +4374,7 @@ create table & Index
 ===============
 CREATE TABLE tab5(col_1 TINYBLOB, col_2 TINYTEXT,col_3 BLOB,
 col_4 TEXT,col_5 MEDIUMBLOB,col_6 MEDIUMTEXT,
-col_7 LONGBLOB,col_8 LONGTEXT,col_9 VARCHAR(255)) 
+col_7 LONGBLOB,col_8 LONGTEXT,col_9 VARCHAR(255))
 ENGINE=INNODB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=8;
 CREATE INDEX  idx9 ON tab5(col_9(10));
 CREATE INDEX  idx8 ON tab5(col_8(10));
@@ -4037,7 +4403,7 @@ AND index_name like 'idx%' ;
 compress_stat	1
 The size of the tab5.ibd file: 122880
 # for determintic resons simple data should be inserted.
-#insert some 100 records
+# insert some 100 records
 ===============
 Load the data
 ===============
@@ -4295,7 +4661,10 @@ AND index_name like 'idx%' ;
 compress_stat	1
 The size of the tab5.ibd file: 163840
 DROP TABLE tab5;
-#reset the stat table before starting next testcase
+#******************************************************************
+# Test 3-16K: innodb_cmp_per_index_enabled=ON and innodb_compression_level=Def with page size 16K
+#******************************************************************
+# reset the stat table before starting next testcase
 SET GLOBAL innodb_cmp_per_index_enabled=OFF;
 SET GLOBAL innodb_cmp_per_index_enabled=ON;
 SET GLOBAL innodb_compression_level=default;
@@ -4306,7 +4675,7 @@ create table & Index
 ===============
 CREATE TABLE tab5(col_1 TINYBLOB, col_2 TINYTEXT,col_3 BLOB,
 col_4 TEXT,col_5 MEDIUMBLOB,col_6 MEDIUMTEXT,
-col_7 LONGBLOB,col_8 LONGTEXT,col_9 VARCHAR(255)) 
+col_7 LONGBLOB,col_8 LONGTEXT,col_9 VARCHAR(255))
 ENGINE=INNODB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=16;
 CREATE INDEX  idx9 ON tab5(col_9(10));
 CREATE INDEX  idx8 ON tab5(col_8(10));
@@ -4335,7 +4704,7 @@ AND index_name like 'idx%' ;
 compress_stat	1
 The size of the tab5.ibd file: 245760
 # for determintic resons simple data should be inserted.
-#insert some 100 records
+# insert some 100 records
 ===============
 Load the data
 ===============
@@ -4593,7 +4962,16 @@ AND index_name like 'idx%' ;
 compress_stat	1
 The size of the tab5.ibd file: 327680
 DROP TABLE tab5;
-#reset the stat table before starting next testcase
+#******************************************************************
+# Test 4: test the interaction between wl6347 & wl6344 (2.5 & 2.6)
+# This testcase is to verify the table/idex level compression stats
+# When the flags are set as follows
+# innodb_cmp_per_index_enabled=ON and
+# Innodb_compression_failure_threshold_pct=0
+# page size 1K,2K,4K,8K,16K
+# check the size and compression stats of the table tab5
+#******************************************************************
+# reset the stat table before starting next testcase
 SET GLOBAL innodb_cmp_per_index_enabled=OFF;
 SET GLOBAL innodb_cmp_per_index_enabled=ON;
 # set the flags
@@ -4610,6 +4988,9 @@ SELECT @@innodb_file_per_table;
 @@innodb_file_per_table	1
 SELECT @@innodb_compression_level;
 @@innodb_compression_level	6
+#******************************************************************
+# Test 4-1K: innodb_cmp_per_index_enabled=ON and Innodb_compression_failure_threshold_pct=0 with page size 1K
+#******************************************************************
 # create a table with page size=1K
 # create indexes on each column.(total 9 indexes)
 ===============
@@ -4617,7 +4998,7 @@ create table & Index
 ===============
 CREATE TABLE tab5(col_1 TINYBLOB, col_2 TINYTEXT,col_3 BLOB,
 col_4 TEXT,col_5 MEDIUMBLOB,col_6 MEDIUMTEXT,
-col_7 LONGBLOB,col_8 LONGTEXT,col_9 VARCHAR(255)) 
+col_7 LONGBLOB,col_8 LONGTEXT,col_9 VARCHAR(255))
 ENGINE=INNODB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=1;
 CREATE INDEX  idx9 ON tab5(col_9(10));
 CREATE INDEX  idx8 ON tab5(col_8(10));
@@ -4645,7 +5026,7 @@ AND index_name like 'idx%' ;
 compress_stat	1
 The size of the tab5.ibd file: 65536
 # for determintic resons simple data should be inserted.
-#insert some 100 records
+# insert some 100 records
 ===============
 Load the data
 ===============
@@ -4964,7 +5345,10 @@ AND table_name='tab5' AND database_name='test'
 AND index_name like 'idx%' ;
 compress_stat	1
 DROP TABLE tab5;
-#reset the stat table before starting next testcase
+#******************************************************************
+# Test 4-2K: innodb_cmp_per_index_enabled=ON and Innodb_compression_failure_threshold_pct=0 with page size 2K
+#******************************************************************
+# reset the stat table before starting next testcase
 SET GLOBAL innodb_cmp_per_index_enabled=OFF;
 SET GLOBAL innodb_cmp_per_index_enabled=ON;
 # create a table with page size=2K
@@ -4974,7 +5358,7 @@ create table & Index
 ===============
 CREATE TABLE tab5(col_1 TINYBLOB, col_2 TINYTEXT,col_3 BLOB,
 col_4 TEXT,col_5 MEDIUMBLOB,col_6 MEDIUMTEXT,
-col_7 LONGBLOB,col_8 LONGTEXT,col_9 VARCHAR(255)) 
+col_7 LONGBLOB,col_8 LONGTEXT,col_9 VARCHAR(255))
 ENGINE=INNODB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=2;
 CREATE INDEX  idx9 ON tab5(col_9(10));
 CREATE INDEX  idx8 ON tab5(col_8(10));
@@ -5002,7 +5386,7 @@ AND index_name like 'idx%' ;
 compress_stat	1
 The size of the tab5.ibd file: 65536
 # for determintic resons simple data should be inserted.
-#insert some 100 records
+# insert some 100 records
 ===============
 Load the data
 ===============
@@ -5286,7 +5670,10 @@ AND index_name like 'idx%' ;
 compress_stat	1
 The size of the tab5.ibd file: 65536
 DROP TABLE tab5;
-#reset the stat table before starting next testcase
+#******************************************************************
+# Test 4-4K: innodb_cmp_per_index_enabled=ON and Innodb_compression_failure_threshold_pct=0 with page size 4K
+#******************************************************************
+# reset the stat table before starting next testcase
 SET GLOBAL innodb_cmp_per_index_enabled=OFF;
 SET GLOBAL innodb_cmp_per_index_enabled=ON;
 # create a table with page size=4K
@@ -5296,7 +5683,7 @@ create table & Index
 ===============
 CREATE TABLE tab5(col_1 TINYBLOB, col_2 TINYTEXT,col_3 BLOB,
 col_4 TEXT,col_5 MEDIUMBLOB,col_6 MEDIUMTEXT,
-col_7 LONGBLOB,col_8 LONGTEXT,col_9 VARCHAR(255)) 
+col_7 LONGBLOB,col_8 LONGTEXT,col_9 VARCHAR(255))
 ENGINE=INNODB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=4;
 CREATE INDEX  idx9 ON tab5(col_9(10));
 CREATE INDEX  idx8 ON tab5(col_8(10));
@@ -5324,7 +5711,7 @@ AND index_name like 'idx%' ;
 compress_stat	1
 The size of the tab5.ibd file: 65536
 # for determintic resons simple data should be inserted.
-#insert some 100 records
+# insert some 100 records
 ===============
 Load the data
 ===============
@@ -5608,7 +5995,10 @@ AND index_name like 'idx%' ;
 compress_stat	1
 The size of the tab5.ibd file: 81920
 DROP TABLE tab5;
-#reset the stat table before starting next testcase
+#******************************************************************
+# Test 4-8K: innodb_cmp_per_index_enabled=ON and Innodb_compression_failure_threshold_pct=0 with page size 8K
+#******************************************************************
+# reset the stat table before starting next testcase
 SET GLOBAL innodb_cmp_per_index_enabled=OFF;
 SET GLOBAL innodb_cmp_per_index_enabled=ON;
 # create a table with page size=8K
@@ -5618,7 +6008,7 @@ create table & Index
 ===============
 CREATE TABLE tab5(col_1 TINYBLOB, col_2 TINYTEXT,col_3 BLOB,
 col_4 TEXT,col_5 MEDIUMBLOB,col_6 MEDIUMTEXT,
-col_7 LONGBLOB,col_8 LONGTEXT,col_9 VARCHAR(255)) 
+col_7 LONGBLOB,col_8 LONGTEXT,col_9 VARCHAR(255))
 ENGINE=INNODB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=8;
 CREATE INDEX  idx9 ON tab5(col_9(10));
 CREATE INDEX  idx8 ON tab5(col_8(10));
@@ -5646,7 +6036,7 @@ AND index_name like 'idx%' ;
 compress_stat	1
 The size of the tab5.ibd file: 122880
 # for determintic resons simple data should be inserted.
-#insert some 100 records
+# insert some 100 records
 ===============
 Load the data
 ===============
@@ -5930,7 +6320,10 @@ AND index_name like 'idx%' ;
 compress_stat	1
 The size of the tab5.ibd file: 163840
 DROP TABLE tab5;
-#reset the stat table before starting next testcase
+#******************************************************************
+# Test 4-16K: innodb_cmp_per_index_enabled=ON and Innodb_compression_failure_threshold_pct=0 with page size 16K
+#******************************************************************
+# reset the stat table before starting next testcase
 SET GLOBAL innodb_cmp_per_index_enabled=OFF;
 SET GLOBAL innodb_cmp_per_index_enabled=ON;
 # create a table with page size=16K
@@ -5940,7 +6333,7 @@ create table & Index
 ===============
 CREATE TABLE tab5(col_1 TINYBLOB, col_2 TINYTEXT,col_3 BLOB,
 col_4 TEXT,col_5 MEDIUMBLOB,col_6 MEDIUMTEXT,
-col_7 LONGBLOB,col_8 LONGTEXT,col_9 VARCHAR(255)) 
+col_7 LONGBLOB,col_8 LONGTEXT,col_9 VARCHAR(255))
 ENGINE=INNODB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=16;
 CREATE INDEX  idx9 ON tab5(col_9(10));
 CREATE INDEX  idx8 ON tab5(col_8(10));
@@ -5968,7 +6361,7 @@ AND index_name like 'idx%' ;
 compress_stat	1
 The size of the tab5.ibd file: 245760
 # for determintic resons simple data should be inserted.
-#insert some 100 records
+# insert some 100 records
 ===============
 Load the data
 ===============
@@ -6252,7 +6645,16 @@ AND index_name like 'idx%' ;
 compress_stat	1
 The size of the tab5.ibd file: 327680
 DROP TABLE tab5;
-#reset the stat table before starting next testcase
+#******************************************************************
+# Test 5: test the interaction between wl6347 & wl6344 (2.7)
+# This testcase is to verify the table/idex level compression stats
+# When the flags are set as follows
+# innodb_cmp_per_index_enabled=ON and
+# Innodb_compression_failure_threshold_pct=10
+# page size 1K,2K,4K,8K,16K
+# check the size and compression stats of the table tab5
+#******************************************************************
+# reset the stat table before starting next testcase
 SET GLOBAL innodb_cmp_per_index_enabled=OFF;
 SET GLOBAL innodb_cmp_per_index_enabled=ON;
 # set the flags
@@ -6272,6 +6674,9 @@ SELECT @@innodb_file_per_table;
 @@innodb_file_per_table	1
 SELECT @@innodb_compression_level;
 @@innodb_compression_level	6
+#******************************************************************
+# Test 5-1K: innodb_cmp_per_index_enabled=ON and Innodb_compression_failure_threshold_pct=10 with page size 1K
+#******************************************************************
 # create a table with page size=1K
 # create indexes on each column.(total 9 indexes)
 ===============
@@ -6279,7 +6684,7 @@ create table & Index
 ===============
 CREATE TABLE tab5(col_1 TINYBLOB, col_2 TINYTEXT,col_3 BLOB,
 col_4 TEXT,col_5 MEDIUMBLOB,col_6 MEDIUMTEXT,
-col_7 LONGBLOB,col_8 LONGTEXT,col_9 VARCHAR(255)) 
+col_7 LONGBLOB,col_8 LONGTEXT,col_9 VARCHAR(255))
 ENGINE=INNODB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=1;
 CREATE INDEX  idx9 ON tab5(col_9(10));
 CREATE INDEX  idx8 ON tab5(col_8(10));
@@ -6307,7 +6712,7 @@ AND index_name like 'idx%' ;
 compress_stat	1
 The size of the tab5.ibd file: 65536
 # for determintic resons simple data should be inserted.
-#insert some 100 records
+# insert some 100 records
 ===============
 Load the data
 ===============
@@ -6627,7 +7032,10 @@ AND table_name='tab5' AND database_name='test'
 AND index_name like 'idx%' ;
 compress_stat	1
 DROP TABLE tab5;
-#reset the stat table before starting next testcase
+#******************************************************************
+# Test 5-2K: innodb_cmp_per_index_enabled=ON and Innodb_compression_failure_threshold_pct=10 with page size 2K
+#******************************************************************
+# reset the stat table before starting next testcase
 SET GLOBAL innodb_cmp_per_index_enabled=OFF;
 SET GLOBAL innodb_cmp_per_index_enabled=ON;
 SET GLOBAL innodb_compression_failure_threshold_pct=10;
@@ -6638,7 +7046,7 @@ create table & Index
 ===============
 CREATE TABLE tab5(col_1 TINYBLOB, col_2 TINYTEXT,col_3 BLOB,
 col_4 TEXT,col_5 MEDIUMBLOB,col_6 MEDIUMTEXT,
-col_7 LONGBLOB,col_8 LONGTEXT,col_9 VARCHAR(255)) 
+col_7 LONGBLOB,col_8 LONGTEXT,col_9 VARCHAR(255))
 ENGINE=INNODB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=2;
 CREATE INDEX  idx9 ON tab5(col_9(10));
 CREATE INDEX  idx8 ON tab5(col_8(10));
@@ -6666,7 +7074,7 @@ AND index_name like 'idx%' ;
 compress_stat	1
 The size of the tab5.ibd file: 65536
 # for determintic resons simple data should be inserted.
-#insert some 100 records
+# insert some 100 records
 ===============
 Load the data
 ===============
@@ -6950,7 +7358,10 @@ AND index_name like 'idx%' ;
 compress_stat	1
 The size of the tab5.ibd file: 65536
 DROP TABLE tab5;
-#reset the stat table before starting next testcase
+#******************************************************************
+# Test 5-4K: innodb_cmp_per_index_enabled=ON and Innodb_compression_failure_threshold_pct=10 with page size 4K
+#******************************************************************
+# reset the stat table before starting next testcase
 SET GLOBAL innodb_cmp_per_index_enabled=OFF;
 SET GLOBAL innodb_cmp_per_index_enabled=ON;
 # create a table with page size=4K
@@ -6960,7 +7371,7 @@ create table & Index
 ===============
 CREATE TABLE tab5(col_1 TINYBLOB, col_2 TINYTEXT,col_3 BLOB,
 col_4 TEXT,col_5 MEDIUMBLOB,col_6 MEDIUMTEXT,
-col_7 LONGBLOB,col_8 LONGTEXT,col_9 VARCHAR(255)) 
+col_7 LONGBLOB,col_8 LONGTEXT,col_9 VARCHAR(255))
 ENGINE=INNODB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=4;
 CREATE INDEX  idx9 ON tab5(col_9(10));
 CREATE INDEX  idx8 ON tab5(col_8(10));
@@ -6988,7 +7399,7 @@ AND index_name like 'idx%' ;
 compress_stat	1
 The size of the tab5.ibd file: 65536
 # for determintic resons simple data should be inserted.
-#insert some 100 records
+# insert some 100 records
 ===============
 Load the data
 ===============
@@ -7272,7 +7683,10 @@ AND index_name like 'idx%' ;
 compress_stat	1
 The size of the tab5.ibd file: 81920
 DROP TABLE tab5;
-#reset the stat table before starting next testcase
+#******************************************************************
+# Test 5-8K: innodb_cmp_per_index_enabled=ON and Innodb_compression_failure_threshold_pct=10 with page size 8K
+#******************************************************************
+# reset the stat table before starting next testcase
 SET GLOBAL innodb_cmp_per_index_enabled=OFF;
 SET GLOBAL innodb_cmp_per_index_enabled=ON;
 SET GLOBAL innodb_compression_failure_threshold_pct=10;
@@ -7283,7 +7697,7 @@ create table & Index
 ===============
 CREATE TABLE tab5(col_1 TINYBLOB, col_2 TINYTEXT,col_3 BLOB,
 col_4 TEXT,col_5 MEDIUMBLOB,col_6 MEDIUMTEXT,
-col_7 LONGBLOB,col_8 LONGTEXT,col_9 VARCHAR(255)) 
+col_7 LONGBLOB,col_8 LONGTEXT,col_9 VARCHAR(255))
 ENGINE=INNODB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=8;
 CREATE INDEX  idx9 ON tab5(col_9(10));
 CREATE INDEX  idx8 ON tab5(col_8(10));
@@ -7311,7 +7725,7 @@ AND index_name like 'idx%' ;
 compress_stat	1
 The size of the tab5.ibd file: 122880
 # for determintic resons simple data should be inserted.
-#insert some 100 records
+# insert some 100 records
 ===============
 Load the data
 ===============
@@ -7595,7 +8009,10 @@ AND index_name like 'idx%' ;
 compress_stat	1
 The size of the tab5.ibd file: 163840
 DROP TABLE tab5;
-#reset the stat table before starting next testcase
+#******************************************************************
+# Test 5-16K: innodb_cmp_per_index_enabled=ON and Innodb_compression_failure_threshold_pct=10 with page size 16K
+#******************************************************************
+# reset the stat table before starting next testcase
 SET GLOBAL innodb_cmp_per_index_enabled=OFF;
 SET GLOBAL innodb_cmp_per_index_enabled=ON;
 # create a table with page size=16K
@@ -7605,7 +8022,7 @@ create table & Index
 ===============
 CREATE TABLE tab5(col_1 TINYBLOB, col_2 TINYTEXT,col_3 BLOB,
 col_4 TEXT,col_5 MEDIUMBLOB,col_6 MEDIUMTEXT,
-col_7 LONGBLOB,col_8 LONGTEXT,col_9 VARCHAR(255)) 
+col_7 LONGBLOB,col_8 LONGTEXT,col_9 VARCHAR(255))
 ENGINE=INNODB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=16;
 CREATE INDEX  idx9 ON tab5(col_9(10));
 CREATE INDEX  idx8 ON tab5(col_8(10));
@@ -7633,7 +8050,7 @@ AND index_name like 'idx%' ;
 compress_stat	1
 The size of the tab5.ibd file: 245760
 # for determintic resons simple data should be inserted.
-#insert some 100 records
+# insert some 100 records
 ===============
 Load the data
 ===============
@@ -7917,20 +8334,24 @@ AND index_name like 'idx%' ;
 compress_stat	1
 The size of the tab5.ibd file: 327680
 DROP TABLE tab5;
-#reset the stat table before starting next testcase
+#******************************************************************
+# Test 6: Create multiple tables & indexes having same name in 2 diff DB's
+# Check the stats of the table. (1.1)
+#******************************************************************
+# reset the stat table before starting next testcase
 SET GLOBAL innodb_cmp_per_index_enabled=0;
 SET GLOBAL innodb_cmp_per_index_enabled=1;
 SET GLOBAL innodb_file_per_table=ON;
 SET GLOBAL innodb_file_format='Barracuda';
 SET GLOBAL innodb_compression_level=default;
 SET GLOBAL innodb_compression_failure_threshold_pct=default;
-#create a table page size=1K
+# create a table page size=1K
 CREATE TABLE tab5(col_1 TINYBLOB, col_2 TINYTEXT,col_3 BLOB,
 col_4 TEXT,col_5 MEDIUMBLOB,col_6 MEDIUMTEXT,
 col_7 LONGBLOB,col_8 LONGTEXT,col_9 VARCHAR(255))
 ENGINE=INNODB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=1;
 CREATE INDEX idx1 ON tab5(col_1(10));
-#check the stats of the table
+# check the stats of the table
 SELECT database_name,table_name,index_name,compress_ops,compress_ops_ok
 FROM information_schema.innodb_cmp_per_index
 WHERE database_name='test' and table_name='tab5'
@@ -7947,7 +8368,7 @@ compress_ops	1
 compress_ops_ok	1
 CREATE DATABASE sb;
 USE sb;
-#create a table page size=1K (testcase-1)
+# create a table page size=1K (testcase-1)
 CREATE TABLE tab5(col_1 TINYBLOB, col_2 TINYTEXT,col_3 BLOB,
 col_4 TEXT,col_5 MEDIUMBLOB,col_6 MEDIUMTEXT,
 col_7 LONGBLOB,col_8 LONGTEXT,col_9 VARCHAR(255))

@@ -2353,8 +2353,8 @@ err_exit:
 		/* The system tablespace is always available. */
 	} else if (table->flags2 & DICT_TF2_DISCARDED) {
 
-		ib::warn() << "Table " << table_name
-			<< " tablespace is set as discarded.";
+		ib::warn() << "Tablespace for table " << table->name
+			<< " is set as discarded.";
 
 		table->ibd_file_missing = TRUE;
 

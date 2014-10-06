@@ -200,7 +200,7 @@ class ha_innobase: public handler
 		const char*		name,
 		HA_CREATE_INFO*		create_info,
 		ulint			flags,
-		ulint			flags2,
+		ulint*			flags2,
 		char*			norm_name,
 		char*			temp_path,
 		char*			remote_path);

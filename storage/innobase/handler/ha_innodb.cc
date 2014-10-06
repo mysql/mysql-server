@@ -9314,39 +9314,16 @@ get_row_format_name(
 	return("NOT USED");
 }
 
-/** If file-per-table is missing, issue warning and set ret false */
-#define CHECK_ERROR_ROW_TYPE_NEEDS_FILE_PER_TABLE(file_per_table)	\
-	if (!file_per_table) {					\
-		push_warning_printf(					\
-			thd, Sql_condition::SL_WARNING,			\
-			ER_ILLEGAL_HA_CREATE_OPTION,			\
-			"InnoDB: ROW_FORMAT=%s requires"		\
-			" innodb_file_per_table.",			\
-			get_row_format_name(row_format));		\
-		ret = "ROW_FORMAT";					\
-	}
-
-/** If file-format is Antelope, issue warning and set ret false */
-#define CHECK_ERROR_ROW_TYPE_NEEDS_GT_ANTELOPE			\
-	if (srv_file_format < UNIV_FORMAT_B) {			\
-		push_warning_printf(				\
-			thd, Sql_condition::SL_WARNING,		\
-			ER_ILLEGAL_HA_CREATE_OPTION,		\
-			"InnoDB: ROW_FORMAT=%s requires"	\
-			" innodb_file_format > Antelope.",	\
-			get_row_format_name(row_format));	\
-		ret = "ROW_FORMAT";				\
-	}
-
-/*****************************************************************//**
-Determines if create option DATA DIRECTORY is valid.
+/** Determines if create option DATA DIRECTORY is valid.
+@param[in]	thd		Connection thread.
+@param[in]	create_info	Create info
+@param[in]	file_per_table	Whether to create a single-table tablespace.
 @return true if valid, false if not. */
 bool
 create_option_data_directory_is_valid(
-/*==================================*/
-	THD*		thd,		/*!< in: connection thread. */
-	HA_CREATE_INFO*	create_info,	/*!< in: create info. */
-	bool		file_per_table)	/*!< in: srv_file_per_table */
+	THD*		thd,
+	HA_CREATE_INFO*	create_info,
+	bool		file_per_table)
 {
 	bool		is_valid = true;
 
@@ -9375,20 +9352,25 @@ create_option_data_directory_is_valid(
 	return(is_valid);
 }
 
-/*****************************************************************//**
-Validates the create options. We may build on this function
-in future. For now, it checks two specifiers:
-KEY_BLOCK_SIZE and ROW_FORMAT
-If innodb_strict_mode is not set then this function is a no-op
-@return NULL if valid, string if not. */
+/** Validates the create options. Checks that the options KEY_BLOCK_SIZE,
+ROW_FORMAT, DATA DIRECTORY & TEMPORARY are compatible with
+each other and other settings.  These CREATE OPTIONS are not validated
+here unless innodb_strict_mode is on. With strict mode, this function
+will report each problem it finds using a custom message with error
+code ER_ILLEGAL_HA_CREATE_OPTION, not its built-in message.
+@param[in]	thd		Connection thread
+@param[in]	create_info	Information for the create operation
+@param[in]	file_per_table	Whether to create a single-table tablespace.
+@return NULL if valid, string name of bad option if not. */
 const char*
 create_options_are_invalid(
-/*=======================*/
-	THD*		thd,		/*!< in: connection thread. */
-	HA_CREATE_INFO*	create_info,	/*!< in: create info. */
-	bool		file_per_table)	/*!< in: srv_file_per_table */
+	THD*		thd,
+	HA_CREATE_INFO*	create_info,
+	bool		file_per_table)
 {
-	ibool	kbs_specified	= FALSE;
+	bool	has_key_block_size = (create_info->key_block_size != 0);
+	bool	is_temp = create_info->options & HA_LEX_CREATE_TMP_TABLE;
+
 	const char*	ret = NULL;
 	enum row_type	row_format	= create_info->row_type;
 
@@ -9400,10 +9382,8 @@ create_options_are_invalid(
 		return(NULL);
 	}
 
-
 	/* First check if a non-zero KEY_BLOCK_SIZE was specified. */
-	if (create_info->key_block_size) {
-		kbs_specified = TRUE;
+	if (has_key_block_size) {
 		switch (create_info->key_block_size) {
 			ulint	kbs_max;
 		case 1:
@@ -9411,6 +9391,24 @@ create_options_are_invalid(
 		case 4:
 		case 8:
 		case 16:
+			/* The maximum KEY_BLOCK_SIZE (KBS) is
+			UNIV_PAGE_SIZE_MAX. But if UNIV_PAGE_SIZE is
+			smaller than UNIV_PAGE_SIZE_MAX, the maximum
+			KBS is also smaller. */
+			kbs_max = ut_min(
+				1 << (UNIV_PAGE_SSIZE_MAX - 1),
+				1 << (PAGE_ZIP_SSIZE_MAX - 1));
+			if (create_info->key_block_size > kbs_max) {
+				push_warning_printf(
+					thd, Sql_condition::SL_WARNING,
+					ER_ILLEGAL_HA_CREATE_OPTION,
+					"InnoDB: KEY_BLOCK_SIZE=%ld"
+					" cannot be larger than %ld.",
+					create_info->key_block_size,
+					kbs_max);
+				ret = "KEY_BLOCK_SIZE";
+			}
+
 			/* Valid KEY_BLOCK_SIZE, check its dependencies. */
 			if (!file_per_table) {
 				push_warning(
@@ -9426,23 +9424,6 @@ create_options_are_invalid(
 					ER_ILLEGAL_HA_CREATE_OPTION,
 					"InnoDB: KEY_BLOCK_SIZE requires"
 					" innodb_file_format > Antelope.");
-				ret = "KEY_BLOCK_SIZE";
-			}
-
-			/* The maximum KEY_BLOCK_SIZE (KBS) is 16. But if
-			UNIV_PAGE_SIZE is smaller than 16k, the maximum
-			KBS is also smaller. */
-			kbs_max = ut_min(
-				1 << (UNIV_PAGE_SSIZE_MAX - 1),
-				1 << (PAGE_ZIP_SSIZE_MAX - 1));
-			if (create_info->key_block_size > kbs_max) {
-				push_warning_printf(
-					thd, Sql_condition::SL_WARNING,
-					ER_ILLEGAL_HA_CREATE_OPTION,
-					"InnoDB: KEY_BLOCK_SIZE=%ld"
-					" cannot be larger than %ld.",
-					create_info->key_block_size,
-					kbs_max);
 				ret = "KEY_BLOCK_SIZE";
 			}
 			break;
@@ -9462,19 +9443,48 @@ create_options_are_invalid(
 	other incompatibilities. */
 	switch (row_format) {
 	case ROW_TYPE_COMPRESSED:
-		CHECK_ERROR_ROW_TYPE_NEEDS_FILE_PER_TABLE(file_per_table);
-		CHECK_ERROR_ROW_TYPE_NEEDS_GT_ANTELOPE;
+		if (!file_per_table) {
+			push_warning_printf(
+				thd, Sql_condition::SL_WARNING,
+				ER_ILLEGAL_HA_CREATE_OPTION,
+				"InnoDB: ROW_FORMAT=%s requires"
+				" innodb_file_per_table.",
+				get_row_format_name(row_format));
+			ret = "ROW_FORMAT";
+		}
+		if (srv_file_format < UNIV_FORMAT_B) {
+			push_warning_printf(
+				thd, Sql_condition::SL_WARNING,
+				ER_ILLEGAL_HA_CREATE_OPTION,
+				"InnoDB: ROW_FORMAT=%s requires"
+				" innodb_file_format > Antelope.",
+				get_row_format_name(row_format));
+			ret = "ROW_FORMAT";
+		}
 		break;
 	case ROW_TYPE_DYNAMIC:
-		if (!(create_info->options & HA_LEX_CREATE_TMP_TABLE)) {
-			CHECK_ERROR_ROW_TYPE_NEEDS_FILE_PER_TABLE(
-				file_per_table);
+		if (!file_per_table && !is_temp) {
+			push_warning_printf(
+				thd, Sql_condition::SL_WARNING,
+				ER_ILLEGAL_HA_CREATE_OPTION,
+				"InnoDB: ROW_FORMAT=%s requires"
+				" innodb_file_per_table.",
+				get_row_format_name(row_format));
+			ret = "ROW_FORMAT";
 		}
-		CHECK_ERROR_ROW_TYPE_NEEDS_GT_ANTELOPE;
+		if (srv_file_format < UNIV_FORMAT_B) {
+			push_warning_printf(
+				thd, Sql_condition::SL_WARNING,
+				ER_ILLEGAL_HA_CREATE_OPTION,
+				"InnoDB: ROW_FORMAT=%s requires"
+				" innodb_file_format > Antelope.",
+				get_row_format_name(row_format));
+			ret = "ROW_FORMAT";
+		}
 		/* fall through since dynamic also shuns KBS */
 	case ROW_TYPE_COMPACT:
 	case ROW_TYPE_REDUNDANT:
-		if (kbs_specified) {
+		if (has_key_block_size) {
 			push_warning_printf(
 				thd, Sql_condition::SL_WARNING,
 				ER_ILLEGAL_HA_CREATE_OPTION,
@@ -9565,14 +9575,14 @@ ha_innobase::parse_table_name(
 					created table, contains also the
 					create statement string */
 	ulint		flags,		/*!< in: flags*/
-	ulint		flags2,		/*!< in: flags2*/
+	ulint*		flags2,		/*!< in/out: flags2*/
 	char*		norm_name,	/*!< out: normalized table name */
 	char*		temp_path,	/*!< out: absolute path of table */
 	char*		remote_path)	/*!< out: remote path of table */
 {
 	THD*		thd = ha_thd();
 	bool		file_per_table =
-				!!(flags2 & DICT_TF2_USE_FILE_PER_TABLE);
+				!!(*flags2 & DICT_TF2_USE_FILE_PER_TABLE);
 
 	DBUG_ENTER("ha_innobase::parse_table_name");
 
@@ -9612,7 +9622,10 @@ ha_innobase::parse_table_name(
 		strncpy(temp_path, name, FN_REFLEN - 1);
 	}
 
-	/* Make sure DATA DIRECTORY is compatible with other options. */
+	/* Make sure DATA DIRECTORY is compatible with other options
+	and set the remote path.  In the case of;
+	  CREATE TEMPORARY TABLE ... DATA DIRECTORY={path} ... ;
+	we ignore the DATA DIRECTORY. */
 	if (create_info->data_file_name) {
 		if (!create_option_data_directory_is_valid(
 			    thd, create_info, file_per_table)) {
@@ -9621,6 +9634,7 @@ ha_innobase::parse_table_name(
 				WARN_OPTION_IGNORED,
 				ER_DEFAULT(WARN_OPTION_IGNORED),
 				"DATA DIRECTORY");
+			*flags2 &= ~DICT_TF2_USE_FILE_PER_TABLE;
 		} else {
 			strncpy(remote_path, create_info->data_file_name,
 				FN_REFLEN - 1);
@@ -9662,7 +9676,7 @@ innobase_table_flags(
 	const char*	fts_doc_id_index_bad = NULL;
 	bool		zip_allowed = true;
 	ulint		zip_ssize = 0;
-	enum row_type	row_format;
+	enum row_type	row_type;
 	rec_format_t	innodb_row_format = REC_FORMAT_COMPACT;
 	bool		use_data_dir;
 	const ulint	zip_ssize_max =
@@ -9768,14 +9782,14 @@ index_bad:
 		}
 	}
 
-	row_format = form->s->row_type;
+	row_type = form->s->row_type;
 
 	if (zip_ssize && zip_allowed) {
 		/* if ROW_FORMAT is set to default,
 		automatically change it to COMPRESSED. */
-		if (row_format == ROW_TYPE_DEFAULT) {
-			row_format = ROW_TYPE_COMPRESSED;
-		} else if (row_format != ROW_TYPE_COMPRESSED) {
+		if (row_type == ROW_TYPE_DEFAULT) {
+			row_type = ROW_TYPE_COMPRESSED;
+		} else if (row_type != ROW_TYPE_COMPRESSED) {
 			/* ROW_FORMAT other than COMPRESSED
 			ignores KEY_BLOCK_SIZE.  It does not
 			make sense to reject conflicting
@@ -9792,7 +9806,7 @@ index_bad:
 		}
 	} else {
 		/* zip_ssize == 0 means no KEY_BLOCK_SIZE. */
-		if (row_format == ROW_TYPE_COMPRESSED && zip_allowed) {
+		if (row_type == ROW_TYPE_COMPRESSED && zip_allowed) {
 			/* ROW_FORMAT=COMPRESSED without KEY_BLOCK_SIZE
 			implies half the maximum KEY_BLOCK_SIZE(*1k) or
 			UNIV_PAGE_SIZE, whichever is less. */
@@ -9802,7 +9816,8 @@ index_bad:
 
 	/* Validate the row format.  Correct it if necessary */
 	bool is_temp = create_info->options & HA_LEX_CREATE_TMP_TABLE;
-	switch (row_format) {
+
+	switch (row_type) {
 	case ROW_TYPE_REDUNDANT:
 		innodb_row_format = REC_FORMAT_REDUNDANT;
 		break;
@@ -9813,29 +9828,30 @@ index_bad:
 		row_format = compressed (temp + non_temp table)
 		row_format = dynamic (non_temp table) */
 		if ((!file_per_table
-		     && (row_format == ROW_TYPE_COMPRESSED
-			 || (row_format == ROW_TYPE_DYNAMIC && !is_temp)))) {
+		     && (row_type == ROW_TYPE_COMPRESSED
+			 || (row_type == ROW_TYPE_DYNAMIC && !is_temp)))) {
 			push_warning_printf(
 				thd, Sql_condition::SL_WARNING,
 				ER_ILLEGAL_HA_CREATE_OPTION,
 				"InnoDB: ROW_FORMAT=%s requires"
 				" innodb_file_per_table.",
-				get_row_format_name(row_format));
+				get_row_format_name(row_type));
 		} else if (file_format_allowed == UNIV_FORMAT_A) {
 			push_warning_printf(
 				thd, Sql_condition::SL_WARNING,
 				ER_ILLEGAL_HA_CREATE_OPTION,
 				"InnoDB: ROW_FORMAT=%s requires"
 				" innodb_file_format > Antelope.",
-				get_row_format_name(row_format));
+				get_row_format_name(row_type));
 		} else {
-			innodb_row_format = (row_format == ROW_TYPE_DYNAMIC
+			/* We can use this row_format. */
+			innodb_row_format = (row_type == ROW_TYPE_DYNAMIC
 					     ? REC_FORMAT_DYNAMIC
 					     : REC_FORMAT_COMPRESSED);
 			break;
 		}
 		zip_allowed = false;
-		/* fall through to set row_format = COMPACT */
+		/* fall through to set row_type = COMPACT */
 	case ROW_TYPE_NOT_USED:
 	case ROW_TYPE_FIXED:
 	case ROW_TYPE_PAGE:
@@ -9845,7 +9861,7 @@ index_bad:
 			"InnoDB: assuming ROW_FORMAT=COMPACT.");
 	case ROW_TYPE_DEFAULT:
 		/* If we fell through, set row format to Compact. */
-		row_format = ROW_TYPE_COMPACT;
+		row_type = ROW_TYPE_COMPACT;
 	case ROW_TYPE_COMPACT:
 		break;
 	}
@@ -9886,18 +9902,13 @@ index_bad:
 	DBUG_RETURN(true);
 }
 
-/*********************************************************************//**
-Check if table is non-compressed temporary table.
+/** Check if table is non-compressed temporary table.
+@param[in]	create_info	Metadata for the table to create.
 @return true if non-compressed temporary table. */
 UNIV_INLINE
 bool
-innobase_table_is_noncompressed_temporary(
-/*======================================*/
-	const HA_CREATE_INFO*	create_info,	/*!< in: more information of the
-						created table, contains also the
-						create statement string */
-	bool			file_per_table)	/*!< in: reflect current
-						file_per_table status */
+table_is_noncompressed_temporary(
+	const HA_CREATE_INFO*	create_info)
 {
 	/* If you specify ROW_FORMAT=COMPRESSED but not KEY_BLOCK_SIZE,
 	the default compressed page size of 8KB is used. Setting of 8K
@@ -9907,7 +9918,7 @@ innobase_table_is_noncompressed_temporary(
 		(create_info->row_type == ROW_TYPE_COMPRESSED
 		 || create_info->key_block_size > 0)
 		&& (srv_file_format >= UNIV_FORMAT_B)
-		&& file_per_table;
+		&& srv_file_per_table;
 
 	bool is_temp = create_info->options & HA_LEX_CREATE_TMP_TABLE;
 
@@ -9933,9 +9944,9 @@ ha_innobase::create(
 	trx_t*		trx;
 	int		primary_key_no;
 	uint		i;
-	char		norm_name[FN_REFLEN];	/* {database}/{tablename} */
-	char		temp_path[FN_REFLEN];	/* absolute path of temp frm */
-	char		remote_path[FN_REFLEN];	/* absolute path of table */
+	char		norm_name[FN_REFLEN];	/* dbname/tablename */
+	char		temp_path[FN_REFLEN];	/* full path of temp frm */
+	char		remote_path[FN_REFLEN];	/* full path of table */
 	THD*		thd = ha_thd();
 	int64_t		auto_inc_value;
 	ulint		flags;
@@ -9954,16 +9965,11 @@ ha_innobase::create(
 	variable before using it. Note that "srv_file_per_table"
 	is not under dict_sys mutex protection, and could be changed
 	while creating the table. So we read the current value here
-	and make all further decisions based on this. */
-	file_per_table = srv_file_per_table;
-
-	/* Ignore file-per-table if using a temporary, non-compressed
-	table. */
-	if (file_per_table
-		&& innobase_table_is_noncompressed_temporary(
-			create_info, file_per_table)) {
-		file_per_table = false;
-	}
+	and make all further decisions based on this.
+	Ignore the current innodb-file-per-table setting if we are
+	creating a temporary, non-compressed table */
+	file_per_table = srv_file_per_table
+		&& !table_is_noncompressed_temporary(create_info);
 
 	if (form->s->fields > REC_MAX_N_USER_FIELDS) {
 		DBUG_RETURN(HA_ERR_TOO_MANY_FIELDS);
@@ -9971,7 +9977,11 @@ ha_innobase::create(
 
 	ut_ad(form->s->row_type == create_info->row_type);
 
-	/* Validate create options if innodb_strict_mode is set. */
+	/* Validate the create options if innodb_strict_mode is set.
+	Do not use the regular message for ER_ILLEGAL_HA_CREATE_OPTION
+	because InnoDB might actually support the option, but not under
+	the current conditions.  The messages revealing the specific
+	problems are reported inside this function. */
 	if (create_options_are_invalid(
 			thd, create_info, file_per_table)) {
 		DBUG_RETURN(HA_WRONG_CREATE_OPTION);
@@ -9981,7 +9991,7 @@ ha_innobase::create(
 	if (!innobase_table_flags(form, create_info,
 				  thd, file_per_table,
 				  &flags, &flags2)) {
-		DBUG_RETURN(-1);
+		DBUG_RETURN(HA_WRONG_CREATE_OPTION);
 	}
 
 	const bool	is_intrinsic_temp_table
@@ -9993,7 +10003,7 @@ ha_innobase::create(
 		DBUG_RETURN(HA_ERR_INNODB_READ_ONLY);
 	}
 
-	error = parse_table_name(name, create_info, flags, flags2,
+	error = parse_table_name(name, create_info, flags, &flags2,
 				 norm_name, temp_path, remote_path);
 	if (error) {
 		DBUG_RETURN(error);
@@ -10367,7 +10377,7 @@ ha_innobase::discard_or_import_tablespace(
 		ib_senderrf(
 			m_prebuilt->trx->mysql_thd, IB_LOG_LEVEL_ERROR,
 			ER_TABLE_IN_SYSTEM_TABLESPACE,
-			table->s->table_name.str);
+			dict_table->name);
 
 		DBUG_RETURN(HA_ERR_TABLE_NEEDS_UPGRADE);
 	}
@@ -10400,7 +10410,7 @@ ha_innobase::discard_or_import_tablespace(
 			ib_senderrf(
 				m_prebuilt->trx->mysql_thd,
 				IB_LOG_LEVEL_WARN, ER_TABLESPACE_MISSING,
-				table->s->table_name.str);
+				dict_table->name);
 		}
 
 		err = row_discard_tablespace_for_mysql(
@@ -10411,9 +10421,13 @@ ha_innobase::discard_or_import_tablespace(
 		release the table lock. */
 		trx_commit_for_mysql(m_prebuilt->trx);
 
+		ib::error() << "Unable to import tablespace "
+			<< dict_table->name << " because it already"
+			" exists.  Please DISCARD the tablespace"
+			" before IMPORT.";
 		ib_senderrf(
 			m_prebuilt->trx->mysql_thd, IB_LOG_LEVEL_ERROR,
-			ER_TABLESPACE_EXISTS, table->s->table_name.str);
+			ER_TABLESPACE_EXISTS, dict_table->name);
 
 		DBUG_RETURN(HA_ERR_TABLE_EXIST);
 	} else {
@@ -15524,7 +15538,7 @@ exit:
 	been turned on, we will set err_monitor. Print related
 	information */
 	if (err_monitor) {
-		sql_print_warning("Monitor %s is already enabled.",
+		sql_print_warning("InnoDB: Monitor %s is already enabled.",
 				  srv_mon_get_name((monitor_id_t) err_monitor));
 	}
 

@@ -66,7 +66,7 @@ SELECT name, n_cols, file_format, row_format
 SELECT name, file_format, row_format
        FROM INFORMATION_SCHEMA.INNODB_SYS_TABLESPACES
        WHERE name LIKE 'test%';
---replace_result  ./ MYSQLD_DATADIR/  $MYSQLD_DATADIR MYSQLD_DATADIR/
+--replace_result  ./ MYSQLD_DATADIR/  $MYSQLD_DATADIR MYSQLD_DATADIR
 --sorted_result
 SELECT path FROM INFORMATION_SCHEMA.INNODB_SYS_DATAFILES
        WHERE path LIKE '%test%';
