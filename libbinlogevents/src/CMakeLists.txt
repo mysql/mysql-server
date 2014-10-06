@@ -36,8 +36,8 @@ ELSE()
   ADD_DEPENDENCIES(binlogevents_static GenError)
 ENDIF()
 
-SET_TARGET_PROPERTIES(binlogevents_static PROPERTIES
-                      OUTPUT_NAME "binlogevents")
+#SET_TARGET_PROPERTIES(binlogevents_static PROPERTIES
+ #                     OUTPUT_NAME "binlogevents")
 
 SET_TARGET_PROPERTIES(binlogevents_static PROPERTIES
   ARCHIVE_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/libbinlogevents/lib)
