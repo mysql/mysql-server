@@ -286,11 +286,9 @@
     Memcheck:Leak
     match-leak-kinds: reachable
     fun:calloc
-    obj:/usr/lib/libdl-2.19.so
+    ...
     fun:dlsym
-    fun:_Z19toku_memory_startupv
-    fun:call_init.part.0
+    ...
     fun:_dl_init
-    obj:/usr/lib/ld-2.19.so
 }
 

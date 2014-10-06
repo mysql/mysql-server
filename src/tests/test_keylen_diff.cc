@@ -138,15 +138,12 @@ static int update_callback(DB *UU(db), const DBT *UU(key), const DBT *old_val, c
                            void (*set_val)(const DBT *new_val, void *setval_extra), void *setval_extra) {
     assert(extra != nullptr);
     assert(old_val != nullptr);
-    assert(extra->size == 0);
-    assert(old_val->size == 0);
+    assert(extra->size == 0 || extra->size == 100);
+    assert(old_val->size == 0 || old_val->size == 100);
     if (extra->data == nullptr) {
         set_val(nullptr, setval_extra);
     } else {
-        DBT new_val;
-        char empty_v;
-        dbt_init(&new_val, &empty_v, 0);
-        set_val(&new_val, setval_extra);
+        set_val(extra, setval_extra);
     }
     return 0;
 }
@@ -176,12 +173,13 @@ static void test_keylen_diff(enum overwrite_method method, bool control_test) {
     r = db->set_readpagesize(db, 1 * 1024); // smaller basements so we get more per leaf
     r = db->open(db, nullptr, "db", nullptr, DB_BTREE, DB_CREATE, 0666); CKERR(r);
 
-    DBT null_dbt, empty_dbt;
-    char empty_v;
-    dbt_init(&empty_dbt, &empty_v, 0);
+    DBT null_dbt, val_dbt;
+    char val_buf[100];
+    memset(val_buf, 0, sizeof val_buf);
+    dbt_init(&val_dbt, &val_buf, sizeof val_buf);
     dbt_init(&null_dbt, nullptr, 0);
 
-    const int num_keys = 256 * 1000;
+    const int num_keys = 1<<11; //256 * 1000;
 
     for (int i = 0; i < num_keys; i++) {
         // insert it using a 4 byte key ..
@@ -189,7 +187,7 @@ static void test_keylen_diff(enum overwrite_method method, bool control_test) {
 
         DBT dbt;
         dbt_init(&dbt, &key, key.size());
-        r = db->put(db, nullptr, &dbt, &empty_dbt, 0); CKERR(r);
+        r = db->put(db, nullptr, &dbt, &val_dbt, 0); CKERR(r);
     }
 
     // overwrite keys randomly, so we induce flushes and get better / realistic coverage
@@ -217,7 +215,7 @@ static void test_keylen_diff(enum overwrite_method method, bool control_test) {
         env->txn_begin(env, nullptr, &txn, DB_TXN_NOSYNC); CKERR(r);
         switch (method) {
             case VIA_INSERT: {
-                r = db->put(db, txn, &dbt, &empty_dbt, 0); CKERR(r);
+                r = db->put(db, txn, &dbt, &val_dbt, 0); CKERR(r);
                 break;
             }
             case VIA_DELETE: {
@@ -228,12 +226,12 @@ static void test_keylen_diff(enum overwrite_method method, bool control_test) {
             }
             case VIA_UPDATE_OVERWRITE:
             case VIA_UPDATE_DELETE: {
-                r = db->update(db, txn, &dbt, method == VIA_UPDATE_DELETE ? &null_dbt : &empty_dbt, 0); CKERR(r);
+                r = db->update(db, txn, &dbt, method == VIA_UPDATE_DELETE ? &null_dbt : &val_dbt, 0); CKERR(r);
                 break;
             }
             case VIA_UPDATE_OVERWRITE_BROADCAST:
             case VIA_UPDATE_DELETE_BROADCAST: {
-                r = db->update_broadcast(db, txn, method == VIA_UPDATE_DELETE_BROADCAST ? &null_dbt : &empty_dbt, 0); CKERR(r); 
+                r = db->update_broadcast(db, txn, method == VIA_UPDATE_DELETE_BROADCAST ? &null_dbt : &val_dbt, 0); CKERR(r);
                 if (i > 1 ) { // only need to test broadcast twice - one with abort, one without
                     txn->abort(txn); // we opened a txn so we should abort it before exiting
                     goto done;
