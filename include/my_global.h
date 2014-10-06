@@ -384,7 +384,9 @@ inline unsigned long long my_double2ulonglong(double d)
 #define INT_MAX8        0x7F
 #define UINT_MAX8       0xFF
 
+#ifndef SIZE_T_MAX
 #define SIZE_T_MAX      (~((size_t) 0))
+#endif
 
 #if (__cplusplus >= 201103L)
   /* For C++11 use the new std functions rather than C99 macros. */
