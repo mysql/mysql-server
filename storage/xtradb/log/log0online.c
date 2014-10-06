@@ -1202,6 +1202,9 @@ log_online_write_bitmap(void)
 
 		bmp_tree_node = (ib_rbt_node_t*)
 			rbt_next(log_bmp_sys->modified_pages, bmp_tree_node);
+
+		DBUG_EXECUTE_IF("bitmap_page_2_write_error",
+				DBUG_SET("+d,bitmap_page_write_error"););
 	}
 
 	rbt_reset(log_bmp_sys->modified_pages);
@@ -1265,6 +1268,7 @@ log_online_follow_redo_log(void)
 /*********************************************************************//**
 Diagnose a bitmap file range setup failure and free the partially-initialized
 bitmap file range.  */
+UNIV_COLD
 static
 void
 log_online_diagnose_inconsistent_dir(
@@ -1444,26 +1448,30 @@ log_online_setup_bitmap_file_range(
 		return FALSE;
 	}
 
-#ifdef UNIV_DEBUG
-	if (!bitmap_files->files[0].seq_num) {
+	if (!bitmap_files->files[0].seq_num
+	    || bitmap_files->files[0].seq_num != first_file_seq_num) {
 
 		log_online_diagnose_inconsistent_dir(bitmap_files);
 		return FALSE;
 	}
-	ut_ad(bitmap_files->files[0].seq_num == first_file_seq_num);
+
 	{
 		size_t i;
 		for (i = 1; i < bitmap_files->count; i++) {
 			if (!bitmap_files->files[i].seq_num) {
 				break;
 			}
-			ut_ad(bitmap_files->files[i].seq_num
-			      > bitmap_files->files[i - 1].seq_num);
-			ut_ad(bitmap_files->files[i].start_lsn
-			      >= bitmap_files->files[i - 1].start_lsn);
+			if ((bitmap_files->files[i].seq_num
+			      <= bitmap_files->files[i - 1].seq_num)
+			    || (bitmap_files->files[i].start_lsn
+				< bitmap_files->files[i - 1].start_lsn)) {
+
+				log_online_diagnose_inconsistent_dir(
+								bitmap_files);
+				return FALSE;
+			}
 		}
 	}
-#endif
 
 	return TRUE;
 }
@@ -1589,6 +1597,17 @@ log_online_bitmap_iterator_init(
 	ib_uint64_t		max_lsn)/*!< in: end LSN */
 {
 	ut_a(i);
+
+	if (UNIV_UNLIKELY(min_lsn > max_lsn)) {
+
+		/* Empty range */
+		i->in_files.count = 0;
+		i->in_files.files = NULL;
+		i->in.file = os_file_invalid;
+		i->page = NULL;
+		i->failed = FALSE;
+		return TRUE;
+	}
 
 	if (!log_online_setup_bitmap_file_range(&i->in_files, min_lsn,
 		max_lsn)) {

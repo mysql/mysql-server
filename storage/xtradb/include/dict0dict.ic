@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -958,3 +958,62 @@ dict_index_is_corrupted(
 }
 
 #endif /* !UNIV_HOTBACKUP */
+/**********************************************************************//**
+Compares the given foreign key identifier (the key in rb-tree) and the
+foreign key identifier in the given fk object (value in rb-tree).
+@return	negative, 0, or positive if foreign_id is smaller, equal,
+or greater than foreign_obj->id, respectively. */
+UNIV_INLINE
+int
+dict_foreign_rbt_cmp(
+/*=================*/
+	const void*	foreign_id,	/*!< in: the foreign key identifier
+					which is used as a key in rb-tree.  */
+	const void*	foreign_obj)	/*!< in: the foreign object itself
+					which is used as value in rb-tree. */
+{
+	return(ut_strcmp((const char*) foreign_id,
+			 (*(dict_foreign_t**) foreign_obj)->id));
+}
+
+/**********************************************************************//**
+Allocate the table->foreign_rbt, which stores all the foreign objects
+that is available in table->foreign_list.  The caller must hold the
+dict_sys->mutex.
+@return the allocated rbt object */
+UNIV_INLINE
+ib_rbt_t*
+dict_table_init_foreign_rbt(
+/*========================*/
+	dict_table_t*	table) /*!< in: the table object whose
+				table->foreign_rbt will be initialized */
+{
+	ut_a(table->foreign_rbt == NULL);
+	ut_ad(mutex_own(&(dict_sys->mutex)));
+
+	table->foreign_rbt = rbt_create(sizeof(dict_foreign_t*),
+					dict_foreign_rbt_cmp);
+	ut_a(table->foreign_rbt != NULL);
+	return(table->foreign_rbt);
+}
+
+/**********************************************************************//**
+Allocate the table->referened_rbt, which stores all the foreign objects
+that is available in table->referenced_list.  The caller must hold the
+dict_sys->mutex.
+@return the allocated rbt object */
+UNIV_INLINE
+ib_rbt_t*
+dict_table_init_referenced_rbt(
+/*===========================*/
+	dict_table_t*	table) /*!< in: the table object whose
+				table->referenced_rbt will be initialized */
+{
+	ut_a(table->referenced_rbt == NULL);
+	ut_ad(mutex_own(&(dict_sys->mutex)));
+
+	table->referenced_rbt = rbt_create(sizeof(dict_foreign_t*),
+					   dict_foreign_rbt_cmp);
+	ut_a(table->referenced_rbt != NULL);
+	return(table->referenced_rbt);
+}

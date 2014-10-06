@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -43,6 +43,7 @@ Created 1/8/1996 Heikki Tuuri
 #include "ut0byte.h"
 #include "hash0hash.h"
 #include "trx0types.h"
+#include "ut0rbt.h"
 
 /** Type flags of an index: OR'ing of the flags is allowed to define a
 combination of types */
@@ -510,7 +511,6 @@ a foreign key constraint is enforced, therefore RESTRICT just means no flag */
 #define DICT_FOREIGN_ON_UPDATE_NO_ACTION 32	/*!< ON UPDATE NO ACTION */
 /* @} */
 
-
 /** Data structure for a database table.  Most fields will be
 initialized to 0, NULL or FALSE in dict_mem_table_create(). */
 struct dict_table_struct{
@@ -562,6 +562,14 @@ struct dict_table_struct{
 	UT_LIST_BASE_NODE_T(dict_foreign_t)
 			referenced_list;/*!< list of foreign key constraints
 				which refer to this table */
+
+	ib_rbt_t*	foreign_rbt;	/*!< a rb-tree of all foreign keys
+					listed in foreign_list, sorted by
+					foreign->id */
+	ib_rbt_t*	referenced_rbt;	/*!< a rb-tree of all foreign keys
+					listed in referenced_list, sorted by
+					foreign->id */
+
 	UT_LIST_NODE_T(dict_table_t)
 			table_LRU; /*!< node of the LRU list of tables */
 	ulint		n_mysql_handles_opened;
