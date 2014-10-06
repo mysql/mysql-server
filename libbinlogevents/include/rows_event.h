@@ -412,7 +412,9 @@ public:
     : Binary_log_event(TABLE_MAP_EVENT),
       m_table_id(tid),
       m_data_size(0),
+      m_dbnam(""),
       m_dblen(dblen),
+      m_tblnam(""),
       m_tbllen(tbllen),
       m_colcnt(colcnt),
       m_field_metadata_size(0),
@@ -701,12 +703,12 @@ protected:
   std::vector<uint8_t> row;
 
 public:
-  unsigned long long get_table_id()
+  unsigned long long get_table_id() const
   {
     return m_table_id.id();
   }
 
-  enum_flag get_flags()
+  enum_flag get_flags() const
   {
     return static_cast<enum_flag>(m_flags);
   }

@@ -26,6 +26,43 @@
 #endif
 
 namespace binary_log {
+
+float inline float4store(float  *A)
+{
+  #if !(IS_BIG_ENDIAN)
+   return *A;
+  #else
+    float ret_val= 0;
+    char *in_float= reinterpret_cast<char *> (A);
+    char *return_float= reinterpret_cast<char *> (&ret_val);
+    *(return_float)= in_float[3];
+    *((return_float)+1)= in_float[2];
+    *((return_float)+2)= in_float[1];
+    *((return_float)+3)= in_float[0];
+    return ret_val;
+  #endif
+}
+
+inline double doublestore(double *V)
+{
+  #if !(IS_BIG_ENDIAN)
+   return *V;
+  #else
+   double ret_val;
+   char * in_double= reinterpret_cast<char *> (V);
+   char * return_double= reinterpret_cast<char *> (&ret_val);
+    *((return_double)+0)= in_double[4];
+    *((return_double)+1)= in_double[5];
+    *((return_double)+2)= in_double[6];
+    *((return_double)+3)= in_double[7];
+    *((return_double)+4)= in_double[0];
+    *((return_double)+5)= in_double[1];
+    *((return_double)+6)= in_double[2];
+    *((return_double)+7)= in_double[3];
+    return ret_val;
+  #endif
+}
+
 /**
  This helper function calculates the size in bytes of a particular field in a
  row type event as defined by the field_ptr and metadata_ptr arguments.
@@ -101,8 +138,8 @@ public:
 
   ~Value() {}
 
-  void is_null(bool s) { m_is_null= s; }
-  bool is_null(void) const { return m_is_null; }
+  void set_is_null(bool s) { m_is_null= s; }
+  bool get_is_null(void) const { return m_is_null; }
 
   const char *storage() const { return m_storage; }
 

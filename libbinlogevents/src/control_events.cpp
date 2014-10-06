@@ -487,7 +487,7 @@ Incident_event::Incident_event(const char *buf, unsigned int event_len,
   uint8_t len= 0;                   // Assignment to keep compiler happy
   const char *str= NULL;          // Assignment to keep compiler happy
   read_str_at_most_255_bytes(&ptr, str_end, &str, &len);
-  if (!(message= static_cast<char*>(bapi_malloc(len + 1, MEMORY_LOG_EVENT, 16))))
+  if (!(message= static_cast<char*>(bapi_malloc(len + 1, 16))))
   {
     /* Mark this event invalid */
     incident= INCIDENT_NONE;

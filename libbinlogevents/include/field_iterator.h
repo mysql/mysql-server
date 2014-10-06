@@ -78,7 +78,7 @@ public:
     @return 1     If the column can be null
             0     If the column cannot be null
   */
-  bool is_null(unsigned char *bitmap, int index);
+  bool is_null(unsigned char *bitmap, int index) const;
 
   /**
     This method returns the amount of memory required to store the metadata,
@@ -89,7 +89,7 @@ public:
     @return           number of bytes required to store metadata information
 
   */
-  int lookup_metadata_field_size(enum_field_types field_type);
+  int lookup_metadata_field_size(enum_field_types field_type) const;
 
   /**
     Returns the metadata information of a column.

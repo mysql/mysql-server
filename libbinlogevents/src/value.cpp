@@ -23,6 +23,7 @@
 #include <iostream>
 #include <cassert>
 
+
 /**
   Calculate binary size of packed numeric time representation.
 
@@ -528,7 +529,7 @@ double Value::as_double() const
 void Converter::to(std::string &str, const Value &val) const
 {
   char buffer[20];
-  if (val.is_null())
+  if (val.get_is_null())
   {
     str= "(NULL)";
     return;

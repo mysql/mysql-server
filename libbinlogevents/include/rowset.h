@@ -37,39 +37,34 @@ class Table_map_event;
 class Row_event_set
 {
 public:
-    typedef Row_event_iterator<Row_of_fields > iterator;
-    typedef Row_event_iterator<Row_of_fields const > const_iterator;
+  typedef Row_event_iterator<Row_of_fields > iterator;
+  typedef Row_event_iterator<Row_of_fields const > const_iterator;
 
-    Row_event_set(Rows_event *arg1, Table_map_event *arg2)
-    {
-      source(arg1, arg2);
-    }
+  Row_event_set(Rows_event *arg1, Table_map_event *arg2)
+  : m_row_event(arg1),
+    m_table_map_event(arg2)
+  {}
 
-    iterator begin()
-    {
-      return iterator(m_row_event, m_table_map_event);
-    }
-    iterator end()
-    {
-      return iterator();
-    }
-    const_iterator begin() const
-    {
-      return const_iterator(m_row_event, m_table_map_event);
-    }
-    const_iterator end() const
-    {
-      return const_iterator();
-    }
+  iterator begin()
+  {
+    return iterator(m_row_event, m_table_map_event);
+  }
+  iterator end()
+  {
+    return iterator();
+  }
+  const_iterator begin() const
+  {
+    return const_iterator(m_row_event, m_table_map_event);
+  }
+  const_iterator end() const
+  {
+    return const_iterator();
+  }
 
 private:
-    void source(Rows_event *arg1, Table_map_event *arg2)
-    {
-      m_row_event= arg1;
-      m_table_map_event= arg2;
-    }
-    Rows_event *m_row_event;
-    Table_map_event *m_table_map_event;
+  Rows_event *m_row_event;
+  Table_map_event *m_table_map_event;
 };
 
 }

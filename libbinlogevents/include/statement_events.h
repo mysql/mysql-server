@@ -836,7 +836,7 @@ public:
 #ifndef HAVE_MYSYS
   void print_event_info(std::ostream& info);
   void print_long_info(std::ostream& info);
-  const char* get_value_type_string(enum Value_type type)
+  const char* get_value_type_string(enum Value_type type) const
   {
     switch(type)
     {
@@ -925,7 +925,7 @@ public:
     used in the event. Changed the definition to be similar to that
     previously defined in log_event.cc.
   */
-  std::string get_var_type_string()
+  std::string get_var_type_string() const
   {
     switch(type)
     {

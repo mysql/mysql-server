@@ -150,7 +150,7 @@ public:
   ~Rotate_event()
   {
     if (flags & DUP_NAME)
-      bapi_free((void*) (new_log_ident));
+      bapi_free(const_cast<char*>(new_log_ident));
   }
 };
 

@@ -717,8 +717,7 @@ public:
 
   ~Create_file_event()
   {
-     if (event_buf)
-       bapi_free((void*) event_buf);
+     bapi_free(const_cast<char*>(event_buf));
   }
   int get_data_size()
   {
