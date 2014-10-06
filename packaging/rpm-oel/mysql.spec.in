@@ -259,7 +259,6 @@ Obsoletes:      mariadb-test
 Provides:       mysql-test = %{version}-%{release}
 Provides:       mysql-test%{?_isa} = %{version}-%{release}
 
-
 %description    test
 This package contains the MySQL regression test suite for MySQL
 database server.
@@ -564,6 +563,7 @@ make DESTDIR=%{buildroot} install
 # Install logrotate and autostart
 install -D -m 0644 $MBD/release/support-files/mysql-log-rotate %{buildroot}%{_sysconfdir}/logrotate.d/mysql
 install -D -m 0644 $MBD/release/packaging/rpm-oel/my.cnf %{buildroot}%{_sysconfdir}/my.cnf
+install -d %{buildroot}%{_sysconfdir}/my.cnf.d
 %if 0%{?systemd}
 install -D -m 0755 %{SOURCE1} %{buildroot}%{_bindir}/mysql-systemd-start
 install -D -m 0644 %{SOURCE2} %{buildroot}%{_unitdir}/mysqld.service
@@ -572,7 +572,7 @@ install -D -m 0755 $MBD/release/packaging/rpm-oel/mysql.init %{buildroot}%{_sysc
 %endif
 install -D -m 0644 %{SOURCE3} %{buildroot}%{_prefix}/lib/tmpfiles.d/mysql.conf
 
-# Make library links
+# Add libdir to linker
 install -d -m 0755 %{buildroot}%{_sysconfdir}/ld.so.conf.d
 echo "%{_libdir}/mysql" > %{buildroot}%{_sysconfdir}/ld.so.conf.d/mysql-%{_arch}.conf
 
@@ -625,11 +625,11 @@ rm -r $(readlink var) var
 
 %post server
 datadir=$(/usr/bin/my_print_defaults server mysqld | grep '^--datadir=' | sed -n 's/--datadir=//p')
-/bin/chmod 0755 "$datadir"
-/bin/touch /var/log/mysqld.log
+/bin/chmod 0755 "$datadir" >/dev/null 2>&1 || :
+/bin/touch /var/log/mysqld.log >/dev/null 2>&1 || :
 %if 0%{?systemd}
 %systemd_post mysqld.service
-/sbin/service mysqld enable >/dev/null 2>&1 || :
+/usr/bin/systemctl enable mysqld >/dev/null 2>&1 || :
 %else
 /sbin/chkconfig --add mysqld
 %endif
@@ -701,6 +701,7 @@ fi
 %attr(644, root, root) %{_mandir}/man1/resolveip.1*
 
 %config(noreplace) %{_sysconfdir}/my.cnf
+%dir %{_sysconfdir}/my.cnf.d
 
 %attr(755, root, root) %{_bindir}/innochecksum
 %attr(755, root, root) %{_bindir}/my_print_defaults
@@ -767,7 +768,6 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_pam.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/thread_pool.so
 %endif
-
 %attr(644, root, root) %{_datadir}/mysql/fill_help_tables.sql
 %attr(644, root, root) %{_datadir}/mysql/mysql_system_tables.sql
 %attr(644, root, root) %{_datadir}/mysql/mysql_system_tables_data.sql
@@ -788,6 +788,7 @@ fi
 
 %files common
 %defattr(-, root, root, -)
+%doc %{?license_files_server}
 %{_datadir}/mysql/charsets/
 %{_datadir}/mysql/errmsg-utf8.txt
 %{_datadir}/mysql/czech/
@@ -816,6 +817,7 @@ fi
 
 %files client
 %defattr(-, root, root, -)
+%doc %{?license_files_server}
 %attr(755, root, root) %{_bindir}/msql2mysql
 %attr(755, root, root) %{_bindir}/mysql
 %attr(755, root, root) %{_bindir}/mysql_find_rows
@@ -848,6 +850,7 @@ fi
 
 %files devel
 %defattr(-, root, root, -)
+%doc %{?license_files_server}
 %attr(644, root, root) %{_mandir}/man1/comp_err.1*
 %attr(644, root, root) %{_mandir}/man1/mysql_config.1*
 %attr(755, root, root) %{_bindir}/mysql_config
@@ -862,6 +865,7 @@ fi
 
 %files libs
 %defattr(-, root, root, -)
+%doc %{?license_files_server}
 %dir %attr(755, root, root) %{_libdir}/mysql
 %attr(644, root, root) %{_sysconfdir}/ld.so.conf.d/mysql-%{_arch}.conf
 %{_libdir}/mysql/libmysqlclient.so.18*
@@ -870,6 +874,7 @@ fi
 %if 0%{?compatlib}
 %files libs-compat
 %defattr(-, root, root, -)
+%doc %{?license_files_server}
 %dir %attr(755, root, root) %{_libdir}/mysql
 %attr(644, root, root) %{_sysconfdir}/ld.so.conf.d/mysql-%{_arch}.conf
 %{_libdir}/mysql/libmysqlclient.so.%{compatlib}
@@ -880,6 +885,7 @@ fi
 
 %files test
 %defattr(-, root, root, -)
+%doc %{?license_files_server}
 %attr(-, root, root) %{_datadir}/mysql-test
 %attr(755, root, root) %{_bindir}/mysql_client_test
 %attr(755, root, root) %{_bindir}/mysql_client_test_embedded
@@ -892,16 +898,19 @@ fi
 
 %files bench
 %defattr(-, root, root, -)
+%doc %{?license_files_server}
 %{_datadir}/sql-bench
 
 %files embedded
 %defattr(-, root, root, -)
+%doc %{?license_files_server}
 %dir %attr(755, root, root) %{_libdir}/mysql
 %attr(644, root, root) %{_sysconfdir}/ld.so.conf.d/mysql-%{_arch}.conf
 %attr(755, root, root) %{_libdir}/mysql/libmysqld.so.*
 
 %files embedded-devel
 %defattr(-, root, root, -)
+%doc %{?license_files_server}
 %attr(644, root, root) %{_libdir}/mysql/libmysqld.a
 %attr(644, root, root) %{_libdir}/mysql/libmysqld-debug.a
 %attr(755, root, root) %{_libdir}/mysql/libmysqld.so
@@ -913,6 +922,9 @@ fi
 %endif
 
 %changelog
+* Mon Oct 06 2014 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 5.5.41-1
+- Add license info in each subpackage
+
 * Tue Jul 22 2014 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 5.5.39-5
 - Provide mysql-compat-server dependencies
 
