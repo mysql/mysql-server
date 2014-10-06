@@ -237,8 +237,8 @@ void Blowfish::ProcessAndXorBlock(const byte* in, const byte* xOr, byte* out)
         #define EPILOG()  \
             "pop ebp;" \
             "pop ebx;" \
-                   "emms;" \
-                   ".att_syntax;" \
+       	    "emms;" \
+       	    ".att_syntax;" \
                 : \
                 : "c" (this), "S" (inBlock), "a" (outBlock) \
                 : "%edi", "%edx", "memory", "cc" \
@@ -291,7 +291,7 @@ void Blowfish::ProcessAndXorBlock(const byte* in, const byte* xOr, byte* out)
 
 
 #ifdef _MSC_VER
-    __declspec(naked)
+    __declspec(naked) 
 #else
     __attribute__ ((noinline))
 #endif

@@ -1123,6 +1123,11 @@ dict_table_rename_in_cache(
 		/* The id will be changed.  So remove old one */
 		rbt_delete(foreign->foreign_table->foreign_rbt, foreign->id);
 
+		if (foreign->referenced_table) {
+			rbt_delete(foreign->referenced_table->referenced_rbt,
+				   foreign->id);
+		}
+
 		if (ut_strlen(foreign->foreign_table_name)
 		    < ut_strlen(table->name)) {
 			/* Allocate a longer name buffer;
@@ -1272,6 +1277,11 @@ dict_table_rename_in_cache(
 
 		rbt_insert(foreign->foreign_table->foreign_rbt,
 			   foreign->id, &foreign);
+
+		if (foreign->referenced_table) {
+			rbt_insert(foreign->referenced_table->referenced_rbt,
+				   foreign->id, &foreign);
+		}
 
 		foreign = UT_LIST_GET_NEXT(foreign_list, foreign);
 	}
@@ -5363,6 +5373,11 @@ dict_find_table_by_space(
 	ulint		count = 0;
 
 	ut_ad(space_id > 0);
+
+	if (dict_sys == NULL) {
+		/* This could happen when it's in redo processing. */
+		return(NULL);
+	}
 
 	table = UT_LIST_GET_FIRST(dict_sys->table_LRU);
 	num_item =  UT_LIST_GET_LEN(dict_sys->table_LRU);

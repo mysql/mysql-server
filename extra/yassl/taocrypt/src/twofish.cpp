@@ -285,12 +285,11 @@ void Twofish::decrypt(const byte* inBlock, const byte* xorBlock,
             "push ebp;" \
             "movd mm3, eax;" \
             "movd mm6, ebp;"
-
         #define EPILOG()  \
             "pop ebp;" \
             "pop ebx;" \
-                   "emms;" \
-                   ".att_syntax;" \
+       	    "emms;" \
+       	    ".att_syntax;" \
                 : \
                 : "D" (this), "S" (inBlock), "a" (outBlock) \
                 : "%ecx", "%edx", "memory", "cc" \
@@ -479,7 +478,7 @@ void Twofish::AsmEncrypt(const byte* inBlock, byte* outBlock) const
     AS2(    movd  ebp, mm6                      )
     AS2(    movd  esi, mm0                      ) // k_
     #ifdef __GNUC__
-       AS2(    movd  edi, mm3                  ) // outBlock
+        AS2(    movd  edi, mm3                  ) // outBlock
     #else
         AS2(    mov   edi, [ebp + 12]           ) // outBlock
     #endif
@@ -500,7 +499,7 @@ void Twofish::AsmEncrypt(const byte* inBlock, byte* outBlock) const
 
 
 #ifdef _MSC_VER
-    __declspec(naked)
+    __declspec(naked) 
 #else
     __attribute__ ((noinline))
 #endif
@@ -551,7 +550,7 @@ void Twofish::AsmDecrypt(const byte* inBlock, byte* outBlock) const
     AS2(    movd  ebp, mm6                      )
     AS2(    movd  esi, mm0                      ) // k_
     #ifdef __GNUC__
-        AS2(    movd   edi, mm3                 ) // outBlock
+        AS2(    movd  edi, mm3                  ) // outBlock
     #else
         AS2(    mov   edi, [ebp + 12]           ) // outBlock
     #endif

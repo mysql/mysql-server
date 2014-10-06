@@ -1,6 +1,6 @@
 /*
-   Copyright (c) 2000, 2013, Oracle and/or its affiliates.
-   Copyright (c) 2010, 2013, Monty Program Ab.
+   Copyright (c) 2000, 2014, Oracle and/or its affiliates.
+   Copyright (c) 2010, 2014, Monty Program Ab.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -5638,6 +5638,18 @@ enum_field_types Item::field_type() const
 }
 
 
+/**
+  Verifies that the input string is well-formed according to its character set.
+  @param send_error   If true, call my_error if string is not well-formed.
+
+  Will truncate input string if it is not well-formed.
+
+  @return
+  If well-formed: input string.
+  If not well-formed:
+    if strict mode: NULL pointer and we set this Item's value to NULL
+    if not strict mode: input string truncated up to last good character
+ */
 String *Item::check_well_formed_result(String *str, bool send_error)
 {
   /* Check whether we got a well-formed string */

@@ -84,17 +84,7 @@ namespace STL = STL_NAMESPACE;
 
     }
 
-#ifdef __sun
-
-// Handler for pure virtual functions
-namespace __Crun {
-    void pure_error() {
-    }
-}
-
-#endif
-
-#if defined(__ICC) || defined(__INTEL_COMPILER) || (__GNUC__ > 2)
+#if defined(__ICC) || defined(__INTEL_COMPILER)
 
 extern "C" {
 

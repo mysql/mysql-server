@@ -406,6 +406,7 @@ enum options_mysqld
   OPT_SSL_CERT,
   OPT_SSL_CIPHER,
   OPT_SSL_KEY,
+  OPT_THREAD_CONCURRENCY,
   OPT_UPDATE_LOG,
   OPT_WANT_CORE,
   OPT_which_is_always_the_last

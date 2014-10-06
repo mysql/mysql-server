@@ -66,7 +66,7 @@ void AES::Process(byte* out, const byte* in, word32 sz)
                 in  += BLOCK_SIZE;
             }
         }
-    else {
+        else {
             while (blocks--) {
                 AsmDecrypt(in, out, (void*)Td0);
                 
@@ -79,8 +79,8 @@ void AES::Process(byte* out, const byte* in, word32 sz)
                 out += BLOCK_SIZE;
                 in  += BLOCK_SIZE;
             }
-       }
-   }
+        }
+    }
 }
 
 #endif // DO_AES_ASM
@@ -466,14 +466,13 @@ void AES::decrypt(const byte* inBlock, const byte* xorBlock,
             "movd mm7, ebp;" \
             "movd mm4, eax;" \
             "mov  ebp, edx;"  \
-            "sub  esp, 4;"
-
+            "sub  esp, 4;" 
         #define EPILOG()  \
             "add esp, 4;" \
             "pop ebp;" \
             "pop ebx;" \
-                   "emms;" \
-                   ".att_syntax;" \
+       	    "emms;" \
+       	    ".att_syntax;" \
                 : \
                 : "c" (this), "S" (inBlock), "d" (boxes), "a" (outBlock) \
                 : "%edi", "memory", "cc" \
@@ -834,9 +833,9 @@ void AES::AsmEncrypt(const byte* inBlock, byte* outBlock, void* boxes) const
 
 
 #ifdef _MSC_VER
-    __declspec(naked)
+    __declspec(naked) 
 #else
-    __attribute__ ((noinline)) 
+    __attribute__ ((noinline))
 #endif
 void AES::AsmDecrypt(const byte* inBlock, byte* outBlock, void* boxes) const
 {

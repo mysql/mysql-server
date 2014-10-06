@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2012, Oracle and/or its affiliates
+   Copyright (c) 2005, 2014, Oracle and/or its affiliates
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -34,7 +34,10 @@
 
 // Handler for pure virtual functions
 namespace __Crun {
-    void pure_error(void);
+    static void pure_error(void)
+    {
+       // "Pure virtual method called, Aborted", GCC 4.2 str cmp fix
+    }
 } // namespace __Crun
 
 #endif // __sun
@@ -48,7 +51,15 @@ extern "C" {
 #if defined(DO_TAOCRYPT_KERNEL_MODE)
     #include "kernelc.hpp"
 #endif
-    int __cxa_pure_virtual () __attribute__ ((weak));
+
+/* Disallow inline __cxa_pure_virtual() */
+static int __cxa_pure_virtual() __attribute__((noinline, used));
+static int __cxa_pure_virtual()
+{
+    // oops, pure virtual called!
+    return 0;
+}
+
 } // extern "C"
 
 #endif // __GNUC__ > 2

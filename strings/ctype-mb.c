@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates.
    Copyright (c) 2009, 2014, SkySQL Ab.
 
    This program is free software; you can redistribute it and/or modify
@@ -1043,7 +1043,7 @@ static int my_wildcmp_mb_bin_impl(CHARSET_INFO *cs,
     }
     if (*wildstr == w_many)
     {						/* Found w_many */
-      uchar cmp;
+      int cmp;
       const char* mb = wildstr;
       int mb_len=0;
       
