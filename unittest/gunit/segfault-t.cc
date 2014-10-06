@@ -86,7 +86,7 @@ int array_size(const T (&)[size])
 TEST(PrintUtilities, Utoa)
 {
   char buff[22];
-  ulonglong intarr[]= { 0, 1, 8, 12, 1234, 88888, ULONG_MAX, ULONGLONG_MAX };
+  ulonglong intarr[]= { 0, 1, 8, 12, 1234, 88888, ULONG_MAX, ULLONG_MAX };
   char sprintbuff[22];
   for (int ix= 0; ix < array_size(intarr); ++ix)
   {
@@ -110,7 +110,7 @@ TEST(PrintUtilities, Itoa)
 {
   char buff[22];
   char sprintbuff[22];
-  longlong intarr[]= { 0, 1, 8, 12, 1234, 88888, LONG_MAX, LONGLONG_MAX };
+  longlong intarr[]= { 0, 1, 8, 12, 1234, 88888, LONG_MAX, LLONG_MAX };
 
   for (int ix= 0; ix < array_size(intarr); ++ix)
   {
@@ -171,8 +171,8 @@ TEST(PrintUtilities, Printf)
   my_safe_snprintf(buff, sizeof(buff), "hello %u hello", (unsigned) 42);
   EXPECT_STREQ("hello 42 hello", buff);
 
-  my_safe_snprintf(buff, sizeof(buff), "hello %llu hello", ULONGLONG_MAX);
-  sprintf(sprintfbuff, "hello %llu hello", ULONGLONG_MAX);
+  my_safe_snprintf(buff, sizeof(buff), "hello %llu hello", ULLONG_MAX);
+  sprintf(sprintfbuff, "hello %llu hello", ULLONG_MAX);
   EXPECT_STREQ(sprintfbuff, buff);
 
   my_safe_snprintf(buff, sizeof(buff), "hello %x hello", 42);

@@ -3700,7 +3700,7 @@ static void fetch_result_int64(MYSQL_BIND *param,
 {
   my_bool field_is_unsigned= MY_TEST(field->flags & UNSIGNED_FLAG);
   ulonglong data= (ulonglong) sint8korr(*row);
-  *param->error= param->is_unsigned != field_is_unsigned && data > LONGLONG_MAX;
+  *param->error= param->is_unsigned != field_is_unsigned && data > LLONG_MAX;
   longlongstore(param->buffer, data);
   *row+= 8;
 }

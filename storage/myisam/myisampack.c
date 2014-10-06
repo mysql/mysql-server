@@ -1951,7 +1951,7 @@ static int make_huff_decode_table(HUFF_TREE *huff_tree, uint trees)
 	return 1;
       huff_tree->code_len=(uchar*) (huff_tree->code+elements);
       make_traverse_code_tree(huff_tree, huff_tree->root,
-                              8 * sizeof(ulonglong), LL(0));
+                              8 * sizeof(ulonglong), 0LL);
     }
   }
   return 0;

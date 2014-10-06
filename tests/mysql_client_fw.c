@@ -1249,7 +1249,7 @@ static struct my_option client_test_long_options[] =
  &opt_vardir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 {"getopt-ll-test", 'g', "Option for testing bug in getopt library",
  &opt_getopt_ll_test, &opt_getopt_ll_test, 0,
- GET_LL, REQUIRED_ARG, 0, 0, LONGLONG_MAX, 0, 0, 0},
+ GET_LL, REQUIRED_ARG, 0, 0, LLONG_MAX, 0, 0, 0},
 {"plugin_dir", 0, "Directory for client-side plugins.",
  &opt_plugin_dir, &opt_plugin_dir, 0,
  GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},

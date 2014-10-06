@@ -650,7 +650,7 @@ struct sql_ex_info
 
 /* Shouldn't be defined before */
 #define EXPECTED_OPTIONS \
-  ((ULL(1) << 14) | (ULL(1) << 26) | (ULL(1) << 27) | (ULL(1) << 19))
+  ((1ULL << 14) | (1ULL << 26) | (1ULL << 27) | (1ULL << 19))
 
 #if OPTIONS_WRITTEN_TO_BIN_LOG != EXPECTED_OPTIONS
 #error OPTIONS_WRITTEN_TO_BIN_LOG must NOT change their values!
@@ -680,7 +680,7 @@ const int64 SEQ_UNINIT= 0;
 /**
    Maximum value of binlog logical timestamp.
 */
-const int64 SEQ_MAX_TIMESTAMP= LONGLONG_MAX;
+const int64 SEQ_MAX_TIMESTAMP= LLONG_MAX;
 
 /**
   @enum Log_event_type

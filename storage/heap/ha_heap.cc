@@ -787,7 +787,7 @@ void ha_heap::get_auto_increment(ulonglong offset, ulonglong increment,
   ha_heap::info(HA_STATUS_AUTO);
   *first_value= stats.auto_increment_value;
   /* such table has only table-level locking so reserves up to +inf */
-  *nb_reserved_values= ULONGLONG_MAX;
+  *nb_reserved_values= ULLONG_MAX;
 }
 
 

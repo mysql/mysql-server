@@ -1043,13 +1043,13 @@ ulonglong max_of_int_range(int var_type)
   case GET_LONG:
     return LONG_MAX;
   case GET_LL:
-    return LONGLONG_MAX;
+    return LLONG_MAX;
   case GET_UINT:
     return UINT_MAX;
   case GET_ULONG:
     return ULONG_MAX;
   case GET_ULL:
-    return ULONGLONG_MAX;
+    return ULLONG_MAX;
   default:
     DBUG_ASSERT(0);
     return 0;

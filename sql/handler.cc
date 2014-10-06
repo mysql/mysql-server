@@ -3035,7 +3035,7 @@ compute_next_insert_id(ulonglong nr,struct system_variables *variables)
   }
 
   if (unlikely(nr <= save_nr))
-    return ULONGLONG_MAX;
+    return ULLONG_MAX;
 
   return nr;
 }
@@ -3286,7 +3286,7 @@ int handler::update_auto_increment()
                          variables->auto_increment_increment,
                          nb_desired_values, &nr,
                          &nb_reserved_values);
-      if (nr == ULONGLONG_MAX)
+      if (nr == ULLONG_MAX)
         DBUG_RETURN(HA_ERR_AUTOINC_READ_FAILED);  // Mark failure
 
       /*
@@ -3317,7 +3317,7 @@ int handler::update_auto_increment()
     }
   }
 
-  if (unlikely(nr == ULONGLONG_MAX))
+  if (unlikely(nr == ULLONG_MAX))
       DBUG_RETURN(HA_ERR_AUTOINC_ERANGE); 
 
   DBUG_PRINT("info",("auto_increment: %lu", (ulong) nr));
@@ -3405,8 +3405,8 @@ void handler::column_bitmaps_signal()
 
   offset and increment means that we want values to be of the form
   offset + N * increment, where N>=0 is integer.
-  If the function sets *first_value to ULONGLONG_MAX it means an error.
-  If the function sets *nb_reserved_values to ULONGLONG_MAX it means it has
+  If the function sets *first_value to ULLONG_MAX it means an error.
+  If the function sets *nb_reserved_values to ULLONG_MAX it means it has
   reserved to "positive infinite".
 */
 
@@ -3428,7 +3428,7 @@ void handler::get_auto_increment(ulonglong offset, ulonglong increment,
   {
     /* This should never happen, assert in debug, and fail in release build */
     DBUG_ASSERT(0);
-    *first_value= ULONGLONG_MAX;
+    *first_value= ULLONG_MAX;
     DBUG_VOID_RETURN;
   }
 
@@ -3440,7 +3440,7 @@ void handler::get_auto_increment(ulonglong offset, ulonglong increment,
       use nr+increment without checking again with the handler, in
       handler::update_auto_increment()), so reserves to infinite.
     */
-    *nb_reserved_values= ULONGLONG_MAX;
+    *nb_reserved_values= ULLONG_MAX;
   }
   else
   {
@@ -3470,7 +3470,7 @@ void handler::get_auto_increment(ulonglong offset, ulonglong increment,
     else
     {
       DBUG_ASSERT(0);
-      nr= ULONGLONG_MAX;
+      nr= ULLONG_MAX;
     }
   }
   else

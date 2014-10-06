@@ -60,7 +60,7 @@ char *ll2str(longlong val,char *dst,int radix, int upcase)
     if (radix < -36 || radix > -2) return (char*) 0;
     if (val < 0) {
       *dst++ = '-';
-      /* Avoid integer overflow in (-val) for LONGLONG_MIN (BUG#31799). */
+      /* Avoid integer overflow in (-val) for LLONG_MIN (BUG#31799). */
       uval = (ulonglong)0 - uval;
     }
     radix = -radix;
@@ -110,7 +110,7 @@ char *longlong10_to_str(longlong val,char *dst,int radix)
     if (val < 0)
     {
       *dst++ = '-';
-      /* Avoid integer overflow in (-val) for LONGLONG_MIN (BUG#31799). */
+      /* Avoid integer overflow in (-val) for LLONG_MIN (BUG#31799). */
       uval = (ulonglong)0 - uval;
     }
   }

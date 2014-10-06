@@ -6487,7 +6487,7 @@ static int get_schema_partitions_record(THD *thd, TABLE_LIST *tables,
         }
         else
         {
-          if (part_elem->range_value != LONGLONG_MAX)
+          if (part_elem->range_value != LLONG_MAX)
             table->field[11]->store((longlong) part_elem->range_value, FALSE);
           else
             table->field[11]->store(partition_keywords[PKW_MAXVALUE].str,

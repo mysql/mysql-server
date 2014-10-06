@@ -2870,7 +2870,7 @@ longlong compare_between_int_result(bool compare_as_temporal_dates,
     {
       // Comparing as signed, but b is unsigned, and really large
       if (args[2]->unsigned_flag && (longlong) b < 0)
-        b= LONGLONG_MAX;
+        b= LLONG_MAX;
     }
 
     if (!args[1]->null_value && !args[2]->null_value)
@@ -4073,8 +4073,8 @@ int cmp_longlong(const in_longlong::packed_longlong *a,
       One of the args is unsigned and is too big to fit into the 
       positive signed range. Report no match.
     */  
-    if ((a->unsigned_flag && ((ulonglong) a->val) > (ulonglong) LONGLONG_MAX) ||
-        (b->unsigned_flag && ((ulonglong) b->val) > (ulonglong) LONGLONG_MAX))
+    if ((a->unsigned_flag && ((ulonglong) a->val) > (ulonglong) LLONG_MAX) ||
+        (b->unsigned_flag && ((ulonglong) b->val) > (ulonglong) LLONG_MAX))
       return a->unsigned_flag ? 1 : -1;
     /*
       Although the signedness differs both args can fit into the signed 

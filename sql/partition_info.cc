@@ -1251,13 +1251,13 @@ bool partition_info::check_range_constants(THD *thd)
           part_range_value-= 0x8000000000000000ULL;
       }
       else
-        part_range_value= LONGLONG_MAX;
+        part_range_value= LLONG_MAX;
 
       if (!first)
       {
         if (unlikely(current_largest > part_range_value) ||
             (unlikely(current_largest == part_range_value) &&
-            (part_range_value < LONGLONG_MAX ||
+            (part_range_value < LLONG_MAX ||
              i != (num_parts - 1) ||
              !defined_max_value)))
           goto range_not_increasing_error;
@@ -2548,7 +2548,7 @@ bool partition_info::fix_partition_values(THD *thd,
     {
       defined_max_value= TRUE;
       part_elem->max_value= TRUE;
-      part_elem->range_value= LONGLONG_MAX;
+      part_elem->range_value= LLONG_MAX;
     }
     else
     {

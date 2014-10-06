@@ -1037,7 +1037,7 @@ int decimal2ulonglong(decimal_t *from, ulonglong *to)
 
   if (from->sign)
   {
-      *to=ULL(0);
+      *to=0ULL;
       return E_DEC_OVERFLOW;
   }
 
@@ -1045,9 +1045,9 @@ int decimal2ulonglong(decimal_t *from, ulonglong *to)
   {
     ulonglong y=x;
     x=x*DIG_BASE + *buf++;
-    if (unlikely(y > ((ulonglong) ULONGLONG_MAX/DIG_BASE) || x < y))
+    if (unlikely(y > ((ulonglong) ULLONG_MAX/DIG_BASE) || x < y))
     {
-      *to=ULONGLONG_MAX;
+      *to=ULLONG_MAX;
       return E_DEC_OVERFLOW;
     }
   }
@@ -1070,24 +1070,24 @@ int decimal2longlong(decimal_t *from, longlong *to)
     /*
       Attention: trick!
       we're calculating -|from| instead of |from| here
-      because |LONGLONG_MIN| > LONGLONG_MAX
+      because |LLONG_MIN| > LLONG_MAX
       so we can convert -9223372036854775808 correctly
     */
     x=x*DIG_BASE - *buf++;
-    if (unlikely(y < (LONGLONG_MIN/DIG_BASE) || x > y))
+    if (unlikely(y < (LLONG_MIN/DIG_BASE) || x > y))
     {
       /*
         the decimal is bigger than any possible integer
         return border integer depending on the sign
       */
-      *to= from->sign ? LONGLONG_MIN : LONGLONG_MAX;
+      *to= from->sign ? LLONG_MIN : LLONG_MAX;
       return E_DEC_OVERFLOW;
     }
   }
   /* boundary case: 9223372036854775808 */
-  if (unlikely(from->sign==0 && x == LONGLONG_MIN))
+  if (unlikely(from->sign==0 && x == LLONG_MIN))
   {
-    *to= LONGLONG_MAX;
+    *to= LLONG_MAX;
     return E_DEC_OVERFLOW;
   }
 
