@@ -627,8 +627,6 @@ Ndb_index_stat_glob::Ndb_index_stat_glob()
 void
 Ndb_index_stat_glob::set_status()
 {
-//safe_mutex_assert_owner(&ndb_index_stat_thread.stat_mutex); TODO
-
   const Ndb_index_stat_opt &opt= ndb_index_stat_opt;
   char* p= status[status_i];
 
@@ -770,8 +768,6 @@ static void
 ndb_index_stat_error(Ndb_index_stat *st,
                      int from, const char* place, int line)
 {
-//safe_mutex_assert_owner(&ndb_index_stat_thread.stat_mutex); TODO
-
   time_t now= ndb_index_stat_time();
   NdbIndexStat::Error error= st->is->getNdbError();
   if (error.code == 0)
@@ -896,8 +892,6 @@ ndb_index_stat_list_move(Ndb_index_stat *st, int lt)
 static void
 ndb_index_stat_force_update(Ndb_index_stat *st, bool onoff)
 {
-//safe_mutex_assert_owner(&ndb_index_stat_thread.stat_mutex); TODO
-
   Ndb_index_stat_glob &glob= ndb_index_stat_glob;
   if (onoff)
   {
@@ -923,8 +917,6 @@ ndb_index_stat_force_update(Ndb_index_stat *st, bool onoff)
 static void
 ndb_index_stat_no_stats(Ndb_index_stat *st, bool flag)
 {
-//safe_mutex_assert_owner(&ndb_index_stat_thread.stat_mutex); TODO
-
   Ndb_index_stat_glob &glob= ndb_index_stat_glob;
   if (st->no_stats != flag)
   {
@@ -946,8 +938,6 @@ ndb_index_stat_no_stats(Ndb_index_stat *st, bool flag)
 static void
 ndb_index_stat_ref_count(Ndb_index_stat *st, bool flag)
 {
-//safe_mutex_assert_owner(&ndb_index_stat_thread.stat_mutex); TODO
-
   uint old_count= st->ref_count;
   (void)old_count; // USED
   if (flag)
@@ -1119,8 +1109,6 @@ ndb_index_stat_get_share(NDB_SHARE *share,
 static void
 ndb_index_stat_free(Ndb_index_stat *st)
 {
-//safe_mutex_assert_owner(&ndb_index_stat_thread.stat_mutex); TODO
-
   DBUG_ENTER("ndb_index_stat_free");
   Ndb_index_stat_glob &glob= ndb_index_stat_glob;
   NDB_SHARE *share= st->share;
@@ -1376,7 +1364,8 @@ struct Ndb_index_stat_proc {
 
     if (ndb->setNdbObjectName("Ndb Index Statistics monitoring"))
     {
-      sql_print_error("ndb_index_stat_proc: Failed to set ndbObjectName, error code %d", ndb->getNdbError().code);
+      sql_print_error("ndb_index_stat_proc: Failed to set object name, "
+                      "error code %d", ndb->getNdbError().code);
     }
 
     if (ndb->init() != 0)
@@ -1392,7 +1381,8 @@ struct Ndb_index_stat_proc {
       return false;
     }
 
-    sql_print_information("ndb_index_stat_proc: Ndb object created with reference : 0x%x, name : %s",
+    sql_print_information("ndb_index_stat_proc: Created Ndb object, "
+                          "reference: 0x%x, name: '%s'",
 			  ndb->getReference(), ndb->getNdbObjectName());
     return true;
   }
