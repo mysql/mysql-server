@@ -1682,7 +1682,6 @@ int ndbcluster_log_schema_op(THD *thd,
   char quoted_table2[2 + 2 * FN_REFLEN + 1];
   size_t id_length= 0;
   const char *type_str;
-  int also_internal= 0;
   uint32 log_type= (uint32)type;
   switch (type)
   {
@@ -1704,7 +1703,6 @@ int ndbcluster_log_schema_op(THD *thd,
     break;
   case SOT_RENAME_TABLE_PREPARE:
     type_str= "rename table prepare";
-    also_internal= 1;
     break;
   case SOT_RENAME_TABLE:
     /* redo the rename table query as is may contain several tables */
@@ -1731,15 +1729,12 @@ int ndbcluster_log_schema_op(THD *thd,
     break;
   case SOT_ALTER_TABLE_COMMIT:
     type_str= "alter table";
-    also_internal= 1;
     break;
   case SOT_ONLINE_ALTER_TABLE_PREPARE:
     type_str= "online alter table prepare";
-    also_internal= 1;
     break;
   case SOT_ONLINE_ALTER_TABLE_COMMIT:
     type_str= "online alter table commit";
-    also_internal= 1;
     break;
   case SOT_DROP_DB:
     type_str= "drop db";
@@ -1788,37 +1783,20 @@ int ndbcluster_log_schema_op(THD *thd,
   }
 
   const NdbError *ndb_error= 0;
-  uint32 node_id= g_ndb_cluster_connection->node_id();
+  // Use nodeid of the primary cluster connection since that is
+  // the nodeid which the coordinator and participants listen to
+  const uint32 node_id= g_ndb_cluster_connection->node_id();
   Uint64 epoch= 0;
   {
-    int i;
-    int no_storage_nodes= g_ndb_cluster_connection->no_db_nodes();
-
     /* begin protect ndb_schema_share */
     pthread_mutex_lock(&ndb_schema_share_mutex);
     if (ndb_schema_share == 0)
     {
       pthread_mutex_unlock(&ndb_schema_share_mutex);
       ndb_free_schema_object(&ndb_schema_object);
-      DBUG_RETURN(0);    
+      DBUG_RETURN(0);
     }
-    pthread_mutex_lock(&ndb_schema_share->mutex);
-    for (i= 0; i < no_storage_nodes; i++)
-    {
-      bitmap_union(&ndb_schema_object->slock_bitmap,
-                   &ndb_schema_share->subscriber_bitmap[i]);
-    }
-    pthread_mutex_unlock(&ndb_schema_share->mutex);
     pthread_mutex_unlock(&ndb_schema_share_mutex);
-    /* end protect ndb_schema_share */
-
-    if (also_internal)
-      bitmap_set_bit(&ndb_schema_object->slock_bitmap, node_id);
-    else
-      bitmap_clear_bit(&ndb_schema_object->slock_bitmap, node_id);
-
-    DBUG_DUMP("schema_subscribers", (uchar*)&ndb_schema_object->slock,
-              no_bytes_in_map(&ndb_schema_object->slock_bitmap));
   }
 
   Ndb *ndb= thd_ndb->ndb;
@@ -2022,8 +2000,6 @@ end:
     while (1)
     {
       struct timespec abstime;
-      int i;
-      int no_storage_nodes= g_ndb_cluster_connection->no_db_nodes();
       set_timespec(abstime, 1);
       int ret= pthread_cond_timedwait(&injector_cond,
                                       &ndb_schema_object->mutex,
@@ -2038,24 +2014,8 @@ end:
         pthread_mutex_unlock(&ndb_schema_share_mutex);
         break;
       }
-      MY_BITMAP servers;
-      bitmap_init(&servers, 0, 256, FALSE);
-      bitmap_clear_all(&servers);
-      bitmap_set_bit(&servers, node_id); // "we" are always alive
-      pthread_mutex_lock(&ndb_schema_share->mutex);
-      for (i= 0; i < no_storage_nodes; i++)
-      {
-        /* remove any unsubscribed from schema_subscribers */
-        MY_BITMAP *tmp= &ndb_schema_share->subscriber_bitmap[i];
-        bitmap_union(&servers, tmp);
-      }
-      pthread_mutex_unlock(&ndb_schema_share->mutex);
       pthread_mutex_unlock(&ndb_schema_share_mutex);
       /* end protect ndb_schema_share */
-
-      /* remove any unsubscribed from ndb_schema_object->slock */
-      bitmap_intersect(&ndb_schema_object->slock_bitmap, &servers);
-      bitmap_free(&servers);
 
       if (bitmap_is_clear_all(&ndb_schema_object->slock_bitmap))
         break;
@@ -2234,6 +2194,153 @@ private:
   pthread_mutex_t &m_mutex;
 };
 
+
+/*
+  Data used by the Ndb_schema_event_handler which lives
+  as long as the NDB Binlog thread is connected to the cluster.
+
+  NOTE! An Ndb_schema_event_handler instance only lives for one epoch
+
+ */
+class Ndb_schema_dist_data {
+  static const uint max_ndb_nodes= 256; /* multiple of 32 */
+  uchar m_data_node_id_list[max_ndb_nodes];
+  /*
+    The subscribers to ndb_schema are tracked separately for each
+    data node. This avoids the need to know which data nodes are
+    connected.
+    An api counts as subscribed as soon as one of the data nodes
+    report it as subscibed.
+  */
+  MY_BITMAP *subscriber_bitmap;
+  unsigned m_num_bitmaps;
+public:
+  Ndb_schema_dist_data(const Ndb_schema_dist_data&); // Not implemented
+  Ndb_schema_dist_data() :
+    subscriber_bitmap(NULL),
+    m_num_bitmaps(0)
+  {}
+
+  void init(Ndb_cluster_connection* cluster_connection)
+  {
+    // Initialize "g_node_id_map" which maps from nodeid to index in
+    // subscriber bitmaps array. The mapping array is only used when
+    // the NDB binlog thread handles events on the mysql.ndb_schema table
+    uint node_id, i= 0;
+    Ndb_cluster_connection_node_iter node_iter;
+    memset((void *)m_data_node_id_list, 0xFFFF, sizeof(m_data_node_id_list));
+    while ((node_id= cluster_connection->get_next_node(node_iter)))
+      m_data_node_id_list[node_id]= i++;
+
+    {
+      // Create array of bitmaps for keeping track of subscribed nodes
+      unsigned no_nodes= cluster_connection->no_db_nodes();
+      subscriber_bitmap= (MY_BITMAP*)my_malloc(no_nodes * sizeof(MY_BITMAP), MYF(MY_WME));
+      for (unsigned i= 0; i < no_nodes; i++)
+      {
+        bitmap_init(&subscriber_bitmap[i],
+                    (Uint32*)my_malloc(max_ndb_nodes/8, MYF(MY_WME)),
+                    max_ndb_nodes, FALSE);
+        bitmap_clear_all(&subscriber_bitmap[i]);
+      }
+      // Remember the number of bitmaps allocated
+      m_num_bitmaps = no_nodes;
+    }
+  }
+
+  void release(void)
+  {
+    if (!m_num_bitmaps)
+    {
+      // Allow release without init(), happens when binlog thread
+      // is terminated before connection to cluster has been made
+      // NOTE! Should be possible to use static memory for the arrays
+      return;
+    }
+
+    for (unsigned i= 0; i < m_num_bitmaps; i++)
+    {
+      // Free memory allocated for the bitmap
+      // allocated by my_malloc() and passed as "buf" to bitmap_init()
+      bitmap_free(&subscriber_bitmap[i]);
+    }
+    // Free memory allocated for the bitmap array
+    my_free(subscriber_bitmap);
+    m_num_bitmaps = 0;
+  }
+
+  // Map from nodeid to position in subscriber bitmaps array
+  uint8 map2subscriber_bitmap_index(uint data_node_id) const
+  {
+    DBUG_ASSERT(data_node_id <
+                (sizeof(m_data_node_id_list)/sizeof(m_data_node_id_list[0])));
+    const uint8 bitmap_index = m_data_node_id_list[data_node_id];
+    DBUG_ASSERT(bitmap_index != 0xFF);
+    DBUG_ASSERT(bitmap_index < m_num_bitmaps);
+    return bitmap_index;
+  }
+
+  void report_data_node_failure(unsigned data_node_id)
+  {
+    uint8 idx= map2subscriber_bitmap_index(data_node_id);
+    bitmap_clear_all(&subscriber_bitmap[idx]);
+    DBUG_PRINT("info",("Data node %u failure", data_node_id));
+    if (opt_ndb_extra_logging)
+    {
+      sql_print_information("NDB Schema dist: Data node: %d failed,"
+                            " subscriber bitmask %x%x",
+                            data_node_id,
+                            subscriber_bitmap[idx].bitmap[1],
+                            subscriber_bitmap[idx].bitmap[0]);
+    }
+  }
+
+  void report_subscribe(unsigned data_node_id, unsigned subscriber_node_id)
+  {
+    uint8 idx= map2subscriber_bitmap_index(data_node_id);
+    DBUG_ASSERT(subscriber_node_id != 0);
+    bitmap_set_bit(&subscriber_bitmap[idx], subscriber_node_id);
+    DBUG_PRINT("info",("Data node %u reported node %u subscribed ",
+                       data_node_id, subscriber_node_id));
+    if (opt_ndb_extra_logging)
+    {
+      sql_print_information("NDB Schema dist: Data node: %d reports "
+                            "subscribe from node %d, subscriber bitmask %x%x",
+                            data_node_id,
+                            subscriber_node_id,
+                            subscriber_bitmap[idx].bitmap[1],
+                            subscriber_bitmap[idx].bitmap[0]);
+    }
+  }
+
+  void report_unsubscribe(unsigned data_node_id, unsigned subscriber_node_id)
+  {
+    uint8 idx= map2subscriber_bitmap_index(data_node_id);
+    DBUG_ASSERT(subscriber_node_id != 0);
+    bitmap_clear_bit(&subscriber_bitmap[idx], subscriber_node_id);
+    DBUG_PRINT("info",("Data node %u reported node %u unsubscribed ",
+                       data_node_id, subscriber_node_id));
+    if (opt_ndb_extra_logging)
+    {
+      sql_print_information("NDB Schema dist: Data node: %d reports "
+                            "subscribe from node %d, subscriber bitmask %x%x",
+                            data_node_id,
+                            subscriber_node_id,
+                            subscriber_bitmap[idx].bitmap[1],
+                            subscriber_bitmap[idx].bitmap[0]);
+    }
+  }
+
+  void get_subscriber_bitmask(MY_BITMAP* servers)
+  {
+    for (unsigned i= 0; i < m_num_bitmaps; i++)
+    {
+      bitmap_union(servers, &subscriber_bitmap[i]);
+    }
+  }
+
+
+};
 
 #include "ndb_local_schema.h"
 
@@ -2450,10 +2557,6 @@ class Ndb_schema_event_handler {
                 uint32 table_id, uint32 table_version)
   {
     DBUG_ENTER("ack_schema_op");
-    if (!ndb_schema_share)
-    {
-      DBUG_RETURN(0);
-    }
 
     const NdbError *ndb_error= 0;
     Ndb *ndb= check_ndb_in_thd(m_thd);
@@ -2865,6 +2968,13 @@ class Ndb_schema_event_handler {
       DBUG_VOID_RETURN;
     }
 
+    // Build bitmask of subscribers
+    MY_BITMAP servers;
+    bitmap_init(&servers, 0, 256, FALSE);
+    bitmap_clear_all(&servers);
+    bitmap_set_bit(&servers, own_nodeid()); // "we" are always alive
+    m_schema_dist_data.get_subscriber_bitmask(&servers);
+
     /*
       Copy the latest slock info into the ndb_schema_object so that
       waiter can check if all nodes it's waiting for has answered
@@ -2882,6 +2992,14 @@ class Ndb_schema_event_handler {
     }
     memcpy(ndb_schema_object->slock, schema->slock_buf,
            sizeof(ndb_schema_object->slock));
+    DBUG_DUMP("ndb_schema_object->slock_bitmap.bitmap",
+              (uchar*)ndb_schema_object->slock_bitmap.bitmap,
+              no_bytes_in_map(&ndb_schema_object->slock_bitmap));
+
+    /* remove any unsubscribed from ndb_schema_object->slock */
+    bitmap_intersect(&ndb_schema_object->slock_bitmap, &servers);
+    bitmap_free(&servers);
+
     DBUG_DUMP("ndb_schema_object->slock_bitmap.bitmap",
               (uchar*)ndb_schema_object->slock_bitmap.bitmap,
               no_bytes_in_map(&ndb_schema_object->slock_bitmap));
@@ -3584,6 +3702,7 @@ class Ndb_schema_event_handler {
   THD* m_thd;
   MEM_ROOT* m_mem_root;
   uint m_own_nodeid;
+  Ndb_schema_dist_data& m_schema_dist_data;
   bool m_post_epoch;
 
   bool is_post_epoch(void) const { return m_post_epoch; }
@@ -3595,8 +3714,10 @@ public:
   Ndb_schema_event_handler(); // Not implemented
   Ndb_schema_event_handler(const Ndb_schema_event_handler&); // Not implemented
 
-  Ndb_schema_event_handler(THD* thd, MEM_ROOT* mem_root, uint own_nodeid):
+  Ndb_schema_event_handler(THD* thd, MEM_ROOT* mem_root, uint own_nodeid,
+                           Ndb_schema_dist_data& schema_dist_data):
     m_thd(thd), m_mem_root(mem_root), m_own_nodeid(own_nodeid),
+    m_schema_dist_data(schema_dist_data),
     m_post_epoch(false)
   {
   }
@@ -3639,8 +3760,8 @@ public:
 
     case NDBEVENT::TE_CLUSTER_FAILURE:
       if (opt_ndb_extra_logging)
-        sql_print_information("NDB Binlog: cluster failure for %s at epoch %u/%u.",
-                              ndb_schema_share->key,
+        sql_print_information("NDB Schema dist: cluster failure "
+                              "at epoch %u/%u.",
                               (uint)(pOp->getGCI() >> 32),
                               (uint)(pOp->getGCI()));
       // fall through
@@ -3668,79 +3789,32 @@ public:
 
     case NDBEVENT::TE_NODE_FAILURE:
     {
-      /* Remove all subscribers for node from bitmap in ndb_schema_share */
-      NDB_SHARE *tmp_share= event_data->share;
-      uint8 node_id= g_node_id_map[pOp->getNdbdNodeId()];
-      DBUG_ASSERT(node_id != 0xFF);
-      pthread_mutex_lock(&tmp_share->mutex);
-      bitmap_clear_all(&tmp_share->subscriber_bitmap[node_id]);
-      DBUG_PRINT("info",("NODE_FAILURE UNSUBSCRIBE[%d]", node_id));
-      if (opt_ndb_extra_logging)
-      {
-        sql_print_information("NDB Binlog: Node: %d, down,"
-                              " Subscriber bitmask %x%x",
-                              pOp->getNdbdNodeId(),
-                              tmp_share->subscriber_bitmap[node_id].bitmap[1],
-                              tmp_share->subscriber_bitmap[node_id].bitmap[0]);
-      }
-      pthread_mutex_unlock(&tmp_share->mutex);
+      /* Remove all subscribers for node */
+      m_schema_dist_data.report_data_node_failure(pOp->getNdbdNodeId());
       (void) pthread_cond_signal(&injector_cond);
       break;
     }
 
     case NDBEVENT::TE_SUBSCRIBE:
     {
-      /* Add node as subscriber from bitmap in ndb_schema_share */
-      NDB_SHARE *tmp_share= event_data->share;
-      uint8 node_id= g_node_id_map[pOp->getNdbdNodeId()];
-      uint8 req_id= pOp->getReqNodeId();
-      DBUG_ASSERT(req_id != 0 && node_id != 0xFF);
-      pthread_mutex_lock(&tmp_share->mutex);
-      bitmap_set_bit(&tmp_share->subscriber_bitmap[node_id], req_id);
-      DBUG_PRINT("info",("SUBSCRIBE[%d] %d", node_id, req_id));
-      if (opt_ndb_extra_logging)
-      {
-        sql_print_information("NDB Binlog: Node: %d, subscribe from node %d,"
-                              " Subscriber bitmask %x%x",
-                              pOp->getNdbdNodeId(),
-                              req_id,
-                              tmp_share->subscriber_bitmap[node_id].bitmap[1],
-                              tmp_share->subscriber_bitmap[node_id].bitmap[0]);
-      }
-      pthread_mutex_unlock(&tmp_share->mutex);
+      /* Add node as subscriber */
+      m_schema_dist_data.report_subscribe(pOp->getNdbdNodeId(), pOp->getReqNodeId());
       (void) pthread_cond_signal(&injector_cond);
       break;
     }
 
     case NDBEVENT::TE_UNSUBSCRIBE:
     {
-      /* Remove node as subscriber from bitmap in ndb_schema_share */
-      NDB_SHARE *tmp_share= event_data->share;
-      uint8 node_id= g_node_id_map[pOp->getNdbdNodeId()];
-      uint8 req_id= pOp->getReqNodeId();
-      DBUG_ASSERT(req_id != 0 && node_id != 0xFF);
-      pthread_mutex_lock(&tmp_share->mutex);
-      bitmap_clear_bit(&tmp_share->subscriber_bitmap[node_id], req_id);
-      DBUG_PRINT("info",("UNSUBSCRIBE[%d] %d", node_id, req_id));
-      if (opt_ndb_extra_logging)
-      {
-        sql_print_information("NDB Binlog: Node: %d, unsubscribe from node %d,"
-                              " Subscriber bitmask %x%x",
-                              pOp->getNdbdNodeId(),
-                              req_id,
-                              tmp_share->subscriber_bitmap[node_id].bitmap[1],
-                              tmp_share->subscriber_bitmap[node_id].bitmap[0]);
-      }
-      pthread_mutex_unlock(&tmp_share->mutex);
+      /* Remove node as subscriber */
+      m_schema_dist_data.report_unsubscribe(pOp->getNdbdNodeId(), pOp->getReqNodeId());
       (void) pthread_cond_signal(&injector_cond);
       break;
     }
 
     default:
     {
-      NDB_SHARE *tmp_share= event_data->share;
-      sql_print_error("NDB Binlog: unknown non data event %d for %s. "
-                      "Ignoring...", (unsigned) ev_type, tmp_share->key);
+      sql_print_error("NDB Schema dist: unknown event %u, ignoring...",
+                      ev_type);
     }
     }
 
@@ -7102,6 +7176,8 @@ Ndb_binlog_thread::do_run()
 
   log_info("Started");
 
+  Ndb_schema_dist_data schema_dist_data;
+
 restart_cluster_failure:
   int have_injector_mutex_lock= 0;
   binlog_thread_state= BCCC_exit;
@@ -7278,6 +7354,8 @@ restart_cluster_failure:
     thd_ndb->options|= TNO_NO_LOG_SCHEMA_OP;
     thd->query_id= 0; // to keep valgrind quiet
   }
+
+  schema_dist_data.init(g_ndb_cluster_connection);
 
   {
     log_verbose(1, "Wait for first event");
@@ -7461,7 +7539,8 @@ restart_cluster_failure:
     // to use the same memroot(or vice versa)
     Ndb_schema_event_handler
       schema_event_handler(thd, &mem_root,
-                           g_ndb_cluster_connection->node_id());
+                           g_ndb_cluster_connection->node_id(),
+                           schema_dist_data);
 
     *root_ptr= &mem_root;
 
@@ -8012,6 +8091,8 @@ restart_cluster_failure:
                             share->use_count);
     }
   }
+
+  schema_dist_data.release();
 
   if (binlog_thread_state == BCCC_restart)
   {
