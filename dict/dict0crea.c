@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -1648,6 +1648,8 @@ dict_create_add_foreign_to_dictionary(
 	ulint		i;
 	pars_info_t*	info;
 
+	ut_ad(mutex_own(&(dict_sys->mutex)));
+
 	if (foreign->id == NULL) {
 		/* Generate a new constraint id */
 		ulint	namelen	= strlen(table->name);
@@ -1726,6 +1728,37 @@ dict_create_add_foreign_to_dictionary(
 				      "END;\n"
 				      , table, foreign, trx);
 
+	if (error == DB_SUCCESS) {
+
+
+		if (foreign->foreign_table != NULL) {
+			ib_rbt_t*	rbt
+				= foreign->foreign_table->foreign_rbt;
+
+			if (rbt == NULL) {
+				rbt = dict_table_init_foreign_rbt(
+					foreign->foreign_table);
+			} else {
+				rbt_delete(rbt, foreign->id);
+			}
+
+			rbt_insert(rbt, foreign->id, &foreign);
+		}
+
+		if (foreign->referenced_table != NULL) {
+			ib_rbt_t* rbt
+				= foreign->referenced_table->referenced_rbt;
+
+			if (rbt == NULL) {
+				rbt = dict_table_init_referenced_rbt(
+					foreign->referenced_table);
+			} else {
+				rbt_delete(rbt, foreign->id);
+			}
+			rbt_insert(rbt, foreign->id, &foreign);
+		}
+	}
+
 	return(error);
 }
 
@@ -1750,6 +1783,7 @@ dict_create_add_foreigns_to_dictionary(
 	dict_foreign_t*	foreign;
 	ulint		number	= start_id + 1;
 	ulint		error;
+	DBUG_ENTER("dict_create_add_foreigns_to_dictionary");
 
 	ut_ad(mutex_own(&(dict_sys->mutex)));
 
@@ -1758,7 +1792,7 @@ dict_create_add_foreigns_to_dictionary(
 			"InnoDB: table SYS_FOREIGN not found"
 			" in internal data dictionary\n");
 
-		return(DB_ERROR);
+		DBUG_RETURN(DB_ERROR);
 	}
 
 	for (foreign = UT_LIST_GET_FIRST(table->foreign_list);
@@ -1770,9 +1804,9 @@ dict_create_add_foreigns_to_dictionary(
 
 		if (error != DB_SUCCESS) {
 
-			return(error);
+			DBUG_RETURN(error);
 		}
 	}
 
-	return(DB_SUCCESS);
+	DBUG_RETURN(DB_SUCCESS);
 }

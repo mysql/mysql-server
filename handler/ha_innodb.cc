@@ -8995,16 +8995,6 @@ ha_innobase::read_time(
 	return(ranges + (double) rows / (double) total_rows * time_for_scan);
 }
 
-UNIV_INTERN
-bool
-ha_innobase::is_corrupt() const
-{
-	if (share->ib_table)
-		return ((bool)share->ib_table->is_corrupt);
-	else
-		return (FALSE);
-}
-
 /*********************************************************************//**
 Calculates the key number used inside MySQL for an Innobase index. We will
 first check the "index translation table" for a match of the index to get

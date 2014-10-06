@@ -32,6 +32,7 @@ Created 4/24/1996 Heikki Tuuri
 #include "ut0byte.h"
 #include "mem0mem.h"
 #include "btr0types.h"
+#include "ut0rbt.h"
 
 /** enum that defines all 6 system table IDs */
 enum dict_system_table_id {
@@ -344,6 +345,17 @@ dict_process_sys_stats_rec(
 	ulint*		key_cols,	/*!< out: KEY_COLS */
 	ib_uint64_t*	diff_vals,	/*!< out: DIFF_VALS */
 	ib_uint64_t*	non_null_vals);	/*!< out: NON_NULL_VALS */
+/********************************************************************//**
+Check if dict_table_t::foreign_rbt and dict_table::foreign_list
+contains the same set of foreign key objects; and check if
+dict_table_t::referenced_rbt and dict_table::referenced_list contains
+the same set of foreign key objects.
+@return	TRUE if correct, FALSE otherwise. */
+ibool
+dict_table_check_foreign_keys(
+/*==========================*/
+	const dict_table_t*	table);	/* in: table object to check */
+
 #ifndef UNIV_NONINL
 #include "dict0load.ic"
 #endif
