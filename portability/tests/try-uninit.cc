@@ -95,11 +95,11 @@ static void foo(int i) {
     printf("%d\n", i);
 }
 
-int main(int argc, char *argv[]) {
+int main(void) {
     int arg;
-    int i;
-    for (i = 1; i < argc; i++) {
-        arg = atoi(argv[i]);
+    char *buf = (char *) &arg;
+    for (int i = 0; i < 2; i++) {
+        buf[i] = 'a';
     }
     foo(arg);
     return 0;
