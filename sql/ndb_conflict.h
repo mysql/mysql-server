@@ -322,6 +322,7 @@ struct st_ndb_slave_state
   void resetPerAttemptCounters();
 
   st_ndb_slave_state();
+  ~st_ndb_slave_state();
 };
 
 
