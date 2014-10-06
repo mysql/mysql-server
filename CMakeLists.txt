@@ -477,8 +477,7 @@ INCLUDE_DIRECTORIES(
   ${CMAKE_CURRENT_BINARY_DIR}/include
   ${CMAKE_SOURCE_DIR}/extra/rapidjson/include
   ${CMAKE_CURRENT_BINARY_DIR}/libbinlogevents/include
-  ${CMAKE_CURRENT_BINARY_DIR}/libbinlogevents/export)
-
+  ${CMAKE_SOURCE_DIR}/libbinlogevents/export)
 # Add bundled or system zlib.
 MYSQL_CHECK_ZLIB_WITH_COMPRESS()
 # Add bundled yassl/taocrypt or system openssl.
