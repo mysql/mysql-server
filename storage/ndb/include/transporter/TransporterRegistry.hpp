@@ -278,9 +278,9 @@ public:
    */
 public:
   void indicate_node_up(NodeId nodeId);
-  void set_connecting_backoff_max_time_in_ms(Uint32 max_time_in_ms);
+  void set_connect_backoff_max_time_in_ms(Uint32 max_time_in_ms);
 private:
-  Uint32 get_connecting_backoff_max_time_in_laps() const;
+  Uint32 get_connect_backoff_max_time_in_laps() const;
   bool get_and_clear_node_up_indicator(NodeId nodeId);
   void backoff_reset_connecting_time(NodeId nodeId);
   bool backoff_update_and_check_time_for_connect(NodeId nodeId);
@@ -512,7 +512,7 @@ private:
    * node in units of 100ms.
    * Updated by receive thread, read by start clients thread
    */
-  volatile Uint32 connectingBackoffMaxTime;
+  volatile Uint32 connectBackoffMaxTime;
 
   /**
    * Overloaded bits, for fast check.
@@ -742,19 +742,19 @@ TransporterRegistry::get_and_clear_node_up_indicator(NodeId nodeId) // Called fr
 }
 
 inline Uint32
-TransporterRegistry::get_connecting_backoff_max_time_in_laps() const
+TransporterRegistry::get_connect_backoff_max_time_in_laps() const
 { /* one lap, 100 ms */
-  return connectingBackoffMaxTime;
+  return connectBackoffMaxTime;
 }
 
 inline void
-TransporterRegistry::set_connecting_backoff_max_time_in_ms(Uint32 backoff_max_time_in_ms)
+TransporterRegistry::set_connect_backoff_max_time_in_ms(Uint32 backoff_max_time_in_ms)
 {
   /**
    * Round up backoff_max_time to nearest higher 100ms, since that is lap time
    * in start_client_threads using this function.
    */
-  connectingBackoffMaxTime = (backoff_max_time_in_ms + 99) / 100;
+  connectBackoffMaxTime = (backoff_max_time_in_ms + 99) / 100;
 }
 
 inline void
@@ -770,7 +770,7 @@ TransporterRegistry::backoff_update_and_check_time_for_connect(NodeId nodeId)
 {
   assert(nodeId < MAX_NODES);
 
-  Uint32 backoff_max_time = get_connecting_backoff_max_time_in_laps();
+  Uint32 backoff_max_time = get_connect_backoff_max_time_in_laps();
 
   if (backoff_max_time == 0)
   {

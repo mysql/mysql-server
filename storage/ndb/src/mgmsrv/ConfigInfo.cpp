@@ -2518,8 +2518,8 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
   },
 
   {
-    CFG_CONNECTING_BACKOFF_MAX_TIME,
-    "ConnectingBackoffMaxTime",
+    CFG_CONNECT_BACKOFF_MAX_TIME,
+    "ConnectBackoffMaxTime",
     "API",
     "Specifies the longest time between connection attempts to a "
     "data node from an api node in milliseconds (with "
@@ -2536,10 +2536,10 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
   },
 
   {
-    CFG_STARTING_CONNECTING_BACKOFF_MAX_TIME,
-    "StartingConnectingBackoffMaxTime",
+    CFG_START_CONNECT_BACKOFF_MAX_TIME,
+    "StartConnectBackoffMaxTime",
     "API",
-    "This has the same meaning as ConnectingBackoffMaxTime, but "
+    "This has the same meaning as ConnectBackoffMaxTime, but "
     "is used instead of it while no data nodes are connected to "
     "the API node.",
     ConfigInfo::CI_USED,
