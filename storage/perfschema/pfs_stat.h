@@ -47,7 +47,7 @@ struct PFS_single_stat
   {
     m_count= 0;
     m_sum= 0;
-    m_min= ULONGLONG_MAX;
+    m_min= ULLONG_MAX;
     m_max= 0;
   }
 
@@ -55,7 +55,7 @@ struct PFS_single_stat
   {
     m_count= 0;
     m_sum= 0;
-    m_min= ULONGLONG_MAX;
+    m_min= ULLONG_MAX;
     m_max= 0;
   }
 

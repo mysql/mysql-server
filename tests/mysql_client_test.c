@@ -10165,11 +10165,11 @@ static void test_bug3035()
   const uint32 uint32_max= 4294967295U;
 
   /* it might not work okay everyplace */
-  const longlong int64_max= LL(9223372036854775807);
+  const longlong int64_max= 9223372036854775807LL;
   const longlong int64_min= -int64_max - 1;
 
   const ulonglong uint64_min= 0U;
-  const ulonglong uint64_max= ULL(18446744073709551615);
+  const ulonglong uint64_max= 18446744073709551615ULL;
 
   const char *stmt_text;
 
@@ -12847,7 +12847,7 @@ static void test_truncation()
 
   /* double -> longlong, negative fp number to signed integer: no loss */
   DIE_UNLESS(my_bind++ < bind_array + bind_count);
-  DIE_UNLESS(! *my_bind->error && * (longlong*) my_bind->buffer == LL(-12345678910));
+  DIE_UNLESS(! *my_bind->error && * (longlong*) my_bind->buffer == -12345678910LL);
 
   /* big numeric string -> number */
   DIE_UNLESS(my_bind++ < bind_array + bind_count);
@@ -14810,7 +14810,7 @@ static void test_bug12925()
 {
   myheader("test_bug12925");
   if (opt_getopt_ll_test)
-    DIE_UNLESS(opt_getopt_ll_test == LL(25600*1024*1024));
+    DIE_UNLESS(opt_getopt_ll_test == 25600*1024*1024LL);
 }
 
 
