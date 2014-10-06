@@ -144,11 +144,11 @@ private:
 
   /**
    * The maximal time between connection attempts to data nodes.
-   * starting_connecting_backoff_max_time is used before connection
+   * start_connect_backoff_max_time is used before connection
    * to the first data node has succeeded.
    */
-  Uint32	starting_connecting_backoff_max_time;
-  Uint32	connecting_backoff_max_time;
+  Uint32	start_connect_backoff_max_time;
+  Uint32	connect_backoff_max_time;
 
   /**
    * Signals received
