@@ -1,107 +1,173 @@
-MySQL Cluster NoSQL API for Node.JS
-===================================
+MySQL-JS
+========
 
 INTRODUCTION
 ------------
-The NoSQL API for Node.JS provides a lightweight domain object model for 
-JavaScript.  You write code using common JavaScript objects, and use simple
-API calls to read and write those objects to the database, like this:
+This package provides a fast, easy, and safe framework for building 
+database applications in Node.js.  It is organized around the concept 
+of a database *session*, which allows standard JavaScript objects to be
+read from and written to a database.
+
+This example uses a session to store a single object into a MySQL table:
+```
+var nosql = require("mysql-js");
+
+var connectionProperties = {
+  "implementation" : "mysql",
+  "database"       : "test",
+  "mysql_host"     : "localhost",
+  "mysql_port"     : 3306,
+  "mysql_user"     : "test",
+  "mysql_password" : "",    
+};
+
+nosql.openSession(connectionProperties).then(
+  function(session) {
+    var user = { id: 1, name: "Database Jones"};
+    return session.persist("user", user);
+  }
+).then(
+  function() { 
+    console.log("Complete");
+    nosql.closeAllOpenSessionFactories();
+  }
+);
+```
+
+
+QUICK INSTALL
+-------------
+MySQL-JS can be installed using NPM:
 
 ```
- var nosql = require("mysql-js");
- 
- function onSession(err, session) {
-   var data = new Tweet(username, message);
-   session.persist(data);
- }
-
- nosql.openSession(onSession);
+npm install https://github.com/mysql/mysql-js/archive/2014-10-06.tar.gz
 ```
 
-More sample code is available in the samples/ directory.
 
- The API includes two backend adapters:
+SUPPORTED DATABASES AND CONNECTION PROPERTIES
+---------------------------------------------
+MySQL-JS provides a common data management API over a variety of back-end
+database connections.  Two database adapters are currently supported.
+The *mysql* adapter provides generic support for any MySQL database,
+based on all-JavaScript mysql connector node-mysql.
+The *ndb* adapter provides optimized high-performance access to MySQL Cluster
+using the NDB API.
 
-  - The "ndb" adapter, which uses the native NDB API to provide
-    high-performance native access to MySQL Cluster. 
-
-  - The "mysql" adapter, which connects to any MySQL Server using the node-mysql 
-    driver, available from https://github.com/felixge/node-mysql/
-
-
-REQUIREMENTS
-------------
-Building the ndb backend requires an installed copy of MySQL Cluster 7.x 
-including  headers and shared library files.  The MySQL architecture must match
-the node architecture: if node.js is 64-bit, then MySQL must also be 64-bit.  If 
-node is 32-bit, MySQL must be 32-bit.
-
-The mysql backend requires version 2.0 of node-mysql, an all-JavaScript 
-MySQL client.
-
-### WINDOWS REQURIREMENTS LIST ###
-1. Microsoft Visual Studio
-2. MySQL Cluster
-3. Python 2.6 or 2.7
-4. Node.JS
-5. node-gyp 
+Each backend adapter supports its own set of connection properties.
++ [MySQL Connection Properties](Backend-documentation/mysql.md)
++ [NDB Connection Properties](Backend-documentation/ndb.md)
 
 
-
-BUILDING
---------
-The installation script is interactive.  It will try to locate a suitable copy 
-of MySQL, and it will prompt you to accept its choice or enter an alternative.
-
-* To build the module in place, type:
-    ```node configure.js```
-
-* After configuring, build a binary.  The -d argument to node-gyp makes it a 
-"debug" binary
-    ```node-gyp configure build -d``` 
-
-* After testing the debug binary, on platforms other than Windows, it is 
-possible to build an optimized (non-debug) binary.  *Non-debug builds are 
-generally not possible on Windows, and usually result in link-time errors.* 
-    ```node-gyp rebuild```
-
-
-DIRECTORY STRUCTURE
--------------------
-<dl compact>
- <dt> API-documentation  <dd>      Documentation of the main API
- <dt> samples/           <dd>      Sample code
- <dt> setup/             <dd>      Scripts used to build and install the adapter
- <dt> test/              <dd>      Test driver and test suite
- <dt> Adapter/           <dd>      The node.js adapter
- <dt> Adapter/api        <dd>      Implementation of the top-level API
- <dt> Adapter/impl       <dd>      Backend implementations
-</dl>
-
-
-TESTING
+SESSION
 -------
-The MySQL server must have the database "test" created.  The test infrastructure
-currently relies on a mysql command-line client for creating and dropping tables,
-so the "mysql" executable must be in your command path.
-
-To configure the servers and ports used for testing, edit test/test_connection.js
-
-To run the test suite using the native NDB adapter:
-```
-    cd test
-    node driver 
-```
-
-To run the test suite using the MySQL adapter:
-```
-   cd test
-   node driver --adapter=mysql/ndb
-   node driver --adapter=mysql/innodb
-```
+The central concept of mysql-js is the *session* class.  A session provides
+a context for database operations and transactions.  Each independent user 
+context should have a distinct session.  For instance, in a web application, 
+handling each HTTP request involves opening a session, using the session to
+access the database, and then closing the session.
 
 
-FOR MORE INFORMATION
---------------------
-See the issues and other information at http://github.com/mysql/mysql-js/
+### Session methods
+
+Most methods on session() are available on several varieties: they may take 
+either a mapped object or a literal table name; they may take a callback, or 
+rely on the returned promise for continuation; and they may take any number
+of extra arguments after a callback.
+
+Each of the following methods is *asynchronous* and *returns a promise*:
++ *find()* Find an instance in the database using a primary or unique key.
+++ find(Constructor, keys, [callback], [...])
+++ find(Projection, keys, [callback], [...])
+++ find(tableName, keys, [callback], [...])
++ *load(instance, [callback], [...])* Loads a specific instance from the database 
+based on the primary or unique key present in the object.
++ *persist()* Insert an instance into the database.
+++ persist(instance, [callback], [...])
+++ persist(Constructor, values, [callback], [...])
+++ persist(tableName, values, [callback], [...])
++ *remove()* Delete an instance by primary or unique key.
+++ remove(instance, [callback], [...])
+++ remove(Constructor, keys, [callback], [...])
+++ remove(tableName, keys, [callback], [...])
++ *update()* Update an instance by primary or unique key without necessarily retrieving it.
+++ update(instance, [callback], [...])
+++ update(Constructor, keys, values, [callback], [...])
+++ update(tableName, keys, values, [callback], [...])
++ *save()* Write an object to the database without checking for existence; could result in either an update or an insert.
+++ save(instance, [callback], [...])
+++ save(Constructor, values, [callback], [...])
+++ save(tableName, values, [callback], [...])
++ *createQuery()* Create an object that can be used to query the database
+++ createQuery(instance, [callback], [...])
+++ createQuery(Constructor, [callback], [...])
+++ createQuery(tableName, [callback], [...]) 
++ *getMapping()* Resolve and fetch mappings for a table or class
+++ getMapping(object, [callback], [...])
+++ getMapping(Constructor, [callback], [...])
+++ getMapping(tableName, [callback], [...])
++ *close([callback], [...])* Close the current session
+
+The following methods are *immediate*:
++ createBatch().  Returns a batch.
++ listBatches().  Returns an array of batches.
++ isClosed().  Returns boolean.
++ isBatch(). Returns boolean.
++ currentTransaction().  Returns a Transaction.
+
+See the [Complete documentation for Session](API-documentaiton/Session)
+
+
+PROMISES
+--------
+The majority of the asynchronous API methods in mysql-js return a
+<a href="promisesaplus.com">Promises/A+ compatible promise</a>.
+
+
+NOSQL
+-----
+
++ *ConnectionProperties(adapterName)*: *Constructor*.  Creates a ConnectionProperties
+  object containing default values for all properties.
++ *TableMapping(tableName)*: *Constructor*.  Creates a new TableMapping.
++ *Projection(mappedConstructor)*: *Constructor*.  Creates a new Projection.
++ *connect(properties, [mappings], [callback], [...]): *ASYNC*.  The callback
+or promise receives a SessionFactory.
++ *openSession(properties, [mappings], [callback], [...]): *ASYNC*.  An implicit
+SessionFactory is opened if needed; the callback or promise receives a Session.
++ *getOpenSessionFactories()* Returns an array
++ *closeAllOpenSessionFactories()* Returns undefined
+
+See the [Complete documentation for the top-level API](API-documentation/Mynode)
+
+
+MAPPED JAVASCRIPT OBJECTS
+-------------------------
+
+ describe mapping
+ put an table mapping code example
+ link to table mapping docs
+ 
+
+CONVERTERS
+----------
+
+
+BATCHES
+-------
+
+
+TRANSACTIONS
+------------
+
+
+QUERIES
+-------
+
+
+SESSIONFACTORY
+--------------
+
+
+
+
 

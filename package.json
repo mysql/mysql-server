@@ -24,7 +24,8 @@
                   "test" : "cd test && node driver" 
                   }
   ,
-  "dependencies": []
+  "dependencies": { "mysql" : ">=2.0.0"
+                  }
   ,
   "repository"  : {  "type" : "git",
                      "url": "https://github.com/mysql/mysql-js.git"

@@ -35,7 +35,7 @@ catch(e) {
 var udebug  = unified_debug.getLogger("ndb_service_provider.js");
 
 var NdbDefaultConnectionProperties = 
-  require(path.join(spi_doc_dir, "NDB_Properties"));
+  require(path.join(backend_doc_dir, "ndb_properties"));
 
 exports.loadRequiredModules = function() {
   var err, ldp, module, msg;
