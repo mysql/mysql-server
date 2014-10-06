@@ -1,10 +1,10 @@
 MySQL-JS
 ========
 
-INTRODUCTION
+Introduction
 ------------
 This package provides a fast, easy, and safe framework for building 
-database applications in Node.js.  It is organized around the concept 
+database applications in Node.js.  It is organized around the concept
 of a database *session*, which allows standard JavaScript objects to be
 read from and written to a database.
 
@@ -35,16 +35,14 @@ nosql.openSession(connectionProperties).then(
 ```
 
 
-QUICK INSTALL
+Quick Install
 -------------
-MySQL-JS can be installed using NPM:
-
 ```
 npm install https://github.com/mysql/mysql-js/archive/2014-10-06.tar.gz
 ```
 
 
-SUPPORTED DATABASES AND CONNECTION PROPERTIES
+Supported Databases and Connection Properties
 ---------------------------------------------
 MySQL-JS provides a common data management API over a variety of back-end
 database connections.  Two database adapters are currently supported.
@@ -58,9 +56,9 @@ Each backend adapter supports its own set of connection properties.
 + [NDB Connection Properties](Backend-documentation/ndb.md)
 
 
-SESSION
+Session
 -------
-The central concept of mysql-js is the *session* class.  A session provides
+The central concept of mysql-js is the **Session**.  A session provides
 a context for database operations and transactions.  Each independent user 
 context should have a distinct session.  For instance, in a web application, 
 handling each HTTP request involves opening a session, using the session to
@@ -75,37 +73,37 @@ rely on the returned promise for continuation; and they may take any number
 of extra arguments after a callback.
 
 Each of the following methods is *asynchronous* and *returns a promise*:
-+ *find()* Find an instance in the database using a primary or unique key.
-++ find(Constructor, keys, [callback], [...])
-++ find(Projection, keys, [callback], [...])
-++ find(tableName, keys, [callback], [...])
-+ *load(instance, [callback], [...])* Loads a specific instance from the database 
++ **find()** Find an instance in the database using a primary or unique key.
+  + find(Constructor, keys, [callback], [...])
+  + find(Projection, keys, [callback], [...])
+  + find(tableName, keys, [callback], [...])
++ **load(instance, [callback], [...])** Loads a specific instance from the database 
 based on the primary or unique key present in the object.
-+ *persist()* Insert an instance into the database.
-++ persist(instance, [callback], [...])
-++ persist(Constructor, values, [callback], [...])
-++ persist(tableName, values, [callback], [...])
-+ *remove()* Delete an instance by primary or unique key.
-++ remove(instance, [callback], [...])
-++ remove(Constructor, keys, [callback], [...])
-++ remove(tableName, keys, [callback], [...])
-+ *update()* Update an instance by primary or unique key without necessarily retrieving it.
-++ update(instance, [callback], [...])
-++ update(Constructor, keys, values, [callback], [...])
-++ update(tableName, keys, values, [callback], [...])
-+ *save()* Write an object to the database without checking for existence; could result in either an update or an insert.
-++ save(instance, [callback], [...])
-++ save(Constructor, values, [callback], [...])
-++ save(tableName, values, [callback], [...])
-+ *createQuery()* Create an object that can be used to query the database
-++ createQuery(instance, [callback], [...])
-++ createQuery(Constructor, [callback], [...])
-++ createQuery(tableName, [callback], [...]) 
-+ *getMapping()* Resolve and fetch mappings for a table or class
-++ getMapping(object, [callback], [...])
-++ getMapping(Constructor, [callback], [...])
-++ getMapping(tableName, [callback], [...])
-+ *close([callback], [...])* Close the current session
++ **persist()** Insert an instance into the database.
+  + persist(instance, [callback], [...])
+  + persist(Constructor, values, [callback], [...])
+  + persist(tableName, values, [callback], [...])
++ **remove()** Delete an instance by primary or unique key.
+  + remove(instance, [callback], [...])
+  + remove(Constructor, keys, [callback], [...])
+  + remove(tableName, keys, [callback], [...])
++ **update()** Update an instance by primary or unique key without necessarily retrieving it.
+  + update(instance, [callback], [...])
+  + update(Constructor, keys, values, [callback], [...])
+  + update(tableName, keys, values, [callback], [...])
++ **save()** Write an object to the database without checking for existence; could result in either an update or an insert.
+  + save(instance, [callback], [...])
+  + save(Constructor, values, [callback], [...])
+  + save(tableName, values, [callback], [...])
++ **createQuery()** Create an object that can be used to query the database
+  + createQuery(instance, [callback], [...])
+  + createQuery(Constructor, [callback], [...])
+  + createQuery(tableName, [callback], [...])
++ **getMapping()** Resolve and fetch mappings for a table or class
+  + getMapping(object, [callback], [...])
+  + getMapping(Constructor, [callback], [...])
+  + getMapping(tableName, [callback], [...])
++ **close([callback], [...])** Close the current session
 
 The following methods are *immediate*:
 + createBatch().  Returns a batch.
@@ -114,17 +112,45 @@ The following methods are *immediate*:
 + isBatch(). Returns boolean.
 + currentTransaction().  Returns a Transaction.
 
-See the [Complete documentation for Session](API-documentaiton/Session)
+See the [Complete documentation for Session](API-documentation/Session)
 
 
-PROMISES
---------
-The majority of the asynchronous API methods in mysql-js return a
-<a href="promisesaplus.com">Promises/A+ compatible promise</a>.
+SessionFactory
+--------------
+A [SessionFactory](API-documentaiton/SessionFactory) is a heavyweight master 
+connection to a database, *i.e.* for a whole process or application.  
+
+A SessionFactory generally makes use of network resources such as TCP connections.
+A node.js process will often not exit until all SessionFactories have been 
+closed.
 
 
-NOSQL
------
+
+Promises and Callbacks
+----------------------
+The majority of the asynchronous API methods in mysql-js return a 
+[Promises/A+ compatible promise](http://promisesaplus.com).  
+
+These promises are objects that implement the method **then(onFulfilled, onRejected)**:
+If the asynchronous call completes succesfully, *onFulfilled* will be called with
+one parameter holding the value produced by the async call; if it fails, *onRejected*
+will be called with one parameter holding the error condition.  The *then()* method
+also returns a promise, which allows promise calls to be chained.
+
+Async calls also support standard node.js callbacks.  If a callback is provided,
+it will be called with parameters *(error, value)* on the completion of the call.
+
+
+The top level mysql-js API
+--------------------------
+Idiomatically the top-level API is often referred to as *nosql*:
+```
+var nosql = require("mysql-js");
+var properties = new nosql.ConnectionProperties("mysql");
+properties.mysql_host = "productiondb";
+var mapping = new nosql.TableMapping("webapp.users");
+nosql.connect(properties, mapping, onConnectedCallback);
+```
 
 + *ConnectionProperties(adapterName)*: *Constructor*.  Creates a ConnectionProperties
   object containing default values for all properties.
@@ -140,34 +166,98 @@ SessionFactory is opened if needed; the callback or promise receives a Session.
 See the [Complete documentation for the top-level API](API-documentation/Mynode)
 
 
-MAPPED JAVASCRIPT OBJECTS
+Mapped Objects
 -------------------------
+The data management calls available on *session* can take either
+a table name or a *mapped object*.  When a table name is used with find(), the
+returned object contains one field for every database column.  However, find() 
+can also return fully-fledged application objects: objects that have been
+created from a constructor, are connected to a class prototype, and possess
+some subset of the fields from the corresponding table, along perhaps with some
+*non-persistent* fields.
 
- describe mapping
- put an table mapping code example
- link to table mapping docs
- 
+This **mapping** between database tables and application objects is defined 
+using a [TableMapping](API-documentation/TableMapping).
 
-CONVERTERS
+```
+  function User() {     // Constructor for application object
+  }
+
+  var userTable = new nosql.TableMapping("webapp.user");  // map a table
+  userTable.mapField("firstName","first_name"); // customize the mapping
+  userTable.applyToClass(User);  // apply the mapping to the constructor
+``` 
+
+
+Converters
 ----------
+The data types stored in a particular database do not always correspond to
+native JavaScript types.  For instance, most databases support 64-bit
+signed and unsigned integers, while JavaScript does not.  MySQL-JS allows 
+users to customize data conversion in these cases using 
+[Converter classess](API-documentation/Converter).  A Converter class marshalls
+data between an *intermediate format* and a desired JavaScript format by means of
+two methods, toDB() and fromDB().  
+
+The intermediate format for each column type is defined by the backend database 
+driver; e.g. the mysql and ndb drivers use *string* as the intermediate type for
+BIGINT columns.
+
+To declare a converter universally for a particular column type, use
+**sessionFactory.registerTypeConverter()**.  To declare a specific converter
+for a particular TableMapping, assign it to the converter property of a mapped
+field.
 
 
-BATCHES
+Batches
 -------
+MySQL-JS allows flexible batching of operations.  Many of the *Session* operations
+are also supported by [Batch](API-documentation/Batch).  A variety of operations
+can be defined in a batch, and will all be executed together at once.  Callbacks
+are available for each completed operation and for the batch as a whole.
+
+```
+  var batch = session.createBatch();
+  for(i = 0; i < itemDetails.length ; i++) {
+    batch.persist(itemDetails[i]);
+  }
+  batch.update(userHistory);
+  batch.update(userStatistics, onStatsUpdatedCallback);
+  batch.remove(unsavedCart);
+  batch.execute(batchCallback);
+```
 
 
-TRANSACTIONS
+Transactions
 ------------
+Each Session includes a single current [Transaction](API-documentation/Transaction), 
+which is obtained using the *session.currentTransaction()* call.  
+
+```
+  var transaction = session.currentTransaction();
+  transaction.begin();
+  session.update(user);
+  session.update(cart);
+  transaction.commit(onCommitCallback);
+```
+
+By default, operations happen in **auto-commit mode**, with each operation
+enclosed in a transaction of its own.
 
 
-QUERIES
+
+Queries
 -------
+While *session.find()* can be used to fetch a single database record using 
+primary or unique index access, more complex queries are provided through
+the [Query class](API-documentation/Query)
 
 
-SESSIONFACTORY
---------------
-
-
-
+Standardized Errors
+-------------------
+MySQL-JS provides a common representation of database errors, independent 
+of backend adapters.  This representation is based on SQLState, as used in
+the SQL 1999 standard.  The DatabaseError object and supported SQLState codes
+are described in the [Error documentation](API-documentation/Error).
 
 
