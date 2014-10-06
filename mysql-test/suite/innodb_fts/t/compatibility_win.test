@@ -260,3 +260,4 @@ SELECT * FROM t1 WHERE MATCH(c) AGAINST ('TEXT5');
 
 TRUNCATE TABLE t1;
 DROP TABLE t1;
+-- source include/restart_mysqld.inc
