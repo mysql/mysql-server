@@ -60,6 +60,9 @@ extern I_List<i_string_pair> binlog_rewrite_db;
 #endif
 
 #include "binary_log.h"
+
+extern PSI_memory_key key_memory_Incident_log_event_message;
+extern PSI_memory_key key_memory_Rows_query_log_event_rows_query;
 /* Forward declarations */
 using binary_log::enum_binlog_checksum_alg;
 using binary_log::checksum_crc32;

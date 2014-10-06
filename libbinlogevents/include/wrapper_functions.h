@@ -33,8 +33,6 @@
 
 #if HAVE_MYSYS
 #include "my_sys.h"
-extern PSI_memory_key key_memory_Incident_log_event_message;
-extern PSI_memory_key key_memory_Rows_query_log_event_rows_query;
 extern PSI_memory_key key_memory_log_event;
 #else
 #ifndef _GNU_SOURCE
@@ -50,12 +48,10 @@ extern PSI_memory_key key_memory_log_event;
   to pass it to the method my_malloc, as we can not have a parameter of
   type PSI_memory_key in the method bapi_malloc.
 */
-enum PSI_memory_key_to_int
+/*enum PSI_memory_key_to_int
 {
   MEMORY_LOG_EVENT,
-  ROWS_QUERY_LOG_EVENT_ROWS_QUERY,
-  INCIDENT_LOG_EVENT_MESSAGE
-};
+};*/
 
 
 /**
@@ -150,23 +146,11 @@ inline void* bapi_memdup(const void* source, size_t len)
   @param flags        flags to pass to MySQL server my_malloc functions
   @return Void pointer to the allocated chunk of memory
 */
-inline void * bapi_malloc(size_t size, enum PSI_memory_key_to_int key_to_int_arg,
-                          int flags)
+inline void * bapi_malloc(size_t size, int flags)
 {
   void * dest= NULL;
 #if HAVE_MYSYS
-/*  PSI_memory_key key;
-  switch (key_to_int_arg){
-  case ROWS_QUERY_LOG_EVENT_ROWS_QUERY:
-    key= key_memory_Rows_query_log_event_rows_query;
-    break;
-  case INCIDENT_LOG_EVENT_MESSAGE:
-    key= key_memory_Incident_log_event_message;
-    break;
-  default:
-    key= key_memory_log_event;
-  }*/
-  dest= my_malloc(key_to_int_arg, size, MYF(flags));
+  dest= my_malloc(key_memory_log_event, size, MYF(flags));
 #else
   dest= malloc(size);
 #endif

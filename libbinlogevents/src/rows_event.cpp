@@ -122,8 +122,7 @@ Table_map_event::Table_map_event(const char *buf, unsigned int event_len,
   unsigned char *ptr_after_colcnt= (unsigned char*) ptr_colcnt;
   m_colcnt= get_field_length(&ptr_after_colcnt);
 
-  m_coltype= static_cast<unsigned char*>(bapi_malloc(m_colcnt, MEMORY_LOG_EVENT,
-                                         16));
+  m_coltype= static_cast<unsigned char*>(bapi_malloc(m_colcnt, 16));
   m_dbnam= std::string((const char*)ptr_dblen  + 1, m_dblen);
   m_tblnam= std::string((const char*)ptr_tbllen  + 1, m_tbllen + 1);
 
@@ -139,11 +138,10 @@ Table_map_event::Table_map_event(const char *buf, unsigned int event_len,
       return;
     unsigned int num_null_bytes= (m_colcnt + 7) / 8;
 
-    m_null_bits= static_cast<unsigned char*>(bapi_malloc(num_null_bytes, MEMORY_LOG_EVENT,
-                                             0));
+    m_null_bits= static_cast<unsigned char*>(bapi_malloc(num_null_bytes, 0));
 
     m_field_metadata= static_cast<unsigned char*>(bapi_malloc(m_field_metadata_size,
-                                                  MEMORY_LOG_EVENT, 0));
+                                                  0));
     memcpy(m_field_metadata, ptr_after_colcnt, m_field_metadata_size);
     ptr_after_colcnt= (unsigned char*)ptr_after_colcnt + m_field_metadata_size;
     memcpy(m_null_bits, ptr_after_colcnt, num_null_bytes);
@@ -244,8 +242,7 @@ Rows_event::Rows_event(const char *buf, unsigned int event_len,
         /* Just store/use the first tag of this type, skip others */
         if (!m_extra_row_data)
         {
-          m_extra_row_data= static_cast<unsigned char*>(bapi_malloc(infoLen,
-                                                        MEMORY_LOG_EVENT, 16));
+          m_extra_row_data= static_cast<unsigned char*>(bapi_malloc(infoLen, 16));
           if (m_extra_row_data != NULL)
           {
             memcpy(m_extra_row_data, pos, infoLen);
@@ -339,8 +336,7 @@ Rows_query_event(const char *buf, unsigned int event_len,
   */
   int offset= common_header_len + post_header_len + 1;
   int len= event_len - offset;
-  if (!(m_rows_query= static_cast<char*>(bapi_malloc(len + 1, MEMORY_LOG_EVENT,
-                                                     16))))
+  if (!(m_rows_query= static_cast<char*>(bapi_malloc(len + 1, 16))))
     return;
 
   strncpy(m_rows_query, buf + offset , len);

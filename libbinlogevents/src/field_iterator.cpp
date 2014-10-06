@@ -21,7 +21,7 @@ namespace binary_log
 
 template<class Iterator_value_type>
 bool Row_event_iterator< Iterator_value_type>::
-is_null(unsigned char *bitmap, int index)
+is_null(unsigned char *bitmap, int index) const
 {
   unsigned char *byte= bitmap + (index / 8);
   unsigned bit= 1 << ((index) & 7);
@@ -63,7 +63,7 @@ extract_metadata(const Table_map_event *map, int col_no)
 
 template<class Iterator_value_type>
 int Row_event_iterator< Iterator_value_type>::
-lookup_metadata_field_size(enum_field_types field_type)
+lookup_metadata_field_size(enum_field_types field_type) const
 {
   switch (field_type)
   {
@@ -117,8 +117,7 @@ template< class Iterator_value_type >
 Row_event_iterator< Iterator_value_type >&
   Row_event_iterator< Iterator_value_type >::operator++()
 { // preﬁx
-  if (m_field_offset == UINT_MAX)
-    throw std::logic_error("Field type is unrecognized");
+  assert(m_field_offset != UINT_MAX);
 
   if (m_field_offset < m_row_event->row.size() - 1)
   {
@@ -216,7 +215,7 @@ uint32_t Row_event_iterator<Iterator_value_type>::
 
     if (is_null((unsigned char *)&nullbits[0], col_no ))
     {
-      val.is_null(true);
+      val.set_is_null(true);
     }
     else
     {
@@ -224,8 +223,7 @@ uint32_t Row_event_iterator<Iterator_value_type>::
         If the value is null it is not in the list of values and thus we won't
         increse the offset. TODO what if all values are null?!
        */
-       if (val.length() == UINT_MAX)
-         throw std::logic_error("Field type is unrecognized");
+       assert(val.length() != UINT_MAX);
        field_offset += val.length();
     }
     fields_vector->push_back(val);
