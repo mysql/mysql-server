@@ -1364,7 +1364,8 @@ struct Ndb_index_stat_proc {
 
     if (ndb->setNdbObjectName("Ndb Index Statistics monitoring"))
     {
-      sql_print_error("ndb_index_stat_proc: Failed to set ndbObjectName, error code %d", ndb->getNdbError().code);
+      sql_print_error("ndb_index_stat_proc: Failed to set object name, "
+                      "error code %d", ndb->getNdbError().code);
     }
 
     if (ndb->init() != 0)
@@ -1380,7 +1381,8 @@ struct Ndb_index_stat_proc {
       return false;
     }
 
-    sql_print_information("ndb_index_stat_proc: Ndb object created with reference : 0x%x, name : %s",
+    sql_print_information("ndb_index_stat_proc: Created Ndb object, "
+                          "reference: 0x%x, name: '%s'",
 			  ndb->getReference(), ndb->getNdbObjectName());
     return true;
   }

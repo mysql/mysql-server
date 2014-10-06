@@ -7201,6 +7201,8 @@ restart_cluster_failure:
     pthread_cond_signal(&injector_cond);
     goto err;
   }
+  log_info("Created schema Ndb object, reference: 0x%x, name: '%s'",
+           s_ndb->getReference(), s_ndb->getNdbObjectName());
 
   // empty database
   if (!(i_ndb= new Ndb(g_ndb_cluster_connection, "")) ||
@@ -7212,10 +7214,7 @@ restart_cluster_failure:
     pthread_cond_signal(&injector_cond);
     goto err;
   }
-
-  sql_print_information("NDB Binlog: Ndb object created with reference : 0x%x, name : %s",
-			s_ndb->getReference(), s_ndb->getNdbObjectName());
-  sql_print_information("NDB Binlog: Ndb object created with reference : 0x%x, name : %s",
+  log_info("Created injector Ndb object, reference: 0x%x, name: '%s'",
                       i_ndb->getReference(), i_ndb->getNdbObjectName());
 
   log_verbose(10, "Exposing global references");
