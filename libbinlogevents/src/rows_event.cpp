@@ -15,7 +15,8 @@
 
 #include "rows_event.h"
 #include <stdlib.h>
-#include <string.h>
+#include <cstring>
+#include <string>
 
 namespace binary_log
 {
