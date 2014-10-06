@@ -143,11 +143,11 @@ PATENT RIGHTS GRANT:
 // racey access to src for the next sizeof(*src) bytes
 template <typename T>
 T toku_drd_unsafe_fetch(T *src) {
-    VALGRIND_HG_DISABLE_CHECKING(src, sizeof *src);
+    TOKU_VALGRIND_HG_DISABLE_CHECKING(src, sizeof *src);
     TOKU_DRD_IGNORE_VAR(*src);
     T val = *src;
     TOKU_DRD_STOP_IGNORING_VAR(*src);
-    VALGRIND_HG_ENABLE_CHECKING(src, sizeof *src);
+    TOKU_VALGRIND_HG_ENABLE_CHECKING(src, sizeof *src);
     return val;
 }
 
@@ -155,9 +155,9 @@ T toku_drd_unsafe_fetch(T *src) {
 // racey access to dest for the next sizeof(*dest) bytes
 template <typename T>
 void toku_drd_unsafe_set(T *dest, const T src) {
-    VALGRIND_HG_DISABLE_CHECKING(dest, sizeof *dest);
+    TOKU_VALGRIND_HG_DISABLE_CHECKING(dest, sizeof *dest);
     TOKU_DRD_IGNORE_VAR(*dest);
     *dest = src;
     TOKU_DRD_STOP_IGNORING_VAR(*dest);
-    VALGRIND_HG_ENABLE_CHECKING(dest, sizeof *dest);
+    TOKU_VALGRIND_HG_ENABLE_CHECKING(dest, sizeof *dest);
 }
