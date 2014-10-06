@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -427,7 +427,7 @@ Converts a comparison operator to the corresponding search mode PAGE_CUR_GE,
 ...
 @return search mode */
 UNIV_INLINE
-ulint
+page_cur_mode_t
 opt_op_to_search_mode(
 /*==================*/
 	ibool	asc,	/*!< in: TRUE if the rows should be fetched in an
@@ -461,7 +461,7 @@ opt_op_to_search_mode(
 		ut_error;
 	}
 
-	return(0);
+	return(PAGE_CUR_UNSUPP);
 }
 
 /*******************************************************************//**
@@ -863,7 +863,6 @@ already exist in the list. If the column is already in the list, puts a value
 indirection to point to the occurrence in the column list, except if the
 column occurrence we are looking at is in the column list, in which case
 nothing is done. */
-
 void
 opt_find_all_cols(
 /*==============*/
@@ -1122,10 +1121,8 @@ opt_clust_access(
 		    && (dict_index_get_nth_field(index, pos)->prefix_len != 0
 		    || dict_index_get_nth_field(clust_index, i)
 		    ->prefix_len != 0)) {
-			ib_logf(IB_LOG_LEVEL_ERROR,
-				"Error in pars0opt.cc:"
-				" table %s has prefix_len != 0",
-				index->table_name);
+			ib::error() << "Error in pars0opt.cc: table "
+				<< index->table_name << " has prefix_len != 0";
 		}
 
 		*(plan->clust_map + i) = pos;
@@ -1138,7 +1135,6 @@ opt_clust_access(
 Optimizes a select. Decides which indexes to tables to use. The tables
 are accessed in the order that they were written to the FROM part in the
 select statement. */
-
 void
 opt_search_plan(
 /*============*/
@@ -1215,7 +1211,6 @@ opt_search_plan(
 
 /********************************************************************//**
 Prints info of a query plan. */
-
 void
 opt_print_query_plan(
 /*=================*/

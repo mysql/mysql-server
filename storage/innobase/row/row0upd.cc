@@ -287,7 +287,6 @@ func_exit:
 /*********************************************************************//**
 Creates an update node for a query graph.
 @return own: update node */
-
 upd_node_t*
 upd_node_create(
 /*============*/
@@ -310,7 +309,6 @@ upd_node_create(
 /*********************************************************************//**
 Updates the trx id and roll ptr field in a clustered index record in database
 recovery. */
-
 void
 row_upd_rec_sys_fields_in_recovery(
 /*===============================*/
@@ -343,7 +341,6 @@ row_upd_rec_sys_fields_in_recovery(
 #ifndef UNIV_HOTBACKUP
 /*********************************************************************//**
 Sets the trx id or roll ptr field of a clustered index entry. */
-
 void
 row_upd_index_entry_sys_field(
 /*==========================*/
@@ -380,7 +377,6 @@ Returns TRUE if row update changes size of some field in index or if some
 field to be updated is stored externally in rec or update.
 @return TRUE if the update changes the size of some field in index or
 the field is external in rec or update */
-
 ibool
 row_upd_changes_field_size_or_external(
 /*===================================*/
@@ -444,7 +440,6 @@ row_upd_changes_field_size_or_external(
 /***********************************************************//**
 Returns true if row update contains disowned external fields.
 @return true if the update contains disowned external fields. */
-
 bool
 row_upd_changes_disowned_external(
 /*==============================*/
@@ -489,7 +484,6 @@ record given. No field size changes are allowed. This function is
 usually invoked on a clustered index. The only use case for a
 secondary index is row_ins_sec_index_entry_by_modify() or its
 counterpart in ibuf_insert_to_index_page(). */
-
 void
 row_upd_rec_in_place(
 /*=================*/
@@ -536,7 +530,6 @@ row_upd_rec_in_place(
 Writes into the redo log the values of trx id and roll ptr and enough info
 to determine their positions within a clustered index record.
 @return new pointer to mlog */
-
 byte*
 row_upd_write_sys_vals_to_log(
 /*==========================*/
@@ -566,7 +559,6 @@ row_upd_write_sys_vals_to_log(
 /*********************************************************************//**
 Parses the log data of system field values.
 @return log data end or NULL */
-
 byte*
 row_upd_parse_sys_vals(
 /*===================*/
@@ -599,7 +591,6 @@ row_upd_parse_sys_vals(
 #ifndef UNIV_HOTBACKUP
 /***********************************************************//**
 Writes to the redo log the new values of the fields occurring in the index. */
-
 void
 row_upd_index_write_log(
 /*====================*/
@@ -674,7 +665,6 @@ row_upd_index_write_log(
 /*********************************************************************//**
 Parses the log data written by row_upd_index_write_log.
 @return log data end or NULL */
-
 byte*
 row_upd_index_parse(
 /*================*/
@@ -756,7 +746,6 @@ Builds an update vector from those fields which in a secondary index entry
 differ from a record that has the equal ordering fields. NOTE: we compare
 the fields as binary strings!
 @return own: update vector of differing fields */
-
 upd_t*
 row_upd_build_sec_rec_difference_binary(
 /*====================================*/
@@ -824,7 +813,6 @@ trx id fields, which in an index entry differ from a record that has
 the equal ordering fields. NOTE: we compare the fields as binary strings!
 @return own: update vector of differing fields, excluding roll ptr and
 trx id */
-
 upd_t*
 row_upd_build_difference_binary(
 /*============================*/
@@ -1039,7 +1027,6 @@ row_upd_index_replace_new_col_val(
 /***********************************************************//**
 Replaces the new column values stored in the update vector to the index entry
 given. */
-
 void
 row_upd_index_replace_new_col_vals_index_pos(
 /*=========================================*/
@@ -1093,7 +1080,6 @@ row_upd_index_replace_new_col_vals_index_pos(
 /***********************************************************//**
 Replaces the new column values stored in the update vector to the index entry
 given. */
-
 void
 row_upd_index_replace_new_col_vals(
 /*===============================*/
@@ -1136,7 +1122,6 @@ row_upd_index_replace_new_col_vals(
 
 /***********************************************************//**
 Replaces the new column values stored in the update vector. */
-
 void
 row_upd_replace(
 /*============*/
@@ -1227,7 +1212,6 @@ This function is fast if the update vector is short or the number of ordering
 fields in the index is small. Otherwise, this can be quadratic.
 NOTE: we compare the fields as binary strings!
 @return TRUE if update vector changes an ordering field in the index record */
-
 ibool
 row_upd_changes_ord_field_binary_func(
 /*==================================*/
@@ -1350,7 +1334,6 @@ Checks if an update vector changes an ordering field of an index record.
 NOTE: we compare the fields as binary strings!
 @return TRUE if update vector may change an ordering field in an index
 record */
-
 ibool
 row_upd_changes_some_index_ord_field_binary(
 /*========================================*/
@@ -1381,7 +1364,6 @@ row_upd_changes_some_index_ord_field_binary(
 /***********************************************************//**
 Checks if an FTS Doc ID column is affected by an UPDATE.
 @return whether the Doc ID column is changed */
-
 bool
 row_upd_changes_doc_id(
 /*===================*/
@@ -1404,7 +1386,6 @@ row_upd_changes_doc_id(
 Checks if an FTS indexed column is affected by an UPDATE.
 @return offset within fts_t::indexes if FTS indexed column updated else
 ULINT_UNDEFINED */
-
 ulint
 row_upd_changes_fts_column(
 /*=======================*/
@@ -1531,7 +1512,6 @@ row_upd_eval_new_vals(
 
 /***********************************************************//**
 Stores to the heap the row on which the node->pcur is positioned. */
-
 void
 row_upd_store_row(
 /*==============*/
@@ -1601,8 +1581,9 @@ srv_mbr_print(const byte* data)
         c = mach_double_read(data);
         data += sizeof(double);
         d = mach_double_read(data);
-        ib_logf(IB_LOG_LEVEL_INFO, "GIS MBR INFO: %f and %f, %f, %f\n",
-		a, b , c, d);
+
+        ib::info() << "GIS MBR INFO: " << a << " and " << b << ", " << c
+		<< ", " << d << "\n";
 }
 
 
@@ -1666,11 +1647,10 @@ row_upd_sec_index_entry(
 		}
 	}
 
-	if (*index->name == TEMP_INDEX_PREFIX) {
-		/* The index->online_status may change if the
-		index->name starts with TEMP_INDEX_PREFIX (meaning
-		that the index is or was being created online). It is
-		protected by index->lock. */
+	if (!index->is_committed()) {
+		/* The index->online_status may change if the index is
+		or was being created online, but not committed yet. It
+		is protected by index->lock. */
 
 		mtr_s_lock(dict_index_get_lock(index), &mtr);
 
@@ -1700,24 +1680,20 @@ row_upd_sec_index_entry(
 
 		/* We can only buffer delete-mark operations if there
 		are no foreign key constraints referring to the index.
-		Insert/Change buffering is block for temp-table
-		and so no point in removing entry from these buffers
-		if not present in buffer-pool */
+		Change buffering is disabled for temporary tables. */
 		mode = (referenced || dict_table_is_temporary(index->table))
 			? BTR_MODIFY_LEAF | BTR_ALREADY_S_LATCHED
 			: BTR_MODIFY_LEAF | BTR_ALREADY_S_LATCHED
 			| BTR_DELETE_MARK;
 	} else {
 		/* For secondary indexes,
-		index->online_status==ONLINE_INDEX_CREATION unless
-		index->name starts with TEMP_INDEX_PREFIX. */
+		index->online_status==ONLINE_INDEX_COMPLETE if
+		index->is_committed(). */
 		ut_ad(!dict_index_is_online_ddl(index));
 
 		/* We can only buffer delete-mark operations if there
 		are no foreign key constraints referring to the index.
-		Insert/Change buffering is block for temp-table
-		and so no point in removing entry from these buffers
-		if not present in buffer-pool */
+		Change buffering is disabled for temporary tables. */
 		mode = (referenced || dict_table_is_temporary(index->table))
 			? BTR_MODIFY_LEAF
 			: BTR_MODIFY_LEAF | BTR_DELETE_MARK;
@@ -1745,17 +1721,16 @@ row_upd_sec_index_entry(
 		break;
 
 	case ROW_NOT_FOUND:
-		if (*index->name == TEMP_INDEX_PREFIX) {
+		if (!index->is_committed()) {
 			/* When online CREATE INDEX copied the update
 			that we already made to the clustered index,
 			and completed the secondary index creation
 			before we got here, the old secondary index
 			record would not exist. The CREATE INDEX
 			should be waiting for a MySQL meta-data lock
-			upgrade at least until this UPDATE
-			returns. After that point, the
-			TEMP_INDEX_PREFIX would be dropped from the
-			index name in commit_inplace_alter_table(). */
+			upgrade at least until this UPDATE returns.
+			After that point, set_committed(true) would be
+			invoked by commit_inplace_alter_table(). */
 			break;
 		}
 
@@ -2492,7 +2467,6 @@ to this node, we assume that we have a persistent cursor which was on a
 record, and the position of the cursor is stored in the cursor.
 @return DB_SUCCESS if operation successfully completed, else error
 code or DB_LOCK_WAIT */
-
 dberr_t
 row_upd(
 /*====*/
@@ -2505,7 +2479,7 @@ row_upd(
 	ut_ad(node && thr);
 	ut_ad(!thr_get_trx(thr)->in_rollback);
 
-	DBUG_PRINT("row_upd", ("table: %s", node->table->name));
+	DBUG_PRINT("row_upd", ("table: %s", node->table->name.m_name));
 	DBUG_PRINT("row_upd", ("info bits in update vector: 0x%lx",
 			       node->update ? node->update->info_bits: 0));
 	DBUG_PRINT("row_upd", ("foreign_id: %s",
@@ -2592,7 +2566,6 @@ row_upd(
 Updates a row in a table. This is a high-level function used in SQL execution
 graphs.
 @return query thread to run next or NULL */
-
 que_thr_t*
 row_upd_step(
 /*=========*/

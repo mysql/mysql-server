@@ -227,5 +227,71 @@ CALL cursor2();
 
 DROP DATABASE wl7766;
 
+--echo #
+--echo # Bug#19550875: SESSION STATE NOT SENT AS PART OF RESULT SETS WHEN
+--echo #               QUERY CACHE IS ON
+--echo #
+
+SET @@session.session_track_state_change=ON;
+
+CREATE DATABASE bug19550875;
+USE bug19550875;
+
+CREATE TABLE t1 (a int);
+INSERT INTO t1 VALUES (1), (2);
+
+DELIMITER |;
+CREATE PROCEDURE t_cache()
+BEGIN
+  SET @A= 20;
+  SELECT * FROM t1;
+  SELECT * FROM t1;
+  PREPARE x FROM 'SELECT 1';
+  SELECT * FROM t1;
+  SELECT * FROM t1;
+END |
+DELIMITER ;|
+
+CALL t_cache();
+
+DELIMITER |;
+CREATE PROCEDURE sel_with_session()
+BEGIN
+SET @var1=20;
+SELECT * FROM t1 ORDER BY 1;
+END |
+
+CREATE PROCEDURE sel_with_no_session()
+BEGIN
+SELECT * FROM t1 ORDER BY 1;
+END |
+DELIMITER ;|
+
+SET GLOBAL query_cache_size=1048576;
+RESET QUERY CACHE;
+SHOW STATUS LIKE 'Qcache_queries_in_cache';
+CALL sel_with_session();
+--echo #expect 0 since query is not cached
+SHOW STATUS LIKE 'Qcache_queries_in_cache';
+CALL sel_with_no_session();
+--echo #expect 1 query is cached
+SHOW STATUS LIKE 'Qcache_queries_in_cache';
+CALL sel_with_no_session();
+
+RESET QUERY CACHE;
+SHOW STATUS LIKE 'Qcache_queries_in_cache';
+CALL sel_with_no_session();
+--echo #expect 1 query is cached
+SHOW STATUS LIKE 'Qcache_queries_in_cache';
+CALL sel_with_no_session();
+SHOW STATUS LIKE 'Qcache_queries_in_cache';
+CALL sel_with_session();
+--echo #expect 1 as query is not cached
+SHOW STATUS LIKE 'Qcache_queries_in_cache';
+SET GLOBAL query_cache_size= default;
+
+--echo #cleanup
+DROP DATABASE bug19550875;
+
 --echo
 --echo End of tests

@@ -377,7 +377,7 @@ extern PSI_mutex_key key_BINLOG_LOCK_sync;
 extern PSI_mutex_key key_BINLOG_LOCK_sync_queue;
 extern PSI_mutex_key key_BINLOG_LOCK_xids;
 extern PSI_mutex_key
-  key_hash_filo_lock, key_LOCK_active_mi,
+  key_hash_filo_lock, key_LOCK_msr_map,
   key_LOCK_crypt, key_LOCK_error_log,
   key_LOCK_gdl, key_LOCK_global_system_variables,
   key_LOCK_lock_db, key_LOCK_logger, key_LOCK_manager,
@@ -411,6 +411,7 @@ extern PSI_mutex_key key_LOCK_sql_rand;
 extern PSI_mutex_key key_gtid_ensure_index_mutex;
 extern PSI_mutex_key key_mts_temp_table_LOCK;
 extern PSI_mutex_key key_LOCK_compress_gtid_table;
+extern PSI_mutex_key key_mts_gaq_LOCK;
 #ifdef HAVE_MY_TIMER
 extern PSI_mutex_key key_thd_timer_mutex;
 #endif
@@ -418,6 +419,7 @@ extern PSI_mutex_key key_LOCK_offline_mode;
 
 #ifdef HAVE_REPLICATION
 extern PSI_mutex_key key_commit_order_manager_mutex;
+extern PSI_mutex_key key_mutex_slave_worker_hash;
 #endif
 
 extern PSI_rwlock_key key_rwlock_LOCK_grant, key_rwlock_LOCK_logger,
@@ -435,7 +437,7 @@ extern PSI_cond_key key_BINLOG_update_cond,
   key_relay_log_info_data_cond, key_relay_log_info_log_space_cond,
   key_relay_log_info_start_cond, key_relay_log_info_stop_cond,
   key_relay_log_info_sleep_cond, key_cond_slave_parallel_pend_jobs,
-  key_cond_slave_parallel_worker,
+  key_cond_slave_parallel_worker, key_cond_mts_gaq,
   key_TABLE_SHARE_cond, key_user_level_lock_cond;
 extern PSI_cond_key key_BINLOG_COND_done;
 extern PSI_cond_key key_RELAYLOG_COND_done;
@@ -446,6 +448,7 @@ extern PSI_cond_key key_gtid_ensure_index_cond;
 extern PSI_cond_key key_COND_compress_gtid_table;
 
 #ifdef HAVE_REPLICATION
+extern PSI_cond_key key_cond_slave_worker_hash;
 extern PSI_cond_key key_commit_order_manager_cond;
 #endif
 extern PSI_thread_key key_thread_bootstrap,
@@ -602,6 +605,7 @@ extern PSI_memory_key key_memory_READ_RECORD_cache;
 extern PSI_memory_key key_memory_Quick_ranges;
 extern PSI_memory_key key_memory_File_query_log_name;
 extern PSI_memory_key key_memory_Table_trigger_dispatcher;
+extern PSI_memory_key key_memory_show_slave_status_io_gtid_set;
 #ifdef HAVE_MY_TIMER
 extern PSI_memory_key key_memory_thd_timer;
 #endif
@@ -718,6 +722,7 @@ extern PSI_stage_info stage_compressing_gtid_table;
 extern PSI_stage_info stage_suspending;
 #ifdef HAVE_REPLICATION
 extern PSI_stage_info stage_worker_waiting_for_its_turn_to_commit;
+extern PSI_stage_info stage_worker_waiting_for_commit_parent;
 #endif
 extern PSI_stage_info stage_starting;
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
@@ -784,7 +789,7 @@ extern mysql_mutex_t
        LOCK_item_func_sleep, LOCK_status,
        LOCK_error_log, LOCK_uuid_generator,
        LOCK_crypt, LOCK_timezone,
-       LOCK_slave_list, LOCK_active_mi, LOCK_manager,
+       LOCK_slave_list, LOCK_msr_map, LOCK_manager,
        LOCK_global_system_variables, LOCK_user_conn, LOCK_log_throttle_qni,
        LOCK_prepared_stmt_count, LOCK_error_messages,
        LOCK_sql_slave_skip_counter, LOCK_slave_net_timeout,

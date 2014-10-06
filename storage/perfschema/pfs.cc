@@ -1996,12 +1996,12 @@ pfs_rebind_table_v1(PSI_table_share *share, const void *identity, PSI_table *tab
   Implementation of the table instrumentation interface.
   @sa PSI_v1::close_table.
 */
-void pfs_close_table_v1(PSI_table *table)
+void pfs_close_table_v1(TABLE_SHARE *server_share, PSI_table *table)
 {
   PFS_table *pfs= reinterpret_cast<PFS_table*> (table);
   if (unlikely(pfs == NULL))
     return;
-  pfs->aggregate();
+  pfs->aggregate(server_share);
   destroy_table(pfs);
 }
 
@@ -2472,7 +2472,7 @@ void pfs_delete_current_thread_v1(void)
   if (thread != NULL)
   {
     aggregate_thread(thread, thread->m_account, thread->m_user, thread->m_host);
-    my_set_thread_local(THR_PFS, NULL);
+    my_pthread_set_THR_PFS(NULL);
     destroy_thread(thread);
   }
 }
@@ -4189,7 +4189,7 @@ void pfs_end_table_io_wait_v1(PSI_table_locker* locker, ulonglong numrows)
 
       wait->m_timer_end= timer_end;
       wait->m_end_event_id= thread->m_event_id;
-      wait->m_number_of_bytes= numrows;
+      wait->m_number_of_bytes= static_cast<size_t>(numrows);
       if (flag_events_waits_history)
         insert_events_waits_history(thread, wait);
       if (flag_events_waits_history_long)
@@ -6294,7 +6294,7 @@ static PSI_memory_key pfs_memory_alloc_v1(PSI_memory_key key, size_t size)
 
   if (flag_thread_instrumentation)
   {
-    PFS_thread *pfs_thread= (PFS_thread*)my_get_thread_local(THR_PFS);
+    PFS_thread *pfs_thread= my_pthread_get_THR_PFS();
     if (unlikely(pfs_thread == NULL))
       return PSI_NOT_INSTRUMENTED;
     if (! pfs_thread->m_enabled)
@@ -6335,7 +6335,7 @@ static PSI_memory_key pfs_memory_realloc_v1(PSI_memory_key key, size_t old_size,
 
   if (flag_thread_instrumentation)
   {
-    PFS_thread *pfs_thread= (PFS_thread*)my_get_thread_local(THR_PFS);
+    PFS_thread *pfs_thread= my_pthread_get_THR_PFS();
     if (likely(pfs_thread != NULL))
     {
       /* Aggregate to MEMORY_SUMMARY_BY_THREAD_BY_EVENT_NAME */
@@ -6398,7 +6398,7 @@ static void pfs_memory_free_v1(PSI_memory_key key, size_t size)
 
   if (flag_thread_instrumentation)
   {
-    PFS_thread *pfs_thread= (PFS_thread*)my_get_thread_local(THR_PFS);
+    PFS_thread *pfs_thread= my_pthread_get_THR_PFS();
     if (likely(pfs_thread != NULL))
     {
       /*
@@ -6455,7 +6455,7 @@ pfs_create_metadata_lock_v1(
   if (! global_metadata_class.m_enabled)
     return NULL;
 
-  PFS_thread *pfs_thread= (PFS_thread*)my_get_thread_local(THR_PFS);
+  PFS_thread *pfs_thread= my_pthread_get_THR_PFS();
   if (pfs_thread == NULL)
     return NULL;
 
@@ -6507,7 +6507,7 @@ pfs_start_metadata_wait_v1(PSI_metadata_locker_state *state,
 
   if (flag_thread_instrumentation)
   {
-    PFS_thread *pfs_thread= (PFS_thread*)my_get_thread_local(THR_PFS);
+    PFS_thread *pfs_thread= my_pthread_get_THR_PFS();
     if (unlikely(pfs_thread == NULL))
       return NULL;
     if (! pfs_thread->m_enabled)

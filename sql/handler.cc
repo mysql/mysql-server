@@ -630,7 +630,7 @@ int ha_init_errors(void)
   SETMSG(HA_ERR_INDEX_FILE_FULL,        "No more room in index file '%.64s'");
   SETMSG(HA_ERR_END_OF_FILE,            "End in next/prev/first/last");
   SETMSG(HA_ERR_UNSUPPORTED,            ER_DEFAULT(ER_ILLEGAL_HA));
-  SETMSG(HA_ERR_TO_BIG_ROW,             "Too big row");
+  SETMSG(HA_ERR_TOO_BIG_ROW,            "Too big row");
   SETMSG(HA_WRONG_CREATE_OPTION,        "Wrong create option");
   SETMSG(HA_ERR_FOUND_DUPP_UNIQUE,      ER_DEFAULT(ER_DUP_UNIQUE));
   SETMSG(HA_ERR_UNKNOWN_CHARSET,        "Can't open charset");
@@ -2534,7 +2534,7 @@ int handler::ha_close(void)
 {
   DBUG_ENTER("handler::ha_close");
 #ifdef HAVE_PSI_TABLE_INTERFACE
-  PSI_TABLE_CALL(close_table)(m_psi);
+  PSI_TABLE_CALL(close_table)(table_share, m_psi);
   m_psi= NULL; /* instrumentation handle, invalid after close_table() */
   DBUG_ASSERT(m_psi_batch_mode == PSI_BATCH_MODE_NONE);
   DBUG_ASSERT(m_psi_locker == NULL);
@@ -2655,6 +2655,7 @@ int handler::ha_rnd_end()
 int handler::ha_rnd_next(uchar *buf)
 {
   int result;
+  DBUG_EXECUTE_IF("ha_rnd_next_deadlock", return HA_ERR_LOCK_DEADLOCK;);
   DBUG_ENTER("handler::ha_rnd_next");
   DBUG_ASSERT(table_share->tmp_table != NO_TMP_TABLE ||
               m_lock_type != F_UNLCK);
@@ -4797,7 +4798,7 @@ void handler::get_dynamic_partition_info(PARTITION_STATS *stat_info,
   stat_info->max_data_file_length= stats.max_data_file_length;
   stat_info->index_file_length=    stats.index_file_length;
   stat_info->delete_length=        stats.delete_length;
-  stat_info->create_time=          stats.create_time;
+  stat_info->create_time=          static_cast<ulong>(stats.create_time);
   stat_info->update_time=          stats.update_time;
   stat_info->check_time=           stats.check_time;
   stat_info->check_sum=            0;
@@ -4847,7 +4848,13 @@ int ha_create_table(THD *thd, const char *path,
 
   if (open_table_from_share(thd, &share, "", 0, (uint) READ_ALL, 0, &table,
                             TRUE))
+  {
+#ifdef HAVE_PSI_TABLE_INTERFACE
+    PSI_TABLE_CALL(drop_table_share)
+      (temp_table, db, strlen(db), table_name, strlen(table_name));
+#endif
     goto err;
+  }
 
   if (update_create_info)
     update_create_info_from_table(create_info, &table);
@@ -5840,10 +5847,13 @@ handler::multi_range_read_info_const(uint keyno, RANGE_SEQ_IF *seq,
 
     DBUG_ASSERT(cost->is_zero());
     if (*flags & HA_MRR_INDEX_ONLY)
-      *cost= index_scan_cost(keyno, n_ranges, total_rows);
+      *cost= index_scan_cost(keyno, static_cast<double>(n_ranges),
+                             static_cast<double>(total_rows));
     else
-      *cost= read_cost(keyno, n_ranges, total_rows);
-    cost->add_cpu(cost_model->row_evaluate_cost(total_rows) + 0.01);
+      *cost= read_cost(keyno, static_cast<double>(n_ranges),
+                       static_cast<double>(total_rows));
+    cost->add_cpu(cost_model->row_evaluate_cost(
+      static_cast<double>(total_rows)) + 0.01);
   }
   return total_rows;
 }
@@ -6669,13 +6679,14 @@ bool DsMrr_impl::get_disk_sweep_mrr_cost(uint keynr, ha_rows rows, uint flags,
   cost->add_mem(*buffer_size);
 
   /* Total cost of all index accesses */
-  (*cost)+= h->index_scan_cost(keynr, 1, rows);
+  (*cost)+= h->index_scan_cost(keynr, 1, static_cast<double>(rows));
 
   /*
     Add CPU cost for processing records (see
     @handler::multi_range_read_info_const()).
   */
-  cost->add_cpu(table->cost_model()->row_evaluate_cost(rows));
+  cost->add_cpu(table->cost_model()->row_evaluate_cost(
+    static_cast<double>(rows)));
   return FALSE;
 }
 

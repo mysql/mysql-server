@@ -41,7 +41,6 @@ Created 12/19/1997 Heikki Tuuri
 /*********************************************************************//**
 Creates a select node struct.
 @return own: select node struct */
-
 sel_node_t*
 sel_node_create(
 /*============*/
@@ -49,7 +48,6 @@ sel_node_create(
 /*********************************************************************//**
 Frees the memory private to a select node when a query graph is freed,
 does not free the heap where the node was originally created. */
-
 void
 sel_node_free_private(
 /*==================*/
@@ -57,7 +55,6 @@ sel_node_free_private(
 /*********************************************************************//**
 Frees a prefetch buffer for a column, including the dynamically allocated
 memory for data stored there. */
-
 void
 sel_col_prefetch_buf_free(
 /*======================*/
@@ -75,7 +72,6 @@ sel_node_get_nth_plan(
 Performs a select step. This is a high-level function used in SQL execution
 graphs.
 @return query thread to run next or NULL */
-
 que_thr_t*
 row_sel_step(
 /*=========*/
@@ -91,7 +87,6 @@ open_step(
 /**********************************************************************//**
 Performs a fetch for a cursor.
 @return query thread to run next or NULL */
-
 que_thr_t*
 fetch_step(
 /*=======*/
@@ -99,7 +94,6 @@ fetch_step(
 /****************************************************************//**
 Sample callback function for fetch that prints each row.
 @return always returns non-NULL */
-
 void*
 row_fetch_print(
 /*============*/
@@ -108,7 +102,6 @@ row_fetch_print(
 /***********************************************************//**
 Prints a row in a select result.
 @return query thread to run next or NULL */
-
 que_thr_t*
 row_printf_step(
 /*============*/
@@ -119,7 +112,6 @@ field of the key value may be just a prefix of a fixed length field: hence
 the parameter key_len. But currently we do not allow search keys where the
 last field is only a prefix of the full key field len and print a warning if
 such appears. */
-
 void
 row_sel_convert_mysql_key_to_innobase(
 /*==================================*/
@@ -164,11 +156,11 @@ DB_LOCK_TABLE_FULL, DB_CORRUPTION, or DB_TOO_BIG_RECORD */
 UNIV_INLINE
 dberr_t
 row_search_for_mysql(
-	byte*			buf,
-	ulint			mode,
-	row_prebuilt_t*		prebuilt,
-	ulint			match_mode,
-	ulint			direction)
+	byte*		buf,
+	page_cur_mode_t	mode,
+	row_prebuilt_t*	prebuilt,
+	ulint		match_mode,
+	ulint		direction)
 	__attribute__((warn_unused_result));
 
 /** Searches for rows in the database using cursor.
@@ -189,14 +181,13 @@ The cursor is an iterator over the table/index.
 				pcur with stored position! In opening of a
 				cursor 'direction' should be 0.
 @return DB_SUCCESS or error code */
-
 dberr_t
 row_search_no_mvcc(
-	byte*			buf,
-	ulint			mode,
-	row_prebuilt_t*		prebuilt,
-	ulint			match_mode,
-	ulint			direction)
+	byte*		buf,
+	page_cur_mode_t	mode,
+	row_prebuilt_t*	prebuilt,
+	ulint		match_mode,
+	ulint		direction)
 	__attribute__((warn_unused_result));
 
 /** Searches for rows in the database using cursor.
@@ -227,11 +218,10 @@ It also has optimization such as pre-caching the rows, using AHI, etc.
 				traced using alternative condition
 				at caller level.
 @return DB_SUCCESS or error code */
-
 dberr_t
 row_search_mvcc(
 	byte*		buf,
-	ulint		mode,
+	page_cur_mode_t	mode,
 	row_prebuilt_t*	prebuilt,
 	ulint		match_mode,
 	ulint		direction)
@@ -240,7 +230,6 @@ row_search_mvcc(
 /********************************************************************//**
 Count rows in a R-Tree leaf level.
 @return DB_SUCCESS if successful */
-
 dberr_t
 row_count_rtree_recs(
 /*=================*/
@@ -258,7 +247,6 @@ row_count_rtree_recs(
 Checks if MySQL at the moment is allowed for this table to retrieve a
 consistent read result, or store it to the query cache.
 @return TRUE if storing or retrieving from the query cache is permitted */
-
 ibool
 row_search_check_if_query_cache_permitted(
 /*======================================*/
@@ -268,7 +256,6 @@ row_search_check_if_query_cache_permitted(
 /*******************************************************************//**
 Read the max AUTOINC value from an index.
 @return DB_SUCCESS if all OK else error code */
-
 dberr_t
 row_search_max_autoinc(
 /*===================*/
@@ -318,7 +305,7 @@ struct plan_t{
 					for each field in the search
 					tuple */
 	dtuple_t*	tuple;		/*!< search tuple */
-	ulint		mode;		/*!< search mode: PAGE_CUR_G, ... */
+	page_cur_mode_t	mode;		/*!< search mode: PAGE_CUR_G, ... */
 	ulint		n_exact_match;	/*!< number of first fields in
 					the search tuple which must be
 					exactly matched */

@@ -114,6 +114,9 @@ savepoint. */
 /** Lock an rw-lock in x-mode. */
 #define mtr_x_lock(l, m)	(m)->x_lock((l), __FILE__, __LINE__)
 
+/** Lock a tablespace in x-mode. */
+#define mtr_x_lock_space(s, m)	(m)->x_lock_space((s), __FILE__, __LINE__)
+
 /** Lock an rw-lock in sx-mode. */
 #define mtr_sx_lock(l, m)	(m)->sx_lock((l), __FILE__, __LINE__)
 
@@ -137,9 +140,11 @@ savepoint. */
 @return true if the mtr is dirtying a clean page. */
 #define mtr_block_dirtied(b)	mtr_t::is_block_dirtied((b))
 
+/** Forward declaration of a tablespace object */
+struct fil_space_t;
+
 /** Append records to the system-wide redo log buffer.
 @param[in]	log	redo log records */
-
 void
 mtr_write_log(
 	const mtr_buf_t*	log);
@@ -181,10 +186,20 @@ struct mtr_t {
 		/** specifies which operations should be logged; default
 		value MTR_LOG_ALL */
 		mtr_log_t	m_log_mode;
-
-		/** MLOG_FILE_NAME tablespace associated with the
+#ifdef UNIV_DEBUG
+		/** Persistent user tablespace associated with the
 		mini-transaction, or 0 (TRX_SYS_SPACE) if none yet */
-		ulint		m_named_space;
+		ulint		m_user_space_id;
+#endif /* UNIV_DEBUG */
+		/** User tablespace that is being modified by the
+		mini-transaction */
+		fil_space_t*	m_user_space;
+		/** Undo tablespace that is being modified by the
+		mini-transaction */
+		fil_space_t*	m_undo_space;
+		/** System tablespace if it is being modified by the
+		mini-transaction */
+		fil_space_t*	m_sys_space;
 
 		/** State of the transaction */
 		mtr_state_t	m_state;
@@ -273,13 +288,48 @@ struct mtr_t {
 	@return	old mode */
 	inline mtr_log_t set_log_mode(mtr_log_t mode);
 
+	/** Note that the mini-transaction is modifying the system tablespace
+	(for example, for the change buffer or for undo logs)
+	@return the system tablespace */
+	fil_space_t* set_sys_modified()
+	{
+		if (!m_impl.m_sys_space) {
+			lookup_sys_space();
+		}
+		return(m_impl.m_sys_space);
+	}
+
+	/** Copy the tablespaces associated with the mini-transaction
+	(needed for generating MLOG_FILE_NAME records)
+	@param[in]	mtr	mini-transaction that may modify
+	the same set of tablespaces as this one */
+	void set_spaces(const mtr_t& mtr)
+	{
+		ut_ad(m_impl.m_user_space_id == TRX_SYS_SPACE);
+		ut_ad(!m_impl.m_user_space);
+		ut_ad(!m_impl.m_undo_space);
+		ut_ad(!m_impl.m_sys_space);
+
+		ut_d(m_impl.m_user_space_id = mtr.m_impl.m_user_space_id);
+		m_impl.m_user_space = mtr.m_impl.m_user_space;
+		m_impl.m_undo_space = mtr.m_impl.m_undo_space;
+		m_impl.m_sys_space = mtr.m_impl.m_sys_space;
+	}
+
 	/** Set the tablespace associated with the mini-transaction
 	(needed for generating a MLOG_FILE_NAME record)
-	@param[in]	space	tablespace */
-	void set_named_space(ulint space)
+	@param[in]	space_id	user or system tablespace ID
+	@return	the tablespace */
+	fil_space_t* set_named_space(ulint space_id)
 	{
-		ut_ad(m_impl.m_named_space == TRX_SYS_SPACE);
-		m_impl.m_named_space = space;
+		ut_ad(m_impl.m_user_space_id == TRX_SYS_SPACE);
+		ut_d(m_impl.m_user_space_id = space_id);
+		if (space_id == TRX_SYS_SPACE) {
+			return(set_sys_modified());
+		} else {
+			lookup_user_space(space_id);
+			return(m_impl.m_user_space);
+		}
 	}
 
 #ifdef UNIV_DEBUG
@@ -317,6 +367,17 @@ struct mtr_t {
 	@param file	file name from where called
 	@param line	line number in file */
 	inline void sx_lock(rw_lock_t* lock, const char* file, ulint line);
+
+	/** Acquire a tablespace X-latch.
+	NOTE: use mtr_x_lock_space().
+	@param[in]	space_id	tablespace ID
+	@param[in]	file		file name from where called
+	@param[in]	line		line number in file
+	@return the tablespace object (never NULL) */
+	fil_space_t* x_lock_space(
+		ulint		space_id,
+		const char*	file,
+		ulint		line);
 
 	/** Release an object in the memo stack.
 	@param object	object
@@ -485,6 +546,11 @@ struct mtr_t {
 		__attribute__((warn_unused_result));
 
 private:
+	/** Look up the system tablespace. */
+	void lookup_sys_space();
+	/** Look up the user tablespace.
+	@param[in]	space_id	tablespace ID  */
+	void lookup_user_space(ulint space_id);
 
 	class Command;
 

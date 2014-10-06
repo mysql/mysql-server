@@ -609,13 +609,11 @@ built-in operations for atomic memory access */
 extern ib_mutex_t	monitor_mutex;
 /****************************************************************//**
 Initialize the monitor subsystem. */
-
 void
 srv_mon_create(void);
 /*================*/
 /****************************************************************//**
 Close the monitor subsystem. */
-
 void
 srv_mon_free(void);
 /*==============*/
@@ -806,7 +804,6 @@ Get monitor's monitor_info_t by its monitor id (index into the
 innodb_counter_info array
 @return Point to corresponding monitor_info_t, or NULL if no such
 monitor */
-
 monitor_info_t*
 srv_mon_get_info(
 /*=============*/
@@ -817,7 +814,6 @@ Get monitor's name by its monitor id (index into the
 innodb_counter_info array
 @return corresponding monitor name, or NULL if no such
 monitor */
-
 const char*
 srv_mon_get_name(
 /*=============*/
@@ -829,7 +825,6 @@ Turn on/off/reset monitor counters in a module. If module_value
 is NUM_MONITOR then turn on all monitor counters.
 @return 0 if successful, or the first monitor that cannot be
 turned on because it is already turned on. */
-
 void
 srv_mon_set_module_control(
 /*=======================*/
@@ -846,7 +841,6 @@ mechanism to start/stop and reset the counters, so we simulate these
 controls by remembering the corresponding counter values when the
 corresponding monitors are turned on/off/reset, and do appropriate
 mathematics to deduct the actual value. */
-
 void
 srv_mon_process_existing_counter(
 /*=============================*/
@@ -875,7 +869,6 @@ srv_mon_calc_min_since_start(
 /*************************************************************//**
 Reset a monitor, create a new base line with the current monitor
 value. This baseline is recorded by MONITOR_VALUE_RESET(monitor) */
-
 void
 srv_mon_reset(
 /*==========*/
@@ -889,7 +882,6 @@ srv_mon_reset_all(
 	monitor_id_t	monitor);	/*!< in: monitor id*/
 /*************************************************************//**
 Turn on monitor counters that are marked as default ON. */
-
 void
 srv_mon_default_on(void);
 /*====================*/

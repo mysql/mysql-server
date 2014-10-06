@@ -204,6 +204,7 @@ for unknown bits in order to protect backward incompatibility. */
 /* @{ */
 /** Total number of bits in table->flags2. */
 #define DICT_TF2_BITS			8
+#define DICT_TF2_UNUSED_BIT_MASK	(~0 << DICT_TF2_BITS)
 #define DICT_TF2_BIT_MASK		~(~0 << DICT_TF2_BITS)
 
 /** TEMPORARY; TRUE for tables from CREATE TEMPORARY TABLE. */
@@ -266,7 +267,6 @@ before proceeds. */
 /**********************************************************************//**
 Creates a table memory object.
 @return own: table object */
-
 dict_table_t*
 dict_mem_table_create(
 /*==================*/
@@ -278,14 +278,12 @@ dict_mem_table_create(
 	ulint		flags2);	/*!< in: table flags2 */
 /****************************************************************//**
 Free a table memory object. */
-
 void
 dict_mem_table_free(
 /*================*/
 	dict_table_t*	table);		/*!< in: table */
 /**********************************************************************//**
 Adds a column definition to a table. */
-
 void
 dict_mem_table_add_col(
 /*===================*/
@@ -298,7 +296,6 @@ dict_mem_table_add_col(
 	__attribute__((nonnull(1)));
 /**********************************************************************//**
 Renames a column of a table in the data dictionary cache. */
-
 void
 dict_mem_table_col_rename(
 /*======================*/
@@ -310,7 +307,6 @@ dict_mem_table_col_rename(
 /**********************************************************************//**
 This function populates a dict_col_t memory structure with
 supplied information. */
-
 void
 dict_mem_fill_column_struct(
 /*========================*/
@@ -340,7 +336,6 @@ dict_mem_fill_index_struct(
 /**********************************************************************//**
 Creates an index memory object.
 @return own: index object */
-
 dict_index_t*
 dict_mem_index_create(
 /*==================*/
@@ -356,7 +351,6 @@ dict_mem_index_create(
 Adds a field definition to an index. NOTE: does not take a copy
 of the column name if the field is a column. The memory occupied
 by the column name may be released only after publishing the index. */
-
 void
 dict_mem_index_add_field(
 /*=====================*/
@@ -367,7 +361,6 @@ dict_mem_index_add_field(
 					INDEX (textcol(25)) */
 /**********************************************************************//**
 Frees an index memory object. */
-
 void
 dict_mem_index_free(
 /*================*/
@@ -375,7 +368,6 @@ dict_mem_index_free(
 /**********************************************************************//**
 Creates and initializes a foreign constraint memory object.
 @return own: foreign constraint struct */
-
 dict_foreign_t*
 dict_mem_foreign_create(void);
 /*=========================*/
@@ -385,7 +377,6 @@ Sets the foreign_table_name_lookup pointer based on the value of
 lower_case_table_names.  If that is 0 or 1, foreign_table_name_lookup
 will point to foreign_table_name.  If 2, then another string is
 allocated from the heap and set to lower case. */
-
 void
 dict_mem_foreign_table_name_lookup_set(
 /*===================================*/
@@ -397,7 +388,6 @@ Sets the referenced_table_name_lookup pointer based on the value of
 lower_case_table_names.  If that is 0 or 1, referenced_table_name_lookup
 will point to referenced_table_name.  If 2, then another string is
 allocated from the heap and set to lower case. */
-
 void
 dict_mem_referenced_table_name_lookup_set(
 /*======================================*/
@@ -416,7 +406,6 @@ reasonably unique temporary file name.
 @param[in]	dbtab	Table name in the form database/table name
 @param[in]	id	Table id
 @return A unique temporary tablename suitable for InnoDB use */
-
 char*
 dict_mem_create_temporary_tablename(
 	mem_heap_t*	heap,
@@ -424,7 +413,6 @@ dict_mem_create_temporary_tablename(
 	table_id_t	id);
 
 /** Initialize dict memory variables */
-
 void
 dict_mem_init(void);
 
@@ -732,6 +720,11 @@ struct dict_index_t{
 				by dict_operation_lock and
 				dict_sys->mutex. Other changes are
 				protected by index->lock. */
+	unsigned	uncommitted:1;
+				/*!< a flag that is set for secondary indexes
+				that have not been committed to the
+				data dictionary yet */
+
 #ifdef UNIV_DEBUG
 	uint32_t	magic_n;/*!< magic number */
 /** Value of dict_index_t::magic_n */
@@ -739,9 +732,6 @@ struct dict_index_t{
 #endif
 	dict_field_t*	fields;	/*!< array of field descriptions */
 	st_mysql_ftparser*	parser;/*!< fulltext plugin parser */
-	bool		is_redo_skipped;
-				/*!< TRUE if skip redo log for allocation
-				under special cases, such as bulk load. */
 #ifndef UNIV_HOTBACKUP
 	UT_LIST_NODE_T(dict_index_t)
 			indexes;/*!< list of indexes of the table */
@@ -805,6 +795,24 @@ struct dict_index_t{
 				compression failures and successes */
 	rw_lock_t	lock;	/*!< read-write lock protecting the
 				upper levels of the index tree */
+
+	/** Determine if the index has been committed to the
+	data dictionary.
+	@return whether the index definition has been committed */
+	bool is_committed() const
+	{
+		ut_ad(!uncommitted || !(type & DICT_CLUSTERED));
+		return(UNIV_LIKELY(!uncommitted));
+	}
+
+	/** Flag an index committed or uncommitted.
+	@param[in]	committed	whether the index is committed */
+	void set_committed(bool committed)
+	{
+		ut_ad(!to_be_dropped);
+		ut_ad(committed || !(type & DICT_CLUSTERED));
+		uncommitted = !committed;
+	}
 #endif /* !UNIV_HOTBACKUP */
 };
 
@@ -1029,6 +1037,17 @@ a foreign key constraint is enforced, therefore RESTRICT just means no flag */
 #define DICT_FOREIGN_ON_UPDATE_NO_ACTION 32	/*!< ON UPDATE NO ACTION */
 /* @} */
 
+/** Table name wrapper for pretty-printing */
+struct table_name_t
+{
+	/** The name in internal representation */
+	char*	m_name;
+};
+
+/** Display a table name */
+std::ostream&
+operator<<(std::ostream& s, const table_name_t& table_name);
+
 /** List of locks that different transactions have acquired on a table. This
 list has a list node that is embedded in a nested union/structure. We have to
 generate a specific template for it. */
@@ -1059,7 +1078,7 @@ struct dict_table_t {
 	mem_heap_t*				heap;
 
 	/** Table name. */
-	char*					name;
+	table_name_t				name;
 
 	/** NULL or the directory path where a TEMPORARY table that was
 	explicitly created by a user should be placed if innodb_file_per_table
@@ -1070,7 +1089,7 @@ struct dict_table_t {
 	/** NULL or the directory path specified by DATA DIRECTORY. */
 	char*					data_dir_path;
 
-	/** Ppace where the clustered index of the table is placed. */
+	/** Space where the clustered index of the table is placed. */
 	unsigned				space:32;
 
 	/** Stores information about:
@@ -1141,6 +1160,9 @@ struct dict_table_t {
 
 	/** Hash chain node. */
 	hash_node_t				id_hash;
+
+	/** The FTS_DOC_ID_INDEX, or NULL if no fulltext indexes exist */
+	dict_index_t*				fts_doc_id_index;
 
 	/** List of indexes of the table. */
 	UT_LIST_BASE_NODE_T(dict_index_t)	indexes;
@@ -1391,7 +1413,6 @@ struct dict_table_t {
 
 /*******************************************************************//**
 Initialise the table lock list. */
-
 void
 lock_table_lock_list_init(
 /*======================*/

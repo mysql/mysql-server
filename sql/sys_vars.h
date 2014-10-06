@@ -707,13 +707,13 @@ public:
   {
     char buf[256];
     DBUG_EXPLAIN(buf, sizeof(buf));
-    return (uchar*) thd->strdup(buf);
+    return (uchar*) thd->mem_strdup(buf);
   }
   uchar *global_value_ptr(THD *thd, LEX_STRING *base)
   {
     char buf[256];
     DBUG_EXPLAIN_INITIAL(buf, sizeof(buf));
-    return (uchar*) thd->strdup(buf);
+    return (uchar*) thd->mem_strdup(buf);
   }
   bool check_update_type(Item_result type)
   { return type != STRING_RESULT; }
@@ -1823,6 +1823,39 @@ public:
 
 
 /**
+  Class representing the sql_log_bin system variable for controlling
+  whether logging to the binary log is done.
+*/
+
+class Sys_var_sql_log_bin: public Sys_var_mybool
+{
+public:
+  Sys_var_sql_log_bin(const char *name_arg, const char *comment, int flag_args,
+                      ptrdiff_t off, size_t size, CMD_LINE getopt,
+                      my_bool def_val, PolyLock *lock,
+                      enum binlog_status_enum binlog_status_arg,
+                      on_check_function on_check_func,
+                      on_update_function on_update_func)
+    :Sys_var_mybool(name_arg, comment, flag_args, off, size, getopt,
+                    def_val, lock, binlog_status_arg, on_check_func,
+                    on_update_func)
+  {}
+
+  uchar *global_value_ptr(THD *thd, LEX_STRING *base)
+  {
+    /* Reading GLOBAL SQL_LOG_BIN produces a deprecation warning. */
+    if (base != NULL)
+      push_warning_printf(thd, Sql_condition::SL_WARNING,
+                          ER_WARN_DEPRECATED_SYNTAX,
+                          ER(ER_WARN_DEPRECATED_SYNTAX),
+                          "@@global.sql_log_bin", "the constant 1 "
+                          "(since @@global.sql_log_bin is always equal to 1)");
+
+    return Sys_var_mybool::global_value_ptr(thd, base);
+  }
+};
+
+/**
    A class for @@global.binlog_checksum that has
    a specialized update method.
 */
@@ -1915,7 +1948,7 @@ public:
     ((Gtid_specification *)session_var_ptr(thd))->
       to_string(global_sid_map, buf);
     global_sid_lock->unlock();
-    char *ret= thd->strdup(buf);
+    char *ret= thd->mem_strdup(buf);
     DBUG_RETURN((uchar *)ret);
   }
   uchar *global_value_ptr(THD *thd, LEX_STRING *base)
@@ -2318,7 +2351,7 @@ public:
     DBUG_ENTER("Sys_var_gtid_owned::session_value_ptr");
     char *buf= NULL;
     if (thd->owned_gtid.sidno == 0)
-      DBUG_RETURN((uchar *)thd->strdup(""));
+      DBUG_RETURN((uchar *)thd->mem_strdup(""));
     if (thd->owned_gtid.sidno == -1)
     {
 #ifdef HAVE_GTID_NEXT_LIST

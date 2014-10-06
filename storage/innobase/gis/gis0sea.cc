@@ -76,7 +76,7 @@ bool
 rtr_pcur_getnext_from_path(
 /*=======================*/
 	const dtuple_t* tuple,	/*!< in: data tuple */
-	ulint		mode,	/*!< in: cursor search mode */
+	page_cur_mode_t	mode,	/*!< in: cursor search mode */
 	btr_cur_t*	btr_cur,/*!< in: persistent cursor; NOTE that the
 				function may release the page latch */
 	ulint		target_level,
@@ -462,14 +462,13 @@ Find the next matching record. This function will first exhaust
 the copied record listed in the rtr_info->matches vector before
 moving to the next page
 @return true if there is suitable record found, otherwise false */
-
 bool
 rtr_pcur_move_to_next(
 /*==================*/
 	const dtuple_t*	tuple,	/*!< in: data tuple; NOTE: n_fields_cmp in
 				tuple must be set so that it cannot get
 				compared to the node ptr page number field! */
-	ulint		mode,	/*!< in: cursor search mode */
+	page_cur_mode_t	mode,	/*!< in: cursor search mode */
 	btr_pcur_t*	cursor,	/*!< in: persistent cursor; NOTE that the
 				function may release the page latch */
 	ulint		level,	/*!< in: target level */
@@ -528,14 +527,13 @@ rtr_compare_cursor_rec(
 /**************************************************************//**
 Initializes and opens a persistent cursor to an index tree. It should be
 closed with btr_pcur_close. Mainly called by row_search_index_entry() */
-
 void
 rtr_pcur_open_low(
 /*==============*/
 	dict_index_t*	index,	/*!< in: index */
 	ulint		level,	/*!< in: level in the rtree */
 	const dtuple_t*	tuple,	/*!< in: tuple on which search done */
-	ulint		mode,	/*!< in: PAGE_CUR_RTREE_LOCATE, ... */
+	page_cur_mode_t	mode,	/*!< in: PAGE_CUR_RTREE_LOCATE, ... */
 	ulint		latch_mode,/*!< in: BTR_SEARCH_LEAF, ... */
 	btr_pcur_t*	cursor, /*!< in: memory buffer for persistent cursor */
 	const char*	file,	/*!< in: file name */
@@ -645,7 +643,6 @@ rtr_pcur_open_low(
 Returns the father block to a page. It is assumed that mtr holds
 an X or SX latch on the tree.
 @return rec_get_offsets() of the node pointer record */
-
 ulint*
 rtr_page_get_father_block(
 /*======================*/
@@ -671,7 +668,6 @@ rtr_page_get_father_block(
 Returns the upper level node pointer to a R-Tree page. It is assumed
 that mtr holds an x-latch on the tree.
 @return	rec_get_offsets() of the node pointer record */
-
 ulint*
 rtr_page_get_father_node_ptr_func(
 /*==============================*/
@@ -754,12 +750,11 @@ rtr_page_get_father_node_ptr_func(
 					  ULINT_UNDEFINED, &heap);
 		page_rec_print(node_ptr, offsets);
 
-		ib_logf(IB_LOG_LEVEL_FATAL,
-			"You should dump + drop + reimport the table to"
+		ib::fatal() << "You should dump + drop + reimport the table to"
 			" fix the corruption. If the crash happens at"
 			" database startup, see " REFMAN
 			"forcing-innodb-recovery.html about forcing"
-			" recovery. Then dump + drop + reimport.");
+			" recovery. Then dump + drop + reimport.";
 	}
 
 	return(offsets);
@@ -768,7 +763,6 @@ rtr_page_get_father_node_ptr_func(
 /********************************************************************//**
 Returns the upper level node pointer to a R-Tree page. It is assumed
 that mtr holds an x-latch on the tree. */
-
 void
 rtr_get_father_node(
 /*================*/
@@ -892,9 +886,9 @@ get_parent:
 					index, index->table);
 				mutex_exit(&dict_sys->mutex);
 
-				ib_logf(IB_LOG_LEVEL_INFO,
-					"InnoDB: Corruption of a spatail index %s "
-					"of table %s", index->name, index->table_name);
+				ib::info() << "InnoDB: Corruption of a"
+					" spatial index " << index->name
+					<< " of table " << index->table_name;
 				break;
 			}
 			r_cursor = rtr_get_parent_cursor(btr_cur, level, false);
@@ -925,7 +919,6 @@ func_exit:
 
 /*******************************************************************//**
 Create a RTree search info structure */
-
 rtr_info_t*
 rtr_create_rtr_info(
 /******************/
@@ -981,7 +974,6 @@ rtr_create_rtr_info(
 
 /*******************************************************************//**
 Update a btr_cur_t with rtr_info */
-
 void
 rtr_info_update_btr(
 /******************/
@@ -996,7 +988,6 @@ rtr_info_update_btr(
 
 /*******************************************************************//**
 Initialize a R-Tree Search structure */
-
 void
 rtr_init_rtr_info(
 /****************/
@@ -1011,7 +1002,30 @@ rtr_init_rtr_info(
 	ut_ad(rtr_info);
 
 	if (!reinit) {
-		memset(rtr_info, 0, sizeof(*rtr_info));
+		/* Reset all members. */
+		rtr_info->path = NULL;
+		rtr_info->parent_path = NULL;
+		rtr_info->matches = NULL;
+		mutex_create("rtr_path_mutex", &rtr_info->rtr_path_mutex);
+		memset(rtr_info->tree_blocks, 0x0,
+		       sizeof(rtr_info->tree_blocks));
+		memset(rtr_info->tree_savepoints, 0x0,
+		       sizeof(rtr_info->tree_savepoints));
+		rtr_info->mbr.xmin = 0.0;
+		rtr_info->mbr.xmax = 0.0;
+		rtr_info->mbr.ymin = 0.0;
+		rtr_info->mbr.ymax = 0.0;
+		rtr_info->thr = NULL;
+		rtr_info->heap = NULL;
+		rtr_info->cursor = NULL;
+		rtr_info->index = NULL;
+		rtr_info->need_prdt_lock = false;
+		rtr_info->need_page_lock = false;
+		rtr_info->allocated = false;
+		rtr_info->mbr_adj = false;
+		rtr_info->fd_del = false;
+		rtr_info->search_tuple = NULL;
+		rtr_info->search_mode = PAGE_CUR_UNSUPP;
 	}
 
 	ut_ad(!rtr_info->matches || rtr_info->matches->matched_recs->empty());
@@ -1022,10 +1036,6 @@ rtr_init_rtr_info(
 	rtr_info->cursor = cursor;
 	rtr_info->index = index;
 
-	if (!reinit) {
-		mutex_create("rtr_path_mutex", &rtr_info->rtr_path_mutex);
-	}
-
 	mutex_enter(&index->rtr_track->rtr_active_mutex);
 	index->rtr_track->rtr_active->push_back(rtr_info);
 	mutex_exit(&index->rtr_track->rtr_active_mutex);
@@ -1033,7 +1043,6 @@ rtr_init_rtr_info(
 
 /**************************************************************//**
 Clean up R-Tree search structure */
-
 void
 rtr_clean_rtr_info(
 /*===============*/
@@ -1177,7 +1186,6 @@ rtr_rebuild_path(
 
 /**************************************************************//**
 Check whether a discarding page is in anyone's search path */
-
 void
 rtr_check_discard_page(
 /*===================*/
@@ -1244,7 +1252,6 @@ rtr_check_discard_page(
 
 /**************************************************************//**
 Restores the stored position of a persistent cursor bufferfixing the page */
-
 bool
 rtr_cur_restore_position_func(
 /*==========================*/
@@ -1443,7 +1450,6 @@ rtr_leaf_push_match_rec(
 /**************************************************************//**
 Store the parent path cursor
 @return number of cursor stored */
-
 ulint
 rtr_store_parent_path(
 /*==================*/
@@ -1579,7 +1585,6 @@ rtr_init_match(
 
 /****************************************************************//**
 Get the bounding box content from an index record */
-
 void
 rtr_get_mbr_from_rec(
 /*=================*/
@@ -1597,7 +1602,6 @@ rtr_get_mbr_from_rec(
 
 /****************************************************************//**
 Get the bounding box content from a MBR data record */
-
 void
 rtr_get_mbr_from_tuple(
 /*===================*/
@@ -1619,14 +1623,13 @@ rtr_get_mbr_from_tuple(
 
 /****************************************************************//**
 Searches the right position in rtree for a page cursor. */
-
 bool
 rtr_cur_search_with_match(
 /*======================*/
 	const buf_block_t*	block,	/*!< in: buffer block */
 	dict_index_t*		index,	/*!< in: index descriptor */
 	const dtuple_t*		tuple,	/*!< in: data tuple */
-	ulint			mode,	/*!< in: PAGE_CUR_RTREE_INSERT,
+	page_cur_mode_t		mode,	/*!< in: PAGE_CUR_RTREE_INSERT,
 					PAGE_CUR_RTREE_LOCATE etc. */
 	page_cur_t*		cursor,	/*!< in/out: page cursor */
 	rtr_info_t*		rtr_info)/*!< in/out: search stack */
@@ -1646,7 +1649,7 @@ rtr_cur_search_with_match(
 	ulint		level;
 	bool		match_init = false;
 	ulint		space = block->page.id.space();
-	ulint		orig_mode = mode;
+	page_cur_mode_t	orig_mode = mode;
 	const rec_t*	first_rec = NULL;
 
 	rec_offs_init(offsets_);

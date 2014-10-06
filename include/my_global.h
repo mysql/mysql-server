@@ -49,6 +49,9 @@
 #if !defined(_WIN32)
 #include <netdb.h>
 #endif
+#ifdef MY_MSCRT_DEBUG
+#include <crtdbg.h>
+#endif
 
 /*
   A lot of our programs uses asserts, so better to always include it

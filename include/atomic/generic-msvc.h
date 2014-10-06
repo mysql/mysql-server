@@ -71,6 +71,11 @@ static inline int64 my_atomic_load64(int64 volatile *a)
   return (int64)InterlockedCompareExchange64((volatile LONGLONG *)a, 0, 0);
 }
 
+static inline void* my_atomic_loadptr(void * volatile *a)
+{
+  return InterlockedCompareExchangePointer(a, 0, 0);
+}
+
 static inline int32 my_atomic_fas32(int32 volatile *a, int32 v)
 {
   return (int32)InterlockedExchange((volatile LONG*)a, v);
@@ -79,6 +84,11 @@ static inline int32 my_atomic_fas32(int32 volatile *a, int32 v)
 static inline int64 my_atomic_fas64(int64 volatile *a, int64 v)
 {
   return (int64)InterlockedExchange64((volatile LONGLONG*)a, v);
+}
+
+static inline void * my_atomic_fasptr(void * volatile *a, void * v)
+{
+  return InterlockedExchangePointer(a, v);
 }
 
 static inline void my_atomic_store32(int32 volatile *a, int32 v)

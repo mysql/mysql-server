@@ -308,7 +308,7 @@ static const char *HA_ERR(int i)
   case HA_ERR_INDEX_FILE_FULL: return "HA_ERR_INDEX_FILE_FULL";
   case HA_ERR_END_OF_FILE: return "HA_ERR_END_OF_FILE";
   case HA_ERR_UNSUPPORTED: return "HA_ERR_UNSUPPORTED";
-  case HA_ERR_TO_BIG_ROW: return "HA_ERR_TO_BIG_ROW";
+  case HA_ERR_TOO_BIG_ROW: return "HA_ERR_TOO_BIG_ROW";
   case HA_WRONG_CREATE_OPTION: return "HA_WRONG_CREATE_OPTION";
   case HA_ERR_FOUND_DUPP_UNIQUE: return "HA_ERR_FOUND_DUPP_UNIQUE";
   case HA_ERR_UNKNOWN_CHARSET: return "HA_ERR_UNKNOWN_CHARSET";
@@ -1151,7 +1151,7 @@ my_bool Log_event::need_checksum()
     ret= (checksum_alg != BINLOG_CHECKSUM_ALG_OFF);
   else if (binlog_checksum_options != BINLOG_CHECKSUM_ALG_OFF &&
            event_cache_type == Log_event::EVENT_NO_CACHE)
-    ret= binlog_checksum_options;
+    ret= (binlog_checksum_options != 0);
   else
     ret= FALSE;
 
@@ -1167,7 +1167,8 @@ my_bool Log_event::need_checksum()
 
   if (checksum_alg == BINLOG_CHECKSUM_ALG_UNDEF)
     checksum_alg= ret ? // calculated value stored
-      binlog_checksum_options : (uint8) BINLOG_CHECKSUM_ALG_OFF;
+      static_cast<uint8>(binlog_checksum_options) :
+      static_cast<uint8>(BINLOG_CHECKSUM_ALG_OFF);
 
   DBUG_ASSERT(!ret || 
               ((checksum_alg == binlog_checksum_options ||
@@ -2305,7 +2306,7 @@ log_event_print_value(IO_CACHE *file, const uchar *ptr,
         return my_b_printf(file, "NULL");
       size_t d, t;
       uint64 i64= uint8korr(ptr); /* YYYYMMDDhhmmss */
-      d= i64 / 1000000;
+      d= static_cast<size_t>(i64 / 1000000);
       t= i64 % 1000000;
       my_b_printf(file, "%04d-%02d-%02d %02d:%02d:%02d",
                   static_cast<int>(d / 10000),
@@ -2899,9 +2900,7 @@ bool schedule_next_event(Log_event* ev, Relay_log_info* rli)
     llstr(rli->get_event_relay_log_pos(), llbuff);
     my_error(ER_MTS_CANT_PARALLEL, MYF(0),
     ev->get_type_str(), rli->get_event_relay_log_name(), llbuff,
-    "The master does not support the selected parallelization mode. "
-    "It may be too old, or replication was started from an event internal "
-    "to a transaction.");
+             "The master event is logically timestamped incorrectly.");
   case ER_MTS_INCONSISTENT_DATA:
     /* Don't have to do anything. */
     return true;
@@ -3037,15 +3036,6 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
         }
         DBUG_RETURN(ret_worker);
       }
-      else if (get_type_code() != QUERY_EVENT)
-      {
-        Slave_job_item job_item= {this, rli->get_event_relay_log_number(),
-                                  rli->get_event_relay_log_pos()};
-
-        // B-event is appended to the Deferred Array associated with GCAP
-        rli->curr_group_da.push_back(job_item);
-        DBUG_RETURN(NULL);
-      }
     }
     else
     {
@@ -3081,7 +3071,6 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
   ptr_group= gaq->get_job_group(rli->gaq->assigned_group_index);
   if (!is_mts_db_partitioned(rli))
   {
-    mts_group_idx= gaq->assigned_group_index;
     /* Get least occupied worker */
     ret_worker=
       rli->current_mts_submode->get_least_occupied_worker(rli, &rli->workers,
@@ -3128,8 +3117,8 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
       if (!ret_worker)
         ret_worker= rli->workers.at(0);
       // No need to know a possible error out of synchronization call.
-      (void)rli->current_mts_submode-> wait_for_workers_to_finish(rli,
-                                                                  ret_worker);
+      (void) rli->current_mts_submode->
+        wait_for_workers_to_finish(rli, ret_worker);
       /*
         this marking is transferred further into T-event of the current group.
       */
@@ -3212,7 +3201,12 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
 
         DBUG_RETURN(ret_worker);
       }
-
+      /*
+        In the logical clock scheduler any internal gets scheduled directly.
+        That is Int_var, @User_var and Rand bypass the deferred array.
+        Their association with relay-log physical coordinates is provided
+        by the same mechanism that applies to a regular event.
+      */
       Slave_job_item job_item= {this, rli->get_event_relay_log_number(),
                                 rli->get_event_start_pos()};
       rli->curr_group_da.push_back(job_item);
@@ -3343,39 +3337,45 @@ int Log_event::apply_event(Relay_log_info *rli)
 
   if (rli->is_mts_recovery())
   {
-    bool skip= 
+    bool skip=
       bitmap_is_set(&rli->recovery_groups, rli->mts_recovery_index) &&
       (get_mts_execution_mode(::server_id,
-       rli->mts_group_status == Relay_log_info::MTS_IN_GROUP)
+                              rli->mts_group_status ==
+                              Relay_log_info::MTS_IN_GROUP,
+                              rli->current_mts_submode->get_type() ==
+                              MTS_PARALLEL_TYPE_DB_NAME)
        == EVENT_EXEC_PARALLEL);
     if (skip)
     {
       DBUG_RETURN(0);
     }
     else
-    { 
+    {
       DBUG_RETURN(do_apply_event(rli));
     }
   }
 
   if (!(parallel= rli->is_parallel_exec()) ||
-      ((actual_exec_mode= 
-        get_mts_execution_mode(::server_id, 
-                           rli->mts_group_status == Relay_log_info::MTS_IN_GROUP))
+      ((actual_exec_mode=
+        get_mts_execution_mode(::server_id,
+                               rli->mts_group_status ==
+                               Relay_log_info::MTS_IN_GROUP,
+                               rli->current_mts_submode->get_type() ==
+                               MTS_PARALLEL_TYPE_DB_NAME))
        != EVENT_EXEC_PARALLEL))
   {
     if (parallel)
     {
-      /* 
+      /*
          There are two classes of events that Coordinator executes
-         itself. One e.g the master Rotate requires all Workers to finish up 
+         itself. One e.g the master Rotate requires all Workers to finish up
          their assignments. The other async class, e.g the slave Rotate,
          can't have this such synchronization because Worker might be waiting
          for terminal events to finish.
       */
 
       if (actual_exec_mode != EVENT_EXEC_ASYNC)
-      {     
+      {
         /*
           this  event does not split the current group but is indeed
           a separator beetwen two master's binlog therefore requiring
@@ -3385,7 +3385,7 @@ int Log_event::apply_event(Relay_log_info *rli)
             is_mts_db_partitioned(rli))
         {
           char llbuff[22];
-          /* 
+          /*
              Possible reason is a old version binlog sequential event
              wrappped with BEGIN/COMMIT or preceeded by User|Int|Random- var.
              MTS has to stop to suggest restart in the permanent sequential mode.
@@ -3717,7 +3717,7 @@ bool Query_log_event::write(IO_CACHE* file)
       invoker_user= thd->get_invoker_user();
       invoker_host= thd->get_invoker_host();
     }
-    else if (thd->security_ctx->priv_user)
+    else
     {
       Security_context *ctx= thd->security_ctx;
 
@@ -3802,23 +3802,24 @@ bool Query_log_event::write(IO_CACHE* file)
   }
 
   /*
-    We store -1 in the following status var since we don't have the
-    commit timestamp. The logical timestamp will be updated in the
+    We store SEQ_UNINIT in the following status var since we don't have the
+    logical timestamp values as of yet. They will will be updated in the
     do_write_cache.
   */
   if (file->commit_seq_offset == 0)
   {
     file->commit_seq_offset= QUERY_HEADER_LEN +
                              (uint)(start-start_of_status);
-    *start++= Q_COMMIT_TS;
+    *start++= Q_COMMIT_TS2;
     int8store(start, SEQ_UNINIT);
+    int8store(start + 8, SEQ_UNINIT);
     start+= COMMIT_SEQ_LEN;
   }
   /*
     NOTE: When adding new status vars, please don't forget to update
     the MAX_SIZE_LOG_EVENT_STATUS in log_event.h and update the function
     code_name() in this file.
-   
+
     Here there could be code like
     if (command-line-option-which-says-"log_this_variable" && inited)
     {
@@ -3827,7 +3828,7 @@ bool Query_log_event::write(IO_CACHE* file)
     start+= 4;
     }
   */
-  
+
   /* Store length of status variables */
   status_vars_len= (uint) (start-start_of_status);
   DBUG_ASSERT(status_vars_len <= MAX_SIZE_LOG_EVENT_STATUS);
@@ -4236,7 +4237,8 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
    auto_increment_increment(1), auto_increment_offset(1),
    time_zone_len(0), lc_time_names_number(0), charset_database_number(0),
    table_map_for_update(0), master_data_written(0),
-   mts_accessed_dbs(OVER_MAX_DBS_IN_EVENT_MTS)
+   mts_accessed_dbs(OVER_MAX_DBS_IN_EVENT_MTS),
+   last_committed(SEQ_UNINIT), sequence_number(SEQ_UNINIT)
 {
   ulong data_len;
   uint32 tmp;
@@ -4248,22 +4250,21 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
 
   memset(&user, 0, sizeof(user));
   memset(&host, 0, sizeof(host));
-  commit_seq_no= SEQ_UNINIT;
   common_header_len= description_event->common_header_len;
   post_header_len= description_event->post_header_len[event_type-1];
   DBUG_PRINT("info",("event_len: %u  common_header_len: %d  post_header_len: %d",
                      event_len, common_header_len, post_header_len));
-  
+
   /*
     We test if the event's length is sensible, and if so we compute data_len.
     We cannot rely on QUERY_HEADER_LEN here as it would not be format-tolerant.
     We use QUERY_HEADER_MINIMAL_LEN which is the same for 3.23, 4.0 & 5.0.
   */
   if (event_len < (uint)(common_header_len + post_header_len))
-    DBUG_VOID_RETURN;				
+    DBUG_VOID_RETURN;
   data_len = event_len - (common_header_len + post_header_len);
   buf+= common_header_len;
-  
+
   slave_proxy_id= thread_id = uint4korr(buf + Q_THREAD_ID_OFFSET);
   exec_time = uint4korr(buf + Q_EXEC_TIME_OFFSET);
   db_len = (uint)buf[Q_DB_LEN_OFFSET]; // TODO: add a check of all *_len vars
@@ -4274,7 +4275,7 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
     Depending on the format, we may or not have affected/warnings etc
     The remnent post-header to be parsed has length:
   */
-  tmp= post_header_len - QUERY_HEADER_MINIMAL_LEN; 
+  tmp= post_header_len - QUERY_HEADER_MINIMAL_LEN;
   if (tmp)
   {
     status_vars_len= uint2korr(buf + Q_STATUS_VARS_LEN_OFFSET);
@@ -4315,7 +4316,7 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
   */
 
   /* variable-part: the status vars; only in MySQL 5.0  */
-  
+
   start= (Log_event::Byte*) (buf+post_header_len);
   end= (const Log_event::Byte*) (start+status_vars_len);
   for (const Log_event::Byte* pos= start; pos < end;)
@@ -4428,9 +4429,13 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
     case Q_UPDATED_DB_NAMES:
     {
       uchar i= 0;
+#ifndef DBUG_OFF
+      bool is_corruption_injected= false;
+#endif
+
       CHECK_SPACE(pos, end, 1);
       mts_accessed_dbs= *pos++;
-      /* 
+      /*
          Notice, the following check is positive also in case of
          the master's MAX_DBS_IN_EVENT_MTS > the slave's one and the event 
          contains e.g the master's MAX_DBS_IN_EVENT_MTS db:s.
@@ -4450,19 +4455,25 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
                           if (mts_accessed_dbs == 2)
                           {
                             ((char*) pos)[sizeof("d?") - 1]= 'a';
+                            is_corruption_injected= true;
                           }});
         strncpy(mts_accessed_db_names[i], (char*) pos,
                 min<ulong>(NAME_LEN, start + status_vars_len - pos));
         mts_accessed_db_names[i][NAME_LEN - 1]= 0;
         pos+= 1 + strlen((const char*) pos);
       }
-      if (i != mts_accessed_dbs || pos > start + status_vars_len)
+      if (i != mts_accessed_dbs
+#ifndef DBUG_OFF
+          || is_corruption_injected
+#endif
+          )
         DBUG_VOID_RETURN;
       break;
     }
-    case Q_COMMIT_TS:
+    case Q_COMMIT_TS2:
       CHECK_SPACE(pos, end, COMMIT_SEQ_LEN);
-      commit_seq_no= (int64)uint8korr(pos);
+      last_committed= (ulonglong) uint8korr(pos);
+      sequence_number= (ulonglong) uint8korr(pos + 8);
       pos+= COMMIT_SEQ_LEN;
       break;
     default:
@@ -4579,9 +4590,10 @@ void Query_log_event::print_query_header(IO_CACHE* file,
   if (!print_event_info->short_form)
   {
     print_header(file, print_event_info, FALSE);
-    my_b_printf(file, "\t%s\tthread_id=%lu\texec_time=%lu\terror_code=%d\n",
+    my_b_printf(file, "\t%s\tthread_id=%lu\texec_time=%lu\terror_code=%d\t"
+                "last_committed=%llu\tsequence_number=%llu\n",
                 get_type_str(), (ulong) thread_id, (ulong) exec_time,
-                error_code);
+                error_code, last_committed, sequence_number);
   }
 
   bool suppress_use_flag= is_binlog_rewrite_db(db);
@@ -7152,9 +7164,9 @@ int Rotate_log_event::do_update_pos(Relay_log_info *rli)
       !is_relay_log_event() &&
       !in_group)
   {
-    if (!is_mts_db_partitioned(rli) && server_id != ::server_id && log_pos )
+    if (!is_mts_db_partitioned(rli) && server_id != ::server_id)
     {
-      // force the coordinator to start a new group.
+      // force the coordinator to start a new binlog segment.
       static_cast<Mts_submode_logical_clock*>
         (rli->current_mts_submode)->start_new_group();
     }
@@ -13669,7 +13681,8 @@ const char *Gtid_log_event::SET_STRING_PREFIX= "SET @@SESSION.GTID_NEXT= '";
 
 Gtid_log_event::Gtid_log_event(const char *buffer, uint event_len,
                                const Format_description_log_event *descr_event)
-  : Log_event(buffer, descr_event)
+  : Log_event(buffer, descr_event),
+    last_committed(SEQ_UNINIT), sequence_number(SEQ_UNINIT)
 {
   DBUG_ENTER("Gtid_log_event::Gtid_log_event(const char *, uint, const Format_description_log_event *");
   uint8 const common_header_len=
@@ -13685,13 +13698,14 @@ Gtid_log_event::Gtid_log_event(const char *buffer, uint event_len,
 #endif
 /*
   The layout of the buffer is as follows
-   +-------------+-------------+------------+------------+--------------+
-   | commit flag | ENCODED SID | ENCODED GNO| G_COMMIT_TS| commit_seq_no|
-   +-------------+-------------+------------+------------+--------------+
+   +-------------+-------------+------------+--------+---------------+
+   | commit flag | ENCODED SID | ENCODED GNO| TS_TYPE| logical ts(:s)|
+   +-------------+-------------+------------+--------+---------------+
+   TS_TYPE is from {G_COMMIT_TS2} singleton set of values.
 */
   char const *ptr_buffer= buffer + common_header_len;
 
-  spec.type= buffer[EVENT_TYPE_OFFSET] == ANONYMOUS_GTID_LOG_EVENT ? 
+  spec.type= buffer[EVENT_TYPE_OFFSET] == ANONYMOUS_GTID_LOG_EVENT ?
     ANONYMOUS_GROUP : GTID_GROUP;
 
   commit_flag= *ptr_buffer != 0;
@@ -13707,21 +13721,14 @@ Gtid_log_event::Gtid_log_event(const char *buffer, uint event_len,
   ptr_buffer+= ENCODED_GNO_LENGTH;
 
   /* fetch the commit timestamp */
-  if (
-      /*Old masters will not have this part, so we should prevent segfaulting */
-      (uint)(ptr_buffer-buffer) < event_len &&
-      *ptr_buffer == G_COMMIT_TS)
+  if (*ptr_buffer == G_COMMIT_TS2 &&
+      (uint) (ptr_buffer - buffer) + 1 + COMMIT_SEQ_LEN <= event_len)
   {
     ptr_buffer++;
-    commit_seq_no= (int64)uint8korr(ptr_buffer);
+    last_committed= (ulonglong) uint8korr(ptr_buffer);
+    sequence_number= (ulonglong) uint8korr(ptr_buffer + 8);
     ptr_buffer+= COMMIT_SEQ_LEN;
   }
-  else
-    /* We let coordinator complain when it sees that we have first
-       event and the master has not sent us the commit sequence number
-       Also, we can be rest assured that this is an old master, because new
-       master would have compained of the missing commit seq no while flushing.*/
-    commit_seq_no= SEQ_UNINIT;
 
   DBUG_VOID_RETURN;
 }
@@ -13785,7 +13792,8 @@ Gtid_log_event::print(FILE *file, PRINT_EVENT_INFO *print_event_info)
   if (!print_event_info->short_form)
   {
     print_header(head, print_event_info, FALSE);
-    my_b_printf(head, "\tGTID [commit=%s]\n", commit_flag ? "yes" : "no");
+    my_b_printf(head, "\tGTID [commit=%s]\tlast_committed=%llu\tsequence_number=%llu\n",
+                commit_flag ? "yes" : "no", last_committed, sequence_number);
   }
   to_string(buffer);
   my_b_printf(head, "%s%s\n", buffer, print_event_info->delimiter);
@@ -13815,8 +13823,9 @@ bool Gtid_log_event::write_data_header(IO_CACHE *file)
   int8store(ptr_buffer, spec.gtid.gno);
   ptr_buffer+= ENCODED_GNO_LENGTH;
   file->commit_seq_offset= ptr_buffer- buffer;
-  *ptr_buffer++= G_COMMIT_TS;
+  *ptr_buffer++= G_COMMIT_TS2;
   int8store(ptr_buffer, SEQ_UNINIT);
+  int8store(ptr_buffer + 8, SEQ_UNINIT);
   ptr_buffer+= COMMIT_SEQ_LEN;
 
   DBUG_ASSERT(ptr_buffer == (buffer + sizeof(buffer)));

@@ -1,0 +1,48 @@
+Bug #18412598  UNCLEAN SYSTEM SHUTDOWN RECOVERY FAILS
+FOR SCHEMA WITH CAPITAL LETTERS
+create database MYDB;
+USE MYDB;
+CREATE TABLE mytable (id int primary key) ENGINE=innodb;
+CREATE TABLE FOO (id int,constraint FOREIGN KEY (id) REFERENCES mytable(id) ON DELETE CASCADE) ENGINE=innodb;
+CREATE TABLE mytable_ref (id int,constraint FOREIGN KEY (id) REFERENCES FOO(id) ON DELETE CASCADE) ENGINE=innodb;
+INSERT INTO mytable VALUES (10),(20),(30),(40);
+INSERT INTO FOO VALUES (20),(10);
+INSERT INTO mytable_ref VALUES (20),(10);
+SHOW VARIABLES LIKE 'innodb_fast_shutdown';
+Variable_name	Value
+innodb_fast_shutdown	2
+START TRANSACTION;
+INSERT INTO mytable VALUES (50);
+INSERT INTO FOO VALUES (50);
+INSERT INTO mytable_ref VALUES (50);
+# Restart the server. This will go into crash recovery mode
+USE MYDB;
+SELECT * FROM mytable;
+id
+10
+20
+30
+40
+SELECT * FROM FOO;
+id
+10
+20
+SELECT * FROM mytable_ref;
+id
+10
+20
+DELETE FROM mytable WHERE id =10;
+SELECT * FROM FOO;
+id
+20
+SELECT * FROM mytable_ref;
+id
+20
+CREATE TABLE MYtable (id int) ENGINE=innodb;
+ERROR 42S01: Table 'mytable' already exists
+CREATE TABLE Foo (id int) ENGINE=innodb;
+ERROR 42S01: Table 'foo' already exists
+DROP TABLE mytable_ref,FOO;
+DROP TABLE mytable;
+use test;
+DROP DATABASE MYDB;

@@ -1,0 +1,26 @@
+--source include/have_innodb.inc
+# Embedded server does not support restarting
+--source include/not_embedded.inc
+--source include/have_debug.inc
+
+--echo #
+--echo # Bug#19685095 DO NOT CARE ABOUT UNRESOLVED MLOG_FILE_NAME
+--echo # IF THERE ARE NO OPERATIONS TO APPLY
+--echo #
+
+SET GLOBAL DEBUG='+d,fil_names_write_bogus';
+
+--source include/no_checkpoint_start.inc
+
+CREATE TABLE t1(a INT PRIMARY KEY) ENGINE=InnoDB;
+
+--let CLEANUP_IF_CHECKPOINT=DROP TABLE t1;
+--source include/no_checkpoint_end.inc
+
+--source include/start_mysqld.inc
+
+DROP TABLE t1;
+
+let SEARCH_FILE = $MYSQLTEST_VARDIR/log/mysqld.1.err;
+let SEARCH_PATTERN = InnoDB: Tablespace 4294967280 was not found at .*, but there were no modifications either;
+--source include/search_pattern.inc

@@ -1281,8 +1281,10 @@ THD::THD(bool enable_plugins)
   binlog_next_event_pos.file_name= NULL;
   binlog_next_event_pos.pos= 0;
 
+#ifdef HAVE_MY_TIMER
   timer= NULL;
   timer_cache= NULL;
+#endif
 #ifndef DBUG_OFF
   gis_debug= 0;
 #endif
@@ -1525,13 +1527,13 @@ void *thd_alloc(MYSQL_THD thd, size_t size)
 extern "C"
 void *thd_calloc(MYSQL_THD thd, size_t size)
 {
-  return thd->calloc(size);
+  return thd->mem_calloc(size);
 }
 
 extern "C"
 char *thd_strdup(MYSQL_THD thd, const char *str)
 {
-  return thd->strdup(str);
+  return thd->mem_strdup(str);
 }
 
 extern "C"
@@ -3065,7 +3067,7 @@ bool select_export::send_data(List<Item> &items)
         ((uint64) res->length() / res->charset()->mbminlen + 1) *
         write_cs->mbmaxlen + 1;
       set_if_smaller(estimated_bytes, UINT_MAX32);
-      if (cvt_str.realloc((uint32) estimated_bytes))
+      if (cvt_str.mem_realloc((uint32) estimated_bytes))
       {
         my_error(ER_OUTOFMEMORY, MYF(ME_FATALERROR), (uint32) estimated_bytes);
         goto err;
@@ -4698,7 +4700,8 @@ void THD::inc_status_sort_rows(ha_rows count)
 {
   status_var.filesort_rows+= count;
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
-  PSI_STATEMENT_CALL(inc_statement_sort_rows)(m_statement_psi, count);
+  PSI_STATEMENT_CALL(inc_statement_sort_rows)(m_statement_psi,
+                                              static_cast<ulong>(count));
 #endif
 }
 

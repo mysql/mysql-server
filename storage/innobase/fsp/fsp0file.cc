@@ -328,6 +328,7 @@ Datafile::validate_to_dd(
 		return(err);
 	}
 
+	/* Make sure the datafile we found matched the space ID. */
 	if (m_space_id == space_id
 	    && ((m_flags & ~FSP_FLAGS_MASK_DATA_DIR)
 		== (flags & ~FSP_FLAGS_MASK_DATA_DIR))) {
@@ -490,7 +491,7 @@ Datafile::validate_first_page(lsn_t* flush_lsn)
 			   m_space_id, &prev_name, &prev_filepath)) {
 		/* Make sure the space_id has not already been opened. */
 		ib::error() << "Attempted to open a previously opened"
-			" tablespace. Previous tablespace" << prev_name
+			" tablespace. Previous tablespace " << prev_name
 			<< " at filepath: " << prev_filepath << " uses"
 			" space ID: " << m_space_id << ". Cannot open"
 			" tablespace " << m_name << " at filepath: "
@@ -556,12 +557,13 @@ Datafile::find_space_id()
 		ib::info() << "Page size:" << page_size
 			<< ". Pages to analyze:" << page_count;
 
-		byte* buf = static_cast<byte*>(ut_malloc_nokey(2*page_size));
-		byte* page = static_cast<byte*>(ut_align(buf, page_size));
+		byte*	buf = static_cast<byte*>(ut_malloc_nokey(2*page_size));
+		byte*	page = static_cast<byte*>(ut_align(buf, page_size));
 
 		for (ulint j = 0; j < page_count; ++j) {
 
-			st = os_file_read(m_handle, page, (j* page_size), page_size);
+			st = os_file_read(m_handle, page, j * page_size,
+					  page_size);
 
 			if (!st) {
 				ib::info() << "READ FAIL: page_no:" << j;

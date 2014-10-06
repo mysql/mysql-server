@@ -60,7 +60,6 @@ introduced where a call to log_free_check() is bypassed. */
 /********************************************************************//**
 Creates a purge node to a query graph.
 @return own: purge node */
-
 purge_node_t*
 row_purge_node_create(
 /*==================*/
@@ -235,7 +234,6 @@ However, in that case, the user transaction would also re-insert the
 secondary index entry after purge has removed it and released the leaf
 page latch.
 @return true if the secondary index record can be purged */
-
 bool
 row_purge_poss_sec(
 /*===============*/
@@ -282,11 +280,10 @@ row_purge_remove_sec_if_poss_tree(
 	mtr_start(&mtr);
 	mtr.set_named_space(index->space);
 
-	if (*index->name == TEMP_INDEX_PREFIX) {
-		/* The index->online_status may change if the
-		index->name starts with TEMP_INDEX_PREFIX (meaning
-		that the index is or was being created online). It is
-		protected by index->lock. */
+	if (!index->is_committed()) {
+		/* The index->online_status may change if the index is
+		or was being created online, but not committed yet. It
+		is protected by index->lock. */
 		mtr_sx_lock(dict_index_get_lock(index), &mtr);
 
 		if (dict_index_is_online_ddl(index)) {
@@ -299,8 +296,8 @@ row_purge_remove_sec_if_poss_tree(
 		}
 	} else {
 		/* For secondary indexes,
-		index->online_status==ONLINE_INDEX_CREATION unless
-		index->name starts with TEMP_INDEX_PREFIX. */
+		index->online_status==ONLINE_INDEX_COMPLETE if
+		index->is_committed(). */
 		ut_ad(!dict_index_is_online_ddl(index));
 	}
 
@@ -407,16 +404,15 @@ row_purge_remove_sec_if_poss_leaf(
 	mtr_start(&mtr);
 	mtr.set_named_space(index->space);
 
-	if (*index->name == TEMP_INDEX_PREFIX) {
-		/* For temp spatial index, we also skip the purge. */
+	if (!index->is_committed()) {
+		/* For uncommitted spatial index, we also skip the purge. */
 		if (dict_index_is_spatial(index)) {
 			goto func_exit_no_pcur;
 		}
 
-		/* The index->online_status may change if the
-		index->name starts with TEMP_INDEX_PREFIX (meaning
-		that the index is or was being created online). It is
-		protected by index->lock. */
+		/* The index->online_status may change if the the
+		index is or was being created online, but not
+		committed yet. It is protected by index->lock. */
 		mtr_s_lock(dict_index_get_lock(index), &mtr);
 
 		if (dict_index_is_online_ddl(index)) {
@@ -428,22 +424,18 @@ row_purge_remove_sec_if_poss_leaf(
 			goto func_exit_no_pcur;
 		}
 
-		/* Insert/Change buffering is block for temp-table
-		and so no point in removing entry from these buffers
-		if not present in buffer-pool */
+		/* Change buffering is disabled for temporary tables. */
 		mode = (dict_table_is_temporary(index->table))
 			? BTR_MODIFY_LEAF | BTR_ALREADY_S_LATCHED
 			: BTR_MODIFY_LEAF | BTR_ALREADY_S_LATCHED
 			| BTR_DELETE;
 	} else {
 		/* For secondary indexes,
-		index->online_status==ONLINE_INDEX_CREATION unless
-		index->name starts with TEMP_INDEX_PREFIX. */
+		index->online_status==ONLINE_INDEX_COMPLETE if
+		index->is_committed(). */
 		ut_ad(!dict_index_is_online_ddl(index));
 
-		/* Insert/Change buffering is block for temp-table
-		and so no point in removing entry from these buffers
-		if not present in buffer-pool */
+		/* Change buffering is disabled for temporary tables. */
 		mode = (dict_table_is_temporary(index->table))
 			? BTR_MODIFY_LEAF
 			: BTR_MODIFY_LEAF | BTR_DELETE;
@@ -514,10 +506,10 @@ row_purge_remove_sec_if_poss_leaf(
 					which mean search is still depending
 					on it, so do not delete */
 #ifdef UNIV_DEBUG
-					ib_logf(IB_LOG_LEVEL_INFO,
-						"skip purging last record "
-						"on page %ld.",
-						(ulong) page_get_page_no(page));
+					ib::info() << "skip purging last"
+						" record on page "
+						<< page_get_page_no(page)
+						<< ".";
 #endif
 
 					btr_pcur_close(&pcur);
@@ -547,7 +539,7 @@ func_exit_no_pcur:
 	}
 
 	ut_error;
-	return(FALSE);
+	return(false);
 }
 
 /***********************************************************//**
@@ -736,6 +728,8 @@ skip_secondaries:
 
 			index = dict_table_get_first_index(node->table);
 			mtr_sx_lock(dict_index_get_lock(index), &mtr);
+
+			mtr.set_named_space(index->space);
 
 			/* NOTE: we must also acquire an X-latch to the
 			root page of the tree. We will need it when we
@@ -1016,7 +1010,6 @@ row_purge_end(
 Does the purge operation for a single undo log record. This is a high-level
 function used in an SQL execution graph.
 @return query thread to run next or NULL */
-
 que_thr_t*
 row_purge_step(
 /*===========*/

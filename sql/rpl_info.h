@@ -21,6 +21,8 @@
 #include "rpl_info_handler.h"
 #include "rpl_reporting.h"
 
+#define  CHANNEL_NAME_LENGTH NAME_LEN
+
 class Rpl_info : public Slave_reporting_capability
 {
 public:
@@ -131,6 +133,25 @@ public:
     return internal_id;
   }
 
+  char *get_channel()
+  {
+    return channel;
+  }
+
+ /**
+   To search in the slave repositories, each slave info object
+   (mi, rli or worker) should use a primary key. This function
+   sets the field values of the slave info objects with
+   the search information, which is nothing but PK in mysql slave
+   info tables.
+   Ex: field_value[23]="channel_name" in the master info
+   object.
+
+   Currently, used only for TABLE repository.
+*/
+
+ virtual bool set_info_search_keys(Rpl_info_handler *to)= 0;
+
 protected:
   /**
     Pointer to the repository's handler.
@@ -142,8 +163,20 @@ protected:
     file). This information is completely transparent to users and
     is used only during startup to retrieve information from the
     repositories.
+
+    @todo, This is not anymore required for Master_info and
+           Relay_log_info, since Channel can be used to uniquely
+           identify this. To preserve backward compatibility,
+           we keep this for Master_info and Relay_log_info.
+           However, {id, channel} is still required for a worker info.
   */
   uint internal_id;
+
+  /**
+     Every slave info object acts on a particular channel in Multisource
+     Replication.
+  */
+  char channel[CHANNEL_NAME_LENGTH+1];
 
   Rpl_info(const char* type
 #ifdef HAVE_PSI_INTERFACE
@@ -156,7 +189,7 @@ protected:
            PSI_mutex_key *param_key_info_stop_cond,
            PSI_mutex_key *param_key_info_sleep_cond
 #endif
-           ,uint param_id
+           ,uint param_id, const char* param_channel
           );
 
 private:

@@ -966,6 +966,10 @@ struct handlerton
 
 #define HTON_SUPPORTS_EXTENDED_KEYS  (1 << 10)
 
+// Engine support foreign key constraint.
+
+#define HTON_SUPPORTS_FOREIGN_KEYS   (1 << 11)
+
 
 enum enum_tx_isolation { ISO_READ_UNCOMMITTED, ISO_READ_COMMITTED,
 			 ISO_REPEATABLE_READ, ISO_SERIALIZABLE};
@@ -1803,7 +1807,7 @@ public:
   ha_rows records;
   ha_rows deleted;			/* Deleted records */
   ulong mean_rec_length;		/* physical reclength */
-  ulong create_time;			/* When table was created */
+  time_t create_time;			/* When table was created */
   ulong check_time;
   ulong update_time;
   uint block_size;			/* index block size */

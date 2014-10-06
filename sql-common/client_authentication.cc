@@ -145,7 +145,6 @@ int sha256_password_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql)
   bool connection_is_secure= false;
   unsigned char scramble_pkt[20];
   unsigned char *pkt;
-  my_bool ssl_enforce= FALSE;
 
 
   DBUG_ENTER("sha256_password_auth_client");
@@ -170,25 +169,8 @@ int sha256_password_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql)
   */
   memcpy(scramble_pkt, pkt, SCRAMBLE_LENGTH);
 
-  if (mysql_get_option(mysql, MYSQL_OPT_SSL_ENFORCE, &ssl_enforce))
-    ssl_enforce= FALSE;
-
   if (mysql_get_ssl_cipher(mysql) != NULL)
     connection_is_secure= true;
-  /*
-    If set to the default plugin, then the client and server haven't
-    attempted a SSL connection yet and there is no way of knowing if this will
-    be successful later on when encryption is needed.
-
-    The only way to be sure that SSL will be established is to check if the
-    client enforce SSL.
-
-    If MYSQL_OPT_ENFORCE_SSL flag isn't set then SSL might be established but
-    the client will still expect RSA keys from the server and fail if those
-    aren't available.
-  */
-  else if (ssl_enforce)
-    connection_is_secure= true; // Safely assume connection will be encrypted
 
   /* If connection isn't secure attempt to get the RSA public key file */
   if (!connection_is_secure)
@@ -235,9 +217,26 @@ int sha256_password_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql)
         }
         got_public_key_from_server= true;
       }
+
+      /*
+        An arbitrary limitation based on the assumption that passwords
+        larger than e.g. 15 symbols don't contribute to security.
+        Note also that it's furter restricted to RSA_size() - 41 down
+        below, so this leaves 471 bytes of possible RSA key sizes which
+        should be reasonably future-proof.
+        We avoid heap allocation for speed reasons.
+      */
+      char passwd_scramble[512];
+
+      if (passwd_len > sizeof(passwd_scramble))
+      {
+        /* password too long for the buffer */
+        DBUG_RETURN(CR_ERROR);
+      }
+      memmove(passwd_scramble, mysql->passwd, passwd_len);
       
       /* Obfuscate the plain text password with the session scramble */
-      xor_string(mysql->passwd, strlen(mysql->passwd), (char *) scramble_pkt,
+      xor_string(passwd_scramble, passwd_len - 1, (char *) scramble_pkt,
                  SCRAMBLE_LENGTH);
       /* Encrypt the password and send it to the server */
       int cipher_length= RSA_size(public_key);
@@ -250,7 +249,7 @@ int sha256_password_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql)
         /* password message is to long */
         DBUG_RETURN(CR_ERROR);
       }
-      RSA_public_encrypt(passwd_len, (unsigned char *) mysql->passwd,
+      RSA_public_encrypt(passwd_len, (unsigned char *) passwd_scramble,
                          encrypted_password,
                          public_key, RSA_PKCS1_OAEP_PADDING);
       if (got_public_key_from_server)
@@ -271,8 +270,6 @@ int sha256_password_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql)
       if (vio->write_packet(vio, (uchar*) mysql->passwd, passwd_len))
         DBUG_RETURN(CR_ERROR);
     }
-    
-    memset(mysql->passwd, 0, passwd_len);
   }
     
   DBUG_RETURN(CR_OK);

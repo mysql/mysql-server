@@ -170,8 +170,8 @@ latch_add(
 
 	if (lb != latches->end() && !(latches->key_comp()(n, lb->first))) {
 
-		ib_logf(IB_LOG_LEVEL_FATAL,
-			"Duplicate mutex found: %s(%s)", name, lname);
+		ib::fatal() << "Duplicate mutex found: " << name << "("
+			<< lname << ")";
 
 		/* There should never be a duplicate */
 		ut_error;
@@ -403,14 +403,11 @@ static SyncDebug syncDebug;
 void
 SyncDebug::crash(const latch_t* latch, latch_level_t level) const UNIV_NOTHROW
 {
-	ib_logf(IB_LOG_LEVEL_ERROR,
-		"Thread %lu already owns a latch (\"%s\" : %lu),"
-		" with a lower level than (\"%s\" : %lu).",
-		os_thread_pf(os_thread_get_curr_id()),
-		sync_latch_get_name(latch->m_level),
-		(ulint) latch->m_level,
-		sync_latch_get_name(level),
-		(ulint) level);
+	ib::error() << "Thread " << os_thread_pf(os_thread_get_curr_id())
+		<< " already owns a latch (\""
+		<< sync_latch_get_name(latch->m_level) << "\" : "
+		<< latch->m_level << "), with a lower level than (\""
+		<< sync_latch_get_name(level) << "\" : " << level << ").";
 
 		latch->print(stderr);
 
@@ -1230,7 +1227,6 @@ sync_latch_meta_init()
 Add the latch meta data of Latch level is SYNC_NO_ORDER_CHECK.
 @param name		Latch name
 @param key		Performance schema key */
-
 void
 sync_latch_add_no_check(
 	const char*		name
@@ -1246,7 +1242,6 @@ sync_latch_add_no_check(
 
 /**
 Initializes the synchronization data structures. */
-
 void
 sync_check_init()
 {
@@ -1279,7 +1274,6 @@ sync_check_init()
 /**
 Frees the resources in InnoDB's own synchronization data structures. Use
 os_sync_free() after calling this. */
-
 void
 sync_check_close()
 {
@@ -1305,7 +1299,6 @@ sync_check_close()
 /**
 Get the sync level for a latch name.
 @return SYNC_UNKNOWN - if not found. */
-
 latch_level_t
 sync_latch_get_level(
 	const char*	name)			/*!< in: Latch name */
@@ -1313,7 +1306,7 @@ sync_latch_get_level(
 	LatchMap::iterator	it  = SrvLatches->find(name);
 
 	if (it == SrvLatches->end()) {
-		ib_logf(IB_LOG_LEVEL_FATAL, "Mutex not found: %s\n", name);
+		ib::fatal() << "Mutex not found: " << name;
 	}
 
 	return(it->second.m_level);
@@ -1322,7 +1315,6 @@ sync_latch_get_level(
 /**
 Get the latch name from a sync level.
 @return 0 if not found. */
-
 const char*
 sync_latch_get_name(
 	latch_level_t	level)			/*!< in: Latch level */
@@ -1346,7 +1338,6 @@ sync_latch_get_name(
 /**
 Get the sync level for a latch name.
 @return SYNC_UNKNOWN - if not found. */
-
 mysql_pfs_key_t
 sync_latch_get_pfs_key(
 	const char*	name)			/*!< Latch name */
@@ -1356,7 +1347,7 @@ sync_latch_get_pfs_key(
 	/* Must find th the PFS key, even if it is not instrumented. */
 	if (it == SrvLatches->end()) {
 
-		ib_logf(IB_LOG_LEVEL_FATAL, "Mutex not found: %s", name);
+		ib::fatal() << "Mutex not found: " << name;
 		ut_error;
 	}
 
@@ -1367,7 +1358,6 @@ sync_latch_get_pfs_key(
 /**
 Check if it is OK to acquire the latch.
 @param latch - latch type */
-
 void
 sync_check_lock(const latch_t* latch)
 {
@@ -1378,7 +1368,6 @@ sync_check_lock(const latch_t* latch)
 Check if it is OK to acquire the latch.
 @param latch - latch type
 @param level - latch order */
-
 void
 sync_check_lock(const latch_t* latch, latch_level_t level)
 {
@@ -1387,7 +1376,6 @@ sync_check_lock(const latch_t* latch, latch_level_t level)
 
 /**
 Check if it is OK to re-acquire the lock. */
-
 void
 sync_check_relock(const latch_t* latch)
 {
@@ -1397,7 +1385,6 @@ sync_check_relock(const latch_t* latch)
 /**
 Removes a latch from the thread level array if it is found there.
 @param latch - to unlock */
-
 void
 sync_check_unlock(const latch_t* latch)
 {
@@ -1409,7 +1396,6 @@ Checks if the level array for the current thread contains a
 mutex or rw-latch at the specified level.
 @param level - to find
 @return	a matching latch, or NULL if not found */
-
 const latch_t*
 sync_check_find(latch_level_t level)
 {
@@ -1419,7 +1405,6 @@ sync_check_find(latch_level_t level)
 /**
 Iterate over the thread's latches.
 @param functor - called for each element. */
-
 bool
 sync_check_iterate(sync_check_functor_t& functor)
 {
@@ -1428,7 +1413,6 @@ sync_check_iterate(sync_check_functor_t& functor)
 
 /**
 Enable sync order checking. */
-
 void
 sync_check_enable()
 {

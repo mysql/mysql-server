@@ -186,7 +186,7 @@ public:
   }
   static void operator delete(void *, MEM_ROOT *)
   { /* never called */ }
-  ~String() { free(); }
+  ~String() { mem_free(); }
 
   void set_charset(const CHARSET_INFO *charset_arg)
   { m_charset= charset_arg; }
@@ -204,7 +204,7 @@ public:
                 (m_alloced_length >= (m_length + 1)));
 
     if (!m_ptr || m_ptr[m_length])		/* Should be safe */
-      (void) realloc(m_length);
+      (void) mem_realloc(m_length);
     return m_ptr;
   }
   char *c_ptr_quick()
@@ -218,7 +218,7 @@ public:
     if (m_ptr && m_length < m_alloced_length)
       m_ptr[m_length]= 0;
     else
-      (void) realloc(m_length);
+      (void) mem_realloc(m_length);
     return m_ptr;
   }
   LEX_STRING lex_string() const
@@ -236,7 +236,7 @@ public:
   void set(String &str,size_t offset, size_t arg_length)
   {
     DBUG_ASSERT(&str != this);
-    free();
+    mem_free();
     m_ptr= const_cast<char*>(str.ptr()) + offset;
     m_length= arg_length;
     m_is_alloced= false;
@@ -258,7 +258,7 @@ public:
   */
   void set(char *str, size_t arg_length, const CHARSET_INFO *cs)
   {
-    free();
+    mem_free();
     m_ptr= str;
     m_length= m_alloced_length= static_cast<uint32>(arg_length);
     m_is_alloced= false;
@@ -266,7 +266,7 @@ public:
   }
   void set(const char *str, size_t arg_length, const CHARSET_INFO *cs)
   {
-    free();
+    mem_free();
     m_ptr= const_cast<char*>(str);
     m_length= arg_length;
     m_alloced_length= 0;
@@ -320,7 +320,7 @@ public:
     DBUG_ASSERT(strlen(m_ptr) == m_length);
   }
 
-  void free()
+  void mem_free()
   {
     if (m_is_alloced)
     {
@@ -338,7 +338,7 @@ public:
     return real_alloc(arg_length);
   }
   bool real_alloc(size_t arg_length);			// Empties old string
-  bool realloc(size_t arg_length);
+  bool mem_realloc(size_t arg_length);
 
   // Shrink the buffer, but only if it is allocated on the heap.
   void shrink(size_t arg_length)
@@ -371,7 +371,7 @@ public:
         some_string = substring_of_that_string
        */
       DBUG_ASSERT(!s.uses_buffer_owned_by(this));
-      free();
+      mem_free();
       m_ptr= s.m_ptr;
       m_length= s.m_length;
       m_alloced_length= s.m_alloced_length;
@@ -393,7 +393,7 @@ public:
     DBUG_ASSERT(this != &s);
     // Make sure buffers of the two Strings do not overlap
     DBUG_ASSERT(!s.uses_buffer_owned_by(this));
-    free();
+    mem_free();
     m_ptr= s.m_ptr;
     m_length= s.m_length;
     m_alloced_length= s.m_alloced_length;
@@ -456,7 +456,7 @@ public:
     }
     else
     {
-      if (realloc(m_length+1))
+      if (mem_realloc(m_length+1))
 	return 1;
       m_ptr[m_length++]= chr;
     }
@@ -472,7 +472,7 @@ public:
 
   int reserve(size_t space_needed)
   {
-    return realloc(m_length + space_needed);
+    return mem_realloc(m_length + space_needed);
   }
   int reserve(size_t space_needed, size_t grow_by);
   /*
@@ -528,7 +528,7 @@ public:
     size_t new_length= arg_length + m_length;
     if (new_length > m_alloced_length)
     {
-      if (realloc(new_length + step_alloc))
+      if (mem_realloc(new_length + step_alloc))
         return NULL;
     }
     size_t old_length= m_length;
@@ -539,7 +539,7 @@ public:
   bool append(const char *s, size_t arg_length, size_t step_alloc)
   {
     size_t new_length= arg_length + m_length;
-    if (new_length > m_alloced_length && realloc(new_length + step_alloc))
+    if (new_length > m_alloced_length && mem_realloc(new_length + step_alloc))
       return true;
     memcpy(m_ptr+m_length, s, arg_length);
     m_length+= arg_length;

@@ -49,7 +49,6 @@ ibool	buf_dblwr_being_created = FALSE;
 Determines if a page number is located inside the doublewrite buffer.
 @return TRUE if the location is inside the two blocks of the
 doublewrite buffer */
-
 ibool
 buf_dblwr_page_inside(
 /*==================*/
@@ -99,7 +98,6 @@ buf_dblwr_get(
 /********************************************************************//**
 Flush a batch of writes to the datafiles that have already been
 written to the dblwr buffer on disk. */
-
 void
 buf_dblwr_sync_datafiles()
 /*======================*/
@@ -346,7 +344,6 @@ we already have a doublewrite buffer created in the data files. If we are
 upgrading to an InnoDB version which supports multiple tablespaces, then this
 function performs the necessary update operations. If we are in a crash
 recovery, this function loads the pages from double write buffer into memory. */
-
 void
 buf_dblwr_init_or_load_pages(
 /*=========================*/
@@ -461,7 +458,6 @@ buf_dblwr_init_or_load_pages(
 }
 
 /** Process and remove the double write buffer pages for all tablespaces. */
-
 void
 buf_dblwr_process(void)
 {
@@ -499,11 +495,10 @@ buf_dblwr_process(void)
 					<< page_id_t(space_id, page_no);
 			}
 		} else {
-			bool			found;
-			const page_size_t	page_size(
-				fil_space_get_page_size(space_id, &found));
-
-			ut_ad(found);
+			const fil_space_t*	space
+				= fil_space_get(space_id);
+			ut_ad(space);
+			const page_size_t	page_size(space->flags);
 
 			/* Read in the actual page from the file */
 			fil_io(OS_FILE_READ, true,
@@ -578,7 +573,6 @@ buf_dblwr_process(void)
 
 /****************************************************************//**
 Frees doublewrite buffer. */
-
 void
 buf_dblwr_free(void)
 /*================*/
@@ -606,7 +600,6 @@ buf_dblwr_free(void)
 
 /********************************************************************//**
 Updates the doublewrite buffer when an IO request is completed. */
-
 void
 buf_dblwr_update(
 /*=============*/
@@ -726,24 +719,81 @@ buf_dblwr_check_block(
 /*==================*/
 	const buf_block_t*	block)	/*!< in: block to check */
 {
-	if (buf_block_get_state(block) != BUF_BLOCK_FILE_PAGE
-	    || block->page.zip.data) {
-		/* No simple validate for compressed pages exists. */
-		return;
+	ut_ad(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
+
+	/* On uncompressed pages, it is possible that invalid
+	FIL_PAGE_TYPE was left behind by an older version of InnoDB
+	that did not initialize FIL_PAGE_TYPE on other pages than
+	B-tree pages. Here, we will reset invalid page types to
+	FIL_PAGE_TYPE_UNKNOWN when flushing. */
+	bool	reset_invalid = block->page.zip.data == NULL;
+
+	if (reset_invalid) {
+		buf_dblwr_check_page_lsn(block->frame);
 	}
 
-	buf_dblwr_check_page_lsn(block->frame);
-
-	if (!block->check_index_page_at_flush) {
-		return;
-	}
-
-	if (page_is_comp(block->frame)) {
-		if (!page_simple_validate_new(block->frame)) {
-			buf_dblwr_assert_on_corrupt_block(block);
+	switch (fil_page_get_type(block->frame)) {
+	case FIL_PAGE_INDEX:
+	case FIL_PAGE_RTREE:
+		if (page_is_comp(block->frame)) {
+			if (page_simple_validate_new(block->frame)) {
+				return;
+			}
+		} else if (page_simple_validate_old(block->frame)) {
+			return;
 		}
-	} else if (!page_simple_validate_old(block->frame)) {
+		/* Do not attempt to fix the page type. While it is
+		possible that this is not an index page but just
+		happens to have this value in the uninitialized
+		FIL_PAGE_TYPE field, it is also possible that we
+		caught genuine corruption of an index page, and want
+		to prevent the corruption from reaching the file
+		system. */
+		reset_invalid = false;
+		break;
+	case FIL_PAGE_TYPE_UNKNOWN:
+		/* Do not complain again, we already reset this field. */
+	case FIL_PAGE_UNDO_LOG:
+	case FIL_PAGE_INODE:
+	case FIL_PAGE_IBUF_FREE_LIST:
+	case FIL_PAGE_IBUF_BITMAP:
+	case FIL_PAGE_TYPE_SYS:
+	case FIL_PAGE_TYPE_TRX_SYS:
+	case FIL_PAGE_TYPE_FSP_HDR:
+	case FIL_PAGE_TYPE_XDES:
+	case FIL_PAGE_TYPE_BLOB:
+	case FIL_PAGE_TYPE_ZBLOB:
+	case FIL_PAGE_TYPE_ZBLOB2:
+		/* TODO: validate also non-index pages */
+		return;
+	case FIL_PAGE_TYPE_ALLOCATED:
+		/* empty pages should never be flushed */
+		break;
+	default:
+		break;
+	}
 
+	if (reset_invalid
+	    && fil_space_get_flags(block->page.id.space()) == 0) {
+		ib::warn()
+			<< "Resetting unknown page "
+			<< block->page.id << " type "
+			<< fil_page_get_type(block->frame)
+			<< " to " << FIL_PAGE_TYPE_UNKNOWN
+			<< " before writing to data file.";
+		/* We are skipping redo logging here, because this is
+		a special case. Flushing is covered by previously
+		generated redo log records (write-ahead log). */
+		mach_write_to_2(block->frame
+				+ FIL_PAGE_TYPE, FIL_PAGE_TYPE_UNKNOWN);
+	} else {
+		/* Only in tablespaces that were created before MySQL
+		5.1, some pages could be created with garbage in the
+		FIL_PAGE_TYPE field. These tablespaces always carried
+		flags==0, indicating ROW_FORMAT=REDUNDANT or
+		ROW_FORMAT=COMPACT. For all other tablespaces,
+		FIL_PAGE_TYPE must always be valid, already during
+		page creation. */
 		buf_dblwr_assert_on_corrupt_block(block);
 	}
 }
@@ -793,7 +843,6 @@ and also wakes up the aio thread if simulated aio is used. It is very
 important to call this function after a batch of writes has been posted,
 and also when we may have to wait for a page latch! Otherwise a deadlock
 of threads can occur. */
-
 void
 buf_dblwr_flush_buffered_writes(void)
 /*=================================*/
@@ -944,7 +993,6 @@ flush:
 Posts a buffer page for writing. If the doublewrite memory buffer is
 full, calls buf_dblwr_flush_buffered_writes and waits for for free
 space to appear. */
-
 void
 buf_dblwr_add_to_batch(
 /*====================*/
@@ -1028,7 +1076,6 @@ flushes in the doublewrite buffer are in use we wait here for one to
 become free. We are guaranteed that a slot will become free because any
 thread that is using a slot must also release the slot before leaving
 this function. */
-
 void
 buf_dblwr_write_single_page(
 /*========================*/

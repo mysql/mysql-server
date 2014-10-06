@@ -109,7 +109,6 @@ static	file_format_t	file_format_max;
 /****************************************************************//**
 Checks whether a trx is in one of rw_trx_list
 @return true if is in */
-
 bool
 trx_in_rw_trx_list(
 /*============*/
@@ -139,7 +138,6 @@ trx_in_rw_trx_list(
 
 /*****************************************************************//**
 Writes the value of max_trx_id to the file based trx system header. */
-
 void
 trx_sys_flush_max_trx_id(void)
 /*==========================*/
@@ -167,7 +165,6 @@ Updates the offset information about the end of the MySQL binlog entry
 which corresponds to the transaction just being committed. In a MySQL
 replication slave updates the latest master binlog position up to which
 replication has proceeded. */
-
 void
 trx_sys_update_mysql_binlog_offset(
 /*===============================*/
@@ -226,7 +223,6 @@ trx_sys_update_mysql_binlog_offset(
 /*****************************************************************//**
 Stores the MySQL binlog offset info in the trx system header if
 the magic number shows it valid, and print the info to stderr */
-
 void
 trx_sys_print_mysql_binlog_offset(void)
 /*===================================*/
@@ -256,11 +252,11 @@ trx_sys_print_mysql_binlog_offset(void)
 		sys_header + TRX_SYS_MYSQL_LOG_INFO
 		+ TRX_SYS_MYSQL_LOG_OFFSET_LOW);
 
-	ib_logf(IB_LOG_LEVEL_INFO,
-		"Last MySQL binlog file position %lu %lu,"
-		" file name %s",
-		trx_sys_mysql_bin_log_pos_high, trx_sys_mysql_bin_log_pos_low,
-		sys_header + TRX_SYS_MYSQL_LOG_INFO + TRX_SYS_MYSQL_LOG_NAME);
+	ib::info() << "Last MySQL binlog file position "
+		<< trx_sys_mysql_bin_log_pos_high << " "
+		<< trx_sys_mysql_bin_log_pos_low << ", file name "
+		<< sys_header + TRX_SYS_MYSQL_LOG_INFO
+		+ TRX_SYS_MYSQL_LOG_NAME;
 
 	mtr_commit(&mtr);
 }
@@ -268,7 +264,6 @@ trx_sys_print_mysql_binlog_offset(void)
 /****************************************************************//**
 Looks for a free slot for a rollback segment in the trx system file copy.
 @return slot index or ULINT_UNDEFINED if not found */
-
 ulint
 trx_sysf_rseg_find_free(
 /*====================*/
@@ -361,7 +356,7 @@ trx_sysf_create(
 	then enter the kernel: we must do it in this order to conform
 	to the latching order rules. */
 
-	mtr_x_lock(fil_space_get_latch(TRX_SYS_SPACE, NULL), mtr);
+	mtr_x_lock_space(TRX_SYS_SPACE, mtr);
 
 	/* Create the trx sys file block in a new allocated file segment */
 	block = fseg_create(TRX_SYS_SPACE, 0, TRX_SYS + TRX_SYS_FSEG_HEADER,
@@ -416,7 +411,6 @@ trx_sysf_create(
 Creates and initializes the central memory structures for the transaction
 system. This is called when the database is started.
 @return min binary heap of rsegs to purge */
-
 purge_pq_t*
 trx_sys_init_at_db_start(void)
 /*==========================*/
@@ -485,14 +479,12 @@ trx_sys_init_at_db_start(void)
 			rows_to_undo = rows_to_undo / 1000000;
 		}
 
-		ib_logf(IB_LOG_LEVEL_INFO,
-			"%lu transaction(s) which must be rolled back or"
-			" cleaned up in total %lu%s row operations to undo",
-			(ulong) UT_LIST_GET_LEN(trx_sys->rw_trx_list),
-			(ulong) rows_to_undo, unit);
+		ib::info() << UT_LIST_GET_LEN(trx_sys->rw_trx_list)
+			<< " transaction(s) which must be rolled back or"
+			" cleaned up in total " << rows_to_undo << unit
+			<< " row operations to undo";
 
-		ib_logf(IB_LOG_LEVEL_INFO, "Trx id counter is " TRX_ID_FMT "",
-			trx_sys->max_trx_id);
+		ib::info() << "Trx id counter is " << trx_sys->max_trx_id;
 	}
 
 	trx_sys_mutex_exit();
@@ -504,7 +496,6 @@ trx_sys_init_at_db_start(void)
 
 /*****************************************************************//**
 Creates the trx_sys instance and initializes purge_queue and mutex. */
-
 void
 trx_sys_create(void)
 /*================*/
@@ -529,7 +520,6 @@ trx_sys_create(void)
 
 /*****************************************************************//**
 Creates and initializes the transaction system at the database creation. */
-
 void
 trx_sys_create_sys_pages(void)
 /*==========================*/
@@ -622,7 +612,6 @@ trx_sys_file_format_max_read(void)
 /*****************************************************************//**
 Get the name representation of the file format from its id.
 @return pointer to the name */
-
 const char*
 trx_sys_file_format_id_to_name(
 /*===========================*/
@@ -637,7 +626,6 @@ trx_sys_file_format_id_to_name(
 Check for the max file format tag stored on disk. Note: If max_format_id
 is == UNIV_FORMAT_MAX + 1 then we only print a warning.
 @return DB_SUCCESS or error code */
-
 dberr_t
 trx_sys_file_format_max_check(
 /*==========================*/
@@ -655,19 +643,24 @@ trx_sys_file_format_max_check(
 		format_id = UNIV_FORMAT_MIN;
 	}
 
-	ib_logf(IB_LOG_LEVEL_INFO,
-		"Highest supported file format is %s.",
-		trx_sys_file_format_id_to_name(UNIV_FORMAT_MAX));
+	ib::info() << "Highest supported file format is "
+		<< trx_sys_file_format_id_to_name(UNIV_FORMAT_MAX) << ".";
 
 	if (format_id > UNIV_FORMAT_MAX) {
 
 		ut_a(format_id < FILE_FORMAT_NAME_N);
 
-		ib_logf(max_format_id <= UNIV_FORMAT_MAX
-			? IB_LOG_LEVEL_ERROR : IB_LOG_LEVEL_WARN,
-			"The system tablespace is in a file"
-			" format that this version doesn't support - %s.",
-			trx_sys_file_format_id_to_name(format_id));
+		const std::string	msg = std::string("The system"
+			" tablespace is in a file format that this version"
+			" doesn't support - ")
+			+ trx_sys_file_format_id_to_name(format_id)
+			+ ".";
+
+		if (max_format_id <= UNIV_FORMAT_MAX) {
+			ib::error() << msg;
+		} else {
+			ib::warn() << msg;
+		}
 
 		if (max_format_id <= UNIV_FORMAT_MAX) {
 			return(DB_ERROR);
@@ -688,7 +681,6 @@ trx_sys_file_format_max_check(
 Set the file format id unconditionally except if it's already the
 same value.
 @return TRUE if value updated */
-
 ibool
 trx_sys_file_format_max_set(
 /*========================*/
@@ -718,7 +710,6 @@ Tags the system table space with minimum format id if it has not been
 tagged yet.
 WARNING: This function is only called during the startup and AFTER the
 redo log application during recovery has finished. */
-
 void
 trx_sys_file_format_tag_init(void)
 /*==============================*/
@@ -737,7 +728,6 @@ trx_sys_file_format_tag_init(void)
 Update the file format tag in the system tablespace only if the given
 format id is greater than the known max id.
 @return TRUE if format_id was bigger than the known max id */
-
 ibool
 trx_sys_file_format_max_upgrade(
 /*============================*/
@@ -765,7 +755,6 @@ trx_sys_file_format_max_upgrade(
 /*****************************************************************//**
 Get the name representation of the file format from its id.
 @return pointer to the max format name */
-
 const char*
 trx_sys_file_format_max_get(void)
 /*=============================*/
@@ -775,7 +764,6 @@ trx_sys_file_format_max_get(void)
 
 /*****************************************************************//**
 Initializes the tablespace tag system. */
-
 void
 trx_sys_file_format_init(void)
 /*==========================*/
@@ -792,7 +780,6 @@ trx_sys_file_format_init(void)
 
 /*****************************************************************//**
 Closes the tablespace tag system. */
-
 void
 trx_sys_file_format_close(void)
 /*===========================*/
@@ -834,7 +821,6 @@ trx_sys_create_noredo_rsegs(
 /*********************************************************************
 Creates the rollback segments.
 @return number of rollback segments that are active. */
-
 ulint
 trx_sys_create_rsegs(
 /*=================*/
@@ -894,15 +880,13 @@ trx_sys_create_rsegs(
 		}
 	}
 
-	ib_logf(IB_LOG_LEVEL_INFO,
-		"%lu redo rollback segment(s) found."
-		" %lu redo rollback segment(s) are active.",
-		n_used - srv_tmp_undo_logs,
-		n_rsegs <= n_tmp_rsegs ? 1 : (n_rsegs - n_tmp_rsegs));
+	ib::info() << n_used - srv_tmp_undo_logs
+		<< " redo rollback segment(s) found. "
+		<< ((n_rsegs <= n_tmp_rsegs) ? 1 : (n_rsegs - n_tmp_rsegs))
+		<< " redo rollback segment(s) are active.";
 
-	ib_logf(IB_LOG_LEVEL_INFO,
-		"%lu non-redo rollback segment(s) are active.",
-		n_noredo_created);
+	ib::info() << n_noredo_created << " non-redo rollback segment(s) are"
+		" active.";
 
 	return(n_used);
 }
@@ -911,7 +895,6 @@ trx_sys_create_rsegs(
 /*****************************************************************//**
 Prints to stderr the MySQL binlog info in the system header if the
 magic number shows it valid. */
-
 void
 trx_sys_print_mysql_binlog_offset_from_page(
 /*========================================*/
@@ -927,17 +910,15 @@ trx_sys_print_mysql_binlog_offset_from_page(
 			     + TRX_SYS_MYSQL_LOG_MAGIC_N_FLD)
 	    == TRX_SYS_MYSQL_LOG_MAGIC_N) {
 
-		ib_logf(IB_LOG_LEVEL_INFO,
-			"mysqlbackup: Last MySQL binlog file position %lu %lu,"
-			" file name %s",
-			(ulong) mach_read_from_4(
+		ib::info() << "mysqlbackup: Last MySQL binlog file position "
+			<< mach_read_from_4(
 				sys_header + TRX_SYS_MYSQL_LOG_INFO
-				+ TRX_SYS_MYSQL_LOG_OFFSET_HIGH),
-			(ulong) mach_read_from_4(
+				+ TRX_SYS_MYSQL_LOG_OFFSET_HIGH) << " "
+			<< mach_read_from_4(
 				sys_header + TRX_SYS_MYSQL_LOG_INFO
-				+ TRX_SYS_MYSQL_LOG_OFFSET_LOW),
-			sys_header + TRX_SYS_MYSQL_LOG_INFO
-			+ TRX_SYS_MYSQL_LOG_NAME);
+				+ TRX_SYS_MYSQL_LOG_OFFSET_LOW)
+			<< ", file name " << sys_header
+			+ TRX_SYS_MYSQL_LOG_INFO + TRX_SYS_MYSQL_LOG_NAME;
 	}
 }
 
@@ -947,7 +928,6 @@ Even if the call succeeds and returns TRUE, the returned format id
 may be ULINT_UNDEFINED signalling that the format id was not present
 in the data file.
 @return TRUE if call succeeds */
-
 ibool
 trx_sys_read_file_format_id(
 /*========================*/
@@ -977,10 +957,9 @@ trx_sys_read_file_format_id(
 		/* The following call prints an error message */
 		os_file_get_last_error(true);
 
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"mysqlbackup: Error: trying to read system tablespace"
-			" file format, but could not open the tablespace"
-			" file %s!", pathname);
+		ib::error() << "mysqlbackup: Error: trying to read system"
+			" tablespace file format, but could not open the"
+			" tablespace file " << pathname << "!";
 		return(FALSE);
 	}
 
@@ -993,10 +972,9 @@ trx_sys_read_file_format_id(
 		/* The following call prints an error message */
 		os_file_get_last_error(true);
 
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"mysqlbackup: Error: trying to read system tablespace"
-			" file format, but failed to read the tablespace"
-			" file %s!", pathname);
+		ib::error() << "mysqlbackup: Error: trying to read system"
+			" tablespace file format, but failed to read the"
+			" tablespace file " << pathname << "!";
 
 		os_file_close(file);
 		return(FALSE);
@@ -1022,7 +1000,6 @@ trx_sys_read_file_format_id(
 /*****************************************************************//**
 Reads the file format id from the given per-table data file.
 @return TRUE if call succeeds */
-
 ibool
 trx_sys_read_pertable_file_format_id(
 /*=================================*/
@@ -1052,10 +1029,9 @@ trx_sys_read_pertable_file_format_id(
 		/* The following call prints an error message */
 		os_file_get_last_error(true);
 
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"mysqlbackup: Error: trying to read per-table"
+		ib::error() << "mysqlbackup: Error: trying to read per-table"
 			" tablespace format, but could not open the tablespace"
-			" file %s!", pathname);
+			" file " << pathname << "!";
 
 		return(FALSE);
 	}
@@ -1068,10 +1044,9 @@ trx_sys_read_pertable_file_format_id(
 		/* The following call prints an error message */
 		os_file_get_last_error(true);
 
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"mysqlbackup: Error: trying to per-table data file"
-			" format, but failed to read the tablespace file %s!",
-			pathname);
+		ib::error() << "mysqlbackup: Error: trying to per-table data"
+			" file format, but failed to read the tablespace file "
+			<< pathname << "!";
 
 		os_file_close(file);
 		return(FALSE);
@@ -1099,7 +1074,6 @@ trx_sys_read_pertable_file_format_id(
 /*****************************************************************//**
 Get the name representation of the file format from its id.
 @return pointer to the name */
-
 const char*
 trx_sys_file_format_id_to_name(
 /*===========================*/
@@ -1118,7 +1092,6 @@ trx_sys_file_format_id_to_name(
 #ifndef UNIV_HOTBACKUP
 /*********************************************************************
 Shutdown/Close the transaction system. */
-
 void
 trx_sys_close(void)
 /*===============*/
@@ -1129,11 +1102,9 @@ trx_sys_close(void)
 	ulint	size = trx_sys->mvcc->size();
 
 	if (size > 0) {
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"All read views were not closed before shutdown:"
-			" %lu read views open", size);
+		ib::error() << "All read views were not closed before"
+			" shutdown: " << size << " read views open";
 	}
-
 
 	sess_close(trx_dummy_sess);
 	trx_dummy_sess = NULL;
@@ -1206,7 +1177,6 @@ trx_sys_close(void)
 /*********************************************************************
 Check if there are any active (non-prepared) transactions.
 @return total number of active transactions or 0 if none */
-
 ulint
 trx_sys_any_active_transactions(void)
 /*=================================*/
@@ -1257,7 +1227,6 @@ trx_sys_validate_trx_list_low(
 /*************************************************************//**
 Validate the trx_sys_t::rw_trx_list.
 @return true if the list is valid. */
-
 bool
 trx_sys_validate_trx_list()
 /*=======================*/

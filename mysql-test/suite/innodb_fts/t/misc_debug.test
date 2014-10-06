@@ -1,0 +1,147 @@
+#------------------------------------------------------------------------------
+# Misc FTS test on debug servers only
+#------------------------------------------------------------------------------
+--source include/have_innodb.inc
+--source include/no_valgrind_without_big.inc
+
+# Must have debug code to use SET SESSION debug
+--source include/have_debug.inc
+
+# Embedded server does not support restarting
+--source include/not_embedded.inc
+
+# Avoid CrashReporter popup on Mac
+--source include/not_crashrep.inc
+
+# Following are test for crash recovery on FTS index, the first scenario
+# is for bug Bug #14586855 INNODB: FAILING ASSERTION: (DICT_INDEX_GET_N_UNIQUE(
+# PLAN->INDEX) <= PLAN->N_EXAC
+
+# Scenario 1: Hidden FTS_DOC_ID column, and FTS index dropped
+# Create FTS table
+CREATE TABLE articles (
+        id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+        title VARCHAR(200),
+        body TEXT,
+        FULLTEXT (title,body)
+        ) ENGINE=InnoDB;
+
+# Drop the FTS index before more insertion. The FTS_DOC_ID should
+# be kept
+DROP INDEX title ON articles;
+
+# Insert six rows
+INSERT INTO articles (title,body) VALUES
+        ('MySQL Tutorial','DBMS stands for DataBase ...')  ,
+        ('How To Use MySQL Well','After you went through a ...'),
+        ('Optimizing MySQL','In this tutorial we will show ...'),
+        ('1001 MySQL Tricks','1. Never run mysqld as root. 2. ...'),
+        ('MySQL vs. YourSQL','In the following database comparison ...'),
+        ('MySQL Security','When configured properly, MySQL ...');
+
+BEGIN;
+
+INSERT INTO articles (title,body) VALUES
+        ('MySQL Tutorial','DBMS stands for DataBase ...');
+
+--source include/kill_and_restart_mysqld.inc
+
+# This insert will re-initialize the Doc ID counter, it should not crash
+INSERT INTO articles (title,body) VALUES
+        ('MySQL Tutorial','DBMS stands for DataBase ...');
+
+# Recreate fulltext index to see if everything is OK
+CREATE FULLTEXT INDEX idx ON articles (title,body);
+
+# Should return 3 rows
+SELECT * FROM articles
+        WHERE MATCH (title,body)
+        AGAINST ('Database' IN NATURAL LANGUAGE MODE);
+
+# Scenario 2: Hidden FTS_DOC_ID column, with FTS index
+# Now let's do more insertion and test a crash with FTS on
+INSERT INTO articles (title,body) VALUES
+        ('MySQL Tutorial','DBMS stands for DataBase ...')  ,
+        ('How To Use MySQL Well','After you went through a ...'),
+        ('Optimizing MySQL','In this tutorial we will show ...'),
+        ('1001 MySQL Tricks','1. Never run mysqld as root. 2. ...'),
+        ('MySQL vs. YourSQL','In the following database comparison ...'),
+        ('MySQL Security','When configured properly, MySQL ...');
+
+BEGIN;
+
+INSERT INTO articles (title,body) VALUES
+        ('MySQL Tutorial','DBMS stands for DataBase ...');
+
+--source include/kill_and_restart_mysqld.inc
+
+# This insert will re-initialize the Doc ID counter, it should not crash
+INSERT INTO articles (title,body) VALUES
+        ('MySQL Tutorial','DBMS stands for DataBase ...');
+
+# Should return 6 rows
+SELECT * FROM articles
+        WHERE MATCH (title,body)
+        AGAINST ('Database' IN NATURAL LANGUAGE MODE);
+
+DROP TABLE articles;
+
+# Scenario 3: explicit FTS_DOC_ID column with FTS index 
+# Now let's test user defined FTS_DOC_ID
+
+CREATE TABLE articles (
+	id int PRIMARY KEY,
+        FTS_DOC_ID BIGINT UNSIGNED NOT NULL,
+        title VARCHAR(200),
+        body TEXT
+        ) ENGINE=InnoDB;
+
+CREATE FULLTEXT INDEX idx1 on articles (title, body);
+
+# Note the FTS_DOC_ID is not fully ordered with primary index
+INSERT INTO articles VALUES
+        (1, 10, 'MySQL Tutorial','DBMS stands for DataBase ...')  ,
+        (2, 1, 'How To Use MySQL Well','After you went through a ...'),
+        (3, 2, 'Optimizing MySQL','In this tutorial we will show ...'),
+        (4, 11, '1001 MySQL Tricks','1. Never run mysqld as root. 2. ...'),
+        (5, 6, 'MySQL vs. YourSQL','In the following database comparison ...'),
+        (7, 4, 'MySQL Security','When configured properly, MySQL ...');
+
+BEGIN;
+
+INSERT INTO articles VALUES
+        (100, 200, 'MySQL Tutorial','DBMS stands for DataBase ...');
+
+--source include/kill_and_restart_mysqld.inc
+
+# This would re-initialize the FTS index and do the re-tokenization
+# of above records
+INSERT INTO articles VALUES         (8, 12, 'MySQL Tutorial','DBMS stands for DataBase ...');
+
+SELECT * FROM articles WHERE MATCH (title, body)
+        AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE);
+
+DROP TABLE articles;
+
+# Following test is for Bug 14668777 - ASSERT ON IB_VECTOR_SIZE(
+# TABLE->FTS->INDEXES, ALTER TABLE
+CREATE TABLE articles (
+        id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+        title VARCHAR(200),
+        body TEXT,
+        FULLTEXT (title,body)
+        ) ENGINE=InnoDB;
+
+# Abort the operation in dict_create_index_step by setting
+# return status of dict_create_index_tree_step() to DB_OUT_OF_MEMORY
+# The newly create dict_index_t should be removed from fts cache
+SET SESSION debug="+d,ib_dict_create_index_tree_fail";
+--error ER_OUT_OF_RESOURCES
+CREATE FULLTEXT INDEX idx ON articles(body);
+SET SESSION debug="-d,ib_dict_create_index_tree_fail";
+
+# This simply go through ha_innobase::commit_inplace_alter_table
+# and do a fts_check_cached_index()
+ALTER TABLE articles STATS_PERSISTENT=DEFAULT;
+
+DROP TABLE articles;

@@ -114,7 +114,6 @@ buf_read_ahead_linear(
 Issues read requests for pages which the ibuf module wants to read in, in
 order to contract the insert buffer tree. Technically, this function is like
 a read-ahead function. */
-
 void
 buf_read_ibuf_merge_pages(
 /*======================*/
@@ -139,16 +138,17 @@ buf_read_ibuf_merge_pages(
 					in the arrays */
 
 /** Issues read requests for pages which recovery wants to read in.
-@param[in]	sync		TRUE if the caller wants this function to wait
+@param[in]	sync		true if the caller wants this function to wait
 for the highest address page to get read in, before this function returns
-@param[in]	space		space id
+@param[in]	space_id	tablespace id
 @param[in]	page_nos	array of page numbers to read, with the
 highest page number the last in the array
 @param[in]	n_stored	number of page numbers in the array */
+
 void
 buf_read_recv_pages(
-	ibool		sync,
-	ulint		space,
+	bool		sync,
+	ulint		space_id,
 	const ulint*	page_nos,
 	ulint		n_stored);
 

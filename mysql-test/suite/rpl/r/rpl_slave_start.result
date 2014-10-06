@@ -9,7 +9,7 @@ Note	####	Storing MySQL user name or password information in the master info rep
 [connection master]
 [on slave]
 CALL mtr.add_suppression("Slave: Table 't1' already exists Error_code: 1050");
-CALL mtr.add_suppression("Slave SQL: .*Error .Table .t1. already exists. on query.* Error_code: 1050");
+CALL mtr.add_suppression("Slave SQL for channel '': .*Error .Table .t1. already exists. on query.* Error_code: 1050");
 call mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
 # The statement makes SQL thread to fail.
 CREATE TABLE t1(c1 INT);

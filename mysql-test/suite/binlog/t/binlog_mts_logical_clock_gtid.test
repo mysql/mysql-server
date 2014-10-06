@@ -1,0 +1,30 @@
+#
+# The test verifies proper computation of logical timestamps and
+# their logging when GTID is ON in few situations.
+#
+--source include/have_binlog_format_mixed.inc
+--source include/have_innodb.inc
+--source include/have_myisam.inc
+--source include/have_gtid.inc
+#
+# GTID mode non-specific tests are sourced.
+#
+--source extra/binlog_tests/logical_timestamping.inc
+
+#
+# GTID value sensitive tests are sourced.
+#
+--source extra/binlog_tests/drop_tables_logical_timestamp.inc
+
+--let GREP_PATTERN=last_committed=2	sequence_number=3
+--source extra/rpl_tests/grep_pattern.inc
+--let GREP_PATTERN=last_committed=3	sequence_number=4
+--source extra/rpl_tests/grep_pattern.inc
+--let GREP_PATTERN=last_committed=4	sequence_number=5
+--source extra/rpl_tests/grep_pattern.inc
+
+# And nothing in the log any more
+--echo *** must be zero count found in the last grep output ***
+--let GREP_PATTERN=sequence_number=6
+--source extra/rpl_tests/grep_pattern.inc
+

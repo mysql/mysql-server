@@ -1,0 +1,37 @@
+#
+# set up masters server_1 and server_3 with server_2 being a slave.
+#.
+include/rpl_init.inc [topology=1->2,3->2]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server_2]
+#  when sql_slave_skip_counter is set, check proper error messages are
+#  are generated. We test for START SLAVE and START SLAVE FOR CHANNEL
+#  commands.
+#
+SET GLOBAL sql_slave_skip_counter= 5;
+ERROR HY000: This operation cannot be performed with a running slave sql thread; run STOP SLAVE SQL_THREAD first
+STOP SLAVE SQL_THREAD;
+include/rpl_for_each_connection.inc [include/wait_for_slave_sql_to_stop.inc]
+SET GLOBAL sql_slave_skip_counter= 5;
+#
+# START SLAVE fails when sql_slave_skip_counter is set.
+#
+START SLAVE;
+ERROR HY000: When sql_slave_skip_counter > 0, it is not allowed to start SQL threads for multiple channels. To use sql_slave_skip_counter, stop SQL threads of all channels and execute START SLAVE FOR CHANNEL statement.
+include/assert.inc [check that no channel SQL threads are running.]
+#
+#  Test that START SLAVE FOR CHANNEL fails when any slave sql is running
+#  and sql_slave_skip_counter > 0
+include/start_slave.inc
+START SLAVE FOR CHANNEL "channel_3";
+ERROR HY000: When sql_slave_skip_counter > 0, it is not allowed to start SQL threads for multiple channels. To use sql_slave_skip_counter, stop SQL threads of all channels and execute START SLAVE FOR CHANNEL statement.
+include/stop_slave.inc
+SET GLOBAL sql_slave_skip_counter= 0;
+include/rpl_end.inc
+RESET SLAVE ALL FOR CHANNEL  'channel_1';
+RESET SLAVE ALL FOR CHANNEL  'channel_3';

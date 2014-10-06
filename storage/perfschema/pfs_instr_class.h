@@ -51,6 +51,7 @@
 #include "pfs_column_types.h"
 
 struct PFS_global_param;
+struct PFS_table_share;
 
 /**
   @addtogroup Performance_schema_buffers
@@ -261,6 +262,28 @@ struct PFS_table_key
   uint m_name_length;
 };
 
+/** Index statistics of a table.*/
+struct PFS_table_share_index
+{
+  pfs_lock m_lock;
+  /** The index name */
+  PFS_table_key m_key;
+  /** The index stat */
+  PFS_table_io_stat m_stat;
+  /** Owner table share. To be used later. */
+  PFS_table_share* m_owner;
+};
+
+/** Lock statistics of a table.*/
+struct PFS_table_share_lock
+{
+  pfs_lock m_lock;
+  /** Lock stats. */
+  PFS_table_lock_stat m_stat;
+  /** Owner table share. To be used later. */
+  PFS_table_share* m_owner;
+};
+
 /** Instrumentation metadata for a table share. */
 struct PFS_ALIGNED PFS_table_share
 {
@@ -275,6 +298,10 @@ public:
 
   void aggregate_io(void);
   void aggregate_lock(void);
+
+  void sum_io(PFS_single_stat *result, uint key_count);
+  void sum_lock(PFS_single_stat *result);
+  void sum(PFS_single_stat *result, uint key_count);
 
   inline void aggregate(void)
   {
@@ -316,6 +343,7 @@ public:
     This flag is computed from the content of table setup_objects.
   */
   bool m_timed;
+
   /** Search key. */
   PFS_table_share_key m_key;
   /** Schema name. */
@@ -328,14 +356,22 @@ public:
   uint m_table_name_length;
   /** Number of indexes. */
   uint m_key_count;
-  /** Table statistics. */
-  PFS_table_stat m_table_stat;
-  /** Index names. */
-  PFS_table_key m_keys[MAX_INDEXES];
+
+  PFS_table_share_lock *find_lock_stat() const;
+  PFS_table_share_lock *find_or_create_lock_stat();
+  void destroy_lock_stat();
+
+  PFS_table_share_index *find_index_stat(uint index) const;
+  PFS_table_share_index *find_or_create_index_stat(const TABLE_SHARE *server_share, uint index);
+  void destroy_index_stats();
 
 private:
   /** Number of opened table handles. */
   int m_refcount;
+  /** Table locks statistics. */
+  PFS_table_share_lock *m_race_lock_stat;
+  /** Table indexes' stats. */
+  PFS_table_share_index *m_race_index_stat[MAX_INDEXES + 1];
 };
 
 /** Statistics for the IDLE instrument. */
@@ -449,6 +485,17 @@ int init_thread_class(uint thread_class_sizing);
 void cleanup_thread_class();
 int init_table_share(uint table_share_sizing);
 void cleanup_table_share();
+
+int init_table_share_lock_stat(uint table_stat_sizing);
+void cleanup_table_share_lock_stat();
+PFS_table_share_lock* create_table_share_lock_stat();
+void release_table_share_lock_stat(PFS_table_share_lock *pfs);
+
+int init_table_share_index_stat(uint index_stat_sizing);
+void cleanup_table_share_index_stat();
+PFS_table_share_index* create_table_share_index_stat(const TABLE_SHARE *share, uint index);
+void release_table_share_index_stat(PFS_table_share_index *pfs);
+
 int init_table_share_hash();
 void cleanup_table_share_hash();
 int init_file_class(uint file_class_sizing);
@@ -551,6 +598,11 @@ extern ulong memory_class_lost;
 extern ulong table_share_max;
 extern ulong table_share_lost;
 
+extern ulong table_share_lock_stat_max;
+extern ulong table_share_lock_stat_lost;
+extern ulong table_share_index_stat_max;
+extern ulong table_share_index_stat_lost;
+
 /* Exposing the data directly, for iterators. */
 
 extern PFS_mutex_class *mutex_class_array;
@@ -558,6 +610,8 @@ extern PFS_rwlock_class *rwlock_class_array;
 extern PFS_cond_class *cond_class_array;
 extern PFS_file_class *file_class_array;
 extern PFS_table_share *table_share_array;
+extern PFS_table_share_lock *table_share_lock_stat_array;
+extern PFS_table_share_index *table_share_index_stat_array;
 
 void reset_events_waits_by_class();
 void reset_file_class_io();
