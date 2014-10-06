@@ -45,7 +45,7 @@ bool String::real_alloc(size_t length)
   m_length= 0;
   if (m_alloced_length < arg_length)
   {
-    free();
+    mem_free();
     if (!(m_ptr= static_cast<char*>(my_malloc(STRING_PSI_MEMORY_KEY,
                                               arg_length, MYF(MY_WME)))))
       return true;
@@ -84,7 +84,7 @@ bool String::real_alloc(size_t length)
 
    @retval true An error occured when attempting to allocate memory.
 */
-bool String::realloc(size_t alloc_length)
+bool String::mem_realloc(size_t alloc_length)
 {
   size_t len= ALIGN_SIZE(alloc_length + 1);
   DBUG_ASSERT(len > alloc_length);
@@ -152,7 +152,7 @@ bool String::copy()
   if (!m_is_alloced)
   {
     m_alloced_length= 0;				// Force realloc
-    return realloc(m_length);
+    return mem_realloc(m_length);
   }
   return false;
 }
@@ -408,7 +408,7 @@ bool String::fill(size_t max_length,char fill_char)
     m_ptr[m_length= max_length]= 0;
   else
   {
-    if (realloc(max_length))
+    if (mem_realloc(max_length))
       return true;
     memset(m_ptr + m_length, fill_char, max_length - m_length);
     m_length= max_length;
@@ -426,7 +426,7 @@ bool String::append(const String &s)
 {
   if (s.length())
   {
-    if (realloc(m_length+s.length()))
+    if (mem_realloc(m_length+s.length()))
       return true;
     memcpy(m_ptr + m_length,s.ptr(), s.length());
     m_length+=s.length();
@@ -451,7 +451,7 @@ bool String::append(const char *s, size_t arg_length)
   {
     size_t add_length= arg_length * m_charset->mbmaxlen;
     uint dummy_errors;
-    if (realloc(m_length + add_length))
+    if (mem_realloc(m_length + add_length))
       return true;
     m_length+= copy_and_convert(m_ptr + m_length, add_length, m_charset,
                                 s, arg_length, &my_charset_latin1,
@@ -462,7 +462,7 @@ bool String::append(const char *s, size_t arg_length)
   /*
     For an ASCII compatinble string we can just append.
   */
-  if (realloc(m_length + arg_length))
+  if (mem_realloc(m_length + arg_length))
     return true;
   memcpy(m_ptr + m_length, s, arg_length);
   m_length+= arg_length;
@@ -483,7 +483,7 @@ bool String::append(const char *s)
 
 bool String::append_ulonglong(ulonglong val)
 {
-  if (realloc(m_length + MAX_BIGINT_WIDTH + 2))
+  if (mem_realloc(m_length + MAX_BIGINT_WIDTH + 2))
     return true;
   char *end= longlong10_to_str(val, m_ptr + m_length, 10);
   m_length= end - m_ptr;
@@ -507,7 +507,7 @@ bool String::append(const char *s, size_t arg_length, const CHARSET_INFO *cs)
       DBUG_ASSERT(m_charset->mbminlen > offset);
       offset= m_charset->mbminlen - offset; // How many characters to pad
       add_length= arg_length + offset;
-      if (realloc(m_length + add_length))
+      if (mem_realloc(m_length + add_length))
         return true;
       memset(m_ptr + m_length, 0, offset);
       memcpy(m_ptr + m_length + offset, s, arg_length);
@@ -517,14 +517,14 @@ bool String::append(const char *s, size_t arg_length, const CHARSET_INFO *cs)
 
     add_length= arg_length / cs->mbminlen * m_charset->mbmaxlen;
     uint dummy_errors;
-    if (realloc(m_length + add_length))
+    if (mem_realloc(m_length + add_length))
       return true;
     m_length+= copy_and_convert(m_ptr + m_length, add_length, m_charset,
                                 s, arg_length, cs, &dummy_errors);
   }
   else
   {
-    if (realloc(m_length + arg_length))
+    if (mem_realloc(m_length + arg_length))
       return true;
     memcpy(m_ptr + m_length, s, arg_length);
     m_length+= arg_length;
@@ -534,7 +534,7 @@ bool String::append(const char *s, size_t arg_length, const CHARSET_INFO *cs)
 
 bool String::append(IO_CACHE* file, size_t arg_length)
 {
-  if (realloc(m_length + arg_length))
+  if (mem_realloc(m_length + arg_length))
     return true;
   if (my_b_read(file, reinterpret_cast<uchar*>(m_ptr) + m_length, arg_length))
   {
@@ -568,7 +568,7 @@ bool String::append_with_prefill(const char *s, size_t arg_length,
 {
   size_t t_length= arg_length > full_length ? arg_length : full_length;
 
-  if (realloc(m_length + t_length))
+  if (mem_realloc(m_length + t_length))
     return true;
   if (full_length > arg_length)
   {
@@ -695,7 +695,7 @@ bool String::replace(size_t offset, size_t arg_length,
     {
       if (diff)
       {
-        if (realloc(m_length + diff))
+        if (mem_realloc(m_length + diff))
           return true;
         memmove(m_ptr + offset + to_length,
                 m_ptr + offset + arg_length,
@@ -715,7 +715,7 @@ int String::reserve(size_t space_needed, size_t grow_by)
 {
   if (m_alloced_length < m_length + space_needed)
   {
-    if (realloc(m_alloced_length + max(space_needed, grow_by) - 1))
+    if (mem_realloc(m_alloced_length + max(space_needed, grow_by) - 1))
       return true;
   }
   return false;
@@ -816,10 +816,10 @@ String *copy_if_not_alloced(String *to,String *from, size_t from_length)
     return from;
   if ((from->m_is_alloced && (from->m_alloced_length != 0)) || !to || from == to)
   {
-    (void) from->realloc(from_length);
+    (void) from->mem_realloc(from_length);
     return from;
   }
-  if (to->realloc(from_length))
+  if (to->mem_realloc(from_length))
     return from;				// Actually an error
   if ((to->m_length= min(from->m_length, from_length)))
     memcpy(to->m_ptr, from->m_ptr, to->m_length);

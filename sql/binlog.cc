@@ -400,7 +400,6 @@ public:
       variable after truncating the cache.
     */
     cache_log.disk_writes= 0;
-    cache_log.commit_seq_no= SEQ_UNINIT;
     cache_log.commit_seq_offset= 0;
     group_cache.clear();
     DBUG_ASSERT(is_binlog_empty());
@@ -798,7 +797,7 @@ void check_binlog_cache_size(THD *thd)
                         (ulong) binlog_cache_size,
                         (ulong) max_binlog_cache_size);
     }
-    binlog_cache_size= max_binlog_cache_size;
+    binlog_cache_size= static_cast<ulong>(max_binlog_cache_size);
   }
 }
 
@@ -824,7 +823,7 @@ void check_binlog_stmt_cache_size(THD *thd)
                         (ulong) binlog_stmt_cache_size,
                         (ulong) max_binlog_stmt_cache_size);
     }
-    binlog_stmt_cache_size= max_binlog_stmt_cache_size;
+    binlog_stmt_cache_size= static_cast<ulong>(max_binlog_stmt_cache_size);
   }
 }
 
@@ -1157,16 +1156,6 @@ binlog_cache_data::finalize(THD *thd, Log_event *end_event)
       DBUG_RETURN(error);
     if (int error= write_event(thd, end_event))
       DBUG_RETURN(error);
-    /*
-       This is only possible if we have not entered the prepare phase. We
-       still need to have some commit parent to avoid the slave from become
-       inconsistent.
-    */
-    if (cache_log.commit_seq_no == SEQ_UNINIT)
-    {
-      cache_log.commit_seq_no=
-        mysql_bin_log.commit_clock.get_timestamp();
-    }
     flags.finalized= true;
     DBUG_PRINT("debug", ("flags.finalized: %s", YESNO(flags.finalized)));
   }
@@ -1210,7 +1199,23 @@ binlog_cache_data::flush(THD *thd, my_off_t *bytes_written, bool *wrote_xid)
   if (flags.finalized)
   {
     my_off_t bytes_in_cache= my_b_tell(&cache_log);
+    Transaction_ctx *trn_ctx= thd->get_transaction();
+
     DBUG_PRINT("debug", ("bytes_in_cache: %llu", bytes_in_cache));
+
+    trn_ctx->sequence_number= mysql_bin_log.transaction_counter.step();
+    /*
+      In case of two caches the transaction is split into two groups.
+      The 2nd group is considered to be a successor of the 1st rather
+      than to have a common commit parent with it.
+      Notice that due to a simple method of detection that the current is
+      the 2nd cache being flushed, the very first few transactions may be logged
+      sequentially (a next one is tagged as if a preceding one is its
+      commit parent).
+    */
+    if (trn_ctx->last_committed == SEQ_UNINIT)
+      trn_ctx->last_committed= trn_ctx->sequence_number - 1;
+
     /*
       The cache is always reset since subsequent rollbacks of the
       transactions might trigger attempts to write to the binary log
@@ -1316,15 +1321,12 @@ binlog_trx_cache_data::truncate(THD *thd, bool all)
 
 static int binlog_prepare(handlerton *hton, THD *thd, bool all)
 {
-  IO_CACHE* cache;
   DBUG_ENTER("binlog_prepare");
-  if (all)
+  if (!all)
   {
-    binlog_cache_mngr *const cache_mngr= thd_get_cache_mngr(thd);
-    cache= cache_mngr->get_binlog_cache_log(all);
-    if (cache->commit_seq_no == SEQ_UNINIT)
-      cache->commit_seq_no=
-        mysql_bin_log.commit_clock.get_timestamp();
+    Logical_clock& clock= mysql_bin_log.max_committed_transaction;
+    thd->get_transaction()->
+      store_commit_parent(clock.get_timestamp());
   }
   DBUG_RETURN(0);
 }
@@ -1731,6 +1733,11 @@ int MYSQL_BIN_LOG::rollback(THD *thd, bool all)
       error= cache_mngr->trx_cache.truncate(thd, all);
     }
   }
+  if (stuff_logged)
+  {
+    Transaction_ctx *trn_ctx= thd->get_transaction();
+    trn_ctx->store_commit_parent(max_committed_transaction.get_timestamp());
+  }
 
   DBUG_PRINT("debug", ("error: %d", error));
   if (error == 0 && stuff_logged)
@@ -2006,7 +2013,10 @@ private:
 static int log_in_use(const char* log_name)
 {
   Log_in_use log_in_use(log_name);
-  DEBUG_SYNC(current_thd,"purge_logs_after_lock_index_before_thread_count");
+#ifndef DBUG_OFF
+  if (current_thd)
+    DEBUG_SYNC(current_thd,"purge_logs_after_lock_index_before_thread_count");
+#endif
   Global_THD_manager::get_instance()->do_for_all_thd(&log_in_use);
   return log_in_use.get_count();
 }
@@ -3676,9 +3686,10 @@ bool MYSQL_BIN_LOG::open_binlog(const char *log_name,
      relay_log_checksum_alg :
      /* otherwise use slave's local preference of RL events verification */
      (opt_slave_sql_verify_checksum == 0) ?
-     (uint8) BINLOG_CHECKSUM_ALG_OFF : binlog_checksum_options):
+     static_cast<uint8>(BINLOG_CHECKSUM_ALG_OFF) :
+     static_cast<uint8>(binlog_checksum_options)):
     /* binlog */
-    binlog_checksum_options;
+    static_cast<uint8>(binlog_checksum_options);
   DBUG_ASSERT(s.checksum_alg != BINLOG_CHECKSUM_ALG_UNDEF);
   if (!s.is_valid())
     goto err;
@@ -3802,7 +3813,12 @@ bool MYSQL_BIN_LOG::open_binlog(const char *log_name,
   }
 
   log_state= LOG_OPENED;
-
+  /*
+    At every rotate memorize the last transaction counter state to use it as
+    offset at logging the transaction logical timestamps.
+  */
+  max_committed_transaction.update_offset(transaction_counter.get_timestamp());
+  transaction_counter.update_offset(transaction_counter.get_timestamp());
 #ifdef HAVE_REPLICATION
   close_purge_index_file();
 #endif
@@ -4249,7 +4265,7 @@ int MYSQL_BIN_LOG::find_next_relay_log(char log_name[FN_REFLEN+1])
   @retval
     1   error
 */
-bool MYSQL_BIN_LOG::reset_logs(THD* thd)
+bool MYSQL_BIN_LOG::reset_logs(THD* thd, bool delete_only)
 {
   LOG_INFO linfo;
   bool error=0;
@@ -4359,13 +4375,11 @@ bool MYSQL_BIN_LOG::reset_logs(THD* thd)
   }
 
 #ifdef HAVE_REPLICATION
-  if (is_relay_log)
-  {
-    DBUG_ASSERT(active_mi != NULL);
-    DBUG_ASSERT(active_mi->rli != NULL);
-    (const_cast<Gtid_set *>(active_mi->rli->get_gtid_set()))->clear();
-  }
-  else
+  /*
+    For relay logs we clear the gtid state assosiated per channel(i.e rli)
+    in the purge_relay_logs()
+  */
+  if (!is_relay_log)
   {
     if(gtid_state->clear(thd))
     {
@@ -4378,13 +4392,16 @@ bool MYSQL_BIN_LOG::reset_logs(THD* thd)
   }
 #endif
 
-  if (!open_index_file(index_file_name, 0, false/*need_lock_index=false*/))
+  if (!delete_only)
+  {
+    if (!open_index_file(index_file_name, 0, false/*need_lock_index=false*/))
     if ((error= open_binlog(save_name, 0,
                             max_size, false,
                             false/*need_lock_index=false*/,
                             false/*need_sid_lock=false*/,
                             NULL)))
       goto err;
+  }
   my_free((void *) save_name);
 
 err:
@@ -6037,31 +6054,37 @@ uint MYSQL_BIN_LOG::next_file_id()
 /*
   Auxiliary function to write the commit seq number for the cache involved in
   do_write_cache.
-  @param cache   Instance of IO_CACHE being written to the disk.
+  @param cache   Instance of IO_CACHE being written to the disk
   @param buff    Buffer which needs to be fixed to make sure that
-                 commit seq_number is written at the pre-allocated space.
- */
-inline void write_commit_seq_no(IO_CACHE* cache, uchar* buff)
+                 commit seq_number is written at the pre-allocated space
+  @param last_committed  the commit parent's logical timestamp
+  @param seq_number      the being flushed transaction's own logical timestamp
+*/
+inline void write_commit_seq_no(IO_CACHE* cache, uchar* buff,
+                                longlong last_committed, longlong seq_number)
 {
   DBUG_ENTER("write_commit_seq_no");
   uchar* pc_ptr= buff;
   DBUG_PRINT("info", ("MTS:: cache_ptr:=%p", cache));
   DBUG_PRINT("info", ("MTS:: commit sequence offset:=%d",
                        cache->commit_seq_offset));
-  DBUG_PRINT("info", ("MTS:: Commit Timestamp:=%lld",
-                       cache->commit_seq_no));
+  DBUG_PRINT("info", ("MTS:: Commit Timestamp:=%llu", last_committed));
   DBUG_DUMP("info", pc_ptr, (COMMIT_SEQ_LEN+1));
-  DBUG_ASSERT(cache->commit_seq_no != SEQ_UNINIT);
-  DBUG_ASSERT((*pc_ptr == Q_COMMIT_TS || *pc_ptr == G_COMMIT_TS));
+  DBUG_ASSERT((*pc_ptr == Q_COMMIT_TS2 || *pc_ptr == G_COMMIT_TS2));
   pc_ptr++;
-  DBUG_EXECUTE_IF("set_commit_parent_100",
-                  { cache->commit_seq_no=100; });
-  DBUG_EXECUTE_IF("set_commit_parent_150",
-                  { cache->commit_seq_no=150; });
 
-  // Fix commit ts.
-  int8store(pc_ptr, cache->commit_seq_no);
-  cache->commit_seq_no= SEQ_UNINIT;
+  // notice parent's seqno could be zero as expected from SEQ_UNINIT declaration
+  DBUG_ASSERT(seq_number > last_committed);
+
+  DBUG_EXECUTE_IF("set_commit_parent_100",
+                  { last_committed= max<longlong>(seq_number > 1 ? 1 : 0, seq_number - 100); });
+  DBUG_EXECUTE_IF("set_commit_parent_150",
+                  { last_committed= max<longlong>(seq_number > 1 ? 1 : 0, seq_number - 150); });
+  DBUG_EXECUTE_IF("feign_commit_parent", { last_committed= seq_number; });
+
+  // Fix commit parent and stepped prepare point
+  int8store(pc_ptr, last_committed);
+  int8store(pc_ptr + 8, seq_number);
   cache->commit_seq_offset= 0;
   DBUG_VOID_RETURN;
 }
@@ -6078,18 +6101,19 @@ inline void write_commit_seq_no(IO_CACHE* cache, uchar* buff)
     Write the contents of the cache to the binary log. The cache will
     be reset as a READ_CACHE to be able to read the contents from it.
 
-    Reading from the trans cache with possible (per @c binlog_checksum_options) 
-    adding checksum value  and then fixing the length and the end_log_pos of 
+    Reading from the trans cache with possible (per @c binlog_checksum_options)
+    adding checksum value  and then fixing the length and the end_log_pos of
     events prior to fill in the binlog cache.
 */
 
-int MYSQL_BIN_LOG::do_write_cache(IO_CACHE *cache)
+int MYSQL_BIN_LOG::do_write_cache(IO_CACHE *cache,
+                                  int64 last_committed_arg, int64 sequence_number_arg)
 {
   DBUG_ENTER("MYSQL_BIN_LOG::do_write_cache(IO_CACHE *)");
 
   DBUG_EXECUTE_IF("simulate_do_write_cache_failure",
                   {
-                    /* 
+                    /*
                        see binlog_cache_data::write_event() that reacts on
                        @c simulate_disk_full_at_flush_pending.
                     */
@@ -6274,7 +6298,8 @@ int MYSQL_BIN_LOG::do_write_cache(IO_CACHE *cache)
                 ev_type != RAND_EVENT)
             {
               uchar* pc_ptr= (uchar *)cache->read_pos + pc_offset;
-              write_commit_seq_no(cache, pc_ptr);
+              write_commit_seq_no(cache, pc_ptr, last_committed_arg,
+                                  sequence_number_arg);
             }
             else
               DBUG_PRINT("info",("Skipped strayed (USER/INT/RAND)_EVENT event "
@@ -6294,7 +6319,7 @@ int MYSQL_BIN_LOG::do_write_cache(IO_CACHE *cache)
             int4store(ev + EVENT_LEN_OFFSET, event_len + BINLOG_CHECKSUM_LEN);
             remains= fix_log_event_crc(cache->read_pos, hdr_offs, event_len,
                                        length, &crc);
-            if (my_b_write(&log_file, ev, 
+            if (my_b_write(&log_file, ev,
                            remains == 0 ? event_len : length - hdr_offs))
               DBUG_RETURN(ER_ERROR_ON_WRITE);
             if (remains == 0)
@@ -6448,6 +6473,7 @@ bool MYSQL_BIN_LOG::write_cache(THD *thd, binlog_cache_data *cache_data)
 
   IO_CACHE *cache= &cache_data->cache_log;
   bool incident= cache_data->has_incident();
+  Transaction_ctx *trn_ctx= thd->get_transaction();
 
   DBUG_EXECUTE_IF("simulate_binlog_flush_error",
                   {
@@ -6469,17 +6495,52 @@ bool MYSQL_BIN_LOG::write_cache(THD *thd, binlog_cache_data *cache_data)
      */
     if (my_b_tell(cache) > 0)
     {
+      Logical_clock& clock= mysql_bin_log.max_committed_transaction;
+      /*
+        Prepare a relative (to the current binlog) sequence_number.
+        A transaction that commits after the binlog is rotated, can
+        have a commit parent in the previous binlog. In this case,
+        subtracting the offset from the sequence number results in a
+        negative number. The commit parent dependency gets lost
+        in such case, and to indicate that the logged
+        "relative" timestamp value is set to SEQ_UNINIT.
+        In the regular case of not rotated binlog
+        exact subtracted values are written.
+      */
+
+      DBUG_ASSERT(trn_ctx->sequence_number > clock.get_offset());
+
+      int64 seq_number_logged= trn_ctx->sequence_number - clock.get_offset();
+      int64 last_committed_logged=
+        trn_ctx->last_committed <= clock.get_offset() ?
+        SEQ_UNINIT : trn_ctx->last_committed - clock.get_offset();
+      /*
+        In case both the transaction cache and the statement cache are
+        non-empty, both will be flushed in sequence and logged as
+        different transactions. Then the second transaction must only
+        be executed after the first one has committed. Therefore, we
+        need to set last_committed for the second transaction equal to
+        last_committed for the first transaction. This is done in
+        binlog_cache_data::flush. binlog_cache_data::flush uses the
+        condition trn_ctx->last_committed==SEQ_UNINIT to detect this
+        situation, hence the need to set it here.
+      */
+      trn_ctx->last_committed= SEQ_UNINIT;
+
       DBUG_EXECUTE_IF("crash_before_writing_xid",
                       {
-                        if ((write_error= do_write_cache(cache)))
+                        if ((write_error=
+                             do_write_cache(cache, last_committed_logged,
+                                            seq_number_logged)))
                           DBUG_PRINT("info", ("error writing binlog cache: %d",
                                                write_error));
                         flush_and_sync(true);
                         DBUG_PRINT("info", ("crashing before writing xid"));
                         DBUG_SUICIDE();
                       });
-
-      if ((write_error= do_write_cache(cache)))
+      if ((write_error= do_write_cache(cache,
+                                       last_committed_logged,
+                                       seq_number_logged)))
         goto err;
 
       const char* err_msg= "Non-transactional changes did not get into "
@@ -6609,7 +6670,7 @@ void MYSQL_BIN_LOG::close(uint exiting)
       Stop_log_event s;
       // the checksumming rule for relay-log case is similar to Rotate
         s.checksum_alg= is_relay_log ?
-          relay_log_checksum_alg : binlog_checksum_options;
+          relay_log_checksum_alg : static_cast<uint8>(binlog_checksum_options);
       DBUG_ASSERT(!is_relay_log ||
                   relay_log_checksum_alg != BINLOG_CHECKSUM_ALG_UNDEF);
       s.write(&log_file);
@@ -6995,6 +7056,11 @@ TC_LOG::enum_result MYSQL_BIN_LOG::commit(THD *thd, bool all)
     error= write_empty_groups_to_cache(thd, &cache_mngr->stmt_cache);
     if (error == 0)
     {
+      /*
+        Commit parent identification of non-transactional query 's
+        been deferred until now, except for the mixed transaction case.
+      */
+      trn_ctx->store_commit_parent(max_committed_transaction.get_timestamp());
       if (cache_mngr->stmt_cache.finalize(thd))
         DBUG_RETURN(RESULT_ABORTED);
       stuff_logged= true;
@@ -7090,6 +7156,9 @@ TC_LOG::enum_result MYSQL_BIN_LOG::commit(THD *thd, bool all)
 
    It is the responsibility of any plugin that use this position to
    copy it if they need it after the hook has returned.
+
+   The current "global" transaction_counter is stepped and its new value
+   is assigned to the transaction.
  */
 std::pair<int,my_off_t>
 MYSQL_BIN_LOG::flush_thread_caches(THD *thd)
@@ -7200,6 +7269,29 @@ MYSQL_BIN_LOG::process_flush_stage_queue(my_off_t *total_bytes_var,
   return flush_error;
 }
 
+/**
+  The method is to be executed right before committing time.
+  It must be invoked even if the transaction does not commit
+  to engine being merely logged into the binary log.
+  max_committed_transaction is updated with a greater timestamp
+  value.
+  As a side effect, the transaction context's sequence_number
+  is reset.
+
+  @param THD a pointer to THD instance
+*/
+void MYSQL_BIN_LOG::update_max_committed(THD *thd)
+{
+  Transaction_ctx *trn_ctx= thd->get_transaction();
+  max_committed_transaction.set_if_greater(trn_ctx->sequence_number);
+  /*
+    sequence_number timestamp is unneeded anymore, so it's cleared off.
+  */
+  trn_ctx->sequence_number= SEQ_UNINIT;
+
+  DBUG_ASSERT(trn_ctx->last_committed == SEQ_UNINIT ||
+              thd->commit_error == THD::CE_FLUSH_ERROR);
+}
 
 /**
   Commit a sequence of sessions.
@@ -7239,6 +7331,7 @@ MYSQL_BIN_LOG::process_commit_stage_queue(THD *thd, THD *first)
 #ifndef DBUG_OFF
     stage_manager.clear_preempt_status(head);
 #endif
+    update_max_committed(head);
     if (head->commit_error == THD::CE_NONE)
     {
       excursion.try_to_attach_to(head);
@@ -7427,6 +7520,8 @@ MYSQL_BIN_LOG::sync_binlog_file(bool force)
 int
 MYSQL_BIN_LOG::finish_commit(THD *thd)
 {
+  if (thd->get_transaction()->sequence_number != SEQ_UNINIT)
+    update_max_committed(thd);
   if (thd->get_transaction()->m_flags.commit_low)
   {
     const bool all= thd->get_transaction()->m_flags.real_commit;
@@ -7711,8 +7806,8 @@ int MYSQL_BIN_LOG::ordered_commit(THD *thd, bool all, bool skip_commit)
     We must also step commit_clock before the ha_commit_low() is called
     either in ordered fashion(by the leader of this stage) or by the tread
     themselves.
-   */
-  mysql_bin_log.commit_clock.step();
+  */
+
   if (opt_binlog_order_commits)
   {
     if (change_stage(thd, Stage_manager::COMMIT_STAGE,
@@ -9493,7 +9588,7 @@ static void print_unsafe_warning_to_log(int unsafe_type, char* buf,
   Auxiliary function to check if the warning for limit unsafety should be
   thrown or suppressed. Details of the implementation can be found in the
   comments inline.
-  SYNOPSIS:
+
   @params
    buf         - buffer to hold the warning message text
    unsafe_type - The type of unsafety.
@@ -9626,39 +9721,80 @@ void THD::issue_unsafe_warnings()
   DBUG_VOID_RETURN;
 }
 
- Logical_clock::Logical_clock()
-{
-  init();
-}
+Logical_clock::Logical_clock()
+  : state(SEQ_UNINIT), offset(0)
+{}
 
 /**
-SYNOPSIS:
-  Atomically steps state clock.
-  @parms: NONE
-  @ret_val: current timestamp
+  Atomically fetch the current state.
+  @parms: None
+  @return  not subtracted "absolute" value.
  */
-int64
- Logical_clock::step()
-{
-  int64 retval;
-  DBUG_ENTER("Logical_clock::step_clock");
-  retval= my_atomic_add64(&state, 1);
-  if (retval == (INT_MAX64 - 1))
-    init();
-  DBUG_RETURN(retval);
-}
-
-/**
-SYNOPSIS:
-  Atomically fetch the current state
- */
-int64
- Logical_clock::get_timestamp()
+inline int64 Logical_clock::get_timestamp()
 {
   int64 retval= 0;
   DBUG_ENTER("Logical_clock::get_timestamp");
   retval= my_atomic_load64(&state);
   DBUG_RETURN(retval);
+}
+
+/**
+  Steps the absolute value of the clock (state) to return
+  an updated value.
+  The caller must be sure to call the method in no concurrent
+  execution context so either offset and state can't change.
+
+  @return  incremented "absolute" value
+ */
+inline int64 Logical_clock::step()
+{
+  compile_time_assert(SEQ_UNINIT == 0);
+  return ++state;
+}
+
+/**
+  To try setting the clock *forward*.
+  The clock does not change when the new value is in the past
+  which is reflected by the new value and by offset.
+  In other words the function main effects is described as
+    state= max(state, new_value).
+  Offset that exceeds the new value indicates the binary log rotation
+  to render such new value useless.
+
+  @param  new_val  a new value (offset included)
+  @return a (new) value of state member regardless whether it's changed or not.
+ */
+inline int64 Logical_clock::set_if_greater(int64 new_val)
+{
+  longlong old_val= new_val - 1;
+  bool cas_rc;
+
+  DBUG_ENTER("Logical_clock::set_if_greater");
+
+  DBUG_ASSERT(new_val > 0);
+
+  if (new_val <= offset)
+  {
+    /*
+      This function's invocation can be separated from the
+      transaction's flushing by few rotations. A late to log
+      transaction does not change the clock, similarly to how
+      its timestamps are handled at flushing.
+    */
+    DBUG_RETURN(SEQ_UNINIT);
+  }
+
+  DBUG_ASSERT(new_val > 0);
+
+  while (!(cas_rc= my_atomic_cas64(&state, &old_val, new_val)) &&
+         old_val < new_val)
+  {}
+
+  DBUG_ASSERT(state >= new_val); // setting can't be done to past
+
+  DBUG_ASSERT(cas_rc || old_val >= new_val);
+
+  DBUG_RETURN(cas_rc ? new_val : old_val);
 }
 
 /**

@@ -347,7 +347,6 @@ row_merge_buf_create_low(
 /******************************************************//**
 Allocate a sort buffer.
 @return own: sort buffer */
-
 row_merge_buf_t*
 row_merge_buf_create(
 /*=================*/
@@ -374,7 +373,6 @@ row_merge_buf_create(
 /******************************************************//**
 Empty a sort buffer.
 @return sort buffer */
-
 row_merge_buf_t*
 row_merge_buf_empty(
 /*================*/
@@ -400,7 +398,6 @@ row_merge_buf_empty(
 
 /******************************************************//**
 Deallocate a sort buffer. */
-
 void
 row_merge_buf_free(
 /*===============*/
@@ -526,9 +523,9 @@ row_merge_buf_add(
 						dfield_get_data(doc_field)));
 
 					if (*doc_id == 0) {
-						ib_logf(IB_LOG_LEVEL_WARN,
-							"FTS Doc ID is zero."
-							" Record Skipped");
+						ib::warn() << "FTS Doc ID is"
+							" zero. Record"
+							" skipped";
 						DBUG_RETURN(0);
 					}
 				}
@@ -712,7 +709,6 @@ row_merge_buf_add(
 
 /*************************************************************//**
 Report a duplicate key. */
-
 void
 row_merge_dup_report(
 /*=================*/
@@ -834,7 +830,6 @@ row_merge_tuple_sort(
 
 /******************************************************//**
 Sort a buffer. */
-
 void
 row_merge_buf_sort(
 /*===============*/
@@ -852,7 +847,6 @@ row_merge_buf_sort(
 
 /******************************************************//**
 Write a buffer to a block. */
-
 void
 row_merge_buf_write(
 /*================*/
@@ -931,7 +925,6 @@ row_merge_heap_create(
 /********************************************************************//**
 Read a merge block from the file system.
 @return TRUE if request was successful, FALSE if fail */
-
 ibool
 row_merge_read(
 /*===========*/
@@ -956,8 +949,7 @@ row_merge_read(
 #endif /* POSIX_FADV_DONTNEED */
 
 	if (UNIV_UNLIKELY(!success)) {
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Failed to read merge block at " UINT64PF, ofs);
+		ib::error() << "Failed to read merge block at " << ofs;
 	}
 
 	DBUG_RETURN(success);
@@ -966,7 +958,6 @@ row_merge_read(
 /********************************************************************//**
 Write a merge block to the file system.
 @return TRUE if request was successful, FALSE if fail */
-
 ibool
 row_merge_write(
 /*============*/
@@ -997,7 +988,6 @@ row_merge_write(
 /********************************************************************//**
 Read a merge record.
 @return pointer to next record, or NULL on I/O error or end of list */
-
 const byte*
 row_merge_read_rec(
 /*===============*/
@@ -2290,10 +2280,9 @@ wait_again:
 		} while (!all_exit && trial_count < max_trial_count);
 
 		if (!all_exit) {
-			ib_logf(IB_LOG_LEVEL_FATAL,
-				"Not all child sort threads exited"
-				" when creating FTS index '%s'",
-				fts_sort_idx->name);
+			ib::fatal() << "Not all child sort threads exited"
+				" when creating FTS index '"
+				<< fts_sort_idx->name << "'";
 		}
 	}
 
@@ -2330,7 +2319,8 @@ wait_again:
 
 		if (err == DB_SUCCESS) {
 			fts_update_next_doc_id(
-				0, new_table, old_table->name, max_doc_id);
+				0, new_table,
+				old_table->name.m_name, max_doc_id);
 		}
 	}
 
@@ -2668,7 +2658,6 @@ row_merge(
 /*************************************************************//**
 Merge disk files.
 @return DB_SUCCESS or error code */
-
 dberr_t
 row_merge_sort(
 /*===========*/
@@ -2977,7 +2966,6 @@ err_exit:
 /*********************************************************************//**
 Sets an exclusive lock on a table, for the duration of creating indexes.
 @return error code or DB_SUCCESS */
-
 dberr_t
 row_merge_lock_table(
 /*=================*/
@@ -3096,9 +3084,8 @@ row_merge_drop_index_dict(
 		DB_TOO_MANY_CONCURRENT_TRXS. */
 		trx->error_state = DB_SUCCESS;
 
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"row_merge_drop_index_dict"
-			" failed with error %u", unsigned(error));
+		ib::error() << "row_merge_drop_index_dict failed with error "
+			<< error;
 	}
 
 	trx->op_info = "";
@@ -3108,7 +3095,6 @@ row_merge_drop_index_dict(
 Drop indexes that were created before an error occurred.
 The data dictionary must have been locked exclusively by the caller,
 because the transaction will not be committed. */
-
 void
 row_merge_drop_indexes_dict(
 /*========================*/
@@ -3170,9 +3156,8 @@ row_merge_drop_indexes_dict(
 		DB_TOO_MANY_CONCURRENT_TRXS. */
 		trx->error_state = DB_SUCCESS;
 
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"row_merge_drop_indexes_dict"
-			" failed with error %u", unsigned(error));
+		ib::error() << "row_merge_drop_indexes_dict failed with error"
+			<< error;
 	}
 
 	trx->op_info = "";
@@ -3182,7 +3167,6 @@ row_merge_drop_indexes_dict(
 Drop indexes that were created before an error occurred.
 The data dictionary must have been locked exclusively by the caller,
 because the transaction will not be committed. */
-
 void
 row_merge_drop_indexes(
 /*===================*/
@@ -3232,7 +3216,7 @@ row_merge_drop_indexes(
 			case ONLINE_INDEX_ABORTED_DROPPED:
 				continue;
 			case ONLINE_INDEX_COMPLETE:
-				if (*index->name != TEMP_INDEX_PREFIX) {
+				if (index->is_committed()) {
 					/* Do nothing to already
 					published indexes. */
 				} else if (index->type & DICT_FTS) {
@@ -3285,7 +3269,7 @@ row_merge_drop_indexes(
 				continue;
 			case ONLINE_INDEX_CREATION:
 				rw_lock_x_lock(dict_index_get_lock(index));
-				ut_ad(*index->name == TEMP_INDEX_PREFIX);
+				ut_ad(!index->is_committed());
 				row_log_abort_sec(index);
 			drop_aborted:
 				rw_lock_x_unlock(dict_index_get_lock(index));
@@ -3329,7 +3313,7 @@ row_merge_drop_indexes(
 
 		ut_ad(!dict_index_is_clust(index));
 
-		if (*index->name == TEMP_INDEX_PREFIX) {
+		if (!index->is_committed()) {
 			/* If it is FTS index, drop from table->fts
 			and also drop its auxiliary tables */
 			if (index->type & DICT_FTS) {
@@ -3368,7 +3352,6 @@ row_merge_drop_indexes(
 
 /*********************************************************************//**
 Drop all partially created indexes during crash recovery. */
-
 void
 row_merge_drop_temp_indexes(void)
 /*=============================*/
@@ -3420,9 +3403,8 @@ row_merge_drop_temp_indexes(void)
 		DB_TOO_MANY_CONCURRENT_TRXS. */
 		trx->error_state = DB_SUCCESS;
 
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"row_merge_drop_temp_indexes"
-			" failed with error %u", unsigned(error));
+		ib::error() << "row_merge_drop_temp_indexes failed with error"
+			<< error;
 	}
 
 	trx_commit_for_mysql(trx);
@@ -3434,7 +3416,6 @@ row_merge_drop_temp_indexes(void)
 Creates temporary merge files, and if UNIV_PFS_IO defined, register
 the file descriptor with Performance Schema.
 @return file descriptor, or -1 on failure */
-
 int
 row_merge_file_create_low(void)
 /*===========================*/
@@ -3457,8 +3438,7 @@ row_merge_file_create_low(void)
 #endif
 
 	if (fd < 0) {
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Cannot create temporary merge file");
+		ib::error() << "Cannot create temporary merge file";
 		return(-1);
 	}
 	return(fd);
@@ -3467,7 +3447,6 @@ row_merge_file_create_low(void)
 /*********************************************************************//**
 Create a merge file.
 @return file descriptor, or -1 on failure */
-
 int
 row_merge_file_create(
 /*==================*/
@@ -3489,7 +3468,6 @@ row_merge_file_create(
 /*********************************************************************//**
 Destroy a merge file. And de-register the file from Performance Schema
 if UNIV_PFS_IO is defined. */
-
 void
 row_merge_file_destroy_low(
 /*=======================*/
@@ -3511,7 +3489,6 @@ row_merge_file_destroy_low(
 }
 /*********************************************************************//**
 Destroy a merge file. */
-
 void
 row_merge_file_destroy(
 /*===================*/
@@ -3530,7 +3507,6 @@ Rename an index in the dictionary that was created. The data
 dictionary must have been locked exclusively by the caller, because
 the transaction will not be committed.
 @return DB_SUCCESS if all OK */
-
 dberr_t
 row_merge_rename_index_to_add(
 /*==========================*/
@@ -3568,9 +3544,8 @@ row_merge_rename_index_to_add(
 		DB_TOO_MANY_CONCURRENT_TRXS. */
 		trx->error_state = DB_SUCCESS;
 
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"row_merge_rename_index_to_add"
-			" failed with error %u", unsigned(err));
+		ib::error() << "row_merge_rename_index_to_add failed with"
+			" error " << err;
 	}
 
 	trx->op_info = "";
@@ -3583,7 +3558,6 @@ Rename an index in the dictionary that is to be dropped. The data
 dictionary must have been locked exclusively by the caller, because
 the transaction will not be committed.
 @return DB_SUCCESS if all OK */
-
 dberr_t
 row_merge_rename_index_to_drop(
 /*===========================*/
@@ -3624,9 +3598,8 @@ row_merge_rename_index_to_drop(
 		DB_TOO_MANY_CONCURRENT_TRXS. */
 		trx->error_state = DB_SUCCESS;
 
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"row_merge_rename_index_to_drop"
-			" failed with error %u", unsigned(err));
+		ib::error() << "row_merge_rename_index_to_drop failed with"
+			" error " << err;
 	}
 
 	trx->op_info = "";
@@ -3639,7 +3612,6 @@ Provide a new pathname for a table that is being renamed if it belongs to
 a file-per-table tablespace.  The caller is responsible for freeing the
 memory allocated for the return value.
 @return new pathname of tablespace file, or NULL if space = 0 */
-
 char*
 row_make_new_pathname(
 /*==================*/
@@ -3666,7 +3638,6 @@ Rename the tables in the data dictionary.  The data dictionary must
 have been locked exclusively by the caller, because the transaction
 will not be committed.
 @return error code or DB_SUCCESS */
-
 dberr_t
 row_merge_rename_tables_dict(
 /*=========================*/
@@ -3694,8 +3665,8 @@ row_merge_rename_tables_dict(
 
 	info = pars_info_create();
 
-	pars_info_add_str_literal(info, "new_name", new_table->name);
-	pars_info_add_str_literal(info, "old_name", old_table->name);
+	pars_info_add_str_literal(info, "new_name", new_table->name.m_name);
+	pars_info_add_str_literal(info, "old_name", old_table->name.m_name);
 	pars_info_add_str_literal(info, "tmp_name", tmp_name);
 
 	err = que_eval_sql(info,
@@ -3744,11 +3715,12 @@ row_merge_rename_tables_dict(
 	    && !is_system_tablespace(new_table->space)) {
 		/* Make pathname to update SYS_DATAFILES. */
 		char* old_path = row_make_new_pathname(
-			new_table, old_table->name);
+			new_table, old_table->name.m_name);
 
 		info = pars_info_create();
 
-		pars_info_add_str_literal(info, "old_name", old_table->name);
+		pars_info_add_str_literal(info, "old_name",
+					  old_table->name.m_name);
 		pars_info_add_str_literal(info, "old_path", old_path);
 		pars_info_add_int4_literal(info, "new_space",
 					   (lint) new_table->space);
@@ -3820,7 +3792,6 @@ row_merge_create_index_graph(
 /*********************************************************************//**
 Create the index and load in to the dictionary.
 @return index, or NULL on error */
-
 dict_index_t*
 row_merge_create_index(
 /*===================*/
@@ -3842,10 +3813,12 @@ row_merge_create_index(
 	a persistent operation. We pass 0 as the space id, and determine at
 	a lower level the space id where to store the table. */
 
-	index = dict_mem_index_create(table->name, index_def->name,
+	index = dict_mem_index_create(table->name.m_name, index_def->name,
 				      0, index_def->ind_type, n_fields);
 
 	ut_a(index);
+
+	index->set_committed(index_def->rebuild);
 
 	for (i = 0; i < n_fields; i++) {
 		index_field_t*	ifield = &index_def->fields[i];
@@ -3860,7 +3833,8 @@ row_merge_create_index(
 
 	if (err == DB_SUCCESS) {
 
-		index = dict_table_get_index_on_name(table, index_def->name);
+		index = dict_table_get_index_on_name(table, index_def->name,
+						     index_def->rebuild);
 
 		ut_a(index);
 
@@ -3879,7 +3853,6 @@ row_merge_create_index(
 
 /*********************************************************************//**
 Check if a transaction can use an index. */
-
 ibool
 row_merge_is_index_usable(
 /*======================*/
@@ -3905,7 +3878,6 @@ thread is not processing the table. This can be done by calling
 dict_stats_wait_bg_to_stop_using_table() after locking the dictionary and
 before calling this function.
 @return DB_SUCCESS or error code */
-
 dberr_t
 row_merge_drop_table(
 /*=================*/
@@ -3917,7 +3889,8 @@ row_merge_drop_table(
 	/* There must be no open transactions on the table. */
 	ut_a(table->n_ref_count == 0);
 
-	return(row_drop_table_for_mysql(table->name, trx, false, false));
+	return(row_drop_table_for_mysql(table->name.m_name,
+					trx, false, false));
 }
 
 /*********************************************************************//**
@@ -3925,7 +3898,6 @@ Build indexes on a table by reading a clustered index,
 creating a temporary file containing index entries, merge sorting
 these index entries and inserting sorted index entries to indexes.
 @return DB_SUCCESS or error code */
-
 dberr_t
 row_merge_build_indexes(
 /*====================*/
@@ -3968,7 +3940,6 @@ row_merge_build_indexes(
 	fts_psort_t*		merge_info = NULL;
 	int64_t			sig_count = 0;
 	bool			fts_psort_initiated = false;
-	bool			is_redo_skipped;
 	DBUG_ENTER("row_merge_build_indexes");
 
 	ut_ad(!srv_read_only_mode);
@@ -4001,18 +3972,7 @@ row_merge_build_indexes(
 		merge_files[i].fd = -1;
 	}
 
-	/* Check whether we can skip redo log for page allocation.
-	Since we have a checkpoint at the end of bulk load, the redo
-	log for page allocation is used in case of transaction rollback
-	(drop a B-tree). If we are rebuilding a table with a single file,
-	we can simply remove the file when rollback. */
-	is_redo_skipped = dict_table_is_temporary(new_table)
-		|| (old_table != new_table
-		    && new_table->flags2 & DICT_TF2_USE_FILE_PER_TABLE);
-
 	for (i = 0; i < n_indexes; i++) {
-		indexes[i]->is_redo_skipped = is_redo_skipped;
-
 		if (indexes[i]->type & DICT_FTS) {
 			ibool	opt_doc_id_size = FALSE;
 
@@ -4119,11 +4079,10 @@ wait_again:
 				}
 
 				if (!all_exit) {
-					ib_logf(IB_LOG_LEVEL_ERROR,
-						"Not all child merge threads"
-						" exited when creating FTS"
-						" index '%s'",
-						indexes[i]->name);
+					ib::error() << "Not all child merge"
+						" threads exited when creating"
+						" FTS index '"
+						<< indexes[i]->name << "'";
 				}
 			} else {
 				/* This cannot report duplicates; an
@@ -4181,14 +4140,8 @@ wait_again:
 		}
 
 		if (indexes[i]->type & DICT_FTS && fts_enable_diag_print) {
-			char*	name = (char*) indexes[i]->name;
-
-			if (*name == TEMP_INDEX_PREFIX)  {
-				name++;
-			}
-
-			ib_logf(IB_LOG_LEVEL_INFO,
-				"Finished building full-text index %s", name);
+			ib::info() << "Finished building full-text index "
+				<< indexes[i]->name;
 		}
 	}
 
@@ -4225,7 +4178,7 @@ func_exit:
 		as aborted. */
 		for (i = 0; i < n_indexes; i++) {
 			ut_ad(!(indexes[i]->type & DICT_FTS));
-			ut_ad(*indexes[i]->name == TEMP_INDEX_PREFIX);
+			ut_ad(!indexes[i]->is_committed());
 			ut_ad(!dict_index_is_clust(indexes[i]));
 
 			/* Completed indexes should be dropped as

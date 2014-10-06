@@ -400,12 +400,14 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
                        MY_RETURN_REAL_PATH);
     }
 
-    if (thd->slave_thread)
+    if (thd->slave_thread & ((SYSTEM_THREAD_SLAVE_SQL |
+                             (SYSTEM_THREAD_SLAVE_WORKER))!=0))
     {
 #if defined(HAVE_REPLICATION) && !defined(MYSQL_CLIENT)
-      DBUG_ASSERT(active_mi != NULL);
-      if (strncmp(active_mi->rli->slave_patternload_file, name,
-                  active_mi->rli->slave_patternload_file_size))
+      Relay_log_info* rli= thd->rli_slave->get_c_rli();
+
+      if (strncmp(rli->slave_patternload_file, name,
+                  rli->slave_patternload_file_size))
       {
         /*
           LOAD DATA INFILE in the slave SQL Thread can only read from 
@@ -767,7 +769,7 @@ static bool write_execute_load_query_log_event(THD *thd, sql_exchange* ex,
       // Extract exact Item value
       str->copy();
       pfields.append(str->ptr());
-      str->free();
+      str->mem_free();
     }
     /*
       Clear the SET string list once the SET command is reconstructed

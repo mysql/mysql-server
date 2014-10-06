@@ -465,6 +465,7 @@ void LEX::reset()
   is_lex_started= true;
   used_tables= 0;
   reset_slave_info.all= false;
+  mi.channel= NULL;
 
   wild= NULL;
   exchange= NULL;
@@ -4439,6 +4440,8 @@ void st_lex_master_info::initialize()
   relay_log_name= NULL;
   relay_log_pos= 0;
   repl_ignore_server_ids.clear();
+  channel= NULL;
+  for_channel= false;
 }
 
 void st_lex_master_info::set_unspecified()

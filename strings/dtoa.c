@@ -1476,7 +1476,8 @@ static double my_strtod_int(const char *s00, char **se, int *error, char *buf, s
       case '-':
         esign= 1;
       case '+':
-        c= *++s;
+        if (++s < end)
+          c= *s;
       }
     if (s < end && c >= '0' && c <= '9')
     {

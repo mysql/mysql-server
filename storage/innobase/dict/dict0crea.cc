@@ -46,6 +46,7 @@ Created 1/8/1996 Heikki Tuuri
 #include "ut0vec.h"
 #include "dict0priv.h"
 #include "fts0priv.h"
+#include "fsp0space.h"
 #include "fsp0sysspace.h"
 
 /*****************************************************************//**
@@ -80,7 +81,8 @@ dict_create_sys_tables_tuple(
 	dfield = dtuple_get_nth_field(
 		entry, DICT_COL__SYS_TABLES__NAME);
 
-	dfield_set_data(dfield, table->name, ut_strlen(table->name));
+	dfield_set_data(dfield,
+			table->name.m_name, strlen(table->name.m_name));
 
 	/* 1: DB_TRX_ID added later */
 	/* 2: DB_ROLL_PTR added later */
@@ -261,7 +263,10 @@ dict_build_table_def_step(
 
 	table = node->table;
 
-	err = dict_build_tablespace(table, thr_get_trx(thr));
+	trx_t*	trx = thr_get_trx(thr);
+	dict_table_assign_new_id(table, trx);
+
+	err = dict_build_tablespace_for_table(table);
 	if (err != DB_SUCCESS) {
 		return(err);
 	}
@@ -273,34 +278,20 @@ dict_build_table_def_step(
 	return(err);
 }
 
-/***************************************************************//**
-Builds a tablespace, if configured (using file-per-table=1).
+/** Builds a tablespace to contain a table, using file-per-table=1.
+@param[in,out]	table	Table to build in its own tablespace.
 @return DB_SUCCESS or error code */
-
 dberr_t
-dict_build_tablespace(
-/*===================*/
-	dict_table_t*	table,	/*!< in/out: table */
-	trx_t*		trx)	/*!< in/out: InnoDB transaction handle */
+dict_build_tablespace_for_table(
+	dict_table_t*	table)
 {
 	dberr_t		err	= DB_SUCCESS;
-	const char*	path;
 	mtr_t		mtr;
 	ulint		space = 0;
 	bool		file_per_table;
+	char*		filepath;
 
 	ut_ad(mutex_own(&dict_sys->mutex) || dict_table_is_intrinsic(table));
-
-	if (!dict_table_is_intrinsic(table)) {
-		dict_hdr_get_new_id(&table->id, NULL, NULL, table, false);
-	} else {
-		/* There is no significance of this table->id (if table is
-		intrinsic) so assign it default instead of something meaningful
-		to avoid confusion.*/
-		table->id = ULINT_UNDEFINED;
-	}
-
-	trx->table_id = table->id;
 
 	file_per_table = dict_table_use_file_per_table(table);
 
@@ -311,8 +302,13 @@ dict_build_tablespace(
 					    DICT_TF2_FTS_AUX_HEX_NAME););
 
 	if (file_per_table) {
-		/* This table will not use the system tablespace.
-		Get a new space id. */
+		/* This table will need a new tablespace. */
+
+		ut_ad(dict_table_get_format(table) <= UNIV_FORMAT_MAX);
+		ut_ad(DICT_TF_GET_ZIP_SSIZE(table->flags) == 0
+		      || dict_table_get_format(table) >= UNIV_FORMAT_B);
+
+		/* Get a new tablespace ID */
 		dict_hdr_get_new_id(NULL, NULL, &space, table, false);
 
 		DBUG_EXECUTE_IF(
@@ -323,29 +319,48 @@ dict_build_tablespace(
 		if (space == ULINT_UNDEFINED) {
 			return(DB_ERROR);
 		}
+		table->space = static_cast<unsigned int>(space);
+
+		/* Determine the tablespace flags. */
+		bool	is_temp = dict_table_is_temporary(table);
+		bool	has_data_dir = DICT_TF_HAS_DATA_DIR(table->flags);
+		ulint	fsp_flags = dict_tf_to_fsp_flags(table->flags);
+
+		/* Determine the full filepath */
+		if (is_temp) {
+			/* Temporary table filepath contains a full path
+			and a filename without the extension. */
+			ut_ad(table->dir_path_of_temp_table);
+			filepath = fil_make_filepath(
+				table->dir_path_of_temp_table,
+				NULL, IBD, false);
+
+		} else if (has_data_dir) {
+			ut_ad(table->data_dir_path);
+			filepath = fil_make_filepath(
+				table->data_dir_path,
+				table->name.m_name, IBD, true);
+
+		} else {
+			/* Make the tablespace file in the default dir
+			using the table name */
+			filepath = fil_make_filepath(
+				NULL, table->name.m_name, IBD, false);
+		}
 
 		/* We create a new single-table tablespace for the table.
 		We initially let it be 4 pages:
 		- page 0 is the fsp header and an extent descriptor page,
 		- page 1 is an ibuf bitmap page,
 		- page 2 is the first inode page,
-		- page 3 will contain the root of the clustered index of the
-		table we create here. */
+		- page 3 will contain the root of the clustered index of
+		the table we create here. */
 
-		path = table->data_dir_path ? table->data_dir_path
-					    : table->dir_path_of_temp_table;
-
-		ut_ad(dict_table_get_format(table) <= UNIV_FORMAT_MAX);
-		ut_ad(!dict_table_page_size(table).is_compressed()
-		      || dict_table_get_format(table) >= UNIV_FORMAT_B);
-
-		err = fil_create_new_single_table_tablespace(
-			space, table->name, path,
-			dict_tf_to_fsp_flags(table->flags),
-			table->flags2,
+		err = fil_create_ibd_tablespace(
+			space, table->name.m_name, filepath, fsp_flags, is_temp,
 			FIL_IBD_FILE_INITIAL_SIZE);
 
-		table->space = (unsigned int) space;
+		ut_free(filepath);
 
 		if (err != DB_SUCCESS) {
 
@@ -360,11 +375,16 @@ dict_build_tablespace(
 
 		mtr_commit(&mtr);
 	} else {
-		/* All non-compressed temporary tables are stored in
-		shared temp-tablespace. Note: Even if table is residing
-		in temp-tablespace row_format is honored as against
-		over-written in non-temp-table case */
+		/* We do not need to build a tablespace for this table. It
+		is already built.  Just find the correct tablespace ID. */
+
 		if (dict_table_is_temporary(table)) {
+			/* Use the shared temporary tablespace.
+			Note: The temp tablespace supports all non-Compressed
+			row formats whereas the system tablespace only
+			supports Redundant and Compact */
+			ut_ad(dict_tf_get_rec_format(table->flags)
+				!= REC_FORMAT_COMPRESSED);
 			table->space = srv_tmp_space.space_id();
 		} else {
 			/* Create in the system tablespace.
@@ -456,7 +476,16 @@ dict_create_sys_indexes_tuple(
 	dfield = dtuple_get_nth_field(
 		entry, DICT_COL__SYS_INDEXES__NAME);
 
-	dfield_set_data(dfield, index->name, ut_strlen(index->name));
+	if (!index->is_committed()) {
+		ulint	len	= strlen(index->name) + 1;
+		char*	name	= static_cast<char*>(
+			mem_heap_alloc(heap, len));
+		*name = *TEMP_INDEX_PREFIX_STR;
+		memcpy(name + 1, index->name, len - 1);
+		dfield_set_data(dfield, name, len);
+	} else {
+		dfield_set_data(dfield, index->name, strlen(index->name));
+	}
 
 	/* 5: N_FIELDS ----------------------*/
 	dfield = dtuple_get_nth_field(
@@ -679,7 +708,6 @@ dict_build_index_def_step(
 /***************************************************************//**
 Builds an index definition without updating SYSTEM TABLES.
 @return DB_SUCCESS or error code */
-
 void
 dict_build_index_def(
 /*=================*/
@@ -819,7 +847,6 @@ dict_create_index_tree_step(
 Creates an index tree for the index if it is not a member of a cluster.
 Don't update SYSTEM TABLES.
 @return DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
-
 dberr_t
 dict_create_index_tree_in_mem(
 /*==========================*/
@@ -867,7 +894,6 @@ dict_create_index_tree_in_mem(
 /*******************************************************************//**
 Drops the index tree associated with a row in SYS_INDEXES table.
 @return index root page number of FIL_NULL if it was already freed. */
-
 ulint
 dict_drop_index_tree(
 /*=================*/
@@ -958,7 +984,6 @@ dict_drop_index_tree(
 
 /*******************************************************************//**
 Drops the index tree but don't update SYS_INDEXES table. */
-
 void
 dict_drop_index_tree_in_mem(
 /*========================*/
@@ -1001,7 +1026,6 @@ dict_drop_index_tree_in_mem(
 /*******************************************************************//**
 Recreate the index tree associated with a row in SYS_INDEXES table.
 @return	new root page number, or FIL_NULL on failure */
-
 ulint
 dict_recreate_index_tree(
 /*=====================*/
@@ -1043,7 +1067,7 @@ dict_recreate_index_tree(
 
 		ib::warn()
 			<< "Trying to TRUNCATE a missing .ibd file of table "
-			<< ut_get_name(NULL, TRUE, table->name) << "!";
+			<< table->name << "!";
 
 		return(FIL_NULL);
 	}
@@ -1084,7 +1108,7 @@ dict_recreate_index_tree(
 	}
 
 	ib::error() << "Failed to create index with index id " << index_id
-		<< " of table " << ut_get_name(NULL, TRUE, table->name);
+		<< " of table " << table->name;
 
 	return(FIL_NULL);
 }
@@ -1092,7 +1116,6 @@ dict_recreate_index_tree(
 /*******************************************************************//**
 Truncates the index tree but don't update SYSTEM TABLES.
 @return DB_SUCCESS or error */
-
 dberr_t
 dict_truncate_index_tree_in_mem(
 /*============================*/
@@ -1116,7 +1139,7 @@ dict_truncate_index_tree_in_mem(
 
 		/* The tree has been freed. */
 		ib::warn() << "Trying to TRUNCATE a missing index of table "
-			<< ut_get_name(NULL, TRUE, index->table->name) << "!";
+			<< index->table->name << "!";
 
 		truncate = false;
 	} else {
@@ -1134,7 +1157,7 @@ dict_truncate_index_tree_in_mem(
 
 		ib::warn()
 			<< "Trying to TRUNCATE a missing .ibd file of table "
-			<< ut_get_name(NULL, TRUE, index->table->name) << "!";
+			<< index->table->name << "!";
 	}
 
 	/* If table to truncate resides in its on own tablespace that will
@@ -1181,7 +1204,6 @@ dict_truncate_index_tree_in_mem(
 /*********************************************************************//**
 Creates a table create graph.
 @return own: table create node */
-
 tab_node_t*
 tab_create_graph_create(
 /*====================*/
@@ -1224,7 +1246,6 @@ tab_create_graph_create(
 /*********************************************************************//**
 Creates an index create graph.
 @return own: index create node */
-
 ind_node_t*
 ind_create_graph_create(
 /*====================*/
@@ -1268,7 +1289,6 @@ ind_create_graph_create(
 /***********************************************************//**
 Creates a table. This is a high-level function used in SQL execution graphs.
 @return query thread to run next or NULL */
-
 que_thr_t*
 dict_create_table_step(
 /*===================*/
@@ -1371,7 +1391,6 @@ function_exit:
 Creates an index. This is a high-level function used in SQL execution
 graphs.
 @return query thread to run next or NULL */
-
 que_thr_t*
 dict_create_index_step(
 /*===================*/
@@ -1580,7 +1599,6 @@ Creates the foreign key constraints system tables inside InnoDB
 at server bootstrap or server start if they are not found or are
 not of the right form.
 @return DB_SUCCESS or error code */
-
 dberr_t
 dict_create_or_check_foreign_constraint_tables(void)
 /*================================================*/
@@ -1815,7 +1833,6 @@ dict_create_add_foreign_field_to_dictionary(
 /********************************************************************//**
 Add a foreign key definition to the data dictionary tables.
 @return error code or DB_SUCCESS */
-
 dberr_t
 dict_create_add_foreign_to_dictionary(
 /*==================================*/
@@ -1912,8 +1929,8 @@ dict_create_add_foreigns_to_dictionary(
 		foreign = *it;
 		ut_ad(foreign->id != NULL);
 
-		error = dict_create_add_foreign_to_dictionary(table->name,
-							      foreign, trx);
+		error = dict_create_add_foreign_to_dictionary(
+			table->name.m_name, foreign, trx);
 
 		if (error != DB_SUCCESS) {
 
@@ -1939,7 +1956,6 @@ Creates the tablespaces and datafiles system tables inside InnoDB
 at server bootstrap or server start if they are not found or are
 not of the right form.
 @return DB_SUCCESS or error code */
-
 dberr_t
 dict_create_or_check_sys_tablespace(void)
 /*=====================================*/
@@ -2013,8 +2029,7 @@ dict_create_or_check_sys_tablespace(void)
 
 		ib::error() << "Creation of SYS_TABLESPACES and SYS_DATAFILES"
 			" has failed with error " << ut_strerr(err)
-			<< ". Tablespace is full. Dropping incompletely"
-			" created tables.";
+			<< ". Dropping incompletely created tables.";
 
 		ut_a(err == DB_OUT_OF_FILE_SPACE
 		     || err == DB_TOO_MANY_CONCURRENT_TRXS);
@@ -2057,7 +2072,6 @@ dict_create_or_check_sys_tablespace(void)
 Add a single tablespace definition to the data dictionary tables in the
 database.
 @return error code or DB_SUCCESS */
-
 dberr_t
 dict_create_add_tablespace_to_dictionary(
 /*=====================================*/
@@ -2105,4 +2119,24 @@ dict_create_add_tablespace_to_dictionary(
 	trx->op_info = "";
 
 	return(error);
+}
+
+/** Assign a new table ID and put it into the table cache and the transaction.
+@param[in,out]	table	Table that needs an ID
+@param[in,out]	trx	Transaction */
+void
+dict_table_assign_new_id(
+	dict_table_t*	table,
+	trx_t*		trx)
+{
+	if (dict_table_is_intrinsic(table)) {
+		/* There is no significance of this table->id (if table is
+		intrinsic) so assign it default instead of something meaningful
+		to avoid confusion.*/
+		table->id = ULINT_UNDEFINED;
+	} else {
+		dict_hdr_get_new_id(&table->id, NULL, NULL, table, false);
+	}
+
+	trx->table_id = table->id;
 }

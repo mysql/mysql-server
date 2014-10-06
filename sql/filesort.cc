@@ -383,7 +383,8 @@ ha_rows filesort(THD *thd, QEP_TAB *qep_tab, Filesort *filesort,
       goto err;
   }
 
-  num_chunks= my_b_tell(&chunk_file)/sizeof(Merge_chunk);
+  num_chunks= static_cast<size_t>(my_b_tell(&chunk_file)) /
+    sizeof(Merge_chunk);
 
   Opt_trace_object(trace, "filesort_summary")
     .add("rows", num_rows)
@@ -841,6 +842,7 @@ static ha_rows find_all_keys(Sort_param *param, QEP_TAB *qep_tab,
     }
     else					/* Not quick-select */
     {
+      DBUG_EXECUTE_IF("bug19656296", DBUG_SET("+d,ha_rnd_next_deadlock"););
       {
 	error= file->ha_rnd_next(sort_form->record[0]);
 	if (!flag)
@@ -926,8 +928,17 @@ static ha_rows find_all_keys(Sort_param *param, QEP_TAB *qep_tab,
   DBUG_PRINT("test",("error: %d  indexpos: %d",error,indexpos));
   if (error != HA_ERR_END_OF_FILE)
   {
-    file->print_error(error,MYF(ME_ERROR | ME_WAITTANG)); // purecov: inspected
-    num_records= HA_POS_ERROR;                            // purecov: inspected
+    myf my_flags;
+    switch (error) {
+    case HA_ERR_LOCK_DEADLOCK:
+    case HA_ERR_LOCK_WAIT_TIMEOUT:
+      my_flags= MYF(0);
+      break;
+    default:
+      my_flags= MYF(ME_INFO);
+    }
+    file->print_error(error, my_flags);
+    num_records= HA_POS_ERROR;
     goto cleanup;
   }
   if (indexpos && idx &&
@@ -1673,18 +1684,19 @@ uint read_to_buffer(IO_CACHE *fromfile,
   uint rec_length= param->rec_length;
   ha_rows count;
 
-  if ((count= min<ha_rows>(merge_chunk->max_keys(), merge_chunk->rowcount())))
+  if ((count= min(merge_chunk->max_keys(), merge_chunk->rowcount())))
   {
     size_t bytes_to_read;
     if (param->using_packed_addons())
     {
       count= merge_chunk->rowcount();
       bytes_to_read=
-        min<my_off_t>(merge_chunk->buffer_size(),
-                      fromfile->end_of_file - merge_chunk->file_position());
+        min(merge_chunk->buffer_size(),
+            static_cast<size_t>(fromfile->end_of_file -
+                                merge_chunk->file_position()));
     }
     else
-      bytes_to_read= rec_length * count;
+      bytes_to_read= rec_length * static_cast<size_t>(count);
 
     DBUG_PRINT("info", ("read_to_buffer %p at file_pos %llu bytes %llu",
                         merge_chunk,
@@ -1797,7 +1809,7 @@ int merge_buffers(Sort_param *param, IO_CACHE *from_file,
   int error;
   uint rec_length,res_length;
   size_t sort_length;
-  ulong maxcount;
+  ha_rows maxcount;
   ha_rows max_rows,org_max_rows;
   my_off_t to_start_filepos;
   uchar *strpos;

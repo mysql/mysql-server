@@ -630,3 +630,9 @@ SELECT * FROM t1 ORDER BY a;
 
 DROP TABLE t1;
 SET sql_mode='';
+
+--echo #
+--echo # Bug#19047527 SQRT() : UNINITIALISED VALUE IN MY_STRTOD
+--echo #
+
+do sqrt(weight_string(_eucjpms "0E+"));

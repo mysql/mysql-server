@@ -77,7 +77,6 @@ Created 2013/03/27 Jimmy Yang and Allen Lai
 /**********************************************************************//**
 Builds a Rtree node pointer out of a physical record and a page number.
 @return own: node pointer */
-
 dtuple_t*
 rtr_index_build_node_ptr(
 /*=====================*/
@@ -100,7 +99,6 @@ function must always succeed, we cannot reverse it: therefore enough
 free disk space (2 pages) must be guaranteed to be available before
 this function is called.
 @return inserted record */
-
 rec_t*
 rtr_page_split_and_insert(
 /*======================*/
@@ -131,14 +129,13 @@ the copied record listed in the rtr_info->matches vector before
 moving to next page
 @return true if there is next qualified record found, otherwise(if
 exhausted) false */
-
 bool
 rtr_pcur_move_to_next(
 /*==================*/
 	const dtuple_t*	tuple,	/*!< in: data tuple; NOTE: n_fields_cmp in
 				tuple must be set so that it cannot get
 				compared to the node ptr page number field! */
-	ulint		mode,	/*!< in: cursor search mode */
+	page_cur_mode_t	mode,	/*!< in: cursor search mode */
 	btr_pcur_t*	cursor, /*!< in: persistent cursor; NOTE that the
 				function may release the page latch */
 	ulint		cur_level,
@@ -147,7 +144,6 @@ rtr_pcur_move_to_next(
 
 /**************************************************************//**
 Restores the stored position of a persistent cursor bufferfixing the page */
-
 bool
 rtr_cur_restore_position_func(
 /*==========================*/
@@ -162,14 +158,13 @@ rtr_cur_restore_position_func(
 
 /****************************************************************//**
 Searches the right position in rtree for a page cursor. */
-
 bool
 rtr_cur_search_with_match(
 /*======================*/
 	const buf_block_t*	block,	/*!< in: buffer block */
 	dict_index_t*		index,	/*!< in: index descriptor */
 	const dtuple_t*		tuple,	/*!< in: data tuple */
-	ulint			mode,	/*!< in: PAGE_CUR_L,
+	page_cur_mode_t		mode,	/*!< in: PAGE_CUR_L,
 					PAGE_CUR_LE, PAGE_CUR_G, or
 					PAGE_CUR_GE */
 	page_cur_t*		cursor,	/*!< in/out: page cursor */
@@ -178,7 +173,6 @@ rtr_cur_search_with_match(
 /****************************************************************//**
 Calculate the area increased for a new record
 @return area increased */
-
 double
 rtr_rec_cal_increase(
 /*=================*/
@@ -194,7 +188,6 @@ rtr_rec_cal_increase(
 /****************************************************************//**
 Following the right link to find the proper block for insert.
 @return the proper block.*/
-
 dberr_t
 rtr_ins_enlarge_mbr(
 /*=================*/
@@ -204,7 +197,6 @@ rtr_ins_enlarge_mbr(
 
 /********************************************************************//**
 */
-
 void
 rtr_get_father_node(
 /*================*/
@@ -236,7 +228,6 @@ rtr_non_leaf_stack_push(
 
 /**************************************************************//**
 push a nonleaf index node to the search path for insertion */
-
 void
 rtr_non_leaf_insert_stack_push(
 /*===========================*/
@@ -268,7 +259,6 @@ rtr_get_current_ssn_id(
 
 /********************************************************************//**
 Create a RTree search info structure */
-
 rtr_info_t*
 rtr_create_rtr_info(
 /******************/
@@ -282,7 +272,6 @@ rtr_create_rtr_info(
 
 /********************************************************************//**
 Update a btr_cur_t with rtr_info */
-
 void
 rtr_info_update_btr(
 /******************/
@@ -292,7 +281,6 @@ rtr_info_update_btr(
 
 /********************************************************************//**
 Update a btr_cur_t with rtr_info */
-
 void
 rtr_init_rtr_info(
 /****************/
@@ -306,7 +294,6 @@ rtr_init_rtr_info(
 
 /**************************************************************//**
 Clean up Rtree cursor */
-
 void
 rtr_clean_rtr_info(
 /*===============*/
@@ -315,7 +302,6 @@ rtr_clean_rtr_info(
 
 /****************************************************************//**
 Get the bounding box content from an index record*/
-
 void
 rtr_get_mbr_from_rec(
 /*=================*/
@@ -325,7 +311,6 @@ rtr_get_mbr_from_rec(
 
 /****************************************************************//**
 Get the bounding box content from a MBR data record */
-
 void
 rtr_get_mbr_from_tuple(
 /*===================*/
@@ -339,7 +324,6 @@ rtr_get_mbr_from_tuple(
 Returns the upper level node pointer to a R-Tree page. It is assumed
 that mtr holds an x-latch on the tree.
 @return rec_get_offsets() of the node pointer record */
-
 ulint*
 rtr_page_get_father_node_ptr_func(
 /*==============================*/
@@ -358,7 +342,6 @@ rtr_page_get_father_node_ptr_func(
 Returns the father block to a page. It is assumed that mtr holds
 an X or SX latch on the tree.
 @return rec_get_offsets() of the node pointer record */
-
 ulint*
 rtr_page_get_father_block(
 /*======================*/
@@ -374,7 +357,6 @@ rtr_page_get_father_block(
 /**************************************************************//**
 Store the parent path cursor
 @return number of cursor stored */
-
 ulint
 rtr_store_parent_path(
 /*==================*/
@@ -388,14 +370,13 @@ rtr_store_parent_path(
 /**************************************************************//**
 Initializes and opens a persistent cursor to an index tree. It should be
 closed with btr_pcur_close. */
-
 void
 rtr_pcur_open_low(
 /*==============*/
 	dict_index_t*	index,	/*!< in: index */
 	ulint		level,	/*!< in: level in the btree */
 	const dtuple_t*	tuple,	/*!< in: tuple on which search done */
-	ulint		mode,	/*!< in: PAGE_CUR_L, ...;
+	page_cur_mode_t	mode,	/*!< in: PAGE_CUR_L, ...;
 				NOTE that if the search is made using a unique
 				prefix of a record, mode should be
 				PAGE_CUR_LE, not PAGE_CUR_GE, as the latter
@@ -436,7 +417,6 @@ rtr_get_parent_cursor(
 
 /*************************************************************//**
 Copy recs from a page to new_block of rtree. */
-
 void
 rtr_page_copy_rec_list_end_no_locks(
 /*================================*/
@@ -482,7 +462,6 @@ rtr_merge_and_update_mbr(
 
 /*************************************************************//**
 Deletes on the upper level the node pointer to a page. */
-
 void
 rtr_node_ptr_delete(
 /*================*/
@@ -527,7 +506,6 @@ rtr_update_mbr_field(
 /**************************************************************//**
 Check whether a Rtree page is child of a parent page
 @return true if there is child/parent relationship */
-
 bool
 rtr_check_same_block(
 /*=================*/
@@ -558,7 +536,6 @@ rtr_read_mbr(
 
 /**************************************************************//**
 Check whether a discarding page is in anyone's search path */
-
 void
 rtr_check_discard_page(
 /*===================*/

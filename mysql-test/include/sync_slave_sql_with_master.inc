@@ -11,6 +11,7 @@
 #
 # [--let $sync_slave_connection= <connection_name>]
 # [--let $use_gtids= 1]
+# [--let $rpl_channel_name= 1]
 # [--let $slave_timeout= NUMBER]
 # [--let $rpl_debug= 1]
 # [--let $wait_for_executed_gtid_set= 1]
@@ -27,6 +28,9 @@
 #     By default, this script switches connection to 'slave'. If
 #     $sync_slave_connection is set, then '$sync_slave_connection' is
 #     used instead of 'slave'.
+#
+#   $rpl_channel_name
+#     See include/wait_for_slave_param.inc
 #
 #   $slave_timeout
 #      See include/wait_for_slave_param.inc.

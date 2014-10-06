@@ -14,7 +14,7 @@
 # Free Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston
 # MA  02110-1301  USA.
 
-%global milestone       m15
+%global milestone       m16
 %global mysql_version   @VERSION@
 
 %global mysql_vendor    Oracle and/or its affiliates
@@ -63,7 +63,7 @@ Name:           mysql-%{product_suffix}
 Summary:        A very fast and reliable SQL database server
 Group:          Applications/Databases
 Version:        @MYSQL_NO_DASH_VERSION@
-Release:        0.1%{?milestone:.%{milestone}}%{?commercial:.1}%{?dist}
+Release:        0.2%{?milestone:.%{milestone}}%{?commercial:.1}%{?dist}
 License:        Copyright (c) 2000, @MYSQL_COPYRIGHT_YEAR@, %{mysql_vendor}. All rights reserved. Under %{?license_type} license as shown in the Description field.
 Source0:        https://cdn.mysql.com/Downloads/MySQL-@MYSQL_BASE_VERSION@/%{src_dir}.tar.gz
 URL:            http://www.mysql.com/
@@ -129,8 +129,8 @@ Requires:       perl-base
 Provides:       MySQL-server-advanced = %{version}-%{release}
 Obsoletes:      MySQL-server-advanced < %{version}-%{release}
 Obsoletes:      mysql-community-server < %{version}-%{release}
-Requires:       mysql-enterprise-client = %{version}-%{release}
-Requires:       mysql-enterprise-common = %{version}-%{release}
+Requires:       mysql-commercial-client = %{version}-%{release}
+Requires:       mysql-commercial-common = %{version}-%{release}
 %else
 Provides:       MySQL-server = %{version}-%{release}
 Requires:       mysql-community-client = %{version}-%{release}
@@ -184,7 +184,7 @@ Group:          Applications/Databases
 Provides:       MySQL-client-advanced = %{version}-%{release}
 Obsoletes:      MySQL-client-advanced < %{version}-%{release}
 Obsoletes:      mysql-community-client < %{version}-%{release}
-Requires:       mysql-enterprise-libs = %{version}-%{release}
+Requires:       mysql-commercial-libs = %{version}-%{release}
 %else
 Provides:       MySQL-client = %{version}-%{release}
 Requires:       mysql-community-libs = %{version}-%{release}
@@ -219,7 +219,7 @@ Group:          Applications/Databases
 Provides:       MySQL-test-advanced = %{version}-%{release}
 Obsoletes:      MySQL-test-advanced < %{version}-%{release}
 Obsoletes:      mysql-community-test < %{version}-%{release}
-Requires:       mysql-enterprise-server = %{version}-%{release}
+Requires:       mysql-commercial-server = %{version}-%{release}
 %else
 Provides:       MySQL-test = %{version}-%{release}
 Requires:       mysql-community-server = %{version}-%{release}
@@ -240,7 +240,7 @@ Summary:        MySQL benchmark suite
 Group:          Applications/Databases
 %if 0%{?commercial}
 Obsoletes:      mysql-community-bench < %{version}-%{release}
-Requires:       mysql-enterprise-server = %{version}-%{release}
+Requires:       mysql-commercial-server = %{version}-%{release}
 %else
 Requires:       mysql-community-server = %{version}-%{release}
 %endif
@@ -261,7 +261,7 @@ Group:          Applications/Databases
 Provides:       MySQL-devel-advanced = %{version}-%{release}
 Obsoletes:      MySQL-devel-advanced < %{version}-%{release}
 Obsoletes:      mysql-community-devel < %{version}-%{release}
-Requires:       mysql-enterprise-libs = %{version}-%{release}
+Requires:       mysql-commercial-libs = %{version}-%{release}
 %else
 Provides:       MySQL-devel = %{version}-%{release}
 Requires:       mysql-community-libs = %{version}-%{release}
@@ -284,7 +284,7 @@ Group:          Applications/Databases
 Provides:       MySQL-shared-advanced = %{version}-%{release}
 Obsoletes:      MySQL-shared-advanced < %{version}-%{release}
 Obsoletes:      mysql-community-libs < %{version}-%{release}
-Requires:       mysql-enterprise-common = %{version}-%{release}
+Requires:       mysql-commercial-common = %{version}-%{release}
 %else
 Provides:       MySQL-shared = %{version}-%{release}
 Requires:       mysql-community-common = %{version}-%{release}
@@ -309,7 +309,7 @@ Group:          Applications/Databases
 Provides:       MySQL-embedded-advanced = %{version}-%{release}
 Obsoletes:      MySQL-embedded-advanced < %{version}-%{release}
 Obsoletes:      mysql-community-embedded < %{version}-%{release}
-Requires:       mysql-enterprise-common = %{version}-%{release}
+Requires:       mysql-commercial-common = %{version}-%{release}
 %else
 Provides:       MySQL-embedded = %{version}-%{release}
 Requires:       mysql-community-common = %{version}-%{release}
@@ -336,8 +336,8 @@ Summary:        Development header files and libraries for MySQL as an embeddabl
 Group:          Applications/Databases
 %if 0%{?commercial}
 Obsoletes:      mysql-community-embedded-devel < %{version}-%{release}
-Requires:       mysql-enterprise-devel = %{version}-%{release}
-Requires:       mysql-enterprise-embedded = %{version}-%{release}
+Requires:       mysql-commercial-devel = %{version}-%{release}
+Requires:       mysql-commercial-embedded = %{version}-%{release}
 %else
 Requires:       mysql-community-devel = %{version}-%{release}
 Requires:       mysql-community-embedded = %{version}-%{release}
@@ -624,9 +624,11 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/audit_log.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/authentication_pam.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/thread_pool.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/openssl_udf.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/audit_log.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_pam.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/thread_pool.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/openssl_udf.so
 %endif
 %attr(644, root, root) %{_datadir}/mysql/fill_help_tables.sql
 %attr(644, root, root) %{_datadir}/mysql/mysql_system_tables.sql
@@ -778,6 +780,12 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/libmysqld.so
 
 %changelog
+* Tue Sep 2 2014 Bjorn Munch <bjorn.munch@oracle.com> - 5.7.6-0.1.m16
+- Updated for 5.7.6
+
+* Mon Sep 01 2014 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 5.7.5-0.2.m15
+- Added openssl_udf.so plugin to commercial packages
+
 * Mon Jun 30 2014 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 5.7.5-0.1.m15
 - Port to SLES
 

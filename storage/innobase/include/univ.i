@@ -344,6 +344,8 @@ limit both with this same constant. */
 #define UNIV_PAGE_SIZE_SHIFT_DEF	14
 /** Original 16k InnoDB Page Size Shift, in case the default changes */
 #define UNIV_PAGE_SIZE_SHIFT_ORIG	14
+/** Original 16k InnoDB Page Size as an ssize (log2 - 9) */
+#define UNIV_PAGE_SSIZE_ORIG		(UNIV_PAGE_SIZE_SHIFT_ORIG - 9)
 
 /** Minimum page size InnoDB currently supports. */
 #define UNIV_PAGE_SIZE_MIN	(1 << UNIV_PAGE_SIZE_SHIFT_MIN)
@@ -364,8 +366,12 @@ limit both with this same constant. */
 (The convention 'ssize' is used for 'log2 minus 9' or the number of
 shifts starting with 512.)
 This max number varies depending on UNIV_PAGE_SIZE. */
-#define UNIV_PAGE_SSIZE_MAX					\
+#define UNIV_PAGE_SSIZE_MAX	\
 	static_cast<ulint>(UNIV_PAGE_SIZE_SHIFT - UNIV_ZIP_SIZE_SHIFT_MIN + 1)
+
+/** Smallest possible ssize for an uncompressed page. */
+#define UNIV_PAGE_SSIZE_MIN	\
+	static_cast<ulint>(UNIV_PAGE_SIZE_SHIFT_MIN - UNIV_ZIP_SIZE_SHIFT_MIN + 1)
 
 /** Maximum number of parallel threads in a parallelized operation */
 #define UNIV_MAX_PARALLELISM	32

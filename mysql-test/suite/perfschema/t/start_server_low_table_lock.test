@@ -1,0 +1,126 @@
+# Tests for PERFORMANCE_SCHEMA
+
+--source include/not_embedded.inc
+--source include/have_perfschema.inc
+
+--source ../include/start_server_common.inc
+
+#############################
+# Setup database and tables.
+#############################
+--disable_warnings
+drop table if exists db1.t1;
+drop database if exists db1;
+--enable_warnings
+create database db1;
+create table db1.t1 (a int, b char(10) default 'default');
+
+#######################
+# Execute few queries.
+#######################
+insert into db1.t1 values('1', 'abc');
+insert into db1.t1 values('2', 'abc');
+select * from db1.t1 where a='1';
+
+#####################################################
+# Run few queries on Performance Schema stats tables.
+#####################################################
+# There should be 3 entries in following table. 2 for insert and 1 for select.
+select COUNT_STAR, OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME
+  from performance_schema.table_lock_waits_summary_by_table
+  where OBJECT_SCHEMA='db1'
+  order by OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME;
+
+flush tables;
+
+select COUNT_STAR, OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME
+  from performance_schema.table_lock_waits_summary_by_table
+  where OBJECT_SCHEMA='db1'
+  order by OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME;
+
+# Expect no TABLE_LOCK_STAT lost, we have room for 1 table lock for db1.t1
+select variable_value from information_schema.global_status
+  where variable_name like 'PERFORMANCE_SCHEMA_TABLE_LOCK_STAT_LOST';
+
+
+create table db1.t2 (a int, b char(10) default 'default',
+                         unique key uidx(a));
+
+#######################
+# Execute few queries.
+#######################
+insert into db1.t1 values('3', 'abc');
+insert into db1.t1 values('4', 'abc');
+select * from db1.t1 where a='1';
+
+insert into db1.t2 values('1', 'abc');
+insert into db1.t2 values('2', 'abc');
+select * from db1.t2 where a='1';
+
+#####################################################
+# Run few queries on Performance Schema stats tables.
+#####################################################
+
+select COUNT_STAR, OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME
+  from performance_schema.table_lock_waits_summary_by_table
+  where OBJECT_SCHEMA='db1'
+  order by OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME;
+
+flush tables;
+
+select COUNT_STAR, OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME
+  from performance_schema.table_lock_waits_summary_by_table
+  where OBJECT_SCHEMA='db1'
+  order by OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME;
+
+# Expect TABLE_LOCK_STAT lost, we can not keep stats for db1.t2
+select variable_value > 0 from information_schema.global_status
+  where variable_name like 'PERFORMANCE_SCHEMA_TABLE_LOCK_STAT_LOST';
+
+flush status;
+
+
+#######################################
+# Update setup_objects to DISABLE TABLE
+#######################################
+
+update performance_schema.setup_objects set ENABLED='NO'
+  where OBJECT_TYPE='TABLE' and OBJECT_SCHEMA="%";
+
+#######################
+# Execute few queries.
+#######################
+insert into db1.t1 values('5', 'abc');
+insert into db1.t1 values('6', 'abc');
+select * from db1.t1 where a='1';
+
+insert into db1.t2 values('3', 'abc');
+insert into db1.t2 values('4', 'abc');
+select * from db1.t2 where a='1';
+
+# Empty, objects are disabled
+select COUNT_STAR, OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME
+  from performance_schema.table_lock_waits_summary_by_table
+  where OBJECT_SCHEMA='db1'
+  order by OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME;
+
+flush tables;
+
+# Empty, objects are disabled
+select COUNT_STAR, OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME
+  from performance_schema.table_lock_waits_summary_by_table
+  where OBJECT_SCHEMA='db1'
+  order by OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME;
+
+# Do not expect lost counter in TABLE_LOCK_STAT 
+select variable_value from information_schema.global_status
+  where variable_name like 'PERFORMANCE_SCHEMA_TABLE_LOCK_STAT_LOST';
+
+
+###########
+# Cleanup.
+###########
+drop database db1;
+
+update performance_schema.setup_objects set ENABLED='YES'
+  where OBJECT_TYPE='TABLE' and OBJECT_SCHEMA="%";

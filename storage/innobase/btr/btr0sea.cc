@@ -151,7 +151,6 @@ btr_search_check_free_space_in_heap(void)
 
 /*****************************************************************//**
 Creates and initializes the adaptive search system at a database start. */
-
 void
 btr_search_sys_create(
 /*==================*/
@@ -179,7 +178,6 @@ btr_search_sys_create(
 
 /** Resize hash index hash table.
 @param[in]	hash_size	hash index hash table size */
-
 void
 btr_search_sys_resize(
 	ulint	hash_size)
@@ -205,7 +203,6 @@ btr_search_sys_resize(
 
 /*****************************************************************//**
 Frees the adaptive search system at a database shutdown. */
-
 void
 btr_search_sys_free(void)
 /*=====================*/
@@ -243,7 +240,6 @@ btr_search_disable_ref_count(
 
 /********************************************************************//**
 Disable the adaptive hash search system and empty the index. */
-
 void
 btr_search_disable(void)
 /*====================*/
@@ -289,7 +285,6 @@ btr_search_disable(void)
 
 /********************************************************************//**
 Enable the adaptive hash search system. */
-
 void
 btr_search_enable(void)
 /*====================*/
@@ -311,7 +306,6 @@ btr_search_enable(void)
 /*****************************************************************//**
 Creates and initializes a search info struct.
 @return own: search info struct */
-
 btr_search_t*
 btr_search_info_create(
 /*===================*/
@@ -353,7 +347,6 @@ btr_search_info_create(
 Returns the value of ref_count. The value is protected by
 btr_search_latch.
 @return ref_count value. */
-
 ulint
 btr_search_info_get_ref_count(
 /*==========================*/
@@ -622,7 +615,6 @@ btr_search_update_hash_ref(
 
 /*********************************************************************//**
 Updates the search info. */
-
 void
 btr_search_info_update_slow(
 /*========================*/
@@ -842,7 +834,6 @@ of the index. Note that if mode is PAGE_CUR_LE, which is used in inserts,
 and the function returns TRUE, then cursor->up_match and cursor->low_match
 both have sensible values.
 @return TRUE if succeeded */
-
 ibool
 btr_search_guess_on_hash(
 /*=====================*/
@@ -1055,7 +1046,6 @@ btr_search_guess_on_hash(
 
 /********************************************************************//**
 Drops a page hash index. */
-
 void
 btr_search_drop_page_hash_index(
 /*============================*/
@@ -1487,7 +1477,6 @@ Moves or deletes hash entries for moved records. If new_page is already hashed,
 then the hash index for page, if any, is dropped. If new_page is not hashed,
 and page is hashed, then a new hash index is built to new_page with the same
 parameters as page (this often happens when a page is split). */
-
 void
 btr_search_move_or_delete_hash_entries(
 /*===================================*/
@@ -1553,7 +1542,6 @@ btr_search_move_or_delete_hash_entries(
 
 /********************************************************************//**
 Updates the page hash index when a single record is deleted from a page. */
-
 void
 btr_search_update_hash_on_delete(
 /*=============================*/
@@ -1621,7 +1609,6 @@ btr_search_update_hash_on_delete(
 
 /********************************************************************//**
 Updates the page hash index when a single record is inserted on a page. */
-
 void
 btr_search_update_hash_node_on_insert(
 /*==================================*/
@@ -1689,7 +1676,6 @@ func_exit:
 
 /********************************************************************//**
 Updates the page hash index when a single record is inserted on a page. */
-
 void
 btr_search_update_hash_on_insert(
 /*=============================*/
@@ -1837,13 +1823,6 @@ check_next_rec:
 		if (!left_side) {
 
 			ha_insert_for_fold(table, ins_fold, block, ins_rec);
-			/*
-			ib_logf(IB_LOG_LEVEL_INFO, "Hash insert for"
-				" index %s of table %s fold %lu",
-				ut_get_name(NULL, FALSE, index->name).c_str(),
-				ut_get_name(NULL, TRUE, index->table_name).c_str(),
-				ins_fold);
-			*/
 		} else {
 			ha_insert_for_fold(table, next_fold, block, next_rec);
 		}
@@ -1862,7 +1841,6 @@ function_exit:
 /********************************************************************//**
 Validates the search system.
 @return TRUE if ok */
-
 ibool
 btr_search_validate(void)
 /*=====================*/

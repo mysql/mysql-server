@@ -763,7 +763,7 @@ retry:
         keypart_map= (keypart_map << 1) | 1;
       }
 
-      if (!(key= (uchar*) thd->calloc(ALIGN_SIZE(key_len))))
+      if (!(key= (uchar*) thd->mem_calloc(ALIGN_SIZE(key_len))))
 	goto err;
       if ((error= table->file->ha_index_or_rnd_end()))
         break;

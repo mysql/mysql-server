@@ -364,7 +364,7 @@ public:
 			which is currently 0. */
 			err = m_truncate.write(
 				log_buf + 4, log_buf + sz - 4,
-				m_table->space, m_table->name,
+				m_table->space, m_table->name.m_name,
 				m_flags, m_table->flags, log_get_lsn());
 
 			DBUG_EXECUTE_IF("ib_err_trunc_oom_logging",
@@ -415,12 +415,11 @@ public:
 				os_file_close(handle);
 				ret = false;);
 		if (!ret) {
-			ib_logf(IB_LOG_LEVEL_ERROR,
-				"Failed to open truncate log file %s."
+			ib::error() << "Failed to open truncate log file "
+				<< m_log_file_name << "."
 				" If server crashes before truncate log is"
 				" removed make sure it is manually removed"
-				" before restarting server",
-				m_log_file_name);
+				" before restarting server";
 			os_file_delete(innodb_log_file_key, m_log_file_name);
 			return;
 		}
@@ -587,9 +586,8 @@ TruncateLogParser::parse(
 		innodb_log_file_key, log_file_name,
 		OS_FILE_OPEN, OS_FILE_READ_ONLY, srv_read_only_mode, &ret);
 	if (!ret) {
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Error opening truncate log file: %s",
-			log_file_name);
+		ib::error() << "Error opening truncate log file: "
+			<< log_file_name;
 		return(DB_IO_ERROR);
 	}
 
@@ -850,9 +848,8 @@ TruncateLogger::operator()(mtr_t* mtr, btr_pcur_t* pcur)
 			}
 
 		} else {
-			ib_logf(IB_LOG_LEVEL_WARN,
-				"Index id " IB_ID_FMT " not found",
-				index.m_id);
+			ib::warn() << "Index id " << index.m_id
+				<< " not found";
 		}
 	}
 
@@ -1198,7 +1195,7 @@ row_truncate_complete(
 		dberr_t err2 = truncate_t::truncate(
 			table->space,
 			table->data_dir_path,
-			table->name, flags, false);
+			table->name.m_name, flags, false);
 
 		if (err2 != DB_SUCCESS) {
 			return(err2);
@@ -1244,7 +1241,8 @@ row_truncate_fts(
 
 	dberr_t		err;
 
-	err = fts_create_common_tables(trx, &fts_table, table->name, TRUE);
+	err = fts_create_common_tables(
+		trx, &fts_table, table->name.m_name, TRUE);
 
 	for (ulint i = 0;
 	     i < ib_vector_size(table->fts->indexes) && err == DB_SUCCESS;
@@ -1256,7 +1254,7 @@ row_truncate_fts(
 			ib_vector_getp(table->fts->indexes, i));
 
 		err = fts_create_index_tables_low(
-			trx, fts_index, table->name, new_id);
+			trx, fts_index, table->name.m_name, new_id);
 	}
 
 	DBUG_EXECUTE_IF("ib_err_trunc_during_fts_trunc",
@@ -1268,14 +1266,8 @@ row_truncate_fts(
 		trx_rollback_to_savepoint(trx, NULL);
 		trx->error_state = DB_SUCCESS;
 
-		char	table_name[MAX_FULL_NAME_LEN + 1];
-
-		innobase_format_name(
-			table_name, sizeof(table_name), table->name, FALSE);
-
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Unable to truncate FTS index for table %s",
-			table_name);
+		ib::error() << "Unable to truncate FTS index for table "
+			<< table->name;
 	} else {
 
 		ut_ad(trx_is_started(trx));
@@ -1422,14 +1414,10 @@ row_truncate_update_system_tables(
 			table, trx, new_id, has_internal_doc_id,
 			no_redo, true, false);
 
-		char	table_name[MAX_FULL_NAME_LEN + 1];
-		innobase_format_name(
-			table_name, sizeof(table_name), table->name, FALSE);
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Unable to assign a new identifier to table %s"
-			" after truncating it. Marked the table as corrupted."
-			" In-memory representation is now different from the"
-			" on-disk representation.", table_name);
+		ib::error() << "Unable to assign a new identifier to table "
+			<< table->name << " after truncating it. Marked the"
+			" table as corrupted. In-memory representation is now"
+			" different from the on-disk representation.";
 		err = DB_ERROR;
 	} else {
 		/* Drop the old FTS index */
@@ -1530,7 +1518,7 @@ row_truncate_foreign_key_checks(
 		ut_print_timestamp(ef);
 
 		fputs("  Cannot truncate table ", ef);
-		ut_print_name(ef, trx, TRUE, table->name);
+		ut_print_name(ef, trx, TRUE, table->name.m_name);
 		fputs(" by DROP+CREATE\n"
 		      "InnoDB: because it is referenced by ", ef);
 		ut_print_name(ef, trx, TRUE, foreign->foreign_table_name);
@@ -1548,15 +1536,9 @@ row_truncate_foreign_key_checks(
 	checks take an IS or IX lock on the table. */
 
 	if (table->n_foreign_key_checks_running > 0) {
-
-		char	table_name[MAX_FULL_NAME_LEN + 1];
-
-		innobase_format_name(
-			table_name, sizeof(table_name), table->name, FALSE);
-
-		ib_logf(IB_LOG_LEVEL_WARN,
-			"Cannot truncate table %s because there is a"
-			" foreign key check running on it.", table_name);
+		ib::warn() << "Cannot truncate table " << table->name
+			<< " because there is a foreign key check running on"
+			" it.";
 
 		return(DB_ERROR);
 	}
@@ -1575,11 +1557,10 @@ row_truncate_sanity_checks(
 {
 	if (srv_sys_space.created_new_raw()) {
 
-		ib_logf(IB_LOG_LEVEL_INFO,
-			"A new raw disk partition was initialized:"
+		ib::info() << "A new raw disk partition was initialized:"
 			" we do not allow database modifications by the"
 			" user. Shut down mysqld and edit my.cnf so that"
-			" newraw is replaced with raw.");
+			" newraw is replaced with raw.";
 
 		return(DB_ERROR);
 
@@ -1604,7 +1585,6 @@ Truncates a table for MySQL.
 @param table		table being truncated
 @param trx		transaction covering the truncate
 @return	error code or DB_SUCCESS */
-
 dberr_t
 row_truncate_table_for_mysql(
 	dict_table_t* table,
@@ -1741,11 +1721,10 @@ row_truncate_table_for_mysql(
 	/* Check if memcached DML is running on this table. if is, we don't
 	allow truncate this table. */
 	if (table->memcached_sync_count != 0) {
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Cannot truncate table %s by DROP+CREATE"
-			" because there are memcached operations"
-			" running on it.",
-			ut_get_name(trx, TRUE, table->name).c_str());
+		ib::error() << "Cannot truncate table "
+			<< table->name
+			<< " by DROP+CREATE because there are memcached"
+			" operations running on it.";
 		err = DB_ERROR;
 		trx_rollback_to_savepoint(trx, NULL);
 		return(row_truncate_complete(table, trx, flags, logger, err));
@@ -2047,11 +2026,9 @@ truncate_t::fixup_tables()
 		/* Step-1: Drop tablespace (only for single-tablespace),
 		drop indexes and re-create indexes. */
 
-		ib_logf(IB_LOG_LEVEL_INFO,
-			"Completing truncate for table with id (" IB_ID_FMT ")"
-			" residing in space with id (%lu)",
-			(*it)->m_old_table_id,
-			(ulong) (*it)->m_space_id);
+		ib::info() << "Completing truncate for table with id ("
+			<< (*it)->m_old_table_id << ") residing in space with"
+			" id (" << (*it)->m_space_id << ")";
 
 		if (!is_system_tablespace((*it)->m_space_id)) {
 
@@ -2062,12 +2039,12 @@ truncate_t::fixup_tables()
 				fil_create_directory_for_tablename(
 					(*it)->m_tablename);
 
-				if (fil_create_new_single_table_tablespace(
+				if (fil_create_ibd_tablespace(
 						(*it)->m_space_id,
 						(*it)->m_tablename,
 						(*it)->m_dir_path,
 						(*it)->m_tablespace_flags,
-						DICT_TF2_USE_FILE_PER_TABLE,
+						false,
 						FIL_IBD_FILE_INITIAL_SIZE)
 					!= DB_SUCCESS) {
 
@@ -2075,10 +2052,10 @@ truncate_t::fixup_tables()
 					and table is dropped and then we might
 					still have REDO entries for this table
 					which are INVALID. Ignore them. */
-					ib_logf(IB_LOG_LEVEL_WARN,
-						"Failed to create tablespace"
-						" for %lu space-id",
-						(*it)->m_space_id);
+					ib::warn() << "Failed to create"
+						" tablespace for "
+						<< (*it)->m_space_id
+						<< " space-id";
 					err = DB_ERROR;
 					break;
 				}
@@ -2191,8 +2168,7 @@ truncate_t::truncate_t(
 {
 	m_log_file_name = mem_strdup(log_file_name);
 	if (m_log_file_name == NULL) {
-		ib_logf(IB_LOG_LEVEL_FATAL,
-			"Failed creating truncate_t; out of memory");
+		ib::fatal() << "Failed creating truncate_t; out of memory";
 	}
 }
 
@@ -2535,14 +2511,11 @@ truncate_t::create_index(
 
 	if (root_page_no == FIL_NULL) {
 
-		ib_logf(IB_LOG_LEVEL_INFO,
-			"innodb_force_recovery was set to %lu."
-			" Continuing crash recovery even though"
-			" we failed to create index " IB_ID_FMT " for"
-			" compressed table '%s' with tablespace"
-			" %lu during recovery",
-			srv_force_recovery,
-			index_id, table_name, (ulong) space_id);
+		ib::info() << "innodb_force_recovery was set to "
+			<< srv_force_recovery << ". Continuing crash recovery"
+			" even though we failed to create index " << index_id
+			<< " for compressed table '" << table_name << "' with"
+			" tablespace " << space_id << " during recovery";
 	}
 
 	return(root_page_no);
@@ -2567,7 +2540,6 @@ truncate_t::is_index_modified_since_logged(
 	ut_ad(found);
 
 	mtr_start(&mtr);
-	mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
 
 	/* Root page could be in free state if truncate crashed after drop_index
 	and page was not allocated for any other object. */

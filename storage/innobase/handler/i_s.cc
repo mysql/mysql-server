@@ -60,19 +60,27 @@ struct buf_page_desc_t{
 	ulint		type_value;	/*!< Page type or page state */
 };
 
+/** We also define I_S_PAGE_TYPE_INDEX as the Index Page's position
+in i_s_page_type[] array */
+#define I_S_PAGE_TYPE_INDEX		1
+
+/** Any unassigned FIL_PAGE_TYPE will be treated as unknown. */
+#define	I_S_PAGE_TYPE_UNKNOWN		FIL_PAGE_TYPE_UNKNOWN
+
 /** R-tree index page */
 #define	I_S_PAGE_TYPE_RTREE		(FIL_PAGE_TYPE_LAST + 1)
 
 /** Change buffer B-tree page */
 #define	I_S_PAGE_TYPE_IBUF		(FIL_PAGE_TYPE_LAST + 2)
 
-/** Any states greater than I_S_PAGE_TYPE_IBUF would be treated as
-unknown. */
-#define	I_S_PAGE_TYPE_UNKNOWN		(I_S_PAGE_TYPE_IBUF + 1)
+#define I_S_PAGE_TYPE_LAST		I_S_PAGE_TYPE_IBUF
 
-/** We also define I_S_PAGE_TYPE_INDEX as the Index Page's position
-in i_s_page_type[] array */
-#define I_S_PAGE_TYPE_INDEX		1
+#define I_S_PAGE_TYPE_BITS		4
+
+/* Check if we can hold all page types */
+#if I_S_PAGE_TYPE_LAST >= 1 << I_S_PAGE_TYPE_BITS
+# error i_s_page_type[] is too large
+#endif
 
 /** Name string for File Page Types */
 static buf_page_desc_t	i_s_page_type[] = {
@@ -89,15 +97,10 @@ static buf_page_desc_t	i_s_page_type[] = {
 	{"BLOB", FIL_PAGE_TYPE_BLOB},
 	{"COMPRESSED_BLOB", FIL_PAGE_TYPE_ZBLOB},
 	{"COMPRESSED_BLOB2", FIL_PAGE_TYPE_ZBLOB2},
+	{"UNKNOWN", I_S_PAGE_TYPE_UNKNOWN},
 	{"RTREE_INDEX", I_S_PAGE_TYPE_RTREE},
 	{"IBUF_INDEX", I_S_PAGE_TYPE_IBUF},
-	{"UNKNOWN", I_S_PAGE_TYPE_UNKNOWN}
 };
-
-/* Check if we can hold all page type in a 4 bit value */
-#if I_S_PAGE_TYPE_UNKNOWN > 1<<4
-# error "i_s_page_type[] is too large"
-#endif
 
 /** This structure defines information we will fetch from pages
 currently cached in the buffer pool. It will be used to populate
@@ -123,7 +126,7 @@ struct buf_page_info_t{
 	unsigned	zip_ssize:PAGE_ZIP_SSIZE_BITS;
 					/*!< Compressed page size */
 	unsigned	page_state:BUF_PAGE_STATE_BITS; /*!< Page state */
-	unsigned	page_type:4;	/*!< Page type */
+	unsigned	page_type:I_S_PAGE_TYPE_BITS;	/*!< Page type */
 	unsigned	num_recs:UNIV_PAGE_SIZE_SHIFT_MAX-2;
 					/*!< Number of records on Page */
 	unsigned	data_size:UNIV_PAGE_SIZE_SHIFT_MAX;
@@ -303,7 +306,7 @@ field_store_index_name(
 
 	/* Since TEMP_INDEX_PREFIX is not a valid UTF8, we need to convert
 	it to something else. */
-	if (index_name[0] == TEMP_INDEX_PREFIX) {
+	if (*index_name == *TEMP_INDEX_PREFIX_STR) {
 		char	buf[NAME_LEN + 1];
 		buf[0] = '?';
 		memcpy(buf + 1, index_name + 1, strlen(index_name));
@@ -1301,9 +1304,8 @@ trx_i_s_common_fill_table(
 
 	if (trx_i_s_cache_is_truncated(cache)) {
 
-		ib_logf(IB_LOG_LEVEL_WARN,
-			"Data in %s truncated due to memory limit of %d bytes",
-			table_name, TRX_I_S_MEM_LIMIT);
+		ib::warn() << "Data in " << table_name << " truncated due to"
+			" memory limit of " << TRX_I_S_MEM_LIMIT << " bytes";
 	}
 
 	ret = 0;
@@ -1335,12 +1337,11 @@ trx_i_s_common_fill_table(
 		}
 
 	} else {
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"trx_i_s_common_fill_table() was"
-			" called to fill unknown table: %s."
+		ib::error() << "trx_i_s_common_fill_table() was"
+			" called to fill unknown table: " << table_name << "."
 			" This function only knows how to fill"
 			" innodb_trx, innodb_locks and"
-			" innodb_lock_waits tables.", table_name);
+			" innodb_lock_waits tables.";
 
 		ret = 1;
 	}
@@ -3579,14 +3580,13 @@ i_s_fts_index_table_fill_selected(
 			fts_sql_rollback(trx);
 
 			if (error == DB_LOCK_WAIT_TIMEOUT) {
-				ib_logf(IB_LOG_LEVEL_WARN,
-					"Lock wait timeout reading"
-					" FTS index. Retrying!");
+				ib::warn() << "Lock wait timeout reading"
+					" FTS index. Retrying!";
 
 				trx->error_state = DB_SUCCESS;
 			} else {
-				ib_logf(IB_LOG_LEVEL_ERROR,
-					"%d while reading FTS index.", error);
+				ib::error() << "Error occurred while reading"
+					" FTS index: " << ut_strerr(error);
 				break;
 			}
 		}
@@ -4268,7 +4268,7 @@ innodb_temp_table_populate_cache(
 	char	db_utf8[MAX_DB_UTF8_LEN];
 	char	table_utf8[MAX_TABLE_UTF8_LEN];
 
-	dict_fs2utf8(table->name,
+	dict_fs2utf8(table->name.m_name,
 		     db_utf8, sizeof(db_utf8),
 		     table_utf8, sizeof(table_utf8));
 	strcpy(cache->m_table_name, table_utf8);
@@ -6380,7 +6380,7 @@ i_s_dict_fill_sys_tables(
 
 	OK(fields[SYS_TABLES_ID]->store(longlong(table->id), TRUE));
 
-	OK(field_store_string(fields[SYS_TABLES_NAME], table->name));
+	OK(field_store_string(fields[SYS_TABLES_NAME], table->name.m_name));
 
 	OK(fields[SYS_TABLES_FLAG]->store(table->flags));
 
@@ -6657,7 +6657,8 @@ i_s_dict_fill_sys_tablestats(
 
 	OK(fields[SYS_TABLESTATS_ID]->store(longlong(table->id), TRUE));
 
-	OK(field_store_string(fields[SYS_TABLESTATS_NAME], table->name));
+	OK(field_store_string(fields[SYS_TABLESTATS_NAME],
+			      table->name.m_name));
 
 	dict_table_stats_lock(table, RW_S_LATCH);
 

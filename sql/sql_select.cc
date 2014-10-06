@@ -1049,7 +1049,7 @@ mysql_select(THD *thd,
                                                select_options, result,
                                                select_lex, &free_join)) ||
        mysql_optimize_prepared_inner_units(thd, select_lex->master_unit(),
-                                           select_options)))
+                                          static_cast<ulong>(select_options))))
     goto err;
   DBUG_ASSERT(!(select_lex->join->select_options & SELECT_DESCRIBE));
   select_lex->join->exec();
@@ -1306,7 +1306,7 @@ bool create_ref_for_key(JOIN *join, JOIN_TAB *j, Key_use *org_keyuse,
   j->ref().key_parts=keyparts;
   j->ref().key_length=length;
   j->ref().key=(int) key;
-  if (!(j->ref().key_buff= (uchar*) thd->calloc(ALIGN_SIZE(length)*2)) ||
+  if (!(j->ref().key_buff= (uchar*) thd->mem_calloc(ALIGN_SIZE(length)*2)) ||
       !(j->ref().key_copy= (store_key**) thd->alloc((sizeof(store_key*) *
                                                    (keyparts)))) ||
       !(j->ref().items=    (Item**) thd->alloc(sizeof(Item*)*keyparts)) ||
@@ -2024,7 +2024,7 @@ bool JOIN::setup_materialized_table(JOIN_TAB *tab, uint tableno,
   {
     sjm_pos->key= NULL; // No index use for MaterializeScan
     sjm_pos->read_cost= tab->read_time * fanout;
-    sjm_pos->rows_fetched= tab->records();
+    sjm_pos->rows_fetched= static_cast<double>(tab->records());
     tab->set_type(JT_ALL);
   }
   sjm_pos->set_prefix_join_cost((tab - join_tab), cost_model());
@@ -2197,9 +2197,11 @@ make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after)
           those which will not pass the constant condition. It's useful inside
           the planner, but obscure to the reader of EXPLAIN. Update it.
         */
-        qep_tab->position()->rows_fetched= table->file->stats.records;
+        qep_tab->position()->rows_fetched=
+          static_cast<double>(table->file->stats.records);
         // Constant condition moves to the filter effect:
-        qep_tab->position()->filter_effect*= old/table->file->stats.records;
+        qep_tab->position()->filter_effect*=
+          static_cast<float>(old/table->file->stats.records);
       }
       if (tab->use_quick == QS_DYNAMIC_RANGE)
       {
@@ -2351,7 +2353,7 @@ void QEP_TAB::cleanup()
       delete tmp_table_param;
       tmp_table_param= NULL;
     }
-    op->free();
+    op->mem_free();
   }
 
   TRASH(this, sizeof(*this));
@@ -3004,7 +3006,7 @@ bool JOIN::alloc_func_list()
   }
 
   /* This must use calloc() as rollup_make_fields depends on this */
-  sum_funcs= (Item_sum**) thd->calloc(sizeof(Item_sum**) * (func_count+1) +
+  sum_funcs= (Item_sum**) thd->mem_calloc(sizeof(Item_sum**) * (func_count+1) +
 				           sizeof(Item_sum***) * (group_parts+1));
   sum_funcs_end= (Item_sum***) (sum_funcs + func_count + 1);
   DBUG_RETURN(sum_funcs == 0);
@@ -3943,7 +3945,7 @@ test_if_cheaper_ordering(const JOIN_TAB *tab, ORDER *order, TABLE *table,
   double fanout= 1;
   ha_rows table_records= table->file->stats.records;
   bool group= join && join->group && order == join->group_list;
-  double refkey_rows_estimate= table->quick_condition_rows;
+  double refkey_rows_estimate= static_cast<double>(table->quick_condition_rows);
   const bool has_limit= (select_limit != HA_POS_ERROR);
 
   /*
@@ -3988,7 +3990,7 @@ test_if_cheaper_ordering(const JOIN_TAB *tab, ORDER *order, TABLE *table,
   if (ref_key >= 0 && tab->type() == JT_REF)
   {
     if (table->quick_keys.is_set(ref_key))
-      refkey_rows_estimate= table->quick_rows[ref_key];
+      refkey_rows_estimate= static_cast<double>(table->quick_rows[ref_key]);
     else
     {
       const KEY *ref_keyinfo= table->key_info + ref_key;

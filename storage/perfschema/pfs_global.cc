@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2014, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -52,7 +52,7 @@ void *pfs_malloc(size_t size, myf flags)
   DBUG_ASSERT(! pfs_initialized);
   DBUG_ASSERT(size > 0);
 
-  void *ptr;
+  void *ptr= NULL;
 
 #ifdef PFS_ALIGNEMENT
 #ifdef HAVE_POSIX_MEMALIGN

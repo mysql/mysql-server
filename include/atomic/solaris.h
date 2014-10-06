@@ -79,6 +79,11 @@ static inline int64 my_atomic_fas64(int64 volatile *a, int64 v)
   return atomic_swap_64((volatile uint64_t *)a, (uint64_t)v);
 }
 
+static inline void * my_atomic_fasptr(void * volatile *a, void * v)
+{
+  return atomic_swap_ptr(a, v);
+}
+
 static inline int32 my_atomic_load32(int32 volatile *a)
 {
   return atomic_or_32_nv((volatile uint32_t *)a, 0);
@@ -87,6 +92,11 @@ static inline int32 my_atomic_load32(int32 volatile *a)
 static inline int64 my_atomic_load64(int64 volatile *a)
 {
   return atomic_or_64_nv((volatile uint64_t *)a, 0);
+}
+
+static inline void* my_atomic_loadptr(void * volatile *a)
+{
+  return atomic_add_ptr_nv(a, 0);
 }
 
 static inline void my_atomic_store32(int32 volatile *a, int32 v)

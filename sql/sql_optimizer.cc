@@ -10033,7 +10033,7 @@ create_distinct_group(THD *thd, Ref_ptr_array ref_pointer_array,
         if ((*ord_iter->item)->eq(item, 1))
           goto next_item;
       
-      ORDER *ord=(ORDER*) thd->calloc(sizeof(ORDER));
+      ORDER *ord=(ORDER*) thd->mem_calloc(sizeof(ORDER));
       if (!ord)
 	return 0;
 
@@ -10399,7 +10399,7 @@ static void calculate_materialization_costs(JOIN *join,
   else
   {
     mat_cost= join->best_read;
-    mat_rowcount= join->best_rowcount;
+    mat_rowcount= static_cast<double>(join->best_rowcount);
     inner_expr_list= &join->select_lex->item_list;
   }
 
@@ -10695,7 +10695,7 @@ bool JOIN::compare_costs_of_subquery_strategies(
           is reached.
         */
         trace_parent.add("subq_attached_to_join_result", true);
-        parent_fanout= parent_join->best_rowcount;
+        parent_fanout= static_cast<double>(parent_join->best_rowcount);
       }
     }
     subq_executions*= parent_fanout;
