@@ -179,18 +179,18 @@ ClusterMgr::configure(Uint32 nodeId,
   // Configure max backoff time for connection attempts to first
   // data node.
   Uint32 backoff_max_time = 0;
-  iter.get(CFG_STARTING_CONNECTING_BACKOFF_MAX_TIME,
+  iter.get(CFG_START_CONNECT_BACKOFF_MAX_TIME,
            &backoff_max_time);
-  starting_connecting_backoff_max_time = backoff_max_time;
+  start_connect_backoff_max_time = backoff_max_time;
 
   // Configure max backoff time for connection attempts to data
   // nodes.
   backoff_max_time = 0;
-  iter.get(CFG_CONNECTING_BACKOFF_MAX_TIME, &backoff_max_time);
-  connecting_backoff_max_time = backoff_max_time;
+  iter.get(CFG_CONNECT_BACKOFF_MAX_TIME, &backoff_max_time);
+  connect_backoff_max_time = backoff_max_time;
 
-  theFacade.get_registry()->set_connecting_backoff_max_time_in_ms(
-    starting_connecting_backoff_max_time);
+  theFacade.get_registry()->set_connect_backoff_max_time_in_ms(
+    start_connect_backoff_max_time);
 }
 
 void
@@ -928,8 +928,8 @@ ClusterMgr::reportConnected(NodeId nodeId)
     noOfConnectedDBNodes++;
     if (noOfConnectedDBNodes == 1)
     {
-      // Data node connected, use ConnectingBackoffMaxTime
-      theFacade.get_registry()->set_connecting_backoff_max_time_in_ms(connecting_backoff_max_time);
+      // Data node connected, use ConnectBackoffMaxTime
+      theFacade.get_registry()->set_connect_backoff_max_time_in_ms(connect_backoff_max_time);
     }
   }
 
@@ -1052,8 +1052,8 @@ ClusterMgr::execDISCONNECT_REP(const NdbApiSignal* sig,
     noOfConnectedDBNodes--;
     if (noOfConnectedDBNodes == 0)
     {
-      // No data nodes connected, use StartingConnectingBackoffMaxTime
-      theFacade.get_registry()->set_connecting_backoff_max_time_in_ms(starting_connecting_backoff_max_time);
+      // No data nodes connected, use StartConnectBackoffMaxTime
+      theFacade.get_registry()->set_connect_backoff_max_time_in_ms(start_connect_backoff_max_time);
     }
   }
 
