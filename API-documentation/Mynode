@@ -117,6 +117,17 @@ openSession(Properties, mappings, [callback], [...]);
 getOpenSessionFactories();
 
 
+/** Close all open SessionFactories 
+ * @return null
+ * Because a SessionFactory uses an open TCP connection with registered
+ * callbacks, Node.JS will generally not exit while any SessionFactory is
+ * still open.  This convenience method closes all SessionFactories.
+ * This method does not provide a callback after close; if a callback is 
+ * required, use SessionFactory.close() directly.
+ */
+closeAllOpenSessionFactories();
+
+
 // The following functions are part of the public API but are not intended for
 // application use.  They form part of the contract between mynode and 
 // SessionFactory.

@@ -113,6 +113,13 @@ exports.getOpenSessionFactories = function() {
   return result;
 };
 
+exports.closeAllOpenSessionFactories = function() {
+  var openFactories = exports.getOpenSessionFactories();
+  for (factory in openFactories) {
+    factory.close();
+  }
+};
+
 /** deleteFactory is called only from SessionFactory.close().
  * Multiple session factories share a db connection pool. When
  * the last session factory using the db connection pool is closed,
