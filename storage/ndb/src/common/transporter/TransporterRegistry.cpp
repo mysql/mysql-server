@@ -214,7 +214,7 @@ TransporterRegistry::TransporterRegistry(TransporterCallback *callback,
                                          unsigned _maxTransporters) :
   m_mgm_handle(0),
   localNodeId(0),
-  connectingBackoffMaxTime(0),
+  connectBackoffMaxTime(0),
   m_transp_count(0),
   m_use_default_send_buffer(use_default_send_buffer),
   m_send_buffers(0), m_page_freelist(0), m_send_buffer_memory(0),
