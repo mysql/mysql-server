@@ -583,14 +583,26 @@ innobase_index_name_is_reserved(
 class create_table_info_t
 {
 public:
+	/** Constructor.
+	Used in two ways:
+	- all but file_per_table is used, when creating the table.
+	- all but name/path is used, when validating options and using flags. */
 	create_table_info_t(
 		THD*		thd,
 		TABLE*		form,
 		HA_CREATE_INFO*	create_info,
-		char*		norm_name,
+		char*		table_name,
 		char*		temp_path,
 		char*		remote_path,
-		bool		file_per_table);
+		bool		file_per_table)
+	:m_thd(thd),
+	m_form(form),
+	m_create_info(create_info),
+	m_table_name(table_name),
+	m_temp_path(temp_path),
+	m_remote_path(remote_path),
+	m_file_per_table(file_per_table)
+	{}
 	/** Create the internal innodb table. */
 	int create_table();
 	/** Update the internal data dictionary. */
