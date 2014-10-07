@@ -2214,7 +2214,7 @@ dict_index_node_ptr_max_size(
 	/* maximum possible storage size of a record */
 	ulint	rec_max_size;
 
-	if (dict_index_is_univ(index)) {
+	if (dict_index_is_ibuf(index)) {
 		/* cannot estimate accurately */
 		/* This is universal index for change buffer.
 		The max size of the entry is about max key length * 2.
@@ -2482,6 +2482,7 @@ dict_index_add_to_cache(
 	ut_ad(index->n_def == index->n_fields);
 	ut_ad(index->magic_n == DICT_INDEX_MAGIC_N);
 	ut_ad(!dict_index_is_online_ddl(index));
+	ut_ad(!dict_index_is_ibuf(index));
 
 	ut_d(mem_heap_validate(index->heap));
 	ut_a(!dict_index_is_clust(index)
@@ -2529,11 +2530,7 @@ too_big:
 		}
 	}
 
-	if (dict_index_is_univ(index)) {
-		n_ord = new_index->n_fields;
-	} else {
-		n_ord = new_index->n_uniq;
-	}
+	n_ord = new_index->n_uniq;
 
 #if 1	/* The following code predetermines whether to call
 	dict_index_too_big_for_undo().  This function is not
@@ -2618,26 +2615,23 @@ undo_size_ok:
 		}
 	}
 
-	if (!dict_index_is_univ(new_index)) {
-
-		new_index->stat_n_diff_key_vals =
-			static_cast<ib_uint64_t*>(mem_heap_zalloc(
+	new_index->stat_n_diff_key_vals =
+		static_cast<ib_uint64_t*>(mem_heap_zalloc(
 			new_index->heap,
 			dict_index_get_n_unique(new_index)
 			* sizeof(*new_index->stat_n_diff_key_vals)));
 
-		new_index->stat_n_sample_sizes =
-			static_cast<ib_uint64_t*>(mem_heap_zalloc(
+	new_index->stat_n_sample_sizes =
+		static_cast<ib_uint64_t*>(mem_heap_zalloc(
 			new_index->heap,
 			dict_index_get_n_unique(new_index)
 			* sizeof(*new_index->stat_n_sample_sizes)));
 
-		new_index->stat_n_non_null_key_vals =
-			static_cast<ib_uint64_t*>(mem_heap_zalloc(
+	new_index->stat_n_non_null_key_vals =
+		static_cast<ib_uint64_t*>(mem_heap_zalloc(
 			new_index->heap,
 			dict_index_get_n_unique(new_index)
 			* sizeof(*new_index->stat_n_non_null_key_vals)));
-	}
 
 	new_index->stat_index_size = 1;
 	new_index->stat_n_leaf_pages = 1;
@@ -2651,8 +2645,7 @@ undo_size_ok:
 
 	new_index->page = page_no;
 	rw_lock_create(index_tree_rw_lock_key, &new_index->lock,
-		       dict_index_is_ibuf(index)
-		       ? SYNC_IBUF_INDEX_TREE : SYNC_INDEX_TREE);
+		       SYNC_INDEX_TREE);
 
 	/* Intrinsic table are not added to dictionary cache instead are
 	cached to session specific thread cache. */
@@ -2953,7 +2946,7 @@ dict_index_copy_types(
 {
 	ulint		i;
 
-	if (dict_index_is_univ(index)) {
+	if (dict_index_is_ibuf(index)) {
 		dtuple_set_types_binary(tuple, n_fields);
 
 		return;
@@ -3041,6 +3034,8 @@ dict_index_build_internal_clust(
 
 	ut_ad(table && index);
 	ut_ad(dict_index_is_clust(index));
+	ut_ad(!dict_index_is_ibuf(index));
+
 	ut_ad(mutex_own(&dict_sys->mutex) || dict_table_is_intrinsic(table));
 	ut_ad(table->magic_n == DICT_TABLE_MAGIC_N);
 
@@ -3060,12 +3055,7 @@ dict_index_build_internal_clust(
 	/* Copy the fields of index */
 	dict_index_copy(new_index, index, table, 0, index->n_fields);
 
-	if (dict_index_is_univ(index)) {
-		/* No fixed number of fields determines an entry uniquely */
-
-		new_index->n_uniq = REC_MAX_N_FIELDS;
-
-	} else if (dict_index_is_unique(index)) {
+	if (dict_index_is_unique(index)) {
 		/* Only the fields defined so far are needed to identify
 		the index entry uniquely */
 
@@ -3077,10 +3067,9 @@ dict_index_build_internal_clust(
 
 	new_index->trx_id_offset = 0;
 
-	if (!dict_index_is_ibuf(index)) {
-		/* Add system columns, trx id first */
+	/* Add system columns, trx id first */
 
-		trx_id_pos = new_index->n_def;
+	trx_id_pos = new_index->n_def;
 
 #if DATA_ROW_ID != 0
 # error "DATA_ROW_ID != 0"
@@ -3092,65 +3081,64 @@ dict_index_build_internal_clust(
 # error "DATA_ROLL_PTR != 2"
 #endif
 
-		if (!dict_index_is_unique(index)) {
-			dict_index_add_col(new_index, table,
-					   dict_table_get_sys_col(
-						   table, DATA_ROW_ID),
-					   0);
-			trx_id_pos++;
+	if (!dict_index_is_unique(index)) {
+		dict_index_add_col(new_index, table,
+				   dict_table_get_sys_col(
+					   table, DATA_ROW_ID),
+				   0);
+		trx_id_pos++;
+	}
+
+	dict_index_add_col(
+		new_index, table,
+		dict_table_get_sys_col(table, DATA_TRX_ID), 0);
+
+
+	for (i = 0; i < trx_id_pos; i++) {
+
+		ulint	fixed_size = dict_col_get_fixed_size(
+			dict_index_get_nth_col(new_index, i),
+			dict_table_is_comp(table));
+
+		if (fixed_size == 0) {
+			new_index->trx_id_offset = 0;
+
+			break;
 		}
+
+		dict_field_t* field = dict_index_get_nth_field(
+			new_index, i);
+		if (field->prefix_len > 0) {
+			new_index->trx_id_offset = 0;
+
+			break;
+		}
+
+		/* Add fixed_size to new_index->trx_id_offset.
+		Because the latter is a bit-field, an overflow
+		can theoretically occur. Check for it. */
+		fixed_size += new_index->trx_id_offset;
+
+		new_index->trx_id_offset = fixed_size;
+
+		if (new_index->trx_id_offset != fixed_size) {
+			/* Overflow. Pretend that this is a
+			variable-length PRIMARY KEY. */
+			ut_ad(0);
+			new_index->trx_id_offset = 0;
+			break;
+		}
+	}
+
+	/* UNDO logging is turned-off for intrinsic table and so
+	DATA_ROLL_PTR system columns are not added as default system
+	columns to such tables. */
+	if (!dict_table_is_intrinsic(table)) {
 
 		dict_index_add_col(
 			new_index, table,
-			dict_table_get_sys_col(table, DATA_TRX_ID), 0);
-
-
-		for (i = 0; i < trx_id_pos; i++) {
-
-			ulint	fixed_size = dict_col_get_fixed_size(
-				dict_index_get_nth_col(new_index, i),
-				dict_table_is_comp(table));
-
-			if (fixed_size == 0) {
-				new_index->trx_id_offset = 0;
-
-				break;
-			}
-
-			dict_field_t* field = dict_index_get_nth_field(
-				new_index, i);
-			if (field->prefix_len > 0) {
-				new_index->trx_id_offset = 0;
-
-				break;
-			}
-
-			/* Add fixed_size to new_index->trx_id_offset.
-			Because the latter is a bit-field, an overflow
-			can theoretically occur. Check for it. */
-			fixed_size += new_index->trx_id_offset;
-
-			new_index->trx_id_offset = fixed_size;
-
-			if (new_index->trx_id_offset != fixed_size) {
-				/* Overflow. Pretend that this is a
-				variable-length PRIMARY KEY. */
-				ut_ad(0);
-				new_index->trx_id_offset = 0;
-				break;
-			}
-		}
-
-		/* UNDO logging is turned-off for intrinsic table and so
-		DATA_ROLL_PTR system columns are not added as default system
-		columns to such tables. */
-		if (!dict_table_is_intrinsic(table)) {
-
-			dict_index_add_col(
-				new_index, table,
-				dict_table_get_sys_col(table, DATA_ROLL_PTR),
-				0);
-		}
+			dict_table_get_sys_col(table, DATA_ROLL_PTR),
+			0);
 	}
 
 	/* Remember the table columns already contained in new_index */
@@ -3186,8 +3174,7 @@ dict_index_build_internal_clust(
 
 	ut_free(indexed);
 
-	ut_ad(dict_index_is_ibuf(index)
-	      || (UT_LIST_GET_LEN(table->indexes) == 0));
+	ut_ad(UT_LIST_GET_LEN(table->indexes) == 0);
 
 	new_index->cached = TRUE;
 
@@ -3214,6 +3201,7 @@ dict_index_build_internal_non_clust(
 
 	ut_ad(table && index);
 	ut_ad(!dict_index_is_clust(index));
+	ut_ad(!dict_index_is_ibuf(index));
 	ut_ad(mutex_own(&dict_sys->mutex) || dict_table_is_intrinsic(table));
 	ut_ad(table->magic_n == DICT_TABLE_MAGIC_N);
 
@@ -3222,7 +3210,7 @@ dict_index_build_internal_non_clust(
 
 	ut_ad(clust_index);
 	ut_ad(dict_index_is_clust(clust_index));
-	ut_ad(!dict_index_is_univ(clust_index));
+	ut_ad(!dict_index_is_ibuf(clust_index));
 
 	/* Create a new index */
 	new_index = dict_mem_index_create(
@@ -5213,7 +5201,7 @@ dict_index_build_node_ptr(
 	byte*		buf;
 	ulint		n_unique;
 
-	if (dict_index_is_univ(index)) {
+	if (dict_index_is_ibuf(index)) {
 		/* In a universal index tree, we take the whole record as
 		the node pointer if the record is on the leaf level,
 		on non-leaf levels we remove the last field, which
@@ -5279,7 +5267,7 @@ dict_index_copy_rec_order_prefix(
 
 	UNIV_PREFETCH_R(rec);
 
-	if (dict_index_is_univ(index)) {
+	if (dict_index_is_ibuf(index)) {
 		ut_a(!dict_table_is_comp(index->table));
 		n = rec_get_n_fields_old(rec);
 	} else {

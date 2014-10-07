@@ -78,7 +78,7 @@ row_build_index_entry_low(
 	entry_len = dict_index_get_n_fields(index);
 	entry = dtuple_create(heap, entry_len);
 
-	if (dict_index_is_univ(index)) {
+	if (dict_index_is_ibuf(index)) {
 		dtuple_set_n_fields_cmp(entry, entry_len);
 		/* There may only be externally stored columns
 		in a clustered index B-tree of a user table. */
