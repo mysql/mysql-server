@@ -3775,6 +3775,7 @@ ha_ndbcluster::log_exclusive_read(const NdbRecord *key_rec,
      Mark the AnyValue as a read operation, so that the update
      is processed
   */
+  opts.anyValue= 0;
   ndbcluster_anyvalue_set_read_op(opts.anyValue);
 
   if (ppartition_id != NULL)
@@ -3823,6 +3824,7 @@ ha_ndbcluster::scan_log_exclusive_read(NdbScanOperation *cursor,
      Mark the AnyValue as a read operation, so that the update
      is processed
   */
+  opts.anyValue= 0;
   ndbcluster_anyvalue_set_read_op(opts.anyValue);
   
   const NdbOperation* markingOp=
