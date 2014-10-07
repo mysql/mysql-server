@@ -872,7 +872,7 @@ fsp_header_init(
 			   space_id, header, mtr);
 
 	if (space_id == srv_sys_space.space_id()) {
-		btr_create(DICT_CLUSTERED | DICT_UNIVERSAL | DICT_IBUF,
+		btr_create(DICT_CLUSTERED | DICT_IBUF,
 			   0, univ_page_size, DICT_IBUF_ID_MIN + space_id,
 			   dict_ind_redundant, NULL, mtr);
 	}

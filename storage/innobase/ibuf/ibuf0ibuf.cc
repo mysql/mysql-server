@@ -26,6 +26,8 @@ Created 7/19/1997 Heikki Tuuri
 #include "ha_prototypes.h"
 
 #include "ibuf0ibuf.h"
+#include "sync0sync.h"
+#include "btr0sea.h"
 
 #if defined UNIV_DEBUG || defined UNIV_IBUF_DEBUG
 my_bool	srv_ibuf_disable_background_merge;
@@ -190,9 +192,6 @@ exclusively level 1 i/o. A dedicated i/o handler thread handles exclusively
 level 2 i/o. However, if an OS thread does the i/o handling for itself, i.e.,
 it uses synchronous aio, it can access any pages, as long as it obeys the
 access order rules. */
-
-/** Table name for the insert buffer. */
-#define IBUF_TABLE_NAME		"SYS_IBUF_TABLE"
 
 /** Operations that can currently be buffered. */
 ibuf_use_t	ibuf_use		= IBUF_USE_ALL;
@@ -461,6 +460,11 @@ ibuf_close(void)
 
 	mutex_free(&ibuf_bitmap_mutex);
 
+	dict_table_t*	ibuf_table = ibuf->index->table;
+	rw_lock_free(&ibuf->index->lock);
+	dict_mem_index_free(ibuf->index);
+	dict_mem_table_free(ibuf_table);
+
 	ut_free(ibuf);
 	ibuf = NULL;
 }
@@ -495,12 +499,8 @@ ibuf_init_at_db_start(void)
 {
 	page_t*		root;
 	mtr_t		mtr;
-	dict_table_t*	table;
-	mem_heap_t*	heap;
-	dict_index_t*	index;
 	ulint		n_used;
 	page_t*		header_page;
-	dberr_t		error;
 
 	ibuf = static_cast<ibuf_t*>(ut_zalloc_nokey(sizeof(ibuf_t)));
 
@@ -552,31 +552,18 @@ ibuf_init_at_db_start(void)
 	ibuf->empty = page_is_empty(root);
 	ibuf_mtr_commit(&mtr);
 
-	heap = mem_heap_create(450);
-
-	/* Use old-style record format for the insert buffer. */
-	table = dict_mem_table_create(IBUF_TABLE_NAME, IBUF_SPACE_ID, 1, 0, 0);
-
-	dict_mem_table_add_col(table, heap, "DUMMY_COLUMN", DATA_BINARY, 0, 0);
-
-	table->id = DICT_IBUF_ID_MIN + IBUF_SPACE_ID;
-
-	dict_table_add_to_cache(table, FALSE, heap);
-	mem_heap_free(heap);
-
-	index = dict_mem_index_create(
-		IBUF_TABLE_NAME, "CLUST_IND",
-		IBUF_SPACE_ID, DICT_CLUSTERED | DICT_UNIVERSAL | DICT_IBUF, 1);
-
-	dict_mem_index_add_field(index, "DUMMY_COLUMN", 0);
-
-	index->id = DICT_IBUF_ID_MIN + IBUF_SPACE_ID;
-
-	error = dict_index_add_to_cache(table, index,
-					FSP_IBUF_TREE_ROOT_PAGE_NO, FALSE);
-	ut_a(error == DB_SUCCESS);
-
-	ibuf->index = dict_table_get_first_index(table);
+	ibuf->index = dict_mem_index_create(
+		"innodb_change_buffer", "CLUST_IND",
+		IBUF_SPACE_ID, DICT_CLUSTERED | DICT_IBUF, 1);
+	ibuf->index->id = DICT_IBUF_ID_MIN + IBUF_SPACE_ID;
+	ibuf->index->table = dict_mem_table_create(
+		"innodb_change_buffer", IBUF_SPACE_ID, 1, 0, 0);
+	ibuf->index->n_uniq = REC_MAX_N_FIELDS;
+	rw_lock_create(index_tree_rw_lock_key, &ibuf->index->lock,
+		       SYNC_IBUF_INDEX_TREE);
+	ibuf->index->search_info = btr_search_info_create(ibuf->index->heap);
+	ibuf->index->page = FSP_IBUF_TREE_ROOT_PAGE_NO;
+	ut_d(ibuf->index->cached = TRUE);
 }
 
 /*********************************************************************//**

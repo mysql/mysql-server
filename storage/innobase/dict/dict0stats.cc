@@ -390,7 +390,7 @@ dict_stats_table_clone_create(
 			continue;
 		}
 
-		ut_ad(!dict_index_is_univ(index));
+		ut_ad(!dict_index_is_ibuf(index));
 
 		ulint	n_uniq = dict_index_get_n_unique(index);
 
@@ -439,7 +439,7 @@ dict_stats_table_clone_create(
 			continue;
 		}
 
-		ut_ad(!dict_index_is_univ(index));
+		ut_ad(!dict_index_is_ibuf(index));
 
 		dict_index_t*	idx;
 
@@ -518,7 +518,7 @@ dict_stats_empty_index(
 	dict_index_t*	index)	/*!< in/out: index */
 {
 	ut_ad(!(index->type & DICT_FTS));
-	ut_ad(!dict_index_is_univ(index));
+	ut_ad(!dict_index_is_ibuf(index));
 
 	ulint	n_uniq = index->n_uniq;
 
@@ -562,7 +562,7 @@ dict_stats_empty_table(
 			continue;
 		}
 
-		ut_ad(!dict_index_is_univ(index));
+		ut_ad(!dict_index_is_ibuf(index));
 
 		dict_stats_empty_index(index);
 	}
@@ -685,7 +685,7 @@ dict_stats_copy(
 			continue;
 		}
 
-		ut_ad(!dict_index_is_univ(dst_idx));
+		ut_ad(!dict_index_is_ibuf(dst_idx));
 
 		if (!INDEX_EQ(src_idx, dst_idx)) {
 			for (src_idx = dict_table_get_first_index(src);
@@ -891,7 +891,7 @@ dict_stats_update_transient(
 
 	for (; index != NULL; index = dict_table_get_next_index(index)) {
 
-		ut_ad(!dict_index_is_univ(index));
+		ut_ad(!dict_index_is_ibuf(index));
 
 		if (index->type & DICT_FTS || dict_index_is_spatial(index)) {
 			continue;
@@ -2190,7 +2190,7 @@ dict_stats_update_persistent(
 		return(DB_CORRUPTION);
 	}
 
-	ut_ad(!dict_index_is_univ(index));
+	ut_ad(!dict_index_is_ibuf(index));
 
 	dict_stats_analyze_index(index);
 
@@ -2208,7 +2208,7 @@ dict_stats_update_persistent(
 	     index != NULL;
 	     index = dict_table_get_next_index(index)) {
 
-		ut_ad(!dict_index_is_univ(index));
+		ut_ad(!dict_index_is_ibuf(index));
 
 		if (index->type & DICT_FTS || dict_index_is_spatial(index)) {
 			continue;
@@ -2460,7 +2460,7 @@ dict_stats_save(
 			continue;
 		}
 
-		ut_ad(!dict_index_is_univ(index));
+		ut_ad(!dict_index_is_ibuf(index));
 
 		for (ulint i = 0; i < index->n_uniq; i++) {
 
