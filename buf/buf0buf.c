@@ -4005,6 +4005,7 @@ corrupt:
 					      " because of"
 					      " a corrupt database page.\n",
 					      stderr);
+
 					ut_error;
 				}
 			}
