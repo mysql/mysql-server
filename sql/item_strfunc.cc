@@ -4049,6 +4049,10 @@ String *Item_func_repeat::val_str(String *str)
   if (count <= 0 && (count == 0 || !args[1]->unsigned_flag))
     return make_empty_result();
 
+  // Avoid looping, concatenating the empty string.
+  if (res->length() == 0)
+    return res;
+
   /* Assumes that the maximum length of a String is < INT_MAX32. */
   /* Bounds check on count:  If this is triggered, we will error. */
   if ((ulonglong) count > INT_MAX32)
