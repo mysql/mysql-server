@@ -103,6 +103,10 @@ PATENT RIGHTS GRANT:
 # define TOKU_VALGRIND_HG_DISABLE_CHECKING(p, size) VALGRIND_HG_DISABLE_CHECKING(p, size)
 # define TOKU_DRD_IGNORE_VAR(v) DRD_IGNORE_VAR(v)
 # define TOKU_DRD_STOP_IGNORING_VAR(v) DRD_STOP_IGNORING_VAR(v)
+# define TOKU_ANNOTATE_IGNORE_READS_BEGIN() ANNOTATE_IGNORE_READS_BEGIN()
+# define TOKU_ANNOTATE_IGNORE_READS_END() ANNOTATE_IGNORE_READS_END()
+# define TOKU_ANNOTATE_IGNORE_WRITES_BEGIN() ANNOTATE_IGNORE_WRITES_BEGIN()
+# define TOKU_ANNOTATE_IGNORE_WRITES_END() ANNOTATE_IGNORE_WRITES_END()
 
 /*
  * How to make helgrind happy about tree rotations and new mutex orderings:
@@ -134,21 +138,42 @@ PATENT RIGHTS GRANT:
 # define TOKU_VALGRIND_HG_DISABLE_CHECKING(p, size) ((void) 0)
 # define TOKU_DRD_IGNORE_VAR(v)
 # define TOKU_DRD_STOP_IGNORING_VAR(v)
+# define TOKU_ANNOTATE_IGNORE_READS_BEGIN() ((void) 0)
+# define TOKU_ANNOTATE_IGNORE_READS_END() ((void) 0)
+# define TOKU_ANNOTATE_IGNORE_WRITES_BEGIN() ((void) 0)
+# define TOKU_ANNOTATE_IGNORE_WRITES_END() ((void) 0)
 # define TOKU_VALGRIND_RESET_MUTEX_ORDERING_INFO(mutex)
 # define RUNNING_ON_VALGRIND (0U)
 
 #endif
 
+namespace data_race {
+
+    template<typename T>
+    class unsafe_read {
+        const T &_val;
+    public:
+        unsafe_read(const T &val)
+            : _val(val) {
+            TOKU_VALGRIND_HG_DISABLE_CHECKING(&_val, sizeof _val);
+            TOKU_ANNOTATE_IGNORE_READS_BEGIN();
+        }
+        ~unsafe_read() {
+            TOKU_ANNOTATE_IGNORE_READS_END();
+            TOKU_VALGRIND_HG_ENABLE_CHECKING(&_val, sizeof _val);
+        }
+        operator T() const {
+            return _val;
+        }
+    };
+
+} // namespace data_race
+
 // Unsafely fetch and return a `T' from src, telling drd to ignore 
 // racey access to src for the next sizeof(*src) bytes
 template <typename T>
 T toku_drd_unsafe_fetch(T *src) {
-    TOKU_VALGRIND_HG_DISABLE_CHECKING(src, sizeof *src);
-    TOKU_DRD_IGNORE_VAR(*src);
-    T val = *src;
-    TOKU_DRD_STOP_IGNORING_VAR(*src);
-    TOKU_VALGRIND_HG_ENABLE_CHECKING(src, sizeof *src);
-    return val;
+    return data_race::unsafe_read<T>(*src);
 }
 
 // Unsafely set a `T' value into *dest from src, telling drd to ignore 
@@ -156,8 +181,8 @@ T toku_drd_unsafe_fetch(T *src) {
 template <typename T>
 void toku_drd_unsafe_set(T *dest, const T src) {
     TOKU_VALGRIND_HG_DISABLE_CHECKING(dest, sizeof *dest);
-    TOKU_DRD_IGNORE_VAR(*dest);
+    TOKU_ANNOTATE_IGNORE_WRITES_BEGIN();
     *dest = src;
-    TOKU_DRD_STOP_IGNORING_VAR(*dest);
+    TOKU_ANNOTATE_IGNORE_WRITES_END();
     TOKU_VALGRIND_HG_ENABLE_CHECKING(dest, sizeof *dest);
 }
