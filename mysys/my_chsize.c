@@ -97,7 +97,7 @@ err:
   if (MyFlags & MY_WME)
   {
     char  errbuf[MYSYS_STRERROR_SIZE];
-    my_error(EE_CANT_CHSIZE, MYF(ME_BELL+ME_WAITTANG),
+    my_error(EE_CANT_CHSIZE, MYF(0),
              my_errno, my_strerror(errbuf, sizeof(errbuf), my_errno));
   }
   DBUG_RETURN(1);

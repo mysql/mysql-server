@@ -30,7 +30,7 @@ static my_bool cache_remove_open_tmp(IO_CACHE *cache __attribute__((unused)),
 {
 #if O_TEMPORARY == 0
   /* The following should always succeed */
-  (void) my_delete(name,MYF(MY_WME | ME_NOINPUT));
+  (void) my_delete(name,MYF(MY_WME));
 #endif /* O_TEMPORARY == 0 */
   return 0;
 }

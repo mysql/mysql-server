@@ -2307,7 +2307,7 @@ void my_message_sql(uint error, const char *str, myf MyFlags)
   /* When simulating OOM, skip writing to error log to avoid mtr errors */
   DBUG_EXECUTE_IF("simulate_out_of_memory", DBUG_VOID_RETURN;);
 
-  if (!thd || MyFlags & ME_NOREFRESH)
+  if (!thd || MyFlags & ME_ERRORLOG)
     sql_print_error("%s: %s",my_progname,str); /* purecov: inspected */
   DBUG_VOID_RETURN;
 }

@@ -176,7 +176,7 @@ void my_end(int infoflag)
       char ebuff[512];
       my_snprintf(ebuff, sizeof(ebuff), EE(EE_OPEN_WARNING),
                   my_file_opened, my_stream_opened);
-      my_message_stderr(EE_OPEN_WARNING, ebuff, ME_BELL);
+      my_message_stderr(EE_OPEN_WARNING, ebuff, MYF(0));
       DBUG_PRINT("error", ("%s", ebuff));
       my_print_open_files();
     }
