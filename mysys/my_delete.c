@@ -123,7 +123,7 @@ int nt_share_delete(const char *name, myf MyFlags)
   if (MyFlags & (MY_FAE+MY_WME))
   {
     char errbuf[MYSYS_STRERROR_SIZE];
-    my_error(EE_DELETE, MYF(0)),
+    my_error(EE_DELETE, MYF(0),
              name, my_errno, my_strerror(errbuf, sizeof(errbuf), my_errno));
   }
   DBUG_RETURN(-1);
