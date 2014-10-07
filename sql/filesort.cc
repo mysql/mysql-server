@@ -358,7 +358,7 @@ ha_rows filesort(THD *thd, QEP_TAB *qep_tab, Filesort *filesort,
     }
     if (memory_available < min_sort_memory)
     {
-      my_error(ER_OUT_OF_SORTMEMORY,MYF(ME_ERROR + ME_FATALERROR));
+      my_error(ER_OUT_OF_SORTMEMORY,MYF(ME_ERRORLOG + ME_FATALERROR));
       goto err;
     }
   }
@@ -935,7 +935,7 @@ static ha_rows find_all_keys(Sort_param *param, QEP_TAB *qep_tab,
       my_flags= MYF(0);
       break;
     default:
-      my_flags= MYF(ME_INFO);
+      my_flags= MYF(ME_ERRORLOG);
     }
     file->print_error(error, my_flags);
     num_records= HA_POS_ERROR;

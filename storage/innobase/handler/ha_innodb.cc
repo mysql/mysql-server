@@ -1989,7 +1989,7 @@ innobase_mysql_tmpfile(void)
 			DBUG_PRINT("error",("Got error %d on dup",fd2));
 			my_errno=errno;
 			my_error(EE_OUT_OF_FILERESOURCES,
-				 MYF(ME_BELL+ME_WAITTANG),
+				 MYF(0),
 				 "ib*", my_errno,
 				 my_strerror(errbuf, sizeof(errbuf), my_errno));
 		}

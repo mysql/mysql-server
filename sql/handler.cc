@@ -3753,7 +3753,7 @@ void handler::print_error(int error, myf errflag)
   {
     textno=ER_RECORD_FILE_FULL;
     /* Write the error message to error log */
-    errflag|= ME_NOREFRESH;
+    errflag|= ME_ERRORLOG;
     break;
   }
   case HA_ERR_LOCK_WAIT_TIMEOUT:
