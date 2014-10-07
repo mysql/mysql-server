@@ -5,8 +5,8 @@
 CREATE TABLE `department` (`department_id` INT, `department_people_fk` INT,
 PRIMARY KEY (`department_id`)) engine=innodb;
 CREATE TABLE `title` (`title_id` INT, `title_manager_fk` INT,
-`title_reporter_fk` INT, PRIMARY KEY (`title_id`));
-CREATE TABLE `people` (`people_id` INT, PRIMARY KEY (`people_id`));
+`title_reporter_fk` INT, PRIMARY KEY (`title_id`)) engine=innodb;
+CREATE TABLE `people` (`people_id` INT, PRIMARY KEY (`people_id`)) engine=innodb;
 ALTER TABLE `department` ADD FOREIGN KEY (`department_people_fk`) REFERENCES
 `people` (`people_id`);
 ALTER TABLE `title` ADD FOREIGN KEY (`title_manager_fk`) REFERENCES `people`

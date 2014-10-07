@@ -1,6 +1,5 @@
 #
 --source include/not_windows.inc
---source include/force_restart.inc
 --source include/not_embedded.inc
 
 # 
