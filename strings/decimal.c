@@ -137,7 +137,7 @@ static const dec1 frac_max[DIG_PER_DEC1-1]={
 
 static inline int ROUND_UP(int x)
 {
-  return (x + (x > 0 ? 1 : -1) * (DIG_PER_DEC1 - 1)) / DIG_PER_DEC1;
+  return (x + (x > 0 ? DIG_PER_DEC1 - 1 : 0)) / DIG_PER_DEC1;
 }
 
 #ifdef HAVE_valgrind
