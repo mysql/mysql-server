@@ -1,5 +1,6 @@
 --source include/not_embedded.inc
 --source include/have_debug.inc
+--source include/have_profiling.inc
 
 --echo #
 --echo # WL#6797 Method for clearing session state

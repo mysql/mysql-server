@@ -36,6 +36,7 @@
 #include <debug_sync.h>
 #include <sql_profile.h>
 #include <table.h>
+#include "field.h"
 #include <set>
 
 #ifdef __cplusplus
