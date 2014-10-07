@@ -8763,24 +8763,6 @@ create_table_check_doc_id_col(
 	return(false);
 }
 
-
-create_table_info_t::create_table_info_t(
-	THD*		thd,
-	TABLE*		form,
-	HA_CREATE_INFO*	create_info,
-	char*		table_name,
-	char*		temp_path,
-	char*		remote_path,
-	bool		file_per_table)
-	:m_thd(thd),
-	m_form(form),
-	m_create_info(create_info),
-	m_table_name(table_name),
-	m_temp_path(temp_path),
-	m_remote_path(remote_path),
-	m_file_per_table(file_per_table)
-{}
-
 /** Create a table definition to an InnoDB database.
 @return ER_* level error */
 inline __attribute__((warn_unused_result))
@@ -8999,7 +8981,6 @@ err_col:
 			/* Temp-table are maintained in memory and so
 			can_be_evicted is FALSE. */
 			mem_heap_t* temp_table_heap = mem_heap_create(256);
-
 
 			/* For intrinsic table (given that they are
 			not shared beyond session scope), add it to session
@@ -9387,7 +9368,6 @@ create_table_info_t::create_options_are_invalid()
 	if (!(THDVAR(m_thd, strict_mode))) {
 		return(NULL);
 	}
-
 
 	/* First check if a non-zero KEY_BLOCK_SIZE was specified. */
 	if (m_create_info->key_block_size) {
@@ -9949,7 +9929,6 @@ create_table_info_t::prepare_create_table(
 	DBUG_RETURN(0);
 }
 
-
 /** Create a new table to an InnoDB database.
 @return error number */
 int
@@ -10136,7 +10115,6 @@ create_table_info_t::create_table()
 	DBUG_RETURN(0);
 }
 
-
 /** Update a new table in an InnoDB database.
 @return error number */
 int
@@ -10282,7 +10260,6 @@ ha_innobase::create(
 	if ((error = info.create_table())) {
 		goto cleanup;
 	}
-
 
 	innobase_commit_low(trx);
 
