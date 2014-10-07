@@ -883,8 +883,7 @@ dict_stats_update_transient(
 	} else if (index == NULL) {
 		/* Table definition is corrupt */
 
-		ib::warn() << "Table "
-			<< table->name
+		ib::warn() << "Table " << table->name
 			<< " has no indexes. Cannot calculate statistics.";
 		dict_stats_empty_table(table);
 		return;
@@ -2328,13 +2327,9 @@ dict_stats_save_index_stat(
 		"END;", trx);
 
 	if (ret != DB_SUCCESS) {
-		char	buf_index[MAX_FULL_NAME_LEN];
-
 		ib::error() << "Cannot save index statistics for table "
 			<< index->table->name
-			<< ", index "
-			<< ut_format_name(index->name, FALSE,
-					  buf_index, sizeof(buf_index))
+			<< ", index " << index->name
 			<< ", stat name \"" << stat_name << "\": "
 			<< ut_strerr(ret);
 	}
@@ -3022,14 +3017,10 @@ dict_stats_update_for_index(
 
 		/* Fall back to transient stats since the persistent
 		storage is not present or is corrupted */
-		char	buf_index[MAX_FULL_NAME_LEN];
 
 		ib::info() << "Recalculation of persistent statistics"
-			" requested for table "
-			<< index->table->name
-			<< " index "
-			<< ut_format_name(index->name, FALSE,
-					  buf_index, sizeof(buf_index))
+			" requested for table " << index->table->name
+			<< " index " << index->name
 			<< " but the required"
 			" persistent statistics storage is not present or is"
 			" corrupted. Using transient stats instead.";

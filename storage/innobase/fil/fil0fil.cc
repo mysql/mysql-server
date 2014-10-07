@@ -4257,10 +4257,6 @@ fil_report_missing_tablespace(
 	const char*	name,			/*!< in: table name */
 	ulint		space_id)		/*!< in: table's space id */
 {
-	char	index_name[MAX_FULL_NAME_LEN + 1];
-
-	innobase_format_name(index_name, sizeof(index_name), name, TRUE);
-
 	ib::error() << "Table " << name
 		<< " in the InnoDB data dictionary has tablespace id "
 		<< space_id << ","

@@ -1227,7 +1227,7 @@ cleanup:
 		/* Corruption */
 		ib::error() << "Corruption of adaptive hash index."
 			<< " After dropping, the hash index to a page of "
-			<< ut_get_name(NULL, FALSE, index->name)
+			<< index->name
 			<< ", still " << block->n_pointers
 			<< " hash nodes remain.";
 		rw_lock_x_unlock(&btr_search_latch);

@@ -965,7 +965,7 @@ fill_innodb_locks_from_cache(
 		bufend = innobase_convert_name(buf, sizeof(buf),
 					       row->lock_table,
 					       strlen(row->lock_table),
-					       thd, TRUE);
+					       thd);
 		OK(fields[IDX_LOCK_TABLE]->store(
 			buf, static_cast<uint>(bufend - buf),
 			system_charset_info));
@@ -5256,7 +5256,7 @@ i_s_innodb_buffer_page_fill(
 					table_name, sizeof(table_name),
 					index->table_name,
 					strlen(index->table_name),
-					thd, TRUE);
+					thd);
 
 				OK(fields[IDX_BUFFER_PAGE_TABLE_NAME]->store(
 					table_name,
@@ -5978,7 +5978,7 @@ i_s_innodb_buf_page_lru_fill(
 					table_name, sizeof(table_name),
 					index->table_name,
 					strlen(index->table_name),
-					thd, TRUE);
+					thd);
 
 				OK(fields[IDX_BUF_LRU_PAGE_TABLE_NAME]->store(
 					table_name,

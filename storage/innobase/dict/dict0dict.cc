@@ -2751,10 +2751,8 @@ dict_index_remove_from_cache_low(
 			ib::error() << "Waited for " << retries / 100
 				<< " secs for hash index"
 				" ref_count (" << ref_count << ") to drop to 0."
-				" index: "
-				<< ut_get_name(NULL, FALSE, index->name)
-				<< " table: "
-				<< table->name;
+				" index: " << index->name
+				<< " table: " << table->name;
 		}
 
 		/* To avoid a hang here we commit suicide if the
@@ -2843,12 +2841,9 @@ dict_index_find_cols(
 
 #ifdef UNIV_DEBUG
 		/* It is an error not to find a matching column. */
-		ib::error() << "No matching column for "
-			<< field->name
-			<< " in index "
-			<< ut_get_name(NULL, FALSE, index->name)
-			<< " of table "
-			<< ut_get_name(NULL, TRUE, index->table_name);
+		ib::error() << "No matching column for " << field->name
+			<< " in index " << index->name
+			<< " of table " << index->table->name;
 #endif /* UNIV_DEBUG */
 		return(FALSE);
 
@@ -3558,9 +3553,9 @@ dict_foreign_error_report(
 	dict_print_info_on_foreign_key_in_create_format(file, NULL, fk, TRUE);
 	putc('\n', file);
 	if (fk->foreign_index) {
-		fputs("The index in the foreign key in table is ", file);
-		ut_print_name(file, NULL, FALSE, fk->foreign_index->name);
-		fprintf(file, "\n%s\n", FOREIGN_KEY_CONSTRAINTS_MSG);
+		fprintf(file, "The index in the foreign key in table is"
+			" %s\n%s\n", fk->foreign_index->name,
+			FOREIGN_KEY_CONSTRAINTS_MSG);
 	}
 	mutex_exit(&dict_foreign_err_mutex);
 }
@@ -4625,7 +4620,7 @@ col_loop1:
 		mutex_enter(&dict_foreign_err_mutex);
 		dict_foreign_error_report_low(ef, name);
 		fputs("There is no index in table ", ef);
-		ut_print_name(ef, NULL, TRUE, name);
+		ut_print_name(ef, NULL, name);
 		fprintf(ef, " where the columns appear\n"
 			"as the first columns. Constraint:\n%s\n%s",
 			start_of_latest_foreign,
@@ -5104,13 +5099,10 @@ loop:
 			ut_print_timestamp(ef);
 			fputs(" Error in dropping of a foreign key"
 			      " constraint of table ", ef);
-			ut_print_name(ef, NULL, TRUE, table->name.m_name);
-			fputs(",\nin SQL command\n", ef);
-			fputs(str, ef);
-			fputs("\nCannot find a constraint with the"
-			      " given id ", ef);
-			ut_print_name(ef, NULL, FALSE, id);
-			fputs(".\n", ef);
+			ut_print_name(ef, NULL, table->name.m_name);
+			fprintf(ef, ",\nin SQL command\n%s"
+				"\nCannot find a constraint with the"
+				" given id %s.\n", str, id);
 			mutex_exit(&dict_foreign_err_mutex);
 		}
 
@@ -5130,7 +5122,7 @@ syntax_error:
 		ut_print_timestamp(ef);
 		fputs(" Syntax error in dropping of a"
 		      " foreign key constraint of table ", ef);
-		ut_print_name(ef, NULL, TRUE, table->name.m_name);
+		ut_print_name(ef, NULL, table->name.m_name);
 		fprintf(ef, ",\n"
 			"close to:\n%s\n in SQL command\n%s\n", ptr, str);
 		mutex_exit(&dict_foreign_err_mutex);
@@ -5407,11 +5399,12 @@ dict_print_info_on_foreign_key_in_create_format(
 	}
 
 	fputs(" CONSTRAINT ", file);
-	ut_print_name(file, trx, FALSE, stripped_id);
+	innobase_quote_identifier(file, trx, stripped_id);
 	fputs(" FOREIGN KEY (", file);
 
 	for (i = 0;;) {
-		ut_print_name(file, trx, FALSE, foreign->foreign_col_names[i]);
+		innobase_quote_identifier(
+			file, trx, foreign->foreign_col_names[i]);
 		if (++i < foreign->n_fields) {
 			fputs(", ", file);
 		} else {
@@ -5424,11 +5417,11 @@ dict_print_info_on_foreign_key_in_create_format(
 	if (dict_tables_have_same_db(foreign->foreign_table_name_lookup,
 				     foreign->referenced_table_name_lookup)) {
 		/* Do not print the database name of the referenced table */
-		ut_print_name(file, trx, TRUE,
+		ut_print_name(file, trx,
 			      dict_remove_db_name(
 				      foreign->referenced_table_name));
 	} else {
-		ut_print_name(file, trx, TRUE,
+		ut_print_name(file, trx,
 			      foreign->referenced_table_name);
 	}
 
@@ -5436,8 +5429,8 @@ dict_print_info_on_foreign_key_in_create_format(
 	putc('(', file);
 
 	for (i = 0;;) {
-		ut_print_name(file, trx, FALSE,
-			      foreign->referenced_col_names[i]);
+		innobase_quote_identifier(file, trx,
+					  foreign->referenced_col_names[i]);
 		if (++i < foreign->n_fields) {
 			fputs(", ", file);
 		} else {
@@ -5507,12 +5500,13 @@ dict_print_info_on_foreign_keys(
 					putc(' ', file);
 				}
 
-				ut_print_name(file, trx, FALSE,
-					      foreign->foreign_col_names[i]);
+				innobase_quote_identifier(
+					file, trx,
+					foreign->foreign_col_names[i]);
 			}
 
 			fputs(") REFER ", file);
-			ut_print_name(file, trx, TRUE,
+			ut_print_name(file, trx,
 				      foreign->referenced_table_name);
 			putc('(', file);
 
@@ -5520,8 +5514,8 @@ dict_print_info_on_foreign_keys(
 				if (i) {
 					putc(' ', file);
 				}
-				ut_print_name(
-					file, trx, FALSE,
+				innobase_quote_identifier(
+					file, trx,
 					foreign->referenced_col_names[i]);
 			}
 
@@ -5565,10 +5559,8 @@ dict_index_name_print(
 	const trx_t*		trx,	/*!< in: transaction */
 	const dict_index_t*	index)	/*!< in: index to print */
 {
-	fputs("index ", file);
-	ut_print_name(file, trx, FALSE, index->name);
-	fputs(" of table ", file);
-	ut_print_name(file, trx, TRUE, index->table_name);
+	fprintf(file, "index %s of table ", index->name);
+	ut_print_name(file, trx, index->table_name);
 }
 
 /**********************************************************************//**
@@ -5727,10 +5719,8 @@ fail:
 
 	mtr_commit(&mtr);
 	mem_heap_empty(heap);
-	ib::error() << status << " corruption of "
-		<< ut_get_name(NULL, FALSE, index->name)
-		<< " in table "
-		<< ut_get_name(NULL, TRUE, index->table_name) << " in " << ctx;
+	ib::error() << status << " corruption of " << index->name
+		<< " in table " << index->table->name << " in " << ctx;
 	mem_heap_free(heap);
 
 func_exit:
@@ -6014,7 +6004,7 @@ dict_table_schema_check(
 		ut_snprintf(errstr, errstr_sz,
 			    "Table %s not found.",
 			    ut_format_name(req_schema->table_name,
-					   TRUE, buf, sizeof(buf)));
+					   buf, sizeof(buf)));
 
 		return(DB_TABLE_NOT_FOUND);
 	}
@@ -6025,7 +6015,7 @@ dict_table_schema_check(
 		ut_snprintf(errstr, errstr_sz,
 			    "Tablespace for table %s is missing.",
 			    ut_format_name(req_schema->table_name,
-					   TRUE, buf, sizeof(buf)));
+					   buf, sizeof(buf)));
 
 		return(DB_TABLE_NOT_FOUND);
 	}
@@ -6036,7 +6026,7 @@ dict_table_schema_check(
 		ut_snprintf(errstr, errstr_sz,
 			    "%s has %lu columns but should have %lu.",
 			    ut_format_name(req_schema->table_name,
-					   TRUE, buf, sizeof(buf)),
+					   buf, sizeof(buf)),
 			    table->n_def - n_sys_cols,
 			    req_schema->n_cols);
 
@@ -6060,7 +6050,7 @@ dict_table_schema_check(
 				    req_schema->columns[i].name,
 				    ut_format_name(
 					    req_schema->table_name,
-					    TRUE, buf, sizeof(buf)));
+					    buf, sizeof(buf)));
 
 			return(DB_ERROR);
 		}
@@ -6078,7 +6068,7 @@ dict_table_schema_check(
 				    " but should be %s (length mismatch).",
 				    req_schema->columns[i].name,
 				    ut_format_name(req_schema->table_name,
-						   TRUE, buf, sizeof(buf)),
+						   buf, sizeof(buf)),
 				    actual_type, req_type);
 
 			return(DB_ERROR);
@@ -6094,7 +6084,7 @@ dict_table_schema_check(
 				    " but should be %s (type mismatch).",
 				    req_schema->columns[i].name,
 				    ut_format_name(req_schema->table_name,
-						   TRUE, buf, sizeof(buf)),
+						   buf, sizeof(buf)),
 				    actual_type, req_type);
 
 			return(DB_ERROR);
@@ -6113,7 +6103,7 @@ dict_table_schema_check(
 				    " but should be %s (flags mismatch).",
 				    req_schema->columns[i].name,
 				    ut_format_name(req_schema->table_name,
-						   TRUE, buf, sizeof(buf)),
+						   buf, sizeof(buf)),
 				    actual_type, req_type);
 
 			return(DB_ERROR);
@@ -6126,7 +6116,7 @@ dict_table_schema_check(
 			"Table %s has " ULINTPF " foreign key(s) pointing"
 			" to other tables, but it must have %lu.",
 			ut_format_name(req_schema->table_name,
-				       TRUE, buf, sizeof(buf)),
+				       buf, sizeof(buf)),
 			static_cast<ulint>(table->foreign_set.size()),
 			req_schema->n_foreign);
 		return(DB_ERROR);
@@ -6139,7 +6129,7 @@ dict_table_schema_check(
 			"but there must be %lu.",
 			static_cast<ulint>(table->referenced_set.size()),
 			ut_format_name(req_schema->table_name,
-				       TRUE, buf, sizeof(buf)),
+				       buf, sizeof(buf)),
 			req_schema->n_referenced);
 		return(DB_ERROR);
 	}

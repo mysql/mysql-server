@@ -2633,6 +2633,36 @@ innobase_invalidate_query_cache(
 				      TRUE);
 }
 
+/** Quote an index or column name.
+@param[in]	file	output stream
+@param[in]	trx	InnoDB transaction, or NULL
+@param[in]	id	identifier to quote */
+void
+innobase_quote_identifier(
+	FILE*		file,
+	trx_t*		trx,
+	const char*	id)
+{
+	const int	q = trx != NULL && trx->mysql_thd != NULL
+		? get_quote_char_for_identifier(trx->mysql_thd, id, strlen(id))
+		: '`';
+
+	if (q == EOF) {
+		fputs(id, file);
+	} else {
+		putc(q, file);
+
+		while (int c = *id++) {
+			if (c == q) {
+				putc(c, file);
+			}
+			putc(c, file);
+		}
+
+		putc(q, file);
+	}
+}
+
 /*****************************************************************//**
 Convert an SQL identifier to the MySQL system_charset_info (UTF-8)
 and quote it if needed.
@@ -2645,140 +2675,79 @@ innobase_convert_identifier(
 	ulint		buflen,	/*!< in: length of buf, in bytes */
 	const char*	id,	/*!< in: identifier to convert */
 	ulint		idlen,	/*!< in: length of id, in bytes */
-	THD*		thd,	/*!< in: MySQL connection thread, or NULL */
-	ibool		file_id)/*!< in: TRUE=id is a table or database name;
-				FALSE=id is an UTF-8 string */
+	THD*		thd)	/*!< in: MySQL connection thread, or NULL */
 {
 	const char*	s	= id;
-	int		q;
 
-	if (file_id) {
+	char nz[MAX_TABLE_NAME_LEN + 1];
+	char nz2[MAX_TABLE_NAME_LEN + 1];
 
-		char nz[MAX_TABLE_NAME_LEN + 1];
-		char nz2[MAX_TABLE_NAME_LEN + 1];
+	/* Decode the table name.  The MySQL function expects
+	a NUL-terminated string.  The input and output strings
+	buffers must not be shared. */
+	ut_a(idlen <= MAX_TABLE_NAME_LEN);
+	memcpy(nz, id, idlen);
+	nz[idlen] = 0;
 
-		/* Decode the table name.  The MySQL function expects
-		a NUL-terminated string.  The input and output strings
-		buffers must not be shared. */
-		ut_a(idlen <= MAX_TABLE_NAME_LEN);
-		memcpy(nz, id, idlen);
-		nz[idlen] = 0;
-
-		s = nz2;
-		idlen = explain_filename(thd, nz, nz2, sizeof nz2,
-					 EXPLAIN_PARTITIONS_AS_COMMENT);
-		goto no_quote;
+	s = nz2;
+	idlen = explain_filename(thd, nz, nz2, sizeof nz2,
+				 EXPLAIN_PARTITIONS_AS_COMMENT);
+	if (idlen > buflen) {
+		idlen = buflen;
 	}
-
-	/* See if the identifier needs to be quoted. */
-	if (!thd) {
-		q = '`';
-	} else {
-		q = get_quote_char_for_identifier(thd, s, idlen);
-	}
-
-	if (q == EOF) {
-no_quote:
-		if (idlen > buflen) {
-			idlen = buflen;
-		}
-		memcpy(buf, s, idlen);
-		return(buf + idlen);
-	}
-
-	/* Quote the identifier. */
-	if (buflen < 2) {
-		return(buf);
-	}
-
-	*buf++ = q;
-	buflen--;
-
-	for (; idlen; idlen--) {
-		int	c = *s++;
-		if (c == q) {
-			if (buflen < 3) {
-				break;
-			}
-
-			*buf++ = c;
-			*buf++ = c;
-			buflen -= 2;
-		} else {
-			if (buflen < 2) {
-				break;
-			}
-
-			*buf++ = c;
-			buflen--;
-		}
-	}
-
-	*buf++ = q;
-	return(buf);
+	memcpy(buf, s, idlen);
+	return(buf + idlen);
 }
 
 /*****************************************************************//**
-Convert a table or index name to the MySQL system_charset_info (UTF-8)
-and quote it if needed.
+Convert a table name to the MySQL system_charset_info (UTF-8).
 @return pointer to the end of buf */
 char*
 innobase_convert_name(
 /*==================*/
 	char*		buf,	/*!< out: buffer for converted identifier */
 	ulint		buflen,	/*!< in: length of buf, in bytes */
-	const char*	id,	/*!< in: identifier to convert */
+	const char*	id,	/*!< in: table name to convert */
 	ulint		idlen,	/*!< in: length of id, in bytes */
-	THD*		thd,	/*!< in: MySQL connection thread, or NULL */
-	ibool		table_id)/*!< in: TRUE=id is a table or database name;
-				FALSE=id is an index name */
+	THD*		thd)	/*!< in: MySQL connection thread, or NULL */
 {
 	char*		s	= buf;
 	const char*	bufend	= buf + buflen;
 
-	if (table_id) {
-		const char*	slash = (const char*) memchr(id, '/', idlen);
+	const char*	slash = (const char*) memchr(id, '/', idlen);
 
-		if (slash == NULL) {
+	if (slash == NULL) {
+		return(innobase_convert_identifier(
+				buf, buflen, id, idlen, thd));
+	}
 
-			return(innobase_convert_identifier(
-					buf, buflen, id, idlen, thd, table_id));
-		}
-
-		/* Print the database name and table name separately. */
-		s = innobase_convert_identifier(s, bufend - s, id, slash - id,
-						thd, TRUE);
-		if (s < bufend) {
-			*s++ = '.';
-			s = innobase_convert_identifier(s, bufend - s,
-							slash + 1, idlen
-							- (slash - id) - 1,
-							thd, TRUE);
-		}
-	} else {
-		s = innobase_convert_identifier(
-			buf, buflen, id, idlen, thd, table_id);
+	/* Print the database name and table name separately. */
+	s = innobase_convert_identifier(s, bufend - s, id, slash - id, thd);
+	if (s < bufend) {
+		*s++ = '.';
+		s = innobase_convert_identifier(s, bufend - s,
+						slash + 1, idlen
+						- (slash - id) - 1,
+						thd);
 	}
 
 	return(s);
 }
 
 /*****************************************************************//**
-A wrapper function of innobase_convert_name(), convert a table or
-index name to the MySQL system_charset_info (UTF-8) and quote it if needed.
+A wrapper function of innobase_convert_name(), convert a table name
+to the MySQL system_charset_info (UTF-8) and quote it if needed.
 @return pointer to the end of buf */
 void
 innobase_format_name(
 /*==================*/
 	char*		buf,	/*!< out: buffer for converted identifier */
 	ulint		buflen,	/*!< in: length of buf, in bytes */
-	const char*	name,	/*!< in: index or table name to format */
-	ibool		is_index_name) /*!< in: index name */
+	const char*	name)	/*!< in: table name to format */
 {
 	const char*     bufend;
 
-	bufend = innobase_convert_name(buf, buflen, name, strlen(name),
-				       NULL, !is_index_name);
+	bufend = innobase_convert_name(buf, buflen, name, strlen(name), NULL);
 
 	ut_ad((ulint) (bufend - buf) < buflen);
 
@@ -4485,30 +4454,27 @@ test_ut_format_name()
 
 	struct {
 		const char*	name;
-		ibool		is_table;
 		ulint		buf_size;
 		const char*	expected;
 	} test_data[] = {
-		{"test/t1",	TRUE,	sizeof(buf),	"`test`.`t1`"},
-		{"test/t1",	TRUE,	12,		"`test`.`t1`"},
-		{"test/t1",	TRUE,	11,		"`test`.`t1"},
-		{"test/t1",	TRUE,	10,		"`test`.`t"},
-		{"test/t1",	TRUE,	9,		"`test`.`"},
-		{"test/t1",	TRUE,	8,		"`test`."},
-		{"test/t1",	TRUE,	7,		"`test`"},
-		{"test/t1",	TRUE,	6,		"`test"},
-		{"test/t1",	TRUE,	5,		"`tes"},
-		{"test/t1",	TRUE,	4,		"`te"},
-		{"test/t1",	TRUE,	3,		"`t"},
-		{"test/t1",	TRUE,	2,		"`"},
-		{"test/t1",	TRUE,	1,		""},
-		{"test/t1",	TRUE,	0,		"BUF_NOT_CHANGED"},
-		{"table",	TRUE,	sizeof(buf),	"`table`"},
-		{"ta'le",	TRUE,	sizeof(buf),	"`ta'le`"},
-		{"ta\"le",	TRUE,	sizeof(buf),	"`ta\"le`"},
-		{"ta`le",	TRUE,	sizeof(buf),	"`ta``le`"},
-		{"index",	FALSE,	sizeof(buf),	"`index`"},
-		{"ind/ex",	FALSE,	sizeof(buf),	"`ind/ex`"},
+		{"test/t1",	sizeof(buf),	"`test`.`t1`"},
+		{"test/t1",	12,		"`test`.`t1`"},
+		{"test/t1",	11,		"`test`.`t1"},
+		{"test/t1",	10,		"`test`.`t"},
+		{"test/t1",	9,		"`test`.`"},
+		{"test/t1",	8,		"`test`."},
+		{"test/t1",	7,		"`test`"},
+		{"test/t1",	6,		"`test"},
+		{"test/t1",	5,		"`tes"},
+		{"test/t1",	4,		"`te"},
+		{"test/t1",	3,		"`t"},
+		{"test/t1",	2,		"`"},
+		{"test/t1",	1,		""},
+		{"test/t1",	0,		"BUF_NOT_CHANGED"},
+		{"table",	sizeof(buf),	"`table`"},
+		{"ta'le",	sizeof(buf),	"`ta'le`"},
+		{"ta\"le",	sizeof(buf),	"`ta\"le`"},
+		{"ta`le",	sizeof(buf),	"`ta``le`"},
 	};
 
 	for (size_t i = 0; i < UT_ARR_SIZE(test_data); i++) {
@@ -4518,7 +4484,6 @@ test_ut_format_name()
 		char*	ret;
 
 		ret = ut_format_name(test_data[i].name,
-				     test_data[i].is_table,
 				     buf,
 				     test_data[i].buf_size);
 
@@ -4526,15 +4491,11 @@ test_ut_format_name()
 
 		if (strcmp(buf, test_data[i].expected) == 0) {
 			ib::info() << "ut_format_name(" << test_data[i].name
-				<< ", "
-				<< (test_data[i].is_table ? "TRUE" : "FALSE")
 				<< ", buf, " << test_data[i].buf_size << "),"
 				" expected " << test_data[i].expected
 				<< ", OK";
 		} else {
 			ib::error() << "ut_format_name(" << test_data[i].name
-				<< ", "
-				<< (test_data[i].is_table ? "TRUE" : "FALSE")
 				<< ", buf, " << test_data[i].buf_size << "),"
 				" expected " << test_data[i].expected
 				<< ", ERROR: got " << buf;
@@ -7873,16 +7834,11 @@ ha_innobase::change_active_index(
 
 	if (!m_prebuilt->index_usable) {
 		if (dict_index_is_corrupted(m_prebuilt->index)) {
-			char	index_name[MAX_FULL_NAME_LEN + 1];
 			char	table_name[MAX_FULL_NAME_LEN + 1];
 
 			innobase_format_name(
-				index_name, sizeof index_name,
-				m_prebuilt->index->name, TRUE);
-
-			innobase_format_name(
 				table_name, sizeof table_name,
-				m_prebuilt->index->table->name.m_name, FALSE);
+				m_prebuilt->index->table->name.m_name);
 
 			if (dict_index_is_clust(m_prebuilt->index)) {
 				ut_ad(m_prebuilt->index->table->corrupted);
@@ -7898,7 +7854,7 @@ ha_innobase::change_active_index(
 					HA_ERR_INDEX_CORRUPT,
 					"InnoDB: Index %s for table %s is"
 					" marked as corrupted",
-					index_name, table_name);
+					m_prebuilt->index->name, table_name);
 				DBUG_RETURN(HA_ERR_INDEX_CORRUPT);
 			}
 		} else {
@@ -9035,7 +8991,7 @@ err_col:
 		char* buf_end = innobase_convert_identifier(
 			display_name, sizeof(display_name) - 1,
 			table_name, strlen(table_name),
-			thd, TRUE);
+			thd);
 
 		*buf_end = '\0';
 
@@ -12076,8 +12032,6 @@ ha_innobase::check(
 	for (index = dict_table_get_first_index(m_prebuilt->table);
 	     index != NULL;
 	     index = dict_table_get_next_index(index)) {
-		char	index_name[MAX_FULL_NAME_LEN + 1];
-
 		/* If this is an index being created or dropped, skip */
 		if (!index->is_committed()) {
 			continue;
@@ -12103,17 +12057,13 @@ ha_innobase::check(
 			if (!valid) {
 				is_ok = false;
 
-				innobase_format_name(
-					index_name, sizeof index_name,
-					index->name, TRUE);
-
 				push_warning_printf(
 					thd,
 					Sql_condition::SL_WARNING,
 					ER_NOT_KEYFILE,
 					"InnoDB: The B-tree of"
 					" index %s is corrupted.",
-					index_name);
+					index->name);
 				continue;
 			}
 		}
@@ -12127,10 +12077,6 @@ ha_innobase::check(
 			m_prebuilt->trx, m_prebuilt->index);
 
 		if (!m_prebuilt->index_usable) {
-			innobase_format_name(
-				index_name, sizeof index_name,
-				m_prebuilt->index->name, TRUE);
-
 			if (dict_index_is_corrupted(m_prebuilt->index)) {
 				push_warning_printf(
 					m_user_thd,
@@ -12138,7 +12084,7 @@ ha_innobase::check(
 					HA_ERR_INDEX_CORRUPT,
 					"InnoDB: Index %s is marked as"
 					" corrupted",
-					index_name);
+					index->name);
 				is_ok = false;
 			} else {
 				push_warning_printf(
@@ -12147,7 +12093,7 @@ ha_innobase::check(
 					HA_ERR_TABLE_DEF_CHANGED,
 					"InnoDB: Insufficient history for"
 					" index %s",
-					index_name);
+					index->name);
 			}
 			continue;
 		}
@@ -12182,16 +12128,12 @@ ha_innobase::check(
 		}
 		if (ret != DB_SUCCESS) {
 			/* Assume some kind of corruption. */
-			innobase_format_name(
-				index_name, sizeof index_name,
-				index->name, TRUE);
-
 			push_warning_printf(
 				thd, Sql_condition::SL_WARNING,
 				ER_NOT_KEYFILE,
 				"InnoDB: The B-tree of"
 				" index %s is corrupted.",
-				index_name);
+				index->name);
 			is_ok = false;
 			dict_set_corrupted(
 				index, m_prebuilt->trx, "CHECK TABLE-check index");
