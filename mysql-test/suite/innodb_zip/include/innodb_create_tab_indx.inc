@@ -1,6 +1,4 @@
---echo ===============
---echo create table & Index
---echo ===============
+--echo # Create table & Index
 
 eval CREATE TABLE tab5(col_1 TINYBLOB, col_2 TINYTEXT,col_3 BLOB,
 col_4 TEXT,col_5 MEDIUMBLOB,col_6 MEDIUMTEXT,

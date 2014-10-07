@@ -209,11 +209,10 @@ fsp_get_space_header(
 This can only be done for a tablespace that was built as a file-per-table
 tablespace. Note that the fsp_flags cannot show the difference between a
 Compact and Redundant table, so an extra Compact boolean must be supplied.
-========================= Low order bit ==========================
-                    | REDUNDANT | COMPACT | COMPRESSED | DYNAMIC
+			Low order bit
+		    | REDUNDANT | COMPACT | COMPRESSED | DYNAMIC
 fil_space_t::flags  |     0     |    0    |     1      |    1
 dict_table_t::flags |     0     |    1    |     1      |    1
-==================================================================
 @param[in]	fsp_flags	fil_space_t::flags
 @param[in]	compact		true if not Redundant row format
 @return tablespace flags (fil_space_t::flags) */

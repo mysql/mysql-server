@@ -6625,11 +6625,10 @@ Fsp Flags are written into the tablespace header at the offset
 FSP_SPACE_FLAGS and are also stored in the fil_space_t::flags field.
 The following chart shows the translation of the low order bit.
 Other bits are the same.
-========================= Low order bit ==========================
-                    | REDUNDANT | COMPACT | COMPRESSED | DYNAMIC
+			Low order bit
+		    | REDUNDANT | COMPACT | COMPRESSED | DYNAMIC
 dict_table_t::flags |     0     |    1    |     1      |    1
 fil_space_t::flags  |     0     |    0    |     1      |    1
-==================================================================
 @param[in]	table_flags	dict_table_t::flags
 @return tablespace flags (fil_space_t::flags) */
 ulint
