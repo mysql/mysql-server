@@ -3320,7 +3320,7 @@ already_dropped:
 	MONITOR_DEC(MONITOR_BACKGROUND_DROP_TABLE);
 
 	ib::info() << "Dropped table "
-		<< ut_get_name(NULL, TRUE, drop->table_name)
+		<< ut_get_name(NULL, drop->table_name)
 		<< " in background drop queue.",
 
 	ut_free(drop->table_name);
@@ -3518,10 +3518,10 @@ row_discard_tablespace_foreign_key_checks(
 	ut_print_timestamp(ef);
 
 	fputs("  Cannot DISCARD table ", ef);
-	ut_print_name(stderr, trx, TRUE, table->name.m_name);
+	ut_print_name(ef, trx, table->name.m_name);
 	fputs("\n"
 	      "because it is referenced by ", ef);
-	ut_print_name(stderr, trx, TRUE, foreign->foreign_table_name);
+	ut_print_name(ef, trx, foreign->foreign_table_name);
 	putc('\n', ef);
 
 	mutex_exit(&dict_foreign_err_mutex);
@@ -3712,7 +3712,7 @@ row_discard_tablespace_for_mysql(
 
 		innobase_format_name(
 			table_name, sizeof(table_name),
-			table->name.m_name, FALSE);
+			table->name.m_name);
 
 		ib_senderrf(trx->mysql_thd, IB_LOG_LEVEL_ERROR,
 			    ER_TABLE_IN_SYSTEM_TABLESPACE, table_name);
@@ -3724,7 +3724,7 @@ row_discard_tablespace_for_mysql(
 
 		innobase_format_name(
 			table_name, sizeof(table_name),
-			table->name.m_name, FALSE);
+			table->name.m_name);
 
 		ib_senderrf(trx->mysql_thd, IB_LOG_LEVEL_ERROR,
 			    ER_DISCARD_FK_CHECKS_RUNNING, table_name);
@@ -3912,7 +3912,7 @@ row_drop_table_from_cache(
 	    && dict_load_table(tablename, TRUE,
 			       DICT_ERR_IGNORE_NONE) != NULL) {
 		ib::error() << "Not able to remove table "
-			<< ut_get_name(trx, TRUE, tablename)
+			<< ut_get_name(trx, tablename)
 			<< " from the dictionary cache!";
 		err = DB_ERROR;
 	}
@@ -4050,7 +4050,7 @@ row_drop_table_for_mysql(
 		err = DB_TABLE_NOT_FOUND;
 
 		if (!row_is_mysql_tmp_table_name(name)) {
-			ib::error() << "Table " << ut_get_name(trx, TRUE, name)
+			ib::error() << "Table " << ut_get_name(trx, name)
 				<< " does not exist in the InnoDB internal"
 				" data dictionary though MySQL is trying to"
 				" drop it. Have you copied the .frm file"
@@ -4158,10 +4158,10 @@ row_drop_table_for_mysql(
 				ut_print_timestamp(ef);
 
 				fputs("  Cannot drop table ", ef);
-				ut_print_name(ef, trx, TRUE, name);
+				ut_print_name(ef, trx, name);
 				fputs("\n"
 				      "because it is referenced by ", ef);
-				ut_print_name(ef, trx, TRUE,
+				ut_print_name(ef, trx,
 					      foreign->foreign_table_name);
 				putc('\n', ef);
 				mutex_exit(&dict_foreign_err_mutex);
@@ -4186,7 +4186,7 @@ row_drop_table_for_mysql(
 
 		if (added) {
 			ib::info() << "You are trying to drop table "
-				<< ut_get_name(trx, TRUE, save_tablename)
+				<< table->name
 				<< " though there is a foreign key check"
 				" running on it. Adding the table to the"
 				" background drop queue.";
@@ -4509,7 +4509,7 @@ row_drop_table_for_mysql(
 		the error number and rollback the transaction */
 		ib::error() << "Unknown error code " << err << " while"
 			" dropping table: "
-			<< ut_get_name(trx, TRUE, tablename) << ".";
+			<< ut_get_name(trx, tablename) << ".";
 
 		trx->error_state = DB_SUCCESS;
 		trx_rollback_to_savepoint(trx, NULL);
@@ -4789,9 +4789,9 @@ loop:
 			row_mysql_unlock_data_dictionary(trx);
 
 			ib::warn() << "MySQL is trying to drop database "
-				<< ut_get_name(trx, TRUE, name) << " though"
+				<< ut_get_name(trx, name) << " though"
 				" there are still open handles to table "
-				<< ut_get_name(trx, TRUE, table_name) << ".";
+				<< table->name << ".";
 
 			os_thread_sleep(1000000);
 
@@ -4804,12 +4804,10 @@ loop:
 		trx_commit_for_mysql(trx);
 
 		if (err != DB_SUCCESS) {
-			const std::string&	tbl = ut_get_name(trx, TRUE,
-								  table_name);
 			ib::error() << "DROP DATABASE "
-				<< ut_get_name(trx, TRUE, name) << " failed"
+				<< ut_get_name(trx, name) << " failed"
 				" with error (" << ut_strerr(err) << ") for"
-				" table " << tbl;
+				" table " << ut_get_name(trx, table_name);
 			ut_free(table_name);
 			break;
 		}
@@ -4823,8 +4821,7 @@ loop:
 		err = drop_all_foreign_keys_in_db(name, trx);
 
 		if (err != DB_SUCCESS) {
-			const std::string&	db = ut_get_name(trx, TRUE,
-								 name);
+			const std::string&	db = ut_get_name(trx, name);
 			ib::error() << "DROP DATABASE " << db << " failed with"
 				" error " << err << " while dropping all"
 				" foreign keys";
@@ -4966,7 +4963,7 @@ row_rename_table_for_mysql(
 
 	if (!table) {
 		err = DB_TABLE_NOT_FOUND;
-		ib::error() << "Table " << ut_get_name(trx, TRUE, old_name)
+		ib::error() << "Table " << ut_get_name(trx, old_name)
 			<< " does not exist in the InnoDB internal data"
 			" dictionary though MySQL is trying to rename the"
 			" table. Have you copied the .frm file of the table to"
@@ -5013,7 +5010,7 @@ row_rename_table_for_mysql(
 
 	if (table->n_foreign_key_checks_running > 0) {
 		ib::error() << "In ALTER TABLE "
-			<< ut_get_name(trx, TRUE, old_name)
+			<< ut_get_name(trx, old_name)
 			<< " a FOREIGN KEY check is running. Cannot rename"
 			" table.";
 		err = DB_TABLE_IN_FK_CHECK;
@@ -5242,15 +5239,15 @@ end:
 				" internal name in case-insensitive"
 				" comparison.";
 			ib::error() << "(2) Table "
-				<< ut_get_name(trx, TRUE, new_name)
+				<< ut_get_name(trx, new_name)
 				<< " exists in the InnoDB internal data"
 				" dictionary though MySQL is trying to rename"
-				" table " << ut_get_name(trx, TRUE, old_name)
+				" table " << ut_get_name(trx, old_name)
 				<< " to it. Have you deleted the .frm file and"
 				" not used DROP TABLE?";
 			ib::info() << TROUBLESHOOTING_MSG;
 			ib::error() << "If table "
-				<< ut_get_name(trx, TRUE, new_name)
+				<< ut_get_name(trx, new_name)
 				<< " is a temporary table #sql..., then"
 				" it can be that there are still queries"
 				" running on the table, and it will be dropped"
@@ -5291,14 +5288,14 @@ end:
 
 			if (old_is_tmp) {
 				ib::error() << "In ALTER TABLE "
-					<< ut_get_name(trx, TRUE, new_name)
+					<< ut_get_name(trx, new_name)
 					<< " has or is referenced in foreign"
 					" key constraints which are not"
 					" compatible with the new table"
 					" definition.";
 			} else {
 				ib::error() << "In RENAME TABLE table "
-					<< ut_get_name(trx, TRUE, new_name)
+					<< ut_get_name(trx, new_name)
 					<< " is referenced in foreign key"
 					" constraints which are not compatible"
 					" with the new table definition.";

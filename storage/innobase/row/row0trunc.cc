@@ -1518,10 +1518,10 @@ row_truncate_foreign_key_checks(
 		ut_print_timestamp(ef);
 
 		fputs("  Cannot truncate table ", ef);
-		ut_print_name(ef, trx, TRUE, table->name.m_name);
+		ut_print_name(ef, trx, table->name.m_name);
 		fputs(" by DROP+CREATE\n"
 		      "InnoDB: because it is referenced by ", ef);
-		ut_print_name(ef, trx, TRUE, foreign->foreign_table_name);
+		ut_print_name(ef, trx, foreign->foreign_table_name);
 		putc('\n', ef);
 
 		mutex_exit(&dict_foreign_err_mutex);

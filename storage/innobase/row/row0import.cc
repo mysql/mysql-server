@@ -1637,17 +1637,11 @@ PageConverter::adjust_cluster_index_blob_column(
 
 	if (len < BTR_EXTERN_FIELD_REF_SIZE) {
 
-		char index_name[MAX_FULL_NAME_LEN + 1];
-
-		innobase_format_name(
-			index_name, sizeof(index_name),
-			m_cluster_index->name, TRUE);
-
 		ib_errf(m_trx->mysql_thd, IB_LOG_LEVEL_ERROR,
 			ER_INNODB_INDEX_CORRUPT,
 			"Externally stored column(%lu) has a reference"
 			" length of %lu in the cluster index %s",
-			(ulong) i, (ulong) len, index_name);
+			(ulong) i, (ulong) len, m_cluster_index->name);
 
 		return(DB_CORRUPTION);
 	}
@@ -2221,7 +2215,7 @@ row_import_error(
 
 		innobase_format_name(
 			table_name, sizeof(table_name),
-			prebuilt->table->name.m_name, FALSE);
+			prebuilt->table->name.m_name);
 
 		ib_senderrf(
 			trx->mysql_thd, IB_LOG_LEVEL_WARN,
@@ -2262,11 +2256,6 @@ row_import_adjust_root_pages_of_secondary_indexes(
 
 	/* Adjust the root pages of the secondary indexes only. */
 	while ((index = dict_table_get_next_index(index)) != NULL) {
-		char		index_name[MAX_FULL_NAME_LEN + 1];
-
-		innobase_format_name(
-			index_name, sizeof(index_name), index->name, TRUE);
-
 		ut_a(!dict_index_is_clust(index));
 
 		if (!(index->type & DICT_CORRUPT)
@@ -2295,7 +2284,7 @@ row_import_adjust_root_pages_of_secondary_indexes(
 				ER_INNODB_INDEX_CORRUPT,
 				"Index %s not found or corrupt,"
 				" you should recreate this index.",
-				index_name);
+				index->name);
 
 			/* Do not bail out, so that the data
 			can be recovered. */
@@ -2332,7 +2321,7 @@ row_import_adjust_root_pages_of_secondary_indexes(
 				ER_INNODB_INDEX_CORRUPT,
 				"Index %s contains %lu entries,"
 				" should be %lu, you should recreate"
-				" this index.", index_name,
+				" this index.", index->name,
 				(ulong) purge.get_n_rows(),
 				(ulong) n_rows_in_table);
 
@@ -2425,16 +2414,11 @@ row_import_set_sys_max_row_id(
 			err = DB_CORRUPTION;);
 
 	if (err != DB_SUCCESS) {
-		char		index_name[MAX_FULL_NAME_LEN + 1];
-
-		innobase_format_name(
-			index_name, sizeof(index_name), index->name, TRUE);
-
 		ib_errf(prebuilt->trx->mysql_thd,
 			IB_LOG_LEVEL_WARN,
 			ER_INNODB_INDEX_CORRUPT,
-			"Index %s corruption detected, invalid DB_ROW_ID"
-			" in index.", index_name);
+			"Index `%s` corruption detected, invalid DB_ROW_ID"
+			" in index.", index->name);
 
 		return(err);
 
@@ -3283,17 +3267,11 @@ row_import_update_index_root(
 		err = trx->error_state;
 
 		if (err != DB_SUCCESS) {
-			char		index_name[MAX_FULL_NAME_LEN + 1];
-
-			innobase_format_name(
-				index_name, sizeof(index_name),
-				index->name, TRUE);
-
 			ib_errf(trx->mysql_thd, IB_LOG_LEVEL_ERROR,
 				ER_INTERNAL_ERROR,
 				"While updating the <space, root page"
 				" number> of index %s - %s",
-				index_name, ut_strerr(err));
+				index->name, ut_strerr(err));
 
 			break;
 		}
@@ -3578,7 +3556,7 @@ row_import_for_mysql(
 
 		innobase_format_name(
 			table_name, sizeof(table_name),
-			table->name.m_name, FALSE);
+			table->name.m_name);
 
 		ib_errf(trx->mysql_thd, IB_LOG_LEVEL_ERROR,
 			ER_INTERNAL_ERROR,

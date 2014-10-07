@@ -60,7 +60,7 @@ static ib_uint32_t	dict_temp_file_num;
 std::ostream&
 operator<<(std::ostream& s, const table_name_t& table_name)
 {
-	return(s << ut_get_name(NULL, TRUE, table_name.m_name));
+	return(s << ut_get_name(NULL, table_name.m_name));
 }
 
 /**********************************************************************//**

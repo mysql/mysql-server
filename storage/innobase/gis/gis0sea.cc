@@ -733,11 +733,10 @@ rtr_page_get_father_node_ptr_func(
 			       BUF_PAGE_PRINT_NO_CRASH);
 
 		fputs("InnoDB: Corruption of an index tree: table ", stderr);
-		ut_print_name(stderr, NULL, TRUE, index->table_name);
-		fputs(", index ", stderr);
-		ut_print_name(stderr, NULL, FALSE, index->name);
-		fprintf(stderr, ",\n"
+		ut_print_name(stderr, NULL, index->table_name);
+		fprintf(stderr, ", index %s,\n"
 			"InnoDB: father ptr page no %lu, child page no %lu\n",
+			index->name,
 			(ulong)
 			btr_node_ptr_get_child_page_no(node_ptr, offsets),
 			(ulong) page_no);

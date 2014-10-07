@@ -71,8 +71,8 @@ btr_corruption_report(
 {
 	ib::error()
 		<< "Flag mismatch in page " << block->page.id
-		<< " index " << ut_get_name(NULL, FALSE, index->name)
-		<< " of table " << ut_get_name(NULL, TRUE, index->table_name);
+		<< " index " << index->name
+		<< " of table " << index->table->name;
 
 	if (block->page.size.is_compressed()) {
 		ut_ad(block->page.zip.data != NULL);
@@ -800,9 +800,8 @@ btr_page_get_father_node_ptr_func(
 
 		ib::error()
 			<< "Corruption of an index tree: table "
-			<< ut_get_name(NULL, TRUE, index->table_name)
-			<< " index "
-			<< ut_get_name(NULL, FALSE, index->name)
+			<< index->table->name
+			<< " index " << index->name
 			<< ", father ptr page no "
 			<< btr_node_ptr_get_child_page_no(node_ptr, offsets)
 			<< ", child page no " << page_no;
@@ -4085,10 +4084,8 @@ btr_index_rec_validate_report(
 	const rec_t*		rec,	/*!< in: index record */
 	const dict_index_t*	index)	/*!< in: index */
 {
-	ib::info() << "Record in index "
-		<< ut_get_name(NULL, FALSE, index->name)
-		<< " of table "
-		<< ut_get_name(NULL, TRUE, index->table_name)
+	ib::info() << "Record in index " << index->name
+		<< " of table " << index->table->name
 		<< ", page " << page_id_t(page_get_space_id(page),
 					  page_get_page_no(page))
 		<< ", at offset " << page_offset(rec);
@@ -4292,10 +4289,8 @@ btr_validate_report1(
 {
 	ib::error	error;
 	error << "In page " << block->page.id.page_no()
-		<< " of index "
-		<< ut_get_name(NULL, FALSE, index->name)
-		<< " of table "
-		<< index->table->name;
+		<< " of index " << index->name
+		<< " of table " << index->table->name;
 
 	if (level > 0) {
 		error << ", index tree level " << level;
@@ -4315,10 +4310,8 @@ btr_validate_report2(
 {
 	ib::error	error;
 	error << "In pages " << block1->page.id
-		<< " and " << block2->page.id << " of index "
-		<< ut_get_name(NULL, FALSE, index->name)
-		<< " of table "
-		<< index->table->name;
+		<< " and " << block2->page.id << " of index " << index->name
+		<< " of table " << index->table->name;
 
 	if (level > 0) {
 		error << ", index tree level " << level;

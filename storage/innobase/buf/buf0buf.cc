@@ -6056,10 +6056,8 @@ buf_print_instance(
 		} else {
 			ib::info() << "Block count for index " << index_ids[i]
 				<< " in buffer is about " << counts[i]
-				<< ", index "
-				<< ut_get_name(NULL, FALSE, index->name)
-				<< " of table "
-				<< ut_get_name(NULL, TRUE, index->table_name);
+				<< ", index " << index->name
+				<< " of table " << index->table->name;
 		}
 	}
 

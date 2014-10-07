@@ -991,7 +991,7 @@ loop:
 		char	table_name[MAX_FULL_NAME_LEN + 1];
 
 		innobase_format_name(
-			table_name, sizeof(table_name), name, FALSE);
+			table_name, sizeof(table_name), name);
 
 		flags = dict_sys_tables_get_flags(rec);
 		if (UNIV_UNLIKELY(flags == ULINT_UNDEFINED)) {
@@ -1832,10 +1832,8 @@ dict_load_indexes(
 		/* Check whether the index is corrupted */
 		if (dict_index_is_corrupted(index)) {
 
-			ib::error() << "Index "
-				<< ut_get_name(NULL, FALSE, index->name)
-				<< " of table "
-				<< ut_get_name(NULL, TRUE, index->table_name)
+			ib::error() << "Index " << index->name
+				<< " of table " << table->name
 				<< " is corrupted";
 
 			if (!srv_load_corrupted
@@ -1853,11 +1851,8 @@ dict_load_indexes(
 				3) if the index corrupted is a secondary
 				index */
 				ib::info() << "Load corrupted index "
-					<< ut_get_name(NULL, FALSE,
-						       index->name)
-					<< " of table "
-					<< ut_get_name(NULL, FALSE,
-						       index->table_name);
+					<< index->name
+					<< " of table " << table->name;
 			}
 		}
 
@@ -1875,8 +1870,7 @@ dict_load_indexes(
 				    | DICT_SPATIAL)) {
 
 			ib::error() << "Unknown type " << index->type
-				<< " of index "
-				<< ut_get_name(NULL, FALSE, index->name)
+				<< " of index " << index->name
 				<< " of table " << table->name;
 
 			error = DB_UNSUPPORTED;
@@ -1886,10 +1880,8 @@ dict_load_indexes(
 			   && !table->ibd_file_missing
 			   && (!(index->type & DICT_FTS))) {
 
-			ib::error() << "Trying to load index "
-				<< ut_get_name(NULL, FALSE, index->name)
-				<< " for table "
-				<< table->name
+			ib::error() << "Trying to load index " << index->name
+				<< " for table " << table->name
 				<< ", but the index tree has been freed!";
 
 			if (ignore_err & DICT_ERR_IGNORE_INDEX_ROOT) {
@@ -1915,10 +1907,8 @@ corrupted:
 		} else if (!dict_index_is_clust(index)
 			   && NULL == dict_table_get_first_index(table)) {
 
-			ib::error() << "Trying to load index "
-				<< ut_get_name(NULL, FALSE, index->name)
-				<< " for table "
-				<< table->name
+			ib::error() << "Trying to load index " << index->name
+				<< " for table " << table->name
 				<< ", but the first index is not clustered!";
 
 			goto corrupted;
@@ -2344,7 +2334,7 @@ err_exit:
 
 	char	table_name[MAX_FULL_NAME_LEN + 1];
 
-	innobase_format_name(table_name, sizeof(table_name), name, FALSE);
+	innobase_format_name(table_name, sizeof(table_name), name);
 
 	btr_pcur_close(&pcur);
 	mtr_commit(&mtr);
@@ -2437,8 +2427,7 @@ err_exit:
 		cluster index */
 		if (!srv_load_corrupted) {
 
-			ib::error() << "Load table "
-				<< table->name
+			ib::error() << "Load table " << table->name
 				<< " failed, the table has"
 				" corrupted clustered indexes. Turn on"
 				" 'innodb_force_load_corrupted' to drop it";
