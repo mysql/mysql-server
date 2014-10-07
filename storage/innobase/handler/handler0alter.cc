@@ -3759,8 +3759,6 @@ ha_innobase::prepare_inplace_alter_table(
 	mem_heap_t*     heap;
 	const char**	col_names;
 	int		error;
-	ulint		flags;
-	ulint		flags2;
 	ulint		max_col_len;
 	ulint		add_autoinc_col_no	= ULINT_UNDEFINED;
 	ulonglong	autoinc_col_max_value	= 0;
@@ -3801,11 +3799,29 @@ ha_innobase::prepare_inplace_alter_table(
 		DBUG_RETURN(false);
 	}
 
+	indexed_table = m_prebuilt->table;
+
+	/* ALTER TABLE will not implicitly move a table from a single-table
+	tablespace to the system tablespace when innodb_file_per_table=OFF.
+	But it will implicitly move a table from the system tablespace to a
+	single-table tablespace if innodb_file_per_table = ON. */
+	bool	in_system_space = is_system_tablespace(indexed_table->space);
+	bool	is_file_per_table = !in_system_space;
+	bool	needs_file_per_table =
+		/* Already file_per_table and staying that way */
+		is_file_per_table
+		/* Moving from the system tablespace to file-per-table */
+		|| (in_system_space && srv_file_per_table);
+	create_table_info_t	info(m_user_thd,
+				     altered_table,
+				     ha_alter_info->create_info,
+				     NULL,
+				     NULL,
+				     NULL,
+				     needs_file_per_table);
 	if (ha_alter_info->handler_flags
 	    & Alter_inplace_info::CHANGE_CREATE_OPTION) {
-		const char* invalid_opt = create_options_are_invalid(
-			    m_user_thd, ha_alter_info->create_info,
-			    m_prebuilt->table->space != 0);
+		const char* invalid_opt = info.create_options_are_invalid();
 		if (invalid_opt) {
 			my_error(ER_ILLEGAL_HA_CREATE_OPTION, MYF(0),
 				 table_type(), invalid_opt);
@@ -3895,27 +3911,11 @@ check_if_ok_to_rename:
 		}
 	}
 
-	/* ALTER TABLE will not implicitly move a table from a single-table
-	tablespace to the system tablespace when innodb_file_per_table=OFF.
-	But it will implicitly move a table from the system tablespace to a
-	single-table tablespace if innodb_file_per_table = ON. */
-	bool	in_system_space = is_system_tablespace(indexed_table->space);
-	bool	is_file_per_table = !in_system_space;
-	bool	needs_file_per_table =
-		/* Already file_per_table and staying that way */
-		is_file_per_table
-		/* Moving from the system tablespace to file-per-table */
-		|| (in_system_space && srv_file_per_table);
-
-	if (!innobase_table_flags(altered_table,
-				  ha_alter_info->create_info,
-				  m_user_thd,
-				  needs_file_per_table,
-				  &flags, &flags2)) {
+	if (!info.innobase_table_flags()) {
 		goto err_exit_no_heap;
 	}
 
-	max_col_len = DICT_MAX_FIELD_LEN_BY_FORMAT_FLAG(flags);
+	max_col_len = DICT_MAX_FIELD_LEN_BY_FORMAT_FLAG(info.flags());
 
 	/* Check each index's column length to make sure they do not
 	exceed limit */
@@ -4377,7 +4377,7 @@ found_col:
 	DBUG_RETURN(prepare_inplace_alter_table_dict(
 			    ha_alter_info, altered_table, table,
 			    table_share->table_name.str,
-			    flags, flags2,
+			    info.flags(), info.flags2(),
 			    fts_doc_col_no, add_fts_doc_id,
 			    add_fts_doc_id_idx));
 }
