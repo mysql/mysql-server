@@ -876,8 +876,13 @@ uint hp_rb_pack_key(HP_KEYDEF *keydef, uchar *key, const uchar *old,
     if (seg->null_bit)
     {
       if (!(*key++= (char) 1 - *old++))
+      {
+	/* Add key pack length (2) to key for VARCHAR segments */
+        if (seg->type == HA_KEYTYPE_VARTEXT1)
+          old+= 2;
         continue;
       }
+    }
     if (seg->flag & HA_SWAP_KEY)
     {
       uint length= seg->length;
