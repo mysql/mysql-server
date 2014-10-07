@@ -122,7 +122,8 @@ NdbEventOperationImpl::NdbEventOperationImpl(Ndb *theNdb,
   m_facade(this),
   m_ndb(theNdb),
   m_state(EO_ERROR),
-  m_oid(~(Uint32)0)
+  m_oid(~(Uint32)0),
+  m_allow_empty_update(false)
 {
   DBUG_ENTER("NdbEventOperationImpl::NdbEventOperationImpl [evnt]");
   init(evnt);
