@@ -74,6 +74,7 @@ struct fts_query_t {
 
 	dict_index_t*	index;		/*!< The FTS index to search */
 					/*!< FTS auxiliary common table def */
+
 	fts_table_t	fts_common_table;
 
 	fts_table_t	fts_index_table;/*!< FTS auxiliary index table def */
@@ -146,6 +147,8 @@ struct fts_query_t {
 	ib_rbt_t*	word_freqs;	/*!< RB tree of word frequencies per
 					document, its elements are of type
 					fts_word_freq_t */
+
+	ib_rbt_t*	wildcard_words;	/*!< words with wildcard */
 
 	bool		multi_exist;	/*!< multiple FTS_EXIST oper */
 
@@ -569,11 +572,7 @@ fts_ranking_words_add(
 
 		pos = rbt_size(query->word_map);
 
-		new_word.f_str = static_cast<byte*>(mem_heap_alloc(query->heap,
-			word->f_len + 1));
-		memcpy(new_word.f_str, word->f_str, word->f_len);
-		new_word.f_str[word->f_len] = 0;
-		new_word.f_len = word->f_len;
+		fts_string_dup(&new_word, word, query->heap);
 		new_word.f_n_char = pos;
 
 		rbt_add_node(query->word_map, &parent, &new_word);
@@ -660,11 +659,7 @@ fts_query_add_word_freq(
 
 		memset(&word_freq, 0, sizeof(word_freq));
 
-		word_freq.word.f_str = static_cast<byte*>(
-			mem_heap_alloc(query->heap, word->f_len + 1));
-		memcpy(word_freq.word.f_str, word->f_str, word->f_len);
-		word_freq.word.f_str[word->f_len] = 0;
-		word_freq.word.f_len = word->f_len;
+		fts_string_dup(&word_freq.word, word, query->heap);
 
 		word_freq.doc_count = 0;
 
@@ -2677,13 +2672,7 @@ fts_query_phrase_split(
 
 		fts_string_t*	token = static_cast<fts_string_t*>(
 			ib_vector_push(tokens, NULL));
-
-		token->f_str = static_cast<byte*>(
-			mem_heap_alloc(heap, result_str.f_len + 1));
-		ut_memcpy(token->f_str, result_str.f_str, result_str.f_len);
-
-		token->f_len = result_str.f_len;
-		token->f_str[token->f_len] = 0;
+		fts_string_dup(token, &result_str, heap);
 
 		if (cache->stopword_info.cached_stopword
 		    && rbt_search(cache->stopword_info.cached_stopword,
@@ -3027,6 +3016,20 @@ fts_query_visitor(
 		token.f_str = node->term.ptr->str;
 		token.f_len = node->term.ptr->len;
 
+		/* Collect wildcard words for QUERY EXPANSION. */
+		if (node->term.wildcard && query->wildcard_words != NULL) {
+			ib_rbt_bound_t          parent;
+
+			if (rbt_search(query->wildcard_words, &parent, &token)
+			     != 0) {
+				fts_string_t	word;
+
+				fts_string_dup(&word, &token, query->heap);
+				rbt_add_node(query->wildcard_words, &parent,
+					     &word);
+			}
+		}
+
 		/* Add the word to our RB tree that will be used to
 		calculate this terms per document frequency. */
 		fts_query_add_word_freq(query, &token);
@@ -3037,6 +3040,7 @@ fts_query_visitor(
 		if (ptr) {
 			ut_free(ptr);
 		}
+
 		break;
 
 	case FTS_AST_SUBEXP_LIST:
@@ -3797,6 +3801,10 @@ fts_query_free(
 		rbt_free(query->word_freqs);
 	}
 
+	if (query->wildcard_words != NULL) {
+		rbt_free(query->wildcard_words);
+	}
+
 	ut_a(!query->intersection);
 
 	if (query->word_map) {
@@ -4034,6 +4042,11 @@ fts_query(
 	statistics. */
 	query.word_freqs = rbt_create_arg_cmp(
 		sizeof(fts_word_freq_t), innobase_fts_text_cmp, charset);
+
+	if (flags & FTS_EXPAND) {
+		query.wildcard_words = rbt_create_arg_cmp(
+			sizeof(fts_string_t), innobase_fts_text_cmp, charset);
+	}
 
 	query.total_size += SIZEOF_RBT_CREATE;
 
@@ -4319,8 +4332,6 @@ fts_expand_query(
 	     node = rbt_next(query->doc_ids, node)) {
 
 		fts_ranking_t*	ranking;
-		ulint		pos;
-		fts_string_t	word;
 		ulint		prev_token_size;
 		ulint		estimate_size;
 
@@ -4339,24 +4350,6 @@ fts_expand_query(
 					fts_query_expansion_fetch_doc,
 					&result_doc);
 
-		/* Remove words that have already been searched in the
-		first pass */
-		pos = 0;
-		while (fts_ranking_words_get_next(query, ranking, &pos,
-		       &word)) {
-			ibool		ret;
-
-			ret = rbt_delete(result_doc.tokens, &word);
-
-			/* The word must exist in the doc we found */
-			if (!ret) {
-				ib::error() << "Did not find word "
-					<< word.f_str << " in doc "
-					<< ranking->doc_id << " for query"
-					" expansion search.";
-			}
-		}
-
 		/* Estimate memory used, see fts_process_token and fts_token_t.
 		   We ignore token size here. */
 		estimate_size = (rbt_size(result_doc.tokens) - prev_token_size)
@@ -4367,6 +4360,28 @@ fts_expand_query(
 		if (query->total_size > fts_result_cache_limit) {
 			error = DB_FTS_EXCEED_RESULT_CACHE_LIMIT;
 			goto	func_exit;
+		}
+	}
+
+	/* Remove words that have already been searched in the first pass */
+	for (ulint i = 0; i < query->word_vector->size(); i++) {
+		fts_string_t	word = query->word_vector->at(i);
+		ib_rbt_bound_t	parent;
+
+		if (query->wildcard_words
+		    && rbt_search(query->wildcard_words, &parent, &word) == 0) {
+			/* If it's a wildcard word, remove words having
+			it as prefix. */
+			while (rbt_search_cmp(result_doc.tokens,
+					      &parent, &word, NULL,
+					      innobase_fts_text_cmp_prefix)
+			       == 0) {
+				ut_free(rbt_remove_node(result_doc.tokens,
+							parent.last));
+			}
+		} else {
+			bool ret = rbt_delete(result_doc.tokens, &word);
+			ut_ad(ret);
 		}
 	}
 
