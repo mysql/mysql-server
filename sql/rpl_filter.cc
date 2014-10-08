@@ -551,7 +551,7 @@ Rpl_filter::set_do_table(List<Item> *do_table_list)
   if (!status)
   {
     status = build_do_table_hash();
-    if (!do_table_hash.records)
+    if (do_table_hash_inited && !do_table_hash.records)
     {
       my_hash_free(&do_table_hash);
       do_table_hash_inited= 0;
@@ -575,7 +575,7 @@ Rpl_filter::set_ignore_table(List<Item>* ignore_table_list)
   if (!status)
   {
     status = build_ignore_table_hash();
-    if (!ignore_table_hash.records)
+    if (ignore_table_hash_inited && !ignore_table_hash.records)
     {
       my_hash_free(&ignore_table_hash);
       ignore_table_hash_inited= 0;
