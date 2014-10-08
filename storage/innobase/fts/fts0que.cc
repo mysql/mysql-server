@@ -4380,8 +4380,12 @@ fts_expand_query(
 							parent.last));
 			}
 		} else {
+#ifdef UNIV_DEBUG
 			bool ret = rbt_delete(result_doc.tokens, &word);
 			ut_ad(ret);
+#else
+			rbt_delete(result_doc.tokens, &word);
+#endif /* UNIV_DEBUG */
 		}
 	}
 
