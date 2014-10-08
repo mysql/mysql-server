@@ -5785,7 +5785,7 @@ int ha_ndbcluster::primary_key_cmp(const uchar * old_row, const uchar * new_row)
 #ifdef HAVE_NDB_BINLOG
 
 static Ndb_exceptions_data StaticRefreshExceptionsData=
-  { NULL, NULL, NULL, NULL, NULL, NULL, NULL, REFRESH_ROW, 0 };
+  { NULL, NULL, NULL, NULL, NULL, NULL, NULL, REFRESH_ROW, false, 0 };
 
 static int
 handle_row_conflict(NDB_CONFLICT_FN_SHARE* cfn_share,
