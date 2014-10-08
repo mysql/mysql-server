@@ -6446,14 +6446,19 @@ fts_fake_hex_to_dec(
 {
 	ib_id_t		dec_id = 0;
 	char		tmp_id[FTS_AUX_MIN_TABLE_ID_LENGTH];
-	int		ret;
 
-	ret = sprintf(tmp_id, UINT64PFx, id);
+#ifdef UNIV_DEBUG
+	int		ret =
+#endif
+	sprintf(tmp_id, UINT64PFx, id);
 	ut_ad(ret == 16);
+#ifdef UNIV_DEBUG
+	ret =
+#endif
 #ifdef _WIN32
-	ret = sscanf(tmp_id, "%016llu", &dec_id);
+	sscanf(tmp_id, "%016llu", &dec_id);
 #else
-	ret = sscanf(tmp_id, "%016"PRIu64, &dec_id);
+	sscanf(tmp_id, "%016"PRIu64, &dec_id);
 #endif /* _WIN32 */
 	ut_ad(ret == 1);
 
