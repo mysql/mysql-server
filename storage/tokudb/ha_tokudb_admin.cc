@@ -102,7 +102,7 @@ struct analyze_progress_extra {
 static int analyze_progress(void *v_extra, uint64_t rows) {
     struct analyze_progress_extra *extra = (struct analyze_progress_extra *) v_extra;
     THD *thd = extra->thd;
-    if (thd->killed) 
+    if (thd_killed(thd))
         return ER_ABORTING_CONNECTION;
 
     time_t t_now = time(0);
@@ -190,7 +190,7 @@ typedef struct hot_optimize_context {
 
 static int hot_poll_fun(void *extra, float progress) {
     HOT_OPTIMIZE_CONTEXT context = (HOT_OPTIMIZE_CONTEXT)extra;
-    if (context->thd->killed) {
+    if (thd_killed(context->thd)) {
         sprintf(context->write_status_msg, "The process has been killed, aborting hot optimize.");
         return ER_ABORTING_CONNECTION;
     }
@@ -271,7 +271,7 @@ struct check_context {
 static int ha_tokudb_check_progress(void *extra, float progress) {
     struct check_context *context = (struct check_context *) extra;
     int result = 0;
-    if (context->thd->killed)
+    if (thd_killed(context->thd))
         result = ER_ABORTING_CONNECTION;
     return result;
 }

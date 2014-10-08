@@ -481,12 +481,12 @@ static uint64_t tokudb_get_killed_time_callback(uint64_t default_killed_time) {
 
 static int tokudb_killed_callback(void) {
     THD *thd = current_thd;
-    return thd->killed;
+    return thd_killed(thd);
 }
 
 static bool tokudb_killed_thd_callback(void *extra) {
     THD *thd = static_cast<THD *>(extra);
-    return thd->killed != 0;
+    return thd_killed(thd) != 0;
 }
 
 enum {
