@@ -59,7 +59,6 @@ select count(*) from t1 where Within(t1.c2, @g1);
 count(*)
 0
 drop index c2 on t1;
-/* Test create index with algorithm=inplace */
 create spatial index idx2 on t1(c2);
 show create table t1;
 Table	Create Table
@@ -72,4 +71,14 @@ set @g1 = GeomFromText('Polygon((0 0,0 100,100 100,100 0,0 0))');
 select count(*) from t1 where Within(t1.c2, @g1);
 count(*)
 73728
+# restart: --innodb-read-only
+set @g1 = GeomFromText('Polygon((0 0,0 100,100 100,100 0,0 0))');
+select count(*) from t1 where Within(t1.c2, @g1);
+count(*)
+73728
+set @g1 = GeomFromText('Polygon((2 2,2 800,800 800,800 2,2 2))');
+select count(*) from t1 where Within(t1.c2, @g1);
+count(*)
+65536
+# restart
 drop table t1;
