@@ -289,7 +289,8 @@ rtr_pcur_getnext_from_path(
 				rtr_info->path, next_page_no, path_ssn,
 				level, 0, NULL, 0);
 
-			if (mode != PAGE_CUR_RTREE_INSERT
+			if (!srv_read_only_mode
+			    && mode != PAGE_CUR_RTREE_INSERT
 			    && mode != PAGE_CUR_RTREE_LOCATE) {
 				ut_ad(rtr_info->thr);
 				lock_place_prdt_page_lock(
@@ -1815,9 +1816,10 @@ rtr_cur_search_with_match(
 							rec, 0);
 					}
 
-					if (rtr_info->need_page_lock
-					    || orig_mode
-						!= PAGE_CUR_RTREE_LOCATE) {
+					if (!srv_read_only_mode
+					    && (rtr_info->need_page_lock
+						|| orig_mode
+						!= PAGE_CUR_RTREE_LOCATE)) {
 
 						/* Lock the page, preventing it
 						from being shrunk */

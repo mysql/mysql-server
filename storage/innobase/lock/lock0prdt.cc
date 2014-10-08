@@ -915,6 +915,7 @@ lock_place_prdt_page_lock(
 	que_thr_t*	thr)		/*!< in: query thread */
 {
 	ut_ad(thr != NULL);
+	ut_ad(!srv_read_only_mode);
 
 	ut_ad(!dict_index_is_clust(index));
 	ut_ad(!dict_index_is_online_ddl(index));
