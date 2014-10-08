@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2102,6 +2102,7 @@ int main(int argc, char** argv)
   DBUG_PROCESS(argv[0]);
 
   my_init_time(); // for time functions
+  tzset(); // set tzname
 
   if (load_defaults("my", load_default_groups, &argc, &argv))
     exit(1);
