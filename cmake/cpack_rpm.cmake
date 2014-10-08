@@ -27,15 +27,15 @@ SET(CPACK_COMPONENTS_ALL Server ManPagesServer IniFiles Server_Scripts
                          ManPagesTest Readme ManPagesClient Test 
                          Common Client SharedLibraries)
 
-SET(CPACK_RPM_PACKAGE_NAME ${CPACK_PACKAGE_NAME})
+SET(CPACK_RPM_PACKAGE_NAME "MariaDB")
 SET(CPACK_PACKAGE_FILE_NAME "${CPACK_RPM_PACKAGE_NAME}-${VERSION}-${RPM}-${CMAKE_SYSTEM_PROCESSOR}")
 
 SET(CPACK_RPM_PACKAGE_RELEASE "1%{?dist}")
 SET(CPACK_RPM_PACKAGE_LICENSE "GPL")
 SET(CPACK_RPM_PACKAGE_RELOCATABLE FALSE)
 SET(CPACK_RPM_PACKAGE_GROUP "Applications/Databases")
-SET(CPACK_RPM_PACKAGE_SUMMARY ${CPACK_PACKAGE_SUMMARY})
-SET(CPACK_RPM_PACKAGE_URL ${CPACK_PACKAGE_URL})
+SET(CPACK_RPM_PACKAGE_URL "http://mariadb.org")
+SET(CPACK_RPM_PACKAGE_SUMMARY "MariaDB: a very fast and robust SQL database server")
 SET(CPACK_RPM_PACKAGE_DESCRIPTION "${CPACK_RPM_PACKAGE_SUMMARY}
 
 It is GPL v2 licensed, which means you can use the it free of charge under the
