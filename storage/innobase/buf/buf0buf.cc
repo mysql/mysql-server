@@ -630,7 +630,7 @@ buf_page_is_corrupted(
 
 	/* declare empty pages non-corrupted */
 	if (checksum_field1 == 0 && checksum_field2 == 0
-	    && mach_read_from_4(read_buf + FIL_PAGE_LSN) == 0) {
+	    && !memcmp(read_buf + FIL_PAGE_LSN, field_ref_zero, 8)) {
 		/* make sure that the page is really empty */
 
 #ifdef UNIV_INNOCHECKSUM
