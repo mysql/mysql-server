@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -344,26 +344,4 @@ int pthread_attr_destroy(pthread_attr_t *connect_att)
   return 0;
 }
 
-/****************************************************************************
-** Fix localtime_r() to be a bit safer
-****************************************************************************/
-
-struct tm *localtime_r(const time_t *timep,struct tm *tmp)
-{
-  if (*timep == (time_t) -1)			/* This will crash win32 */
-  {
-    memset(tmp, 0, sizeof(*tmp));
-  }
-  else
-  {
-    struct tm *res=localtime(timep);
-    if (!res)                                   /* Wrong date */
-    {
-      memset(tmp, 0, sizeof(*tmp));             /* Keep things safe */
-      return 0;
-    }
-    *tmp= *res;
-  }
-  return tmp;
-}
 #endif /* __WIN__ */
