@@ -4889,8 +4889,11 @@ page_zip_verify_checksum(
 	stored = static_cast<ib_uint32_t>(mach_read_from_4(
 		static_cast<const unsigned char*>(data) + FIL_PAGE_SPACE_OR_CHKSUM));
 
-	/* declare empty pages non-corrupted */
-	if (stored == 0) {
+
+	/* Check if page is empty */
+	if (stored == 0
+	    && !memcmp(static_cast<const char*>(data) + FIL_PAGE_LSN,
+		       field_ref_zero, 8)) {
 		/* make sure that the page is really empty */
 		ulint i;
 		for (i = 0; i < size; i++) {
@@ -4898,7 +4901,7 @@ page_zip_verify_checksum(
 				return(FALSE);
 			}
 		}
-
+		/* Empty page */
 		return(TRUE);
 	}
 
