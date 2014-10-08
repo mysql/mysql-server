@@ -32,8 +32,10 @@
 
 -- disable_warnings
 DROP TABLE IF EXISTS `t1`;
--- enable_warnings
 
+# This CREATE TABLE statement issues the warning "Row size too large" when
+# the InnoDB page size is 4K.  No such warning will come for InnoDB page size
+# 16K.  Hence disabling the warning for this CREATE TABLE statement.
 -- echo ### TABLE with field_metadata_size == 290
 CREATE TABLE `t1` (
   `c1` int(11) NOT NULL AUTO_INCREMENT,
@@ -185,6 +187,8 @@ CREATE TABLE `t1` (
   PRIMARY KEY (`c1`)
 ) ENGINE=InnoDB;
 
+-- enable_warnings
+
 LOCK TABLES `t1` WRITE;
 INSERT INTO `t1`(c2) VALUES ('1');
 FLUSH LOGS;
@@ -298,9 +302,17 @@ EOF
 ## we don't need this in the result file
 ## however, for debugging purposes you 
 ## may want to reactivate query logging
+
+# The CREATE TABLE statements in 'generated_sql' issues the warning "Row size
+# too large" when the InnoDB page size is 4K.  No such warning will come for
+# InnoDB page size 16K.  Hence disabling the warning while executing these
+# statement.
+
+-- disable_warnings
 -- disable_query_log 
 -- source $generated_sql
 -- enable_query_log
+-- enable_warnings
 
 --source include/sync_slave_sql_with_master.inc
 -- connection master
