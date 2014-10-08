@@ -74,7 +74,7 @@ bool
 trx_undo_trx_id_is_insert(
 /*======================*/
 	const byte*	trx_id)	/*!< in: DB_TRX_ID, followed by DB_ROLL_PTR */
-	__attribute__((nonnull, pure, warn_unused_result));
+	__attribute__((warn_unused_result));
 #endif /* !UNIV_HOTBACKUP */
 /*****************************************************************//**
 Writes a roll ptr to an index page. In case that the size changes in

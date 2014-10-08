@@ -250,7 +250,7 @@ index_id_t
 btr_page_get_index_id(
 /*==================*/
 	const page_t*	page)	/*!< in: index page */
-	__attribute__((nonnull, pure, warn_unused_result));
+	__attribute__((warn_unused_result));
 #ifndef UNIV_HOTBACKUP
 /********************************************************//**
 Gets the node level field in an index page.
@@ -260,7 +260,7 @@ ulint
 btr_page_get_level_low(
 /*===================*/
 	const page_t*	page)	/*!< in: index page */
-	__attribute__((nonnull, pure, warn_unused_result));
+	__attribute__((warn_unused_result));
 #define btr_page_get_level(page, mtr) btr_page_get_level_low(page)
 /********************************************************//**
 Gets the next index page number.
@@ -306,7 +306,7 @@ btr_node_ptr_get_child_page_no(
 /*===========================*/
 	const rec_t*	rec,	/*!< in: node pointer record */
 	const ulint*	offsets)/*!< in: array returned by rec_get_offsets() */
-	__attribute__((nonnull, pure, warn_unused_result));
+	__attribute__((warn_unused_result));
 /************************************************************//**
 Creates the root node for a new index tree.
 @return page number of the created root, FIL_NULL if did not succeed */
