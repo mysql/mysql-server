@@ -1,3 +1,4 @@
+--source include/not_embedded.inc
 #
 # MDEV-5553 A view or procedure with a non existing definer can block "SHOW TABLE STATUS" with an unclear error message
 #
