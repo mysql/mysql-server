@@ -9905,9 +9905,11 @@ create_table_info_t::create_table()
 	dict_table_t*	innobase_table = NULL;
 	const char*	stmt;
 	size_t		stmt_len;
-	bool		is_intrinsic_temp_table
+#ifdef UNIV_DEBUG
+	const bool	is_intrinsic_temp_table
 		= (m_flags2 & DICT_TF2_TEMPORARY)
 		  && (m_flags2 & DICT_TF2_INTRINSIC);
+#endif /* UNIV_DEBUG */
 
 	DBUG_ENTER("create_table");
 
