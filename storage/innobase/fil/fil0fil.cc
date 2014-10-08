@@ -2825,40 +2825,6 @@ fil_truncate_tablespace(
 	return(success);
 }
 
-/** Check if an index tree is freed by checking a descriptor bit of
-index root page.
-@param[in]	space_id	space id
-@param[in]	root_page_no	root page no of an index tree
-@param[in]	page_size	page size
-@return true if the index tree is freed */
-bool
-fil_index_tree_is_freed(
-	ulint			space_id,
-	ulint			root_page_no,
-	const page_size_t&	page_size)
-{
-	mtr_t		mtr;
-	xdes_t*		descr;
-
-	mtr_start(&mtr);
-	mtr_x_lock_space(space_id, &mtr);
-
-	descr = xdes_get_descriptor(space_id, root_page_no, page_size, &mtr);
-
-	if (descr == NULL
-	    || (descr != NULL
-		&& xdes_get_bit(descr, XDES_FREE_BIT,
-			root_page_no % FSP_EXTENT_SIZE)) == TRUE) {
-
-		mtr_commit(&mtr);
-		/* The tree has already been freed */
-		return(true);
-	}
-	mtr_commit(&mtr);
-
-	return(false);
-}
-
 /*******************************************************************//**
 Prepare for truncating a single-table tablespace.
 1) Check pending operations on a tablespace;

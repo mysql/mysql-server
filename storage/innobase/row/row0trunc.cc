@@ -867,10 +867,9 @@ Drop an index in the table.
 dberr_t
 DropIndex::operator()(mtr_t* mtr, btr_pcur_t* pcur) const
 {
-	ulint	root_page_no;
 	rec_t*	rec = btr_pcur_get_rec(pcur);
 
-	root_page_no = dict_drop_index_tree(rec, pcur, true, mtr);
+	bool	freed = dict_drop_index_tree(rec, pcur, mtr);
 
 #ifdef UNIV_DEBUG
 	{
@@ -908,9 +907,9 @@ DropIndex::operator()(mtr_t* mtr, btr_pcur_t* pcur) const
 #endif /* UNIV_DEBUG */
 
 	DBUG_EXECUTE_IF("ib_err_trunc_drop_index",
-			root_page_no = FIL_NULL;);
+			freed = false;);
 
-	if (root_page_no != FIL_NULL) {
+	if (freed) {
 
 		/* We will need to commit and restart the
 		mini-transaction in order to avoid deadlocks.
@@ -2599,11 +2598,6 @@ truncate_t::drop_indexes(
 			continue;
 		}
 
-		if (fil_index_tree_is_freed(space_id, root_page_no,
-					    page_size)) {
-			continue;
-		}
-
 		mtr_start(&mtr);
 
 		if (space_id != TRX_SYS_SPACE) {
@@ -2613,16 +2607,10 @@ truncate_t::drop_indexes(
 		}
 
 		if (root_page_no != FIL_NULL) {
-
 			const page_id_t	root_page_id(space_id, root_page_no);
 
-			/* We free all the pages but the root page first;
-			this operation may span several mini-transactions */
-			btr_free_but_not_root(root_page_id, page_size,
-					      mtr.get_log_mode());
-
-			/* Then we free the root page. */
-			btr_free_root(root_page_id, page_size, &mtr);
+			btr_free_if_exists(
+				root_page_id, page_size, it->m_id, &mtr);
 		}
 
 		/* If tree is already freed then we might return immediately

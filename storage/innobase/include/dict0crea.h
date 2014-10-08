@@ -126,22 +126,16 @@ dict_recreate_index_tree(
 					on the record page. The mtr may be
 					committed and restarted in this call. */
 
-/*******************************************************************//**
-Drops the index tree associated with a row in SYS_INDEXES table.
-@return index root page number or FIL_NULL if it was already freed. */
-ulint
+/** Drop the index tree associated with a row in SYS_INDEXES table.
+@param[in,out]	rec	SYS_INDEXES record
+@param[in,out]	pcur	persistent cursor on rec
+@param[in,out]	mtr	mini-transaction
+@return	whether freeing the B-tree was attempted */
+bool
 dict_drop_index_tree(
-/*=================*/
-	rec_t*		rec,		/*!< in/out: record in the clustered
-					index of SYS_INDEXES table */
-	btr_pcur_t*	pcur,		/*!< in/out: persistent cursor
-					pointing to record in the clustered
-					index of SYS_INDEXES table. The cursor
-					may be repositioned in this call. */
-	bool		is_drop,	/*!< in: true if we are dropping
-					a table */
-	mtr_t*		mtr);		/*!< in: mtr having the latch on
-					the record page */
+	rec_t*		rec,
+	btr_pcur_t*	pcur,
+	mtr_t*		mtr);
 
 /***************************************************************//**
 Creates an index tree for the index if it is not a member of a cluster.

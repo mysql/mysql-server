@@ -125,8 +125,7 @@ row_undo_ins_remove_clust_rec(
 		ut_ad(node->trx->dict_operation_lock_mode == RW_X_LATCH);
 
 		dict_drop_index_tree(
-			btr_pcur_get_rec(&node->pcur), &(node->pcur),
-			true, &mtr);
+			btr_pcur_get_rec(&node->pcur), &(node->pcur), &mtr);
 
 		mtr_commit(&mtr);
 

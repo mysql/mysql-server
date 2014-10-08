@@ -891,22 +891,16 @@ dict_create_index_tree_in_mem(
 	return(err);
 }
 
-/*******************************************************************//**
-Drops the index tree associated with a row in SYS_INDEXES table.
-@return index root page number of FIL_NULL if it was already freed. */
-ulint
+/** Drop the index tree associated with a row in SYS_INDEXES table.
+@param[in,out]	rec	SYS_INDEXES record
+@param[in,out]	pcur	persistent cursor on rec
+@param[in,out]	mtr	mini-transaction
+@return	whether freeing the B-tree was attempted */
+bool
 dict_drop_index_tree(
-/*=================*/
-	rec_t*		rec,		/*!< in/out: record in the clustered
-					index of SYS_INDEXES table */
-	btr_pcur_t*	pcur,		/*!< in/out: persistent cursor pointing
-					to record in the clustered index of
-					SYS_INDEXES table. The cursor may be
-					repositioned in this call. */
-	bool		is_drop,	/*!< in: true if we are dropping
-					a table */
-	mtr_t*		mtr)		/*!< in/out: mtr having the latch on
-					the record page */
+	rec_t*		rec,
+	btr_pcur_t*	pcur,
+	mtr_t*		mtr)
 {
 	const byte*	ptr;
 	ulint		len;
@@ -920,13 +914,17 @@ dict_drop_index_tree(
 
 	ut_ad(len == 4);
 
+	btr_pcur_store_position(pcur, mtr);
+
 	root_page_no = mtr_read_ulint(ptr, MLOG_4BYTES, mtr);
 
 	if (root_page_no == FIL_NULL) {
 		/* The tree has already been freed */
 
-		return(root_page_no);
+		return(false);
 	}
+
+	mlog_write_ulint(const_cast<byte*>(ptr), FIL_NULL, MLOG_4BYTES, mtr);
 
 	ptr = rec_get_nth_field_old(
 		rec, DICT_FLD__SYS_INDEXES__SPACE, &len);
@@ -934,6 +932,11 @@ dict_drop_index_tree(
 	ut_ad(len == 4);
 
 	space = mtr_read_ulint(ptr, MLOG_4BYTES, mtr);
+
+	ptr = rec_get_nth_field_old(
+		rec, DICT_FLD__SYS_INDEXES__ID, &len);
+
+	ut_ad(len == 8);
 
 	bool			found;
 	const page_size_t	page_size(fil_space_get_page_size(space,
@@ -943,43 +946,13 @@ dict_drop_index_tree(
 		/* It is a single table tablespace and the .ibd file is
 		missing: do nothing */
 
-		return(FIL_NULL);
+		return(false);
 	}
 
-	if (is_drop && fil_index_tree_is_freed(space, root_page_no,
-					       page_size)) {
-		/* The tree has already been freed but not marked */
-		page_rec_write_field(
-			rec, DICT_FLD__SYS_INDEXES__PAGE_NO,
-			FIL_NULL, mtr);
-		return(FIL_NULL);
-	}
+	btr_free_if_exists(page_id_t(space, root_page_no), page_size,
+			   mach_read_from_8(ptr), mtr);
 
-	/* We free all the pages but the root page first; this operation
-	may span several mini-transactions */
-
-	const page_id_t	root_page_id(space, root_page_no);
-
-	btr_free_but_not_root(root_page_id, page_size, mtr_get_log_mode(mtr));
-
-	/* Then we free the root page in the same mini-transaction where
-	we write FIL_NULL to the appropriate field in the SYS_INDEXES
-	record: this mini-transaction marks the B-tree totally freed */
-	btr_block_get(root_page_id, page_size, RW_X_LATCH, NULL, mtr);
-	/* printf("Dropping index tree in space %lu root page %lu\n", space,
-	root_page_no); */
-	mtr->set_named_space(space);
-	btr_free_root(root_page_id, page_size, mtr);
-
-	if (is_drop) {
-		page_rec_write_field(
-			rec, DICT_FLD__SYS_INDEXES__PAGE_NO,
-			FIL_NULL, mtr);
-	}
-
-	btr_pcur_store_position(pcur, mtr);
-
-	return(root_page_no);
+	return(true);
 }
 
 /*******************************************************************//**
@@ -1004,22 +977,7 @@ dict_drop_index_tree_in_mem(
 	tablespace and the .ibd file is missing do nothing,
 	else free the all the pages */
 	if (root_page_no != FIL_NULL && found) {
-		mtr_t	mtr;
-
-		mtr.start();
-		mtr.set_log_mode(MTR_LOG_NO_REDO);
-
-		const page_id_t	root_page_id(space, root_page_no);
-
-		/* We free all the pages but the root page first; this operation
-		may span several mini-transactions */
-		btr_free_but_not_root(
-			root_page_id, page_size, MTR_LOG_NO_REDO);
-
-		/* Then we free the root page. */
-		btr_free_root(root_page_id, page_size, &mtr);
-
-		mtr.commit();
+		btr_free(page_id_t(space, root_page_no), page_size);
 	}
 }
 
@@ -1129,9 +1087,6 @@ dict_truncate_index_tree_in_mem(
 	      || dict_table_is_intrinsic(index->table));
 	ut_ad(dict_table_is_temporary(index->table));
 
-	mtr_start(&mtr);
-	mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
-
 	ulint		type = index->type;
 	ulint		root_page_no = index->page;
 
@@ -1165,25 +1120,8 @@ dict_truncate_index_tree_in_mem(
 	tablespace objects. */
 
 	if (truncate) {
-
-		/* We free all the pages but the root page first; this operation
-		may span several mini-transactions */
-
-		const page_id_t	root_page_id(space, root_page_no);
-
-		btr_free_but_not_root(
-			root_page_id, page_size, MTR_LOG_NO_REDO);
-
-		/* Then we free the root page in the same mini-transaction where
-		we create the b-tree and write its new root page number to the
-		appropriate field in the SYS_INDEXES record: this
-		mini-transaction marks the B-tree totally truncated */
-
-		btr_block_get(root_page_id, page_size, RW_X_LATCH, NULL, &mtr);
-		btr_free_root(root_page_id, page_size, &mtr);
+		btr_free(page_id_t(space, root_page_no), page_size);
 	}
-
-	mtr_commit(&mtr);
 
 	mtr_start(&mtr);
 	mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
