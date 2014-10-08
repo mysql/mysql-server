@@ -2162,13 +2162,8 @@ void Log_event::print_timestamp(IO_CACHE* file, time_t* ts)
   DBUG_ENTER("Log_event::print_timestamp");
   if (!ts)
     ts = &when;
-#ifdef MYSQL_SERVER				// This is always false
   struct tm tm_tmp;
   localtime_r(ts,(res= &tm_tmp));
-#else
-  res=localtime(ts);
-#endif
-
   my_b_printf(file,"%02d%02d%02d %2d:%02d:%02d",
               res->tm_year % 100,
               res->tm_mon+1,
