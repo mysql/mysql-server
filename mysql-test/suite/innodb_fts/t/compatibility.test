@@ -2,6 +2,7 @@
 --source include/not_embedded.inc
 --source include/have_innodb.inc
 --source include/have_debug.inc
+--source include/no_valgrind_without_big.inc
 
 --echo # Bug #18285007	COPY OF TABLES WITH INNODB FTS
 --echo #	FROM WINDOWS TO LINUX CAUSES CRASH
