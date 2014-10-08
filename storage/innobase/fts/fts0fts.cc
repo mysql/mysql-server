@@ -4426,10 +4426,6 @@ fts_sync(
 		index_cache = static_cast<fts_index_cache_t*>(
 			ib_vector_get(cache->indexes, i));
 
-		if (index_cache->index->to_be_dropped) {
-			continue;
-		}
-
 		error = fts_sync_index(sync, index_cache);
 
 		if (error != DB_SUCCESS && !sync->interrupted) {
