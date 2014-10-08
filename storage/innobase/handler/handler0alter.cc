@@ -2277,7 +2277,7 @@ online_retry_drop_indexes_with_trx(
 @param drop_fk constraints being dropped
 @param n_drop_fk number of constraints that are being dropped
 @return whether the constraint is being dropped */
-inline __attribute__((pure, nonnull, warn_unused_result))
+inline __attribute__((warn_unused_result))
 bool
 innobase_dropping_foreign(
 /*======================*/
@@ -2304,7 +2304,7 @@ column that is being dropped or modified to NOT NULL.
 @retval true Not allowed (will call my_error())
 @retval false Allowed
 */
-static __attribute__((pure, nonnull, warn_unused_result))
+static __attribute__((warn_unused_result))
 bool
 innobase_check_foreigns_low(
 /*========================*/
@@ -2404,7 +2404,7 @@ column that is being dropped or modified to NOT NULL.
 @retval true Not allowed (will call my_error())
 @retval false Allowed
 */
-static __attribute__((pure, nonnull, warn_unused_result))
+static __attribute__((warn_unused_result))
 bool
 innobase_check_foreigns(
 /*====================*/
