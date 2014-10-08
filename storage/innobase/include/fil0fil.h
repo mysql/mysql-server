@@ -634,18 +634,6 @@ fil_truncate_tablespace(
 	ulint		space_id,
 	ulint		size_in_pages);
 
-/** Check if an index tree is freed by checking a descriptor bit of
-index root page.
-@param[in]	space_id	space id
-@param[in]	root_page_no	root page no of an index tree
-@param[in]	page_size	page size
-@return true if the index tree is freed */
-bool
-fil_index_tree_is_freed(
-	ulint			space_id,
-	ulint			root_page_no,
-	const page_size_t&	page_size);
-
 /*******************************************************************//**
 Prepare for truncating a single-table tablespace. The tablespace
 must be cached in the memory cache.

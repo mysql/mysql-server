@@ -340,6 +340,31 @@ page_is_empty(
 	return(!*(const uint16*) (page + (PAGE_HEADER + PAGE_N_RECS)));
 }
 
+/** Determine whether a page is an index root page.
+@param[in]	page	page frame
+@return true if the page is a root page of an index */
+UNIV_INLINE
+bool
+page_is_root(
+	const page_t*	page)
+{
+#if FIL_PAGE_PREV % 8
+# error FIL_PAGE_PREV must be 64-bit aligned
+#endif
+#if FIL_PAGE_NEXT != FIL_PAGE_PREV + 4
+# error FIL_PAGE_NEXT must be adjacent to FIL_PAGE_PREV
+#endif
+#if FIL_NULL != 0xffffffff
+# error FIL_NULL != 0xffffffff
+#endif
+	/* Check that this is an index page and both the PREV and NEXT
+	pointers are FIL_NULL, because the root page does not have any
+	siblings. */
+	return(fil_page_index_page_check(page)
+	       && *reinterpret_cast<const ib_uint64_t*>(page + FIL_PAGE_PREV)
+	       == IB_UINT64_MAX);
+}
+
 /************************************************************//**
 Determine whether the page contains garbage.
 @return true if the page contains garbage (PAGE_GARBAGE is not 0) */
