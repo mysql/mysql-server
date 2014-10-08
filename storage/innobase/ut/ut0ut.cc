@@ -907,6 +907,15 @@ fatal::~fatal()
 	ut_error;
 }
 
+error_or_warn::~error_or_warn()
+{
+	if (m_error) {
+		sql_print_error("InnoDB: %s", m_oss.str().c_str());
+	} else {
+		sql_print_warning("InnoDB: %s", m_oss.str().c_str());
+	}
+}
+
 } // namespace ib
 
 #endif /* !UNIV_INNOCHECKSUM */
