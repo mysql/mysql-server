@@ -216,14 +216,6 @@ struct fil_system_t {
 					startup we scan the data dictionary
 					and set here the maximum of the
 					space id's of the tables there */
-	int64_t		tablespace_version;
-					/*!< a counter which is incremented for
-					every space object memory creation;
-					every space mem object gets a
-					'timestamp' from this; in DISCARD/
-					IMPORT this is used to check if we
-					should ignore an insert buffer merge
-					request */
 	UT_LIST_BASE_NODE_T(fil_space_t) space_list;
 					/*!< list of all file spaces */
 	UT_LIST_BASE_NODE_T(fil_space_t) named_spaces;
@@ -456,34 +448,6 @@ fil_space_get(
 	ut_ad(space->purpose != FIL_TYPE_LOG);
 	return(space);
 }
-
-/*******************************************************************//**
-Returns the version number of a tablespace, -1 if not found.
-@return version number, -1 if the tablespace does not exist in the
-memory cache */
-int64_t
-fil_space_get_version(
-/*==================*/
-	ulint	id)	/*!< in: space id */
-{
-	fil_space_t*	space;
-	int64_t		version = -1;
-
-	ut_ad(fil_system);
-
-	mutex_enter(&fil_system->mutex);
-
-	space = fil_space_get_by_id(id);
-
-	if (space != NULL) {
-		version = space->tablespace_version;
-	}
-
-	mutex_exit(&fil_system->mutex);
-
-	return(version);
-}
-
 /** Returns the latch of a file space.
 @param[in]	id	space id
 @param[out]	flags	tablespace flags
@@ -1263,9 +1227,6 @@ fil_space_create(
 
 	UT_LIST_INIT(space->chain, &fil_node_t::chain);
 
-	fil_system->tablespace_version++;
-	space->tablespace_version = fil_system->tablespace_version;
-
 	if (fil_type_is_data(purpose)
 	    && !recv_recovery_on
 	    && id > fil_system->max_assigned_id) {
@@ -1618,19 +1579,6 @@ fil_space_get_page_size(
 	return(page_size_t(flags));
 }
 
-/*******************************************************************//**
-Checks if the pair space, page_no refers to an existing page in a tablespace
-file space. The tablespace must be cached in the memory cache.
-@return true if the address is meaningful */
-bool
-fil_check_adress_in_tablespace(
-/*===========================*/
-	ulint	id,	/*!< in: space id */
-	ulint	page_no)/*!< in: page number */
-{
-	return(fil_space_get_size(id) > page_no);
-}
-
 /****************************************************************//**
 Initializes the tablespace memory cache. */
 void
@@ -1871,11 +1819,12 @@ fil_write_flushed_lsn(
 Used by background threads that do not necessarily hold proper locks
 for concurrency control.
 @param[in]	id	tablespace ID
+@param[in]	verbose	whether to report missing tablespaces
 @return the tablespace, or NULL if deleted or being deleted */
-
 fil_space_t*
 fil_space_acquire(
-	ulint	id)
+	ulint	id,
+	bool	verbose)
 {
 	fil_space_t*	space;
 
@@ -1884,8 +1833,10 @@ fil_space_acquire(
 	space = fil_space_get_by_id(id);
 
 	if (space == NULL) {
-		ib::error() << "Trying to do an operation on a dropped"
-			" tablespace. Space ID: " << id;
+		if (verbose) {
+			ib::error() << "Trying to do an operation on a dropped"
+				" tablespace. Space ID: " << id;
+		}
 	} else if (space->stop_new_ops || space->is_being_truncated) {
 		space = NULL;
 	} else {
@@ -1899,7 +1850,6 @@ fil_space_acquire(
 
 /** Release a tablespace acquired with fil_space_acquire().
 @param[in,out]	space	tablespace to release  */
-
 void
 fil_space_release(
 	fil_space_t*	space)
@@ -2327,7 +2277,6 @@ fil_op_replay_rename(
 	const char*	new_name)
 {
 #ifdef UNIV_HOTBACKUP
-	ulint		tablespace_flags = 0;
 	ut_ad(recv_replay_file_ops);
 #endif /* UNIV_HOTBACKUP */
 	ut_ad(first_page_no == 0);
@@ -2337,10 +2286,18 @@ fil_op_replay_rename(
 	* A tablespace exists with the old name.
 	* The space ID for that tablepace matches this log entry.
 	This will prevent unintended renames during recovery. */
-	fil_space_t*	space = fil_tablespace_exists_in_mem(space_id);
+	fil_space_t*	space = fil_space_acquire(space_id, false);
 
-	if (space == NULL
-	    || strcmp(name, UT_LIST_GET_FIRST(space->chain)->name)) {
+	if (space == NULL) {
+		return(true);
+	}
+
+	const bool name_match
+		= strcmp(name, UT_LIST_GET_FIRST(space->chain)->name) == 0;
+
+	fil_space_release(space);
+
+	if (!name_match) {
 		return(true);
 	}
 
@@ -4155,63 +4112,6 @@ fil_file_readdir_next_file(
 	}
 
 	return(-1);
-}
-
-/*******************************************************************//**
-Returns true if a single-table tablespace does not exist in the memory cache,
-or is being deleted there.
-@return true if does not exist or is being deleted */
-bool
-fil_tablespace_deleted_or_being_deleted_in_mem(
-/*===========================================*/
-	ulint		id,	/*!< in: space id */
-	int64_t		version)/*!< in: tablespace_version should be this; if
-				you pass -1 as the value of this, then this
-				parameter is ignored */
-{
-	bool already_deleted = false;
-	bool being_deleted = false;
-
-	fil_space_t*	space;
-
-	ut_ad(fil_system);
-
-	mutex_enter(&fil_system->mutex);
-
-	space = fil_space_get_by_id(id);
-
-	already_deleted = (space == NULL
-			   || (space->stop_new_ops
-			       && !space->is_being_truncated));
-
-	if (!already_deleted) {
-		being_deleted = (version != -1
-				 && space->tablespace_version != version);
-	}
-
-	mutex_exit(&fil_system->mutex);
-
-	return(already_deleted || being_deleted);
-}
-
-/** Look up a tablespace in the memory cache.
-@param[in]	id	tablespace ID
-@return tablespace if exists, NULL if not */
-fil_space_t*
-fil_tablespace_exists_in_mem(
-	ulint	id)
-{
-	fil_space_t*	space;
-
-	ut_ad(fil_system);
-
-	mutex_enter(&fil_system->mutex);
-
-	space = fil_space_get_by_id(id);
-
-	mutex_exit(&fil_system->mutex);
-
-	return(space);
 }
 
 /*******************************************************************//**
