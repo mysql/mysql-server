@@ -177,7 +177,11 @@ Group:          Applications/Databases
 %if 0%{?commercial}
 Obsoletes:      mysql-community-common < %{version}-%{release}
 %endif
+Obsoletes:      mariadb-common
+Obsoletes:      mariadb-config
+Obsoletes:      mariadb-errmsg
 Obsoletes:      community-mysql-common < %{version}-%{release}
+Obsoletes:      community-mysql-errmsg < %{version}-%{release}
 Obsoletes:      mysql-common < %{version}-%{release}
 Provides:       mysql-common = %{version}-%{release}
 Provides:       mysql-common%{?_isa} = %{version}-%{release}
@@ -717,6 +721,7 @@ datadir=$(/usr/bin/my_print_defaults server mysqld | grep '^--datadir=' | sed -n
 - Add license info in each subpackage
 - Remove systemd conditional
 - Various clean up
+- Add support for Fedora 21
 - Update to 5.6.22
 
 * Wed Aug 06 2014 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 5.6.21-1
