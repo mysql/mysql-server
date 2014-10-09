@@ -5448,7 +5448,7 @@ FastScheduler::dumpSignalMemory(Uint32 thr_no, FILE* out)
    * For example,
    *   (m_signal_id_counter - smallest_signal_id) == UINT32_MAX
    */
-  const Uint32 smallest_signal_id = selfptr->m_signal_id_counter + 1;
+  const Uint32 smallest_signal_id = thr_ptr->m_signal_id_counter + 1;
 
   /* Now pick out one signal at a time, in signal id order. */
   while (num_jbs > 0)
