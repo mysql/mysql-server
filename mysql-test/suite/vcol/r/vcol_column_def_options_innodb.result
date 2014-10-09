@@ -47,7 +47,7 @@ ERROR 42000: You have an error in your SQL syntax; check the manual that corresp
 drop table t1;
 # [PRIMARY] KEY
 create table t1 (a int, b int generated always as (a+1) virtual key);
-ERROR HY000: Key/Index cannot be defined on a non-stored virtual column.
+ERROR HY000: Key/Index cannot be defined on a non-stored generated column.
 create table t1 (a int, b int generated always as (a+1) stored key);
 insert into t1 (a) values (3),(1),(2);
 select * from t1;
@@ -57,7 +57,7 @@ a	b
 3	4
 drop table t1;
 create table t1 (a int, b int generated always as (a+1) virtual primary key);
-ERROR HY000: Key/Index cannot be defined on a non-stored virtual column.
+ERROR HY000: Key/Index cannot be defined on a non-stored generated column.
 create table t1 (a int, b int generated always as (a+1) stored primary key);
 insert into t1 (a) values (3),(1),(2);
 select * from t1;
@@ -68,10 +68,10 @@ a	b
 drop table t1;
 create table t1 (a int);
 alter table t1 add column b int generated always as (a+1) virtual key;
-ERROR HY000: Key/Index cannot be defined on a non-stored virtual column.
+ERROR HY000: Key/Index cannot be defined on a non-stored generated column.
 alter table t1 add column b int generated always as (a+1) stored key;
 alter table t1 add column c int generated always as (a+2) virtual primary key;
-ERROR HY000: Key/Index cannot be defined on a non-stored virtual column.
+ERROR HY000: Key/Index cannot be defined on a non-stored generated column.
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -251,9 +251,9 @@ a	b	c
 4	-4	-3
 drop table t1;
 create table t1 (a int, b int generated always as(-b) virtual, c int generated always as (b + 1) virtual);
-ERROR HY000: Virtual column can refer only to virtual columns defined prior it.
+ERROR HY000: Generated column can refer only to generated columns defined prior it.
 create table t1 (a int, b int generated always as(-c) virtual, c int generated always as (b + 1) virtual);
-ERROR HY000: Virtual column can refer only to virtual columns defined prior it.
+ERROR HY000: Generated column can refer only to generated columns defined prior it.
 DROP VIEW  IF EXISTS v1,v2;
 DROP TABLE IF EXISTS t1,t2,t3;
 DROP PROCEDURE IF EXISTS p1;

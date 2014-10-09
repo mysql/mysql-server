@@ -85,7 +85,7 @@ drop table t1;
 # Case 7. ALTER. Modify virtual stored -> virtual non-stored
 create  table t1 (a int, b int generated always as (a % 2) stored);
 alter table t1 modify b int generated always as (a % 2) virtual;
-ERROR HY000: 'Changing the STORED status' is not yet supported for virtual columns.
+ERROR HY000: 'Changing the STORED status' is not yet supported for generated columns.
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -96,7 +96,7 @@ drop table t1;
 # Case 8. ALTER. Modify virtual non-stored -> virtual stored
 create  table t1 (a int, b int generated always as (a % 2) virtual);
 alter table t1 modify b int generated always as (a % 2) stored;
-ERROR HY000: 'Changing the STORED status' is not yet supported for virtual columns.
+ERROR HY000: 'Changing the STORED status' is not yet supported for generated columns.
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
