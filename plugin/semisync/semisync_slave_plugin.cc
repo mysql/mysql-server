@@ -127,6 +127,11 @@ int repl_semi_slave_io_end(Binlog_relay_IO_param *param)
   return repl_semisync.slaveStop(param);
 }
 
+int repl_semi_slave_sql_stop(Binlog_relay_IO_param *param, bool aborted)
+{
+  return 0;
+}
+
 C_MODE_END
 
 static void fix_rpl_semi_sync_slave_enabled(MYSQL_THD thd,
@@ -183,6 +188,7 @@ Binlog_relay_IO_observer relay_io_observer = {
 
   repl_semi_slave_io_start,	// start
   repl_semi_slave_io_end,	// stop
+  repl_semi_slave_sql_stop,     // stop sql thread
   repl_semi_slave_request_dump,	// request_transmit
   repl_semi_slave_read_event,	// after_read_event
   repl_semi_slave_queue_event,	// after_queue_event
