@@ -11,5 +11,5 @@ SELECT @reflect_rej_count:=VARIABLE_VALUE-@init_ndb_epoch_refresh_op_discard_cou
 --enable_result_log
 SELECT @reflect_prep_count > 0 AS reflected_op_prepare_count_greater_than_zero;
 SELECT (@reflect_rej_count < @reflect_prep_count) AS any_reflected_ops_applied;
-SELECT @init_ndb_last_conflict_epoch < VARIABLE_VALUE AS last_conflict_epoch_increased FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_SLAVE_LAST_CONFLICT_EPOCH";
+SELECT @init_ndb_last_conflict_epoch < VARIABLE_VALUE AS last_conflict_epoch_increased FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_LAST_CONFLICT_EPOCH";
 --enable_query_log
