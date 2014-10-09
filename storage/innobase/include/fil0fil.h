@@ -83,12 +83,6 @@ fil_type_is_data(
 struct fil_space_t {
 	char*		name;	/*!< Tablespace name */
 	ulint		id;	/*!< space id */
-	int64_t		tablespace_version;
-				/*!< in DISCARD/IMPORT this timestamp
-				is used to check if we should ignore
-				an insert buffer merge request for a
-				page because it actually was for the
-				previous incarnation of the space */
 	lsn_t		max_lsn;
 				/*!< LSN of the most recent
 				fil_names_write_if_was_clean().
@@ -333,16 +327,6 @@ fil_space_t*
 fil_space_get(
 	ulint	id)
 	__attribute__((warn_unused_result));
-
-/*******************************************************************//**
-Returns the version number of a tablespace, -1 if not found.
-@return version number, -1 if the tablespace does not exist in the
-memory cache */
-int64_t
-fil_space_get_version(
-/*==================*/
-	ulint	id);	/*!< in: space id */
-
 /** Returns the latch of a file space.
 @param[in]	id	space id
 @param[out]	flags	tablespace flags
@@ -486,15 +470,6 @@ fil_space_get_page_size(
 	ulint	id,
 	bool*	found);
 
-/*******************************************************************//**
-Checks if the pair space, page_no refers to an existing page in a tablespace
-file space. The tablespace must be cached in the memory cache.
-@return true if the address is meaningful */
-bool
-fil_check_adress_in_tablespace(
-/*===========================*/
-	ulint	id,	/*!< in: space id */
-	ulint	page_no);/*!< in: page number */
 /****************************************************************//**
 Initializes the tablespace memory cache. */
 void
@@ -549,15 +524,15 @@ fil_write_flushed_lsn(
 Used by background threads that do not necessarily hold proper locks
 for concurrency control.
 @param[in]	id	tablespace ID
+@param[in]	verbose	whether to report missing tablespaces
 @return the tablespace, or NULL if deleted or being deleted */
-
 fil_space_t*
 fil_space_acquire(
-	ulint	id)
+	ulint	id,
+	bool	verbose = true)
 	__attribute__((warn_unused_result));
 /** Release a tablespace acquired with fil_space_acquire().
 @param[in,out]	space	tablespace to release  */
-
 void
 fil_space_release(
 	fil_space_t*	space);
@@ -813,23 +788,6 @@ fil_file_readdir_next_file(
 	os_file_dir_t	dir,	/*!< in: directory stream */
 	os_file_stat_t*	info);	/*!< in/out: buffer where the
 				info is returned */
-/*******************************************************************//**
-Returns true if a single-table tablespace does not exist in the memory cache,
-or is being deleted there.
-@return true if does not exist or is being deleted */
-bool
-fil_tablespace_deleted_or_being_deleted_in_mem(
-/*===========================================*/
-	ulint		id,	/*!< in: space id */
-	int64_t		version);/*!< in: tablespace_version should be this; if
-				you pass -1 as the value of this, then this
-				parameter is ignored */
-/** Look up a tablespace in the memory cache.
-@param[in]	id	tablespace ID
-@return tablespace if exists, NULL if not */
-fil_space_t*
-fil_tablespace_exists_in_mem(
-	ulint	id);
 #ifndef UNIV_HOTBACKUP
 /*******************************************************************//**
 Returns true if a matching tablespace exists in the InnoDB tablespace memory

@@ -2031,7 +2031,7 @@ truncate_t::fixup_tables()
 
 		if (!is_system_tablespace((*it)->m_space_id)) {
 
-			if (!fil_tablespace_exists_in_mem((*it)->m_space_id)) {
+			if (!fil_space_get((*it)->m_space_id)) {
 
 				/* Create the database directory for name,
 				if it does not exist yet */
@@ -2060,7 +2060,7 @@ truncate_t::fixup_tables()
 				}
 			}
 
-			ut_ad(fil_tablespace_exists_in_mem((*it)->m_space_id));
+			ut_ad(fil_space_get((*it)->m_space_id));
 
 			err = fil_recreate_tablespace(
 				(*it)->m_space_id,
@@ -2077,7 +2077,7 @@ truncate_t::fixup_tables()
 			ut_ad((*it)->m_space_id == srv_sys_space.space_id());
 
 			/* System table is always loaded. */
-			ut_ad(fil_tablespace_exists_in_mem((*it)->m_space_id));
+			ut_ad(fil_space_get((*it)->m_space_id));
 
 			err = fil_recreate_table(
 				(*it)->m_space_id,
