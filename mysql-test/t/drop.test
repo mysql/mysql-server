@@ -311,3 +311,51 @@ INSERT INTO table1 VALUES (1);
 DROP TABLE table1,table2;
 
 --echo # End BUG#34750
+
+--echo
+--echo # Test Bug#19573998 DATABASE CAN NOT BE DROPPED IF IT CONTAINS .CFG FILES
+--enable_connect_log 
+CREATE DATABASE bug19573998;
+USE bug19573998;
+CREATE TABLE t1(i int);
+
+--echo # Start FLUSH TABLES command which will create .cfg files
+--echo # and block DROP DATABASE
+FLUSH TABLES t1 FOR EXPORT;
+
+--connect(con1, localhost, root, '', bug19573998)
+--echo # Non-blocking (--send):
+--send DROP DATABASE bug19573998
+
+--connection default
+--echo # Wait until DROP DATABASE becomes blocked on table metadata lock
+let $wait_condition=
+  SELECT COUNT(*) = 1 FROM information_schema.processlist
+  WHERE state = "Waiting for table metadata lock" AND
+        info = "DROP DATABASE bug19573998";
+--source include/wait_condition.inc
+UNLOCK TABLES;
+
+--connection con1
+--echo # Wait for DROP DATABASE to complete (--reap)
+--reap
+--echo # DROP DATABASE completed
+
+--disconnect con1
+--source include/wait_until_disconnected.inc
+--echo # Connection con1 has disconnected
+
+--connection default
+--echo # Try to manually inject a .cfg file into the database directory
+CREATE DATABASE bug19573998;
+let $MYSQLD_DATADIR= `select @@datadir`;
+--echo # Write a dummy file into the database directory
+--write_file $MYSQLD_DATADIR/bug19573998/dummy.cfg
+EOF
+
+--echo # Verify that it is possible to drop the database
+DROP DATABASE bug19573998;
+USE test;
+--disable_connect_log
+--echo # End Bug#19573998
+

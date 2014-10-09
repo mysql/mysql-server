@@ -107,7 +107,7 @@ int my_copy(const char *from, const char *to, myf MyFlags)
       if (MyFlags & (MY_FAE+MY_WME))
       {
         char  errbuf[MYSYS_STRERROR_SIZE];
-        my_error(EE_CHANGE_PERMISSIONS, MYF(ME_BELL+ME_WAITTANG), from,
+        my_error(EE_CHANGE_PERMISSIONS, MYF(0), from,
                  errno, my_strerror(errbuf, sizeof(errbuf), errno));
       }
       goto err;
@@ -120,7 +120,7 @@ int my_copy(const char *from, const char *to, myf MyFlags)
       if (MyFlags & (MY_FAE+MY_WME))
       {
         char  errbuf[MYSYS_STRERROR_SIZE];
-        my_error(EE_CHANGE_OWNERSHIP, MYF(ME_BELL+ME_WAITTANG), from,
+        my_error(EE_CHANGE_OWNERSHIP, MYF(0), from,
                  errno, my_strerror(errbuf, sizeof(errbuf), errno));
       }
       goto err;

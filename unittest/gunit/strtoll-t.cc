@@ -43,6 +43,6 @@ TEST(StringToULLTest, OverflowedNumber)
   int error;
   const char * str= "18446744073709551915";
   number= my_strtoll10(str, 0, &error);
-  EXPECT_EQ(number, ULONGLONG_MAX);
+  EXPECT_EQ(number, ULLONG_MAX);
   EXPECT_EQ(error, MY_ERRNO_ERANGE);
 }

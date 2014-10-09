@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2010, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2010, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -46,13 +46,11 @@ dict_table_get_low(
 	table = dict_table_check_if_in_cache_low(table_name);
 
 	if (table && table->corrupted) {
-		fprintf(stderr, "InnoDB: table");
-		ut_print_name(stderr, NULL, TRUE, table->name);
+		ib::error	error;
+		error << "Table " << table->name << "is corrupted";
 		if (srv_load_corrupted) {
-			fputs(" is corrupted, but"
-			      " innodb_force_load_corrupted is set\n", stderr);
+			error << ", but innodb_force_load_corrupted is set";
 		} else {
-			fputs(" is corrupted\n", stderr);
 			return(NULL);
 		}
 	}
@@ -123,7 +121,7 @@ dict_table_check_if_in_cache_low(
 
 	HASH_SEARCH(name_hash, dict_sys->table_hash, table_fold,
 		    dict_table_t*, table, ut_ad(table->cached),
-		    !strcmp(table->name, table_name));
+		    !strcmp(table->name.m_name, table_name));
 	DBUG_RETURN(table);
 }
 #endif /*! UNIV_HOTBACKUP */

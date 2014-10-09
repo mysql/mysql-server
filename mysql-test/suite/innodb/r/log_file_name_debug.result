@@ -4,6 +4,7 @@
 #
 SET GLOBAL DEBUG='+d,fil_names_write_bogus';
 CREATE TABLE t1(a INT PRIMARY KEY) ENGINE=InnoDB;
-# Kill and restart
+# Kill the server
+# restart
 DROP TABLE t1;
-Pattern "InnoDB: Tablespace 4294967295 was not found at .*, but there were no modifications either" found
+Pattern "InnoDB: Tablespace 4294967280 was not found at .*, but there were no modifications either" found

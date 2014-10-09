@@ -289,7 +289,8 @@ rtr_pcur_getnext_from_path(
 				rtr_info->path, next_page_no, path_ssn,
 				level, 0, NULL, 0);
 
-			if (mode != PAGE_CUR_RTREE_INSERT
+			if (!srv_read_only_mode
+			    && mode != PAGE_CUR_RTREE_INSERT
 			    && mode != PAGE_CUR_RTREE_LOCATE) {
 				ut_ad(rtr_info->thr);
 				lock_place_prdt_page_lock(
@@ -733,11 +734,10 @@ rtr_page_get_father_node_ptr_func(
 			       BUF_PAGE_PRINT_NO_CRASH);
 
 		fputs("InnoDB: Corruption of an index tree: table ", stderr);
-		ut_print_name(stderr, NULL, TRUE, index->table_name);
-		fputs(", index ", stderr);
-		ut_print_name(stderr, NULL, FALSE, index->name);
-		fprintf(stderr, ",\n"
+		ut_print_name(stderr, NULL, index->table_name);
+		fprintf(stderr, ", index %s,\n"
 			"InnoDB: father ptr page no %lu, child page no %lu\n",
+			index->name,
 			(ulong)
 			btr_node_ptr_get_child_page_no(node_ptr, offsets),
 			(ulong) page_no);
@@ -1816,9 +1816,10 @@ rtr_cur_search_with_match(
 							rec, 0);
 					}
 
-					if (rtr_info->need_page_lock
-					    || orig_mode
-						!= PAGE_CUR_RTREE_LOCATE) {
+					if (!srv_read_only_mode
+					    && (rtr_info->need_page_lock
+						|| orig_mode
+						!= PAGE_CUR_RTREE_LOCATE)) {
 
 						/* Lock the page, preventing it
 						from being shrunk */

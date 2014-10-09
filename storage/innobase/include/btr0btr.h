@@ -250,7 +250,7 @@ index_id_t
 btr_page_get_index_id(
 /*==================*/
 	const page_t*	page)	/*!< in: index page */
-	__attribute__((nonnull, pure, warn_unused_result));
+	__attribute__((warn_unused_result));
 #ifndef UNIV_HOTBACKUP
 /********************************************************//**
 Gets the node level field in an index page.
@@ -260,7 +260,7 @@ ulint
 btr_page_get_level_low(
 /*===================*/
 	const page_t*	page)	/*!< in: index page */
-	__attribute__((nonnull, pure, warn_unused_result));
+	__attribute__((warn_unused_result));
 #define btr_page_get_level(page, mtr) btr_page_get_level_low(page)
 /********************************************************//**
 Gets the next index page number.
@@ -306,45 +306,48 @@ btr_node_ptr_get_child_page_no(
 /*===========================*/
 	const rec_t*	rec,	/*!< in: node pointer record */
 	const ulint*	offsets)/*!< in: array returned by rec_get_offsets() */
-	__attribute__((nonnull, pure, warn_unused_result));
-/************************************************************//**
-Creates the root node for a new index tree.
+	__attribute__((warn_unused_result));
+
+/** Create the root node for a new index tree.
+@param[in]	type			type of the index
+@param[in]	space			space where created
+@param[in]	page_size		page size
+@param[in]	index_id		index id
+@param[in]	index			index, or NULL when applying TRUNCATE
+log record during recovery
+@param[in]	btr_redo_create_info	used for applying TRUNCATE log
+@param[in]	mtr			mini-transaction handle
+record during recovery
 @return page number of the created root, FIL_NULL if did not succeed */
 ulint
 btr_create(
-/*=======*/
-	ulint			type,		/*!< in: type of the index */
-	ulint			space,		/*!< in: space where created */
+	ulint			type,
+	ulint			space,
 	const page_size_t&	page_size,
-	index_id_t		index_id,	/*!< in: index id */
-	dict_index_t*		index,		/*!< in: index, or NULL when
-						applying TRNCATE log 
-						record during recovery */
+	index_id_t		index_id,
+	dict_index_t*		index,
 	const btr_create_t*	btr_redo_create_info,
-						/*!< in: used for applying
-						TRUNCATE log record
-						during recovery */
-	mtr_t*			mtr);		/*!< in: mini-transaction
-						handle */
-
-/** Frees a B-tree except the root page. The root page MUST be freed after
-this by calling btr_free_root.
-@param[in] root_page_id id of the root page
-@param[in] logging_mode mtr logging mode */
-void
-btr_free_but_not_root(
-	const page_id_t&	root_page_id,
-	const page_size_t&	page_size,
-	mtr_log_t		logging_mode);
-
-/** Frees the B-tree root page. Other tree MUST already have been freed.
-@param[in] root_page_id id of the root page
-@param[in,out] mtr mini-transaction */
-void
-btr_free_root(
-	const page_id_t&	root_page_id,
-	const page_size_t&	page_size,
 	mtr_t*			mtr);
+
+/** Free a persistent index tree if it exists.
+@param[in]	page_id		root page id
+@param[in]	page_size	page size
+@param[in]	index_id	PAGE_INDEX_ID contents
+@param[in,out]	mtr		mini-transaction */
+void
+btr_free_if_exists(
+	const page_id_t&	page_id,
+	const page_size_t&	page_size,
+	index_id_t		index_id,
+	mtr_t*			mtr);
+
+/** Free an index tree in a temporary tablespace or during TRUNCATE TABLE.
+@param[in]	page_id		root page id
+@param[in]	page_size	page size */
+void
+btr_free(
+	const page_id_t&	page_id,
+	const page_size_t&	page_size);
 
 /*************************************************************//**
 Makes tree one level higher by splitting the root, and inserts

@@ -450,7 +450,7 @@ public:
   {
     interval_min=    start;
     interval_values= val;
-    interval_max=    (val == ULONGLONG_MAX) ? val : start + val * incr;
+    interval_max=    (val == ULLONG_MAX) ? val : start + val * incr;
   }
   Discrete_interval(ulonglong start, ulonglong val, ulonglong incr) :
     next(NULL) { replace(start, val, incr); };
@@ -467,7 +467,7 @@ public:
   {
     if (interval_max == start)
     {
-      if (val == ULONGLONG_MAX)
+      if (val == ULLONG_MAX)
       {
         interval_values=   interval_max= val;
       }

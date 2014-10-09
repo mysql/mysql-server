@@ -66,7 +66,7 @@ int2str(long int val, char *dst, int radix,
     if (val < 0)
     {
       *dst++ = '-';
-      /* Avoid integer overflow in (-val) for LONGLONG_MIN (BUG#31799). */
+      /* Avoid integer overflow in (-val) for LLONG_MIN (BUG#31799). */
       uval = (ulong)0 - uval;
     }
     radix = -radix;
@@ -133,7 +133,7 @@ char *int10_to_str(long int val,char *dst,int radix)
     if (val < 0)
     {
       *dst++ = '-';
-      /* Avoid integer overflow in (-val) for LONGLONG_MIN (BUG#31799). */
+      /* Avoid integer overflow in (-val) for LLONG_MIN (BUG#31799). */
       uval = (unsigned long int)0 - uval;
     }
   }

@@ -4620,3 +4620,26 @@ SET NAMES latin1;
 #
 # End of 5.6 tests
 #
+#
+# Bug#19646643 REPEAT() WASTES CPU TIME ON LARGE INPUT VALUES
+#              THAT GAURANTEE EMPTY RESULT
+#
+SET @@global.max_allowed_packet=1024*1024;
+connect  newconn, localhost, root,,;
+select length(repeat("",1)) as a;
+a
+0
+select length(repeat("",1024*1024*1024)) as a;
+a
+0
+select length(repeat("1",1024*1024)) as a;
+a
+1048576
+select length(repeat("1",1024*1024*1024)) as a;
+a
+NULL
+Warnings:
+Warning	1301	Result of repeat() was larger than max_allowed_packet (1048576) - truncated
+disconnect newconn;
+connection default;
+SET @@global.max_allowed_packet:= DEFAULT;

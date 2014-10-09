@@ -51,6 +51,22 @@
 
 #define MAX_DIGITS_IN_DOUBLE 30
 
+
+/**
+  Distance to another point.
+*/
+double point_xy::distance(const point_xy& p) const
+{
+  /* On 32bit platforms, sqrt(inf) may produce a wrong number that isn't inf. */
+  const double a= pow(x - p.x, 2.0);
+  if (!my_isfinite(a))
+    return a;
+  const double b= pow(y - p.y, 2.0);
+  if (!my_isfinite(a + b))
+    return a + b;
+  return sqrt(a + b);
+}
+
 /***************************** Gis_class_info *******************************/
 
 String Geometry::bad_geometry_data("Bad object", &my_charset_bin);

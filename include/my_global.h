@@ -23,6 +23,7 @@
 
 #define __STDC_LIMIT_MACROS	/* Enable C99 limit macros */
 #define __STDC_FORMAT_MACROS	/* Enable C99 printf format macros */
+#define _USE_MATH_DEFINES       /* Get access to M_PI, M_E, etc. in math.h */
 
 #ifdef _WIN32
 /* Include common headers.*/
@@ -155,14 +156,12 @@
 #define QUOTE_ARG(x)		#x	/* Quote argument (before cpp) */
 #define STRINGIFY_ARG(x) QUOTE_ARG(x)	/* Quote argument, after cpp */
 
-#ifndef SO_EXT
 #ifdef _WIN32
 #define SO_EXT ".dll"
 #elif defined(__APPLE__)
 #define SO_EXT ".dylib"
 #else
 #define SO_EXT ".so"
-#endif
 #endif
 
 #if !defined(HAVE_UINT)
@@ -313,9 +312,7 @@ typedef socket_len_t SOCKET_SIZE_TYPE; /* Used by NDB */
 #define MY_NFILE 64
 #endif
 
-#ifndef OS_FILE_LIMIT
 #define OS_FILE_LIMIT	UINT_MAX
-#endif
 
 /*
   Io buffer size; Must be a power of 2 and a multiple of 512. May be
@@ -372,16 +369,6 @@ inline unsigned long long my_double2ulonglong(double d)
 #define double2ulonglong(A) ((ulonglong) (double) (A))
 #endif
 
-#ifndef LONGLONG_MIN
-#define LONGLONG_MIN	LLONG_MIN
-#endif
-#ifndef LONGLONG_MAX
-#define LONGLONG_MAX	LLONG_MAX
-#endif
-#ifndef ULONGLONG_MAX
-#define ULONGLONG_MAX   ULLONG_MAX
-#endif
-
 #define INT_MIN64       (~0x7FFFFFFFFFFFFFFFLL)
 #define INT_MAX64       0x7FFFFFFFFFFFFFFFLL
 #define INT_MIN32       (~0x7FFFFFFFL)
@@ -424,17 +411,6 @@ inline unsigned long long my_double2ulonglong(double d)
   #endif
 #endif /* __cplusplus >= 201103L */
 
-/* Define missing math constants. */
-#ifndef M_PI
-#define M_PI 3.14159265358979323846
-#endif
-#ifndef M_E
-#define M_E 2.7182818284590452354
-#endif
-#ifndef M_LN2
-#define M_LN2 0.69314718055994530942
-#endif
-
 /*
   Max size that must be added to a so that we know Size to make
   adressable obj.
@@ -467,10 +443,6 @@ typedef long long	my_ptrdiff_t;
         ((size_t)((char *)&(((TYPE *)0x10)->MEMBER) - (char*)0x10))
 
 #define NullS		(char *) 0
-
-#ifdef STDCALL
-#undef STDCALL
-#endif
 
 #ifdef _WIN32
 #define STDCALL __stdcall
@@ -573,15 +545,6 @@ typedef char		my_bool; /* Small bool */
 
 /* Macros for converting *constants* to the right type */
 #define MYF(v)		(myf) (v)
-
-#ifndef LL
-#define LL(A) A ## LL
-#endif
-
-#ifndef ULL
-#define ULL(A) A ## ULL
-#endif
-
 
 /* Some helper macros */
 #define YESNO(X) ((X) ? "yes" : "no")

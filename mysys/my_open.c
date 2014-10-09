@@ -84,7 +84,7 @@ int my_close(File fd, myf MyFlags)
     if (MyFlags & (MY_FAE | MY_WME))
     {
       char errbuf[MYSYS_STRERROR_SIZE];
-      my_error(EE_BADCLOSE, MYF(ME_BELL+ME_WAITTANG), my_filename(fd),
+      my_error(EE_BADCLOSE, MYF(0), my_filename(fd),
                my_errno, my_strerror(errbuf, sizeof(errbuf), my_errno));
     }
   }
@@ -162,7 +162,7 @@ File my_register_filename(File fd, const char *FileName, enum file_type
     if (my_errno == EMFILE)
       error_message_number= EE_OUT_OF_FILERESOURCES;
     DBUG_PRINT("error",("print err: %d",error_message_number));
-    my_error(error_message_number, MYF(ME_BELL+ME_WAITTANG), FileName,
+    my_error(error_message_number, MYF(0), FileName,
              my_errno, my_strerror(errbuf, sizeof(errbuf), my_errno));
   }
   DBUG_RETURN(-1);

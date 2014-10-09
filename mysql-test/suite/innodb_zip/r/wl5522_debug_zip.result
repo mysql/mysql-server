@@ -84,7 +84,7 @@ ERROR HY000: Tablespace has been discarded for table 't1'
 restore: t1 .ibd and .cfg files
 SET SESSION debug="+d,ib_import_internal_error";
 ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
-ERROR HY000: Internal error: While updating the <space, root page number> of index "GEN_CLUST_INDEX" - Generic error
+ERROR HY000: Internal error: While updating the <space, root page number> of index GEN_CLUST_INDEX - Generic error
 SET SESSION debug="-d,ib_import_internal_error";
 restore: t1 .ibd and .cfg files
 ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
@@ -97,7 +97,7 @@ ERROR HY000: Tablespace has been discarded for table 't1'
 restore: t1 .ibd and .cfg files
 SET SESSION debug="+d,ib_import_reset_space_and_lsn_failure";
 ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
-ERROR HY000: Internal error: Cannot reset LSNs in table '"test_wl5522"."t1"' : Too many concurrent transactions
+ERROR HY000: Internal error: Cannot reset LSNs in table `test_wl5522`.`t1` : Too many concurrent transactions
 restore: t1 .ibd and .cfg files
 SET SESSION debug="-d,ib_import_reset_space_and_lsn_failure";
 SET SESSION debug="+d,ib_import_open_tablespace_failure";
@@ -471,7 +471,7 @@ ERROR HY000: Tablespace has been discarded for table 't1'
 restore: t1 .ibd and .cfg files
 SET SESSION debug="+d,ib_import_trigger_corruption_1";
 ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
-ERROR HY000: Internal error: Cannot reset LSNs in table '"test_wl5522"."t1"' : Data structure corruption
+ERROR HY000: Internal error: Cannot reset LSNs in table `test_wl5522`.`t1` : Data structure corruption
 SET SESSION debug="-d,ib_import_trigger_corruption_1";
 DROP TABLE test_wl5522.t1;
 unlink: t1.ibd
@@ -496,7 +496,7 @@ ERROR HY000: Tablespace has been discarded for table 't1'
 restore: t1 .ibd and .cfg files
 SET SESSION debug="+d,ib_import_trigger_corruption_2";
 ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
-ERROR HY000: Index corrupt: Externally stored column(5) has a reference length of 19 in the cluster index "GEN_CLUST_INDEX"
+ERROR HY000: Index corrupt: Externally stored column(5) has a reference length of 19 in the cluster index GEN_CLUST_INDEX
 SET SESSION debug="-d,ib_import_trigger_corruption_2";
 DROP TABLE test_wl5522.t1;
 unlink: t1.ibd
@@ -561,7 +561,7 @@ ERROR HY000: Tablespace has been discarded for table 't1'
 restore: t1 .ibd and .cfg files
 SET SESSION debug="+d,fsp_flags_is_valid_failure";
 ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
-ERROR HY000: Internal error: Cannot reset LSNs in table '"test_wl5522"."t1"' : Unsupported
+ERROR HY000: Internal error: Cannot reset LSNs in table `test_wl5522`.`t1` : Unsupported
 SET SESSION debug="-d,fsp_flags_is_valid_failure";
 DROP TABLE test_wl5522.t1;
 unlink: t1.ibd

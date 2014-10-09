@@ -232,7 +232,7 @@ fil_name_process(
 		the space_id. If not, ignore the file after displaying
 		a note. Abort if there are multiple files with the
 		same space_id. */
-		switch (fil_load_single_table_tablespace(
+		switch (fil_load_single_file_tablespace(
 				space_id, name, len - 1, space)) {
 		case FIL_LOAD_OK:
 			ut_ad(space != NULL);
@@ -371,7 +371,7 @@ fil_name_parse(
 			reinterpret_cast<char*>(ptr), len, space_id, true);
 #ifdef UNIV_HOTBACKUP
 		if (apply && recv_replay_file_ops
-		    && fil_tablespace_exists_in_mem(space_id)) {
+		    && fil_space_get(space_id)) {
 			dberr_t	err = fil_delete_tablespace(
 				space_id, BUF_REMOVE_FLUSH_NO_WRITE);
 			ut_a(err == DB_SUCCESS);

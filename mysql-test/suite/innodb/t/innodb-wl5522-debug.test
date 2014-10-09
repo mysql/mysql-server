@@ -15,13 +15,6 @@
 
 -- source include/have_innodb.inc
 
---disable_query_log
-call mtr.add_suppression("\\[Warning\\] InnoDB: Please refer to .*innodb-troubleshooting-datadict.html for how to resolve the issue.");
-call mtr.add_suppression("\\[ERROR\\] InnoDB: If you are installing InnoDB, remember that you must create directories yourself");
-call mtr.add_suppression('\\[ERROR\\] InnoDB: Tablespace open failed for "test_wl5522"\\."t1", ignored');
-call mtr.add_suppression("\\[ERROR\\] InnoDB: Cannot open datafile for read-only:");
---enable_query_log
-
 let MYSQLD_DATADIR =`SELECT @@datadir`;
 let $innodb_file_per_table = `SELECT @@innodb_file_per_table`;
 let $strerrfix=/ (\(.+\))//;
@@ -1463,28 +1456,23 @@ set global innodb_monitor_reset_all = default;
 -- enable_warnings
 
 --disable_query_log
-call mtr.add_suppression("InnoDB: The log sequence numbers [0-9]+ and [0-9]+ in ibdata files do not match the log sequence number [0-9]+ in the ib_logfiles!");
-call mtr.add_suppression("'Resource temporarily unavailable'");
-call mtr.add_suppression("Monitor ibuf_merges is already enabled");
-call mtr.add_suppression("Monitor ibuf_merges_insert is already enabled");
-call mtr.add_suppression("Got error -1 when reading table '.*'");
-call mtr.add_suppression("InnoDB: Table .* tablespace is set as discarded.");
-call mtr.add_suppression("InnoDB: Tablespace '.*' exists in the cache.*");
-call mtr.add_suppression("InnoDB: Freeing existing tablespace '.*' entry from the cache with id.*");
-call mtr.add_suppression("InnoDB: The table .* doesn't have a corresponding tablespace, it was discarded");
-call mtr.add_suppression(".*There was an error writing to the meta data file.*");
-call mtr.add_suppression("InnoDB: Trying to import a tablespace, but could not open the tablespace file");
-call mtr.add_suppression("Unsupported tablespace format");
-call mtr.add_suppression("Error in page .* of index \"GEN_CLUST_INDEX\" of table \"test_wl5522\".\"t1\"");
-call mtr.add_suppression("Page is marked as free");
-call mtr.add_suppression("t1.ibd: Page .* at offset .* looks corrupted");
-call mtr.add_suppression("but tablespace with that id or name does not exist");
-call mtr.add_suppression("Failed to find tablespace for table \"test_wl5522\".\"t1\" in the cache");
-call mtr.add_suppression("Could not find a valid tablespace file for 'test_wl5522.*t1'");
-call mtr.add_suppression("while reading index meta-data, expected to read 44 bytes but read only 0 bytes");
+call mtr.add_suppression("\\[Warning\\] InnoDB: Please refer to .*innodb-troubleshooting-datadict.html for how to resolve the issue.");
+call mtr.add_suppression("\\[Warning\\] InnoDB: Ignoring tablespace `test_wl5522/t1` because it could not be opened");
+call mtr.add_suppression("\\[Warning\\] InnoDB: Tablespace for table `test_wl5522`\.`t1` is set as discarded");
+call mtr.add_suppression("\\[Warning\\] InnoDB: t1.ibd: Page .* at offset .* looks corrupted");
+call mtr.add_suppression("\\[Warning\\] InnoDB: Cannot calculate statistics for table `test_wl5522`\.`t1` because the \.ibd file is missing");
+call mtr.add_suppression("\\[Warning\\] InnoDB: Monitor ibuf_merges is already enabled");
+call mtr.add_suppression("\\[Warning\\] InnoDB: Monitor ibuf_merges_insert is already enabled");
+call mtr.add_suppression("\\[Warning\\] InnoDB: Page 0 at offset 0 looks corrupted in file");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: Cannot open datafile for read-only:");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: Could not find a valid tablespace file for `test_wl5522/t1`");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: Failed to find tablespace for table `test_wl5522`.`t1` in the cache");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: If you are installing InnoDB, remember that you must create directories yourself");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: IO Error: while reading index meta-data, expected to read 44 bytes but read only 0 bytes");
 call mtr.add_suppression("\\[ERROR\\] InnoDB: Operating system error number 2 in a file operation.");
 call mtr.add_suppression("\\[ERROR\\] InnoDB: The error means the system cannot find the path specified.");
-call mtr.add_suppression("\\[Warning\\] InnoDB: Cannot calculate statistics for table \"test_wl5522\"\.\"t1\" because the \.ibd file is missing.");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: Unsupported tablespace format");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: Tablespace open failed for `test_wl5522`.`t1`, ignored.");
 --enable_query_log
 
 #cleanup
