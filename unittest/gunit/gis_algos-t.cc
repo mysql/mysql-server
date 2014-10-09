@@ -427,4 +427,30 @@ TEST_F(GeometryManipulationTest, ResizeAssignmentTest)
   }
 }
 
+
+/*
+  Tests of miscellineous GIS functionalities.
+*/
+class GisMiscTests : public ::testing::Test
+{
+public:
+};
+
+TEST_F(GisMiscTests, PointxyDistanceTest)
+{
+  const point_xy pt1(1.0, 1.0);
+  const point_xy pt2(1e300, -1e300);
+  const point_xy pt3(1e300, 1);
+  const point_xy pt4(1, 1e300);
+  const point_xy pt5(pt2);
+
+  EXPECT_FALSE(my_isfinite(pt1.distance(pt2)));
+  EXPECT_FALSE(my_isfinite(pt1.distance(pt3)));
+  EXPECT_FALSE(my_isfinite(pt1.distance(pt4)));
+  EXPECT_FALSE(my_isfinite(pt2.distance(pt3)));
+  EXPECT_FALSE(my_isfinite(pt2.distance(pt4)));
+  EXPECT_FALSE(my_isfinite(pt3.distance(pt4)));
+  EXPECT_FLOAT_EQ(0.0, pt2.distance(pt5));
+}
+
 }
