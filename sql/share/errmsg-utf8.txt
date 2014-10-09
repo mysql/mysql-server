@@ -7216,28 +7216,28 @@ ER_INCORRECT_TYPE
   eng "Incorrect type for argument %s in function %s."
 
 ER_VIRTUAL_COLUMN_FUNCTION_IS_NOT_ALLOWED
-  eng "Expression of virtual column '%s' contains a disallowed function."
+  eng "Expression of generated column '%s' contains a disallowed function."
 
 ER_KEY_BASED_ON_GENERATED_VIRTUAL_COLUMN
-  eng "Key/Index cannot be defined on a non-stored virtual column."
+  eng "Key/Index cannot be defined on a non-stored generated column."
 
 ER_WRONG_FK_OPTION_FOR_VIRTUAL_COLUMN
-  eng "Cannot define foreign key with %s clause on a virtual column."
+  eng "Cannot define foreign key with %s clause on a generated column."
 
 ER_WARNING_NON_DEFAULT_VALUE_FOR_VIRTUAL_COLUMN
-  eng "The value specified for virtual column '%s' in table '%s' ignored."
+  eng "The value specified for generated column '%s' in table '%s' ignored."
 
 ER_UNSUPPORTED_ACTION_ON_VIRTUAL_COLUMN
-  eng "'%s' is not yet supported for virtual columns."
+  eng "'%s' is not yet supported for generated columns."
 
 ER_CONST_EXPR_IN_VCOL
-  eng "Constant expression in virtual column function is not allowed."
+  eng "Constant expression in generated column function is not allowed."
 
 ER_VIRTUAL_COLUMN_NON_PRIOR
-  eng "Virtual column can refer only to virtual columns defined prior it."
+  eng "Generated column can refer only to generated columns defined prior it."
 
 ER_DEPENDENT_BY_VIRTUAL_COLUMN
-  eng "Column '%s' has a virtual column dependency."
+  eng "Column '%s' has a generated column dependency."
 
 ER_FIELD_IN_ORDER_NOT_SELECT
   eng "Expression #%u of ORDER BY clause is not in SELECT list, references column '%-.192s' which is not in SELECT list; this is incompatible with %s"

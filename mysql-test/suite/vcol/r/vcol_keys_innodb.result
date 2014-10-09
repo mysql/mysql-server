@@ -1,158 +1,923 @@
-SET @@session.default_storage_engine = 'InnoDB';
-#            - UNIQUE KEY
-#            - INDEX
-#            - FULLTEXT INDEX
-#            - SPATIAL INDEX (not supported)
-#            - FOREIGN INDEX (partially supported)
-#            - CHECK (allowed but not used)
-# UNIQUE
-create table t1 (a int, b int generated always as (a*2) virtual unique);
-ERROR HY000: Key/Index cannot be defined on a non-stored virtual column.
-create table t1 (a int, b int generated always as (a*2) stored unique);
-show create table t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
-  `b` VIRTUAL int(11) AS (a*2) STORED,
-  UNIQUE KEY `b` (`b`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-describe t1;
-Field	Type	Null	Key	Default	Extra
-a	int(11)	YES		NULL	
-b	int(11)	YES	UNI	NULL	VIRTUAL
-drop table t1;
-create table t1 (a int, b int generated always as (a*2) virtual, unique key (b));
-ERROR HY000: Key/Index cannot be defined on a non-stored virtual column.
-create table t1 (a int, b int generated always as (a*2) stored, unique (b));
-show create table t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
-  `b` VIRTUAL int(11) AS (a*2) STORED,
-  UNIQUE KEY `b` (`b`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-describe t1;
-Field	Type	Null	Key	Default	Extra
-a	int(11)	YES		NULL	
-b	int(11)	YES	UNI	NULL	VIRTUAL
-drop table t1;
-create table t1 (a int, b int generated always as (a*2) virtual);
-alter table t1 add unique key (b);
-ERROR HY000: Key/Index cannot be defined on a non-stored virtual column.
-drop table t1;
-create table t1 (a int, b int generated always as (a*2) stored);
-alter table t1 add unique key (b);
-drop table t1;
-# Testing data manipulation operations involving UNIQUE keys 
-# on virtual columns can be found in:
-#  - vcol_ins_upd.inc
-#  - vcol_select.inc
-# 
-# INDEX
-create table t1 (a int, b int generated always as (a*2) virtual, index (b));
-ERROR HY000: Key/Index cannot be defined on a non-stored virtual column.
-create table t1 (a int, b int generated always as (a*2) virtual, index (a,b));
-ERROR HY000: Key/Index cannot be defined on a non-stored virtual column.
-create table t1 (a int, b int generated always as (a*2) stored, index (b));
-show create table t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
-  `b` VIRTUAL int(11) AS (a*2) STORED,
-  KEY `b` (`b`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-describe t1;
-Field	Type	Null	Key	Default	Extra
-a	int(11)	YES		NULL	
-b	int(11)	YES	MUL	NULL	VIRTUAL
-drop table t1;
-create table t1 (a int, b int generated always as (a*2) stored, index (a,b));
-show create table t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
-  `b` VIRTUAL int(11) AS (a*2) STORED,
-  KEY `a` (`a`,`b`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-describe t1;
-Field	Type	Null	Key	Default	Extra
-a	int(11)	YES	MUL	NULL	
-b	int(11)	YES		NULL	VIRTUAL
-drop table t1;
-create table t1 (a int, b int generated always as (a*2) virtual);
-alter table t1 add index (b);
-ERROR HY000: Key/Index cannot be defined on a non-stored virtual column.
-alter table t1 add index (a,b);
-ERROR HY000: Key/Index cannot be defined on a non-stored virtual column.
-drop table t1;
-create table t1 (a int, b int generated always as (a*2) stored);
-alter table t1 add index (b);
-drop table t1;
-create table t1 (a int, b int generated always as (a*2) stored);
-alter table t1 add index (a,b);
-create table t2 like t1;
-drop table t2;
-drop table t1;
-# Testing data manipulation operations involving INDEX
-# on virtual columns can be found in:
-#  - vcol_select.inc
-#
-# TODO: FULLTEXT INDEX
-# SPATIAL INDEX
-# FOREIGN KEY
-# Rejected FK options.
-create table t1 (a int, b int generated always as (a+1) stored,
-foreign key (b) references t2(a) on update set null);
-ERROR HY000: Cannot define foreign key with ON UPDATE SET NULL clause on a virtual column.
-create table t1 (a int, b int generated always as (a+1) stored,
-foreign key (b) references t2(a) on update cascade);
-ERROR HY000: Cannot define foreign key with ON UPDATE CASCADE clause on a virtual column.
-create table t1 (a int, b int generated always as (a+1) stored,
-foreign key (b) references t2(a) on delete set null);
-ERROR HY000: Cannot define foreign key with ON DELETE SET NULL clause on a virtual column.
-create table t1 (a int, b int generated always as (a+1) stored);
-alter table t1 add foreign key (b) references t2(a) on update set null;
-ERROR HY000: Cannot define foreign key with ON UPDATE SET NULL clause on a virtual column.
-alter table t1 add foreign key (b) references t2(a) on update cascade;
-ERROR HY000: Cannot define foreign key with ON UPDATE CASCADE clause on a virtual column.
-alter table t1 add foreign key (b) references t2(a) on delete set null;
-ERROR HY000: Cannot define foreign key with ON DELETE SET NULL clause on a virtual column.
-drop table t1;
-create table t1 (a int, b int generated always as (a+1) virtual,
-foreign key (b) references t2(a));
-ERROR HY000: Key/Index cannot be defined on a non-stored virtual column.
-create table t1 (a int, b int generated always as (a+1) virtual);
-alter table t1 add foreign key (b) references t2(a);
-ERROR HY000: Key/Index cannot be defined on a non-stored virtual column.
-drop table t1;
-# Allowed FK options.
-create table t2 (a int primary key, b char(5));
-create table t1 (a int, b int generated always as (a % 10) stored,
-foreign key (b) references t2(a) on update restrict);
-drop table t1;
-create table t1 (a int, b int generated always as (a % 10) stored,
-foreign key (b) references t2(a) on update no action);
-drop table t1;
-create table t1 (a int, b int generated always as (a % 10) stored,
-foreign key (b) references t2(a) on delete restrict);
-drop table t1;
-create table t1 (a int, b int generated always as (a % 10) stored,
-foreign key (b) references t2(a) on delete cascade);
-drop table t1;
-create table t1 (a int, b int generated always as (a % 10) stored,
-foreign key (b) references t2(a) on delete no action);
-drop table t1;
-
-# Testing data manipulation operations involving FOREIGN KEY 
-# on virtual columns can be found in:
-#  - vcol_ins_upd.inc
-#  - vcol_select.inc
-#
-# TODO: CHECK
-DROP VIEW  IF EXISTS v1,v2;
-DROP TABLE IF EXISTS t1,t2,t3;
-DROP PROCEDURE IF EXISTS p1;
-DROP FUNCTION IF EXISTS f1;
-DROP TRIGGER IF EXISTS trg1;
-DROP TRIGGER IF EXISTS trg2;
-set sql_warnings = 0;
+Slave_IO_State	Waiting for master to send event
+Master_Host	127.0.0.1
+Master_User	root
+Master_Port	#
+Connect_Retry	#
+Master_Log_File	#
+Read_Master_Log_Pos	#
+Relay_Log_File	#
+Relay_Log_Pos	#
+Relay_Master_Log_File	#
+Slave_IO_Running	Yes
+Slave_SQL_Running	Yes
+Replicate_Do_DB	#
+Replicate_Ignore_DB	#
+Replicate_Do_Table	#
+Replicate_Ignore_Table	#
+Replicate_Wild_Do_Table	#
+Replicate_Wild_Ignore_Table	#
+Last_Errno	0
+Last_Error	
+Skip_Counter	0
+Exec_Master_Log_Pos	#
+Relay_Log_Space	#
+Until_Condition	#
+Until_Log_File	#
+Until_Log_Pos	#
+Master_SSL_Allowed	No
+Master_SSL_CA_File	
+Master_SSL_CA_Path	
+Master_SSL_Cert	
+Master_SSL_Cipher	
+Master_SSL_Key	
+Seconds_Behind_Master	0
+Master_SSL_Verify_Server_Cert	No
+Last_IO_Errno	0
+Last_IO_Error	
+Last_SQL_Errno	0
+Last_SQL_Error	
+Replicate_Ignore_Server_Ids	
+Master_Server_Id	#
+Master_UUID	#
+Master_Info_File	#
+SQL_Delay	0
+SQL_Remaining_Delay	NULL
+Slave_SQL_Running_State	Slave has read all relay log; waiting for more updates
+Master_Retry_Count	#
+Master_Bind	
+Last_IO_Error_Timestamp	
+Last_SQL_Error_Timestamp	
+Master_SSL_Crl	
+Master_SSL_Crlpath	
+Retrieved_Gtid_Set	#
+Executed_Gtid_Set	#
+Auto_Position	0
+Replicate_Rewrite_DB	#
+NAME	ENABLED	TIMED
+NAME	ENABLED
+events_stages_current	YES
+events_stages_history	YES
+events_stages_history_long	YES
+events_statements_current	YES
+events_statements_history	YES
+events_statements_history_long	YES
+events_transactions_current	YES
+events_transactions_history	YES
+events_transactions_history_long	YES
+events_waits_current	YES
+events_waits_history	YES
+events_waits_history_long	YES
+global_instrumentation	YES
+statements_digest	YES
+thread_instrumentation	YES
+HOST	USER	ROLE
+%	%	%
+OBJECT_TYPE	OBJECT_SCHEMA	OBJECT_NAME	ENABLED	TIMED
+EVENT	%	%	YES	YES
+EVENT	information_schema	%	NO	NO
+EVENT	mysql	%	NO	NO
+EVENT	performance_schema	%	NO	NO
+FUNCTION	%	%	YES	YES
+FUNCTION	information_schema	%	NO	NO
+FUNCTION	mysql	%	NO	NO
+FUNCTION	performance_schema	%	NO	NO
+PROCEDURE	%	%	YES	YES
+PROCEDURE	information_schema	%	NO	NO
+PROCEDURE	mysql	%	NO	NO
+PROCEDURE	performance_schema	%	NO	NO
+TABLE	%	%	YES	YES
+TABLE	information_schema	%	NO	NO
+TABLE	mysql	%	NO	NO
+TABLE	performance_schema	%	NO	NO
+TRIGGER	%	%	YES	YES
+TRIGGER	information_schema	%	NO	NO
+TRIGGER	mysql	%	NO	NO
+TRIGGER	performance_schema	%	NO	NO
+VARIABLE_NAME	VARIABLE_VALUE
+AUTOCOMMIT	ON
+AUTOMATIC_SP_PRIVILEGES	ON
+AUTO_INCREMENT_INCREMENT	1
+AUTO_INCREMENT_OFFSET	1
+BACK_LOG	80
+BASEDIR	/home/xiowang/wl411
+BIG_TABLES	OFF
+BIND_ADDRESS	*
+BINLOGGING_IMPOSSIBLE_MODE	IGNORE_ERROR
+BINLOG_CACHE_SIZE	32768
+BINLOG_CHECKSUM	CRC32
+BINLOG_DIRECT_NON_TRANSACTIONAL_UPDATES	ON
+BINLOG_FORMAT	STATEMENT
+BINLOG_GROUP_COMMIT_SYNC_DELAY	0
+BINLOG_GROUP_COMMIT_SYNC_NO_DELAY_COUNT	0
+BINLOG_MAX_FLUSH_QUEUE_TIME	0
+BINLOG_ORDER_COMMITS	ON
+BINLOG_ROWS_QUERY_LOG_EVENTS	OFF
+BINLOG_ROW_IMAGE	FULL
+BINLOG_STMT_CACHE_SIZE	32768
+BLOCK_ENCRYPTION_MODE	aes-128-ecb
+BULK_INSERT_BUFFER_SIZE	8388608
+CHARACTER_SETS_DIR	/home/xiowang/wl411/sql/share/charsets/
+CHARACTER_SET_CLIENT	latin1
+CHARACTER_SET_CONNECTION	latin1
+CHARACTER_SET_DATABASE	latin1
+CHARACTER_SET_FILESYSTEM	binary
+CHARACTER_SET_RESULTS	latin1
+CHARACTER_SET_SERVER	latin1
+CHARACTER_SET_SYSTEM	utf8
+COLLATION_CONNECTION	latin1_swedish_ci
+COLLATION_DATABASE	latin1_swedish_ci
+COLLATION_SERVER	latin1_swedish_ci
+COMPLETION_TYPE	NO_CHAIN
+CONCURRENT_INSERT	AUTO
+CONNECT_TIMEOUT	60
+CORE_FILE	ON
+DATADIR	/export/home/tmp/xwang-test/wl411/mysql-test/var/32/mysqld.2/data/
+DATETIME_FORMAT	%Y-%m-%d %H:%i:%s
+DATE_FORMAT	%Y-%m-%d
+DEBUG	
+DEFAULT_AUTHENTICATION_PLUGIN	mysql_native_password
+DEFAULT_PASSWORD_LIFETIME	360
+DEFAULT_STORAGE_ENGINE	InnoDB
+DEFAULT_TMP_STORAGE_ENGINE	InnoDB
+DEFAULT_WEEK_FORMAT	0
+DELAYED_INSERT_LIMIT	100
+DELAYED_INSERT_TIMEOUT	300
+DELAYED_QUEUE_SIZE	1000
+DELAY_KEY_WRITE	ON
+DISCONNECT_ON_EXPIRED_PASSWORD	ON
+DIV_PRECISION_INCREMENT	4
+END_MARKERS_IN_JSON	OFF
+ENFORCE_GTID_CONSISTENCY	OFF
+EQ_RANGE_INDEX_DIVE_LIMIT	200
+EVENT_SCHEDULER	OFF
+EXECUTED_GTIDS_COMPRESSION_PERIOD	1000
+EXPIRE_LOGS_DAYS	0
+EXPLICIT_DEFAULTS_FOR_TIMESTAMP	OFF
+FLUSH	OFF
+FLUSH_TIME	0
+FOREIGN_KEY_CHECKS	ON
+FT_BOOLEAN_SYNTAX	+ -><()~*:""&|
+FT_MAX_WORD_LEN	84
+FT_MIN_WORD_LEN	4
+FT_QUERY_EXPANSION_LIMIT	20
+FT_STOPWORD_FILE	(built-in)
+GENERAL_LOG	ON
+GENERAL_LOG_FILE	/export/home/tmp/xwang-test/wl411/mysql-test/var/32/mysqld.2/mysqld.log
+GROUP_CONCAT_MAX_LEN	1024
+GTID_MODE	OFF
+GTID_OWNED	
+HAVE_COMPRESS	YES
+HAVE_CRYPT	YES
+HAVE_DYNAMIC_LOADING	YES
+HAVE_GEOMETRY	YES
+HAVE_OPENSSL	YES
+HAVE_PROFILING	YES
+HAVE_QUERY_CACHE	YES
+HAVE_RTREE_KEYS	YES
+HAVE_SSL	YES
+HAVE_STATEMENT_TIMEOUT	YES
+HAVE_SYMLINK	YES
+HOSTNAME	vale02
+HOST_CACHE_SIZE	279
+IGNORE_BUILTIN_INNODB	OFF
+IGNORE_DB_DIRS	
+INIT_CONNECT	
+INIT_FILE	
+INIT_SLAVE	
+INNODB_ADAPTIVE_FLUSHING	ON
+INNODB_ADAPTIVE_FLUSHING_LWM	10
+INNODB_ADAPTIVE_HASH_INDEX	ON
+INNODB_ADAPTIVE_MAX_SLEEP_DELAY	150000
+INNODB_API_BK_COMMIT_INTERVAL	5
+INNODB_API_DISABLE_ROWLOCK	OFF
+INNODB_API_ENABLE_BINLOG	OFF
+INNODB_API_ENABLE_MDL	OFF
+INNODB_API_TRX_LEVEL	0
+INNODB_AUTOEXTEND_INCREMENT	64
+INNODB_AUTOINC_LOCK_MODE	1
+INNODB_BUFFER_POOL_CHUNK_SIZE	8388608
+INNODB_BUFFER_POOL_DUMP_AT_SHUTDOWN	OFF
+INNODB_BUFFER_POOL_DUMP_NOW	OFF
+INNODB_BUFFER_POOL_DUMP_PCT	100
+INNODB_BUFFER_POOL_EVICT	
+INNODB_BUFFER_POOL_FILENAME	ib_buffer_pool
+INNODB_BUFFER_POOL_INSTANCES	1
+INNODB_BUFFER_POOL_LOAD_ABORT	OFF
+INNODB_BUFFER_POOL_LOAD_AT_STARTUP	OFF
+INNODB_BUFFER_POOL_LOAD_NOW	OFF
+INNODB_BUFFER_POOL_SIZE	8388608
+INNODB_BUF_FLUSH_LIST_NOW	OFF
+INNODB_CHANGE_BUFFERING	all
+INNODB_CHANGE_BUFFERING_DEBUG	0
+INNODB_CHANGE_BUFFER_MAX_SIZE	25
+INNODB_CHECKSUMS	ON
+INNODB_CHECKSUM_ALGORITHM	innodb
+INNODB_CMP_PER_INDEX_ENABLED	OFF
+INNODB_COMMIT_CONCURRENCY	0
+INNODB_COMPRESSION_FAILURE_THRESHOLD_PCT	5
+INNODB_COMPRESSION_LEVEL	6
+INNODB_COMPRESSION_PAD_PCT_MAX	50
+INNODB_CONCURRENCY_TICKETS	5000
+INNODB_CREATE_INTRINSIC	OFF
+INNODB_DATA_FILE_PATH	ibdata1:10M:autoextend
+INNODB_DATA_HOME_DIR	
+INNODB_DISABLE_BACKGROUND_MERGE	OFF
+INNODB_DISABLE_SORT_FILE_CACHE	OFF
+INNODB_DOUBLEWRITE	ON
+INNODB_DOUBLEWRITE_BATCH_SIZE	120
+INNODB_FAST_SHUTDOWN	1
+INNODB_FILE_FORMAT	Antelope
+INNODB_FILE_FORMAT_CHECK	ON
+INNODB_FILE_PER_TABLE	ON
+INNODB_FILL_FACTOR	100
+INNODB_FIL_MAKE_PAGE_DIRTY_DEBUG	0
+INNODB_FLUSHING_AVG_LOOPS	30
+INNODB_FLUSH_LOG_AT_TIMEOUT	1
+INNODB_FLUSH_LOG_AT_TRX_COMMIT	1
+INNODB_FLUSH_METHOD	
+INNODB_FLUSH_NEIGHBORS	1
+INNODB_FORCE_LOAD_CORRUPTED	OFF
+INNODB_FORCE_RECOVERY	0
+INNODB_FORCE_RECOVERY_CRASH	0
+INNODB_FT_AUX_TABLE	
+INNODB_FT_CACHE_SIZE	8000000
+INNODB_FT_ENABLE_DIAG_PRINT	OFF
+INNODB_FT_ENABLE_STOPWORD	ON
+INNODB_FT_MAX_TOKEN_SIZE	84
+INNODB_FT_MIN_TOKEN_SIZE	3
+INNODB_FT_NUM_WORD_OPTIMIZE	2000
+INNODB_FT_RESULT_CACHE_LIMIT	2000000000
+INNODB_FT_SERVER_STOPWORD_TABLE	
+INNODB_FT_SORT_PLL_DEGREE	2
+INNODB_FT_TOTAL_CACHE_SIZE	640000000
+INNODB_FT_USER_STOPWORD_TABLE	
+INNODB_IO_CAPACITY	200
+INNODB_IO_CAPACITY_MAX	2000
+INNODB_LARGE_PREFIX	OFF
+INNODB_LIMIT_OPTIMISTIC_INSERT_DEBUG	0
+INNODB_LOCKS_UNSAFE_FOR_BINLOG	OFF
+INNODB_LOCK_WAIT_TIMEOUT	50
+INNODB_LOG_BUFFER_SIZE	1048576
+INNODB_LOG_CHECKPOINT_NOW	OFF
+INNODB_LOG_COMPRESSED_PAGES	ON
+INNODB_LOG_FILES_IN_GROUP	2
+INNODB_LOG_FILE_SIZE	5242880
+INNODB_LOG_GROUP_HOME_DIR	./
+INNODB_LOG_WRITE_AHEAD_SIZE	8192
+INNODB_LRU_SCAN_DEPTH	100
+INNODB_MAX_DIRTY_PAGES_PCT	75.000000
+INNODB_MAX_DIRTY_PAGES_PCT_LWM	0.000000
+INNODB_MAX_PURGE_LAG	0
+INNODB_MAX_PURGE_LAG_DELAY	0
+INNODB_MAX_UNDO_LOG_SIZE	1073741824
+INNODB_MONITOR_DISABLE	
+INNODB_MONITOR_ENABLE	
+INNODB_MONITOR_RESET	
+INNODB_MONITOR_RESET_ALL	
+INNODB_OLD_BLOCKS_PCT	37
+INNODB_OLD_BLOCKS_TIME	1000
+INNODB_ONLINE_ALTER_LOG_MAX_SIZE	134217728
+INNODB_OPEN_FILES	2000
+INNODB_OPTIMIZE_FULLTEXT_ONLY	OFF
+INNODB_OPTIMIZE_POINT_STORAGE	OFF
+INNODB_PAGE_CLEANERS	1
+INNODB_PAGE_HASH_LOCKS	16
+INNODB_PAGE_SIZE	16384
+INNODB_PRINT_ALL_DEADLOCKS	OFF
+INNODB_PURGE_BATCH_SIZE	300
+INNODB_PURGE_RSEG_TRUNCATE_FREQUENCY	128
+INNODB_PURGE_RUN_NOW	OFF
+INNODB_PURGE_STOP_NOW	OFF
+INNODB_PURGE_THREADS	1
+INNODB_RANDOM_READ_AHEAD	OFF
+INNODB_READ_AHEAD_THRESHOLD	56
+INNODB_READ_IO_THREADS	2
+INNODB_READ_ONLY	OFF
+INNODB_REPLICATION_DELAY	0
+INNODB_ROLLBACK_ON_TIMEOUT	OFF
+INNODB_ROLLBACK_SEGMENTS	128
+INNODB_SAVED_PAGE_NUMBER_DEBUG	0
+INNODB_SORT_BUFFER_SIZE	1048576
+INNODB_SPIN_WAIT_DELAY	6
+INNODB_STATS_AUTO_RECALC	ON
+INNODB_STATS_METHOD	nulls_equal
+INNODB_STATS_ON_METADATA	OFF
+INNODB_STATS_PERSISTENT	ON
+INNODB_STATS_PERSISTENT_SAMPLE_PAGES	20
+INNODB_STATS_SAMPLE_PAGES	8
+INNODB_STATS_TRANSIENT_SAMPLE_PAGES	8
+INNODB_STATUS_OUTPUT	OFF
+INNODB_STATUS_OUTPUT_LOCKS	OFF
+INNODB_STRICT_MODE	OFF
+INNODB_SUPPORT_XA	ON
+INNODB_SYNC_ARRAY_SIZE	1
+INNODB_SYNC_SPIN_LOOPS	30
+INNODB_TABLE_LOCKS	ON
+INNODB_TEMP_DATA_FILE_PATH	ibtmp1:12M:autoextend
+INNODB_THREAD_CONCURRENCY	0
+INNODB_THREAD_SLEEP_DELAY	10000
+INNODB_TRX_PURGE_VIEW_UPDATE_ONLY_DEBUG	OFF
+INNODB_TRX_RSEG_N_SLOTS_DEBUG	0
+INNODB_UNDO_DIRECTORY	.
+INNODB_UNDO_LOGS	128
+INNODB_UNDO_LOG_TRUNCATE	OFF
+INNODB_UNDO_TABLESPACES	0
+INNODB_USE_NATIVE_AIO	OFF
+INNODB_VERSION	5.7.6
+INNODB_WRITE_IO_THREADS	2
+INTERACTIVE_TIMEOUT	28800
+INTERNAL_TMP_DISK_STORAGE_ENGINE	MYISAM
+JOIN_BUFFER_SIZE	262144
+KEEP_FILES_ON_CREATE	OFF
+KEY_BUFFER_SIZE	1048576
+KEY_CACHE_AGE_THRESHOLD	300
+KEY_CACHE_BLOCK_SIZE	1024
+KEY_CACHE_DIVISION_LIMIT	100
+LARGE_FILES_SUPPORT	ON
+LARGE_PAGES	OFF
+LARGE_PAGE_SIZE	0
+LC_MESSAGES	en_US
+LC_MESSAGES_DIR	/export/home/tmp/xwang-test/wl411/sql/share/
+LC_TIME_NAMES	en_US
+LICENSE	GPL
+LOCAL_INFILE	ON
+LOCKED_IN_MEMORY	OFF
+LOCK_WAIT_TIMEOUT	31536000
+LOG_BIN	ON
+LOG_BIN_BASENAME	/export/home/tmp/xwang-test/wl411/mysql-test/var/32/mysqld.2/data/slave-bin
+LOG_BIN_INDEX	/export/home/tmp/xwang-test/wl411/mysql-test/var/32/mysqld.2/data/slave-bin.index
+LOG_BIN_TRUST_FUNCTION_CREATORS	ON
+LOG_BIN_USE_V1_ROW_EVENTS	OFF
+LOG_ERROR	stderr
+LOG_ERROR_VERBOSITY	3
+LOG_OUTPUT	FILE
+LOG_QUERIES_NOT_USING_INDEXES	OFF
+LOG_SLAVE_UPDATES	ON
+LOG_SLOW_ADMIN_STATEMENTS	OFF
+LOG_SLOW_SLAVE_STATEMENTS	OFF
+LOG_SYSLOG	OFF
+LOG_SYSLOG_FACILITY	daemon
+LOG_SYSLOG_INCLUDE_PID	ON
+LOG_SYSLOG_TAG	
+LOG_THROTTLE_QUERIES_NOT_USING_INDEXES	0
+LOG_TIMESTAMPS	UTC
+LOG_WARNINGS	2
+LONG_QUERY_TIME	10.000000
+LOWER_CASE_FILE_SYSTEM	OFF
+LOWER_CASE_TABLE_NAMES	0
+LOW_PRIORITY_UPDATES	OFF
+MASTER_INFO_REPOSITORY	FILE
+MASTER_VERIFY_CHECKSUM	OFF
+MAX_ALLOWED_PACKET	4194304
+MAX_BINLOG_CACHE_SIZE	18446744073709547520
+MAX_BINLOG_SIZE	1073741824
+MAX_BINLOG_STMT_CACHE_SIZE	18446744073709547520
+MAX_CONNECTIONS	151
+MAX_CONNECT_ERRORS	100
+MAX_DELAYED_THREADS	20
+MAX_ERROR_COUNT	64
+MAX_HEAP_TABLE_SIZE	1048576
+MAX_INSERT_DELAYED_THREADS	20
+MAX_JOIN_SIZE	18446744073709551615
+MAX_LENGTH_FOR_SORT_DATA	1024
+MAX_PREPARED_STMT_COUNT	16382
+MAX_RELAY_LOG_SIZE	0
+MAX_SEEKS_FOR_KEY	18446744073709551615
+MAX_SORT_LENGTH	1024
+MAX_SP_RECURSION_DEPTH	0
+MAX_STATEMENT_TIME	0
+MAX_TMP_TABLES	32
+MAX_USER_CONNECTIONS	0
+MAX_WRITE_LOCK_COUNT	18446744073709551615
+METADATA_LOCKS_CACHE_SIZE	1024
+METADATA_LOCKS_HASH_INSTANCES	8
+MIN_EXAMINED_ROW_LIMIT	0
+MULTI_RANGE_COUNT	256
+MYISAM_DATA_POINTER_SIZE	6
+MYISAM_MAX_SORT_FILE_SIZE	9223372036853727232
+MYISAM_MMAP_SIZE	18446744073709551615
+MYISAM_RECOVER_OPTIONS	OFF
+MYISAM_REPAIR_THREADS	1
+MYISAM_SORT_BUFFER_SIZE	8388608
+MYISAM_STATS_METHOD	nulls_unequal
+MYISAM_USE_MMAP	OFF
+NET_BUFFER_LENGTH	16384
+NET_READ_TIMEOUT	30
+NET_RETRY_COUNT	10
+NET_WRITE_TIMEOUT	60
+NEW	OFF
+OFFLINE_MODE	OFF
+OLD	OFF
+OLD_ALTER_TABLE	OFF
+OLD_PASSWORDS	0
+OPEN_FILES_LIMIT	4161
+OPTIMIZER_PRUNE_LEVEL	1
+OPTIMIZER_SEARCH_DEPTH	62
+OPTIMIZER_SWITCH	index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=on,block_nested_loop=on,batched_key_access=off,materialization=on,semijoin=on,loosescan=on,firstmatch=on,subquery_materialization_cost_based=on,use_index_extensions=on,condition_fanout_filter=on
+OPTIMIZER_TRACE	enabled=off,one_line=off
+OPTIMIZER_TRACE_FEATURES	greedy_search=on,range_optimizer=on,dynamic_range=on,repeated_subselect=on
+OPTIMIZER_TRACE_LIMIT	1
+OPTIMIZER_TRACE_MAX_MEM_SIZE	16384
+OPTIMIZER_TRACE_OFFSET	-1
+PERFORMANCE_SCHEMA	ON
+PERFORMANCE_SCHEMA_ACCOUNTS_SIZE	100
+PERFORMANCE_SCHEMA_DIGESTS_SIZE	200
+PERFORMANCE_SCHEMA_EVENTS_STAGES_HISTORY_LONG_SIZE	1000
+PERFORMANCE_SCHEMA_EVENTS_STAGES_HISTORY_SIZE	10
+PERFORMANCE_SCHEMA_EVENTS_STATEMENTS_HISTORY_LONG_SIZE	1000
+PERFORMANCE_SCHEMA_EVENTS_STATEMENTS_HISTORY_SIZE	10
+PERFORMANCE_SCHEMA_EVENTS_TRANSACTIONS_HISTORY_LONG_SIZE	1000
+PERFORMANCE_SCHEMA_EVENTS_TRANSACTIONS_HISTORY_SIZE	10
+PERFORMANCE_SCHEMA_EVENTS_WAITS_HISTORY_LONG_SIZE	10000
+PERFORMANCE_SCHEMA_EVENTS_WAITS_HISTORY_SIZE	10
+PERFORMANCE_SCHEMA_HOSTS_SIZE	100
+PERFORMANCE_SCHEMA_MAX_COND_CLASSES	80
+PERFORMANCE_SCHEMA_MAX_COND_INSTANCES	1000
+PERFORMANCE_SCHEMA_MAX_FILE_CLASSES	50
+PERFORMANCE_SCHEMA_MAX_FILE_HANDLES	32768
+PERFORMANCE_SCHEMA_MAX_FILE_INSTANCES	10000
+PERFORMANCE_SCHEMA_MAX_MEMORY_CLASSES	320
+PERFORMANCE_SCHEMA_MAX_METADATA_LOCKS	10000
+PERFORMANCE_SCHEMA_MAX_MUTEX_CLASSES	200
+PERFORMANCE_SCHEMA_MAX_MUTEX_INSTANCES	5000
+PERFORMANCE_SCHEMA_MAX_PREPARED_STATEMENTS_INSTANCES	100
+PERFORMANCE_SCHEMA_MAX_PROGRAM_INSTANCES	5000
+PERFORMANCE_SCHEMA_MAX_RWLOCK_CLASSES	40
+PERFORMANCE_SCHEMA_MAX_RWLOCK_INSTANCES	5000
+PERFORMANCE_SCHEMA_MAX_SOCKET_CLASSES	10
+PERFORMANCE_SCHEMA_MAX_SOCKET_INSTANCES	1000
+PERFORMANCE_SCHEMA_MAX_STAGE_CLASSES	150
+PERFORMANCE_SCHEMA_MAX_STATEMENT_CLASSES	189
+PERFORMANCE_SCHEMA_MAX_STATEMENT_STACK	10
+PERFORMANCE_SCHEMA_MAX_TABLE_HANDLES	1000
+PERFORMANCE_SCHEMA_MAX_TABLE_INSTANCES	500
+PERFORMANCE_SCHEMA_MAX_THREAD_CLASSES	50
+PERFORMANCE_SCHEMA_MAX_THREAD_INSTANCES	200
+PERFORMANCE_SCHEMA_SESSION_CONNECT_ATTRS_SIZE	2048
+PERFORMANCE_SCHEMA_SETUP_ACTORS_SIZE	100
+PERFORMANCE_SCHEMA_SETUP_OBJECTS_SIZE	100
+PERFORMANCE_SCHEMA_USERS_SIZE	100
+PID_FILE	/export/home/tmp/xwang-test/wl411/mysql-test/var/32/run/mysqld.2.pid
+PLUGIN_DIR	/home/xiowang/wl411/lib/plugin/
+PORT	13311
+PRELOAD_BUFFER_SIZE	32768
+PROFILING	OFF
+PROFILING_HISTORY_SIZE	15
+PROTOCOL_VERSION	10
+QUERY_ALLOC_BLOCK_SIZE	8192
+QUERY_CACHE_LIMIT	1048576
+QUERY_CACHE_MIN_RES_UNIT	4096
+QUERY_CACHE_SIZE	1048576
+QUERY_CACHE_TYPE	OFF
+QUERY_CACHE_WLOCK_INVALIDATE	OFF
+QUERY_PREALLOC_SIZE	8192
+RANGE_ALLOC_BLOCK_SIZE	4096
+RBR_EXEC_MODE	STRICT
+READ_BUFFER_SIZE	131072
+READ_ONLY	OFF
+READ_RND_BUFFER_SIZE	262144
+RELAY_LOG	slave-relay-bin
+RELAY_LOG_BASENAME	/export/home/tmp/xwang-test/wl411/mysql-test/var/32/mysqld.2/data/slave-relay-bin
+RELAY_LOG_INDEX	/export/home/tmp/xwang-test/wl411/mysql-test/var/32/mysqld.2/data/slave-relay-bin.index
+RELAY_LOG_INFO_FILE	relay-log.info
+RELAY_LOG_INFO_REPOSITORY	FILE
+RELAY_LOG_PURGE	ON
+RELAY_LOG_RECOVERY	OFF
+RELAY_LOG_SPACE_LIMIT	0
+REPORT_HOST	127.0.0.1
+REPORT_PASSWORD	
+REPORT_PORT	13311
+REPORT_USER	root
+RPL_STOP_SLAVE_TIMEOUT	31536000
+SECURE_AUTH	ON
+SECURE_FILE_PRIV	/dev/shm/var_auto_2aA9/32/
+SERVER_ID	2
+SERVER_ID_BITS	32
+SESSION_TRACK_SCHEMA	ON
+SESSION_TRACK_STATE_CHANGE	OFF
+SESSION_TRACK_SYSTEM_VARIABLES	time_zone,autocommit,character_set_client,character_set_results,character_set_connection
+SIMPLIFIED_BINLOG_GTID_RECOVERY	OFF
+SKIP_EXTERNAL_LOCKING	ON
+SKIP_NAME_RESOLVE	OFF
+SKIP_NETWORKING	OFF
+SKIP_SHOW_DATABASE	OFF
+SLAVE_ALLOW_BATCHING	OFF
+SLAVE_CHECKPOINT_GROUP	512
+SLAVE_CHECKPOINT_PERIOD	300
+SLAVE_COMPRESSED_PROTOCOL	OFF
+SLAVE_EXEC_MODE	STRICT
+SLAVE_LOAD_TMPDIR	../../tmp
+SLAVE_MAX_ALLOWED_PACKET	1073741824
+SLAVE_NET_TIMEOUT	120
+SLAVE_PARALLEL_TYPE	DATABASE
+SLAVE_PARALLEL_WORKERS	0
+SLAVE_PENDING_JOBS_SIZE_MAX	16777216
+SLAVE_PRESERVE_COMMIT_ORDER	OFF
+SLAVE_ROWS_SEARCH_ALGORITHMS	TABLE_SCAN,INDEX_SCAN
+SLAVE_SKIP_ERRORS	OFF
+SLAVE_SQL_VERIFY_CHECKSUM	ON
+SLAVE_TRANSACTION_RETRIES	10
+SLAVE_TYPE_CONVERSIONS	
+SLOW_LAUNCH_TIME	2
+SLOW_QUERY_LOG	ON
+SLOW_QUERY_LOG_FILE	/export/home/tmp/xwang-test/wl411/mysql-test/var/32/mysqld.2/mysqld-slow.log
+SOCKET	/export/home/tmp/xwang-test/wl411/mysql-test/var/tmp/32/mysqld.2.sock
+SORT_BUFFER_SIZE	262144
+SQL_AUTO_IS_NULL	OFF
+SQL_BIG_SELECTS	ON
+SQL_BUFFER_RESULT	OFF
+SQL_LOG_BIN	ON
+SQL_LOG_OFF	OFF
+SQL_MODE	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION
+SQL_NOTES	ON
+SQL_QUOTE_SHOW_CREATE	ON
+SQL_SAFE_UPDATES	OFF
+SQL_SELECT_LIMIT	18446744073709551615
+SQL_SLAVE_SKIP_COUNTER	0
+SQL_WARNINGS	OFF
+SSL_CA	/home/xiowang/wl411/mysql-test/std_data/cacert.pem
+SSL_CAPATH	
+SSL_CERT	/home/xiowang/wl411/mysql-test/std_data/server-cert.pem
+SSL_CIPHER	
+SSL_CRL	
+SSL_CRLPATH	
+SSL_KEY	/home/xiowang/wl411/mysql-test/std_data/server-key.pem
+STORED_PROGRAM_CACHE	256
+SYNC_BINLOG	0
+SYNC_FRM	ON
+SYNC_MASTER_INFO	10000
+SYNC_RELAY_LOG	10000
+SYNC_RELAY_LOG_INFO	10000
+SYSTEM_TIME_ZONE	GMT
+TABLE_DEFINITION_CACHE	1400
+TABLE_OPEN_CACHE	2000
+TABLE_OPEN_CACHE_INSTANCES	1
+THREAD_CACHE_SIZE	9
+THREAD_HANDLING	one-thread-per-connection
+THREAD_STACK	262144
+TIME_FORMAT	%H:%i:%s
+TIME_ZONE	SYSTEM
+TMPDIR	/export/home/tmp/xwang-test/wl411/mysql-test/var/tmp/32/mysqld.2
+TMP_TABLE_SIZE	16777216
+TRANSACTION_ALLOC_BLOCK_SIZE	8192
+TRANSACTION_PREALLOC_SIZE	4096
+TX_ISOLATION	REPEATABLE-READ
+TX_READ_ONLY	OFF
+UNIQUE_CHECKS	ON
+UPDATABLE_VIEWS_WITH_LIMIT	YES
+VERSION	5.7.6-m16-debug-log
+VERSION_COMMENT	Source distribution
+VERSION_COMPILE_MACHINE	x86_64
+VERSION_COMPILE_OS	Linux
+WAIT_TIMEOUT	28800
+CATALOG_NAME	SCHEMA_NAME	DEFAULT_CHARACTER_SET_NAME	DEFAULT_COLLATION_NAME	SQL_PATH
+def	information_schema	utf8	utf8_general_ci	NULL
+def	mtr	latin1	latin1_swedish_ci	NULL
+def	mysql	latin1	latin1_swedish_ci	NULL
+def	performance_schema	utf8	utf8_general_ci	NULL
+def	test	latin1	latin1_swedish_ci	NULL
+tables_in_test
+tables_in_mysql
+mysql.columns_priv
+mysql.db
+mysql.engine_cost
+mysql.event
+mysql.func
+mysql.general_log
+mysql.gtid_executed
+mysql.help_category
+mysql.help_keyword
+mysql.help_relation
+mysql.help_topic
+mysql.innodb_index_stats
+mysql.innodb_table_stats
+mysql.ndb_binlog_index
+mysql.plugin
+mysql.proc
+mysql.procs_priv
+mysql.proxies_priv
+mysql.servers
+mysql.server_cost
+mysql.slave_master_info
+mysql.slave_relay_log_info
+mysql.slave_worker_info
+mysql.slow_log
+mysql.tables_priv
+mysql.time_zone
+mysql.time_zone_leap_second
+mysql.time_zone_name
+mysql.time_zone_transition
+mysql.time_zone_transition_type
+mysql.user
+columns_in_mysql	column_name	ordinal_position	column_default	is_nullable	data_type	character_maximum_length	character_octet_length	numeric_precision	numeric_scale	character_set_name	collation_name	column_type	column_key	extra	column_comment
+mysql.columns_priv	Host	1		NO	char	60	180	NULL	NULL	utf8	utf8_bin	char(60)	PRI		
+mysql.columns_priv	Db	2		NO	char	64	192	NULL	NULL	utf8	utf8_bin	char(64)	PRI		
+mysql.columns_priv	User	3		NO	char	16	48	NULL	NULL	utf8	utf8_bin	char(16)	PRI		
+mysql.columns_priv	Table_name	4		NO	char	64	192	NULL	NULL	utf8	utf8_bin	char(64)	PRI		
+mysql.columns_priv	Column_name	5		NO	char	64	192	NULL	NULL	utf8	utf8_bin	char(64)	PRI		
+mysql.columns_priv	Timestamp	6	CURRENT_TIMESTAMP	NO	timestamp	NULL	NULL	NULL	NULL	NULL	NULL	timestamp		on update CURRENT_TIMESTAMP	
+mysql.columns_priv	Column_priv	7		NO	set	31	93	NULL	NULL	utf8	utf8_general_ci	set('Select','Insert','Update','References')			
+mysql.db	Host	1		NO	char	60	180	NULL	NULL	utf8	utf8_bin	char(60)	PRI		
+mysql.db	Db	2		NO	char	64	192	NULL	NULL	utf8	utf8_bin	char(64)	PRI		
+mysql.db	User	3		NO	char	16	48	NULL	NULL	utf8	utf8_bin	char(16)	PRI		
+mysql.db	Select_priv	4	N	NO	enum	1	3	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			
+mysql.db	Insert_priv	5	N	NO	enum	1	3	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			
+mysql.db	Update_priv	6	N	NO	enum	1	3	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			
+mysql.db	Delete_priv	7	N	NO	enum	1	3	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			
+mysql.db	Create_priv	8	N	NO	enum	1	3	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			
+mysql.db	Drop_priv	9	N	NO	enum	1	3	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			
+mysql.db	Grant_priv	10	N	NO	enum	1	3	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			
+mysql.db	References_priv	11	N	NO	enum	1	3	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			
+mysql.db	Index_priv	12	N	NO	enum	1	3	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			
+mysql.db	Alter_priv	13	N	NO	enum	1	3	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			
+mysql.db	Create_tmp_table_priv	14	N	NO	enum	1	3	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			
+mysql.db	Lock_tables_priv	15	N	NO	enum	1	3	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			
+mysql.db	Create_view_priv	16	N	NO	enum	1	3	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			
+mysql.db	Show_view_priv	17	N	NO	enum	1	3	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			
+mysql.db	Create_routine_priv	18	N	NO	enum	1	3	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			
+mysql.db	Alter_routine_priv	19	N	NO	enum	1	3	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			
+mysql.db	Execute_priv	20	N	NO	enum	1	3	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			
+mysql.db	Event_priv	21	N	NO	enum	1	3	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			
+mysql.db	Trigger_priv	22	N	NO	enum	1	3	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			
+mysql.engine_cost	engine_name	1	NULL	NO	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)	PRI		
+mysql.engine_cost	device_type	2	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	int(11)	PRI		
+mysql.engine_cost	cost_name	3	NULL	NO	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)	PRI		
+mysql.engine_cost	cost_value	4	NULL	YES	float	NULL	NULL	12	NULL	NULL	NULL	float			
+mysql.engine_cost	last_update	5	CURRENT_TIMESTAMP	NO	timestamp	NULL	NULL	NULL	NULL	NULL	NULL	timestamp		on update CURRENT_TIMESTAMP	
+mysql.engine_cost	comment	6	NULL	YES	varchar	1024	3072	NULL	NULL	utf8	utf8_general_ci	varchar(1024)			
+mysql.event	db	1		NO	char	64	192	NULL	NULL	utf8	utf8_bin	char(64)	PRI		
+mysql.event	name	2		NO	char	64	192	NULL	NULL	utf8	utf8_general_ci	char(64)	PRI		
+mysql.event	body	3	NULL	NO	longblob	4294967295	4294967295	NULL	NULL	NULL	NULL	longblob			
+mysql.event	definer	4		NO	char	77	231	NULL	NULL	utf8	utf8_bin	char(77)			
+mysql.event	execute_at	5	NULL	YES	datetime	NULL	NULL	NULL	NULL	NULL	NULL	datetime			
+mysql.event	interval_value	6	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	int(11)			
+mysql.event	interval_field	7	NULL	YES	enum	18	54	NULL	NULL	utf8	utf8_general_ci	enum('YEAR','QUARTER','MONTH','DAY','HOUR','MINUTE','WEEK','SECOND','MICROSECOND','YEAR_MONTH','DAY_HOUR','DAY_MINUTE','DAY_SECOND','HOUR_MINUTE','HOUR_SECOND','MINUTE_SECOND','DAY_MICROSECOND','HOUR_MICROSECOND','MINUTE_MICROSECOND','SECOND_MICROSECOND')			
+mysql.event	created	8	CURRENT_TIMESTAMP	NO	timestamp	NULL	NULL	NULL	NULL	NULL	NULL	timestamp		on update CURRENT_TIMESTAMP	
+mysql.event	modified	9	0000-00-00 00:00:00	NO	timestamp	NULL	NULL	NULL	NULL	NULL	NULL	timestamp			
+mysql.event	last_executed	10	NULL	YES	datetime	NULL	NULL	NULL	NULL	NULL	NULL	datetime			
+mysql.event	starts	11	NULL	YES	datetime	NULL	NULL	NULL	NULL	NULL	NULL	datetime			
+mysql.event	ends	12	NULL	YES	datetime	NULL	NULL	NULL	NULL	NULL	NULL	datetime			
+mysql.event	status	13	ENABLED	NO	enum	18	54	NULL	NULL	utf8	utf8_general_ci	enum('ENABLED','DISABLED','SLAVESIDE_DISABLED')			
+mysql.event	on_completion	14	DROP	NO	enum	8	24	NULL	NULL	utf8	utf8_general_ci	enum('DROP','PRESERVE')			
+mysql.event	sql_mode	15		NO	set	478	1434	NULL	NULL	utf8	utf8_general_ci	set('REAL_AS_FLOAT','PIPES_AS_CONCAT','ANSI_QUOTES','IGNORE_SPACE','NOT_USED','ONLY_FULL_GROUP_BY','NO_UNSIGNED_SUBTRACTION','NO_DIR_IN_CREATE','POSTGRESQL','ORACLE','MSSQL','DB2','MAXDB','NO_KEY_OPTIONS','NO_TABLE_OPTIONS','NO_FIELD_OPTIONS','MYSQL323','MYSQL40','ANSI','NO_AUTO_VALUE_ON_ZERO','NO_BACKSLASH_ESCAPES','STRICT_TRANS_TABLES','STRICT_ALL_TABLES','NO_ZERO_IN_DATE','NO_ZERO_DATE','INVALID_DATES','ERROR_FOR_DIVISION_BY_ZERO','TRADITIONAL','NO_AUTO_CREATE_USER','HIGH_NOT_PRECEDENCE','NO_ENGINE_SUBSTITUTION','PAD_CHAR_TO_FULL_LENGTH')			
+mysql.event	comment	16		NO	char	64	192	NULL	NULL	utf8	utf8_bin	char(64)			
+mysql.event	originator	17	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	int(10) unsigned			
+mysql.event	time_zone	18	SYSTEM	NO	char	64	64	NULL	NULL	latin1	latin1_swedish_ci	char(64)			
+mysql.event	character_set_client	19	NULL	YES	char	32	96	NULL	NULL	utf8	utf8_bin	char(32)			
+mysql.event	collation_connection	20	NULL	YES	char	32	96	NULL	NULL	utf8	utf8_bin	char(32)			
+mysql.event	db_collation	21	NULL	YES	char	32	96	NULL	NULL	utf8	utf8_bin	char(32)			
+mysql.event	body_utf8	22	NULL	YES	longblob	4294967295	4294967295	NULL	NULL	NULL	NULL	longblob			
+mysql.func	name	1		NO	char	64	192	NULL	NULL	utf8	utf8_bin	char(64)	PRI		
+mysql.func	ret	2	0	NO	tinyint	NULL	NULL	3	0	NULL	NULL	tinyint(1)			
+mysql.func	dl	3		NO	char	128	384	NULL	NULL	utf8	utf8_bin	char(128)			
+mysql.func	type	4	NULL	NO	enum	9	27	NULL	NULL	utf8	utf8_general_ci	enum('function','aggregate')			
+mysql.general_log	event_time	1	CURRENT_TIMESTAMP(6)	NO	timestamp	NULL	NULL	NULL	NULL	NULL	NULL	timestamp(6)		on update CURRENT_TIMESTAMP(6)	
+mysql.general_log	user_host	2	NULL	NO	mediumtext	16777215	16777215	NULL	NULL	utf8	utf8_general_ci	mediumtext			
+mysql.general_log	thread_id	3	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(21) unsigned			
+mysql.general_log	server_id	4	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	int(10) unsigned			
+mysql.general_log	command_type	5	NULL	NO	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			
+mysql.general_log	argument	6	NULL	NO	mediumblob	16777215	16777215	NULL	NULL	NULL	NULL	mediumblob			
+mysql.gtid_executed	source_uuid	1	NULL	NO	char	36	36	NULL	NULL	latin1	latin1_swedish_ci	char(36)	PRI		uuid of the source where the transaction was originally executed.
+mysql.gtid_executed	interval_start	2	NULL	NO	bigint	NULL	NULL	19	0	NULL	NULL	bigint(20)	PRI		First number of interval.
+mysql.gtid_executed	interval_end	3	NULL	NO	bigint	NULL	NULL	19	0	NULL	NULL	bigint(20)			Last number of interval.
+mysql.help_category	help_category_id	1	NULL	NO	smallint	NULL	NULL	5	0	NULL	NULL	smallint(5) unsigned	PRI		
+mysql.help_category	name	2	NULL	NO	char	64	192	NULL	NULL	utf8	utf8_general_ci	char(64)	UNI		
+mysql.help_category	parent_category_id	3	NULL	YES	smallint	NULL	NULL	5	0	NULL	NULL	smallint(5) unsigned			
+mysql.help_category	url	4	NULL	NO	text	65535	65535	NULL	NULL	utf8	utf8_general_ci	text			
+mysql.help_keyword	help_keyword_id	1	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	int(10) unsigned	PRI		
+mysql.help_keyword	name	2	NULL	NO	char	64	192	NULL	NULL	utf8	utf8_general_ci	char(64)	UNI		
+mysql.help_relation	help_topic_id	1	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	int(10) unsigned	PRI		
+mysql.help_relation	help_keyword_id	2	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	int(10) unsigned	PRI		
+mysql.help_topic	help_topic_id	1	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	int(10) unsigned	PRI		
+mysql.help_topic	name	2	NULL	NO	char	64	192	NULL	NULL	utf8	utf8_general_ci	char(64)	UNI		
+mysql.help_topic	help_category_id	3	NULL	NO	smallint	NULL	NULL	5	0	NULL	NULL	smallint(5) unsigned			
+mysql.help_topic	description	4	NULL	NO	text	65535	65535	NULL	NULL	utf8	utf8_general_ci	text			
+mysql.help_topic	example	5	NULL	NO	text	65535	65535	NULL	NULL	utf8	utf8_general_ci	text			
+mysql.help_topic	url	6	NULL	NO	text	65535	65535	NULL	NULL	utf8	utf8_general_ci	text			
+mysql.innodb_index_stats	database_name	1	NULL	NO	varchar	64	192	NULL	NULL	utf8	utf8_bin	varchar(64)	PRI		
+mysql.innodb_index_stats	table_name	2	NULL	NO	varchar	64	192	NULL	NULL	utf8	utf8_bin	varchar(64)	PRI		
+mysql.innodb_index_stats	index_name	3	NULL	NO	varchar	64	192	NULL	NULL	utf8	utf8_bin	varchar(64)	PRI		
+mysql.innodb_index_stats	last_update	4	CURRENT_TIMESTAMP	NO	timestamp	NULL	NULL	NULL	NULL	NULL	NULL	timestamp		on update CURRENT_TIMESTAMP	
+mysql.innodb_index_stats	stat_name	5	NULL	NO	varchar	64	192	NULL	NULL	utf8	utf8_bin	varchar(64)	PRI		
+mysql.innodb_index_stats	stat_value	6	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(20) unsigned			
+mysql.innodb_index_stats	sample_size	7	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	bigint(20) unsigned			
+mysql.innodb_index_stats	stat_description	8	NULL	NO	varchar	1024	3072	NULL	NULL	utf8	utf8_bin	varchar(1024)			
+mysql.innodb_table_stats	database_name	1	NULL	NO	varchar	64	192	NULL	NULL	utf8	utf8_bin	varchar(64)	PRI		
+mysql.innodb_table_stats	table_name	2	NULL	NO	varchar	64	192	NULL	NULL	utf8	utf8_bin	varchar(64)	PRI		
+mysql.innodb_table_stats	last_update	3	CURRENT_TIMESTAMP	NO	timestamp	NULL	NULL	NULL	NULL	NULL	NULL	timestamp		on update CURRENT_TIMESTAMP	
+mysql.innodb_table_stats	n_rows	4	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(20) unsigned			
+mysql.innodb_table_stats	clustered_index_size	5	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(20) unsigned			
+mysql.innodb_table_stats	sum_of_other_index_sizes	6	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(20) unsigned			
+mysql.ndb_binlog_index	Position	1	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(20) unsigned			
+mysql.ndb_binlog_index	File	2	NULL	NO	varchar	255	255	NULL	NULL	latin1	latin1_swedish_ci	varchar(255)			
+mysql.ndb_binlog_index	epoch	3	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(20) unsigned	PRI		
+mysql.ndb_binlog_index	inserts	4	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	int(10) unsigned			
+mysql.ndb_binlog_index	updates	5	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	int(10) unsigned			
+mysql.ndb_binlog_index	deletes	6	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	int(10) unsigned			
+mysql.ndb_binlog_index	schemaops	7	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	int(10) unsigned			
+mysql.ndb_binlog_index	orig_server_id	8	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	int(10) unsigned	PRI		
+mysql.ndb_binlog_index	orig_epoch	9	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(20) unsigned	PRI		
+mysql.ndb_binlog_index	gci	10	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	int(10) unsigned			
+mysql.ndb_binlog_index	next_position	11	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(20) unsigned			
+mysql.ndb_binlog_index	next_file	12	NULL	NO	varchar	255	255	NULL	NULL	latin1	latin1_swedish_ci	varchar(255)			
+mysql.plugin	name	1		NO	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)	PRI		
+mysql.plugin	dl	2		NO	varchar	128	384	NULL	NULL	utf8	utf8_general_ci	varchar(128)			
+mysql.proc	db	1		NO	char	64	192	NULL	NULL	utf8	utf8_bin	char(64)	PRI		
+mysql.proc	name	2		NO	char	64	192	NULL	NULL	utf8	utf8_general_ci	char(64)	PRI		
+mysql.proc	type	3	NULL	NO	enum	9	27	NULL	NULL	utf8	utf8_general_ci	enum('FUNCTION','PROCEDURE')	PRI		
+mysql.proc	specific_name	4		NO	char	64	192	NULL	NULL	utf8	utf8_general_ci	char(64)			
+mysql.proc	language	5	SQL	NO	enum	3	9	NULL	NULL	utf8	utf8_general_ci	enum('SQL')			
+mysql.proc	sql_data_access	6	CONTAINS_SQL	NO	enum	17	51	NULL	NULL	utf8	utf8_general_ci	enum('CONTAINS_SQL','NO_SQL','READS_SQL_DATA','MODIFIES_SQL_DATA')			
+mysql.proc	is_deterministic	7	NO	NO	enum	3	9	NULL	NULL	utf8	utf8_general_ci	enum('YES','NO')			
+mysql.proc	security_type	8	DEFINER	NO	enum	7	21	NULL	NULL	utf8	utf8_general_ci	enum('INVOKER','DEFINER')			
+mysql.proc	param_list	9	NULL	NO	blob	65535	65535	NULL	NULL	NULL	NULL	blob			
+mysql.proc	returns	10	NULL	NO	longblob	4294967295	4294967295	NULL	NULL	NULL	NULL	longblob			
+mysql.proc	body	11	NULL	NO	longblob	4294967295	4294967295	NULL	NULL	NULL	NULL	longblob			
+mysql.proc	definer	12		NO	char	77	231	NULL	NULL	utf8	utf8_bin	char(77)			
+mysql.proc	created	13	CURRENT_TIMESTAMP	NO	timestamp	NULL	NULL	NULL	NULL	NULL	NULL	timestamp		on update CURRENT_TIMESTAMP	
+mysql.proc	modified	14	0000-00-00 00:00:00	NO	timestamp	NULL	NULL	NULL	NULL	NULL	NULL	timestamp			
+mysql.proc	sql_mode	15		NO	set	478	1434	NULL	NULL	utf8	utf8_general_ci	set('REAL_AS_FLOAT','PIPES_AS_CONCAT','ANSI_QUOTES','IGNORE_SPACE','NOT_USED','ONLY_FULL_GROUP_BY','NO_UNSIGNED_SUBTRACTION','NO_DIR_IN_CREATE','POSTGRESQL','ORACLE','MSSQL','DB2','MAXDB','NO_KEY_OPTIONS','NO_TABLE_OPTIONS','NO_FIELD_OPTIONS','MYSQL323','MYSQL40','ANSI','NO_AUTO_VALUE_ON_ZERO','NO_BACKSLASH_ESCAPES','STRICT_TRANS_TABLES','STRICT_ALL_TABLES','NO_ZERO_IN_DATE','NO_ZERO_DATE','INVALID_DATES','ERROR_FOR_DIVISION_BY_ZERO','TRADITIONAL','NO_AUTO_CREATE_USER','HIGH_NOT_PRECEDENCE','NO_ENGINE_SUBSTITUTION','PAD_CHAR_TO_FULL_LENGTH')			
+mysql.proc	comment	16	NULL	NO	text	65535	65535	NULL	NULL	utf8	utf8_bin	text			
+mysql.proc	character_set_client	17	NULL	YES	char	32	96	NULL	NULL	utf8	utf8_bin	char(32)			
+mysql.proc	collation_connection	18	NULL	YES	char	32	96	NULL	NULL	utf8	utf8_bin	char(32)			
+mysql.proc	db_collation	19	NULL	YES	char	32	96	NULL	NULL	utf8	utf8_bin	char(32)			
+mysql.proc	body_utf8	20	NULL	YES	longblob	4294967295	4294967295	NULL	NULL	NULL	NULL	longblob			
+mysql.procs_priv	Host	1		NO	char	60	180	NULL	NULL	utf8	utf8_bin	char(60)	PRI		
+mysql.procs_priv	Db	2		NO	char	64	192	NULL	NULL	utf8	utf8_bin	char(64)	PRI		
+mysql.procs_priv	User	3		NO	char	16	48	NULL	NULL	utf8	utf8_bin	char(16)	PRI		
+mysql.procs_priv	Routine_name	4		NO	char	64	192	NULL	NULL	utf8	utf8_general_ci	char(64)	PRI		
+mysql.procs_priv	Routine_type	5	NULL	NO	enum	9	27	NULL	NULL	utf8	utf8_bin	enum('FUNCTION','PROCEDURE')	PRI		
+mysql.procs_priv	Grantor	6		NO	char	77	231	NULL	NULL	utf8	utf8_bin	char(77)	MUL		
+mysql.procs_priv	Proc_priv	7		NO	set	27	81	NULL	NULL	utf8	utf8_general_ci	set('Execute','Alter Routine','Grant')			
+mysql.procs_priv	Timestamp	8	CURRENT_TIMESTAMP	NO	timestamp	NULL	NULL	NULL	NULL	NULL	NULL	timestamp		on update CURRENT_TIMESTAMP	
+mysql.proxies_priv	Host	1		NO	char	60	180	NULL	NULL	utf8	utf8_bin	char(60)	PRI		
+mysql.proxies_priv	User	2		NO	char	16	48	NULL	NULL	utf8	utf8_bin	char(16)	PRI		
+mysql.proxies_priv	Proxied_host	3		NO	char	60	180	NULL	NULL	utf8	utf8_bin	char(60)	PRI		
+mysql.proxies_priv	Proxied_user	4		NO	char	16	48	NULL	NULL	utf8	utf8_bin	char(16)	PRI		
+mysql.proxies_priv	With_grant	5	0	NO	tinyint	NULL	NULL	3	0	NULL	NULL	tinyint(1)			
+mysql.proxies_priv	Grantor	6		NO	char	77	231	NULL	NULL	utf8	utf8_bin	char(77)	MUL		
+mysql.proxies_priv	Timestamp	7	CURRENT_TIMESTAMP	NO	timestamp	NULL	NULL	NULL	NULL	NULL	NULL	timestamp		on update CURRENT_TIMESTAMP	
+mysql.servers	Server_name	1		NO	char	64	192	NULL	NULL	utf8	utf8_general_ci	char(64)	PRI		
+mysql.servers	Host	2		NO	char	64	192	NULL	NULL	utf8	utf8_general_ci	char(64)			
+mysql.servers	Db	3		NO	char	64	192	NULL	NULL	utf8	utf8_general_ci	char(64)			
+mysql.servers	Username	4		NO	char	64	192	NULL	NULL	utf8	utf8_general_ci	char(64)			
+mysql.servers	Password	5		NO	char	64	192	NULL	NULL	utf8	utf8_general_ci	char(64)			
+mysql.servers	Port	6	0	NO	int	NULL	NULL	10	0	NULL	NULL	int(4)			
+mysql.servers	Socket	7		NO	char	64	192	NULL	NULL	utf8	utf8_general_ci	char(64)			
+mysql.servers	Wrapper	8		NO	char	64	192	NULL	NULL	utf8	utf8_general_ci	char(64)			
+mysql.servers	Owner	9		NO	char	64	192	NULL	NULL	utf8	utf8_general_ci	char(64)			
+mysql.server_cost	cost_name	1	NULL	NO	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)	PRI		
+mysql.server_cost	cost_value	2	NULL	YES	float	NULL	NULL	12	NULL	NULL	NULL	float			
+mysql.server_cost	last_update	3	CURRENT_TIMESTAMP	NO	timestamp	NULL	NULL	NULL	NULL	NULL	NULL	timestamp		on update CURRENT_TIMESTAMP	
+mysql.server_cost	comment	4	NULL	YES	varchar	1024	3072	NULL	NULL	utf8	utf8_general_ci	varchar(1024)			
+mysql.slave_master_info	Number_of_lines	1	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	int(10) unsigned			Number of lines in the file.
+mysql.slave_master_info	Master_log_name	2	NULL	NO	text	65535	65535	NULL	NULL	utf8	utf8_bin	text			The name of the master binary log currently being read from the master.
+mysql.slave_master_info	Master_log_pos	3	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(20) unsigned			The master log position of the last read event.
+mysql.slave_master_info	Host	4	NULL	NO	char	64	192	NULL	NULL	utf8	utf8_bin	char(64)	PRI		The host name of the master.
+mysql.slave_master_info	User_name	5	NULL	YES	text	65535	65535	NULL	NULL	utf8	utf8_bin	text			The user name used to connect to the master.
+mysql.slave_master_info	User_password	6	NULL	YES	text	65535	65535	NULL	NULL	utf8	utf8_bin	text			The password used to connect to the master.
+mysql.slave_master_info	Port	7	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	int(10) unsigned	PRI		The network port used to connect to the master.
+mysql.slave_master_info	Connect_retry	8	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	int(10) unsigned			The period (in seconds) that the slave will wait before trying to reconnect to the master.
+mysql.slave_master_info	Enabled_ssl	9	NULL	NO	tinyint	NULL	NULL	3	0	NULL	NULL	tinyint(1)			Indicates whether the server supports SSL connections.
+mysql.slave_master_info	Ssl_ca	10	NULL	YES	text	65535	65535	NULL	NULL	utf8	utf8_bin	text			The file used for the Certificate Authority (CA) certificate.
+mysql.slave_master_info	Ssl_capath	11	NULL	YES	text	65535	65535	NULL	NULL	utf8	utf8_bin	text			The path to the Certificate Authority (CA) certificates.
+mysql.slave_master_info	Ssl_cert	12	NULL	YES	text	65535	65535	NULL	NULL	utf8	utf8_bin	text			The name of the SSL certificate file.
+mysql.slave_master_info	Ssl_cipher	13	NULL	YES	text	65535	65535	NULL	NULL	utf8	utf8_bin	text			The name of the cipher in use for the SSL connection.
+mysql.slave_master_info	Ssl_key	14	NULL	YES	text	65535	65535	NULL	NULL	utf8	utf8_bin	text			The name of the SSL key file.
+mysql.slave_master_info	Ssl_verify_server_cert	15	NULL	NO	tinyint	NULL	NULL	3	0	NULL	NULL	tinyint(1)			Whether to verify the server certificate.
+mysql.slave_master_info	Heartbeat	16	NULL	NO	float	NULL	NULL	12	NULL	NULL	NULL	float			
+mysql.slave_master_info	Bind	17	NULL	YES	text	65535	65535	NULL	NULL	utf8	utf8_bin	text			Displays which interface is employed when connecting to the MySQL server
+mysql.slave_master_info	Ignored_server_ids	18	NULL	YES	text	65535	65535	NULL	NULL	utf8	utf8_bin	text			The number of server IDs to be ignored, followed by the actual server IDs
+mysql.slave_master_info	Uuid	19	NULL	YES	text	65535	65535	NULL	NULL	utf8	utf8_bin	text			The master server uuid.
+mysql.slave_master_info	Retry_count	20	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(20) unsigned			Number of reconnect attempts, to the master, before giving up.
+mysql.slave_master_info	Ssl_crl	21	NULL	YES	text	65535	65535	NULL	NULL	utf8	utf8_bin	text			The file used for the Certificate Revocation List (CRL)
+mysql.slave_master_info	Ssl_crlpath	22	NULL	YES	text	65535	65535	NULL	NULL	utf8	utf8_bin	text			The path used for Certificate Revocation List (CRL) files
+mysql.slave_master_info	Enabled_auto_position	23	NULL	NO	tinyint	NULL	NULL	3	0	NULL	NULL	tinyint(1)			Indicates whether GTIDs will be used to retrieve events from the master.
+mysql.slave_relay_log_info	Number_of_lines	1	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	int(10) unsigned			Number of lines in the file or rows in the table. Used to version table definitions.
+mysql.slave_relay_log_info	Relay_log_name	2	NULL	NO	text	65535	65535	NULL	NULL	utf8	utf8_bin	text			The name of the current relay log file.
+mysql.slave_relay_log_info	Relay_log_pos	3	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(20) unsigned			The relay log position of the last executed event.
+mysql.slave_relay_log_info	Master_log_name	4	NULL	NO	text	65535	65535	NULL	NULL	utf8	utf8_bin	text			The name of the master binary log file from which the events in the relay log file were read.
+mysql.slave_relay_log_info	Master_log_pos	5	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(20) unsigned			The master log position of the last executed event.
+mysql.slave_relay_log_info	Sql_delay	6	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	int(11)			The number of seconds that the slave must lag behind the master.
+mysql.slave_relay_log_info	Number_of_workers	7	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	int(10) unsigned			
+mysql.slave_relay_log_info	Id	8	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	int(10) unsigned	PRI		Internal Id that uniquely identifies this record.
+mysql.slave_worker_info	Id	1	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	int(10) unsigned	PRI		
+mysql.slave_worker_info	Relay_log_name	2	NULL	NO	text	65535	65535	NULL	NULL	utf8	utf8_bin	text			
+mysql.slave_worker_info	Relay_log_pos	3	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(20) unsigned			
+mysql.slave_worker_info	Master_log_name	4	NULL	NO	text	65535	65535	NULL	NULL	utf8	utf8_bin	text			
+mysql.slave_worker_info	Master_log_pos	5	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(20) unsigned			
+mysql.slave_worker_info	Checkpoint_relay_log_name	6	NULL	NO	text	65535	65535	NULL	NULL	utf8	utf8_bin	text			
+mysql.slave_worker_info	Checkpoint_relay_log_pos	7	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(20) unsigned			
+mysql.slave_worker_info	Checkpoint_master_log_name	8	NULL	NO	text	65535	65535	NULL	NULL	utf8	utf8_bin	text			
+mysql.slave_worker_info	Checkpoint_master_log_pos	9	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(20) unsigned			
+mysql.slave_worker_info	Checkpoint_seqno	10	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	int(10) unsigned			
+mysql.slave_worker_info	Checkpoint_group_size	11	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	int(10) unsigned			
+mysql.slave_worker_info	Checkpoint_group_bitmap	12	NULL	NO	blob	65535	65535	NULL	NULL	NULL	NULL	blob			
+mysql.slow_log	start_time	1	CURRENT_TIMESTAMP(6)	NO	timestamp	NULL	NULL	NULL	NULL	NULL	NULL	timestamp(6)		on update CURRENT_TIMESTAMP(6)	
+mysql.slow_log	user_host	2	NULL	NO	mediumtext	16777215	16777215	NULL	NULL	utf8	utf8_general_ci	mediumtext			
+mysql.slow_log	query_time	3	NULL	NO	time	NULL	NULL	NULL	NULL	NULL	NULL	time(6)			
+mysql.slow_log	lock_time	4	NULL	NO	time	NULL	NULL	NULL	NULL	NULL	NULL	time(6)			
+mysql.slow_log	rows_sent	5	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	int(11)			
+mysql.slow_log	rows_examined	6	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	int(11)			
+mysql.slow_log	db	7	NULL	NO	varchar	512	1536	NULL	NULL	utf8	utf8_general_ci	varchar(512)			
+mysql.slow_log	last_insert_id	8	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	int(11)			
+mysql.slow_log	insert_id	9	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	int(11)			
+mysql.slow_log	server_id	10	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	int(10) unsigned			
+mysql.slow_log	sql_text	11	NULL	NO	mediumblob	16777215	16777215	NULL	NULL	NULL	NULL	mediumblob			
+mysql.slow_log	thread_id	12	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(21) unsigned			
+mysql.tables_priv	Host	1		NO	char	60	180	NULL	NULL	utf8	utf8_bin	char(60)	PRI		
+mysql.tables_priv	Db	2		NO	char	64	192	NULL	NULL	utf8	utf8_bin	char(64)	PRI		
+mysql.tables_priv	User	3		NO	char	16	48	NULL	NULL	utf8	utf8_bin	char(16)	PRI		
+mysql.tables_priv	Table_name	4		NO	char	64	192	NULL	NULL	utf8	utf8_bin	char(64)	PRI		
+mysql.tables_priv	Grantor	5		NO	char	77	231	NULL	NULL	utf8	utf8_bin	char(77)	MUL		
+mysql.tables_priv	Timestamp	6	CURRENT_TIMESTAMP	NO	timestamp	NULL	NULL	NULL	NULL	NULL	NULL	timestamp		on update CURRENT_TIMESTAMP	
+mysql.tables_priv	Table_priv	7		NO	set	98	294	NULL	NULL	utf8	utf8_general_ci	set('Select','Insert','Update','Delete','Create','Drop','Grant','References','Index','Alter','Create View','Show view','Trigger')			
+mysql.tables_priv	Column_priv	8		NO	set	31	93	NULL	NULL	utf8	utf8_general_ci	set('Select','Insert','Update','References')			
+mysql.time_zone	Time_zone_id	1	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	int(10) unsigned	PRI	auto_increment	
+mysql.time_zone	Use_leap_seconds	2	N	NO	enum	1	3	NULL	NULL	utf8	utf8_general_ci	enum('Y','N')			
+mysql.time_zone_leap_second	Transition_time	1	NULL	NO	bigint	NULL	NULL	19	0	NULL	NULL	bigint(20)	PRI		
+mysql.time_zone_leap_second	Correction	2	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	int(11)			
+mysql.time_zone_name	Name	1	NULL	NO	char	64	192	NULL	NULL	utf8	utf8_general_ci	char(64)	PRI		
+mysql.time_zone_name	Time_zone_id	2	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	int(10) unsigned			
+mysql.time_zone_transition	Time_zone_id	1	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	int(10) unsigned	PRI		
+mysql.time_zone_transition	Transition_time	2	NULL	NO	bigint	NULL	NULL	19	0	NULL	NULL	bigint(20)	PRI		
+mysql.time_zone_transition	Transition_type_id	3	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	int(10) unsigned			
+mysql.time_zone_transition_type	Time_zone_id	1	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	int(10) unsigned	PRI		
+mysql.time_zone_transition_type	Transition_type_id	2	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	int(10) unsigned	PRI		
+mysql.time_zone_transition_type	Offset	3	0	NO	int	NULL	NULL	10	0	NULL	NULL	int(11)			
+mysql.time_zone_transition_type	Is_DST	4	0	NO	tinyint	NULL	NULL	3	0	NULL	NULL	tinyint(3) unsigned			
+mysql.time_zone_transition_type	Abbreviation	5		NO	char	8	24	NULL	NULL	utf8	utf8_general_ci	char(8)			
+mysql.user	Host	1		NO	char	60	180	NULL	NULL	utf8	utf8_bin	char(60)	PRI		
+mysql.user	User	2		NO	char	16	48	NULL	NULL	utf8	utf8_bin	char(16)	PRI		
+mysql.user	Password	3		NO	char	41	41	NULL	NULL	latin1	latin1_bin	char(41)			
+mysql.user	Select_priv	4	N	NO	enum	1	3	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			
+mysql.user	Insert_priv	5	N	NO	enum	1	3	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			
+mysql.user	Update_priv	6	N	NO	enum	1	3	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			
+mysql.user	Delete_priv	7	N	NO	enum	1	3	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			
+mysql.user	Create_priv	8	N	NO	enum	1	3	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			
+mysql.user	Drop_priv	9	N	NO	enum	1	3	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			
+mysql.user	Reload_priv	10	N	NO	enum	1	3	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			
+mysql.user	Shutdown_priv	11	N	NO	enum	1	3	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			
+mysql.user	Process_priv	12	N	NO	enum	1	3	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			
+mysql.user	File_priv	13	N	NO	enum	1	3	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			
+mysql.user	Grant_priv	14	N	NO	enum	1	3	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			
+mysql.user	References_priv	15	N	NO	enum	1	3	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			
+mysql.user	Index_priv	16	N	NO	enum	1	3	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			
+mysql.user	Alter_priv	17	N	NO	enum	1	3	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			
+mysql.user	Show_db_priv	18	N	NO	enum	1	3	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			
+mysql.user	Super_priv	19	N	NO	enum	1	3	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			
+mysql.user	Create_tmp_table_priv	20	N	NO	enum	1	3	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			
+mysql.user	Lock_tables_priv	21	N	NO	enum	1	3	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			
+mysql.user	Execute_priv	22	N	NO	enum	1	3	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			
+mysql.user	Repl_slave_priv	23	N	NO	enum	1	3	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			
+mysql.user	Repl_client_priv	24	N	NO	enum	1	3	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			
+mysql.user	Create_view_priv	25	N	NO	enum	1	3	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			
+mysql.user	Show_view_priv	26	N	NO	enum	1	3	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			
+mysql.user	Create_routine_priv	27	N	NO	enum	1	3	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			
+mysql.user	Alter_routine_priv	28	N	NO	enum	1	3	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			
+mysql.user	Create_user_priv	29	N	NO	enum	1	3	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			
+mysql.user	Event_priv	30	N	NO	enum	1	3	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			
+mysql.user	Trigger_priv	31	N	NO	enum	1	3	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			
+mysql.user	Create_tablespace_priv	32	N	NO	enum	1	3	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			
+mysql.user	ssl_type	33		NO	enum	9	27	NULL	NULL	utf8	utf8_general_ci	enum('','ANY','X509','SPECIFIED')			
+mysql.user	ssl_cipher	34	NULL	NO	blob	65535	65535	NULL	NULL	NULL	NULL	blob			
+mysql.user	x509_issuer	35	NULL	NO	blob	65535	65535	NULL	NULL	NULL	NULL	blob			
+mysql.user	x509_subject	36	NULL	NO	blob	65535	65535	NULL	NULL	NULL	NULL	blob			
+mysql.user	max_questions	37	0	NO	int	NULL	NULL	10	0	NULL	NULL	int(11) unsigned			
+mysql.user	max_updates	38	0	NO	int	NULL	NULL	10	0	NULL	NULL	int(11) unsigned			
+mysql.user	max_connections	39	0	NO	int	NULL	NULL	10	0	NULL	NULL	int(11) unsigned			
+mysql.user	max_user_connections	40	0	NO	int	NULL	NULL	10	0	NULL	NULL	int(11) unsigned			
+mysql.user	plugin	41	mysql_native_password	NO	char	64	192	NULL	NULL	utf8	utf8_bin	char(64)			
+mysql.user	authentication_string	42	NULL	YES	text	65535	65535	NULL	NULL	utf8	utf8_bin	text			
+mysql.user	password_expired	43	N	NO	enum	1	3	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			
+mysql.user	password_last_changed	44	NULL	YES	timestamp	NULL	NULL	NULL	NULL	NULL	NULL	timestamp			
+mysql.user	password_lifetime	45	NULL	YES	smallint	NULL	NULL	5	0	NULL	NULL	smallint(5) unsigned			
+EVENT_CATALOG	EVENT_SCHEMA	EVENT_NAME	DEFINER	TIME_ZONE	EVENT_BODY	EVENT_DEFINITION	EVENT_TYPE	EXECUTE_AT	INTERVAL_VALUE	INTERVAL_FIELD	SQL_MODE	STARTS	ENDS	STATUS	ON_COMPLETION	CREATED	LAST_ALTERED	LAST_EXECUTED	EVENT_COMMENT	ORIGINATOR	CHARACTER_SET_CLIENT	COLLATION_CONNECTION	DATABASE_COLLATION
+TRIGGER_CATALOG	TRIGGER_SCHEMA	TRIGGER_NAME	EVENT_MANIPULATION	EVENT_OBJECT_CATALOG	EVENT_OBJECT_SCHEMA	EVENT_OBJECT_TABLE	ACTION_ORDER	ACTION_CONDITION	ACTION_STATEMENT	ACTION_ORIENTATION	ACTION_TIMING	ACTION_REFERENCE_OLD_TABLE	ACTION_REFERENCE_NEW_TABLE	ACTION_REFERENCE_OLD_ROW	ACTION_REFERENCE_NEW_ROW	CREATED	SQL_MODE	DEFINER	CHARACTER_SET_CLIENT	COLLATION_CONNECTION	DATABASE_COLLATION
+SPECIFIC_NAME	ROUTINE_CATALOG	ROUTINE_SCHEMA	ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	DATETIME_PRECISION	CHARACTER_SET_NAME	COLLATION_NAME	DTD_IDENTIFIER	ROUTINE_BODY	ROUTINE_DEFINITION	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	IS_DETERMINISTIC	SQL_DATA_ACCESS	SQL_PATH	SECURITY_TYPE	CREATED	LAST_ALTERED	SQL_MODE	ROUTINE_COMMENT	DEFINER	CHARACTER_SET_CLIENT	COLLATION_CONNECTION	DATABASE_COLLATION
+add_suppression	def	mtr	add_suppression	PROCEDURE		NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	SQL	BEGIN   INSERT INTO test_suppressions (pattern) VALUES (pattern); END	NULL	NULL	SQL	NO	CONTAINS SQL	NULL	DEFINER	2014-10-09 11:09:56	2014-10-09 11:09:56			root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
+check_testcase	def	mtr	check_testcase	PROCEDURE		NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	SQL	BEGIN    CALL check_testcase_perfschema();    SELECT * FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES     WHERE variable_name NOT IN ('timestamp', 'server_uuid',                                 'innodb_file_format_max',                                 'gtid_executed', 'gtid_purged')     ORDER BY VARIABLE_NAME;    SELECT * FROM INFORMATION_SCHEMA.SCHEMATA;    SELECT table_name AS tables_in_test FROM INFORMATION_SCHEMA.TABLES     WHERE table_schema='test';    SELECT CONCAT(table_schema, '.', table_name) AS tables_in_mysql     FROM INFORMATION_SCHEMA.TABLES       WHERE table_schema='mysql' AND table_name != 'ndb_apply_status'         ORDER BY tables_in_mysql;   SELECT CONCAT(table_schema, '.', table_name) AS columns_in_mysql,          column_name, ordinal_position, column_default, is_nullable,          data_type, character_maximum_length, character_octet_length,          numeric_precision, numeric_scale, character_set_name,          collation_name, column_type, column_key, extra, column_comment     FROM INFORMATION_SCHEMA.COLUMNS       WHERE table_schema='mysql' AND table_name != 'ndb_apply_status'         ORDER BY columns_in_mysql;    SELECT * FROM INFORMATION_SCHEMA.EVENTS;   SELECT * FROM INFORMATION_SCHEMA.TRIGGERS          WHERE TRIGGER_NAME NOT IN ('gs_insert', 'ts_insert');   SELECT * FROM INFORMATION_SCHEMA.ROUTINES;    SHOW STATUS LIKE 'slave_open_temp_tables';    checksum table     mysql.columns_priv,     mysql.db,     mysql.func,     mysql.help_category,     mysql.help_keyword,     mysql.help_relation,     mysql.host,     mysql.proc,     mysql.procs_priv,     mysql.tables_priv,     mysql.time_zone,     mysql.time_zone_leap_second,     mysql.time_zone_name,     mysql.time_zone_transition,     mysql.time_zone_transition_type,     mysql.user;  END	NULL	NULL	SQL	NO	CONTAINS SQL	NULL	DEFINER	2014-10-09 11:09:56	2014-10-09 11:09:56			root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
+check_testcase_perfschema	def	mtr	check_testcase_perfschema	PROCEDURE		NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	SQL	BEGIN   IF ((SELECT count(*) from information_schema.engines        where engine='PERFORMANCE_SCHEMA' and support='YES') = 1) THEN   BEGIN      BEGIN       DECLARE CONTINUE HANDLER for SQLEXCEPTION       BEGIN       END;        SELECT * from performance_schema.setup_instruments         where enabled='NO' order by NAME;     END;      SELECT * from performance_schema.setup_consumers       order by NAME;      SELECT * from performance_schema.setup_actors       order by USER, HOST;      SELECT * from performance_schema.setup_objects       order by OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME;   END;   END IF; END	NULL	NULL	SQL	NO	CONTAINS SQL	NULL	DEFINER	2014-10-09 11:09:56	2014-10-09 11:09:56			root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
+check_warnings	def	mtr	check_warnings	PROCEDURE		NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	SQL	BEGIN   DECLARE `pos` bigint unsigned;    SET SQL_LOG_BIN=0;    UPDATE error_log el, global_suppressions gs     SET suspicious=0       WHERE el.suspicious=1 AND el.line REGEXP gs.pattern;    UPDATE error_log el, test_suppressions ts     SET suspicious=0       WHERE el.suspicious=1 AND el.line REGEXP ts.pattern;    SELECT COUNT(*) INTO @num_warnings FROM error_log     WHERE suspicious=1;    IF @num_warnings > 0 THEN     SELECT line         FROM error_log WHERE suspicious=1;     SELECT 2 INTO result;   ELSE     SELECT 0 INTO RESULT;   END IF;    TRUNCATE test_suppressions;   DROP TABLE error_log;  END	NULL	NULL	SQL	NO	CONTAINS SQL	NULL	DEFINER	2014-10-09 11:09:56	2014-10-09 11:09:56			root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
+force_restart	def	mtr	force_restart	PROCEDURE		NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	SQL	BEGIN   SELECT 1 INTO OUTFILE 'force_restart'; END	NULL	NULL	SQL	NO	CONTAINS SQL	NULL	DEFINER	2014-10-09 11:09:56	2014-10-09 11:09:56			root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
+Variable_name	Value
+Slave_open_temp_tables	0
+Table	Checksum
+mysql.columns_priv	0
+mysql.db	4197331717
+mysql.func	0
+mysql.help_category	0
+mysql.help_keyword	0
+mysql.help_relation	0
+mysql.host	NULL
+mysql.proc	2883509128
+mysql.procs_priv	0
+mysql.tables_priv	0
+mysql.time_zone	2420313365
+mysql.time_zone_leap_second	3799112081
+mysql.time_zone_name	2268956709
+mysql.time_zone_transition	3895294076
+mysql.time_zone_transition_type	168184411
+mysql.user	2280283185
+Warnings:
+Error	1146	Table 'mysql.host' doesn't exist

@@ -7,7 +7,7 @@ SET @@session.default_storage_engine = 'MyISAM';
 #            - CHECK (allowed but not used)
 # UNIQUE
 create table t1 (a int, b int generated always as (a*2) virtual unique);
-ERROR HY000: Key/Index cannot be defined on a non-stored virtual column.
+ERROR HY000: Key/Index cannot be defined on a non-stored generated column.
 create table t1 (a int, b int generated always as (a*2) stored unique);
 show create table t1;
 Table	Create Table
@@ -22,7 +22,7 @@ a	int(11)	YES		NULL
 b	int(11)	YES	UNI	NULL	VIRTUAL
 drop table t1;
 create table t1 (a int, b int generated always as (a*2) virtual, unique key (b));
-ERROR HY000: Key/Index cannot be defined on a non-stored virtual column.
+ERROR HY000: Key/Index cannot be defined on a non-stored generated column.
 create table t1 (a int, b int generated always as (a*2) stored, unique (b));
 show create table t1;
 Table	Create Table
@@ -38,7 +38,7 @@ b	int(11)	YES	UNI	NULL	VIRTUAL
 drop table t1;
 create table t1 (a int, b int generated always as (a*2) virtual);
 alter table t1 add unique key (b);
-ERROR HY000: Key/Index cannot be defined on a non-stored virtual column.
+ERROR HY000: Key/Index cannot be defined on a non-stored generated column.
 drop table t1;
 create table t1 (a int, b int generated always as (a*2) stored);
 alter table t1 add unique key (b);
@@ -50,9 +50,9 @@ drop table t1;
 # 
 # INDEX
 create table t1 (a int, b int generated always as (a*2) virtual, index (b));
-ERROR HY000: Key/Index cannot be defined on a non-stored virtual column.
+ERROR HY000: Key/Index cannot be defined on a non-stored generated column.
 create table t1 (a int, b int generated always as (a*2) virtual, index (a,b));
-ERROR HY000: Key/Index cannot be defined on a non-stored virtual column.
+ERROR HY000: Key/Index cannot be defined on a non-stored generated column.
 create table t1 (a int, b int generated always as (a*2) stored, index (b));
 show create table t1;
 Table	Create Table
@@ -81,9 +81,9 @@ b	int(11)	YES		NULL	VIRTUAL
 drop table t1;
 create table t1 (a int, b int generated always as (a*2) virtual);
 alter table t1 add index (b);
-ERROR HY000: Key/Index cannot be defined on a non-stored virtual column.
+ERROR HY000: Key/Index cannot be defined on a non-stored generated column.
 alter table t1 add index (a,b);
-ERROR HY000: Key/Index cannot be defined on a non-stored virtual column.
+ERROR HY000: Key/Index cannot be defined on a non-stored generated column.
 drop table t1;
 create table t1 (a int, b int generated always as (a*2) stored);
 alter table t1 add index (b);
@@ -110,27 +110,27 @@ drop table t1;
 # Rejected FK options.
 create table t1 (a int, b int generated always as (a+1) stored,
 foreign key (b) references t2(a) on update set null);
-ERROR HY000: Cannot define foreign key with ON UPDATE SET NULL clause on a virtual column.
+ERROR HY000: Cannot define foreign key with ON UPDATE SET NULL clause on a generated column.
 create table t1 (a int, b int generated always as (a+1) stored,
 foreign key (b) references t2(a) on update cascade);
-ERROR HY000: Cannot define foreign key with ON UPDATE CASCADE clause on a virtual column.
+ERROR HY000: Cannot define foreign key with ON UPDATE CASCADE clause on a generated column.
 create table t1 (a int, b int generated always as (a+1) stored,
 foreign key (b) references t2(a) on delete set null);
-ERROR HY000: Cannot define foreign key with ON DELETE SET NULL clause on a virtual column.
+ERROR HY000: Cannot define foreign key with ON DELETE SET NULL clause on a generated column.
 create table t1 (a int, b int generated always as (a+1) stored);
 alter table t1 add foreign key (b) references t2(a) on update set null;
-ERROR HY000: Cannot define foreign key with ON UPDATE SET NULL clause on a virtual column.
+ERROR HY000: Cannot define foreign key with ON UPDATE SET NULL clause on a generated column.
 alter table t1 add foreign key (b) references t2(a) on update cascade;
-ERROR HY000: Cannot define foreign key with ON UPDATE CASCADE clause on a virtual column.
+ERROR HY000: Cannot define foreign key with ON UPDATE CASCADE clause on a generated column.
 alter table t1 add foreign key (b) references t2(a) on delete set null;
-ERROR HY000: Cannot define foreign key with ON DELETE SET NULL clause on a virtual column.
+ERROR HY000: Cannot define foreign key with ON DELETE SET NULL clause on a generated column.
 drop table t1;
 create table t1 (a int, b int generated always as (a+1) virtual,
 foreign key (b) references t2(a));
-ERROR HY000: Key/Index cannot be defined on a non-stored virtual column.
+ERROR HY000: Key/Index cannot be defined on a non-stored generated column.
 create table t1 (a int, b int generated always as (a+1) virtual);
 alter table t1 add foreign key (b) references t2(a);
-ERROR HY000: Key/Index cannot be defined on a non-stored virtual column.
+ERROR HY000: Key/Index cannot be defined on a non-stored generated column.
 drop table t1;
 # Allowed FK options.
 create table t2 (a int primary key, b char(5));
