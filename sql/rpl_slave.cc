@@ -2143,6 +2143,15 @@ static int get_master_version_and_clock(MYSQL* mysql, Master_info* mi)
     goto err;
   }
 
+  if (mi->get_mi_description_event()->binlog_version < 4 &&
+      opt_slave_sql_verify_checksum)
+  {
+    sql_print_warning("Found a master with MySQL server version older than "
+                      "5.0. With checksums enabled on the slave, replication "
+                      "might not work correctly. To ensure correct "
+                      "replication, restart the slave server with "
+                      "--slave_sql_verify_checksum=0.");
+  }
   /*
     FD_q's (A) is set initially from RL's (A): FD_q.(A) := RL.(A).
     It's necessary to adjust FD_q.(A) at this point because in the following

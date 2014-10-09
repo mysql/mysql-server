@@ -452,7 +452,7 @@ page_create_zip(
 
 	ut_ad(block);
 	ut_ad(page_zip);
-	ut_ad(!index || (index && dict_table_is_comp(index->table)));
+	ut_ad(index == NULL || dict_table_is_comp(index->table));
 	is_spatial = index ? dict_index_is_spatial(index)
 			   : page_comp_info->type & DICT_SPATIAL;
 
@@ -462,7 +462,7 @@ page_create_zip(
 
 	if (truncate_t::s_fix_up_active) {
 		/* Compress the index page created when applying
-                TRUNCATE log during recovery */
+		TRUNCATE log during recovery */
 		if (!page_zip_compress(page_zip, page, index, page_zip_level,
 				       page_comp_info, NULL)) {
 			/* The compression of a newly created

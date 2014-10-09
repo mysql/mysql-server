@@ -8,8 +8,10 @@
 # test with 16k page size.
 -- source include/have_innodb_16k.inc
 
-call mtr.add_suppression("\\[ERROR\\] InnoDB: Table \"mysql\".\"innodb_index_stats\" not found");
+--disable_query_log
+call mtr.add_suppression("\\[ERROR\\] InnoDB: Table `mysql`.`innodb_index_stats` not found");
 call mtr.add_suppression("\\[ERROR\\] InnoDB: Fetch of persistent statistics requested for table");
+--enable_query_log
 
 -- vertical_results
 

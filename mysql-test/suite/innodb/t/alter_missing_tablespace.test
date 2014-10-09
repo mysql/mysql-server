@@ -21,17 +21,17 @@ EOF
 --source include/start_mysqld.inc
 
 --disable_query_log
-call mtr.add_suppression("\\[Warning\\] InnoDB: cannot calculate statistics for table \"test\"\.\"t\" because the \.ibd file is missing");
-call mtr.add_suppression("\\[ERROR\\] InnoDB: Operating system error number 2 in a file operation.");
-call mtr.add_suppression("\\[ERROR\\] InnoDB: The error means the system cannot find the path specified.");
-call mtr.add_suppression("\\[ERROR\\] InnoDB: If you are installing InnoDB, remember that you must create directories yourself, InnoDB does not create them.");
+call mtr.add_suppression("\\[Warning\\] InnoDB: Cannot calculate statistics for table `test`\.`t` because the \.ibd file is missing");
+call mtr.add_suppression("\\[Warning\\] InnoDB: Cannot delete tablespace [0-9]+ in DISCARD TABLESPACE: Tablespace not found");
+call mtr.add_suppression("\\[Warning\\] InnoDB: Ignoring tablespace .* because it could not be opened");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: Cannot delete tablespace [0-9]+ because it is not found in the tablespace memory cache");
 call mtr.add_suppression("\\[ERROR\\] InnoDB: Cannot open datafile for read-only:");
-call mtr.add_suppression("InnoDB: Table 'test/t'$");
-call mtr.add_suppression("Could not find a valid tablespace file for");
-call mtr.add_suppression("InnoDB: Tablespace open failed for \"test\"\.\"t\", ignored");
-call mtr.add_suppression("InnoDB: Failed to find tablespace for table \"test\"\.\"t\" in the cache");
-call mtr.add_suppression("InnoDB: Cannot delete tablespace [0-9]+.*not found");
-call mtr.add_suppression("Table .*t in the InnoDB data dictionary has tablespace id .*, but tablespace with that id or name does not exist");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: Could not find a valid tablespace file for");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: Failed to find tablespace for table `test`.`t` in the cache");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: If you are installing InnoDB, remember that you must create directories yourself, InnoDB does not create them.");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: Operating system error number 2 in a file operation.");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: Tablespace open failed for `test`\.`t`, ignored");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: The error means the system cannot find the path specified.");
 --enable_query_log
 
 # The ER_NO_SUCH_TABLE is being thrown by ha_innobase::open().
@@ -41,8 +41,10 @@ SELECT * FROM t;
 
 --error ER_NO_SUCH_TABLE
 ALTER TABLE t ADD INDEX (a), ALGORITHM=INPLACE;
+SHOW WARNINGS;
 --error ER_NO_SUCH_TABLE
 ALTER TABLE t1 ADD INDEX (a), ALGORITHM=COPY;
+SHOW WARNINGS;
 
 ALTER TABLE t DISCARD TABLESPACE;
 DROP TABLE t;

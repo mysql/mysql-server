@@ -929,7 +929,7 @@ cmp_rec_rec_with_match(
 			break;
 		}
 
-		if (dict_index_is_univ(index)) {
+		if (dict_index_is_ibuf(index)) {
 			/* This is for the insert buffer B-tree. */
 			mtype = DATA_BINARY;
 			prtype = 0;

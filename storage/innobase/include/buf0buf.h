@@ -675,7 +675,7 @@ ulint
 buf_page_get_freed_page_clock(
 /*==========================*/
 	const buf_page_t*	bpage)	/*!< in: block */
-	__attribute__((pure));
+	__attribute__((warn_unused_result));
 /********************************************************************//**
 Reads the freed_page_clock of a buffer block.
 @return freed_page_clock */
@@ -684,7 +684,7 @@ ulint
 buf_block_get_freed_page_clock(
 /*===========================*/
 	const buf_block_t*	block)	/*!< in: block */
-	__attribute__((pure));
+	__attribute__((warn_unused_result));
 
 /********************************************************************//**
 Tells if a block is still close enough to the MRU end of the LRU list
@@ -852,7 +852,7 @@ ulint
 buf_block_get_lock_hash_val(
 /*========================*/
 	const buf_block_t*	block)	/*!< in: block */
-	__attribute__((pure));
+	__attribute__((warn_unused_result));
 #ifdef UNIV_DEBUG
 /*********************************************************************//**
 Finds a block in the buffer pool that points to a
@@ -1024,7 +1024,7 @@ enum buf_page_state
 buf_block_get_state(
 /*================*/
 	const buf_block_t*	block)	/*!< in: pointer to the control block */
-	__attribute__((pure));
+	__attribute__((warn_unused_result));
 /*********************************************************************//**
 Sets the state of a block. */
 UNIV_INLINE
@@ -1049,7 +1049,7 @@ ibool
 buf_page_in_file(
 /*=============*/
 	const buf_page_t*	bpage)	/*!< in: pointer to control block */
-	__attribute__((pure));
+	__attribute__((warn_unused_result));
 #ifndef UNIV_HOTBACKUP
 /*********************************************************************//**
 Determines if a block should be on unzip_LRU list.
@@ -1059,7 +1059,7 @@ ibool
 buf_page_belongs_to_unzip_LRU(
 /*==========================*/
 	const buf_page_t*	bpage)	/*!< in: pointer to control block */
-	__attribute__((pure));
+	__attribute__((warn_unused_result));
 
 /*********************************************************************//**
 Gets the mutex of a block.
@@ -1069,7 +1069,7 @@ BPageMutex*
 buf_page_get_mutex(
 /*===============*/
 	const buf_page_t*	bpage)	/*!< in: pointer to control block */
-	__attribute__((pure));
+	__attribute__((warn_unused_result));
 
 /*********************************************************************//**
 Get the flush type of a page.
@@ -1079,7 +1079,7 @@ buf_flush_t
 buf_page_get_flush_type(
 /*====================*/
 	const buf_page_t*	bpage)	/*!< in: buffer page */
-	__attribute__((pure));
+	__attribute__((warn_unused_result));
 /*********************************************************************//**
 Set the flush type of a page. */
 UNIV_INLINE
@@ -1106,7 +1106,7 @@ enum buf_io_fix
 buf_page_get_io_fix(
 /*================*/
 	const buf_page_t*	bpage)	/*!< in: pointer to the control block */
-	__attribute__((pure));
+	__attribute__((warn_unused_result));
 /*********************************************************************//**
 Gets the io_fix state of a block.
 @return io_fix state */
@@ -1115,7 +1115,7 @@ enum buf_io_fix
 buf_block_get_io_fix(
 /*================*/
 	const buf_block_t*	block)	/*!< in: pointer to the control block */
-	__attribute__((pure));
+	__attribute__((warn_unused_result));
 /*********************************************************************//**
 Sets the io_fix state of a block. */
 UNIV_INLINE
@@ -1161,7 +1161,7 @@ ibool
 buf_page_can_relocate(
 /*==================*/
 	const buf_page_t*	bpage)	/*!< control block being relocated */
-	__attribute__((pure));
+	__attribute__((warn_unused_result));
 
 /*********************************************************************//**
 Determine if a block has been flagged old.
@@ -1171,7 +1171,7 @@ ibool
 buf_page_is_old(
 /*============*/
 	const buf_page_t*	bpage)	/*!< in: control block */
-	__attribute__((pure));
+	__attribute__((warn_unused_result));
 /*********************************************************************//**
 Flag a block old. */
 UNIV_INLINE
@@ -1188,7 +1188,7 @@ unsigned
 buf_page_is_accessed(
 /*=================*/
 	const buf_page_t*	bpage)	/*!< in: control block */
-	__attribute__((nonnull, pure));
+	__attribute__((warn_unused_result));
 /*********************************************************************//**
 Flag a block accessed. */
 UNIV_INLINE
@@ -1200,14 +1200,14 @@ buf_page_set_accessed(
 /*********************************************************************//**
 Gets the buf_block_t handle of a buffered file block if an uncompressed
 page frame exists, or NULL. Note: even though bpage is not declared a
-const we don't update its value. It is safe to make this pure.
+const we don't update its value.
 @return control block, or NULL */
 UNIV_INLINE
 buf_block_t*
 buf_page_get_block(
 /*===============*/
 	buf_page_t*	bpage)	/*!< in: control block, or NULL */
-	__attribute__((pure));
+	__attribute__((warn_unused_result));
 #endif /* !UNIV_HOTBACKUP */
 #ifdef UNIV_DEBUG
 /*********************************************************************//**
@@ -1218,7 +1218,7 @@ buf_frame_t*
 buf_block_get_frame(
 /*================*/
 	const buf_block_t*	block)	/*!< in: pointer to the control block */
-	__attribute__((pure));
+	__attribute__((warn_unused_result));
 #else /* UNIV_DEBUG */
 # define buf_block_get_frame(block) (block)->frame
 #endif /* UNIV_DEBUG */
@@ -1279,8 +1279,6 @@ and the lock released later.
 @param[in]	mode			BUF_READ_IBUF_PAGES_ONLY, ...
 @param[in]	page_id			page id
 @param[in]	unzip			TRUE=request uncompressed page
-@param[in]	tablespace_version	prevents reading from a wrong version
-of the tablespace in case we have done DISCARD + IMPORT
 @return pointer to the block or NULL */
 buf_page_t*
 buf_page_init_for_read(
@@ -1288,8 +1286,7 @@ buf_page_init_for_read(
 	ulint			mode,
 	const page_id_t&	page_id,
 	const page_size_t&	page_size,
-	ibool			unzip,
-	int64_t			tablespace_version);
+	ibool			unzip);
 
 /********************************************************************//**
 Completes an asynchronous read or write request of a file page to or from
@@ -1309,7 +1306,7 @@ ulint
 buf_pool_index(
 /*===========*/
 	const buf_pool_t*	buf_pool)	/*!< in: buffer pool */
-	__attribute__((nonnull, const));
+	__attribute__((warn_unused_result));
 /******************************************************************//**
 Returns the buffer pool instance given a page instance
 @return buf_pool */

@@ -1402,10 +1402,8 @@ RecLock::prepare() const
 	case TRX_DICT_OP_TABLE:
 	case TRX_DICT_OP_INDEX:
 		ib::error() << "A record lock wait happens in a dictionary"
-			" operation. index "
-			<< ut_get_name(m_trx, FALSE, m_index->name)
-			<< " of table "
-			<< ut_get_name(m_trx, TRUE, m_index->table_name)
+			" operation. index " << m_index->name
+			<< " of table " << m_index->table->name
 			<< ". " << BUG_REPORT_MSG;
 		ut_ad(0);
 	}
@@ -3889,8 +3887,7 @@ lock_table_enqueue_waiting(
 	case TRX_DICT_OP_TABLE:
 	case TRX_DICT_OP_INDEX:
 		ib::error() << "A table lock wait happens in a dictionary"
-			" operation. Table name "
-			<< ut_get_name(trx, TRUE, table->name)
+			" operation. Table " << table->name
 			<< ". " << BUG_REPORT_MSG;
 		ut_ad(0);
 	}
@@ -4600,8 +4597,8 @@ lock_table_print(
 	ut_a(lock_get_type_low(lock) == LOCK_TABLE);
 
 	fputs("TABLE LOCK table ", file);
-	ut_print_name(file, lock->trx, TRUE,
-		      lock->un_member.tab_lock.table->name);
+	ut_print_name(file, lock->trx,
+		      lock->un_member.tab_lock.table->name.m_name);
 	fprintf(file, " trx id " TRX_ID_FMT, trx_get_id_for_print(lock->trx));
 
 	if (lock_get_mode(lock) == LOCK_S) {
@@ -6464,20 +6461,14 @@ lock_get_table_id(
 	return(table->id);
 }
 
-/*******************************************************************//**
-Gets the name of the table on which the lock is.
-The string should not be free()'d or modified.
+/** Determine which table a lock is associated with.
+@param[in]	lock	the lock
 @return name of the table */
-const char*
+const table_name_t&
 lock_get_table_name(
-/*================*/
-	const lock_t*	lock)	/*!< in: lock */
+	const lock_t*	lock)
 {
-	dict_table_t*	table;
-
-	table = lock_get_table(lock);
-
-	return(table->name);
+	return(lock_get_table(lock)->name);
 }
 
 /*******************************************************************//**

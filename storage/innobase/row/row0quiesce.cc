@@ -351,8 +351,8 @@ row_quiesce_write_header(
 	}
 
 	/* The table name includes the NUL byte. */
-	ut_a(table->name != 0);
-	len = static_cast<ib_uint32_t>(strlen(table->name) + 1);
+	ut_a(table->name.m_name != NULL);
+	len = static_cast<ib_uint32_t>(strlen(table->name.m_name) + 1);
 
 	/* Write the table name. */
 	mach_write_to_4(value, len);
@@ -360,7 +360,7 @@ row_quiesce_write_header(
 	DBUG_EXECUTE_IF("ib_export_io_write_failure_6", close(fileno(file)););
 
 	if (fwrite(&value, 1,  sizeof(value), file) != sizeof(value)
-	    || fwrite(table->name, 1,  len, file) != len) {
+	    || fwrite(table->name.m_name, 1,  len, file) != len) {
 
 		ib_senderrf(
 			thd, IB_LOG_LEVEL_WARN, ER_IO_WRITE_ERROR,
@@ -516,28 +516,21 @@ row_quiesce_table_start(
 	ut_a(srv_n_purge_threads > 0);
 	ut_ad(!srv_read_only_mode);
 
-	char		table_name[MAX_FULL_NAME_LEN + 1];
-
 	ut_a(trx->mysql_thd != 0);
 
-	innobase_format_name(
-		table_name, sizeof(table_name), table->name, FALSE);
-
-	ib::info() << "Sync to disk of '" << table_name << "' started.";
+	ib::info() << "Sync to disk of " << table->name << " started.";
 
 	if (trx_purge_state() != PURGE_STATE_DISABLED) {
 		trx_purge_stop();
 	}
 
-	ut_a(table->id > 0);
-
 	for (ulint count = 0;
-	     ibuf_contract_in_background(table->id, TRUE) != 0
+	     ibuf_merge_in_background(true, table->space) != 0
 	     && !trx_is_interrupted(trx);
 	     ++count) {
 		if (!(count % 20)) {
-			ib::info() << "Merging change buffer entries for '"
-				<< table_name << "'";
+			ib::info() << "Merging change buffer entries for "
+				<< table->name;
 		}
 	}
 
@@ -555,8 +548,8 @@ row_quiesce_table_start(
 			ib::warn() << "There was an error writing to the"
 				" meta data file";
 		} else {
-			ib::info() << "Table '" << table_name
-				<< "' flushed to disk";
+			ib::info() << "Table " << table->name
+				<< " flushed to disk";
 		}
 	} else {
 		ib::warn() << "Quiesce aborted!";
@@ -575,12 +568,8 @@ row_quiesce_table_complete(
 	trx_t*		trx)		/*!< in/out: transaction/session */
 {
 	ulint		count = 0;
-	char		table_name[MAX_FULL_NAME_LEN + 1];
 
 	ut_a(trx->mysql_thd != 0);
-
-	innobase_format_name(
-		table_name, sizeof(table_name), table->name, FALSE);
 
 	/* We need to wait for the operation to complete if the
 	transaction has been killed. */
@@ -589,8 +578,8 @@ row_quiesce_table_complete(
 
 		/* Print a warning after every minute. */
 		if (!(count % 60)) {
-			ib::warn() << "Waiting for quiesce of '" << table_name
-				<< "' to complete";
+			ib::warn() << "Waiting for quiesce of " << table->name
+				<< " to complete";
 		}
 
 		/* Sleep for a second. */
@@ -648,7 +637,8 @@ row_quiesce_set_state(
 		char	table_name[MAX_FULL_NAME_LEN + 1];
 
 		innobase_format_name(
-			table_name, sizeof(table_name), table->name, FALSE);
+			table_name, sizeof(table_name),
+			table->name.m_name);
 
 		ib_senderrf(trx->mysql_thd, IB_LOG_LEVEL_WARN,
 			    ER_TABLE_IN_SYSTEM_TABLESPACE, table_name);

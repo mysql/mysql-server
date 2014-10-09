@@ -738,9 +738,9 @@ struct row_prebuilt_t {
 					trx_id or n_indexes mismatch. */
 	que_fork_t*	upd_graph;	/*!< Innobase SQL query graph used
 					in updates or deletes */
-	btr_pcur_t	pcur;		/*!< persistent cursor used in selects
+	btr_pcur_t*	pcur;		/*!< persistent cursor used in selects
 					and updates */
-	btr_pcur_t	clust_pcur;	/*!< persistent cursor used in
+	btr_pcur_t*	clust_pcur;	/*!< persistent cursor used in
 					some selects and updates */
 	que_fork_t*	sel_graph;	/*!< dummy query graph used in
 					selects */

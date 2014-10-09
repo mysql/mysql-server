@@ -30,11 +30,13 @@ Created 12/18/1995 Heikki Tuuri
 
 #ifndef UNIV_INNOCHECKSUM
 
-#include "mtr0mtr.h"
-#include "fut0lst.h"
-#include "ut0byte.h"
-#include "page0types.h"
+#include "dict0dict.h"
 #include "fsp0space.h"
+#include "fut0lst.h"
+#include "mtr0mtr.h"
+#include "page0types.h"
+#include "rem0types.h"
+#include "ut0byte.h"
 
 #endif /* !UNIV_INNOCHECKSUM */
 #include "fsp0types.h"
@@ -551,6 +553,44 @@ UNIV_INLINE
 bool
 fsp_flags_is_compressed(
 	ulint	flags);
+
+/** Determine if two tablespaces are equivalent or compatible.
+@param[in]	flags1	First tablespace flags
+@param[in]	flags2	Second tablespace flags
+@return true the flags are compatible, false if not */
+UNIV_INLINE
+bool
+fsp_flags_are_equal(
+	ulint	flags1,
+	ulint	flags2);
+
+/** Initialize an FSP flags integer.
+@param[in]	page_size	page sizes in bytes and compression flag.
+@param[in]	atomic_blobs	Used by Dynammic and Compressed.
+@param[in]	has_data_dir	This tablespace is in a remote location.
+@return tablespace flags after initialization */
+UNIV_INLINE
+ulint
+fsp_flags_init(
+	const page_size_t&	page_size,
+	bool			atomic_blobs,
+	bool			has_data_dir);
+
+/** Convert a 32 bit integer tablespace flags to the 32 bit table flags.
+This can only be done for a tablespace that was built as a file-per-table
+tablespace. Note that the fsp_flags cannot show the difference between a
+Compact and Redundant table, so an extra Compact boolean must be supplied.
+			Low order bit
+                    | REDUNDANT | COMPACT | COMPRESSED | DYNAMIC
+fil_space_t::flags  |     0     |    0    |     1      |    1
+dict_table_t::flags |     0     |    1    |     1      |    1
+@param[in]	fsp_flags	fil_space_t::flags
+@param[in]	compact		true if not Redundant row format
+@return tablespace flags (fil_space_t::flags) */
+ulint
+fsp_flags_to_dict_tf(
+	ulint	fsp_flags,
+	bool	compact);
 
 /** Calculates the descriptor index within a descriptor page.
 @param[in]	page_size	page size

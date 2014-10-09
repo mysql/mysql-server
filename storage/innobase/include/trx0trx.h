@@ -411,7 +411,7 @@ enum trx_dict_op_t
 trx_get_dict_operation(
 /*===================*/
 	const trx_t*	trx)	/*!< in: transaction */
-	__attribute__((pure));
+	__attribute__((warn_unused_result));
 /**********************************************************************//**
 Flag a transaction a dictionary operation. */
 UNIV_INLINE

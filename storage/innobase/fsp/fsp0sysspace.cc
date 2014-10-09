@@ -82,7 +82,7 @@ SysTablespace::parse_units(
 @param[in]	supports_raw	true if the tablespace supports raw devices
 @return true on success parse */
 bool
-SysTablespace::parse(
+SysTablespace::parse_params(
 	const char*	filepath_spec,
 	bool		supports_raw)
 {
@@ -501,8 +501,6 @@ SysTablespace::read_lsn_and_check_flags(lsn_t* flushed_lsn)
 
 	ut_a(it->order() == 0);
 
-	set_flags(it->m_flags);
-
 	buf_dblwr_init_or_load_pages(
 		it->handle(), it->filepath());
 
@@ -847,14 +845,10 @@ SysTablespace::open_or_create(
 		if (it == begin) {
 			/* First data file. */
 
-			ulint	flags;
-
-			flags = fsp_flags_set_page_size(0, UNIV_PAGE_SIZE);
-
 			/* Create the tablespace entry for the multi-file
 			tablespace in the tablespace manager. */
 			space = fil_space_create(
-				name(), space_id(), flags, is_temp
+				name(), space_id(), flags(), is_temp
 				? FIL_TYPE_TEMPORARY : FIL_TYPE_TABLESPACE);
 		}
 

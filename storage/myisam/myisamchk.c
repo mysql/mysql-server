@@ -207,7 +207,7 @@ static struct my_option my_long_options[] =
    "Skip rows bigger than this if myisamchk can't allocate memory to hold it",
    &check_param.max_record_length,
    &check_param.max_record_length,
-   0, GET_ULL, REQUIRED_ARG, LONGLONG_MAX, 0, LONGLONG_MAX, 0, 0, 0},
+   0, GET_ULL, REQUIRED_ARG, LLONG_MAX, 0, LLONG_MAX, 0, 0, 0},
   {"medium-check", 'm',
    "Faster than extend-check, but only finds 99.99% of all errors. Should be good enough for most cases.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},

@@ -128,7 +128,7 @@ static char* add_identifier(THD* thd, char *to_p, const char * end_p,
     conv_name= conv_string;
   }
 
-  quote = thd ? get_quote_char_for_identifier(thd, conv_name, res - 1) : '"';
+  quote = thd ? get_quote_char_for_identifier(thd, conv_name, res - 1) : '`';
 
   if (quote != EOF && (end_p - to_p > 2))
   {

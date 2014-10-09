@@ -507,40 +507,13 @@ If the string contains a slash '/', the string will be
 output as two identifiers separated by a period (.),
 as in SQL database_name.identifier.
  @param		[in]	trx		transaction (NULL=no quotes).
- @param		[in]	table_id	TRUE=get a table name,
-					FALSE=get other identifier.
- @param		[in]	name		name to retrive.
+ @param		[in]	name		table name.
  @retval	String quoted as an SQL identifier.
 */
 std::string
 ut_get_name(
 	const trx_t*	trx,
-	ibool		table_id,
 	const char*	name)
-{
-	return(ut_get_namel(trx, table_id, name, strlen(name)));
-}
-
-/**********************************************************************//**
-Get a fixed-length string, quoted as an SQL identifier.
-If the string contains a slash '/', the string will be
-output as two identifiers separated by a period (.),
-as in SQL database_name.identifier.
-Use ut_get_name() as wrapper function, instead of calling this function
-directly.
- @param		[in]	trx		transaction (NULL=no quotes).
- @param		[in]	tables_id	TRUE=get a table name,
-					FALSE=get other identifier.
- @param		[in]	name		name to retrive.
- @param		[in]	namelen		length of name.
- @retval	String quoted as an SQL identifier.
-*/
-std::string
-ut_get_namel(
-	const trx_t*	trx,
-	ibool		table_id,
-	const char*	name,
-	ulint		namelen)
 {
 	/* 2 * NAME_LEN for database and table name,
 	and some slack for the #mysql50# prefix and quotes */
@@ -548,9 +521,8 @@ ut_get_namel(
 	const char*	bufend;
 
 	bufend = innobase_convert_name(buf, sizeof buf,
-				       name, namelen,
-				       trx ? trx->mysql_thd : NULL,
-				       table_id);
+				       name, strlen(name),
+				       trx ? trx->mysql_thd : NULL);
 	buf[bufend - buf] = '\0';
 	return(std::string(buf, 0, bufend - buf));
 }
@@ -565,27 +537,7 @@ ut_print_name(
 /*==========*/
 	FILE*		f,	/*!< in: output stream */
 	const trx_t*	trx,	/*!< in: transaction */
-	ibool		table_id,/*!< in: TRUE=print a table name,
-				FALSE=print other identifier */
 	const char*	name)	/*!< in: name to print */
-{
-	ut_print_namel(f, trx, table_id, name, strlen(name));
-}
-
-/**********************************************************************//**
-Outputs a fixed-length string, quoted as an SQL identifier.
-If the string contains a slash '/', the string will be
-output as two identifiers separated by a period (.),
-as in SQL database_name.identifier. */
-void
-ut_print_namel(
-/*===========*/
-	FILE*		f,	/*!< in: output stream */
-	const trx_t*	trx,	/*!< in: transaction (NULL=no quotes) */
-	ibool		table_id,/*!< in: TRUE=print a table name,
-				FALSE=print other identifier */
-	const char*	name,	/*!< in: name to print */
-	ulint		namelen)/*!< in: length of name */
 {
 	/* 2 * NAME_LEN for database and table name,
 	and some slack for the #mysql50# prefix and quotes */
@@ -593,9 +545,8 @@ ut_print_namel(
 	const char*	bufend;
 
 	bufend = innobase_convert_name(buf, sizeof buf,
-				       name, namelen,
-				       trx ? trx->mysql_thd : NULL,
-				       table_id);
+				       name, strlen(name),
+				       trx ? trx->mysql_thd : NULL);
 
 	if (fwrite(buf, 1, bufend - buf, f) != (size_t) (bufend - buf)) {
 		perror("fwrite");
@@ -603,7 +554,7 @@ ut_print_namel(
 }
 
 /**********************************************************************//**
-Formats a table or index name, quoted as an SQL identifier. If the name
+Formats a table name, quoted as an SQL identifier. If the name
 contains a slash '/', the result will contain two identifiers separated by
 a period (.), as in SQL database_name.identifier.
 @return pointer to 'formatted' */
@@ -612,8 +563,6 @@ ut_format_name(
 /*===========*/
 	const char*	name,		/*!< in: table or index name, must be
 					'\0'-terminated */
-	ibool		is_table,	/*!< in: if TRUE then 'name' is a table
-					name */
 	char*		formatted,	/*!< out: formatted result, will be
 					'\0'-terminated */
 	ulint		formatted_size)	/*!< out: no more than this number of
@@ -630,7 +579,7 @@ ut_format_name(
 	char*	end;
 
 	end = innobase_convert_name(formatted, formatted_size,
-				    name, strlen(name), NULL, is_table);
+				    name, strlen(name), NULL);
 
 	/* If the space in 'formatted' was completely used, then sacrifice
 	the last character in order to write '\0' at the end. */
@@ -956,6 +905,15 @@ fatal::~fatal()
 {
 	sql_print_error("[FATAL] InnoDB: %s", m_oss.str().c_str());
 	ut_error;
+}
+
+error_or_warn::~error_or_warn()
+{
+	if (m_error) {
+		sql_print_error("InnoDB: %s", m_oss.str().c_str());
+	} else {
+		sql_print_warning("InnoDB: %s", m_oss.str().c_str());
+	}
 }
 
 } // namespace ib

@@ -793,7 +793,7 @@ static bool get_interval_info(Item *args,
     longlong value;
     const char *start= str;
     for (value=0; str != end && my_isdigit(cs,*str) ; str++)
-      value= value*LL(10) + (longlong) (*str - '0');
+      value= value*10LL + (longlong) (*str - '0');
     msec_length= 6 - (str - start);
     values[i]= value;
     while (str != end && !my_isdigit(cs,*str))
@@ -1082,7 +1082,7 @@ longlong Item_func_to_seconds::val_int_endpoint(bool left_endp,
   if (get_arg0_date(&ltime, TIME_FUZZY_DATE))
   {
     /* got NULL, leave the incl_endp intact */
-    return LONGLONG_MIN;
+    return LLONG_MIN;
   }
   seconds= ltime.hour * 3600L + ltime.minute * 60 + ltime.second;
   seconds= ltime.neg ? -seconds : seconds;
@@ -1159,7 +1159,7 @@ longlong Item_func_to_days::val_int_endpoint(bool left_endp, bool *incl_endp)
   if (get_arg0_date(&ltime, TIME_FUZZY_DATE))
   {
     /* got NULL, leave the incl_endp intact */
-    return LONGLONG_MIN;
+    return LLONG_MIN;
   }
   res=(longlong) calc_daynr(ltime.year,ltime.month,ltime.day);
   /* Set to NULL if invalid date, but keep the value */
@@ -1464,7 +1464,7 @@ longlong Item_func_year::val_int_endpoint(bool left_endp, bool *incl_endp)
   if (get_arg0_date(&ltime, TIME_FUZZY_DATE))
   {
     /* got NULL, leave the incl_endp intact */
-    return LONGLONG_MIN;
+    return LLONG_MIN;
   }
 
   /*

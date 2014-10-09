@@ -1031,7 +1031,7 @@ void ha_archive::get_auto_increment(ulonglong offset, ulonglong increment,
                                     ulonglong *first_value,
                                     ulonglong *nb_reserved_values)
 {
-  *nb_reserved_values= ULONGLONG_MAX;
+  *nb_reserved_values= ULLONG_MAX;
   *first_value= share->archive_write.auto_increment + 1;
 }
 

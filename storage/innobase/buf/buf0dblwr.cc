@@ -480,11 +480,32 @@ buf_dblwr_process(void)
 		ulint		page_no		= page_get_page_no(page);
 		ulint		space_id	= page_get_space_id(page);
 
-		if (!fil_tablespace_exists_in_mem(space_id)) {
-			/* Maybe we have dropped the single-table tablespace
+		fil_space_t*	space = fil_space_acquire(space_id, false);
+
+		if (space == NULL) {
+			/* Maybe we have dropped the tablespace
 			and this page once belonged to it: do nothing */
-		} else if (!fil_check_adress_in_tablespace(space_id,
-							   page_no)) {
+			continue;
+		} else if (space->size == 0) {
+			/* Initially, space->size will be set to 0,
+			because the files will not be opened.
+			fil_space_get_size() will open the file
+			and adjust the size. */
+			fil_space_release(space);
+#ifdef UNIV_DEBUG
+			fil_space_t*	space2	= space;
+			ulint		size	=
+#endif
+				fil_space_get_size(space_id);
+			space = fil_space_acquire(space_id);
+			/* We are in single-threaded mode; the
+			tablespace cannot be dropped here. */
+			ut_ad(space == space2);
+			ut_ad(size == space->size);
+		}
+
+		if (page_no >= space->size) {
+
 			/* Do not report the warning if the tablespace is
 			truncated as it's reasonable */
 			if (!srv_is_tablespace_truncated(space_id)) {
@@ -495,14 +516,12 @@ buf_dblwr_process(void)
 					<< page_id_t(space_id, page_no);
 			}
 		} else {
-			const fil_space_t*	space
-				= fil_space_get(space_id);
-			ut_ad(space);
 			const page_size_t	page_size(space->flags);
+			const page_id_t		page_id(space_id, page_no);
 
 			/* Read in the actual page from the file */
 			fil_io(OS_FILE_READ, true,
-			       page_id_t(space_id, page_no), page_size,
+			       page_id, page_size,
 			       0, page_size.physical(), read_buf, NULL);
 
 			/* Check if the page is corrupt */
@@ -512,7 +531,7 @@ buf_dblwr_process(void)
 
 				ib::warn() << "Database page corruption or"
 					<< " a failed file read of page "
-					<< page_id_t(space_id, page_no)
+					<< page_id
 					<< ". Trying to recover it from the"
 					<< " doublewrite buffer.";
 
@@ -548,13 +567,12 @@ buf_dblwr_process(void)
 				a valid copy is available in dblwr buffer. */
 
 			} else {
+				fil_space_release(space);
 				continue;
 			}
 
 			/* Write the good page from the doublewrite
 			buffer to the intended position. */
-
-			const page_id_t	page_id(space_id, page_no);
 
 			fil_io(OS_FILE_WRITE, true, page_id, page_size, 0,
 			       page_size.physical(), const_cast<byte*>(page),
@@ -563,6 +581,8 @@ buf_dblwr_process(void)
 			ib::info() << "Recovered page " << page_id
 				<< " from the doublewrite buffer.";
 		}
+
+		fil_space_release(space);
 	}
 
 	recv_dblwr.pages.clear();

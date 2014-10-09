@@ -434,7 +434,7 @@ restore: t1#P#p2 .ibd and .cfg files
 ALTER TABLE t1 IMPORT TABLESPACE;
 # Try to import twice
 ALTER TABLE t1 IMPORT TABLESPACE;
-ERROR HY000: Tablespace for table 't1' exists. Please DISCARD the tablespace before IMPORT.
+ERROR HY000: Tablespace 'test/t1#P#p0' exists.
 SELECT * FROM t1 ORDER BY i;
 i
 100
@@ -875,9 +875,6 @@ col18	col24
 DROP VIEW VW1;
 DROP TABLE t1;
 DROP TABLE trigger_table;
-call mtr.add_suppression("Got error -1 when reading table '.*'");
-call mtr.add_suppression("InnoDB: Error: tablespace id and flags in file '.*'.*");
-call mtr.add_suppression("InnoDB: The table .* doesn't have a corresponding tablespace, it was discarded");
 SET GLOBAL innodb_file_format = @old_innodb_file_format;
 SET GLOBAL innodb_file_per_table = @old_innodb_file_per_table;
 SET @old_innodb_file_per_table = @@innodb_file_per_table;
@@ -1127,12 +1124,12 @@ ALTER TABLE t1 DISCARD PARTITION p1sp2 TABLESPACE;
 restore: t1#P#p1#SP#p1sp2 .ibd and .cfg files
 ALTER TABLE t1 DISCARD PARTITION all TABLESPACE;
 Warnings:
-Warning	1812	InnoDB: Tablespace is missing for table 't1'
-Warning	1812	InnoDB: Tablespace is missing for table 't1'
-Warning	1812	InnoDB: Tablespace is missing for table 't1'
-Warning	1812	InnoDB: Tablespace is missing for table 't1'
-Warning	1812	InnoDB: Tablespace is missing for table 't1'
-Warning	1812	InnoDB: Tablespace is missing for table 't1'
+Warning	1812	InnoDB: Tablespace 'test/t1#P#p0#SP#p0sp0' is missing
+Warning	1812	InnoDB: Tablespace 'test/t1#P#p0#SP#p0sp1' is missing
+Warning	1812	InnoDB: Tablespace 'test/t1#P#p0#SP#p0sp2' is missing
+Warning	1812	InnoDB: Tablespace 'test/t1#P#p1#SP#p1sp0' is missing
+Warning	1812	InnoDB: Tablespace 'test/t1#P#p1#SP#p1sp1' is missing
+Warning	1812	InnoDB: Tablespace 'test/t1#P#p1#SP#p1sp2' is missing
 restore: t1#P#p0#SP#p0sp0 .ibd and .cfg files
 restore: t1#P#p0#SP#p0sp1 .ibd and .cfg files
 restore: t1#P#p1#SP#p1sp0 .ibd and .cfg files
@@ -1140,16 +1137,16 @@ restore: t1#P#p1#SP#p1sp1 .ibd and .cfg files
 restore: t1#P#p1#SP#p1sp2 .ibd and .cfg files
 # Removing p0sp2's .ibd file
 ALTER TABLE t1 IMPORT PARTITION all TABLESPACE;
-ERROR HY000: Internal error: Cannot reset LSNs in table '"test"."t1" /* Partition "p0", Subpartition "p0sp2" */' : Tablespace not found
+ERROR HY000: Internal error: Cannot reset LSNs in table `test`.`t1` /* Partition `p0`, Subpartition `p0sp2` */ : Tablespace not found
 restore: t1#P#p0#SP#p0sp2 .ibd and .cfg files
 ALTER TABLE t1 IMPORT PARTITION all TABLESPACE;
-ERROR HY000: Tablespace for table 't1' exists. Please DISCARD the tablespace before IMPORT.
+ERROR HY000: Tablespace 'test/t1#P#p0#SP#p0sp0' exists.
 ALTER TABLE t1 IMPORT PARTITION p0sp2 TABLESPACE;
 ALTER TABLE t1 DISCARD PARTITION all TABLESPACE;
 Warnings:
-Warning	1812	InnoDB: Tablespace is missing for table 't1'
-Warning	1812	InnoDB: Tablespace is missing for table 't1'
-Warning	1812	InnoDB: Tablespace is missing for table 't1'
+Warning	1812	InnoDB: Tablespace 'test/t1#P#p1#SP#p1sp0' is missing
+Warning	1812	InnoDB: Tablespace 'test/t1#P#p1#SP#p1sp1' is missing
+Warning	1812	InnoDB: Tablespace 'test/t1#P#p1#SP#p1sp2' is missing
 restore: t1#P#p0#SP#p0sp0 .ibd and .cfg files
 restore: t1#P#p0#SP#p0sp1 .ibd and .cfg files
 restore: t1#P#p0#SP#p0sp2 .ibd and .cfg files

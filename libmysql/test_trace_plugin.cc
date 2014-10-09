@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -123,6 +123,7 @@ struct st_trace_data
 {
   int  last_cmd;
   enum protocol_stage next_stage;
+  unsigned int param_count;
   unsigned int col_count;
   bool multi_resultset;
   int  errnum;
@@ -430,7 +431,6 @@ trace_event(struct st_mysql_client_plugin_TRACE *self,
     LOG(("Connection  closed"));
     return 1;
   }
-
   /*
     Check if current protocol stage is as expected. The expected
     protocol stage is kept in data->next_stage. Check that it equals
@@ -1046,7 +1046,9 @@ int check_event_WAIT_FOR_RESULT(MYSQL *conn,
         Otherwise a result set is expected from the server so we move
         to WAIT_FOR_FIELD_DEF stage.
       */
-      LOG(("Expecting result set with %lu columns", net_field_length(&pkt)));
+      /* update col_count so that it is used in next stage */
+      data->col_count   = net_field_length(&pkt);
+      LOG(("Expecting result set with %lu columns", data->col_count));
       NEXT_STAGE(WAIT_FOR_FIELD_DEF);
       return 0;
     }
@@ -1088,8 +1090,22 @@ int check_event_WAIT_FOR_FIELD_DEF(MYSQL *conn,
         case the string and thus the whole packet is longer than 9 bytes and\
         EOF packet is always shorter than 9 bytes.
       */
-      if (!(EOF_PACKET(args.pkt) && args.pkt_len < 9))
+      /*
+        With new metadata result set format there is no EOF packet to follow
+        and hence check for col_count if col_count is 1 it means all the
+        columns are processed.
+        In case of COM_FIELD_LIST reply there is no column count in first byte,
+        instead the reply is a list of column definitions followed by OK or EOF.
+        Hence in this case check for OK or EOF packet at the end.
+      */
+      bool new_client= (conn->server_capabilities & CLIENT_DEPRECATE_EOF);
+      bool metadata_eof= (data->last_cmd != COM_FIELD_LIST &&
+                          data->col_count == 1 && new_client);
+      bool eof_packet= (EOF_PACKET(args.pkt) && args.pkt_len < MAX_PACKET_LENGTH);
+      if (!eof_packet && !metadata_eof)
       {
+        if (data->last_cmd != COM_FIELD_LIST)
+          data->col_count--;
         LOG(("Received next field definition"));
         return 0;
       }
@@ -1153,12 +1169,18 @@ int check_event_WAIT_FOR_ROW(MYSQL *conn,
       }
 
       /*
-        Otherwise row packets are received until we get an EOF packet.
+        Otherwise row packets are received until we get an EOF packet
+        or OK packet starting with 0xFE.
         We need to check packet length again, because a text-protocol
         row packet starts with a length-encoded string and thus its
         first byte can be 0xFE.
       */
-      if (!(EOF_PACKET(pkt) && args.pkt_len < 9))
+      /*
+        Since result set row can be terminated with EOF as well as
+        OK packet, we need to identify for EOF packet in case of old
+        clients and OK packet starting with 0xFE in case of new clients
+      */
+      if (!(EOF_PACKET(pkt) && args.pkt_len < MAX_PACKET_LENGTH))
       {
         LOG(("Received next row"));
         return 0;
@@ -1172,7 +1194,6 @@ int check_event_WAIT_FOR_ROW(MYSQL *conn,
         SERVER_MORE_RESULTS_EXISTS flag is not set, next stage is
         READY_FOR_COMMAND.
       */
-
       flags= uint2korr(pkt+3);
 
       if (data->multi_resultset || SERVER_MORE_RESULTS_EXISTS & flags)
@@ -1235,6 +1256,7 @@ int check_event_WAIT_FOR_PS_DESCRIPTION(MYSQL *conn,
       col_count   = uint2korr(pkt+5);
       param_count = uint2korr(pkt+7);
       data->col_count= col_count;
+      data->param_count= param_count;
 
       LOG(("Prepared statement %lu; params: %u, cols: %u",
            stmt_id, param_count, col_count));
@@ -1299,8 +1321,19 @@ int check_event_WAIT_FOR_PARAM_DEF(MYSQL *conn,
         we must check the packet length the same as
         in WAIT_FOR_FILED_DEF stage.
       */
-      if (!(EOF_PACKET(args.pkt) && args.pkt_len < 9))
+      /*
+        With new server which has the capability to deprecate EOF packet
+        will not send EOF packet as part of parameter definitions thus
+        check for param_count in this case.
+      */
+
+      bool new_client= (conn->server_capabilities & CLIENT_DEPRECATE_EOF);
+      bool param_eof= (data->param_count == 1 && new_client);
+      bool eof_packet= (EOF_PACKET(args.pkt) && args.pkt_len < 6 && !new_client);
+
+      if (!eof_packet && !param_eof)
       {
+        data->param_count--;
         LOG(("Received next parameter description"));
         return 0;
       }

@@ -434,7 +434,7 @@ trx_rollback_to_savepoint_for_mysql(
 	case TRX_STATE_FORCED_ROLLBACK:
 
 		ib::error() << "Transaction has a savepoint "
-			<< ut_get_name(trx, FALSE, savep->name)
+			<< savep->name
 			<< " though it is not started";
 
 		return(DB_ERROR);

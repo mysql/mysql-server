@@ -1899,7 +1899,7 @@ func_exit:
 
 		trx_rollback_to_savepoint(trx, NULL);
 
-		row_drop_table_for_mysql(table->name, trx, FALSE);
+		row_drop_table_for_mysql(table->name.m_name, trx, FALSE);
 
 		trx->error_state = DB_SUCCESS;
 	}
@@ -2083,7 +2083,8 @@ fts_create_index_tables(
 	table = dict_table_get_low(index->table_name);
 	ut_a(table != NULL);
 
-	err = fts_create_index_tables_low(trx, index, table->name, table->id);
+	err = fts_create_index_tables_low(
+		trx, index, table->name.m_name, table->id);
 
 	if (err == DB_SUCCESS) {
 		trx_commit(trx);
@@ -2663,7 +2664,7 @@ retry:
 	fts_table.type = FTS_COMMON_TABLE;
 	fts_table.table = table;
 
-	fts_table.parent = table->name;
+	fts_table.parent = table->name.m_name;
 
 	trx = trx_allocate_for_background();
 
@@ -2724,7 +2725,7 @@ retry:
 
 	if (doc_id_cmp > *doc_id) {
 		error = fts_update_sync_doc_id(
-			table, table->name, cache->synced_doc_id, trx);
+			table, table->name.m_name, cache->synced_doc_id, trx);
 	}
 
 	*doc_id = cache->next_doc_id;
@@ -2781,7 +2782,7 @@ fts_update_sync_doc_id(
 	if (table_name) {
 		fts_table.parent = table_name;
 	} else {
-		fts_table.parent = table->name;
+		fts_table.parent = table->name.m_name;
 	}
 
 	if (!trx) {
@@ -3424,8 +3425,7 @@ fts_add_doc_by_id(
 	heap = mem_heap_create(512);
 
 	clust_index = dict_table_get_first_index(table);
-	fts_id_index = dict_table_get_index_on_name(
-				table, FTS_DOC_ID_INDEX_NAME);
+	fts_id_index = table->fts_doc_id_index;
 
 	/* Check whether the index on FTS_DOC_ID is cluster index */
 	is_id_cluster = (clust_index == fts_id_index);
@@ -3604,7 +3604,7 @@ fts_get_max_doc_id(
 	mtr_t		mtr;
 	btr_pcur_t	pcur;
 
-	index = dict_table_get_index_on_name(table, FTS_DOC_ID_INDEX_NAME);
+	index = table->fts_doc_id_index;
 
 	if (!index) {
 		return(0);
@@ -4425,10 +4425,6 @@ fts_sync(
 
 		index_cache = static_cast<fts_index_cache_t*>(
 			ib_vector_get(cache->indexes, i));
-
-		if (index_cache->index->to_be_dropped) {
-			continue;
-		}
 
 		error = fts_sync_index(sync, index_cache);
 
@@ -6261,7 +6257,7 @@ fts_rename_one_aux_table_to_hex_format(
 
 	ut_a(fts_table.suffix != NULL);
 
-	fts_table.parent = parent_table->name;
+	fts_table.parent = parent_table->name.m_name;
 	fts_table.table_id = aux_table->parent_id;
 	fts_table.index_id = aux_table->index_id;
 	fts_table.table = parent_table;
@@ -6411,7 +6407,7 @@ fts_rename_aux_tables_to_hex_format_low(
 			trx_start_for_ddl(trx_bg, TRX_DICT_OP_TABLE);
 
 			DICT_TF2_FLAG_UNSET(table, DICT_TF2_FTS_AUX_HEX_NAME);
-			err = row_rename_table_for_mysql(table->name,
+			err = row_rename_table_for_mysql(table->name.m_name,
 							 aux_table->name,
 							 trx_bg, FALSE);
 
@@ -6423,12 +6419,14 @@ fts_rename_aux_tables_to_hex_format_low(
 					<< table->name << ". Please revert"
 					" manually.";
 				fts_sql_rollback(trx_bg);
+				trx_free_for_background(trx_bg);
 				/* Continue to clear aux tables' flags2 */
 				not_rename = true;
 				continue;
 			}
 
 			fts_sql_commit(trx_bg);
+			trx_free_for_background(trx_bg);
 		}
 
 		DICT_TF2_FLAG_UNSET(parent_table, DICT_TF2_FTS_AUX_HEX_NAME);
@@ -6448,14 +6446,19 @@ fts_fake_hex_to_dec(
 {
 	ib_id_t		dec_id = 0;
 	char		tmp_id[FTS_AUX_MIN_TABLE_ID_LENGTH];
-	int		ret;
 
-	ret = sprintf(tmp_id, UINT64PFx, id);
+#ifdef UNIV_DEBUG
+	int		ret =
+#endif
+	sprintf(tmp_id, UINT64PFx, id);
 	ut_ad(ret == 16);
+#ifdef UNIV_DEBUG
+	ret =
+#endif
 #ifdef _WIN32
-	ret = sscanf(tmp_id, "%016llu", &dec_id);
+	sscanf(tmp_id, "%016llu", &dec_id);
 #else
-	ret = sscanf(tmp_id, "%016"PRIu64, &dec_id);
+	sscanf(tmp_id, "%016"PRIu64, &dec_id);
 #endif /* _WIN32 */
 	ut_ad(ret == 1);
 
@@ -6640,6 +6643,7 @@ fts_rename_aux_tables_to_hex_format(
 		fts_parent_all_index_set_corrupt(trx_corrupt, parent_table);
 		trx_corrupt->dict_operation_lock_mode = 0;
 		fts_sql_commit(trx_corrupt);
+		trx_free_for_background(trx_corrupt);
 	} else {
 		fts_sql_commit(trx_rename);
 	}
@@ -6836,7 +6840,8 @@ fts_check_and_drop_orphaned_tables(
 		orig_parent_id = aux_table->parent_id;
 		orig_index_id = aux_table->index_id;
 
-		if (table == NULL || strcmp(table->name, aux_table->name)) {
+		if (table == NULL
+		    || strcmp(table->name.m_name, aux_table->name)) {
 
 			bool	fake_aux = false;
 
@@ -7033,7 +7038,7 @@ fts_check_and_drop_orphaned_tables(
 				aux_table->id, TRUE, DICT_TABLE_OP_NORMAL);
 
 			if (table != NULL
-			    && strcmp(table->name, aux_table->name)) {
+			    && strcmp(table->name.m_name, aux_table->name)) {
 				dict_table_close(table, TRUE, FALSE);
 				table = NULL;
 			}
@@ -7068,9 +7073,9 @@ fts_check_and_drop_orphaned_tables(
 						DICT_TF2_FTS_AUX_HEX_NAME);
 				}
 			}
-#ifdef UNIV_DEBUG
+#ifndef DBUG_OFF
 table_exit:
-#endif	/* UNIV_DEBUG */
+#endif	/* !DBUG_OFF */
 
 			if (table != NULL) {
 				dict_table_close(table, TRUE, FALSE);
@@ -7149,7 +7154,7 @@ fts_drop_orphaned_tables(void)
 		} else {
 			ulint	len = strlen(*it);
 
-			fts_aux_table->id = fil_get_space_id_for_table(*it);
+			fts_aux_table->id = fil_space_get_id_by_name(*it);
 
 			/* We got this list from fil0fil.cc. The tablespace
 			with this name must exist. */
@@ -7601,7 +7606,7 @@ fts_init_index(
 	dropped, and we re-initialize the Doc ID system for subsequent
 	insertion */
 	if (ib_vector_is_empty(cache->get_docs)) {
-		index = dict_table_get_index_on_name(table, FTS_DOC_ID_INDEX_NAME);
+		index = table->fts_doc_id_index;
 
 		ut_a(index);
 

@@ -1042,7 +1042,6 @@ echo "====="                                     >> $STATUS_HISTORY
 
 %files -n MySQL-server%{product_suffix} -f release/support-files/plugins.files
 %defattr(-,root,root,0755)
-
 %if %{defined license_files_server}
 %doc %{license_files_server}
 %endif
@@ -1118,8 +1117,10 @@ echo "====="                                     >> $STATUS_HISTORY
 
 # ----------------------------------------------------------------------------
 %files -n MySQL-client%{product_suffix}
-
 %defattr(-, root, root, 0755)
+%if %{defined license_files_server}
+%doc %{license_files_server}
+%endif
 %attr(755, root, root) %{_bindir}/mysql
 %attr(755, root, root) %{_bindir}/mysqladmin
 %attr(755, root, root) %{_bindir}/mysqlbinlog
@@ -1143,6 +1144,9 @@ echo "====="                                     >> $STATUS_HISTORY
 # ----------------------------------------------------------------------------
 %files -n MySQL-devel%{product_suffix} -f optional-files-devel
 %defattr(-, root, root, 0755)
+%if %{defined license_files_server}
+%doc %{license_files_server}
+%endif
 %doc %attr(644, root, man) %{_mandir}/man1/comp_err.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysql_config.1*
 %attr(755, root, root) %{_bindir}/mysql_config
@@ -1157,6 +1161,9 @@ echo "====="                                     >> $STATUS_HISTORY
 # ----------------------------------------------------------------------------
 %files -n MySQL-shared%{product_suffix}
 %defattr(-, root, root, 0755)
+%if %{defined license_files_server}
+%doc %{license_files_server}
+%endif
 # Shared libraries (omit for architectures that don't support them)
 %{_libdir}/libmysql*.so*
 
@@ -1169,6 +1176,9 @@ echo "====="                                     >> $STATUS_HISTORY
 # ----------------------------------------------------------------------------
 %files -n MySQL-test%{product_suffix}
 %defattr(-, root, root, 0755)
+%if %{defined license_files_server}
+%doc %{license_files_server}
+%endif
 %attr(-, root, root) %{_datadir}/mysql-test
 %attr(755, root, root) %{_bindir}/mysql_client_test
 %attr(755, root, root) %{_bindir}/mysql_client_test_embedded
@@ -1182,6 +1192,9 @@ echo "====="                                     >> $STATUS_HISTORY
 # ----------------------------------------------------------------------------
 %files -n MySQL-embedded%{product_suffix}
 %defattr(-, root, root, 0755)
+%if %{defined license_files_server}
+%doc %{license_files_server}
+%endif
 %attr(755, root, root) %{_bindir}/mysql_embedded
 %attr(644, root, root) %{_libdir}/mysql/libmysqld.a
 %attr(644, root, root) %{_libdir}/mysql/libmysqld-debug.a
@@ -1192,6 +1205,9 @@ echo "====="                                     >> $STATUS_HISTORY
 # merging BK trees)
 ##############################################################################
 %changelog
+* Mon Oct 06 2014 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com>
+- Add license info in each subpackage
+
 * Wed May 28 2014 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com>
 - Updated usergroup to mysql on datadir
 

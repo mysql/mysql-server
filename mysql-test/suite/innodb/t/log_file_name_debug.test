@@ -9,10 +9,18 @@
 --echo #
 
 SET GLOBAL DEBUG='+d,fil_names_write_bogus';
+
+--source include/no_checkpoint_start.inc
+
 CREATE TABLE t1(a INT PRIMARY KEY) ENGINE=InnoDB;
---source include/kill_and_restart_mysqld.inc
+
+--let CLEANUP_IF_CHECKPOINT=DROP TABLE t1;
+--source include/no_checkpoint_end.inc
+
+--source include/start_mysqld.inc
+
 DROP TABLE t1;
 
 let SEARCH_FILE = $MYSQLTEST_VARDIR/log/mysqld.1.err;
-let SEARCH_PATTERN = InnoDB: Tablespace 4294967295 was not found at .*, but there were no modifications either;
+let SEARCH_PATTERN = InnoDB: Tablespace 4294967280 was not found at .*, but there were no modifications either;
 --source include/search_pattern.inc

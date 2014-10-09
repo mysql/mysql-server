@@ -9,13 +9,6 @@
 --source include/have_innodb.inc
 --source include/have_debug.inc
 
-# Valgrind would complain about memory leaks when we crash on purpose.
---source include/not_valgrind.inc
-# Embedded server does not support crashing
---source include/not_embedded.inc
-# Avoid CrashReporter popup on Mac
---source include/not_crashrep.inc
-
 # Non-Compressed/Compact/Single-Tablespace
 let $wl6501_file_per_table = 1;
 let $wl6501_row_fmt = compact;

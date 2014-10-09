@@ -106,7 +106,7 @@ String* Item_func_inet_ntoa::val_str(String* str)
 
     Also return null if n > 255.255.255.255
   */
-  null_value= args[0]->null_value || n > (ulonglong) LL(4294967295);
+  null_value= args[0]->null_value || n > (ulonglong) 4294967295LL;
 
   if (null_value)
     return 0;                                   // Null value
