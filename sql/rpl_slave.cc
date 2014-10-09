@@ -6693,6 +6693,10 @@ llstr(rli->get_group_master_log_pos(), llbuff));
 
  err:
 
+  (void) RUN_HOOK(binlog_relay_io, consumer_thread_stop,
+                  (thd, rli->mi,
+                   (abort_loop || thd->killed || rli->abort_slave)));
+
   slave_stop_workers(rli, &mts_inited); // stopping worker pool
   if (rli->recovery_groups_inited)
   {

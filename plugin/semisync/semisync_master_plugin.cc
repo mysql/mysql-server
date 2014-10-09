@@ -79,6 +79,16 @@ int repl_semi_request_commit(Trans_param *param)
   return 0;
 }
 
+int repl_semi_report_before_commit(Trans_param *param)
+{
+  return 0;
+}
+
+int repl_semi_report_before_rollback(Trans_param *param)
+{
+  return 0;
+}
+
 int repl_semi_report_commit(Trans_param *param)
 {
 
@@ -391,6 +401,8 @@ static void fix_rpl_semi_sync_master_wait_no_slave(MYSQL_THD thd,
 Trans_observer trans_observer = {
   sizeof(Trans_observer),		// len
 
+  repl_semi_report_before_commit,   // before_commit
+  repl_semi_report_before_rollback, // before_rollback
   repl_semi_report_commit,	// after_commit
   repl_semi_report_rollback,	// after_rollback
 };
