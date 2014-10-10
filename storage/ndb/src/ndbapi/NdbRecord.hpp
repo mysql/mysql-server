@@ -87,7 +87,13 @@ public:
     */
     IsMysqldShrinkVarchar= 0x80,
     /* Bitfield stored in the internal mysqld format. */
-    IsMysqldBitfield= 0x100
+    IsMysqldBitfield= 0x100,
+    /*
+      Bit field maps only null bits.
+      No overflow bits.
+      Used only with IsMysqldBitfield.
+    */
+    BitFieldMapsNullBitOnly= 0x200
   };
 
   struct Attr
