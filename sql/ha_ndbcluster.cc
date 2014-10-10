@@ -2377,6 +2377,17 @@ ndb_set_record_specification(uint field_no,
     spec->nullbit_byte_offset= 0;
     spec->nullbit_bit_in_byte= 0;
   }
+  spec->column_flags= 0;
+  if (table->field[field_no]->type() == MYSQL_TYPE_STRING &&
+      table->field[field_no]->pack_length() == 0)
+  {
+    /*
+      This is CHAR(0), which we represent as
+      a nullable BIT(1) column where we ignore the data bit
+    */
+    spec->column_flags |=
+        NdbDictionary::RecordSpecification::BitColMapsNullBitOnly;
+  }
 }
 
 int
@@ -2393,7 +2404,8 @@ ha_ndbcluster::add_table_ndb_record(NDBDICT *dict)
   }
 
   rec= dict->createRecord(m_table, spec, i, sizeof(spec[0]),
-                          NdbDictionary::RecMysqldBitfield);
+                          NdbDictionary::RecMysqldBitfield |
+                          NdbDictionary::RecPerColumnFlags);
   if (! rec)
     ERR_RETURN(dict->getNdbError());
   m_ndb_record= rec;

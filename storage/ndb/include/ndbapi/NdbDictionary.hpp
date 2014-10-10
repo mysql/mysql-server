@@ -1654,7 +1654,9 @@ public:
     */
     RecMysqldShrinkVarchar= 0x1,
     /* Use the mysqld record format for bitfields, only used inside mysqld. */
-    RecMysqldBitfield= 0x2
+    RecMysqldBitfield= 0x2,
+    /* Enabled if column_flags in RecordSpec is being used. */
+    RecPerColumnFlags= 0x4
   };
   struct RecordSpecification {
     /*
@@ -1693,6 +1695,32 @@ public:
     */
     Uint32 nullbit_byte_offset;
     /* NULL bit, 0-7. Not used for columns that are not NULLable. */
+    Uint32 nullbit_bit_in_byte;
+    /* various column specific flags */
+    enum ColumnFlags
+    {
+      /*
+        Skip reading/writing overflow bits in bitmap
+        Used for MySQLD char(0) column
+        Used only with RecMysqldBitfield flag
+      */
+      BitColMapsNullBitOnly= 0x1
+    };
+    /*
+      Column specific flags
+      Used only when RecPerColumnFlags is enabled
+    */
+    Uint32 column_flags;
+  };
+
+  /*
+    First version of RecordSpecification
+    Maintained here for backward compatibility reasons.
+  */
+  struct RecordSpecification_v1 {
+    const Column *column;
+    Uint32 offset;
+    Uint32 nullbit_byte_offset;
     Uint32 nullbit_bit_in_byte;
   };
 

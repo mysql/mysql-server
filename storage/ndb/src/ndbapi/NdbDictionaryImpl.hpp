@@ -961,6 +961,12 @@ public:
                           Uint32 elemSize,
                           Uint32 flags,
                           bool defaultRecord);
+  NdbRecord *createRecordInternal(const NdbTableImpl *table,
+                                  const NdbDictionary::RecordSpecification *recSpec,
+                                  Uint32 length,
+                                  Uint32 elemSize,
+                                  Uint32 flags,
+                                  bool defaultRecord);
   void releaseRecord_impl(NdbRecord *rec);
 
   static NdbDictionary::RecordType 
