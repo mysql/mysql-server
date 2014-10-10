@@ -815,14 +815,16 @@ buf_read_recv_pages(
 	ulint			count;
 	dberr_t			err;
 	ulint			i;
-	const ulint		space_flags = fil_space_get_flags(space_id);
+	fil_space_t*		space	= fil_space_get(space_id);
 
-	if (space_flags == ULINT_UNDEFINED) {
+	if (space == NULL) {
 		/* The tablespace is missing: do nothing */
 		return;
 	}
 
-	const page_size_t	page_size(space_flags);
+	fil_space_open_if_needed(space);
+
+	const page_size_t	page_size(space->flags);
 
 	for (i = 0; i < n_stored; i++) {
 		buf_pool_t*		buf_pool;

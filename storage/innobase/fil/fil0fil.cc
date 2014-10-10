@@ -433,7 +433,9 @@ fil_space_get_by_name(
 #ifndef UNIV_HOTBACKUP
 /** Look up a tablespace.
 The caller should hold an InnoDB table lock or a MDL that prevents
-the tablespace from being dropped during the operation.
+the tablespace from being dropped during the operation,
+or the caller should be in single-threaded crash recovery mode
+(no user connections that could drop tablespaces).
 If this is not the case, fil_space_acquire() and fil_space_release()
 should be used instead.
 @param[in]	id	tablespace ID
@@ -445,7 +447,7 @@ fil_space_get(
 	mutex_enter(&fil_system->mutex);
 	fil_space_t*	space = fil_space_get_by_id(id);
 	mutex_exit(&fil_system->mutex);
-	ut_ad(space->purpose != FIL_TYPE_LOG);
+	ut_ad(space == NULL || space->purpose != FIL_TYPE_LOG);
 	return(space);
 }
 /** Returns the latch of a file space.
@@ -1819,12 +1821,10 @@ fil_write_flushed_lsn(
 Used by background threads that do not necessarily hold proper locks
 for concurrency control.
 @param[in]	id	tablespace ID
-@param[in]	verbose	whether to report missing tablespaces
 @return the tablespace, or NULL if deleted or being deleted */
 fil_space_t*
 fil_space_acquire(
-	ulint	id,
-	bool	verbose)
+	ulint	id)
 {
 	fil_space_t*	space;
 
@@ -1833,10 +1833,8 @@ fil_space_acquire(
 	space = fil_space_get_by_id(id);
 
 	if (space == NULL) {
-		if (verbose) {
-			ib::error() << "Trying to do an operation on a dropped"
-				" tablespace. Space ID: " << id;
-		}
+		ib::error() << "Trying to do an operation on a dropped"
+			" tablespace. Space ID: " << id;
 	} else if (space->stop_new_ops || space->is_being_truncated) {
 		space = NULL;
 	} else {
@@ -2286,7 +2284,7 @@ fil_op_replay_rename(
 	* A tablespace exists with the old name.
 	* The space ID for that tablepace matches this log entry.
 	This will prevent unintended renames during recovery. */
-	fil_space_t*	space = fil_space_acquire(space_id, false);
+	fil_space_t*	space = fil_space_get(space_id);
 
 	if (space == NULL) {
 		return(true);
@@ -2294,8 +2292,6 @@ fil_op_replay_rename(
 
 	const bool name_match
 		= strcmp(name, UT_LIST_GET_FIRST(space->chain)->name) == 0;
-
-	fil_space_release(space);
 
 	if (!name_match) {
 		return(true);
