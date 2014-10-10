@@ -60,6 +60,12 @@ fsp_flags_are_equal(
 	ulint	flags1,
 	ulint	flags2)
 {
+	/* If either one of these flags is ULINT_UNDEFINED,
+	then they are not equal */
+	if (flags1 == ULINT_UNDEFINED || flags2 == ULINT_UNDEFINED) {
+		return(false);
+	}
+
 	return(flags1 == flags2);
 }
 

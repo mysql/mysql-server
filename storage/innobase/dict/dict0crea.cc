@@ -357,8 +357,8 @@ dict_build_tablespace_for_table(
 		the table we create here. */
 
 		err = fil_create_ibd_tablespace(
-			space, table->name.m_name, filepath, fsp_flags, is_temp,
-			FIL_IBD_FILE_INITIAL_SIZE);
+			space, table->name.m_name, filepath, fsp_flags,
+			is_temp, FIL_IBD_FILE_INITIAL_SIZE);
 
 		ut_free(filepath);
 
