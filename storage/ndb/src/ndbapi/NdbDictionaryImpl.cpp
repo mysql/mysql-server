@@ -6516,6 +6516,15 @@ NdbDictionaryImpl::validateRecordSpec(const NdbDictionary::RecordSpecification *
     Uint64 elementByteLength= col->getSizeInBytes();
     Uint64 nullLength= col->getNullable() ? 1 : 0;
 
+    if((flags & NdbDictionary::RecPerColumnFlags) &&
+       (recSpec[rs].column_flags &
+           ~NdbDictionary::RecordSpecification::BitColMapsNullBitOnly))
+    {
+      /* column_flag has invalid values */
+      m_error.code= 4556;
+      return false;
+    }
+
     /* Blobs 'data' just occupies the size of an NdbBlob ptr */
     const NdbDictionary::Column::Type type= col->getType();
     const bool isBlob= 
@@ -6530,16 +6539,27 @@ NdbDictionaryImpl::validateRecordSpec(const NdbDictionary::RecordSpecification *
     if ((type == NdbDictionary::Column::Bit) &&
         (flags & NdbDictionary::RecMysqldBitfield))
     {
-      /* MySQLD Bit format puts 'fractional' part of bit types 
-       * in with the null bits - so there's 1 optional Null 
-       * bit followed by n (max 7) databits, at position 
-       * given by the nullbit offsets.  Then the rest of
-       * the bytes go at the normal offset position.
-       */
-      Uint32 bitLength= col->getLength();
-      Uint32 fractionalBits= bitLength % 8;
-      nullLength+= fractionalBits;
-      elementByteLength= bitLength / 8;
+      if((flags & NdbDictionary::RecPerColumnFlags) &&
+         (recSpec[rs].column_flags &
+            NdbDictionary::RecordSpecification::BitColMapsNullBitOnly) &&
+          col->getLength() == 1)
+      {
+        /* skip counting overflow bits */
+        elementByteLength = 0;
+      }
+      else
+      {
+        /* MySQLD Bit format puts 'fractional' part of bit types 
+         * in with the null bits - so there's 1 optional Null 
+         * bit followed by n (max 7) databits, at position 
+         * given by the nullbit offsets.  Then the rest of
+         * the bytes go at the normal offset position.
+         */
+        Uint32 bitLength= col->getLength();
+        Uint32 fractionalBits= bitLength % 8;
+        nullLength+= fractionalBits;
+        elementByteLength= bitLength / 8;
+      }
     }
 
     /* Does the element itself have any bytes?
@@ -6906,6 +6926,14 @@ NdbDictionaryImpl::initialiseColumnData(bool isIndex,
         recCol->nullbit_bit_in_byte= recSpec->nullbit_bit_in_byte;
       }
     }
+    if ((flags & NdbDictionary::RecPerColumnFlags) &&
+        (recSpec->column_flags &
+           NdbDictionary::RecordSpecification::BitColMapsNullBitOnly) &&
+        (col->getLength() == 1))
+    {
+      /* Bitfield maps only null bit values. No overflow bits*/
+      recCol->flags|= NdbRecord::BitFieldMapsNullBitOnly;
+    }
   }
   else
     recCol->bitCount= 0;
@@ -6920,38 +6948,29 @@ NdbDictionaryImpl::initialiseColumnData(bool isIndex,
 }
 
 /**
- * createRecord
+ * createRecordInternal
  * Create an NdbRecord object using the table implementation and
  * RecordSpecification array passed.
  * The table pointer may be a proper table, or the underlying
  * table of an Index.  In any case, it is assumed that is is a
  * global table object, which may be safely shared between
  * multiple threads.  The responsibility for ensuring that it is
- * a global object rests with the caller
+ * a global object rests with the caller. Called internally by
+ * the createRecord method
  */
 NdbRecord *
-NdbDictionaryImpl::createRecord(const NdbTableImpl *table,
-                                const NdbDictionary::RecordSpecification *recSpec,
-                                Uint32 length,
-                                Uint32 elemSize,
-                                Uint32 flags,
-                                bool defaultRecord)
+NdbDictionaryImpl::createRecordInternal(const NdbTableImpl *table,
+                                        const NdbDictionary::RecordSpecification *recSpec,
+                                        Uint32 length,
+                                        Uint32 elemSize,
+                                        Uint32 flags,
+                                        bool defaultRecord)
 {
   NdbRecord *rec= NULL;
   Uint32 numKeys, tableNumKeys, numIndexDistrKeys, min_distkey_prefix_length;
   Uint32 oldAttrId;
   bool isIndex;
   Uint32 i;
-
-  /*
-    In later versions we can use elemSize to provide backwards
-    compatibility if we extend the RecordSpecification structure.
-  */
-  if (elemSize != sizeof(NdbDictionary::RecordSpecification))
-  {
-    m_error.code= 4289;
-    return NULL;
-  }
 
   if (!validateRecordSpec(recSpec, length, flags))
   {
@@ -7183,6 +7202,75 @@ NdbDictionaryImpl::createRecord(const NdbTableImpl *table,
   return NULL;
 }
 
+/**
+ * createRecord
+ * Create an NdbRecord object using the table implementation and
+ * RecordSpecification array passed.
+ * The table pointer may be a proper table, or the underlying
+ * table of an Index.  In any case, it is assumed that is is a
+ * global table object, which may be safely shared between
+ * multiple threads.  The responsibility for ensuring that it is
+ * a global object rests with the caller. Method validates the
+ * version of the sent RecordSpecification instance, maps it to
+ * a newer version if necessary and internally calls
+ * createRecordInternal to do the processing
+ */
+NdbRecord *
+NdbDictionaryImpl::createRecord(const NdbTableImpl *table,
+                                const NdbDictionary::RecordSpecification *recSpec,
+                                Uint32 length,
+                                Uint32 elemSize,
+                                Uint32 flags,
+                                bool defaultRecord)
+{
+  NdbDictionary::RecordSpecification *newRecordSpec = NULL;
+
+  /* Check if recSpec is an instance of the newer version */
+  if (elemSize != sizeof(NdbDictionary::RecordSpecification))
+  {
+    if(elemSize == sizeof(NdbDictionary::RecordSpecification_v1))
+    {
+      /*
+        Older RecordSpecification in use.
+        Map it to an instance of newer version.
+      */
+      const NdbDictionary::RecordSpecification_v1* oldRecordSpec =
+          (const NdbDictionary::RecordSpecification_v1*) recSpec;
+
+      newRecordSpec =(NdbDictionary::RecordSpecification*)
+                      NdbMem_Allocate(length *
+                        sizeof(NdbDictionary::RecordSpecification));
+      for (Uint32 i= 0; i < length; i++)
+      {
+        /* map values from older version to newer version */
+        newRecordSpec[i].column = oldRecordSpec[i].column;
+        newRecordSpec[i].offset = oldRecordSpec[i].offset;
+        newRecordSpec[i].nullbit_byte_offset =
+            oldRecordSpec[i].nullbit_byte_offset;
+        newRecordSpec[i].nullbit_bit_in_byte =
+            oldRecordSpec[i].nullbit_bit_in_byte;
+        newRecordSpec[i].column_flags = 0;
+        /* reset the NdbDictionary::RecPerColumnFlags in flag to 0 */
+        flags &= ~NdbDictionary::RecPerColumnFlags;
+      }
+      recSpec = &newRecordSpec[0];
+    }
+    else
+    {
+      m_error.code= 4289;
+      return NULL;
+    }
+  }
+  NdbRecord *ndbRec = createRecordInternal(table,
+                                           recSpec,
+                                           length,
+                                           elemSize,
+                                           flags,
+                                           defaultRecord);
+  NdbMem_Free((void*)newRecordSpec);
+  return ndbRec;
+}
+
 void
 NdbRecord::copyMask(Uint32 *dst, const unsigned char *src) const
 {
@@ -7223,7 +7311,8 @@ NdbRecord::Attr::get_mysqld_bitfield(const char *src_row, char *dst_buffer) cons
   Uint32 fractional_bitcount= remaining_bits % 8;
 
   /* Copy fractional bits, if any. */
-  if (fractional_bitcount > 0)
+  if (fractional_bitcount > 0 &&
+      !(flags & BitFieldMapsNullBitOnly))
   {
     Uint32 fractional_shift= nullbit_bit_in_byte + ((flags & IsNullable) != 0);
     Uint32 fractional_bits= (unsigned char)(src_row[nullbit_byte_offset]);
@@ -7281,7 +7370,8 @@ NdbRecord::Attr::put_mysqld_bitfield(char *dst_row, const char *src_buffer) cons
   }
 
   /* Copy fractional bits, if any. */
-  if (remaining_bits > 0)
+  if (remaining_bits > 0 &&
+      !(flags & BitFieldMapsNullBitOnly))
   {
     Uint32 shift= nullbit_bit_in_byte + ((flags & IsNullable) != 0);
     Uint32 mask= ((1 << remaining_bits) - 1) << shift;

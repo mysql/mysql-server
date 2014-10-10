@@ -5687,6 +5687,186 @@ runReceiveTRANSIDAIAfterRollback(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_FAILED;
 }
 
+int
+testNdbRecordSpecificationCompatibility(NDBT_Context* ctx, NDBT_Step* step)
+{
+  /* Test for checking the compatibility of RecordSpecification
+   * when compiling old code with newer header.
+   * Create an instance of RecordSpecification_v1 and try to pass
+   * it to the NdbApi createRecord.
+   */
+
+  Ndb* pNdb = GETNDB(step);
+  const NdbDictionary::Table* pTab= ctx->getTab();
+  int numCols= pTab->getNoOfColumns();
+  const NdbRecord* defaultRecord= pTab->getDefaultRecord();
+
+  NdbDictionary::RecordSpecification_v1 rsArray[ NDB_MAX_ATTRIBUTES_IN_TABLE ];
+
+  for (int attrId=0; attrId< numCols; attrId++)
+  {
+    NdbDictionary::RecordSpecification_v1& rs= rsArray[attrId];
+
+    rs.column= pTab->getColumn(attrId);
+    rs.offset= 0;
+    rs.nullbit_byte_offset= 0;
+    rs.nullbit_bit_in_byte= 0;
+    CHECK(NdbDictionary::getOffset(defaultRecord,
+                                   attrId,
+                                   rs.offset));
+    CHECK(NdbDictionary::getNullBitOffset(defaultRecord,
+                                          attrId,
+                                          rs.nullbit_byte_offset,
+                                          rs.nullbit_bit_in_byte));
+  }
+  const NdbRecord* tabRec= pNdb->getDictionary()->createRecord(pTab,
+                              (NdbDictionary::RecordSpecification*)rsArray,
+                              numCols,
+                              sizeof(NdbDictionary::RecordSpecification));
+  CHECK(tabRec != 0);
+
+  char keyRowBuf[ NDB_MAX_TUPLE_SIZE_IN_WORDS << 2 ];
+  char attrRowBuf[ NDB_MAX_TUPLE_SIZE_IN_WORDS << 2 ];
+  bzero(keyRowBuf, sizeof(keyRowBuf));
+  bzero(attrRowBuf, sizeof(attrRowBuf));
+
+  HugoCalculator calc(*pTab);
+
+  const int numRecords= 100;
+
+  for (int record=0; record < numRecords; record++)
+  {
+    int updates= 0;
+    /* calculate the Hugo values for this row */
+    for (int col=0; col<pTab->getNoOfColumns(); col++)
+    {
+      char* valPtr= NdbDictionary::getValuePtr(tabRec,
+                                               keyRowBuf,
+                                               col);
+      CHECK(valPtr != NULL);
+      int len= pTab->getColumn(col)->getSizeInBytes();
+      Uint32 real_len;
+      bool isNull= (calc.calcValue(record, col, updates, valPtr,
+                                   len, &real_len) == NULL);
+      if (pTab->getColumn(col)->getNullable())
+      {
+        NdbDictionary::setNull(tabRec,
+                               keyRowBuf,
+                               col,
+                               isNull);
+      }
+    }
+
+    /* insert the row */
+    NdbTransaction* trans=pNdb->startTransaction();
+    CHECK(trans != 0);
+    CHECK(trans->getNdbError().code == 0);
+
+    const NdbOperation* op= NULL;
+    op= trans->insertTuple(tabRec,
+                           keyRowBuf);
+    CHECK(op != 0);
+
+    CHECK(trans->execute(Commit) == 0);
+    trans->close();
+
+    /* Now read back */
+    Uint32 pkVal= 0;
+    memcpy(&pkVal, NdbDictionary::getValuePtr(tabRec,
+                                              keyRowBuf,
+                                              0),
+           sizeof(pkVal));
+
+    trans= pNdb->startTransaction();
+    op= trans->readTuple(tabRec,
+                         keyRowBuf,
+                         tabRec,
+                         attrRowBuf);
+    CHECK(op != 0);
+    CHECK(trans->execute(Commit) == 0);
+    CHECK(trans->getNdbError().code == 0);
+    trans->close();
+
+    /* Verify the values read back */
+    for (int col=0; col<pTab->getNoOfColumns(); col++)
+    {
+      const char* valPtr= NdbDictionary::getValuePtr(tabRec,
+                                                     attrRowBuf,
+                                                     col);
+      CHECK(valPtr != NULL);
+
+      char calcBuff[ NDB_MAX_TUPLE_SIZE_IN_WORDS << 2 ];
+      int len= pTab->getColumn(col)->getSizeInBytes();
+      Uint32 real_len;
+      bool isNull= (calc.calcValue(record, col, updates, calcBuff,
+                                   len, &real_len) == NULL);
+      bool colIsNullable= pTab->getColumn(col)->getNullable();
+      if (isNull)
+      {
+        CHECK(colIsNullable);
+        if (!NdbDictionary::isNull(tabRec,
+                                   attrRowBuf,
+                                   col))
+        {
+          ndbout << "Error, col " << col
+              << " (pk=" <<  pTab->getColumn(col)->getPrimaryKey()
+                  << ") should be Null, but is not" << endl;
+          return NDBT_FAILED;
+        }
+      }
+      else
+      {
+        if (colIsNullable)
+        {
+          if (NdbDictionary::isNull(tabRec,
+                                    attrRowBuf,
+                                    col))
+          {
+            ndbout << "Error, col " << col
+                << " (pk=" << pTab->getColumn(col)->getPrimaryKey()
+                << ") should be non-Null but is null" << endl;
+            return NDBT_FAILED;
+          };
+        }
+
+        /* Compare actual data read back */
+        if( memcmp(calcBuff, valPtr, real_len) != 0 )
+        {
+          ndbout << "Error, col " << col
+              << " (pk=" << pTab->getColumn(col)->getPrimaryKey()
+              << ") should be equal, but isn't for record "
+              << record << endl;
+          ndbout << "Expected :";
+          for (Uint32 i=0; i < real_len; i++)
+          {
+            ndbout_c("%x ", calcBuff[i]);
+          }
+          ndbout << endl << "Received :";
+          for (Uint32 i=0; i < real_len; i++)
+          {
+            ndbout_c("%x ", valPtr[i]);
+          }
+          ndbout << endl;
+
+          return NDBT_FAILED;
+        }
+      }
+    }
+
+    /* Now delete the tuple */
+    trans= pNdb->startTransaction();
+    op= trans->deleteTuple(tabRec,
+                           keyRowBuf,
+                           tabRec);
+    CHECK(op != 0);
+    CHECK(trans->execute(Commit) == 0);
+
+    trans->close();
+  }
+
+  return NDBT_OK;
+}
+
 NDBT_TESTSUITE(testNdbApi);
 TESTCASE("MaxNdb", 
 	 "Create Ndb objects until no more can be created\n"){ 
@@ -5971,6 +6151,10 @@ TESTCASE("ReceiveTRANSIDAIAfterRollback",
 ){
   STEP(runReceiveTRANSIDAIAfterRollback);
   FINALIZER(runClearTable);
+}
+TESTCASE("RecordSpecificationBackwardCompatibility",
+         "Test RecordSpecification struct's backward compatibility"){
+  STEP(testNdbRecordSpecificationCompatibility);
 }
 NDBT_TESTSUITE_END(testNdbApi);
 
