@@ -2845,21 +2845,19 @@ err_exit:
 
 	/* Update SYS_TABLESPACES and SYS_DATAFILES if a new file-per-table
 	tablespace was created. */
-	if (!is_system_tablespace(table->space)) {
+	if (err == DB_SUCCESS && dict_table_use_file_per_table(table)) {
 
-		ut_a(dict_table_use_file_per_table(table));
+		ut_ad(!is_system_tablespace(table->space));
 
-		if (err == DB_SUCCESS) {
-			char*	path;
-			path = fil_space_get_first_path(table->space);
+		char*	path;
+		path = fil_space_get_first_path(table->space);
 
-			err = dict_create_add_tablespace_to_dictionary(
-				table->space, table->name.m_name,
-				fil_space_get_flags(table->space),
-				path, trx, commit);
+		err = dict_create_add_tablespace_to_dictionary(
+			table->space, table->name.m_name,
+			fil_space_get_flags(table->space),
+			path, trx, commit);
 
 			ut_free(path);
-		}
 
 		if (err != DB_SUCCESS) {
 			/* We must delete the link file. */
@@ -2895,7 +2893,7 @@ err_exit:
 	case DB_TOO_MANY_CONCURRENT_TRXS:
 		/* We already have .ibd file here. it should be deleted. */
 
-		if (table->space
+		if (dict_table_use_file_per_table(table)
 		    && fil_delete_tablespace(
 			    table->space,
 			    BUF_REMOVE_FLUSH_NO_WRITE)

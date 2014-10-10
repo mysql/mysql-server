@@ -1531,6 +1531,8 @@ dict_table_rename_in_cache(
 		char*		filepath;
 
 		ut_ad(!is_system_tablespace(table->space));
+		ut_ad(!dict_table_is_temporary(table));
+		ut_ad(dict_table_use_file_per_table(table));
 
 		/* Make sure the data_dir_path is set. */
 		dict_get_and_save_data_dir_path(table, true);
@@ -1563,7 +1565,7 @@ dict_table_rename_in_cache(
 
 		ut_free(filepath);
 
-	} else if (!is_system_tablespace(table->space)) {
+	} else if (dict_table_use_file_per_table(table)) {
 		if (table->dir_path_of_temp_table != NULL) {
 			ib::error() << "Trying to rename a TEMPORARY TABLE "
 				<< old_name
@@ -5710,8 +5712,8 @@ fail:
 
 	mtr_commit(&mtr);
 	mem_heap_empty(heap);
-	ib::error() << status << " corruption of " << index->name
-		<< " in table " << index->table->name << " in " << ctx;
+	ib::error() << status << " corruption of `" << index->name
+		<< "` in table " << index->table->name << " in " << ctx;
 	mem_heap_free(heap);
 
 func_exit:

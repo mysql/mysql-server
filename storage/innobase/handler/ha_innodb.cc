@@ -9250,7 +9250,7 @@ get_row_format_name(
 	return("NOT USED");
 }
 
-/** Determine if create option DATA DIRECTORY is valid.
+/** Validate DATA DIRECTORY option.
 @return true if valid, false if not. */
 bool
 create_table_info_t::create_option_data_directory_is_valid()
@@ -9294,6 +9294,7 @@ create_table_info_t::create_options_are_invalid()
 {
 	bool	has_key_block_size = (m_create_info->key_block_size != 0);
 	bool	is_temp = m_create_info->options & HA_LEX_CREATE_TMP_TABLE;
+
 	const char*	ret = NULL;
 	enum row_type	row_format	= m_create_info->row_type;
 
@@ -9522,10 +9523,9 @@ create_table_info_t::parse_table_name(
 	m_temp_path[0] = '\0';
 	m_remote_path[0] = '\0';
 
-	/* A full path is used for TEMPORARY TABLE and DATA DIRECTORY.
-	In the case of;
-	  CREATE TEMPORARY TABLE ... DATA DIRECTORY={path} ... ;
-	We ignore the DATA DIRECTORY. */
+	/* A full path is provided by the server for TEMPORARY tables not
+	targeted for a tablespace or when DATA DIRECTORY is given.
+	So these two are not compatible. */
 	if (m_create_info->options & HA_LEX_CREATE_TMP_TABLE) {
 		strncpy(m_temp_path, name, FN_REFLEN - 1);
 	}
@@ -9730,6 +9730,7 @@ index_bad:
 				"InnoDB: ROW_FORMAT=%s requires"
 				" innodb_file_per_table.",
 				get_row_format_name(row_type));
+
 		} else if (file_format_allowed == UNIV_FORMAT_A) {
 			push_warning_printf(
 				m_thd, Sql_condition::SL_WARNING,
@@ -9737,6 +9738,7 @@ index_bad:
 				"InnoDB: ROW_FORMAT=%s requires"
 				" innodb_file_format > Antelope.",
 				get_row_format_name(row_type));
+
 		} else {
 			/* We can use this row_format. */
 			innodb_row_format = (row_type == ROW_TYPE_DYNAMIC
@@ -9764,20 +9766,15 @@ index_bad:
 		zip_ssize = 0;
 	}
 
-	/* DATA DIRECTORY cannot be used with INNODB_FILE_PER_TABLE = OFF
-	nor with TEMPORARY tables. */
-	use_data_dir = m_file_per_table
-		       && ((m_create_info->data_file_name != NULL)
-		       && !(m_create_info->options & HA_LEX_CREATE_TMP_TABLE));
-
 	/* Set the table flags */
-	dict_tf_set(&m_flags, innodb_row_format, zip_ssize, use_data_dir);
+	dict_tf_set(&m_flags, innodb_row_format, zip_ssize,
+	            m_use_data_dir);
 
 	if (m_create_info->options & HA_LEX_CREATE_TMP_TABLE) {
 		m_flags2 |= DICT_TF2_TEMPORARY;
 
-		/* Intrinsic table reside only in shared temporary
-		tablespace. */
+		/* Intrinsic tables reside only in the shared
+		temporary tablespace. */
 		if ((THDVAR(m_thd, create_intrinsic)
 		     || m_create_info->options
 			& HA_LEX_CREATE_INTERNAL_TMP_TABLE)
@@ -9835,16 +9832,6 @@ create_table_info_t::prepare_create_table(
 
 	DBUG_ASSERT(m_thd != NULL);
 	DBUG_ASSERT(m_create_info != NULL);
-
-	/* Cache the global variable "srv_file_per_table" to a local
-	variable before using it. Note that "srv_file_per_table"
-	is not under dict_sys mutex protection, and could be changed
-	while creating the table. So we read the current value here
-	and make all further decisions based on this.
-	Ignore the current innodb-file-per-table setting if we are
-	creating a temporary, non-compressed table */
-	m_file_per_table = srv_file_per_table
-		&& !table_is_noncompressed_temporary(m_create_info);
 
 	if (m_form->s->fields > REC_MAX_N_USER_FIELDS) {
 		DBUG_RETURN(HA_ERR_TOO_MANY_FIELDS);
@@ -9907,8 +9894,11 @@ create_table_info_t::create_table()
 	size_t		stmt_len;
 #ifdef UNIV_DEBUG
 	const bool	is_intrinsic_temp_table
-		= (m_flags2 & DICT_TF2_TEMPORARY)
-		  && (m_flags2 & DICT_TF2_INTRINSIC);
+		= (m_flags2 & DICT_TF2_INTRINSIC) != 0;
+
+	/* DICT_TF2_INTRINSIC implies DICT_TF2_TEMPORARY */
+	ut_ad(!(m_flags2 & DICT_TF2_INTRINSIC)
+	      || (m_flags2 & DICT_TF2_TEMPORARY));
 #endif /* UNIV_DEBUG */
 
 	DBUG_ENTER("create_table");
@@ -10198,14 +10188,26 @@ ha_innobase::create(
 	trx_t*		trx;
 	DBUG_ENTER("ha_innobase::create");
 
+	/* Determine if this CREATE TABLE will be making a file-per-table
+	tablespace.  Note that "srv_file_per_table" is not under
+	dict_sys mutex protection, and could be changed while creating the
+	table. So we read the current value here and make all further
+	decisions based on this.
+	Ignore the current innodb-file-per-table setting if we are
+	creating a temporary, non-compressed table. */
+	bool	needs_file_per_table =
+		srv_file_per_table
+		&& !table_is_noncompressed_temporary(create_info);
+
 	create_table_info_t	info(ha_thd(),
 				     form,
 				     create_info,
 				     norm_name,
 				     temp_path,
 				     remote_path,
-				     false /* will be fixed in
-					   prepare_create_table! */);
+				     needs_file_per_table);
+
+	/* Initialize the object and do some validation. */
 	if ((error = info.prepare_create_table(name))) {
 		DBUG_RETURN(error);
 	}

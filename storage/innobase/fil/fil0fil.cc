@@ -3490,8 +3490,7 @@ error_exit_1:
 }
 
 #ifndef UNIV_HOTBACKUP
-/********************************************************************//**
-Tries to open a single-table tablespace and optionally checks that the
+/** Try to open a single-table tablespace and optionally check that the
 space id in it is correct. If this does not succeed, print an error message
 to the .err log. This function is used to open a tablespace when we start
 mysqld after the dictionary has been booted, and also in IMPORT TABLESPACE.
