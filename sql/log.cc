@@ -1611,7 +1611,7 @@ bool MYSQL_LOG::open(
   DBUG_RETURN(0);
 
 err:
-  if (log_type == LOG_BIN && binlogging_impossible_mode == ABORT_SERVER)
+  if (log_type == LOG_BIN && binlog_error_action == ABORT_SERVER)
   {
     THD *thd= current_thd;
     /*
