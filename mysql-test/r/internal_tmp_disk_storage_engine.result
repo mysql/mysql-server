@@ -2922,6 +2922,16 @@ no	no
 not	not
 really	really
 DROP TABLE t1,t2;
+#
+# BUG#19191377: WL#6737: NOT NULL COLUMN IS BEING PROJECTED
+#              AS NULLABLE IN TEMPORARY TABLES.
+#
+CREATE TABLE t1(f1 INT NOT NULL);
+INSERT INTO t1 VALUES (16777214), (0);
+SELECT COUNT(*) FROM t1 LEFT JOIN t1 t2 ON 1 WHERE t2.f1 > 1 GROUP BY t2.f1;
+COUNT(*)
+2
+DROP TABLE t1;
 set @@global.internal_tmp_disk_storage_engine= @old_internal_tmp_disk_storage_engine;
 set big_tables= @old_big_tables;
 #
