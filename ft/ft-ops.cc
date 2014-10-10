@@ -2237,7 +2237,7 @@ static int ft_leaf_get_relative_key_pos(FT ft, FTNODE leaf, const DBT *key, bool
                     nullptr, nullptr, nullptr
                     );
                 *target_childnum = childnum;
-                if (r == 0 && !le_latest_is_del(leftmost_le)) {
+                if (r == 0 && !le_latest_is_del(target_le)) {
                     *nondeleted_key_found = true;
                 }
             }
