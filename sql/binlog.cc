@@ -3358,7 +3358,7 @@ err:
   my_free(name);
   name= NULL;
   log_state= LOG_CLOSED;
-  if (binlogging_impossible_mode == ABORT_SERVER)
+  if (binlog_error_action == ABORT_SERVER)
   {
     THD *thd= current_thd;
     /*
@@ -4999,7 +4999,7 @@ end:
        - ...
     */
     close(LOG_CLOSE_INDEX);
-    if (binlogging_impossible_mode == ABORT_SERVER)
+    if (binlog_error_action == ABORT_SERVER)
     {
       THD *thd= current_thd;
       /*
