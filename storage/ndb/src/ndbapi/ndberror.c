@@ -775,6 +775,7 @@ ErrorBundle ErrorCodes[] = {
   { 4553, DMEC, AE, "NdbLockHandle original operation not executed successfully" },
   { 4554, DMEC, AE, "NdbBlob can only be closed from Active state" },
   { 4555, DMEC, AE, "NdbBlob cannot be closed with pending operations" },
+  { 4556, DMEC, AE, "RecordSpecification has illegal value in column_flags" },
 
   { 4200, DMEC, AE, "Status Error when defining an operation" },
   { 4201, DMEC, AE, "Variable Arrays not yet supported" },
