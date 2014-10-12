@@ -773,6 +773,9 @@ public:
   // ceiling for total allocated memory, 0 means unlimited
   unsigned m_max_alloc;
 
+  // Crash when OS memory allocation for event buffer fails
+  void crashMemAllocError(const char *error_text);
+
   EventBufferManager m_event_buffer_manager; // managing buffer memory usage
 
   unsigned get_eventbuffer_free_percent();
@@ -790,7 +793,6 @@ public:
 #endif
 
 private:
-  bool outOfMemory(Uint32 alloc_sz);
   void insert_event(NdbEventOperationImpl* impl,
                     SubTableData &data,
                     LinearSectionPtr *ptr,
@@ -851,13 +853,6 @@ private:
 public:
   void set_total_buckets(Uint32);
 };
-
-inline bool
-NdbEventBuffer::outOfMemory(Uint32 alloc_sz)
-{
-  return (m_max_alloc == 0 ? false :
-          (m_total_alloc + alloc_sz > m_max_alloc));
-}
 
 inline
 NdbEventOperationImpl*

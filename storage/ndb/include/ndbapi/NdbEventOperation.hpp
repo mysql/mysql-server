@@ -288,6 +288,7 @@ public:
 
   /**
    * Check whether the latest received event data marks an error epoch
+   * and get the error.
    */
   bool isErrorEpoch(Uint32 *error_type = 0);
 

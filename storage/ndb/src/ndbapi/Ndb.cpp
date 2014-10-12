@@ -2187,9 +2187,11 @@ Ndb::handle_exceptional_epochs()
 
     type = SubTableData::getOperation(data->sdata->requestInfo);
 
-    if (type < NdbDictionary::Event::_TE_EMPTY)
+    if (type <= NdbDictionary::Event::_TE_EMPTY)
     {
-      // Not an exceptional event data, so no need to handle them.
+      /**
+       * Not an exceptional event data.
+       */
       return 1;
     }
 
@@ -2204,17 +2206,14 @@ Ndb::handle_exceptional_epochs()
     }
 
     assert(type == NdbDictionary::Event::_TE_EMPTY);
-    // Remove empty epochs from the event queue until finding an
-    // event data of old event type or of TE_INCONSISTENT
-    NdbEventOperation *op = nextEvent2();
 
-    NdbEventOperationImpl *op_impl = data->m_event_op;
-    // All including exceptional event data must have an associated impl
-    assert(op_impl);
+    // Remove empty epoch event data from the event queue.
+    (void)nextEvent2();
 
-    // Double check that we removed the empty epoch from the queue
-    assert(op_impl->m_facade == op);
-
+    /**
+     * Repeat until finding an event data of event type
+     *  non-exceptional or TE_INCONSISTENT.
+     */
     data = theEventBuffer->m_available_data.m_head;
   }
 
@@ -2229,11 +2228,12 @@ Ndb::pollEvents(int aMillisecondNumber, Uint64 *latestGCI)
 
   if (res > 0)
   {
-    // Head of the event queue is not empty
+    // Head of the event queue is not empty, filter exceptional epochs
     Uint32 ret = handle_exceptional_epochs();
     if (ret == 0)
     {
       // The event data at the head must be of type TE_INCONSISTENT
+      // or the event queue is empty
       res = 0;
     }
   }
@@ -2256,16 +2256,26 @@ NdbEventOperation *Ndb::nextEvent2()
 
 NdbEventOperation *Ndb::nextEvent()
 {
-  Uint32 res = handle_exceptional_epochs();
+  Uint32 errType = 0;
 
   // Remove the event data from the head
   NdbEventOperation *op = nextEvent2();
 
-  if (res == 0)
+  while (op)
   {
-    // Either event queue is empty or the removed event data is
-    // of type TE_INCONSISTENT
-    return NULL;
+    if (op->isErrorEpoch(&errType))
+    {
+      if (errType ==  NdbDictionary::Event::_TE_INCONSISTENT)
+	return NULL;
+	
+      if (errType ==  NdbDictionary::Event::_TE_OUT_OF_MEMORY)
+        printOverflowErrorAndExit();
+    }
+
+    if (!op->isEmptyEpoch())
+      break; // return non-empty epoch
+
+    op = nextEvent2(); // remove empty epoch and check the next one
   }
   return op;
 }
@@ -2298,7 +2308,7 @@ Ndb::getGCIEventOperations(Uint32* iter, Uint32* event_types)
   return getNextEventOpInEpoch2(iter, event_types);
   /*
    * No event operation is added to gci_ops list for exceptional event data.
-   * So it is not possible to get them in event_types.
+   * So it is not possible to get them in event_types. No check needed.
    */
 }
 

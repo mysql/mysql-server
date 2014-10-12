@@ -1340,7 +1340,8 @@ private:
    *  Queue becomes empty : return 0
    *
    * After this method is called, the head of the event queue will
-   * contain an event data of type TE_INCONSISTENT or old types.
+   * contain an event data of type TE_INCONSISTENT or other
+   * non-exceptional types.
    */
   Uint32 handle_exceptional_epochs();
 
