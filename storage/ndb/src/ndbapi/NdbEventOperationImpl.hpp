@@ -626,6 +626,12 @@ public:
   // ceiling for total allocated memory, 0 means unlimited
   unsigned m_max_alloc;
 
+  /* After the max_alloc limit is hit, the % of event buffer memory
+   * that should be available before resuming buffering:
+   * min 1, max 99, default 20.
+   */
+  unsigned m_free_percent;
+
   // threshholds to report status
   unsigned m_free_thresh, m_min_free_thresh, m_max_free_thresh;
   unsigned m_gci_slip_thresh;

@@ -2092,6 +2092,23 @@ Ndb::set_eventbuf_max_alloc(unsigned sz)
   }
 }
 
+unsigned Ndb::get_eventbuffer_free_percent()
+{
+  return theEventBuffer->m_free_percent;
+}
+
+int
+Ndb::set_eventbuffer_free_percent(unsigned free)
+{
+  if (free < 1 || free > 99)
+  {
+    theError.code = 4123;
+    return -1;
+  }
+  theEventBuffer->m_free_percent = free;
+  return 0;
+}
+
 NdbEventOperation* Ndb::createEventOperation(const char* eventName)
 {
   DBUG_ENTER("Ndb::createEventOperation");

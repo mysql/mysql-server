@@ -18659,6 +18659,23 @@ static MYSQL_SYSVAR_ULONG(
 );
 
 
+uint opt_ndb_eventbuffer_free_percent;
+static MYSQL_SYSVAR_UINT(
+  eventbuffer_free_percent, /* name */
+  opt_ndb_eventbuffer_free_percent,/* var */
+  PLUGIN_VAR_RQCMDARG,
+  "Percentage of free memory that should be available "
+  "in event buffer before resuming buffering "
+  "after the max_alloc limit is hit.",
+  NULL, /* check func. */
+  NULL, /* update func. */
+  20, /* default */
+  1, /* min */
+  99, /* max */
+  0 /* block */
+);
+
+
 my_bool opt_ndb_log_update_as_write;
 static MYSQL_SYSVAR_BOOL(
   log_update_as_write,               /* name */
@@ -18999,6 +19016,7 @@ static struct st_mysql_sys_var* system_variables[]= {
   MYSQL_SYSVAR(report_thresh_binlog_mem_usage),
   MYSQL_SYSVAR(report_thresh_binlog_epoch_slip),
   MYSQL_SYSVAR(eventbuffer_max_alloc),
+  MYSQL_SYSVAR(eventbuffer_free_percent),
   MYSQL_SYSVAR(log_update_as_write),
   MYSQL_SYSVAR(log_updated_only),
   MYSQL_SYSVAR(log_empty_update),

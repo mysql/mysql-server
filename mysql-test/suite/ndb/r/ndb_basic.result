@@ -121,6 +121,7 @@ ndb_cluster_connection_pool	#
 ndb_connectstring	#
 ndb_deferred_constraints	#
 ndb_distribution	#
+ndb_eventbuffer_free_percent	#
 ndb_eventbuffer_max_alloc	#
 ndb_extra_logging	#
 ndb_force_send	#
