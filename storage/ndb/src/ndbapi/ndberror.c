@@ -687,6 +687,7 @@ ErrorBundle ErrorCodes[] = {
   { 4104, DMEC, AE, "Ndb Init in wrong state, destroy Ndb object and create a new" },
   { 4121, DMEC, AE, "Cannot set name twice for an Ndb object" },
   { 4122, DMEC, AE, "Cannot set name after Ndb object is initialised" },
+  { 4123, DMEC, AE, "Free percent out of range. Allowed range is 1-99" },
   { 4105, DMEC, AE, "Too many Ndb objects" },
   { 4106, DMEC, AE, "All Not NULL attribute have not been defined" },
   { 4114, DMEC, AE, "Transaction is already completed" },

@@ -1113,6 +1113,7 @@ NdbEventBuffer::NdbEventBuffer(Ndb *ndb) :
   m_total_alloc(0),
   lastReportedState(EB_BUFFERINGEVENTS),
   m_max_alloc(0),
+  m_free_percent(20),
   m_free_thresh(0),
   m_min_free_thresh(0),
   m_max_free_thresh(0),
