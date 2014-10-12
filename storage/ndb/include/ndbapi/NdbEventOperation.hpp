@@ -282,15 +282,15 @@ public:
   bool getAllowEmptyUpdate();
 
   /**
-   * Check whether the latest received event data marks an empty epoch
+   * Check whether the consumed event data marks an empty epoch
    */
   bool isEmptyEpoch();
 
   /**
-   * Check whether the latest received event data marks an error epoch
+   * Check whether the consumed event data marks an error epoch
    * and get the error.
    */
-  bool isErrorEpoch(Uint32 *error_type = 0);
+  bool isErrorEpoch(NdbDictionary::Event::TableEvent *error_type = 0);
 
 
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
