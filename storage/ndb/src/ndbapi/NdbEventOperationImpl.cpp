@@ -781,6 +781,29 @@ NdbEventOperationImpl::getGCI()
   return gci_lo | (Uint64(gci_hi) << 32);
 }
 
+bool
+NdbEventOperationImpl::isErrorEpoch(Uint32 *error_type)
+{
+  const Uint32 type = getEventType2();
+  // Error types are defined from TE_INCONSISTENT
+  if (type > NdbDictionary::Event::TE_INCONSISTENT)
+  {
+    if (error_type)
+      *error_type = type;
+    return true;
+  }
+  return false;
+}
+
+bool
+NdbEventOperationImpl::isEmptyEpoch()
+{
+  const Uint32 type = getEventType2();
+  if (type == NdbDictionary::Event::TE_EMPTY)
+    return true;
+  return false;
+}
+
 Uint32
 NdbEventOperationImpl::getAnyValue() const
 {
@@ -1044,7 +1067,7 @@ NdbEventOperationImpl::receive_event()
 }
 
 NdbDictionary::Event::TableEvent 
-NdbEventOperationImpl::getEventType()
+NdbEventOperationImpl::getEventType2()
 {
   return (NdbDictionary::Event::TableEvent)
     (1U << SubTableData::getOperation(m_data_item->sdata->requestInfo));
@@ -1449,12 +1472,12 @@ int NdbEventBuffer::expand(unsigned sz)
 }
 
 int
-NdbEventBuffer::pollEvents(int aMillisecondNumber, Uint64 *latestGCI)
+NdbEventBuffer::pollEvents2(int aMillisecondNumber, Uint64 *highestQueuedEpoch)
 {
   int ret= 1;
 #ifdef VM_TRACE
   const char *m_latest_command_save= m_latest_command;
-  m_latest_command= "NdbEventBuffer::pollEvents";
+  m_latest_command= "NdbEventBuffer::pollEvents2";
 #endif
 
   NdbMutex_Lock(m_mutex);
@@ -1486,8 +1509,8 @@ NdbEventBuffer::pollEvents(int aMillisecondNumber, Uint64 *latestGCI)
   }
   NdbMutex_Unlock(m_mutex); // we have moved the data
 
-  if (latestGCI)
-    *latestGCI= m_latest_poll_GCI;
+  if (highestQueuedEpoch)
+    *highestQueuedEpoch= m_latest_poll_GCI;
 
   return ret;
 }
@@ -1592,9 +1615,9 @@ NdbEventBuffer::is_exceptional_epoch(EventBufData *data)
 }
 
 NdbEventOperation *
-NdbEventBuffer::nextEvent()
+NdbEventBuffer::nextEvent2()
 {
-  DBUG_ENTER_EVENT("NdbEventBuffer::nextEvent");
+  DBUG_ENTER_EVENT("NdbEventBuffer::nextEvent2");
 #ifdef VM_TRACE
   const char *m_latest_command_save= m_latest_command;
 #endif
@@ -1602,7 +1625,7 @@ NdbEventBuffer::nextEvent()
   free_consumed_event_data();
 
 #ifdef VM_TRACE
-  m_latest_command= "NdbEventBuffer::nextEvent";
+  m_latest_command= "NdbEventBuffer::nextEvent2";
 #endif
 
   EventBufData *data;
@@ -1658,9 +1681,6 @@ NdbEventBuffer::nextEvent()
          EventBufData_list::Gci_ops *gci_ops =
            remove_consumed_gci_ops(gci);
 
-         if (!gci_ops->m_consistent)
-           DBUG_RETURN_EVENT(0);
-
 	 if (gci_ops && (gci != gci_ops->m_gci))
 	 {
            ndbout << "nextEvent: gci " << gci << " "
@@ -1670,6 +1690,7 @@ NdbEventBuffer::nextEvent()
 	 }
 
          assert(gci_ops && (gci == gci_ops->m_gci));
+         (void) gci_ops; // To avoid compiler warning 'unused variable'
 
          // to return TE_NUL it should be made into data event
          if (SubTableData::getOperation(data->sdata->requestInfo) ==
@@ -1717,7 +1738,7 @@ NdbEventBuffer::isConsistent(Uint64& gci)
   EventBufData_list::Gci_ops *gci_ops = m_available_data.first_gci_ops();
   while (gci_ops)
   {
-    if (!gci_ops->m_consistent)
+    if (gci_ops->m_error == NdbDictionary::Event::_TE_INCONSISTENT)
     {
       gci = gci_ops->m_gci;
       DBUG_RETURN(false);
@@ -1735,7 +1756,8 @@ NdbEventBuffer::isConsistentGCI(Uint64 gci)
   EventBufData_list::Gci_ops *gci_ops = m_available_data.first_gci_ops();
   while (gci_ops)
   {
-    if (gci_ops->m_gci == gci && !gci_ops->m_consistent)
+    if (gci_ops->m_gci == gci &&
+        gci_ops->m_error == NdbDictionary::Event::_TE_INCONSISTENT)
       DBUG_RETURN(false);
     gci_ops = gci_ops->m_next;
   }
@@ -2158,7 +2180,7 @@ NdbEventBuffer::complete_empty_bucket_using_exceptional_event(Uint64 gci,
   assert(m_complete_data.m_data.m_gci_ops_list_tail != NULL);
 
   if (type >= NdbDictionary::Event::_TE_INCONSISTENT)
-    m_complete_data.m_data.m_gci_ops_list_tail->m_consistent = false;
+    m_complete_data.m_data.m_gci_ops_list_tail->m_error = type;
 }
 
 void

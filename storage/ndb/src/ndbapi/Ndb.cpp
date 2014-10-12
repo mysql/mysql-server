@@ -2157,9 +2157,87 @@ NdbEventOperation *Ndb::getEventOperation(NdbEventOperation* tOp)
 }
 
 int
+Ndb::pollEvents2(int aMillisecondNumber, Uint64 *highestQueuedEpoch)
+{
+  return theEventBuffer->pollEvents2(aMillisecondNumber, highestQueuedEpoch);
+}
+
+void
+Ndb::printOverflowErrorAndExit()
+{
+  fprintf(stderr, "Ndb Event Buffer : 0x%x %s\n",
+          getReference(), getNdbObjectName());
+  fprintf(stderr, "Ndb Event Buffer : Event buffer out of memory.\n");
+  fprintf(stderr, "Ndb Event Buffer : Fatal error.\n");
+  fprintf(stderr, "Ndb Event Buffer : Change eventbuf_max_alloc.\n");
+  fprintf(stderr, "Ndb Event Buffer : Consider using the new API.\n");
+  exit(-1);
+}
+
+Uint32
+Ndb::handle_exceptional_epochs()
+{
+  Uint32 type = 0;
+  EventBufData *data = theEventBuffer->m_available_data.m_head;
+
+  while (data)
+  {
+    // All including exceptional event data must have an associated buffer
+    assert(data->sdata);
+
+    type = SubTableData::getOperation(data->sdata->requestInfo);
+
+    if (type < NdbDictionary::Event::_TE_EMPTY)
+    {
+      // Not an exceptional event data, so no need to handle them.
+      return 1;
+    }
+
+    if (type == NdbDictionary::Event::_TE_INCONSISTENT)
+    {
+      return 0;
+    }
+
+    if (type == NdbDictionary::Event::_TE_OUT_OF_MEMORY)
+    {
+      printOverflowErrorAndExit();
+    }
+
+    assert(type == NdbDictionary::Event::_TE_EMPTY);
+    // Remove empty epochs from the event queue until finding an
+    // event data of old event type or of TE_INCONSISTENT
+    NdbEventOperation *op = nextEvent2();
+
+    NdbEventOperationImpl *op_impl = data->m_event_op;
+    // All including exceptional event data must have an associated impl
+    assert(op_impl);
+
+    // Double check that we removed the empty epoch from the queue
+    assert(op_impl->m_facade == op);
+
+    data = theEventBuffer->m_available_data.m_head;
+  }
+
+  // event queue is empty
+  return 0;
+}
+
+int
 Ndb::pollEvents(int aMillisecondNumber, Uint64 *latestGCI)
 {
-  return theEventBuffer->pollEvents(aMillisecondNumber, latestGCI);
+  int res = pollEvents2(aMillisecondNumber, latestGCI);
+
+  if (res > 0)
+  {
+    // Head of the event queue is not empty
+    Uint32 ret = handle_exceptional_epochs();
+    if (ret == 0)
+    {
+      // The event data at the head must be of type TE_INCONSISTENT
+      res = 0;
+    }
+  }
+  return res;
 }
 
 int
@@ -2171,9 +2249,25 @@ Ndb::flushIncompleteEvents(Uint64 gci)
   return ret;
 }
 
+NdbEventOperation *Ndb::nextEvent2()
+{
+  return theEventBuffer->nextEvent2();
+}
+
 NdbEventOperation *Ndb::nextEvent()
 {
-  return theEventBuffer->nextEvent();
+  Uint32 res = handle_exceptional_epochs();
+
+  // Remove the event data from the head
+  NdbEventOperation *op = nextEvent2();
+
+  if (res == 0)
+  {
+    // Either event queue is empty or the removed event data is
+    // of type TE_INCONSISTENT
+    return NULL;
+  }
+  return op;
 }
 
 bool
@@ -2189,7 +2283,7 @@ Ndb::isConsistentGCI(Uint64 gci)
 }
 
 const NdbEventOperation*
-Ndb::getGCIEventOperations(Uint32* iter, Uint32* event_types)
+Ndb::getNextEventOpInEpoch2(Uint32* iter, Uint32* event_types)
 {
   NdbEventOperationImpl* op =
     theEventBuffer->getGCIEventOperations(iter, event_types);
@@ -2198,9 +2292,24 @@ Ndb::getGCIEventOperations(Uint32* iter, Uint32* event_types)
   return NULL;
 }
 
-Uint64 Ndb::getLatestGCI()
+const NdbEventOperation*
+Ndb::getGCIEventOperations(Uint32* iter, Uint32* event_types)
+{
+  return getNextEventOpInEpoch2(iter, event_types);
+  /*
+   * No event operation is added to gci_ops list for exceptional event data.
+   * So it is not possible to get them in event_types.
+   */
+}
+
+Uint64 Ndb::getHighestQueuedEpoch()
 {
   return theEventBuffer->getLatestGCI();
+}
+
+Uint64 Ndb::getLatestGCI()
+{
+  return getHighestQueuedEpoch();
 }
 
 void Ndb::setReportThreshEventGCISlip(unsigned thresh)

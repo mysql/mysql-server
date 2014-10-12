@@ -171,8 +171,23 @@ public:
   /**
    * Query for occured event type.
    *
-   * @note Only valid after Ndb::nextEvent() has been called and 
-   * returned a not NULL value
+   * @note Only valid after Ndb::nextEvent2() has been called and
+   * returned a non-NULL value
+   *
+   * @return type of event, including the exceptional event data types:
+   * TE_EMPTY, TE_INCONSISTENT, TE_OUT_OF_MEMORY
+   */
+  NdbDictionary::Event::TableEvent getEventType2() const;
+
+  /**
+   * Query for occured event type. This is a backward compatibility
+   * wrapper for getEventType2(). Since it is called after nextEvent()
+   * returned a non-NULL event operation after filtering exceptional epoch
+   * event data, it should not see the exceptional event data types:
+   * TE_EMPTY, TE_INCONSISTENT, TE_OUT_OF_MEMORY
+   *
+   * @note Only valid after Ndb::nextEvent() has been called and
+   * returned a non-NULL value
    *
    * @return type of event
    */
@@ -199,9 +214,18 @@ public:
   bool tableRangeListChanged() const;
 
   /**
+   * Retrieve the epoch of the latest retrieved event data
+   *
+   * @return epoch
+   */
+  Uint64 getEpoch() const;
+
+  /**
    * Retrieve the GCI of the latest retrieved event
    *
    * @return GCI number
+   *
+   * This is a wrapper to getEpoch() for backward compatibility.
    */
   Uint64 getGCI() const;
 
@@ -256,6 +280,17 @@ public:
    * @return current value (with initial value being false)
    */
   bool getAllowEmptyUpdate();
+
+  /**
+   * Check whether the latest received event data marks an empty epoch
+   */
+  bool isEmptyEpoch();
+
+  /**
+   * Check whether the latest received event data marks an error epoch
+   */
+  bool isErrorEpoch(Uint32 *error_type = 0);
+
 
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
   /** these are subject to change at any time */
