@@ -392,7 +392,7 @@ public:
   bool tableRangeListChanged() const;
   Uint64 getGCI();
   Uint32 getAnyValue() const;
-  bool isErrorEpoch(Uint32 *error_type);
+  bool isErrorEpoch(NdbDictionary::Event::TableEvent *error_type);
   bool isEmptyEpoch();
   Uint64 getLatestGCI();
   Uint64 getTransId() const;

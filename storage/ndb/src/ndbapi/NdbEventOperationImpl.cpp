@@ -782,9 +782,9 @@ NdbEventOperationImpl::getGCI()
 }
 
 bool
-NdbEventOperationImpl::isErrorEpoch(Uint32 *error_type)
+NdbEventOperationImpl::isErrorEpoch(NdbDictionary::Event::TableEvent *error_type)
 {
-  const Uint32 type = getEventType2();
+  const NdbDictionary::Event::TableEvent type = getEventType2();
   // Error types are defined from TE_INCONSISTENT
   if (type > NdbDictionary::Event::TE_INCONSISTENT)
   {
@@ -2180,17 +2180,16 @@ NdbEventBuffer::complete_empty_bucket_using_exceptional_event(Uint64 gci,
   dummy_data->m_event_op = &op->m_impl;
   assert(op != NULL);
 
-  // Add gci_ops for error epoch event to make search for
-  // inconsistent(Uint64& gci) will be effective (backward compatibility)
+  // Add gci_ops for error epoch events to make the search for
+  // inconsistent(Uint64& gci) to be effective (backward compatibility)
   if (type >= NdbDictionary::Event::_TE_INCONSISTENT)
   {
-    EventBufData_list *dummy_event_list = new EventBufData_list;
-    dummy_event_list->append_used_data(dummy_data);
-    dummy_event_list->m_is_not_multi_list = true;
-    m_complete_data.m_data.append_list(dummy_event_list, gci);
+    EventBufData_list dummy_event_list;
+    dummy_event_list.append_used_data(dummy_data);
+    dummy_event_list.m_is_not_multi_list = true;
+    m_complete_data.m_data.append_list(&dummy_event_list, gci);
     assert(m_complete_data.m_data.m_gci_ops_list_tail != NULL);
     m_complete_data.m_data.m_gci_ops_list_tail->m_error = type;
-    delete dummy_event_list;
   }
 }
 
@@ -3040,10 +3039,10 @@ NdbEventBuffer::insertDataL(NdbEventOperationImpl *op,
 void
 NdbEventBuffer::crashMemAllocError(const char *error_text)
 {
-  fprintf(stderr, "Ndb Event Buffer 0x%x %s\n", m_ndb->getReference(),
+  g_eventLogger->error("Ndb Event Buffer 0x%x %s", m_ndb->getReference(),
 	  m_ndb->getNdbObjectName());
-  fprintf(stderr, "Ndb Event Buffer : %s\n", error_text);
-  fprintf(stderr, "Ndb Event Buffer : Fatal error.\n");
+  g_eventLogger->error("Ndb Event Buffer : %s", error_text);
+  g_eventLogger->error("Ndb Event Buffer : Fatal error.");
   exit(-1);
 }
 
@@ -3968,8 +3967,12 @@ NdbEventBuffer::get_event_buffer_memory_usage(Ndb::EventBufferMemoryUsage& usage
   usage.allocated_bytes = m_total_alloc;
   usage.used_bytes = m_total_alloc - m_free_data_sz;
 
+  // If there's no configured max limit then
+  // the percentage is a fraction of the total allocated.
+
   Uint32 ret = 0;
-  // m_max_alloc == 0 ==> unlimited usage
+  // m_max_alloc == 0 ==> unlimited usage,
+  // m_total_alloc  >= m_free_data_sz always.
   if (m_max_alloc > 0)
     ret = (Uint32)(100 * (m_total_alloc - m_free_data_sz) / m_max_alloc);
   else if (m_total_alloc > 0)

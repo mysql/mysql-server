@@ -1323,28 +1323,6 @@ private:
 
   // Inform event buffer overflow and exit
   void printOverflowErrorAndExit();
-
-  /**
-   * New exceptional event data types can be found in the event queue,
-   * either a) at the head of the queue or b) somewhere in between.
-   * pollEvents() will find a) and nextEvent will find a) or b).
-   * They need to be treated in order to preserve the backward compatibility
-   * of pollEvents and nextEvents methods.
-   * Treatment will be as follows:
-   *  TE-EMPTY : Remove consecutive empty event data until a
-   *   non-empty event data is encountered.
-   *  Non-empty event data:
-   *   TE_INCONSISTENT : Leave it in the queue and return 0.
-   *   TE_OUT_OF_MEMORY : Inform the user and crash.
-   *   Other event types : return 1.
-   *  Queue becomes empty : return 0
-   *
-   * After this method is called, the head of the event queue will
-   * contain an event data of type TE_INCONSISTENT or other
-   * non-exceptional types.
-   */
-  Uint32 handle_exceptional_epochs();
-
 public:
 
   /**
@@ -1363,7 +1341,7 @@ public:
    * @return > 0 if events available, 0 if no events available, < 0 on failure.
    *
    * @pollEvents2 will also return >0 when there is an event data
-   * representing empty or error epoch is available.
+   * representing empty or error epoch available.
    */
   int pollEvents2(int aMillisecondNumber, Uint64 *highestQueuedEpoch= 0);
 
@@ -1378,10 +1356,13 @@ public:
    * @return > 0 if events available, 0 if no events available, < 0 on failure
    *
    * This is a backward compatibility wrapper to pollEvents2().
-   * It maintains the old behaviour :
+   * However it does not maintain the old behaviour: performing the following
+   * when it encounters exceptional event data on the head of the event queue:
    * - returns 0 for event data representing inconsistent epoch,
    * - does not have empty epochs in the available data queue,
    * - crashes for event data representing event-buffer-overflow epoch.
+   * Instead it returns 1  when there is an event data representing
+   * empty or error epoch is available, like pollEvents2()
    */
   int pollEvents(int aMillisecondNumber, Uint64 *latestGCI= 0);
 
@@ -1418,9 +1399,9 @@ public:
    * This is a backward compatibility wrapper to nextEvent2(),
    * It maintains the old behaviour :
    * - returns NULL for inconsistent epochs,
-   * - will not have empty epochs in the event queue,
-   * - crashes the node it sees an event data representing an event buffer
-   *   overflow.
+   * - will not have empty epochs in the event queue (i.e. remove them),
+   * - crashes the node when it encounters an event data representing
+   *   an event buffer overflow.
    */
   NdbEventOperation *nextEvent();
 
@@ -1470,8 +1451,7 @@ public:
    * is not NULL, it returns bitmask of received event types.
    *
    * This is a wrapper for getNextEventOpInEpoch2, but retains the
-   * old name in order to preserve backward compatibility. This will
-   * not return exceptional (empty or error) event types.
+   * old name in order to preserve backward compatibility.
    */
   const NdbEventOperation*
     getGCIEventOperations(Uint32* iter, Uint32* event_types);

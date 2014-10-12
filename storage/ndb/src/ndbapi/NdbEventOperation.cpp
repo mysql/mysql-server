@@ -22,6 +22,8 @@
 #include <portlib/NdbMem.h>
 #include "NdbEventOperationImpl.hpp"
 #include "NdbDictionaryImpl.hpp"
+#include <EventLogger.hpp>
+extern EventLogger * g_eventLogger;
 
 NdbEventOperation::NdbEventOperation(Ndb *theNdb,const char* eventName) 
   : m_impl(* new NdbEventOperationImpl(*this,theNdb,eventName))
@@ -162,7 +164,7 @@ NdbEventOperation::isEmptyEpoch()
 }
 
 bool
-NdbEventOperation::isErrorEpoch(Uint32 *error_type)
+NdbEventOperation::isErrorEpoch(NdbDictionary::Event::TableEvent *error_type)
 {
   return m_impl.isErrorEpoch(error_type);
 }
@@ -185,10 +187,7 @@ NdbEventOperation::getEventType() const
 
   if (type >= NdbDictionary::Event::TE_EMPTY)
   {
-    ndbout << "Ndb::getEventType: Found exceptional event type "
-           << hex << type;
-    ndbout << ". Use methods either from the old event API or from the new API."
-           << " Do not mix." << endl;
+    g_eventLogger->error("Ndb::getEventType: Found exceptional event type 0x%x. Use methods either from the old event API or from the new API. Do not mix.", type);
   }
 
   // event types >= TE_EMPTY are the new exceptional ones

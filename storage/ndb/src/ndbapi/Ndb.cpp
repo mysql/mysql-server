@@ -2165,79 +2165,24 @@ Ndb::pollEvents2(int aMillisecondNumber, Uint64 *highestQueuedEpoch)
 void
 Ndb::printOverflowErrorAndExit()
 {
-  fprintf(stderr, "Ndb Event Buffer : 0x%x %s\n",
-          getReference(), getNdbObjectName());
-  fprintf(stderr, "Ndb Event Buffer : Event buffer out of memory.\n");
-  fprintf(stderr, "Ndb Event Buffer : Fatal error.\n");
-  fprintf(stderr, "Ndb Event Buffer : Change eventbuf_max_alloc.\n");
-  fprintf(stderr, "Ndb Event Buffer : Consider using the new API.\n");
-  exit(-1);
-}
-
-Uint32
-Ndb::handle_exceptional_epochs()
-{
-  Uint32 type = 0;
-  EventBufData *data = theEventBuffer->m_available_data.m_head;
-
-  while (data)
+  g_eventLogger->error("Ndb Event Buffer : 0x%x %s",
+                       getReference(), getNdbObjectName());
+  g_eventLogger->error("Ndb Event Buffer : Event buffer out of memory.");
+  g_eventLogger->error("Ndb Event Buffer : Fatal error.");
+  Uint32 maxalloc = get_eventbuf_max_alloc();
+  if (maxalloc != 0)
   {
-    // All including exceptional event data must have an associated buffer
-    assert(data->sdata);
-
-    type = SubTableData::getOperation(data->sdata->requestInfo);
-
-    if (type <= NdbDictionary::Event::_TE_EMPTY)
-    {
-      /**
-       * Not an exceptional event data.
-       */
-      return 1;
-    }
-
-    if (type == NdbDictionary::Event::_TE_INCONSISTENT)
-    {
-      return 0;
-    }
-
-    if (type == NdbDictionary::Event::_TE_OUT_OF_MEMORY)
-    {
-      printOverflowErrorAndExit();
-    }
-
-    assert(type == NdbDictionary::Event::_TE_EMPTY);
-
-    // Remove empty epoch event data from the event queue.
-    (void)nextEvent2();
-
-    /**
-     * Repeat until finding an event data of event type
-     *  non-exceptional or TE_INCONSISTENT.
-     */
-    data = theEventBuffer->m_available_data.m_head;
+    // limited memory is allocated for event buffer, give recommendation
+    g_eventLogger->error("Ndb Event Buffer : Change eventbuf_max_alloc (Current max_alloc is %u).", maxalloc);
   }
-
-  // event queue is empty
-  return 0;
+  g_eventLogger->error("Ndb Event Buffer : Consider using the new API.");
+  exit(-1);
 }
 
 int
 Ndb::pollEvents(int aMillisecondNumber, Uint64 *latestGCI)
 {
-  int res = pollEvents2(aMillisecondNumber, latestGCI);
-
-  if (res > 0)
-  {
-    // Head of the event queue is not empty, filter exceptional epochs
-    Uint32 ret = handle_exceptional_epochs();
-    if (ret == 0)
-    {
-      // The event data at the head must be of type TE_INCONSISTENT
-      // or the event queue is empty
-      res = 0;
-    }
-  }
-  return res;
+  return pollEvents2(aMillisecondNumber, latestGCI);
 }
 
 int
@@ -2256,7 +2201,7 @@ NdbEventOperation *Ndb::nextEvent2()
 
 NdbEventOperation *Ndb::nextEvent()
 {
-  Uint32 errType = 0;
+  NdbDictionary::Event::TableEvent errType;
 
   // Remove the event data from the head
   NdbEventOperation *op = nextEvent2();
@@ -2265,10 +2210,10 @@ NdbEventOperation *Ndb::nextEvent()
   {
     if (op->isErrorEpoch(&errType))
     {
-      if (errType ==  NdbDictionary::Event::_TE_INCONSISTENT)
-	return NULL;
-	
-      if (errType ==  NdbDictionary::Event::_TE_OUT_OF_MEMORY)
+      if (errType ==  NdbDictionary::Event::TE_INCONSISTENT)
+        return NULL;
+
+      if (errType ==  NdbDictionary::Event::TE_OUT_OF_MEMORY)
         printOverflowErrorAndExit();
     }
 
