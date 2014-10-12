@@ -1645,7 +1645,12 @@ NdbEventBuffer::nextEvent2()
     if (is_exceptional_epoch(data))
     {
       DBUG_PRINT_EVENT("info", ("detected inconsistent gci %u 0x%x %s",
-                                gci, m_ndb->getReference(), m_ndb->getNdbObjectName()));
+                                gci, m_ndb->getReference(),
+                                m_ndb->getNdbObjectName()));
+
+      // Remove gci_ops belonging to the epochs consumed already
+      // to conform with non-exceptional event data handling
+      remove_consumed_gci_ops(gci);
       DBUG_RETURN_EVENT(op->m_facade);
     }
 
@@ -1681,13 +1686,11 @@ NdbEventBuffer::nextEvent2()
          EventBufData_list::Gci_ops *gci_ops =
            remove_consumed_gci_ops(gci);
 
-	 if (gci_ops && (gci != gci_ops->m_gci))
-	 {
-           ndbout << "nextEvent: gci " << gci << " "
+        if (gci_ops && (gci != gci_ops->m_gci))
+           ndbout << "nextEvent2: gci " << gci << " "
                   << " gci_ops->m_gci " << gci_ops->m_gci
-                  << " type " << hex << op->getEventType() << " "
+                  << " type " << hex << op->getEventType2() << " "
                   << m_ndb->getNdbObjectName() << endl;
-	 }
 
          assert(gci_ops && (gci == gci_ops->m_gci));
          (void) gci_ops; // To avoid compiler warning 'unused variable'
@@ -2177,10 +2180,18 @@ NdbEventBuffer::complete_empty_bucket_using_exceptional_event(Uint64 gci,
   dummy_data->m_event_op = &op->m_impl;
   assert(op != NULL);
 
-  assert(m_complete_data.m_data.m_gci_ops_list_tail != NULL);
-
+  // Add gci_ops for error epoch event to make search for
+  // inconsistent(Uint64& gci) will be effective (backward compatibility)
   if (type >= NdbDictionary::Event::_TE_INCONSISTENT)
+  {
+    EventBufData_list *dummy_event_list = new EventBufData_list;
+    dummy_event_list->append_used_data(dummy_data);
+    dummy_event_list->m_is_not_multi_list = true;
+    m_complete_data.m_data.append_list(dummy_event_list, gci);
+    assert(m_complete_data.m_data.m_gci_ops_list_tail != NULL);
     m_complete_data.m_data.m_gci_ops_list_tail->m_error = type;
+    delete dummy_event_list;
+  }
 }
 
 void
@@ -2379,7 +2390,7 @@ NdbEventBuffer::execSUB_GCP_COMPLETE_REP(const SubGcpCompleteRep * const rep,
 
       // if a new gap begins, mark the bucket.
        if (gapBegins)
-         bucket->m_state = Gci_container::GC_OUT_OF_MEMORY;
+         bucket->m_state |= Gci_container::GC_OUT_OF_MEMORY;
 
       complete_bucket(bucket);
       m_latestGCI = m_complete_data.m_gci = gci; // before reportStatus
@@ -2873,7 +2884,8 @@ NdbEventBuffer::insertDataL(NdbEventOperationImpl *op,
     }
   }
   
-  Uint32 memory_usage = 100 * (m_total_alloc - m_free_data_sz) / m_max_alloc;
+  Uint32 memory_usage = (m_max_alloc  == 0) ? 0 :
+    (Uint32)(100 * (m_total_alloc - m_free_data_sz) / m_max_alloc);
 
   if (m_event_buffer_manager.onEventDataReceived(memory_usage, gci))
     reportStatus(true/*force_report*/);
@@ -2927,12 +2939,7 @@ NdbEventBuffer::insertDataL(NdbEventOperationImpl *op,
     if (data == 0)
     {
       // allocate new result buffer
-      data = alloc_data();
-      if (unlikely(data == 0))
-      {
-        op->m_has_error = 2;
-        DBUG_RETURN_EVENT(-1);
-      }
+      data = alloc_data();  // alloc_data crashes if allocation fails.
 
       m_event_buffer_manager.onBufferingEpoch(gci);
 
@@ -2940,8 +2947,7 @@ NdbEventBuffer::insertDataL(NdbEventOperationImpl *op,
       data->m_event_op = 0;
       if (unlikely(copy_data(sdata, len, ptr, data, NULL)))
       {
-        op->m_has_error = 3;
-        DBUG_RETURN_EVENT(-1);
+        crashMemAllocError("insertDataL : copy_data failed.");
       }
       data->m_event_op = op;
       if (! is_blob_event || ! is_data_event)
@@ -2955,9 +2961,9 @@ NdbEventBuffer::insertDataL(NdbEventOperationImpl *op,
         int ret = get_main_data(bucket, main_hpos, data);
         if (ret == -1)
         {
-          op->m_has_error = 4;
-          DBUG_RETURN_EVENT(-1);
+          crashMemAllocError("insertDataL : get_main_data failed.");
         }
+
         EventBufData* main_data = main_hpos.data;
         if (ret != 0) // main event was created
         {
@@ -2986,9 +2992,9 @@ NdbEventBuffer::insertDataL(NdbEventOperationImpl *op,
       // event with same op, PK found, merge into old buffer
       if (unlikely(merge_data(sdata, len, ptr, data, &bucket->m_data.m_sz)))
       {
-        op->m_has_error = 3;
-        DBUG_RETURN_EVENT(-1);
+        crashMemAllocError("insertDataL : merge_data failed.");
       }
+
       // merge is on so we do not report blob part events
       if (! is_blob_event) {
         // report actual operation and the composite
@@ -3031,6 +3037,16 @@ NdbEventBuffer::insertDataL(NdbEventOperationImpl *op,
 #endif
 }
 
+void
+NdbEventBuffer::crashMemAllocError(const char *error_text)
+{
+  fprintf(stderr, "Ndb Event Buffer 0x%x %s\n", m_ndb->getReference(),
+	  m_ndb->getNdbObjectName());
+  fprintf(stderr, "Ndb Event Buffer : %s\n", error_text);
+  fprintf(stderr, "Ndb Event Buffer : Fatal error.\n");
+  exit(-1);
+}
+
 // allocate EventBufData
 EventBufData*
 NdbEventBuffer::alloc_data()
@@ -3064,7 +3080,7 @@ NdbEventBuffer::alloc_data()
              m_available_data.m_tail?m_available_data.m_tail->sdata->gci_lo:0);
       printf("m_used_data_count %d\n", m_used_data.m_count);
 #endif
-      DBUG_RETURN_EVENT(0); // TODO handle this, overrun, or, skip?
+      crashMemAllocError("alloc_data : Allocation of meta data failed.");
     }
   }
 
@@ -3118,11 +3134,6 @@ NdbEventBuffer::alloc_mem(EventBufData* data,
     assert(m_total_alloc >= data->sz);
     data->memory = 0;
 
-    if (outOfMemory(add_sz))
-    {
-      goto out_of_mem_err;
-    }
-
     data->memory = (Uint32*)NdbMem_Allocate(alloc_size);
     if (data->memory == 0)
     {
@@ -3149,15 +3160,7 @@ NdbEventBuffer::alloc_mem(EventBufData* data,
 
 out_of_mem_err:
   // Dealloc succeeded, but alloc bigger size failed
-
-  fprintf(stderr, "Ndb Event Buffer 0x%x %s\n", m_ndb->getReference(),
-	  m_ndb->getNdbObjectName());
-  fprintf(stderr, "Ndb Event Buffer : Attempt to allocate total of %u bytes failed\n",
-          m_total_alloc);
-  fprintf(stderr, "Ndb Event Buffer : Fatal error.\n");
-  exit(-1);
-  m_total_alloc -= data->sz;
-  data->sz = 0;
+  crashMemAllocError("Attempt to allocate memory from OS failed");
   DBUG_RETURN(-1);
 }
 
@@ -3964,7 +3967,15 @@ NdbEventBuffer::get_event_buffer_memory_usage(Ndb::EventBufferMemoryUsage& usage
 {
   usage.allocated_bytes = m_total_alloc;
   usage.used_bytes = m_total_alloc - m_free_data_sz;
-  usage.usage_percent = (Uint32)(100 * usage.used_bytes/m_max_alloc);
+
+  Uint32 ret = 0;
+  // m_max_alloc == 0 ==> unlimited usage
+  if (m_max_alloc > 0)
+    ret = (Uint32)(100 * (m_total_alloc - m_free_data_sz) / m_max_alloc);
+  else if (m_total_alloc > 0)
+    ret = (Uint32)(100 * (m_total_alloc - m_free_data_sz) / m_total_alloc);
+
+  usage.usage_percent = ret;
 }
 
 #ifdef VM_TRACE
