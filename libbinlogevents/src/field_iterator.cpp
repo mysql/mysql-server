@@ -37,12 +37,12 @@ extract_metadata(const Table_map_event *map, int col_no)
 
   for (int i= 0; i < col_no; ++i)
   {
-    unsigned int type= (unsigned int)map->m_coltype[i] & 0xFF;
+    unsigned int type= map->m_coltype[i] & 0xFF;
     offset += lookup_metadata_field_size((enum_field_types)type);
   }
 
   uint32_t metadata= 0;
-  unsigned int type= (unsigned int)map->m_coltype[col_no] & 0xFF;
+  unsigned int type= map->m_coltype[col_no] & 0xFF;
   switch (lookup_metadata_field_size((enum_field_types)type))
   {
   case 1:
@@ -50,9 +50,9 @@ extract_metadata(const Table_map_event *map, int col_no)
   break;
   case 2:
     {
-      unsigned int tmp= ((unsigned int)map->m_field_metadata[offset]) & 0xFF;
+      unsigned int tmp= (map->m_field_metadata[offset]) & 0xFF;
       metadata=  static_cast<uint32_t >(tmp);
-      tmp= (((unsigned int)map->m_field_metadata[offset+1]) & 0xFF) << 8;
+      tmp= ((map->m_field_metadata[offset+1]) & 0xFF) << 8;
       metadata+= static_cast<uint32_t >(tmp);
     }
   break;

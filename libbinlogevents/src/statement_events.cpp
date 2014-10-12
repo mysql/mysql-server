@@ -186,7 +186,7 @@ Query_event::Query_event(const char* buf, unsigned int event_len,
       The size is to be restored at reading Q_MASTER_DATA_WRITTEN_CODE-marked
       event from the relay log.
     */
-    assert(description_event->binlog_version < 4);
+    BAPI_ASSERT(description_event->binlog_version < 4);
     master_data_written= header()->data_written;
   }
   /*
@@ -322,7 +322,7 @@ break;
         break;
       }
 
-      assert(mts_accessed_dbs != 0);
+      BAPI_ASSERT(mts_accessed_dbs != 0);
 
       for (i= 0; i < mts_accessed_dbs && pos < start + status_vars_len; i++)
       {
@@ -335,7 +335,7 @@ break;
         {
           if (mts_accessed_dbs == 2)
           {
-            assert(pos[sizeof("d?") - 1] == 0);
+            BAPI_ASSERT(pos[sizeof("d?") - 1] == 0);
             ((char*) pos)[sizeof("d?") - 1]= 'a';
             is_corruption_injected= true;
           }
@@ -549,8 +549,8 @@ User_var_event(const char* buf, unsigned int event_len,
                          (description_event->footer()->checksum_alg ==
                           BINLOG_CHECKSUM_ALG_OFF));
   size_t data_written= (header()->data_written- checksum_verify);
-  assert(((bytes_read == data_written) ? 0 : BINLOG_CHECKSUM_LEN)||
-         ((bytes_read == data_written - 1) ? 0 : BINLOG_CHECKSUM_LEN));
+  BAPI_ASSERT(((bytes_read == data_written) ? 0 : BINLOG_CHECKSUM_LEN)||
+              ((bytes_read == data_written - 1) ? 0 : BINLOG_CHECKSUM_LEN));
 #endif
     if ((header()->data_written - bytes_read) > 0)
     {

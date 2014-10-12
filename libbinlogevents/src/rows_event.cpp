@@ -97,7 +97,7 @@ Table_map_event::Table_map_event(const char *buf, unsigned int event_len,
   }
   else
   {
-    assert(post_header_len == TABLE_MAP_HEADER_LEN);
+    BAPI_ASSERT(post_header_len == TABLE_MAP_HEADER_LEN);
     memcpy(&m_table_id, post_start, 6);
     m_table_id= le64toh(m_table_id);
     post_start+= TM_FLAGS_OFFSET;
@@ -150,22 +150,12 @@ Table_map_event::Table_map_event(const char *buf, unsigned int event_len,
 
 Table_map_event::~Table_map_event()
 {
-  if (m_null_bits)
-  {
     bapi_free(m_null_bits);
     m_null_bits= NULL;
-  }
-  if (m_field_metadata)
-  {
     bapi_free(m_field_metadata);
     m_field_metadata= NULL;
-  }
-   if (m_coltype)
-  {
     bapi_free(m_coltype);
     m_coltype= NULL;
-  }
-
 }
 
 
@@ -302,7 +292,7 @@ Rows_event::Rows_event(const char *buf, unsigned int event_len,
     row.push_back(*ptr_rows_data);
     ptr_rows_data++;
   }
-  assert( row.size() == data_size + 1);
+  BAPI_ASSERT( row.size() == data_size + 1);
   return;
 }
 

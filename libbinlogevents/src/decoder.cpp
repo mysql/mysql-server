@@ -243,6 +243,7 @@ Binary_log_event* Decoder::decode_event(const char* buf, size_t event_len,
     {
       uint32_t temp_crc;
       memcpy(&temp_crc, buf + event_len, 4);
+      // Uncomment the below code when crc is moved to Log_event_footer
       //ev->crc= le32toh(temp_crc);
     }
   }
