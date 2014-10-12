@@ -1440,6 +1440,9 @@ public:
       TE_NODE_FAILURE=1<<10, ///< Node failed
       TE_SUBSCRIBE   =1<<11, ///< Node subscribes
       TE_UNSUBSCRIBE =1<<12, ///< Node unsubscribes
+      TE_EMPTY         =1<<15, ///< Empty epoch from data nodes
+      TE_INCONSISTENT  =1<<21, ///< MISSING_DATA (buffer overflow) at data node
+      TE_OUT_OF_MEMORY =1<<22, ///< Buffer overflow in event buffer
       TE_ALL=0xFFFF         ///< Any/all event on table (not relevant when 
                             ///< events are received)
     };
@@ -1460,7 +1463,10 @@ public:
       _TE_SUBSCRIBE=11,
       _TE_UNSUBSCRIBE=12,
       _TE_NUL=13, // internal (e.g. INS o DEL within same GCI)
-      _TE_ACTIVE=14 // internal (node becomes active)
+      _TE_ACTIVE=14, // internal (node becomes active)
+      _TE_EMPTY=15,
+      _TE_INCONSISTENT=21,
+      _TE_OUT_OF_MEMORY=22
     };
 #endif
     /**

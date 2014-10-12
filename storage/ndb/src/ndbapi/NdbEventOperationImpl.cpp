@@ -1098,6 +1098,199 @@ NdbEventOperationImpl::printAll()
   }
 }
 
+EventBufferManager::EventBufferManager() :
+  m_pre_gap_epoch(0), // equivalent to setting state COMPLETELY_BUFFERING
+  m_begin_gap_epoch(0),
+  m_end_gap_epoch(0),
+  m_max_buffered_epoch(0),
+  m_max_received_epoch(0),
+  m_free_percent(20),
+  m_event_buffer_manager_state(EBM_COMPLETELY_BUFFERING)
+{}
+
+unsigned
+EventBufferManager::get_eventbuffer_free_percent()
+{
+  return m_free_percent;
+}
+
+void
+EventBufferManager::set_eventbuffer_free_percent(unsigned free)
+{
+  m_free_percent = free;
+}
+
+void
+EventBufferManager::onBufferingEpoch(Uint64 received_epoch)
+{
+  if (m_max_buffered_epoch < received_epoch)
+    m_max_buffered_epoch = received_epoch;
+}
+
+bool
+EventBufferManager::onEventDataReceived(Uint32 memory_usage_percent,
+                                        Uint64 received_epoch)
+{
+  bool report_status = false;
+
+  if (isCompletelyBuffering())
+  {
+    if (memory_usage_percent >= 100)
+    {
+      // Transition COMPLETELY_BUFFERING -> PARTIALLY_DISCARDING.
+      m_pre_gap_epoch = m_max_buffered_epoch;
+      m_event_buffer_manager_state = EBM_PARTIALLY_DISCARDING;
+      report_status = true;
+    }
+  }
+  else if (isCompletelyDiscarding())
+  {
+    if (memory_usage_percent < 100 - m_free_percent)
+    {
+      // Transition COMPLETELY_DISCARDING -> PARTIALLY_BUFFERING
+      m_end_gap_epoch = m_max_received_epoch;
+      m_event_buffer_manager_state = EBM_PARTIALLY_BUFFERING;
+      report_status = true;
+    }
+  }
+  else if (isPartiallyBuffering())
+  {
+    if (memory_usage_percent >= 100)
+    {
+      // New gap is starting before the on-going gap ends.
+      report_status = true;
+
+      g_eventLogger->warning("Ndb Event Buffer: Ending gap epoch %u/%u (%llu) lacks event buffer memory. Overbuffering.",
+              Uint32(m_begin_gap_epoch >> 32), Uint32(m_begin_gap_epoch),
+              m_begin_gap_epoch);
+      g_eventLogger->warning("Check how many epochs the eventbuffer_free_percent memory can accommodate.\n");
+      g_eventLogger->warning("Increase eventbuffer_free_percent, eventbuffer memory or both accordingly.\n");
+    }
+  }
+  /**
+   * else: transition from PARTIALLY_DISCARDING to COMPLETELY_DISCARDING
+   * and PARTIALLY_BUFFERING to COMPLETELY_BUFFERING
+   * will be handled in execSUB_GCP_COMPLETE()
+   */
+
+  // Any new epoch received after memory becomes available will be buffered
+  if (m_max_received_epoch < received_epoch)
+    m_max_received_epoch = received_epoch;
+
+  return report_status;
+}
+
+bool
+EventBufferManager::isEventDataToBeDiscarded(Uint64 received_epoch)
+{
+  DBUG_ENTER_EVENT("EventBufferManager::isEventDataToBeDiscarded");
+  /* Discard event data received via SUB_TABLE_DATA during gap period,
+   * m_pre_gap_epoch > 0 : gap will start at the next epoch
+   * m_end_gap_epoch == 0 : gap has not ended
+   * received_epoch <= m_end_gap_epoch : gap has ended at m_end_gap_epoch
+   */
+  if (m_pre_gap_epoch > 0 && received_epoch > m_pre_gap_epoch &&
+      (m_end_gap_epoch == 0 || received_epoch <= m_end_gap_epoch ))
+  {
+    assert(isInDiscardingState());
+    DBUG_PRINT_EVENT("info", ("Discarding SUB_TABLE_DATA for epoch %u/%u (%llu) > begin_gap epoch %u/%u (%llu)",
+                              Uint32(received_epoch >> 32),
+                              Uint32(received_epoch),
+                              received_epoch,
+                              Uint32(m_pre_gap_epoch >> 32),
+                              Uint32(m_pre_gap_epoch),
+                              m_pre_gap_epoch));
+    if (m_end_gap_epoch > 0)
+    {
+      DBUG_PRINT_EVENT("info", (" and <= end_gap epoch %u/%u (%llu)"
+                                Uint32(m_end_gap_epoch >> 32),
+                                Uint32(m_end_gap_epoch),
+                                m_end_gap_epoch));
+    }
+    DBUG_RETURN_EVENT(true);
+  }
+  DBUG_RETURN_EVENT(false);
+}
+
+bool
+EventBufferManager::onEpochCompleted(Uint64 completed_epoch, bool& gap_begins)
+{
+  bool report_status = false;
+
+  if (isPartiallyDiscarding() && completed_epoch > m_pre_gap_epoch)
+  {
+    /**
+     * No on-going gap. This should be the first completed epoch after
+     * a transition to PARTIALLY_DISCARDING (the first completed epoch
+     * after m_pre_gap_epoch). Mark this as the beginning of a new gap.
+     * Transition PARTIALLY_DISCARDING -> COMPLETELY_DISCARDING:
+     */
+    m_begin_gap_epoch = completed_epoch;
+    m_event_buffer_manager_state = EBM_COMPLETELY_DISCARDING;
+    gap_begins = true;
+    report_status = true;
+    g_eventLogger->warning("Ndb Event Buffer : New gap begins at epoch : %u/%u (%llu)",
+                           (Uint32)(m_begin_gap_epoch >> 32),
+                           (Uint32)m_begin_gap_epoch, m_begin_gap_epoch);
+  }
+  else if (isPartiallyBuffering() && completed_epoch > m_end_gap_epoch)
+  {
+    // The completed_epoch marks the first completely buffered post_gap epoch
+    // Transition PARTIALLY_BUFFERNG -> COMPLETELY_BUFFERING
+    g_eventLogger->warning("Ndb Event Buffer : Gap began at epoch : %u/%u (%llu) ends at epoch %u/%u (%llu)",
+                           (Uint32)(m_begin_gap_epoch >> 32),
+                           (Uint32)m_begin_gap_epoch, m_begin_gap_epoch,
+                           (Uint32)(completed_epoch >> 32),
+                           (Uint32)completed_epoch, completed_epoch);
+    m_pre_gap_epoch = 0;
+    m_begin_gap_epoch = 0;
+    m_end_gap_epoch = 0;
+    m_event_buffer_manager_state = EBM_COMPLETELY_BUFFERING;
+    report_status = true;
+  }
+  /**
+   * else: transition from COMPLETELY_BUFFERING to PARTIALLY_DISCARDING
+   * and COMPLETELY_DISCARDING to PARTIALLY_BUFFERING
+   * are handled in insertDataL
+   */
+  return report_status;
+}
+
+bool
+EventBufferManager::isGcpCompleteToBeDiscarded(Uint64 completed_epoch)
+{
+  DBUG_ENTER_EVENT("EventBufferManager::isGcpCompleteToBeDiscarded");
+  /* Discard SUB_GCP_COMPLETE during gap period,
+   * m_begin_gap_epoch > 0 : gap has started at m_begin_gap_epoch
+   * m_end_gap_epoch == 0 : gap has not ended
+   * received_epoch <= m_end_gap_epoch : gap has ended at m_end_gap_epoch
+   */
+
+  // for m_begin_gap_epoch < completed_epoch <= m_end_gap_epoch
+
+  if (m_begin_gap_epoch > 0 && completed_epoch > m_begin_gap_epoch &&
+      (m_end_gap_epoch == 0 || completed_epoch <= m_end_gap_epoch ))
+  {
+    assert(isInDiscardingState());
+    DBUG_PRINT_EVENT("info", ("Discarding SUB_GCP_COMPLETE_REP for epoch %u/%u (%llu) > begin_gap epoch %u/%u (%llu)",
+                              Uint32(completed_epoch >> 32),
+                              Uint32(completed_epoch),
+                              completed_epoch,
+                              Uint32(m_begin_gap_epoch >> 32),
+                              Uint32(m_begin_gap_epoch),
+                              m_begin_gap_epoch));
+    if (m_end_gap_epoch > 0)
+    {
+      DBUG_PRINT_EVENT("info", (" and <= end_gap epoch %u/%u (%llu)"
+                                Uint32(m_end_gap_epoch >> 32),
+                                Uint32(m_end_gap_epoch),
+                                m_end_gap_epoch));
+    }
+    DBUG_RETURN_EVENT(true);
+  }
+  DBUG_RETURN_EVENT(false);
+}
+
 /*
  * Class NdbEventBuffer
  * Each Ndb object has a Object.
@@ -1111,9 +1304,7 @@ NdbEventBuffer::NdbEventBuffer(Ndb *ndb) :
   m_highest_sub_gcp_complete_GCI(0),
   m_latest_poll_GCI(0),
   m_total_alloc(0),
-  lastReportedState(EB_BUFFERINGEVENTS),
   m_max_alloc(0),
-  m_free_percent(20),
   m_free_thresh(0),
   m_min_free_thresh(0),
   m_max_free_thresh(0),
@@ -1184,6 +1375,18 @@ NdbEventBuffer::~NdbEventBuffer()
   }
 
   NdbCondition_Destroy(p_cond);
+}
+
+unsigned
+NdbEventBuffer::get_eventbuffer_free_percent()
+{
+  return m_event_buffer_manager.get_eventbuffer_free_percent();
+}
+
+void
+NdbEventBuffer::set_eventbuffer_free_percent(unsigned free)
+{
+  m_event_buffer_manager.set_eventbuffer_free_percent(free);
 }
 
 void
@@ -1366,6 +1569,28 @@ NdbEventBuffer::remove_consumed_gci_ops(Uint64 firstKeepGci)
   return gci_ops;
 }
 
+bool
+NdbEventBuffer::is_exceptional_epoch(EventBufData *data)
+{
+  Uint32 type = SubTableData::getOperation(data->sdata->requestInfo);
+
+  if (type == NdbDictionary::Event::_TE_EMPTY ||
+      type >= NdbDictionary::Event::_TE_INCONSISTENT)
+  {
+    if (type != NdbDictionary::Event::_TE_EMPTY)
+    {
+      DBUG_PRINT_EVENT("info",
+                       ("detected excep. gci %u/%u (%u) 0x%x 0x%x %s",
+                        Uint32(gci >> 32), Uint32(gci),
+                        data->sdata->gci_lo|(Uint64(data->sdata->gci_hi) << 32),
+                        type,
+                        m_ndb->getReference(), m_ndb->getNdbObjectName()));
+    }
+    DBUG_RETURN_EVENT(true);
+  }
+  DBUG_RETURN_EVENT(false);
+}
+
 NdbEventOperation *
 NdbEventBuffer::nextEvent()
 {
@@ -1381,22 +1606,24 @@ NdbEventBuffer::nextEvent()
 #endif
 
   EventBufData *data;
-  Uint64 gci= 0;
   while ((data= m_available_data.m_head))
   {
     move_head_event_data_item_to_used_data_queue(data);
 
     NdbEventOperationImpl *op= data->m_event_op;
 
-    /*
-     * The data was not associated with an event operation,
-     * possibly a dummy event list marking missing data
-     */
-    if (!op && !isConsistent(gci))
+    // all including exceptional event data must have an associated impl
+    assert(op);
+
+    // set NdbEventOperation data
+    op->m_data_item= data;
+    Uint64 gci = op->getGCI();
+
+    if (is_exceptional_epoch(data))
     {
       DBUG_PRINT_EVENT("info", ("detected inconsistent gci %u 0x%x %s",
                                 gci, m_ndb->getReference(), m_ndb->getNdbObjectName()));
-      DBUG_RETURN_EVENT(0);
+      DBUG_RETURN_EVENT(op->m_facade);
     }
 
     DBUG_PRINT_EVENT("info", ("available data=%p op=%p 0x%x %s",
@@ -1408,10 +1635,6 @@ NdbEventBuffer::nextEvent()
      * If merge is not on, there are no blob part sub-events.
      */
     assert(op->theMainOp == NULL);
-
-    // set NdbEventOperation data
-    op->m_data_item= data;
-    gci = op->getGCI();
 
 #ifdef VM_TRACE
     op->m_data_done_count++;
@@ -1447,6 +1670,7 @@ NdbEventBuffer::nextEvent()
 	 }
 
          assert(gci_ops && (gci == gci_ops->m_gci));
+
          // to return TE_NUL it should be made into data event
          if (SubTableData::getOperation(data->sdata->requestInfo) ==
 	   NdbDictionary::Event::_TE_NUL)
@@ -1753,6 +1977,11 @@ NdbEventBuffer::find_bucket_chained(Uint64 gci)
     return 0;
   }
 
+  if (m_event_buffer_manager.isGcpCompleteToBeDiscarded(gci))
+  {
+    return 0; // gci belongs to a gap
+  }
+
   if (unlikely(m_total_buckets == 0))
   {
     return 0;
@@ -1897,18 +2126,56 @@ NdbEventBuffer::complete_empty_bucket_using_exceptional_event(Uint64 gci,
                                                               Uint32 type)
 {
   EventBufData *dummy_data= alloc_data();
-  // clear any remains from its previous incarnation
-  // to avoid any side effects
-  if (dummy_data->memory)
-    dealloc_mem(dummy_data, NULL);
   dummy_data->m_event_op = 0;
 
-  EventBufData_list dummy_event_list;
-  dummy_event_list.append_used_data(dummy_data);
-  dummy_event_list.m_is_not_multi_list = true;
-  m_complete_data.m_data.append_list(&dummy_event_list, gci);
+  /** Add gci and event type to the inconsistent epoch event data,
+   * such that nextEvent handles it correctly and makes it visible
+   * to the consumer, such that consumer will be able to handle it.
+   */
+  LinearSectionPtr ptr[3];
+  for (int i = 0; i < 3; i++)
+  {
+    ptr[i].p = NULL;
+    ptr[i].sz = 0;
+  }
+  alloc_mem(dummy_data, ptr, 0);
+//  dummy_data = ((Uint32*)NdbMem_Allocate(sizeof(SubTableData) + 3) >> 2);
+
+  SubTableData *sdata = (SubTableData*) dummy_data->memory;
+  assert(dummy_data->memory);
+  sdata->tableId = ~0;
+  sdata->requestInfo = 0;
+  sdata->gci_hi = Uint32(gci >> 32);
+  sdata->gci_lo = Uint32(gci);
+  SubTableData::setOperation(sdata->requestInfo, type);
+
+  // Add the first EventOperationImpl such that
+  // the exceptional data can be interpreted by consumers
+  NdbEventOperation* op = m_ndb->getEventOperation(0);
+  dummy_data->m_event_op = &op->m_impl;
+  assert(op != NULL);
+
   assert(m_complete_data.m_data.m_gci_ops_list_tail != NULL);
-  m_complete_data.m_data.m_gci_ops_list_tail->m_consistent = false;
+
+  if (type >= NdbDictionary::Event::_TE_INCONSISTENT)
+    m_complete_data.m_data.m_gci_ops_list_tail->m_consistent = false;
+}
+
+void
+NdbEventBuffer::discard_events_from_bucket(Gci_container* bucket)
+{
+  // Empty the gci_op(s) list of the epoch from the bucket
+  DBUG_PRINT_EVENT("info", ("discard_events_from_bucket: deleting m_gci_op_list: %p",
+                            bucket->m_data.m_gci_op_list));
+  assert (bucket->m_data.m_is_not_multi_list); // bucket contains only one epoch
+  delete [] bucket->m_data.m_gci_op_list;
+
+  bucket->m_data.m_gci_op_count = 0;
+  bucket->m_data.m_gci_op_list = 0;
+  bucket->m_data.m_gci_op_alloc = 0;
+
+  // Empty the event data from the bucket and return it to m_free_data
+  free_list(bucket->m_data);
 }
 
 void
@@ -1925,38 +2192,50 @@ NdbEventBuffer::complete_bucket(Gci_container* bucket)
   verify_known_gci(false);
 #endif
 
-  /**
-   * Copy data
-   */
-  if(!bucket->m_data.is_empty())
+  bool bucket_empty = bucket->m_data.is_empty();
+  Uint32 type = 0;
+  if (bucket->m_state & Gci_container::GC_INCONSISTENT)
+  {
+    type = NdbDictionary::Event::_TE_INCONSISTENT;
+  }
+  else if (bucket->m_state & Gci_container::GC_OUT_OF_MEMORY)
+  {
+    type = NdbDictionary::Event::_TE_OUT_OF_MEMORY;
+  }
+  else if (bucket_empty)
+  {
+    assert(!bucket->m_data.m_is_not_multi_list);
+    assert(bucket->m_data.first_gci_ops() == 0);
+    type = NdbDictionary::Event::_TE_EMPTY;
+  }
+
+  if(!bucket_empty)
   {
 #ifdef VM_TRACE
     assert(bucket->m_data.m_count);
 #endif
-    m_complete_data.m_data.append_list(&bucket->m_data, gci);
-    if (bucket->m_state & Gci_container::GC_INCONSISTENT)
+
+    if (bucket->hasError())
     {
       /*
        * Bucket marked as possibly missing data, probably due to
        * kernel running out of event_buffer during node failure.
-       * Mark newly appended event list as inconsistent.
+       * Discard the partially-received event data.
        */
-      assert(m_complete_data.m_data.m_gci_ops_list_tail != NULL);
-      m_complete_data.m_data.m_gci_ops_list_tail->m_consistent = false;
+      discard_events_from_bucket(bucket);
+      bucket_empty = true;
     }
   }
-  else // if (bucket->m_data.is_empty())
+
+  if (bucket_empty)
   {
-    if (bucket->m_state & Gci_container::GC_INCONSISTENT)
-    {
-      /*
-       * Bucket marked as possibly missing data, probably due to
-       * kernel running out of event_buffer during node failure.
-       * Bucket contained no data so we must add a dummy event data
-       * and a dummy event list as an inconsistency marker.
-       */
-      complete_empty_bucket_using_exceptional_event(gci, 0);
-    }
+    assert(type > 0);
+    complete_empty_bucket_using_exceptional_event(gci, type);
+  }
+  else
+  {
+    // bucket is complete and consistent: add it to complete_data list
+    m_complete_data.m_data.append_list(&bucket->m_data, gci);
   }
 
   Uint32 minpos = m_min_gci_index;
@@ -2017,6 +2296,8 @@ NdbEventBuffer::execSUB_GCP_COMPLETE_REP(const SubGcpCompleteRep * const rep,
 
   if (unlikely(bucket == 0))
   {
+    if (unlikely(gci <= m_latestGCI))
+    {
     /**
      * Already completed GCI...
      *   Possible in case of resend during NF handling
@@ -2034,6 +2315,12 @@ NdbEventBuffer::execSUB_GCP_COMPLETE_REP(const SubGcpCompleteRep * const rep,
         ndbout << i << " - " << m_active_gci[i] << endl;
     }
 #endif
+    }
+    else
+    {
+      ndbout_c("bucket == 0 due to an ongoing gap, completed epoch: %u/%u (%llu)",
+               Uint32(gci >> 32), Uint32(gci), gci);
+    }
     DBUG_VOID_RETURN_EVENT;
   }
 
@@ -2062,6 +2349,16 @@ NdbEventBuffer::execSUB_GCP_COMPLETE_REP(const SubGcpCompleteRep * const rep,
     {
   do_complete:
       m_startup_hack = false;
+       bool gapBegins = false;
+
+      // if there is a gap, mark the gap boundary
+       if (m_event_buffer_manager.onEpochCompleted(gci, gapBegins))
+        reportStatus();
+
+      // if a new gap begins, mark the bucket.
+       if (gapBegins)
+         bucket->m_state = Gci_container::GC_OUT_OF_MEMORY;
+
       complete_bucket(bucket);
       m_latestGCI = m_complete_data.m_gci = gci; // before reportStatus
       reportStatus();
@@ -2149,19 +2446,6 @@ NdbEventBuffer::complete_outof_order_gcis()
 #endif
     minpos = (minpos + 1) & mask;
   } while (start_gci != stop_gci);
-}
-
-NdbEventBuffer::EventBufferState
-NdbEventBuffer::event_buffer_state()
-{
- // no limit on memory usage or enough memory
-  if (m_max_alloc == 0 || (m_total_alloc*100/m_max_alloc) <= 70)
-    return EB_BUFFERINGEVENTS;
-
-  if ((m_total_alloc*100/m_max_alloc) <= 100)
-    return EB_DISCARDINGNEWEVENTS;
-
-  return EB_DISCARDINGEVENTS;
 }
 
 void
@@ -2567,6 +2851,16 @@ NdbEventBuffer::insertDataL(NdbEventOperationImpl *op,
     }
   }
   
+  Uint32 memory_usage = 100 * (m_total_alloc - m_free_data_sz) / m_max_alloc;
+
+  if (m_event_buffer_manager.onEventDataReceived(memory_usage, gci))
+    reportStatus(true/*force_report*/);
+
+  if (m_event_buffer_manager.isEventDataToBeDiscarded(gci))
+  {
+    DBUG_RETURN_EVENT(0);
+  }
+
   if ( likely((Uint32)op->mi_type & (1U << operation)))
   {
     Gci_container* bucket= find_bucket(gci);
@@ -2617,6 +2911,8 @@ NdbEventBuffer::insertDataL(NdbEventOperationImpl *op,
         op->m_has_error = 2;
         DBUG_RETURN_EVENT(-1);
       }
+
+      m_event_buffer_manager.onBufferingEpoch(gci);
 
       // Initialize m_event_op, in case copy_data fails due to insufficient memory
       data->m_event_op = 0;
@@ -3576,7 +3872,7 @@ NdbEventBuffer::dropEventOperation(NdbEventOperation* tOp)
 }
 
 void
-NdbEventBuffer::reportStatus()
+NdbEventBuffer::reportStatus(bool force_report)
 {
   EventBufData *apply_buf= m_available_data.m_head;
   Uint64 apply_gci, latest_gci= m_latestGCI;
@@ -3590,6 +3886,9 @@ NdbEventBuffer::reportStatus()
   }
   else
     apply_gci= latest_gci;
+
+  if (force_report)
+      goto send_report;
 
   if (m_free_thresh)
   {
@@ -3620,16 +3919,6 @@ NdbEventBuffer::reportStatus()
   {
     goto send_report;
   }
-  {
-    const EventBufferState current_state = event_buffer_state();
-    // Report state changes, no reporting when fall back to normal state.
-    if (lastReportedState != current_state)
-    {
-      lastReportedState = current_state;
-      if (current_state != EB_BUFFERINGEVENTS)
-        goto send_report;
-    }
-  }
   return;
 
 send_report:
@@ -3646,6 +3935,14 @@ send_report:
 #ifdef VM_TRACE
   assert(m_total_alloc >= m_free_data_sz);
 #endif
+}
+
+void
+NdbEventBuffer::get_event_buffer_memory_usage(Ndb::EventBufferMemoryUsage& usage)
+{
+  usage.allocated_bytes = m_total_alloc;
+  usage.used_bytes = m_total_alloc - m_free_data_sz;
+  usage.usage_percent = (Uint32)(100 * usage.used_bytes/m_max_alloc);
 }
 
 #ifdef VM_TRACE
