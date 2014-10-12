@@ -120,9 +120,15 @@ bool NdbEventOperation::tableRangeListChanged() const
 }
 
 Uint64
-NdbEventOperation::getGCI() const
+NdbEventOperation::getEpoch() const
 {
   return m_impl.getGCI();
+}
+
+Uint64
+NdbEventOperation::getGCI() const
+{
+  return getEpoch();
 }
 
 Uint32
@@ -144,9 +150,50 @@ NdbEventOperation::getTransId() const
 }
 
 NdbDictionary::Event::TableEvent
+NdbEventOperation::getEventType2() const
+{
+  return m_impl.getEventType2();
+}
+
+bool
+NdbEventOperation::isEmptyEpoch()
+{
+  return m_impl.isEmptyEpoch();
+}
+
+bool
+NdbEventOperation::isErrorEpoch(Uint32 *error_type)
+{
+  return m_impl.isErrorEpoch(error_type);
+}
+
+NdbDictionary::Event::TableEvent
 NdbEventOperation::getEventType() const
 {
-  return m_impl.getEventType();
+  NdbDictionary::Event::TableEvent type = getEventType2();
+  /**
+   * Since this is called after nextEvent() returns a valid operation,
+   * and nextEvent() does not return a valid operation
+   * for exceptional event data
+   *  (nextEvent removes TE_EMPTY from the event queue,
+   *   it does not return a valid operation for TE_INCONSIS,
+   *   it crashes at TE_OUT_OF_MEMORY),
+   * getEventType should not see the new event types, unless getEventType
+   * is called after nextEvent2().
+   * Following assert will ensure that.
+   */
+
+  if (type >= NdbDictionary::Event::TE_EMPTY)
+  {
+    ndbout << "Ndb::getEventType: Found exceptional event type "
+           << hex << type;
+    ndbout << ". Use methods either from the old event API or from the new API."
+           << " Do not mix." << endl;
+  }
+
+  // event types >= TE_EMPTY are the new exceptional ones
+  assert(type < NdbDictionary::Event::TE_EMPTY);
+  return type;
 }
 
 void

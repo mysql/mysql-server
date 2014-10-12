@@ -134,6 +134,13 @@ public:
     Gci_ops *m_gci_ops_list_tail;
     Uint32 m_is_not_multi_list == 0;
 
+    m_error shows the error identified when receiveing an epoch:
+      a buffer overflow at the sender (ndb suma) or receiver (event buffer).
+      This error information is a duplicate, same info is available in
+      the dummy EventBufData. The reason to store the duplicate is to reduce
+      the search performed by isConsistent(Uint64 &) to find whether an
+      inconsistency has occurred in the stream (event queue is longer than
+      gci_ops list). This method is kept for backward compatibility.
   */
   struct Gci_op                 // 1 + 2
   {
@@ -144,7 +151,7 @@ public:
   {
     Gci_ops()
       : m_gci(0),
-        m_consistent(true),
+        m_error(0),
         m_gci_op_list(NULL),
         m_next(NULL),
         m_gci_op_count(0)
@@ -152,7 +159,7 @@ public:
     ~Gci_ops() {};
 
     Uint64 m_gci;
-    bool m_consistent;
+    Uint32 m_error;
     Gci_op *m_gci_op_list;
     Gci_ops *m_next;
     Uint32 m_gci_op_count;
@@ -385,12 +392,14 @@ public:
   bool tableRangeListChanged() const;
   Uint64 getGCI();
   Uint32 getAnyValue() const;
+  bool isErrorEpoch(Uint32 *error_type);
+  bool isEmptyEpoch();
   Uint64 getLatestGCI();
   Uint64 getTransId() const;
   bool execSUB_TABLE_DATA(const NdbApiSignal * signal,
                           const LinearSectionPtr ptr[3]);
 
-  NdbDictionary::Event::TableEvent getEventType();
+  NdbDictionary::Event::TableEvent getEventType2();
 
   void print();
   void printAll();
@@ -669,7 +678,7 @@ public:
   Uint64 getLatestGCI();
   Uint32 getEventId(int bufferId);
 
-  int pollEvents(int aMillisecondNumber, Uint64 *latestGCI= 0);
+  int pollEvents2(int aMillisecondNumber, Uint64 *HighestQueuedEpoch= 0);
   int flushIncompleteEvents(Uint64 gci);
 
   void free_consumed_event_data();
@@ -684,8 +693,8 @@ public:
   // an inconsistent, out-of-memory or empty epoch.
   bool is_exceptional_epoch(EventBufData *data);
 
- // dequeue event data from event queue and give it for consumption
-  NdbEventOperation *nextEvent();
+  // Dequeue event data from event queue and give it for consumption.
+  NdbEventOperation *nextEvent2();
   bool isConsistent(Uint64& gci);
   bool isConsistentGCI(Uint64 gci);
 

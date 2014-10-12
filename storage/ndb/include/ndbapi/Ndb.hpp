@@ -1318,21 +1318,108 @@ public:
    */
   int dropEventOperation(NdbEventOperation* eventOp);
 
+private:
+  // Help functions for pollEvents() and nextEvent()
+
+  // Inform event buffer overflow and exit
+  void printOverflowErrorAndExit();
+
   /**
-   * Wait for an event to occur. Will return as soon as an event
-   * is detected on any of the created events.
+   * New exceptional event data types can be found in the event queue,
+   * either a) at the head of the queue or b) somewhere in between.
+   * pollEvents() will find a) and nextEvent will find a) or b).
+   * They need to be treated in order to preserve the backward compatibility
+   * of pollEvents and nextEvents methods.
+   * Treatment will be as follows:
+   *  TE-EMPTY : Remove consecutive empty event data until a
+   *   non-empty event data is encountered.
+   *  Non-empty event data:
+   *   TE_INCONSISTENT : Leave it in the queue and return 0.
+   *   TE_OUT_OF_MEMORY : Inform the user and crash.
+   *   Other event types : return 1.
+   *  Queue becomes empty : return 0
+   *
+   * After this method is called, the head of the event queue will
+   * contain an event data of type TE_INCONSISTENT or old types.
+   */
+  Uint32 handle_exceptional_epochs();
+
+public:
+
+  /**
+   * Wait for an event to occur. Will return as soon as an event data
+   * is available on any of the created events. PollEvents() also moves
+   * the complete event data of an epoch to the event queue.
    *
    * @param aMillisecondNumber
    *        maximum time to wait
+   * aMillisecondNumber < 0 will cause a long wait
+   *
+   * @param OUT highestQueuedEpoch: if highestQueuedEpoch is non-null and
+   * there is some new event data available in the event queue,
+   * it will be set to the highest epoch among the available event data.
+   *
+   * @return > 0 if events available, 0 if no events available, < 0 on failure.
+   *
+   * @pollEvents2 will also return >0 when there is an event data
+   * representing empty or error epoch is available.
+   */
+  int pollEvents2(int aMillisecondNumber, Uint64 *highestQueuedEpoch= 0);
+
+  /**
+   * Wait for an event to occur. Will return as soon as an event
+   * is available on any of the created events.
+   *
+   * @param aMillisecondNumber
+   *        maximum time to wait
+   * aMillisecondNumber < 0 will cause a long wait
    *
    * @return > 0 if events available, 0 if no events available, < 0 on failure
+   *
+   * This is a backward compatibility wrapper to pollEvents2().
+   * It maintains the old behaviour :
+   * - returns 0 for event data representing inconsistent epoch,
+   * - does not have empty epochs in the available data queue,
+   * - crashes for event data representing event-buffer-overflow epoch.
    */
   int pollEvents(int aMillisecondNumber, Uint64 *latestGCI= 0);
+
+  /**
+   * Returns the event operation associated with the dequeued
+   * event data from the event queue. This should be called after
+   * pollEvents() populates the queue, and then can be called repeatedly
+   * until the event queue becomes empty.
+   *
+   * @return an event operation that has data or exceptional epoch data,
+   * or NULL if the queue is empty.
+   *
+   * nextEvent2() will return non-null event operation for event data
+   * representing exceptional (empty or error) epochs as well.
+   * NdbEventOperation::getEpoch2() should be called  after
+   * nextEvent2() to find the epoch, then
+   * NdbEventOperation::getEventType2() should be called to check the
+   * type of the returned event data
+   * and proper handling should be performed for the newly introduced
+   * exceptional event types:
+   * NdbDictionary::Event::TE_EMPTY, TE_INCONSISTENT and TE_OUT_OF_MEMORY.
+   * No other methods defined on NdbEventOperation than the above two
+   * should be called for exceptional epochs.
+   * Returning empty epoch (TE_EMPTY) is new and may overflood the
+   * application when ndb data nodes are idling. If this is not desirable,
+   * applications should do extra handling to filter out empty epochs.
+   */
+  NdbEventOperation *nextEvent2();
 
   /**
    * Returns an event operation that has data after a pollEvents
    *
    * @return an event operations that has data, NULL if no events left with data.
+   * This is a backward compatibility wrapper to nextEvent2(),
+   * It maintains the old behaviour :
+   * - returns NULL for inconsistent epochs,
+   * - will not have empty epochs in the event queue,
+   * - crashes the node it sees an event data representing an event buffer
+   *   overflow.
    */
   NdbEventOperation *nextEvent();
 
@@ -1369,6 +1456,22 @@ public:
    * Set *iter=0 to start.  Returns NULL when no more.  If event_types
    * is not NULL, it returns bitmask of received event types.
    */
+
+  const NdbEventOperation*
+    getNextEventOpInEpoch2(Uint32* iter, Uint32* event_types);
+
+  /**
+   * Iterate over distinct event operations which are part of current
+   * GCI.  Valid after nextEvent.  Used to get summary information for
+   * the epoch (e.g. list of all tables) before processing event data.
+   *
+   * Set *iter=0 to start.  Returns NULL when no more.  If event_types
+   * is not NULL, it returns bitmask of received event types.
+   *
+   * This is a wrapper for getNextEventOpInEpoch2, but retains the
+   * old name in order to preserve backward compatibility. This will
+   * not return exceptional (empty or error) event types.
+   */
   const NdbEventOperation*
     getGCIEventOperations(Uint32* iter, Uint32* event_types);
   
@@ -1377,6 +1480,7 @@ public:
   int flushIncompleteEvents(Uint64 gci);
   NdbEventOperation *getEventOperation(NdbEventOperation* eventOp= 0);
   Uint64 getLatestGCI();
+  Uint64 getHighestQueuedEpoch();
   void forceGCP();
   void setReportThreshEventGCISlip(unsigned thresh);
   void setReportThreshEventFreeMem(unsigned thresh);
