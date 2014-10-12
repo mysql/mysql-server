@@ -333,9 +333,10 @@ struct Gci_container
 {
   enum State 
   {
-    GC_COMPLETE     = 0x1, // GCI is complete, but waiting for out of order
-    GC_INCONSISTENT = 0x2  // GCI might be missing event data
-    ,GC_CHANGE_CNT  = 0x4  // Change m_total_buckets
+    GC_COMPLETE       = 0x1 // GCI is complete, but waiting for out of order
+    ,GC_INCONSISTENT  = 0x2  // GCI might be missing event data
+    ,GC_CHANGE_CNT    = 0x4  // Change m_total_buckets
+    ,GC_OUT_OF_MEMORY = 0x8 // Not enough event buffer memory to buffer data
   };
 
   
@@ -344,6 +345,8 @@ struct Gci_container
   Uint64 m_gci;                    // GCI
   EventBufData_list m_data;
   EventBufData_hash m_data_hash;
+
+  bool hasError();
 };
 
 struct Gci_container_pod
@@ -482,6 +485,147 @@ private:
   void receive_data(NdbRecAttr *r, const Uint32 *data, Uint32 sz);
 };
 
+
+class EventBufferManager {
+public:
+  EventBufferManager();
+  ~EventBufferManager() {};
+
+private:
+
+  /* Last epoch that will be buffered completely before
+   * the beginning of a gap.
+   */
+  Uint64 m_pre_gap_epoch;
+
+  /* The epoch where the gap begins. The received event data for this epoch
+   * will be thrown. Gcp-completion of this epoch will add a dummy event
+   * data and a dummy gci-ops list denoting the problem causing the gap.
+   */
+  Uint64 m_begin_gap_epoch;
+
+  /* This is the last epoch that will NOT be buffered during the gap period.
+   * From the next epoch (post-gap epoch), all event data will be
+   * completely buffered.
+   */
+  Uint64 m_end_gap_epoch;
+
+  // Epochs newer than this will be discarded when event buffer
+  // is used up.
+  Uint64 m_max_buffered_epoch;
+
+  /* Since no buffering will take place during a gap, m_max_buffered_epoch
+   * will not be updated. Therefore, use m_max_received_epoch to
+   * find end_gap_epoch when memory becomes available again.
+   * Epochs newer than this will be buffered.
+   */
+  Uint64 m_max_received_epoch;
+
+  /* After the max_alloc limit is hit, the % of event buffer memory
+   * that should be available before resuming buffering:
+   * min 1, max 99, default 20.
+   */
+  unsigned m_free_percent;
+
+  enum {
+    EBM_COMPLETELY_BUFFERING,
+    EBM_PARTIALLY_DISCARDING,
+    EBM_COMPLETELY_DISCARDING,
+    EBM_PARTIALLY_BUFFERING
+  } m_event_buffer_manager_state;
+
+  /**
+   * Event buffer manager has 4 states :
+   * COMPLETELY_BUFFERNG :
+   *  all received event data are buffered.
+   * Entry condition:
+   *  m_pre_gap_epoch = 0 && m_begin_gap_epoch = 0 && m_end_gap_epoch = 0.
+   *
+   * PARTIALLY_DISCARDING :
+   *  event data upto epochs m_pre_gap_epoch are buffered,
+   *  others are discarded.
+   *  Entry condition:
+   *   m_pre_gap_epoch > 0 && m_begin_gap = 0 && m_end_gap_epoch = 0.
+   *
+   * COMPLETELY_DISCARDING :
+   *  all received epoch event data are discarded.
+   *  Entry condition:
+   *   m_pre_gap_epoch > 0 && m_begin_gap_epoch > 0 && m_end_gap_epoch = 0.
+   *
+   * PARTIALLY_BUFFERING :
+   *  all received event data <= m_end_gap are discarded, others are buffered.
+   *  Entry condition:
+   *   m_pre_gap_epoch > 0 && m_begin_gap_epoch > 0 && m_end_gap_epoch > 0.
+   *
+   * Transitions :
+   * COMPLETELY_BUFFERNG -> PARTIALLY_DISCARDING :
+   *  memory is completely used up at the reception of SUB_TABLE_DATA,
+   *  Action: m_pre_gap_epoch is set with m_max_buffered_epoch.
+   *   ==> An incoming new epoch, which is larger than the
+   *       m_max_buffered_epoch can NOT be an m_pre_gap_epoch.
+   *
+   * PARTIALLY_DISCARDING -> COMPLETELY_DISCARDING :
+   *  epoch next to m_pre_gap_epoch, has gcp-completed,
+   * Action: set m_begin_gap_epoch with the gcp_completing epoch
+   * (marking the beginning of a gap).
+   * The reason to have an m_begin_gap in addition to m_pre_gap is:
+   * The gci of the epoch next to m_pre_gap is needed for creating the
+   * exceptional epoch. We reuse the code in complete_bucket that will
+   * create the exceptional epoch. Complete_bucket is called only when
+   * an epoch is gcp-completing.
+   *
+   * COMPLETELY_DISCARDING -> PARTIALLY_BUFFERNG :
+   *  m_free_percent of the event buffer  becomes available at the
+   *  reception of SUB_TABLE_DATA.
+   * Action : set m_end_gap_epoch with max_received_epoch
+   * (cannot use m_max_buffered_epoch since it has not been updated
+   * since PARTIALLY_DISCARDING).
+   *
+   * PARTIALLY_BUFFERNG -> COMPLETELY_BUFFERNG :
+   *  epoch next to m_end_gap_epoch (post-gap epoch) has buffered
+   *  completely and gcp_completed.
+   * Action : reset m_pre_gap_epoch, m_begin_gap_epoch and m_end_gap_epoch.
+   */
+
+  bool isCompletelyBuffering();
+  bool isPartiallyDiscarding();
+  bool isCompletelyDiscarding();
+  bool isPartiallyBuffering();
+  bool isInDiscardingState();
+
+public:
+  unsigned get_eventbuffer_free_percent();
+  void set_eventbuffer_free_percent(unsigned free);
+
+  void onBufferingEpoch(Uint64 received_epoch); // update m_max_buffered_epoch
+
+  /* Execute the state machine by checking the buffer manager state
+   * and performing the correct transition according to buffer availability:
+   * Returned value indicates whether reportStatus() is necessary.
+   * Transitions CB -> PD and CD -> PB and updating m_max_received epoc
+   * are performed here.
+   */
+  bool onEventDataReceived(Uint32 memory_usage_percent, Uint64 received_epoch);
+
+  // Check whether the received event data can be discarded.
+  // Discard-criteria : m_pre_gap_epoch < received_epoch <= m_end_gap_epoch.
+  bool isEventDataToBeDiscarded(Uint64 received_epoch);
+
+  /* Execute the state machine by checking the buffer manager state
+   * and performing the correct transition according to gcp_completion.
+   * Transitions PD -> CD and PB -> CB are performed here.
+   * Check whether the received gcp_completing epoch can mark the beginning
+   * of a gap (qualifies as m_begin_gap_epoch) or
+   * the gap is ended and the transition to COMPLETE_BUFFERING can be performed.
+   * The former case sets gap_begins to true.
+   */
+  bool onEpochCompleted(Uint64 completed_epoch, bool& gap_begins);
+
+  // Check whether the received SUB_GCP_COMPLETE can be discarded
+  // Discard-criteria: m_begin_gap_epoch < completed_epoch <= m_end_gap_epoch
+  bool isGcpCompleteToBeDiscarded(Uint64 completed_epoch);
+};
+
 class NdbEventBuffer {
 public:
   NdbEventBuffer(Ndb*);
@@ -536,6 +680,10 @@ public:
    */
   EventBufData_list::Gci_ops* remove_consumed_gci_ops(Uint64 firstKeepGci);
 
+  // Check if event data belongs to an exceptional epoch, such as,
+  // an inconsistent, out-of-memory or empty epoch.
+  bool is_exceptional_epoch(EventBufData *data);
+
  // dequeue event data from event queue and give it for consumption
   NdbEventOperation *nextEvent();
   bool isConsistent(Uint64& gci);
@@ -571,7 +719,11 @@ public:
 
   void free_list(EventBufData_list &list);
 
-  void reportStatus();
+  //Must report status if buffer manager state is changed
+  void reportStatus(bool force_report = false);
+
+  //Get event buffer memory usage statistics
+  void get_event_buffer_memory_usage(Ndb::EventBufferMemoryUsage& usage);
 
   // Global Mutex used for some things
   static NdbMutex *p_add_drop_mutex;
@@ -609,28 +761,13 @@ public:
 
   unsigned m_total_alloc; // total allocated memory
 
-  /**
-   * EB_BufferEvents: m_total_alloc*100/m_max_alloc <= 70
-   * EB_DiscardNewEvents: m_total_alloc*100/m_max_alloc > 70
-   * EB_DiscardEvents: m_total_alloc*100/m_max_alloc > 100
-   */
-  enum EventBufferState
-  {
-    EB_BUFFERINGEVENTS      = 0x1 // Enough alloc'd mem to buffer events
-    ,EB_DISCARDINGNEWEVENTS = 0x2 // Alloc'd mem is running out
-    ,EB_DISCARDINGEVENTS    = 0x3 // Alloc'd mem is used up completely
-  };
-  EventBufferState lastReportedState; // To avoid bursts of reporting
-  EventBufferState event_buffer_state();
-
   // ceiling for total allocated memory, 0 means unlimited
   unsigned m_max_alloc;
 
-  /* After the max_alloc limit is hit, the % of event buffer memory
-   * that should be available before resuming buffering:
-   * min 1, max 99, default 20.
-   */
-  unsigned m_free_percent;
+  EventBufferManager m_event_buffer_manager; // managing buffer memory usage
+
+  unsigned get_eventbuffer_free_percent();
+  void set_eventbuffer_free_percent(unsigned free);
 
   // threshholds to report status
   unsigned m_free_thresh, m_min_free_thresh, m_max_free_thresh;
@@ -699,6 +836,9 @@ private:
    */
   void complete_empty_bucket_using_exceptional_event(Uint64 gci, Uint32 type);
 
+  /* Discard the bucket content */
+  void discard_events_from_bucket(Gci_container* bucket);
+
 public:
   void set_total_buckets(Uint32);
 };
@@ -733,6 +873,66 @@ NdbEventOperationImpl::receive_data(NdbRecAttr *r,
   }
   r->theNULLind= 1;
 #endif
+}
+
+inline bool
+EventBufferManager::isCompletelyBuffering()
+{
+  if (m_event_buffer_manager_state == EBM_COMPLETELY_BUFFERING)
+  {
+    assert(m_pre_gap_epoch == 0 && m_begin_gap_epoch == 0 &&
+           m_end_gap_epoch == 0);
+    return true;
+  }
+  return false;
+}
+
+inline bool
+EventBufferManager::isPartiallyDiscarding()
+{
+  if (m_event_buffer_manager_state == EBM_PARTIALLY_DISCARDING)
+  {
+    assert(m_pre_gap_epoch > 0 && m_begin_gap_epoch == 0 &&
+           m_end_gap_epoch == 0);
+    return true;
+  }
+  return false;
+}
+
+inline bool
+EventBufferManager::isCompletelyDiscarding()
+{
+  if (m_event_buffer_manager_state == EBM_COMPLETELY_DISCARDING)
+  {
+    assert(m_pre_gap_epoch > 0 && m_begin_gap_epoch > 0 &&
+           m_end_gap_epoch == 0);
+    return true;
+  }
+  return false;
+}
+
+inline bool
+EventBufferManager::isPartiallyBuffering()
+{
+  if (m_event_buffer_manager_state == EBM_PARTIALLY_BUFFERING)
+  {
+    assert(m_pre_gap_epoch > 0 && m_begin_gap_epoch > 0 &&
+           m_end_gap_epoch > 0);
+    return true;
+  }
+  return false;
+}
+
+inline bool
+EventBufferManager::isInDiscardingState()
+{
+  return (m_event_buffer_manager_state != EBM_COMPLETELY_BUFFERING);
+}
+
+inline bool
+Gci_container::hasError()
+{
+  return (m_state & (GC_OUT_OF_MEMORY | GC_INCONSISTENT));
 }
 
 #endif

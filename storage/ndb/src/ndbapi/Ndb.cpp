@@ -2094,7 +2094,7 @@ Ndb::set_eventbuf_max_alloc(unsigned sz)
 
 unsigned Ndb::get_eventbuffer_free_percent()
 {
-  return theEventBuffer->m_free_percent;
+  return theEventBuffer->get_eventbuffer_free_percent();
 }
 
 int
@@ -2105,8 +2105,13 @@ Ndb::set_eventbuffer_free_percent(unsigned free)
     theError.code = 4123;
     return -1;
   }
-  theEventBuffer->m_free_percent = free;
+  theEventBuffer->set_eventbuffer_free_percent(free);
   return 0;
+}
+
+void Ndb::get_event_buffer_memory_usage(EventBufferMemoryUsage& usage)
+{
+  theEventBuffer->get_event_buffer_memory_usage(usage);
 }
 
 NdbEventOperation* Ndb::createEventOperation(const char* eventName)

@@ -1232,6 +1232,32 @@ public:
   int set_eventbuffer_free_percent(unsigned sz);
   unsigned get_eventbuffer_free_percent();
 
+  struct EventBufferMemoryUsage
+  {
+    EventBufferMemoryUsage() :
+      allocated_bytes(0),
+      used_bytes(0),
+      usage_percent(0)
+    {}
+
+    Uint32 allocated_bytes;
+    Uint32 used_bytes;
+    Uint32 usage_percent; // (used_bytes)*100/eventbuf_max_alloc
+  };
+  /**
+   * Get event buffer usauge as a percentage of eventbuf_max_alloc limit.
+   * In/out parameter : struct EventBufferMemoryUsage&, which contains
+   *  allocated_bytes : total event buffer memory allocated in bytes
+   *  used_bytes : total memory used in bytes
+   *  usage_percent : event buffer memory usage percent = (100*used/max_alloc).
+   * Usage_percent is allowed to go over 100% temporarily
+   * for some period of time or permanently if eventbuf_max_alloc
+   * and eventbuffer_free_percent are not configured
+   * according to the event data load. The latter causes frequent gaps
+   * and thus should be avoided.
+   */
+  void get_event_buffer_memory_usage(EventBufferMemoryUsage&);
+
 #ifndef DOXYGEN_SHOULD_SKIP_DEPRECATED
   /**
    * Wait for Ndb object to successfully set-up connections to 
