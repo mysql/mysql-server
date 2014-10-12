@@ -15,12 +15,12 @@
 
 #include "byteorder.h"
 #include "value.h"
+#include "wrapper_functions.h"
 #include <stdlib.h>
 #include <string.h>
 #include <climits>
 #include <stdint.h>
 #include <stdio.h>
-#include <iostream>
 #include <cassert>
 
 
@@ -35,9 +35,7 @@
 */
 unsigned int my_time_binary_length(unsigned int dec)
 {
-#ifndef DBUG_OFF
-  assert(dec <= DATETIME_MAX_DECIMALS);
-#endif
+  BAPI_ASSERT(dec <= DATETIME_MAX_DECIMALS);
   return 3 + (dec + 1) / 2;
 }
 
@@ -424,6 +422,7 @@ bool Value::operator==(const Value &val) const
   return (m_size == val.m_size) &&
          (m_storage == val.m_storage) &&
          (m_type == val.m_type) &&
+         (m_is_null == val.m_is_null) &&
          (m_metadata == val.m_metadata);
 }
 

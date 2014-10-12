@@ -15,15 +15,14 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "row_of_fields.h"
-#include <stdexcept>
+#include <cassert>
 
 namespace binary_log
 {
 
 Row_of_fields& Row_of_fields::operator=(const Row_of_fields &right)
 {
-  if (size() != right.size())
-    throw std::length_error("Row dimension doesn't match.");
+  assert(size() == right.size());
   int i= 0;
   Row_of_fields::const_iterator it= right.begin();
 
@@ -36,8 +35,7 @@ Row_of_fields& Row_of_fields::operator=(const Row_of_fields &right)
 
 Row_of_fields& Row_of_fields::operator=(Row_of_fields &right)
 {
-  if (size() != right.size())
-    throw std::length_error("Row dimension doesn't match.");
+  assert(size() == right.size());
   int i= 0;
   Row_of_fields::iterator it= right.begin();
 

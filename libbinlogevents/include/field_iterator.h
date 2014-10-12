@@ -20,8 +20,6 @@
 #include "rows_event.h"
 #include "row_of_fields.h"
 #include <vector>
-#include <stdexcept>
-
 
 namespace binary_log {
 
