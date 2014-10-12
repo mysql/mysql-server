@@ -133,7 +133,7 @@ static void test_large_sequential_insert_unique(DB_ENV *env) {
     r = db->set_readpagesize(db, 2 * 1024); CKERR(r);
     r = db->open(db, NULL, "db", NULL, DB_BTREE, DB_CREATE, 0644); CKERR(r);
 
-    const int val_size = 1024;
+    const int val_size = 8;
     char *XMALLOC_N(val_size, val_buf);
     memset(val_buf, 'k', val_size);
     DBT val;
@@ -153,9 +153,18 @@ static void test_large_sequential_insert_unique(DB_ENV *env) {
             // .. but re-inserting is okay, if we provisionally deleted the row
             DB_TXN *txn;
             r = env->txn_begin(env, NULL, &txn, 0); CKERR(r);
-            r = db->del(db, NULL, &key, DB_DELETE_ANY); CKERR(r);
-            r = db->put(db, NULL, &key, &val, DB_NOOVERWRITE); CKERR(r);
+            r = db->del(db, txn, &key, DB_DELETE_ANY); CKERR(r);
+            r = db->put(db, txn, &key, &val, DB_NOOVERWRITE); CKERR(r);
             r = txn->commit(txn, 0); CKERR(r);
+
+            // re-inserting is also ok if we actually delete the row, for some key < k
+            if (i > 0) {
+                DBT other_key;
+                int other_k = toku_htonl(i - 10);
+                dbt_init(&other_key, &other_k, sizeof(other_k));
+                r = db->del(db, NULL, &other_key, DB_DELETE_ANY); CKERR(r);
+                r = db->put(db, NULL, &other_key, &val, DB_NOOVERWRITE); CKERR(r);
+            }
         }
         if (i > 0 && i % 250 == 0) {
             // sanity check - unique checks on random keys we already inserted should
