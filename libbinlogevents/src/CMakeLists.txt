@@ -14,15 +14,12 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 SET (REPLICATION_SOURCES
-     field_iterator.cpp
      statement_events.cpp
      control_events.cpp
      load_data_events.cpp
-     row_of_fields.cpp
      rows_event.cpp
-     value.cpp
      binlog_event.cpp
-     decoder.cpp
+     binary_log_funcs.cpp
      uuid.cc
     )
 

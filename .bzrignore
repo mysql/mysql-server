@@ -57,7 +57,6 @@ Win32
 RelWithDebInfo
 *~
 .*.swp
-./CMakeCache.txt
 ./MySql.ncb
 ./MySql.sln
 ./MySql.suo
@@ -99,6 +98,7 @@ BitKeeper/post-commit-manual
 BitKeeper/tmp/*
 BitKeeper/tmp/bkr3sAHD
 BitKeeper/tmp/gone
+CMakeCache.txt
 CMakeFiles
 CMakeFiles/*
 CTestTestfile.cmake

@@ -19,7 +19,7 @@
 
 #ifndef _mysql_com_h
 #define _mysql_com_h
-#include "transitional_methods.h"
+#include "binary_log_types.h"
 #define HOSTNAME_LENGTH 60
 #define SYSTEM_CHARSET_MBMAXLEN 3
 #define NAME_CHAR_LEN	64              /* Field/table name length */

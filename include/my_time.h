@@ -42,8 +42,6 @@ typedef long my_time_t;
 #define MY_TIME_T_MAX LONG_MAX
 #define MY_TIME_T_MIN LONG_MIN
 
-#define DATETIME_MAX_DECIMALS 6
-
 /* Time handling defaults */
 #define TIMESTAMP_MAX_YEAR 2038
 #define TIMESTAMP_MIN_YEAR (1900 + YY_PART_YEAR - 1)

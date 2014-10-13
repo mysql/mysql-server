@@ -19,6 +19,7 @@
 #include <myisampack.h>
 /* Windows version of localtime_r() is declared in my_ptrhead.h */
 #include <my_pthread.h>
+#include "binary_log_types.h"
 
 ulonglong log_10_int[20]=
 {

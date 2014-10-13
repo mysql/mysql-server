@@ -16,15 +16,11 @@
 # This configuration file builds both the static and shared version of
 # the library.
 SET (REPLICATION_SOURCES
-     ${CMAKE_SOURCE_DIR}/libbinlogevents/src/field_iterator.cpp
      ${CMAKE_SOURCE_DIR}/libbinlogevents/src/load_data_events.cpp
-     ${CMAKE_SOURCE_DIR}/libbinlogevents/src/row_of_fields.cpp
      ${CMAKE_SOURCE_DIR}/libbinlogevents/src/rows_event.cpp
-     ${CMAKE_SOURCE_DIR}/libbinlogevents/src/value.cpp
      ${CMAKE_SOURCE_DIR}/libbinlogevents/src/binlog_event.cpp
      ${CMAKE_SOURCE_DIR}/libbinlogevents/src/control_events.cpp
      ${CMAKE_SOURCE_DIR}/libbinlogevents/src/statement_events.cpp
-     ${CMAKE_SOURCE_DIR}/libbinlogevents/src/decoder.cpp
      ${CMAKE_SOURCE_DIR}/libbinlogevents/src/uuid.cc
     )
 
