@@ -44,6 +44,7 @@
 #include <NdbTick.h>
 #include <NdbMutex.h>
 #include <NdbCondition.h>
+#include <ErrorReporter.hpp>
 #include <EventLogger.hpp>
 
 extern EventLogger * g_eventLogger;
@@ -5660,6 +5661,89 @@ FastScheduler::traceDumpPrepare(NdbShutdownType& nst)
   NdbMutex_Unlock(&g_thr_repository->stop_for_crash_mutex);
 
   /* Now we are ready (or as ready as can be) for doing crash dump. */
+}
+
+/**
+ * In ndbmtd we could have a case where we actually have multiple threads
+ * crashing at the same time. This causes several threads to start processing
+ * the crash handling in parallel and eventually lead to a deadlock since
+ * the crash handling thread waits for other threads to stop before completing
+ * the crash handling.
+ * 
+ * To avoid this we use this function that only is useful in ndbmtd where
+ * we check if the crash handling has already started. We protect this
+ * check using the stop_for_crash-mutex. This function is called twice,
+ * first to write an entry in the error log and second to specify that the
+ * error log write is completed.
+ * 
+ * We proceed only from the first call if the crash handling hasn't started
+ * or if the crash is not caused by an error insert. If it is caused by an
+ * error insert it is a normal situation with multiple crashes, so we won't
+ * clutter the error log with multiple entries in this case. If it is a real
+ * crash and we have more than one thread crashing, then this is vital
+ * information to write in the error log, we do however not want more than
+ * one set of trace files.
+ *
+ * To ensure that writes of the error log happens for one thread at a time we
+ * protect it with the stop_for_crash-mutex. We hold this mutex between the
+ * first and second call of this function from the error reporter thread.
+ *
+ * We proceed from the first call only if we are the first thread that
+ * reported an error. To handle this properly we start by acquiring the
+ * mutex, then we write the error log, when we come back we set the
+ * crash_started flag and release the mutex to enable other threads to
+ * write into the error log, but still stopping them from proceeding to
+ * write another set of trace files.
+ *
+ * We will not come back from this function the second time unless we are
+ * the first crashing thread.
+ */
+
+static bool crash_started = false;
+
+void
+ErrorReporter::prepare_to_crash(bool first_phase, bool error_insert_crash)
+{
+  if (first_phase)
+  {
+    NdbMutex_Lock(&g_thr_repository->stop_for_crash_mutex);
+    if (crash_started && error_insert_crash)
+    {
+      /**
+       * Some other thread has already started the crash handling.
+       * We call the below method which we will never return from.
+       * We need not write multiple entries in error log for
+       * error insert crashes since it is a normal event.
+       */
+      NdbMutex_Unlock(&g_thr_repository->stop_for_crash_mutex);
+      mt_execSTOP_FOR_CRASH();
+    }
+    /**
+     * Proceed to write error log before returning to this method
+     * again with start set to 0.
+     */
+  }
+  else if (crash_started)
+  {
+    (void)error_insert_crash;
+    /**
+     * No need to proceed since somebody already started handling the crash.
+     * We proceed by calling mt_execSTOP_FOR_CRASH to stop this thread
+     * in a manner that is similar to if we received the signal
+     * STOP_FOR_CRASH.
+     */
+    NdbMutex_Unlock(&g_thr_repository->stop_for_crash_mutex);
+    mt_execSTOP_FOR_CRASH();
+  }
+  else
+  {
+    /**
+     * No crash had started previously, we will take care of it. Before
+     * handling it we will mark the crash handling as started.
+     */
+    crash_started = true;
+    NdbMutex_Unlock(&g_thr_repository->stop_for_crash_mutex);
+  }
 }
 
 void mt_execSTOP_FOR_CRASH()
