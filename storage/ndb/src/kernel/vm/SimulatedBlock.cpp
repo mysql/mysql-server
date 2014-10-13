@@ -4551,6 +4551,20 @@ SimulatedBlock::get_recv_thread_idx(NodeId nodeId)
 #endif
 }
 
+#ifndef NDBD_MULTITHREADED
+/**
+ * Add a stub for this function since we have some code in ErrorReporter.cpp
+ * that needs this function, it's only really needed for ndbmtd, so need an
+ * empty function in ndbd.
+ */
+void
+ErrorReporter::prepare_to_crash(bool first_phase, bool error_insert_crash)
+{
+  (void)first_phase;
+  (void)error_insert_crash;
+}
+#endif
+
 /** 
  * #undef is needed since this file is included by SimulatedBlock_nonmt.cpp
  * and SimulatedBlock_mt.cpp

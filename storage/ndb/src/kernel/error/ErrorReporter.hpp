@@ -49,6 +49,7 @@ public:
 
   static int get_trace_no();
 
+  static void prepare_to_crash(bool first_phase, bool error_insert_crash);
 private:
   static enum NdbShutdownType s_errorHandlerShutdownType;
 };
