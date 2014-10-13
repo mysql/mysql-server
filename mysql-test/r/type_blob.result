@@ -270,18 +270,18 @@ select distinct c from t1;
 c
 NULL
 
+a
 hello
 HELLO MY
-a
 select distinct d from t1;
 d
 NULL
 
-hello
+1
 HELLO
 HELLO MY
 a
-1
+hello
 select distinct c from t1 order by c;
 c
 NULL
