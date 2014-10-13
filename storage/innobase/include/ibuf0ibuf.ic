@@ -308,7 +308,7 @@ ibuf_update_free_bits_if_full(
 	ulint	before;
 	ulint	after;
 
-	ut_ad(!buf_block_get_page_zip(block));
+	ut_ad(buf_block_get_page_zip(block) == NULL);
 
 	before = ibuf_index_page_calc_free_bits(
 		block->page.size.physical(), max_ins_size);

@@ -630,7 +630,7 @@ buf_page_is_corrupted(
 
 	/* declare empty pages non-corrupted */
 	if (checksum_field1 == 0 && checksum_field2 == 0
-	    && mach_read_from_4(read_buf + FIL_PAGE_LSN) == 0) {
+	    && !memcmp(read_buf + FIL_PAGE_LSN, field_ref_zero, 8)) {
 		/* make sure that the page is really empty */
 
 #ifdef UNIV_INNOCHECKSUM
@@ -6056,10 +6056,8 @@ buf_print_instance(
 		} else {
 			ib::info() << "Block count for index " << index_ids[i]
 				<< " in buffer is about " << counts[i]
-				<< ", index "
-				<< ut_get_name(NULL, FALSE, index->name)
-				<< " of table "
-				<< ut_get_name(NULL, TRUE, index->table_name);
+				<< ", index " << index->name
+				<< " of table " << index->table->name;
 		}
 	}
 

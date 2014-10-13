@@ -232,11 +232,18 @@ char *set_relay_log_index_name(char* name){
   return original_relaylog_index_name;
 }
 
+#ifdef HAVE_REPLICATION
+
 char *set_relay_log_info_name(char* name){
   char *original_relay_info_file= relay_log_info_file;
-  relay_log_info_file=  name;
+  relay_log_info_file= name;
+
+  Rpl_info_factory::init_relay_log_file_metadata();
+
   return original_relay_info_file;
 }
+
+#endif
 
 void set_recovery_wait_structures(mysql_cond_t *rec_cond,
                                   mysql_mutex_t *rec_lock)

@@ -74,6 +74,26 @@ public:
   */
   int initialize_repositories(char* relay_log_name,
                               char* relay_log_info_name);
+
+  /**
+    Creates both a Master info and a Relay log info repository whose types are
+    defined as parameters.
+
+    @todo Make the repository a pluggable component.
+    @todo Use generic programming to make it easier and clearer to
+          add a new repositories' types and Rpl_info objects.
+
+    @param[in]  mi_option  Type of the Master info repository.
+    @param[out] mi         Reference to the Master_info.
+    @param[in]  rli_option Type of the Relay log info repository.
+    @param[out] rli        Reference to the Relay_log_info.
+
+    @retval FALSE No error
+    @retval TRUE  Failure
+  */
+  int create_coordinators(uint mi_option, Master_info **mi,
+                          uint rli_option, Relay_log_info **rli);
+
   /**
     Initializes the connection related parameters for master connection.
 

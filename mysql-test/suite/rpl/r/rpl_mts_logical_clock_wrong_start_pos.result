@@ -18,7 +18,7 @@ CREATE TABLE t1(a INT);
 INSERT INTO t1 SET a=1;
 include/sync_slave_sql_with_master.inc
 include/stop_slave.inc
-CHANGE MASTER TO MASTER_LOG_POS=552, MASTER_AUTO_POSITION=0;
+CHANGE MASTER TO MASTER_LOG_POS=554, MASTER_AUTO_POSITION=0;
 include/start_slave_io.inc
 START SLAVE SQL_THREAD;
 [connection master]

@@ -6764,10 +6764,10 @@ ER_IO_WRITE_ERROR
   eng "IO Write error: (%lu, %s) %s"
 
 ER_TABLESPACE_MISSING
-  eng "Tablespace is missing for table '%-.192s'"
+  eng "Tablespace '%-.192s' is missing"
 
 ER_TABLESPACE_EXISTS
-  eng "Tablespace for table '%-.192s' exists. Please DISCARD the tablespace before IMPORT."
+  eng "Tablespace '%-.192s' exists."
 
 ER_TABLESPACE_DISCARDED
   eng "Tablespace has been discarded for table '%-.192s'"
@@ -6776,7 +6776,7 @@ ER_INTERNAL_ERROR
   eng "Internal error: %s"
 
 ER_INNODB_IMPORT_ERROR
-  eng "ALTER TABLE '%-.192s' IMPORT TABLESPACE failed with error %lu : '%s'"
+  eng "ALTER TABLE %-.192s IMPORT TABLESPACE failed with error %lu : '%s'"
 
 ER_INNODB_INDEX_CORRUPT
   eng "Index corrupt: %s"
@@ -7081,8 +7081,8 @@ ER_INNODB_UNDO_LOG_FULL
 ER_INVALID_ARGUMENT_FOR_LOGARITHM 2201E
   eng "Invalid argument for logarithm"
 
-ER_SLAVE_IO_THREAD_MUST_STOP
-  eng "This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD first."
+ER_SLAVE_CHANNEL_IO_THREAD_MUST_STOP
+  eng "This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD FOR CHANNEL '%s' first."
 
 ER_WARN_OPEN_TEMP_TABLES_MUST_BE_ZERO
   eng "This operation may not be safe when the slave has temporary tables. The tables will be kept open until the server restarts or until the tables are deleted by any replicated DROP statement. Suggest to wait until slave_open_temp_tables = 0."
@@ -7097,7 +7097,7 @@ ER_NON_RO_SELECT_DISABLE_TIMER
   eng "Select is not a read only statement, disabling timer"
 
 ER_DUP_LIST_ENTRY
-        eng "Duplicate entry '%-.192s'."
+  eng "Duplicate entry '%-.192s'."
 
 ER_SQL_MODE_NO_EFFECT
   eng "'%s' mode no longer has any effect. Use STRICT_ALL_TABLES or STRICT_TRANS_TABLES instead."
@@ -7189,24 +7189,6 @@ ER_GIS_DATA_WRONG_ENDIANESS
 ER_CHANGE_MASTER_PASSWORD_LENGTH
   eng "The password provided for the replication user exceeds the maximum length of 32 characters"
 
-ER_GCS_REPLICATION_CONFIGURATION
-  eng "The server is not configured properly to be an active member of the GCS CLUSTER."
-
-ER_GCS_REPLICATION_RUNNING
-  eng "The START GCS_REPLICATION failed since the cluster is already running."
-
-ER_GCS_REPLICATION_APPLIER_INIT_ERROR
-  eng "The START GCS_REPLICATION command failed as the applier module failed to start."
-
-ER_GCS_STOP_APPLIER_THREAD_TIMEOUT
-  eng "The STOP GCS_REPLICATION command execution is incomplete: The applier thread got the stop signal while it was busy. The applier thread will stop once the current task is complete."
-
-ER_GCS_COMMUNICATION_LAYER_SESSION_ERROR
-  eng "The START GCS_REPLICATION command failed as there was an error when initializing the group communication layer."
-
-ER_GCS_COMMUNICATION_LAYER_JOIN_ERROR
-  eng "The START GCS_REPLICATION command failed as there was an error when joining the communication group"
-
 ER_USER_LOCK_WRONG_NAME 42000
         eng "Incorrect user-level lock name '%-.192s'."
 
@@ -7259,6 +7241,64 @@ ER_INVALID_GEOJSON_UNSPECIFIED
 
 ER_DIMENSION_UNSUPPORTED
   eng "Unsupported number of coordinate dimensions in function %s: Found %u, expected %u"
+
+ER_SLAVE_CHANNEL_DOES_NOT_EXIST
+  eng "Slave channel '%s' does not exist."
+
+ER_SLAVE_MULTIPLE_CHANNELS_HOST_PORT
+  eng "A slave channel '%s' already exists for the given host and port combination."
+
+ER_SLAVE_CHANNEL_NAME_INVALID_OR_TOO_LONG
+  eng "Couldn't create channel: Channel name is either invalid or too long."
+
+ER_SLAVE_NEW_CHANNEL_WRONG_REPOSITORY
+  eng "To have multiple channels, repository cannot be of type FILE; Please check the repository configuration and convert them to TABLE."
+
+ER_SLAVE_CHANNEL_DELETE
+   eng "Cannot delete slave info objects for channel '%s'."
+
+ER_SLAVE_MULTIPLE_CHANNELS_CMD
+   eng "Multiple channels exist on the slave. Please provide channel name as an argument."
+
+ER_SLAVE_MAX_CHANNELS_EXCEEDED
+   eng "Maximum number of replication channels allowed exceeded."
+
+ER_SLAVE_CHANNEL_MUST_STOP
+   eng "This operation cannot be performed with a running replication threads; run STOP SLAVE FOR CHANNEL '%s' first"
+
+ER_SLAVE_CHANNEL_NOT_RUNNING
+   eng "This operation requires a running replication threads; configure slave and run START SLAVE FOR CHANNEL '%s'"
+
+ER_SLAVE_CHANNEL_WAS_RUNNING
+   eng "Replication thread(s) for channel '%s' are already runnning."
+
+ER_SLAVE_CHANNEL_WAS_NOT_RUNNING
+  eng "Replication thread(s) for channel '%s' are already stopped."
+
+ER_SLAVE_CHANNEL_SQL_THREAD_MUST_STOP
+  eng "This operation cannot be performed with a running slave sql thread; run STOP SLAVE SQL_THREAD FOR CHANNEL '%s' first."
+
+ER_SLAVE_CHANNEL_SQL_SKIP_COUNTER
+  eng "When sql_slave_skip_counter > 0, it is not allowed to start SQL threads for multiple channels. To use sql_slave_skip_counter, stop SQL threads of all channels and execute START SLAVE FOR CHANNEL statement."
+
+ER_GCS_REPLICATION_CONFIGURATION
+  eng "The server is not configured properly to be an active member of the GCS CLUSTER."
+
+ER_GCS_REPLICATION_RUNNING
+  eng "The START GCS_REPLICATION failed since the cluster is already running."
+
+ER_GCS_REPLICATION_APPLIER_INIT_ERROR
+  eng "The START GCS_REPLICATION command failed as the applier module failed to start."
+
+ER_GCS_STOP_APPLIER_THREAD_TIMEOUT
+  eng "The STOP GCS_REPLICATION command execution is incomplete: The applier thread got the stop signal while it was busy. The applier thread will stop once the current task is complete."
+
+ER_GCS_COMMUNICATION_LAYER_SESSION_ERROR
+  eng "The START GCS_REPLICATION command failed as there was an error when initializing the group communication layer."
+
+ER_GCS_COMMUNICATION_LAYER_JOIN_ERROR
+  eng "The START GCS_REPLICATION command failed as there was an error when joining the communication group"
+
 #
 #  End of 5.7 error messages.
 #

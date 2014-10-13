@@ -310,6 +310,25 @@ bool sp_lex_instr::reset_lex_and_exec_core(THD *thd,
 
   reinit_stmt_before_use(thd, m_lex);
 
+  /*
+    In case a session state exists do not cache the SELECT stmt. If we
+    cache SELECT statment when session state information exists, then
+    the result sets of this SELECT are cached which contains changed
+    session information. Next time when same query is executed when there
+    is no change in session state, then result sets are picked from cache
+    which is wrong as the result sets picked from cache have changed
+    state information.
+    In case of embedded server since session state information is not
+    sent there is no need to turn off cache.
+  */
+
+#ifndef EMBEDDED_LIBRARY
+  if ((thd->client_capabilities & CLIENT_SESSION_TRACK) &&
+      thd->session_tracker.enabled_any() &&
+      thd->session_tracker.changed_any())
+    thd->lex->safe_to_cache_query= 0;
+#endif
+
   /* Open tables if needed. */
 
   if (open_tables)

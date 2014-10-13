@@ -99,7 +99,7 @@ ulint
 ut_fold_string(
 /*===========*/
 	const char*	str)	/*!< in: null-terminated string */
-	__attribute__((pure));
+	__attribute__((warn_unused_result));
 /***********************************************************//**
 Looks for a prime number slightly greater than the given argument.
 The prime is chosen so that it is not near any power of 2.

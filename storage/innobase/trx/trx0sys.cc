@@ -252,11 +252,11 @@ trx_sys_print_mysql_binlog_offset(void)
 		sys_header + TRX_SYS_MYSQL_LOG_INFO
 		+ TRX_SYS_MYSQL_LOG_OFFSET_LOW);
 
-	ib_logf(IB_LOG_LEVEL_INFO,
-		"Last MySQL binlog file position %lu %lu,"
-		" file name %s",
-		trx_sys_mysql_bin_log_pos_high, trx_sys_mysql_bin_log_pos_low,
-		sys_header + TRX_SYS_MYSQL_LOG_INFO + TRX_SYS_MYSQL_LOG_NAME);
+	ib::info() << "Last MySQL binlog file position "
+		<< trx_sys_mysql_bin_log_pos_high << " "
+		<< trx_sys_mysql_bin_log_pos_low << ", file name "
+		<< sys_header + TRX_SYS_MYSQL_LOG_INFO
+		+ TRX_SYS_MYSQL_LOG_NAME;
 
 	mtr_commit(&mtr);
 }
@@ -356,7 +356,7 @@ trx_sysf_create(
 	then enter the kernel: we must do it in this order to conform
 	to the latching order rules. */
 
-	mtr_x_lock(fil_space_get_latch(TRX_SYS_SPACE, NULL), mtr);
+	mtr_x_lock_space(TRX_SYS_SPACE, mtr);
 
 	/* Create the trx sys file block in a new allocated file segment */
 	block = fseg_create(TRX_SYS_SPACE, 0, TRX_SYS + TRX_SYS_FSEG_HEADER,
@@ -479,14 +479,12 @@ trx_sys_init_at_db_start(void)
 			rows_to_undo = rows_to_undo / 1000000;
 		}
 
-		ib_logf(IB_LOG_LEVEL_INFO,
-			"%lu transaction(s) which must be rolled back or"
-			" cleaned up in total %lu%s row operations to undo",
-			(ulong) UT_LIST_GET_LEN(trx_sys->rw_trx_list),
-			(ulong) rows_to_undo, unit);
+		ib::info() << UT_LIST_GET_LEN(trx_sys->rw_trx_list)
+			<< " transaction(s) which must be rolled back or"
+			" cleaned up in total " << rows_to_undo << unit
+			<< " row operations to undo";
 
-		ib_logf(IB_LOG_LEVEL_INFO, "Trx id counter is " TRX_ID_FMT "",
-			trx_sys->max_trx_id);
+		ib::info() << "Trx id counter is " << trx_sys->max_trx_id;
 	}
 
 	trx_sys_mutex_exit();
@@ -645,19 +643,24 @@ trx_sys_file_format_max_check(
 		format_id = UNIV_FORMAT_MIN;
 	}
 
-	ib_logf(IB_LOG_LEVEL_INFO,
-		"Highest supported file format is %s.",
-		trx_sys_file_format_id_to_name(UNIV_FORMAT_MAX));
+	ib::info() << "Highest supported file format is "
+		<< trx_sys_file_format_id_to_name(UNIV_FORMAT_MAX) << ".";
 
 	if (format_id > UNIV_FORMAT_MAX) {
 
 		ut_a(format_id < FILE_FORMAT_NAME_N);
 
-		ib_logf(max_format_id <= UNIV_FORMAT_MAX
-			? IB_LOG_LEVEL_ERROR : IB_LOG_LEVEL_WARN,
-			"The system tablespace is in a file"
-			" format that this version doesn't support - %s.",
-			trx_sys_file_format_id_to_name(format_id));
+		const std::string	msg = std::string("The system"
+			" tablespace is in a file format that this version"
+			" doesn't support - ")
+			+ trx_sys_file_format_id_to_name(format_id)
+			+ ".";
+
+		if (max_format_id <= UNIV_FORMAT_MAX) {
+			ib::error() << msg;
+		} else {
+			ib::warn() << msg;
+		}
 
 		if (max_format_id <= UNIV_FORMAT_MAX) {
 			return(DB_ERROR);
@@ -877,15 +880,13 @@ trx_sys_create_rsegs(
 		}
 	}
 
-	ib_logf(IB_LOG_LEVEL_INFO,
-		"%lu redo rollback segment(s) found."
-		" %lu redo rollback segment(s) are active.",
-		n_used - srv_tmp_undo_logs,
-		n_rsegs <= n_tmp_rsegs ? 1 : (n_rsegs - n_tmp_rsegs));
+	ib::info() << n_used - srv_tmp_undo_logs
+		<< " redo rollback segment(s) found. "
+		<< ((n_rsegs <= n_tmp_rsegs) ? 1 : (n_rsegs - n_tmp_rsegs))
+		<< " redo rollback segment(s) are active.";
 
-	ib_logf(IB_LOG_LEVEL_INFO,
-		"%lu non-redo rollback segment(s) are active.",
-		n_noredo_created);
+	ib::info() << n_noredo_created << " non-redo rollback segment(s) are"
+		" active.";
 
 	return(n_used);
 }
@@ -909,17 +910,15 @@ trx_sys_print_mysql_binlog_offset_from_page(
 			     + TRX_SYS_MYSQL_LOG_MAGIC_N_FLD)
 	    == TRX_SYS_MYSQL_LOG_MAGIC_N) {
 
-		ib_logf(IB_LOG_LEVEL_INFO,
-			"mysqlbackup: Last MySQL binlog file position %lu %lu,"
-			" file name %s",
-			(ulong) mach_read_from_4(
+		ib::info() << "mysqlbackup: Last MySQL binlog file position "
+			<< mach_read_from_4(
 				sys_header + TRX_SYS_MYSQL_LOG_INFO
-				+ TRX_SYS_MYSQL_LOG_OFFSET_HIGH),
-			(ulong) mach_read_from_4(
+				+ TRX_SYS_MYSQL_LOG_OFFSET_HIGH) << " "
+			<< mach_read_from_4(
 				sys_header + TRX_SYS_MYSQL_LOG_INFO
-				+ TRX_SYS_MYSQL_LOG_OFFSET_LOW),
-			sys_header + TRX_SYS_MYSQL_LOG_INFO
-			+ TRX_SYS_MYSQL_LOG_NAME);
+				+ TRX_SYS_MYSQL_LOG_OFFSET_LOW)
+			<< ", file name " << sys_header
+			+ TRX_SYS_MYSQL_LOG_INFO + TRX_SYS_MYSQL_LOG_NAME;
 	}
 }
 
@@ -958,10 +957,9 @@ trx_sys_read_file_format_id(
 		/* The following call prints an error message */
 		os_file_get_last_error(true);
 
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"mysqlbackup: Error: trying to read system tablespace"
-			" file format, but could not open the tablespace"
-			" file %s!", pathname);
+		ib::error() << "mysqlbackup: Error: trying to read system"
+			" tablespace file format, but could not open the"
+			" tablespace file " << pathname << "!";
 		return(FALSE);
 	}
 
@@ -974,10 +972,9 @@ trx_sys_read_file_format_id(
 		/* The following call prints an error message */
 		os_file_get_last_error(true);
 
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"mysqlbackup: Error: trying to read system tablespace"
-			" file format, but failed to read the tablespace"
-			" file %s!", pathname);
+		ib::error() << "mysqlbackup: Error: trying to read system"
+			" tablespace file format, but failed to read the"
+			" tablespace file " << pathname << "!";
 
 		os_file_close(file);
 		return(FALSE);
@@ -1032,10 +1029,9 @@ trx_sys_read_pertable_file_format_id(
 		/* The following call prints an error message */
 		os_file_get_last_error(true);
 
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"mysqlbackup: Error: trying to read per-table"
+		ib::error() << "mysqlbackup: Error: trying to read per-table"
 			" tablespace format, but could not open the tablespace"
-			" file %s!", pathname);
+			" file " << pathname << "!";
 
 		return(FALSE);
 	}
@@ -1048,10 +1044,9 @@ trx_sys_read_pertable_file_format_id(
 		/* The following call prints an error message */
 		os_file_get_last_error(true);
 
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"mysqlbackup: Error: trying to per-table data file"
-			" format, but failed to read the tablespace file %s!",
-			pathname);
+		ib::error() << "mysqlbackup: Error: trying to per-table data"
+			" file format, but failed to read the tablespace file "
+			<< pathname << "!";
 
 		os_file_close(file);
 		return(FALSE);
@@ -1107,11 +1102,9 @@ trx_sys_close(void)
 	ulint	size = trx_sys->mvcc->size();
 
 	if (size > 0) {
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"All read views were not closed before shutdown:"
-			" %lu read views open", size);
+		ib::error() << "All read views were not closed before"
+			" shutdown: " << size << " read views open";
 	}
-
 
 	sess_close(trx_dummy_sess);
 	trx_dummy_sess = NULL;

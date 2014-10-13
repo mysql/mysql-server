@@ -71,8 +71,8 @@ btr_corruption_report(
 {
 	ib::error()
 		<< "Flag mismatch in page " << block->page.id
-		<< " index " << ut_get_name(NULL, FALSE, index->name)
-		<< " of table " << ut_get_name(NULL, TRUE, index->table_name);
+		<< " index " << index->name
+		<< " of table " << index->table->name;
 
 	if (block->page.size.is_compressed()) {
 		ut_ad(block->page.zip.data != NULL);
@@ -325,18 +325,12 @@ btr_root_adjust_on_import(
 		if (page_is_compact_format != dict_table_is_comp(table)) {
 			err = DB_CORRUPTION;
 		} else {
-
 			/* Check that the table flags and the tablespace
 			flags match. */
-			ulint	flags = fil_space_get_flags(table->space);
-
-			if (flags
-			    && flags != dict_tf_to_fsp_flags(table->flags)) {
-
-				err = DB_CORRUPTION;
-			} else {
-				err = DB_SUCCESS;
-			}
+			ulint	flags = dict_tf_to_fsp_flags(table->flags);
+			ulint	fsp_flags = fil_space_get_flags(table->space);
+			err = fsp_flags_are_equal(flags, fsp_flags)
+			      ? DB_SUCCESS : DB_CORRUPTION;
 		}
 	} else {
 		err = DB_SUCCESS;
@@ -537,8 +531,9 @@ btr_get_size(
 				   MTR_MEMO_S_LOCK)
 	      || dict_table_is_intrinsic(index->table));
 
-	if (index->page == FIL_NULL || dict_index_is_online_ddl(index)
-	    || *index->name == TEMP_INDEX_PREFIX) {
+	if (index->page == FIL_NULL
+	    || dict_index_is_online_ddl(index)
+	    || !index->is_committed()) {
 		return(ULINT_UNDEFINED);
 	}
 
@@ -805,9 +800,8 @@ btr_page_get_father_node_ptr_func(
 
 		ib::error()
 			<< "Corruption of an index tree: table "
-			<< ut_get_name(NULL, TRUE, index->table_name)
-			<< " index "
-			<< ut_get_name(NULL, FALSE, index->name)
+			<< index->table->name
+			<< " index " << index->name
 			<< ", father ptr page no "
 			<< btr_node_ptr_get_child_page_no(node_ptr, offsets)
 			<< ", child page no " << page_no;
@@ -1669,10 +1663,6 @@ btr_root_raise_and_insert(
 	ut_a(node_ptr_rec);
 
 	/* We play safe and reset the free bits for the new page */
-
-#if 0
-	ib_logf(IB_LOG_LEVEL_INFO, "Root raise new page no %lu", new_page_no);
-#endif
 
 	if (!dict_index_is_clust(index)
 	    && !dict_table_is_temporary(index->table)) {
@@ -2800,8 +2790,6 @@ insert_failed:
 			ibuf_reset_free_bits(block);
 		}
 
-		/* ib_logf(IB_LOG_LEVEL_INFO, "Split second round %lu",
-			   page_get_page_no(page)); */
 		n_iterations++;
 		ut_ad(n_iterations < 2
 		      || buf_block_get_page_zip(insert_block));
@@ -2821,13 +2809,6 @@ func_exit:
 		ibuf_update_free_bits_for_two_pages_low(
 			left_block, right_block, mtr);
 	}
-
-#if 0
-	ib_logf(IB_LOG_LEVEL_INFO,
-		"Split and insert done %lu %lu",
-		left_block->page.id.page_no(),
-		right_block->page.id.page_no());
-#endif
 
 	MONITOR_INC(MONITOR_INDEX_SPLIT);
 
@@ -3932,7 +3913,7 @@ btr_print_size(
 	fputs("INFO OF THE NON-LEAF PAGE SEGMENT\n", stderr);
 	fseg_print(seg, &mtr);
 
-	if (!dict_index_is_univ(index)) {
+	if (!dict_index_is_ibuf(index)) {
 
 		seg = root + PAGE_HEADER + PAGE_BTR_SEG_LEAF;
 
@@ -4103,10 +4084,8 @@ btr_index_rec_validate_report(
 	const rec_t*		rec,	/*!< in: index record */
 	const dict_index_t*	index)	/*!< in: index */
 {
-	ib::info() << "Record in index "
-		<< ut_get_name(NULL, FALSE, index->name)
-		<< " of table "
-		<< ut_get_name(NULL, TRUE, index->table_name)
+	ib::info() << "Record in index " << index->name
+		<< " of table " << index->table->name
 		<< ", page " << page_id_t(page_get_space_id(page),
 					  page_get_page_no(page))
 		<< ", at offset " << page_offset(rec);
@@ -4136,7 +4115,7 @@ btr_index_rec_validate(
 
 	page = page_align(rec);
 
-	if (dict_index_is_univ(index)) {
+	if (dict_index_is_ibuf(index)) {
 		/* The insert buffer index tree can contain records from any
 		other index: we cannot check the number of fields or
 		their length */
@@ -4308,22 +4287,13 @@ btr_validate_report1(
 	ulint			level,	/*!< in: B-tree level */
 	const buf_block_t*	block)	/*!< in: index page */
 {
-	if (!level) {
+	ib::error	error;
+	error << "In page " << block->page.id.page_no()
+		<< " of index " << index->name
+		<< " of table " << index->table->name;
 
-		ib::error() << "In page " << block->page.id.page_no()
-			<< " of index "
-			<< ut_get_name(NULL, FALSE, index->name)
-			<< " of table "
-			<< ut_get_name(NULL, TRUE, index->table_name);
-
-	} else {
-
-		ib::error() << "In page " << block->page.id.page_no()
-			<< " of index "
-			<< ut_get_name(NULL, FALSE, index->name)
-			<< " of table "
-			<< ut_get_name(NULL, TRUE, index->table_name)
-			<< ", index tree level " << level;
+	if (level > 0) {
+		error << ", index tree level " << level;
 	}
 }
 
@@ -4338,21 +4308,13 @@ btr_validate_report2(
 	const buf_block_t*	block1,	/*!< in: first index page */
 	const buf_block_t*	block2)	/*!< in: second index page */
 {
-	if (!level) {
+	ib::error	error;
+	error << "In pages " << block1->page.id
+		<< " and " << block2->page.id << " of index " << index->name
+		<< " of table " << index->table->name;
 
-		ib::error() << "In pages " << block1->page.id
-			<< " and " << block2->page.id << " of index "
-			<< ut_get_name(NULL, FALSE, index->name)
-			<< " of table "
-			<< ut_get_name(NULL, TRUE, index->table_name);
-	} else {
-
-		ib::error() << "In pages " << block1->page.id
-			<< " and " << block2->page.id << " of index "
-			<< ut_get_name(NULL, FALSE, index->name)
-			<< " of table "
-			<< ut_get_name(NULL, TRUE, index->table_name)
-			<< ", index tree level " << level;
+	if (level > 0) {
+		error << ", index tree level " << level;
 	}
 }
 
@@ -4368,7 +4330,6 @@ btr_validate_level(
 	ulint		level,	/*!< in: level number */
 	bool		lockout)/*!< in: true if X-latch index is intended */
 {
-	ulint		space_flags;
 	buf_block_t*	block;
 	page_t*		page;
 	buf_block_t*	right_block = 0; /* remove warning */
@@ -4417,19 +4378,15 @@ btr_validate_level(
 	}
 #endif
 
-	const ulint		space = dict_index_get_space(index);
+	const fil_space_t*	space	= fil_space_get(index->space);
 	const page_size_t	table_page_size(
 		dict_table_page_size(index->table));
-
-	fil_space_get_latch(space, &space_flags);
-
-	const page_size_t	space_page_size(
-		dict_tf_get_page_size(space_flags));
+	const page_size_t	space_page_size(space->flags);
 
 	if (!table_page_size.equals_to(space_page_size)) {
 
 		ib::warn() << "Flags mismatch: table=" << index->table->flags
-			<< ", tablespace=" << space_flags;
+			<< ", tablespace=" << space->flags;
 
 		mtr_commit(&mtr);
 
@@ -4450,8 +4407,8 @@ btr_validate_level(
 			ret = false;
 		}
 
-		ut_a(space == block->page.id.space());
-		ut_a(space == page_get_space_id(page));
+		ut_a(index->space == block->page.id.space());
+		ut_a(index->space == page_get_space_id(page));
 #ifdef UNIV_ZIP_DEBUG
 		page_zip = buf_block_get_page_zip(block);
 		ut_a(!page_zip || page_zip_validate(page_zip, page, index));
@@ -4479,7 +4436,8 @@ btr_validate_level(
 			left_page_no = btr_page_get_prev(page, &mtr);
 
 			while (left_page_no != FIL_NULL) {
-				page_id_t	left_page_id(space, left_page_no);
+				page_id_t	left_page_id(
+					index->space, left_page_no);
 				/* To obey latch order of tree blocks,
 				we should release the right_block once to
 				obtain lock of the uncle block. */
@@ -4521,7 +4479,7 @@ loop:
 	ut_a(!page_zip || page_zip_validate(page_zip, page, index));
 #endif /* UNIV_ZIP_DEBUG */
 
-	ut_a(block->page.id.space() == space);
+	ut_a(block->page.id.space() == index->space);
 
 	if (fseg_page_is_free(seg,
 			      block->page.id.space(),
@@ -4566,7 +4524,8 @@ loop:
 		savepoint = mtr_set_savepoint(&mtr);
 
 		right_block = btr_block_get(
-			page_id_t(space, right_page_no), table_page_size,
+			page_id_t(index->space, right_page_no),
+			table_page_size,
 			RW_SX_LATCH, index, &mtr);
 
 		right_page = buf_block_get_frame(right_block);
@@ -4765,12 +4724,14 @@ loop:
 					&mtr, savepoint, right_block);
 
 				btr_block_get(
-					page_id_t(space, parent_right_page_no),
+					page_id_t(index->space,
+						  parent_right_page_no),
 					table_page_size,
 					RW_SX_LATCH, index, &mtr);
 
 				right_block = btr_block_get(
-					page_id_t(space, right_page_no),
+					page_id_t(index->space,
+						  right_page_no),
 					table_page_size,
 					RW_SX_LATCH, index, &mtr);
 			}
@@ -4894,21 +4855,23 @@ node_ptr_fails:
 				if (parent_right_page_no != FIL_NULL) {
 					btr_block_get(
 						page_id_t(
-							space,
+							index->space,
 							parent_right_page_no),
 						table_page_size,
 						RW_SX_LATCH, index, &mtr);
 				}
 			} else if (parent_page_no != FIL_NULL) {
 				btr_block_get(
-					page_id_t(space, parent_page_no),
+					page_id_t(index->space,
+						  parent_page_no),
 					table_page_size,
 					RW_SX_LATCH, index, &mtr);
 			}
 		}
 
 		block = btr_block_get(
-			page_id_t(space, right_page_no), table_page_size,
+			page_id_t(index->space, right_page_no),
+			table_page_size,
 			RW_SX_LATCH, index, &mtr);
 
 		page = buf_block_get_frame(block);

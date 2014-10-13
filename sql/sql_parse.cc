@@ -76,6 +76,7 @@
 #include "log_event.h"
 #include "rpl_slave.h"
 #include "rpl_master.h"
+#include "rpl_msr.h"        /* Multisource replication */
 #include "rpl_filter.h"
 #include <m_ctype.h>
 #include <myisam.h>
@@ -405,7 +406,6 @@ void init_update_queries(void)
   sql_command_flags[SQLCOM_SHOW_CREATE]=  CF_STATUS_COMMAND;
   sql_command_flags[SQLCOM_SHOW_MASTER_STAT]= CF_STATUS_COMMAND;
   sql_command_flags[SQLCOM_SHOW_SLAVE_STAT]=  CF_STATUS_COMMAND;
-  sql_command_flags[SQLCOM_SHOW_SLAVE_STAT_NONBLOCKING]=  CF_STATUS_COMMAND;
   sql_command_flags[SQLCOM_SHOW_CREATE_PROC]= CF_STATUS_COMMAND;
   sql_command_flags[SQLCOM_SHOW_CREATE_FUNC]= CF_STATUS_COMMAND;
   sql_command_flags[SQLCOM_SHOW_CREATE_TRIGGER]=  CF_STATUS_COMMAND;
@@ -1572,7 +1572,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     if (!(uptime= (ulong) (thd->start_time.tv_sec - server_start_time)))
       queries_per_second1000= 0;
     else
-      queries_per_second1000= thd->query_id * LL(1000) / uptime;
+      queries_per_second1000= thd->query_id * 1000LL / uptime;
 
     length= my_snprintf(buff, buff_len - 1,
                         "Uptime: %lu  Threads: %d  Questions: %lu  "
@@ -2640,15 +2640,10 @@ case SQLCOM_PREPARE:
 #ifdef HAVE_REPLICATION
   case SQLCOM_CHANGE_MASTER:
   {
+
     if (check_global_access(thd, SUPER_ACL))
       goto error;
-    mysql_mutex_lock(&LOCK_active_mi);
-    if (active_mi != NULL)
-      res= change_master(thd, active_mi);
-    else
-      my_message(ER_SLAVE_CONFIGURATION, ER(ER_SLAVE_CONFIGURATION),
-                 MYF(0));
-    mysql_mutex_unlock(&LOCK_active_mi);
+    res= change_master_cmd(thd);
     break;
   }
   case SQLCOM_SHOW_SLAVE_STAT:
@@ -2656,19 +2651,7 @@ case SQLCOM_PREPARE:
     /* Accept one of two privileges */
     if (check_global_access(thd, SUPER_ACL | REPL_CLIENT_ACL))
       goto error;
-    mysql_mutex_lock(&LOCK_active_mi);
-    res= show_slave_status(thd, active_mi);
-    mysql_mutex_unlock(&LOCK_active_mi);
-    break;
-  }
-  case SQLCOM_SHOW_SLAVE_STAT_NONBLOCKING:
-  {
-    /* Accept one of two privileges */
-    if (check_global_access(thd, SUPER_ACL | REPL_CLIENT_ACL))
-      goto error;
-    DBUG_EXECUTE_IF("simulate_hold_show_slave_status_nonblocking",
-                    my_sleep(10000000););
-    res= show_slave_status(thd, active_mi);
+    res= show_slave_status_cmd(thd);
     break;
   }
   case SQLCOM_SHOW_MASTER_STAT:
@@ -2944,7 +2927,7 @@ case SQLCOM_PREPARE:
            ON then send session state notification in OK packet */
         if(create_info.options & HA_LEX_CREATE_TMP_TABLE &&
            thd->session_tracker.get_tracker(SESSION_STATE_CHANGE_TRACKER)->is_enabled())
-          thd->session_tracker.get_tracker(SESSION_STATE_CHANGE_TRACKER)->mark_as_changed(NULL);
+          thd->session_tracker.get_tracker(SESSION_STATE_CHANGE_TRACKER)->mark_as_changed(thd, NULL);
         my_ok(thd);
       }
     }
@@ -3054,16 +3037,11 @@ end_with_restore_list:
 
   case SQLCOM_SLAVE_START:
   {
-    mysql_mutex_lock(&LOCK_active_mi);
-    if (active_mi != NULL)
-      res= start_slave(thd, active_mi, 1 /* net report*/);
-    else
-      my_message(ER_SLAVE_CONFIGURATION, ER(ER_SLAVE_CONFIGURATION),
-                 MYF(0));
-    mysql_mutex_unlock(&LOCK_active_mi);
+    res= start_slave_cmd(thd);
     break;
   }
   case SQLCOM_SLAVE_STOP:
+  {
   /*
     If the client thread has locked tables, a deadlock is possible.
     Assume that
@@ -3084,15 +3062,9 @@ end_with_restore_list:
                ER(ER_LOCK_OR_ACTIVE_TRANSACTION), MYF(0));
     goto error;
   }
-  {
-    mysql_mutex_lock(&LOCK_active_mi);
-    if (active_mi != NULL)
-      res= stop_slave(thd, active_mi, 1 /* net report*/);
-    else
-      my_message(ER_SLAVE_CONFIGURATION, ER(ER_SLAVE_CONFIGURATION),
-                 MYF(0));
-    mysql_mutex_unlock(&LOCK_active_mi);
-    break;
+
+  res= stop_slave_cmd(thd);
+  break;
   }
 #endif /* HAVE_REPLICATION */
 
@@ -3644,7 +3616,7 @@ end_with_restore_list:
     if(!res && lex->drop_temporary)
     {
       if (thd->session_tracker.get_tracker(SESSION_STATE_CHANGE_TRACKER)->is_enabled())
-        thd->session_tracker.get_tracker(SESSION_STATE_CHANGE_TRACKER)->mark_as_changed(NULL);
+        thd->session_tracker.get_tracker(SESSION_STATE_CHANGE_TRACKER)->mark_as_changed(thd, NULL);
     }
   }
   break;
@@ -4282,8 +4254,7 @@ end_with_restore_list:
     LEX_USER *grant_user= get_current_user(thd, lex->grant_user);
     if (!grant_user)
       goto error;
-    if ((thd->security_ctx->priv_user &&
-	 !strcmp(thd->security_ctx->priv_user, grant_user->user.str)) ||
+    if (!strcmp(thd->security_ctx->priv_user, grant_user->user.str) ||
         !check_access(thd, SELECT_ACL, "mysql", NULL, NULL, 1, 0))
     {
       res = mysql_show_grants(thd, grant_user);

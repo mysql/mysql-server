@@ -210,7 +210,7 @@ ib_btr_cursor_is_positioned(
 /*========================*/
 	btr_pcur_t*	pcur)		/*!< in: InnoDB persistent cursor */
 {
-	return(pcur->old_stored == BTR_PCUR_OLD_STORED
+	return(pcur->old_stored
 	       && (pcur->pos_state == BTR_PCUR_IS_POSITIONED
 	           || pcur->pos_state == BTR_PCUR_WAS_POSITIONED));
 }
@@ -1596,9 +1596,9 @@ ib_cursor_update_row(
 	const ib_tuple_t*new_tuple = (const ib_tuple_t*) ib_new_tpl;
 
 	if (dict_index_is_clust(prebuilt->index)) {
-		pcur = &cursor->prebuilt->pcur;
+		pcur = cursor->prebuilt->pcur;
 	} else if (prebuilt->need_to_access_clustered) {
-		pcur = &cursor->prebuilt->clust_pcur;
+		pcur = cursor->prebuilt->clust_pcur;
 	} else {
 		return(DB_ERROR);
 	}
@@ -1708,12 +1708,12 @@ ib_cursor_delete_row(
 	/* Check whether this is a secondary index cursor */
 	if (index != prebuilt->index) {
 		if (prebuilt->need_to_access_clustered) {
-			pcur = &prebuilt->clust_pcur;
+			pcur = prebuilt->clust_pcur;
 		} else {
 			return(DB_ERROR);
 		}
 	} else {
-		pcur = &prebuilt->pcur;
+		pcur = prebuilt->pcur;
 	}
 
 	if (ib_btr_cursor_is_positioned(pcur)) {
@@ -1792,9 +1792,9 @@ ib_cursor_read_row(
 
 		if (prebuilt->need_to_access_clustered
 		    && tuple->type == TPL_TYPE_ROW) {
-			pcur = &prebuilt->clust_pcur;
+			pcur = prebuilt->clust_pcur;
 		} else {
-			pcur = &prebuilt->pcur;
+			pcur = prebuilt->pcur;
 		}
 
 		if (pcur == NULL) {
@@ -1855,7 +1855,7 @@ ib_cursor_position(
 	dtuple_set_n_fields(prebuilt->search_tuple, 0);
 
 	err = static_cast<ib_err_t>(row_search_for_mysql(
-		buf, mode, prebuilt, 0, 0));
+		buf, static_cast<page_cur_mode_t>(mode), prebuilt, 0, 0));
 
 	ut_free(buf);
 
@@ -1936,7 +1936,8 @@ ib_cursor_moveto(
 	buf = static_cast<unsigned char*>(ut_malloc_nokey(UNIV_PAGE_SIZE));
 
 	err = static_cast<ib_err_t>(row_search_for_mysql(
-		buf, ib_srch_mode, prebuilt, cursor->match_mode, 0));
+		buf, static_cast<page_cur_mode_t>(ib_srch_mode), prebuilt,
+		cursor->match_mode, 0));
 
 	ut_free(buf);
 
@@ -2906,7 +2907,7 @@ ib_cursor_is_positioned(
 	const ib_cursor_t*	cursor = (const ib_cursor_t*) ib_crsr;
 	row_prebuilt_t*		prebuilt = cursor->prebuilt;
 
-	return(ib_btr_cursor_is_positioned(&prebuilt->pcur));
+	return(ib_btr_cursor_is_positioned(prebuilt->pcur));
 }
 
 

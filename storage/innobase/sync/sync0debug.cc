@@ -170,8 +170,8 @@ latch_add(
 
 	if (lb != latches->end() && !(latches->key_comp()(n, lb->first))) {
 
-		ib_logf(IB_LOG_LEVEL_FATAL,
-			"Duplicate mutex found: %s(%s)", name, lname);
+		ib::fatal() << "Duplicate mutex found: " << name << "("
+			<< lname << ")";
 
 		/* There should never be a duplicate */
 		ut_error;
@@ -403,14 +403,11 @@ static SyncDebug syncDebug;
 void
 SyncDebug::crash(const latch_t* latch, latch_level_t level) const UNIV_NOTHROW
 {
-	ib_logf(IB_LOG_LEVEL_ERROR,
-		"Thread %lu already owns a latch (\"%s\" : %lu),"
-		" with a lower level than (\"%s\" : %lu).",
-		os_thread_pf(os_thread_get_curr_id()),
-		sync_latch_get_name(latch->m_level),
-		(ulint) latch->m_level,
-		sync_latch_get_name(level),
-		(ulint) level);
+	ib::error() << "Thread " << os_thread_pf(os_thread_get_curr_id())
+		<< " already owns a latch (\""
+		<< sync_latch_get_name(latch->m_level) << "\" : "
+		<< latch->m_level << "), with a lower level than (\""
+		<< sync_latch_get_name(level) << "\" : " << level << ").";
 
 		latch->print(stderr);
 
@@ -1309,7 +1306,7 @@ sync_latch_get_level(
 	LatchMap::iterator	it  = SrvLatches->find(name);
 
 	if (it == SrvLatches->end()) {
-		ib_logf(IB_LOG_LEVEL_FATAL, "Mutex not found: %s\n", name);
+		ib::fatal() << "Mutex not found: " << name;
 	}
 
 	return(it->second.m_level);
@@ -1350,7 +1347,7 @@ sync_latch_get_pfs_key(
 	/* Must find th the PFS key, even if it is not instrumented. */
 	if (it == SrvLatches->end()) {
 
-		ib_logf(IB_LOG_LEVEL_FATAL, "Mutex not found: %s", name);
+		ib::fatal() << "Mutex not found: " << name;
 		ut_error;
 	}
 

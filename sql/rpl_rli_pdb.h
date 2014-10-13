@@ -68,7 +68,7 @@ typedef struct st_db_worker_hash_entry
 
 } db_worker_hash_entry;
 
-bool init_hash_workers(ulong slave_parallel_workers);
+bool init_hash_workers(Relay_log_info *rli);
 void destroy_hash_workers(Relay_log_info*);
 Slave_worker *map_db_to_worker(const char *dbname, Relay_log_info *rli,
                                db_worker_hash_entry **ptr_entry,
@@ -363,7 +363,7 @@ public:
                PSI_mutex_key *param_key_info_stop_cond,
                PSI_mutex_key *param_key_info_sleep_cond
 #endif
-               , uint param_id
+               , uint param_id, const char *param_channel
               );
 
   virtual ~Slave_worker();
@@ -533,6 +533,25 @@ public:
   bool retry_transaction(uint start_relay_number, my_off_t start_relay_pos,
                          uint end_relay_number, my_off_t end_relay_pos);
 
+  bool set_info_search_keys(Rpl_info_handler *to);
+
+
+  /**
+    Get coordinator's RLI. Especially used get the rli from
+    a slave thread, like this: thd->rli_slave->get_c_rli();
+    thd could be a SQL thread or a worker thread.
+  */
+   virtual Relay_log_info* get_c_rli()
+  {
+    return c_rli;
+  }
+
+  /**
+     return an extension "for channel channel_name"
+     for error messages per channel
+  */
+  const char* get_for_channel_str(bool upper_case= false) const;
+
 protected:
 
   virtual void do_report(loglevel level, int err_code,
@@ -557,8 +576,5 @@ TABLE* mts_move_temp_tables_to_thd(THD*, TABLE*);
 // Auxiliary function
 TABLE* mts_move_temp_tables_to_thd(THD*, TABLE*, enum_mts_parallel_type);
 
-extern  mysql_mutex_t slave_worker_hash_lock;
-extern  mysql_cond_t slave_worker_hash_cond;
-extern HASH mapping_db_to_worker;
 #endif // HAVE_REPLICATION
 #endif

@@ -25,9 +25,6 @@
 #include <rpl_rli.h>
 #include <list>
 
-using std::list;
-using std::vector;
-
 class Recovery_module
 {
 
@@ -309,7 +306,7 @@ private:
   Cluster_member_info_manager_interface *cluster_info;
 
   /* Donors who recovery could not connect */
-  list<string> rejected_donors;
+  std::list<string> rejected_donors;
   /* Retry count on donor connections*/
   long donor_connection_retry_count;
 

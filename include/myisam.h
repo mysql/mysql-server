@@ -67,35 +67,35 @@ extern "C" {
   sets all high keys.
 */
 #define MI_KEYMAP_BITS      (8 * SIZEOF_LONG_LONG)
-#define MI_KEYMAP_HIGH_MASK (ULL(1) << (MI_KEYMAP_BITS - 1))
+#define MI_KEYMAP_HIGH_MASK (1ULL << (MI_KEYMAP_BITS - 1))
 #define mi_get_mask_all_keys_active(_keys_) \
                             (((_keys_) < MI_KEYMAP_BITS) ? \
-                             ((ULL(1) << (_keys_)) - ULL(1)) : \
-                             (~ ULL(0)))
+                             ((1ULL << (_keys_)) - 1ULL) : \
+                             (~ 0ULL))
 
 #if MI_MAX_KEY > MI_KEYMAP_BITS
 
 #define mi_is_key_active(_keymap_,_keyno_) \
                             (((_keyno_) < MI_KEYMAP_BITS) ? \
-                             MY_TEST((_keymap_) & (ULL(1) << (_keyno_))) : \
+                             MY_TEST((_keymap_) & (1ULL << (_keyno_))) : \
                              MY_TEST((_keymap_) & MI_KEYMAP_HIGH_MASK))
 #define mi_set_key_active(_keymap_,_keyno_) \
                             (_keymap_)|= (((_keyno_) < MI_KEYMAP_BITS) ? \
-                                          (ULL(1) << (_keyno_)) : \
+                                          (1ULL << (_keyno_)) : \
                                           MI_KEYMAP_HIGH_MASK)
 #define mi_clear_key_active(_keymap_,_keyno_) \
                             (_keymap_)&= (((_keyno_) < MI_KEYMAP_BITS) ? \
-                                          (~ (ULL(1) << (_keyno_))) : \
-                                          (~ (ULL(0))) /*ignore*/ )
+                                          (~ (1ULL << (_keyno_))) : \
+                                          (~ (0ULL)) /*ignore*/ )
 
 #else
 
 #define mi_is_key_active(_keymap_,_keyno_) \
-                            MY_TEST((_keymap_) & (ULL(1) << (_keyno_)))
+                            MY_TEST((_keymap_) & (1ULL << (_keyno_)))
 #define mi_set_key_active(_keymap_,_keyno_) \
-                            (_keymap_)|= (ULL(1) << (_keyno_))
+                            (_keymap_)|= (1ULL << (_keyno_))
 #define mi_clear_key_active(_keymap_,_keyno_) \
-                            (_keymap_)&= (~ (ULL(1) << (_keyno_)))
+                            (_keymap_)&= (~ (1ULL << (_keyno_)))
 
 #endif
 

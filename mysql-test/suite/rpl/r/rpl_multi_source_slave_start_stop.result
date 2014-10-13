@@ -1,0 +1,51 @@
+#
+# Set up masters server_1 and server_3 with server_2 being a slave.
+#.
+include/rpl_init.inc [topology=1->2,3->2]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server_2]
+#
+# 1) Execute START SLAVE IO_THREAD; io_threads of all channels shall start
+#
+START SLAVE IO_THREAD;
+include/rpl_for_each_connection.inc [include/wait_for_slave_io_to_start.inc]
+#
+# 2) Execute START SLAVE SQL_THREAD; sql_threads of all channels shall start
+#
+START SLAVE SQL_THREAD;
+include/rpl_for_each_connection.inc [include/wait_for_slave_sql_to_start.inc]
+#
+#  Do stop slave IO_thread.  SQL threads must still be running
+#
+STOP SLAVE IO_THREAD;
+include/rpl_for_each_connection.inc [include/wait_for_slave_io_to_stop.inc]
+#
+#  Do  start slave.  IO threads should be up independently.
+#
+START SLAVE;
+include/rpl_for_each_connection.inc [include/wait_for_slave_io_to_start.inc]
+#
+#  Do STOP SLAVE. All slave threads for all channnels must be down.
+#
+STOP SLAVE;
+include/rpl_for_each_connection.inc [include/wait_for_slave_to_stop.inc]
+#
+# 3) Check start and stop FOR CHANNEL, the inc files wait till
+#    the threads are run. No Notes shall be emitted also.
+#
+# 3.a) Test START SLAVE IO_THREAD FOR CHANNEL
+include/start_slave_io.inc
+# 3.b) Test START SLAVE SQL_THREAD FOR CHANNEL
+include/start_slave_sql.inc
+# 3.c) Test STOP SLAVE IO_THREAD FOR CHANNEL
+include/stop_slave_io.inc
+# 3.d) Test STOP SLAVE SQL_THREAD FOR CHANNEL
+include/stop_slave_sql.inc
+include/rpl_end.inc
+RESET SLAVE ALL FOR CHANNEL  'channel_1';
+RESET SLAVE ALL FOR CHANNEL  'channel_3';

@@ -89,7 +89,7 @@ Applier_module::setup_applier_module(Handler_pipeline_type pipeline_type,
                                      ulong stop_timeout,
                                      rpl_sidno cluster_sidno)
 {
-  DBUG_ENTER("ApplierModule::setup");
+  DBUG_ENTER("Applier_module::setup_applier_module");
 
   int error= 0;
 
@@ -288,7 +288,7 @@ Applier_module::applier_thread_handle()
 int
 Applier_module::initialize_applier_thread()
 {
-  DBUG_ENTER("ApplierModule::initialize_applier_thd");
+  DBUG_ENTER("Applier_module::initialize_applier_thd");
 
   int error= 0;
 
@@ -359,7 +359,7 @@ Applier_module::terminate_applier_pipeline()
 int
 Applier_module::terminate_applier_thread()
 {
-  DBUG_ENTER("ApplierModule::terminate_applier_thread");
+  DBUG_ENTER("Applier_module::terminate_applier_thread");
 
   /* This lock code needs to be re-written from scratch*/
   mysql_mutex_lock(&run_lock);

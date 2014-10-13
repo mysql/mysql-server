@@ -701,7 +701,7 @@ void JOIN::reset()
 
   unit->offset_limit_cnt= (ha_rows)(select_lex->offset_limit ?
                                     select_lex->offset_limit->val_uint() :
-                                    ULL(0));
+                                    0ULL);
 
   first_record= false;
   group_sent= false;

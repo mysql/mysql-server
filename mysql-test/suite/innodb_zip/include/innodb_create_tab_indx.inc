@@ -1,10 +1,8 @@
---echo ===============
---echo create table & Index
---echo ===============
+--echo # Create table & Index
 
 eval CREATE TABLE tab5(col_1 TINYBLOB, col_2 TINYTEXT,col_3 BLOB,
 col_4 TEXT,col_5 MEDIUMBLOB,col_6 MEDIUMTEXT,
-col_7 LONGBLOB,col_8 LONGTEXT,col_9 VARCHAR(255)) 
+col_7 LONGBLOB,col_8 LONGTEXT,col_9 VARCHAR(255))
 ENGINE=INNODB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=$block_size;
 
 

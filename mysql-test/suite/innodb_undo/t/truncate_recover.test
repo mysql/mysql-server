@@ -35,9 +35,10 @@
 #
 # create test-bed
 #
-let MYSQL_DATA_DIR_ENV = `select @@datadir`;
-let $MYSQL_DATA_DIR = `select @@datadir`;
 let SEARCH_FILE = $MYSQLTEST_VARDIR/log/mysqld.1.err;
+--let $_server_id= `SELECT @@server_id`
+--let $_expect_file_name= $MYSQLTEST_VARDIR/tmp/mysqld.$_server_id.expect
+
 #
 delimiter |;
 CREATE PROCEDURE populate_t1()
@@ -59,27 +60,27 @@ delimiter ;|
 #    d. after truncate before ddl log is removed.
 #    e. after truncate is complete (including ddl log removal).
 #
-set global debug="+d,ib_undo_trunc_before_checkpoint";
+let $debug_point="+d,ib_undo_trunc_before_checkpoint";
 let SEARCH_PATTERN = ib_undo_trunc_before_checkpoint;
 --source suite/innodb_undo/include/undo_log_trunc_recv.inc
 #
 #
-set global debug="+d,ib_undo_trunc_before_ddl_log_start";
+let $debug_point="+d,ib_undo_trunc_before_ddl_log_start";
 let SEARCH_PATTERN = ib_undo_trunc_before_ddl_log_start;
 --source suite/innodb_undo/include/undo_log_trunc_recv.inc
 #
 #
-set global debug="+d,ib_undo_trunc_before_truncate";
+let $debug_point="+d,ib_undo_trunc_before_truncate";
 let SEARCH_PATTERN = ib_undo_trunc_before_truncate;
 --source suite/innodb_undo/include/undo_log_trunc_recv.inc
 #
 #
-set global debug="+d,ib_undo_trunc_before_ddl_log_end";
+let $debug_point="+d,ib_undo_trunc_before_ddl_log_end";
 let SEARCH_PATTERN = ib_undo_trunc_before_ddl_log_end;
 --source suite/innodb_undo/include/undo_log_trunc_recv.inc
 #
 #
-set global debug="+d,ib_undo_trunc_trunc_done";
+let $debug_point="+d,ib_undo_trunc_trunc_done";
 let SEARCH_PATTERN = ib_undo_trunc_trunc_done;
 --source suite/innodb_undo/include/undo_log_trunc_recv.inc
 

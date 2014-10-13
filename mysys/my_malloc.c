@@ -188,8 +188,7 @@ static void *my_raw_malloc(size_t size, myf my_flags)
     if (my_flags & MY_FAE)
       error_handler_hook=fatal_error_handler_hook;
     if (my_flags & (MY_FAE+MY_WME))
-      my_error(EE_OUTOFMEMORY, MYF(ME_BELL + ME_WAITTANG +
-                                   ME_NOREFRESH + ME_FATALERROR),size);
+      my_error(EE_OUTOFMEMORY, MYF(ME_ERRORLOG + ME_FATALERROR),size);
     DBUG_EXECUTE_IF("simulate_out_of_memory",
                     DBUG_SET("-d,simulate_out_of_memory"););
     if (my_flags & MY_FAE)
@@ -244,7 +243,7 @@ end:
       my_free(oldpoint);
     my_errno=errno;
     if (my_flags & (MY_FAE+MY_WME))
-      my_error(EE_OUTOFMEMORY, MYF(ME_BELL+ ME_WAITTANG + ME_FATALERROR),
+      my_error(EE_OUTOFMEMORY, MYF(ME_FATALERROR),
                size);
     DBUG_EXECUTE_IF("simulate_out_of_memory",
                     DBUG_SET("-d,simulate_out_of_memory"););

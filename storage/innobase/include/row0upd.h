@@ -101,7 +101,7 @@ upd_get_field_by_field_no(
 /*======================*/
 	const upd_t*	update,	/*!< in: update vector */
 	ulint		no)	/*!< in: field_no */
-	__attribute__((nonnull, pure));
+	__attribute__((warn_unused_result));
 /*********************************************************************//**
 Writes into the redo log the values of trx id and roll ptr and enough info
 to determine their positions within a clustered index record.

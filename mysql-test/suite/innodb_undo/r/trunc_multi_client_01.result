@@ -36,4 +36,6 @@ commit;
 drop table t1, t2;
 drop PROCEDURE populate_t1;
 drop PROCEDURE populate_t2;
+SET GLOBAL innodb_fast_shutdown=0;
+# restart
 Pattern "Truncating UNDO tablespace" found

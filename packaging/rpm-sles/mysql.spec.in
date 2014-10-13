@@ -73,9 +73,9 @@ Source1:        mysql-systemd-start
 Source2:        mysqld.service
 Source3:        mysql.conf
 Source4:        my_config.h
+Source10:       http://downloads.sourceforge.net/boost/@BOOST_PACKAGE_NAME@.tar.bz2
 Source90:       filter-provides.sh
 Source91:       filter-requires.sh
-Patch0:         mysql-5.6.16-mysql-install.patch
 BuildRequires:  cmake >= 2.8.2
 BuildRequires:  perl
 BuildRequires:  libaio-devel
@@ -90,7 +90,7 @@ BuildRoot:      %(mktemp -ud %{_tmppath}/%{name}-%{version}-%{release}-XXXXXX)
 
 %if 0%{?rhel} > 6
 # For rpm => 4.9 only: https://fedoraproject.org/wiki/Packaging:AutoProvidesAndRequiresFiltering
-%global __requires_exclude ^perl\\((hostnames|lib::mtr|lib::v1|mtr_|My::)
+%global __requires_exclude ^perl\\((GD|hostnames|lib::mtr|lib::v1|mtr_|My::)
 %global __provides_exclude_from ^(/usr/share/(mysql|mysql-test)/.*|%{_libdir}/mysql/plugin/.*\\.so)$
 %else
 # https://fedoraproject.org/wiki/EPEL:Packaging#Generic_Filtering_on_EPEL6
@@ -129,8 +129,8 @@ Requires:       perl-base
 Provides:       MySQL-server-advanced = %{version}-%{release}
 Obsoletes:      MySQL-server-advanced < %{version}-%{release}
 Obsoletes:      mysql-community-server < %{version}-%{release}
-Requires:       mysql-enterprise-client = %{version}-%{release}
-Requires:       mysql-enterprise-common = %{version}-%{release}
+Requires:       mysql-commercial-client = %{version}-%{release}
+Requires:       mysql-commercial-common = %{version}-%{release}
 %else
 Provides:       MySQL-server = %{version}-%{release}
 Requires:       mysql-community-client = %{version}-%{release}
@@ -184,7 +184,7 @@ Group:          Applications/Databases
 Provides:       MySQL-client-advanced = %{version}-%{release}
 Obsoletes:      MySQL-client-advanced < %{version}-%{release}
 Obsoletes:      mysql-community-client < %{version}-%{release}
-Requires:       mysql-enterprise-libs = %{version}-%{release}
+Requires:       mysql-commercial-libs = %{version}-%{release}
 %else
 Provides:       MySQL-client = %{version}-%{release}
 Requires:       mysql-community-libs = %{version}-%{release}
@@ -219,7 +219,7 @@ Group:          Applications/Databases
 Provides:       MySQL-test-advanced = %{version}-%{release}
 Obsoletes:      MySQL-test-advanced < %{version}-%{release}
 Obsoletes:      mysql-community-test < %{version}-%{release}
-Requires:       mysql-enterprise-server = %{version}-%{release}
+Requires:       mysql-commercial-server = %{version}-%{release}
 %else
 Provides:       MySQL-test = %{version}-%{release}
 Requires:       mysql-community-server = %{version}-%{release}
@@ -240,7 +240,7 @@ Summary:        MySQL benchmark suite
 Group:          Applications/Databases
 %if 0%{?commercial}
 Obsoletes:      mysql-community-bench < %{version}-%{release}
-Requires:       mysql-enterprise-server = %{version}-%{release}
+Requires:       mysql-commercial-server = %{version}-%{release}
 %else
 Requires:       mysql-community-server = %{version}-%{release}
 %endif
@@ -261,7 +261,7 @@ Group:          Applications/Databases
 Provides:       MySQL-devel-advanced = %{version}-%{release}
 Obsoletes:      MySQL-devel-advanced < %{version}-%{release}
 Obsoletes:      mysql-community-devel < %{version}-%{release}
-Requires:       mysql-enterprise-libs = %{version}-%{release}
+Requires:       mysql-commercial-libs = %{version}-%{release}
 %else
 Provides:       MySQL-devel = %{version}-%{release}
 Requires:       mysql-community-libs = %{version}-%{release}
@@ -284,7 +284,7 @@ Group:          Applications/Databases
 Provides:       MySQL-shared-advanced = %{version}-%{release}
 Obsoletes:      MySQL-shared-advanced < %{version}-%{release}
 Obsoletes:      mysql-community-libs < %{version}-%{release}
-Requires:       mysql-enterprise-common = %{version}-%{release}
+Requires:       mysql-commercial-common = %{version}-%{release}
 %else
 Provides:       MySQL-shared = %{version}-%{release}
 Requires:       mysql-community-common = %{version}-%{release}
@@ -309,7 +309,7 @@ Group:          Applications/Databases
 Provides:       MySQL-embedded-advanced = %{version}-%{release}
 Obsoletes:      MySQL-embedded-advanced < %{version}-%{release}
 Obsoletes:      mysql-community-embedded < %{version}-%{release}
-Requires:       mysql-enterprise-common = %{version}-%{release}
+Requires:       mysql-commercial-common = %{version}-%{release}
 %else
 Provides:       MySQL-embedded = %{version}-%{release}
 Requires:       mysql-community-common = %{version}-%{release}
@@ -336,8 +336,8 @@ Summary:        Development header files and libraries for MySQL as an embeddabl
 Group:          Applications/Databases
 %if 0%{?commercial}
 Obsoletes:      mysql-community-embedded-devel < %{version}-%{release}
-Requires:       mysql-enterprise-devel = %{version}-%{release}
-Requires:       mysql-enterprise-embedded = %{version}-%{release}
+Requires:       mysql-commercial-devel = %{version}-%{release}
+Requires:       mysql-commercial-embedded = %{version}-%{release}
 %else
 Requires:       mysql-community-devel = %{version}-%{release}
 Requires:       mysql-community-embedded = %{version}-%{release}
@@ -351,7 +351,7 @@ This package contains files needed for developing applications using
 the embedded version of the MySQL server.
 
 %prep
-%setup -q -T -a 0 -c -n %{src_dir}
+%setup -q -T -a 0 -a 10 -c -n %{src_dir}
 pushd %{src_dir}
 
 %build
@@ -378,6 +378,7 @@ mkdir debug
            -DBUILD_CONFIG=mysql_release \
            -DINSTALL_LAYOUT=RPM \
            -DCMAKE_BUILD_TYPE=Debug \
+           -DWITH_BOOST=.. \
            -DCMAKE_C_FLAGS="$optflags" \
            -DCMAKE_CXX_FLAGS="$optflags" \
            -DWITH_INNODB_MEMCACHED=1 \
@@ -403,6 +404,7 @@ mkdir release
            -DBUILD_CONFIG=mysql_release \
            -DINSTALL_LAYOUT=RPM \
            -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+           -DWITH_BOOST=.. \
            -DCMAKE_C_FLAGS="%{optflags}" \
            -DCMAKE_CXX_FLAGS="%{optflags}" \
            -DWITH_INNODB_MEMCACHED=1 \
@@ -467,17 +469,6 @@ rm -rf %{buildroot}%{_bindir}/mysql_embedded
 # rcmysql symlink
 install -d %{buildroot}%{_sbindir}
 ln -sf %{_initrddir}/mysql %{buildroot}%{_sbindir}/rcmysql
-
-## todo: fix when merged
-rm -rf %{buildroot}/usr/bin/mysql_waitpid
-rm -rf %{buildroot}/usr/bin/mysql_zap
-rm -rf %{buildroot}/usr/bin/mysqlhotcopy
-rm -rf %{buildroot}/usr/share/man/man1/mysql_waitpid*
-rm -rf %{buildroot}/usr/share/man/man1/mysql_zap*
-rm -rf %{buildroot}/usr/share/man/man1/mysqlbug.*
-rm -rf %{buildroot}/usr/share/man/man1/mysqlhotcopy*
-rm -rf %{buildroot}/usr/share/mysql/binary-configure
-rm -rf %{buildroot}/usr/share/mysql/solaris/postinstall-solaris
 
 %check
 %if 0%{?runselftest}
@@ -653,6 +644,7 @@ fi
 
 %files common
 %defattr(-, root, root, -)
+%doc %{?license_files_server}
 %{_datadir}/mysql/charsets/
 %{_datadir}/mysql/errmsg-utf8.txt
 %{_datadir}/mysql/bulgarian/
@@ -682,6 +674,7 @@ fi
 
 %files client
 %defattr(-, root, root, -)
+%doc %{?license_files_server}
 %attr(755, root, root) %{_bindir}/mysql
 %attr(755, root, root) %{_bindir}/mysqladmin
 %attr(755, root, root) %{_bindir}/mysqlbinlog
@@ -705,6 +698,7 @@ fi
 
 %files devel
 %defattr(-, root, root, -)
+%doc %{?license_files_server}
 %attr(644, root, root) %{_mandir}/man1/comp_err.1*
 %attr(644, root, root) %{_mandir}/man1/mysql_config.1*
 %attr(755, root, root) %{_bindir}/mysql_config
@@ -718,6 +712,7 @@ fi
 
 %files libs
 %defattr(-, root, root, -)
+%doc %{?license_files_server}
 %dir %attr(755, root, root) %{_libdir}/mysql
 %attr(644, root, root) %{_sysconfdir}/ld.so.conf.d/mysql-%{_arch}.conf
 %{_libdir}/mysql/libmysqlclient.so.18*
@@ -726,6 +721,7 @@ fi
 %if 0%{?compatlib}
 %files libs-compat
 %defattr(-, root, root, -)
+%doc %{?license_files_server}
 %dir %attr(755, root, root) %{_libdir}/mysql
 %attr(644, root, root) %{_sysconfdir}/ld.so.conf.d/mysql-%{_arch}.conf
 %{_libdir}/mysql/libmysqlclient.so.%{compatlib}
@@ -736,6 +732,7 @@ fi
 
 %files test
 %defattr(-, root, root, -)
+%doc %{?license_files_server}
 %attr(-, root, root) %{_datadir}/mysql-test
 %attr(755, root, root) %{_bindir}/mysql_client_test
 %attr(755, root, root) %{_bindir}/mysql_client_test_embedded
@@ -765,22 +762,29 @@ fi
 
 %files bench
 %defattr(-, root, root, -)
+%doc %{?license_files_server}
 %{_datadir}/sql-bench
 
 %files embedded
 %defattr(-, root, root, -)
+%doc %{?license_files_server}
 %dir %attr(755, root, root) %{_libdir}/mysql
 %attr(644, root, root) %{_sysconfdir}/ld.so.conf.d/mysql-%{_arch}.conf
 %attr(755, root, root) %{_libdir}/mysql/libmysqld.so.*
 
 %files embedded-devel
 %defattr(-, root, root, -)
+%doc %{?license_files_server}
 %attr(644, root, root) %{_libdir}/mysql/libmysqld.a
 %attr(644, root, root) %{_libdir}/mysql/libmysqld-debug.a
 %attr(755, root, root) %{_libdir}/mysql/libmysqld.so
 
 %changelog
-* Tue Sep 2 2014 Bjorn Munch <bjorn.munch@oracle.com> - 5.7.6-0.1.m16
+* Mon Oct 06 2014 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 5.7.6-0.2.m16
+- Include boost sources
+- Add license info in each subpackage
+
+* Tue Sep 02 2014 Bjorn Munch <bjorn.munch@oracle.com> - 5.7.6-0.1.m16
 - Updated for 5.7.6
 
 * Mon Sep 01 2014 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 5.7.5-0.2.m15

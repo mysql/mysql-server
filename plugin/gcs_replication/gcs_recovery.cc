@@ -21,12 +21,20 @@
 #include <mysqld_thd_manager.h>  // Global_THD_manager
 #include <debug_sync.h>
 
+using std::list;
+using std::vector;
+
 /** Default user for donor connection*/
 static char DEFAULT_USER[]= "root";
 /** Default password for donor connection*/
 static char DEFAULT_PASSWORD[]= "";
 /** The number of queued transactions below which we declare the node online */
 static uint RECOVERY_TRANSACTION_THRESHOLD= 0;
+
+/** The relay log name*/
+static char rec_relay_log_name[]= "group_replication_recovery";
+/** The relay log info file*/
+static char rec_relay_log_info_name[]= "group_replication_recovery_relay_log.info";
 
 static void *launch_handler_thread(void* arg)
 {
@@ -603,11 +611,8 @@ int Recovery_module::initialize_donor_connection(){
 
   int error= 0;
 
-  char relay_log_name[]= "gcs_recovery";
-  char relay_log_info_name[]= "gcs_recovery_relay_log.info";
-
-  error= donor_connection_interface.initialize_repositories(relay_log_name,
-                                                            relay_log_info_name);
+  error= donor_connection_interface.initialize_repositories(rec_relay_log_name,
+                                                            rec_relay_log_info_name);
   if(error)
   {
     if (error == REPLICATION_THREAD_REPOSITORY_CREATION_ERROR)

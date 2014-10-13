@@ -259,10 +259,7 @@ TABLE_CATEGORY get_table_category(const LEX_STRING &db,
   if (is_infoschema_db(db.str, db.length))
     return TABLE_CATEGORY_INFORMATION;
 
-  if ((db.length == PERFORMANCE_SCHEMA_DB_NAME.length) &&
-      (my_strcasecmp(system_charset_info,
-                     PERFORMANCE_SCHEMA_DB_NAME.str,
-                     db.str) == 0))
+  if (is_perfschema_db(db.str, db.length))
     return TABLE_CATEGORY_PERFORMANCE;
 
   if ((db.length == MYSQL_SCHEMA_NAME.length) &&
@@ -2699,7 +2696,7 @@ void open_table_error(TABLE_SHARE *share, int error, int db_errno, int errarg)
   int err_no;
   char buff[FN_REFLEN];
   char errbuf[MYSYS_STRERROR_SIZE];
-  myf errortype= ME_ERROR+ME_WAITTANG;
+  myf errortype= ME_ERRORLOG;
   DBUG_ENTER("open_table_error");
 
   switch (error) {

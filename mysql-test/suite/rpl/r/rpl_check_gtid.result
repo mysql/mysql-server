@@ -430,7 +430,7 @@ FLUSH LOGS;
 ==== Part 8 ====
 include/stop_slave.inc
 Warnings:
-Note	1255	Slave already has been stopped
+Note	1969	Replication thread(s) for channel '' are already stopped.
 RESET MASTER;
 RESET SLAVE;
 CHANGE MASTER TO MASTER_HOST= '127.0.0.1', MASTER_AUTO_POSITION= 0;

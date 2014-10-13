@@ -432,6 +432,10 @@ enum_return_check Rpl_info_table::do_check_info(uint instance)
                          get_number_info(), TL_READ,
                          &table, &backup))
   {
+    sql_print_warning("Info table is not ready to be used. Table "
+                      "'%s.%s' cannot be opened.", str_schema.str,
+                      str_table.str);
+
     return_check= ERROR_CHECKING_REPOSITORY;
     goto end;
   }

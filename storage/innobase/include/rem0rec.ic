@@ -1606,7 +1606,7 @@ rec_get_converted_size(
 	ut_ad(dtuple);
 	ut_ad(dtuple_check_typed(dtuple));
 
-	ut_ad(dict_index_is_univ(index)
+	ut_ad(dict_index_is_ibuf(index)
 	      || dtuple_get_n_fields(dtuple)
 	      == (((dtuple_get_info_bits(dtuple) & REC_NEW_STATUS_MASK)
 		   == REC_STATUS_NODE_PTR)
@@ -1636,7 +1636,7 @@ rec_get_converted_size(
 	support multiple page sizes.  At that time, we will need
 	to consider the node pointer on these universal btrees. */
 
-	if (dict_index_is_univ(index)) {
+	if (dict_index_is_ibuf(index)) {
 		/* This is for the insert buffer B-tree.
 		All fields in the leaf tuple ascend to the
 		parent node plus the child page pointer. */

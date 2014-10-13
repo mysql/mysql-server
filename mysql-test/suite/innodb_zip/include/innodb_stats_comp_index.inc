@@ -1,7 +1,5 @@
---echo ===============
---echo Check the stats of the table
---echo Check the size of the ibd file
---echo ===============
+--echo # Check the stats of the table
+--echo # Check the size of the ibd file
 
 -- echo # testcase : pass = 1 fail = 0
 SELECT count(*) > 0 as "compress_stat"

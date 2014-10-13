@@ -28,20 +28,20 @@ Created 1/8/1996 Heikki Tuuri
 #define dict0dict_h
 
 #include "univ.i"
-#include "dict0types.h"
-#include "dict0mem.h"
-#include "data0type.h"
 #include "data0data.h"
+#include "data0type.h"
+#include "dict0mem.h"
+#include "dict0types.h"
+#include "fsp0fsp.h"
+#include "hash0hash.h"
 #include "mem0mem.h"
 #include "rem0types.h"
-#include "ut0mem.h"
-#include "hash0hash.h"
-#include "ut0rnd.h"
-#include "ut0byte.h"
-#include "trx0types.h"
 #include "row0types.h"
+#include "trx0types.h"
+#include "ut0byte.h"
+#include "ut0mem.h"
 #include "ut0new.h"
-
+#include "ut0rnd.h"
 #include <deque>
 
 #ifndef UNIV_HOTBACKUP
@@ -695,7 +695,7 @@ ulint
 dict_index_is_clust(
 /*================*/
 	const dict_index_t*	index)	/*!< in: index */
-	__attribute__((nonnull, pure, warn_unused_result));
+	__attribute__((warn_unused_result));
 
 /** Check if index is auto-generated clustered index.
 @param[in]	index	index
@@ -714,7 +714,7 @@ ulint
 dict_index_is_unique(
 /*=================*/
 	const dict_index_t*	index)	/*!< in: index */
-	__attribute__((nonnull, pure, warn_unused_result));
+	__attribute__((warn_unused_result));
 /********************************************************************//**
 Check whether the index is a Spatial Index.
 @return	nonzero for Spatial Index, zero for other indexes */
@@ -723,7 +723,7 @@ ulint
 dict_index_is_spatial(
 /*==================*/
 	const dict_index_t*	index)	/*!< in: index */
-	__attribute__((nonnull, pure, warn_unused_result));
+	__attribute__((warn_unused_result));
 /********************************************************************//**
 Check whether the index is the insert buffer tree.
 @return nonzero for insert buffer, zero for other indexes */
@@ -732,7 +732,7 @@ ulint
 dict_index_is_ibuf(
 /*===============*/
 	const dict_index_t*	index)	/*!< in: index */
-	__attribute__((nonnull, pure, warn_unused_result));
+	__attribute__((warn_unused_result));
 /********************************************************************//**
 Check whether the index is a secondary index or the insert buffer tree.
 @return nonzero for insert buffer, zero for other indexes */
@@ -741,7 +741,7 @@ ulint
 dict_index_is_sec_or_ibuf(
 /*======================*/
 	const dict_index_t*	index)	/*!< in: index */
-	__attribute__((nonnull, pure, warn_unused_result));
+	__attribute__((warn_unused_result));
 
 /** Get all the FTS indexes on a table.
 @param[in]	table	table
@@ -761,7 +761,7 @@ ulint
 dict_table_get_n_user_cols(
 /*=======================*/
 	const dict_table_t*	table)	/*!< in: table */
-	__attribute__((nonnull, pure, warn_unused_result));
+	__attribute__((warn_unused_result));
 /********************************************************************//**
 Gets the number of system columns in a table.
 For intrinsic table on ROW_ID column is added for all other
@@ -772,7 +772,7 @@ ulint
 dict_table_get_n_sys_cols(
 /*======================*/
 	const dict_table_t*	table)	/*!< in: table */
-	__attribute__((nonnull, pure, warn_unused_result));
+	__attribute__((warn_unused_result));
 /********************************************************************//**
 Gets the number of all columns (also system) in a table in the dictionary
 cache.
@@ -782,7 +782,7 @@ ulint
 dict_table_get_n_cols(
 /*==================*/
 	const dict_table_t*	table)	/*!< in: table */
-	__attribute__((nonnull, pure, warn_unused_result));
+	__attribute__((warn_unused_result));
 /********************************************************************//**
 Gets the approximately estimated number of rows in the table.
 @return estimated number of rows */
@@ -791,7 +791,7 @@ ib_uint64_t
 dict_table_get_n_rows(
 /*==================*/
 	const dict_table_t*	table)	/*!< in: table */
-	__attribute__((nonnull, warn_unused_result));
+	__attribute__((warn_unused_result));
 /********************************************************************//**
 Increment the number of rows in the table by one.
 Notice that this operation is not protected by any latch, the number is
@@ -870,6 +870,7 @@ dict_table_is_comp(
 /*===============*/
 	const dict_table_t*	table)	/*!< in: table */
 	__attribute__((nonnull, warn_unused_result));
+
 /********************************************************************//**
 Determine the file format of a table.
 @return file format version */
@@ -888,33 +889,48 @@ dict_tf_get_format(
 /*===============*/
 	ulint		flags)		/*!< in: dict_table_t::flags */
 	__attribute__((warn_unused_result));
-/********************************************************************//**
-Set the various values in a dict_table_t::flags pointer. */
+
+/** Set the various values in a dict_table_t::flags pointer.
+@param[in,out]	flags,		Pointer to a 4 byte Table Flags
+@param[in]	format,		File Format
+@param[in]	zip_ssize	Zip Shift Size
+@param[in]	use_data_dir	Table uses DATA DIRECTORY */
 UNIV_INLINE
 void
 dict_tf_set(
-/*========*/
-	ulint*		flags,		/*!< in/out: table */
-	rec_format_t	format,		/*!< in: file format */
-	ulint		zip_ssize,	/*!< in: zip shift size */
-	bool		remote_path)	/*!< in: table uses DATA DIRECTORY */
-	__attribute__((nonnull));
-/********************************************************************//**
-Convert a 32 bit integer table flags to the 32 bit integer that is
-written into the tablespace header at the offset FSP_SPACE_FLAGS and is
-also stored in the fil_space_t::flags field.  The following chart shows
-the translation of the low order bit.  Other bits are the same.
+	ulint*		flags,
+	rec_format_t	format,
+	ulint		zip_ssize,
+	bool		use_data_dir);
+
+/** Initialize a dict_table_t::flags pointer.
+@param[in]	compact,	Table uses Compact or greater
+@param[in]	zip_ssize	Zip Shift Size (log 2 minus 9)
+@param[in]	atomic_blobs	Table uses Compressed or Dynamic
+@param[in]	data_dir	Table uses DATA DIRECTORY */
+UNIV_INLINE
+ulint
+dict_tf_init(
+	bool		compact,
+	ulint		zip_ssize,
+	bool		atomic_blobs,
+	bool		data_dir);
+
+/** Convert a 32 bit integer table flags to the 32 bit FSP Flags.
+Fsp Flags are written into the tablespace header at the offset
+FSP_SPACE_FLAGS and are also stored in the fil_space_t::flags field.
+The following chart shows the translation of the low order bit.
+Other bits are the same.
 ========================= Low order bit ==========================
                     | REDUNDANT | COMPACT | COMPRESSED | DYNAMIC
 dict_table_t::flags |     0     |    1    |     1      |    1
 fil_space_t::flags  |     0     |    0    |     1      |    1
 ==================================================================
+@param[in]	table_flags	dict_table_t::flags
 @return tablespace flags (fil_space_t::flags) */
-UNIV_INLINE
 ulint
 dict_tf_to_fsp_flags(
-/*=================*/
-	ulint	flags)	/*!< in: dict_table_t::flags */
+	ulint	table_flags)
 	__attribute__((const));
 
 /** Extract the page size from table flags.
@@ -1448,25 +1464,35 @@ dict_tables_have_same_db(
 	const char*	name2)	/*!< in: table name in the form
 				dbname '/' tablename */
 	__attribute__((nonnull, warn_unused_result));
-/**********************************************************************//**
-Get index by name
+/** Get an index by name.
+@param[in]	table		the table where to look for the index
+@param[in]	name		the index name to look for
+@param[in]	committed	true=search for committed,
+false=search for uncommitted
 @return index, NULL if does not exist */
 dict_index_t*
 dict_table_get_index_on_name(
-/*=========================*/
-	dict_table_t*	table,	/*!< in: table */
-	const char*	name)	/*!< in: name of the index to find */
-	__attribute__((nonnull, warn_unused_result));
-/**********************************************************************//**
-In case there is more than one index with the same name return the index
-with the min(id).
+	dict_table_t*	table,
+	const char*	name,
+	bool		committed=true)
+	__attribute__((warn_unused_result));
+/** Get an index by name.
+@param[in]	table		the table where to look for the index
+@param[in]	name		the index name to look for
+@param[in]	committed	true=search for committed,
+false=search for uncommitted
 @return index, NULL if does not exist */
-dict_index_t*
-dict_table_get_index_on_name_and_min_id(
-/*====================================*/
-	dict_table_t*	table,	/*!< in: table */
-	const char*	name)	/*!< in: name of the index to find */
-	__attribute__((nonnull, warn_unused_result));
+inline
+const dict_index_t*
+dict_table_get_index_on_name(
+	const dict_table_t*	table,
+	const char*		name,
+	bool			committed=true)
+{
+	return(dict_table_get_index_on_name(
+		       const_cast<dict_table_t*>(table), name, committed));
+}
+
 /***************************************************************
 Check whether a column exists in an FTS index. */
 UNIV_INLINE
@@ -1715,6 +1741,17 @@ bool
 dict_tf_is_valid(
 	ulint	flags);
 
+/** Validate both table flags and table flags2 and make sure they
+are compatible.
+@param[in]	flags	Table flags
+@param[in]	flags2	Table flags2
+@return true if valid. */
+UNIV_INLINE
+bool
+dict_tf2_is_valid(
+	ulint	flags,
+	ulint	flags2);
+
 /********************************************************************//**
 Check if the tablespace for the table has been discarded.
 @return true if the tablespace has been discarded. */
@@ -1723,7 +1760,7 @@ bool
 dict_table_is_discarded(
 /*====================*/
 	const dict_table_t*	table)	/*!< in: table to check */
-	__attribute__((nonnull, pure, warn_unused_result));
+	__attribute__((warn_unused_result));
 
 /********************************************************************//**
 Check if it is a temporary table.
@@ -1733,7 +1770,7 @@ bool
 dict_table_is_temporary(
 /*====================*/
 	const dict_table_t*	table)	/*!< in: table to check */
-	__attribute__((pure, warn_unused_result));
+	__attribute__((warn_unused_result));
 
 /** Check whether the table is intrinsic.
 An intrinsic table is a special kind of temporary table that
@@ -1751,7 +1788,7 @@ UNIV_INLINE
 bool
 dict_table_is_intrinsic(
 	const dict_table_t*	table)
-	__attribute__((pure, warn_unused_result));
+	__attribute__((warn_unused_result));
 
 /** Check whether locking is disabled for this table.
 Currently this is done for intrinsic table as their visibility is limited
@@ -1763,7 +1800,7 @@ UNIV_INLINE
 bool
 dict_table_is_locking_disabled(
 	const dict_table_t*	table)
-	__attribute__((pure, warn_unused_result));
+	__attribute__((warn_unused_result));
 
 /********************************************************************//**
 Turn-off redo-logging if temporary table. */
@@ -1838,7 +1875,7 @@ ulint
 dict_index_node_ptr_max_size(
 /*=========================*/
 	const dict_index_t*	index)	/*!< in: index */
-	__attribute__((warn_unused_result, pure));
+	__attribute__((warn_unused_result));
 /*****************************************************************//**
 Get index by first field of the index
 @return index which is having first field matches

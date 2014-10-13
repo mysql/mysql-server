@@ -23,8 +23,6 @@ Replication_thread_api::initialize_repositories(char* relay_log_name,
   DBUG_ENTER("Replication_thread_api::initialize");
   int error= 0;
 
-  mysql_mutex_lock(&LOCK_active_mi);
-
   /*
     TODO: Modify the slave code allowing the MI/RLI initialization methods
     to receive these variables as input.
@@ -46,10 +44,10 @@ Replication_thread_api::initialize_repositories(char* relay_log_name,
     Master info repositories are not important here.
     They only function as holders for the SQL thread/Relay log variables.
   */
-  if (Rpl_info_factory::create_coordinators(INFO_REPOSITORY_DUMMY,
-                                            &this->mi,
-                                            INFO_REPOSITORY_FILE,
-                                            &this->rli))
+  if (create_coordinators(INFO_REPOSITORY_DUMMY,
+                          &this->mi,
+                          INFO_REPOSITORY_FILE,
+                          &this->rli))
   {
     error= REPLICATION_THREAD_REPOSITORY_CREATION_ERROR;
     goto end;
@@ -94,9 +92,35 @@ end:
     mysql_mutex_unlock(&mi->data_lock);
   }
 
-  mysql_mutex_unlock(&LOCK_active_mi);
-
   DBUG_RETURN(error);
+}
+
+int
+Replication_thread_api::create_coordinators(uint mi_option,
+                                            Master_info **mi,
+                                            uint rli_option,
+                                            Relay_log_info **rli)
+{
+  DBUG_ENTER("Replication_thread_api::create_coordinators");
+
+  if (!((*mi)= Rpl_info_factory::create_mi(mi_option, NULL, true)))
+    DBUG_RETURN(TRUE);
+
+  if (!((*rli)= Rpl_info_factory::create_rli(rli_option, relay_log_recovery,
+                                             NULL, false)))
+  {
+    delete *mi;
+    *mi= NULL;
+    DBUG_RETURN(TRUE);
+  }
+
+  /*
+    Setting the cross dependency used all over the code.
+  */
+  (*mi)->set_relay_log_info(*rli);
+  (*rli)->set_master_info(*mi);
+
+  DBUG_RETURN(FALSE);
 }
 
 void

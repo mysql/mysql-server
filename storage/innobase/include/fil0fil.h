@@ -90,21 +90,12 @@ struct fil_space_t {
 				page because it actually was for the
 				previous incarnation of the space */
 	lsn_t		max_lsn;
-				/*!< LSN of the most recent fil_names_dirty().
+				/*!< LSN of the most recent
+				fil_names_write_if_was_clean().
 				Reset to 0 by fil_names_clear().
-				Protected by log_sys->mutex and
-				sometimes by fil_system->mutex:
-
-				Updates from nonzero to nonzero
-				are only protected by log_sys->mutex.
-
-				Updates between 0 and nonzero are
-				protected by log_sys->mutex and
-				fil_system->mutex.
-
+				Protected by log_sys->mutex.
 				If and only if this is nonzero, the
-				tablespace will be in named_spaces,
-				which is protected by fil_system->mutex. */
+				tablespace will be in named_spaces. */
 	bool		stop_ios;/*!< true if we want to rename the
 				.ibd file of tablespace and want to
 				stop temporarily posting of new i/o
@@ -331,6 +322,18 @@ extern ulint	fil_n_pending_tablespace_flushes;
 extern ulint	fil_n_file_opened;
 
 #ifndef UNIV_HOTBACKUP
+/** Look up a tablespace.
+The caller should hold an InnoDB table lock or a MDL that prevents
+the tablespace from being dropped during the operation.
+If this is not the case, fil_space_acquire() and fil_space_release()
+should be used instead.
+@param[in]	id	tablespace ID
+@return tablespace, or NULL if not found */
+fil_space_t*
+fil_space_get(
+	ulint	id)
+	__attribute__((warn_unused_result));
+
 /*******************************************************************//**
 Returns the version number of a tablespace, -1 if not found.
 @return version number, -1 if the tablespace does not exist in the
@@ -722,26 +725,24 @@ fil_make_filepath(
 	ib_extention	suffix,
 	bool		strip_name);
 
-/*******************************************************************//**
-Creates a new tablespace in a database directory of MySQL.
-Database directories are under the 'datadir' of MySQL. The datadir is the
-directory of a running mysqld program. We can refer to it by simply the
-path '.'. Tables created with CREATE TEMPORARY TABLE we place in the temp
-dir of the mysqld server.
+/** Creates a new Single-Table tablespace
+@param[in]	space_id	Tablespace ID
+@param[in]	name		Tablespace name in dbname/tablename format.
+For general tablespaces, the 'dbname/' part may be missing.
+@param[in]	path		Path and filename of the datafile to create.
+@param[in]	flags		Tablespace flags
+@param[in]	is_temp		true if this is a temporary table
+@param[in]	size		Initial size of the tablespace file in pages,
+must be >= FIL_IBD_FILE_INITIAL_SIZE
 @return DB_SUCCESS or error code */
 dberr_t
-fil_create_new_single_table_tablespace(
-/*===================================*/
-	ulint		space_id,	/*!< in: space id */
-	const char*	tablename,	/*!< in: the table name in the usual
-					databasename/tablename format
-					of InnoDB */
-	const char*	dir_path,	/*!< in: NULL or a dir path */
-	ulint		flags,		/*!< in: tablespace flags */
-	ulint		flags2,		/*!< in: table flags2 */
-	ulint		size)		/*!< in: the initial size of the
-					tablespace file in pages,
-					must be >= FIL_IBD_FILE_INITIAL_SIZE */
+fil_create_ibd_tablespace(
+	ulint		space_id,
+	const char*	name,
+	const char*	path,
+	ulint		flags,
+	bool		is_temp,
+	ulint		size)
 	__attribute__((warn_unused_result));
 #ifndef UNIV_HOTBACKUP
 /********************************************************************//**
@@ -773,7 +774,7 @@ statement to update the dictionary tables if they are incorrect.
 @param[in] path_in Tablespace filepath if found in SYS_DATAFILES
 @return DB_SUCCESS or error code */
 dberr_t
-fil_open_single_table_tablespace(
+fil_open_ibd_tablespace(
 	bool		validate,
 	bool		fix_dict,
 	fil_type_t	purpose,
@@ -794,14 +795,14 @@ enum fil_load_status {
 	FIL_LOAD_INVALID
 };
 
-/** Open a tablespace file and add it to the InnoDB data structures.
+/** Open a single-file tablespace and add it to the InnoDB data structures.
 @param[in]	space_id	tablespace ID
 @param[in]	filename	path/to/databasename/tablename.ibd
 @param[in]	filename_len	the length of the filename, in bytes
 @param[out]	space		the tablespace, or NULL on error
 @return status of the operation */
 enum fil_load_status
-fil_load_single_table_tablespace(
+fil_load_single_file_tablespace(
 	ulint		space_id,
 	const char*	filename,
 	ulint		filename_len,
@@ -1008,14 +1009,6 @@ fil_page_get_type(
 /*==============*/
 	const byte*	page);	/*!< in: file page */
 
-/*******************************************************************//**
-Returns true if a single-table tablespace is redo skipped.
-@return true if redo skipped */
-bool
-fil_tablespace_is_being_deleted(
-/*============================*/
-	ulint		id);	/*!< in: space id */
-
 #ifdef UNIV_DEBUG
 /** Increase redo skipped of a tablespace.
 @param[in]	id	space id */
@@ -1060,7 +1053,7 @@ struct PageCallback {
 	/** Called for page 0 in the tablespace file at the start.
 	@param file_size size of the file in bytes
 	@param block contents of the first page in the tablespace file
-	@retval DB_SUCCESS or error code.*/
+	@retval DB_SUCCESS or error code. */
 	virtual dberr_t init(
 		os_offset_t		file_size,
 		const buf_block_t*	block) UNIV_NOTHROW = 0;
@@ -1143,15 +1136,14 @@ fil_space_read_name_and_filepath(
 	char**	name,
 	char**	filepath);
 
-/*******************************************************************//**
-Checks if a single-table tablespace for a given table name exists in the
-tablespace memory cache.
-@return space id, ULINT_UNDEFINED if not found */
+/** Returns the space ID based on the tablespace name.
+The tablespace must be found in the tablespace memory cache.
+This call is made from external to this module, so the mutex is not owned.
+@param[in]	tablespace	Tablespace name
+@return space ID if tablespace found, ULINT_UNDEFINED if space not. */
 ulint
-fil_get_space_id_for_table(
-/*=======================*/
-	const char*	name);	/*!< in: table name in the standard
-				'databasename/tablename' format */
+fil_space_get_id_by_name(
+	const char*	tablespace);
 
 /**
 Iterate over all the spaces in the space list and fetch the
@@ -1179,25 +1171,52 @@ fil_mtr_rename_log(
 	mtr_t*			mtr)
 	__attribute__((warn_unused_result));
 
-/** Write a MLOG_FILE_NAME record for a non-predefined tablespace.
-@param[in]	space_id	tablespace identifier
-@param[in,out]	mtr		mini-transaction
-@return	tablespace */
-fil_space_t*
-fil_names_write(
-	ulint		space_id,
-	mtr_t*		mtr)
-	__attribute__((warn_unused_result));
-
-/** Note that a non-predefined persistent tablespace has been modified.
-@param[in,out]	space	tablespace
-@return whether this is the first dirtying since fil_names_clear() */
-bool
+/** Note that a non-predefined persistent tablespace has been modified
+by redo log.
+@param[in,out]	space	tablespace */
+void
 fil_names_dirty(
-	fil_space_t*	space)
-	__attribute__((warn_unused_result));
+	fil_space_t*	space);
 
-/** On a log checkpoint, reset fil_names_dirty() flags
+/** Write MLOG_FILE_NAME records when a non-predefined persistent
+tablespace was modified for the first time since the latest
+fil_names_clear().
+@param[in,out]	space	tablespace
+@param[in,out]	mtr	mini-transaction */
+void
+fil_names_dirty_and_write(
+	fil_space_t*	space,
+	mtr_t*		mtr);
+
+/** Write MLOG_FILE_NAME records if a persistent tablespace was modified
+for the first time since the latest fil_names_clear().
+@param[in,out]	space	tablespace
+@param[in,out]	mtr	mini-transaction
+@return whether any MLOG_FILE_NAME record was written */
+inline __attribute__((warn_unused_result))
+bool
+fil_names_write_if_was_clean(
+	fil_space_t*	space,
+	mtr_t*		mtr)
+{
+	ut_ad(log_mutex_own());
+
+	if (space == NULL) {
+		return(false);
+	}
+
+	const bool	was_clean = space->max_lsn == 0;
+	ut_ad(space->max_lsn <= log_sys->lsn);
+	space->max_lsn = log_sys->lsn;
+
+	if (was_clean) {
+		fil_names_dirty_and_write(space, mtr);
+	}
+
+	return(was_clean);
+}
+
+/** On a log checkpoint, reset fil_names_dirty_and_write() flags
 and write out MLOG_FILE_NAME and MLOG_CHECKPOINT if needed.
 @param[in]	lsn		checkpoint LSN
 @param[in]	do_write	whether to always write MLOG_CHECKPOINT

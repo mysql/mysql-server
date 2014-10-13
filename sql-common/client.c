@@ -734,24 +734,6 @@ void read_ok_ex(MYSQL *mysql, ulong length)
                      mysql->server_status, mysql->warning_count));
   if (mysql->server_capabilities & CLIENT_SESSION_TRACK)
   {
-    size_t length_msg_member= (size_t) net_field_length(&pos);
-    if (length_msg_member)
-    {
-      if (!mysql->info_buffer)
-	mysql->info_buffer= (char *) my_malloc(PSI_NOT_INSTRUMENTED,
-	                                       MYSQL_ERRMSG_SIZE, MYF(MY_WME));
-      /*
-        If memory allocation succeeded, the string is copied.
-	Else, mysql->info remains NULL.
-      */
-      if (mysql->info_buffer)
-      {
-	strmake(mysql->info_buffer, (const char *) pos,
-	        MY_MIN(length_msg_member, MYSQL_ERRMSG_SIZE - 1));
-	mysql->info= mysql->info_buffer;
-      }
-    }
-    pos += (length_msg_member);
     free_state_change_info(mysql->extension);
     if (mysql->server_status & SERVER_SESSION_STATE_CHANGED)
     {
@@ -931,7 +913,7 @@ void read_ok_ex(MYSQL *mysql, ulong length)
 	info->info_list[type].current_node= info->info_list[type].head_node=
 	  list_reverse(info->info_list[type].head_node);
   }
-  else if (pos < mysql->net.read_pos + length && net_field_length(&pos))
+  if (pos < mysql->net.read_pos + length && net_field_length(&pos))
     mysql->info=(char*) pos;
   else
     mysql->info=NULL;
@@ -3247,16 +3229,18 @@ error:
 
   @param       mysql     The mysql handler to operate
   @param[out]  buff      The buffer to receive the packet
-  @param       buff_size The max size of the buffer
+  @param       buff_size The max size of the buffer. Used in debug only.
   @return                one past to where the buffer is filled
 
 */
 static char *
-mysql_fill_packet_header(MYSQL *mysql, char *buff, size_t buff_size)
+mysql_fill_packet_header(MYSQL *mysql, char *buff,
+                         size_t buff_size  __attribute__((unused)))
 {
   NET *net= &mysql->net;
   char *end;
   uchar *buff_p= (uchar*) buff;
+  (void)buff_size; /* avoid warnings */
 
   if (mysql->client_flag & CLIENT_PROTOCOL_41)
   {

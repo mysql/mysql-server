@@ -7,13 +7,9 @@
 
 SET GLOBAL innodb_file_per_table=ON;
 
-let MYSQLD_DATADIR= `select @@datadir`;
-
 CREATE TABLE t1(a INT PRIMARY KEY) ENGINE=InnoDB;
 
---replace_regex /.*Last checkpoint at[[:space:]]*([0-9]+).*/\1/gso
-let CHECKPOINT_LSN=`SHOW ENGINE INNODB STATUS`;
-
+--source include/no_checkpoint_start.inc
 CREATE TABLE t3(a INT PRIMARY KEY) ENGINE=InnoDB;
 
 BEGIN;
@@ -23,40 +19,8 @@ RENAME TABLE t1 TO t2;
 UPDATE t2 SET a=347 where a=42;
 COMMIT;
 
---source include/kill_mysqld.inc
-
-# Check that the latest checkpoint in the redo log files
-# is not newer than our checkpoint.
-perl;
-my $cp = $ENV{CHECKPOINT_LSN};
-$cp =~ s/^InnoDB\t\t//;
-my $log = "$ENV{MYSQLD_DATADIR}ib_logfile0";
-open(LOG, "<$log") || die "Unable to open $log";
-seek(LOG, 512, 0) || die "Unable to seek $log";
-die unless read(LOG, $_, 16) == 16;
-my ($no1hi,$no1lo,$cp1hi,$cp1lo) = unpack("N*", $_);
-seek(LOG, 3 * 512, 0) || die "Unable to seek $log";
-die unless read(LOG, $_, 16) == 16;
-my ($no2hi,$no2lo,$cp2hi,$cp2lo) = unpack("N*", $_);
-close(LOG);
-
-my $cp1 = $cp1hi << 32 | $cp1lo;
-my $cp2 = $cp2hi << 32 | $cp2lo;
-
-open(OUT, ">$ENV{MYSQLTEST_VARDIR}/log/check.txt") || die;
-
-if ($cp1 > $cp || $cp2 > $cp) {
-   print OUT "--source include/start_mysqld.inc\n";
-   print OUT "DROP TABLE t2,t3;\n";
-   print OUT "--skip Extra checkpoint 1 after $cp";
-   print OUT " ($no1hi:$no1lo=$cp1,$no2hi:$no2lo=$cp2)\n";
-}
-
-close(OUT);
-EOF
-
---source $MYSQLTEST_VARDIR/log/check.txt
---remove_file $MYSQLTEST_VARDIR/log/check.txt
+--let CLEANUP_IF_CHECKPOINT=DROP TABLE t2,t3;
+--source include/no_checkpoint_end.inc
 
 --echo # Fault 0 (no real fault): Orphan file with duplicate space_id.
 --copy_file $MYSQLD_DATADIR/test/t2.ibd $MYSQLD_DATADIR/test/t0.ibd
@@ -179,13 +143,13 @@ call mtr.add_suppression("InnoDB: The file '.*t0\.ibd' already exists");
 call mtr.add_suppression("InnoDB: The error means the system cannot find the path specified");
 call mtr.add_suppression("InnoDB: .*you must create directories");
 call mtr.add_suppression("InnoDB: Cannot open datafile for read-only: '.*u[1-5]\.ibd'");
-call mtr.add_suppression("InnoDB: Could not find a valid tablespace file for 'test/u[1-5]'");
+call mtr.add_suppression("InnoDB: Could not find a valid tablespace file for `test/u[1-5]`");
 call mtr.add_suppression("InnoDB: Tablespace open failed for .test.\..u[1-5]., ignored");
-call mtr.add_suppression("InnoDB: Failed to find tablespace for table .test.\..u[1-5]. in the cache");
+call mtr.add_suppression("InnoDB: Ignoring tablespace `test/u[1-3]` because it could not be opened.");
+call mtr.add_suppression("InnoDB: Failed to find tablespace for table .* in the cache. Attempting to load the tablespace with space id");
 --enable_query_log
 
---replace_regex /.*Last checkpoint at[[:space:]]*([0-9]+).*/\1/gso
-let CHECKPOINT_LSN=`SHOW ENGINE INNODB STATUS`;
+--source include/no_checkpoint_start.inc
 
 CREATE TABLE u1(a INT PRIMARY KEY) ENGINE=InnoDB;
 CREATE TABLE u2(a INT PRIMARY KEY) ENGINE=InnoDB;
@@ -196,40 +160,8 @@ RENAME TABLE u4 TO u5;
 RENAME TABLE u5 TO u6;
 INSERT INTO u6 VALUES(2);
 
---source include/kill_mysqld.inc
-
-# Check that the latest checkpoint in the redo log files
-# is not newer than our checkpoint.
-perl;
-my $cp = $ENV{CHECKPOINT_LSN};
-$cp =~ s/^InnoDB\t\t//;
-my $log = "$ENV{MYSQLD_DATADIR}ib_logfile0";
-open(LOG, "<$log") || die "Unable to open $log";
-seek(LOG, 512, 0) || die "Unable to seek $log";
-die unless read(LOG, $_, 16) == 16;
-my ($no1hi,$no1lo,$cp1hi,$cp1lo) = unpack("N*", $_);
-seek(LOG, 3 * 512, 0) || die "Unable to seek $log";
-die unless read(LOG, $_, 16) == 16;
-my ($no2hi,$no2lo,$cp2hi,$cp2lo) = unpack("N*", $_);
-close(LOG);
-
-my $cp1 = $cp1hi << 32 | $cp1lo;
-my $cp2 = $cp2hi << 32 | $cp2lo;
-
-open(OUT, ">$ENV{MYSQLTEST_VARDIR}/log/check.txt") || die;
-
-if ($cp1 > $cp || $cp2 > $cp) {
-   print OUT "--source include/start_mysqld.inc\n";
-   print OUT "DROP TABLE u1,u2,u3,u6;\n";
-   print OUT "--skip Extra checkpoint 2 after $cp";
-   print OUT " ($no1hi:$no1lo=$cp1,$no2hi:$no2lo=$cp2)\n";
-}
-
-close(OUT);
-EOF
-
---source $MYSQLTEST_VARDIR/log/check.txt
---remove_file $MYSQLTEST_VARDIR/log/check.txt
+--let CLEANUP_IF_CHECKPOINT=DROP TABLE u1,u2,u3,u6;
+--source include/no_checkpoint_end.inc
 
 --echo # Fault 6: All-zero data file and innodb_force_recovery
 
