@@ -21,6 +21,8 @@
 #include <TransporterRegistry.hpp>
 #include <TransporterCallback.hpp>
 #include <RefConvert.hpp>
+#include "EventLogger.hpp"
+#include "BlockNumbers.h"
 
 #ifdef ERROR_INSERT
 Uint32 MAX_RECEIVED_SIGNALS = 1024;
@@ -28,12 +30,101 @@ Uint32 MAX_RECEIVED_SIGNALS = 1024;
 #define MAX_RECEIVED_SIGNALS 1024
 #endif
 
-static
-void dump_corrupt_message(const char file[], unsigned line, const Uint32 * msg, size_t len)
+extern EventLogger* g_eventLogger;
+
+void
+TransporterRegistry::dump_and_report_bad_message(const char file[], unsigned line,
+                          TransporterReceiveHandle & recvHandle,
+                          Uint32 * readPtr,
+                          size_t sizeInWords,
+                          NodeId remoteNodeId,
+                          IOState state,
+                          TransporterError errorCode)
 {
-  ndbout << "ERROR: " << file << ": " << line << ": Corrupt message detected!" << endl;
-  ndbout << "-- Message --" << endl;
-  ndbout.hexdump(msg, len) << flush;
+  report_error(remoteNodeId, errorCode);
+
+  char msg[MAX_LOG_MESSAGE_SIZE];
+  const size_t sz = sizeof(msg);
+  Uint32 nextMsgOffset = Protocol6::getMessageLength(*readPtr);
+  if (sizeInWords >= nextMsgOffset)
+  {
+    nextMsgOffset = 0;
+  }
+
+  {
+    size_t offs = 0;
+    ssize_t nb;
+    nb = snprintf(msg + offs, sz - offs, "%s: %u: ", file, line);
+    if (nb < 0) goto log_it;
+    offs += nb;
+
+    // Get error message for errorCode
+    LogLevel::EventCategory cat;
+    Uint32 threshold;
+    Logger::LoggerLevel severity;
+    EventLogger::EventTextFunction textF;
+    EventLoggerBase::event_lookup(NDB_LE_TransporterError,
+                                  cat, threshold, severity, textF);
+    Uint32 TE_words[3] = {0, remoteNodeId, errorCode};
+    g_eventLogger->getText(msg + offs, sz - offs, textF, TE_words, 3);
+    nb = strlen(msg + offs);
+    if (nb < 0) goto log_it;
+    offs += nb;
+
+    const bool bad_data = recvHandle.m_bad_data_transporters.get(remoteNodeId);
+    nb = snprintf(msg + offs, sz - offs,
+                  "\n"
+                  "PerformState %u: IOState %u: bad_data %u\n"
+                  "ptr %p: size %zu bytes\n",
+                  performStates[remoteNodeId], state, bad_data,
+                  readPtr, sizeInWords * 4);
+    if (nb < 0) goto log_it;
+    offs += nb;
+    size_t reserve;
+    if (!nextMsgOffset)
+    {
+      // If next message wont be dumped, print as much as possible
+      // from start of buffer.
+      reserve = 0;
+    }
+    else
+    {
+      // Keep some space for dumping next message, about 10 words
+      // plus 6 preceding words.
+      reserve = 200;
+    }
+    nb = BaseString::hexdump(msg + offs, sz - offs - reserve, readPtr, sizeInWords);
+    if (nb < 0) goto log_it;
+    offs += nb;
+    if (nextMsgOffset)
+    {
+      // Always print some words preceding next message. But assume
+      // at least 60 words will be printed for current message.
+      if (nextMsgOffset > 60)
+      {
+        nb = snprintf(msg + offs, sz - offs,
+                  "Before next ptr %p\n",
+                  readPtr + nextMsgOffset - 6);
+        if (nb < 0) goto log_it;
+        offs += nb;
+        nb = BaseString::hexdump(msg + offs, sz - offs, readPtr + nextMsgOffset - 6, 6);
+        offs += nb;
+      }
+      // Dump words for next message.
+      nb = snprintf(msg + offs, sz - offs,
+                    "Next ptr %p\n",
+                    readPtr + nextMsgOffset);
+      if (nb < 0) goto log_it;
+      offs += nb;
+      nb = BaseString::hexdump(msg + offs, sz - offs, readPtr + nextMsgOffset, sizeInWords - nextMsgOffset);
+      if (nb < 0) goto log_it;
+      offs += nb;
+    }
+  }
+
+log_it:
+  g_eventLogger->error("%s", msg);
+  recvHandle.m_bad_data_transporters.set(remoteNodeId);
 }
 
 static
@@ -47,11 +138,16 @@ unpack_one(Uint32* (&readPtr), Uint32* eodPtr,
   Uint32 word2 = readPtr[1];
   Uint32 word3 = readPtr[2];
 
-#if 0
-  if(Protocol6::getByteOrder(word1) != MY_OWN_BYTE_ORDER){
-    //Do funky stuff
+  if (unlikely(!Protocol6::verifyByteOrder(word1, MY_OWN_BYTE_ORDER)))
+  {
+    errorCode = TE_UNSUPPORTED_BYTE_ORDER;
+    return false;
   }
-#endif
+
+  if (unlikely(Protocol6::getCompressed(word1))){
+    errorCode = TE_COMPRESSED_UNSUPPORTED;
+    return false;
+  }
 
   const Uint16 messageLen32    = Protocol6::getMessageLength(word1);
 
@@ -77,12 +173,6 @@ unpack_one(Uint32* (&readPtr), Uint32* eodPtr,
       return false;
     }//if
   }//if
-
-#if 0
-  if(Protocol6::getCompressed(word1)){
-    //Do funky stuff
-  }//if
-#endif
 
   signalData = &readPtr[3];
 
@@ -121,6 +211,33 @@ unpack_one(Uint32* (&readPtr), Uint32* eodPtr,
     errorCode = TE_INVALID_MESSAGE_LENGTH;
     return false;
   }
+
+  /* check of next message if possible before delivery */
+  if (eodPtr > readPtr)
+  { // check next message word1
+    Uint32 word1 = *readPtr;
+    // check byte order
+    if (unlikely(!Protocol6::verifyByteOrder(word1, MY_OWN_BYTE_ORDER)))
+    {
+      errorCode = TE_UNSUPPORTED_BYTE_ORDER;
+      return false;
+    }
+    if (unlikely(Protocol6::getCompressed(word1)))
+    {
+      errorCode = TE_COMPRESSED_UNSUPPORTED;
+      return false;
+    }
+    // check message size
+    const Uint16 messageLen32    = Protocol6::getMessageLength(word1);
+    if (unlikely(messageLen32 == 0 ||
+                messageLen32 > (MAX_RECV_MESSAGE_BYTESIZE >> 2)))
+    {
+      DEBUG("Message Size = " << messageLenBytes);
+      errorCode = TE_INVALID_MESSAGE_LENGTH;
+      return false;
+    }//if
+  }
+
   return true;
 }
 
@@ -130,9 +247,16 @@ TransporterRegistry::unpack(TransporterReceiveHandle & recvHandle,
                             Uint32 sizeOfData,
                             NodeId remoteNodeId,
                             IOState state,
-			    bool & stopReceiving)
+                            bool & stopReceiving)
 {
   assert(stopReceiving == false);
+  // If bad data detected in  previous run
+  // skip all further data
+  if (unlikely(recvHandle.m_bad_data_transporters.get(remoteNodeId)))
+  {
+    return sizeOfData;
+  }
+
   Uint8 prio;
   SignalHeader signalHeader;
   Uint32* signalData;
@@ -169,7 +293,7 @@ TransporterRegistry::unpack(TransporterReceiveHandle & recvHandle,
 
       Uint32 rBlockNum = signalHeader.theReceiversBlockNumber;
 
-      if(rBlockNum == 252){
+      if(rBlockNum == QMGR){
 	Uint32 sBlockNum = signalHeader.theSendersBlockRef;
 	sBlockNum = numberToRef(sBlockNum, remoteNodeId);
 	signalHeader.theSendersBlockRef = sBlockNum;
@@ -184,8 +308,9 @@ TransporterRegistry::unpack(TransporterReceiveHandle & recvHandle,
 
   if (errorCode != TE_NO_ERROR)
   {
-    report_error(remoteNodeId, errorCode);
-    dump_corrupt_message(__FILE__, __LINE__, readPtr, eodPtr - readPtr);
+    dump_and_report_bad_message(__FILE__, __LINE__,
+            recvHandle, readPtr, eodPtr - readPtr, remoteNodeId, state,
+            errorCode);
   }
 
   stopReceiving = doStopReceiving;
@@ -198,8 +323,17 @@ TransporterRegistry::unpack(TransporterReceiveHandle & recvHandle,
                             Uint32 * eodPtr,
                             NodeId remoteNodeId,
                             IOState state,
-			    bool & stopReceiving) {
+                            bool & stopReceiving)
+{
   assert(stopReceiving == false);
+
+  // If bad data detected in previous run
+  // skip all further data
+  if (unlikely(recvHandle.m_bad_data_transporters.get(remoteNodeId)))
+  {
+    return eodPtr;
+  }
+
   Uint8 prio;
   SignalHeader signalHeader;
   Uint32* signalData;
@@ -249,8 +383,9 @@ TransporterRegistry::unpack(TransporterReceiveHandle & recvHandle,
 
   if (errorCode != TE_NO_ERROR)
   {
-    report_error(remoteNodeId, errorCode);
-    dump_corrupt_message(__FILE__, __LINE__, readPtr, eodPtr - readPtr);
+    dump_and_report_bad_message(__FILE__, __LINE__,
+            recvHandle, readPtr, eodPtr - readPtr, remoteNodeId, state,
+            errorCode);
   }
 
   stopReceiving = doStopReceiving;

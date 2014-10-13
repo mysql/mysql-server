@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -389,6 +389,25 @@ enum TransporterError {
 
   /* Used 0x21 */
   /* Used 0x22 */
+
+  /**
+   * TE_UNSUPPORTED_BYTE_ORDER
+   *
+   *   Error found in message (byte order)
+   *
+   * Recommended behavior: setPerformState(PerformDisonnect)
+   */
+  , TE_UNSUPPORTED_BYTE_ORDER = 0x23 | TE_DO_DISCONNECT
+
+  /**
+   * TE_COMPRESSED_UNSUPPORTED
+   *
+   *   Error found in message (compressed flag)
+   *
+   * Recommended behavior: setPerformState(PerformDisonnect)
+   */
+  , TE_COMPRESSED_UNSUPPORTED = 0x24 | TE_DO_DISCONNECT
+
 };
 
 #endif // Define of TransporterDefinitions_H

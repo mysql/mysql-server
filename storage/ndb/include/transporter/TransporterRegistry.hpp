@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -128,6 +128,12 @@ struct TransporterReceiveData
    * transporters.
    */
   NodeBitmask m_handled_transporters;
+
+  /**
+   * Bitmask of transporters having received corrupted or unsupported
+   * message.  No more unpacking and delivery of messages allowed.
+   */
+  NodeBitmask m_bad_data_transporters;
 
 #if defined(HAVE_EPOLL_CREATE)
   int m_epoll_fd;
@@ -275,10 +281,19 @@ public:
   void do_connect(NodeId node_id);
   void do_disconnect(NodeId node_id, int errnum = 0);
   bool is_connected(NodeId node_id) { return performStates[node_id] == CONNECTED; };
+private:
   void report_connect(TransporterReceiveHandle&, NodeId node_id);
   void report_disconnect(TransporterReceiveHandle&, NodeId node_id, int errnum);
   void report_error(NodeId nodeId, TransporterError errorCode,
                     const char *errorInfo = 0);
+  void dump_and_report_bad_message(const char file[], unsigned line,
+                    TransporterReceiveHandle & recvHandle,
+                    Uint32 * readPtr,
+                    size_t sizeOfData,
+                    NodeId remoteNodeId,
+                    IOState state,
+                    TransporterError errorCode);
+public:
   
   /**
    * Get and set methods for IOState
