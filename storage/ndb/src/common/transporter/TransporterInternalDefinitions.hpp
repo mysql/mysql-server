@@ -1,5 +1,5 @@
-/* Copyright (c) 2003-2006 MySQL AB
-
+/*
+   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -12,7 +12,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA */
+   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
+*/
 
 
 #ifndef TransporterInternalDefinitions_H
@@ -113,6 +114,8 @@ struct Protocol6 {
   static Uint32 getPrio            (const Uint32 & word1);
   static Uint32 getMessageLength   (const Uint32 & word1);
 
+  static bool verifyByteOrder       (const Uint32 & word1, Uint32 byteOrder);
+
   static void setByteOrder       (Uint32 & word1, Uint32 byteOrder);
   static void setCompressed      (Uint32 & word1, Uint32 compressed);
   static void setSignalIdIncluded(Uint32 & word1, Uint32 signalId);
@@ -196,6 +199,16 @@ inline
 Uint32
 Protocol6::getPrio(const Uint32 & word1){
   return (word1 & WORD1_PRIO_MASK) >> WORD1_PRIO_SHIFT;
+}
+
+inline
+bool
+Protocol6::verifyByteOrder(const Uint32 & word1, Uint32 byteOrder)
+{
+  Uint32 tmp = byteOrder;
+  tmp |= (tmp << 7);
+  tmp |= (tmp << 24);
+  return (word1 & WORD1_BYTEORDER_MASK) == tmp;
 }
 
 inline

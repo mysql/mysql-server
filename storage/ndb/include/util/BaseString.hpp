@@ -1,5 +1,5 @@
-/* Copyright (c) 2003-2005, 2007 MySQL AB
-
+/*
+   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -12,7 +12,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA */
+   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
+*/
 
 
 #ifndef __UTIL_BASESTRING_HPP_INCLUDED__
@@ -237,6 +238,7 @@ public:
   static BaseString getPrettyText(unsigned size, const Uint32 data[]);
   static BaseString getPrettyTextShort(unsigned size, const Uint32 data[]);
 
+  static size_t hexdump(char * buf, size_t len, const Uint32 * wordbuf, size_t numwords);
 private:
   char* m_chr;
   unsigned m_len;

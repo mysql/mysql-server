@@ -1,5 +1,5 @@
-/* Copyright (c) 2003-2007 MySQL AB
-
+/*
+   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -12,7 +12,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA */
+   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
+*/
 
 
 #include <ndb_global.h>
@@ -659,7 +660,11 @@ void getTextTransporterError(QQQQ) {
     //TE_SHM_IPC_PERMANENT = 0x21
     {TE_SHM_IPC_PERMANENT,"Shm ipc Permanent error"},
     //TE_SCI_UNABLE_TO_CLOSE_CHANNEL = 0x22
-    {TE_SCI_UNABLE_TO_CLOSE_CHANNEL,"Unable to close the sci channel and the resources allocated"}
+    {TE_SCI_UNABLE_TO_CLOSE_CHANNEL, "Unable to close the sci channel and the resources allocated"},
+    //TE_UNSUPPORTED_BYTE_ORDER = 0x23 | TE_DO_DISCONNECT
+    {TE_UNSUPPORTED_BYTE_ORDER, "Error found in message (unsupported byte order)"},
+    //TE_COMPRESSED_UNSUPPORTED = 0x24 | TE_DO_DISCONNECT
+    {TE_COMPRESSED_UNSUPPORTED, "Error found in message (unsupported feature compressed)"},
   };
 
   lenth = sizeof(TransporterErrorString)/sizeof(struct myTransporterError);
