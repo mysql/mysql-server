@@ -147,6 +147,7 @@ enum Binlog_storage_flags {
 };
 
 typedef struct Server_state_param {
+  uint32 server_id;
 } Server_state_param;
 
 /**
