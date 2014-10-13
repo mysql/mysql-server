@@ -169,10 +169,39 @@ public:
   {}
 
   typedef Trans_observer Observer;
-  int before_commit(THD *thd, bool all);
+  int before_commit(THD *thd, bool all,
+                    IO_CACHE *trx_cache_log,
+                    IO_CACHE *stmt_cache_log,
+                    ulonglong cache_log_max_size,
+                    std::list<uint32> *pke_write_set);
   int before_rollback(THD *thd, bool all);
   int after_commit(THD *thd, bool all);
   int after_rollback(THD *thd, bool all);
+};
+
+#ifdef HAVE_PSI_INTERFACE
+extern PSI_rwlock_key key_rwlock_Server_state_delegate_lock;
+#endif
+
+class Server_state_delegate
+  :public Delegate {
+public:
+
+  Server_state_delegate()
+  : Delegate(
+#ifdef HAVE_PSI_INTERFACE
+             key_rwlock_Server_state_delegate_lock
+#endif
+             )
+  {}
+
+  typedef Server_state_observer Observer;
+  int before_handle_connection(THD *thd);
+  int before_recovery(THD *thd);
+  int after_engine_recovery(THD *thd);
+  int after_recovery(THD *thd);
+  int before_server_shutdown(THD *thd);
+  int after_server_shutdown(THD *thd);
 };
 
 #ifdef HAVE_PSI_INTERFACE
@@ -249,6 +278,7 @@ public:
   typedef Binlog_relay_IO_observer Observer;
   int thread_start(THD *thd, Master_info *mi);
   int thread_stop(THD *thd, Master_info *mi);
+  int consumer_thread_stop(THD *thd, Master_info *mi, bool aborted);
   int before_request_transmit(THD *thd, Master_info *mi, ushort flags);
   int after_read_event(THD *thd, Master_info *mi,
                        const char *packet, ulong len,
@@ -267,6 +297,7 @@ void delegates_destroy();
 
 extern Trans_delegate *transaction_delegate;
 extern Binlog_storage_delegate *binlog_storage_delegate;
+extern Server_state_delegate *server_state_delegate;
 #ifdef HAVE_REPLICATION
 extern Binlog_transmit_delegate *binlog_transmit_delegate;
 extern Binlog_relay_IO_delegate *binlog_relay_io_delegate;

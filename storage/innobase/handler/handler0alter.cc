@@ -3812,6 +3812,7 @@ ha_innobase::prepare_inplace_alter_table(
 		is_file_per_table
 		/* Moving from the system tablespace to file-per-table */
 		|| (in_system_space && srv_file_per_table);
+
 	create_table_info_t	info(m_user_thd,
 				     altered_table,
 				     ha_alter_info->create_info,
@@ -3819,6 +3820,7 @@ ha_innobase::prepare_inplace_alter_table(
 				     NULL,
 				     NULL,
 				     needs_file_per_table);
+
 	if (ha_alter_info->handler_flags
 	    & Alter_inplace_info::CHANGE_CREATE_OPTION) {
 		const char* invalid_opt = info.create_options_are_invalid();

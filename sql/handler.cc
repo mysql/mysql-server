@@ -1754,6 +1754,8 @@ int ha_rollback_low(THD *thd, bool all)
     all ? Transaction_ctx::SESSION : Transaction_ctx::STMT;
   Ha_trx_info *ha_info= trn_ctx->ha_trx_info(trx_scope), *ha_info_next;
 
+  (void) RUN_HOOK(transaction, before_rollback, (thd, all));
+
   if (ha_info)
   {
     for (; ha_info; ha_info= ha_info_next)

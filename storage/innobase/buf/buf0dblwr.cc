@@ -480,29 +480,15 @@ buf_dblwr_process(void)
 		ulint		page_no		= page_get_page_no(page);
 		ulint		space_id	= page_get_space_id(page);
 
-		fil_space_t*	space = fil_space_acquire(space_id, false);
+		fil_space_t*	space = fil_space_get(space_id);
 
 		if (space == NULL) {
 			/* Maybe we have dropped the tablespace
 			and this page once belonged to it: do nothing */
 			continue;
-		} else if (space->size == 0) {
-			/* Initially, space->size will be set to 0,
-			because the files will not be opened.
-			fil_space_get_size() will open the file
-			and adjust the size. */
-			fil_space_release(space);
-#ifdef UNIV_DEBUG
-			fil_space_t*	space2	= space;
-			ulint		size	=
-#endif
-				fil_space_get_size(space_id);
-			space = fil_space_acquire(space_id);
-			/* We are in single-threaded mode; the
-			tablespace cannot be dropped here. */
-			ut_ad(space == space2);
-			ut_ad(size == space->size);
 		}
+
+		fil_space_open_if_needed(space);
 
 		if (page_no >= space->size) {
 
@@ -567,7 +553,6 @@ buf_dblwr_process(void)
 				a valid copy is available in dblwr buffer. */
 
 			} else {
-				fil_space_release(space);
 				continue;
 			}
 
@@ -581,8 +566,6 @@ buf_dblwr_process(void)
 			ib::info() << "Recovered page " << page_id
 				<< " from the doublewrite buffer.";
 		}
-
-		fil_space_release(space);
 	}
 
 	recv_dblwr.pages.clear();

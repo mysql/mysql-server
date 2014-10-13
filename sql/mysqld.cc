@@ -391,8 +391,8 @@ my_bool opt_slave_sql_verify_checksum= 1;
 const char *binlog_format_names[]= {"MIXED", "STATEMENT", "ROW", NullS};
 my_bool enforce_gtid_consistency;
 my_bool simplified_binlog_gtid_recovery;
-ulong binlogging_impossible_mode;
-const char *binlogging_impossible_err[]= {"IGNORE_ERROR", "ABORT_SERVER", NullS};
+ulong binlog_error_action;
+const char *binlog_error_action_list[]= {"IGNORE_ERROR", "ABORT_SERVER", NullS};
 ulong gtid_mode;
 uint executed_gtids_compression_period= 0;
 const char *gtid_mode_names[]=
@@ -1107,6 +1107,7 @@ public:
 static void close_connections(void)
 {
   DBUG_ENTER("close_connections");
+  (void) RUN_HOOK(server_state, before_server_shutdown, (NULL));
 
   Per_thread_connection_handler::kill_blocked_pthreads();
 
@@ -1190,6 +1191,9 @@ static void close_connections(void)
 
   delete_slave_info_objects();
   DBUG_PRINT("quit",("close_connections thread"));
+
+  (void) RUN_HOOK(server_state, after_server_shutdown, (NULL));
+
   DBUG_VOID_RETURN;
 }
 
@@ -4027,6 +4031,7 @@ a file name for --log-bin-index option", opt_binlog_index_name);
     sql_print_error("Can't init tc log");
     unireg_abort(1);
   }
+  (void)RUN_HOOK(server_state, before_recovery, (NULL));
 
   if (ha_recover(0))
   {
@@ -4587,6 +4592,7 @@ int mysqld_main(int argc, char **argv)
         else
           global_sid_lock->unlock();
       }
+      (void) RUN_HOOK(server_state, after_engine_recovery, (NULL));
     }
     else if (gtid_mode > GTID_MODE_OFF)
     {
@@ -4707,6 +4713,7 @@ int mysqld_main(int argc, char **argv)
   initialize_information_schema_acl();
 
   execute_ddl_log_recovery();
+  (void) RUN_HOOK(server_state, after_recovery, (NULL));
 
   if (Events::init(opt_noacl || opt_bootstrap))
     unireg_abort(1);
@@ -4766,6 +4773,7 @@ int mysqld_main(int argc, char **argv)
                       opt_ndb_wait_setup);
   }
 #endif
+  (void) RUN_HOOK(server_state, before_handle_connection, (NULL));
 
   DBUG_PRINT("info", ("Block, listening for incoming connections"));
 
@@ -7955,6 +7963,7 @@ PSI_rwlock_key key_rwlock_LOCK_grant, key_rwlock_LOCK_logger,
   key_rwlock_global_sid_lock;
 
 PSI_rwlock_key key_rwlock_Trans_delegate_lock;
+PSI_rwlock_key key_rwlock_Server_state_delegate_lock;
 PSI_rwlock_key key_rwlock_Binlog_storage_delegate_lock;
 #ifdef HAVE_REPLICATION
 PSI_rwlock_key key_rwlock_Binlog_transmit_delegate_lock;
@@ -7978,6 +7987,7 @@ static PSI_rwlock_info all_server_rwlocks[]=
   { &key_rwlock_query_cache_query_lock, "Query_cache_query::lock", 0},
   { &key_rwlock_global_sid_lock, "gtid_commit_rollback", PSI_FLAG_GLOBAL},
   { &key_rwlock_Trans_delegate_lock, "Trans_delegate::lock", PSI_FLAG_GLOBAL},
+  { &key_rwlock_Server_state_delegate_lock, "Server_state_delegate::lock", PSI_FLAG_GLOBAL},
   { &key_rwlock_Binlog_storage_delegate_lock, "Binlog_storage_delegate::lock", PSI_FLAG_GLOBAL}
 };
 

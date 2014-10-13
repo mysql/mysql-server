@@ -605,7 +605,14 @@ public:
 	m_temp_path(temp_path),
 	m_remote_path(remote_path),
 	m_file_per_table(file_per_table)
-	{}
+	{
+		/* DATA DIRECTORY must have m_file_per_table but cannot be
+		used with TEMPORARY tables. */
+		m_use_data_dir =
+			m_file_per_table
+			&& ((m_create_info->data_file_name != NULL)
+			&& !(m_create_info->options & HA_LEX_CREATE_TMP_TABLE));
+	}
 	/** Create the internal innodb table. */
 	int create_table();
 	/** Update the internal data dictionary. */
@@ -676,6 +683,8 @@ private:
 	char*		m_remote_path;
 	/** Using file per table. */
 	bool		m_file_per_table;
+	/** Using DATA DIRECTORY */
+	bool		m_use_data_dir;
 	/** Table flags */
 	ulint		m_flags;
 	/** Table flags2 */

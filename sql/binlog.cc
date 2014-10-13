@@ -2916,7 +2916,7 @@ bool MYSQL_BIN_LOG::open(
   DBUG_RETURN(0);
 
 err:
-  if (binlogging_impossible_mode == ABORT_SERVER)
+  if (binlog_error_action == ABORT_SERVER)
   {
     THD *thd= current_thd;
     /*
@@ -3837,7 +3837,7 @@ err:
   my_free(name);
   name= NULL;
   log_state= LOG_CLOSED;
-  if (binlogging_impossible_mode == ABORT_SERVER)
+  if (binlog_error_action == ABORT_SERVER)
   {
     THD *thd= current_thd;
     /*
@@ -5512,7 +5512,7 @@ end:
        - ...
     */
     close(LOG_CLOSE_INDEX);
-    if (binlogging_impossible_mode == ABORT_SERVER)
+    if (binlog_error_action == ABORT_SERVER)
     {
       THD *thd= current_thd;
       /*
@@ -7130,6 +7130,16 @@ TC_LOG::enum_result MYSQL_BIN_LOG::commit(THD *thd, bool all)
   */
   if (stuff_logged)
   {
+    if (RUN_HOOK(transaction,
+                 before_commit,
+                 (thd, all,
+                  thd_get_cache_mngr(thd)->get_binlog_cache_log(true),
+                  thd_get_cache_mngr(thd)->get_binlog_cache_log(false),
+                  max<my_off_t>(max_binlog_cache_size,
+                                max_binlog_stmt_cache_size),
+                  NULL)))
+      DBUG_RETURN(RESULT_ABORTED);
+
     if (ordered_commit(thd, all))
       DBUG_RETURN(RESULT_INCONSISTENT);
   }
