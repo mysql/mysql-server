@@ -93,6 +93,14 @@ SET(SQL_EMBEDDED_SOURCES emb_qcache.cc libmysqld.c lib_sql.cc
 )
 
 
+# These files have unused result errors, so we skip Werror
+CHECK_C_COMPILER_FLAG("-Werror" HAVE_WERROR_FLAG)
+IF(HAVE_WERROR_FLAG)
+  INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/compile_flags.cmake)
+  ADD_COMPILE_FLAGS(../sql/filesort.cc  COMPILE_FLAGS "-Wno-error")
+  ADD_COMPILE_FLAGS(../sql/opt_range.cc COMPILE_FLAGS "-Wno-error")
+ENDIF()
+
 ADD_CONVENIENCE_LIBRARY(sql_embedded ${SQL_EMBEDDED_SOURCES})
 DTRACE_INSTRUMENT(sql_embedded)
 ADD_DEPENDENCIES(sql_embedded GenError GenServerSource)

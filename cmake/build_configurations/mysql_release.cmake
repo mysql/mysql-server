@@ -189,15 +189,16 @@ IF(UNIX)
     ENDIF()
   ENDIF()
 
-  # OSX flags
-  IF(APPLE)
-    SET(COMMON_C_FLAGS                 "-g -fno-common -fno-strict-aliasing")
-    # XXX: why are we using -felide-constructors on OSX?
-    SET(COMMON_CXX_FLAGS               "-g -fno-common -felide-constructors -fno-strict-aliasing")
-    SET(CMAKE_C_FLAGS_DEBUG            "-O ${COMMON_C_FLAGS}")
-    SET(CMAKE_CXX_FLAGS_DEBUG          "-O ${COMMON_CXX_FLAGS}")
-    SET(CMAKE_C_FLAGS_RELWITHDEBINFO   "-Os ${COMMON_C_FLAGS}")
-    SET(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-Os ${COMMON_CXX_FLAGS}")
+  # Default Clang flags
+  IF(CMAKE_C_COMPILER_ID MATCHES "Clang")
+    SET(COMMON_C_FLAGS               "-g -fno-omit-frame-pointer -fno-strict-aliasing")
+    SET(CMAKE_C_FLAGS_DEBUG          "${COMMON_C_FLAGS}")
+    SET(CMAKE_C_FLAGS_RELWITHDEBINFO "-O3 ${COMMON_C_FLAGS}")
+  ENDIF()
+  IF(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+    SET(COMMON_CXX_FLAGS               "-g -fno-omit-frame-pointer -fno-strict-aliasing")
+    SET(CMAKE_CXX_FLAGS_DEBUG          "${COMMON_CXX_FLAGS}")
+    SET(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-O3 ${COMMON_CXX_FLAGS}")
   ENDIF()
 
   # Solaris flags
