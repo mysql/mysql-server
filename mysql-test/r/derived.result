@@ -1595,7 +1595,7 @@ Should be greater than 1000 as it also includes records dumped from
 heap to myisam.
 show status like 'Handler_write';
 Variable_name	Value
-Handler_write	1021
+Handler_write	21
 set @@max_heap_table_size= @save_heap_size;
 drop table t1;
 #
