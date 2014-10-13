@@ -1,6 +1,10 @@
---echo Bug#19500258 ZERO CAN BE A VALID INNODB CHECKSUM, BUT VALIDATION WILL FAIL LATER
---echo
+--source include/not_embedded.inc
+--source include/have_innodb.inc
 --source suite/innodb/include/checksum_not_strict.inc
+--echo #
+--echo # Bug#19500258 ZERO CAN BE A VALID INNODB CHECKSUM, 
+--echo # BUT VALIDATION WILL FAIL LATER
+--echo #
 --let $old_checksum_algorithm= `SELECT @@GLOBAL.innodb_checksum_algorithm`
 SET GLOBAL innodb_checksum_algorithm = 'CRC32';
 CREATE TABLE t1 (a INT PRIMARY KEY, b VARBINARY(512)) ENGINE=InnoDB;
