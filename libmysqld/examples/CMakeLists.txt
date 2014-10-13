@@ -33,6 +33,12 @@ IF(UNIX)
 ENDIF(UNIX)
 
 MYSQL_ADD_EXECUTABLE(mysqltest_embedded ../../client/mysqltest.cc)
+# mysqltest has unused result errors, so we skip Werror
+CHECK_C_COMPILER_FLAG("-Werror" HAVE_WERROR_FLAG)
+IF(HAVE_WERROR_FLAG)
+  INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/compile_flags.cmake)
+  ADD_COMPILE_FLAGS(../../client/mysqltest.cc COMPILE_FLAGS "-Wno-error")
+ENDIF()
 TARGET_LINK_LIBRARIES(mysqltest_embedded mysqlserver)
 
 
