@@ -48,10 +48,7 @@
 inline
 Uint32
 computeChecksum(const Uint32 * const startOfData, int nWords) {
-  Uint32 chksum = startOfData[0];
-  for (int i=1; i < nWords; i++)
-    chksum ^= startOfData[i];
-  return chksum;
+  return computeXorChecksum(startOfData+1, nWords-1, startOfData[0]);
 }
 
 struct Protocol6 {
