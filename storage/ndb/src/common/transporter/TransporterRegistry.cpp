@@ -1541,7 +1541,7 @@ TransporterRegistry::performReceive(TransporterReceiveHandle& recvdata)
         Uint32 * readPtr, * eodPtr;
         t->getReceivePtr(&readPtr, &eodPtr);
         callbackObj->transporter_recv_from(nodeId);
-        Uint32 *newPtr = unpack(readPtr, eodPtr, nodeId, ioStates[nodeId], stopReceiving);
+        Uint32 *newPtr = unpack(recvdata, readPtr, eodPtr, nodeId, ioStates[nodeId], stopReceiving);
         t->updateReceivePtr(newPtr);
       }
     } 
@@ -1905,6 +1905,7 @@ TransporterRegistry::report_disconnect(TransporterReceiveHandle& recvdata,
   recvdata.m_recv_transporters.clear(node_id);
   recvdata.m_has_data_transporters.clear(node_id);
   recvdata.m_handled_transporters.clear(node_id);
+  recvdata.m_bad_data_transporters.clear(node_id);
   recvdata.reportDisconnect(node_id, errnum);
   DBUG_VOID_RETURN;
 }
@@ -2325,13 +2326,13 @@ bool TransporterRegistry::connect_client(NdbMgmHandle *h)
   if(!mgm_nodeid)
   {
     g_eventLogger->error("%s: %d", __FILE__, __LINE__);
-    DBUG_RETURN(false);
+    return false;
   }
   Transporter * t = theTransporters[mgm_nodeid];
   if (!t)
   {
     g_eventLogger->error("%s: %d", __FILE__, __LINE__);
-    DBUG_RETURN(false);
+    return false;
   }
 
   bool res = t->connect_client(connect_ndb_mgmd(h));
