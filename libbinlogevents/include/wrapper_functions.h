@@ -43,16 +43,15 @@ extern PSI_memory_key key_memory_log_event;
 
 #endif
 
-/**
-  This enum will be used by the wrapper method bapi_malloc,
-  to pass it to the method my_malloc, as we can not have a parameter of
-  type PSI_memory_key in the method bapi_malloc.
-*/
-/*enum PSI_memory_key_to_int
-{
-  MEMORY_LOG_EVENT,
-};*/
-
+#if !defined(DBUG_OFF)
+#if HAVE_MYSYS
+#define BAPI_ASSERT(x) DBUG_ASSERT(x)
+#else
+#define BAPI_ASSERT(x) assert(x)
+#endif
+#else
+#define BAPI_ASSERT(x) do { } while(0)
+#endif
 
 /**
   The strndup() function returns a pointer to a new string which is a duplicate

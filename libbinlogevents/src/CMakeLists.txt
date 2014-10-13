@@ -20,7 +20,7 @@ SET (REPLICATION_SOURCES
      rows_event.cpp
      binlog_event.cpp
      binary_log_funcs.cpp
-     uuid.cc
+     uuid.cpp
     )
 
 # Configure for building static library
@@ -33,8 +33,8 @@ ELSE()
   ADD_DEPENDENCIES(binlogevents_static GenError)
 ENDIF()
 
-#SET_TARGET_PROPERTIES(binlogevents_static PROPERTIES
- #                     OUTPUT_NAME "binlogevents")
+SET_TARGET_PROPERTIES(binlogevents_static PROPERTIES
+                      OUTPUT_NAME "binlogevents")
 
 SET_TARGET_PROPERTIES(binlogevents_static PROPERTIES
   ARCHIVE_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/libbinlogevents/lib)

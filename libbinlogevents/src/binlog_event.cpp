@@ -56,9 +56,7 @@ Log_event_footer::get_checksum_alg(const char* buf, unsigned long len)
   enum_binlog_checksum_alg ret;
   char version[ST_SERVER_VER_LEN];
   unsigned char version_split[3];
-#ifndef DBUG_OFF
-  assert(buf[EVENT_TYPE_OFFSET] == FORMAT_DESCRIPTION_EVENT);
-#endif
+  BAPI_ASSERT(buf[EVENT_TYPE_OFFSET] == FORMAT_DESCRIPTION_EVENT);
   memcpy(version, buf +
          buf[LOG_EVENT_MINIMAL_HEADER_LEN + ST_COMMON_HEADER_LEN_OFFSET]
          + ST_SERVER_VER_OFFSET, ST_SERVER_VER_LEN);
@@ -71,11 +69,9 @@ Log_event_footer::get_checksum_alg(const char* buf, unsigned long len)
     ret= static_cast<enum_binlog_checksum_alg>(*(buf + len -
                                                  BINLOG_CHECKSUM_LEN -
                                                  BINLOG_CHECKSUM_ALG_DESC_LEN));
-#ifndef DBUG_OFF
-  assert(ret == BINLOG_CHECKSUM_ALG_OFF ||
-         ret == BINLOG_CHECKSUM_ALG_UNDEF ||
-         ret == BINLOG_CHECKSUM_ALG_CRC32);
-#endif
+  BAPI_ASSERT(ret == BINLOG_CHECKSUM_ALG_OFF ||
+              ret == BINLOG_CHECKSUM_ALG_UNDEF ||
+              ret == BINLOG_CHECKSUM_ALG_CRC32);
   return ret;
 }
 
@@ -92,14 +88,12 @@ Log_event_header::
 Log_event_header(const char* buf, uint16_t binlog_version)
 : data_written(0), log_pos(0)
 {
-  uint32_t tmp_sec= 0;
+  uint32_t tmp_sec;
   memcpy(&tmp_sec, buf, sizeof(tmp_sec));
   when.tv_sec= le32toh(tmp_sec);
   when.tv_usec= 0;
   type_code= static_cast<Log_event_type>(buf[EVENT_TYPE_OFFSET]);
-#ifndef DBUG_OFF
-  assert (type_code < ENUM_END_EVENT);
-#endif
+  BAPI_ASSERT(type_code < ENUM_END_EVENT);
   memcpy(&unmasked_server_id,
          buf + SERVER_ID_OFFSET, sizeof(unmasked_server_id));
 
@@ -248,9 +242,9 @@ bool Log_event_footer::event_checksum_test(unsigned char *event_buf,
          the binlog file is checksum-free *except* the FD-event.
       */
     #ifndef DBUG_OFF
-      assert(fd_alg == BINLOG_CHECKSUM_ALG_CRC32 || fd_alg == 0);
+      BAPI_ASSERT(fd_alg == BINLOG_CHECKSUM_ALG_CRC32 || fd_alg == 0);
     #endif
-      assert(alg == BINLOG_CHECKSUM_ALG_CRC32);
+      BAPI_ASSERT(alg == BINLOG_CHECKSUM_ALG_CRC32);
       /*
         Complile time guard to watch over  the max number of alg
       */
@@ -269,9 +263,7 @@ bool Log_event_footer::event_checksum_test(unsigned char *event_buf,
     if (flags != 0)
     {
       /* restoring the orig value of flags of FD */
-    #ifndef DBUG_OFF
-      assert(event_buf[EVENT_TYPE_OFFSET] == FORMAT_DESCRIPTION_EVENT);
-    #endif
+      BAPI_ASSERT(event_buf[EVENT_TYPE_OFFSET] == FORMAT_DESCRIPTION_EVENT);
       event_buf[FLAGS_OFFSET]= static_cast<unsigned char>(flags);
     }
 
