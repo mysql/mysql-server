@@ -21,7 +21,7 @@ SET (REPLICATION_SOURCES
      ${CMAKE_SOURCE_DIR}/libbinlogevents/src/binlog_event.cpp
      ${CMAKE_SOURCE_DIR}/libbinlogevents/src/control_events.cpp
      ${CMAKE_SOURCE_DIR}/libbinlogevents/src/statement_events.cpp
-     ${CMAKE_SOURCE_DIR}/libbinlogevents/src/uuid.cc
+     ${CMAKE_SOURCE_DIR}/libbinlogevents/src/uuid.cpp
     )
 
 # Configure for building static library

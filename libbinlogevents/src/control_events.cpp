@@ -155,20 +155,18 @@ Format_description_event::Format_description_event(uint8_t binlog_ver,
        Gtid_event::POST_HEADER_LENGTH,         /*ANONYMOUS_GTID_EVENT*/
        IGNORABLE_HEADER_LEN
     };
-     post_header_len.resize(number_of_event_types * sizeof(uint8_t) +
-                                   BINLOG_CHECKSUM_ALG_DESC_LEN);
-    /**
+     /*
        Allows us to sanity-check that all events initialized their
        events (see the end of this 'if' block).
     */
-#ifndef DBUG_OFF
-    memset(&post_header_len.front(), 255, number_of_event_types * sizeof(uint8_t));
-#endif
-    memcpy(&post_header_len.front(), server_event_header_length, number_of_event_types);
+    post_header_len.resize(number_of_event_types +
+                            BINLOG_CHECKSUM_ALG_DESC_LEN, 255);
+    post_header_len.insert(post_header_len.begin(), server_event_header_length,
+                            server_event_header_length + number_of_event_types);
     // Sanity-check that all post header lengths are initialized.
 #ifndef DBUG_OFF
     for (int i= 0; i < number_of_event_types; i++)
-      assert(post_header_len[i] != 255);
+      BAPI_ASSERT(post_header_len[i] != 255);
 #endif
     break;
   }
@@ -218,10 +216,11 @@ Format_description_event::Format_description_event(uint8_t binlog_ver,
       RAND_HEADER_LEN,
       USER_VAR_HEADER_LEN
     };
-    post_header_len.resize(number_of_event_types * sizeof(uint8_t) +
-                                BINLOG_CHECKSUM_ALG_DESC_LEN);
-    memcpy(&post_header_len.front(), server_event_header_length_ver_1_3,
-           number_of_event_types);
+    post_header_len.resize(number_of_event_types + BINLOG_CHECKSUM_ALG_DESC_LEN);
+    post_header_len.insert(post_header_len.begin(),
+                           server_event_header_length_ver_1_3,
+                           server_event_header_length_ver_1_3 +
+                           number_of_event_types);
 
     break;
   }
@@ -321,9 +320,11 @@ Format_description_event(const char* buf, unsigned int event_len,
   number_of_event_types=
    event_len - (LOG_EVENT_MINIMAL_HEADER_LEN + ST_COMMON_HEADER_LEN_OFFSET + 1);
 
-  post_header_len.resize(number_of_event_types * sizeof(uint8_t));
-  memcpy(&post_header_len.front(), buf + ST_COMMON_HEADER_LEN_OFFSET + 1,
-         number_of_event_types * sizeof(uint8_t));
+  post_header_len.resize(number_of_event_types);
+  post_header_len.insert(post_header_len.begin(),
+                         buf + ST_COMMON_HEADER_LEN_OFFSET + 1,
+                         (buf + ST_COMMON_HEADER_LEN_OFFSET + 1 +
+                          number_of_event_types));
 
   calc_server_version_split();
   if ((ver_calc= get_product_version()) >= checksum_version_product)
@@ -335,7 +336,7 @@ Format_description_event(const char* buf, unsigned int event_len,
       checksum_version_product) must have
       number_of_event_types == LOG_EVENT_TYPES.
     */
-    assert(ver_calc != checksum_version_product ||
+    BAPI_ASSERT(ver_calc != checksum_version_product ||
                 number_of_event_types == LOG_EVENT_TYPES);
     footer()->checksum_alg= (enum_binlog_checksum_alg)
                                   post_header_len[number_of_event_types];
@@ -451,7 +452,6 @@ Format_description_event(const char* buf, unsigned int event_len,
 
 Format_description_event::~Format_description_event()
 {
-  post_header_len.clear();
 }
 
 /**

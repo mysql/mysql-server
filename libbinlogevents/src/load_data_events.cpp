@@ -348,7 +348,7 @@ Create_file_event::Create_file_event(const char* buf, unsigned int len,
                    create_file_header_len + 1);
     if (len < block_offset)
       return;
-    block = (unsigned char*)(buf) + block_offset;
+    block = (unsigned char*)buf + block_offset;
     block_len = len - block_offset;
   }
   else
@@ -425,7 +425,7 @@ Append_block_event::Append_block_event(const char* buf, unsigned int len,
   memcpy(&file_id, buf + AB_FILE_ID_OFFSET, 4);
   file_id= le32toh(file_id);
 
-  block= (unsigned char*)(buf) + append_block_header_len;
+  block= (unsigned char*)buf + append_block_header_len;
   block_len= len - total_header_len;
 }
 
