@@ -18,6 +18,8 @@
 #ifndef TransporterInternalDefinitions_H
 #define TransporterInternalDefinitions_H
 
+#include <Checksum.hpp>
+
 #if defined DEBUG_TRANSPORTER || defined VM_TRACE
 #include <NdbOut.hpp>
 #endif
