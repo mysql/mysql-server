@@ -231,8 +231,9 @@ btr_rec_free_externally_stored_fields(
 @param[in]	page_id		page id of the leaf
 @param[in]	latch_mode	BTR_SEARCH_LEAF, ...
 @param[in]	cursor		cursor
-@param[in]	mtr		mini-transaction */
-void
+@param[in]	mtr		mini-transaction
+@return	blocks and savepoints which actually latched. */
+btr_latch_leaves_t
 btr_cur_latch_leaves(
 	buf_block_t*		block,
 	const page_id_t&	page_id,
@@ -247,6 +248,7 @@ btr_cur_latch_leaves(
 	buf_block_t*	get_block;
 	page_t*		page = buf_block_get_frame(block);
 	bool		spatial;
+	btr_latch_leaves_t latch_leaves = {{NULL, NULL, NULL}, {0, 0, 0}};
 
 	spatial = dict_index_is_spatial(cursor->index) && cursor->rtr_info;
 	ut_ad(buf_page_in_file(&block->page));
@@ -261,8 +263,10 @@ btr_cur_latch_leaves(
                 }
 
 		mode = latch_mode == BTR_MODIFY_LEAF ? RW_X_LATCH : RW_S_LATCH;
+		latch_leaves.savepoints[1] = mtr_set_savepoint(mtr);
 		get_block = btr_block_get(page_id, page_size, mode,
 					  cursor->index, mtr);
+		latch_leaves.blocks[1] = get_block;
 #ifdef UNIV_BTR_DEBUG
 		ut_a(page_is_comp(get_block->frame) == page_is_comp(page));
 #endif /* UNIV_BTR_DEBUG */
@@ -271,7 +275,7 @@ btr_cur_latch_leaves(
 				= get_block;
                 }
 
-		return;
+		return(latch_leaves);
 	case BTR_MODIFY_TREE:
 		/* It is exclusive for other operations which calls
 		btr_page_set_prev() */
@@ -287,9 +291,11 @@ btr_cur_latch_leaves(
 				cursor->rtr_info->tree_savepoints[
 					RTR_MAX_LEVELS] = mtr_set_savepoint(mtr);
 			}
+			latch_leaves.savepoints[0] = mtr_set_savepoint(mtr);
 			get_block = btr_block_get(
 				page_id_t(page_id.space(), left_page_no),
 				page_size, RW_X_LATCH, cursor->index, mtr);
+			latch_leaves.blocks[0] = get_block;
 #ifdef UNIV_BTR_DEBUG
 			ut_a(page_is_comp(get_block->frame)
 			     == page_is_comp(page));
@@ -307,8 +313,10 @@ btr_cur_latch_leaves(
 				= mtr_set_savepoint(mtr);
                 }
 
+		latch_leaves.savepoints[1] = mtr_set_savepoint(mtr);
 		get_block = btr_block_get(
 			page_id, page_size, RW_X_LATCH, cursor->index, mtr);
+		latch_leaves.blocks[1] = get_block;
 #ifdef UNIV_BTR_DEBUG
 		ut_a(page_is_comp(get_block->frame) == page_is_comp(page));
 #endif /* UNIV_BTR_DEBUG */
@@ -326,9 +334,11 @@ btr_cur_latch_leaves(
 					RTR_MAX_LEVELS + 2] = mtr_set_savepoint(
 								mtr);
 			}
+			latch_leaves.savepoints[2] = mtr_set_savepoint(mtr);
 			get_block = btr_block_get(
 				page_id_t(page_id.space(), right_page_no),
 				page_size, RW_X_LATCH, cursor->index, mtr);
+			latch_leaves.blocks[2] = get_block;
 #ifdef UNIV_BTR_DEBUG
 			ut_a(page_is_comp(get_block->frame)
 			     == page_is_comp(page));
@@ -341,7 +351,7 @@ btr_cur_latch_leaves(
 			}
 		}
 
-		return;
+		return(latch_leaves);
 
 	case BTR_SEARCH_PREV:
 	case BTR_MODIFY_PREV:
@@ -352,9 +362,11 @@ btr_cur_latch_leaves(
 		rw_lock_s_unlock(&block->lock);
 
 		if (left_page_no != FIL_NULL) {
+			latch_leaves.savepoints[0] = mtr_set_savepoint(mtr);
 			get_block = btr_block_get(
 				page_id_t(page_id.space(), left_page_no),
 				page_size, mode, cursor->index, mtr);
+			latch_leaves.blocks[0] = get_block;
 			cursor->left_block = get_block;
 #ifdef UNIV_BTR_DEBUG
 			ut_a(page_is_comp(get_block->frame)
@@ -364,15 +376,17 @@ btr_cur_latch_leaves(
 #endif /* UNIV_BTR_DEBUG */
 		}
 
+		latch_leaves.savepoints[1] = mtr_set_savepoint(mtr);
 		get_block = btr_block_get(page_id, page_size, mode,
 					  cursor->index, mtr);
+		latch_leaves.blocks[1] = get_block;
 #ifdef UNIV_BTR_DEBUG
 		ut_a(page_is_comp(get_block->frame) == page_is_comp(page));
 #endif /* UNIV_BTR_DEBUG */
-		return;
+		return(latch_leaves);
 	case BTR_CONT_MODIFY_TREE:
 		ut_ad(dict_index_is_spatial(cursor->index));
-		return;
+		return(latch_leaves);
 	}
 
 	ut_error;
@@ -1025,6 +1039,7 @@ btr_cur_search_to_nth_level(
 	}
 
 	/* Loop and search until we arrive at the desired level */
+	btr_latch_leaves_t latch_leaves = {{NULL, NULL, NULL}, {0, 0, 0}};
 
 search_loop:
 	buf_mode = BUF_GET;
@@ -1261,7 +1276,7 @@ retry_page_get:
 	if (height == 0) {
 		if (rw_latch == RW_NO_LATCH) {
 
-			btr_cur_latch_leaves(
+			latch_leaves = btr_cur_latch_leaves(
 				block, page_id, page_size, latch_mode,
 				cursor, mtr);
 		}
@@ -1444,7 +1459,16 @@ retry_page_get:
 		    && btr_cur_need_opposite_intention(
 			page, lock_intention, node_ptr)) {
 
+need_opposite_intention:
 			ut_ad(upper_rw_latch == RW_X_LATCH);
+
+			if (n_releases > 0) {
+				/* release root block */
+				mtr_release_block_at_savepoint(
+					mtr, tree_savepoints[0],
+					tree_blocks[0]);
+			}
+
 			/* release all blocks */
 			for (; n_releases <= n_blocks; n_releases++) {
 				mtr_release_block_at_savepoint(
@@ -1761,8 +1785,31 @@ retry_page_get:
 			}
 		}
 
-
 		goto search_loop;
+	} else if (!dict_index_is_spatial(index)
+		   && latch_mode == BTR_MODIFY_TREE
+		   && lock_intention == BTR_INTENTION_INSERT
+		   && mach_read_from_4(page + FIL_PAGE_NEXT) != FIL_NULL
+		   && page_rec_is_last(page_cur_get_rec(page_cursor), page)) {
+
+		/* btr_insert_into_right_sibling() might cause
+		deleting node_ptr at upper level */
+
+		guess = NULL;
+
+		if (height == 0) {
+			/* release the leaf pages if latched */
+			for (uint i = 0; i < 3; i++) {
+				if (latch_leaves.blocks[i] != NULL) {
+					mtr_release_block_at_savepoint(
+						mtr, latch_leaves.savepoints[i],
+						latch_leaves.blocks[i]);
+					latch_leaves.blocks[i] = NULL;
+				}
+			}
+		}
+
+		goto need_opposite_intention;
 	}
 
 	if (level != 0) {

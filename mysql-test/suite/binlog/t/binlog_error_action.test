@@ -10,7 +10,7 @@
 #
 # Test:
 # =====
-# A new option "binlogging_impossible_mode" has been introduced whos values
+# A new option "binlog_error_action" has been introduced whose values
 # are "IGNORE" or "ABORT". When binlogging becomes impossible if user sets
 # the variable to "ABORT" server will stop if user sets it to "IGNORE" binlog
 # will be turned off and server will continue. 4 different test cases are
@@ -44,7 +44,7 @@ let $MYSQLD_DATADIR= `select @@datadir`;
 let $INDEX=$MYSQLD_DATADIR/master-bin.index;
 --chmod 0444 $INDEX
 
-SET GLOBAL binlogging_impossible_mode= ABORT_SERVER;
+SET GLOBAL binlog_error_action= ABORT_SERVER;
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --error ER_BINLOG_LOGGING_IMPOSSIBLE
 flush logs;
@@ -57,7 +57,7 @@ flush logs;
 # Make MYSQL_BIN_LOG::open_binlog fail with debug simulation and test
 # the behaviour in case of ABORT
 SET SESSION debug="+d,fault_injection_updating_index";
-SET GLOBAL binlogging_impossible_mode= ABORT_SERVER;
+SET GLOBAL binlog_error_action= ABORT_SERVER;
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --error ER_BINLOG_LOGGING_IMPOSSIBLE
 flush logs;
@@ -69,7 +69,7 @@ flush logs;
 # Simulate diskfull during opening of binlog and check for diskfull error
 # behaviour where binlogging impossible error is to abort the server.
 SET SESSION debug="+d,simulate_disk_full_on_open_binlog";
-SET GLOBAL binlogging_impossible_mode= ABORT_SERVER;
+SET GLOBAL binlog_error_action= ABORT_SERVER;
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --error ER_BINLOG_LOGGING_IMPOSSIBLE
 flush logs;
@@ -79,7 +79,7 @@ flush logs;
 
 --echo Test case4
 SET SESSION debug="+d,fault_injection_init_name";
-SET GLOBAL binlogging_impossible_mode= ABORT_SERVER;
+SET GLOBAL binlog_error_action= ABORT_SERVER;
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --error ER_BINLOG_LOGGING_IMPOSSIBLE
 flush logs;

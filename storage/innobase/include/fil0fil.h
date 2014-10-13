@@ -30,15 +30,11 @@ Created 10/25/1995 Heikki Tuuri
 
 #ifndef UNIV_INNOCHECKSUM
 
+#include "log0recv.h"
 #include "dict0types.h"
-#include "buf0types.h"
-#include "hash0hash.h"
 #include "page0size.h"
-#include "mtr0types.h"
-#include "ut0new.h"
 #ifndef UNIV_HOTBACKUP
 #include "ibuf0types.h"
-#include "log0log.h"
 #endif /* !UNIV_HOTBACKUP */
 
 #include <list>
@@ -318,7 +314,9 @@ extern ulint	fil_n_file_opened;
 #ifndef UNIV_HOTBACKUP
 /** Look up a tablespace.
 The caller should hold an InnoDB table lock or a MDL that prevents
-the tablespace from being dropped during the operation.
+the tablespace from being dropped during the operation,
+or the caller should be in single-threaded crash recovery mode
+(no user connections that could drop tablespaces).
 If this is not the case, fil_space_acquire() and fil_space_release()
 should be used instead.
 @param[in]	id	tablespace ID
@@ -524,12 +522,10 @@ fil_write_flushed_lsn(
 Used by background threads that do not necessarily hold proper locks
 for concurrency control.
 @param[in]	id	tablespace ID
-@param[in]	verbose	whether to report missing tablespaces
 @return the tablespace, or NULL if deleted or being deleted */
 fil_space_t*
 fil_space_acquire(
-	ulint	id,
-	bool	verbose = true)
+	ulint	id)
 	__attribute__((warn_unused_result));
 /** Release a tablespace acquired with fil_space_acquire().
 @param[in,out]	space	tablespace to release  */
@@ -1160,6 +1156,29 @@ fil_names_write_if_was_clean(
 	}
 
 	return(was_clean);
+}
+
+/** During crash recovery, open a tablespace if it had not been opened
+yet, to get valid size and flags.
+@param[in,out]	space	tablespace */
+inline
+void
+fil_space_open_if_needed(
+	fil_space_t*	space)
+{
+	ut_ad(recv_recovery_on);
+
+	if (space->size == 0) {
+		/* Initially, size and flags will be set to 0,
+		until the files are opened for the first time.
+		fil_space_get_size() will open the file
+		and adjust the size and flags. */
+#ifdef UNIV_DEBUG
+		ulint		size	=
+#endif
+			fil_space_get_size(space->id);
+		ut_ad(size == space->size);
+	}
 }
 
 /** On a log checkpoint, reset fil_names_dirty_and_write() flags

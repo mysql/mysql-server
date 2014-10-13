@@ -768,6 +768,7 @@ dict_get_first_path(
 
 	sys_datafiles = dict_table_get_low("SYS_DATAFILES");
 	sys_index = UT_LIST_GET_FIRST(sys_datafiles->indexes);
+
 	ut_ad(!dict_table_is_comp(sys_datafiles));
 	ut_ad(name_of_col_is(sys_datafiles, sys_index,
 			     DICT_FLD__SYS_DATAFILES__SPACE, "SPACE"));
