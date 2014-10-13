@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -279,34 +279,12 @@ int SELECT_LEX::prepare(JOIN *join)
 
   if (join->order)
   {
-    bool real_order= FALSE;
-    ORDER *ord;
-    for (ord= join->order; ord; ord= ord->next)
+    for (ORDER *ord= join->order; ord; ord= ord->next)
     {
       Item *item= *ord->item;
-      /*
-        Disregard sort order if there's only 
-        zero length NOT NULL fields (e.g. {VAR}CHAR(0) NOT NULL") or
-        zero length NOT NULL string functions there.
-        Such tuples don't contain any data to sort.
-      */
-      if (!real_order &&
-           /* Not a zero length NOT NULL field */
-          ((item->type() != Item::FIELD_ITEM ||
-            ((Item_field *) item)->field->maybe_null() ||
-            ((Item_field *) item)->field->sort_length()) &&
-           /* AND not a zero length NOT NULL string function. */
-           (item->type() != Item::FUNC_ITEM ||
-            item->maybe_null ||
-            item->result_type() != STRING_RESULT ||
-            item->max_length)))
-        real_order= TRUE;
-
       if (item->with_sum_func && item->type() != Item::SUM_FUNC_ITEM)
         item->split_sum_func(thd, join->ref_ptrs, join->all_fields);
     }
-    if (!real_order)
-      join->order= NULL;
   }
 
   if (m_having_cond && m_having_cond->with_sum_func)
