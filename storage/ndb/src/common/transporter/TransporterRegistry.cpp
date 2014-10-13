@@ -1514,7 +1514,7 @@ TransporterRegistry::performReceive(TransporterReceiveHandle& recvdata)
         Uint32 * readPtr, * eodPtr;
         t->getReceivePtr(&readPtr, &eodPtr);
         callbackObj->transporter_recv_from(nodeId);
-        Uint32 *newPtr = unpack(readPtr, eodPtr, nodeId, ioStates[nodeId]);
+        Uint32 *newPtr = unpack(recvdata, readPtr, eodPtr, nodeId, ioStates[nodeId]);
         t->updateReceivePtr(newPtr);
       }
     } 
@@ -1877,6 +1877,7 @@ TransporterRegistry::report_disconnect(TransporterReceiveHandle& recvdata,
   recvdata.m_recv_transporters.clear(node_id);
   recvdata.m_has_data_transporters.clear(node_id);
   recvdata.m_handled_transporters.clear(node_id);
+  recvdata.m_bad_data_transporters.clear(node_id);
   recvdata.reportDisconnect(node_id, errnum);
   DBUG_VOID_RETURN;
 }
