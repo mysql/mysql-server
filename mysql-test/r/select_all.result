@@ -593,16 +593,16 @@ boasted	1
 SET BIG_TABLES=0;
 select distinct fld3,repeat("a",length(fld3)),count(*) from t2 group by companynr,fld3 limit 100,10;
 fld3	repeat("a",length(fld3))	count(*)
+chancellor	aaaaaaaaaa	1
+Chippewa	aaaaaaaa	1
+circumference	aaaaaaaaaaaaa	1
 circus	aaaaaa	1
 cited	aaaaa	1
-Colombo	aaaaaaa	1
 congresswoman	aaaaaaaaaaaaa	1
 contrition	aaaaaaaaaa	1
 corny	aaaaa	1
 cultivation	aaaaaaaaaaa	1
 definiteness	aaaaaaaaaaaa	1
-demultiplex	aaaaaaaaaaa	1
-disappointing	aaaaaaaaaaaaa	1
 select distinct companynr,rtrim(space(512+companynr)) from t3 order by 1,2;
 companynr	rtrim(space(512+companynr))
 37	

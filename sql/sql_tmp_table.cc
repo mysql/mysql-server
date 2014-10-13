@@ -1295,6 +1295,7 @@ update_hidden:
   {
     ORDER *cur_group= group;
     key_part_info= keyinfo->key_part;
+    share->primary_key= 0;
     keyinfo->key_length= 0;  // Will compute the sum of the parts below.
     /*
       Here, we have to make the group fields point to the right record
@@ -1336,6 +1337,7 @@ update_hidden:
   {
     null_pack_length-=hidden_null_pack_length;
     key_part_info= keyinfo->key_part;
+    share->primary_key= 0;
     keyinfo->key_length= 0;  // Will compute the sum of the parts below.
     /*
       Here, we have to make the key fields point to the right record
