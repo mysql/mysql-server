@@ -21,6 +21,7 @@
 #include "sql_tmp_table.h"               // tmp tables
 #include "rpl_rli.h"
 #include "log_event.h"
+#include "binary_log_types.h"
 
 #include <algorithm>
 
@@ -58,7 +59,7 @@ int compare_lengths(Field *field, enum_field_types source_type, uint16 metadata)
 {
   DBUG_ENTER("compare_lengths");
   size_t const source_length=
-    binary_log::max_display_length_for_field(source_type, metadata);
+    max_display_length_for_field(source_type, metadata);
   size_t const target_length= field->max_display_length();
   DBUG_PRINT("debug", ("source_length: %lu, source_type: %u,"
                        " target_length: %lu, target_type: %u",
@@ -80,8 +81,8 @@ int compare_lengths(Field *field, enum_field_types source_type, uint16 metadata)
 */
 uint32 table_def::calc_field_size(uint col, uchar *master_data) const
 {
-  uint32 length= binary_log::calc_field_size(type(col), master_data,
-                                             m_field_metadata[col]);
+  uint32 length= ::calc_field_size(type(col), master_data,
+                                   m_field_metadata[col]);
   return length;
 }
 
@@ -745,7 +746,7 @@ TABLE *table_def::create_conversion_table(THD *thd, Relay_log_info *rli,
     TYPELIB* interval= NULL;
     uint pack_length= 0;
     uint32 max_length=
-      binary_log::max_display_length_for_field(type(col), field_metadata(col));
+      max_display_length_for_field(type(col), field_metadata(col));
 
     switch(type(col))
     {

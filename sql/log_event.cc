@@ -15,6 +15,8 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 
+#include "binary_log_funcs.h"
+
 #ifdef MYSQL_CLIENT
 
 #include "sql_priv.h"

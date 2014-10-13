@@ -24,10 +24,8 @@
 #include "binlog_event.h"
 #include "control_events.h"
 #include "statement_events.h"
-#include "field_iterator.h"
 #include "load_data_events.h"
-#include "rowset.h"
 #include "rows_event.h"
-#include "transitional_methods.h"
+#include "binary_log_types.h"
 
 #endif	/* BINARY_LOG_INCLUDED */
