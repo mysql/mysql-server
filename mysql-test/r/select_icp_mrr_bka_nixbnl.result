@@ -4763,7 +4763,7 @@ INSERT INTO t1 SELECT t11.a FROM t1 t11, t1 t12;
 INSERT INTO t1 SELECT t11.a FROM t1 t11, t1 t12;
 EXPLAIN SELECT a FROM t1 ORDER BY a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	24492	100.00	NULL
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	24492	100.00	Using filesort
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` order by `test`.`t1`.`a`
 SELECT a FROM t1 ORDER BY a;
@@ -4775,7 +4775,7 @@ INSERT INTO t1 SELECT t11.a, t11.b, t11.c FROM t1 t11, t1 t12;
 INSERT INTO t1 SELECT t11.a, t11.b, t11.c FROM t1 t11, t1 t12;
 EXPLAIN SELECT a FROM t1 ORDER BY a LIMIT 5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	24492	100.00	NULL
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	24492	100.00	Using filesort
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` order by `test`.`t1`.`a` limit 5
 SELECT a FROM t1 ORDER BY a LIMIT 5;
@@ -4787,12 +4787,12 @@ a
 
 EXPLAIN SELECT * FROM t1 ORDER BY a, b LIMIT 5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	24492	100.00	NULL
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	24492	100.00	Using filesort
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` order by `test`.`t1`.`a`,`test`.`t1`.`b` limit 5
 SELECT * FROM t1 ORDER BY a, b LIMIT 5;
 a	b	c
-		0
+		1
 		2
 		1
 		0

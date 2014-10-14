@@ -113,7 +113,7 @@ fi
 # We intentionally add a space to the beginning and end of lib strings, simplifies replace later
 libs=" $ldflags -L$pkglibdir @RPATH_OPTION@ -lmysqlclient @ZLIB_DEPS@ @CLIENT_LIBS@"
 libs="$libs @openssl_libs@ "
-libs_r=" $ldflags -L$pkglibdir @RPATH_OPTION@ -lmysqlclient_r @ZLIB_DEPS@ @CLIENT_LIBS@ @openssl_libs@ "
+libs_r=" $ldflags -L$pkglibdir @RPATH_OPTION@ -lmysqlclient @ZLIB_DEPS@ @CLIENT_LIBS@ @openssl_libs@ "
 libs="$libs @QUOTED_CMAKE_C_LINK_FLAGS@"
 libs_r="$libs_r @QUOTED_CMAKE_C_LINK_FLAGS@"
 embedded_libs=" $ldflags -L$pkglibdir @RPATH_OPTION@ -lmysqld @ZLIB_DEPS@ @LIBS@ @WRAPLIBS@ @openssl_libs@ "
