@@ -1157,7 +1157,7 @@ bool Session_gtids_tracker::update(THD *thd)
   if (m_enabled)
   {
     // register to listen to gtids context state changes
-    thd->rpl_thd_ctx.session_gtids_ctx().register_ctx_change_listener(this);
+    thd->rpl_thd_ctx.session_gtids_ctx().register_ctx_change_listener(this, thd);
 
     // instantiate the encoder if needed
     if (m_encoder == NULL)
@@ -1174,15 +1174,7 @@ bool Session_gtids_tracker::update(THD *thd)
       m_encoder= new Session_gtids_ctx_encoder_string();
     }
   }
-  else // break the bridge between tracker and collector
-  {
-    /* No need to listen to gtids context state changes */
-    thd->rpl_thd_ctx.session_gtids_ctx().unregister_ctx_change_listener(this);
-
-    // delete the encoder (just to free memory)
-    delete m_encoder; // if not tracking, delete the encoder
-    m_encoder= NULL;
-  }
+  // else /* break the bridge between tracker and collector */
   return false;
 }
 
@@ -1202,10 +1194,9 @@ bool Session_gtids_tracker::update(THD *thd)
 
 bool Session_gtids_tracker::store(THD *thd, String &buf)
 {
-  if (m_encoder->encode(thd, buf))
+  if (m_encoder && m_encoder->encode(thd, buf))
     return true;
-  if (!buf.is_empty())
-    reset();
+  reset();
   return false;
 }
 
@@ -1232,5 +1223,18 @@ void Session_gtids_tracker::mark_as_changed(LEX_CSTRING *tracked_item_name
 
 void Session_gtids_tracker::reset()
 {
+  /*
+   Delete the encoder and remove the listener if this had been previously
+   deactivated.
+   */
+  if (!m_enabled && m_encoder)
+  {
+    /* No need to listen to gtids context state changes */
+    current_thd->rpl_thd_ctx.session_gtids_ctx().unregister_ctx_change_listener(this);
+
+    // delete the encoder (just to free memory)
+    delete m_encoder; // if not tracking, delete the encoder
+    m_encoder= NULL;
+  }
   m_changed= false;
 }

@@ -75,6 +75,17 @@ private:
   */
   Session_consistency_gtids_ctx::Ctx_change_listener* m_listener;
 
+  /**
+   Keeps track of the current session track gtids, so that we capture
+   according to what was set before. For instance, if the user does:
+   SET @@SESSION.SESSION_TRACK_GTIDS='ALL_GTIDS';
+   ...
+   SET @@SESSION.SESSION_TRACK_GTIDS='OWN_GTID';
+
+   The last statement should return a set of GTIDs.
+  */
+  ulong m_curr_session_track_gtids;
+  
 protected:
 
   /*
@@ -111,15 +122,19 @@ public:
    Registers the listener. The pointer MUST not be NULL.
 
    @param listener a pointer to the listener to register.
+   @param thd THD context associated to this listener.
   */
-  void register_ctx_change_listener(Session_consistency_gtids_ctx::Ctx_change_listener* listener);
+  void register_ctx_change_listener(
+    Session_consistency_gtids_ctx::Ctx_change_listener* listener,
+    THD* thd);
 
   /**
    Unregisters the listener. The listener MUST have registered previously.
 
    @param listener a pointer to the listener to register.
   */
-  void unregister_ctx_change_listener(Session_consistency_gtids_ctx::Ctx_change_listener* listener);
+  void unregister_ctx_change_listener(
+    Session_consistency_gtids_ctx::Ctx_change_listener* listener);
 
   /**
     This member function MUST return a reference to the set of collected

@@ -8,6 +8,21 @@
 # need debug build to be able to set a deterministic server uuid
 --source include/have_debug.inc
 
+# BUG#19667258: WL#6972 - SERVER CRASH ON SET SESSION SESSION_TRACK_GTIDS='OFF'
+
+--enable_session_track_info
+CREATE TABLE t1 (c1 INT) Engine=InnoDB;
+DROP TABLE t1;
+set session session_track_gtids='own_gtid';
+CREATE TABLE t1 (c1 INT) Engine=InnoDB;
+INSERT INTO t1 VALUES (1);
+set session session_track_gtids='all_gtids';
+SELECT * FROM t1;
+DROP TABLE t1;
+set session session_track_gtids='off';
+RESET MASTER;
+--disable_session_track_info
+
 ########################################################
 # Sanity Test.
 #
