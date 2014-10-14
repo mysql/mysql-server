@@ -27,7 +27,6 @@ WHERE table_name LIKE '%ib_bp_test%';
 
 # Here we end up with 16382 rows in the table
 -- disable_query_log
-call mtr.add_suppression("InnoDB: Trying to do an operation on a dropped tablespace");
 INSERT INTO ib_bp_test (b, c) VALUES (REPEAT('b', 64), REPEAT('c', 256));
 INSERT INTO ib_bp_test (b, c) VALUES (REPEAT('B', 64), REPEAT('C', 256));
 let $i=12;

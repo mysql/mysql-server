@@ -540,11 +540,11 @@ buf_load()
 	ulint		last_check_time = 0;
 	ulint		last_activity_cnt = 0;
 
-	/* Avoid calling the expensive fil_space_acquire() for each
+	/* Avoid calling the expensive fil_space_acquire_silent() for each
 	page within the same tablespace. dump[] is sorted by (space, page),
 	so all pages from a given tablespace are consecutive. */
 	ulint		cur_space_id = BUF_DUMP_SPACE(dump[0]);
-	fil_space_t*	space = fil_space_acquire(cur_space_id);
+	fil_space_t*	space = fil_space_acquire_silent(cur_space_id);
 	page_size_t	page_size(space ? space->flags : 0);
 
 	for (i = 0; i < dump_n && !SHUTTING_DOWN(); i++) {
@@ -558,7 +558,7 @@ buf_load()
 			}
 
 			cur_space_id = this_space_id;
-			space = fil_space_acquire(cur_space_id);
+			space = fil_space_acquire_silent(cur_space_id);
 
 			if (space) {
 				const page_size_t	cur_page_size(
