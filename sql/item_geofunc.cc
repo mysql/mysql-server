@@ -8901,7 +8901,7 @@ double Item_func_distance::val_real()
           goto old_algo;
         if (null_value)
           goto error;
-        if (dist < 0 || my_isnan(dist))
+        if (dist < 0 || boost::math::isnan(dist))
         {
           isdone= true;
           distance= dist;
