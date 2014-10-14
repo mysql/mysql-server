@@ -6516,11 +6516,20 @@ NdbDictionaryImpl::validateRecordSpec(const NdbDictionary::RecordSpecification *
     Uint64 elementByteLength= col->getSizeInBytes();
     Uint64 nullLength= col->getNullable() ? 1 : 0;
 
+    /*
+     Validate column flags
+     1. Check if the column_flag has any invalid values
+     2. If the BitColMapsNullBitOnly flag is enabled, RecMysqldBitfield
+        should have been enabled and the column length should be 1
+    */
     if((flags & NdbDictionary::RecPerColumnFlags) &&
        (recSpec[rs].column_flags &
-           ~NdbDictionary::RecordSpecification::BitColMapsNullBitOnly))
+           ~NdbDictionary::RecordSpecification::BitColMapsNullBitOnly) &&
+       ((recSpec[rs].column_flags &
+            NdbDictionary::RecordSpecification::BitColMapsNullBitOnly) &&
+         !((col->getLength() == 1) &&
+           (flags & NdbDictionary::RecMysqldBitfield))))
     {
-      /* column_flag has invalid values */
       m_error.code= 4556;
       return false;
     }
@@ -6541,8 +6550,7 @@ NdbDictionaryImpl::validateRecordSpec(const NdbDictionary::RecordSpecification *
     {
       if((flags & NdbDictionary::RecPerColumnFlags) &&
          (recSpec[rs].column_flags &
-            NdbDictionary::RecordSpecification::BitColMapsNullBitOnly) &&
-          col->getLength() == 1)
+            NdbDictionary::RecordSpecification::BitColMapsNullBitOnly))
       {
         /* skip counting overflow bits */
         elementByteLength = 0;
@@ -6925,14 +6933,13 @@ NdbDictionaryImpl::initialiseColumnData(bool isIndex,
         recCol->nullbit_byte_offset= recSpec->nullbit_byte_offset;
         recCol->nullbit_bit_in_byte= recSpec->nullbit_bit_in_byte;
       }
-    }
-    if ((flags & NdbDictionary::RecPerColumnFlags) &&
-        (recSpec->column_flags &
-           NdbDictionary::RecordSpecification::BitColMapsNullBitOnly) &&
-        (col->getLength() == 1))
-    {
-      /* Bitfield maps only null bit values. No overflow bits*/
-      recCol->flags|= NdbRecord::BitFieldMapsNullBitOnly;
+      if ((flags & NdbDictionary::RecPerColumnFlags) &&
+          (recSpec->column_flags &
+             NdbDictionary::RecordSpecification::BitColMapsNullBitOnly))
+      {
+        /* Bitfield maps only null bit values. No overflow bits*/
+        recCol->flags|= NdbRecord::BitFieldMapsNullBitOnly;
+      }
     }
   }
   else
@@ -7240,6 +7247,11 @@ NdbDictionaryImpl::createRecord(const NdbTableImpl *table,
       newRecordSpec =(NdbDictionary::RecordSpecification*)
                       NdbMem_Allocate(length *
                         sizeof(NdbDictionary::RecordSpecification));
+      if(newRecordSpec == NULL)
+      {
+        m_error.code= 4000;
+        return NULL;
+      }
       for (Uint32 i= 0; i < length; i++)
       {
         /* map values from older version to newer version */
@@ -7250,8 +7262,6 @@ NdbDictionaryImpl::createRecord(const NdbTableImpl *table,
         newRecordSpec[i].nullbit_bit_in_byte =
             oldRecordSpec[i].nullbit_bit_in_byte;
         newRecordSpec[i].column_flags = 0;
-        /* reset the NdbDictionary::RecPerColumnFlags in flag to 0 */
-        flags &= ~NdbDictionary::RecPerColumnFlags;
       }
       recSpec = &newRecordSpec[0];
     }
