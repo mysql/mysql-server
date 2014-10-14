@@ -258,11 +258,13 @@ Queries are defined by a filter that specifies which database rows should be
 returned. The filter is declared fluently, combining queryable columns with 
 comparators and parameters.
 
+```
 session.createQuery('employee').then(function(query) {
   query.where(
    query.salary.gt(query.param('low_salary')
    .and(query.salary.lt(query.param('high_salary')))));
 });
+```
 
 Query execution is governed by a parameter object that can include values 
 for named parameters for the query as well as options to sort or paginate the 
@@ -273,9 +275,10 @@ This query will return at most 20 objects that satisfy the filter, in
 ascending order. The same query object can be reused with different parameters 
 and options.
 
+```
 query.execute({low_salary: 10000, high_salary:20000, limit: 20, order: 'asc"})
  .then(function(result) {console.log(result));
-
+```
 
 Standardized Errors
 -------------------
