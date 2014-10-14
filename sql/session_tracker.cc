@@ -332,6 +332,12 @@ public:
 
   ~Session_gtids_tracker()
   {
+    /*
+     Unregister the listener if the tracker is being freed. This is needed
+     since this may happen after a change user command.
+     */
+    if (m_enabled && current_thd)
+      current_thd->rpl_thd_ctx.session_gtids_ctx().unregister_ctx_change_listener(this);
     if (m_encoder)
       delete m_encoder;
   }
@@ -1153,7 +1159,9 @@ bool Session_gtids_tracker::update(THD *thd)
   if (m_enabled == (thd->variables.session_track_gtids != OFF))
     return false;
 
-  m_enabled= (thd->variables.session_track_gtids != OFF)? true: false;
+  m_enabled= (thd->variables.session_track_gtids != OFF)? true: false &&
+             /* No need to track GTIDs for system threads. */
+             thd->system_thread == NON_SYSTEM_THREAD;
   if (m_enabled)
   {
     // register to listen to gtids context state changes
