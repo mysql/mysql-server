@@ -596,6 +596,7 @@ static int update_status_variables(Thd_ndb *thd_ndb,
   }
   ns->number_of_data_nodes= c->no_db_nodes();
   ns->connect_count= c->get_connect_count();
+  ns->last_commit_epoch_server= ndb_get_latest_trans_gci();
   if (thd_ndb)
   {
     ns->execute_count= thd_ndb->m_execute_count;
@@ -606,6 +607,7 @@ static int update_status_variables(Thd_ndb *thd_ndb,
     ns->pushed_queries_dropped= thd_ndb->m_pushed_queries_dropped;
     ns->pushed_queries_executed= thd_ndb->m_pushed_queries_executed;
     ns->pushed_reads= thd_ndb->m_pushed_reads;
+    ns->last_commit_epoch_session = thd_ndb->m_last_commit_epoch_session;
     for (int i= 0; i < MAX_NDB_NODES; i++)
     {
       ns->transaction_no_hint_count[i]= thd_ndb->m_transaction_no_hint_count[i];
@@ -709,6 +711,12 @@ SHOW_VAR ndb_status_variables_dynamic[]= {
   {"pushed_queries_executed", (char*) &g_ndb_status.pushed_queries_executed,
    SHOW_LONG},
   {"pushed_reads",       (char*) &g_ndb_status.pushed_reads,          SHOW_LONG},
+  {"last_commit_epoch_server", 
+                         (char*) &g_ndb_status.last_commit_epoch_server,
+                                                                      SHOW_LONGLONG},
+  {"last_commit_epoch_session", 
+                         (char*) &g_ndb_status.last_commit_epoch_session, 
+                                                                      SHOW_LONGLONG},
   {NullS, NullS, SHOW_LONG}
 };
 
@@ -1140,6 +1148,20 @@ execute_commit(Thd_ndb *thd_ndb, NdbTransaction *trans,
                                    ignore_count);
   } while (0);
 
+  if (likely(rc == 0))
+  {
+    /* Committed ok, update session GCI, if it's available
+     * (Not available for reads, empty transactions etc...)
+     */
+    Uint64 reportedGCI;
+    if (trans->getGCI(&reportedGCI) == 0 &&
+        reportedGCI != 0)
+    {
+      assert(reportedGCI >= thd_ndb->m_last_commit_epoch_session);
+      thd_ndb->m_last_commit_epoch_session = reportedGCI;
+    }
+  }
+
   if (thd_ndb->is_slave_thread())
   {
     if (likely(rc == 0))
@@ -1190,7 +1212,8 @@ Thd_ndb::Thd_ndb(THD* thd) :
   m_thd(thd),
   m_slave_thread(thd->slave_thread),
   m_skip_binlog_setup_in_find_files(false),
-  schema_locks_count(0)
+  schema_locks_count(0),
+  m_last_commit_epoch_session(0)
 {
   connection= ndb_get_cluster_connection();
   m_connect_count= connection->get_connect_count();

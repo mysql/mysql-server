@@ -89,6 +89,8 @@ Ndb_execute_count	#
 Ndb_index_stat_cache_clean	#
 Ndb_index_stat_cache_query	#
 Ndb_index_stat_status	#
+Ndb_last_commit_epoch_server	#
+Ndb_last_commit_epoch_session	#
 Ndb_number_of_data_nodes	#
 Ndb_number_of_ready_data_nodes	#
 Ndb_pruned_scan_count	#
