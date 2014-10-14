@@ -8901,9 +8901,14 @@ double Item_func_distance::val_real()
           goto old_algo;
         if (null_value)
           goto error;
+        if (dist < 0 || my_isnan(dist))
+        {
+          isdone= true;
+          distance= dist;
+          goto error;
+        }
         if (!initialized)
         {
-          DBUG_ASSERT(dist <= DBL_MAX);
           min_distance= dist;
           initialized= true;
         }
@@ -8927,11 +8932,7 @@ double Item_func_distance::val_real()
       isdone= true;
     }
     else
-    {
-      if (min_distance >= DBL_MAX)
-        min_distance= 0;
       distance= min_distance;
-    }
   }
 
 error:
@@ -9069,7 +9070,7 @@ count_distance:
   }
 exit:
 
-  if (!my_isfinite(distance))
+  if (!my_isfinite(distance) || distance < 0)
   {
     my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
     DBUG_RETURN(error_real());
