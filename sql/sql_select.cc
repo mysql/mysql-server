@@ -8178,6 +8178,9 @@ static bool create_ref_for_key(JOIN *join, JOIN_TAB *j,
   }
   else
     j->type=JT_EQ_REF;
+
+  j->read_record.unlock_row= (j->type == JT_EQ_REF)? 
+                             join_read_key_unlock_row : rr_unlock_row; 
   DBUG_RETURN(0);
 }
 

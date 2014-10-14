@@ -1651,6 +1651,20 @@ SET sql_mode='ONLY_FULL_GROUP_BY';
 SELECT 1 AS test UNION SELECT 2 AS test ORDER BY test IS NULL ASC;
 SET sql_mode='';
 
+--echo #
+--echo # MDEV-6484: Assertion `tab->ref.use_count' failed on query with joins, constant table, multi-part key
+--echo #
+CREATE TABLE t1 (i1 INT, c1 VARCHAR(1)) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (6,'b');
+
+CREATE TABLE t2 (pk2 INT, i2 INT, c2 VARCHAR(1), PRIMARY KEY(pk2), KEY(pk2,i2)) ENGINE=MyISAM;
+INSERT INTO t2 VALUES (1,2,'s'),(2,4,'r'),(3,8,'m'),(4,4,'b'),(5,4,'x'),(6,7,'g'),(7,4,'p');
+
+SELECT i2 FROM t1 AS t1a STRAIGHT_JOIN ( t2 INNER JOIN t1 AS t1b ON (t1b.c1 = c2) ) ON (t1b.i1 = pk2 ) 
+WHERE t1a.c1 = c2 GROUP BY i2;
+
+DROP TABLE t1,t2;
+
 #
 # End of MariaDB 5.5 tests
 #
