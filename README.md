@@ -52,8 +52,8 @@ The *ndb* adapter provides optimized high-performance access to MySQL Cluster
 using the NDB API.
 
 Each backend adapter supports its own set of connection properties.
-+ [MySQL Connection Properties](Backend-documentation/mysql.md)
-+ [NDB Connection Properties](Backend-documentation/ndb.md)
++ [MySQL Connection Properties](Backend-documentation/mysql_properties.js)
++ [NDB Connection Properties](Backend-documentation/ndb_properties.js)
 
 
 Session
@@ -163,21 +163,23 @@ SessionFactory is opened if needed; the callback or promise receives a Session.
 + *getOpenSessionFactories()* Returns an array
 + *closeAllOpenSessionFactories()* Returns undefined
 
-See the [Complete documentation for the top-level API](API-documentation/Mynode)
+See the [complete documentation for the top-level API](API-documentation/Mynode)
 
 
 Mapped Objects
 -------------------------
-The data management calls available on *session* can take either
-a table name or a *mapped object*.  When a table name is used with find(), the
-returned object contains one field for every database column.  However, find() 
-can also return fully-fledged application objects: objects that have been
-created from a constructor, are connected to a class prototype, and possess
-some subset of the fields from the corresponding table, along perhaps with some
-*non-persistent* fields.
+A **TableMapping** is an _entirely optional_ part of the API that allows you
+to fine-tune the relations between JavaScript objects and database records. 
+All of the data management calls available on *session* can take either a table
+name (so that they work without any mapping), or a *mapped object*.  When a 
+table name is used with find(), for instance, the returned object contains
+one property for every database column, with each property name the same as the
+corresponding column name, and the property value of a default JavaScript type 
+based on the column type.  When find() is used with a TableMapping, it can
+return an object with some subset of the fields from the mapped table (along 
+perhaps with some *non-persistent* fields), using cusom type conversions, 
+created from a particular constructor, and connected to a class prototype.
 
-This **mapping** between database tables and application objects is defined 
-using a [TableMapping](API-documentation/TableMapping).
 
 ```
   function User() {     // Constructor for application object
@@ -187,7 +189,7 @@ using a [TableMapping](API-documentation/TableMapping).
   userTable.mapField("firstName","first_name"); // customize the mapping
   userTable.applyToClass(User);  // apply the mapping to the constructor
 ``` 
-
+See the [complete documentation for TableMapping](API-documentation/TableMapping).
 
 Converters
 ----------
@@ -251,6 +253,28 @@ Queries
 While *session.find()* can be used to fetch a single database record using 
 primary or unique index access, more complex queries are provided through
 the [Query class](API-documentation/Query)
+
+Queries are defined by a filter that specifies which database rows should be 
+returned. The filter is declared fluently, combining queryable columns with 
+comparators and parameters.
+
+session.createQuery('employee').then(function(query) {
+  query.where(
+   query.salary.gt(query.param('low_salary')
+   .and(query.salary.lt(query.param('high_salary')))));
+});
+
+Query execution is governed by a parameter object that can include values 
+for named parameters for the query as well as options to sort or paginate the 
+result. Query execution returns a promise but can also use the standard callback
+mechanism.
+
+This query will return at most 20 objects that satisfy the filter, in 
+ascending order. The same query object can be reused with different parameters 
+and options.
+
+query.execute({low_salary: 10000, high_salary:20000, limit: 20, order: 'asc"})
+ .then(function(result) {console.log(result));
 
 
 Standardized Errors
