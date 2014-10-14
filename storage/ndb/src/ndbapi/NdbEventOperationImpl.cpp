@@ -1687,10 +1687,16 @@ NdbEventBuffer::nextEvent2()
            remove_consumed_gci_ops(gci);
 
         if (gci_ops && (gci != gci_ops->m_gci))
+	{
            ndbout << "nextEvent2: gci " << gci << " "
                   << " gci_ops->m_gci " << gci_ops->m_gci
-                  << " type " << hex << op->getEventType2() << " "
-                  << m_ndb->getNdbObjectName() << endl;
+                  << " (" << Uint32(gci >> 32)
+                  << "/" << Uint32(gci) << ") type "
+                  << hex << op->getEventType()
+                  << " data's operation "
+                  <<  SubTableData::getOperation(data->sdata->requestInfo)
+                  << " " << m_ndb->getNdbObjectName() << endl;
+	}
 
          assert(gci_ops && (gci == gci_ops->m_gci));
          (void) gci_ops; // To avoid compiler warning 'unused variable'
