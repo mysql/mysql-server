@@ -1186,7 +1186,8 @@ private:
 
   static void sendTC_COMMIT_ACK(class NdbImpl *, NdbApiSignal *,
 				Uint32 transId1, Uint32 transId2, 
-				Uint32 aBlockRef);
+				Uint32 aBlockRef,
+                                bool send_immediate);
 
   void completedFail(const char * s);
 #ifdef VM_TRACE

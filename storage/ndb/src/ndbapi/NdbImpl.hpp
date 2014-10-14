@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -58,7 +58,25 @@ public:
   NdbImpl(Ndb_cluster_connection *, Ndb&);
   ~NdbImpl();
 
-  int send_event_report(bool has_lock, Uint32 *data, Uint32 length);
+  int send_event_report(bool is_poll_owner, Uint32 *data, Uint32 length);
+  int send_dump_state_all(Uint32 *dumpStateCodeArray, Uint32 len);
+  void set_TC_COMMIT_ACK_immediate(bool flag);
+private:
+  /**
+   * Implementation methods for
+   * send_event_report
+   * send_dump_state_all
+   */
+  void init_dump_state_signal(NdbApiSignal *aSignal,
+                              Uint32 *dumpStateCodeArray,
+                              Uint32 len);
+  int send_to_nodes(NdbApiSignal *aSignal,
+                    bool is_poll_owner,
+                    bool send_to_all);
+  int send_to_node(NdbApiSignal *aSignal,
+                   Uint32 tNode,
+                   bool is_poll_owner);
+public:
 
   Ndb &m_ndb;
   Ndb * m_next_ndb_object, * m_prev_ndb_object;
@@ -189,6 +207,13 @@ public:
   Ndb_free_list_t<NdbOperation>  theOpIdleList;  
   Ndb_free_list_t<NdbIndexOperation> theIndexOpIdleList;
   Ndb_free_list_t<NdbTransaction> theConIdleList; 
+
+  /**
+   * For some test cases it is necessary to flush out the TC_COMMIT_ACK
+   * immediately since we immediately will check that the commit ack
+   * marker resource is released.
+   */
+  bool send_TC_COMMIT_ACK_immediate_flag;
 
   /**
    * trp_client interface

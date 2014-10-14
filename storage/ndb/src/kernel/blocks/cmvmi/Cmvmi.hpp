@@ -51,6 +51,7 @@ private:
   void execTAMPER_ORD(Signal* signal);
 
   void execDUMP_STATE_ORD(Signal* signal);
+  void execTC_COMMIT_ACK(Signal* signal);
 
   void execEVENT_SUBSCRIBE_REQ(Signal *);
   void execCANCEL_SUBSCRIPTION_REQ(Signal *);
