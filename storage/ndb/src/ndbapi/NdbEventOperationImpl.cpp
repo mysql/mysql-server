@@ -1693,7 +1693,7 @@ NdbEventBuffer::nextEvent2()
                   << " (" << Uint32(gci >> 32)
                   << "/" << Uint32(gci) << ") type "
                   << hex << op->getEventType()
-                  << " data's operation "
+                  << " data's operation " << hex
                   <<  SubTableData::getOperation(data->sdata->requestInfo)
                   << " " << m_ndb->getNdbObjectName() << endl;
 	}
