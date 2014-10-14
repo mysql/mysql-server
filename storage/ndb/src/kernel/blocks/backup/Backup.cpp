@@ -313,7 +313,7 @@ Backup::report_disk_write_speed_report(Uint64 bytes_written_this_period,
   disk_write_speed_rep[report].redo_bytes_written =
     c_lqh->report_redo_written_bytes();
   disk_write_speed_rep[report].target_disk_write_speed =
-    m_curr_disk_write_speed;
+    m_curr_disk_write_speed * CURR_DISK_SPEED_CONVERSION_FACTOR_TO_SECONDS;
 
   next_disk_write_speed_report++;
   if (next_disk_write_speed_report == DISK_WRITE_SPEED_REPORT_SIZE)
@@ -365,7 +365,8 @@ Backup::monitor_disk_write_speed(const NDB_TICKS curr_time,
            << " bytes/s, "
            << endl
            << "Current speed is = "
-           << m_curr_disk_write_speed * 4 * 10
+           << m_curr_disk_write_speed *
+                CURR_DISK_SPEED_CONVERSION_FACTOR_TO_SECONDS
            << " bytes/s"
            << endl;
     ndbout << "Backup : Monitoring period : " << millisPassed
@@ -575,7 +576,14 @@ Backup::execCONTINUEB(Signal* signal)
       signal->theData[0] = reference();
       sendSignal(DBDIH_REF, GSN_CHECK_NODE_RESTARTREQ, signal, 1, JBB);
     }
-    if (millisPassed >= 1000)
+    /**
+     * We check for millis passed larger than 989 to handle the situation
+     * when we wake up slightly too early. Since we only wake up once every
+     * 100 millisecond, this should be better than occasionally get intervals
+     * of 1100 milliseconds. All the calculations takes the real interval into
+     * account, so it should not corrupt any data.
+     */
+    if (millisPassed > 989)
     {
       jam();
       m_node_restart_check_sent = false;
@@ -938,7 +946,7 @@ Backup::execDUMP_STATE_ORD(Signal* signal)
     /* Dump measured disk write speed since last RESET_DISK_SPEED */
     ndbout_c("m_curr_disk_write_speed: %ukb  m_words_written_this_period:"
              " %ukwords  m_overflow_disk_write: %ukb",
-              Uint32(m_curr_disk_write_speed / 1024),
+              Uint32(4 * m_curr_disk_write_speed / 1024),
               Uint32(m_words_written_this_period / 1024),
               Uint32(m_overflow_disk_write / 1024));
     ndbout_c("m_reset_delay_used: %u  time since last RESET_DISK_SPEED: %llu millis",
@@ -1141,8 +1149,8 @@ Backup::calculate_std_disk_write_speed_seconds_back(Uint32 seconds_back,
                              Uint64 millis_passed_total,
                              Uint64 backup_lcp_bytes_written,
                              Uint64 redo_bytes_written,
-                             Uint64 & std_dev_backup_lcp_in_bytes_per_milli,
-                             Uint64 & std_dev_redo_in_bytes_per_milli)
+                             Uint64 & std_dev_backup_lcp_in_bytes_per_sec,
+                             Uint64 & std_dev_redo_in_bytes_per_sec)
 {
   Uint32 start_index = 0;
   Uint64 millis_passed = 0;
@@ -1166,8 +1174,8 @@ Backup::calculate_std_disk_write_speed_seconds_back(Uint32 seconds_back,
   if (millis_passed_total == 0)
   {
     jam();
-    std_dev_backup_lcp_in_bytes_per_milli = 0;
-    std_dev_redo_in_bytes_per_milli = 0;
+    std_dev_backup_lcp_in_bytes_per_sec = 0;
+    std_dev_redo_in_bytes_per_sec = 0;
     return;
   }
   avg_backup_lcp_bytes_per_milli = backup_lcp_bytes_written /
@@ -1207,13 +1215,25 @@ Backup::calculate_std_disk_write_speed_seconds_back(Uint32 seconds_back,
        * We also try to avoid divisions by zero in the code in multiple
        * places when we query this table before the first measurement have
        * been logged.
+       *
+       * Calculating standard deviation as:
+       * Sum of X(i) - E(X) squared where X(i) is the average per millisecond
+       * in this time period and E(X) is the average over the entire period.
+       * We divide by number of periods, but to get it more real, we divide
+       * by total_millis / millis_in_this_period since the periods aren't
+       * exactly the same. Finally we take square root of the sum of those
+       * (X(i) - E(X))^2 / #periods. Actually the standard deviation should
+       * be calculated using #periods - 1 as divisor. Finally we also need
+       * to convert it from standard deviation per millisecond to standard
+       * deviation per second. We make that simple by multiplying the
+       * result from this function by 1000.
        */
       jam();
       avg_backup_lcp_bytes_per_milli_this_period =
         backup_lcp_bytes_written_this_period / millis_passed_this_period;
-      backup_lcp_temp_sum =
-         (long double)(avg_backup_lcp_bytes_per_milli -
-                       avg_backup_lcp_bytes_per_milli_this_period);
+      backup_lcp_temp_sum = (long double)avg_backup_lcp_bytes_per_milli;
+      backup_lcp_temp_sum -=
+        (long double)avg_backup_lcp_bytes_per_milli_this_period;
       backup_lcp_temp_sum *= backup_lcp_temp_sum;
       backup_lcp_temp_sum /= (long double)millis_passed_total;
       backup_lcp_temp_sum *= (long double)millis_passed_this_period;
@@ -1221,9 +1241,8 @@ Backup::calculate_std_disk_write_speed_seconds_back(Uint32 seconds_back,
 
       avg_redo_bytes_per_milli_this_period =
         redo_bytes_written_this_period / millis_passed_this_period;
-      redo_temp_sum =
-         (long double)(avg_redo_bytes_per_milli -
-                       avg_redo_bytes_per_milli_this_period);
+      redo_temp_sum = (long double)avg_redo_bytes_per_milli;
+      redo_temp_sum -= (long double)avg_redo_bytes_per_milli_this_period;
       redo_temp_sum *= redo_temp_sum;
       redo_temp_sum /= (long double)millis_passed_total;
       redo_temp_sum *= (long double)millis_passed_this_period;
@@ -1234,12 +1253,27 @@ Backup::calculate_std_disk_write_speed_seconds_back(Uint32 seconds_back,
   if (millis_passed == 0)
   {
     jam();
-    std_dev_backup_lcp_in_bytes_per_milli = 0;
-    std_dev_redo_in_bytes_per_milli = 0;
+    std_dev_backup_lcp_in_bytes_per_sec = 0;
+    std_dev_redo_in_bytes_per_sec = 0;
     return;
   }
-  std_dev_backup_lcp_in_bytes_per_milli = (Uint64)sqrtl(backup_lcp_square_sum);
-  std_dev_redo_in_bytes_per_milli = (Uint64)sqrtl(redo_square_sum);
+  /**
+   * Calculate standard deviation per millisecond
+   * We use long double for the calculation, but we want to report it to
+   * it in bytes per second, so this is easiest to do with an unsigned
+   * integer number. Conversion from long double to Uint64 is a real
+   * conversion that we leave to the compiler to generate code to make.
+   */
+  std_dev_backup_lcp_in_bytes_per_sec = (Uint64)sqrtl(backup_lcp_square_sum);
+  std_dev_redo_in_bytes_per_sec = (Uint64)sqrtl(redo_square_sum);
+
+  /**
+   * Convert to standard deviation per second
+   * We calculated it in bytes per millisecond, so simple multiplication of
+   * 1000 is sufficient here.
+   */
+  std_dev_backup_lcp_in_bytes_per_sec*= (Uint64)1000;
+  std_dev_redo_in_bytes_per_sec*= (Uint64)1000;
 }
 
 Uint64
@@ -1373,16 +1407,14 @@ void Backup::execDBINFO_SCANREQ(Signal *signal)
     row.write_uint32(getOwnNodeId());
     row.write_uint32(ldm_instance);
 
-    /* All speeds are reported in kBytes per second */
-
     /* Report last second */
     calculate_disk_write_speed_seconds_back(1,
                                             millis_passed,
                                             backup_lcp_bytes_written,
                                             redo_bytes_written);
 
-    row.write_uint64((backup_lcp_bytes_written * 1000) / 1024);
-    row.write_uint64((redo_bytes_written * 1000) / 1024);
+    row.write_uint64((backup_lcp_bytes_written / millis_passed ) * 1000);
+    row.write_uint64((redo_bytes_written / millis_passed) * 1000);
 
     /* Report average and std_dev of last 10 seconds */
     calculate_disk_write_speed_seconds_back(10,
@@ -1390,8 +1422,8 @@ void Backup::execDBINFO_SCANREQ(Signal *signal)
                                             backup_lcp_bytes_written,
                                             redo_bytes_written);
 
-    row.write_uint64((backup_lcp_bytes_written * 1000) / 1024);
-    row.write_uint64((redo_bytes_written * 1000) / 1024);
+    row.write_uint64((backup_lcp_bytes_written * 1000) / millis_passed);
+    row.write_uint64((redo_bytes_written * 1000) / millis_passed);
 
     calculate_std_disk_write_speed_seconds_back(10,
                                                 millis_passed,
@@ -1400,8 +1432,8 @@ void Backup::execDBINFO_SCANREQ(Signal *signal)
                                                 std_dev_backup_lcp,
                                                 std_dev_redo);
 
-    row.write_uint64((std_dev_backup_lcp * 1000) / 1024);
-    row.write_uint64((std_dev_redo * 1000) / 1024);
+    row.write_uint64(std_dev_backup_lcp);
+    row.write_uint64(std_dev_redo);
  
     /* Report average and std_dev of last 60 seconds */
     calculate_disk_write_speed_seconds_back(60,
@@ -1409,8 +1441,8 @@ void Backup::execDBINFO_SCANREQ(Signal *signal)
                                             backup_lcp_bytes_written,
                                             redo_bytes_written);
 
-    row.write_uint64((backup_lcp_bytes_written * 1000) / 1024);
-    row.write_uint64((redo_bytes_written * 1000) / 1024);
+    row.write_uint64((backup_lcp_bytes_written / millis_passed ) * 1000);
+    row.write_uint64((redo_bytes_written / millis_passed) * 1000);
 
     calculate_std_disk_write_speed_seconds_back(60,
                                                 millis_passed,
@@ -1419,13 +1451,14 @@ void Backup::execDBINFO_SCANREQ(Signal *signal)
                                                 std_dev_backup_lcp,
                                                 std_dev_redo);
 
-    row.write_uint64((std_dev_backup_lcp * 1000) / 1024);
-    row.write_uint64((std_dev_redo * 1000) / 1024);
+    row.write_uint64(std_dev_backup_lcp);
+    row.write_uint64(std_dev_redo);
 
     row.write_uint64(slowdowns_due_to_io_lag);
     row.write_uint64(slowdowns_due_to_high_cpu);
     row.write_uint64(disk_write_speed_set_to_min);
-    row.write_uint64(m_curr_disk_write_speed);
+    row.write_uint64(m_curr_disk_write_speed *
+                     CURR_DISK_SPEED_CONVERSION_FACTOR_TO_SECONDS);
 
     ndbinfo_send_row(signal, req, row, rl);
     break;
@@ -1466,8 +1499,8 @@ void Backup::execDBINFO_SCANREQ(Signal *signal)
 
         row.write_uint64(millis_since_finished);
         row.write_uint64(millis_passed_this_period);
-        row.write_uint64(backup_lcp_bytes_written_this_period / 1024); //kBytes
-        row.write_uint64(redo_bytes_written_this_period / 1024); //kBytes
+        row.write_uint64(backup_lcp_bytes_written_this_period);
+        row.write_uint64(redo_bytes_written_this_period);
         row.write_uint64(target_disk_write_speed);
       }
       else

@@ -573,7 +573,14 @@ public:
   Uint64 m_overflow_disk_write;
   Uint32 m_reset_delay_used;
   NDB_TICKS m_reset_disk_speed_time;
+
+  /**
+   * We check the use of disk write speed limits every 100 milliseconds. The
+   * speed check parameters is also in words, so this means to get the current
+   * speed in bytes per second we need to multiply with 40.
+   */
   static const int  DISK_SPEED_CHECK_DELAY = 100;
+  static const int CURR_DISK_SPEED_CONVERSION_FACTOR_TO_SECONDS = 40;
   
   Uint64 m_monitor_words_written;
   NDB_TICKS m_monitor_snapshot_start;
@@ -649,8 +656,8 @@ public:
                              Uint64 millis_passed_total,
                              Uint64 backup_lcp_bytes_written_total,
                              Uint64 redo_bytes_written_total,
-                             Uint64 & std_dev_backup_lcp_in_bytes_per_milli,
-                             Uint64 & std_dev_redo_in_bytes_per_milli);
+                             Uint64 & std_dev_backup_lcp_in_bytes_per_sec,
+                             Uint64 & std_dev_redo_in_bytes_per_sec);
 
 
   STATIC_CONST(NO_OF_PAGES_META_FILE = 
