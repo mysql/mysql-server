@@ -1669,7 +1669,7 @@ public:
     RecMysqldShrinkVarchar= 0x1,
     /* Use the mysqld record format for bitfields, only used inside mysqld. */
     RecMysqldBitfield= 0x2,
-    /* Enabled if column_flags in RecordSpec is being used. */
+    /* Use the column specific flags from RecordSpecification. */
     RecPerColumnFlags= 0x4
   };
   struct RecordSpecification {
@@ -1710,7 +1710,10 @@ public:
     Uint32 nullbit_byte_offset;
     /* NULL bit, 0-7. Not used for columns that are not NULLable. */
     Uint32 nullbit_bit_in_byte;
-    /* various column specific flags */
+    /*
+      Column specific flags
+      Used only when RecPerColumnFlags is enabled
+    */
     enum ColumnFlags
     {
       /*
@@ -1720,10 +1723,6 @@ public:
       */
       BitColMapsNullBitOnly= 0x1
     };
-    /*
-      Column specific flags
-      Used only when RecPerColumnFlags is enabled
-    */
     Uint32 column_flags;
   };
 
