@@ -2852,7 +2852,7 @@ err_exit:
 		char*	path;
 		path = fil_space_get_first_path(table->space);
 
-		err = dict_create_add_tablespace_to_dictionary(
+		err = dict_replace_tablespace_in_dictionary(
 			table->space, table->name.m_name,
 			fil_space_get_flags(table->space),
 			path, trx, commit);

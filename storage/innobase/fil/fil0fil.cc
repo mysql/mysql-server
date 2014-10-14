@@ -1175,11 +1175,12 @@ fil_space_free(
 }
 
 /** Create a space memory object and put it to the fil_system hash table.
+The tablespace name is independent from the tablespace file-name.
 Error messages are issued to the server log.
-@param[in]	name	tablespace name
-@param[in]	id	tablespace identifier
-@param[in]	flags	tablespace flags
-@param[in]	purpose	tablespace purpose
+@param[in]	name	Tablespace name
+@param[in]	id	Tablespace identifier
+@param[in]	flags	Tablespace flags
+@param[in]	purpose	Tablespace purpose
 @return pointer to created tablespace, to be filled in with fil_node_create()
 @retval NULL on failure (such as when the same tablespace exists) */
 fil_space_t*
@@ -3791,7 +3792,7 @@ fil_open_ibd_tablespace(
 		} else if (path_in == NULL) {
 			/* SYS_DATAFILES record for this space ID
 			was not found. */
-			dict_insert_tablespace_and_filepath(
+			dict_replace_tablespace_and_filepath(
 				id, tablename, df_remote.filepath(), flags);
 		}
 	}

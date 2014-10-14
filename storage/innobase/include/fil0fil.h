@@ -375,6 +375,7 @@ fil_node_create(
 	bool		is_raw)
 	__attribute__((warn_unused_result));
 /** Create a space memory object and put it to the fil_system hash table.
+The tablespace name is independent from the tablespace file-name.
 Error messages are issued to the server log.
 @param[in]	name	tablespace name
 @param[in]	id	tablespace identifier

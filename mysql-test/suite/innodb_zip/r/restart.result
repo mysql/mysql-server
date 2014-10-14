@@ -895,7 +895,7 @@ t77_restart#p#p1#sp#s3.ibd
 SELECT path FROM information_schema.innodb_sys_datafiles
 WHERE path LIKE '%restart%' ORDER BY space;
 path
-MYSQL_DATA_DIR/test/t4_restart.ibd
+MYSQL_TMP_DIR/new_dir/test/t4_restart.ibd
 MYSQL_TMP_DIR/new_dir/test/t55_restart.ibd
 MYSQL_TMP_DIR/new_dir/test/t66_restart#p#p0.ibd
 MYSQL_TMP_DIR/new_dir/test/t66_restart#p#p1.ibd
@@ -1032,7 +1032,7 @@ t77_restart.par
 SELECT path FROM information_schema.innodb_sys_datafiles
 WHERE path LIKE '%restart%' ORDER BY space;
 path
-MYSQL_DATA_DIR/test/t4_restart.ibd
+MYSQL_TMP_DIR/new_dir/test/t4_restart.ibd
 MYSQL_DATA_DIR/test/t55_restart.ibd
 MYSQL_DATA_DIR/test/t66_restart#p#p0.ibd
 MYSQL_DATA_DIR/test/t66_restart#p#p1.ibd
