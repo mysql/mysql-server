@@ -1821,10 +1821,13 @@ fil_write_flushed_lsn(
 Used by background threads that do not necessarily hold proper locks
 for concurrency control.
 @param[in]	id	tablespace ID
-@return the tablespace, or NULL if deleted or being deleted */
+@param[in]	silent	whether to silently ignore missing tablespaces
+@return the tablespace, or NULL if missing or being deleted */
+inline
 fil_space_t*
-fil_space_acquire(
-	ulint	id)
+fil_space_acquire_low(
+	ulint	id,
+	bool	silent)
 {
 	fil_space_t*	space;
 
@@ -1833,8 +1836,10 @@ fil_space_acquire(
 	space = fil_space_get_by_id(id);
 
 	if (space == NULL) {
-		ib::error() << "Trying to do an operation on a dropped"
-			" tablespace. Space ID: " << id;
+		if (!silent) {
+			ib::warn() << "Trying to access missing"
+				" tablespace " << id;
+		}
 	} else if (space->stop_new_ops || space->is_being_truncated) {
 		space = NULL;
 	} else {
@@ -1844,6 +1849,30 @@ fil_space_acquire(
 	mutex_exit(&fil_system->mutex);
 
 	return(space);
+}
+
+/** Acquire a tablespace when it could be dropped concurrently.
+Used by background threads that do not necessarily hold proper locks
+for concurrency control.
+@param[in]	id	tablespace ID
+@return the tablespace, or NULL if missing or being deleted */
+fil_space_t*
+fil_space_acquire(
+	ulint	id)
+{
+	return(fil_space_acquire_low(id, false));
+}
+
+/** Acquire a tablespace that may not exist.
+Used by background threads that do not necessarily hold proper locks
+for concurrency control.
+@param[in]	id	tablespace ID
+@return the tablespace, or NULL if missing or being deleted */
+fil_space_t*
+fil_space_acquire_silent(
+	ulint	id)
+{
+	return(fil_space_acquire_low(id, true));
 }
 
 /** Release a tablespace acquired with fil_space_acquire().
