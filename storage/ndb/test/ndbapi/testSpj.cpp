@@ -1025,7 +1025,7 @@ NegativeTest::runSetBoundTest() const
 
     // Make bound with too long string.
     const NdbDictionary::RecordSpecification ordIdxRecSpec[] =
-      {{m_nt2Tab->getColumn("oi1"), 0, 0, 0}};
+      {{m_nt2Tab->getColumn("oi1"), 0, 0, 0, 0}};
 
     const NdbRecord* const ordIdxRecord =
       m_dictionary->createRecord(m_nt2OrdIdx, ordIdxRecSpec,
