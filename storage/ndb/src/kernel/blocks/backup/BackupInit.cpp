@@ -234,10 +234,14 @@ Backup::execREAD_CONFIG_REQ(Signal* signal)
     words per 100 milliseconds. We convert disk synch size from bytes per
     second to words per second.
   */
-  c_defaults.m_disk_write_speed_min /= (4 * 10);
-  c_defaults.m_disk_write_speed_max /= (4 * 10);
-  c_defaults.m_disk_write_speed_max_other_node_restart /= (4 * 10);
-  c_defaults.m_disk_write_speed_max_own_restart /= (4 * 10);
+  c_defaults.m_disk_write_speed_min /=
+    CURR_DISK_SPEED_CONVERSION_FACTOR_TO_SECONDS;
+  c_defaults.m_disk_write_speed_max /=
+    CURR_DISK_SPEED_CONVERSION_FACTOR_TO_SECONDS;
+  c_defaults.m_disk_write_speed_max_other_node_restart /=
+    CURR_DISK_SPEED_CONVERSION_FACTOR_TO_SECONDS;
+  c_defaults.m_disk_write_speed_max_own_restart /=
+    CURR_DISK_SPEED_CONVERSION_FACTOR_TO_SECONDS;
 
   /*
     Temporary fix, we divide the speed by number of ldm threads since we
