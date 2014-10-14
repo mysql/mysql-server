@@ -109,6 +109,7 @@ Cmvmi::Cmvmi(Block_context& ctx) :
                &Cmvmi::execCANCEL_SUBSCRIPTION_REQ);
 
   addRecSignal(GSN_DUMP_STATE_ORD, &Cmvmi::execDUMP_STATE_ORD);
+  addRecSignal(GSN_TC_COMMIT_ACK, &Cmvmi::execTC_COMMIT_ACK);
 
   addRecSignal(GSN_TESTSIG, &Cmvmi::execTESTSIG);
   addRecSignal(GSN_NODE_START_REP, &Cmvmi::execNODE_START_REP, true);
@@ -1331,6 +1332,19 @@ cmp_event_buf(const void * ptr0, const void * ptr1)
 static Uint32 f_free_segments[32];
 static Uint32 f_free_segment_pos = 0;
 #endif
+
+/**
+ * TC_COMMIT_ACK is routed through CMVMI to ensure correct signal order
+ * when sending DUMP_STATE_ORD to DBTC while TC_COMMIT_ACK is also
+ * being in transit.
+ */
+void
+Cmvmi::execTC_COMMIT_ACK(Signal* signal)
+{
+  jamEntry();
+  BlockReference ref = signal->theData[2];
+  sendSignal(ref, GSN_TC_COMMIT_ACK, signal, 2, JBB);
+}
 
 void
 Cmvmi::execDUMP_STATE_ORD(Signal* signal)

@@ -396,6 +396,32 @@ NdbImpl::trp_deliver_signal(const NdbApiSignal * aSignal,
                  (tSendStatus == NdbTransaction::sendTC_OP)))
       {
         tReturnCode = tCon->receiveTCKEYCONF(keyConf, tLen);
+        /**
+         * BUG#19643174
+         * ------------
+         * Ensure that we always send TC_COMMIT_ACK before we report
+         * transaction as completed, this avoids races where the API
+         * user starts another activity before we've completed the
+         * sending of TC_COMMIT_ACK. This is mostly a problem for
+         * test applications that e.g. want to check for memory
+         * leaks after a transaction has completed. We only do this
+         * action if requested by the API user (should only be
+         * requested by test application).
+         */
+        if (unlikely(marker && send_TC_COMMIT_ACK_immediate_flag))
+        {
+          NdbTransaction::sendTC_COMMIT_ACK(this,
+                                            myNdb->theCommitAckSignal,
+                                            keyConf->transId1,
+                                            keyConf->transId2,
+                                            aTCRef,
+                                            send_TC_COMMIT_ACK_immediate_flag);
+          if (tReturnCode != -1)
+          {
+            myNdb->completedTransaction(tCon);
+          }
+          return;
+        }
         if (tReturnCode != -1)
         {
           myNdb->completedTransaction(tCon);
@@ -406,7 +432,8 @@ NdbImpl::trp_deliver_signal(const NdbApiSignal * aSignal,
                                             myNdb->theCommitAckSignal,
                                             keyConf->transId1,
                                             keyConf->transId2,
-                                            aTCRef);
+                                            aTCRef,
+                                            false);
         }
         return;
       }
@@ -422,7 +449,8 @@ NdbImpl::trp_deliver_signal(const NdbApiSignal * aSignal,
                                         myNdb->theCommitAckSignal,
                                         keyConf->transId1,
                                         keyConf->transId2,
-                                        aTCRef);
+                                        aTCRef,
+                                        send_TC_COMMIT_ACK_immediate_flag);
     }
     goto InvalidSignal;
     return;
@@ -597,6 +625,20 @@ NdbImpl::trp_deliver_signal(const NdbApiSignal * aSignal,
         (tCon->theSendStatus == NdbTransaction::sendTC_COMMIT))
     {
       tReturnCode = tCon->receiveTC_COMMITCONF(commitConf, tLen);
+      if (unlikely((tFirstData & 1) && send_TC_COMMIT_ACK_immediate_flag))
+      {
+        NdbTransaction::sendTC_COMMIT_ACK(this,
+                                          myNdb->theCommitAckSignal,
+                                          commitConf->transId1, 
+                                          commitConf->transId2,
+                                          aTCRef,
+                                          true);
+        if (tReturnCode != -1)
+        {
+          myNdb->completedTransaction(tCon);
+        }
+        return;
+      }
       if (tReturnCode != -1)
       {
         myNdb->completedTransaction(tCon);
@@ -607,7 +649,8 @@ NdbImpl::trp_deliver_signal(const NdbApiSignal * aSignal,
                                           myNdb->theCommitAckSignal,
                                           commitConf->transId1, 
                                           commitConf->transId2,
-                                          aTCRef);
+                                          aTCRef,
+                                          false);
       }
       return;
     }
@@ -621,7 +664,8 @@ NdbImpl::trp_deliver_signal(const NdbApiSignal * aSignal,
                                         myNdb->theCommitAckSignal,
                                         commitConf->transId1,
                                         commitConf->transId2,
-                                        aTCRef);
+                                        aTCRef,
+                                        send_TC_COMMIT_ACK_immediate_flag);
     }
     goto InvalidSignal;
     return;
@@ -945,10 +989,20 @@ NdbImpl::trp_deliver_signal(const NdbApiSignal * aSignal,
               (tCon->theSendStatus == NdbTransaction::sendTC_COMMIT))
           {
             tReturnCode = tCon->receiveTCKEY_FAILCONF(failConf);
+            if(tFirstData & 1)
+            {
+              NdbTransaction::sendTC_COMMIT_ACK(this,
+                                                myNdb->theCommitAckSignal,
+                                                failConf->transId1, 
+                                                failConf->transId2,
+                                                aTCRef,
+                                            send_TC_COMMIT_ACK_immediate_flag);
+            }
             if (tReturnCode != -1)
             {
               myNdb->completedTransaction(tCon);
             }
+            return;
           }
         }
       }
@@ -965,7 +1019,8 @@ NdbImpl::trp_deliver_signal(const NdbApiSignal * aSignal,
                                         myNdb->theCommitAckSignal,
                                         failConf->transId1, 
                                         failConf->transId2,
-                                        aTCRef);
+                                        aTCRef,
+                                        send_TC_COMMIT_ACK_immediate_flag);
     }
     return;
   }
@@ -1672,8 +1727,10 @@ Ndb::sendRecSignal(Uint16 node_id,
 void
 NdbTransaction::sendTC_COMMIT_ACK(NdbImpl * impl,
                                   NdbApiSignal * aSignal,
-                                  Uint32 transId1, Uint32 transId2, 
-                                  Uint32 aTCRef){
+                                  Uint32 transId1, Uint32 transId2,
+                                  Uint32 aTCRef,
+                                  bool send_immediate)
+{
 #ifdef MARKER_TRACE
   ndbout_c("Sending TC_COMMIT_ACK(0x%.8x, 0x%.8x) to -> %d",
 	   transId1,
@@ -1688,11 +1745,62 @@ NdbTransaction::sendTC_COMMIT_ACK(NdbImpl * impl,
   Uint32 * dataPtr = aSignal->getDataPtrSend();
   dataPtr[0] = transId1;
   dataPtr[1] = transId2;
-  impl->safe_noflush_sendSignal(aSignal, refToNode(aTCRef));
+  if (likely(!send_immediate))
+  {
+    impl->safe_noflush_sendSignal(aSignal, refToNode(aTCRef));
+  }
+  else
+  {
+    /**
+     * To protect against TC_COMMIT_ACK being raced by DUMP_STATE_ORD
+     * we route TC_COMMIT_ACK through the same path as DUMP_STATE_ORD.
+     */
+    dataPtr[2] = aTCRef;
+    aSignal->theLength = 3;
+    aSignal->theReceiversBlockNumber = CMVMI;
+    impl->safe_sendSignal(aSignal, refToNode(aTCRef));
+  }
+}
+
+void NdbImpl::set_TC_COMMIT_ACK_immediate(bool flag)
+{
+  send_TC_COMMIT_ACK_immediate_flag = flag;
 }
 
 int
-NdbImpl::send_event_report(bool has_lock,
+NdbImpl::send_dump_state_all(Uint32 *dumpStateCodeArray,
+                             Uint32 len)
+{
+  NdbApiSignal aSignal(m_ndb.theMyRef);
+  init_dump_state_signal(&aSignal, dumpStateCodeArray, len);
+  return send_to_nodes(&aSignal, false, true);
+}
+
+void
+NdbImpl::init_dump_state_signal(NdbApiSignal *aSignal,
+                                Uint32 *dumpStateCodeArray,
+                                Uint32 len)
+{
+  Uint32 *theData = aSignal->getDataPtrSend();
+  aSignal->theTrace                = TestOrd::TraceAPI;
+  aSignal->theReceiversBlockNumber = CMVMI;
+  aSignal->theVerId_signalNumber   = GSN_DUMP_STATE_ORD;
+  aSignal->theLength               = len;
+  for (Uint32 i = 0; i < 25; i++)
+  {
+    if (i < len)
+    {
+      theData[i] = dumpStateCodeArray[i];
+    }
+    else
+    {
+      theData[i] = 0;
+    }
+  }
+}
+
+int
+NdbImpl::send_event_report(bool is_poll_owner,
                            Uint32 *data, Uint32 length)
 {
   NdbApiSignal aSignal(m_ndb.theMyRef);
@@ -1702,32 +1810,86 @@ NdbImpl::send_event_report(bool has_lock,
   aSignal.theLength               = length;
   memcpy((char *)aSignal.getDataPtrSend(), (char *)data, length*4);
 
-  int ret = 0;
-  if (!has_lock)
+  return send_to_nodes(&aSignal, is_poll_owner, false);
+}
+
+/**
+ * Return 0 to indicate success, 1 means no successful send.
+ * If send_to_all is true success means successfully sent to
+ * all nodes.
+ */
+int
+NdbImpl::send_to_nodes(NdbApiSignal *aSignal,
+                       bool is_poll_owner,
+                       bool send_to_all)
+{
+  int ret;
+  Uint32 tNode;
+
+  if (!is_poll_owner)
   {
+    /**
+     * NdbImpl inherits from trp_client and this object needs to be locked
+     * before we can send to a node. If we call this when we are poll owner
+     * we need not lock anything more.
+     */
     lock();
   }
-  Uint32 tNode;
   Ndb_cluster_connection_node_iter node_iter;
   m_ndb_cluster_connection.init_get_next_node(node_iter);
   while ((tNode= m_ndb_cluster_connection.get_next_node(node_iter)))
   {
-    if(get_node_alive(tNode))
+    if (send_to_node(aSignal, tNode, is_poll_owner) == 0)
     {
-      if (has_lock)
-        safe_sendSignal(&aSignal, tNode);
-      else
-        raw_sendSignal(&aSignal, tNode);
+      /* Successful send */
+      if (!send_to_all)
+      {
+        ret = 0;
+        goto done;
+      }
+    }
+    else if (send_to_all)
+    {
+      ret = 1;
       goto done;
     }
   }
-  
-  ret = 1;
+  if (send_to_all)
+  {
+    ret = 0;
+  }
+  else
+  {
+    ret = 1;
+  }
 done:
-  if (!has_lock)
+  if (!is_poll_owner)
   {
     flush_send_buffers();
     unlock();
   }
   return ret;
+}
+
+/**
+ * Return 0 to indicate success, nonzero means no success.
+ */
+int
+NdbImpl::send_to_node(NdbApiSignal *aSignal,
+                      Uint32 tNode,
+                      bool is_poll_owner)
+{
+  int ret_code = 1;
+  if (get_node_alive(tNode))
+  {
+    if (is_poll_owner)
+    {
+      ret_code = safe_sendSignal(aSignal, tNode);
+    }
+    else
+    {
+      ret_code = raw_sendSignal(aSignal, tNode);
+    }
+  }
+  return ret_code;
 }

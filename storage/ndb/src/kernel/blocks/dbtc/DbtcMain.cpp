@@ -17673,6 +17673,7 @@ bool Dbtc::seizeIndexOperation(ApiConnectRecord* regApiPtr,
 {
   if (regApiPtr->theSeizedIndexOperations.seizeFirst(indexOpPtr))
   {
+    jam();
     ndbassert(indexOpPtr.p->pendingKeyInfo == 0);
     ndbassert(indexOpPtr.p->keyInfoSectionIVal == RNIL);
     ndbassert(indexOpPtr.p->pendingAttrInfo == 0);
@@ -17682,7 +17683,7 @@ bool Dbtc::seizeIndexOperation(ApiConnectRecord* regApiPtr,
     ndbassert(indexOpPtr.p->transIdAISectionIVal == RNIL);
     return true;
   }
-  
+  jam();
   return false;
 }
 
@@ -17725,7 +17726,12 @@ void Dbtc::releaseAllSeizedIndexOperations(ApiConnectRecord* regApiPtr)
     indexOp->transIdAISectionIVal = RNIL;
     regApiPtr->theSeizedIndexOperations.next(seizedIndexOpPtr);    
   }
-  while (regApiPtr->theSeizedIndexOperations.releaseFirst());
+  jam();
+  while (regApiPtr->theSeizedIndexOperations.releaseFirst())
+  {
+    ;
+  }
+  jam();
 }
 
 void Dbtc::saveTriggeringOpState(Signal* signal, TcConnectRecord* trigOp)
