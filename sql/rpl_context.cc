@@ -55,7 +55,7 @@ bool Session_consistency_gtids_ctx::notify_after_transaction_commit(const THD* t
   if (!shall_collect(thd))
     DBUG_RETURN(res);
 
-  if (thd->variables.session_track_gtids == ALL_GTIDS)
+  if (m_curr_session_track_gtids == ALL_GTIDS)
   {
     /*
      If one is configured to read all writes, we always collect
@@ -84,7 +84,7 @@ bool Session_consistency_gtids_ctx::notify_after_gtid_executed_update(const THD 
   if (!shall_collect(thd))
     DBUG_RETURN(res);
 
-  if (thd->variables.session_track_gtids == OWN_GTID)
+  if (m_curr_session_track_gtids == OWN_GTID)
   {
     const Gtid& gtid= thd->owned_gtid;
     if (gtid.sidno == -1) // we need to add thd->owned_gtid_set
@@ -131,12 +131,19 @@ bool Session_consistency_gtids_ctx::notify_after_response_packet(const THD *thd)
   if (m_gtid_set && !m_gtid_set->is_empty())
     m_gtid_set->clear();
 
+  /*
+   Every time we get a notification that a packet was sent, we update 
+   this value. It may have changed (the previous command may have been
+   a SET SESSION session_track_gtids=...;).
+   */
+  m_curr_session_track_gtids= thd->variables.session_track_gtids;
   DBUG_RETURN(res);
 }
 
 void
 Session_consistency_gtids_ctx::register_ctx_change_listener(
-              Session_consistency_gtids_ctx::Ctx_change_listener* listener)
+              Session_consistency_gtids_ctx::Ctx_change_listener* listener,
+              THD* thd)
 {
   DBUG_ASSERT(m_listener == NULL || m_listener == listener);
   if (m_listener == NULL)
@@ -145,6 +152,13 @@ Session_consistency_gtids_ctx::register_ctx_change_listener(
     m_listener= listener;
     m_sid_map= new Sid_map(NULL);
     m_gtid_set= new Gtid_set(m_sid_map);
+
+    /*
+     Caches the value at startup if needed. This is called during THD::init,
+     if the session_track_gtids value is set at startup time to anything 
+     different than OFF.
+     */
+    m_curr_session_track_gtids= thd->variables.session_track_gtids;
   }
 }
 
