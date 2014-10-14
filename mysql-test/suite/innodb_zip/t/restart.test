@@ -572,7 +572,7 @@ SHOW CREATE TABLE t77_restart;
 -- source include/start_mysqld.inc
 
 --replace_regex  /#P#/#p#/  /#SP#/#sp#/
---replace_result $MYSQL_DATA_DIR MYSQL_DATA_DIR ./ MYSQL_DATA_DIR/
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR  $MYSQL_DATA_DIR MYSQL_DATA_DIR  ./ MYSQL_DATA_DIR/
 SELECT path FROM information_schema.innodb_sys_datafiles
        WHERE path LIKE '%restart%' ORDER BY space;
 
