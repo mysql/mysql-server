@@ -976,7 +976,6 @@ args: -n Bug44065
 #cmd: testNdbApi
 #args: -n Bug44065_org
 #
-
 max-time: 1000
 cmd: testNdbApi
 args: -n RecordSpecificationBackwardCompatibility
