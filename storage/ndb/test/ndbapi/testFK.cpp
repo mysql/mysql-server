@@ -1031,7 +1031,7 @@ runRSSsnapshotCheck(NDBT_Context* ctx, NDBT_Step* step)
  * complete phase is done before we proceed with checking for memory leaks.
  */
 
-#include "../../src/ndbapi/Ndb_internal.hpp"
+#include "../../src/ndbapi/ndb_internal.hpp"
 
 int
 runTransSnapshot(NDBT_Context* ctx, NDBT_Step* step)
