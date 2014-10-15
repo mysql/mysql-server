@@ -188,6 +188,8 @@ call p_install();;
 connection con1;
 COUNT(*)
 #
+Warnings:
+#	1287	'@@global.sql_log_bin' is deprecated and will be removed in a future release. Please use the constant 1 (since @@global.sql_log_bin is always equal to 1) instead
 SET DEBUG_SYNC='RESET';
 connection default;
 ERROR HY000: Can't open shared library
@@ -211,6 +213,7 @@ COUNT(*)
 #
 Warnings:
 #	1639	debug sync point wait timed out
+#	1287	'@@global.sql_log_bin' is deprecated and will be removed in a future release. Please use the constant 1 (since @@global.sql_log_bin is always equal to 1) instead
 disconnect con2;
 # Case 18008907_3: Testing Concurrent "Show Variables" and "Plugin Uninstall" operations.
 INSTALL PLUGIN example SONAME 'ha_example.so';
@@ -225,6 +228,8 @@ SET DEBUG_SYNC='now SIGNAL go';
 connection con1;
 COUNT(*)
 #
+Warnings:
+#	1287	'@@global.sql_log_bin' is deprecated and will be removed in a future release. Please use the constant 1 (since @@global.sql_log_bin is always equal to 1) instead
 connection con2;
 connection default;
 DROP PROCEDURE p_show_vars;

@@ -437,9 +437,8 @@ sync_array_wait_event(
 
 	if (sync_array_detect_deadlock(arr, cell, cell, 0)) {
 
-		ib_logf(IB_LOG_LEVEL_FATAL,
-                        "########################################\n"
-                        "Deadlock Detected!");
+		ib::fatal() << "########################################"
+                        " Deadlock Detected!";
 	}
 
 	rw_lock_debug_mutex_exit();
@@ -701,13 +700,10 @@ sync_array_detect_deadlock(
 					released. */
 					name = "NULL";
 				}
-				ib_logf(IB_LOG_LEVEL_INFO,
-					"Mutex %p owned by thread"
-					" %lu file %s line %lu",
-					mutex,
-					(ulong) os_thread_pf(thread),
-					name,
-					(ulong) policy.m_line);
+				ib::info() << "Mutex " << mutex << " owned by"
+					" thread " << os_thread_pf(thread)
+					<< " file " << name << " line "
+					<< policy.m_line;
 
 				sync_array_cell_print(stderr, cell);
 
@@ -1023,8 +1019,7 @@ sync_array_print_long_waits_low(
 		double	diff = difftime(time(NULL), cell->reservation_time);
 
 		if (diff > SYNC_ARRAY_TIMEOUT) {
-			ib_logf(IB_LOG_LEVEL_WARN,
-				"A long semaphore wait:");
+			ib::warn() << "A long semaphore wait:";
 			sync_array_cell_print(stderr, cell);
 			*noticed = TRUE;
 		}

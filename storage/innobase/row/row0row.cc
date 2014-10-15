@@ -78,7 +78,7 @@ row_build_index_entry_low(
 	entry_len = dict_index_get_n_fields(index);
 	entry = dtuple_create(heap, entry_len);
 
-	if (dict_index_is_univ(index)) {
+	if (dict_index_is_ibuf(index)) {
 		dtuple_set_n_fields_cmp(entry, entry_len);
 		/* There may only be externally stored columns
 		in a clustered index B-tree of a user table. */
@@ -725,23 +725,10 @@ row_build_row_ref_in_tuple(
 	ut_a(index);
 	ut_a(rec);
 	ut_ad(!dict_index_is_clust(index));
-
-	if (UNIV_UNLIKELY(!index->table)) {
-		fputs("InnoDB: table ", stderr);
-notfound:
-		ut_print_name(stderr, trx, TRUE, index->table_name);
-		fputs(" for index ", stderr);
-		ut_print_name(stderr, trx, FALSE, index->name);
-		fputs(" not found\n", stderr);
-		ut_error;
-	}
+	ut_a(index->table);
 
 	clust_index = dict_table_get_first_index(index->table);
-
-	if (UNIV_UNLIKELY(!clust_index)) {
-		fputs("InnoDB: clust index for table ", stderr);
-		goto notfound;
-	}
+	ut_ad(clust_index);
 
 	if (!offsets) {
 		offsets = rec_get_offsets(rec, index, offsets_,

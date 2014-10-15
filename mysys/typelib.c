@@ -193,7 +193,7 @@ my_ulonglong find_typeset(char *x, TYPELIB *lib, int *err)
       x++;
     if ((find= find_type(i, lib, FIND_TYPE_COMMA_TERM) - 1) < 0)
       DBUG_RETURN(0);
-    result|= (ULL(1) << find);
+    result|= (1ULL << find);
   }
   *err= 0;
   DBUG_RETURN(result);

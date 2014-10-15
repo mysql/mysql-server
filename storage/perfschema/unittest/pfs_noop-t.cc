@@ -85,7 +85,7 @@ void test_noop()
   PSI_server->unbind_table(NULL);
   table= PSI_server->rebind_table(NULL, NULL, NULL);
   ok(table == NULL, "no table");
-  PSI_server->close_table(NULL);
+  PSI_server->close_table(NULL, NULL);
   PSI_server->create_file(1, NULL, 2);
   /* TODO: spawn thread */
   thread= PSI_server->new_thread(1, NULL, 2);

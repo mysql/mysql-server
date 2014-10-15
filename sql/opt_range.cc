@@ -6998,7 +6998,7 @@ static bool save_value_and_handle_conversion(SEL_ARG **tree,
         value to store was higher than field::max_value if
            a) field has a value greater than 0, or
            b) if field is unsigned and has a negative value (which, when
-              cast to unsigned, means some value higher than LONGLONG_MAX).
+              cast to unsigned, means some value higher than LLONG_MAX).
       */
       if ((field->val_int() > 0) ||                              // a)
           (static_cast<Field_num*>(field)->unsigned_flag &&

@@ -148,7 +148,7 @@ do {								\
 	(fts_table)->suffix = m_suffix;				\
         (fts_table)->type = m_type;				\
         (fts_table)->table_id = m_table->id;			\
-        (fts_table)->parent = m_table->name;			\
+        (fts_table)->parent = m_table->name.m_name;		\
         (fts_table)->table = m_table;				\
 } while (0);
 
@@ -157,7 +157,7 @@ do {								\
 	(fts_table)->suffix = m_suffix;				\
         (fts_table)->type = m_type;				\
         (fts_table)->table_id = m_index->table->id;		\
-        (fts_table)->parent = m_index->table->name;		\
+        (fts_table)->parent = m_index->table->name.m_name;	\
         (fts_table)->table = m_index->table;			\
         (fts_table)->index_id = m_index->id;			\
 } while (0);

@@ -53,8 +53,8 @@ struct _ft_vft_ext
 };
 
 /* Flags for extended FT API */
-#define FTS_ORDERED_RESULT                (LL(1) << 1)
-#define FTS_DOCID_IN_RESULT               (LL(1) << 2)
+#define FTS_ORDERED_RESULT                (1LL << 1)
+#define FTS_DOCID_IN_RESULT               (1LL << 2)
 
 #define FTS_DOC_ID_COL_NAME "FTS_DOC_ID"
 

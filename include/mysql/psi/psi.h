@@ -1523,7 +1523,8 @@ typedef PSI_table* (*rebind_table_v1_t)
   Note that the table handle is invalid after this call.
   @param table the table handle to close
 */
-typedef void (*close_table_v1_t)(struct PSI_table *table);
+typedef void (*close_table_v1_t)(struct TABLE_SHARE *server_share,
+                                 struct PSI_table *table);
 
 /**
   Create a file instrumentation for a created file.

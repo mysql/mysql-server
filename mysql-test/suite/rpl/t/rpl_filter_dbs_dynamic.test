@@ -14,6 +14,11 @@ CHANGE REPLICATION FILTER replicate_ignore_db=(db2);
 
 connection slave;
 source include/stop_slave.inc;
+#Bug19711674: Set the values to empty initially
+CHANGE REPLICATION FILTER replicate_do_db=();
+CHANGE REPLICATION FILTER replicate_ignore_db=();
+# End of Bug#19711674 test
+
 CHANGE REPLICATION FILTER replicate_do_db=(db1);
 CHANGE REPLICATION FILTER replicate_ignore_db=(db2);
 source include/start_slave.inc;

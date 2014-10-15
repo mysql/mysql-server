@@ -2292,7 +2292,7 @@ static int check_func_int(THD *thd, st_mysql_sys_var *var,
   else
   {
     if ((fixed1= (value->is_unsigned(value) && val < 0)))
-      val=LONGLONG_MAX;
+      val=LLONG_MAX;
     *(int *)save= (int) getopt_ll_limit_value(val, &options, &fixed2);
   }
 
@@ -2321,7 +2321,7 @@ static int check_func_long(THD *thd, st_mysql_sys_var *var,
   else
   {
     if ((fixed1= (value->is_unsigned(value) && val < 0)))
-      val=LONGLONG_MAX;
+      val=LLONG_MAX;
     *(long *)save= (long) getopt_ll_limit_value(val, &options, &fixed2);
   }
 
@@ -2350,7 +2350,7 @@ static int check_func_longlong(THD *thd, st_mysql_sys_var *var,
   else
   {
     if ((fixed1= (value->is_unsigned(value) && val < 0)))
-      val=LONGLONG_MAX;
+      val=LLONG_MAX;
     *(longlong *)save= getopt_ll_limit_value(val, &options, &fixed2);
   }
 

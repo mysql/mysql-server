@@ -635,6 +635,7 @@ EOF
 --echo # Import should succeed
 ALTER TABLE t1 IMPORT TABLESPACE;
 --echo # Try to import twice
+--replace_regex  /#p#/#P#/  /#sp#/#SP#/
 --error ER_TABLESPACE_EXISTS
 ALTER TABLE t1 IMPORT TABLESPACE;
 SELECT * FROM t1 ORDER BY i;
@@ -1152,9 +1153,12 @@ DROP VIEW VW1;
 DROP TABLE t1;
 DROP TABLE trigger_table;
 
+--disable_query_log
 call mtr.add_suppression("Got error -1 when reading table '.*'");
 call mtr.add_suppression("InnoDB: Error: tablespace id and flags in file '.*'.*");
 call mtr.add_suppression("InnoDB: The table .* doesn't have a corresponding tablespace, it was discarded");
+call mtr.add_suppression("InnoDB: Unable to import tablespace .* because it already exists.  Please DISCARD the tablespace before IMPORT.");
+--enable_query_log
 
 --remove_files_wildcard $MYSQLTEST_VARDIR/tmp t1*.ibd
 --remove_files_wildcard $MYSQLTEST_VARDIR/tmp t1*.cfg

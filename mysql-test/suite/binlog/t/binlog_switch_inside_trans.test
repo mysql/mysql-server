@@ -11,7 +11,6 @@ source include/have_binlog_format_row.inc;
 
 set @save_binlog_format= @@global.binlog_format;
 set @save_binlog_dirct= @@global.binlog_direct_non_transactional_updates;
-set @save_sql_log_bin= @@global.sql_log_bin;
 create table t1 (a int) engine= myisam;
 create table t2 (a int) engine= innodb;
 
@@ -118,21 +117,18 @@ commit;
 begin;
   insert into t2 values (5);
 --echo # Test that the global variable 'binlog_format' and
---echo # 'binlog_direct_non_transactional_updates' and 'sql_log_bin' are
+--echo # 'binlog_direct_non_transactional_updates' are
 --echo # writable inside a transaction.
 --echo # Current session values are ROW, FALSE, TRUE respectively.
   SELECT @@global.binlog_format;
   set @@global.binlog_format= statement;
   set @@global.binlog_direct_non_transactional_updates= TRUE;
-  set @@global.sql_log_bin= FALSE;
   SELECT @@global.binlog_format;
   SELECT @@global.binlog_direct_non_transactional_updates;
-  SELECT @@global.sql_log_bin;
 commit;
 
 set @@global.binlog_format= @save_binlog_format;
 set @@global.binlog_direct_non_transactional_updates= @save_binlog_dirct;
-set @@global.sql_log_bin= @save_sql_log_bin;
 
 create table t3(a int, b int) engine= innodb;
 create table t4(a int) engine= innodb;

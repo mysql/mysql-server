@@ -6764,10 +6764,10 @@ ER_IO_WRITE_ERROR
   eng "IO Write error: (%lu, %s) %s"
 
 ER_TABLESPACE_MISSING
-  eng "Tablespace is missing for table '%-.192s'"
+  eng "Tablespace '%-.192s' is missing"
 
 ER_TABLESPACE_EXISTS
-  eng "Tablespace for table '%-.192s' exists. Please DISCARD the tablespace before IMPORT."
+  eng "Tablespace '%-.192s' exists."
 
 ER_TABLESPACE_DISCARDED
   eng "Tablespace has been discarded for table '%-.192s'"
@@ -6776,7 +6776,7 @@ ER_INTERNAL_ERROR
   eng "Internal error: %s"
 
 ER_INNODB_IMPORT_ERROR
-  eng "ALTER TABLE '%-.192s' IMPORT TABLESPACE failed with error %lu : '%s'"
+  eng "ALTER TABLE %-.192s IMPORT TABLESPACE failed with error %lu : '%s'"
 
 ER_INNODB_INDEX_CORRUPT
   eng "Index corrupt: %s"
@@ -7097,7 +7097,7 @@ ER_NON_RO_SELECT_DISABLE_TIMER
   eng "Select is not a read only statement, disabling timer"
 
 ER_DUP_LIST_ENTRY
-        eng "Duplicate entry '%-.192s'."
+  eng "Duplicate entry '%-.192s'."
 
 ER_SQL_MODE_NO_EFFECT
   eng "'%s' mode no longer has any effect. Use STRICT_ALL_TABLES or STRICT_TRANS_TABLES instead."

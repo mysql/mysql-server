@@ -30,6 +30,16 @@ Created June 2005 by Marko Makela
 # include "page0zip.ic"
 #endif
 
+/** A BLOB field reference full of zero, for use in assertions and tests.
+Initially, BLOB field references are set to zero, in
+dtuple_convert_big_rec(). */
+const byte field_ref_zero[FIELD_REF_SIZE] = {
+        0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0,
+};
+
 #ifndef UNIV_INNOCHECKSUM
 #include "page0page.h"
 #include "mtr0log.h"
@@ -1284,12 +1294,13 @@ page_zip_compress(
 	n_dense = page_dir_get_n_heap(page) - PAGE_HEAP_NO_USER_LOW;
 #ifdef PAGE_ZIP_COMPRESS_DBG
 	if (UNIV_UNLIKELY(page_zip_compress_dbg)) {
-		ib_logf(IB_LOG_LEVEL_INFO, "compress %p %p %lu %lu %lu",
-			(void*) page_zip, (void*) page,
-			(ibool) page_is_leaf(page),
-			n_fields, n_dense);
-
+		ib::info() << "compress "
+			<< static_cast<void*>(page_zip) << " "
+			<< static_cast<const void*>(page) << " "
+			<< page_is_leaf(page) << " "
+			<< n_fields << " " << n_dense;
 	}
+
 	if (UNIV_UNLIKELY(page_zip_compress_log)) {
 		/* Create a log file for every compression attempt. */
 		char	logfilename[9];
@@ -4926,8 +4937,11 @@ page_zip_verify_checksum(
 	stored = static_cast<ib_uint32_t>(mach_read_from_4(
 		static_cast<const unsigned char*>(data) + FIL_PAGE_SPACE_OR_CHKSUM));
 
-	/* declare empty pages non-corrupted */
-	if (stored == 0) {
+
+	/* Check if page is empty */
+	if (stored == 0
+	    && !memcmp(static_cast<const char*>(data) + FIL_PAGE_LSN,
+		       field_ref_zero, 8)) {
 		/* make sure that the page is really empty */
 #ifdef UNIV_INNOCHECKSUM
 		ulint i;
@@ -4949,7 +4963,7 @@ page_zip_verify_checksum(
 				return(FALSE);
 			}
 		}
-
+		/* Empty page */
 		return(TRUE);
 #endif /* UNIV_INNOCHECKSUM */
 	}

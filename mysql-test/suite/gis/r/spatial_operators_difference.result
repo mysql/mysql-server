@@ -450,7 +450,7 @@ AsText(ST_Difference(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_
 MULTILINESTRING((0 5,15 25,0 25))
 SELECT AsText(ST_Difference(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_elem_horizontal)));
 AsText(ST_Difference(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_elem_horizontal)))
-MULTILINESTRING((0 5,5.172413793103448 11.896551724137932),(7.5 15,15 25,0 25))
+MULTILINESTRING((0 5,5.172413793103448 11.89655172413793),(7.5 15,15 25,0 25))
 SELECT AsText(ST_Difference(g,GeomFromText(@star_elem_vertical))) FROM gis_geometrycollection WHERE fid=114;
 AsText(ST_Difference(g,GeomFromText(@star_elem_vertical)))
 MULTILINESTRING((0 5,15 25,0 25))
@@ -460,10 +460,10 @@ AsText(ST_Difference(GeomFromText('MULTILINESTRING((0 25,25 0,25 30))'),GeomFrom
 MULTILINESTRING((0 25,10.714285714285714 14.285714285714286),(25 0,25 30))
 SELECT AsText(ST_Difference(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_of_elems)));
 AsText(ST_Difference(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_of_elems)))
-MULTILINESTRING((0 5,5.172413793103448 11.896551724137932),(7.5 15,15 25,0 25))
+MULTILINESTRING((0 5,5.172413793103448 11.89655172413793),(7.5 15,15 25,0 25))
 SELECT AsText(ST_Difference(g,GeomFromText(@star_of_elems))) FROM gis_geometrycollection WHERE fid=114;
 AsText(ST_Difference(g,GeomFromText(@star_of_elems)))
-MULTILINESTRING((0 5,5.172413793103448 11.896551724137932),(7.5 15,15 25,0 25))
+MULTILINESTRING((0 5,5.172413793103448 11.89655172413793),(7.5 15,15 25,0 25))
 #multilinestring,geometrycollection
 SELECT AsText(ST_Difference(GeomFromText('MULTILINESTRING((0 25,25 0,25 30))'),GeomFromText(@star_collection_elems)));
 AsText(ST_Difference(GeomFromText('MULTILINESTRING((0 25,25 0,25 30))'),GeomFromText(@star_collection_elems)))
@@ -692,7 +692,7 @@ AsText(ST_Difference(GeomFromText(@star_collection_elems),GeomFromText(@star)))
 GEOMETRYCOLLECTION()
 SELECT AsText(ST_Difference(GeomFromText(@star_collection_elems),GeomFromText('POLYGON((0 0,15 25,35 0,0 0))')));
 AsText(ST_Difference(GeomFromText(@star_collection_elems),GeomFromText('POLYGON((0 0,15 25,35 0,0 0))')))
-GEOMETRYCOLLECTION(MULTIPOLYGON(((23 15,25.333333333333336 12.083333333333334,30 15,23 15)),((6.617647058823529 11.029411764705882,9 15,0 15,6.617647058823529 11.029411764705882))),MULTIPOLYGON(((6.3 10.5,9 15,0 15,6.3 10.5)),((23 15,25.333333333333332 12.083333333333332,30 15,23 15))))
+GEOMETRYCOLLECTION(MULTIPOLYGON(((23 15,25.333333333333336 12.083333333333334,30 15,23 15)),((6.617647058823529 11.029411764705882,9 15,0 15,6.617647058823529 11.029411764705882))),MULTIPOLYGON(((6.3 10.5,9 15,0 15,6.3 10.5)),((23 15,25.333333333333336 12.083333333333334,30 15,23 15))))
 SELECT AsText(ST_Difference(g,GeomFromText(@star_elem_vertical))) FROM gis_geometrycollection WHERE fid=115;
 AsText(ST_Difference(g,GeomFromText(@star_elem_vertical)))
 GEOMETRYCOLLECTION(MULTIPOLYGON(((25 0,22 10,30 15,19 15,25 0)),((8.870967741935484 9.67741935483871,11 15,0 15,8.870967741935484 9.67741935483871))),MULTIPOLYGON(((15 25,25 0,22 10,30 15,20 15,15 25)),((15 25,10 15,0 15,7 10,5 0,15 25))))

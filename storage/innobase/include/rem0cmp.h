@@ -88,13 +88,10 @@ cmp_dfield_dfield(
 int
 cmp_dtuple_rec_with_gis(
 /*====================*/
-	const dtuple_t*	dtuple,	/*!< in: data tuple */
-	const rec_t*	rec,	/*!< in: physical record which differs from
-				dtuple in some of the common fields, or which
-				has an equal number or more fields than
-				dtuple */
-	const ulint*	offsets,/*!< in: array returned by rec_get_offsets() */
-	ulint		mode)	/*!< in: number of fields to compare */
+	const dtuple_t*	dtuple,
+	const rec_t*	rec,
+	const ulint*	offsets,
+	page_cur_mode_t	mode)
 	__attribute__((nonnull));
 /** Compare a data tuple to a physical record.
 @param[in] dtuple data tuple

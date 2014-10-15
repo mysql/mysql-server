@@ -1,0 +1,95 @@
+#
+# The purpose of this test is to demonstrate the capabilities of the
+# Replication Observers example plugin and to assess its correct functionality
+#
+# The plugin is only loaded on slave server to capture relay log notifications.
+#
+# Since one wants to test only the hook execution in place, a test
+# plugin was created to serve those needs. The plugin will print once
+# if the hook method is executed and the test will verify if the hook
+# was called.
+#
+# This test will use the hooks related with Event control and SQL/IO
+# thread handling.
+# - after_reset_slave: Called after a RESET SLAVE is invoked
+# - thread_start: Called when the IO Thread starts
+# - before_request_transmit: Called before the slave requests the events
+#                            from a master.
+# - after_read_event: Called after an event is received.
+# - after_queue_event: Called after an event is queued.
+# - consumer_thread_stop: Called after the SQL Thread is stopped
+# - thread_stop: Called after the IO Thread is stopped.
+#
+
+--source include/not_embedded.inc
+--source include/not_windows.inc
+--source include/have_binlog_format_mixed.inc
+--source include/have_replication_observers_example_plugin.inc
+--source include/master-slave.inc
+
+--connection slave
+--echo #
+--echo # Stop slave and install plugin.
+--echo #
+--source include/stop_slave.inc
+--eval INSTALL PLUGIN replication_observers_example SONAME '$RPL_OBS_EXAMPLE'
+
+--echo #
+--echo # Cause a reset slave notification.
+--echo #
+RESET SLAVE;
+
+--echo #
+--echo # Cause a connect notification.
+--echo #
+--source include/start_slave.inc
+
+--echo #
+--echo # Execute some transactions on master to cause the other notifications.
+--echo #
+--connection master
+
+CREATE TABLE t1 (c1 INT) Engine=InnoDB;
+INSERT t1 VALUES(1);
+DROP TABLE t1;
+--source include/sync_slave_sql_with_master.inc
+
+--echo #
+--echo # Stop slave and uninstall plugin.
+--echo #
+--source include/stop_slave.inc
+UNINSTALL PLUGIN replication_observers_example;
+
+--echo #
+--echo # Verify that all relay hooks were called.
+--echo #
+--let GREP_FILE=$MYSQLTEST_VARDIR/log/mysqld.2.err
+--let GREP_PATTERN=replication_observers_example_plugin:binlog_relay_after_reset_slave
+--source extra/rpl_tests/grep_pattern.inc
+
+--let GREP_FILE=$MYSQLTEST_VARDIR/log/mysqld.2.err
+--let GREP_PATTERN=replication_observers_example_plugin:binlog_relay_thread_start
+--source extra/rpl_tests/grep_pattern.inc
+
+--let GREP_FILE=$MYSQLTEST_VARDIR/log/mysqld.2.err
+--let GREP_PATTERN=replication_observers_example_plugin:binlog_relay_before_request_transmit
+--source extra/rpl_tests/grep_pattern.inc
+
+--let GREP_FILE=$MYSQLTEST_VARDIR/log/mysqld.2.err
+--let GREP_PATTERN=replication_observers_example_plugin:binlog_relay_after_read_event
+--source extra/rpl_tests/grep_pattern.inc
+
+--let GREP_FILE=$MYSQLTEST_VARDIR/log/mysqld.2.err
+--let GREP_PATTERN=replication_observers_example_plugin:binlog_relay_after_queue_event
+--source extra/rpl_tests/grep_pattern.inc
+
+--let GREP_FILE=$MYSQLTEST_VARDIR/log/mysqld.2.err
+--let GREP_PATTERN=replication_observers_example_plugin:binlog_relay_consumer_thread_stop
+--source extra/rpl_tests/grep_pattern.inc
+
+--let GREP_FILE=$MYSQLTEST_VARDIR/log/mysqld.2.err
+--let GREP_PATTERN=replication_observers_example_plugin:binlog_relay_thread_stop
+--source extra/rpl_tests/grep_pattern.inc
+
+--let $rpl_only_running_threads= 1
+--source include/rpl_end.inc

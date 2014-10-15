@@ -306,7 +306,7 @@ field_store_index_name(
 
 	/* Since TEMP_INDEX_PREFIX is not a valid UTF8, we need to convert
 	it to something else. */
-	if (index_name[0] == TEMP_INDEX_PREFIX) {
+	if (*index_name == *TEMP_INDEX_PREFIX_STR) {
 		char	buf[NAME_LEN + 1];
 		buf[0] = '?';
 		memcpy(buf + 1, index_name + 1, strlen(index_name));
@@ -965,7 +965,7 @@ fill_innodb_locks_from_cache(
 		bufend = innobase_convert_name(buf, sizeof(buf),
 					       row->lock_table,
 					       strlen(row->lock_table),
-					       thd, TRUE);
+					       thd);
 		OK(fields[IDX_LOCK_TABLE]->store(
 			buf, static_cast<uint>(bufend - buf),
 			system_charset_info));
@@ -4268,7 +4268,7 @@ innodb_temp_table_populate_cache(
 	char	db_utf8[MAX_DB_UTF8_LEN];
 	char	table_utf8[MAX_TABLE_UTF8_LEN];
 
-	dict_fs2utf8(table->name,
+	dict_fs2utf8(table->name.m_name,
 		     db_utf8, sizeof(db_utf8),
 		     table_utf8, sizeof(table_utf8));
 	strcpy(cache->m_table_name, table_utf8);
@@ -5256,7 +5256,7 @@ i_s_innodb_buffer_page_fill(
 					table_name, sizeof(table_name),
 					index->table_name,
 					strlen(index->table_name),
-					thd, TRUE);
+					thd);
 
 				OK(fields[IDX_BUFFER_PAGE_TABLE_NAME]->store(
 					table_name,
@@ -5978,7 +5978,7 @@ i_s_innodb_buf_page_lru_fill(
 					table_name, sizeof(table_name),
 					index->table_name,
 					strlen(index->table_name),
-					thd, TRUE);
+					thd);
 
 				OK(fields[IDX_BUF_LRU_PAGE_TABLE_NAME]->store(
 					table_name,
@@ -6380,7 +6380,7 @@ i_s_dict_fill_sys_tables(
 
 	OK(fields[SYS_TABLES_ID]->store(longlong(table->id), TRUE));
 
-	OK(field_store_string(fields[SYS_TABLES_NAME], table->name));
+	OK(field_store_string(fields[SYS_TABLES_NAME], table->name.m_name));
 
 	OK(fields[SYS_TABLES_FLAG]->store(table->flags));
 
@@ -6657,7 +6657,8 @@ i_s_dict_fill_sys_tablestats(
 
 	OK(fields[SYS_TABLESTATS_ID]->store(longlong(table->id), TRUE));
 
-	OK(field_store_string(fields[SYS_TABLESTATS_NAME], table->name));
+	OK(field_store_string(fields[SYS_TABLESTATS_NAME],
+			      table->name.m_name));
 
 	dict_table_stats_lock(table, RW_S_LATCH);
 

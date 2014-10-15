@@ -555,7 +555,7 @@ bool File_query_log::open()
   if ((file= mysql_file_open(m_log_file_key,
                              log_file_name,
                              O_CREAT | O_BINARY | O_WRONLY | O_APPEND,
-                             MYF(MY_WME | ME_WAITTANG))) < 0)
+                             MYF(MY_WME))) < 0)
     goto err;
 
   if ((pos= mysql_file_tell(file, MYF(MY_WME))) == MY_FILEPOS_ERROR)
@@ -1246,7 +1246,7 @@ bool Query_logger::slow_log_write(THD *thd, const char *query,
   char user_host_buff[MAX_USER_HOST_SIZE + 1];
   Security_context *sctx= thd->security_ctx;
   size_t user_host_len= (strxnmov(user_host_buff, MAX_USER_HOST_SIZE,
-                                  sctx->priv_user ? sctx->priv_user : "", "[",
+                                  sctx->priv_user, "[",
                                   sctx->user ? sctx->user : "", "] @ ",
                                   sctx->get_host()->length() ?
                                   sctx->get_host()->ptr() : "", " [",

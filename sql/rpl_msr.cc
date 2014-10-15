@@ -66,7 +66,6 @@ bool Multisource_info::delete_mi(const char* channel_name)
   DBUG_ENTER("Multisource_info::delete_mi");
 
   Master_info *mi= 0;
-  int index= -1;
   mi_map::iterator it;
 
   DBUG_ASSERT(channel_name != 0);
@@ -77,6 +76,7 @@ bool Multisource_info::delete_mi(const char* channel_name)
     DBUG_RETURN(true);
 
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
+  int index= -1;
   /* get the index of mi from rpl_pfs_mi */
   index= get_index_from_rpl_pfs_mi(channel_name);
 
@@ -122,7 +122,7 @@ Multisource_info::get_channel_with_host_port(char *host, uint port)
   {
     mi= it->second;
 
-    if (mi && mi->host && !strcmp(host, mi->host) && port == mi->port)
+    if (mi && !strcmp(host, mi->host) && port == mi->port)
       DBUG_RETURN((const char*)mi->get_channel());
   }
   DBUG_RETURN(0);

@@ -221,7 +221,7 @@ inline enum_return_status map_macro_enum(int status)
 
 
 /// The maximum value of GNO
-const rpl_gno MAX_GNO= LONGLONG_MAX;
+const rpl_gno MAX_GNO= LLONG_MAX;
 /// The length of MAX_GNO when printed in decimal.
 const int MAX_GNO_TEXT_LENGTH= 19;
 /// The maximal possible length of thread_id when printed in decimal.

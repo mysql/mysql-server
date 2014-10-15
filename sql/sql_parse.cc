@@ -1569,7 +1569,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     if (!(uptime= (ulong) (thd->start_time.tv_sec - server_start_time)))
       queries_per_second1000= 0;
     else
-      queries_per_second1000= thd->query_id * LL(1000) / uptime;
+      queries_per_second1000= thd->query_id * 1000LL / uptime;
 
     length= my_snprintf(buff, buff_len - 1,
                         "Uptime: %lu  Threads: %d  Questions: %lu  "
@@ -2924,7 +2924,7 @@ case SQLCOM_PREPARE:
            ON then send session state notification in OK packet */
         if(create_info.options & HA_LEX_CREATE_TMP_TABLE &&
            thd->session_tracker.get_tracker(SESSION_STATE_CHANGE_TRACKER)->is_enabled())
-          thd->session_tracker.get_tracker(SESSION_STATE_CHANGE_TRACKER)->mark_as_changed(NULL);
+          thd->session_tracker.get_tracker(SESSION_STATE_CHANGE_TRACKER)->mark_as_changed(thd, NULL);
         my_ok(thd);
       }
     }
@@ -3561,7 +3561,7 @@ end_with_restore_list:
     if(!res && lex->drop_temporary)
     {
       if (thd->session_tracker.get_tracker(SESSION_STATE_CHANGE_TRACKER)->is_enabled())
-        thd->session_tracker.get_tracker(SESSION_STATE_CHANGE_TRACKER)->mark_as_changed(NULL);
+        thd->session_tracker.get_tracker(SESSION_STATE_CHANGE_TRACKER)->mark_as_changed(thd, NULL);
     }
   }
   break;
@@ -4199,8 +4199,7 @@ end_with_restore_list:
     LEX_USER *grant_user= get_current_user(thd, lex->grant_user);
     if (!grant_user)
       goto error;
-    if ((thd->security_ctx->priv_user &&
-	 !strcmp(thd->security_ctx->priv_user, grant_user->user.str)) ||
+    if (!strcmp(thd->security_ctx->priv_user, grant_user->user.str) ||
         !check_access(thd, SELECT_ACL, "mysql", NULL, NULL, 1, 0))
     {
       res = mysql_show_grants(thd, grant_user);

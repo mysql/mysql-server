@@ -1,4 +1,3 @@
-call mtr.add_suppression('\\[ERROR\\] InnoDB: Table "mysql"."innodb_(table|index)_stats" not found');
 CREATE TABLE t(a INT)ENGINE=InnoDB STATS_PERSISTENT=0;
 RENAME TABLE t TO u;
 DROP TABLE u;

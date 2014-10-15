@@ -630,7 +630,7 @@ buf_page_is_corrupted(
 
 	/* declare empty pages non-corrupted */
 	if (checksum_field1 == 0 && checksum_field2 == 0
-	    && mach_read_from_4(read_buf + FIL_PAGE_LSN) == 0) {
+	    && !memcmp(read_buf + FIL_PAGE_LSN, field_ref_zero, 8)) {
 		/* make sure that the page is really empty */
 
 #ifdef UNIV_INNOCHECKSUM
@@ -4831,8 +4831,6 @@ and the lock released later.
 @param[in]	mode			BUF_READ_IBUF_PAGES_ONLY, ...
 @param[in]	page_id			page id
 @param[in]	unzip			TRUE=request uncompressed page
-@param[in]	tablespace_version	prevents reading from a wrong version
-of the tablespace in case we have done DISCARD + IMPORT
 @return pointer to the block or NULL */
 buf_page_t*
 buf_page_init_for_read(
@@ -4840,8 +4838,7 @@ buf_page_init_for_read(
 	ulint			mode,
 	const page_id_t&	page_id,
 	const page_size_t&	page_size,
-	ibool			unzip,
-	int64_t			tablespace_version)
+	ibool			unzip)
 {
 	buf_block_t*	block;
 	buf_page_t*	bpage	= NULL;
@@ -4891,7 +4888,6 @@ buf_page_init_for_read(
 	if (watch_page && !buf_pool_watch_is_sentinel(buf_pool, watch_page)) {
 		/* The page is already in the buffer pool. */
 		watch_page = NULL;
-err_exit:
 		rw_lock_x_unlock(hash_lock);
 		if (block) {
 			buf_page_mutex_enter(block);
@@ -4901,15 +4897,6 @@ err_exit:
 
 		bpage = NULL;
 		goto func_exit;
-	}
-
-	if (fil_tablespace_deleted_or_being_deleted_in_mem(
-		    page_id.space(), tablespace_version)) {
-		/* The page belongs to a space which has been
-		deleted or is being deleted. */
-		*err = DB_TABLESPACE_DELETED;
-
-		goto err_exit;
 	}
 
 	if (block) {
@@ -6056,10 +6043,8 @@ buf_print_instance(
 		} else {
 			ib::info() << "Block count for index " << index_ids[i]
 				<< " in buffer is about " << counts[i]
-				<< ", index "
-				<< ut_get_name(NULL, FALSE, index->name)
-				<< " of table "
-				<< ut_get_name(NULL, TRUE, index->table_name);
+				<< ", index " << index->name
+				<< " of table " << index->table->name;
 		}
 	}
 

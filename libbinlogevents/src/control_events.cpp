@@ -268,11 +268,17 @@ bool Format_description_event::is_version_before_checksum() const
 }
 
 
-Start_event_v3::Start_event_v3(const char* buf,
+Start_event_v3::Start_event_v3(const char* buf, unsigned int event_len,
                                const Format_description_event *description_event)
   :Binary_log_event(&buf, description_event->binlog_version,
-   description_event->server_version)
+   description_event->server_version), binlog_version(BINLOG_VERSION)
 {
+  if (event_len < (unsigned int)description_event->common_header_len +
+      ST_COMMON_HEADER_LEN_OFFSET)
+  {
+    server_version[0]= 0;
+    return;
+  }
   //buf is advanced in Binary_log_event constructor to point to
   //beginning of post-header
   memcpy(&binlog_version, buf + ST_BINLOG_VER_OFFSET, 2);
@@ -308,8 +314,16 @@ Start_event_v3::Start_event_v3(const char* buf,
 Format_description_event::
 Format_description_event(const char* buf, unsigned int event_len,
                          const Format_description_event* description_event)
- :Start_event_v3(buf, description_event), event_type_permutation(0)
+ : Start_event_v3(buf, event_len, description_event), common_header_len(0),
+   event_type_permutation(0)
 {
+  /*
+   This is equivalent to (!Start_log_event_v3::is_valid()) in server,
+   we dont have access to is_valid method here as it is defined in Log_event class
+   in mysql-server code.
+  */
+  if (!(server_version[0] != 0))
+    return; /* Sanity Check*/
   unsigned long ver_calc;
   buf+= LOG_EVENT_MINIMAL_HEADER_LEN;
   if ((common_header_len= buf[ST_COMMON_HEADER_LEN_OFFSET]) < OLD_HEADER_LEN)
