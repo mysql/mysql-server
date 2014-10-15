@@ -483,9 +483,11 @@ get_ndb_blobs_value(TABLE* table, NdbValue* value_array,
 
 /*
   called in mysql_show_binlog_events and reset_logs to make sure we wait for
-  all events originating from this mysql server to arrive in the binlog
+  all events originating from the 'thd' to arrive in the binlog.
 
-  Wait for the last epoch in which the last transaction is a part of.
+  'thd' is expected to be non-NULL.
+
+  Wait for the epoch in which the last transaction of the 'thd' is a part of.
 
   Wait a maximum of 30 seconds.
 */
@@ -494,31 +496,47 @@ static void ndbcluster_binlog_wait(THD *thd)
   if (ndb_binlog_running)
   {
     DBUG_ENTER("ndbcluster_binlog_wait");
-    ulonglong wait_epoch= ndb_get_latest_trans_gci();
-    /*
-      cluster not connected or no transactions done
-      so nothing to wait for
-    */
-    if (!wait_epoch)
-      DBUG_VOID_RETURN;
+    DBUG_ASSERT(thd);
 
     /*
       Binlog Injector should not wait for itself
     */
-    if (thd && 
-        thd->system_thread == SYSTEM_THREAD_NDBCLUSTER_BINLOG)
+    if (thd->system_thread == SYSTEM_THREAD_NDBCLUSTER_BINLOG)
       DBUG_VOID_RETURN;
 
-    const char *save_info= thd ? thd->proc_info : 0;
-    int count= 30;
-    if (thd)
-      thd->proc_info= "Waiting for ndbcluster binlog update to "
+    Thd_ndb *thd_ndb = get_thd_ndb(thd);
+    if (!thd_ndb)
+    {
+      /*
+       thd has not interfaced with ndb before
+       so there is no need for waiting
+      */
+       DBUG_VOID_RETURN;
+    }
+
+    const char *save_info = thd->proc_info;
+    thd->proc_info = "Waiting for ndbcluster binlog update to "
 	"reach current position";
+
     const Uint64 start_handled_epoch = ndb_latest_handled_binlog_epoch;
+   /*
+     Highest epoch that a transaction against Ndb has received
+     as part of commit processing *in this thread*. This is a
+     per-session 'most recent change' indicator.
+    */
+    const Uint64 session_last_committed_epoch =
+      thd_ndb->m_last_commit_epoch_session;
+
+    /*
+     * Wait until the last committed epoch from the session enters Binlog.
+     * Break any possible deadlock after 30s.
+     */
+    int count = 30;
+
     pthread_mutex_lock(&injector_mutex);
-    while (!(thd && thd->killed) && count && ndb_binlog_running &&
+    while (!thd->killed && count && ndb_binlog_running &&
            (ndb_latest_handled_binlog_epoch == 0 ||
-            ndb_latest_handled_binlog_epoch < wait_epoch))
+            ndb_latest_handled_binlog_epoch < session_last_committed_epoch))
     {
       count--;
       struct timespec abstime;
@@ -532,16 +550,15 @@ static void ndbcluster_binlog_wait(THD *thd)
       sql_print_warning("NDB: Thread id %llu timed out (30s) waiting for epoch %u/%u "
                         "to be handled.  Progress : %u/%u -> %u/%u.",
                         (ulonglong) thd->thread_id,
-                        Uint32((wait_epoch >> 32) & 0xffffffff),
-                        Uint32(wait_epoch & 0xffffffff),
+                        Uint32((session_last_committed_epoch >> 32) & 0xffffffff),
+                        Uint32(session_last_committed_epoch & 0xffffffff),
                         Uint32((start_handled_epoch >> 32) & 0xffffffff),
                         Uint32(start_handled_epoch & 0xffffffff),
                         Uint32((ndb_latest_handled_binlog_epoch >> 32) & 0xffffffff),
                         Uint32(ndb_latest_handled_binlog_epoch & 0xffffffff));
     }
     
-    if (thd)
-      thd->proc_info= save_info;
+    thd->proc_info= save_info;
     DBUG_VOID_RETURN;
   }
 }
@@ -913,8 +930,9 @@ static void ndbcluster_reset_slave(THD *thd)
 
 /**
   Upon the sql command flush logs, we need to ensure that all outstanding
-  ndb data to be logged has made it to the binary log to get a deterministic
-  behavior on the rotation of the log.
+  changes made to ndb by the current thread have entered the binary log
+  in order to get a deterministic behavior on the rotation of the log.
+  'current_thd' should not be NULL.
  */
 static bool ndbcluster_flush_logs(handlerton *hton)
 {
