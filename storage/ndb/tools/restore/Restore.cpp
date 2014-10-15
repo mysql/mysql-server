@@ -2093,8 +2093,9 @@ operator<<(NdbOut& ndbout, const AttributeS& attr){
   tmprec.setup(desc.m_column, 0);
 
   assert(desc.size % 8 == 0);
-  Uint32 length = (desc.size)/8 * (desc.arraySize);
-
+#ifndef NDEBUG
+  const Uint32 length = (desc.size)/8 * (desc.arraySize);
+#endif
   assert((desc.m_column->getArrayType() == NdbDictionary::Column::ArrayTypeFixed)
          ? (data.size == length)
          : (data.size <= length));
