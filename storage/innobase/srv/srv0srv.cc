@@ -38,6 +38,11 @@ The database server main program
 Created 10/8/1995 Heikki Tuuri
 *******************************************************/
 
+#include "my_global.h"
+
+#include "mysql/psi/mysql_stage.h"
+#include "mysql/psi/psi.h"
+
 #include "ha_prototypes.h"
 
 #include "btr0sea.h"
@@ -564,6 +569,12 @@ static const ulint	SRV_PURGE_SLOT	= 1;
 
 /** Slot index in the srv_sys->sys_threads array for the master thread. */
 static const ulint	SRV_MASTER_SLOT = 0;
+
+#ifdef HAVE_PSI_STAGE_INTERFACE
+/** Performance schema stage event for monitoring buffer pool load progress. */
+PSI_stage_info	srv_stage_buffer_pool_load
+	= {0, "buffer pool load", PSI_FLAG_STAGE_PROGRESS};
+#endif /* HAVE_PSI_STAGE_INTERFACE */
 
 /*********************************************************************//**
 Prints counters for work done by srv_master_thread. */

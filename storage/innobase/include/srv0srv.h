@@ -41,6 +41,11 @@ Created 10/10/1995 Heikki Tuuri
 #ifndef srv0srv_h
 #define srv0srv_h
 
+#include "my_global.h"
+
+#include "mysql/psi/mysql_stage.h"
+#include "mysql/psi/psi.h"
+
 #include "univ.i"
 #ifndef UNIV_HOTBACKUP
 #include "log0log.h"
@@ -464,6 +469,11 @@ do {								\
 	PSI_THREAD_CALL(delete_current_thread)();		\
 } while (0)
 # endif /* UNIV_PFS_THREAD */
+
+#ifdef HAVE_PSI_STAGE_INTERFACE
+/** Performance schema stage event for monitoring buffer pool load progress. */
+extern PSI_stage_info	srv_stage_buffer_pool_load;
+#endif /* HAVE_PSI_STAGE_INTERFACE */
 
 #endif /* !UNIV_HOTBACKUP */
 
