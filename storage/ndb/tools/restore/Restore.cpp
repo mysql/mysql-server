@@ -2057,13 +2057,15 @@ RestoreLogIterator::getNextLogEntry(int & res) {
     attr->Desc = tab->getAttributeDesc(ah->getAttributeId());
     assert(attr->Desc != 0);
 
-    const Uint32 sz = ah->getDataSize();
+    const Uint32 sz = ah->getByteSize();
     if(sz == 0){
       attr->Data.null = true;
       attr->Data.void_value = NULL;
+      attr->Data.size = 0;
     } else {
       attr->Data.null = false;
       attr->Data.void_value = ah->getDataPtr();
+      attr->Data.size = sz;
       Twiddle(attr->Desc, &(attr->Data));
     }
     
@@ -2089,8 +2091,15 @@ operator<<(NdbOut& ndbout, const AttributeS& attr){
   
   NdbRecAttr tmprec(0);
   tmprec.setup(desc.m_column, 0);
+
+  assert(desc.size % 8 == 0);
   Uint32 length = (desc.size)/8 * (desc.arraySize);
-  tmprec.receive_data((Uint32*)data.void_value, length);
+
+  assert((desc.m_column->getArrayType() == NdbDictionary::Column::ArrayTypeFixed)
+         ? (data.size == length)
+         : (data.size <= length));
+
+  tmprec.receive_data((Uint32*)data.void_value, data.size);
 
   ndbrecattr_print_formatted(ndbout, tmprec, g_ndbrecord_print_format);
 
