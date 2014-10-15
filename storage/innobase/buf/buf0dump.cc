@@ -23,6 +23,11 @@ Implements a buffer pool dump/load.
 Created April 08, 2011 Vasil Dimov
 *******************************************************/
 
+#include "my_global.h"
+
+#include "mysql/psi/mysql_stage.h"
+#include "mysql/psi/psi.h"
+
 #include "univ.i"
 
 #include "buf0buf.h"
@@ -547,6 +552,15 @@ buf_load()
 	fil_space_t*	space = fil_space_acquire_silent(cur_space_id);
 	page_size_t	page_size(space ? space->flags : 0);
 
+#ifdef HAVE_PSI_STAGE_INTERFACE
+	PSI_stage_progress*	pfs_stage_progress
+		= MYSQL_SET_STAGE(srv_stage_buffer_pool_load.m_key,
+				  __FILE__, __LINE__);
+#endif /* HAVE_PSI_STAGE_INTERFACE */
+
+	mysql_stage_set_work_estimated(pfs_stage_progress, dump_n);
+	mysql_stage_set_work_completed(pfs_stage_progress, 0);
+
 	for (i = 0; i < dump_n && !SHUTTING_DOWN(); i++) {
 
 		/* space_id for this iteration of the loop */
@@ -579,10 +593,13 @@ buf_load()
 			os_aio_simulated_wake_handler_threads();
 		}
 
-		if (i % 128 == 0) {
+		/* Update the progress every 32 MiB, which is every Nth page,
+		where N = 32*1024^2 / page_size. */
+		if (i % (33554432 / page_size.physical()) == 0) {
 			buf_load_status(STATUS_INFO,
 					"Loaded " ULINTPF "/" ULINTPF " pages",
 					i + 1, dump_n);
+			mysql_stage_set_work_completed(pfs_stage_progress, i);
 		}
 
 		if (buf_load_abort_flag) {
@@ -594,6 +611,13 @@ buf_load()
 			buf_load_status(
 				STATUS_NOTICE,
 				"Buffer pool(s) load aborted on request");
+			/* Premature end, set estimated = completed = i and
+			end the current stage event. */
+			mysql_stage_set_work_estimated(pfs_stage_progress, i);
+			mysql_stage_set_work_completed(pfs_stage_progress, i);
+#ifdef HAVE_PSI_STAGE_INTERFACE
+			PSI_STAGE_CALL(end_stage)();
+#endif /* HAVE_PSI_STAGE_INTERFACE */
 			return;
 		}
 
@@ -611,6 +635,13 @@ buf_load()
 
 	buf_load_status(STATUS_NOTICE,
 			"Buffer pool(s) load completed at %s", now);
+
+	/* Make sure that estimated = completed when we end. */
+	mysql_stage_set_work_completed(pfs_stage_progress, dump_n);
+#ifdef HAVE_PSI_STAGE_INTERFACE
+	/* End the stage progress event. */
+	PSI_STAGE_CALL(end_stage)();
+#endif /* HAVE_PSI_STAGE_INTERFACE */
 }
 
 /*****************************************************************//**

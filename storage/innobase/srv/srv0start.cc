@@ -185,6 +185,7 @@ mysql_pfs_key_t	srv_purge_thread_key;
 performance schema. */
 static PSI_stage_info*	srv_stages[] =
 {
+	&srv_stage_buffer_pool_load,
 };
 #endif /* HAVE_PSI_STAGE_INTERFACE */
 
