@@ -272,7 +272,7 @@ public:
                               depends on the binlog-version currently in use.
   */
 
-  Start_event_v3(const char* buf,
+  Start_event_v3(const char* buf, unsigned int event_len,
                  const Format_description_event* description_event);
 #ifndef HAVE_MYSYS
   //TODO(WL#7684): Implement the method print_event_info and print_long_info for

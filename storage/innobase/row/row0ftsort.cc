@@ -82,7 +82,7 @@ row_merge_create_fts_sort_index(
 
 	// FIXME: This name shouldn't be hard coded here.
 	new_index = dict_mem_index_create(
-		index->table->name, "tmp_fts_idx", 0, DICT_FTS, 3);
+		index->table->name.m_name, "tmp_fts_idx", 0, DICT_FTS, 3);
 
 	new_index->id = index->id;
 	new_index->table = (dict_table_t*) table;
@@ -1595,7 +1595,7 @@ row_fts_merge_insert(
 	fts_table.type = FTS_INDEX_TABLE;
 	fts_table.index_id = index->id;
 	fts_table.table_id = table->id;
-	fts_table.parent = index->table->name;
+	fts_table.parent = index->table->name.m_name;
 	fts_table.table = index->table;
 	fts_table.suffix = fts_get_suffix(id);
 
@@ -1606,7 +1606,6 @@ row_fts_merge_insert(
 	ut_ad(aux_table != NULL);
 	dict_table_close(aux_table, FALSE, FALSE);
 	aux_index = dict_table_get_first_index(aux_table);
-	aux_index->is_redo_skipped = index->is_redo_skipped;
 
 	/* Create bulk load instance */
 	ins_ctx.btr_bulk = UT_NEW_NOKEY(BtrBulk(aux_index, trx->id));

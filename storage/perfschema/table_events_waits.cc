@@ -190,7 +190,6 @@ table_events_waits_common::table_events_waits_common
 
 void table_events_waits_common::clear_object_columns()
 {
-  m_row.m_object_type= NULL;
   m_row.m_object_type_length= 0;
   m_row.m_object_schema_length= 0;
   m_row.m_object_name_length= 0;
@@ -238,15 +237,28 @@ int table_events_waits_common::make_table_object_columns(PFS_events_waits *wait)
     uint safe_key_count= sanitize_index_count(safe_table_share->m_key_count);
     if (safe_index < safe_key_count)
     {
-      PFS_table_key *key= & safe_table_share->m_keys[safe_index];
-      m_row.m_index_name_length= key->m_name_length;
-      if (unlikely((m_row.m_index_name_length == 0) ||
-                   (m_row.m_index_name_length > sizeof(m_row.m_index_name))))
-        return 1;
-      memcpy(m_row.m_index_name, key->m_name, m_row.m_index_name_length);
+      PFS_table_share_index *index_stat;
+      index_stat= safe_table_share->find_index_stat(safe_index);
+
+      if (index_stat != NULL)
+      {
+        m_row.m_index_name_length= index_stat->m_key.m_name_length;
+
+        if (unlikely((m_row.m_index_name_length == 0) ||
+                     (m_row.m_index_name_length > sizeof(m_row.m_index_name))))
+          return 1;
+
+        memcpy(m_row.m_index_name, index_stat->m_key.m_name, m_row.m_index_name_length);
+      }
+      else
+      {
+        m_row.m_index_name_length= 0;
+      }
     }
     else
+    {
       m_row.m_index_name_length= 0;
+    }
   }
   else
   {
@@ -433,6 +445,7 @@ int table_events_waits_common::make_metadata_lock_object_columns(PFS_events_wait
   }
   else
   {
+    m_row.m_object_type_length= 0;
     m_row.m_object_schema_length= 0;
     m_row.m_object_name_length= 0;
     m_row.m_object_instance_addr= 0;
@@ -756,7 +769,7 @@ int table_events_waits_common::read_row_values(TABLE *table,
           f->set_null();
         break;
       case 12: /* OBJECT_TYPE */
-        if (m_row.m_object_type)
+        if (m_row.m_object_type_length > 0)
         {
           set_field_varchar_utf8(f, m_row.m_object_type,
                                  m_row.m_object_type_length);

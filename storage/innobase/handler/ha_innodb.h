@@ -196,15 +196,6 @@ class ha_innobase: public handler
 
 	void update_create_info(HA_CREATE_INFO* create_info);
 
-	int parse_table_name(
-		const char*		name,
-		HA_CREATE_INFO*		create_info,
-		ulint			flags,
-		ulint			flags2,
-		char*			norm_name,
-		char*			temp_path,
-		char*			remote_path);
-
 	int create(
 		const char*		name,
 		TABLE*			form,
@@ -588,42 +579,114 @@ innobase_index_name_is_reserved(
 						be created. */
 	__attribute__((warn_unused_result));
 
-/** Determines InnoDB table flags.
-If strict_mode=OFF, this will adjust the flags to what should be assumed.
-@param[in]	form		Table information from MySQL
-@param[in]	create_info	Create information from MySQL describing
-				columns and indexes.
-@param[in]	thd		Connection information from MySQL
-@param[in]	file_per_table	Whether to create a single-table tablespace.
-@param[out]	flags		DICT_TF flags
-@param[out]	flags2		DICT_TF2 flags
-@retval true if successful, false if error */
-bool
-innobase_table_flags(
-	const TABLE*		form,
-	const HA_CREATE_INFO*	create_info,
-	THD*			thd,
-	bool			file_per_table,
-	ulint*			flags,
-	ulint*			flags2)
-	__attribute__((warn_unused_result));
+/** Class for handling create table information. */
+class create_table_info_t
+{
+public:
+	/** Constructor.
+	Used in two ways:
+	- all but file_per_table is used, when creating the table.
+	- all but name/path is used, when validating options and using flags. */
+	create_table_info_t(
+		THD*		thd,
+		TABLE*		form,
+		HA_CREATE_INFO*	create_info,
+		char*		table_name,
+		char*		temp_path,
+		char*		remote_path,
+		bool		file_per_table)
+	:m_thd(thd),
+	m_form(form),
+	m_create_info(create_info),
+	m_table_name(table_name),
+	m_temp_path(temp_path),
+	m_remote_path(remote_path),
+	m_file_per_table(file_per_table)
+	{
+		/* DATA DIRECTORY must have m_file_per_table but cannot be
+		used with TEMPORARY tables. */
+		m_use_data_dir =
+			m_file_per_table
+			&& ((m_create_info->data_file_name != NULL)
+			&& !(m_create_info->options & HA_LEX_CREATE_TMP_TABLE));
+	}
+	/** Create the internal innodb table. */
+	int create_table();
+	/** Update the internal data dictionary. */
+	int create_table_update_dict();
+	/** Validates the create options. Checks that the options
+	KEY_BLOCK_SIZE, ROW_FORMAT, DATA DIRECTORY, TEMPORARY & TABLESPACE
+	are compatible with each other and other settings.
+	These CREATE OPTIONS are not validated here unless innodb_strict_mode
+	is on. With strict mode, this function will report each problem it
+	finds using a custom message with error code
+	ER_ILLEGAL_HA_CREATE_OPTION, not its built-in message.
+	@return NULL if valid, string name of bad option if not. */
+	const char* create_options_are_invalid();
+	/** Validate DATA DIRECTORY option. */
+	bool create_option_data_directory_is_valid();
+	/** Parses the table name into normal name and either temp path or
+	remote path if needed.*/
+	int parse_table_name(const char*	name);
+	/** Prepare to create a table. */
+	int prepare_create_table(const char*		name);
+	void allocate_trx();
+	/** Determines InnoDB table flags.
+	If strict_mode=OFF, this will adjust the flags to what should be assumed.
+	@retval true if successful, false if error */
+	bool innobase_table_flags();
+	/** Get table flags. */
+	ulint flags() const
+	{ return(m_flags); }
+	/** Get table flags2. */
+	ulint flags2() const
+	{ return(m_flags2); }
+	/** Get trx. */
+	trx_t* trx() const
+	{ return(m_trx); }
+	/** Return table name. */
+	const char* table_name() const
+	{ return(m_table_name); }
+	THD* thd() const
+	{ return(m_thd); }
+	inline bool is_intrinsic_temp_table() const
+	{
+		/* DICT_TF2_INTRINSIC implies DICT_TF2_TEMPORARY */
+		ut_ad(!(m_flags2 & DICT_TF2_INTRINSIC)
+		      || (m_flags2 & DICT_TF2_TEMPORARY));
+		return((m_flags2 & DICT_TF2_INTRINSIC) != 0);
+	}
 
-/** Validates the create options. Checks that the options KEY_BLOCK_SIZE,
-ROW_FORMAT, DATA DIRECTORY, TEMPORARY & TABLESPACE are compatible with
-each other and other settings.  These CREATE OPTIONS are not validated
-here unless innodb_strict_mode is on. With strict mode, this function
-will report each problem it finds using a custom message with error
-code ER_ILLEGAL_HA_CREATE_OPTION, not its built-in message.
-@param[in]	thd		Connection thread
-@param[in]	create_info	Information for the create operation
-@param[in]	file_per_table	Whether to create a single-table tablespace.
-@return NULL if valid, string name of bad option if not. */
-const char*
-create_options_are_invalid(
-	THD*		thd,
-	HA_CREATE_INFO*	create_info,
-	bool		file_per_table)
-	__attribute__((warn_unused_result));
+private:
+	/** Create the internal innodb table definition. */
+	int create_table_def();
+	/** Connection thread handle. */
+	THD*		m_thd;
+	/** InnoDB transaction handle. */
+	trx_t*		m_trx;
+	/** Information on table columns and indexes. */
+	const TABLE*	m_form;
+	/** Create options. */
+	HA_CREATE_INFO*	m_create_info;
+	/** Table name */
+	char*		m_table_name;
+	/** If this is a table explicitly created by the user with the
+	TEMPORARY keyword, then this parameter is the dir path where the
+	table should be placed if we create an .ibd file for it
+	(no .ibd extension in the path, though).
+	Otherwise this is a zero length-string */
+	char*		m_temp_path;
+	/** Remote path (DATA DIRECTORY) or zero length-string */
+	char*		m_remote_path;
+	/** Using file per table. */
+	bool		m_file_per_table;
+	/** Using DATA DIRECTORY */
+	bool		m_use_data_dir;
+	/** Table flags */
+	ulint		m_flags;
+	/** Table flags2 */
+	ulint		m_flags2;
+};
 
 /**
 Retrieve the FTS Relevance Ranking result for doc with doc_id

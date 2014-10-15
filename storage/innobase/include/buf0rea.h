@@ -123,13 +123,6 @@ buf_read_ibuf_merge_pages(
 					to get read in, before this
 					function returns */
 	const ulint*	space_ids,	/*!< in: array of space ids */
-	const int64_t*	space_versions,	/*!< in: the spaces must have
-					this version number
-					(timestamp), otherwise we
-					discard the read; we use this
-					to cancel reads if DISCARD +
-					IMPORT may have changed the
-					tablespace size */
 	const ulint*	page_nos,	/*!< in: array of page numbers
 					to read, with the highest page
 					number the last in the

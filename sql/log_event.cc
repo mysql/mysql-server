@@ -1540,6 +1540,22 @@ Log_event* Log_event::read_log_event(const char* buf, uint event_len,
   if (event_type == binary_log::START_EVENT_V3)
     (const_cast< Format_description_log_event *>(description_event))->
             common_footer->checksum_alg= binary_log::BINLOG_CHECKSUM_ALG_OFF;
+  // Sanity check for Format description event
+  if (event_type == binary_log::FORMAT_DESCRIPTION_EVENT)
+  {
+    if (event_len < LOG_EVENT_MINIMAL_HEADER_LEN +
+        ST_COMMON_HEADER_LEN_OFFSET)
+    {
+      *error= "Found invalid Format description event in binary log";
+      DBUG_RETURN(0);
+    }
+    uint tmp_header_len= buf[LOG_EVENT_MINIMAL_HEADER_LEN + ST_COMMON_HEADER_LEN_OFFSET];
+    if (event_len < tmp_header_len + ST_SERVER_VER_OFFSET + ST_SERVER_VER_LEN)
+    {
+      *error= "Found invalid Format description event in binary log";
+      DBUG_RETURN(0);
+    }
+  }
   /*
     CRC verification by SQL and Show-Binlog-Events master side.
     The caller has to provide @description_event->checksum_alg to
@@ -1668,7 +1684,7 @@ Log_event* Log_event::read_log_event(const char* buf, uint event_len,
       ev = new Execute_load_log_event(buf, event_len, description_event);
       break;
     case binary_log::START_EVENT_V3: /* this is sent only by MySQL <=4.x */
-      ev = new Start_log_event_v3(buf, description_event);
+      ev = new Start_log_event_v3(buf, event_len, description_event);
       break;
     case binary_log::STOP_EVENT:
       ev = new Stop_log_event(buf, description_event);
@@ -2725,13 +2741,8 @@ void Log_event::print_timestamp(IO_CACHE* file, time_t *ts)
   */
   time_t ts_tmp= ts ? *ts : (ulong)common_header->when.tv_sec;
   DBUG_ENTER("Log_event::print_timestamp");
-#ifdef MYSQL_SERVER				// This is always false
   struct tm tm_tmp;
   localtime_r(&ts_tmp, (res= &tm_tmp));
-#else
-  res= localtime(&ts_tmp);
-#endif
-
   my_b_printf(file,"%02d%02d%02d %2d:%02d:%02d",
               res->tm_year % 100,
               res->tm_mon+1,
@@ -3638,7 +3649,7 @@ bool Query_log_event::write(IO_CACHE* file)
       invoker_user= thd->get_invoker_user();
       invoker_host= thd->get_invoker_host();
     }
-    else if (thd->security_ctx->priv_user)
+    else
     {
       Security_context *ctx= thd->security_ctx;
 
@@ -5033,13 +5044,27 @@ void Start_log_event_v3::print(FILE* file, PRINT_EVENT_INFO* print_event_info)
   Start_log_event_v3::Start_log_event_v3()
 */
 
-Start_log_event_v3::Start_log_event_v3(const char* buf,
+Start_log_event_v3::Start_log_event_v3(const char* buf, uint event_len,
                                        const Format_description_event
                                        *description_event)
-: binary_log::Start_event_v3(buf, description_event),
+: binary_log::Start_event_v3(buf, event_len, description_event),
   Log_event(header(), footer())
 {
-  is_valid_param= true;
+  is_valid_param= server_version[0] != 0;
+  if (event_len < (uint)description_event->common_header_len +
+      ST_COMMON_HEADER_LEN_OFFSET)
+  {
+    server_version[0]= 0;
+    return;
+  }
+  buf+= description_event->common_header_len;
+  binlog_version= uint2korr(buf+ST_BINLOG_VER_OFFSET);
+  memcpy(server_version, buf+ST_SERVER_VER_OFFSET,
+	 ST_SERVER_VER_LEN);
+  // prevent overrun if log is corrupted on disk
+  server_version[ST_SERVER_VER_LEN-1]= 0;
+  created= uint4korr(buf+ST_CREATED_OFFSET);
+  dont_set_created= 1;
 }
 
 
@@ -5212,9 +5237,9 @@ Format_description_log_event::
 Format_description_log_event(const char* buf, uint event_len,
                              const Format_description_event
                              *description_event)
-  : binary_log::Start_event_v3(buf, description_event),
-   Format_description_event(buf, event_len, description_event),
-   Start_log_event_v3(buf, description_event)
+  : binary_log::Start_event_v3(buf, event_len, description_event),
+    Format_description_event(buf, event_len, description_event),
+    Start_log_event_v3(buf, event_len, description_event)
 {
   is_valid_param= header_is_valid() && version_is_valid();
   common_header->type_code= binary_log::FORMAT_DESCRIPTION_EVENT;

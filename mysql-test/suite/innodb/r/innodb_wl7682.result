@@ -1,5 +1,3 @@
-call mtr.add_suppression("InnoDB: Tablespace innodb_temporary ran out of space. Please add another file or use \'autoextend\' for the last file in setting innodb_temp_data_file_path");
-call mtr.add_suppression("The table \'t1\' is full");
 set session innodb_create_intrinsic = 1;
 create temporary table t1 (i int, j int, primary key pk(i)) engine = innodb;
 create temporary table t2 (i int, j int, primary key pk(i)) engine = innodb;

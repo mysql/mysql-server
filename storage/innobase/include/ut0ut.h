@@ -47,8 +47,6 @@ Created 1/20/1994 Heikki Tuuri
 
 #include <stdarg.h>
 
-/** Index name prefix in fast index creation */
-#define	TEMP_INDEX_PREFIX	'\377'
 /** Index name prefix in fast index creation, as a string constant */
 #define TEMP_INDEX_PREFIX_STR	"\377"
 
@@ -335,37 +333,13 @@ If the string contains a slash '/', the string will be
 output as two identifiers separated by a period (.),
 as in SQL database_name.identifier.
  @param		[in]	trx		transaction (NULL=no quotes).
- @param		[in]	table_id	TRUE=get a table name,
-					FALSE=get other identifier.
- @param		[in]	name		name to retrive.
+ @param		[in]	name		table name.
  @retval	String quoted as an SQL identifier.
 */
 std::string
 ut_get_name(
 	const trx_t*	trx,
-	ibool		table_id,
 	const char*	name);
-
-/**********************************************************************//**
-Get a fixed-length string, quoted as an SQL identifier.
-If the string contains a slash '/', the string will be
-output as two identifiers separated by a period (.),
-as in SQL database_name.identifier.
-Use ut_get_name() as wrapper function, instead of calling this function
-directly.
- @param		[in]	trx		transaction (NULL=no quotes).
- @param		[in]	tables_id	TRUE=get a table name,
-					FALSE=get other identifier.
- @param		[in]	name		name to retrive.
- @param		[in]	namelen		length of name.
- @retval	String quoted as an SQL identifier.
-*/
-std::string
-ut_get_namel(
-	const trx_t*	trx,
-	ibool		table_id,
-	const char*	name,
-	ulint		namelen);
 
 /**********************************************************************//**
 Outputs a fixed-length string, quoted as an SQL identifier.
@@ -377,27 +351,10 @@ ut_print_name(
 /*==========*/
 	FILE*		f,	/*!< in: output stream */
 	const trx_t*	trx,	/*!< in: transaction */
-	ibool		table_id,/*!< in: TRUE=print a table name,
-				FALSE=print other identifier */
-	const char*	name);	/*!< in: name to print */
+	const char*	name);	/*!< in: table name to print */
 
 /**********************************************************************//**
-Outputs a fixed-length string, quoted as an SQL identifier.
-If the string contains a slash '/', the string will be
-output as two identifiers separated by a period (.),
-as in SQL database_name.identifier. */
-void
-ut_print_namel(
-/*===========*/
-	FILE*		f,	/*!< in: output stream */
-	const trx_t*	trx,	/*!< in: transaction (NULL=no quotes) */
-	ibool		table_id,/*!< in: TRUE=print a table name,
-				FALSE=print other identifier */
-	const char*	name,	/*!< in: name to print */
-	ulint		namelen);/*!< in: length of name */
-
-/**********************************************************************//**
-Formats a table or index name, quoted as an SQL identifier. If the name
+Formats a table name, quoted as an SQL identifier. If the name
 contains a slash '/', the result will contain two identifiers separated by
 a period (.), as in SQL database_name.identifier.
 @return pointer to 'formatted' */
@@ -406,8 +363,6 @@ ut_format_name(
 /*===========*/
 	const char*	name,		/*!< in: table or index name, must be
 					'\0'-terminated */
-	ibool		is_table,	/*!< in: if TRUE then 'name' is a table
-					name */
 	char*		formatted,	/*!< out: formatted result, will be
 					'\0'-terminated */
 	ulint		formatted_size);/*!< out: no more than this number of
@@ -605,6 +560,19 @@ immediately.  Refer to the documentation of class info for usage details. */
 class fatal : public logger {
 public:
 	~fatal();
+};
+
+/** Emit an error message if the given predicate is true, otherwise emit a
+warning message */
+class error_or_warn : public logger {
+public:
+	error_or_warn(bool	pred)
+	: m_error(pred)
+	{}
+
+	~error_or_warn();
+private:
+	const bool	m_error;
 };
 
 } // namespace ib

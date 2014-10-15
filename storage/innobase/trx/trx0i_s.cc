@@ -788,7 +788,7 @@ fill_locks_row(
 	row->lock_type = lock_get_type_str(lock);
 
 	row->lock_table = ha_storage_put_str_memlim(
-		cache->storage, lock_get_table_name(lock),
+		cache->storage, lock_get_table_name(lock).m_name,
 		MAX_ALLOWED_FOR_STORAGE(cache));
 
 	/* memory could not be allocated */

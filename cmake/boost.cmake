@@ -13,7 +13,7 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-# We want boost 1.55.0 in order to build our boost/geometry code.
+# We want boost 1.56.0 in order to build our boost/geometry code.
 # The boost tarball is fairly big, and takes several minutes
 # to download. So we recommend downloading/unpacking it
 # only once, in a place visible from any bzr sandbox.
@@ -26,13 +26,51 @@
 #                           unzipping everything ~3 seconds 485M
 # 8,8M boost_headers.tar.gz unzipping everything <1 second
 
-SET(BOOST_PACKAGE_NAME "boost_1_55_0")
+SET(BOOST_PACKAGE_NAME "boost_1_56_0")
 SET(BOOST_TARBALL "${BOOST_PACKAGE_NAME}.tar.gz")
 SET(BOOST_DOWNLOAD_URL
-  "http://sourceforge.net/projects/boost/files/boost/1.55.0/${BOOST_TARBALL}"
+  "http://sourceforge.net/projects/boost/files/boost/1.56.0/${BOOST_TARBALL}"
   )
 
+SET(OLD_PACKAGE_NAMES "boost_1_55_0")
+
+MACRO(RESET_BOOST_VARIABLES)
+  UNSET(BOOST_INCLUDE_DIR)
+  UNSET(BOOST_INCLUDE_DIR CACHE)
+  UNSET(LOCAL_BOOST_DIR)
+  UNSET(LOCAL_BOOST_DIR CACHE)
+  UNSET(LOCAL_BOOST_ZIP)
+  UNSET(LOCAL_BOOST_ZIP CACHE)
+ENDMACRO()
+
+MACRO(ECHO_BOOST_VARIABLES)
+  MESSAGE(STATUS "BOOST_INCLUDE_DIR ${BOOST_INCLUDE_DIR}")
+  MESSAGE(STATUS "LOCAL_BOOST_DIR ${LOCAL_BOOST_DIR}")
+  MESSAGE(STATUS "LOCAL_BOOST_ZIP ${LOCAL_BOOST_ZIP}")
+ENDMACRO()
+
+MACRO(LOOKUP_OLD_PACKAGE_NAMES)
+  FOREACH(pkg ${OLD_PACKAGE_NAMES})
+    FIND_FILE(OLD_BOOST_DIR
+              NAMES "${pkg}"
+              PATHS ${WITH_BOOST}
+              NO_DEFAULT_PATH
+             )
+    IF(OLD_BOOST_DIR)
+      MESSAGE(STATUS "")
+      MESSAGE(STATUS "Found old boost installation at ${OLD_BOOST_DIR}")
+      MESSAGE(STATUS "You must upgrade to ${BOOST_PACKAGE_NAME}")
+      MESSAGE(STATUS "")
+    ENDIF()
+    UNSET(OLD_BOOST_DIR)
+    UNSET(OLD_BOOST_DIR CACHE)
+  ENDFOREACH()
+ENDMACRO()
+
 MACRO(COULD_NOT_FIND_BOOST)
+  LOOKUP_OLD_PACKAGE_NAMES()
+  ECHO_BOOST_VARIABLES()
+  RESET_BOOST_VARIABLES()
   MESSAGE(STATUS "Could not find (the correct version of) boost.\n")
   MESSAGE(FATAL_ERROR
     "You can download it with -DDOWNLOAD_BOOST=1 -DWITH_BOOST=<directory>\n"
@@ -61,12 +99,7 @@ SET(WITH_BOOST ${WITH_BOOST} CACHE PATH
 # If the value of WITH_BOOST changes, we must unset all dependent variables:
 IF(OLD_WITH_BOOST)
   IF(NOT "${OLD_WITH_BOOST}" STREQUAL "${WITH_BOOST}")
-    UNSET(BOOST_INCLUDE_DIR)
-    UNSET(BOOST_INCLUDE_DIR CACHE)
-    UNSET(LOCAL_BOOST_DIR)
-    UNSET(LOCAL_BOOST_DIR CACHE)
-    UNSET(LOCAL_BOOST_ZIP)
-    UNSET(LOCAL_BOOST_ZIP CACHE)
+    RESET_BOOST_VARIABLES()
   ENDIF()
 ENDIF()
 
@@ -102,8 +135,12 @@ IF (WITH_BOOST)
             PATHS ${WITH_BOOST}
             NO_DEFAULT_PATH
            )
-  MESSAGE(STATUS "Local boost dir ${LOCAL_BOOST_DIR}")
-  MESSAGE(STATUS "Local boost zip ${LOCAL_BOOST_ZIP}")
+  IF(LOCAL_BOOST_DIR)
+    MESSAGE(STATUS "Local boost dir ${LOCAL_BOOST_DIR}")
+  ENDIF()
+  IF(LOCAL_BOOST_ZIP)
+    MESSAGE(STATUS "Local boost zip ${LOCAL_BOOST_ZIP}")
+  ENDIF()
 ENDIF()
 
 # There is a similar option in unittest/gunit.
@@ -178,7 +215,7 @@ ENDIF()
 # //  BOOST_VERSION % 100 is the patch level
 # //  BOOST_VERSION / 100 % 1000 is the minor version
 # //  BOOST_VERSION / 100000 is the major version
-# #define BOOST_VERSION 105500
+# #define BOOST_VERSION 105600
 FILE(STRINGS "${BOOST_INCLUDE_DIR}/boost/version.hpp"
   BOOST_VERSION_NUMBER
   REGEX "^#define[\t ]+BOOST_VERSION[\t ][0-9]+.*"
@@ -196,9 +233,9 @@ IF(NOT BOOST_MAJOR_VERSION EQUAL 10)
   COULD_NOT_FIND_BOOST()
 ENDIF()
 
-IF(NOT BOOST_MINOR_VERSION EQUAL 55)
+IF(NOT BOOST_MINOR_VERSION EQUAL 56)
   MESSAGE(WARNING "Boost minor version found is ${BOOST_MINOR_VERSION} "
-    "we need 55"
+    "we need 56"
     )
   COULD_NOT_FIND_BOOST()
 ENDIF()
@@ -206,4 +243,4 @@ ENDIF()
 MESSAGE(STATUS "BOOST_INCLUDE_DIR ${BOOST_INCLUDE_DIR}")
 
 # We have a limited set of patches/bugfixes here:
-SET(BOOST_PATCHES_DIR "${CMAKE_SOURCE_DIR}/include/boost_1_55_0")
+SET(BOOST_PATCHES_DIR "${CMAKE_SOURCE_DIR}/include/boost_1_56_0")

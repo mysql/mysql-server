@@ -117,17 +117,16 @@ every XDES_DESCRIBED_PER_PAGE pages in every tablespace. */
 /*--------------------------------------*/
 /* @} */
 
-/********************************************************************//**
-Validate and return the tablespace flags, which are stored in the
-tablespace header at offset FSP_SPACE_FLAGS.  They should be 0 for
-ROW_FORMAT=COMPACT and ROW_FORMAT=REDUNDANT. The newer row formats,
-COMPRESSED and DYNAMIC, use a file format > Antelope so they should
-have a file format number plus the DICT_TF_COMPACT bit set.
-@return true if check ok */
+/** Validate the tablespace flags.
+These flags are stored in the tablespace header at offset FSP_SPACE_FLAGS.
+They should be 0 for ROW_FORMAT=COMPACT and ROW_FORMAT=REDUNDANT.
+The newer row formats, COMPRESSED and DYNAMIC, use a file format > Antelope
+so they should have a file format number plus the DICT_TF_COMPACT bit set.
+@param[in]	flags	Tablespace flags
+@return true if valid, false if not */
 bool
 fsp_flags_is_valid(
-/*===============*/
-	ulint	flags)		/*!< in: tablespace flags */
+	ulint	flags)
 	__attribute__((warn_unused_result, const));
 
 /** Check if tablespace is system temporary.
@@ -233,12 +232,6 @@ is found in a remote location, not the default data directory. */
 /** Return the contents of the UNUSED bits */
 #define FSP_FLAGS_GET_UNUSED(flags)				\
 		(flags >> FSP_FLAGS_POS_UNUSED)
-
-/** Set a PAGE_SSIZE into the correct bits in a given
-tablespace flags. */
-#define FSP_FLAGS_SET_PAGE_SSIZE(flags, ssize)			\
-		(flags | (ssize << FSP_FLAGS_POS_PAGE_SSIZE))
-
 /* @} */
 
 #endif /* fsp0types_h */

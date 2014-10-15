@@ -58,8 +58,8 @@ ENDFOREACH()
 
 # Ensure we have clean build for shared libraries
 # without unresolved symbols
-# Not supported with AddressSanitizer and MemorySanitizer
-IF(NOT WITH_ASAN AND NOT WITH_MSAN)
+# Not supported with Sanitizers
+IF(NOT WITH_ASAN AND NOT WITH_MSAN AND NOT WITH_UBSAN)
   SET(LINK_FLAG_NO_UNDEFINED "-Wl,--no-undefined")
 ENDIF()
 

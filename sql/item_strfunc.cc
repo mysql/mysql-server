@@ -4049,6 +4049,10 @@ String *Item_func_repeat::val_str(String *str)
   if (count <= 0 && (count == 0 || !args[1]->unsigned_flag))
     return make_empty_result();
 
+  // Avoid looping, concatenating the empty string.
+  if (res->length() == 0)
+    return res;
+
   /* Assumes that the maximum length of a String is < INT_MAX32. */
   /* Bounds check on count:  If this is triggered, we will error. */
   if ((ulonglong) count > INT_MAX32)
@@ -4687,8 +4691,8 @@ String *Item_func_hex::val_str_ascii(String *str)
         args[0]->result_type() == DECIMAL_RESULT)
     {
       double val= args[0]->val_real();
-      if ((val <= (double) LONGLONG_MIN) || 
-          (val >= (double) (ulonglong) ULONGLONG_MAX))
+      if ((val <= (double) LLONG_MIN) || 
+          (val >= (double) (ulonglong) ULLONG_MAX))
         dec=  ~(longlong) 0;
       else
         dec= (ulonglong) (val + (val > 0 ? 0.5 : -0.5));

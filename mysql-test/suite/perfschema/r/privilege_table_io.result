@@ -41,6 +41,7 @@ performance_schema_max_cond_instances	1000
 performance_schema_max_file_classes	50
 performance_schema_max_file_handles	32768
 performance_schema_max_file_instances	10000
+performance_schema_max_index_stat	5000
 performance_schema_max_memory_classes	320
 performance_schema_max_metadata_locks	10000
 performance_schema_max_mutex_classes	200
@@ -56,6 +57,7 @@ performance_schema_max_statement_classes	188
 performance_schema_max_statement_stack	10
 performance_schema_max_table_handles	1000
 performance_schema_max_table_instances	500
+performance_schema_max_table_lock_stat	500
 performance_schema_max_thread_classes	50
 performance_schema_max_thread_instances	200
 performance_schema_session_connect_attrs_size	2048
@@ -72,6 +74,7 @@ Performance_schema_file_classes_lost	0
 Performance_schema_file_handles_lost	0
 Performance_schema_file_instances_lost	0
 Performance_schema_hosts_lost	0
+Performance_schema_index_stat_lost	0
 Performance_schema_locker_lost	0
 Performance_schema_memory_classes_lost	0
 Performance_schema_metadata_lock_lost	0
@@ -89,6 +92,7 @@ Performance_schema_stage_classes_lost	0
 Performance_schema_statement_classes_lost	0
 Performance_schema_table_handles_lost	0
 Performance_schema_table_instances_lost	0
+Performance_schema_table_lock_stat_lost	0
 Performance_schema_thread_classes_lost	0
 Performance_schema_thread_instances_lost	0
 Performance_schema_users_lost	0
@@ -131,6 +135,7 @@ Performance_schema_file_classes_lost	0
 Performance_schema_file_handles_lost	0
 Performance_schema_file_instances_lost	0
 Performance_schema_hosts_lost	0
+Performance_schema_index_stat_lost	0
 Performance_schema_locker_lost	0
 Performance_schema_memory_classes_lost	0
 Performance_schema_metadata_lock_lost	0
@@ -148,6 +153,7 @@ Performance_schema_stage_classes_lost	0
 Performance_schema_statement_classes_lost	0
 Performance_schema_table_handles_lost	0
 Performance_schema_table_instances_lost	0
+Performance_schema_table_lock_stat_lost	0
 Performance_schema_thread_classes_lost	0
 Performance_schema_thread_instances_lost	0
 Performance_schema_users_lost	0

@@ -243,7 +243,6 @@ SET(SQL_SOURCE
   mysqld_thd_manager.cc
   signal_handler.cc
   sql_client.cc
-  rpl_slave_commit_order_manager.cc
   )
 
 IF(WIN32)
@@ -266,14 +265,6 @@ IF(HAVE_NO_UNUSED_TYPEDEFS)
   ADD_COMPILE_FLAGS(
     item_geofunc.cc
     COMPILE_FLAGS "-Wno-unused-local-typedefs"
-  )
-ENDIF()
-# Boost Geometry source has uninitialized variables. Fixed in Boost 1.56
-MY_CHECK_CXX_COMPILER_FLAG("-Wno-uninitialized" HAVE_NO_UNINITIALIZED)
-IF(HAVE_NO_UNINITIALIZED)
-  ADD_COMPILE_FLAGS(
-    item_geofunc.cc
-    COMPILE_FLAGS "-Wno-uninitialized"
   )
 ENDIF()
 
@@ -321,7 +312,7 @@ ENDIF()
 SET (BINLOG_SOURCE rpl_gtid_misc.cc
                    rpl_gtid_sid_map.cc rpl_gtid_set.cc rpl_gtid_specification.cc
                    rpl_gtid_state.cc rpl_gtid_owned.cc rpl_gtid_cache.cc
-                   rpl_slave_commit_order_manager.cc rpl_gtid_execution.cc
+                   rpl_gtid_execution.cc
                    rpl_gtid_mutex_cond_array.cc rpl_gtid_persist.cc
                    log_event.cc log_event_old.cc binlog.cc sql_binlog.cc
                    rpl_filter.cc rpl_record.cc rpl_record_old.cc

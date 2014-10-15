@@ -1484,18 +1484,12 @@ void PFS_table::sanitized_aggregate(void)
   PFS_table_share *safe_share= sanitize_table_share(m_share);
   if (safe_share != NULL)
   {
-    if (m_has_io_stats && m_has_lock_stats)
+    if (m_has_io_stats)
     {
-      safe_aggregate(& m_table_stat, safe_share);
-      m_has_io_stats= false;
-      m_has_lock_stats= false;
-    }
-    else if (m_has_io_stats)
-    {
-      safe_aggregate_io(& m_table_stat, safe_share);
+      safe_aggregate_io(NULL, & m_table_stat, safe_share);
       m_has_io_stats= false;
     }
-    else if (m_has_lock_stats)
+    if (m_has_lock_stats)
     {
       safe_aggregate_lock(& m_table_stat, safe_share);
       m_has_lock_stats= false;
@@ -1508,7 +1502,7 @@ void PFS_table::sanitized_aggregate_io(void)
   PFS_table_share *safe_share= sanitize_table_share(m_share);
   if (safe_share != NULL && m_has_io_stats)
   {
-    safe_aggregate_io(& m_table_stat, safe_share);
+    safe_aggregate_io(NULL, & m_table_stat, safe_share);
     m_has_io_stats= false;
   }
 }
@@ -1523,20 +1517,8 @@ void PFS_table::sanitized_aggregate_lock(void)
   }
 }
 
-void PFS_table::safe_aggregate(PFS_table_stat *table_stat,
-                               PFS_table_share *table_share)
-{
-  DBUG_ASSERT(table_stat != NULL);
-  DBUG_ASSERT(table_share != NULL);
-
-  uint key_count= sanitize_index_count(table_share->m_key_count);
-
-  /* Aggregate to TABLE_IO_SUMMARY, TABLE_LOCK_SUMMARY */
-  table_share->m_table_stat.aggregate(table_stat, key_count);
-  table_stat->fast_reset();
-}
-
-void PFS_table::safe_aggregate_io(PFS_table_stat *table_stat,
+void PFS_table::safe_aggregate_io(const TABLE_SHARE *optional_server_share,
+                                  PFS_table_stat *table_stat,
                                   PFS_table_share *table_share)
 {
   DBUG_ASSERT(table_stat != NULL);
@@ -1544,8 +1526,58 @@ void PFS_table::safe_aggregate_io(PFS_table_stat *table_stat,
 
   uint key_count= sanitize_index_count(table_share->m_key_count);
 
-  /* Aggregate to TABLE_IO_SUMMARY */
-  table_share->m_table_stat.aggregate_io(table_stat, key_count);
+  PFS_table_share_index *to_stat;
+  PFS_table_io_stat *from_stat;
+  uint index;
+
+  DBUG_ASSERT(key_count <= MAX_INDEXES);
+
+  /* Aggregate stats for each index, if any */
+  for (index= 0; index < key_count; index++)
+  {
+    from_stat= & table_stat->m_index_stat[index];
+    if (from_stat->m_has_data)
+    {
+      if (optional_server_share != NULL)
+      {
+        /*
+          An instrumented thread is closing a table,
+          and capable of providing index names when
+          creating index statistics on the fly.
+        */
+        to_stat= table_share->find_or_create_index_stat(optional_server_share, index);
+      }
+      else
+      {
+        /*
+          A monitoring thread, performing TRUNCATE TABLE,
+          is asking to flush existing stats from table handles,
+          but it does not know about index names used in handles.
+          If the index stat already exists, find it and aggregate to it.
+          It the index stat does not exist yet, drop the stat and do nothing.
+        */
+        to_stat= table_share->find_index_stat(index);
+      }
+      if (to_stat != NULL)
+      {
+        /* Aggregate to TABLE_IO_SUMMARY */
+        to_stat->m_stat.aggregate(from_stat);
+      }
+    }
+  }
+
+  /* Aggregate stats for the table */
+  from_stat= & table_stat->m_index_stat[MAX_INDEXES];
+  if (from_stat->m_has_data)
+  {
+    to_stat= table_share->find_or_create_index_stat(NULL, MAX_INDEXES);
+    if (to_stat != NULL)
+    {
+      /* Aggregate to TABLE_IO_SUMMARY */
+      to_stat->m_stat.aggregate(from_stat);
+    }
+  }
+
   table_stat->fast_reset_io();
 }
 
@@ -1555,8 +1587,17 @@ void PFS_table::safe_aggregate_lock(PFS_table_stat *table_stat,
   DBUG_ASSERT(table_stat != NULL);
   DBUG_ASSERT(table_share != NULL);
 
-  /* Aggregate to TABLE_LOCK_SUMMARY */
-  table_share->m_table_stat.aggregate_lock(table_stat);
+  PFS_table_lock_stat *from_stat= & table_stat->m_lock_stat;
+
+  PFS_table_share_lock *to_stat;
+
+  to_stat= table_share->find_or_create_lock_stat();
+  if (to_stat != NULL)
+  {
+    /* Aggregate to TABLE_LOCK_SUMMARY */
+    to_stat->m_stat.aggregate(from_stat);
+  }
+
   table_stat->fast_reset_lock();
 }
 

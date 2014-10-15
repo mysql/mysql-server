@@ -104,7 +104,7 @@ CHANGED_TABLE_LIST* Transaction_ctx::changed_table_dup(const char *key,
           ALIGN_SIZE(sizeof(CHANGED_TABLE_LIST)) + key_length + 1);
   if (!new_table)
   {
-    my_error(EE_OUTOFMEMORY, MYF(ME_BELL+ME_FATALERROR),
+    my_error(EE_OUTOFMEMORY, MYF(ME_FATALERROR),
              ALIGN_SIZE(sizeof(TABLE_LIST)) + key_length + 1);
     return 0;
   }

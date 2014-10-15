@@ -135,7 +135,7 @@ rtr_pcur_move_to_next(
 	const dtuple_t*	tuple,	/*!< in: data tuple; NOTE: n_fields_cmp in
 				tuple must be set so that it cannot get
 				compared to the node ptr page number field! */
-	ulint		mode,	/*!< in: cursor search mode */
+	page_cur_mode_t	mode,	/*!< in: cursor search mode */
 	btr_pcur_t*	cursor, /*!< in: persistent cursor; NOTE that the
 				function may release the page latch */
 	ulint		cur_level,
@@ -164,7 +164,7 @@ rtr_cur_search_with_match(
 	const buf_block_t*	block,	/*!< in: buffer block */
 	dict_index_t*		index,	/*!< in: index descriptor */
 	const dtuple_t*		tuple,	/*!< in: data tuple */
-	ulint			mode,	/*!< in: PAGE_CUR_L,
+	page_cur_mode_t		mode,	/*!< in: PAGE_CUR_L,
 					PAGE_CUR_LE, PAGE_CUR_G, or
 					PAGE_CUR_GE */
 	page_cur_t*		cursor,	/*!< in/out: page cursor */
@@ -376,7 +376,7 @@ rtr_pcur_open_low(
 	dict_index_t*	index,	/*!< in: index */
 	ulint		level,	/*!< in: level in the btree */
 	const dtuple_t*	tuple,	/*!< in: tuple on which search done */
-	ulint		mode,	/*!< in: PAGE_CUR_L, ...;
+	page_cur_mode_t	mode,	/*!< in: PAGE_CUR_L, ...;
 				NOTE that if the search is made using a unique
 				prefix of a record, mode should be
 				PAGE_CUR_LE, not PAGE_CUR_GE, as the latter

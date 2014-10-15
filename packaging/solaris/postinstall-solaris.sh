@@ -79,7 +79,6 @@ if [ -n "$INSTALL" ] ; then
     cd "$mybasedir"
     bin/mysql_install_db \
 	  --user=mysql \
-	  --insecure \
 	  --basedir="$mybasedir" \
 	  --datadir=$mydatadir
   )

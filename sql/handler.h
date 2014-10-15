@@ -139,16 +139,16 @@ enum enum_alter_inplace_result {
 #define HA_NO_VARCHAR	       (1 << 27)
 #define HA_CAN_BIT_FIELD       (1 << 28) /* supports bit fields */
 #define HA_ANY_INDEX_MAY_BE_UNIQUE (1 << 30)
-#define HA_NO_COPY_ON_ALTER    (LL(1) << 31)
-#define HA_HAS_RECORDS	       (LL(1) << 32) /* records() gives exact count*/
+#define HA_NO_COPY_ON_ALTER    (1LL << 31)
+#define HA_HAS_RECORDS	       (1LL << 32) /* records() gives exact count*/
 /* Has it's own method of binlog logging */
-#define HA_HAS_OWN_BINLOGGING  (LL(1) << 33)
+#define HA_HAS_OWN_BINLOGGING  (1LL << 33)
 /*
   Engine is capable of row-format and statement-format logging,
   respectively
 */
-#define HA_BINLOG_ROW_CAPABLE  (LL(1) << 34)
-#define HA_BINLOG_STMT_CAPABLE (LL(1) << 35)
+#define HA_BINLOG_ROW_CAPABLE  (1LL << 34)
+#define HA_BINLOG_STMT_CAPABLE (1LL << 35)
 /*
     When a multiple key conflict happens in a REPLACE command mysql
     expects the conflicts to be reported in the ascending order of
@@ -171,13 +171,13 @@ enum enum_alter_inplace_result {
     This flag helps the underlying SE to inform the server that the keys are not
     ordered.
 */
-#define HA_DUPLICATE_KEY_NOT_IN_ORDER    (LL(1) << 36)
+#define HA_DUPLICATE_KEY_NOT_IN_ORDER    (1LL << 36)
 /*
   Engine supports REPAIR TABLE. Used by CHECK TABLE FOR UPGRADE if an
   incompatible table is detected. If this flag is set, CHECK TABLE FOR UPGRADE
   will report ER_TABLE_NEEDS_UPGRADE, otherwise ER_TABLE_NEED_REBUILD.
 */
-#define HA_CAN_REPAIR                    (LL(1) << 37)
+#define HA_CAN_REPAIR                    (1LL << 37)
 
 /*
   Set of all binlog flags. Currently only contain the capabilities
@@ -217,12 +217,12 @@ enum enum_alter_inplace_result {
   @note This optimization in combination with batching may be used to
         remove even more roundtrips.
 */
-#define HA_READ_BEFORE_WRITE_REMOVAL  (LL(1) << 38)
+#define HA_READ_BEFORE_WRITE_REMOVAL  (1LL << 38)
 
 /*
   Engine supports extended fulltext API
  */
-#define HA_CAN_FULLTEXT_EXT              (LL(1) << 39)
+#define HA_CAN_FULLTEXT_EXT              (1LL << 39)
 
 /*
   Storage engine doesn't synchronize result set with expected table contents.
@@ -230,24 +230,24 @@ enum enum_alter_inplace_result {
   the table when deciding whether to do a full table scan, index scan or hash
   scan while applying a row event.
  */
-#define HA_READ_OUT_OF_SYNC              (LL(1) << 40)
+#define HA_READ_OUT_OF_SYNC              (1LL << 40)
 
 /*
   Storage engine supports table export using the
   FLUSH TABLE <table_list> FOR EXPORT statement.
  */
-#define HA_CAN_EXPORT                 (LL(1) << 41)
+#define HA_CAN_EXPORT                 (1LL << 41)
 
 /*
   The handler don't want accesses to this table to 
   be const-table optimized
 */
-#define HA_BLOCK_CONST_TABLE          (LL(1) << 42)
+#define HA_BLOCK_CONST_TABLE          (1LL << 42)
 
 /*
   Handler supports FULLTEXT hints
 */
-#define HA_CAN_FULLTEXT_HINTS         (LL(1) << 43)
+#define HA_CAN_FULLTEXT_HINTS         (1LL << 43)
 
 /**
   Storage engine doesn't support LOCK TABLE ... READ LOCAL locks
@@ -255,7 +255,7 @@ enum enum_alter_inplace_result {
   them to LOCK TABLE ... READ locks, for example, because it doesn't
   use THR_LOCK locks at all.
 */
-#define HA_NO_READ_LOCAL_LOCK         (LL(1) << 44)
+#define HA_NO_READ_LOCAL_LOCK         (1LL << 44)
 
 /**
   A storage engine is compatible with the attachable transaction requirements
@@ -268,7 +268,7 @@ enum enum_alter_inplace_result {
     - or SE completely ignores THD::ha_data and close_connection like MyISAM
       does.
 */
-#define HA_ATTACHABLE_TRX_COMPATIBLE  (LL(1) << 45)
+#define HA_ATTACHABLE_TRX_COMPATIBLE  (1LL << 45)
 
 
 /* bits in index_flags(index_number) for what you can do with index */

@@ -427,7 +427,7 @@ Converts a comparison operator to the corresponding search mode PAGE_CUR_GE,
 ...
 @return search mode */
 UNIV_INLINE
-ulint
+page_cur_mode_t
 opt_op_to_search_mode(
 /*==================*/
 	ibool	asc,	/*!< in: TRUE if the rows should be fetched in an
@@ -461,7 +461,7 @@ opt_op_to_search_mode(
 		ut_error;
 	}
 
-	return(0);
+	return(PAGE_CUR_UNSUPP);
 }
 
 /*******************************************************************//**

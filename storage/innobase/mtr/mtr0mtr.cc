@@ -31,6 +31,7 @@ Created 11/26/1995 Heikki Tuuri
 #include "page0types.h"
 #include "mtr0log.h"
 #include "log0log.h"
+#include "row0trunc.h"
 
 #include "log0recv.h"
 
@@ -400,23 +401,12 @@ mtr_t::is_block_dirtied(const buf_block_t* block)
 
 /** Write the block contents to the REDO log */
 struct mtr_write_log_t {
-	/** Number of bytes to write */
-	mutable ulint	m_len;
-
-	/** Constructor */
-	explicit mtr_write_log_t(ulint len) : m_len (len) {}
-
 	/** Append a block to the redo log buffer.
 	@return whether the appending should continue */
 	bool operator()(const mtr_buf_t::block_t* block) const
 	{
-		ut_ad(m_len > 0);
-
-		ulint	len = ut_min(m_len, block->used());
-
-		log_write_low(block->begin(), len);
-		m_len -= len;
-		return(m_len > 0);
+		log_write_low(block->begin(), block->used());
+		return(true);
 	}
 };
 
@@ -427,7 +417,7 @@ mtr_write_log(
 	const mtr_buf_t*	log)
 {
 	const ulint	len = log->size();
-	mtr_write_log_t	write_log(len);
+	mtr_write_log_t	write_log;
 
 	DBUG_PRINT("ib_log",
 		   (ULINTPF "extra bytes written at " LSN_PF,
@@ -463,7 +453,10 @@ mtr_t::start(bool sync, bool read_only)
 	m_impl.m_made_dirty = false;
 	m_impl.m_n_log_recs = 0;
 	m_impl.m_state = MTR_STATE_ACTIVE;
-	m_impl.m_named_space = TRX_SYS_SPACE;
+	ut_d(m_impl.m_user_space_id = TRX_SYS_SPACE);
+	m_impl.m_user_space = NULL;
+	m_impl.m_undo_space = NULL;
+	m_impl.m_sys_space = NULL;
 
 	ut_d(m_impl.m_magic_n = MTR_MAGIC_N);
 }
@@ -575,7 +568,7 @@ mtr_t::commit_checkpoint(lsn_t checkpoint_lsn)
 }
 
 #ifdef UNIV_DEBUG
-/** Check the tablespace associated with the mini-transaction
+/** Check if a tablespace is associated with the mini-transaction
 (needed for generating a MLOG_FILE_NAME record)
 @param[in]	space	tablespace
 @return whether the mini-transaction is associated with the space */
@@ -583,13 +576,26 @@ mtr_t::commit_checkpoint(lsn_t checkpoint_lsn)
 bool
 mtr_t::is_named_space(ulint space) const
 {
+	ut_ad(!m_impl.m_sys_space
+	      || m_impl.m_sys_space->id == TRX_SYS_SPACE);
+	ut_ad(!m_impl.m_undo_space
+	      || m_impl.m_undo_space->id != TRX_SYS_SPACE);
+	ut_ad(!m_impl.m_user_space
+	      || m_impl.m_user_space->id != TRX_SYS_SPACE);
+	ut_ad(!m_impl.m_sys_space
+	      || m_impl.m_sys_space != m_impl.m_user_space);
+	ut_ad(!m_impl.m_sys_space
+	      || m_impl.m_sys_space != m_impl.m_undo_space);
+	ut_ad(!m_impl.m_user_space
+	      || m_impl.m_user_space != m_impl.m_undo_space);
+
 	switch (get_log_mode()) {
 	case MTR_LOG_NONE:
 	case MTR_LOG_NO_REDO:
 		return(true);
 	case MTR_LOG_ALL:
 	case MTR_LOG_SHORT_INSERTS:
-		return(m_impl.m_named_space == space
+		return(m_impl.m_user_space_id == space
 		       || is_predefined_tablespace(space));
 	}
 
@@ -597,6 +603,72 @@ mtr_t::is_named_space(ulint space) const
 	return(false);
 }
 #endif /* UNIV_DEBUG */
+
+/** Acquire a tablespace X-latch.
+NOTE: use mtr_x_lock_space().
+@param[in]	space_id	tablespace ID
+@param[in]	file		file name from where called
+@param[in]	line		line number in file
+@return the tablespace object (never NULL) */
+
+fil_space_t*
+mtr_t::x_lock_space(ulint space_id, const char* file, ulint line)
+{
+	fil_space_t*	space;
+
+	ut_ad(m_impl.m_magic_n == MTR_MAGIC_N);
+	ut_ad(is_active());
+
+	if (space_id == TRX_SYS_SPACE) {
+		space = m_impl.m_sys_space;
+
+		if (!space) {
+			space = m_impl.m_sys_space = fil_space_get(space_id);
+		}
+	} else if ((space = m_impl.m_user_space) && space_id == space->id) {
+	} else if ((space = m_impl.m_undo_space) && space_id == space->id) {
+	} else if (get_log_mode() == MTR_LOG_NO_REDO) {
+		space = fil_space_get(space_id);
+		ut_ad(space->purpose == FIL_TYPE_TEMPORARY
+		      || space->purpose == FIL_TYPE_IMPORT
+		      || space->redo_skipped_count > 0
+		      || srv_is_tablespace_truncated(space->id));
+	} else {
+		/* called from trx_rseg_create() */
+		space = m_impl.m_undo_space = fil_space_get(space_id);
+	}
+
+	ut_ad(space);
+	ut_ad(space->id == space_id);
+	x_lock(&space->latch, file, line);
+	ut_ad(space->purpose == FIL_TYPE_TEMPORARY
+	      || space->purpose == FIL_TYPE_IMPORT
+	      || space->purpose == FIL_TYPE_TABLESPACE);
+	return(space);
+}
+
+/** Look up the system tablespace. */
+
+void
+mtr_t::lookup_sys_space()
+{
+	ut_ad(!m_impl.m_sys_space);
+	m_impl.m_sys_space = fil_space_get(TRX_SYS_SPACE);
+	ut_ad(m_impl.m_sys_space);
+}
+
+/** Look up the user tablespace.
+@param[in]	space_id	tablespace ID */
+
+void
+mtr_t::lookup_user_space(ulint space_id)
+{
+	ut_ad(space_id != TRX_SYS_SPACE);
+	ut_ad(m_impl.m_user_space_id == space_id);
+	ut_ad(!m_impl.m_user_space);
+	m_impl.m_user_space = fil_space_get(space_id);
+	ut_ad(m_impl.m_user_space);
+}
 
 /** Release an object in the memo stack.
 @return true if released */
@@ -651,42 +723,30 @@ mtr_t::Command::prepare_write()
 		log_buffer_extend((len + 1) * 2);
 	}
 
-	fil_space_t*	space
-		= is_predefined_tablespace(m_impl->m_named_space)
-		? NULL
-		: fil_names_write(m_impl->m_named_space, m_impl->m_mtr);
+	ut_ad(m_impl->m_n_log_recs == n_recs);
 
-	ut_ad(m_impl->m_n_log_recs >= n_recs);
+	fil_space_t*	space = m_impl->m_user_space;
+
+	if (space != NULL && space->id <= srv_undo_tablespaces_open) {
+		/* Omit MLOG_FILE_NAME for predefined tablespaces. */
+		space = NULL;
+	}
 
 	log_mutex_enter();
 
-	if (space != NULL && fil_names_dirty(space)) {
+	if (fil_names_write_if_was_clean(space, m_impl->m_mtr)) {
 		/* This mini-transaction was the first one to modify
-		the tablespace since the latest checkpoint. Do include
-		the MLOG_FILE_NAME record that was appended to m_log
-		by fil_names_write().  In all other cases, we will use
-		the old m_log.size() (omitting the MLOG_FILE_NAME)
-		when copying the log to the global redo log buffer. */
+		this tablespace since the latest checkpoint, so
+		some MLOG_FILE_NAME records were appended to m_log. */
 		ut_ad(m_impl->m_n_log_recs > n_recs);
 		mlog_catenate_ulint(
 			&m_impl->m_log, MLOG_MULTI_REC_END, MLOG_1BYTE);
 		len = m_impl->m_log.size();
 	} else {
-		/* This was not the first time of dirtying the
-		tablespace since the latest checkpoint. Thus, we
-		should not append any MLOG_FILE_NAME record.
+		/* This was not the first time of dirtying a
+		tablespace since the latest checkpoint. */
 
-		If fil_names_write() returned space!=NULL, it would
-		have appended a MLOG_FILE_NAME record. We must copy
-		the m_impl->m_log only up to the start of that
-		MLOG_FILE_NAME record, not including the record. */
-
-		ut_ad(space == NULL
-		      ? (n_recs == m_impl->m_n_log_recs)
-		      : (n_recs < m_impl->m_n_log_recs));
-		ut_ad(space == NULL
-		      ? (len == m_impl->m_log.size())
-		      : (len < m_impl->m_log.size()));
+		ut_ad(n_recs == m_impl->m_n_log_recs);
 
 		if (n_recs <= 1) {
 			ut_ad(n_recs == 1);
@@ -700,26 +760,13 @@ mtr_t::Command::prepare_write()
 			multiple log records, append MLOG_MULTI_REC_END
 			at the end. */
 
-			if (space != NULL) {
-				/* Replace the first byte of the
-				to-be-ignored MLOG_FILE_NAME log
-				record with MLOG_MULTI_REC_END. */
-				byte* tail = m_impl->m_log.at<byte*>(len++);
-				ut_ad(*tail == MLOG_FILE_NAME);
-				*tail = MLOG_MULTI_REC_END;
-				ut_ad(len < m_impl->m_log.size());
-			} else {
-				/* Append MLOG_MULTI_REC_END. */
-				mlog_catenate_ulint(
-					&m_impl->m_log, MLOG_MULTI_REC_END,
-					MLOG_1BYTE);
-				len++;
-				ut_ad(len == m_impl->m_log.size());
-			}
+			mlog_catenate_ulint(
+				&m_impl->m_log, MLOG_MULTI_REC_END,
+				MLOG_1BYTE);
+			len++;
 		}
 	}
 
-	ut_ad(len <= m_impl->m_log.size());
 	return(len);
 }
 
@@ -732,7 +779,7 @@ mtr_t::Command::finish_write(
 {
 	ut_ad(m_impl->m_log_mode == MTR_LOG_ALL);
 	ut_ad(log_mutex_own());
-	ut_ad(m_impl->m_log.size() >= len);
+	ut_ad(m_impl->m_log.size() == len);
 	ut_ad(len > 0);
 
 	if (m_impl->m_log.is_small()) {
@@ -750,7 +797,7 @@ mtr_t::Command::finish_write(
 	/* Open the database log for log_write_low */
 	m_start_lsn = log_reserve_and_open(len);
 
-	mtr_write_log_t	write_log(len);
+	mtr_write_log_t	write_log;
 	m_impl->m_log.for_each_block(write_log);
 
 	m_end_lsn = log_close();

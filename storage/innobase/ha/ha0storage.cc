@@ -168,15 +168,13 @@ test_ha_storage()
 		p = ha_storage_put(storage, buf, sizeof(buf));
 
 		if (p != stored[i]) {
-
-			ib_logf(IB_LOG_LEVEL_WARN,
-				"ha_storage_put() returned %p"
-				" instead of %p, i=%d", p, stored[i], i);
+			ib::warn() << "ha_storage_put() returned " << p
+				" instead of " << stored[i] << ", i=" << i;
 			return;
 		}
 	}
 
-	ib_logf(IB_LOG_LEVEL_INFO, "all ok");
+	ib::info() << "all ok";
 
 	ha_storage_free(storage);
 }

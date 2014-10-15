@@ -209,7 +209,7 @@ char **argv[];
   if (*argc == 0)
   {
     if (!help)
-      my_message(0,"No replace options given",MYF(ME_BELL));
+      my_message(0,"No replace options given",MYF(0));
     exit(0);					/* Don't use as pipe */
   }
   return(0);
@@ -232,7 +232,7 @@ POINTER_ARRAY *from_array,*to_array;
     (*argv)++;
     if (!*argc || !strcmp(**argv,"--"))
     {
-      my_message(0,"No to-string for last from-string",MYF(ME_BELL));
+      my_message(0,"No to-string for last from-string",MYF(0));
       return 1;
     }
     insert_pointer_name(to_array,**argv);
@@ -418,7 +418,7 @@ static REPLACE *init_replace(char * *from, char * *to,uint count,
     if (!len)
     {
       errno=EINVAL;
-      my_message(0,"No to-string for last from-string",MYF(ME_BELL));
+      my_message(0,"No to-string for last from-string",MYF(0));
       DBUG_RETURN(0);
     }
     states+=len+1;

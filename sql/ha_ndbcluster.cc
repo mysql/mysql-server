@@ -16039,7 +16039,7 @@ ha_ndbcluster::set_range_data(const partition_info *part_info,
     if (range_val < INT_MIN32 || range_val >= INT_MAX32)
     {
       if ((i != num_parts - 1) ||
-          (range_val != LONGLONG_MAX))
+          (range_val != LLONG_MAX))
       {
         my_error(ER_LIMITED_PART_RANGE, MYF(0), "NDB");
         error= 1;

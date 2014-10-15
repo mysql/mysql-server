@@ -1,55 +1,212 @@
 RESET MASTER;
 CREATE TABLE t1 (a int) ENGINE= innodb;
+Must be 1 occurence found
 Matching lines are:
 Occurrences of the last_committed=0	sequence_number=1 in the input file : 1
 INSERT INTO t1 SET a=1;
+Must be 1 occurence found
 Matching lines are:
 Occurrences of the last_committed=1	sequence_number=2 in the input file : 1
+[connection one]
 BEGIN;
 INSERT INTO t1 SET a=1;
+[connection two]
 BEGIN;
 INSERT INTO t1 SET a=2;
 COMMIT;
+[connection one]
 INSERT INTO t1 SET a=1;
+[connection two]
 BEGIN;
 INSERT INTO t1 SET a=2;
 COMMIT;
+Must be 1 occurence found
 Matching lines are:
 Occurrences of the last_committed=3	sequence_number=4 in the input file : 1
+[connection one]
 COMMIT;
+Must be 1 occurence found
 Matching lines are:
 Occurrences of the last_committed=3	sequence_number=5 in the input file : 1
+[connection one]
 INSERT INTO t1 SET a=1;
+[connection two]
 INSERT INTO t1 SET a=2;
+[connection one]
+[connection two]
+Must be 2 occurences found
 Matching lines are:
 Occurrences of the last_committed=[56]	sequence_number=[67] in the input file : 2
+[connection one]
 RESET MASTER;
 INSERT INTO t1 SET a=1;
+[connection two]
 BEGIN;
 INSERT INTO t1 SET a=2;
+[connection one]
 BEGIN;
 INSERT INTO t1 SET a=3;
+[connection two]
 COMMIT;
+Must be 1 occurence found
 Matching lines are:
 Occurrences of the last_committed=1	sequence_number=2 in the input file : 1
 FLUSH LOGS;
+[connection one]
 COMMIT;
+Must be 1 occurence found
 Matching lines are:
 Occurrences of the last_committed=0	sequence_number=1 in the input file : 1
+[connection one]
 RESET MASTER;
 INSERT INTO t1 SET a=1;
+[connection two]
 BEGIN;
 INSERT INTO t1 SET a=2;
+[connection one]
 BEGIN;
 INSERT INTO t1 SET a=3;
+[connection three]
 BEGIN;
 INSERT INTO t1 SET a=4;
+[connection two]
 COMMIT;
+Must be 1 occurence found
 Matching lines are:
 Occurrences of the last_committed=1	sequence_number=2 in the input file : 1
 RESET MASTER;
+[connection one]
 COMMIT;
+[connection three]
 COMMIT;
+Must be 2 occurences found
 Matching lines are:
 Occurrences of the last_committed=0	sequence_number=[12] in the input file : 2
 DROP TABLE t1;
+CREATE TABLE t1 (a int) ENGINE= innodb;
+CREATE TABLE tm (a int) ENGINE= MyISAM;
+RESET MASTER;
+CREATE TEMPORARY TABLE ttm1 (a INT) ENGINE=MyISAM;
+CREATE TEMPORARY TABLE tti1 (a INT) ENGINE=Innodb;
+*** The query is logged in three parts.
+DROP TABLE tm,t1,ttm1,tti1;
+Matching lines are:
+Occurrences of the last_committed=2	sequence_number=3 in the input file : 1
+Must be 2 occurences found
+Matching lines are:
+Occurrences of the last_committed=0	sequence_number=0 in the input file : 2
+*** All groups are found, no more tagged groups in the log
+Matching lines are:
+None
+Occurrences of the sequence_number=4 in the input file : 0
+CALL mtr.add_suppression("Some non-transactional changed tables couldn't be rolled back");
+CREATE TABLE t1 (a int) ENGINE= innodb;
+CREATE TABLE tm (a int) ENGINE= MyISAM;
+CREATE PROCEDURE p1 ()
+BEGIN
+START TRANSACTION;
+INSERT INTO t1 SET a=1;
+INSERT INTO tm SET a=2;
+COMMIT;
+START TRANSACTION;
+INSERT INTO t1 SET a=1;
+INSERT INTO tm SET a=2;
+ROLLBACK;
+END|
+CREATE PROCEDURE p2 ()
+BEGIN
+START TRANSACTION;
+INSERT INTO t1 SET a=1;
+COMMIT;
+START TRANSACTION;
+INSERT INTO t1 SET a=2;
+COMMIT;
+START TRANSACTION;
+INSERT INTO t1 SET a=3;
+COMMIT;
+END|
+RESET MASTER;
+START TRANSACTION;
+INSERT INTO t1 SET a=1;
+INSERT INTO tm SET a=2;
+COMMIT;
+Matching lines are:
+Occurrences of the last_committed=0	sequence_number=1 in the input file : 1
+Matching lines are:
+Occurrences of the last_committed=1	sequence_number=2 in the input file : 1
+*** All groups are found, no more tagged groups in the log
+Matching lines are:
+None
+Occurrences of the sequence_number=3 in the input file : 0
+*** Printing queries (2)
+Matching lines are:
+INSERT INTO tm SET a=2
+
+INSERT INTO t1 SET a=1
+
+Occurrences of the INSERT in the input file : 2
+RESET MASTER;
+START TRANSACTION;
+INSERT INTO t1 SET a=1;
+INSERT INTO tm SET a=2;
+ROLLBACK;
+Warnings:
+Warning	1196	Some non-transactional changed tables couldn't be rolled back
+Matching lines are:
+Occurrences of the last_committed=0	sequence_number=1 in the input file : 1
+*** All (1) groups are found, no more tagged groups in the log
+Matching lines are:
+None
+Occurrences of the sequence_number=2 in the input file : 0
+*** Printing queries (1)
+Matching lines are:
+INSERT INTO tm SET a=2
+
+Occurrences of the INSERT in the input file : 1
+RESET MASTER;
+CALL p1();
+Warnings:
+Warning	1196	Some non-transactional changed tables couldn't be rolled back
+Matching lines are:
+Occurrences of the last_committed=0	sequence_number=1 in the input file : 1
+Matching lines are:
+Occurrences of the last_committed=1	sequence_number=2 in the input file : 1
+Matching lines are:
+Occurrences of the last_committed=2	sequence_number=3 in the input file : 1
+*** All (3) groups are found, no more tagged groups in the log
+Matching lines are:
+None
+Occurrences of the sequence_number=4 in the input file : 0
+*** Printing queries (3)
+Matching lines are:
+INSERT INTO tm SET a=2
+
+INSERT INTO t1 SET a=1
+
+INSERT INTO tm SET a=2
+
+Occurrences of the INSERT in the input file : 3
+RESET MASTER;
+CALL p2();
+Matching lines are:
+Occurrences of the last_committed=0	sequence_number=1 in the input file : 1
+Matching lines are:
+Occurrences of the last_committed=1	sequence_number=2 in the input file : 1
+Matching lines are:
+Occurrences of the last_committed=2	sequence_number=3 in the input file : 1
+*** All (3) groups are found, no more tagged groups in the log
+Matching lines are:
+None
+Occurrences of the sequence_number=4 in the input file : 0
+*** Printing queries (3)
+Matching lines are:
+INSERT INTO t1 SET a=1
+
+INSERT INTO t1 SET a=2
+
+INSERT INTO t1 SET a=3
+
+Occurrences of the INSERT in the input file : 3
+DROP PROCEDURE p1;
+DROP PROCEDURE p2;
+DROP TABLE tm,t1;

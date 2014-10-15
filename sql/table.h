@@ -2535,6 +2535,19 @@ inline bool is_infoschema_db(const char *name)
                         INFORMATION_SCHEMA_NAME.str, name);
 }
 
+inline bool is_perfschema_db(const char *name, size_t len)
+{
+  return (PERFORMANCE_SCHEMA_DB_NAME.length == len &&
+          !my_strcasecmp(system_charset_info,
+                         PERFORMANCE_SCHEMA_DB_NAME.str, name));
+}
+
+inline bool is_perfschema_db(const char *name)
+{
+  return !my_strcasecmp(system_charset_info,
+                        PERFORMANCE_SCHEMA_DB_NAME.str, name);
+}
+
 TYPELIB *typelib(MEM_ROOT *mem_root, List<String> &strings);
 
 /**

@@ -315,7 +315,7 @@ struct sql_ex_info
 
 /* Shouldn't be defined before */
 #define EXPECTED_OPTIONS \
-  ((ULL(1) << 14) | (ULL(1) << 26) | (ULL(1) << 27) | (ULL(1) << 19))
+  ((1ULL << 14) | (1ULL << 26) | (1ULL << 27) | (1ULL << 19))
 
 #if OPTIONS_WRITTEN_TO_BIN_LOG != EXPECTED_OPTIONS
 #error OPTIONS_WRITTEN_TO_BIN_LOG must NOT change their values!
@@ -325,7 +325,8 @@ struct sql_ex_info
 /**
    Maximum value of binlog logical timestamp.
 */
-const int64_t SEQ_MAX_TIMESTAMP= LONGLONG_MAX;
+const int64 SEQ_MAX_TIMESTAMP= LLONG_MAX;
+
 #ifdef MYSQL_SERVER
 class String;
 class MYSQL_BIN_LOG;
@@ -1574,7 +1575,7 @@ public:
   void print(FILE* file, PRINT_EVENT_INFO* print_event_info);
 #endif
 
-  Start_log_event_v3(const char* buf,
+  Start_log_event_v3(const char* buf, uint event_len,
                      const Format_description_event* description_event);
   ~Start_log_event_v3() {}
 #ifdef MYSQL_SERVER

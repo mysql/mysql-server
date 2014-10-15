@@ -2343,7 +2343,7 @@ bool check_grant_db(THD *thd,const char *db)
   bool error= TRUE;
   size_t copy_length;
 
-  copy_length= (size_t) (strlen(sctx->priv_user ? sctx->priv_user : "") +
+  copy_length= (size_t) (strlen(sctx->priv_user) +
                  strlen(db ? db : "")) + 1; /* Added 1 at the end to avoid  
                                                buffer overflow at strmov()*/
 
@@ -3644,12 +3644,6 @@ void fill_effective_table_privileges(THD *thd, GRANT_INFO *grant,
 
   /* global privileges */
   grant->privilege= sctx->master_access;
-
-  if (!sctx->priv_user)
-  {
-    DBUG_PRINT("info", ("privilege 0x%lx", grant->privilege));
-    DBUG_VOID_RETURN;                         // it is slave
-  }
 
   /* db privileges */
   grant->privilege|= acl_get(sctx->get_host()->ptr(), sctx->get_ip()->ptr(),

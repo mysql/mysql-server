@@ -38,27 +38,6 @@ Created 10/4/1994 Heikki Tuuri
 
 #define PAGE_CUR_ADAPT
 
-/* Page cursor search modes; the values must be in this order! */
-
-#define	PAGE_CUR_UNSUPP	0
-#define	PAGE_CUR_G	1
-#define	PAGE_CUR_GE	2
-#define	PAGE_CUR_L	3
-#define	PAGE_CUR_LE	4
-/*#define PAGE_CUR_LE_OR_EXTENDS 5*/ /* This is a search mode used in
-				 "column LIKE 'abc%' ORDER BY column DESC";
-				 we have to find strings which are <= 'abc' or
-				 which extend it */
-
-/* These search mode is for search R-tree index. */
-#define PAGE_CUR_CONTAIN		7
-#define PAGE_CUR_INTERSECT		8
-#define	PAGE_CUR_WITHIN			9
-#define	PAGE_CUR_DISJOINT		10
-#define	PAGE_CUR_MBR_EQUAL		11
-#define	PAGE_CUR_RTREE_INSERT		12
-#define	PAGE_CUR_RTREE_LOCATE		13
-
 #ifdef UNIV_DEBUG
 /*********************************************************//**
 Gets pointer to the page frame where the cursor is positioned.
@@ -300,7 +279,7 @@ page_cur_search(
 	const buf_block_t*	block,
 	const dict_index_t*	index,
 	const dtuple_t*		tuple,
-	ulint			mode,
+	page_cur_mode_t		mode,
 	page_cur_t*		cursor);
 
 /** Search the right position for a page cursor.
@@ -324,7 +303,7 @@ page_cur_search_with_match(
 	const buf_block_t*	block,	/*!< in: buffer block */
 	const dict_index_t*	index,	/*!< in: record descriptor */
 	const dtuple_t*		tuple,	/*!< in: data tuple */
-	ulint			mode,	/*!< in: PAGE_CUR_L,
+	page_cur_mode_t		mode,	/*!< in: PAGE_CUR_L,
 					PAGE_CUR_LE, PAGE_CUR_G, or
 					PAGE_CUR_GE */
 	ulint*			iup_matched_fields,

@@ -1996,12 +1996,12 @@ pfs_rebind_table_v1(PSI_table_share *share, const void *identity, PSI_table *tab
   Implementation of the table instrumentation interface.
   @sa PSI_v1::close_table.
 */
-void pfs_close_table_v1(PSI_table *table)
+void pfs_close_table_v1(TABLE_SHARE *server_share, PSI_table *table)
 {
   PFS_table *pfs= reinterpret_cast<PFS_table*> (table);
   if (unlikely(pfs == NULL))
     return;
-  pfs->aggregate();
+  pfs->aggregate(server_share);
   destroy_table(pfs);
 }
 

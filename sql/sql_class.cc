@@ -4953,7 +4953,7 @@ void THD::time_out_user_resource_limits()
   DBUG_ENTER("time_out_user_resource_limits");
 
   /* If more than a hour since last check, reset resource checking */
-  if (check_time - m_user_connect->reset_utime >= LL(3600000000))
+  if (check_time - m_user_connect->reset_utime >= 3600000000LL)
   {
     m_user_connect->questions=1;
     m_user_connect->updates=0;

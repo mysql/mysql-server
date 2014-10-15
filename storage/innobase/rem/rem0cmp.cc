@@ -299,7 +299,7 @@ static
 int
 cmp_gis_field(
 /*============*/
-	ulint		mode,		/*!< in: compare mode */
+	page_cur_mode_t	mode,		/*!< in: compare mode */
 	const byte*	a,		/*!< in: data field */
 	unsigned int	a_length,	/*!< in: data field length,
 					not UNIV_SQL_NULL */
@@ -313,8 +313,7 @@ cmp_gis_field(
 		return(cmp_geometry_field(DATA_GEOMETRY, DATA_GIS_MBR,
 					  a, a_length, b, b_length));
 	} else {
-		return(rtree_key_cmp(static_cast<int>(mode),
-				     a, a_length, b, b_length));
+		return(rtree_key_cmp(mode, a, a_length, b, b_length));
 	}
 }
 
@@ -567,7 +566,7 @@ cmp_dtuple_rec_with_gis(
 				has an equal number or more fields than
 				dtuple */
 	const ulint*	offsets,/*!< in: array returned by rec_get_offsets() */
-	ulint		mode)	/*!< in: comprare mode */
+	page_cur_mode_t	mode)	/*!< in: compare mode */
 {
 	const dfield_t*	dtuple_field;	/* current field in logical record */
 	ulint		dtuple_f_len;	/* the length of the current field
@@ -930,7 +929,7 @@ cmp_rec_rec_with_match(
 			break;
 		}
 
-		if (dict_index_is_univ(index)) {
+		if (dict_index_is_ibuf(index)) {
 			/* This is for the insert buffer B-tree. */
 			mtype = DATA_BINARY;
 			prtype = 0;

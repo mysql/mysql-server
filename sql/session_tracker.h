@@ -89,7 +89,7 @@ public:
   virtual bool store(THD *thd, String &buf)= 0;
 
   /** Mark the entity as changed. */
-  virtual void mark_as_changed(LEX_CSTRING *name)= 0;
+  virtual void mark_as_changed(THD *thd, LEX_CSTRING *name)= 0;
 };
 
 
@@ -186,7 +186,7 @@ public:
   { return false; }
   bool update(THD *thd);
   bool store(THD *thd, String &buf);
-  void mark_as_changed(LEX_CSTRING *tracked_item_name);
+  void mark_as_changed(THD *thd, LEX_CSTRING *tracked_item_name);
   bool is_state_changed(THD*);
   void ensure_enabled(THD *thd)
   {}

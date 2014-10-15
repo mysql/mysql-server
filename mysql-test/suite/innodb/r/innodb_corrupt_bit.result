@@ -1,4 +1,3 @@
-call mtr.add_suppression("Flagged corruption of \"idx.*in CHECK TABLE");
 set names utf8;
 CREATE TABLE corrupt_bit_test_ā(
 a INT AUTO_INCREMENT PRIMARY KEY,
@@ -20,9 +19,9 @@ count(*)
 SET SESSION debug="+d,dict_set_index_corrupted";
 check table corrupt_bit_test_ā;
 Table	Op	Msg_type	Msg_text
-test.corrupt_bit_test_ā	check	Warning	InnoDB: The B-tree of index "idx" is corrupted.
-test.corrupt_bit_test_ā	check	Warning	InnoDB: The B-tree of index "idxā" is corrupted.
-test.corrupt_bit_test_ā	check	Warning	InnoDB: The B-tree of index "idxē" is corrupted.
+test.corrupt_bit_test_ā	check	Warning	InnoDB: The B-tree of index idx is corrupted.
+test.corrupt_bit_test_ā	check	Warning	InnoDB: The B-tree of index idxā is corrupted.
+test.corrupt_bit_test_ā	check	Warning	InnoDB: The B-tree of index idxē is corrupted.
 test.corrupt_bit_test_ā	check	error	Corrupt
 SET SESSION debug="-d,dict_set_index_corrupted";
 CREATE INDEX idx3 ON corrupt_bit_test_ā(b, c);
@@ -33,7 +32,7 @@ select z from corrupt_bit_test_ā;
 ERROR HY000: Index corrupt_bit_test_ā is corrupted
 show warnings;
 Level	Code	Message
-Warning	180	InnoDB: Index "idxē" for table "test"."corrupt_bit_test_ā" is marked as corrupted
+Warning	180	InnoDB: Index idxē for table `test`.`corrupt_bit_test_ā` is marked as corrupted
 Error	1712	Index corrupt_bit_test_ā is corrupted
 insert into corrupt_bit_test_ā values (10001, "a", 20001, 20001);
 select * from corrupt_bit_test_ā use index(primary) where a = 10001;
@@ -47,8 +46,8 @@ rollback;
 drop index idxā on corrupt_bit_test_ā;
 check table corrupt_bit_test_ā;
 Table	Op	Msg_type	Msg_text
-test.corrupt_bit_test_ā	check	Warning	InnoDB: Index "idx" is marked as corrupted
-test.corrupt_bit_test_ā	check	Warning	InnoDB: Index "idxē" is marked as corrupted
+test.corrupt_bit_test_ā	check	Warning	InnoDB: Index idx is marked as corrupted
+test.corrupt_bit_test_ā	check	Warning	InnoDB: Index idxē is marked as corrupted
 test.corrupt_bit_test_ā	check	error	Corrupt
 set names utf8;
 select z from corrupt_bit_test_ā;

@@ -331,7 +331,6 @@ void unlock_slave_threads(Master_info* mi)
 #ifdef HAVE_PSI_INTERFACE
 
 static PSI_memory_key key_memory_rli_mts_coor;
-static PSI_memory_key key_SSS_io_gtid_set;
 
 static PSI_thread_key key_thread_slave_io, key_thread_slave_sql, key_thread_slave_worker;
 
@@ -2146,6 +2145,15 @@ static int get_master_version_and_clock(MYSQL* mysql, Master_info* mi)
     goto err;
   }
 
+  if (mi->get_mi_description_event()->binlog_version < 4 &&
+      opt_slave_sql_verify_checksum)
+  {
+    sql_print_warning("Found a master with MySQL server version older than "
+                      "5.0. With checksums enabled on the slave, replication "
+                      "might not work correctly. To ensure correct "
+                      "replication, restart the slave server with "
+                      "--slave_sql_verify_checksum=0.");
+  }
   /*
     FD_q's (A) is set initially from RL's (A): FD_q.(A) := RL.(A).
     It's necessary to adjust FD_q.(A) at this point because in the following
@@ -3292,8 +3300,9 @@ bool show_slave_status(THD *thd)
   num_io_gtid_sets= msr_map.get_num_instances();
 
 
-  io_gtid_set_buffer_array= (char**)my_malloc(key_SSS_io_gtid_set, num_io_gtid_sets
-                                       * sizeof(char*), MYF(MY_WME));
+  io_gtid_set_buffer_array=
+    (char**)my_malloc(key_memory_show_slave_status_io_gtid_set,
+                      num_io_gtid_sets * sizeof(char*), MYF(MY_WME));
 
   if (io_gtid_set_buffer_array == NULL)
      DBUG_RETURN(true);
@@ -6697,6 +6706,10 @@ llstr(rli->get_group_master_log_pos(), llbuff));
                         llstr(rli->get_group_master_log_pos(), llbuff));
 
  err:
+
+  (void) RUN_HOOK(binlog_relay_io, consumer_thread_stop,
+                  (thd, rli->mi,
+                   (abort_loop || thd->killed || rli->abort_slave)));
 
   slave_stop_workers(rli, &mts_inited); // stopping worker pool
   if (rli->recovery_groups_inited)

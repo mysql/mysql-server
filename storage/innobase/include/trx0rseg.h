@@ -138,7 +138,7 @@ Creates a rollback segment. */
 trx_rseg_t*
 trx_rseg_create(
 /*============*/
-	ulint	space,		/*!< in: id of UNDO tablespace */
+	ulint	space_id,	/*!< in: id of UNDO tablespace */
 	ulint   nth_free_slot);	/*!< in: allocate nth free slot.
 				0 means next free slots. */
 
