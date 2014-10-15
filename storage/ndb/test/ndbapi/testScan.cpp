@@ -455,7 +455,7 @@ int runScanReadError(NDBT_Context* ctx, NDBT_Step* step){
   return result;
 }
 
-#include "../../src/ndbapi/Ndb_internal.hpp"
+#include "../../src/ndbapi/ndb_internal.hpp"
 
 int runScanReadExhaust(NDBT_Context* ctx, NDBT_Step* step)
 {
