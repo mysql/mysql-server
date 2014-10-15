@@ -515,7 +515,7 @@ enum enum_session_state_type
 #define SESSION_TRACK_END SESSION_TRACK_STATE_CHANGE
 
 #define IS_SESSION_STATE_TYPE(T) \
-  (((T) >= SESSION_TRACK_BEGIN) && ((T) <= SESSION_TRACK_END))
+  (((int)(T) >= SESSION_TRACK_BEGIN) && ((T) <= SESSION_TRACK_END))
 
 #define net_new_transaction(net) ((net)->pkt_nr=0)
 
