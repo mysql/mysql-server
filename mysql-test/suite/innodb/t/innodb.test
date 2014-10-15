@@ -1333,7 +1333,7 @@ drop table t1;
 
 # Test for testable InnoDB status variables. This test
 # uses previous ones(pages_created, rows_deleted, ...).
---replace_result 511 ok 512 ok 2047 ok 513 ok
+--replace_result 511 ok 512 ok 2047 ok 513 ok 515 ok
 SELECT variable_value FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_buffer_pool_pages_total';
 SELECT variable_value FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_page_size';
 SELECT variable_value - @innodb_rows_deleted_orig FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_rows_deleted';
