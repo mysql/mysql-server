@@ -38,9 +38,14 @@ Starts the InnoDB database server
 Created 2/16/1996 Heikki Tuuri
 *************************************************************************/
 
-#include "ha_prototypes.h"
+#include "my_global.h"
 
 #include "mysqld.h"
+#include "mysql/psi/mysql_stage.h"
+#include "mysql/psi/psi.h"
+
+#include "ha_prototypes.h"
+
 #include "row0ftsort.h"
 #include "ut0mem.h"
 #include "mem0mem.h"
@@ -174,6 +179,14 @@ mysql_pfs_key_t	srv_master_thread_key;
 mysql_pfs_key_t	srv_monitor_thread_key;
 mysql_pfs_key_t	srv_purge_thread_key;
 #endif /* UNIV_PFS_THREAD */
+
+#ifdef HAVE_PSI_STAGE_INTERFACE
+/** Array of all InnoDB stage events for monitoring activities via
+performance schema. */
+static PSI_stage_info*	srv_stages[] =
+{
+};
+#endif /* HAVE_PSI_STAGE_INTERFACE */
 
 /*********************************************************************//**
 Check if a file can be opened in read-write mode.
@@ -1415,6 +1428,10 @@ innobase_start_or_create_for_mysql(void)
 	cases, we ignore the setting of innodb_use_native_aio. */
 	srv_use_native_aio = FALSE;
 #endif /* _WIN32 */
+
+	/* Register performance schema stages before any real work has been
+	started which may need to be instrumented. */
+	mysql_stage_register("innodb", srv_stages, UT_ARR_SIZE(srv_stages));
 
 	if (srv_file_flush_method_str == NULL) {
 		/* These are the default options */
