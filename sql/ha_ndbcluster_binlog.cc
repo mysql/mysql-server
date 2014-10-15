@@ -4906,6 +4906,20 @@ parse_conflict_fn_spec(const char* conflict_fn_spec,
   DBUG_RETURN(-1);
 }
 
+bool is_exceptions_table(const char *table_name)
+{
+  size_t len = strlen(table_name);
+  size_t suffixlen = strlen(NDB_EXCEPTIONS_TABLE_SUFFIX);
+  if(len > suffixlen &&
+     (strcmp(table_name + len - suffixlen,
+             lower_case_table_names ? NDB_EXCEPTIONS_TABLE_SUFFIX_LOWER :
+                                      NDB_EXCEPTIONS_TABLE_SUFFIX) == 0))
+  {
+     return true;
+  }
+  return false;
+}
+
 static int
 setup_conflict_fn(THD *thd, NDB_SHARE *share,
                   const NDBTAB *ndbtab,
@@ -4916,6 +4930,17 @@ setup_conflict_fn(THD *thd, NDB_SHARE *share,
 {
   DBUG_ENTER("setup_conflict_fn");
 
+  if(is_exceptions_table(share->table_name))
+  {
+    my_snprintf(msg, msg_len, 
+                "Ndb Slave: Table %s.%s is exceptions table: not using conflict function %s",
+                share->db,
+                share->table_name,
+                conflict_fn->name);
+    DBUG_PRINT("info", ("%s", msg));
+    DBUG_RETURN(0);
+  } 
+ 
   /* setup the function */
   switch (conflict_fn->type)
   {
