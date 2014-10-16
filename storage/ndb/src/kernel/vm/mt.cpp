@@ -154,7 +154,10 @@ struct thr_wait
     FS_RUNNING = 0,
     FS_SLEEPING = 1
   };
-  thr_wait() { xcng(&m_futex_state, FS_RUNNING);}
+  thr_wait() {
+    assert((sizeof(*this) % NDB_CL) == 0); //Maintain any CL-allignment
+    xcng(&m_futex_state, FS_RUNNING);
+  }
   void init () {}
 };
 
@@ -227,7 +230,9 @@ struct thr_wait
   NdbCondition *m_cond;
   bool m_need_wakeup;
   char padding[NDB_CL_PADSZ(sizeof(bool) + (2*sizeof(void*)))];
-  thr_wait() : m_mutex(0), m_cond(0), m_need_wakeup(false) {}
+  thr_wait() : m_mutex(0), m_cond(0), m_need_wakeup(false) {
+    assert((sizeof(*this) % NDB_CL) == 0); //Maintain any CL-allignment
+  }
 
   void init() {
     m_mutex = NdbMutex_Create();
@@ -289,11 +294,17 @@ wakeup(struct thr_wait* wait)
 template<typename T>
 struct thr_safe_pool
 {
-  thr_safe_pool(const char * name) : m_free_list(0), m_cnt(0), m_lock(name) {}
+  thr_safe_pool(const char * name) : m_free_list(0), m_cnt(0), m_lock(name) {
+    assert((sizeof(*this) % NDB_CL) == 0); //Maintain any CL-allignment
+  }
 
   T* m_free_list;
   Uint32 m_cnt;
-  thr_spin_lock<NDB_CL - (sizeof(void*) + sizeof(Uint32))> m_lock;
+
+  /* Pad-word which was added by 64bit builds anyway. Make it visible for NDB_CL_PADSZ below. */
+  Uint32 m_unused;
+
+  thr_spin_lock<NDB_CL_PADSZ(sizeof(T*) + 2*sizeof(Uint32))> m_lock;
 
   T* seize(Ndbd_mem_manager *mm, Uint32 rg) {
     T* ret = 0;
@@ -890,7 +901,16 @@ struct thr_data
                m_signal_id_counter(0),
                m_send_buffer_pool(0,
                                   THR_SEND_BUFFER_MAX_FREE,
-                                  THR_SEND_BUFFER_ALLOC_SIZE) {}
+                                  THR_SEND_BUFFER_ALLOC_SIZE) {
+
+    // Check cacheline allignment
+    assert((((UintPtr)this) % NDB_CL) == 0);
+    assert((((UintPtr)&m_waiter) % NDB_CL) == 0);
+    assert((((UintPtr)&m_jba_write_lock) % NDB_CL) == 0);
+    assert((((UintPtr)&m_jba) % NDB_CL) == 0);
+    assert((((UintPtr)m_in_queue_head) % NDB_CL) == 0);
+    assert((((UintPtr)m_in_queue) % NDB_CL) == 0);
+  }
 
   /**
    * We start with the data structures that are shared globally to
@@ -1084,6 +1104,7 @@ struct trp_callback : public TransporterCallback
   void reset_send_buffer(NodeId node, bool should_be_empty);
 };
 
+static char *g_thr_repository_mem = NULL;
 static struct thr_repository *g_thr_repository = NULL;
 
 struct thr_repository
@@ -1093,7 +1114,14 @@ struct thr_repository
       m_mem_manager_lock("memmanagerlock"),
       m_jb_pool("jobbufferpool"),
       m_sb_pool("sendbufferpool")
-    {}
+  {
+    // Verify assumed cacheline allignment
+    assert((((UintPtr)this) % NDB_CL) == 0);
+    assert((((UintPtr)&m_receive_lock) % NDB_CL) == 0);
+    assert((((UintPtr)&m_section_lock) % NDB_CL) == 0);
+    assert((((UintPtr)&m_mem_manager_lock) % NDB_CL) == 0);
+    assert((((UintPtr)m_thread) % NDB_CL) == 0);
+  }
 
   /**
    * m_receive_lock, m_section_lock, m_mem_manager_lock, m_jb_pool
@@ -5383,13 +5411,29 @@ compute_jb_pages(struct EmulatorData * ed)
 
 ThreadConfig::ThreadConfig()
 {
-  g_thr_repository = new thr_repository();
+  /**
+   * We take great care within struct thr_repository to optimize
+   * cache line placement of the different members. This all 
+   * depends on that the base address of thr_repository itself
+   * is cache line alligned.
+   *
+   * So we allocate a char[] sufficient large to hold the 
+   * thr_repository object, with added bytes for placing
+   * g_thr_repository on a CL-alligned offset withing it.
+   */
+  g_thr_repository_mem = new char[sizeof(thr_repository)+NDB_CL];
+  const int alligned_offs = NDB_CL_PADSZ((UintPtr)g_thr_repository_mem);
+  char* cache_alligned_mem = &g_thr_repository_mem[alligned_offs];
+  require((((UintPtr)cache_alligned_mem) % NDB_CL) == 0);
+  g_thr_repository = new(cache_alligned_mem) thr_repository();
 }
 
 ThreadConfig::~ThreadConfig()
 {
-  delete g_thr_repository;
+  g_thr_repository->~thr_repository();
   g_thr_repository = NULL;
+  delete[] g_thr_repository_mem;
+  g_thr_repository_mem = NULL;
 }
 
 /*
