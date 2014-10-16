@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -4187,14 +4187,16 @@ MgmtSrvr::transporter_connect(NDB_SOCKET_TYPE sockfd, BaseString& msg)
   if (!tr->connect_server(sockfd, msg))
     DBUG_RETURN(false);
 
-  /*
-    Force an update_connections() so that the
-    ClusterMgr and TransporterFacade is up to date
-    with the new connection.
-    Important for correct node id reservation handling
-  */
-  theFacade->ext_update_connections();
-
+  /**
+   * TransporterRegistry::update_connections() is responsible
+   * for doing the final step of bringing the connection into 
+   * CONNECTED state when it detects it 'isConnected()'.
+   * This is required due to all such state changes has to 
+   * be synchroniced with ::performReceive().
+   * To speed up CONNECTED detection, we request it to 
+   * happen ASAP. (There is no guarantee when it happen though)
+   */
+  theFacade->request_connection_check();
   DBUG_RETURN(true);
 }
 

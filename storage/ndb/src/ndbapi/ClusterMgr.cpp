@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -333,10 +333,11 @@ ClusterMgr::startup()
 
   for (Uint32 i = 0; i<3000; i++)
   {
-    lock();
-    theFacade.theTransporterRegistry->update_connections();
-    flush_send_buffers();
-    unlock();
+    theFacade.request_connection_check();
+    start_poll();
+    do_poll(0);
+    complete_poll();
+
     if (theNode.is_connected())
       break;
     NdbSleep_MilliSleep(20);
@@ -370,12 +371,11 @@ ClusterMgr::threadMain()
   nodeFail_signal.theTrace  = 0;
   nodeFail_signal.theLength = NodeFailRep::SignalLengthLong;
 
-  Uint32 timeSlept = minHeartBeatInterval;
   NDB_TICKS now = NdbTick_getCurrentTicks();
 
   while(!theStop)
   {
-    /* Sleep at 100ms between each heartbeat check */
+    /* Sleep 1/5 of minHeartBeatInterval between each check */
     const NDB_TICKS before = now;
     for (Uint32 i = 0; i<5; i++)
     {
@@ -391,7 +391,7 @@ ClusterMgr::threadMain()
       }
     }
     now = NdbTick_getCurrentTicks();
-    timeSlept = (Uint32)NdbTick_Elapsed(before, now).milliSec();
+    const Uint32 timeSlept = (Uint32)NdbTick_Elapsed(before, now).milliSec();
 
     if (m_cluster_state == CS_waiting_for_clean_cache &&
         theFacade.m_globalDictCache)
