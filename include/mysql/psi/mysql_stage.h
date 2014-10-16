@@ -47,7 +47,9 @@
 
 /**
   @def MYSQL_SET_STAGE
-  Set the current stage
+  Set the current stage.
+  Use this API when the file and line
+  is passed from the caller.
   @param K the stage key
   @param F the source file name
   @param L the source file line
@@ -59,6 +61,32 @@
 #else
   #define MYSQL_SET_STAGE(K, F, L) \
     NULL
+#endif
+
+/**
+  @def mysql_set_stage
+  Set the current stage.
+  @param K the stage key
+  @return the current stage progress
+*/
+#ifdef HAVE_PSI_STAGE_INTERFACE
+  #define mysql_set_stage(K) \
+    inline_mysql_set_stage(K, __FILE__, __LINE__)
+#else
+  #define mysql_set_stage(K) \
+    NULL
+#endif
+
+/**
+  @def mysql_end_stage
+  End the last stage
+*/
+#ifdef HAVE_PSI_STAGE_INTERFACE
+  #define mysql_end_stage \
+    inline_mysql_end_stage
+#else
+  #define mysql_end_stage \
+  do {} while (0)
 #endif
 
 #ifdef HAVE_PSI_STAGE_INTERFACE
@@ -75,6 +103,14 @@ inline_mysql_set_stage(PSI_stage_key key,
                        const char *src_file, int src_line)
 {
   return PSI_STAGE_CALL(start_stage)(key, src_file, src_line);
+}
+#endif
+
+#ifdef HAVE_PSI_STAGE_INTERFACE
+static inline void
+inline_mysql_end_stage()
+{
+  PSI_STAGE_CALL(end_stage)();
 }
 #endif
 
