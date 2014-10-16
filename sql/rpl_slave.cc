@@ -555,7 +555,7 @@ find_first_relay_log_with_rotate_from_master(Relay_log_info* rli)
   bool got_rotate_from_master= false;
   int pos;
   char master_log_file[FN_REFLEN];
-  my_off_t master_log_pos;
+  my_off_t master_log_pos= 0;
 
   for (pos= rli->relay_log.find_log_pos(&linfo, NULL, true);
        !pos;
