@@ -554,8 +554,7 @@ buf_load()
 
 #ifdef HAVE_PSI_STAGE_INTERFACE
 	PSI_stage_progress*	pfs_stage_progress
-		= MYSQL_SET_STAGE(srv_stage_buffer_pool_load.m_key,
-				  __FILE__, __LINE__);
+		= mysql_set_stage(srv_stage_buffer_pool_load.m_key);
 #endif /* HAVE_PSI_STAGE_INTERFACE */
 
 	mysql_stage_set_work_estimated(pfs_stage_progress, dump_n);
@@ -595,7 +594,7 @@ buf_load()
 
 		/* Update the progress every 32 MiB, which is every Nth page,
 		where N = 32*1024^2 / page_size. */
-		if (i % (33554432 / page_size.physical()) == 0) {
+		if (i % (32 * 1024 * 1024 / page_size.physical()) == 0) {
 			buf_load_status(STATUS_INFO,
 					"Loaded " ULINTPF "/" ULINTPF " pages",
 					i + 1, dump_n);
@@ -615,9 +614,7 @@ buf_load()
 			end the current stage event. */
 			mysql_stage_set_work_estimated(pfs_stage_progress, i);
 			mysql_stage_set_work_completed(pfs_stage_progress, i);
-#ifdef HAVE_PSI_STAGE_INTERFACE
-			PSI_STAGE_CALL(end_stage)();
-#endif /* HAVE_PSI_STAGE_INTERFACE */
+			mysql_end_stage();
 			return;
 		}
 
@@ -638,10 +635,8 @@ buf_load()
 
 	/* Make sure that estimated = completed when we end. */
 	mysql_stage_set_work_completed(pfs_stage_progress, dump_n);
-#ifdef HAVE_PSI_STAGE_INTERFACE
 	/* End the stage progress event. */
-	PSI_STAGE_CALL(end_stage)();
-#endif /* HAVE_PSI_STAGE_INTERFACE */
+	mysql_end_stage();
 }
 
 /*****************************************************************//**
