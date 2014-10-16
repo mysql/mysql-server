@@ -26,23 +26,24 @@ let $innodb_file_format=`select @@innodb_file_format`;
 --mkdir $MYSQL_TMP_DIR/new_dir/test
 
 --disable_query_log
-# Work around "Error 38" on Valgrind PB2 for test/www on startup.
-call mtr.add_suppression("InnoDB: Operating system error number 38 in a file operation.");
-call mtr.add_suppression("InnoDB: Error number 38 means 'Function not implemented'.");
 # These errors are expected in the error log for this test.
-call mtr.add_suppression("Cannot calculate statistics for table .* because the \.ibd file is missing");
-call mtr.add_suppression("Could not find a valid tablespace file for");
-call mtr.add_suppression("Tablespace open failed for");
-call mtr.add_suppression("tablespace id and flags are.*but in the InnoDB data dictionary they are");
-call mtr.add_suppression("has been found in multiple places");
-call mtr.add_suppression("Will not open the tablespace for");
-call mtr.add_suppression("\(Default\|Remote\|Dictionary\) location:");
-call mtr.add_suppression("Failed to find tablespace for table");
-call mtr.add_suppression("A link file was found named");
-call mtr.add_suppression("\\[ERROR\\] InnoDB: Operating system error number 2 in a file operation.");
-call mtr.add_suppression("\\[ERROR\\] InnoDB: The error means the system cannot find the path specified.");
-call mtr.add_suppression("\\[ERROR\\] InnoDB: If you are installing InnoDB, remember that you must create directories yourself, InnoDB does not create them.");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: A tablespace for `test/.*` has been found in multiple places");
 call mtr.add_suppression("\\[ERROR\\] InnoDB: Cannot open datafile for read-only:");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: Could not find a valid tablespace file for ");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: Default location:");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: Dictionary location:");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: Error number 38 means 'Function not implemented'.");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: Failed to find tablespace for table `test`.`.*` in the cache. Attempting to load");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: If you are installing InnoDB, remember that you must create directories yourself, InnoDB does not create them.");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: In file '.*', tablespace id and flags are .* but in the InnoDB data dictionary they are");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: Operating system error number 2 in a file operation.");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: Operating system error number 38 in a file operation.");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: Remote location:");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: The error means the system cannot find the path specified.");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: Will not open tablespace `test/.*`");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: Tablespace open failed for `test`.`.*`, ignored.");
+call mtr.add_suppression("\\[Warning\\] InnoDB: Cannot calculate statistics for table `test`\.`.*` because the \.ibd file is missing");
+call mtr.add_suppression("\\[Warning\\] InnoDB: Ignoring tablespace `test/.*` because it could not be opened.");
 --enable_query_log
 
 --echo #

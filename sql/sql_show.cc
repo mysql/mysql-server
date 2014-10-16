@@ -631,11 +631,11 @@ find_files(THD *thd, List<LEX_STRING> *files, const char *db,
   if (!(dirp = my_dir(path,MYF(dir ? MY_WANT_STAT : 0))))
   {
     if (my_errno == ENOENT)
-      my_error(ER_BAD_DB_ERROR, MYF(ME_BELL+ME_WAITTANG), db);
+      my_error(ER_BAD_DB_ERROR, MYF(0), db);
     else
     {
       char errbuf[MYSYS_STRERROR_SIZE];
-      my_error(ER_CANT_READ_DIR, MYF(ME_BELL+ME_WAITTANG), path,
+      my_error(ER_CANT_READ_DIR, MYF(0), path,
                my_errno, my_strerror(errbuf, sizeof(errbuf), my_errno));
     }
     DBUG_RETURN(FIND_FILES_DIR);
@@ -6487,7 +6487,7 @@ static int get_schema_partitions_record(THD *thd, TABLE_LIST *tables,
         }
         else
         {
-          if (part_elem->range_value != LONGLONG_MAX)
+          if (part_elem->range_value != LLONG_MAX)
             table->field[11]->store((longlong) part_elem->range_value, FALSE);
           else
             table->field[11]->store(partition_keywords[PKW_MAXVALUE].str,

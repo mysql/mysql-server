@@ -371,7 +371,7 @@ fil_name_parse(
 			reinterpret_cast<char*>(ptr), len, space_id, true);
 #ifdef UNIV_HOTBACKUP
 		if (apply && recv_replay_file_ops
-		    && fil_tablespace_exists_in_mem(space_id)) {
+		    && fil_space_get(space_id)) {
 			dberr_t	err = fil_delete_tablespace(
 				space_id, BUF_REMOVE_FLUSH_NO_WRITE);
 			ut_a(err == DB_SUCCESS);

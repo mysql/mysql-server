@@ -98,14 +98,14 @@ class udf_handler :public Sql_alloc
     if (get_arguments())
     {
       *null_value=1;
-      return LL(0);
+      return 0LL;
     }
     Udf_func_longlong func= (Udf_func_longlong) u_d->func;
     longlong tmp=func(&initid, &f_args, &is_null, &error);
     if (is_null || error)
     {
       *null_value=1;
-      return LL(0);
+      return 0LL;
     }
     *null_value=0;
     return tmp;

@@ -30,6 +30,16 @@ Created June 2005 by Marko Makela
 # include "page0zip.ic"
 #endif
 
+/** A BLOB field reference full of zero, for use in assertions and tests.
+Initially, BLOB field references are set to zero, in
+dtuple_convert_big_rec(). */
+const byte field_ref_zero[FIELD_REF_SIZE] = {
+        0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0,
+};
+
 #ifndef UNIV_INNOCHECKSUM
 #include "page0page.h"
 #include "mtr0log.h"
@@ -4927,8 +4937,15 @@ page_zip_verify_checksum(
 	stored = static_cast<ib_uint32_t>(mach_read_from_4(
 		static_cast<const unsigned char*>(data) + FIL_PAGE_SPACE_OR_CHKSUM));
 
-	/* declare empty pages non-corrupted */
-	if (stored == 0) {
+#if FIL_PAGE_LSN % 8
+#error "FIL_PAGE_LSN must be 64 bit aligned"
+#endif
+
+	/* Check if page is empty */
+	if (stored == 0
+	    && *reinterpret_cast<const ib_uint64_t*>(static_cast<const char*>(
+		data)
+		+ FIL_PAGE_LSN) == 0) {
 		/* make sure that the page is really empty */
 #ifdef UNIV_INNOCHECKSUM
 		ulint i;
@@ -4950,7 +4967,7 @@ page_zip_verify_checksum(
 				return(FALSE);
 			}
 		}
-
+		/* Empty page */
 		return(TRUE);
 #endif /* UNIV_INNOCHECKSUM */
 	}

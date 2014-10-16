@@ -242,7 +242,7 @@ ibool
 ibuf_inside(
 /*========*/
 	const mtr_t*	mtr)	/*!< in: mini-transaction */
-	__attribute__((nonnull, pure));
+	__attribute__((warn_unused_result));
 
 /** Checks if a page address is an ibuf bitmap page (level 3 page) address.
 @param[in]	page_id		page id

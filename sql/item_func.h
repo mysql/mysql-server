@@ -346,7 +346,7 @@ public:
   {
     if ((unsigned_flag && !val_unsigned && value < 0) ||
         (!unsigned_flag && val_unsigned &&
-         (ulonglong) value > (ulonglong) LONGLONG_MAX))
+         (ulonglong) value > (ulonglong) LLONG_MAX))
       return raise_integer_overflow();
     return value;
   }

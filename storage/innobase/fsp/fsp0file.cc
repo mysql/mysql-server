@@ -455,9 +455,6 @@ Datafile::validate_first_page(lsn_t* flush_lsn)
 
 	if (error_txt != NULL) {
 		/* skip the next few tests */
-	} else if (!fsp_flags_is_valid(m_flags)) {
-		/* Tablespace flags must be valid. */
-		error_txt = "Tablespace flags are invalid";
 	} else if (univ_page_size.logical() != page_size.logical()) {
 		/* Page size must be univ_page_size. */
 		ib::error() << "Data file '" << m_name << "' uses page size "
@@ -466,6 +463,9 @@ Datafile::validate_first_page(lsn_t* flush_lsn)
 			<< univ_page_size.logical();
 		free_first_page();
 		return(DB_ERROR);
+	} else if (!fsp_flags_is_valid(m_flags)) {
+		/* Tablespace flags must be valid. */
+		error_txt = "Tablespace flags are invalid";
 	} else if (page_get_page_no(m_first_page) != 0) {
 		/* First page must be number 0 */
 		error_txt = "Header page contains inconsistent data";

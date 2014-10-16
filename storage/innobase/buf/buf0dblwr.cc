@@ -480,11 +480,18 @@ buf_dblwr_process(void)
 		ulint		page_no		= page_get_page_no(page);
 		ulint		space_id	= page_get_space_id(page);
 
-		if (!fil_tablespace_exists_in_mem(space_id)) {
-			/* Maybe we have dropped the single-table tablespace
+		fil_space_t*	space = fil_space_get(space_id);
+
+		if (space == NULL) {
+			/* Maybe we have dropped the tablespace
 			and this page once belonged to it: do nothing */
-		} else if (!fil_check_adress_in_tablespace(space_id,
-							   page_no)) {
+			continue;
+		}
+
+		fil_space_open_if_needed(space);
+
+		if (page_no >= space->size) {
+
 			/* Do not report the warning if the tablespace is
 			truncated as it's reasonable */
 			if (!srv_is_tablespace_truncated(space_id)) {
@@ -495,14 +502,12 @@ buf_dblwr_process(void)
 					<< page_id_t(space_id, page_no);
 			}
 		} else {
-			const fil_space_t*	space
-				= fil_space_get(space_id);
-			ut_ad(space);
 			const page_size_t	page_size(space->flags);
+			const page_id_t		page_id(space_id, page_no);
 
 			/* Read in the actual page from the file */
 			fil_io(OS_FILE_READ, true,
-			       page_id_t(space_id, page_no), page_size,
+			       page_id, page_size,
 			       0, page_size.physical(), read_buf, NULL);
 
 			/* Check if the page is corrupt */
@@ -512,7 +517,7 @@ buf_dblwr_process(void)
 
 				ib::warn() << "Database page corruption or"
 					<< " a failed file read of page "
-					<< page_id_t(space_id, page_no)
+					<< page_id
 					<< ". Trying to recover it from the"
 					<< " doublewrite buffer.";
 
@@ -553,8 +558,6 @@ buf_dblwr_process(void)
 
 			/* Write the good page from the doublewrite
 			buffer to the intended position. */
-
-			const page_id_t	page_id(space_id, page_no);
 
 			fil_io(OS_FILE_WRITE, true, page_id, page_size, 0,
 			       page_size.physical(), const_cast<byte*>(page),

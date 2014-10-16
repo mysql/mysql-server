@@ -828,10 +828,10 @@ t5980d.frm
 #
 ALTER TABLE t5980a DISCARD TABLESPACE;
 Warnings:
-Warning	1812	InnoDB: Tablespace is missing for table 't5980a'
+Warning	1812	InnoDB: Tablespace 'test/t5980a' is missing
 ALTER TABLE t5980b DISCARD TABLESPACE;
 Warnings:
-Warning	1812	InnoDB: Tablespace is missing for table 't5980b'
+Warning	1812	InnoDB: Tablespace 'test/t5980b' is missing
 SELECT * FROM t5980a;
 ERROR HY000: Tablespace has been discarded for table 't5980a'
 SELECT * FROM t5980b;
@@ -874,10 +874,10 @@ t5980d.frm
 #
 ALTER TABLE t5980a DISCARD TABLESPACE;
 Warnings:
-Warning	1812	InnoDB: Tablespace is missing for table 't5980a'
+Warning	1812	InnoDB: Tablespace 'test/t5980a' is missing
 ALTER TABLE t5980b DISCARD TABLESPACE;
 Warnings:
-Warning	1812	InnoDB: Tablespace is missing for table 't5980b'
+Warning	1812	InnoDB: Tablespace 'test/t5980b' is missing
 SELECT * FROM t5980a;
 ERROR HY000: Tablespace has been discarded for table 't5980a'
 SELECT * FROM t5980b;

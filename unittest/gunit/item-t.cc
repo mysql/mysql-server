@@ -501,7 +501,7 @@ TEST_F(ItemTest, ItemFuncIntDivUnderflow)
 TEST_F(ItemTest, ItemFuncNegLongLongMin)
 {
   // Bug#14314156 MAIN.FUNC_MATH TEST FAILS ON MYSQL-TRUNK ON PB2
-  const longlong longlong_min= LONGLONG_MIN;
+  const longlong longlong_min= LLONG_MIN;
   Item_func_neg *item_neg= new Item_func_neg(new Item_int(longlong_min));
 
   EXPECT_FALSE(item_neg->fix_fields(thd(), NULL));

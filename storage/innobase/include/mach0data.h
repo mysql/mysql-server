@@ -53,7 +53,7 @@ ulint
 mach_read_from_1(
 /*=============*/
 	const byte*	b)	/*!< in: pointer to byte */
-	__attribute__((nonnull, pure));
+	__attribute__((warn_unused_result));
 /*******************************************************//**
 The following function is used to store data in two consecutive
 bytes. We store the most significant byte to the lower address. */
@@ -72,7 +72,7 @@ ulint
 mach_read_from_2(
 /*=============*/
 	const byte*	b)	/*!< in: pointer to two bytes */
-	__attribute__((nonnull, pure));
+	__attribute__((warn_unused_result));
 
 /********************************************************//**
 The following function is used to convert a 16-bit data item
@@ -114,7 +114,7 @@ ulint
 mach_read_from_3(
 /*=============*/
 	const byte*	b)	/*!< in: pointer to 3 bytes */
-	__attribute__((nonnull, pure));
+	__attribute__((warn_unused_result));
 /*******************************************************//**
 The following function is used to store data in four consecutive
 bytes. We store the most significant byte to the lowest address. */
@@ -133,7 +133,7 @@ ulint
 mach_read_from_4(
 /*=============*/
 	const byte*	b)	/*!< in: pointer to four bytes */
-	__attribute__((nonnull, pure));
+	__attribute__((warn_unused_result));
 /*********************************************************//**
 Writes a ulint in a compressed form (1..5 bytes).
 @return stored size in bytes */
@@ -180,7 +180,7 @@ ib_uint64_t
 mach_read_from_6(
 /*=============*/
 	const byte*	b)	/*!< in: pointer to 6 bytes */
-	__attribute__((nonnull, pure));
+	__attribute__((warn_unused_result));
 /*******************************************************//**
 The following function is used to store data in 7 consecutive
 bytes. We store the most significant byte to the lowest address. */
@@ -199,7 +199,7 @@ ib_uint64_t
 mach_read_from_7(
 /*=============*/
 	const byte*	b)	/*!< in: pointer to 7 bytes */
-	__attribute__((nonnull, pure));
+	__attribute__((warn_unused_result));
 /*******************************************************//**
 The following function is used to store data in 8 consecutive
 bytes. We store the most significant byte to the lowest address. */
@@ -218,7 +218,7 @@ ib_uint64_t
 mach_read_from_8(
 /*=============*/
 	const byte*	b)	/*!< in: pointer to 8 bytes */
-	__attribute__((nonnull, pure));
+	__attribute__((warn_unused_result));
 /*********************************************************//**
 Writes a 64-bit integer in a compressed form (5..9 bytes).
 @return size in bytes */
@@ -253,7 +253,7 @@ ib_uint64_t
 mach_u64_read_much_compressed(
 /*==========================*/
 	const byte*	b)	/*!< in: pointer to memory from where to read */
-	__attribute__((pure));
+	__attribute__((warn_unused_result));
 /** Read a 32-bit integer in a compressed form.
 @param[in,out]	ptr	pointer to memory where to read;
 advanced by the number of bytes consumed, or set NULL if out of space
@@ -282,7 +282,7 @@ double
 mach_double_read(
 /*=============*/
 	const byte*	b)	/*!< in: pointer to memory from where to read */
-	__attribute__((nonnull, pure));
+	__attribute__((warn_unused_result));
 /*********************************************************//**
 Writes a double. It is stored in a little-endian format. */
 UNIV_INLINE
@@ -299,7 +299,7 @@ float
 mach_float_read(
 /*============*/
 	const byte*	b)	/*!< in: pointer to memory from where to read */
-	__attribute__((nonnull, pure));
+	__attribute__((warn_unused_result));
 /*********************************************************//**
 Writes a float. It is stored in a little-endian format. */
 UNIV_INLINE
@@ -317,7 +317,7 @@ mach_read_from_n_little_endian(
 /*===========================*/
 	const byte*	buf,		/*!< in: from where to read */
 	ulint		buf_size)	/*!< in: from how many bytes to read */
-	__attribute__((nonnull, pure));
+	__attribute__((warn_unused_result));
 /*********************************************************//**
 Writes a ulint in the little-endian format. */
 UNIV_INLINE
@@ -335,7 +335,7 @@ ulint
 mach_read_from_2_little_endian(
 /*===========================*/
 	const byte*	buf)		/*!< in: from where to read */
-	__attribute__((nonnull, pure));
+	__attribute__((warn_unused_result));
 /*********************************************************//**
 Writes a ulint in the little-endian format. */
 UNIV_INLINE
@@ -388,7 +388,7 @@ ulint
 mach_read_ulint(
 	const byte*	ptr,
 	mlog_id_t	type)
-	__attribute__((warn_unused_result, pure));
+	__attribute__((warn_unused_result));
 
 #endif /* !UNIV_HOTBACKUP */
 #endif /* !UNIV_INNOCHECKSUM */

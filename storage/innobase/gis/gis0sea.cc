@@ -289,7 +289,8 @@ rtr_pcur_getnext_from_path(
 				rtr_info->path, next_page_no, path_ssn,
 				level, 0, NULL, 0);
 
-			if (mode != PAGE_CUR_RTREE_INSERT
+			if (!srv_read_only_mode
+			    && mode != PAGE_CUR_RTREE_INSERT
 			    && mode != PAGE_CUR_RTREE_LOCATE) {
 				ut_ad(rtr_info->thr);
 				lock_place_prdt_page_lock(
@@ -733,11 +734,10 @@ rtr_page_get_father_node_ptr_func(
 			       BUF_PAGE_PRINT_NO_CRASH);
 
 		fputs("InnoDB: Corruption of an index tree: table ", stderr);
-		ut_print_name(stderr, NULL, TRUE, index->table_name);
-		fputs(", index ", stderr);
-		ut_print_name(stderr, NULL, FALSE, index->name);
-		fprintf(stderr, ",\n"
+		ut_print_name(stderr, NULL, index->table_name);
+		fprintf(stderr, ", index %s,\n"
 			"InnoDB: father ptr page no %lu, child page no %lu\n",
+			index->name,
 			(ulong)
 			btr_node_ptr_get_child_page_no(node_ptr, offsets),
 			(ulong) page_no);
@@ -1522,34 +1522,49 @@ rtr_non_leaf_insert_stack_push(
 				my_cursor, mbr_inc);
 }
 
-/****************************************************************//**
-Copy a buf_block_t strcuture, except the latch "block->lock" */
+/** Copy a buf_block_t strcuture, except "block->lock" and "block->mutex".
+@param[in,out]	matches	copy to match->block
+@param[in]	block	block to copy */
 static
 void
 rtr_copy_buf(
-/*=========*/
-	matched_rec_t*		matches,/*!< in/out: match to initialize */
-	const buf_block_t*	block)	/*!< in: buffer block */
+	matched_rec_t*		matches,
+	const buf_block_t*	block)
 {
-	ulint	size;
-	byte*	ptr1 = reinterpret_cast<byte*>(
-			const_cast<rw_lock_t*>(&(block->lock)));
-	byte*	ptr2 = reinterpret_cast<byte*>(&(matches->block));
-
-	size = ptr1 - reinterpret_cast<byte*>(const_cast<buf_block_t*>(block));
-
-	memcpy(ptr2, block, size);
-
-	ptr2 += size + sizeof(block->lock);
-
-	size = sizeof(*block) - sizeof(block->lock) - size;
-	ptr1 += sizeof(block->lock);
-
-	ut_ad(ptr1 + size == reinterpret_cast<byte*>(
-				const_cast<buf_block_t*>(block))
-				+ sizeof (*block));
-
-	memcpy(ptr2, ptr1, size);
+	/* Copy all members of "block" to "matches->block" except "mutex"
+	and "lock". We skip "mutex" and "lock" because they are not used
+	from the dummy buf_block_t we create here and because memcpy()ing
+	them generates (valid) compiler warnings that the vtable pointer
+	will be copied. It is also undefined what will happen with the
+	newly memcpy()ed mutex if the source mutex was acquired by
+	(another) thread while it was copied. */
+	memcpy(&matches->block.page, &block->page, sizeof(buf_page_t));
+	matches->block.frame = block->frame;
+#ifndef UNIV_HOTBACKUP
+	matches->block.unzip_LRU = block->unzip_LRU;
+#ifdef UNIV_DEBUG
+	matches->block.in_unzip_LRU_list = block->in_unzip_LRU_list;
+	matches->block.in_withdraw_list = block->in_withdraw_list;
+#endif /* UNIV_DEBUG */
+	/* Skip buf_block_t::mutex */
+	/* Skip buf_block_t::lock */
+	matches->block.lock_hash_val = block->lock_hash_val;
+	matches->block.modify_clock = block->modify_clock;
+	matches->block.n_hash_helps = block->n_hash_helps;
+	matches->block.n_fields = block->n_fields;
+	matches->block.left_side = block->left_side;
+#if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
+	matches->block.n_pointers = block->n_pointers;
+#endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
+	matches->block.curr_n_fields = block->curr_n_fields;
+	matches->block.curr_left_side = block->curr_left_side;
+	matches->block.index = block->index;
+	matches->block.made_dirty_with_no_latch
+		= block->made_dirty_with_no_latch;
+#ifdef UNIV_SYNC_DEBUG
+	matches->block.debug_latch = block->debug_latch;
+#endif /* UNIV_SYNC_DEBUG */
+#endif /* !UNIV_HOTBACKUP */
 }
 
 /****************************************************************//**
@@ -1816,9 +1831,10 @@ rtr_cur_search_with_match(
 							rec, 0);
 					}
 
-					if (rtr_info->need_page_lock
-					    || orig_mode
-						!= PAGE_CUR_RTREE_LOCATE) {
+					if (!srv_read_only_mode
+					    && (rtr_info->need_page_lock
+						|| orig_mode
+						!= PAGE_CUR_RTREE_LOCATE)) {
 
 						/* Lock the page, preventing it
 						from being shrunk */

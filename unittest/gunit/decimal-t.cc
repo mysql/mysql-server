@@ -543,9 +543,9 @@ TEST_F(DecimalTest, Double2Decimal)
 
 TEST_F(DecimalTest, Ulonglong2Decimal)
 {
-  test_ull2d(ULL(12345), "12345", 0);
-  test_ull2d(ULL(0), "0", 0);
-  test_ull2d(ULL(18446744073709551615), "18446744073709551615", 0);
+  test_ull2d(12345ULL, "12345", 0);
+  test_ull2d(0ULL, "0", 0);
+  test_ull2d(18446744073709551615ULL, "18446744073709551615", 0);
 }
 
 
@@ -564,10 +564,10 @@ TEST_F(DecimalTest, Decimal2Ulonglong)
 
 TEST_F(DecimalTest, Longlong2Decimal)
 {
-  test_ll2d(LL(-12345), "-12345", 0);
-  test_ll2d(LL(-1), "-1", 0);
-  test_ll2d(LL(-9223372036854775807), "-9223372036854775807", 0);
-  test_ll2d(ULL(9223372036854775808), "-9223372036854775808", 0);
+  test_ll2d(-12345LL, "-12345", 0);
+  test_ll2d(-1LL, "-1", 0);
+  test_ll2d(-9223372036854775807LL, "-9223372036854775807", 0);
+  test_ll2d(9223372036854775808ULL, "-9223372036854775808", 0);
 }
 
 

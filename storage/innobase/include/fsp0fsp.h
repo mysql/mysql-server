@@ -546,18 +546,6 @@ fseg_print(
 	mtr_t*		mtr);	/*!< in/out: mini-transaction */
 #endif /* UNIV_BTR_PRINT */
 
-/** Validate the tablespace flags.
-These flags are stored in the tablespace header at offset FSP_SPACE_FLAGS.
-They should be 0 for ROW_FORMAT=COMPACT and ROW_FORMAT=REDUNDANT.
-The newer row formats, COMPRESSED and DYNAMIC, use a file format > Antelope
-so they should have a file format number plus the DICT_TF_COMPACT bit set.
-@param[in]	flags	Tablespace flags
-@return true if valid, false if not */
-bool
-fsp_flags_is_valid(
-	ulint	flags)
-	__attribute__((warn_unused_result, const));
-
 /** Determine if the tablespace is compressed from tablespace flags.
 @param[in]	flags	Tablespace flags
 @return true if compressed, false if not compressed */
@@ -592,11 +580,10 @@ fsp_flags_init(
 This can only be done for a tablespace that was built as a file-per-table
 tablespace. Note that the fsp_flags cannot show the difference between a
 Compact and Redundant table, so an extra Compact boolean must be supplied.
-========================= Low order bit ==========================
+			Low order bit
                     | REDUNDANT | COMPACT | COMPRESSED | DYNAMIC
 fil_space_t::flags  |     0     |    0    |     1      |    1
 dict_table_t::flags |     0     |    1    |     1      |    1
-==================================================================
 @param[in]	fsp_flags	fil_space_t::flags
 @param[in]	compact		true if not Redundant row format
 @return tablespace flags (fil_space_t::flags) */

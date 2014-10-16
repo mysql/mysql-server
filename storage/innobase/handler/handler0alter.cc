@@ -496,7 +496,7 @@ ha_innobase::check_if_supported_inplace_alter(
 			/* In some special cases InnoDB emits "false"
 			duplicate key errors with NULL key values. Let
 			us play safe and ensure that we can correctly
-			print key values even in such cases . */
+			print key values even in such cases. */
 			key_part->null_offset = key_part->field->null_offset();
 			key_part->null_bit = key_part->field->null_bit;
 
@@ -1581,8 +1581,11 @@ innobase_get_exact_point_type(
 	}
 
 	/** col_type could be DATA_BLOB, since it could be a field
-	upgraded from 5.6, where we store POINT as BLOB. */
-	ut_ad(DATA_POINT_MTYPE(col_type) || col_type == DATA_BLOB);
+	upgraded from 5.6, where we store POINT as BLOB.
+	Also it could be DATA_GEOMETRY, which is updated from DATA_BLOB
+	mentioned above. */
+	ut_ad(DATA_POINT_MTYPE(col_type) || col_type == DATA_GEOMETRY
+	      || col_type == DATA_BLOB);
 
 	return(col_type);
 }
@@ -2277,7 +2280,7 @@ online_retry_drop_indexes_with_trx(
 @param drop_fk constraints being dropped
 @param n_drop_fk number of constraints that are being dropped
 @return whether the constraint is being dropped */
-inline __attribute__((pure, nonnull, warn_unused_result))
+inline __attribute__((warn_unused_result))
 bool
 innobase_dropping_foreign(
 /*======================*/
@@ -2304,7 +2307,7 @@ column that is being dropped or modified to NOT NULL.
 @retval true Not allowed (will call my_error())
 @retval false Allowed
 */
-static __attribute__((pure, nonnull, warn_unused_result))
+static __attribute__((warn_unused_result))
 bool
 innobase_check_foreigns_low(
 /*========================*/
@@ -2380,7 +2383,7 @@ innobase_check_foreigns_low(
 				display_name, (sizeof display_name) - 1,
 				foreign->foreign_table_name,
 				strlen(foreign->foreign_table_name),
-				NULL, TRUE);
+				NULL);
 			*buf_end = '\0';
 			my_error(ER_FK_COLUMN_CANNOT_DROP_CHILD,
 				 MYF(0), col_name, foreign->id,
@@ -2404,7 +2407,7 @@ column that is being dropped or modified to NOT NULL.
 @retval true Not allowed (will call my_error())
 @retval false Allowed
 */
-static __attribute__((pure, nonnull, warn_unused_result))
+static __attribute__((warn_unused_result))
 bool
 innobase_check_foreigns(
 /*====================*/
@@ -2788,6 +2791,124 @@ innobase_pk_order_preserved(
 	return(true);
 }
 
+/** Update the mtype from DATA_BLOB to DATA_GEOMETRY for a specified
+GIS column of a table. This is used when we want to create spatial index
+on legacy GIS columns coming from 5.6, where we store GIS data as DATA_BLOB
+in innodb layer.
+@param[in]	table_id	table id
+@param[in]	col_name	column name
+@param[in]	trx		data dictionary transaction
+@retval true Failure
+@retval false Success */
+static
+bool
+innobase_update_gis_column_type(
+	table_id_t	table_id,
+	const char*	col_name,
+	trx_t*		trx)
+{
+	pars_info_t*	info;
+	dberr_t		error;
+
+	DBUG_ENTER("innobase_update_gis_column_type");
+
+	DBUG_ASSERT(trx_get_dict_operation(trx) == TRX_DICT_OP_INDEX);
+	ut_ad(trx->dict_operation_lock_mode == RW_X_LATCH);
+	ut_ad(mutex_own(&dict_sys->mutex));
+#ifdef UNIV_SYNC_DEBUG
+	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_X));
+#endif /* UNIV_SYNC_DEBUG */
+
+	info = pars_info_create();
+
+	pars_info_add_ull_literal(info, "tableid", table_id);
+	pars_info_add_str_literal(info, "name", col_name);
+	pars_info_add_int4_literal(info, "mtype", DATA_GEOMETRY);
+
+	trx->op_info = "update column type to DATA_GEOMETRY";
+
+	error = que_eval_sql(
+		info,
+		"PROCEDURE UPDATE_SYS_COLUMNS_PROC () IS\n"
+		"BEGIN\n"
+		"UPDATE SYS_COLUMNS SET MTYPE=:mtype\n"
+		"WHERE TABLE_ID=:tableid AND NAME=:name;\n"
+		"END;\n",
+		false, trx);
+
+	trx->error_state = DB_SUCCESS;
+	trx->op_info = "";
+
+	DBUG_RETURN(error != DB_SUCCESS);
+}
+
+/** Check if we are creating spatial indexes on GIS columns, which are
+legacy columns from earlier MySQL, such as 5.6. If so, we have to update
+the mtypes of the old GIS columns to DATA_GEOMETRY.
+In 5.6, we store GIS columns as DATA_BLOB in InnoDB layer, it will introduce
+confusion when we run latest server on older data. That's why we need to
+do the upgrade.
+@param[in] ha_alter_info	Data used during in-place alter
+@param[in] table		Table on which we want to add indexes
+@param[in] trx			Transaction
+@return DB_SUCCESS if update successfully or no columns need to be updated,
+otherwise DB_ERROR, which means we can't update the mtype for some
+column, and creating spatial index on it should be dangerous */
+static
+dberr_t
+innobase_check_gis_columns(
+	Alter_inplace_info*	ha_alter_info,
+	dict_table_t*		table,
+	trx_t*			trx)
+{
+	DBUG_ENTER("innobase_check_gis_columns");
+
+	for (uint key_num = 0;
+	     key_num < ha_alter_info->index_add_count;
+	     key_num++) {
+
+		const KEY&	key = ha_alter_info->key_info_buffer[
+			ha_alter_info->index_add_buffer[key_num]];
+
+		if (!(key.flags & HA_SPATIAL)) {
+			continue;
+		}
+
+		ut_ad(key.user_defined_key_parts == 1);
+		const KEY_PART_INFO&    key_part = key.key_part[0];
+
+		ulint col_nr = dict_table_has_column(
+			table,
+			key_part.field->field_name,
+			key_part.fieldnr);
+		ut_ad(col_nr != table->n_def);
+		dict_col_t*	col = &table->cols[col_nr];
+
+		if (col->mtype != DATA_BLOB) {
+			ut_ad(DATA_GEOMETRY_MTYPE(col->mtype));
+			continue;
+		}
+
+		const char* col_name = dict_table_get_col_name(
+			table, col_nr);
+
+		if (innobase_update_gis_column_type(
+			table->id, col_name, trx)) {
+
+			DBUG_RETURN(DB_ERROR);
+		} else {
+			col->mtype = DATA_GEOMETRY;
+
+			ib::info() << "Updated mtype of column" << col_name
+				<< " in table " << table->name
+				<< ", whose id is " << table->id
+				<< " to DATA_GEOMETRY";
+		}
+	}
+
+	DBUG_RETURN(DB_SUCCESS);
+}
+
 /** Update internal structures with concurrent writes blocked,
 while preparing ALTER TABLE.
 
@@ -3020,6 +3141,13 @@ prepare_inplace_alter_table_dict(
 						user_table, i,
 						field->field_name,
 						optimize_point_storage);
+
+				/* We could possible get DATA_BLOB here,
+				it means the POINT is from 5.6. Just convert
+				it to DATA_GEOMETRY */
+				if (col_type == DATA_BLOB) {
+					col_type = DATA_GEOMETRY;
+				}
 			}
 
 			/* we assume in dtype_form_prtype() that this
@@ -3168,6 +3296,18 @@ prepare_inplace_alter_table_dict(
 			ctx->new_table->fts = fts_create(
 				ctx->new_table);
 			ctx->new_table->fts->doc_col = fts_doc_id_col;
+		}
+
+		/* Check if we need to update mtypes of legacy GIS columns.
+		This check is only needed when we don't have to rebuild
+		the table, since rebuild would update all mtypes for GIS
+		columns */
+		error = innobase_check_gis_columns(
+			ha_alter_info, ctx->new_table, ctx->trx);
+		if (error != DB_SUCCESS) {
+			ut_ad(error == DB_ERROR);
+			error = DB_UNSUPPORTED;
+			goto error_handling;
 		}
 	}
 
@@ -3382,6 +3522,9 @@ error_handling:
 		break;
 	case DB_DUPLICATE_KEY:
 		my_error(ER_DUP_KEY, MYF(0), "SYS_INDEXES");
+		break;
+	case DB_UNSUPPORTED:
+		my_error(ER_TABLE_CANT_HANDLE_SPKEYS, MYF(0), "SYS_COLUMNS");
 		break;
 	default:
 		my_error_innodb(error, table_name, user_table->flags);
@@ -3759,8 +3902,6 @@ ha_innobase::prepare_inplace_alter_table(
 	mem_heap_t*     heap;
 	const char**	col_names;
 	int		error;
-	ulint		flags;
-	ulint		flags2;
 	ulint		max_col_len;
 	ulint		add_autoinc_col_no	= ULINT_UNDEFINED;
 	ulonglong	autoinc_col_max_value	= 0;
@@ -3801,11 +3942,31 @@ ha_innobase::prepare_inplace_alter_table(
 		DBUG_RETURN(false);
 	}
 
+	indexed_table = m_prebuilt->table;
+
+	/* ALTER TABLE will not implicitly move a table from a single-table
+	tablespace to the system tablespace when innodb_file_per_table=OFF.
+	But it will implicitly move a table from the system tablespace to a
+	single-table tablespace if innodb_file_per_table = ON. */
+	bool	in_system_space = is_system_tablespace(indexed_table->space);
+	bool	is_file_per_table = !in_system_space;
+	bool	needs_file_per_table =
+		/* Already file_per_table and staying that way */
+		is_file_per_table
+		/* Moving from the system tablespace to file-per-table */
+		|| (in_system_space && srv_file_per_table);
+
+	create_table_info_t	info(m_user_thd,
+				     altered_table,
+				     ha_alter_info->create_info,
+				     NULL,
+				     NULL,
+				     NULL,
+				     needs_file_per_table);
+
 	if (ha_alter_info->handler_flags
 	    & Alter_inplace_info::CHANGE_CREATE_OPTION) {
-		const char* invalid_opt = create_options_are_invalid(
-			    m_user_thd, ha_alter_info->create_info,
-			    m_prebuilt->table->space != 0);
+		const char* invalid_opt = info.create_options_are_invalid();
 		if (invalid_opt) {
 			my_error(ER_ILLEGAL_HA_CREATE_OPTION, MYF(0),
 				 table_type(), invalid_opt);
@@ -3895,27 +4056,11 @@ check_if_ok_to_rename:
 		}
 	}
 
-	/* ALTER TABLE will not implicitly move a table from a single-table
-	tablespace to the system tablespace when innodb_file_per_table=OFF.
-	But it will implicitly move a table from the system tablespace to a
-	single-table tablespace if innodb_file_per_table = ON. */
-	bool	in_system_space = is_system_tablespace(indexed_table->space);
-	bool	is_file_per_table = !in_system_space;
-	bool	needs_file_per_table =
-		/* Already file_per_table and staying that way */
-		is_file_per_table
-		/* Moving from the system tablespace to file-per-table */
-		|| (in_system_space && srv_file_per_table);
-
-	if (!innobase_table_flags(altered_table,
-				  ha_alter_info->create_info,
-				  m_user_thd,
-				  needs_file_per_table,
-				  &flags, &flags2)) {
+	if (!info.innobase_table_flags()) {
 		goto err_exit_no_heap;
 	}
 
-	max_col_len = DICT_MAX_FIELD_LEN_BY_FORMAT_FLAG(flags);
+	max_col_len = DICT_MAX_FIELD_LEN_BY_FORMAT_FLAG(info.flags());
 
 	/* Check each index's column length to make sure they do not
 	exceed limit */
@@ -4377,7 +4522,7 @@ found_col:
 	DBUG_RETURN(prepare_inplace_alter_table_dict(
 			    ha_alter_info, altered_table, table,
 			    table_share->table_name.str,
-			    flags, flags2,
+			    info.flags(), info.flags2(),
 			    fts_doc_col_no, add_fts_doc_id,
 			    add_fts_doc_id_idx));
 }

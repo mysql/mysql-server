@@ -4426,10 +4426,6 @@ fts_sync(
 		index_cache = static_cast<fts_index_cache_t*>(
 			ib_vector_get(cache->indexes, i));
 
-		if (index_cache->index->to_be_dropped) {
-			continue;
-		}
-
 		error = fts_sync_index(sync, index_cache);
 
 		if (error != DB_SUCCESS && !sync->interrupted) {
@@ -6450,14 +6446,19 @@ fts_fake_hex_to_dec(
 {
 	ib_id_t		dec_id = 0;
 	char		tmp_id[FTS_AUX_MIN_TABLE_ID_LENGTH];
-	int		ret;
 
-	ret = sprintf(tmp_id, UINT64PFx, id);
+#ifdef UNIV_DEBUG
+	int		ret =
+#endif
+	sprintf(tmp_id, UINT64PFx, id);
 	ut_ad(ret == 16);
+#ifdef UNIV_DEBUG
+	ret =
+#endif
 #ifdef _WIN32
-	ret = sscanf(tmp_id, "%016llu", &dec_id);
+	sscanf(tmp_id, "%016llu", &dec_id);
 #else
-	ret = sscanf(tmp_id, "%016"PRIu64, &dec_id);
+	sscanf(tmp_id, "%016"PRIu64, &dec_id);
 #endif /* _WIN32 */
 	ut_ad(ret == 1);
 
@@ -7072,9 +7073,9 @@ fts_check_and_drop_orphaned_tables(
 						DICT_TF2_FTS_AUX_HEX_NAME);
 				}
 			}
-#ifdef UNIV_DEBUG
+#ifndef DBUG_OFF
 table_exit:
-#endif	/* UNIV_DEBUG */
+#endif	/* !DBUG_OFF */
 
 			if (table != NULL) {
 				dict_table_close(table, TRUE, FALSE);

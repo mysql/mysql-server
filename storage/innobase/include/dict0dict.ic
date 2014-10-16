@@ -329,21 +329,6 @@ dict_index_is_ibuf(
 }
 
 /********************************************************************//**
-Check whether the index is an universal index tree.
-@return nonzero for universal tree, zero for other indexes */
-UNIV_INLINE
-ulint
-dict_index_is_univ(
-/*===============*/
-	const dict_index_t*	index)	/*!< in: index */
-{
-	ut_ad(index);
-	ut_ad(index->magic_n == DICT_INDEX_MAGIC_N);
-
-	return(index->type & DICT_UNIVERSAL);
-}
-
-/********************************************************************//**
 Check whether the index is a secondary index or the insert buffer tree.
 @return nonzero for insert buffer, zero for other indexes */
 UNIV_INLINE
@@ -767,7 +752,7 @@ dict_table_get_format(
 @param[in,out]	flags,		Pointer to a 4 byte Table Flags
 @param[in]	format		File Format
 @param[in]	zip_ssize	Zip Shift Size
-@param[in]	remote_path	Table uses DATA DIRECTORY */
+@param[in]	use_data_dir	Table uses DATA DIRECTORY */
 UNIV_INLINE
 void
 dict_tf_set(
@@ -1090,7 +1075,7 @@ dict_index_get_sys_col_pos(
 {
 	ut_ad(index);
 	ut_ad(index->magic_n == DICT_INDEX_MAGIC_N);
-	ut_ad(!dict_index_is_univ(index));
+	ut_ad(!dict_index_is_ibuf(index));
 
 	if (dict_index_is_clust(index)) {
 
