@@ -2982,7 +2982,7 @@ int main(int argc, char** argv)
   DBUG_PROCESS(argv[0]);
 
   my_init_time(); // for time functions
-
+  tzset(); // set tzname
   /*
     A pointer of type Log_event can point to
      INTVAR

@@ -668,7 +668,7 @@ CHARSET_INFO *get_charset(uint cs_number, myf flags)
     my_stpcpy(get_charsets_dir(index_file),MY_CHARSET_INDEX);
     cs_string[0]='#';
     int10_to_str(cs_number, cs_string+1, 10);
-    my_error(EE_UNKNOWN_CHARSET, MYF(ME_BELL), cs_string, index_file);
+    my_error(EE_UNKNOWN_CHARSET, MYF(0), cs_string, index_file);
   }
   return cs;
 }
@@ -699,7 +699,7 @@ my_collation_get_by_name(MY_CHARSET_LOADER *loader,
   {
     char index_file[FN_REFLEN + sizeof(MY_CHARSET_INDEX)];
     my_stpcpy(get_charsets_dir(index_file),MY_CHARSET_INDEX);
-    my_error(EE_UNKNOWN_COLLATION, MYF(ME_BELL), name, index_file);
+    my_error(EE_UNKNOWN_COLLATION, MYF(0), name, index_file);
   }
   return cs;
 }
@@ -740,7 +740,7 @@ my_charset_get_by_name(MY_CHARSET_LOADER *loader,
   {
     char index_file[FN_REFLEN + sizeof(MY_CHARSET_INDEX)];
     my_stpcpy(get_charsets_dir(index_file),MY_CHARSET_INDEX);
-    my_error(EE_UNKNOWN_CHARSET, MYF(ME_BELL), cs_name, index_file);
+    my_error(EE_UNKNOWN_CHARSET, MYF(0), cs_name, index_file);
   }
 
   DBUG_RETURN(cs);

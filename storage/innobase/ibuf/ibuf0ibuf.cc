@@ -26,6 +26,8 @@ Created 7/19/1997 Heikki Tuuri
 #include "ha_prototypes.h"
 
 #include "ibuf0ibuf.h"
+#include "sync0sync.h"
+#include "btr0sea.h"
 
 #if defined UNIV_DEBUG || defined UNIV_IBUF_DEBUG
 my_bool	srv_ibuf_disable_background_merge;
@@ -190,9 +192,6 @@ exclusively level 1 i/o. A dedicated i/o handler thread handles exclusively
 level 2 i/o. However, if an OS thread does the i/o handling for itself, i.e.,
 it uses synchronous aio, it can access any pages, as long as it obeys the
 access order rules. */
-
-/** Table name for the insert buffer. */
-#define IBUF_TABLE_NAME		"SYS_IBUF_TABLE"
 
 /** Operations that can currently be buffered. */
 ibuf_use_t	ibuf_use		= IBUF_USE_ALL;
@@ -461,6 +460,11 @@ ibuf_close(void)
 
 	mutex_free(&ibuf_bitmap_mutex);
 
+	dict_table_t*	ibuf_table = ibuf->index->table;
+	rw_lock_free(&ibuf->index->lock);
+	dict_mem_index_free(ibuf->index);
+	dict_mem_table_free(ibuf_table);
+
 	ut_free(ibuf);
 	ibuf = NULL;
 }
@@ -495,12 +499,8 @@ ibuf_init_at_db_start(void)
 {
 	page_t*		root;
 	mtr_t		mtr;
-	dict_table_t*	table;
-	mem_heap_t*	heap;
-	dict_index_t*	index;
 	ulint		n_used;
 	page_t*		header_page;
-	dberr_t		error;
 
 	ibuf = static_cast<ibuf_t*>(ut_zalloc_nokey(sizeof(ibuf_t)));
 
@@ -552,31 +552,18 @@ ibuf_init_at_db_start(void)
 	ibuf->empty = page_is_empty(root);
 	ibuf_mtr_commit(&mtr);
 
-	heap = mem_heap_create(450);
-
-	/* Use old-style record format for the insert buffer. */
-	table = dict_mem_table_create(IBUF_TABLE_NAME, IBUF_SPACE_ID, 1, 0, 0);
-
-	dict_mem_table_add_col(table, heap, "DUMMY_COLUMN", DATA_BINARY, 0, 0);
-
-	table->id = DICT_IBUF_ID_MIN + IBUF_SPACE_ID;
-
-	dict_table_add_to_cache(table, FALSE, heap);
-	mem_heap_free(heap);
-
-	index = dict_mem_index_create(
-		IBUF_TABLE_NAME, "CLUST_IND",
-		IBUF_SPACE_ID, DICT_CLUSTERED | DICT_UNIVERSAL | DICT_IBUF, 1);
-
-	dict_mem_index_add_field(index, "DUMMY_COLUMN", 0);
-
-	index->id = DICT_IBUF_ID_MIN + IBUF_SPACE_ID;
-
-	error = dict_index_add_to_cache(table, index,
-					FSP_IBUF_TREE_ROOT_PAGE_NO, FALSE);
-	ut_a(error == DB_SUCCESS);
-
-	ibuf->index = dict_table_get_first_index(table);
+	ibuf->index = dict_mem_index_create(
+		"innodb_change_buffer", "CLUST_IND",
+		IBUF_SPACE_ID, DICT_CLUSTERED | DICT_IBUF, 1);
+	ibuf->index->id = DICT_IBUF_ID_MIN + IBUF_SPACE_ID;
+	ibuf->index->table = dict_mem_table_create(
+		"innodb_change_buffer", IBUF_SPACE_ID, 1, 0, 0);
+	ibuf->index->n_uniq = REC_MAX_N_FIELDS;
+	rw_lock_create(index_tree_rw_lock_key, &ibuf->index->lock,
+		       SYNC_IBUF_INDEX_TREE);
+	ibuf->index->search_info = btr_search_info_create(ibuf->index->heap);
+	ibuf->index->page = FSP_IBUF_TREE_ROOT_PAGE_NO;
+	ut_d(ibuf->index->cached = TRUE);
 }
 
 /*********************************************************************//**
@@ -2253,11 +2240,11 @@ ibuf_free_excess_pages(void)
 }
 
 #ifdef UNIV_DEBUG
-# define ibuf_get_merge_page_nos(contract,rec,mtr,ids,vers,pages,n_stored) \
-	ibuf_get_merge_page_nos_func(contract,rec,mtr,ids,vers,pages,n_stored)
+# define ibuf_get_merge_page_nos(contract,rec,mtr,ids,pages,n_stored) \
+	ibuf_get_merge_page_nos_func(contract,rec,mtr,ids,pages,n_stored)
 #else /* UNIV_DEBUG */
-# define ibuf_get_merge_page_nos(contract,rec,mtr,ids,vers,pages,n_stored) \
-	ibuf_get_merge_page_nos_func(contract,rec,ids,vers,pages,n_stored)
+# define ibuf_get_merge_page_nos(contract,rec,mtr,ids,pages,n_stored) \
+	ibuf_get_merge_page_nos_func(contract,rec,ids,pages,n_stored)
 #endif /* UNIV_DEBUG */
 
 /*********************************************************************//**
@@ -2277,9 +2264,6 @@ ibuf_get_merge_page_nos_func(
 	mtr_t*		mtr,	/*!< in: mini-transaction holding rec */
 #endif /* UNIV_DEBUG */
 	ulint*		space_ids,/*!< in/out: space id's of the pages */
-	int64_t*	space_versions,/*!< in/out: tablespace version
-				timestamps; used to prevent reading in old
-				pages after DISCARD + IMPORT tablespace */
 	ulint*		page_nos,/*!< in/out: buffer for at least
 				IBUF_MAX_N_PAGES_MERGED many page numbers;
 				the page numbers are in an ascending order */
@@ -2404,8 +2388,6 @@ ibuf_get_merge_page_nos_func(
 				/ IBUF_MERGE_THRESHOLD)) {
 
 				space_ids[*n_stored] = prev_space_id;
-				space_versions[*n_stored]
-					= fil_space_get_version(prev_space_id);
 				page_nos[*n_stored] = prev_page_no;
 
 				(*n_stored)++;
@@ -2483,13 +2465,11 @@ ibuf_get_merge_pages(
 	ulint		limit,	/*!< in: max page numbers to read */
 	ulint*		pages,	/*!< out: pages read */
 	ulint*		spaces,	/*!< out: spaces read */
-	int64_t*	versions,/*!< out: space versions read */
 	ulint*		n_pages,/*!< out: number of pages read */
 	mtr_t*		mtr)	/*!< in: mini transaction */
 {
 	const rec_t*	rec;
 	ulint		volume = 0;
-	int64_t		version = fil_space_get_version(space);
 
 	ut_a(space != ULINT_UNDEFINED);
 
@@ -2504,7 +2484,6 @@ ibuf_get_merge_pages(
 		if (*n_pages == 0 || pages[*n_pages - 1] != page_no) {
 			spaces[*n_pages] = space;
 			pages[*n_pages] = page_no;
-			versions[*n_pages] = version;
 			++*n_pages;
 		}
 
@@ -2535,7 +2514,6 @@ ibuf_merge_pages(
 	ulint		sum_sizes;
 	ulint		page_nos[IBUF_MAX_N_PAGES_MERGED];
 	ulint		space_ids[IBUF_MAX_N_PAGES_MERGED];
-	int64_t		space_versions[IBUF_MAX_N_PAGES_MERGED];
 
 	*n_pages = 0;
 
@@ -2566,7 +2544,7 @@ ibuf_merge_pages(
 
 	sum_sizes = ibuf_get_merge_page_nos(TRUE,
 					    btr_pcur_get_rec(&pcur), &mtr,
-					    space_ids, space_versions,
+					    space_ids,
 					    page_nos, n_pages);
 #if 0 /* defined UNIV_IBUF_DEBUG */
 	fprintf(stderr, "Ibuf contract sync %lu pages %lu volume %lu\n",
@@ -2576,7 +2554,7 @@ ibuf_merge_pages(
 	btr_pcur_close(&pcur);
 
 	buf_read_ibuf_merge_pages(
-		sync, space_ids, space_versions, page_nos, *n_pages);
+		sync, space_ids, page_nos, *n_pages);
 
 	return(sum_sizes + 1);
 }
@@ -2615,7 +2593,6 @@ ibuf_merge_space(
 	ulint		sum_sizes = 0;
 	ulint		pages[IBUF_MAX_N_PAGES_MERGED];
 	ulint		spaces[IBUF_MAX_N_PAGES_MERGED];
-	int64_t		versions[IBUF_MAX_N_PAGES_MERGED];
 
 	if (page_is_empty(btr_pcur_get_page(&pcur))) {
 		/* If a B-tree page is empty, it must be the root page
@@ -2631,7 +2608,7 @@ ibuf_merge_space(
 
 		sum_sizes = ibuf_get_merge_pages(
 			&pcur, space, IBUF_MAX_N_PAGES_MERGED,
-			&pages[0], &spaces[0], &versions[0], n_pages,
+			&pages[0], &spaces[0], n_pages,
 			&mtr);
 
 		++sum_sizes;
@@ -2650,12 +2627,11 @@ ibuf_merge_space(
 
 		for (ulint i = 0; i < *n_pages; ++i) {
 			ut_ad(spaces[i] == space);
-			ut_ad(i == 0 || versions[i] == versions[i - 1]);
 		}
 #endif /* UNIV_DEBUG */
 
 		buf_read_ibuf_merge_pages(
-			true, spaces, versions, pages, *n_pages);
+			true, spaces, pages, *n_pages);
 	}
 
 	return(sum_sizes);
@@ -3402,7 +3378,6 @@ ibuf_insert_low(
 	dberr_t		err;
 	ibool		do_merge;
 	ulint		space_ids[IBUF_MAX_N_PAGES_MERGED];
-	int64_t		space_versions[IBUF_MAX_N_PAGES_MERGED];
 	ulint		page_nos[IBUF_MAX_N_PAGES_MERGED];
 	ulint		n_stored;
 	mtr_t		mtr;
@@ -3564,7 +3539,7 @@ fail_exit:
 
 			ibuf_get_merge_page_nos(FALSE,
 						btr_pcur_get_rec(&pcur), &mtr,
-						space_ids, space_versions,
+						space_ids,
 						page_nos, &n_stored);
 
 			goto fail_exit;
@@ -3700,7 +3675,7 @@ func_exit:
 #ifdef UNIV_IBUF_DEBUG
 		ut_a(n_stored <= IBUF_MAX_N_PAGES_MERGED);
 #endif
-		buf_read_ibuf_merge_pages(false, space_ids, space_versions,
+		buf_read_ibuf_merge_pages(false, space_ids,
 					  page_nos, n_stored);
 	}
 

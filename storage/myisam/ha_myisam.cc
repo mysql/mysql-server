@@ -2034,7 +2034,7 @@ void ha_myisam::get_auto_increment(ulonglong offset, ulonglong increment,
     ha_myisam::info(HA_STATUS_AUTO);
     *first_value= stats.auto_increment_value;
     /* MyISAM has only table-level lock, so reserves to +inf */
-    *nb_reserved_values= ULONGLONG_MAX;
+    *nb_reserved_values= ULLONG_MAX;
     return;
   }
 

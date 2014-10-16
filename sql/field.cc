@@ -57,7 +57,7 @@ const char field_separator=',';
 #define LONGLONG_TO_STRING_CONVERSION_BUFFER_SIZE 128
 #define DECIMAL_TO_STRING_CONVERSION_BUFFER_SIZE 128
 #define BLOB_PACK_LENGTH_TO_MAX_LENGH(arg) \
-((ulong) ((LL(1) << MY_MIN(arg, 4) * 8) - LL(1)))
+((ulong) ((1LL << MY_MIN(arg, 4) * 8) - 1LL))
 
 /*
   Rules for merging different types of fields in UNION
@@ -1765,9 +1765,9 @@ longlong Field::convert_decimal2longlong(const my_decimal *val,
   {
     *has_overflow= true;
     if (unsigned_flag)
-      return ULONGLONG_MAX;
+      return ULLONG_MAX;
 
-    return (val->sign() ? LONGLONG_MIN : LONGLONG_MAX);
+    return (val->sign() ? LLONG_MIN : LLONG_MAX);
   }
 
   return val_ll;
@@ -3849,7 +3849,7 @@ type_conversion_status Field_long::store(double nr)
   @param unsigned_val  whether or not 'nr' should be interpreted as 
                        signed or unsigned. E.g., if 'nr' has all bits
                        set it is interpreted as -1 if unsigned_val is 
-                       false and ULONGLONG_MAX if unsigned_val is true.
+                       false and ULLONG_MAX if unsigned_val is true.
 */
 type_conversion_status Field_long::store(longlong nr, bool unsigned_val)
 {
@@ -3864,7 +3864,7 @@ type_conversion_status Field_long::store(longlong nr, bool unsigned_val)
       res=0;
       error= TYPE_WARN_OUT_OF_RANGE;
     }
-    else if ((ulonglong) nr >= (LL(1) << 32))
+    else if ((ulonglong) nr >= (1LL << 32))
     {
       res=(int32) (uint32) ~0L;
       error= TYPE_WARN_OUT_OF_RANGE;
@@ -4077,7 +4077,7 @@ type_conversion_status Field_longlong::store(double nr)
       res=0;
       error= TYPE_WARN_OUT_OF_RANGE;
     }
-    else if (nr >= (double) ULONGLONG_MAX)
+    else if (nr >= (double) ULLONG_MAX)
     {
       res= ~(longlong) 0;
       error= TYPE_WARN_OUT_OF_RANGE;
@@ -4087,16 +4087,16 @@ type_conversion_status Field_longlong::store(double nr)
   }
   else
   {
-    if (nr <= (double) LONGLONG_MIN)
+    if (nr <= (double) LLONG_MIN)
     {
-      res= LONGLONG_MIN;
-      if (nr < (double) LONGLONG_MIN)
+      res= LLONG_MIN;
+      if (nr < (double) LLONG_MIN)
         error= TYPE_WARN_OUT_OF_RANGE;
     }
-    else if (nr >= (double) (ulonglong) LONGLONG_MAX)
+    else if (nr >= (double) (ulonglong) LLONG_MAX)
     {
-      res= LONGLONG_MAX;
-      if (nr > (double) LONGLONG_MAX)
+      res= LLONG_MAX;
+      if (nr > (double) LLONG_MAX)
         error= TYPE_WARN_OUT_OF_RANGE;
     }
     else
@@ -4130,7 +4130,7 @@ type_conversion_status Field_longlong::store(longlong nr, bool unsigned_val)
     */
     if (unsigned_flag != unsigned_val)
     {
-      nr= unsigned_flag ? (ulonglong) 0 : (ulonglong) LONGLONG_MAX;
+      nr= unsigned_flag ? (ulonglong) 0 : (ulonglong) LLONG_MAX;
       set_warning(Sql_condition::SL_WARNING, ER_WARN_DATA_OUT_OF_RANGE, 1);
       error= TYPE_WARN_OUT_OF_RANGE;
     }
@@ -4683,14 +4683,14 @@ longlong Field_double::val_int(void)
 #endif
     doubleget(&j,ptr);
   /* Check whether we fit into longlong range */
-  if (j <= (double) LONGLONG_MIN)
+  if (j <= (double) LLONG_MIN)
   {
-    res= (longlong) LONGLONG_MIN;
+    res= (longlong) LLONG_MIN;
     goto warn;
   }
-  if (j >= (double) (ulonglong) LONGLONG_MAX)
+  if (j >= (double) (ulonglong) LLONG_MAX)
   {
-    res= (longlong) LONGLONG_MAX;
+    res= (longlong) LLONG_MAX;
     goto warn;
   }
   return (longlong) rint(j);
@@ -5049,7 +5049,7 @@ Field_temporal::convert_number_to_datetime(longlong nr, bool unsigned_val,
     e.g. 111111 -> 20111111000000
   */
   longlong tmp= number_to_datetime(nr, ltime, date_flags(), warnings);
-  if (tmp == LL(-1))
+  if (tmp == -1LL)
     reset();
   return tmp;
 }
@@ -5176,7 +5176,7 @@ Field_temporal_with_date::convert_number_to_TIME(longlong nr,
     return TYPE_WARN_OUT_OF_RANGE;
   }
 
-  if (convert_number_to_datetime(nr, unsigned_val, ltime, warnings) == LL(-1))
+  if (convert_number_to_datetime(nr, unsigned_val, ltime, warnings) == -1LL)
     return TYPE_ERR_BAD_VALUE;
 
   if (ltime->time_type == MYSQL_TIMESTAMP_DATE && nanoseconds)
@@ -6483,7 +6483,7 @@ type_conversion_status Field_datetime::store(longlong nr, bool unsigned_val)
   type_conversion_status error= TYPE_OK;
   longlong tmp= convert_number_to_datetime(nr, unsigned_val,
                                            &ltime, &warnings);
-  if (tmp == LL(-1))
+  if (tmp == -1LL)
     error= TYPE_ERR_BAD_VALUE;
   else
   {
@@ -8763,8 +8763,9 @@ Field_set::store(const char *from, size_t length,const CHARSET_INFO *cs)
     /* This is for reading numbers with LOAD DATA INFILE */
     char *end;
     tmp=my_strntoull(cs,from,length,10,&end,&err);
-    if (err || end != from+length ||
-	tmp > (ulonglong) (((longlong) 1 << typelib->count) - (longlong) 1))
+    if (err || 
+        end != from+length ||
+        (typelib->count < 64 && tmp >= (1ULL << typelib->count)))
     {
       tmp=0;      
       set_warning(Sql_condition::SL_WARNING, WARN_DATA_TRUNCATED, 1);
@@ -8785,9 +8786,9 @@ type_conversion_status Field_set::store(longlong nr, bool unsigned_val)
   ulonglong max_nr;
 
   if (sizeof(ulonglong)*8 <= typelib->count)
-    max_nr= ULONGLONG_MAX;
+    max_nr= ULLONG_MAX;
   else
-    max_nr= (ULL(1) << typelib->count) - 1;
+    max_nr= (1ULL << typelib->count) - 1;
 
   if ((ulonglong) nr > max_nr)
   {

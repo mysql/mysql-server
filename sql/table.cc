@@ -2696,7 +2696,7 @@ void open_table_error(TABLE_SHARE *share, int error, int db_errno, int errarg)
   int err_no;
   char buff[FN_REFLEN];
   char errbuf[MYSYS_STRERROR_SIZE];
-  myf errortype= ME_ERROR+ME_WAITTANG;
+  myf errortype= ME_ERRORLOG;
   DBUG_ENTER("open_table_error");
 
   switch (error) {

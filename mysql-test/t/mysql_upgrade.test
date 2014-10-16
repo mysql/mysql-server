@@ -214,6 +214,56 @@ let $MYSQLD_DATADIR= `select @@datadir`;
 --error 1
 --exec $MYSQL_UPGRADE --protocol=AAA --force 2>&1
 
+
+--echo #
+--echo # Bug #19011337: UPGRADE TO 5.7 DISABLES USER ACCOUNTS
+--echo #
+
+CREATE USER B19011337@localhost IDENTIFIED BY 'test';
+GRANT ALL PRIVILEGES on *.* TO B19011337@localhost;
+UPDATE mysql.user SET plugin='' WHERE user='B19011337';
+
+call mtr.add_suppression("Some of the user accounts with SUPER");
+call mtr.add_suppression("1. Stop");
+call mtr.add_suppression("2. Run");
+call mtr.add_suppression("3. Restart");
+call mtr.add_suppression("For complete");
+call mtr.add_suppression("User entry .B19011337");
+
+--echo # expect a warning in the error log
+FLUSH PRIVILEGES;
+
+--echo # let's check for the presense of the warning
+let server_log= $MYSQLTEST_VARDIR/log/mysqld.1.err;
+# $server_log has to be processed by include/search_pattern_in_file.inc which
+# contains Perl code requiring that the environment variable SEARCH_FILE points
+# to this file.
+let SEARCH_FILE= $server_log;
+
+--let SEARCH_PATTERN= 1. Stop
+--source include/search_pattern_in_file.inc
+
+--let SEARCH_PATTERN= 2. Run
+--source include/search_pattern_in_file.inc
+
+--let SEARCH_PATTERN= 3. Restart
+--source include/search_pattern_in_file.inc
+
+--let SEARCH_PATTERN= For complete instructions on how to upgrade MySQL
+--source include/search_pattern_in_file.inc
+--echo # end of check for the presense of the warning
+
+--echo # repair the user's plugin
+--exec $MYSQL_UPGRADE --skip-verbose --force 2>&1
+
+--echo # expect non-empty
+SELECT LENGTH(plugin) <> 0 FROM mysql.user WHERE user='B19011337';
+
+--echo # cleanup
+REVOKE ALL PRIVILEGES ON *.* FROM B19011337@localhost;
+DROP USER B19011337@localhost;
+
+
 --source include/mysql_upgrade_cleanup.inc
 
 --echo

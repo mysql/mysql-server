@@ -2897,7 +2897,7 @@ bool MYSQL_BIN_LOG::open(
 
   if ((file= mysql_file_open(log_file_key,
                              log_file_name, open_flags,
-                             MYF(MY_WME | ME_WAITTANG))) < 0)
+                             MYF(MY_WME))) < 0)
     goto err;
 
   if ((pos= mysql_file_tell(file, MYF(MY_WME))) == MY_FILEPOS_ERROR)
@@ -2916,7 +2916,7 @@ bool MYSQL_BIN_LOG::open(
   DBUG_RETURN(0);
 
 err:
-  if (binlogging_impossible_mode == ABORT_SERVER)
+  if (binlog_error_action == ABORT_SERVER)
   {
     THD *thd= current_thd;
     /*
@@ -3837,7 +3837,7 @@ err:
   my_free(name);
   name= NULL;
   log_state= LOG_CLOSED;
-  if (binlogging_impossible_mode == ABORT_SERVER)
+  if (binlog_error_action == ABORT_SERVER)
   {
     THD *thd= current_thd;
     /*
@@ -4459,7 +4459,7 @@ int MYSQL_BIN_LOG::open_crash_safe_index_file()
   if (!my_b_inited(&crash_safe_index_file))
   {
     if ((file= my_open(crash_safe_index_file_name, O_RDWR | O_CREAT | O_BINARY,
-                       MYF(MY_WME | ME_WAITTANG))) < 0  ||
+                       MYF(MY_WME))) < 0  ||
         init_io_cache(&crash_safe_index_file, file, IO_SIZE, WRITE_CACHE,
                       0, 0, MYF(MY_WME | MY_NABP | MY_WAIT_IF_FULL)))
     {
@@ -4892,7 +4892,7 @@ int MYSQL_BIN_LOG::open_purge_index_file(bool destroy)
   if (!my_b_inited(&purge_index_file))
   {
     if ((file= my_open(purge_index_file_name, O_RDWR | O_CREAT | O_BINARY,
-                       MYF(MY_WME | ME_WAITTANG))) < 0  ||
+                       MYF(MY_WME))) < 0  ||
         init_io_cache(&purge_index_file, file, IO_SIZE,
                       (destroy ? WRITE_CACHE : READ_CACHE),
                       0, 0, MYF(MY_WME | MY_NABP | MY_WAIT_IF_FULL)))
@@ -5512,7 +5512,7 @@ end:
        - ...
     */
     close(LOG_CLOSE_INDEX);
-    if (binlogging_impossible_mode == ABORT_SERVER)
+    if (binlog_error_action == ABORT_SERVER)
     {
       THD *thd= current_thd;
       /*
@@ -7130,6 +7130,16 @@ TC_LOG::enum_result MYSQL_BIN_LOG::commit(THD *thd, bool all)
   */
   if (stuff_logged)
   {
+    if (RUN_HOOK(transaction,
+                 before_commit,
+                 (thd, all,
+                  thd_get_cache_mngr(thd)->get_binlog_cache_log(true),
+                  thd_get_cache_mngr(thd)->get_binlog_cache_log(false),
+                  max<my_off_t>(max_binlog_cache_size,
+                                max_binlog_stmt_cache_size),
+                  NULL)))
+      DBUG_RETURN(RESULT_ABORTED);
+
     if (ordered_commit(thd, all))
       DBUG_RETURN(RESULT_INCONSISTENT);
   }

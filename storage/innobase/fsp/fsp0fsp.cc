@@ -209,11 +209,10 @@ fsp_get_space_header(
 This can only be done for a tablespace that was built as a file-per-table
 tablespace. Note that the fsp_flags cannot show the difference between a
 Compact and Redundant table, so an extra Compact boolean must be supplied.
-========================= Low order bit ==========================
-                    | REDUNDANT | COMPACT | COMPRESSED | DYNAMIC
+			Low order bit
+		    | REDUNDANT | COMPACT | COMPRESSED | DYNAMIC
 fil_space_t::flags  |     0     |    0    |     1      |    1
 dict_table_t::flags |     0     |    1    |     1      |    1
-==================================================================
 @param[in]	fsp_flags	fil_space_t::flags
 @param[in]	compact		true if not Redundant row format
 @return tablespace flags (fil_space_t::flags) */
@@ -235,14 +234,13 @@ fsp_flags_to_dict_tf(
 	return(flags);
 }
 
-/** Validate and return the tablespace flags, which are stored in the
-tablespace header at offset FSP_SPACE_FLAGS.  They should be 0 for
-ROW_FORMAT=COMPACT and ROW_FORMAT=REDUNDANT. The newer row formats,
-COMPRESSED and DYNAMIC, use a file format > Antelope so they should
-have a file format number plus the DICT_TF_COMPACT bit set.
-
-@param[in]	flags	tablespace flags
-@return true if check ok */
+/** Validate the tablespace flags.
+These flags are stored in the tablespace header at offset FSP_SPACE_FLAGS.
+They should be 0 for ROW_FORMAT=COMPACT and ROW_FORMAT=REDUNDANT.
+The newer row formats, COMPRESSED and DYNAMIC, use a file format > Antelope
+so they should have a file format number plus the DICT_TF_COMPACT bit set.
+@param[in]	flags	Tablespace flags
+@return true if valid, false if not */
 bool
 fsp_flags_is_valid(
 	ulint	flags)
@@ -741,14 +739,14 @@ fsp_space_modify_check(
 }
 # endif /* UNIV_DEBUG */
 
-/***********************************************************//**
-Inits a file page whose prior contents should be ignored. */
+/** Initialize a file page.
+@param[in,out]	block	file page
+@param[in,out]	mtr	mini-transaction */
 static
 void
 fsp_init_file_page(
-/*===============*/
-	buf_block_t*	block,	/*!< in: pointer to a page */
-	mtr_t*		mtr)	/*!< in/out: mini-transaction */
+	buf_block_t*	block,
+	mtr_t*		mtr)
 {
 	fsp_init_file_page_low(block);
 
@@ -873,7 +871,7 @@ fsp_header_init(
 			   space_id, header, mtr);
 
 	if (space_id == srv_sys_space.space_id()) {
-		btr_create(DICT_CLUSTERED | DICT_UNIVERSAL | DICT_IBUF,
+		btr_create(DICT_CLUSTERED | DICT_IBUF,
 			   0, univ_page_size, DICT_IBUF_ID_MIN + space_id,
 			   dict_ind_redundant, NULL, mtr);
 	}

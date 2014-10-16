@@ -53,6 +53,13 @@ enum {
 	BTR_KEEP_IBUF_BITMAP = 32
 };
 
+/* btr_cur_latch_leaves() returns latched blocks and savepoints. */
+struct btr_latch_leaves_t {
+	/* left block, target block and right block */
+	buf_block_t*	blocks[3];
+	ulint		savepoints[3];
+};
+
 #ifndef UNIV_HOTBACKUP
 #include "que0types.h"
 #include "row0types.h"
@@ -826,8 +833,9 @@ btr_rec_set_deleted_flag(
 @param[in]	page_id		page id of the leaf
 @param[in]	latch_mode	BTR_SEARCH_LEAF, ...
 @param[in]	cursor		cursor
-@param[in]	mtr		mini-transaction */
-void
+@param[in]	mtr		mini-transaction
+@return	blocks and savepoints which actually latched. */
+btr_latch_leaves_t
 btr_cur_latch_leaves(
 	buf_block_t*		block,
 	const page_id_t&	page_id,

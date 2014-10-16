@@ -390,7 +390,7 @@ dict_stats_table_clone_create(
 			continue;
 		}
 
-		ut_ad(!dict_index_is_univ(index));
+		ut_ad(!dict_index_is_ibuf(index));
 
 		ulint	n_uniq = dict_index_get_n_unique(index);
 
@@ -439,7 +439,7 @@ dict_stats_table_clone_create(
 			continue;
 		}
 
-		ut_ad(!dict_index_is_univ(index));
+		ut_ad(!dict_index_is_ibuf(index));
 
 		dict_index_t*	idx;
 
@@ -518,7 +518,7 @@ dict_stats_empty_index(
 	dict_index_t*	index)	/*!< in/out: index */
 {
 	ut_ad(!(index->type & DICT_FTS));
-	ut_ad(!dict_index_is_univ(index));
+	ut_ad(!dict_index_is_ibuf(index));
 
 	ulint	n_uniq = index->n_uniq;
 
@@ -562,7 +562,7 @@ dict_stats_empty_table(
 			continue;
 		}
 
-		ut_ad(!dict_index_is_univ(index));
+		ut_ad(!dict_index_is_ibuf(index));
 
 		dict_stats_empty_index(index);
 	}
@@ -685,7 +685,7 @@ dict_stats_copy(
 			continue;
 		}
 
-		ut_ad(!dict_index_is_univ(dst_idx));
+		ut_ad(!dict_index_is_ibuf(dst_idx));
 
 		if (!INDEX_EQ(src_idx, dst_idx)) {
 			for (src_idx = dict_table_get_first_index(src);
@@ -883,8 +883,7 @@ dict_stats_update_transient(
 	} else if (index == NULL) {
 		/* Table definition is corrupt */
 
-		ib::warn() << "Table "
-			<< table->name
+		ib::warn() << "Table " << table->name
 			<< " has no indexes. Cannot calculate statistics.";
 		dict_stats_empty_table(table);
 		return;
@@ -892,7 +891,7 @@ dict_stats_update_transient(
 
 	for (; index != NULL; index = dict_table_get_next_index(index)) {
 
-		ut_ad(!dict_index_is_univ(index));
+		ut_ad(!dict_index_is_ibuf(index));
 
 		if (index->type & DICT_FTS || dict_index_is_spatial(index)) {
 			continue;
@@ -2191,7 +2190,7 @@ dict_stats_update_persistent(
 		return(DB_CORRUPTION);
 	}
 
-	ut_ad(!dict_index_is_univ(index));
+	ut_ad(!dict_index_is_ibuf(index));
 
 	dict_stats_analyze_index(index);
 
@@ -2209,7 +2208,7 @@ dict_stats_update_persistent(
 	     index != NULL;
 	     index = dict_table_get_next_index(index)) {
 
-		ut_ad(!dict_index_is_univ(index));
+		ut_ad(!dict_index_is_ibuf(index));
 
 		if (index->type & DICT_FTS || dict_index_is_spatial(index)) {
 			continue;
@@ -2328,13 +2327,9 @@ dict_stats_save_index_stat(
 		"END;", trx);
 
 	if (ret != DB_SUCCESS) {
-		char	buf_index[MAX_FULL_NAME_LEN];
-
 		ib::error() << "Cannot save index statistics for table "
 			<< index->table->name
-			<< ", index "
-			<< ut_format_name(index->name, FALSE,
-					  buf_index, sizeof(buf_index))
+			<< ", index " << index->name
 			<< ", stat name \"" << stat_name << "\": "
 			<< ut_strerr(ret);
 	}
@@ -2465,7 +2460,7 @@ dict_stats_save(
 			continue;
 		}
 
-		ut_ad(!dict_index_is_univ(index));
+		ut_ad(!dict_index_is_ibuf(index));
 
 		for (ulint i = 0; i < index->n_uniq; i++) {
 
@@ -3022,14 +3017,10 @@ dict_stats_update_for_index(
 
 		/* Fall back to transient stats since the persistent
 		storage is not present or is corrupted */
-		char	buf_index[MAX_FULL_NAME_LEN];
 
 		ib::info() << "Recalculation of persistent statistics"
-			" requested for table "
-			<< index->table->name
-			<< " index "
-			<< ut_format_name(index->name, FALSE,
-					  buf_index, sizeof(buf_index))
+			" requested for table " << index->table->name
+			<< " index " << index->name
 			<< " but the required"
 			" persistent statistics storage is not present or is"
 			" corrupted. Using transient stats instead.";
