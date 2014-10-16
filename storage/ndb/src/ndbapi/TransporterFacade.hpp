@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -103,7 +103,6 @@ public:
    * These are functions used by ndb_mgmd
    */
   void ext_set_max_api_reg_req_interval(Uint32 ms);
-  void ext_update_connections();
   struct in_addr ext_get_connect_address(Uint32 nodeId);
   void ext_forceHB();
   bool ext_isConnected(NodeId aNodeId);
@@ -139,10 +138,6 @@ public:
   void lock_poll_mutex();
   void unlock_poll_mutex();
 
-  // Improving the API performance
-  void forceSend(Uint32 block_number);
-  int checkForceSend(Uint32 block_number);
-
   TransporterRegistry* get_registry() { return theTransporterRegistry;};
 
 /*
@@ -152,6 +147,8 @@ public:
   With the below new methods and variables each thread has the possibility
   of becoming owner of the "right" to poll for signals. Effectually this
   means that the thread acts temporarily as a receiver thread.
+  There is also a dedicated receiver thread (threadMainReceive) which will
+  be activated to off load the client threads if the load is sufficient high.
   For the thread that succeeds in grabbing this "ownership" it will avoid
   a number of expensive calls to conditional mutex and even more expensive
   context switches to wake up.
@@ -162,7 +159,7 @@ public:
   be the last to complete its reception.
 */
   void start_poll(trp_client*);
-  void do_poll(trp_client* clnt,
+  bool do_poll(trp_client* clnt,
                Uint32 wait_time,
                bool is_poll_owner = false,
                bool stay_poll_owner = false);
@@ -178,6 +175,13 @@ public:
   trp_client* remove_last_from_poll_queue();
   void add_to_poll_queue(trp_client* clnt);
   void remove_from_poll_queue(trp_client* clnt);
+
+  /*
+    Optimize detection of connection state changes by requesting 
+    an ::update_connections() to be done in the next do_poll().
+  */
+  void request_connection_check()
+  { m_check_connections = true; }
 
   /*
     Configuration handling of the receiver threads handling of polling
@@ -249,9 +253,7 @@ private:
   friend class Ndb_cluster_connection;
   friend class Ndb_cluster_connection_impl;
 
-  void checkClusterMgr(NDB_TICKS & lastTime);
   bool try_become_poll_owner(trp_client* clnt, Uint32 wait_time);
-  bool become_poll_owner(trp_client* clnt, NDB_TICKS currtime);
   static void finish_poll(trp_client* clnt,
                           Uint32 cnt,
                           Uint32& cnt_woken,
@@ -262,7 +264,7 @@ private:
                             Uint32 first_check);
 
   Uint32 m_num_active_clients;
-  NDB_TICKS m_receive_activation_time;
+  volatile bool m_check_connections;
 
   bool isConnected(NodeId aNodeId);
 
@@ -274,12 +276,6 @@ private:
 
   ClusterMgr* theClusterMgr;
   
-  // Improving the API response time
-  int checkCounter;
-  Uint32 currentSendLimit;
-  
-  void calculateSendLimit();
-
   /* Single dozer supported currently.
    * In future, use a DLList to support > 1
    */
