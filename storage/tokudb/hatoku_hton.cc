@@ -2273,7 +2273,6 @@ static int tokudb_locks_done(void *p) {
 }
 
 enum { TOKUDB_PLUGIN_VERSION = 0x0400 };
-#define TOKUDB_PLUGIN_VERSION_STR "1024"
 
 // Retrieves variables for information_schema.global_status.
 // Names (columnname) are automatically converted to upper case, and prefixed with "TOKUDB_"
@@ -2496,6 +2495,12 @@ mysql_declare_plugin(tokudb)
 mysql_declare_plugin_end;
 
 #ifdef MARIA_PLUGIN_INTERFACE_VERSION
+
+#ifdef TOKUDB_VERSION
+#define TOKUDB_PLUGIN_VERSION_STR TOKUDB_VERSION
+#else
+#define TOKUDB_PLUGIN_VERSION_STR NULL
+#endif
 
 maria_declare_plugin(tokudb) 
 {
