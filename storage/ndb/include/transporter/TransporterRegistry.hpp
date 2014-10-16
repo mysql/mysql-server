@@ -280,7 +280,9 @@ public:
    */
   void do_connect(NodeId node_id);
   void do_disconnect(NodeId node_id, int errnum = 0);
-  bool is_connected(NodeId node_id) { return performStates[node_id] == CONNECTED; };
+  bool is_connected(NodeId node_id) const {
+    return performStates[node_id] == CONNECTED;
+  };
 private:
   void report_connect(TransporterReceiveHandle&, NodeId node_id);
   void report_disconnect(TransporterReceiveHandle&, NodeId node_id, int errnum);
@@ -298,7 +300,7 @@ public:
   /**
    * Get and set methods for IOState
    */
-  IOState ioState(NodeId nodeId);
+  IOState ioState(NodeId nodeId) const;
   void setIOState(NodeId nodeId, IOState state);
 
   /**

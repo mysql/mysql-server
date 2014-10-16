@@ -714,37 +714,6 @@ ReceiveThreadClient::trp_deliver_signal(const NdbApiSignal *signal,
   DBUG_VOID_RETURN;
 }
 
-void
-TransporterFacade::checkClusterMgr(NDB_TICKS & lastTime)
-{
-  lastTime = NdbTick_getCurrentTicks();
-  theClusterMgr->lock();
-  theTransporterRegistry->update_connections();
-  theClusterMgr->flush_send_buffers();
-  theClusterMgr->unlock();
-}
-
-bool
-TransporterFacade::become_poll_owner(trp_client* clnt,
-                                     NDB_TICKS currTime)
-{
-  bool poll_owner = false;
-  lock_poll_mutex();
-  if (m_poll_owner == NULL)
-  {
-    poll_owner = true;
-    m_num_active_clients = 0;
-    m_receive_activation_time = currTime;
-    m_poll_owner = clnt;
-  }
-  unlock_poll_mutex();
-  if (poll_owner)
-  {
-    return true;
-  }
-  return false;
-}
-
 int
 TransporterFacade::unset_recv_thread_cpu(Uint32 recv_thread_id)
 {
@@ -815,19 +784,28 @@ TransporterFacade::get_recv_thread_activation_threshold() const
 
 static const int DEFAULT_MIN_ACTIVE_CLIENTS_RECV_THREAD = 8;
 /*
-  The receiver thread is changed to only wake up once every 10 milliseconds
-  to poll. It will first check that nobody owns the poll "right" before
-  polling. This means that methods using the receiveResponse and
-  sendRecSignal will have a slightly longer response time if they are
-  executed without any parallel key lookups. Currently also scans are
-  affected but this is to be fixed.
+  ::threadMainReceive() serves two purposes:
+
+  1) Ensure that update_connection() is called regularly (100ms)
+  2) If there are sufficient 'do_poll' activity from clients,
+     it start acting as a receive thread, offloading the
+     transporter polling from the clients.
+  
+  Both of these tasks need the poll rights. 
+  ::update_connection() has to be synced with ::performReceive(),
+  and both takes place from within the 'poll-loop'.
+
+  Updates of the connections is triggered by setting the
+  flag 'm_check_connections', which will trigger a single
+  ::update_connection. Either in the do_poll called from
+  threadMainReceive(), if we get the poll right, or in the
+  do_poll from the thread already having the poll rights.
 */
 void TransporterFacade::threadMainReceive(void)
 {
   bool poll_owner = false;
-  bool check_cluster_mgr;
-  NDB_TICKS currTime = NdbTick_getCurrentTicks();
-  NDB_TICKS lastTime = currTime;
+  NDB_TICKS lastCheck = NdbTick_getCurrentTicks();
+  NDB_TICKS receive_activation_time;
 
   while (theReceiveThread == NULL)
   {
@@ -842,11 +820,25 @@ void TransporterFacade::threadMainReceive(void)
   lock_recv_thread_cpu();
   while(!theStopReceive)
   {
-    currTime = NdbTick_getCurrentTicks();
-    Uint64 elapsed = NdbTick_Elapsed(lastTime,currTime).milliSec();
-    check_cluster_mgr = false;
-    if (elapsed > 100)
-      check_cluster_mgr = true; /* 100 milliseconds have passed */
+    bool stay_poll_owner = true;
+    const NDB_TICKS currTime = NdbTick_getCurrentTicks();
+
+    /**
+     * Ensure that 'update_connections()' is checked every 100ms.
+     * As connections has to be updated by the poll owner, we only
+     * flag connections to require a check now. We will later
+     * either update them ourself if we get the poll right, or leave
+     * it to the thread holding the poll right, either one is fine.
+     *
+     * NOTE: We set this flag without mutex, which could result in
+     * a 'check' to be missed now and then. 
+     */
+    if (NdbTick_Elapsed(lastCheck,currTime).milliSec() >= 100)
+    {
+      m_check_connections = true;
+      lastCheck = currTime;
+    }
+   
     if (!poll_owner)
     {
       /*
@@ -857,21 +849,32 @@ void TransporterFacade::threadMainReceive(void)
       */
       if (m_num_active_clients > min_active_clients_recv_thread)
       {
-        poll_owner = become_poll_owner(recv_client, currTime);
+        m_num_active_clients = 0;
+        receive_activation_time = currTime;
       }
       else
       {
+        if (m_check_connections)
+        {
+          recv_client->start_poll();
+          do_poll(recv_client,0);
+          recv_client->complete_poll();
+        }
         NdbSleep_MilliSleep(100);
+        continue;
       }
     }
-    if (poll_owner)
+    else
     {
-      bool stay_poll_owner = !check_cluster_mgr;
-      elapsed = NdbTick_Elapsed(m_receive_activation_time,currTime).milliSec();
-      if (elapsed > 1000)
+      /**
+       * We are holding the poll rights and acting as a receiver thread.
+       * Check every 1000ms if activity is below the 50% threshold for
+       * keeping the receiver thread still active.
+       */
+      if (NdbTick_Elapsed(receive_activation_time,currTime).milliSec() > 1000)
       {
         /* Reset timer for next activation check time */
-        m_receive_activation_time = currTime;
+        receive_activation_time = currTime;
         lock_poll_mutex();
         if (m_num_active_clients < (min_active_clients_recv_thread / 2))
         {
@@ -881,21 +884,11 @@ void TransporterFacade::threadMainReceive(void)
         m_num_active_clients = 0; /* Reset active clients for next timeslot */
         unlock_poll_mutex();
       }
-      recv_client->start_poll();
-      do_poll(recv_client, 10, true, stay_poll_owner);
-      recv_client->complete_poll();
-      poll_owner = stay_poll_owner;
     }
-    if (check_cluster_mgr)
-    {
-      /*
-        ensure that this thread is not poll owner before calling
-        checkClusterMgr to avoid ending up in a deadlock when
-        acquiring locks on cluster manager mutexes.
-      */
-      assert(!poll_owner);
-      checkClusterMgr(lastTime);
-    }
+
+    recv_client->start_poll();
+    poll_owner = do_poll(recv_client, 10, poll_owner, stay_poll_owner);
+    recv_client->complete_poll();
   }
 
   if (poll_owner)
@@ -918,29 +911,52 @@ void TransporterFacade::threadMainReceive(void)
   It waits for events and if something arrives it takes care of it
   and returns to caller. It will quickly come back here if not all
   data was received for the worker thread.
+
+  It is also responsible for doing ::update_connections status
+  of transporters, as this also require the poll rights in order
+  to not interfere with the polling itself.
+
+  In order to not block awaiting 'update_connections' requests,
+  we never wait longer than 10ms inside ::pollReceive().
+  Longer timeouts are done in multiple 10ms periods
 */
 void
 TransporterFacade::external_poll(Uint32 wait_time)
 {
-#ifdef NDB_SHM_TRANSPORTER
-  /*
-    If shared memory transporters are used we need to set our sigmask
-    such that we wake up also on interrupts on the shared memory
-    interrupt signal.
-  */
-  NdbThread_set_shm_sigmask(FALSE);
-#endif
-
-  const int res = theTransporterRegistry->pollReceive(wait_time);
-
-#ifdef NDB_SHM_TRANSPORTER
-  NdbThread_set_shm_sigmask(TRUE);
-#endif
-
-  if (res > 0)
+  do
   {
-    theTransporterRegistry->performReceive();
+#ifdef NDB_SHM_TRANSPORTER
+    /*
+      If shared memory transporters are used we need to set our sigmask
+      such that we wake up also on interrupts on the shared memory
+      interrupt signal.
+    */
+    NdbThread_set_shm_sigmask(FALSE);
+#endif
+
+    /* Long waits are done in short 10ms chunks */
+    const Uint32 wait = (wait_time > 10) ? 10 : wait_time;
+    const int res = theTransporterRegistry->pollReceive(wait);
+
+#ifdef NDB_SHM_TRANSPORTER
+    NdbThread_set_shm_sigmask(TRUE);
+#endif
+
+    if (m_check_connections)
+    {
+      m_check_connections = false;
+      theTransporterRegistry->update_connections();
+    }
+
+    if (res > 0)
+    {
+      theTransporterRegistry->performReceive();
+      break;
+    }
+
+    wait_time -= wait;
   }
+  while (wait_time > 0);
 }
 
 TransporterFacade::TransporterFacade(GlobalDictCache *cache) :
@@ -950,12 +966,11 @@ TransporterFacade::TransporterFacade(GlobalDictCache *cache) :
   m_poll_queue_head(NULL),
   m_poll_queue_tail(NULL),
   m_num_active_clients(0),
+  m_check_connections(true),
   theTransporterRegistry(0),
   theOwnId(0),
   theStartNodeId(1),
   theClusterMgr(NULL),
-  checkCounter(4),
-  currentSendLimit(1),
   dozer(NULL),
   theStopReceive(0),
   theStopSend(0),
@@ -1120,7 +1135,7 @@ TransporterFacade::configure(NodeId nodeId,
       ndbout << "Unable to allocate "
              << total_send_buffer_size_t
              << " bytes of memory for send buffers!!" << endl;
-      return false;
+      DBUG_RETURN(false);
     }
   }
 
@@ -1369,42 +1384,6 @@ TransporterFacade::~TransporterFacade()
   signalLogger.setOutputStream(0);
 #endif
   DBUG_VOID_RETURN;
-}
-
-void 
-TransporterFacade::calculateSendLimit()
-{
-  Uint32 Ti;
-  Uint32 TthreadCount = 0;
-  
-  Uint32 sz = m_threads.m_statusNext.size();
-  for (Ti = 0; Ti < sz; Ti++) {
-    if (m_threads.m_statusNext[Ti] == (ThreadData::ACTIVE)){
-      TthreadCount++;
-      m_threads.m_statusNext[Ti] = ThreadData::INACTIVE;
-    }
-  }
-  currentSendLimit = TthreadCount;
-  if (currentSendLimit == 0) {
-    currentSendLimit = 1;
-  }
-  checkCounter = currentSendLimit << 2;
-}
-
-
-//-------------------------------------------------
-// Force sending but still report the sending to the
-// adaptive algorithm.
-//-------------------------------------------------
-void TransporterFacade::forceSend(Uint32 block_number) {
-}
-
-//-------------------------------------------------
-// Improving API performance
-//-------------------------------------------------
-int
-TransporterFacade::checkForceSend(Uint32 block_number) {  
-  return 0;
 }
 
 
@@ -2012,17 +1991,45 @@ TransporterFacade::doDisconnect(int aNodeId)
   theTransporterRegistry->do_disconnect(aNodeId);
 }
 
+/**
+ * As ClusterMgr maintains shared global data, updating
+ * its connection state needs locking. Depending on
+ * whether ClusterMgr already is the poll owner, we
+ * should conditionally take that lock now.
+ */
 void
 TransporterFacade::reportConnected(int aNodeId)
 {
-  theClusterMgr->reportConnected(aNodeId);
+  assert(m_poll_owner != NULL);
+  if (m_poll_owner != theClusterMgr)
+  {
+    theClusterMgr->lock();
+    theClusterMgr->reportConnected(aNodeId);
+    theClusterMgr->flush_send_buffers();
+    theClusterMgr->unlock();
+  }
+  else
+  {
+    theClusterMgr->reportConnected(aNodeId);
+  }
   return;
 }
 
 void
 TransporterFacade::reportDisconnected(int aNodeId)
 {
-  theClusterMgr->reportDisconnected(aNodeId);
+  assert(m_poll_owner != NULL);
+  if (m_poll_owner != theClusterMgr)
+  {
+    theClusterMgr->lock();
+    theClusterMgr->reportDisconnected(aNodeId);
+    theClusterMgr->flush_send_buffers();
+    theClusterMgr->unlock();
+  }
+  else
+  {
+    theClusterMgr->reportDisconnected(aNodeId);
+  }
   return;
 }
 
@@ -2137,9 +2144,28 @@ TransporterFacade::start_poll(trp_client* clnt)
 bool
 TransporterFacade::try_become_poll_owner(trp_client* clnt, Uint32 wait_time)
 {
+  assert(clnt->m_poll.m_locked == true);
   lock_poll_mutex();
   if (m_poll_owner != NULL)
   {
+    assert(m_poll_owner != clnt);
+    assert(clnt->m_poll.m_poll_owner == false);
+
+    /*
+      Dont wait for the poll right to become available if
+      no wait_time is allowed. Return without poll right,
+      and without waiting in poll queue.
+    */
+    if (wait_time == 0)
+    {
+      unlock_poll_mutex();
+
+      assert(clnt->m_poll.m_waiting == trp_client::PollQueue::PQ_WAITING);
+      clnt->m_poll.m_waiting = trp_client::PollQueue::PQ_IDLE;
+      dbg("%p - poll_owner == false && wait_time == 0 => return", clnt);
+      return false;
+    }
+
     /*
       We didn't get hold of the poll "right". We will sleep on a
       conditional mutex until the thread owning the poll "right"
@@ -2365,7 +2391,23 @@ TransporterFacade::try_lock_last_client(trp_client* clnt,
   }
 }
 
-void
+/**
+ * Poll the Transporters for incomming messages.
+ * Also 'update_connections' status in regular intervals
+ * controlled by the flag 'm_check_connections'.
+ * (::threadMainReceive() is responsible for requesting
+ * this in regular intervals)
+ * 
+ * Both of these operations require the poll right to
+ * have been aquired. If we are not already 'is_poll_owner',
+ * we will try to set it within the timeout 'wait_time'.
+ *
+ * Poll ownership might be release on return if not
+ * 'stay_poll_owner' is requested.
+ *
+ * Return 'true' if poll right is still owned upon return.
+ */
+bool
 TransporterFacade::do_poll(trp_client* clnt,
                            Uint32 wait_time,
                            bool is_poll_owner,
@@ -2379,7 +2421,7 @@ TransporterFacade::do_poll(trp_client* clnt,
   if (!is_poll_owner)
   {
     if (!try_become_poll_owner(clnt, wait_time))
-      return;
+      return false;
   }
 
   /**
@@ -2442,7 +2484,7 @@ TransporterFacade::do_poll(trp_client* clnt,
   {
     clnt->m_poll.m_locked_cnt = 0;
     dbg("%p->do_poll return", clnt);
-    return;
+    return true;
   }
   /**
    * If we failed to propose new poll owner above, then we retry it here
@@ -2503,6 +2545,7 @@ TransporterFacade::do_poll(trp_client* clnt,
 
   clnt->m_poll.m_locked_cnt = 0;
   dbg("%p->do_poll return", clnt);
+  return false;
 }
 
 void
@@ -3131,15 +3174,6 @@ void
 TransporterFacade::ext_set_max_api_reg_req_interval(Uint32 interval)
 {
   theClusterMgr->set_max_api_reg_req_interval(interval);
-}
-
-void
-TransporterFacade::ext_update_connections()
-{
-  theClusterMgr->lock();
-  theTransporterRegistry->update_connections();
-  theClusterMgr->flush_send_buffers();
-  theClusterMgr->unlock();
 }
 
 struct in_addr

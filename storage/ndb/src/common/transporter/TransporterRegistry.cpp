@@ -4,7 +4,6 @@
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
    the Free Software Foundation; version 2 of the License.
-
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -39,7 +38,6 @@ extern int g_ndb_shm_signum;
 
 #include "NdbOut.hpp"
 #include <NdbSleep.h>
-#include <NdbTick.h>
 #include <InputStream.hpp>
 #include <OutputStream.hpp>
 #include <socket_io.h>
@@ -50,6 +48,41 @@ extern int g_ndb_shm_signum;
 
 #include <EventLogger.hpp>
 extern EventLogger * g_eventLogger;
+
+/**
+ * There is a requirement in the Transporter design that
+ * ::performReceive() and ::update_connections()
+ * on the same 'TransporterReceiveHandle' should not be 
+ * run concurrently. class TransporterReceiveWatchdog provides a
+ * simple mechanism to assert that this rule is followed.
+ * Does nothing if NDEBUG is defined (in production code)
+ */
+class TransporterReceiveWatchdog
+{
+public:
+#if NDEBUG 
+  TransporterReceiveWatchdog(TransporterReceiveHandle& recvdata)
+  {}
+
+#else
+  TransporterReceiveWatchdog(TransporterReceiveHandle& recvdata)
+    : m_recvdata(recvdata)
+  {
+    assert(m_recvdata.m_active == false);
+    m_recvdata.m_active = true;
+  }
+
+  ~TransporterReceiveWatchdog()
+  {
+    assert(m_recvdata.m_active == true);
+    m_recvdata.m_active = false;
+  }
+
+private:
+  TransporterReceiveHandle& m_recvdata;
+#endif
+};
+
 
 struct in_addr
 TransporterRegistry::get_connect_address(NodeId node_id) const
@@ -1399,6 +1432,7 @@ TransporterRegistry::poll_TCP(Uint32 timeOutMillis,
 Uint32
 TransporterRegistry::performReceive(TransporterReceiveHandle& recvdata)
 {
+  TransporterReceiveWatchdog guard(recvdata);
   assert((receiveHandle == &recvdata) || (receiveHandle == 0));
   bool stopReceiving = false;
 
@@ -1430,7 +1464,7 @@ TransporterRegistry::performReceive(TransporterReceiveHandle& recvdata)
 #ifdef NDB_TCP_TRANSPORTER
   /**
    * Receive data from transporters polled to have data.
-   * Add to set of transported having pending data.
+   * Add to set of transporters having pending data.
    */
   for(Uint32 id = recvdata.m_recv_transporters.find_first();
       id != BitmaskImpl::NotFound;
@@ -1749,7 +1783,7 @@ TransporterRegistry::unblockReceive(TransporterReceiveHandle& recvdata,
 #endif
 
 IOState
-TransporterRegistry::ioState(NodeId nodeId) { 
+TransporterRegistry::ioState(NodeId nodeId) const { 
   return ioStates[nodeId]; 
 }
 
@@ -1942,6 +1976,7 @@ TransporterRegistry::report_error(NodeId nodeId, TransporterError errorCode,
 void
 TransporterRegistry::update_connections(TransporterReceiveHandle& recvdata)
 {
+  TransporterReceiveWatchdog guard(recvdata);
   assert((receiveHandle == &recvdata) || (receiveHandle == 0));
 
   for (int i= 0, n= 0; n < nTransporters; i++){
