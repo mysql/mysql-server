@@ -2293,6 +2293,9 @@ free_tmp_table(THD *thd, TABLE *entry)
     this row can be a duplicate of an existing row without throwing an error.
     If is_duplicate is non-NULL, an indication of whether the last row was
     a duplicate is returned.
+
+  @note that any index/scan access initialized on the MEMORY table is not
+  replicated to the on-disk table - it's the caller's responsibility.
 */
 
 bool create_ondisk_from_heap(THD *thd, TABLE *table,
