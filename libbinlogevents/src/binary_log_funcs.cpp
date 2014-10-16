@@ -28,7 +28,7 @@
    The somewhat contorted expression is to avoid overflow.
  */
 static unsigned int uint_max(int bits) {
-  assert(bits < sizeof(unsigned int) * CHAR_BIT);
+  assert(static_cast<unsigned int>(bits) < sizeof(unsigned int) * CHAR_BIT);
   return (((1U << (bits - 1)) - 1) << 1) | 1;
 }
 
