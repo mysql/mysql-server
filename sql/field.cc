@@ -8763,8 +8763,9 @@ Field_set::store(const char *from, size_t length,const CHARSET_INFO *cs)
     /* This is for reading numbers with LOAD DATA INFILE */
     char *end;
     tmp=my_strntoull(cs,from,length,10,&end,&err);
-    if (err || end != from+length ||
-	tmp > (ulonglong) (((longlong) 1 << typelib->count) - (longlong) 1))
+    if (err || 
+        end != from+length ||
+        (typelib->count < 64 && tmp >= (1ULL << typelib->count)))
     {
       tmp=0;      
       set_warning(Sql_condition::SL_WARNING, WARN_DATA_TRUNCATED, 1);

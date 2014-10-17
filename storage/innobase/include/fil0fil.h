@@ -375,6 +375,7 @@ fil_node_create(
 	bool		is_raw)
 	__attribute__((warn_unused_result));
 /** Create a space memory object and put it to the fil_system hash table.
+The tablespace name is independent from the tablespace file-name.
 Error messages are issued to the server log.
 @param[in]	name	tablespace name
 @param[in]	id	tablespace identifier
@@ -522,9 +523,18 @@ fil_write_flushed_lsn(
 Used by background threads that do not necessarily hold proper locks
 for concurrency control.
 @param[in]	id	tablespace ID
-@return the tablespace, or NULL if deleted or being deleted */
+@return the tablespace, or NULL if missing or being deleted */
 fil_space_t*
 fil_space_acquire(
+	ulint	id)
+	__attribute__((warn_unused_result));
+/** Acquire a tablespace that may not exist.
+Used by background threads that do not necessarily hold proper locks
+for concurrency control.
+@param[in]	id	tablespace ID
+@return the tablespace, or NULL if missing or being deleted */
+fil_space_t*
+fil_space_acquire_silent(
 	ulint	id)
 	__attribute__((warn_unused_result));
 /** Release a tablespace acquired with fil_space_acquire().

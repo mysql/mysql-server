@@ -212,20 +212,24 @@ dberr_t
 dict_create_or_check_sys_tablespace(void);
 /*=====================================*/
 
-/********************************************************************//**
-Add a single tablespace definition to the data dictionary tables in the
-database.
+/** Put a tablespace definition into the data dictionary,
+replacing what was there previously.
+@param[in]	space	Tablespace id
+@param[in]	name	Tablespace name
+@param[in]	flags	Tablespace flags
+@param[in]	path	Tablespace path
+@param[in]	trx	Transaction
+@param[in]	commit	If true, commit the transaction
 @return error code or DB_SUCCESS */
 dberr_t
-dict_create_add_tablespace_to_dictionary(
-/*=====================================*/
-	ulint		space,		/*!< in: tablespace id */
-	const char*	name,		/*!< in: tablespace name */
-	ulint		flags,		/*!< in: tablespace flags */
-	const char*	path,		/*!< in: tablespace path */
-	trx_t*		trx,		/*!< in: transaction */
-	bool		commit);	/*!< in: if true then commit the
-					transaction */
+dict_replace_tablespace_in_dictionary(
+	ulint		space_id,
+	const char*	name,
+	ulint		flags,
+	const char*	path,
+	trx_t*		trx,
+	bool		commit);
+
 /********************************************************************//**
 Add a foreign key definition to the data dictionary tables.
 @return error code or DB_SUCCESS */

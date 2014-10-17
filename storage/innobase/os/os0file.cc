@@ -334,46 +334,6 @@ os_aio_validate_skip(void)
 # endif /* !UNIV_HOTBACKUP */
 #endif /* UNIV_DEBUG */
 
-#ifdef _WIN32
-/***********************************************************************//**
-Gets the operating system version. Currently works only on Windows.
-@return OS_WIN95, OS_WIN31, OS_WINNT, OS_WIN2000, OS_WINXP, OS_WINVISTA,
-OS_WIN7. */
-ulint
-os_get_os_version(void)
-/*===================*/
-{
-	OSVERSIONINFO	os_info;
-
-	os_info.dwOSVersionInfoSize = sizeof(OSVERSIONINFO);
-
-	ut_a(GetVersionEx(&os_info));
-
-	if (os_info.dwPlatformId == VER_PLATFORM_WIN32s) {
-		return(OS_WIN31);
-	} else if (os_info.dwPlatformId == VER_PLATFORM_WIN32_WINDOWS) {
-		return(OS_WIN95);
-	} else if (os_info.dwPlatformId == VER_PLATFORM_WIN32_NT) {
-		switch (os_info.dwMajorVersion) {
-		case 3:
-		case 4:
-			return(OS_WINNT);
-		case 5:
-			return (os_info.dwMinorVersion == 0)
-				? OS_WIN2000 : OS_WINXP;
-		case 6:
-			return (os_info.dwMinorVersion == 0)
-				? OS_WINVISTA : OS_WIN7;
-		default:
-			return(OS_WIN7);
-		}
-	} else {
-		ut_error;
-		return(0);
-	}
-}
-#endif /* _WIN32 */
-
 /***********************************************************************//**
 Retrieves the last error number if an error occurs in a file io function.
 The number should be retrieved before any other OS calls (because they may

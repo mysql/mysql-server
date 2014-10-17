@@ -4567,10 +4567,12 @@ innobase_match_index_columns(
 
 		if (col_type != mtype) {
 			/* Double check for POINT here, we will treat
-			DATA_POINT the same as DATA_VAR_POINT. */
-			if (!(DATA_POINT_MTYPE(col_type)
-			      && DATA_POINT_MTYPE(mtype))) {
-				/* Column Type mismatches */
+			DATA_POINT the same as DATA_VAR_POINT.
+			Besides, point from 5.6 would be stored as
+			DATA_GEOMETRY, which is a special case. */
+			if (DATA_POINT_MTYPE(col_type)
+			    && !(DATA_POINT_MTYPE(mtype)
+				 || mtype == DATA_GEOMETRY)) {
 				DBUG_RETURN(false);
 			}
 		}
