@@ -2272,8 +2272,6 @@ static int tokudb_locks_done(void *p) {
     return 0;
 }
 
-enum { TOKUDB_PLUGIN_VERSION = 0x0400 };
-
 // Retrieves variables for information_schema.global_status.
 // Names (columnname) are automatically converted to upper case, and prefixed with "TOKUDB_"
 static int show_tokudb_vars(THD *thd, SHOW_VAR *var, char *buff) {
@@ -2372,6 +2370,12 @@ static void tokudb_backtrace(void) {
 }
 #endif
 
+#if defined(TOKUDB_VERSION_MAJOR) && defined(TOKUDB_VERSION_MINOR)
+#define TOKUDB_PLUGIN_VERSION ((TOKUDB_VERSION_MAJOR << 8) + TOKUDB_VERSION_MINOR)
+#else
+#define TOKUDB_PLUGIN_VERSION 0
+#endif
+
 mysql_declare_plugin(tokudb) 
 {
     MYSQL_STORAGE_ENGINE_PLUGIN, 
@@ -2382,7 +2386,7 @@ mysql_declare_plugin(tokudb)
     PLUGIN_LICENSE_GPL,
     tokudb_init_func,          /* plugin init */
     tokudb_done_func,          /* plugin deinit */
-    TOKUDB_PLUGIN_VERSION,     /* 4.0.0 */
+    TOKUDB_PLUGIN_VERSION,
     toku_global_status_variables_export,  /* status variables */
     tokudb_system_variables,   /* system variables */
     NULL,                      /* config options */
@@ -2399,7 +2403,7 @@ mysql_declare_plugin(tokudb)
     PLUGIN_LICENSE_GPL,
     tokudb_trx_init,     /* plugin init */
     tokudb_trx_done,     /* plugin deinit */
-    TOKUDB_PLUGIN_VERSION,     /* 4.0.0 */
+    TOKUDB_PLUGIN_VERSION,
     NULL,                      /* status variables */
     NULL,                      /* system variables */
     NULL,                      /* config options */
@@ -2416,7 +2420,7 @@ mysql_declare_plugin(tokudb)
     PLUGIN_LICENSE_GPL,
     tokudb_lock_waits_init,     /* plugin init */
     tokudb_lock_waits_done,     /* plugin deinit */
-    TOKUDB_PLUGIN_VERSION,     /* 4.0.0 */
+    TOKUDB_PLUGIN_VERSION,
     NULL,                      /* status variables */
     NULL,                      /* system variables */
     NULL,                      /* config options */
@@ -2433,7 +2437,7 @@ mysql_declare_plugin(tokudb)
     PLUGIN_LICENSE_GPL,
     tokudb_locks_init,     /* plugin init */
     tokudb_locks_done,     /* plugin deinit */
-    TOKUDB_PLUGIN_VERSION,     /* 4.0.0 */
+    TOKUDB_PLUGIN_VERSION,
     NULL,                      /* status variables */
     NULL,                      /* system variables */
     NULL,                      /* config options */
@@ -2450,7 +2454,7 @@ mysql_declare_plugin(tokudb)
     PLUGIN_LICENSE_GPL,
     tokudb_file_map_init,     /* plugin init */
     tokudb_file_map_done,     /* plugin deinit */
-    TOKUDB_PLUGIN_VERSION,     /* 4.0.0 */
+    TOKUDB_PLUGIN_VERSION,
     NULL,                      /* status variables */
     NULL,                      /* system variables */
     NULL,                      /* config options */
@@ -2467,7 +2471,7 @@ mysql_declare_plugin(tokudb)
     PLUGIN_LICENSE_GPL,
     tokudb_fractal_tree_info_init,     /* plugin init */
     tokudb_fractal_tree_info_done,     /* plugin deinit */
-    TOKUDB_PLUGIN_VERSION,     /* 4.0.0 */
+    TOKUDB_PLUGIN_VERSION,
     NULL,                      /* status variables */
     NULL,                      /* system variables */
     NULL,                      /* config options */
@@ -2484,7 +2488,7 @@ mysql_declare_plugin(tokudb)
     PLUGIN_LICENSE_GPL,
     tokudb_fractal_tree_block_map_init,     /* plugin init */
     tokudb_fractal_tree_block_map_done,     /* plugin deinit */
-    TOKUDB_PLUGIN_VERSION,     /* 4.0.0 */
+    TOKUDB_PLUGIN_VERSION,
     NULL,                      /* status variables */
     NULL,                      /* system variables */
     NULL,                      /* config options */
@@ -2512,7 +2516,7 @@ maria_declare_plugin(tokudb)
     PLUGIN_LICENSE_GPL,
     tokudb_init_func,          /* plugin init */
     tokudb_done_func,          /* plugin deinit */
-    TOKUDB_PLUGIN_VERSION,     /* 4.0.0 */
+    TOKUDB_PLUGIN_VERSION,
     toku_global_status_variables_export,  /* status variables */
     tokudb_system_variables,   /* system variables */
     TOKUDB_PLUGIN_VERSION_STR, /* string version */
@@ -2527,7 +2531,7 @@ maria_declare_plugin(tokudb)
     PLUGIN_LICENSE_GPL,
     tokudb_trx_init,     /* plugin init */
     tokudb_trx_done,     /* plugin deinit */
-    TOKUDB_PLUGIN_VERSION,     /* 4.0.0 */
+    TOKUDB_PLUGIN_VERSION,
     NULL,                      /* status variables */
     NULL,                      /* system variables */
     TOKUDB_PLUGIN_VERSION_STR, /* string version */
@@ -2542,7 +2546,7 @@ maria_declare_plugin(tokudb)
     PLUGIN_LICENSE_GPL,
     tokudb_lock_waits_init,     /* plugin init */
     tokudb_lock_waits_done,     /* plugin deinit */
-    TOKUDB_PLUGIN_VERSION,     /* 4.0.0 */
+    TOKUDB_PLUGIN_VERSION,
     NULL,                      /* status variables */
     NULL,                      /* system variables */
     TOKUDB_PLUGIN_VERSION_STR, /* string version */
@@ -2557,7 +2561,7 @@ maria_declare_plugin(tokudb)
     PLUGIN_LICENSE_GPL,
     tokudb_locks_init,     /* plugin init */
     tokudb_locks_done,     /* plugin deinit */
-    TOKUDB_PLUGIN_VERSION,     /* 4.0.0 */
+    TOKUDB_PLUGIN_VERSION,
     NULL,                      /* status variables */
     NULL,                      /* system variables */
     TOKUDB_PLUGIN_VERSION_STR, /* string version */
@@ -2572,7 +2576,7 @@ maria_declare_plugin(tokudb)
     PLUGIN_LICENSE_GPL,
     tokudb_file_map_init,     /* plugin init */
     tokudb_file_map_done,     /* plugin deinit */
-    TOKUDB_PLUGIN_VERSION,     /* 4.0.0 */
+    TOKUDB_PLUGIN_VERSION,
     NULL,                      /* status variables */
     NULL,                      /* system variables */
     TOKUDB_PLUGIN_VERSION_STR, /* string version */
@@ -2587,7 +2591,7 @@ maria_declare_plugin(tokudb)
     PLUGIN_LICENSE_GPL,
     tokudb_fractal_tree_info_init,     /* plugin init */
     tokudb_fractal_tree_info_done,     /* plugin deinit */
-    TOKUDB_PLUGIN_VERSION,     /* 4.0.0 */
+    TOKUDB_PLUGIN_VERSION,
     NULL,                      /* status variables */
     NULL,                      /* system variables */
     TOKUDB_PLUGIN_VERSION_STR, /* string version */
@@ -2602,7 +2606,7 @@ maria_declare_plugin(tokudb)
     PLUGIN_LICENSE_GPL,
     tokudb_fractal_tree_block_map_init,     /* plugin init */
     tokudb_fractal_tree_block_map_done,     /* plugin deinit */
-    TOKUDB_PLUGIN_VERSION,     /* 4.0.0 */
+    TOKUDB_PLUGIN_VERSION,
     NULL,                      /* status variables */
     NULL,                      /* system variables */
     TOKUDB_PLUGIN_VERSION_STR, /* string version */
