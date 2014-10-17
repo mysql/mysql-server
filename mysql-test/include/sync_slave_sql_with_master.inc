@@ -66,7 +66,7 @@ if ($rpl_connection_name == $CURRENT_CONNECTION)
 {
   --echo Trying to sync '$CURRENT_CONNECTION' with '$rpl_connection_name' which are the same server!
   --echo Please double check your test case.
-#  --die
+  --die
 }
 --source include/rpl_connection.inc
 
