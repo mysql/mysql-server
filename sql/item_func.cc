@@ -2361,7 +2361,7 @@ Item_func_latlongfromgeohash::decode_geohash(String *geohash,
        i < input_length && latitiude_accuracy > 0.0 && longitude_accuracy > 0.0;
        i++)
   {
-    char input_character= my_tolower(geohash->charset(), (*geohash)[i]);
+    char input_character= my_tolower(&my_charset_latin1, (*geohash)[i]);
 
     /*
      The following part will convert from character value to a
