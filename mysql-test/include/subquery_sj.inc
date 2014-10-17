@@ -6585,4 +6585,50 @@ WHERE (SELECT b FROM t1) IN (SELECT (d>=1) FROM t1);
 
 DROP TABLE t1;
 
+--echo #
+--echo # Bug#19465034 ASSERT ON SETUP_SEMIJOIN_DUPS_ELIMINATION IN SQL/SQL_SELECT.CC
+--echo #
+
+CREATE TABLE t1 (
+  pk INTEGER NOT NULL,
+  i1 INTEGER NOT NULL,
+  PRIMARY KEY (pk)
+) ENGINE=InnoDB;
+
+INSERT INTO t1 VALUES (1,1);
+
+CREATE TABLE t2 (
+  pk INTEGER NOT NULL,
+  c1 VARCHAR(1) NOT NULL,
+  PRIMARY KEY (pk),
+  KEY c1_key (c1)
+) ENGINE=InnoDB;
+
+INSERT INTO t2 VALUES (1,'j'),(2,'v'),(3,'c');
+
+CREATE TABLE t3 (
+  pk INTEGER NOT NULL,
+  c1 VARCHAR(1) NOT NULL,
+  PRIMARY KEY (pk),
+  KEY c1_key (c1)
+) ENGINE=InnoDB;
+
+INSERT INTO t3 VALUES (10,'v'),(11,'s');
+
+ANALYZE TABLE t1, t2, t3;
+
+let $query=
+SELECT *
+FROM t1 JOIN t2 ON t1.i1 >= t2.pk
+WHERE t2.c1 IN (
+  SELECT  t3.c1
+  FROM t3
+  WHERE t3.pk < 3
+);
+
+eval EXPLAIN $query;
+eval $query;
+
+DROP TABLE t1,t2,t3;
+
 # New tests go here.
