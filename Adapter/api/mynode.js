@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2012, Oracle and/or its affiliates. All rights
+ Copyright (c) 2012, 2014, Oracle and/or its affiliates. All rights
  reserved.
  
  This program is free software; you can redistribute it and/or
@@ -26,6 +26,11 @@ var spi            = require("../impl/SPI"),
     unified_debug  = require("./unified_debug"),
     udebug         = unified_debug.getLogger("mynode.js"),
     userContext    = require("./UserContext.js");
+
+var converters = {};
+converters.JSONConverter       = require(path.join(converters_dir, "JSONConverter.js"));
+converters.JSONSparseConverter = require(path.join(converters_dir, "JSONSparseConverter.js"));
+
 
 /** make TableMapping public */
 exports.TableMapping = TableMapping;
@@ -147,3 +152,4 @@ deleteFactory = function(key, database, callback) {
 exports.connections = connections;
 exports.Connection = Connection;
 exports.deleteFactory = deleteFactory;
+exports.converters = converters;

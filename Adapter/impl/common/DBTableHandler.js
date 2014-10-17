@@ -139,6 +139,7 @@ function DBTableHandler(dbtable, tablemapping, ctor) {
   this.autoIncFieldName       = null;
   this.autoIncColumnNumber    = null;
   this.numberOfLobColumns     = 0;
+  this.numberOfNotPersistentFields = 0;
    
   /* New Arrays */
   this.columnNumberToFieldMap = [];  
@@ -182,6 +183,9 @@ function DBTableHandler(dbtable, tablemapping, ctor) {
         // relationship field
         this.relationshipFields.push(f);
       }
+    } else {
+      // increment not-persistent field count
+      ++this.numberOfNotPersistentFields;
     }
   }
 
@@ -210,7 +214,7 @@ function DBTableHandler(dbtable, tablemapping, ctor) {
   }
 
   /* Total number of mapped fields */
-  nMappedFields = this.mapping.fields.length + stubFields.length;
+  nMappedFields = this.mapping.fields.length + stubFields.length - this.numberOfNotPersistentFields;
          
   /* Create the resolved mapping to be returned by getMapping() */
   this.resolvedMapping = {};
@@ -581,7 +585,7 @@ DBTableHandler.prototype.get = function(obj, fieldNumber, adapter, fieldValueDef
     throw new Error('FatalInternalError: field number does not exist: ' + fieldNumber);
   }
   if(f.domainTypeConverter) {
-    result = f.domainTypeConverter.toDB(obj[f.fieldName]);
+    result = f.domainTypeConverter.toDB(obj[f.fieldName], obj, f);
   }
   else {
     result = obj[f.fieldName];
@@ -652,7 +656,7 @@ DBTableHandler.prototype.set = function(obj, fieldNumber, value, adapter) {
       userValue = databaseTypeConverter.fromDB(value);
     }
     if(f.domainTypeConverter) {
-      userValue = f.domainTypeConverter.fromDB(userValue);
+      userValue = f.domainTypeConverter.fromDB(userValue, obj, f);
     }
     obj[f.fieldName] = userValue;
     return true; 
