@@ -132,7 +132,7 @@ ADD_CUSTOM_TARGET(GenYaccEmbeddedSource DEPENDS ${GEN_YACC_SOURCES})
 ADD_CONVENIENCE_LIBRARY(sql_embedded ${SQL_EMBEDDED_SOURCES})
 DTRACE_INSTRUMENT(sql_embedded)
 ADD_DEPENDENCIES(sql_embedded GenError GenServerSource GenYaccEmbeddedSource)
-TARGET_LINK_LIBRARIES(sql_embedded binlogevents_static)
+TARGET_LINK_LIBRARIES(sql_embedded )#binlogevents_static)
 
 # On Windows, static embedded server library is called mysqlserver.lib
 # On Unix, it is libmysqld.a
