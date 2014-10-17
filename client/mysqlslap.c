@@ -730,6 +730,19 @@ static void usage(void)
   puts("Run a query multiple times against the server.\n");
   printf("Usage: %s [OPTIONS]\n",my_progname);
   print_defaults("my",load_default_groups);
+  /*
+    Turn default for zombies off so that the help on how to 
+    turn them off text won't show up.
+    This is safe to do since it's followed by a call to exit().
+  */
+  for (struct my_option *optp= my_long_options; optp->name; optp++)
+  {
+    if (optp->id == OPT_SECURE_AUTH)
+    {
+      optp->def_value= 0;
+      break;
+    }
+  }
   my_print_help(my_long_options);
 }
 
@@ -791,12 +804,14 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     using_opt_enable_cleartext_plugin= TRUE;
     break;
   case OPT_SECURE_AUTH:
-    CLIENT_WARN_DEPRECATED_NO_REPLACEMENT("--secure-auth");
+    /* --secure-auth is a zombie option. */
     if (!opt_secure_auth)
     {
-      usage();
+      fprintf(stderr, "mysqlslap: [ERROR] --skip-secure-auth is not supported.\n");
       exit(1);
     }
+    else
+      CLIENT_WARN_DEPRECATED_NO_REPLACEMENT("--secure-auth");
     break;
   }
   DBUG_RETURN(0);
