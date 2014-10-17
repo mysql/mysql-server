@@ -8906,6 +8906,15 @@ static bool make_join_select(JOIN *join, Item *cond)
                    !(join->select_options & OPTION_FOUND_ROWS))      // 2d
             recheck_reason= LOW_LIMIT;
 
+          if (tab->position()->sj_strategy == SJ_OPT_LOOSE_SCAN)
+          {
+            /*
+              Semijoin loose scan has settled for a certain index-based access
+              method with suitable characteristics, don't substitute it.
+            */
+            recheck_reason= DONT_RECHECK;
+          }
+
           if (recheck_reason != DONT_RECHECK)
           {
             Opt_trace_object trace_one_table(trace);
