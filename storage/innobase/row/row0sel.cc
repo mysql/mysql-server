@@ -4125,13 +4125,13 @@ row_search_no_mvcc(
 			DB_RECORD_NOT_FOUND */
 			if (0 != cmp_dtuple_rec(search_tuple, rec, offsets)) {
 				err = DB_RECORD_NOT_FOUND;
-				continue;
+				break;
 			}
 		} else if (match_mode == ROW_SEL_EXACT_PREFIX) {
 			if (!cmp_dtuple_is_prefix_of_rec(
 				search_tuple, rec, offsets)) {
 				err = DB_RECORD_NOT_FOUND;
-				continue;
+				break;
 			}
 		}
 
@@ -4144,7 +4144,7 @@ row_search_no_mvcc(
 				&offsets, &heap, mtr);
 
 			if (err != DB_SUCCESS) {
-				continue;
+				break;
 			}
 
 			if (rec_get_deleted_flag(
@@ -4206,7 +4206,8 @@ row_search_no_mvcc(
 		} else if (!row_sel_store_mysql_rec(
 				buf, prebuilt, result_rec, TRUE,
 				clust_index, offsets)) {
-			continue;
+			err = DB_ERROR;
+			break;
 		}
 
 		/* Step-7: Store cursor position to fetch next record.
