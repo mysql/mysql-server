@@ -401,7 +401,7 @@ dict_update_filepath(
 	ulint		space_id,
 	const char*	filepath);
 
-/** Insert records into SYS_TABLESPACES and SYS_DATAFILES associated with
+/** Replace records in SYS_TABLESPACES and SYS_DATAFILES associated with
 the given space_id using an independent transaction.
 @param[in]	space_id	Tablespace ID
 @param[in]	name		Tablespace name
@@ -409,7 +409,7 @@ the given space_id using an independent transaction.
 @param[in]	fsp_flags	Tablespace flags
 @return DB_SUCCESS if OK, dberr_t if the insert failed */
 dberr_t
-dict_insert_tablespace_and_filepath(
+dict_replace_tablespace_and_filepath(
 	ulint		space_id,
 	const char*	name,
 	const char*	filepath,
