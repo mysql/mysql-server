@@ -725,6 +725,7 @@ static void print_version(void)
 
 static void usage(void)
 {
+  struct my_option *optp;
   print_version();
   puts(ORACLE_WELCOME_COPYRIGHT_NOTICE("2005"));
   puts("Run a query multiple times against the server.\n");
@@ -735,7 +736,7 @@ static void usage(void)
     turn them off text won't show up.
     This is safe to do since it's followed by a call to exit().
   */
-  for (struct my_option *optp= my_long_options; optp->name; optp++)
+  for (optp= my_long_options; optp->name; optp++)
   {
     if (optp->id == OPT_SECURE_AUTH)
     {
