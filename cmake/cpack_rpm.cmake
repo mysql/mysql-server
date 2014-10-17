@@ -182,7 +182,7 @@ IF(RPM MATCHES "(rhel|centos)5")
 ELSEIF(RPM MATCHES "(rhel|centos)6")
   ALTERNATIVE_NAME("client" "mysql")
   ALTERNATIVE_NAME("shared" "mysql-libs")
-ELSEIF(RPM MATCHES "fedora")
+ELSEIF(RPM MATCHES "fedora" OR RPM MATCHES "(rhel|centos)7")
   SET(epoch 1) # this is fedora
   ALTERNATIVE_NAME("client" "mariadb")
   ALTERNATIVE_NAME("client" "mysql")
