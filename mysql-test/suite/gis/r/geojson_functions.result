@@ -2235,13 +2235,13 @@ ERROR HY000: Incorrect option value: '-9223372036854775808' for function st_geom
 SELECT ST_GEOMFROMGEOJSON("", 9223372036854775807);
 ERROR HY000: Incorrect option value: '9223372036854775807' for function st_geomfromgeojson
 SELECT ST_GEOMFROMGEOJSON("", 9223372036854775808);
-ERROR HY000: Incorrect option value: '-9223372036854775808' for function st_geomfromgeojson
+ERROR HY000: Incorrect option value: '9223372036854775808' for function st_geomfromgeojson
 SELECT ST_GEOMFROMGEOJSON("", 1, -9223372036854775808);
 ERROR HY000: Incorrect SRID value: '-9223372036854775808' for function st_geomfromgeojson
 SELECT ST_GEOMFROMGEOJSON("", 1, 9223372036854775807);
 ERROR HY000: Incorrect SRID value: '9223372036854775807' for function st_geomfromgeojson
 SELECT ST_GEOMFROMGEOJSON("", 1, 9223372036854775808);
-ERROR HY000: Incorrect SRID value: '-9223372036854775808' for function st_geomfromgeojson
+ERROR HY000: Incorrect SRID value: '9223372036854775808' for function st_geomfromgeojson
 # Checking invalid/incorrect option parameter input
 SELECT ASTEXT(ST_GEOMFROMGEOJSON(
 "{ \"type\": \"Point\", \"coordinates\": [10, 15] }", 0));
@@ -4048,3 +4048,35 @@ ASTEXT(ST_GEOMFROMGEOJSON(
 "}                                    "
 ))
 POINT(102 11)
+SELECT ST_ASGEOJSON(POINT(1, 1), -9223372036854775808);
+ERROR HY000: Incorrect max decimal digits value: '-9223372036854775808' for function st_asgeojson
+SELECT ST_ASGEOJSON(POINT(1, 1), 10, -9223372036854775808);
+ERROR HY000: Incorrect options value: '-9223372036854775808' for function st_asgeojson
+SELECT ST_ASGEOJSON(POINT(1, 1), 18446744073709551615);
+ERROR HY000: Incorrect max decimal digits value: '18446744073709551615' for function st_asgeojson
+SELECT ST_ASGEOJSON(POINT(1, 1), 10, 18446744073709551615);
+ERROR HY000: Incorrect options value: '18446744073709551615' for function st_asgeojson
+SELECT ST_GEOMFROMGEOJSON('{"type":"Point", "coordinates":[10, 20]}', 1, -9223372036854775808);
+ERROR HY000: Incorrect SRID value: '-9223372036854775808' for function st_geomfromgeojson
+SELECT ST_GEOMFROMGEOJSON('{"type":"Point", "coordinates":[10, 20]}', -9223372036854775808);
+ERROR HY000: Incorrect option value: '-9223372036854775808' for function st_geomfromgeojson
+SELECT ST_GEOMFROMGEOJSON('{"type":"Point", "coordinates":[10, 20]}', 1, 18446744073709551615);
+ERROR HY000: Incorrect SRID value: '18446744073709551615' for function st_geomfromgeojson
+SELECT ST_GEOMFROMGEOJSON('{"type":"Point", "coordinates":[10, 20]}', 18446744073709551615);
+ERROR HY000: Incorrect option value: '18446744073709551615' for function st_geomfromgeojson
+SELECT ST_ASGEOJSON(POINT(1, 1), -9223372036854775809);
+ERROR HY000: Incorrect type for argument max decimal digits in function st_asgeojson.
+SELECT ST_ASGEOJSON(POINT(1, 1), 10, -9223372036854775809);
+ERROR HY000: Incorrect type for argument options in function st_asgeojson.
+SELECT ST_ASGEOJSON(POINT(1, 1), 18446744073709551616);
+ERROR HY000: Incorrect type for argument max decimal digits in function st_asgeojson.
+SELECT ST_ASGEOJSON(POINT(1, 1), 10, 18446744073709551616);
+ERROR HY000: Incorrect type for argument options in function st_asgeojson.
+SELECT ST_GEOMFROMGEOJSON('{"type":"Point", "coordinates":[10, 20]}', 1, -9223372036854775809);
+ERROR HY000: Incorrect type for argument SRID in function st_geomfromgeojson.
+SELECT ST_GEOMFROMGEOJSON('{"type":"Point", "coordinates":[10, 20]}', -9223372036854775809);
+ERROR HY000: Incorrect type for argument options in function st_geomfromgeojson.
+SELECT ST_GEOMFROMGEOJSON('{"type":"Point", "coordinates":[10, 20]}', 1, 18446744073709551616);
+ERROR HY000: Incorrect type for argument SRID in function st_geomfromgeojson.
+SELECT ST_GEOMFROMGEOJSON('{"type":"Point", "coordinates":[10, 20]}', 18446744073709551616);
+ERROR HY000: Incorrect type for argument options in function st_geomfromgeojson.
