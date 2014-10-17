@@ -1491,4 +1491,10 @@ SELECT SQL_NO_CACHE * FROM `db-db`.`t$4`;
 
 --echo #cleanup
 DROP DATABASE `db-db`;
+
+--echo #
+--echo # Bug#19322795 - HEAP BUFFER OVERFLOW IN RPL TESTS
+--echo #
+/*!*/;
+
 SET GLOBAL query_cache_size = @query_cache_size.saved;
