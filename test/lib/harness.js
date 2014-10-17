@@ -152,6 +152,8 @@ Test.prototype.appendErrorMessage = function(message) {
   this.errorMessages += '\n';
 };
 
+Test.prototype.error = Test.prototype.appendErrorMessage;
+
 Test.prototype.failOnError = function() {
   if (this.errorMessages !== '') {
     this.fail();

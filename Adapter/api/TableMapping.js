@@ -183,6 +183,16 @@ function isValidFieldMappingArray(fieldMappings) {
   return isValid;
 }
 
+function isStringOrStringArray(arg) {
+  var i;
+  if (typeof arg === 'string') return true;
+  if (!Array.isArray(arg)) return 'must be a string or string array';
+  for (i = 0; i < arg.length; ++i) {
+    if (typeof arg[i] !== 'string') return 'must be a string or string array';
+  }
+  return true;
+}
+
 var tableMappingProperties = {
   "error"         : isString,
   "table"         : isNonEmptyString,
@@ -190,7 +200,9 @@ var tableMappingProperties = {
   "mapAllColumns" : isBool,
   "field"         : isValidFieldMapping,
   "fields"        : isValidFieldMappingArray,
-  "user"          : function() { return true; }
+  "user"          : function() { return true; },
+  "excludedFieldNames": isStringOrStringArray,
+  "mappedFieldNames" : isStringOrStringArray
 };
 
 function isValidTableMapping(tm) {
@@ -258,6 +270,7 @@ function TableMapping(tableNameOrLiteral) {
         this.table = parts[0];
       }
       this.fields = [];
+      this.mappedFieldNames = [];
       break;
     
     default: 
@@ -339,7 +352,7 @@ TableMapping.prototype.mapField = function() {
 
   /* Validate the candidate mapping */
   this.error  += isValidFieldMapping(fieldMapping);
-
+  this.mappedFieldNames.push(fieldName);
   return this;
 };
 
@@ -441,6 +454,94 @@ TableMapping.prototype.mapManyToMany = function(literalMapping) {
   return this;
 };
 
+/** excludeFields(fieldNames)
+ * Exclude the named field(s) from being persisted as part of sparse field handling.
+ */
+TableMapping.prototype.excludeFields = function() {
+  var i, j, fieldName;
+  if (!this.excludedFieldNames) this.excludedFieldNames = [];
+  for (i = 0; i < arguments.length; ++i) {
+    var fieldNames = arguments[i];
+    if (typeof fieldNames === 'string') {
+      this.excludedFieldNames.push(fieldNames);
+    } else if (Array.isArray(fieldNames)) {
+      for (j = 0; j < fieldNames.length; ++j) {
+        fieldName = fieldNames[j];
+        if (typeof fieldName === 'string') {
+          this.excludedFieldNames.push(fieldName);
+        } else {
+          this.error += '\nMappingError: excludeFields argument must be a field name or an array or list of field names: \"' +
+              fieldName + '\"';
+        }
+      }
+    } else {
+      this.error += '\nMappingError: excludeFields argument must be a field name or an array or list of field names: \"' +
+          fieldNames + '\"';
+    }
+  }
+};
+
+
+/* mapSparseFields(columnName, fieldNames, converter)
+ * columnName: required
+ * fieldNames: optional string or array of strings
+ * converter: optional converter function default Converters/JSONSparseFieldsConverter
+ */
+TableMapping.prototype.mapSparseFields = function() {
+  var i, j, args, columnName, fieldMapping, sparseFieldNames = [];
+  args = arguments;  
+    
+  if(typeof args[0] === 'string') {
+    columnName = args[0];
+    fieldMapping = new FieldMapping(columnName);
+    fieldMapping.tableMapping = this;
+    for(i = 1; i < args.length ; i++) {
+      switch(typeof args[i]) {
+        case 'string':
+          sparseFieldNames.push(args[i]);
+          break;
+        case 'object':
+          if (Array.isArray(args[i])) {
+            // verify array of field names
+            for (j = 0; j < args[i].length; ++j) {
+              if (typeof args[i][j] !== 'string') {
+                this.error += "\nmapSparseFields Illegal argument; element " + j + 
+                    " is not a string: \"" + util.inspect(args[i][j]) + "\"";
+              } else {
+                sparseFieldNames.push(args[i][j]);
+              }
+            }
+          } else {
+            // validate converter
+            if (isValidConverterObject(args[i])) {
+              fieldMapping.converter = args[i];
+            } else {
+              this.error += "\nmapSparseFields Argument is an object " +
+                  "that is not an array of field names or a converter object: \"" + util.inspect(args[i]) + "\"";
+            }
+          }
+          break;
+        default:
+          this.error += "\nmapSparseFields: Argument must be a field name, an array of field names, or a converter object: \"" + 
+            util.inspect(args[i]) + "\"";
+      }
+    }
+    if (!fieldMapping.converter) {
+      // default sparse fields converter
+      fieldMapping.converter = mynode.converters.JSONSparseConverter;
+    }
+    if (sparseFieldNames.length !== 0) {
+      fieldMapping.sparseFieldNames = sparseFieldNames;
+    }
+    this.fields.push(fieldMapping);
+  }
+  else {
+    this.error +="\nmapSparseFields() requires a valid arguments list with column name as the first argument";
+  }
+  return this;
+
+};
+
 
 /* applyToClass(constructor) 
    IMMEDIATE
@@ -451,11 +552,9 @@ TableMapping.prototype.applyToClass = function(ctor) {
     ctor.prototype.mynode.mapping = this;
     ctor.prototype.mynode.constructor = ctor;
     ctor.prototype.mynode.mappingId = ++mappingId;
-  }
-  else {
+  } else {
     this.error += '\nMappingError: applyToClass() parameter must be constructor';
   }
-  
   return ctor;
 };
 
