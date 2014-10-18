@@ -101,7 +101,7 @@ typedef struct Trans_observer {
 
   /**
      This callback is called after transaction commit
-     
+
      This callback is called right after commit to storage engines for
      transactional tables.
 
@@ -147,6 +147,7 @@ enum Binlog_storage_flags {
 };
 
 typedef struct Server_state_param {
+  uint32 server_id;
 } Server_state_param;
 
 /**

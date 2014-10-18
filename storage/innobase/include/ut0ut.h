@@ -562,6 +562,19 @@ public:
 	~fatal();
 };
 
+/** Emit an error message if the given predicate is true, otherwise emit a
+warning message */
+class error_or_warn : public logger {
+public:
+	error_or_warn(bool	pred)
+	: m_error(pred)
+	{}
+
+	~error_or_warn();
+private:
+	const bool	m_error;
+};
+
 } // namespace ib
 
 #ifndef UNIV_NONINL

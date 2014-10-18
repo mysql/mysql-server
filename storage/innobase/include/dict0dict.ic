@@ -752,7 +752,7 @@ dict_table_get_format(
 @param[in,out]	flags,		Pointer to a 4 byte Table Flags
 @param[in]	format		File Format
 @param[in]	zip_ssize	Zip Shift Size
-@param[in]	remote_path	Table uses DATA DIRECTORY */
+@param[in]	use_data_dir	Table uses DATA DIRECTORY */
 UNIV_INLINE
 void
 dict_tf_set(

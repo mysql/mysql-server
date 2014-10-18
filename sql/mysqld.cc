@@ -391,8 +391,8 @@ my_bool opt_slave_sql_verify_checksum= 1;
 const char *binlog_format_names[]= {"MIXED", "STATEMENT", "ROW", NullS};
 my_bool enforce_gtid_consistency;
 my_bool simplified_binlog_gtid_recovery;
-ulong binlogging_impossible_mode;
-const char *binlogging_impossible_err[]= {"IGNORE_ERROR", "ABORT_SERVER", NullS};
+ulong binlog_error_action;
+const char *binlog_error_action_list[]= {"IGNORE_ERROR", "ABORT_SERVER", NullS};
 ulong gtid_mode;
 uint executed_gtids_compression_period= 0;
 const char *gtid_mode_names[]=
@@ -4038,7 +4038,7 @@ a file name for --log-bin-index option", opt_binlog_index_name);
     sql_print_error("Can't init tc log");
     unireg_abort(1);
   }
-  (void)RUN_HOOK(server_state, before_recovery, (current_thd));
+  (void)RUN_HOOK(server_state, before_recovery, (NULL));
 
   if (ha_recover(0))
   {
@@ -4599,7 +4599,7 @@ int mysqld_main(int argc, char **argv)
         else
           global_sid_lock->unlock();
       }
-      (void) RUN_HOOK(server_state, after_engine_recovery, (current_thd));
+      (void) RUN_HOOK(server_state, after_engine_recovery, (NULL));
     }
     else if (gtid_mode > GTID_MODE_OFF)
     {
@@ -4720,7 +4720,7 @@ int mysqld_main(int argc, char **argv)
   initialize_information_schema_acl();
 
   execute_ddl_log_recovery();
-  (void) RUN_HOOK(server_state, after_recovery, (current_thd));
+  (void) RUN_HOOK(server_state, after_recovery, (NULL));
 
   if (Events::init(opt_noacl || opt_bootstrap))
     unireg_abort(1);
@@ -4780,7 +4780,7 @@ int mysqld_main(int argc, char **argv)
                       opt_ndb_wait_setup);
   }
 #endif
-  (void) RUN_HOOK(server_state, before_handle_connection, (current_thd));
+  (void) RUN_HOOK(server_state, before_handle_connection, (NULL));
 
   DBUG_PRINT("info", ("Block, listening for incoming connections"));
 

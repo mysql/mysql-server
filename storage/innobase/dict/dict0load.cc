@@ -768,6 +768,7 @@ dict_get_first_path(
 
 	sys_datafiles = dict_table_get_low("SYS_DATAFILES");
 	sys_index = UT_LIST_GET_FIRST(sys_datafiles->indexes);
+
 	ut_ad(!dict_table_is_comp(sys_datafiles));
 	ut_ad(name_of_col_is(sys_datafiles, sys_index,
 			     DICT_FLD__SYS_DATAFILES__SPACE, "SPACE"));
@@ -864,7 +865,7 @@ dict_update_filepath(
 	return(err);
 }
 
-/** Insert records into SYS_TABLESPACES and SYS_DATAFILES associated with
+/** Replace records in SYS_TABLESPACES and SYS_DATAFILES associated with
 the given space_id using an independent transaction.
 @param[in]	space_id	Tablespace ID
 @param[in]	name		Tablespace name
@@ -872,7 +873,7 @@ the given space_id using an independent transaction.
 @param[in]	fsp_flags	Tablespace flags
 @return DB_SUCCESS if OK, dberr_t if the insert failed */
 dberr_t
-dict_insert_tablespace_and_filepath(
+dict_replace_tablespace_and_filepath(
 	ulint		space_id,
 	const char*	name,
 	const char*	filepath,
@@ -895,7 +896,7 @@ dict_insert_tablespace_and_filepath(
 	/* A record for this space ID was not found in
 	SYS_DATAFILES. Assume the record is also missing in
 	SYS_TABLESPACES.  Insert records into them both. */
-	err = dict_create_add_tablespace_to_dictionary(
+	err = dict_replace_tablespace_in_dictionary(
 		space_id, name, fsp_flags, filepath, trx, false);
 
 	trx_commit_for_mysql(trx);

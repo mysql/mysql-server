@@ -1821,7 +1821,6 @@ check_next_rec:
 		}
 
 		if (!left_side) {
-
 			ha_insert_for_fold(table, ins_fold, block, ins_rec);
 		} else {
 			ha_insert_for_fold(table, next_fold, block, next_rec);

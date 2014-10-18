@@ -979,7 +979,6 @@ void
 srv_general_init(void)
 /*==================*/
 {
-	os_event_init();
 	sync_check_init();
 	/* Reset the system variables in the recovery module. */
 	recv_sys_var_init();

@@ -188,7 +188,7 @@ Binlog_relay_IO_observer relay_io_observer = {
 
   repl_semi_slave_io_start,	// start
   repl_semi_slave_io_end,	// stop
-  repl_semi_slave_sql_stop,      // stop sql thread
+  repl_semi_slave_sql_stop,     // stop sql thread
   repl_semi_slave_request_dump,	// request_transmit
   repl_semi_slave_read_event,	// after_read_event
   repl_semi_slave_queue_event,	// after_queue_event

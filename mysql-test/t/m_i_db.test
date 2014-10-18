@@ -7,6 +7,7 @@
 --source include/big_test.inc
 --source include/not_embedded.inc
 --source include/not_windows.inc
+--source include/have_no_undo_tablespaces.inc
 
 --echo # Basic cases related to mysql_install_db
 let BASEDIR= `select @@basedir`;

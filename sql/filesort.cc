@@ -404,9 +404,6 @@ ha_rows filesort(THD *thd, QEP_TAB *qep_tab, Filesort *filesort,
   }
   else
   {
-    /* filesort cannot handle zero-length records during merge. */
-    DBUG_ASSERT(param.sort_length != 0);
-
     // We will need an extra buffer in rr_unpack_from_tempfile()
     if (table_sort.using_addon_fields() &&
         !(table_sort.addon_fields->allocate_addon_buf(param.addon_length)))

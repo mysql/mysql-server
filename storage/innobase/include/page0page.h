@@ -535,6 +535,14 @@ page_is_empty(
 /*==========*/
 	const page_t*	page)	/*!< in: page */
 	__attribute__((warn_unused_result));
+/** Determine whether a page is an index root page.
+@param[in]	page	page frame
+@return true if the page is a root page of an index */
+UNIV_INLINE
+bool
+page_is_root(
+	const page_t*	page)
+	__attribute__((warn_unused_result));
 /************************************************************//**
 Determine whether the page contains garbage.
 @return true if the page contains garbage (PAGE_GARBAGE is not 0) */

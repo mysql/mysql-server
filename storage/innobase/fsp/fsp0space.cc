@@ -172,7 +172,7 @@ Tablespace::open_or_create(bool is_temp)
 			/* Create the tablespace entry for the multi-file
 			tablespace in the tablespace manager. */
 			space = fil_space_create(
-				it->m_filepath, m_space_id, flags, is_temp
+				m_name, m_space_id, flags, is_temp
 				? FIL_TYPE_TEMPORARY : FIL_TYPE_TABLESPACE);
 		}
 

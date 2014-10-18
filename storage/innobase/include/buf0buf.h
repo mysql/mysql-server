@@ -1279,8 +1279,6 @@ and the lock released later.
 @param[in]	mode			BUF_READ_IBUF_PAGES_ONLY, ...
 @param[in]	page_id			page id
 @param[in]	unzip			TRUE=request uncompressed page
-@param[in]	tablespace_version	prevents reading from a wrong version
-of the tablespace in case we have done DISCARD + IMPORT
 @return pointer to the block or NULL */
 buf_page_t*
 buf_page_init_for_read(
@@ -1288,8 +1286,7 @@ buf_page_init_for_read(
 	ulint			mode,
 	const page_id_t&	page_id,
 	const page_size_t&	page_size,
-	ibool			unzip,
-	int64_t			tablespace_version);
+	ibool			unzip);
 
 /********************************************************************//**
 Completes an asynchronous read or write request of a file page to or from

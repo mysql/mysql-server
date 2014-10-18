@@ -3418,6 +3418,8 @@ row_import_for_mysql(
 	ut_ad(prebuilt->trx);
 	ut_a(table->ibd_file_missing);
 
+	ibuf_delete_for_discarded_space(table->space);
+
 	trx_start_if_not_started(prebuilt->trx, true);
 
 	trx = trx_allocate_for_mysql();

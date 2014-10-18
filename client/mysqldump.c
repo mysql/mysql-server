@@ -621,7 +621,7 @@ static void verbose_msg(const char *fmt, ...)
 
 void check_io(FILE *file)
 {
-  if (ferror(file))
+  if (ferror(file) || errno == 5)
     die(EX_EOF, "Got errno %d on write", errno);
 }
 
@@ -643,11 +643,25 @@ static void short_usage_sub(void)
 
 static void usage(void)
 {
+  struct my_option *optp;
   print_version();
   puts(ORACLE_WELCOME_COPYRIGHT_NOTICE("2000"));
   puts("Dumping structure and contents of MySQL databases and tables.");
   short_usage_sub();
   print_defaults("my",load_default_groups);
+  /*
+    Turn default for zombies off so that the help on how to 
+    turn them off text won't show up.
+    This is safe to do since it's followed by a call to exit().
+  */
+  for (optp= my_long_options; optp->name; optp++)
+  {
+    if (optp->id == OPT_SECURE_AUTH)
+    {
+      optp->def_value= 0;
+      break;
+    }
+  }
   my_print_help(my_long_options);
   my_print_variables(my_long_options);
 } /* usage */
@@ -943,12 +957,14 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
       exit(EX_EOM);
     break;
   case OPT_SECURE_AUTH:
-    CLIENT_WARN_DEPRECATED_NO_REPLACEMENT("--secure-auth");
+    /* --secure-auth is a zombie option. */
     if (!opt_secure_auth)
     {
-      usage();
+      fprintf(stderr, "mysqldump: [ERROR] --skip-secure-auth is not supported.\n");
       exit(1);
     }
+    else
+      CLIENT_WARN_DEPRECATED_NO_REPLACEMENT("--secure-auth");
     break;
   }
   return 0;
@@ -5816,7 +5832,7 @@ static void dynstr_realloc_checked(DYNAMIC_STRING *str, size_t additional_size)
 int main(int argc, char **argv)
 {
   char bin_log_name[FN_REFLEN];
-  int exit_code;
+  int exit_code, md_result_fd;
   MY_INIT("mysqldump");
 
   compatible_mode_normal_str[0]= 0;
@@ -5961,8 +5977,19 @@ int main(int argc, char **argv)
   if (opt_slave_apply && add_slave_statements())
     goto err;
 
-  /* ensure dumped data flushed */
-  if (md_result_file && fflush(md_result_file))
+  if (md_result_file)
+    md_result_fd= my_fileno(md_result_file);
+
+  /* 
+     Ensure dumped data flushed.
+     First we will flush the file stream data to kernel buffers with fflush().
+     Second we will flush the kernel buffers data to physical disk file with
+     my_sync(), this will make sure the data succeessfully dumped to disk file.
+     fsync() fails with EINVAL if stdout is not redirected to any file, hence
+     MY_IGNORE_BADFD is passed to ingnore that error.
+  */
+  if (md_result_file &&
+      (fflush(md_result_file) || my_sync(md_result_fd, MYF(MY_IGNORE_BADFD))))
   {
     if (!first_error)
       first_error= EX_MYSQLERR;

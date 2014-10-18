@@ -739,14 +739,14 @@ fsp_space_modify_check(
 }
 # endif /* UNIV_DEBUG */
 
-/***********************************************************//**
-Inits a file page whose prior contents should be ignored. */
+/** Initialize a file page.
+@param[in,out]	block	file page
+@param[in,out]	mtr	mini-transaction */
 static
 void
 fsp_init_file_page(
-/*===============*/
-	buf_block_t*	block,	/*!< in: pointer to a page */
-	mtr_t*		mtr)	/*!< in/out: mini-transaction */
+	buf_block_t*	block,
+	mtr_t*		mtr)
 {
 	fsp_init_file_page_low(block);
 

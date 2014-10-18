@@ -1531,6 +1531,8 @@ dict_table_rename_in_cache(
 		char*		filepath;
 
 		ut_ad(!is_system_tablespace(table->space));
+		ut_ad(!dict_table_is_temporary(table));
+		ut_ad(dict_table_use_file_per_table(table));
 
 		/* Make sure the data_dir_path is set. */
 		dict_get_and_save_data_dir_path(table, true);
@@ -1563,7 +1565,7 @@ dict_table_rename_in_cache(
 
 		ut_free(filepath);
 
-	} else if (!is_system_tablespace(table->space)) {
+	} else if (dict_table_use_file_per_table(table)) {
 		if (table->dir_path_of_temp_table != NULL) {
 			ib::error() << "Trying to rename a TEMPORARY TABLE "
 				<< old_name
@@ -2297,7 +2299,10 @@ ibool
 dict_index_too_big_for_tree(
 /*========================*/
 	const dict_table_t*	table,		/*!< in: table */
-	const dict_index_t*	new_index)	/*!< in: index */
+	const dict_index_t*	new_index,	/*!< in: index */
+	bool			strict)		/*!< in: TRUE=report error if
+						records could be too big to
+						fit in an B-tree page */
 {
 	ulint	comp;
 	ulint	i;
@@ -2431,15 +2436,15 @@ add_field_size:
 
 		/* Check the size limit on leaf pages. */
 		if (UNIV_UNLIKELY(rec_max_size >= page_rec_max)) {
-			ib::error() << "Cannot add field "
-				<< field->name
-				<< " in table "
-				<< table->name
+			ib::error_or_warn(strict)
+				<< "Cannot add field " << field->name
+				<< " in table " << table->name
 				<< " because after adding it, the row size is "
 				<< rec_max_size
 				<< " which is greater than maximum allowed"
 				" size (" << page_rec_max
 				<< ") for a record on index leaf page.";
+
 			return(TRUE);
 		}
 
@@ -2516,7 +2521,7 @@ dict_index_add_to_cache(
 	new_index->disable_ahi = index->disable_ahi;
 	new_index->auto_gen_clust_index = index->auto_gen_clust_index;
 
-	if (dict_index_too_big_for_tree(table, new_index)) {
+	if (dict_index_too_big_for_tree(table, new_index, strict)) {
 
 		if (strict) {
 too_big:
@@ -5707,8 +5712,8 @@ fail:
 
 	mtr_commit(&mtr);
 	mem_heap_empty(heap);
-	ib::error() << status << " corruption of " << index->name
-		<< " in table " << index->table->name << " in " << ctx;
+	ib::error() << status << " corruption of `" << index->name
+		<< "` in table " << index->table->name << " in " << ctx;
 	mem_heap_free(heap);
 
 func_exit:
