@@ -598,6 +598,11 @@ DBTableHandler.prototype.get = function(obj, fieldNumber, adapter, fieldValueDef
     if (typeof(result) === 'undefined') {
       fieldValueDefinedListener.setUndefined(fieldNumber);
     } else {
+      if (this.fieldNumberToColumnMap[fieldNumber].isBinary && result.constructor && result.constructor.name !== 'Buffer') {
+        var err = new Error('Binary field with non-Buffer data for field ' + f.fieldName);
+        err.sqlstate = '22000';
+        fieldValueDefinedListener.err = err;
+      }
       fieldValueDefinedListener.setDefined(fieldNumber);
     }
   }
