@@ -1292,6 +1292,11 @@ exports.DBSession.prototype.buildInsertOperation = function(dbTableHandler, obje
   getMetadata(dbTableHandler);
   var fieldValueDefinedListener = new FieldValueDefinedListener();
   var fieldValues = dbTableHandler.getFieldsWithListener(object, 'mysql', fieldValueDefinedListener);
+  if (fieldValueDefinedListener.err) {
+    // error during preparation of field values
+    udebug.log('MySQLConnection.buildInsertOperation error', fieldValueDefinedListener.err);
+    return new ErrorOperation(fieldValueDefinedListener.err, callback);
+  }
   var fieldValueDefinedKey = fieldValueDefinedListener.key;
   udebug.log_detail('MySQLConnection.buildWriteOperation', fieldValueDefinedKey);
   if (typeof(fieldValueDefinedKey) === 'undefined') {
@@ -1487,6 +1492,11 @@ exports.DBSession.prototype.buildWriteOperation = function(dbIndexHandler, value
   getMetadata(dbTableHandler);
   var fieldValueDefinedListener = new FieldValueDefinedListener();
   var fieldValues = dbTableHandler.getFieldsWithListener(values, 'mysql', fieldValueDefinedListener);
+  if (fieldValueDefinedListener.err) {
+    // error during preparation of field values
+    udebug.log('MySQLConnection.buildWriteOperation error', fieldValueDefinedListener.err);
+    return new ErrorOperation(fieldValueDefinedListener.err, callback);
+  }
   var fieldValueDefinedKey = fieldValueDefinedListener.key;
   if (typeof(fieldValueDefinedKey) === 'undefined') {
     // all fields are defined; use the standard generated INSERT... DUPLICATE SQL statement
