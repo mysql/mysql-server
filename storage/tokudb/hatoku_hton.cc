@@ -264,11 +264,15 @@ static uint32_t tokudb_checkpointing_period;
 static uint32_t tokudb_fsync_log_period;
 uint32_t tokudb_write_status_frequency;
 uint32_t tokudb_read_status_frequency;
+
 #ifdef TOKUDB_VERSION
-char *tokudb_version = (char*) TOKUDB_VERSION;
+#define tokudb_stringify_2(x) #x
+#define tokudb_stringify(x) tokudb_stringify_2(x)
+#define TOKUDB_VERSION_STR tokudb_stringify(TOKUDB_VERSION)
 #else
-char *tokudb_version;
+#define TOKUDB_VERSION_STR NULL
 #endif
+char *tokudb_version = (char *) TOKUDB_VERSION_STR;
 static int tokudb_fs_reserve_percent;  // file system reserve as a percentage of total disk space
 
 #if defined(_WIN32)
@@ -2500,12 +2504,6 @@ mysql_declare_plugin_end;
 
 #ifdef MARIA_PLUGIN_INTERFACE_VERSION
 
-#ifdef TOKUDB_VERSION
-#define TOKUDB_PLUGIN_VERSION_STR TOKUDB_VERSION
-#else
-#define TOKUDB_PLUGIN_VERSION_STR NULL
-#endif
-
 maria_declare_plugin(tokudb) 
 {
     MYSQL_STORAGE_ENGINE_PLUGIN, 
@@ -2519,7 +2517,7 @@ maria_declare_plugin(tokudb)
     TOKUDB_PLUGIN_VERSION,
     toku_global_status_variables_export,  /* status variables */
     tokudb_system_variables,   /* system variables */
-    TOKUDB_PLUGIN_VERSION_STR, /* string version */
+    tokudb_version,
     MariaDB_PLUGIN_MATURITY_STABLE /* maturity */
 },
 {
@@ -2534,7 +2532,7 @@ maria_declare_plugin(tokudb)
     TOKUDB_PLUGIN_VERSION,
     NULL,                      /* status variables */
     NULL,                      /* system variables */
-    TOKUDB_PLUGIN_VERSION_STR, /* string version */
+    tokudb_version,
     MariaDB_PLUGIN_MATURITY_STABLE /* maturity */
 },
 {
@@ -2549,7 +2547,7 @@ maria_declare_plugin(tokudb)
     TOKUDB_PLUGIN_VERSION,
     NULL,                      /* status variables */
     NULL,                      /* system variables */
-    TOKUDB_PLUGIN_VERSION_STR, /* string version */
+    tokudb_version,
     MariaDB_PLUGIN_MATURITY_STABLE /* maturity */
 },
 {
@@ -2564,7 +2562,7 @@ maria_declare_plugin(tokudb)
     TOKUDB_PLUGIN_VERSION,
     NULL,                      /* status variables */
     NULL,                      /* system variables */
-    TOKUDB_PLUGIN_VERSION_STR, /* string version */
+    tokudb_version,
     MariaDB_PLUGIN_MATURITY_STABLE /* maturity */
 },
 {
@@ -2579,7 +2577,7 @@ maria_declare_plugin(tokudb)
     TOKUDB_PLUGIN_VERSION,
     NULL,                      /* status variables */
     NULL,                      /* system variables */
-    TOKUDB_PLUGIN_VERSION_STR, /* string version */
+    tokudb_version,
     MariaDB_PLUGIN_MATURITY_STABLE /* maturity */
 },
 {
@@ -2594,7 +2592,7 @@ maria_declare_plugin(tokudb)
     TOKUDB_PLUGIN_VERSION,
     NULL,                      /* status variables */
     NULL,                      /* system variables */
-    TOKUDB_PLUGIN_VERSION_STR, /* string version */
+    tokudb_version,
     MariaDB_PLUGIN_MATURITY_STABLE /* maturity */
 },
 {
@@ -2609,7 +2607,7 @@ maria_declare_plugin(tokudb)
     TOKUDB_PLUGIN_VERSION,
     NULL,                      /* status variables */
     NULL,                      /* system variables */
-    TOKUDB_PLUGIN_VERSION_STR, /* string version */
+    tokudb_version,
     MariaDB_PLUGIN_MATURITY_STABLE /* maturity */
 }
 maria_declare_plugin_end;
