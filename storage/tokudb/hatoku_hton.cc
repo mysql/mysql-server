@@ -264,11 +264,15 @@ static uint32_t tokudb_checkpointing_period;
 static uint32_t tokudb_fsync_log_period;
 uint32_t tokudb_write_status_frequency;
 uint32_t tokudb_read_status_frequency;
+
 #ifdef TOKUDB_VERSION
-char *tokudb_version = (char*) TOKUDB_VERSION;
+#define tokudb_stringify_2(x) #x
+#define tokudb_stringify(x) tokudb_stringify_2(x)
+#define TOKUDB_VERSION_STR tokudb_stringify(TOKUDB_VERSION)
 #else
-char *tokudb_version;
+#define TOKUDB_VERSION_STR NULL
 #endif
+char *tokudb_version = (char *) TOKUDB_VERSION_STR;
 static int tokudb_fs_reserve_percent;  // file system reserve as a percentage of total disk space
 
 #if defined(_WIN32)
@@ -2272,9 +2276,6 @@ static int tokudb_locks_done(void *p) {
     return 0;
 }
 
-enum { TOKUDB_PLUGIN_VERSION = 0x0400 };
-#define TOKUDB_PLUGIN_VERSION_STR "1024"
-
 // Retrieves variables for information_schema.global_status.
 // Names (columnname) are automatically converted to upper case, and prefixed with "TOKUDB_"
 static int show_tokudb_vars(THD *thd, SHOW_VAR *var, char *buff) {
@@ -2373,131 +2374,17 @@ static void tokudb_backtrace(void) {
 }
 #endif
 
-mysql_declare_plugin(tokudb) 
-{
-    MYSQL_STORAGE_ENGINE_PLUGIN, 
-    &tokudb_storage_engine, 
-    tokudb_hton_name, 
-    "Tokutek Inc", 
-    "Tokutek TokuDB Storage Engine with Fractal Tree(tm) Technology",
-    PLUGIN_LICENSE_GPL,
-    tokudb_init_func,          /* plugin init */
-    tokudb_done_func,          /* plugin deinit */
-    TOKUDB_PLUGIN_VERSION,     /* 4.0.0 */
-    toku_global_status_variables_export,  /* status variables */
-    tokudb_system_variables,   /* system variables */
-    NULL,                      /* config options */
-#if MYSQL_VERSION_ID >= 50521
-    0,                         /* flags */
+#if defined(TOKUDB_VERSION_MAJOR) && defined(TOKUDB_VERSION_MINOR)
+#define TOKUDB_PLUGIN_VERSION ((TOKUDB_VERSION_MAJOR << 8) + TOKUDB_VERSION_MINOR)
+#else
+#define TOKUDB_PLUGIN_VERSION 0
 #endif
-},
-{
-    MYSQL_INFORMATION_SCHEMA_PLUGIN, 
-    &tokudb_trx_information_schema,
-    "TokuDB_trx", 
-    "Tokutek Inc", 
-    "Tokutek TokuDB Storage Engine with Fractal Tree(tm) Technology",
-    PLUGIN_LICENSE_GPL,
-    tokudb_trx_init,     /* plugin init */
-    tokudb_trx_done,     /* plugin deinit */
-    TOKUDB_PLUGIN_VERSION,     /* 4.0.0 */
-    NULL,                      /* status variables */
-    NULL,                      /* system variables */
-    NULL,                      /* config options */
-#if MYSQL_VERSION_ID >= 50521
-    0,                         /* flags */
-#endif
-},
-{
-    MYSQL_INFORMATION_SCHEMA_PLUGIN, 
-    &tokudb_lock_waits_information_schema,
-    "TokuDB_lock_waits", 
-    "Tokutek Inc", 
-    "Tokutek TokuDB Storage Engine with Fractal Tree(tm) Technology",
-    PLUGIN_LICENSE_GPL,
-    tokudb_lock_waits_init,     /* plugin init */
-    tokudb_lock_waits_done,     /* plugin deinit */
-    TOKUDB_PLUGIN_VERSION,     /* 4.0.0 */
-    NULL,                      /* status variables */
-    NULL,                      /* system variables */
-    NULL,                      /* config options */
-#if MYSQL_VERSION_ID >= 50521
-    0,                         /* flags */
-#endif
-},
-{
-    MYSQL_INFORMATION_SCHEMA_PLUGIN, 
-    &tokudb_locks_information_schema,
-    "TokuDB_locks", 
-    "Tokutek Inc", 
-    "Tokutek TokuDB Storage Engine with Fractal Tree(tm) Technology",
-    PLUGIN_LICENSE_GPL,
-    tokudb_locks_init,     /* plugin init */
-    tokudb_locks_done,     /* plugin deinit */
-    TOKUDB_PLUGIN_VERSION,     /* 4.0.0 */
-    NULL,                      /* status variables */
-    NULL,                      /* system variables */
-    NULL,                      /* config options */
-#if MYSQL_VERSION_ID >= 50521
-    0,                         /* flags */
-#endif
-},
-{
-    MYSQL_INFORMATION_SCHEMA_PLUGIN, 
-    &tokudb_file_map_information_schema, 
-    "TokuDB_file_map", 
-    "Tokutek Inc", 
-    "Tokutek TokuDB Storage Engine with Fractal Tree(tm) Technology",
-    PLUGIN_LICENSE_GPL,
-    tokudb_file_map_init,     /* plugin init */
-    tokudb_file_map_done,     /* plugin deinit */
-    TOKUDB_PLUGIN_VERSION,     /* 4.0.0 */
-    NULL,                      /* status variables */
-    NULL,                      /* system variables */
-    NULL,                      /* config options */
-#if MYSQL_VERSION_ID >= 50521
-    0,                         /* flags */
-#endif
-},
-{
-    MYSQL_INFORMATION_SCHEMA_PLUGIN, 
-    &tokudb_fractal_tree_info_information_schema, 
-    "TokuDB_fractal_tree_info", 
-    "Tokutek Inc", 
-    "Tokutek TokuDB Storage Engine with Fractal Tree(tm) Technology",
-    PLUGIN_LICENSE_GPL,
-    tokudb_fractal_tree_info_init,     /* plugin init */
-    tokudb_fractal_tree_info_done,     /* plugin deinit */
-    TOKUDB_PLUGIN_VERSION,     /* 4.0.0 */
-    NULL,                      /* status variables */
-    NULL,                      /* system variables */
-    NULL,                      /* config options */
-#if MYSQL_VERSION_ID >= 50521
-    0,                         /* flags */
-#endif
-},
-{
-    MYSQL_INFORMATION_SCHEMA_PLUGIN, 
-    &tokudb_fractal_tree_block_map_information_schema, 
-    "TokuDB_fractal_tree_block_map", 
-    "Tokutek Inc", 
-    "Tokutek TokuDB Storage Engine with Fractal Tree(tm) Technology",
-    PLUGIN_LICENSE_GPL,
-    tokudb_fractal_tree_block_map_init,     /* plugin init */
-    tokudb_fractal_tree_block_map_done,     /* plugin deinit */
-    TOKUDB_PLUGIN_VERSION,     /* 4.0.0 */
-    NULL,                      /* status variables */
-    NULL,                      /* system variables */
-    NULL,                      /* config options */
-#if MYSQL_VERSION_ID >= 50521
-    0,                         /* flags */
-#endif
-}
-mysql_declare_plugin_end;
 
 #ifdef MARIA_PLUGIN_INTERFACE_VERSION
-
 maria_declare_plugin(tokudb) 
+#else
+mysql_declare_plugin(tokudb) 
+#endif
 {
     MYSQL_STORAGE_ENGINE_PLUGIN, 
     &tokudb_storage_engine, 
@@ -2507,11 +2394,16 @@ maria_declare_plugin(tokudb)
     PLUGIN_LICENSE_GPL,
     tokudb_init_func,          /* plugin init */
     tokudb_done_func,          /* plugin deinit */
-    TOKUDB_PLUGIN_VERSION,     /* 4.0.0 */
+    TOKUDB_PLUGIN_VERSION,
     toku_global_status_variables_export,  /* status variables */
     tokudb_system_variables,   /* system variables */
-    TOKUDB_PLUGIN_VERSION_STR, /* string version */
+#ifdef MARIA_PLUGIN_INTERFACE_VERSION
+    tokudb_version,
     MariaDB_PLUGIN_MATURITY_STABLE /* maturity */
+#else
+    NULL,                      /* config options */
+    0,                         /* flags */
+#endif
 },
 {
     MYSQL_INFORMATION_SCHEMA_PLUGIN, 
@@ -2522,11 +2414,16 @@ maria_declare_plugin(tokudb)
     PLUGIN_LICENSE_GPL,
     tokudb_trx_init,     /* plugin init */
     tokudb_trx_done,     /* plugin deinit */
-    TOKUDB_PLUGIN_VERSION,     /* 4.0.0 */
+    TOKUDB_PLUGIN_VERSION,
     NULL,                      /* status variables */
     NULL,                      /* system variables */
-    TOKUDB_PLUGIN_VERSION_STR, /* string version */
+#ifdef MARIA_PLUGIN_INTERFACE_VERSION
+    tokudb_version,
     MariaDB_PLUGIN_MATURITY_STABLE /* maturity */
+#else
+    NULL,                      /* config options */
+    0,                         /* flags */
+#endif
 },
 {
     MYSQL_INFORMATION_SCHEMA_PLUGIN, 
@@ -2537,11 +2434,16 @@ maria_declare_plugin(tokudb)
     PLUGIN_LICENSE_GPL,
     tokudb_lock_waits_init,     /* plugin init */
     tokudb_lock_waits_done,     /* plugin deinit */
-    TOKUDB_PLUGIN_VERSION,     /* 4.0.0 */
+    TOKUDB_PLUGIN_VERSION,
     NULL,                      /* status variables */
     NULL,                      /* system variables */
-    TOKUDB_PLUGIN_VERSION_STR, /* string version */
+#ifdef MARIA_PLUGIN_INTERFACE_VERSION
+    tokudb_version,
     MariaDB_PLUGIN_MATURITY_STABLE /* maturity */
+#else
+    NULL,                      /* config options */
+    0,                         /* flags */
+#endif
 },
 {
     MYSQL_INFORMATION_SCHEMA_PLUGIN, 
@@ -2552,11 +2454,16 @@ maria_declare_plugin(tokudb)
     PLUGIN_LICENSE_GPL,
     tokudb_locks_init,     /* plugin init */
     tokudb_locks_done,     /* plugin deinit */
-    TOKUDB_PLUGIN_VERSION,     /* 4.0.0 */
+    TOKUDB_PLUGIN_VERSION,
     NULL,                      /* status variables */
     NULL,                      /* system variables */
-    TOKUDB_PLUGIN_VERSION_STR, /* string version */
+#ifdef MARIA_PLUGIN_INTERFACE_VERSION
+    tokudb_version,
     MariaDB_PLUGIN_MATURITY_STABLE /* maturity */
+#else
+    NULL,                      /* config options */
+    0,                         /* flags */
+#endif
 },
 {
     MYSQL_INFORMATION_SCHEMA_PLUGIN, 
@@ -2567,11 +2474,16 @@ maria_declare_plugin(tokudb)
     PLUGIN_LICENSE_GPL,
     tokudb_file_map_init,     /* plugin init */
     tokudb_file_map_done,     /* plugin deinit */
-    TOKUDB_PLUGIN_VERSION,     /* 4.0.0 */
+    TOKUDB_PLUGIN_VERSION,
     NULL,                      /* status variables */
     NULL,                      /* system variables */
-    TOKUDB_PLUGIN_VERSION_STR, /* string version */
+#ifdef MARIA_PLUGIN_INTERFACE_VERSION
+    tokudb_version,
     MariaDB_PLUGIN_MATURITY_STABLE /* maturity */
+#else
+    NULL,                      /* config options */
+    0,                         /* flags */
+#endif
 },
 {
     MYSQL_INFORMATION_SCHEMA_PLUGIN, 
@@ -2582,11 +2494,16 @@ maria_declare_plugin(tokudb)
     PLUGIN_LICENSE_GPL,
     tokudb_fractal_tree_info_init,     /* plugin init */
     tokudb_fractal_tree_info_done,     /* plugin deinit */
-    TOKUDB_PLUGIN_VERSION,     /* 4.0.0 */
+    TOKUDB_PLUGIN_VERSION,
     NULL,                      /* status variables */
     NULL,                      /* system variables */
-    TOKUDB_PLUGIN_VERSION_STR, /* string version */
+#ifdef MARIA_PLUGIN_INTERFACE_VERSION
+    tokudb_version,
     MariaDB_PLUGIN_MATURITY_STABLE /* maturity */
+#else
+    NULL,                      /* config options */
+    0,                         /* flags */
+#endif
 },
 {
     MYSQL_INFORMATION_SCHEMA_PLUGIN, 
@@ -2597,12 +2514,19 @@ maria_declare_plugin(tokudb)
     PLUGIN_LICENSE_GPL,
     tokudb_fractal_tree_block_map_init,     /* plugin init */
     tokudb_fractal_tree_block_map_done,     /* plugin deinit */
-    TOKUDB_PLUGIN_VERSION,     /* 4.0.0 */
+    TOKUDB_PLUGIN_VERSION,
     NULL,                      /* status variables */
     NULL,                      /* system variables */
-    TOKUDB_PLUGIN_VERSION_STR, /* string version */
+#ifdef MARIA_PLUGIN_INTERFACE_VERSION
+    tokudb_version,
     MariaDB_PLUGIN_MATURITY_STABLE /* maturity */
+#else
+    NULL,                      /* config options */
+    0,                         /* flags */
+#endif
 }
+#ifdef MARIA_PLUGIN_INTERFACE_VERSION
 maria_declare_plugin_end;
-
+#else
+mysql_declare_plugin_end;
 #endif
