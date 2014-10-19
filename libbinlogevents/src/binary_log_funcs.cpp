@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c)  2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,7 +16,9 @@
 #include "binary_log_funcs.h"
 
 #include "byteorder.h"
+#include "wrapper_functions.h"
 
+#include <string.h>
 #include <cassert>
 #include <climits>
 #include <stdint.h>
@@ -28,7 +30,7 @@
    The somewhat contorted expression is to avoid overflow.
  */
 static unsigned int uint_max(int bits) {
-  assert(static_cast<unsigned int>(bits) < sizeof(unsigned int) * CHAR_BIT);
+  BAPI_ASSERT(static_cast<unsigned int>(bits) < sizeof(unsigned int) * CHAR_BIT);
   return (((1U << (bits - 1)) - 1) << 1) | 1;
 }
 
@@ -44,9 +46,7 @@ static unsigned int uint_max(int bits) {
 */
 unsigned int my_time_binary_length(unsigned int dec)
 {
-#ifndef DBUG_OFF
-  assert(dec <= DATETIME_MAX_DECIMALS);
-#endif
+  BAPI_ASSERT(dec <= DATETIME_MAX_DECIMALS);
   return 3 + (dec + 1) / 2;
 }
 
@@ -61,7 +61,7 @@ unsigned int my_time_binary_length(unsigned int dec)
 */
 unsigned int my_datetime_binary_length(unsigned int dec)
 {
-  assert(dec <= DATETIME_MAX_DECIMALS);
+  BAPI_ASSERT(dec <= DATETIME_MAX_DECIMALS);
   return 5 + (dec + 1) / 2;
 }
 
@@ -77,7 +77,7 @@ unsigned int my_datetime_binary_length(unsigned int dec)
 */
 unsigned int my_timestamp_binary_length(unsigned int dec)
 {
-  assert(dec <= DATETIME_MAX_DECIMALS);
+  BAPI_ASSERT(dec <= DATETIME_MAX_DECIMALS);
   return 4 + (dec + 1) / 2;
 }
 
@@ -91,7 +91,7 @@ unsigned int my_timestamp_binary_length(unsigned int dec)
 unsigned int
 max_display_length_for_field(enum_field_types sql_type, unsigned int metadata)
 {
-  assert(metadata >> 16 == 0);
+  BAPI_ASSERT(metadata >> 16 == 0);
 
   switch (sql_type) {
   case MYSQL_TYPE_NEWDECIMAL:
@@ -155,7 +155,7 @@ max_display_length_for_field(enum_field_types sql_type, unsigned int metadata)
     /*
       Decode the size of the bit field from the master.
     */
-    assert((metadata & 0xff) <= 7);
+    BAPI_ASSERT((metadata & 0xff) <= 7);
     return 8 * (metadata >> 8U) + (metadata & 0x00ff);
 
   case MYSQL_TYPE_VAR_STRING:
@@ -201,7 +201,7 @@ int decimal_binary_size(int precision, int scale)
        intg0= intg/9, frac0= scale/9,
        intg0x= intg-intg0*9, frac0x= scale-frac0*9;
 
-   assert(scale >= 0 && precision > 0 && scale <= precision);
+   BAPI_ASSERT(scale >= 0 && precision > 0 && scale <= precision);
    return intg0 * sizeof(uint32_t) + dig2bytes[intg0x]+
           frac0 * sizeof(uint32_t) + dig2bytes[frac0x];
  }
@@ -339,7 +339,7 @@ uint32_t calc_field_size(unsigned char col, const unsigned char *master_data,
     */
     unsigned int from_len= (metadata >> 8U) & 0x00ff;
     unsigned int from_bit_len= metadata & 0x00ff;
-    assert(from_bit_len <= 7);
+    BAPI_ASSERT(from_bit_len <= 7);
     length= from_len + ((from_bit_len > 0) ? 1 : 0);
     break;
   }
@@ -385,7 +385,7 @@ uint32_t calc_field_size(unsigned char col, const unsigned char *master_data,
       length= le32toh(length);
       break;
     default:
-      assert(0);		// Should not come here
+      BAPI_ASSERT(0);		// Should not come here
       break;
     }
 

@@ -5742,6 +5742,7 @@ Load_log_event::Load_log_event(const char *buf, uint event_len,
   DBUG_ENTER("Load_log_event");
   if (table_name != 0)
     is_valid_param= true;
+  thread_id= slave_proxy_id;
   if (event_len)
   {
     /**
