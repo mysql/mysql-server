@@ -158,7 +158,7 @@ Load_event::Load_event(const char *buf, unsigned int event_len,
   :Binary_log_event(&buf, description_event->binlog_version,
                     description_event->server_version), num_fields(0),
    fields(0), field_lens(0),field_block_len(0),
-   table_name(0), db(0), fname(0), local_fname(0),
+   table_name(0), db(0), fname(0), local_fname(false),
    /*
      Load_event which comes from the binary log does not contain
      information about the type of insert which was used on the master.
