@@ -148,15 +148,13 @@ bool Distinct_check::check_query(THD *thd)
 */
 bool Group_check::check_query(THD *thd)
 {
-  uint number_in_list;
   ORDER *order= select->order_list.first;
-  const char *place;
 
   // Validate SELECT list
   List_iterator<Item> select_exprs_it(select->item_list);
   Item *expr;
-  number_in_list= 1;
-  place= "SELECT list";
+  uint number_in_list= 1;
+  const char *place= "SELECT list";
   while ((expr= select_exprs_it++))
   {
     if (check_expression(thd, expr, true))
@@ -198,9 +196,27 @@ bool Group_check::check_query(THD *thd)
   return false;
 
 err:
-  my_error(select->group_list.elements ?
-           ER_WRONG_FIELD_WITH_GROUP : ER_MIX_OF_GROUP_FUNC_AND_FIELDS,
-           MYF(0), number_in_list, place, failed_ident->full_name());
+  uint code;
+  const char *text;
+  /*
+    Starting from MySQL 5.7 we want give a better messages than before,
+    to provide more information. But we can't change texts of existing error
+    codes for backward-compatibility reasons, so we introduce new texts;
+    however we want to keep sending the old error codes, for pre-5.7
+    applications used to it.
+  */
+  if (select->group_list.elements)
+  {
+    code= ER_WRONG_FIELD_WITH_GROUP;        // old code
+    text= ER(ER_WRONG_FIELD_WITH_GROUP_V2); // new text
+  }
+  else
+  {
+    code= ER_MIX_OF_GROUP_FUNC_AND_FIELDS;        // old code
+    text= ER(ER_MIX_OF_GROUP_FUNC_AND_FIELDS_V2); // new text
+  }
+  my_printf_error(code, text, MYF(0), number_in_list, place,
+                  failed_ident->full_name());
   return true;
 }
 
