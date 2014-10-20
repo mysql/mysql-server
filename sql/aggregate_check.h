@@ -644,6 +644,8 @@ private:
   bool is_in_fd_of_underlying(Item_ident *item);
   void analyze_conjunct(Item *cond, Item *conjunct, table_map weak_tables,
                         bool weak_side_upwards);
+  void analyze_scalar_eq(Item *cond, Item *left_item, Item *right_item,
+                         table_map weak_tables, bool weak_side_upwards);
   void find_fd_in_cond(Item *cond, table_map weak_tables,
                        bool weak_side_upwards);
   void find_fd_in_joined_table(List<TABLE_LIST> *join_list);

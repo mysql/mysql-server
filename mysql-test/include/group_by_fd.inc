@@ -886,7 +886,37 @@ WHERE ( c2, c2, pk ) IN (
 )
 GROUP BY field1, field3, field3;
 
+--echo #
+--echo # Bug#19687724 FUNCTIONAL DEPENDENCIES ARE NOT RECOGNIZED IN EQUALITIES BETWEEN ROWS
+--echo #
+
+# Inspired by query above, but with a join:
+SELECT c5 AS field1,
+       c4 AS field2,
+       c2 AS field3,
+       c1 AS field4
+FROM t1, v1
+WHERE ( c2, c2, pk ) = (subfield11, subfield12, subfield13)
+GROUP BY field1, field3, field3;
+
+# With constants:
+SELECT c5 AS field1,
+       c4 AS field2,
+       c2 AS field3,
+       c1 AS field4
+FROM t1
+WHERE ( c2, c2, pk ) = (1, 2, 3)
+GROUP BY field1, field3, field3;
+
 DROP TABLE t1;
+
+CREATE TABLE t1(a INT, b INT, c INT, d INT);
+SELECT a,b,c,d FROM t1 WHERE a=c AND b=d GROUP by a,b;
+SELECT a,b,c,d FROM t1 WHERE (a,b)=(c,d) GROUP BY a,b;
+--error ER_WRONG_FIELD_WITH_GROUP
+SELECT a,b,c,d FROM t1 WHERE (a,b)=(c,d+1) GROUP BY a,b;
+DROP TABLE t1;
+
 DROP VIEW v1;
 
 DROP FUNCTION show_json_object;

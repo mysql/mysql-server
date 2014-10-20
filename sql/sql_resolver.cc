@@ -484,7 +484,8 @@ bool SELECT_LEX::apply_local_transforms()
       opportunities for functional dependencies (weak-to-strong, which is
       unusable, becomes strong-to-strong).
       * check_only_full_group_by() is dependent on processing done by
-      simplify_joins() (for example it uses the value of JOIN::outer_join).
+      simplify_joins() (for example it uses the value of
+      SELECT_LEX::outer_join).
 
       The drawback is that the checks are after resolve_subquery(), so can
       meet strange "internally added" items.
