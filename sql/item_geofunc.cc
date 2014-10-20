@@ -53,6 +53,8 @@
 #define TYPENAME typename
 #endif
 
+static int check_geometry_valid(Geometry *geom);
+
 
 /// A wrapper and interface for all geometry types used here. Make these
 /// types as localized as possible. It's used as a type interface.
@@ -1474,11 +1476,10 @@ String *Item_func_validate::val_str(String *str)
   if (geom->get_geotype() == Geometry::wkb_geometrycollection)
     return swkb;
 
-  /*
-TODO: Construct BG adapter object and call BG::is_valid to check.
-    if it's vaid, return swkb, otherwise return NULL and set null_value to true.
-   */
-  return NULL;
+  if (check_geometry_valid(geom))
+    return swkb;
+  else
+    return NULL;
 }
 
 
@@ -8539,6 +8540,73 @@ longlong Item_func_isclosed::val_int()
 }
 
 
+/*
+  Call Boost Geometry algorithm to check whether a geometry is valid as
+  defined by OGC.
+ */
+static int check_geometry_valid(Geometry *geom)
+{
+  int ret= 0;
+
+  switch (geom->get_type())
+  {
+  case Geometry::wkb_point:
+  {
+    typename BG_models<double, bgcs::cartesian>::Point
+      bg(geom->get_data_ptr(), geom->get_data_size(),
+         geom->get_flags(), geom->get_srid());
+    ret= bg::is_valid(bg);
+    break;
+  }
+  case Geometry::wkb_linestring:
+  {
+    typename BG_models<double, bgcs::cartesian>::Linestring
+      bg(geom->get_data_ptr(), geom->get_data_size(),
+         geom->get_flags(), geom->get_srid());
+    ret= bg::is_valid(bg);
+    break;
+  }
+  case Geometry::wkb_polygon:
+  {
+    typename BG_models<double, bgcs::cartesian>::Polygon
+      bg(geom->get_data_ptr(), geom->get_data_size(),
+         geom->get_flags(), geom->get_srid());
+    ret= bg::is_valid(bg);
+    break;
+  }
+  case Geometry::wkb_multipoint:
+  {
+    typename BG_models<double, bgcs::cartesian>::Multipoint
+      bg(geom->get_data_ptr(), geom->get_data_size(),
+         geom->get_flags(), geom->get_srid());
+    ret= bg::is_valid(bg);
+    break;
+  }
+  case Geometry::wkb_multilinestring:
+  {
+    typename BG_models<double, bgcs::cartesian>::Multilinestring
+      bg(geom->get_data_ptr(), geom->get_data_size(),
+         geom->get_flags(), geom->get_srid());
+    ret= bg::is_valid(bg);
+    break;
+  }
+  case Geometry::wkb_multipolygon:
+  {
+    typename BG_models<double, bgcs::cartesian>::Multipolygon
+      bg(geom->get_data_ptr(), geom->get_data_size(),
+         geom->get_flags(), geom->get_srid());
+    ret= bg::is_valid(bg);
+    break;
+  }
+  default:
+    DBUG_ASSERT(false);
+    break;
+  }
+
+  return ret;
+}
+
+
 longlong Item_func_isvalid::val_int()
 {
   DBUG_ASSERT(fixed == 1);
@@ -8554,10 +8622,10 @@ longlong Item_func_isvalid::val_int()
     return 0L;
   if (geom->get_type() == Geometry::wkb_geometrycollection)
     return 1L;
-  /*
-TODO: Construct BG adapter object and call BG::is_valid to check.
-   */
-  return 0;
+
+  int ret= check_geometry_valid(geom);
+
+  return ret;
 }
 
 
