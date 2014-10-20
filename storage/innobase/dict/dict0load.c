@@ -2512,6 +2512,7 @@ contain the same set of foreign key objects; and check if
 dict_table_t::referenced_rbt and dict_table::referenced_list contain
 the same set of foreign key objects.
 @return	TRUE if correct, FALSE otherwise. */
+UNIV_INTERN
 ibool
 dict_table_check_foreign_keys(
 /*==========================*/
