@@ -1249,17 +1249,6 @@ bool mysql_rename_user(THD *thd, List <LEX_USER> &list)
 }
 
 
-
-void append_wrong_user(THD * thd, String &wrong_users, 
-	LEX_USER * tmp_user_from, bool &result)
-{
-	append_user(thd, &wrong_users, tmp_user_from, wrong_users.length() > 0,
-		false);
-	result= true;
-}
-
-
-
 /*
   Mark user's password as expired or update the days
   after which the user's password will expire
@@ -1335,33 +1324,32 @@ bool mysql_user_password_expire(THD *thd, List <LEX_USER> &list)
   while ((tmp_user_from= user_list++))
   {
     ACL_USER *acl_user;
-
+   
     /* add the defaults where needed */
-  if (!(user_from= get_current_user(thd, tmp_user_from)))
-  {
-    append_wrong_user(thd, wrong_users, tmp_user_from, result);
-		continue;
-  }
-	
-  /* disallow expiring password for proxy user */
-  if (!tmp_user_from->user.str && thd->security_ctx->is_proxy_user)
-  {
-    append_wrong_user(thd, wrong_users, user_from, result);
-    continue;
-  }
+    if (!(user_from= get_current_user(thd, tmp_user_from)))
+    {
+      result= true;
+      append_user(thd, &wrong_users, tmp_user_from, wrong_users.length() > 0,
+                  false);
+      continue;
+    }
 
     /* look up the user */
     if (!(acl_user= find_acl_user(user_from->host.str,
                                    user_from->user.str, TRUE)))
     {
-      append_wrong_user(thd, wrong_users, user_from, result);
+      result= true;
+      append_user(thd, &wrong_users, user_from, wrong_users.length() > 0,
+                  false);
       continue;
     }
 
     if (!acl_user->user)
     {
+      result= true;
       is_anonymous_user= true;
-      append_wrong_user(thd, wrong_users, user_from, result);
+      append_user(thd, &wrong_users, user_from, wrong_users.length() > 0,
+                  false);
       continue;
     }
 
@@ -1369,7 +1357,9 @@ bool mysql_user_password_expire(THD *thd, List <LEX_USER> &list)
     /* Check if the user's authentication method supports expiration */
     if (!auth_plugin_supports_expiration(acl_user->plugin.str))
     {
-      append_wrong_user(thd, wrong_users, user_from, result);
+      result= true;
+      append_user(thd, &wrong_users, user_from, wrong_users.length() > 0,
+                  false);
       continue;
     }
 
@@ -1384,7 +1374,9 @@ bool mysql_user_password_expire(THD *thd, List <LEX_USER> &list)
 			  auth_plugin_is_built_in(acl_user->plugin.str),
 		          &user_from->alter_status))
     {
-      append_wrong_user(thd, wrong_users, user_from, result);
+      result= true;
+      append_user(thd, &wrong_users, user_from, wrong_users.length() > 0,
+                  false);
       continue;
     }
 
