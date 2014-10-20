@@ -845,6 +845,36 @@ void Group_check::analyze_conjunct(Item *cond, Item *conjunct,
     return;
   Item *left_item= cnj->arguments()[0];
   Item *right_item= cnj->arguments()[1];
+  if (left_item->type() == Item::ROW_ITEM &&
+      right_item->type() == Item::ROW_ITEM)
+  {
+    /*
+      (a,b)=(c,d) is equivalent to 'a=c and b=d', let's iterate on pairs.
+      Note that it's not recursive: we don't handle (a,(b,c))=(d,(e,f)), the
+      Standard does not seem to require it.
+    */
+    Item_row *left_row= down_cast<Item_row*>(left_item);
+    Item_row *right_row= down_cast<Item_row*>(right_item);
+    int elem= left_row->cols();
+    while (--elem >= 0)
+      analyze_scalar_eq(cond, left_row->element_index(elem),
+                        right_row->element_index(elem),
+                        weak_tables, weak_side_upwards);
+  }
+  else
+    analyze_scalar_eq(cond, left_item, right_item, weak_tables,
+                      weak_side_upwards);
+}
+
+
+/**
+   Helper function @see analyze_conjunct().
+*/
+void Group_check::analyze_scalar_eq(Item *cond,
+                                    Item *left_item, Item *right_item,
+                                    table_map weak_tables,
+                                    bool weak_side_upwards)
+{
   table_map left_tables= left_item->used_tables();
   table_map right_tables= right_item->used_tables();
   bool left_is_column= local_column(left_item);
