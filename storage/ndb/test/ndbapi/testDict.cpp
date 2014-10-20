@@ -6658,7 +6658,7 @@ st_test_snf_parse(ST_Con& c, int arg = -1)
       uint rand = urandom(c.numdbnodes);
       node_id = c.restarter->getRandomNotMasterNodeId(rand);
       g_info << "restart node " << node_id << " (async)" << endl;
-      int flags = 0;
+      const int flags = NdbRestarter::NRRF_NOSTART;
       chk1(c.restarter->restartOneDbNode2(node_id, flags) == 0);
       chk1(c.restarter->waitNodesNoStart(&node_id, 1) == 0);
       chk1(c.restarter->startNodes(&node_id, 1) == 0);
@@ -6698,7 +6698,7 @@ st_test_mnf_parse(ST_Con& c, int arg = -1)
       require(c.numdbnodes > 1);
       node_id = c.restarter->getMasterNodeId();
       g_info << "restart node " << node_id << " (async)" << endl;
-      int flags = 0;
+      const int flags = NdbRestarter::NRRF_NOSTART;
       chk1(c.restarter->restartOneDbNode2(node_id, flags) == 0);
       chk1(c.restarter->waitNodesNoStart(&node_id, 1) == 0);
       chk1(c.restarter->startNodes(&node_id, 1) == 0);
