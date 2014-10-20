@@ -950,6 +950,41 @@ void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
   {
     if (using_gtid_protocol)
     {
+      /*
+        Setting GTID_PURGED (when GTID_EXECUTED set is empty i.e., when
+        previous_gtids are also empty) will make binlog rotate. That
+        leaves first binary log with empty previous_gtids and second
+        binary log's previous_gtids with the value of gtid_purged.
+        In find_first_log_not_in_gtid_set() while we search for a binary
+        log whose previous_gtid_set is subset of slave_gtid_executed,
+        in this particular case, server will always find the first binary
+        log with empty previous_gtids which is subset of any given
+        slave_gtid_executed. Thus Master thinks that it found the first
+        binary log which is actually not correct and unable to catch
+        this error situation. Hence adding below extra if condition
+        to check the situation. Slave should know about Master's purged GTIDs.
+        If Slave's GTID executed + retrieved set does not contain Master's
+        complete purged GTID list, that means Slave is requesting(expecting)
+        GTIDs which were purged by Master. We should let Slave know about the
+        situation. i.e., throw error if slave's GTID executed set is not
+        a superset of Master's purged GTID set.
+        The other case, where user deleted binary logs manually
+        (without using 'PURGE BINARY LOGS' command) but gtid_purged
+        is not set by the user, the following if condition cannot catch it.
+        But that is not a problem because in find_first_log_not_in_gtid_set()
+        while checking for subset previous_gtids binary log, the logic
+        will not find one and an error ER_MASTER_HAS_PURGED_REQUIRED_GTIDS
+        is thrown from there.
+       */
+      global_sid_lock->wrlock();
+      if (!gtid_state->get_lost_gtids()->is_subset(slave_gtid_executed))
+      {
+        errmsg= ER(ER_MASTER_HAS_PURGED_REQUIRED_GTIDS);
+        my_errno= ER_MASTER_FATAL_ERROR_READING_BINLOG;
+        global_sid_lock->unlock();
+        GOTO_ERR;
+      }
+      global_sid_lock->unlock();
       first_gtid.clear();
       if (mysql_bin_log.find_first_log_not_in_gtid_set(name,
                                                        slave_gtid_executed,
