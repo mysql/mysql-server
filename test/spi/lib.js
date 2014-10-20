@@ -18,7 +18,6 @@
  02110-1301  USA
  */
 
-/*global spi_module, unified_debug */
 "use strict";
 
 var spi        = require(spi_module),

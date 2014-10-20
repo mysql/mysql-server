@@ -49,8 +49,8 @@ var jslintOptions = {
     [ /* globals, from Adapter/adapter_config.js */
       "path" , "fs" , "assert" , "util"  , "unified_debug" , 
       "adapter_dir" , "parent_dir" , "api_dir" , "spi_dir" , 
-      "spi_doc_dir" , "api_doc_dir", "build_dir", "converters_dir", 
-      "spi_module", "api_module", "udebug_module", 
+      "spi_doc_dir" , "api_doc_dir", "build_dir", "converters_dir",
+      "backend_doc_dir", "spi_module", "api_module", "udebug_module",
       /* globals from test/driver.js */
       "suites_dir", "harness", "mynode", "adapter",
       /* globals commonly defined in test suites: */
