@@ -863,6 +863,8 @@ public:
   */
   bool password_expired;               /* password expiration flag */
 
+  bool is_proxy_user;
+
   void init();
   void destroy();
   void skip_grants();
