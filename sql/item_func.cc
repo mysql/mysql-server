@@ -7122,6 +7122,7 @@ String* Item_func_get_system_var::val_str(String* str)
   }
 
   str= &cached_strval;
+  null_value= FALSE;
   switch (var->show_type())
   {
     case SHOW_CHAR:
@@ -7167,7 +7168,7 @@ String* Item_func_get_system_var::val_str(String* str)
 
     default:
       my_error(ER_VAR_CANT_BE_READ, MYF(0), var->name.str);
-      str= NULL;
+      str= error_str();
       break;
   }
 
