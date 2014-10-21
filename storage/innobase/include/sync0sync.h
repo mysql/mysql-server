@@ -72,9 +72,6 @@ extern mysql_pfs_key_t	ibuf_pessimistic_insert_mutex_key;
 extern mysql_pfs_key_t	log_sys_mutex_key;
 extern mysql_pfs_key_t	log_cmdq_mutex_key;
 extern mysql_pfs_key_t	log_flush_order_mutex_key;
-# ifndef HAVE_ATOMIC_BUILTINS
-extern mysql_pfs_key_t	server_mutex_key;
-# endif /* !HAVE_ATOMIC_BUILTINS */
 extern mysql_pfs_key_t	recalc_pool_mutex_key;
 extern mysql_pfs_key_t	page_cleaner_mutex_key;
 extern mysql_pfs_key_t	purge_sys_pq_mutex_key;
@@ -109,12 +106,6 @@ extern mysql_pfs_key_t	lock_wait_mutex_key;
 extern mysql_pfs_key_t	trx_sys_mutex_key;
 extern mysql_pfs_key_t	srv_sys_mutex_key;
 extern mysql_pfs_key_t	srv_threads_mutex_key;
-#ifndef HAVE_ATOMIC_BUILTINS
-extern mysql_pfs_key_t	srv_conc_mutex_key;
-#endif /* !HAVE_ATOMIC_BUILTINS */
-#ifndef HAVE_ATOMIC_BUILTINS_64
-extern mysql_pfs_key_t	monitor_mutex_key;
-#endif /* !HAVE_ATOMIC_BUILTINS_64 */
 extern mysql_pfs_key_t	event_mutex_key;
 extern mysql_pfs_key_t	event_manager_mutex_key;
 extern mysql_pfs_key_t	sync_array_mutex_key;
@@ -144,49 +135,6 @@ extern	mysql_pfs_key_t	dict_table_stats_key;
 extern  mysql_pfs_key_t trx_sys_rw_lock_key;
 extern  mysql_pfs_key_t hash_table_locks_key;
 #endif /* UNIV_PFS_RWLOCK */
-
-#ifndef HAVE_ATOMIC_BUILTINS
-
-#include "sync0mutex.h"
-
-/**
-Function that uses a mutex to decrement a variable atomically */
-template <typename Mutex>
-void
-os_atomic_dec_ulint_func(
-	Mutex*		mutex,		/*!< in: mutex guarding the dec */
-	volatile ulint*	var,		/*!< in/out: variable to decrement */
-	ulint		delta)		/*!< in: delta to decrement */
-{
-	mutex_enter(mutex);
-
-	/* I don't think we will encounter a situation where
-	this check will not be required. */
-
-	ut_ad(*var >= delta);
-
-	*var -= delta;
-
-	mutex_exit(mutex);
-}
-
-/**
-Function that uses a mutex to increment a variable atomically */
-template <typename Mutex>
-void
-os_atomic_inc_ulint_func(
-	Mutex*		mutex,		/*!< in: mutex guarding the increment */
-	volatile ulint*	var,		/*!< in/out: variable to increment */
-	ulint		delta)		/*!< in: delta to increment */
-{
-	mutex_enter(mutex);
-
-	*var += delta;
-
-	mutex_exit(mutex);
-}
-
-#endif /* !HAVE_ATOMIC_BUILTINS */
 
 /**
 Prints info of the sync system.
