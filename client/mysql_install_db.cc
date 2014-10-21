@@ -23,6 +23,8 @@
 #include <unistd.h>
 #include <pwd.h>
 #include <signal.h>
+#include <spawn.h>
+#include <pthread.h>
 
 // MySQL headers
 #include "my_global.h"
@@ -44,6 +46,7 @@
 #include <vector>
 #include <sstream>
 #include <map>
+#include <iomanip>
 
 using namespace std;
 
@@ -147,14 +150,16 @@ static struct my_option my_connection_options[]=
    &opt_langpath, 0, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"lc-messages", 0, "Specifies the language to use.", &opt_lang,
    0, 0, GET_STR_ALLOC, REQUIRED_ARG, (longlong)&default_lang, 0, 0, 0, 0, 0},
-  {"defaults", 0, "Read any option files from default location. If program startup fails "
-    "due to reading unknown options from an option file, --no-defaults can be "
-    "used to prevent them from being read.",
-    &opt_defaults, 0, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"defaults", 0, "Read any option files from default location. If program "
+                  "startup fails due to reading unknown options from an option"
+                  " file, --no-defaults can be used to prevent them from being"
+                  " read.",
+   &opt_defaults, 0, 0, GET_BOOL, NO_ARG, opt_defaults, 0, 0, 0, 0, 0},
   {"defaults-file", 0, "Use only the given option file.",
-    &opt_defaults_file, 0, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+   &opt_defaults_file, 0, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"defaults-extra-file", 0, "Read this file after the global files are read.",
-    &opt_def_extra_file, 0, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+   &opt_def_extra_file, 0, 0, GET_STR_ALLOC, REQUIRED_ARG, 0,
+    0, 0, 0, 0, 0},
   /* End token */
   {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
@@ -801,23 +806,44 @@ void create_ssl_policy(string *ssl_type, string *ssl_cipher,
   *x509_subject= "";
 }
 
+#define  READ_BUFFER_SIZE 2048
+#define TIMEOUT_IN_SEC 30
+
 class Process_reader
 {
 public:
-  Process_reader(string *buffer) : m_buffer(buffer) {}
+  Process_reader(string *buffer) : m_buffer(buffer)
+  {}
   bool operator()(int fh)
   {
     errno= 0;
-    stringstream ss;
-    int ch= 0;
-    size_t n= 1;
-    while(errno == 0 && n != 0)
+    char ch[READ_BUFFER_SIZE];
+    ssize_t n= 1;
+    int select_ret= 0;
+    fd_set rd, ex;
+    struct timeval tm;
+    tm.tv_sec = TIMEOUT_IN_SEC;
+    tm.tv_usec = 0;
+
+    int flags = fcntl(fh, F_GETFL, 0);
+    fcntl(fh, F_SETFL, flags | O_NONBLOCK);
+    FD_ZERO(&rd);
+    FD_ZERO(&ex);
+    FD_SET(fh, &rd);
+    FD_SET(fh, &ex);
+    errno= 0;
+    /* Wait for something to read */
+    if ((select_ret= select(fh + 1, &rd, NULL, &ex, &tm)) == 0)
     {
-      n= read(fh,&ch,1);
-      if (n > 0)
-        ss << (char)ch;
+        /* if 30 s passed we attempt to read anyway */
+        warning << "select() timed out." << endl;
     }
-    m_buffer->append(ss.str());
+    /* Read any error reports from the child process */
+    while((n= read(fh, ch, READ_BUFFER_SIZE)) > 0 && ch[0] != 0 && errno == 0)
+    {
+      m_buffer->append(ch, n);
+    }
+
     return true;
   }
 
@@ -1061,94 +1087,126 @@ private:
   string m_opt_sqlfile;
 };
 
+struct Reader_thd_command_st
+{
+  Process_reader *reader_functor;
+  int read_hndl;
+};
+
+static void *reader_func_adaptor(void *f)
+{
+  Reader_thd_command_st *cmd= static_cast<Reader_thd_command_st*>(f);
+  (*cmd->reader_functor)(cmd->read_hndl);
+  return NULL;
+}
+
+
 template <typename Reader_func_t, typename Writer_func_t,
           typename Fwd_iterator >
 bool process_execute(const string &exec, Fwd_iterator begin,
                        Fwd_iterator end, Reader_func_t reader,
                        Writer_func_t writer)
 {
-  int child;
+  pid_t child;
+  bool retval= true;
   int read_pipe[2];
   int write_pipe[2];
+  posix_spawn_file_actions_t spawn_action;
+  char *execve_args[MAX_MYSQLD_ARGUMENTS];
+
   /*
     Disable any signal handler for broken pipes and check for EPIPE during
     IO instead.
   */
   signal(SIGPIPE, SIG_IGN);
-  if (pipe(read_pipe) < 0) {
-    return false;
-  }
-  if (pipe(write_pipe) < 0) {
-    ::close(read_pipe[0]);
-    ::close(read_pipe[1]);
-    return false;
-  }
-
-  child= vfork();
-  if (child == 0)
+  if (pipe(read_pipe) < 0)
   {
-    /*
-      We need to copy the strings or execve will fail with errno EFAULT
-    */
-    char *execve_args[MAX_MYSQLD_ARGUMENTS];
-    char *local_filename= strdup(exec.c_str());
-    execve_args[0]= local_filename;
-    int i= 1;
-    for(Fwd_iterator it= begin;
-        it!= end && i < MAX_MYSQLD_ARGUMENTS-1;)
-    {
-      execve_args[i]= strdup(const_cast<char *>((*it).c_str()));
-      ++it;
-      ++i;
-    }
-    execve_args[i]= 0;
-
-    /* Child */
-    if (dup2(read_pipe[0], STDIN_FILENO) == -1 ||
-        dup2(write_pipe[1], STDOUT_FILENO) == -1 ||
-        dup2(write_pipe[1], STDERR_FILENO) == -1)
-    {
-      return false;
-    }
+    return false;
+  }
+  if (pipe(write_pipe) < 0)
+  {
     ::close(read_pipe[0]);
     ::close(read_pipe[1]);
-    ::close(write_pipe[0]);
-    ::close(write_pipe[1]);
-    char *const arg[]={(char *)NULL};
-    execve(local_filename, execve_args, arg);
+    return false;
+  }
+
+  posix_spawn_file_actions_init(&spawn_action);
+  /* target process std input (0) reads from our write_pipe */
+  posix_spawn_file_actions_adddup2(&spawn_action, write_pipe[0], 0);
+  /* target process shouldn't attempt to write to this pipe */
+  posix_spawn_file_actions_addclose(&spawn_action, write_pipe[1]);
+
+  /* target process output (1) is mapped to our read_pipe */
+  posix_spawn_file_actions_adddup2(&spawn_action, read_pipe[1], 2);
+  /* target process shouldn't attempt to read from this pipe */
+  posix_spawn_file_actions_addclose(&spawn_action, read_pipe[0]);
+
+  /*
+    We need to copy the strings or spawn will fail
+  */
+  char *local_filename= strdup(exec.c_str());
+  execve_args[0]= local_filename;
+  int i= 1;
+  for(Fwd_iterator it= begin;
+      it!= end && i < MAX_MYSQLD_ARGUMENTS-1;)
+  {
+    execve_args[i]= strdup(const_cast<char *>((*it).c_str()));
+    ++it;
+    ++i;
+  }
+  execve_args[i]= 0;
+
+  int ret= posix_spawnp(&child, (const char *)execve_args[0], &spawn_action,
+                        NULL, execve_args, NULL);
+
+  /* This end is for the target process to read from */
+  ::close(write_pipe[0]);
+  /* This end is for the target process to write to */
+  ::close(read_pipe[1]);
+
+  if (ret != 0)
+  {
     /* always failure if we get here! */
-    error << "Child process exited with errno= " << errno << endl;
+    error << "Child process: " << exec <<
+             " exited with return value " << ret << endl;
     exit(1);
-  }
-  else if (child > 0)
-  {
-    /* Parent thread */
-    ::close(read_pipe[0]);
-    ::close(write_pipe[1]);
-    if (!writer(read_pipe[1]) || errno != 0)
-    {
-      error << "The child process terminated prematurely. "
-            << "Errno= " << errno
-            << endl;
-      if (errno != EPIPE)
-        reader(write_pipe[0]);
-      ::close(read_pipe[1]);
-      ::close(write_pipe[0]);
-      return false;
-    }
-    ::close(read_pipe[1]);
-    reader(write_pipe[0]);
-    ::close(write_pipe[0]);
   }
   else
   {
-    /* Failure */
-    ::close(read_pipe[0]);
-    ::close(read_pipe[1]);
-    ::close(write_pipe[0]);
-    ::close(write_pipe[1]);
+    pthread_t thd_id;
+    Reader_thd_command_st cmd;
+    cmd.read_hndl= read_pipe[0];
+    cmd.reader_functor= &reader;
+    sigset_t set;
+    sigemptyset(&set);
+    sigaddset(&set, SIGPIPE);
+    pthread_sigmask(SIG_BLOCK, &set, NULL);
+    pthread_create(&thd_id, NULL, reader_func_adaptor, &cmd);
+    // increase probability that reader thread is ready   
+    if (!writer(write_pipe[1]) || errno != 0)
+    {
+      error << "Child process: " << exec <<
+               "terminated prematurely with errno= "
+            << errno
+            << endl;
+      retval= false;
+    }
+    // join with read thread
+    void *ret= NULL;
+    pthread_cancel(thd_id); // break select()
+    pthread_join(thd_id, &ret);
   }
-  return true;
+
+  while(i > 0)
+  {
+    free(execve_args[i]);
+    --i;
+  }
+  ::close(write_pipe[1]);
+  ::close(read_pipe[0]);
+  posix_spawn_file_actions_destroy(&spawn_action);
+  free(local_filename);
+  return retval;
 }
 
 int generate_password_file(Path &pwdfile, const string &adminuser,
@@ -1281,7 +1339,7 @@ int main(int argc,char *argv[])
         error << "Failed to parse the login config file: "
               << opt_adminlogin << endl;
         return 1;
-        
+
     }
   }
 
@@ -1505,7 +1563,8 @@ int main(int argc,char *argv[])
           << output
           << endl;
   }
-  else if (output.size() > 0)
+  else if (output.size() > 0 &&
+           output.find_first_not_of(" \t\n\r") != string::npos)
   {
     warning << "The bootstrap log isn't empty:"
             << endl

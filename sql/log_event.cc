@@ -3089,6 +3089,10 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
     if (ret_worker == NULL)
     {
       /* get_least_occupied_worker may return NULL if the thread is killed */
+      Slave_job_item job_item= {this, rli->get_event_relay_log_number(),
+                                rli->get_event_start_pos()};
+      rli->curr_group_da.push_back(job_item);
+
       DBUG_ASSERT(thd->killed);
       DBUG_RETURN(NULL);
     }

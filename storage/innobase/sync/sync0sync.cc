@@ -58,9 +58,6 @@ mysql_pfs_key_t	ibuf_pessimistic_insert_mutex_key;
 mysql_pfs_key_t	log_sys_mutex_key;
 mysql_pfs_key_t	log_cmdq_mutex_key;
 mysql_pfs_key_t	log_flush_order_mutex_key;
-# ifndef HAVE_ATOMIC_BUILTINS
-mysql_pfs_key_t	server_mutex_key;
-# endif /* !HAVE_ATOMIC_BUILTINS */
 mysql_pfs_key_t	recalc_pool_mutex_key;
 mysql_pfs_key_t	page_cleaner_mutex_key;
 mysql_pfs_key_t	purge_sys_pq_mutex_key;
@@ -95,12 +92,6 @@ mysql_pfs_key_t	lock_wait_mutex_key;
 mysql_pfs_key_t	trx_sys_mutex_key;
 mysql_pfs_key_t	srv_sys_mutex_key;
 mysql_pfs_key_t	srv_threads_mutex_key;
-#ifndef HAVE_ATOMIC_BUILTINS
-mysql_pfs_key_t	srv_conc_mutex_key;
-#endif /* !HAVE_ATOMIC_BUILTINS */
-#ifndef HAVE_ATOMIC_BUILTINS_64
-mysql_pfs_key_t	monitor_mutex_key;
-#endif /* !HAVE_ATOMIC_BUILTINS_64 */
 mysql_pfs_key_t	event_mutex_key;
 mysql_pfs_key_t	event_manager_mutex_key;
 mysql_pfs_key_t	sync_array_mutex_key;
