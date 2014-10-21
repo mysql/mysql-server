@@ -689,7 +689,7 @@ DBTableHandler.prototype.setFields = function(obj, values, adapter) {
 
 
 /* DBIndexHandler constructor and prototype */
-function DBIndexHandler(parent, dbIndex) {
+DBIndexHandler = function (parent, dbIndex) {
   udebug.log("DBIndexHandler constructor");
   stats.DBIndexHandler_created++;
   var i, colNo;
@@ -710,7 +710,7 @@ function DBIndexHandler(parent, dbIndex) {
   } else {
     this.singleColumn = null;
   }
-}
+};
 
 /* DBIndexHandler inherits some methods from DBTableHandler */
 DBIndexHandler.prototype = {
