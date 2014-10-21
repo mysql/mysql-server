@@ -1298,12 +1298,16 @@ info='select * from information_schema.tables where 1=sleep(100000)';
 disable_query_log;
 eval kill $ID;
 enable_query_log;
-disconnect conn1;
 let $wait_timeout= 10;
 let $wait_condition=select count(*)=0 from information_schema.processlist
 where state='User sleep' and
 info='select * from information_schema.tables where 1=sleep(100000)';
 --source include/wait_condition.inc
+connection conn1;
+--error 2013,ER_CONNECTION_KILLED
+reap;
+connection default;
+disconnect conn1;
 
 connect (conn1, localhost, root,,);
 connection conn1;
@@ -1318,12 +1322,16 @@ info='select * from information_schema.columns where 1=sleep(100000)';
 disable_query_log;
 eval kill $ID;
 enable_query_log;
-disconnect conn1;
 let $wait_timeout= 10;
 let $wait_condition=select count(*)=0 from information_schema.processlist
 where state='User sleep' and
 info='select * from information_schema.columns where 1=sleep(100000)';
 --source include/wait_condition.inc
+connection conn1;
+--error 2013,ER_CONNECTION_KILLED
+reap;
+connection default;
+disconnect conn1;
 
 
 #

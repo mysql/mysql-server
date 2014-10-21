@@ -1554,7 +1554,9 @@ show open tables where f1()=0;
 drop table t1;
 drop function f1;
 select * from information_schema.tables where 1=sleep(100000);
+Got one of the listed errors
 select * from information_schema.columns where 1=sleep(100000);
+Got one of the listed errors
 explain select count(*) from information_schema.tables;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	tables	ALL	NULL	NULL	NULL	NULL	NULL	Skip_open_table; Scanned all databases
