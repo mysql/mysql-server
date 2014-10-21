@@ -1476,3 +1476,28 @@ DELIMITER ;|
 
 CALL vctest();
 DROP PROCEDURE vctest;
+
+
+###########################################################################
+#
+# Test case for BUG#19770958 WRONG RESULTS WITH STORED PROGRAMS AND 
+# NULLABLE SYSTEM VARIABLES: Create a function which returns a system
+# variable which initially is NULL. Then update the variable and call function
+# again to see that it returns the updated value.
+#
+###########################################################################
+
+--echo
+--echo ---------------------------------------------------------------
+--echo BUG#19770958
+--echo ---------------------------------------------------------------
+--echo
+
+CREATE TABLE t (a INT PRIMARY KEY, b TEXT, FULLTEXT(b)) ENGINE=InnoDB; 
+CREATE FUNCTION f() RETURNS TEXT RETURN @@GLOBAL.innodb_ft_aux_table;
+SELECT @@GLOBAL.innodb_ft_aux_table, f();
+SET GLOBAL innodb_ft_aux_table="test/t";
+SELECT @@GLOBAL.innodb_ft_aux_table, f();
+SET GLOBAL innodb_ft_aux_table= default;
+DROP FUNCTION f;
+DROP TABLE t;
