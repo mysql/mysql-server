@@ -9108,17 +9108,24 @@ NdbDictionaryImpl::beginSchemaTrans(bool retry711)
   }
   // TODO real transId
   m_tx.m_transId = rand();
-  m_tx.m_state = NdbDictInterface::Tx::Started;
-  m_tx.m_error.code = 0;
   if (m_tx.m_transId == 0)
     m_tx.m_transId = 1;
+
+  m_tx.m_state = NdbDictInterface::Tx::NotStarted;
+  m_tx.m_error.code = 0;
+  m_tx.m_transKey = 0;
+
   int ret = m_receiver.beginSchemaTrans(retry711);
   if (ret == -1) {
-    m_tx.m_state = NdbDictInterface::Tx::NotStarted;
+    assert(m_tx.m_state == NdbDictInterface::Tx::NotStarted);
     DBUG_RETURN(-1);
   }
   DBUG_PRINT("info", ("transId: %x transKey: %x",
                       m_tx.m_transId, m_tx.m_transKey));
+
+  assert(m_tx.m_state == NdbDictInterface::Tx::Started);
+  assert(m_tx.m_error.code == 0);
+  assert(m_tx.m_transKey != 0);
   DBUG_RETURN(0);
 }
 
@@ -9293,6 +9300,8 @@ NdbDictInterface::execSCHEMA_TRANS_BEGIN_CONF(const NdbApiSignal * signal,
   const SchemaTransBeginConf* conf=
     CAST_CONSTPTR(SchemaTransBeginConf, signal->getDataPtr());
   assert(m_tx.m_transId == conf->transId);
+  assert(m_tx.m_state == Tx::NotStarted);
+  m_tx.m_state = Tx::Started;
   m_tx.m_transKey = conf->transKey;
   m_impl->theWaiter.signal(NO_WAIT);
 }
@@ -9336,6 +9345,13 @@ NdbDictInterface::execSCHEMA_TRANS_END_REP(const NdbApiSignal * signal,
 {
   const SchemaTransEndRep* rep =
     CAST_CONSTPTR(SchemaTransEndRep, signal->getDataPtr());
+
+  if (m_tx.m_state != Tx::Started)
+  {
+    // Ignore TRANS_END_REP if Txn was never started
+    return; 
+  }
+
   (rep->errorCode == 0) ?
     m_tx.m_state = Tx::Committed
     :
