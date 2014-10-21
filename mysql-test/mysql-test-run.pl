@@ -2540,6 +2540,14 @@ sub environment_setup {
 				 "$path_client_bindir/perror");
   $ENV{'MY_PERROR'}= native_path($exe_perror);
 
+  # ----------------------------------------------------
+  # replace
+  # ----------------------------------------------------
+  my $exe_replace= mtr_exe_exists(vs_config_dirs('extra', 'replace'),
+                                 "$basedir/extra/replace",
+                                 "$path_client_bindir/replace");
+  $ENV{'REPLACE'}= native_path($exe_replace);
+
   # Create an environment variable to make it possible
   # to detect that valgrind is being used from test cases
   $ENV{'VALGRIND_TEST'}= $opt_valgrind;
