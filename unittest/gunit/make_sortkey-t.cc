@@ -17,7 +17,6 @@
 #include "my_config.h"
 #include <gtest/gtest.h>
 
-#include "sql_plugin.h"                         // SHOW_always_last
 #include "test_utils.h"
 
 #include "sys_vars.h"

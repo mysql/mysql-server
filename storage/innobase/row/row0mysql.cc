@@ -1987,15 +1987,13 @@ init_fts_doc_id_for_ref(
 /* A functor for decrementing counters. */
 class ib_dec_counter {
 public:
-	ib_dec_counter(ib_mutex_t& m): mutex(m) {}
+	ib_dec_counter() {}
 
 	void operator() (upd_node_t* node) {
 		ut_ad(node->table->n_foreign_key_checks_running > 0);
-		os_dec_counter(mutex,
-			       node->table->n_foreign_key_checks_running);
+		os_atomic_decrement_ulint(
+			&node->table->n_foreign_key_checks_running, 1);
 	}
-private:
-	ib_mutex_t&	mutex;
 };
 
 
@@ -2486,8 +2484,8 @@ run_again:
 	if (thr->fk_cascade_depth > 0) {
 		/* Processing cascade operation */
 		ut_ad(node->table->n_foreign_key_checks_running > 0);
-		os_dec_counter(dict_sys->mutex,
-			       node->table->n_foreign_key_checks_running);
+		os_atomic_decrement_ulint(
+			&node->table->n_foreign_key_checks_running, 1);
 		node->processed_cascades->push_back(node);
 	}
 
@@ -2575,16 +2573,15 @@ error:
 
 	if (thr->fk_cascade_depth > 0) {
 		ut_ad(node->table->n_foreign_key_checks_running > 0);
-		os_dec_counter(dict_sys->mutex,
-			       node->table
-			       ->n_foreign_key_checks_running);
+		os_atomic_decrement_ulint(
+			&node->table->n_foreign_key_checks_running, 1);
 		thr->fk_cascade_depth = 0;
 	}
 
 	/* Reset the table->n_foreign_key_checks_running counter */
 	std::for_each(cascade_upd_nodes->begin(),
 		      cascade_upd_nodes->end(),
-		      ib_dec_counter(dict_sys->mutex));
+		      ib_dec_counter());
 
 	std::for_each(cascade_upd_nodes->begin(),
 		      cascade_upd_nodes->end(),

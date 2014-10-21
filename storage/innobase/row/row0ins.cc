@@ -1262,7 +1262,7 @@ row_ins_foreign_check_on_constraint(
 
 	node->cascade_upd_nodes->push_back(cascade);
 
-	os_inc_counter(dict_sys->mutex, table->n_foreign_key_checks_running);
+	os_atomic_increment_ulint(&table->n_foreign_key_checks_running, 1);
 
 	ut_ad(foreign->foreign_table->n_foreign_key_checks_running > 0);
 
@@ -1372,12 +1372,11 @@ row_ins_set_exclusive_rec_lock(
 /* Decrement a counter in the destructor. */
 class ib_dec_in_dtor {
 public:
-	ib_dec_in_dtor(ib_mutex_t& m, ulint& c): mutex(m), counter(c) {}
+	ib_dec_in_dtor(ulint& c): counter(c) {}
 	~ib_dec_in_dtor() {
-		os_dec_counter(mutex,counter);
+		os_atomic_decrement_ulint(&counter, 1);
 	}
 private:
-	ib_mutex_t&	mutex;
 	ulint&		counter;
 };
 
@@ -1679,8 +1678,7 @@ do_possible_lock_wait:
 
 		/* An object that will correctly decrement the FK check counter
 		when it goes out of this scope. */
-		ib_dec_in_dtor	dec(dict_sys->mutex,
-				    check_table->n_foreign_key_checks_running);
+		ib_dec_in_dtor	dec(check_table->n_foreign_key_checks_running);
 
 		trx->error_state = err;
 
@@ -1689,8 +1687,8 @@ do_possible_lock_wait:
 		thr->lock_state = QUE_THR_LOCK_ROW;
 
 		/* To avoid check_table being dropped, increment counter */
-		os_inc_counter(dict_sys->mutex,
-			       check_table->n_foreign_key_checks_running);
+		os_atomic_increment_ulint(
+			&check_table->n_foreign_key_checks_running, 1);
 
 		lock_wait_suspend_thread(thr);
 

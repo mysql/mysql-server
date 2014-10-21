@@ -2573,7 +2573,6 @@ innobase_shutdown_for_mysql(void)
 	os_aio_free();
 	que_close();
 	row_mysql_close();
-	srv_mon_free();
 	srv_free();
 	fil_close();
 
@@ -2582,9 +2581,6 @@ innobase_shutdown_for_mysql(void)
 	pars_lexer_close();
 	log_mem_free();
 	buf_pool_free(srv_buf_pool_instances);
-#ifndef HAVE_ATOMIC_BUILTINS
-	srv_conc_free();
-#endif /* !HAVE_ATOMIC_BUILTINS */
 
 	/* 6. Free the thread management resoruces. */
 	os_thread_free();

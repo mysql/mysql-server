@@ -4204,8 +4204,7 @@ func_exit:
 				/* fall through */
 			case ONLINE_INDEX_ABORTED_DROPPED:
 			case ONLINE_INDEX_ABORTED:
-				MONITOR_MUTEX_INC(
-					&dict_sys->mutex,
+				MONITOR_ATOMIC_INC(
 					MONITOR_BACKGROUND_DROP_INDEX);
 			}
 		}

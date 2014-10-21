@@ -1887,4 +1887,8 @@ fld1
 200
 #cleanup
 DROP DATABASE `db-db`;
+#
+# Bug#19322795 - HEAP BUFFER OVERFLOW IN RPL TESTS
+#
+/*!*/;
 SET GLOBAL query_cache_size = @query_cache_size.saved;
