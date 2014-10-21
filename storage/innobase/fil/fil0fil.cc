@@ -4473,12 +4473,18 @@ retry:
 		os_offset_t	len;
 
 		len = ((node->size + n_node_extend) * page_size) - node_start;
+		ut_ad(len > 0);
 
 #if !defined(NO_FALLOCATE) && defined(UNIV_LINUX)
 		/* This is required by FusionIO HW/Firmware */
 		int	ret = posix_fallocate(node->handle, node_start, len);
 
-		if (ret != 0) {
+		/* We already pass the valid offset and len in, if EINVAL
+		is returned, it could only mean that the file system doesn't
+		support fallocate(), currently one known case is
+		ext3 FS with O_DIRECT. We ignore EINVAL here so that the
+		error message won't flood. */
+		if (ret != 0 && ret != EINVAL) {
 			ib::error() <<
 				"posix_fallocate(): Failed to preallocate"
 				" data for file "
@@ -4490,7 +4496,7 @@ retry:
 				" exceeded. Make sure the file system supports"
 				" this function. Some operating system error"
 				" numbers are described at " REFMAN
-				" operating-system-error-codes.html";
+				"operating-system-error-codes.html";
 		}
 #endif /* NO_FALLOCATE || !UNIV_LINUX */
 
