@@ -348,12 +348,12 @@ public:
   { return false; }
   bool update(THD *thd);
   bool store(THD *thd, String &buf);
-  void mark_as_changed(LEX_CSTRING *tracked_item_name);
+  void mark_as_changed(THD *thd, LEX_CSTRING *tracked_item_name);
 
   // implementation of the Session_gtids_ctx::Ctx_change_listener
   void notify_session_gtids_ctx_change()
   {
-    mark_as_changed(NULL);
+    mark_as_changed(NULL, NULL);
   }
 };
 
@@ -1219,12 +1219,14 @@ bool Session_gtids_tracker::store(THD *thd, String &buf)
 /**
   @brief Mark the tracker as changed.
 
-  @param name [IN]          Always null.
+  @param thd               [IN]          Always null.
+  @param tracked_item_name [IN]          Always null.
 
   @return void
 */
 
-void Session_gtids_tracker::mark_as_changed(LEX_CSTRING *tracked_item_name
+void Session_gtids_tracker::mark_as_changed(THD *thd __attribute__((unused)),
+                                            LEX_CSTRING *tracked_item_name
                                             __attribute__((unused)))
 {
   m_changed= true;
