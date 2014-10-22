@@ -306,8 +306,8 @@ exports.UserContext = function(user_arguments, required_parameter_count, returne
   this.session_factory = session_factory;
   /* indicates that batch.clear was called before this context had executed */
   this.clear = false;
-  if (this.session !== null) {
-    this.autocommit = !this.session.tx.isActive();
+  if (this.session) {
+    this.autocommit = ! this.session.tx.isActive();
   }
   this.errorMessages = '';
   this.promise = new Promise();
@@ -2153,6 +2153,36 @@ exports.UserContext.prototype.closeSession = function() {
   userContext.session.dbSession.close(closeSessionOnDBSessionClose);
   return userContext.promise;
 };
+
+
+/** Close all open SessionFactories
+ *
+ */
+exports.UserContext.prototype.closeAllOpenSessionFactories = function() {
+  var userContext, openFactories, nToClose;
+
+  userContext   = this;
+  openFactories = mynode.getOpenSessionFactories();
+  nToClose      = openFactories.length;
+
+  function onFactoryClose() {
+    nToClose--;
+    if(nToClose === 0) {
+      userContext.applyCallback(null);
+    }
+  }
+
+  if(nToClose > 0) {
+    while(openFactories[0]) {
+      openFactories[0].close(onFactoryClose);
+      openFactories.shift();
+    }
+  } else {
+    userContext.applyCallback(null);
+  }
+  return userContext.promise;
+};
+
 
 /** Complete the user function by calling back the user with the results of the function.
  * Apply the user callback using the current arguments and the extra parameters from the original function.
