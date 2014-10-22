@@ -1486,7 +1486,7 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
     else
       type.set_charset(system_charset_info);
 
-    if (field->vcol_info)
+    if (field->gcol_info)
     {
       packet->append(STRING_WITH_LEN("VIRTUAL "));
     }
@@ -1494,11 +1494,11 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
     field->sql_type(type);
     packet->append(type.ptr(), type.length(), system_charset_info);
 
-    if (field->vcol_info)
+    if (field->gcol_info)
     {
       packet->append(STRING_WITH_LEN(" AS ("));
-      packet->append(field->vcol_info->expr_str.str,
-                     field->vcol_info->expr_str.length,
+      packet->append(field->gcol_info->expr_str.str,
+                     field->gcol_info->expr_str.length,
                      system_charset_info);
       packet->append(STRING_WITH_LEN(")"));
       if (field->stored_in_db)
@@ -1563,7 +1563,7 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
       break;
     }
 
-    if (!field->vcol_info &&
+    if (!field->gcol_info &&
         print_default_clause(thd, field, &def_value, true))
     {
       packet->append(STRING_WITH_LEN(" DEFAULT "));
@@ -5035,11 +5035,11 @@ static int get_schema_column_record(THD *thd, TABLE_LIST *tables,
                                             cs);
     if (print_on_update_clause(field, &type, true))
       table->field[IS_COLUMNS_EXTRA]->store(type.ptr(), type.length(), cs);
-    if (field->vcol_info)
+    if (field->gcol_info)
     {
       table->field[IS_COLUMNS_EXTRA]->store(STRING_WITH_LEN("VIRTUAL"), cs);
       table->field[IS_COLUMNS_GENERATION_EXPRESSION]->
-        store(field->vcol_info->expr_str.str,field->vcol_info->expr_str.length,
+        store(field->gcol_info->expr_str.str,field->gcol_info->expr_str.length,
               cs);
     }
     else
@@ -5346,7 +5346,7 @@ bool store_schema_params(THD *thd, TABLE *table, TABLE *proc_table,
                         field_def->interval, "");
 
       field->table= &tbl;
-      field->vcol_info= field_def->vcol_info;
+      field->gcol_info= field_def->gcol_info;
       field->stored_in_db= field_def->stored_in_db;
       tbl.in_use= thd;
       store_column_type(table, field, cs, IS_PARAMETERS_DATA_TYPE);
@@ -5408,7 +5408,7 @@ bool store_schema_params(THD *thd, TABLE *table, TABLE *proc_table,
                         field_def->interval, spvar->name.str);
 
       field->table= &tbl;
-      field->vcol_info= field_def->vcol_info;
+      field->gcol_info= field_def->gcol_info;
       field->stored_in_db= field_def->stored_in_db;
       tbl.in_use= thd;
       store_column_type(table, field, cs, IS_PARAMETERS_DATA_TYPE);
@@ -5510,7 +5510,7 @@ bool store_schema_proc(THD *thd, TABLE *table, TABLE *proc_table,
                             field_def->interval, "");
 
           field->table= &tbl;
-          field->vcol_info= field_def->vcol_info;
+          field->gcol_info= field_def->gcol_info;
           field->stored_in_db= field_def->stored_in_db;
           tbl.in_use= thd;
           store_column_type(table, field, cs, IS_ROUTINES_DATA_TYPE);
@@ -7827,7 +7827,7 @@ ST_FIELD_INFO columns_fields_info[]=
   {"PRIVILEGES", 80, MYSQL_TYPE_STRING, 0, 0, "Privileges", OPEN_FRM_ONLY},
   {"COLUMN_COMMENT", COLUMN_COMMENT_MAXLEN, MYSQL_TYPE_STRING, 0, 0, 
    "Comment", OPEN_FRM_ONLY},
-  {"GENERATION_EXPRESSION", VIRTUAL_COLUMN_EXPRESSION_MAXLEN, MYSQL_TYPE_STRING,
+  {"GENERATION_EXPRESSION", GENERATED_COLUMN_EXPRESSION_MAXLEN, MYSQL_TYPE_STRING,
    0, 0, "Generation expression", OPEN_FRM_ONLY},
   {0, 0, MYSQL_TYPE_STRING, 0, 0, 0, SKIP_OPEN_TABLE}
 };

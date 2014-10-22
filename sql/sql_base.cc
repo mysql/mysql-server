@@ -7070,13 +7070,13 @@ find_field_in_table(THD *thd, TABLE *table, const char *name, size_t length,
 
   if (field_ptr && *field_ptr)
   {
-    if ((*field_ptr)->vcol_info)
+    if ((*field_ptr)->gcol_info)
     {
       if (thd->mark_used_columns != MARK_COLUMNS_NONE)
       {
-        Item *vcol_item= (*field_ptr)->vcol_info->expr_item;
-        DBUG_ASSERT(vcol_item);
-        vcol_item->walk(&Item::register_field_in_read_map, Item::WALK_PREFIX,
+        Item *gcol_item= (*field_ptr)->gcol_info->expr_item;
+        DBUG_ASSERT(gcol_item);
+        gcol_item->walk(&Item::register_field_in_read_map, Item::WALK_PREFIX,
                         (uchar *) 0);
         /*
           As non-persistent virtual columns are calculated on the fly, they
@@ -9041,11 +9041,11 @@ insert_fields(THD *thd, Name_resolution_context *context, const char *db_name,
           Mark virtual fields for write and others that the virtual fields
           depend on for read.
         */
-        if (field->vcol_info)
+        if (field->gcol_info)
         {
-          Item *vcol_item= field->vcol_info->expr_item;
-          DBUG_ASSERT(vcol_item);
-          vcol_item->walk(&Item::register_field_in_read_map, Item::WALK_PREFIX,
+          Item *gcol_item= field->gcol_info->expr_item;
+          DBUG_ASSERT(gcol_item);
+          gcol_item->walk(&Item::register_field_in_read_map, Item::WALK_PREFIX,
                           (uchar *) 0);
           bitmap_set_bit(field->table->write_set, field->field_index);
         }
@@ -9188,14 +9188,14 @@ fill_record(THD * thd, List<Item> &fields, List<Item> &values,
     table= rfield->table;
     if (rfield == table->next_number_field)
       table->auto_increment_field_not_null= TRUE;
-    if (rfield->vcol_info && 
+    if (rfield->gcol_info && 
         value->type() != Item::DEFAULT_VALUE_ITEM && 
         value->type() != Item::NULL_ITEM &&
         table->s->table_category != TABLE_CATEGORY_TEMPORARY)
     {
       push_warning_printf(thd, Sql_condition::SL_WARNING,
-                          ER_WARNING_NON_DEFAULT_VALUE_FOR_VIRTUAL_COLUMN,
-                          ER(ER_WARNING_NON_DEFAULT_VALUE_FOR_VIRTUAL_COLUMN),
+                          ER_WARNING_NON_DEFAULT_VALUE_FOR_GENERATED_COLUMN,
+                          ER(ER_WARNING_NON_DEFAULT_VALUE_FOR_GENERATED_COLUMN),
                           rfield->field_name, table->s->table_name.str);
     }
     if (value->save_in_field(rfield, false) < 0)
@@ -9494,14 +9494,14 @@ fill_record(THD *thd, Field **ptr, List<Item> &values,
       continue;
     if (field == table->next_number_field)
       table->auto_increment_field_not_null= TRUE;
-    if (field->vcol_info && 
+    if (field->gcol_info && 
         value->type() != Item::DEFAULT_VALUE_ITEM && 
         value->type() != Item::NULL_ITEM &&
         table->s->table_category != TABLE_CATEGORY_TEMPORARY)
     {
       push_warning_printf(thd, Sql_condition::SL_WARNING,
-                          ER_WARNING_NON_DEFAULT_VALUE_FOR_VIRTUAL_COLUMN,
-                          ER(ER_WARNING_NON_DEFAULT_VALUE_FOR_VIRTUAL_COLUMN),
+                          ER_WARNING_NON_DEFAULT_VALUE_FOR_GENERATED_COLUMN,
+                          ER(ER_WARNING_NON_DEFAULT_VALUE_FOR_GENERATED_COLUMN),
                           field->field_name, table->s->table_name.str);
     }
     if (value->save_in_field(field, false) == TYPE_ERR_NULL_CONSTRAINT_VIOLATION)

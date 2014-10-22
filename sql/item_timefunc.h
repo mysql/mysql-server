@@ -70,7 +70,7 @@ public:
   enum_monotonicity_info get_monotonicity_info() const;
   longlong val_int_endpoint(bool left_endp, bool *incl_endp);
   bool check_partition_func_processor(uchar *arg) { return false; }
-  bool check_vcol_func_processor(uchar *int_arg) { return false;}
+  bool check_gcol_func_processor(uchar *int_arg) { return false;}
   bool check_valid_arguments_processor(uchar *arg)
   {
     return !has_date_args();
@@ -92,7 +92,7 @@ public:
   enum_monotonicity_info get_monotonicity_info() const;
   longlong val_int_endpoint(bool left_endp, bool *incl_endp);
   bool check_partition_func_processor(uchar *bool_arg) { return false; }
-  bool check_vcol_func_processor(uchar *int_arg) { return false;}
+  bool check_gcol_func_processor(uchar *int_arg) { return false;}
 
   bool intro_version(uchar *int_arg)
   {
@@ -125,7 +125,7 @@ public:
     maybe_null=1; 
   }
   bool check_partition_func_processor(uchar *arg) { return false; }
-  bool check_vcol_func_processor(uchar *int_arg) { return false;}
+  bool check_gcol_func_processor(uchar *int_arg) { return false;}
   bool check_valid_arguments_processor(uchar *arg)
   {
     return !has_date_args();
@@ -168,7 +168,7 @@ public:
     maybe_null= 1;
   }
   bool check_partition_func_processor(uchar *arg) { return false; }
-  bool check_vcol_func_processor(uchar *int_arg) { return false;}
+  bool check_gcol_func_processor(uchar *int_arg) { return false;}
   bool check_valid_arguments_processor(uchar *arg)
   {
     return !has_date_args();
@@ -185,7 +185,7 @@ public:
   String *val_str(String *str);
   void fix_length_and_dec();
   bool check_partition_func_processor(uchar *arg) { return true; }
-  bool check_vcol_func_processor(uchar *int_arg) { return false;}
+  bool check_gcol_func_processor(uchar *int_arg) { return false;}
   bool check_valid_arguments_processor(uchar *arg)
   {
     return !has_date_args();
@@ -205,7 +205,7 @@ public:
     maybe_null= 1;
   }
   bool check_partition_func_processor(uchar *arg) { return false; }
-  bool check_vcol_func_processor(uchar *int_arg) { return false;}
+  bool check_gcol_func_processor(uchar *int_arg) { return false;}
   bool check_valid_arguments_processor(uchar *arg)
   {
     return !has_date_args();
@@ -225,7 +225,7 @@ public:
     maybe_null=1;
   }
   bool check_partition_func_processor(uchar *arg) { return false; }
-  bool check_vcol_func_processor(uchar *int_arg) { return false;}
+  bool check_gcol_func_processor(uchar *int_arg) { return false;}
   bool check_valid_arguments_processor(uchar *arg)
   {
     return !has_time_args();
@@ -245,7 +245,7 @@ public:
     maybe_null=1;
   }
   bool check_partition_func_processor(uchar *arg) { return false; }
-  bool check_vcol_func_processor(uchar *int_arg) { return false;}
+  bool check_gcol_func_processor(uchar *int_arg) { return false;}
   bool check_valid_arguments_processor(uchar *arg)
   {
     return !has_time_args();
@@ -265,7 +265,7 @@ public:
      maybe_null=1;
   }
   bool check_partition_func_processor(uchar *arg) { return false; }
-  bool check_vcol_func_processor(uchar *int_arg) { return false;}
+  bool check_gcol_func_processor(uchar *int_arg) { return false;}
   bool check_valid_arguments_processor(uchar *arg)
   {
     return !has_date_args();
@@ -285,7 +285,7 @@ public:
     maybe_null=1;
   }
   bool check_partition_func_processor(uchar *arg) { return false; }
-  bool check_vcol_func_processor(uchar *int_arg) { return false;}
+  bool check_gcol_func_processor(uchar *int_arg) { return false;}
   bool check_valid_arguments_processor(uchar *arg)
   {
     return !has_time_args();
@@ -325,7 +325,7 @@ public:
     maybe_null=1;
   }
   bool check_partition_func_processor(uchar *arg) { return false; }
-  bool check_vcol_func_processor(uchar *int_arg) { return false;}
+  bool check_gcol_func_processor(uchar *int_arg) { return false;}
   bool check_valid_arguments_processor(uchar *arg)
   {
     return !has_date_args();
@@ -347,7 +347,7 @@ public:
     maybe_null=1;
   }
   bool check_partition_func_processor(uchar *arg) { return false; }
-  bool check_vcol_func_processor(uchar *int_arg) { return false;}
+  bool check_gcol_func_processor(uchar *int_arg) { return false;}
   bool check_valid_arguments_processor(uchar *arg)
   {
     return !has_date_args();
@@ -392,7 +392,7 @@ public:
     maybe_null= 1;
   }
   bool check_partition_func_processor(uchar *arg) { return false; }
-  bool check_vcol_func_processor(uchar *int_arg) { return false;}
+  bool check_gcol_func_processor(uchar *int_arg) { return false;}
   bool check_valid_arguments_processor(uchar *arg)
   {
     return !has_date_args();
@@ -422,7 +422,7 @@ class Item_func_dayname :public Item_func_weekday
   enum Item_result result_type () const { return STRING_RESULT; }
   void fix_length_and_dec();
   bool check_partition_func_processor(uchar *int_arg) { return true; }
-  bool check_vcol_func_processor(uchar *int_arg) { return false;}
+  bool check_gcol_func_processor(uchar *int_arg) { return false;}
 };
 
 
@@ -495,15 +495,15 @@ public:
                                                 args[0]->datetime_precision());
   }
   bool val_timeval(struct timeval *tm);
-  bool check_vcol_func_processor(uchar *int_arg) 
+  bool check_gcol_func_processor(uchar *int_arg) 
   {
     /*
       TODO: Allow UNIX_TIMESTAMP called with an argument to be a part
       of the expression for a virtual column
     */
-    DBUG_ENTER("Item_func_unix_timestamp::check_vcol_func_processor");
+    DBUG_ENTER("Item_func_unix_timestamp::check_gcol_func_processor");
     DBUG_PRINT("info",
-      ("check_vcol_func_processor returns TRUE: unsupported function"));
+      ("check_gcol_func_processor returns TRUE: unsupported function"));
     DBUG_RETURN(TRUE);
   }
 
@@ -522,7 +522,7 @@ public:
     fix_char_length(10);
   }
   bool check_partition_func_processor(uchar *arg) { return false; }
-  bool check_vcol_func_processor(uchar *int_arg) { return false;}
+  bool check_gcol_func_processor(uchar *int_arg) { return false;}
   bool check_valid_arguments_processor(uchar *arg)
   {
     return !has_time_args();
@@ -983,7 +983,7 @@ public:
     fix_length_and_dec_and_charset_datetime(MAX_DATE_WIDTH, 0);
   }
   bool check_partition_func_processor(uchar *arg) { return false; }
-  bool check_vcol_func_processor(uchar *int_arg) { return false;}
+  bool check_gcol_func_processor(uchar *int_arg) { return false;}
   bool basic_const_item() const { return true; }
   bool const_item() const { return true; }
   table_map used_tables() const { return (table_map) 0L; }
@@ -1038,7 +1038,7 @@ public:
     fix_length_and_dec_and_charset_datetime(MAX_TIME_WIDTH, decimals);
   }
   bool check_partition_func_processor(uchar *arg) { return false; }
-  bool check_vcol_func_processor(uchar *int_arg) { return false;}
+  bool check_gcol_func_processor(uchar *int_arg) { return false;}
   bool basic_const_item() const { return true; }
   bool const_item() const { return true; }
   table_map used_tables() const { return (table_map) 0L; }
@@ -1093,7 +1093,7 @@ public:
     fix_length_and_dec_and_charset_datetime(MAX_DATETIME_WIDTH, decimals);
   }
   bool check_partition_func_processor(uchar *arg) { return false; }
-  bool check_vcol_func_processor(uchar *int_arg) { return false;}
+  bool check_gcol_func_processor(uchar *int_arg) { return false;}
   bool basic_const_item() const { return true; }
   bool const_item() const { return true; }
   table_map used_tables() const { return (table_map) 0L; }
@@ -1143,11 +1143,11 @@ public:
     DBUG_ASSERT(fixed == 1);
     return cached_time.val_str(&str_value);
   }
-  bool check_vcol_func_processor(uchar *int_arg) 
+  bool check_gcol_func_processor(uchar *int_arg) 
   {
-    DBUG_ENTER("Item_func_curtime::check_vcol_func_processor");
+    DBUG_ENTER("Item_func_curtime::check_gcol_func_processor");
     DBUG_PRINT("info",
-      ("check_vcol_func_processor returns TRUE: unsupported function"));
+      ("check_gcol_func_processor returns TRUE: unsupported function"));
     DBUG_RETURN(TRUE);
   }
 };
@@ -1207,11 +1207,11 @@ public:
     DBUG_ASSERT(fixed == 1);
     return cached_time.val_str(&str_value);
   }
-  bool check_vcol_func_processor(uchar *int_arg) 
+  bool check_gcol_func_processor(uchar *int_arg) 
   {
-    DBUG_ENTER("Item_func_curdate::check_vcol_func_processor");
+    DBUG_ENTER("Item_func_curdate::check_gcol_func_processor");
     DBUG_PRINT("info",
-      ("check_vcol_func_processor returns TRUE: unsupported function"));
+      ("check_gcol_func_processor returns TRUE: unsupported function"));
     DBUG_RETURN(TRUE);
   }
 };
@@ -1271,11 +1271,11 @@ public:
     DBUG_ASSERT(fixed == 1);
     return cached_time.val_str(&str_value);
   }
-  bool check_vcol_func_processor(uchar *int_arg) 
+  bool check_gcol_func_processor(uchar *int_arg) 
   {
-    DBUG_ENTER("Item_func_curdate::check_vcol_func_processor");
+    DBUG_ENTER("Item_func_curdate::check_gcol_func_processor");
     DBUG_PRINT("info",
-      ("check_vcol_func_processor returns TRUE: unsupported function"));
+      ("check_gcol_func_processor returns TRUE: unsupported function"));
     DBUG_RETURN(TRUE);
   }
 };
@@ -1340,11 +1340,11 @@ public:
     @retval Always RAND_TABLE_BIT
   */
   table_map get_initial_pseudo_tables() const { return RAND_TABLE_BIT; }
-  bool check_vcol_func_processor(uchar *int_arg) 
+  bool check_gcol_func_processor(uchar *int_arg) 
   {
-    DBUG_ENTER("Item_func_curdate::check_vcol_func_processor");
+    DBUG_ENTER("Item_func_curdate::check_gcol_func_processor");
     DBUG_PRINT("info",
-      ("check_vcol_func_processor returns TRUE: unsupported function"));
+      ("check_gcol_func_processor returns TRUE: unsupported function"));
     DBUG_RETURN(TRUE);
   }
 };
@@ -1357,7 +1357,7 @@ public:
   const char *func_name() const { return "from_days"; }
   bool get_date(MYSQL_TIME *res, my_time_flags_t fuzzy_date);
   bool check_partition_func_processor(uchar *arg) { return false; }
-  bool check_vcol_func_processor(uchar *int_arg) { return false;}
+  bool check_gcol_func_processor(uchar *int_arg) { return false;}
   bool check_valid_arguments_processor(uchar *arg)
   {
     return has_date_args() || has_time_args();
@@ -1484,7 +1484,7 @@ class Item_extract :public Item_int_func
   bool eq(const Item *item, bool binary_cmp) const;
   virtual void print(String *str, enum_query_type query_type);
   bool check_partition_func_processor(uchar *arg) { return false; }
-  bool check_vcol_func_processor(uchar *int_arg) { return false;}
+  bool check_gcol_func_processor(uchar *int_arg) { return false;}
   bool check_valid_arguments_processor(uchar *arg)
   {
     switch (int_type) {
@@ -1686,7 +1686,7 @@ public:
     maybe_null=1;
   }
   bool check_partition_func_processor(uchar *arg) { return false; }
-  bool check_vcol_func_processor(uchar *int_arg) { return false;}
+  bool check_gcol_func_processor(uchar *int_arg) { return false;}
   bool check_valid_arguments_processor(uchar *arg)
   {
     return !has_time_args();

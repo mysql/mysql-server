@@ -125,7 +125,7 @@ public:
   bool check_cols(uint c);
   bool null_inside() { return with_null; };
   void bring_value();
-  bool check_vcol_func_processor(uchar *int_arg) {return false; }
+  bool check_gcol_func_processor(uchar *int_arg) {return false; }
 };
 
 #endif /* ITEM_ROW_INCLUDED */

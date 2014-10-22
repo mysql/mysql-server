@@ -1851,17 +1851,17 @@ public:
   /*
     Check if an expression/function is allowed for a virtual column
     SYNOPSIS
-      check_vcol_func_processor()
+      check_gcol_func_processor()
       int_arg is just ignored
     RETURN VALUE
       TRUE                           Function not accepted
       FALSE                          Function accepted
   */
-  virtual bool check_vcol_func_processor(uchar *int_arg) 
+  virtual bool check_gcol_func_processor(uchar *int_arg) 
   {
-    DBUG_ENTER("Item::check_vcol_func_processor");
+    DBUG_ENTER("Item::check_gcol_func_processor");
     DBUG_PRINT("info",
-      ("check_vcol_func_processor returns TRUE: unsupported function"));
+      ("check_gcol_func_processor returns TRUE: unsupported function"));
     DBUG_RETURN(TRUE);
   }
 
@@ -2323,11 +2323,11 @@ public:
   {
     return value_item->send(protocol, str);
   }
-  bool check_vcol_func_processor(uchar *int_arg) 
+  bool check_gcol_func_processor(uchar *int_arg) 
   {
-    DBUG_ENTER("Item_name_const::check_vcol_func_processor");
+    DBUG_ENTER("Item_name_const::check_gcol_func_processor");
     DBUG_PRINT("info",
-      ("check_vcol_func_processor returns TRUE: unsupported function"));
+      ("check_gcol_func_processor returns TRUE: unsupported function"));
     DBUG_RETURN(TRUE);
   }
 };
@@ -2385,7 +2385,7 @@ public:
   virtual Item_num *neg()= 0;
   Item *safe_charset_converter(const CHARSET_INFO *tocs);
   bool check_partition_func_processor(uchar *int_arg) { return false;}
-  bool check_vcol_func_processor(uchar *int_arg) { return false;}
+  bool check_gcol_func_processor(uchar *int_arg) { return false;}
 };
 
 #define NO_CACHED_FIELD_INDEX ((uint)(-1))
@@ -2635,11 +2635,11 @@ public:
   bool register_field_in_read_map(uchar *arg);
   bool register_field_in_bitmap(uchar *arg);
   bool check_partition_func_processor(uchar *int_arg) {return false;}
-  bool check_vcol_func_processor(uchar *int_arg)
+  bool check_gcol_func_processor(uchar *int_arg)
   {
     int *fld_idx= (int *)int_arg;
     // Don't allow VC to refer itself or another VC that is defined after it.
-    if (field && field->vcol_info && field->field_index >= *fld_idx)
+    if (field && field->gcol_info && field->field_index >= *fld_idx)
     {
       *fld_idx= -1;
       return true;
@@ -2802,7 +2802,7 @@ public:
 
   Item *safe_charset_converter(const CHARSET_INFO *tocs);
   bool check_partition_func_processor(uchar *int_arg) {return false;}
-  bool check_vcol_func_processor(uchar *int_arg) { return false;}
+  bool check_gcol_func_processor(uchar *int_arg) { return false;}
 };
 
 /**
@@ -2833,10 +2833,10 @@ public:
   bool check_partition_func_processor(uchar *int_arg) {return true;}
   enum_field_types field_type() const { return fld_type; }
   Item_result result_type() const { return res_type; }
-  bool check_vcol_func_processor(uchar *int_arg)
+  bool check_gcol_func_processor(uchar *int_arg)
   {
     DBUG_PRINT("info",
-      ("check_vcol_func_processor returns TRUE: unsupported function"));
+      ("check_gcol_func_processor returns TRUE: unsupported function"));
     DBUG_PRINT("info", ("  Item name: %s", full_name()));
     return TRUE;
   }
@@ -3082,7 +3082,7 @@ public:
   { return (uint)(max_length - MY_TEST(value < 0)); }
   bool eq(const Item *, bool binary_cmp) const;
   bool check_partition_func_processor(uchar *bool_arg) { return false;}
-  bool check_vcol_func_processor(uchar *int_arg) { return false;}
+  bool check_gcol_func_processor(uchar *int_arg) { return false;}
 };
 
 
@@ -3170,7 +3170,7 @@ public:
   Item_num *neg ();
   uint decimal_precision() const { return max_length; }
   bool check_partition_func_processor(uchar *bool_arg) { return false;}
-  bool check_vcol_func_processor(uchar *int_arg) { return false;}
+  bool check_gcol_func_processor(uchar *int_arg) { return false;}
 };
 
 
@@ -3222,7 +3222,7 @@ public:
   bool eq(const Item *, bool binary_cmp) const;
   void set_decimal_value(my_decimal *value_par);
   bool check_partition_func_processor(uchar *bool_arg) { return false;}
-  bool check_vcol_func_processor(uchar *int_arg) { return false;}
+  bool check_gcol_func_processor(uchar *int_arg) { return false;}
 };
 
 
@@ -3474,7 +3474,7 @@ public:
   }
   virtual void print(String *str, enum_query_type query_type);
   bool check_partition_func_processor(uchar *int_arg) {return false;}
-  bool check_vcol_func_processor(uchar *int_arg) { return false;}
+  bool check_gcol_func_processor(uchar *int_arg) { return false;}
 
   /**
     Return TRUE if character-set-introducer was explicitly specified in the
@@ -3551,11 +3551,11 @@ public:
   }
 
   bool check_partition_func_processor(uchar *int_arg) {return true;}
-  bool check_vcol_func_processor(uchar *int_arg) 
+  bool check_gcol_func_processor(uchar *int_arg) 
   {
-    DBUG_ENTER("Item_static_string_func::check_vcol_func_processor");
+    DBUG_ENTER("Item_static_string_func::check_gcol_func_processor");
     DBUG_PRINT("info",
-      ("check_vcol_func_processor returns TRUE: unsupported function"));
+      ("check_gcol_func_processor returns TRUE: unsupported function"));
     DBUG_RETURN(TRUE);
   }
 };
@@ -3658,7 +3658,7 @@ public:
   bool eq(const Item *item, bool binary_cmp) const;
   virtual Item *safe_charset_converter(const CHARSET_INFO *tocs);
   bool check_partition_func_processor(uchar *int_arg) {return false;}
-  bool check_vcol_func_processor(uchar *int_arg) { return false;}
+  bool check_gcol_func_processor(uchar *int_arg) { return false;}
   static LEX_STRING make_hex_str(const char *str, size_t str_length);
 private:
   void hex_string_init(const char *str, uint str_length);
@@ -3721,7 +3721,7 @@ public:
     also to make printing of items inherited from Item_sum uniform.
   */
   virtual const char *func_name() const= 0;
-  bool check_vcol_func_processor(uchar *int_arg) { return FALSE;}
+  bool check_gcol_func_processor(uchar *int_arg) { return FALSE;}
 };
 
 
@@ -4642,11 +4642,11 @@ public:
            arg->walk(processor, walk, args) ||
            ((walk & WALK_POSTFIX) && (this->*processor)(args));
   }
-  bool check_vcol_func_processor(uchar *int_arg) 
+  bool check_gcol_func_processor(uchar *int_arg) 
   {
-    DBUG_ENTER("Item_insert_value::check_vcol_func_processor");
+    DBUG_ENTER("Item_insert_value::check_gcol_func_processor");
     DBUG_PRINT("info",
-      ("check_vcol_func_processor returns TRUE: unsupported function"));
+      ("check_gcol_func_processor returns TRUE: unsupported function"));
     DBUG_RETURN(TRUE);
   }
 };

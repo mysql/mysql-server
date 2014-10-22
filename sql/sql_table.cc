@@ -3197,7 +3197,7 @@ void promote_first_timestamp_column(List<Create_field> *column_definitions)
     {
       if ((column_definition->flags & NOT_NULL_FLAG) != 0 && // NOT NULL,
           column_definition->def == NULL &&            // no constant default,
-          column_definition->vcol_info == NULL &&      // not a virtual column
+          column_definition->gcol_info == NULL &&      // not a virtual column
           column_definition->unireg_check == Field::NONE) // no function default
       {
         DBUG_PRINT("info", ("First TIMESTAMP column '%s' was promoted to "
@@ -3625,7 +3625,7 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
             null_fields--;
 	  sql_field->flags=		dup_field->flags;
           sql_field->interval=          dup_field->interval;
-          sql_field->vcol_info=         dup_field->vcol_info;
+          sql_field->gcol_info=         dup_field->gcol_info;
           sql_field->stored_in_db=      dup_field->stored_in_db;
 	  it2.remove();			// Remove first (create) definition
 	  select_field_pos--;
@@ -4066,7 +4066,7 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
         if (!sql_field->stored_in_db)
         {
           /* Key fields must always be physically stored. */
-          my_error(ER_KEY_BASED_ON_GENERATED_VIRTUAL_COLUMN, MYF(0));
+          my_error(ER_KEY_BASED_ON_GENERATED_COLUMN, MYF(0));
           DBUG_RETURN(TRUE);
         }
 	if (!(sql_field->flags & NOT_NULL_FLAG))
@@ -4303,7 +4303,7 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
     Field::utype type= (Field::utype) MTYP_TYPENR(sql_field->unireg_check);
 
     if (thd->is_strict_mode() && !sql_field->def &&
-        !sql_field->vcol_info &&
+        !sql_field->gcol_info &&
         is_timestamp_type(sql_field->sql_type) &&
         (sql_field->flags & NOT_NULL_FLAG) &&
         (type == Field::NONE || type == Field::TIMESTAMP_UN_FIELD))
@@ -6004,8 +6004,8 @@ static bool fill_alter_inplace_info(THD *thd,
         TODO: Mark such a column with an alter flag only if
         the expression functions are not equal. 
       */
-      if (field->stored_in_db && field->vcol_info)
-        ha_alter_info->handler_flags|= Alter_inplace_info::HA_ALTER_STORED_VCOL;
+      if (field->stored_in_db && field->gcol_info)
+        ha_alter_info->handler_flags|= Alter_inplace_info::HA_ALTER_STORED_GCOL;
 
       /* Check if field was renamed */
       if (my_strcasecmp(system_charset_info, field->field_name,
@@ -6587,7 +6587,7 @@ static bool is_inplace_alter_impossible(TABLE *table,
   */
   if (alter_info->flags & (Alter_info::ALTER_ORDER |
                            Alter_info::ALTER_KEYS_ONOFF |
-                           Alter_info::ALTER_STORED_VCOLUMN))
+                           Alter_info::ALTER_STORED_GCOLUMN))
     DBUG_RETURN(true);
 
   /*
@@ -7199,8 +7199,8 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
     If the base column has a virtual column dependency, it's not allowed
     to be dropped.
   */
-  if (table->is_field_dependent_by_virtual_columns(field->field_index))
-    my_error(ER_DEPENDENT_BY_VIRTUAL_COLUMN, MYF(0), field->field_name);
+  if (table->is_field_dependent_by_generated_columns(field->field_index))
+    my_error(ER_DEPENDENT_BY_GENERATED_COLUMN, MYF(0), field->field_name);
 	break;
       }
     }
@@ -7222,7 +7222,7 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
       def->field=field;
       if (field->stored_in_db != def->stored_in_db)
       {
-        my_error(ER_UNSUPPORTED_ACTION_ON_VIRTUAL_COLUMN,
+        my_error(ER_UNSUPPORTED_ACTION_ON_GENERATED_COLUMN,
                  MYF(0),
                  "Changing the STORED status");
         goto err;

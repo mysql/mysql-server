@@ -425,7 +425,7 @@ static SYMBOL symbols[] = {
   { "PACK_KEYS",                SYM(PACK_KEYS_SYM)},
   { "PARSER",                   SYM(PARSER_SYM)},
   { "PAGE",                     SYM(PAGE_SYM)},
-  { "PARSE_VCOL_EXPR",          SYM(PARSE_VCOL_EXPR_SYM)},
+  { "PARSE_GCOL_EXPR",          SYM(PARSE_GCOL_EXPR_SYM)},
   { "PARTIAL",                  SYM(PARTIAL)},
   { "PARTITION",                SYM(PARTITION_SYM)},
   { "PARTITIONING",             SYM(PARTITIONING_SYM)},

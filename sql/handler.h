@@ -273,7 +273,7 @@ enum enum_alter_inplace_result {
 /**
   Handler supports Virtual Columns
 */
-#define HA_VIRTUAL_COLUMNS            (LL(1) << 45)
+#define HA_GENERATED_COLUMNS            (LL(1) << 45)
 
 
 /* bits in index_flags(index_number) for what you can do with index */
@@ -1221,7 +1221,7 @@ public:
   static const HA_ALTER_FLAGS ADD_SPATIAL_INDEX          = 1LL << 31;
 
   // Alter virtual column
-  static const HA_ALTER_FLAGS HA_ALTER_STORED_VCOL       = 1LL << 32;
+  static const HA_ALTER_FLAGS HA_ALTER_STORED_GCOL       = 1LL << 32;
   /**
     Create options (like MAX_ROWS) for the new version of table.
 
