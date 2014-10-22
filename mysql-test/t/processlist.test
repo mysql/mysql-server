@@ -4,19 +4,22 @@
 
 source include/have_debug_sync.inc;
 
+let $tid= `SELECT CONNECTION_ID()`;
 SET DEBUG_SYNC = 'dispatch_command_before_set_time WAIT_FOR do_set_time';
 send SELECT 1;
 
 connect (con1,localhost,root,,);
 
 SET DEBUG_SYNC = 'fill_schema_processlist_after_unow SIGNAL do_set_time WAIT_FOR fill_schema_proceed';
-send SELECT INFO,TIME,TIME_MS FROM INFORMATION_SCHEMA.PROCESSLIST WHERE INFO IS NULL;
+--replace_result $tid TID
+send_eval SELECT ID, TIME,TIME_MS FROM INFORMATION_SCHEMA.PROCESSLIST WHERE CONCAT(":", ID, ":") = ":$tid:";
 
 connection default;
 reap;
 SET DEBUG_SYNC = 'now SIGNAL fill_schema_proceed';
 
 connection con1;
+--replace_result $tid TID
 reap;
 connection default;
 
@@ -25,8 +28,14 @@ connection default;
 #
 
 connection con1;
+SET DEBUG_SYNC = 'dispatch_command_end SIGNAL query_done';
 select sleep(5); #run a query that will take some time
 connection default;
+
+# Need to ensure that the previous query has really completed. Otherwise,
+# the select could see the previous query still in "Query" stage in the
+# processlist.
+SET DEBUG_SYNC = 'now WAIT_FOR query_done';
 
 # verify that the time in COM_SLEEP doesn't include the query run time
 select command, time < 5 from information_schema.processlist where id != connection_id();

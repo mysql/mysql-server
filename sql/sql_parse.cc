@@ -1505,6 +1505,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     }
     MYSQL_COMMAND_DONE(res);
   }
+  DEBUG_SYNC(thd,"dispatch_command_end");
 
   /* Check that some variables are reset properly */
   DBUG_ASSERT(thd->abort_on_warning == 0);
