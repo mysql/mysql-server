@@ -82,7 +82,7 @@ char *opt_defaults_file= 0;
 char *opt_def_extra_file= 0;
 char *opt_builddir= 0;
 char *opt_srcdir= 0;
-my_bool opt_defaults= TRUE;
+my_bool opt_no_defaults= FALSE;
 my_bool opt_insecure= FALSE;
 my_bool opt_verbose= FALSE;
 my_bool opt_ssl= FALSE;
@@ -150,16 +150,6 @@ static struct my_option my_connection_options[]=
    &opt_langpath, 0, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"lc-messages", 0, "Specifies the language to use.", &opt_lang,
    0, 0, GET_STR_ALLOC, REQUIRED_ARG, (longlong)&default_lang, 0, 0, 0, 0, 0},
-  {"defaults", 0, "Read any option files from default location. If program "
-                  "startup fails due to reading unknown options from an option"
-                  " file, --no-defaults can be used to prevent them from being"
-                  " read.",
-   &opt_defaults, 0, 0, GET_BOOL, NO_ARG, opt_defaults, 0, 0, 0, 0, 0},
-  {"defaults-file", 0, "Use only the given option file.",
-   &opt_defaults_file, 0, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"defaults-extra-file", 0, "Read this file after the global files are read.",
-   &opt_def_extra_file, 0, 0, GET_STR_ALLOC, REQUIRED_ARG, 0,
-    0, 0, 0, 0, 0},
   /* End token */
   {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
@@ -418,8 +408,21 @@ void usage(const string &p)
        << "MySQL Database Deployment Utility." << endl
        << "Usage: "
        << p
-       << "[OPTIONS]\n";
+       << " [OPTIONS]" << endl;
   my_print_help(my_connection_options);
+  cout << endl
+   << "The following options may be given as the first argument:"
+   << endl
+   << "--print-defaults        Print the program argument list and exit."
+   << endl
+   << "--no-defaults           Don't read default options from any option file,"
+   << endl
+   << "                        except for login file."
+   << endl
+   << "--defaults-file=#       Only read default options from the given file #."
+   << endl
+   << "--defaults-extra-file=# Read this file after the global files are read."
+   << endl;
   my_print_variables(my_connection_options);
 }
 
@@ -1182,7 +1185,6 @@ bool process_execute(const string &exec, Fwd_iterator begin,
     sigaddset(&set, SIGPIPE);
     pthread_sigmask(SIG_BLOCK, &set, NULL);
     pthread_create(&thd_id, NULL, reader_func_adaptor, &cmd);
-    // increase probability that reader thread is ready   
     if (!writer(write_pipe[1]) || errno != 0)
     {
       error << "Child process: " << exec <<
@@ -1243,6 +1245,69 @@ int connection_options_sorter(const void *a, const void *b)
                 static_cast<const my_option *>(b)->name);
 }
 
+static int is_prefix(const char *s, const char *t)
+{
+  while (*t)
+    if (*s++ != *t++) return 0;
+  return 1;
+}
+
+static int real_get_defaults_options(int argc, char **argv,
+                                     my_bool *no_defaults,
+                                     char **defaults,
+                                     char **extra_defaults,
+                                     char **group_suffix,
+                                     char **login_path)
+{
+  char **argv_it= argv;
+  int org_argc= argc, prev_argc= 0, default_option_count= 0;
+
+  while (argc >= 2 && argc != prev_argc)
+  {
+    /* Skip program name or previously handled argument */
+    argv_it++;
+    prev_argc= argc;                            /* To check if we found */
+    /* --no-defaults is always the first option. */
+    if (is_prefix(*argv_it,"--no-defaults") && ! default_option_count)
+    {
+       argc--;
+       default_option_count ++;
+       *no_defaults= TRUE;
+       continue;
+    }
+    if (!*defaults && is_prefix(*argv_it, "--defaults-file="))
+    {
+      *defaults= *argv_it + sizeof("--defaults-file=")-1;
+       argc--;
+       default_option_count ++;
+       continue;
+    }
+    if (!*extra_defaults && is_prefix(*argv_it, "--defaults-extra-file="))
+    {
+      *extra_defaults= *argv_it + sizeof("--defaults-extra-file=")-1;
+      argc--;
+      default_option_count ++;
+      continue;
+    }
+    if (!*group_suffix && is_prefix(*argv_it, "--defaults-group-suffix="))
+    {
+      *group_suffix= *argv_it + sizeof("--defaults-group-suffix=")-1;
+      argc--;
+      default_option_count ++;
+      continue;
+    }
+    if (!*login_path && is_prefix(*argv_it, "--login-path="))
+    {
+      *login_path= *argv_it + sizeof("--login-path=")-1;
+      argc--;
+      default_option_count ++;
+      continue;
+    }
+  }
+  return org_argc - argc;
+}
+
+
 int main(int argc,char *argv[])
 {
   /*
@@ -1251,6 +1316,14 @@ int main(int argc,char *argv[])
   */
   MY_INIT(argv[0]);
 
+  char *dummy= 0; // ignore group suffix when transferring to mysqld
+  /* Remember the defaults argument so we later can pass these to mysqld */
+  int default_opt_used= real_get_defaults_options(argc, argv,
+                                           &opt_no_defaults,
+                                           &opt_defaults_file,
+                                           &opt_def_extra_file,
+                                           &dummy,
+                                           &opt_loginpath);
 #ifdef __WIN__
   /* Convert command line parameters from UTF16LE to UTF8MB4. */
   my_win_translate_command_line_args(&my_charset_utf8mb4_bin, &argc, &argv);
@@ -1289,6 +1362,22 @@ int main(int argc,char *argv[])
     info.enabled(false);
   }
 
+  if (default_opt_used > 0)
+  {
+    if (opt_defaults_file != 0)
+    {
+      info << "Using default values from " << opt_defaults_file << endl;
+    }
+    else
+    if (!opt_no_defaults)
+    {
+      info << "Using default values from my.cnf" << endl;
+    }
+    if (opt_def_extra_file != 0)
+    {
+      info << "Using additional default values from " << endl;
+    }
+  }
 
   /*
    1. Verify all option parameters
@@ -1397,7 +1486,7 @@ int main(int argc,char *argv[])
 
   if (opt_defaults_file)
   {
-    opt_defaults= FALSE;
+    opt_no_defaults= FALSE;
     Path defaults_file;
     defaults_file.qpath(opt_defaults_file);
     if (!defaults_file.exists())
@@ -1490,7 +1579,7 @@ int main(int argc,char *argv[])
   else
     opt_euid= 0;
   vector<string> command_line;
-  if (opt_defaults == FALSE && opt_defaults_file == NULL &&
+  if (opt_no_defaults == TRUE && opt_defaults_file == NULL &&
       opt_def_extra_file == NULL)
     command_line.push_back(string("--no-defaults"));
   if (opt_defaults_file != NULL)
