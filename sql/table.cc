@@ -70,7 +70,7 @@ LEX_STRING WORKER_INFO_NAME= {C_STRING_WITH_LEN("slave_worker_info")};
 LEX_STRING GTID_EXECUTED_NAME= {C_STRING_WITH_LEN("gtid_executed")};
 
 /* Keyword for parsing virtual column functions */
-LEX_STRING parse_vcol_keyword= { C_STRING_WITH_LEN("PARSE_VCOL_EXPR ") };
+LEX_STRING PARSE_GCOL_KEYWORD= {C_STRING_WITH_LEN("parse_gcol_expr")};
 
 
 	/* Functions defined in this file */
@@ -1025,12 +1025,12 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
   uint new_frm_ver, field_pack_length, new_field_pack_flag;
   uint interval_count, interval_parts, read_length, int_length;
   uint db_create_options, keys, key_parts, n_length;
-  uint key_info_length, com_length, null_bit_pos, vcol_screen_length;
+  uint key_info_length, com_length, null_bit_pos, gcol_screen_length;
   uint extra_rec_buf_length;
   uint i,j;
   bool use_extended_sk;   // Supported extending of secondary keys with PK parts
   bool use_hash;
-  char *keynames, *names, *comment_pos, *vcol_screen_pos;
+  char *keynames, *names, *comment_pos, *gcol_screen_pos;
   uchar forminfo[288];
   uchar *record;
   uchar *disk_buff, *strpos, *null_flags, *null_pos;
@@ -1524,7 +1524,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
   int_length= uint2korr(forminfo+274);
   share->null_fields= uint2korr(forminfo+282);
   com_length= uint2korr(forminfo+284);
-  vcol_screen_length= uint2korr(forminfo+286);
+  gcol_screen_length= uint2korr(forminfo+286);
   share->vfields= 0;
   share->stored_fields= share->fields;
   if (forminfo[46] != (uchar)255)
@@ -1534,7 +1534,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
                                      share->comment.length);
   }
 
-  DBUG_PRINT("info",("i_count: %d  i_parts: %d  index: %d  n_length: %d  int_length: %d  com_length: %d  vcol_screen_length: %d", interval_count,interval_parts, share->keys,n_length,int_length, com_length, vcol_screen_length));
+  DBUG_PRINT("info",("i_count: %d  i_parts: %d  index: %d  n_length: %d  int_length: %d  com_length: %d  gcol_screen_length: %d", interval_count,interval_parts, share->keys,n_length,int_length, com_length, gcol_screen_length));
   if (!(field_ptr = (Field **)
 	alloc_root(&share->mem_root,
 		   (uint) ((share->fields+1)*sizeof(Field*)+
@@ -1542,13 +1542,13 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
 			   (share->fields+interval_parts+
 			    keys+3)*sizeof(char *)+
 			   (n_length+int_length+com_length+
-			       vcol_screen_length)))))
+			       gcol_screen_length)))))
     goto err;                                   /* purecov: inspected */
 
   share->field= field_ptr;
   read_length=(uint) (share->fields * field_pack_length +
 		      pos+ (uint) (n_length+int_length+com_length+
-		                   vcol_screen_length));
+		                   gcol_screen_length));
   if (read_string(file,(uchar**) &disk_buff,read_length))
     goto err;                                   /* purecov: inspected */
 
@@ -1562,11 +1562,11 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
   memcpy((char*) names, strpos+(share->fields*field_pack_length),
 	 (uint) (n_length+int_length));
   comment_pos= names+(n_length+int_length);
-  memcpy(comment_pos, disk_buff+read_length-com_length-vcol_screen_length, 
+  memcpy(comment_pos, disk_buff+read_length-com_length-gcol_screen_length, 
          com_length);
-  vcol_screen_pos= names+(n_length+int_length+com_length);
-  memcpy(vcol_screen_pos, disk_buff+read_length-vcol_screen_length, 
-         vcol_screen_length);
+  gcol_screen_pos= names+(n_length+int_length+com_length);
+  memcpy(gcol_screen_pos, disk_buff+read_length-gcol_screen_length, 
+         gcol_screen_length);
 
   fix_type_pointers(&interval_array, &share->fieldnames, 1, &names);
   if (share->fieldnames.count != share->fields)
@@ -1635,12 +1635,12 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
   for (i=0 ; i < share->fields; i++, strpos+=field_pack_length, field_ptr++)
   {
     uint pack_flag, interval_nr, unireg_type, recpos, field_length;
-    uint vcol_info_length=0;
+    uint gcol_info_length=0;
     enum_field_types field_type;
     const CHARSET_INFO *charset=NULL;
     Field::geometry_type geom_type= Field::GEOM_GEOMETRY;
     LEX_STRING comment;
-    virtual_column_info *vcol_info= 0;
+    generated_column_info *gcol_info= 0;
     bool fld_stored_in_db= TRUE;
 
     if (new_frm_ver >= 3)
@@ -1685,7 +1685,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
 	comment_pos+=   comment_length;
       }
 
-      if (unireg_type & Field::VIRTUAL_FIELD)
+      if (unireg_type & Field::GENERATED_FIELD)
       {
         /*
           Get virtual column data stored in the .frm file as follows:
@@ -1696,23 +1696,23 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
                           1 - field is physically stored
           byte 5-...  = virtual column expression (text data)
         */
-        vcol_info= new virtual_column_info();
-        if ((uint)vcol_screen_pos[0] != 1)
+        gcol_info= new generated_column_info();
+        if ((uint)gcol_screen_pos[0] != 1)
         {
           error= 4;
           goto err;
         }
 
-        vcol_info_length= uint2korr(vcol_screen_pos + 1);
-        DBUG_ASSERT(vcol_info_length); // Expect non-null expression
+        gcol_info_length= uint2korr(gcol_screen_pos + 1);
+        DBUG_ASSERT(gcol_info_length); // Expect non-null expression
 
-        fld_stored_in_db= (bool) (uint) vcol_screen_pos[3];
-        vcol_info->expr_str.str= (char *)memdup_root(&share->mem_root,
-                                                     vcol_screen_pos+
-                                                       (uint)FRM_VCOL_HEADER_SIZE,
-                                                     vcol_info_length);
-        vcol_info->expr_str.length= vcol_info_length;
-        vcol_screen_pos+= vcol_info_length + FRM_VCOL_HEADER_SIZE;
+        fld_stored_in_db= (bool) (uint) gcol_screen_pos[3];
+        gcol_info->expr_str.str= (char *)memdup_root(&share->mem_root,
+                                                     gcol_screen_pos+
+                                                       (uint)FRM_GCOL_HEADER_SIZE,
+                                                     gcol_info_length);
+        gcol_info->expr_str.length= gcol_info_length;
+        gcol_screen_pos+= gcol_info_length + FRM_GCOL_HEADER_SIZE;
         share->vfields++;
       }
     }
@@ -1819,7 +1819,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
 
     reg_field->field_index= i;
     reg_field->comment=comment;
-    reg_field->vcol_info= vcol_info;
+    reg_field->gcol_info= gcol_info;
     reg_field->stored_in_db= fld_stored_in_db;
     if (field_type == MYSQL_TYPE_BIT && !f_bit_as_char(pack_flag))
     {
@@ -2178,7 +2178,7 @@ static void clear_field_flag(TABLE *table)
   since it is used for other purposes as well.
 
   SYNOPSIS
-    fix_fields_vcol_func()
+    fix_fields_gcol_func()
     thd                  The thread object
     func_item            The item tree reference of the virtual columnfunction
     table                The table object
@@ -2190,11 +2190,11 @@ static void clear_field_flag(TABLE *table)
     FALSE                Ok, a partition field array was created
 */
 
-bool fix_fields_vcol_func(THD *thd, Field *field)
+bool fix_fields_gcol_func(THD *thd, Field *field)
 {
   uint dir_length, home_dir_length;
   bool result= TRUE;
-  Item* func_expr= field->vcol_info->expr_item;
+  Item* func_expr= field->gcol_info->expr_item;
   TABLE *table= field->table;
   const char *field_name= field->field_name;
   TABLE_LIST tables;
@@ -2209,7 +2209,7 @@ bool fix_fields_vcol_func(THD *thd, Field *field)
   int fld_idx= field->field_index;
   Item *dummy;
   DBUG_ASSERT(func_expr);
-  DBUG_ENTER("fix_fields_vcol_func");
+  DBUG_ENTER("fix_fields_gcol_func");
 
   /*
     Set-up the TABLE_LIST object to be a list with a single table
@@ -2268,14 +2268,14 @@ bool fix_fields_vcol_func(THD *thd, Field *field)
     to be part of the virtual column. Needs to be done after fix_fields to
     allow checking references to other virtual columns.
   */
-  error= func_expr->walk(&Item::check_vcol_func_processor, Item::WALK_POSTFIX,
+  error= func_expr->walk(&Item::check_gcol_func_processor, Item::WALK_POSTFIX,
                          (uchar*)&fld_idx);
   if (error)
   {
     if (fld_idx < 0)
-      my_error(ER_VIRTUAL_COLUMN_NON_PRIOR, MYF(0), field_name);
+      my_error(ER_GENERATED_COLUMN_NON_PRIOR, MYF(0), field_name);
     else
-      my_error(ER_VIRTUAL_COLUMN_FUNCTION_IS_NOT_ALLOWED, MYF(0), field_name);
+      my_error(ER_GENERATED_COLUMN_FUNCTION_IS_NOT_ALLOWED, MYF(0), field_name);
     clear_field_flag(table);
     goto end;
   }
@@ -2296,7 +2296,7 @@ end:
   Unpack the definition of a virtual column
 
   SYNOPSIS
-    unpack_vcol_info_from_frm()
+    unpack_gcol_info_from_frm()
     thd                  Thread handler
     table                Table with the checked field
     field                Pointer to Field object
@@ -2309,58 +2309,58 @@ end:
     TRUE            Failure
     FALSE           Success
 */
-bool unpack_vcol_info_from_frm(THD *thd,
+bool unpack_gcol_info_from_frm(THD *thd,
                                TABLE *table,
                                Field *field,
-                               LEX_STRING *vcol_expr,
+                               LEX_STRING *gcol_expr,
                                bool is_create_table,
                                bool *error_reported)
 {
-  DBUG_ENTER("unpack_vcol_info_from_frm");
-  DBUG_ASSERT(vcol_expr);
+  DBUG_ENTER("unpack_gcol_info_from_frm");
+  DBUG_ASSERT(gcol_expr);
   DBUG_ASSERT(field->table == table);
   /*
     Step 1: Construct a statement for the parser.
     The parsed string needs to take the following format:
-    "PARSE_VCOL_EXPR (<expr_string_from_frm>)"
+    "PARSE_GCOL_EXPR (<expr_string_from_frm>)"
   */
-  char *vcol_expr_str;
+  char *gcol_expr_str;
   int str_len= 0;
   const CHARSET_INFO *old_character_set_client;
 
-  if (!(vcol_expr_str= (char*) alloc_root(&table->mem_root,
-                                          vcol_expr->length +
-                                            parse_vcol_keyword.length + 3)))
+  if (!(gcol_expr_str= (char*) alloc_root(&table->mem_root,
+                                          gcol_expr->length +
+                                            PARSE_GCOL_KEYWORD.length + 3)))
   {
     DBUG_RETURN(TRUE);
   }
-  memcpy(vcol_expr_str,
-         (char*) parse_vcol_keyword.str,
-         parse_vcol_keyword.length);
-  str_len= parse_vcol_keyword.length;
-  memcpy(vcol_expr_str + str_len, "(", 1);
+  memcpy(gcol_expr_str,
+         (char*) PARSE_GCOL_KEYWORD.str,
+         PARSE_GCOL_KEYWORD.length);
+  str_len= PARSE_GCOL_KEYWORD.length;
+  memcpy(gcol_expr_str + str_len, "(", 1);
   str_len++;
-  memcpy(vcol_expr_str + str_len,
-         (char*) vcol_expr->str,
-         vcol_expr->length);
-  str_len+= vcol_expr->length;
-  memcpy(vcol_expr_str + str_len, ")", 1);
+  memcpy(gcol_expr_str + str_len,
+         (char*) gcol_expr->str,
+         gcol_expr->length);
+  str_len+= gcol_expr->length;
+  memcpy(gcol_expr_str + str_len, ")", 1);
   str_len++;
-  memcpy(vcol_expr_str + str_len, "\0", 1);
+  memcpy(gcol_expr_str + str_len, "\0", 1);
   str_len++;
   Parser_state parser_state;
-  parser_state.init(thd, vcol_expr_str, str_len);
+  parser_state.init(thd, gcol_expr_str, str_len);
 
   /*
     Step 2: Setup thd for parsing.
   */
   Query_arena *backup_stmt_arena_ptr= thd->stmt_arena;
   Query_arena backup_arena;
-  Query_arena vcol_arena(&table->mem_root, Query_arena::STMT_INITIALIZED);
-  thd->set_n_backup_active_arena(&vcol_arena, &backup_arena);
-  thd->stmt_arena= &vcol_arena;
+  Query_arena gcol_arena(&table->mem_root, Query_arena::STMT_INITIALIZED);
+  thd->set_n_backup_active_arena(&gcol_arena, &backup_arena);
+  thd->stmt_arena= &gcol_arena;
 
-  thd->lex->parse_vcol_expr= TRUE;
+  thd->lex->parse_gcol_expr= TRUE;
   old_character_set_client= thd->variables.character_set_client;
 
   /*
@@ -2370,11 +2370,11 @@ bool unpack_vcol_info_from_frm(THD *thd,
   {
     goto parse_err;
   }
-  /* From now on use vcol_info generated by the parser. */
-  field->vcol_info= thd->lex->vcol_info;
+  /* From now on use gcol_info generated by the parser. */
+  field->gcol_info= thd->lex->gcol_info;
 
   /* Validate the Item tree. */
-  if (fix_fields_vcol_func(thd, field))
+  if (fix_fields_gcol_func(thd, field))
   {
     if (is_create_table)
     {
@@ -2385,20 +2385,20 @@ bool unpack_vcol_info_from_frm(THD *thd,
       */
       *error_reported= TRUE;
     }
-    field->vcol_info= 0;
+    field->gcol_info= 0;
     goto parse_err;
   }
   thd->stmt_arena= backup_stmt_arena_ptr;
-  thd->restore_active_arena(&vcol_arena, &backup_arena);
-  field->vcol_info->item_free_list= vcol_arena.free_list;
+  thd->restore_active_arena(&gcol_arena, &backup_arena);
+  field->gcol_info->item_free_list= gcol_arena.free_list;
 
   DBUG_RETURN(FALSE);
 
 parse_err:
-  thd->lex->parse_vcol_expr= FALSE;
+  thd->lex->parse_gcol_expr= FALSE;
   thd->free_items();
   thd->stmt_arena= backup_stmt_arena_ptr;
-  thd->restore_active_arena(&vcol_arena, &backup_arena);
+  thd->restore_active_arena(&gcol_arena, &backup_arena);
   thd->variables.character_set_client= old_character_set_client;
   DBUG_RETURN(TRUE);
 }
@@ -2667,9 +2667,9 @@ partititon_err:
 #endif
   /* Check virtual columns against table's storage engine. */
   if (share->vfields && outparam->file &&
-      !(outparam->file->ha_table_flags() & HA_VIRTUAL_COLUMNS))
+      !(outparam->file->ha_table_flags() & HA_GENERATED_COLUMNS))
   {
-    my_error(ER_UNSUPPORTED_ACTION_ON_VIRTUAL_COLUMN,
+    my_error(ER_UNSUPPORTED_ACTION_ON_GENERATED_COLUMN,
              MYF(0),
              "Specified storage engine");
     error_reported= TRUE;
@@ -2710,12 +2710,12 @@ partititon_err:
   
   for (field_ptr= outparam->field; *field_ptr; field_ptr++)
   {
-    if ((*field_ptr)->vcol_info)
+    if ((*field_ptr)->gcol_info)
     {
-      if (unpack_vcol_info_from_frm(thd,
+      if (unpack_gcol_info_from_frm(thd,
                                     outparam,
                                     *field_ptr,
-                                    &(*field_ptr)->vcol_info->expr_str,
+                                    &(*field_ptr)->gcol_info->expr_str,
                                     is_create_table,
                                     &error_reported))
       {
@@ -2840,8 +2840,8 @@ int closefrm(TABLE *table, bool free_share)
   {
     for (Field **ptr=table->field ; *ptr ; ptr++)
     {
-      if ((*ptr)->vcol_info)
-        free_items((*ptr)->vcol_info->item_free_list);
+      if ((*ptr)->gcol_info)
+        free_items((*ptr)->gcol_info->item_free_list);
       delete *ptr;
     }
     table->field= 0;
@@ -5172,12 +5172,12 @@ const char *Field_iterator_table::name()
   return (*ptr)->field_name;
 }
 
-Item *create_table_vcol_field(THD *thd, Item **field_ref,
+Item *create_table_gcol_field(THD *thd, Item **field_ref,
                               const char *fld_name,
                               const char *tbl_name)
 {
   Item *field= *field_ref;
-  DBUG_ENTER("create_table_vcol_field");
+  DBUG_ENTER("create_table_gcol_field");
   DBUG_ASSERT(field);
 
   if (!field->fixed)
@@ -5637,9 +5637,9 @@ void TABLE::mark_columns_used_by_index_no_reset(uint index,
   for (;key_part != key_part_end; key_part++)
   {
     bitmap_set_bit(bitmap, key_part->fieldnr-1);
-    if (key_part->field->vcol_info &&
-        key_part->field->vcol_info->expr_item)
-      key_part->field->vcol_info->
+    if (key_part->field->gcol_info &&
+        key_part->field->gcol_info->expr_item)
+      key_part->field->gcol_info->
                expr_item->walk(&Item::register_field_in_bitmap, 
                                Item::WALK_PREFIX, (uchar *) bitmap);
   }
@@ -5795,7 +5795,7 @@ void TABLE::mark_columns_needed_for_update()
     file->column_bitmaps_signal();
   }
   /* Mark all virtual columns as writable */
-  mark_virtual_columns();
+  mark_generated_columns();
   DBUG_VOID_RETURN;
 }
 
@@ -6138,7 +6138,7 @@ void TABLE::mark_columns_needed_for_insert()
   if (found_next_number_field)
     mark_auto_increment_column();
   /* Mark all virtual columns as writable */
-  mark_virtual_columns();
+  mark_generated_columns();
 }
 
 /* 
@@ -6154,7 +6154,7 @@ void TABLE::mark_columns_needed_for_insert()
     read bitmap.
 */
 
-void TABLE::mark_virtual_columns(void)
+void TABLE::mark_generated_columns(void)
 {
   Field **vfield_ptr, *tmp_vfield;
   bool bitmap_updated= FALSE;
@@ -6162,8 +6162,8 @@ void TABLE::mark_virtual_columns(void)
   for (vfield_ptr= vfield; *vfield_ptr; vfield_ptr++)
   {
     tmp_vfield= *vfield_ptr;
-    DBUG_ASSERT(tmp_vfield->vcol_info && tmp_vfield->vcol_info->expr_item);
-    tmp_vfield->vcol_info->expr_item->walk(&Item::register_field_in_read_map, 
+    DBUG_ASSERT(tmp_vfield->gcol_info && tmp_vfield->gcol_info->expr_item);
+    tmp_vfield->gcol_info->expr_item->walk(&Item::register_field_in_read_map, 
                                            Item::WALK_PREFIX, (uchar *) 0);
     bitmap_set_bit(read_set, tmp_vfield->field_index);
     bitmap_set_bit(write_set, tmp_vfield->field_index);
@@ -6181,7 +6181,7 @@ void TABLE::mark_virtual_columns(void)
                FALSE    The field has no dependency by any VC.
 
 */
-bool TABLE::is_field_dependent_by_virtual_columns(uint field_index)
+bool TABLE::is_field_dependent_by_generated_columns(uint field_index)
 {
   Field **vfield_ptr, *tmp_vfield;
   MY_BITMAP dependent_fields;
@@ -6198,8 +6198,8 @@ bool TABLE::is_field_dependent_by_virtual_columns(uint field_index)
   for (vfield_ptr= vfield; *vfield_ptr; vfield_ptr++)
   {
     tmp_vfield= *vfield_ptr;
-    DBUG_ASSERT(tmp_vfield->vcol_info && tmp_vfield->vcol_info->expr_item);
-    tmp_vfield->vcol_info->expr_item->walk(&Item::register_field_in_read_map,
+    DBUG_ASSERT(tmp_vfield->gcol_info && tmp_vfield->gcol_info->expr_item);
+    tmp_vfield->gcol_info->expr_item->walk(&Item::register_field_in_read_map,
                                            Item::WALK_PREFIX, (uchar *) 0);
     if (bitmap_is_set(&dependent_fields, field_index))
     {
@@ -6948,13 +6948,13 @@ int update_virtual_fields_marked_for_write(TABLE *table,
   for (vfield_ptr= table->vfield; *vfield_ptr; vfield_ptr++)
   {
     vfield= (*vfield_ptr);
-    DBUG_ASSERT(vfield->vcol_info && vfield->vcol_info->expr_item);
+    DBUG_ASSERT(vfield->gcol_info && vfield->gcol_info->expr_item);
     /* Only update those fields that are marked in the write_set bitmap */
     if (bitmap_is_set(table->write_set, vfield->field_index) &&
             (!(ignore_stored && vfield->stored_in_db)))
     {
       /* Generate the actual value of the virtual fields */
-      error= vfield->vcol_info->expr_item->save_in_field(vfield, 0);
+      error= vfield->gcol_info->expr_item->save_in_field(vfield, 0);
       DBUG_PRINT("info", ("field '%s' - updated", vfield->field_name));
       if (error && !table->in_use->is_error())
         error= 0;

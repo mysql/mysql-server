@@ -88,11 +88,11 @@ enum enum_server_command
 };
 
 /* The length of the header part for each virtual column in the .frm file. */
-#define FRM_VCOL_HEADER_SIZE 4
+#define FRM_GCOL_HEADER_SIZE 4
 /*
   Maximum length of the expression statement defined for virtual columns.
 */
-#define VIRTUAL_COLUMN_EXPRESSION_MAXLEN 65535 - FRM_VCOL_HEADER_SIZE
+#define GENERATED_COLUMN_EXPRESSION_MAXLEN 65535 - FRM_GCOL_HEADER_SIZE
 /*
   Length of random string sent by server on handshake; this is also length of
   obfuscated password, recieved from client
@@ -139,7 +139,6 @@ enum enum_server_command
 #define FIELD_IS_DROPPED (1<< 26)       /* Intern: Field is being dropped */
 #define EXPLICIT_NULL_FLAG (1<< 27)     /* Field is explicitly specified as
                                            NULL by the user */
-#define VIRTUAL_FLAG       (1 << 28)    /* Virtual field */
 
 #define REFRESH_GRANT		1	/* Refresh grant tables */
 #define REFRESH_LOG		2	/* Start on new log file */

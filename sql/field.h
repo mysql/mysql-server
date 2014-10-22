@@ -451,13 +451,13 @@ void copy_integer(uchar *to, size_t to_length,
 }
 
 
-class virtual_column_info: public Sql_alloc
+class generated_column_info: public Sql_alloc
 {
 public:
   Item *expr_item;
   LEX_STRING expr_str;
   Item *item_free_list;
-  virtual_column_info() 
+  generated_column_info() 
   : expr_item(0), item_free_list(0),
     field_type(MYSQL_TYPE_LONG),
     stored_in_db(FALSE), data_inited(FALSE)
@@ -465,7 +465,7 @@ public:
     expr_str.str= NULL;
     expr_str.length= 0;
   };
-  ~virtual_column_info() {}
+  ~generated_column_info() {}
   enum_field_types get_real_type()
   {
     DBUG_ASSERT(data_inited);
@@ -596,7 +596,7 @@ public:
                 BIT_FIELD, TIMESTAMP_OLD_FIELD, CAPITALIZE, BLOB_FIELD,
                 TIMESTAMP_DN_FIELD, TIMESTAMP_UN_FIELD, TIMESTAMP_DNUN_FIELD,
                 // This value is used as a flag in addition to above
-                VIRTUAL_FIELD= 128 };
+                GENERATED_FIELD= 128 };
   enum geometry_type
   {
     GEOM_GEOMETRY = 0, GEOM_POINT = 1, GEOM_LINESTRING = 2, GEOM_POLYGON = 3,
@@ -638,7 +638,7 @@ private:
 
 public:
   /* Virtual column data */
-  virtual_column_info *vcol_info;
+  generated_column_info *gcol_info;
   /*
     Indication that the field is phycically stored in tables 
     rather than just generated on SQL queries.
@@ -4092,7 +4092,7 @@ public:
   uint	offset,pack_flag;
 
   /* Virtual column expression statement */
-  virtual_column_info *vcol_info;
+  generated_column_info *gcol_info;
   /*
     Indication that the field is phycically stored in tables 
     rather than just generated on SQL queries.
@@ -4118,7 +4118,7 @@ public:
             Item *default_value, Item *on_update_value, LEX_STRING *comment,
             const char *change, List<String> *interval_list,
             const CHARSET_INFO *cs, uint uint_geom_type,
-            virtual_column_info *vcol_info= NULL);
+            generated_column_info *gcol_info= NULL);
 
   ha_storage_media field_storage_type() const
   {

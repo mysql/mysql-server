@@ -1373,7 +1373,7 @@ Field::Field(uchar *ptr_arg,uint32 length_arg,uchar *null_ptr_arg,
    field_length(length_arg), null_bit(null_bit_arg), 
    is_created_from_null_item(FALSE),
    m_warnings_pushed(0),
-   vcol_info(0), stored_in_db(TRUE)
+   gcol_info(0), stored_in_db(TRUE)
 
 {
   flags=real_maybe_null() ? 0: NOT_NULL_FLAG;
@@ -9793,7 +9793,7 @@ void Create_field::init_for_tmp_table(enum_field_types sql_type_arg,
     (maybe_null ? FIELDFLAG_MAYBE_NULL : 0) |
     (is_unsigned ? 0 : FIELDFLAG_DECIMAL);
 
-  vcol_info= 0;
+  gcol_info= 0;
   stored_in_db= TRUE;
 
   DBUG_PRINT("debug", ("pack_flag: %s%s%s%s%s%s, pack_type: %d",
@@ -9826,7 +9826,7 @@ void Create_field::init_for_tmp_table(enum_field_types sql_type_arg,
   @param fld_interval_list     Interval list (if any.)
   @param fld_charset           Column charset.
   @param fld_geom_type         Column geometry type (if any.)
-  @param fld_vcol_info         Virtual column data
+  @param fld_gcol_info         Virtual column data
 
   @retval
     FALSE on success.
@@ -9841,7 +9841,7 @@ bool Create_field::init(THD *thd, const char *fld_name,
                         LEX_STRING *fld_comment, const char *fld_change,
                         List<String> *fld_interval_list,
                         const CHARSET_INFO *fld_charset, uint fld_geom_type,
-                        virtual_column_info *fld_vcol_info)
+                        generated_column_info *fld_gcol_info)
 {
   uint sign_len, allowed_type_modifier= 0;
   ulong max_field_charlength= MAX_FIELD_CHARLENGTH;
@@ -9907,26 +9907,26 @@ bool Create_field::init(THD *thd, const char *fld_name,
   interval_list.empty();
 
   comment= *fld_comment;
-  vcol_info= fld_vcol_info;
+  gcol_info= fld_gcol_info;
   stored_in_db= TRUE;
 
   /* Initialize data for a virtual field */
-  if (flags & VIRTUAL_FLAG)
+  if (gcol_info)
   {
-    DBUG_ASSERT(vcol_info);
-    DBUG_ASSERT(vcol_info->expr_item);
-    stored_in_db= vcol_info->get_field_stored();
+    DBUG_ASSERT(gcol_info);
+    DBUG_ASSERT(gcol_info->expr_item);
+    stored_in_db= gcol_info->get_field_stored();
     /*
       Perform per item-type checks to determine if the expression is 
       allowed for a virtual column.
       Note that validation of the specific function is done later in
-      procedures open_table_from_share and fix_fields_vcol_func
+      procedures open_table_from_share and fix_fields_gcol_func
     */
-    switch (vcol_info->expr_item->type()) {
+    switch (gcol_info->expr_item->type()) {
     case Item::FUNC_ITEM:
-         if (((Item_func *)vcol_info->expr_item)->functype() == Item_func::FUNC_SP)
+         if (((Item_func *)gcol_info->expr_item)->functype() == Item_func::FUNC_SP)
          {
-           my_error(ER_VIRTUAL_COLUMN_FUNCTION_IS_NOT_ALLOWED, MYF(0), field_name);
+           my_error(ER_GENERATED_COLUMN_FUNCTION_IS_NOT_ALLOWED, MYF(0), field_name);
            DBUG_RETURN(TRUE);
          }
          break;
@@ -9945,7 +9945,7 @@ bool Create_field::init(THD *thd, const char *fld_name,
     case Item::XPATH_NODESET:
     case Item::XPATH_NODESET_CMP:
     case Item::VIEW_FIXER_ITEM: 
-         my_error(ER_VIRTUAL_COLUMN_FUNCTION_IS_NOT_ALLOWED, MYF(0), field_name);
+         my_error(ER_GENERATED_COLUMN_FUNCTION_IS_NOT_ALLOWED, MYF(0), field_name);
          DBUG_RETURN(TRUE);
          break;
     default: 
@@ -9955,10 +9955,10 @@ bool Create_field::init(THD *thd, const char *fld_name,
     /*
       Make a field created for the real type.
       Note that "real" and virtual fields differ from each other
-      only by Field::vcol_info, which is always 0 for normal columns.
-      vcol_info is updated for fields later in procedure open_binary_frm.
+      only by Field::gcol_info, which is always 0 for normal columns.
+      gcol_info is updated for fields later in procedure open_binary_frm.
     */
-    sql_type= fld_type= vcol_info->get_real_type();
+    sql_type= fld_type= gcol_info->get_real_type();
   }
 
   /*
@@ -10565,7 +10565,7 @@ Create_field::Create_field(Field *old_field,Field *orig_field) :
   unireg_check(old_field->unireg_check),
   charset(old_field->charset()),		// May be NULL ptr
   field(old_field),
-  vcol_info(old_field->vcol_info),
+  gcol_info(old_field->gcol_info),
   stored_in_db(old_field->stored_in_db)
 {
 

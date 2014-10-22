@@ -1037,8 +1037,8 @@ bool Item_field::register_field_in_read_map(uchar *arg)
   TABLE *table= (TABLE *) arg;
   if (field->table == table || !table)
     bitmap_set_bit(field->table->read_set, field->field_index);
-  if (field->vcol_info && field->vcol_info->expr_item)
-    return field->vcol_info->expr_item->walk(&Item::register_field_in_read_map, 
+  if (field->gcol_info && field->gcol_info->expr_item)
+    return field->gcol_info->expr_item->walk(&Item::register_field_in_read_map, 
                                              Item::WALK_PREFIX, arg);
   return 0;
 }

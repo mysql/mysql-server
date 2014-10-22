@@ -2625,7 +2625,7 @@ public:
   LEX_STRING comment, ident;
   LEX_USER *grant_user;
   THD *thd;
-  virtual_column_info *vcol_info;
+  generated_column_info *gcol_info;
 
   /* maintain a list of used plugins for this LEX */
   typedef Prealloced_array<plugin_ref,
@@ -2735,7 +2735,7 @@ public:
     The following flag is used to prevent other applications to use 
     this command.
   */
-  bool parse_vcol_expr;
+  bool parse_gcol_expr;
 
   enum SSL_type ssl_type;			/* defined in violite.h */
   enum enum_duplicates duplicates;
