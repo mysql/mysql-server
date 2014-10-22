@@ -1075,6 +1075,8 @@ void
 fil_space_detach(
 	fil_space_t*	space)
 {
+	ut_ad(mutex_own(&fil_system->mutex));
+
 	HASH_DELETE(fil_space_t, hash, fil_system->spaces, space->id, space);
 
 	fil_space_t*	fnamespace = fil_space_get_by_name(space->name);
@@ -1161,10 +1163,20 @@ fil_space_free(
 			rw_lock_x_unlock(&space->latch);
 		}
 
-		if (space->max_lsn != 0) {
+		bool	need_mutex = !recv_recovery_on;
+
+		if (need_mutex) {
 			log_mutex_enter();
+		}
+
+		ut_ad(log_mutex_own());
+
+		if (space->max_lsn != 0) {
 			ut_d(space->max_lsn = 0);
 			UT_LIST_REMOVE(fil_system->named_spaces, space);
+		}
+
+		if (need_mutex) {
 			log_mutex_exit();
 		}
 
@@ -2642,18 +2654,6 @@ fil_delete_tablespace(
 	ut_a(space);
 	ut_a(path != 0);
 
-	/* Important: We rely on the data dictionary mutex to ensure
-	that a race is not possible here. It should serialize the tablespace
-	drop/free. We acquire an X latch only to avoid a race condition
-	when accessing the tablespace instance via:
-
-	  fsp_get_available_space_in_free_extents().
-
-	There our main motivation is to reduce the contention on the
-	dictionary mutex. */
-
-	rw_lock_x_lock(&space->latch);
-
 #ifndef UNIV_HOTBACKUP
 	/* IMPORTANT: Because we have set space::stop_new_ops there
 	can't be any new ibuf merges, reads or flushes. We are here
@@ -2670,11 +2670,11 @@ fil_delete_tablespace(
 
 	We deal with pending write requests in the following function
 	where we'd minimally evict all dirty pages belonging to this
-	space from the flush_list. Not that if a block is IO-fixed
+	space from the flush_list. Note that if a block is IO-fixed
 	we'll wait for IO to complete.
 
-	To deal with potential read requests by checking the
-	::stop_new_ops flag in fil_io() */
+	To deal with potential read requests, we will check the
+	::stop_new_ops flag in fil_io(). */
 
 	buf_LRU_flush_or_remove_pages(id, buf_remove, 0);
 
@@ -2727,13 +2727,14 @@ fil_delete_tablespace(
 		fil_space_detach(space);
 		mutex_exit(&fil_system->mutex);
 
+		log_mutex_enter();
+
 		if (space->max_lsn != 0) {
-			log_mutex_enter();
 			ut_d(space->max_lsn = 0);
 			UT_LIST_REMOVE(fil_system->named_spaces, space);
-			log_mutex_exit();
 		}
-		rw_lock_x_unlock(&space->latch);
+
+		log_mutex_exit();
 		fil_space_free_low(space);
 
 		if (!os_file_delete(innodb_data_file_key, path)
@@ -2747,7 +2748,6 @@ fil_delete_tablespace(
 		}
 	} else {
 		mutex_exit(&fil_system->mutex);
-		rw_lock_x_unlock(&space->latch);
 		err = DB_TABLESPACE_NOT_FOUND;
 	}
 
