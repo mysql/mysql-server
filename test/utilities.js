@@ -80,21 +80,19 @@ function getConnectionProperties() {
   var localConnectionProps = getTestConnectionProperties();
   merge(adapterProps, localConnectionProps);
   return adapterProps;
-};
-
-
+}
 
 /** Set global test connection properties */
 global.test_conn_properties = getConnectionProperties();
 
 /** Metadata management */
-global.SQLcreate = function(suite, callback) {
-  metadataManager.createTestTables(test_conn_properties, suite.name, callback);
-}
+global.sqlCreate = function(suite, callback) {
+  metadataManager.createTestTables(global.test_conn_properties, suite.name, callback);
+};
 
-global.SQLdrop = function(suite, callback) {
-  metadataManager.dropTestTables(test_conn_properties, suite.name, callback);
-}
+global.sqlDrop = function(suite, callback) {
+  metadataManager.dropTestTables(global.test_conn_properties, suite.name, callback);
+};
 
 
 /** Open a session or fail the test case */

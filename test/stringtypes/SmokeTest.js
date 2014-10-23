@@ -32,7 +32,7 @@ test.run = function() {
     }
   }
 
-  SQLcreate(this.suite, onCreate);
+  sqlCreate(this.suite, onCreate);
 };
   
 module.exports.tests = [test];

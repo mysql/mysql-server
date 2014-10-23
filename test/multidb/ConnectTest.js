@@ -71,16 +71,14 @@ var badtbl9 = function(i, j) {
 var properties = mynode.ConnectionProperties(global.adapter);
 // make a local copy of the properties
 var propertiesList = [];
-for (var p = mindb; p < mindb + numberOfDBs; ++p) {
-  var x, props = {};
-  for (x in properties) {
-    if (properties.hasOwnProperty(x)) {
-      props[x] = properties[x];
-    }
-    props.database = 'mysqljs_multidb_test' + p;
-    propertiesList[p] = props;
+var p, x, props = {};
+for (p = mindb; p < mindb + numberOfDBs; ++p) {
+  for (x in properties) if (properties.hasOwnProperty(x)) {
+    props[x] = properties[x];
   }
-};
+  props.database = 'mysqljs_multidb_test' + p;
+  propertiesList[p] = props;
+}
 
 var connectWithDefaultDb = function(testCase, db, callback) {
   console.log('ConnectTest openSession with', propertiesList[db].database);
@@ -99,7 +97,7 @@ var connectWithDefaultDb = function(testCase, db, callback) {
 
 var verifyTableMetadataCached = function(testCase, sessionFactory, qualifiedTableName) {
   // look in sessionFactory to see if there is a cached table metadata
-  var split = qualifiedTableName.split('\.');
+  var split = qualifiedTableName.split('\.'); 
   var databaseName = split[0];
   var tableName = split[1];
   var tableMetadata = sessionFactory.tableMetadatas[qualifiedTableName];
@@ -238,7 +236,7 @@ function reportResults(testCase) {
   if (++testCase.actualResultCount > testCase.expectedResultCount) {
     testCase.failOnError();
   }
-};
+}
 
 var t9 = new harness.ConcurrentTest('testFailureCases');
 t9.run = function() {

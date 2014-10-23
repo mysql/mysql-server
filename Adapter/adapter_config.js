@@ -46,7 +46,7 @@ udebug_module              = path.join(mynode.fs.api_dir, "unified_debug.js");
 
 
 /* Find the build directory */
-var build1 = path.join(mynode.fs.api_dir, "build");
+var build1 = path.join(mynode.fs.spi_dir, "build");
 var build2 = path.join(parent_dir, "build");
 var existsSync = fs.existsSync || path.existsSync;
 

@@ -28,7 +28,7 @@ test.run = function() {
     t.pass();
   }
 
-  SQLdrop(this.suite, onDrop);
+  sqlDrop(this.suite, onDrop);
 };
 
 module.exports.tests = [test];

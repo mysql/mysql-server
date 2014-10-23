@@ -43,13 +43,6 @@ function checkErrorMessage(tc, tm, msg) {
   }
 }
 
-function Freeform() {
-  this.id = id;
-  this.name = name;
-  this.number = number;
-  this.a = a;
-}
-
 var t1 = new harness.ConcurrentTest('t1SparseMappingNoColumn');
 t1.run = function() {
   var testCase = this;

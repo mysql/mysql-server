@@ -19,8 +19,7 @@
  */
 "use strict";
 
-global.util            = require("util");
-
+var util        = require("util");
 var udebug      = unified_debug.getLogger("GetMappingTest.js");
 
 var expectedMappingFor_t_basic = {
