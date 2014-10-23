@@ -329,21 +329,6 @@ dict_index_is_ibuf(
 }
 
 /********************************************************************//**
-Check whether the index is an universal index tree.
-@return nonzero for universal tree, zero for other indexes */
-UNIV_INLINE
-ulint
-dict_index_is_univ(
-/*===============*/
-	const dict_index_t*	index)	/*!< in: index */
-{
-	ut_ad(index);
-	ut_ad(index->magic_n == DICT_INDEX_MAGIC_N);
-
-	return(index->type & DICT_UNIVERSAL);
-}
-
-/********************************************************************//**
 Check whether the index is a secondary index or the insert buffer tree.
 @return nonzero for insert buffer, zero for other indexes */
 UNIV_INLINE
@@ -563,21 +548,23 @@ bool
 dict_tf_is_valid(
 	ulint	flags)
 {
-	ulint	compact = DICT_TF_GET_COMPACT(flags);
+	bool	compact = DICT_TF_GET_COMPACT(flags);
 	ulint	zip_ssize = DICT_TF_GET_ZIP_SSIZE(flags);
-	ulint	atomic_blobs = DICT_TF_HAS_ATOMIC_BLOBS(flags);
+	bool	atomic_blobs = DICT_TF_HAS_ATOMIC_BLOBS(flags);
 	ulint	unused = DICT_TF_GET_UNUSED(flags);
 
 	/* Make sure there are no bits that we do not know about. */
 	if (unused != 0) {
 
 		return(false);
+	}
 
-	} else if (atomic_blobs) {
-		/* Barracuda row formats COMPRESSED and DYNAMIC build on
-		the page structure introduced for the COMPACT row format
-		by allowing keys in secondary indexes to be made from
-		data stored off-page in the clustered index. */
+	if (atomic_blobs) {
+		/* Barracuda row formats COMPRESSED and DYNAMIC both use
+		atomic_blobs, which build on the page structure introduced
+		for the COMPACT row format by allowing keys in secondary
+		indexes to be made from data stored off-page in the
+		clustered index. */
 
 		if (!compact) {
 			return(false);
@@ -604,6 +591,28 @@ dict_tf_is_valid(
 
 	/* CREATE TABLE ... DATA DIRECTORY is supported for any row format,
 	so the DATA_DIR flag is compatible with all other table flags. */
+
+	return(true);
+}
+
+/** Validate both table flags and table flags2 and make sure they
+are compatible.
+@param[in]	flags	Table flags
+@param[in]	flags2	Table flags2
+@return true if valid. */
+UNIV_INLINE
+bool
+dict_tf2_is_valid(
+	ulint	flags,
+	ulint	flags2)
+{
+	if (!dict_tf_is_valid(flags)) {
+		return(false);
+	}
+
+	if ((flags2 & DICT_TF2_UNUSED_BIT_MASK) != 0) {
+		return(false);
+	}
 
 	return(true);
 }
@@ -675,7 +684,7 @@ dict_sys_tables_type_validate(
 	/* There is nothing to validate for the data_dir field.
 	CREATE TABLE ... DATA DIRECTORY is supported for any row
 	format, so the DATA_DIR flag is compatible with any other
-	table flags. However, it is not used with TEMPORARY tables.*/
+	table flags. However, it is not used with TEMPORARY tables. */
 
 	/* Return the validated SYS_TABLES.TYPE. */
 	return(type);
@@ -739,17 +748,18 @@ dict_table_get_format(
 	return(dict_tf_get_format(table->flags));
 }
 
-/********************************************************************//**
-Set the file format and zip size in a dict_table_t::flags.  If zip size
-is not needed, it should be 0. */
+/** Set the various values in a dict_table_t::flags pointer.
+@param[in,out]	flags,		Pointer to a 4 byte Table Flags
+@param[in]	format		File Format
+@param[in]	zip_ssize	Zip Shift Size
+@param[in]	use_data_dir	Table uses DATA DIRECTORY */
 UNIV_INLINE
 void
 dict_tf_set(
-/*========*/
-	ulint*		flags,		/*!< in/out: table flags */
-	rec_format_t	format,		/*!< in: file format */
-	ulint		zip_ssize,	/*!< in: zip shift size */
-	bool		use_data_dir)	/*!< in: table uses DATA DIRECTORY */
+	ulint*		flags,
+	rec_format_t	format,
+	ulint		zip_ssize,
+	bool		use_data_dir)
 {
 	switch (format) {
 	case REC_FORMAT_REDUNDANT:
@@ -777,45 +787,40 @@ dict_tf_set(
 	}
 }
 
-/********************************************************************//**
-Convert a 32 bit integer table flags to the 32 bit integer that is
-written into the tablespace header at the offset FSP_SPACE_FLAGS and is
-also stored in the fil_space_t::flags field.  The following chart shows
-the translation of the low order bit.  Other bits are the same.
-========================= Low order bit ==========================
-                    | REDUNDANT | COMPACT | COMPRESSED | DYNAMIC
-dict_table_t::flags |     0     |    1    |     1      |    1
-fil_space_t::flags  |     0     |    0    |     1      |    1
-==================================================================
-@return tablespace flags (fil_space_t::flags) */
+/** Initialize a dict_table_t::flags pointer.
+@param[in]	compact,	Table uses Compact or greater
+@param[in]	zip_ssize	Zip Shift Size (log 2 minus 9)
+@param[in]	atomic_blobs	Table uses Compressed or Dynamic
+@param[in]	data_dir	Table uses DATA DIRECTORY */
 UNIV_INLINE
 ulint
-dict_tf_to_fsp_flags(
-/*=================*/
-	ulint	table_flags)	/*!< in: dict_table_t::flags */
+dict_tf_init(
+	bool		compact,
+	ulint		zip_ssize,
+	bool		atomic_blobs,
+	bool		data_dir)
 {
-	ulint fsp_flags;
+	ulint	flags = 0;
 
-	DBUG_EXECUTE_IF("dict_tf_to_fsp_flags_failure",
-			return(ULINT_UNDEFINED););
+	if (compact) {
+		flags |= DICT_TF_COMPACT;
+	}
 
-	/* Adjust bit zero. */
-	fsp_flags = DICT_TF_HAS_ATOMIC_BLOBS(table_flags) ? 1 : 0;
+	if (zip_ssize) {
+		flags |= (zip_ssize << DICT_TF_POS_ZIP_SSIZE);
+	}
 
-	/* ZIP_SSIZE and ATOMIC_BLOBS are at the same position. */
-	fsp_flags |= table_flags & DICT_TF_MASK_ZIP_SSIZE;
-	fsp_flags |= table_flags & DICT_TF_MASK_ATOMIC_BLOBS;
+	if (atomic_blobs) {
+		flags |= (1 << DICT_TF_POS_ATOMIC_BLOBS);
+	}
 
-	/* In addition, tablespace flags also contain the page size. */
-	fsp_flags |= fsp_flags_set_page_size(fsp_flags, UNIV_PAGE_SIZE);
+	if (data_dir) {
+		flags |= (1 << DICT_TF_POS_DATA_DIR);
+	}
 
-	/* The DATA_DIR flag is in a different position in fsp_flag */
-	fsp_flags |= DICT_TF_HAS_DATA_DIR(table_flags)
-		     ? FSP_FLAGS_MASK_DATA_DIR : 0;
+	ut_ad(dict_tf_is_valid(flags));
 
-	ut_a(fsp_flags_is_valid(fsp_flags));
-
-	return(fsp_flags);
+	return(flags);
 }
 
 /********************************************************************//**
@@ -880,9 +885,10 @@ dict_tf_to_sys_tables_type(
 	return(type);
 }
 
-/** Extract the page size from table flags.
+/** Extract the page size info from table flags.
 @param[in]	flags	flags
-@return compressed page size, or 0 if not compressed */
+@return a structure containing the compressed and uncompressed
+page sizes and a boolean indicating if the page is compressed. */
 UNIV_INLINE
 const page_size_t
 dict_tf_get_page_size(
@@ -894,16 +900,17 @@ dict_tf_get_page_size(
 		return(univ_page_size);
 	}
 
-	const ulint	size = (UNIV_ZIP_SIZE_MIN >> 1) << zip_ssize;
+	const ulint	zip_size = (UNIV_ZIP_SIZE_MIN >> 1) << zip_ssize;
 
-	ut_ad(size <= UNIV_ZIP_SIZE_MAX);
+	ut_ad(zip_size <= UNIV_ZIP_SIZE_MAX);
 
-	return(page_size_t(size, univ_page_size.logical(), true));
+	return(page_size_t(zip_size, univ_page_size.logical(), true));
 }
 
 /** Get the table page size.
 @param[in]	table	table
-@return compressed page size, or 0 if not compressed */
+@return a structure containing the compressed and uncompressed
+page sizes and a boolean indicating if the page is compressed */
 UNIV_INLINE
 const page_size_t
 dict_table_page_size(
@@ -1068,7 +1075,7 @@ dict_index_get_sys_col_pos(
 {
 	ut_ad(index);
 	ut_ad(index->magic_n == DICT_INDEX_MAGIC_N);
-	ut_ad(!dict_index_is_univ(index));
+	ut_ad(!dict_index_is_ibuf(index));
 
 	if (dict_index_is_clust(index)) {
 

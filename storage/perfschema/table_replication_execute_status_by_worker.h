@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -28,8 +28,11 @@
 #include "rpl_mi.h"
 #include "mysql_com.h"
 #include "rpl_rli_pdb.h"
+#include "rpl_msr.h"
+#include "rpl_info.h" /*CHANNEL_NAME_LENGTH*/
 
 class Slave_worker;
+class Master_info;
 
 /**
   @addtogroup Performance_schema_tables
@@ -50,6 +53,9 @@ enum enum_rpl_yes_no {
   length field denoted by <field_name>_length.
 */
 struct st_row_worker {
+
+  char channel_name[CHANNEL_NAME_LENGTH];
+  uint channel_name_length;
   /*
     worker_id is added to the table because thread is killed at STOP SLAVE
     but the status needs to show up, so worker_id is used as a permanent
@@ -67,6 +73,34 @@ struct st_row_worker {
   ulonglong last_error_timestamp;
 };
 
+/**
+  Index 1 for replication channel
+  Index 2 for worker
+*/
+struct workers_per_channel
+:public PFS_double_index
+{
+  workers_per_channel()
+    :PFS_double_index(0,0)
+  {}
+
+  inline void reset(void)
+  {
+    m_index_1= 0;
+    m_index_2= 0;
+  }
+
+  inline bool has_more_channels(uint num)
+  { return (m_index_1 < num); }
+
+  inline void next_channel(void)
+  {
+    m_index_1++;
+    m_index_2= 0;
+  }
+};
+
+
 /** Table PERFORMANCE_SCHEMA.replication_execute_status_by_worker */
 class table_replication_execute_status_by_worker: public PFS_engine_table
 {
@@ -82,9 +116,9 @@ private:
   /** True is the current row exists. */
   bool m_row_exists;
   /** Current position. */
-  PFS_simple_index m_pos;
+  workers_per_channel m_pos;
   /** Next position. */
-  PFS_simple_index m_next_pos;
+  workers_per_channel m_next_pos;
 
 protected:
   /**

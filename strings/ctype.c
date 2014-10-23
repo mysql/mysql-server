@@ -315,7 +315,7 @@ my_charset_file_init(MY_CHARSET_FILE *i)
 static void
 my_charset_file_free(MY_CHARSET_FILE *i)
 {
-  i->loader->free(i->tailoring);
+  i->loader->mem_free(i->tailoring);
 }
 
 
@@ -323,7 +323,7 @@ static int
 my_charset_file_tailoring_realloc(MY_CHARSET_FILE *i, size_t newlen)
 {
   if (i->tailoring_alloced_length > newlen ||
-     (i->tailoring= i->loader->realloc(i->tailoring,
+      (i->tailoring= i->loader->mem_realloc(i->tailoring,
                                        (i->tailoring_alloced_length=
                                         (newlen + 32*1024)))))
   {

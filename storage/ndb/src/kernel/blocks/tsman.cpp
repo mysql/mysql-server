@@ -1254,10 +1254,10 @@ Tsman::load_extent_page_callback(Signal* signal,
       (getNodeState().getNodeRestartInProgress() &&
        getNodeState().starting.restartType == NodeState::ST_INITIAL_NODE_RESTART))
   {
-    Local_datafile_list free(m_file_pool, ts_ptr.p->m_free_files);
+    Local_datafile_list free_list(m_file_pool, ts_ptr.p->m_free_files);
     Local_datafile_list meta(m_file_pool, ts_ptr.p->m_meta_files);
     meta.remove(ptr);
-    free.addFirst(ptr);
+    free_list.addFirst(ptr);
   }
   m_file_hash.add(ptr);
   
@@ -1408,9 +1408,9 @@ Tsman::scan_extent_headers(Signal* signal, Ptr<Datafile> ptr)
   meta.next(next);
   if(firstFree != RNIL)
   {
-    Local_datafile_list free(m_file_pool, lg_ptr.p->m_free_files);
+    Local_datafile_list free_list(m_file_pool, lg_ptr.p->m_free_files);
     meta.remove(ptr);
-    free.addFirst(ptr);
+    free_list.addFirst(ptr);
   }
   else
   {
@@ -1460,8 +1460,8 @@ Tsman::execDROP_FILE_IMPL_REQ(Signal* signal)
       else if(find_file_by_id(file_ptr, fg_ptr.p->m_free_files, req.file_id))
       {
 	jam();
-	Local_datafile_list free(m_file_pool, fg_ptr.p->m_free_files);
-	free.remove(file_ptr);
+	Local_datafile_list free_list(m_file_pool, fg_ptr.p->m_free_files);
+	free_list.remove(file_ptr);
       }
       else if(find_file_by_id(file_ptr, fg_ptr.p->m_meta_files, req.file_id))
       {
@@ -1512,8 +1512,8 @@ Tsman::execDROP_FILE_IMPL_REQ(Signal* signal)
       meta.remove(file_ptr);
       if (file_ptr.p->m_online.m_first_free_extent != RNIL)
       {
-	Local_datafile_list free(m_file_pool, fg_ptr.p->m_free_files);
-        free.addFirst(file_ptr);
+	Local_datafile_list free_list(m_file_pool, fg_ptr.p->m_free_files);
+        free_list.addFirst(file_ptr);
       }
       else
       {
@@ -1741,10 +1741,10 @@ Tsman::execFREE_EXTENT_REQ(Signal* signal)
 	 */
 	Ptr<Tablespace> ptr;
 	m_tablespace_pool.getPtr(ptr, file_ptr.p->m_tablespace_ptr_i);
-	Local_datafile_list free(m_file_pool, ptr.p->m_free_files);
+	Local_datafile_list free_list(m_file_pool, ptr.p->m_free_files);
 	Local_datafile_list full(m_file_pool, ptr.p->m_full_files);
 	full.remove(file_ptr);
-        free.addFirst(file_ptr);
+        free_list.addFirst(file_ptr);
       }
       file_ptr.p->m_online.m_first_free_extent = extent;
     }
@@ -2238,10 +2238,10 @@ Tsman::end_lcp(Signal* signal, Uint32 ptrI, Uint32 list, Uint32 filePtrI)
       file.p->m_online.m_lcp_free_extent_head = RNIL;
       file.p->m_online.m_lcp_free_extent_tail = RNIL;
 
-      Local_datafile_list free(m_file_pool, ptr.p->m_free_files);
+      Local_datafile_list free_list(m_file_pool, ptr.p->m_free_files);
       Local_datafile_list full(m_file_pool, ptr.p->m_full_files);
       full.remove(file);
-      free.addFirst(file);
+      free_list.addFirst(file);
     }
     else
     {

@@ -2,6 +2,8 @@
 --source include/have_64bit.inc
 --source include/have_innodb_16k.inc
 
+call mtr.add_suppression("InnoDB: Cannot add field");
+
 if (`SELECT $PS_PROTOCOL + $SP_PROTOCOL + $CURSOR_PROTOCOL
             + $VIEW_PROTOCOL > 0`)
 {

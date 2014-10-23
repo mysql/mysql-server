@@ -1744,6 +1744,19 @@ static void usage()
 Dumps a MySQL binary log in a format usable for viewing or for piping to\n\
 the mysql command line client.\n\n");
   printf("Usage: %s [options] log-files\n", my_progname);
+  /*
+    Turn default for zombies off so that the help on how to 
+    turn them off text won't show up.
+    This is safe to do since it's followed by a call to exit().
+  */
+  for (struct my_option *optp= my_long_options; optp->name; optp++)
+  {
+    if (optp->id == OPT_SECURE_AUTH)
+    {
+      optp->def_value= 0;
+      break;
+    }
+  }
   my_print_help(my_long_options);
   my_print_variables(my_long_options);
 }
@@ -1871,12 +1884,14 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     usage();
     exit(0);
   case OPT_SECURE_AUTH:
-    CLIENT_WARN_DEPRECATED_NO_REPLACEMENT("--secure-auth");
+    /* --secure-auth is a zombie option. */
     if (!opt_secure_auth)
     {
-      usage();
+      fprintf(stderr, "mysqlbinlog: [ERROR] --skip-secure-auth is not supported.\n");
       exit(1);
     }
+    else
+      CLIENT_WARN_DEPRECATED_NO_REPLACEMENT("--secure-auth");
     break;
 
   }
@@ -2208,13 +2223,13 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
     if (stop_never_slave_server_id == -1)
       server_id= 1;
     else
-      server_id= stop_never_slave_server_id;
+      server_id= static_cast<uint>(stop_never_slave_server_id);
   }
   else
     server_id= 0;
 
   if (connection_server_id != -1)
-    server_id= connection_server_id;
+    server_id= static_cast<uint>(connection_server_id);
 
   size_t tlen = strlen(logname);
   if (tlen > UINT_MAX) 
@@ -2778,8 +2793,8 @@ static Exit_status dump_local_log_entries(PRINT_EVENT_INFO *print_event_info,
       my_off_t length,tmp;
       for (length= start_position_mot ; length > 0 ; length-=tmp)
       {
-	tmp= min<size_t>(length, sizeof(buff));
-	if (my_b_read(file, buff, (uint) tmp))
+        tmp= min(static_cast<size_t>(length), sizeof(buff));
+        if (my_b_read(file, buff, (uint) tmp))
         {
           error("Failed reading from file.");
           goto err;
@@ -2982,7 +2997,7 @@ int main(int argc, char** argv)
   DBUG_PROCESS(argv[0]);
 
   my_init_time(); // for time functions
-
+  tzset(); // set tzname
   /*
     A pointer of type Log_event can point to
      INTVAR

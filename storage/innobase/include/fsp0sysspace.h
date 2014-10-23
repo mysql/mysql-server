@@ -87,7 +87,7 @@ public:
 	@param	filepath	path to data files
 	@param	supports_raw	true if it supports raw devices
 	@return true on success parse */
-	bool parse(const char* filepath, bool supports_raw);
+	bool parse_params(const char* filepath, bool supports_raw);
 
 	/** Check the data file specification.
 	@param[out]	create_new_db		true if a new database
@@ -292,9 +292,9 @@ bool
 is_predefined_tablespace(
 	ulint   id)
 {
-	ut_ad(srv_sys_space.space_id() == 0);
-	return(id == TRX_SYS_SPACE
-	       || id <= srv_undo_tablespaces_open
+	ut_ad(srv_sys_space.space_id() == TRX_SYS_SPACE);
+	ut_ad(TRX_SYS_SPACE == 0);
+	return(id <= srv_undo_tablespaces_open
 	       || id == srv_tmp_space.space_id());
 }
 #endif /* fsp0sysspace_h */

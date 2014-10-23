@@ -438,7 +438,7 @@ RESET MASTER;
 
 # slave suppressions
 
-call mtr.add_suppression("Slave I/O: Relay log write failure: could not queue event from master.*");
+call mtr.add_suppression("Slave I/O for channel '': Relay log write failure: could not queue event from master.*");
 call mtr.add_suppression("Error writing file .*");
 call mtr.add_suppression("Could not open .*");
 call mtr.add_suppression("MYSQL_BIN_LOG::open failed to sync the index file.");

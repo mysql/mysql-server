@@ -138,7 +138,7 @@ typedef	struct rtr_info{
 	bool		fd_del;	/*!< found deleted row */
 	const dtuple_t*	search_tuple;
 				/*!< search tuple being used */
-	ulint		search_mode;
+	page_cur_mode_t	search_mode;
 				/*!< current search mode */
 } rtr_info_t;
 

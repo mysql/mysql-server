@@ -6,10 +6,12 @@ SELECT name, count FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE
 subsystem = 'ddl' and name not in
 ('ddl_sort_file_alter_table','ddl_log_file_alter_table') and count > 0;
 
+--disable_query_log
 call mtr.add_suppression("InnoDB: Warning: Small buffer pool size");
 # these will be triggered by DISCARD TABLESPACE
 call mtr.add_suppression("InnoDB: Error: table 'test/t1'");
-call mtr.add_suppression("MySQL is trying to open a table handle but the .ibd file for");
+call mtr.add_suppression("MySQL is trying to open a table handle but the \.ibd file for");
+--enable_query_log
 
 # DISCARD TABLESPACE needs file-per-table
 SET @global_innodb_file_per_table_orig = @@global.innodb_file_per_table;

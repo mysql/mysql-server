@@ -31,6 +31,7 @@ Created 2/17/1996 Heikki Tuuri
 #include "rem0types.h"
 #include "page0types.h"
 #include "sync0rw.h"
+#include "page0size.h"
 
 /** Persistent cursor */
 struct btr_pcur_t;
@@ -68,16 +69,11 @@ extern char	btr_search_enabled;
 /** The size of a reference to data stored on a different page.
 The reference is stored at the end of the prefix of the field
 in the index record. */
-#define BTR_EXTERN_FIELD_REF_SIZE	20
+#define BTR_EXTERN_FIELD_REF_SIZE	FIELD_REF_SIZE
 
 /** If the data don't exceed the size, the data are stored locally. */
 #define BTR_EXTERN_LOCAL_STORED_MAX_SIZE	\
 	(BTR_EXTERN_FIELD_REF_SIZE * 2)
-
-/** A BLOB field reference full of zero, for use in assertions and tests.
-Initially, BLOB field references are set to zero, in
-dtuple_convert_big_rec(). */
-extern const byte field_ref_zero[BTR_EXTERN_FIELD_REF_SIZE];
 
 /** The information is used for creating a new index tree when
 applying TRUNCATE log record during recovery */

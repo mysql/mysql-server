@@ -36,7 +36,6 @@ Created 7/1/1994 Heikki Tuuri
 /*************************************************************//**
 Returns TRUE if two columns are equal for comparison purposes.
 @return TRUE if the columns are considered equal in comparisons */
-
 ibool
 cmp_cols_are_equal(
 /*===============*/
@@ -55,7 +54,6 @@ cmp_cols_are_equal(
 @retval 0 if data1 is equal to data2
 @retval negative if data1 is less than data2
 @retval positive if data1 is greater than data2 */
-
 int
 cmp_data_data(
 	ulint		mtype,
@@ -87,17 +85,13 @@ cmp_dfield_dfield(
 @param[in] offsets rec_get_offsets(rec)
 @param[in] mode compare mode
 @retval negative if dtuple is less than rec */
-
 int
 cmp_dtuple_rec_with_gis(
 /*====================*/
-	const dtuple_t*	dtuple,	/*!< in: data tuple */
-	const rec_t*	rec,	/*!< in: physical record which differs from
-				dtuple in some of the common fields, or which
-				has an equal number or more fields than
-				dtuple */
-	const ulint*	offsets,/*!< in: array returned by rec_get_offsets() */
-	ulint		mode)	/*!< in: number of fields to compare */
+	const dtuple_t*	dtuple,
+	const rec_t*	rec,
+	const ulint*	offsets,
+	page_cur_mode_t	mode)
 	__attribute__((nonnull));
 /** Compare a data tuple to a physical record.
 @param[in] dtuple data tuple
@@ -109,7 +103,6 @@ cmp_dtuple_rec_with_gis(
 @retval 0 if dtuple is equal to rec
 @retval negative if dtuple is less than rec
 @retval positive if dtuple is greater than rec */
-
 int
 cmp_dtuple_rec_with_match_low(
 	const dtuple_t*	dtuple,
@@ -130,7 +123,6 @@ cmp_dtuple_rec_with_match_low(
 @retval 0 if dtuple is equal to rec
 @retval negative if dtuple is less than rec
 @retval positive if dtuple is greater than rec */
-
 int
 cmp_dtuple_rec(
 	const dtuple_t*	dtuple,
@@ -140,7 +132,6 @@ cmp_dtuple_rec(
 Checks if a dtuple is a prefix of a record. The last field in dtuple
 is allowed to be a prefix of the corresponding field in the record.
 @return TRUE if prefix */
-
 ibool
 cmp_dtuple_is_prefix_of_rec(
 /*========================*/
@@ -152,7 +143,6 @@ none of which are stored externally.
 @retval positive if rec1 (including non-ordering columns) is greater than rec2
 @retval negative if rec1 (including non-ordering columns) is less than rec2
 @retval 0 if rec1 is a duplicate of rec2 */
-
 int
 cmp_rec_rec_simple(
 /*===============*/
@@ -180,7 +170,6 @@ within the first field not completely matched
 @retval 0 if rec1 is equal to rec2
 @retval negative if rec1 is less than rec2
 @retval positive if rec2 is greater than rec2 */
-
 int
 cmp_rec_rec_with_match(
 	const rec_t*		rec1,

@@ -1,4 +1,4 @@
 $VALIDATE_PASSWORD_OPT
---sha256_password_private_key_path=$MYSQL_TEST_DIR/std_data/rsa_private_key.pem
---sha256_password_public_key_path=$MYSQL_TEST_DIR/std_data/rsa_public_key.pem
---default_authentication_plugin=sha256_password
+--ssl-ca=$MYSQL_TEST_DIR/std_data/ca-sha512.pem
+--ssl-key=$MYSQL_TEST_DIR/std_data/server-key-sha512.pem
+--ssl-cert=$MYSQL_TEST_DIR/std_data/server-cert-sha512.pem

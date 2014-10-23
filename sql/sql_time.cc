@@ -241,7 +241,7 @@ to_ascii(const CHARSET_INFO *cs,
          wc < 128)
   {
     src+= cnvres;
-    *dst++= wc;
+    *dst++= static_cast<char>(wc);
   }
   *dst= '\0';
   return dst - dst0;
@@ -410,7 +410,7 @@ static bool lldiv_t_to_datetime(lldiv_t lld, MYSQL_TIME *ltime,
                                 my_time_flags_t flags, int *warnings)
 {
   if (lld.rem < 0 || // Catch negative numbers with zero int part, e.g: -0.1
-      number_to_datetime(lld.quot, ltime, flags, warnings) == LL(-1))
+      number_to_datetime(lld.quot, ltime, flags, warnings) == -1LL)
   {
     /* number_to_datetime does not clear ltime in case of ZERO DATE */
     set_zero_time(ltime, MYSQL_TIMESTAMP_ERROR);
@@ -430,7 +430,7 @@ static bool lldiv_t_to_datetime(lldiv_t lld, MYSQL_TIME *ltime,
   }
   else if (!(flags & TIME_NO_NSEC_ROUNDING))
   {
-    ltime->second_part= lld.rem / 1000;
+    ltime->second_part= static_cast<ulong>(lld.rem / 1000);
     return datetime_add_nanoseconds_with_round(ltime, lld.rem % 1000, warnings);
   }
   return false;
@@ -503,7 +503,7 @@ bool my_longlong_to_datetime_with_warn(longlong nr, MYSQL_TIME *ltime,
                                        my_time_flags_t flags)
 {
   int warnings= 0;
-  bool rc= number_to_datetime(nr, ltime, flags, &warnings) == LL(-1);
+  bool rc= number_to_datetime(nr, ltime, flags, &warnings) == -1LL;
   if (warnings)
     make_truncated_value_warning(ErrConvString(nr),  MYSQL_TIMESTAMP_NONE);
   return rc;
@@ -529,7 +529,7 @@ static bool lldiv_t_to_time(lldiv_t lld, MYSQL_TIME *ltime, int *warnings)
   */
   if ((ltime->neg|= (lld.rem < 0)))
     lld.rem= -lld.rem;
-  ltime->second_part= lld.rem / 1000;
+  ltime->second_part= static_cast<ulong>(lld.rem / 1000);
   return time_add_nanoseconds_with_round(ltime, lld.rem % 1000, warnings);
 }
 
@@ -771,7 +771,8 @@ str_to_time_with_warn(String *str, MYSQL_TIME *l_time)
 */
 void time_to_datetime(THD *thd, const MYSQL_TIME *ltime, MYSQL_TIME *ltime2)
 {
-  thd->variables.time_zone->gmt_sec_to_TIME(ltime2, thd->query_start());
+  thd->variables.time_zone->gmt_sec_to_TIME(ltime2,
+    static_cast<my_time_t>(thd->query_start()));
   ltime2->hour= ltime2->minute= ltime2->second= ltime2->second_part= 0;
   ltime2->time_type= MYSQL_TIMESTAMP_DATE;
   mix_date_and_time(ltime2, ltime);
@@ -1274,19 +1275,19 @@ bool date_add_interval(MYSQL_TIME *ltime, interval_type int_type, INTERVAL inter
     sec=((ltime->day-1)*3600*24L+ltime->hour*3600+ltime->minute*60+
 	 ltime->second +
 	 sign* (longlong) (interval.day*3600*24L +
-                           interval.hour*LL(3600)+interval.minute*LL(60)+
+                           interval.hour*3600LL+interval.minute*60LL+
                            interval.second))+ extra_sec;
     if (microseconds < 0)
     {
-      microseconds+= LL(1000000);
+      microseconds+= 1000000LL;
       sec--;
     }
-    days= sec/(3600*LL(24));
-    sec-= days*3600*LL(24);
+    days= sec/(3600*24LL);
+    sec-= days*3600*24LL;
     if (sec < 0)
     {
       days--;
-      sec+= 3600*LL(24);
+      sec+= 3600*24LL;
     }
     ltime->second_part= (uint) microseconds;
     ltime->second= (uint) (sec % 60);
@@ -1410,7 +1411,7 @@ calc_time_diff(const MYSQL_TIME *l_time1, const MYSQL_TIME *l_time2,
                             l_time1->second) -
                  l_sign*(longlong)(l_time2->hour*3600L +
                                    l_time2->minute*60L +
-                                   l_time2->second)) * LL(1000000) +
+                                   l_time2->second)) * 1000000LL +
                 (longlong)l_time1->second_part -
                 l_sign*(longlong)l_time2->second_part;
 

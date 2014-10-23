@@ -43,6 +43,7 @@
 #
 #    [--let $rpl_server_count= 7]
 #    --let $rpl_topology= 1->2->3->1->4, 2->5, 6->7
+#    [--let $rpl_multi_source= 1]
 #    [--let $rpl_extra_connections_per_server= 1]
 #    [--let $rpl_check_server_ids= 1]
 #    [--let $rpl_skip_change_master= 1]
@@ -67,6 +68,14 @@
 #      This file will configure S(i+1) to be a slave of S(i).  If you
 #      want to specify the empty topology (no server replicates at
 #      all), you have to set $rpl_topology=none.
+#
+#    $rpl_multi_source
+#      By default, multi-source topologies are not allowed, and the
+#      default channel is used always.  To enable multi-source, set
+#      $rpl_multi_source=1.  Then, the empty channel is never used,
+#      and the channel for connecting to server N is named
+#      'channel_N'.  However, rpl_sync.inc is not usable in this case,
+#      and rpl_end.inc must be used with the parameter.
 #
 #    $rpl_extra_connections_per_server
 #      By default, this script creates connections server_N and
@@ -116,6 +125,42 @@
 # ==== Side effects ====
 #
 # Changes current connection to server_1.
+#
+#
+# ==== Internal variables configured by this file ====
+#
+# $rpl_inited
+#   Set to 1 to indicate that this file has been sourced. This will
+#   be set to '' again by rpl_end.inc.
+#
+# $_rpl_server_count
+#   A backup of $rpl_server_count is stored in this variable. This is
+#   used to perform a sanity check in rpl_change_topology.inc, to
+#   check that $rpl_server_count does not between rpl_init.inc and
+#   rpl_end.inc
+#
+# $rpl_server_count_length:
+#   Set to LENGTH($rpl_server_count). So if $rpl_server_count < 10,
+#   then $rpl_server_count_length = 1; if 10 <= $rpl_server_count <
+#   100, then $rpl_server_count_length = 2, etc.
+# 
+# $_rpl_space
+#   Contains a single space. This is used by other .inc files to
+#   append a single space character to the end of an
+#   $mysqltest_variable. This can't be done in any more direct way
+#   since mysqltest trims whitespace from string literals.
+#
+# $_rpl_no_server
+#   A sequence of $rpl_server_count_length spaces. Used internally by
+#   rpl_generate_sync_chain.inc
+#
+# $rpl_connection_count
+#   The number of master-slave connections. For instance, if
+#   $rpl_topology is '1->3', this is equal to 1; if $rpl_topology is
+#   '1->2->3->1', this is 3.
+#
+#
+
 
 --source include/have_log_bin.inc
 
@@ -161,6 +206,12 @@ if (!$rpl_server_count)
     --let $rpl_server_count= `SELECT GREATEST($rpl_server_count)`
   }
 }
+# Set $rpl_server_count_length and some auxiliary variables.
+--let $rpl_server_count_length= `SELECT LENGTH('$rpl_server_count')`
+--let $_rpl_server_count= $rpl_server_count
+--let $_rpl_no_server= `SELECT REPEAT(' ', $rpl_server_count_length)`
+--let $_rpl_space= `SELECT ' '`
+
 
 --let $_rpl_extra_connections_per_server= $rpl_extra_connections_per_server
 if ($_rpl_extra_connections_per_server == '')
@@ -252,10 +303,15 @@ while ($_rpl_server)
 }
 
 
-# Signal that initialization is done and all connections created.
+# Set rpl_inited to indicate that initialization is done.
+if ($rpl_inited)
+{
+  --die Detected double invocation of rpl_init.inc. Use rpl_change_topology.inc or invoke rpl_end.inc before the second invocation of rpl_init.inc
+}
 --let $rpl_inited= 1
 
-# Signal that the server is in a dirty state and needs to be restarted
+
+# Indicate that the server is in a dirty state and needs to be restarted
 # if the test is skipped. If the test is not skipped, it will continue
 # to the end and execute its cleanup section (and check-testcase will
 # report if you forget to clean up).
@@ -287,13 +343,13 @@ if ($rpl_check_server_ids)
   }
 }
 
-# $rpl_master_list must be set so that include/rpl_change_topology.inc
-# knows which servers are initialized and not.
+# Determine if we should use gtids or not.
 if (!`SELECT COUNT(*) = 0 FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME = 'GTID_MODE' AND VARIABLE_VALUE = 'ON'`)
 {
   --let $use_gtids=1
 }
---let $rpl_master_list= `SELECT REPEAT('x', $rpl_server_count * LENGTH($rpl_server_count))`
+
+
 --source include/rpl_change_topology.inc
 
 

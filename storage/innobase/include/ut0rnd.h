@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -99,12 +99,11 @@ ulint
 ut_fold_string(
 /*===========*/
 	const char*	str)	/*!< in: null-terminated string */
-	__attribute__((pure));
+	__attribute__((warn_unused_result));
 /***********************************************************//**
 Looks for a prime number slightly greater than the given argument.
 The prime is chosen so that it is not near any power of 2.
 @return prime */
-
 ulint
 ut_find_prime(
 /*==========*/

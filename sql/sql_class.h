@@ -166,7 +166,7 @@ enum enum_filetype { FILETYPE_CSV, FILETYPE_XML };
 #define MODE_NO_AUTO_CREATE_USER        (MODE_TRADITIONAL*2)
 #define MODE_HIGH_NOT_PRECEDENCE        (MODE_NO_AUTO_CREATE_USER*2)
 #define MODE_NO_ENGINE_SUBSTITUTION     (MODE_HIGH_NOT_PRECEDENCE*2)
-#define MODE_PAD_CHAR_TO_FULL_LENGTH    (ULL(1) << 31)
+#define MODE_PAD_CHAR_TO_FULL_LENGTH    (1ULL << 31)
 
 extern char internal_table_name[2];
 extern char empty_c_string[1];
@@ -751,14 +751,14 @@ public:
   { return state == STMT_CONVENTIONAL_EXECUTION; }
 
   inline void* alloc(size_t size) { return alloc_root(mem_root,size); }
-  inline void* calloc(size_t size)
+  inline void* mem_calloc(size_t size)
   {
     void *ptr;
     if ((ptr=alloc_root(mem_root,size)))
       memset(ptr, 0, size);
     return ptr;
   }
-  inline char *strdup(const char *str)
+  inline char *mem_strdup(const char *str)
   { return strdup_root(mem_root,str); }
   inline char *strmake(const char *str, size_t size)
   { return strmake_root(mem_root,str,size); }
@@ -2228,7 +2228,7 @@ public:
   inline void force_one_auto_inc_interval(ulonglong next_id)
   {
     auto_inc_intervals_forced.empty(); // in case of multiple SET INSERT_ID
-    auto_inc_intervals_forced.append(next_id, ULONGLONG_MAX, 0);
+    auto_inc_intervals_forced.append(next_id, ULLONG_MAX, 0);
   }
 
   /**
@@ -2453,6 +2453,18 @@ public:
     See comment above regarding tx_isolation.
   */
   bool              tx_read_only;
+  /*
+    Transaction cannot be rolled back must be given priority.
+    When two transactions conflict inside InnoDB, the one with
+    greater priority wins.
+  */
+  int tx_priority;
+  /*
+    All transactions executed by this thread will have high
+    priority mode, independent of tx_priority value.
+  */
+  int thd_tx_priority;
+
   enum_check_fields count_cuted_fields;
 
   // For user variables replication
@@ -4690,7 +4702,7 @@ class user_var_entry
     or allocate a separate buffer.
     @param length - length of the value to be stored.
   */
-  bool realloc(size_t length);
+  bool mem_realloc(size_t length);
 
   /**
     Check if m_ptr point to an external buffer previously alloced by realloc().

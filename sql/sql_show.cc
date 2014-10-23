@@ -631,11 +631,11 @@ find_files(THD *thd, List<LEX_STRING> *files, const char *db,
   if (!(dirp = my_dir(path,MYF(dir ? MY_WANT_STAT : 0))))
   {
     if (my_errno == ENOENT)
-      my_error(ER_BAD_DB_ERROR, MYF(ME_BELL+ME_WAITTANG), db);
+      my_error(ER_BAD_DB_ERROR, MYF(0), db);
     else
     {
       char errbuf[MYSYS_STRERROR_SIZE];
-      my_error(ER_CANT_READ_DIR, MYF(ME_BELL+ME_WAITTANG), path,
+      my_error(ER_CANT_READ_DIR, MYF(0), path,
                my_errno, my_strerror(errbuf, sizeof(errbuf), my_errno));
     }
     DBUG_RETURN(FIND_FILES_DIR);
@@ -2132,7 +2132,7 @@ public:
 
     /* USER */
     if (inspect_sctx->user)
-      thd_info->user= m_client_thd->strdup(inspect_sctx->user);
+      thd_info->user= m_client_thd->mem_strdup(inspect_sctx->user);
     else if (inspect_thd->system_thread)
       thd_info->user= "system user";
     else
@@ -2151,7 +2151,7 @@ public:
     }
     else
       thd_info->host=
-        m_client_thd->strdup(inspect_sctx->host_or_ip[0] ?
+        m_client_thd->mem_strdup(inspect_sctx->host_or_ip[0] ?
                              inspect_sctx->host_or_ip :
                              inspect_sctx->get_host()->length() ?
                              inspect_sctx->get_host()->ptr() : "");
@@ -2166,7 +2166,7 @@ public:
     mysql_mutex_lock(&inspect_thd->LOCK_thd_data);
     const char *db= inspect_thd->db().str;
     if (db)
-      thd_info->db= m_client_thd->strdup(db);
+      thd_info->db= m_client_thd->mem_strdup(db);
 
     if (inspect_thd->mysys_var)
       mysql_mutex_lock(&inspect_thd->mysys_var->mutex);
@@ -2800,7 +2800,7 @@ static bool show_status_array(THD *thd, const char *wild,
                               bool ucase_names,
                               Item *cond)
 {
-  my_aligned_storage<SHOW_VAR_FUNC_BUFF_SIZE, MY_ALIGNOF(long)> buffer;
+  my_aligned_storage<SHOW_VAR_FUNC_BUFF_SIZE, MY_ALIGNOF(longlong)> buffer;
   char * const buff= buffer.data;
   char *prefix_end;
   /* the variable name should not be longer than 64 characters */
@@ -6517,7 +6517,7 @@ static int get_schema_partitions_record(THD *thd, TABLE_LIST *tables,
         }
         else
         {
-          if (part_elem->range_value != LONGLONG_MAX)
+          if (part_elem->range_value != LLONG_MAX)
             table->field[11]->store((longlong) part_elem->range_value, FALSE);
           else
             table->field[11]->store(partition_keywords[PKW_MAXVALUE].str,

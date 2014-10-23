@@ -174,11 +174,13 @@ function IsCompilerDefinedSymbol(symbol)
     (symbol.indexOf("_CTA3?") != -1) ||        // std::length_error
     (symbol.indexOf("_CTA4?") != -1) ||        // std::ios_base::failure
     (symbol.indexOf("_CTA5?") != -1) ||        // std::ios_base::failure
+    (symbol.indexOf("_CTA6?") != -1) ||        // boost::exception_detail::clone_impl<boost::exception_detail::error_info_injector<boost::bad_get>>
     (symbol.indexOf("_CTA7?") != -1) ||        // boost::exception_detail::clone_impl<boost::exception_detail::error_info_injector<boost::bad_lexical_cast>>
     (symbol.indexOf("_TI2?") != -1) ||         // std::bad_alloc
     (symbol.indexOf("_TI3?") != -1) ||         // std::length_error
     (symbol.indexOf("_TI4?") != -1) ||         // std::ios_base::failure
     (symbol.indexOf("_TI5?") != -1) ||         // std::ios_base::failure
+    (symbol.indexOf("_TI6?") != -1) ||         // boost::exception_detail::clone_impl<boost::exception_detail::error_info_injector<boost::bad_get>>
     (symbol.indexOf("_TI7?") != -1) ||         // boost::exception_detail::clone_impl<boost::exception_detail::error_info_injector<boost::bad_lexical_cast>>
     (symbol.indexOf("_RTC_") != -1) || 
     (symbol.indexOf("??_C@_") != -1) ||

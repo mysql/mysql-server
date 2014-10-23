@@ -402,7 +402,7 @@ struct SavedEventBuffer
   void purge();
   void save(const Uint32 * theData, Uint32 len);
 
-  Uint32 free() const;
+  Uint32 num_free() const;
 
   Uint32 m_scan_pos;
   int startScan();
@@ -419,12 +419,12 @@ SavedEventBuffer::alloc(Uint32 len)
 {
   assert(m_buffer_len > 0);
 
-  while (free() <= len)
+  while (num_free() <= len)
     purge();
 }
 
 Uint32
-SavedEventBuffer::free() const
+SavedEventBuffer::num_free() const
 {
   if (m_write_pos == m_read_pos)
     return m_buffer_len;

@@ -32,12 +32,19 @@
 #include "rpl_mi.h"
 #include "sql_parse.h"
 #include "rpl_rli_pdb.h"
+#include "rpl_msr.h"    /*Multi source replication */
 
 THR_LOCK table_replication_execute_status_by_worker::m_table_lock;
 
 /* numbers in varchar count utf8 characters. */
 static const TABLE_FIELD_TYPE field_types[]=
 {
+
+  {
+    {C_STRING_WITH_LEN("CHANNEL_NAME")},
+    {C_STRING_WITH_LEN("char(64)")},
+    {NULL, 0}
+  },
   {
     {C_STRING_WITH_LEN("WORKER_ID")},
     {C_STRING_WITH_LEN("bigint")},
@@ -77,7 +84,7 @@ static const TABLE_FIELD_TYPE field_types[]=
 
 TABLE_FIELD_DEF
 table_replication_execute_status_by_worker::m_field_def=
-{ 7, field_types };
+{ 8, field_types };
 
 PFS_engine_table_share
 table_replication_execute_status_by_worker::m_share=
@@ -87,7 +94,7 @@ table_replication_execute_status_by_worker::m_share=
   table_replication_execute_status_by_worker::create,
   NULL, /* write_row */
   NULL, /* delete_all_rows */
-  table_replication_execute_status_by_worker::get_row_count,
+  table_replication_execute_status_by_worker::get_row_count, /*records*/
   sizeof(PFS_simple_index), /* ref length */
   &m_table_lock,
   &m_field_def,
@@ -102,7 +109,7 @@ PFS_engine_table* table_replication_execute_status_by_worker::create(void)
 table_replication_execute_status_by_worker
   ::table_replication_execute_status_by_worker()
   : PFS_engine_table(&m_share, &m_pos),
-    m_row_exists(false), m_pos(0), m_next_pos(0)
+    m_row_exists(false), m_pos(), m_next_pos()
 {}
 
 table_replication_execute_status_by_worker
@@ -111,82 +118,80 @@ table_replication_execute_status_by_worker
 
 void table_replication_execute_status_by_worker::reset_position(void)
 {
-  m_pos.m_index= 0;
-  m_next_pos.m_index= 0;
-}
-
-int table_replication_execute_status_by_worker::rnd_next(void)
-{
-  Slave_worker *worker;
-
-  mysql_mutex_lock(&LOCK_active_mi);
-
-  if (!active_mi || !active_mi->rli || !active_mi->host[0])
-  {
-    mysql_mutex_unlock(&LOCK_active_mi);
-    return HA_ERR_END_OF_FILE;
-  }
-
-  for (m_pos.set_at(&m_next_pos);
-       m_pos.m_index < active_mi->rli->get_worker_count();
-       m_pos.next())
-  {
-    worker= active_mi->rli->get_worker(m_pos.m_index);
-
-    if (worker != NULL)
-    {
-      make_row(worker);
-      m_next_pos.set_after(&m_pos);
-      mysql_mutex_unlock(&LOCK_active_mi);
-      return 0;
-    }
-  }
-
-  mysql_mutex_unlock(&LOCK_active_mi);
-  return HA_ERR_END_OF_FILE;
+  m_pos.reset();
+  m_next_pos.reset();
 }
 
 ha_rows table_replication_execute_status_by_worker::get_row_count()
 {
-  uint row_count= 0;
+  /*
+    Return an estimate, number of master info's multipled by worker threads
+  */
+ return msr_map.get_max_channels()*32;
+}
 
-  mysql_mutex_lock(&LOCK_active_mi);
 
-  if (active_mi && active_mi->rli && active_mi->host[0])
-    row_count= active_mi->rli->get_worker_count();
+int table_replication_execute_status_by_worker::rnd_next(void)
+{
+  Slave_worker *worker;
+  Master_info *mi;
 
-  mysql_mutex_unlock(&LOCK_active_mi);
+  mysql_mutex_lock(&LOCK_msr_map);
 
-  return row_count;
+  for (m_pos.set_at(&m_next_pos);
+       m_pos.has_more_channels(msr_map.get_max_channels());
+       m_pos.next_channel())
+  {
+    mi= msr_map.get_mi_at_pos(m_pos.m_index_1);
+
+    if (mi && mi->host[0] )
+    {
+      worker= mi->rli->get_worker(m_pos.m_index_2);
+      if (worker)
+      {
+        make_row(worker);
+        m_next_pos.set_after(&m_pos);
+        mysql_mutex_unlock(&LOCK_msr_map);
+        return 0;
+      }
+    }
+  }
+
+  mysql_mutex_unlock(&LOCK_msr_map);
+  return HA_ERR_END_OF_FILE;
 }
 
 int table_replication_execute_status_by_worker::rnd_pos(const void *pos)
 {
   Slave_worker *worker;
+  Master_info *mi;
+
   set_position(pos);
 
-  mysql_mutex_lock(&LOCK_active_mi);
+  mysql_mutex_lock(&LOCK_msr_map);
 
-  if (!active_mi || !active_mi->rli || !active_mi->host[0])
+  mi= msr_map.get_mi_at_pos(m_pos.m_index_1);
+
+  if (!mi || !mi->rli || !mi->host[0])
   {
-    mysql_mutex_unlock(&LOCK_active_mi);
-    return HA_ERR_END_OF_FILE;
+    mysql_mutex_unlock(&LOCK_msr_map);
+    return HA_ERR_RECORD_DELETED;
   }
 
-  DBUG_ASSERT(m_pos.m_index < active_mi->rli->get_worker_count());
+  DBUG_ASSERT(m_pos.m_index_1 < mi->rli->get_worker_count());
 
-  worker= active_mi->rli->get_worker(m_pos.m_index);
+  worker= mi->rli->get_worker(m_pos.m_index_2);
 
   if(worker != NULL)
   {
     make_row(worker);
-    mysql_mutex_unlock(&LOCK_active_mi);
+    mysql_mutex_unlock(&LOCK_msr_map);
     return 0;
   }
 
-  mysql_mutex_unlock(&LOCK_active_mi);
+  mysql_mutex_unlock(&LOCK_msr_map);
 
-  return HA_ERR_END_OF_FILE;
+  return HA_ERR_RECORD_DELETED;
 }
 
 void table_replication_execute_status_by_worker::make_row(Slave_worker *w)
@@ -196,6 +201,10 @@ void table_replication_execute_status_by_worker::make_row(Slave_worker *w)
   m_row.worker_id= w->get_internal_id();
 
   m_row.thread_id= 0;
+
+  m_row.channel_name_length= strlen(w->get_channel());
+  memcpy(m_row.channel_name, (char*)w->get_channel(), m_row.channel_name_length);
+
   mysql_mutex_lock(&w->jobs_lock);
   if (w->running_status == Slave_worker::RUNNING)
   {
@@ -281,28 +290,31 @@ int table_replication_execute_status_by_worker
     {
       switch(f->field_index)
       {
-      case 0: /*worker_id*/
+      case 0: /** channel_name */
+        set_field_char_utf8(f, m_row.channel_name, m_row.channel_name_length);
+        break;
+      case 1: /*worker_id*/
         set_field_ulonglong(f, m_row.worker_id);
         break;
-      case 1: /*thread_id*/
+      case 2: /*thread_id*/
         if(m_row.thread_id_is_null)
           f->set_null();
         else
           set_field_ulonglong(f, m_row.thread_id);
         break;
-      case 2: /*service_state*/
+      case 3: /*service_state*/
         set_field_enum(f, m_row.service_state);
         break;
-      case 3: /*last_seen_transaction*/
+      case 4: /*last_seen_transaction*/
         set_field_char_utf8(f, m_row.last_seen_transaction, m_row.last_seen_transaction_length);
         break;
-      case 4: /*last_error_number*/
+      case 5: /*last_error_number*/
         set_field_ulong(f, m_row.last_error_number);
         break;
-      case 5: /*last_error_message*/
+      case 6: /*last_error_message*/
         set_field_varchar_utf8(f, m_row.last_error_message, m_row.last_error_message_length);
         break;
-      case 6: /*last_error_timestamp*/
+      case 7: /*last_error_timestamp*/
         set_field_timestamp(f, m_row.last_error_timestamp);
         break;
       default:

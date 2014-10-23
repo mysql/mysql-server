@@ -262,10 +262,7 @@ TABLE_CATEGORY get_table_category(const LEX_STRING &db,
   if (is_infoschema_db(db.str, db.length))
     return TABLE_CATEGORY_INFORMATION;
 
-  if ((db.length == PERFORMANCE_SCHEMA_DB_NAME.length) &&
-      (my_strcasecmp(system_charset_info,
-                     PERFORMANCE_SCHEMA_DB_NAME.str,
-                     db.str) == 0))
+  if (is_perfschema_db(db.str, db.length))
     return TABLE_CATEGORY_PERFORMANCE;
 
   if ((db.length == MYSQL_SCHEMA_NAME.length) &&
@@ -2884,7 +2881,7 @@ void free_blobs(TABLE *table)
       buffers for such missing fields.
     */
     if (table->field[*ptr])
-      ((Field_blob*) table->field[*ptr])->free();
+      ((Field_blob*) table->field[*ptr])->mem_free();
   }
 }
 
@@ -2907,7 +2904,7 @@ void free_field_buffers_larger_than(TABLE *table, uint32 size)
   {
     Field_blob *blob= (Field_blob*) table->field[*ptr];
     if (blob->get_field_buffer_size() > size)
-        blob->free();
+        blob->mem_free();
   }
 }
 
@@ -3060,7 +3057,7 @@ void open_table_error(TABLE_SHARE *share, int error, int db_errno, int errarg)
   int err_no;
   char buff[FN_REFLEN];
   char errbuf[MYSYS_STRERROR_SIZE];
-  myf errortype= ME_ERROR+ME_WAITTANG;
+  myf errortype= ME_ERRORLOG;
   DBUG_ENTER("open_table_error");
 
   switch (error) {
@@ -6758,7 +6755,7 @@ bool TABLE_LIST::generate_keys()
   {
     sprintf(buf, "<auto_key%i>", key++);
     if (table->add_tmp_key(&entry->used_fields,
-                           table->in_use->strdup(buf)))
+                           table->in_use->mem_strdup(buf)))
       return TRUE;
   }
   return FALSE;

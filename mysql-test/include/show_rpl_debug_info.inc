@@ -90,6 +90,7 @@ while ($_rpl_server)
   SELECT @@GLOBAL.GTID_EXECUTED, @@GLOBAL.GTID_PURGED, @@GLOBAL.GTID_OWNED, @@SESSION.GTID_EXECUTED, @@SESSION.GTID_OWNED;
   --echo
   --echo **** SHOW SLAVE STATUS on $CURRENT_CONNECTION ****
+  --echo **** In multisource replication, information on all channels ****
   query_vertical SHOW SLAVE STATUS;
   --echo
   --echo **** SHOW MASTER STATUS on $CURRENT_CONNECTION ****
@@ -135,6 +136,7 @@ while ($_rpl_server)
 
 --echo rand_seed: '$rand_seed' _rand_state: '$_rand_state'
 --echo extra debug info if any: '$extra_debug_info'
+--echo rpl_topology=$rpl_topology
 if ($extra_debug_eval)
 {
   --let $eval_expr= $extra_debug_eval

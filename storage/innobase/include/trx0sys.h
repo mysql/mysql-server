@@ -64,26 +64,22 @@ trx_sys_hdr_page(
 Creates and initializes the central memory structures for the transaction
 system. This is called when the database is started.
 @return min binary heap of rsegs to purge */
-
 purge_pq_t*
 trx_sys_init_at_db_start(void);
 /*==========================*/
 /*****************************************************************//**
 Creates the trx_sys instance and initializes purge_queue and mutex. */
-
 void
 trx_sys_create(void);
 /*================*/
 /*****************************************************************//**
 Creates and initializes the transaction system at the database creation. */
-
 void
 trx_sys_create_sys_pages(void);
 /*==========================*/
 /****************************************************************//**
 Looks for a free slot for a rollback segment in the trx system file copy.
 @return slot index or ULINT_UNDEFINED if not found */
-
 ulint
 trx_sysf_rseg_find_free(
 /*====================*/
@@ -250,7 +246,6 @@ trx_rw_is_active(
 /****************************************************************//**
 Checks whether a trx is in on of rw_trx_list
 @return TRUE if is in */
-
 bool
 trx_in_rw_trx_list(
 /*============*/
@@ -273,7 +268,6 @@ Updates the offset information about the end of the MySQL binlog entry
 which corresponds to the transaction just being committed. In a MySQL
 replication slave updates the latest master binlog position up to which
 replication has proceeded. */
-
 void
 trx_sys_update_mysql_binlog_offset(
 /*===============================*/
@@ -285,19 +279,16 @@ trx_sys_update_mysql_binlog_offset(
 /*****************************************************************//**
 Prints to stderr the MySQL binlog offset info in the trx system header if
 the magic number shows it valid. */
-
 void
 trx_sys_print_mysql_binlog_offset(void);
 /*===================================*/
 /*****************************************************************//**
 Initializes the tablespace tag system. */
-
 void
 trx_sys_file_format_init(void);
 /*==========================*/
 /*****************************************************************//**
 Closes the tablespace tag system. */
-
 void
 trx_sys_file_format_close(void);
 /*===========================*/
@@ -306,20 +297,17 @@ Tags the system table space with minimum format id if it has not been
 tagged yet.
 WARNING: This function is only called during the startup and AFTER the
 redo log application during recovery has finished. */
-
 void
 trx_sys_file_format_tag_init(void);
 /*==============================*/
 /*****************************************************************//**
 Shutdown/Close the transaction system. */
-
 void
 trx_sys_close(void);
 /*===============*/
 /*****************************************************************//**
 Get the name representation of the file format from its id.
 @return pointer to the name */
-
 const char*
 trx_sys_file_format_id_to_name(
 /*===========================*/
@@ -328,7 +316,6 @@ trx_sys_file_format_id_to_name(
 Set the file format id unconditionally except if it's already the
 same value.
 @return TRUE if value updated */
-
 ibool
 trx_sys_file_format_max_set(
 /*========================*/
@@ -338,7 +325,6 @@ trx_sys_file_format_max_set(
 /*********************************************************************
 Creates the rollback segments
 @return number of rollback segments that are active. */
-
 ulint
 trx_sys_create_rsegs(
 /*=================*/
@@ -357,7 +343,6 @@ trx_sys_get_n_rw_trx(void);
 /*********************************************************************
 Check if there are any active (non-prepared) transactions.
 @return total number of active transactions or 0 if none */
-
 ulint
 trx_sys_any_active_transactions(void);
 /*=================================*/
@@ -365,7 +350,6 @@ trx_sys_any_active_transactions(void);
 /*****************************************************************//**
 Prints to stderr the MySQL binlog info in the system header if the
 magic number shows it valid. */
-
 void
 trx_sys_print_mysql_binlog_offset_from_page(
 /*========================================*/
@@ -378,7 +362,6 @@ Even if the call succeeds and returns TRUE, the returned format id
 may be ULINT_UNDEFINED signalling that the format id was not present
 in the data file.
 @return TRUE if call succeeds */
-
 ibool
 trx_sys_read_file_format_id(
 /*========================*/
@@ -389,7 +372,6 @@ trx_sys_read_file_format_id(
 /*****************************************************************//**
 Reads the file format id from the given per-table data file.
 @return TRUE if call succeeds */
-
 ibool
 trx_sys_read_pertable_file_format_id(
 /*=================================*/
@@ -401,14 +383,12 @@ trx_sys_read_pertable_file_format_id(
 /*****************************************************************//**
 Get the name representation of the file format from its id.
 @return pointer to the max format name */
-
 const char*
 trx_sys_file_format_max_get(void);
 /*=============================*/
 /*****************************************************************//**
 Check for the max file format tag stored on disk.
 @return DB_SUCCESS or error code */
-
 dberr_t
 trx_sys_file_format_max_check(
 /*==========================*/
@@ -417,7 +397,6 @@ trx_sys_file_format_max_check(
 Update the file format tag in the system tablespace only if the given
 format id is greater than the known max id.
 @return TRUE if format_id was bigger than the known max id */
-
 ibool
 trx_sys_file_format_max_upgrade(
 /*============================*/
@@ -426,7 +405,6 @@ trx_sys_file_format_max_upgrade(
 /*****************************************************************//**
 Get the name representation of the file format from its id.
 @return pointer to the name */
-
 const char*
 trx_sys_file_format_id_to_name(
 /*===========================*/
@@ -443,7 +421,6 @@ trx_sys_rw_trx_add(trx_t* trx);
 /*************************************************************//**
 Validate the trx_sys_t::rw_trx_list.
 @return true if the list is valid */
-
 bool
 trx_sys_validate_trx_list();
 /*========================*/

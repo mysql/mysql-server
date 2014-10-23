@@ -1731,7 +1731,7 @@ POINT(2 2)
 CREATE TABLE t2 AS SELECT f2 AS a FROM t1 UNION SELECT f3 FROM t1;
 DESC t2;
 Field	Type	Null	Key	Default	Extra
-a	point	YES		NULL	
+a	geometry	YES		NULL	
 SELECT AsText(a) FROM t2;
 AsText(a)
 POINT(1 1)

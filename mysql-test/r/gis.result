@@ -920,7 +920,7 @@ LINESTRING(0 0,1 1,2 2)
 create table t2 as select f2 as a from t1 union select f3 from t1;
 desc t2;
 Field	Type	Null	Key	Default	Extra
-a	point	YES		NULL	
+a	geometry	YES		NULL	
 select AsText(a) from t2;
 AsText(a)
 POINT(1 1)

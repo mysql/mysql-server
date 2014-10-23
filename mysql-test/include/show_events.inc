@@ -22,9 +22,14 @@ if (!$binlog_start)
 --let $_se_old_statement= $statement
 
 --let $statement=show BINLOG events
+--let $_se_for_channel=
 if ($is_relay_log)
 {
   --let $statement=show relaylog events
+  if ($rpl_channel_name != '')
+  {
+    --let $_se_for_channel= FOR CHANNEL  '$rpl_channel_name'
+  }
 }
 
 if ($binlog_file)
@@ -50,6 +55,8 @@ if ($binlog_limit != '')
 {
   --let $statement= $statement limit $binlog_limit
 }
+
+--let $statement= $statement $_se_for_channel
 
 # Execute the statement and write to $output_file
 --let $output_file= GENERATE

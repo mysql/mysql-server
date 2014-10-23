@@ -172,6 +172,11 @@ SELECT * FROM tab2 ORDER BY col_7;
 --exec $INNOCHECKSUM --no-check --write=NONE $MYSQLD_DATADIR/mysql/time_zone_name.ibd
 --exec $INNOCHECKSUM --no-check --write=NONE $MYSQLD_DATADIR/mysql/time_zone_transition.ibd
 --exec $INNOCHECKSUM --no-check --write=NONE $MYSQLD_DATADIR/mysql/time_zone_transition_type.ibd
+perl;
+foreach (glob("$ENV{MYSQLD_DATADIR}/undo*")) {
+	system("$ENV{INNOCHECKSUM} --no-check --write=NONE $_")
+}
+EOF
 
 let $restart_parameters = restart: --innodb_checksum_algorithm=strict_none --default_storage_engine=InnoDB;
 --source include/start_mysqld.inc

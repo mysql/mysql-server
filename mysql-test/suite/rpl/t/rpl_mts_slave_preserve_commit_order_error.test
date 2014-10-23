@@ -3,6 +3,8 @@
 --source include/have_debug.inc
 --source include/have_debug_sync.inc
 --source include/master-slave.inc
+# TODO: The test can be converted to run with Logical-clock.
+--source include/have_slave_parallel_type_database.inc
 
 CALL mtr.add_suppression(".*slave coordinator and worker threads are stopped.*");
 CALL mtr.add_suppression("Could not execute Write_rows event on table test.*");

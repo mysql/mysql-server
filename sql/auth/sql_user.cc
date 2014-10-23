@@ -338,7 +338,7 @@ bool change_password(THD *thd, const char *host, const char *user,
       goto end;
     }
     thd->variables.time_zone->gmt_sec_to_TIME(&acl_user->password_last_changed,
-	thd->query_start());
+      static_cast<my_time_t>(thd->query_start()));
 
   }
   else
@@ -387,7 +387,7 @@ bool change_password(THD *thd, const char *host, const char *user,
       goto end;
     }
     thd->variables.time_zone->gmt_sec_to_TIME(&acl_user->password_last_changed,
-         thd->query_start());
+      static_cast<my_time_t>(thd->query_start()));
   }
   else
   {

@@ -1140,6 +1140,10 @@ SELECT inet6_aton(soundex('a'));
 inet6_aton(soundex('a'))
 NULL
 #
+# Bug#19047425 UNINITIALISED VALUE IN STR_TO_IPV6
+#
+do is_ipv4_mapped(inet6_aton(convert(_ascii "a:" using utf8mb4)));
+#
 # Test for gb18030_unicode_520_ci collation.
 #
 SET NAMES utf8mb4;

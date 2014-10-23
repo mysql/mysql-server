@@ -8,15 +8,21 @@
 # dispatch next event. The crash happens because the caller of
 # Mts_submode_logical_clock::get_least_occupied_worker() supposes it always
 # return a valid worker. But that is not true. It may turn NULL when
-# coordinator is aborted at the same time.
+# coordinator is aborted at the same time seeing a Worker has failed.
 ################################################################################
 CREATE TABLE t1(c1 INT PRIMARY KEY) ENGINE = InnoDB;
+CREATE TABLE t2(c1 INT PRIMARY KEY) ENGINE = InnoDB;
 --source include/sync_slave_sql_with_master.inc
 --source include/stop_slave_sql.inc
 
 --source include/rpl_connection_master.inc
 SET @save_debug = @@GLOBAL.debug;
+
+# make the following transactions to have a common commit parent
+# so be parallelizable on slave.
 SET GLOBAL debug = "d,set_commit_parent_100";
+
+INSERT INTO t2 VALUES(99); # just a warmup load
 BEGIN;
 INSERT INTO t1 VALUES(1);
 INSERT INTO t1 VALUES(2);
@@ -26,8 +32,7 @@ BEGIN;
 INSERT INTO t1 VALUES(3);
 INSERT INTO t1 VALUES(4);
 COMMIT;
-
-# It makes coordinator to wait for a free worker.
+# This one will force coordinator to wait for a free worker.
 INSERT INTO t1 VALUES(5);
 
 SET GLOBAL debug = @save_debug;
@@ -42,10 +47,10 @@ SET GLOBAL slave_parallel_type = LOGICAL_CLOCK;
 SET GLOBAL slave_parallel_workers = 2;
 SET GLOBAL slave_transaction_retries = 0;
 
-# Inserts the rows into slave's db. Workers will fail with duplicate key error
-# when applying master's transactions.
+# Inserts an offending row into slave's db. A worker will fail with
+# the duplicate key error when applying master's transaction.
 INSERT INTO t1 VALUES(1);
-INSERT INTO t1 VALUES(3);
+
 CALL mtr.add_suppression("Worker . Failed executing transaction.*");
 CALL mtr.add_suppression(".*coordinator and worker threads are stopped.*");
 
@@ -85,4 +90,5 @@ TRUNCATE t1;
 
 --source include/rpl_connection_master.inc
 DROP TABLE t1;
+DROP TABLE t2;
 --source include/rpl_end.inc

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -545,7 +545,7 @@ int _mi_insert(MI_INFO *info, MI_KEYDEF *keyinfo,
         info->ft1_to_ft2=(DYNAMIC_ARRAY *)
           my_malloc(mi_key_memory_MI_INFO_ft1_to_ft2,
                     sizeof(DYNAMIC_ARRAY), MYF(MY_WME));
-        my_init_dynamic_array(info->ft1_to_ft2, ft2len, 300, 50);
+        my_init_dynamic_array(info->ft1_to_ft2, ft2len, NULL, 300, 50);
 
         /*
           now, adding all keys from the page to dynarray

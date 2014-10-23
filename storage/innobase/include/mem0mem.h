@@ -300,7 +300,6 @@ mem_strdupl(
 @param[in]	heap	memory heap where string is allocated
 @param[in]	str	string to be copied
 @return own: a copy of the string */
-
 char*
 mem_heap_strdup(
 	mem_heap_t*	heap,
@@ -321,7 +320,6 @@ mem_heap_strdupl(
 /**********************************************************************//**
 Concatenate two strings and return the result, using a memory heap.
 @return own: the result */
-
 char*
 mem_heap_strcat(
 /*============*/
@@ -332,7 +330,6 @@ mem_heap_strcat(
 /**********************************************************************//**
 Duplicate a block of data, allocated from a memory heap.
 @return own: a copy of the data */
-
 void*
 mem_heap_dup(
 /*=========*/
@@ -346,7 +343,6 @@ formatted string from the given heap. This supports a very limited set of
 the printf syntax: types 's' and 'u' and length modifier 'l' (which is
 required for the 'u' type).
 @return heap-allocated formatted string */
-
 char*
 mem_heap_printf(
 /*============*/
@@ -365,7 +361,6 @@ mem_block_validate(
 /** Validates the contents of a memory heap.
 Asserts that the memory heap is consistent
 @param[in]	heap	Memory heap to validate */
-
 void
 mem_heap_validate(
 	const mem_heap_t*	heap);

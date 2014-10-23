@@ -98,7 +98,7 @@ bool sp_rcontext::alloc_arrays(THD *thd)
     size_t n= m_root_parsing_ctx->get_num_case_exprs();
     m_case_expr_holders.reset(
       static_cast<Item_cache **> (
-        thd->calloc(n * sizeof (Item_cache*))),
+        thd->mem_calloc(n * sizeof (Item_cache*))),
       n);
   }
 

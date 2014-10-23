@@ -67,7 +67,7 @@ class Security_buffer: public SecBufferDesc
 
   ~Security_buffer()
   {
-    free();
+    mem_free();
   }
 
   byte*  ptr() const
@@ -85,7 +85,7 @@ class Security_buffer: public SecBufferDesc
     return Blob(ptr(), len());
   }
 
-  void free(void);
+  void mem_free(void);
 };
 
 

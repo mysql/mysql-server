@@ -332,7 +332,10 @@ String *Item_func_geomfromgeojson::val_str(String *buf)
     else
     {
       char option_string[MAX_BIGINT_WIDTH + 1];
-      llstr(dimension_argument, option_string);
+      if (args[1]->unsigned_flag)
+        ullstr(dimension_argument, option_string);
+      else
+        llstr(dimension_argument, option_string);
 
       my_error(ER_WRONG_VALUE_FOR_TYPE, MYF(0), "option", option_string,
                func_name());
@@ -354,7 +357,10 @@ String *Item_func_geomfromgeojson::val_str(String *buf)
     if (srid_argument < 0 || srid_argument > UINT_MAX32)
     {
       char srid_string[MAX_BIGINT_WIDTH + 1];
-      llstr(srid_argument, srid_string);
+      if (args[2]->unsigned_flag)
+        ullstr(srid_argument, srid_string);
+      else
+        llstr(srid_argument, srid_string);
 
       my_error(ER_WRONG_VALUE_FOR_TYPE, MYF(0), "SRID", srid_string,
                func_name());
@@ -2240,7 +2246,7 @@ String *Item_func_point::val_str(String *str)
 
   if ((null_value= (args[0]->null_value ||
                     args[1]->null_value ||
-                    str->realloc(4/*SRID*/ + 1 + 4 + SIZEOF_STORED_DOUBLE * 2))))
+                    str->mem_realloc(4/*SRID*/ + 1 + 4 + SIZEOF_STORED_DOUBLE * 2))))
     return 0;
 
   str->set_charset(&my_charset_bin);
@@ -2325,7 +2331,7 @@ String *Item_func_pointfromgeohash::val_str(String *str)
     return error_str();
   }
 
-  if (str->realloc(GEOM_HEADER_SIZE + POINT_DATA_SIZE))
+  if (str->mem_realloc(GEOM_HEADER_SIZE + POINT_DATA_SIZE))
     return make_empty_result();
   
   if (geohash->length() == 0)
@@ -7460,7 +7466,7 @@ geocol_intersection(Geometry *g1, Geometry *g2, String *result, bool *pdone)
          j != bggc2.get_geometries().end(); ++j)
     {
       // Free before using it, wkbres may have WKB data from last execution.
-      wkbres.free();
+      wkbres.mem_free();
       opdone= false;
       g0= bg_geo_set_op<Coord_type, Coordsys>(*i, *j, &wkbres, &opdone);
 
@@ -7570,7 +7576,7 @@ bool BG_geometry_collection::merge_one_run(Item_func_spatial_operation *ifso,
           isdone && !null_value)
       {
         // Free before using it, wkbres may have WKB data from last execution.
-        wkbres.free();
+        wkbres.mem_free();
         gres= ifso->bg_geo_set_op<Coord_type, Coordsys>(*i, *j,
                                                         &wkbres, &opdone);
         null_value= ifso->null_value;
@@ -8901,9 +8907,14 @@ double Item_func_distance::val_real()
           goto old_algo;
         if (null_value)
           goto error;
+        if (dist < 0 || boost::math::isnan(dist))
+        {
+          isdone= true;
+          distance= dist;
+          goto error;
+        }
         if (!initialized)
         {
-          DBUG_ASSERT(dist <= DBL_MAX);
           min_distance= dist;
           initialized= true;
         }
@@ -8927,11 +8938,7 @@ double Item_func_distance::val_real()
       isdone= true;
     }
     else
-    {
-      if (min_distance >= DBL_MAX)
-        min_distance= 0;
       distance= min_distance;
-    }
   }
 
 error:
@@ -9069,7 +9076,7 @@ count_distance:
   }
 exit:
 
-  if (!my_isfinite(distance))
+  if (!my_isfinite(distance) || distance < 0)
   {
     my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
     DBUG_RETURN(error_real());
@@ -9418,7 +9425,7 @@ longlong Item_func_gis_debug::val_int()
 {
   longlong val= args[0]->val_int();
   if (!args[0]->null_value)
-    current_thd->set_gis_debug(val);
+    current_thd->set_gis_debug(static_cast<int>(val));
   return current_thd->get_gis_debug();
 }
 #endif

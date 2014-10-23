@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -42,6 +42,7 @@ struct gen_lex_token_string
   const char *m_token_string;
   int m_token_length;
   bool m_append_space;
+  bool m_start_expr;
 };
 
 gen_lex_token_string compiled_token_array[MY_MAX_TOKEN];
@@ -79,6 +80,12 @@ void set_token(int tok, const char *str)
   compiled_token_array[tok].m_token_string= str;
   compiled_token_array[tok].m_token_length= strlen(str);
   compiled_token_array[tok].m_append_space= true;
+  compiled_token_array[tok].m_start_expr= false;
+}
+
+void set_start_expr_token(int tok)
+{
+  compiled_token_array[tok].m_start_expr= true;
 }
 
 void compute_tokens()
@@ -95,6 +102,7 @@ void compute_tokens()
     compiled_token_array[tok].m_token_string= "(unknown)";
     compiled_token_array[tok].m_token_length= 9;
     compiled_token_array[tok].m_append_space= true;
+    compiled_token_array[tok].m_start_expr= false;
   }
 
   /*
@@ -223,6 +231,55 @@ void compute_tokens()
     To work around this, digest text are printed as "@@variable".
   */
   compiled_token_array[(int) '@'].m_append_space= false;
+
+  /*
+    Define additional properties for tokens.
+
+    List all the token that are followed by an expression.
+    This is needed to differentiate unary from binary
+    '+' and '-' operators, because we want to:
+    - reduce <unary +> <NUM> to <?>,
+    - preserve <...> <binary +> <NUM> as is.
+  */
+  set_start_expr_token('(');
+  set_start_expr_token(',');
+  set_start_expr_token(EVERY_SYM);
+  set_start_expr_token(AT_SYM);
+  set_start_expr_token(STARTS_SYM);
+  set_start_expr_token(ENDS_SYM);
+  set_start_expr_token(DEFAULT);
+  set_start_expr_token(RETURN_SYM);
+  set_start_expr_token(IF);
+  set_start_expr_token(ELSEIF_SYM);
+  set_start_expr_token(CASE_SYM);
+  set_start_expr_token(WHEN_SYM);
+  set_start_expr_token(WHILE_SYM);
+  set_start_expr_token(UNTIL_SYM);
+  set_start_expr_token(SELECT_SYM);
+
+  set_start_expr_token(OR_SYM);
+  set_start_expr_token(OR2_SYM);
+  set_start_expr_token(XOR);
+  set_start_expr_token(AND_SYM);
+  set_start_expr_token(AND_AND_SYM);
+  set_start_expr_token(NOT_SYM);
+  set_start_expr_token(BETWEEN_SYM);
+  set_start_expr_token(LIKE);
+  set_start_expr_token(REGEXP);
+
+  set_start_expr_token('|');
+  set_start_expr_token('&');
+  set_start_expr_token(SHIFT_LEFT);
+  set_start_expr_token(SHIFT_RIGHT);
+  set_start_expr_token('+');
+  set_start_expr_token('-');
+  set_start_expr_token(INTERVAL_SYM);
+  set_start_expr_token('*');
+  set_start_expr_token('/');
+  set_start_expr_token('%');
+  set_start_expr_token(DIV_SYM);
+  set_start_expr_token(MOD_SYM);
+  set_start_expr_token('^');
 }
 
 void print_tokens()
@@ -235,24 +292,26 @@ void print_tokens()
 
   for (tok= 0; tok<256; tok++)
   {
-    printf("/* %03d */  { \"\\x%02x\", 1, %s},\n",
+    printf("/* %03d */  { \"\\x%02x\", 1, %s, %s},\n",
            tok,
            tok,
-           compiled_token_array[tok].m_append_space ? "true" : "false");
+           compiled_token_array[tok].m_append_space ? "true" : "false",
+           compiled_token_array[tok].m_start_expr ? "true" : "false");
   }
 
   printf("/* PART 2: named tokens. */\n");
 
   for (tok= 256; tok<= max_token_seen; tok++)
   {
-    printf("/* %03d */  { \"%s\", %d, %s},\n",
+    printf("/* %03d */  { \"%s\", %d, %s, %s},\n",
            tok,
            compiled_token_array[tok].m_token_string,
            compiled_token_array[tok].m_token_length,
-           compiled_token_array[tok].m_append_space ? "true" : "false");
+           compiled_token_array[tok].m_append_space ? "true" : "false",
+           compiled_token_array[tok].m_start_expr ? "true" : "false");
   }
 
-  printf("/* DUMMY */ { \"\", 0, false}\n");
+  printf("/* DUMMY */ { \"\", 0, false, false}\n");
   printf("};\n");
 
   printf("/* DIGEST specific tokens. */\n");
@@ -280,6 +339,7 @@ int main(int argc,char **argv)
   printf("  const char *m_token_string;\n");
   printf("  int m_token_length;\n");
   printf("  bool m_append_space;\n");
+  printf("  bool m_start_expr;\n");
   printf("};\n");
   printf("typedef struct lex_token_string lex_token_string;\n");
 

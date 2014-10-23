@@ -322,7 +322,6 @@ Creates, or rather, initializes an rw-lock object in a specified memory
 location (which must be appropriately aligned). The rw-lock is initialized
 to the non-locked state. Explicit freeing of the rw-lock with rw_lock_free
 is necessary only if the memory block containing it is freed. */
-
 void
 rw_lock_create_func(
 /*================*/
@@ -339,7 +338,6 @@ rw_lock_create_func(
 Calling this function is obligatory only if the memory buffer containing
 the rw-lock is freed. Removes an rw-lock object from the global list. The
 rw-lock is checked to be in the non-locked state. */
-
 void
 rw_lock_free_func(
 /*==============*/
@@ -349,7 +347,6 @@ rw_lock_free_func(
 Checks that the rw-lock has been initialized and that there are no
 simultaneous shared and exclusive locks.
 @return TRUE */
-
 ibool
 rw_lock_validate(
 /*=============*/
@@ -418,7 +415,6 @@ for the lock, before suspending the thread. If the same thread has an x-lock
 on the rw-lock, locking succeed, with the following exception: if pass != 0,
 only a single x-lock may be taken on the lock. NOTE: If the same thread has
 an s-lock, locking does not succeed! */
-
 void
 rw_lock_x_lock_func(
 /*================*/
@@ -430,7 +426,6 @@ rw_lock_x_lock_func(
 /******************************************************************//**
 Low-level function for acquiring an sx lock.
 @return FALSE if did not succeed, TRUE if success. */
-
 ibool
 rw_lock_sx_lock_low(
 /*================*/
@@ -448,7 +443,6 @@ for the lock, before suspending the thread. If the same thread has an x-lock
 on the rw-lock, locking succeed, with the following exception: if pass != 0,
 only a single sx-lock may be taken on the lock. NOTE: If the same thread has
 an s-lock, locking does not succeed! */
-
 void
 rw_lock_sx_lock_func(
 /*=================*/
@@ -489,7 +483,6 @@ read was done. The ownership is moved because we want that the current
 thread is able to acquire a second x-latch which is stored in an mtr.
 This, in turn, is needed to pass the debug checks of index page
 operations. */
-
 void
 rw_lock_x_lock_move_ownership(
 /*==========================*/
@@ -578,7 +571,6 @@ rw_lock_set_writer_id_and_recursion_flag(
 /******************************************************************//**
 Checks if the thread has locked the rw-lock in the specified mode, with
 the pass value == 0. */
-
 ibool
 rw_lock_own(
 /*========*/
@@ -590,7 +582,6 @@ rw_lock_own(
 /******************************************************************//**
 Checks if the thread has locked the rw-lock in the specified mode, with
 the pass value == 0. */
-
 bool
 rw_lock_own_flagged(
 /*================*/
@@ -602,7 +593,6 @@ rw_lock_own_flagged(
 /******************************************************************//**
 Checks if somebody has locked the rw-lock in the specified mode.
 @return true if locked */
-
 bool
 rw_lock_is_locked(
 /*==============*/
@@ -612,14 +602,12 @@ rw_lock_is_locked(
 #ifdef UNIV_SYNC_DEBUG
 /***************************************************************//**
 Prints debug info of an rw-lock. */
-
 void
 rw_lock_print(
 /*==========*/
 	rw_lock_t*	lock);		/*!< in: rw-lock */
 /***************************************************************//**
 Prints debug info of currently locked rw-locks. */
-
 void
 rw_lock_list_print_info(
 /*====================*/
@@ -628,7 +616,6 @@ rw_lock_list_print_info(
 Returns the number of currently locked rw-locks.
 Works only in the debug version.
 @return number of locked rw-locks */
-
 ulint
 rw_lock_n_locked(void);
 /*==================*/
@@ -641,19 +628,16 @@ because the debug mutex is also acquired in sync0arr while holding the OS
 mutex protecting the sync array, and the ordinary mutex_enter might
 recursively call routines in sync0arr, leading to a deadlock on the OS
 mutex. */
-
 void
 rw_lock_debug_mutex_enter(void);
 /*===========================*/
 /******************************************************************//**
 Releases the debug mutex. */
-
 void
 rw_lock_debug_mutex_exit(void);
 /*==========================*/
 /*********************************************************************//**
 Prints info of a debug struct. */
-
 void
 rw_lock_debug_print(
 /*================*/

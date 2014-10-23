@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2007, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -28,11 +28,6 @@ Created 2007-03-27 Sunny Bains
 
 #include "rem0cmp.h"
 #include "ha_prototypes.h"
-
-extern const ulint UTF8_ERROR;
-
-/* Determine if a UTF-8 continuation byte is valid. */
-#define fts_utf8_is_valid(b) (((b) & 0xC0) == 0x80)
 
 /******************************************************************//**
 Duplicate a string.
@@ -99,134 +94,6 @@ fts_update_doc_id_cmp(
 	const fts_update_t*	up2 = (const fts_update_t*) p2;
 
 	return((int)(up1->doc_id - up2->doc_id));
-}
-
-
-/******************************************************************//**
-Lowercase an UTF-8 string. */
-UNIV_INLINE
-void
-fts_utf8_tolower(
-/*=============*/
-	fts_string_t*	str)			/*!< in: string */
-{
-	innobase_casedn_str((char*) str->f_str);
-}
-
-/******************************************************************//**
-Decode a UTF-8 character.
-
-http://www.unicode.org/versions/Unicode4.0.0/ch03.pdf:
-
- Scalar Value              1st Byte 2nd Byte 3rd Byte 4th Byte
-00000000 0xxxxxxx          0xxxxxxx
-00000yyy yyxxxxxx          110yyyyy 10xxxxxx
-zzzzyyyy yyxxxxxx          1110zzzz 10yyyyyy 10xxxxxx
-000uuuzz zzzzyyyy yyxxxxxx 11110uuu 10zzzzzz 10yyyyyy 10xxxxxx
-
-This function decodes UTF-8 sequences up to 6 bytes (31 bits).
-
-On error *ptr will point to the first byte that was not correctly
-decoded. This will hopefully help in resyncing the input.
-@return UTF8_ERROR if *ptr did not point to a valid
-UTF-8 sequence, or the Unicode code point. */
-UNIV_INLINE
-ulint
-fts_utf8_decode(
-/*============*/
-	const byte**	ptr)			/*!< in/out: pointer to
-						UTF-8 string. The
-						pointer is advanced to
-						the start of the next
-						character. */
-{
-	const byte*	p = *ptr;
-	ulint		ch = *p++;
-#ifdef UNIV_DEBUG
-	ulint		min_ch;
-#endif /* UNIV_DEBUG */
-
-	if (UNIV_LIKELY(ch < 0x80)) {
-		/* 0xxxxxxx */
-	} else if (UNIV_UNLIKELY(ch < 0xC0)) {
-		/* A continuation byte cannot start a code. */
-		goto err_exit;
-	} else if (ch < 0xE0) {
-		/* 110yyyyy 10xxxxxx */
-		ch &= 0x1F;
-		ut_d(min_ch = 0x80);
-		goto get1;
-	} else if (ch < 0xF0) {
-		/* 1110zzzz 10yyyyyy 10xxxxxx */
-		ch &= 0x0F;
-		ut_d(min_ch = 0x800);
-		goto get2;
-	} else if (ch < 0xF8) {
-		/* 11110uuu 10zzzzzz 10yyyyyy 10xxxxxx */
-		ch &= 0x07;
-		ut_d(min_ch = 0x10000);
-		goto get3;
-	} else if (ch < 0xFC) {
-		/* 111110tt 10uuuuuu 10zzzzzz 10yyyyyy 10xxxxxx */
-		ch &= 0x03;
-		ut_d(min_ch = 0x200000);
-		goto get4;
-	} else if (ch < 0xFE) {
-		/* 1111110s 10tttttt 10uuuuuu 10zzzzzz 10yyyyyy 10xxxxxx */
-		ut_d(min_ch = 0x4000000);
-		if (!fts_utf8_is_valid(*p)) {
-			goto err_exit;
-		}
-		ch <<= 6;
-		ch |= (*p++) & 0x3F;
-get4:
-		if (!fts_utf8_is_valid(*p)) {
-			goto err_exit;
-		}
-		ch <<= 6;
-		ch |= (*p++) & 0x3F;
-get3:
-		if (!fts_utf8_is_valid(*p)) {
-			goto err_exit;
-		}
-		ch <<= 6;
-		ch |= (*p++) & 0x3F;
-get2:
-		if (!fts_utf8_is_valid(*p)) {
-			goto err_exit;
-		}
-		ch <<= 6;
-		ch |= (*p++) & 0x3F;
-get1:
-		if (!fts_utf8_is_valid(*p)) {
-			goto err_exit;
-		}
-		ch <<= 6;
-		ch |= (*p++) & 0x3F;
-
-		/* The following is needed in the 6-byte case
-		when ulint is wider than 32 bits. */
-		ch &= 0xFFFFFFFF;
-
-		/* The code positions U+D800 to U+DFFF (UTF-16 surrogate pairs)
-		and U+FFFE and U+FFFF cannot occur in valid UTF-8. */
-
-		if ( (ch >= 0xD800 && ch <= 0xDFFF)
-#ifdef UNIV_DEBUG
-		     || ch < min_ch
-#endif /* UNIV_DEBUG */
-		     || ch == 0xFFFE || ch == 0xFFFF) {
-
-			ch = UTF8_ERROR;
-		}
-	} else {
-err_exit:
-		ch = UTF8_ERROR;
-	}
-
-	*ptr = p;
-
-	return(ch);
 }
 
 /******************************************************************//**

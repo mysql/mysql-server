@@ -110,7 +110,44 @@ MATCH(title, body) AGAINST('"mysql database"' IN BOOLEAN MODE);
 id	title	body
 DROP TABLE articles;
 # Test Part 3 END
-# Test Part 8: Test Uninstall Plugin After Index is Built
+# Test Part 4:crash on commit(before/after)
+CREATE TABLE articles (
+id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+title VARCHAR(200),
+body TEXT,
+FULLTEXT (title, body) WITH PARSER simple_parser
+) ENGINE=InnoDB;
+BEGIN;
+INSERT INTO articles (title, body) VALUES
+('MySQL Tutorial','DBMS stands for MySQL DataBase ...'),
+('How To Use MySQL Well','After you went through a ...'),
+('Optimizing MySQL','In this tutorial we will show ...'),
+('1001 MySQL Tricks','How to use full-text search engine'),
+('Go MySQL Tricks','How to use full text search engine');
+# Kill and restart
+SELECT COUNT(*) FROM articles;
+COUNT(*)
+0
+SELECT * FROM articles WHERE
+MATCH(title, body) AGAINST('mysql');
+id	title	body
+INSERT INTO articles (title, body) VALUES
+('MySQL Tutorial','DBMS stands for MySQL DataBase ...'),
+('How To Use MySQL Well','After you went through a ...'),
+('Optimizing MySQL','In this tutorial we will show ...'),
+('1001 MySQL Tricks','How to use full-text search engine'),
+('Go MySQL Tricks','How to use full text search engine');
+# Kill and restart
+SELECT * FROM articles WHERE
+MATCH(title, body) AGAINST('Tricks');
+id	title	body
+4	1001 MySQL Tricks	How to use full-text search engine
+5	Go MySQL Tricks	How to use full text search engine
+SELECT COUNT(*) FROM articles;
+COUNT(*)
+5
+DROP TABLE articles;
+# Test Part 5: Test Uninstall Plugin After Index is Built
 CREATE TABLE articles (
 id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
 title VARCHAR(200),
@@ -161,42 +198,3 @@ ERROR HY000: Function 'simple_parser' is not defined
 DROP TABLE articles;
 UNINSTALL PLUGIN simple_parser;
 ERROR 42000: PLUGIN simple_parser does not exist
-INSTALL PLUGIN simple_parser SONAME 'mypluglib.so';
-# Test Part 10:crash on commit(before/after)
-CREATE TABLE articles (
-id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
-title VARCHAR(200),
-body TEXT,
-FULLTEXT (title, body) WITH PARSER simple_parser
-) ENGINE=InnoDB;
-BEGIN;
-INSERT INTO articles (title, body) VALUES
-('MySQL Tutorial','DBMS stands for MySQL DataBase ...'),
-('How To Use MySQL Well','After you went through a ...'),
-('Optimizing MySQL','In this tutorial we will show ...'),
-('1001 MySQL Tricks','How to use full-text search engine'),
-('Go MySQL Tricks','How to use full text search engine');
-# Kill and restart
-SELECT COUNT(*) FROM articles;
-COUNT(*)
-0
-SELECT * FROM articles WHERE
-MATCH(title, body) AGAINST('mysql');
-id	title	body
-INSERT INTO articles (title, body) VALUES
-('MySQL Tutorial','DBMS stands for MySQL DataBase ...'),
-('How To Use MySQL Well','After you went through a ...'),
-('Optimizing MySQL','In this tutorial we will show ...'),
-('1001 MySQL Tricks','How to use full-text search engine'),
-('Go MySQL Tricks','How to use full text search engine');
-# Kill and restart
-SELECT * FROM articles WHERE
-MATCH(title, body) AGAINST('Tricks');
-id	title	body
-4	1001 MySQL Tricks	How to use full-text search engine
-5	Go MySQL Tricks	How to use full text search engine
-SELECT COUNT(*) FROM articles;
-COUNT(*)
-5
-DROP TABLE articles;
-UNINSTALL PLUGIN simple_parser;

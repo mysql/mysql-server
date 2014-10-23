@@ -969,6 +969,25 @@ int thd_tx_is_read_only(const THD *thd)
 }
 
 extern "C"
+int thd_tx_priority(const THD* thd)
+{
+  return (thd->thd_tx_priority != 0
+          ? thd->thd_tx_priority
+          : thd->tx_priority);
+}
+
+extern "C"
+THD* thd_tx_arbitrate(THD *requestor, THD* holder)
+{
+ /* Should be different sessions. */
+ DBUG_ASSERT(holder != requestor);
+
+ return(thd_tx_priority(requestor) == thd_tx_priority(holder)
+	? requestor
+	: ((thd_tx_priority(requestor)
+	    > thd_tx_priority(holder)) ? holder : requestor));
+}
+
 int thd_tx_is_dd_trx(const THD *thd)
 {
   return (int) thd->is_attachable_transaction_active();
@@ -1313,8 +1332,10 @@ THD::THD(bool enable_plugins)
   binlog_next_event_pos.file_name= NULL;
   binlog_next_event_pos.pos= 0;
 
+#ifdef HAVE_MY_TIMER
   timer= NULL;
   timer_cache= NULL;
+#endif
 #ifndef DBUG_OFF
   gis_debug= 0;
 #endif
@@ -1557,13 +1578,13 @@ void *thd_alloc(MYSQL_THD thd, size_t size)
 extern "C"
 void *thd_calloc(MYSQL_THD thd, size_t size)
 {
-  return thd->calloc(size);
+  return thd->mem_calloc(size);
 }
 
 extern "C"
 char *thd_strdup(MYSQL_THD thd, const char *str)
 {
-  return thd->strdup(str);
+  return thd->mem_strdup(str);
 }
 
 extern "C"
@@ -1646,6 +1667,8 @@ void THD::init(void)
                         TL_WRITE_CONCURRENT_INSERT);
   tx_isolation= (enum_tx_isolation) variables.tx_isolation;
   tx_read_only= variables.tx_read_only;
+  tx_priority= 0;
+  thd_tx_priority= 0;
   update_charset();
   reset_current_stmt_binlog_format_row();
   reset_binlog_local_stmt_filter();
@@ -3095,7 +3118,7 @@ bool select_export::send_data(List<Item> &items)
         ((uint64) res->length() / res->charset()->mbminlen + 1) *
         write_cs->mbmaxlen + 1;
       set_if_smaller(estimated_bytes, UINT_MAX32);
-      if (cvt_str.realloc((uint32) estimated_bytes))
+      if (cvt_str.mem_realloc((uint32) estimated_bytes))
       {
         my_error(ER_OUTOFMEMORY, MYF(ME_FATALERROR), (uint32) estimated_bytes);
         goto err;
@@ -3448,19 +3471,22 @@ bool select_singlerow_subselect::send_data(List<Item> &items)
   if (it->assigned())
   {
     my_message(ER_SUBQUERY_NO_1_ROW, ER(ER_SUBQUERY_NO_1_ROW), MYF(0));
-    DBUG_RETURN(1);
+    DBUG_RETURN(true);
   }
   if (unit->offset_limit_cnt)
   {				          // Using limit offset,count
     unit->offset_limit_cnt--;
-    DBUG_RETURN(0);
+    DBUG_RETURN(false);
   }
   List_iterator_fast<Item> li(items);
   Item *val_item;
   for (uint i= 0; (val_item= li++); i++)
     it->store(i, val_item);
+  if (thd->is_error())
+    DBUG_RETURN(true);
+
   it->assigned(true);
-  DBUG_RETURN(0);
+  DBUG_RETURN(false);
 }
 
 
@@ -4728,7 +4754,8 @@ void THD::inc_status_sort_rows(ha_rows count)
 {
   status_var.filesort_rows+= count;
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
-  PSI_STATEMENT_CALL(inc_statement_sort_rows)(m_statement_psi, count);
+  PSI_STATEMENT_CALL(inc_statement_sort_rows)(m_statement_psi,
+                                              static_cast<ulong>(count));
 #endif
 }
 
@@ -4980,7 +5007,7 @@ void THD::time_out_user_resource_limits()
   DBUG_ENTER("time_out_user_resource_limits");
 
   /* If more than a hour since last check, reset resource checking */
-  if (check_time - m_user_connect->reset_utime >= LL(3600000000))
+  if (check_time - m_user_connect->reset_utime >= 3600000000LL)
   {
     m_user_connect->questions=1;
     m_user_connect->updates=0;

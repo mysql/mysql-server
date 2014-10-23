@@ -10,6 +10,7 @@
 # with the default page size will refuse to start on the data set with custom
 # page size.
 --source include/have_innodb_16k.inc
+--source include/have_no_undo_tablespaces.inc
 
 --echo #
 --echo # Bug#12561297 : LIBMYSQLD/EXAMPLE/MYSQL_EMBEDDED IS ABORTING.

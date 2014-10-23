@@ -672,9 +672,9 @@ void debug_sync_end_thread(THD *thd)
       st_debug_sync_action *action_end= action + ds_control->ds_allocated;
       for (; action < action_end; action++)
       {
-        action->signal.free();
-        action->wait_for.free();
-        action->sync_point.free();
+        action->signal.mem_free();
+        action->wait_for.mem_free();
+        action->sync_point.mem_free();
       }
       my_free(ds_control->ds_action);
     }

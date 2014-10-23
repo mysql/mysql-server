@@ -37,7 +37,7 @@ NDB_SHARE::destroy(NDB_SHARE* share)
       share->m_cfn_share->m_ex_tab_writer.hasTable() && 
       g_ndb)
   {
-    share->m_cfn_share->m_ex_tab_writer.free(g_ndb);
+    share->m_cfn_share->m_ex_tab_writer.mem_free(g_ndb);
   }
 #endif
   share->new_op= 0;

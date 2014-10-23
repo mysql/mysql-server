@@ -52,7 +52,7 @@ private:
     /* Alloc blockheader and element array */
     BlockHeader* h = (BlockHeader*) A::alloc(allocatorContext,
                                              sizeof(BlockHeader));
-    E* e = (E*) A::calloc(allocatorContext, blockElements, sizeof(E));
+    E* e = (E*) A::mem_calloc(allocatorContext, blockElements, sizeof(E));
 
     h->next = NULL;
     h->prev = NULL;
@@ -203,8 +203,8 @@ public:
     while (h)
     {
       BlockHeader* n = h->next;
-      A::free(allocatorContext, h->elements);
-      A::free(allocatorContext, h);
+      A::mem_free(allocatorContext, h->elements);
+      A::mem_free(allocatorContext, h);
       h = n;
     };
     stackTop = 0;

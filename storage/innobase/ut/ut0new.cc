@@ -112,6 +112,8 @@ ut_new_boot()
 		"eval0eval",
 		"fil0fil",
 		"fsp0file",
+		"fsp0space",
+		"fsp0sysspace",
 		"fts0ast",
 		"fts0config",
 		"fts0fts",
@@ -177,7 +179,7 @@ ut_new_boot()
 						    &auto_event_keys[i]));
 
 		/* ret.second is true if new element has been inserted */
-		ut_ad(ret.second);
+		ut_a(ret.second);
 
 		/* e.g. "btr0btr" */
 		pfs_info_auto[i].m_name = auto_event_names[i];

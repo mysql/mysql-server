@@ -71,7 +71,7 @@ static int maxmin_in_range(bool max_fl, Item_field *item_field, Item *cond);
     or HA_STATS_RECORDS_IS_EXACT
 
   RETURN
-    ULONGLONG_MAX	Error: Could not calculate number of rows
+    ULLONG_MAX          Error: Could not calculate number of rows
     #			Multiplication of number of rows in all tables
 */
 
@@ -83,7 +83,7 @@ static ulonglong get_exact_record_count(TABLE_LIST *tables)
     ha_rows tmp= 0;
     int error= tl->table->file->ha_records(&tmp);
     if (error != 0)
-      return ULONGLONG_MAX;
+      return ULLONG_MAX;
     count*= tmp;
   }
   return count;
@@ -345,7 +345,7 @@ int opt_sum_query(THD *thd,
               real query will be executed faster than one shown by EXPLAIN.
             */
             if (!thd->lex->describe &&
-                (count= get_exact_record_count(tables)) == ULONGLONG_MAX)
+                (count= get_exact_record_count(tables)) == ULLONG_MAX)
             {
               /* Error from handler in counting rows. Don't optimize count() */
               const_result= 0;

@@ -166,8 +166,8 @@ struct st_mem_root_allocator
   MEM_ROOT* mem_root;
 
   static void* alloc(void* ctx, size_t bytes);
-  static void* calloc(void* ctx, size_t nelem, size_t bytes);
-  static void free(void* ctx, void* mem);
+  static void* mem_calloc(void* ctx, size_t nelem, size_t bytes);
+  static void mem_free(void* ctx, void* mem);
   st_mem_root_allocator(MEM_ROOT* _mem_root);
 };
 

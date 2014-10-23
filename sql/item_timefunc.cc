@@ -123,7 +123,7 @@ static bool sec_to_time(lldiv_t seconds, MYSQL_TIME *ltime)
   uint sec= (uint) (seconds.quot % 3600);
   ltime->minute= sec / 60;
   ltime->second= sec % 60;
-  time_add_nanoseconds_with_round(ltime, seconds.rem, &warning);
+  time_add_nanoseconds_with_round(ltime, static_cast<uint>(seconds.rem), &warning);
   
   adjust_time_range(ltime, &warning);
 
@@ -387,15 +387,15 @@ static bool extract_date_time(DATE_TIME_FORMAT *format,
 
         /* Conversion specifiers that match classes of characters */
       case '.':
-	while (my_ispunct(cs, *val) && val != val_end)
+	while (val < val_end && my_ispunct(cs, *val))
 	  val++;
 	break;
       case '@':
-	while (my_isalpha(cs, *val) && val != val_end)
+	while (val < val_end && my_isalpha(cs, *val))
 	  val++;
 	break;
       case '#':
-	while (my_isdigit(cs, *val) && val != val_end)
+	while (val < val_end && my_isdigit(cs, *val))
 	  val++;
 	break;
       default:
@@ -793,7 +793,7 @@ static bool get_interval_info(Item *args,
     longlong value;
     const char *start= str;
     for (value=0; str != end && my_isdigit(cs,*str) ; str++)
-      value= value*LL(10) + (longlong) (*str - '0');
+      value= value*10LL + (longlong) (*str - '0');
     msec_length= 6 - (str - start);
     values[i]= value;
     while (str != end && !my_isdigit(cs,*str))
@@ -1082,7 +1082,7 @@ longlong Item_func_to_seconds::val_int_endpoint(bool left_endp,
   if (get_arg0_date(&ltime, TIME_FUZZY_DATE))
   {
     /* got NULL, leave the incl_endp intact */
-    return LONGLONG_MIN;
+    return LLONG_MIN;
   }
   seconds= ltime.hour * 3600L + ltime.minute * 60 + ltime.second;
   seconds= ltime.neg ? -seconds : seconds;
@@ -1159,7 +1159,7 @@ longlong Item_func_to_days::val_int_endpoint(bool left_endp, bool *incl_endp)
   if (get_arg0_date(&ltime, TIME_FUZZY_DATE))
   {
     /* got NULL, leave the incl_endp intact */
-    return LONGLONG_MIN;
+    return LLONG_MIN;
   }
   res=(longlong) calc_daynr(ltime.year,ltime.month,ltime.day);
   /* Set to NULL if invalid date, but keep the value */
@@ -1464,7 +1464,7 @@ longlong Item_func_year::val_int_endpoint(bool left_endp, bool *incl_endp)
   if (get_arg0_date(&ltime, TIME_FUZZY_DATE))
   {
     /* got NULL, leave the incl_endp intact */
-    return LONGLONG_MIN;
+    return LLONG_MIN;
   }
 
   /*
@@ -2209,8 +2209,9 @@ String *Item_func_date_format::val_str(String *str)
   if (size < MAX_DATE_STRING_REP_LENGTH)
     size= MAX_DATE_STRING_REP_LENGTH;
 
-  if (format == str)
-    str= &value;				// Save result here
+  // If format uses the buffer provided by 'str' then store result locally.
+  if (format == str || format->uses_buffer_owned_by(str))
+    str= &value;
   if (str->alloc(size))
     goto null_date;
 
@@ -2269,7 +2270,7 @@ bool Item_func_from_unixtime::get_date(MYSQL_TIME *ltime,
 
   thd->variables.time_zone->gmt_sec_to_TIME(ltime, (my_time_t) lld.quot);
   int warnings= 0;
-  ltime->second_part= decimals ? lld.rem / 1000 : 0;
+  ltime->second_part= decimals ? static_cast<ulong>(lld.rem / 1000) : 0;
   return datetime_add_nanoseconds_with_round(ltime, lld.rem % 1000, &warnings);
 }
 
@@ -2988,7 +2989,7 @@ bool Item_func_maketime::get_time(MYSQL_TIME *ltime)
     ltime->minute= (uint) minute;
     ltime->second= (uint) second.quot;
     int warnings= 0;
-    ltime->second_part= second.rem / 1000;
+    ltime->second_part= static_cast<ulong>(second.rem / 1000);
     adjust_time_range_with_warn(ltime, decimals);
     time_add_nanoseconds_with_round(ltime, second.rem % 1000, &warnings);
     if (!warnings)

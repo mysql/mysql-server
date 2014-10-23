@@ -31,6 +31,7 @@
 #include  "rpl_rli.h"
 #include "rpl_mi.h"
 #include "sql_parse.h"
+#include "rpl_msr.h"    /*Multi source replication */
 
 THR_LOCK table_replication_execute_status::m_table_lock;
 
@@ -39,6 +40,11 @@ THR_LOCK table_replication_execute_status::m_table_lock;
 */
 static const TABLE_FIELD_TYPE field_types[]=
 {
+  {
+    {C_STRING_WITH_LEN("CHANNEL_NAME")},
+    {C_STRING_WITH_LEN("char(64)")},
+    {NULL, 0}
+  },
   {
     {C_STRING_WITH_LEN("SERVICE_STATE")},
     {C_STRING_WITH_LEN("enum('ON','OFF')")},
@@ -58,7 +64,7 @@ static const TABLE_FIELD_TYPE field_types[]=
 
 TABLE_FIELD_DEF
 table_replication_execute_status::m_field_def=
-{ 3, field_types };
+{ 4, field_types };
 
 PFS_engine_table_share
 table_replication_execute_status::m_share=
@@ -68,7 +74,7 @@ table_replication_execute_status::m_share=
   table_replication_execute_status::create,
   NULL, /* write_row */
   NULL, /* delete_all_rows */
-  table_replication_execute_status::get_row_count,
+  table_replication_execute_status::get_row_count,    /* records */
   sizeof(PFS_simple_index), /* ref length */
   &m_table_lock,
   &m_field_def,
@@ -97,72 +103,81 @@ void table_replication_execute_status::reset_position(void)
 
 ha_rows table_replication_execute_status::get_row_count()
 {
-  uint row_count= 0;
-
-  mysql_mutex_lock(&LOCK_active_mi);
-
-  if (active_mi && active_mi->host[0])
-    row_count= 1;
-
-  mysql_mutex_unlock(&LOCK_active_mi);
-
-  return row_count;
+ return msr_map.get_max_channels();
 }
+
 
 int table_replication_execute_status::rnd_next(void)
 {
-  if(get_row_count() == 0)
-    return HA_ERR_END_OF_FILE;
+  Master_info *mi;
 
-  m_pos.set_at(&m_next_pos);
+  mysql_mutex_lock(&LOCK_msr_map);
 
-  if (m_pos.m_index == 0)
+  for(m_pos.set_at(&m_next_pos); m_pos.m_index < msr_map.get_max_channels();
+      m_pos.next())
   {
-    make_row();
-    m_next_pos.set_after(&m_pos);
-    return 0;
+    mi= msr_map.get_mi_at_pos(m_pos.m_index);
+
+    if (mi && mi->host[0])
+    {
+      make_row(mi);
+      m_next_pos.set_after(&m_pos);
+
+      mysql_mutex_unlock(&LOCK_msr_map);
+      return 0;
+    }
   }
 
+  mysql_mutex_unlock(&LOCK_msr_map);
   return HA_ERR_END_OF_FILE;
+
 }
 
 
 int table_replication_execute_status::rnd_pos(const void *pos)
 {
- if(get_row_count() == 0)
-  return HA_ERR_END_OF_FILE;
-
+  Master_info *mi=NULL;
   set_position(pos);
 
-  DBUG_ASSERT(m_pos.m_index < 1);
+  mysql_mutex_lock(&LOCK_msr_map);
 
-  make_row();
+  if ((mi= msr_map.get_mi_at_pos(m_pos.m_index)))
+  {
+    make_row(mi);
 
-  return 0;
+    mysql_mutex_unlock(&LOCK_msr_map);
+    return 0;
+  }
+
+  mysql_mutex_unlock(&LOCK_msr_map);
+  return HA_ERR_RECORD_DELETED;
+
 }
 
-void table_replication_execute_status::make_row()
+void table_replication_execute_status::make_row(Master_info *mi)
 {
   char *slave_sql_running_state= NULL;
 
   m_row_exists= false;
 
-  mysql_mutex_lock(&LOCK_active_mi);
+  DBUG_ASSERT(mi != NULL);
+  DBUG_ASSERT(mi->rli != NULL);
 
-  DBUG_ASSERT(active_mi != NULL);
-  DBUG_ASSERT(active_mi->rli != NULL);
+  m_row.channel_name_length= mi->get_channel()? strlen(mi->get_channel()):0;
+  memcpy(m_row.channel_name, mi->get_channel(), m_row.channel_name_length);
 
-  mysql_mutex_lock(&active_mi->rli->info_thd_lock);
+  mysql_mutex_lock(&mi->rli->info_thd_lock);
+
   slave_sql_running_state= const_cast<char *>
-                           (active_mi->rli->info_thd ?
-                            active_mi->rli->info_thd->get_proc_info() : "");
-  mysql_mutex_unlock(&active_mi->rli->info_thd_lock);
+                           (mi->rli->info_thd ?
+                            mi->rli->info_thd->get_proc_info() : "");
+  mysql_mutex_unlock(&mi->rli->info_thd_lock);
 
 
-  mysql_mutex_lock(&active_mi->data_lock);
-  mysql_mutex_lock(&active_mi->rli->data_lock);
+  mysql_mutex_lock(&mi->data_lock);
+  mysql_mutex_lock(&mi->rli->data_lock);
 
-  if (active_mi->rli->slave_running)
+  if (mi->rli->slave_running)
     m_row.service_state= PS_RPL_YES;
   else
     m_row.service_state= PS_RPL_NO;
@@ -170,7 +185,7 @@ void table_replication_execute_status::make_row()
   m_row.remaining_delay= 0;
   if (slave_sql_running_state == stage_sql_thd_waiting_until_delay.m_name)
   {
-    time_t t= my_time(0), sql_delay_end= active_mi->rli->get_sql_delay_end();
+    time_t t= my_time(0), sql_delay_end= mi->rli->get_sql_delay_end();
     m_row.remaining_delay= (uint)(t < sql_delay_end ?
                                       sql_delay_end - t : 0);
     m_row.remaining_delay_is_set= true;
@@ -178,11 +193,10 @@ void table_replication_execute_status::make_row()
   else
     m_row.remaining_delay_is_set= false;
 
-  m_row.count_transactions_retries= active_mi->rli->retried_trans;
+  m_row.count_transactions_retries= mi->rli->retried_trans;
 
-  mysql_mutex_unlock(&active_mi->rli->data_lock);
-  mysql_mutex_unlock(&active_mi->data_lock);
-  mysql_mutex_unlock(&LOCK_active_mi);
+  mysql_mutex_unlock(&mi->rli->data_lock);
+  mysql_mutex_unlock(&mi->data_lock);
 
   m_row_exists= true;
 }
@@ -206,16 +220,19 @@ int table_replication_execute_status::read_row_values(TABLE *table,
     {
       switch(f->field_index)
       {
-      case 0: /* service_state */
+      case 0: /**channel_name*/
+         set_field_char_utf8(f, m_row.channel_name, m_row.channel_name_length);
+         break;
+      case 1: /* service_state */
         set_field_enum(f, m_row.service_state);
         break;
-      case 1: /* remaining_delay */
+      case 2: /* remaining_delay */
         if (m_row.remaining_delay_is_set)
           set_field_ulong(f, m_row.remaining_delay);
         else
           f->set_null();
         break;
-      case 2: /* total number of times transactions were retried */
+      case 3: /* total number of times transactions were retried */
         set_field_ulonglong(f, m_row.count_transactions_retries);
         break;
       default:

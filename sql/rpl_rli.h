@@ -150,7 +150,12 @@ public:
      worker thread to coordinator thread and vice-versa
    */
   mysql_mutex_t mts_temp_table_LOCK;
-
+  /*
+     Lock to acquire by methods that concurrently update lwm of committed
+     transactions and the min waited timestamp and its index.
+  */
+  mysql_mutex_t mts_gaq_LOCK;
+  mysql_cond_t  logical_clock_cond;
   /*
     If true, events with the same server id should be replicated. This
     field is set on creation of a relay log info structure by copying
@@ -265,6 +270,7 @@ private:
   Gtid last_retrieved_gtid;
   /* Flag that ensures the retrieved GTID set is initialized only once. */
   bool gtid_retrieved_initialized;
+
 
 public:
   Gtid *get_last_retrieved_gtid() { return &last_retrieved_gtid; }
@@ -493,7 +499,8 @@ public:
   void cleanup_context(THD *, bool);
   void slave_close_thread_tables(THD *);
   void clear_tables_to_lock();
-  int purge_relay_logs(THD *thd, bool just_reset, const char** errmsg);
+  int purge_relay_logs(THD *thd, bool just_reset, const char** errmsg,
+                       bool delete_only= false);
 
   /*
     Used to defer stopping the SQL thread to give it a chance
@@ -525,6 +532,12 @@ public:
   */
   // number's is determined by global slave_parallel_workers
   Slave_worker_array workers;
+
+  HASH mapping_db_to_worker; // To map a database to a worker
+  bool inited_hash_workers; //  flag to check if mapping_db_to_worker is inited
+
+  mysql_mutex_t slave_worker_hash_lock; // for mapping_db_to_worker
+  mysql_cond_t  slave_worker_hash_cond;// for mapping_db_to_worker
 
   /*
     For the purpose of reporting the worker status in performance schema table,
@@ -608,14 +621,14 @@ public:
             V                            |
     MTS_NOT_IN_GROUP =>                  |
         {MTS_IN_GROUP => MTS_END_GROUP --+} while (!killed) => MTS_KILLED_GROUP
-      
+
     MTS_END_GROUP has `->' loop breaking link to MTS_NOT_IN_GROUP when
     Coordinator synchronizes with Workers by demanding them to
     complete their assignments.
   */
   enum
   {
-    /* 
+    /*
        no new events were scheduled after last synchronization,
        includes Single-Threaded-Slave case.
     */
@@ -627,22 +640,39 @@ public:
   } mts_group_status;
 
   /*
-    MTS statistics: 
+    MTS statistics:
   */
   ulonglong mts_events_assigned; // number of events (statements) scheduled
   ulonglong mts_groups_assigned; // number of groups (transactions) scheduled
   volatile ulong mts_wq_overrun_cnt; // counter of all mts_wq_excess_cnt increments
   ulong wq_size_waits_cnt;    // number of times C slept due to WQ:s oversize
   /*
-    a counter for sleeps due to Coordinator 
-    experienced waiting when Workers get hungry again
+    Counter of how many times Coordinator saw Workers are filled up
+    "enough" with assignements. The enough definition depends on
+    the scheduler type.
   */
   ulong mts_wq_no_underrun_cnt;
+  longlong mts_total_wait_overlap; // Waiting time corresponding to above
+  /*
+    Stats to compute Coordinator waiting time for any Worker available,
+    applies solely to the Commit-clock scheduler.
+  */
+  ulonglong mts_total_wait_worker_avail;
   ulong mts_wq_overfill_cnt;  // counter of C waited due to a WQ queue was full
-  /* 
+  /*
+    Statistics (todo: replace with WL5631) applies to either Coordinator and Worker.
+    The exec time in the Coordinator case means scheduling.
+    The read time in the Worker case means getting an event out of Worker queue
+  */
+  ulonglong stats_exec_time;
+  ulonglong stats_read_time;
+  struct timespec ts_exec[2];  // per event pre- and post- exec timestamp
+  struct timespec stats_begin; // applier's bootstrap time
+
+  /*
      A sorted array of the Workers' current assignement numbers to provide
      approximate view on Workers loading.
-     The first row of the least occupied Worker is queried at assigning 
+     The first row of the least occupied Worker is queried at assigning
      a new partition. Is updated at checkpoint commit to the main RLI.
   */
   Prealloced_array<ulong, 16> least_occupied_workers;
@@ -934,7 +964,7 @@ public:
                  PSI_mutex_key *param_key_info_stop_cond,
                  PSI_mutex_key *param_key_info_sleep_cond
 #endif
-                 , uint param_id, bool is_rli_fake
+                 , uint param_id, const char* param_channel, bool is_rli_fake
                 );
   virtual ~Relay_log_info();
 
@@ -1009,6 +1039,20 @@ public:
     commit_order_mngr= mngr;
   }
 
+  bool set_info_search_keys(Rpl_info_handler *to);
+
+  /**
+    Get coordinator's RLI. Especially used get the rli from
+    a slave thread, like this: thd->rli_slave->get_c_rli();
+    thd could be a SQL thread or a worker thread
+  */
+  virtual Relay_log_info* get_c_rli()
+  {
+    return this;
+  }
+
+  virtual const char* get_for_channel_str(bool upper_case= false) const;
+
 protected:
   Format_description_log_event *rli_description_event;
 
@@ -1062,6 +1106,11 @@ private:
   */
   static const int LINES_IN_RELAY_LOG_INFO_WITH_ID= 7;
 
+  /*
+    Add a channel in the slave relay log info
+  */
+  static const int LINES_IN_RELAY_LOG_INFO_WITH_CHANNEL= 8;
+
   bool read_info(Rpl_info_handler *from);
   bool write_info(Rpl_info_handler *to);
 
@@ -1081,9 +1130,22 @@ private:
     SLAVE must be executed and the problem fixed manually.
    */
   bool error_on_rli_init_info;
+
+ /**
+   sets the suffix required for relay log names
+   in multisource replication.
+   The extension is "-relay-bin-<channel_name>"
+   @param[in, out]  buff       buffer to store the complete relay log file name
+   @param[in]       buff_size  size of buffer buff
+   @param[in]       base_name  the base name of the relay log file
+ */
+  const char* add_channel_to_relay_log_name(char *buff, uint buff_size,
+                                            const char *base_name);
+
 };
 
 bool mysql_show_relaylog_events(THD* thd);
+
 
 /**
    @param  thd a reference to THD
@@ -1093,6 +1155,7 @@ inline bool is_mts_worker(const THD *thd)
 {
   return thd->system_thread == SYSTEM_THREAD_SLAVE_WORKER;
 }
+
 
 /**
  Auxiliary function to check if we have a db partitioned MTS
