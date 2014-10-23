@@ -45,7 +45,7 @@ test.run = function() {
       test.fail("Connection error " + err);
       return;
     }
-    SQLcreate(test.suite, onCreate);  
+    sqlCreate(test.suite, onCreate);  
   }
 
   lib.getConnectionPool(onConnected);

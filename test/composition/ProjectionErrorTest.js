@@ -20,6 +20,7 @@
 
 "use strict";
 
+var util = require("util");
 var lib = require('./lib.js');
 
 /** Error conditions to be tested:

@@ -469,19 +469,18 @@ exports.MetadataManager = function() {
     }
     udebug.log_detail('harness runSQL forking process...' + cmd);
     var child = child_process.exec(cmd, childProcess);
-  };
-
+  }
 
   this.createTestTables = function(connectionProperties, suiteName, callback) {
     udebug.log("createTestTables", suiteName);
     var sqlPath = path.join(mynode.fs.suites_dir, suiteName, 'create.sql');
     runSQL(connectionProperties, sqlPath, callback);
-  }
+  };
 
   this.dropTestTables = function(connectionProperties, suiteName, callback) {
     udebug.log("dropTestTables", suiteName);
     var sqlPath = path.join(mynode.fs.suites_dir, suiteName, 'drop.sql');
     runSQL(connectionProperties, sqlPath, callback);
-  }
+  };
 };
 

@@ -34,7 +34,7 @@ test.run = function() {
   }
   
   function onClose() {
-    SQLdrop(test.suite, onDrop);
+    sqlDrop(test.suite, onDrop);
   }
   
   /* ClearSmokeTest starts here: */

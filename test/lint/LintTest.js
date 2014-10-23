@@ -22,6 +22,7 @@
 
 var path = require("path");
 var fs = require("fs");
+var util = require("util");
 var skipTests = false;
 var jslint, linter, lintName;
 var haveJsLint = false;
@@ -51,7 +52,7 @@ var jslintOptions = {
     [ /* globals from test/driver.js */
       "unified_debug", "harness", "mynode", "adapter",
       /* globals commonly defined in test suites: */
-      "fail_openSession"      
+      "fail_openSession", "sqlCreate", "sqlDrop"      
     ]
 };
 
@@ -191,13 +192,18 @@ checkDirectory(mynode.fs.adapter_dir, "api");
 checkFile(mynode.fs.suites_dir, "lint", "LintTest.js");
 checkFile(mynode.fs.suites_dir, "", "driver.js");
 checkFile(mynode.fs.suites_dir, "lib", "harness.js");
+checkFile(mynode.fs.suites_dir, "", "utilities.js");
+
 checkDirectory(mynode.fs.suites_dir, "spi");
 checkDirectory(mynode.fs.suites_dir, "numerictypes");
 checkDirectory(mynode.fs.suites_dir, "stringtypes");
 checkDirectory(mynode.fs.suites_dir, "autoincrement");
-// checkDirectory(suites_dir, "multidb");  
+checkDirectory(mynode.fs.suites_dir, "multidb");
 checkDirectory(mynode.fs.suites_dir, "t_basic");
+checkDirectory(mynode.fs.suites_dir, "composition");
+checkDirectory(mynode.fs.suites_dir, "freeform");
 
+checkDirectory(mynode.fs.samples_dir, "loader", "lib");
 checkDirectory(mynode.fs.samples_dir, "tweet");
 
 /**** ERRORS TO IGNORE:
@@ -257,3 +263,7 @@ ignore("UpdateTest.js", 8, "Don't make functions within a loop.");
 ignore("UpdateTest.js", 10, "Don't make functions within a loop.");
 ignore("UpdateTest.js", 8, "Don't make functions within a loop.");
 ignore("UpdateTest.js", 10, "Don't make functions within a loop.");
+
+// multidb
+ignore("ConnectTest.js", 42,  "Unexpected \'\\.\'.");
+ignore("ConnectTest.js", 42,  "Unexpected \'\\.\'.");

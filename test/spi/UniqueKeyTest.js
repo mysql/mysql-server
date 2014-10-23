@@ -25,6 +25,7 @@ try {
 } catch(e) {} 
 
 var assert = require("assert");
+var util = require("util");
 var spi_lib = require("./lib.js");
 var dbtablehandler = require(mynode.common.DBTableHandler);
 var udebug = unified_debug.getLogger("UniqueKeyTest.js");
