@@ -34,7 +34,7 @@ test.run = function() {
   }
   
   function onClose() {
-    harness.SQL.drop(test.suite, onDrop);
+    SQLdrop(test.suite, onDrop);
   }
   
   /* ClearSmokeTest starts here: */

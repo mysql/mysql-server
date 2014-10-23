@@ -23,7 +23,7 @@ var test = new harness.ClearSmokeTest("ClearSmokeTest");
 
 test.run = function() {
   var t = this;
-  harness.SQL.drop(this.suite, function(error) {
+  SQLdrop(this.suite, function(error) {
     if (error) {
       t.fail('dropSQL failed: ' + error);
     } else {

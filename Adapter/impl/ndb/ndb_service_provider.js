@@ -37,6 +37,11 @@ var udebug  = unified_debug.getLogger("ndb_service_provider.js");
 var NdbDefaultConnectionProperties = 
   require(path.join(backend_doc_dir, "ndb_properties"));
 
+/* Rely on MySQL SPI for MetadataManager */
+var mysqlService = require(spi_module).getDBServiceProvider("mysql"),
+    mysqlMetadataManager = mysqlService.getDBMetadataManager();
+
+
 exports.loadRequiredModules = function() {
   var err, ldp, module, msg;
   module = path.join(build_dir, "ndb_adapter.node");
@@ -93,4 +98,9 @@ exports.getFactoryKey = function(properties) {
   udebug.log("getFactoryKey");
   var key = properties.implementation + "://" + properties.ndb_connectstring;
   return key;
+};
+
+
+exports.getDBMetadataManager = function() {
+  return mysqlMetadataManager;
 };

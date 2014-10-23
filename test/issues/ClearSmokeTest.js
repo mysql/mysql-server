@@ -27,7 +27,7 @@ test.run = function() {
     t.pass();
   }
 
-  harness.SQL.drop(this.suite, onDrop);
+  SQLdrop(this.suite, onDrop);
 };
 
 module.exports.tests = [test];
