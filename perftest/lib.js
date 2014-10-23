@@ -18,8 +18,9 @@
  02110-1301  USA
  */
 
-var udebug     = unified_debug.getLogger("spi/lib.js");
-var exec = require("child_process").exec;
+var path     = require("path");
+var udebug   = unified_debug.getLogger("spi/lib.js");
+var exec     = require("child_process").exec;
 
 var SQL = {};
     

@@ -19,8 +19,8 @@
  */
 
 "use strict";
-
-var udebug          = unified_debug.getLogger("FreeformMappingErrorTest.js");
+var util    = require("util");
+var udebug  = unified_debug.getLogger("FreeformMappingErrorTest.js");
 
 /** Error conditions tested:
  * t1 mapSparseFields with no column name

@@ -18,11 +18,10 @@
  02110-1301  USA
  */
 
-/*global unified_debug, util */
-
 "use strict";
 
-var     BitMask    = require("../impl/common/BitMask.js");
+var        util    = require("util");
+var     BitMask    = require(mynode.common.BitMask);
 var      udebug    = unified_debug.getLogger("Query.js");
 var userContext    = require("./UserContext.js");
 

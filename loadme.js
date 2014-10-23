@@ -23,6 +23,6 @@
    This script attempts to load the compiled part of mysql-js
 */
 
-require("./Adapter/adapter_config.js");
-var adapter = require(path.join(build_dir, "ndb_adapter.node"));
+var conf = require("./Adapter/adapter_config.js");
+var adapter = require(path.join(conf.build_dir, "ndb_adapter.node"));
 console.log(adapter);

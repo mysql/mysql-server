@@ -19,12 +19,12 @@
  02110-1301  USA
  */
 
-/*global assert, path, api_doc_dir, unified_debug */
-
 "use strict";
 
 var udebug       = unified_debug.getLogger("TableMapping.js"),
-    doc          = require(path.join(api_doc_dir, "TableMapping"));
+    path         = require("path"),
+    util         = require("util"),
+    doc          = require(path.join(mynode.fs.api_doc_dir, "TableMapping"));
 
 /* file scope mapping id used to uniquely identify a mapped domain object */
 var mappingId = 0;

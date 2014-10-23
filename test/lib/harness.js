@@ -18,14 +18,16 @@
  02110-1301  USA
  */
 
-/*global unified_debug, fs, path, util, assert, suites_dir,
-         test_conn_properties
-*/
 
 "use strict";
 
 /* This test harness is documented in the README file.
 */
+
+var path   = require("path"),
+    fs     = require("fs"),
+    assert = require("assert"),
+    util   = require("util");
 
 var udebug = unified_debug.getLogger("harness.js");
 var re_matching_test_case = /Test\.js$/;
@@ -299,7 +301,7 @@ function Suite(name, path) {
 }
 
 Suite.prototype.addTest = function(filename, test) {
-  this.filename = path.relative(suites_dir, filename);
+  this.filename = path.relative(mynode.fs.suites_dir, filename);
   udebug.log_detail('Suite', this.name, 'adding test', test.name, 'from', this.filename);
   test.filename = filename;
   test.suite = this;

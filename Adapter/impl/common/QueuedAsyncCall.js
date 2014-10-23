@@ -21,6 +21,7 @@
 "use strict";
 
 var udebug = unified_debug.getLogger("QueuedAsyncCall.js"),
+    assert = require("assert"),
     serial = 1;
 
 /* Sometimes, some set of async calls have to be serialized, in some context.

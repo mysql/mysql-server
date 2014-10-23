@@ -22,7 +22,8 @@
 
 global.debug = 0 ;  // FIXME, currently used by parser & scanner
 
-var mynode = require("../.."),
+var assert = require("assert"),
+    mynode = require("../.."),
     LoaderJob = require("./lib/LoaderJob.js").LoaderJob,
     LoaderModule = require("./lib/LoaderModule.js").LoaderModule
 ;

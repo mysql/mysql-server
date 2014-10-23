@@ -20,7 +20,8 @@
 
 "use strict";
 
-var doc_parser  = require(path.join(suites_dir, "lib", "doc_parser"));
+var path = require("path");
+var doc_parser  = require(path.join(mynode.fs.suites_dir, "lib", "doc_parser"));
 
 var domainClass = function(id, name, age, magic) {
   this.id = id;
@@ -51,7 +52,7 @@ var t2 = new harness.ConcurrentTest("PublicFunctions");
 t2.run = function() {
   var tableMapping = new mynode.TableMapping("t_basic");
   var tableMappingDocumentedFunctions = doc_parser.listFunctions(
-    path.join(api_doc_dir, "TableMapping"));
+    path.join(mynode.fs.api_doc_dir, "TableMapping"));
   var tester = new doc_parser.ClassTester(tableMapping, "TableMapping");
   tester.test(tableMappingDocumentedFunctions, t2);
   return true; // test is complete

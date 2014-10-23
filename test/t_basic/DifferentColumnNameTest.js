@@ -19,8 +19,6 @@
  */
 "use strict";
 
-/*global udebug_module */
-
 var udebug = unified_debug.getLogger("t_basic/DifferentColumnName.js");
 
 // Map a domain class with field names different from column names

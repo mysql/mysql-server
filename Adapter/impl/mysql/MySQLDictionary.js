@@ -26,6 +26,7 @@
 /* Requires version 2.0 of Felix Geisendoerfer's MySQL client */
 
 var util   = require('util'),
+    path   = require("path"),
     child_process = require("child_process"),
     udebug = unified_debug.getLogger("MySQLDictionary.js");
 
@@ -441,7 +442,7 @@ exports.MetadataManager = function() {
     if(connectionProperties.mysql_storage_engine) {
       engine = connectionProperties.mysql_storage_engine;
     }
-    var enginesqlPath = path.join(suites_dir, engine + '.sql ');
+    var enginesqlPath = path.join(mynode.fs.suites_dir, engine + '.sql ');
     var cmd = 'cat ' + enginesqlPath + ' ' + sqlPath + ' | mysql';
     var p = connectionProperties;
 
@@ -473,13 +474,13 @@ exports.MetadataManager = function() {
 
   this.createTestTables = function(connectionProperties, suiteName, callback) {
     udebug.log("createTestTables", suiteName);
-    var sqlPath = path.join(global.suites_dir, suiteName, 'create.sql');
+    var sqlPath = path.join(mynode.fs.suites_dir, suiteName, 'create.sql');
     runSQL(connectionProperties, sqlPath, callback);
   }
 
   this.dropTestTables = function(connectionProperties, suiteName, callback) {
     udebug.log("dropTestTables", suiteName);
-    var sqlPath = path.join(global.suites_dir, suiteName, 'drop.sql');
+    var sqlPath = path.join(mynode.fs.suites_dir, suiteName, 'drop.sql');
     runSQL(connectionProperties, sqlPath, callback);
   }
 };

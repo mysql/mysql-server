@@ -24,6 +24,7 @@ t1.run = function() {
     if (sessionFactory) {
       t1.errorIfNotEqual('implementation name mismatch', global.adapter, sessionFactory.properties.implementation);
       t1.failOnError();
+      sessionFactory.close();
     } else {
       t1.fail('could not obtain sessionFactory using adapter name ' + global.adapter + ' in mysql.connect');
     }

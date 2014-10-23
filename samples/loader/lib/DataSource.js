@@ -24,7 +24,7 @@ var RandomRowGenerator = require("./RandomData.js").RandomRowGenerator,
     LineScanner = require("./Scanner.js").LineScanner,
     TextFieldScanner = require("./Scanner.js").TextFieldScanner,
     util = require("util"),
-    udebug = require(path.join(api_dir,"unified_debug")).getLogger("DataSource.js");
+    udebug = unified_debug.getLogger("DataSource.js");
 
 var theDataSource;
 var theController;

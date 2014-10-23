@@ -20,15 +20,19 @@
 
 "use strict";
 
+var path = require("path"),
+    fs   = require("fs"),
+    conf = require("../Adapter/adapter_config.js"),
+    suites_dir = conf.suites_dir;
+
 // Setup globals:
-require("../Adapter/adapter_config.js");
-global.suites_dir = __dirname;
-global.harness    = require(path.join(suites_dir, "lib", "harness"));
-global.mynode     = require(api_module);
+global.mynode     = require(conf.api_module);
 global.adapter    = "ndb";
+global.harness    = require(path.join(suites_dir, "lib", "harness"));
+
 
 var udebug = unified_debug.getLogger("Driver.js");
-var stats_module = require(path.join(api_dir, "stats"));
+var stats_module = require(mynode.api.stats);
 
 /** Driver 
 */
@@ -298,7 +302,7 @@ if (exit) {
 /* global.adapter is now set.  Read in the utilities library for the test suite; 
    it may set some additional globals.
 */
-require(path.join(global.suites_dir, "utilities"));
+require(path.join(suites_dir, "utilities"));
 
 /* Set storage engine from command-line options */
 if(storageEngine && test_conn_properties) {
@@ -306,7 +310,7 @@ if(storageEngine && test_conn_properties) {
 }
 
 /* Find and run all tests */
-driver.runAllTests( [ global.suites_dir ] );
+driver.runAllTests( [ suites_dir ] );
 
 function onTimeout() { 
   var nwait = driver.result.listener.started - driver.result.listener.ended;

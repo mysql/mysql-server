@@ -18,8 +18,6 @@
  02110-1301  USA
  */
 
-/*global unified_debug */
-
 "use strict";
 
 var     udebug     = unified_debug.getLogger("Transaction.js");

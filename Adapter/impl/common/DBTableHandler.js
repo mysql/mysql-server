@@ -18,8 +18,6 @@
  02110-1301  USA
 */
 
-/*global assert, unified_debug, path, api_dir, api_doc_dir */
-
 "use strict";
 
 var stats = {
@@ -32,9 +30,10 @@ var stats = {
 	"DBIndexHandler_created" : 0
 };
 
-var TableMapping    = require(path.join(api_dir, "TableMapping")).TableMapping,
-    FieldMapping    = require(path.join(api_dir, "TableMapping")).FieldMapping,
-    stats_module    = require(path.join(api_dir, "stats")), 
+var assert          = require("assert"),
+    TableMapping    = require(mynode.api.TableMapping).TableMapping,
+    FieldMapping    = require(mynode.api.TableMapping).FieldMapping,
+    stats_module    = require(mynode.api.stats),
     udebug          = unified_debug.getLogger("DBTableHandler.js");
 
 // forward declaration of DBIndexHandler to avoid lint issue

@@ -18,11 +18,13 @@
  02110-1301  USA
  */
 
-/*global mynode, path, fs, suites_dir */
+/*global adapter */
 
 "use strict";
 
-var dbServiceProvider = require(spi_module).getDBServiceProvider(global.adapter),
+var path = require("path"),
+    fs = require("fs"),
+    dbServiceProvider = require(mynode.spi).getDBServiceProvider(adapter),
     metadataManager = dbServiceProvider.getDBMetadataManager();
 
 
@@ -31,8 +33,8 @@ var dbServiceProvider = require(spi_module).getDBServiceProvider(global.adapter)
    If it doesn't exist, copy it from the standard template in lib/
 */
 function getTestConnectionProperties() {
-  var props_file     = path.join(suites_dir, "test_connection.js");
-  var props_template = path.join(suites_dir, "lib", "test_connection_js.dist");
+  var props_file     = path.join(mynode.fs.suites_dir, "test_connection.js");
+  var props_template = path.join(mynode.fs.suites_dir, "lib", "test_connection_js.dist");
   var existsSync     = fs.existsSync || path.existsSync;
   var properties     = null;
   var f1, f2; 

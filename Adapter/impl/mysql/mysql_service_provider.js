@@ -18,11 +18,10 @@
  02110-1301  USA
 */
 
-/*global unified_debug */
-
 "use strict";
 
 var udebug = unified_debug.getLogger("mysql_service_provider.js"),
+    path = require("path"),
     saved_err,
     mysqlconnection,
     mysqldictionary,
@@ -57,7 +56,7 @@ exports.loadRequiredModules = function() {
 
 
 exports.getDefaultConnectionProperties = function() {
-  return require(path.join(backend_doc_dir,"mysql_properties.js"));
+  return require(path.join(mynode.fs.backend_doc_dir,"mysql_properties.js"));
 };
 
 

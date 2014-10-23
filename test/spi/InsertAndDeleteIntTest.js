@@ -24,8 +24,9 @@ try {
   require("./suite_config.js");
 } catch(e) {} 
 
-var spi_lib = require("./lib.js"),
-    dbt     = require(path.join(spi_dir, "common", "DBTableHandler.js")),
+var path = require("path"),
+    spi_lib = require("./lib.js"),
+    dbt     = require(mynode.common.DBTableHandler),
     udebug  = unified_debug.getLogger("InsertAndDeleteIntTest.js");
 
 var dbSession = null,
