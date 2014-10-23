@@ -417,7 +417,7 @@ DBTableHandler.prototype.applyFieldConverters = function(obj, adapter) {
     }
     if(f.domainTypeConverter) {
       value = obj[f.fieldName];
-      convertedValue = f.domainTypeConverter.fromDB(value);
+      convertedValue = f.domainTypeConverter.fromDB(value, obj, f);
       obj[f.fieldName] = convertedValue;
     }
   }
@@ -615,7 +615,7 @@ DBTableHandler.prototype.getFieldsSimple = function(obj, fieldNumber) {
   var f;
   f = this.fieldNumberToFieldMap[fieldNumber];
   if(f.domainTypeConverter) {
-    return f.domainTypeConverter.toDB(obj[f.fieldName]);
+    return f.domainTypeConverter.toDB(obj[f.fieldName], obj, f);
   }
   return obj[f.fieldName];
 };
