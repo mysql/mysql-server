@@ -18,7 +18,6 @@
 #include "sql_base.h"                           // setup_table_map
 #include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
 #include "sql_priv.h"
-#include "unireg.h"
 #include "debug_sync.h"
 #include "lock.h"        // mysql_lock_remove,
                          // mysql_unlock_tables,
@@ -3412,8 +3411,7 @@ share_found:
                                        HA_OPEN_RNDFILE |
                                        HA_GET_INDEX |
                                        HA_TRY_READ_ONLY),
-                               (READ_KEYINFO | COMPUTE_TYPES |
-                                EXTRA_RECORD),
+                                       EXTRA_RECORD,
                                thd->open_options, table, FALSE);
 
   if (error)
@@ -4285,7 +4283,7 @@ static bool auto_repair_table(THD *thd, TABLE_LIST *table_list)
                             (uint) (HA_OPEN_KEYFILE | HA_OPEN_RNDFILE |
                                     HA_GET_INDEX |
                                     HA_TRY_READ_ONLY),
-                            READ_KEYINFO | COMPUTE_TYPES | EXTRA_RECORD,
+                            EXTRA_RECORD,
                             ha_open_options | HA_OPEN_FOR_REPAIR,
                             entry, FALSE) || ! entry->file ||
       (entry->file->is_crashed() && entry->file->ha_check_and_repair(thd)))
@@ -6521,7 +6519,7 @@ TABLE *open_table_uncached(THD *thd, const char *path, const char *db,
                             open_in_engine ?
                             (uint) (HA_OPEN_KEYFILE | HA_OPEN_RNDFILE |
                                     HA_GET_INDEX) : 0,
-                            READ_KEYINFO | COMPUTE_TYPES | EXTRA_RECORD,
+                            EXTRA_RECORD,
                             ha_open_options,
                             tmp_table,
                             /*

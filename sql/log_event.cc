@@ -24,7 +24,6 @@
 
 #include "binlog.h"
 #include "sql_priv.h"
-#include "unireg.h"
 #include "my_global.h" // REQUIRED by log_event.h > m_string.h > my_bitmap.h
 #include "log_event.h"
 #include "sql_base.h"                           // close_thread_tables
@@ -68,6 +67,9 @@ PSI_memory_key key_memory_Rows_query_log_event_rows_query;
 
 using std::min;
 using std::max;
+
+#define ER_SAFE(X) (((X) >= ER_ERROR_FIRST && (X) <= ER_ERROR_LAST) ? \
+                    ER(X) : "Invalid error code")
 
 #if defined(MYSQL_CLIENT)
 

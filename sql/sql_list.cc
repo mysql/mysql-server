@@ -14,7 +14,6 @@
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 
-#include "unireg.h"
 #include "sql_list.h"
 
 list_node end_of_list;

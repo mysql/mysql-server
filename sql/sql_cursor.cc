@@ -14,7 +14,6 @@
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 #include "sql_priv.h"
-#include "unireg.h"
 #include "sql_cursor.h"
 #include "probes_mysql.h"
 #include "sql_parse.h"                        // mysql_execute_command

@@ -18,6 +18,7 @@
 
 #include "partition_element.h"
 #include "sql_class.h"                        // enum_duplicates
+#include "sql_partition.h"                    // LIST_PART_ENTRY
 
 class partition_info;
 class COPY_INFO;

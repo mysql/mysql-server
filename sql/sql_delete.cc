@@ -20,7 +20,6 @@
 */
 
 #include "sql_priv.h"
-#include "unireg.h"
 #include "sql_delete.h"
 #include "sql_cache.h"                          // query_cache_*
 #include "sql_base.h"                           // open_temprary_table

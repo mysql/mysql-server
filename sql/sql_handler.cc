@@ -53,7 +53,6 @@
 
 #include "sql_priv.h"
 #include "sql_handler.h"
-#include "unireg.h"                    // REQUIRED: for other includes
 #include "sql_base.h"                           // close_thread_tables
 #include "lock.h"                               // mysql_unlock_tables
 #include "key.h"                                // key_copy

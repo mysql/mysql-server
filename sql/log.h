@@ -16,7 +16,6 @@
 #ifndef LOG_H
 #define LOG_H
 
-#include "unireg.h"                    // REQUIRED: for other includes
 #include "sql_class.h"
 #include "handler.h"                            /* my_xid */
 

@@ -15,7 +15,6 @@
 
 #include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
 #include "sql_priv.h"
-#include "unireg.h"
 #include "rpl_rli_pdb.h"
 #include "rpl_slave.h"
 #include "sql_string.h"
