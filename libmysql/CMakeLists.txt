@@ -236,6 +236,15 @@ IF(UNIX)
     ${INSTALL_LIBDIR} Development)
 ENDIF()
 
+# In our special "mixed" builds, also install libstlport which will
+# be injected into the build tree by the Sun Studio part of the build.
+
+IF(CMAKE_SYSTEM_NAME MATCHES "SunOS" AND DEFINED ENV{PB2WORKDIR})
+  INSTALL(FILES ${CMAKE_BINARY_DIR}/libstlport.so
+                ${CMAKE_BINARY_DIR}/libstlport.so.1
+          DESTINATION ${INSTALL_LIBDIR} COMPONENT SharedLibraries OPTIONAL)
+ENDIF()
+
 IF(NOT DISABLE_SHARED)
   # Merge several convenience libraries into one big mysqlclient
   # and link them together into shared library.
