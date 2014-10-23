@@ -76,7 +76,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL,
-  `b` VIRTUAL int(11) AS (a+1) STORED NOT NULL,
+  `b` int(11) GENERATED ALWAYS AS (a+1) STORED NOT NULL,
   PRIMARY KEY (`b`)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 alter table t1 add column c int generated always as (a+2) stored primary key;
@@ -91,12 +91,12 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL,
-  `b` VIRTUAL int(11) AS (a % 2) COMMENT 'my comment'
+  `b` int(11) GENERATED ALWAYS AS (a % 2) VIRTUAL COMMENT 'my comment'
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 describe t1;
 Field	Type	Null	Key	Default	Extra
 a	int(11)	YES		NULL	
-b	int(11)	YES		NULL	VIRTUAL
+b	int(11)	YES		NULL	GENERATED
 drop table t1;
 create table t1 (a int, b int generated always as (a % 2) virtual);
 alter table t1 modify b int generated always as (a % 2) virtual comment 'my comment';
@@ -104,12 +104,12 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL,
-  `b` VIRTUAL int(11) AS (a % 2) COMMENT 'my comment'
+  `b` int(11) GENERATED ALWAYS AS (a % 2) VIRTUAL COMMENT 'my comment'
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 describe t1;
 Field	Type	Null	Key	Default	Extra
 a	int(11)	YES		NULL	
-b	int(11)	YES		NULL	VIRTUAL
+b	int(11)	YES		NULL	GENERATED
 insert into t1 (a) values (1);
 select * from t1;
 a	b
@@ -124,12 +124,12 @@ show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `a` int(11) DEFAULT NULL,
-  `b` VIRTUAL int(11) AS (a % 2) COMMENT 'my comment'
+  `b` int(11) GENERATED ALWAYS AS (a % 2) VIRTUAL COMMENT 'my comment'
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 describe t2;
 Field	Type	Null	Key	Default	Extra
 a	int(11)	YES		NULL	
-b	int(11)	YES		NULL	VIRTUAL
+b	int(11)	YES		NULL	GENERATED
 insert into t2 (a) values (1);
 select * from t2;
 a	b
@@ -146,12 +146,12 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL,
-  `b` VIRTUAL int(11) AS (a % 2) STORED
+  `b` int(11) GENERATED ALWAYS AS (a % 2) STORED
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 describe t1;
 Field	Type	Null	Key	Default	Extra
 a	int(11)	YES		NULL	
-b	int(11)	YES		NULL	VIRTUAL
+b	int(11)	YES		NULL	GENERATED
 insert into t1 (a) values (1);
 select * from t1;
 a	b
@@ -168,7 +168,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL,
-  `b` VIRTUAL int(11) AS (a % 2) STORED
+  `b` int(11) GENERATED ALWAYS AS (a % 2) STORED
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 create table t1 (a int, b int generated always as (a % 2) virtual);
@@ -178,7 +178,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL,
-  `b` VIRTUAL int(11) AS (a % 2)
+  `b` int(11) GENERATED ALWAYS AS (a % 2) VIRTUAL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 Generated alwasy is optional
@@ -187,24 +187,24 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL,
-  `b` VIRTUAL int(11) AS (a % 2)
+  `b` int(11) GENERATED ALWAYS AS (a % 2) VIRTUAL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 describe t1;
 Field	Type	Null	Key	Default	Extra
 a	int(11)	YES		NULL	
-b	int(11)	YES		NULL	VIRTUAL
+b	int(11)	YES		NULL	GENERATED
 drop table t1;
 create table t1 (a int, b int as (a % 2) stored);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL,
-  `b` VIRTUAL int(11) AS (a % 2) STORED
+  `b` int(11) GENERATED ALWAYS AS (a % 2) STORED
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 describe t1;
 Field	Type	Null	Key	Default	Extra
 a	int(11)	YES		NULL	
-b	int(11)	YES		NULL	VIRTUAL
+b	int(11)	YES		NULL	GENERATED
 drop table t1;
 Default should be non-stored column
 create table t1 (a int, b int as (a % 2));
@@ -212,12 +212,12 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL,
-  `b` VIRTUAL int(11) AS (a % 2)
+  `b` int(11) GENERATED ALWAYS AS (a % 2) VIRTUAL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 describe t1;
 Field	Type	Null	Key	Default	Extra
 a	int(11)	YES		NULL	
-b	int(11)	YES		NULL	VIRTUAL
+b	int(11)	YES		NULL	GENERATED
 drop table t1;
 Expression can be constant 
 create table t1 (a int, b int as (5 * 2));
@@ -225,12 +225,12 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL,
-  `b` VIRTUAL int(11) AS (5 * 2)
+  `b` int(11) GENERATED ALWAYS AS (5 * 2) VIRTUAL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 describe t1;
 Field	Type	Null	Key	Default	Extra
 a	int(11)	YES		NULL	
-b	int(11)	YES		NULL	VIRTUAL
+b	int(11)	YES		NULL	GENERATED
 drop table t1;
 Test generated columns referencing other generated columns
 create table t1 (a int unique, b int generated always as(-a) virtual, c int generated always as (b + 1) virtual);
