@@ -170,6 +170,12 @@ typedef struct st_db_worker_hash_entry db_worker_hash_entry;
 #define LINE_START_EMPTY	0x8
 #define ESCAPED_EMPTY		0x10
 
+/*
+   Do not decrease the value of BIN_LOG_HEADER_SIZE.
+   Do not even increase it before checking code.
+*/
+#define BIN_LOG_HEADER_SIZE    4U
+
 /*****************************************************************************
 
   old_sql_ex struct

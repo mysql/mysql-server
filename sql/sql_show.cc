@@ -18,7 +18,6 @@
 
 #include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
 #include "sql_priv.h"
-#include "unireg.h"
 #include "sql_select.h"
 #include "sql_base.h"                       // close_tables_for_reopen
 #include "sql_show.h"

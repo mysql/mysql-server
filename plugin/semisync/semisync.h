@@ -21,7 +21,6 @@
 #define MYSQL_SERVER
 #define HAVE_REPLICATION
 #include <sql_priv.h>
-#include "unireg.h"
 #include <my_global.h>
 #include <my_pthread.h>
 #include <mysql/plugin.h>

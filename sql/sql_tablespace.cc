@@ -16,7 +16,6 @@
 /* drop and alter of tablespaces */
 
 #include "sql_priv.h"
-#include "unireg.h"
 #include "sql_tablespace.h"
 #include "sql_table.h"                          // write_bin_log
 #include "sql_class.h"                          // THD

@@ -20,7 +20,6 @@
 
 
 #include "sql_priv.h"
-#include "unireg.h"
 #include "sql_union.h"
 #include "sql_select.h"
 #include "sql_cursor.h"
