@@ -912,7 +912,7 @@ to ensure the correct path.
 
 In a crash recovery we already have some tablespace objects created.
 This function compares the space id information in the InnoDB data dictionary
-to what we already read with fil_load_single_table_tablespace().
+to what we already read with fil_ibd_load().
 
 In a normal startup, we create the tablespace objects for every table in
 InnoDB's data dictionary, if the corresponding .ibd file exists.
@@ -1088,7 +1088,7 @@ loop:
 			this is at startup and we are now single threaded.
 			If the filepath is not known, it will need to
 			be discovered. */
-			dberr_t	err = fil_open_ibd_tablespace(
+			dberr_t	err = fil_ibd_open(
 				validate && srv_force_recovery == 0,
 				!srv_read_only_mode, FIL_TYPE_TABLESPACE,
 				space_id, dict_tf_to_fsp_flags(flags),
@@ -2382,7 +2382,7 @@ err_exit:
 			/* Try to open the tablespace.  We set the
 			2nd param (fix_dict = false) here because we
 			do not have an x-lock on dict_operation_lock */
-			err = fil_open_ibd_tablespace(
+			err = fil_ibd_open(
 				true, false, FIL_TYPE_TABLESPACE,
 				table->space,
 				dict_tf_to_fsp_flags(table->flags),

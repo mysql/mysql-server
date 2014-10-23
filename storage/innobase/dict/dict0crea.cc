@@ -132,7 +132,7 @@ dict_create_sys_tables_tuple(
 
 	ptr = static_cast<byte*>(mem_heap_alloc(heap, 4));
 	/* Be sure all non-used bits are zero. */
-	ut_a(!(table->flags2 & ~DICT_TF2_BIT_MASK));
+	ut_a(!(table->flags2 & DICT_TF2_UNUSED_BIT_MASK));
 	mach_write_to_4(ptr, table->flags2);
 
 	dfield_set_data(dfield, ptr, 4);

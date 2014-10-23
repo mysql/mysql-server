@@ -432,7 +432,7 @@ create_log_files(
 
 	/* Create a log checkpoint. */
 	log_mutex_enter();
-	ut_d(recv_no_log_write = FALSE);
+	ut_d(recv_no_log_write = false);
 	recv_reset_logs(lsn);
 	log_mutex_exit();
 
@@ -2098,7 +2098,7 @@ files_checked:
 			In a crash recovery, we check that the info in data
 			dictionary is consistent with what we already know
 			about space id's from the calls to
-			fil_load_single_file_tablespace().
+			fil_ibd_load().
 
 			In a normal startup, we create the space objects for
 			every table in the InnoDB data dictionary that has
@@ -2169,7 +2169,7 @@ files_checked:
 			/* Prohibit redo log writes from any other
 			threads until creating a log checkpoint at the
 			end of create_log_files(). */
-			ut_d(recv_no_log_write = TRUE);
+			ut_d(recv_no_log_write = true);
 			ut_ad(!buf_pool_check_no_pending_io());
 
 			RECOVERY_CRASH(3);

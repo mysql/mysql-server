@@ -37,7 +37,7 @@ Created 9/20/1997 Heikki Tuuri
 #include <list>
 
 #ifdef UNIV_HOTBACKUP
-extern ibool	recv_replay_file_ops;
+extern bool	recv_replay_file_ops;
 
 /*******************************************************************//**
 Reads the checkpoint info needed in hot backup.
@@ -76,7 +76,7 @@ recv_scan_log_seg_for_backup(
 Returns TRUE if recovery is currently running.
 @return recv_recovery_on */
 UNIV_INLINE
-ibool
+bool
 recv_recovery_is_on(void);
 /*=====================*/
 /************************************************************************//**
@@ -367,7 +367,7 @@ extern recv_sys_t*	recv_sys;
 /** TRUE when applying redo log records during crash recovery; FALSE
 otherwise.  Note that this is FALSE while a background thread is
 rolling back incomplete transactions. */
-extern volatile ibool	recv_recovery_on;
+extern volatile bool	recv_recovery_on;
 /** If the following is TRUE, the buffer pool file pages must be invalidated
 after recovery and no ibuf operations are allowed; this becomes TRUE if
 the log record hash table becomes too full, and log records must be merged
@@ -377,22 +377,22 @@ buffer pool before the pages have been recovered to the up-to-date state.
 
 TRUE means that recovery is running and no operations on the log files
 are allowed yet: the variable name is misleading. */
-extern ibool		recv_no_ibuf_operations;
+extern bool		recv_no_ibuf_operations;
 /** TRUE when recv_init_crash_recovery() has been called. */
-extern ibool		recv_needed_recovery;
+extern bool		recv_needed_recovery;
 #ifdef UNIV_DEBUG
 /** TRUE if writing to the redo log (mtr_commit) is forbidden.
 Protected by log_sys->mutex. */
-extern ibool		recv_no_log_write;
+extern bool		recv_no_log_write;
 #endif /* UNIV_DEBUG */
 
 /** TRUE if buf_page_is_corrupted() should check if the log sequence
 number (FIL_PAGE_LSN) is in the future.  Initially FALSE, and set by
 recv_recovery_from_checkpoint_start(). */
-extern ibool		recv_lsn_checks_on;
+extern bool		recv_lsn_checks_on;
 #ifdef UNIV_HOTBACKUP
 /** TRUE when the redo log is being backed up */
-extern ibool		recv_is_making_a_backup;
+extern bool		recv_is_making_a_backup;
 #endif /* UNIV_HOTBACKUP */
 
 #ifndef UNIV_HOTBACKUP
