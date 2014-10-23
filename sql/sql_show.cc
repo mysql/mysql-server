@@ -1486,16 +1486,12 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
     else
       type.set_charset(system_charset_info);
 
-    if (field->gcol_info)
-    {
-      packet->append(STRING_WITH_LEN("VIRTUAL "));
-    }
-
     field->sql_type(type);
     packet->append(type.ptr(), type.length(), system_charset_info);
 
     if (field->gcol_info)
     {
+      packet->append(STRING_WITH_LEN(" GENERATED ALWAYS"));
       packet->append(STRING_WITH_LEN(" AS ("));
       packet->append(field->gcol_info->expr_str.str,
                      field->gcol_info->expr_str.length,
@@ -1503,6 +1499,8 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
       packet->append(STRING_WITH_LEN(")"));
       if (field->stored_in_db)
         packet->append(STRING_WITH_LEN(" STORED"));
+      else
+        packet->append(STRING_WITH_LEN(" VIRTUAL"));
     }
 
     if (field->has_charset() && 
@@ -5037,7 +5035,7 @@ static int get_schema_column_record(THD *thd, TABLE_LIST *tables,
       table->field[IS_COLUMNS_EXTRA]->store(type.ptr(), type.length(), cs);
     if (field->gcol_info)
     {
-      table->field[IS_COLUMNS_EXTRA]->store(STRING_WITH_LEN("VIRTUAL"), cs);
+      table->field[IS_COLUMNS_EXTRA]->store(STRING_WITH_LEN("GENERATED"), cs);
       table->field[IS_COLUMNS_GENERATION_EXPRESSION]->
         store(field->gcol_info->expr_str.str,field->gcol_info->expr_str.length,
               cs);

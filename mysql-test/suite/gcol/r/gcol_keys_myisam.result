@@ -13,13 +13,13 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL,
-  `b` VIRTUAL int(11) AS (a*2) STORED,
+  `b` int(11) GENERATED ALWAYS AS (a*2) STORED,
   UNIQUE KEY `b` (`b`)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 describe t1;
 Field	Type	Null	Key	Default	Extra
 a	int(11)	YES		NULL	
-b	int(11)	YES	UNI	NULL	VIRTUAL
+b	int(11)	YES	UNI	NULL	GENERATED
 drop table t1;
 create table t1 (a int, b int generated always as (a*2) virtual, unique key (b));
 ERROR HY000: Key/Index cannot be defined on a virtual generated column.
@@ -28,13 +28,13 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL,
-  `b` VIRTUAL int(11) AS (a*2) STORED,
+  `b` int(11) GENERATED ALWAYS AS (a*2) STORED,
   UNIQUE KEY `b` (`b`)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 describe t1;
 Field	Type	Null	Key	Default	Extra
 a	int(11)	YES		NULL	
-b	int(11)	YES	UNI	NULL	VIRTUAL
+b	int(11)	YES	UNI	NULL	GENERATED
 drop table t1;
 create table t1 (a int, b int generated always as (a*2) virtual);
 alter table t1 add unique key (b);
@@ -58,26 +58,26 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL,
-  `b` VIRTUAL int(11) AS (a*2) STORED,
+  `b` int(11) GENERATED ALWAYS AS (a*2) STORED,
   KEY `b` (`b`)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 describe t1;
 Field	Type	Null	Key	Default	Extra
 a	int(11)	YES		NULL	
-b	int(11)	YES	MUL	NULL	VIRTUAL
+b	int(11)	YES	MUL	NULL	GENERATED
 drop table t1;
 create table t1 (a int, b int generated always as (a*2) stored, index (a,b));
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL,
-  `b` VIRTUAL int(11) AS (a*2) STORED,
+  `b` int(11) GENERATED ALWAYS AS (a*2) STORED,
   KEY `a` (`a`,`b`)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 describe t1;
 Field	Type	Null	Key	Default	Extra
 a	int(11)	YES	MUL	NULL	
-b	int(11)	YES		NULL	VIRTUAL
+b	int(11)	YES		NULL	GENERATED
 drop table t1;
 create table t1 (a int, b int generated always as (a*2) virtual);
 alter table t1 add index (b);
