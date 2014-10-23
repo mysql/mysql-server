@@ -30,9 +30,8 @@ var assert = require("assert"),
 
 function usage(flagHandler) {
   var i, msg, option;
-  var msg = "" +
-    "Usage:  node dbloader [options]\n" +
-     "  Options:\n" + flagHandler.helpText;
+  msg = "Usage:  node dbloader [options]\n" +
+        "  Options:\n" + flagHandler.helpText;
   console.log(msg);
   process.exit(1);
 }
@@ -79,7 +78,7 @@ FlagHandler.prototype.addOption = function(option) {
   }
 
   this.helpText += helpText;
-}
+};
 
 FlagHandler.prototype.processArguments = function() {
   var i, len, opt, nextArg, flag, consumed;
@@ -100,7 +99,7 @@ FlagHandler.prototype.processArguments = function() {
       usage(this);
     }
   }
-}
+};
 
 
 function parse_command_line() {
@@ -134,8 +133,6 @@ function parse_command_line() {
   handler.addOption(new Option(
     null, "-df", "enable debugging output from <source_file>", function(nextArg) {
       unified_debug.on();
-      var client = require(path.join(build_dir,"ndb_adapter")).debug;
-      unified_debug.register_client(client);
       unified_debug.set_file_level(nextArg, 5);
       return 2;
     }));
@@ -196,7 +193,7 @@ function main() {
   if(cmdOptions.control_file) {
     job.initializeFromFile(cmdOptions.control_file);
   } else {
-    job.initializeFromSQL(cmdOptions.control_text)
+    job.initializeFromSQL(cmdOptions.control_text);
   }
 
   // Create a TableMapping for the destination

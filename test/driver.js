@@ -148,7 +148,7 @@ Driver.prototype.runAllTests = function(test_suite_dir_array) {
   if (this.numberOfRunningSuites === 0) {
     this.reportResultsAndExit();
   }
-}
+};
 
 
 
@@ -277,8 +277,6 @@ for(i = 2; i < process.argv.length ; i++) {
         break;
       case '-df':
         unified_debug.on();
-        var client = require(path.join(build_dir,"ndb_adapter")).debug;
-        unified_debug.register_client(client);
         unified_debug.set_file_level(values[1], 5);
         break;
       default:
@@ -305,8 +303,8 @@ if (exit) {
 require(path.join(suites_dir, "utilities"));
 
 /* Set storage engine from command-line options */
-if(storageEngine && test_conn_properties) {
-  test_conn_properties.mysql_storage_engine = storageEngine;
+if(storageEngine && global.test_conn_properties) {
+  global.test_conn_properties.mysql_storage_engine = storageEngine;
 }
 
 /* Find and run all tests */
