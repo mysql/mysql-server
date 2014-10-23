@@ -214,8 +214,6 @@ function parse_command_line(options) {
           break;
         case '-df':
           unified_debug.on();
-          var client = require(path.join(build_dir,"ndb_adapter")).debug;
-          unified_debug.register_client(client);
           unified_debug.set_file_level(values[1], 5);
           break;
         case '--delay':
