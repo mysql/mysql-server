@@ -148,15 +148,13 @@ bool Distinct_check::check_query(THD *thd)
 */
 bool Group_check::check_query(THD *thd)
 {
-  uint number_in_list;
   ORDER *order= select->order_list.first;
-  const char *place;
 
   // Validate SELECT list
   List_iterator<Item> select_exprs_it(select->item_list);
   Item *expr;
-  number_in_list= 1;
-  place= "SELECT list";
+  uint number_in_list= 1;
+  const char *place= "SELECT list";
   while ((expr= select_exprs_it++))
   {
     if (check_expression(thd, expr, true))
@@ -198,9 +196,27 @@ bool Group_check::check_query(THD *thd)
   return false;
 
 err:
-  my_error(select->group_list.elements ?
-           ER_WRONG_FIELD_WITH_GROUP : ER_MIX_OF_GROUP_FUNC_AND_FIELDS,
-           MYF(0), number_in_list, place, failed_ident->full_name());
+  uint code;
+  const char *text;
+  /*
+    Starting from MySQL 5.7 we want give a better messages than before,
+    to provide more information. But we can't change texts of existing error
+    codes for backward-compatibility reasons, so we introduce new texts;
+    however we want to keep sending the old error codes, for pre-5.7
+    applications used to it.
+  */
+  if (select->group_list.elements)
+  {
+    code= ER_WRONG_FIELD_WITH_GROUP;        // old code
+    text= ER(ER_WRONG_FIELD_WITH_GROUP_V2); // new text
+  }
+  else
+  {
+    code= ER_MIX_OF_GROUP_FUNC_AND_FIELDS;        // old code
+    text= ER(ER_MIX_OF_GROUP_FUNC_AND_FIELDS_V2); // new text
+  }
+  my_printf_error(code, text, MYF(0), number_in_list, place,
+                  failed_ident->full_name());
   return true;
 }
 
@@ -413,7 +429,7 @@ bool Group_check::is_fd_on_source(Item *item)
     if (map_of_new_eq_fds != 0)     // something new, check again
     {
       DBUG_ASSERT((map_of_new_eq_fds &
-                   (whole_tables_fd | PSEUDO_TABLE_BITS)) == 0);
+                   (last_whole_tables_fd | PSEUDO_TABLE_BITS)) == 0);
       if (is_in_fd(item))
         return true;
        // Recheck keys only in tables with something new:
@@ -845,6 +861,36 @@ void Group_check::analyze_conjunct(Item *cond, Item *conjunct,
     return;
   Item *left_item= cnj->arguments()[0];
   Item *right_item= cnj->arguments()[1];
+  if (left_item->type() == Item::ROW_ITEM &&
+      right_item->type() == Item::ROW_ITEM)
+  {
+    /*
+      (a,b)=(c,d) is equivalent to 'a=c and b=d', let's iterate on pairs.
+      Note that it's not recursive: we don't handle (a,(b,c))=(d,(e,f)), the
+      Standard does not seem to require it.
+    */
+    Item_row *left_row= down_cast<Item_row*>(left_item);
+    Item_row *right_row= down_cast<Item_row*>(right_item);
+    int elem= left_row->cols();
+    while (--elem >= 0)
+      analyze_scalar_eq(cond, left_row->element_index(elem),
+                        right_row->element_index(elem),
+                        weak_tables, weak_side_upwards);
+  }
+  else
+    analyze_scalar_eq(cond, left_item, right_item, weak_tables,
+                      weak_side_upwards);
+}
+
+
+/**
+   Helper function @see analyze_conjunct().
+*/
+void Group_check::analyze_scalar_eq(Item *cond,
+                                    Item *left_item, Item *right_item,
+                                    table_map weak_tables,
+                                    bool weak_side_upwards)
+{
   table_map left_tables= left_item->used_tables();
   table_map right_tables= right_item->used_tables();
   bool left_is_column= local_column(left_item);
@@ -986,9 +1032,15 @@ void Group_check::find_fd_in_joined_table(List<TABLE_LIST> *join_list)
     if (table->sj_on_expr)
     {
       /*
-        We can ignore sj-equalities because fields from sj-inner tables cannot
-        belong to GROUP BY or SELECT list of the query block: they're
-        irrelevant to FD detection.
+        We can ignore this nest as:
+        - the subquery's WHERE was copied to sj_on_expr
+        - so where the IN equalities
+        - sj_on_expr is also present in the parent nest's join condition or in
+        the query block's WHERE condition, which we check somewhere else.
+        Note that columns from sj-inner tables can help only as "intermediate
+        link" in the graph of functional dependencies, as they are neither in
+        GROUP BY (the source) nor in the SELECT list / HAVING / ORDER BY (the
+        target).
       */
       continue;
     }

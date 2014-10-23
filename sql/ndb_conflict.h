@@ -203,7 +203,7 @@ public:
 
      Release reference to exceptions table
   */
-  void free(Ndb* ndb);
+  void mem_free(Ndb* ndb);
 
   /**
      writeRow

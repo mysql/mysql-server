@@ -418,7 +418,7 @@ is the global server default. */
 #define HA_ERR_INDEX_FILE_FULL	136	/* No more room in file */
 #define HA_ERR_END_OF_FILE	137	/* end in next/prev/first/last */
 #define HA_ERR_UNSUPPORTED	138	/* unsupported extension used */
-#define HA_ERR_TO_BIG_ROW	139	/* Too big row */
+#define HA_ERR_TOO_BIG_ROW	139	/* Too big row */
 #define HA_WRONG_CREATE_OPTION	140	/* Wrong create option */
 #define HA_ERR_FOUND_DUPP_UNIQUE 141	/* Dupplicate unique on write */
 #define HA_ERR_UNKNOWN_CHARSET	 142	/* Can't open charset */
@@ -622,7 +622,7 @@ typedef my_off_t	ha_rows;
 #if SYSTEM_SIZEOF_OFF_T == 4
 #define MAX_FILE_SIZE	INT_MAX32
 #else
-#define MAX_FILE_SIZE	LONGLONG_MAX
+#define MAX_FILE_SIZE	LLONG_MAX
 #endif
 
 #define HA_VARCHAR_PACKLENGTH(field_length) ((field_length) < 256 ? 1 :2)

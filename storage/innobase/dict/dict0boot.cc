@@ -44,7 +44,6 @@ Created 4/18/1996 Heikki Tuuri
 /**********************************************************************//**
 Gets a pointer to the dictionary header and x-latches its page.
 @return pointer to the dictionary header, page x-latched */
-
 dict_hdr_t*
 dict_hdr_get(
 /*=========*/
@@ -64,7 +63,6 @@ dict_hdr_get(
 
 /**********************************************************************//**
 Returns a new table, index, or space id. */
-
 void
 dict_hdr_get_new_id(
 /*================*/
@@ -147,7 +145,6 @@ dict_hdr_get_new_id(
 /**********************************************************************//**
 Writes the current value of the row id counter to the dictionary header file
 page. */
-
 void
 dict_hdr_flush_row_id(void)
 /*=======================*/
@@ -279,7 +276,6 @@ dict_hdr_create(
 Initializes the data dictionary memory structures when the database is
 started. This function is also called when the data dictionary is created.
 @return DB_SUCCESS or error code. */
-
 dberr_t
 dict_boot(void)
 /*===========*/
@@ -340,8 +336,9 @@ dict_boot(void)
 	/*-------------------------*/
 	table = dict_mem_table_create("SYS_TABLES", DICT_HDR_SPACE, 8, 0, 0);
 
-	dict_mem_table_add_col(table, heap, "NAME", DATA_BINARY, 0, 0);
-	dict_mem_table_add_col(table, heap, "ID", DATA_BINARY, 0, 0);
+	dict_mem_table_add_col(table, heap, "NAME", DATA_BINARY, 0,
+			       MAX_FULL_NAME_LEN);
+	dict_mem_table_add_col(table, heap, "ID", DATA_BINARY, 0, 8);
 	/* ROW_FORMAT = (N_COLS >> 31) ? COMPACT : REDUNDANT */
 	dict_mem_table_add_col(table, heap, "N_COLS", DATA_INT, 0, 4);
 	/* The low order bit of TYPE is always set to 1.  If the format
@@ -392,7 +389,7 @@ dict_boot(void)
 	/*-------------------------*/
 	table = dict_mem_table_create("SYS_COLUMNS", DICT_HDR_SPACE, 7, 0, 0);
 
-	dict_mem_table_add_col(table, heap, "TABLE_ID", DATA_BINARY, 0, 0);
+	dict_mem_table_add_col(table, heap, "TABLE_ID", DATA_BINARY, 0, 8);
 	dict_mem_table_add_col(table, heap, "POS", DATA_INT, 0, 4);
 	dict_mem_table_add_col(table, heap, "NAME", DATA_BINARY, 0, 0);
 	dict_mem_table_add_col(table, heap, "MTYPE", DATA_INT, 0, 4);
@@ -424,8 +421,8 @@ dict_boot(void)
 	/*-------------------------*/
 	table = dict_mem_table_create("SYS_INDEXES", DICT_HDR_SPACE, 7, 0, 0);
 
-	dict_mem_table_add_col(table, heap, "TABLE_ID", DATA_BINARY, 0, 0);
-	dict_mem_table_add_col(table, heap, "ID", DATA_BINARY, 0, 0);
+	dict_mem_table_add_col(table, heap, "TABLE_ID", DATA_BINARY, 0, 8);
+	dict_mem_table_add_col(table, heap, "ID", DATA_BINARY, 0, 8);
 	dict_mem_table_add_col(table, heap, "NAME", DATA_BINARY, 0, 0);
 	dict_mem_table_add_col(table, heap, "N_FIELDS", DATA_INT, 0, 4);
 	dict_mem_table_add_col(table, heap, "TYPE", DATA_INT, 0, 4);
@@ -456,7 +453,7 @@ dict_boot(void)
 	/*-------------------------*/
 	table = dict_mem_table_create("SYS_FIELDS", DICT_HDR_SPACE, 3, 0, 0);
 
-	dict_mem_table_add_col(table, heap, "INDEX_ID", DATA_BINARY, 0, 0);
+	dict_mem_table_add_col(table, heap, "INDEX_ID", DATA_BINARY, 0, 8);
 	dict_mem_table_add_col(table, heap, "POS", DATA_INT, 0, 4);
 	dict_mem_table_add_col(table, heap, "COL_NAME", DATA_BINARY, 0, 0);
 
@@ -525,7 +522,6 @@ dict_insert_initial_data(void)
 /*****************************************************************//**
 Creates and initializes the data dictionary at the server bootstrap.
 @return DB_SUCCESS or error code. */
-
 dberr_t
 dict_create(void)
 /*=============*/

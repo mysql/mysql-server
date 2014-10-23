@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2006, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2006, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -37,7 +37,6 @@ Allocate a block.  The thread calling this function must hold
 buf_pool->mutex and must not hold buf_pool->zip_mutex or any block->mutex.
 The buf_pool_mutex may be released and reacquired.
 @return allocated block, never NULL */
-
 void*
 buf_buddy_alloc_low(
 /*================*/
@@ -53,7 +52,6 @@ buf_buddy_alloc_low(
 
 /**********************************************************************//**
 Deallocate a block. */
-
 void
 buf_buddy_free_low(
 /*===============*/

@@ -295,7 +295,7 @@ static void read_server_cost_constants(THD *thd, TABLE *table,
         cost_name[cost_name.length()]= 0; // Null-terminate
 
         // Read the value this cost constant should have
-        const float value= table->field[1]->val_real();
+        const float value= static_cast<float>(table->field[1]->val_real());
 
         // Update the cost model with this cost constant
         const LEX_CSTRING cost_constant= cost_name.lex_cstring();
@@ -375,14 +375,14 @@ static void read_engine_cost_constants(THD *thd, TABLE *table,
         engine_name[engine_name.length()]= 0; // Null-terminate
 
         // Read the device type
-        const int device_type= table->field[1]->val_int();
+        const int device_type= static_cast<int>(table->field[1]->val_int());
 
         // Read the name of the cost constant
         table->field[2]->val_str(&cost_name);
         cost_name[cost_name.length()]= 0; // Null-terminate
 
         // Read the value this cost constant should have
-        const float value= table->field[3]->val_real();
+        const float value= static_cast<float>(table->field[3]->val_real());
 
         // Update the cost model with this cost constant
         const LEX_CSTRING engine= engine_name.lex_cstring();

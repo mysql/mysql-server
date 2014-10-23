@@ -195,7 +195,7 @@ SET @save_debug= @@GLOBAL.debug;
 SET GLOBAL debug= 'd,dbug.before_get_MASTER_UUID';
 include/install_semisync_slave.inc
 Warnings:
-Note	1255	Slave already has been stopped
+Note	1969	Replication thread(s) for channel '' are already stopped.
 SET GLOBAL debug= @save_debug;
 SET debug_sync= 'now SIGNAL signal.get_master_uuid';
 include/wait_for_slave_io_to_stop.inc
@@ -203,7 +203,7 @@ CHANGE MASTER TO master_retry_count = 10,
 master_connect_retry = 1;
 include/uninstall_semisync_slave.inc
 Warnings:
-Note	1255	Slave already has been stopped
+Note	1969	Replication thread(s) for channel '' are already stopped.
 include/start_slave_sql.inc
 [connection server_1]
 DROP TABLE t1;

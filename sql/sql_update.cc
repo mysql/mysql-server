@@ -1718,7 +1718,7 @@ int multi_update::prepare(List<Item> &not_used_values,
   table_count=  update.elements;
   update_tables= update.first;
 
-  tmp_tables = (TABLE**) thd->calloc(sizeof(TABLE *) * table_count);
+  tmp_tables = (TABLE**) thd->mem_calloc(sizeof(TABLE *) * table_count);
   tmp_table_param= new (thd->mem_root) Temp_table_param[table_count];
   fields_for_table= (List_item **) thd->alloc(sizeof(List_item *) *
 					      table_count);
@@ -1726,7 +1726,7 @@ int multi_update::prepare(List<Item> &not_used_values,
 					      table_count);
 
   DBUG_ASSERT(update_operations == NULL);
-  update_operations= (COPY_INFO**) thd->calloc(sizeof(COPY_INFO*) *
+  update_operations= (COPY_INFO**) thd->mem_calloc(sizeof(COPY_INFO*) *
                                                table_count);
 
   if (thd->is_fatal_error)

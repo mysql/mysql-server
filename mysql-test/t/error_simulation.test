@@ -98,3 +98,18 @@ DROP TABLE t1, t2;
 --echo #
 --echo # End of 5.1 tests
 --echo #
+
+--echo #
+--echo # Bug#19656296 FIND_ALL_KEYS SPAMS SERVER ERROR LOG WITH 
+--echo # DEADLOCK/LOCK WAIT ERRORS
+--echo #
+
+# filesort.cc
+create table t1(a int) ;
+insert into t1 values(1),(2),(3);
+
+# Do not mtr.add_suppression here, avoid "Deadlock found ..." messages in log.
+set debug='d,bug19656296';
+--error ER_LOCK_DEADLOCK
+select * from t1 order by a;
+drop table t1;

@@ -36,7 +36,6 @@ Created 2/23/1996 Heikki Tuuri
 /**************************************************************//**
 Allocates memory for a persistent cursor object and initializes the cursor.
 @return own: persistent cursor */
-
 btr_pcur_t*
 btr_pcur_create_for_mysql(void)
 /*============================*/
@@ -56,7 +55,6 @@ btr_pcur_create_for_mysql(void)
 /**************************************************************//**
 Resets a persistent cursor object, freeing ::old_rec_buf if it is
 allocated and resetting the other members to their initial values. */
-
 void
 btr_pcur_reset(
 /*===========*/
@@ -68,7 +66,7 @@ btr_pcur_reset(
 	cursor->btr_cur.page_cur.rec = NULL;
 	cursor->old_rec = NULL;
 	cursor->old_n_fields = 0;
-	cursor->old_stored = BTR_PCUR_OLD_NOT_STORED;
+	cursor->old_stored = false;
 
 	cursor->latch_mode = BTR_NO_LATCHES;
 	cursor->pos_state = BTR_PCUR_NOT_POSITIONED;
@@ -76,7 +74,6 @@ btr_pcur_reset(
 
 /**************************************************************//**
 Frees the memory for a persistent cursor object. */
-
 void
 btr_pcur_free_for_mysql(
 /*====================*/
@@ -97,7 +94,6 @@ cursor data structure, or just setting a flag if the cursor id before the
 first in an EMPTY tree, or after the last in an EMPTY tree. NOTE that the
 page where the cursor is positioned must not be empty if the index tree is
 not totally empty! */
-
 void
 btr_pcur_store_position(
 /*====================*/
@@ -151,7 +147,7 @@ btr_pcur_store_position(
 		ut_ad(page_is_leaf(page));
 		ut_ad(page_get_page_no(page) == index->page);
 
-		cursor->old_stored = BTR_PCUR_OLD_STORED;
+		cursor->old_stored = true;
 
 		if (page_rec_is_supremum_low(offs)) {
 
@@ -178,7 +174,7 @@ btr_pcur_store_position(
 		cursor->rel_pos = BTR_PCUR_ON;
 	}
 
-	cursor->old_stored = BTR_PCUR_OLD_STORED;
+	cursor->old_stored = true;
 	cursor->old_rec = dict_index_copy_rec_order_prefix(
 		index, rec, &cursor->old_n_fields,
 		&cursor->old_rec_buf, &cursor->buf_size);
@@ -192,7 +188,6 @@ btr_pcur_store_position(
 
 /**************************************************************//**
 Copies the stored position of a pcur to another pcur. */
-
 void
 btr_pcur_copy_stored_position(
 /*==========================*/
@@ -233,7 +228,6 @@ restores to before first or after the last in the tree.
 @return TRUE if the cursor position was stored when it was on a user
 record and it can be restored on a user record whose ordering fields
 are identical to the ones of the original user record */
-
 ibool
 btr_pcur_restore_position_func(
 /*===========================*/
@@ -245,12 +239,12 @@ btr_pcur_restore_position_func(
 {
 	dict_index_t*	index;
 	dtuple_t*	tuple;
-	ulint		mode;
-	ulint		old_mode;
+	page_cur_mode_t	mode;
+	page_cur_mode_t	old_mode;
 	mem_heap_t*	heap;
 
 	ut_ad(mtr->is_active());
-	ut_ad(cursor->old_stored == BTR_PCUR_OLD_STORED);
+	ut_ad(cursor->old_stored);
 	ut_ad(cursor->pos_state == BTR_PCUR_WAS_POSITIONED
 	      || cursor->pos_state == BTR_PCUR_IS_POSITIONED);
 
@@ -357,7 +351,7 @@ btr_pcur_restore_position_func(
 		break;
 	default:
 		ut_error;
-		mode = 0;
+		mode = PAGE_CUR_UNSUPP;
 	}
 
 	btr_pcur_open_with_no_init_func(index, tuple, mode, latch_mode,
@@ -366,40 +360,28 @@ btr_pcur_restore_position_func(
 	/* Restore the old search mode */
 	cursor->search_mode = old_mode;
 
-	switch (cursor->rel_pos) {
-	case BTR_PCUR_ON:
-		if (btr_pcur_is_on_user_rec(cursor)
-		    && !cmp_dtuple_rec(
-			    tuple, btr_pcur_get_rec(cursor),
-			    rec_get_offsets(btr_pcur_get_rec(cursor),
-					    index, NULL,
-					    ULINT_UNDEFINED, &heap))) {
+	ut_ad(cursor->rel_pos == BTR_PCUR_ON
+	      || cursor->rel_pos == BTR_PCUR_BEFORE
+	      || cursor->rel_pos == BTR_PCUR_AFTER);
+	if (cursor->rel_pos == BTR_PCUR_ON
+	    && btr_pcur_is_on_user_rec(cursor)
+	    && !cmp_dtuple_rec(tuple, btr_pcur_get_rec(cursor),
+			       rec_get_offsets(btr_pcur_get_rec(cursor),
+			       index, NULL, ULINT_UNDEFINED, &heap))) {
 
-			/* We have to store the NEW value for
-			the modify clock, since the cursor can
-			now be on a different page! But we can
-			retain the value of old_rec */
+		/* We have to store the NEW value for the modify clock,
+		since the cursor can now be on a different page!
+		But we can retain the value of old_rec */
 
-			cursor->block_when_stored =
-				btr_pcur_get_block(cursor);
-			cursor->modify_clock =
-				buf_block_get_modify_clock(
-					cursor->block_when_stored);
-			cursor->old_stored = BTR_PCUR_OLD_STORED;
-			cursor->withdraw_clock = buf_withdraw_clock;
+		cursor->block_when_stored = btr_pcur_get_block(cursor);
+		cursor->modify_clock = buf_block_get_modify_clock(
+						cursor->block_when_stored);
+		cursor->old_stored = true;
+		cursor->withdraw_clock = buf_withdraw_clock;
 
-			mem_heap_free(heap);
+		mem_heap_free(heap);
 
-			return(TRUE);
-		}
-#ifdef UNIV_DEBUG
-		/* fall through */
-	case BTR_PCUR_BEFORE:
-	case BTR_PCUR_AFTER:
-		break;
-	default:
-		ut_error;
-#endif /* UNIV_DEBUG */
+		return(TRUE);
 	}
 
 	mem_heap_free(heap);
@@ -418,7 +400,6 @@ Moves the persistent cursor to the first record on the next page. Releases the
 latch on the current page, and bufferunfixes it. Note that there must not be
 modifications on the current page, as then the x-latch can be released only in
 mtr_commit. */
-
 void
 btr_pcur_move_to_next_page(
 /*=======================*/
@@ -437,7 +418,7 @@ btr_pcur_move_to_next_page(
 	ut_ad(cursor->latch_mode != BTR_NO_LATCHES);
 	ut_ad(btr_pcur_is_after_last_on_page(cursor));
 
-	cursor->old_stored = BTR_PCUR_OLD_NOT_STORED;
+	cursor->old_stored = false;
 
 	page = btr_pcur_get_page(cursor);
 	next_page_no = btr_page_get_next(page, mtr);
@@ -472,7 +453,6 @@ btr_pcur_move_to_next_page(
 	ut_a(btr_page_get_prev(next_page, mtr)
 	     == btr_pcur_get_block(cursor)->page.id.page_no());
 #endif /* UNIV_BTR_DEBUG */
-	next_block->check_index_page_at_flush = TRUE;
 
 	btr_leaf_page_release(btr_pcur_get_block(cursor), mode, mtr);
 
@@ -490,7 +470,6 @@ alphabetical position of the cursor is guaranteed to be sensible on
 return, but it may happen that the cursor is not positioned on the last
 record of any page, because the structure of the tree may have changed
 during the time when the cursor had no latches. */
-
 void
 btr_pcur_move_backward_from_page(
 /*=============================*/
@@ -563,14 +542,13 @@ btr_pcur_move_backward_from_page(
 	}
 
 	cursor->latch_mode = latch_mode;
-	cursor->old_stored = BTR_PCUR_OLD_NOT_STORED;
+	cursor->old_stored = false;
 }
 
 /*********************************************************//**
 Moves the persistent cursor to the previous record in the tree. If no records
 are left, the cursor stays 'before first in tree'.
 @return TRUE if the cursor was not before first in tree */
-
 ibool
 btr_pcur_move_to_prev(
 /*==================*/
@@ -581,7 +559,7 @@ btr_pcur_move_to_prev(
 	ut_ad(cursor->pos_state == BTR_PCUR_IS_POSITIONED);
 	ut_ad(cursor->latch_mode != BTR_NO_LATCHES);
 
-	cursor->old_stored = BTR_PCUR_OLD_NOT_STORED;
+	cursor->old_stored = false;
 
 	if (btr_pcur_is_before_first_on_page(cursor)) {
 
@@ -607,13 +585,12 @@ PAGE_CUR_LE, on the last user record. If no such user record exists, then
 in the first case sets the cursor after last in tree, and in the latter case
 before first in tree. The latching mode must be BTR_SEARCH_LEAF or
 BTR_MODIFY_LEAF. */
-
 void
 btr_pcur_open_on_user_rec_func(
 /*===========================*/
 	dict_index_t*	index,		/*!< in: index */
 	const dtuple_t*	tuple,		/*!< in: tuple on which search done */
-	ulint		mode,		/*!< in: PAGE_CUR_L, ... */
+	page_cur_mode_t	mode,		/*!< in: PAGE_CUR_L, ... */
 	ulint		latch_mode,	/*!< in: BTR_SEARCH_LEAF or
 					BTR_MODIFY_LEAF */
 	btr_pcur_t*	cursor,		/*!< in: memory buffer for persistent

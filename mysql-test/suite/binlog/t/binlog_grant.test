@@ -16,7 +16,7 @@ show grants for mysqltest_1@localhost;
 connect (plain,localhost,mysqltest_1,,test);
 connect (root,localhost,root,,test);
 
-# Testing setting both session and global SQL_LOG_BIN variable both as
+# Testing setting session SQL_LOG_BIN variable both as
 # root and as plain user.
 
 --echo **** Variable SQL_LOG_BIN ****

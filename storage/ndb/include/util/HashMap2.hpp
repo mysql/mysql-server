@@ -90,12 +90,12 @@ struct StandardAllocator
     return ::malloc(bytes);
   };
 
-  static void* calloc(void* ignore, size_t nelem, size_t bytes)
+  static void* mem_calloc(void* ignore, size_t nelem, size_t bytes)
   {
     return ::calloc(nelem, bytes);
   }
 
-  static void free(void* ignore, void* mem)
+  static void mem_free(void* ignore, void* mem)
   {
     ::free(mem);
   };
@@ -183,7 +183,7 @@ public:
   ~HashMap2()
   {
     if (table)
-      A::free(allocatorContext, table);
+      A::mem_free(allocatorContext, table);
   }
 
   /**
@@ -210,14 +210,14 @@ public:
 
     if (table)
     {
-      A::free(allocatorContext, table);
+      A::mem_free(allocatorContext, table);
       table = NULL;
     }
 
     /* TODO : Consider using only power-of-2 + bitmask instead of mod */
     tableSize = hashBuckets;
 
-    table = (KV**) A::calloc(allocatorContext, hashBuckets, sizeof(KV*));
+    table = (KV**) A::mem_calloc(allocatorContext, hashBuckets, sizeof(KV*));
 
     if (!table)
     {

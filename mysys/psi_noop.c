@@ -168,7 +168,8 @@ rebind_table_noop(PSI_table_share *share NNN,
   return NULL;
 }
 
-static void close_table_noop(PSI_table *table NNN)
+static void close_table_noop(struct TABLE_SHARE *share NNN,
+                             PSI_table *table NNN)
 {
   return;
 }

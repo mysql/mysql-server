@@ -655,7 +655,7 @@ void mysql_rewrite_query(THD *thd)
 {
   String *rlb= &thd->rewritten_query;
 
-  rlb->free();
+  rlb->mem_free();
 
   if (thd->lex->contains_plaintext_password)
   {

@@ -56,7 +56,6 @@ trx_purge_get_log_from_hist(
 /********************************************************************//**
 Creates the global purge system control structure and inits the history
 mutex. */
-
 void
 trx_purge_sys_create(
 /*=================*/
@@ -64,14 +63,12 @@ trx_purge_sys_create(
 	purge_pq_t*	purge_queue);	/*!< in/own: UNDO log min binary heap*/
 /********************************************************************//**
 Frees the global purge system control structure. */
-
 void
 trx_purge_sys_close(void);
 /*======================*/
 /************************************************************************
 Adds the update undo log as the first log in the history list. Removes the
 update undo log segment from the rseg slot if it is too big for reuse. */
-
 void
 trx_purge_add_update_undo_to_history(
 /*=================================*/
@@ -87,7 +84,6 @@ trx_purge_add_update_undo_to_history(
 /*******************************************************************//**
 This function runs a purge batch.
 @return number of undo log pages handled in the batch */
-
 ulint
 trx_purge(
 /*======*/
@@ -98,13 +94,11 @@ trx_purge(
 	bool	truncate);		/*!< in: truncate history if true */
 /*******************************************************************//**
 Stop purge and wait for it to stop, move to PURGE_STATE_STOP. */
-
 void
 trx_purge_stop(void);
 /*================*/
 /*******************************************************************//**
 Resume purge, move to PURGE_STATE_RUN. */
-
 void
 trx_purge_run(void);
 /*================*/
@@ -121,7 +115,6 @@ enum purge_state_t {
 /*******************************************************************//**
 Get the purge state.
 @return purge state. */
-
 purge_state_t
 trx_purge_state(void);
 /*=================*/
@@ -196,19 +189,28 @@ namespace undo {
 
 	/** Track UNDO tablespace mark for truncate. */
 	class Truncate {
-		public:
+	public:
 
-			Truncate()
-				:
-				m_undo_for_trunc(ULINT_UNDEFINED),
-				m_rseg_for_trunc(),
-				m_scan_start(1),
-				m_purge_rseg_truncate_frequency(
-					static_cast<ulint>(
-					srv_purge_rseg_truncate_frequency))
-			{
+		Truncate()
+			:
+			m_undo_for_trunc(ULINT_UNDEFINED),
+			m_rseg_for_trunc(),
+			m_scan_start(1),
+			m_purge_rseg_truncate_frequency(
+				static_cast<ulint>(
+				srv_purge_rseg_truncate_frequency))
+		{
 			/* Do Nothing. */
-			}
+		}
+
+		/** Clear the cached rollback segment. Normally done
+		when purge is about to shutdown. */
+		void clear()
+		{
+			reset();
+			rseg_for_trunc_t	temp;	
+			m_rseg_for_trunc.swap(temp);
+		}
 
 		/** Is tablespace selected for truncate.
 		@return true if undo tablespace is marked for truncate */

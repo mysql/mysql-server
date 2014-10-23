@@ -36,8 +36,6 @@
 partition_info *partition_info::get_clone()
 {
   DBUG_ENTER("partition_info::get_clone");
-  if (!this)
-    DBUG_RETURN(NULL);
   List_iterator<partition_element> part_it(partitions);
   partition_element *part;
   partition_info *clone= new partition_info();
@@ -1267,13 +1265,13 @@ bool partition_info::check_range_constants(THD *thd)
           part_range_value-= 0x8000000000000000ULL;
       }
       else
-        part_range_value= LONGLONG_MAX;
+        part_range_value= LLONG_MAX;
 
       if (!first)
       {
         if (unlikely(current_largest > part_range_value) ||
             (unlikely(current_largest == part_range_value) &&
-            (part_range_value < LONGLONG_MAX ||
+            (part_range_value < LLONG_MAX ||
              i != (num_parts - 1) ||
              !defined_max_value)))
           goto range_not_increasing_error;
@@ -2564,7 +2562,7 @@ bool partition_info::fix_partition_values(THD *thd,
     {
       defined_max_value= TRUE;
       part_elem->max_value= TRUE;
-      part_elem->range_value= LONGLONG_MAX;
+      part_elem->range_value= LLONG_MAX;
     }
     else
     {
@@ -2688,15 +2686,15 @@ bool partition_info::fix_column_value_functions(THD *thd,
         thd->variables.sql_mode= 0;
         save_got_warning= thd->got_warning;
         thd->got_warning= 0;
-        if (column_item->save_in_field(field, true) ||
-            thd->got_warning)
-        {
-          my_error(ER_WRONG_TYPE_COLUMN_VALUE_ERROR, MYF(0));
-          result= TRUE;
-          goto end;
-        }
+        result= (column_item->save_in_field(field, true) ||
+                 thd->got_warning);
         thd->got_warning= save_got_warning;
         thd->variables.sql_mode= save_sql_mode;
+        if (result)
+        {
+          my_error(ER_WRONG_TYPE_COLUMN_VALUE_ERROR, MYF(0));
+          goto end;
+        }
         if (!(val_ptr= (uchar*) sql_calloc(len)))
         {
           mem_alloc_error(len);

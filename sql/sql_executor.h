@@ -212,7 +212,7 @@ public:
   /**
     Internal state cleanup.
   */
-  virtual void free() {};
+  virtual void mem_free() {};
 };
 
 

@@ -141,12 +141,12 @@ ERROR 40001: Deadlock found when trying to get lock; try restarting transaction
 # First table reported in 'SHOW ENGINE InnoDB STATUS'
 SHOW ENGINE InnoDB STATUS;
 Type	Name	Status
-InnoDB		index `PRIMARY` of table `test`.`t``\""e` /* Partition `p0``\""e`, Subpartition `sp0``\""e` */
+InnoDB		index PRIMARY of table `test`.`t``\""e` /* Partition `p0``\""e`, Subpartition `sp0``\""e` */
 set @old_sql_mode = @@sql_mode;
 set sql_mode = 'ANSI_QUOTES';
 SHOW ENGINE InnoDB STATUS;
 Type	Name	Status
-InnoDB		index `PRIMARY` of table `test`.`t``\""e` /* Partition `p0``\""e`, Subpartition `sp0``\""e` */
+InnoDB		index PRIMARY of table `test`.`t``\""e` /* Partition `p0``\""e`, Subpartition `sp0``\""e` */
 set @@sql_mode = @old_sql_mode;
 # con1
 ROLLBACK;

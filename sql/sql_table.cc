@@ -128,7 +128,7 @@ static char* add_identifier(THD* thd, char *to_p, const char * end_p,
     conv_name= conv_string;
   }
 
-  quote = thd ? get_quote_char_for_identifier(thd, conv_name, res - 1) : '"';
+  quote = thd ? get_quote_char_for_identifier(thd, conv_name, res - 1) : '`';
 
   if (quote != EOF && (end_p - to_p > 2))
   {
@@ -2488,7 +2488,7 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
       if (frm_db_type != DB_TYPE_UNKNOWN && !table_type)
       {
         my_error(ER_STORAGE_ENGINE_NOT_LOADED, MYF(0), db, table->table_name);
-        wrong_tables.free();
+        wrong_tables.mem_free();
         error= 1;
         goto err;
       }
@@ -2532,7 +2532,7 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
       if (error == HA_ERR_TOO_MANY_CONCURRENT_TRXS)
       {
         my_error(HA_ERR_TOO_MANY_CONCURRENT_TRXS, MYF(0));
-        wrong_tables.free();
+        wrong_tables.mem_free();
         error= 1;
         goto err;
       }
@@ -5999,17 +5999,28 @@ static bool fill_alter_inplace_info(THD *thd,
         ha_alter_info->handler_flags|= Alter_inplace_info::ALTER_COLUMN_TYPE;
       }
 
+      bool field_renamed;
       /*
         Check if the altered column is a stored virtual field.
         TODO: Mark such a column with an alter flag only if
-        the expression functions are not equal. 
+        the expression functions are not equal.
       */
       if (field->stored_in_db && field->gcol_info)
         ha_alter_info->handler_flags|= Alter_inplace_info::HA_ALTER_STORED_GCOL;
+      /*
+        InnoDB data dictionary is case sensitive so we should use
+        string case sensitive comparison between fields.
+        Note: strcmp branch is to be removed in future when we fix it
+        in InnoDB.
+      */
+      if (ha_alter_info->create_info->db_type->db_type == DB_TYPE_INNODB)
+        field_renamed= strcmp(field->field_name, new_field->field_name);
+      else
+	field_renamed= my_strcasecmp(system_charset_info, field->field_name,
+                                     new_field->field_name);
 
       /* Check if field was renamed */
-      if (my_strcasecmp(system_charset_info, field->field_name,
-                        new_field->field_name))
+      if (field_renamed)
       {
         field->flags|= FIELD_IS_RENAMED;
         ha_alter_info->handler_flags|= Alter_inplace_info::ALTER_COLUMN_NAME;
@@ -8266,6 +8277,18 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
   }
 
   /*
+   If foreign key is added then check permission to access parent table.
+
+   In function "check_fk_parent_table_access", create_info->db_type is used
+   to identify whether engine supports FK constraint or not. Since
+   create_info->db_type is set here, check to parent table access is delayed
+   till this point for the alter operation.
+  */
+  if ((alter_info->flags & Alter_info::ADD_FOREIGN_KEY) &&
+      check_fk_parent_table_access(thd, create_info, alter_info))
+    DBUG_RETURN(true);
+
+  /*
    If this is an ALTER TABLE and no explicit row type specified reuse
    the table's row type.
    Note : this is the same as if the row type was specified explicitly.
@@ -8732,7 +8755,7 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
         goto err_new_table_cleanup;
       /* in case of alter temp table send the tracker in OK packet */
       if (thd->session_tracker.get_tracker(SESSION_STATE_CHANGE_TRACKER)->is_enabled())
-        thd->session_tracker.get_tracker(SESSION_STATE_CHANGE_TRACKER)->mark_as_changed(NULL);
+        thd->session_tracker.get_tracker(SESSION_STATE_CHANGE_TRACKER)->mark_as_changed(thd, NULL);
     }
   }
 

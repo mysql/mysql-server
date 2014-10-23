@@ -306,7 +306,7 @@ String *Item_func_sha2::val_str_ascii(String *str)
     Since we're subverting the usual String methods, we must make sure that
     the destination has space for the bytes we're about to write.
   */
-  str->realloc((uint) digest_length*2 + 1); /* Each byte as two nybbles */
+  str->mem_realloc((uint) digest_length*2 + 1); /* Each byte as two nybbles */
 
   /* Convert the large number to a string-hex representation. */
   array_to_hex((char *) str->ptr(), digest_buf, digest_length);
@@ -562,9 +562,12 @@ bool Item_func_as_geojson::parse_options_argument()
 
   if (options_argument < 0 || options_argument > 7)
   {
-    char options_string[MAX_BIGINT_WIDTH];
-    llstr(options_argument, options_string);
-    
+    char options_string[MAX_BIGINT_WIDTH + 1];
+    if (args[2]->unsigned_flag)
+      ullstr(options_argument, options_string);
+    else
+      llstr(options_argument, options_string);
+
     my_error(ER_WRONG_VALUE_FOR_TYPE, MYF(0), "options", options_string,
              func_name());
     return true;
@@ -600,8 +603,11 @@ bool Item_func_as_geojson::parse_maxdecimaldigits_argument()
   if (max_decimal_digits_argument < 0 ||
       max_decimal_digits_argument > INT_MAX32)
   {
-    char max_decimal_digits_string[MAX_BIGINT_WIDTH];
-    llstr(max_decimal_digits_argument, max_decimal_digits_string);
+    char max_decimal_digits_string[MAX_BIGINT_WIDTH + 1];
+    if (args[1]->unsigned_flag)
+      ullstr(max_decimal_digits_argument, max_decimal_digits_string);
+    else
+      llstr(max_decimal_digits_argument, max_decimal_digits_string);
 
     my_error(ER_WRONG_VALUE_FOR_TYPE, MYF(0), "max decimal digits",
              max_decimal_digits_string, func_name());
@@ -1513,7 +1519,7 @@ String *Item_func_concat::val_str(String *str)
           {
             size_t new_len = max(tmp_value.alloced_length() * 2, concat_len);
 
-            if (tmp_value.realloc(new_len))
+            if (tmp_value.mem_realloc(new_len))
               goto null;
           }
         }
@@ -1621,14 +1627,14 @@ String *Item_func_des_encrypt::val_str(String *str)
 
   tail= 8 - (res_length % 8);                   // 1..8 marking extra length
   res_length+=tail;
-  tmp_arg.realloc(res_length);
+  tmp_arg.mem_realloc(res_length);
   tmp_arg.length(0);
   tmp_arg.append(res->ptr(), res->length());
   code= ER_OUT_OF_RESOURCES;
   if (tmp_arg.append(append_str, tail) || tmp_value.alloc(res_length+1))
     goto error;
   tmp_arg[res_length-1]=tail;                   // save extra length
-  tmp_value.realloc(res_length+1);
+  tmp_value.mem_realloc(res_length+1);
   tmp_value.length(res_length+1);
   tmp_value.set_charset(&my_charset_bin);
   tmp_value[0]=(char) (128 | key_number);
@@ -1863,7 +1869,7 @@ String *Item_func_concat_ws::val_str(String *str)
         {
           size_t new_len = max(tmp_value.alloced_length() * 2, concat_len);
 
-          if (tmp_value.realloc(new_len))
+          if (tmp_value.mem_realloc(new_len))
             goto null;
         }
       }
@@ -1917,7 +1923,7 @@ String *Item_func_reverse::val_str(String *str)
   if (!res->length())
     return make_empty_result();
   if (tmp_value.alloced_length() < res->length() &&
-      tmp_value.realloc(res->length()))
+      tmp_value.mem_realloc(res->length()))
   {
     null_value= 1;
     return 0;
@@ -3975,7 +3981,7 @@ String *Item_func_char::val_str(String *str)
       }
     }
   }
-  str->realloc(str->length());			// Add end 0 (for Purify)
+  str->mem_realloc(str->length());			// Add end 0 (for Purify)
   return check_well_formed_result(str);
 }
 
@@ -4048,6 +4054,10 @@ String *Item_func_repeat::val_str(String *str)
 
   if (count <= 0 && (count == 0 || !args[1]->unsigned_flag))
     return make_empty_result();
+
+  // Avoid looping, concatenating the empty string.
+  if (res->length() == 0)
+    return res;
 
   /* Assumes that the maximum length of a String is < INT_MAX32. */
   /* Bounds check on count:  If this is triggered, we will error. */
@@ -4687,8 +4697,8 @@ String *Item_func_hex::val_str_ascii(String *str)
         args[0]->result_type() == DECIMAL_RESULT)
     {
       double val= args[0]->val_real();
-      if ((val <= (double) LONGLONG_MIN) || 
-          (val >= (double) (ulonglong) ULONGLONG_MAX))
+      if ((val <= (double) LLONG_MIN) || 
+          (val >= (double) (ulonglong) ULLONG_MAX))
         dec=  ~(longlong) 0;
       else
         dec= (ulonglong) (val + (val > 0 ? 0.5 : -0.5));
@@ -5378,7 +5388,7 @@ String *Item_func_compress::val_str(String *str)
 
   // Check new_size overflow: new_size <= res->length()
   if (((new_size+5) <= res->length()) || 
-      buffer.realloc(new_size + 4 + 1))
+      buffer.mem_realloc(new_size + 4 + 1))
   {
     null_value= 1;
     return 0;
@@ -5444,7 +5454,7 @@ String *Item_func_uncompress::val_str(String *str)
                                          max_allowed_packet));
     goto err;
   }
-  if (buffer.realloc((uint32)new_size))
+  if (buffer.mem_realloc((uint32)new_size))
     goto err;
 
   if ((err= uncompress(pointer_cast<Byte*>(const_cast<char*>(buffer.ptr())),
@@ -5621,7 +5631,7 @@ String *Item_func_uuid::val_str(String *str)
   uint16 time_mid=            (uint16) ((tv >> 32) & 0xFFFF);
   uint16 time_hi_and_version= (uint16) ((tv >> 48) | UUID_VERSION);
 
-  str->realloc(UUID_LENGTH+1);
+  str->mem_realloc(UUID_LENGTH+1);
   str->length(UUID_LENGTH);
   str->set_charset(system_charset_info);
   s=(char *) str->ptr();
@@ -5679,7 +5689,7 @@ String *Item_func_gtid_subtract::val_str_ascii(String *str)
       if (status == RETURN_STATUS_OK)
       {
         set1.remove_gtid_set(&set2);
-        if (!str->realloc((length= set1.get_string_length()) + 1))
+        if (!str->mem_realloc((length= set1.get_string_length()) + 1))
         {
           null_value= false;
           set1.to_string((char *)str->ptr());

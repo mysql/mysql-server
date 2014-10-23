@@ -32,19 +32,23 @@
 #
 --let $_saved_file= query_get_value(SHOW MASTER STATUS, File, 1)
 --let $_saved_pos= query_get_value(SHOW MASTER STATUS, Position, 1)
+if ($rpl_multi_source)
+{
+  --let $_saved_channel_name= `SELECT CONCAT('channel_', @@GLOBAL.SERVER_ID)`
+}
 if ($use_gtids)
 {
   --let $_saved_gtids= `SELECT @@global.gtid_executed`
   if ($rpl_debug)
   {
-    --echo save_master_pos saved gtid='$_saved_gtids', file='$_saved_file', pos='$_saved_pos'
+    --echo save_master_pos saved gtid='$_saved_gtids', file='$_saved_file', pos='$_saved_pos' channel_name='$_saved_channel_name'
   }
 }
 if (!$use_gtids)
 {
   if ($rpl_debug)
   {
-    --echo save_master_pos saved file='$_saved_file', pos='$_saved_pos'
+    --echo save_master_pos saved file='$_saved_file', pos='$_saved_pos' channel_name='$_saved_channel_name'
   }
 }
 

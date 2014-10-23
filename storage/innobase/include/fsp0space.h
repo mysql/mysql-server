@@ -203,7 +203,7 @@ private:
 
 protected:
 	/** Ignore server read only configuration for this tablespace. */
-	bool            m_ignore_read_only;
+	bool		m_ignore_read_only;
 };
 
 #endif /* fsp0space_h */

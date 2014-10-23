@@ -597,7 +597,7 @@ bool Unique::walk(tree_walk_action action, void *walk_action_arg)
   */
   const size_t min_merge_buffer_size= (file_ptrs.size() + 1) * size;
   const size_t merge_buffer_size=
-    std::max<size_t>(min_merge_buffer_size, max_in_memory_size);
+    std::max(min_merge_buffer_size, static_cast<size_t>(max_in_memory_size));
 
   if (!(merge_buffer= (uchar *) my_malloc(key_memory_Unique_merge_buffer,
                                           merge_buffer_size, MYF(0))))

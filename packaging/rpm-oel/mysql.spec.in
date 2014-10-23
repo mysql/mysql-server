@@ -17,11 +17,12 @@
 # Rebuild on OL5/RHEL5 needs following rpmbuild options:
 #  rpmbuild --define 'dist .el5' --define 'rhel 5' --define 'el5 1' mysql.spec
 
+# Install cmake28 from EPEL when building on OL5/RHEL5 and OL6/RHEL6.
+
 # NOTE: "vendor" is used in upgrade/downgrade check, so you can't
 # change these, has to be exactly as is.
 
-%global milestone       m16
-%global mysql_version   @VERSION@
+%global milestone    m16
 
 %global mysql_vendor Oracle and/or its affiliates
 %global mysqldatadir /var/lib/mysql
@@ -52,6 +53,12 @@
 %global compatver             5.1.72
 %global compatlib             16
 %global compatsrc             https://cdn.mysql.com/Downloads/MySQL-5.1/mysql-%{compatver}.tar.gz
+%endif
+
+%if 0%{?rhel} == 7
+%global compatver             5.6.21
+%global compatlib             18
+%global compatsrc             https://cdn.mysql.com/Downloads/MySQL-5.6/mysql-%{compatver}.tar.gz
 %endif
 
 # multiarch
@@ -88,7 +95,7 @@ Name:           mysql-%{product_suffix}
 Summary:        A very fast and reliable SQL database server
 Group:          Applications/Databases
 Version:        @MYSQL_NO_DASH_VERSION@
-Release:        0.6%{?milestone:.%{milestone}}%{?commercial:.1}%{?dist}
+Release:        0.3%{?milestone:.%{milestone}}%{?commercial:.1}%{?dist}
 License:        Copyright (c) 2000, @MYSQL_COPYRIGHT_YEAR@, %{mysql_vendor}. All rights reserved. Under %{?license_type} license as shown in the Description field.
 Source0:        https://cdn.mysql.com/Downloads/MySQL-@MYSQL_BASE_VERSION@/%{src_dir}.tar.gz
 URL:            http://www.mysql.com/
@@ -102,10 +109,15 @@ Source5:        mysql_config.sh
 %if 0%{?compatlib}
 Source7:        %{compatsrc}
 %endif
+Source10:       http://downloads.sourceforge.net/boost/@BOOST_PACKAGE_NAME@.tar.bz2
 Source90:       filter-provides.sh
 Source91:       filter-requires.sh
 Patch0:         mysql-5.7-libmysqlclient-symbols.patch
-BuildRequires:  cmake >= 2.8.2
+%{?el5:BuildRequires:  cmake28 >= 2.8.2}
+%{?el6:BuildRequires:  cmake28 >= 2.8.2}
+%{?el7:BuildRequires:  cmake >= 2.8.2}
+%{?el5:BuildRequires:  gcc44}
+%{?el5:BuildRequires:  gcc44-c++}
 BuildRequires:  perl
 %{?el7:BuildRequires: perl(Time::HiRes)}
 %{?el7:BuildRequires: perl(Env)}
@@ -262,7 +274,6 @@ Obsoletes:      mariadb-test
 Provides:       mysql-test = %{version}-%{release}
 Provides:       mysql-test%{?_isa} = %{version}-%{release}
 
-
 %description    test
 This package contains the MySQL regression test suite for MySQL
 database server.
@@ -387,6 +398,22 @@ client/server version.
 
 For a description of MySQL see the base MySQL RPM or http://www.mysql.com/
 
+%if 0%{?rhel} == 7
+%package        embedded-compat
+Summary:        MySQL embedded compat library
+Group:          Applications/Databases
+%if 0%{?commercial}
+Obsoletes:      mysql-community-embedded-compat < %{version}-%{release}
+Requires:       mysql-commercial-common%{?_isa} = %{version}-%{release}
+%else
+Requires:       mysql-community-common%{?_isa} = %{version}-%{release}
+%endif
+
+%description    embedded-compat
+This package contains the MySQL server as an embedded library with
+compatibility for applications using version %{compatlib} of the library.
+%endif
+
 %package        embedded-devel
 Summary:        Development header files and libraries for MySQL as an embeddable library
 Group:          Applications/Databases
@@ -431,11 +458,11 @@ package has been split into several subpackages.
 
 %prep
 %if 0%{?compatlib}
-%setup -q -T -a 0 -a 7 -c -n %{src_dir}
+%setup -q -T -a 0 -a 7 -a 10 -c -n %{src_dir}
 %else
-%setup -q -T -a 0 -c -n %{src_dir}
+%setup -q -T -a 0 -a 10 -c -n %{src_dir}
 %endif # 0%{?compatlib}
-pushd %{src_dir}
+pushd mysql-%{compatver}
 %{?el7:%patch0 -p1}
 
 %build
@@ -449,13 +476,14 @@ if [ "x$(id -u)" = "x0" ] ; then
 fi
 %endif
 
-%if 0%{?compatlib}
 # Build compat libs
+%if 0%{?compatlib}
+%if 0%{?rhel} < 7
 (
-export CFLAGS="%{optflags} -D_GNU_SOURCE -D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE -fno-strict-aliasing -fwrapv"
-export CXXFLAGS="$CFLAGS %{?el6:-felide-constructors} -fno-rtti -fno-exceptions"
-pushd mysql-%{compatver}
-%configure \
+  export CFLAGS="%{optflags} -D_GNU_SOURCE -D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE -fno-strict-aliasing -fwrapv"
+  export CXXFLAGS="$CFLAGS %{?el6:-felide-constructors} -fno-rtti -fno-exceptions"
+  pushd mysql-%{compatver}
+  %configure \
     --with-readline \
     --without-debug \
     --enable-shared \
@@ -485,10 +513,39 @@ pushd mysql-%{compatver}
     --with-named-thread-libs="-lpthread" \
 %endif
     --disable-dependency-tracking
-make %{?_smp_mflags}
-popd
+  make %{?_smp_mflags}
+  popd
 )
+%else  # 0%{?rhel} < 7
+(
+  pushd mysql-%{compatver}
+  mkdir build && pushd build
+  cmake .. \
+    -DBUILD_CONFIG=mysql_release \
+    -DINSTALL_LAYOUT=RPM \
+    -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+    -DCMAKE_C_FLAGS="%{optflags}" \
+    -DCMAKE_CXX_FLAGS="%{optflags}" \
+    -DWITH_INNODB_MEMCACHED=1 \
+    -DINSTALL_LIBDIR="%{_lib}/mysql" \
+    -DINSTALL_PLUGINDIR="%{_lib}/mysql/plugin" \
+    -DINSTALL_SQLBENCHDIR=share \
+    -DMYSQL_UNIX_ADDR="%{mysqldatadir}/mysql.sock" \
+    -DFEATURE_SET="%{feature_set}" \
+    -DWITH_EMBEDDED_SERVER=1 \
+    -DWITH_EMBEDDED_SHARED_LIBRARY=1 \
+    %{?ssl_option} \
+    -DCOMPILATION_COMMENT="%{compilation_comment_release}" \
+    -DMYSQL_SERVER_SUFFIX="%{?server_suffix}"
+  echo BEGIN_NORMAL_CONFIG ; egrep '^#define' include/config.h ; echo END_NORMAL_CONFIG
+  make %{?_smp_mflags} VERBOSE=1
+  popd && popd
+)
+%endif # 0%{?rhel} < 7
 %endif # 0%{?compatlib}
+
+%{?el5:export CC=gcc44}
+%{?el5:export CXX=g++44}
 
 # Build debug versions of mysqld and libmysqld.a
 mkdir debug
@@ -496,10 +553,11 @@ mkdir debug
   cd debug
   # Attempt to remove any optimisation flags from the debug build
   optflags=$(echo "%{optflags}" | sed -e 's/-O2 / /' -e 's/-Wp,-D_FORTIFY_SOURCE=2/ /')
-  cmake ../%{src_dir} \
+  cmake%{?el5:28}%{?el6:28} ../%{src_dir} \
            -DBUILD_CONFIG=mysql_release \
            -DINSTALL_LAYOUT=RPM \
            -DCMAKE_BUILD_TYPE=Debug \
+           -DWITH_BOOST=.. \
            -DCMAKE_C_FLAGS="$optflags" \
            -DCMAKE_CXX_FLAGS="$optflags" \
            -DWITH_INNODB_MEMCACHED=1 \
@@ -521,10 +579,11 @@ mkdir debug
 mkdir release
 (
   cd release
-  cmake ../%{src_dir} \
+  cmake%{?el5:28}%{?el6:28} ../%{src_dir} \
            -DBUILD_CONFIG=mysql_release \
            -DINSTALL_LAYOUT=RPM \
            -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+	   -DWITH_BOOST=.. \
            -DCMAKE_C_FLAGS="%{optflags}" \
            -DCMAKE_CXX_FLAGS="%{optflags}" \
            -DWITH_INNODB_MEMCACHED=1 \
@@ -545,12 +604,15 @@ mkdir release
 %install
 %if 0%{?compatlib}
 # Install compat libs
-for dir in libmysql libmysql_r ; do
+dirs="libmysql libmysql_r"
+%{?el7:dirs="build/libmysql build/libmysqld"}
+for dir in $dirs ; do
     pushd mysql-%{compatver}/$dir
     make DESTDIR=%{buildroot} install
     popd
 done
 rm -f %{buildroot}%{_libdir}/mysql/libmysqlclient{,_r}.{a,la,so}
+%{?el7:rm -f %{buildroot}%{_libdir}/mysql/libmysqld.{a,la,so}}
 %endif # 0%{?compatlib}
 
 MBD=$RPM_BUILD_DIR/%{src_dir}
@@ -566,6 +628,7 @@ make DESTDIR=%{buildroot} install
 # Install logrotate and autostart
 install -D -m 0644 $MBD/release/support-files/mysql-log-rotate %{buildroot}%{_sysconfdir}/logrotate.d/mysql
 install -D -m 0644 $MBD/release/packaging/rpm-oel/my.cnf %{buildroot}%{_sysconfdir}/my.cnf
+install -d %{buildroot}%{_sysconfdir}/my.cnf.d
 %if 0%{?systemd}
 install -D -m 0755 %{SOURCE1} %{buildroot}%{_bindir}/mysql-systemd-start
 install -D -m 0644 %{SOURCE2} %{buildroot}%{_unitdir}/mysqld.service
@@ -574,7 +637,7 @@ install -D -m 0755 $MBD/release/packaging/rpm-oel/mysql.init %{buildroot}%{_sysc
 %endif
 install -D -m 0644 %{SOURCE3} %{buildroot}%{_prefix}/lib/tmpfiles.d/mysql.conf
 
-# Make library links
+# Add libdir to linker
 install -d -m 0755 %{buildroot}%{_sysconfdir}/ld.so.conf.d
 echo "%{_libdir}/mysql" > %{buildroot}%{_sysconfdir}/ld.so.conf.d/mysql-%{_arch}.conf
 
@@ -589,11 +652,9 @@ install -p -m 0755 %{SOURCE5} %{buildroot}/%{_bindir}/mysql_config
 
 
 # Remove files pages we explicitly do not want to package
-rm -rf %{buildroot}%{_datadir}/mysql/solaris
 rm -rf %{buildroot}%{_infodir}/mysql.info*
 rm -rf %{buildroot}%{_datadir}/mysql/mysql.server
 rm -rf %{buildroot}%{_datadir}/mysql/mysqld_multi.server
-rm -rf %{buildroot}%{_bindir}/mysqlhotcopy
 %if 0%{?systemd}
 rm -rf %{buildroot}%{_sysconfdir}/init.d/mysqld
 %endif
@@ -620,11 +681,11 @@ rm -r $(readlink var) var
 
 %post server
 datadir=$(/usr/bin/my_print_defaults server mysqld | grep '^--datadir=' | sed -n 's/--datadir=//p')
-/bin/chmod 0755 "$datadir"
-/bin/touch /var/log/mysqld.log
+/bin/chmod 0755 "$datadir" >/dev/null 2>&1 || :
+/bin/touch /var/log/mysqld.log >/dev/null 2>&1 || :
 %if 0%{?systemd}
 %systemd_post mysqld.service
-/sbin/service mysqld enable >/dev/null 2>&1 || :
+/usr/bin/systemctl enable mysqld >/dev/null 2>&1 || :
 %else
 /sbin/chkconfig --add mysqld
 %endif
@@ -662,6 +723,8 @@ fi
 
 %postun embedded -p /sbin/ldconfig
 
+%{?el7:%postun embedded-compat -p /sbin/ldconfig}
+
 %files server
 %defattr(-, root, root, -)
 %doc %{?license_files_server} %{src_dir}/Docs/ChangeLog
@@ -691,6 +754,7 @@ fi
 %attr(644, root, root) %{_mandir}/man1/resolveip.1*
 
 %config(noreplace) %{_sysconfdir}/my.cnf
+%dir %{_sysconfdir}/my.cnf.d
 
 %attr(755, root, root) %{_bindir}/innochecksum
 %attr(755, root, root) %{_bindir}/my_print_defaults
@@ -770,6 +834,7 @@ fi
 
 %files common
 %defattr(-, root, root, -)
+%doc %{?license_files_server}
 %{_datadir}/mysql/charsets/
 %{_datadir}/mysql/errmsg-utf8.txt
 %{_datadir}/mysql/bulgarian/
@@ -799,6 +864,7 @@ fi
 
 %files client
 %defattr(-, root, root, -)
+%doc %{?license_files_server}
 %attr(755, root, root) %{_bindir}/mysql
 %attr(755, root, root) %{_bindir}/mysqladmin
 %attr(755, root, root) %{_bindir}/mysqlbinlog
@@ -823,6 +889,7 @@ fi
 
 %files devel
 %defattr(-, root, root, -)
+%doc %{?license_files_server}
 %attr(644, root, root) %{_mandir}/man1/comp_err.1*
 %attr(644, root, root) %{_mandir}/man1/mysql_config.1*
 %attr(755, root, root) %{_bindir}/mysql_config
@@ -837,24 +904,27 @@ fi
 
 %files libs
 %defattr(-, root, root, -)
+%doc %{?license_files_server}
 %dir %attr(755, root, root) %{_libdir}/mysql
 %attr(644, root, root) %{_sysconfdir}/ld.so.conf.d/mysql-%{_arch}.conf
-%{_libdir}/mysql/libmysqlclient.so.18*
-%{_libdir}/mysql/libmysqlclient_r.so.18*
+%{_libdir}/mysql/libmysqlclient.so.20*
+%{_libdir}/mysql/libmysqlclient_r.so.20*
 
 %if 0%{?compatlib}
 %files libs-compat
 %defattr(-, root, root, -)
+%doc %{?license_files_server}
 %dir %attr(755, root, root) %{_libdir}/mysql
 %attr(644, root, root) %{_sysconfdir}/ld.so.conf.d/mysql-%{_arch}.conf
 %{_libdir}/mysql/libmysqlclient.so.%{compatlib}
-%{_libdir}/mysql/libmysqlclient.so.%{compatlib}.0.0
+%{_libdir}/mysql/libmysqlclient.so.%{compatlib}.*.0
 %{_libdir}/mysql/libmysqlclient_r.so.%{compatlib}
-%{_libdir}/mysql/libmysqlclient_r.so.%{compatlib}.0.0
+%{_libdir}/mysql/libmysqlclient_r.so.%{compatlib}.*.0
 %endif
 
 %files test
 %defattr(-, root, root, -)
+%doc %{?license_files_server}
 %attr(-, root, root) %{_datadir}/mysql-test
 %attr(755, root, root) %{_bindir}/mysql_client_test
 %attr(755, root, root) %{_bindir}/mysql_client_test_embedded
@@ -865,12 +935,14 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/auth_test_plugin.so
 %attr(644, root, root) %{_libdir}/mysql/plugin/daemon_example.ini
 %attr(755, root, root) %{_libdir}/mysql/plugin/libdaemon_example.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/replication_observers_example_plugin.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/qa_auth_client.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/qa_auth_interface.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/qa_auth_server.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/auth.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/auth_test_plugin.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/libdaemon_example.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/replication_observers_example_plugin.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/qa_auth_client.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/qa_auth_interface.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/qa_auth_server.so
@@ -884,16 +956,28 @@ fi
 
 %files bench
 %defattr(-, root, root, -)
+%doc %{?license_files_server}
 %{_datadir}/sql-bench
 
 %files embedded
 %defattr(-, root, root, -)
+%doc %{?license_files_server}
 %dir %attr(755, root, root) %{_libdir}/mysql
 %attr(644, root, root) %{_sysconfdir}/ld.so.conf.d/mysql-%{_arch}.conf
-%attr(755, root, root) %{_libdir}/mysql/libmysqld.so.*
+%attr(755, root, root) %{_libdir}/mysql/libmysqld.so.20*
+
+%if 0%{?rhel} == 7
+%files embedded-compat
+%defattr(-, root, root, -)
+%doc %{?license_files_server}
+%dir %attr(755, root, root) %{_libdir}/mysql
+%attr(644, root, root) %{_sysconfdir}/ld.so.conf.d/mysql-%{_arch}.conf
+%attr(755, root, root) %{_libdir}/mysql/libmysqld.so.18*
+%endif
 
 %files embedded-devel
 %defattr(-, root, root, -)
+%doc %{?license_files_server}
 %attr(644, root, root) %{_libdir}/mysql/libmysqld.a
 %attr(644, root, root) %{_libdir}/mysql/libmysqld-debug.a
 %attr(755, root, root) %{_libdir}/mysql/libmysqld.so
@@ -905,6 +989,16 @@ fi
 %endif
 
 %changelog
+* Mon Oct 21 2014 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 5.7.6-0.2.m16
+- Include boost sources
+- Fix cmake buildrequires
+- Fix build on el5 with gcc44
+- Add license info in each subpackage
+- Soname bump, more compat packages
+
+* Thu Sep 18 2014 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 5.7.6-0.2.m16
+- Provide replication_observers_example_plugin.so plugin
+
 * Tue Sep 2 2014 Bjorn Munch <bjorn.munch@oracle.com> - 5.7.6-0.1.m16
 - Updated for 5.7.6
 

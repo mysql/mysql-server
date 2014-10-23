@@ -55,6 +55,27 @@ static ulong atoi_octal(const char *str)
 MYSQL_FILE *mysql_stdin= NULL;
 static MYSQL_FILE instrumented_stdin;
 
+#if defined(MY_MSCRT_DEBUG)
+int set_crt_report_leaks()
+{
+  HANDLE hLogFile;
+
+  _CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF        // debug allocation on
+                 | _CRTDBG_LEAK_CHECK_DF     // leak checks on exit
+                 | _CRTDBG_CHECK_ALWAYS_DF   // memory check (slow)
+                 );
+
+  return ((
+    NULL == (hLogFile= GetStdHandle(STD_ERROR_HANDLE)) ||
+    -1 == _CrtSetReportMode(_CRT_WARN, _CRTDBG_MODE_FILE) ||
+    _CRTDBG_HFILE_ERROR == _CrtSetReportFile(_CRT_WARN, hLogFile) ||
+    -1 == _CrtSetReportMode(_CRT_ERROR, _CRTDBG_MODE_FILE) ||
+    _CRTDBG_HFILE_ERROR == _CrtSetReportFile(_CRT_ERROR, hLogFile) ||
+    -1 == _CrtSetReportMode(_CRT_ASSERT, _CRTDBG_MODE_FILE) ||
+    _CRTDBG_HFILE_ERROR == _CrtSetReportFile(_CRT_ASSERT, hLogFile)) ? 1 : 0);
+}
+#endif
+
 
 /**
   Initialize my_sys functions, resources and variables
@@ -71,6 +92,10 @@ my_bool my_init(void)
     return 0;
 
   my_init_done= 1;
+
+#if defined(MY_MSCRT_DEBUG)
+  set_crt_report_leaks();
+#endif
 
   my_umask= 0660;                       /* Default umask for new files */
   my_umask_dir= 0700;                   /* Default umask for new directories */
@@ -151,7 +176,7 @@ void my_end(int infoflag)
       char ebuff[512];
       my_snprintf(ebuff, sizeof(ebuff), EE(EE_OPEN_WARNING),
                   my_file_opened, my_stream_opened);
-      my_message_stderr(EE_OPEN_WARNING, ebuff, ME_BELL);
+      my_message_stderr(EE_OPEN_WARNING, ebuff, MYF(0));
       DBUG_PRINT("error", ("%s", ebuff));
       my_print_open_files();
     }

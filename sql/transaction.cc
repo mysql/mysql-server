@@ -125,6 +125,11 @@ bool trans_begin(THD *thd, uint flags)
     thd->tx_read_only= false;
   }
 
+  DBUG_EXECUTE_IF("dbug_set_high_prio_trx", {
+    DBUG_ASSERT(thd->tx_priority==0);
+    thd->tx_priority= 1;
+  });
+
   thd->variables.option_bits|= OPTION_BEGIN;
   thd->server_status|= SERVER_STATUS_IN_TRANS;
   if (thd->tx_read_only)
@@ -191,6 +196,8 @@ bool trans_commit(THD *thd)
 
   /* The transaction should be marked as complete in P_S. */
   DBUG_ASSERT(thd->m_transaction_psi == NULL);
+
+  thd->tx_priority= 0;
 
   DBUG_RETURN(MY_TEST(res));
 }
@@ -282,6 +289,8 @@ bool trans_rollback(THD *thd)
 
   /* The transaction should be marked as complete in P_S. */
   DBUG_ASSERT(thd->m_transaction_psi == NULL);
+
+  thd->tx_priority= 0;
 
   DBUG_RETURN(MY_TEST(res));
 }

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -27,6 +27,10 @@
 #include "pfs_engine_table.h"
 #include "rpl_mi.h"
 #include "mysql_com.h"
+#include "rpl_msr.h"
+#include "rpl_info.h" /*CHANNEL_NAME_LENGTH*/
+
+class Master_info;
 
 /**
   @addtogroup Performance_schema_tables
@@ -47,6 +51,8 @@ enum enum_rpl_yes_no {
   additional length field denoted by <field_name>_length.
 */
 struct st_row_coordinator {
+  char channel_name[CHANNEL_NAME_LENGTH];
+  uint channel_name_length;
   ulonglong thread_id;
   bool thread_id_is_null;
   enum_rpl_yes_no service_state;
@@ -60,7 +66,7 @@ struct st_row_coordinator {
 class table_replication_execute_status_by_coordinator: public PFS_engine_table
 {
 private:
-  void make_row();
+  void make_row(Master_info *mi);
 
   /** Table share lock. */
   static THR_LOCK m_table_lock;

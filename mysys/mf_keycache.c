@@ -359,7 +359,7 @@ static inline uint next_power(uint value)
 
 */
 
-int init_key_cache(KEY_CACHE *keycache, uint key_cache_block_size,
+int init_key_cache(KEY_CACHE *keycache, ulonglong key_cache_block_size,
                    size_t use_mem, ulonglong division_limit,
                    ulonglong age_threshold)
 {
@@ -397,8 +397,8 @@ int init_key_cache(KEY_CACHE *keycache, uint key_cache_block_size,
   }
 
   keycache->key_cache_mem_size= use_mem;
-  keycache->key_cache_block_size= key_cache_block_size;
-  DBUG_PRINT("info", ("key_cache_block_size: %u",
+  keycache->key_cache_block_size= (uint)key_cache_block_size;
+  DBUG_PRINT("info", ("key_cache_block_size: %llu",
 		      key_cache_block_size));
 
   blocks= (ulong) (use_mem / (sizeof(BLOCK_LINK) + 2 * sizeof(HASH_LINK) +
@@ -555,7 +555,7 @@ err:
     (when cnt_for_resize=0).
 */
 
-int resize_key_cache(KEY_CACHE *keycache, uint key_cache_block_size,
+int resize_key_cache(KEY_CACHE *keycache, ulonglong key_cache_block_size,
                      size_t use_mem, ulonglong division_limit,
                      ulonglong age_threshold)
 {

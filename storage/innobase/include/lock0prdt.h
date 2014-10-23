@@ -37,7 +37,6 @@ typedef struct lock_prdt {
 /*********************************************************************//**
 Acquire a predicate lock on a block
 @return DB_SUCCESS, DB_LOCK_WAIT, DB_DEADLOCK, or DB_QUE_THR_SUSPENDED */
-
 dberr_t
 lock_prdt_lock(
 /*===========*/
@@ -58,7 +57,6 @@ lock_prdt_lock(
 /*********************************************************************//**
 Acquire a "Page" lock on a block
 @return DB_SUCCESS, DB_LOCK_WAIT, DB_DEADLOCK, or DB_QUE_THR_SUSPENDED */
-
 dberr_t
 lock_place_prdt_page_lock(
 /*======================*/
@@ -70,7 +68,6 @@ lock_place_prdt_page_lock(
 /*********************************************************************//**
 Checks two predicate locks are compatible with each other
 @return true if conflicts */
-
 bool
 lock_prdt_consistent(
 /*=================*/
@@ -80,7 +77,6 @@ lock_prdt_consistent(
 
 /*********************************************************************//**
 Initiate a Predicate lock from a MBR */
-
 void
 lock_init_prdt_from_mbr(
 /*====================*/
@@ -92,7 +88,6 @@ lock_init_prdt_from_mbr(
 /*********************************************************************//**
 Get predicate lock's minimum bounding box
 @return the minimum bounding box*/
-
 lock_prdt_t*
 lock_get_prdt_from_lock(
 /*====================*/
@@ -102,7 +97,6 @@ lock_get_prdt_from_lock(
 Checks if a predicate lock request for a new lock has to wait for
 request lock2.
 @return true if new lock has to wait for lock2 to be removed */
-
 bool
 lock_prdt_has_to_wait(
 /*==================*/
@@ -119,7 +113,6 @@ lock_prdt_has_to_wait(
 
 /**************************************************************//**
 Update predicate lock when page splits */
-
 void
 lock_prdt_update_split(
 /*===================*/
@@ -132,7 +125,6 @@ lock_prdt_update_split(
 
 /**************************************************************//**
 Ajust locks from an ancester page of Rtree on the appropriate level . */
-
 void
 lock_prdt_update_parent(
 /*====================*/
@@ -148,7 +140,6 @@ lock_prdt_update_parent(
 Checks if locks of other transactions prevent an immediate insert of
 a predicate record.
 @return DB_SUCCESS, DB_LOCK_WAIT, DB_DEADLOCK, or DB_QUE_THR_SUSPENDED */
-
 dberr_t
 lock_prdt_insert_check_and_lock(
 /*============================*/
@@ -163,7 +154,6 @@ lock_prdt_insert_check_and_lock(
 
 /*********************************************************************//**
 Append a predicate to the lock */
-
 void
 lock_prdt_set_prdt(
 /*===============*/
@@ -205,7 +195,6 @@ prdt_get_mbr_from_prdt(
 /*************************************************************//**
 Moves the locks of a record to another record and resets the lock bits of
 the donating record. */
-
 void
 lock_prdt_rec_move(
 /*===============*/
@@ -217,7 +206,6 @@ lock_prdt_rec_move(
 /*********************************************************************//**
 Check whether there are R-tree Page lock on a buffer page
 @return true if there is none */
-
 bool
 lock_test_prdt_page_lock(
 /*=====================*/
@@ -226,7 +214,6 @@ lock_test_prdt_page_lock(
 
 /*************************************************************//**
 Removes predicate lock objects set on an index page which is discarded. */
-
 void
 lock_prdt_free_from_discard_page(
 /*=============================*/

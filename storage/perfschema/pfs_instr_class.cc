@@ -106,6 +106,18 @@ ulong statement_class_lost= 0;
 ulong table_share_max= 0;
 /** Number of table share lost. @sa table_share_array */
 ulong table_share_lost= 0;
+/** Size of the table stat array. @sa table_share_lock_stat_array */
+ulong table_share_lock_stat_max= 0;
+/** Number of table stat lost. @sa table_share_lock_stat_array */
+ulong table_share_lock_stat_lost= 0;
+/** boolean value to indicate if stat array is full. @sa table_share_lock_stat_full */
+ulong table_share_lock_stat_full= false;
+/** Size of the index stat array. @sa table_share_index_stat_array */
+ulong table_share_index_stat_max= 0;
+/** Number of index stat lost. @sa table_share_index_stat_array */
+ulong table_share_index_stat_lost= 0;
+/** boolean value to indicate if stat array is full. @sa table_share_index_stat_full */
+ulong table_share_index_stat_full= false;
 /** Size of the socket class array. @sa socket_class_array */
 ulong socket_class_max= 0;
 /** Number of socket class lost. @sa socket_class_array */
@@ -144,6 +156,20 @@ static PFS_thread_class *thread_class_array= NULL;
   @sa table_share_hash
 */
 PFS_table_share *table_share_array= NULL;
+
+/**
+  Table statistics instance array.
+  @sa table_share_lock_stat_max
+  @sa table_share_lock_stat_lost
+*/
+PFS_table_share_lock *table_share_lock_stat_array= NULL;
+
+/**
+  Index statistics instance array.
+  @sa table_share_index_stat_max
+  @sa table_share_index_stat_lost
+*/
+PFS_table_share_index *table_share_index_stat_array= NULL;
 
 PFS_ALIGNED PFS_single_stat global_idle_stat;
 PFS_ALIGNED PFS_table_io_stat global_table_io_stat;
@@ -498,15 +524,390 @@ static void set_table_share_key(PFS_table_share_key *key,
   }
 }
 
+/**
+  Find an existing table share lock instrumentation.
+  @return a table share lock.
+*/
+PFS_table_share_lock*
+PFS_table_share::find_lock_stat() const
+{
+  PFS_table_share *that= const_cast<PFS_table_share*>(this);
+  void *addr= & that->m_race_lock_stat;
+  void * volatile * typed_addr= static_cast<void * volatile *>(addr);
+  void *ptr;
+
+  /* Atomic Load */
+  ptr= my_atomic_loadptr(typed_addr);
+
+  PFS_table_share_lock *pfs;
+  pfs= static_cast<PFS_table_share_lock *>(ptr);
+  return pfs;
+}
+
+/**
+  Find or create a table share lock instrumentation.
+  @return a table share lock, or NULL.
+*/
+PFS_table_share_lock*
+PFS_table_share::find_or_create_lock_stat()
+{
+  void *addr= & this->m_race_lock_stat;
+  void * volatile * typed_addr= static_cast<void * volatile *>(addr);
+  void *ptr;
+
+  /* (1) Atomic Load */
+  ptr= my_atomic_loadptr(typed_addr);
+
+  PFS_table_share_lock *pfs;
+  if (ptr != NULL)
+  {
+    pfs= static_cast<PFS_table_share_lock *>(ptr);
+    return pfs;
+  }
+
+  /* (2) Create a lock stat */
+  pfs= create_table_share_lock_stat();
+  if (pfs == NULL)
+    return NULL;
+  pfs->m_owner= this;
+
+  void *old_ptr= NULL;
+  ptr= pfs;
+
+  /* (3) Atomic CAS */
+  if (my_atomic_casptr(typed_addr, & old_ptr, ptr))
+  {
+    /* Ok. */
+    return pfs;
+  }
+
+  /* Collision with another thread that also executed (2) and (3). */
+  release_table_share_lock_stat(pfs);
+
+  pfs= static_cast<PFS_table_share_lock *>(old_ptr);
+  return pfs;
+}
+
+/** Destroy a table share lock instrumentation. */
+void PFS_table_share::destroy_lock_stat()
+{
+  void *addr= & this->m_race_lock_stat;
+  void * volatile * typed_addr= static_cast<void * volatile *>(addr);
+  void *new_ptr= NULL;
+  void *old_ptr;
+
+  old_ptr= my_atomic_fasptr(typed_addr, new_ptr);
+  if (old_ptr != NULL)
+  {
+    PFS_table_share_lock *pfs;
+    pfs= static_cast<PFS_table_share_lock *>(old_ptr);
+    release_table_share_lock_stat(pfs);
+  }
+}
+
+/**
+  Find an existing table share index instrumentation.
+  @return a table share index
+*/
+PFS_table_share_index*
+PFS_table_share::find_index_stat(uint index) const
+{
+  DBUG_ASSERT(index <= MAX_INDEXES);
+
+  PFS_table_share *that= const_cast<PFS_table_share*>(this);
+  void *addr= & that->m_race_index_stat[index];
+  void * volatile * typed_addr= static_cast<void * volatile *>(addr);
+  void *ptr;
+
+  /* Atomic Load */
+  ptr= my_atomic_loadptr(typed_addr);
+
+  PFS_table_share_index *pfs;
+  pfs= static_cast<PFS_table_share_index *>(ptr);
+  return pfs;
+}
+
+/**
+  Find or create a table share index instrumentation.
+  @param server_share
+  @index index
+  @return a table share index, or NULL
+*/
+PFS_table_share_index*
+PFS_table_share::find_or_create_index_stat(const TABLE_SHARE *server_share, uint index)
+{
+  DBUG_ASSERT(index <= MAX_INDEXES);
+
+  void *addr= & this->m_race_index_stat[index];
+  void * volatile * typed_addr= static_cast<void * volatile *>(addr);
+  void *ptr;
+
+  /* (1) Atomic Load */
+  ptr= my_atomic_loadptr(typed_addr);
+
+  PFS_table_share_index *pfs;
+  if (ptr != NULL)
+  {
+    pfs= static_cast<PFS_table_share_index *>(ptr);
+    return pfs;
+  }
+
+  /* (2) Create an index stat */
+  pfs= create_table_share_index_stat(server_share, index);
+  if (pfs == NULL)
+    return NULL;
+  pfs->m_owner= this;
+
+  void *old_ptr= NULL;
+  ptr= pfs;
+
+  /* (3) Atomic CAS */
+  if (my_atomic_casptr(typed_addr, & old_ptr, ptr))
+  {
+    /* Ok. */
+    return pfs;
+  }
+
+  /* Collision with another thread that also executed (2) and (3). */
+  release_table_share_index_stat(pfs);
+
+  pfs= static_cast<PFS_table_share_index *>(old_ptr);
+  return pfs;
+}
+
+/** Destroy table share index instrumentation. */
+void PFS_table_share::destroy_index_stats()
+{
+  uint index;
+
+  for (index= 0; index <= MAX_INDEXES; index++)
+  {
+    void *addr= & this->m_race_index_stat[index];
+    void * volatile * typed_addr= static_cast<void * volatile *>(addr);
+    void *new_ptr= NULL;
+    void *old_ptr;
+
+    old_ptr= my_atomic_fasptr(typed_addr, new_ptr);
+    if (old_ptr != NULL)
+    {
+      PFS_table_share_index *pfs;
+      pfs= static_cast<PFS_table_share_index *>(old_ptr);
+      release_table_share_index_stat(pfs);
+    }
+  }
+}
+
 void PFS_table_share::refresh_setup_object_flags(PFS_thread *thread)
 {
+  bool old_enabled= m_enabled;
+
   lookup_setup_object(thread,
                       OBJECT_TYPE_TABLE,
                       m_schema_name, m_schema_name_length,
                       m_table_name, m_table_name_length,
                       &m_enabled, &m_timed);
+
+  /* 
+    If instrumentation for this table was enabled earlier and is disabled now,
+    cleanup slots reserved for lock stats and index stats.
+  */
+  if (old_enabled && ! m_enabled)
+  {
+    destroy_lock_stat();
+    destroy_index_stats();
+  }
 }
 
+/**
+  Initialize the table lock stat buffer.
+  @param table_stat_sizing           max number of table lock statistics
+  @return 0 on success
+*/
+int init_table_share_lock_stat(uint table_stat_sizing)
+{
+  int result= 0;
+  table_share_lock_stat_max= table_stat_sizing;
+  table_share_lock_stat_lost= 0;
+
+  if (table_share_lock_stat_max > 0)
+  {
+    table_share_lock_stat_array= PFS_MALLOC_ARRAY(table_share_lock_stat_max,
+                                       PFS_table_share_lock,
+                                       MYF(MY_ZEROFILL));
+    if (unlikely(table_share_lock_stat_array == NULL))
+      result= 1;
+  }
+  else
+    table_share_lock_stat_array= NULL;
+
+  return result;
+}
+
+/**
+  Create a table share lock instrumentation.
+  @return table share lock instrumentation, or NULL
+*/
+PFS_table_share_lock*
+create_table_share_lock_stat()
+{
+  if (table_share_lock_stat_array == NULL || table_share_lock_stat_max == 0)
+  {
+    table_share_lock_stat_lost++;
+    return NULL;
+  }
+ 
+  PFS_table_share_lock *pfs= NULL;
+  static uint PFS_ALIGNED table_stat_monotonic_index= 0;
+  ulong index= 0;
+  ulong attempts= 0;
+  pfs_dirty_state dirty_state;
+
+  if(table_share_lock_stat_full)
+  {
+    table_share_lock_stat_lost++;
+    return NULL;
+  }
+
+  /* Create a new record in table stat array. */
+  while (++attempts <= table_share_lock_stat_max)
+  {
+    index= PFS_atomic::add_u32(& table_stat_monotonic_index, 1) % table_share_lock_stat_max;
+    pfs= table_share_lock_stat_array + index;
+
+    if (pfs->m_lock.free_to_dirty(& dirty_state))
+    {
+      /* Reset the stats. */
+      pfs->m_stat.reset();
+
+      /* Use this stat buffer. */
+      pfs->m_lock.dirty_to_allocated(& dirty_state);
+      return pfs;
+    }
+  }
+  table_share_lock_stat_lost++;
+  table_share_lock_stat_full= true;
+  return NULL;
+}
+
+/** Release a table share lock instrumentation. */
+void release_table_share_lock_stat(PFS_table_share_lock *pfs)
+{
+  pfs->m_owner= NULL;
+  pfs->m_lock.allocated_to_free();
+  table_share_lock_stat_full= false;
+  return;
+}
+
+/** Cleanup the table stat buffers. */
+void cleanup_table_share_lock_stat(void)
+{
+  pfs_free(table_share_lock_stat_array);
+  table_share_lock_stat_array= NULL;
+  table_share_lock_stat_max= 0;
+}
+
+/**
+  Initialize table index stat buffer.
+  @param index_stat_sizing           max number of index statistics
+  @return 0 on success
+*/
+int init_table_share_index_stat(uint index_stat_sizing)
+{
+  int result= 0;
+  table_share_index_stat_max= index_stat_sizing;
+  table_share_index_stat_lost= 0;
+
+  if (table_share_index_stat_max > 0)
+  {
+    table_share_index_stat_array= PFS_MALLOC_ARRAY(table_share_index_stat_max,
+                                       PFS_table_share_index,
+                                       MYF(MY_ZEROFILL));
+    if (unlikely(table_share_index_stat_array == NULL))
+      result= 1;
+  }
+  else
+    table_share_index_stat_array= NULL;
+
+  return result;
+}
+
+/**
+  Create a table share index instrumentation.
+  @return table share index instrumentation, or NULL
+*/
+PFS_table_share_index*
+create_table_share_index_stat(const TABLE_SHARE *server_share, uint server_index)
+{
+  DBUG_ASSERT((server_share != NULL) || (server_index == MAX_INDEXES));
+
+  if (table_share_index_stat_array == NULL || table_share_index_stat_max == 0)
+  {
+    table_share_index_stat_lost++;
+    return NULL;
+  }
+ 
+  PFS_table_share_index *pfs= NULL;
+  static uint PFS_ALIGNED index_stat_monotonic_index= 0;
+  ulong index= 0;
+  ulong attempts= 0;
+  pfs_dirty_state dirty_state;
+
+  if(table_share_index_stat_full)
+  {
+    table_share_index_stat_lost++;
+    return NULL;
+  }
+
+  /* Create a new record in index stat array. */
+  while (++attempts <= table_share_index_stat_max)
+  {
+    index= PFS_atomic::add_u32(& index_stat_monotonic_index, 1) % table_share_index_stat_max;
+    pfs= table_share_index_stat_array + index;
+
+    if (pfs->m_lock.free_to_dirty(& dirty_state))
+    {
+      if (server_index == MAX_INDEXES)
+      {
+        pfs->m_key.m_name_length= 0;
+      }
+      else
+      {
+        KEY *key_info= server_share->key_info + server_index;
+        size_t len= strlen(key_info->name);
+
+        memcpy(pfs->m_key.m_name, key_info->name, len);
+        pfs->m_key.m_name_length= len;
+      }
+
+      /* Reset the stats. */
+      pfs->m_stat.reset();
+
+      /* Use this stat buffer. */
+      pfs->m_lock.dirty_to_allocated(& dirty_state);
+      return pfs;
+    }
+  }
+  table_share_index_stat_lost++;
+  table_share_index_stat_full= true;
+  return NULL;
+}
+
+/** Release a table share index instrumentation. */
+void release_table_share_index_stat(PFS_table_share_index *pfs)
+{
+  pfs->m_owner= NULL;
+  pfs->m_lock.allocated_to_free();
+  table_share_index_stat_full= false;
+  return;
+}
+
+/** Cleanup the table stat buffers. */
+void cleanup_table_share_index_stat(void)
+{
+  pfs_free(table_share_index_stat_array);
+  table_share_index_stat_array= NULL;
+  table_share_index_stat_max= 0;
+}
 /**
   Initialize the file class buffer.
   @param file_class_sizing            max number of file class
@@ -1340,44 +1741,30 @@ PFS_transaction_class *sanitize_transaction_class(PFS_transaction_class *unsafe)
   return NULL;
 }
 
-static void set_keys(PFS_table_share *pfs, const TABLE_SHARE *share)
-{
-  size_t len;
-  KEY *key_info= share->key_info;
-  PFS_table_key *pfs_key= pfs->m_keys;
-  PFS_table_key *pfs_key_last= pfs->m_keys + share->keys;
-  pfs->m_key_count= share->keys;
-
-  for ( ; pfs_key < pfs_key_last; pfs_key++, key_info++)
-  {
-    len= strlen(key_info->name);
-    memcpy(pfs_key->m_name, key_info->name, len);
-    pfs_key->m_name_length= len;
-  }
-
-  pfs_key_last= pfs->m_keys + MAX_INDEXES;
-  for ( ; pfs_key < pfs_key_last; pfs_key++)
-    pfs_key->m_name_length= 0;
-}
-
 static int compare_keys(PFS_table_share *pfs, const TABLE_SHARE *share)
 {
-  size_t len;
-  KEY *key_info= share->key_info;
-  PFS_table_key *pfs_key= pfs->m_keys;
-  PFS_table_key *pfs_key_last= pfs->m_keys + share->keys;
-
   if (pfs->m_key_count != share->keys)
     return 1;
 
-  for ( ; pfs_key < pfs_key_last; pfs_key++, key_info++)
-  {
-    len= strlen(key_info->name);
-    if (len != pfs_key->m_name_length)
-      return 1;
+  size_t len;
+  uint index= 0;
+  uint key_count= share->keys;
+  KEY *key_info= share->key_info;
+  PFS_table_share_index *index_stat;
 
-    if (memcmp(pfs_key->m_name, key_info->name, len) != 0)
-      return 1;
+  for ( ; index < key_count; key_info++, index++)
+  {
+    index_stat= pfs->find_index_stat(index);
+    if (index_stat != NULL)
+    {
+      len= strlen(key_info->name);
+
+      if (len != index_stat->m_key.m_name_length)
+        return 1;
+
+      if (memcmp(index_stat->m_key.m_name, key_info->name, len) != 0)
+        return 1;
+    }
   }
 
   return 0;
@@ -1436,9 +1823,14 @@ search:
     pfs->inc_refcount() ;
     if (compare_keys(pfs, share) != 0)
     {
-      set_keys(pfs, share);
-      /* FIXME: aggregate to table_share sink ? */
-      pfs->m_table_stat.fast_reset();
+      /*
+        Some DDL was detected.
+        - keep the lock stats, they are unaffected
+        - destroy the index stats, indexes changed.
+        - adjust the expected key count
+      */
+      pfs->destroy_index_stats();
+      pfs->m_key_count= share->keys;
     }
     lf_hash_search_unpin(pins);
     return pfs;
@@ -1477,8 +1869,9 @@ search:
       pfs->m_enabled= enabled;
       pfs->m_timed= timed;
       pfs->init_refcount();
-      pfs->m_table_stat.fast_reset();
-      set_keys(pfs, share);
+      pfs->destroy_lock_stat();
+      pfs->destroy_index_stats();
+      pfs->m_key_count= share->keys;
 
       int res;
       pfs->m_lock.dirty_to_allocated(& dirty_state);
@@ -1514,29 +1907,83 @@ search:
 
 void PFS_table_share::aggregate_io(void)
 {
+  uint index;
   uint safe_key_count= sanitize_index_count(m_key_count);
-  PFS_table_io_stat *from_stat;
-  PFS_table_io_stat *from_stat_last;
+  PFS_table_share_index *from_stat;
   PFS_table_io_stat sum_io;
 
   /* Aggregate stats for each index, if any */
-  from_stat= & m_table_stat.m_index_stat[0];
-  from_stat_last= from_stat + safe_key_count;
-  for ( ; from_stat < from_stat_last ; from_stat++)
-    sum_io.aggregate(from_stat);
+  for (index= 0; index < safe_key_count; index++)
+  {
+    from_stat= find_index_stat(index);
+    if (from_stat != NULL)
+    {
+      sum_io.aggregate(& from_stat->m_stat);
+      from_stat->m_stat.reset();
+    }
+  }
 
   /* Aggregate stats for the table */
-  sum_io.aggregate(& m_table_stat.m_index_stat[MAX_INDEXES]);
+  from_stat= find_index_stat(MAX_INDEXES);
+  if (from_stat != NULL)
+  {
+    sum_io.aggregate(& from_stat->m_stat);
+    from_stat->m_stat.reset();
+  }
 
   /* Add this table stats to the global sink. */
   global_table_io_stat.aggregate(& sum_io);
-  m_table_stat.fast_reset_io();
+}
+
+void PFS_table_share::sum_io(PFS_single_stat *result, uint key_count)
+{
+  uint index;
+  PFS_table_share_index *stat;
+
+  DBUG_ASSERT(key_count <= MAX_INDEXES);
+
+  /* Sum stats for each index, if any */
+  for (index= 0; index < key_count; index++)
+  {
+    stat= find_index_stat(index);
+    if (stat != NULL)
+    {
+      stat->m_stat.sum(result);
+    }
+  }
+
+  /* Sum stats for the table */
+  stat= find_index_stat(MAX_INDEXES);
+  if (stat != NULL)
+  {
+    stat->m_stat.sum(result);
+  }
+}
+
+void PFS_table_share::sum_lock(PFS_single_stat *result)
+{
+  PFS_table_share_lock *lock_stat;
+  lock_stat= find_lock_stat();
+  if (lock_stat != NULL)
+    lock_stat->m_stat.sum(result);
+}
+
+void PFS_table_share::sum(PFS_single_stat *result, uint key_count)
+{
+  sum_io(result, key_count);
+  sum_lock(result);
 }
 
 void PFS_table_share::aggregate_lock(void)
 {
-  global_table_lock_stat.aggregate(& m_table_stat.m_lock_stat);
-  m_table_stat.fast_reset_lock();
+  PFS_table_share_lock *lock_stat;
+  lock_stat= find_lock_stat();
+  if (lock_stat != NULL)
+  {
+    global_table_lock_stat.aggregate(& lock_stat->m_stat);
+    /* Reset lock stat. */
+    lock_stat->m_stat.reset();
+  }
 }
 
 void release_table_share(PFS_table_share *pfs)
@@ -1574,6 +2021,9 @@ void drop_table_share(PFS_thread *thread,
     PFS_table_share *pfs= *entry;
     lf_hash_delete(&table_share_hash, pins,
                    pfs->m_key.m_hash_key, pfs->m_key.m_key_length);
+    pfs->destroy_lock_stat();
+    pfs->destroy_index_stats();
+
     pfs->m_lock.allocated_to_free();
   }
 
@@ -1641,7 +2091,7 @@ void update_program_share_derived_flags(PFS_thread *thread)
   for (; pfs < pfs_last ; pfs++)
   {
     if (pfs->m_lock.is_populated())
-      pfs->referesh_setup_object_flags(thread);
+      pfs->refresh_setup_object_flags(thread);
   }
 }
 

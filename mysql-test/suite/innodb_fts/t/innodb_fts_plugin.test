@@ -118,7 +118,45 @@ SELECT * FROM articles WHERE
 DROP TABLE articles;
 -- echo # Test Part 3 END
 
--- echo # Test Part 8: Test Uninstall Plugin After Index is Built
+-- echo # Test Part 4:crash on commit(before/after)
+CREATE TABLE articles (
+       id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+       title VARCHAR(200),
+       body TEXT,
+       FULLTEXT (title, body) WITH PARSER simple_parser
+) ENGINE=InnoDB;
+
+BEGIN;
+INSERT INTO articles (title, body) VALUES
+  ('MySQL Tutorial','DBMS stands for MySQL DataBase ...'),
+  ('How To Use MySQL Well','After you went through a ...'),
+  ('Optimizing MySQL','In this tutorial we will show ...'),
+  ('1001 MySQL Tricks','How to use full-text search engine'),
+  ('Go MySQL Tricks','How to use full text search engine');
+
+--source include/kill_and_restart_mysqld.inc
+
+SELECT COUNT(*) FROM articles;
+# Simple term search - no records expected
+SELECT * FROM articles WHERE
+	MATCH(title, body) AGAINST('mysql');
+
+INSERT INTO articles (title, body) VALUES
+  ('MySQL Tutorial','DBMS stands for MySQL DataBase ...'),
+  ('How To Use MySQL Well','After you went through a ...'),
+  ('Optimizing MySQL','In this tutorial we will show ...'),
+  ('1001 MySQL Tricks','How to use full-text search engine'),
+  ('Go MySQL Tricks','How to use full text search engine');
+
+--source include/kill_and_restart_mysqld.inc
+
+# Simple term search - 4 records expected
+SELECT * FROM articles WHERE
+         MATCH(title, body) AGAINST('Tricks');
+SELECT COUNT(*) FROM articles;
+DROP TABLE articles;
+
+-- echo # Test Part 5: Test Uninstall Plugin After Index is Built
 # Note: this test should be the last one because we uninstall plugin
 CREATE TABLE articles (
 	id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
@@ -135,6 +173,7 @@ INSERT INTO articles (title, body) VALUES
   ('MySQL Tutorial','DBMS stands for MySQL DataBase ...');
 
 # Reinstall plugin
+--replace_regex /\.dll/.so/
 eval INSTALL PLUGIN simple_parser SONAME '$SIMPLE_PARSER';
 
 INSERT INTO articles (title, body) VALUES
@@ -174,48 +213,3 @@ DROP TABLE articles;
 # Uninstall plugin
 -- error ER_SP_DOES_NOT_EXIST
 UNINSTALL PLUGIN simple_parser;
-
-# Install fts parser plugin
---replace_regex /\.dll/.so/
-eval INSTALL PLUGIN simple_parser SONAME '$SIMPLE_PARSER';
-
--- echo # Test Part 10:crash on commit(before/after)
-CREATE TABLE articles (
-       id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
-       title VARCHAR(200),
-       body TEXT,
-       FULLTEXT (title, body) WITH PARSER simple_parser
-) ENGINE=InnoDB;
-
-BEGIN;
-INSERT INTO articles (title, body) VALUES
-  ('MySQL Tutorial','DBMS stands for MySQL DataBase ...'),
-  ('How To Use MySQL Well','After you went through a ...'),
-  ('Optimizing MySQL','In this tutorial we will show ...'),
-  ('1001 MySQL Tricks','How to use full-text search engine'),
-  ('Go MySQL Tricks','How to use full text search engine');
-
---source include/kill_and_restart_mysqld.inc
-
-SELECT COUNT(*) FROM articles;
-# Simple term search - no records expected
-SELECT * FROM articles WHERE
-	MATCH(title, body) AGAINST('mysql');
-
-INSERT INTO articles (title, body) VALUES
-  ('MySQL Tutorial','DBMS stands for MySQL DataBase ...'),
-  ('How To Use MySQL Well','After you went through a ...'),
-  ('Optimizing MySQL','In this tutorial we will show ...'),
-  ('1001 MySQL Tricks','How to use full-text search engine'),
-  ('Go MySQL Tricks','How to use full text search engine');
-
---source include/kill_and_restart_mysqld.inc
-
-# Simple term search - 4 records expected
-SELECT * FROM articles WHERE
-         MATCH(title, body) AGAINST('Tricks');
-SELECT COUNT(*) FROM articles;
-DROP TABLE articles;
-
-UNINSTALL PLUGIN simple_parser;
-

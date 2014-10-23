@@ -50,16 +50,33 @@ fsp_flags_is_compressed(
 	return(FSP_FLAGS_GET_ZIP_SSIZE(flags) != 0);
 }
 
-/********************************************************************//**
-Convert a page size, which is a power of 2, to an ssize, which is the
-number of bit shifts from 512 to make that page size.
-@param[in] page_size compressed page size in bytes
+/** Determine if two tablespaces are equivalent or compatible.
+@param[in]	flags1	First tablespace flags
+@param[in]	flags2	Second tablespace flags
+@return true the flags are compatible, false if not */
+UNIV_INLINE
+bool
+fsp_flags_are_equal(
+	ulint	flags1,
+	ulint	flags2)
+{
+	/* If either one of these flags is ULINT_UNDEFINED,
+	then they are not equal */
+	if (flags1 == ULINT_UNDEFINED || flags2 == ULINT_UNDEFINED) {
+		return(false);
+	}
+
+	return(flags1 == flags2);
+}
+
+/** Convert a page size, which is a power of 2, to an ssize, which is
+the number of bit shifts from 512 to make that page size.
+@param[in]	page_size	compressed page size in bytes
 @return an ssize created from the page size provided. */
 UNIV_INLINE
 ulint
 page_size_to_ssize(
-/*===============*/
-	ulint	page_size)	/*!< in: compressed page size in bytes */
+	ulint	page_size)
 {
 	ulint ssize;
 
@@ -70,37 +87,104 @@ page_size_to_ssize(
 	return(ssize - UNIV_ZIP_SIZE_SHIFT_MIN + 1);
 }
 
-/********************************************************************//**
-Add the page size to the tablespace flags.
+/** Add the compressed page size to the tablespace flags.
+@param[in]	flags		Tablespace flags
+@param[in]	page_size	page sizes in bytes and compression flag.
+@return tablespace flags after zip size is added */
+UNIV_INLINE
+ulint
+fsp_flags_set_zip_size(
+	ulint			flags,
+	const page_size_t&	page_size)
+{
+	if (!page_size.is_compressed()) {
+		return(flags);
+	}
+
+	/* Zip size should be a power of 2 between UNIV_ZIP_SIZE_MIN
+	and UNIV_ZIP_SIZE_MAX */
+	ut_ad(page_size.physical() >= UNIV_ZIP_SIZE_MIN);
+	ut_ad(page_size.physical() <= UNIV_ZIP_SIZE_MAX);
+	ut_ad(ut_is_2pow(page_size.physical()));
+
+	ulint	ssize = page_size_to_ssize(page_size.physical());
+
+	ut_ad(ssize > 0);
+	ut_ad(ssize <= UNIV_PAGE_SSIZE_MAX);
+
+	flags |= (ssize << FSP_FLAGS_POS_ZIP_SSIZE);
+
+	ut_ad(fsp_flags_is_valid(flags));
+
+	return(flags);
+}
+
+/** Add the page size to the tablespace flags.
+@param[in]	flags		Tablespace flags
+@param[in]	page_size	page sizes in bytes and compression flag.
 @return tablespace flags after page size is added */
 UNIV_INLINE
 ulint
 fsp_flags_set_page_size(
-/*====================*/
-	ulint	flags,		/*!< in: tablespace flags */
-	ulint	page_size)	/*!< in: page size in bytes */
+	ulint			flags,
+	const page_size_t&	page_size)
 {
-	ulint ssize = 0;
-
 	/* Page size should be a power of two between UNIV_PAGE_SIZE_MIN
 	and UNIV_PAGE_SIZE */
-	ut_ad(page_size >= UNIV_PAGE_SIZE_MIN);
-	ut_ad(page_size <= UNIV_PAGE_SIZE_MAX);
-	ut_ad(ut_is_2pow(page_size));
+	ut_ad(page_size.logical() >= UNIV_PAGE_SIZE_MIN);
+	ut_ad(page_size.logical() <= UNIV_PAGE_SIZE_MAX);
+	ut_ad(ut_is_2pow(page_size.logical()));
 
-	if (page_size == UNIV_PAGE_SIZE_ORIG) {
+	/* Remove this assert once we add support for different
+	page size per tablespace. Currently all tablespaces must
+	have a page size that is equal to innodb-page-size */
+	ut_ad(page_size.logical() == UNIV_PAGE_SIZE);
+
+	if (page_size.logical() == UNIV_PAGE_SIZE_ORIG) {
 		ut_ad(0 == FSP_FLAGS_GET_PAGE_SSIZE(flags));
-		return(flags);
+
+	} else {
+		ulint	ssize = page_size_to_ssize(page_size.logical());
+
+		ut_ad(ssize);
+		ut_ad(ssize <= UNIV_PAGE_SSIZE_MAX);
+
+		flags |= (ssize << FSP_FLAGS_POS_PAGE_SSIZE);
 	}
 
-	ssize = page_size_to_ssize(page_size);
-
-	ut_ad(ssize);
-	ut_ad(ssize <= UNIV_PAGE_SSIZE_MAX);
-
-	flags = FSP_FLAGS_SET_PAGE_SSIZE(flags, ssize);
-
 	ut_ad(fsp_flags_is_valid(flags));
+
+	return(flags);
+}
+
+/** Initialize an FSP flags integer.
+@param[in]	page_size	page sizes in bytes and compression flag.
+@param[in]	atomic_blobs	Used by Dynammic and Compressed.
+@param[in]	has_data_dir	This tablespace is in a remote location.
+@return tablespace flags after initialization */
+UNIV_INLINE
+ulint
+fsp_flags_init(
+	const page_size_t&	page_size,
+	bool			atomic_blobs,
+	bool			has_data_dir)
+{
+	/* Page size should be a power of two between UNIV_PAGE_SIZE_MIN
+	and UNIV_PAGE_SIZE, but zip_size may be 0 if not compressed. */
+	ulint flags = fsp_flags_set_page_size(0, page_size);
+
+	if (atomic_blobs) {
+		flags |= FSP_FLAGS_MASK_POST_ANTELOPE
+			| FSP_FLAGS_MASK_ATOMIC_BLOBS;
+	}
+
+	/* If the zip_size is explicit and different from the default,
+	compressed row format is implied. */
+	flags = fsp_flags_set_zip_size(flags, page_size);
+
+	if (has_data_dir) {
+		flags |= FSP_FLAGS_MASK_DATA_DIR;
+	}
 
 	return(flags);
 }

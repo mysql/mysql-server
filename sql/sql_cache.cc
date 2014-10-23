@@ -1578,8 +1578,11 @@ int Query_cache::send_result_to_client(THD *thd, const LEX_CSTRING &sql)
     */
     if ((my_toupper(system_charset_info, sql.str[i])     != 'S' ||
          my_toupper(system_charset_info, sql.str[i + 1]) != 'E' ||
-         my_toupper(system_charset_info, sql.str[i + 2]) != 'L') &&
-        sql.str[i] != '/')
+         my_toupper(system_charset_info, sql.str[i + 2]) != 'L' ||
+         my_toupper(system_charset_info, sql.str[i + 3]) != 'E' ||
+         my_toupper(system_charset_info, sql.str[i + 4]) != 'C' ||
+         my_toupper(system_charset_info, sql.str[i + 5]) != 'T') &&
+        (sql.str[i] != '/' || sql.length < i+6))
     {
       DBUG_PRINT("qcache", ("The statement is not a SELECT; Not cached"));
       goto err;

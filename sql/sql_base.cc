@@ -3437,6 +3437,8 @@ share_found:
     case SQLCOM_SHOW_CREATE:
       break;
     default:
+      closefrm(table, 0);
+      my_free(table);
       my_error(ER_CRASHED_ON_USAGE, MYF(0), share->table_name.str);
       goto err_lock;
     }

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2014 Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -27,6 +27,10 @@
 #include "pfs_engine_table.h"
 #include "rpl_mi.h"
 #include "mysql_com.h"
+#include "rpl_msr.h"
+#include "rpl_info.h"  /* CHANNEL_NAME_LENGTH*/
+
+class Master_info;
 
 /**
   @addtogroup Performance_schema_tables
@@ -53,6 +57,8 @@ enum enum_ssl_allowed {
   length field denoted by <field_name>_length.
 */
 struct st_row_connect_config {
+  char channel_name[CHANNEL_NAME_LENGTH];
+  uint channel_name_length;
   char host[HOSTNAME_LENGTH];
   uint host_length;
   uint port;
@@ -86,7 +92,7 @@ struct st_row_connect_config {
 class table_replication_connection_configuration: public PFS_engine_table
 {
 private:
-  void make_row();
+  void make_row(Master_info *);
 
   /** Table share lock. */
   static THR_LOCK m_table_lock;

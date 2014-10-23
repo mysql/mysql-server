@@ -61,6 +61,30 @@ ssize, which is the number of shifts from 512. */
 # error "PAGE_ZIP_SSIZE_MAX >= (1 << PAGE_ZIP_SSIZE_BITS)"
 #endif
 
+/* Page cursor search modes; the values must be in this order! */
+enum page_cur_mode_t {
+	PAGE_CUR_UNSUPP	= 0,
+	PAGE_CUR_G	= 1,
+	PAGE_CUR_GE	= 2,
+	PAGE_CUR_L	= 3,
+	PAGE_CUR_LE	= 4,
+
+/*      PAGE_CUR_LE_OR_EXTENDS = 5,*/ /* This is a search mode used in
+				 "column LIKE 'abc%' ORDER BY column DESC";
+				 we have to find strings which are <= 'abc' or
+				 which extend it */
+
+/* These search mode is for search R-tree index. */
+	PAGE_CUR_CONTAIN	= 7,
+	PAGE_CUR_INTERSECT	= 8,
+	PAGE_CUR_WITHIN		= 9,
+	PAGE_CUR_DISJOINT	= 10,
+	PAGE_CUR_MBR_EQUAL	= 11,
+	PAGE_CUR_RTREE_INSERT	= 12,
+	PAGE_CUR_RTREE_LOCATE	= 13
+};
+
+
 /** The information used for compressing a page when applying
 TRUNCATE log record during recovery */
 struct redo_page_compress_t {
@@ -134,7 +158,6 @@ extern page_zip_stat_per_index_t	page_zip_stat_per_index;
 /**********************************************************************//**
 Write the "deleted" flag of a record on a compressed page.  The flag must
 already have been written on the uncompressed page. */
-
 void
 page_zip_rec_set_deleted(
 /*=====================*/
@@ -146,7 +169,6 @@ page_zip_rec_set_deleted(
 /**********************************************************************//**
 Write the "owned" flag of a record on a compressed page.  The n_owned field
 must already have been written on the uncompressed page. */
-
 void
 page_zip_rec_set_owned(
 /*===================*/
@@ -157,7 +179,6 @@ page_zip_rec_set_owned(
 
 /**********************************************************************//**
 Shift the dense page directory when a record is deleted. */
-
 void
 page_zip_dir_delete(
 /*================*/
@@ -170,7 +191,6 @@ page_zip_dir_delete(
 
 /**********************************************************************//**
 Add a slot to the dense page directory. */
-
 void
 page_zip_dir_add_slot(
 /*==================*/

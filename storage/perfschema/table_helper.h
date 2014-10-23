@@ -200,7 +200,8 @@ struct PFS_index_row
   uint m_index_name_length;
 
   /** Build a row from a memory buffer. */
-  int make_row(PFS_table_share *pfs, uint table_index);
+  int make_row(PFS_table_share *pfs, PFS_table_share_index *pfs_index,
+               uint table_index);
   /** Set a table field from the row. */
   void set_field(uint index, Field *f);
 };

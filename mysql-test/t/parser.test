@@ -557,8 +557,6 @@ select make_set(1);
 select master_pos_wait();
 -- error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
 select master_pos_wait(1);
--- error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
-select master_pos_wait(1, 2, 3, 4);
 
 -- error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
 select rand(1, 2, 3);

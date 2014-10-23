@@ -162,7 +162,10 @@ void mysql_client_binlog_statement(THD* thd)
       future, we need to improve the code around the BINLOG command as only a
       small part of the object is required to execute it. / Alfranio
     */
-    if ((rli= Rpl_info_factory::create_rli(INFO_REPOSITORY_DUMMY, FALSE)))
+
+    /* when trying to create an rli from a client, there is no channel*/
+    if ((rli= Rpl_info_factory::create_rli(INFO_REPOSITORY_DUMMY, FALSE,
+                                           (const char*)"", true)))
     {
       thd->rli_fake= rli;
       rli->info_thd= thd;

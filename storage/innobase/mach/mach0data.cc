@@ -35,7 +35,6 @@ Created 11/28/1995 Heikki Tuuri
 advanced by the number of bytes consumed, or set NULL if out of space
 @param[in]	end_ptr	end of the buffer
 @return unsigned value */
-
 ib_uint32_t
 mach_parse_compressed(
 	const byte**	ptr,

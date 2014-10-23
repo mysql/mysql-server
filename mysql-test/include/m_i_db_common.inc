@@ -8,7 +8,7 @@ if ($passwd != ""){
 SELECT user,host,plugin FROM mysql.user WHERE password_expired='n';
 SELECT count(*) FROM mysql.user;
 CREATE USER 'u1'@'localhost';
-GRANT SUPER ON *.* TO 'u1'@'localhost';
+GRANT ALL ON *.* TO 'u1'@'localhost';
 
 show databases;
 

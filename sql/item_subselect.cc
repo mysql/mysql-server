@@ -3580,7 +3580,7 @@ bool subselect_hash_sj_engine::setup(List<Item> *tmp_columns)
   tmp_tab->ref().key= 0; /* The only temp table index. */
   tmp_tab->ref().key_length= tmp_key->key_length;
   if (!(tmp_tab->ref().key_buff=
-        (uchar*) thd->calloc(key_length)) ||
+        (uchar*) thd->mem_calloc(key_length)) ||
       !(tmp_tab->ref().key_copy=
         (store_key**) thd->alloc((sizeof(store_key*) * tmp_key_parts))) ||
       !(tmp_tab->ref().items=
@@ -3610,7 +3610,7 @@ bool subselect_hash_sj_engine::setup(List<Item> *tmp_columns)
     (Item_fields) to columns in tmp_table.
   */
   TABLE_LIST *tmp_table_ref;
-  if (!(tmp_table_ref= (TABLE_LIST*) thd->calloc(sizeof(TABLE_LIST))))
+  if (!(tmp_table_ref= (TABLE_LIST*) thd->mem_calloc(sizeof(TABLE_LIST))))
     DBUG_RETURN(TRUE);
 
   tmp_table_ref->init_one_table("", 0, "materialized-subquery", 21,

@@ -18,12 +18,10 @@
 # NOTE: "vendor" is used in upgrade/downgrade check, so you can't
 # change these, has to be exactly as is.
 
-
-%global milestone   m16
+%global milestone    m16
 
 %global mysql_vendor Oracle and/or its affiliates
 %global mysqldatadir /var/lib/mysql
-%global obs_ver      %{version}
 
 # By default, a build will include the bundeled "yaSSL" library for SSL.
 %{?with_ssl: %global ssl_option -DWITH_SSL=%{with_ssl}}
@@ -31,13 +29,16 @@
 # Regression tests may take a long time, override the default to skip them
 %{!?runselftest:%global runselftest 1}
 
-%{!?without_systemd:             %global systemd 1}
 %{!?with_debuginfo:              %global nodebuginfo 1}
 %{!?product_suffix:              %global product_suffix community}
 %{!?feature_set:                 %global feature_set community}
 %{!?compilation_comment_release: %global compilation_comment_release MySQL Community Server - (GPL)}
 %{!?compilation_comment_debug:   %global compilation_comment_debug MySQL Community Server - Debug (GPL)}
 %{!?src_base:                    %global src_base mysql}
+
+%global compatver             5.6.21
+%global compatlib             18
+%global compatsrc             https://cdn.mysql.com/Downloads/MySQL-5.6/mysql-%{compatver}.tar.gz
 
 %global src_dir               %{src_base}-%{version}%{?milestone:-%{milestone}}
 
@@ -63,7 +64,7 @@ Name:           mysql-%{product_suffix}
 Summary:        A very fast and reliable SQL database server
 Group:          Applications/Databases
 Version:        @MYSQL_NO_DASH_VERSION@
-Release:        0.3%{?milestone:.%{milestone}}%{?dist}
+Release:        0.2%{?milestone:.%{milestone}}%{?dist}
 License:        Copyright (c) 2000, @MYSQL_COPYRIGHT_YEAR@, %{mysql_vendor}. All rights reserved. Under %{?license_type} license as shown in the Description field.
 Source0:        https://cdn.mysql.com/Downloads/MySQL-@MYSQL_BASE_VERSION@/%{src_dir}.tar.gz
 URL:            http://www.mysql.com/
@@ -74,6 +75,8 @@ Source2:        mysqld.service
 Source3:        mysql.conf
 Source4:        my_config.h
 Source6:        mysql_config.sh
+Source7:        %{compatsrc}
+Source10:       http://downloads.sourceforge.net/boost/@BOOST_PACKAGE_NAME@.tar.bz2
 Patch0:         mysql-5.7-libmysqlclient-symbols.patch
 BuildRequires:  cmake
 BuildRequires:  perl
@@ -82,9 +85,7 @@ BuildRequires:  libaio-devel
 BuildRequires:  ncurses-devel
 BuildRequires:  openssl-devel
 BuildRequires:  zlib-devel
-%if 0%{?systemd}
 BuildRequires:  systemd
-%endif
 BuildRoot:      %(mktemp -ud %{_tmppath}/%{name}-%{version}-%{release}-XXXXXX)
 
 # For rpm => 4.9 only: https://fedoraproject.org/wiki/Packaging:AutoProvidesAndRequiresFiltering
@@ -119,29 +120,23 @@ Requires:       shadow-utils
 Requires:       net-tools
 %if 0%{?commercial}
 Obsoletes:      mysql-community-server < %{version}-%{release}
-Requires:       mysql-enterprise-client%{?_isa} = %{version}-%{release}
-Requires:       mysql-enterprise-common%{?_isa} = %{version}-%{release}
+Requires:       mysql-commercial-client%{?_isa} = %{version}-%{release}
+Requires:       mysql-commercial-common%{?_isa} = %{version}-%{release}
 %else
 Requires:       mysql-community-client%{?_isa} = %{version}-%{release}
 Requires:       mysql-community-common%{?_isa} = %{version}-%{release}
 %endif
 Obsoletes:      mariadb-server
 Obsoletes:      mariadb-galera-server
-Obsoletes:      community-mysql-server < %{obs_ver}
-Obsoletes:      mysql-server < %{obs_ver}
+Obsoletes:      community-mysql-server < %{version}-%{release}
+Obsoletes:      mysql-server < %{version}-%{release}
 Provides:       mysql-server = %{version}-%{release}
 Provides:       mysql-server%{?_isa} = %{version}-%{release}
 Provides:       mysql-compat-server = %{version}-%{release}
 Provides:       mysql-compat-server%{?_isa} = %{version}-%{release}
-%if 0%{?systemd}
 Requires(post):   systemd
 Requires(preun):  systemd
 Requires(postun): systemd
-%else
-Requires(post):   /sbin/chkconfig
-Requires(preun):  /sbin/chkconfig
-Requires(preun):  /sbin/service
-%endif
 
 %description    server
 The MySQL(TM) software delivers a very fast, multi-threaded, multi-user,
@@ -169,13 +164,13 @@ Summary:        MySQL database client applications and tools
 Group:          Applications/Databases
 %if 0%{?commercial}
 Obsoletes:      mysql-community-client < %{version}-%{release}
-Requires:       mysql-enterprise-libs%{?_isa} = %{version}-%{release}
+Requires:       mysql-commercial-libs%{?_isa} = %{version}-%{release}
 %else
 Requires:       mysql-community-libs%{?_isa} = %{version}-%{release}
 %endif
 Obsoletes:      mariadb
-Obsoletes:      community-mysql < %{obs_ver}
-Obsoletes:      mysql < %{obs_ver}
+Obsoletes:      community-mysql < %{version}-%{release}
+Obsoletes:      mysql < %{version}-%{release}
 Provides:       mysql = %{version}-%{release}
 Provides:       mysql%{?_isa} = %{version}-%{release}
 
@@ -183,15 +178,18 @@ Provides:       mysql%{?_isa} = %{version}-%{release}
 This package contains the standard MySQL clients and administration
 tools.
 
-
 %package        common
 Summary:        MySQL database common files for server and client libs
 Group:          Applications/Databases
 %if 0%{?commercial}
 Obsoletes:      mysql-community-common < %{version}-%{release}
 %endif
-Obsoletes:      community-mysql-common < %{obs_ver}
-Obsoletes:      mysql-common < %{obs_ver}
+Obsoletes:      mariadb-common
+Obsoletes:      mariadb-config
+Obsoletes:      mariadb-errmsg
+Obsoletes:      community-mysql-common < %{version}-%{release}
+Obsoletes:      community-mysql-errmsg < %{version}-%{release}
+Obsoletes:      mysql-common < %{version}-%{release}
 Provides:       mysql-common = %{version}-%{release}
 Provides:       mysql-common%{?_isa} = %{version}-%{release}
 
@@ -204,14 +202,14 @@ MySQL database server, and MySQL embedded server.
 Summary:        Test suite for the MySQL database server
 Group:          Applications/Databases
 %if 0%{?commercial}
-Requires:       mysql-enterprise-server%{?_isa} = %{version}-%{release}
+Requires:       mysql-commercial-server%{?_isa} = %{version}-%{release}
 Obsoletes:      mysql-community-test < %{version}-%{release}
 %else
 Requires:       mysql-community-server%{?_isa} = %{version}-%{release}
 %endif
 Obsoletes:      mariadb-test
-Obsoletes:      community-mysql-test < %{obs_ver}
-Obsoletes:      mysql-test < %{obs_ver}
+Obsoletes:      community-mysql-test < %{version}-%{release}
+Obsoletes:      mysql-test < %{version}-%{release}
 Provides:       mysql-test = %{version}-%{release}
 Provides:       mysql-test%{?_isa} = %{version}-%{release}
 
@@ -225,13 +223,13 @@ Summary:        MySQL benchmark suite
 Group:          Applications/Databases
 %if 0%{?commercial}
 Obsoletes:      mysql-community-bench < %{version}-%{release}
-Requires:       mysql-enterprise-server%{?_isa} = %{version}-%{release}
+Requires:       mysql-commercial-server%{?_isa} = %{version}-%{release}
 %else
 Requires:       mysql-community-server%{?_isa} = %{version}-%{release}
 %endif
 Obsoletes:      mariadb-bench
-Obsoletes:      community-mysql-bench < %{obs_ver}
-Obsoletes:      mysql-bench < %{obs_ver}
+Obsoletes:      community-mysql-bench < %{version}-%{release}
+Obsoletes:      mysql-bench < %{version}-%{release}
 Provides:       mysql-bench = %{version}-%{release}
 Provides:       mysql-bench%{?_isa} = %{version}-%{release}
 
@@ -244,13 +242,13 @@ Summary:        Development header files and libraries for MySQL database client
 Group:          Applications/Databases
 %if 0%{?commercial}
 Obsoletes:      mysql-community-devel < %{version}-%{release}
-Requires:       mysql-enterprise-libs%{?_isa} = %{version}-%{release}
+Requires:       mysql-commercial-libs%{?_isa} = %{version}-%{release}
 %else
 Requires:       mysql-community-libs%{?_isa} = %{version}-%{release}
 %endif
 Obsoletes:      mariadb-devel
-Obsoletes:      community-mysql-devel < %{obs_ver}
-Obsoletes:      mysql-devel < %{obs_ver}
+Obsoletes:      community-mysql-devel < %{version}-%{release}
+Obsoletes:      mysql-devel < %{version}-%{release}
 Provides:       mysql-devel = %{version}-%{release}
 Provides:       mysql-devel%{?_isa} = %{version}-%{release}
 
@@ -263,13 +261,13 @@ Summary:        Shared libraries for MySQL database client applications
 Group:          Applications/Databases
 %if 0%{?commercial}
 Obsoletes:      mysql-community-libs < %{version}-%{release}
-Requires:       mysql-enterprise-common%{?_isa} = %{version}-%{release}
+Requires:       mysql-commercial-common%{?_isa} = %{version}-%{release}
 %else
 Requires:       mysql-community-common%{?_isa} = %{version}-%{release}
 %endif
 Obsoletes:      mariadb-libs
-Obsoletes:      community-mysql-libs < %{obs_ver}
-Obsoletes:      mysql-libs < %{obs_ver}
+Obsoletes:      community-mysql-libs < %{version}-%{release}
+Obsoletes:      mysql-libs < %{version}-%{release}
 Provides:       mysql-libs = %{version}-%{release}
 Provides:       mysql-libs%{?_isa} = %{version}-%{release}
 
@@ -277,18 +275,35 @@ Provides:       mysql-libs%{?_isa} = %{version}-%{release}
 This package contains the shared libraries for MySQL client
 applications.
 
+%package        libs-compat
+Summary:        Shared compat libraries for MySQL %{compatver} database client applications
+Group:          Applications/Databases
+Obsoletes:      mysql-libs-compat < %{version}-%{release}
+Provides:       mysql-libs-compat = %{version}-%{release}
+Provides:       mysql-libs-compat%{?_isa} = %{version}-%{release}
+%if 0%{?commercial}
+Obsoletes:      mysql-community-libs-compat < %{version}-%{release}
+Requires:       mysql-commercial-libs%{?_isa} = %{version}-%{release}
+%else
+Requires:       mysql-community-libs%{?_isa} = %{version}-%{release}
+%endif
+
+%description    libs-compat
+This package contains the shared compat libraries for MySQL %{compatver} client
+applications.
+
 %package        embedded
 Summary:        MySQL embedded library
 Group:          Applications/Databases
 %if 0%{?commercial}
 Obsoletes:      mysql-community-embedded < %{version}-%{release}
-Requires:       mysql-enterprise-common%{?_isa} = %{version}-%{release}
+Requires:       mysql-commercial-common%{?_isa} = %{version}-%{release}
 %else
 Requires:       mysql-community-common%{?_isa} = %{version}-%{release}
 %endif
 Obsoletes:      mariadb-embedded
-Obsoletes:      community-mysql-embedded < %{obs_ver}
-Obsoletes:      mysql-embedded < %{obs_ver}
+Obsoletes:      community-mysql-embedded < %{version}-%{release}
+Obsoletes:      mysql-embedded < %{version}-%{release}
 Provides:       mysql-embedded = %{version}-%{release}
 Provides:       mysql-emdedded%{?_isa} = %{version}-%{release}
 
@@ -304,30 +319,44 @@ client/server version.
 
 For a description of MySQL see the base MySQL RPM or http://www.mysql.com/
 
+%package        embedded-compat
+Summary:        MySQL embedded compat library
+Group:          Applications/Databases
+%if 0%{?commercial}
+Obsoletes:      mysql-community-embedded-compat < %{version}-%{release}
+Requires:       mysql-commercial-common%{?_isa} = %{version}-%{release}
+%else
+Requires:       mysql-community-common%{?_isa} = %{version}-%{release}
+%endif
+
+%description    embedded-compat
+This package contains the MySQL server as an embedded library with
+compatibility for applications using version %{compatlib} of the library.
+
 %package        embedded-devel
 Summary:        Development header files and libraries for MySQL as an embeddable library
 Group:          Applications/Databases
 %if 0%{?commercial}
 Obsoletes:      mysql-community-embedded-devel < %{version}-%{release}
-Requires:       mysql-enterprise-devel%{?_isa} = %{version}-%{release}
-Requires:       mysql-enterprise-embedded%{?_isa} = %{version}-%{release}
+Requires:       mysql-commercial-devel%{?_isa} = %{version}-%{release}
+Requires:       mysql-commercial-embedded%{?_isa} = %{version}-%{release}
 %else
 Requires:       mysql-community-devel%{?_isa} = %{version}-%{release}
 Requires:       mysql-community-embedded%{?_isa} = %{version}-%{release}
 %endif
 Obsoletes:      mariadb-embedded-devel
-Obsoletes:      community-mysql-embedded-devel < %{obs_ver}
-Obsoletes:      mysql-embedded-devel < %{obs_ver}
+Obsoletes:      community-mysql-embedded-devel < %{version}-%{release}
+Obsoletes:      mysql-embedded-devel < %{version}-%{release}
 Provides:       mysql-embedded-devel = %{version}-%{release}
 Provides:       mysql-embedded-devel%{?_isa} = %{version}-%{release}
 
 %description    embedded-devel
-This package contains files needed for developing applicatison using
+This package contains files needed for developing applications using
 the embedded version of the MySQL server.
 
 %prep
-%setup -q -T -a 0 -c -n %{src_dir}
-pushd %{src_dir}
+%setup -q -T -a 0 -a 7 -a 10 -c -n %{src_dir}
+pushd mysql-%{compatver}
 %patch0 -p1
 
 %build
@@ -341,9 +370,30 @@ if [ "x$(id -u)" = "x0" ] ; then
 fi
 %endif
 
-export CFLAGS="%{optflags}"
-export CXXFLAGS="%{optflags}"
-export LDFLAGS="%{__global_ldflags}"
+# Build compat libs
+(
+  pushd mysql-%{compatver}
+  mkdir build && pushd build
+  cmake .. \
+           -DBUILD_CONFIG=mysql_release \
+           -DINSTALL_LAYOUT=RPM \
+           -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+           -DCMAKE_C_FLAGS="%{optflags}" \
+           -DCMAKE_CXX_FLAGS="%{optflags}" \
+           -DWITH_INNODB_MEMCACHED=1 \
+           -DINSTALL_LIBDIR="%{_lib}/mysql" \
+           -DINSTALL_PLUGINDIR="%{_lib}/mysql/plugin" \
+           -DINSTALL_SQLBENCHDIR=share \
+           -DMYSQL_UNIX_ADDR="%{mysqldatadir}/mysql.sock" \
+           -DFEATURE_SET="%{feature_set}" \
+           -DWITH_EMBEDDED_SERVER=1 \
+           -DWITH_EMBEDDED_SHARED_LIBRARY=1 \
+           %{?ssl_option} \
+           -DCOMPILATION_COMMENT="%{compilation_comment_release}" \
+           -DMYSQL_SERVER_SUFFIX="%{?server_suffix}"
+  echo BEGIN_NORMAL_CONFIG ; egrep '^#define' include/config.h ; echo END_NORMAL_CONFIG
+  make %{?_smp_mflags} VERBOSE=1
+)
 
 # Build debug versions of mysqld and libmysqld.a
 mkdir debug
@@ -355,6 +405,7 @@ mkdir debug
            -DBUILD_CONFIG=mysql_release \
            -DINSTALL_LAYOUT=RPM \
            -DCMAKE_BUILD_TYPE=Debug \
+           -DWITH_BOOST=.. \
            -DCMAKE_C_FLAGS="$optflags" \
            -DCMAKE_CXX_FLAGS="$optflags" \
            -DWITH_INNODB_MEMCACHED=1 \
@@ -380,6 +431,7 @@ mkdir release
            -DBUILD_CONFIG=mysql_release \
            -DINSTALL_LAYOUT=RPM \
            -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+           -DWITH_BOOST=.. \
            -DCMAKE_C_FLAGS="%{optflags}" \
            -DCMAKE_CXX_FLAGS="%{optflags}" \
            -DWITH_INNODB_MEMCACHED=1 \
@@ -398,6 +450,15 @@ mkdir release
 )
 
 %install
+# Install compat libs
+for dir in libmysql libmysqld ; do
+    pushd mysql-%{compatver}/build/$dir
+    make DESTDIR=%{buildroot} install
+    popd
+done
+rm -f %{buildroot}%{_libdir}/mysql/libmysqlclient{,_r}.{a,la,so}
+rm -f %{buildroot}%{_libdir}/mysql/libmysqld.{a,la,so}
+
 MBD=$RPM_BUILD_DIR/%{src_dir}
 
 # Ensure that needed directories exists
@@ -412,6 +473,7 @@ popd
 # Install logrotate and autostart
 install -D -m 0644 $MBD/release/support-files/mysql-log-rotate %{buildroot}%{_sysconfdir}/logrotate.d/mysql
 install -D -m 0644 $MBD/release/packaging/rpm-fedora/my.cnf %{buildroot}%{_sysconfdir}/my.cnf
+install -d %{buildroot}%{_sysconfdir}/my.cnf.d
 install -D -m 0755 %{SOURCE1} %{buildroot}%{_bindir}/mysql-systemd-start
 install -D -m 0644 %{SOURCE2} %{buildroot}%{_unitdir}/mysqld.service
 install -D -m 0644 %{SOURCE3} %{buildroot}%{_prefix}/lib/tmpfiles.d/mysql.conf
@@ -431,13 +493,11 @@ install -p -m 0755 %{SOURCE6} %{buildroot}%{_bindir}/mysql_config
 
 
 # Remove files pages we explicitly do not want to package
-rm -rf %{buildroot}%{_datadir}/mysql/solaris
 rm -rf %{buildroot}%{_infodir}/mysql.info*
 rm -rf %{buildroot}%{_datadir}/mysql/mysql.server
 rm -rf %{buildroot}%{_datadir}/mysql/mysqld_multi.server
 rm -rf %{buildroot}%{_sysconfdir}/init.d/mysql
 rm -rf %{buildroot}%{_bindir}/mysql_embedded
-rm -rf %{buildroot}%{_bindir}/mysqlhotcopy
 
 %check
 %if 0%{?runselftest}
@@ -460,34 +520,16 @@ rm -r $(readlink var) var
 
 %post server
 datadir=$(/usr/bin/my_print_defaults server mysqld | grep '^--datadir=' | sed -n 's/--datadir=//p')
-/bin/chmod 0755 "$datadir"
-/bin/touch /var/log/mysqld.log
-%if 0%{?systemd}
+/bin/chmod 0755 "$datadir" >/dev/null 2>&1 || :
+/bin/touch /var/log/mysqld.log >/dev/null 2>&1 || :
 %systemd_post mysqld.service
-/sbin/service mysqld enable >/dev/null 2>&1 || :
-%else
-/sbin/chkconfig --add mysqld
-/usr/bin/mysql_install_db --datadir="$datadir" --user=mysql >/dev/null 2>&1 || :
-%endif
+/usr/bin/systemctl enable mysqld >/dev/null 2>&1 || :
 
 %preun server
-%if 0%{?systemd}
 %systemd_preun mysqld.service
-%else
-if [ "$1" = 0 ]; then
-    /sbin/service mysqld stop >/dev/null 2>&1 || :
-    /sbin/chkconfig --del mysqld
-fi
-%endif
 
 %postun server
-%if 0%{?systemd}
 %systemd_postun_with_restart mysqld.service
-%else
-if [ $1 -ge 1 ]; then
-    /sbin/service mysqld condrestart >/dev/null 2>&1 || :
-fi
-%endif
 
 %post libs -p /sbin/ldconfig
 
@@ -526,6 +568,7 @@ fi
 %attr(644, root, root) %{_mandir}/man1/resolveip.1*
 
 %config(noreplace) %{_sysconfdir}/my.cnf
+%dir %{_sysconfdir}/my.cnf.d
 
 %attr(755, root, root) %{_bindir}/innochecksum
 %attr(755, root, root) %{_bindir}/my_print_defaults
@@ -546,7 +589,6 @@ fi
 %attr(755, root, root) %{_bindir}/resolve_stack_dump
 %attr(755, root, root) %{_bindir}/resolveip
 %attr(755, root, root) %{_bindir}/mysql-systemd-start
-
 %attr(755, root, root) %{_sbindir}/mysqld
 %attr(755, root, root) %{_sbindir}/mysqld-debug
 
@@ -584,17 +626,14 @@ fi
 %attr(644, root, root) %{_datadir}/mysql/innodb_memcached_config.sql
 %attr(644, root, root) %{_datadir}/mysql/magic
 %attr(644, root, root) %{_prefix}/lib/tmpfiles.d/mysql.conf
-%if 0%{?systemd}
 %attr(644, root, root) %{_unitdir}/mysqld.service
-%else
-%attr(755, root, root) %{_sysconfdir}/init.d/mysqld
-%endif
 %attr(644, root, root) %config(noreplace,missingok) %{_sysconfdir}/logrotate.d/mysql
 %dir %attr(755, mysql, mysql) /var/lib/mysql
 %dir %attr(755, mysql, mysql) /var/run/mysqld
 
 %files common
 %defattr(-, root, root, -)
+%doc %{?license_files_server}
 %{_datadir}/mysql/charsets/
 %{_datadir}/mysql/errmsg-utf8.txt
 %{_datadir}/mysql/bulgarian/
@@ -624,9 +663,8 @@ fi
 
 %files client
 %defattr(-, root, root, -)
+%doc %{?license_files_server}
 %attr(755, root, root) %{_bindir}/mysql
-%attr(755, root, root) %{_bindir}/mysql_config
-%attr(755, root, root) %{_bindir}/mysql_config-%{__isa_bits}
 %attr(755, root, root) %{_bindir}/mysqladmin
 %attr(755, root, root) %{_bindir}/mysqlbinlog
 %attr(755, root, root) %{_bindir}/mysqlcheck
@@ -634,6 +672,8 @@ fi
 %attr(755, root, root) %{_bindir}/mysqlimport
 %attr(755, root, root) %{_bindir}/mysqlshow
 %attr(755, root, root) %{_bindir}/mysqlslap
+%attr(755, root, root) %{_bindir}/mysql_config
+%attr(755, root, root) %{_bindir}/mysql_config-%{__isa_bits}
 %attr(755, root, root) %{_bindir}/mysql_config_editor
 
 %attr(644, root, root) %{_mandir}/man1/mysql.1*
@@ -648,10 +688,11 @@ fi
 
 %files devel
 %defattr(-, root, root, -)
-%attr(755, root, root) %{_bindir}/mysql_config
-%attr(755, root, root) %{_bindir}/mysql_config-%{__isa_bits}
+%doc %{?license_files_server}
 %attr(644, root, root) %{_mandir}/man1/comp_err.1*
 %attr(644, root, root) %{_mandir}/man1/mysql_config.1*
+%attr(755, root, root) %{_bindir}/mysql_config
+%attr(755, root, root) %{_bindir}/mysql_config-%{__isa_bits}
 %{_includedir}/mysql
 %{_datadir}/aclocal/mysql.m4
 %{_libdir}/mysql/libmysqlclient.a
@@ -662,13 +703,25 @@ fi
 
 %files libs
 %defattr(-, root, root, -)
+%doc %{?license_files_server}
 %dir %attr(755, root, root) %{_libdir}/mysql
 %attr(644, root, root) %{_sysconfdir}/ld.so.conf.d/mysql-%{_arch}.conf
-%{_libdir}/mysql/libmysqlclient.so.*
-%{_libdir}/mysql/libmysqlclient_r.so.*
+%{_libdir}/mysql/libmysqlclient.so.20*
+%{_libdir}/mysql/libmysqlclient_r.so.20*
+
+%files libs-compat
+%defattr(-, root, root, -)
+%doc %{?license_files_server}
+%dir %attr(755, root, root) %{_libdir}/mysql
+%attr(644, root, root) %{_sysconfdir}/ld.so.conf.d/mysql-%{_arch}.conf
+%{_libdir}/mysql/libmysqlclient.so.%{compatlib}
+%{_libdir}/mysql/libmysqlclient.so.%{compatlib}.*.0
+%{_libdir}/mysql/libmysqlclient_r.so.%{compatlib}
+%{_libdir}/mysql/libmysqlclient_r.so.%{compatlib}.*.0
 
 %files test
 %defattr(-, root, root, -)
+%doc %{?license_files_server}
 %attr(-, root, root) %{_datadir}/mysql-test
 %attr(755, root, root) %{_bindir}/mysql_client_test
 %attr(755, root, root) %{_bindir}/mysql_client_test_embedded
@@ -679,12 +732,14 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/auth_test_plugin.so
 %attr(644, root, root) %{_libdir}/mysql/plugin/daemon_example.ini
 %attr(755, root, root) %{_libdir}/mysql/plugin/libdaemon_example.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/replication_observers_example_plugin.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/qa_auth_client.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/qa_auth_interface.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/qa_auth_server.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/auth.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/auth_test_plugin.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/libdaemon_example.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/replication_observers_example_plugin.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/qa_auth_client.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/qa_auth_interface.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/qa_auth_server.so
@@ -698,20 +753,42 @@ fi
 
 %files bench
 %defattr(-, root, root, -)
+%doc %{?license_files_server}
 %{_datadir}/sql-bench
 
 %files embedded
 %defattr(-, root, root, -)
+%doc %{?license_files_server}
+%dir %attr(755, root, root) %{_libdir}/mysql
 %attr(644, root, root) %{_sysconfdir}/ld.so.conf.d/mysql-%{_arch}.conf
-%attr(755, root, root) %{_libdir}/mysql/libmysqld.so.*
+%attr(755, root, root) %{_libdir}/mysql/libmysqld.so.20*
+
+%files embedded-compat
+%defattr(-, root, root, -)
+%doc %{?license_files_server}
+%dir %attr(755, root, root) %{_libdir}/mysql
+%attr(644, root, root) %{_sysconfdir}/ld.so.conf.d/mysql-%{_arch}.conf
+%attr(755, root, root) %{_libdir}/mysql/libmysqld.so.18*
 
 %files embedded-devel
 %defattr(-, root, root, -)
+%doc %{?license_files_server}
 %attr(644, root, root) %{_libdir}/mysql/libmysqld.a
 %attr(644, root, root) %{_libdir}/mysql/libmysqld-debug.a
 %attr(755, root, root) %{_libdir}/mysql/libmysqld.so
 
 %changelog
+* Tue Oct 21 2014 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 5.7.6-0.2.m16
+- Include boost sources
+- Add license info in each subpackage
+- Remove systemd conditional
+- Add support for Fedora 21
+- Various clean up
+- Soname bump, more compat packages
+
+* Thu Sep 18 2014 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 5.7.6-0.2.m16
+- Provide replication_observers_example_plugin.so plugin
+
 * Tue Sep 2 2014 Bjorn Munch <bjorn.munch@oracle.com> - 5.7.6-0.1.m16
 - Updated for 5.7.6
 

@@ -63,18 +63,12 @@ public:
   double y;
   point_xy() { }
   point_xy(double x_arg, double y_arg): x(x_arg), y(y_arg) { }
-  /**
-    Distance to another point.
-  */
-  double distance(point_xy p)
-  {
-    return sqrt(pow(x - p.x, 2) + pow(y - p.y, 2));
-  }
+  double distance(const point_xy &p) const;
   /**
     Compare to another point.
     Return true if equal, false if not equal.
   */
-  bool eq(point_xy p)
+  bool eq(point_xy p) const
   {
     return (x == p.x) && (y == p.y);
   }

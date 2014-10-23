@@ -56,8 +56,8 @@ enum_return_status Sid_map::clear()
   my_hash_init(&_sid_to_sidno, &my_charset_bin, 20,
                offsetof(Node, sid.bytes), Uuid::BYTE_LENGTH, NULL,
                my_free, 0);
-  reset_dynamic(&_sidno_to_sid);
-  reset_dynamic(&_sorted);
+  _sidno_to_sid.clear();
+  _sorted.clear();
   RETURN_OK;
 }
 #endif

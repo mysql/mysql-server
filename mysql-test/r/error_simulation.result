@@ -87,3 +87,13 @@ DROP TABLE t1, t2;
 #
 # End of 5.1 tests
 #
+#
+# Bug#19656296 FIND_ALL_KEYS SPAMS SERVER ERROR LOG WITH 
+# DEADLOCK/LOCK WAIT ERRORS
+#
+create table t1(a int) ;
+insert into t1 values(1),(2),(3);
+set debug='d,bug19656296';
+select * from t1 order by a;
+ERROR 40001: Deadlock found when trying to get lock; try restarting transaction
+drop table t1;

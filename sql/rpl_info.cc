@@ -28,7 +28,7 @@ Rpl_info::Rpl_info(const char* type
                    PSI_mutex_key *param_key_info_stop_cond,
                    PSI_mutex_key *param_key_info_sleep_cond
 #endif
-                   ,uint param_id
+                   ,uint param_id, const char *param_channel
                  )
   :Slave_reporting_capability(type),
 #ifdef HAVE_PSI_INTERFACE
@@ -68,6 +68,12 @@ Rpl_info::Rpl_info(const char* type
   mysql_cond_init(NULL, &stop_cond);
   mysql_cond_init(NULL, &sleep_cond);
 #endif
+
+  if (param_channel)
+    strmake(channel, param_channel, sizeof(channel) -1);
+  else
+    /*create a default empty channel*/
+    strmake(channel, "", sizeof(channel) -1);
 }
 
 Rpl_info::~Rpl_info()

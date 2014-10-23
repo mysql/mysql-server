@@ -679,6 +679,25 @@ ALTER TABLE slave_worker_info STATS_PERSISTENT=0;
 ALTER TABLE slave_relay_log_info STATS_PERSISTENT=0;
 ALTER TABLE gtid_executed STATS_PERSISTENT=0;
 
+#
+# From 5.7 onwards, all slave info tables have Channel_Name as a column.
+# This column is needed  for multi-source replication
+#
+ALTER TABLE slave_master_info
+  ADD Channel_name CHAR(64) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL DEFAULT '' COMMENT 'The channel on which the slave is connected to a source. Used in Multisource Replication',
+  DROP PRIMARY KEY,
+  ADD PRIMARY KEY(Channel_name);
+
+ALTER TABLE slave_relay_log_info
+  ADD Channel_name CHAR(64) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL DEFAULT '' COMMENT 'The channel on which the slave is connected to a source. Used in Multisource Replication',
+  DROP PRIMARY KEY,
+  ADD PRIMARY KEY(Channel_name);
+
+ALTER TABLE slave_worker_info
+  ADD Channel_name CHAR(64) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL DEFAULT '' COMMENT 'The channel on which the slave is connected to a source. Used in Multisource Replication',
+  DROP PRIMARY KEY,
+  ADD PRIMARY KEY(Channel_name, Id);
+
 SET @have_innodb= (SELECT COUNT(engine) FROM information_schema.engines WHERE engine='InnoDB' AND support != 'NO');
 SET @str=IF(@have_innodb <> 0, "ALTER TABLE innodb_table_stats STATS_PERSISTENT=0", "SET @dummy = 0");
 PREPARE stmt FROM @str;

@@ -203,3 +203,30 @@ INSERT INTO table1 VALUES (1);
 ERROR 42S02: Unknown table 't.notable'
 DROP TABLE table1,table2;
 # End BUG#34750
+
+# Test Bug#19573998 DATABASE CAN NOT BE DROPPED IF IT CONTAINS .CFG FILES
+CREATE DATABASE bug19573998;
+USE bug19573998;
+CREATE TABLE t1(i int);
+# Start FLUSH TABLES command which will create .cfg files
+# and block DROP DATABASE
+FLUSH TABLES t1 FOR EXPORT;
+connect con1, localhost, root, '', bug19573998;
+# Non-blocking (--send):
+DROP DATABASE bug19573998;
+connection default;
+# Wait until DROP DATABASE becomes blocked on table metadata lock
+UNLOCK TABLES;
+connection con1;
+# Wait for DROP DATABASE to complete (--reap)
+# DROP DATABASE completed
+disconnect con1;
+# Connection con1 has disconnected
+connection default;
+# Try to manually inject a .cfg file into the database directory
+CREATE DATABASE bug19573998;
+# Write a dummy file into the database directory
+# Verify that it is possible to drop the database
+DROP DATABASE bug19573998;
+USE test;
+# End Bug#19573998

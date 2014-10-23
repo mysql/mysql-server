@@ -91,9 +91,14 @@ bool Session_sysvar_resource_manager::init(char **var, const CHARSET_INFO * char
 bool Session_sysvar_resource_manager::update(char **var, char *val,
                                              size_t val_len)
 {
-  sys_var_ptr *element;
-  char *ptr;
+  sys_var_ptr *element= NULL;
+  char *ptr= NULL;
+  char *old_key= NULL;
 
+  /*
+    Memory allocation for the new value of the variable and
+    copying the value in it.
+  */
   if (val)
   {
     if ( !(ptr=
@@ -102,13 +107,47 @@ bool Session_sysvar_resource_manager::update(char **var, char *val,
       return true;
     ptr[val_len]= 0;
   }
-  else
+
+  /* Get the handle for existing value in hash. */
+  if (*var)
   {
-    ptr= 0;
-    goto done;
+    element= (sys_var_ptr *) find(*var, strlen(*var));
+    if (element)
+      old_key= (char *) element->data;
   }
 
-  if (!(*var && (element= ((sys_var_ptr *)find(*var, strlen(*var))))))
+  /*
+    Update the value in hash when both the existing value
+    and the new value are not null.
+  */
+  if (val && *var)
+  {
+    /* Free the existing one & update the current address. */
+    element->data= (char *) ptr;
+    my_hash_update(&m_sysvar_string_alloc_hash, (uchar *) element,
+	           (uchar *)old_key, strlen(old_key));
+    if (old_key)
+      my_free(old_key);
+  }
+
+  /*
+    Delete the existing value from the hash when the new value is NULL.
+  */
+  else if ((val == NULL) && *var)
+  {
+    if (element)
+    {
+      my_hash_delete(&m_sysvar_string_alloc_hash, (uchar *)element);
+      if (old_key)
+	my_free(old_key);
+    }
+  }
+
+  /*
+    Insert the new value into the hash when it is not NULL, but the
+    existing value is.
+  */
+  else if ((*var == NULL) && val)
   {
     /* Create a new node & add it to the list. */
     if( !(element=
@@ -118,19 +157,14 @@ bool Session_sysvar_resource_manager::update(char **var, char *val,
     element->data= (char *) ptr;
     my_hash_insert(&m_sysvar_string_alloc_hash, (uchar *) element);
   }
-  else
-  {
-    /* Free the existing one & update the current address. */
-    char *old_key;
-    old_key= (char *) element->data;
-    element->data= (char *) ptr;
-    my_hash_update(&m_sysvar_string_alloc_hash, (uchar *) element,
-	           (uchar *)old_key, strlen(old_key));
-    if (old_key)
-      my_free(old_key);
-  }
-done:
-  /* Update the variable to point to the newly alloced copy. */
+
+  /*
+    Update the variable to point to the newly alloced copy.
+    
+    When current value and the new value are both NULL,
+    the control directly reaches here. In that case this
+    function effectively does nothing.
+  */
   *var= ptr;
   return false;
 }

@@ -11,6 +11,7 @@
 # [--let $slave_param_comparison= [ < | <= | >= | > | = | != ]]
 # [--let $slave_timeout= NUMBER]
 # [--let $slave_error_param= [Slave_SQL_Errno | Slave_IO_Errno]]
+# [--let $rpl_channel_name= NAME]
 # [--let $rpl_debug= 1]
 # --source include/wait_for_slave_param.inc
 #
@@ -28,6 +29,10 @@
 #   string '!=', like this:
 #     --let $slave_param_comparison= !=
 #
+# $rpl_channel_name
+#   If this is not '', adds a FOR CHANNEL  '$rpl_channel_name' clause
+#   to SHOW SLAVE STATUS.
+#
 # $slave_timeout
 #   The default timeout is 30 seconds. You can change the timeout by
 #   setting $slave_timeout. The unit is one second.
@@ -40,9 +45,20 @@
 #
 # $rpl_debug
 #   See include/rpl_init.inc
+#
+# ==== mysqltest variables configured by this file ====
+#
+# This file sets $slave_param_statement to the SQL statement used to
+# get the slave status: either SHOW SLAVE STATUS or SHOW SLAVE STATUS
+# FOR CHANNEL  '<channel>'.
 
 
---let $include_filename= wait_for_slave_param.inc [$slave_param]
+--let $_wait_for_slave_params= $slave_param
+if ($rpl_channel_name != '')
+{
+  --let $_wait_for_slave_params= $_wait_for_slave_params channel=$rpl_channel_name
+}
+--let $include_filename= wait_for_slave_param.inc [$_wait_for_slave_params]
 --source include/begin_include_file.inc
 
 --let $default_timeout= 30
@@ -77,11 +93,17 @@ if ($rpl_debug)
   --echo Waiting until '$slave_param' $_slave_param_comparison '$slave_param_value' [timeout='$_slave_timeout', \$slave_error_param='$slave_error_param']
 }
 
---let $_slave_check_configured= query_get_value("SHOW SLAVE STATUS", Slave_IO_Running, 1)
+--let $slave_param_statement= SHOW SLAVE STATUS
+if ($rpl_channel_name != '')
+{
+  --let $slave_param_statement= $slave_param_statement FOR CHANNEL  '$rpl_channel_name'
+}
+
+--let $_slave_check_configured= query_get_value($slave_param_statement, Slave_IO_Running, 1)
 
 if ($_slave_check_configured == 'No such row')
 {
-  --echo **** ERROR: SHOW SLAVE STATUS returned empty result set. Slave not configured. ****
+  --echo **** ERROR: $slave_param_statement returned empty result set. Slave not configured. ****
   --source include/show_rpl_debug_info.inc
   --die SHOW SLAVE STATUS returned empty result set. Slave not configured.
 }
@@ -90,12 +112,12 @@ if ($_slave_check_configured == 'No such row')
 --let $_slave_continue= 1
 while ($_slave_continue)
 {
-  --let $_show_slave_status_value= query_get_value("SHOW SLAVE STATUS", $slave_param, 1)
+  --let $_show_slave_status_value= query_get_value($slave_param_statement, $slave_param, 1)
 
   # Check if an error condition is reached.
   if (!$slave_error_param)
   {
-    --let $_show_slave_status_error_value= query_get_value("SHOW SLAVE STATUS", $slave_error_param, 1)
+    --let $_show_slave_status_error_value= query_get_value($slave_param_statement, $slave_error_param, 1)
     if ($_show_slave_status_error_value)
     {
       --echo **** ERROR: $slave_error_param = '$_show_slave_status_error_value' while waiting for slave parameter $slave_param $_slave_param_comparison $slave_param_value ****
