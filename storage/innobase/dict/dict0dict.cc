@@ -1554,7 +1554,8 @@ dict_table_rename_in_cache(
 
 		ut_free(filepath);
 
-	} else if (dict_table_use_file_per_table(table)) {
+	} else if (table->space != TRX_SYS_SPACE) {
+
 		if (table->dir_path_of_temp_table != NULL) {
 			ib::error() << "Trying to rename a TEMPORARY TABLE "
 				<< old_name
