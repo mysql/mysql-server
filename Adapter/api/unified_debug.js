@@ -18,13 +18,12 @@
  02110-1301  USA
 */
 
-/*global assert */
-
 "use strict";
 
 
 var path = require("path"),
     util = require("util"),
+    assert = require("assert"),
 
     UDEB_OFF      = 0,
     UDEB_URGENT   = 1,

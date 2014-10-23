@@ -20,7 +20,33 @@
 
 "use strict";
 
-var spi            = require("../impl/SPI"),
+var path           = require("path"),
+    conf           = require("../adapter_config");
+
+/** Include Path Helpers */
+exports.fs = conf;
+
+exports.common = {
+  "BitMask"          : path.join(conf.spi_dir, "common", "BitMask"),
+  "DBTableHandler"   : path.join(conf.spi_dir, "common", "DBTableHandler"),
+  "IndexBounds"      : path.join(conf.spi_dir, "common", "IndexBounds"),
+  "QueuedAsyncCall"  : path.join(conf.spi_dir, "common", "QueuedAsyncCall")
+};
+
+exports.api = {
+  "TableMapping"     : path.join(conf.api_dir, "TableMapping"),
+  "unified_debug"    : path.join(conf.api_dir, "unified_debug"),
+  "stats"            : path.join(conf.api_dir, "stats"),
+  "UserContext"      : path.join(conf.api_dir, "UserContext")
+};
+
+exports.spi = conf.spi_module;
+
+/* Make it global */
+global.mynode = exports;
+
+
+var spi            = require(conf.spi_module),
     TableMapping   = require("./TableMapping").TableMapping,
     Projection     = require("./Projection").Projection,
     unified_debug  = require("./unified_debug"),
@@ -28,8 +54,8 @@ var spi            = require("../impl/SPI"),
     userContext    = require("./UserContext.js");
 
 var converters = {};
-converters.JSONConverter       = require(path.join(converters_dir, "JSONConverter.js"));
-converters.JSONSparseConverter = require(path.join(converters_dir, "JSONSparseConverter.js"));
+converters.JSONConverter       = require(path.join(conf.converters_dir, "JSONConverter.js"));
+converters.JSONSparseConverter = require(path.join(conf.converters_dir, "JSONSparseConverter.js"));
 
 
 /** make TableMapping public */
@@ -151,3 +177,4 @@ exports.connections = connections;
 exports.Connection = Connection;
 exports.deleteFactory = deleteFactory;
 exports.converters = converters;
+

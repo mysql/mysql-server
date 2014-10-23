@@ -19,7 +19,8 @@
  */
 
 "use strict";
-var udebug          = unified_debug.getLogger("IncludeFieldTest.js");
+var util    = require("util");
+var udebug  = unified_debug.getLogger("IncludeFieldTest.js");
 
 function Semistruct(id, name, number, a, c) {
   if (typeof id !== 'undefined') {

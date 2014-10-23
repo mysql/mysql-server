@@ -18,8 +18,6 @@
  02110-1301  USA
 */
 
-/*global assert, unified_debug */
-
 "use strict";
 
 var stats = {
@@ -31,15 +29,15 @@ var stats = {
 	}
 };
 
-var commonDBTableHandler = require(path.join(spi_dir,"common","DBTableHandler.js")),
-    apiSession = require("./Session.js"),
+var util           = require("util"),
+    mynode         = require("./mynode.js"),
+    DBTableHandler = require(mynode.common.DBTableHandler).DBTableHandler,
+    apiSession     = require("./Session.js"),
     sessionFactory = require("./SessionFactory.js"),
-    mynode     = require("./mynode.js"),
-    query      = require("./Query.js"),
-    spi        = require(path.join(spi_dir,"SPI")),
-    udebug     = unified_debug.getLogger("UserContext.js"),
-    stats_module = require(path.join(api_dir, "./stats.js")),
-    util       = require("util");
+    query          = require("./Query.js"),
+    spi            = require(mynode.spi),
+    udebug         = unified_debug.getLogger("UserContext.js"),
+    stats_module   = require(mynode.api.stats);
 
 stats_module.register(stats, "api", "UserContext");
 
@@ -434,7 +432,7 @@ var getTableHandler = function(domainObjectTableNameOrConstructor, session, onTa
                 udebug.log('UserContext caching the table handler in the sessionFactory for ', 
                   tableHandlerFactory.tableName);
               }
-              tableHandler = new commonDBTableHandler.DBTableHandler(tableMetadata, tableHandlerFactory.mapping,
+              tableHandler = new DBTableHandler(tableMetadata, tableHandlerFactory.mapping,
                   tableHandlerFactory.ctor);
               tableHandlerFactory.sessionFactory.tableHandlers[tableKey] = tableHandler;
             } else {
@@ -449,7 +447,7 @@ var getTableHandler = function(domainObjectTableNameOrConstructor, session, onTa
             if (typeof(tableHandlerFactory.ctor.prototype.mynode.tableHandler) === 'undefined') {
               // if a domain object mapping, cache the table handler in the prototype
               stats.TableHandler.success++;
-              tableHandler = new commonDBTableHandler.DBTableHandler(tableMetadata, tableHandlerFactory.mapping,
+              tableHandler = new DBTableHandler(tableMetadata, tableHandlerFactory.mapping,
                   tableHandlerFactory.ctor);
               if (tableHandler.isValid) {
                 tableHandlerFactory.ctor.prototype.mynode.tableHandler = tableHandler;

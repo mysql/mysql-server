@@ -19,7 +19,8 @@
  */
 
 "use strict";
-var udebug          = unified_debug.getLogger("FreeformTest.js");
+var util    = require("util");
+var udebug  = unified_debug.getLogger("FreeformTest.js");
 
 function Freeform(id, name, number, a) {
   if (typeof id !== 'undefined') {

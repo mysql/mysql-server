@@ -18,7 +18,7 @@
  02110-1301  USA
 */
 
-/*global unified_debug, exports, api_dir, path */
+/*global unified_debug, exports */
 
 "use strict";
 
@@ -31,12 +31,13 @@ var stats = {
   "connections"         : { "successful" : 0, "failed" : 0 }	
 };
 
+var path = require("path");
 var mysql = require("mysql");
 var mysqlConnection = require("./MySQLConnection.js");
 var mysqlDictionary = require("./MySQLDictionary.js");
 var udebug = unified_debug.getLogger("MySQLConnectionPool.js");
 var util = require('util');
-var stats_module = require(path.join(api_dir, "stats.js"));
+var stats_module = require(mynode.api.stats);
 var MySQLTime = require("../common/MySQLTime.js");
 
 stats_module.register(stats, "spi","mysql","DBConnectionPool");

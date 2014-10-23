@@ -20,9 +20,9 @@
 
 /* Requires version 2.0 of Felix Geisendoerfer's MySQL client */
 
-/*global unified_debug, util, path, api_dir */
-
 "use strict";
+
+var path = require("path");
 
 var session_stats = {
 	"created" : 0,
@@ -49,7 +49,7 @@ var op_stats = {
 
 var mysql  = require("mysql"),
     udebug = unified_debug.getLogger("MySQLConnection.js"),
-    stats_module  = require(path.join(api_dir, "stats.js")),
+    stats_module  = require(mynode.api.stats),
     mysql_code_to_sqlstate_map = require("../common/MysqlErrToSQLStateMap");
 
 stats_module.register(session_stats, "spi","mysql","DBSession");

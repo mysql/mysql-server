@@ -20,6 +20,8 @@
 
 "use strict";
 
+var path = require("path");
+var fs = require("fs");
 var skipTests = false;
 var jslint, linter, lintName;
 var haveJsLint = false;
@@ -46,13 +48,8 @@ var jslintOptions = {
   "eqeq"      : true,     // allow ==
   "bitwise"   : true,
   "predef"    :  
-    [ /* globals, from Adapter/adapter_config.js */
-      "path" , "fs" , "assert" , "util"  , "unified_debug" , 
-      "adapter_dir" , "parent_dir" , "api_dir" , "spi_dir" , 
-      "spi_doc_dir" , "api_doc_dir", "build_dir", "converters_dir",
-      "backend_doc_dir", "spi_module", "api_module", "udebug_module",
-      /* globals from test/driver.js */
-      "suites_dir", "harness", "mynode", "adapter",
+    [ /* globals from test/driver.js */
+      "unified_debug", "harness", "mynode", "adapter",
       /* globals commonly defined in test suites: */
       "fail_openSession"      
     ]
@@ -186,22 +183,22 @@ exports.tests.push(smokeTest);
 
 // ****** SOURCES FILES TO CHECK ********** //
 
-checkDirectory(adapter_dir, "impl/common");
-checkDirectory(adapter_dir, "impl/mysql");
-checkDirectory(adapter_dir, "impl/ndb");
-checkDirectory(adapter_dir, "api");
+checkDirectory(mynode.fs.adapter_dir, "impl/common");
+checkDirectory(mynode.fs.adapter_dir, "impl/mysql");
+checkDirectory(mynode.fs.adapter_dir, "impl/ndb");
+checkDirectory(mynode.fs.adapter_dir, "api");
 
-checkFile(suites_dir, "lint", "LintTest.js");
-checkFile(suites_dir, "", "driver.js");
-checkFile(suites_dir, "lib", "harness.js");
-checkDirectory(suites_dir, "spi");
-checkDirectory(suites_dir, "numerictypes");
-checkDirectory(suites_dir, "stringtypes");
-checkDirectory(suites_dir, "autoincrement");
+checkFile(mynode.fs.suites_dir, "lint", "LintTest.js");
+checkFile(mynode.fs.suites_dir, "", "driver.js");
+checkFile(mynode.fs.suites_dir, "lib", "harness.js");
+checkDirectory(mynode.fs.suites_dir, "spi");
+checkDirectory(mynode.fs.suites_dir, "numerictypes");
+checkDirectory(mynode.fs.suites_dir, "stringtypes");
+checkDirectory(mynode.fs.suites_dir, "autoincrement");
 // checkDirectory(suites_dir, "multidb");  
-checkDirectory(suites_dir, "t_basic");
+checkDirectory(mynode.fs.suites_dir, "t_basic");
 
-checkDirectory(parent_dir, "samples/tweet");
+checkDirectory(mynode.fs.samples_dir, "tweet");
 
 /**** ERRORS TO IGNORE:
    ignore(filename, startpos, message) 

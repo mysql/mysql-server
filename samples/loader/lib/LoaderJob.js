@@ -20,8 +20,8 @@
 
 "use strict";
 
-var nosql      = require(global.parent_dir),
-    udebug     = require(path.join(api_dir, "unified_debug")).getLogger("LoaderJob.js"),
+var assert     = require("assert"),
+    udebug     = require(mynode.api.unified_debug).getLogger("LoaderJob.js"),
     machine    = require("./control_file.js"),
     Controller = require("./Controller.js").Controller;
 
@@ -62,7 +62,7 @@ LoaderJobDestination.prototype.createTableMapping = function() {
     database      : this.database,
     mapAllColumns : (this.columnDefinitions.length === 0)
   };
-  mapping = new nosql.TableMapping(literalMapping);
+  mapping = new mynode.TableMapping(literalMapping);
 
   /* A ``function() {}'' for constructing mapped objects */
   this.rowConstructor = new Function();

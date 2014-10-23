@@ -28,9 +28,10 @@ var stats = {
 	"simultaneous_disconnects"  : 0  // this should always be zero
 };
 
-var adapter          = require(path.join(build_dir, "ndb_adapter.node")),
+var path             = require("path"),
+    adapter          = require(path.join(mynode.fs.build_dir, "ndb_adapter.node")),
     udebug           = unified_debug.getLogger("NdbConnection.js"),
-    stats_module     = require(path.join(api_dir,"stats.js")),
+    stats_module     = require(mynode.api.stats),
     QueuedAsyncCall  = require("../common/QueuedAsyncCall.js").QueuedAsyncCall,
     logReadyNodes;
 
