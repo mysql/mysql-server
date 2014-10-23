@@ -640,7 +640,7 @@ int Recovery_module::initialize_donor_connection(){
   //If a server reset happened
   if (needs_donor_relay_log_reset)
   {
-    donor_connection_interface.purge_relay_logs();
+    donor_connection_interface.purge_relay_logs(false);
   }
 
   error= initialize_connection_parameters();
@@ -762,7 +762,7 @@ int Recovery_module::purge_recovery_slave_threads_repos()
   DBUG_ENTER("Recovery_module::purge_recovery_slave_threads_repos");
 
   int error= 0;
-  if ((error = donor_connection_interface.purge_relay_logs()))
+  if ((error = donor_connection_interface.purge_relay_logs(true)))
   {
     log_message(MY_ERROR_LEVEL,
                 "[Recovery:] Error when purging the recovery's relay logs");

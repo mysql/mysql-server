@@ -234,7 +234,7 @@ int Replication_thread_api::start_replication_threads(int thread_mask,
   DBUG_RETURN(error);
 }
 
-int Replication_thread_api::purge_relay_logs()
+int Replication_thread_api::purge_relay_logs(bool just_reset)
 {
   DBUG_ENTER("Replication_thread_api::purge_relay_logs");
 
@@ -246,9 +246,34 @@ int Replication_thread_api::purge_relay_logs()
 
   const char* errmsg= "Unknown error occurred while reseting applier logs";
 
-  if(rli->purge_relay_logs(current_thd, 1, &errmsg))
+  /*
+    If some thread finishes and the logs are no longer needed, with just
+    reset, the logs are simply deleted and the rli variables purged.
+
+    Otherwise, the relay log should be re-initialized. The problem with this
+    is that on group replication environments a simple purge may not be
+    enough to clean the previous rli state, specially the gtid_retrieved
+    variable that is written to the new log when this operation is executed.
+    On classic replication the master sent Rotate event solves this issue, but
+    for other contexts a new purge is the simplest option.
+  */
+  if (just_reset)
   {
-    DBUG_RETURN(REPLICATION_THREAD_REPOSITORY_RL_PURGE_ERROR);
+    if (rli->purge_relay_logs(current_thd, true, &errmsg, true))
+    {
+      DBUG_RETURN(REPLICATION_THREAD_REPOSITORY_RL_PURGE_ERROR);
+    }
+  }
+  else
+  {
+    if (rli->purge_relay_logs(current_thd, true, &errmsg))
+    {
+      DBUG_RETURN(REPLICATION_THREAD_REPOSITORY_RL_PURGE_ERROR);
+    }
+    if(rli->purge_relay_logs(current_thd, false, &errmsg))
+    {
+       DBUG_RETURN(REPLICATION_THREAD_REPOSITORY_RL_PURGE_ERROR);
+    }
   }
 
   DBUG_RETURN(0);

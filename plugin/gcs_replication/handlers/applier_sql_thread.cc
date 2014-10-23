@@ -95,7 +95,7 @@ Applier_sql_thread::initialize_repositories(char *relay_log_name,
                 "Detected previous RESET MASTER invocation."
                 "Performing log purge on node.");
 
-    if ((error = sql_thread_interface.purge_relay_logs()))
+    if ((error = sql_thread_interface.purge_relay_logs(false)))
     {
       log_message(MY_ERROR_LEVEL,
               "Unknown error occurred while reseting applier's module logs");

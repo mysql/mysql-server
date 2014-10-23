@@ -140,12 +140,16 @@ public:
   /**
     Purges the relay logs and clears the GTID retrieved
 
+    @param just_reset  If true, the method will only purge the relay log and
+                       delete the log files not initializing any new ones.
+                       @see Relay_log_info::purge_relay_logs
+
     @return the operation status
       @retval 0      OK
       @retval REPLICATION_THREAD_REPOSITORY_RL_PURGE_ERROR
         Error when relay log purging fails before the thread starts
   */
-  int purge_relay_logs();
+  int purge_relay_logs(bool just_reset);
 
   /**
    Cleans the master info object

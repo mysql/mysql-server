@@ -1,21 +1,27 @@
 # This test intends to prove that nodes can survive reset master commands.
-# These commands end up causing the nodes to purge their relay logs
-# This test has 2 phases:
+# These commands end up causing the nodes to purge their relay logs even when
+# the node has some provisioned data.
+# This test has 3 phases:
 #  1) Insert some data and sync both nodes
 #  2) Reset both nodes, insert some data on node one
 #     Provision node two and start replication
-#     Check that all data from phase 1 disappeared and the nodes are in sync
-
+#     Check that all data from phase 1 disappeared and the nodes are in sync.
+#  3) Restart group replication on node 2, testing that no data remains
+#     from phase 1
 
 --source include/have_gcs_replication_plugin.inc
 --let $gcs_group_name= c7ce5980-0851-11e4-9191-0800200c9a66
 --let $rpl_skip_gcs_replication_start= 1
 --source include/master-slave.inc
 
+#
+# Phase 1: Start the cluster and insert data
+#
+
 --connection server1
 --source include/start_gcs_replication.inc
 
---echo #Create a table and insert some data
+#Create a table and insert some data
 --connection server1
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 
@@ -31,7 +37,7 @@ INSERT INTO t1 VALUES (4);
 --let $sync_slave_connection= server2
 --source include/sync_slave_sql_with_master.inc
 
---echo #Both nodes must have the same GTID set
+#Both nodes must have the same GTID set
 --let $server_count=2
 while ($server_count)
 {
@@ -47,7 +53,11 @@ DROP TABLE t1;
 --let $sync_slave_connection= server2
 --source include/sync_slave_sql_with_master.inc
 
---echo #Stop and reset both nodes
+#
+# Phase 2: Reset the cluster and provision a server
+#
+
+#Stop and reset both nodes
 
 --connection server1
 --source include/stop_gcs_replication.inc
@@ -84,29 +94,29 @@ SET GTID_NEXT = 'AUTOMATIC';
 #Start the node
 --source include/start_gcs_replication.inc
 
+#Test that the cluster works
+
 --connection server1
 
 INSERT INTO t1 VALUES (2);
-INSERT INTO t1 VALUES (3);
 
 --connection server2
 
-INSERT INTO t1 VALUES (4);
-INSERT INTO t1 VALUES (5);
+INSERT INTO t1 VALUES (3);
 
 --connection server1
 
 --let $sync_slave_connection= server2
 --source include/sync_slave_sql_with_master.inc
 
---echo #Both nodes should possess the same data
+#Both nodes should possess the same data
 
 --let $server_count=2
 while ($server_count)
 {
   --connection server$server_count
-  --let $assert_text= On node $server_count, the table should exist and have 5 elements
-  --let $assert_cond= [select count(*) from t1] = 5;
+  --let $assert_text= On node $server_count, the table should exist and have 3 elements
+  --let $assert_cond= [select count(*) from t1] = 3;
   --source include/assert.inc
   --dec $server_count
 }
@@ -116,17 +126,42 @@ while ($server_count)
 
 if(`SELECT "$server_uuid" < "$gcs_group_name"`)
 {
---let $wait_condition= SELECT stable_set like "$server_uuid:1-2,%$gcs_group_name:1-4" from performance_schema.replication_node_status;
+--let $wait_condition= SELECT stable_set like "$server_uuid:1-2,%$gcs_group_name:1-2" from performance_schema.replication_node_status;
 }
 if(`SELECT "$server_uuid" > "$gcs_group_name"`)
 {
---let $wait_condition= SELECT stable_set like "$gcs_group_name:1-4,%$server_uuid:1-2" from performance_schema.replication_node_status;
+--let $wait_condition= SELECT stable_set like "$gcs_group_name:1-2,%$server_uuid:1-2" from performance_schema.replication_node_status;
 }
-
 --source include/wait_condition.inc
 --echo [ The value of stable_set should contain both provisioned and cluster GIIDs ]
 
---echo #Cleanup
+
+#
+# Phase 3: Restart group replication on node 2
+#
+
+--connection server2
+
+--source include/stop_gcs_replication.inc
+--source include/start_gcs_replication.inc
+
+INSERT INTO t1 VALUES (4);
+
+#Both nodes should possess the same data
+
+--let $server_count=2
+while ($server_count)
+{
+  --connection server$server_count
+  --let $assert_text= On node $server_count, the table should exist and have 4 elements
+  --let $assert_cond= [select count(*) from t1] = 4;
+  --source include/assert.inc
+  --dec $server_count
+}
+
+#
+#Cleanup
+#
 
 DROP TABLE t1;
 
