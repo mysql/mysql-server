@@ -399,24 +399,26 @@ enum lock_rec_req_status {
 Record lock ID */
 struct RecID {
 
-	RecID(ib_uint32_t space_id, ib_uint32_t page_no, ib_uint32_t heap_no)
+	RecID(ulint space_id, ulint page_no, ulint heap_no)
 		:
-		m_space_id(space_id),
-		m_page_no(page_no),
-		m_heap_no(heap_no),
+		m_space_id(static_cast<uint32_t>(space_id)),
+		m_page_no(static_cast<uint32_t>(page_no)),
+		m_heap_no(static_cast<uint32_t>(heap_no)),
 		m_fold(lock_rec_fold(m_space_id, m_page_no))
 	{
-		/* No op */
+		ut_ad(space_id < UINT32_MAX);
+		ut_ad(page_no < UINT32_MAX);
+		ut_ad(heap_no < UINT32_MAX);
 	}
 
-	RecID(const buf_block_t* block, ib_uint32_t heap_no)
+	RecID(const buf_block_t* block, ulint heap_no)
 		:
 		m_space_id(block->page.id.space()),
 		m_page_no(block->page.id.page_no()),
-		m_heap_no(heap_no),
+		m_heap_no(static_cast<uint32_t>(heap_no)),
 		m_fold(lock_rec_fold(m_space_id, m_page_no))
 	{
-		/* No op */
+		ut_ad(heap_no < UINT32_MAX);
 	}
 
 	/**
@@ -428,15 +430,15 @@ struct RecID {
 
 	/**
 	Tablespace ID */
-	ib_uint32_t		m_space_id;
+	uint32_t		m_space_id;
 
 	/**
 	Page number within the space ID */
-	ib_uint32_t		m_page_no;
+	uint32_t		m_page_no;
 
 	/**
 	Heap number within the page */
-	ib_uint32_t		m_heap_no;
+	uint32_t		m_heap_no;
 
 	/**
 	Hashed key value */

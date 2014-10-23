@@ -3549,7 +3549,7 @@ statement to update the dictionary tables if they are incorrect.
 @param[in]	path_in		Tablespace filepath if found in SYS_DATAFILES
 @return DB_SUCCESS or error code */
 dberr_t
-fil_open_ibd_tablespace(
+fil_ibd_open(
 	bool		validate,
 	bool		fix_dict,
 	fil_type_t	purpose,
@@ -3927,14 +3927,17 @@ fil_path_to_space_name(
 	return(name);
 }
 
-/** Open a single-file tablespace and add it to the InnoDB data structures.
+/** Open an ibd tablespace and add it to the InnoDB data structures.
+This is similar to fil_ibd_open() except that it is used while processing
+the REDO log, so the data dictionary is not available and very little
+validation is done.
 @param[in]	space_id	tablespace ID
 @param[in]	filename	path/to/databasename/tablename.ibd
 @param[in]	filename_len	the length of the filename, in bytes
 @param[out]	space		the tablespace, or NULL on error
 @return status of the operation */
 enum fil_load_status
-fil_load_single_file_tablespace(
+fil_ibd_load(
 	ulint		space_id,
 	const char*	filename,
 	ulint		filename_len,
