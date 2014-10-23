@@ -45,7 +45,7 @@ test.run = function() {
       test.fail("Connection error " + err);
       return;
     }
-    harness.SQL.create(test.suite, onCreate);  
+    SQLcreate(test.suite, onCreate);  
   }
 
   lib.getConnectionPool(onConnected);

@@ -32,7 +32,7 @@ test.run = function() {
     }
   }
 
-  harness.SQL.create(this.suite, onCreate);
+  SQLcreate(this.suite, onCreate);
 };
   
 module.exports.tests = [test];

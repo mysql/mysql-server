@@ -22,12 +22,16 @@
 
 "use strict";
 
-var udebug = unified_debug.getLogger("mysql_service_provider.js");
-var saved_err;
+var udebug = unified_debug.getLogger("mysql_service_provider.js"),
+    saved_err,
+    mysqlconnection,
+    mysqldictionary,
+    mysqlmetadatamanager = null;
 
 try {
   /* Let unmet module dependencies be caught by loadRequiredModules() */
-  var mysqlconnection = require("./MySQLConnectionPool.js");
+  mysqlconnection = require("./MySQLConnectionPool.js");
+  mysqldictionary = require("./MySQLDictionary.js");
 }
 catch(e) {
   saved_err = e;
@@ -78,4 +82,12 @@ exports.connect = function(properties, sessionFactory_callback) {
   connectionPool.connect(function(err, connection) {
     callback(err, connectionPool);
   });
+};
+
+
+exports.getDBMetadataManager = function() {
+  if(! mysqlmetadatamanager) {
+    mysqlmetadatamanager = new mysqldictionary.MetadataManager();
+  }
+  return mysqlmetadatamanager;
 };

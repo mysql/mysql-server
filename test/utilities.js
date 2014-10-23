@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2012, Oracle and/or its affiliates. All rights
+ Copyright (c) 2012, 2013, 2014 Oracle and/or its affiliates. All rights
  reserved.
  
  This program is free software; you can redistribute it and/or
@@ -21,6 +21,10 @@
 /*global mynode, path, fs, suites_dir */
 
 "use strict";
+
+var dbServiceProvider = require(spi_module).getDBServiceProvider(global.adapter),
+    metadataManager = dbServiceProvider.getDBMetadataManager();
+
 
 /* Manage test_connection.js file:
    Read it if it exists.
@@ -54,13 +58,11 @@ function getTestConnectionProperties() {
   return properties;
 } 
 
-
 function getAdapterProperties(adapter) {
   var impl = adapter || global.adapter;
   var p = new mynode.ConnectionProperties(impl);
   return p;
 }
-
 
 function merge(target, m) {
   var p;
@@ -71,8 +73,7 @@ function merge(target, m) {
   }
 }
 
-
-exports.connectionProperties = function() {
+function getConnectionProperties() {
   var adapterProps  = getAdapterProperties();
   var localConnectionProps = getTestConnectionProperties();
   merge(adapterProps, localConnectionProps);
@@ -80,3 +81,45 @@ exports.connectionProperties = function() {
 };
 
 
+
+/** Set global test connection properties */
+global.test_conn_properties = getConnectionProperties();
+
+/** Metadata management */
+global.SQLcreate = function(suite, callback) {
+  metadataManager.createTestTables(test_conn_properties, suite.name, callback);
+}
+
+global.SQLdrop = function(suite, callback) {
+  metadataManager.dropTestTables(test_conn_properties, suite.name, callback);
+}
+
+
+/** Open a session or fail the test case */
+global.fail_openSession = function(testCase, callback) {
+  var promise;
+  if (arguments.length === 0) {
+    throw new Error('Fatal internal exception: fail_openSession must have  1 or 2 parameters: testCase, callback');
+  }
+  var properties = global.test_conn_properties;
+  var mappings = testCase.mappings;
+  promise = mynode.openSession(properties, mappings, function(err, session) {
+    if (callback && err) {
+      testCase.fail(err);
+      return;
+    }
+    testCase.session = session;
+    if (typeof callback !== 'function') {
+      return;
+    }
+    try {
+      callback(session, testCase);
+    }
+    catch(e) {
+      testCase.appendErrorMessage(e);
+      testCase.stack = e.stack;
+      testCase.failOnError();
+    }
+  });
+  return promise;
+};

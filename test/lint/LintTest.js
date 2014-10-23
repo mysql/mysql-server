@@ -174,6 +174,8 @@ var smokeTest = new harness.SmokeTest("jslint smoke test");
 smokeTest.run = function runLintSmokeTest() {
   if(skipTests) {
     this.fail("jslint is not available");
+  } else if (typeof linter !== 'function') {
+    this.fail("incompatible jslint");
   }
   else {
     this.pass();
