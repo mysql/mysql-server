@@ -1,0 +1,38 @@
+##############################################################################
+# BUG#19507923: CANNOT DO POSITIONS SYNC WHEN AUTO_POSITION IS ON
+#
+# Purpose of the test:
+#
+# 1. Start replication with gtid-mode= on and master_auto_position= 1.
+# 2. Re-start master with gtid-mode= on and master_auto_position= 1.
+# 3. At slave, select master_pos_wait() with
+#    pos= end log position of previous gtid log event in the latest
+#    binary log at master.
+# 4. Verify that the slave does not hang on sync with the master.
+#
+
+--source include/have_gtid.inc
+--source include/have_binlog_format_statement.inc
+
+--echo #
+--echo # Step 1: setup replication
+--echo #
+--source include/master-slave.inc
+
+--echo #
+--echo # Step 2: restart Master
+--echo #
+--let $rpl_server_number= 1
+--let $rpl_start_with_gtids= 1
+--source include/rpl_restart_server.inc
+
+--echo #
+--echo # Step 3: Wait on positions by setting ignore_gtids_on_sync= 1.
+--echo #         The sync_slave_sql_with_master.inc will call MASTER_POS_WAIT()
+--echo #         internally verifying the fix.
+--echo #
+--connection master
+--let $ignore_gtids_on_sync= 1
+--source include/sync_slave_sql_with_master.inc
+--let $ignore_gtids_on_sync= 0
+--source include/rpl_end.inc

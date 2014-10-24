@@ -271,7 +271,7 @@ enum enum_alter_inplace_result {
 #define HA_ATTACHABLE_TRX_COMPATIBLE  (1LL << 45)
 
 /**
-  Handler supports Virtual Columns
+  Handler supports Generated Columns
 */
 #define HA_GENERATED_COLUMNS            (1LL << 45)
 
@@ -1226,7 +1226,7 @@ public:
   // Add spatial index
   static const HA_ALTER_FLAGS ADD_SPATIAL_INDEX          = 1LL << 31;
 
-  // Alter virtual column
+  // Alter generated column
   static const HA_ALTER_FLAGS HA_ALTER_STORED_GCOL       = 1LL << 32;
   /**
     Create options (like MAX_ROWS) for the new version of table.

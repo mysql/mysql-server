@@ -1,0 +1,107 @@
+# Test for Performance Schema.
+# To test the effect of disabling/enabling instrumentation for a table
+# in setup_objects table.
+
+--source include/not_embedded.inc
+--source include/have_perfschema.inc
+
+--disable_warnings
+drop table if exists test.setup_objects;
+--enable_warnings
+
+# Make sure only table io / table lock is instrumented and timed
+update performance_schema.setup_instruments set enabled='NO';
+update performance_schema.setup_instruments set enabled='YES', timed='YES'
+  where name in ('wait/io/table/sql/handler', 'wait/lock/table/sql/handler');
+
+# Remove noise from previous tests
+truncate table performance_schema.table_io_waits_summary_by_table;
+truncate table performance_schema.table_lock_waits_summary_by_table;
+
+# Save the setup
+create table test.setup_objects as select * from performance_schema.setup_objects;
+truncate table performance_schema.setup_objects;
+select * from performance_schema.setup_objects;
+
+insert into performance_schema.setup_objects
+  values ('TABLE', 'db1', 't1', 'YES', 'YES');
+
+insert into performance_schema.setup_objects
+  values ('TABLE', 'db1', 't2', 'YES', 'YES');
+
+select * from performance_schema.setup_objects
+  order by OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME;
+SET sql_mode = default;
+
+--disable_warnings
+drop database if exists db1;
+--enable_warnings
+
+create database db1;
+create table db1.t1 (a int, b char(10) default 'default', unique key uidx(a));
+create table db1.t2 (a int, b char(10) default 'default');
+
+# Insert some values in tables.
+insert into db1.t1 values('11', 'db1.t1');
+insert into db1.t1 values('12', 'db1.t1');
+insert into db1.t1 values('13', 'db1.t1');
+insert into db1.t2 values('21', 'db1.t2');
+insert into db1.t2 values('22', 'db1.t2');
+insert into db1.t2 values('23', 'db1.t2');
+
+# Query P_S tables. Stats should be updated.
+select OBJECT_SCHEMA, OBJECT_NAME, COUNT_STAR, COUNT_READ, COUNT_WRITE
+       from performance_schema.table_lock_waits_summary_by_table
+       where OBJECT_SCHEMA='db1';
+select OBJECT_SCHEMA, OBJECT_NAME, COUNT_STAR, COUNT_READ, COUNT_WRITE
+       from performance_schema.table_io_waits_summary_by_table
+       where OBJECT_SCHEMA='db1';
+
+truncate table db1.t1;
+truncate table db1.t2;
+
+# Query P_S tables. Stats should be updated.
+select OBJECT_SCHEMA, OBJECT_NAME, COUNT_STAR, COUNT_READ, COUNT_WRITE
+       from performance_schema.table_lock_waits_summary_by_table
+       where OBJECT_SCHEMA='db1';
+select OBJECT_SCHEMA, OBJECT_NAME, COUNT_STAR, COUNT_READ, COUNT_WRITE
+       from performance_schema.table_io_waits_summary_by_table
+       where OBJECT_SCHEMA='db1';
+
+# Disable instrumentation for db1.t1
+update performance_schema.setup_objects
+  set ENABLED='NO' where OBJECT_SCHEMA = 'db1' and OBJECT_NAME='t1';
+
+# Query P_S tables. Stats for db1.t1 should have been removed while for db1.t2 it should have been preserved.
+select OBJECT_SCHEMA, OBJECT_NAME, COUNT_STAR, COUNT_READ, COUNT_WRITE
+       from performance_schema.table_lock_waits_summary_by_table
+       where OBJECT_SCHEMA='db1';
+select OBJECT_SCHEMA, OBJECT_NAME, COUNT_STAR, COUNT_READ, COUNT_WRITE
+       from performance_schema.table_io_waits_summary_by_table
+       where OBJECT_SCHEMA='db1';
+
+# Enable instrumentation for db1.t1
+update performance_schema.setup_objects
+  set ENABLED='YES' where OBJECT_SCHEMA = 'db1' and OBJECT_NAME='t1';
+
+# Query P_S tables. Stats for db1.t1 should have been reset while for db1.t2 it should have been preserved.
+select OBJECT_SCHEMA, OBJECT_NAME, COUNT_STAR, COUNT_READ, COUNT_WRITE
+       from performance_schema.table_lock_waits_summary_by_table
+       where OBJECT_SCHEMA='db1';
+select OBJECT_SCHEMA, OBJECT_NAME, COUNT_STAR, COUNT_READ, COUNT_WRITE
+       from performance_schema.table_io_waits_summary_by_table
+       where OBJECT_SCHEMA='db1';
+
+truncate table performance_schema.setup_objects;
+
+select count(*) from performance_schema.setup_objects;
+
+drop database db1;
+
+# Restore the setup
+truncate table performance_schema.setup_objects;
+insert into performance_schema.setup_objects select * from test.setup_objects;
+drop table test.setup_objects;
+
+update performance_schema.setup_instruments set enabled='YES', timed='YES';
+

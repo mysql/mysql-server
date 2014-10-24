@@ -1,0 +1,41 @@
+#########################################################################
+# Verify RESET SLAVE and RESET SLAVE FOR CHANNEL
+# - deletes all relay log files of named channels.
+# - For default channel, it restart the relay log from .000001
+#########################################################################
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+[connection slave]
+CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=10 FOR CHANNEL "ch1";
+CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=11 FOR CHANNEL "ch2";
+FLUSH RELAY LOGS;
+FLUSH RELAY LOGS FOR CHANNEL "ch1";
+FLUSH RELAY LOGS FOR CHANNEL "ch2";
+#
+# RESET SLAVE FOR CHANNEL "ch1" deletes all relay log files of ch1.
+#
+RESET SLAVE FOR CHANNEL "ch1";
+#
+# RESET SLAVE deletes all relay log files of ch2
+#
+include/stop_slave.inc
+RESET SLAVE;
+#
+# RESET SLAVE resets relay log of default channel from .000001
+#
+#
+# Recreate channels "ch1" and "ch2" files again.
+#
+CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=10 FOR CHANNEL "ch1";
+CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=11 FOR CHANNEL "ch2";
+#
+# RESET SLAVE ALL deletes all channels info and files.
+#
+RESET SLAVE ALL;
+CHANGE MASTER TO MASTER_HOST="127.0.0.1", MASTER_PORT=MASTER_PORT,
+MASTER_USER="root";
+include/start_slave.inc
+include/rpl_end.inc

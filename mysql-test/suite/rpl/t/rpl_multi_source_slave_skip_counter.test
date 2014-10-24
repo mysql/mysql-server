@@ -1,0 +1,66 @@
+# WL#1697: Multisource replication
+#
+# Test the behaviour when sql_slave_skip_counter is set
+#
+
+--source include/have_binlog_format_mixed.inc
+--source include/not_gtid_enabled.inc
+
+--echo #
+--echo # set up masters server_1 and server_3 with server_2 being a slave.
+--echo #.
+--let $rpl_multi_source= 1
+--let $rpl_topology= 1->2,3->2
+--source include/rpl_init.inc
+
+# On slave
+--let $rpl_connection_name= server_2
+--source include/rpl_connection.inc
+
+--echo #  when sql_slave_skip_counter is set, check proper error messages are
+--echo #  are generated. We test for START SLAVE and START SLAVE FOR CHANNEL
+--echo #  commands.
+--echo #
+# sql_slave_skip_counter is set only when all channels are stopped.
+--error ER_SLAVE_SQL_THREAD_MUST_STOP
+SET GLOBAL sql_slave_skip_counter= 5;
+
+# stop SQL THREAD for all channels
+STOP SLAVE SQL_THREAD;
+--let $rpl_source_file= include/wait_for_slave_sql_to_stop.inc
+--source include/rpl_for_each_connection.inc
+
+# Now set sql_slave_skip_counter to a non zero value
+SET GLOBAL sql_slave_skip_counter= 5;
+
+--echo #
+--echo # START SLAVE fails when sql_slave_skip_counter is set.
+--echo #
+--error ER_SLAVE_CHANNEL_SQL_SKIP_COUNTER
+START SLAVE;
+
+# check that no channel SQL threads are running.
+#
+--let $assert_text= check that no channel SQL threads are running.
+--let $assert_cond= [SELECT COUNT(*) FROM performance_schema.replication_execute_status_by_coordinator WHERE Service_State="ON"] = 0;
+--source include/assert.inc
+
+--echo #
+--echo #  Test that START SLAVE FOR CHANNEL fails when any slave sql is running
+--echo #  and sql_slave_skip_counter > 0
+--let $rpl_channel_name= channel_1
+--source include/start_slave.inc
+
+--error ER_SLAVE_CHANNEL_SQL_SKIP_COUNTER
+START SLAVE FOR CHANNEL "channel_3";
+
+# Reset sql_slave_skip_counter to 0
+--let $rpl_channel_name= channel_1
+--source include/stop_slave.inc
+
+SET GLOBAL sql_slave_skip_counter= 0;
+
+# End MSR setup.
+--let $rpl_skip_sync= 1
+--let $rpl_only_running_threads= 1
+--source include/rpl_end.inc
