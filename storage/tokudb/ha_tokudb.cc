@@ -4485,6 +4485,11 @@ int ha_tokudb::index_init(uint keynr, bool sorted) {
     }
     tokudb_active_index = keynr;
 
+#if TOKU_CLUSTERING_IS_COVERING
+    if (keynr < table->s->keys && table->key_info[keynr].option_struct->clustering)
+        key_read = false;
+#endif
+
     last_cursor_error = 0;
     range_lock_grabbed = false;
     range_lock_grabbed_null = false;
@@ -5834,11 +5839,14 @@ void ha_tokudb::position(const uchar * record) {
 //      0, always success
 //
 int ha_tokudb::info(uint flag) {
-    TOKUDB_HANDLER_DBUG_ENTER("%d %lld", flag, (long long) share->rows);
-    int error;
+    TOKUDB_HANDLER_DBUG_ENTER("%d", flag);
+    int error = 0;
+#if TOKU_CLUSTERING_IS_COVERING
+    for (uint i=0; i < table->s->keys; i++)
+        if (table->key_info[i].option_struct->clustering)
+            table->covering_keys.set_bit(i);
+#endif
     DB_TXN* txn = NULL;
-    uint curr_num_DBs = table->s->keys + tokudb_test(hidden_primary_key);
-    DB_BTREE_STAT64 dict_stats;
     if (flag & HA_STATUS_VARIABLE) {
         // Just to get optimizations right
         stats.records = share->rows + share->rows_from_locked_table;
@@ -5868,18 +5876,12 @@ int ha_tokudb::info(uint flag) {
             else {
                 goto cleanup;
             }
-            error = share->file->get_fragmentation(
-                share->file,
-                &frag_info
-                );
+            error = share->file->get_fragmentation(share->file, &frag_info);
             if (error) { goto cleanup; }
             stats.delete_length = frag_info.unused_bytes;
 
-            error = share->file->stat64(
-                share->file, 
-                txn, 
-                &dict_stats
-                );
+            DB_BTREE_STAT64 dict_stats;
+            error = share->file->stat64(share->file, txn, &dict_stats);
             if (error) { goto cleanup; }
             
             stats.create_time = dict_stats.bt_create_time_sec;
@@ -5915,6 +5917,7 @@ int ha_tokudb::info(uint flag) {
             //
             // this solution is much simpler than trying to maintain an 
             // accurate number of valid keys at the handlerton layer.
+            uint curr_num_DBs = table->s->keys + tokudb_test(hidden_primary_key);
             for (uint i = 0; i < curr_num_DBs; i++) {
                 // skip the primary key, skip dropped indexes
                 if (i == primary_key || share->key_file[i] == NULL) {
