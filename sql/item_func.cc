@@ -7517,7 +7517,7 @@ bool Item_func_match::fix_fields(THD *thd, Item **ref)
     can have FTS_DOC_ID column. Atm this is the only way
     to distinguish MyISAM and InnoDB engines.
     Generally table_ref should be available, but in case of
-    a virtual column's generation expression it's not. Thus
+    a generated  column's generation expression it's not. Thus
     we use field's table, at this moment it's already available.
   */
   TABLE *const table= table_ref ?

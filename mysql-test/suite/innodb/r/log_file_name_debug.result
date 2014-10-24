@@ -1,0 +1,10 @@
+#
+# Bug#19685095 DO NOT CARE ABOUT UNRESOLVED MLOG_FILE_NAME
+# IF THERE ARE NO OPERATIONS TO APPLY
+#
+SET GLOBAL DEBUG='+d,fil_names_write_bogus';
+CREATE TABLE t1(a INT PRIMARY KEY) ENGINE=InnoDB;
+# Kill the server
+# restart
+DROP TABLE t1;
+Pattern "InnoDB: Tablespace 4294967280 was not found at .*, but there were no modifications either" found
