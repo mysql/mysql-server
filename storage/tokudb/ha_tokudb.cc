@@ -5843,7 +5843,7 @@ int ha_tokudb::info(uint flag) {
     int error = 0;
 #if TOKU_CLUSTERING_IS_COVERING
     for (uint i=0; i < table->s->keys; i++)
-        if (table->key_info[i].option_struct->clustering)
+        if (key_is_clustering(&table->key_info[i]))
             table->covering_keys.set_bit(i);
 #endif
     DB_TXN* txn = NULL;
