@@ -2284,8 +2284,6 @@ fseg_create_general(
 
 	mlog_write_ulint(header + FSEG_HDR_SPACE, space_id, MLOG_4BYTES, mtr);
 
-	DBUG_LOG("fseg", fseg_header(header, mtr));
-
 funct_exit:
 	if (!has_done_reservation) {
 
@@ -3431,7 +3429,6 @@ fseg_free_step(
 	ulint		header_page;
 
 	DBUG_ENTER("fseg_free_step");
-	DBUG_LOG("fseg", fseg_header(header, mtr));
 
 	space_id = page_get_space_id(page_align(header));
 	header_page = page_get_page_no(page_align(header));
@@ -3473,7 +3470,6 @@ fseg_free_step(
 		/* Freeing completed: free the segment inode */
 		fsp_free_seg_inode(space_id, page_size, inode, mtr);
 
-		DBUG_LOG("fseg", "Freeing completed");
 		DBUG_RETURN(TRUE);
 	}
 
@@ -3488,7 +3484,6 @@ fseg_free_step(
 		/* Freeing completed: free the segment inode */
 		fsp_free_seg_inode(space_id, page_size, inode, mtr);
 
-		DBUG_LOG("fseg", "Freeing completed");
 		DBUG_RETURN(TRUE);
 	}
 
