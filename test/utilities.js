@@ -123,3 +123,32 @@ global.fail_openSession = function(testCase, callback) {
   });
   return promise;
 };
+
+/** Connect or fail the test case */
+global.fail_connect = function(testCase, callback) {
+  var promise;
+  if (arguments.length === 0) {
+    throw new Error('Fatal internal exception: fail_connect must have  1 or 2 parameters: testCase, callback');
+  }
+  var properties = global.test_conn_properties;
+  var mappings = testCase.mappings;
+  promise = mynode.connect(properties, mappings, function(err, sessionFactory) {
+    if (callback && err) {
+      testCase.fail(err);
+      return;
+    }
+    testCase.sessionFactory = sessionFactory;
+    if (typeof callback !== 'function') {
+      return;
+    }
+    try {
+      callback(sessionFactory, testCase);
+    }
+    catch(e) {
+      testCase.appendErrorMessage(e);
+      testCase.stack = e.stack;
+      testCase.failOnError();
+    }
+  });
+  return promise;
+};
