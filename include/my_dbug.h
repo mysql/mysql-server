@@ -170,6 +170,7 @@ extern void _db_flush_gcov_();
 #define DBUG_EVALUATE(keyword,a1,a2) (a2)
 #define DBUG_EVALUATE_IF(keyword,a1,a2) (a2)
 #define DBUG_PRINT(keyword,arglist)     do { } while(0)
+#define DBUG_PUTS(keyword,arg)          do { } while(0)
 #define DBUG_LOG(keyword,arglist)       do { } while(0)
 #define DBUG_PUSH(a1)                   do { } while(0)
 #define DBUG_SET(a1)                    do { } while(0)
@@ -216,6 +217,7 @@ void debug_sync_point(const char* lock_name, uint lock_timeout);
 #endif
 
 #ifdef __cplusplus
+#if !defined(DBUG_OFF)
 #include <sstream>
 
 /*
@@ -237,7 +239,7 @@ void debug_sync_point(const char* lock_name, uint lock_timeout);
 	sout << v; \
 	DBUG_PUTS(keyword, sout.str().c_str()); \
 } while(0)
+#endif /* DBUG_OFF */
 #endif /* __cplusplus */
-
 
 #endif /* MY_DBUG_INCLUDED */
