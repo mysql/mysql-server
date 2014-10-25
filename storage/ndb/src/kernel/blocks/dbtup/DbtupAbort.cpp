@@ -468,7 +468,8 @@ void Dbtup::send_TUPKEYREF(Signal* signal,
 void Dbtup::removeActiveOpList(Operationrec*  const regOperPtr,
                                Tuple_header *tuple_ptr)
 {
-  OperationrecPtr raoOperPtr;
+  OperationrecPtr nextOperPtr;
+  OperationrecPtr prevOperPtr;
 
   if(!regOperPtr->m_copy_tuple_location.isNull())
   {
@@ -476,22 +477,41 @@ void Dbtup::removeActiveOpList(Operationrec*  const regOperPtr,
     c_undo_buffer.free_copy_tuple(&regOperPtr->m_copy_tuple_location);
   }
 
-  if (regOperPtr->op_struct.bit_field.in_active_list) {
+  if (regOperPtr->op_struct.bit_field.in_active_list)
+  {
+    nextOperPtr.i = regOperPtr->nextActiveOp;
+    prevOperPtr.i = regOperPtr->prevActiveOp;
     regOperPtr->op_struct.bit_field.in_active_list= false;
-    if (regOperPtr->nextActiveOp != RNIL) {
+    if (nextOperPtr.i != RNIL)
+    {
       jam();
-      raoOperPtr.i= regOperPtr->nextActiveOp;
-      c_operation_pool.getPtr(raoOperPtr);
-      raoOperPtr.p->prevActiveOp= regOperPtr->prevActiveOp;
-    } else {
-      jam();
-      tuple_ptr->m_operation_ptr_i = regOperPtr->prevActiveOp;
+      c_operation_pool.getPtr(nextOperPtr);
+      nextOperPtr.p->prevActiveOp = prevOperPtr.i;
     }
-    if (regOperPtr->prevActiveOp != RNIL) {
+    else
+    {
       jam();
-      raoOperPtr.i= regOperPtr->prevActiveOp;
-      c_operation_pool.getPtr(raoOperPtr);
-      raoOperPtr.p->nextActiveOp= regOperPtr->nextActiveOp;
+      tuple_ptr->m_operation_ptr_i = prevOperPtr.i;
+    }
+    if (prevOperPtr.i != RNIL)
+    {
+      jam();
+      c_operation_pool.getPtr(prevOperPtr);
+      prevOperPtr.p->nextActiveOp = nextOperPtr.i;
+      if (nextOperPtr.i == RNIL)
+      {
+        jam();
+        /**
+         * We are the leader in the list of the operations on this row.
+         * There is more operations behind us, so thus we are the leader
+         * in a group of more than one operation. This means that we
+         * to transfer the leader functionality to the second in line.
+         */
+        prevOperPtr.p->op_struct.bit_field.m_load_diskpage_on_commit =
+          regOperPtr->op_struct.bit_field.m_load_diskpage_on_commit;
+        prevOperPtr.p->op_struct.bit_field.m_wait_log_buffer =
+          regOperPtr->op_struct.bit_field.m_wait_log_buffer;
+      }
     }
     regOperPtr->prevActiveOp= RNIL;
     regOperPtr->nextActiveOp= RNIL;
