@@ -713,6 +713,7 @@ void Dbtup::execTUP_COMMITREQ(Signal* signal)
 #ifdef VM_TRACE
   if (tupCommitReq->diskpage == RNIL)
   {
+    jam();
     m_pgman_ptr.i = RNIL;
     m_pgman_ptr.p = 0;
     req_struct.m_disk_page_ptr.i = RNIL;
@@ -793,6 +794,10 @@ void Dbtup::execTUP_COMMITREQ(Signal* signal)
         jam();
 	/**
 	 * Insert+Delete
+         * In this case we want to release the Copy page tuple that was
+         * allocated for the insert operation since the commit of the
+         * delete operation here makes it unnecessary to save the
+         * new record.
 	 */
         regOperPtr.p->op_struct.bit_field.m_load_diskpage_on_commit = 0;
         regOperPtr.p->op_struct.bit_field.m_wait_log_buffer = 0;	
@@ -803,9 +808,6 @@ void Dbtup::execTUP_COMMITREQ(Signal* signal)
         Logfile_client lgman(this, c_lgman, regFragPtr.p->m_logfile_group_id);
         lgman.free_log_space(regOperPtr.p->m_undo_buffer_space);
 	goto skip_disk;
-        if (0) ndbout_c("insert+delete");
-        jamEntry();
-        goto skip_disk;
       }
     } 
     else

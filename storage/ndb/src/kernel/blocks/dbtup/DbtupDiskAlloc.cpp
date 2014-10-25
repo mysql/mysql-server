@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -914,14 +914,8 @@ Dbtup::disk_page_prealloc_initial_callback(Signal*signal,
   Ptr<Extent_info> extentPtr;
   c_extent_pool.getPtr(extentPtr, req.p->m_extent_info_ptr);
 
-  if (tabPtr.p->m_attributes[DD].m_no_of_varsize == 0)
-  {
-    convertThPage((Fix_page*)pagePtr.p, tabPtr.p, DD);
-  }
-  else
-  {
-    abort();
-  }
+  ndbrequire(tabPtr.p->m_attributes[DD].m_no_of_varsize == 0);
+  convertThPage((Fix_page*)pagePtr.p, tabPtr.p, DD);
 
   pagePtr.p->m_page_no= req.p->m_key.m_page_no;
   pagePtr.p->m_file_no= req.p->m_key.m_file_no;

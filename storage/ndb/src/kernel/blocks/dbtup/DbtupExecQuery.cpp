@@ -202,6 +202,7 @@ Dbtup::insertActiveOpList(OperationrecPtr regOperPtr,
   if (prevOpPtr.i == RNIL) {
     return true;
   } else {
+    jam();
     req_struct->prevOpPtr.p= prevOpPtr.p= c_operation_pool.getPtr(prevOpPtr.i);
     prevOpPtr.p->nextActiveOp= regOperPtr.i;
 
@@ -420,6 +421,7 @@ Dbtup::load_diskpage(Signal* signal,
   int res= 1;
   if(ptr->m_header_bits & Tuple_header::DISK_PART)
   {
+    jam();
     Page_cache_client::Request req;
     memcpy(&req.m_page, ptr->get_disk_ref_ptr(regTabPtr), sizeof(Local_key));
     req.m_callback.m_callbackData= opRec;
@@ -446,20 +448,6 @@ Dbtup::load_diskpage(Signal* signal,
     Page_cache_client pgman(this, c_pgman);
     res= pgman.get_page(signal, req, flags);
     m_pgman_ptr = pgman.m_ptr;
-    if(res > 0)
-    {
-      //ndbout_c("in cache");
-      // In cache
-    } 
-    else if(res == 0)
-    {
-      //ndbout_c("waiting for callback");
-      // set state
-    }
-    else 
-    {
-      // Error
-    }
   }
 
   switch(flags & 7)
@@ -472,6 +460,7 @@ Dbtup::load_diskpage(Signal* signal,
   case ZINSERT:
   case ZWRITE:
   case ZREFRESH:
+    jam();
     regOperPtr->op_struct.bit_field.m_wait_log_buffer= 1;
     regOperPtr->op_struct.bit_field.m_load_diskpage_on_commit= 1;
   }
@@ -515,6 +504,7 @@ Dbtup::load_diskpage_scan(Signal* signal,
   int res= 1;
   if(ptr->m_header_bits & Tuple_header::DISK_PART)
   {
+    jam();
     Page_cache_client::Request req;
     memcpy(&req.m_page, ptr->get_disk_ref_ptr(regTabPtr), sizeof(Local_key));
     req.m_callback.m_callbackData= opRec;
@@ -524,20 +514,6 @@ Dbtup::load_diskpage_scan(Signal* signal,
     Page_cache_client pgman(this, c_pgman);
     res= pgman.get_page(signal, req, flags);
     m_pgman_ptr = pgman.m_ptr;
-    if(res > 0)
-    {
-      // ndbout_c("in cache");
-      // In cache
-    } 
-    else if(res == 0)
-    {
-      //ndbout_c("waiting for callback");
-      // set state
-    }
-    else 
-    {
-      // Error
-    }
   }
   return res;
 }
@@ -1333,6 +1309,7 @@ int Dbtup::handleUpdateReq(Signal* signal,
   }
   else
   {
+    jam();
     Operationrec* prevOp= req_struct->prevOpPtr.p;
     tup_version= prevOp->op_struct.bit_field.tupVersion;
     Uint32 * rawptr = get_copy_tuple_raw(&prevOp->m_copy_tuple_location);
@@ -1366,6 +1343,7 @@ int Dbtup::handleUpdateReq(Signal* signal,
     expand_tuple(req_struct, sizes, org, regTabPtr, disk);
     if(disk && operPtrP->m_undo_buffer_space == 0)
     {
+      jam();
       operPtrP->op_struct.bit_field.m_wait_log_buffer = 1;
       operPtrP->op_struct.bit_field.m_load_diskpage_on_commit = 1;
       Uint32 sz= operPtrP->m_undo_buffer_space= 
@@ -1376,6 +1354,7 @@ int Dbtup::handleUpdateReq(Signal* signal,
       terrorCode= lgman.alloc_log_space(sz);
       if(unlikely(terrorCode))
       {
+        jam();
 	operPtrP->m_undo_buffer_space= 0;
 	goto error;
       }
@@ -1894,7 +1873,10 @@ int Dbtup::handleInsertReq(Signal* signal,
     tup_version= prevOp->op_struct.bit_field.tupVersion + 1;
     
     if(!prevOp->is_first_operation())
+    {
+      jam();
       org= get_copy_tuple(&prevOp->m_copy_tuple_location);
+    }
     if (regTabPtr->need_expand())
     {
       expand_tuple(req_struct, sizes, org, regTabPtr, !disk_insert);
@@ -1924,6 +1906,7 @@ int Dbtup::handleInsertReq(Signal* signal,
   int res;
   if (disk_insert)
   {
+    jam();
     if (ERROR_INSERTED(4015))
     {
       terrorCode = 1501;
@@ -1935,6 +1918,7 @@ int Dbtup::handleInsertReq(Signal* signal,
     res= lgman.alloc_log_space(regOperPtr.p->m_undo_buffer_space);
     if(unlikely(res))
     {
+      jam();
       terrorCode= res;
       goto log_space_error;
     }
@@ -2130,6 +2114,7 @@ int Dbtup::handleInsertReq(Signal* signal,
 
   if (disk_insert)
   {
+    jam();
     Local_key tmp;
     Uint32 size= regTabPtr->m_attributes[DD].m_no_of_varsize == 0 ? 
       1 : sizes[2+DD];
@@ -2142,6 +2127,7 @@ int Dbtup::handleInsertReq(Signal* signal,
 
     if (!Local_key::isShort(frag_page_id))
     {
+      jam();
       terrorCode = 1603;
       goto disk_prealloc_error;
     }
@@ -2149,6 +2135,7 @@ int Dbtup::handleInsertReq(Signal* signal,
     int ret= disk_page_prealloc(signal, fragPtr, &tmp, size);
     if (unlikely(ret < 0))
     {
+      jam();
       terrorCode = -ret;
       goto disk_prealloc_error;
     }
@@ -2248,6 +2235,7 @@ exit_error:
   {
     jam();
     /* Memory allocated, abort insert, releasing memory if appropriate */
+    signal->theData[0] = regOperPtr.i;
     do_tup_abortreq(signal, ZSKIP_TUX_TRIGGERS | ZABORT_DEALLOC);
   }
   tupkeyErrorLab(req_struct);
@@ -2279,6 +2267,7 @@ int Dbtup::handleDeleteReq(Signal* signal,
   // delete must set but not increment tupVersion
   if (!regOperPtr->is_first_operation())
   {
+    jam();
     Operationrec* prevOp= req_struct->prevOpPtr.p;
     regOperPtr->op_struct.bit_field.tupVersion=
       prevOp->op_struct.bit_field.tupVersion;
@@ -2307,6 +2296,7 @@ int Dbtup::handleDeleteReq(Signal* signal,
 
   if(disk && regOperPtr->m_undo_buffer_space == 0)
   {
+    jam();
     regOperPtr->op_struct.bit_field.m_wait_log_buffer = 1;
     regOperPtr->op_struct.bit_field.m_load_diskpage_on_commit = 1;
     Uint32 sz= regOperPtr->m_undo_buffer_space= 
@@ -2318,6 +2308,7 @@ int Dbtup::handleDeleteReq(Signal* signal,
     terrorCode= lgman.alloc_log_space(sz);
     if(unlikely(terrorCode))
     {
+      jam();
       regOperPtr->m_undo_buffer_space= 0;
       goto error;
     }
@@ -4654,11 +4645,13 @@ Dbtup::nr_delete_page_callback(Signal* signal,
   int res= lgman.get_log_buffer(signal, sz, &cb);
   switch(res){
   case 0:
+    jam();
     return;
   case -1:
     ndbrequire("NOT YET IMPLEMENTED" == 0);
     break;
   }
+  jam();
     
   if (0) ndbout << "PAGE CALLBACK DISK DELETE: " << op.m_disk_ref << endl;
   disk_page_free(signal, tablePtr.p, fragPtr.p,
@@ -4693,7 +4686,7 @@ Dbtup::nr_delete_log_buffer_callback(Signal* signal,
    * reset page no
    */
   if (0) ndbout << "LOGBUFFER CALLBACK DISK DELETE: " << op.m_disk_ref << endl;
-  
+  jam();
   disk_page_free(signal, tablePtr.p, fragPtr.p,
 		 &op.m_disk_ref, pagePtr, op.m_gci_hi);
   
