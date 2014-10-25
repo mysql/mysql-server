@@ -6368,10 +6368,12 @@ static toku_compression_method get_compression_method(DB *file) {
     return method;
 }
 
+#if TOKU_INCLUDE_ROW_TYPE_COMPRESSION
 enum row_type ha_tokudb::get_row_type(void) const {
     toku_compression_method compression_method = get_compression_method(share->file);
     return toku_compression_method_to_row_type(compression_method);
 }
+#endif
 
 static int create_sub_table(
     const char *table_name, 
@@ -6447,16 +6449,16 @@ void ha_tokudb::update_create_info(HA_CREATE_INFO* create_info) {
             create_info->auto_increment_value = stats.auto_increment_value;
         }
     }
+#if TOKU_INCLUDE_ROW_TYPE_COMPRESSION
     if (!(create_info->used_fields & HA_CREATE_USED_ROW_FORMAT)) {
         // show create table asks us to update this create_info, this makes it
         // so we'll always show what compression type we're using
         create_info->row_type = get_row_type();
-#if TOKU_INCLUDE_ROW_TYPE_COMPRESSION
         if (create_info->row_type == ROW_TYPE_TOKU_ZLIB && THDVAR(ha_thd(), hide_default_row_format) != 0) {
             create_info->row_type = ROW_TYPE_DEFAULT;
         }
-#endif
     }
+#endif
 }
 
 //
@@ -6780,6 +6782,14 @@ int ha_tokudb::create(const char *name, TABLE * form, HA_CREATE_INFO * create_in
     THD* thd = ha_thd();
 
     memset(&kc_info, 0, sizeof(kc_info));
+
+#if 100000 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 100999
+    // TokuDB does not support discover_table_names() and writes no files
+    // in the database directory, so automatic filename-based
+    // discover_table_names() doesn't work either. So, it must force .frm
+    // file to disk.
+    form->s->write_frm_image();
+#endif
 
 #if TOKU_INCLUDE_OPTION_STRUCTS
     const srv_row_format_t row_format = (srv_row_format_t) form->s->option_struct->row_format;
