@@ -2059,7 +2059,7 @@ args: -n CreateDropError T1
 # Bug18408672 added on 17.04.2014
 #max-time : 300
 #cmd: testFK
-#args: -n TransError T1
+#args: -n TransError T1 T15
 #
 max-time : 300
 cmd: testFK
