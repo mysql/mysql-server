@@ -511,6 +511,21 @@ void Dbtup::removeActiveOpList(Operationrec*  const regOperPtr,
           regOperPtr->op_struct.bit_field.m_load_diskpage_on_commit;
         prevOperPtr.p->op_struct.bit_field.m_wait_log_buffer =
           regOperPtr->op_struct.bit_field.m_wait_log_buffer;
+        if (regOperPtr->op_struct.bit_field.delete_insert_flag &&
+            regOperPtr->op_type == ZINSERT &&
+            prevOperPtr.p->op_type == ZDELETE)
+        {
+          jam();
+          /**
+           * If someone somehow manages to first delete the record and then
+           * starts a new operation on the same record using an insert, given
+           * that we now abort the insert operation we need to reset the
+           * delete+insert flag on the delete operation if this operation for
+           * some reason continues and becomes committed. In this case we
+           * want to ensure that the delete executes its index triggers.
+           */
+          prevOperPtr.p->op_struct.bit_field.delete_insert_flag = false;
+        }
       }
     }
     regOperPtr->prevActiveOp= RNIL;
