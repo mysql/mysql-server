@@ -881,7 +881,6 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
               // ignore result
               Page_cache_client pgman(this, c_pgman);
               pgman.get_page(signal, preq, flags);
-              m_pgman_ptr = pgman.m_ptr;
               jamEntry();
               page_no++;
             }
@@ -930,8 +929,9 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
           safe_cast(&Dbtup::disk_page_tup_scan_callback);
         int flags = 0;
         Page_cache_client pgman(this, c_pgman);
+        Ptr<GlobalPage> pagePtr;
         int res = pgman.get_page(signal, preq, flags);
-        m_pgman_ptr = pgman.m_ptr;
+        pagePtr = pgman.m_ptr;
         jamEntry();
         if (res == 0) {
           jam();
@@ -940,7 +940,7 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
           return false;
         }
         ndbrequire(res > 0);
-        pos.m_page = (Page*)m_pgman_ptr.p;
+        pos.m_page = (Page*)pagePtr.p;
       }
       pos.m_get = ScanPos::Get_tuple;
       continue;

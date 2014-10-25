@@ -2121,7 +2121,6 @@ Dbtup::drop_fragment_unmap_pages(Signal *signal,
     Page_cache_client pgman(this, c_pgman);
     int res= pgman.get_page(signal, req, flags);
     jamEntry();
-    m_pgman_ptr = pgman.m_ptr;
     switch(res)
     {
     case 0:

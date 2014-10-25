@@ -932,7 +932,8 @@ end:
 void Dbtup::checkDetachedTriggers(KeyReqStruct *req_struct,
                                   Operationrec* regOperPtr,
                                   Tablerec* regTablePtr,
-                                  bool disk)
+                                  bool disk,
+                                  Uint32 diskPagePtrI)
 {
   Uint32 save_type = regOperPtr->op_type;
   Tuple_header *save_ptr = req_struct->m_tuple_ptr;  
@@ -981,7 +982,9 @@ void Dbtup::checkDetachedTriggers(KeyReqStruct *req_struct,
     // If any fired immediate insert trigger then fetch after tuple
     fireDetachedTriggers(req_struct,
                          regTablePtr->subscriptionInsertTriggers, 
-                         regOperPtr, disk);
+                         regOperPtr,
+                         disk,
+                         diskPagePtrI);
     break;
   case(ZDELETE):
     jam();
@@ -995,7 +998,9 @@ void Dbtup::checkDetachedTriggers(KeyReqStruct *req_struct,
     // FIRETRIGORD with the before tuple
     fireDetachedTriggers(req_struct,
 			 regTablePtr->subscriptionDeleteTriggers, 
-			 regOperPtr, disk);
+			 regOperPtr,
+                         disk,
+                         diskPagePtrI);
     break;
   case(ZUPDATE):
     jam();
@@ -1009,7 +1014,9 @@ void Dbtup::checkDetachedTriggers(KeyReqStruct *req_struct,
     // and send two FIRETRIGORD one with before tuple and one with after tuple
     fireDetachedTriggers(req_struct,
                          regTablePtr->subscriptionUpdateTriggers, 
-                         regOperPtr, disk);
+                         regOperPtr,
+                         disk,
+                         diskPagePtrI);
     break;
   case ZREFRESH:
     jam();
@@ -1022,13 +1029,17 @@ void Dbtup::checkDetachedTriggers(KeyReqStruct *req_struct,
     case Operationrec::RF_MULTI_NOT_EXIST:
       fireDetachedTriggers(req_struct,
                            regTablePtr->subscriptionDeleteTriggers,
-                           regOperPtr, disk);
+                           regOperPtr,
+                           disk,
+                           diskPagePtrI);
       break;
     case Operationrec::RF_SINGLE_EXIST:
     case Operationrec::RF_MULTI_EXIST:
       fireDetachedTriggers(req_struct,
                            regTablePtr->subscriptionInsertTriggers,
-                           regOperPtr, disk);
+                           regOperPtr,
+                           disk,
+                           diskPagePtrI);
       break;
     default:
       ndbrequire(false);
@@ -1144,7 +1155,8 @@ void
 Dbtup::fireDetachedTriggers(KeyReqStruct *req_struct,
                             DLList<TupTriggerData>& triggerList, 
                             Operationrec* const regOperPtr,
-                            bool disk)
+                            bool disk,
+                            Uint32 diskPagePtrI)
 {
   
   TriggerPtr trigPtr;  
@@ -1152,7 +1164,7 @@ Dbtup::fireDetachedTriggers(KeyReqStruct *req_struct,
   /**
    * Set disk page
    */
-  req_struct->m_disk_page_ptr.i = m_pgman_ptr.i;
+  req_struct->m_disk_page_ptr.i = diskPagePtrI;
   
   ndbrequire(regOperPtr->is_first_operation());
   triggerList.first(trigPtr);
