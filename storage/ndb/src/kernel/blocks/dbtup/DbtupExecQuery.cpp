@@ -447,7 +447,6 @@ Dbtup::load_diskpage(Signal* signal,
     
     Page_cache_client pgman(this, c_pgman);
     res= pgman.get_page(signal, req, flags);
-    m_pgman_ptr = pgman.m_ptr;
   }
 
   switch(flags & 7)
@@ -513,7 +512,6 @@ Dbtup::load_diskpage_scan(Signal* signal,
     
     Page_cache_client pgman(this, c_pgman);
     res= pgman.get_page(signal, req, flags);
-    m_pgman_ptr = pgman.m_ptr;
   }
   return res;
 }
@@ -4570,10 +4568,10 @@ Dbtup::nr_delete(Signal* signal, Uint32 senderData,
       }
     }
 #endif
-    
+    Ptr<GlobalPage> diskPagePtr; 
     Page_cache_client pgman(this, c_pgman);
     res = pgman.get_page(signal, preq, flags);
-    m_pgman_ptr = pgman.m_ptr;
+    diskPagePtr = pgman.m_ptr;
     if (res == 0)
     {
       goto timeslice;
@@ -4583,7 +4581,7 @@ Dbtup::nr_delete(Signal* signal, Uint32 senderData,
       return -1;
     }
 
-    PagePtr disk_page((Tup_page*)m_pgman_ptr.p, m_pgman_ptr.i);
+    PagePtr disk_page((Tup_page*)diskPagePtr.p, diskPagePtr.i);
     disk_page_set_dirty(disk_page);
 
     CallbackPtr cptr;

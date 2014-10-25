@@ -700,7 +700,6 @@ Dbtup::disk_page_prealloc(Signal* signal,
   
   Page_cache_client pgman(this, c_pgman);
   int res= pgman.get_page(signal, preq, flags);
-  m_pgman_ptr = pgman.m_ptr;
   jamEntry();
   switch(res)
   {
@@ -1259,7 +1258,6 @@ Dbtup::disk_page_abort_prealloc(Signal *signal, Fragrecord* fragPtrP,
 
   Page_cache_client pgman(this, c_pgman);
   int res= pgman.get_page(signal, req, flags);
-  m_pgman_ptr = pgman.m_ptr;
   jamEntry();
   switch(res)
   {
@@ -1598,7 +1596,6 @@ Dbtup::disk_restart_undo(Signal* signal, Uint64 lsn,
   int flags = 0;
   Page_cache_client pgman(this, c_pgman);
   int res= pgman.get_page(signal, preq, flags);
-  m_pgman_ptr = pgman.m_ptr;
   jamEntry();
   switch(res)
   {

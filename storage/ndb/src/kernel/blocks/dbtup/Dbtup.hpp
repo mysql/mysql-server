@@ -264,8 +264,6 @@ public:
   Tsman* c_tsman;
   Lgman* c_lgman;
   Pgman* c_pgman;
-  // copy of pgman.m_ptr set after each get_page
-  Ptr<GlobalPage> m_pgman_ptr;
 
   enum CallbackIndex {
     // lgman
@@ -2640,7 +2638,8 @@ private:
   void checkDetachedTriggers(KeyReqStruct *req_struct,
                              Operationrec* regOperPtr,
                              Tablerec* regTablePtr,
-                             bool disk);
+                             bool disk,
+                             Uint32 diskPagePtrI);
 
   void fireImmediateTriggers(KeyReqStruct *req_struct,
                              DLList<TupTriggerData>& triggerList, 
@@ -2664,7 +2663,8 @@ private:
   void fireDetachedTriggers(KeyReqStruct *req_struct,
                             DLList<TupTriggerData>& triggerList,
                             Operationrec* regOperPtr,
-                            bool disk);
+                            bool disk,
+                            Uint32 diskPagePtrI);
 
   void executeTrigger(KeyReqStruct *req_struct,
                       TupTriggerData* trigPtr, 
@@ -3422,17 +3422,44 @@ private:
   void findFirstOp(OperationrecPtr&);
   bool is_rowid_lcp_scanned(const Local_key& key1,
                            const Dbtup::ScanOp& op);
-  void commit_operation(Signal*, Uint32, Uint32, Tuple_header*, PagePtr,
-			Operationrec*, Fragrecord*, Tablerec*);
-  void commit_refresh(Signal*, Uint32, Uint32, Tuple_header*, PagePtr,
-                      KeyReqStruct*, Operationrec*, Fragrecord*, Tablerec*);
+  void commit_operation(Signal*,
+                        Uint32,
+                        Uint32,
+                        Tuple_header*,
+                        PagePtr,
+			Operationrec*,
+                        Fragrecord*,
+                        Tablerec*,
+                        Ptr<GlobalPage> diskPagePtr);
+
+  void commit_refresh(Signal*,
+                      Uint32,
+                      Uint32,
+                      Tuple_header*,
+                      PagePtr,
+                      KeyReqStruct*,
+                      Operationrec*,
+                      Fragrecord*,
+                      Tablerec*,
+                      Ptr<GlobalPage> diskPagePtr);
+
   int retrieve_data_page(Signal*,
                          Page_cache_client::Request,
-                         OperationrecPtr);
+                         OperationrecPtr,
+                         Ptr<GlobalPage> &diskPagePtr);
   int retrieve_log_page(Signal*, FragrecordPtr, OperationrecPtr);
 
-  void dealloc_tuple(Signal* signal, Uint32, Uint32, Page*, Tuple_header*,
-		     KeyReqStruct*, Operationrec*, Fragrecord*, Tablerec*);
+  void dealloc_tuple(Signal* signal,
+                     Uint32,
+                     Uint32,
+                     Page*,
+                     Tuple_header*,
+                     KeyReqStruct*,
+                     Operationrec*,
+                     Fragrecord*,
+                     Tablerec*,
+                     Ptr<GlobalPage> diskPagePtr);
+
   bool store_extra_row_bits(Uint32, const Tablerec*, Tuple_header*, Uint32,
                             bool);
   void read_extra_row_bits(Uint32, const Tablerec*, Tuple_header*, Uint32 *,
