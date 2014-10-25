@@ -4829,10 +4829,14 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
     return;
   }
   
-  cTotalLqhKeyReqCount++;
-  c_Counters.operations++;
+  Uint32 tot_lqh_key_req_count = cTotalLqhKeyReqCount;
+  Uint32 num_operations = c_Counters.operations;
 
   TcConnectionrec * const regTcPtr = tcConnectptr.p;
+  jamLine(tcConnectptr.i & 0xFFFF);
+  c_Counters.operations = num_operations + 1;
+  cTotalLqhKeyReqCount = tot_lqh_key_req_count + 1;
+
   Uint32 senderRef = regTcPtr->clientBlockref = signal->senderBlockRef();
   regTcPtr->clientConnectrec = sig0;
   regTcPtr->tcOprec = sig0;

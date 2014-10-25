@@ -1715,17 +1715,20 @@ out:
 }
 
 Uint32 Dbtup::setAttrIds(Bitmask<MAXNROFATTRIBUTESINWORDS>& attributeMask, 
-                         Uint32 m_no_of_attributesibutes, 
+                         Uint32 no_of_attributes, 
                          Uint32* inBuffer)
 {
   Uint32 bufIndx = 0;
-  for (Uint32 i = 0; i < m_no_of_attributesibutes; i++) {
-    jam();
-    if (attributeMask.get(i)) {
-      jam();
+  jam();
+  for (Uint32 i = 0; i < no_of_attributes; i++)
+  {
+    if (attributeMask.get(i))
+    {
+      jamLine(i);
       AttributeHeader::init(&inBuffer[bufIndx++], i, 0);
     }
   }
+  jam();
   return bufIndx;
 }
 
