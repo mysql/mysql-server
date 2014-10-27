@@ -2,7 +2,7 @@
 -- source include/mysql_upgrade_preparation.inc
 
 #
-# Basic test that we can run mysql_upgrde and that it finds the
+# Basic test that we can run mysql_upgrade and that it finds the
 # expected binaries it uses.
 #
 --echo Run mysql_upgrade once
@@ -263,6 +263,10 @@ SELECT LENGTH(plugin) <> 0 FROM mysql.user WHERE user='B19011337';
 REVOKE ALL PRIVILEGES ON *.* FROM B19011337@localhost;
 DROP USER B19011337@localhost;
 
+--disable_query_log
+call mtr.add_suppression("\\[ERROR\\] InnoDB: Failed to find tablespace for table `mysql`.`gtid_executed` in the cache. Attempting to load the tablespace with space id");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: Failed to find tablespace for table `mysql`.`help_topic` in the cache. Attempting to load the tablespace with space id");
+--enable_query_log
 
 --source include/mysql_upgrade_cleanup.inc
 

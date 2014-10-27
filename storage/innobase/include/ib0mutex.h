@@ -302,8 +302,6 @@ private:
 };
 
 
-#ifdef HAVE_ATOMIC_BUILTINS
-
 #ifdef HAVE_IB_LINUX_FUTEX
 
 #include <linux/futex.h>
@@ -971,8 +969,6 @@ private:
 	when atomic operations are enabled. */
 	volatile lock_word_t	m_lock_word;
 };
-
-#endif /* HAVE_ATOMIC_BUILTINS */
 
 /** Mutex interface for all policy mutexes. This class handles the interfacing
 with the Performance Schema instrumentation. */

@@ -21,6 +21,7 @@
 
 #include "trigger_def.h"                  // enum_trigger_action_time_type
 #include "table_trigger_field_support.h"  // Table_trigger_field_support
+#include "mysqld_error.h"                 // ER_PARSE_ERROR
 
 ///////////////////////////////////////////////////////////////////////////
 

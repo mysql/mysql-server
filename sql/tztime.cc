@@ -29,7 +29,6 @@
 
 #if !defined(TZINFO2SQL)
 #include "sql_priv.h"
-#include "unireg.h"
 #include "tztime.h"
 #include "sql_time.h"                           // localtime_to_TIME
 #include "sql_base.h"                           // open_trans_system_tables_for_read,

@@ -52,19 +52,6 @@ we could get a deadlock. Value of 0 will disable the concurrency check. */
 
 extern ulong	srv_thread_concurrency;
 
-#ifndef HAVE_ATOMIC_BUILTINS
-/** Mutex protecting some server global variables. */
-extern ib_mutex_t	server_mutex;
-
-/** Initialise the concurrency management data structures. */
-void
-srv_conc_init(void);
-
-/** Free the concurrency management data structures. */
-void
-srv_conc_free(void);
-#endif /* !HAVE_ATOMIC_BUILTINS */
-
 struct row_prebuilt_t;
 /*********************************************************************//**
 Puts an OS thread to wait if there are too many concurrent threads

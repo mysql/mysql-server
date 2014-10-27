@@ -14,7 +14,6 @@
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 #include "sql_priv.h"
-#include "unireg.h"
 #include "sql_help.h"
 #include "sql_table.h"                          // primary_key_name
 #include "sql_base.h"               // REPORT_ALL_ERRORS, setup_tables
