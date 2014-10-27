@@ -1094,7 +1094,7 @@ ibuf_fixed_addr_page(
 }
 
 /** Checks if a page is a level 2 or 3 page in the ibuf hierarchy of pages.
-Must not be called when recv_no_ibuf_operations==TRUE.
+Must not be called when recv_no_ibuf_operations==true.
 @param[in]	page_id		page id
 @param[in]	page_size	page size
 @param[in]	x_latch		FALSE if relaxed check (avoid latching the

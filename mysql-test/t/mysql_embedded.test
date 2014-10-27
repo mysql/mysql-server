@@ -5,6 +5,15 @@
 # way to stop embedded server started by MTR from within an MTR-test.
 --source include/not_embedded.inc
 
+--disable_query_log
+call mtr.add_suppression("\\[Warning\\] InnoDB: Ignoring tablespace `.*` because it could not be opened");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: A tablespace for `.*` has been found in multiple places");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: Default location:");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: Dictionary location:");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: Will not open tablespace");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: Failed to find tablespace for table `.*`.`.*` in the cache. Attempting to load the tablespace with space id");
+--enable_query_log
+
 # The test basically restarts the server on the same data set.
 # Thus, the InnoDB page size must be the default. Otherwise, the server
 # with the default page size will refuse to start on the data set with custom

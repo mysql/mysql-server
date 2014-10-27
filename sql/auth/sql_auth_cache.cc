@@ -1669,8 +1669,8 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
     sql_print_warning("3. Restart the server with the parameters you "
                       "normally use.");
     sql_print_warning("For complete instructions on how to upgrade MySQL "
-                      "to a new version please see section 2.10.1 from "
-                      " the MySQL manual");
+                      "to a new version please see the 'Upgrading MySQL' "
+                      "section from the MySQL manual");
   }
 
   /* Legacy password integrity checks ----------------------------------------*/

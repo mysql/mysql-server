@@ -6876,7 +6876,7 @@ fts_check_and_drop_orphaned_tables(
 			     || orig_parent_id != next_aux_table->parent_id)
 			    && (!ib_vector_is_empty(aux_tables_to_rename))) {
 
-					ulint	parent_id = fts_fake_hex_to_dec(
+					ib_id_t	parent_id = fts_fake_hex_to_dec(
 							aux_table->parent_id);
 
 					parent_table = dict_table_open_on_id(

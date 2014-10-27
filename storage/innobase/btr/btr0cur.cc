@@ -258,9 +258,9 @@ btr_cur_latch_leaves(
 	case BTR_MODIFY_LEAF:
 	case BTR_SEARCH_TREE:
 		if (spatial) {
-                        cursor->rtr_info->tree_savepoints[RTR_MAX_LEVELS]
+			cursor->rtr_info->tree_savepoints[RTR_MAX_LEVELS]
 				= mtr_set_savepoint(mtr);
-                }
+		}
 
 		mode = latch_mode == BTR_MODIFY_LEAF ? RW_X_LATCH : RW_S_LATCH;
 		latch_leaves.savepoints[1] = mtr_set_savepoint(mtr);
@@ -271,9 +271,9 @@ btr_cur_latch_leaves(
 		ut_a(page_is_comp(get_block->frame) == page_is_comp(page));
 #endif /* UNIV_BTR_DEBUG */
 		if (spatial) {
-                        cursor->rtr_info->tree_blocks[RTR_MAX_LEVELS]
+			cursor->rtr_info->tree_blocks[RTR_MAX_LEVELS]
 				= get_block;
-                }
+		}
 
 		return(latch_leaves);
 	case BTR_MODIFY_TREE:
@@ -306,12 +306,12 @@ btr_cur_latch_leaves(
 				cursor->rtr_info->tree_blocks[RTR_MAX_LEVELS]
 					= get_block;
 			}
-                }
+		}
 
 		if (spatial) {
-                        cursor->rtr_info->tree_savepoints[RTR_MAX_LEVELS + 1]
+			cursor->rtr_info->tree_savepoints[RTR_MAX_LEVELS + 1]
 				= mtr_set_savepoint(mtr);
-                }
+		}
 
 		latch_leaves.savepoints[1] = mtr_set_savepoint(mtr);
 		get_block = btr_block_get(
@@ -322,9 +322,9 @@ btr_cur_latch_leaves(
 #endif /* UNIV_BTR_DEBUG */
 
 		if (spatial) {
-                        cursor->rtr_info->tree_blocks[RTR_MAX_LEVELS + 1]
+			cursor->rtr_info->tree_blocks[RTR_MAX_LEVELS + 1]
 				= get_block;
-                }
+		}
 
 		right_page_no = btr_page_get_next(page, mtr);
 
@@ -390,6 +390,7 @@ btr_cur_latch_leaves(
 	}
 
 	ut_error;
+	return(latch_leaves);
 }
 
 /** Optimistically latches the leaf page or pages requested.

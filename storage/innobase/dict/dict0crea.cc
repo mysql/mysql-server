@@ -132,7 +132,7 @@ dict_create_sys_tables_tuple(
 
 	ptr = static_cast<byte*>(mem_heap_alloc(heap, 4));
 	/* Be sure all non-used bits are zero. */
-	ut_a(!(table->flags2 & ~DICT_TF2_BIT_MASK));
+	ut_a(!(table->flags2 & DICT_TF2_UNUSED_BIT_MASK));
 	mach_write_to_4(ptr, table->flags2);
 
 	dfield_set_data(dfield, ptr, 4);
@@ -1524,7 +1524,7 @@ dict_check_if_system_table_exists(
 		/* This table has already been created, and it is OK.
 		Ensure that it can't be evicted from the table LRU cache. */
 
-		dict_table_move_from_lru_to_non_lru(sys_table);
+		dict_table_prevent_eviction(sys_table);
 	}
 
 	mutex_exit(&dict_sys->mutex);

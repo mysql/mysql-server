@@ -16,7 +16,6 @@
 /* Some useful string utility functions used by the MySQL server */
 
 #include "sql_priv.h"
-#include "unireg.h"
 #include "strfunc.h"
 #include "sql_class.h"
 #include "typelib.h"                            // TYPELIB
