@@ -1679,8 +1679,8 @@ mysql_init(MYSQL *mysql)
   strmov(mysql->net.sqlstate, not_error_sqlstate);
 
   /*
-    Only enable LOAD DATA INFILE by default if configured with
-    --enable-local-infile
+    Only enable LOAD DATA INFILE by default if configured with option
+    ENABLED_LOCAL_INFILE
   */
 
 #if defined(ENABLED_LOCAL_INFILE) && !defined(MYSQL_SERVER)
