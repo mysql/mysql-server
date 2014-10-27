@@ -3237,7 +3237,15 @@ void Dbtc::execTCKEYREQ(Signal* signal)
   }
   else
   {
-    /* Insert, Update, Write, Delete */
+    /**
+     * Insert, Update, Write, Delete
+     * Markers are created on all nodes in a nodegroup 
+     * (as changes affect all replicas)
+     * Therefore any survivable node failure will have a live
+     * node with a marker for any marked write transaction.
+     * Therefore only need one nodegroup marked - after that
+     * needn't bother.
+     */
     if (!tc_testbit(regApiPtr->m_flags,
                     ApiConnectRecord::TF_COMMIT_ACK_MARKER_RECEIVED))
     {
@@ -4706,16 +4714,21 @@ void Dbtc::execLQHKEYCONF(Signal* signal)
     treadlenAi = 0;
   }
 
+  /* Handle case where LQHKEYREQ requested an LQH CommitAckMarker */
   Uint32 commitAckMarker = regTcPtr->commitAckMarker;
-  regTcPtr->commitAckMarker = RNIL;
   setApiConTimer(apiConnectptr.i, TtcTimer, __LINE__);
   if (commitAckMarker != RNIL)
   {
+    /* Update TC CommitAckMarker record to track LQH CommitAckMarkers */
     const Uint32 noOfLqhs = regTcPtr->noOfNodes;
     CommitAckMarker * tmp = m_commitAckMarkerHash.getPtr(commitAckMarker);
     jam();
+    /**
+     * Now that we have a marker in all nodes in at least one nodegroup, 
+     * don't need to request any more for this transaction
+     */
     regApiPtr.p->m_flags |= ApiConnectRecord::TF_COMMIT_ACK_MARKER_RECEIVED;
-    regApiPtr.p->num_commit_ack_markers--;
+    
     /**
      * Populate LQH array
      */
@@ -5648,6 +5661,13 @@ void Dbtc::commit020Lab(Signal* signal)
     /*  COMMIT  < */
     /* *********< */
     localTcConnectptr.i = localTcConnectptr.p->nextTcConnect;
+    /* Clear per-operation record CommitAckMarker ref if necessary */
+    if (localTcConnectptr.p->commitAckMarker != RNIL)
+    {
+      ndbassert(regApiPtr->commitAckMarker != RNIL);
+      ndbrequire(regApiPtr->num_commit_ack_markers--);
+      localTcConnectptr.p->commitAckMarker = RNIL;
+    }
     localTcConnectptr.p->tcConnectstate = OS_COMMITTING;
     Tcount += sendCommitLqh(signal, localTcConnectptr.p);
 
@@ -5695,6 +5715,7 @@ void Dbtc::commit020Lab(Signal* signal)
         CLEAR_ERROR_INSERT_VALUE;
 
       regApiPtr->apiConnectstate = CS_COMMIT_SENT;
+      ndbrequire(regApiPtr->num_commit_ack_markers == 0);
       return;
     }//if
   } while (1);
@@ -6699,6 +6720,7 @@ void Dbtc::releaseApiConCopy(Signal* signal)
 /* ========================================================================= */
 void Dbtc::releaseDirtyWrite(Signal* signal) 
 {
+  clearCommitAckMarker(apiConnectptr.p, tcConnectptr.p);
   unlinkReadyTcCon(signal);
   releaseTcCon();
   ApiConnectRecord * const regApiPtr = apiConnectptr.p;
@@ -6996,9 +7018,11 @@ void Dbtc::execLQHKEYREF(Signal* signal)
 void Dbtc::clearCommitAckMarker(ApiConnectRecord * const regApiPtr,
 				TcConnectRecord * const regTcPtr)
 {
+  jam();
   const Uint32 commitAckMarker = regTcPtr->commitAckMarker;
   if (regApiPtr->commitAckMarker == RNIL)
   {
+    jam();
     ndbassert(commitAckMarker == RNIL);
   }
 
@@ -7011,6 +7035,7 @@ void Dbtc::clearCommitAckMarker(ApiConnectRecord * const regApiPtr,
     regTcPtr->commitAckMarker = RNIL;
     if (regApiPtr->num_commit_ack_markers == 0)
     {
+      jam();
       tc_clearbit(regApiPtr->m_flags,
                   ApiConnectRecord::TF_COMMIT_ACK_MARKER_RECEIVED);
       releaseMarker(regApiPtr);
@@ -14058,7 +14083,7 @@ void Dbtc::releaseAbortResources(Signal* signal)
   while (tcConnectptr.i != RNIL) {
     jam();
     ptrCheckGuard(tcConnectptr, ctcConnectFilesize, tcConnectRecord);
-    // Clear any markers that were set in CS_RECEIVING state
+    // Clear any markers that have not already been cleared
     clearCommitAckMarker(apiConnectptr.p, tcConnectptr.p);
     rarTcConnectptr.i = tcConnectptr.p->nextTcConnect;
     releaseTcCon();

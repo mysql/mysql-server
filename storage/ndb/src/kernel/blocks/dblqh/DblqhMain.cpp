@@ -24919,6 +24919,50 @@ void Dblqh::execDBINFO_SCANREQ(Signal *signal)
     
     break;
   }
+  case Ndbinfo::POOLS_TABLEID:
+  {
+    Ndbinfo::pool_entry pools[] =
+    {
+      { "Commit ACK Marker",
+        m_commitAckMarkerPool.getUsed(),
+        m_commitAckMarkerPool.getSize(),
+        m_commitAckMarkerPool.getEntrySize(),
+        m_commitAckMarkerPool.getUsedHi(),
+        { CFG_DB_NO_LOCAL_OPS, CFG_DB_NO_OPS,0,0 }},
+      { NULL, 0,0,0,0,{0,0,0,0} }
+    };
+
+    const size_t num_config_params =
+      sizeof(pools[0].config_params) / sizeof(pools[0].config_params[0]);
+    Uint32 pool = cursor->data[0];
+    BlockNumber bn = blockToMain(number());
+    while(pools[pool].poolname)
+    {
+      jam();
+      Ndbinfo::Row row(signal, req);
+      row.write_uint32(getOwnNodeId());
+      row.write_uint32(bn);           // block number
+      row.write_uint32(instance());   // block instance
+      row.write_string(pools[pool].poolname);
+
+      row.write_uint64(pools[pool].used);
+      row.write_uint64(pools[pool].total);
+      row.write_uint64(pools[pool].used_hi);
+      row.write_uint64(pools[pool].entry_size);
+      for (size_t i = 0; i < num_config_params; i++)
+        row.write_uint32(pools[pool].config_params[i]);
+      ndbinfo_send_row(signal, req, row, rl);
+      pool++;
+      if (rl.need_break(req))
+      {
+        jam();
+        ndbinfo_send_scan_break(signal, req, rl, pool);
+        return;
+      }
+    }
+    break;
+  }
+
   default:
     break;
   }
