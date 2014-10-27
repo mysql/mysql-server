@@ -535,10 +535,6 @@ static MYSQL_THDVAR_BOOL(strict_mode, PLUGIN_VAR_OPCMDARG,
   "Use strict mode when evaluating create options.",
   NULL, NULL, FALSE);
 
-static MYSQL_THDVAR_BOOL(create_intrinsic, PLUGIN_VAR_OPCMDARG,
-  "If set then \"CREATE TEMPORARY TABLE\" will create intrinsic tables.",
-  NULL, NULL, FALSE);
-
 static MYSQL_THDVAR_BOOL(ft_enable_stopword, PLUGIN_VAR_OPCMDARG,
   "Create FTS index with stopword.",
   NULL, NULL,
@@ -1342,17 +1338,6 @@ thd_set_lock_wait_time(
 	if (thd) {
 		thd_storage_lock_wait(thd, value);
 	}
-}
-
-/** Get status of create intrinsic.
-@param[in]	thd	thread handle, or NULL to query
-			the global innodb_create_intrinsic.
-@return true if create intrinsic is set. */
-bool
-thd_create_intrinsic(
-	THD*	thd)
-{
-	return(THDVAR(thd, create_intrinsic));
 }
 
 /** Obtain the private handler of InnoDB session specific data.
@@ -6412,7 +6397,8 @@ ha_innobase::innobase_lock_autoinc(void)
 	dberr_t		error = DB_SUCCESS;
 	long		lock_mode = innobase_autoinc_lock_mode;
 
-	ut_ad(!srv_read_only_mode || dict_table_is_intrinsic(m_prebuilt->table));
+	ut_ad(!srv_read_only_mode
+	      || dict_table_is_intrinsic(m_prebuilt->table));
 
 	if (dict_table_is_intrinsic(m_prebuilt->table)) {
 		/* Intrinsic table are not shared accorss connection
@@ -9628,7 +9614,8 @@ create_table_info_t::innobase_table_flags()
 			}
 		} else if (key->flags & HA_SPATIAL) {
 			if (m_create_info->options & HA_LEX_CREATE_TMP_TABLE
-			    && THDVAR(m_thd, create_intrinsic)
+			    && m_create_info->options
+			       & HA_LEX_CREATE_INTERNAL_TMP_TABLE
 			    && !m_file_per_table) {
 				my_error(ER_TABLE_CANT_HANDLE_SPKEYS, MYF(0));
 				DBUG_RETURN(false);
@@ -9799,9 +9786,7 @@ index_bad:
 
 		/* Intrinsic tables reside only in the shared
 		temporary tablespace. */
-		if ((THDVAR(m_thd, create_intrinsic)
-		     || m_create_info->options
-			& HA_LEX_CREATE_INTERNAL_TMP_TABLE)
+		if ((m_create_info->options & HA_LEX_CREATE_INTERNAL_TMP_TABLE)
 		    && !m_file_per_table) {
 			m_flags2 |= DICT_TF2_INTRINSIC;
 		}
@@ -17149,7 +17134,6 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(replication_delay),
   MYSQL_SYSVAR(status_file),
   MYSQL_SYSVAR(strict_mode),
-  MYSQL_SYSVAR(create_intrinsic),
   MYSQL_SYSVAR(support_xa),
   MYSQL_SYSVAR(sort_buffer_size),
   MYSQL_SYSVAR(online_alter_log_max_size),
