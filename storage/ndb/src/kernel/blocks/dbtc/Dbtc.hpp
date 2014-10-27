@@ -795,6 +795,16 @@ public:
       UintR commitAckMarker;
     };
 
+    /** 
+     * num_commit_ack_markers
+     *
+     * Number of operations sent by this transaction 
+     * to LQH with their CommitAckMarker flag set.
+     *
+     * Includes marked operations currently in-progress and 
+     * those which prepared successfully, 
+     * Excludes failed operations (LQHKEYREF)
+     */
     Uint32 num_commit_ack_markers;
     Uint32 m_write_count;
     ReturnSignal returnsignal;
