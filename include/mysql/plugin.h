@@ -135,8 +135,14 @@ enum enum_mysql_show_type
   SHOW_LONG,       ///< shown as _unsigned_ long
   SHOW_LONGLONG,   ///< shown as _unsigned_ longlong
   SHOW_CHAR, SHOW_CHAR_PTR,
-  SHOW_ARRAY, SHOW_FUNC, SHOW_DOUBLE,
-  SHOW_always_last
+  SHOW_ARRAY, SHOW_FUNC, SHOW_DOUBLE
+#ifdef MYSQL_SERVER
+  /*
+    This include defines server-only values of the enum.
+    Using them in plugins is not supported.
+  */
+  #include "sql_plugin_enum.h"
+#endif
 };
 
 struct st_mysql_show_var {

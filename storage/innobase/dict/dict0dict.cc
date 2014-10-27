@@ -326,16 +326,9 @@ dict_table_stats_latch_create(
 		return;
 	}
 
-#ifdef HAVE_ATOMIC_BUILTINS
 	/* We create this lazily the first time it is used. */
 	table->stats_latch = NULL;
 	table->stats_latch_created = os_once::NEVER_DONE;
-#else /* HAVE_ATOMIC_BUILTINS */
-
-	dict_table_stats_latch_alloc(table);
-
-	table->stats_latch_created = os_once::DONE;
-#endif /* HAVE_ATOMIC_BUILTINS */
 }
 
 /** Destroy a dict_table_t's stats latch.
@@ -364,13 +357,9 @@ dict_table_stats_lock(
 	ut_ad(table != NULL);
 	ut_ad(table->magic_n == DICT_TABLE_MAGIC_N);
 
-#ifdef HAVE_ATOMIC_BUILTINS
 	os_once::do_or_wait_for_done(
 		&table->stats_latch_created,
 		dict_table_stats_latch_alloc, table);
-#else /* HAVE_ATOMIC_BUILTINS */
-	ut_ad(table->stats_latch_created == os_once::DONE);
-#endif /* HAVE_ATOMIC_BUILTINS */
 
 	if (table->stats_latch == NULL) {
 		/* This is a dummy table object that is private in the current
@@ -1046,7 +1035,7 @@ dict_table_open_on_name(
 	table = dict_table_check_if_in_cache_low(table_name);
 
 	if (table == NULL) {
-		table = dict_load_table(table_name, TRUE, ignore_err);
+		table = dict_load_table(table_name, true, ignore_err);
 	}
 
 	ut_ad(!table || table->cached);
@@ -1565,7 +1554,8 @@ dict_table_rename_in_cache(
 
 		ut_free(filepath);
 
-	} else if (dict_table_use_file_per_table(table)) {
+	} else if (table->space != TRX_SYS_SPACE) {
+
 		if (table->dir_path_of_temp_table != NULL) {
 			ib::error() << "Trying to rename a TEMPORARY TABLE "
 				<< old_name
@@ -6494,15 +6484,10 @@ dict_index_zip_pad_update(
 		beyond max pad size. */
 		if (info->pad + ZIP_PAD_INCR
 		    < (UNIV_PAGE_SIZE * zip_pad_max) / 100) {
-#ifdef HAVE_ATOMIC_BUILTINS
 			/* Use atomics even though we have the mutex.
 			This is to ensure that we are able to read
-			info->pad atomically where atomics are
-			supported. */
+			info->pad atomically. */
 			os_atomic_increment_ulint(&info->pad, ZIP_PAD_INCR);
-#else /* HAVE_ATOMIC_BUILTINS */
-			info->pad += ZIP_PAD_INCR;
-#endif /* HAVE_ATOMIC_BUILTINS */
 
 			MONITOR_INC(MONITOR_PAD_INCREMENTS);
 		}
@@ -6521,15 +6506,10 @@ dict_index_zip_pad_update(
 		    && info->pad > 0) {
 
 			ut_ad(info->pad % ZIP_PAD_INCR == 0);
-#ifdef HAVE_ATOMIC_BUILTINS
 			/* Use atomics even though we have the mutex.
 			This is to ensure that we are able to read
-			info->pad atomically where atomics are
-			supported. */
+			info->pad atomically. */
 			os_atomic_decrement_ulint(&info->pad, ZIP_PAD_INCR);
-#else /* HAVE_ATOMIC_BUILTINS */
-			info->pad -= ZIP_PAD_INCR;
-#endif /* HAVE_ATOMIC_BUILTINS */
 
 			info->n_rounds = 0;
 
@@ -6604,16 +6584,9 @@ dict_index_zip_pad_optimal_page_size(
 	}
 
 	/* We use atomics to read index->zip_pad.pad. Here we use zero
-	as increment as are not changing the value of the 'pad'. On
-	platforms where atomics are not available we grab the mutex. */
+	as increment as are not changing the value of the 'pad'. */
 
-#ifdef HAVE_ATOMIC_BUILTINS
 	pad = os_atomic_increment_ulint(&index->zip_pad.pad, 0);
-#else /* HAVE_ATOMIC_BUILTINS */
-	mutex_enter(&index->zip_pad.mutex);
-	pad = index->zip_pad.pad;
-	mutex_exit(&index->zip_pad.mutex);
-#endif /* HAVE_ATOMIC_BUILTINS */
 
 	ut_ad(pad < UNIV_PAGE_SIZE);
 	sz = UNIV_PAGE_SIZE - pad;

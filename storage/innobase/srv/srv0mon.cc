@@ -1264,29 +1264,6 @@ has been turned on/off. */
 ulint		monitor_set_tbl[(NUM_MONITOR + NUM_BITS_ULINT
 						- 1) / NUM_BITS_ULINT];
 
-#ifndef HAVE_ATOMIC_BUILTINS_64
-/** Mutex protecting atomic operations on platforms that lack
-built-in operations for atomic memory access */
-ib_mutex_t	monitor_mutex;
-
-/****************************************************************//**
-Initialize the monitor subsystem. */
-void
-srv_mon_create(void)
-/*================*/
-{
-	mutex_create("monitor", &monitor_mutex);
-}
-/****************************************************************//**
-Close the monitor subsystem. */
-void
-srv_mon_free(void)
-/*==============*/
-{
-	mutex_free(&monitor_mutex);
-}
-#endif /* !HAVE_ATOMIC_BUILTINS_64 */
-
 /****************************************************************//**
 Get a monitor's "monitor_info" by its monitor id (index into the
 innodb_counter_info array.

@@ -2361,7 +2361,7 @@ Item_func_latlongfromgeohash::decode_geohash(String *geohash,
        i < input_length && latitiude_accuracy > 0.0 && longitude_accuracy > 0.0;
        i++)
   {
-    char input_character= my_tolower(geohash->charset(), (*geohash)[i]);
+    char input_character= my_tolower(&my_charset_latin1, (*geohash)[i]);
 
     /*
      The following part will convert from character value to a
@@ -7122,6 +7122,7 @@ String* Item_func_get_system_var::val_str(String* str)
   }
 
   str= &cached_strval;
+  null_value= FALSE;
   switch (var->show_type())
   {
     case SHOW_CHAR:
@@ -7167,7 +7168,7 @@ String* Item_func_get_system_var::val_str(String* str)
 
     default:
       my_error(ER_VAR_CANT_BE_READ, MYF(0), var->name.str);
-      str= NULL;
+      str= error_str();
       break;
   }
 

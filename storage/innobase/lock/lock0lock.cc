@@ -1464,8 +1464,8 @@ RecLock::lock_alloc(
 		memset(&lock[1], 0x0, 1);
 
 	} else {
-
-		rec_lock.n_bits = 8 * size;
+		ut_ad(8 * size < UINT32_MAX);
+		rec_lock.n_bits = static_cast<uint32_t>(8 * size);
 
 		memset(&lock[1], 0x0, size);
 	}

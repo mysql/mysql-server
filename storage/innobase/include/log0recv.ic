@@ -29,7 +29,7 @@ Created 9/20/1997 Heikki Tuuri
 Returns TRUE if recovery is currently running.
 @return recv_recovery_on */
 UNIV_INLINE
-ibool
+bool
 recv_recovery_is_on()
 /*=================*/
 {

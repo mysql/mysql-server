@@ -109,8 +109,8 @@ os_mem_alloc_large(
 
 	if (ptr) {
 		*n = size;
-		os_increment_counter_by_amount(
-			server_mutex, os_total_large_mem_allocated, size);
+		os_atomic_increment_ulint(
+			&os_total_large_mem_allocated, size);
 
 		UNIV_MEM_ALLOC(ptr, size);
 		return(ptr);
@@ -136,8 +136,8 @@ skip:
 		ib::info() << "VirtualAlloc(" << size << " bytes) failed;"
 			" Windows error " << GetLastError();
 	} else {
-		os_increment_counter_by_amount(
-			server_mutex, os_total_large_mem_allocated, size);
+		os_atomic_increment_ulint(
+			&os_total_large_mem_allocated, size);
 		UNIV_MEM_ALLOC(ptr, size);
 	}
 #else
@@ -152,8 +152,8 @@ skip:
 			" errno " << errno;
 		ptr = NULL;
 	} else {
-		os_increment_counter_by_amount(
-			server_mutex, os_total_large_mem_allocated, size);
+		os_atomic_increment_ulint(
+			&os_total_large_mem_allocated, size);
 		UNIV_MEM_ALLOC(ptr, size);
 	}
 #endif
@@ -172,8 +172,8 @@ os_mem_free_large(
 
 #if defined HAVE_LINUX_LARGE_PAGES && defined UNIV_LINUX
 	if (os_use_large_pages && os_large_page_size && !shmdt(ptr)) {
-		os_decrement_counter_by_amount(
-			server_mutex, os_total_large_mem_allocated, size);
+		os_atomic_decrement_ulint(
+			&os_total_large_mem_allocated, size);
 		UNIV_MEM_FREE(ptr, size);
 		return;
 	}
@@ -185,8 +185,8 @@ os_mem_free_large(
 		ib::error() << "VirtualFree(" << ptr << ", " << size
 			<< ") failed; Windows error " << GetLastError();
 	} else {
-		os_decrement_counter_by_amount(
-			server_mutex, os_total_large_mem_allocated, size);
+		os_atomic_decrement_ulint(
+			&os_total_large_mem_allocated, size);
 		UNIV_MEM_FREE(ptr, size);
 	}
 #elif !defined OS_MAP_ANON
@@ -200,8 +200,8 @@ os_mem_free_large(
 		ib::error() << "munmap(" << ptr << ", " << size << ") failed;"
 			" errno " << errno;
 	} else {
-		os_decrement_counter_by_amount(
-			server_mutex, os_total_large_mem_allocated, size);
+		os_atomic_decrement_ulint(
+			&os_total_large_mem_allocated, size);
 		UNIV_MEM_FREE(ptr, size);
 	}
 #endif

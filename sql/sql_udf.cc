@@ -28,7 +28,6 @@
 */
 
 #include "sql_priv.h"
-#include "unireg.h"
 #include "sql_base.h"                           // close_mysql_tables
 #include "sql_parse.h"                        // check_identifier_name
 #include "sql_table.h"                        // write_bin_log

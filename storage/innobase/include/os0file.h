@@ -191,18 +191,6 @@ enum os_file_create_t {
 				effect only in simulated aio */
 /* @} */
 
-#define OS_WIN31	1	/*!< Microsoft Windows 3.x */
-#define OS_WIN95	2	/*!< Microsoft Windows 95 */
-#define OS_WINNT	3	/*!< Microsoft Windows NT 3.x */
-#define OS_WIN2000	4	/*!< Microsoft Windows 2000 */
-#define OS_WINXP	5	/*!< Microsoft Windows XP
-				or Windows Server 2003 */
-#define OS_WINVISTA	6	/*!< Microsoft Windows Vista
-				or Windows Server 2008 */
-#define OS_WIN7		7	/*!< Microsoft Windows 7
-				or Windows Server 2008 R2 */
-
-
 extern ulint	os_n_file_reads;
 extern ulint	os_n_file_writes;
 extern ulint	os_n_fsyncs;
@@ -424,15 +412,6 @@ typedef HANDLE	os_file_dir_t;	/*!< directory stream */
 typedef DIR*	os_file_dir_t;	/*!< directory stream */
 #endif
 
-#ifdef _WIN32
-/***********************************************************************//**
-Gets the operating system version. Currently works only on Windows.
-@return OS_WIN95, OS_WIN31, OS_WINNT, OS_WIN2000, OS_WINXP, OS_WINVISTA,
-OS_WIN7. */
-ulint
-os_get_os_version(void);
-/*===================*/
-#endif /* _WIN32 */
 #ifndef UNIV_HOTBACKUP
 /****************************************************************//**
 Creates the seek mutexes used in positioned reads and writes. */

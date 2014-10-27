@@ -2185,6 +2185,8 @@ fseg_create_general(
 	ulint		n_reserved;
 	ulint		i;
 
+	DBUG_ENTER("fseg_create_general");
+
 	ut_ad(mtr);
 	ut_ad(byte_offset + FSEG_HEADER_SIZE
 	      <= UNIV_PAGE_SIZE - FIL_PAGE_DATA_END);
@@ -2213,7 +2215,7 @@ fseg_create_general(
 		success = fsp_reserve_free_extents(&n_reserved, space_id, 2,
 						   FSP_NORMAL, mtr);
 		if (!success) {
-			return(NULL);
+			DBUG_RETURN(NULL);
 		}
 	}
 
@@ -2288,7 +2290,7 @@ funct_exit:
 		fil_space_release_free_extents(space_id, n_reserved);
 	}
 
-	return(block);
+	DBUG_RETURN(block);
 }
 
 /**********************************************************************//**
@@ -3426,6 +3428,8 @@ fseg_free_step(
 	ulint		space_id;
 	ulint		header_page;
 
+	DBUG_ENTER("fseg_free_step");
+
 	space_id = page_get_space_id(page_align(header));
 	header_page = page_get_page_no(page_align(header));
 
@@ -3445,7 +3449,7 @@ fseg_free_step(
 	if (inode == NULL) {
 		ib::info() << "Double free of inode from "
 			<< page_id_t(space_id, header_page);
-		return(TRUE);
+		DBUG_RETURN(TRUE);
 	}
 
 	descr = fseg_get_first_extent(inode, space_id, page_size, mtr);
@@ -3456,7 +3460,7 @@ fseg_free_step(
 
 		fseg_free_extent(inode, space_id, page_size, page, ahi, mtr);
 
-		return(FALSE);
+		DBUG_RETURN(FALSE);
 	}
 
 	/* Free a frag page */
@@ -3466,7 +3470,7 @@ fseg_free_step(
 		/* Freeing completed: free the segment inode */
 		fsp_free_seg_inode(space_id, page_size, inode, mtr);
 
-		return(TRUE);
+		DBUG_RETURN(TRUE);
 	}
 
 	fseg_free_page_low(
@@ -3480,10 +3484,10 @@ fseg_free_step(
 		/* Freeing completed: free the segment inode */
 		fsp_free_seg_inode(space_id, page_size, inode, mtr);
 
-		return(TRUE);
+		DBUG_RETURN(TRUE);
 	}
 
-	return(FALSE);
+	DBUG_RETURN(FALSE);
 }
 
 /**********************************************************************//**
@@ -3791,3 +3795,26 @@ fseg_print(
 }
 #endif /* UNIV_BTR_PRINT */
 #endif /* !UNIV_HOTBACKUP */
+
+#ifdef UNIV_DEBUG
+/** Print the file segment header to the given output stream.
+@param[in]	out	the output stream into which the object is printed.
+@retval	the output stream into which the object was printed. */
+std::ostream&
+fseg_header::to_stream(std::ostream&	out) const
+{
+	const ulint	space = mtr_read_ulint(m_header + FSEG_HDR_SPACE,
+					       MLOG_4BYTES, m_mtr);
+
+	const ulint	page_no = mtr_read_ulint(m_header + FSEG_HDR_PAGE_NO,
+						 MLOG_4BYTES, m_mtr);
+
+	const ulint	offset = mtr_read_ulint(m_header + FSEG_HDR_OFFSET,
+						 MLOG_2BYTES, m_mtr);
+
+	out << "[fseg_header_t: space=" << space << ", page="
+		<< page_no << ", offset=" << offset << "]";
+
+	return(out);
+}
+#endif /* UNIV_DEBUG */
