@@ -9880,14 +9880,6 @@ create_table_info_t::create_table()
 	dict_table_t*	innobase_table = NULL;
 	const char*	stmt;
 	size_t		stmt_len;
-#ifdef UNIV_DEBUG
-	const bool	is_intrinsic_temp_table
-		= (m_flags2 & DICT_TF2_INTRINSIC) != 0;
-
-	/* DICT_TF2_INTRINSIC implies DICT_TF2_TEMPORARY */
-	ut_ad(!(m_flags2 & DICT_TF2_INTRINSIC)
-	      || (m_flags2 & DICT_TF2_TEMPORARY));
-#endif /* UNIV_DEBUG */
 
 	DBUG_ENTER("create_table");
 
@@ -10014,7 +10006,7 @@ create_table_info_t::create_table()
 		dict_table_t*		handler
 				= priv->lookup_table_handler(m_table_name);
 		ut_ad(handler == NULL
-		      || (handler != NULL && is_intrinsic_temp_table));
+		      || (handler != NULL && is_intrinsic_temp_table()));
 
 		dberr_t	err = row_table_add_foreign_constraints(
 			m_trx, stmt, stmt_len, m_table_name,
