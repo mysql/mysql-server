@@ -18,13 +18,19 @@ call mtr.add_suppression("Flagged corruption of idx.*in CHECK TABLE");
 # It instructs InnoDB to try to evict pages from the buffer pool when
 # change buffering is possible, so that the change buffer will be used
 # whenever possible.
--- error 0,ER_UNKNOWN_SYSTEM_VARIABLE
 SET @innodb_change_buffering_debug_orig = @@innodb_change_buffering_debug;
--- error 0,ER_UNKNOWN_SYSTEM_VARIABLE
 SET GLOBAL innodb_change_buffering_debug = 1;
 
 # Turn off Unique Check to create corrupted index with dup key
 SET UNIQUE_CHECKS=0;
+
+CREATE DATABASE pad;
+let $i=338;
+while ($i)
+{
+--eval CREATE TABLE pad.t$i(a INT PRIMARY KEY)ENGINE=InnoDB STATS_PERSISTENT=0;
+  dec $i;
+}
 
 -- enable_query_log
 
@@ -121,6 +127,6 @@ select z from corrupt_bit_test_ā limit 10;
 
 # Drop table
 drop table corrupt_bit_test_ā;
+DROP DATABASE pad;
 
--- error 0, ER_UNKNOWN_SYSTEM_VARIABLE
 SET GLOBAL innodb_change_buffering_debug = 0;
