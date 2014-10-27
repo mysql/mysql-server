@@ -108,6 +108,9 @@ lsn_t	srv_shutdown_lsn;
 /** TRUE if a raw partition is in use */
 ibool	srv_start_raw_disk_in_use = FALSE;
 
+/** Number of IO threads to use */
+ulint	srv_n_file_io_threads = 0;
+
 /** TRUE if the server is being started, before rolling back any
 incomplete transactions */
 ibool	srv_startup_is_before_trx_rollback_phase = FALSE;
@@ -1573,17 +1576,8 @@ innobase_start_or_create_for_mysql(void)
 		}
 	}
 
-	/* If user has set the value of innodb_file_io_threads then
-	we'll emit a message telling the user that this parameter
-	is now deprecated. */
-	if (srv_n_file_io_threads != 4) {
-		ib::warn() << "innodb_file_io_threads is deprecated. Please use"
-			" innodb_read_io_threads and innodb_write_io_threads"
-			" instead";
-	}
-
-	/* Now overwrite the value on srv_n_file_io_threads */
 	srv_n_file_io_threads = srv_n_read_io_threads;
+
 	srv_n_file_io_threads += srv_n_write_io_threads;
 
 	if (!srv_read_only_mode) {
