@@ -64,8 +64,14 @@ static int socket_auth(MYSQL_PLUGIN_VIO *vio, MYSQL_SERVER_AUTH_INFO *info)
   if (pwd == NULL)
     return CR_ERROR;
 
-  /* now it's simple as that */
-  return strcmp(pwd->pw_name, info->user_name) ? CR_ERROR : CR_OK;
+  /* now it's simple as that: username matches socket */
+  if (!strcmp(pwd->pw_name, info->user_name))
+  {
+    return CR_OK;
+  }
+ 
+  /* username matches auth_string */ 
+  return strcmp(pwd->pw_name, info->auth_string) ? CR_ERROR : CR_OK;
 }
 
 static struct st_mysql_auth socket_auth_handler=
@@ -85,7 +91,7 @@ mysql_declare_plugin(socket_auth)
   PLUGIN_LICENSE_GPL,
   NULL,
   NULL,
-  0x0100,
+  0x0101,
   NULL,
   NULL,
   NULL,
