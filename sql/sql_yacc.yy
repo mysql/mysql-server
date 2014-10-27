@@ -34,7 +34,6 @@ Note: YYTHD is passed as an argument to yyparse(), and subsequently to yylex().
 #define Lex (YYTHD->lex)
 #define Select Lex->current_select()
 #include "sql_priv.h"
-#include "unireg.h"                    // REQUIRED: for other includes
 #include "sql_parse.h"                        /* comp_*_creator */
 #include "sql_table.h"                        /* primary_key_name */
 #include "sql_partition.h"  /* mem_alloc_error, partition_info, HASH_PARTITION */

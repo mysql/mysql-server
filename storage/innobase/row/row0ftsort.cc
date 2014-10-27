@@ -534,7 +534,7 @@ row_merge_fts_doc_tokenize(
 
 		t_str.f_str = (byte*) &str_buf;
 
-		/* if "cached_stopword" is defined, ingore words in the
+		/* if "cached_stopword" is defined, ignore words in the
 		stopword list */
 		if (t_ctx->cached_stopword
 		    && rbt_search(t_ctx->cached_stopword,

@@ -20,6 +20,7 @@
 #include <list>
 
 typedef struct st_mysql MYSQL;
+typedef struct st_io_cache IO_CACHE;
 
 #ifdef __cplusplus
 extern "C" {

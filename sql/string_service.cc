@@ -24,7 +24,6 @@
 #include "string_service.h"
 /* key_memory_string_iterator */
 #include "mysqld.h"
-#include "unireg.h"
 PSI_memory_key key_memory_string_iterator;
 
 /*  

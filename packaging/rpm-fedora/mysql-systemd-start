@@ -8,10 +8,19 @@
 # post mode :  ping server until answer is received
 # 
 
+get_option () {
+    local section=$1
+    local option=$2
+    local default=$3
+    ret=$(/usr/bin/my_print_defaults $section | grep '^--'${option}'=' | cut -d= -f2-)
+    [ -z $ret ] && ret=$default
+    echo $ret
+}
+
 install_db () {    
     # Note: something different than datadir=/var/lib/mysql requires SELinux policy changes (in enforcing mode)
-    datadir=$(/usr/bin/my_print_defaults server mysqld | grep '^--datadir=' | sed -n 's/--datadir=//p')
-    
+    datadir=$(get_option mysqld datadir "/var/lib/mysql")
+
     # Restore log, dir, perms and SELinux contexts
     [ -d "$datadir" ] || install -d -m 0755 -omysql -gmysql "$datadir" || exit 1
     log=/var/log/mysqld.log
@@ -35,9 +44,16 @@ pinger () {
     # Wait for ping to answer to signal startup completed,
     # might take a while in case of e.g. crash recovery
     # MySQL systemd service will timeout script if no answer
+    datadir=$(get_option mysqld datadir "/var/lib/mysql")
+    socket=$(get_option  mysqld socket "$datadir/mysql.sock")
+    case $socket in
+        /*) adminsocket="$socket" ;;
+        *) adminsocket="$datadir/$socket" ;;
+    esac
+
     while /bin/true ; do
         sleep 1
-        mysqladmin ping >/dev/null 2>&1 && break
+        mysqladmin --no-defaults --socket="$adminsocket" --user=UNKNOWN_MYSQL_USER ping >/dev/null 2>&1 && break
     done
     exit 0
 }

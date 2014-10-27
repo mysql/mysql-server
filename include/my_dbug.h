@@ -50,6 +50,7 @@ extern  void _db_pargs_(uint _line_,const char *keyword);
 extern  int _db_enabled_();
 extern  void _db_doprnt_(const char *format,...)
   __attribute__((format(printf, 1, 2)));
+extern  void _db_doputs_(const char *log);
 extern  void _db_dump_(uint _line_,const char *keyword,
                        const unsigned char *memory, size_t length);
 extern  void _db_end_(void);
@@ -84,6 +85,24 @@ extern  const char* _db_get_func_(void);
             } \
           } \
         } while(0)
+
+/*
+  An alternate to DBUG_PRINT() macro, which takes a single string
+  as the second argument.
+*/
+#define DBUG_PUTS(keyword,arg) \
+        do \
+        {  \
+          if (_dbug_on_) \
+          { \
+            _db_pargs_(__LINE__,keyword); \
+            if (_db_enabled_()) \
+            {  \
+              _db_doputs_(arg); \
+            } \
+          } \
+        } while(0)
+
 #define DBUG_PUSH(a1) _db_push_ (a1)
 #define DBUG_POP() _db_pop_ ()
 #define DBUG_SET(a1) _db_set_ (a1)
@@ -151,6 +170,8 @@ extern void _db_flush_gcov_();
 #define DBUG_EVALUATE(keyword,a1,a2) (a2)
 #define DBUG_EVALUATE_IF(keyword,a1,a2) (a2)
 #define DBUG_PRINT(keyword,arglist)     do { } while(0)
+#define DBUG_PUTS(keyword,arg)          do { } while(0)
+#define DBUG_LOG(keyword,arglist)       do { } while(0)
 #define DBUG_PUSH(a1)                   do { } while(0)
 #define DBUG_SET(a1)                    do { } while(0)
 #define DBUG_SET_INITIAL(a1)            do { } while(0)
@@ -194,5 +215,31 @@ void debug_sync_point(const char* lock_name, uint lock_timeout);
 #ifdef	__cplusplus
 }
 #endif
+
+#ifdef __cplusplus
+#if !defined(DBUG_OFF)
+#include <sstream>
+
+/*
+  A C++ interface to the DBUG_PUTS macro.  The DBUG_LOG macro also
+  takes two arguments.  The first argument is the keyword, as that of the
+  DBUG_PRINT.  The 2nd argument 'v' will be passed to a C++ output stream.
+  This enables the use of C++ style output stream operator.  In the code, it
+  will be used as follows:
+
+  DBUG_LOG("blob", "space: " << space_id);
+
+  Note: DBUG_PRINT() has a limitation of 1024 bytes for a single
+  print out.  This limitation is not there for DBUG_PUTS and DBUG_LOG
+  macros.
+*/
+
+#define DBUG_LOG(keyword, v) do { \
+	std::ostringstream		sout; \
+	sout << v; \
+	DBUG_PUTS(keyword, sout.str().c_str()); \
+} while(0)
+#endif /* DBUG_OFF */
+#endif /* __cplusplus */
 
 #endif /* MY_DBUG_INCLUDED */

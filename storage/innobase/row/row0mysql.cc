@@ -3280,7 +3280,7 @@ row_table_add_foreign_constraints(
 					 DICT_ERR_IGNORE_NONE, fk_tables);
 
 		while (err == DB_SUCCESS && !fk_tables.empty()) {
-			dict_load_table(fk_tables.front(), TRUE,
+			dict_load_table(fk_tables.front(), true,
 					DICT_ERR_IGNORE_NONE);
 			fk_tables.pop_front();
 		}
@@ -4006,7 +4006,7 @@ row_drop_table_from_cache(
 	}
 
 	if (!is_temp
-	    && dict_load_table(tablename, TRUE,
+	    && dict_load_table(tablename, true,
 			       DICT_ERR_IGNORE_NONE) != NULL) {
 		ib::error() << "Not able to remove table "
 			<< ut_get_name(trx, tablename)
@@ -4172,19 +4172,11 @@ row_drop_table_for_mysql(
 	latch */
 	table->to_be_dropped = true;
 
+	if (table->fts) {
+		fts_optimize_remove_table(table);
+	}
+
 	if (nonatomic) {
-		/* This trx did not acquire any locks on dictionary
-		table records yet. Thus it is safe to release and
-		reacquire the data dictionary latches. */
-		if (table->fts) {
-			ut_ad(!table->fts->add_wq);
-			ut_ad(lock_trx_has_sys_table_locks(trx) == 0);
-
-			row_mysql_unlock_data_dictionary(trx);
-			fts_optimize_remove_table(table);
-			row_mysql_lock_data_dictionary(trx);
-		}
-
 		/* Do not bother to deal with persistent stats for temp
 		tables since we know temp tables do not use persistent
 		stats. */
@@ -4729,7 +4721,7 @@ row_mysql_drop_temp_tables(void)
 		btr_pcur_store_position(&pcur, &mtr);
 		btr_pcur_commit_specify_mtr(&pcur, &mtr);
 
-		table = dict_load_table(table_name, TRUE,
+		table = dict_load_table(table_name, true,
 					DICT_ERR_IGNORE_NONE);
 
 		if (table) {
@@ -5406,7 +5398,7 @@ end:
 		}
 
 		while (!fk_tables.empty()) {
-			dict_load_table(fk_tables.front(), TRUE,
+			dict_load_table(fk_tables.front(), true,
 					DICT_ERR_IGNORE_NONE);
 			fk_tables.pop_front();
 		}

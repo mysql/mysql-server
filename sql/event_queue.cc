@@ -14,7 +14,6 @@
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 #include "sql_priv.h"
-#include "unireg.h"
 #include "event_queue.h"
 #include "event_data_objects.h"
 #include "event_db_repository.h"

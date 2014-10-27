@@ -21,6 +21,7 @@
 typedef struct charset_info_st CHARSET_INFO;
 typedef struct st_mysql_lex_string LEX_STRING;
 typedef struct st_typelib TYPELIB;
+class THD;
 
 ulonglong find_set(TYPELIB *lib, const char *x, size_t length,
                    const CHARSET_INFO *cs,

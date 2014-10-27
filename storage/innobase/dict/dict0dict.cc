@@ -1035,7 +1035,7 @@ dict_table_open_on_name(
 	table = dict_table_check_if_in_cache_low(table_name);
 
 	if (table == NULL) {
-		table = dict_load_table(table_name, TRUE, ignore_err);
+		table = dict_load_table(table_name, true, ignore_err);
 	}
 
 	ut_ad(!table || table->cached);
@@ -1554,7 +1554,8 @@ dict_table_rename_in_cache(
 
 		ut_free(filepath);
 
-	} else if (dict_table_use_file_per_table(table)) {
+	} else if (table->space != TRX_SYS_SPACE) {
+
 		if (table->dir_path_of_temp_table != NULL) {
 			ib::error() << "Trying to rename a TEMPORARY TABLE "
 				<< old_name

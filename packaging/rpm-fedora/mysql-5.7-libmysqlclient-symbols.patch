@@ -1,11 +1,10 @@
 diff -rup old/libmysql/libmysql.c new/libmysql/libmysql.c
---- old/libmysql/libmysql.c	2013-11-04 16:36:39.000000000 +0100
-+++ new/libmysql/libmysql.c	2014-01-14 13:56:00.751905476 +0100
-@@ -4950,3 +4950,614 @@ mysql_reset_connection(MYSQL *mysql)
-     DBUG_RETURN(0);
-   }
+--- old/libmysql/libmysql.c	2013-11-04 20:15:10.000000000 +0100
++++ new/libmysql/libmysql.c	2014-01-14 12:10:27.148374504 +0100
+@@ -4898,3 +4898,612 @@ my_bool STDCALL mysql_read_query_result(
+   return (*mysql->methods->read_query_result)(mysql);
  }
-+
+ 
 +#ifndef EMBEDDED_LIBRARY
 +
 +// Hack to provide both libmysqlclient_16 and libmysqlclient_18 symbol versions
@@ -615,10 +614,9 @@ diff -rup old/libmysql/libmysql.c new/libmysql/libmysql.c
 +SYM_16(my_init);
 +
 +#endif
-+
 diff -rup old/libmysql/libmysql.ver.in new/libmysql/libmysql.ver.in
---- old/libmysql/libmysql.ver.in	2013-11-04 16:36:39.000000000 +0100
-+++ new/libmysql/libmysql.ver.in	2014-01-14 13:53:17.166196747 +0100
+--- old/libmysql/libmysql.ver.in	2013-11-04 20:15:10.000000000 +0100
++++ new/libmysql/libmysql.ver.in	2014-01-14 12:10:27.148374504 +0100
 @@ -1 +1,136 @@
 -libmysqlclient_@SHARED_LIB_MAJOR_VERSION@ { global: *; };
 +libmysqlclient_16
@@ -758,9 +756,9 @@ diff -rup old/libmysql/libmysql.ver.in new/libmysql/libmysql.ver.in
 +    *;
 +} libmysqlclient_16;
 diff -rup old/mysys/charset.c new/mysys/charset.c
---- old/mysys/charset.c	2013-11-04 16:36:38.000000000 +0100
-+++ new/mysys/charset.c	2014-01-14 13:53:17.208199239 +0100
-@@ -1034,3 +1034,20 @@ size_t escape_quotes_for_mysql(CHARSET_I
+--- old/mysys/charset.c	2013-11-04 20:15:10.000000000 +0100
++++ new/mysys/charset.c	2014-01-14 12:10:27.197377417 +0100
+@@ -1040,3 +1040,20 @@ size_t escape_quotes_for_mysql(CHARSET_I
    *to= 0;
    return overflow ? (ulong)~0 : (ulong) (to - to_start);
  }
@@ -781,9 +779,28 @@ diff -rup old/mysys/charset.c new/mysys/charset.c
 +}
 +
 +#endif
-diff -rup old/sql/auth/password.c new/sql/auth/password.c
---- old/sql/auth/password.c	2013-11-04 16:36:39.000000000 +0100
-+++ new/sql/auth/password.c	2014-01-14 13:53:17.234200782 +0100
+diff -rup old/sql/net_serv.cc new/sql/net_serv.cc
+--- old/sql/net_serv.cc	2013-11-04 20:15:10.000000000 +0100
++++ new/sql/net_serv.cc	2014-01-14 12:10:27.252380688 +0100
+@@ -1047,3 +1047,15 @@ void my_net_set_write_timeout(NET *net, 
+   DBUG_VOID_RETURN;
+ }
+ 
++#ifndef EMBEDDED_LIBRARY
++C_MODE_START
++
++// Hack to provide Fedora symbols
++
++my_bool mysql_net_realloc(NET *net, size_t length)
++{
++  return net_realloc(net, length);
++}
++
++C_MODE_END
++#endif
+diff -rup old/sql/password.c new/sql/password.c
+--- old/sql/password.c	2013-11-04 20:15:10.000000000 +0100
++++ new/sql/password.c	2014-01-14 12:10:27.309384078 +0100
 @@ -584,3 +584,16 @@ void make_password_from_salt(char *to, c
    octet2hex(to, (const char*) hash_stage2, SHA1_HASH_SIZE);
  }
@@ -801,32 +818,14 @@ diff -rup old/sql/auth/password.c new/sql/auth/password.c
 +SYM_16(my_make_scrambled_password);
 +
 +#endif
-diff -rup old/sql/net_serv.cc new/sql/net_serv.cc
---- old/sql/net_serv.cc	2013-11-04 16:36:39.000000000 +0100
-+++ new/sql/net_serv.cc	2014-01-14 13:53:17.228200426 +0100
-@@ -1044,3 +1044,15 @@ void my_net_set_write_timeout(NET *net, 
-   DBUG_VOID_RETURN;
- }
- 
-+#ifndef EMBEDDED_LIBRARY
-+C_MODE_START
-+
-+// Hack to provide Fedora symbols
-+
-+my_bool mysql_net_realloc(NET *net, size_t length)
-+{
-+  return net_realloc(net, length);
-+}
-+
-+C_MODE_END
-+#endif
 diff -rup old/sql-common/client.c new/sql-common/client.c
---- old/sql-common/client.c	2013-11-04 16:36:39.000000000 +0100
-+++ new/sql-common/client.c	2014-01-14 13:58:18.052053332 +0100
-@@ -5381,4 +5381,136 @@ static int clear_password_auth_client(MY
+--- old/sql-common/client.c	2013-11-04 20:15:10.000000000 +0100
++++ new/sql-common/client.c	2014-01-14 12:10:27.199377537 +0100
+@@ -4847,3 +4847,136 @@ static int clear_password_auth_client(MY
+ 
    return res ? CR_ERROR : CR_OK;
  }
- 
++
 +#ifndef EMBEDDED_LIBRARY
 +
 +// Hack to provide both libmysqlclient_16 and libmysqlclient_18 symbol versions
@@ -959,4 +958,3 @@ diff -rup old/sql-common/client.c new/sql-common/client.c
 +SYM_16(mysql_store_result);
 +
 +#endif
- 

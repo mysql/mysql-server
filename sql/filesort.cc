@@ -23,7 +23,6 @@
 
 #include "sql_priv.h"
 #include "filesort.h"
-#include "unireg.h"                      // REQUIRED by other includes
 #include <m_ctype.h>
 #include "sql_sort.h"
 #include "probes_mysql.h"
