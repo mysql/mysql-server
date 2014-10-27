@@ -1035,11 +1035,13 @@ static inline void dbug_print_tree(const char *tree_name,
                                    SEL_TREE *tree,
                                    const RANGE_OPT_PARAM *param);
 
+#ifndef DBUG_OFF
 static inline void print_tree(String *out,
                               const char *tree_name,
                               SEL_TREE *tree,
                               const RANGE_OPT_PARAM *param,
                               const bool print_full);
+#endif
 
 void append_range(String *out,
                   const KEY_PART_INFO *key_parts,
@@ -14392,6 +14394,7 @@ static inline void dbug_print_tree(const char *tree_name,
 #endif
 }
 
+#ifndef DBUG_OFF
 static inline void print_tree(String *out,
                               const char *tree_name,
                               SEL_TREE *tree,
@@ -14540,6 +14543,7 @@ static inline void print_tree(String *out,
                   real_key_nr, range_result.ptr()));
   }
 }
+#endif
 
 
 /*****************************************************************************
