@@ -221,7 +221,6 @@ ulint	srv_lock_table_size	= ULINT_MAX;
 
 /* This parameter is deprecated. Use srv_n_io_[read|write]_threads
 instead. */
-ulint	srv_n_file_io_threads	= ULINT_MAX;
 ulint	srv_n_read_io_threads	= ULINT_MAX;
 ulint	srv_n_write_io_threads	= ULINT_MAX;
 
