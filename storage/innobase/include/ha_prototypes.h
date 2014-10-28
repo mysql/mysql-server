@@ -328,6 +328,15 @@ thd_supports_xa(
 	THD*	thd);	/*!< in: thread handle, or NULL to query
 			the global innodb_supports_xa */
 
+/** Get status of innodb_tmpdir.
+@param[in]	thd	thread handle, or NULL to query
+			the global innodb_tmpdir.
+@return value or NULL if innodb_tmpdir is set to default value "" */
+UNIV_INTERN
+const char*
+thd_innodb_tmpdir(
+	THD*	thd);
+
 /******************************************************************//**
 Returns the lock wait timeout for the current connection.
 @return	the lock wait timeout, in seconds */

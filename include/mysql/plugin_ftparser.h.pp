@@ -188,6 +188,7 @@ char *thd_security_context(void* thd, char *buffer, unsigned int length,
 void thd_inc_row_count(void* thd);
 int thd_allow_batch(void* thd);
 int mysql_tmpfile(const char *prefix);
+int mysql_tmpfile_path(const char *path, const char *prefix);
 int thd_killed(const void* thd);
 void thd_binlog_pos(const void* thd,
                     const char **file_var,

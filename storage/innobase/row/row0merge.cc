@@ -2922,14 +2922,15 @@ row_merge_drop_temp_indexes(void)
 	trx_free_for_background(trx);
 }
 
-/*********************************************************************//**
-Creates temporary merge files, and if UNIV_PFS_IO defined, register
-the file descriptor with Performance Schema.
-@return file descriptor, or -1 on failure */
+
+/** Create temporary merge files in the given paramater path, and if
+UNIV_PFS_IO defined, register the file descriptor with Performance Schema.
+@param[in]	path	location for creating temporary merge files.
+@return File descriptor */
 UNIV_INTERN
 int
-row_merge_file_create_low(void)
-/*===========================*/
+row_merge_file_create_low(
+	const char*	path)
 {
 	int	fd;
 #ifdef UNIV_PFS_IO
@@ -2943,7 +2944,7 @@ row_merge_file_create_low(void)
 				     "Innodb Merge Temp File",
 				     __FILE__, __LINE__);
 #endif
-	fd = innobase_mysql_tmpfile();
+	fd = innobase_mysql_tmpfile(path);
 #ifdef UNIV_PFS_IO
 	register_pfs_file_open_end(locker, fd);
 #endif
@@ -2956,16 +2957,18 @@ row_merge_file_create_low(void)
 	return(fd);
 }
 
-/*********************************************************************//**
-Create a merge file.
+
+/** Create a merge file in the given location.
+@param[out]	merge_file	merge file structure
+@param[in]	path		location for creating temporary file
 @return file descriptor, or -1 on failure */
 UNIV_INTERN
 int
 row_merge_file_create(
-/*==================*/
-	merge_file_t*	merge_file)	/*!< out: merge file structure */
+	merge_file_t*	merge_file,
+	const char*	path)
 {
-	merge_file->fd = row_merge_file_create_low();
+	merge_file->fd = row_merge_file_create_low(path);
 	merge_file->offset = 0;
 	merge_file->n_rec = 0;
 
@@ -3467,6 +3470,8 @@ row_merge_build_indexes(
 		DBUG_RETURN(DB_OUT_OF_MEMORY);
 	}
 
+	const char*	path = thd_innodb_tmpdir(trx->mysql_thd);
+
 	trx_start_if_not_started_xa(trx);
 
 	merge_files = static_cast<merge_file_t*>(
@@ -3481,7 +3486,7 @@ row_merge_build_indexes(
 	}
 
 	for (i = 0; i < n_indexes; i++) {
-		if (row_merge_file_create(&merge_files[i]) < 0) {
+		if (row_merge_file_create(&merge_files[i], path) < 0) {
 			error = DB_OUT_OF_MEMORY;
 			goto func_exit;
 		}
@@ -3513,7 +3518,7 @@ row_merge_build_indexes(
 		}
 	}
 
-	tmpfd = row_merge_file_create_low();
+	tmpfd = row_merge_file_create_low(path);
 
 	if (tmpfd < 0) {
 		error = DB_OUT_OF_MEMORY;
