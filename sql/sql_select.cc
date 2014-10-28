@@ -3530,6 +3530,7 @@ make_join_statistics(JOIN *join, List<TABLE_LIST> &tables_list,
   join->impossible_where= false;
   if (conds && const_count)
   { 
+    COND_EQUAL *orig_cond_equal = join->cond_equal;
     conds->update_used_tables();
     conds= remove_eq_conds(join->thd, conds, &join->cond_value);
     if (conds && conds->type() == Item::COND_ITEM &&
@@ -3556,7 +3557,21 @@ make_join_statistics(JOIN *join, List<TABLE_LIST> &tables_list,
         join->cond_equal->current_level.empty();
         join->cond_equal->current_level.push_back((Item_equal*) conds);
       }
-    }     
+    }
+
+    if (orig_cond_equal != join->cond_equal)
+    {
+      /*
+        If join->cond_equal has changed all references to it from COND_EQUAL
+        objects associated with ON expressions must be updated.
+      */
+      for (JOIN_TAB **pos=stat_vector+const_count ; (s= *pos) ; pos++) 
+      {
+        if (*s->on_expr_ref && s->cond_equal &&
+	    s->cond_equal->upper_levels == orig_cond_equal)
+          s->cond_equal->upper_levels= join->cond_equal;
+      }
+    }
   }
 
   /* Calc how many (possible) matched records in each table */
@@ -11999,10 +12014,18 @@ Item *eliminate_item_equal(COND *cond, COND_EQUAL *upper_levels,
     if (upper)
     {
       TABLE_LIST *native_sjm= embedding_sjm(item_equal->context_field);
-      if (item_const && upper->get_const())
+      Item *upper_const= upper->get_const();
+      if (item_const && upper_const)
       {
-        /* Upper item also has "field_item=const". Don't produce equality here */
-        item= 0;
+        /* 
+          Upper item also has "field_item=const".
+          Don't produce equality if const is equal to item_const.
+        */
+        Item_func_eq *func= new Item_func_eq(item_const, upper_const);
+        func->set_cmp_func();
+        func->quick_fix_field();
+        if (func->val_int())
+          item= 0;
       }
       else
       {
