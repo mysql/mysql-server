@@ -4,7 +4,7 @@
 --source include/have_gcs_replication_plugin.inc
 --source include/master-slave.inc
 
---eval CREATE TABLE t1 (a INT AUTO_INCREMENT, PRIMARY KEY (a)) engine=innodb
+CREATE TABLE t1 (a INT AUTO_INCREMENT, PRIMARY KEY (a)) engine=innodb;
 --source include/rpl_sync.inc
 
 --connection server1
@@ -16,19 +16,19 @@ INSERT INTO t1 VALUES(1);
 while($temp > 1)
 {
   --connection server1
-  --send INSERT INTO t1 VALUES(NULL);
+  --send INSERT INTO t1 VALUES(NULL)
 
   --connection server2
-  --send INSERT INTO t1 VALUES(NULL);
+  --send INSERT INTO t1 VALUES(NULL)
 
   --connection server1
   --error 0,ER_DUP_ENTRY,ER_ERROR_DURING_COMMIT
   --reap
 
   --connection server2
-
   --error 0,ER_DUP_ENTRY,ER_ERROR_DURING_COMMIT
   --reap
+
   --dec $temp
 }
 
