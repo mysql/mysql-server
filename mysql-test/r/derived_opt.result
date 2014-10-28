@@ -475,4 +475,33 @@ use test;
 drop database test1;
 set join_cache_level=@tmp_jcl;
 set optimizer_switch=@tmp_os;
+#
+# MDEV-6879: Dereference of NULL primary_file->table in DsMrr_impl::get_disk_sweep_mrr_cost()
+#
+create table t1(a int);
+insert into t1 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+create table t2 (a int, b int, c text);
+insert into t2
+select
+A.a + B.a* 10,
+A.a + B.a* 10,
+'blob-data'
+from t1 A, t1 B;
+set @tmp_jcl= @@join_cache_level;
+set @tmp_os= @@optimizer_switch;
+set join_cache_level=6;
+set @@optimizer_switch='derived_merge=on,derived_with_keys=on,mrr=on';
+explain
+select * from
+t1 join
+(select * from t2 order by a limit 1000) as D1
+where
+D1.a= t1.a;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	10	Using where
+1	PRIMARY	<derived2>	hash_ALL	key0	#hash#key0	5	test.t1.a	100	Using join buffer (flat, BNLH join)
+2	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	100	Using filesort
+set join_cache_level=@tmp_jcl;
+set optimizer_switch=@tmp_os;
+drop table t1, t2;
 set optimizer_switch=@exit_optimizer_switch;
