@@ -7170,7 +7170,7 @@ TC_LOG::enum_result MYSQL_BIN_LOG::commit(THD *thd, bool all)
     if (thd->get_transaction()->get_rpl_transaction_ctx()->is_transaction_rollback())
     {
       ha_rollback_low(thd, all);
-      thd->get_stmt_da()->set_error_status(ER_ERROR_DURING_COMMIT);
+      my_error(ER_ERROR_DURING_COMMIT, MYF(0), 1);
       DBUG_RETURN(RESULT_ABORTED);
     }
 
