@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -46,7 +46,7 @@ static void register_lock(const void * ptr, const char * name);
 #if defined(NDB_HAVE_XCNG) && defined(NDB_USE_SPINLOCK)
 static mt_lock_stat * lookup_lock(const void * ptr);
 template <unsigned SZ>
-struct thr_spin_lock
+struct MY_ALIGNED(SZ) thr_spin_lock
 {
   thr_spin_lock(const char * name = 0)
   {
@@ -54,10 +54,7 @@ struct thr_spin_lock
     register_lock(this, name);
   }
 
-  union {
-    volatile Uint32 m_lock;
-    char pad[SZ];
-  };
+  volatile Uint32 m_lock;
 };
 
 static
@@ -135,17 +132,14 @@ trylock(struct thr_spin_lock<SZ>* sl)
 #endif
 
 template <unsigned SZ>
-struct thr_mutex
+struct MY_ALIGNED(SZ) thr_mutex
 {
   thr_mutex(const char * name = 0) {
     NdbMutex_Init(&m_mutex);
     register_lock(this, name);
   }
 
-  union {
-    NdbMutex m_mutex;
-    char pad[SZ];
-  };
+  NdbMutex m_mutex;
 };
 
 template <unsigned SZ>
