@@ -330,7 +330,7 @@ sub testcase_timeout ($) {
   return $opt_testcase_timeout * 60;
 }
 
-sub check_timeout ($) { return testcase_timeout($_[0]) / 10; }
+sub check_timeout ($) { return testcase_timeout($_[0]); }
 
 our $opt_warnings= 1;
 
