@@ -28,7 +28,7 @@ Variable_name	Value
 innodb_tmpdir	wrong_value
 call mtr.add_suppression("\\[ERROR\\] InnoDB: Cannot create temporary merge file");
 alter table t1 add column b int not null;
-ERROR HY000: Can't create/write to file '' (Errcode: 2 - No such file or directory)
+Got one of the listed errors
 set global innodb_tmpdir=NULL;
 drop table t1;
 # innodb_tmpdir with valid location.
