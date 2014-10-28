@@ -129,7 +129,6 @@ static const long AUTOINC_NEW_STYLE_LOCKING = 1;
 static const long AUTOINC_NO_LOCKING = 2;
 
 static long innobase_log_buffer_size;
-static long innobase_file_io_threads;
 static long innobase_open_files;
 static long innobase_autoinc_lock_mode;
 static ulong innobase_commit_concurrency = 0;
@@ -3268,7 +3267,6 @@ innobase_change_buffering_inited_ok:
 
 	srv_buf_pool_size = (ulint) innobase_buffer_pool_size;
 
-	srv_n_file_io_threads = (ulint) innobase_file_io_threads;
 	srv_n_read_io_threads = (ulint) innobase_read_io_threads;
 	srv_n_write_io_threads = (ulint) innobase_write_io_threads;
 
@@ -9901,14 +9899,6 @@ create_table_info_t::create_table()
 	dict_table_t*	innobase_table = NULL;
 	const char*	stmt;
 	size_t		stmt_len;
-#ifdef UNIV_DEBUG
-	const bool	is_intrinsic_temp_table
-		= (m_flags2 & DICT_TF2_INTRINSIC) != 0;
-
-	/* DICT_TF2_INTRINSIC implies DICT_TF2_TEMPORARY */
-	ut_ad(!(m_flags2 & DICT_TF2_INTRINSIC)
-	      || (m_flags2 & DICT_TF2_TEMPORARY));
-#endif /* UNIV_DEBUG */
 
 	DBUG_ENTER("create_table");
 
@@ -10035,7 +10025,7 @@ create_table_info_t::create_table()
 		dict_table_t*		handler
 				= priv->lookup_table_handler(m_table_name);
 		ut_ad(handler == NULL
-		      || (handler != NULL && is_intrinsic_temp_table));
+		      || (handler != NULL && is_intrinsic_temp_table()));
 
 		dberr_t	err = row_table_add_foreign_constraints(
 			m_trx, stmt, stmt_len, m_table_name,
@@ -16615,11 +16605,6 @@ static MYSQL_SYSVAR_ULONG(concurrency_tickets, srv_n_free_tickets_to_enter,
   "Number of times a thread is allowed to enter InnoDB within the same SQL query after it has once got the ticket",
   NULL, NULL, 5000L, 1L, ~0UL, 0);
 
-static MYSQL_SYSVAR_LONG(file_io_threads, innobase_file_io_threads,
-  PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY | PLUGIN_VAR_NOSYSVAR,
-  "Number of file I/O threads in InnoDB.",
-  NULL, NULL, 4, 4, 64, 0);
-
 static MYSQL_SYSVAR_LONG(fill_factor, innobase_fill_factor,
   PLUGIN_VAR_RQCMDARG,
   "Percentage of B-tree page filled during bulk insert",
@@ -17072,7 +17057,6 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(api_enable_mdl),
   MYSQL_SYSVAR(api_disable_rowlock),
   MYSQL_SYSVAR(fast_shutdown),
-  MYSQL_SYSVAR(file_io_threads),
   MYSQL_SYSVAR(read_io_threads),
   MYSQL_SYSVAR(write_io_threads),
   MYSQL_SYSVAR(file_per_table),
