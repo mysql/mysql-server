@@ -1,6 +1,7 @@
 # Initialize
 --disable_warnings
-drop table if exists t1,t2,t3;
+drop table if exists t0,t1,t2,t3;
+drop database if exists test1;
 --enable_warnings
 
 set @exit_optimizer_switch=@@optimizer_switch;
@@ -271,6 +272,96 @@ WHERE
 limit 10;
 
 drop table t1, t2, t3, t4;
+
+--echo #
+--echo # MDEV-6888: Query spends a long time in best_extension_by_limited_search with mrr enabled
+--echo #
+create database test1;
+use test1;
+
+set @tmp_jcl= @@join_cache_level;
+set @tmp_os= @@optimizer_switch;
+set join_cache_level=8;
+set optimizer_switch='mrr=on,mrr_sort_keys=on';
+
+CREATE TABLE t0 (
+  f1 bigint(20) DEFAULT NULL,
+  f2 char(50) DEFAULT NULL
+) ENGINE=MEMORY DEFAULT CHARSET=latin1;
+INSERT INTO t0 VALUES (NULL,'numeric column is NULL'),(0,NULL),(5,'five'),(1,'one'),(2,'two');
+
+CREATE TABLE t1 (
+  f1 decimal(64,30) DEFAULT NULL,
+  f2 varchar(50) DEFAULT NULL
+) ENGINE=MEMORY DEFAULT CHARSET=latin1;
+
+INSERT INTO t1 VALUES 
+(NULL,'numeric column is NULL'),
+(0.000000000000000000000000000000,NULL),
+(5.000000000000000000000000000000,'five'),
+(1.000000000000000000000000000000,'one'),
+(3.000000000000000000000000000000,'three');
+
+CREATE TABLE t2 (
+  f1 double DEFAULT NULL,
+  f2 varbinary(50) DEFAULT NULL
+) ENGINE=MEMORY DEFAULT CHARSET=latin1;
+INSERT INTO t2 VALUES (NULL,'numeric column is NULL'),(0,NULL),(5,'five'),(2,'two'),(3,'three');
+
+create VIEW v0  AS select f1,f2 from t1 ;
+
+let $cnt= 27; 
+while ($cnt)
+{
+# i runs from 1 to 27
+  let $i= `select 28 - $cnt`;
+  let $prev=`select $i - 1`;
+
+# rem = i mod 3
+  let $rem= `select MOD($i, 3)`;
+# view uses $i, $prev and $rem:
+  eval create VIEW v$i AS select tab1_v$i.f1,tab1_v$i.f2 from t$rem tab1_v$i join v$prev tab2 on tab1_v$i.f1 = tab2.f1 and tab1_v$i.f2 = tab2.f2;
+  dec $cnt;
+}
+
+EXPLAIN SELECT CAST(f1 AS SIGNED INTEGER) AS f1, CAST(f2 AS CHAR) AS f2 FROM v27;
+--echo # This used to hang forever:
+EXPLAIN SELECT CAST(f1 AS SIGNED INTEGER) AS f1, CAST(f2 AS CHAR) AS f2 FROM v27;
+
+use test;
+drop database test1;
+set join_cache_level=@tmp_jcl;
+set optimizer_switch=@tmp_os;
+
+
+--echo #
+--echo # MDEV-6879: Dereference of NULL primary_file->table in DsMrr_impl::get_disk_sweep_mrr_cost()
+--echo #
+create table t1(a int);
+insert into t1 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+
+create table t2 (a int, b int, c text);
+insert into t2
+select
+  A.a + B.a* 10,
+  A.a + B.a* 10,
+  'blob-data'
+from t1 A, t1 B;
+
+set @tmp_jcl= @@join_cache_level;
+set @tmp_os= @@optimizer_switch;
+set join_cache_level=6;
+set @@optimizer_switch='derived_merge=on,derived_with_keys=on,mrr=on';
+explain
+select * from
+  t1 join
+  (select * from t2 order by a limit 1000) as D1
+where
+  D1.a= t1.a;
+
+set join_cache_level=@tmp_jcl;
+set optimizer_switch=@tmp_os;
+drop table t1, t2;
 
 # The following command must be the last one the file 
 set optimizer_switch=@exit_optimizer_switch;
