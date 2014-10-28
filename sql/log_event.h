@@ -5163,6 +5163,18 @@ public:
                 const Gtid_set::String_format *string_format) const;
   /// Add all GTIDs from this event to the given Gtid_set.
   int add_to_set(Gtid_set *gtid_set) const;
+  /*
+    Previous Gtid Log events should always be skipped
+    there is nothing to apply there, whether it is
+    relay log's (generated on Slave) or it is binary log's
+    (generated on Master, copied to slave as relay log).
+    Also, we should not increment slave_skip_counter
+    for this event, hence return EVENT_SKIP_IGNORE.
+   */
+  enum_skip_reason do_shall_skip(Relay_log_info *rli)
+  {
+    return EVENT_SKIP_IGNORE;
+  }
 
 #if defined(MYSQL_SERVER) && defined(HAVE_REPLICATION)
   int do_apply_event(Relay_log_info const *rli) { return 0; }
