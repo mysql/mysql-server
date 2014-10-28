@@ -410,6 +410,7 @@ bool Mrr_ordered_index_reader::set_interruption_temp_buffer(uint rowid_length,
   *space_start += key_len;
 
   have_saved_rowid= FALSE;
+  read_was_interrupted= FALSE;
   return FALSE;
 }
 
@@ -418,6 +419,7 @@ void Mrr_ordered_index_reader::set_no_interruption_temp_buffer()
   support_scan_interruptions= FALSE;
   saved_key_tuple= saved_rowid= saved_primary_key= NULL; /* safety */
   have_saved_rowid= FALSE;
+  read_was_interrupted= FALSE;
 }
 
 void Mrr_ordered_index_reader::interrupt_read()
@@ -435,6 +437,7 @@ void Mrr_ordered_index_reader::interrupt_read()
              &table->key_info[table->s->primary_key],
              table->key_info[table->s->primary_key].key_length);
   }
+  read_was_interrupted= TRUE;
 
   /* Save the last rowid */
   memcpy(saved_rowid, file->ref, file->ref_length);
@@ -452,6 +455,10 @@ void Mrr_ordered_index_reader::position()
 void Mrr_ordered_index_reader::resume_read()
 {
   TABLE *table= file->get_table();
+
+  if (!read_was_interrupted)
+    return;
+
   KEY *used_index= &table->key_info[file->active_index];
   key_restore(table->record[0], saved_key_tuple, 
               used_index, used_index->key_length);
@@ -541,8 +548,7 @@ int Mrr_ordered_index_reader::init(handler *h_arg, RANGE_SEQ_IF *seq_funcs,
   is_mrr_assoc=    !test(mode & HA_MRR_NO_ASSOCIATION);
   mrr_funcs= *seq_funcs;
   source_exhausted= FALSE;
-  if (support_scan_interruptions)
-    bzero(saved_key_tuple, key_info->key_length);
+  read_was_interrupted= false;
   have_saved_rowid= FALSE;
   return 0;
 }
