@@ -146,10 +146,9 @@ futex_wake(volatile unsigned * addr)
   return syscall(SYS_futex, addr, FUTEX_WAKE, 1, 0, 0, 0) == 0 ? 0 : errno;
 }
 
-struct thr_wait
+struct MY_ALIGNED(NDB_CL) thr_wait
 {
   volatile unsigned m_futex_state;
-  char padding[NDB_CL_PADSZ(sizeof(unsigned))];
   enum {
     FS_RUNNING = 0,
     FS_SLEEPING = 1
@@ -224,12 +223,11 @@ wakeup(struct thr_wait* wait)
 }
 #else
 
-struct thr_wait
+struct MY_ALIGNED(NDB_CL) thr_wait
 {
   NdbMutex *m_mutex;
   NdbCondition *m_cond;
   bool m_need_wakeup;
-  char padding[NDB_CL_PADSZ(sizeof(bool) + (2*sizeof(void*)))];
   thr_wait() : m_mutex(0), m_cond(0), m_need_wakeup(false) {
     assert((sizeof(*this) % NDB_CL) == 0); //Maintain any CL-allignment
   }
@@ -292,19 +290,16 @@ wakeup(struct thr_wait* wait)
  * thr_safe_pool
  */
 template<typename T>
-struct thr_safe_pool
+struct MY_ALIGNED(NDB_CL) thr_safe_pool
 {
-  thr_safe_pool(const char * name) : m_free_list(0), m_cnt(0), m_lock(name) {
+  thr_safe_pool(const char * name) : m_lock(name), m_free_list(0), m_cnt(0) {
     assert((sizeof(*this) % NDB_CL) == 0); //Maintain any CL-allignment
   }
 
+  thr_spin_lock<8> m_lock;
+
   T* m_free_list;
   Uint32 m_cnt;
-
-  /* Pad-word which was added by 64bit builds anyway. Make it visible for NDB_CL_PADSZ below. */
-  Uint32 m_unused;
-
-  thr_spin_lock<NDB_CL_PADSZ(sizeof(T*) + 2*sizeof(Uint32))> m_lock;
 
   T* seize(Ndbd_mem_manager *mm, Uint32 rg) {
     T* ret = 0;
@@ -895,7 +890,7 @@ struct thr_send_queue
 #endif
 };
 
-struct thr_data
+struct MY_ALIGNED(NDB_CL) thr_data
 {
   thr_data() : m_jba_write_lock("jbalock"),
                m_signal_id_counter(0),
@@ -914,7 +909,7 @@ struct thr_data
 
   /**
    * We start with the data structures that are shared globally to
-   * ensure that they get the proper padding
+   * ensure that they get the proper cache line alignment
    */
   thr_wait m_waiter; /* Cacheline aligned*/
 
@@ -924,24 +919,19 @@ struct thr_data
    * surrounding thread-local variables from CPU cache line sharing
    * with this part.
    */
-  struct thr_spin_lock<64> m_jba_write_lock;
-
-  struct thr_job_queue m_jba; /* aligned */
+  MY_ALIGNED(NDB_CL) struct thr_spin_lock<64> m_jba_write_lock;
+  MY_ALIGNED(NDB_CL) struct thr_job_queue m_jba;
   struct thr_job_queue_head m_jba_head;
-  char unused_protection1[NDB_CL_PADSZ(sizeof(struct thr_job_queue_head))];
 
   /*
    * These are the thread input queues, where other threads deliver signals
    * into.
-   * Protect the m_in_queue_head by empty cache line to ensure that we don't
-   * get false CPU cacheline sharing. These cache lines are going to be
-   * updated by many different CPU's all the time whereas other neighbour
-   * variables are thread-local variables.
+   * These cache lines are going to be updated by many different CPU's 
+   * all the time whereas other neighbour variables are thread-local variables.
+   * Avoid false cacheline sharing by require an alignment.
    */
-  struct thr_job_queue_head m_in_queue_head[MAX_BLOCK_THREADS];
-  char unused_protection2[
-    NDB_CL_PADSZ(MAX_BLOCK_THREADS*sizeof(struct thr_job_queue_head))];
-  struct thr_job_queue m_in_queue[MAX_BLOCK_THREADS];
+  MY_ALIGNED(NDB_CL) struct thr_job_queue_head m_in_queue_head[MAX_BLOCK_THREADS];
+  MY_ALIGNED(NDB_CL) struct thr_job_queue m_in_queue[MAX_BLOCK_THREADS];
 
   /**
    * The remainder of the variables in thr_data are thread-local,
@@ -1072,13 +1062,6 @@ struct thr_data
   NdbThread* m_thread;
 };
 
-struct thr_data_aligned
-{
-  struct thr_data m_thr_data;
-  /* Ensure that the thr_data is aligned on a cacheline boundary */
-  char unused_protection[NDB_CL_PADSZ(sizeof(struct thr_data))];
-};
-
 struct mt_send_handle  : public TransporterSendBufferHandle
 {
   struct thr_data * m_selfptr;
@@ -1120,6 +1103,8 @@ struct thr_repository
     assert((((UintPtr)&m_receive_lock) % NDB_CL) == 0);
     assert((((UintPtr)&m_section_lock) % NDB_CL) == 0);
     assert((((UintPtr)&m_mem_manager_lock) % NDB_CL) == 0);
+    assert((((UintPtr)&m_jb_pool) % NDB_CL) == 0);
+    assert((((UintPtr)&m_sb_pool) % NDB_CL) == 0);
     assert((((UintPtr)m_thread) % NDB_CL) == 0);
   }
 
@@ -1127,13 +1112,14 @@ struct thr_repository
    * m_receive_lock, m_section_lock, m_mem_manager_lock, m_jb_pool
    * and m_sb_pool are allvariables globally shared among the threads
    * and also heavily updated.
+   * Requiring alignments avoid false cache line sharing.
    */
-  struct thr_spin_lock<64> m_receive_lock[MAX_NDBMT_RECEIVE_THREADS];
-  struct thr_spin_lock<64> m_section_lock;
-  struct thr_spin_lock<64> m_mem_manager_lock;
-  /* thr_safe_pool is aligned to be also 64 bytes in size */
-  struct thr_safe_pool<thr_job_buffer> m_jb_pool;
-  struct thr_safe_pool<thr_send_page> m_sb_pool;
+  MY_ALIGNED(NDB_CL) struct thr_spin_lock<64> m_receive_lock[MAX_NDBMT_RECEIVE_THREADS];
+  MY_ALIGNED(NDB_CL) struct thr_spin_lock<64> m_section_lock;
+  MY_ALIGNED(NDB_CL) struct thr_spin_lock<64> m_mem_manager_lock;
+  MY_ALIGNED(NDB_CL) struct thr_safe_pool<thr_job_buffer> m_jb_pool;
+  MY_ALIGNED(NDB_CL) struct thr_safe_pool<thr_send_page> m_sb_pool;
+
   /* m_mm and m_thread_count are globally shared and read only variables */
   Ndbd_mem_manager * m_mm;
   unsigned m_thread_count;
@@ -1143,9 +1129,7 @@ struct thr_repository
    * So sharing cache line with these for these read only variables
    * isn't a good idea
    */
-  char protection_unused[NDB_CL_PADSZ(sizeof(void*) + sizeof(unsigned))];
-
-  struct thr_data_aligned m_thread[MAX_BLOCK_THREADS];
+  MY_ALIGNED(NDB_CL) struct thr_data m_thread[MAX_BLOCK_THREADS];
 
   /* The buffers that are to be sent */
   struct send_buffer
@@ -1915,7 +1899,7 @@ thr_job_buffer*
 seize_buffer(struct thr_repository* rep, int thr_no, bool prioa)
 {
   thr_job_buffer* jb;
-  struct thr_data* selfptr = &rep->m_thread[thr_no].m_thr_data;
+  struct thr_data* selfptr = &rep->m_thread[thr_no];
   Uint32 first_free = selfptr->m_first_free;
   Uint32 first_unused = selfptr->m_first_unused;
 
@@ -1977,7 +1961,7 @@ static
 void
 release_buffer(struct thr_repository* rep, int thr_no, thr_job_buffer* jb)
 {
-  struct thr_data* selfptr = &rep->m_thread[thr_no].m_thr_data;
+  struct thr_data* selfptr = &rep->m_thread[thr_no];
   Uint32 first_free = selfptr->m_first_free;
   Uint32 first_unused = selfptr->m_first_unused;
 
@@ -2320,7 +2304,7 @@ void
 senddelay(Uint32 thr_no, const SignalHeader* s, Uint32 delay)
 {
   struct thr_repository* rep = g_thr_repository;
-  struct thr_data* selfptr = &rep->m_thread[thr_no].m_thr_data;
+  struct thr_data* selfptr = &rep->m_thread[thr_no];
   assert(pthread_equal(selfptr->m_thr_id, pthread_self()));
   unsigned siglen = (sizeof(*s) >> 2) + s->theLength + s->m_noOfSections;
 
@@ -2505,7 +2489,7 @@ flush_jbb_write_state(thr_data *selfptr)
   Uint32 self = selfptr->m_thr_no;
 
   thr_jb_write_state *w = selfptr->m_write_states + self;
-  thr_data_aligned *thr_align_ptr = g_thr_repository->m_thread;
+  thr_data *thrptr = g_thr_repository->m_thread;
 
   /**
     We start by flushing to ourselves, this requires no extra memory
@@ -2525,11 +2509,10 @@ flush_jbb_write_state(thr_data *selfptr)
   wmb();
   w = selfptr->m_write_states;
   thr_jb_write_state *w_end = selfptr->m_write_states + thr_count;
-  for (; w < w_end; thr_align_ptr++, w++)
+  for (; w < w_end; thrptr++, w++)
   {
     if (w->has_any_pending_signals())
     {
-      struct thr_data *thrptr = &thr_align_ptr->m_thr_data;
       thr_job_queue_head *q_head = thrptr->m_in_queue_head + self;
       flush_write_state_other_wakeup(thrptr, q_head, w);
     }
@@ -2573,11 +2556,10 @@ static struct thr_data*
 get_congested_recv_queue(struct thr_repository* rep, Uint32 recv_thread_id)
 {
   const unsigned thr_no = first_receiver_thread_no + recv_thread_id;
-  thr_data_aligned *thr_align_ptr = rep->m_thread;
+  thr_data *thrptr = rep->m_thread;
 
-  for (unsigned i = 0; i<num_threads; i++, thr_align_ptr++)
+  for (unsigned i = 0; i<num_threads; i++, thrptr++)
   {
-    struct thr_data *thrptr = &thr_align_ptr->m_thr_data;
     thr_job_queue_head *q_head = thrptr->m_in_queue_head + thr_no;
     if (check_recv_queue(q_head))
     {
@@ -2621,11 +2603,10 @@ compute_min_free_out_buffers(Uint32 thr_no)
 {
   Uint32 minfree = thr_job_queue::SIZE;
   const struct thr_repository* rep = g_thr_repository;
-  const struct thr_data_aligned *thr_align_ptr = rep->m_thread;
+  const struct thr_data *thrptr = rep->m_thread;
 
-  for (unsigned i = 0; i<num_threads; i++, thr_align_ptr++)
+  for (unsigned i = 0; i<num_threads; i++, thrptr++)
   {
-    const struct thr_data *thrptr = &thr_align_ptr->m_thr_data;
     const thr_job_queue_head *q_head = thrptr->m_in_queue_head + thr_no;
     unsigned free = compute_free_buffers_in_queue(q_head);
 
@@ -2669,8 +2650,7 @@ dumpJobQueues(void)
   {
     for (unsigned to = 0; to<num_threads; to++)
     {
-      const thr_data_aligned *thr_align_ptr = rep->m_thread + to;
-      const struct thr_data *thrptr = &thr_align_ptr->m_thr_data;
+      const thr_data *thrptr = rep->m_thread + to;
       const thr_job_queue_head *q_head = thrptr->m_in_queue_head + from;
 
       const unsigned used = q_head->used();
@@ -3029,7 +3009,7 @@ fill_iovec:
 
     if (!is_send_thread(thr_no))
     {
-      thr_data * thrptr = &g_thr_repository->m_thread[thr_no].m_thr_data;
+      thr_data * thrptr = &g_thr_repository->m_thread[thr_no];
       pack_sb_pages(&thrptr->m_send_buffer_pool, &sb->m_sending);
     }
     else
@@ -3154,7 +3134,7 @@ trp_callback::bytes_sent(NodeId node, Uint32 bytes)
   assert(thr_no != NO_SEND_THREAD);
   if (!is_send_thread(thr_no))
   {
-    thr_data * thrptr = &g_thr_repository->m_thread[thr_no].m_thr_data;
+    thr_data * thrptr = &g_thr_repository->m_thread[thr_no];
     return ::bytes_sent(&thrptr->m_send_buffer_pool,
                         sb,
                         bytes);
@@ -4005,7 +3985,7 @@ add_thr_map(Uint32 main, Uint32 instance, Uint32 thr_no)
 
   require(thr_no < num_threads);
   struct thr_repository* rep = g_thr_repository;
-  struct thr_data* thr_ptr = &rep->m_thread[thr_no].m_thr_data;
+  struct thr_data* thr_ptr = &rep->m_thread[thr_no];
 
   /* Add to list. */
   {
@@ -4480,12 +4460,11 @@ get_congested_job_queue(const thr_data *selfptr)
 {
   const Uint32 thr_no = selfptr->m_thr_no;
   struct thr_repository* rep = g_thr_repository;
-  struct thr_data_aligned *thr_align_ptr = rep->m_thread;
+  struct thr_data *thrptr = rep->m_thread;
   struct thr_data *waitfor = NULL;
 
-  for (unsigned i = 0; i<num_threads; i++, thr_align_ptr++)
+  for (unsigned i = 0; i<num_threads; i++, thrptr++)
   {
-    struct thr_data *thrptr = &thr_align_ptr->m_thr_data;
     thr_job_queue_head *q_head = thrptr->m_in_queue_head + thr_no;
 
     if (compute_free_buffers_in_queue(q_head) <= thr_job_queue::RESERVED)
@@ -4827,9 +4806,9 @@ sendlocal(Uint32 self, const SignalHeader *s, const Uint32 *data,
 
   Uint32 dst = block2ThreadId(block, instance);
   struct thr_repository* rep = g_thr_repository;
-  struct thr_data *selfptr = &rep->m_thread[self].m_thr_data;
+  struct thr_data *selfptr = &rep->m_thread[self];
   assert(pthread_equal(selfptr->m_thr_id, pthread_self()));
-  struct thr_data *dstptr = &rep->m_thread[dst].m_thr_data;
+  struct thr_data *dstptr = &rep->m_thread[dst];
 
   selfptr->m_stat.m_priob_count++;
   Uint32 siglen = (sizeof(*s) >> 2) + s->theLength + s->m_noOfSections;
@@ -4857,10 +4836,10 @@ sendprioa(Uint32 self, const SignalHeader *s, const uint32 *data,
 
   Uint32 dst = block2ThreadId(block, instance);
   struct thr_repository* rep = g_thr_repository;
-  struct thr_data *selfptr = &rep->m_thread[self].m_thr_data;
+  struct thr_data *selfptr = &rep->m_thread[self];
   assert(s->theVerId_signalNumber == GSN_START_ORD ||
          pthread_equal(selfptr->m_thr_id, pthread_self()));
-  struct thr_data *dstptr = &rep->m_thread[dst].m_thr_data;
+  struct thr_data *dstptr = &rep->m_thread[dst];
 
   selfptr->m_stat.m_prioa_count++;
   Uint32 siglen = (sizeof(*s) >> 2) + s->theLength + s->m_noOfSections;
@@ -4901,7 +4880,7 @@ mt_send_remote(Uint32 self, const SignalHeader *sh, Uint8 prio,
                const LinearSectionPtr ptr[3])
 {
   thr_repository *rep = g_thr_repository;
-  struct thr_data *selfptr = &rep->m_thread[self].m_thr_data;
+  struct thr_data *selfptr = &rep->m_thread[self];
   SendStatus ss;
 
   mt_send_handle handle(selfptr);
@@ -4919,7 +4898,7 @@ mt_send_remote(Uint32 self, const SignalHeader *sh, Uint8 prio,
                const SegmentedSectionPtr ptr[3])
 {
   thr_repository *rep = g_thr_repository;
-  struct thr_data *selfptr = &rep->m_thread[self].m_thr_data;
+  struct thr_data *selfptr = &rep->m_thread[self];
   SendStatus ss;
 
   mt_send_handle handle(selfptr);
@@ -4952,7 +4931,7 @@ sendprioa_STOP_FOR_CRASH(const struct thr_data *selfptr, Uint32 dst)
   /**
    * Pick any instance running in this thread
    */
-  struct thr_data *dstptr = &rep->m_thread[dst].m_thr_data;
+  struct thr_data *dstptr = &rep->m_thread[dst];
   Uint32 bno = dstptr->m_instance_list[0];
 
   memset(&signalT.header, 0, sizeof(SignalHeader));
@@ -5162,7 +5141,7 @@ thr_init2(struct thr_repository* rep, struct thr_data *selfptr,
     selfptr->m_write_states[i].m_write_index = 0;
     selfptr->m_write_states[i].m_write_pos = 0;
     selfptr->m_write_states[i].m_write_buffer =
-      rep->m_thread[i].m_thr_data.m_in_queue[thr_no].m_buffers[0];
+      rep->m_thread[i].m_in_queue[thr_no].m_buffers[0];
     selfptr->m_write_states[i].init_pending_signals();
   }    
 }
@@ -5202,11 +5181,11 @@ rep_init(struct thr_repository* rep, unsigned int cnt, Ndbd_mem_manager *mm)
   rep->m_thread_count = cnt;
   for (unsigned int i = 0; i<cnt; i++)
   {
-    thr_init(rep, &rep->m_thread[i].m_thr_data, cnt, i);
+    thr_init(rep, &rep->m_thread[i], cnt, i);
   }
   for (unsigned int i = 0; i<cnt; i++)
   {
-    thr_init2(rep, &rep->m_thread[i].m_thr_data, cnt, i);
+    thr_init2(rep, &rep->m_thread[i], cnt, i);
   }
 
   rep->stopped_threads = 0;
@@ -5502,7 +5481,7 @@ ThreadConfig::ipControlLoop(NdbThread* pThis)
   unsigned int thr_no;
   struct thr_repository* rep = g_thr_repository;
 
-  rep->m_thread[first_receiver_thread_no].m_thr_data.m_thr_index =
+  rep->m_thread[first_receiver_thread_no].m_thr_index =
     globalEmulatorData.theConfiguration->addThread(pThis, ReceiveThread);
 
   if (globalData.ndbMtSendThreads)
@@ -5527,7 +5506,7 @@ ThreadConfig::ipControlLoop(NdbThread* pThis)
    */
   for (thr_no = 0; thr_no < num_threads; thr_no++)
   {
-    rep->m_thread[thr_no].m_thr_data.m_ticks = NdbTick_getCurrentTicks();
+    rep->m_thread[thr_no].m_ticks = NdbTick_getCurrentTicks();
 
     if (thr_no == first_receiver_thread_no)
       continue;                 // Will run in the main thread.
@@ -5546,31 +5525,30 @@ ThreadConfig::ipControlLoop(NdbThread* pThis)
                          "execute thread", //ToDo add number
                          NDB_THREAD_PRIO_MEAN);
       require(thread_ptr != NULL);
-      rep->m_thread[thr_no].m_thr_data.m_thr_index =
+      rep->m_thread[thr_no].m_thr_index =
         globalEmulatorData.theConfiguration->addThread(thread_ptr,
                                                        BlockThread);
-      rep->m_thread[thr_no].m_thr_data.m_thread = thread_ptr;
+      rep->m_thread[thr_no].m_thread = thread_ptr;
     }
     else
     {
       /* Start a receiver thread, also block thread for TRPMAN */
       struct NdbThread *thread_ptr =
         NdbThread_Create(mt_receiver_thread_main,
-                         (void **)(&rep->m_thread[thr_no].m_thr_data),
+                         (void **)(&rep->m_thread[thr_no]),
                          1024*1024,
                          "receive thread", //ToDo add number
                          NDB_THREAD_PRIO_MEAN);
       require(thread_ptr != NULL);
       globalEmulatorData.theConfiguration->addThread(thread_ptr,
                                                      ReceiveThread);
-      rep->m_thread[thr_no].m_thr_data.m_thread = thread_ptr;
+      rep->m_thread[thr_no].m_thread = thread_ptr;
     }
   }
 
   /* Now run the main loop for first receiver thread directly. */
-  rep->m_thread[first_receiver_thread_no].m_thr_data.m_thread = pThis;
-  mt_receiver_thread_main(
-    &(rep->m_thread[first_receiver_thread_no].m_thr_data));
+  rep->m_thread[first_receiver_thread_no].m_thread = pThis;
+  mt_receiver_thread_main(&(rep->m_thread[first_receiver_thread_no]));
 
   /* Wait for all threads to shutdown. */
   for (thr_no = 0; thr_no < num_threads; thr_no++)
@@ -5578,11 +5556,11 @@ ThreadConfig::ipControlLoop(NdbThread* pThis)
     if (thr_no == first_receiver_thread_no)
       continue;
     void *dummy_return_status;
-    NdbThread_WaitFor(rep->m_thread[thr_no].m_thr_data.m_thread,
+    NdbThread_WaitFor(rep->m_thread[thr_no].m_thread,
                       &dummy_return_status);
     globalEmulatorData.theConfiguration->removeThread(
-      rep->m_thread[thr_no].m_thr_data.m_thread);
-    NdbThread_Destroy(&(rep->m_thread[thr_no].m_thr_data.m_thread));
+      rep->m_thread[thr_no].m_thread);
+    NdbThread_Destroy(&(rep->m_thread[thr_no].m_thread));
   }
 
   /* Delete send threads, includes waiting for threads to shutdown */
@@ -5634,7 +5612,7 @@ FastScheduler::traceDumpGetJam(Uint32 thr_no,
   thrdTheEmulatedJamIndex = 0;
 #else
   const EmulatedJamBuffer *jamBuffer =
-    &g_thr_repository->m_thread[thr_no].m_thr_data.m_jam;
+    &g_thr_repository->m_thread[thr_no].m_jam;
   thrdTheEmulatedJam = jamBuffer->theEmulatedJam;
   thrdTheEmulatedJamIndex = jamBuffer->theEmulatedJamIndex;
 #endif
@@ -5850,7 +5828,7 @@ FastScheduler::dumpSignalMemory(Uint32 thr_no, FILE* out)
   Uint32 seq_start = 0;
   Uint32 seq_end = 0;
 
-  const struct thr_data *thr_ptr = &rep->m_thread[thr_no].m_thr_data;
+  const struct thr_data *thr_ptr = &rep->m_thread[thr_no];
   if (watchDogCounter)
     *watchDogCounter = 4;
 
@@ -6156,7 +6134,7 @@ void
 mt_wakeup(class SimulatedBlock* block)
 {
   Uint32 thr_no = block->getThreadId();
-  struct thr_data *thrptr = &g_thr_repository->m_thread[thr_no].m_thr_data;
+  struct thr_data *thrptr = &g_thr_repository->m_thread[thr_no];
   wakeup(&thrptr->m_waiter);
 }
 
@@ -6165,7 +6143,7 @@ void
 mt_assert_own_thread(SimulatedBlock* block)
 {
   Uint32 thr_no = block->getThreadId();
-  struct thr_data *thrptr = &g_thr_repository->m_thread[thr_no].m_thr_data;
+  struct thr_data *thrptr = &g_thr_repository->m_thread[thr_no];
 
   if (unlikely(pthread_equal(thrptr->m_thr_id, pthread_self()) == 0))
   {
@@ -6181,7 +6159,7 @@ Uint32
 mt_get_blocklist(SimulatedBlock * block, Uint32 arr[], Uint32 len)
 {
   Uint32 thr_no = block->getThreadId();
-  struct thr_data *thr_ptr = &g_thr_repository->m_thread[thr_no].m_thr_data;
+  struct thr_data *thr_ptr = &g_thr_repository->m_thread[thr_no];
 
   for (Uint32 i = 0; i < thr_ptr->m_instance_count; i++)
   {
@@ -6196,7 +6174,7 @@ mt_get_thr_stat(class SimulatedBlock * block, ndb_thr_stat* dst)
 {
   bzero(dst, sizeof(* dst));
   Uint32 thr_no = block->getThreadId();
-  struct thr_data *selfptr = &g_thr_repository->m_thread[thr_no].m_thr_data;
+  struct thr_data *selfptr = &g_thr_repository->m_thread[thr_no];
 
   THRConfigApplier & conf = globalEmulatorData.theConfiguration->m_thr_config;
   dst->thr_no = thr_no;
