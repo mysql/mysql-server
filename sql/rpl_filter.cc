@@ -14,7 +14,6 @@
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 #include "sql_priv.h"
-#include "unireg.h"                      // REQUIRED by other includes
 #include "rpl_filter.h"
 #include "hash.h"                               // my_hash_free
 #include "table.h"                              // TABLE_LIST
@@ -551,7 +550,7 @@ Rpl_filter::set_do_table(List<Item> *do_table_list)
   if (!status)
   {
     status = build_do_table_hash();
-    if (!do_table_hash.records)
+    if (do_table_hash_inited && !do_table_hash.records)
     {
       my_hash_free(&do_table_hash);
       do_table_hash_inited= 0;
@@ -575,7 +574,7 @@ Rpl_filter::set_ignore_table(List<Item>* ignore_table_list)
   if (!status)
   {
     status = build_ignore_table_hash();
-    if (!ignore_table_hash.records)
+    if (ignore_table_hash_inited && !ignore_table_hash.records)
     {
       my_hash_free(&ignore_table_hash);
       ignore_table_hash_inited= 0;

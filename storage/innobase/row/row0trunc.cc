@@ -366,7 +366,7 @@ public:
 			which is currently 0. */
 			err = m_truncate.write(
 				log_buf + 4, log_buf + sz - 4,
-				m_table->space, m_table->name,
+				m_table->space, m_table->name.m_name,
 				m_flags, m_table->flags, log_get_lsn());
 
 			DBUG_EXECUTE_IF("ib_err_trunc_oom_logging",
@@ -869,10 +869,9 @@ Drop an index in the table.
 dberr_t
 DropIndex::operator()(mtr_t* mtr, btr_pcur_t* pcur) const
 {
-	ulint	root_page_no;
 	rec_t*	rec = btr_pcur_get_rec(pcur);
 
-	root_page_no = dict_drop_index_tree(rec, pcur, true, mtr);
+	bool	freed = dict_drop_index_tree(rec, pcur, mtr);
 
 #ifdef UNIV_DEBUG
 	{
@@ -910,9 +909,9 @@ DropIndex::operator()(mtr_t* mtr, btr_pcur_t* pcur) const
 #endif /* UNIV_DEBUG */
 
 	DBUG_EXECUTE_IF("ib_err_trunc_drop_index",
-			root_page_no = FIL_NULL;);
+			freed = false;);
 
-	if (root_page_no != FIL_NULL) {
+	if (freed) {
 
 		/* We will need to commit and restart the
 		mini-transaction in order to avoid deadlocks.
@@ -1198,7 +1197,7 @@ row_truncate_complete(
 		dberr_t err2 = truncate_t::truncate(
 			table->space,
 			table->data_dir_path,
-			table->name, flags, false);
+			table->name.m_name, flags, false);
 
 		if (err2 != DB_SUCCESS) {
 			return(err2);
@@ -1244,7 +1243,8 @@ row_truncate_fts(
 
 	dberr_t		err;
 
-	err = fts_create_common_tables(trx, &fts_table, table->name, TRUE);
+	err = fts_create_common_tables(
+		trx, &fts_table, table->name.m_name, TRUE);
 
 	for (ulint i = 0;
 	     i < ib_vector_size(table->fts->indexes) && err == DB_SUCCESS;
@@ -1256,7 +1256,7 @@ row_truncate_fts(
 			ib_vector_getp(table->fts->indexes, i));
 
 		err = fts_create_index_tables_low(
-			trx, fts_index, table->name, new_id);
+			trx, fts_index, table->name.m_name, new_id);
 	}
 
 	DBUG_EXECUTE_IF("ib_err_trunc_during_fts_trunc",
@@ -1268,13 +1268,8 @@ row_truncate_fts(
 		trx_rollback_to_savepoint(trx, NULL);
 		trx->error_state = DB_SUCCESS;
 
-		char	table_name[MAX_FULL_NAME_LEN + 1];
-
-		innobase_format_name(
-			table_name, sizeof(table_name), table->name, FALSE);
-
 		ib::error() << "Unable to truncate FTS index for table "
-			<< table_name;
+			<< table->name;
 	} else {
 
 		ut_ad(trx_is_started(trx));
@@ -1421,11 +1416,8 @@ row_truncate_update_system_tables(
 			table, trx, new_id, has_internal_doc_id,
 			no_redo, true, false);
 
-		char	table_name[MAX_FULL_NAME_LEN + 1];
-		innobase_format_name(
-			table_name, sizeof(table_name), table->name, FALSE);
 		ib::error() << "Unable to assign a new identifier to table "
-			<< table_name << " after truncating it. Marked the"
+			<< table->name << " after truncating it. Marked the"
 			" table as corrupted. In-memory representation is now"
 			" different from the on-disk representation.";
 		err = DB_ERROR;
@@ -1528,10 +1520,10 @@ row_truncate_foreign_key_checks(
 		ut_print_timestamp(ef);
 
 		fputs("  Cannot truncate table ", ef);
-		ut_print_name(ef, trx, TRUE, table->name);
+		ut_print_name(ef, trx, table->name.m_name);
 		fputs(" by DROP+CREATE\n"
 		      "InnoDB: because it is referenced by ", ef);
-		ut_print_name(ef, trx, TRUE, foreign->foreign_table_name);
+		ut_print_name(ef, trx, foreign->foreign_table_name);
 		putc('\n', ef);
 
 		mutex_exit(&dict_foreign_err_mutex);
@@ -1546,13 +1538,7 @@ row_truncate_foreign_key_checks(
 	checks take an IS or IX lock on the table. */
 
 	if (table->n_foreign_key_checks_running > 0) {
-
-		char	table_name[MAX_FULL_NAME_LEN + 1];
-
-		innobase_format_name(
-			table_name, sizeof(table_name), table->name, FALSE);
-
-		ib::warn() << "Cannot truncate table " << table_name
+		ib::warn() << "Cannot truncate table " << table->name
 			<< " because there is a foreign key check running on"
 			" it.";
 
@@ -1738,7 +1724,7 @@ row_truncate_table_for_mysql(
 	allow truncate this table. */
 	if (table->memcached_sync_count != 0) {
 		ib::error() << "Cannot truncate table "
-			<< ut_get_name(trx, TRUE, table->name)
+			<< table->name
 			<< " by DROP+CREATE because there are memcached"
 			" operations running on it.";
 		err = DB_ERROR;
@@ -2048,19 +2034,19 @@ truncate_t::fixup_tables()
 
 		if (!is_system_tablespace((*it)->m_space_id)) {
 
-			if (!fil_tablespace_exists_in_mem((*it)->m_space_id)) {
+			if (!fil_space_get((*it)->m_space_id)) {
 
 				/* Create the database directory for name,
 				if it does not exist yet */
 				fil_create_directory_for_tablename(
 					(*it)->m_tablename);
 
-				if (fil_create_new_single_table_tablespace(
+				if (fil_create_ibd_tablespace(
 						(*it)->m_space_id,
 						(*it)->m_tablename,
 						(*it)->m_dir_path,
 						(*it)->m_tablespace_flags,
-						DICT_TF2_USE_FILE_PER_TABLE,
+						false,
 						FIL_IBD_FILE_INITIAL_SIZE)
 					!= DB_SUCCESS) {
 
@@ -2077,7 +2063,7 @@ truncate_t::fixup_tables()
 				}
 			}
 
-			ut_ad(fil_tablespace_exists_in_mem((*it)->m_space_id));
+			ut_ad(fil_space_get((*it)->m_space_id));
 
 			err = fil_recreate_tablespace(
 				(*it)->m_space_id,
@@ -2094,7 +2080,7 @@ truncate_t::fixup_tables()
 			ut_ad((*it)->m_space_id == srv_sys_space.space_id());
 
 			/* System table is always loaded. */
-			ut_ad(fil_tablespace_exists_in_mem((*it)->m_space_id));
+			ut_ad(fil_space_get((*it)->m_space_id));
 
 			err = fil_recreate_table(
 				(*it)->m_space_id,
@@ -2615,11 +2601,6 @@ truncate_t::drop_indexes(
 			continue;
 		}
 
-		if (fil_index_tree_is_freed(space_id, root_page_no,
-					    page_size)) {
-			continue;
-		}
-
 		mtr_start(&mtr);
 
 		if (space_id != TRX_SYS_SPACE) {
@@ -2631,16 +2612,10 @@ truncate_t::drop_indexes(
 		}
 
 		if (root_page_no != FIL_NULL) {
-
 			const page_id_t	root_page_id(space_id, root_page_no);
 
-			/* We free all the pages but the root page first;
-			this operation may span several mini-transactions */
-			btr_free_but_not_root(root_page_id, page_size,
-					      mtr.get_log_mode());
-
-			/* Then we free the root page. */
-			btr_free_root(root_page_id, page_size, &mtr);
+			btr_free_if_exists(
+				root_page_id, page_size, it->m_id, &mtr);
 		}
 
 		/* If tree is already freed then we might return immediately

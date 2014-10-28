@@ -19,7 +19,6 @@
 #include "sql_class.h"                   // set_var.h: session_var_ptr
 #include "set_var.h"
 #include "sql_priv.h"
-#include "unireg.h"
 #include "mysqld.h"                             // lc_messages_dir
 #include "sys_vars_shared.h"
 #include "transaction.h"
@@ -199,10 +198,10 @@ bool sys_var::update(THD *thd, set_var *var)
 
     if ((!ret) &&
         thd->session_tracker.get_tracker(SESSION_SYSVARS_TRACKER)->is_enabled())
-      thd->session_tracker.get_tracker(SESSION_SYSVARS_TRACKER)->mark_as_changed(&(var->var->name));
+      thd->session_tracker.get_tracker(SESSION_SYSVARS_TRACKER)->mark_as_changed(thd, &(var->var->name));
     if ((!ret) &&
         thd->session_tracker.get_tracker(SESSION_STATE_CHANGE_TRACKER)->is_enabled())
-      thd->session_tracker.get_tracker(SESSION_STATE_CHANGE_TRACKER)->mark_as_changed(&var->var->name);
+      thd->session_tracker.get_tracker(SESSION_STATE_CHANGE_TRACKER)->mark_as_changed(thd, &var->var->name);
     return ret;
   }
 }
@@ -748,7 +747,7 @@ int set_var_user::update(THD *thd)
     return -1;
   }
   if (thd->session_tracker.get_tracker(SESSION_STATE_CHANGE_TRACKER)->is_enabled())
-    thd->session_tracker.get_tracker(SESSION_STATE_CHANGE_TRACKER)->mark_as_changed(NULL);
+    thd->session_tracker.get_tracker(SESSION_STATE_CHANGE_TRACKER)->mark_as_changed(thd, NULL);
   return 0;
 }
 
@@ -860,16 +859,16 @@ int set_var_collation_client::update(THD *thd)
   {
     LEX_CSTRING cs_client= {"character_set_client",
                             sizeof("character_set_client") - 1};
-    thd->session_tracker.get_tracker(SESSION_SYSVARS_TRACKER)->mark_as_changed(&cs_client);
+    thd->session_tracker.get_tracker(SESSION_SYSVARS_TRACKER)->mark_as_changed(thd, &cs_client);
     LEX_CSTRING cs_results= {"character_set_results",
                              sizeof("character_set_results") -1};
-    thd->session_tracker.get_tracker(SESSION_SYSVARS_TRACKER)->mark_as_changed(&cs_results);
+    thd->session_tracker.get_tracker(SESSION_SYSVARS_TRACKER)->mark_as_changed(thd, &cs_results);
     LEX_CSTRING cs_connection= {"character_set_connection",
                                 sizeof("character_set_connection") - 1};
-    thd->session_tracker.get_tracker(SESSION_SYSVARS_TRACKER)->mark_as_changed(&cs_connection);
+    thd->session_tracker.get_tracker(SESSION_SYSVARS_TRACKER)->mark_as_changed(thd, &cs_connection);
   }
   if (thd->session_tracker.get_tracker(SESSION_STATE_CHANGE_TRACKER)->is_enabled())
-    thd->session_tracker.get_tracker(SESSION_STATE_CHANGE_TRACKER)->mark_as_changed(NULL);
+    thd->session_tracker.get_tracker(SESSION_STATE_CHANGE_TRACKER)->mark_as_changed(thd, NULL);
   thd->protocol_text.init(thd);
   thd->protocol_binary.init(thd);
   return 0;

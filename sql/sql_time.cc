@@ -17,7 +17,6 @@
 /* Functions to handle date and time */
 
 #include "sql_priv.h"
-#include "unireg.h"                      // REQUIRED by other includes
 #include "sql_time.h"
 #include "tztime.h"                             // struct Time_zone
 #include "sql_class.h"  // THD, MODE_STRICT_ALL_TABLES, MODE_STRICT_TRANS_TABLES
@@ -410,7 +409,7 @@ static bool lldiv_t_to_datetime(lldiv_t lld, MYSQL_TIME *ltime,
                                 my_time_flags_t flags, int *warnings)
 {
   if (lld.rem < 0 || // Catch negative numbers with zero int part, e.g: -0.1
-      number_to_datetime(lld.quot, ltime, flags, warnings) == LL(-1))
+      number_to_datetime(lld.quot, ltime, flags, warnings) == -1LL)
   {
     /* number_to_datetime does not clear ltime in case of ZERO DATE */
     set_zero_time(ltime, MYSQL_TIMESTAMP_ERROR);
@@ -503,7 +502,7 @@ bool my_longlong_to_datetime_with_warn(longlong nr, MYSQL_TIME *ltime,
                                        my_time_flags_t flags)
 {
   int warnings= 0;
-  bool rc= number_to_datetime(nr, ltime, flags, &warnings) == LL(-1);
+  bool rc= number_to_datetime(nr, ltime, flags, &warnings) == -1LL;
   if (warnings)
     make_truncated_value_warning(ErrConvString(nr),  MYSQL_TIMESTAMP_NONE);
   return rc;
@@ -1275,19 +1274,19 @@ bool date_add_interval(MYSQL_TIME *ltime, interval_type int_type, INTERVAL inter
     sec=((ltime->day-1)*3600*24L+ltime->hour*3600+ltime->minute*60+
 	 ltime->second +
 	 sign* (longlong) (interval.day*3600*24L +
-                           interval.hour*LL(3600)+interval.minute*LL(60)+
+                           interval.hour*3600LL+interval.minute*60LL+
                            interval.second))+ extra_sec;
     if (microseconds < 0)
     {
-      microseconds+= LL(1000000);
+      microseconds+= 1000000LL;
       sec--;
     }
-    days= sec/(3600*LL(24));
-    sec-= days*3600*LL(24);
+    days= sec/(3600*24LL);
+    sec-= days*3600*24LL;
     if (sec < 0)
     {
       days--;
-      sec+= 3600*LL(24);
+      sec+= 3600*24LL;
     }
     ltime->second_part= (uint) microseconds;
     ltime->second= (uint) (sec % 60);
@@ -1411,7 +1410,7 @@ calc_time_diff(const MYSQL_TIME *l_time1, const MYSQL_TIME *l_time2,
                             l_time1->second) -
                  l_sign*(longlong)(l_time2->hour*3600L +
                                    l_time2->minute*60L +
-                                   l_time2->second)) * LL(1000000) +
+                                   l_time2->second)) * 1000000LL +
                 (longlong)l_time1->second_part -
                 l_sign*(longlong)l_time2->second_part;
 

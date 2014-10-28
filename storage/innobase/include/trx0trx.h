@@ -411,7 +411,7 @@ enum trx_dict_op_t
 trx_get_dict_operation(
 /*===================*/
 	const trx_t*	trx)	/*!< in: transaction */
-	__attribute__((pure));
+	__attribute__((warn_unused_result));
 /**********************************************************************//**
 Flag a transaction a dictionary operation. */
 UNIV_INLINE
@@ -1011,15 +1011,18 @@ struct trx_t {
 					when a high priority transaction
 					is blocked on a lock wait. */
 
-	os_thread_id_t	owner_id;	/*!< Thread id of the thread that
-					started this transaction. */
-
 	os_thread_id_t	killed_by;	/*!< The thread ID that wants to
 					kill this transaction asynchronously.
 					This is required because we recursively
 					enter the handlerton methods and need
 					to distinguish between the kill thread
-					and the transaction thread. */
+					and the transaction thread.
+
+					Note: We need to be careful w.r.t the
+					Thread Pool. The thread doing the kill
+					should not leave InnoDB between the
+					mark and the actual async kill because
+					the running thread can change. */
 
 	/* These fields are not protected by any mutex. */
 	const char*	op_info;	/*!< English text describing the

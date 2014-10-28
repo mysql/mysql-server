@@ -8848,7 +8848,7 @@ void ha_partition::get_auto_increment(ulonglong offset, ulonglong increment,
       /* Only nb_desired_values = 1 makes sense */
       (*file)->get_auto_increment(offset, increment, 1,
                                  &first_value_part, &nb_reserved_values_part);
-      if (first_value_part == ULONGLONG_MAX) // error in one partition
+      if (first_value_part == ULLONG_MAX) // error in one partition
       {
         *first_value= first_value_part;
         /* log that the error was between table/partition handler */

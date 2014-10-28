@@ -141,7 +141,7 @@ TrxUndoRsegsIterator::set_next()
 		m_purge_sys->rseg = NULL;
 
 		/* return a dummy object, not going to be used by the caller */
-		return(page_size_t(0, 0, false));
+		return(univ_page_size);
 	}
 
 	m_purge_sys->rseg = *m_iter++;
@@ -369,14 +369,8 @@ trx_purge_add_update_undo_to_history(
 		       undo_header + TRX_UNDO_HISTORY_NODE, mtr);
 
 	if (update_rseg_history_len) {
-#ifdef HAVE_ATOMIC_BUILTINS
 		os_atomic_increment_ulint(
 			&trx_sys->rseg_history_len, n_added_logs);
-#else
-		trx_sys_mutex_enter();
-		trx_sys->rseg_history_len += n_added_logs;
-		trx_sys_mutex_exit();
-#endif /* HAVE_ATOMIC_BUILTINS */
 		srv_wake_purge_thread_if_not_active();
 	}
 
@@ -483,13 +477,7 @@ trx_purge_free_segment(
 	flst_cut_end(rseg_hdr + TRX_RSEG_HISTORY,
 		     log_hdr + TRX_UNDO_HISTORY_NODE, n_removed_logs, &mtr);
 
-#ifdef HAVE_ATOMIC_BUILTINS
 	os_atomic_decrement_ulint(&trx_sys->rseg_history_len, n_removed_logs);
-#else
-	trx_sys_mutex_enter();
-	trx_sys->rseg_history_len -= n_removed_logs;
-	trx_sys_mutex_exit();
-#endif /* HAVE_ATOMIC_BUILTINS */
 
 	do {
 
@@ -577,14 +565,8 @@ loop:
 				hdr_addr.boffset, limit->undo_no);
 		}
 
-#ifdef HAVE_ATOMIC_BUILTINS
 		os_atomic_decrement_ulint(
 			&trx_sys->rseg_history_len, n_removed_logs);
-#else
-		trx_sys_mutex_enter();
-		trx_sys->rseg_history_len -= n_removed_logs;
-		trx_sys_mutex_exit();
-#endif /* HAVE_ATOMIC_BUILTINS */
 
 		flst_truncate_end(rseg_hdr + TRX_RSEG_HISTORY,
 				  log_hdr + TRX_UNDO_HISTORY_NODE,
@@ -1731,34 +1713,16 @@ trx_purge_wait_for_workers_to_complete(
 {
 	ulint		n_submitted = purge_sys->n_submitted;
 
-#ifdef HAVE_ATOMIC_BUILTINS
 	/* Ensure that the work queue empties out. */
 	while (!os_compare_and_swap_ulint(
 			&purge_sys->n_completed, n_submitted, n_submitted)) {
-#else
-	mutex_enter(&purge_sys->pq_mutex);
-
-	while (purge_sys->n_completed < n_submitted) {
-#endif /* HAVE_ATOMIC_BUILTINS */
-
-#ifndef HAVE_ATOMIC_BUILTINS
-		mutex_exit(&purge_sys->pq_mutex);
-#endif /* !HAVE_ATOMIC_BUILTINS */
 
 		if (srv_get_task_queue_length() > 0) {
 			srv_release_threads(SRV_WORKER, 1);
 		}
 
 		os_thread_yield();
-
-#ifndef HAVE_ATOMIC_BUILTINS
-		mutex_enter(&purge_sys->pq_mutex);
-#endif /* !HAVE_ATOMIC_BUILTINS */
 	}
-
-#ifndef HAVE_ATOMIC_BUILTINS
-	mutex_exit(&purge_sys->pq_mutex);
-#endif /* !HAVE_ATOMIC_BUILTINS */
 
 	/* None of the worker threads should be doing any work. */
 	ut_a(purge_sys->n_submitted == purge_sys->n_completed);
@@ -1857,14 +1821,8 @@ run_synchronously:
 
 		que_run_threads(thr);
 
-#ifdef HAVE_ATOMIC_BUILTINS
 		os_atomic_inc_ulint(
 			&purge_sys->pq_mutex, &purge_sys->n_completed, 1);
-#else
-		mutex_enter(&purge_sys->pq_mutex);
-		++purge_sys->n_completed;
-		mutex_exit(&purge_sys->pq_mutex);
-#endif /* HAVE_ATOMIC_BUILTINS */
 
 		if (n_purge_threads > 1) {
 			trx_purge_wait_for_workers_to_complete(purge_sys);

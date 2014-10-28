@@ -1271,8 +1271,33 @@ ER_BAD_FIELD_ERROR 42S22 S0022
         spa "La columna '%-.192s' en %-.192s es desconocida"
         swe "Okänd kolumn '%-.192s' i %-.192s"
         ukr "Невідомий стовбець '%-.192s' у '%-.192s'"
+
+# When using this error code, please use ER(ER_WRONG_FIELD_WITH_GROUP_V2)
+# for the message string.
 ER_WRONG_FIELD_WITH_GROUP 42000 S1009
-        eng "Expression #%d of %s is not in GROUP BY clause and contains nonaggregated column '%-.192s' which is not functionally dependent on columns in GROUP BY clause; this is incompatible with sql_mode=only_full_group_by"
+        cze "Použité '%-.192s' nebylo v group by"
+        dan "Brugte '%-.192s' som ikke var i group by"
+        nla "Opdracht gebruikt '%-.192s' dat niet in de GROUP BY voorkomt"
+        eng "'%-.192s' isn't in GROUP BY"
+        est "'%-.192s' puudub GROUP BY klauslis"
+        fre "'%-.192s' n'est pas dans 'group by'"
+        ger "'%-.192s' ist nicht in GROUP BY vorhanden"
+        greek "Χρησιμοποιήθηκε '%-.192s' που δεν υπήρχε στο group by"
+        hun "Used '%-.192s' with wasn't in group by"
+        ita "Usato '%-.192s' che non e` nel GROUP BY"
+        jpn "'%-.192s' はGROUP BY句で指定されていません。"
+        kor "'%-.192s'은 GROUP BY속에 없음"
+        nor "Brukte '%-.192s' som ikke var i group by"
+        norwegian-ny "Brukte '%-.192s' som ikkje var i group by"
+        pol "Użyto '%-.192s' bez umieszczenia w group by"
+        por "'%-.192s' não está em 'GROUP BY'"
+        rum "'%-.192s' nu exista in clauza GROUP BY"
+        rus "'%-.192s' не присутствует в GROUP BY"
+        serbian "Entitet '%-.192s' nije naveden u komandi 'GROUP BY'"
+        slo "Použité '%-.192s' nebolo v 'group by'"
+        spa "Usado '%-.192s' el cual no esta group by"
+        swe "'%-.192s' finns inte i GROUP BY"
+        ukr "'%-.192s' не є у GROUP BY"
 ER_WRONG_GROUP_FIELD 42000 S1009
         cze "Nemohu použít group na '%-.192s'"
         dan "Kan ikke gruppere på '%-.192s'"
@@ -3159,8 +3184,28 @@ ER_REGEXP_ERROR 42000
         spa "Obtenido error '%-.64s' de regexp"
         swe "Fick fel '%-.64s' från REGEXP"
         ukr "Отримано помилку '%-.64s' від регулярного виразу"
+
+# When using this error code, please use ER(ER_MIX_OF_GROUP_FUNC_AND_FIELDS_V2)
+# for the message string.
 ER_MIX_OF_GROUP_FUNC_AND_FIELDS 42000 
-        eng "In aggregated query without GROUP BY, expression #%u of %s contains nonaggregated column '%-.192s'; this is incompatible with sql_mode=only_full_group_by"
+        cze "Pokud není žádná GROUP BY klauzule, není dovoleno současné použití GROUP položek (MIN(),MAX(),COUNT()...) s ne GROUP položkami"
+        dan "Sammenblanding af GROUP kolonner (MIN(),MAX(),COUNT()...) uden GROUP kolonner er ikke tilladt, hvis der ikke er noget GROUP BY prædikat"
+        nla "Het mixen van GROUP kolommen (MIN(),MAX(),COUNT()...) met no-GROUP kolommen is foutief indien er geen GROUP BY clausule is"
+        eng "Mixing of GROUP columns (MIN(),MAX(),COUNT(),...) with no GROUP columns is illegal if there is no GROUP BY clause"
+        est "GROUP tulpade (MIN(),MAX(),COUNT()...) kooskasutamine tavaliste tulpadega ilma GROUP BY klauslita ei ole lubatud"
+        fre "Mélanger les colonnes GROUP (MIN(),MAX(),COUNT()...) avec des colonnes normales est interdit s'il n'y a pas de clause GROUP BY"
+        ger "Das Vermischen von GROUP-Feldern (MIN(),MAX(),COUNT()...) mit Nicht-GROUP-Feldern ist nicht zulässig, wenn keine GROUP-BY-Klausel vorhanden ist"
+        hun "A GROUP mezok (MIN(),MAX(),COUNT()...) kevert hasznalata nem lehetseges GROUP BY hivatkozas nelkul"
+        ita "Il mescolare funzioni di aggregazione (MIN(),MAX(),COUNT()...) e non e` illegale se non c'e` una clausula GROUP BY"
+        jpn "GROUP BY句が無い場合、集計関数(MIN(),MAX(),COUNT(),...)と通常の列を同時に使用できません。"
+        kor "Mixing of GROUP 칼럼s (MIN(),MAX(),COUNT(),...) with no GROUP 칼럼s is illegal if there is no GROUP BY clause"
+        por "Mistura de colunas agrupadas (com MIN(), MAX(), COUNT(), ...) com colunas não agrupadas é ilegal, se não existir uma cláusula de agrupamento (cláusula GROUP BY)"
+        rum "Amestecarea de coloane GROUP (MIN(),MAX(),COUNT()...) fara coloane GROUP este ilegala daca nu exista o clauza GROUP BY"
+        rus "Одновременное использование сгруппированных (GROUP) столбцов (MIN(),MAX(),COUNT(),...) с несгруппированными столбцами является некорректным, если в выражении есть GROUP BY"
+        serbian "Upotreba agregatnih funkcija (MIN(),MAX(),COUNT()...) bez 'GROUP' kolona je pogrešna ako ne postoji 'GROUP BY' iskaz"
+        spa "Mezcla de columnas GROUP (MIN(),MAX(),COUNT()...) con no GROUP columnas es ilegal si no hat la clausula GROUP BY"
+        swe "Man får ha både GROUP-kolumner (MIN(),MAX(),COUNT()...) och fält i en fråga om man inte har en GROUP BY-del"
+        ukr "Змішування GROUP стовбців (MIN(),MAX(),COUNT()...) з не GROUP стовбцями є забороненим, якщо не має GROUP BY"
 ER_NONEXISTING_GRANT 42000 
         cze "Neexistuje odpovídající grant pro uživatele '%-.48s' na stroji '%-.64s'"
         dan "Denne tilladelse findes ikke for brugeren '%-.48s' på vært '%-.64s'"
@@ -5594,6 +5639,7 @@ ER_MAX_PREPARED_STMT_COUNT_REACHED 42000
 ER_VIEW_RECURSIVE
         eng "`%-.192s`.`%-.192s` contains view recursion"
         ger "`%-.192s`.`%-.192s` enthält View-Rekursion"
+
 # the one below is not used anymore:
 ER_NON_GROUPING_FIELD_USED 42000
         eng "Non-grouping field '%-.192s' is used in %-.64s clause"
@@ -6764,10 +6810,10 @@ ER_IO_WRITE_ERROR
   eng "IO Write error: (%lu, %s) %s"
 
 ER_TABLESPACE_MISSING
-  eng "Tablespace is missing for table '%-.192s'"
+  eng "Tablespace '%-.192s' is missing"
 
 ER_TABLESPACE_EXISTS
-  eng "Tablespace for table '%-.192s' exists. Please DISCARD the tablespace before IMPORT."
+  eng "Tablespace '%-.192s' exists."
 
 ER_TABLESPACE_DISCARDED
   eng "Tablespace has been discarded for table '%-.192s'"
@@ -6776,7 +6822,7 @@ ER_INTERNAL_ERROR
   eng "Internal error: %s"
 
 ER_INNODB_IMPORT_ERROR
-  eng "ALTER TABLE '%-.192s' IMPORT TABLESPACE failed with error %lu : '%s'"
+  eng "ALTER TABLE %-.192s IMPORT TABLESPACE failed with error %lu : '%s'"
 
 ER_INNODB_INDEX_CORRUPT
   eng "Index corrupt: %s"
@@ -7097,7 +7143,7 @@ ER_NON_RO_SELECT_DISABLE_TIMER
   eng "Select is not a read only statement, disabling timer"
 
 ER_DUP_LIST_ENTRY
-        eng "Duplicate entry '%-.192s'."
+  eng "Duplicate entry '%-.192s'."
 
 ER_SQL_MODE_NO_EFFECT
   eng "'%s' mode no longer has any effect. Use STRICT_ALL_TABLES or STRICT_TRANS_TABLES instead."
@@ -7280,6 +7326,14 @@ ER_SLAVE_CHANNEL_SQL_THREAD_MUST_STOP
 
 ER_SLAVE_CHANNEL_SQL_SKIP_COUNTER
   eng "When sql_slave_skip_counter > 0, it is not allowed to start SQL threads for multiple channels. To use sql_slave_skip_counter, stop SQL threads of all channels and execute START SLAVE FOR CHANNEL statement."
+
+# When using this error message, use the ER_WRONG_FIELD_WITH_GROUP error code.
+ER_WRONG_FIELD_WITH_GROUP_V2
+  eng "Expression #%u of %s is not in GROUP BY clause and contains nonaggregated column '%-.192s' which is not functionally dependent on columns in GROUP BY clause; this is incompatible with sql_mode=only_full_group_by"
+
+# When using this error message, use the ER_MIX_OF_GROUP_FUNC_AND_FIELDS error code.
+ER_MIX_OF_GROUP_FUNC_AND_FIELDS_V2
+  eng "In aggregated query without GROUP BY, expression #%u of %s contains nonaggregated column '%-.192s'; this is incompatible with sql_mode=only_full_group_by"
 
 #
 #  End of 5.7 error messages.

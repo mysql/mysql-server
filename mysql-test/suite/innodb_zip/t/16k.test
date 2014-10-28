@@ -54,7 +54,7 @@ SELECT variable_value FROM information_schema.global_status
 --let $timezone_table_3 = `SELECT table_id FROM information_schema.innodb_sys_tables WHERE name = 'mysql/time_zone_name'`
 --let $timezone_table_4 = `SELECT table_id FROM information_schema.innodb_sys_tables WHERE name = 'mysql/time_zone_transition'`
 --let $timezone_table_5 = `SELECT table_id FROM information_schema.innodb_sys_tables WHERE name = 'mysql/time_zone_transition_type'`
---eval SELECT INDEX_ID, NAME, TABLE_ID, TYPE, N_FIELDS, SPACE FROM INFORMATION_SCHEMA.INNODB_SYS_INDEXES WHERE table_id NOT IN ($table_stats_id, $index_stats_id, $rep_table_1, $rep_table_2, $rep_table_3, $help_table_1, $help_table_2, $help_table_3, $help_table_4, $timezone_table_1, $timezone_table_2, $timezone_table_3, $timezone_table_4, $timezone_table_5)
+--eval SELECT INDEX_ID, NAME, TABLE_ID, TYPE, N_FIELDS, SPACE!=0 FROM INFORMATION_SCHEMA.INNODB_SYS_INDEXES WHERE table_id NOT IN ($table_stats_id, $index_stats_id, $rep_table_1, $rep_table_2, $rep_table_3, $help_table_1, $help_table_2, $help_table_3, $help_table_4, $timezone_table_1, $timezone_table_2, $timezone_table_3, $timezone_table_4, $timezone_table_5)
 --enable_query_log
 CREATE TABLE t1 (a INT KEY, b TEXT) ROW_FORMAT=REDUNDANT ENGINE=innodb;
 CREATE TABLE t2 (a INT KEY, b TEXT) ROW_FORMAT=COMPACT ENGINE=innodb;

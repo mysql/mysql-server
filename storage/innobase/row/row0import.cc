@@ -716,9 +716,9 @@ FetchIndexRootPages::operator() (
 
 		if (m_indexes.size() == 1) {
 
-			m_table_flags = dict_sys_tables_type_to_tf(
+			m_table_flags = fsp_flags_to_dict_tf(
 				m_space_flags,
-				page_is_comp(page) ? DICT_N_COLS_COMPACT : 0);
+				page_is_comp(page) ? true : false);
 
 			err = check_row_format(m_table_flags);
 		}
@@ -1408,12 +1408,7 @@ row_import::set_root_by_heuristic() UNIV_NOTHROW
 
 	if (UT_LIST_GET_LEN(m_table->indexes) != m_n_indexes) {
 
-		char	table_name[MAX_FULL_NAME_LEN + 1];
-
-		innobase_format_name(
-			table_name, sizeof(table_name), m_table->name, FALSE);
-
-		ib::warn() << "Table " << table_name << " should have "
+		ib::warn() << "Table " << m_table->name << " should have "
 			<< UT_LIST_GET_LEN(m_table->indexes) << " indexes but"
 			" the tablespace has " << m_n_indexes << " indexes";
 	}
@@ -1642,17 +1637,11 @@ PageConverter::adjust_cluster_index_blob_column(
 
 	if (len < BTR_EXTERN_FIELD_REF_SIZE) {
 
-		char index_name[MAX_FULL_NAME_LEN + 1];
-
-		innobase_format_name(
-			index_name, sizeof(index_name),
-			m_cluster_index->name, TRUE);
-
 		ib_errf(m_trx->mysql_thd, IB_LOG_LEVEL_ERROR,
 			ER_INNODB_INDEX_CORRUPT,
 			"Externally stored column(%lu) has a reference"
 			" length of %lu in the cluster index %s",
-			(ulong) i, (ulong) len, index_name);
+			(ulong) i, (ulong) len, m_cluster_index->name);
 
 		return(DB_CORRUPTION);
 	}
@@ -2119,9 +2108,9 @@ PageConverter::operator() (
 
 	case IMPORT_PAGE_STATUS_CORRUPTED:
 
-		ib::warn() << m_filepath << ": Page "
-			<< (offset / m_page_size.physical()) << " at offset "
-			<< offset << " looks corrupted.";
+		ib::warn() << "Page " << (offset / m_page_size.physical())
+			<< " at offset " << offset
+			<< " looks corrupted in file " << m_filepath;
 
 		return(DB_CORRUPTION);
 	}
@@ -2147,13 +2136,8 @@ row_import_discard_changes(
 
 	prebuilt->trx->error_info = NULL;
 
-	char	table_name[MAX_FULL_NAME_LEN + 1];
-
-	innobase_format_name(
-		table_name, sizeof(table_name),
-		prebuilt->table->name, FALSE);
-
-	ib::info() << "Discarding tablespace of table " << table_name
+	ib::info() << "Discarding tablespace of table "
+		<< prebuilt->table->name
 		<< ": " << ut_strerr(err);
 
 	if (trx->dict_operation_lock_mode != RW_X_LATCH) {
@@ -2231,7 +2215,7 @@ row_import_error(
 
 		innobase_format_name(
 			table_name, sizeof(table_name),
-			prebuilt->table->name, FALSE);
+			prebuilt->table->name.m_name);
 
 		ib_senderrf(
 			trx->mysql_thd, IB_LOG_LEVEL_WARN,
@@ -2272,11 +2256,6 @@ row_import_adjust_root_pages_of_secondary_indexes(
 
 	/* Adjust the root pages of the secondary indexes only. */
 	while ((index = dict_table_get_next_index(index)) != NULL) {
-		char		index_name[MAX_FULL_NAME_LEN + 1];
-
-		innobase_format_name(
-			index_name, sizeof(index_name), index->name, TRUE);
-
 		ut_a(!dict_index_is_clust(index));
 
 		if (!(index->type & DICT_CORRUPT)
@@ -2303,9 +2282,9 @@ row_import_adjust_root_pages_of_secondary_indexes(
 			ib_errf(trx->mysql_thd,
 				IB_LOG_LEVEL_WARN,
 				ER_INNODB_INDEX_CORRUPT,
-				"Index '%s' not found or corrupt,"
+				"Index %s not found or corrupt,"
 				" you should recreate this index.",
-				index_name);
+				index->name);
 
 			/* Do not bail out, so that the data
 			can be recovered. */
@@ -2340,9 +2319,9 @@ row_import_adjust_root_pages_of_secondary_indexes(
 			ib_errf(trx->mysql_thd,
 				IB_LOG_LEVEL_WARN,
 				ER_INNODB_INDEX_CORRUPT,
-				"Index '%s' contains %lu entries,"
+				"Index %s contains %lu entries,"
 				" should be %lu, you should recreate"
-				" this index.", index_name,
+				" this index.", index->name,
 				(ulong) purge.get_n_rows(),
 				(ulong) n_rows_in_table);
 
@@ -2435,16 +2414,11 @@ row_import_set_sys_max_row_id(
 			err = DB_CORRUPTION;);
 
 	if (err != DB_SUCCESS) {
-		char		index_name[MAX_FULL_NAME_LEN + 1];
-
-		innobase_format_name(
-			index_name, sizeof(index_name), index->name, TRUE);
-
 		ib_errf(prebuilt->trx->mysql_thd,
 			IB_LOG_LEVEL_WARN,
 			ER_INNODB_INDEX_CORRUPT,
-			"Index '%s' corruption detected, invalid DB_ROW_ID"
-			" in index.", index_name);
+			"Index `%s` corruption detected, invalid DB_ROW_ID"
+			" in index.", index->name);
 
 		return(err);
 
@@ -3293,17 +3267,11 @@ row_import_update_index_root(
 		err = trx->error_state;
 
 		if (err != DB_SUCCESS) {
-			char		index_name[MAX_FULL_NAME_LEN + 1];
-
-			innobase_format_name(
-				index_name, sizeof(index_name),
-				index->name, TRUE);
-
 			ib_errf(trx->mysql_thd, IB_LOG_LEVEL_ERROR,
 				ER_INTERNAL_ERROR,
 				"While updating the <space, root page"
 				" number> of index %s - %s",
-				index_name, ut_strerr(err));
+				index->name, ut_strerr(err));
 
 			break;
 		}
@@ -3439,17 +3407,18 @@ row_import_for_mysql(
 	dberr_t		err;
 	trx_t*		trx;
 	ib_uint64_t	autoinc = 0;
-	char		table_name[MAX_FULL_NAME_LEN + 1];
 	char*		filepath = NULL;
 
+	/* The caller assured that this is not read_only_mode and that no
+	temorary tablespace is being imported. */
 	ut_ad(!srv_read_only_mode);
-
-	innobase_format_name(
-		table_name, sizeof(table_name), table->name, FALSE);
+	ut_ad(!dict_table_is_temporary(table));
 
 	ut_a(table->space);
 	ut_ad(prebuilt->trx);
 	ut_a(table->ibd_file_missing);
+
+	ibuf_delete_for_discarded_space(table->space);
 
 	trx_start_if_not_started(prebuilt->trx, true);
 
@@ -3588,11 +3557,12 @@ row_import_for_mysql(
 		char	table_name[MAX_FULL_NAME_LEN + 1];
 
 		innobase_format_name(
-			table_name, sizeof(table_name), table->name, FALSE);
+			table_name, sizeof(table_name),
+			table->name.m_name);
 
 		ib_errf(trx->mysql_thd, IB_LOG_LEVEL_ERROR,
 			ER_INTERNAL_ERROR,
-			"Cannot reset LSNs in table '%s' : %s",
+			"Cannot reset LSNs in table %s : %s",
 			table_name, ut_strerr(err));
 
 		return(row_import_cleanup(prebuilt, trx, err));
@@ -3609,10 +3579,10 @@ row_import_for_mysql(
 		ut_a(table->data_dir_path);
 
 		filepath = fil_make_filepath(
-			table->data_dir_path, table->name, IBD, true);
+			table->data_dir_path, table->name.m_name, IBD, true);
 	} else {
 		filepath = fil_make_filepath(
-			NULL, table->name, IBD, false);
+			NULL, table->name.m_name, IBD, false);
 	}
 	if (filepath == NULL) {
 		return(DB_OUT_OF_MEMORY);
@@ -3625,10 +3595,10 @@ row_import_for_mysql(
 	we will not be writing any redo log for it before we have invoked
 	fil_space_set_imported() to declare it a persistent tablespace. */
 
-	err = fil_open_single_table_tablespace(
+	err = fil_ibd_open(
 		true, true, FIL_TYPE_IMPORT, table->space,
 		dict_tf_to_fsp_flags(table->flags),
-		table->name, filepath);
+		table->name.m_name, filepath);
 
 	DBUG_EXECUTE_IF("ib_import_open_tablespace_failure",
 			err = DB_TABLESPACE_NOT_FOUND;);
@@ -3765,12 +3735,7 @@ row_import_for_mysql(
 	table->flags2 &= ~DICT_TF2_DISCARDED;
 
 	if (autoinc != 0) {
-		char	table_name[MAX_FULL_NAME_LEN + 1];
-
-		innobase_format_name(
-			table_name, sizeof(table_name), table->name, FALSE);
-
-		ib::info() << table_name << " autoinc value set to "
+		ib::info() << table->name << " autoinc value set to "
 			<< autoinc;
 
 		dict_table_autoinc_lock(table);

@@ -990,5 +990,62 @@ mysql_upgrade: [ERROR] mysql_upgrade: unknown option '-t'
 Upgrade process encountered error and will not continue.
 Unknown option to protocol: AAA
 Alternatives are: 'TCP','SOCKET','PIPE','MEMORY'
+#
+# Bug #19011337: UPGRADE TO 5.7 DISABLES USER ACCOUNTS
+#
+CREATE USER B19011337@localhost IDENTIFIED BY 'test';
+GRANT ALL PRIVILEGES on *.* TO B19011337@localhost;
+UPDATE mysql.user SET plugin='' WHERE user='B19011337';
+call mtr.add_suppression("Some of the user accounts with SUPER");
+call mtr.add_suppression("1. Stop");
+call mtr.add_suppression("2. Run");
+call mtr.add_suppression("3. Restart");
+call mtr.add_suppression("For complete");
+call mtr.add_suppression("User entry .B19011337");
+# expect a warning in the error log
+FLUSH PRIVILEGES;
+# let's check for the presense of the warning
+# end of check for the presense of the warning
+# repair the user's plugin
+mysql.columns_priv                                 OK
+mysql.db                                           OK
+mysql.engine_cost                                  OK
+mysql.event                                        OK
+mysql.func                                         OK
+mysql.general_log                                  OK
+mysql.gtid_executed                                OK
+mysql.help_category                                OK
+mysql.help_keyword                                 OK
+mysql.help_relation                                OK
+mysql.help_topic                                   OK
+mysql.innodb_index_stats                           OK
+mysql.innodb_table_stats                           OK
+mysql.ndb_binlog_index                             OK
+mysql.plugin                                       OK
+mysql.proc                                         OK
+mysql.procs_priv                                   OK
+mysql.proxies_priv                                 OK
+mysql.server_cost                                  OK
+mysql.servers                                      OK
+mysql.slave_master_info                            OK
+mysql.slave_relay_log_info                         OK
+mysql.slave_worker_info                            OK
+mysql.slow_log                                     OK
+mysql.tables_priv                                  OK
+mysql.time_zone                                    OK
+mysql.time_zone_leap_second                        OK
+mysql.time_zone_name                               OK
+mysql.time_zone_transition                         OK
+mysql.time_zone_transition_type                    OK
+mysql.user                                         OK
+mtr.global_suppressions                            OK
+mtr.test_suppressions                              OK
+# expect non-empty
+SELECT LENGTH(plugin) <> 0 FROM mysql.user WHERE user='B19011337';
+LENGTH(plugin) <> 0
+1
+# cleanup
+REVOKE ALL PRIVILEGES ON *.* FROM B19011337@localhost;
+DROP USER B19011337@localhost;
 
 End of tests

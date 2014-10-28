@@ -61,7 +61,7 @@ Created 9/20/1997 Heikki Tuuri
 /** This is set to FALSE if the backup was originally taken with the
 mysqlbackup --include regexp option: then we do not want to create tables in
 directories which were not included */
-ibool	recv_replay_file_ops	= TRUE;
+bool	recv_replay_file_ops	= true;
 #endif /* !UNIV_HOTBACKUP */
 
 /** Log records are stored in the hash table in chunks at most of this size;
@@ -76,21 +76,21 @@ recv_sys_t*	recv_sys = NULL;
 /** TRUE when applying redo log records during crash recovery; FALSE
 otherwise.  Note that this is FALSE while a background thread is
 rolling back incomplete transactions. */
-volatile ibool	recv_recovery_on;
+volatile bool	recv_recovery_on;
 
 #ifndef UNIV_HOTBACKUP
 /** TRUE when recv_init_crash_recovery() has been called. */
-ibool	recv_needed_recovery;
+bool	recv_needed_recovery;
 # ifdef UNIV_DEBUG
 /** TRUE if writing to the redo log (mtr_commit) is forbidden.
 Protected by log_sys->mutex. */
-ibool	recv_no_log_write = FALSE;
+bool	recv_no_log_write = false;
 # endif /* UNIV_DEBUG */
 
 /** TRUE if buf_page_is_corrupted() should check if the log sequence
 number (FIL_PAGE_LSN) is in the future.  Initially FALSE, and set by
 recv_recovery_from_checkpoint_start(). */
-ibool	recv_lsn_checks_on;
+bool	recv_lsn_checks_on;
 
 /** If the following is TRUE, the buffer pool file pages must be invalidated
 after recovery and no ibuf operations are allowed; this becomes TRUE if
@@ -101,17 +101,17 @@ buffer pool before the pages have been recovered to the up-to-date state.
 
 TRUE means that recovery is running and no operations on the log files
 are allowed yet: the variable name is misleading. */
-ibool	recv_no_ibuf_operations;
+bool	recv_no_ibuf_operations;
 /** TRUE when the redo log is being backed up */
-# define recv_is_making_a_backup		FALSE
+# define recv_is_making_a_backup		false
 /** TRUE when recovering from a backed up redo log file */
-# define recv_is_from_backup			FALSE
+# define recv_is_from_backup			false
 #else /* !UNIV_HOTBACKUP */
-# define recv_needed_recovery			FALSE
+# define recv_needed_recovery			false
 /** TRUE when the redo log is being backed up */
-ibool	recv_is_making_a_backup	= FALSE;
+bool	recv_is_making_a_backup	= false;
 /** TRUE when recovering from a backed up redo log file */
-ibool	recv_is_from_backup	= FALSE;
+bool	recv_is_from_backup	= false;
 # define buf_pool_get_curr_size() (5 * 1024 * 1024)
 #endif /* !UNIV_HOTBACKUP */
 /** The following counter is used to decide when to print info on
@@ -156,7 +156,7 @@ volatile bool	recv_writer_thread_active = false;
 #ifndef UNIV_HOTBACKUP
 /*******************************************************//**
 Initialize crash recovery environment. Can be called iff
-recv_needed_recovery == FALSE. */
+recv_needed_recovery == false. */
 static
 void
 recv_init_crash_recovery(void);
@@ -233,8 +233,7 @@ fil_name_process(
 		the space_id. If not, ignore the file after displaying
 		a note. Abort if there are multiple files with the
 		same space_id. */
-		switch (fil_load_single_file_tablespace(
-				space_id, name, len - 1, space)) {
+		switch (fil_ibd_load(space_id, name, len - 1, space)) {
 		case FIL_LOAD_OK:
 			ut_ad(space != NULL);
 
@@ -424,7 +423,7 @@ fil_name_parse(
 		fil_name_process(name, len, space_id, true);
 #ifdef UNIV_HOTBACKUP
 		if (apply && recv_replay_file_ops
-		    && fil_tablespace_exists_in_mem(space_id)) {
+		    && fil_space_get(space_id)) {
 			dberr_t	err = fil_delete_tablespace(
 				space_id, BUF_REMOVE_FLUSH_NO_WRITE);
 			ut_a(err == DB_SUCCESS);
@@ -582,10 +581,10 @@ void
 recv_sys_var_init(void)
 /*===================*/
 {
-	recv_recovery_on = FALSE;
-	recv_needed_recovery = FALSE;
-	recv_lsn_checks_on = FALSE;
-	recv_no_ibuf_operations = FALSE;
+	recv_recovery_on = false;
+	recv_needed_recovery = false;
+	recv_lsn_checks_on = false;
+	recv_no_ibuf_operations = false;
 	recv_scan_print_counter	= 0;
 	recv_previous_parsed_rec_type = MLOG_SINGLE_REC_FLAG;
 	recv_previous_parsed_rec_offset	= 0;
@@ -674,7 +673,7 @@ recv_sys_init(
 	}
 #else /* !UNIV_HOTBACKUP */
 	recv_sys->heap = mem_heap_create(256);
-	recv_is_from_backup = TRUE;
+	recv_is_from_backup = true;
 #endif /* !UNIV_HOTBACKUP */
 
 	/* Set appropriate value of recv_n_pool_free_frames. */
@@ -754,7 +753,7 @@ recv_sys_debug_free(void)
 
 	/* wake page cleaner up to progress */
 	if (!srv_read_only_mode) {
-		ut_ad(recv_recovery_on == FALSE);
+		ut_ad(!recv_recovery_on);
 		ut_ad(!recv_writer_thread_active);
 		os_event_reset(buf_flush_event);
 		os_event_set(recv_sys->flush_start);
@@ -1989,7 +1988,7 @@ loop:
 	ut_ad(!allow_ibuf == log_mutex_own());
 
 	if (!allow_ibuf) {
-		recv_no_ibuf_operations = TRUE;
+		recv_no_ibuf_operations = true;
 	}
 
 	recv_sys->apply_log_recs = TRUE;
@@ -2084,7 +2083,7 @@ loop:
 		/* Flush all the file pages to disk and invalidate them in
 		the buffer pool */
 
-		ut_d(recv_no_log_write = TRUE);
+		ut_d(recv_no_log_write = true);
 		mutex_exit(&(recv_sys->mutex));
 		log_mutex_exit();
 
@@ -2107,9 +2106,9 @@ loop:
 
 		log_mutex_enter();
 		mutex_enter(&(recv_sys->mutex));
-		ut_d(recv_no_log_write = FALSE);
+		ut_d(recv_no_log_write = false);
 
-		recv_no_ibuf_operations = FALSE;
+		recv_no_ibuf_operations = false;
 	}
 
 	recv_sys->apply_log_recs = FALSE;
@@ -3139,7 +3138,7 @@ recv_group_scan_log_recs(
 
 /*******************************************************//**
 Initialize crash recovery environment. Can be called iff
-recv_needed_recovery == FALSE. */
+recv_needed_recovery == false. */
 static
 void
 recv_init_crash_recovery(void)
@@ -3147,7 +3146,7 @@ recv_init_crash_recovery(void)
 	ut_ad(!srv_read_only_mode);
 	ut_a(!recv_needed_recovery);
 
-	recv_needed_recovery = TRUE;
+	recv_needed_recovery = true;
 }
 
 /** Report a missing tablespace for which page-redo log exists.
@@ -3317,7 +3316,7 @@ recv_recovery_from_checkpoint_start(
 		return(DB_SUCCESS);
 	}
 
-	recv_recovery_on = TRUE;
+	recv_recovery_on = true;
 
 	log_mutex_enter();
 
@@ -3547,7 +3546,7 @@ recv_recovery_from_checkpoint_start(
 
 	log_mutex_exit();
 
-	recv_lsn_checks_on = TRUE;
+	recv_lsn_checks_on = true;
 
 	/* The database is now ready to start almost normal processing of user
 	transactions: transaction rollbacks and the application of the log
@@ -3567,7 +3566,7 @@ recv_recovery_from_checkpoint_finish(void)
 	mutex_enter(&recv_sys->writer_mutex);
 
 	/* Free the resources of the recovery system */
-	recv_recovery_on = FALSE;
+	recv_recovery_on = false;
 
 	/* By acquring the mutex we ensure that the recv_writer thread
 	won't trigger any more LRU batches. Now wait for currently

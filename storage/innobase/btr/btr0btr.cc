@@ -30,7 +30,7 @@ Created 6/2/1994 Heikki Tuuri
 #include "btr0btr.ic"
 #endif
 
-#include "fsp0fsp.h"
+#include "fsp0sysspace.h"
 #include "page0page.h"
 #include "page0zip.h"
 #include "gis0rtree.h"
@@ -71,8 +71,8 @@ btr_corruption_report(
 {
 	ib::error()
 		<< "Flag mismatch in page " << block->page.id
-		<< " index " << ut_get_name(NULL, FALSE, index->name)
-		<< " of table " << ut_get_name(NULL, TRUE, index->table_name);
+		<< " index " << index->name
+		<< " of table " << index->table->name;
 
 	if (block->page.size.is_compressed()) {
 		ut_ad(block->page.zip.data != NULL);
@@ -307,12 +307,7 @@ btr_root_adjust_on_import(
 	page = buf_block_get_frame(block);
 	page_zip = buf_block_get_page_zip(block);
 
-	/* Check that this is a B-tree or R-tree page and both the PREV
-	and NEXT pointers are FIL_NULL, because the root page does not
-	have any siblings. */
-	if (!fil_page_index_page_check(page)
-	    || fil_page_get_prev(page) != FIL_NULL
-	    || fil_page_get_next(page) != FIL_NULL) {
+	if (!page_is_root(page)) {
 
 		err = DB_CORRUPTION;
 
@@ -325,16 +320,12 @@ btr_root_adjust_on_import(
 		if (page_is_compact_format != dict_table_is_comp(table)) {
 			err = DB_CORRUPTION;
 		} else {
-
 			/* Check that the table flags and the tablespace
 			flags match. */
-			const fil_space_t*	space = fil_space_get(
-				table->space);
-
-			err = space && space->flags ==
-				dict_tf_to_fsp_flags(table->flags)
-				? DB_SUCCESS
-				: DB_CORRUPTION;
+			ulint	flags = dict_tf_to_fsp_flags(table->flags);
+			ulint	fsp_flags = fil_space_get_flags(table->space);
+			err = fsp_flags_are_equal(flags, fsp_flags)
+			      ? DB_SUCCESS : DB_CORRUPTION;
 		}
 	} else {
 		err = DB_SUCCESS;
@@ -535,8 +526,9 @@ btr_get_size(
 				   MTR_MEMO_S_LOCK)
 	      || dict_table_is_intrinsic(index->table));
 
-	if (index->page == FIL_NULL || dict_index_is_online_ddl(index)
-	    || *index->name == TEMP_INDEX_PREFIX) {
+	if (index->page == FIL_NULL
+	    || dict_index_is_online_ddl(index)
+	    || !index->is_committed()) {
 		return(ULINT_UNDEFINED);
 	}
 
@@ -803,9 +795,8 @@ btr_page_get_father_node_ptr_func(
 
 		ib::error()
 			<< "Corruption of an index tree: table "
-			<< ut_get_name(NULL, TRUE, index->table_name)
-			<< " index "
-			<< ut_get_name(NULL, FALSE, index->name)
+			<< index->table->name
+			<< " index " << index->name
 			<< ", father ptr page no "
 			<< btr_node_ptr_get_child_page_no(node_ptr, offsets)
 			<< ", child page no " << page_no;
@@ -884,7 +875,92 @@ btr_page_get_father(
 	mem_heap_free(heap);
 }
 
-/** Creates the root node for a new index tree.
+/** Free a B-tree root page. btr_free_but_not_root() must already
+have been called.
+In a persistent tablespace, the caller must invoke fsp_init_file_page()
+before mtr.commit().
+@param[in,out]	block	index root page
+@param[in,out]	mtr	mini-transaction */
+static
+void
+btr_free_root(
+	buf_block_t*	block,
+	mtr_t*		mtr)
+{
+	fseg_header_t*	header;
+
+	ut_ad(mtr_memo_contains_flagged(mtr, block, MTR_MEMO_PAGE_X_FIX));
+	ut_ad(mtr->is_named_space(block->page.id.space()));
+
+	btr_search_drop_page_hash_index(block);
+
+	header = buf_block_get_frame(block) + PAGE_HEADER + PAGE_BTR_SEG_TOP;
+#ifdef UNIV_BTR_DEBUG
+	ut_a(btr_root_fseg_validate(header, block->page.id.space()));
+#endif /* UNIV_BTR_DEBUG */
+
+	while (!fseg_free_step(header, true, mtr)) {
+		/* Free the entire segment in small steps. */
+	}
+}
+
+/** PAGE_INDEX_ID value for freed index B-trees */
+static const index_id_t	BTR_FREED_INDEX_ID = 0;
+
+/** Invalidate an index root page so that btr_free_root_check()
+will not find it.
+@param[in,out]	block	index root page
+@param[in,out]	mtr	mini-transaction */
+static
+void
+btr_free_root_invalidate(
+	buf_block_t*	block,
+	mtr_t*		mtr)
+{
+	ut_ad(page_is_root(block->frame));
+
+	btr_page_set_index_id(
+		buf_block_get_frame(block),
+		buf_block_get_page_zip(block),
+		BTR_FREED_INDEX_ID, mtr);
+}
+
+/** Prepare to free a B-tree.
+@param[in]	page_id		page id
+@param[in]	page_size	page size
+@param[in]	index_id	PAGE_INDEX_ID contents
+@param[in,out]	mtr		mini-transaction
+@return root block, to invoke btr_free_but_not_root() and btr_free_root()
+@retval NULL if the page is no longer a matching B-tree page */
+static __attribute__((warn_unused_result))
+buf_block_t*
+btr_free_root_check(
+	const page_id_t&	page_id,
+	const page_size_t&	page_size,
+	index_id_t		index_id,
+	mtr_t*			mtr)
+{
+	ut_ad(page_id.space() != srv_tmp_space.space_id());
+	ut_ad(index_id != BTR_FREED_INDEX_ID);
+
+	buf_block_t*	block = buf_page_get(
+		page_id, page_size, RW_X_LATCH, mtr);
+	buf_block_dbg_add_level(block, SYNC_TREE_NODE);
+
+	if (fil_page_index_page_check(block->frame)
+	    && index_id == btr_page_get_index_id(block->frame)) {
+		/* This should be a root page.
+		It should not be possible to reassign the same
+		index_id for some other index in the tablespace. */
+		ut_ad(page_is_root(block->frame));
+	} else {
+		block = NULL;
+	}
+
+	return(block);
+}
+
+/** Create the root node for a new index tree.
 @param[in]	type			type of the index
 @param[in]	space			space where created
 @param[in]	page_size		page size
@@ -912,6 +988,7 @@ btr_create(
 	page_zip_des_t*		page_zip;
 
 	ut_ad(mtr->is_named_space(space));
+	ut_ad(index_id != BTR_FREED_INDEX_ID);
 
 	/* Create the two new segments (one, in the case of an ibuf tree) for
 	the index tree; the segment headers are put on the allocated root page
@@ -967,8 +1044,10 @@ btr_create(
 				 PAGE_HEADER + PAGE_BTR_SEG_LEAF, mtr)) {
 			/* Not enough space for new segment, free root
 			segment before return. */
-			btr_free_root(page_id_t(space, page_no), page_size,
-				      mtr);
+			btr_free_root(block, mtr);
+			if (!dict_table_is_temporary(index->table)) {
+				btr_free_root_invalidate(block, mtr);
+			}
 
 			return(FIL_NULL);
 		}
@@ -1055,32 +1134,32 @@ btr_create(
 	return(page_no);
 }
 
-/** Frees a B-tree except the root page. The root page MUST be freed after
+/** Free a B-tree except the root page. The root page MUST be freed after
 this by calling btr_free_root.
-@param[in]	root_page_id	id of the root page
-@param[in]	logging_mode	mtr logging mode */
+@param[in,out]	block		root page
+@param[in]	log_mode	mtr logging mode */
+static
 void
 btr_free_but_not_root(
-	const page_id_t&	root_page_id,
-	const page_size_t&	page_size,
-	mtr_log_t		logging_mode)
+	buf_block_t*	block,
+	mtr_log_t	log_mode)
 {
 	ibool	finished;
-	page_t*	root;
 	mtr_t	mtr;
 
+	ut_ad(page_is_root(block->frame));
 leaf_loop:
 	mtr_start(&mtr);
-	mtr_set_log_mode(&mtr, logging_mode);
-	mtr.set_named_space(root_page_id.space());
+	mtr_set_log_mode(&mtr, log_mode);
+	mtr.set_named_space(block->page.id.space());
 
-	root = btr_page_get(root_page_id, page_size, RW_X_LATCH, NULL, &mtr);
+	page_t*	root = block->frame;
 
 #ifdef UNIV_BTR_DEBUG
 	ut_a(btr_root_fseg_validate(FIL_PAGE_DATA + PAGE_BTR_SEG_LEAF
-				    + root, root_page_id.space()));
+				    + root, block->page.id.space()));
 	ut_a(btr_root_fseg_validate(FIL_PAGE_DATA + PAGE_BTR_SEG_TOP
-				    + root, root_page_id.space()));
+				    + root, block->page.id.space()));
 #endif /* UNIV_BTR_DEBUG */
 
 	/* NOTE: page hash indexes are dropped when a page is freed inside
@@ -1096,14 +1175,14 @@ leaf_loop:
 	}
 top_loop:
 	mtr_start(&mtr);
-	mtr_set_log_mode(&mtr, logging_mode);
-	mtr.set_named_space(root_page_id.space());
+	mtr_set_log_mode(&mtr, log_mode);
+	mtr.set_named_space(block->page.id.space());
 
-	root = btr_page_get(root_page_id, page_size, RW_X_LATCH, NULL, &mtr);
+	root = block->frame;
 
 #ifdef UNIV_BTR_DEBUG
 	ut_a(btr_root_fseg_validate(FIL_PAGE_DATA + PAGE_BTR_SEG_TOP
-				    + root, root_page_id.space()));
+				    + root, block->page.id.space()));
 #endif /* UNIV_BTR_DEBUG */
 
 	finished = fseg_free_step_not_header(
@@ -1116,32 +1195,51 @@ top_loop:
 	}
 }
 
-/** Frees the B-tree root page. Other tree MUST already have been freed.
-@param[in]	root_page_id	id of the root page
+/** Free a persistent index tree if it exists.
+@param[in]	page_id		root page id
+@param[in]	page_size	page size
+@param[in]	index_id	PAGE_INDEX_ID contents
 @param[in,out]	mtr		mini-transaction */
 void
-btr_free_root(
-	const page_id_t&	root_page_id,
+btr_free_if_exists(
+	const page_id_t&	page_id,
 	const page_size_t&	page_size,
+	index_id_t		index_id,
 	mtr_t*			mtr)
 {
-	buf_block_t*	block;
-	fseg_header_t*	header;
+	buf_block_t* root = btr_free_root_check(
+		page_id, page_size, index_id, mtr);
 
-	ut_ad(mtr->is_named_space(root_page_id.space()));
-
-	block = btr_block_get(root_page_id, page_size, RW_X_LATCH, NULL, mtr);
-
-	btr_search_drop_page_hash_index(block);
-
-	header = buf_block_get_frame(block) + PAGE_HEADER + PAGE_BTR_SEG_TOP;
-#ifdef UNIV_BTR_DEBUG
-	ut_a(btr_root_fseg_validate(header, root_page_id.space()));
-#endif /* UNIV_BTR_DEBUG */
-
-	while (!fseg_free_step(header, true, mtr)) {
-		/* Free the entire segment in small steps. */
+	if (root == NULL) {
+		return;
 	}
+
+	btr_free_but_not_root(root, mtr->get_log_mode());
+	mtr->set_named_space(page_id.space());
+	btr_free_root(root, mtr);
+	btr_free_root_invalidate(root, mtr);
+}
+
+/** Free an index tree in a temporary tablespace or during TRUNCATE TABLE.
+@param[in]	page_id		root page id
+@param[in]	page_size	page size */
+void
+btr_free(
+	const page_id_t&	page_id,
+	const page_size_t&	page_size)
+{
+	mtr_t		mtr;
+	mtr.start();
+	mtr.set_log_mode(MTR_LOG_NO_REDO);
+
+	buf_block_t*	block = buf_page_get(
+		page_id, page_size, RW_X_LATCH, &mtr);
+
+	ut_ad(page_is_root(block->frame));
+
+	btr_free_but_not_root(block, MTR_LOG_NO_REDO);
+	btr_free_root(block, &mtr);
+	mtr.commit();
 }
 #endif /* !UNIV_HOTBACKUP */
 
@@ -3917,7 +4015,7 @@ btr_print_size(
 	fputs("INFO OF THE NON-LEAF PAGE SEGMENT\n", stderr);
 	fseg_print(seg, &mtr);
 
-	if (!dict_index_is_univ(index)) {
+	if (!dict_index_is_ibuf(index)) {
 
 		seg = root + PAGE_HEADER + PAGE_BTR_SEG_LEAF;
 
@@ -4088,10 +4186,8 @@ btr_index_rec_validate_report(
 	const rec_t*		rec,	/*!< in: index record */
 	const dict_index_t*	index)	/*!< in: index */
 {
-	ib::info() << "Record in index "
-		<< ut_get_name(NULL, FALSE, index->name)
-		<< " of table "
-		<< ut_get_name(NULL, TRUE, index->table_name)
+	ib::info() << "Record in index " << index->name
+		<< " of table " << index->table->name
 		<< ", page " << page_id_t(page_get_space_id(page),
 					  page_get_page_no(page))
 		<< ", at offset " << page_offset(rec);
@@ -4121,7 +4217,7 @@ btr_index_rec_validate(
 
 	page = page_align(rec);
 
-	if (dict_index_is_univ(index)) {
+	if (dict_index_is_ibuf(index)) {
 		/* The insert buffer index tree can contain records from any
 		other index: we cannot check the number of fields or
 		their length */
@@ -4293,22 +4389,13 @@ btr_validate_report1(
 	ulint			level,	/*!< in: B-tree level */
 	const buf_block_t*	block)	/*!< in: index page */
 {
-	if (!level) {
+	ib::error	error;
+	error << "In page " << block->page.id.page_no()
+		<< " of index " << index->name
+		<< " of table " << index->table->name;
 
-		ib::error() << "In page " << block->page.id.page_no()
-			<< " of index "
-			<< ut_get_name(NULL, FALSE, index->name)
-			<< " of table "
-			<< ut_get_name(NULL, TRUE, index->table_name);
-
-	} else {
-
-		ib::error() << "In page " << block->page.id.page_no()
-			<< " of index "
-			<< ut_get_name(NULL, FALSE, index->name)
-			<< " of table "
-			<< ut_get_name(NULL, TRUE, index->table_name)
-			<< ", index tree level " << level;
+	if (level > 0) {
+		error << ", index tree level " << level;
 	}
 }
 
@@ -4323,21 +4410,13 @@ btr_validate_report2(
 	const buf_block_t*	block1,	/*!< in: first index page */
 	const buf_block_t*	block2)	/*!< in: second index page */
 {
-	if (!level) {
+	ib::error	error;
+	error << "In pages " << block1->page.id
+		<< " and " << block2->page.id << " of index " << index->name
+		<< " of table " << index->table->name;
 
-		ib::error() << "In pages " << block1->page.id
-			<< " and " << block2->page.id << " of index "
-			<< ut_get_name(NULL, FALSE, index->name)
-			<< " of table "
-			<< ut_get_name(NULL, TRUE, index->table_name);
-	} else {
-
-		ib::error() << "In pages " << block1->page.id
-			<< " and " << block2->page.id << " of index "
-			<< ut_get_name(NULL, FALSE, index->name)
-			<< " of table "
-			<< ut_get_name(NULL, TRUE, index->table_name)
-			<< ", index tree level " << level;
+	if (level > 0) {
+		error << ", index tree level " << level;
 	}
 }
 

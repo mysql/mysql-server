@@ -562,9 +562,12 @@ bool Item_func_as_geojson::parse_options_argument()
 
   if (options_argument < 0 || options_argument > 7)
   {
-    char options_string[MAX_BIGINT_WIDTH];
-    llstr(options_argument, options_string);
-    
+    char options_string[MAX_BIGINT_WIDTH + 1];
+    if (args[2]->unsigned_flag)
+      ullstr(options_argument, options_string);
+    else
+      llstr(options_argument, options_string);
+
     my_error(ER_WRONG_VALUE_FOR_TYPE, MYF(0), "options", options_string,
              func_name());
     return true;
@@ -600,8 +603,11 @@ bool Item_func_as_geojson::parse_maxdecimaldigits_argument()
   if (max_decimal_digits_argument < 0 ||
       max_decimal_digits_argument > INT_MAX32)
   {
-    char max_decimal_digits_string[MAX_BIGINT_WIDTH];
-    llstr(max_decimal_digits_argument, max_decimal_digits_string);
+    char max_decimal_digits_string[MAX_BIGINT_WIDTH + 1];
+    if (args[1]->unsigned_flag)
+      ullstr(max_decimal_digits_argument, max_decimal_digits_string);
+    else
+      llstr(max_decimal_digits_argument, max_decimal_digits_string);
 
     my_error(ER_WRONG_VALUE_FOR_TYPE, MYF(0), "max decimal digits",
              max_decimal_digits_string, func_name());
@@ -4049,6 +4055,10 @@ String *Item_func_repeat::val_str(String *str)
   if (count <= 0 && (count == 0 || !args[1]->unsigned_flag))
     return make_empty_result();
 
+  // Avoid looping, concatenating the empty string.
+  if (res->length() == 0)
+    return res;
+
   /* Assumes that the maximum length of a String is < INT_MAX32. */
   /* Bounds check on count:  If this is triggered, we will error. */
   if ((ulonglong) count > INT_MAX32)
@@ -4687,8 +4697,8 @@ String *Item_func_hex::val_str_ascii(String *str)
         args[0]->result_type() == DECIMAL_RESULT)
     {
       double val= args[0]->val_real();
-      if ((val <= (double) LONGLONG_MIN) || 
-          (val >= (double) (ulonglong) ULONGLONG_MAX))
+      if ((val <= (double) LLONG_MIN) || 
+          (val >= (double) (ulonglong) ULLONG_MAX))
         dec=  ~(longlong) 0;
       else
         dec= (ulonglong) (val + (val > 0 ? 0.5 : -0.5));

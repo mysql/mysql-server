@@ -616,4 +616,24 @@ SELECT AsText(ConvexHull(GeomFromText('GeometryCollection(POLYGON((0 0)))')));
 SELECT AsText(Centroid(GeomFromText('GeometryCollection(POLYGON((0 0)))')));
 --error ER_GIS_INVALID_DATA
 SELECT ST_DISTANCE(GeomFromText('POLYGON((0 0, 1 1))'), GeomFromText('POLYGON((1 0, 0 1))'));
+
+--echo #
+--echo # Bug #19566186  GLENGTH RETURNS NON-INF VALUE ON 32BIT PLATFORMS FOR LINESTRING OF INF LENGTH
+--echo #
+select GLength(MLineFromWKB(0x0000000005000000020000000002000000035FB317E5EF3AB327E3A4B378469B67320000000000000000C0240000000000003FF05FD8ADAB9F560000000000000000000000000200000003000000000000000000000000000000000000000000000000BFF08B439581062540240000000000004341C37937E08000)) as length;
+
+
+--echo #
+--echo # Bug #19584716  ST_DISTANCE: ASSERTION FAILED: DIST <= 1.7976931348623158E+308
+--echo #
+do st_distance(linestring(point(26,87),point(13,95)),
+               geometrycollection(point(4.297374e+307,8.433875e+307)));
+--error ER_GIS_INVALID_DATA
+select st_distance(linestring(point(26,87),point(13,95)),
+                   geometrycollection(point(4.297374e+307,8.433875e+307))) as dist;
+--error ER_GIS_INVALID_DATA
+select st_distance(linestring(point(26,87),point(13,95)),
+                   geometrycollection(point(4.297374e+307,8.433875e+307), point(1e308, 1e308))) as dist;
+
+
 --source include/gis_debug.inc

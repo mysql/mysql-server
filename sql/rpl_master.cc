@@ -16,7 +16,6 @@
 
 #ifdef HAVE_REPLICATION
 #include "sql_priv.h"
-#include "unireg.h"
 #include "sql_parse.h"                          // check_access
 #include "auth_common.h"                        // SUPER_ACL
 #include "log_event.h"
@@ -530,7 +529,7 @@ int reset_master(THD* thd)
   if (!mysql_bin_log.is_open())
   {
     my_message(ER_FLUSH_MASTER_BINLOG_CLOSED,
-               ER(ER_FLUSH_MASTER_BINLOG_CLOSED), MYF(ME_BELL+ME_WAITTANG));
+               ER(ER_FLUSH_MASTER_BINLOG_CLOSED), MYF(0));
     return 1;
   }
 

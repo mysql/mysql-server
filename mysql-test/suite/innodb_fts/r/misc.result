@@ -1865,3 +1865,59 @@ innodb myisam engines
 SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT(0x00, '"', 'i', 'n', 'n', 'o', 'd', 'b', ' ', '$', 's', 't', 'o', 'r', 'a', 'g', 'e', '"','@', '4', 0x00) IN BOOLEAN MODE);
 a
 DROP TABLE t1;
+CREATE TABLE t1 (
+id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+a VARCHAR(200),
+FULLTEXT (a)
+) ENGINE= InnoDB;
+INSERT INTO t1 (a) VALUES
+('know database'),('good database'), ('gmail email'), ('ghome windows');
+SELECT * FROM t1 WHERE MATCH (a) AGAINST ('g *' IN NATURAL LANGUAGE MODE);
+id	a
+2	good database
+3	gmail email
+4	ghome windows
+SELECT * FROM t1 WHERE MATCH (a) AGAINST ('g *' IN NATURAL LANGUAGE MODE WITH QUERY EXPANSION);
+id	a
+3	gmail email
+4	ghome windows
+2	good database
+1	know database
+SELECT * FROM t1 WHERE MATCH (a) AGAINST ('g * k *' IN NATURAL LANGUAGE MODE WITH QUERY EXPANSION);
+id	a
+1	know database
+3	gmail email
+4	ghome windows
+2	good database
+SELECT * FROM t1 WHERE MATCH (a) AGAINST ('g * k * d *' IN NATURAL LANGUAGE MODE WITH QUERY EXPANSION);
+id	a
+1	know database
+3	gmail email
+4	ghome windows
+2	good database
+SELECT * FROM t1 WHERE MATCH (a) AGAINST ('g * go *' IN NATURAL LANGUAGE MODE WITH QUERY EXPANSION);
+id	a
+2	good database
+3	gmail email
+4	ghome windows
+1	know database
+SELECT * FROM t1 WHERE MATCH (a) AGAINST ('g * good' IN NATURAL LANGUAGE MODE WITH QUERY EXPANSION);
+id	a
+2	good database
+3	gmail email
+4	ghome windows
+1	know database
+SELECT * FROM t1 WHERE MATCH (a) AGAINST ('gm * go *' IN NATURAL LANGUAGE MODE WITH QUERY EXPANSION);
+id	a
+3	gmail email
+2	good database
+1	know database
+SELECT * FROM t1 WHERE MATCH (a) AGAINST ('good *' IN NATURAL LANGUAGE MODE WITH QUERY EXPANSION);
+id	a
+2	good database
+1	know database
+SELECT * FROM t1 WHERE MATCH (a) AGAINST ('g* database' IN NATURAL LANGUAGE MODE WITH QUERY EXPANSION);
+id	a
+1	know database
+2	good database
+DROP TABLE t1;

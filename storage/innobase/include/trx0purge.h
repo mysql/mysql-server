@@ -189,19 +189,28 @@ namespace undo {
 
 	/** Track UNDO tablespace mark for truncate. */
 	class Truncate {
-		public:
+	public:
 
-			Truncate()
-				:
-				m_undo_for_trunc(ULINT_UNDEFINED),
-				m_rseg_for_trunc(),
-				m_scan_start(1),
-				m_purge_rseg_truncate_frequency(
-					static_cast<ulint>(
-					srv_purge_rseg_truncate_frequency))
-			{
+		Truncate()
+			:
+			m_undo_for_trunc(ULINT_UNDEFINED),
+			m_rseg_for_trunc(),
+			m_scan_start(1),
+			m_purge_rseg_truncate_frequency(
+				static_cast<ulint>(
+				srv_purge_rseg_truncate_frequency))
+		{
 			/* Do Nothing. */
-			}
+		}
+
+		/** Clear the cached rollback segment. Normally done
+		when purge is about to shutdown. */
+		void clear()
+		{
+			reset();
+			rseg_for_trunc_t	temp;	
+			m_rseg_for_trunc.swap(temp);
+		}
 
 		/** Is tablespace selected for truncate.
 		@return true if undo tablespace is marked for truncate */

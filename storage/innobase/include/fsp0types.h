@@ -70,6 +70,56 @@ typedef	byte	fseg_header_t;
 					header, in bytes */
 /* @} */
 
+#ifdef UNIV_DEBUG
+
+struct mtr_t;
+
+/** A wrapper class to print the file segment header information. */
+class fseg_header
+{
+public:
+	/** Constructor of fseg_header.
+	@param[in]	header	the underlying file segment header object
+	@param[in]	mtr	the mini-transaction.  No redo logs are
+				generated, only latches are checked within
+				mini-transaction */
+	fseg_header(
+		const fseg_header_t*	header,
+		mtr_t*			mtr)
+		:
+		m_header(header),
+		m_mtr(mtr)
+	{}
+
+	/** Print the file segment header to the given output stream.
+	@param[in,out]	out	the output stream into which the object
+				is printed.
+	@retval	the output stream into which the object was printed. */
+	std::ostream&
+	to_stream(std::ostream&	out) const;
+private:
+	/** The underlying file segment header */
+	const fseg_header_t*	m_header;
+
+	/** The mini transaction, which is used mainly to check whether
+	appropriate latches have been taken by the calling thread. */
+	mtr_t*			m_mtr;
+};
+
+/* Overloading the global output operator to print a file segment header
+@param[in,out]	out	the output stream into which object will be printed
+@param[in]	header	the file segment header to be printed
+@retval the output stream */
+inline
+std::ostream&
+operator<<(
+	std::ostream&		out,
+	const fseg_header&	header)
+{
+	return(header.to_stream(out));
+}
+#endif /* UNIV_DEBUG */
+
 /** Flags for fsp_reserve_free_extents */
 enum fsp_reserve_t {
 	FSP_NORMAL,	/* reservation during normal B-tree operations */
@@ -117,17 +167,16 @@ every XDES_DESCRIBED_PER_PAGE pages in every tablespace. */
 /*--------------------------------------*/
 /* @} */
 
-/********************************************************************//**
-Validate and return the tablespace flags, which are stored in the
-tablespace header at offset FSP_SPACE_FLAGS.  They should be 0 for
-ROW_FORMAT=COMPACT and ROW_FORMAT=REDUNDANT. The newer row formats,
-COMPRESSED and DYNAMIC, use a file format > Antelope so they should
-have a file format number plus the DICT_TF_COMPACT bit set.
-@return true if check ok */
+/** Validate the tablespace flags.
+These flags are stored in the tablespace header at offset FSP_SPACE_FLAGS.
+They should be 0 for ROW_FORMAT=COMPACT and ROW_FORMAT=REDUNDANT.
+The newer row formats, COMPRESSED and DYNAMIC, use a file format > Antelope
+so they should have a file format number plus the DICT_TF_COMPACT bit set.
+@param[in]	flags	Tablespace flags
+@return true if valid, false if not */
 bool
 fsp_flags_is_valid(
-/*===============*/
-	ulint	flags)		/*!< in: tablespace flags */
+	ulint	flags)
 	__attribute__((warn_unused_result, const));
 
 /** Check if tablespace is system temporary.
@@ -233,12 +282,6 @@ is found in a remote location, not the default data directory. */
 /** Return the contents of the UNUSED bits */
 #define FSP_FLAGS_GET_UNUSED(flags)				\
 		(flags >> FSP_FLAGS_POS_UNUSED)
-
-/** Set a PAGE_SSIZE into the correct bits in a given
-tablespace flags. */
-#define FSP_FLAGS_SET_PAGE_SSIZE(flags, ssize)			\
-		(flags | (ssize << FSP_FLAGS_POS_PAGE_SSIZE))
-
 /* @} */
 
 #endif /* fsp0types_h */

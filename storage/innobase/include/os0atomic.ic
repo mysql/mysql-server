@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2013, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -25,9 +25,6 @@ Created 2012-09-23 Sunny Bains (Split from include/os0sync.ic)
 
 #ifdef _WIN32
 #include <winbase.h>
-#endif
-
-#ifdef HAVE_WINDOWS_ATOMICS
 
 /* Use inline functions to make 64 and 32 bit versions of windows atomic
 functions so that typecasts are evaluated at compile time. Take advantage
@@ -106,5 +103,4 @@ win_cmp_and_xchg_dword(
 		(LONG) new_val,
 		(LONG) old_val));
 }
-
-#endif /* HAVE_WINDOWS_ATOMICS */
+#endif /* _WIN32 */

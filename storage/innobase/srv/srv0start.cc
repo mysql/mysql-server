@@ -108,6 +108,9 @@ lsn_t	srv_shutdown_lsn;
 /** TRUE if a raw partition is in use */
 ibool	srv_start_raw_disk_in_use = FALSE;
 
+/** Number of IO threads to use */
+ulint	srv_n_file_io_threads = 0;
+
 /** TRUE if the server is being started, before rolling back any
 incomplete transactions */
 ibool	srv_startup_is_before_trx_rollback_phase = FALSE;
@@ -399,8 +402,8 @@ create_log_files(
 	/* Disable the doublewrite buffer for log files, not required */
 
 	fil_space_t*	log_space = fil_space_create(
-		logfilename, SRV_LOG_SPACE_FIRST_ID,
-		fsp_flags_set_page_size(0, UNIV_PAGE_SIZE),
+		logfilename + dirnamelen, SRV_LOG_SPACE_FIRST_ID,
+		fsp_flags_set_page_size(0, univ_page_size),
 		FIL_TYPE_LOG);
 	ut_a(fil_validate());
 	ut_a(log_space != NULL);
@@ -432,7 +435,7 @@ create_log_files(
 
 	/* Create a log checkpoint. */
 	log_mutex_enter();
-	ut_d(recv_no_log_write = FALSE);
+	ut_d(recv_no_log_write = false);
 	recv_reset_logs(lsn);
 	log_mutex_exit();
 
@@ -640,7 +643,7 @@ srv_undo_tablespace_open(
 		fil_set_max_space_id_if_bigger(space_id);
 
 		/* Set the compressed page size to 0 (non-compressed) */
-		flags = fsp_flags_set_page_size(0, UNIV_PAGE_SIZE);
+		flags = fsp_flags_init(univ_page_size, false, false);
 		space = fil_space_create(
 			name, space_id, flags, FIL_TYPE_TABLESPACE);
 
@@ -1118,7 +1121,6 @@ srv_open_tmp_tablespace(
 
 			err = DB_ERROR;
 		}
-
 	}
 
 	return(err);
@@ -1318,9 +1320,6 @@ innobase_start_or_create_for_mysql(void)
 			" of memory.";
 	}
 
-	univ_page_size.copy_from(
-		page_size_t(srv_page_size, srv_page_size, false));
-
 #ifdef UNIV_DEBUG
 	ib::info() << "!!!!!!!! UNIV_DEBUG switched on !!!!!!!!!";
 #endif
@@ -1387,30 +1386,7 @@ innobase_start_or_create_for_mysql(void)
 	srv_startup_is_before_trx_rollback_phase = TRUE;
 
 #ifdef _WIN32
-	switch (os_get_os_version()) {
-	case OS_WIN95:
-	case OS_WIN31:
-	case OS_WINNT:
-		/* On Win 95, 98, ME, Win32 subsystem for Windows 3.1,
-		and NT use simulated aio. In NT Windows provides async i/o,
-		but when run in conjunction with InnoDB Hot Backup, it seemed
-		to corrupt the data files. */
-
-		srv_use_native_aio = FALSE;
-		break;
-
-	case OS_WIN2000:
-	case OS_WINXP:
-		/* On 2000 and XP, async IO is available. */
-		srv_use_native_aio = TRUE;
-		break;
-
-	default:
-		/* Vista and later have both async IO and condition variables */
-		srv_use_native_aio = TRUE;
-		srv_use_native_conditions = true;
-		break;
-	}
+	srv_use_native_aio = TRUE;
 
 #elif defined(LINUX_NATIVE_AIO)
 
@@ -1581,7 +1557,7 @@ innobase_start_or_create_for_mysql(void)
 		} else {
 
 			srv_monitor_file_name = NULL;
-			srv_monitor_file = os_file_create_tmpfile();
+			srv_monitor_file = os_file_create_tmpfile(NULL);
 
 			if (!srv_monitor_file) {
 				return(srv_init_abort(DB_ERROR));
@@ -1590,7 +1566,7 @@ innobase_start_or_create_for_mysql(void)
 
 		mutex_create("srv_dict_tmpfile", &srv_dict_tmpfile_mutex);
 
-		srv_dict_tmpfile = os_file_create_tmpfile();
+		srv_dict_tmpfile = os_file_create_tmpfile(NULL);
 
 		if (!srv_dict_tmpfile) {
 			return(srv_init_abort(DB_ERROR));
@@ -1598,24 +1574,15 @@ innobase_start_or_create_for_mysql(void)
 
 		mutex_create("srv_misc_tmpfile", &srv_misc_tmpfile_mutex);
 
-		srv_misc_tmpfile = os_file_create_tmpfile();
+		srv_misc_tmpfile = os_file_create_tmpfile(NULL);
 
 		if (!srv_misc_tmpfile) {
 			return(srv_init_abort(DB_ERROR));
 		}
 	}
 
-	/* If user has set the value of innodb_file_io_threads then
-	we'll emit a message telling the user that this parameter
-	is now deprecated. */
-	if (srv_n_file_io_threads != 4) {
-		ib::warn() << "innodb_file_io_threads is deprecated. Please use"
-			" innodb_read_io_threads and innodb_write_io_threads"
-			" instead";
-	}
-
-	/* Now overwrite the value on srv_n_file_io_threads */
 	srv_n_file_io_threads = srv_n_read_io_threads;
+
 	srv_n_file_io_threads += srv_n_write_io_threads;
 
 	if (!srv_read_only_mode) {
@@ -1931,9 +1898,9 @@ innobase_start_or_create_for_mysql(void)
 
 		/* Disable the doublewrite buffer for log files. */
 		fil_space_t*	log_space = fil_space_create(
-			logfilename,
+			logfilename + dirnamelen,
 			SRV_LOG_SPACE_FIRST_ID,
-			fsp_flags_set_page_size(0, UNIV_PAGE_SIZE),
+			fsp_flags_set_page_size(0, univ_page_size),
 			FIL_TYPE_LOG);
 
 		ut_a(fil_validate());
@@ -2138,7 +2105,7 @@ files_checked:
 			In a crash recovery, we check that the info in data
 			dictionary is consistent with what we already know
 			about space id's from the calls to
-			fil_load_single_file_tablespace().
+			fil_ibd_load().
 
 			In a normal startup, we create the space objects for
 			every table in the InnoDB data dictionary that has
@@ -2209,7 +2176,7 @@ files_checked:
 			/* Prohibit redo log writes from any other
 			threads until creating a log checkpoint at the
 			end of create_log_files(). */
-			ut_d(recv_no_log_write = TRUE);
+			ut_d(recv_no_log_write = true);
 			ut_ad(!buf_pool_check_no_pending_io());
 
 			RECOVERY_CRASH(3);
@@ -2614,7 +2581,6 @@ innobase_shutdown_for_mysql(void)
 	os_aio_free();
 	que_close();
 	row_mysql_close();
-	srv_mon_free();
 	srv_free();
 	fil_close();
 
@@ -2623,9 +2589,6 @@ innobase_shutdown_for_mysql(void)
 	pars_lexer_close();
 	log_mem_free();
 	buf_pool_free(srv_buf_pool_instances);
-#ifndef HAVE_ATOMIC_BUILTINS
-	srv_conc_free();
-#endif /* !HAVE_ATOMIC_BUILTINS */
 
 	/* 6. Free the thread management resoruces. */
 	os_thread_free();
@@ -2726,14 +2689,16 @@ srv_shutdown_table_bg_threads(void)
 	}
 }
 
-/*****************************************************************//**
-Get the meta-data filename from the table name. */
+/** Get the meta-data filename from the table name for a
+single-table tablespace.
+@param[in]	table		table object
+@param[out]	filename	filename
+@param[in]	max_len		filename max length */
 void
 srv_get_meta_data_filename(
-/*=======================*/
-	dict_table_t*	table,		/*!< in: table */
-	char*		filename,	/*!< out: filename */
-	ulint		max_len)	/*!< in: filename max length */
+	dict_table_t*	table,
+	char*		filename,
+	ulint		max_len)
 {
 	ulint		len;
 	char*		path;
@@ -2745,9 +2710,9 @@ srv_get_meta_data_filename(
 		ut_a(table->data_dir_path);
 
 		path = fil_make_filepath(
-			table->data_dir_path, table->name, CFG, true);
+			table->data_dir_path, table->name.m_name, CFG, true);
 	} else {
-		path = fil_make_filepath(NULL, table->name, CFG, false);
+		path = fil_make_filepath(NULL, table->name.m_name, CFG, false);
 	}
 
 	ut_a(path);

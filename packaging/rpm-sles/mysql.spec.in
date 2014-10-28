@@ -73,9 +73,9 @@ Source1:        mysql-systemd-start
 Source2:        mysqld.service
 Source3:        mysql.conf
 Source4:        my_config.h
+Source10:       http://downloads.sourceforge.net/boost/@BOOST_PACKAGE_NAME@.tar.bz2
 Source90:       filter-provides.sh
 Source91:       filter-requires.sh
-Patch0:         mysql-5.6.16-mysql-install.patch
 BuildRequires:  cmake >= 2.8.2
 BuildRequires:  perl
 BuildRequires:  libaio-devel
@@ -90,7 +90,7 @@ BuildRoot:      %(mktemp -ud %{_tmppath}/%{name}-%{version}-%{release}-XXXXXX)
 
 %if 0%{?rhel} > 6
 # For rpm => 4.9 only: https://fedoraproject.org/wiki/Packaging:AutoProvidesAndRequiresFiltering
-%global __requires_exclude ^perl\\((hostnames|lib::mtr|lib::v1|mtr_|My::)
+%global __requires_exclude ^perl\\((GD|hostnames|lib::mtr|lib::v1|mtr_|My::)
 %global __provides_exclude_from ^(/usr/share/(mysql|mysql-test)/.*|%{_libdir}/mysql/plugin/.*\\.so)$
 %else
 # https://fedoraproject.org/wiki/EPEL:Packaging#Generic_Filtering_on_EPEL6
@@ -292,11 +292,11 @@ Requires:       mysql-community-common = %{version}-%{release}
 Obsoletes:      MySQL-shared < %{version}-%{release}
 Obsoletes:      mysql-libs < %{version}-%{release}
 Obsoletes:      mariadb-libs
-Obsoletes:      libmysqlclient18 < %{version}-%{release}
-Obsoletes:      libmysqlclient_r18 < %{version}-%{release}
+Obsoletes:      libmysqlclient20 < %{version}-%{release}
+Obsoletes:      libmysqlclient_r20 < %{version}-%{release}
 Provides:       mysql-libs = %{version}-%{release}
-Provides:       libmysqlclient18 = %{version}-%{release}
-Provides:       libmysqlclient_r18 = %{version}-%{release}
+Provides:       libmysqlclient20 = %{version}-%{release}
+Provides:       libmysqlclient_r20 = %{version}-%{release}
 
 %description    libs
 This package contains the shared libraries for MySQL client
@@ -351,7 +351,7 @@ This package contains files needed for developing applications using
 the embedded version of the MySQL server.
 
 %prep
-%setup -q -T -a 0 -c -n %{src_dir}
+%setup -q -T -a 0 -a 10 -c -n %{src_dir}
 pushd %{src_dir}
 
 %build
@@ -378,6 +378,7 @@ mkdir debug
            -DBUILD_CONFIG=mysql_release \
            -DINSTALL_LAYOUT=RPM \
            -DCMAKE_BUILD_TYPE=Debug \
+           -DWITH_BOOST=.. \
            -DCMAKE_C_FLAGS="$optflags" \
            -DCMAKE_CXX_FLAGS="$optflags" \
            -DWITH_INNODB_MEMCACHED=1 \
@@ -403,6 +404,7 @@ mkdir release
            -DBUILD_CONFIG=mysql_release \
            -DINSTALL_LAYOUT=RPM \
            -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+           -DWITH_BOOST=.. \
            -DCMAKE_C_FLAGS="%{optflags}" \
            -DCMAKE_CXX_FLAGS="%{optflags}" \
            -DWITH_INNODB_MEMCACHED=1 \
@@ -467,17 +469,6 @@ rm -rf %{buildroot}%{_bindir}/mysql_embedded
 # rcmysql symlink
 install -d %{buildroot}%{_sbindir}
 ln -sf %{_initrddir}/mysql %{buildroot}%{_sbindir}/rcmysql
-
-## todo: fix when merged
-rm -rf %{buildroot}/usr/bin/mysql_waitpid
-rm -rf %{buildroot}/usr/bin/mysql_zap
-rm -rf %{buildroot}/usr/bin/mysqlhotcopy
-rm -rf %{buildroot}/usr/share/man/man1/mysql_waitpid*
-rm -rf %{buildroot}/usr/share/man/man1/mysql_zap*
-rm -rf %{buildroot}/usr/share/man/man1/mysqlbug.*
-rm -rf %{buildroot}/usr/share/man/man1/mysqlhotcopy*
-rm -rf %{buildroot}/usr/share/mysql/binary-configure
-rm -rf %{buildroot}/usr/share/mysql/solaris/postinstall-solaris
 
 %check
 %if 0%{?runselftest}
@@ -653,6 +644,7 @@ fi
 
 %files common
 %defattr(-, root, root, -)
+%doc %{?license_files_server}
 %{_datadir}/mysql/charsets/
 %{_datadir}/mysql/errmsg-utf8.txt
 %{_datadir}/mysql/bulgarian/
@@ -682,6 +674,7 @@ fi
 
 %files client
 %defattr(-, root, root, -)
+%doc %{?license_files_server}
 %attr(755, root, root) %{_bindir}/mysql
 %attr(755, root, root) %{_bindir}/mysqladmin
 %attr(755, root, root) %{_bindir}/mysqlbinlog
@@ -705,6 +698,7 @@ fi
 
 %files devel
 %defattr(-, root, root, -)
+%doc %{?license_files_server}
 %attr(644, root, root) %{_mandir}/man1/comp_err.1*
 %attr(644, root, root) %{_mandir}/man1/mysql_config.1*
 %attr(755, root, root) %{_bindir}/mysql_config
@@ -718,14 +712,16 @@ fi
 
 %files libs
 %defattr(-, root, root, -)
+%doc %{?license_files_server}
 %dir %attr(755, root, root) %{_libdir}/mysql
 %attr(644, root, root) %{_sysconfdir}/ld.so.conf.d/mysql-%{_arch}.conf
-%{_libdir}/mysql/libmysqlclient.so.18*
-%{_libdir}/mysql/libmysqlclient_r.so.18*
+%{_libdir}/mysql/libmysqlclient.so.20*
+%{_libdir}/mysql/libmysqlclient_r.so.20*
 
 %if 0%{?compatlib}
 %files libs-compat
 %defattr(-, root, root, -)
+%doc %{?license_files_server}
 %dir %attr(755, root, root) %{_libdir}/mysql
 %attr(644, root, root) %{_sysconfdir}/ld.so.conf.d/mysql-%{_arch}.conf
 %{_libdir}/mysql/libmysqlclient.so.%{compatlib}
@@ -736,6 +732,7 @@ fi
 
 %files test
 %defattr(-, root, root, -)
+%doc %{?license_files_server}
 %attr(-, root, root) %{_datadir}/mysql-test
 %attr(755, root, root) %{_bindir}/mysql_client_test
 %attr(755, root, root) %{_bindir}/mysql_client_test_embedded
@@ -746,12 +743,14 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/auth_test_plugin.so
 %attr(644, root, root) %{_libdir}/mysql/plugin/daemon_example.ini
 %attr(755, root, root) %{_libdir}/mysql/plugin/libdaemon_example.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/replication_observers_example_plugin.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/qa_auth_client.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/qa_auth_interface.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/qa_auth_server.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/auth.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/auth_test_plugin.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/libdaemon_example.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/replication_observers_example_plugin.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/qa_auth_client.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/qa_auth_interface.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/qa_auth_server.so
@@ -765,21 +764,34 @@ fi
 
 %files bench
 %defattr(-, root, root, -)
+%doc %{?license_files_server}
 %{_datadir}/sql-bench
 
 %files embedded
 %defattr(-, root, root, -)
+%doc %{?license_files_server}
 %dir %attr(755, root, root) %{_libdir}/mysql
 %attr(644, root, root) %{_sysconfdir}/ld.so.conf.d/mysql-%{_arch}.conf
 %attr(755, root, root) %{_libdir}/mysql/libmysqld.so.*
 
 %files embedded-devel
 %defattr(-, root, root, -)
+%doc %{?license_files_server}
 %attr(644, root, root) %{_libdir}/mysql/libmysqld.a
 %attr(644, root, root) %{_libdir}/mysql/libmysqld-debug.a
 %attr(755, root, root) %{_libdir}/mysql/libmysqld.so
 
 %changelog
+* Mon Oct 27 2014 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 5.7.6-0.2.m16
+- Include boost sources
+- Add license info in each subpackage
+- Soname bump
+
+* Thu Sep 18 2014 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 5.7.6-0.2.m16
+- Provide replication_observers_example_plugin.so plugin
+
+* Tue Sep 02 2014 Bjorn Munch <bjorn.munch@oracle.com> - 5.7.6-0.1.m16
+
 * Tue Sep 2 2014 Bjorn Munch <bjorn.munch@oracle.com> - 5.7.6-0.1.m16
 - Updated for 5.7.6
 

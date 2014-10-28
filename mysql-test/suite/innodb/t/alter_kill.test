@@ -15,6 +15,7 @@ call mtr.add_suppression("Found 1 prepared XA transactions");
 call mtr.add_suppression("InnoDB: .*test.*bug16720368.*missing");
 call mtr.add_suppression("InnoDB: Operating system error.*in a file operation");
 call mtr.add_suppression("InnoDB: \(The error means\|If you are\)");
+call mtr.add_suppression("InnoDB: Ignoring tablespace `test/bug16720368` because it could not be opened");
 -- enable_query_log
 
 -- echo #

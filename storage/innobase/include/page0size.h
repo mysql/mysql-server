@@ -29,6 +29,14 @@ Created Nov 14, 2013 Vasil Dimov
 #include "univ.i"
 #include "fsp0types.h"
 
+
+#define FIELD_REF_SIZE 20
+
+/** A BLOB field reference full of zero, for use in assertions and
+tests.Initially, BLOB field references are set to zero, in
+dtuple_convert_big_rec(). */
+extern const byte field_ref_zero[FIELD_REF_SIZE];
+
 #define PAGE_SIZE_T_SIZE_BITS	15
 
 /** Page size descriptor. Contains the physical and logical page size, as well
@@ -40,11 +48,18 @@ public:
 	@param[in]	logical		logical (in-memory/unzipped) page size
 	@param[in]	is_compressed	whether the page is compressed */
 	page_size_t(ulint physical, ulint logical, bool is_compressed)
-		:
-		m_physical(static_cast<unsigned>(physical)),
-		m_logical(static_cast<unsigned>(logical)),
-		m_is_compressed(static_cast<unsigned>(is_compressed))
 	{
+		if (physical == 0) {
+			physical = UNIV_PAGE_SIZE_ORIG;
+		}
+		if (logical == 0) {
+			logical = UNIV_PAGE_SIZE_ORIG;
+		}
+
+		m_physical = static_cast<unsigned>(physical);
+		m_logical = static_cast<unsigned>(logical);
+		m_is_compressed = static_cast<unsigned>(is_compressed);
+
 		ut_ad(physical <= (1 << PAGE_SIZE_T_SIZE_BITS));
 		ut_ad(logical <= (1 << PAGE_SIZE_T_SIZE_BITS));
 
@@ -61,24 +76,23 @@ public:
 	{
 		ulint	ssize = FSP_FLAGS_GET_PAGE_SSIZE(fsp_flags);
 
-		if (ssize != 0) {
-			/* Convert from a 'log2 minus 9' to a page size
-			in bytes. */
-			const ulint	size
-				= ((UNIV_ZIP_SIZE_MIN >> 1) << ssize);
+		/* If the logical page size is zero in fsp_flags, then use the
+		legacy 16k page size. */
+		ssize = (0 == ssize) ? UNIV_PAGE_SSIZE_ORIG : ssize;
 
-			ut_ad(size <= UNIV_PAGE_SIZE_MAX);
-			ut_ad(size <= (1 << PAGE_SIZE_T_SIZE_BITS));
+		/* Convert from a 'log2 minus 9' to a page size in bytes. */
+		const ulint	size = ((UNIV_ZIP_SIZE_MIN >> 1) << ssize);
 
-			m_logical = size;
-		} else {
-			/* If the page size was not stored, then it
-			is the legacy 16k. */
-			m_logical = UNIV_PAGE_SIZE_ORIG;
-		}
+		ut_ad(size <= UNIV_PAGE_SIZE_MAX);
+		ut_ad(size <= (1 << PAGE_SIZE_T_SIZE_BITS));
+
+		m_logical = size;
 
 		ssize = FSP_FLAGS_GET_ZIP_SSIZE(fsp_flags);
 
+		/* If the fsp_flags have zero in the zip_ssize field, then it means
+		that the tablespace does not have compressed pages and the physical
+		page size is the same as the logical page size. */
 		if (ssize == 0) {
 			m_is_compressed = false;
 			m_physical = m_logical;
@@ -101,12 +115,8 @@ public:
 	@return physical page size in bytes */
 	inline ulint physical() const
 	{
-		/* Remove this assert once we add support for different
-		page size per tablespace. Currently all tablespaces must
-		have a page size that is equal to --innodb-page-size= */
-		ut_ad(m_logical == srv_page_size);
-
 		ut_ad(m_physical > 0);
+
 		return(m_physical);
 	}
 

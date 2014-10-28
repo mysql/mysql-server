@@ -1301,15 +1301,17 @@ row_merge_write_eof(
 }
 
 /** Create a temporary file if it has not been created already.
-@param[in,out] tmpfd	temporary file handle
+@param[in,out]	tmpfd	temporary file handle
+@param[in]	path	location for creating temporary file
 @return file descriptor, or -1 on failure */
 static __attribute__((warn_unused_result))
 int
 row_merge_tmpfile_if_needed(
-	int*	tmpfd)
+	int*		tmpfd,
+	const char*	path)
 {
 	if (*tmpfd < 0) {
-		*tmpfd = row_merge_file_create_low();
+		*tmpfd = row_merge_file_create_low(path);
 		if (*tmpfd >= 0) {
 			MONITOR_ATOMIC_INC(MONITOR_ALTER_TABLE_SORT_FILES);
 		}
@@ -1321,18 +1323,20 @@ row_merge_tmpfile_if_needed(
 /** Create a temporary file for merge sort if it was not created already.
 @param[in,out]	file	merge file structure
 @param[in]	nrec	number of records in the file
+@param[in]	path	location for creating temporary file
 @return file descriptor, or -1 on failure */
 static __attribute__((warn_unused_result))
 int
 row_merge_file_create_if_needed(
 	merge_file_t*	file,
 	int*		tmpfd,
-	ulint		nrec)
+	ulint		nrec,
+	const char*	path)
 {
 	ut_ad(file->fd < 0 || *tmpfd >=0);
-	if (file->fd < 0 && row_merge_file_create(file) >= 0) {
+	if (file->fd < 0 && row_merge_file_create(file, path) >= 0) {
 		MONITOR_ATOMIC_INC(MONITOR_ALTER_TABLE_SORT_FILES);
-		if (row_merge_tmpfile_if_needed(tmpfd) < 0) {
+		if (row_merge_tmpfile_if_needed(tmpfd, path) < 0) {
 			return(-1);
 		}
 
@@ -1477,6 +1481,7 @@ row_merge_read_clustered_index(
 	row_merge_dup_t	clust_dup = {index[0], table, col_map, 0};
 	dfield_t*	prev_fields;
 	const ulint	n_uniq = dict_index_get_n_unique(index[0]);
+	const char*	path = thd_innodb_tmpdir(trx->mysql_thd);
 
 	ut_ad(!skip_pk_sort || dict_index_is_clust(index[0]));
 	/* There is no previous tuple yet. */
@@ -2142,7 +2147,7 @@ write_buffers:
 				} else {
 					if (row_merge_file_create_if_needed(
 						file, tmpfd,
-						buf->n_tuples) < 0) {
+						buf->n_tuples, path) < 0) {
 						err = DB_OUT_OF_MEMORY;
 						trx->error_key_num = i;
 						goto func_exit;
@@ -2319,7 +2324,8 @@ wait_again:
 
 		if (err == DB_SUCCESS) {
 			fts_update_next_doc_id(
-				0, new_table, old_table->name, max_doc_id);
+				0, new_table,
+				old_table->name.m_name, max_doc_id);
 		}
 	}
 
@@ -2789,7 +2795,7 @@ row_merge_mtuple_to_dtuple(
 	dtuple_t*	dtuple,
 	const mtuple_t* mtuple)
 {
-	ut_ad(!dict_index_is_univ(index));
+	ut_ad(!dict_index_is_ibuf(index));
 
 	memcpy(dtuple->fields, mtuple->fields,
 	       dtuple->n_fields * sizeof *mtuple->fields);
@@ -3215,7 +3221,7 @@ row_merge_drop_indexes(
 			case ONLINE_INDEX_ABORTED_DROPPED:
 				continue;
 			case ONLINE_INDEX_COMPLETE:
-				if (*index->name != TEMP_INDEX_PREFIX) {
+				if (index->is_committed()) {
 					/* Do nothing to already
 					published indexes. */
 				} else if (index->type & DICT_FTS) {
@@ -3268,7 +3274,7 @@ row_merge_drop_indexes(
 				continue;
 			case ONLINE_INDEX_CREATION:
 				rw_lock_x_lock(dict_index_get_lock(index));
-				ut_ad(*index->name == TEMP_INDEX_PREFIX);
+				ut_ad(!index->is_committed());
 				row_log_abort_sec(index);
 			drop_aborted:
 				rw_lock_x_unlock(dict_index_get_lock(index));
@@ -3312,7 +3318,7 @@ row_merge_drop_indexes(
 
 		ut_ad(!dict_index_is_clust(index));
 
-		if (*index->name == TEMP_INDEX_PREFIX) {
+		if (!index->is_committed()) {
 			/* If it is FTS index, drop from table->fts
 			and also drop its auxiliary tables */
 			if (index->type & DICT_FTS) {
@@ -3411,13 +3417,13 @@ row_merge_drop_temp_indexes(void)
 	trx_free_for_background(trx);
 }
 
-/*********************************************************************//**
-Creates temporary merge files, and if UNIV_PFS_IO defined, register
-the file descriptor with Performance Schema.
-@return file descriptor, or -1 on failure */
+/** Create temporary merge files in the given paramater path, and if
+UNIV_PFS_IO defined, register the file descriptor with Performance Schema.
+@param[in]	path	location for creating temporary merge files.
+@return File descriptor */
 int
-row_merge_file_create_low(void)
-/*===========================*/
+row_merge_file_create_low(
+	const char*	path)
 {
 	int	fd;
 #ifdef UNIV_PFS_IO
@@ -3431,7 +3437,7 @@ row_merge_file_create_low(void)
 				     "Innodb Merge Temp File",
 				     __FILE__, __LINE__);
 #endif
-	fd = innobase_mysql_tmpfile();
+	fd = innobase_mysql_tmpfile(path);
 #ifdef UNIV_PFS_IO
 	register_pfs_file_open_end(locker, fd);
 #endif
@@ -3443,15 +3449,16 @@ row_merge_file_create_low(void)
 	return(fd);
 }
 
-/*********************************************************************//**
-Create a merge file.
+/** Create a merge file in the given location.
+@param[out]	merge_file	merge file structure
+@param[in]	path		location for creating temporary file
 @return file descriptor, or -1 on failure */
 int
 row_merge_file_create(
-/*==================*/
-	merge_file_t*	merge_file)	/*!< out: merge file structure */
+	merge_file_t*	merge_file,
+	const char*	path)
 {
-	merge_file->fd = row_merge_file_create_low();
+	merge_file->fd = row_merge_file_create_low(path);
 	merge_file->offset = 0;
 	merge_file->n_rec = 0;
 
@@ -3664,8 +3671,8 @@ row_merge_rename_tables_dict(
 
 	info = pars_info_create();
 
-	pars_info_add_str_literal(info, "new_name", new_table->name);
-	pars_info_add_str_literal(info, "old_name", old_table->name);
+	pars_info_add_str_literal(info, "new_name", new_table->name.m_name);
+	pars_info_add_str_literal(info, "old_name", old_table->name.m_name);
 	pars_info_add_str_literal(info, "tmp_name", tmp_name);
 
 	err = que_eval_sql(info,
@@ -3714,11 +3721,12 @@ row_merge_rename_tables_dict(
 	    && !is_system_tablespace(new_table->space)) {
 		/* Make pathname to update SYS_DATAFILES. */
 		char* old_path = row_make_new_pathname(
-			new_table, old_table->name);
+			new_table, old_table->name.m_name);
 
 		info = pars_info_create();
 
-		pars_info_add_str_literal(info, "old_name", old_table->name);
+		pars_info_add_str_literal(info, "old_name",
+					  old_table->name.m_name);
 		pars_info_add_str_literal(info, "old_path", old_path);
 		pars_info_add_int4_literal(info, "new_space",
 					   (lint) new_table->space);
@@ -3811,10 +3819,12 @@ row_merge_create_index(
 	a persistent operation. We pass 0 as the space id, and determine at
 	a lower level the space id where to store the table. */
 
-	index = dict_mem_index_create(table->name, index_def->name,
+	index = dict_mem_index_create(table->name.m_name, index_def->name,
 				      0, index_def->ind_type, n_fields);
 
 	ut_a(index);
+
+	index->set_committed(index_def->rebuild);
 
 	for (i = 0; i < n_fields; i++) {
 		index_field_t*	ifield = &index_def->fields[i];
@@ -3829,7 +3839,8 @@ row_merge_create_index(
 
 	if (err == DB_SUCCESS) {
 
-		index = dict_table_get_index_on_name(table, index_def->name);
+		index = dict_table_get_index_on_name(table, index_def->name,
+						     index_def->rebuild);
 
 		ut_a(index);
 
@@ -3884,7 +3895,8 @@ row_merge_drop_table(
 	/* There must be no open transactions on the table. */
 	ut_a(table->n_ref_count == 0);
 
-	return(row_drop_table_for_mysql(table->name, trx, false, false));
+	return(row_drop_table_for_mysql(table->name.m_name,
+					trx, false, false));
 }
 
 /*********************************************************************//**
@@ -3934,7 +3946,6 @@ row_merge_build_indexes(
 	fts_psort_t*		merge_info = NULL;
 	int64_t			sig_count = 0;
 	bool			fts_psort_initiated = false;
-	bool			is_redo_skipped;
 	DBUG_ENTER("row_merge_build_indexes");
 
 	ut_ad(!srv_read_only_mode);
@@ -3967,18 +3978,7 @@ row_merge_build_indexes(
 		merge_files[i].fd = -1;
 	}
 
-	/* Check whether we can skip redo log for page allocation.
-	Since we have a checkpoint at the end of bulk load, the redo
-	log for page allocation is used in case of transaction rollback
-	(drop a B-tree). If we are rebuilding a table with a single file,
-	we can simply remove the file when rollback. */
-	is_redo_skipped = dict_table_is_temporary(new_table)
-		|| (old_table != new_table
-		    && dict_table_use_file_per_table(new_table));
-
 	for (i = 0; i < n_indexes; i++) {
-		indexes[i]->is_redo_skipped = is_redo_skipped;
-
 		if (indexes[i]->type & DICT_FTS) {
 			ibool	opt_doc_id_size = FALSE;
 
@@ -4146,14 +4146,8 @@ wait_again:
 		}
 
 		if (indexes[i]->type & DICT_FTS && fts_enable_diag_print) {
-			char*	name = (char*) indexes[i]->name;
-
-			if (*name == TEMP_INDEX_PREFIX)  {
-				name++;
-			}
-
 			ib::info() << "Finished building full-text index "
-				<< name;
+				<< indexes[i]->name;
 		}
 	}
 
@@ -4190,7 +4184,7 @@ func_exit:
 		as aborted. */
 		for (i = 0; i < n_indexes; i++) {
 			ut_ad(!(indexes[i]->type & DICT_FTS));
-			ut_ad(*indexes[i]->name == TEMP_INDEX_PREFIX);
+			ut_ad(!indexes[i]->is_committed());
 			ut_ad(!dict_index_is_clust(indexes[i]));
 
 			/* Completed indexes should be dropped as
@@ -4216,8 +4210,7 @@ func_exit:
 				/* fall through */
 			case ONLINE_INDEX_ABORTED_DROPPED:
 			case ONLINE_INDEX_ABORTED:
-				MONITOR_MUTEX_INC(
-					&dict_sys->mutex,
+				MONITOR_ATOMIC_INC(
 					MONITOR_BACKGROUND_DROP_INDEX);
 			}
 		}

@@ -16,10 +16,13 @@
 #ifndef RPL_FILTER_H
 #define RPL_FILTER_H
 
+#include "my_global.h"                          /* uint */
 #include "mysql.h"
 #include "sql_list.h"                           /* I_List */
 #include "hash.h"                               /* HASH */
 #include "prealloced_array.h"
+#include "sql_cmd.h"                            /* Sql_cmd */
+#include "mysqld.h"                             /* options_mysqld */
 
 class String;
 struct TABLE_LIST;

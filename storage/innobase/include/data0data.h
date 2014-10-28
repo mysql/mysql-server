@@ -363,7 +363,7 @@ dtuple_fold(
 	const dtuple_t*	tuple,	/*!< in: the tuple */
 	ulint		n_fields,/*!< in: number of complete fields to fold */
 	index_id_t	tree_id)/*!< in: index tree id */
-	__attribute__((nonnull, pure, warn_unused_result));
+	__attribute__((warn_unused_result));
 /*******************************************************************//**
 Sets types of fields binary in a tuple. */
 UNIV_INLINE

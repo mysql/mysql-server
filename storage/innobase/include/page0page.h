@@ -261,7 +261,7 @@ page_header_get_offs(
 /*=================*/
 	const page_t*	page,	/*!< in: page */
 	ulint		field)	/*!< in: PAGE_FREE, ... */
-	__attribute__((nonnull, pure));
+	__attribute__((warn_unused_result));
 
 /*************************************************************//**
 Returns the pointer stored in the given header field, or NULL. */
@@ -525,7 +525,7 @@ bool
 page_is_leaf(
 /*=========*/
 	const page_t*	page)	/*!< in: page */
-	__attribute__((nonnull, pure));
+	__attribute__((warn_unused_result));
 /************************************************************//**
 Determine whether the page is empty.
 @return true if the page is empty (PAGE_N_RECS = 0) */
@@ -534,7 +534,15 @@ bool
 page_is_empty(
 /*==========*/
 	const page_t*	page)	/*!< in: page */
-	__attribute__((nonnull, pure));
+	__attribute__((warn_unused_result));
+/** Determine whether a page is an index root page.
+@param[in]	page	page frame
+@return true if the page is a root page of an index */
+UNIV_INLINE
+bool
+page_is_root(
+	const page_t*	page)
+	__attribute__((warn_unused_result));
 /************************************************************//**
 Determine whether the page contains garbage.
 @return true if the page contains garbage (PAGE_GARBAGE is not 0) */
@@ -543,7 +551,7 @@ bool
 page_has_garbage(
 /*=============*/
 	const page_t*	page)	/*!< in: page */
-	__attribute__((nonnull, pure));
+	__attribute__((warn_unused_result));
 /************************************************************//**
 Gets the pointer to the next record on the page.
 @return pointer to next record */
@@ -643,7 +651,7 @@ ibool
 page_rec_is_user_rec(
 /*=================*/
 	const rec_t*	rec)	/*!< in: record */
-	__attribute__((const));
+	__attribute__((warn_unused_result));
 /************************************************************//**
 TRUE if the record is the supremum record on a page.
 @return TRUE if the supremum record */
@@ -652,7 +660,7 @@ ibool
 page_rec_is_supremum(
 /*=================*/
 	const rec_t*	rec)	/*!< in: record */
-	__attribute__((const));
+	__attribute__((warn_unused_result));
 
 /************************************************************//**
 TRUE if the record is the infimum record on a page.
@@ -662,7 +670,7 @@ ibool
 page_rec_is_infimum(
 /*================*/
 	const rec_t*	rec)	/*!< in: record */
-	__attribute__((const));
+	__attribute__((warn_unused_result));
 
 /************************************************************//**
 true if the record is the first user record on a page.
@@ -673,7 +681,7 @@ page_rec_is_first(
 /*==============*/
 	const rec_t*	rec,	/*!< in: record */
 	const page_t*	page)	/*!< in: page */
-	__attribute__((const));
+	__attribute__((warn_unused_result));
 
 /************************************************************//**
 true if the record is the second user record on a page.
@@ -684,7 +692,7 @@ page_rec_is_second(
 /*===============*/
 	const rec_t*	rec,	/*!< in: record */
 	const page_t*	page)	/*!< in: page */
-	__attribute__((const));
+	__attribute__((warn_unused_result));
 
 /************************************************************//**
 true if the record is the last user record on a page.
@@ -695,7 +703,7 @@ page_rec_is_last(
 /*=============*/
 	const rec_t*	rec,	/*!< in: record */
 	const page_t*	page)	/*!< in: page */
-	__attribute__((const));
+	__attribute__((warn_unused_result));
 
 /************************************************************//**
 true if the record is the second last user record on a page.
@@ -706,7 +714,7 @@ page_rec_is_second_last(
 /*====================*/
 	const rec_t*	rec,	/*!< in: record */
 	const page_t*	page)	/*!< in: page */
-	__attribute__((const));
+	__attribute__((warn_unused_result));
 
 /***************************************************************//**
 Looks for the record which owns the given record.

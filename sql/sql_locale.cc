@@ -21,7 +21,6 @@
 */
 
 #include "sql_priv.h"
-#include "unireg.h"
 #include "sql_locale.h"
 #include "sql_class.h"                          // THD
 #include "my_sys.h"                             // MY_*, NullS, NULL

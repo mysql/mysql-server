@@ -30,7 +30,7 @@ SELECT variable_value FROM information_schema.global_status
 --echo #         the page size.
 # Pulled from innodb-system-table-view.test
 # The IDs of mysql.innodb_table_stats and mysql.innodb_index_stats are
-# unpredictable, probably they on whether mtr has created the database for
+# unpredictable. They depend on whether mtr has created the database for
 # this test from scratch or is using a previously created database where
 # those tables have been dropped and recreated. If we can force mtr to
 # use a freshly created database for this test then the following

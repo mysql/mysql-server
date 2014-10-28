@@ -275,11 +275,10 @@ row_ins_sec_index_entry_by_modify(
 		case, the change would already be there. The CREATE
 		INDEX should be waiting for a MySQL meta-data lock
 		upgrade at least until this INSERT or UPDATE
-		returns. After that point, the TEMP_INDEX_PREFIX
-		would be dropped from the index name in
-		commit_inplace_alter_table(). */
+		returns. After that point, set_committed(true)
+		would be invoked in commit_inplace_alter_table(). */
 		ut_a(update->n_fields == 0);
-		ut_a(*cursor->index->name == TEMP_INDEX_PREFIX);
+		ut_a(!cursor->index->is_committed());
 		ut_ad(!dict_index_is_online_ddl(cursor->index));
 		return(DB_SUCCESS);
 	}
@@ -677,9 +676,7 @@ row_ins_cascade_calc_update_vec(
 							" must be larger than "
 							<< n_doc_id - 1
 							<< " for table "
-							<< ut_get_name(
-								trx, TRUE,
-								table->name);
+							<< table->name;
 
 						return(ULINT_UNDEFINED);
 					}
@@ -712,11 +709,9 @@ row_ins_cascade_calc_update_vec(
 				fts_trx_add_op(trx, table, new_doc_id,
 					       FTS_INSERT, NULL);
 			} else {
-				std::string	str = ut_get_name(
-							trx, TRUE, table->name);
 				ib::error() << "FTS Doc ID must be updated"
 					" along with FTS indexed column for"
-					" table " << str;
+					" table " << table->name;
 				return(ULINT_UNDEFINED);
 			}
 		}
@@ -743,7 +738,7 @@ row_ins_set_detailed(
 	rewind(srv_misc_tmpfile);
 
 	if (os_file_set_eof(srv_misc_tmpfile)) {
-		ut_print_name(srv_misc_tmpfile, trx, TRUE,
+		ut_print_name(srv_misc_tmpfile, trx,
 			      foreign->foreign_table_name);
 		dict_print_info_on_foreign_key_in_create_format(
 			srv_misc_tmpfile, trx, foreign, FALSE);
@@ -823,22 +818,21 @@ row_ins_foreign_report_err(
 	row_ins_foreign_trx_print(trx);
 
 	fputs("Foreign key constraint fails for table ", ef);
-	ut_print_name(ef, trx, TRUE, foreign->foreign_table_name);
+	ut_print_name(ef, trx, foreign->foreign_table_name);
 	fputs(":\n", ef);
 	dict_print_info_on_foreign_key_in_create_format(ef, trx, foreign,
 							TRUE);
 	putc('\n', ef);
 	fputs(errstr, ef);
-	fputs(" in parent table, in index ", ef);
-	ut_print_name(ef, trx, FALSE, foreign->referenced_index->name);
+	fprintf(ef, " in parent table, in index %s",
+		foreign->referenced_index->name);
 	if (entry) {
 		fputs(" tuple:\n", ef);
 		dtuple_print(ef, entry);
 	}
 	fputs("\nBut in child table ", ef);
-	ut_print_name(ef, trx, TRUE, foreign->foreign_table_name);
-	fputs(", in index ", ef);
-	ut_print_name(ef, trx, FALSE, foreign->foreign_index->name);
+	ut_print_name(ef, trx, foreign->foreign_table_name);
+	fprintf(ef, ", in index %s", foreign->foreign_index->name);
 	if (rec) {
 		fputs(", there is a record:\n", ef);
 		rec_print(ef, rec, foreign->foreign_index);
@@ -877,12 +871,12 @@ row_ins_foreign_report_add_err(
 	row_ins_foreign_trx_print(trx);
 
 	fputs("Foreign key constraint fails for table ", ef);
-	ut_print_name(ef, trx, TRUE, foreign->foreign_table_name);
+	ut_print_name(ef, trx, foreign->foreign_table_name);
 	fputs(":\n", ef);
 	dict_print_info_on_foreign_key_in_create_format(ef, trx, foreign,
 							TRUE);
-	fputs("\nTrying to add in child table, in index ", ef);
-	ut_print_name(ef, trx, FALSE, foreign->foreign_index->name);
+	fprintf(ef, "\nTrying to add in child table, in index %s",
+		foreign->foreign_index->name);
 	if (entry) {
 		fputs(" tuple:\n", ef);
 		/* TODO: DB_TRX_ID and DB_ROLL_PTR may be uninitialized.
@@ -890,10 +884,10 @@ row_ins_foreign_report_add_err(
 		dtuple_print(ef, entry);
 	}
 	fputs("\nBut in parent table ", ef);
-	ut_print_name(ef, trx, TRUE, foreign->referenced_table_name);
-	fputs(", in index ", ef);
-	ut_print_name(ef, trx, FALSE, foreign->referenced_index->name);
-	fputs(",\nthe closest match we can find is record:\n", ef);
+	ut_print_name(ef, trx, foreign->referenced_table_name);
+	fprintf(ef, ", in index %s,\n"
+		"the closest match we can find is record:\n",
+		foreign->referenced_index->name);
 	if (rec && page_rec_is_supremum(rec)) {
 		/* If the cursor ended on a supremum record, it is better
 		to report the previous record in the error message, so that
@@ -976,7 +970,7 @@ row_ins_foreign_check_on_constraint(
 	the sync0mutex.h rank above the lock_sys_t::mutex. The query cache mutex
 	has a rank just above the lock_sys_t::mutex. */
 
-	row_ins_invalidate_query_cache(thr, table->name);
+	row_ins_invalidate_query_cache(thr, table->name.m_name);
 
 	node = static_cast<upd_node_t*>(thr->run_node);
 
@@ -1104,9 +1098,8 @@ row_ins_foreign_check_on_constraint(
 		    < dict_index_get_n_unique(clust_index)) {
 
 			ib::error() << "In cascade of a foreign key op index "
-				<< ut_get_name(trx, FALSE, index->name)
-				<< " of table "
-				<< ut_get_name(trx, TRUE, index->table_name);
+				<< index->name
+				<< " of table " << index->table->name;
 
 			fputs("InnoDB: record ", stderr);
 			rec_print(stderr, rec, index);
@@ -1269,7 +1262,7 @@ row_ins_foreign_check_on_constraint(
 
 	node->cascade_upd_nodes->push_back(cascade);
 
-	os_inc_counter(dict_sys->mutex, table->n_foreign_key_checks_running);
+	os_atomic_increment_ulint(&table->n_foreign_key_checks_running, 1);
 
 	ut_ad(foreign->foreign_table->n_foreign_key_checks_running > 0);
 
@@ -1379,12 +1372,11 @@ row_ins_set_exclusive_rec_lock(
 /* Decrement a counter in the destructor. */
 class ib_dec_in_dtor {
 public:
-	ib_dec_in_dtor(ib_mutex_t& m, ulint& c): mutex(m), counter(c) {}
+	ib_dec_in_dtor(ulint& c): counter(c) {}
 	~ib_dec_in_dtor() {
-		os_dec_counter(mutex,counter);
+		os_atomic_decrement_ulint(&counter, 1);
 	}
 private:
-	ib_mutex_t&	mutex;
 	ulint&		counter;
 };
 
@@ -1490,18 +1482,16 @@ run_again:
 			row_ins_foreign_trx_print(trx);
 
 			fputs("Foreign key constraint fails for table ", ef);
-			ut_print_name(ef, trx, TRUE,
+			ut_print_name(ef, trx,
 				      foreign->foreign_table_name);
 			fputs(":\n", ef);
 			dict_print_info_on_foreign_key_in_create_format(
 				ef, trx, foreign, TRUE);
-			fputs("\nTrying to add to index ", ef);
-			ut_print_name(ef, trx, FALSE,
-				      foreign->foreign_index->name);
-			fputs(" tuple:\n", ef);
+			fprintf(ef, "\nTrying to add to index %s tuple:\n",
+				foreign->foreign_index->name);
 			dtuple_print(ef, entry);
 			fputs("\nBut the parent table ", ef);
-			ut_print_name(ef, trx, TRUE,
+			ut_print_name(ef, trx,
 				      foreign->referenced_table_name);
 			fputs("\nor its .ibd file does"
 			      " not currently exist!\n", ef);
@@ -1688,8 +1678,7 @@ do_possible_lock_wait:
 
 		/* An object that will correctly decrement the FK check counter
 		when it goes out of this scope. */
-		ib_dec_in_dtor	dec(dict_sys->mutex,
-				    check_table->n_foreign_key_checks_running);
+		ib_dec_in_dtor	dec(check_table->n_foreign_key_checks_running);
 
 		trx->error_state = err;
 
@@ -1698,14 +1687,15 @@ do_possible_lock_wait:
 		thr->lock_state = QUE_THR_LOCK_ROW;
 
 		/* To avoid check_table being dropped, increment counter */
-		os_inc_counter(dict_sys->mutex,
-			       check_table->n_foreign_key_checks_running);
+		os_atomic_increment_ulint(
+			&check_table->n_foreign_key_checks_running, 1);
 
 		lock_wait_suspend_thread(thr);
 
 		thr->lock_state = QUE_THR_LOCK_NOLOCK;
 
-		DBUG_PRINT("to_be_dropped", ("table: %s", check_table->name));
+		DBUG_PRINT("to_be_dropped",
+			   ("table: %s", check_table->name.m_name));
 		if (check_table->to_be_dropped) {
 			/* The table is being dropped. We shall timeout
 			this operation */
@@ -1998,11 +1988,10 @@ row_ins_scan_sec_index_for_duplicate(
 
 				/* If the duplicate is on hidden FTS_DOC_ID,
 				state so in the error log */
-				if (DICT_TF2_FLAG_IS_SET(
+				if (index == index->table->fts_doc_id_index
+				    && DICT_TF2_FLAG_IS_SET(
 					index->table,
-					DICT_TF2_FTS_HAS_DOC_ID)
-				    && strcmp(index->name,
-					      FTS_DOC_ID_INDEX_NAME) == 0) {
+					DICT_TF2_FTS_HAS_DOC_ID)) {
 
 					ib::error() << "Duplicate FTS_DOC_ID"
 						" value on table "
@@ -2705,7 +2694,7 @@ row_ins_sec_mtr_start_and_check_if_aborted(
 	switch (index->online_status) {
 	case ONLINE_INDEX_ABORTED:
 	case ONLINE_INDEX_ABORTED_DROPPED:
-		ut_ad(*index->name == TEMP_INDEX_PREFIX);
+		ut_ad(!index->is_committed());
 		return(true);
 	case ONLINE_INDEX_COMPLETE:
 		return(false);
@@ -2789,7 +2778,7 @@ row_ins_sec_index_entry_low(
 	This prevents a concurrent change of index->online_status.
 	The memory object cannot be freed as long as we have an open
 	reference to the table, or index->table->n_ref_count > 0. */
-	const bool check = *index->name == TEMP_INDEX_PREFIX;
+	const bool	check = !index->is_committed();
 	if (check) {
 		DEBUG_SYNC_C("row_ins_sec_index_enter");
 		if (mode == BTR_MODIFY_LEAF) {
@@ -2894,7 +2883,7 @@ row_ins_sec_index_entry_low(
 		case DB_SUCCESS:
 			break;
 		case DB_DUPLICATE_KEY:
-			if (*index->name == TEMP_INDEX_PREFIX) {
+			if (!index->is_committed()) {
 				ut_ad(!thr_get_trx(thr)
 				      ->dict_operation_lock_mode);
 				mutex_enter(&dict_sys->mutex);
@@ -3543,7 +3532,7 @@ row_ins(
 
 	DBUG_ENTER("row_ins");
 
-	DBUG_PRINT("row_ins", ("table: %s", node->table->name));
+	DBUG_PRINT("row_ins", ("table: %s", node->table->name.m_name));
 
 	if (node->duplicate) {
 		thr_get_trx(thr)->error_state = DB_DUPLICATE_KEY;

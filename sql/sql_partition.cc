@@ -47,7 +47,6 @@
 
 #define MYSQL_LEX 1
 #include "sql_priv.h"
-#include "unireg.h"                    // REQUIRED: for other includes
 #include "sql_partition.h"
 #include "key.h"                            // key_restore
 #include "sql_parse.h"                      // parse_sql
@@ -2748,7 +2747,7 @@ bool partition_key_modified(TABLE *table, const MY_BITMAP *fields)
     part_val_int()
     item_expr                 The item expression to evaluate
     out:result                The value of the partition function,
-                                LONGLONG_MIN if any null value in function
+                                LLONG_MIN if any null value in function
   RETURN VALUES
     TRUE      Error in val_int()
     FALSE     ok
@@ -2762,7 +2761,7 @@ static inline int part_val_int(Item *item_expr, longlong *result)
     if (current_thd->is_error())
       return TRUE;
     else
-      *result= LONGLONG_MIN;
+      *result= LLONG_MIN;
   }
   return FALSE;
 }
@@ -5066,7 +5065,7 @@ uint prep_alter_part_table(THD *thd, TABLE *table, Alter_info *alter_info,
       alt_part_info->part_type= tab_part_info->part_type;
       alt_part_info->subpart_type= tab_part_info->subpart_type;
       if (alt_part_info->set_up_defaults_for_partitioning(table->file,
-                                                    ULL(0),
+                                                    0ULL,
                                                     tab_part_info->num_parts))
       {
         goto err;
@@ -5486,7 +5485,7 @@ state of p1.
       /* We specified partitions explicitly so don't use defaults anymore. */
       tab_part_info->use_default_partitions= FALSE;
       if (alt_part_info->set_up_defaults_for_partitioning(table->file,
-                                                          ULL(0),
+                                                          0ULL,
                                                           0))
       {
         goto err;
@@ -5620,7 +5619,7 @@ the generated partition syntax in a correct manner.
         tab_part_info->use_default_num_subpartitions= FALSE;
       }
       if (tab_part_info->check_partition_info(thd, (handlerton**)NULL,
-                                              table->file, ULL(0), TRUE))
+                                              table->file, 0ULL, TRUE))
       {
         goto err;
       }

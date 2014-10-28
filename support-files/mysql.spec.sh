@@ -499,12 +499,14 @@ mkdir debug
   # Attempt to remove any optimisation flags from the debug build
   CFLAGS=`echo " ${CFLAGS} " | \
             sed -e 's/ -O[0-9]* / /' \
+                -e 's/-Wp,-D_FORTIFY_SOURCE=2/ /' \
                 -e 's/ -unroll2 / /' \
                 -e 's/ -ip / /' \
                 -e 's/^ //' \
                 -e 's/ $//'`
   CXXFLAGS=`echo " ${CXXFLAGS} " | \
               sed -e 's/ -O[0-9]* / /' \
+                  -e 's/-Wp,-D_FORTIFY_SOURCE=2/ /' \
                   -e 's/ -unroll2 / /' \
                   -e 's/ -ip / /' \
                   -e 's/^ //' \
@@ -1042,7 +1044,6 @@ echo "====="                                     >> $STATUS_HISTORY
 
 %files -n MySQL-server%{product_suffix} -f release/support-files/plugins.files
 %defattr(-,root,root,0755)
-
 %if %{defined license_files_server}
 %doc %{license_files_server}
 %endif
@@ -1118,8 +1119,10 @@ echo "====="                                     >> $STATUS_HISTORY
 
 # ----------------------------------------------------------------------------
 %files -n MySQL-client%{product_suffix}
-
 %defattr(-, root, root, 0755)
+%if %{defined license_files_server}
+%doc %{license_files_server}
+%endif
 %attr(755, root, root) %{_bindir}/mysql
 %attr(755, root, root) %{_bindir}/mysqladmin
 %attr(755, root, root) %{_bindir}/mysqlbinlog
@@ -1143,6 +1146,9 @@ echo "====="                                     >> $STATUS_HISTORY
 # ----------------------------------------------------------------------------
 %files -n MySQL-devel%{product_suffix} -f optional-files-devel
 %defattr(-, root, root, 0755)
+%if %{defined license_files_server}
+%doc %{license_files_server}
+%endif
 %doc %attr(644, root, man) %{_mandir}/man1/comp_err.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysql_config.1*
 %attr(755, root, root) %{_bindir}/mysql_config
@@ -1157,6 +1163,9 @@ echo "====="                                     >> $STATUS_HISTORY
 # ----------------------------------------------------------------------------
 %files -n MySQL-shared%{product_suffix}
 %defattr(-, root, root, 0755)
+%if %{defined license_files_server}
+%doc %{license_files_server}
+%endif
 # Shared libraries (omit for architectures that don't support them)
 %{_libdir}/libmysql*.so*
 
@@ -1169,6 +1178,9 @@ echo "====="                                     >> $STATUS_HISTORY
 # ----------------------------------------------------------------------------
 %files -n MySQL-test%{product_suffix}
 %defattr(-, root, root, 0755)
+%if %{defined license_files_server}
+%doc %{license_files_server}
+%endif
 %attr(-, root, root) %{_datadir}/mysql-test
 %attr(755, root, root) %{_bindir}/mysql_client_test
 %attr(755, root, root) %{_bindir}/mysql_client_test_embedded
@@ -1182,6 +1194,9 @@ echo "====="                                     >> $STATUS_HISTORY
 # ----------------------------------------------------------------------------
 %files -n MySQL-embedded%{product_suffix}
 %defattr(-, root, root, 0755)
+%if %{defined license_files_server}
+%doc %{license_files_server}
+%endif
 %attr(755, root, root) %{_bindir}/mysql_embedded
 %attr(644, root, root) %{_libdir}/mysql/libmysqld.a
 %attr(644, root, root) %{_libdir}/mysql/libmysqld-debug.a
@@ -1192,6 +1207,9 @@ echo "====="                                     >> $STATUS_HISTORY
 # merging BK trees)
 ##############################################################################
 %changelog
+* Mon Oct 06 2014 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com>
+- Add license info in each subpackage
+
 * Wed May 28 2014 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com>
 - Updated usergroup to mysql on datadir
 
@@ -1250,7 +1268,7 @@ echo "====="                                     >> $STATUS_HISTORY
 
 - Fix duplicate mentioning of "mysql_plugin" and its manual page,
   it is better to keep alphabetic order in the files list (merging!).
-  
+
 * Wed Sep 14 2011 Joerg Bruehe <joerg.bruehe@oracle.com>
 
 - Let the RPM capabilities ("obsoletes" etc) ensure that an upgrade may replace
@@ -1289,7 +1307,7 @@ echo "====="                                     >> $STATUS_HISTORY
 * Fri Aug 19 2011 Joerg Bruehe <joerg.bruehe@oracle.com>
 
 - Null-upmerge the fix of bug#37165: This spec file is not affected.
-- Replace "/var/lib/mysql" by the spec file variable "%{mysqldatadir}".
+- Replace "/var/lib/mysql" by the spec file variable "%%{mysqldatadir}".
 
 * Fri Aug 12 2011 Daniel Fischer <daniel.fischer@oracle.com>
 
@@ -1310,13 +1328,13 @@ echo "====="                                     >> $STATUS_HISTORY
   not in an RPM upgrade.
   This affects both the "mkdir" and the call of "mysql_install_db".
 
-* Thu Feb 09 2011 Joerg Bruehe <joerg.bruehe@oracle.com>
+* Wed Feb 09 2011 Joerg Bruehe <joerg.bruehe@oracle.com>
 
 - Fix bug#56581: If an installation deviates from the default file locations
   ("datadir" and "pid-file"), the mechanism to detect a running server (on upgrade)
   should still work, and use these locations.
   The problem was that the fix for bug#27072 did not check for local settings.
-  
+
 * Mon Jan 31 2011 Joerg Bruehe <joerg.bruehe@oracle.com>
 
 - Install the new "manifest" files: "INFO_SRC" and "INFO_BIN".
@@ -1431,7 +1449,7 @@ echo "====="                                     >> $STATUS_HISTORY
 - Fix some problems with the directives around "tcmalloc" (experimental),
   remove erroneous traces of the InnoDB plugin (that is 5.1 only).
 
-* Fri Oct 06 2009 Magnus Blaudd <mvensson@mysql.com>
+* Tue Oct 06 2009 Magnus Blaudd <mvensson@mysql.com>
 
 - Removed mysql_fix_privilege_tables
 
@@ -1549,7 +1567,7 @@ echo "====="                                     >> $STATUS_HISTORY
 
 * Thu Nov 30 2006 Joerg Bruehe <joerg@mysql.com>
 
-- Call "make install" using "benchdir_root=%{_datadir}",
+- Call "make install" using "benchdir_root=%%{_datadir}",
   because that is affecting the regression test suite as well.
 
 * Thu Nov 16 2006 Joerg Bruehe <joerg@mysql.com>
@@ -1628,7 +1646,7 @@ echo "====="                                     >> $STATUS_HISTORY
 
 - Set $LDFLAGS from $MYSQL_BUILD_LDFLAGS
 
-* Wed Mar 07 2006 Kent Boortz <kent@mysql.com>
+* Tue Mar 07 2006 Kent Boortz <kent@mysql.com>
 
 - Changed product name from "Community Edition" to "Community Server"
 
@@ -1666,7 +1684,7 @@ echo "====="                                     >> $STATUS_HISTORY
 - Added zlib to the list of (static) libraries installed
 - Added check against libtool wierdness (WRT: sql/mysqld || sql/.libs/mysqld)
 - Compile MySQL with bundled zlib
-- Fixed %packager name to "MySQL Production Engineering Team"
+- Fixed %%packager name to "MySQL Production Engineering Team"
 
 * Mon Dec 05 2005 Joerg Bruehe <joerg@mysql.com>
 
@@ -1816,7 +1834,7 @@ echo "====="                                     >> $STATUS_HISTORY
 - ISAM and merge storage engines were purged. As well as appropriate
   tools and manpages (isamchk and isamlog)
 
-* Thu Dec 31 2004 Lenz Grimmer <lenz@mysql.com>
+* Fri Dec 31 2004 Lenz Grimmer <lenz@mysql.com>
 
 - enabled the "Archive" storage engine for the max binary
 - enabled the "CSV" storage engine for the max binary
@@ -1876,7 +1894,7 @@ echo "====="                                     >> $STATUS_HISTORY
 
 - marked /etc/logrotate.d/mysql as a config file (BUG 2156)
 
-* Fri Dec 13 2003 Lenz Grimmer <lenz@mysql.com>
+* Sat Dec 13 2003 Lenz Grimmer <lenz@mysql.com>
 
 - fixed file permissions (BUG 1672)
 
@@ -2018,7 +2036,7 @@ echo "====="                                     >> $STATUS_HISTORY
 - Added separate libmysql_r directory; now both a threaded
   and non-threaded library is shipped.
 
-* Wed Sep 28 1999 David Axmark <davida@mysql.com>
+* Tue Sep 28 1999 David Axmark <davida@mysql.com>
 
 - Added the support-files/my-example.cnf to the docs directory.
 

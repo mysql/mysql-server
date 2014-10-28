@@ -193,6 +193,8 @@ struct row_log_t {
 				or by index->lock X-latch only */
 	row_log_buf_t	head;	/*!< reader context; protected by MDL only;
 				modifiable by row_log_apply_ops() */
+	const char*	path;	/*!< where to create temporary file during
+				log operation */
 };
 
 
@@ -206,7 +208,7 @@ row_log_tmpfile(
 {
 	DBUG_ENTER("row_log_tmpfile");
 	if (log->fd < 0) {
-		log->fd = row_merge_file_create_low();
+		log->fd = row_merge_file_create_low(log->path);
 		DBUG_EXECUTE_IF("row_log_tmpfile_fail",
 				if (log->fd > 0)
 					row_merge_file_destroy_low(log->fd);
@@ -724,7 +726,7 @@ row_log_table_low_redundant(
 
 	ut_ad(!page_is_comp(page_align(rec)));
 	ut_ad(dict_index_get_n_fields(index) == rec_get_n_fields_old(rec));
-	ut_ad(dict_tf_is_valid(index->table->flags));
+	ut_ad(dict_tf2_is_valid(index->table->flags, index->table->flags2));
 	ut_ad(!dict_table_is_comp(index->table));  /* redundant row format */
 	ut_ad(dict_index_is_clust(new_index));
 
@@ -2851,8 +2853,9 @@ row_log_allocate(
 	const dtuple_t*	add_cols,
 				/*!< in: default values of
 				added columns, or NULL */
-	const ulint*	col_map)/*!< in: mapping of old column
+	const ulint*	col_map,/*!< in: mapping of old column
 				numbers to new ones, or NULL if !table */
+	const char*	path)	/*!< in: where to create temporary file */
 {
 	row_log_t*	log;
 	DBUG_ENTER("row_log_allocate");
@@ -2886,6 +2889,7 @@ row_log_allocate(
 	log->tail.block = log->head.block = NULL;
 	log->head.blocks = log->head.bytes = 0;
 	log->head.total = 0;
+	log->path = path;
 	dict_index_set_online_status(index, ONLINE_INDEX_CREATION);
 	index->online_log = log;
 
@@ -3310,7 +3314,7 @@ row_log_apply_ops(
 		+ dict_index_get_n_fields(index);
 
 	ut_ad(dict_index_is_online_ddl(index));
-	ut_ad(*index->name == TEMP_INDEX_PREFIX);
+	ut_ad(!index->is_committed());
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own(dict_index_get_lock(index), RW_LOCK_X));
 #endif /* UNIV_SYNC_DEBUG */
@@ -3350,7 +3354,7 @@ next_block:
 			  > index->online_log->tail.blocks)) {
 unexpected_eof:
 		ib::error() << "Unexpected end of temporary file for index "
-			<< index->name + 1;
+			<< index->name;
 corruption:
 		error = DB_CORRUPTION;
 		goto func_exit;
@@ -3651,11 +3655,6 @@ row_log_apply(
 
 	log = index->online_log;
 	index->online_log = NULL;
-	/* We could remove the TEMP_INDEX_PREFIX and update the data
-	dictionary to say that this index is complete, if we had
-	access to the .frm file here.  If the server crashes before
-	all requested indexes have been created, this completed index
-	will be dropped. */
 	rw_lock_x_unlock(dict_index_get_lock(index));
 
 	row_log_free(log);

@@ -1694,12 +1694,12 @@ static Sys_var_ulong Sys_rpl_stop_slave_timeout(
        GLOBAL_VAR(rpl_stop_slave_timeout), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(2, LONG_TIMEOUT), DEFAULT(LONG_TIMEOUT), BLOCK_SIZE(1));
 
-static Sys_var_enum Sys_binlogging_impossible_mode(
-       "binlogging_impossible_mode",
-       "On a fatal error when statements cannot be binlogged the behaviour can "
-       "be ignore the error and let the master continue or abort the server. ",
-       GLOBAL_VAR(binlogging_impossible_mode), CMD_LINE(REQUIRED_ARG),
-       binlogging_impossible_err, DEFAULT(IGNORE_ERROR));
+static Sys_var_enum Sys_binlog_error_action(
+       "binlog_error_action",
+       "When statements cannot be written to the binary log due to a fatal "
+       "error, the server can either ignore the error and let the master "
+       "continue, or abort.", GLOBAL_VAR(binlog_error_action),
+       CMD_LINE(REQUIRED_ARG), binlog_error_action_list, DEFAULT(IGNORE_ERROR));
 
 static Sys_var_mybool Sys_trust_function_creators(
        "log_bin_trust_function_creators",
@@ -2033,8 +2033,8 @@ static Sys_var_ulonglong Sys_max_binlog_cache_size(
        "max_binlog_cache_size",
        "Sets the total size of the transactional cache",
        GLOBAL_VAR(max_binlog_cache_size), CMD_LINE(REQUIRED_ARG),
-       VALID_RANGE(IO_SIZE, ULONGLONG_MAX),
-       DEFAULT((ULONGLONG_MAX/IO_SIZE)*IO_SIZE),
+       VALID_RANGE(IO_SIZE, ULLONG_MAX),
+       DEFAULT((ULLONG_MAX/IO_SIZE)*IO_SIZE),
        BLOCK_SIZE(IO_SIZE),
        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
        ON_UPDATE(fix_binlog_cache_size));
@@ -2043,8 +2043,8 @@ static Sys_var_ulonglong Sys_max_binlog_stmt_cache_size(
        "max_binlog_stmt_cache_size",
        "Sets the total size of the statement cache",
        GLOBAL_VAR(max_binlog_stmt_cache_size), CMD_LINE(REQUIRED_ARG),
-       VALID_RANGE(IO_SIZE, ULONGLONG_MAX),
-       DEFAULT((ULONGLONG_MAX/IO_SIZE)*IO_SIZE),
+       VALID_RANGE(IO_SIZE, ULLONG_MAX),
+       DEFAULT((ULLONG_MAX/IO_SIZE)*IO_SIZE),
        BLOCK_SIZE(IO_SIZE),
        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
        ON_UPDATE(fix_binlog_stmt_cache_size));
@@ -3923,7 +3923,7 @@ static ulonglong read_last_insert_id(THD *thd)
 static Sys_var_session_special Sys_last_insert_id(
        "last_insert_id", "The value to be returned from LAST_INSERT_ID()",
        sys_var::ONLY_SESSION, NO_CMD_LINE,
-       VALID_RANGE(0, ULONGLONG_MAX), BLOCK_SIZE(1),
+       VALID_RANGE(0, ULLONG_MAX), BLOCK_SIZE(1),
        NO_MUTEX_GUARD, IN_BINLOG, ON_CHECK(0),
        ON_UPDATE(update_last_insert_id), ON_READ(read_last_insert_id));
 
@@ -3931,7 +3931,7 @@ static Sys_var_session_special Sys_last_insert_id(
 static Sys_var_session_special Sys_identity(
        "identity", "Synonym for the last_insert_id variable",
        sys_var::ONLY_SESSION, NO_CMD_LINE,
-       VALID_RANGE(0, ULONGLONG_MAX), BLOCK_SIZE(1),
+       VALID_RANGE(0, ULLONG_MAX), BLOCK_SIZE(1),
        NO_MUTEX_GUARD, IN_BINLOG, ON_CHECK(0),
        ON_UPDATE(update_last_insert_id), ON_READ(read_last_insert_id));
 
@@ -3973,7 +3973,7 @@ static Sys_var_session_special Sys_insert_id(
        "insert_id", "The value to be used by the following INSERT "
        "or ALTER TABLE statement when inserting an AUTO_INCREMENT value",
        sys_var::ONLY_SESSION, NO_CMD_LINE,
-       VALID_RANGE(0, ULONGLONG_MAX), BLOCK_SIZE(1),
+       VALID_RANGE(0, ULLONG_MAX), BLOCK_SIZE(1),
        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
        ON_UPDATE(update_insert_id), ON_READ(read_insert_id));
 
@@ -4026,7 +4026,7 @@ static Sys_var_session_special Sys_error_count(
        "error_count", "The number of errors that resulted from the "
        "last statement that generated messages",
        READ_ONLY sys_var::ONLY_SESSION, NO_CMD_LINE,
-       VALID_RANGE(0, ULONGLONG_MAX), BLOCK_SIZE(1), NO_MUTEX_GUARD,
+       VALID_RANGE(0, ULLONG_MAX), BLOCK_SIZE(1), NO_MUTEX_GUARD,
        NOT_IN_BINLOG, ON_CHECK(0), ON_UPDATE(0), ON_READ(read_error_count));
 
 static ulonglong read_warning_count(THD *thd)
@@ -4038,7 +4038,7 @@ static Sys_var_session_special Sys_warning_count(
        "warning_count", "The number of errors, warnings, and notes "
        "that resulted from the last statement that generated messages",
        READ_ONLY sys_var::ONLY_SESSION, NO_CMD_LINE,
-       VALID_RANGE(0, ULONGLONG_MAX), BLOCK_SIZE(1), NO_MUTEX_GUARD,
+       VALID_RANGE(0, ULLONG_MAX), BLOCK_SIZE(1), NO_MUTEX_GUARD,
        NOT_IN_BINLOG, ON_CHECK(0), ON_UPDATE(0), ON_READ(read_warning_count));
 
 static Sys_var_ulong Sys_default_week_format(

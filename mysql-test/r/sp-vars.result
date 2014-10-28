@@ -1204,3 +1204,20 @@ CALL vctest();
 Warnings:
 Warning	1292	Truncated incorrect DOUBLE value: 'string'
 DROP PROCEDURE vctest;
+
+---------------------------------------------------------------
+BUG#19770958
+---------------------------------------------------------------
+
+CREATE TABLE t (a INT PRIMARY KEY, b TEXT, FULLTEXT(b)) ENGINE=InnoDB;
+CREATE FUNCTION f() RETURNS TEXT RETURN @@GLOBAL.innodb_ft_aux_table;
+SELECT @@GLOBAL.innodb_ft_aux_table, f();
+@@GLOBAL.innodb_ft_aux_table	f()
+NULL	NULL
+SET GLOBAL innodb_ft_aux_table="test/t";
+SELECT @@GLOBAL.innodb_ft_aux_table, f();
+@@GLOBAL.innodb_ft_aux_table	f()
+test/t	test/t
+SET GLOBAL innodb_ft_aux_table= default;
+DROP FUNCTION f;
+DROP TABLE t;

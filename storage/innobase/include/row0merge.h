@@ -99,6 +99,7 @@ struct index_field_t {
 /** Definition of an index being created */
 struct index_def_t {
 	const char*	name;		/*!< index name */
+	bool		rebuild;	/*!< whether the table is rebuilt */
 	ulint		ind_type;	/*!< 0, DICT_UNIQUE,
 					or DICT_CLUSTERED */
 	ulint		key_number;	/*!< MySQL key number,
@@ -166,13 +167,13 @@ void
 row_merge_drop_temp_indexes(void);
 /*=============================*/
 
-/*********************************************************************//**
-Creates temporary merge files, and if UNIV_PFS_IO defined, register
-the file descriptor with Performance Schema.
+/** Create temporary merge files in the given paramater path, and if
+UNIV_PFS_IO defined, register the file descriptor with Performance Schema.
+@param[in]	path	location for creating temporary merge files
 @return File descriptor */
 int
-row_merge_file_create_low(void)
-/*===========================*/
+row_merge_file_create_low(
+	const char*	path)
 	__attribute__((warn_unused_result));
 /*********************************************************************//**
 Destroy a merge file. And de-register the file from Performance Schema
@@ -332,13 +333,15 @@ row_merge_buf_empty(
 /*================*/
 	row_merge_buf_t*	buf)	/*!< in,own: sort buffer */
 	__attribute__((warn_unused_result, nonnull));
-/*********************************************************************//**
-Create a merge file.
+
+/** Create a merge file in the given location.
+@param[out]	merge_file	merge file structure
+@param[in]	path		location for creating temporary file
 @return file descriptor, or -1 on failure */
 int
 row_merge_file_create(
-/*==================*/
-	merge_file_t*	merge_file)	/*!< out: merge file structure */
+	merge_file_t*	merge_file,
+	const char*	path)
 	__attribute__((nonnull));
 /*********************************************************************//**
 Merge disk files.

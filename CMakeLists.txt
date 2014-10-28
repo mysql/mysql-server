@@ -271,43 +271,29 @@ MACRO (MY_CHECK_CXX_COMPILER_FLAG FLAG RESULT)
   SET(CMAKE_REQUIRED_FLAGS "${SAVE_CMAKE_REQUIRED_FLAGS}")
 ENDMACRO()
 
-OPTION(WITH_ASAN "Enable address sanitizer" OFF)
-IF (WITH_ASAN)
-  # gcc 4.8.1 and new versions of clang
-  MY_CHECK_C_COMPILER_FLAG("-fsanitize=address" HAVE_C_FSANITIZE)
-  MY_CHECK_CXX_COMPILER_FLAG("-fsanitize=address" HAVE_CXX_FSANITIZE)
-
-  IF(HAVE_C_FSANITIZE AND HAVE_CXX_FSANITIZE)
+MACRO(MY_SANITIZER_CHECK SAN_OPT RESULT)
+  MY_CHECK_C_COMPILER_FLAG("${SAN_OPT}" C_RESULT)
+  MY_CHECK_CXX_COMPILER_FLAG("${SAN_OPT}" CXX_RESULT)
+  IF(C_RESULT AND CXX_RESULT)
     # We switch on basic optimization also for debug builds.
     # With optimization we may get some warnings, so we switch off -Werror
     SET(CMAKE_C_FLAGS_DEBUG
-      "${CMAKE_C_FLAGS_DEBUG} -fsanitize=address -O1 -Wno-error -fPIC")
+      "${CMAKE_C_FLAGS_DEBUG} ${SAN_OPT} -O1 -Wno-error -fPIC")
     SET(CMAKE_C_FLAGS_RELWITHDEBINFO
-      "${CMAKE_C_FLAGS_RELWITHDEBINFO} -fsanitize=address -fPIC")
+      "${CMAKE_C_FLAGS_RELWITHDEBINFO} ${SAN_OPT} -fPIC")
     SET(CMAKE_CXX_FLAGS_DEBUG
-      "${CMAKE_CXX_FLAGS_DEBUG} -fsanitize=address -O1 -Wno-error -fPIC")
+      "${CMAKE_CXX_FLAGS_DEBUG} ${SAN_OPT} -O1 -Wno-error -fPIC")
     SET(CMAKE_CXX_FLAGS_RELWITHDEBINFO
-      "${CMAKE_CXX_FLAGS_RELWITHDEBINFO} -fsanitize=address -fPIC")
-    SET(WITH_ASAN_OK 1)
+      "${CMAKE_CXX_FLAGS_RELWITHDEBINFO} ${SAN_OPT} -fPIC")
+    SET(${RESULT} 1)
   ELSE()
-    # older versions of clang
-    MY_CHECK_C_COMPILER_FLAG("-faddress-sanitizer" HAVE_C_FADDRESS)
-    MY_CHECK_CXX_COMPILER_FLAG("-faddress-sanitizer" HAVE_CXX_FFADDRESS)
-
-    IF(HAVE_C_FADDRESS AND HAVE_CXX_FFADDRESS)
-      # We switch on basic optimization also for debug builds.
-      SET(CMAKE_C_FLAGS_DEBUG
-        "${CMAKE_C_FLAGS_DEBUG} -faddress-sanitizer -O1 -fPIC")
-      SET(CMAKE_C_FLAGS_RELWITHDEBINFO
-        "${CMAKE_C_FLAGS_RELWITHDEBINFO} -faddress-sanitizer -fPIC")
-      SET(CMAKE_CXX_FLAGS_DEBUG
-        "${CMAKE_CXX_FLAGS_DEBUG} -faddress-sanitizer -O1 -fPIC")
-      SET(CMAKE_CXX_FLAGS_RELWITHDEBINFO
-        "${CMAKE_CXX_FLAGS_RELWITHDEBINFO} -faddress-sanitizer -fPIC")
-      SET(WITH_ASAN_OK 1)
-    ENDIF()
+    SET(${RESULT} 0)
   ENDIF()
+ENDMACRO()
 
+OPTION(WITH_ASAN "Enable address sanitizer" OFF)
+IF(WITH_ASAN)
+  MY_SANITIZER_CHECK("-fsanitize=address" WITH_ASAN_OK)
   IF(WITH_ASAN_OK)
     SET(HAVE_ASAN 1)
   ELSE()
@@ -315,27 +301,21 @@ IF (WITH_ASAN)
   ENDIF()
 ENDIF()
 
-
 OPTION(WITH_MSAN "Enable memory sanitizer" OFF)
 IF(WITH_MSAN)
-  MY_CHECK_C_COMPILER_FLAG("-fsanitize=memory" HAVE_C_FMSANITIZE)
-  MY_CHECK_CXX_COMPILER_FLAG("-fsanitize=memory" HAVE_CXX_FMSANITIZE)
-
-  IF(HAVE_C_FMSANITIZE AND HAVE_CXX_FMSANITIZE)
-    # We switch on basic optimization also for debug builds.
-    # With optimization we may get some warnings, so we switch off -Werror
-    SET(MSAN_FLAGS
-        "-fsanitize=memory -fsanitize-memory-track-origins -O1 -fPIC")
-    SET(CMAKE_C_FLAGS_DEBUG
-      "${CMAKE_C_FLAGS_DEBUG} ${MSAN_FLAGS} -Wno-error")
-    SET(CMAKE_C_FLAGS_RELWITHDEBINFO
-      "${CMAKE_C_FLAGS_RELWITHDEBINFO} ${MSAN_FLAGS}")
-    SET(CMAKE_CXX_FLAGS_DEBUG
-      "${CMAKE_CXX_FLAGS_DEBUG} ${MSAN_FLAGS} -Wno-error")
-    SET(CMAKE_CXX_FLAGS_RELWITHDEBINFO
-      "${CMAKE_CXX_FLAGS_RELWITHDEBINFO} ${MSAN_FLAGS}")
-  ELSE()
+  MY_SANITIZER_CHECK("-fsanitize=memory -fsanitize-memory-track-origins"
+                     WITH_MSAN_OK)
+  IF(NOT WITH_MSAN_OK)
     MESSAGE(FATAL_ERROR "Do not know how to enable memory sanitizer")
+  ENDIF()
+ENDIF()
+
+OPTION(WITH_UBSAN "Enable undefined behavior sanitizer" OFF)
+IF(WITH_UBSAN)
+  MY_SANITIZER_CHECK("-fsanitize=undefined" WITH_UBSAN_OK)
+  IF(NOT WITH_UBSAN_OK)
+    MESSAGE(FATAL_ERROR
+            "Do not know how to enable undefined behavior sanitizer")
   ENDIF()
 ENDIF()
 
@@ -374,7 +354,7 @@ IF (ENABLE_GPROF AND NOT WIN32 AND NOT APPLE)
 ENDIF()
 
 OPTION(ENABLED_LOCAL_INFILE
- "If we should should enable LOAD DATA LOCAL by default" ${IF_WIN})
+ "If we should enable LOAD DATA LOCAL by default" ${IF_WIN})
 MARK_AS_ADVANCED(ENABLED_LOCAL_INFILE)
 
 OPTION(WITH_FAST_MUTEXES "Compile with fast mutexes" OFF)

@@ -170,6 +170,12 @@ typedef struct st_db_worker_hash_entry db_worker_hash_entry;
 #define LINE_START_EMPTY	0x8
 #define ESCAPED_EMPTY		0x10
 
+/*
+   Do not decrease the value of BIN_LOG_HEADER_SIZE.
+   Do not even increase it before checking code.
+*/
+#define BIN_LOG_HEADER_SIZE    4U
+
 /*****************************************************************************
 
   old_sql_ex struct
@@ -650,7 +656,7 @@ struct sql_ex_info
 
 /* Shouldn't be defined before */
 #define EXPECTED_OPTIONS \
-  ((ULL(1) << 14) | (ULL(1) << 26) | (ULL(1) << 27) | (ULL(1) << 19))
+  ((1ULL << 14) | (1ULL << 26) | (1ULL << 27) | (1ULL << 19))
 
 #if OPTIONS_WRITTEN_TO_BIN_LOG != EXPECTED_OPTIONS
 #error OPTIONS_WRITTEN_TO_BIN_LOG must NOT change their values!
@@ -680,7 +686,7 @@ const int64 SEQ_UNINIT= 0;
 /**
    Maximum value of binlog logical timestamp.
 */
-const int64 SEQ_MAX_TIMESTAMP= LONGLONG_MAX;
+const int64 SEQ_MAX_TIMESTAMP= LLONG_MAX;
 
 /**
   @enum Log_event_type
@@ -2813,14 +2819,14 @@ public:
   void print(FILE* file, PRINT_EVENT_INFO* print_event_info);
 #endif
 
-  Start_log_event_v3(const char* buf,
+  Start_log_event_v3(const char* buf, uint event_len,
                      const Format_description_log_event* description_event);
   ~Start_log_event_v3() {}
   Log_event_type get_type_code() { return START_EVENT_V3;}
 #ifdef MYSQL_SERVER
   bool write(IO_CACHE* file);
 #endif
-  bool is_valid() const { return 1; }
+  bool is_valid() const { return server_version[0] != 0; }
   size_t get_data_size()
   {
     return START_V3_HEADER_LEN; //no variable-sized part
@@ -5330,6 +5336,18 @@ public:
                 const Gtid_set::String_format *string_format) const;
   /// Add all GTIDs from this event to the given Gtid_set.
   int add_to_set(Gtid_set *gtid_set) const;
+  /*
+    Previous Gtid Log events should always be skipped
+    there is nothing to apply there, whether it is
+    relay log's (generated on Slave) or it is binary log's
+    (generated on Master, copied to slave as relay log).
+    Also, we should not increment slave_skip_counter
+    for this event, hence return EVENT_SKIP_IGNORE.
+   */
+  enum_skip_reason do_shall_skip(Relay_log_info *rli)
+  {
+    return EVENT_SKIP_IGNORE;
+  }
 
 #if defined(MYSQL_SERVER) && defined(HAVE_REPLICATION)
   int do_apply_event(Relay_log_info const *rli) { return 0; }

@@ -1227,7 +1227,7 @@ cleanup:
 		/* Corruption */
 		ib::error() << "Corruption of adaptive hash index."
 			<< " After dropping, the hash index to a page of "
-			<< ut_get_name(NULL, FALSE, index->name)
+			<< index->name
 			<< ", still " << block->n_pointers
 			<< " hash nodes remain.";
 		rw_lock_x_unlock(&btr_search_latch);
@@ -1821,7 +1821,6 @@ check_next_rec:
 		}
 
 		if (!left_side) {
-
 			ha_insert_for_fold(table, ins_fold, block, ins_rec);
 		} else {
 			ha_insert_for_fold(table, next_fold, block, next_rec);

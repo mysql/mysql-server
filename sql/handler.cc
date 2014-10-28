@@ -21,7 +21,6 @@
 
 #include "binlog.h"
 #include "sql_priv.h"
-#include "unireg.h"
 #include "rpl_handler.h"
 #include "sql_cache.h"                   // query_cache, query_cache_*
 #include "key.h"     // key_copy, key_unpack, key_cmp_if_same, key_cmp
@@ -1754,6 +1753,8 @@ int ha_rollback_low(THD *thd, bool all)
     all ? Transaction_ctx::SESSION : Transaction_ctx::STMT;
   Ha_trx_info *ha_info= trn_ctx->ha_trx_info(trx_scope), *ha_info_next;
 
+  (void) RUN_HOOK(transaction, before_rollback, (thd, all));
+
   if (ha_info)
   {
     for (; ha_info; ha_info= ha_info_next)
@@ -2655,6 +2656,7 @@ int handler::ha_rnd_end()
 int handler::ha_rnd_next(uchar *buf)
 {
   int result;
+  DBUG_EXECUTE_IF("ha_rnd_next_deadlock", return HA_ERR_LOCK_DEADLOCK;);
   DBUG_ENTER("handler::ha_rnd_next");
   DBUG_ASSERT(table_share->tmp_table != NO_TMP_TABLE ||
               m_lock_type != F_UNLCK);
@@ -3034,7 +3036,7 @@ compute_next_insert_id(ulonglong nr,struct system_variables *variables)
   }
 
   if (unlikely(nr <= save_nr))
-    return ULONGLONG_MAX;
+    return ULLONG_MAX;
 
   return nr;
 }
@@ -3285,7 +3287,7 @@ int handler::update_auto_increment()
                          variables->auto_increment_increment,
                          nb_desired_values, &nr,
                          &nb_reserved_values);
-      if (nr == ULONGLONG_MAX)
+      if (nr == ULLONG_MAX)
         DBUG_RETURN(HA_ERR_AUTOINC_READ_FAILED);  // Mark failure
 
       /*
@@ -3316,7 +3318,7 @@ int handler::update_auto_increment()
     }
   }
 
-  if (unlikely(nr == ULONGLONG_MAX))
+  if (unlikely(nr == ULLONG_MAX))
       DBUG_RETURN(HA_ERR_AUTOINC_ERANGE); 
 
   DBUG_PRINT("info",("auto_increment: %lu", (ulong) nr));
@@ -3404,8 +3406,8 @@ void handler::column_bitmaps_signal()
 
   offset and increment means that we want values to be of the form
   offset + N * increment, where N>=0 is integer.
-  If the function sets *first_value to ULONGLONG_MAX it means an error.
-  If the function sets *nb_reserved_values to ULONGLONG_MAX it means it has
+  If the function sets *first_value to ULLONG_MAX it means an error.
+  If the function sets *nb_reserved_values to ULLONG_MAX it means it has
   reserved to "positive infinite".
 */
 
@@ -3427,7 +3429,7 @@ void handler::get_auto_increment(ulonglong offset, ulonglong increment,
   {
     /* This should never happen, assert in debug, and fail in release build */
     DBUG_ASSERT(0);
-    *first_value= ULONGLONG_MAX;
+    *first_value= ULLONG_MAX;
     DBUG_VOID_RETURN;
   }
 
@@ -3439,7 +3441,7 @@ void handler::get_auto_increment(ulonglong offset, ulonglong increment,
       use nr+increment without checking again with the handler, in
       handler::update_auto_increment()), so reserves to infinite.
     */
-    *nb_reserved_values= ULONGLONG_MAX;
+    *nb_reserved_values= ULLONG_MAX;
   }
   else
   {
@@ -3469,7 +3471,7 @@ void handler::get_auto_increment(ulonglong offset, ulonglong increment,
     else
     {
       DBUG_ASSERT(0);
-      nr= ULONGLONG_MAX;
+      nr= ULLONG_MAX;
     }
   }
   else
@@ -3752,7 +3754,7 @@ void handler::print_error(int error, myf errflag)
   {
     textno=ER_RECORD_FILE_FULL;
     /* Write the error message to error log */
-    errflag|= ME_NOREFRESH;
+    errflag|= ME_ERRORLOG;
     break;
   }
   case HA_ERR_LOCK_WAIT_TIMEOUT:

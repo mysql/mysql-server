@@ -45,7 +45,7 @@ perl mysql-test-run.pl --timer --force --debug-server --parallel=auto --comment=
 perl mysql-test-run.pl --timer --force --debug-server --comment=memcached-debug --vardir=var-debug-memcached --experimental=collections/default.experimental --parallel=1 --retry=0 --suite=memcached  --skip-test-list=collections/disabled-weekly.list
 
 # Non debug runs of default suites in normal modes
-perl mysql-test-run.pl --force --timer   --parallel=auto --experimental=collections/default.experimental --comment=normal-non-debug  --vardir=var-normal-non-debug --report-features --skip-test-list=collections/disabled-weekly.list
+perl mysql-test-run.pl --force --timer   --big-test --parallel=auto --experimental=collections/default.experimental --comment=normal-non-debug  --vardir=var-normal-non-debug --report-features --skip-test-list=collections/disabled-weekly.list
 
 # Additional GTID coverage (rpl suite with gtid_mode=ON)
 perl mysql-test-run.pl --force --timer --debug-server --parallel=auto --experimental=collections/default.experimental --comment=rpl_gtid-debug --vardir=var-rpl_gtid-debug --suite=rpl --mysqld=--enforce-gtid-consistency --mysqld=--log-slave-updates --mysqld=--gtid-mode=on --skip-test-list=collections/disabled-gtid-on.list --big-test --testcase-timeout=60 --suite-timeout=360
@@ -58,10 +58,11 @@ perl mysql-test-run.pl --timer --force --big-test --testcase-timeout=60 --debug-
 
 # Run innodb suite including big-test with innodb-page-size=4k and 8k
 # Run innodb_gis suite including big-test with innodb-page-size=4k
-# Run innodb_undo suite with innodb_undo_tablespace set to > 0
 perl mysql-test-run.pl --timer --force --big-test --testcase-timeout=60 --debug-server --parallel=auto --comment=n_mix_4k_size --vardir=var-n_mix_4k --mysqld=--binlog-format=mixed --experimental=collections/default.experimental --skip-test-list=collections/disabled-weekly.list --mysqld=--innodb-page-size=4k --skip-test=innodb_ignore_builtin --suite=innodb,innodb_gis
 perl mysql-test-run.pl --timer --force --big-test --testcase-timeout=60 --debug-server --parallel=auto --comment=n_mix_8k_size --vardir=var-n_mix_8k --mysqld=--binlog-format=mixed --experimental=collections/default.experimental --skip-test-list=collections/disabled-weekly.list --mysqld=--innodb-page-size=8k --skip-test=innodb_ignore_builtin --suite=innodb
-perl mysql-test-run.pl --timer --force --big-test --testcase-timeout=60 --debug-server --parallel=auto --comment=innodb_undo-debug --vardir=var-innodb-undo --experimental=collections/default.experimental --suite=innodb_undo --mysqld=--innodb_undo_tablespaces=2 --bootstrap --innodb_undo_tablespaces=2 --skip-test-list=collections/disabled-per-push.list
+
+# Run default suites with innodb_undo_tablespace set to > 0
+perl mysql-test-run.pl --timer --force --big-test --testcase-timeout=60 --debug-server  --parallel=auto --comment=innodb_undo-2-debug  --vardir=var-innodb-undo-2-debug --experimental=collections/default.experimental --mysqld=--innodb_undo_tablespaces=2 --bootstrap --innodb_undo_tablespaces=2
 
 # Additional run to test rpl HASH_SCAN & INDEX_SCAN
 perl mysql-test-run.pl --force --debug-server --timer --parallel=auto --experimental=collections/default.experimental --comment=binlog_rpl_row_hash_scan --vardir=var-binlog_rpl_row_hash_scan --mysqld=--binlog-format=row --suite=binlog,rpl --mysqld=--slave-rows-search-algorithms=HASH_SCAN,INDEX_SCAN --big-test --testcase-timeout=60 --skip-test-list=collection/disabled-weekly.list
@@ -80,8 +81,6 @@ perl mysql-test-run.pl --vardir=var-innodb-zip --force --big-test --comment=comp
 perl mysql-test-run.pl --vardir=var-innodb-zip --force --big-test --comment=compressed_log0_level9_4k --testcase-timeout=60 --debug-server --parallel=auto --experimental=collections/default.experimental --mysqld=--innodb-log-compressed-pages=0 --mysqld=--innodb-compression-level=9 --mysqld=--innodb-page-size=4k --suite=innodb_zip
 perl mysql-test-run.pl --vardir=var-innodb-zip --force --big-test --comment=compressed_log1_level1_8k --testcase-timeout=60 --debug-server --parallel=auto --experimental=collections/default.experimental --mysqld=--innodb-log-compressed-pages=1 --mysqld=--innodb-compression-level=1 --mysqld=--innodb-page-size=8k --suite=innodb_zip
 
-# Run large_blob test with embedded-server option
-perl mysql-test-run.pl --vardir=var-innodb-zip --force --big-test --comment=embedded_compressed_log0 --testcase-timeout=60 --parallel=auto --embedded-server --experimental=collections/default.experimental --mysqld=--innodb-log-compressed-pages=0 --suite=innodb_zip innodb-large-blob.test
 
 # Run all tests under the suite interactive_utilities
 perl mysql-test-run.pl --force --timer  --testcase-timeout=60 --parallel=auto --experimental=collections/default.experimental --comment=interactive_tests  --vardir=interactive-tests  --suite=interactive_utilities

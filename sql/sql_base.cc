@@ -18,7 +18,6 @@
 #include "sql_base.h"                           // setup_table_map
 #include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
 #include "sql_priv.h"
-#include "unireg.h"
 #include "debug_sync.h"
 #include "lock.h"        // mysql_lock_remove,
                          // mysql_unlock_tables,
@@ -3412,8 +3411,7 @@ share_found:
                                        HA_OPEN_RNDFILE |
                                        HA_GET_INDEX |
                                        HA_TRY_READ_ONLY),
-                               (READ_KEYINFO | COMPUTE_TYPES |
-                                EXTRA_RECORD),
+                                       EXTRA_RECORD,
                                thd->open_options, table, FALSE);
 
   if (error)
@@ -4285,7 +4283,7 @@ static bool auto_repair_table(THD *thd, TABLE_LIST *table_list)
                             (uint) (HA_OPEN_KEYFILE | HA_OPEN_RNDFILE |
                                     HA_GET_INDEX |
                                     HA_TRY_READ_ONLY),
-                            READ_KEYINFO | COMPUTE_TYPES | EXTRA_RECORD,
+                            EXTRA_RECORD,
                             ha_open_options | HA_OPEN_FOR_REPAIR,
                             entry, FALSE) || ! entry->file ||
       (entry->file->is_crashed() && entry->file->ha_check_and_repair(thd)))
@@ -4522,8 +4520,8 @@ recover_from_failed_open()
           do not modify data but only read it, since in this case nothing is
           written to the binary log. Argument routine_modifies_data
           denotes the same. So effectively, if the statement is not a
-          update query and routine_modifies_data is false, then
-          prelocking_placeholder does not take importance.
+          LOCK TABLE, not a update query and routine_modifies_data is false
+          then prelocking_placeholder does not take importance.
 
           Furthermore, this does not apply to I_S and log tables as it's
           always unsafe to replicate such tables under statement-based
@@ -4550,18 +4548,38 @@ thr_lock_type read_lock_type_for_table(THD *thd,
     at THD::variables::sql_log_bin member.
   */
   bool log_on= mysql_bin_log.is_open() && thd->variables.sql_log_bin;
-  ulong binlog_format= thd->variables.binlog_format;
-  if ((log_on == FALSE) || (binlog_format == BINLOG_FORMAT_ROW) ||
-      (table_list->table->s->table_category == TABLE_CATEGORY_LOG) ||
+
+  /*
+    When we do not write to binlog or when we use row based replication,
+    it is safe to use a weaker lock.
+  */
+  if (log_on == false ||
+      thd->variables.binlog_format == BINLOG_FORMAT_ROW)
+    return TL_READ;
+
+  if ((table_list->table->s->table_category == TABLE_CATEGORY_LOG) ||
       (table_list->table->s->table_category == TABLE_CATEGORY_RPL_INFO) ||
       (table_list->table->s->table_category == TABLE_CATEGORY_GTID) ||
-      (table_list->table->s->table_category == TABLE_CATEGORY_PERFORMANCE) ||
-      !(is_update_query(prelocking_ctx->sql_command) ||
-        (routine_modifies_data && table_list->prelocking_placeholder) ||
-        (thd->locked_tables_mode > LTM_LOCK_TABLES)))
+      (table_list->table->s->table_category == TABLE_CATEGORY_PERFORMANCE))
     return TL_READ;
-  else
+
+  // SQL queries which updates data need a stronger lock.
+  if (is_update_query(prelocking_ctx->sql_command))
     return TL_READ_NO_INSERT;
+
+  /*
+    table_list is placeholder for prelocking.
+    Ignore prelocking_placeholder status for non "LOCK TABLE" statement's
+    table_list objects when routine_modifies_data is false.
+  */
+  if (table_list->prelocking_placeholder &&
+      (routine_modifies_data || thd->in_lock_tables))
+    return TL_READ_NO_INSERT;
+
+  if (thd->locked_tables_mode > LTM_LOCK_TABLES)
+    return TL_READ_NO_INSERT;
+
+  return TL_READ;
 }
 
 
@@ -6521,7 +6539,7 @@ TABLE *open_table_uncached(THD *thd, const char *path, const char *db,
                             open_in_engine ?
                             (uint) (HA_OPEN_KEYFILE | HA_OPEN_RNDFILE |
                                     HA_GET_INDEX) : 0,
-                            READ_KEYINFO | COMPUTE_TYPES | EXTRA_RECORD,
+                            EXTRA_RECORD,
                             ha_open_options,
                             tmp_table,
                             /*

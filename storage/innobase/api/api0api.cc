@@ -1596,9 +1596,9 @@ ib_cursor_update_row(
 	const ib_tuple_t*new_tuple = (const ib_tuple_t*) ib_new_tpl;
 
 	if (dict_index_is_clust(prebuilt->index)) {
-		pcur = &cursor->prebuilt->pcur;
+		pcur = cursor->prebuilt->pcur;
 	} else if (prebuilt->need_to_access_clustered) {
-		pcur = &cursor->prebuilt->clust_pcur;
+		pcur = cursor->prebuilt->clust_pcur;
 	} else {
 		return(DB_ERROR);
 	}
@@ -1708,12 +1708,12 @@ ib_cursor_delete_row(
 	/* Check whether this is a secondary index cursor */
 	if (index != prebuilt->index) {
 		if (prebuilt->need_to_access_clustered) {
-			pcur = &prebuilt->clust_pcur;
+			pcur = prebuilt->clust_pcur;
 		} else {
 			return(DB_ERROR);
 		}
 	} else {
-		pcur = &prebuilt->pcur;
+		pcur = prebuilt->pcur;
 	}
 
 	if (ib_btr_cursor_is_positioned(pcur)) {
@@ -1792,9 +1792,9 @@ ib_cursor_read_row(
 
 		if (prebuilt->need_to_access_clustered
 		    && tuple->type == TPL_TYPE_ROW) {
-			pcur = &prebuilt->clust_pcur;
+			pcur = prebuilt->clust_pcur;
 		} else {
-			pcur = &prebuilt->pcur;
+			pcur = prebuilt->pcur;
 		}
 
 		if (pcur == NULL) {
@@ -2907,7 +2907,7 @@ ib_cursor_is_positioned(
 	const ib_cursor_t*	cursor = (const ib_cursor_t*) ib_crsr;
 	row_prebuilt_t*		prebuilt = cursor->prebuilt;
 
-	return(ib_btr_cursor_is_positioned(&prebuilt->pcur));
+	return(ib_btr_cursor_is_positioned(prebuilt->pcur));
 }
 
 
@@ -3395,21 +3395,9 @@ ib_cursor_set_memcached_sync(
                 }
 
 		if (flag) {
-#ifdef HAVE_ATOMIC_BUILTINS
 			os_atomic_increment_lint(&table->memcached_sync_count, 1);
-#else
-		        dict_mutex_enter_for_mysql();
-                        ++table->memcached_sync_count;
-                        dict_mutex_exit_for_mysql();
-#endif
 		} else {
-#ifdef HAVE_ATOMIC_BUILTINS
 			os_atomic_decrement_lint(&table->memcached_sync_count, 1);
-#else
-		        dict_mutex_enter_for_mysql();
-                        --table->memcached_sync_count;
-                        dict_mutex_exit_for_mysql();
-#endif
 		        ut_a(table->memcached_sync_count >= 0);
 		}
 	} else {

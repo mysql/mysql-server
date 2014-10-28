@@ -26,7 +26,6 @@
 #include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
 #include "binlog.h"
 #include "sql_priv.h"
-#include "unireg.h"                    // REQUIRED: for other includes
 #include "sql_class.h"
 #include "sql_cache.h"                          // query_cache_abort
 #include "sql_base.h"                           // close_thread_tables
@@ -723,8 +722,16 @@ ulong get_max_connections(void)
 
 extern "C" int mysql_tmpfile(const char *prefix)
 {
+  return mysql_tmpfile_path(mysql_tmpdir, prefix);
+}
+
+extern "C" int mysql_tmpfile_path(const char *path, const char *prefix)
+{
+  DBUG_ASSERT(path != NULL);
+  DBUG_ASSERT((strlen(path) + strlen(prefix)) <= FN_REFLEN);
+
   char filename[FN_REFLEN];
-  File fd = create_temp_file(filename, mysql_tmpdir, prefix,
+  File fd = create_temp_file(filename, path, prefix,
 #ifdef _WIN32
                              O_BINARY | O_TRUNC | O_SEQUENTIAL |
                              O_SHORT_LIVED |
@@ -3420,19 +3427,22 @@ bool select_singlerow_subselect::send_data(List<Item> &items)
   if (it->assigned())
   {
     my_message(ER_SUBQUERY_NO_1_ROW, ER(ER_SUBQUERY_NO_1_ROW), MYF(0));
-    DBUG_RETURN(1);
+    DBUG_RETURN(true);
   }
   if (unit->offset_limit_cnt)
   {				          // Using limit offset,count
     unit->offset_limit_cnt--;
-    DBUG_RETURN(0);
+    DBUG_RETURN(false);
   }
   List_iterator_fast<Item> li(items);
   Item *val_item;
   for (uint i= 0; (val_item= li++); i++)
     it->store(i, val_item);
+  if (thd->is_error())
+    DBUG_RETURN(true);
+
   it->assigned(true);
-  DBUG_RETURN(0);
+  DBUG_RETURN(false);
 }
 
 
@@ -4953,7 +4963,7 @@ void THD::time_out_user_resource_limits()
   DBUG_ENTER("time_out_user_resource_limits");
 
   /* If more than a hour since last check, reset resource checking */
-  if (check_time - m_user_connect->reset_utime >= LL(3600000000))
+  if (check_time - m_user_connect->reset_utime >= 3600000000LL)
   {
     m_user_connect->questions=1;
     m_user_connect->updates=0;

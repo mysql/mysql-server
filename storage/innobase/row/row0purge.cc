@@ -280,11 +280,10 @@ row_purge_remove_sec_if_poss_tree(
 	mtr_start(&mtr);
 	mtr.set_named_space(index->space);
 
-	if (*index->name == TEMP_INDEX_PREFIX) {
-		/* The index->online_status may change if the
-		index->name starts with TEMP_INDEX_PREFIX (meaning
-		that the index is or was being created online). It is
-		protected by index->lock. */
+	if (!index->is_committed()) {
+		/* The index->online_status may change if the index is
+		or was being created online, but not committed yet. It
+		is protected by index->lock. */
 		mtr_sx_lock(dict_index_get_lock(index), &mtr);
 
 		if (dict_index_is_online_ddl(index)) {
@@ -297,8 +296,8 @@ row_purge_remove_sec_if_poss_tree(
 		}
 	} else {
 		/* For secondary indexes,
-		index->online_status==ONLINE_INDEX_CREATION unless
-		index->name starts with TEMP_INDEX_PREFIX. */
+		index->online_status==ONLINE_INDEX_COMPLETE if
+		index->is_committed(). */
 		ut_ad(!dict_index_is_online_ddl(index));
 	}
 
@@ -405,16 +404,15 @@ row_purge_remove_sec_if_poss_leaf(
 	mtr_start(&mtr);
 	mtr.set_named_space(index->space);
 
-	if (*index->name == TEMP_INDEX_PREFIX) {
-		/* For temp spatial index, we also skip the purge. */
+	if (!index->is_committed()) {
+		/* For uncommitted spatial index, we also skip the purge. */
 		if (dict_index_is_spatial(index)) {
 			goto func_exit_no_pcur;
 		}
 
-		/* The index->online_status may change if the
-		index->name starts with TEMP_INDEX_PREFIX (meaning
-		that the index is or was being created online). It is
-		protected by index->lock. */
+		/* The index->online_status may change if the the
+		index is or was being created online, but not
+		committed yet. It is protected by index->lock. */
 		mtr_s_lock(dict_index_get_lock(index), &mtr);
 
 		if (dict_index_is_online_ddl(index)) {
@@ -426,22 +424,18 @@ row_purge_remove_sec_if_poss_leaf(
 			goto func_exit_no_pcur;
 		}
 
-		/* Insert/Change buffering is block for temp-table
-		and so no point in removing entry from these buffers
-		if not present in buffer-pool */
+		/* Change buffering is disabled for temporary tables. */
 		mode = (dict_table_is_temporary(index->table))
 			? BTR_MODIFY_LEAF | BTR_ALREADY_S_LATCHED
 			: BTR_MODIFY_LEAF | BTR_ALREADY_S_LATCHED
 			| BTR_DELETE;
 	} else {
 		/* For secondary indexes,
-		index->online_status==ONLINE_INDEX_CREATION unless
-		index->name starts with TEMP_INDEX_PREFIX. */
+		index->online_status==ONLINE_INDEX_COMPLETE if
+		index->is_committed(). */
 		ut_ad(!dict_index_is_online_ddl(index));
 
-		/* Insert/Change buffering is block for temp-table
-		and so no point in removing entry from these buffers
-		if not present in buffer-pool */
+		/* Change buffering is disabled for temporary tables. */
 		mode = (dict_table_is_temporary(index->table))
 			? BTR_MODIFY_LEAF
 			: BTR_MODIFY_LEAF | BTR_DELETE;
@@ -545,7 +539,7 @@ func_exit_no_pcur:
 	}
 
 	ut_error;
-	return(FALSE);
+	return(false);
 }
 
 /***********************************************************//**

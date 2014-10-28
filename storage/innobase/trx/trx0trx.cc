@@ -728,7 +728,8 @@ trx_resurrect_table_locks(
 			DBUG_PRINT("ib_trx",
 				   ("resurrect" TRX_ID_FMT
 				    "  table '%s' IX lock from %s undo",
-				    trx_get_id_for_print(trx), table->name,
+				    trx_get_id_for_print(trx),
+				    table->name.m_name,
 				    undo == undo_ptr->insert_undo
 				    ? "insert" : "update"));
 
@@ -1274,8 +1275,6 @@ trx_start_low(
 	ut_ad(!(trx->in_innodb & TRX_FORCE_ROLLBACK));
 	ut_ad(!(trx->in_innodb & TRX_FORCE_ROLLBACK_ASYNC));
 	ut_ad(!(trx->in_innodb & TRX_FORCE_ROLLBACK_DISABLE));
-
-	trx->owner_id = os_thread_get_curr_id();
 
 	++trx->version;
 

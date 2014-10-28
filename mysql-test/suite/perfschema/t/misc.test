@@ -192,3 +192,13 @@ DROP TABLE t_60905;
 show variables like "performance_schema_max_thread_instances";
 explain select * from performance_schema.threads;
 
+#
+# Bug #73082 SHOW EVENTS in performance_schema gives Access Denied
+#
+
+use performance_schema;
+show events;
+show events from performance_schema;
+show events where Db= 'performance_schema';
+use test;
+

@@ -94,22 +94,15 @@ C_MODE_START
 #define MY_THREADSAFE 2048      /* my_seek(): lock fd mutex */
 #define MY_SYNC       4096      /* my_copy(): sync dst file */
 
+#define MYF_RW MYF(MY_WME+MY_NABP)		/* For my_read & my_write */
+
 #define MY_CHECK_ERROR	1	/* Params to my_end; Check open-close */
 #define MY_GIVE_INFO	2	/* Give time info about process*/
 #define MY_DONT_FREE_DBUG 4     /* Do not call DBUG_END() in my_end() */
 
-#define ME_HIGHBYTE	8	/* Shift for colours */
-#define ME_NOCUR	1	/* Don't use curses message */
-#define ME_OLDWIN	2	/* Use old window */
-#define ME_BELL		4	/* Ring bell then printing message */
-#define ME_HOLDTANG	8	/* Don't delete last keys */
-#define ME_WAITTOT	16	/* Wait for errtime secs of for a action */
-#define ME_WAITTANG	32	/* Wait for a user action  */
-#define ME_NOREFRESH	64	/* Write the error message to error log */
-#define ME_NOINPUT	128	/* Dont use the input libary */
-#define ME_COLOUR1	((1 << ME_HIGHBYTE))	/* Possibly error-colours */
-#define ME_COLOUR2	((2 << ME_HIGHBYTE))
-#define ME_COLOUR3	((3 << ME_HIGHBYTE))
+/* Flags for my_error() */
+#define ME_BELL		4	/* DEPRECATED: Ring bell then printing message */
+#define ME_ERRORLOG	64	/* Write the error message to error log */
 #define ME_FATALERROR   1024    /* Fatal statement error */
 
 	/* Bits in last argument to fn_format */

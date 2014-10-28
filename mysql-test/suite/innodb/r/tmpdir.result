@@ -1,0 +1,76 @@
+#
+# Bug #19183565 CREATE DYNAMIC INNODB_TMPDIR VARIABLE TO CONTROL
+#		WHERE INNODB WRITES TEMP FILES
+#
+create table t480(a serial)engine=innodb;
+insert into t480
+values(),(),(),(),(),(),(),(),(),(),(),(),(),(),(),(),(),(),(),(),(),(),
+(),(),(),(),(),(),(),();
+insert into t480 select 0 from t480;
+insert into t480 select 0 from t480;
+insert into t480 select 0 from t480;
+insert into t480 select 0 from t480;
+# If innodb_tmpdir is NULL or "", temporary file will be created in
+# server configuration variable location(--tmpdir)
+create table t1(f1 int auto_increment not null,
+f2 char(200) not null, f3 char(200) not null,
+primary key(f1,f2,f3), key(f1))engine=innodb;
+insert into t1 select NULL,'aaa','bbb' from t480;
+insert into t1 select NULL,'aaaa','bbbb' from t480;
+insert into t1 select NULL,'aaaaa','bbbbb' from t480;
+insert into t1 select NULL,'aaaaaa','bbbbbb' from t480;
+show session variables like 'innodb_tmpdir';
+Variable_name	Value
+innodb_tmpdir	
+alter table t1 drop primary key,add primary key(f2,f1);
+set global innodb_tmpdir=NULL;
+# Connection con1
+show session variables like 'innodb_tmpdir';
+Variable_name	Value
+innodb_tmpdir	
+alter table t1 drop primary key,add primary key(f3,f1);
+drop table t1;
+# Alter table fails due to invalid location specified in innodb_tmpdir.
+create table t1(f1 int auto_increment not null,
+f2 char(200) not null, f3 char(200) not null,
+primary key(f1,f2,f3), key(f1))engine=innodb;
+insert into t1 select NULL,'aaa','bbb' from t480;
+insert into t1 select NULL,'aaaa','bbbb' from t480;
+insert into t1 select NULL,'aaaaa','bbbbb' from t480;
+insert into t1 select NULL,'aaaaaa','bbbbbb' from t480;
+set global innodb_tmpdir='wrong_value';
+show session variables like 'innodb_tmpdir';
+Variable_name	Value
+innodb_tmpdir	
+# Connection con2
+show session variables like 'innodb_tmpdir';
+Variable_name	Value
+innodb_tmpdir	wrong_value
+call mtr.add_suppression("\\[ERROR\\] InnoDB: Cannot create temporary merge file");
+alter table t1 drop primary key,add primary key(f2,f1);
+Got one of the listed errors
+set global innodb_tmpdir=NULL;
+drop table t1;
+# innodb_tmpdir with valid location.
+create table t1(f1 int auto_increment not null,
+f2 char(200) not null, f3 char(200) not null,
+primary key(f1,f2,f3),  key(f1))engine=innodb;
+insert into t1 select NULL,'aaa','bbb' from t480;
+insert into t1 select NULL,'aaaa','bbbb' from t480;
+insert into t1 select NULL,'aaaaa','bbbbb' from t480;
+insert into t1 select NULL,'aaaaaa','bbbbbb' from t480;
+set @tmpdir = @@global.tmpdir;
+set global innodb_tmpdir = @tmpdir;
+show session variables like 'innodb_tmpdir';
+Variable_name	Value
+innodb_tmpdir	
+# Connection con3
+show session variables like 'innodb_tmpdir';
+Variable_name	Value
+innodb_tmpdir	MYSQL_TMP_DIR/mysqld.1
+alter table t1 add fulltext(f2);
+Warnings:
+Warning	124	InnoDB rebuilding table to add column FTS_DOC_ID
+set global innodb_tmpdir=NULL;
+drop table t1;
+drop table t480;

@@ -191,18 +191,6 @@ enum os_file_create_t {
 				effect only in simulated aio */
 /* @} */
 
-#define OS_WIN31	1	/*!< Microsoft Windows 3.x */
-#define OS_WIN95	2	/*!< Microsoft Windows 95 */
-#define OS_WINNT	3	/*!< Microsoft Windows NT 3.x */
-#define OS_WIN2000	4	/*!< Microsoft Windows 2000 */
-#define OS_WINXP	5	/*!< Microsoft Windows XP
-				or Windows Server 2003 */
-#define OS_WINVISTA	6	/*!< Microsoft Windows Vista
-				or Windows Server 2008 */
-#define OS_WIN7		7	/*!< Microsoft Windows 7
-				or Windows Server 2008 R2 */
-
-
 extern ulint	os_n_file_reads;
 extern ulint	os_n_file_writes;
 extern ulint	os_n_fsyncs;
@@ -424,28 +412,23 @@ typedef HANDLE	os_file_dir_t;	/*!< directory stream */
 typedef DIR*	os_file_dir_t;	/*!< directory stream */
 #endif
 
-#ifdef _WIN32
-/***********************************************************************//**
-Gets the operating system version. Currently works only on Windows.
-@return OS_WIN95, OS_WIN31, OS_WINNT, OS_WIN2000, OS_WINXP, OS_WINVISTA,
-OS_WIN7. */
-ulint
-os_get_os_version(void);
-/*===================*/
-#endif /* _WIN32 */
 #ifndef UNIV_HOTBACKUP
 /****************************************************************//**
 Creates the seek mutexes used in positioned reads and writes. */
 void
 os_io_init_simple(void);
 /*===================*/
-/***********************************************************************//**
-Creates a temporary file.  This function is like tmpfile(3), but
-the temporary file is created in the MySQL temporary directory.
+
+/** Create a temporary file. This function is like tmpfile(3), but
+the temporary file is created in the given parameter path. If the path
+is null then it will create the file in the mysql server configuration
+parameter (--tmpdir).
+@param[in]	path	location for creating temporary file
 @return temporary file handle, or NULL on error */
 FILE*
-os_file_create_tmpfile(void);
-/*========================*/
+os_file_create_tmpfile(
+	const char*	path);
+
 #endif /* !UNIV_HOTBACKUP */
 /***********************************************************************//**
 The os_file_opendir() function opens a directory stream corresponding to the
@@ -1240,13 +1223,14 @@ os_file_get_status(
 					checks are enforced. */
 
 #if !defined(UNIV_HOTBACKUP)
-/*********************************************************************//**
-Creates a temporary file that will be deleted on close.
+/** Create a temporary file in the location specified by the parameter
+path. If the path is null, then it will be created in tmpdir.
 This function is defined in ha_innodb.cc.
+@param[in]	path	location for creating temporary file
 @return temporary file descriptor, or < 0 on error */
 int
-innobase_mysql_tmpfile(void);
-/*========================*/
+innobase_mysql_tmpfile(
+	const char*	path);
 #endif /* !UNIV_HOTBACKUP */
 
 

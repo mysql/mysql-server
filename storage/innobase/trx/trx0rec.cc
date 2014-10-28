@@ -1025,16 +1025,15 @@ trx_undo_update_rec_get_update(
 		field_no = mach_read_next_compressed(&ptr);
 
 		if (field_no >= dict_index_get_n_fields(index)) {
-			std::string	str = ut_get_name(
-							  trx, TRUE,
-							  index->table_name);
 			ib::error() << "Trying to access update undo rec"
-				" field " << field_no << " in index "
-				<< ut_get_name(trx, FALSE, index->name)
-				<< " of table " << str << " but index has"
-				" only " << dict_index_get_n_fields(index)
+				" field " << field_no
+				<< " in index " << index->name
+				<< " of table " << index->table->name
+				<< " but index has only "
+				<< dict_index_get_n_fields(index)
 				<< " fields " << BUG_REPORT_MSG
-				<< ". Run also CHECK TABLE " << str << "."
+				<< ". Run also CHECK TABLE "
+				<< index->table->name << "."
 				" n_fields = " << n_fields << ", i = " << i
 				<< ", ptr " << ptr;
 

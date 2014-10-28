@@ -62,8 +62,6 @@ combination of types */
 /* @{ */
 #define DICT_CLUSTERED	1	/*!< clustered index */
 #define DICT_UNIQUE	2	/*!< unique index */
-#define	DICT_UNIVERSAL	4	/*!< index which can contain records from any
-				other index */
 #define	DICT_IBUF	8	/*!< insert buffer tree */
 #define	DICT_CORRUPT	16	/*!< bit to store the corrupted flag
 				in SYS_INDEXES.TYPE */
@@ -204,7 +202,8 @@ for unknown bits in order to protect backward incompatibility. */
 /* @{ */
 /** Total number of bits in table->flags2. */
 #define DICT_TF2_BITS			8
-#define DICT_TF2_BIT_MASK		~(~0 << DICT_TF2_BITS)
+#define DICT_TF2_UNUSED_BIT_MASK	(~0 << DICT_TF2_BITS)
+#define DICT_TF2_BIT_MASK		~DICT_TF2_UNUSED_BIT_MASK
 
 /** TEMPORARY; TRUE for tables from CREATE TEMPORARY TABLE. */
 #define DICT_TF2_TEMPORARY		1
@@ -672,7 +671,7 @@ struct dict_index_t{
 #endif /* !UNIV_HOTBACKUP */
 	unsigned	type:DICT_IT_BITS;
 				/*!< index type (DICT_CLUSTERED, DICT_UNIQUE,
-				DICT_UNIVERSAL, DICT_IBUF, DICT_CORRUPT) */
+				DICT_IBUF, DICT_CORRUPT) */
 #define MAX_KEY_LENGTH_BITS 12
 	unsigned	trx_id_offset:MAX_KEY_LENGTH_BITS;
 				/*!< position of the trx id column
@@ -719,6 +718,11 @@ struct dict_index_t{
 				by dict_operation_lock and
 				dict_sys->mutex. Other changes are
 				protected by index->lock. */
+	unsigned	uncommitted:1;
+				/*!< a flag that is set for secondary indexes
+				that have not been committed to the
+				data dictionary yet */
+
 #ifdef UNIV_DEBUG
 	uint32_t	magic_n;/*!< magic number */
 /** Value of dict_index_t::magic_n */
@@ -726,9 +730,6 @@ struct dict_index_t{
 #endif
 	dict_field_t*	fields;	/*!< array of field descriptions */
 	st_mysql_ftparser*	parser;/*!< fulltext plugin parser */
-	bool		is_redo_skipped;
-				/*!< TRUE if skip redo log for allocation
-				under special cases, such as bulk load. */
 #ifndef UNIV_HOTBACKUP
 	UT_LIST_NODE_T(dict_index_t)
 			indexes;/*!< list of indexes of the table */
@@ -792,6 +793,24 @@ struct dict_index_t{
 				compression failures and successes */
 	rw_lock_t	lock;	/*!< read-write lock protecting the
 				upper levels of the index tree */
+
+	/** Determine if the index has been committed to the
+	data dictionary.
+	@return whether the index definition has been committed */
+	bool is_committed() const
+	{
+		ut_ad(!uncommitted || !(type & DICT_CLUSTERED));
+		return(UNIV_LIKELY(!uncommitted));
+	}
+
+	/** Flag an index committed or uncommitted.
+	@param[in]	committed	whether the index is committed */
+	void set_committed(bool committed)
+	{
+		ut_ad(!to_be_dropped);
+		ut_ad(committed || !(type & DICT_CLUSTERED));
+		uncommitted = !committed;
+	}
 #endif /* !UNIV_HOTBACKUP */
 };
 
@@ -1016,6 +1035,17 @@ a foreign key constraint is enforced, therefore RESTRICT just means no flag */
 #define DICT_FOREIGN_ON_UPDATE_NO_ACTION 32	/*!< ON UPDATE NO ACTION */
 /* @} */
 
+/** Table name wrapper for pretty-printing */
+struct table_name_t
+{
+	/** The name in internal representation */
+	char*	m_name;
+};
+
+/** Display a table name */
+std::ostream&
+operator<<(std::ostream& s, const table_name_t& table_name);
+
 /** List of locks that different transactions have acquired on a table. This
 list has a list node that is embedded in a nested union/structure. We have to
 generate a specific template for it. */
@@ -1046,7 +1076,7 @@ struct dict_table_t {
 	mem_heap_t*				heap;
 
 	/** Table name. */
-	char*					name;
+	table_name_t				name;
 
 	/** NULL or the directory path where a TEMPORARY table that was
 	explicitly created by a user should be placed if innodb_file_per_table
@@ -1128,6 +1158,9 @@ struct dict_table_t {
 
 	/** Hash chain node. */
 	hash_node_t				id_hash;
+
+	/** The FTS_DOC_ID_INDEX, or NULL if no fulltext indexes exist */
+	dict_index_t*				fts_doc_id_index;
 
 	/** List of indexes of the table. */
 	UT_LIST_BASE_NODE_T(dict_index_t)	indexes;

@@ -113,9 +113,9 @@
   But just report error on commit (or read ofcourse)
   Note! Reserved for use in MySQL Cluster
 */
-#define OPTION_ALLOW_BATCH              (ULL(1) << 36) // THD, intern (slave)
+#define OPTION_ALLOW_BATCH              (1ULL << 36) // THD, intern (slave)
 
-#define SELECT_MAX_STATEMENT_TIME       (ULL(1) << 37) // SELECT, user
+#define SELECT_MAX_STATEMENT_TIME       (1ULL << 37) // SELECT, user
 
 /*
   Check how many bytes are available on buffer.

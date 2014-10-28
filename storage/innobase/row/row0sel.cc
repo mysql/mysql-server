@@ -2718,10 +2718,8 @@ row_sel_convert_mysql_key_to_innobase(
 			should never be partial-field prefixes in searches. */
 
 			ib::warn() << "Using a partial-field key prefix in"
-				" search, index "
-				<< ut_get_name(trx, FALSE, index->name)
-				<< " of table "
-				<< ut_get_name(trx, TRUE, index->table_name)
+				" search, index " << index->name
+				<< " of table " << index->table->name
 				<< ". Last data field length "
 				<< data_field_len << " bytes, key ptr now"
 				" exceeds key end by " << (key_ptr - key_end)
@@ -2775,10 +2773,8 @@ row_sel_store_row_id_to_prebuilt(
 	if (UNIV_UNLIKELY(len != DATA_ROW_ID_LEN)) {
 
 		ib::error() << "Row id field is wrong length " << len << " in"
-			" index "
-			<< ut_get_name(prebuilt->trx, FALSE, index->name)
-			<< " of table "
-			<< ut_get_name(prebuilt->trx, TRUE, index->table_name)
+			" index " << index->name
+			<< " of table " << index->table->name
 			<< ", Field number "
 			<< dict_index_get_sys_col_pos(index, DATA_ROW_ID)
 			<< ", record:";
@@ -3296,19 +3292,19 @@ row_sel_get_clust_rec_for_mysql(
 
 	btr_pcur_open_with_no_init(clust_index, prebuilt->clust_ref,
 				   PAGE_CUR_LE, BTR_SEARCH_LEAF,
-				   &prebuilt->clust_pcur, 0, mtr);
+				   prebuilt->clust_pcur, 0, mtr);
 
-	clust_rec = btr_pcur_get_rec(&prebuilt->clust_pcur);
+	clust_rec = btr_pcur_get_rec(prebuilt->clust_pcur);
 
-	prebuilt->clust_pcur.trx_if_known = trx;
+	prebuilt->clust_pcur->trx_if_known = trx;
 
 	/* Note: only if the search ends up on a non-infimum record is the
 	low_match value the real match to the search tuple */
 
 	if (!page_rec_is_user_rec(clust_rec)
-	    || btr_pcur_get_low_match(&prebuilt->clust_pcur)
+	    || btr_pcur_get_low_match(prebuilt->clust_pcur)
 	    < dict_index_get_n_unique(clust_index)) {
-		btr_cur_t*	btr_cur = btr_pcur_get_btr_cur(&prebuilt->pcur);
+		btr_cur_t*	btr_cur = btr_pcur_get_btr_cur(prebuilt->pcur);
 
 		/* If this is a spatial index scan, and we are reading
 		from a shadow buffer, the record could be already
@@ -3318,7 +3314,7 @@ row_sel_get_clust_rec_for_mysql(
 		     && btr_cur->rtr_info->matches
 		     && (page_align(rec)
 			== btr_cur->rtr_info->matches->block.frame
-			|| rec != btr_pcur_get_rec(&prebuilt->pcur))) {
+			|| rec != btr_pcur_get_rec(prebuilt->pcur))) {
 #ifdef UNIV_DEBUG
 			rtr_info_t*	rtr_info = btr_cur->rtr_info;
 			mutex_enter(&rtr_info->matches->rtr_match_mutex);
@@ -3342,7 +3338,7 @@ row_sel_get_clust_rec_for_mysql(
 				goto func_exit;
 			}
 
-			if (rec != btr_pcur_get_rec(&prebuilt->pcur)) {
+			if (rec != btr_pcur_get_rec(prebuilt->pcur)) {
 				clust_rec = NULL;
 
                                 err = DB_SUCCESS;
@@ -3351,7 +3347,7 @@ row_sel_get_clust_rec_for_mysql(
 
 			ulint		page_no = page_get_page_no(
 						btr_pcur_get_page(
-							&prebuilt->pcur));
+							prebuilt->pcur));
 
 			page_id_t	page_id(dict_index_get_space(sec_index),
 						page_no);
@@ -3388,11 +3384,8 @@ row_sel_get_clust_rec_for_mysql(
 			In that case we know that the clustered index
 			record did not exist in the read view of trx. */
 			ib::error() << "Clustered record for sec rec not found"
-				" index "
-				<< ut_get_name(trx, FALSE, sec_index->name)
-				<< " of table "
-				<< ut_get_name(trx, TRUE,
-					       sec_index->table_name);
+				" index " << sec_index->name
+				<< " of table " << sec_index->table->name;
 
 			fputs("InnoDB: sec index record ", stderr);
 			rec_print(stderr, rec, sec_index);
@@ -3422,7 +3415,7 @@ row_sel_get_clust_rec_for_mysql(
 		we set a LOCK_REC_NOT_GAP type lock */
 
 		err = lock_clust_rec_read_check_and_lock(
-			0, btr_pcur_get_block(&prebuilt->clust_pcur),
+			0, btr_pcur_get_block(prebuilt->clust_pcur),
 			clust_rec, clust_index, *offsets,
 			static_cast<lock_mode>(prebuilt->select_lock_type),
 			LOCK_REC_NOT_GAP,
@@ -3500,7 +3493,7 @@ func_exit:
 		/* We may use the cursor in update or in unlock_row():
 		store its position */
 
-		btr_pcur_store_position(&prebuilt->clust_pcur, mtr);
+		btr_pcur_store_position(prebuilt->clust_pcur, mtr);
 	}
 
 err_exit:
@@ -3799,7 +3792,7 @@ row_sel_try_search_shortcut_for_mysql(
 {
 	dict_index_t*	index		= prebuilt->index;
 	const dtuple_t*	search_tuple	= prebuilt->search_tuple;
-	btr_pcur_t*	pcur		= &prebuilt->pcur;
+	btr_pcur_t*	pcur		= prebuilt->pcur;
 	trx_t*		trx		= prebuilt->trx;
 	const rec_t*	rec;
 
@@ -3992,7 +3985,7 @@ row_search_no_mvcc(
 {
 	dict_index_t*	index		= prebuilt->index;
 	const dtuple_t*	search_tuple	= prebuilt->search_tuple;
-	btr_pcur_t*	pcur		= &prebuilt->pcur;
+	btr_pcur_t*	pcur		= prebuilt->pcur;
 
 	const rec_t*	result_rec	= NULL;
 	const rec_t*	clust_rec	= NULL;
@@ -4268,7 +4261,7 @@ row_search_mvcc(
 	dict_index_t*	index		= prebuilt->index;
 	ibool		comp		= dict_table_is_comp(index->table);
 	const dtuple_t*	search_tuple	= prebuilt->search_tuple;
-	btr_pcur_t*	pcur		= &prebuilt->pcur;
+	btr_pcur_t*	pcur		= prebuilt->pcur;
 	trx_t*		trx		= prebuilt->trx;
 	dict_index_t*	clust_index;
 	que_thr_t*	thr;
@@ -4888,10 +4881,8 @@ wrong_offs:
 				<< page_offset(rec) << " next offs "
 				<< next_offs << ", page no "
 				<< page_get_page_no(page_align(rec))
-				<< ", index "
-				<< ut_get_name(trx, FALSE, index->name)
-				<< " of table "
-				<< ut_get_name(trx, TRUE, index->table_name)
+				<< ", index " << index->name
+				<< " of table " << index->table->name
 				<< ". Run CHECK TABLE. You may need to"
 				" restore from a backup, or dump + drop +"
 				" reimport the table.";
@@ -4907,10 +4898,8 @@ wrong_offs:
 				<< page_offset(rec) << " next offs "
 				<< next_offs << ", page no "
 				<< page_get_page_no(page_align(rec))
-				<< ", index "
-				<< ut_get_name(trx, FALSE, index->name)
-				<< " of table "
-				<< ut_get_name(trx, TRUE, index->table_name)
+				<< ", index " << index->name
+				<< " of table " << index->table->name
 				<< ". We try to skip the rest of the page.";
 
 			btr_pcur_move_to_last_on_page(pcur, &mtr);
@@ -4935,10 +4924,8 @@ wrong_offs:
 				<< page_offset(rec) << " next offs "
 				<< next_offs << ", page no "
 				<< page_get_page_no(page_align(rec))
-				<< ", index "
-				<< ut_get_name(trx, FALSE, index->name)
-				<< " of table "
-				<< ut_get_name(trx, TRUE, index->table_name)
+				<< ", index " << index->name
+				<< " of table " << index->table->name
 				<< ". We try to skip the record.";
 
 			goto next_rec;
@@ -4996,11 +4983,6 @@ wrong_offs:
 			pcur->rel_pos = BTR_PCUR_BEFORE;
 
 			err = DB_RECORD_NOT_FOUND;
-#if 0
-			ut_print_name(stderr, trx, FALSE, index->name);
-			fputs(" record not found 3\n", stderr);
-#endif
-
 			goto normal_return;
 		}
 
@@ -5046,11 +5028,6 @@ wrong_offs:
 			pcur->rel_pos = BTR_PCUR_BEFORE;
 
 			err = DB_RECORD_NOT_FOUND;
-#if 0
-			ut_print_name(stderr, trx, FALSE, index->name);
-			fputs(" record not found 4\n", stderr);
-#endif
-
 			goto normal_return;
 		}
 	}
@@ -5836,7 +5813,7 @@ row_count_rtree_recs(
 	dict_index_t*	index		= prebuilt->index;
 	dberr_t		err		= DB_SUCCESS;
 	mtr_t		mtr;
-	btr_pcur_t*	pcur		= &prebuilt->pcur;
+	btr_pcur_t*	pcur		= prebuilt->pcur;
 	const rec_t*	rec;
 	ibool		comp		= dict_table_is_comp(index->table);
 	bool		move;

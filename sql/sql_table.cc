@@ -61,6 +61,8 @@
 using std::max;
 using std::min;
 
+#define ER_THD_OR_DEFAULT(thd,X) ((thd) ? ER_THD(thd, X) : ER_DEFAULT(X))
+
 const char *primary_key_name="PRIMARY";
 
 static bool check_if_keyname_exists(const char *name,KEY *start, KEY *end);
@@ -128,7 +130,7 @@ static char* add_identifier(THD* thd, char *to_p, const char * end_p,
     conv_name= conv_string;
   }
 
-  quote = thd ? get_quote_char_for_identifier(thd, conv_name, res - 1) : '"';
+  quote = thd ? get_quote_char_for_identifier(thd, conv_name, res - 1) : '`';
 
   if (quote != EOF && (end_p - to_p > 2))
   {
@@ -5970,9 +5972,21 @@ static bool fill_alter_inplace_info(THD *thd,
         ha_alter_info->handler_flags|= Alter_inplace_info::ALTER_COLUMN_TYPE;
       }
 
+      bool field_renamed;
+      /*
+        InnoDB data dictionary is case sensitive so we should use
+        string case sensitive comparison between fields.
+        Note: strcmp branch is to be removed in future when we fix it
+        in InnoDB.
+      */
+      if (ha_alter_info->create_info->db_type->db_type == DB_TYPE_INNODB)
+        field_renamed= strcmp(field->field_name, new_field->field_name);
+      else
+	field_renamed= my_strcasecmp(system_charset_info, field->field_name,
+                                     new_field->field_name);
+
       /* Check if field was renamed */
-      if (my_strcasecmp(system_charset_info, field->field_name,
-                        new_field->field_name))
+      if (field_renamed)
       {
         field->flags|= FIELD_IS_RENAMED;
         ha_alter_info->handler_flags|= Alter_inplace_info::ALTER_COLUMN_NAME;
@@ -8685,7 +8699,7 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
         goto err_new_table_cleanup;
       /* in case of alter temp table send the tracker in OK packet */
       if (thd->session_tracker.get_tracker(SESSION_STATE_CHANGE_TRACKER)->is_enabled())
-        thd->session_tracker.get_tracker(SESSION_STATE_CHANGE_TRACKER)->mark_as_changed(NULL);
+        thd->session_tracker.get_tracker(SESSION_STATE_CHANGE_TRACKER)->mark_as_changed(thd, NULL);
     }
   }
 

@@ -142,7 +142,6 @@ static my_bool debug_info_flag= 0, debug_check_flag= 0;
 static my_bool opt_only_print= FALSE;
 static my_bool opt_compress= FALSE, tty_password= FALSE,
                opt_silent= FALSE,
-               opt_client_per_db= FALSE,
                auto_generate_sql_autoincrement= FALSE,
                auto_generate_sql_guid_primary= FALSE,
                auto_generate_sql= FALSE;
@@ -224,7 +223,6 @@ typedef struct thread_context thread_context;
 struct thread_context {
   statement *stmt;
   ulonglong limit;
-  uint client_index;
 };
 
 typedef struct conclusions conclusions;
@@ -246,6 +244,7 @@ static statement *pre_statements= NULL;
 static statement *post_statements= NULL; 
 static statement *create_statements= NULL, 
                  *query_statements= NULL;
+
 /* Prototypes */
 void print_conclusions(conclusions *con);
 void print_conclusions_csv(conclusions *con);
@@ -271,7 +270,7 @@ void statement_cleanup(statement *stmt);
 void option_cleanup(option_string *stmt);
 void concurrency_loop(MYSQL *mysql, uint current, option_string *eptr);
 static int run_statements(MYSQL *mysql, statement *stmt);
-int slap_connect(MYSQL *mysql, uint index);
+int slap_connect(MYSQL *mysql);
 static int run_query(MYSQL *mysql, const char *query, size_t len);
 
 static const char ALPHANUMERICS[]=
@@ -497,10 +496,9 @@ void concurrency_loop(MYSQL *mysql, uint current, option_string *eptr)
       run_statements(mysql, pre_statements);
 
     run_scheduler(sptr, query_statements, current, client_limit); 
-
-    if (!opt_client_per_db)
-         if (post_statements)
-              run_statements(mysql, post_statements);
+    
+    if (post_statements)
+      run_statements(mysql, post_statements);
 
     if (post_system)
       if ((sysret= system(post_system)) != 0)
@@ -700,9 +698,6 @@ static struct my_option my_long_options[] =
   {"silent", 's', "Run program in silent mode - no output.",
     &opt_silent, &opt_silent, 0, GET_BOOL,  NO_ARG,
     0, 0, 0, 0, 0, 0},
-  {"clientdb", 'Y', "Run each client thread in own default db.",
-    &opt_client_per_db, &opt_client_per_db, 0, GET_BOOL,  NO_ARG,
-    0, 0, 0, 0, 0, 0},
   {"socket", 'S', "The socket file to use for connection.",
     &opt_mysql_unix_port, &opt_mysql_unix_port, 0, GET_STR,
     REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -730,11 +725,25 @@ static void print_version(void)
 
 static void usage(void)
 {
+  struct my_option *optp;
   print_version();
   puts(ORACLE_WELCOME_COPYRIGHT_NOTICE("2005"));
   puts("Run a query multiple times against the server.\n");
   printf("Usage: %s [OPTIONS]\n",my_progname);
   print_defaults("my",load_default_groups);
+  /*
+    Turn default for zombies off so that the help on how to 
+    turn them off text won't show up.
+    This is safe to do since it's followed by a call to exit().
+  */
+  for (optp= my_long_options; optp->name; optp++)
+  {
+    if (optp->id == OPT_SECURE_AUTH)
+    {
+      optp->def_value= 0;
+      break;
+    }
+  }
   my_print_help(my_long_options);
 }
 
@@ -796,12 +805,14 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     using_opt_enable_cleartext_plugin= TRUE;
     break;
   case OPT_SECURE_AUTH:
-    CLIENT_WARN_DEPRECATED_NO_REPLACEMENT("--secure-auth");
+    /* --secure-auth is a zombie option. */
     if (!opt_secure_auth)
     {
-      usage();
+      fprintf(stderr, "mysqlslap: [ERROR] --skip-secure-auth is not supported.\n");
       exit(1);
     }
+    else
+      CLIENT_WARN_DEPRECATED_NO_REPLACEMENT("--secure-auth");
     break;
   }
   DBUG_RETURN(0);
@@ -1793,11 +1804,13 @@ run_scheduler(stats *sptr, statement *stmts, uint concur, ulonglong limit)
 {
   uint x;
   struct timeval start_time, end_time;
-  thread_context con[1024]; // NOTICE !!! hard-coded max
+  thread_context con;
   pthread_t mainthread;            /* Thread descriptor */
   pthread_attr_t attr;          /* Thread attributes */
   DBUG_ENTER("run_scheduler");
 
+  con.stmt= stmts;
+  con.limit= limit;
 
   pthread_attr_init(&attr);
   pthread_attr_setdetachstate(&attr,
@@ -1811,12 +1824,9 @@ run_scheduler(stats *sptr, statement *stmts, uint concur, ulonglong limit)
   native_mutex_unlock(&sleeper_mutex);
   for (x= 0; x < concur; x++)
   {
-    con[x].stmt= stmts;
-    con[x].limit= limit;
-    con[x].client_index= opt_client_per_db? x+1 : 0;
     /* now you create the thread */
-    if (pthread_create(&mainthread, &attr, run_task,
-                       (void *) &con[x]) != 0)
+    if (pthread_create(&mainthread, &attr, run_task, 
+                       (void *)&con) != 0)
     {
       fprintf(stderr,"%s: Could not create thread\n",
               my_progname);
@@ -1897,8 +1907,8 @@ pthread_handler_t run_task(void *p)
 
   if (!opt_only_print)
   {
-       if (slap_connect(mysql, con->client_index))
-            goto end;
+    if (slap_connect(mysql))
+      goto end;
   }
 
   DBUG_PRINT("info", ("connected."));
@@ -1909,9 +1919,9 @@ pthread_handler_t run_task(void *p)
   commit_counter= 0;
   if (commit_rate)
     run_query(mysql, "SET AUTOCOMMIT=0", strlen("SET AUTOCOMMIT=0"));
-  detach_counter= 0;
+
 limit_not_met:
-    for (ptr= con->stmt; 
+    for (ptr= con->stmt, detach_counter= 0; 
          ptr && ptr->length; 
          ptr= ptr->next, detach_counter++)
     {
@@ -1926,7 +1936,7 @@ limit_not_met:
           exit(0);
         }
 
-        if (slap_connect(mysql, con->client_index))
+        if (slap_connect(mysql))
           goto end;
       }
 
@@ -2011,10 +2021,7 @@ end:
   if (commit_rate)
     run_query(mysql, "COMMIT", strlen("COMMIT"));
 
-  if (post_statements)
-       run_statements(mysql, post_statements);
-
-  if (!opt_only_print)
+  if (!opt_only_print) 
     mysql_close(mysql);
 
   mysql_thread_end();
@@ -2284,24 +2291,15 @@ statement_cleanup(statement *stmt)
 
 
 int 
-slap_connect(MYSQL *mysql, uint client_index)
+slap_connect(MYSQL *mysql)
 {
   /* Connect to server */
   static ulong connection_retry_sleep= 100000; /* Microseconds */
   int x, connect_error= 1;
-  char client_schema[128];
-  const char *actual_schema= create_schema_string;
-
-  if (client_index != 0)
-  {
-       sprintf(client_schema, "%s_%d", create_schema_string, client_index);
-       actual_schema= client_schema;
-  }
-
   for (x= 0; x < 10; x++)
   {
     if (mysql_real_connect(mysql, host, user, opt_password,
-                           actual_schema,
+                           create_schema_string,
                            opt_mysql_port,
                            opt_mysql_unix_port,
                            connect_flags))

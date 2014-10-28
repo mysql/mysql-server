@@ -19,9 +19,6 @@
 /* Classes in mysql */
 
 #include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
-#ifdef MYSQL_SERVER
-#include "unireg.h"                    // REQUIRED: for other includes
-#endif
 #include "sql_const.h"
 #include <mysql/plugin_audit.h>
 #include "rpl_tblmap.h"
@@ -166,7 +163,7 @@ enum enum_filetype { FILETYPE_CSV, FILETYPE_XML };
 #define MODE_NO_AUTO_CREATE_USER        (MODE_TRADITIONAL*2)
 #define MODE_HIGH_NOT_PRECEDENCE        (MODE_NO_AUTO_CREATE_USER*2)
 #define MODE_NO_ENGINE_SUBSTITUTION     (MODE_HIGH_NOT_PRECEDENCE*2)
-#define MODE_PAD_CHAR_TO_FULL_LENGTH    (ULL(1) << 31)
+#define MODE_PAD_CHAR_TO_FULL_LENGTH    (1ULL << 31)
 
 extern char internal_table_name[2];
 extern char empty_c_string[1];
@@ -2226,7 +2223,7 @@ public:
   inline void force_one_auto_inc_interval(ulonglong next_id)
   {
     auto_inc_intervals_forced.empty(); // in case of multiple SET INSERT_ID
-    auto_inc_intervals_forced.append(next_id, ULONGLONG_MAX, 0);
+    auto_inc_intervals_forced.append(next_id, ULLONG_MAX, 0);
   }
 
   /**

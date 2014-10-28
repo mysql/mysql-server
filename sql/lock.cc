@@ -75,7 +75,6 @@
 
 #include "sql_priv.h"
 #include "debug_sync.h"
-#include "unireg.h"                    // REQUIRED: for other includes
 #include "lock.h"
 #include "sql_base.h"                       // close_tables_for_reopen
 #include "sql_parse.h"                     // is_log_table_write_query
@@ -864,22 +863,22 @@ static void print_lock_error(int error, const char *table)
 
   switch (error) {
   case HA_ERR_LOCK_WAIT_TIMEOUT:
-    my_error(ER_LOCK_WAIT_TIMEOUT, MYF(ME_BELL+ME_OLDWIN+ME_WAITTANG), error);
+    my_error(ER_LOCK_WAIT_TIMEOUT, MYF(0), error);
     break;
   case HA_ERR_READ_ONLY_TRANSACTION:
-    my_error(ER_READ_ONLY_TRANSACTION, MYF(ME_BELL+ME_OLDWIN+ME_WAITTANG),
+    my_error(ER_READ_ONLY_TRANSACTION, MYF(0),
              error);
     break;
   case HA_ERR_LOCK_DEADLOCK:
-    my_error(ER_LOCK_DEADLOCK, MYF(ME_BELL+ME_OLDWIN+ME_WAITTANG), error);
+    my_error(ER_LOCK_DEADLOCK, MYF(0), error);
     break;
   case HA_ERR_WRONG_COMMAND:
-    my_error(ER_ILLEGAL_HA, MYF(ME_BELL+ME_OLDWIN+ME_WAITTANG), table);
+    my_error(ER_ILLEGAL_HA, MYF(0), table);
     break;
   default:
     {
       char errbuf[MYSYS_STRERROR_SIZE];
-      my_error(ER_CANT_LOCK, MYF(ME_BELL+ME_OLDWIN+ME_WAITTANG),
+      my_error(ER_CANT_LOCK, MYF(0),
                error, my_strerror(errbuf, sizeof(errbuf), error));
     }
     break;

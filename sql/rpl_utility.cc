@@ -16,7 +16,6 @@
 #include "rpl_utility.h"
 
 #ifndef MYSQL_CLIENT
-#include "unireg.h"                      // REQUIRED by later includes
 #include "rpl_rli.h"
 #include "sql_tmp_table.h"               // tmp tables
 #include "rpl_rli.h"
@@ -531,9 +530,9 @@ bool is_conversion_ok(int order, Relay_log_info *rli)
   bool allow_non_lossy, allow_lossy;
 
   allow_non_lossy = slave_type_conversions_options &
-                    (ULL(1) << SLAVE_TYPE_CONVERSIONS_ALL_NON_LOSSY);
+                    (1ULL << SLAVE_TYPE_CONVERSIONS_ALL_NON_LOSSY);
   allow_lossy= slave_type_conversions_options &
-               (ULL(1) << SLAVE_TYPE_CONVERSIONS_ALL_LOSSY);
+               (1ULL << SLAVE_TYPE_CONVERSIONS_ALL_LOSSY);
 
   DBUG_PRINT("enter", ("order: %d, flags:%s%s", order,
                        allow_non_lossy ? " ALL_NON_LOSSY" : "",
@@ -989,11 +988,11 @@ TABLE *table_def::create_conversion_table(THD *thd, Relay_log_info *rli,
 
   // Check if slave_type_conversions contains ALL_UNSIGNED
   unsigned_flag= slave_type_conversions_options &
-                  (ULL(1) << SLAVE_TYPE_CONVERSIONS_ALL_UNSIGNED);
+                  (1ULL << SLAVE_TYPE_CONVERSIONS_ALL_UNSIGNED);
 
   // Check if slave_type_conversions contains ALL_SIGNED
   unsigned_flag= unsigned_flag && !(slave_type_conversions_options &
-                 (ULL(1) << SLAVE_TYPE_CONVERSIONS_ALL_SIGNED));
+                 (1ULL << SLAVE_TYPE_CONVERSIONS_ALL_SIGNED));
 
   for (uint col= 0 ; col < cols_to_create; ++col)
   {

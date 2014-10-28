@@ -242,7 +242,7 @@ ibool
 ibuf_inside(
 /*========*/
 	const mtr_t*	mtr)	/*!< in: mini-transaction */
-	__attribute__((nonnull, pure));
+	__attribute__((warn_unused_result));
 
 /** Checks if a page address is an ibuf bitmap page (level 3 page) address.
 @param[in]	page_id		page id
@@ -255,7 +255,7 @@ ibuf_bitmap_page(
 	const page_size_t&	page_size);
 
 /** Checks if a page is a level 2 or 3 page in the ibuf hierarchy of pages.
-Must not be called when recv_no_ibuf_operations==TRUE.
+Must not be called when recv_no_ibuf_operations==true.
 @param[in]	page_id		page id
 @param[in]	page_size	page size
 @param[in]	x_latch		FALSE if relaxed check (avoid latching the
@@ -281,7 +281,7 @@ __attribute__((warn_unused_result));
 #ifdef UNIV_DEBUG
 
 /** Checks if a page is a level 2 or 3 page in the ibuf hierarchy of pages.
-Must not be called when recv_no_ibuf_operations==TRUE.
+Must not be called when recv_no_ibuf_operations==true.
 @param[in]	page_id		tablespace/page identifier
 @param[in]	page_size	page size
 @param[in,out]	mtr		mini-transaction or NULL
@@ -292,7 +292,7 @@ Must not be called when recv_no_ibuf_operations==TRUE.
 #else /* UVIV_DEBUG */
 
 /** Checks if a page is a level 2 or 3 page in the ibuf hierarchy of pages.
-Must not be called when recv_no_ibuf_operations==TRUE.
+Must not be called when recv_no_ibuf_operations==true.
 @param[in]	page_id		tablespace/page identifier
 @param[in]	page_size	page size
 @param[in,out]	mtr		mini-transaction or NULL
@@ -356,22 +356,19 @@ void
 ibuf_delete_for_discarded_space(
 /*============================*/
 	ulint	space);	/*!< in: space id */
-/*********************************************************************//**
-Contracts insert buffer trees by reading pages to the buffer pool.
+/** Contract the change buffer by reading pages to the buffer pool.
+@param[in]	full		If true, do a full contraction based
+on PCT_IO(100). If false, the size of contract batch is determined
+based on the current size of the change buffer.
+@param[in]	space_id	tablespace for which to contract, or
+ULINT_UNDEFINED to contract for all tablespaces
 @return a lower limit for the combined size in bytes of entries which
 will be merged from ibuf trees to the pages read, 0 if ibuf is
 empty */
 ulint
-ibuf_contract_in_background(
-/*========================*/
-	table_id_t	table_id,	/*!< in: if merge should be done only
-					for a specific table, for all tables
-					this should be 0 */
-	ibool		full);		/*!< in: TRUE if the caller wants to
-					do a full contract based on PCT_IO(100).
-					If FALSE then the size of contract
-					batch is determined based on the
-					current size of the ibuf tree. */
+ibuf_merge_in_background(
+	bool	full,
+	ulint	space_id);
 #endif /* !UNIV_HOTBACKUP */
 /*********************************************************************//**
 Parses a redo log record of an ibuf bitmap page init.

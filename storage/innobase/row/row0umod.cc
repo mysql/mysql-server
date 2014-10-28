@@ -423,11 +423,10 @@ row_undo_mod_del_mark_or_remove_sec_low(
 		modify_leaf = true;
 	}
 
-	if (*index->name == TEMP_INDEX_PREFIX) {
-		/* The index->online_status may change if the
-		index->name starts with TEMP_INDEX_PREFIX (meaning
-		that the index is or was being created online). It is
-		protected by index->lock. */
+	if (!index->is_committed()) {
+		/* The index->online_status may change if the index is
+		or was being created online, but not committed yet. It
+		is protected by index->lock. */
 		if (mode == BTR_MODIFY_LEAF) {
 			mode = BTR_MODIFY_LEAF | BTR_ALREADY_S_LATCHED;
 			mtr_s_lock(dict_index_get_lock(index), &mtr);
@@ -441,8 +440,8 @@ row_undo_mod_del_mark_or_remove_sec_low(
 		}
 	} else {
 		/* For secondary indexes,
-		index->online_status==ONLINE_INDEX_CREATION unless
-		index->name starts with TEMP_INDEX_PREFIX. */
+		index->online_status==ONLINE_INDEX_COMPLETE if
+		index->is_committed(). */
 		ut_ad(!dict_index_is_online_ddl(index));
 	}
 
@@ -613,11 +612,10 @@ row_undo_mod_del_unmark_sec_and_undo_update(
 	mtr.set_named_space(index->space);
 	dict_disable_redo_if_temporary(index->table, &mtr);
 
-	if (*index->name == TEMP_INDEX_PREFIX) {
-		/* The index->online_status may change if the
-		index->name starts with TEMP_INDEX_PREFIX (meaning
-		that the index is or was being created online). It is
-		protected by index->lock. */
+	if (!index->is_committed()) {
+		/* The index->online_status may change if the index is
+		or was being created online, but not committed yet. It
+		is protected by index->lock. */
 		if (mode == BTR_MODIFY_LEAF) {
 			mode = BTR_MODIFY_LEAF | BTR_ALREADY_S_LATCHED;
 			mtr_s_lock(dict_index_get_lock(index), &mtr);
@@ -631,8 +629,8 @@ row_undo_mod_del_unmark_sec_and_undo_update(
 		}
 	} else {
 		/* For secondary indexes,
-		index->online_status==ONLINE_INDEX_CREATION unless
-		index->name starts with TEMP_INDEX_PREFIX. */
+		index->online_status==ONLINE_INDEX_COMPLETE if
+		index->is_committed(). */
 		ut_ad(!dict_index_is_online_ddl(index));
 	}
 
@@ -652,7 +650,7 @@ row_undo_mod_del_unmark_sec_and_undo_update(
 		flags BTR_INSERT, BTR_DELETE, or BTR_DELETE_MARK. */
 		ut_error;
 	case ROW_NOT_FOUND:
-		if (*index->name != TEMP_INDEX_PREFIX) {
+		if (index->is_committed()) {
 			/* During online secondary index creation, it
 			is possible that MySQL is waiting for a
 			meta-data lock upgrade before invoking
@@ -683,7 +681,7 @@ row_undo_mod_del_unmark_sec_and_undo_update(
 
 		if (btr_cur->up_match >= dict_index_get_n_unique(index)
 		    || btr_cur->low_match >= dict_index_get_n_unique(index)) {
-			if (*index->name != TEMP_INDEX_PREFIX) {
+			if (index->is_committed()) {
 				ib::warn() << "Record in index " << index->name
 					<< " was not found on rollback, and"
 					" a duplicate exists";

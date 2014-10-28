@@ -221,7 +221,6 @@ ulint	srv_lock_table_size	= ULINT_MAX;
 
 /* This parameter is deprecated. Use srv_n_io_[read|write]_threads
 instead. */
-ulint	srv_n_file_io_threads	= ULINT_MAX;
 ulint	srv_n_read_io_threads	= ULINT_MAX;
 ulint	srv_n_write_io_threads	= ULINT_MAX;
 
@@ -926,9 +925,6 @@ srv_init(void)
 	/* Create dummy indexes for infimum and supremum records */
 
 	dict_ind_init();
-#ifndef HAVE_ATOMIC_BUILTINS
-	srv_conc_init();
-#endif /* !HAVE_ATOMIC_BUILTINS */
 
 	/* Initialize some INFORMATION SCHEMA internal structures */
 	trx_i_s_cache_init(trx_i_s_cache);
@@ -979,7 +975,6 @@ void
 srv_general_init(void)
 /*==================*/
 {
-	os_event_init();
 	sync_check_init();
 	/* Reset the system variables in the recovery module. */
 	recv_sys_var_init();
@@ -1026,7 +1021,6 @@ srv_boot(void)
 	/* Initialize this module */
 
 	srv_init();
-	srv_mon_create();
 }
 
 /******************************************************************//**
@@ -1338,11 +1332,6 @@ srv_export_innodb_status(void)
 	export_vars.innodb_buffer_pool_pages_misc =
 		buf_pool_get_n_pages() - LRU_len - free_len;
 
-#ifdef HAVE_ATOMIC_BUILTINS
-	export_vars.innodb_have_atomic_builtins = 1;
-#else
-	export_vars.innodb_have_atomic_builtins = 0;
-#endif
 	export_vars.innodb_page_size = UNIV_PAGE_SIZE;
 
 	export_vars.innodb_log_waits = srv_stats.log_waits;
@@ -1970,7 +1959,7 @@ srv_master_do_active_tasks(void)
 	/* Do an ibuf merge */
 	srv_main_thread_op_info = "doing insert buffer merge";
 	counter_time = ut_time_us(NULL);
-	ibuf_contract_in_background(0, FALSE);
+	ibuf_merge_in_background(false, ULINT_UNDEFINED);
 	MONITOR_INC_TIME_IN_MICRO_SECS(
 		MONITOR_SRV_IBUF_MERGE_MICROSECOND, counter_time);
 
@@ -2053,7 +2042,7 @@ srv_master_do_idle_tasks(void)
 	/* Do an ibuf merge */
 	counter_time = ut_time_us(NULL);
 	srv_main_thread_op_info = "doing insert buffer merge";
-	ibuf_contract_in_background(0, TRUE);
+	ibuf_merge_in_background(true, ULINT_UNDEFINED);
 	MONITOR_INC_TIME_IN_MICRO_SECS(
 		MONITOR_SRV_IBUF_MERGE_MICROSECOND, counter_time);
 
@@ -2129,7 +2118,7 @@ srv_master_do_shutdown_tasks(
 
 	/* Do an ibuf merge */
 	srv_main_thread_op_info = "doing insert buffer merge";
-	n_bytes_merged = ibuf_contract_in_background(0, TRUE);
+	n_bytes_merged = ibuf_merge_in_background(true, ULINT_UNDEFINED);
 
 	/* Flush logs if needed */
 	srv_sync_log_buffer_in_background();
@@ -2666,6 +2655,10 @@ DECLARE_THREAD(srv_purge_coordinator_thread)(
 	rw_lock_x_lock(&purge_sys->latch);
 
 	purge_sys->state = PURGE_STATE_EXIT;
+
+	/* If there are any pending undo-tablespace truncate then clear
+	it off as we plan to shutdown the purge thread. */
+	purge_sys->undo_trunc.clear();
 
 	purge_sys->running = false;
 

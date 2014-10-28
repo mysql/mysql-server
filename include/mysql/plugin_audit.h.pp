@@ -146,8 +146,7 @@ enum enum_mysql_show_type
   SHOW_LONG,
   SHOW_LONGLONG,
   SHOW_CHAR, SHOW_CHAR_PTR,
-  SHOW_ARRAY, SHOW_FUNC, SHOW_DOUBLE,
-  SHOW_always_last
+  SHOW_ARRAY, SHOW_FUNC, SHOW_DOUBLE
 };
 struct st_mysql_show_var {
   const char *name;
@@ -270,6 +269,7 @@ void thd_inc_row_count(void* thd);
 int thd_allow_batch(void* thd);
 void thd_mark_transaction_to_rollback(void* thd, int all);
 int mysql_tmpfile(const char *prefix);
+int mysql_tmpfile_path(const char *path, const char *prefix);
 int thd_killed(const void* thd);
 void thd_set_kill_status(const void* thd);
 void thd_binlog_pos(const void* thd,

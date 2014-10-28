@@ -86,7 +86,7 @@ eval_const_cond(Item *cond)
 */
 static inline bool test_if_sum_overflows_ull(ulonglong arg1, ulonglong arg2)
 {
-  return ULONGLONG_MAX - arg1 < arg2;
+  return ULLONG_MAX - arg1 < arg2;
 }
 
 void Item_func::set_arguments(List<Item> &list, bool context_free)
@@ -1545,7 +1545,7 @@ longlong Item_func_plus::int_op()
     else
     {
       /* val1 is negative */
-      if ((ulonglong) val0 > (ulonglong) LONGLONG_MAX)
+      if ((ulonglong) val0 > (ulonglong) LLONG_MAX)
         res_unsigned= TRUE;
     }
   }
@@ -1561,7 +1561,7 @@ longlong Item_func_plus::int_op()
       }
       else
       {
-        if ((ulonglong) val1 > (ulonglong) LONGLONG_MAX)
+        if ((ulonglong) val1 > (ulonglong) LLONG_MAX)
           res_unsigned= TRUE;
       }
     }
@@ -1697,7 +1697,7 @@ longlong Item_func_minus::int_op()
   {
     if (args[1]->unsigned_flag)
     {
-      if ((ulonglong) (val0 - LONGLONG_MIN) < (ulonglong) val1)
+      if ((ulonglong) (val0 - LLONG_MIN) < (ulonglong) val1)
         goto err;
     }
     else
@@ -1775,7 +1775,7 @@ longlong Item_func_mul::int_op()
     1. If both a1 and b1 are non-zero.
     2. Otherwise, if (a1 * b0 + a0 * b1) is greater than ULONG_MAX.
     3. Otherwise, if (a1 * b0 + a0 * b1) * 2^32 + a0 * b0 is greater than
-    ULONGLONG_MAX.
+    ULLONG_MAX.
 
     Since we also have to take the unsigned_flag for a and b into account,
     it is easier to first work with absolute values and set the
@@ -1813,7 +1813,7 @@ longlong Item_func_mul::int_op()
 
   if (a_negative != b_negative)
   {
-    if ((ulonglong) res > (ulonglong) LONGLONG_MIN + 1)
+    if ((ulonglong) res > (ulonglong) LLONG_MIN + 1)
       goto err;
     res= -res;
   }
@@ -2023,7 +2023,7 @@ longlong Item_func_int_div::val_int()
   res= uval0 / uval1;
   if (res_negative)
   {
-    if (res > (ulonglong) LONGLONG_MAX)
+    if (res > (ulonglong) LLONG_MAX)
       return raise_integer_overflow();
     res= (ulonglong) (-(longlong) res);
   }
@@ -2065,7 +2065,7 @@ longlong Item_func_mod::int_op()
 
   /*
     '%' is calculated by integer division internally. Since dividing
-    LONGLONG_MIN by -1 generates SIGFPE, we calculate using unsigned values and
+    LLONG_MIN by -1 generates SIGFPE, we calculate using unsigned values and
     then adjust the sign appropriately.
   */
   val0_negative= !args[0]->unsigned_flag && val0 < 0;
@@ -2154,11 +2154,11 @@ longlong Item_func_neg::int_op()
   if ((null_value= args[0]->null_value))
     return 0;
   if (args[0]->unsigned_flag &&
-      (ulonglong) value > (ulonglong) LONGLONG_MAX + 1ULL)
+      (ulonglong) value > (ulonglong) LLONG_MAX + 1ULL)
     return raise_integer_overflow();
-  // For some platforms we need special handling of LONGLONG_MIN to
+  // For some platforms we need special handling of LLONG_MIN to
   // guarantee overflow.
-  if (value == LONGLONG_MIN &&
+  if (value == LLONG_MIN &&
       !args[0]->unsigned_flag &&
       !unsigned_flag)
     return raise_integer_overflow();
@@ -2201,8 +2201,8 @@ void Item_func_neg::fix_length_and_dec()
   if (hybrid_type == INT_RESULT && args[0]->const_item())
   {
     longlong val= args[0]->val_int();
-    if ((ulonglong) val >= (ulonglong) LONGLONG_MIN &&
-        ((ulonglong) val != (ulonglong) LONGLONG_MIN ||
+    if ((ulonglong) val >= (ulonglong) LLONG_MIN &&
+        ((ulonglong) val != (ulonglong) LLONG_MIN ||
           args[0]->type() != INT_ITEM))        
     {
       /*
@@ -2233,8 +2233,8 @@ longlong Item_func_abs::int_op()
     return 0;
   if (unsigned_flag)
     return value;
-  /* -LONGLONG_MIN = LONGLONG_MAX + 1 => outside of signed longlong range */
-  if (value == LONGLONG_MIN)
+  /* -LLONG_MIN = LLONG_MAX + 1 => outside of signed longlong range */
+  if (value == LLONG_MIN)
     return raise_integer_overflow();
   return (value >= 0) ? value : -value;
 }
@@ -2361,7 +2361,7 @@ Item_func_latlongfromgeohash::decode_geohash(String *geohash,
        i < input_length && latitiude_accuracy > 0.0 && longitude_accuracy > 0.0;
        i++)
   {
-    char input_character= my_tolower(geohash->charset(), (*geohash)[i]);
+    char input_character= my_tolower(&my_charset_latin1, (*geohash)[i]);
 
     /*
      The following part will convert from character value to a
@@ -2722,7 +2722,7 @@ longlong Item_func_shift_left::val_int()
     return 0;
   }
   null_value=0;
-  return (shift < sizeof(longlong)*8 ? (longlong) res : LL(0));
+  return (shift < sizeof(longlong)*8 ? (longlong) res : 0LL);
 }
 
 longlong Item_func_shift_right::val_int()
@@ -2737,7 +2737,7 @@ longlong Item_func_shift_right::val_int()
     return 0;
   }
   null_value=0;
-  return (shift < sizeof(longlong)*8 ? (longlong) res : LL(0));
+  return (shift < sizeof(longlong)*8 ? (longlong) res : 0LL);
 }
 
 
@@ -3925,7 +3925,7 @@ void Item_func_find_in_set::fix_length_and_dec()
 			      find->length(), 0);
 	enum_bit=0;
 	if (enum_value)
-	  enum_bit=LL(1) << (enum_value-1);
+	  enum_bit= 1LL << (enum_value-1);
       }
     }
   }
@@ -4006,7 +4006,7 @@ longlong Item_func_find_in_set::val_int()
                wc == (my_wc_t) separator)
         return (longlong) ++position;
       else
-        return LL(0);
+        return 0LL;
     }
   }
   return 0;
@@ -4784,7 +4784,7 @@ class Interruptible_wait
 
 
 /** Time to wait before polling the connection status. */
-const ulonglong Interruptible_wait::m_interrupt_interval= 5 * ULL(1000000000);
+const ulonglong Interruptible_wait::m_interrupt_interval= 5 * 1000000000ULL;
 
 
 /**
@@ -5965,7 +5965,7 @@ double user_var_entry::val_real(my_bool *null_value) const
 longlong user_var_entry::val_int(my_bool *null_value) const
 {
   if ((*null_value= (m_ptr == 0)))
-    return LL(0);
+    return 0LL;
 
   switch (m_type) {
   case REAL_RESULT:
@@ -5987,7 +5987,7 @@ longlong user_var_entry::val_int(my_bool *null_value) const
     DBUG_ASSERT(1);				// Impossible
     break;
   }
-  return LL(0);					// Impossible
+  return 0LL;					// Impossible
 }
 
 
@@ -6481,7 +6481,7 @@ longlong Item_func_get_user_var::val_int()
 {
   DBUG_ASSERT(fixed == 1);
   if (!var_entry)
-    return LL(0);				// No such variable
+    return 0LL;				// No such variable
   return (var_entry->val_int(&null_value));
 }
 
@@ -7122,6 +7122,7 @@ String* Item_func_get_system_var::val_str(String* str)
   }
 
   str= &cached_strval;
+  null_value= FALSE;
   switch (var->show_type())
   {
     case SHOW_CHAR:
@@ -7167,7 +7168,7 @@ String* Item_func_get_system_var::val_str(String* str)
 
     default:
       my_error(ER_VAR_CANT_BE_READ, MYF(0), var->name.str);
-      str= NULL;
+      str= error_str();
       break;
   }
 

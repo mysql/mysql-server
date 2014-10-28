@@ -18,7 +18,6 @@
 
 #include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
 #include "sql_priv.h"
-#include "unireg.h"                    // REQUIRED: for other includes
 #include "table.h"
 #include "key.h"                                // find_ref_key
 #include "sql_table.h"                          // build_table_filename,
@@ -259,10 +258,7 @@ TABLE_CATEGORY get_table_category(const LEX_STRING &db,
   if (is_infoschema_db(db.str, db.length))
     return TABLE_CATEGORY_INFORMATION;
 
-  if ((db.length == PERFORMANCE_SCHEMA_DB_NAME.length) &&
-      (my_strcasecmp(system_charset_info,
-                     PERFORMANCE_SCHEMA_DB_NAME.str,
-                     db.str) == 0))
+  if (is_perfschema_db(db.str, db.length))
     return TABLE_CATEGORY_PERFORMANCE;
 
   if ((db.length == MYSQL_SCHEMA_NAME.length) &&
@@ -2379,8 +2375,7 @@ partititon_err:
                   ha_open(outparam, share->normalized_path.str,
                           (db_stat & HA_READ_ONLY ? O_RDONLY : O_RDWR),
                           (db_stat & HA_OPEN_TEMPORARY ? HA_OPEN_TMP_TABLE :
-                           ((db_stat & HA_WAIT_IF_LOCKED) ||
-                            (specialflag & SPECIAL_WAIT_IF_LOCKED)) ?
+                           (db_stat & HA_WAIT_IF_LOCKED) ?
                            HA_OPEN_WAIT_IF_LOCKED :
                            (db_stat & (HA_ABORT_IF_LOCKED | HA_GET_INFO)) ?
                           HA_OPEN_ABORT_IF_LOCKED :
@@ -2699,7 +2694,7 @@ void open_table_error(TABLE_SHARE *share, int error, int db_errno, int errarg)
   int err_no;
   char buff[FN_REFLEN];
   char errbuf[MYSYS_STRERROR_SIZE];
-  myf errortype= ME_ERROR+ME_WAITTANG;
+  myf errortype= ME_ERRORLOG;
   DBUG_ENTER("open_table_error");
 
   switch (error) {

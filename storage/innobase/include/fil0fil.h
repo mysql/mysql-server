@@ -30,15 +30,11 @@ Created 10/25/1995 Heikki Tuuri
 
 #ifndef UNIV_INNOCHECKSUM
 
+#include "log0recv.h"
 #include "dict0types.h"
-#include "buf0types.h"
-#include "hash0hash.h"
 #include "page0size.h"
-#include "mtr0types.h"
-#include "ut0new.h"
 #ifndef UNIV_HOTBACKUP
 #include "ibuf0types.h"
-#include "log0log.h"
 #endif /* !UNIV_HOTBACKUP */
 
 #include <list>
@@ -83,12 +79,6 @@ fil_type_is_data(
 struct fil_space_t {
 	char*		name;	/*!< Tablespace name */
 	ulint		id;	/*!< space id */
-	int64_t		tablespace_version;
-				/*!< in DISCARD/IMPORT this timestamp
-				is used to check if we should ignore
-				an insert buffer merge request for a
-				page because it actually was for the
-				previous incarnation of the space */
 	lsn_t		max_lsn;
 				/*!< LSN of the most recent
 				fil_names_write_if_was_clean().
@@ -324,7 +314,9 @@ extern ulint	fil_n_file_opened;
 #ifndef UNIV_HOTBACKUP
 /** Look up a tablespace.
 The caller should hold an InnoDB table lock or a MDL that prevents
-the tablespace from being dropped during the operation.
+the tablespace from being dropped during the operation,
+or the caller should be in single-threaded crash recovery mode
+(no user connections that could drop tablespaces).
 If this is not the case, fil_space_acquire() and fil_space_release()
 should be used instead.
 @param[in]	id	tablespace ID
@@ -333,16 +325,6 @@ fil_space_t*
 fil_space_get(
 	ulint	id)
 	__attribute__((warn_unused_result));
-
-/*******************************************************************//**
-Returns the version number of a tablespace, -1 if not found.
-@return version number, -1 if the tablespace does not exist in the
-memory cache */
-int64_t
-fil_space_get_version(
-/*==================*/
-	ulint	id);	/*!< in: space id */
-
 /** Returns the latch of a file space.
 @param[in]	id	space id
 @param[out]	flags	tablespace flags
@@ -393,6 +375,7 @@ fil_node_create(
 	bool		is_raw)
 	__attribute__((warn_unused_result));
 /** Create a space memory object and put it to the fil_system hash table.
+The tablespace name is independent from the tablespace file-name.
 Error messages are issued to the server log.
 @param[in]	name	tablespace name
 @param[in]	id	tablespace identifier
@@ -486,15 +469,6 @@ fil_space_get_page_size(
 	ulint	id,
 	bool*	found);
 
-/*******************************************************************//**
-Checks if the pair space, page_no refers to an existing page in a tablespace
-file space. The tablespace must be cached in the memory cache.
-@return true if the address is meaningful */
-bool
-fil_check_adress_in_tablespace(
-/*===========================*/
-	ulint	id,	/*!< in: space id */
-	ulint	page_no);/*!< in: page number */
 /****************************************************************//**
 Initializes the tablespace memory cache. */
 void
@@ -549,15 +523,22 @@ fil_write_flushed_lsn(
 Used by background threads that do not necessarily hold proper locks
 for concurrency control.
 @param[in]	id	tablespace ID
-@return the tablespace, or NULL if deleted or being deleted */
-
+@return the tablespace, or NULL if missing or being deleted */
 fil_space_t*
 fil_space_acquire(
 	ulint	id)
 	__attribute__((warn_unused_result));
+/** Acquire a tablespace that may not exist.
+Used by background threads that do not necessarily hold proper locks
+for concurrency control.
+@param[in]	id	tablespace ID
+@return the tablespace, or NULL if missing or being deleted */
+fil_space_t*
+fil_space_acquire_silent(
+	ulint	id)
+	__attribute__((warn_unused_result));
 /** Release a tablespace acquired with fil_space_acquire().
 @param[in,out]	space	tablespace to release  */
-
 void
 fil_space_release(
 	fil_space_t*	space);
@@ -674,18 +655,6 @@ fil_truncate_tablespace(
 	ulint		space_id,
 	ulint		size_in_pages);
 
-/** Check if an index tree is freed by checking a descriptor bit of
-index root page.
-@param[in]	space_id	space id
-@param[in]	root_page_no	root page no of an index tree
-@param[in]	page_size	page size
-@return true if the index tree is freed */
-bool
-fil_index_tree_is_freed(
-	ulint			space_id,
-	ulint			root_page_no,
-	const page_size_t&	page_size);
-
 /*******************************************************************//**
 Prepare for truncating a single-table tablespace. The tablespace
 must be cached in the memory cache.
@@ -764,26 +733,24 @@ fil_make_filepath(
 	ib_extention	suffix,
 	bool		strip_name);
 
-/*******************************************************************//**
-Creates a new tablespace in a database directory of MySQL.
-Database directories are under the 'datadir' of MySQL. The datadir is the
-directory of a running mysqld program. We can refer to it by simply the
-path '.'. Tables created with CREATE TEMPORARY TABLE we place in the temp
-dir of the mysqld server.
+/** Creates a new Single-Table tablespace
+@param[in]	space_id	Tablespace ID
+@param[in]	name		Tablespace name in dbname/tablename format.
+For general tablespaces, the 'dbname/' part may be missing.
+@param[in]	path		Path and filename of the datafile to create.
+@param[in]	flags		Tablespace flags
+@param[in]	is_temp		true if this is a temporary table
+@param[in]	size		Initial size of the tablespace file in pages,
+must be >= FIL_IBD_FILE_INITIAL_SIZE
 @return DB_SUCCESS or error code */
 dberr_t
-fil_create_new_single_table_tablespace(
-/*===================================*/
-	ulint		space_id,	/*!< in: space id */
-	const char*	tablename,	/*!< in: the table name in the usual
-					databasename/tablename format
-					of InnoDB */
-	const char*	dir_path,	/*!< in: NULL or a dir path */
-	ulint		flags,		/*!< in: tablespace flags */
-	ulint		flags2,		/*!< in: table flags2 */
-	ulint		size)		/*!< in: the initial size of the
-					tablespace file in pages,
-					must be >= FIL_IBD_FILE_INITIAL_SIZE */
+fil_create_ibd_tablespace(
+	ulint		space_id,
+	const char*	name,
+	const char*	path,
+	ulint		flags,
+	bool		is_temp,
+	ulint		size)
 	__attribute__((warn_unused_result));
 #ifndef UNIV_HOTBACKUP
 /********************************************************************//**
@@ -815,7 +782,7 @@ statement to update the dictionary tables if they are incorrect.
 @param[in] path_in Tablespace filepath if found in SYS_DATAFILES
 @return DB_SUCCESS or error code */
 dberr_t
-fil_open_single_table_tablespace(
+fil_ibd_open(
 	bool		validate,
 	bool		fix_dict,
 	fil_type_t	purpose,
@@ -836,14 +803,14 @@ enum fil_load_status {
 	FIL_LOAD_INVALID
 };
 
-/** Open a tablespace file and add it to the InnoDB data structures.
+/** Open a single-file tablespace and add it to the InnoDB data structures.
 @param[in]	space_id	tablespace ID
 @param[in]	filename	path/to/databasename/tablename.ibd
 @param[in]	filename_len	the length of the filename, in bytes
 @param[out]	space		the tablespace, or NULL on error
 @return status of the operation */
 enum fil_load_status
-fil_load_single_file_tablespace(
+fil_ibd_load(
 	ulint		space_id,
 	const char*	filename,
 	ulint		filename_len,
@@ -866,23 +833,6 @@ fil_file_readdir_next_file(
 	os_file_dir_t	dir,	/*!< in: directory stream */
 	os_file_stat_t*	info);	/*!< in/out: buffer where the
 				info is returned */
-/*******************************************************************//**
-Returns true if a single-table tablespace does not exist in the memory cache,
-or is being deleted there.
-@return true if does not exist or is being deleted */
-bool
-fil_tablespace_deleted_or_being_deleted_in_mem(
-/*===========================================*/
-	ulint		id,	/*!< in: space id */
-	int64_t		version);/*!< in: tablespace_version should be this; if
-				you pass -1 as the value of this, then this
-				parameter is ignored */
-/** Look up a tablespace in the memory cache.
-@param[in]	id	tablespace ID
-@return tablespace if exists, NULL if not */
-fil_space_t*
-fil_tablespace_exists_in_mem(
-	ulint	id);
 #ifndef UNIV_HOTBACKUP
 /*******************************************************************//**
 Returns true if a matching tablespace exists in the InnoDB tablespace memory
@@ -1050,14 +1000,6 @@ fil_page_get_type(
 /*==============*/
 	const byte*	page);	/*!< in: file page */
 
-/*******************************************************************//**
-Returns true if a single-table tablespace is redo skipped.
-@return true if redo skipped */
-bool
-fil_tablespace_is_being_deleted(
-/*============================*/
-	ulint		id);	/*!< in: space id */
-
 #ifdef UNIV_DEBUG
 /** Increase redo skipped of a tablespace.
 @param[in]	id	space id */
@@ -1102,7 +1044,7 @@ struct PageCallback {
 	/** Called for page 0 in the tablespace file at the start.
 	@param file_size size of the file in bytes
 	@param block contents of the first page in the tablespace file
-	@retval DB_SUCCESS or error code.*/
+	@retval DB_SUCCESS or error code. */
 	virtual dberr_t init(
 		os_offset_t		file_size,
 		const buf_block_t*	block) UNIV_NOTHROW = 0;
@@ -1185,15 +1127,14 @@ fil_space_read_name_and_filepath(
 	char**	name,
 	char**	filepath);
 
-/*******************************************************************//**
-Checks if a single-table tablespace for a given table name exists in the
-tablespace memory cache.
-@return space id, ULINT_UNDEFINED if not found */
+/** Returns the space ID based on the tablespace name.
+The tablespace must be found in the tablespace memory cache.
+This call is made from external to this module, so the mutex is not owned.
+@param[in]	tablespace	Tablespace name
+@return space ID if tablespace found, ULINT_UNDEFINED if space not. */
 ulint
-fil_get_space_id_for_table(
-/*=======================*/
-	const char*	name);	/*!< in: table name in the standard
-				'databasename/tablename' format */
+fil_space_get_id_by_name(
+	const char*	tablespace);
 
 /**
 Iterate over all the spaces in the space list and fetch the
@@ -1262,6 +1203,29 @@ fil_names_write_if_was_clean(
 	}
 
 	return(was_clean);
+}
+
+/** During crash recovery, open a tablespace if it had not been opened
+yet, to get valid size and flags.
+@param[in,out]	space	tablespace */
+inline
+void
+fil_space_open_if_needed(
+	fil_space_t*	space)
+{
+	ut_ad(recv_recovery_on);
+
+	if (space->size == 0) {
+		/* Initially, size and flags will be set to 0,
+		until the files are opened for the first time.
+		fil_space_get_size() will open the file
+		and adjust the size and flags. */
+#ifdef UNIV_DEBUG
+		ulint		size	=
+#endif
+			fil_space_get_size(space->id);
+		ut_ad(size == space->size);
+	}
 }
 
 /** On a log checkpoint, reset fil_names_dirty_and_write() flags

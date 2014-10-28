@@ -768,6 +768,7 @@ dict_get_first_path(
 
 	sys_datafiles = dict_table_get_low("SYS_DATAFILES");
 	sys_index = UT_LIST_GET_FIRST(sys_datafiles->indexes);
+
 	ut_ad(!dict_table_is_comp(sys_datafiles));
 	ut_ad(name_of_col_is(sys_datafiles, sys_index,
 			     DICT_FLD__SYS_DATAFILES__SPACE, "SPACE"));
@@ -864,7 +865,7 @@ dict_update_filepath(
 	return(err);
 }
 
-/** Insert records into SYS_TABLESPACES and SYS_DATAFILES associated with
+/** Replace records in SYS_TABLESPACES and SYS_DATAFILES associated with
 the given space_id using an independent transaction.
 @param[in]	space_id	Tablespace ID
 @param[in]	name		Tablespace name
@@ -872,7 +873,7 @@ the given space_id using an independent transaction.
 @param[in]	fsp_flags	Tablespace flags
 @return DB_SUCCESS if OK, dberr_t if the insert failed */
 dberr_t
-dict_insert_tablespace_and_filepath(
+dict_replace_tablespace_and_filepath(
 	ulint		space_id,
 	const char*	name,
 	const char*	filepath,
@@ -895,7 +896,7 @@ dict_insert_tablespace_and_filepath(
 	/* A record for this space ID was not found in
 	SYS_DATAFILES. Assume the record is also missing in
 	SYS_TABLESPACES.  Insert records into them both. */
-	err = dict_create_add_tablespace_to_dictionary(
+	err = dict_replace_tablespace_in_dictionary(
 		space_id, name, fsp_flags, filepath, trx, false);
 
 	trx_commit_for_mysql(trx);
@@ -911,7 +912,7 @@ to ensure the correct path.
 
 In a crash recovery we already have some tablespace objects created.
 This function compares the space id information in the InnoDB data dictionary
-to what we already read with fil_load_single_file_tablespace().
+to what we already read with fil_ibd_load().
 
 In a normal startup, we create the tablespace objects for every table in
 InnoDB's data dictionary, if the corresponding .ibd file exists.
@@ -991,7 +992,7 @@ loop:
 		char	table_name[MAX_FULL_NAME_LEN + 1];
 
 		innobase_format_name(
-			table_name, sizeof(table_name), name, FALSE);
+			table_name, sizeof(table_name), name);
 
 		flags = dict_sys_tables_get_flags(rec);
 		if (UNIV_UNLIKELY(flags == ULINT_UNDEFINED)) {
@@ -1087,7 +1088,7 @@ loop:
 			this is at startup and we are now single threaded.
 			If the filepath is not known, it will need to
 			be discovered. */
-			dberr_t	err = fil_open_single_table_tablespace(
+			dberr_t	err = fil_ibd_open(
 				validate && srv_force_recovery == 0,
 				!srv_read_only_mode, FIL_TYPE_TABLESPACE,
 				space_id, dict_tf_to_fsp_flags(flags),
@@ -1760,7 +1761,7 @@ dict_load_indexes(
 			if (dict_table_get_first_index(table) == NULL
 			    && !(ignore_err & DICT_ERR_IGNORE_CORRUPT)) {
 				ib::warn() << "Cannot load table "
-					<< ut_get_name(NULL, TRUE, table->name)
+					<< table->name
 					<< " because it has no indexes in"
 					" InnoDB internal data dictionary.";
 				error = DB_CORRUPTION;
@@ -1781,7 +1782,8 @@ dict_load_indexes(
 				rec, DICT_FLD__SYS_INDEXES__NAME, &len);
 
 			if (len != UNIV_SQL_NULL
-			    && char(*field) == char(TEMP_INDEX_PREFIX)) {
+			    && static_cast<char>(*field)
+			    == static_cast<char>(*TEMP_INDEX_PREFIX_STR)) {
 				/* Skip indexes whose name starts with
 				TEMP_INDEX_PREFIX, because they will
 				be dropped during crash recovery. */
@@ -1789,8 +1791,8 @@ dict_load_indexes(
 			}
 		}
 
-		err_msg = dict_load_index_low(buf, table->name, heap, rec,
-					      TRUE, &index);
+		err_msg = dict_load_index_low(
+			buf, table->name.m_name, heap, rec, TRUE, &index);
 		ut_ad((index == NULL && err_msg != NULL)
 		      || (index != NULL && err_msg == NULL));
 
@@ -1803,7 +1805,7 @@ dict_load_indexes(
 
 				ib::warn() << "Failed to load the"
 					" clustered index for table "
-					<< ut_get_name(NULL, TRUE, table->name)
+					<< table->name
 					<< " because of the following error: "
 					<< err_msg << "."
 					" Refusing to load the rest of the"
@@ -1831,10 +1833,8 @@ dict_load_indexes(
 		/* Check whether the index is corrupted */
 		if (dict_index_is_corrupted(index)) {
 
-			ib::error() << "Index "
-				<< ut_get_name(NULL, FALSE, index->name)
-				<< " of table "
-				<< ut_get_name(NULL, TRUE, index->table_name)
+			ib::error() << "Index " << index->name
+				<< " of table " << table->name
 				<< " is corrupted";
 
 			if (!srv_load_corrupted
@@ -1852,11 +1852,8 @@ dict_load_indexes(
 				3) if the index corrupted is a secondary
 				index */
 				ib::info() << "Load corrupted index "
-					<< ut_get_name(NULL, FALSE,
-						       index->name)
-					<< " of table "
-					<< ut_get_name(NULL, FALSE,
-						       index->table_name);
+					<< index->name
+					<< " of table " << table->name;
 			}
 		}
 
@@ -1874,10 +1871,8 @@ dict_load_indexes(
 				    | DICT_SPATIAL)) {
 
 			ib::error() << "Unknown type " << index->type
-				<< " of index "
-				<< ut_get_name(NULL, FALSE, index->name)
-				<< " of table "
-				<< ut_get_name(NULL, TRUE, table->name);
+				<< " of index " << index->name
+				<< " of table " << table->name;
 
 			error = DB_UNSUPPORTED;
 			dict_mem_index_free(index);
@@ -1886,10 +1881,8 @@ dict_load_indexes(
 			   && !table->ibd_file_missing
 			   && (!(index->type & DICT_FTS))) {
 
-			ib::error() << "Trying to load index "
-				<< ut_get_name(NULL, FALSE, index->name)
-				<< " for table "
-				<< ut_get_name(NULL, TRUE, table->name)
+			ib::error() << "Trying to load index " << index->name
+				<< " for table " << table->name
 				<< ", but the index tree has been freed!";
 
 			if (ignore_err & DICT_ERR_IGNORE_INDEX_ROOT) {
@@ -1915,10 +1908,8 @@ corrupted:
 		} else if (!dict_index_is_clust(index)
 			   && NULL == dict_table_get_first_index(table)) {
 
-			ib::error() << "Trying to load index "
-				<< ut_get_name(NULL, FALSE, index->name)
-				<< " for table "
-				<< ut_get_name(NULL, TRUE, table->name)
+			ib::error() << "Trying to load index " << index->name
+				<< " for table " << table->name
 				<< ", but the first index is not clustered!";
 
 			goto corrupted;
@@ -1950,8 +1941,16 @@ next_rec:
 		btr_pcur_move_to_next_user_rec(&pcur, &mtr);
 	}
 
+	ut_ad(table->fts_doc_id_index == NULL);
+
+	if (table->fts != NULL) {
+		table->fts_doc_id_index = dict_table_get_index_on_name(
+			table, FTS_DOC_ID_INDEX_NAME);
+	}
+
 	/* If the table contains FTS indexes, populate table->fts->indexes */
 	if (dict_table_has_fts_index(table)) {
+		ut_ad(table->fts_doc_id_index != NULL);
 		/* table->fts->indexes should have been created. */
 		ut_a(table->fts->indexes != NULL);
 		dict_table_get_all_fts_indexes(table, table->fts->indexes);
@@ -2127,7 +2126,7 @@ dict_save_data_dir_path(
 
 	/* Be sure this filepath is not the default filepath. */
 	char*	default_filepath = fil_make_filepath(
-			NULL, table->name, IBD, false);
+			NULL, table->name.m_name, IBD, false);
 	if (default_filepath) {
 		if (0 != strcmp(filepath, default_filepath)) {
 			ulint pathlen = strlen(filepath);
@@ -2162,7 +2161,7 @@ dict_get_and_save_data_dir_path(
 
 		if (!path) {
 			path = dict_get_first_path(
-				table->space, table->name);
+				table->space, table->name.m_name);
 		}
 
 		if (path) {
@@ -2336,7 +2335,7 @@ err_exit:
 
 	char	table_name[MAX_FULL_NAME_LEN + 1];
 
-	innobase_format_name(table_name, sizeof(table_name), name, FALSE);
+	innobase_format_name(table_name, sizeof(table_name), name);
 
 	btr_pcur_close(&pcur);
 	mtr_commit(&mtr);
@@ -2345,8 +2344,8 @@ err_exit:
 		/* The system tablespace is always available. */
 	} else if (table->flags2 & DICT_TF2_DISCARDED) {
 
-		ib::warn() << "Table " << table_name
-			<< " tablespace is set as discarded.";
+		ib::warn() << "Tablespace for table " << table->name
+			<< " is set as discarded.";
 
 		table->ibd_file_missing = TRUE;
 
@@ -2376,14 +2375,14 @@ err_exit:
 				if (table->data_dir_path) {
 					filepath = fil_make_filepath(
 						table->data_dir_path,
-						table->name, IBD, true);
+						table->name.m_name, IBD, true);
 				}
 			}
 
 			/* Try to open the tablespace.  We set the
 			2nd param (fix_dict = false) here because we
 			do not have an x-lock on dict_operation_lock */
-			err = fil_open_single_table_tablespace(
+			err = fil_ibd_open(
 				true, false, FIL_TYPE_TABLESPACE,
 				table->space,
 				dict_tf_to_fsp_flags(table->flags),
@@ -2429,8 +2428,7 @@ err_exit:
 		cluster index */
 		if (!srv_load_corrupted) {
 
-			ib::error() << "Load table "
-				<< ut_get_name(NULL, TRUE, table->name)
+			ib::error() << "Load table " << table->name
 				<< " failed, the table has"
 				" corrupted clustered indexes. Turn on"
 				" 'innodb_force_load_corrupted' to drop it";
@@ -2458,13 +2456,13 @@ err_exit:
 	if (!cached || table->ibd_file_missing) {
 		/* Don't attempt to load the indexes from disk. */
 	} else if (err == DB_SUCCESS) {
-		err = dict_load_foreigns(table->name, NULL,
+		err = dict_load_foreigns(table->name.m_name, NULL,
 					 true, true,
 					 ignore_err, fk_tables);
 
 		if (err != DB_SUCCESS) {
-			ib::warn() << "Load table '" << table->name
-				<< "' failed, the table has missing"
+			ib::warn() << "Load table " << table->name
+				<< " failed, the table has missing"
 				" foreign key indexes. Turn off"
 				" 'foreign_key_checks' and try again.";
 

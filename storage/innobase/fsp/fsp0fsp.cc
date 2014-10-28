@@ -51,6 +51,7 @@ Created 11/29/1995 Heikki Tuuri
 #endif /* UNIV_HOTBACKUP */
 #include "dict0mem.h"
 #include "fsp0sysspace.h"
+#include "fsp0types.h"
 
 #ifndef UNIV_HOTBACKUP
 
@@ -204,14 +205,42 @@ fsp_get_space_header(
 	return(header);
 }
 
-/** Validate and return the tablespace flags, which are stored in the
-tablespace header at offset FSP_SPACE_FLAGS.  They should be 0 for
-ROW_FORMAT=COMPACT and ROW_FORMAT=REDUNDANT. The newer row formats,
-COMPRESSED and DYNAMIC, use a file format > Antelope so they should
-have a file format number plus the DICT_TF_COMPACT bit set.
+/** Convert a 32 bit integer tablespace flags to the 32 bit table flags.
+This can only be done for a tablespace that was built as a file-per-table
+tablespace. Note that the fsp_flags cannot show the difference between a
+Compact and Redundant table, so an extra Compact boolean must be supplied.
+			Low order bit
+		    | REDUNDANT | COMPACT | COMPRESSED | DYNAMIC
+fil_space_t::flags  |     0     |    0    |     1      |    1
+dict_table_t::flags |     0     |    1    |     1      |    1
+@param[in]	fsp_flags	fil_space_t::flags
+@param[in]	compact		true if not Redundant row format
+@return tablespace flags (fil_space_t::flags) */
+ulint
+fsp_flags_to_dict_tf(
+	ulint	fsp_flags,
+	bool	compact)
+{
+	/* If the table in this file-per-table tablespace is Compact
+	row format, the low order bit will not indicate Compact. */
+	bool	post_antelope	= FSP_FLAGS_GET_POST_ANTELOPE(fsp_flags);
+	ulint	zip_ssize	= FSP_FLAGS_GET_ZIP_SSIZE(fsp_flags);
+	bool	atomic_blobs	= FSP_FLAGS_HAS_ATOMIC_BLOBS(fsp_flags);
+	bool	data_dir	= FSP_FLAGS_HAS_DATA_DIR(fsp_flags);
 
-@param[in]	flags	tablespace flags
-@return true if check ok */
+	ulint	flags = dict_tf_init(post_antelope | compact, zip_ssize,
+				     atomic_blobs, data_dir);
+
+	return(flags);
+}
+
+/** Validate the tablespace flags.
+These flags are stored in the tablespace header at offset FSP_SPACE_FLAGS.
+They should be 0 for ROW_FORMAT=COMPACT and ROW_FORMAT=REDUNDANT.
+The newer row formats, COMPRESSED and DYNAMIC, use a file format > Antelope
+so they should have a file format number plus the DICT_TF_COMPACT bit set.
+@param[in]	flags	Tablespace flags
+@return true if valid, false if not */
 bool
 fsp_flags_is_valid(
 	ulint	flags)
@@ -224,46 +253,44 @@ fsp_flags_is_valid(
 
 	DBUG_EXECUTE_IF("fsp_flags_is_valid_failure", return(false););
 
-	/* fsp_flags is zero unless atomic_blobs is set.
-	Make sure there are no bits that we do not know about. */
-	if (unused != 0 || flags == 1) {
-		return(false);
-	} else if (post_antelope) {
-		/* The Antelope row formats REDUNDANT and COMPACT did
-		not use tablespace flags, so this flag and the entire
-		4-byte field is zero for Antelope row formats. */
-
-		if (!atomic_blobs) {
-			return(false);
-		}
+	/* The Antelope row formats REDUNDANT and COMPACT did
+	not use tablespace flags, so the entire 4-byte field
+	is zero for Antelope row formats. */
+	if (flags == 0) {
+		return(true);
 	}
 
-	if (!atomic_blobs) {
-		/* Barracuda row formats COMPRESSED and DYNAMIC build on
-		the page structure introduced for the COMPACT row format
-		by allowing long fields to be broken into prefix and
-		externally stored parts. */
-
-		if (post_antelope || zip_ssize != 0) {
-			return(false);
-		}
-
-	} else if (!post_antelope || zip_ssize > PAGE_ZIP_SSIZE_MAX) {
-		return(false);
-	} else if (page_ssize > UNIV_PAGE_SSIZE_MAX) {
-
-		/* The page size field can be used for any row type, or it may
-		be zero for an original 16k page size.
-		Validate the page shift size is within allowed range. */
-
+	/* Barracuda row formats COMPRESSED and DYNAMIC use a feature called
+	ATOMIC_BLOBS which builds on the page structure introduced for the
+	COMPACT row format by allowing long fields to be broken into prefix
+	and externally stored parts. So if it is Post_antelope, it uses
+	Atomic BLOBs. */
+	if (post_antelope != atomic_blobs) {
 		return(false);
 
-	} else if (UNIV_PAGE_SIZE != UNIV_PAGE_SIZE_ORIG && !page_ssize) {
+	/* Make sure there are no bits that we do not know about. */
+	if (unused != 0)
+		return(false);
+	}
+
+	/* The zip ssize can be zero if it is other than compressed row format,
+	or it could be from 1 to the max. */
+	if (zip_ssize > PAGE_ZIP_SSIZE_MAX) {
+		return(false);
+	}
+
+	/* The actual page size must be within 4k and 16K (3 =< ssize =< 5). */
+	if (page_ssize != 0
+	    && (page_ssize < UNIV_PAGE_SSIZE_MIN
+	        || page_ssize > UNIV_PAGE_SSIZE_MAX)) {
 		return(false);
 	}
 
 #if UNIV_FORMAT_MAX != UNIV_FORMAT_B
-# error "UNIV_FORMAT_MAX != UNIV_FORMAT_B, Add more validations."
+# error UNIV_FORMAT_MAX != UNIV_FORMAT_B, Add more validations.
+#endif
+#if FSP_FLAGS_POS_UNUSED != 11
+# error You have added a new FSP_FLAG without adding a validation check.
 #endif
 
 	/* The DATA_DIR field can be used for any row type so there is
@@ -712,14 +739,14 @@ fsp_space_modify_check(
 }
 # endif /* UNIV_DEBUG */
 
-/***********************************************************//**
-Inits a file page whose prior contents should be ignored. */
+/** Initialize a file page.
+@param[in,out]	block	file page
+@param[in,out]	mtr	mini-transaction */
 static
 void
 fsp_init_file_page(
-/*===============*/
-	buf_block_t*	block,	/*!< in: pointer to a page */
-	mtr_t*		mtr)	/*!< in/out: mini-transaction */
+	buf_block_t*	block,
+	mtr_t*		mtr)
 {
 	fsp_init_file_page_low(block);
 
@@ -844,7 +871,7 @@ fsp_header_init(
 			   space_id, header, mtr);
 
 	if (space_id == srv_sys_space.space_id()) {
-		btr_create(DICT_CLUSTERED | DICT_UNIVERSAL | DICT_IBUF,
+		btr_create(DICT_CLUSTERED | DICT_IBUF,
 			   0, univ_page_size, DICT_IBUF_ID_MIN + space_id,
 			   dict_ind_redundant, NULL, mtr);
 	}
@@ -2158,6 +2185,8 @@ fseg_create_general(
 	ulint		n_reserved;
 	ulint		i;
 
+	DBUG_ENTER("fseg_create_general");
+
 	ut_ad(mtr);
 	ut_ad(byte_offset + FSEG_HEADER_SIZE
 	      <= UNIV_PAGE_SIZE - FIL_PAGE_DATA_END);
@@ -2186,7 +2215,7 @@ fseg_create_general(
 		success = fsp_reserve_free_extents(&n_reserved, space_id, 2,
 						   FSP_NORMAL, mtr);
 		if (!success) {
-			return(NULL);
+			DBUG_RETURN(NULL);
 		}
 	}
 
@@ -2261,7 +2290,7 @@ funct_exit:
 		fil_space_release_free_extents(space_id, n_reserved);
 	}
 
-	return(block);
+	DBUG_RETURN(block);
 }
 
 /**********************************************************************//**
@@ -3399,6 +3428,8 @@ fseg_free_step(
 	ulint		space_id;
 	ulint		header_page;
 
+	DBUG_ENTER("fseg_free_step");
+
 	space_id = page_get_space_id(page_align(header));
 	header_page = page_get_page_no(page_align(header));
 
@@ -3418,7 +3449,7 @@ fseg_free_step(
 	if (inode == NULL) {
 		ib::info() << "Double free of inode from "
 			<< page_id_t(space_id, header_page);
-		return(TRUE);
+		DBUG_RETURN(TRUE);
 	}
 
 	descr = fseg_get_first_extent(inode, space_id, page_size, mtr);
@@ -3429,7 +3460,7 @@ fseg_free_step(
 
 		fseg_free_extent(inode, space_id, page_size, page, ahi, mtr);
 
-		return(FALSE);
+		DBUG_RETURN(FALSE);
 	}
 
 	/* Free a frag page */
@@ -3439,7 +3470,7 @@ fseg_free_step(
 		/* Freeing completed: free the segment inode */
 		fsp_free_seg_inode(space_id, page_size, inode, mtr);
 
-		return(TRUE);
+		DBUG_RETURN(TRUE);
 	}
 
 	fseg_free_page_low(
@@ -3453,10 +3484,10 @@ fseg_free_step(
 		/* Freeing completed: free the segment inode */
 		fsp_free_seg_inode(space_id, page_size, inode, mtr);
 
-		return(TRUE);
+		DBUG_RETURN(TRUE);
 	}
 
-	return(FALSE);
+	DBUG_RETURN(FALSE);
 }
 
 /**********************************************************************//**
@@ -3764,3 +3795,26 @@ fseg_print(
 }
 #endif /* UNIV_BTR_PRINT */
 #endif /* !UNIV_HOTBACKUP */
+
+#ifdef UNIV_DEBUG
+/** Print the file segment header to the given output stream.
+@param[in]	out	the output stream into which the object is printed.
+@retval	the output stream into which the object was printed. */
+std::ostream&
+fseg_header::to_stream(std::ostream&	out) const
+{
+	const ulint	space = mtr_read_ulint(m_header + FSEG_HDR_SPACE,
+					       MLOG_4BYTES, m_mtr);
+
+	const ulint	page_no = mtr_read_ulint(m_header + FSEG_HDR_PAGE_NO,
+						 MLOG_4BYTES, m_mtr);
+
+	const ulint	offset = mtr_read_ulint(m_header + FSEG_HDR_OFFSET,
+						 MLOG_2BYTES, m_mtr);
+
+	out << "[fseg_header_t: space=" << space << ", page="
+		<< page_no << ", offset=" << offset << "]";
+
+	return(out);
+}
+#endif /* UNIV_DEBUG */

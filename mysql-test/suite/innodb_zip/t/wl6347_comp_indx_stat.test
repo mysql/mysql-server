@@ -1,17 +1,18 @@
-#******************************************************************
-# test the interaction between wl6347 & wl6344 (2.1)
-# This testcase is to verify the table/idex level comoression stats
-# When the flags are set as follows
-# innodb_cmp_per_index_enabled=ON and innodb_compression_level=0
-# page size 1K,2K,4K,8K,16K
-# check the size and compression stats of the table tab5
-#******************************************************************
+--echo #******************************************************************
+--echo # Test 1: Test the interaction between stats and compression level
+--echo #         and logging of compressed pages configuration
+--echo # This testcase is to verify the table/idex level compression stats
+--echo # When the flags are set as follows
+--echo # innodb_cmp_per_index_enabled=ON and innodb_compression_level=0
+--echo # page size 1K,2K,4K,8K,16K
+--echo # check the size and compression stats of the table tab5
+--echo #******************************************************************
 
 # This test case needs InnoDB.
 -- source include/have_innodb.inc
 -- source include/not_embedded.inc
 -- source include/have_innodb_16k.inc
--- source include/not_valgrind.inc
+-- source include/no_valgrind_without_big.inc
 
 -- vertical_results
 
@@ -24,10 +25,9 @@ SET GLOBAL innodb_file_format='barracuda';
 SET GLOBAL innodb_cmp_per_index_enabled=ON;
 SET GLOBAL innodb_compression_level=0;
 
-#******************************************************************
-# innodb_cmp_per_index_enabled=ON and innodb_compression_level=0
-# with page size 1K
-#******************************************************************
+--echo #******************************************************************
+--echo # Test 1-1K: innodb_cmp_per_index_enabled=ON and innodb_compression_level=0 with page size 1K
+--echo #******************************************************************
 
 --echo # create a table with page size=1K
 --echo # create indexes on each column.(total 9 indexes)
@@ -62,7 +62,6 @@ SET @inl_val=2;
 SET @inl_val=2;
 --source suite/innodb_zip/include/innodb_stats_comp_index.inc
 
---echo # Restarting server
 -- source include/restart_mysqld.inc
 
 --echo # set the flag on (default off)
@@ -85,12 +84,11 @@ SET @uncomp_val=1;
 
 DROP TABLE tab5;
 
-#******************************************************************
-# innodb_cmp_per_index_enabled=ON and innodb_compression_level=0
-# with page size 2K
-#******************************************************************
+--echo #******************************************************************
+--echo # Test 1-2K: innodb_cmp_per_index_enabled=ON and innodb_compression_level=0 with page size 2K
+--echo #******************************************************************
 
---echo #reset the stat table before starting next testcase
+--echo # reset the stat table before starting next testcase
 SET GLOBAL innodb_cmp_per_index_enabled=0;
 SET GLOBAL innodb_cmp_per_index_enabled=1;
 
@@ -104,7 +102,7 @@ SET @inl_val=1;
 --source suite/innodb_zip/include/innodb_stats_comp_index.inc
 
 --echo # for determintic resons simple data should be inserted.
---echo #insert some 100 records
+--echo # insert some 100 records
 let $i = 100;
 --source suite/innodb_zip/include/innodb_load_data.inc
 
@@ -127,7 +125,6 @@ SET @inl_val=2;
 SET @inl_val=2;
 --source suite/innodb_zip/include/innodb_stats_comp_index.inc
 
---echo # Restarting server
 -- source include/restart_mysqld.inc
 
 --echo # set the flag on (default off)
@@ -150,12 +147,11 @@ SET @uncomp_val=2;
 
 DROP TABLE tab5;
 
-#******************************************************************
-# innodb_cmp_per_index_enabled=ON and innodb_compression_level=0
-#  with page size 4K
-#******************************************************************
+--echo #******************************************************************
+--echo # Test 1-4K: innodb_cmp_per_index_enabled=ON and innodb_compression_level=0 with page size 4K
+--echo #******************************************************************
 
---echo #reset the stat table before starting next testcase
+--echo # reset the stat table before starting next testcase
 SET GLOBAL innodb_cmp_per_index_enabled=0;
 SET GLOBAL innodb_cmp_per_index_enabled=1;
 
@@ -169,7 +165,7 @@ SET @inl_val=1;
 --source suite/innodb_zip/include/innodb_stats_comp_index.inc
 
 --echo # for determintic resons simple data should be inserted.
---echo #insert some 100 records
+--echo # insert some 100 records
 let $i = 100;
 --source suite/innodb_zip/include/innodb_load_data.inc
 
@@ -194,12 +190,11 @@ SET @inl_val=1;
 
 DROP TABLE tab5;
 
-#******************************************************************
-# innodb_cmp_per_index_enabled=ON and innodb_compression_level=0
-#  with page size 8K
-#******************************************************************
+--echo #******************************************************************
+--echo # Test 1-8K: innodb_cmp_per_index_enabled=ON and innodb_compression_level=0 with page size 8K
+--echo #******************************************************************
 
---echo #reset the stat table before starting next testcase
+--echo # reset the stat table before starting next testcase
 SET GLOBAL innodb_cmp_per_index_enabled=0;
 SET GLOBAL innodb_cmp_per_index_enabled=1;
 
@@ -213,7 +208,7 @@ SET @inl_val=1;
 --source suite/innodb_zip/include/innodb_stats_comp_index.inc
 
 --echo # for determintic resons simple data should be inserted.
---echo #insert some 100 records
+--echo # insert some 100 records
 let $i = 100;
 --source suite/innodb_zip/include/innodb_load_data.inc
 
@@ -238,12 +233,11 @@ SET @inl_val=1;
 
 DROP TABLE tab5;
 
-#******************************************************************
-# innodb_cmp_per_index_enabled=ON and innodb_compression_level=0
-#  with page size 16K
-#******************************************************************
+--echo #******************************************************************
+--echo # Test 1-16K: innodb_cmp_per_index_enabled=ON and innodb_compression_level=0 with page size 16K
+--echo #******************************************************************
 
---echo #reset the stat table before starting next testcase
+--echo # reset the stat table before starting next testcase
 SET GLOBAL innodb_cmp_per_index_enabled=0;
 SET GLOBAL innodb_cmp_per_index_enabled=1;
 
@@ -257,7 +251,7 @@ SET @inl_val=1;
 --source suite/innodb_zip/include/innodb_stats_comp_index.inc
 
 --echo # for determintic resons simple data should be inserted.
---echo #insert some 100 records
+--echo # insert some 100 records
 let $i = 100;
 --source suite/innodb_zip/include/innodb_load_data.inc
 
@@ -282,16 +276,16 @@ SET @inl_val=1;
 
 DROP TABLE tab5;
 
-#******************************************************************
-# test the interaction between wl6347 & wl6344 (2.2)
-# This testcase is to verify the table/idex level comoression stats
-# When the flags are set as follows
-# innodb_cmp_per_index_enabled=ON and innodb_compression_level=9
-# page size 1K,2K,4K,8K,16K
-# check the size and compression stats of the table tab5
-#******************************************************************
+--echo #******************************************************************
+--echo # Test 2: test the interaction between wl6347 & wl6344 (2.2)
+--echo # This testcase is to verify the table/idex level compression stats
+--echo # When the flags are set as follows
+--echo # innodb_cmp_per_index_enabled=ON and innodb_compression_level=9
+--echo # page size 1K,2K,4K,8K,16K
+--echo # check the size and compression stats of the table tab5
+--echo #******************************************************************
 
---echo #reset the stat table before starting next testcase
+--echo # reset the stat table before starting next testcase
 SET GLOBAL innodb_cmp_per_index_enabled=0;
 SET GLOBAL innodb_cmp_per_index_enabled=1;
 
@@ -301,10 +295,9 @@ SET GLOBAL innodb_file_format='barracuda';
 SET GLOBAL innodb_compression_level=9;
 
 
-#******************************************************************
-# innodb_cmp_per_index_enabled=ON and innodb_compression_level=9
-#  with page size 1K
-#******************************************************************
+--echo #******************************************************************
+--echo # Test 2-1K: innodb_cmp_per_index_enabled=ON and innodb_compression_level=9 with page size 1K
+--echo #******************************************************************
 
 --echo # create a table with page size=1K
 --echo # create indexes on each column.(total 9 indexes)
@@ -317,7 +310,7 @@ SET @inl_val=1;
 --source suite/innodb_zip/include/innodb_stats_comp_index.inc
 
 --echo # for determintic resons simple data should be inserted.
---echo #insert some 100 records
+--echo # insert some 100 records
 let $i = 100;
 --source suite/innodb_zip/include/innodb_load_data.inc
 
@@ -341,7 +334,6 @@ SET @inl_val=2;
 SET @inl_val=2;
 --source suite/innodb_zip/include/innodb_stats_comp_index.inc
 
---echo # Restarting server
 -- source include/restart_mysqld.inc
 
 --echo # set the flag on (default off)
@@ -365,12 +357,11 @@ SET @uncomp_val=1;
 
 DROP TABLE tab5;
 
-#******************************************************************
-# innodb_cmp_per_index_enabled=ON and innodb_compression_level=9
-#  with page size 2K
-#******************************************************************
+--echo #******************************************************************
+--echo # Test 2-2K: innodb_cmp_per_index_enabled=ON and innodb_compression_level=9 with page size 2K
+--echo #******************************************************************
 
---echo #reset the stat table before starting next testcase
+--echo # reset the stat table before starting next testcase
 SET GLOBAL innodb_cmp_per_index_enabled=OFF;
 SET GLOBAL innodb_cmp_per_index_enabled=ON;
 
@@ -385,7 +376,7 @@ SET @inl_val=1;
 --source suite/innodb_zip/include/innodb_stats_comp_index.inc
 
 --echo # for determintic resons simple data should be inserted.
---echo #insert some 100 records
+--echo # insert some 100 records
 let $i = 100;
 --source suite/innodb_zip/include/innodb_load_data.inc
 
@@ -409,7 +400,6 @@ SET @inl_val=2;
 SET @inl_val=2;
 --source suite/innodb_zip/include/innodb_stats_comp_index.inc
 
---echo # Restarting server
 -- source include/restart_mysqld.inc
 
 --echo # set the flag on (default off)
@@ -433,12 +423,11 @@ SET @uncomp_val=1;
 
 DROP TABLE tab5;
 
-#******************************************************************
-# innodb_cmp_per_index_enabled=ON and innodb_compression_level=9
-#  with page size 4K
-#******************************************************************
+--echo #******************************************************************
+--echo # Test 2-4K: innodb_cmp_per_index_enabled=ON and innodb_compression_level=9 with page size 4K
+--echo #******************************************************************
 
---echo #reset the stat table before starting next testcase
+--echo # reset the stat table before starting next testcase
 SET GLOBAL innodb_cmp_per_index_enabled=OFF;
 SET GLOBAL innodb_cmp_per_index_enabled=ON;
 
@@ -453,7 +442,7 @@ SET @inl_val=1;
 --source suite/innodb_zip/include/innodb_stats_comp_index.inc
 
 --echo # for determintic resons simple data should be inserted.
---echo #insert some 100 records
+--echo # insert some 100 records
 let $i = 100;
 --source suite/innodb_zip/include/innodb_load_data.inc
 
@@ -479,12 +468,11 @@ SET @inl_val=1;
 
 DROP TABLE tab5;
 
-#******************************************************************
-# innodb_cmp_per_index_enabled=ON and innodb_compression_level=9
-#  with page size 8K
-#******************************************************************
+--echo #******************************************************************
+--echo # Test 2-8K: innodb_cmp_per_index_enabled=ON and innodb_compression_level=9 with page size 8K
+--echo #******************************************************************
 
---echo #reset the stat table before starting next testcase
+--echo # reset the stat table before starting next testcase
 SET GLOBAL innodb_cmp_per_index_enabled=OFF;
 SET GLOBAL innodb_cmp_per_index_enabled=ON;
 
@@ -499,7 +487,7 @@ SET @inl_val=1;
 --source suite/innodb_zip/include/innodb_stats_comp_index.inc
 
 --echo # for determintic resons simple data should be inserted.
---echo #insert some 100 records
+--echo # insert some 100 records
 let $i = 100;
 --source suite/innodb_zip/include/innodb_load_data.inc
 
@@ -525,12 +513,11 @@ SET @inl_val=1;
 
 DROP TABLE tab5;
 
-#******************************************************************
-# innodb_cmp_per_index_enabled=ON and innodb_compression_level=9
-#  with page size 16K
-#******************************************************************
+--echo #******************************************************************
+--echo # Test 2-16K: innodb_cmp_per_index_enabled=ON and innodb_compression_level=9 with page size 16K
+--echo #******************************************************************
 
---echo #reset the stat table before starting next testcase
+--echo # reset the stat table before starting next testcase
 SET GLOBAL innodb_cmp_per_index_enabled=OFF;
 SET GLOBAL innodb_cmp_per_index_enabled=ON;
 
@@ -545,7 +532,7 @@ SET @inl_val=1;
 --source suite/innodb_zip/include/innodb_stats_comp_index.inc
 
 --echo # for determintic resons simple data should be inserted.
---echo #insert some 100 records
+--echo # insert some 100 records
 let $i = 100;
 --source suite/innodb_zip/include/innodb_load_data.inc
 
@@ -571,23 +558,21 @@ SET @inl_val=1;
 
 DROP TABLE tab5;
 
-#******************************************************************
-# test the interaction between wl6347 & wl6344 (2.3)
-# This testcase is to verify the table/idex level comoression stats
-# When the flags are set as follows
-# innodb_cmp_per_index_enabled=ON and
-# innodb_compression_level=6 (default)
-# page size 1K,2K,4K,8K,16K
-# check the size and compression stats of the table tab5
-#******************************************************************
+--echo #******************************************************************
+--echo # Test 3: test the interaction between wl6347 & wl6344 (2.3)
+--echo # This testcase is to verify the table/idex level compression stats
+--echo # When the flags are set as follows
+--echo # innodb_cmp_per_index_enabled=ON and
+--echo # innodb_compression_level=6 (default)
+--echo # page size 1K,2K,4K,8K,16K
+--echo # check the size and compression stats of the table tab5
+--echo #******************************************************************
 
-#******************************************************************
-# innodb_cmp_per_index_enabled=ON and innodb_compression_level=Def
-#  with page size 1K
-#******************************************************************
+--echo #******************************************************************
+--echo # Test 3-1K: innodb_cmp_per_index_enabled=ON and innodb_compression_level=Def with page size 1K
+--echo #******************************************************************
 
-
---echo #reset the stat table before starting next testcase
+--echo # reset the stat table before starting next testcase
 SET GLOBAL innodb_cmp_per_index_enabled=OFF;
 SET GLOBAL innodb_cmp_per_index_enabled=ON;
 
@@ -604,7 +589,7 @@ SET @inl_val=1;
 --source suite/innodb_zip/include/innodb_stats_comp_index.inc
 
 --echo # for determintic resons simple data should be inserted.
---echo #insert some 100 records
+--echo # insert some 100 records
 let $i = 100;
 --source suite/innodb_zip/include/innodb_load_data.inc
 
@@ -630,20 +615,19 @@ SET @inl_val=2;
 
 DROP TABLE tab5;
 
-#******************************************************************
-# innodb_cmp_per_index_enabled=ON and innodb_compression_level=Def
-#  with page size 4K
-#******************************************************************
+--echo #******************************************************************
+--echo # Test 3-2K: innodb_cmp_per_index_enabled=ON and innodb_compression_level=Def with page size 2K
+--echo #******************************************************************
 
---echo #reset the stat table before starting next testcase
+--echo # reset the stat table before starting next testcase
 SET GLOBAL innodb_cmp_per_index_enabled=OFF;
 SET GLOBAL innodb_cmp_per_index_enabled=ON;
 
 SET GLOBAL innodb_compression_level=default;
 
---echo # create a table with page size=4K
+--echo # create a table with page size=2K
 --echo # create indexes on each column.(total 9 indexes)
-let $block_size=4;
+let $block_size=2;
 --source suite/innodb_zip/include/innodb_create_tab_indx.inc
 
 --echo # check the stats of the table & size of the table
@@ -652,7 +636,7 @@ SET @inl_val=1;
 --source suite/innodb_zip/include/innodb_stats_comp_index.inc
 
 --echo # for determintic resons simple data should be inserted.
---echo #insert some 100 records
+--echo # insert some 100 records
 let $i = 100;
 --source suite/innodb_zip/include/innodb_load_data.inc
 
@@ -670,12 +654,50 @@ SET @inl_val=1;
 
 DROP TABLE tab5;
 
-#******************************************************************
-# innodb_cmp_per_index_enabled=ON and innodb_compression_level=Def
-#  with page size 8K
-#******************************************************************
+--echo #******************************************************************
+--echo # Test 3-4K: innodb_cmp_per_index_enabled=ON and innodb_compression_level=Def with page size 4K
+--echo #******************************************************************
 
---echo #reset the stat table before starting next testcase
+--echo # reset the stat table before starting next testcase
+SET GLOBAL innodb_cmp_per_index_enabled=OFF;
+SET GLOBAL innodb_cmp_per_index_enabled=ON;
+
+SET GLOBAL innodb_compression_level=default;
+
+--echo # create a table with page size=4K
+--echo # create indexes on each column.(total 9 indexes)
+let $block_size=4;
+--source suite/innodb_zip/include/innodb_create_tab_indx.inc
+
+--echo # check the stats of the table & size of the table
+--echo # The size of the file with 0 compress = 65536
+SET @inl_val=1;
+--source suite/innodb_zip/include/innodb_stats_comp_index.inc
+
+--echo # for determintic resons simple data should be inserted.
+--echo # insert some 100 records
+let $i = 100;
+--source suite/innodb_zip/include/innodb_load_data.inc
+
+--echo # check the stats of the table & size of the table
+--echo # The size of the file with 0 compress = 86016
+SET @inl_val=1;
+--source suite/innodb_zip/include/innodb_stats_comp_index.inc
+
+--echo # fetch the compressed page and check the stats
+--source suite/innodb_zip/include/innodb_fetch_records.inc
+
+--echo # check the stats of the table & size of the table
+SET @inl_val=1;
+--source suite/innodb_zip/include/innodb_stats_comp_index.inc
+
+DROP TABLE tab5;
+
+--echo #******************************************************************
+--echo # Test 3-8K: innodb_cmp_per_index_enabled=ON and innodb_compression_level=Def with page size 8K
+--echo #******************************************************************
+
+--echo # reset the stat table before starting next testcase
 SET GLOBAL innodb_cmp_per_index_enabled=OFF;
 SET GLOBAL innodb_cmp_per_index_enabled=ON;
 
@@ -692,7 +714,7 @@ SET @inl_val=1;
 --source suite/innodb_zip/include/innodb_stats_comp_index.inc
 
 --echo # for determintic resons simple data should be inserted.
---echo #insert some 100 records
+--echo # insert some 100 records
 let $i = 100;
 --source suite/innodb_zip/include/innodb_load_data.inc
 
@@ -710,12 +732,11 @@ SET @inl_val=1;
 
 DROP TABLE tab5;
 
-#******************************************************************
-# innodb_cmp_per_index_enabled=ON and innodb_compression_level=Def
-#  with page size 16K
-#******************************************************************
+--echo #******************************************************************
+--echo # Test 3-16K: innodb_cmp_per_index_enabled=ON and innodb_compression_level=Def with page size 16K
+--echo #******************************************************************
 
---echo #reset the stat table before starting next testcase
+--echo # reset the stat table before starting next testcase
 SET GLOBAL innodb_cmp_per_index_enabled=OFF;
 SET GLOBAL innodb_cmp_per_index_enabled=ON;
 
@@ -732,7 +753,7 @@ SET @inl_val=1;
 --source suite/innodb_zip/include/innodb_stats_comp_index.inc
 
 --echo # for determintic resons simple data should be inserted.
---echo #insert some 100 records
+--echo # insert some 100 records
 let $i = 100;
 --source suite/innodb_zip/include/innodb_load_data.inc
 
@@ -750,17 +771,17 @@ SET @inl_val=1;
 
 DROP TABLE tab5;
 
-#******************************************************************
-# Test the interaction between wl6347 & wl6344 (2.5 & 2.6)
-# This testcase is to verify the table/idex level comoression stats
-# When the flags are set as follows
-# innodb_cmp_per_index_enabled=ON and
-# Innodb_compression_failure_threshold_pct=0
-# page size 1K,2K,4K,8K,16K
-# check the size and compression stats of the table tab5
-#******************************************************************
+--echo #******************************************************************
+--echo # Test 4: test the interaction between wl6347 & wl6344 (2.5 & 2.6)
+--echo # This testcase is to verify the table/idex level compression stats
+--echo # When the flags are set as follows
+--echo # innodb_cmp_per_index_enabled=ON and
+--echo # Innodb_compression_failure_threshold_pct=0
+--echo # page size 1K,2K,4K,8K,16K
+--echo # check the size and compression stats of the table tab5
+--echo #******************************************************************
 
---echo #reset the stat table before starting next testcase
+--echo # reset the stat table before starting next testcase
 SET GLOBAL innodb_cmp_per_index_enabled=OFF;
 SET GLOBAL innodb_cmp_per_index_enabled=ON;
 
@@ -775,11 +796,9 @@ SELECT @@innodb_file_format;
 SELECT @@innodb_file_per_table;
 SELECT @@innodb_compression_level;
 
-
-#******************************************************************
-# innodb_cmp_per_index_enabled=ON and
-# Innodb_compression_failure_threshold_pct=0 with page size 1K
-#******************************************************************
+--echo #******************************************************************
+--echo # Test 4-1K: innodb_cmp_per_index_enabled=ON and Innodb_compression_failure_threshold_pct=0 with page size 1K
+--echo #******************************************************************
 
 --echo # create a table with page size=1K
 --echo # create indexes on each column.(total 9 indexes)
@@ -791,7 +810,7 @@ SET @inl_val=1;
 --source suite/innodb_zip/include/innodb_stats_comp_index.inc
 
 --echo # for determintic resons simple data should be inserted.
---echo #insert some 100 records
+--echo # insert some 100 records
 let $i = 100;
 --source suite/innodb_zip/include/innodb_load_data.inc
 
@@ -814,7 +833,6 @@ SET @inl_val=2;
 SET @inl_val=2;
 --source suite/innodb_zip/include/innodb_stats_comp_index.inc
 
---echo # Restarting server
 -- source include/restart_mysqld.inc
 
 --echo # set the flag on (default off)
@@ -838,12 +856,11 @@ SET @uncomp_val=1;
 
 DROP TABLE tab5;
 
-#******************************************************************
-# innodb_cmp_per_index_enabled=ON and
-# Innodb_compression_failure_threshold_pct=0 with page size 2K
-#******************************************************************
+--echo #******************************************************************
+--echo # Test 4-2K: innodb_cmp_per_index_enabled=ON and Innodb_compression_failure_threshold_pct=0 with page size 2K
+--echo #******************************************************************
 
---echo #reset the stat table before starting next testcase
+--echo # reset the stat table before starting next testcase
 SET GLOBAL innodb_cmp_per_index_enabled=OFF;
 SET GLOBAL innodb_cmp_per_index_enabled=ON;
 
@@ -857,7 +874,7 @@ SET @inl_val=1;
 --source suite/innodb_zip/include/innodb_stats_comp_index.inc
 
 --echo # for determintic resons simple data should be inserted.
---echo #insert some 100 records
+--echo # insert some 100 records
 let $i = 100;
 --source suite/innodb_zip/include/innodb_load_data.inc
 
@@ -882,12 +899,11 @@ SET @inl_val=2;
 
 DROP TABLE tab5;
 
-#******************************************************************
-# innodb_cmp_per_index_enabled=ON and
-# Innodb_compression_failure_threshold_pct=0 with page size 4K
-#******************************************************************
+--echo #******************************************************************
+--echo # Test 4-4K: innodb_cmp_per_index_enabled=ON and Innodb_compression_failure_threshold_pct=0 with page size 4K
+--echo #******************************************************************
 
---echo #reset the stat table before starting next testcase
+--echo # reset the stat table before starting next testcase
 SET GLOBAL innodb_cmp_per_index_enabled=OFF;
 SET GLOBAL innodb_cmp_per_index_enabled=ON;
 
@@ -901,7 +917,7 @@ SET @inl_val=1;
 --source suite/innodb_zip/include/innodb_stats_comp_index.inc
 
 --echo # for determintic resons simple data should be inserted.
---echo #insert some 100 records
+--echo # insert some 100 records
 let $i = 100;
 --source suite/innodb_zip/include/innodb_load_data.inc
 
@@ -926,12 +942,11 @@ SET @inl_val=1;
 
 DROP TABLE tab5;
 
-#******************************************************************
-# innodb_cmp_per_index_enabled=ON and
-# Innodb_compression_failure_threshold_pct=0 with page size 8K
-#******************************************************************
+--echo #******************************************************************
+--echo # Test 4-8K: innodb_cmp_per_index_enabled=ON and Innodb_compression_failure_threshold_pct=0 with page size 8K
+--echo #******************************************************************
 
---echo #reset the stat table before starting next testcase
+--echo # reset the stat table before starting next testcase
 SET GLOBAL innodb_cmp_per_index_enabled=OFF;
 SET GLOBAL innodb_cmp_per_index_enabled=ON;
 
@@ -945,7 +960,7 @@ SET @inl_val=1;
 --source suite/innodb_zip/include/innodb_stats_comp_index.inc
 
 --echo # for determintic resons simple data should be inserted.
---echo #insert some 100 records
+--echo # insert some 100 records
 let $i = 100;
 --source suite/innodb_zip/include/innodb_load_data.inc
 
@@ -970,12 +985,11 @@ SET @inl_val=1;
 
 DROP TABLE tab5;
 
-#******************************************************************
-# innodb_cmp_per_index_enabled=ON and
-# Innodb_compression_failure_threshold_pct=0 with page size 16K
-#******************************************************************
+--echo #******************************************************************
+--echo # Test 4-16K: innodb_cmp_per_index_enabled=ON and Innodb_compression_failure_threshold_pct=0 with page size 16K
+--echo #******************************************************************
 
---echo #reset the stat table before starting next testcase
+--echo # reset the stat table before starting next testcase
 SET GLOBAL innodb_cmp_per_index_enabled=OFF;
 SET GLOBAL innodb_cmp_per_index_enabled=ON;
 
@@ -989,7 +1003,7 @@ SET @inl_val=1;
 --source suite/innodb_zip/include/innodb_stats_comp_index.inc
 
 --echo # for determintic resons simple data should be inserted.
---echo #insert some 100 records
+--echo # insert some 100 records
 let $i = 100;
 --source suite/innodb_zip/include/innodb_load_data.inc
 
@@ -1014,17 +1028,17 @@ SET @inl_val=1;
 
 DROP TABLE tab5;
 
-#******************************************************************
-# Test the interaction between wl6347 & wl6344 (2.7)
-# This testcase is to verify the table/idex level comoression stats
-# When the flags are set as follows
-# innodb_cmp_per_index_enabled=ON and
-# Innodb_compression_failure_threshold_pct=10
-# page size 1K,2K,4K,8K,16K
-# check the size and compression stats of the table tab5
-#******************************************************************
+--echo #******************************************************************
+--echo # Test 5: test the interaction between wl6347 & wl6344 (2.7)
+--echo # This testcase is to verify the table/idex level compression stats
+--echo # When the flags are set as follows
+--echo # innodb_cmp_per_index_enabled=ON and
+--echo # Innodb_compression_failure_threshold_pct=10
+--echo # page size 1K,2K,4K,8K,16K
+--echo # check the size and compression stats of the table tab5
+--echo #******************************************************************
 
---echo #reset the stat table before starting next testcase
+--echo # reset the stat table before starting next testcase
 SET GLOBAL innodb_cmp_per_index_enabled=OFF;
 SET GLOBAL innodb_cmp_per_index_enabled=ON;
 
@@ -1043,10 +1057,9 @@ SELECT @@innodb_file_format;
 SELECT @@innodb_file_per_table;
 SELECT @@innodb_compression_level;
 
-#******************************************************************
-# innodb_cmp_per_index_enabled=ON and
-# Innodb_compression_failure_threshold_pct=10 with page size 1K
-#******************************************************************
+--echo #******************************************************************
+--echo # Test 5-1K: innodb_cmp_per_index_enabled=ON and Innodb_compression_failure_threshold_pct=10 with page size 1K
+--echo #******************************************************************
 
 --echo # create a table with page size=1K
 --echo # create indexes on each column.(total 9 indexes)
@@ -1058,7 +1071,7 @@ SET @inl_val=1;
 --source suite/innodb_zip/include/innodb_stats_comp_index.inc
 
 --echo # for determintic resons simple data should be inserted.
---echo #insert some 100 records
+--echo # insert some 100 records
 let $i = 100;
 --source suite/innodb_zip/include/innodb_load_data.inc
 
@@ -1081,7 +1094,6 @@ SET @inl_val=2;
 SET @inl_val=2;
 --source suite/innodb_zip/include/innodb_stats_comp_index.inc
 
---echo # Restarting server
 -- source include/restart_mysqld.inc
 
 --echo # set the flag on (default off)
@@ -1106,12 +1118,11 @@ SET @uncomp_val=1;
 
 DROP TABLE tab5;
 
-#******************************************************************
-# innodb_cmp_per_index_enabled=ON and
-# Innodb_compression_failure_threshold_pct=10 with page size 2K
-#******************************************************************
+--echo #******************************************************************
+--echo # Test 5-2K: innodb_cmp_per_index_enabled=ON and Innodb_compression_failure_threshold_pct=10 with page size 2K
+--echo #******************************************************************
 
---echo #reset the stat table before starting next testcase
+--echo # reset the stat table before starting next testcase
 SET GLOBAL innodb_cmp_per_index_enabled=OFF;
 SET GLOBAL innodb_cmp_per_index_enabled=ON;
 SET GLOBAL innodb_compression_failure_threshold_pct=10;
@@ -1126,7 +1137,7 @@ SET @inl_val=1;
 --source suite/innodb_zip/include/innodb_stats_comp_index.inc
 
 --echo # for determintic resons simple data should be inserted.
---echo #insert some 100 records
+--echo # insert some 100 records
 let $i = 100;
 --source suite/innodb_zip/include/innodb_load_data.inc
 
@@ -1151,12 +1162,11 @@ SET @inl_val=2;
 
 DROP TABLE tab5;
 
-#******************************************************************
-# innodb_cmp_per_index_enabled=ON and
-# Innodb_compression_failure_threshold_pct=10 with page size 4K
-#******************************************************************
+--echo #******************************************************************
+--echo # Test 5-4K: innodb_cmp_per_index_enabled=ON and Innodb_compression_failure_threshold_pct=10 with page size 4K
+--echo #******************************************************************
 
---echo #reset the stat table before starting next testcase
+--echo # reset the stat table before starting next testcase
 SET GLOBAL innodb_cmp_per_index_enabled=OFF;
 SET GLOBAL innodb_cmp_per_index_enabled=ON;
 
@@ -1170,7 +1180,7 @@ SET @inl_val=1;
 --source suite/innodb_zip/include/innodb_stats_comp_index.inc
 
 --echo # for determintic resons simple data should be inserted.
---echo #insert some 100 records
+--echo # insert some 100 records
 let $i = 100;
 --source suite/innodb_zip/include/innodb_load_data.inc
 
@@ -1195,12 +1205,11 @@ SET @inl_val=1;
 
 DROP TABLE tab5;
 
-#******************************************************************
-# innodb_cmp_per_index_enabled=ON and
-# Innodb_compression_failure_threshold_pct=10 with page size 8K
-#******************************************************************
+--echo #******************************************************************
+--echo # Test 5-8K: innodb_cmp_per_index_enabled=ON and Innodb_compression_failure_threshold_pct=10 with page size 8K
+--echo #******************************************************************
 
---echo #reset the stat table before starting next testcase
+--echo # reset the stat table before starting next testcase
 SET GLOBAL innodb_cmp_per_index_enabled=OFF;
 SET GLOBAL innodb_cmp_per_index_enabled=ON;
 SET GLOBAL innodb_compression_failure_threshold_pct=10;
@@ -1215,7 +1224,7 @@ SET @inl_val=1;
 --source suite/innodb_zip/include/innodb_stats_comp_index.inc
 
 --echo # for determintic resons simple data should be inserted.
---echo #insert some 100 records
+--echo # insert some 100 records
 let $i = 100;
 --source suite/innodb_zip/include/innodb_load_data.inc
 
@@ -1240,12 +1249,11 @@ SET @inl_val=1;
 
 DROP TABLE tab5;
 
-#******************************************************************
-# innodb_cmp_per_index_enabled=ON and
-# Innodb_compression_failure_threshold_pct=10 with page size 16K
-#******************************************************************
+--echo #******************************************************************
+--echo # Test 5-16K: innodb_cmp_per_index_enabled=ON and Innodb_compression_failure_threshold_pct=10 with page size 16K
+--echo #******************************************************************
 
---echo #reset the stat table before starting next testcase
+--echo # reset the stat table before starting next testcase
 SET GLOBAL innodb_cmp_per_index_enabled=OFF;
 SET GLOBAL innodb_cmp_per_index_enabled=ON;
 
@@ -1259,7 +1267,7 @@ SET @inl_val=1;
 --source suite/innodb_zip/include/innodb_stats_comp_index.inc
 
 --echo # for determintic resons simple data should be inserted.
---echo #insert some 100 records
+--echo # insert some 100 records
 let $i = 100;
 --source suite/innodb_zip/include/innodb_load_data.inc
 
@@ -1284,12 +1292,12 @@ SET @inl_val=1;
 
 DROP TABLE tab5;
 
-#******************************************************************
-# Create multiple tables & indexes having same name in 2 diff DB's
-# Check the stats of the table. (1.1)
-#******************************************************************
+--echo #******************************************************************
+--echo # Test 6: Create multiple tables & indexes having same name in 2 diff DB's
+--echo # Check the stats of the table. (1.1)
+--echo #******************************************************************
 
---echo #reset the stat table before starting next testcase
+--echo # reset the stat table before starting next testcase
 SET GLOBAL innodb_cmp_per_index_enabled=0;
 SET GLOBAL innodb_cmp_per_index_enabled=1;
 
@@ -1299,7 +1307,7 @@ SET GLOBAL innodb_compression_level=default;
 SET GLOBAL innodb_compression_failure_threshold_pct=default;
 
 
---echo #create a table page size=1K
+--echo # create a table page size=1K
 CREATE TABLE tab5(col_1 TINYBLOB, col_2 TINYTEXT,col_3 BLOB,
 col_4 TEXT,col_5 MEDIUMBLOB,col_6 MEDIUMTEXT,
 col_7 LONGBLOB,col_8 LONGTEXT,col_9 VARCHAR(255))
@@ -1307,7 +1315,7 @@ ENGINE=INNODB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=1;
 
 CREATE INDEX idx1 ON tab5(col_1(10));
 
---echo #check the stats of the table
+--echo # check the stats of the table
 SELECT database_name,table_name,index_name,compress_ops,compress_ops_ok
 FROM information_schema.innodb_cmp_per_index
 WHERE database_name='test' and table_name='tab5'
@@ -1316,7 +1324,7 @@ ORDER BY index_name,table_name,database_name ;
 CREATE DATABASE sb;
 USE sb;
 
---echo #create a table page size=1K (testcase-1)
+--echo # create a table page size=1K (testcase-1)
 CREATE TABLE tab5(col_1 TINYBLOB, col_2 TINYTEXT,col_3 BLOB,
 col_4 TEXT,col_5 MEDIUMBLOB,col_6 MEDIUMTEXT,
 col_7 LONGBLOB,col_8 LONGTEXT,col_9 VARCHAR(255))

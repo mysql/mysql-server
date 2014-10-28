@@ -91,20 +91,27 @@ innobase_invalidate_query_cache(
 	ulint		full_name_len);	/*!< in: full name length where
 					also the null chars count */
 
+/** Quote an index or column name.
+@param[in]	file	output stream
+@param[in]	trx	InnoDB transaction, or NULL
+@param[in]	id	identifier to quote */
+void
+innobase_quote_identifier(
+	FILE*		file,
+	trx_t*		trx,
+	const char*	id);
+
 /*****************************************************************//**
-Convert a table or index name to the MySQL system_charset_info (UTF-8)
-and quote it if needed.
+Convert a table name to the MySQL system_charset_info (UTF-8).
 @return pointer to the end of buf */
 char*
 innobase_convert_name(
 /*==================*/
 	char*		buf,	/*!< out: buffer for converted identifier */
 	ulint		buflen,	/*!< in: length of buf, in bytes */
-	const char*	id,	/*!< in: identifier to convert */
+	const char*	id,	/*!< in: table name to convert */
 	ulint		idlen,	/*!< in: length of id, in bytes */
-	THD*		thd,	/*!< in: MySQL connection thread, or NULL */
-	ibool		table_id);/*!< in: TRUE=id is a table or database name;
-				FALSE=id is an index name */
+	THD*		thd);	/*!< in: MySQL connection thread, or NULL */
 
 /******************************************************************//**
 Returns true if the thread is the replication thread on the slave
@@ -305,6 +312,14 @@ bool
 thd_optimize_point_storage(
 	THD*	thd);
 
+/** Get status of innodb_tmpdir.
+@param[in]	thd	thread handle, or NULL to query
+			the global innodb_tmpdir.
+@return value or NULL if innodb_tmpdir is set to default value "" */
+const char*
+thd_innodb_tmpdir(
+	THD*	thd);
+
 /**********************************************************************//**
 Get the current setting of the table_cache_size global parameter. We do
 a dirty read because for one there is no synchronization object and
@@ -383,18 +398,15 @@ thd_start_time_in_secs(
 	THD*	thd);	/*!< in: thread handle, or NULL */
 
 /*****************************************************************//**
-A wrapper function of innobase_convert_name(), convert a table or
-index name to the MySQL system_charset_info (UTF-8) and quote it if needed.
+A wrapper function of innobase_convert_name(), convert a table name
+to the MySQL system_charset_info (UTF-8) and quote it if needed.
 @return pointer to the end of buf */
 void
 innobase_format_name(
 /*==================*/
-	char*		buf,		/*!< out: buffer for converted
-					identifier */
-	ulint		buflen,		/*!< in: length of buf, in bytes */
-	const char*	name,		/*!< in: index or table name
-					to format */
-	ibool		is_index_name);	/*!< in: index name */
+	char*		buf,	/*!< out: buffer for converted identifier */
+	ulint		buflen,	/*!< in: length of buf, in bytes */
+	const char*	name);	/*!< in: table name to format */
 
 /** Corresponds to Sql_condition:enum_warning_level. */
 enum ib_log_level_t {

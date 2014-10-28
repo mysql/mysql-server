@@ -24,7 +24,6 @@
 
 #include "binlog.h"
 #include "sql_priv.h"
-#include "unireg.h"
 #include "my_global.h" // REQUIRED by log_event.h > m_string.h > my_bitmap.h
 #include "log_event.h"
 #include "sql_base.h"                           // close_thread_tables
@@ -68,6 +67,9 @@ PSI_memory_key key_memory_Rows_query_log_event_rows_query;
 
 using std::min;
 using std::max;
+
+#define ER_SAFE(X) (((X) >= ER_ERROR_FIRST && (X) <= ER_ERROR_LAST) ? \
+                    ER(X) : "Invalid error code")
 
 #if defined(MYSQL_CLIENT)
 
@@ -1646,6 +1648,22 @@ Log_event* Log_event::read_log_event(const char* buf, uint event_len,
   // all following START events in the current file are without checksum
   if (event_type == START_EVENT_V3)
     (const_cast< Format_description_log_event *>(description_event))->checksum_alg= BINLOG_CHECKSUM_ALG_OFF;
+  // Sanity check for Format description event
+  if (event_type == FORMAT_DESCRIPTION_EVENT)
+  {
+    if (event_len < LOG_EVENT_MINIMAL_HEADER_LEN +
+        ST_COMMON_HEADER_LEN_OFFSET)
+    {
+      *error= "Found invalid Format description event in binary log";
+      DBUG_RETURN(0);
+    }
+    uint tmp_header_len= buf[LOG_EVENT_MINIMAL_HEADER_LEN + ST_COMMON_HEADER_LEN_OFFSET];
+    if (event_len < tmp_header_len + ST_SERVER_VER_OFFSET + ST_SERVER_VER_LEN)
+    {
+      *error= "Found invalid Format description event in binary log";
+      DBUG_RETURN(0);
+    }
+  }
   /*
     CRC verification by SQL and Show-Binlog-Events master side.
     The caller has to provide @description_event->checksum_alg to
@@ -1757,7 +1775,7 @@ Log_event* Log_event::read_log_event(const char* buf, uint event_len,
       ev = new Execute_load_log_event(buf, event_len, description_event);
       break;
     case START_EVENT_V3: /* this is sent only by MySQL <=4.x */
-      ev = new Start_log_event_v3(buf, description_event);
+      ev = new Start_log_event_v3(buf, event_len, description_event);
       break;
     case STOP_EVENT:
       ev = new Stop_log_event(buf, description_event);
@@ -2805,13 +2823,8 @@ void Log_event::print_timestamp(IO_CACHE* file, time_t *ts)
   */
   time_t ts_tmp= ts ? *ts : (ulong)when.tv_sec;
   DBUG_ENTER("Log_event::print_timestamp");
-#ifdef MYSQL_SERVER				// This is always false
   struct tm tm_tmp;
   localtime_r(&ts_tmp, (res= &tm_tmp));
-#else
-  res= localtime(&ts_tmp);
-#endif
-
   my_b_printf(file,"%02d%02d%02d %2d:%02d:%02d",
               res->tm_year % 100,
               res->tm_mon+1,
@@ -3078,6 +3091,10 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
     if (ret_worker == NULL)
     {
       /* get_least_occupied_worker may return NULL if the thread is killed */
+      Slave_job_item job_item= {this, rli->get_event_relay_log_number(),
+                                rli->get_event_start_pos()};
+      rli->curr_group_da.push_back(job_item);
+
       DBUG_ASSERT(thd->killed);
       DBUG_RETURN(NULL);
     }
@@ -3717,7 +3734,7 @@ bool Query_log_event::write(IO_CACHE* file)
       invoker_user= thd->get_invoker_user();
       invoker_host= thd->get_invoker_host();
     }
-    else if (thd->security_ctx->priv_user)
+    else
     {
       Security_context *ctx= thd->security_ctx;
 
@@ -5483,11 +5500,17 @@ void Start_log_event_v3::print(FILE* file, PRINT_EVENT_INFO* print_event_info)
   Start_log_event_v3::Start_log_event_v3()
 */
 
-Start_log_event_v3::Start_log_event_v3(const char* buf,
+Start_log_event_v3::Start_log_event_v3(const char* buf, uint event_len,
                                        const Format_description_log_event
                                        *description_event)
-  :Log_event(buf, description_event)
+  :Log_event(buf, description_event), binlog_version(BINLOG_VERSION)
 {
+  if (event_len < (uint)description_event->common_header_len +
+      ST_COMMON_HEADER_LEN_OFFSET)
+  {
+    server_version[0]= 0;
+    return;
+  }
   buf+= description_event->common_header_len;
   binlog_version= uint2korr(buf+ST_BINLOG_VER_OFFSET);
   memcpy(server_version, buf+ST_SERVER_VER_OFFSET,
@@ -5791,17 +5814,16 @@ Format_description_log_event(const char* buf,
                              const
                              Format_description_log_event*
                              description_event)
-  :Start_log_event_v3(buf, description_event), event_type_permutation(0)
+  :Start_log_event_v3(buf, event_len, description_event),
+   common_header_len(0), post_header_len(NULL), event_type_permutation(0)
 {
   ulong ver_calc;
   DBUG_ENTER("Format_description_log_event::Format_description_log_event(char*,...)");
+  if (!Start_log_event_v3::is_valid())
+    DBUG_VOID_RETURN; /* sanity check */
   buf+= LOG_EVENT_MINIMAL_HEADER_LEN;
   if ((common_header_len=buf[ST_COMMON_HEADER_LEN_OFFSET]) < OLD_HEADER_LEN)
-  {
-    /* this makes is_valid() return false. */
-    post_header_len= NULL;
     DBUG_VOID_RETURN; /* sanity check */
-  }
   number_of_event_types=
     event_len - (LOG_EVENT_MINIMAL_HEADER_LEN + ST_COMMON_HEADER_LEN_OFFSET + 1);
   DBUG_PRINT("info", ("common_header_len=%d number_of_event_types=%d",
@@ -12197,7 +12219,7 @@ Table_map_log_event::Table_map_log_event(const char *buf, uint event_len,
 #endif
     m_dbnam(NULL), m_dblen(0), m_tblnam(NULL), m_tbllen(0),
     m_colcnt(0), m_coltype(0),
-    m_memory(NULL), m_table_id(ULONGLONG_MAX), m_flags(0),
+    m_memory(NULL), m_table_id(ULLONG_MAX), m_flags(0),
     m_data_size(0), m_field_metadata(0), m_field_metadata_size(0),
     m_null_bits(0), m_meta_memory(NULL)
 {

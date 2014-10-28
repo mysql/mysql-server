@@ -332,7 +332,10 @@ String *Item_func_geomfromgeojson::val_str(String *buf)
     else
     {
       char option_string[MAX_BIGINT_WIDTH + 1];
-      llstr(dimension_argument, option_string);
+      if (args[1]->unsigned_flag)
+        ullstr(dimension_argument, option_string);
+      else
+        llstr(dimension_argument, option_string);
 
       my_error(ER_WRONG_VALUE_FOR_TYPE, MYF(0), "option", option_string,
                func_name());
@@ -354,7 +357,10 @@ String *Item_func_geomfromgeojson::val_str(String *buf)
     if (srid_argument < 0 || srid_argument > UINT_MAX32)
     {
       char srid_string[MAX_BIGINT_WIDTH + 1];
-      llstr(srid_argument, srid_string);
+      if (args[2]->unsigned_flag)
+        ullstr(srid_argument, srid_string);
+      else
+        llstr(srid_argument, srid_string);
 
       my_error(ER_WRONG_VALUE_FOR_TYPE, MYF(0), "SRID", srid_string,
                func_name());
@@ -8901,9 +8907,14 @@ double Item_func_distance::val_real()
           goto old_algo;
         if (null_value)
           goto error;
+        if (dist < 0 || boost::math::isnan(dist))
+        {
+          isdone= true;
+          distance= dist;
+          goto error;
+        }
         if (!initialized)
         {
-          DBUG_ASSERT(dist <= DBL_MAX);
           min_distance= dist;
           initialized= true;
         }
@@ -8927,11 +8938,7 @@ double Item_func_distance::val_real()
       isdone= true;
     }
     else
-    {
-      if (min_distance >= DBL_MAX)
-        min_distance= 0;
       distance= min_distance;
-    }
   }
 
 error:
@@ -9069,7 +9076,7 @@ count_distance:
   }
 exit:
 
-  if (!my_isfinite(distance))
+  if (!my_isfinite(distance) || distance < 0)
   {
     my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
     DBUG_RETURN(error_real());

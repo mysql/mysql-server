@@ -115,7 +115,7 @@ c1 INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
 c2 INT) ENGINE=InnoDB;
 INSERT INTO t1(c2) VALUES(1);
 ALTER TABLE t1 IMPORT TABLESPACE;
-ERROR HY000: Tablespace for table 't1' exists. Please DISCARD the tablespace before IMPORT.
+ERROR HY000: Tablespace 'test/t1' exists.
 SELECT * FROM t1;
 c1	c2
 1	1
@@ -313,7 +313,7 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=InnoDB AUTO_INCREMENT=28 DEFAULT CHARSET=latin1
 FLUSH TABLES t1 FOR EXPORT;
 Warnings:
-Warning	1809	InnoDB: Table '"test"."t1"' in system tablespace
+Warning	1809	InnoDB: Table '`test`.`t1`' in system tablespace
 UNLOCK TABLES;
 DROP TABLE t1;
 SET GLOBAL innodb_file_per_table = 1;

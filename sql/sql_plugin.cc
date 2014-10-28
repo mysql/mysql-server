@@ -15,7 +15,6 @@
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 #include "sql_priv.h"                         // SHOW_MY_BOOL
-#include "unireg.h"
 #include "my_global.h"                       // REQUIRED by m_string.h
 #include "sql_class.h"                          // set_var.h: THD
 #include "sys_vars_shared.h"
@@ -2292,7 +2291,7 @@ static int check_func_int(THD *thd, st_mysql_sys_var *var,
   else
   {
     if ((fixed1= (value->is_unsigned(value) && val < 0)))
-      val=LONGLONG_MAX;
+      val=LLONG_MAX;
     *(int *)save= (int) getopt_ll_limit_value(val, &options, &fixed2);
   }
 
@@ -2321,7 +2320,7 @@ static int check_func_long(THD *thd, st_mysql_sys_var *var,
   else
   {
     if ((fixed1= (value->is_unsigned(value) && val < 0)))
-      val=LONGLONG_MAX;
+      val=LLONG_MAX;
     *(long *)save= (long) getopt_ll_limit_value(val, &options, &fixed2);
   }
 
@@ -2350,7 +2349,7 @@ static int check_func_longlong(THD *thd, st_mysql_sys_var *var,
   else
   {
     if ((fixed1= (value->is_unsigned(value) && val < 0)))
-      val=LONGLONG_MAX;
+      val=LLONG_MAX;
     *(longlong *)save= getopt_ll_limit_value(val, &options, &fixed2);
   }
 

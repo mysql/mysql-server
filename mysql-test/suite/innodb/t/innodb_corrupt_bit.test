@@ -7,7 +7,9 @@
 # This test needs debug server
 --source include/have_debug.inc
 
-call mtr.add_suppression("Flagged corruption of \"idx.*in CHECK TABLE");
+--disable_query_log
+call mtr.add_suppression("Flagged corruption of.* in table .* in CHECK TABLE");
+--enable_query_log
 
 set names utf8;
 

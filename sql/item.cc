@@ -17,7 +17,6 @@
 
 #include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
 #include "sql_priv.h"
-#include "unireg.h"                    // REQUIRED: for other includes
 #include <mysql.h>
 #include <m_ctype.h>
 #include "my_dir.h"
@@ -3094,7 +3093,7 @@ Item *Item_field::get_tmp_table_item(THD *thd)
 longlong Item_field::val_int_endpoint(bool left_endp, bool *incl_endp)
 {
   longlong res= val_int();
-  return null_value? LONGLONG_MIN : res;
+  return null_value? LLONG_MIN : res;
 }
 
 /**
@@ -4457,9 +4456,9 @@ double Item_copy_string::val_real()
 longlong Item_copy_string::val_int()
 {
   int err;
-  return null_value ? LL(0) : my_strntoll(str_value.charset(),str_value.ptr(),
-                                          str_value.length(),10, (char**) 0,
-                                          &err); 
+  return null_value ? 0LL : my_strntoll(str_value.charset(),str_value.ptr(),
+                                        str_value.length(),10, (char**) 0,
+                                        &err);
 }
 
 
@@ -4647,7 +4646,7 @@ double Item_copy_decimal::val_real()
 longlong Item_copy_decimal::val_int()
 {
   if (null_value)
-    return LL(0);
+    return 0LL;
   else
   {
     longlong result;
@@ -6788,13 +6787,13 @@ Item_hex_string::save_in_field(Field *field, bool no_conversions)
   }
   if (length > 8)
   {
-    nr= field->flags & UNSIGNED_FLAG ? ULONGLONG_MAX : LONGLONG_MAX;
+    nr= field->flags & UNSIGNED_FLAG ? ULLONG_MAX : LLONG_MAX;
     goto warn;
   }
   nr= (ulonglong) val_int();
-  if ((length == 8) && !(field->flags & UNSIGNED_FLAG) && (nr > LONGLONG_MAX))
+  if ((length == 8) && !(field->flags & UNSIGNED_FLAG) && (nr > LLONG_MAX))
   {
-    nr= LONGLONG_MAX;
+    nr= LLONG_MAX;
     goto warn;
   }
   return field->store((longlong) nr, TRUE);  // Assume hex numbers are unsigned
@@ -9567,6 +9566,17 @@ bool Item_type_holder::join_types(THD *thd, Item *item)
     }
     else
       set_if_bigger(max_length, display_length(item));
+
+    /*
+      For geometry columns, we must also merge subtypes. If the
+      subtypes are different, use GEOMETRY.
+    */
+    if (fld_type == MYSQL_TYPE_GEOMETRY &&
+        geometry_type != item->get_geometry_type())
+    {
+      geometry_type= Field::GEOM_GEOMETRY;
+    }
+
     break;
   }
   case REAL_RESULT:

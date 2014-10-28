@@ -1039,7 +1039,7 @@ static inline void print_tree(String *out,
                               const char *tree_name,
                               SEL_TREE *tree,
                               const RANGE_OPT_PARAM *param,
-                              const bool print_full);
+                              const bool print_full) __attribute__((unused));
 
 void append_range(String *out,
                   const KEY_PART_INFO *key_parts,
@@ -6998,7 +6998,7 @@ static bool save_value_and_handle_conversion(SEL_ARG **tree,
         value to store was higher than field::max_value if
            a) field has a value greater than 0, or
            b) if field is unsigned and has a negative value (which, when
-              cast to unsigned, means some value higher than LONGLONG_MAX).
+              cast to unsigned, means some value higher than LLONG_MAX).
       */
       if ((field->val_int() > 0) ||                              // a)
           (static_cast<Field_num*>(field)->unsigned_flag &&
@@ -14391,6 +14391,7 @@ static inline void dbug_print_tree(const char *tree_name,
   print_tree(NULL, tree_name, tree, param, true);
 #endif
 }
+
 
 static inline void print_tree(String *out,
                               const char *tree_name,

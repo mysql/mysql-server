@@ -8,22 +8,22 @@ call mtr.add_suppression("Can't generate a unique log-filename master-bin");
 call mtr.add_suppression("The server was unable to create a new log file *");
 RESET MASTER;
 Test case1
-SET GLOBAL binlogging_impossible_mode= ABORT_SERVER;
+SET GLOBAL binlog_error_action= ABORT_SERVER;
 flush logs;
 ERROR HY000: Binary logging not possible. Message: Either disk is full or file system is read only while rotating the binlog. Aborting the server
 Test case2
 SET SESSION debug="+d,fault_injection_updating_index";
-SET GLOBAL binlogging_impossible_mode= ABORT_SERVER;
+SET GLOBAL binlog_error_action= ABORT_SERVER;
 flush logs;
 ERROR HY000: Binary logging not possible. Message: Either disk is full or file system is read only while opening the binlog. Aborting the server
 Test case3
 SET SESSION debug="+d,simulate_disk_full_on_open_binlog";
-SET GLOBAL binlogging_impossible_mode= ABORT_SERVER;
+SET GLOBAL binlog_error_action= ABORT_SERVER;
 flush logs;
 ERROR HY000: Binary logging not possible. Message: Either disk is full or file system is read only while opening the binlog. Aborting the server
 Test case4
 SET SESSION debug="+d,fault_injection_init_name";
-SET GLOBAL binlogging_impossible_mode= ABORT_SERVER;
+SET GLOBAL binlog_error_action= ABORT_SERVER;
 flush logs;
 ERROR HY000: Binary logging not possible. Message: Either disk is full or file system is read only while opening the binlog. Aborting the server
 Test case5

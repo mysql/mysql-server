@@ -1,0 +1,25 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+[connection slave]
+call mtr.add_suppression("Recovery from master pos .*");
+[connection slave]
+include/stop_slave.inc
+[connection master]
+CREATE DATABASE test_jfg;
+[connection slave]
+CHANGE MASTER TO master_host='127.0.0.1',master_port=MASTER_PORT,master_user='root';
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+START SLAVE IO_THREAD;
+include/wait_for_slave_io_to_start.inc
+[connection master]
+include/sync_slave_io_with_master.inc
+include/rpl_restart_server.inc [server_number=2 parameters: --skip_slave_start=FALSE --master-info-repository=TABLE --relay-log-info-repository=TABLE --relay-log-recovery=1]
+include/wait_for_slave_sql_to_start.inc
+[connection master]
+DROP DATABASE test_jfg;
+include/rpl_end.inc

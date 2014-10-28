@@ -87,7 +87,7 @@ public:
 	@param	filepath	path to data files
 	@param	supports_raw	true if it supports raw devices
 	@return true on success parse */
-	bool parse(const char* filepath, bool supports_raw);
+	bool parse_params(const char* filepath, bool supports_raw);
 
 	/** Check the data file specification.
 	@param[out]	create_new_db		true if a new database

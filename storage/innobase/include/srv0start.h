@@ -109,15 +109,16 @@ srv_path_copy(
 	const char*	table_name)	/*!< in: source table name */
 	__attribute__((nonnull, warn_unused_result));
 
-/*****************************************************************//**
-Get the meta-data filename from the table name. */
+/** Get the meta-data filename from the table name for a
+single-table tablespace.
+@param[in]	table		table object
+@param[out]	filename	filename
+@param[in]	max_len		filename max length */
 void
 srv_get_meta_data_filename(
-/*======================*/
-	dict_table_t*	table,		/*!< in: table */
-	char*			filename,	/*!< out: filename */
-	ulint			max_len)	/*!< in: filename max length */
-	__attribute__((nonnull));
+	dict_table_t*	table,
+	char*		filename,
+	ulint		max_len);
 
 /** Log sequence number at shutdown */
 extern	lsn_t	srv_shutdown_lsn;

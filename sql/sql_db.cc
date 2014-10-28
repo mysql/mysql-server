@@ -19,7 +19,6 @@
 
 #include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
 #include "sql_priv.h"
-#include "unireg.h"
 #include "sql_db.h"
 #include "sql_cache.h"                   // query_cache_*
 #include "lock.h"                        // lock_schema_name
@@ -46,7 +45,7 @@
 
 #define MAX_DROP_TABLE_Q_LEN      1024
 
-const char *del_exts[]= {".frm", ".BAK", ".TMD", ".opt", ".OLD", NullS};
+const char *del_exts[]= {".frm", ".BAK", ".TMD", ".opt", ".OLD", ".cfg", NullS};
 static TYPELIB deletable_extentions=
 {array_elements(del_exts)-1,"del_exts", del_exts, NULL};
 
@@ -1031,7 +1030,7 @@ exit:
     {
       LEX_CSTRING dummy= { C_STRING_WITH_LEN("") };
       dummy.length= dummy.length*1;
-      thd->session_tracker.get_tracker(CURRENT_SCHEMA_TRACKER)->mark_as_changed(&dummy);
+      thd->session_tracker.get_tracker(CURRENT_SCHEMA_TRACKER)->mark_as_changed(thd, &dummy);
     }
   }
   my_dirend(dirp);
@@ -1642,10 +1641,10 @@ done:
   {
     LEX_CSTRING dummy= { C_STRING_WITH_LEN("") };
     dummy.length= dummy.length*1;
-    thd->session_tracker.get_tracker(CURRENT_SCHEMA_TRACKER)->mark_as_changed(&dummy);
+    thd->session_tracker.get_tracker(CURRENT_SCHEMA_TRACKER)->mark_as_changed(thd, &dummy);
   }
   if (thd->session_tracker.get_tracker(SESSION_STATE_CHANGE_TRACKER)->is_enabled())
-    thd->session_tracker.get_tracker(SESSION_STATE_CHANGE_TRACKER)->mark_as_changed(NULL);
+    thd->session_tracker.get_tracker(SESSION_STATE_CHANGE_TRACKER)->mark_as_changed(thd, NULL);
   DBUG_RETURN(FALSE);
 }
 
