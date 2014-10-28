@@ -1560,7 +1560,7 @@ static int tokudb_file_map_fill_table(THD *thd, TABLE_LIST *tables, COND *cond) 
     } else {
         error = tokudb_file_map(table, thd);
         if (error)
-            my_error(ER_GET_ERRNO, MYF(0), error);
+            my_error(ER_GET_ERRNO, MYF(0), error, tokudb_hton_name);
     }
 
     rw_unlock(&tokudb_hton_initialized_lock);
@@ -1709,7 +1709,7 @@ static int tokudb_fractal_tree_info_fill_table(THD *thd, TABLE_LIST *tables, CON
     } else {
         error = tokudb_fractal_tree_info(table, thd);
         if (error)
-            my_error(ER_GET_ERRNO, MYF(0), error);
+            my_error(ER_GET_ERRNO, MYF(0), error, tokudb_hton_name);
     }
 
     //3938: unlock the status flag lock
@@ -1924,7 +1924,7 @@ static int tokudb_fractal_tree_block_map_fill_table(THD *thd, TABLE_LIST *tables
     } else {
         error = tokudb_fractal_tree_block_map(table, thd);
         if (error)
-            my_error(ER_GET_ERRNO, MYF(0), error);
+            my_error(ER_GET_ERRNO, MYF(0), error, tokudb_hton_name);
     }
 
     //3938: unlock the status flag lock
@@ -2080,7 +2080,7 @@ static int tokudb_trx_fill_table(THD *thd, TABLE_LIST *tables, COND *cond) {
         struct tokudb_trx_extra e = { thd, tables->table };
         error = db_env->iterate_live_transactions(db_env, tokudb_trx_callback, &e);
         if (error)
-            my_error(ER_GET_ERRNO, MYF(0), error);
+            my_error(ER_GET_ERRNO, MYF(0), error, tokudb_hton_name);
     }
 
     rw_unlock(&tokudb_hton_initialized_lock);
@@ -2167,7 +2167,7 @@ static int tokudb_lock_waits_fill_table(THD *thd, TABLE_LIST *tables, COND *cond
         struct tokudb_lock_waits_extra e = { thd, tables->table };
         error = db_env->iterate_pending_lock_requests(db_env, tokudb_lock_waits_callback, &e);
         if (error)
-            my_error(ER_GET_ERRNO, MYF(0), error);
+            my_error(ER_GET_ERRNO, MYF(0), error, tokudb_hton_name);
     }
 
     rw_unlock(&tokudb_hton_initialized_lock);
@@ -2258,7 +2258,7 @@ static int tokudb_locks_fill_table(THD *thd, TABLE_LIST *tables, COND *cond) {
         struct tokudb_locks_extra e = { thd, tables->table };
         error = db_env->iterate_live_transactions(db_env, tokudb_locks_callback, &e);
         if (error)
-            my_error(ER_GET_ERRNO, MYF(0), error);
+            my_error(ER_GET_ERRNO, MYF(0), error, tokudb_hton_name);
     }
 
     rw_unlock(&tokudb_hton_initialized_lock);
