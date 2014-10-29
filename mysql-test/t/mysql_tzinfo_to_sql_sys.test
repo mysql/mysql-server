@@ -55,6 +55,8 @@ EOF
 # Load zoneinfo_path variables
 --source  $MYSQLTEST_VARDIR/tmp/zoneinfocheck.inc
 
+--remove_file $MYSQLTEST_VARDIR/tmp/zoneinfocheck.inc
+
 # Skip test if any required zoneinfo resources are unavailable
 if (!$zoneinfo_japan_path) { 
    --skip Unable to locate zoneinfo/Japan

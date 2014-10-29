@@ -5,7 +5,7 @@ CREATE TABLE time_zone_leap_second as SELECT * FROM mysql.time_zone_leap_second 
 CREATE TABLE time_zone_name as SELECT * FROM mysql.time_zone_name WHERE 1 = 0;
 CREATE TABLE time_zone_transition as SELECT * FROM mysql.time_zone_transition WHERE 1 = 0;
 CREATE TABLE time_zone_transition_type as SELECT * FROM mysql.time_zone_transition_type WHERE 1 = 0;
-# Load zone table for Japanese zones. (mysql_tzinfo_to_sql <zonepath>/Japan test_japan).
+# Load zone table for Japanese zones. (mysql_tzinfo_to_sql std_data/Japan test_japan).
 START TRANSACTION;
 INSERT INTO time_zone (Use_leap_seconds) VALUES ('N');
 SET @time_zone_id= LAST_INSERT_ID();
@@ -27,7 +27,7 @@ INSERT INTO time_zone_transition_type (Time_zone_id, Transition_type_id, Offset,
 ,(@time_zone_id, 2, 32400, 0, 'JST')
 ;
 COMMIT;
-# Load Moscow zone table with --leap option. (mysql_tzinfo_to_sql --leap <zonepath>/Moscow_leap)
+# Load Moscow zone table with --leap option. (mysql_tzinfo_to_sql --leap std_data/Moscow_leap)
 TRUNCATE TABLE time_zone_leap_second;
 START TRANSACTION;
 INSERT INTO time_zone_leap_second (Transition_time, Correction) VALUES
@@ -57,7 +57,7 @@ INSERT INTO time_zone_leap_second (Transition_time, Correction) VALUES
 ,(1230768023, 24)
 ;
 COMMIT;
-# Load zone table files in Europe folder. (mysql_tzinfo_to_sql <zonepath>/Europe)
+# Load zone table files in Europe folder. (mysql_tzinfo_to_sql std_data/Europe)
 TRUNCATE TABLE time_zone;
 TRUNCATE TABLE time_zone_name;
 TRUNCATE TABLE time_zone_transition;
