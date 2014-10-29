@@ -340,6 +340,12 @@ private:
   uchar *saved_key_tuple; /* Saved current key tuple */
   uchar *saved_primary_key; /* Saved current primary key tuple */
 
+  /*
+    TRUE<=> saved_key_tuple (and saved_primary_key when applicable) have
+    valid values.
+  */
+  bool read_was_interrupted;
+
   static int compare_keys(void* arg, uchar* key1, uchar* key2);
   static int compare_keys_reverse(void* arg, uchar* key1, uchar* key2);
   

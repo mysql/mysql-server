@@ -1,4 +1,5 @@
-drop table if exists t1,t2,t3;
+drop table if exists t0,t1,t2,t3;
+drop database if exists test1;
 set @exit_optimizer_switch=@@optimizer_switch;
 set optimizer_switch='derived_merge=on,derived_with_keys=on';
 set @save_optimizer_switch=@@optimizer_switch;
@@ -352,4 +353,155 @@ pk	pk
 72	72
 80	80
 drop table t1, t2, t3, t4;
+#
+# MDEV-6888: Query spends a long time in best_extension_by_limited_search with mrr enabled
+#
+create database test1;
+use test1;
+set @tmp_jcl= @@join_cache_level;
+set @tmp_os= @@optimizer_switch;
+set join_cache_level=8;
+set optimizer_switch='mrr=on,mrr_sort_keys=on';
+CREATE TABLE t0 (
+f1 bigint(20) DEFAULT NULL,
+f2 char(50) DEFAULT NULL
+) ENGINE=MEMORY DEFAULT CHARSET=latin1;
+INSERT INTO t0 VALUES (NULL,'numeric column is NULL'),(0,NULL),(5,'five'),(1,'one'),(2,'two');
+CREATE TABLE t1 (
+f1 decimal(64,30) DEFAULT NULL,
+f2 varchar(50) DEFAULT NULL
+) ENGINE=MEMORY DEFAULT CHARSET=latin1;
+INSERT INTO t1 VALUES 
+(NULL,'numeric column is NULL'),
+(0.000000000000000000000000000000,NULL),
+(5.000000000000000000000000000000,'five'),
+(1.000000000000000000000000000000,'one'),
+(3.000000000000000000000000000000,'three');
+CREATE TABLE t2 (
+f1 double DEFAULT NULL,
+f2 varbinary(50) DEFAULT NULL
+) ENGINE=MEMORY DEFAULT CHARSET=latin1;
+INSERT INTO t2 VALUES (NULL,'numeric column is NULL'),(0,NULL),(5,'five'),(2,'two'),(3,'three');
+create VIEW v0  AS select f1,f2 from t1 ;
+create VIEW v1 AS select tab1_v1.f1,tab1_v1.f2 from t1 tab1_v1 join v0 tab2 on tab1_v1.f1 = tab2.f1 and tab1_v1.f2 = tab2.f2;
+create VIEW v2 AS select tab1_v2.f1,tab1_v2.f2 from t2 tab1_v2 join v1 tab2 on tab1_v2.f1 = tab2.f1 and tab1_v2.f2 = tab2.f2;
+create VIEW v3 AS select tab1_v3.f1,tab1_v3.f2 from t0 tab1_v3 join v2 tab2 on tab1_v3.f1 = tab2.f1 and tab1_v3.f2 = tab2.f2;
+create VIEW v4 AS select tab1_v4.f1,tab1_v4.f2 from t1 tab1_v4 join v3 tab2 on tab1_v4.f1 = tab2.f1 and tab1_v4.f2 = tab2.f2;
+create VIEW v5 AS select tab1_v5.f1,tab1_v5.f2 from t2 tab1_v5 join v4 tab2 on tab1_v5.f1 = tab2.f1 and tab1_v5.f2 = tab2.f2;
+create VIEW v6 AS select tab1_v6.f1,tab1_v6.f2 from t0 tab1_v6 join v5 tab2 on tab1_v6.f1 = tab2.f1 and tab1_v6.f2 = tab2.f2;
+create VIEW v7 AS select tab1_v7.f1,tab1_v7.f2 from t1 tab1_v7 join v6 tab2 on tab1_v7.f1 = tab2.f1 and tab1_v7.f2 = tab2.f2;
+create VIEW v8 AS select tab1_v8.f1,tab1_v8.f2 from t2 tab1_v8 join v7 tab2 on tab1_v8.f1 = tab2.f1 and tab1_v8.f2 = tab2.f2;
+create VIEW v9 AS select tab1_v9.f1,tab1_v9.f2 from t0 tab1_v9 join v8 tab2 on tab1_v9.f1 = tab2.f1 and tab1_v9.f2 = tab2.f2;
+create VIEW v10 AS select tab1_v10.f1,tab1_v10.f2 from t1 tab1_v10 join v9 tab2 on tab1_v10.f1 = tab2.f1 and tab1_v10.f2 = tab2.f2;
+create VIEW v11 AS select tab1_v11.f1,tab1_v11.f2 from t2 tab1_v11 join v10 tab2 on tab1_v11.f1 = tab2.f1 and tab1_v11.f2 = tab2.f2;
+create VIEW v12 AS select tab1_v12.f1,tab1_v12.f2 from t0 tab1_v12 join v11 tab2 on tab1_v12.f1 = tab2.f1 and tab1_v12.f2 = tab2.f2;
+create VIEW v13 AS select tab1_v13.f1,tab1_v13.f2 from t1 tab1_v13 join v12 tab2 on tab1_v13.f1 = tab2.f1 and tab1_v13.f2 = tab2.f2;
+create VIEW v14 AS select tab1_v14.f1,tab1_v14.f2 from t2 tab1_v14 join v13 tab2 on tab1_v14.f1 = tab2.f1 and tab1_v14.f2 = tab2.f2;
+create VIEW v15 AS select tab1_v15.f1,tab1_v15.f2 from t0 tab1_v15 join v14 tab2 on tab1_v15.f1 = tab2.f1 and tab1_v15.f2 = tab2.f2;
+create VIEW v16 AS select tab1_v16.f1,tab1_v16.f2 from t1 tab1_v16 join v15 tab2 on tab1_v16.f1 = tab2.f1 and tab1_v16.f2 = tab2.f2;
+create VIEW v17 AS select tab1_v17.f1,tab1_v17.f2 from t2 tab1_v17 join v16 tab2 on tab1_v17.f1 = tab2.f1 and tab1_v17.f2 = tab2.f2;
+create VIEW v18 AS select tab1_v18.f1,tab1_v18.f2 from t0 tab1_v18 join v17 tab2 on tab1_v18.f1 = tab2.f1 and tab1_v18.f2 = tab2.f2;
+create VIEW v19 AS select tab1_v19.f1,tab1_v19.f2 from t1 tab1_v19 join v18 tab2 on tab1_v19.f1 = tab2.f1 and tab1_v19.f2 = tab2.f2;
+create VIEW v20 AS select tab1_v20.f1,tab1_v20.f2 from t2 tab1_v20 join v19 tab2 on tab1_v20.f1 = tab2.f1 and tab1_v20.f2 = tab2.f2;
+create VIEW v21 AS select tab1_v21.f1,tab1_v21.f2 from t0 tab1_v21 join v20 tab2 on tab1_v21.f1 = tab2.f1 and tab1_v21.f2 = tab2.f2;
+create VIEW v22 AS select tab1_v22.f1,tab1_v22.f2 from t1 tab1_v22 join v21 tab2 on tab1_v22.f1 = tab2.f1 and tab1_v22.f2 = tab2.f2;
+create VIEW v23 AS select tab1_v23.f1,tab1_v23.f2 from t2 tab1_v23 join v22 tab2 on tab1_v23.f1 = tab2.f1 and tab1_v23.f2 = tab2.f2;
+create VIEW v24 AS select tab1_v24.f1,tab1_v24.f2 from t0 tab1_v24 join v23 tab2 on tab1_v24.f1 = tab2.f1 and tab1_v24.f2 = tab2.f2;
+create VIEW v25 AS select tab1_v25.f1,tab1_v25.f2 from t1 tab1_v25 join v24 tab2 on tab1_v25.f1 = tab2.f1 and tab1_v25.f2 = tab2.f2;
+create VIEW v26 AS select tab1_v26.f1,tab1_v26.f2 from t2 tab1_v26 join v25 tab2 on tab1_v26.f1 = tab2.f1 and tab1_v26.f2 = tab2.f2;
+create VIEW v27 AS select tab1_v27.f1,tab1_v27.f2 from t0 tab1_v27 join v26 tab2 on tab1_v27.f1 = tab2.f1 and tab1_v27.f2 = tab2.f2;
+EXPLAIN SELECT CAST(f1 AS SIGNED INTEGER) AS f1, CAST(f2 AS CHAR) AS f2 FROM v27;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	tab1_v27	ALL	NULL	NULL	NULL	NULL	5	Using where
+1	SIMPLE	tab1_v26	hash_ALL	NULL	#hash#$hj	63	test1.tab1_v27.f1,test1.tab1_v27.f2	5	Using where; Using join buffer (flat, BNLH join)
+1	SIMPLE	tab1_v25	hash_ALL	NULL	#hash#$hj	31	test1.tab1_v26.f1	5	Using where; Using join buffer (incremental, BNLH join)
+1	SIMPLE	tab1_v24	hash_ALL	NULL	#hash#$hj	60	test1.tab1_v25.f1,test1.tab1_v25.f2	5	Using where; Using join buffer (incremental, BNLH join)
+1	SIMPLE	tab1_v23	hash_ALL	NULL	#hash#$hj	63	test1.tab1_v24.f1,test1.tab1_v24.f2	5	Using where; Using join buffer (incremental, BNLH join)
+1	SIMPLE	tab1_v22	hash_ALL	NULL	#hash#$hj	31	test1.tab1_v23.f1	5	Using where; Using join buffer (incremental, BNLH join)
+1	SIMPLE	tab1_v21	hash_ALL	NULL	#hash#$hj	60	test1.tab1_v22.f1,test1.tab1_v22.f2	5	Using where; Using join buffer (incremental, BNLH join)
+1	SIMPLE	tab1_v20	hash_ALL	NULL	#hash#$hj	63	test1.tab1_v21.f1,test1.tab1_v21.f2	5	Using where; Using join buffer (incremental, BNLH join)
+1	SIMPLE	tab1_v19	hash_ALL	NULL	#hash#$hj	31	test1.tab1_v20.f1	5	Using where; Using join buffer (incremental, BNLH join)
+1	SIMPLE	tab1_v18	hash_ALL	NULL	#hash#$hj	60	test1.tab1_v19.f1,test1.tab1_v19.f2	5	Using where; Using join buffer (incremental, BNLH join)
+1	SIMPLE	tab1_v17	hash_ALL	NULL	#hash#$hj	63	test1.tab1_v18.f1,test1.tab1_v18.f2	5	Using where; Using join buffer (incremental, BNLH join)
+1	SIMPLE	tab1_v16	hash_ALL	NULL	#hash#$hj	31	test1.tab1_v17.f1	5	Using where; Using join buffer (incremental, BNLH join)
+1	SIMPLE	tab1_v15	hash_ALL	NULL	#hash#$hj	60	test1.tab1_v16.f1,test1.tab1_v16.f2	5	Using where; Using join buffer (incremental, BNLH join)
+1	SIMPLE	tab1_v14	hash_ALL	NULL	#hash#$hj	63	test1.tab1_v15.f1,test1.tab1_v15.f2	5	Using where; Using join buffer (incremental, BNLH join)
+1	SIMPLE	tab1_v13	hash_ALL	NULL	#hash#$hj	31	test1.tab1_v14.f1	5	Using where; Using join buffer (incremental, BNLH join)
+1	SIMPLE	tab1_v12	hash_ALL	NULL	#hash#$hj	60	test1.tab1_v13.f1,test1.tab1_v13.f2	5	Using where; Using join buffer (incremental, BNLH join)
+1	SIMPLE	tab1_v11	hash_ALL	NULL	#hash#$hj	63	test1.tab1_v12.f1,test1.tab1_v12.f2	5	Using where; Using join buffer (incremental, BNLH join)
+1	SIMPLE	tab1_v10	hash_ALL	NULL	#hash#$hj	31	test1.tab1_v11.f1	5	Using where; Using join buffer (incremental, BNLH join)
+1	SIMPLE	tab1_v9	hash_ALL	NULL	#hash#$hj	60	test1.tab1_v10.f1,test1.tab1_v10.f2	5	Using where; Using join buffer (incremental, BNLH join)
+1	SIMPLE	tab1_v8	hash_ALL	NULL	#hash#$hj	63	test1.tab1_v9.f1,test1.tab1_v9.f2	5	Using where; Using join buffer (incremental, BNLH join)
+1	SIMPLE	tab1_v7	hash_ALL	NULL	#hash#$hj	31	test1.tab1_v8.f1	5	Using where; Using join buffer (incremental, BNLH join)
+1	SIMPLE	tab1_v6	hash_ALL	NULL	#hash#$hj	60	test1.tab1_v7.f1,test1.tab1_v7.f2	5	Using where; Using join buffer (incremental, BNLH join)
+1	SIMPLE	tab1_v5	hash_ALL	NULL	#hash#$hj	63	test1.tab1_v6.f1,test1.tab1_v6.f2	5	Using where; Using join buffer (incremental, BNLH join)
+1	SIMPLE	tab1_v4	hash_ALL	NULL	#hash#$hj	31	test1.tab1_v5.f1	5	Using where; Using join buffer (incremental, BNLH join)
+1	SIMPLE	tab1_v3	hash_ALL	NULL	#hash#$hj	60	test1.tab1_v4.f1,test1.tab1_v4.f2	5	Using where; Using join buffer (incremental, BNLH join)
+1	SIMPLE	tab1_v2	hash_ALL	NULL	#hash#$hj	63	test1.tab1_v3.f1,test1.tab1_v3.f2	5	Using where; Using join buffer (incremental, BNLH join)
+1	SIMPLE	tab1_v1	hash_ALL	NULL	#hash#$hj	31	test1.tab1_v2.f1	5	Using where; Using join buffer (incremental, BNLH join)
+1	SIMPLE	t1	hash_ALL	NULL	#hash#$hj	85	test1.tab1_v1.f1,test1.tab1_v1.f2	5	Using where; Using join buffer (incremental, BNLH join)
+# This used to hang forever:
+EXPLAIN SELECT CAST(f1 AS SIGNED INTEGER) AS f1, CAST(f2 AS CHAR) AS f2 FROM v27;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	tab1_v27	ALL	NULL	NULL	NULL	NULL	5	Using where
+1	SIMPLE	tab1_v26	hash_ALL	NULL	#hash#$hj	63	test1.tab1_v27.f1,test1.tab1_v27.f2	5	Using where; Using join buffer (flat, BNLH join)
+1	SIMPLE	tab1_v25	hash_ALL	NULL	#hash#$hj	31	test1.tab1_v26.f1	5	Using where; Using join buffer (incremental, BNLH join)
+1	SIMPLE	tab1_v24	hash_ALL	NULL	#hash#$hj	60	test1.tab1_v25.f1,test1.tab1_v25.f2	5	Using where; Using join buffer (incremental, BNLH join)
+1	SIMPLE	tab1_v23	hash_ALL	NULL	#hash#$hj	63	test1.tab1_v24.f1,test1.tab1_v24.f2	5	Using where; Using join buffer (incremental, BNLH join)
+1	SIMPLE	tab1_v22	hash_ALL	NULL	#hash#$hj	31	test1.tab1_v23.f1	5	Using where; Using join buffer (incremental, BNLH join)
+1	SIMPLE	tab1_v21	hash_ALL	NULL	#hash#$hj	60	test1.tab1_v22.f1,test1.tab1_v22.f2	5	Using where; Using join buffer (incremental, BNLH join)
+1	SIMPLE	tab1_v20	hash_ALL	NULL	#hash#$hj	63	test1.tab1_v21.f1,test1.tab1_v21.f2	5	Using where; Using join buffer (incremental, BNLH join)
+1	SIMPLE	tab1_v19	hash_ALL	NULL	#hash#$hj	31	test1.tab1_v20.f1	5	Using where; Using join buffer (incremental, BNLH join)
+1	SIMPLE	tab1_v18	hash_ALL	NULL	#hash#$hj	60	test1.tab1_v19.f1,test1.tab1_v19.f2	5	Using where; Using join buffer (incremental, BNLH join)
+1	SIMPLE	tab1_v17	hash_ALL	NULL	#hash#$hj	63	test1.tab1_v18.f1,test1.tab1_v18.f2	5	Using where; Using join buffer (incremental, BNLH join)
+1	SIMPLE	tab1_v16	hash_ALL	NULL	#hash#$hj	31	test1.tab1_v17.f1	5	Using where; Using join buffer (incremental, BNLH join)
+1	SIMPLE	tab1_v15	hash_ALL	NULL	#hash#$hj	60	test1.tab1_v16.f1,test1.tab1_v16.f2	5	Using where; Using join buffer (incremental, BNLH join)
+1	SIMPLE	tab1_v14	hash_ALL	NULL	#hash#$hj	63	test1.tab1_v15.f1,test1.tab1_v15.f2	5	Using where; Using join buffer (incremental, BNLH join)
+1	SIMPLE	tab1_v13	hash_ALL	NULL	#hash#$hj	31	test1.tab1_v14.f1	5	Using where; Using join buffer (incremental, BNLH join)
+1	SIMPLE	tab1_v12	hash_ALL	NULL	#hash#$hj	60	test1.tab1_v13.f1,test1.tab1_v13.f2	5	Using where; Using join buffer (incremental, BNLH join)
+1	SIMPLE	tab1_v11	hash_ALL	NULL	#hash#$hj	63	test1.tab1_v12.f1,test1.tab1_v12.f2	5	Using where; Using join buffer (incremental, BNLH join)
+1	SIMPLE	tab1_v10	hash_ALL	NULL	#hash#$hj	31	test1.tab1_v11.f1	5	Using where; Using join buffer (incremental, BNLH join)
+1	SIMPLE	tab1_v9	hash_ALL	NULL	#hash#$hj	60	test1.tab1_v10.f1,test1.tab1_v10.f2	5	Using where; Using join buffer (incremental, BNLH join)
+1	SIMPLE	tab1_v8	hash_ALL	NULL	#hash#$hj	63	test1.tab1_v9.f1,test1.tab1_v9.f2	5	Using where; Using join buffer (incremental, BNLH join)
+1	SIMPLE	tab1_v7	hash_ALL	NULL	#hash#$hj	31	test1.tab1_v8.f1	5	Using where; Using join buffer (incremental, BNLH join)
+1	SIMPLE	tab1_v6	hash_ALL	NULL	#hash#$hj	60	test1.tab1_v7.f1,test1.tab1_v7.f2	5	Using where; Using join buffer (incremental, BNLH join)
+1	SIMPLE	tab1_v5	hash_ALL	NULL	#hash#$hj	63	test1.tab1_v6.f1,test1.tab1_v6.f2	5	Using where; Using join buffer (incremental, BNLH join)
+1	SIMPLE	tab1_v4	hash_ALL	NULL	#hash#$hj	31	test1.tab1_v5.f1	5	Using where; Using join buffer (incremental, BNLH join)
+1	SIMPLE	tab1_v3	hash_ALL	NULL	#hash#$hj	60	test1.tab1_v4.f1,test1.tab1_v4.f2	5	Using where; Using join buffer (incremental, BNLH join)
+1	SIMPLE	tab1_v2	hash_ALL	NULL	#hash#$hj	63	test1.tab1_v3.f1,test1.tab1_v3.f2	5	Using where; Using join buffer (incremental, BNLH join)
+1	SIMPLE	tab1_v1	hash_ALL	NULL	#hash#$hj	31	test1.tab1_v2.f1	5	Using where; Using join buffer (incremental, BNLH join)
+1	SIMPLE	t1	hash_ALL	NULL	#hash#$hj	85	test1.tab1_v1.f1,test1.tab1_v1.f2	5	Using where; Using join buffer (incremental, BNLH join)
+use test;
+drop database test1;
+set join_cache_level=@tmp_jcl;
+set optimizer_switch=@tmp_os;
+#
+# MDEV-6879: Dereference of NULL primary_file->table in DsMrr_impl::get_disk_sweep_mrr_cost()
+#
+create table t1(a int);
+insert into t1 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+create table t2 (a int, b int, c text);
+insert into t2
+select
+A.a + B.a* 10,
+A.a + B.a* 10,
+'blob-data'
+from t1 A, t1 B;
+set @tmp_jcl= @@join_cache_level;
+set @tmp_os= @@optimizer_switch;
+set join_cache_level=6;
+set @@optimizer_switch='derived_merge=on,derived_with_keys=on,mrr=on';
+explain
+select * from
+t1 join
+(select * from t2 order by a limit 1000) as D1
+where
+D1.a= t1.a;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	10	Using where
+1	PRIMARY	<derived2>	hash_ALL	key0	#hash#key0	5	test.t1.a	100	Using join buffer (flat, BNLH join)
+2	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	100	Using filesort
+set join_cache_level=@tmp_jcl;
+set optimizer_switch=@tmp_os;
+drop table t1, t2;
 set optimizer_switch=@exit_optimizer_switch;

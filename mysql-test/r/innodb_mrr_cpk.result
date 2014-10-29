@@ -145,10 +145,46 @@ select * from t1, t2 where t1.a=t2.a and t2.b + t1.b > 100;
 a	b	c	filler	a	b
 set optimizer_switch='index_condition_pushdown=on';
 drop table t1,t2;
-set @@join_cache_level= @save_join_cache_level;
-set storage_engine=@save_storage_engine;
-set optimizer_switch=@innodb_mrr_cpk_tmp;
 drop table t0;
+#
+# MDEV-6878: Use of uninitialized saved_primary_key in Mrr_ordered_index_reader::resume_read()
+#
+create table t0(a int);
+insert into t0 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+create table t1 (
+pk varchar(32) character set utf8 primary key,
+kp1 char(32) not null,
+col1 varchar(32),
+key (kp1)
+) engine=innodb;
+insert into t1
+select
+concat('pk-', 1000 +A.a),
+concat('kp1-', 1000 +A.a),
+concat('val-', 1000 +A.a)
+from test.t0 A ;
+create table t2 as select kp1 as a from t1;
+set join_cache_level=8;
+set optimizer_switch='mrr=on,mrr_sort_keys=on';
+explain
+select * from t2 straight_join t1 force index(kp1) where t1.kp1=t2.a;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	10	
+1	SIMPLE	t1	ref	kp1	kp1	32	test.t2.a	1	Using join buffer (flat, BKAH join); Key-ordered Rowid-ordered scan
+select * from t2 straight_join t1 force index(kp1) where t1.kp1=t2.a;
+a	pk	kp1	col1
+kp1-1000	pk-1000	kp1-1000	val-1000
+kp1-1001	pk-1001	kp1-1001	val-1001
+kp1-1002	pk-1002	kp1-1002	val-1002
+kp1-1003	pk-1003	kp1-1003	val-1003
+kp1-1004	pk-1004	kp1-1004	val-1004
+kp1-1005	pk-1005	kp1-1005	val-1005
+kp1-1006	pk-1006	kp1-1006	val-1006
+kp1-1007	pk-1007	kp1-1007	val-1007
+kp1-1008	pk-1008	kp1-1008	val-1008
+kp1-1009	pk-1009	kp1-1009	val-1009
+drop table t0,t1,t2;
+#
 #
 # MDEV-3817: Wrong result with index_merge+index_merge_intersection, InnoDB table, join, AND and OR conditions
 #
@@ -194,3 +230,9 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 2	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	#	
 set join_cache_level= @tmp_mdev5037;
 drop table t0,t1,t2;
+#
+# This must be at the end:
+#
+set @@join_cache_level= @save_join_cache_level;
+set storage_engine=@save_storage_engine;
+set optimizer_switch=@innodb_mrr_cpk_tmp;
