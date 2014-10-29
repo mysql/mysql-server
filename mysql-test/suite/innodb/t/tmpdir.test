@@ -43,12 +43,12 @@ drop table t1;
 create table t1(a text, b text, fulltext(a,b))engine=innodb;
 insert into t1 values('test1', 'test2');
 insert into t1 values('text1', 'text2');
-set @tmpdir = @@global.tmpdir;
-set global innodb_tmpdir = @tmpdir;
+let $mysql_tmpdir = `select @@global.tmpdir`;
+set global innodb_tmpdir = @@global.tmpdir;
 show session variables like 'innodb_tmpdir';
 --echo # Connection con3
 connect (con3,localhost,root);
---replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+--replace_result $mysql_tmpdir tmpdir
 show session variables like 'innodb_tmpdir';
 alter table t1 add fulltext(b);
 disconnect con3;
