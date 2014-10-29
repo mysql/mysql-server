@@ -295,7 +295,7 @@ struct MY_ALIGNED(NDB_CL) thr_safe_pool
     assert((sizeof(*this) % NDB_CL) == 0); //Maintain any CL-allignment
   }
 
-  thr_spin_lock<8> m_lock;
+  struct thr_spin_lock m_lock;
 
   T* m_free_list;
   Uint32 m_cnt;
@@ -918,7 +918,7 @@ struct MY_ALIGNED(NDB_CL) thr_data
    * surrounding thread-local variables from CPU cache line sharing
    * with this part.
    */
-  MY_ALIGNED(NDB_CL) struct thr_spin_lock<64> m_jba_write_lock;
+  MY_ALIGNED(NDB_CL) struct thr_spin_lock m_jba_write_lock;
   MY_ALIGNED(NDB_CL) struct thr_job_queue m_jba;
   struct thr_job_queue_head m_jba_head;
 
@@ -1105,17 +1105,22 @@ struct thr_repository
     assert((((UintPtr)&m_jb_pool) % NDB_CL) == 0);
     assert((((UintPtr)&m_sb_pool) % NDB_CL) == 0);
     assert((((UintPtr)m_thread) % NDB_CL) == 0);
+    assert((sizeof(m_receive_lock[0]) % NDB_CL) == 0);
   }
 
   /**
    * m_receive_lock, m_section_lock, m_mem_manager_lock, m_jb_pool
-   * and m_sb_pool are allvariables globally shared among the threads
+   * and m_sb_pool are all variables globally shared among the threads
    * and also heavily updated.
    * Requiring alignments avoid false cache line sharing.
    */
-  MY_ALIGNED(NDB_CL) struct thr_spin_lock<64> m_receive_lock[MAX_NDBMT_RECEIVE_THREADS];
-  MY_ALIGNED(NDB_CL) struct thr_spin_lock<64> m_section_lock;
-  MY_ALIGNED(NDB_CL) struct thr_spin_lock<64> m_mem_manager_lock;
+  MY_ALIGNED(NDB_CL)
+  struct MY_ALIGNED(NDB_CL) aligned_locks : public thr_spin_lock
+  {
+  } m_receive_lock[MAX_NDBMT_RECEIVE_THREADS];
+
+  MY_ALIGNED(NDB_CL) struct thr_spin_lock m_section_lock;
+  MY_ALIGNED(NDB_CL) struct thr_spin_lock m_mem_manager_lock;
   MY_ALIGNED(NDB_CL) struct thr_safe_pool<thr_job_buffer> m_jb_pool;
   MY_ALIGNED(NDB_CL) struct thr_safe_pool<thr_send_page> m_sb_pool;
 
@@ -1136,7 +1141,7 @@ struct thr_repository
     /**
      * lock
      */
-    struct thr_spin_lock<8> m_send_lock;
+    struct thr_spin_lock m_send_lock;
 
     /**
      * pending data
