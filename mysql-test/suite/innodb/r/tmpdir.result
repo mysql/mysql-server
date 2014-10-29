@@ -35,15 +35,14 @@ drop table t1;
 create table t1(a text, b text, fulltext(a,b))engine=innodb;
 insert into t1 values('test1', 'test2');
 insert into t1 values('text1', 'text2');
-set @tmpdir = @@global.tmpdir;
-set global innodb_tmpdir = @tmpdir;
+set global innodb_tmpdir = @@global.tmpdir;
 show session variables like 'innodb_tmpdir';
 Variable_name	Value
 innodb_tmpdir	
 # Connection con3
 show session variables like 'innodb_tmpdir';
 Variable_name	Value
-innodb_tmpdir	MYSQL_TMP_DIR/mysqld.1
+innodb_tmpdir	tmpdir
 alter table t1 add fulltext(b);
 set global innodb_tmpdir=NULL;
 drop table t1;
