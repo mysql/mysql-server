@@ -45,8 +45,7 @@ static void register_lock(const void * ptr, const char * name);
  */
 #if defined(NDB_HAVE_XCNG) && defined(NDB_USE_SPINLOCK)
 static mt_lock_stat * lookup_lock(const void * ptr);
-template <unsigned SZ>
-struct MY_ALIGNED(SZ) thr_spin_lock
+struct thr_spin_lock
 {
   thr_spin_lock(const char * name = 0)
   {
@@ -86,11 +85,10 @@ loop:
   }
 }
 
-template <unsigned SZ>
 static
 inline
 void
-lock(struct thr_spin_lock<SZ>* sl)
+lock(struct thr_spin_lock* sl)
 {
   volatile unsigned* val = &sl->m_lock;
   if (likely(xcng(val, 1) == 0))
@@ -99,11 +97,10 @@ lock(struct thr_spin_lock<SZ>* sl)
   lock_slow(sl, val);
 }
 
-template <unsigned SZ>
 static
 inline
 void
-unlock(struct thr_spin_lock<SZ>* sl)
+unlock(struct thr_spin_lock* sl)
 {
   /**
    * Memory barrier here, to make sure all of our stores are visible before
@@ -118,11 +115,10 @@ unlock(struct thr_spin_lock<SZ>* sl)
   sl->m_lock = 0;
 }
 
-template <unsigned SZ>
 static
 inline
 int
-trylock(struct thr_spin_lock<SZ>* sl)
+trylock(struct thr_spin_lock* sl)
 {
   volatile unsigned* val = &sl->m_lock;
   return xcng(val, 1);
@@ -131,8 +127,7 @@ trylock(struct thr_spin_lock<SZ>* sl)
 #define thr_spin_lock thr_mutex
 #endif
 
-template <unsigned SZ>
-struct MY_ALIGNED(SZ) thr_mutex
+struct thr_mutex
 {
   thr_mutex(const char * name = 0) {
     NdbMutex_Init(&m_mutex);
@@ -142,29 +137,26 @@ struct MY_ALIGNED(SZ) thr_mutex
   NdbMutex m_mutex;
 };
 
-template <unsigned SZ>
 static
 inline
 void
-lock(struct thr_mutex<SZ>* sl)
+lock(struct thr_mutex* sl)
 {
   NdbMutex_Lock(&sl->m_mutex);
 }
 
-template <unsigned SZ>
 static
 inline
 void
-unlock(struct thr_mutex<SZ>* sl)
+unlock(struct thr_mutex* sl)
 {
   NdbMutex_Unlock(&sl->m_mutex);
 }
 
-template <unsigned SZ>
 static
 inline
 int
-trylock(struct thr_mutex<SZ> * sl)
+trylock(struct thr_mutex* sl)
 {
   return NdbMutex_Trylock(&sl->m_mutex);
 }
