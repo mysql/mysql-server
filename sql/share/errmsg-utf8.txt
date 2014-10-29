@@ -7270,8 +7270,8 @@ ER_KEY_BASED_ON_GENERATED_COLUMN
 ER_WRONG_FK_OPTION_FOR_GENERATED_COLUMN
   eng "Cannot define foreign key with %s clause on a generated column."
 
-ER_WARNING_NON_DEFAULT_VALUE_FOR_GENERATED_COLUMN
-  eng "The value specified for generated column '%s' in table '%s' ignored."
+ER_NON_DEFAULT_VALUE_FOR_GENERATED_COLUMN
+  eng "The value specified for generated column '%s' in table '%s' is not allowed."
 
 ER_UNSUPPORTED_ACTION_ON_GENERATED_COLUMN
   eng "'%s' is not yet supported for generated columns."
