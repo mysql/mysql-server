@@ -162,7 +162,7 @@ struct Consumer
 
   void init() {}
 
-  struct thr_spin_lock<8> m_send_lock;
+  struct thr_spin_lock m_send_lock;
   unsigned m_force_send;
   unsigned val[MAX_THREADS];
 
