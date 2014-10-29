@@ -109,3 +109,12 @@
  select * from t1, t2 where t1.a=t2.a and t2.b + t1.b > 100;
  a	b	c	filler	a	b
  set optimizer_switch='index_condition_pushdown=on';
+@@ -170,7 +170,7 @@
+ select * from t2 straight_join t1 force index(kp1) where t1.kp1=t2.a;
+ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+ 1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	10	
+-1	SIMPLE	t1	ref	kp1	kp1	32	test.t2.a	1	Using join buffer (flat, BKAH join); Key-ordered Rowid-ordered scan
++1	SIMPLE	t1	ref	kp1	kp1	32	test.t2.a	1	
+ select * from t2 straight_join t1 force index(kp1) where t1.kp1=t2.a;
+ a	pk	kp1	col1
+ kp1-1000	pk-1000	kp1-1000	val-1000

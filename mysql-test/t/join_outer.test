@@ -1777,4 +1777,28 @@ SELECT * FROM t1 LEFT JOIN t2 LEFT JOIN t3 ON i2 = i3 ON i1 = i3
 
 DROP TABLE t1,t2,t3;
 
+--echo #
+--echo # Bug mdev-6705: wrong on expression after constant row substitution 
+--echo #                that triggers a simplification of WHERE condition
+--echo #
+
+CREATE TABLE t1 (a int, b int) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (10,8);
+
+CREATE TABLE t2 (c int) ENGINE=MyISAM;
+INSERT INTO t2 VALUES (8),(9);
+
+CREATE TABLE t3 (d int) ENGINE=MyISAM;
+INSERT INTO t3 VALUES (3),(8);
+
+EXPLAIN EXTENDED
+SELECT * FROM t1 INNER JOIN t2 ON c = b LEFT JOIN t3 ON d = a
+  WHERE b IN (1,2,3) OR b = d;
+
+SELECT * FROM t1 INNER JOIN t2 ON c = b LEFT JOIN t3 ON d = a
+  WHERE b IN (1,2,3) OR b = d;
+
+DROP TABLE t1,t2,t3;
+
+
 SET optimizer_switch=@save_optimizer_switch;

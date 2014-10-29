@@ -2222,4 +2222,27 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 Warnings:
 Note	1003	select `test`.`t1`.`i1` AS `i1`,`test`.`t2`.`i2` AS `i2`,`test`.`t3`.`i3` AS `i3`,`test`.`t3`.`d3` AS `d3` from `test`.`t1` left join (`test`.`t2` join `test`.`t3`) on(((`test`.`t2`.`i2` = `test`.`t1`.`i1`) and (`test`.`t3`.`i3` = `test`.`t1`.`i1`))) where ((`test`.`t3`.`d3` = 0) or isnull(`test`.`t3`.`d3`))
 DROP TABLE t1,t2,t3;
+#
+# Bug mdev-6705: wrong on expression after constant row substitution 
+#                that triggers a simplification of WHERE condition
+#
+CREATE TABLE t1 (a int, b int) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (10,8);
+CREATE TABLE t2 (c int) ENGINE=MyISAM;
+INSERT INTO t2 VALUES (8),(9);
+CREATE TABLE t3 (d int) ENGINE=MyISAM;
+INSERT INTO t3 VALUES (3),(8);
+EXPLAIN EXTENDED
+SELECT * FROM t1 INNER JOIN t2 ON c = b LEFT JOIN t3 ON d = a
+WHERE b IN (1,2,3) OR b = d;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	system	NULL	NULL	NULL	NULL	1	100.00	
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+Warnings:
+Note	1003	select 10 AS `a`,8 AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t3`.`d` AS `d` from `test`.`t2` left join `test`.`t3` on((`test`.`t3`.`d` = 10)) where ((`test`.`t2`.`c` = 8) and (`test`.`t3`.`d` = 8))
+SELECT * FROM t1 INNER JOIN t2 ON c = b LEFT JOIN t3 ON d = a
+WHERE b IN (1,2,3) OR b = d;
+a	b	c	d
+DROP TABLE t1,t2,t3;
 SET optimizer_switch=@save_optimizer_switch;

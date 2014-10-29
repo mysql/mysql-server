@@ -134,11 +134,39 @@ set optimizer_switch='index_condition_pushdown=on';
 
 drop table t1,t2;
 
-set @@join_cache_level= @save_join_cache_level;
-set storage_engine=@save_storage_engine;
-set optimizer_switch=@innodb_mrr_cpk_tmp;
 drop table t0;
 
+--echo #
+--echo # MDEV-6878: Use of uninitialized saved_primary_key in Mrr_ordered_index_reader::resume_read()
+--echo #
+create table t0(a int);
+insert into t0 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+
+create table t1 (
+  pk varchar(32) character set utf8 primary key,
+  kp1 char(32) not null,
+  col1 varchar(32),
+  key (kp1)
+) engine=innodb;
+
+insert into t1
+select
+  concat('pk-', 1000 +A.a),
+  concat('kp1-', 1000 +A.a),
+  concat('val-', 1000 +A.a)
+from test.t0 A ;
+
+create table t2 as select kp1 as a from t1;
+
+set join_cache_level=8;
+set optimizer_switch='mrr=on,mrr_sort_keys=on';
+explain
+select * from t2 straight_join t1 force index(kp1) where t1.kp1=t2.a;
+select * from t2 straight_join t1 force index(kp1) where t1.kp1=t2.a;
+
+drop table t0,t1,t2;
+
+--echo #
 --echo #
 --echo # MDEV-3817: Wrong result with index_merge+index_merge_intersection, InnoDB table, join, AND and OR conditions
 --echo #
@@ -190,5 +218,13 @@ set join_cache_level=3;
 explain SELECT 1 FROM (SELECT url, id FROM t2 LIMIT 1 OFFSET 20) derived RIGHT JOIN t1 ON t1.id = derived.id;
 
 set join_cache_level= @tmp_mdev5037;
-
 drop table t0,t1,t2;
+
+--echo #
+--echo # This must be at the end:
+--echo #
+
+set @@join_cache_level= @save_join_cache_level;
+set storage_engine=@save_storage_engine;
+set optimizer_switch=@innodb_mrr_cpk_tmp;
+
