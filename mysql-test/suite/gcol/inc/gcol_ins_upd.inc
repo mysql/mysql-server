@@ -47,6 +47,7 @@ delete from t1;
 select * from t1;
 
 --echo # INSERT INTO tbl_name VALUES... a non-NULL value is specified against gcols
+--error ER_NON_DEFAULT_VALUE_FOR_GENERATED_COLUMN
 insert into t1 values (1,2,3);
 select * from t1;
 delete from t1;
@@ -73,6 +74,7 @@ select * from t1;
 
 --echo # INSERT INTO tbl_name (<normal+gcols>) VALUES... a non-NULL value is specified 
 --echo # against gcols
+--error ER_NON_DEFAULT_VALUE_FOR_GENERATED_COLUMN
 insert into t1 (a,b) values (1,3), (2,4);
 select * from t1;
 delete from t1;
@@ -101,6 +103,7 @@ select a,b,c from t1;
 --echo # CREATE new_table ... LIKE old_table
 --echo # INSERT INTO new_table SELECT * from old_table
 create table t2 like t1;
+--error ER_NON_DEFAULT_VALUE_FOR_GENERATED_COLUMN
 insert into t2 select * from t1;
 select * from t1;
 drop table t2;
@@ -110,6 +113,7 @@ drop table t2;
 insert into t1 values (1,default,default);
 select * from t1;
 create table t2 like t1;
+--error ER_NON_DEFAULT_VALUE_FOR_GENERATED_COLUMN
 insert into t2 (a,b) select a,b from t1;
 select * from t2;
 drop table t2;
@@ -131,6 +135,7 @@ select * from t1;
 --echo # UPDATE tbl_name SET gcol=expr WHERE non-gcol=expr
 insert into t1 (a) values (1), (2);
 select * from t1;
+--error ER_NON_DEFAULT_VALUE_FOR_GENERATED_COLUMN
 update t1 set c=3 where a=2;
 select * from t1;
 delete from t1;
@@ -147,6 +152,7 @@ select * from t1;
 --echo # UPDATE tbl_name SET gcol=expr WHERE gcol=expr
 insert into t1 (a) values (1), (2);
 select * from t1;
+--error ER_NON_DEFAULT_VALUE_FOR_GENERATED_COLUMN
 update t1 set c=3 where b=-2;
 select * from t1;
 delete from t1;

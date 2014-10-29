@@ -9194,12 +9194,8 @@ fill_record(THD * thd, List<Item> &fields, List<Item> &values,
         value->type() != Item::DEFAULT_VALUE_ITEM && 
         value->type() != Item::NULL_ITEM &&
         table->s->table_category != TABLE_CATEGORY_TEMPORARY)
-    {
-      push_warning_printf(thd, Sql_condition::SL_WARNING,
-                          ER_WARNING_NON_DEFAULT_VALUE_FOR_GENERATED_COLUMN,
-                          ER(ER_WARNING_NON_DEFAULT_VALUE_FOR_GENERATED_COLUMN),
-                          rfield->field_name, table->s->table_name.str);
-    }
+      my_error(ER_NON_DEFAULT_VALUE_FOR_GENERATED_COLUMN, MYF(0),
+               rfield->field_name, table->s->table_name.str);
     if (value->save_in_field(rfield, false) < 0)
     {
       my_message(ER_UNKNOWN_ERROR, ER(ER_UNKNOWN_ERROR), MYF(0));
@@ -9500,12 +9496,8 @@ fill_record(THD *thd, Field **ptr, List<Item> &values,
         value->type() != Item::DEFAULT_VALUE_ITEM && 
         value->type() != Item::NULL_ITEM &&
         table->s->table_category != TABLE_CATEGORY_TEMPORARY)
-    {
-      push_warning_printf(thd, Sql_condition::SL_WARNING,
-                          ER_WARNING_NON_DEFAULT_VALUE_FOR_GENERATED_COLUMN,
-                          ER(ER_WARNING_NON_DEFAULT_VALUE_FOR_GENERATED_COLUMN),
-                          field->field_name, table->s->table_name.str);
-    }
+      my_error(ER_NON_DEFAULT_VALUE_FOR_GENERATED_COLUMN, MYF(0),
+               field->field_name, table->s->table_name.str);
     if (value->save_in_field(field, false) == TYPE_ERR_NULL_CONSTRAINT_VIOLATION)
       goto err;
     tbl_list.push_back(table);
