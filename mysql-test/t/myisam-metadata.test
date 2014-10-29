@@ -30,17 +30,22 @@ while ($1)
 --enable_query_log
 
 --connect(con1,localhost,root,,)
-SET debug_sync= 'myisam_after_repair_by_sort SIGNAL waiting WAIT_FOR go';
+# Set a debug_sync waitpoint.
+# This is just to ensure that the ALTER does not have time to complete
+# its operation and change the status away from "Repair by sorting" before
+# wait_condition has a chance to see it.
+SET debug_sync= 'myisam_after_repair_by_sort WAIT_FOR go';
 send
   ALTER TABLE t1 ENABLE KEYS;
 
 --connection default
---let $wait_timeout=600
+--let $wait_timeout=60
 --let $show_statement= SHOW PROCESSLIST
 --let $field= State
---let $condition= = 'Repair by sorting'
+# If the sort completes early and we hit the debug_sync point, the processlist
+# will show the debug_sync state, so we need to check for that also.
+--let $condition= RLIKE 'Repair by sorting|myisam_after_repair_by_sort'
 --source include/wait_show_condition.inc
-SET debug_sync= 'now WAIT_FOR waiting';
 SET debug_sync= 'now SIGNAL go';
 
 --replace_column 7 # 8 # 9 # 12 # 13 # 14 #

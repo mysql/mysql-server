@@ -5,9 +5,8 @@ a VARCHAR(100),
 INDEX(a)
 ) ENGINE=MyISAM;
 ALTER TABLE t1 DISABLE KEYS;
-SET debug_sync= 'myisam_after_repair_by_sort SIGNAL waiting WAIT_FOR go';
+SET debug_sync= 'myisam_after_repair_by_sort WAIT_FOR go';
 ALTER TABLE t1 ENABLE KEYS;
-SET debug_sync= 'now WAIT_FOR waiting';
 SET debug_sync= 'now SIGNAL go';
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
