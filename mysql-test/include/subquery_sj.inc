@@ -6631,4 +6631,32 @@ eval $query;
 
 DROP TABLE t1,t2,t3;
 
+--echo #
+--echo # Bug#19586047: CRASH IN ARG_COMPARATOR::SET_CMP_FUNC
+--echo #
+
+CREATE TABLE t1(x INT) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1);
+ANALYZE TABLE t1;
+
+let $query=SELECT 1 FROM t1 WHERE EXISTS(SELECT 1) IN (SELECT 1 FROM t1);
+eval EXPLAIN $query;
+eval $query;
+
+let $query=
+SELECT 1 FROM t1 WHERE (SELECT 1, 2 FROM t1) IN (SELECT 1, 2 FROM t1);
+eval EXPLAIN $query;
+eval $query;
+
+--echo # The next query is supposed to return zero rows. In some cases
+--echo # it returns one row, because of bug#19822406.
+
+let $query=
+SELECT 1 FROM t1 WHERE
+  (SELECT 1, 2 FROM t1 WHERE x = 2) IN (SELECT 1, 2 FROM t1);
+eval EXPLAIN $query;
+eval $query;
+
+DROP TABLE t1;
+
 # New tests go here.
