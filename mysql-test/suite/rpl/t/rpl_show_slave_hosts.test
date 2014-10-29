@@ -25,6 +25,11 @@ let $field= Server_id;
 # 3 is server_id of slave2.
 let $condition= ='3';
 source include/wait_show_condition.inc;
+# Make sure that the other slave also had time to register. Otherwise we get
+# occasional spurious failures where server_id=2 is missing from SHOW SLAVE
+# HOSTS, when that slave is much slower to register due to thread scheduling.
+let $condition= ='2';
+source include/wait_show_condition.inc;
 --replace_column 3 'SLAVE_PORT'
 --replace_result $SLAVE_MYPORT SLAVE_PORT $DEFAULT_MASTER_PORT DEFAULT_PORT
 SHOW SLAVE HOSTS;
