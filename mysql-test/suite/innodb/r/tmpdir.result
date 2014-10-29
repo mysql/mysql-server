@@ -59,15 +59,14 @@ insert into t1 select NULL,'aaa','bbb' from t480;
 insert into t1 select NULL,'aaaa','bbbb' from t480;
 insert into t1 select NULL,'aaaaa','bbbbb' from t480;
 insert into t1 select NULL,'aaaaaa','bbbbbb' from t480;
-set @tmpdir = @@global.tmpdir;
-set global innodb_tmpdir = @tmpdir;
+set global innodb_tmpdir = @@global.tmpdir;
 show session variables like 'innodb_tmpdir';
 Variable_name	Value
 innodb_tmpdir	
 # Connection con3
 show session variables like 'innodb_tmpdir';
 Variable_name	Value
-innodb_tmpdir	MYSQL_TMP_DIR/mysqld.1
+innodb_tmpdir	tmpdir
 alter table t1 add fulltext(f2);
 Warnings:
 Warning	124	InnoDB rebuilding table to add column FTS_DOC_ID

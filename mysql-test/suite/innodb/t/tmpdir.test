@@ -68,12 +68,12 @@ insert into t1 select NULL,'aaa','bbb' from t480;
 insert into t1 select NULL,'aaaa','bbbb' from t480;
 insert into t1 select NULL,'aaaaa','bbbbb' from t480;
 insert into t1 select NULL,'aaaaaa','bbbbbb' from t480;
-set @tmpdir = @@global.tmpdir;
-set global innodb_tmpdir = @tmpdir;
+let $mysql_tmpdir = `select @@global.tmpdir`;
+set global innodb_tmpdir = @@global.tmpdir;
 show session variables like 'innodb_tmpdir';
 --echo # Connection con3
 connect (con3,localhost,root);
---replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+--replace_result $mysql_tmpdir tmpdir
 show session variables like 'innodb_tmpdir';
 alter table t1 add fulltext(f2);
 disconnect con3;
