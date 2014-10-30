@@ -1180,6 +1180,7 @@ buf_block_init(
 
 	block->index = NULL;
 	block->made_dirty_with_no_latch = false;
+	block->skip_flush_check = false;
 
 #ifdef UNIV_DEBUG
 	block->page.in_page_hash = FALSE;
@@ -3457,6 +3458,7 @@ buf_block_init_low(
 {
 	block->index		= NULL;
 	block->made_dirty_with_no_latch = false;
+	block->skip_flush_check = false;
 
 	block->n_hash_helps	= 0;
 	block->n_fields		= 1;
