@@ -269,7 +269,7 @@ public:
   void update(size_type i, value_type const &x)
   {
     DBUG_ASSERT(i < size());
-    if (Base::operator()(m_container[i], x))
+    if (Base::operator()(x, m_container[i]))
     {
       decrease_key(i, x);
     }
