@@ -2395,7 +2395,10 @@ bool Item_in_subselect::fix_fields(THD *thd_arg, Item **ref)
 
   if ((thd_arg->lex->context_analysis_only & CONTEXT_ANALYSIS_ONLY_VIEW) &&
       left_expr && !left_expr->fixed)
+  {
+    Disable_semijoin_flattening DSF(thd_arg->lex->current_select(), true);
     result = left_expr->fix_fields(thd_arg, &left_expr);
+  }
 
   return result || Item_subselect::fix_fields(thd_arg, ref);
 }

@@ -690,6 +690,7 @@ bool SELECT_LEX::resolve_subquery(THD *thd)
     thd->lex->set_current_select(outer);
     char const *save_where= thd->where;
     thd->where= "IN/ALL/ANY subquery";
+    Disable_semijoin_flattening DSF(outer, true);
 
     bool result= !in_predicate->left_expr->fixed &&
                   in_predicate->left_expr->fix_fields(thd,
@@ -722,7 +723,8 @@ bool SELECT_LEX::resolve_subquery(THD *thd)
       2. Subquery is a single SELECT (not a UNION)
       3. Subquery does not have GROUP BY
       4. Subquery does not use aggregate functions or HAVING
-      5. Subquery predicate is at the AND-top-level of ON/WHERE clause
+      5. Subquery predicate is (a) in an ON/WHERE clause, and (b) at
+      the AND-top-level of that clause.
       6. Parent query block accepts semijoins (i.e we are not in a subquery of
       a single table UPDATE/DELETE (TODO: We should handle this at some
       point by switching to multi-table UPDATE/DELETE)
@@ -736,8 +738,9 @@ bool SELECT_LEX::resolve_subquery(THD *thd)
       !is_part_of_union() &&                                            // 2
       !group_list.elements &&                                           // 3
       !m_having_cond && !with_sum_func &&                                 // 4
-      (outer->resolve_place == st_select_lex::RESOLVE_CONDITION ||      // 5
-       outer->resolve_place == st_select_lex::RESOLVE_JOIN_NEST) &&     // 5
+      (outer->resolve_place == st_select_lex::RESOLVE_CONDITION ||      // 5a
+       outer->resolve_place == st_select_lex::RESOLVE_JOIN_NEST) &&     // 5a
+      !outer->semijoin_disallowed &&                                    // 5b
       outer->sj_candidates &&                                           // 6
       leaf_table_count &&                                               // 7
       in_predicate->exec_method ==

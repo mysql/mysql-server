@@ -4047,9 +4047,8 @@ bool TABLE_LIST::prep_where(THD *thd, Item **conds,
         evaluation of check_option when we insert/update/delete a row.
         So we must forbid semijoin transformation in fix_fields():
       */
-      Switch_resolve_place SRP(&thd->lex->current_select()->resolve_place,
-                               st_select_lex::RESOLVE_NONE,
-                               effective_with_check != VIEW_CHECK_NONE);
+      Disable_semijoin_flattening DSF(thd->lex->current_select(),
+                                      effective_with_check != VIEW_CHECK_NONE);
 
       if (where->fix_fields(thd, &where))
         DBUG_RETURN(TRUE);
