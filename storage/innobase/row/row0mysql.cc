@@ -1374,8 +1374,7 @@ row_explicit_rollback(
 }
 
 /** Convert a row in the MySQL format to a row in the Innobase format.
-This is specialized function used for intrinsic table as it retains
-all columns in litte-endian format.
+This is specialized function used for intrinsic table with reduce branching.
 @param[in/out]	row		row where field values are copied.	
 @param[in]	prebuilt	prebuilt handler
 @param[in]	mysql_rec	row in mysql format. */
