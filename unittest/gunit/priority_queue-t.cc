@@ -858,19 +858,23 @@ TEST_F(PriorityQueueTest, Increase4)
 TEST_F(PriorityQueueTest, Update2)
 {
   Priority_queue<int> pqcopy= pq;
-  const int old_priority= pq[2];
-  const int new_priority= old_priority + 10;
 
-  pq.update(2, new_priority);
-  pqcopy[2] = new_priority;
-  pqcopy.update(2);
+  for (int i = -10; i <= 10; ++i)
+  {
+    const int old_priority= pq[2];
+    const int new_priority= old_priority + i;
 
-  std::stringstream ss1, ss2;
-  ss1 << pq;
-  ss2 << pqcopy;
-  EXPECT_TRUE(pq.is_valid());
-  EXPECT_TRUE(pqcopy.is_valid());
-  EXPECT_STREQ(ss1.str().c_str(), ss2.str().c_str());
+    pq.update(2, new_priority);
+    pqcopy[2] = new_priority;
+    pqcopy.update(2);
+
+    std::stringstream ss1, ss2;
+    ss1 << pq;
+    ss2 << pqcopy;
+    EXPECT_TRUE(pq.is_valid()) << "i:" << i << " pq:" << pq;
+    EXPECT_TRUE(pqcopy.is_valid());
+    EXPECT_STREQ(ss1.str().c_str(), ss2.str().c_str());
+  }
 }
 
 
