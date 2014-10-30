@@ -367,6 +367,7 @@ Key_use* Optimize_table_order::find_best_ref(const JOIN_TAB *tab,
             }
             else
             {                              /* Prefer longer keys */
+              DBUG_ASSERT(table->s->max_key_length > 0);
               cur_fanout=
                 ((double) tab->records() / (double) distinct_keys_est *
                  (1.0 +

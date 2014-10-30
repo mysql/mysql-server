@@ -1663,9 +1663,22 @@ SELECT_LEX::convert_subquery_to_semijoin(Item_exists_subselect *subq_pred)
        pointers to Item_direct_view_refs are guaranteed to be stable as 
        Item_direct_view_refs doesn't substitute itself with anything in 
        Item_direct_view_ref::fix_fields.
+
+    We have a special case for IN predicates with a scalar subquery or a
+    row subquery in the predicand (left operand), such as this:
+       (SELECT 1,2 FROM t1) IN (SELECT x,y FROM t2)
+    We cannot make the join condition 1=x AND 2=y, since that might evaluate
+    to TRUE even if t1 is empty. Instead make the join condition
+    (SELECT 1,2 FROM t1) = (x,y) in this case.
+
     */
 
-    if (in_subq_pred->left_expr->type() == Item::SUBSELECT_ITEM)
+    Item_subselect *left_subquery=
+      (in_subq_pred->left_expr->type() == Item::SUBSELECT_ITEM) ?
+      static_cast<Item_subselect *>(in_subq_pred->left_expr) : NULL;
+
+    if (left_subquery &&
+        (left_subquery->substype() == Item_subselect::SINGLEROW_SUBS))
     {
       List<Item> ref_list;
       uint i;

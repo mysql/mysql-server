@@ -1287,6 +1287,7 @@ innobase_start_or_create_for_mysql(void)
 	ulint		io_limit;
 	mtr_t		mtr;
 	purge_pq_t*	purge_queue;
+	ulint		n_recovered_trx;
 	char		logfilename[10000];
 	char*		logfile0	= NULL;
 	size_t		dirnamelen;
@@ -1552,7 +1553,7 @@ innobase_start_or_create_for_mysql(void)
 		} else {
 
 			srv_monitor_file_name = NULL;
-			srv_monitor_file = os_file_create_tmpfile();
+			srv_monitor_file = os_file_create_tmpfile(NULL);
 
 			if (!srv_monitor_file) {
 				return(srv_init_abort(DB_ERROR));
@@ -1561,7 +1562,7 @@ innobase_start_or_create_for_mysql(void)
 
 		mutex_create("srv_dict_tmpfile", &srv_dict_tmpfile_mutex);
 
-		srv_dict_tmpfile = os_file_create_tmpfile();
+		srv_dict_tmpfile = os_file_create_tmpfile(NULL);
 
 		if (!srv_dict_tmpfile) {
 			return(srv_init_abort(DB_ERROR));
@@ -1569,7 +1570,7 @@ innobase_start_or_create_for_mysql(void)
 
 		mutex_create("srv_misc_tmpfile", &srv_misc_tmpfile_mutex);
 
-		srv_misc_tmpfile = os_file_create_tmpfile();
+		srv_misc_tmpfile = os_file_create_tmpfile(NULL);
 
 		if (!srv_misc_tmpfile) {
 			return(srv_init_abort(DB_ERROR));
@@ -1969,6 +1970,7 @@ files_checked:
 		trx_sys_create_sys_pages();
 
 		purge_queue = trx_sys_init_at_db_start();
+		n_recovered_trx = UT_LIST_GET_LEN(trx_sys->rw_trx_list);
 
 		/* The purge system needs to create the purge view and
 		therefore requires that the trx_sys is inited. */
@@ -2069,6 +2071,8 @@ files_checked:
 				" InnoDB database from a backup!";
 		}
 
+		n_recovered_trx = UT_LIST_GET_LEN(trx_sys->rw_trx_list);
+
 		/* The purge system needs to create the purge view and
 		therefore requires that the trx_sys is inited. */
 
@@ -2087,31 +2091,24 @@ files_checked:
 
 			In a crash recovery, we check that the info in data
 			dictionary is consistent with what we already know
-			about space id's from the calls to fil_ibd_load().
+			about space id's from the calls to
+			fil_ibd_load().
 
 			In a normal startup, we create the space objects for
 			every table in the InnoDB data dictionary that has
 			an .ibd file.
 
 			We also determine the maximum tablespace id used. */
+			dict_check_t	dict_check;
 
-			/* Before searching the dictionary for tablespaces,
-			make sure SYS_TABLESPACES and SYS_DATAFILES are
-			available. */
-			err = dict_create_or_check_sys_tablespace();
-			if (err != DB_SUCCESS) {
-				return(srv_init_abort(err));
+			if (recv_needed_recovery || n_recovered_trx) {
+				dict_check = DICT_CHECK_SOME_LOADED;
+			} else {
+				dict_check = DICT_CHECK_NONE_LOADED;
 			}
 
-			/* This flag indicates that when a tablespace is opened,
-			we also read the header page and validate the contents
-			to the data dictionary. This is time consuming, especially
-			for databases with lots of ibd files.  So only do it after
-			a crash and not forcing recovery.  Open rw transactions
-			at this point is not a good reason to validate. */
-			bool validate = recv_needed_recovery
-				&& srv_force_recovery == 0;
-			dict_check_tablespaces_and_store_max_id(validate);
+			dict_check_tablespaces_and_store_max_id(
+				recv_needed_recovery, dict_check);
 		}
 
 		/* Fix-up truncate of table if server crashed while truncate

@@ -977,7 +977,7 @@ dict_init(void)
 	rw_lock_create(dict_operation_lock_key,
 		       &dict_operation_lock, SYNC_DICT_OPERATION);
 
-	dict_foreign_err_file = os_file_create_tmpfile();
+	dict_foreign_err_file = os_file_create_tmpfile(NULL);
 	ut_a(dict_foreign_err_file);
 
 	mutex_create("dict_foreign_err", &dict_foreign_err_mutex);
@@ -1035,7 +1035,7 @@ dict_table_open_on_name(
 	table = dict_table_check_if_in_cache_low(table_name);
 
 	if (table == NULL) {
-		table = dict_load_table(table_name, true, ignore_err);
+		table = dict_load_table(table_name, TRUE, ignore_err);
 	}
 
 	ut_ad(!table || table->cached);

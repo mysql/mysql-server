@@ -6214,9 +6214,13 @@ static bool add_derived_key(List<Derived_key> &derived_key_list, Field *field,
 bool TABLE_LIST::update_derived_keys(Field *field, Item **values,
                                      uint num_values)
 {
-  /* Don't bother with keys for CREATE VIEW and for BLOB fields. */
+  /*
+    Don't bother with keys for CREATE VIEW, BLOB fields and fields with
+    zero length.
+  */
   if (field->table->in_use->lex->is_ps_or_view_context_analysis() ||
-      field->flags & BLOB_FLAG)
+      field->flags & BLOB_FLAG ||
+      field->field_length == 0)
     return FALSE;
 
   /* Allow all keys to be used. */
