@@ -215,16 +215,63 @@ SHOW CREATE TABLE t1;
 --let $sync_slave_connection= slave
 --source include/sync_slave_sql_with_master.inc
 
-
-
 --echo Insert some values and select them on master
 SELECT BIN(a), BIN(b), BIN(c), BIN(d), BIN(e) FROM t1;
 --replace_result default DEFAULT
 SHOW CREATE TABLE t1;
 
+###############################################################################
+# Bug#19704825 TEMPORARY SLAVE TYPE CONVERSION TABLES RELEASED TO EARLY
+# Problem: Memory used in preparing slave type conversion
+# temporary table is getting released early and causing unexpected results
+# in case of nested events.
+# Eg: If a insert statement is calling a trigger which contains another
+# insert statement.
+# Steps to reproduce:
+#  1) Create a table t1
+#  2) Change it's definition on slave, so that insert will create conversion
+#     temporary table on slave (set SLAVE_TYPE_CONVERSIONS appropriately to
+#     allow the scenario)
+#  3) Create a table t2
+#  4) Create a trigger on top of table t1. Inside the trigger, insert a tuple
+#      into table t2
+#  5) Insert a tuple into table t1 on Master
+#  6) Make sure this insert is replicated without any issues.
+###############################################################################
+
+# Step 1, 2 are already done by above test code.
+
+# Step 3: Create a table t2
+connection master;
+CREATE TABLE t2(i INTEGER);
+
+# Step 4: Create a trigger on top of table t1. Inside the trigger, insert a
+#          tuple into table t2
+--delimiter $$
+CREATE TRIGGER t1_tr BEFORE INSERT ON t1 FOR EACH ROW
+BEGIN
+INSERT INTO t2 VALUES(1);
+END $$
+--delimiter ;
+
+# Step 5: Insert a tuple into table t1 on Master
+INSERT INTO t1 VALUES (
+  b'1010101',
+  b'10101011',
+  b'101010110101010101111',
+  b'10101010101',
+  b'10101011111'
+  );
+
+# Step 6) Make sure this insert is replicated without any issues.
+--source include/sync_slave_sql_with_master.inc
+
+# End of test for Bug#19704825
+
 --echo *** Cleanup  ***
 connection master;
 DROP TABLE t1;
+DROP TABLE t2;
 --source include/sync_slave_sql_with_master.inc
 
 SET GLOBAL SLAVE_TYPE_CONVERSIONS = @saved_slave_type_conversions;
