@@ -3280,7 +3280,7 @@ row_table_add_foreign_constraints(
 					 DICT_ERR_IGNORE_NONE, fk_tables);
 
 		while (err == DB_SUCCESS && !fk_tables.empty()) {
-			dict_load_table(fk_tables.front(), true,
+			dict_load_table(fk_tables.front(), TRUE,
 					DICT_ERR_IGNORE_NONE);
 			fk_tables.pop_front();
 		}
@@ -4006,7 +4006,7 @@ row_drop_table_from_cache(
 	}
 
 	if (!is_temp
-	    && dict_load_table(tablename, true,
+	    && dict_load_table(tablename, TRUE,
 			       DICT_ERR_IGNORE_NONE) != NULL) {
 		ib::error() << "Not able to remove table "
 			<< ut_get_name(trx, tablename)
@@ -4721,7 +4721,7 @@ row_mysql_drop_temp_tables(void)
 		btr_pcur_store_position(&pcur, &mtr);
 		btr_pcur_commit_specify_mtr(&pcur, &mtr);
 
-		table = dict_load_table(table_name, true,
+		table = dict_load_table(table_name, TRUE,
 					DICT_ERR_IGNORE_NONE);
 
 		if (table) {
@@ -5398,7 +5398,7 @@ end:
 		}
 
 		while (!fk_tables.empty()) {
-			dict_load_table(fk_tables.front(), true,
+			dict_load_table(fk_tables.front(), TRUE,
 					DICT_ERR_IGNORE_NONE);
 			fk_tables.pop_front();
 		}

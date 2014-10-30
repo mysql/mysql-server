@@ -1524,7 +1524,7 @@ dict_check_if_system_table_exists(
 		/* This table has already been created, and it is OK.
 		Ensure that it can't be evicted from the table LRU cache. */
 
-		dict_table_prevent_eviction(sys_table);
+		dict_table_move_from_lru_to_non_lru(sys_table);
 	}
 
 	mutex_exit(&dict_sys->mutex);

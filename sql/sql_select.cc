@@ -126,21 +126,24 @@ bool types_allow_materialization(Item *outer, Item *inner)
 
 {
   if (outer->result_type() != inner->result_type())
-    return FALSE;
+    return false;
   switch (outer->result_type()) {
+  case ROW_RESULT:
+    // Materialization of rows nested inside rows is not currently supported.
+    return false;
   case STRING_RESULT:
     if (outer->is_temporal_with_date() != inner->is_temporal_with_date())
-      return FALSE;
+      return false;
     if (!(outer->collation.collation == inner->collation.collation
         /*&& outer->max_length <= inner->max_length */))
-      return FALSE;
+      return false;
   /*case INT_RESULT:
     if (!(outer->unsigned_flag ^ inner->unsigned_flag))
-      return FALSE; */
+      return false; */
   default:
     ;                 /* suitable for materialization */
   }
-  return TRUE;
+  return true;
 }
 
 

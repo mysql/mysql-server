@@ -1382,3 +1382,28 @@ SET @@SESSION.optimizer_switch= @save_optimizer_switch;
 DROP TABLE t2, t1;
 
 --echo # End of test for Bug #17814492
+
+--echo #
+--echo # Bug#19793998 ASSERTION FAILED: ROWS >= 0.0 IN
+--echo #              HANDLER::INDEX_SCAN_COST()
+--echo #
+
+CREATE TABLE t1 (
+  pk INTEGER PRIMARY KEY
+);
+
+INSERT INTO t1 VALUES (0),(1),(2);
+
+CREATE TABLE t2 (
+  pk INTEGER PRIMARY KEY
+);
+
+INSERT INTO t2 VALUES (0),(1),(2);
+
+let query=
+SELECT SHA(pk) IN (SELECT * FROM (SELECT '' FROM t2) a) FROM t1;
+
+eval explain $query;
+eval $query;
+
+DROP TABLE t1, t2;
