@@ -6339,6 +6339,8 @@ struct btr_blob_log_check_t {
 			offs = page_offset(*m_rec);
 			page_no = page_get_page_no(
 				buf_block_get_frame(*m_block));
+
+			buf_block_buf_fix_inc(*m_block, __FILE__, __LINE__);
 		} else {
 			btr_pcur_store_position(m_pcur, m_mtr);
 		}
@@ -6365,6 +6367,8 @@ struct btr_blob_log_check_t {
 				page_id, page_size, RW_X_LATCH, index, m_mtr);
 			page_cur->rec = buf_block_get_frame(page_cur->block)
 				+ offs;
+
+			buf_block_buf_fix_dec(page_cur->block);
 		} else {
 			ut_ad(m_pcur->rel_pos == BTR_PCUR_ON);
 			bool ret = btr_pcur_restore_position(
