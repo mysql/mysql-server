@@ -502,7 +502,7 @@ ut_2_power_up(
 
 #ifndef UNIV_HOTBACKUP
 /**********************************************************************//**
-Get  a fixed-length string, quoted as an SQL identifier.
+Get a fixed-length string, quoted as an SQL identifier.
 If the string contains a slash '/', the string will be
 output as two identifiers separated by a period (.),
 as in SQL database_name.identifier.

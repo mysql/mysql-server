@@ -33,6 +33,7 @@ Created 1/8/1996 Heikki Tuuri
 #include "dict0mem.h"
 #include "dict0types.h"
 #include "fsp0fsp.h"
+#include "fsp0sysspace.h"
 #include "hash0hash.h"
 #include "mem0mem.h"
 #include "rem0types.h"
