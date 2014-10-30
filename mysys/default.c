@@ -849,7 +849,7 @@ static int search_default_file_with_ext(Process_option_func opt_handler,
         for (i= 0; i < (uint) search_dir->number_off_files; i++)
         {
           search_file= search_dir->dir_entry + i;
-          ext= fn_ext(search_file->name);
+          ext= fn_ext2(search_file->name);
 
           /* check extension */
           for (tmp_ext= (char**) f_extensions; *tmp_ext; tmp_ext++)
