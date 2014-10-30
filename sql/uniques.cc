@@ -519,7 +519,10 @@ static bool merge_walk(uchar *merge_buffer, size_t merge_buffer_size,
           give all its memory to the nearest tree.
         */
         queue_remove(&queue, 0);
-        top->reuse_freed_buff(&queue);
+        Merge_chunk *begin=
+          static_cast<Merge_chunk*>(static_cast<void*>(queue_top(&queue)));
+        Merge_chunk *end= begin + queue.elements;
+        top->reuse_freed_buff(begin, end);
       }
     }
     top= static_cast<Merge_chunk *>(static_cast<void*>(queue_top(&queue)));
