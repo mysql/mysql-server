@@ -2114,6 +2114,7 @@ st_select_lex::st_select_lex
   context(),
   resolve_place(RESOLVE_NONE),
   resolve_nest(NULL),
+  semijoin_disallowed(false),
   db(NULL),
   m_where_cond(where),
   m_having_cond(having),

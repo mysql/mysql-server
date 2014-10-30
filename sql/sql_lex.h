@@ -705,13 +705,19 @@ public:
   bool no_table_names_allowed; ///< used for global order by
   Name_resolution_context context;
   /**
-    Two fields used by semi-join transformations to know when semi-join is
+    Three fields used by semi-join transformations to know when semi-join is
     possible, and in which condition tree the subquery predicate is located.
   */
   enum Resolve_place { RESOLVE_NONE, RESOLVE_JOIN_NEST, RESOLVE_CONDITION,
                        RESOLVE_HAVING, RESOLVE_SELECT_LIST };
   Resolve_place resolve_place; ///< Indicates part of query being resolved
   TABLE_LIST *resolve_nest;    ///< Used when resolving outer join condition
+  /**
+    Disables semi-join flattening when resolving a subtree in which flattening
+    is not allowed. The flag should be true while resolving items that are not
+    on the AND-top-level of a condition tree.
+  */
+  bool semijoin_disallowed;
   char *db;
 private:
   /**
@@ -1386,30 +1392,31 @@ union YYSTYPE {
 #endif
 
 
-/// Utility RAII class to save/modify/restore a Resolve_place
-class Switch_resolve_place
+/**
+  Utility RAII class to save/modify/restore the
+  semijoin_disallowed flag.
+*/
+class Disable_semijoin_flattening
 {
 public:
-  Switch_resolve_place(SELECT_LEX::Resolve_place *rp_ptr,
-                       SELECT_LEX::Resolve_place new_rp,
-                       bool apply)
-    : rp(NULL), saved_rp()
+  Disable_semijoin_flattening(SELECT_LEX *select_ptr, bool apply)
+    : select(NULL), saved_value()
   {
-    if (apply)
+    if (select_ptr && apply)
     {
-      rp= rp_ptr;
-      saved_rp= *rp;
-      *rp= new_rp;
+      select= select_ptr;
+      saved_value= select->semijoin_disallowed;
+      select->semijoin_disallowed= true;
     }
   }
-  ~Switch_resolve_place()
+  ~Disable_semijoin_flattening()
   {
-    if (rp)
-      *rp= saved_rp;
+    if (select)
+      select->semijoin_disallowed= saved_value;
   }
 private:
-  SELECT_LEX::Resolve_place *rp;
-  SELECT_LEX::Resolve_place saved_rp;
+  SELECT_LEX *select;
+  bool saved_value;
 };
 
 
