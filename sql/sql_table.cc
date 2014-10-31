@@ -3197,7 +3197,7 @@ void promote_first_timestamp_column(List<Create_field> *column_definitions)
     {
       if ((column_definition->flags & NOT_NULL_FLAG) != 0 && // NOT NULL,
           column_definition->def == NULL &&            // no constant default,
-          column_definition->gcol_info == NULL &&      // not a virtual column
+          column_definition->gcol_info == NULL &&      // not a generated column
           column_definition->unireg_check == Field::NONE) // no function default
       {
         DBUG_PRINT("info", ("First TIMESTAMP column '%s' was promoted to "
@@ -3666,7 +3666,7 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
     if (sql_field->stored_in_db)
       record_offset+= sql_field->pack_length;
   }
-  /* Update virtual fields' offset*/
+  /* Update generated fields' offset*/
   it.rewind();
   while ((sql_field=it++))
   {
@@ -6001,7 +6001,7 @@ static bool fill_alter_inplace_info(THD *thd,
 
       bool field_renamed;
       /*
-        Check if the altered column is a stored virtual field.
+        Check if the altered column is a stored generated field.
         TODO: Mark such a column with an alter flag only if
         the expression functions are not equal.
       */
@@ -6593,7 +6593,7 @@ static bool is_inplace_alter_impossible(TABLE *table,
     not supported for in-place in combination with other operations.
     Alone, it will be done by simple_rename_or_index_change().
 
-    Stored virtual columns are evaluated in server, thus can't be added/changed
+    Stored generated columns are evaluated in server, thus can't be added/changed
     inplace.
   */
   if (alter_info->flags & (Alter_info::ALTER_ORDER |
@@ -7207,7 +7207,7 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
 	  create_info->used_fields|=HA_CREATE_USED_AUTO;
 	}
   /*
-    If the base column has a virtual column dependency, it's not allowed
+    If the base column has a generated column dependency, it's not allowed
     to be dropped.
   */
   if (table->is_field_dependent_by_generated_columns(field->field_index))
@@ -9274,7 +9274,7 @@ copy_data_between_tables(PSI_stage_progress *psi,
     {
       copy_ptr->invoke_do_copy(copy_ptr);
     }
-    update_virtual_fields_marked_for_write(to, false);
+    update_generated_fields_marked_for_write(to);
     if (thd->is_error())
     {
       error= 1;

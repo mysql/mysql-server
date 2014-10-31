@@ -6919,12 +6919,8 @@ bool is_simple_order(ORDER *order)
   corresponding column map.
 
   SYNOPSIS
-    update_virtual_fields_marked_for_write()
+    update_generated_fields_marked_for_write()
     table                  The TABLE object
-    ignore_stored          Indication whether physically stored virtual
-                           fields do not need updating.
-                           This value is false when during INSERT and UPDATE
-                           and true in all other cases.
  
   RETURN
     0  - Success
@@ -6932,25 +6928,23 @@ bool is_simple_order(ORDER *order)
 
 */
 
-int update_virtual_fields_marked_for_write(TABLE *table,
-                                           bool ignore_stored)
+int update_generated_fields_marked_for_write(TABLE *table)
 {
-  DBUG_ENTER("update_virtual_fields_marked_for_write");
+  DBUG_ENTER("update_generated_fields_marked_for_write");
   Field **vfield_ptr, *vfield;
   int error= 0;
   if (!table || !table->vfield)
     DBUG_RETURN(0);
 
-  /* Iterate over virtual fields in the table */
+  /* Iterate over generated fields in the table */
   for (vfield_ptr= table->vfield; *vfield_ptr; vfield_ptr++)
   {
     vfield= (*vfield_ptr);
     DBUG_ASSERT(vfield->gcol_info && vfield->gcol_info->expr_item);
     /* Only update those fields that are marked in the write_set bitmap */
-    if (bitmap_is_set(table->write_set, vfield->field_index) &&
-            (!(ignore_stored && vfield->stored_in_db)))
+    if (bitmap_is_set(table->write_set, vfield->field_index))
     {
-      /* Generate the actual value of the virtual fields */
+      /* Generate the actual value of the generated fields */
       error= vfield->gcol_info->expr_item->save_in_field(vfield, 0);
       DBUG_PRINT("info", ("field '%s' - updated", vfield->field_name));
       if (error && !table->in_use->is_error())

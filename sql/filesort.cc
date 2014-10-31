@@ -834,7 +834,7 @@ static ha_rows find_all_keys(Sort_param *param, QEP_TAB *qep_tab,
     {
       if ((error= qep_tab->quick()->get_next()))
         break;
-      update_virtual_fields_marked_for_write(sort_form);
+      update_generated_fields_marked_for_write(sort_form);
       file->position(sort_form->record[0]);
       DBUG_EXECUTE_IF("debug_filesort", dbug_print_record(sort_form, TRUE););
     }
@@ -844,7 +844,7 @@ static ha_rows find_all_keys(Sort_param *param, QEP_TAB *qep_tab,
       {
 	error= file->ha_rnd_next(sort_form->record[0]);
         if (!error)
-          update_virtual_fields_marked_for_write(sort_form);
+          update_generated_fields_marked_for_write(sort_form);
 	if (!flag)
 	{
 	  my_store_ptr(ref_pos,ref_length,record); // Position to row
