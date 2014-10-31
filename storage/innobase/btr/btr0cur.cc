@@ -258,9 +258,9 @@ btr_cur_latch_leaves(
 	case BTR_MODIFY_LEAF:
 	case BTR_SEARCH_TREE:
 		if (spatial) {
-                        cursor->rtr_info->tree_savepoints[RTR_MAX_LEVELS]
+			cursor->rtr_info->tree_savepoints[RTR_MAX_LEVELS]
 				= mtr_set_savepoint(mtr);
-                }
+		}
 
 		mode = latch_mode == BTR_MODIFY_LEAF ? RW_X_LATCH : RW_S_LATCH;
 		latch_leaves.savepoints[1] = mtr_set_savepoint(mtr);
@@ -271,9 +271,9 @@ btr_cur_latch_leaves(
 		ut_a(page_is_comp(get_block->frame) == page_is_comp(page));
 #endif /* UNIV_BTR_DEBUG */
 		if (spatial) {
-                        cursor->rtr_info->tree_blocks[RTR_MAX_LEVELS]
+			cursor->rtr_info->tree_blocks[RTR_MAX_LEVELS]
 				= get_block;
-                }
+		}
 
 		return(latch_leaves);
 	case BTR_MODIFY_TREE:
@@ -306,12 +306,12 @@ btr_cur_latch_leaves(
 				cursor->rtr_info->tree_blocks[RTR_MAX_LEVELS]
 					= get_block;
 			}
-                }
+		}
 
 		if (spatial) {
-                        cursor->rtr_info->tree_savepoints[RTR_MAX_LEVELS + 1]
+			cursor->rtr_info->tree_savepoints[RTR_MAX_LEVELS + 1]
 				= mtr_set_savepoint(mtr);
-                }
+		}
 
 		latch_leaves.savepoints[1] = mtr_set_savepoint(mtr);
 		get_block = btr_block_get(
@@ -322,9 +322,9 @@ btr_cur_latch_leaves(
 #endif /* UNIV_BTR_DEBUG */
 
 		if (spatial) {
-                        cursor->rtr_info->tree_blocks[RTR_MAX_LEVELS + 1]
+			cursor->rtr_info->tree_blocks[RTR_MAX_LEVELS + 1]
 				= get_block;
-                }
+		}
 
 		right_page_no = btr_page_get_next(page, mtr);
 
@@ -390,6 +390,7 @@ btr_cur_latch_leaves(
 	}
 
 	ut_error;
+	return(latch_leaves);
 }
 
 /** Optimistically latches the leaf page or pages requested.
@@ -3223,13 +3224,10 @@ fail_err:
 					     offsets, heap, n_ext, mtr);
 
 		if (UNIV_UNLIKELY(!*rec)) {
-
-			ib::error() <<  "Cannot insert tuple";
-			dtuple_print(stderr, entry);
-			fputs(" into ", stderr);
-			dict_index_name_print(stderr, thr_get_trx(thr), index);
-			ib::error() << "Max insert size " << max_size;
-			ut_error;
+			ib::fatal() <<  "Cannot insert tuple " << *entry
+				<< "into index " << index->name
+				<< " of table " << index->table->name
+				<< ". Max size: " << max_size;
 		}
 	}
 
@@ -6338,6 +6336,8 @@ struct btr_blob_log_check_t {
 			offs = page_offset(*m_rec);
 			page_no = page_get_page_no(
 				buf_block_get_frame(*m_block));
+
+			buf_block_buf_fix_inc(*m_block, __FILE__, __LINE__);
 		} else {
 			btr_pcur_store_position(m_pcur, m_mtr);
 		}
@@ -6364,6 +6364,8 @@ struct btr_blob_log_check_t {
 				page_id, page_size, RW_X_LATCH, index, m_mtr);
 			page_cur->rec = buf_block_get_frame(page_cur->block)
 				+ offs;
+
+			buf_block_buf_fix_dec(page_cur->block);
 		} else {
 			ut_ad(m_pcur->rel_pos == BTR_PCUR_ON);
 			bool ret = btr_pcur_restore_position(

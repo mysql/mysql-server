@@ -27,7 +27,6 @@
 #if MYSQL_VERSION_ID >= 50501
 /* Include files for sql/ was split in 5.5, and ha_ndb*  uses a few.. */
 #include "sql_priv.h"
-#include "unireg.h"         // REQUIRED: for other includes
 #include "sql_table.h"      // build_table_filename,
                             // tablename_to_filename,
                             // filename_to_tablename

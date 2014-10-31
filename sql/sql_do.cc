@@ -18,7 +18,6 @@
 
 #include "sql_priv.h"
 #include "transaction.h"
-#include "unireg.h"
 #include "sql_do.h"
 #include "sql_base.h"                           // setup_fields
 #include "sql_select.h"                         // free_underlaid_joins

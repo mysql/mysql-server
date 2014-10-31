@@ -196,10 +196,8 @@ dictionary tables are in the system tablespace 0 */
 extern my_bool	srv_file_per_table;
 /** Sleep delay for threads waiting to enter InnoDB. In micro-seconds. */
 extern	ulong	srv_thread_sleep_delay;
-#if defined(HAVE_ATOMIC_BUILTINS)
 /** Maximum sleep delay (in micro-seconds), value of 0 disables it.*/
 extern	ulong	srv_adaptive_max_sleep_delay;
-#endif /* HAVE_ATOMIC_BUILTINS */
 
 /** The file format to use on new *.ibd files. */
 extern ulint	srv_file_format;
@@ -221,9 +219,6 @@ OS (provided we compiled Innobase with it in), otherwise we will
 use simulated aio we build below with threads.
 Currently we support native aio on windows and linux */
 extern my_bool	srv_use_native_aio;
-#ifdef _WIN32
-extern bool	srv_use_native_conditions;
-#endif /* _WIN32 */
 #endif /* !UNIV_HOTBACKUP */
 
 /** Server undo tablespaces directory, can be absolute path. */
@@ -794,7 +789,6 @@ struct export_var_t{
 	ulint innodb_buffer_pool_read_ahead_evicted;/*!< srv_read_ahead evicted*/
 	ulint innodb_dblwr_pages_written;	/*!< srv_dblwr_pages_written */
 	ulint innodb_dblwr_writes;		/*!< srv_dblwr_writes */
-	ibool innodb_have_atomic_builtins;	/*!< HAVE_ATOMIC_BUILTINS */
 	ulint innodb_log_waits;			/*!< srv_log_waits */
 	ulint innodb_log_write_requests;	/*!< srv_log_write_requests */
 	ulint innodb_log_writes;		/*!< srv_log_writes */

@@ -780,4 +780,143 @@ SELECT ename, COUNT(*) FROM empdept WHERE empno=dname and empno=deptno GROUP BY 
 drop table emp,dept;
 drop view empdept;
 
+--echo #
+--echo # Bug#19636980 ASSERT `TABLE->OUTER_JOIN' FAILED IN GROUP_CHECK::FIND_FD_IN_JOINED_TABLE
+--echo #
+
+CREATE TABLE t1 (
+  c1 INT,
+  c2 INT,
+  c4 DATE,
+  c5 VARCHAR(1)
+);
+
+CREATE TABLE t2 (
+  c1 INT,
+  c2 INT,
+  c3 INT,
+  c5 VARCHAR(1)
+);
+
+# alias1.c5 is not FD, the error is detected at SELECT time
+CREATE VIEW v1 AS
+  SELECT alias1.c4 AS field1
+  FROM t1 AS alias1
+  INNER JOIN t1 AS alias2
+  ON 1
+GROUP BY field1
+ORDER BY alias1.c5;
+
+--error ER_WRONG_FIELD_WITH_GROUP
+SELECT * FROM v1;
+
+DROP VIEW v1;
+
+# alias1.c5 is FD (WHERE contains: alias1.c5='d')
+CREATE VIEW v1 AS
+  SELECT alias1.c4 AS field1, alias1.c4 AS field2
+  FROM t1 AS alias1
+    INNER JOIN t1 AS alias2
+    ON (alias2.c1 = alias1.c2)
+  WHERE ( NOT EXISTS (
+    SELECT SQ1_alias1.c5 AS SQ1_field1
+    FROM t2 AS SQ1_alias1
+    WHERE SQ1_alias1.c3 < alias1.c1
+  ))
+    AND (alias1.c5 = alias1.c5
+      AND alias1.c5 = 'd'
+    )
+GROUP BY field1, field2
+ORDER BY alias1.c5, field1, field2
+;
+
+SELECT * FROM v1;
+
+DROP VIEW v1;
+DROP TABLE t1,t2;
+
+--echo #
+--echo # Bug#19636409 ASSERT `(MAP_OF_NEW_EQ_FDS...` IN GROUP_CHECK::IS_FD_ON_SOURCE ON SELECT
+--echo #
+
+CREATE TABLE t1 (
+  pk int NOT NULL,
+  c1 datetime,
+  c2 varchar(1),
+  c3 date,
+  c4 date,
+  c5 varchar(1),
+  PRIMARY KEY (pk)
+);
+
+CREATE VIEW v1 AS
+  SELECT c3 AS subfield11,
+         pk AS subfield12,
+         c2 AS subfield13
+  FROM t1
+  GROUP BY subfield11, subfield12
+;
+
+# This query is valid. Indeed: field3 i.e. t1.c2 is part of GROUP BY,
+# so, in a group:
+# - all rows have the same value of t1.c2, noted val_c2,
+# - so all rows, which necessarily match WHERE, matched with a row of
+# v1 having subfield11=val_c2 and subfield12=val_c2 (due to IN
+# predicate),
+# - thus both grouping columns of v1's query expression are constant
+# (to val_c2)
+# - thus v1.subfield13 is constant too (grouping columns determine the
+# SELECT list)
+# - so, due to IN, this determines the value of t1.pk (t1 is the top
+# query's table).
+# - so t1.pk is constant, so all columns of t1 are constant.
+# Which proves that it makes sense to search FDs in semijoin
+# equalities.
+# In other words: a semijoin is like a join except that it eliminates
+# duplicates, but duplicates are irrelevant to the decision whether a
+# column is functionally dependent on a set of columns.
+
+SELECT c5 AS field1,
+       c4 AS field2,
+       c2 AS field3,
+       c1 AS field4
+FROM t1
+WHERE ( c2, c2, pk ) IN (
+  SELECT * FROM v1
+)
+GROUP BY field1, field3, field3;
+
+--echo #
+--echo # Bug#19687724 FUNCTIONAL DEPENDENCIES ARE NOT RECOGNIZED IN EQUALITIES BETWEEN ROWS
+--echo #
+
+# Inspired by query above, but with a join:
+SELECT c5 AS field1,
+       c4 AS field2,
+       c2 AS field3,
+       c1 AS field4
+FROM t1, v1
+WHERE ( c2, c2, pk ) = (subfield11, subfield12, subfield13)
+GROUP BY field1, field3, field3;
+
+# With constants:
+SELECT c5 AS field1,
+       c4 AS field2,
+       c2 AS field3,
+       c1 AS field4
+FROM t1
+WHERE ( c2, c2, pk ) = (1, 2, 3)
+GROUP BY field1, field3, field3;
+
+DROP TABLE t1;
+
+CREATE TABLE t1(a INT, b INT, c INT, d INT);
+SELECT a,b,c,d FROM t1 WHERE a=c AND b=d GROUP by a,b;
+SELECT a,b,c,d FROM t1 WHERE (a,b)=(c,d) GROUP BY a,b;
+--error ER_WRONG_FIELD_WITH_GROUP
+SELECT a,b,c,d FROM t1 WHERE (a,b)=(c,d+1) GROUP BY a,b;
+DROP TABLE t1;
+
+DROP VIEW v1;
+
 DROP FUNCTION show_json_object;

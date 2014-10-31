@@ -14,7 +14,6 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "sql_priv.h"
-#include "unireg.h"                      // REQUIRED by other includes
 #include "rpl_rli.h"
 #include "rpl_record_old.h"
 #include "log_event.h"                          // Log_event_type

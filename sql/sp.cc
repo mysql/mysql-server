@@ -16,7 +16,6 @@
 */
 
 #include "sql_priv.h"
-#include "unireg.h"
 #include "sql_base.h"                           // close_thread_tables
 #include "sql_parse.h"                          // parse_sql
 #include "key.h"                                // key_copy

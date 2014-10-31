@@ -20,6 +20,7 @@
 #include <list>
 
 typedef struct st_mysql MYSQL;
+typedef struct st_io_cache IO_CACHE;
 
 #ifdef __cplusplus
 extern "C" {
@@ -147,6 +148,7 @@ enum Binlog_storage_flags {
 };
 
 typedef struct Server_state_param {
+  uint32 server_id;
 } Server_state_param;
 
 /**

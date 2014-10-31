@@ -16,7 +16,6 @@
 
 #define MYSQL_SERVER 1
 #include "sql_priv.h"
-#include "unireg.h"
 #include "probes_mysql.h"
 #include "ha_blackhole.h"
 #include "sql_class.h"                          // THD, SYSTEM_THREAD_SLAVE_*

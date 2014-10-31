@@ -1,0 +1,26 @@
+--source include/have_innodb.inc
+# Embedded server does not support restarting
+--source include/not_embedded.inc
+
+--echo #
+--echo # Bug#19904800 - MISSING DBUG_RETURN IN HA_INNOBASE::UPDATE_ROW
+--echo #
+
+CREATE TABLE t1(a int PRIMARY KEY) ENGINE=InnoDB;
+CREATE TABLE t2(b int PRIMARY KEY) ENGINE=InnoDB;
+
+INSERT INTO t1 VALUES(1);
+INSERT INTO t2 VALUES(2);
+
+# Restart the server in readonly mode
+--source include/restart_readonly_mysqld.inc
+
+--error ER_OPEN_AS_READONLY
+UPDATE t1,t2 SET t1.a = 2, t2.b = 2 WHERE t1.a = 1;
+
+# Restart in normal mode to drop tables
+let $restart_parameters = restart;
+--source include/restart_mysqld.inc
+
+DROP TABLE t1;
+DROP TABLE t2;

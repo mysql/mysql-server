@@ -18,7 +18,6 @@
 
 #include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
 #include "sql_priv.h"
-#include "unireg.h"                    // REQUIRED: for other includes
 #include "table.h"
 #include "key.h"                                // find_ref_key
 #include "sql_table.h"                          // build_table_filename,
@@ -2376,8 +2375,7 @@ partititon_err:
                   ha_open(outparam, share->normalized_path.str,
                           (db_stat & HA_READ_ONLY ? O_RDONLY : O_RDWR),
                           (db_stat & HA_OPEN_TEMPORARY ? HA_OPEN_TMP_TABLE :
-                           ((db_stat & HA_WAIT_IF_LOCKED) ||
-                            (specialflag & SPECIAL_WAIT_IF_LOCKED)) ?
+                           (db_stat & HA_WAIT_IF_LOCKED) ?
                            HA_OPEN_WAIT_IF_LOCKED :
                            (db_stat & (HA_ABORT_IF_LOCKED | HA_GET_INFO)) ?
                           HA_OPEN_ABORT_IF_LOCKED :
@@ -4049,9 +4047,8 @@ bool TABLE_LIST::prep_where(THD *thd, Item **conds,
         evaluation of check_option when we insert/update/delete a row.
         So we must forbid semijoin transformation in fix_fields():
       */
-      Switch_resolve_place SRP(&thd->lex->current_select()->resolve_place,
-                               st_select_lex::RESOLVE_NONE,
-                               effective_with_check != VIEW_CHECK_NONE);
+      Disable_semijoin_flattening DSF(thd->lex->current_select(),
+                                      effective_with_check != VIEW_CHECK_NONE);
 
       if (where->fix_fields(thd, &where))
         DBUG_RETURN(TRUE);
@@ -6216,9 +6213,13 @@ static bool add_derived_key(List<Derived_key> &derived_key_list, Field *field,
 bool TABLE_LIST::update_derived_keys(Field *field, Item **values,
                                      uint num_values)
 {
-  /* Don't bother with keys for CREATE VIEW and for BLOB fields. */
+  /*
+    Don't bother with keys for CREATE VIEW, BLOB fields and fields with
+    zero length.
+  */
   if (field->table->in_use->lex->is_ps_or_view_context_analysis() ||
-      field->flags & BLOB_FLAG)
+      field->flags & BLOB_FLAG ||
+      field->field_length == 0)
     return FALSE;
 
   /* Allow all keys to be used. */

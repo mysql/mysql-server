@@ -223,6 +223,7 @@ row_fts_psort_info_init(
 	common_info->merge_event = os_event_create(0);
 	common_info->opt_doc_id_size = opt_doc_id_size;
 
+	const char*	path = thd_innodb_tmpdir(trx->mysql_thd);
 	/* There will be FTS_NUM_AUX_INDEX number of "sort buckets" for
 	each parallel sort thread. Each "sort bucket" holds records for
 	a particular "FTS index partition" */
@@ -245,8 +246,8 @@ row_fts_psort_info_init(
 			psort_info[j].merge_buf[i] = row_merge_buf_create(
 				dup->index);
 
-			if (row_merge_file_create(psort_info[j].merge_file[i])
-			    < 0) {
+			if (row_merge_file_create(psort_info[j].merge_file[i],
+						  path) < 0) {
 				goto func_exit;
 			}
 
@@ -534,7 +535,7 @@ row_merge_fts_doc_tokenize(
 
 		t_str.f_str = (byte*) &str_buf;
 
-		/* if "cached_stopword" is defined, ingore words in the
+		/* if "cached_stopword" is defined, ignore words in the
 		stopword list */
 		if (t_ctx->cached_stopword
 		    && rbt_search(t_ctx->cached_stopword,
@@ -735,6 +736,9 @@ fts_parallel_tokenization(
 	fts_tokenize_ctx_t	t_ctx;
 	ulint			retried = 0;
 	dberr_t			error = DB_SUCCESS;
+
+	const char*		path = thd_innodb_tmpdir(
+		psort_info->psort_common->trx->mysql_thd);
 
 	ut_ad(psort_info);
 
@@ -963,7 +967,7 @@ exit:
 			continue;
 		}
 
-		tmpfd[i] = row_merge_file_create_low();
+		tmpfd[i] = row_merge_file_create_low(path);
 		if (tmpfd[i] < 0) {
 			error = DB_OUT_OF_MEMORY;
 			goto func_exit;

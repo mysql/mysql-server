@@ -26,7 +26,6 @@
 
 #include "binlog.h"
 #include "sql_priv.h"
-#include "unireg.h"
 #include "my_global.h" // REQUIRED by log_event.h > m_string.h > my_bitmap.h
 #include "log_event.h"
 #include "sql_base.h"                           // close_thread_tables
@@ -70,6 +69,9 @@ PSI_memory_key key_memory_Rows_query_log_event_rows_query;
 
 using std::min;
 using std::max;
+
+#define ER_SAFE(X) (((X) >= ER_ERROR_FIRST && (X) <= ER_ERROR_LAST) ? \
+                    ER(X) : "Invalid error code")
 
 #if defined(MYSQL_CLIENT)
 
@@ -829,9 +831,6 @@ Log_event::Log_event(THD* thd_arg, uint16 flags_arg,
   common_header->when= thd->start_time;
   common_header->log_pos= 0;
   common_header->flags= flags_arg;
-#ifdef HAVE_REPLICATION
-  init_sql_alloc(PSI_INSTRUMENT_ME, &m_event_mem_root, 4096, 0);
-#endif //HAVE_REPLICATION
 }
 
 /**
@@ -850,9 +849,6 @@ Log_event::Log_event(Log_event_header* header, Log_event_footer *footer,
 {
   server_id=	::server_id;
   common_header->unmasked_server_id= server_id;
-#ifdef HAVE_REPLICATION
-  init_sql_alloc(PSI_INSTRUMENT_ME, &m_event_mem_root, 4096, 0);
-#endif //HAVE_REPLICATION
 }
 #endif /* !MYSQL_CLIENT */
 
@@ -870,9 +866,6 @@ Log_event::Log_event(Log_event_header *header,
 {
 #ifndef MYSQL_CLIENT
   thd= 0;
-#ifdef HAVE_REPLICATION
-  init_sql_alloc(PSI_INSTRUMENT_ME, &m_event_mem_root, 4096, 0);
-#endif //HAVE_REPLICATION
 #endif
   /*
      Mask out any irrelevant parts of the server_id
@@ -3009,6 +3002,10 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
     if (ret_worker == NULL)
     {
       /* get_least_occupied_worker may return NULL if the thread is killed */
+      Slave_job_item job_item= {this, rli->get_event_relay_log_number(),
+                                rli->get_event_start_pos()};
+      rli->curr_group_da.push_back(job_item);
+
       DBUG_ASSERT(thd->killed);
       DBUG_RETURN(NULL);
     }
@@ -9228,8 +9225,7 @@ TABLE_OR_INDEX_HASH_SCAN:
   this->m_key_index= search_key_in_table(table, cols, (PRI_KEY_FLAG | UNIQUE_KEY_FLAG | MULTIPLE_KEY_FLAG));
   this->m_rows_lookup_algorithm= ROW_LOOKUP_HASH_SCAN;
   if (m_key_index < MAX_KEY)
-    m_distinct_key_spare_buf= (uchar*) alloc_root(&m_event_mem_root,
-                                                  table->key_info[m_key_index].key_length);
+    m_distinct_key_spare_buf= (uchar*) thd->alloc(table->key_info[m_key_index].key_length);
   DBUG_PRINT("info", ("decide_row_lookup_algorithm_and_key: decided - HASH_SCAN"));
   goto end;
 
@@ -9760,8 +9756,7 @@ Rows_log_event::add_key_to_distinct_keyset()
   if (ret.second)
   {
     /* Insert is successful, so allocate a new buffer for next key */
-    m_distinct_key_spare_buf= (uchar*) alloc_root(&m_event_mem_root,
-                                                  m_key_info->key_length);
+    m_distinct_key_spare_buf= (uchar*) thd->alloc(m_key_info->key_length);
     if (!m_distinct_key_spare_buf)
     {
       error= HA_ERR_OUT_OF_MEM;
@@ -10471,13 +10466,8 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
       {
         DBUG_ASSERT(ptr->m_tabledef_valid);
         TABLE *conv_table;
-        /*
-          Use special mem_root 'Log_event::m_event_mem_root' while doing
-          compatiblity check (i.e., while creating temporary table)
-         */
         if (!ptr->m_tabledef.compatible_with(thd, const_cast<Relay_log_info*>(rli),
-                                             ptr->table,
-                                             &conv_table,&m_event_mem_root))
+                                             ptr->table, &conv_table))
         {
           DBUG_PRINT("debug", ("Table: %s.%s is not compatible with master",
                                ptr->table->s->db.str,
@@ -10757,13 +10747,26 @@ AFTER_MAIN_EXEC_ROW_LOOP:
     DBUG_RETURN(error);
   }
 
-  if (get_flags(STMT_END_F) && (error= rows_event_stmt_cleanup(rli, thd)))
+  if (get_flags(STMT_END_F))
+  {
+   if((error= rows_event_stmt_cleanup(rli, thd)))
     slave_rows_error_report(ERROR_LEVEL,
                             thd->is_error() ? 0 : error,
                             rli, thd, table,
                             get_type_str(),
                             const_cast<Relay_log_info*>(rli)->get_rpl_log_name(),
                             (ulong) common_header->log_pos);
+   /* We are at end of the statement (STMT_END_F flag), lets clean
+     the memory which was used from thd's mem_root now.
+     This needs to be done only if we are here in SQL thread context.
+     In other flow ( in case of a regular thread which can happen
+     when the thread is applying BINLOG'...' row event) we should
+     *not* try to free the memory here. It will be done latter
+     in dispatch_command() after command execution is completed.
+    */
+   if (thd->slave_thread)
+     free_root(thd->mem_root, MYF(MY_KEEP_PREALLOC));
+  }
   DBUG_RETURN(error);
 }
 

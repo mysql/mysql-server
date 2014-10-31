@@ -505,11 +505,10 @@ dtuple_print(
 	ut_ad(dtuple_validate(tuple));
 }
 
-#ifndef DBUG_OFF
 /** Print the contents of a tuple.
-@param o output stream
-@param field array of data fields
-@param n number of data fields */
+@param[out]	o	output stream
+@param[in]	field	array of data fields
+@param[in]	n	number of data fields */
 void
 dfield_print(
 	std::ostream&	o,
@@ -545,11 +544,10 @@ dfield_print(
 }
 
 /** Print the contents of a tuple.
-@param o output stream
-@param tuple data tuple */
+@param[out]	o	output stream
+@param[in]	tuple	data tuple */
 void
 dtuple_print(
-/*=========*/
 	std::ostream&	o,
 	const dtuple_t*	tuple)
 {
@@ -562,7 +560,6 @@ dtuple_print(
 
 	o << "}";
 }
-#endif /* DBUG_OFF */
 
 /**************************************************************//**
 Moves parts of long fields in entry to the big record vector so that

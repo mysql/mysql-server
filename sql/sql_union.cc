@@ -20,7 +20,6 @@
 
 
 #include "sql_priv.h"
-#include "unireg.h"
 #include "sql_union.h"
 #include "sql_select.h"
 #include "sql_cursor.h"
@@ -212,6 +211,9 @@ bool select_union::send_data(List<Item> &values)
         create_ondisk_from_heap(thd, table, tmp_table_param.start_recinfo, 
                                 &tmp_table_param.recinfo, error, TRUE, NULL))
       return 1;
+    // Table's engine changed, index is not initialized anymore
+    if (table->hash_field)
+      table->file->ha_index_init(0, false);
   }
   return 0;
 }

@@ -16,7 +16,6 @@
 
 #include "my_global.h"         // NO_EMBEDDED_ACCESS_CHECKS
 #include "sql_priv.h"
-#include "unireg.h"
 #include "sql_cache.h"         // query_cache_*
 #include "probes_mysql.h"
 #include "sql_show.h"          // append_identifier

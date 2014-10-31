@@ -14,7 +14,6 @@
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 #include "sql_priv.h"
-#include "unireg.h"                      // REQUIRED by other includes
 #include "rpl_filter.h"
 #include "hash.h"                               // my_hash_free
 #include "table.h"                              // TABLE_LIST
