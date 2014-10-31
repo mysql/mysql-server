@@ -1456,13 +1456,7 @@ public:
   }
   Log_event(const char* buf, const Format_description_log_event
             *description_event);
-  virtual ~Log_event()
-  {
-    free_temp_buf();
-#if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
-    free_root(&m_event_mem_root, MYF(MY_KEEP_PREALLOC));
-#endif //!MYSQL_CLIENT && HAVE_REPLICATION
-  }
+  virtual ~Log_event() { free_temp_buf();}
   void register_temp_buf(char* buf) { temp_buf = buf; }
   void free_temp_buf()
   {
@@ -1734,13 +1728,6 @@ public:
   }
 
   virtual int do_apply_event_worker(Slave_worker *w);
-
-  /*
-    Mem root whose scope is equalent to event's scope.
-    This mem_root will be initialized in constructor
-    Log_event() and freed in destructor ~Log_event().
-   */
-  MEM_ROOT m_event_mem_root;
 
 protected:
 

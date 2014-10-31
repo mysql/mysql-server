@@ -705,7 +705,7 @@ For general tablespaces, the 'dbname/' part may be missing.
 must be >= FIL_IBD_FILE_INITIAL_SIZE
 @return DB_SUCCESS or error code */
 dberr_t
-fil_create_ibd_tablespace(
+fil_ibd_create(
 	ulint		space_id,
 	const char*	name,
 	const char*	path,

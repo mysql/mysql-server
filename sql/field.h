@@ -4167,8 +4167,7 @@ Field *make_field(TABLE_SHARE *share, uchar *ptr, size_t field_length,
 		  const CHARSET_INFO *cs,
 		  Field::geometry_type geom_type,
 		  Field::utype unireg_check,
-		  TYPELIB *interval, const char *field_name,
-		  MEM_ROOT *mem_root= NULL);
+		  TYPELIB *interval, const char *field_name);
 uint pack_length_to_packflag(uint type);
 enum_field_types get_blob_type_from_length(ulong length);
 size_t calc_pack_length(enum_field_types type, size_t length);
