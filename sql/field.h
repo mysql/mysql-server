@@ -487,6 +487,10 @@ public:
   {
     stored_in_db= stored;
   }
+  bool is_stored_field()
+  {
+    return stored_in_db;
+  }
 private:
   /*
     The following data is only updated by the parser and read
