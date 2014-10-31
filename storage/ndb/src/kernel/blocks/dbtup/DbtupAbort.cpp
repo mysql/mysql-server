@@ -415,7 +415,7 @@ void Dbtup::early_tupkey_error(KeyReqStruct* req_struct)
   set_trans_state(regOperPtr, TRANS_IDLE);
   set_tuple_state(regOperPtr, TUPLE_PREPARED);
   initOpConnection(regOperPtr);
-  send_TUPKEYREF(req_struct->signal, regOperPtr);
+  send_TUPKEYREF(req_struct);
 }
 
 void Dbtup::tupkeyErrorLab(KeyReqStruct* req_struct)
@@ -451,15 +451,16 @@ void Dbtup::tupkeyErrorLab(KeyReqStruct* req_struct)
 
   removeActiveOpList(regOperPtr, (Tuple_header*)ptr);
   initOpConnection(regOperPtr);
-  send_TUPKEYREF(req_struct->signal, regOperPtr);
+  send_TUPKEYREF(req_struct);
 }
 
-void Dbtup::send_TUPKEYREF(Signal* signal,
-                           Operationrec* const regOperPtr)
+void Dbtup::send_TUPKEYREF(const KeyReqStruct* req_struct)
 {
-  TupKeyRef * const tupKeyRef = (TupKeyRef *)signal->getDataPtrSend();  
-  tupKeyRef->userRef = regOperPtr->userpointer;
+  TupKeyRef * const tupKeyRef =
+    (TupKeyRef *)req_struct->signal->getDataPtrSend();  
+  tupKeyRef->userRef = req_struct->operPtrP->userpointer;
   tupKeyRef->errorCode = terrorCode;
+  tupKeyRef->noExecInstructions = req_struct->no_exec_instructions;
 }
 
 /**

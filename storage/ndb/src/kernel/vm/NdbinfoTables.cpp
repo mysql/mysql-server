@@ -381,6 +381,63 @@ DECLARE_NDBINFO_TABLE(DISK_WRITE_SPEED_AGGREGATE, 16) =
   }
 };
 
+DECLARE_NDBINFO_TABLE(FRAG_OPERATIONS, 27) =
+{ { "frag_operations", 27, 0, "Per fragment operational information" },
+  {
+    {"node_id",                 Ndbinfo::Number,    "node id"},
+    {"block_instance",          Ndbinfo::Number,    "LQH instance no"},
+    {"table_id",                Ndbinfo::Number,    "Table identity"},
+    {"fragment_num",            Ndbinfo::Number,    "Fragment number"},
+    {"tot_key_reads",           Ndbinfo::Number64,  
+     "Total number of key reads received"},
+    {"tot_key_inserts",         Ndbinfo::Number64,  
+     "Total number of key inserts received"},
+    {"tot_key_updates",         Ndbinfo::Number64,  
+     "Total number of key updates received"},
+    {"tot_key_writes",          Ndbinfo::Number64,  
+     "Total number of key writes received"},
+    {"tot_key_deletes",         Ndbinfo::Number64,
+     "Total number of key deletes received"},
+    {"tot_key_refs",            Ndbinfo::Number64,
+     "Total number of key operations refused by LDM"},
+    {"tot_key_attrinfo_bytes",  Ndbinfo::Number64,
+     "Total attrinfo bytes received for key operations"},
+    {"tot_key_keyinfo_bytes",   Ndbinfo::Number64,
+     "Total keyinfo bytes received for key operations"},
+    {"tot_key_prog_bytes",      Ndbinfo::Number64,
+     "Total bytes of filter programs for key operations"},
+    {"tot_key_inst_exec",       Ndbinfo::Number64,
+     "Total number of interpreter instructions executed for key operations"},
+    {"tot_key_bytes_returned",  Ndbinfo::Number64,
+     "Total number of bytes returned to client for key operations"},
+    {"tot_frag_scans",          Ndbinfo::Number64,
+     "Total number of fragment scans received"},
+    {"tot_scan_rows_examined",  Ndbinfo::Number64,
+     "Total number of rows examined by scans"},
+    {"tot_scan_rows_returned",  Ndbinfo::Number64,
+     "Total number of rows returned to client by scan"},
+    {"tot_scan_bytes_returned",  Ndbinfo::Number64,
+     "Total number of bytes returned to client by scans"},
+    {"tot_scan_prog_bytes",     Ndbinfo::Number64,
+     "Total bytes of scan filter programs"},
+    {"tot_scan_bound_bytes",     Ndbinfo::Number64,
+     "Total bytes of scan bounds"},
+    {"tot_scan_inst_exec",   Ndbinfo::Number64,
+     "Total number of interpreter instructions executed for scans"},
+    {"tot_qd_frag_scans",       Ndbinfo::Number64,
+     "Total number of fragment scans queued before exec"},
+    {"conc_frag_scans",         Ndbinfo::Number,
+     "Number of frag scans currently running"},
+    {"conc_qd_plain_frag_scans", Ndbinfo::Number,
+     "Number of non-tup frag scans currently queued"},
+    {"conc_qd_tup_frag_scans",  Ndbinfo::Number,
+     "Number of tup frag scans currently queued"},
+    {"tot_commits",  Ndbinfo::Number64,
+     "Total number of committed row changes"}
+  }
+};
+
+
 #define DBINFOTBL(x) { Ndbinfo::x##_TABLEID, (Ndbinfo::Table*)&ndbinfo_##x }
 
 static
@@ -409,7 +466,8 @@ struct ndbinfo_table_list_entry {
   DBINFOTBL(DICT_OBJ_INFO),
   DBINFOTBL(FRAG_MEM_USE),
   DBINFOTBL(DISK_WRITE_SPEED_BASE),
-  DBINFOTBL(DISK_WRITE_SPEED_AGGREGATE)
+  DBINFOTBL(DISK_WRITE_SPEED_AGGREGATE),
+  DBINFOTBL(FRAG_OPERATIONS)
 };
 
 static int no_ndbinfo_tables =

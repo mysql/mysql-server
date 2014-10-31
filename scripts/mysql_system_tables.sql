@@ -1843,6 +1843,11 @@ PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
 
+SET @str=IF(@have_ndbinfo,'DROP VIEW IF EXISTS `ndbinfo`.`operations_per_fragment`','SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
 # Drop any old lookup tables in ndbinfo
 SET @str=IF(@have_ndbinfo,'DROP TABLE IF EXISTS `ndbinfo`.`blocks`','SET @dummy = 0');
 PREPARE stmt FROM @str;
@@ -2078,6 +2083,86 @@ PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
 
+# ndbinfo.ndb$frag_operations
+# This table contains per-fragment usage statistics. Most values in this table
+# reflects only user operations, meaning that they do not include the 
+# activities of LCPs and COPY_FRAG scans.. The exceptions are the counters 
+# that concern scan queueing and concurrency: tot_qd_frag_scans, 
+# conc_frag_scans, conc_qd_plain_frag_scans and conc_qd_tup_frag_scans (though 
+# LCPs currently does not use TUP scans).
+# The values starting with 'tot_' are accumulated values, meaning that they 
+# give the totalt count of some event or sum of some attribute attibute since 
+# the node was last restarted.
+# Also observe that this table does *not* reflect 'early aborts' in any way.
+# By 'early aborts' we mean operations that are rejected by LQH before 
+# beginning execution due to resource issues such as overloaded transporters 
+# or lack of free space in internal structures.
+SET @str=IF(@have_ndbinfo,'DROP TABLE IF EXISTS `ndbinfo`.`ndb$frag_operations`','SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+SET @cmd='CREATE TABLE ndbinfo.ndb$frag_operations (
+  node_id INT UNSIGNED COMMENT "node id",
+  block_instance INT UNSIGNED COMMENT "LQH instance no",
+  table_id INT UNSIGNED COMMENT "Table identity",
+  fragment_num INT UNSIGNED COMMENT "Fragment number",
+  tot_key_reads BIGINT UNSIGNED COMMENT "Total number of key reads received",
+  tot_key_inserts BIGINT UNSIGNED COMMENT 
+    "Total number of key inserts received",
+  tot_key_updates BIGINT UNSIGNED COMMENT
+    "Total number of key updates received",
+# 'write' operations, meaning update if key exists, insert otherwise are used 
+# by e.g. restore and sql REPLACE.
+  tot_key_writes BIGINT UNSIGNED COMMENT 
+    "Total number of key writes received",
+  tot_key_deletes BIGINT UNSIGNED COMMENT
+    "Total number of key deletes received",
+# Number of key operations refused by the LDM due to either:
+# - no matching key for update/delete.
+# - key exists already for insert.
+# - operation rejected by interpreted program.
+# - internal errors such as checksum errors.
+  tot_key_refs BIGINT UNSIGNED COMMENT
+    "Total number of key operations refused by LDM",
+  tot_key_attrinfo_bytes BIGINT UNSIGNED COMMENT
+    "Total attrinfo bytes received for key operations",
+  tot_key_keyinfo_bytes BIGINT UNSIGNED COMMENT
+    "Total keyinfo bytes received for key operations",
+  tot_key_prog_bytes BIGINT UNSIGNED COMMENT
+    "Total bytes of filter programs for key operations",
+  tot_key_inst_exec BIGINT UNSIGNED COMMENT
+    "Total number of interpreter instructions executed for key operations",
+  tot_key_bytes_returned BIGINT UNSIGNED COMMENT
+    "Total number of bytes returned to client for key operations",
+  tot_frag_scans BIGINT UNSIGNED COMMENT 
+    "Total number of fragment scans received",
+  tot_scan_rows_examined BIGINT UNSIGNED COMMENT
+    "Total number of rows examined by scans",
+  tot_scan_rows_returned BIGINT UNSIGNED COMMENT
+    "Total number or rows returned to client",
+  tot_scan_bytes_returned BIGINT UNSIGNED COMMENT
+    "Total number of bytes returned to client by scans",
+  tot_scan_prog_bytes BIGINT UNSIGNED COMMENT
+    "Total bytes of scan filter programs",
+  tot_scan_bound_bytes BIGINT UNSIGNED COMMENT "Total bytes of scan bounds",
+  tot_scan_inst_exec BIGINT UNSIGNED COMMENT
+    "Total number of interpreter instructions executed for scans",
+  tot_qd_frag_scans BIGINT UNSIGNED COMMENT
+    "Total number of fragment scans queued before exec",
+  conc_frag_scans INT UNSIGNED COMMENT "Number of frag scans currently running",
+  conc_qd_plain_frag_scans INT UNSIGNED COMMENT
+    "Number of non-tup frag scans currently queued",
+  conc_qd_tup_frag_scans INT UNSIGNED COMMENT
+    "Number of tup frag scans currently queued",
+  tot_commits BIGINT UNSIGNED COMMENT "Total number of committed row changes")
+COMMENT="Per fragment operational information" ENGINE=NDBINFO;';
+
+SET @str=IF(@have_ndbinfo <> 0, @cmd, 'SET @dummy = 0;');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
 # ndbinfo.blocks
 SET @str=IF(@have_ndbinfo,'CREATE TABLE `ndbinfo`.`blocks` (block_number INT UNSIGNED PRIMARY KEY, block_name VARCHAR(512))','SET @dummy = 0');
 PREPARE stmt FROM @str;
@@ -2278,6 +2363,45 @@ SET @str=IF(@have_ndbinfo,'CREATE OR REPLACE DEFINER=`root`@`localhost` SQL SECU
 PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
+
+# Finally turn off offline mode
+SET @str=IF(@have_ndbinfo,'SET @@global.ndbinfo_offline=FALSE','SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+# ndbinfo.operations_per_fragment
+# This is the end-user view of ndb$frag_operations. It adds some 
+# dictionary information such as the table name and type, and the name of the
+# parent table, if there is any.
+#
+# The test for name.type<=6 is there to elimiate matching non-table objects 
+# (triggers, files etc.), since the 'id' of these may collide with table ids.
+SET @cmd='CREATE OR REPLACE DEFINER=`root`@`localhost` 
+  SQL SECURITY INVOKER VIEW `ndbinfo`.`operations_per_fragment` AS 
+  SELECT name.fq_name, parent_name.fq_name AS parent_fq_name, 
+    types.type_name AS type, table_id, node_id, block_instance, fragment_num, 
+    tot_key_reads, tot_key_inserts, tot_key_updates, tot_key_writes, 
+    tot_key_deletes, tot_key_refs, tot_key_attrinfo_bytes,
+    tot_key_keyinfo_bytes, tot_key_prog_bytes, tot_key_inst_exec, 
+    tot_key_bytes_returned, tot_frag_scans, tot_scan_rows_examined, 
+    tot_scan_rows_returned, tot_scan_bytes_returned, tot_scan_prog_bytes, 
+    tot_scan_bound_bytes, tot_scan_inst_exec, tot_qd_frag_scans, 
+    conc_frag_scans,
+    conc_qd_plain_frag_scans+conc_qd_tup_frag_scans AS conc_qd_frag_scans, 
+    tot_commits 
+    FROM ndbinfo.ndb$frag_operations AS ops 
+    JOIN ndbinfo.ndb$dict_obj_info AS name 
+      ON name.id=ops.table_id AND name.type<=6 
+    JOIN ndbinfo.dict_obj_types AS types ON name.type=types.type_id 
+    LEFT JOIN ndbinfo.ndb$dict_obj_info AS parent_name 
+      ON name.parent_obj_id=parent_name.id AND 
+         name.parent_obj_type=parent_name.type';
+SET @str=IF(@have_ndbinfo <> 0, @cmd, 'SET @dummy = 0;');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
 
 # Finally turn off offline mode
 SET @str=IF(@have_ndbinfo,'SET @@global.ndbinfo_offline=FALSE','SET @dummy = 0');

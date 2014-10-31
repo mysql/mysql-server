@@ -706,9 +706,9 @@ public:
 
     typedef Bitmask<8> ScanNumberMask; // Max 255 KeyInfo20::ScanNo
     ScanNumberMask m_scanNumberMask;
-    DLList<ScanRecord>::Head m_activeScans;
-    DLFifoList<ScanRecord>::Head m_queuedScans;
-    DLFifoList<ScanRecord>::Head m_queuedTupScans;
+    DLCList<ScanRecord>::Head m_activeScans;
+    DLCFifoList<ScanRecord>::Head m_queuedScans;
+    DLCFifoList<ScanRecord>::Head m_queuedTupScans;
 
     Uint16 srLqhLognode[4];
     /**
@@ -887,6 +887,89 @@ public:
      * Instance key for fast access.
      */
     Uint16 lqhInstanceKey;
+
+    /* 
+       Usage counters. Except for m_queuedScanCount, these only count 'user' 
+       operations, i.e. those directly initiated from the ndbapi, and not
+       'internal' operations, such as those used for LCPs.
+     */
+    struct UsageStat
+    {
+      // Number of key read operations.
+      Uint64 m_readKeyReqCount;
+
+      // Number of inserts.
+      Uint64 m_insKeyReqCount;
+
+      // Number of updates.
+      Uint64 m_updKeyReqCount;
+      /*
+        Number of write operations, meaning 'update' if key exists, and 'insert'
+        otherwise.
+      */
+      Uint64 m_writeKeyReqCount;
+
+      // Number of deletes
+      Uint64 m_delKeyReqCount;
+ 
+      /*
+        Number of key operations refused by the LDM due to either:
+        - no matching key for update/delete.
+        - key exists already for insert.
+        - operation rejected by interpreted program.
+      */
+      Uint64 m_keyRefCount;
+
+      // Number of attrinfo words in key operations.
+      Uint64 m_keyReqAttrWords;
+
+      // Number of keyinfo words in key operations.
+      Uint64 m_keyReqKeyWords;
+
+      // Total size of interpeter programs for key operations.
+      Uint64 m_keyProgramWords;
+
+      // Number of interpreter instructions executed for key operations.
+      Uint64 m_keyInstructionCount;
+
+      // Number of words returned to client due to key operations.
+      Uint64 m_keyReqWordsReturned;
+
+      // Number of fragment scans requested.
+      Uint64 m_scanFragReqCount;
+
+      /*
+        The number of rows examined during scans. Some of these may have been
+        rejected by the interpreted program (i.e. a pushed condition), and 
+        thus not been returned to the client.
+      */
+      Uint64 m_scanRowsExamined;
+
+      // Number of scan rows returned to the client.
+      Uint64 m_scanRowsReturned;
+
+      // Number of words returned to client due to scans.
+      Uint64 m_scanWordsReturned;
+
+      // Total size of interpeter programs for scans.
+      Uint64 m_scanProgramWords;
+
+      // Total size of scan bounds (for ordered index scans).
+      Uint64 m_scanBoundWords;
+
+      // Number of interpreter instructions executed for scans.
+      Uint64 m_scanInstructionCount;
+
+      // Total number of scans queued (including those from internal clients.
+      Uint64 m_queuedScanCount;
+      
+      // Set all counters to zero.
+      void init()
+      {
+        memset(this, 0, sizeof *this);
+      }
+    };
+    UsageStat m_useStat;
   };
   typedef Ptr<Fragrecord> FragrecordPtr;
   
