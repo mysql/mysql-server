@@ -2801,10 +2801,6 @@ int prepare_create_field(Create_field *sql_field,
                           (sql_field->decimals << FIELDFLAG_DEC_SHIFT));
     break;
   }
-  if (sql_field->flags & NOT_NULL_FLAG)
-    DBUG_PRINT("info", ("1"));
-  if (sql_field->vcol_info)
-    DBUG_PRINT("info", ("2"));
   if (!(sql_field->flags & NOT_NULL_FLAG) ||
       (sql_field->vcol_info))  /* Make virtual columns allow NULL values */
     sql_field->pack_flag|= FIELDFLAG_MAYBE_NULL;
