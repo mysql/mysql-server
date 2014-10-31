@@ -30,7 +30,6 @@ Created 12/18/1995 Heikki Tuuri
 
 #ifndef UNIV_INNOCHECKSUM
 
-#include "dict0dict.h"
 #include "fsp0space.h"
 #include "fut0lst.h"
 #include "mtr0mtr.h"

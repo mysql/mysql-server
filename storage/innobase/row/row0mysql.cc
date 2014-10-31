@@ -2943,7 +2943,7 @@ err_exit:
 
 	/* Update SYS_TABLESPACES and SYS_DATAFILES if a new file-per-table
 	tablespace was created. */
-	if (err == DB_SUCCESS && dict_table_use_file_per_table(table)) {
+	if (err == DB_SUCCESS && dict_table_is_file_per_table(table)) {
 
 		ut_ad(!is_system_tablespace(table->space));
 
@@ -2991,7 +2991,7 @@ err_exit:
 	case DB_TOO_MANY_CONCURRENT_TRXS:
 		/* We already have .ibd file here. it should be deleted. */
 
-		if (dict_table_use_file_per_table(table)
+		if (dict_table_is_file_per_table(table)
 		    && fil_delete_tablespace(
 			    table->space,
 			    BUF_REMOVE_FLUSH_NO_WRITE)
@@ -3279,7 +3279,7 @@ row_table_add_foreign_constraints(
 					 DICT_ERR_IGNORE_NONE, fk_tables);
 
 		while (err == DB_SUCCESS && !fk_tables.empty()) {
-			dict_load_table(fk_tables.front(), TRUE,
+			dict_load_table(fk_tables.front(), true,
 					DICT_ERR_IGNORE_NONE);
 			fk_tables.pop_front();
 		}
@@ -4005,7 +4005,7 @@ row_drop_table_from_cache(
 	}
 
 	if (!is_temp
-	    && dict_load_table(tablename, TRUE,
+	    && dict_load_table(tablename, true,
 			       DICT_ERR_IGNORE_NONE) != NULL) {
 		ib::error() << "Not able to remove table "
 			<< ut_get_name(trx, tablename)
@@ -4720,7 +4720,7 @@ row_mysql_drop_temp_tables(void)
 		btr_pcur_store_position(&pcur, &mtr);
 		btr_pcur_commit_specify_mtr(&pcur, &mtr);
 
-		table = dict_load_table(table_name, TRUE,
+		table = dict_load_table(table_name, true,
 					DICT_ERR_IGNORE_NONE);
 
 		if (table) {
@@ -5397,7 +5397,7 @@ end:
 		}
 
 		while (!fk_tables.empty()) {
-			dict_load_table(fk_tables.front(), TRUE,
+			dict_load_table(fk_tables.front(), true,
 					DICT_ERR_IGNORE_NONE);
 			fk_tables.pop_front();
 		}

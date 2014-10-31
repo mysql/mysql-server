@@ -111,6 +111,7 @@ PageBulk::init()
 
 	m_mtr = mtr;
 	m_block = new_block;
+	m_block->skip_flush_check = true;
 	m_page = new_page;
 	m_page_zip = new_page_zip;
 	m_page_no = new_page_no;
@@ -125,7 +126,6 @@ PageBulk::init()
 	m_rec_no = page_header_get_field(new_page, PAGE_N_RECS);
 
 	ut_d(m_total_data = 0);
-	mach_write_to_2(m_page + FIL_PAGE_TYPE, FIL_PAGE_TYPE_SYS);
 	page_header_set_field(m_page, NULL, PAGE_HEAP_TOP, UNIV_PAGE_SIZE - 1);
 }
 
@@ -259,7 +259,6 @@ PageBulk::finish()
 	page_dir_slot_set_n_owned(slot, NULL, count + 1);
 
 	ut_ad(!dict_index_is_spatial(m_index));
-	mach_write_to_2(m_page + FIL_PAGE_TYPE, FIL_PAGE_INDEX);
 	page_dir_set_n_slots(m_page, NULL, 2 + slot_index);
 	page_header_set_ptr(m_page, NULL, PAGE_HEAP_TOP, m_heap_top);
 	page_dir_set_n_heap(m_page, NULL, PAGE_HEAP_NO_USER_LOW + m_rec_no);
@@ -268,6 +267,8 @@ PageBulk::finish()
 	page_header_set_ptr(m_page, NULL, PAGE_LAST_INSERT, m_cur_rec);
 	page_header_set_field(m_page, NULL, PAGE_DIRECTION, PAGE_RIGHT);
 	page_header_set_field(m_page, NULL, PAGE_N_DIRECTION, 0);
+
+	m_block->skip_flush_check = false;
 }
 
 /** Commit inserts done to the page

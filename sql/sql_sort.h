@@ -25,6 +25,7 @@
 #include "filesort_utils.h"
 #include "sql_alloc.h"
 #include <stddef.h>                             /* for macro offsetof */
+#include <vector>
 
 typedef struct st_queue QUEUE;
 typedef struct st_sort_field SORT_FIELD;
@@ -147,7 +148,35 @@ public:
 
   size_t  buffer_size() const { return m_buffer_end - m_buffer_start; }
 
-  void reuse_freed_buff(QUEUE *queue);
+  /**
+    Tries to merge *this with one of the buffers in the range begin..end.
+    @param begin first element in the array of buffers.
+    @param end   the past-the-end element in the array of buffers.
+   */
+  void reuse_freed_buff(Merge_chunk *begin, Merge_chunk *end);
+
+  /**
+    Tries to merge *this with *mc, returns true if successful.
+    The assumption is that *this is no longer in use,
+    and the space it has been allocated can be handed over to a
+    buffer which is adjacent to it.
+   */
+  bool merge_freed_buff(Merge_chunk *mc) const
+  {
+    if (mc->m_buffer_end == m_buffer_start)
+    {
+      mc->m_buffer_end= m_buffer_end;
+      mc->m_max_keys+= m_max_keys;
+      return true;
+    }
+    else if (mc->m_buffer_start == m_buffer_end)
+    {
+      mc->m_buffer_start= m_buffer_start;
+      mc->m_max_keys+= m_max_keys;
+      return true;
+    }
+    return false;
+  }
 
 private:
   uchar   *m_current_key;  /// The current key for this chunk.
