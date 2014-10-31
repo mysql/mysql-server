@@ -49,6 +49,8 @@ using std::list;
 
 #define FLAGSTR(V,F) ((V)&(F)?#F" ":"")
 
+#define LOG_PREFIX	"ML"
+
 /**
   @defgroup Binary_Log Binary Log
   @{

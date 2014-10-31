@@ -1094,7 +1094,7 @@ ibuf_fixed_addr_page(
 }
 
 /** Checks if a page is a level 2 or 3 page in the ibuf hierarchy of pages.
-Must not be called when recv_no_ibuf_operations==TRUE.
+Must not be called when recv_no_ibuf_operations==true.
 @param[in]	page_id		page id
 @param[in]	page_size	page size
 @param[in]	x_latch		FALSE if relaxed check (avoid latching the
@@ -1424,16 +1424,8 @@ ibuf_add_ops(
 {
 	ulint	i;
 
-#ifndef HAVE_ATOMIC_BUILTINS
-	ut_ad(mutex_own(&ibuf_mutex));
-#endif /* !HAVE_ATOMIC_BUILTINS */
-
 	for (i = 0; i < IBUF_OP_COUNT; i++) {
-#ifdef HAVE_ATOMIC_BUILTINS
 		os_atomic_increment_ulint(&arr[i], ops[i]);
-#else /* HAVE_ATOMIC_BUILTINS */
-		arr[i] += ops[i];
-#endif /* HAVE_ATOMIC_BUILTINS */
 	}
 }
 
@@ -4791,20 +4783,9 @@ reset_bit:
 	btr_pcur_close(&pcur);
 	mem_heap_free(heap);
 
-#ifdef HAVE_ATOMIC_BUILTINS
 	os_atomic_increment_ulint(&ibuf->n_merges, 1);
 	ibuf_add_ops(ibuf->n_merged_ops, mops);
 	ibuf_add_ops(ibuf->n_discarded_ops, dops);
-#else /* HAVE_ATOMIC_BUILTINS */
-	/* Protect our statistics keeping from race conditions */
-	mutex_enter(&ibuf_mutex);
-
-	ibuf->n_merges++;
-	ibuf_add_ops(ibuf->n_merged_ops, mops);
-	ibuf_add_ops(ibuf->n_discarded_ops, dops);
-
-	mutex_exit(&ibuf_mutex);
-#endif /* HAVE_ATOMIC_BUILTINS */
 
 	if (space != NULL) {
 		fil_space_release(space);
@@ -4895,14 +4876,7 @@ leave_loop:
 	ibuf_mtr_commit(&mtr);
 	btr_pcur_close(&pcur);
 
-#ifdef HAVE_ATOMIC_BUILTINS
 	ibuf_add_ops(ibuf->n_discarded_ops, dops);
-#else /* HAVE_ATOMIC_BUILTINS */
-	/* Protect our statistics keeping from race conditions */
-	mutex_enter(&ibuf_mutex);
-	ibuf_add_ops(ibuf->n_discarded_ops, dops);
-	mutex_exit(&ibuf_mutex);
-#endif /* HAVE_ATOMIC_BUILTINS */
 
 	mem_heap_free(heap);
 }

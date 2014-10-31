@@ -38,7 +38,6 @@
 #endif
 
 #include "sql_priv.h"
-#include "unireg.h"
 #include "sql_parse.h"    // test_if_data_home_dir
 #include "sql_cache.h"    // query_cache, query_cache_*
 #include "sql_locale.h"   // MY_LOCALES, my_locales, my_locale_by_name
@@ -3966,7 +3965,7 @@ a file name for --log-bin-index option", opt_binlog_index_name);
     unireg_abort(0);
 
   /* if the errmsg.sys is not loaded, terminate to maintain behaviour */
-  if (!DEFAULT_ERRMSGS[0][0])
+  if (!my_default_lc_messages->errmsgs->errmsgs[0][0])
   {
     sql_print_error("Unable to read errmsg.sys file");
     unireg_abort(1);

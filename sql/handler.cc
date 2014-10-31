@@ -21,7 +21,6 @@
 
 #include "binlog.h"
 #include "sql_priv.h"
-#include "unireg.h"
 #include "rpl_handler.h"
 #include "sql_cache.h"                   // query_cache, query_cache_*
 #include "key.h"     // key_copy, key_unpack, key_cmp_if_same, key_cmp

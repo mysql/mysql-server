@@ -505,6 +505,10 @@ buf_dblwr_process(void)
 			const page_size_t	page_size(space->flags);
 			const page_id_t		page_id(space_id, page_no);
 
+			/* We want to ensure that for partial reads the
+			unread portion of the page is NUL. */
+			memset(read_buf, 0x0, page_size.physical());
+
 			/* Read in the actual page from the file */
 			fil_io(OS_FILE_READ, true,
 			       page_id, page_size,
@@ -723,6 +727,10 @@ buf_dblwr_check_block(
 	const buf_block_t*	block)	/*!< in: block to check */
 {
 	ut_ad(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
+
+	if (block->skip_flush_check) {
+		return;
+	}
 
 	/* On uncompressed pages, it is possible that invalid
 	FIL_PAGE_TYPE was left behind by an older version of InnoDB

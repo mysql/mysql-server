@@ -221,7 +221,6 @@ ulint	srv_lock_table_size	= ULINT_MAX;
 
 /* This parameter is deprecated. Use srv_n_io_[read|write]_threads
 instead. */
-ulint	srv_n_file_io_threads	= ULINT_MAX;
 ulint	srv_n_read_io_threads	= ULINT_MAX;
 ulint	srv_n_write_io_threads	= ULINT_MAX;
 
@@ -926,9 +925,6 @@ srv_init(void)
 	/* Create dummy indexes for infimum and supremum records */
 
 	dict_ind_init();
-#ifndef HAVE_ATOMIC_BUILTINS
-	srv_conc_init();
-#endif /* !HAVE_ATOMIC_BUILTINS */
 
 	/* Initialize some INFORMATION SCHEMA internal structures */
 	trx_i_s_cache_init(trx_i_s_cache);
@@ -1025,7 +1021,6 @@ srv_boot(void)
 	/* Initialize this module */
 
 	srv_init();
-	srv_mon_create();
 }
 
 /******************************************************************//**
@@ -1337,11 +1332,6 @@ srv_export_innodb_status(void)
 	export_vars.innodb_buffer_pool_pages_misc =
 		buf_pool_get_n_pages() - LRU_len - free_len;
 
-#ifdef HAVE_ATOMIC_BUILTINS
-	export_vars.innodb_have_atomic_builtins = 1;
-#else
-	export_vars.innodb_have_atomic_builtins = 0;
-#endif
 	export_vars.innodb_page_size = UNIV_PAGE_SIZE;
 
 	export_vars.innodb_log_waits = srv_stats.log_waits;

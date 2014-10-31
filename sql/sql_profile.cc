@@ -30,7 +30,6 @@
 
 
 #include "sql_priv.h"
-#include "unireg.h"                    // REQUIRED: for other includes
 #include "sql_profile.h"
 #include "my_sys.h"
 #include "sql_show.h"                     // schema_table_store_record

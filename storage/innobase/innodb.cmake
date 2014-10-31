@@ -95,66 +95,8 @@ IF(HAVE_NANOSLEEP)
 ENDIF()
 
 IF(NOT MSVC)
-# either define HAVE_IB_GCC_ATOMIC_BUILTINS or not
+# Define some HAVE_IB_GCC_* if available
 IF(NOT CMAKE_CROSSCOMPILING)
-  CHECK_C_SOURCE_RUNS(
-  "
-  int main()
-  {
-    long	x;
-    long	y;
-    long	res;
-    int		c;
-
-    x = 10;
-    y = 123;
-    res = __sync_bool_compare_and_swap(&x, x, y);
-    if (!res || x != y) {
-      return(1);
-    }
-
-    x = 10;
-    y = 123;
-    res = __sync_bool_compare_and_swap(&x, x + 1, y);
-    if (res || x != 10) {
-      return(1);
-    }
-    x = 10;
-    y = 123;
-    res = __sync_add_and_fetch(&x, y);
-    if (res != 123 + 10 || x != 123 + 10) {
-      return(1);
-    }
-
-    c = 10;
-    res = __sync_lock_test_and_set(&c, 123);
-    if (res != 10 || c != 123) {
-      return(1);
-    }
-    return(0);
-  }"
-  HAVE_IB_GCC_ATOMIC_BUILTINS
-  )
-  CHECK_C_SOURCE_RUNS(
-  "#include<stdint.h>
-  int main()
-  {
-    int64_t	x,y,res;
-
-    x = 10;
-    y = 123;
-    res = __sync_sub_and_fetch(&y, x);
-    if (res != y || y != 113) {
-      return(1);
-    }
-    res = __sync_add_and_fetch(&y, x);
-    if (res != y || y != 123) {
-      return(1);
-    }
-    return(0);
-  }"
-  HAVE_IB_GCC_ATOMIC_BUILTINS_64
-  )
   CHECK_C_SOURCE_RUNS(
   "#include<stdint.h>
   int main()
@@ -174,14 +116,6 @@ IF(NOT CMAKE_CROSSCOMPILING)
   }"
   HAVE_IB_GCC_ATOMIC_THREAD_FENCE
   )
-ENDIF()
-
-IF(HAVE_IB_GCC_ATOMIC_BUILTINS)
- ADD_DEFINITIONS(-DHAVE_IB_GCC_ATOMIC_BUILTINS=1)
-ENDIF()
-
-IF(HAVE_IB_GCC_ATOMIC_BUILTINS_64)
- ADD_DEFINITIONS(-DHAVE_IB_GCC_ATOMIC_BUILTINS_64=1)
 ENDIF()
 
 IF(HAVE_IB_GCC_SYNC_SYNCHRONISE)
@@ -219,7 +153,7 @@ IF(HAVE_IB_ATOMIC_PTHREAD_T_GCC)
 ENDIF()
 
 # Only use futexes on Linux if GCC atomics are available
-IF(HAVE_IB_GCC_ATOMIC_BUILTINS AND NOT CMAKE_CROSSCOMPILING)
+IF(NOT MSVC AND NOT CMAKE_CROSSCOMPILING)
   CHECK_C_SOURCE_RUNS(
   "
   #include <stdio.h>
@@ -263,54 +197,7 @@ CHECK_FUNCTION_EXISTS(vasprintf  HAVE_VASPRINTF)
 
 # Solaris atomics
 IF(CMAKE_SYSTEM_NAME STREQUAL "SunOS")
-  CHECK_FUNCTION_EXISTS(atomic_cas_ulong  HAVE_ATOMIC_CAS_ULONG)
-  CHECK_FUNCTION_EXISTS(atomic_cas_32 HAVE_ATOMIC_CAS_32)
-  CHECK_FUNCTION_EXISTS(atomic_cas_64 HAVE_ATOMIC_CAS_64)
-  CHECK_FUNCTION_EXISTS(atomic_add_long_nv HAVE_ATOMIC_ADD_LONG_NV)
-  CHECK_FUNCTION_EXISTS(atomic_swap_uchar HAVE_ATOMIC_SWAP_UCHAR)
-  IF(HAVE_ATOMIC_CAS_ULONG AND
-     HAVE_ATOMIC_CAS_32 AND
-     HAVE_ATOMIC_CAS_64 AND
-     HAVE_ATOMIC_ADD_LONG_NV AND
-     HAVE_ATOMIC_SWAP_UCHAR)
-    SET(HAVE_IB_SOLARIS_ATOMICS 1)
-  ENDIF()
-
-  IF(HAVE_IB_SOLARIS_ATOMICS)
-    ADD_DEFINITIONS(-DHAVE_IB_SOLARIS_ATOMICS=1)
-  ENDIF()
-
   IF(NOT CMAKE_CROSSCOMPILING)
-  # either define HAVE_IB_ATOMIC_PTHREAD_T_SOLARIS or not
-  CHECK_C_SOURCE_COMPILES(
-  "   #include <pthread.h>
-      #include <string.h>
-
-      int main(int argc, char** argv) {
-        pthread_t       x1;
-        pthread_t       x2;
-        pthread_t       x3;
-
-        memset(&x1, 0x0, sizeof(x1));
-        memset(&x2, 0x0, sizeof(x2));
-        memset(&x3, 0x0, sizeof(x3));
-
-        if (sizeof(pthread_t) == 4) {
-
-          atomic_cas_32(&x1, x2, x3);
-
-        } else if (sizeof(pthread_t) == 8) {
-
-          atomic_cas_64(&x1, x2, x3);
-
-        } else {
-
-          return(1);
-        }
-
-      return(0);
-    }
-  " HAVE_IB_ATOMIC_PTHREAD_T_SOLARIS)
   CHECK_C_SOURCE_COMPILES(
   "#include <mbarrier.h>
   int main() {
@@ -320,29 +207,12 @@ IF(CMAKE_SYSTEM_NAME STREQUAL "SunOS")
   }"
   HAVE_IB_MACHINE_BARRIER_SOLARIS)
   ENDIF()
-  IF(HAVE_IB_ATOMIC_PTHREAD_T_SOLARIS)
-    ADD_DEFINITIONS(-DHAVE_IB_ATOMIC_PTHREAD_T_SOLARIS=1)
-  ENDIF()
   IF(HAVE_IB_MACHINE_BARRIER_SOLARIS)
     ADD_DEFINITIONS(-DHAVE_IB_MACHINE_BARRIER_SOLARIS=1)
   ENDIF()
 ENDIF()
 
-
-IF(UNIX)
-# this is needed to know which one of atomic_cas_32() or atomic_cas_64()
-# to use in the source
-SET(CMAKE_EXTRA_INCLUDE_FILES pthread.h)
-CHECK_TYPE_SIZE(pthread_t SIZEOF_PTHREAD_T)
-SET(CMAKE_EXTRA_INCLUDE_FILES)
-ENDIF()
-
-IF(SIZEOF_PTHREAD_T)
-  ADD_DEFINITIONS(-DSIZEOF_PTHREAD_T=${SIZEOF_PTHREAD_T})
-ENDIF()
-
 IF(MSVC)
-  ADD_DEFINITIONS(-DHAVE_WINDOWS_ATOMICS)
   ADD_DEFINITIONS(-DHAVE_WINDOWS_MM_FENCE)
 ENDIF()
 
@@ -357,20 +227,3 @@ ENDIF()
 # Include directories under innobase
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/storage/innobase/include
 		    ${CMAKE_SOURCE_DIR}/storage/innobase/handler)
-
-# Sun Studio bug with -xO2
-IF(CMAKE_CXX_COMPILER_ID MATCHES "SunPro"
-	AND CMAKE_CXX_FLAGS_RELEASE MATCHES "O2"
-	AND NOT CMAKE_BUILD_TYPE STREQUAL "Debug")
-	# Sun Studio 12 crashes with -xO2 flag, but not with higher optimization
-	# -xO3
-	SET_SOURCE_FILES_PROPERTIES(${CMAKE_CURRENT_SOURCE_DIR}/rem/rem0rec.cc
-    PROPERTIES COMPILE_FLAGS -xO3)
-ENDIF()
-
-# Removing compiler optimizations for innodb/mem/* files on 64-bit Windows
-# due to 64-bit compiler error, See MySQL Bug #19424, #36366, #34297
-# This was a bug found in VS2005.  Assume there is no problem starting with VS2010
-IF (MSVC AND MSVC_VERSION LESS 1600 AND CMAKE_SIZEOF_VOID_P EQUAL 8)
-	SET_SOURCE_FILES_PROPERTIES(mem/mem0mem.cc PROPERTIES COMPILE_FLAGS -Od)
-ENDIF()

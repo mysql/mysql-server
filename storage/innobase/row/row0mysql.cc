@@ -1885,15 +1885,13 @@ init_fts_doc_id_for_ref(
 /* A functor for decrementing counters. */
 class ib_dec_counter {
 public:
-	ib_dec_counter(ib_mutex_t& m): mutex(m) {}
+	ib_dec_counter() {}
 
 	void operator() (upd_node_t* node) {
 		ut_ad(node->table->n_foreign_key_checks_running > 0);
-		os_dec_counter(mutex,
-			       node->table->n_foreign_key_checks_running);
+		os_atomic_decrement_ulint(
+			&node->table->n_foreign_key_checks_running, 1);
 	}
-private:
-	ib_mutex_t&	mutex;
 };
 
 
@@ -2384,8 +2382,8 @@ run_again:
 	if (thr->fk_cascade_depth > 0) {
 		/* Processing cascade operation */
 		ut_ad(node->table->n_foreign_key_checks_running > 0);
-		os_dec_counter(dict_sys->mutex,
-			       node->table->n_foreign_key_checks_running);
+		os_atomic_decrement_ulint(
+			&node->table->n_foreign_key_checks_running, 1);
 		node->processed_cascades->push_back(node);
 	}
 
@@ -2473,16 +2471,15 @@ error:
 
 	if (thr->fk_cascade_depth > 0) {
 		ut_ad(node->table->n_foreign_key_checks_running > 0);
-		os_dec_counter(dict_sys->mutex,
-			       node->table
-			       ->n_foreign_key_checks_running);
+		os_atomic_decrement_ulint(
+			&node->table->n_foreign_key_checks_running, 1);
 		thr->fk_cascade_depth = 0;
 	}
 
 	/* Reset the table->n_foreign_key_checks_running counter */
 	std::for_each(cascade_upd_nodes->begin(),
 		      cascade_upd_nodes->end(),
-		      ib_dec_counter(dict_sys->mutex));
+		      ib_dec_counter());
 
 	std::for_each(cascade_upd_nodes->begin(),
 		      cascade_upd_nodes->end(),
@@ -2845,7 +2842,7 @@ err_exit:
 
 	/* Update SYS_TABLESPACES and SYS_DATAFILES if a new file-per-table
 	tablespace was created. */
-	if (err == DB_SUCCESS && dict_table_use_file_per_table(table)) {
+	if (err == DB_SUCCESS && dict_table_is_file_per_table(table)) {
 
 		ut_ad(!is_system_tablespace(table->space));
 
@@ -2893,7 +2890,7 @@ err_exit:
 	case DB_TOO_MANY_CONCURRENT_TRXS:
 		/* We already have .ibd file here. it should be deleted. */
 
-		if (dict_table_use_file_per_table(table)
+		if (dict_table_is_file_per_table(table)
 		    && fil_delete_tablespace(
 			    table->space,
 			    BUF_REMOVE_FLUSH_NO_WRITE)
@@ -3181,7 +3178,7 @@ row_table_add_foreign_constraints(
 					 DICT_ERR_IGNORE_NONE, fk_tables);
 
 		while (err == DB_SUCCESS && !fk_tables.empty()) {
-			dict_load_table(fk_tables.front(), TRUE,
+			dict_load_table(fk_tables.front(), true,
 					DICT_ERR_IGNORE_NONE);
 			fk_tables.pop_front();
 		}
@@ -3234,10 +3231,6 @@ row_drop_table_for_mysql_in_background(
 	table: */
 
 	trx->check_foreigns = false;
-
-	/*	fputs("InnoDB: Error: Dropping table ", stderr);
-	ut_print_name(stderr, trx, TRUE, name);
-	fputs(" in background drop list\n", stderr); */
 
 	/* Try to drop the table in InnoDB */
 
@@ -3392,10 +3385,6 @@ row_add_table_to_background_drop_list(
 	UT_LIST_ADD_LAST(row_mysql_drop_list, drop);
 
 	MONITOR_INC(MONITOR_BACKGROUND_DROP_TABLE);
-
-	/*	fputs("InnoDB: Adding table ", stderr);
-	ut_print_name(stderr, trx, TRUE, drop->table_name);
-	fputs(" to background drop list\n", stderr); */
 
 	mutex_exit(&row_drop_list_mutex);
 
@@ -3907,7 +3896,7 @@ row_drop_table_from_cache(
 	}
 
 	if (!is_temp
-	    && dict_load_table(tablename, TRUE,
+	    && dict_load_table(tablename, true,
 			       DICT_ERR_IGNORE_NONE) != NULL) {
 		ib::error() << "Not able to remove table "
 			<< ut_get_name(trx, tablename)
@@ -4073,19 +4062,11 @@ row_drop_table_for_mysql(
 	latch */
 	table->to_be_dropped = true;
 
+	if (table->fts) {
+		fts_optimize_remove_table(table);
+	}
+
 	if (nonatomic) {
-		/* This trx did not acquire any locks on dictionary
-		table records yet. Thus it is safe to release and
-		reacquire the data dictionary latches. */
-		if (table->fts) {
-			ut_ad(!table->fts->add_wq);
-			ut_ad(lock_trx_has_sys_table_locks(trx) == 0);
-
-			row_mysql_unlock_data_dictionary(trx);
-			fts_optimize_remove_table(table);
-			row_mysql_lock_data_dictionary(trx);
-		}
-
 		/* Do not bother to deal with persistent stats for temp
 		tables since we know temp tables do not use persistent
 		stats. */
@@ -4630,7 +4611,7 @@ row_mysql_drop_temp_tables(void)
 		btr_pcur_store_position(&pcur, &mtr);
 		btr_pcur_commit_specify_mtr(&pcur, &mtr);
 
-		table = dict_load_table(table_name, TRUE,
+		table = dict_load_table(table_name, true,
 					DICT_ERR_IGNORE_NONE);
 
 		if (table) {
@@ -5307,7 +5288,7 @@ end:
 		}
 
 		while (!fk_tables.empty()) {
-			dict_load_table(fk_tables.front(), TRUE,
+			dict_load_table(fk_tables.front(), true,
 					DICT_ERR_IGNORE_NONE);
 			fk_tables.pop_front();
 		}
@@ -5463,29 +5444,25 @@ func_exit:
 			}
 		}
 
+		const char* msg;
+
 		if (cmp > 0) {
 			ret = DB_INDEX_CORRUPT;
-			fputs("InnoDB: index records in a wrong order in ",
-			      stderr);
+			msg = "index records in a wrong order in ";
 not_ok:
-			dict_index_name_print(stderr,
-					      prebuilt->trx, index);
-			fputs("\n"
-			      "InnoDB: prev record ", stderr);
-			dtuple_print(stderr, prev_entry);
-			fputs("\n"
-			      "InnoDB: record ", stderr);
-			rec_print_new(stderr, rec, offsets);
-			putc('\n', stderr);
+			ib::error()
+				<< msg << index->name
+				<< " of table " << index->table->name
+				<< ": " << *prev_entry << ", "
+				<< rec_offsets_print(rec, offsets);
 			/* Continue reading */
 		} else if (dict_index_is_unique(index)
 			   && !contains_null
 			   && matched_fields
 			   >= dict_index_get_n_ordering_defined_by_user(
 				   index)) {
-
-			fputs("InnoDB: duplicate key in ", stderr);
 			ret = DB_DUPLICATE_KEY;
+			msg = "duplicate key in ";
 			goto not_ok;
 		}
 	}

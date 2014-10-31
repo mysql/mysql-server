@@ -19,9 +19,6 @@
 #include "my_global.h"
 #include "my_dbug.h"                   // DBUG_ENTER
 #include "my_sys.h"                    // strmake_root
-#ifdef MYSQL_SERVER
-#include "unireg.h"                    // REQUIRED: for other includes
-#endif
 #include "xa.h"                        // XID_STATE
 #include "table.h"                     // CHANGED_TABLE_LIST
 #include "my_alloc.h"                  // MEM_ROOT

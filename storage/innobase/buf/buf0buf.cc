@@ -1045,9 +1045,10 @@ buf_page_print(
 #ifndef UNIV_HOTBACKUP
 		index = dict_index_find_on_id_low(index_id);
 		if (index) {
-			fputs("InnoDB: (", stderr);
-			dict_index_name_print(stderr, NULL, index);
-			fputs(")\n", stderr);
+			ib::info()
+				<< "Index " << index_id
+				<< " is " << index->name
+				<< " in table " << index->table->name;
 		}
 #endif /* !UNIV_HOTBACKUP */
 		break;
@@ -1180,6 +1181,7 @@ buf_block_init(
 
 	block->index = NULL;
 	block->made_dirty_with_no_latch = false;
+	block->skip_flush_check = false;
 
 #ifdef UNIV_DEBUG
 	block->page.in_page_hash = FALSE;
@@ -3457,6 +3459,7 @@ buf_block_init_low(
 {
 	block->index		= NULL;
 	block->made_dirty_with_no_latch = false;
+	block->skip_flush_check = false;
 
 	block->n_hash_helps	= 0;
 	block->n_fields		= 1;

@@ -4828,18 +4828,18 @@ static int exec_relay_log_event(THD* thd, Relay_log_info* rli)
     }
 
     /*
-      GTID protocol will put a ROTATE_EVENT from the master after each
-      (re)connection if auto positioning is enabled.
+      GTID protocol will put a FORMAT_DESCRIPTION_EVENT from the master with
+      log_pos != 0 after each (re)connection if auto positioning is enabled.
       This means that the SQL thread might have already started to apply the
       current group but, as the IO thread had to reconnect, it left this
       group incomplete and will start it again from the beginning.
-      So, before applying this ROTATE_EVENT we must let the worker applying
-      the current group rollback and gracefully finish its work before
-      starting to applying the new (complete) copy of the group.
+      So, before applying this FORMAT_DESCRIPTION_EVENT, we must let the
+      worker roll back the current group and gracefully finish its work,
+      before starting to apply the new (complete) copy of the group.
     */
-    if (ev->get_type_code() == ROTATE_EVENT &&
-        ev->server_id != ::server_id && rli->is_parallel_exec() &&
-        rli->curr_group_seen_gtid)
+    if (ev->get_type_code() == FORMAT_DESCRIPTION_EVENT &&
+        ev->server_id != ::server_id && ev->log_pos != 0 &&
+        rli->is_parallel_exec() && rli->curr_group_seen_gtid)
     {
       if (coord_handle_partial_binlogged_transaction(rli, ev))
         /*
@@ -5433,6 +5433,10 @@ ignore_log_space_limit=%d",
       );
       DBUG_EXECUTE_IF("stop_io_after_reading_user_var_log_event",
         if (event_buf[EVENT_TYPE_OFFSET] == USER_VAR_EVENT)
+          thd->killed= THD::KILLED_NO_VALUE;
+      );
+      DBUG_EXECUTE_IF("stop_io_after_reading_table_map_event",
+        if (event_buf[EVENT_TYPE_OFFSET] == TABLE_MAP_EVENT)
           thd->killed= THD::KILLED_NO_VALUE;
       );
       DBUG_EXECUTE_IF("stop_io_after_reading_xid_log_event",

@@ -705,7 +705,7 @@ For general tablespaces, the 'dbname/' part may be missing.
 must be >= FIL_IBD_FILE_INITIAL_SIZE
 @return DB_SUCCESS or error code */
 dberr_t
-fil_create_ibd_tablespace(
+fil_ibd_create(
 	ulint		space_id,
 	const char*	name,
 	const char*	path,
@@ -743,7 +743,7 @@ statement to update the dictionary tables if they are incorrect.
 @param[in] path_in Tablespace filepath if found in SYS_DATAFILES
 @return DB_SUCCESS or error code */
 dberr_t
-fil_open_ibd_tablespace(
+fil_ibd_open(
 	bool		validate,
 	bool		fix_dict,
 	fil_type_t	purpose,
@@ -771,7 +771,7 @@ enum fil_load_status {
 @param[out]	space		the tablespace, or NULL on error
 @return status of the operation */
 enum fil_load_status
-fil_load_single_file_tablespace(
+fil_ibd_load(
 	ulint		space_id,
 	const char*	filename,
 	ulint		filename_len,

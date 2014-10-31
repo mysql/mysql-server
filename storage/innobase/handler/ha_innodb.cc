@@ -129,7 +129,6 @@ static const long AUTOINC_NEW_STYLE_LOCKING = 1;
 static const long AUTOINC_NO_LOCKING = 2;
 
 static long innobase_log_buffer_size;
-static long innobase_file_io_threads;
 static long innobase_open_files;
 static long innobase_autoinc_lock_mode;
 static ulong innobase_commit_concurrency = 0;
@@ -301,9 +300,6 @@ static PSI_mutex_info all_innodb_mutexes[] = {
 	PSI_KEY(ibuf_bitmap_mutex),
 	PSI_KEY(ibuf_mutex),
 	PSI_KEY(ibuf_pessimistic_insert_mutex),
-#  ifndef HAVE_ATOMIC_BUILTINS
-	PSI_KEY(server_mutex),
-#  endif /* !HAVE_ATOMIC_BUILTINS */
 	PSI_KEY(log_sys_mutex),
 	PSI_KEY(page_zip_stat_per_index_mutex),
 	PSI_KEY(purge_sys_pq_mutex),
@@ -335,12 +331,6 @@ static PSI_mutex_info all_innodb_mutexes[] = {
 #  ifndef PFS_SKIP_EVENT_MUTEX
 	PSI_KEY(event_mutex),
 #  endif /* PFS_SKIP_EVENT_MUTEX */
-#ifndef HAVE_ATOMIC_BUILTINS
-	PSI_KEY(srv_conc_mutex),
-#endif /* !HAVE_ATOMIC_BUILTINS */
-#ifndef HAVE_ATOMIC_BUILTINS_64
-	PSI_KEY(monitor_mutex),
-#endif /* !HAVE_ATOMIC_BUILTINS_64 */
 	PSI_KEY(rtr_active_mutex),
 	PSI_KEY(rtr_match_mutex),
 	PSI_KEY(rtr_path_mutex),
@@ -566,6 +556,11 @@ static MYSQL_THDVAR_BOOL(optimize_point_storage, PLUGIN_VAR_OPCMDARG,
   "Optimize POINT storage as fixed length, rather than variable length"
   " (disabled by default)", NULL, NULL, FALSE);
 
+static MYSQL_THDVAR_STR(tmpdir,
+  PLUGIN_VAR_OPCMDARG|PLUGIN_VAR_MEMALLOC,
+  "Directory for temporary files during DDL operations.",
+  NULL, NULL, "");
+
 static SHOW_VAR innodb_status_variables[]= {
   {"buffer_pool_dump_status",
   (char*) &export_vars.innodb_buffer_pool_dump_status,	  SHOW_CHAR},
@@ -627,8 +622,6 @@ static SHOW_VAR innodb_status_variables[]= {
   (char*) &export_vars.innodb_dblwr_pages_written,	  SHOW_LONG},
   {"dblwr_writes",
   (char*) &export_vars.innodb_dblwr_writes,		  SHOW_LONG},
-  {"have_atomic_builtins",
-  (char*) &export_vars.innodb_have_atomic_builtins,	  SHOW_BOOL},
   {"log_waits",
   (char*) &export_vars.innodb_log_waits,		  SHOW_LONG},
   {"log_write_requests",
@@ -1366,6 +1359,24 @@ thd_create_intrinsic(
 	return(THDVAR(thd, create_intrinsic));
 }
 
+/** Get the value of innodb_tmpdir.
+@param[in]	thd	thread handle, or NULL to query
+			the global innodb_tmpdir.
+@return value or NULL if innodb_tmpdir is set to default value "" */
+const char*
+thd_innodb_tmpdir(
+	THD*	thd)
+{
+	const char*	tmp_dir = THDVAR(thd, tmpdir);
+	btrsea_sync_check	check(false);
+	ut_ad(!sync_check_iterate(check));
+	if (tmp_dir != NULL && *tmp_dir == '\0') {
+		tmp_dir = NULL;
+	}
+
+	return(tmp_dir);
+}
+
 /** Obtain the private handler of InnoDB session specific data.
 @param[in,out]	thd	MySQL thread handler.
 @return reference to private handler */
@@ -1935,12 +1946,13 @@ innobase_get_lower_case_table_names(void)
 	return(lower_case_table_names);
 }
 
-/*********************************************************************//**
-Creates a temporary file.
+/** Create a temporary file in the location specified by the parameter
+path. If the path is null, then it will be created in tmpdir.
+@param[in]	path	location for creating temporary file
 @return temporary file descriptor, or < 0 on error */
 int
-innobase_mysql_tmpfile(void)
-/*========================*/
+innobase_mysql_tmpfile(
+	const char*	path)
 {
 	int	fd2 = -1;
 	File	fd;
@@ -1950,7 +1962,11 @@ innobase_mysql_tmpfile(void)
 		return(-1);
 	);
 
-	fd = mysql_tmpfile("ib");
+	if (path == NULL) {
+		fd = mysql_tmpfile("ib");
+	} else {
+		fd = mysql_tmpfile_path(path, "ib");
+	}
 
 	if (fd >= 0) {
 		/* Copy the file descriptor, so that the additional resources
@@ -3294,7 +3310,6 @@ innobase_change_buffering_inited_ok:
 
 	srv_buf_pool_size = (ulint) innobase_buffer_pool_size;
 
-	srv_n_file_io_threads = (ulint) innobase_file_io_threads;
 	srv_n_read_io_threads = (ulint) innobase_read_io_threads;
 	srv_n_write_io_threads = (ulint) innobase_write_io_threads;
 
@@ -7112,7 +7127,7 @@ ha_innobase::update_row(
 
 	if (srv_read_only_mode && !dict_table_is_intrinsic(m_prebuilt->table)) {
 		ib_senderrf(ha_thd(), IB_LOG_LEVEL_WARN, ER_READ_ONLY_MODE);
-		return(HA_ERR_TABLE_READONLY);
+		DBUG_RETURN(HA_ERR_TABLE_READONLY);
 	} else if (!trx_is_started(trx)) {
 		++trx->will_lock;
 	}
@@ -9893,14 +9908,6 @@ create_table_info_t::create_table()
 	dict_table_t*	innobase_table = NULL;
 	const char*	stmt;
 	size_t		stmt_len;
-#ifdef UNIV_DEBUG
-	const bool	is_intrinsic_temp_table
-		= (m_flags2 & DICT_TF2_INTRINSIC) != 0;
-
-	/* DICT_TF2_INTRINSIC implies DICT_TF2_TEMPORARY */
-	ut_ad(!(m_flags2 & DICT_TF2_INTRINSIC)
-	      || (m_flags2 & DICT_TF2_TEMPORARY));
-#endif /* UNIV_DEBUG */
 
 	DBUG_ENTER("create_table");
 
@@ -10027,7 +10034,7 @@ create_table_info_t::create_table()
 		dict_table_t*		handler
 				= priv->lookup_table_handler(m_table_name);
 		ut_ad(handler == NULL
-		      || (handler != NULL && is_intrinsic_temp_table));
+		      || (handler != NULL && is_intrinsic_temp_table()));
 
 		dberr_t	err = row_table_add_foreign_constraints(
 			m_trx, stmt, stmt_len, m_table_name,
@@ -10327,7 +10334,7 @@ ha_innobase::discard_or_import_tablespace(
 		ib_senderrf(
 			m_prebuilt->trx->mysql_thd, IB_LOG_LEVEL_ERROR,
 			ER_TABLE_IN_SYSTEM_TABLESPACE,
-			dict_table->name);
+			dict_table->name.m_name);
 
 		DBUG_RETURN(HA_ERR_TABLE_NEEDS_UPGRADE);
 	}
@@ -10360,7 +10367,7 @@ ha_innobase::discard_or_import_tablespace(
 			ib_senderrf(
 				m_prebuilt->trx->mysql_thd,
 				IB_LOG_LEVEL_WARN, ER_TABLESPACE_MISSING,
-				dict_table->name);
+				dict_table->name.m_name);
 		}
 
 		err = row_discard_tablespace_for_mysql(
@@ -10377,7 +10384,7 @@ ha_innobase::discard_or_import_tablespace(
 			" before IMPORT.";
 		ib_senderrf(
 			m_prebuilt->trx->mysql_thd, IB_LOG_LEVEL_ERROR,
-			ER_TABLESPACE_EXISTS, dict_table->name);
+			ER_TABLESPACE_EXISTS, dict_table->name.m_name);
 
 		DBUG_RETURN(HA_ERR_TABLE_EXIST);
 	} else {
@@ -12034,18 +12041,16 @@ ha_innobase::check(
 		if (!(check_opt->flags & T_QUICK)) {
 			/* Enlarge the fatal lock wait timeout during
 			CHECK TABLE. */
-			os_increment_counter_by_amount(
-				server_mutex,
-				srv_fatal_semaphore_wait_threshold,
+			os_atomic_increment_ulint(
+				&srv_fatal_semaphore_wait_threshold,
 				SRV_SEMAPHORE_WAIT_EXTENSION);
 			bool valid = btr_validate_index(
 					index, m_prebuilt->trx, false);
 
 			/* Restore the fatal lock wait timeout after
 			CHECK TABLE. */
-			os_decrement_counter_by_amount(
-				server_mutex,
-				srv_fatal_semaphore_wait_threshold,
+			os_atomic_decrement_ulint(
+				&srv_fatal_semaphore_wait_threshold,
 				SRV_SEMAPHORE_WAIT_EXTENSION);
 
 			if (!valid) {
@@ -16609,11 +16614,6 @@ static MYSQL_SYSVAR_ULONG(concurrency_tickets, srv_n_free_tickets_to_enter,
   "Number of times a thread is allowed to enter InnoDB within the same SQL query after it has once got the ticket",
   NULL, NULL, 5000L, 1L, ~0UL, 0);
 
-static MYSQL_SYSVAR_LONG(file_io_threads, innobase_file_io_threads,
-  PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY | PLUGIN_VAR_NOSYSVAR,
-  "Number of file I/O threads in InnoDB.",
-  NULL, NULL, 4, 4, 64, 0);
-
 static MYSQL_SYSVAR_LONG(fill_factor, innobase_fill_factor,
   PLUGIN_VAR_RQCMDARG,
   "Percentage of B-tree page filled during bulk insert",
@@ -16767,7 +16767,6 @@ static MYSQL_SYSVAR_ULONG(thread_concurrency, srv_thread_concurrency,
   "Helps in performance tuning in heavily concurrent environments. Sets the maximum number of threads allowed inside InnoDB. Value 0 will disable the thread throttling.",
   NULL, NULL, 0, 0, 1000, 0);
 
-#ifdef HAVE_ATOMIC_BUILTINS
 static MYSQL_SYSVAR_ULONG(
   adaptive_max_sleep_delay, srv_adaptive_max_sleep_delay,
   PLUGIN_VAR_RQCMDARG,
@@ -16776,7 +16775,6 @@ static MYSQL_SYSVAR_ULONG(
   150000,			/* Default setting */
   0,				/* Minimum value */
   1000000, 0);			/* Maximum value */
-#endif /* HAVE_ATOMIC_BUILTINS */
 
 static MYSQL_SYSVAR_ULONG(thread_sleep_delay, srv_thread_sleep_delay,
   PLUGIN_VAR_RQCMDARG,
@@ -17068,7 +17066,6 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(api_enable_mdl),
   MYSQL_SYSVAR(api_disable_rowlock),
   MYSQL_SYSVAR(fast_shutdown),
-  MYSQL_SYSVAR(file_io_threads),
   MYSQL_SYSVAR(read_io_threads),
   MYSQL_SYSVAR(write_io_threads),
   MYSQL_SYSVAR(file_per_table),
@@ -17138,9 +17135,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(spin_wait_delay),
   MYSQL_SYSVAR(table_locks),
   MYSQL_SYSVAR(thread_concurrency),
-#ifdef HAVE_ATOMIC_BUILTINS
   MYSQL_SYSVAR(adaptive_max_sleep_delay),
-#endif /* HAVE_ATOMIC_BUILTINS */
   MYSQL_SYSVAR(thread_sleep_delay),
   MYSQL_SYSVAR(autoinc_lock_mode),
   MYSQL_SYSVAR(version),
@@ -17195,6 +17190,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(fil_make_page_dirty_debug),
   MYSQL_SYSVAR(saved_page_number_debug),
 #endif /* UNIV_DEBUG */
+  MYSQL_SYSVAR(tmpdir),
   NULL
 };
 

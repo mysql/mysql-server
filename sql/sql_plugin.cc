@@ -15,7 +15,6 @@
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 #include "sql_priv.h"                         // SHOW_MY_BOOL
-#include "unireg.h"
 #include "my_global.h"                       // REQUIRED by m_string.h
 #include "sql_class.h"                          // set_var.h: THD
 #include "sys_vars_shared.h"

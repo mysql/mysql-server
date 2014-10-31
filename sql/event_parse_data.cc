@@ -15,7 +15,6 @@
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 #include "sql_priv.h"
-#include "unireg.h"
 #include "sp_head.h"
 #include "event_parse_data.h"
 #include "sql_time.h"                           // TIME_to_timestamp

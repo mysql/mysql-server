@@ -224,7 +224,7 @@ TARGET_LINK_LIBRARIES(gunit_large
 MESSAGE(STATUS "GTEST_LIBRARIES:${GTEST_LIBRARIES}")
 
 # Add some defines.
-ADD_DEFINITIONS(-DMYSQL_SERVER)
+ADD_DEFINITIONS(-DMYSQL_SERVER -DEXTRA_CODE_FOR_UNIT_TESTING)
 
 # Add tests (link them with gunit/gmock libraries) 
 SET(TESTS
@@ -262,6 +262,7 @@ SET(TESTS
   nullable
   opt_recperkey
   prealloced_array
+  priority_queue
   sql_list
   sql_plist
   sql_string

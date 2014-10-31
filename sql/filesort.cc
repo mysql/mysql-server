@@ -23,7 +23,6 @@
 
 #include "sql_priv.h"
 #include "filesort.h"
-#include "unireg.h"                      // REQUIRED by other includes
 #include <m_ctype.h>
 #include "sql_sort.h"
 #include "probes_mysql.h"
@@ -36,6 +35,7 @@
 #include "sql_optimizer.h"              // JOIN
 #include "sql_base.h"
 #include "opt_costmodel.h"
+#include "priority_queue.h"
 
 #include <algorithm>
 #include <utility>
@@ -1748,32 +1748,79 @@ uint read_to_buffer(IO_CACHE *fromfile,
 } /* read_to_buffer */
 
 
+namespace {
+
+/**
+  This struct is used for merging chunks for filesort() and for Unique::get().
+  For filesort() we use memcmp to compare rows.
+  For Unique::get() we use the provided compare function.
+ */
+struct Merge_chunk_less
+{
+  size_t       m_len;
+  qsort2_cmp   m_fun;
+  void        *m_arg;
+
+  // CTOR for filesort()
+  explicit Merge_chunk_less(size_t len)
+    : m_len(len), m_fun(NULL), m_arg(NULL)
+  {}
+
+  // CTOR for Unique::get()
+  Merge_chunk_less(qsort2_cmp fun, void *arg)
+    : m_len(0), m_fun(fun), m_arg(arg)
+  {}
+
+  bool operator()(Merge_chunk *a, Merge_chunk *b)
+  {
+    uchar *key1= a->current_key();
+    uchar *key2= b->current_key();
+    if (m_len)
+      return memcmp(key1, key2, m_len) > 0;
+
+    if (m_fun)
+      return (*m_fun)(m_arg, &key1, &key2) > 0;
+
+    // We can actually have zero-length sort key for filesort().
+    return false;
+  }
+};
+
+} // namespace
+
+
 /**
   Put all room used by freed buffer to use in adjacent buffer.
 
   Note, that we can't simply distribute memory evenly between all buffers,
   because new areas must not overlap with old ones.
-
-  @param[in] queue      list of non-empty buffers, without freed buffer
 */
-void Merge_chunk::reuse_freed_buff(QUEUE *queue)
+void Merge_chunk::reuse_freed_buff(Merge_chunk *begin, Merge_chunk *end)
 {
-  for (uint i= 0; i < queue->elements; ++i)
+  for (Merge_chunk *mc= begin; mc != end; ++mc)
   {
-    Merge_chunk *mc=
-      static_cast<Merge_chunk*>(static_cast<void*>(queue_element(queue, i)));
-    if (mc->m_buffer_end == m_buffer_start)
-    {
-      mc->m_buffer_end= m_buffer_end;
-      mc->m_max_keys+= m_max_keys;
+    if (merge_freed_buff(mc))
       return;
-    }
-    else if (mc->m_buffer_start == m_buffer_end)
-    {
-      mc->m_buffer_start= m_buffer_start;
-      mc->m_max_keys+= m_max_keys;
+  }
+  DBUG_ASSERT(0);
+}
+
+
+/**
+  Put all room used by freed buffer to use in adjacent buffer.
+
+  Note, that we can't simply distribute memory evenly between all buffers,
+  because new areas must not overlap with old ones.
+*/
+template<typename Heap_type>
+void reuse_freed_buff(Merge_chunk *old_top, Heap_type *heap)
+{
+  typename Heap_type::iterator it= heap->begin();
+  typename Heap_type::iterator end= heap->end();
+  for (; it != end; ++it)
+  {
+    if (old_top->merge_freed_buff(*it))
       return;
-    }
   }
   DBUG_ASSERT(0);
 }
@@ -1811,7 +1858,6 @@ int merge_buffers(Sort_param *param, IO_CACHE *from_file,
   my_off_t to_start_filepos;
   uchar *strpos;
   Merge_chunk *merge_chunk;
-  QUEUE queue;
   qsort2_cmp cmp;
   void *first_cmp_arg;
   volatile THD::killed_state *killed= &current_thd->killed;
@@ -1838,20 +1884,29 @@ int merge_buffers(Sort_param *param, IO_CACHE *from_file,
   /* The following will fire if there is not enough space in sort_buffer */
   DBUG_ASSERT(maxcount!=0);
 
-  if (param->unique_buff)
+  const bool doing_unique= (param->unique_buff != NULL);
+  if (doing_unique)
   {
     cmp= param->compare;
     first_cmp_arg= &param->cmp_context;
   }
   else
   {
-    cmp= get_ptr_compare(sort_length);
-    first_cmp_arg= &sort_length;
+    cmp= NULL;
+    first_cmp_arg= NULL;
   }
-  if (init_queue(&queue, (uint) chunk_array.size(),
-                 Merge_chunk::offset_to_key(), 0,
-                 (queue_compare) cmp, first_cmp_arg))
-    DBUG_RETURN(1);                                /* purecov: inspected */
+
+  Merge_chunk_less mcl=
+    doing_unique ?
+    Merge_chunk_less(cmp, first_cmp_arg) :
+    Merge_chunk_less(sort_length);
+  Priority_queue<Merge_chunk*,
+                 std::vector<Merge_chunk*>,
+                 Merge_chunk_less> queue(mcl);
+
+  if (queue.reserve(chunk_array.size()))
+    DBUG_RETURN(1);
+
   for (merge_chunk= chunk_array.begin() ;
        merge_chunk != chunk_array.end() ; merge_chunk++)
   {
@@ -1862,13 +1917,13 @@ int merge_buffers(Sort_param *param, IO_CACHE *from_file,
       (uint) (error= (int)read_to_buffer(from_file, merge_chunk, param));
     merge_chunk->set_buffer_end(strpos);
     if (error == -1)
-      goto err;					/* purecov: inspected */
+      DBUG_RETURN(error);     /* purecov: inspected */
     // If less data in buffers than expected
     merge_chunk->set_max_keys(merge_chunk->mem_count());
-    queue_insert(&queue, (uchar*) merge_chunk);
+    (void) queue.push(merge_chunk);
   }
 
-  if (param->unique_buff)
+  if (doing_unique)
   {
     DBUG_ASSERT(!param->using_packed_addons());
     /* 
@@ -1879,11 +1934,11 @@ int merge_buffers(Sort_param *param, IO_CACHE *from_file,
        This is safe as we know that there is always more than one element
        in each block to merge (This is guaranteed by the Unique:: algorithm
     */
-    merge_chunk= (Merge_chunk*) queue_top(&queue);
+    merge_chunk= queue.top();
     memcpy(param->unique_buff, merge_chunk->current_key(), rec_length);
     if (my_b_write(to_file, merge_chunk->current_key(), rec_length))
     {
-      error=1; goto err;                        /* purecov: inspected */
+      DBUG_RETURN(1);                         /* purecov: inspected */
     }
     merge_chunk->advance_current_key(rec_length);
     merge_chunk->decrement_mem_count();
@@ -1892,21 +1947,19 @@ int merge_buffers(Sort_param *param, IO_CACHE *from_file,
       error= 0;                                       /* purecov: inspected */
       goto end;                                       /* purecov: inspected */
     }
-    queue_replaced(&queue);                        // Top element has been used
+    queue.update_top();                   // Top element has been used
   }
-  else
-    cmp= 0;                                        // Not unique
 
-  while (queue.elements > 1)
+  while (queue.size() > 1)
   {
     if (*killed)
     {
-      error= 1; goto err;                        /* purecov: inspected */
+      DBUG_RETURN(1);                         /* purecov: inspected */
     }
     for (;;)
     {
-      merge_chunk= (Merge_chunk*) queue_top(&queue);
-      if (cmp)                                        // Remove duplicates
+      merge_chunk= queue.top();
+      if (doing_unique)                         // Remove duplicates
       {
         DBUG_ASSERT(!param->using_packed_addons());
         uchar *current_key= merge_chunk->current_key();
@@ -1924,7 +1977,7 @@ int merge_buffers(Sort_param *param, IO_CACHE *from_file,
         if (my_b_write(to_file,
                        merge_chunk->current_key() + offset, bytes_to_write))
         {
-          error=1; goto err;                    /* purecov: inspected */
+          DBUG_RETURN(1);                     /* purecov: inspected */
         }
         if (!--max_rows)
         {
@@ -1940,21 +1993,21 @@ int merge_buffers(Sort_param *param, IO_CACHE *from_file,
       {
         if (!(error= (int) read_to_buffer(from_file, merge_chunk, param)))
         {
-          (void) queue_remove(&queue,0);
-          merge_chunk->reuse_freed_buff(&queue);
+          queue.pop();
+          reuse_freed_buff(merge_chunk, &queue);
           break;                        /* One buffer have been removed */
         }
         else if (error == -1)
-          goto err;                        /* purecov: inspected */
+          DBUG_RETURN(error);                 /* purecov: inspected */
       }
       /*
         The Merge_chunk at the queue's top had one of its keys consumed, thus
         it may now rank differently in the comparison order of the queue, so:
       */
-      queue_replaced(&queue);
+      queue.update_top();
     }
   }
-  merge_chunk= (Merge_chunk*) queue_top(&queue);
+  merge_chunk= queue.top();
   merge_chunk->set_buffer(sort_buffer.array(),
                           sort_buffer.array() + sort_buffer.size());
   merge_chunk->set_max_keys(param->max_keys_per_buffer);
@@ -1963,7 +2016,7 @@ int merge_buffers(Sort_param *param, IO_CACHE *from_file,
     As we know all entries in the buffer are unique, we only have to
     check if the first one is the same as the last one we wrote
   */
-  if (cmp)
+  if (doing_unique)
   {
     uchar *current_key= merge_chunk->current_key();
     if (!(*cmp)(first_cmp_arg, &(param->unique_buff), &current_key))
@@ -1991,7 +2044,7 @@ int merge_buffers(Sort_param *param, IO_CACHE *from_file,
                      merge_chunk->current_key() + offset,
                      bytes_to_write))
       {
-        error= 1; goto err;                   /* purecov: inspected */
+        DBUG_RETURN(1);                       /* purecov: inspected */
       }
       merge_chunk->advance_current_key(rec_length);
     }
@@ -2002,8 +2055,7 @@ int merge_buffers(Sort_param *param, IO_CACHE *from_file,
 end:
   last_chunk->set_rowcount(min(org_max_rows-max_rows, param->max_rows));
   last_chunk->set_file_position(to_start_filepos);
-err:
-  delete_queue(&queue);
+
   DBUG_RETURN(error);
 } /* merge_buffers */
 

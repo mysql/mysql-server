@@ -1283,6 +1283,8 @@ Item_sum_num::fix_fields(THD *thd, Item **ref)
   if (init_sum_func_check(thd))
     return TRUE;
 
+  Disable_semijoin_flattening DSF(thd->lex->current_select(), true);
+
   decimals=0;
   maybe_null=0;
   for (uint i=0 ; i < arg_count ; i++)
@@ -1316,6 +1318,8 @@ Item_sum_hybrid::fix_fields(THD *thd, Item **ref)
 
   if (init_sum_func_check(thd))
     return TRUE;
+
+  Disable_semijoin_flattening DSF(thd->lex->current_select(), true);
 
   // 'item' can be changed during fix_fields
   if ((!item->fixed && item->fix_fields(thd, args)) ||
@@ -3559,6 +3563,8 @@ Item_func_group_concat::fix_fields(THD *thd, Item **ref)
     return TRUE;
 
   maybe_null= 1;
+
+  Disable_semijoin_flattening DSF(thd->lex->current_select(), true);
 
   /*
     Fix fields for select list and ORDER clause

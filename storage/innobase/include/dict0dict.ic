@@ -1503,16 +1503,28 @@ dict_disable_redo_if_temporary(
 	}
 }
 
-/********************************************************************//**
-Check if the table uses a single-table tablespace (file_per_table).
-@return true if the file-per-table flag is set. */
+/** Check if the table is found is a file_per_table tablespace.
+This test does not use table flags2 since some REDUNDANT tables in the
+system tablespace may have garbage in the MIX_LEN field where flags2 is
+stored. These garbage MIX_LEN fields were written before v3.23.52.
+A patch was added to v3.23.52 which initializes the MIX_LEN field to 0.
+Since file-per-table tablespaces were added in 4.1, any SYS_TABLES
+record with a non-zero space ID will have a reliable MIX_LEN field.
+However, this test does not use flags2 from SYS_TABLES.MIX_LEN.  Instead,
+assume that if the tablespace is not a predefined system tablespace it
+must be file-per-table.
+Also, during ALTER TABLE, the DICT_TF2_USE_FILE_PER_TABLE flag may not be
+set on one of the file-per-table tablespaces.
+This test cannot be done on a table in the process of being created
+because the space_id will be zero until the tablespace is created.
+@param[in]	table	An existing open table to check
+@return true if this table was created as a file-per-table tablespace. */
 UNIV_INLINE
 bool
-dict_table_use_file_per_table(
-/*==========================*/
+dict_table_is_file_per_table(
 	const dict_table_t*	table)	/*!< in: table to check */
 {
-	return(DICT_TF2_FLAG_IS_SET(table, DICT_TF2_USE_FILE_PER_TABLE));
+	return(!is_system_tablespace(table->space));
 }
 
 /**********************************************************************//**

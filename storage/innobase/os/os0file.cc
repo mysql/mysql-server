@@ -290,11 +290,6 @@ time_t	os_last_printout;
 
 bool	os_has_said_disk_full	= false;
 
-#if !defined(HAVE_ATOMIC_BUILTINS)
-/** The mutex protecting the following counts of pending I/O operations */
-static SysMutex		os_file_count_mutex;
-#endif /* !UNIV_HOTBACKUP && !HAVE_ATOMIC_BUILTINS */
-
 /** Number of pending os_file_pread() operations */
 ulint	os_file_n_pending_preads  = 0;
 /** Number of pending os_file_pwrite() operations */
@@ -675,26 +670,24 @@ void
 os_io_init_simple(void)
 /*===================*/
 {
-#ifndef HAVE_ATOMIC_BUILTINS
-	mutex_create("os_file_count_mutex", &os_file_count_mutex);
-#endif /* !HAVE_ATOMIC_BUILTINS */
-
 	for (ulint i = 0; i < OS_FILE_N_SEEK_MUTEXES; i++) {
 		os_file_seek_mutexes[i] = UT_NEW_NOKEY(SysMutex());
 		mutex_create("os_file_seek_mutex", os_file_seek_mutexes[i]);
 	}
 }
 
-/***********************************************************************//**
-Creates a temporary file.  This function is like tmpfile(3), but
-the temporary file is created in the MySQL temporary directory.
+/** Create a temporary file. This function is like tmpfile(3), but
+the temporary file is created in the given parameter path. If the path
+is null then it will create the file in the mysql server configuration
+parameter (--tmpdir).
+@param[in]	path	location for creating temporary file
 @return temporary file handle, or NULL on error */
 FILE*
-os_file_create_tmpfile(void)
-/*========================*/
+os_file_create_tmpfile(
+	const char*	path)
 {
 	FILE*	file	= NULL;
-	int	fd	= innobase_mysql_tmpfile();
+	int	fd	= innobase_mysql_tmpfile(path);
 
 	if (fd >= 0) {
 		file = fdopen(fd, "w+b");
@@ -2356,31 +2349,15 @@ os_file_pread(
 
 	os_n_file_reads++;
 
-# if defined(HAVE_ATOMIC_BUILTINS)
 	(void) os_atomic_increment_ulint(&os_n_pending_reads, 1);
 	(void) os_atomic_increment_ulint(&os_file_n_pending_preads, 1);
 	MONITOR_ATOMIC_INC(MONITOR_OS_PENDING_READS);
-# else
-	mutex_enter(&os_file_count_mutex);
-	os_file_n_pending_preads++;
-	os_n_pending_reads++;
-	MONITOR_INC(MONITOR_OS_PENDING_READS);
-	mutex_exit(&os_file_count_mutex);
-# endif /* HAVE_ATOMIC_BUILTINS */
 
 	read_bytes = os_file_io(file, buf, n, offs, OS_FILE_READ);
 
-# ifdef HAVE_ATOMIC_BUILTINS
 	(void) os_atomic_decrement_ulint(&os_n_pending_reads, 1);
 	(void) os_atomic_decrement_ulint(&os_file_n_pending_preads, 1);
 	MONITOR_ATOMIC_DEC(MONITOR_OS_PENDING_READS);
-# else
-	mutex_enter(&os_file_count_mutex);
-	os_file_n_pending_preads--;
-	os_n_pending_reads--;
-	MONITOR_DEC(MONITOR_OS_PENDING_READS);
-	mutex_exit(&os_file_count_mutex);
-# endif /* HAVE_ATOMIC_BUILTINS */
 
 	return(read_bytes);
 }
@@ -2412,32 +2389,16 @@ os_file_pwrite(
 
 	os_n_file_writes++;
 
-#ifdef HAVE_ATOMIC_BUILTINS
 	(void) os_atomic_increment_ulint(&os_n_pending_writes, 1);
 	(void) os_atomic_increment_ulint(&os_file_n_pending_pwrites, 1);
 	MONITOR_ATOMIC_INC(MONITOR_OS_PENDING_WRITES);
-#else
-	mutex_enter(&os_file_count_mutex);
-	os_file_n_pending_pwrites++;
-	os_n_pending_writes++;
-	MONITOR_INC(MONITOR_OS_PENDING_WRITES);
-	mutex_exit(&os_file_count_mutex);
-#endif /* HAVE_ATOMIC_BUILTINS */
 
 	written_bytes = os_file_io(
 		file, (void*) buf, n, offs, OS_FILE_WRITE);
 
-#ifdef HAVE_ATOMIC_BUILTINS
 	(void) os_atomic_decrement_ulint(&os_n_pending_writes, 1);
 	(void) os_atomic_decrement_ulint(&os_file_n_pending_pwrites, 1);
 	MONITOR_ATOMIC_DEC(MONITOR_OS_PENDING_WRITES);
-#else
-	mutex_enter(&os_file_count_mutex);
-	os_file_n_pending_pwrites--;
-	os_n_pending_writes--;
-	MONITOR_DEC(MONITOR_OS_PENDING_WRITES);
-	mutex_exit(&os_file_count_mutex);
-#endif /* HAVE_ATOMIC_BUILTINS */
 
 	return(written_bytes);
 }
@@ -2483,15 +2444,8 @@ try_again:
 	low = (DWORD) offset & 0xFFFFFFFF;
 	high = (DWORD) (offset >> 32);
 
-#ifdef HAVE_ATOMIC_BUILTINS
 	(void) os_atomic_increment_ulint(&os_n_pending_reads, 1);
 	MONITOR_ATOMIC_INC(MONITOR_OS_PENDING_READS);
-#else
-	mutex_enter(&os_file_count_mutex);
-	os_n_pending_reads++;
-	MONITOR_INC(MONITOR_OS_PENDING_READS);
-	mutex_exit(&os_file_count_mutex);
-#endif /* HAVE_ATOMIC_BUILTINS */
 
 #ifndef UNIV_HOTBACKUP
 	/* Protect the seek / read operation with a mutex */
@@ -2509,15 +2463,8 @@ try_again:
 		mutex_exit(os_file_seek_mutexes[i]);
 #endif /* !UNIV_HOTBACKUP */
 
-#ifdef HAVE_ATOMIC_BUILTINS
 		(void) os_atomic_decrement_ulint(&os_n_pending_reads, 1);
 		MONITOR_ATOMIC_DEC(MONITOR_OS_PENDING_READS);
-#else
-		mutex_enter(&os_file_count_mutex);
-		os_n_pending_reads--;
-		MONITOR_DEC(MONITOR_OS_PENDING_READS);
-		mutex_exit(&os_file_count_mutex);
-#endif /* HAVE_ATOMIC_BUILTINS */
 
 		goto error_handling;
 	}
@@ -2528,15 +2475,8 @@ try_again:
 	mutex_exit(os_file_seek_mutexes[i]);
 #endif /* !UNIV_HOTBACKUP */
 
-#ifdef HAVE_ATOMIC_BUILTINS
 	(void) os_atomic_decrement_ulint(&os_n_pending_reads, 1);
 	MONITOR_ATOMIC_DEC(MONITOR_OS_PENDING_READS);
-#else
-	mutex_enter(&os_file_count_mutex);
-	os_n_pending_reads--;
-	MONITOR_DEC(MONITOR_OS_PENDING_READS);
-	mutex_exit(&os_file_count_mutex);
-#endif /* HAVE_ATOMIC_BUILTINS */
 
 	if (ret && len == n) {
 		return(true);
@@ -2625,15 +2565,8 @@ try_again:
 	low = (DWORD) offset & 0xFFFFFFFF;
 	high = (DWORD) (offset >> 32);
 
-#ifdef HAVE_ATOMIC_BUILTINS
 	(void) os_atomic_increment_ulint(&os_n_pending_reads, 1);
 	MONITOR_ATOMIC_INC(MONITOR_OS_PENDING_READS);
-#else
-	mutex_enter(&os_file_count_mutex);
-	os_n_pending_reads++;
-	MONITOR_INC(MONITOR_OS_PENDING_READS);
-	mutex_exit(&os_file_count_mutex);
-#endif /* HAVE_ATOMIC_BUILTINS */
 
 #ifndef UNIV_HOTBACKUP
 	/* Protect the seek / read operation with a mutex */
@@ -2651,15 +2584,8 @@ try_again:
 		mutex_exit(os_file_seek_mutexes[i]);
 #endif /* !UNIV_HOTBACKUP */
 
-#ifdef HAVE_ATOMIC_BUILTINS
 		(void) os_atomic_decrement_ulint(&os_n_pending_reads, 1);
 		MONITOR_ATOMIC_DEC(MONITOR_OS_PENDING_READS);
-#else
-		mutex_enter(&os_file_count_mutex);
-		os_n_pending_reads--;
-		MONITOR_DEC(MONITOR_OS_PENDING_READS);
-		mutex_exit(&os_file_count_mutex);
-#endif /* HAVE_ATOMIC_BUILTINS */
 
 		goto error_handling;
 	}
@@ -2670,15 +2596,8 @@ try_again:
 	mutex_exit(os_file_seek_mutexes[i]);
 #endif /* !UNIV_HOTBACKUP */
 
-#ifdef HAVE_ATOMIC_BUILTINS
 	(void) os_atomic_decrement_ulint(&os_n_pending_reads, 1);
 	MONITOR_ATOMIC_DEC(MONITOR_OS_PENDING_READS);
-#else
-	mutex_enter(&os_file_count_mutex);
-	os_n_pending_reads--;
-	MONITOR_DEC(MONITOR_OS_PENDING_READS);
-	mutex_exit(&os_file_count_mutex);
-#endif /* HAVE_ATOMIC_BUILTINS */
 
 	if (ret && len == n) {
 		return(true);
@@ -2778,15 +2697,8 @@ retry:
 	low = (DWORD) offset & 0xFFFFFFFF;
 	high = (DWORD) (offset >> 32);
 
-#ifdef HAVE_ATOMIC_BUILTINS
 	(void) os_atomic_increment_ulint(&os_n_pending_writes, 1);
 	MONITOR_ATOMIC_INC(MONITOR_OS_PENDING_WRITES);
-#else
-	mutex_enter(&os_file_count_mutex);
-	os_n_pending_writes++;
-	MONITOR_INC(MONITOR_OS_PENDING_WRITES);
-	mutex_exit(&os_file_count_mutex);
-#endif /* HAVE_ATOMIC_BUILTINS */
 
 #ifndef UNIV_HOTBACKUP
 	/* Protect the seek / write operation with a mutex */
@@ -2804,15 +2716,8 @@ retry:
 		mutex_exit(os_file_seek_mutexes[i]);
 #endif /* !UNIV_HOTBACKUP */
 
-#ifdef HAVE_ATOMIC_BUILTINS
 		(void) os_atomic_decrement_ulint(&os_n_pending_writes, 1);
 		MONITOR_ATOMIC_DEC(MONITOR_OS_PENDING_WRITES);
-#else
-		mutex_enter(&os_file_count_mutex);
-		os_n_pending_writes--;
-		MONITOR_DEC(MONITOR_OS_PENDING_WRITES);
-		mutex_exit(&os_file_count_mutex);
-#endif /* HAVE_ATOMIC_BUILTINS */
 
 		ib::error() << "File pointer positioning to file " << name
 			<< " failed at offset " << offset << ". Operating"
@@ -2827,15 +2732,8 @@ retry:
 	mutex_exit(os_file_seek_mutexes[i]);
 #endif /* !UNIV_HOTBACKUP */
 
-#ifdef HAVE_ATOMIC_BUILTINS
 	(void) os_atomic_decrement_ulint(&os_n_pending_writes, 1);
 	MONITOR_ATOMIC_DEC(MONITOR_OS_PENDING_WRITES);
-#else
-	mutex_enter(&os_file_count_mutex);
-	os_n_pending_writes--;
-	MONITOR_DEC(MONITOR_OS_PENDING_WRITES);
-	mutex_exit(&os_file_count_mutex);
-#endif /* HAVE_ATOMIC_BUILTINS */
 
 	if (ret && len == n) {
 
@@ -3433,7 +3331,7 @@ os_aio_native_aio_supported(void)
 		return(false);
 	} else if (!srv_read_only_mode) {
 		/* Now check if tmpdir supports native aio ops. */
-		fd = innobase_mysql_tmpfile();
+		fd = innobase_mysql_tmpfile(NULL);
 
 		if (fd < 0) {
 			ib::warn() << "Unable to create temp file to check"
@@ -3811,10 +3709,6 @@ os_aio_free(void)
 	for (ulint i = 0; i < os_aio_n_segments; i++) {
 		os_event_destroy(os_aio_segment_wait_events[i]);
 	}
-
-#if !defined(HAVE_ATOMIC_BUILTINS)
-	mutex_free(&os_file_count_mutex);
-#endif /* !HAVE_ATOMIC_BUILTINS */
 
 	ut_free(os_aio_segment_wait_events);
 	os_aio_segment_wait_events = 0;

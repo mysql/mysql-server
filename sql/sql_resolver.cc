@@ -469,30 +469,37 @@ bool SELECT_LEX::apply_local_transforms()
     if (record_join_nest_info(&top_join_list))
       DBUG_RETURN(true);
     build_bitmap_for_nested_joins(&top_join_list, 0);
+
+    /*
+      Here are reasons why we do the following check here (i.e. late).
+      * setup_fields () may have done split_sum_func () on aggregate items of
+      the SELECT list, so for reliable comparison of the ORDER BY list with
+      the SELECT list, we need to wait until split_sum_func() has been done on
+      the ORDER BY list.
+      * we get "most of the time" fixed items, which is always a good
+      thing. Some outer references may not be fixed, though.
+      * we need nested_join::used_tables, and this member is set in
+      simplify_joins()
+      * simplify_joins() does outer-join-to-inner conversion, which increases
+      opportunities for functional dependencies (weak-to-strong, which is
+      unusable, becomes strong-to-strong).
+      * check_only_full_group_by() is dependent on processing done by
+      simplify_joins() (for example it uses the value of
+      SELECT_LEX::outer_join).
+
+      The drawback is that the checks are after resolve_subquery(), so can
+      meet strange "internally added" items.
+
+      Note that when we are creating a view, simplify_joins() doesn't run so
+      check_only_full_group_by() cannot run, any error will be raised only
+      when the view is later used (SELECTed...)
+    */
+    if ((thd->variables.sql_mode & MODE_ONLY_FULL_GROUP_BY) &&
+        ((options & SELECT_DISTINCT) || group_list.elements ||
+         agg_func_used()) &&
+        check_only_full_group_by(thd))
+      DBUG_RETURN(true);
   }
-
-  /*
-    Here are reasons why we do the following check here (i.e. late).
-    * setup_fields () may have done split_sum_func () on aggregate items of
-    the SELECT list, so for reliable comparison of the ORDER BY list with the
-    SELECT list, we need to wait until split_sum_func() has been done on the
-    ORDER BY list.
-    * we get "most of the time" fixed items, which is always a good
-    thing. Some outer references may not be fixed, though.
-    * we need nested_join::used_tables, and this member is set in
-    simplify_joins()
-    * simplify_joins() does outer-join-to-inner conversion, which increases
-    opportunities for functional dependencies (weak-to-strong, which is
-    unusable, becomes strong-to-strong).
-
-    The drawback is that the checks are after resolve_subquery(), so can meet
-    strange "internally added" items.
-  */
-  if ((thd->variables.sql_mode & MODE_ONLY_FULL_GROUP_BY) &&
-      ((options & SELECT_DISTINCT) || group_list.elements ||
-       agg_func_used()) &&
-      check_only_full_group_by(thd))
-    DBUG_RETURN(true);
 
   fix_prepare_information(thd);
   DBUG_RETURN(false);
@@ -683,6 +690,7 @@ bool SELECT_LEX::resolve_subquery(THD *thd)
     thd->lex->set_current_select(outer);
     char const *save_where= thd->where;
     thd->where= "IN/ALL/ANY subquery";
+    Disable_semijoin_flattening DSF(outer, true);
 
     bool result= !in_predicate->left_expr->fixed &&
                   in_predicate->left_expr->fix_fields(thd,
@@ -715,7 +723,8 @@ bool SELECT_LEX::resolve_subquery(THD *thd)
       2. Subquery is a single SELECT (not a UNION)
       3. Subquery does not have GROUP BY
       4. Subquery does not use aggregate functions or HAVING
-      5. Subquery predicate is at the AND-top-level of ON/WHERE clause
+      5. Subquery predicate is (a) in an ON/WHERE clause, and (b) at
+      the AND-top-level of that clause.
       6. Parent query block accepts semijoins (i.e we are not in a subquery of
       a single table UPDATE/DELETE (TODO: We should handle this at some
       point by switching to multi-table UPDATE/DELETE)
@@ -729,8 +738,9 @@ bool SELECT_LEX::resolve_subquery(THD *thd)
       !is_part_of_union() &&                                            // 2
       !group_list.elements &&                                           // 3
       !m_having_cond && !with_sum_func &&                                 // 4
-      (outer->resolve_place == st_select_lex::RESOLVE_CONDITION ||      // 5
-       outer->resolve_place == st_select_lex::RESOLVE_JOIN_NEST) &&     // 5
+      (outer->resolve_place == st_select_lex::RESOLVE_CONDITION ||      // 5a
+       outer->resolve_place == st_select_lex::RESOLVE_JOIN_NEST) &&     // 5a
+      !outer->semijoin_disallowed &&                                    // 5b
       outer->sj_candidates &&                                           // 6
       leaf_table_count &&                                               // 7
       in_predicate->exec_method ==
@@ -1656,9 +1666,22 @@ SELECT_LEX::convert_subquery_to_semijoin(Item_exists_subselect *subq_pred)
        pointers to Item_direct_view_refs are guaranteed to be stable as 
        Item_direct_view_refs doesn't substitute itself with anything in 
        Item_direct_view_ref::fix_fields.
+
+    We have a special case for IN predicates with a scalar subquery or a
+    row subquery in the predicand (left operand), such as this:
+       (SELECT 1,2 FROM t1) IN (SELECT x,y FROM t2)
+    We cannot make the join condition 1=x AND 2=y, since that might evaluate
+    to TRUE even if t1 is empty. Instead make the join condition
+    (SELECT 1,2 FROM t1) = (x,y) in this case.
+
     */
 
-    if (in_subq_pred->left_expr->type() == Item::SUBSELECT_ITEM)
+    Item_subselect *left_subquery=
+      (in_subq_pred->left_expr->type() == Item::SUBSELECT_ITEM) ?
+      static_cast<Item_subselect *>(in_subq_pred->left_expr) : NULL;
+
+    if (left_subquery &&
+        (left_subquery->substype() == Item_subselect::SINGLEROW_SUBS))
     {
       List<Item> ref_list;
       uint i;

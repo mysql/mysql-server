@@ -61,6 +61,8 @@
 using std::max;
 using std::min;
 
+#define ER_THD_OR_DEFAULT(thd,X) ((thd) ? ER_THD(thd, X) : ER_DEFAULT(X))
+
 const char *primary_key_name="PRIMARY";
 
 static bool check_if_keyname_exists(const char *name,KEY *start, KEY *end);

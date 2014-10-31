@@ -342,17 +342,13 @@ row_purge_remove_sec_if_poss_tree(
 		marked for deletion. */
 		if (!rec_get_deleted_flag(btr_cur_get_rec(btr_cur),
 					  dict_table_is_comp(index->table))) {
-			fputs("InnoDB: tried to purge sec index entry not"
-			      " marked for deletion in\n"
-			      "InnoDB: ", stderr);
-			dict_index_name_print(stderr, NULL, index);
-			fputs("\n"
-			      "InnoDB: tuple ", stderr);
-			dtuple_print(stderr, entry);
-			fputs("\n"
-			      "InnoDB: record ", stderr);
-			rec_print(stderr, btr_cur_get_rec(btr_cur), index);
-			putc('\n', stderr);
+			ib::error()
+				<< "tried to purge non-delete-marked record"
+				" in index " << index->name
+				<< " of table " << index->table->name
+				<< ": tuple: " << *entry
+				<< ", record: " << rec_index_print(
+					btr_cur_get_rec(btr_cur), index);
 
 			ut_ad(0);
 
@@ -472,19 +468,15 @@ row_purge_remove_sec_if_poss_leaf(
 				btr_cur_get_rec(btr_cur),
 				dict_table_is_comp(index->table))) {
 
-				fputs("InnoDB: tried to purge sec index"
-				      " entry not marked for deletion in\n"
-				      "InnoDB: ", stderr);
-				dict_index_name_print(stderr, NULL, index);
-				fputs("\n"
-				      "InnoDB: tuple ", stderr);
-				dtuple_print(stderr, entry);
-				fputs("\n"
-				      "InnoDB: record ", stderr);
-				rec_print(stderr, btr_cur_get_rec(btr_cur),
-					  index);
-				putc('\n', stderr);
-
+				ib::error()
+					<< "tried to purge non-delete-marked"
+					" record" " in index " << index->name
+					<< " of table " << index->table->name
+					<< ": tuple: " << *entry
+					<< ", record: "
+					<< rec_index_print(
+						btr_cur_get_rec(btr_cur),
+						index);
 				ut_ad(0);
 
 				btr_pcur_close(&pcur);

@@ -121,8 +121,10 @@ static audit_handler_t audit_handlers[] =
   general_class_handler, connection_class_handler
 };
 
+#ifndef DBUG_OFF
 static const uint audit_handlers_count=
   (sizeof(audit_handlers) / sizeof(audit_handler_t));
+#endif
 
 
 /**
