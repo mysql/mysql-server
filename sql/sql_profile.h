@@ -16,11 +16,14 @@
 #ifndef _SQL_PROFILE_H
 #define _SQL_PROFILE_H
 
+#include "my_global.h"
+
 class Item;
 struct TABLE_LIST;
 class THD;
 typedef struct st_field_info ST_FIELD_INFO;
 typedef struct st_schema_table ST_SCHEMA_TABLE;
+typedef int64 query_id_t;
 
 extern ST_FIELD_INFO query_profile_statistics_info[];
 int fill_query_profile_statistics_info(THD *thd, TABLE_LIST *tables, Item *cond);
@@ -41,7 +44,7 @@ int make_profile_table_for_show(THD *thd, ST_SCHEMA_TABLE *schema_table);
 
 #if defined(ENABLED_PROFILING)
 #include "sql_priv.h"
-#include "unireg.h"
+#include "m_string.h"  /* LEX_STRING */
 
 #ifdef HAVE_SYS_RESOURCE_H
 #include <sys/resource.h>

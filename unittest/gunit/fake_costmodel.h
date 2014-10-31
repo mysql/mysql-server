@@ -36,6 +36,12 @@ public:
     m_initialized= true;
 #endif
   }
+
+  ~Fake_Cost_model_server()
+  {
+    delete m_server_cost_constants;
+    m_server_cost_constants= NULL;
+  }
 };
 
 

@@ -23,7 +23,6 @@
 
 #include "sql_priv.h"
 #include "sql_manager.h"
-#include "unireg.h"                    // REQUIRED: for other includes
 #include "sql_base.h"                           // flush_tables
 #include "log.h"
 

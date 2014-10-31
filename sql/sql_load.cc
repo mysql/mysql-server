@@ -19,7 +19,6 @@
 /* 2006-12 Erik Wetterberg : LOAD XML added */
 
 #include "sql_priv.h"
-#include "unireg.h"
 #include "sql_load.h"
 #include "sql_load.h"
 #include "sql_cache.h"                          // query_cache_*

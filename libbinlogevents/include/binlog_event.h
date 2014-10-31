@@ -67,6 +67,11 @@
 #ifndef ST_SERVER_VER_SPLIT_LEN
 #define ST_SERVER_VER_SPLIT_LEN 3
 #endif
+
+/*
+   Do not decrease the value of BIN_LOG_HEADER_SIZE.
+   Do not even increase it before checking code.
+*/
 #ifndef BIN_LOG_HEADER_SIZE
 #define BIN_LOG_HEADER_SIZE 4U
 #endif

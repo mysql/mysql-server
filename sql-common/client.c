@@ -97,11 +97,12 @@ my_bool	net_flush(NET *net);
 #include <mysql/client_plugin.h>
 #include "../libmysql/mysql_trace.h"  /* MYSQL_TRACE() instrumentation */
 
-#define STATE_DATA(M) (MYSQL_EXTENSION_PTR(M)->state_change)
+#define STATE_DATA(M) \
+  (NULL != (M) ? &(MYSQL_EXTENSION_PTR(M)->state_change) : NULL)
 
 #define ADD_INFO(M, element, type)                                             \
 {                                                                              \
-  M= &STATE_DATA(mysql);                                                       \
+  M= STATE_DATA(mysql);                                                       \
   M->info_list[type].head_node= list_add(M->info_list[type].head_node,         \
                                          element);                             \
 }
@@ -2343,8 +2344,8 @@ mysql_init(MYSQL *mysql)
   my_stpcpy(mysql->net.sqlstate, not_error_sqlstate);
 
   /*
-    Only enable LOAD DATA INFILE by default if configured with
-    --enable-local-infile
+    Only enable LOAD DATA INFILE by default if configured with option
+    ENABLED_LOCAL_INFILE
   */
 
 #if defined(ENABLED_LOCAL_INFILE) && !defined(MYSQL_SERVER)
@@ -4997,7 +4998,7 @@ mysql_send_query(MYSQL* mysql, const char* query, ulong length)
 
   DBUG_ENTER("mysql_send_query");
 
-  if ((info= &STATE_DATA(mysql)))
+  if ((info= STATE_DATA(mysql)))
     free_state_change_info(mysql->extension);
 
   DBUG_RETURN(simple_command(mysql, COM_QUERY, (uchar*) query, length, 1));
@@ -5679,6 +5680,30 @@ const char * STDCALL mysql_error(MYSQL *mysql)
 
 
 /**
+  Read data and its length from a LIST node.
+
+  Assumes LIST which stores data blobs in LEX_STRING structures,
+  where LEX_STRING::str is pointer to the data and LEX_STRING::length
+  is the length of this data.
+
+  If node is NULL then data and length are set to NULL and 0, respectively,
+  and function returns 0, otherwise, if data has been read from the node,
+  function returns 1.
+*/
+
+static int get_data_and_length(LIST *node, const char **data, size_t *length)
+{
+  DBUG_ASSERT(!node || node->data);
+  if (data)
+    *data= node ? ((LEX_STRING*)(node->data))->str : NULL;
+  if (length)
+    *length= node ? ((LEX_STRING*)(node->data))->length : 0;
+
+  return node ? 0 : 1;
+}
+
+
+/**
   Get the first state change information received from the server.
 
   @param mysql  [IN]        mysql handle
@@ -5696,23 +5721,15 @@ int STDCALL mysql_session_track_get_first(MYSQL *mysql,
                                           const char **data,
                                           size_t *length)
 {
-  STATE_INFO *info= &STATE_DATA(mysql);
+  STATE_INFO *info= STATE_DATA(mysql);
 
-  if (info && !(info->info_list[type].head_node))
-    goto no_data;
+  if (!info || !IS_SESSION_STATE_TYPE(type)
+            || !(info->info_list[type].head_node))
+    return get_data_and_length(NULL, data, length);
 
-  if (info->info_list[type].head_node)
-  {
-    *data= ((LEX_STRING *) info->info_list[type].head_node->data)->str;
-    *length= ((LEX_STRING *) info->info_list[type].head_node->data)->length;
-    info->info_list[type].current_node= info->info_list[type].head_node;
-    return 0;
-  }
+  info->info_list[type].current_node= info->info_list[type].head_node;
 
-no_data:
-  *data= NULL;
-  *length= 0;
-  return 1;
+  return mysql_session_track_get_next(mysql, type, data, length);
 }
 
 
@@ -5734,27 +5751,19 @@ int STDCALL mysql_session_track_get_next(MYSQL *mysql,
                                          const char **data,
                                          size_t *length)
 {
-  STATE_INFO *info= &STATE_DATA(mysql);
-  LIST *info_node= NULL;
+  STATE_INFO *info= STATE_DATA(mysql);
+  int ret;
 
-  if (info && !(info->info_list[type].head_node ||
-	        info->info_list[type].current_node))
-    goto no_data;
+  if (!info || !IS_SESSION_STATE_TYPE(type)
+            || !(info->info_list[type].current_node))
+    return get_data_and_length(NULL, data, length);
+
+  ret= get_data_and_length(info->info_list[type].current_node,
+                           data, length);
 
   info->info_list[type].current_node= list_rest(info->info_list[type].current_node);
-  info_node= info->info_list[type].current_node;
 
-  if(info_node)
-  {
-    *data= ((LEX_STRING *) info_node->data)->str;
-    *length= ((LEX_STRING *) info_node->data)->length;
-    return 0;
-  }
-
-no_data:
-  *data= NULL;
-  *length= 0;
-  return 1;
+  return ret;
 }
 
 

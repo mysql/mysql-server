@@ -29,6 +29,7 @@ class Field;
 class THD;
 class Time_zone;
 struct TABLE;
+typedef ulonglong sql_mode_t;
 
 void init_scheduler_psi_keys(void);
 

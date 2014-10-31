@@ -42,7 +42,6 @@ This file contains the implementation of error and warnings related
 ***********************************************************************/
 
 #include "sql_priv.h"
-#include "unireg.h"
 #include "sql_error.h"
 #include "sp_rcontext.h"
 #include "log.h"          // sql_print_warning

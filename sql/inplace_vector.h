@@ -304,23 +304,15 @@ public:
    */
   void delete_all_objects()
   {
-    objtype *parray= NULL;
-    size_t num_trailing= array_size;
-    size_t num_arrays= m_obj_arrays.size();
-
     // Call each element's destructor.
-    for (size_t i= 0; i < num_arrays; i++)
+    for (size_t i= 0; i < size(); i++)
     {
-      parray= m_obj_arrays[i];
-      if (i == num_arrays - 1)
-        num_trailing= m_obj_count % array_size;
-
-      for (size_t j= 0; j < num_trailing; j++)
-        parray[j].~objtype();
-
-      my_free(parray);
+      objtype *p= get_object(i);
+      p->~objtype();
     }
-
+    for (size_t i= 0; i < m_obj_arrays.size(); ++i)
+      my_free(m_obj_arrays[i]);
+ 
     m_obj_arrays.clear();
     m_obj_count= 0;
   }

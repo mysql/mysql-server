@@ -1349,6 +1349,7 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
   size_t password_len;
   sql_mode_t old_sql_mode= thd->variables.sql_mode;
   bool password_expired= false;
+  bool super_users_with_empty_plugin= false;
   DBUG_ENTER("acl_load");
 
   thd->variables.sql_mode&= ~MODE_PAD_CHAR_TO_FULL_LENGTH;
@@ -1502,6 +1503,8 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
 	    */
 	    if(strlen(tmpstr) == 0)
 	    {
+              if ((user.access & SUPER_ACL) && !super_users_with_empty_plugin)
+                super_users_with_empty_plugin= true;
 	      sql_print_warning("User entry '%s'@'%s' has an empty plugin "
 				"value. The user will be ignored and no one can login "
 				"with this user anymore.",
@@ -1545,7 +1548,9 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
           }
           else /* skip the user if plugin value is NULL */
 	  {
-	    sql_print_warning("User entry '%s'@'%s' has an empty plugin "
+            if ((user.access & SUPER_ACL) && !super_users_with_empty_plugin)
+              super_users_with_empty_plugin= true;
+            sql_print_warning("User entry '%s'@'%s' has an empty plugin "
 			      "value. The user will be ignored and no one can login "
 			      "with this user anymore.",
 			      user.user ? user.user : "",
@@ -1651,6 +1656,22 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
   std::sort(acl_users->begin(), acl_users->end(), ACL_compare());
   end_read_record(&read_record_info);
   acl_users->shrink_to_fit();
+
+  if (super_users_with_empty_plugin)
+  {
+    sql_print_warning("Some of the user accounts with SUPER privileges were "
+                      "disabled because of empty mysql.user.plugin value. "
+                      "If you are upgrading from MySQL 5.6 to MySQL 5.7 "
+                      "and your account is disabled you will need to:");
+    sql_print_warning("1. Stop the server and restart it with "
+                      "--skip-grant-tables.");
+    sql_print_warning("2. Run mysql_upgrade.");
+    sql_print_warning("3. Restart the server with the parameters you "
+                      "normally use.");
+    sql_print_warning("For complete instructions on how to upgrade MySQL "
+                      "to a new version please see the 'Upgrading MySQL' "
+                      "section from the MySQL manual");
+  }
 
   /* Legacy password integrity checks ----------------------------------------*/
   { 

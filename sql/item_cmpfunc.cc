@@ -5339,9 +5339,14 @@ Item_cond::fix_fields(THD *thd, Item **ref)
   DBUG_ASSERT(fixed == 0);
   List_iterator<Item> li(list);
   Item *item;
-  Switch_resolve_place SRP(&thd->lex->current_select()->resolve_place,
-                           st_select_lex::RESOLVE_NONE,
-                           functype() != COND_AND_FUNC);
+
+  /*
+    Semi-join flattening should only be performed for predicates on
+    the AND-top-level. Disable it if this condition is not an AND.
+  */
+  Disable_semijoin_flattening DSF(thd->lex->current_select(),
+                                  functype() != COND_AND_FUNC);
+
   uchar buff[sizeof(char*)];			// Max local vars in function
   used_tables_cache= 0;
   const_item_cache= true;
@@ -6008,6 +6013,9 @@ Item_func::optimize_type Item_func_like::select_optimize() const
 bool Item_func_like::fix_fields(THD *thd, Item **ref)
 {
   DBUG_ASSERT(fixed == 0);
+
+  Disable_semijoin_flattening DSF(thd->lex->current_select(), true);
+
   if (Item_bool_func2::fix_fields(thd, ref) ||
       escape_item->fix_fields(thd, &escape_item))
     return true;
@@ -6187,6 +6195,9 @@ bool
 Item_func_regex::fix_fields(THD *thd, Item **ref)
 {
   DBUG_ASSERT(fixed == 0);
+
+  Disable_semijoin_flattening DSF(thd->lex->current_select(), true);
+
   if ((!args[0]->fixed &&
        args[0]->fix_fields(thd, args)) || args[0]->check_cols(1) ||
       (!args[1]->fixed &&

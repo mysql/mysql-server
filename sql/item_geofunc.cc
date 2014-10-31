@@ -332,7 +332,10 @@ String *Item_func_geomfromgeojson::val_str(String *buf)
     else
     {
       char option_string[MAX_BIGINT_WIDTH + 1];
-      llstr(dimension_argument, option_string);
+      if (args[1]->unsigned_flag)
+        ullstr(dimension_argument, option_string);
+      else
+        llstr(dimension_argument, option_string);
 
       my_error(ER_WRONG_VALUE_FOR_TYPE, MYF(0), "option", option_string,
                func_name());
@@ -354,7 +357,10 @@ String *Item_func_geomfromgeojson::val_str(String *buf)
     if (srid_argument < 0 || srid_argument > UINT_MAX32)
     {
       char srid_string[MAX_BIGINT_WIDTH + 1];
-      llstr(srid_argument, srid_string);
+      if (args[2]->unsigned_flag)
+        ullstr(srid_argument, srid_string);
+      else
+        llstr(srid_argument, srid_string);
 
       my_error(ER_WRONG_VALUE_FOR_TYPE, MYF(0), "SRID", srid_string,
                func_name());
@@ -2273,12 +2279,16 @@ bool Item_func_pointfromgeohash::fix_fields(THD *thd, Item **ref)
     Check for valid type in SRID argument.
 
     We will allow all integer types, and strings since some connectors will
-    covert integers to strings. Binary data is not allowed. Note that when
-    calling e.g ST_POINTFROMGEOHASH("bb", NULL), the second argument is reported
-    to have binary charset, and we thus have to check field_type().
+    covert integers to strings. Binary data is not allowed.
+
+    PARAM_ITEM and INT_ITEM checks are to allow prepared statements and usage of
+    user-defined variables respectively.
   */
+  if (Item_func_geohash::is_item_null(args[1]))
+    return false;
+
   if (args[1]->collation.collation == &my_charset_bin &&
-      args[1]->field_type() != MYSQL_TYPE_NULL)
+      args[1]->type() != PARAM_ITEM && args[1]->type() != INT_ITEM)
   {
     my_error(ER_INCORRECT_TYPE, MYF(0), "SRID", func_name());
     return true;
@@ -2286,7 +2296,6 @@ bool Item_func_pointfromgeohash::fix_fields(THD *thd, Item **ref)
 
   switch (args[1]->field_type())
   {
-  case MYSQL_TYPE_NULL:
   case MYSQL_TYPE_STRING:
   case MYSQL_TYPE_VARCHAR:
   case MYSQL_TYPE_VAR_STRING:
@@ -8901,9 +8910,14 @@ double Item_func_distance::val_real()
           goto old_algo;
         if (null_value)
           goto error;
+        if (dist < 0 || boost::math::isnan(dist))
+        {
+          isdone= true;
+          distance= dist;
+          goto error;
+        }
         if (!initialized)
         {
-          DBUG_ASSERT(dist <= DBL_MAX);
           min_distance= dist;
           initialized= true;
         }
@@ -8927,11 +8941,7 @@ double Item_func_distance::val_real()
       isdone= true;
     }
     else
-    {
-      if (min_distance >= DBL_MAX)
-        min_distance= 0;
       distance= min_distance;
-    }
   }
 
 error:
@@ -9069,7 +9079,7 @@ count_distance:
   }
 exit:
 
-  if (!my_isfinite(distance))
+  if (!my_isfinite(distance) || distance < 0)
   {
     my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
     DBUG_RETURN(error_real());

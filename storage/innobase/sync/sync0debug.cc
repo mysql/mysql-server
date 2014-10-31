@@ -959,16 +959,6 @@ sync_latch_meta_init()
 		  SYNC_LOG_FLUSH_ORDER,
 		  log_flush_order_mutex_key);
 
-#ifndef HAVE_ATOMIC_BUILTINS
-	LATCH_ADD(SrvLatches, "server",
-		  SYNC_THREADS,
-		  server_mutex_key);
-
-	LATCH_ADD(SrvLatches, "conc_mutex",
-		  SYNC_NO_ORDER_CHECK,
-		  srv_conc_mutex_key);
-#endif /* !HAVE_ATOMIC_BUILTINS */
-
 	LATCH_ADD(SrvLatches, "page_cleaner",
 		  SYNC_PAGE_CLEANER,
 		  page_cleaner_mutex_key);
@@ -1095,18 +1085,6 @@ sync_latch_meta_init()
 		  SYNC_ANY_LATCH,
 		  page_zip_stat_per_index_mutex_key);
 
-#ifndef HAVE_ATOMIC_BUILTINS
-	LATCH_ADD(SrvLatches, "srv_conc",
-		  SYNC_NO_ORDER_CHECK,
-		  srv_conc_mutex_key);
-#endif /* !HAVE_ATOMIC_BUILTINS */
-
-#ifndef HAVE_ATOMIC_BUILTINS_64
-	LATCH_ADD(SrvLatches, "monitor",
-		  SYNC_MONITOR_MUTEX,
-		  monitor_mutex_key);
-#endif /* !HAVE_ATOMIC_BUILTINS_64 */
-
 #ifndef PFS_SKIP_EVENT_MUTEX
 	LATCH_ADD(SrvLatches, "event_manager",
 		  SYNC_NO_ORDER_CHECK,
@@ -1136,12 +1114,6 @@ sync_latch_meta_init()
 	LATCH_ADD(SrvLatches, "os_file_seek_mutex",
 		  SYNC_NO_ORDER_CHECK,
 		  PFS_NOT_INSTRUMENTED);
-
-#if !defined(HAVE_ATOMIC_BUILTINS) || UNIV_WORD_SIZE < 8
-	LATCH_ADD(SrvLatches, "os_file_count_mutex",
-		  SYNC_NO_ORDER_CHECK,
-		  PFS_NOT_INSTRUMENTED);
-#endif /* !HAVE_ATOMIC_BUILTINS || UNIV_WORD_SIZE < 8 */
 
 	LATCH_ADD(SrvLatches, "test_mutex",
 		  SYNC_NO_ORDER_CHECK,

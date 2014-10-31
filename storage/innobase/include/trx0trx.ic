@@ -210,7 +210,8 @@ UNIV_INLINE
 void
 trx_search_latch_release_if_reserved(trx_t* trx)
 {
-	if (trx->has_search_latch && trx->owner_id == os_thread_get_curr_id()) {
+	if (trx->has_search_latch
+	    && trx->killed_by != os_thread_get_curr_id()) {
 
 		rw_lock_s_unlock(&btr_search_latch);
 
@@ -242,9 +243,7 @@ trx_search_latch_timeout(trx_t* trx)
 {
 	if (trx->search_latch_timeout > 0 && trx->has_search_latch) {
 
-#ifndef INNODB_RW_LOCKS_USE_ATOMICS
 		trx->search_latch_timeout--;
-#endif /* !INNODB_RW_LOCKS_USE_ATOMICS */
 
 		rw_lock_s_unlock(&btr_search_latch);
 

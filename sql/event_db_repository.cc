@@ -15,7 +15,6 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "sql_priv.h"
-#include "unireg.h"
 #include "sql_base.h"                           // close_thread_tables
 #include "event_db_repository.h"
 #include "key.h"                                // key_copy

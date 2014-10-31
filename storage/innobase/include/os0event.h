@@ -31,10 +31,6 @@ Created 2012-09-23 Sunny Bains (split from os0sync.h)
 struct os_event;
 typedef struct os_event* os_event_t;
 
-#ifdef _WIN32
-extern bool	srv_use_native_conditions;
-#endif /* _WIN32 */
-
 /** Denotes an infinite delay for os_event_wait_time() */
 #define OS_SYNC_INFINITE_TIME   ULINT_UNDEFINED
 
@@ -135,10 +131,5 @@ os_event_wait_time_low(
 @param e - event to wait on.
 @param t - timeout in microseconds */
 #define os_event_wait_time(e, t) os_event_wait_time_low((e), (t), 0)
-
-/**
-Initialise the event sub-system. */
-void
-os_event_init();
 
 #endif /* !os0event_h */

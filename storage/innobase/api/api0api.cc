@@ -3395,21 +3395,9 @@ ib_cursor_set_memcached_sync(
                 }
 
 		if (flag) {
-#ifdef HAVE_ATOMIC_BUILTINS
 			os_atomic_increment_lint(&table->memcached_sync_count, 1);
-#else
-		        dict_mutex_enter_for_mysql();
-                        ++table->memcached_sync_count;
-                        dict_mutex_exit_for_mysql();
-#endif
 		} else {
-#ifdef HAVE_ATOMIC_BUILTINS
 			os_atomic_decrement_lint(&table->memcached_sync_count, 1);
-#else
-		        dict_mutex_enter_for_mysql();
-                        --table->memcached_sync_count;
-                        dict_mutex_exit_for_mysql();
-#endif
 		        ut_a(table->memcached_sync_count >= 0);
 		}
 	} else {

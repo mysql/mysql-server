@@ -1,7 +1,6 @@
-SELECT @@GLOBAL.innodb_undo_tablespaces;
-@@GLOBAL.innodb_undo_tablespaces
-0
-0 Expected
+SELECT @@GLOBAL.innodb_undo_tablespaces >= 0;
+@@GLOBAL.innodb_undo_tablespaces >= 0
+1
 SET @@GLOBAL.innodb_undo_tablespaces=128;
 ERROR HY000: Variable 'innodb_undo_tablespaces' is a read only variable
 Expected error 'Read only variable'
@@ -9,10 +8,7 @@ SELECT COUNT(@@GLOBAL.innodb_undo_tablespaces);
 COUNT(@@GLOBAL.innodb_undo_tablespaces)
 1
 1 Expected
-SELECT VARIABLE_VALUE
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
-WHERE VARIABLE_NAME='innodb_undo_tablespaces';
-VARIABLE_VALUE
+DIFFERENCE
 0
 0 Expected
 SELECT @@innodb_undo_tablespaces = @@GLOBAL.innodb_undo_tablespaces;

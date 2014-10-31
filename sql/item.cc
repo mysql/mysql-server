@@ -17,7 +17,6 @@
 
 #include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
 #include "sql_priv.h"
-#include "unireg.h"                    // REQUIRED: for other includes
 #include <mysql.h>
 #include <m_ctype.h>
 #include "my_dir.h"
@@ -9567,6 +9566,17 @@ bool Item_type_holder::join_types(THD *thd, Item *item)
     }
     else
       set_if_bigger(max_length, display_length(item));
+
+    /*
+      For geometry columns, we must also merge subtypes. If the
+      subtypes are different, use GEOMETRY.
+    */
+    if (fld_type == MYSQL_TYPE_GEOMETRY &&
+        geometry_type != item->get_geometry_type())
+    {
+      geometry_type= Field::GEOM_GEOMETRY;
+    }
+
     break;
   }
   case REAL_RESULT:

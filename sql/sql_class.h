@@ -19,9 +19,6 @@
 /* Classes in mysql */
 
 #include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
-#ifdef MYSQL_SERVER
-#include "unireg.h"                    // REQUIRED: for other includes
-#endif
 #include "sql_const.h"
 #include <mysql/plugin_audit.h>
 #include "rpl_tblmap.h"
