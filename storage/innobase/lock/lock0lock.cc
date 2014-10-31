@@ -300,16 +300,13 @@ lock_report_trx_id_insanity(
 	const ulint*	offsets,	/*!< in: rec_get_offsets(rec, index) */
 	trx_id_t	max_trx_id)	/*!< in: trx_sys_get_max_trx_id() */
 {
-	ib::error() << "Transaction id associated with record";
-	rec_print_new(stderr, rec, offsets);
-	fputs("InnoDB: in ", stderr);
-	dict_index_name_print(stderr, NULL, index);
-	fprintf(stderr, "\n"
-		"InnoDB: is " TRX_ID_FMT " which is higher than the"
-		" global trx id counter " TRX_ID_FMT "!\n"
-		"InnoDB: The table is corrupt. You have to do"
-		" dump + drop + reimport.\n",
-		trx_id, max_trx_id);
+	ib::error()
+		<< "Transaction id " << trx_id
+		<< " associated with record" << rec_offsets_print(rec, offsets)
+		<< " in index " << index->name
+		<< " of table " << index->table->name
+		<< " is greater than the global counter " << max_trx_id
+		<< "! The table is corrupted.";
 }
 
 /*********************************************************************//**
@@ -4647,10 +4644,12 @@ lock_rec_print(
 	space = lock->un_member.rec_lock.space;
 	page_no = lock->un_member.rec_lock.page_no;
 
-	fprintf(file, "RECORD LOCKS space id %lu page no %lu n bits %lu ",
+	fprintf(file, "RECORD LOCKS space id %lu page no %lu n bits %lu "
+		"index %s of table ",
 		(ulong) space, (ulong) page_no,
-		(ulong) lock_rec_get_n_bits(lock));
-	dict_index_name_print(file, lock->trx, lock->index);
+		(ulong) lock_rec_get_n_bits(lock),
+		lock->index->name);
+	ut_print_name(file, lock->trx, lock->index->table_name);
 	fprintf(file, " trx id " TRX_ID_FMT, trx_get_id_for_print(lock->trx));
 
 	if (lock_get_mode(lock) == LOCK_S) {
