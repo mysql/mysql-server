@@ -1513,6 +1513,8 @@ record with a non-zero space ID will have a reliable MIX_LEN field.
 However, this test does not use flags2 from SYS_TABLES.MIX_LEN.  Instead,
 assume that if the tablespace is not a predefined system tablespace it
 must be file-per-table.
+Also, during ALTER TABLE, the DICT_TF2_USE_FILE_PER_TABLE flag may not be
+set on one of the file-per-table tablespaces.
 This test cannot be done on a table in the process of being created
 because the space_id will be zero until the tablespace is created.
 @param[in]	table	An existing open table to check
@@ -1522,13 +1524,7 @@ bool
 dict_table_is_file_per_table(
 	const dict_table_t*	table)	/*!< in: table to check */
 {
-	bool is_file_per_table =
-		!is_system_tablespace(table->space);
-
-	ut_ad(!is_file_per_table
-	      || DICT_TF2_FLAG_IS_SET(table, DICT_TF2_USE_FILE_PER_TABLE));
-
-	return(is_file_per_table );
+	return(!is_system_tablespace(table->space));
 }
 
 /**********************************************************************//**
