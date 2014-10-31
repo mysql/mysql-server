@@ -1568,6 +1568,7 @@ struct KeyReqStruct {
 
   Signal*         signal;
   Uint32 num_fired_triggers;
+  Uint32 no_exec_instructions;
   Uint32 frag_page_id;
   Uint32 hash_value;
   Uint32 gci_hi;
@@ -2855,8 +2856,7 @@ private:
 			Operationrec* regOperPtr,
 			Tablerec* regTabPtr);
   
-  void send_TUPKEYREF(Signal* signal,
-                      Operationrec* regOperPtr);
+  void send_TUPKEYREF(const KeyReqStruct* req_struct);
   void early_tupkey_error(KeyReqStruct*);
 
   void printoutTuplePage(Uint32 fragid, Uint32 pageid, Uint32 printLimit);

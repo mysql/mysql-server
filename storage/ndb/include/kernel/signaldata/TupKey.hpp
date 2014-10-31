@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -201,7 +201,7 @@ class TupKeyConf {
   friend bool printTUPKEYCONF(FILE * output, const Uint32 * theData, Uint32 len, Uint16 receiverBlockNo);
 
 public:
-  STATIC_CONST( SignalLength = 6 );
+  STATIC_CONST( SignalLength = 7 );
 
 private:
 
@@ -214,6 +214,8 @@ private:
   Uint32 numFiredTriggers;
   Uint32 lastRow;
   Uint32 rowid;
+  // Number of interpreter instructions executed.
+  Uint32 noExecInstructions;
 };
 
 class TupKeyRef {
@@ -233,7 +235,7 @@ class TupKeyRef {
   friend bool printTUPKEYREF(FILE * output, const Uint32 * theData, Uint32 len, Uint16 receiverBlockNo);
 
 public:
-  STATIC_CONST( SignalLength = 2 );
+  STATIC_CONST( SignalLength = 3 );
 
 private:
 
@@ -242,6 +244,8 @@ private:
    */
   Uint32 userRef;
   Uint32 errorCode;
+  // Number of interpreter instructions executed.
+  Uint32 noExecInstructions;
 };
 
 

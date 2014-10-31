@@ -1991,6 +1991,9 @@ void Dblqh::execLQHFRAGREQ(Signal* signal)
     fragptr.p->lqhInstanceKey = getInstanceKey(tabptr.i, req->fragId);
   }
 
+  /* Init per-frag op counters */
+  fragptr.p->m_useStat.init();
+
   if (DictTabInfo::isOrderedIndex(tabptr.p->tableType)) {
     jam();
     // find corresponding primary table fragment
@@ -3774,10 +3777,17 @@ void Dblqh::execTUPKEYCONF(Signal* signal)
 
   switch (regTcPtr.p->transactionState) {
   case TcConnectionrec::WAIT_TUP:
-    jam();
-    if (regTcPtr.p->seqNoReplica == 0) // Primary replica
-      regTcPtr.p->numFiredTriggers = tupKeyConf->numFiredTriggers;
-    tupkeyConfLab(signal, regTcPtr.p);
+    {
+      jam();
+      if (regTcPtr.p->seqNoReplica == 0) // Primary replica
+        regTcPtr.p->numFiredTriggers = tupKeyConf->numFiredTriggers;
+      
+      Fragrecord::UsageStat& useStat = regFragptr.p->m_useStat;
+      useStat.m_keyReqWordsReturned += tupKeyConf->readLength;
+      useStat.m_keyInstructionCount += tupKeyConf->noExecInstructions;
+      
+      tupkeyConfLab(signal, regTcPtr.p);
+    }
     break;
   case TcConnectionrec::COPY_TUPKEY:
     jam();
@@ -3866,8 +3876,13 @@ void Dblqh::execTUPKEYREF(Signal* signal)
 
   switch (tcConnectptr.p->transactionState) {
   case TcConnectionrec::WAIT_TUP:
-    jam();
-    abortErrorLab(signal);
+    {
+      jam();
+      Fragrecord::UsageStat& useStat = regFragptr.p->m_useStat;
+      useStat.m_keyRefCount++;
+      useStat.m_keyInstructionCount += tupKeyRef->noExecInstructions;
+      abortErrorLab(signal);
+    }
     break;
   case TcConnectionrec::COPY_TUPKEY:
     copyTupkeyRefLab(signal);
@@ -4741,6 +4756,25 @@ void Dblqh::execSIGNAL_DROPPED_REP(Signal* signal)
   return;
 }
 
+// Get size of interpreted program, in words.
+static inline Uint32 getProgramWordCount(SegmentedSectionPtr attrInfo)
+{
+  /*
+    The second word of 'attrinfo' contains the length of the interpreted
+    program, and the fifth contains the length of associated subroutines. 
+    (There should be a header of 5 length fields at the start of
+    'attrinfo'.)
+  */
+  assert(attrInfo.sz>=5);
+  SectionReader aiReader(attrInfo, g_sectionSegmentPool);
+  Uint32 header[5];
+  const bool ok = 
+    aiReader.getWords(header, sizeof(header)/sizeof(header[0]));
+  assert(ok);
+  (void) ok; // Prevent compiler warning.
+  return header[1]+header[4];
+}
+
 /* ------------------------------------------------------------------------- */
 /* -------                TAKE CARE OF LQHKEYREQ                     ------- */
 /* LQHKEYREQ IS THE SIGNAL THAT STARTS ALL OPERATIONS IN THE LQH BLOCK       */
@@ -5275,6 +5309,48 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
       c_fragCopyRowsIns++;
     
     c_fragBytesCopied+= (signal->length() << 2);
+  }
+  else
+  {
+    Fragrecord::UsageStat& useStat = fragptr.p->m_useStat;
+    /* Don't count for NR fragcopy, just 'normal' operation */
+    switch (op)
+    {
+    case ZREAD:
+    case ZREAD_EX:
+    case ZUNLOCK:
+      useStat.m_readKeyReqCount++;
+      break;
+
+    case ZUPDATE:
+      useStat.m_updKeyReqCount++;
+      break;
+      
+    case ZINSERT:
+      useStat.m_insKeyReqCount++;
+      break;
+      
+    case ZWRITE:
+      useStat.m_writeKeyReqCount++;
+      break;
+      
+    case ZDELETE:
+      useStat.m_delKeyReqCount++;
+      break;
+      
+    default:
+      // ZREFRESH is not counted.
+      break;
+    }
+    useStat.m_keyReqAttrWords += regTcPtr->totReclenAi;
+    useStat.m_keyReqKeyWords += TitcKeyLen;
+    if (LqhKeyReq::getInterpretedFlag(Treqinfo))
+    {
+      ndbassert(regTcPtr->attrInfoIVal != RNIL);
+      SegmentedSectionPtr attrInfo;
+      getSection(attrInfo, regTcPtr->attrInfoIVal);
+      useStat.m_keyProgramWords += getProgramWordCount(attrInfo);
+    }
   }
   
   Uint8 TcopyType = fragptr.p->fragCopy;
@@ -9157,6 +9233,7 @@ void Dblqh::execACCKEYREF(Signal* signal)
   switch (tcPtr->transactionState) {
   case TcConnectionrec::WAIT_ACC:
     jam();
+    c_fragment_pool.getPtr(tcPtr->fragmentptr)->m_useStat.m_keyRefCount++;
     break;
   case TcConnectionrec::WAIT_ACC_ABORT:
   case TcConnectionrec::ABORT_QUEUED:
@@ -11246,6 +11323,17 @@ void Dblqh::execSCAN_FRAGREQ(Signal* signal)
       handle.clear();
     }
 
+    /* Update fragment counter */
+    if (!ScanFragReq::getLcpScanFlag(reqinfo))
+    {
+      jam();
+      Fragrecord::UsageStat& useStat =
+        c_fragment_pool.getPtr(tcConnectptr.p->fragmentptr)->m_useStat;
+      useStat.m_scanFragReqCount++;
+      useStat.m_scanBoundWords+= keyLen;
+      useStat.m_scanProgramWords+= getProgramWordCount(attrInfoPtr);
+    }
+    
     if (ScanFragReq::getCorrFactorFlag(reqinfo))
     {
       /**
@@ -12075,6 +12163,16 @@ void Dblqh::scanTupkeyConfLab(Signal* signal)
   UintR tdata5 = conf->lastRow;
   c_scanRecordPool.getPtr(scanptr);
 
+  if (!scanptr.p->lcpScan)
+  {
+    Fragrecord::UsageStat& useStat = 
+      c_fragment_pool.getPtr(tcConnectptr.p->fragmentptr)->m_useStat;
+    ndbassert(useStat.m_scanFragReqCount > 0);
+
+    useStat.m_scanRowsExamined++;
+    useStat.m_scanInstructionCount += conf->noExecInstructions;
+  }
+
   regTcPtr->transactionState = TcConnectionrec::SCAN_STATE_USED;
 
   ScanRecord * const scanPtr = scanptr.p;
@@ -12203,6 +12301,19 @@ void Dblqh::scanTupkeyRefLab(Signal* signal)
   c_scanRecordPool.getPtr(scanptr);
   ScanRecord * const scanPtr = scanptr.p;
   regTcPtr->transactionState = TcConnectionrec::SCAN_STATE_USED;
+
+  if (!scanptr.p->lcpScan)
+  {
+    Fragrecord::UsageStat& useStat = 
+      c_fragment_pool.getPtr(tcConnectptr.p->fragmentptr)->m_useStat;
+    ndbassert(useStat.m_scanFragReqCount > 0);
+
+    useStat.m_scanRowsExamined++;
+
+    const TupKeyRef* const ref =
+      reinterpret_cast<const TupKeyRef*>(signal->getDataPtr());
+    useStat.m_scanInstructionCount += ref->noExecInstructions;
+  }
 
   Uint32 rows = scanPtr->m_curr_batch_size_rows;
   Uint32 accOpPtr= get_acc_ptr_from_scan_record(scanPtr, rows, false);
@@ -12534,7 +12645,17 @@ Uint32 Dblqh::initScanrec(const ScanFragReq* scanFragReq,
   }
   ndbrequire((start < 32 * tFragPtr.p->m_scanNumberMask.Size) &&
              (stop < 32 * tFragPtr.p->m_scanNumberMask.Size));
-  Uint32 free = tFragPtr.p->m_scanNumberMask.find(start);
+
+  /*
+    This error insert causes an SPJ index scan to be queued (see ndbinfo.test).
+    Checking 5084 twice to ensure that the optimized build will see this as 
+    'testQueue = false' and not generate code to evaluate subsequent terms.
+  */
+  const bool testQueue = ERROR_INSERTED(5084) && rangeScan && 
+    refToMain(resultRef)==DBSPJ && ERROR_INSERTED_CLEAR(5084);
+
+  const Uint32 free = testQueue ? Fragrecord::ScanNumberMask::NotFound : 
+    tFragPtr.p->m_scanNumberMask.find(start);
   
   if(free == Fragrecord::ScanNumberMask::NotFound || free >= stop){
     jam();
@@ -12548,11 +12669,12 @@ Uint32 Dblqh::initScanrec(const ScanFragReq* scanFragReq,
      * Put on queue
      */
     scanPtr->scanState = ScanRecord::IN_QUEUE;
-    LocalDLFifoList<ScanRecord> queue(c_scanRecordPool,
-				      tupScan == 0 ? 
-                                      fragptr.p->m_queuedScans :
-                                      fragptr.p->m_queuedTupScans);
+    LocalDLCFifoList<ScanRecord> queue(c_scanRecordPool,
+                                       tupScan == 0 ? 
+                                       fragptr.p->m_queuedScans :
+                                       fragptr.p->m_queuedTupScans);
     queue.addLast(scanptr);
+    fragptr.p->m_useStat.m_queuedScanCount++;
     return ZOK;
   }
   
@@ -12560,7 +12682,7 @@ Uint32 Dblqh::initScanrec(const ScanFragReq* scanFragReq,
   tFragPtr.p->m_scanNumberMask.clear(free);// Update mask  
   
   {
-    LocalDLList<ScanRecord> active(c_scanRecordPool, fragptr.p->m_activeScans);
+    LocalDLCList<ScanRecord> active(c_scanRecordPool, fragptr.p->m_activeScans);
     active.addFirst(scanptr);
   }
   if(scanPtr->scanKeyinfoFlag){
@@ -12650,10 +12772,10 @@ void Dblqh::finishScanrec(Signal* signal)
   release_acc_ptr_list(scanPtr);
 
   Uint32 tupScan = scanPtr->tupScan;
-  LocalDLFifoList<ScanRecord> queue(c_scanRecordPool,
-                                    tupScan == 0 ? 
-                                    fragptr.p->m_queuedScans :
-                                    fragptr.p->m_queuedTupScans);
+  LocalDLCFifoList<ScanRecord> queue(c_scanRecordPool,
+                                     tupScan == 0 ? 
+                                     fragptr.p->m_queuedScans :
+                                     fragptr.p->m_queuedTupScans);
   
   if (scanPtr->scanState == ScanRecord::IN_QUEUE)
   {
@@ -12697,7 +12819,7 @@ void Dblqh::finishScanrec(Signal* signal)
      * can easily lead to false positives in asserts in the template
      * code generated by the object.
      */
-    LocalDLList<ScanRecord> scans(c_scanRecordPool, fragptr.p->m_activeScans);
+    LocalDLCList<ScanRecord> scans(c_scanRecordPool, fragptr.p->m_activeScans);
     if (scanPtr->m_reserved == 0)
     {
       jam();
@@ -12745,7 +12867,7 @@ void Dblqh::finishScanrec(Signal* signal)
 
   queue.remove(restart);
   {
-    LocalDLList<ScanRecord> scans(c_scanRecordPool, fragptr.p->m_activeScans);
+    LocalDLCList<ScanRecord> scans(c_scanRecordPool, fragptr.p->m_activeScans);
     scans.addFirst(restart);
   }
   if(restart.p->scanKeyinfoFlag){
@@ -12944,6 +13066,18 @@ void Dblqh::sendScanFragConf(Signal* signal, Uint32 scanCompleted)
   if(ERROR_INSERTED(5037)){
     CLEAR_ERROR_INSERT_VALUE;
     return;
+  }
+
+  if (!scanPtr->lcpScan)
+  {
+    jam();
+    Fragrecord::UsageStat& useStat = 
+      c_fragment_pool.getPtr(tcConnectptr.p->fragmentptr)->m_useStat;
+    ndbassert(useStat.m_scanFragReqCount > 0);
+
+    useStat.m_scanRowsReturned += scanPtr->m_curr_batch_size_rows;
+    useStat.m_scanWordsReturned += 
+      scanPtr->m_curr_batch_size_bytes/sizeof(Uint32);
   }
 
   if(!scanPtr->scanLockHold)
@@ -13152,7 +13286,7 @@ void Dblqh::execCOPY_FRAGREQ(Signal* signal)
   }//if
 
   {
-    LocalDLList<ScanRecord> scans(c_scanRecordPool, fragptr.p->m_activeScans);
+    LocalDLCList<ScanRecord> scans(c_scanRecordPool, fragptr.p->m_activeScans);
     ndbrequire(m_reserved_scans.first(scanptr));
     m_reserved_scans.remove(scanptr);
     scans.addFirst(scanptr);
@@ -24807,6 +24941,99 @@ void Dblqh::execDBINFO_SCANREQ(Signal *signal)
       }
       bucket++;
     }
+    break;
+  }
+  case Ndbinfo::FRAG_OPERATIONS_TABLEID:
+  {
+    Uint32 tableid = cursor->data[0];
+    
+    for (;tableid < ctabrecFileSize; tableid++)
+    {
+      TablerecPtr tabPtr;
+      tabPtr.i = tableid;
+      ptrAss(tabPtr, tablerec);
+      if (tabPtr.p->tableStatus != Tablerec::NOT_DEFINED)
+      {
+        jam();
+        // Loop over all fragments for this table.
+        for (Uint32 f = 0; f<NDB_ARRAY_SIZE(tabPtr.p->fragrec); f++)
+        {
+          if (tabPtr.p->fragrec[f] != RNIL)
+          {
+            jam();
+            Fragrecord* const frag = 
+              c_fragment_pool.getPtr(tabPtr.p->fragrec[f]);
+
+            Uint64 commitCount = 0;
+            if (frag->accFragptr != RNIL)
+            {
+              // Fetch 'commit_count'.
+              Uint32* const sigData = signal->getDataPtrSend();
+              sigData[0] = frag->accFragptr;
+              sigData[1] = AttributeHeader::COMMIT_COUNT;
+              EXECUTE_DIRECT(DBACC, GSN_READ_PSEUDO_REQ, signal, 2);
+              /*
+                Must use memcpy rather than assignment, since sigData may not 
+                be suitably aligned.
+              */
+              memcpy(&commitCount, sigData, sizeof commitCount);
+            }
+
+            Fragrecord::UsageStat& useStat = frag->m_useStat;
+
+            Ndbinfo::Row row(signal, req);
+            row.write_uint32(getOwnNodeId());
+            row.write_uint32(instance());
+            row.write_uint32(tableid);
+            row.write_uint32(frag->fragId);
+            row.write_uint64(useStat.m_readKeyReqCount);
+            row.write_uint64(useStat.m_insKeyReqCount);
+            row.write_uint64(useStat.m_updKeyReqCount);
+            row.write_uint64(useStat.m_writeKeyReqCount);
+            row.write_uint64(useStat.m_delKeyReqCount);
+            row.write_uint64(useStat.m_keyRefCount);
+            row.write_uint64(useStat.m_keyReqAttrWords * sizeof(Uint32));
+            row.write_uint64(useStat.m_keyReqKeyWords * sizeof(Uint32));
+            row.write_uint64(useStat.m_keyProgramWords * sizeof(Uint32));
+            row.write_uint64(useStat.m_keyInstructionCount);
+            row.write_uint64(useStat.m_keyReqWordsReturned * sizeof(Uint32));
+            row.write_uint64(useStat.m_scanFragReqCount);
+            row.write_uint64(useStat.m_scanRowsExamined);
+            row.write_uint64(useStat.m_scanRowsReturned);
+            row.write_uint64(useStat.m_scanWordsReturned * sizeof(Uint32));
+            row.write_uint64(useStat.m_scanProgramWords * sizeof(Uint32));
+            row.write_uint64(useStat.m_scanBoundWords * sizeof(Uint32));
+            row.write_uint64(useStat.m_scanInstructionCount);
+            row.write_uint64(useStat.m_queuedScanCount);
+
+            row.write_uint32(LocalDLCList<ScanRecord>
+                             (c_scanRecordPool, frag->m_activeScans).count());
+
+            row.write_uint32(LocalDLCFifoList<ScanRecord>
+                             (c_scanRecordPool, frag->m_queuedScans).count());
+
+            row.write_uint32(LocalDLCFifoList<ScanRecord> 
+                             (c_scanRecordPool, 
+                              frag->m_queuedTupScans).count());
+            
+            row.write_uint64(commitCount);
+            ndbinfo_send_row(signal, req, row, rl);
+          }
+        }
+      }
+
+      /*
+        If a break is needed, break on a table bondary, as we use the table id
+        as a cursor.
+      */
+      if (rl.need_break(req))
+      {
+        jam();
+        ndbinfo_send_scan_break(signal, req, rl, tableid + 1);
+        return;
+      }
+    }
+    
     break;
   }
   case Ndbinfo::FRAG_MEM_USE_TABLEID:

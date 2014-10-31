@@ -685,6 +685,7 @@ bool Dbtup::execTUPKEYREQ(Signal* signal)
 
    req_struct.signal= signal;
    req_struct.num_fired_triggers= 0;
+   req_struct.no_exec_instructions = 0;
    req_struct.read_length= 0;
    req_struct.last_row= false;
    req_struct.changeMask.clear();
@@ -1173,6 +1174,7 @@ Dbtup::setup_lcp_read_copy_tuple(KeyReqStruct* req_struct,
   Uint32 Rcreate_rowid = req_struct->m_use_rowid;
   Uint32 RuserPointer= regOperPtr->userpointer;
   Uint32 RnumFiredTriggers= req_struct->num_fired_triggers;
+  const Uint32 RnoExecInstructions = req_struct->no_exec_instructions;
   Uint32 log_size= req_struct->log_size;
   Uint32 read_length= req_struct->read_length;
   Uint32 last_row= req_struct->last_row;
@@ -1183,6 +1185,7 @@ Dbtup::setup_lcp_read_copy_tuple(KeyReqStruct* req_struct,
   tupKeyConf->numFiredTriggers= RnumFiredTriggers;
   tupKeyConf->lastRow= last_row;
   tupKeyConf->rowid = Rcreate_rowid;
+  tupKeyConf->noExecInstructions = RnoExecInstructions;
   set_tuple_state(regOperPtr, TUPLE_PREPARED);
   set_trans_state(regOperPtr, trans_state);
 }
@@ -2908,7 +2911,6 @@ int Dbtup::interpreterNextLab(Signal* signal,
 {
   register Uint32* TcurrentProgram= mainProgram;
   register Uint32 TcurrentSize= TmainProgLen;
-  register Uint32 RnoOfInstructions= 0;
   register Uint32 TprogramCounter= 0;
   register Uint32 theInstruction;
   register Uint32 theRegister;
@@ -2921,6 +2923,8 @@ int Dbtup::interpreterNextLab(Signal* signal,
   (void)align; // kill warning
   Uint32 TstackMemBuffer[32];
 
+  Uint32& RnoOfInstructions = req_struct->no_exec_instructions;
+  ndbassert(RnoOfInstructions == 0);
   /* ---------------------------------------------------------------- */
   // Initialise all 8 registers to contain the NULL value.
   // In this version we can handle 32 and 64 bit unsigned integers.
