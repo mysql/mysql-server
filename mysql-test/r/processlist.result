@@ -7,7 +7,9 @@ SELECT ID, TIME,TIME_MS FROM INFORMATION_SCHEMA.PROCESSLIST WHERE CONCAT(":", ID
 SET DEBUG_SYNC = 'now SIGNAL fill_schema_proceed';
 ID	TIME	TIME_MS
 TID	0	0.000
-SET DEBUG_SYNC = 'dispatch_command_end SIGNAL query_done';
+SET DEBUG_SYNC = 'dispatch_command_end SIGNAL query_done EXECUTE 2';
+SET DEBUG_SYNC= 'now WAIT_FOR query_done';
+SET DEBUG_SYNC= 'now SIGNAL nosignal';
 select sleep(5);
 sleep(5)
 0

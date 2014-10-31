@@ -28,7 +28,15 @@ connection default;
 #
 
 connection con1;
-SET DEBUG_SYNC = 'dispatch_command_end SIGNAL query_done';
+# Trigger a signal once the thread has gone from "Query" to "Sleep" command
+# state. Note we need to execute this twice: Once at the end of SET DEBUG_SYNC,
+# and once for the intended time, at the end of SELECT SLEEP().
+SET DEBUG_SYNC = 'dispatch_command_end SIGNAL query_done EXECUTE 2';
+connection default;
+# Wait for and clear the first signal set during SET DEBUG_SYNC.
+SET DEBUG_SYNC= 'now WAIT_FOR query_done';
+SET DEBUG_SYNC= 'now SIGNAL nosignal';
+connection con1;
 select sleep(5); #run a query that will take some time
 connection default;
 
