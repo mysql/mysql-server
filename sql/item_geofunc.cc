@@ -2279,12 +2279,16 @@ bool Item_func_pointfromgeohash::fix_fields(THD *thd, Item **ref)
     Check for valid type in SRID argument.
 
     We will allow all integer types, and strings since some connectors will
-    covert integers to strings. Binary data is not allowed. Note that when
-    calling e.g ST_POINTFROMGEOHASH("bb", NULL), the second argument is reported
-    to have binary charset, and we thus have to check field_type().
+    covert integers to strings. Binary data is not allowed.
+
+    PARAM_ITEM and INT_ITEM checks are to allow prepared statements and usage of
+    user-defined variables respectively.
   */
+  if (Item_func_geohash::is_item_null(args[1]))
+    return false;
+
   if (args[1]->collation.collation == &my_charset_bin &&
-      args[1]->field_type() != MYSQL_TYPE_NULL)
+      args[1]->type() != PARAM_ITEM && args[1]->type() != INT_ITEM)
   {
     my_error(ER_INCORRECT_TYPE, MYF(0), "SRID", func_name());
     return true;
@@ -2292,7 +2296,6 @@ bool Item_func_pointfromgeohash::fix_fields(THD *thd, Item **ref)
 
   switch (args[1]->field_type())
   {
-  case MYSQL_TYPE_NULL:
   case MYSQL_TYPE_STRING:
   case MYSQL_TYPE_VARCHAR:
   case MYSQL_TYPE_VAR_STRING:
