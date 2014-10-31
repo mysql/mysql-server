@@ -630,6 +630,7 @@ datadir=$(/usr/bin/my_print_defaults server mysqld | grep '^--datadir=' | sed -n
 %{_libdir}/mysql/libmysqlservices.a
 %{_libdir}/mysql/libmysqlclient_r.so
 %{_libdir}/mysql/libmysqlclient.so
+%{_libdir}/mysql/libbinlogevents.a
 
 %files libs
 %defattr(-, root, root, -)
