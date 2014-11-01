@@ -2393,7 +2393,7 @@ static Sys_var_ulong Sys_open_files_limit(
        "open_files_limit",
        "If this is not 0, then mysqld will use this value to reserve file "
        "descriptors to use with setrlimit(). If this value is 0 then mysqld "
-       "will reserve max_connections*5 or max_connections + table_cache*2 "
+       "will reserve max_connections*5 or max_connections + table_cache_size*2 "
        "(whichever is larger) number of file descriptors",
        READ_ONLY GLOBAL_VAR(open_files_limit), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(0, OS_FILE_LIMIT), DEFAULT(0), BLOCK_SIZE(1),
