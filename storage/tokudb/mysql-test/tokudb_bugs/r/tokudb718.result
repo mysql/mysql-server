@@ -4,6 +4,6 @@ create table t (id int primary key);
 begin;
 insert into t values (1),(2);
 select * from information_schema.tokudb_fractal_tree_info;
-ERROR HY000: Unknown error -30994
+ERROR HY000: Got error -30994 from storage engine
 commit;
 drop table t;

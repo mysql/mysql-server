@@ -267,19 +267,22 @@ void locktree_manager::release_lt(locktree *lt) {
     uint32_t refs = lt->release_reference();
     if (refs == 0) {
         mutex_lock();
+        // lt may not have already been destroyed, so look it up.
         locktree *find_lt = locktree_map_find(dict_id);
         if (find_lt != nullptr) {
             // A locktree is still in the map with that dict_id, so it must be
             // equal to lt. This is true because dictionary ids are never reused.
             // If the reference count is zero, it's our responsibility to remove
             // it and do the destroy. Otherwise, someone still wants it.
-            invariant(find_lt == lt);
-            if (lt->get_reference_count() == 0) {
-                locktree_map_remove(lt);
-                do_destroy = true;
+            // If the locktree is still valid then check if it should be deleted.
+            if (find_lt == lt) {
+                if (lt->get_reference_count() == 0) {
+                    locktree_map_remove(lt);
+                    do_destroy = true;
+                }
+                m_lt_counters.add(lt->get_lock_request_info()->counters);
             }
         }
-        m_lt_counters.add(lt->get_lock_request_info()->counters);
         mutex_unlock();
     }
 

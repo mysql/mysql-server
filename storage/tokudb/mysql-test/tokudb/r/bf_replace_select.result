@@ -1,75 +1,69 @@
 set default_storage_engine='tokudb';
-drop table if exists t,t1,t2;
-CREATE TABLE `t` (
+drop table if exists t1,t2;
+CREATE TABLE `t1` (
 `num` int(10) unsigned auto_increment NOT NULL,
 `val` varchar(32) DEFAULT NULL,
 PRIMARY KEY (`num`)
 );
-INSERT INTO t values (null,null);
-INSERT INTO t SELECT null,val FROM t;
-INSERT INTO t SELECT null,val FROM t;
-INSERT INTO t SELECT null,val FROM t;
-INSERT INTO t SELECT null,val FROM t;
-INSERT INTO t SELECT null,val FROM t;
-INSERT INTO t SELECT null,val FROM t;
-INSERT INTO t SELECT null,val FROM t;
-INSERT INTO t SELECT null,val FROM t;
-INSERT INTO t SELECT null,val FROM t;
-INSERT INTO t SELECT null,val FROM t;
-INSERT INTO t SELECT null,val FROM t;
-INSERT INTO t SELECT null,val FROM t;
-INSERT INTO t SELECT null,val FROM t;
-INSERT INTO t SELECT null,val FROM t;
-INSERT INTO t SELECT null,val FROM t;
-INSERT INTO t SELECT null,val FROM t;
-INSERT INTO t SELECT null,val FROM t;
-INSERT INTO t SELECT null,val FROM t;
-INSERT INTO t SELECT null,val FROM t;
-INSERT INTO t SELECT null,val FROM t;
-INSERT INTO t SELECT null,val FROM t;
-INSERT INTO t SELECT null,val FROM t;
-INSERT INTO t SELECT null,val FROM t;
-SELECT count(*) FROM t;
-count(*)
-8388608
-CREATE TABLE `t1` (
-`num` int(10) unsigned NOT NULL,
-`val` varchar(32) DEFAULT NULL,
-PRIMARY KEY (`num`)
-) as select * from t;
 CREATE TABLE `t2` (
 `count` bigint(20) NOT NULL
-) ENGINE=TokuDB DEFAULT CHARSET=latin1;
-SELECT count(*) from t1;
+);
+INSERT INTO t1 values (null,null);
+INSERT INTO t1 SELECT null,val FROM t1;
+INSERT INTO t1 SELECT null,val FROM t1;
+INSERT INTO t1 SELECT null,val FROM t1;
+INSERT INTO t1 SELECT null,val FROM t1;
+INSERT INTO t1 SELECT null,val FROM t1;
+INSERT INTO t1 SELECT null,val FROM t1;
+INSERT INTO t1 SELECT null,val FROM t1;
+INSERT INTO t1 SELECT null,val FROM t1;
+INSERT INTO t1 SELECT null,val FROM t1;
+INSERT INTO t1 SELECT null,val FROM t1;
+INSERT INTO t1 SELECT null,val FROM t1;
+INSERT INTO t1 SELECT null,val FROM t1;
+INSERT INTO t1 SELECT null,val FROM t1;
+INSERT INTO t1 SELECT null,val FROM t1;
+INSERT INTO t1 SELECT null,val FROM t1;
+INSERT INTO t1 SELECT null,val FROM t1;
+INSERT INTO t1 SELECT null,val FROM t1;
+INSERT INTO t1 SELECT null,val FROM t1;
+INSERT INTO t1 SELECT null,val FROM t1;
+INSERT INTO t1 SELECT null,val FROM t1;
+SELECT count(*) FROM t1;
 count(*)
-8388608
-SELECT count(*) from t1;
-count(*)
-8388608
-SELECT count(*) from t1;
-count(*)
-8388608
-SELECT count(*) from t1;
-count(*)
-8388608
-SELECT count(*) from t1;
-count(*)
-8388608
-SELECT count(*) from t1;
-count(*)
-8388608
-SELECT count(*) from t1;
-count(*)
-8388608
-SELECT count(*) from t1;
-count(*)
-8388608
-SELECT count(*) from t1;
-count(*)
-8388608
-SELECT count(*) from t1;
-count(*)
-8388608
+1048576
+set tokudb_bulk_fetch=ON;
+REPLACE into t2 SELECT count(*) from t1;
+REPLACE into t2 SELECT count(*) from t1;
+REPLACE into t2 SELECT count(*) from t1;
+REPLACE into t2 SELECT count(*) from t1;
+REPLACE into t2 SELECT count(*) from t1;
+REPLACE into t2 SELECT count(*) from t1;
+REPLACE into t2 SELECT count(*) from t1;
+REPLACE into t2 SELECT count(*) from t1;
+REPLACE into t2 SELECT count(*) from t1;
+REPLACE into t2 SELECT count(*) from t1;
+REPLACE into t2 SELECT count(*) from t1;
+REPLACE into t2 SELECT count(*) from t1;
+REPLACE into t2 SELECT count(*) from t1;
+REPLACE into t2 SELECT count(*) from t1;
+REPLACE into t2 SELECT count(*) from t1;
+REPLACE into t2 SELECT count(*) from t1;
+REPLACE into t2 SELECT count(*) from t1;
+REPLACE into t2 SELECT count(*) from t1;
+REPLACE into t2 SELECT count(*) from t1;
+REPLACE into t2 SELECT count(*) from t1;
+set tokudb_bulk_fetch=OFF;
+REPLACE into t2 SELECT count(*) from t1;
+REPLACE into t2 SELECT count(*) from t1;
+REPLACE into t2 SELECT count(*) from t1;
+REPLACE into t2 SELECT count(*) from t1;
+REPLACE into t2 SELECT count(*) from t1;
+REPLACE into t2 SELECT count(*) from t1;
+REPLACE into t2 SELECT count(*) from t1;
+REPLACE into t2 SELECT count(*) from t1;
+REPLACE into t2 SELECT count(*) from t1;
+REPLACE into t2 SELECT count(*) from t1;
 REPLACE into t2 SELECT count(*) from t1;
 REPLACE into t2 SELECT count(*) from t1;
 REPLACE into t2 SELECT count(*) from t1;
@@ -81,287 +75,47 @@ REPLACE into t2 SELECT count(*) from t1;
 REPLACE into t2 SELECT count(*) from t1;
 REPLACE into t2 SELECT count(*) from t1;
 1
-SELECT count(*) from t1;
-count(*)
-8388608
-SELECT count(*) from t1;
-count(*)
-8388608
-SELECT count(*) from t1;
-count(*)
-8388608
-SELECT count(*) from t1;
-count(*)
-8388608
-SELECT count(*) from t1;
-count(*)
-8388608
-SELECT count(*) from t1;
-count(*)
-8388608
-SELECT count(*) from t1;
-count(*)
-8388608
-SELECT count(*) from t1;
-count(*)
-8388608
-SELECT count(*) from t1;
-count(*)
-8388608
-SELECT count(*) from t1;
-count(*)
-8388608
-INSERT IGNORE into t2 SELECT count(*) from t1;
-INSERT IGNORE into t2 SELECT count(*) from t1;
-INSERT IGNORE into t2 SELECT count(*) from t1;
-INSERT IGNORE into t2 SELECT count(*) from t1;
-INSERT IGNORE into t2 SELECT count(*) from t1;
-INSERT IGNORE into t2 SELECT count(*) from t1;
-INSERT IGNORE into t2 SELECT count(*) from t1;
-INSERT IGNORE into t2 SELECT count(*) from t1;
-INSERT IGNORE into t2 SELECT count(*) from t1;
-INSERT IGNORE into t2 SELECT count(*) from t1;
+set tokudb_bulk_fetch=ON;
+REPLACE into t2 SELECT count(*) from t1 where num > 700000;
+REPLACE into t2 SELECT count(*) from t1 where num > 700000;
+REPLACE into t2 SELECT count(*) from t1 where num > 700000;
+REPLACE into t2 SELECT count(*) from t1 where num > 700000;
+REPLACE into t2 SELECT count(*) from t1 where num > 700000;
+REPLACE into t2 SELECT count(*) from t1 where num > 700000;
+REPLACE into t2 SELECT count(*) from t1 where num > 700000;
+REPLACE into t2 SELECT count(*) from t1 where num > 700000;
+REPLACE into t2 SELECT count(*) from t1 where num > 700000;
+REPLACE into t2 SELECT count(*) from t1 where num > 700000;
+REPLACE into t2 SELECT count(*) from t1 where num > 700000;
+REPLACE into t2 SELECT count(*) from t1 where num > 700000;
+REPLACE into t2 SELECT count(*) from t1 where num > 700000;
+REPLACE into t2 SELECT count(*) from t1 where num > 700000;
+REPLACE into t2 SELECT count(*) from t1 where num > 700000;
+REPLACE into t2 SELECT count(*) from t1 where num > 700000;
+REPLACE into t2 SELECT count(*) from t1 where num > 700000;
+REPLACE into t2 SELECT count(*) from t1 where num > 700000;
+REPLACE into t2 SELECT count(*) from t1 where num > 700000;
+REPLACE into t2 SELECT count(*) from t1 where num > 700000;
+set tokudb_bulk_fetch=OFF;
+REPLACE into t2 SELECT count(*) from t1 where num > 700000;
+REPLACE into t2 SELECT count(*) from t1 where num > 700000;
+REPLACE into t2 SELECT count(*) from t1 where num > 700000;
+REPLACE into t2 SELECT count(*) from t1 where num > 700000;
+REPLACE into t2 SELECT count(*) from t1 where num > 700000;
+REPLACE into t2 SELECT count(*) from t1 where num > 700000;
+REPLACE into t2 SELECT count(*) from t1 where num > 700000;
+REPLACE into t2 SELECT count(*) from t1 where num > 700000;
+REPLACE into t2 SELECT count(*) from t1 where num > 700000;
+REPLACE into t2 SELECT count(*) from t1 where num > 700000;
+REPLACE into t2 SELECT count(*) from t1 where num > 700000;
+REPLACE into t2 SELECT count(*) from t1 where num > 700000;
+REPLACE into t2 SELECT count(*) from t1 where num > 700000;
+REPLACE into t2 SELECT count(*) from t1 where num > 700000;
+REPLACE into t2 SELECT count(*) from t1 where num > 700000;
+REPLACE into t2 SELECT count(*) from t1 where num > 700000;
+REPLACE into t2 SELECT count(*) from t1 where num > 700000;
+REPLACE into t2 SELECT count(*) from t1 where num > 700000;
+REPLACE into t2 SELECT count(*) from t1 where num > 700000;
+REPLACE into t2 SELECT count(*) from t1 where num > 700000;
 1
-SELECT count(*) from t1 where num > 7000000;
-count(*)
-1847274
-SELECT count(*) from t1 where num > 7000000;
-count(*)
-1847274
-SELECT count(*) from t1 where num > 7000000;
-count(*)
-1847274
-SELECT count(*) from t1 where num > 7000000;
-count(*)
-1847274
-SELECT count(*) from t1 where num > 7000000;
-count(*)
-1847274
-SELECT count(*) from t1 where num > 7000000;
-count(*)
-1847274
-SELECT count(*) from t1 where num > 7000000;
-count(*)
-1847274
-SELECT count(*) from t1 where num > 7000000;
-count(*)
-1847274
-SELECT count(*) from t1 where num > 7000000;
-count(*)
-1847274
-SELECT count(*) from t1 where num > 7000000;
-count(*)
-1847274
-SELECT count(*) from t1 where num > 7000000;
-count(*)
-1847274
-SELECT count(*) from t1 where num > 7000000;
-count(*)
-1847274
-SELECT count(*) from t1 where num > 7000000;
-count(*)
-1847274
-SELECT count(*) from t1 where num > 7000000;
-count(*)
-1847274
-SELECT count(*) from t1 where num > 7000000;
-count(*)
-1847274
-SELECT count(*) from t1 where num > 7000000;
-count(*)
-1847274
-SELECT count(*) from t1 where num > 7000000;
-count(*)
-1847274
-SELECT count(*) from t1 where num > 7000000;
-count(*)
-1847274
-SELECT count(*) from t1 where num > 7000000;
-count(*)
-1847274
-SELECT count(*) from t1 where num > 7000000;
-count(*)
-1847274
-SELECT count(*) from t1 where num > 7000000;
-count(*)
-1847274
-SELECT count(*) from t1 where num > 7000000;
-count(*)
-1847274
-SELECT count(*) from t1 where num > 7000000;
-count(*)
-1847274
-SELECT count(*) from t1 where num > 7000000;
-count(*)
-1847274
-SELECT count(*) from t1 where num > 7000000;
-count(*)
-1847274
-SELECT count(*) from t1 where num > 7000000;
-count(*)
-1847274
-SELECT count(*) from t1 where num > 7000000;
-count(*)
-1847274
-SELECT count(*) from t1 where num > 7000000;
-count(*)
-1847274
-SELECT count(*) from t1 where num > 7000000;
-count(*)
-1847274
-SELECT count(*) from t1 where num > 7000000;
-count(*)
-1847274
-REPLACE into t2 SELECT count(*) from t1 where num > 7000000;
-REPLACE into t2 SELECT count(*) from t1 where num > 7000000;
-REPLACE into t2 SELECT count(*) from t1 where num > 7000000;
-REPLACE into t2 SELECT count(*) from t1 where num > 7000000;
-REPLACE into t2 SELECT count(*) from t1 where num > 7000000;
-REPLACE into t2 SELECT count(*) from t1 where num > 7000000;
-REPLACE into t2 SELECT count(*) from t1 where num > 7000000;
-REPLACE into t2 SELECT count(*) from t1 where num > 7000000;
-REPLACE into t2 SELECT count(*) from t1 where num > 7000000;
-REPLACE into t2 SELECT count(*) from t1 where num > 7000000;
-REPLACE into t2 SELECT count(*) from t1 where num > 7000000;
-REPLACE into t2 SELECT count(*) from t1 where num > 7000000;
-REPLACE into t2 SELECT count(*) from t1 where num > 7000000;
-REPLACE into t2 SELECT count(*) from t1 where num > 7000000;
-REPLACE into t2 SELECT count(*) from t1 where num > 7000000;
-REPLACE into t2 SELECT count(*) from t1 where num > 7000000;
-REPLACE into t2 SELECT count(*) from t1 where num > 7000000;
-REPLACE into t2 SELECT count(*) from t1 where num > 7000000;
-REPLACE into t2 SELECT count(*) from t1 where num > 7000000;
-REPLACE into t2 SELECT count(*) from t1 where num > 7000000;
-REPLACE into t2 SELECT count(*) from t1 where num > 7000000;
-REPLACE into t2 SELECT count(*) from t1 where num > 7000000;
-REPLACE into t2 SELECT count(*) from t1 where num > 7000000;
-REPLACE into t2 SELECT count(*) from t1 where num > 7000000;
-REPLACE into t2 SELECT count(*) from t1 where num > 7000000;
-REPLACE into t2 SELECT count(*) from t1 where num > 7000000;
-REPLACE into t2 SELECT count(*) from t1 where num > 7000000;
-REPLACE into t2 SELECT count(*) from t1 where num > 7000000;
-REPLACE into t2 SELECT count(*) from t1 where num > 7000000;
-REPLACE into t2 SELECT count(*) from t1 where num > 7000000;
-1
-SELECT count(*) from t1 where num > 7000000;
-count(*)
-1847274
-SELECT count(*) from t1 where num > 7000000;
-count(*)
-1847274
-SELECT count(*) from t1 where num > 7000000;
-count(*)
-1847274
-SELECT count(*) from t1 where num > 7000000;
-count(*)
-1847274
-SELECT count(*) from t1 where num > 7000000;
-count(*)
-1847274
-SELECT count(*) from t1 where num > 7000000;
-count(*)
-1847274
-SELECT count(*) from t1 where num > 7000000;
-count(*)
-1847274
-SELECT count(*) from t1 where num > 7000000;
-count(*)
-1847274
-SELECT count(*) from t1 where num > 7000000;
-count(*)
-1847274
-SELECT count(*) from t1 where num > 7000000;
-count(*)
-1847274
-SELECT count(*) from t1 where num > 7000000;
-count(*)
-1847274
-SELECT count(*) from t1 where num > 7000000;
-count(*)
-1847274
-SELECT count(*) from t1 where num > 7000000;
-count(*)
-1847274
-SELECT count(*) from t1 where num > 7000000;
-count(*)
-1847274
-SELECT count(*) from t1 where num > 7000000;
-count(*)
-1847274
-SELECT count(*) from t1 where num > 7000000;
-count(*)
-1847274
-SELECT count(*) from t1 where num > 7000000;
-count(*)
-1847274
-SELECT count(*) from t1 where num > 7000000;
-count(*)
-1847274
-SELECT count(*) from t1 where num > 7000000;
-count(*)
-1847274
-SELECT count(*) from t1 where num > 7000000;
-count(*)
-1847274
-SELECT count(*) from t1 where num > 7000000;
-count(*)
-1847274
-SELECT count(*) from t1 where num > 7000000;
-count(*)
-1847274
-SELECT count(*) from t1 where num > 7000000;
-count(*)
-1847274
-SELECT count(*) from t1 where num > 7000000;
-count(*)
-1847274
-SELECT count(*) from t1 where num > 7000000;
-count(*)
-1847274
-SELECT count(*) from t1 where num > 7000000;
-count(*)
-1847274
-SELECT count(*) from t1 where num > 7000000;
-count(*)
-1847274
-SELECT count(*) from t1 where num > 7000000;
-count(*)
-1847274
-SELECT count(*) from t1 where num > 7000000;
-count(*)
-1847274
-SELECT count(*) from t1 where num > 7000000;
-count(*)
-1847274
-INSERT IGNORE into t2 SELECT count(*) from t1 where num > 7000000;
-INSERT IGNORE into t2 SELECT count(*) from t1 where num > 7000000;
-INSERT IGNORE into t2 SELECT count(*) from t1 where num > 7000000;
-INSERT IGNORE into t2 SELECT count(*) from t1 where num > 7000000;
-INSERT IGNORE into t2 SELECT count(*) from t1 where num > 7000000;
-INSERT IGNORE into t2 SELECT count(*) from t1 where num > 7000000;
-INSERT IGNORE into t2 SELECT count(*) from t1 where num > 7000000;
-INSERT IGNORE into t2 SELECT count(*) from t1 where num > 7000000;
-INSERT IGNORE into t2 SELECT count(*) from t1 where num > 7000000;
-INSERT IGNORE into t2 SELECT count(*) from t1 where num > 7000000;
-INSERT IGNORE into t2 SELECT count(*) from t1 where num > 7000000;
-INSERT IGNORE into t2 SELECT count(*) from t1 where num > 7000000;
-INSERT IGNORE into t2 SELECT count(*) from t1 where num > 7000000;
-INSERT IGNORE into t2 SELECT count(*) from t1 where num > 7000000;
-INSERT IGNORE into t2 SELECT count(*) from t1 where num > 7000000;
-INSERT IGNORE into t2 SELECT count(*) from t1 where num > 7000000;
-INSERT IGNORE into t2 SELECT count(*) from t1 where num > 7000000;
-INSERT IGNORE into t2 SELECT count(*) from t1 where num > 7000000;
-INSERT IGNORE into t2 SELECT count(*) from t1 where num > 7000000;
-INSERT IGNORE into t2 SELECT count(*) from t1 where num > 7000000;
-INSERT IGNORE into t2 SELECT count(*) from t1 where num > 7000000;
-INSERT IGNORE into t2 SELECT count(*) from t1 where num > 7000000;
-INSERT IGNORE into t2 SELECT count(*) from t1 where num > 7000000;
-INSERT IGNORE into t2 SELECT count(*) from t1 where num > 7000000;
-INSERT IGNORE into t2 SELECT count(*) from t1 where num > 7000000;
-INSERT IGNORE into t2 SELECT count(*) from t1 where num > 7000000;
-INSERT IGNORE into t2 SELECT count(*) from t1 where num > 7000000;
-INSERT IGNORE into t2 SELECT count(*) from t1 where num > 7000000;
-INSERT IGNORE into t2 SELECT count(*) from t1 where num > 7000000;
-INSERT IGNORE into t2 SELECT count(*) from t1 where num > 7000000;
-1
-drop table t,t1,t2;
+drop table t1,t2;

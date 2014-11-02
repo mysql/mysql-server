@@ -124,3 +124,23 @@
    ...
    fun:_ZN7evictor7destroyEv
 }
+{
+   <helgrind_doesnt_understand_the_way_the_world_works_and_ignores_our_disable_checking_instructions>
+   Helgrind:Race
+   fun:_ZN4toku8locktree15sto_try_acquireEPvmPK10__toku_dbtS4_
+   fun:_ZN4toku8locktree12acquire_lockEbmPK10__toku_dbtS3_PNS_9txnid_setE
+   fun:_ZN4toku8locktree16try_acquire_lockEbmPK10__toku_dbtS3_PNS_9txnid_setEb
+   fun:_ZN4toku8locktree18acquire_write_lockEmPK10__toku_dbtS3_PNS_9txnid_setEb
+   fun:_ZN4toku12lock_request5startEv
+   ...
+}
+{
+   <helgrind_bug_323432_see_http://permalink.gmane.org/gmane.comp.debugging.valgrind/13325>
+   Helgrind:Race
+   obj:/usr/lib/valgrind/vgpreload_helgrind-amd64-linux.so
+   fun:pthread_mutex_destroy
+   fun:toku_mutex_destroy
+   fun:_ZN4toku8treenode4freeEPS0_
+   fun:_ZN4toku8treenode22remove_root_of_subtreeEv
+   ...
+}

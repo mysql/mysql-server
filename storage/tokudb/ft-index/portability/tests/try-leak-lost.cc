@@ -88,9 +88,11 @@ PATENT RIGHTS GRANT:
 
 #ident "Copyright (c) 2007-2013 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
+#include <stdio.h>
 #include <stdlib.h>
 
 int main(void) {
-    (void) malloc(42);
+    // GCC has gotten smart enough to optimize this away unless we use it.
+    printf("%p\n", malloc(42));
     return 0;
 }

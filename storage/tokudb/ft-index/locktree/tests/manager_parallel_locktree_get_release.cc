@@ -30,7 +30,7 @@ COPYING CONDITIONS NOTICE:
 COPYRIGHT NOTICE:
 
   TokuFT, Tokutek Fractal Tree Indexing Library.
-  Copyright (C) 2007-2013 Tokutek, Inc.
+  Copyright (C) 2014 Tokutek, Inc.
 
 DISCLAIMER:
 
@@ -86,103 +86,60 @@ PATENT RIGHTS GRANT:
   under this License.
 */
 
-#pragma once
-
 #ident "Copyright (c) 2007-2013 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
-#include <portability/toku_config.h>
+// This test crashes prior to the FT-600 fix.
 
-#if defined(__linux__) && USE_VALGRIND
+#include "manager_unit_test.h"
 
-# include <valgrind/helgrind.h>
-# include <valgrind/drd.h>
+namespace toku {
 
-# define TOKU_ANNOTATE_NEW_MEMORY(p, size) ANNOTATE_NEW_MEMORY(p, size)
-# define TOKU_VALGRIND_HG_ENABLE_CHECKING(p, size) VALGRIND_HG_ENABLE_CHECKING(p, size)
-# define TOKU_VALGRIND_HG_DISABLE_CHECKING(p, size) VALGRIND_HG_DISABLE_CHECKING(p, size)
-# define TOKU_DRD_IGNORE_VAR(v) DRD_IGNORE_VAR(v)
-# define TOKU_DRD_STOP_IGNORING_VAR(v) DRD_STOP_IGNORING_VAR(v)
-# define TOKU_ANNOTATE_IGNORE_READS_BEGIN() ANNOTATE_IGNORE_READS_BEGIN()
-# define TOKU_ANNOTATE_IGNORE_READS_END() ANNOTATE_IGNORE_READS_END()
-# define TOKU_ANNOTATE_IGNORE_WRITES_BEGIN() ANNOTATE_IGNORE_WRITES_BEGIN()
-# define TOKU_ANNOTATE_IGNORE_WRITES_END() ANNOTATE_IGNORE_WRITES_END()
-
-/*
- * How to make helgrind happy about tree rotations and new mutex orderings:
- *
- * // Tell helgrind that we unlocked it so that the next call doesn't get a "destroyed a locked mutex" error.
- * // Tell helgrind that we destroyed the mutex.
- * VALGRIND_HG_MUTEX_UNLOCK_PRE(&locka);
- * VALGRIND_HG_MUTEX_DESTROY_PRE(&locka);
- *
- * // And recreate it.  It would be better to simply be able to say that the order on these two can now be reversed, because this code forgets all the ordering information for this mutex.
- * // Then tell helgrind that we have locked it again.
- * VALGRIND_HG_MUTEX_INIT_POST(&locka, 0);
- * VALGRIND_HG_MUTEX_LOCK_POST(&locka);
- *
- * When the ordering of two locks changes, we don't need tell Helgrind about do both locks.  Just one is good enough.
- */
-
-# define TOKU_VALGRIND_RESET_MUTEX_ORDERING_INFO(mutex)  \
-    VALGRIND_HG_MUTEX_UNLOCK_PRE(mutex); \
-    VALGRIND_HG_MUTEX_DESTROY_PRE(mutex); \
-    VALGRIND_HG_MUTEX_INIT_POST(mutex, 0); \
-    VALGRIND_HG_MUTEX_LOCK_POST(mutex);
-
-#else // !defined(__linux__) || !USE_VALGRIND
-
-# define NVALGRIND 1
-# define TOKU_ANNOTATE_NEW_MEMORY(p, size) ((void) 0)
-# define TOKU_VALGRIND_HG_ENABLE_CHECKING(p, size) ((void) 0)
-# define TOKU_VALGRIND_HG_DISABLE_CHECKING(p, size) ((void) 0)
-# define TOKU_DRD_IGNORE_VAR(v)
-# define TOKU_DRD_STOP_IGNORING_VAR(v)
-# define TOKU_ANNOTATE_IGNORE_READS_BEGIN() ((void) 0)
-# define TOKU_ANNOTATE_IGNORE_READS_END() ((void) 0)
-# define TOKU_ANNOTATE_IGNORE_WRITES_BEGIN() ((void) 0)
-# define TOKU_ANNOTATE_IGNORE_WRITES_END() ((void) 0)
-# define TOKU_VALGRIND_RESET_MUTEX_ORDERING_INFO(mutex)
-# define RUNNING_ON_VALGRIND (0U)
-
-#endif
-
-namespace data_race {
-
-    template<typename T>
-    class unsafe_read {
-        const T &_val;
-    public:
-        unsafe_read(const T &val)
-            : _val(val) {
-            TOKU_VALGRIND_HG_DISABLE_CHECKING(&_val, sizeof _val);
-            TOKU_ANNOTATE_IGNORE_READS_BEGIN();
-        }
-        ~unsafe_read() {
-            TOKU_ANNOTATE_IGNORE_READS_END();
-            TOKU_VALGRIND_HG_ENABLE_CHECKING(&_val, sizeof _val);
-        }
-        operator T() const {
-            return _val;
-        }
-    };
-
-} // namespace data_race
-
-// Unsafely fetch and return a `T' from src, telling drd to ignore 
-// racey access to src for the next sizeof(*src) bytes
-template <typename T>
-T toku_drd_unsafe_fetch(T *src) {
-    return data_race::unsafe_read<T>(*src);
+static int my_cmp(DB *UU(db), const DBT *UU(a), const DBT *UU(b)) {
+    return 0;
 }
 
-// Unsafely set a `T' value into *dest from src, telling drd to ignore 
-// racey access to dest for the next sizeof(*dest) bytes
-template <typename T>
-void toku_drd_unsafe_set(T *dest, const T src) {
-    TOKU_VALGRIND_HG_DISABLE_CHECKING(dest, sizeof *dest);
-    TOKU_ANNOTATE_IGNORE_WRITES_BEGIN();
-    *dest = src;
-    TOKU_ANNOTATE_IGNORE_WRITES_END();
-    TOKU_VALGRIND_HG_ENABLE_CHECKING(dest, sizeof *dest);
+static void my_test(locktree_manager *mgr) {
+    toku::comparator my_comparator;
+    my_comparator.create(my_cmp, nullptr);
+    DICTIONARY_ID a = { 42 };
+    for (int i=0; i<100000; i++) {
+        locktree *alt = mgr->get_lt(a, my_comparator, nullptr);
+        invariant_notnull(alt);
+        mgr->release_lt(alt);
+    }
+    my_comparator.destroy();
+}
+
+static void *my_tester(void *arg) {
+    locktree_manager *mgr = (locktree_manager *) arg;
+    my_test(mgr);
+    return arg;
+}
+
+void manager_unit_test::test_reference_release_lt(void) {
+    int r;
+    locktree_manager mgr;
+    mgr.create(nullptr, nullptr, nullptr, nullptr);
+    const int nthreads = 2;
+    pthread_t ids[nthreads];
+    for (int i = 0; i < nthreads; i++) {
+        r = toku_pthread_create(&ids[i], nullptr, my_tester, &mgr);
+        assert(r == 0);
+    }
+    for (int i = 0; i < nthreads; i++) {
+        void *ret;
+        r = toku_pthread_join(ids[i], &ret);
+        assert(r == 0);
+    }
+    my_test(&mgr);
+    mgr.destroy();
+}
+
+} /* namespace toku */
+
+int main(void) {
+    toku::manager_unit_test test;
+    test.test_reference_release_lt();
+    return 0; 
 }

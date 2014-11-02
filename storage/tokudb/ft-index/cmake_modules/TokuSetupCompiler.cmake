@@ -17,15 +17,22 @@ add_c_defines(
 if (NOT CMAKE_SYSTEM_NAME STREQUAL FreeBSD)
   ## on FreeBSD these types of macros actually remove functionality
   add_c_defines(
-    _SVID_SOURCE
+    _DEFAULT_SOURCE
     _XOPEN_SOURCE=600
     )
 endif ()
 
 ## add TOKU_PTHREAD_DEBUG for debug builds
-set_property(DIRECTORY APPEND PROPERTY COMPILE_DEFINITIONS_DEBUG TOKU_PTHREAD_DEBUG=1)
-set_property(DIRECTORY APPEND PROPERTY COMPILE_DEFINITIONS_DRD TOKU_PTHREAD_DEBUG=1)
-set_property(DIRECTORY APPEND PROPERTY COMPILE_DEFINITIONS_DRD _FORTIFY_SOURCE=2)
+if (CMAKE_VERSION VERSION_LESS 3.0)
+  set_property(DIRECTORY APPEND PROPERTY COMPILE_DEFINITIONS_DEBUG TOKU_PTHREAD_DEBUG=1)
+  set_property(DIRECTORY APPEND PROPERTY COMPILE_DEFINITIONS_DRD TOKU_PTHREAD_DEBUG=1)
+  set_property(DIRECTORY APPEND PROPERTY COMPILE_DEFINITIONS_DRD _FORTIFY_SOURCE=2)
+else ()
+  set_property(DIRECTORY APPEND PROPERTY COMPILE_DEFINITIONS
+    $<$<OR:$<CONFIG:DEBUG>,$<CONFIG:DRD>>:TOKU_PTHREAD_DEBUG=1>
+    $<$<CONFIG:DRD>:_FORTIFY_SOURCE=2>
+    )
+endif ()
 
 ## coverage
 option(USE_GCOV "Use gcov for test coverage." OFF)
@@ -215,7 +222,7 @@ function(maybe_add_gcov_to_libraries)
     foreach(lib ${ARGN})
       add_space_separated_property(TARGET ${lib} COMPILE_FLAGS --coverage)
       add_space_separated_property(TARGET ${lib} LINK_FLAGS --coverage)
-      target_link_libraries(${lib} gcov)
+      target_link_libraries(${lib} LINK_PRIVATE gcov)
     endforeach(lib)
   endif (USE_GCOV)
 endfunction(maybe_add_gcov_to_libraries)

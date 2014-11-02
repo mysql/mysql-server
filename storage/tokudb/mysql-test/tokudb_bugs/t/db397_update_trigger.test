@@ -1,0 +1,52 @@
+# check for any locking weirdness on UPDATE triggers
+source include/have_tokudb.inc;
+set default_storage_engine='tokudb';
+disable_warnings;
+drop table if exists t1, t1_audit;
+enable_warnings;
+
+create table t1 (
+col1 int not null,
+col2 int not null,
+primary key (col1));
+
+create table t1_audit (
+col1 int not null,
+action varchar(32) not null,
+ts timestamp not null default now());
+
+insert into t1 (col1,col2) values (0,0);
+insert into t1_audit (col1,action) values (0,'DUMMY');
+
+set local tokudb_prelock_empty=0;
+
+# test before update trigger
+create trigger t1_trigger before update on t1
+for each row
+insert into t1_audit (col1, action) values (old.col1, 'BEFORE UPDATE');
+insert into t1 (col1,col2) values (1,1);
+start transaction;
+update t1 set col2=1000 where col1 = 1;
+select col1,col2 from t1;
+select col1,action from t1_audit;
+select locks_dname,locks_key_left,locks_key_right from information_schema.tokudb_locks;
+# check locks on t1 and t1_audit
+commit;
+drop trigger t1_trigger;
+
+# test after update trigger
+create trigger t1_trigger after update on t1
+for each row
+insert into t1_audit (col1, action) values (old.col1, 'AFTER UPDATE');
+insert into t1 (col1,col2) values (2,2);
+start transaction;
+update t1 set col2=1001 where col1 = 2;
+select col1,col2 from t1;
+select col1,action from t1_audit;
+select locks_dname,locks_key_left,locks_key_right from information_schema.tokudb_locks;
+# check locks on t1 and t1_audit
+commit;
+drop trigger t1_trigger;
+
+# cleanup
+drop table t1, t1_audit;

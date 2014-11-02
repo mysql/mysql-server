@@ -27,17 +27,12 @@ MACRO(TOKU_MERGE_STATIC_LIBS TARGET OUTPUT_NAME LIBS_TO_MERGE)
 
   SET(OSLIBS)
   FOREACH(LIB ${LIBS_TO_MERGE})
-    GET_TARGET_PROPERTY(LIB_LOCATION ${LIB} LOCATION)
-    GET_TARGET_PROPERTY(LIB_TYPE ${LIB} TYPE)
-    IF(NOT LIB_LOCATION)
-       # 3rd party library like libz.so. Make sure that everything
-       # that links to our library links to this one as well.
-       LIST(APPEND OSLIBS ${LIB})
-    ELSE()
+    IF(TARGET ${LIB})
       # This is a target in current project
       # (can be a static or shared lib)
+      GET_TARGET_PROPERTY(LIB_TYPE ${LIB} TYPE)
       IF(LIB_TYPE STREQUAL "STATIC_LIBRARY")
-        SET(STATIC_LIBS ${STATIC_LIBS} ${LIB_LOCATION})
+        LIST(APPEND STATIC_LIBS ${LIB})
         ADD_DEPENDENCIES(${TARGET} ${LIB})
         # Extract dependend OS libraries
         TOKU_GET_DEPENDEND_OS_LIBS(${LIB} LIB_OSLIBS)
@@ -46,6 +41,10 @@ MACRO(TOKU_MERGE_STATIC_LIBS TARGET OUTPUT_NAME LIBS_TO_MERGE)
         # This is a shared library our static lib depends on.
         LIST(APPEND OSLIBS ${LIB})
       ENDIF()
+    ELSE()
+      # 3rd party library like libz.so. Make sure that everything
+      # that links to our library links to this one as well.
+      LIST(APPEND OSLIBS ${LIB})
     ENDIF()
   ENDFOREACH()
   IF(OSLIBS)
@@ -65,19 +64,21 @@ MACRO(TOKU_MERGE_STATIC_LIBS TARGET OUTPUT_NAME LIBS_TO_MERGE)
     # To merge libs, just pass them to lib.exe command line.
     SET(LINKER_EXTRA_FLAGS "")
     FOREACH(LIB ${STATIC_LIBS})
-      SET(LINKER_EXTRA_FLAGS "${LINKER_EXTRA_FLAGS} ${LIB}")
+      SET(LINKER_EXTRA_FLAGS "${LINKER_EXTRA_FLAGS} $<TARGET_FILE:${LIB}>")
     ENDFOREACH()
     SET_TARGET_PROPERTIES(${TARGET} PROPERTIES STATIC_LIBRARY_FLAGS 
       "${LINKER_EXTRA_FLAGS}")
   ELSE()
-    GET_TARGET_PROPERTY(TARGET_LOCATION ${TARGET} LOCATION)  
+    FOREACH(STATIC_LIB ${STATIC_LIBS})
+      LIST(APPEND STATIC_LIB_FILES $<TARGET_FILE:${STATIC_LIB}>)
+    ENDFOREACH()
     IF(APPLE)
       # Use OSX's libtool to merge archives (ihandles universal 
       # binaries properly)
       ADD_CUSTOM_COMMAND(TARGET ${TARGET} POST_BUILD
-        COMMAND rm ${TARGET_LOCATION}
-        COMMAND /usr/bin/libtool -static -o ${TARGET_LOCATION} 
-        ${STATIC_LIBS}
+        COMMAND rm $<TARGET_FILE:${TARGET}>
+        COMMAND /usr/bin/libtool -static -o $<TARGET_FILE:${TARGET}>
+        ${STATIC_LIB_FILES}
       )  
     ELSE()
       # Generic Unix, Cygwin or MinGW. In post-build step, call
@@ -88,11 +89,14 @@ MACRO(TOKU_MERGE_STATIC_LIBS TARGET OUTPUT_NAME LIBS_TO_MERGE)
         ${TOKU_CMAKE_SCRIPT_DIR}/merge_archives_unix.cmake.in
         ${CMAKE_CURRENT_BINARY_DIR}/merge_archives_${TARGET}.cmake 
         @ONLY
-      )
+        )
+      STRING(REGEX REPLACE ";" "\\\;" STATIC_LIB_FILES "${STATIC_LIB_FILES}")
       ADD_CUSTOM_COMMAND(TARGET ${TARGET} POST_BUILD
-        COMMAND rm ${TARGET_LOCATION}
-        COMMAND ${CMAKE_COMMAND} -P 
-        ${CMAKE_CURRENT_BINARY_DIR}/merge_archives_${TARGET}.cmake
+        COMMAND rm $<TARGET_FILE:${TARGET}>
+        COMMAND ${CMAKE_COMMAND}
+          -D TARGET_FILE=$<TARGET_FILE:${TARGET}>
+          -D STATIC_LIB_FILES="${STATIC_LIB_FILES}"
+          -P ${CMAKE_CURRENT_BINARY_DIR}/merge_archives_${TARGET}.cmake
         DEPENDS "${CMAKE_CURRENT_BINARY_DIR}/merge_archives_${TARGET}.cmake"
       )
     ENDIF()

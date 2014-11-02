@@ -1,0 +1,56 @@
+set default_storage_engine='tokudb';
+drop table if exists t1;
+drop table if exists t1_audit;
+create table t1 (
+col1 int not null,
+col2 int not null,
+primary key (col1));
+create table t1_audit (
+col1 int not null,
+action varchar(32) not null,
+ts timestamp not null default now());
+insert into t1 (col1,col2) values (0,0);
+insert into t1_audit (col1,action) values (0,'DUMMY');
+set local tokudb_prelock_empty=0;
+create trigger t1_trigger before insert on t1
+for each row
+insert into t1_audit (col1, action) values (new.col1, 'BEFORE INSERT');
+start transaction;
+insert into t1 (col1, col2) values (1,1);
+select col1,col2 from t1;
+col1	col2
+0	0
+1	1
+select col1,action from t1_audit;
+col1	action
+0	DUMMY
+1	BEFORE INSERT
+select locks_dname,locks_key_left,locks_key_right from information_schema.tokudb_locks;
+locks_dname	locks_key_left	locks_key_right
+./test/t1_audit-main	0200000000000000	0200000000000000
+./test/t1-main	0001000000	0001000000
+commit;
+drop trigger t1_trigger;
+create trigger t1_trigger after insert on t1
+for each row
+insert into t1_audit (col1, action) values (new.col1, 'AFTER INSERT');
+start transaction;
+insert into t1 (col1, col2) values (2,2);
+select col1,col2 from t1;
+col1	col2
+0	0
+1	1
+2	2
+select col1,action from t1_audit;
+col1	action
+0	DUMMY
+1	BEFORE INSERT
+2	AFTER INSERT
+select locks_dname,locks_key_left,locks_key_right from information_schema.tokudb_locks;
+locks_dname	locks_key_left	locks_key_right
+./test/t1_audit-main	0300000000000000	0300000000000000
+./test/t1-main	0002000000	0002000000
+commit;
+drop trigger t1_trigger;
+drop table t1;
+drop table t1_audit;

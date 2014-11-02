@@ -486,6 +486,7 @@ if(BUILD_TESTING OR BUILD_SRC_TESTS)
     ydb/loader-stress-test4z.tdb
     ydb/recover_stress.tdb
     ydb/test3529.tdb
+    ydb/test_insert_unique.tdb
     )
   set_tests_properties(${phenomenally_long_tests} PROPERTIES TIMEOUT 14400)
 endif(BUILD_TESTING OR BUILD_SRC_TESTS)
