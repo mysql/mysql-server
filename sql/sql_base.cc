@@ -7072,7 +7072,8 @@ find_field_in_table(THD *thd, TABLE *table, const char *name, size_t length,
 
   if (field_ptr && *field_ptr)
   {
-    if ((*field_ptr)->gcol_info)
+    //Stored GCs are treated as the base columns for select
+    if ((*field_ptr)->gcol_info && !(*field_ptr)->stored_in_db)
     {
       if (thd->mark_used_columns != MARK_COLUMNS_NONE)
       {

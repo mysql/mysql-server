@@ -5791,8 +5791,8 @@ void TABLE::mark_columns_needed_for_update()
 
     file->column_bitmaps_signal();
   }
-  /* Mark all virtual columns as writable */
-  mark_generated_columns();
+  /* Mark dependent generated columns as writable */
+  mark_generated_columns(TRUE);
   DBUG_VOID_RETURN;
 }
 
@@ -6135,47 +6135,91 @@ void TABLE::mark_columns_needed_for_insert()
   if (found_next_number_field)
     mark_auto_increment_column();
   /* Mark all virtual columns as writable */
-  mark_generated_columns();
+  mark_generated_columns(FALSE);
 }
 
 /* 
   @brief Update the write and read table bitmap to allow
-         using procedure save_in_field for all virtual columns
+         using procedure save_in_field for all generated columns
          in the table.
+
+  @param        is_update: TRUE means the operation is UPDATE.
+                           FALSE means it's INSERT.
 
   @return       void
 
   @detail
-    Each virtual field is set in the write column map.
-    All fields that the virtual columns are based on are set in the
+    Each generated field is set in the write column map.
+    All fields that the generated columns are based on are set in the
     read bitmap.
 */
 
-void TABLE::mark_generated_columns(void)
+void TABLE::mark_generated_columns(bool is_update)
 {
   Field **vfield_ptr, *tmp_vfield;
   bool bitmap_updated= FALSE;
 
-  for (vfield_ptr= vfield; *vfield_ptr; vfield_ptr++)
+  /**
+    For update, only GCs which are dependent on the updatable fields are
+    set to be writable.
+   **/
+  if (is_update)
   {
-    tmp_vfield= *vfield_ptr;
-    DBUG_ASSERT(tmp_vfield->gcol_info && tmp_vfield->gcol_info->expr_item);
-    tmp_vfield->gcol_info->expr_item->walk(&Item::register_field_in_read_map, 
-                                           Item::WALK_PREFIX, (uchar *) 0);
-    bitmap_set_bit(read_set, tmp_vfield->field_index);
-    bitmap_set_bit(write_set, tmp_vfield->field_index);
-    // TODO: consider updating column maps for index
-    bitmap_updated= TRUE;
+    MY_BITMAP dependent_fields;
+    uint fields_buff_size= bitmap_buffer_size(s->fields);
+    uint32 *bitbuf= (uint32 *)current_thd->alloc(fields_buff_size);
+    if (!bitbuf)
+      my_error(ER_OUT_OF_RESOURCES, MYF(0));
+    bitmap_init(&dependent_fields, bitbuf, s->fields, 0);
+    bitmap_clear_all(&dependent_fields);
+
+    MY_BITMAP *save_old_read_set= read_set;
+    read_set= &dependent_fields;
+
+    for (vfield_ptr= vfield; *vfield_ptr; vfield_ptr++)
+    {
+      tmp_vfield= *vfield_ptr;
+      DBUG_ASSERT(tmp_vfield->gcol_info && tmp_vfield->gcol_info->expr_item);
+      tmp_vfield->gcol_info->expr_item->walk(&Item::register_field_in_read_map, 
+                                             Item::WALK_PREFIX, (uchar *) 0);
+      //If the GC depends on any of the write-column, make it writable.
+      if (bitmap_is_overlapping(read_set, write_set))
+      {
+        //The GC should be update
+        bitmap_set_bit(write_set, tmp_vfield->field_index);
+        //GC's Dependent columns should be read
+        bitmap_union(save_old_read_set, read_set);
+        bitmap_clear_all(read_set);
+        // TODO: consider updating column maps for index
+        bitmap_updated= TRUE;
+      }
+    }
+    read_set= save_old_read_set;
   }
+  else //Insert will mark all GCs
+  {
+    for (vfield_ptr= vfield; *vfield_ptr; vfield_ptr++)
+    {
+      tmp_vfield= *vfield_ptr;
+      DBUG_ASSERT(tmp_vfield->gcol_info && tmp_vfield->gcol_info->expr_item);
+      tmp_vfield->gcol_info->expr_item->walk(&Item::register_field_in_read_map,
+                                             Item::WALK_PREFIX, (uchar *) 0);
+      bitmap_set_bit(read_set, tmp_vfield->field_index);
+      bitmap_set_bit(write_set, tmp_vfield->field_index);
+      // TODO: consider updating column maps for index
+      bitmap_updated= TRUE;
+    }
+  }
+
   if (bitmap_updated)
     file->column_bitmaps_signal();
 }
 
 /*
-  @brief Check whether a base field is dependent by any virtual columns.
+  @brief Check whether a base field is dependent by any generated columns.
 
-  @return      TRUE     The field is dependent by some VC.
-               FALSE    The field has no dependency by any VC.
+  @return      TRUE     The field is dependent by some GC.
+               FALSE    The field has no dependency by any GC.
 
 */
 bool TABLE::is_field_dependent_by_generated_columns(uint field_index)

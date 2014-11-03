@@ -202,9 +202,9 @@ static bool check_insert_fields(THD *thd, TABLE_LIST *table_list,
       return true;
     }
   }
-  /* Mark all virtual columns for write*/
+  /* Mark all generated columns for write*/
   if (table->vfield)
-    table->mark_generated_columns();
+    table->mark_generated_columns(FALSE);
   // For the values we need select_priv
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   table->grant.want_privilege= (SELECT_ACL & ~table->grant.privilege);

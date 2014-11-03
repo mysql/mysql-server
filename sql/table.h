@@ -1233,7 +1233,7 @@ public:
   void mark_columns_needed_for_delete(void);
   void mark_columns_needed_for_insert(void);
   void mark_columns_per_binlog_row_image(void);
-  void mark_generated_columns(void);
+  void mark_generated_columns(bool is_update);
   bool is_field_dependent_by_generated_columns(uint field_index);
   inline void column_bitmaps_set(MY_BITMAP *read_set_arg,
                                  MY_BITMAP *write_set_arg)
