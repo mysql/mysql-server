@@ -2042,16 +2042,17 @@ rec_print(
 	}
 }
 
-# ifndef DBUG_OFF
-/***************************************************************//**
-Prints a physical record. */
+/** Pretty-print a record.
+@param[in,out]	o	output stream
+@param[in]	rec	physical record
+@param[in]	info	rec_get_info_bits(rec)
+@param[in]	offsets	rec_get_offsets(rec) */
 void
 rec_print(
-/*======*/
-	std::ostream&	o,	/*!< in/out: output stream */
-	const rec_t*	rec,	/*!< in: physical record */
-	ulint		info,	/*!< in: rec_get_info_bits(rec) */
-	const ulint*	offsets)/*!< in: array returned by rec_get_offsets() */
+	std::ostream&	o,
+	const rec_t*	rec,
+	ulint		info,
+	const ulint*	offsets)
 {
 	const ulint	comp	= rec_offs_comp(offsets);
 	const ulint	n	= rec_offs_n_fields(offsets);
@@ -2094,7 +2095,37 @@ rec_print(
 
 	o << "}";
 }
-# endif /* !DBUG_OFF */
+
+/** Display a record.
+@param[in,out]	o	output stream
+@param[in]	r	record to display
+@return	the output stream */
+std::ostream&
+operator<<(std::ostream& o, const rec_index_print& r)
+{
+	mem_heap_t*	heap	= NULL;
+	ulint*		offsets	= rec_get_offsets(
+		r.m_rec, r.m_index, NULL, ULINT_UNDEFINED, &heap);
+	rec_print(o, r.m_rec,
+		  rec_get_info_bits(r.m_rec, rec_offs_comp(offsets)),
+		  offsets);
+	mem_heap_free(heap);
+	return(o);
+}
+
+/** Display a record.
+@param[in,out]	o	output stream
+@param[in]	r	record to display
+@return	the output stream */
+std::ostream&
+operator<<(std::ostream& o, const rec_offsets_print& r)
+{
+	rec_print(o, r.m_rec,
+		  rec_get_info_bits(r.m_rec, rec_offs_comp(r.m_offsets)),
+		  r.m_offsets);
+	return(o);
+}
+
 # ifdef UNIV_DEBUG
 /************************************************************//**
 Reads the DB_TRX_ID of a clustered index record.

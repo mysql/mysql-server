@@ -3232,11 +3232,16 @@ bool Item_func_geohash::fix_fields(THD *thd, Item **ref)
     /*
       First argument expected to be a point and second argument is expected
       to be geohash output length.
+
+      PARAM_ITEM and the binary charset checks are to allow prepared statements
+      and usage of user-defined variables.
     */
     geohash_length_arg_index= 1;
     maybe_null= (args[0]->maybe_null || args[1]->maybe_null);
-    if (args[0]->field_type() != MYSQL_TYPE_GEOMETRY &&
-        args[0]->field_type() != MYSQL_TYPE_NULL)
+    if (!is_item_null(args[0]) &&
+        args[0]->field_type() != MYSQL_TYPE_GEOMETRY &&
+        args[0]->type() != PARAM_ITEM &&
+        args[0]->collation.collation != &my_charset_bin)
     {
       my_error(ER_INCORRECT_TYPE, MYF(0), "point", func_name());
       return true;
@@ -3273,14 +3278,24 @@ bool Item_func_geohash::fix_fields(THD *thd, Item **ref)
     return true;
   }
 
-  // Check if geohash length argument is of valid type.
+
+  /*
+    Check if geohash length argument is of valid type.
+
+    PARAM_ITEM is to allow parameter marker during PREPARE, and INT_ITEM is to
+    allow EXECUTE of prepared statements and usage of user-defined variables.
+  */
+  if (is_item_null(args[geohash_length_arg_index]))
+    return false;
+
   bool is_binary_charset=
     (args[geohash_length_arg_index]->collation.collation == &my_charset_bin);
+  bool is_parameter=
+    (args[geohash_length_arg_index]->type() == PARAM_ITEM ||
+     args[geohash_length_arg_index]->type() == INT_ITEM);
 
   switch (args[geohash_length_arg_index]->field_type())
   {
-  case MYSQL_TYPE_NULL:
-    break;
   case MYSQL_TYPE_TINY:
   case MYSQL_TYPE_SHORT:
   case MYSQL_TYPE_LONG:
@@ -3293,7 +3308,7 @@ bool Item_func_geohash::fix_fields(THD *thd, Item **ref)
   case MYSQL_TYPE_MEDIUM_BLOB:
   case MYSQL_TYPE_LONG_BLOB:
   case MYSQL_TYPE_BLOB:
-    if (is_binary_charset)
+    if (is_binary_charset && !is_parameter)
     {
       my_error(ER_INCORRECT_TYPE, MYF(0), "geohash max length", func_name());
       return true;
@@ -3317,12 +3332,17 @@ bool Item_func_geohash::fix_fields(THD *thd, Item **ref)
 */
 bool Item_func_geohash::check_valid_latlong_type(Item *arg)
 {
-  bool is_binary_charset= (arg->collation.collation == &my_charset_bin);
+  if (is_item_null(arg))
+    return true;
 
+  /*
+    is_field_type_valid will be true if the item is a constant or a field of
+    valid type.
+  */
+  bool is_binary_charset= (arg->collation.collation == &my_charset_bin);
+  bool is_field_type_valid= false;
   switch (arg->field_type())
   {
-  case MYSQL_TYPE_NULL:
-    return true;
   case MYSQL_TYPE_DECIMAL:
   case MYSQL_TYPE_NEWDECIMAL:
   case MYSQL_TYPE_TINY:
@@ -3339,10 +3359,54 @@ bool Item_func_geohash::check_valid_latlong_type(Item *arg)
   case MYSQL_TYPE_MEDIUM_BLOB:
   case MYSQL_TYPE_LONG_BLOB:
   case MYSQL_TYPE_BLOB:
-    return !is_binary_charset;
+    is_field_type_valid= !is_binary_charset;
+    break;
   default:
-    return false;
+    is_field_type_valid= false;
+    break;
   }
+
+  /*
+    Parameters and parameter markers always have
+    field_type() == MYSQL_TYPE_VARCHAR. type() is dependent on if it's a
+    parameter marker or parameter (PREPARE or EXECUTE, respectively).
+  */
+  bool is_parameter= (arg->type() == INT_ITEM || arg->type() == DECIMAL_ITEM ||
+                      arg->type() == REAL_ITEM || arg->type() == STRING_ITEM) &&
+                     (arg->field_type() == MYSQL_TYPE_VARCHAR);
+  bool is_parameter_marker= (arg->type() == PARAM_ITEM &&
+                             arg->field_type() == MYSQL_TYPE_VARCHAR);
+
+  if (is_field_type_valid || is_parameter_marker || is_parameter)
+    return true;
+  return false;
+}
+
+
+/**
+  Check if a Item is NULL. This includes NULL in the form of literal
+  NULL, NULL in a user-defined variable and NULL in prepared statements.
+
+  Note that it will return true for MEDIUM_BLOB for FUNC_ITEM as well, in order
+  to allow NULL in user-defined variables.
+
+  @param item The item to check for NULL.
+
+  @return true if the item is NULL, false otherwise.
+*/
+bool Item_func_geohash::is_item_null(Item *item)
+{
+  if (item->field_type() == MYSQL_TYPE_NULL || item->type() == NULL_ITEM)
+    return true;
+
+  // The following will allow the usage of NULL in user-defined variables.
+  bool is_binary_charset= (item->collation.collation == &my_charset_bin);
+  if (is_binary_charset && item->type() == FUNC_ITEM &&
+      item->field_type() == MYSQL_TYPE_MEDIUM_BLOB)
+  {
+    return true;
+  }
+  return false;
 }
 
 

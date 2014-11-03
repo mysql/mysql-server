@@ -603,15 +603,6 @@ dict_print_info_on_foreign_key_in_create_format(
 	dict_foreign_t*	foreign,	/*!< in: foreign key constraint */
 	ibool		add_newline)	/*!< in: whether to add a newline */
 	__attribute__((nonnull(1,3)));
-/********************************************************************//**
-Displays the names of the index and the table. */
-void
-dict_index_name_print(
-/*==================*/
-	FILE*			file,	/*!< in: output stream */
-	const trx_t*		trx,	/*!< in: transaction */
-	const dict_index_t*	index)	/*!< in: index to print */
-	__attribute__((nonnull(1,3)));
 /*********************************************************************//**
 Tries to find an index whose first fields are the columns in the array,
 in the same order and is not marked for deletion and is not the same

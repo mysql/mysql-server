@@ -1045,9 +1045,10 @@ buf_page_print(
 #ifndef UNIV_HOTBACKUP
 		index = dict_index_find_on_id_low(index_id);
 		if (index) {
-			fputs("InnoDB: (", stderr);
-			dict_index_name_print(stderr, NULL, index);
-			fputs(")\n", stderr);
+			ib::info()
+				<< "Index " << index_id
+				<< " is " << index->name
+				<< " in table " << index->table->name;
 		}
 #endif /* !UNIV_HOTBACKUP */
 		break;

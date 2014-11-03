@@ -300,7 +300,6 @@ ut_print_buf(
 	const void*	buf,	/*!< in: memory buffer */
 	ulint		len);	/*!< in: length of the buffer */
 
-#ifndef DBUG_OFF
 /*************************************************************//**
 Prints the contents of a memory buffer in hex. */
 void
@@ -319,7 +318,6 @@ ut_print_buf(
 	const void*	buf,	/*!< in: memory buffer */
 	ulint		len)	/*!< in: length of the buffer */
 	__attribute__((nonnull));
-#endif /* !DBUG_OFF */
 
 #ifndef UNIV_HOTBACKUP
 /* Forward declaration of transaction handle */

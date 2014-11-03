@@ -5533,19 +5533,6 @@ dict_print_info_on_foreign_keys(
 	mutex_exit(&dict_sys->mutex);
 }
 
-/********************************************************************//**
-Displays the names of the index and the table. */
-void
-dict_index_name_print(
-/*==================*/
-	FILE*			file,	/*!< in: output stream */
-	const trx_t*		trx,	/*!< in: transaction */
-	const dict_index_t*	index)	/*!< in: index to print */
-{
-	fprintf(file, "index %s of table ", index->name);
-	ut_print_name(file, trx, index->table_name);
-}
-
 /**********************************************************************//**
 Find a table in dict_sys->table_LRU list with specified space id
 @return table if found, NULL if not */
