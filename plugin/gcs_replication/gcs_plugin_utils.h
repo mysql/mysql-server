@@ -16,13 +16,6 @@
 #ifndef GCS_UTILS_INCLUDED
 #define GCS_UTILS_INCLUDED
 
-#ifndef MYSQL_SERVER
-#define MYSQL_SERVER
-#endif
-#ifndef HAVE_REPLICATION
-#define HAVE_REPLICATION
-#endif
-
 #include <map>
 #include <queue>
 #include <string>
@@ -31,6 +24,13 @@
 #include <mysql/plugin.h>
 #include <mysql/service_my_plugin_log.h>
 #include <mysql/plugin_gcs_rpl.h>
+
+#ifndef MYSQL_SERVER
+#define MYSQL_SERVER
+#endif
+#ifndef HAVE_REPLICATION
+#define HAVE_REPLICATION
+#endif
 
 int log_message(enum plugin_log_level level, const char *format, ...);
 
