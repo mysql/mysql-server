@@ -1760,7 +1760,13 @@ longlong Item_func_neg::int_op()
   if ((null_value= args[0]->null_value))
     return 0;
   if (args[0]->unsigned_flag &&
-      (ulonglong) value > (ulonglong) LONGLONG_MAX + 1)
+      (ulonglong) value > (ulonglong) LONGLONG_MAX + 1ULL)
+    return raise_integer_overflow();
+  // For some platforms we need special handling of LONGLONG_MIN to
+  // guarantee overflow.
+  if (value == LONGLONG_MIN &&
+      !args[0]->unsigned_flag &&
+      !unsigned_flag)
     return raise_integer_overflow();
   return check_integer_overflow(-value, !args[0]->unsigned_flag && value < 0);
 }
