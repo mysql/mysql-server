@@ -33,9 +33,7 @@ Created 5/30/1994 Heikki Tuuri
 #include "mem0mem.h"
 #include "dict0types.h"
 
-#ifndef DBUG_OFF
-# include <ostream>
-#endif /* !DBUG_OFF */
+#include <ostream>
 
 /** Storage for overflow data in a big record, that is, a clustered
 index record which needs external storage of data fields */
@@ -440,25 +438,35 @@ dtuple_print(
 	FILE*		f,	/*!< in: output stream */
 	const dtuple_t*	tuple)	/*!< in: tuple */
 	__attribute__((nonnull));
-#ifndef DBUG_OFF
+
 /** Print the contents of a tuple.
-@param o output stream
-@param field array of data fields
-@param n number of data fields */
+@param[out]	o	output stream
+@param[in]	field	array of data fields
+@param[in]	n	number of data fields */
 void
 dfield_print(
 	std::ostream&	o,
 	const dfield_t*	field,
 	ulint		n);
 /** Print the contents of a tuple.
-@param o output stream
-@param tuple data tuple */
+@param[out]	o	output stream
+@param[in]	tuple	data tuple */
 void
 dtuple_print(
-/*=========*/
 	std::ostream&	o,
 	const dtuple_t*	tuple);
-#endif /* DBUG_OFF */
+
+/** Print the contents of a tuple.
+@param[out]	o	output stream
+@param[in]	tuple	data tuple */
+inline
+std::ostream&
+operator<<(std::ostream& o, const dtuple_t& tuple)
+{
+	dtuple_print(o, &tuple);
+	return(o);
+}
+
 /**************************************************************//**
 Moves parts of long fields in entry to the big record vector so that
 the size of tuple drops below the maximum record size allowed in the

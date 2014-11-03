@@ -3333,10 +3333,6 @@ row_drop_table_for_mysql_in_background(
 
 	trx->check_foreigns = false;
 
-	/*	fputs("InnoDB: Error: Dropping table ", stderr);
-	ut_print_name(stderr, trx, TRUE, name);
-	fputs(" in background drop list\n", stderr); */
-
 	/* Try to drop the table in InnoDB */
 
 	error = row_drop_table_for_mysql(name, trx, FALSE);
@@ -3490,10 +3486,6 @@ row_add_table_to_background_drop_list(
 	UT_LIST_ADD_LAST(row_mysql_drop_list, drop);
 
 	MONITOR_INC(MONITOR_BACKGROUND_DROP_TABLE);
-
-	/*	fputs("InnoDB: Adding table ", stderr);
-	ut_print_name(stderr, trx, TRUE, drop->table_name);
-	fputs(" to background drop list\n", stderr); */
 
 	mutex_exit(&row_drop_list_mutex);
 
@@ -5553,29 +5545,25 @@ func_exit:
 			}
 		}
 
+		const char* msg;
+
 		if (cmp > 0) {
 			ret = DB_INDEX_CORRUPT;
-			fputs("InnoDB: index records in a wrong order in ",
-			      stderr);
+			msg = "index records in a wrong order in ";
 not_ok:
-			dict_index_name_print(stderr,
-					      prebuilt->trx, index);
-			fputs("\n"
-			      "InnoDB: prev record ", stderr);
-			dtuple_print(stderr, prev_entry);
-			fputs("\n"
-			      "InnoDB: record ", stderr);
-			rec_print_new(stderr, rec, offsets);
-			putc('\n', stderr);
+			ib::error()
+				<< msg << index->name
+				<< " of table " << index->table->name
+				<< ": " << *prev_entry << ", "
+				<< rec_offsets_print(rec, offsets);
 			/* Continue reading */
 		} else if (dict_index_is_unique(index)
 			   && !contains_null
 			   && matched_fields
 			   >= dict_index_get_n_ordering_defined_by_user(
 				   index)) {
-
-			fputs("InnoDB: duplicate key in ", stderr);
 			ret = DB_DUPLICATE_KEY;
+			msg = "duplicate key in ";
 			goto not_ok;
 		}
 	}

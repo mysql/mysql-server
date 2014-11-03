@@ -1606,3 +1606,111 @@ CAST("0123456789bcdefghjkmnpqrstuvwxyz0123456789BCDEFGHJKMNPQRSTUVWXYZ"
 )
 )
 POINT(-179.55743439816956 -82.77450549262497)
+CREATE TABLE t1 (val DOUBLE);
+INSERT INTO t1 (val) VALUES (12.2);
+SELECT val INTO @double FROM t1;
+DROP TABLE t1;
+SET @null = NULL;
+SET @geohash = "01bbgcee";
+PREPARE stmt FROM "SELECT ST_LongFromGeoHash(?)";
+EXECUTE stmt USING @geohash;
+ST_LongFromGeoHash(?)
+-178.776
+DEALLOCATE PREPARE stmt;
+SELECT ST_LongFromGeoHash(@geohash);
+ST_LongFromGeoHash(@geohash)
+-178.776
+SELECT ST_LongFromGeoHash(@null);
+ST_LongFromGeoHash(@null)
+NULL
+PREPARE stmt FROM "SELECT ST_LatFromGeoHash(?)";
+EXECUTE stmt USING @geohash;
+ST_LatFromGeoHash(?)
+-80.016
+DEALLOCATE PREPARE stmt;
+SELECT ST_LatFromGeoHash(@geohash);
+ST_LatFromGeoHash(@geohash)
+-80.016
+SELECT ST_LatFromGeoHash(@null);
+ST_LatFromGeoHash(@null)
+NULL
+PREPARE stmt FROM "SELECT ST_AsText(ST_PointFromGeoHash(?, 1))";
+EXECUTE stmt USING @geohash;
+ST_AsText(ST_PointFromGeoHash(?, 1))
+POINT(-178.776 -80.016)
+DEALLOCATE PREPARE stmt;
+SELECT ST_AsText(ST_PointFromGeoHash(@geohash, 1));
+ST_AsText(ST_PointFromGeoHash(@geohash, 1))
+POINT(-178.776 -80.016)
+SET @srid = 4326;
+PREPARE stmt FROM "SELECT ST_AsText(ST_PointFromGeoHash(\"00\", ?))";
+EXECUTE stmt USING @srid;
+ST_AsText(ST_PointFromGeoHash("00", ?))
+POINT(-174 -87)
+DEALLOCATE PREPARE stmt;
+SELECT ST_AsText(ST_PointFromGeoHash("00", @srid));
+ST_AsText(ST_PointFromGeoHash("00", @srid))
+POINT(-174 -87)
+SET @maxlen = 3;
+PREPARE stmt FROM "SELECT ST_GeoHash(POINT(10, 10), ?)";
+EXECUTE stmt USING @maxlen;
+ST_GeoHash(POINT(10, 10), ?)
+s1z
+DEALLOCATE PREPARE stmt;
+SELECT ST_GeoHash(POINT(10, 10), @maxlen);
+ST_GeoHash(POINT(10, 10), @maxlen)
+s1z
+SELECT ST_GeoHash(POINT(10, 10), @null);
+ST_GeoHash(POINT(10, 10), @null)
+NULL
+SET @point = POINT(10, 10);
+PREPARE stmt FROM "SELECT ST_GeoHash(?, 10)";
+EXECUTE stmt USING @point;
+ST_GeoHash(?, 10)
+s1z0gs3y0z
+DEALLOCATE PREPARE stmt;
+SELECT ST_GeoHash(@point, 10);
+ST_GeoHash(@point, 10)
+s1z0gs3y0z
+SELECT ST_GeoHash(@null, 10);
+ST_GeoHash(@null, 10)
+NULL
+SET @long = 22.0311;
+PREPARE stmt FROM "SELECT ST_GeoHash(?, 10, 10)";
+EXECUTE stmt USING @long;
+ST_GeoHash(?, 10, 10)
+s3z8vk6w1z
+DEALLOCATE PREPARE stmt;
+SELECT ST_GeoHash(@long, 10, 10);
+ST_GeoHash(@long, 10, 10)
+s3z8vk6w1z
+SELECT ST_GeoHash(@null, 10, 10);
+ST_GeoHash(@null, 10, 10)
+NULL
+SET @lat = -54.123;
+PREPARE stmt FROM "SELECT ST_GeoHash(10, ?, 10)";
+EXECUTE stmt USING @lat;
+ST_GeoHash(10, ?, 10)
+hnrh5e1y8v
+DEALLOCATE PREPARE stmt;
+SELECT ST_GeoHash(10, @lat, 10);
+ST_GeoHash(10, @lat, 10)
+hnrh5e1y8v
+SELECT ST_GeoHash(10, @null, 10);
+ST_GeoHash(10, @null, 10)
+NULL
+PREPARE stmt FROM "SELECT ST_GeoHash(10, 10, ?)";
+EXECUTE stmt USING @maxlen;
+ST_GeoHash(10, 10, ?)
+s1z
+DEALLOCATE PREPARE stmt;
+SELECT ST_GeoHash(10, 10, @maxlen);
+ST_GeoHash(10, 10, @maxlen)
+s1z
+SELECT ST_GeoHash(@double, @double, 10);
+ST_GeoHash(@double, @double, 10)
+s60tmsgy0s
+SELECT ST_GeoHash(POINT(10, 10), @double);
+ERROR HY000: Incorrect type for argument geohash max length in function st_geohash.
+SELECT ST_PointFromGeoHash("00", @double);
+ERROR HY000: Incorrect type for argument SRID in function st_pointfromgeohash.

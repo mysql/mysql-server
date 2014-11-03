@@ -1739,20 +1739,11 @@ row_upd_sec_index_entry(
 			break;
 		}
 
-		fputs("InnoDB: error in sec index entry update in\n"
-		      "InnoDB: ", stderr);
-		dict_index_name_print(stderr, trx, index);
-		fputs("\n"
-		      "InnoDB: tuple ", stderr);
-		dtuple_print(stderr, entry);
-		fputs("\n"
-		      "InnoDB: record ", stderr);
-		rec_print(stderr, rec, index);
-		putc('\n', stderr);
-		trx_print(stderr, trx, 0);
-		fputs("\n"
-		      "InnoDB: Submit a detailed bug report"
-		      " to http://bugs.mysql.com\n", stderr);
+		ib::error()
+			<< "Record in index " << index->name
+			<< " of table " << index->table->name
+			<< " was not found on update: " << *entry
+			<< " at: " << rec_index_print(rec, index);
 		srv_mbr_print((unsigned char*)entry->fields[0].data);
 #ifdef UNIV_DEBUG
 		mtr_commit(&mtr);

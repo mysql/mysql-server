@@ -3224,13 +3224,10 @@ fail_err:
 					     offsets, heap, n_ext, mtr);
 
 		if (UNIV_UNLIKELY(!*rec)) {
-
-			ib::error() <<  "Cannot insert tuple";
-			dtuple_print(stderr, entry);
-			fputs(" into ", stderr);
-			dict_index_name_print(stderr, thr_get_trx(thr), index);
-			ib::error() << "Max insert size " << max_size;
-			ut_error;
+			ib::fatal() <<  "Cannot insert tuple " << *entry
+				<< "into index " << index->name
+				<< " of table " << index->table->name
+				<< ". Max size: " << max_size;
 		}
 	}
 
