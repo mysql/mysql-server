@@ -2,7 +2,7 @@
 
 Copyright (c) 1995, 2011, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
-Copyright (c) 2013, 2014, SkySQL Ab. All Rights Reserved.
+Copyright (c) 2013, 2014, MariaDB Corporation. All Rights Reserved.
 
 Portions of this file contain modifications contributed and copyrighted by
 Google, Inc. Those modifications are gratefully acknowledged and are described
@@ -1146,4 +1146,66 @@ sync_array_print_info(
 	sync_array_output_info(file, arr);
 
 	sync_array_exit(arr);
+}
+
+/**********************************************************************//**
+Prints info of the wait array without using any mutexes/semaphores. */
+UNIV_INTERN
+void
+sync_array_print_xtradb(void)
+/*=========================*/
+{
+	ulint i;
+	sync_array_t*	arr = sync_array_get();
+
+	fputs("InnoDB: Semaphore wait debug output started for XtraDB:\n", stderr);
+
+	for (i = 0; i < arr->n_cells; i++) {
+		void*	wait_object;
+		sync_cell_t*	cell;
+		os_thread_id_t reserver=(os_thread_id_t)ULINT_UNDEFINED;
+		ulint loop=0;
+
+		cell = sync_array_get_nth_cell(arr, i);
+
+		wait_object = cell->wait_object;
+
+		if (wait_object == NULL || !cell->waiting) {
+
+			continue;
+		}
+
+		fputs("InnoDB: Warning: semaphore wait:\n",
+			      stderr);
+		sync_array_cell_print(stderr, cell, &reserver);
+
+		/* Try to output cell information for writer recursive way */
+		while (reserver != (os_thread_id_t)ULINT_UNDEFINED) {
+			sync_cell_t* reserver_wait;
+
+			reserver_wait = sync_array_find_thread(arr, reserver);
+
+			if (reserver_wait &&
+				reserver_wait->wait_object != NULL &&
+				reserver_wait->waiting) {
+				fputs("InnoDB: Warning: Writer thread is waiting this semaphore:\n",
+					stderr);
+				sync_array_cell_print(stderr, reserver_wait, &reserver);
+
+				if (reserver_wait->thread == reserver) {
+					reserver = (os_thread_id_t)ULINT_UNDEFINED;
+				}
+			} else {
+				reserver = (os_thread_id_t)ULINT_UNDEFINED;
+			}
+
+			/* This is protection against loop */
+			if (loop > 100) {
+				fputs("InnoDB: Warning: Too many waiting threads.\n", stderr);
+				break;
+			}
+		}
+	}
+
+	fputs("InnoDB: Semaphore wait debug output ended:\n", stderr);
 }

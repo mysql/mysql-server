@@ -1665,3 +1665,13 @@ sync_print(
 
 	sync_print_wait_info(file);
 }
+
+/*******************************************************************//**
+Get sync array */
+UNIV_INTERN
+sync_array_t*
+sync_array_get(void)
+/*================*/
+{
+	return sync_primary_wait_array;
+}

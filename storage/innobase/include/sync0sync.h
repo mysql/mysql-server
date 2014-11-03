@@ -777,6 +777,11 @@ extern ut_list_base_node_t  mutex_list;
 /** Mutex protecting the mutex_list variable */
 extern mutex_t mutex_list_mutex;
 
+/*******************************************************************//**
+Get sync array */
+UNIV_INTERN
+sync_array_t*
+sync_array_get(void);
 
 #ifndef UNIV_NONINL
 #include "sync0sync.ic"
