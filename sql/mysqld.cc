@@ -5227,7 +5227,7 @@ void adjust_table_cache_size(ulong requested_open_files)
     char msg[1024];
 
     my_snprintf(msg, sizeof(msg),
-                "Changed limits: table_cache_size: %lu (requested %lu)",
+                "Changed limits: table_open_cache: %lu (requested %lu)",
                 limit, table_cache_size);
     buffered_logs.buffer(WARNING_LEVEL, msg);
 
