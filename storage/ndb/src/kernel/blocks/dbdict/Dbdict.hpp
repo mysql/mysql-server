@@ -2231,6 +2231,40 @@ private:
       return;
     }
 
+    if (!localTrans)
+    {
+      ndbassert(getOwnNodeId() == c_masterNodeId);
+      NodeRecordPtr masterNodePtr;
+      c_nodes.getPtr(masterNodePtr, c_masterNodeId);
+
+      if (masterNodePtr.p->nodeState == NodeRecord::NDB_MASTER_TAKEOVER)
+      {
+        jam();
+        /**
+         * There is a dict takeover in progress, and the transaction may thus
+         * be in an inconsistent state where its fate has not been decided yet.
+         * If transaction is in error we return that error,
+         * else we return 'Busy' which will cause a later retry.
+         */
+        if (hasError(trans_ptr.p->m_error))
+        {
+          jam();
+          setError(error, trans_ptr.p->m_error);
+        }
+        else
+        {
+          jam();
+          setError(error, SchemaTransImplRef::Busy, __LINE__);
+        }
+        return;
+      }
+    }
+
+    // Assert that we are not in an inconsistent/incomplete state
+    ndbassert(!hasError(trans_ptr.p->m_error));
+    ndbassert(!c_takeOverInProgress);
+    ndbassert(trans_ptr.p->m_counter.done());   
+
     if (!seizeSchemaOp(trans_ptr, op_ptr, t_ptr)) {
       jam();
       setError(error, SchemaTransImplRef::TooManySchemaOps, __LINE__);
