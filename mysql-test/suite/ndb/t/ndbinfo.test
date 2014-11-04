@@ -356,7 +356,7 @@ let $t1_id = query_get_value(select @t1_id as id, id, 1);
 
 # Create som views that we reuse after modifying t1 below.
 # This one sums usage counts for all fragments of each table.
-# Some values, such as fixed_elem_free_rows and fixed_elem_count for ordered 
+# Some values, such as fixed_elem_free_count and fixed_elem_count for ordered 
 # indexes may vary depending on the number of fragments and other factors. 
 # These are therefore not returned directly, but used in calculations that 
 # should provide stable results.
@@ -368,9 +368,9 @@ if (type="Ordered index",
     sum(fixed_elem_count)) as fixed_elem_count,
 max(fixed_elem_size_bytes) as fixed_elem_size_bytes,
 round(sum(fixed_elem_alloc_bytes/fixed_elem_size_bytes)
-  /sum(fixed_elem_count+fixed_elem_free_rows),1) as fixed_elem_alloc_ok,
+  /sum(fixed_elem_count+fixed_elem_free_count),1) as fixed_elem_alloc_ok,
 sum(fixed_elem_free_bytes/fixed_elem_size_bytes) = 
-   sum(fixed_elem_free_rows) as fixed_elem_free_bytes_ok,
+   sum(fixed_elem_free_count) as fixed_elem_free_bytes_ok,
 sum(var_elem_count) as var_elem_count,
 sum(var_elem_alloc_bytes) >= sum(var_elem_free_bytes) as var_bytes_ok
 from ndbinfo.memory_per_fragment
