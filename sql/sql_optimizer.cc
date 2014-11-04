@@ -8946,6 +8946,7 @@ create_distinct_group(THD *thd, Ref_ptr_array ref_pointer_array,
           additional hidden field for grouping because later it will be
           converted to a LONG field. Original field will remain of the
           BIT type and will be returned to a client.
+          @note setup_ref_array() needs to account for the extra space.
         */
         Item_field *new_item= new Item_field(thd, (Item_field*)item);
         int el= all_fields.elements;
