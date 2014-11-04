@@ -237,23 +237,7 @@ void Binlog_sender::run()
 
 my_off_t Binlog_sender::send_binlog(IO_CACHE *log_cache, my_off_t start_pos)
 {
-  /*
-    If we are skipping the beginning of the binlog file based on the position
-    asked by the slave, we must clear the log_pos and the created flag of the
-    Format_description_log_event to be sent.
-  */
-  bool clear_log_pos= start_pos > BIN_LOG_HEADER_SIZE;
-  /*
-    As when using GTID protocol the slave don't ask for a position, we will
-    clear the log_pos and the created flag of the Format_description_log_event
-    just if we are skipping at least the first GTID of the binlog file.
-  */
-  if (m_using_gtid_protocol)
-  {
-    clear_log_pos= m_gtid_clear_fd_created_flag;
-  }
-
-  if (unlikely(send_format_description_event(log_cache, clear_log_pos)))
+  if (unlikely(send_format_description_event(log_cache, start_pos)))
     return 1;
 
   if (start_pos == BIN_LOG_HEADER_SIZE)
@@ -758,7 +742,7 @@ inline int Binlog_sender::reset_transmit_packet(ushort flags, size_t event_len)
 }
 
 int Binlog_sender::send_format_description_event(IO_CACHE *log_cache,
-                                                 bool clear_log_pos)
+                                                 my_off_t start_pos)
 {
   DBUG_ENTER("Binlog_sender::send_format_description_event");
   uchar* event_ptr;
@@ -776,6 +760,8 @@ int Binlog_sender::send_format_description_event(IO_CACHE *log_cache,
     set_fatal_error("Could not find format_description_event in binlog file");
     DBUG_RETURN(1);
   }
+
+  DBUG_ASSERT(event_ptr[LOG_POS_OFFSET] > 0);
 
   m_event_checksum_alg= get_checksum_alg((const char *)event_ptr, event_len);
 
@@ -797,18 +783,42 @@ int Binlog_sender::send_format_description_event(IO_CACHE *log_cache,
 
   event_ptr[FLAGS_OFFSET] &= ~LOG_EVENT_BINLOG_IN_USE_F;
 
-  /*
-    Mark that this event with "log_pos=0", so the slave should not increment
-    master's binlog position (rli->group_master_log_pos).
-  */
-  if (clear_log_pos)
+  bool event_updated= false;
+  if (m_using_gtid_protocol)
   {
-    int4store(event_ptr + LOG_POS_OFFSET, 0);
-    int4store(event_ptr + LOG_EVENT_MINIMAL_HEADER_LEN + ST_CREATED_OFFSET, 0);
-    /* fix the checksum due to latest changes in header */
-    if (event_checksum_on())
-      calc_event_checksum(event_ptr, event_len);
+    if (m_gtid_clear_fd_created_flag)
+    {
+      /*
+        As we are skipping at least the first transaction of the binlog,
+        we must clear the "created" field of the FD event (set it to 0)
+        to avoid destroying temp tables on slave.
+      */
+      int4store(event_ptr + LOG_EVENT_MINIMAL_HEADER_LEN + ST_CREATED_OFFSET,
+                0);
+      event_updated= true;
+    }
   }
+  else if (start_pos > BIN_LOG_HEADER_SIZE)
+  {
+    /*
+      If we are skipping the beginning of the binlog file based on the position
+      asked by the slave, we must clear the log_pos and the created flag of the
+      Format_description_log_event to be sent. Mark that this event with
+      "log_pos=0", so the slave should not increment master's binlog position
+      (rli->group_master_log_pos)
+    */
+    int4store(event_ptr + LOG_POS_OFFSET, 0);
+    /*
+      Set the 'created' field to 0 to avoid destroying
+      temp tables on slave.
+    */
+    int4store(event_ptr + LOG_EVENT_MINIMAL_HEADER_LEN + ST_CREATED_OFFSET, 0);
+    event_updated= true;
+  }
+
+  /* fix the checksum due to latest changes in header */
+  if (event_checksum_on() && event_updated)
+    calc_event_checksum(event_ptr, event_len);
 
   DBUG_RETURN(send_packet());
 }
