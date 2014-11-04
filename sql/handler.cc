@@ -2165,25 +2165,27 @@ static my_bool flush_handlerton(THD *thd, plugin_ref plugin,
                                 void *arg)
 {
   handlerton *hton= plugin_data(plugin, handlerton *);
-  if (hton->state == SHOW_OPTION_YES && hton->flush_logs && 
-      hton->flush_logs(hton))
+  if (hton->state == SHOW_OPTION_YES && hton->flush_logs &&
+      hton->flush_logs(hton, *(static_cast<bool *>(arg))))
     return TRUE;
   return FALSE;
 }
 
 
-bool ha_flush_logs(handlerton *db_type)
+bool ha_flush_logs(handlerton *db_type, bool binlog_group_flush)
 {
   if (db_type == NULL)
   {
     if (plugin_foreach(NULL, flush_handlerton,
-                          MYSQL_STORAGE_ENGINE_PLUGIN, 0))
+                       MYSQL_STORAGE_ENGINE_PLUGIN,
+                       static_cast<void *>(&binlog_group_flush)))
       return TRUE;
   }
   else
   {
     if (db_type->state != SHOW_OPTION_YES ||
-        (db_type->flush_logs && db_type->flush_logs(db_type)))
+        (db_type->flush_logs &&
+         db_type->flush_logs(db_type, binlog_group_flush)))
       return TRUE;
   }
   return FALSE;
