@@ -9276,7 +9276,7 @@ NdbDictInterface::endSchemaTrans(Uint32 flags)
   req->flags = flags;
 
   int errCodes[] = {
-    SchemaTransBeginRef::NotMaster,
+    SchemaTransEndRef::NotMaster,
     0
   };
   int ret = dictSignal(
