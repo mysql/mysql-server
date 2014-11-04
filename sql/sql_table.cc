@@ -7160,6 +7160,8 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
   uint used_fields= create_info->used_fields;
   KEY *key_info=table->key_info;
   bool rc= TRUE;
+  //Status for checking whether virtual GCs are mixed with other columns
+  enum {ADDED_NONE, ADDED_VGC, ADDED_OTHER} status= ADDED_NONE;
 
   DBUG_ENTER("mysql_prepare_alter_table");
 
@@ -7323,6 +7325,34 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
     {
       my_error(ER_BAD_FIELD_ERROR, MYF(0), def->change, table->s->table_name.str);
       goto err;
+    }
+
+    //Check whether virtual GCs are mixed with other columns
+    if (status == ADDED_NONE)
+    {
+      if (def->gcol_info && !def->gcol_info->get_field_stored())
+        status= ADDED_VGC;
+      else
+        status= ADDED_OTHER;
+    }
+    else if (status == ADDED_VGC)
+    {
+      //Doesn't support mixture of virtual GCs and other columns added
+      if (!def->gcol_info ||
+          (def->gcol_info && def->gcol_info->get_field_stored()))
+        my_error(ER_UNSUPPORTED_ACTION_ON_GENERATED_COLUMN,
+                 MYF(0),
+                 "Virtual generated column combines with other columns  
+                 to be added together");
+    }
+    else
+    {
+      //Doesn't support mixture of virtual GCs and other columns added
+      if (def->gcol_info && !def->gcol_info->get_field_stored())
+        my_error(ER_UNSUPPORTED_ACTION_ON_GENERATED_COLUMN,
+                 MYF(0),
+                 "Virtual generated column combines with other columns 
+                 to be added together");
     }
     /*
       Check that the DATE/DATETIME not null field we are going to add is
