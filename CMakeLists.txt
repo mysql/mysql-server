@@ -411,6 +411,7 @@ IF(NOT WITHOUT_SERVER)
     ADD_SUBDIRECTORY(internal)
   ENDIF()
   ADD_SUBDIRECTORY(packaging/rpm-oel)
+  ADD_SUBDIRECTORY(packaging/rpm-sles)
 ENDIF()
 
 INCLUDE(cmake/abi_check.cmake)
