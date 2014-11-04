@@ -209,6 +209,15 @@ struct fts_slot_t {
 					optimizing the table again. */
 };
 
+/** A table remove message for the FTS optimize thread. */
+struct fts_msg_del_t {
+	char*		table_name;	/*!< The table to remove */
+
+	os_event_t	event;		/*!< Event to synchronize acknowledgement
+					of receipt and processing of the
+					this message by the consumer */
+};
+
 /** The FTS optimize message work queue message type. */
 struct fts_msg_t {
 	fts_msg_type_t	type;		/*!< Message type */
@@ -2603,14 +2612,13 @@ fts_optimize_add_table(
 	dict_table_t*	table)			/*!< in: table to add */
 {
 	fts_msg_t*	msg;
-	char*		table_name;
 
 	if (!fts_optimize_wq) {
 		return;
 	}
 
-	table_name = mem_strdup(table->name.m_name);
-	msg = fts_optimize_create_msg(FTS_MSG_ADD_TABLE, table_name);
+	msg = fts_optimize_create_msg(FTS_MSG_ADD_TABLE, NULL);
+	msg->ptr = mem_heap_strdup(msg->heap, table->name.m_name);
 
 	ib_wqueue_add(fts_optimize_wq, msg, msg->heap);
 }
@@ -2623,15 +2631,14 @@ fts_optimize_do_table(
 	dict_table_t*	table)			/*!< in: table to optimize */
 {
 	fts_msg_t*	msg;
-	char*		table_name;
 
 	/* Optimizer thread could be shutdown */
 	if (!fts_optimize_wq) {
 		return;
 	}
 
-	table_name = mem_strdup(table->name.m_name);
-	msg = fts_optimize_create_msg(FTS_MSG_OPTIMIZE_TABLE, table_name);
+	msg = fts_optimize_create_msg(FTS_MSG_OPTIMIZE_TABLE, NULL);
+	msg->ptr = mem_heap_strdup(msg->heap, table->name.m_name);
 
 	ib_wqueue_add(fts_optimize_wq, msg, msg->heap);
 }
@@ -2645,7 +2652,8 @@ fts_optimize_remove_table(
 	dict_table_t*	table)			/*!< in: table to remove */
 {
 	fts_msg_t*	msg;
-	char*		table_name;
+	os_event_t	event;
+	fts_msg_del_t*	remove;
 
 	/* if the optimize system not yet initialized, return */
 	if (!fts_optimize_wq) {
@@ -2659,10 +2667,23 @@ fts_optimize_remove_table(
 		return;
 	}
 
-	table_name = mem_strdup(table->name.m_name);
-	msg = fts_optimize_create_msg(FTS_MSG_DEL_TABLE, table_name);
+	msg = fts_optimize_create_msg(FTS_MSG_DEL_TABLE, NULL);
+
+	/* We will wait on this event until signalled by the consumer. */
+	event = os_event_create(0);
+
+	remove = static_cast<fts_msg_del_t*>(
+		mem_heap_alloc(msg->heap, sizeof(*remove)));
+
+	remove->table_name = mem_heap_strdup(msg->heap, table->name.m_name);
+	remove->event = event;
+	msg->ptr = remove;
 
 	ib_wqueue_add(fts_optimize_wq, msg, msg->heap);
+
+	os_event_wait(event);
+
+	os_event_destroy(event);
 }
 
 /**********************************************************************//**
@@ -3052,7 +3073,6 @@ fts_optimize_thread(
 					++n_tables;
 				}
 
-				ut_free(msg->ptr);
 				break;
 
 			case FTS_MSG_OPTIMIZE_TABLE:
@@ -3062,17 +3082,20 @@ fts_optimize_thread(
 						static_cast<char*>(msg->ptr));
 				}
 
-				ut_free(msg->ptr);
 				break;
 
 			case FTS_MSG_DEL_TABLE:
+				fts_msg_del_t*	remove;
+
+				remove = static_cast<fts_msg_del_t*>(msg->ptr);
 				if (fts_optimize_del_table(
-					tables,
-					static_cast<char*>(msg->ptr))) {
+					tables, remove->table_name)) {
 					--n_tables;
 				}
 
-				ut_free(msg->ptr);
+				/* Signal the producer that we have
+				removed the table. */
+				os_event_set(remove->event);
 				break;
 
 			default:
@@ -3096,17 +3119,6 @@ fts_optimize_thread(
 		msg = static_cast<fts_msg_t*>(
 			ib_wqueue_timedwait(wq, FTS_QUEUE_WAIT_IN_USECS));
 		ut_a(msg != NULL);
-
-		switch (msg->type) {
-		case FTS_MSG_ADD_TABLE:
-		case FTS_MSG_OPTIMIZE_TABLE:
-		case FTS_MSG_DEL_TABLE:
-			ut_free(msg->ptr);
-			break;
-
-		default:
-			break;
-		}
 
 		mem_heap_free(msg->heap);
 	}
