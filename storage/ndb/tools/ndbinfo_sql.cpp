@@ -336,7 +336,7 @@ struct view {
     "fragment_num, fixed_elem_count, fixed_elem_size_bytes, "
     "fixed_elem_alloc_bytes, fixed_elem_free_bytes,  "
     "FLOOR(fixed_elem_free_bytes/fixed_elem_size_bytes) AS "
-    "fixed_elem_free_rows, var_elem_count, var_elem_alloc_bytes, "
+    "fixed_elem_free_count, var_elem_count, var_elem_alloc_bytes, "
     "var_elem_free_bytes, hash_index_alloc_bytes "
     "FROM `<NDBINFO_DB>`.`<TABLE_PREFIX>frag_mem_use` AS space "
     "JOIN `<NDBINFO_DB>`.`<TABLE_PREFIX>dict_obj_info` "
