@@ -1,0 +1,236 @@
+#! /bin/bash
+#
+
+# MySQL Database start/stop script
+
+# chkconfig:   - 64 36
+# description: MySQL Database
+# processname: mysqld
+# config:      /etc/my.cnf
+# pidfile:     /var/run/mysql/mysqld.pid
+
+# Comments to support LSB init script conventions
+### BEGIN INIT INFO
+# Provides:          mysql
+# Required-Start:    $network $remote_fs
+# Required-Stop:     $network $remote_fs
+# Default-Start:     3 5
+# Default-Stop:      0 1 6
+# Short-Description: MySQL Database
+# Description:       MySQL Database
+### END INIT INFO
+
+# 
+# https://en.opensuse.org/openSUSE:Packaging_init_scripts#Exit_Status_Codes
+# 
+
+[ -e /etc/rc.status ] && . /etc/rc.status
+
+rc_reset
+
+STARTTIMEOUT=180
+STOPTIMEOUT=60
+PROG=/usr/bin/mysqld_safe
+
+[ -e /etc/sysconfig/mysql ] && . /etc/sysconfig/mysql
+
+# Lock directory
+lockfile=/var/lock/subsys/mysql
+
+get_option () {
+    local section=$1
+    local option=$2
+    local default=$3
+    ret=$(/usr/bin/my_print_defaults $section | grep '^--'${option}'=' | cut -d= -f2-)
+    [ -z $ret ] && ret=$default
+    echo $ret
+}
+
+datadir=$(get_option mysqld datadir "/var/lib/mysql")
+socket=$(get_option  mysqld socket "$datadir/mysql.sock")
+pidfile=$(get_option mysqld_safe pid-file "/var/run/mysql/mysqld.pid")
+logfile=$(get_option mysqld_safe log-error "/var/log/mysql/mysqld.log")
+
+install_db () {
+    # Note: something different than datadir=/var/lib/mysql requires 
+    # SELinux policy changes (in enforcing mode)
+    datadir=$(get_option mysqld datadir "/var/lib/mysql")
+    logfile=$(get_option mysqld_safe log-error "/var/log/mysql/mysqld.log")
+
+    # Restore log, dir, perms and SELinux contexts
+    [ -d "$datadir" ] || install -d -m 0755 -omysql -gmysql "$datadir" || return 1
+
+    [ -e $logfile ] || touch $logfile || return 1
+    chmod 0640 $logfile
+    chown mysql:mysql $logfile || return 1
+    if [ -x /usr/sbin/restorecon ]; then
+        /usr/sbin/restorecon "$datadir"
+        /usr/sbin/restorecon $logfile
+    fi
+
+    # If special mysql dir is in place, skip db install 
+    [ -d "$datadir/mysql" ] && return 0
+
+    # Create initial db
+    /usr/bin/mysql_install_db --datadir="$datadir" --rpm --user=mysql
+    return $?
+}
+
+# Wait for ping to answer to signal startup completed,
+# might take a while in case of e.g. crash recovery
+pinger () {
+    mysqld_safe_pid=$1
+    timer=$STARTTIMEOUT
+    ret=0
+    while [ $timer -gt 0 ]; do
+        sleep 1
+        mysqladmin --no-defaults --socket="$socket" ping >/dev/null 2>&1 && break
+	timer=$(expr $timer - 1)
+
+	# Check if mysqld_safe is still alive, if not there is no hope
+	if ! kill -0 $mysqld_safe_pid >/dev/null 2>&1 ; then
+	    ret=1
+	    break
+	fi
+    done
+    
+    # Did we timeout?
+    if [ $timer = 0 ]; then
+	echo "MySQL Database start up timeout after ${STARTTIMEOUT}s"
+	ret=1
+    fi
+    return $ret
+}
+
+# Check if mysqld is running
+chk_running () {
+    ret=0
+    if [ -e "$pidfile" ]; then
+	pid=$(cat "$pidfile") || ret=4
+    else
+	ret=7
+    fi
+
+    # Check if $pid is a mysqld pid
+    if [ $ret -eq 0 ]; then
+	[ -L "/proc/$pid/exe" ] || ret=7 
+    fi
+
+    if [ $ret -eq 0 ]; then
+	exec=$(readlink "/proc/$pid/exe") || ret=7
+    fi
+
+    if [ $ret -eq 0 ]; then
+	[ "x$(basename $exec)" = "xmysqld" ] || ret=7
+    fi
+    return $ret
+}
+
+start () {
+    if chk_running && mysqladmin --no-defaults --socket="$socket" ping >/dev/null 2>&1 ; then
+	echo -n "Starting service MySQL:"
+	rc_reset ; rc_status -v ; rc_exit
+    fi
+
+    if ! install_db; then
+	echo -n "MySQL Database could not initialize data directory:"
+	rc_failed 6 ; rc_status -v ; rc_exit
+    fi
+
+    $PROG --basedir=/usr --datadir="$datadir" --pid-file="$pidfile" >/dev/null 2>&1 &
+    if pinger $! ; then
+	echo -n "Starting service MySQL:"
+	touch $lockfile
+	rc_reset
+    else
+	echo -n "Failed to start service MySQL:"
+	rc_failed 3
+    fi
+    rc_status -v
+}
+
+stop () {
+    chk_running
+    ret=$?
+    if [ $ret -ne 0 ]; then
+	echo -n "Shutting down service MySQL:"
+	rc_reset ; rc_status -v ; return 0
+    fi
+
+    # chk_running has verified this works
+    pid=$(cat "$pidfile")
+
+    # We use a signal to avoid having to know the root password
+    # Send single kill command and then wait
+    if kill $pid >/dev/null 2>&1; then
+	timer=$STOPTIMEOUT
+	while [ $timer -gt 0 ]; do
+            kill -0 $pid >/dev/null 2>&1 || break
+            sleep 1
+            timer=$(expr $timer - 1)
+	done
+    else
+	echo -n "Shutting down service MySQL:"
+	rc_failed 4 ; rc_status -v ; rc_exit
+    fi
+    
+    if [ $timer -eq 0 ]; then
+	echo -n "Failed to stop service MySQL:"
+	rc_failed 1
+    else
+	rm -f $lockfile
+	rm -f "$socketfile"
+	echo -n "Shutting down service MySQL:"
+	rc_reset
+    fi
+    rc_status -v
+} 
+
+restart () {
+    stop
+    start
+}
+
+reload () {
+    ret=0
+    if chk_running && mysqladmin --no-defaults --socket="$socket" ping >/dev/null 2>&1 ; then
+	pid=$(cat "$pidfile")
+	kill -HUP $pid >/dev/null 2>&1
+	echo -n "Reloading service MySQL:"
+	rc_reset
+    else
+	echo -n "Reloading of service MySQL failed:"
+        rc_failed 7
+    fi
+    rc_status -v
+}
+
+condrestart () {
+    if chk_running && mysqladmin --no-defaults --socket="$socket" ping >/dev/null 2>&1 ; then
+	restart
+    fi
+}
+
+status () {
+   echo -n "Checking for service MySQL:"
+   checkproc mysqld
+   rc_status -v
+}  
+
+case "$1" in
+    start  ) start   ;;
+    stop   ) stop    ;;
+    restart) restart ;;
+    status ) status  ;;
+    condrestart        ) condrestart ;;
+    reload|force-reload) reload ;;
+
+    *) echo $"Usage: $0 {start|stop|restart|condrestart|status|reload|force-reload}"; exit 1 ;;
+esac
+
+rc_exit
+
+
+
+
+
