@@ -2550,3 +2550,44 @@ disconnect con2;
 connection default;
 DROP TABLE t1;
 SET sql_mode = default;
+#
+# BUG 19779365: INDEX COMMENT IN ADD INDEX IS IGNORED.
+#
+# After the patch, the alter table reflects the new
+# index comment or the lack of comment for the indexes.
+CREATE TABLE t1(fld1 int, key key1(fld1));
+SHOW INDEX FROM t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
+t1	1	key1	1	fld1	A	NULL	NULL	NULL	YES	BTREE		
+ALTER TABLE t1 DROP INDEX key1, ADD INDEX key1(fld1) COMMENT 'test';
+SHOW INDEX FROM t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
+t1	1	key1	1	fld1	A	NULL	NULL	NULL	YES	BTREE		test
+DROP TABLE t1;
+CREATE TABLE t1(fld1 int, key key1(fld1) COMMENT 'test');
+SHOW INDEX FROM t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
+t1	1	key1	1	fld1	A	NULL	NULL	NULL	YES	BTREE		test
+ALTER TABLE t1 DROP INDEX key1, ADD INDEX key1(fld1);
+SHOW INDEX FROM t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
+t1	1	key1	1	fld1	A	NULL	NULL	NULL	YES	BTREE		
+DROP TABLE t1;
+CREATE TABLE t1(fld1 int, key key1(fld1) COMMENT 'test');
+SHOW INDEX FROM t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
+t1	1	key1	1	fld1	A	NULL	NULL	NULL	YES	BTREE		test
+ALTER TABLE t1 DROP INDEX key1, ADD INDEX key1(fld1) COMMENT 'success';
+SHOW INDEX FROM t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
+t1	1	key1	1	fld1	A	NULL	NULL	NULL	YES	BTREE		success
+DROP TABLE t1;
+CREATE TABLE t1(fld1 int, key key1(fld1) COMMENT 'old comment');
+SHOW INDEX FROM t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
+t1	1	key1	1	fld1	A	NULL	NULL	NULL	YES	BTREE		old comment
+ALTER TABLE t1 DROP INDEX key1, ADD INDEX key1(fld1) COMMENT 'new comment';
+SHOW INDEX FROM t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
+t1	1	key1	1	fld1	A	NULL	NULL	NULL	YES	BTREE		new comment
+DROP TABLE t1;

@@ -5752,6 +5752,17 @@ static bool has_index_def_changed(Alter_info *alter_info,
     return true;
 
   /*
+    The key definition has changed, if an index comment is
+    added/dropped/changed.
+  */
+  if (table_key->comment.length != new_key->comment.length)
+    return true;
+
+  if (table_key->comment.length &&
+      strcmp(table_key->comment.str, new_key->comment.str))
+    return true;
+
+  /*
     Check that the key parts remain compatible between the old and
     new tables.
   */
