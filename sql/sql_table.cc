@@ -6001,13 +6001,6 @@ static bool fill_alter_inplace_info(THD *thd,
 
       bool field_renamed;
       /*
-        Check if the altered column is a stored generated field.
-        TODO: Mark such a column with an alter flag only if
-        the expression functions are not equal.
-      */
-      if (field->stored_in_db && field->gcol_info)
-        ha_alter_info->handler_flags|= Alter_inplace_info::HA_ALTER_STORED_GCOL;
-      /*
         InnoDB data dictionary is case sensitive so we should use
         string case sensitive comparison between fields.
         Note: strcmp branch is to be removed in future when we fix it
@@ -6085,6 +6078,27 @@ static bool fill_alter_inplace_info(THD *thd,
     }
   }
 #endif /* DBUG_OFF */
+
+  if (ha_alter_info->handler_flags & Alter_inplace_info::ADD_COLUMN)
+  {
+    new_field_it.init(alter_info->create_list);
+    while ((new_field= new_field_it++))
+    {
+      if (!new_field->field)
+      {
+        DBUG_ASSERT(!new_field->field);
+        break;
+      }
+    }
+
+    /*
+      Check if the altered column is a stored generated field.
+      TODO: Mark such a column with an alter flag only if
+      the expression functions are not equal.
+    */
+    if (new_field->stored_in_db && new_field->gcol_info)
+      ha_alter_info->handler_flags|= Alter_inplace_info::HA_ALTER_STORED_GCOL;
+  }
 
   /*
     Go through keys and check if the original ones are compatible
