@@ -27498,17 +27498,26 @@ Dbdict::execSCHEMA_TRANS_BEGIN_REQ(Signal* signal)
       break;
     }
 
-    if (c_takeOverInProgress)
+    if (!localTrans)
     {
-      /**
-       * There is a dict takeover in progress. There may thus another
-       * transaction that should be rolled backward or forward before we
-       * can allow another transaction to start.
-       */
-      jam();
-      setError(error, SchemaTransBeginRef::Busy, __LINE__);
-      break;
+      ndbassert(getOwnNodeId() == c_masterNodeId);
+      NodeRecordPtr masterNodePtr;
+      c_nodes.getPtr(masterNodePtr, c_masterNodeId);
+
+      if (masterNodePtr.p->nodeState == NodeRecord::NDB_MASTER_TAKEOVER)
+      {
+        jam();
+        /**
+         * There is a dict takeover in progress. There may thus be another
+         * transaction that should be rolled backward or forward before we
+         * can allow another transaction to start.
+         * (Multiple concurrent schema transactions are not supported)
+         */
+        setError(error, SchemaTransBeginRef::Busy, __LINE__);
+        break;
+      }
     }
+    ndbassert(!c_takeOverInProgress);
 
     if (!check_ndb_versions() && !localTrans)
     {
@@ -27688,8 +27697,7 @@ Dbdict::execSCHEMA_TRANS_END_REQ(Signal* signal)
   SchemaTransPtr trans_ptr;
   ErrorInfo error;
   do {
-    findSchemaTrans(trans_ptr, trans_key);
-    if (trans_ptr.isNull()) {
+    if (!findSchemaTrans(trans_ptr, trans_key)) {
       jam();
       setError(error, SchemaTransEndRef::InvalidTransKey, __LINE__);
       break;
@@ -27711,30 +27719,31 @@ Dbdict::execSCHEMA_TRANS_END_REQ(Signal* signal)
       break;
     }
 
-    if (c_takeOverInProgress)
+    if (!localTrans)
     {
-      /**
-       * There is a dict takeover in progress, and the transaction may thus
-       * be in an inconsistent state. Therefore we cannot process this request
-       * now.
-       */
-      jam();
-      setError(error, SchemaTransEndRef::Busy, __LINE__);
-      break;
+      ndbassert(getOwnNodeId() == c_masterNodeId);
+      NodeRecordPtr masterNodePtr;
+      c_nodes.getPtr(masterNodePtr, c_masterNodeId);
+
+      if (masterNodePtr.p->nodeState == NodeRecord::NDB_MASTER_TAKEOVER)
+      {
+        jam();
+        /**
+         * There is a dict takeover in progress.
+         * Transaction might be in an inconsistent state where its fate 
+         * has not been decided yet. When takeover eventually completes,
+         * it will ::sendTransClientReply() which will inform the client
+         * about the fate of the Txn in a TRANS_END_REP.
+         * For now we don't send any reply, and let the client wait for
+         * TRANS_END_REP.
+         */
+        return;
+      }
     }
+
 #ifdef MARTIN
     ndbout_c("Dbdict::execSCHEMA_TRANS_END_REQ: trans %u, state %u", trans_ptr.i, trans_ptr.p->m_state);
 #endif
-
-    //XXX Check state
-
-    if (hasError(trans_ptr.p->m_error))
-    {
-      jam();
-      ndbassert(false);
-      setError(error, SchemaTransEndRef::InvalidTransState, __LINE__);
-      break;
-    }
 
     bool localTrans2 = requestInfo & DictSignal::RF_LOCAL_TRANS;
     if (localTrans != localTrans2)
@@ -27744,6 +27753,11 @@ Dbdict::execSCHEMA_TRANS_END_REQ(Signal* signal)
       setError(error, SchemaTransEndRef::InvalidTransState, __LINE__);
       break;
     }
+
+    // Assert that we are not in an inconsistent/incomplete state
+    ndbassert(!hasError(trans_ptr.p->m_error));
+    ndbassert(!c_takeOverInProgress);
+    ndbassert(trans_ptr.p->m_counter.done());
 
     trans_ptr.p->m_clientState = TransClient::EndReq;
 

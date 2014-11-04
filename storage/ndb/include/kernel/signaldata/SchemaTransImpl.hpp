@@ -1,4 +1,4 @@
-/* Copyright (c) 2007, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2007, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -75,6 +75,7 @@ struct SchemaTransImplRef
   STATIC_CONST( GSN = GSN_SCHEMA_TRANS_IMPL_REF );
   enum ErrorCode {
     NoError = 0,
+    Busy = 701,
     NotMaster = 702,
     TooManySchemaTrans = 780,
     InvalidTransKey = 781,
