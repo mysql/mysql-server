@@ -31,6 +31,16 @@ create table t1 (a int);
 alter table t1 add column b int generated always as (a+1) virtual null;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'null' at line 1
 drop table t1;
+# Added columns mixed with virtual GC and other columns  
+create table t1 (a int);
+alter table t1 add column (b int generated always as (a+1) virtual, c int);
+ERROR HY000: 'Virtual generated column combines with other columns to be added together' is not yet supported for generated columns.
+alter table t1 add column (b int, c int generated always as (a+1) virtual);
+ERROR HY000: 'Virtual generated column combines with other columns to be added together' is not yet supported for generated columns.
+alter table t1 add column (b int generated always as (a+1) virtual, c int as(5) stored);
+ERROR HY000: 'Virtual generated column combines with other columns to be added together' is not yet supported for generated columns.
+alter table t1 add column (b int generated always as (a+1) virtual, c int as(5) virtual);
+drop table t1;
 # DEFAULT
 create table t1 (a int, b int generated always as (a+1) virtual default 0);
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'default 0)' at line 1

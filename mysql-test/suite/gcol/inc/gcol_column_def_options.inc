@@ -45,6 +45,17 @@ create table t1 (a int);
 alter table t1 add column b int generated always as (a+1) virtual null;
 drop table t1;
 
+--echo # Added columns mixed with virtual GC and other columns  
+create table t1 (a int);
+--error 1954 
+alter table t1 add column (b int generated always as (a+1) virtual, c int);
+--error 1954 
+alter table t1 add column (b int, c int generated always as (a+1) virtual);
+--error 1954 
+alter table t1 add column (b int generated always as (a+1) virtual, c int as(5) stored);
+alter table t1 add column (b int generated always as (a+1) virtual, c int as(5) virtual);
+drop table t1;
+
 --echo # DEFAULT
 --error 1064
 create table t1 (a int, b int generated always as (a+1) virtual default 0);
