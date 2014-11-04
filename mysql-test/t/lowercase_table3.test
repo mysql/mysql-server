@@ -18,7 +18,7 @@ DROP TABLE IF EXISTS t1,T1;
 #
 # This is actually an error, but ok as the user has forced this
 # by using --lower-case-table-names=0
-CREATE TABLE t1 (a INT);
+CREATE TABLE t1 (a INT) ENGINE=MYISAM;
 SELECT * FROM T1;
 FLUSH TABLES;
 DROP TABLE t1;
