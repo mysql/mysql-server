@@ -2563,7 +2563,7 @@ bool st_select_lex::setup_ref_array(THD *thd)
                       select_n_having_items,
                       select_n_where_fields,
                       order_group_num));
-  if (!ref_pointer_array.is_null() && ref_pointer_array.size() >= n_elems)
+  if (!ref_pointer_array.is_null())
   {
     /*
       We need to take 'n_sum_items' into account when allocating the array,
