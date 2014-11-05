@@ -625,8 +625,8 @@ int tokudb_end(handlerton * hton, ha_panic_function type) {
     if (db_env) {
         if (tokudb_init_flags & DB_INIT_LOG)
             tokudb_cleanup_log_files();
-#if TOKU_INCLUDE_XA
         long total_prepared = 0; // count the total number of prepared txn's that we discard
+#if TOKU_INCLUDE_XA
         while (1) {
             // get xid's 
             const long n_xid = 1;
