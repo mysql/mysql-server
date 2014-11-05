@@ -1840,17 +1840,20 @@ class Item_func_like :public Item_bool_func2
   
   bool escape_used_in_parsing;
 
+  bool escape_evaluated;  ///< Tells if the escape clause has been evaluated.
+  bool eval_escape_clause(THD *thd);
+
 public:
   int escape;
 
   Item_func_like(Item *a,Item *b, Item *escape_arg, bool escape_used)
     :Item_bool_func2(a,b), can_do_bm(false), pattern(0), pattern_len(0), 
      bmGs(0), bmBc(0), escape_item(escape_arg),
-     escape_used_in_parsing(escape_used) {}
+     escape_used_in_parsing(escape_used), escape_evaluated(false) {}
   Item_func_like(const POS &pos, Item *a, Item *b, Item *opt_escape_arg)
     :super(pos, a, b), can_do_bm(false), pattern(0), pattern_len(0), 
      bmGs(0), bmBc(0), escape_item(opt_escape_arg),
-     escape_used_in_parsing(opt_escape_arg != NULL)
+     escape_used_in_parsing(opt_escape_arg != NULL), escape_evaluated(false)
   {}
 
   virtual bool itemize(Parse_context *pc, Item **res);
@@ -1867,6 +1870,14 @@ public:
                  using "expr LIKE pat ESCAPE 'escape_char'" syntax
   */
   bool escape_was_used_in_parsing() const { return escape_used_in_parsing; }
+
+  /**
+    Has the escape clause been evaluated? It only needs to be evaluated
+    once per execution, since we require it to be constant during execution.
+    The escape member has a valid value if and only if this function returns
+    true.
+  */
+  bool escape_is_evaluated() const { return escape_evaluated; }
 
   float get_filtering_effect(table_map filter_for_table,
                              table_map read_tables,

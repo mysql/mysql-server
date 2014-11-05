@@ -7223,10 +7223,16 @@ get_mm_leaf(RANGE_OPT_PARAM *param, Item *conf_func, Field *field,
     if (maybe_null)
       max_str[0]= min_str[0]=0;
 
+    Item_func_like *like_func= static_cast<Item_func_like*>(param->cond);
+
+    // We can only optimize with LIKE if the escape string is known.
+    if (!like_func->escape_is_evaluated())
+      goto end;
+
     field_length-= maybe_null;
     like_error= my_like_range(field->charset(),
 			      res->ptr(), res->length(),
-			      ((Item_func_like*)(param->cond))->escape,
+			      like_func->escape,
 			      wild_one, wild_many,
 			      field_length,
 			      (char*) min_str+offset, (char*) max_str+offset,
