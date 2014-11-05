@@ -246,7 +246,7 @@ INSERT INTO global_suppressions VALUES
  
  ("Changed limits: max_open_files: *"),
  ("Changed limits: max_connections: *"),
- ("Changed limits: table_cache: *"),
+ ("Changed limits: table_open_cache: *"),
  ("Could not increase number of max_open_files to more than *"),
 
  ("THE_LAST_SUPPRESSION")||

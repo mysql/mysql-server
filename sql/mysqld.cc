@@ -438,7 +438,6 @@ ulong binlog_cache_size=0;
 ulonglong  max_binlog_cache_size=0;
 ulong slave_max_allowed_packet= 0;
 ulong binlog_stmt_cache_size=0;
-int32 opt_binlog_max_flush_queue_time= 0;
 ulong opt_binlog_group_commit_sync_delay= 0;
 ulong opt_binlog_group_commit_sync_no_delay_count= 0;
 ulonglong  max_binlog_stmt_cache_size=0;
@@ -5228,7 +5227,7 @@ void adjust_table_cache_size(ulong requested_open_files)
     char msg[1024];
 
     my_snprintf(msg, sizeof(msg),
-                "Changed limits: table_cache: %lu (requested %lu)",
+                "Changed limits: table_open_cache: %lu (requested %lu)",
                 limit, table_cache_size);
     buffered_logs.buffer(WARNING_LEVEL, msg);
 

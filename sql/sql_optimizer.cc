@@ -16,9 +16,9 @@
 /**
   @file
 
-  @brief
-  mysql_select and join optimization
-
+  @brief Optimize query expressions: Make optimal table join order, select
+         optimal access methods per table, apply grouping, sorting and
+         limit processing.
 
   @defgroup Query_Optimizer  Query Optimizer
   @{
@@ -82,8 +82,7 @@ static bool
 only_eq_ref_tables(JOIN *join, ORDER *order, table_map tables,
                    table_map *cached_eq_ref_tables, table_map
                    *eq_ref_tables);
-static bool setup_join_buffering(JOIN_TAB *tab, JOIN *join,
-                                 ulonglong options, uint no_jbuf_after);
+static bool setup_join_buffering(JOIN_TAB *tab, JOIN *join, uint no_jbuf_after);
 
 static bool
 test_if_skip_sort_order(JOIN_TAB *tab, ORDER *order, ha_rows select_limit,
@@ -130,11 +129,15 @@ static Item_func_match *test_if_ft_index_order(ORDER *order);
 int
 JOIN::optimize()
 {
-  ulonglong select_opts_for_readinfo;
   uint no_jbuf_after= UINT_MAX;
 
   DBUG_ENTER("JOIN::optimize");
-  DBUG_ASSERT(!tables || thd->lex->is_query_tables_locked());
+  DBUG_ASSERT(select_lex->leaf_table_count == 0 ||
+              thd->lex->is_query_tables_locked() ||
+              select_lex == unit->fake_select_lex);
+  DBUG_ASSERT(tables == 0 &&
+              primary_tables == 0 &&
+              tables_list == (TABLE_LIST*)1);
 
   // to prevent double initialization on EXPLAIN
   if (optimized)
@@ -158,7 +161,7 @@ JOIN::optimize()
       future ("SET x=(subq)" is one such case; because it locks tables before
       prepare()).
     */
-    if (select_lex->apply_local_transforms())
+    if (select_lex->apply_local_transforms(thd))
       DBUG_RETURN(error= 1);
   }
 
@@ -168,13 +171,19 @@ JOIN::optimize()
   trace_optimize.add_select_number(select_lex->select_number);
   Opt_trace_array trace_steps(trace, "steps");
 
-  // Needed in case optimizer short-cuts, set properly in make_tmp_tables_info()
-  fields= &select_lex->item_list;
+  count_field_types(select_lex, &tmp_table_param, all_fields, false, false);
+
+  DBUG_ASSERT(!implicit_grouping || tmp_table_param.sum_func_count);
+  if (select_lex->olap == ROLLUP_TYPE && optimize_rollup())
+    DBUG_RETURN(true); /* purecov: inspected */
+
+  if (alloc_func_list())
+    DBUG_RETURN(1);    /* purecov: inspected */
 
   if (select_lex->get_optimizable_conditions(thd, &where_cond, &having_cond))
     DBUG_RETURN(1);
 
-  optimized= true;
+  set_optimized();
 
   tables_list= select_lex->get_table_list();
 
@@ -188,13 +197,25 @@ JOIN::optimize()
 
   /* dump_TABLE_LIST_graph(select_lex, select_lex->leaf_tables); */
 
-  row_limit= ((select_distinct || order || group_list) ? HA_POS_ERROR :
-	      unit->select_limit_cnt);
+  row_limit= ((select_distinct || order || group_list) ?
+             HA_POS_ERROR : unit->select_limit_cnt);
   // m_select_limit is used to decide if we are likely to scan the whole table.
   m_select_limit= unit->select_limit_cnt;
-  if (having_cond || (select_options & OPTION_FOUND_ROWS))
+
+  if (unit->first_select()->active_options() & OPTION_FOUND_ROWS)
+  {
+    /*
+      Calculate found rows if
+      - LIMIT is set, and
+      - Query block is not equipped with "braces". In this case, each
+        query block must be calculated fully and the limit is applied on
+        the final UNION evaluation.
+    */
+    calc_found_rows= m_select_limit != HA_POS_ERROR && !select_lex->braces;
+  }
+  if (having_cond || calc_found_rows)
     m_select_limit= HA_POS_ERROR;
-  do_send_rows = (unit->select_limit_cnt > 0) ? 1 : 0;
+  do_send_rows = unit->select_limit_cnt > 0;
 
   where_cond= optimize_cond(thd, where_cond, &cond_equal,
                             &select_lex->top_join_list, true,
@@ -218,12 +239,10 @@ JOIN::optimize()
     }
     if (select_lex->cond_value == Item::COND_FALSE || 
         select_lex->having_value == Item::COND_FALSE || 
-        (!unit->select_limit_cnt && !(select_options & OPTION_FOUND_ROWS)))
+        (!unit->select_limit_cnt && !calc_found_rows))
     {						/* Impossible cond */
       zero_result_cause=  select_lex->having_value == Item::COND_FALSE ?
                            "Impossible HAVING" : "Impossible WHERE";
-      tables= 0;
-      primary_tables= 0;
       best_rowcount= 0;
       goto setup_subq_exit;
     }
@@ -264,8 +283,6 @@ JOIN::optimize()
       {
         DBUG_PRINT("info",("No matching min/max row"));
 	zero_result_cause= "No matching min/max row";
-        tables= 0;
-        primary_tables= 0;
         goto setup_subq_exit;
       }
       if (res > 1)
@@ -278,15 +295,13 @@ JOIN::optimize()
       {
         DBUG_PRINT("info",("No matching min/max row"));
         zero_result_cause= "No matching min/max row";
-        tables= 0;
-        primary_tables= 0;
         goto setup_subq_exit;
       }
       DBUG_PRINT("info",("Select tables optimized away"));
       zero_result_cause= "Select tables optimized away";
       tables_list= 0;				// All tables resolved
       best_rowcount= 1;
-      const_tables= primary_tables;
+      const_tables= tables= primary_tables= select_lex->leaf_table_count;
       /*
         Extract all table-independent conditions and replace the WHERE
         clause with them. All other conditions were computed by opt_sum_query
@@ -347,11 +362,15 @@ JOIN::optimize()
       DBUG_RETURN(1);
     }
     /*
-      Fields may have been replaced by Item_func_rollup_const, and
-      these may be referred to by inner subqueries. We must
-      recalculate the number of fields and functions recursively.
+      Fields may have been replaced by Item_func_rollup_const, so
+      recalculate the number of fields and functions for this query block.
     */
-    recount_field_types();
+
+    // JOIN::optimize_rollup() may set quick_group=0, and we must not undo that.
+    const uint save_quick_group= tmp_table_param.quick_group;
+
+    count_field_types(select_lex, &tmp_table_param, all_fields, false, false);
+    tmp_table_param.quick_group= save_quick_group;
   }
   else
   {
@@ -360,7 +379,7 @@ JOIN::optimize()
   }
 
   if (const_tables && !thd->locked_tables_mode &&
-      !(select_options & SELECT_NO_UNLOCK))
+      !(select_lex->active_options() & SELECT_NO_UNLOCK))
   {
     TABLE *ct[MAX_TABLES];
     for (uint i= 0; i < const_tables; i++)
@@ -437,7 +456,7 @@ JOIN::optimize()
     goto setup_subq_exit;
   }
 
-  if (result->initialize_tables(this))
+  if (select_lex->query_result()->initialize_tables(this))
   {
     DBUG_PRINT("error",("Error: initialize_tables() failed"));
     DBUG_RETURN(1);				// error == -1
@@ -448,9 +467,9 @@ JOIN::optimize()
   if (optimize_distinct_group_order())
     DBUG_RETURN(true);
 
-  select_opts_for_readinfo=
-    (select_options & (SELECT_DESCRIBE | SELECT_NO_JOIN_CACHE)) |
-    (select_lex->ftfunc_list->elements ?  SELECT_NO_JOIN_CACHE : 0);
+  if ((select_lex->active_options() & SELECT_NO_JOIN_CACHE) ||
+      select_lex->ftfunc_list->elements)
+    no_jbuf_after= 0;
 
   /* Perform FULLTEXT search before all regular searches */
   optimize_fts_query();
@@ -524,8 +543,7 @@ JOIN::optimize()
       JOIN_TAB *const tab= best_ref[i];
       if (!tab->position())
         continue;
-      if (setup_join_buffering(tab, this, select_opts_for_readinfo,
-                               no_jbuf_after))
+      if (setup_join_buffering(tab, this, no_jbuf_after))
         DBUG_RETURN(true);
       if (tab->use_join_cache() != JOIN_CACHE::ALG_NONE)
         simple_sort= false;
@@ -577,7 +595,7 @@ JOIN::optimize()
 	     ((select_distinct || (order && !simple_order) ||
                (group_list && !simple_group)) ||
 	      (group_list && order) ||
-	      MY_TEST(select_options & OPTION_BUFFER_RESULT))) ||
+              (select_lex->active_options() & OPTION_BUFFER_RESULT))) ||
              (rollup.state != ROLLUP::STATE_NONE && select_distinct));
 
   DBUG_EXECUTE("info", TEST_join(this););
@@ -608,7 +626,7 @@ JOIN::optimize()
   if (alloc_qep(tables))
     DBUG_RETURN(error= 1);                      /* purecov: inspected */
 
-  if (make_join_readinfo(this, select_opts_for_readinfo, no_jbuf_after))
+  if (make_join_readinfo(this, no_jbuf_after))
     DBUG_RETURN(1);                             /* purecov: inspected */
 
   if (make_tmp_tables_info())
@@ -950,7 +968,7 @@ bool JOIN::optimize_distinct_group_order()
       best_ref[0]->table()->keys_in_use_for_order_by=
         best_ref[0]->table()->keys_in_use_for_group_by;
       group_list= 0;
-      group= 0;
+      grouped= false;
     }
     if (select_distinct &&
        list_contains_unique_index(tab,
@@ -1022,12 +1040,12 @@ bool JOIN::optimize_distinct_group_order()
 	  }
 	  order=0;
         }
-	group=1;				// For end_write_group
+        grouped= true;                    // For end_write_group
       }
       else
 	group_list= 0;
     }
-    else if (thd->is_fatal_error)			// End of memory
+    else if (thd->is_fatal_error)         // End of memory
       DBUG_RETURN(true);
   }
   simple_group= 0;
@@ -1047,7 +1065,7 @@ bool JOIN::optimize_distinct_group_order()
     if (old_group_list && !group_list)
       select_distinct= 0;
   }
-  if (!group_list && group)
+  if (!group_list && grouped)
   {
     order=0;					// The output has only one row
     simple_order=1;
@@ -1086,7 +1104,7 @@ void JOIN::test_skip_sort()
       is going to be used as it is applied now only for one table queries
       with covering indexes.
     */
-    if (!(select_options & SELECT_BIG_RESULT) ||
+    if (!(select_lex->active_options() & SELECT_BIG_RESULT) ||
         (tab->quick() &&
          tab->quick()->get_type() ==
            QUICK_SELECT_I::QS_TYPE_GROUP_MIN_MAX))
@@ -1583,9 +1601,10 @@ test_if_skip_sort_order(JOIN_TAB *tab, ORDER *order, ha_rows select_limit,
   uint ref_key_parts= 0;
   int order_direction= 0;
   uint used_key_parts;
-  TABLE *table=tab->table();
+  TABLE *const table= tab->table();
+  JOIN *const join= tab->join();
+  THD *const thd= join->thd;
   QUICK_SELECT_I *const save_quick= tab->quick();
-  THD *const thd= tab->join()->thd;
   int best_key= -1;
   bool set_up_ref_access_to_key= false;
   bool can_skip_sorting= false;                  // used as return value
@@ -1593,7 +1612,7 @@ test_if_skip_sort_order(JOIN_TAB *tab, ORDER *order, ha_rows select_limit,
   DBUG_ENTER("test_if_skip_sort_order");
 
   /* Check that we are always called with first non-const table */
-  DBUG_ASSERT((uint)tab->idx() == tab->join()->const_tables);
+  DBUG_ASSERT((uint)tab->idx() == join->const_tables);
 
   Plan_change_watchdog watchdog(tab, no_changes);
 
@@ -1609,7 +1628,7 @@ test_if_skip_sort_order(JOIN_TAB *tab, ORDER *order, ha_rows select_limit,
     Check if FT index can be used to retrieve result in the required order.
     It is possible if ordering is on the first non-constant table.
   */
-  if (tab->join()->order && tab->join()->simple_order)
+  if (join->order && join->simple_order)
   {
     /*
       Check if ORDER is DESC, ORDER BY is a single MATCH function.
@@ -1634,7 +1653,7 @@ test_if_skip_sort_order(JOIN_TAB *tab, ORDER *order, ha_rows select_limit,
       if (tab->type() == JT_FT &&
           ft_func->eq(tab->position()->key->val, true))
       {
-        ft_func->set_hints(tab->join(), FT_SORTED, select_limit, false);
+        ft_func->set_hints(join, FT_SORTED, select_limit, false);
         DBUG_RETURN(true);
       }
       /*
@@ -1660,7 +1679,7 @@ test_if_skip_sort_order(JOIN_TAB *tab, ORDER *order, ha_rows select_limit,
         tab->set_ft_func(ft_func);
 
         /* Setup FT handler */
-        ft_func->set_hints(tab->join(), FT_SORTED, select_limit, true);
+        ft_func->set_hints(join, FT_SORTED, select_limit, true);
         ft_func->join_key= true;
         table->file->ft_handler= ft_func->ft_handler;
         DBUG_RETURN(true);
@@ -1793,10 +1812,9 @@ test_if_skip_sort_order(JOIN_TAB *tab, ORDER *order, ha_rows select_limit,
           const bool no_quick=
             test_quick_select(thd, new_ref_key_map,
                               0,       // empty table_map
-                              (tab->join()->select_options &
-                               OPTION_FOUND_ROWS) ?
-                              HA_POS_ERROR :
-                              tab->join()->unit->select_limit_cnt,
+                              join->calc_found_rows ?
+                                HA_POS_ERROR :
+                                join->unit->select_limit_cnt,
                               false,   // don't force quick range
                               order->direction, tab,
                               // we are after make_join_select():
@@ -1829,7 +1847,6 @@ test_if_skip_sort_order(JOIN_TAB *tab, ORDER *order, ha_rows select_limit,
     uint best_key_parts= 0;
     uint saved_best_key_parts= 0;
     int best_key_direction= 0;
-    JOIN *join= tab->join();
     ha_rows table_records= table->file->stats.records;
 
     /*
@@ -1859,7 +1876,7 @@ test_if_skip_sort_order(JOIN_TAB *tab, ORDER *order, ha_rows select_limit,
       clause is group by) or a "FORCE INDEX [FOR ORDER BY] (idx)" (if
       clause is order by)?
     */
-    const bool is_group_by= join && join->group && order == join->group_list;
+    const bool is_group_by= join && join->grouped && order == join->group_list;
     const bool is_force_index= table->force_index ||
       (is_group_by ? table->force_index_group : table->force_index_order);
 
@@ -1874,7 +1891,7 @@ test_if_skip_sort_order(JOIN_TAB *tab, ORDER *order, ha_rows select_limit,
     if (!is_force_index &&
         (select_limit >= table_records) &&
         (tab->type() == JT_ALL &&
-         tab->join()->primary_tables > tab->join()->const_tables + 1) &&
+         join->primary_tables > join->const_tables + 1) &&
          ((unsigned) best_key != table->s->primary_key ||
           !table->file->primary_key_is_clustered()))
     {
@@ -1898,7 +1915,7 @@ test_if_skip_sort_order(JOIN_TAB *tab, ORDER *order, ha_rows select_limit,
       test_quick_select(thd,
                         keys_to_use,
                         0,        // empty table_map
-                        join->select_options & OPTION_FOUND_ROWS ?
+                        join->calc_found_rows ?
                         HA_POS_ERROR :
                         join->unit->select_limit_cnt,
                         true,     // force quick range
@@ -1986,7 +2003,7 @@ check_reverse_order:
              keyuse->table_ref == tab->table_ref)
         keyuse++;
 
-      if (create_ref_for_key(tab->join(), tab, keyuse, tab->prefix_tables()))
+      if (create_ref_for_key(join, tab, keyuse, tab->prefix_tables()))
       {
         can_skip_sorting= false;
         goto fix_ICP;
@@ -2024,7 +2041,7 @@ check_reverse_order:
           100.00 (no WHERE).
         */
         table->file->ha_index_or_rnd_end();
-        if (tab->join()->select_options & SELECT_DESCRIBE)
+        if (thd->lex->is_explain())
         {
           /*
             @todo this neutralizes add_ref_to_table_cond(); as a result
@@ -2048,7 +2065,7 @@ check_reverse_order:
         tab->ref().key= -1;
         tab->ref().key_parts=0;		// Don't use ref key.
         if (tab->quick()->is_loose_index_scan())
-          tab->join()->tmp_table_param.precomputed_group_by= TRUE;
+          join->tmp_table_param.precomputed_group_by= TRUE;
         /*
           TODO: update the number of records in tab->position
         */
@@ -2428,7 +2445,8 @@ bool JOIN::get_best_combination()
                        (select_distinct ?
                         (tmp_table_param.outer_sum_func_count ? 2 : 1) : 0) +
                        (order ? 1 : 0) +
-       (select_options & (SELECT_BIG_RESULT | OPTION_BUFFER_RESULT) ? 1 : 0) ;
+                       (select_lex->active_options() &
+                        (SELECT_BIG_RESULT | OPTION_BUFFER_RESULT) ? 1 : 0);
   if (num_tmp_tables > 2)
     num_tmp_tables= 2;
 
@@ -2690,7 +2708,6 @@ void revise_cache_usage(JOIN_TAB *join_tab)
 
   @param tab             joined table to check join buffer usage for
   @param join            join for which the check is performed
-  @param options         options of the join
   @param no_jbuf_after   don't use join buffering after table with this number
 
   @return false if successful, true if error.
@@ -2768,8 +2785,7 @@ void revise_cache_usage(JOIN_TAB *join_tab)
 
 */
 
-static bool setup_join_buffering(JOIN_TAB *tab, JOIN *join,
-                                 ulonglong options, uint no_jbuf_after)
+static bool setup_join_buffering(JOIN_TAB *tab, JOIN *join, uint no_jbuf_after)
 {
   ASSERT_BEST_REF_IN_JOIN_ORDER(join);
   Cost_estimate cost;
@@ -2792,8 +2808,6 @@ static bool setup_join_buffering(JOIN_TAB *tab, JOIN *join,
     DBUG_ASSERT(tab->use_join_cache() == JOIN_CACHE::ALG_NONE);
     return false;
   }
-  if (options & SELECT_NO_JOIN_CACHE)
-    goto no_join_cache;
   /* 
     psergey-todo: why the below when execution code seems to handle the
     "range checked for each record" case?
@@ -4602,11 +4616,6 @@ bool JOIN::make_join_plan()
 
   Opt_trace_context * const trace= &thd->opt_trace;
 
-  // Initialize some join members
-  const_table_map= 0;                  // No const tables found yet
-  found_const_table_map= 0;            // Map of const tables with a single row
-  all_table_map= 0;                    // Map of all tables involved in the join
-
   if (init_planner_arrays())           // Create and initialize the arrays
     DBUG_RETURN(true);
 
@@ -4638,7 +4647,7 @@ bool JOIN::make_join_plan()
   select_lex->sj_pullout_done= true;
   const uint sj_nests= select_lex->sj_nests.elements; // Changed by pull-out
 
-  if (!no_const_tables)
+  if (!(select_lex->active_options() & OPTION_NO_CONST_TABLES))
   {
     // Detect tables that are const (0 or 1 row) and read their contents. 
     if (extract_const_tables())
@@ -4683,7 +4692,7 @@ bool JOIN::make_join_plan()
 
   if (!(thd->variables.option_bits & OPTION_BIG_SELECTS) &&
       best_read > (double) thd->variables.max_join_size &&
-      !(select_options & SELECT_DESCRIBE))
+      !thd->lex->is_explain())
   {						/* purecov: inspected */
     my_message(ER_TOO_BIG_SELECT, ER(ER_TOO_BIG_SELECT), MYF(0));
     error= -1;
@@ -4739,10 +4748,9 @@ bool JOIN::init_planner_arrays()
 {
   // Up to one extra slot per semi-join nest is needed (if materialized)
   const uint sj_nests= select_lex->sj_nests.elements;
-  const uint table_count= tables;
+  const uint table_count= select_lex->leaf_table_count;
 
-  primary_tables= 0;                   // Count the number of initialized tables
-  tables= 0;
+  DBUG_ASSERT(primary_tables == 0 && tables == 0);
 
   if (!(join_tab= alloc_jtab_array(thd, table_count)))
     return true;
@@ -5552,7 +5560,7 @@ static ha_rows get_quick_record_count(THD *thd, JOIN_TAB *tab, ha_rows limit)
   }
   else if (tl->materializable_is_const())
   {
-    DBUG_RETURN(tl->get_unit()->get_result()->estimated_rowcount);
+    DBUG_RETURN(tl->get_unit()->query_result()->estimated_rowcount);
   }
   DBUG_RETURN(HA_POS_ERROR);
 }
@@ -8903,7 +8911,7 @@ static bool make_join_select(JOIN *join, Item *cond)
                    (join->unit->select_limit_cnt <
                     (tab->position()->rows_fetched *
                      tab->position()->filter_effect)) &&               // 2c
-                   !(join->select_options & OPTION_FOUND_ROWS))      // 2d
+                   !join->calc_found_rows)                             // 2d
             recheck_reason= LOW_LIMIT;
 
           if (tab->position()->sj_strategy == SJ_OPT_LOOSE_SCAN)
@@ -9032,10 +9040,9 @@ static bool make_join_select(JOIN *join, Item *cond)
               search_if_impossible=
                 test_quick_select(thd, usable_keys,
                                   used_tables & ~tab->table_ref->map(),
-                                  (join->select_options &
-                                   OPTION_FOUND_ROWS ?
+                                  join->calc_found_rows ?
                                    HA_POS_ERROR :
-                                   join->unit->select_limit_cnt),
+                                   join->unit->select_limit_cnt,
                                   false,   // don't force quick range
                                   interesting_order, tab,
                                   tab->condition(),
@@ -9061,10 +9068,9 @@ static bool make_join_select(JOIN *join, Item *cond)
               const bool impossible_where=
                 test_quick_select(thd, tab->keys(),
                                   used_tables & ~tab->table_ref->map(),
-                                  (join->select_options &
-                                   OPTION_FOUND_ROWS ?
+                                  join->calc_found_rows ?
                                    HA_POS_ERROR :
-                                   join->unit->select_limit_cnt),
+                                   join->unit->select_limit_cnt,
                                   false,   //don't force quick range
                                   ORDER::ORDER_NOT_RELEVANT, tab,
                                   tab->condition(), &tab->needed_reg,
@@ -9422,7 +9428,7 @@ ORDER *JOIN::remove_const(ORDER *first_order, Item *cond, bool change_list,
     {
       if (order->item[0]->has_subquery())
       {
-        if (!(select_lex->options & SELECT_DESCRIBE))
+        if (!thd->lex->is_explain())
         {
           Opt_trace_array trace_subselect(trace, "subselect_evaluation");
           order->item[0]->val_str(&order->item[0]->str_value);
@@ -10054,6 +10060,7 @@ create_distinct_group(THD *thd, Ref_ptr_array ref_pointer_array,
           additional hidden field for grouping because later it will be
           converted to a LONG field. Original field will remain of the
           BIT type and will be returned to a client.
+          @note setup_ref_array() needs to account for the extra space.
         */
         Item_field *new_item= new Item_field(thd, (Item_field*)item);
         int el= all_fields.elements;
@@ -10351,7 +10358,7 @@ bool JOIN::fts_index_access(JOIN_TAB *tab)
   /*
     This optimization does not work with filesort nor GROUP BY
   */
-  if (group || (order && ordered_index_usage != ordered_index_order_by))
+  if (grouped || (order && ordered_index_usage != ordered_index_order_by))
     return false;
 
   /*
@@ -10773,28 +10780,66 @@ bool JOIN::compare_costs_of_subquery_strategies(
 }
 
 
-void JOIN::recount_field_types()
+/**
+  Optimize rollup specification.
+
+  Allocate objects needed for rollup processing.
+
+  @returns false if success, true if error.
+*/
+
+bool JOIN::optimize_rollup()
 {
-  // JOIN::rollup_init() may set quick_group=0, and we must not undo that.
-  const uint save_quick_group= tmp_table_param.quick_group;
+  tmp_table_param.quick_group= 0;	// Can't create groups in tmp table
+  rollup.state= ROLLUP::STATE_INITED;
 
-  count_field_types(select_lex, &tmp_table_param, all_fields, false, false);
-  tmp_table_param.quick_group= save_quick_group;
+  /*
+    Create pointers to the different sum function groups
+    These are updated by rollup_make_fields()
+  */
+  tmp_table_param.group_parts= send_group_parts;
 
-  for (SELECT_LEX_UNIT *u= select_lex->first_inner_unit();
-       u != NULL;
-       u= u->next_unit())
+  Item_null_result **null_items=
+    static_cast<Item_null_result**>(thd->alloc(sizeof(Item*)*send_group_parts));
+
+  rollup.null_items= Item_null_array(null_items, send_group_parts);
+  rollup.ref_pointer_arrays=
+    static_cast<Ref_ptr_array*>
+    (thd->alloc((sizeof(Ref_ptr_array) +
+                 all_fields.elements * sizeof(Item*)) * send_group_parts));
+  rollup.fields=
+    static_cast<List<Item>*>(thd->alloc(sizeof(List<Item>) * send_group_parts));
+
+  if (!null_items || !rollup.ref_pointer_arrays || !rollup.fields)
+    return true;
+
+  Item **ref_array= (Item**) (rollup.ref_pointer_arrays+send_group_parts);
+
+  /*
+    Prepare space for field list for the different levels
+    These will be filled up in rollup_make_fields()
+  */
+  ORDER *group= group_list;
+  for (uint i= 0; i < send_group_parts; i++, group= group->next)
   {
-    for (SELECT_LEX *s= u->first_select(); s != NULL; s= s->next_select())
-    {
-       // ON DUPLICATE KEY UPDATE subqueries may be unprepared at this
-       // point.
-      DBUG_ASSERT(!(s->join == NULL && s->master_unit()->is_prepared()));
-      if (s->join != NULL)
-        s->join->recount_field_types();
-    }
+    rollup.null_items[i]=
+      new (thd->mem_root) Item_null_result((*group->item)->field_type(),
+                                           (*group->item)->result_type());
+    if (rollup.null_items[i] == NULL)
+      return true;           /* purecov: inspected */
+    List<Item> *rollup_fields= &rollup.fields[i];
+    rollup_fields->empty();
+    rollup.ref_pointer_arrays[i]= Ref_ptr_array(ref_array, all_fields.elements);
+    ref_array+= all_fields.elements;
   }
+  for (uint i= 0; i < send_group_parts; i++)
+  {
+    for (uint j= 0; j < fields_list.elements; j++)
+      rollup.fields[i].push_back(rollup.null_items[i]);
+  }
+  return false;
 }
+
 
 /**
   Refine the best_rowcount estimation based on what happens after tables

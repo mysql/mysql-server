@@ -1035,7 +1035,7 @@ dict_table_open_on_name(
 	table = dict_table_check_if_in_cache_low(table_name);
 
 	if (table == NULL) {
-		table = dict_load_table(table_name, TRUE, ignore_err);
+		table = dict_load_table(table_name, true, ignore_err);
 	}
 
 	ut_ad(!table || table->cached);
@@ -1521,7 +1521,7 @@ dict_table_rename_in_cache(
 
 		ut_ad(!is_system_tablespace(table->space));
 		ut_ad(!dict_table_is_temporary(table));
-		ut_ad(dict_table_use_file_per_table(table));
+		ut_ad(dict_table_is_file_per_table(table));
 
 		/* Make sure the data_dir_path is set. */
 		dict_get_and_save_data_dir_path(table, true);
@@ -1554,7 +1554,7 @@ dict_table_rename_in_cache(
 
 		ut_free(filepath);
 
-	} else if (table->space != TRX_SYS_SPACE) {
+	} else if (dict_table_is_file_per_table(table)) {
 
 		if (table->dir_path_of_temp_table != NULL) {
 			ib::error() << "Trying to rename a TEMPORARY TABLE "
@@ -5531,19 +5531,6 @@ dict_print_info_on_foreign_keys(
 	}
 
 	mutex_exit(&dict_sys->mutex);
-}
-
-/********************************************************************//**
-Displays the names of the index and the table. */
-void
-dict_index_name_print(
-/*==================*/
-	FILE*			file,	/*!< in: output stream */
-	const trx_t*		trx,	/*!< in: transaction */
-	const dict_index_t*	index)	/*!< in: index to print */
-{
-	fprintf(file, "index %s of table ", index->name);
-	ut_print_name(file, trx, index->table_name);
 }
 
 /**********************************************************************//**

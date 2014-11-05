@@ -24,7 +24,7 @@
 #include "sql_array.h"
 #include "filesort_utils.h"
 #include "sql_alloc.h"
-#include <stddef.h>                             /* for macro offsetof */
+#include <vector>
 
 typedef struct st_queue QUEUE;
 typedef struct st_sort_field SORT_FIELD;
@@ -72,17 +72,9 @@ struct Merge_chunk_compare_context
   in the file, and where it is located when it is in memory.
 
   It is a POD because
-   - we need offsetof() for the merge done using a priority QUEUE.
    - we read/write them from/to files.
 
   We have accessors (getters/setters) for all struct members.
-
-  Older versions of gcc (verified with 4.1 and 4.4) think that this
-  is a non-POD if
-   - it has the keyword 'private'
-   - it has a CTOR
-  We resolve the problem by moving the problematic member m_current_key
-  up front, and asserting that offsetof(m_current_key) == 0.
  */
 struct Merge_chunk
 {
@@ -123,17 +115,6 @@ public:
   uchar *current_key() { return m_current_key; }
   void advance_current_key(uint val) { m_current_key+= val; }
 
-  static uint offset_to_key()
-  {
-#if MY_GNUC_PREREQ(4,7)
-    const uint ret= static_cast<uint>(offsetof(Merge_chunk, m_current_key));
-    compile_time_assert(ret == 0);
-    return ret;
-#else
-    return 0;
-#endif
-  }
-
   void decrement_rowcount(ha_rows val) { m_rowcount-= val; }
   void set_rowcount(ha_rows val)       { m_rowcount= val; }
   ha_rows rowcount() const             { return m_rowcount; }
@@ -147,7 +128,28 @@ public:
 
   size_t  buffer_size() const { return m_buffer_end - m_buffer_start; }
 
-  void reuse_freed_buff(QUEUE *queue);
+  /**
+    Tries to merge *this with *mc, returns true if successful.
+    The assumption is that *this is no longer in use,
+    and the space it has been allocated can be handed over to a
+    buffer which is adjacent to it.
+   */
+  bool merge_freed_buff(Merge_chunk *mc) const
+  {
+    if (mc->m_buffer_end == m_buffer_start)
+    {
+      mc->m_buffer_end= m_buffer_end;
+      mc->m_max_keys+= m_max_keys;
+      return true;
+    }
+    else if (mc->m_buffer_start == m_buffer_end)
+    {
+      mc->m_buffer_start= m_buffer_start;
+      mc->m_max_keys+= m_max_keys;
+      return true;
+    }
+    return false;
+  }
 
 private:
   uchar   *m_current_key;  /// The current key for this chunk.
@@ -298,8 +300,10 @@ public:
   char* tmp_buffer;
 
   // The fields below are used only by Unique class.
-  qsort2_cmp compare;
   Merge_chunk_compare_context cmp_context;
+  typedef int (*chunk_compare_fun)(Merge_chunk_compare_context* ctx,
+                                   uchar* arg1, uchar* arg2);
+  chunk_compare_fun compare;
 
   Sort_param()
   {
@@ -520,5 +524,24 @@ int merge_buffers(Sort_param *param,IO_CACHE *from_file,
                   Merge_chunk *lastbuff,
                   Merge_chunk_array chunk_array,
                   int flag);
+
+/**
+  Put all room used by freed buffer to use in adjacent buffer.
+
+  Note, that we can't simply distribute memory evenly between all buffers,
+  because new areas must not overlap with old ones.
+*/
+template<typename Heap_type>
+void reuse_freed_buff(Merge_chunk *old_top, Heap_type *heap)
+{
+  typename Heap_type::iterator it= heap->begin();
+  typename Heap_type::iterator end= heap->end();
+  for (; it != end; ++it)
+  {
+    if (old_top->merge_freed_buff(*it))
+      return;
+  }
+  DBUG_ASSERT(0);
+}
 
 #endif /* SQL_SORT_INCLUDED */

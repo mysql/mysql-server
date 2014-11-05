@@ -357,7 +357,7 @@ trx_purge_add_update_undo_to_history(
 			rseg_header + TRX_RSEG_HISTORY_SIZE, MLOG_4BYTES, mtr);
 
 		ut_ad(undo->size == flst_get_len(
-			      seg_header + TRX_UNDO_PAGE_LIST, mtr));
+			      seg_header + TRX_UNDO_PAGE_LIST));
 
 		mlog_write_ulint(
 			rseg_header + TRX_RSEG_HISTORY_SIZE,
@@ -467,7 +467,7 @@ trx_purge_free_segment(
 	stored in the list base node tells us how big it was before we
 	started the freeing. */
 
-	seg_size = flst_get_len(seg_hdr + TRX_UNDO_PAGE_LIST, &mtr);
+	seg_size = flst_get_len(seg_hdr + TRX_UNDO_PAGE_LIST);
 
 	/* We may free the undo log segment header page; it must be freed
 	within the same mtr as the undo log header is removed from the

@@ -3224,13 +3224,10 @@ fail_err:
 					     offsets, heap, n_ext, mtr);
 
 		if (UNIV_UNLIKELY(!*rec)) {
-
-			ib::error() <<  "Cannot insert tuple";
-			dtuple_print(stderr, entry);
-			fputs(" into ", stderr);
-			dict_index_name_print(stderr, thr_get_trx(thr), index);
-			ib::error() << "Max insert size " << max_size;
-			ut_error;
+			ib::fatal() <<  "Cannot insert tuple " << *entry
+				<< "into index " << index->name
+				<< " of table " << index->table->name
+				<< ". Max size: " << max_size;
 		}
 	}
 
@@ -6339,6 +6336,8 @@ struct btr_blob_log_check_t {
 			offs = page_offset(*m_rec);
 			page_no = page_get_page_no(
 				buf_block_get_frame(*m_block));
+
+			buf_block_buf_fix_inc(*m_block, __FILE__, __LINE__);
 		} else {
 			btr_pcur_store_position(m_pcur, m_mtr);
 		}
@@ -6365,6 +6364,8 @@ struct btr_blob_log_check_t {
 				page_id, page_size, RW_X_LATCH, index, m_mtr);
 			page_cur->rec = buf_block_get_frame(page_cur->block)
 				+ offs;
+
+			buf_block_buf_fix_dec(page_cur->block);
 		} else {
 			ut_ad(m_pcur->rel_pos == BTR_PCUR_ON);
 			bool ret = btr_pcur_restore_position(

@@ -1815,7 +1815,7 @@ QUICK_ROR_INTERSECT_SELECT::~QUICK_ROR_INTERSECT_SELECT()
 
 QUICK_ROR_UNION_SELECT::QUICK_ROR_UNION_SELECT(THD *thd_param,
                                                TABLE *table)
-  : thd(thd_param), scans_inited(FALSE)
+  : queue(Quick_ror_union_less(this)), thd(thd_param), scans_inited(FALSE)
 {
   index= MAX_KEY;
   head= table;
@@ -1825,29 +1825,6 @@ QUICK_ROR_UNION_SELECT::QUICK_ROR_UNION_SELECT(THD *thd_param,
                  &alloc, thd->variables.range_alloc_block_size, 0);
   thd_param->mem_root= &alloc;
 }
-
-
-/*
-  Comparison function to be used QUICK_ROR_UNION_SELECT::queue priority
-  queue.
-
-  SYNPOSIS
-    QUICK_ROR_UNION_SELECT_queue_cmp()
-      arg   Pointer to QUICK_ROR_UNION_SELECT
-      val1  First merged select
-      val2  Second merged select
-*/
-
-C_MODE_START
-
-static int QUICK_ROR_UNION_SELECT_queue_cmp(void *arg, uchar *val1, uchar *val2)
-{
-  QUICK_ROR_UNION_SELECT *self= (QUICK_ROR_UNION_SELECT*)arg;
-  return self->head->file->cmp_ref(((QUICK_SELECT_I*)val1)->last_rowid,
-                                   ((QUICK_SELECT_I*)val2)->last_rowid);
-}
-
-C_MODE_END
 
 
 /*
@@ -1863,11 +1840,8 @@ C_MODE_END
 int QUICK_ROR_UNION_SELECT::init()
 {
   DBUG_ENTER("QUICK_ROR_UNION_SELECT::init");
-  if (init_queue(&queue, quick_selects.elements, 0,
-                 FALSE , QUICK_ROR_UNION_SELECT_queue_cmp,
-                 (void*) this))
+  if (queue.reserve(quick_selects.elements))
   {
-    memset(&queue, 0, sizeof(QUEUE));
     DBUG_RETURN(1);
   }
 
@@ -1904,7 +1878,7 @@ int QUICK_ROR_UNION_SELECT::reset()
     }
     scans_inited= TRUE;
   }
-  queue_remove_all(&queue);
+  queue.clear();
   /*
     Initialize scans for merged quick selects and put all merged quick
     selects into the queue.
@@ -1921,7 +1895,7 @@ int QUICK_ROR_UNION_SELECT::reset()
       DBUG_RETURN(error);
     }
     quick->save_last_pos();
-    queue_insert(&queue, (uchar*)quick);
+    queue.push(quick);
   }
 
   /* Prepare for ha_rnd_pos calls. */
@@ -1949,7 +1923,6 @@ QUICK_ROR_UNION_SELECT::push_quick_back(QUICK_SELECT_I *quick_sel_range)
 QUICK_ROR_UNION_SELECT::~QUICK_ROR_UNION_SELECT()
 {
   DBUG_ENTER("QUICK_ROR_UNION_SELECT::~QUICK_ROR_UNION_SELECT");
-  delete_queue(&queue);
   quick_selects.delete_elements();
   if (head->file->inited)
     head->file->ha_rnd_end();
@@ -7250,10 +7223,16 @@ get_mm_leaf(RANGE_OPT_PARAM *param, Item *conf_func, Field *field,
     if (maybe_null)
       max_str[0]= min_str[0]=0;
 
+    Item_func_like *like_func= static_cast<Item_func_like*>(param->cond);
+
+    // We can only optimize with LIKE if the escape string is known.
+    if (!like_func->escape_is_evaluated())
+      goto end;
+
     field_length-= maybe_null;
     like_error= my_like_range(field->charset(),
 			      res->ptr(), res->length(),
-			      ((Item_func_like*)(param->cond))->escape,
+			      like_func->escape,
 			      wild_one, wild_many,
 			      field_length,
 			      (char*) min_str+offset, (char*) max_str+offset,
@@ -10655,11 +10634,11 @@ int QUICK_ROR_UNION_SELECT::get_next()
   {
     do
     {
-      if (!queue.elements)
+      if (queue.empty())
         DBUG_RETURN(HA_ERR_END_OF_FILE);
       /* Ok, we have a queue with >= 1 scans */
 
-      quick= (QUICK_SELECT_I*)queue_top(&queue);
+      quick= queue.top();
       memcpy(cur_rowid, quick->last_rowid, rowid_length);
 
       /* put into queue rowid from the same stream as top element */
@@ -10667,12 +10646,12 @@ int QUICK_ROR_UNION_SELECT::get_next()
       {
         if (error != HA_ERR_END_OF_FILE)
           DBUG_RETURN(error);
-        queue_remove(&queue, 0);
+        queue.pop();
       }
       else
       {
         quick->save_last_pos();
-        queue_replaced(&queue);
+        queue.update_top();
       }
 
       if (!have_prev_rowid)

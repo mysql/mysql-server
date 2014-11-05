@@ -838,7 +838,7 @@ fi
 # exists.
 # ----------------------------------------------------------------------
 groupadd -r %{mysqld_group} 2> /dev/null || true
-useradd -M -r -d $mysql_datadir -s /bin/bash -c "MySQL server" \
+useradd -M -r -d $mysql_datadir -s /bin/false -c "MySQL server" \
   -g %{mysqld_group} %{mysqld_user} 2> /dev/null || true
 # The user may already exist, make sure it has the proper group nevertheless
 # (BUG#12823)
@@ -1207,6 +1207,9 @@ echo "====="                                     >> $STATUS_HISTORY
 # merging BK trees)
 ##############################################################################
 %changelog
+* Wed Oct 29 2014 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com>
+- Updated default shell for mysql user
+
 * Mon Oct 06 2014 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com>
 - Add license info in each subpackage
 

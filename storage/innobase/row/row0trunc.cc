@@ -2041,15 +2041,14 @@ truncate_t::fixup_tables()
 				fil_create_directory_for_tablename(
 					(*it)->m_tablename);
 
-				if (fil_create_ibd_tablespace(
-						(*it)->m_space_id,
-						(*it)->m_tablename,
-						(*it)->m_dir_path,
-						(*it)->m_tablespace_flags,
-						false,
-						FIL_IBD_FILE_INITIAL_SIZE)
-					!= DB_SUCCESS) {
-
+				err = fil_ibd_create(
+					(*it)->m_space_id,
+					(*it)->m_tablename,
+					(*it)->m_dir_path,
+					(*it)->m_tablespace_flags,
+					false,
+					FIL_IBD_FILE_INITIAL_SIZE);
+				if (err != DB_SUCCESS) {
 					/* If checkpoint is not yet done
 					and table is dropped and then we might
 					still have REDO entries for this table

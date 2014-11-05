@@ -1793,11 +1793,14 @@ struct buf_block_t{
 					have been hash collisions,
 					record deletions, etc. */
 	bool		made_dirty_with_no_latch;
-					/*!< ture if block has been made dirty
+					/*!< true if block has been made dirty
 					without acquiring X/SX latch as the
 					block belongs to temporary tablespace
 					and block is always accessed by a
 					single thread. */
+	bool		skip_flush_check;
+					/*!< Skip check in buf_dblwr_check_block
+					during bulk load, protected by lock.*/
 	/* @} */
 # ifdef UNIV_SYNC_DEBUG
 	/** @name Debug fields */

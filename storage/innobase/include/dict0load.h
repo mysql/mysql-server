@@ -64,33 +64,24 @@ enum dict_table_info_t {
 					is in the cache, if so, return it */
 };
 
-/** Check type for dict_check_tablespaces_and_store_max_id() */
-enum dict_check_t {
-	/** No user tablespaces have been opened
-	(no crash recovery, no transactions recovered). */
-	DICT_CHECK_NONE_LOADED = 0,
-	/** Some user tablespaces may have been opened
-	(recovered table locks for transactions). */
-	DICT_CHECK_SOME_LOADED
-};
+/** Check each tablespace found in the data dictionary.
+Look at each table defined in SYS_TABLES that has a space_id > 0.
+If the tablespace is not yet in the fil_system cache, look up the
+tablespace in SYS_DATAFILES to ensure the correct path.
 
-/** Look at each table defined in SYS_TABLES. Check the tablespace for
-any table with a space_id > 0. Look up the tablespace in SYS_DATAFILES
-to ensure the correct path.
+In a crash recovery we already have some tablespace objects created from
+processing the REDO log.  Any other tablespace in SYS_TABLESPACES not
+previously used in recovery will be opened here.  We will compare the
+space_id information in the data dictionary to what we find in the
+tablespace file. In addition, more validation will be done if recovery
+was needed and force_recovery is not set.
 
-In a crash recovery we already have some tablespace objects created.
-This function compares the space id information in the InnoDB data dictionary
-to what we already read with fil_ibd_load().
-
-In a normal startup, we create the tablespace objects for every table in
-InnoDB's data dictionary, if the corresponding .ibd file exists.
 We also scan the biggest space id, and store it to fil_system.
-@param[in]	validate	whether the previous shutdown was not clean
-@param[in]	dict_check	how to check */
+@param[in]	validate	true if recovery was needed */
 void
 dict_check_tablespaces_and_store_max_id(
-	bool		validate,
-	dict_check_t	dict_check);
+	bool		validate);
+
 /********************************************************************//**
 Finds the first table name in the given database.
 @return own: table name, NULL if does not exist; the caller must free
@@ -100,16 +91,6 @@ dict_get_first_table_name_in_db(
 /*============================*/
 	const char*	name);	/*!< in: database name which ends to '/' */
 
-/********************************************************************//**
-Loads a table definition from a SYS_TABLES record to dict_table_t.
-Does not load any columns or indexes.
-@return error message, or NULL on success */
-const char*
-dict_load_table_low(
-/*================*/
-	const char*	name,		/*!< in: table name */
-	const rec_t*	rec,		/*!< in: SYS_TABLES record */
-	dict_table_t**	table);		/*!< out,own: table, or NULL */
 /********************************************************************//**
 Loads a table column definition from a SYS_COLUMNS record to
 dict_table_t.
@@ -188,23 +169,23 @@ dict_get_and_save_data_dir_path(
 	dict_table_t*	table,
 	bool		dict_mutex_own);
 
-/********************************************************************//**
-Loads a table definition and also all its index definitions, and also
+/** Loads a table definition and also all its index definitions, and also
 the cluster definition if the table is a member in a cluster. Also loads
 all foreign key constraints where the foreign key is in the table or where
 a foreign key references columns in this table.
+@param[in]	name		Table name in the dbname/tablename format
+@param[in]	cached		true=add to cache, false=do not
+@param[in]	ignore_err	Error to be ignored when loading
+				table and its index definition
 @return table, NULL if does not exist; if the table is stored in an
-.ibd file, but the file does not exist, then we set the
-ibd_file_missing flag TRUE in the table object we return */
+.ibd file, but the file does not exist, then we set the ibd_file_missing
+flag in the table object we return. */
 dict_table_t*
 dict_load_table(
-/*============*/
-	const char*	name,	/*!< in: table name in the
-				databasename/tablename format */
-	ibool		cached,	/*!< in: TRUE=add to cache, FALSE=do not */
+	const char*	name,
+	bool		cached,
 	dict_err_ignore_t ignore_err);
-				/*!< in: error to be ignored when loading
-				table and its indexes' definition */
+
 /***********************************************************************//**
 Loads a table object based on the table id.
 @return table; NULL if table does not exist */
@@ -374,23 +355,6 @@ dict_process_sys_datafiles(
 	const rec_t*	rec,		/*!< in: current SYS_DATAFILES rec */
 	ulint*		space,		/*!< out: pace id */
 	const char**	path);		/*!< out: datafile path */
-
-/** Get the filepath for a spaceid from SYS_DATAFILES and checks it against
-the contents of a link file. This function is called when there is no
-fil_node_t entry for this space ID so both durable locations on  disk
-must be checked and compared.
-We use a temporary heap here for the table lookup, but not for the path
-returned which the caller must free.
-This function can return NULL if the space ID is not found in SYS_DATAFILES,
-then the caller will assume that the ibd file is in the normal datadir.
-@param[in]	space_id	Tablespace ID
-@param[in]	name		Tablespace Name
-@return own: A copy of the first datafile found in SYS_DATAFILES.PATH for
-the given space ID. NULL if space ID is zero or not found. */
-char*
-dict_get_first_path(
-	ulint		space,
-	const char*	name);
 
 /** Update the record for space_id in SYS_TABLESPACES to this filepath.
 @param[in]	space_id	Tablespace ID

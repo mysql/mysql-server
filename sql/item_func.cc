@@ -217,10 +217,13 @@ Item_func::fix_fields(THD *thd, Item **ref)
   Item **arg,**arg_end;
   uchar buff[STACK_BUFF_ALLOC];			// Max argument in function
 
-  Switch_resolve_place SRP(thd->lex->current_select() ?
-                           &thd->lex->current_select()->resolve_place : NULL,
-                           st_select_lex::RESOLVE_NONE,
-                           thd->lex->current_select());
+  /*
+    Semi-join flattening should only be performed for top-level
+    predicates. Disable it for predicates that live under an
+    Item_func.
+  */
+  Disable_semijoin_flattening DSF(thd->lex->current_select(), true);
+
   used_tables_cache= get_initial_pseudo_tables();
   not_null_tables_cache= 0;
   const_item_cache=1;
@@ -2299,23 +2302,25 @@ bool Item_func_latlongfromgeohash::fix_fields(THD *thd, Item **ref)
 bool
 Item_func_latlongfromgeohash::check_geohash_argument_valid_type(Item *item)
 {
+  if (Item_func_geohash::is_item_null(item))
+    return true;
+
   /*
     If charset is not binary and field_type() is BLOB,
     we have a TEXT column (which is allowed).
   */
   bool is_binary_charset= (item->collation.collation == &my_charset_bin);
+  bool is_parameter_marker= (item->type() == PARAM_ITEM);
 
   switch (item->field_type())
   {
-  case MYSQL_TYPE_NULL:
-    return true;
   case MYSQL_TYPE_VARCHAR:
   case MYSQL_TYPE_VAR_STRING:
   case MYSQL_TYPE_BLOB:
   case MYSQL_TYPE_TINY_BLOB:
   case MYSQL_TYPE_MEDIUM_BLOB:
   case MYSQL_TYPE_LONG_BLOB:
-    return !is_binary_charset;
+    return (!is_binary_charset || is_parameter_marker);
   default:
     return false;
   }

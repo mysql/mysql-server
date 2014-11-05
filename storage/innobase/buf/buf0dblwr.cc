@@ -730,6 +730,10 @@ buf_dblwr_check_block(
 {
 	ut_ad(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
 
+	if (block->skip_flush_check) {
+		return;
+	}
+
 	/* On uncompressed pages, it is possible that invalid
 	FIL_PAGE_TYPE was left behind by an older version of InnoDB
 	that did not initialize FIL_PAGE_TYPE on other pages than

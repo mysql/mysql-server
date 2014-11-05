@@ -2790,7 +2790,18 @@ trx_prepare(
 	trx_sys_mutex_exit();
 	/*--------------------------------------*/
 
-	if (lsn > 0) {
+	switch (thd_requested_durability(trx->mysql_thd)) {
+	case HA_IGNORE_DURABILITY:
+		/* We set the HA_IGNORE_DURABILITY during prepare phase of
+		binlog group commit to not flush redo log for every transaction
+		here. So that we can flush prepared records of transactions to
+		redo log in a group right before writing them to binary log
+		during flush stage of binlog group commit. */
+		break;
+	case HA_REGULAR_DURABILITY:
+		if (lsn == 0) {
+			break;
+		}
 		/* Depending on the my.cnf options, we may now write the log
 		buffer to the log files, making the prepared state of the
 		transaction durable if the OS does not crash. We may also
@@ -2805,8 +2816,7 @@ trx_prepare(
 		there are > 2 users in the database. Then at least 2 users can
 		gather behind one doing the physical log write to disk.
 
-		TODO: find out if MySQL holds some mutex when calling this.
-		That would spoil our group prepare algorithm. */
+		We must not be holding any mutexes or latches here. */
 
 		trx_flush_log_if_needed(lsn, trx);
 	}

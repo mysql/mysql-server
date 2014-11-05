@@ -1192,6 +1192,8 @@ recv_parse_or_apply_log_rec_body(
 		}
 	}
 
+	const byte*	old_ptr = ptr;
+
 	switch (type) {
 #ifdef UNIV_LOG_LSN_DEBUG
 	case MLOG_LSN:
@@ -1274,6 +1276,40 @@ recv_parse_or_apply_log_rec_body(
 		}
 #endif /* UNIV_DEBUG */
 		ptr = mlog_parse_nbytes(type, ptr, end_ptr, page, page_zip);
+		if (ptr != NULL && page != NULL
+		    && page_no == 0 && type == MLOG_4BYTES) {
+			ulint	offs = mach_read_from_2(old_ptr);
+			switch (offs) {
+				fil_space_t*	space;
+				ulint		val;
+			default:
+				break;
+			case FSP_HEADER_OFFSET + FSP_SPACE_FLAGS:
+			case FSP_HEADER_OFFSET + FSP_SIZE:
+			case FSP_HEADER_OFFSET + FSP_FREE_LIMIT:
+			case FSP_HEADER_OFFSET + FSP_FREE + FLST_LEN:
+				space = fil_space_get(space_id);
+				ut_a(space != NULL);
+				val = mach_read_from_4(page + offs);
+
+				switch (offs) {
+				case FSP_HEADER_OFFSET + FSP_SPACE_FLAGS:
+					space->flags = val;
+					break;
+				case FSP_HEADER_OFFSET + FSP_SIZE:
+					space->size_in_header = val;
+					break;
+				case FSP_HEADER_OFFSET + FSP_FREE_LIMIT:
+					space->free_limit = val;
+					break;
+				case FSP_HEADER_OFFSET + FSP_FREE + FLST_LEN:
+					space->free_len = val;
+					ut_ad(val == flst_get_len(
+						      page + offs));
+					break;
+				}
+			}
+		}
 		break;
 	case MLOG_REC_INSERT: case MLOG_COMP_REC_INSERT:
 		ut_ad(!page || fil_page_type_is_index(page_type));
@@ -2132,7 +2168,6 @@ recv_apply_log_recs_for_backup(void)
 	recv_addr_t*	recv_addr;
 	ulint		n_hash_cells;
 	buf_block_t*	block;
-	ulint		actual_size;
 	bool		success;
 	ulint		error;
 	ulint		i;
@@ -2190,10 +2225,11 @@ recv_apply_log_recs_for_backup(void)
 			does not fall inside its bounds; we assume the last
 			file is auto-extending, and mysqlbackup copied the file
 			when it still was smaller */
+			fil_space_t*	space
+				= fil_space_get(recv_addr->space);
 
-			success = fil_extend_space_to_desired_size(
-				&actual_size,
-				recv_addr->space, recv_addr->page_no + 1);
+			success = fil_space_extend(
+				space, recv_addr->page_no + 1);
 			if (!success) {
 				ib::fatal() << "Cannot extend tablespace "
 					<< recv_addr->space << " to hold "

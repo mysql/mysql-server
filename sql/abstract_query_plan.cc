@@ -218,7 +218,7 @@ namespace AQP
     DBUG_PRINT("info", ("no_order:%d", get_qep_tab()->join()->no_order));
     DBUG_PRINT("info", ("simple_order:%d", get_qep_tab()->join()->simple_order));
 
-    DBUG_PRINT("info", ("group:%d", get_qep_tab()->join()->group));
+    DBUG_PRINT("info", ("group:%d", get_qep_tab()->join()->grouped));
     DBUG_PRINT("info", ("group_list:%p", get_qep_tab()->join()->group_list.order));
     DBUG_PRINT("info", ("simple_group:%d", get_qep_tab()->join()->simple_group));
     DBUG_PRINT("info", ("group_optimized_away:%d",

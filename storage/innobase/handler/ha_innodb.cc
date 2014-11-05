@@ -938,12 +938,15 @@ innobase_start_trx_and_assign_read_view(
 					user for whom the transaction should
 					be committed */
 /** Flush InnoDB redo logs to the file system.
-@param[in]	hton	InnoDB handlerton
+@param[in]	hton			InnoDB handlerton
+@param[in]	binlog_group_flush	true if we got invoked by binlog
+group commit during flush stage, false in other cases.
 @return false */
 static
 bool
 innobase_flush_logs(
-	handlerton*	hton);
+	handlerton*	hton,
+	bool		binlog_group_flush);
 
 /************************************************************************//**
 Implements the SHOW ENGINE INNODB STATUS command. Sends the output of the
@@ -1306,6 +1309,28 @@ thd_is_select(
 	const THD*	thd)	/*!< in: thread handle */
 {
 	return(thd_sql_command(thd) == SQLCOM_SELECT);
+}
+
+/** Returns true if the thread is executing CREATE TABLE statement.
+@param[in]	thd	the current thread context
+@retval true if thread is executing CREATE TABLE. */
+static
+inline
+bool
+thd_is_create_table(const THD*	thd)
+{
+	return(thd_sql_command(thd) == SQLCOM_CREATE_TABLE);
+}
+
+/** Returns true if the thread is executing CREATE INDEX statement.
+@param[in]	thd	the current thread context
+@retval true if thread is executing CREATE INDEX. */
+static
+inline
+bool
+thd_is_create_index(const THD*	thd)
+{
+	return(thd_sql_command(thd) == SQLCOM_CREATE_INDEX);
 }
 
 /******************************************************************//**
@@ -3505,19 +3530,39 @@ innobase_end(
 }
 
 /** Flush InnoDB redo logs to the file system.
-@param[in]	hton	InnoDB handlerton
+@param[in]	hton			InnoDB handlerton
+@param[in]	binlog_group_flush	true if we got invoked by binlog
+group commit during flush stage, false in other cases.
 @return false */
 static
 bool
 innobase_flush_logs(
-	handlerton*	hton)
+	handlerton*	hton,
+	bool		binlog_group_flush)
 {
 	DBUG_ENTER("innobase_flush_logs");
 	DBUG_ASSERT(hton == innodb_hton_ptr);
 
-	if (!srv_read_only_mode) {
-		log_buffer_flush_to_disk();
+	if (srv_read_only_mode) {
+		DBUG_RETURN(false);
 	}
+
+	/* If !binlog_group_flush, we got invoked by FLUSH LOGS or similar.
+	Else, we got invoked by binlog group commit during flush stage. */
+
+	if (binlog_group_flush && srv_flush_log_at_trx_commit == 0) {
+		/* innodb_flush_log_at_trx_commit=0
+		(write and sync once per second).
+		Do not flush the redo log during binlog group commit. */
+		DBUG_RETURN(false);
+	}
+
+	/* Flush the redo log buffer to the redo log file.
+	Sync it to disc if we are in FLUSH LOGS, or if
+	innodb_flush_log_at_trx_commit=1
+	(write and sync at each commit). */
+	log_buffer_flush_to_disk(!binlog_group_flush
+				 || srv_flush_log_at_trx_commit == 1);
 
 	DBUG_RETURN(false);
 }
@@ -7127,7 +7172,7 @@ ha_innobase::update_row(
 
 	if (srv_read_only_mode && !dict_table_is_intrinsic(m_prebuilt->table)) {
 		ib_senderrf(ha_thd(), IB_LOG_LEVEL_WARN, ER_READ_ONLY_MODE);
-		return(HA_ERR_TABLE_READONLY);
+		DBUG_RETURN(HA_ERR_TABLE_READONLY);
 	} else if (!trx_is_started(trx)) {
 		++trx->will_lock;
 	}
@@ -9789,9 +9834,14 @@ index_bad:
 	if (m_create_info->options & HA_LEX_CREATE_TMP_TABLE) {
 		m_flags2 |= DICT_TF2_TEMPORARY;
 
+		const bool	use_intrinsic
+			= THDVAR(m_thd, create_intrinsic)
+			&& (thd_is_create_table(m_thd)
+			    || thd_is_create_index(m_thd));
+
 		/* Intrinsic tables reside only in the shared
 		temporary tablespace. */
-		if ((THDVAR(m_thd, create_intrinsic)
+		if ((use_intrinsic
 		     || m_create_info->options
 			& HA_LEX_CREATE_INTERNAL_TMP_TABLE)
 		    && !m_file_per_table) {
@@ -13946,10 +13996,8 @@ ha_innobase::cmp_ref(
 			len1 = innobase_read_from_2_little_endian(ref1);
 			len2 = innobase_read_from_2_little_endian(ref2);
 
-			ref1 += 2;
-			ref2 += 2;
 			result = ((Field_blob*) field)->cmp(
-				ref1, len1, ref2, len2);
+				ref1 + 2, len1, ref2 + 2, len2);
 		} else {
 			result = field->key_cmp(ref1, ref2);
 		}

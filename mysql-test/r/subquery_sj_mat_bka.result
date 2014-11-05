@@ -11871,6 +11871,27 @@ WHERE (SELECT b FROM t1) IN (SELECT (d>=1) FROM t1);
 ERROR 21000: Subquery returns more than 1 row
 DROP TABLE t1;
 #
+# Bug#19779600: ASSERT FAILED IN REPLACE_SUBCONDITION WITH IN
+#               PREDICATE INSIDE IN PREDICATE
+#
+CREATE TABLE t(X INT) ENGINE=InnoDB;
+INSERT INTO t VALUES (1);
+ANALYZE TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	analyze	status	OK
+EXPLAIN SELECT 1 FROM t WHERE (1 IN (SELECT 1 FROM t)) IN (SELECT 1 FROM t);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	PRIMARY	<subquery3>	NULL	const	<auto_key>	<auto_key>	4	const	1	100.00	NULL
+3	MATERIALIZED	t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+2	SUBQUERY	t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t` semi join (`test`.`t`) where 1
+SELECT 1 FROM t WHERE (1 IN (SELECT 1 FROM t)) IN (SELECT 1 FROM t);
+1
+1
+DROP TABLE t;
+#
 # Bug#19465034 ASSERT ON SETUP_SEMIJOIN_DUPS_ELIMINATION IN SQL/SQL_SELECT.CC
 #
 CREATE TABLE t1 (
@@ -11920,5 +11941,47 @@ WHERE t3.pk < 3
 );
 pk	i1	pk	c1
 DROP TABLE t1,t2,t3;
+#
+# Bug#19586047: CRASH IN ARG_COMPARATOR::SET_CMP_FUNC
+#
+CREATE TABLE t1(x INT) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+EXPLAIN SELECT 1 FROM t1 WHERE EXISTS(SELECT 1) IN (SELECT 1 FROM t1);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	PRIMARY	<subquery3>	NULL	const	<auto_key>	<auto_key>	4	const	1	100.00	NULL
+3	MATERIALIZED	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+Warnings:
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` semi join (`test`.`t1`) where 1
+SELECT 1 FROM t1 WHERE EXISTS(SELECT 1) IN (SELECT 1 FROM t1);
+1
+1
+EXPLAIN SELECT 1 FROM t1 WHERE (SELECT 1, 2 FROM t1) IN (SELECT 1, 2 FROM t1);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Start temporary
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	End temporary; Using join buffer (Block Nested Loop)
+2	SUBQUERY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` semi join (`test`.`t1`) where 1
+SELECT 1 FROM t1 WHERE (SELECT 1, 2 FROM t1) IN (SELECT 1, 2 FROM t1);
+1
+1
+# The next query is supposed to return zero rows. In some cases
+# it returns one row, because of bug#19822406.
+EXPLAIN SELECT 1 FROM t1 WHERE
+(SELECT 1, 2 FROM t1 WHERE x = 2) IN (SELECT 1, 2 FROM t1);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+2	SUBQUERY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` semi join (`test`.`t1`) where 0
+SELECT 1 FROM t1 WHERE
+(SELECT 1, 2 FROM t1 WHERE x = 2) IN (SELECT 1, 2 FROM t1);
+1
+DROP TABLE t1;
 set optimizer_switch=default;
 set optimizer_switch=default;

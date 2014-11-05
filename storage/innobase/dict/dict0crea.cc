@@ -288,12 +288,13 @@ dict_build_tablespace_for_table(
 	dberr_t		err	= DB_SUCCESS;
 	mtr_t		mtr;
 	ulint		space = 0;
-	bool		file_per_table;
+	bool		needs_file_per_table;
 	char*		filepath;
 
 	ut_ad(mutex_own(&dict_sys->mutex) || dict_table_is_intrinsic(table));
 
-	file_per_table = dict_table_use_file_per_table(table);
+	needs_file_per_table
+		= DICT_TF2_FLAG_IS_SET(table, DICT_TF2_USE_FILE_PER_TABLE);
 
 	/* Always set this bit for all new created tables */
 	DICT_TF2_FLAG_SET(table, DICT_TF2_FTS_AUX_HEX_NAME);
@@ -301,7 +302,7 @@ dict_build_tablespace_for_table(
 			DICT_TF2_FLAG_UNSET(table,
 					    DICT_TF2_FTS_AUX_HEX_NAME););
 
-	if (file_per_table) {
+	if (needs_file_per_table) {
 		/* This table will need a new tablespace. */
 
 		ut_ad(dict_table_get_format(table) <= UNIV_FORMAT_MAX);
@@ -356,7 +357,7 @@ dict_build_tablespace_for_table(
 		- page 3 will contain the root of the clustered index of
 		the table we create here. */
 
-		err = fil_create_ibd_tablespace(
+		err = fil_ibd_create(
 			space, table->name.m_name, filepath, fsp_flags,
 			is_temp, FIL_IBD_FILE_INITIAL_SIZE);
 
@@ -1526,7 +1527,7 @@ dict_check_if_system_table_exists(
 		/* This table has already been created, and it is OK.
 		Ensure that it can't be evicted from the table LRU cache. */
 
-		dict_table_move_from_lru_to_non_lru(sys_table);
+		dict_table_prevent_eviction(sys_table);
 	}
 
 	mutex_exit(&dict_sys->mutex);

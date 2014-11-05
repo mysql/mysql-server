@@ -85,11 +85,6 @@ The following options may be given as the first argument:
  --binlog-ignore-db=name 
  Tells the master that updates to the given database
  should not be logged to the binary log.
- --binlog-max-flush-queue-time=# 
- The maximum time that the binary log group commit will
- keep reading transactions before it flush the
- transactions to the binary log (and optionally sync,
- depending on the value of sync_binlog).
  --binlog-order-commits 
  Issue internal commit calls in the same order as
  transactions are written to the binary log. Default is to
@@ -525,8 +520,8 @@ The following options may be given as the first argument:
  If this is not 0, then mysqld will use this value to
  reserve file descriptors to use with setrlimit(). If this
  value is 0 then mysqld will reserve max_connections*5 or
- max_connections + table_cache*2 (whichever is larger)
- number of file descriptors
+ max_connections + table_open_cache*2 (whichever is
+ larger) number of file descriptors
  --optimizer-prune-level=# 
  Controls the heuristic(s) applied during query
  optimization to prune less-promising partial plans from
@@ -1119,7 +1114,6 @@ binlog-error-action IGNORE_ERROR
 binlog-format STATEMENT
 binlog-group-commit-sync-delay 0
 binlog-group-commit-sync-no-delay-count 0
-binlog-max-flush-queue-time 0
 binlog-order-commits TRUE
 binlog-row-event-max-size 8192
 binlog-row-image FULL

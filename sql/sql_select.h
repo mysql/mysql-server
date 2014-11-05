@@ -1074,20 +1074,10 @@ protected:
 };
 
 bool error_if_full_join(JOIN *join);
-bool handle_select(THD *thd, select_result *result,
-                   ulong setup_tables_done_option);
-bool mysql_prepare_and_optimize_select(THD *thd,
-                  List<Item> &list,
-                  ulonglong select_type,
-                  select_result *result,
-                  SELECT_LEX *select_lex, bool *free_join);
-bool mysql_select(THD *thd,
-                  List<Item> &list,
-                  ulonglong select_type,
-                  select_result *result,
-                  SELECT_LEX *select_lex);
-void free_underlaid_joins(THD *thd, SELECT_LEX *select);
+bool handle_query(THD *thd, LEX *lex, select_result *result,
+                  ulonglong added_options, ulonglong removed_options);
 
+void free_underlaid_joins(THD *thd, SELECT_LEX *select);
 
 void calc_used_field_length(THD *thd,
                             TABLE *table,
@@ -1111,7 +1101,7 @@ bool const_expression_in_where(Item *cond, Item *comp_item,
                                Item **const_item= NULL);
 bool test_if_subpart(ORDER *a,ORDER *b);
 void calc_group_buffer(JOIN *join,ORDER *group);
-bool make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after);
+bool make_join_readinfo(JOIN *join, uint no_jbuf_after);
 bool create_ref_for_key(JOIN *join, JOIN_TAB *j, Key_use *org_keyuse,
                         table_map used_tables);
 bool types_allow_materialization(Item *outer, Item *inner);

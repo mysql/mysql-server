@@ -37,6 +37,7 @@
 #include "opt_costmodel.h"
 #include "uniques.h"                            // Unique
 #include "sql_base.h"                           // TEMP_PREFIX
+#include "priority_queue.h"
 
 #include <algorithm>
 
@@ -384,24 +385,32 @@ Unique::reset()
 }
 
 /*
-  The comparison function, passed to queue_init() in merge_walk() and in
-  merge_buffers() when the latter is called from Uniques::get() must
-  use comparison function of Uniques::tree, but compare members of struct
-  Merge_chunk.
+  The comparison function, used by the Priority_queue in merge_buffers()
+  When the called from Uniques::get() must use comparison function of
+  Uniques::tree, but compare members of struct Merge_chunk.
 */
 
-C_MODE_START
-
-static int merge_chunk_compare(void *arg, uchar *key_ptr1, uchar *key_ptr2)
+static int merge_chunk_compare(Merge_chunk_compare_context *ctx,
+                               uchar *key_ptr1, uchar *key_ptr2)
 {
-  Merge_chunk_compare_context *ctx=
-    static_cast<Merge_chunk_compare_context*>(arg);
-  return ctx->key_compare(ctx->key_compare_arg,
-                          *((uchar **) key_ptr1), *((uchar **)key_ptr2));
+  return ctx->key_compare(ctx->key_compare_arg, key_ptr1, key_ptr2);
 }
 
-C_MODE_END
+namespace {
 
+struct Merge_chunk_less
+{
+  Merge_chunk_less(const Merge_chunk_compare_context context)
+    : m_context(context)
+  {}
+  bool operator()(Merge_chunk *a, Merge_chunk *b)
+  {
+    return m_context.key_compare(m_context.key_compare_arg, a, b) > 0; 
+  }
+  Merge_chunk_compare_context  m_context;
+};
+
+} // namespace
 
 /*
   DESCRIPTION
@@ -443,13 +452,17 @@ static bool merge_walk(uchar *merge_buffer, size_t merge_buffer_size,
                        qsort_cmp2 compare, const void *compare_arg,
                        IO_CACHE *file)
 {
-  Merge_chunk_compare_context compare_context = { compare, compare_arg };
-  QUEUE queue;
   if (end <= begin ||
-      merge_buffer_size < (ulong) (key_length * (end - begin + 1)) ||
-      init_queue(&queue, (uint) (end - begin), Merge_chunk::offset_to_key(), 0,
-                 merge_chunk_compare, &compare_context))
+      merge_buffer_size < (ulong) (key_length * (end - begin + 1)))
     return 1;
+
+  Merge_chunk_compare_context compare_context = { compare, compare_arg };
+  Priority_queue<Merge_chunk*,
+                 std::vector<Merge_chunk*>,
+                 Merge_chunk_less> queue((Merge_chunk_less(compare_context)));
+  if (queue.reserve(end - begin))
+    return 1;
+
   /* we need space for one key when a piece of merge buffer is re-read */
   merge_buffer_size-= key_length;
   uchar *save_key_buff= merge_buffer + merge_buffer_size;
@@ -481,10 +494,10 @@ static bool merge_walk(uchar *merge_buffer, size_t merge_buffer_size,
     if (bytes_read == (uint) (-1))
       goto end;
     DBUG_ASSERT(bytes_read);
-    queue_insert(&queue, (uchar *) top);
+    queue.push(top);
   }
-  top= static_cast<Merge_chunk *>(static_cast<void*>(queue_top(&queue)));
-  while (queue.elements > 1)
+  top= queue.top();
+  while (queue.size() > 1)
   {
     /*
       Every iteration one element is removed from the queue, and one is
@@ -501,7 +514,7 @@ static bool merge_walk(uchar *merge_buffer, size_t merge_buffer_size,
     top->advance_current_key(key_length);
     top->decrement_mem_count();
     if (top->mem_count())
-      queue_replaced(&queue);
+      queue.update_top();
     else /* next piece should be read */
     {
       /* save old_key not to overwrite it in read_to_buffer */
@@ -511,18 +524,18 @@ static bool merge_walk(uchar *merge_buffer, size_t merge_buffer_size,
       if (bytes_read == (uint) (-1))
         goto end;
       else if (bytes_read > 0)      /* top->key, top->mem_count are reset */
-        queue_replaced(&queue);     /* in read_to_buffer */
+        queue.update_top();         /* in read_to_buffer */
       else
       {
         /*
           Tree for old 'top' element is empty: remove it from the queue and
           give all its memory to the nearest tree.
         */
-        queue_remove(&queue, 0);
-        top->reuse_freed_buff(&queue);
+        queue.pop();
+        reuse_freed_buff(top, &queue);
       }
     }
-    top= static_cast<Merge_chunk *>(static_cast<void*>(queue_top(&queue)));
+    top= queue.top();
     /* new top has been obtained; if old top is unique, apply the action */
     if (compare(compare_arg, old_key, top->current_key()))
     {
@@ -551,7 +564,6 @@ static bool merge_walk(uchar *merge_buffer, size_t merge_buffer_size,
   while (bytes_read);
   res= 0;
 end:
-  delete_queue(&queue);
   return res;
 }
 
@@ -671,7 +683,7 @@ bool Unique::get(TABLE *table)
   sort_param.unique_buff= sort_memory+(sort_param.max_keys_per_buffer *
                                        sort_param.sort_length);
 
-  sort_param.compare= (qsort2_cmp) merge_chunk_compare;
+  sort_param.compare= merge_chunk_compare;
   sort_param.cmp_context.key_compare= tree.compare;
   sort_param.cmp_context.key_compare_arg= tree.custom_arg;
 

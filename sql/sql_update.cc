@@ -44,7 +44,7 @@
 #include "opt_trace.h"   // Opt_trace_object
 #include "sql_tmp_table.h"                      // tmp tables
 #include "sql_optimizer.h"                      // remove_eq_conds
-#include "sql_resolver.h"                       // setup_order, fix_inner_refs
+#include "sql_resolver.h"                       // setup_order
 
 /**
    True if the table's input and output record buffers are comparable using
@@ -212,10 +212,10 @@ bool mysql_update(THD *thd,
                   enum enum_duplicates handle_duplicates,
                   ha_rows *found_return, ha_rows *updated_return)
 {
+  DBUG_ENTER("mysql_update");
+
   myf           error_flags= MYF(0);            /**< Flag for fatal errors */
   const bool    using_limit= limit != HA_POS_ERROR;
-  const bool    safe_update=
-                  MY_TEST(thd->variables.option_bits & OPTION_SAFE_UPDATES);
   bool          used_key_is_modified= false;
   bool          transactional_table, will_batch;
   int           res;
@@ -232,13 +232,17 @@ bool mysql_update(THD *thd,
   ha_rows       updated, found;
   key_map       old_covering_keys;
   READ_RECORD   info;
-  SELECT_LEX   *select_lex= thd->lex->select_lex;
   ulonglong     id;
   List<Item> all_fields;
   THD::killed_state killed_status= THD::NOT_KILLED;
   COPY_INFO update(COPY_INFO::UPDATE_OPERATION, &fields, &values);
-  TABLE_LIST *const table_list= select_lex->get_table_list();
-  DBUG_ENTER("mysql_update");
+
+  SELECT_LEX   *const select_lex= thd->lex->select_lex;
+  TABLE_LIST   *const table_list= select_lex->get_table_list();
+
+  select_lex->make_active_options(0, 0);
+
+  const bool safe_update= thd->variables.option_bits & OPTION_SAFE_UPDATES;
 
   THD_STAGE_INFO(thd, stage_init);
 
@@ -306,9 +310,8 @@ bool mysql_update(THD *thd,
     DBUG_RETURN(true);                          /* purecov: inspected */
 
 
-  if (select_lex->inner_refs_list.elements &&
-    fix_inner_refs(thd, all_fields, select_lex, select_lex->ref_pointer_array))
-    DBUG_RETURN(1);
+  if (select_lex->inner_refs_list.elements && select_lex->fix_inner_refs(thd))
+    DBUG_RETURN(true);  /* purecov: inspected */
 
   ORDER *order= select_lex->order_list.first;
 
@@ -1123,7 +1126,8 @@ bool mysql_prepare_update(THD *thd, const TABLE_LIST *update_table_ref)
 
   if (select_lex->setup_ref_array(thd))
     DBUG_RETURN(true);                          /* purecov: inspected */
-  if (setup_order(thd, select_lex->ref_pointer_array,
+  if (select_lex->order_list.first &&
+      setup_order(thd, select_lex->ref_pointer_array,
                   table_list, all_fields, all_fields,
                   select_lex->order_list.first))
     DBUG_RETURN(true);
@@ -1551,7 +1555,6 @@ int mysql_multi_update_prepare(THD *thd)
 bool mysql_multi_update(THD *thd,
                         List<Item> *fields,
                         List<Item> *values,
-                        ulonglong options,
                         enum enum_duplicates handle_duplicates,
                         SELECT_LEX *select_lex,
                         multi_update **result)
@@ -1563,33 +1566,24 @@ bool mysql_multi_update(THD *thd,
                                   select_lex->leaf_tables,
                                   fields, values,
                                   handle_duplicates)))
+    DBUG_RETURN(true); /* purecov: inspected */
+
+  DBUG_ASSERT(select_lex->having_cond() == NULL &&
+              !select_lex->order_list.elements &&
+              !select_lex->group_list.elements);
+
+  res= handle_query(thd, thd->lex, *result,
+                    SELECT_NO_JOIN_CACHE | SELECT_NO_UNLOCK |
+                    OPTION_SETUP_TABLES_DONE,
+                    0);
+
+  DBUG_PRINT("info",("res: %d  report_error: %d",res, (int) thd->is_error()));
+  res|= thd->is_error();
+  if (unlikely(res))
   {
-    DBUG_RETURN(TRUE);
-  }
-
-  if (thd->lex->describe)
-    res= explain_query(thd, thd->lex->unit, *result);
-  else
-  {
-    List<Item> total_list;
-
-    DBUG_ASSERT(select_lex->having_cond() == NULL &&
-                !select_lex->order_list.elements &&
-                !select_lex->group_list.elements);
-    res= mysql_select(thd,
-                      total_list,
-                      options | SELECT_NO_JOIN_CACHE | SELECT_NO_UNLOCK |
-                      OPTION_SETUP_TABLES_DONE,
-                      *result, select_lex);
-
-    DBUG_PRINT("info",("res: %d  report_error: %d",res, (int) thd->is_error()));
-    res|= thd->is_error();
-    if (unlikely(res))
-    {
-      /* If we had a another error reported earlier then this will be ignored */
-      (*result)->send_error(ER_UNKNOWN_ERROR, ER(ER_UNKNOWN_ERROR));
-      (*result)->abort_result_set();
-    }
+    /* If we had a another error reported earlier then this will be ignored */
+    (*result)->send_error(ER_UNKNOWN_ERROR, ER(ER_UNKNOWN_ERROR));
+    (*result)->abort_result_set();
   }
   DBUG_RETURN(res);
 }
@@ -1882,8 +1876,9 @@ multi_update::initialize_tables(JOIN *join)
   DBUG_ENTER("initialize_tables");
   ASSERT_BEST_REF_IN_JOIN_ORDER(join);
 
-  if ((thd->variables.option_bits & OPTION_SAFE_UPDATES) && error_if_full_join(join))
-    DBUG_RETURN(1);
+  if ((thd->variables.option_bits & OPTION_SAFE_UPDATES) &&
+      error_if_full_join(join))
+    DBUG_RETURN(true);
   main_table= join->best_ref[0]->table();
   table_to_update= 0;
 
@@ -1916,7 +1911,8 @@ multi_update::initialize_tables(JOIN *join)
         influence the selection of rows from t2. If those fields are also
         updated, it will not be possible to update t1 on-the-fly.
         Due to how the nested loop join algorithm works, when collecting
-        we can ignore the condition of t1.
+        we can ignore the condition attached to t1 - a row of t1 is read
+        only one time.
       */
       if (update_tables->next_local)
       {
@@ -1926,7 +1922,38 @@ multi_update::initialize_tables(JOIN *join)
           if (tab->condition())
             tab->condition()->walk(&Item::add_field_to_set_processor,
                       Item::enum_walk(Item::WALK_POSTFIX | Item::WALK_SUBQUERY),
-                      reinterpret_cast<uchar *>(table));
+                      reinterpret_cast<uchar *>(main_table));
+          /*
+            On top of checking conditions, we need to check conditions
+            referenced by index lookup on the following tables. They implement
+            conditions too, but their corresponding search conditions might
+            have been optimized away. The second table is an exception: even if
+            rows are read from it using index lookup which references a column
+            of main_table, the implementation of ref access will see the
+            before-update value;
+            consider this flow of a nested loop join:
+            read a row from main_table and:
+            - init ref access (cp_buffer_from_ref() in join_read_always_key()):
+              copy referenced value from main_table into 2nd table's ref buffer
+            - look up a first row in 2nd table (join_read_always_key)
+              - if it joins, update row of main_table on the fly
+            - look up a second row in 2nd table (join_read_next_same).
+            Because cp_buffer_from_ref() is not called again, the before-update
+            value of the row of main_table is still in the 2nd table's ref
+            buffer. So the lookup is not influenced by the just-done update of
+            main_table.
+          */
+          if (tab > join->join_tab + 1)
+          {
+            for (uint i= 0; i < tab->ref().key_parts; i++)
+            {
+              Item *ref_item= tab->ref().items[i];
+              if ((table_ref->map() & ref_item->used_tables()) != 0)
+                ref_item->walk(&Item::add_field_to_set_processor,
+                      Item::enum_walk(Item::WALK_POSTFIX | Item::WALK_SUBQUERY),
+                      reinterpret_cast<uchar *>(main_table));
+            }
+          }
         }
       }
       if (safe_update_on_fly(thd, join->best_ref[0], table_ref, all_tables))

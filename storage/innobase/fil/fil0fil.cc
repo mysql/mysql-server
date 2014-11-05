@@ -30,7 +30,6 @@ Created 10/25/1995 Heikki Tuuri
 #include "buf0flu.h"
 #include "dict0boot.h"
 #include "dict0dict.h"
-#include "fil0fil.h"
 #include "fsp0file.h"
 #include "fsp0fsp.h"
 #include "fsp0space.h"
@@ -41,13 +40,12 @@ Created 10/25/1995 Heikki Tuuri
 #include "mem0mem.h"
 #include "mtr0log.h"
 #include "os0file.h"
-#include "page0page.h"
 #include "page0zip.h"
 #include "row0mysql.h"
 #include "row0trunc.h"
 #include "srv0srv.h"
 #include "srv0start.h"
-#include "trx0sys.h"
+#include "trx0purge.h"
 #include "ut0new.h"
 #ifndef UNIV_HOTBACKUP
 # include "buf0lru.h"
@@ -647,17 +645,21 @@ fil_node_open_file(
 	ut_a(node->n_pending == 0);
 	ut_a(!node->is_open);
 
-	read_only_mode = fsp_is_system_temporary(space->id)
-			 ? false : srv_read_only_mode;
+	read_only_mode = !fsp_is_system_temporary(space->id)
+		&& srv_read_only_mode;
 
-	if (node->size == 0) {
-		/* It must be a single-table tablespace and we do not know the
-		size of the file yet. First we open the file in the normal
-		mode, no async I/O here, for simplicity. Then do some checks,
-		and close the file again.
-		NOTE that we could not use the simple file read function
-		os_file_read() in Windows to read from a file opened for
-		async I/O! */
+	if (node->size == 0
+	    || (space->purpose == FIL_TYPE_TABLESPACE
+		&& node == UT_LIST_GET_FIRST(space->chain)
+		&& space->id <= srv_undo_tablespaces_open
+		&& !undo::Truncate::was_tablespace_truncated(space->id)
+		&& srv_startup_is_before_trx_rollback_phase)) {
+		/* We do not know the size of the file yet. First we
+		open the file in the normal mode, no async I/O here,
+		for simplicity. Then do some checks, and close the
+		file again.  NOTE that we could not use the simple
+		file read function os_file_read() in Windows to read
+		from a file opened for async I/O! */
 
 		node->handle = os_file_create_simple_no_error_handling(
 			innodb_data_file_key, node->name, OS_FILE_OPEN,
@@ -683,9 +685,6 @@ fil_node_open_file(
 		}
 #endif /* UNIV_HOTBACKUP */
 		ut_a(space->purpose != FIL_TYPE_LOG);
-		/* During buf_dblwr_process() we may access undo
-		tablespaces here. */
-		ut_a(fil_is_user_tablespace_id(space->id) || recv_recovery_on);
 
 		/* Read the first page of the tablespace */
 
@@ -693,12 +692,10 @@ fil_node_open_file(
 		/* Align the memory for file i/o if we might have O_DIRECT
 		set */
 		page = static_cast<byte*>(ut_align(buf2, UNIV_PAGE_SIZE));
-
+		ut_ad(page == page_align(page));
 		success = os_file_read(node->handle, page, 0, UNIV_PAGE_SIZE);
 		space_id = fsp_header_get_space_id(page);
 		flags = fsp_header_get_flags(page);
-
-		ut_free(buf2);
 
 		/* Close the file now that we have read the space id from it */
 
@@ -723,12 +720,6 @@ fil_node_open_file(
 				<< node->name << " it is " << space_id << "!";
 		}
 
-		if (space_id == ULINT_UNDEFINED || space_id == 0) {
-			ib::fatal() << "Tablespace id " << space_id
-				<< " in file " << node->name
-				<< " is not sensible";
-		}
-
 		const page_size_t	space_page_size(space->flags);
 
 		if (!page_size.equals_to(space_page_size)) {
@@ -748,17 +739,41 @@ fil_node_open_file(
 				<< "!";
 		}
 
-		if (size_bytes >= 1024 * 1024) {
-			/* Truncate the size to whole megabytes. */
-			size_bytes = ut_2pow_round(size_bytes, 1024 * 1024);
+		{
+			ulint	size		= fsp_header_get_field(
+				page, FSP_SIZE);
+			ulint	free_limit	= fsp_header_get_field(
+				page, FSP_FREE_LIMIT);
+			ulint	free_len	= flst_get_len(
+				FSP_HEADER_OFFSET + FSP_FREE + page);
+			ut_ad(space->size_in_header == 0
+			      || space->size_in_header == size);
+			ut_ad(space->free_limit == 0
+			      || space->free_limit == free_limit);
+			ut_ad(space->free_len == 0
+			      || space->free_len == free_len);
+			space->size_in_header = size;
+			space->free_limit = free_limit;
+			space->free_len = free_len;
 		}
 
-		node->size = (ulint) (size_bytes / page_size.physical());
+		ut_free(buf2);
+
+		if (node->size == 0) {
+			if (size_bytes >= 1024 * 1024) {
+				/* Truncate the size to whole megabytes. */
+				size_bytes = ut_2pow_round(
+					size_bytes, 1024 * 1024);
+			}
+
+			node->size = (ulint)
+				(size_bytes / page_size.physical());
 
 #ifdef UNIV_HOTBACKUP
 add_size:
 #endif /* UNIV_HOTBACKUP */
-		space->size += node->size;
+			space->size += node->size;
+		}
 	}
 
 	/* printf("Opening file %s\n", node->name); */
@@ -3406,7 +3421,7 @@ For general tablespaces, the 'dbname/' part may be missing.
 must be >= FIL_IBD_FILE_INITIAL_SIZE
 @return DB_SUCCESS or error code */
 dberr_t
-fil_create_ibd_tablespace(
+fil_ibd_create(
 	ulint		space_id,
 	const char*	name,
 	const char*	path,
@@ -4492,39 +4507,27 @@ fil_write_zeros(
 	return(true);
 }
 
-/**********************************************************************//**
-Tries to extend a data file so that it would accommodate the number of pages
-given. The tablespace must be cached in the memory cache. If the space is big
-enough already, does nothing.
-@return true if success */
+/** Try to extend a tablespace if it is smaller than the specified size.
+@param[in,out]	space	tablespace
+@param[in]	size	desired size in pages
+@return whether the tablespace is at least as big as requested */
 bool
-fil_extend_space_to_desired_size(
-/*=============================*/
-	ulint*	actual_size,	/*!< out: size of the space after extension;
-				if we ran out of disk space this may be lower
-				than the desired size */
-	ulint	space_id,	/*!< in: space id */
-	ulint	size_after_extend)/*!< in: desired size in pages after the
-				extension; if the current space size is bigger
-				than this already, the function does nothing */
+fil_space_extend(
+	fil_space_t*	space,
+	ulint		size)
 {
 	/* In read-only mode we allow write to shared temporary tablespace
 	as intrinsic table created by Optimizer reside in this tablespace. */
-	ut_ad(!srv_read_only_mode || fsp_is_system_temporary(space_id));
+	ut_ad(!srv_read_only_mode || fsp_is_system_temporary(space->id));
 
 retry:
 	bool		success = true;
 
-	fil_mutex_enter_and_prepare_for_io(space_id);
-	fil_space_t*	space = fil_space_get_by_id(space_id);
+	fil_mutex_enter_and_prepare_for_io(space->id);
 
-	if (space->size >= size_after_extend) {
+	if (space->size >= size) {
 		/* Space already big enough */
-
-		*actual_size = space->size;
-
 		mutex_exit(&fil_system->mutex);
-
 		return(true);
 	}
 
@@ -4563,7 +4566,7 @@ retry:
 	/* Note: This code is going to be executed independent of FusionIO HW
 	if the OS supports posix_fallocate() */
 
-	ut_ad(size_after_extend > space->size);
+	ut_ad(size > space->size);
 
 	os_offset_t	node_start = os_file_get_size(node->handle);
 	ut_a(node_start != (os_offset_t) -1);
@@ -4574,7 +4577,7 @@ retry:
 	/* Number of pages to extend in the node/file */
 	lint		n_node_extend;
 
-	n_node_extend = size_after_extend - space->size;
+	n_node_extend = size - space->size;
 	ut_a(n_node_extend >= 0);
 
 	ulint		pages_added;
@@ -4619,8 +4622,8 @@ retry:
 		success = fil_write_zeros(
 			node, page_size, node_start,
 			static_cast<ulint>(len),
-			(fsp_is_system_temporary(space_id)
-			? false : srv_read_only_mode));
+			space->purpose != FIL_TYPE_TEMPORARY
+			&& srv_read_only_mode);
 
 		if (!success) {
 			ib::warn() << "Error while writing " << len
@@ -4654,24 +4657,22 @@ retry:
 
 	fil_node_complete_io(node, fil_system, OS_FILE_WRITE);
 
-	*actual_size = space->size;
-
 #ifndef UNIV_HOTBACKUP
 	/* Keep the last data file size info up to date, rounded to
 	full megabytes */
 	ulint	pages_per_mb = (1024 * 1024) / page_size;
 	ulint	size_in_pages = ((node->size / pages_per_mb) * pages_per_mb);
 
-	if (space_id == srv_sys_space.space_id()) {
+	if (space->id == srv_sys_space.space_id()) {
 		srv_sys_space.set_last_file_size(size_in_pages);
-	} else if (fsp_is_system_temporary(space_id)) {
+	} else if (space->id == srv_tmp_space.space_id()) {
 		srv_tmp_space.set_last_file_size(size_in_pages);
 	}
 #endif /* !UNIV_HOTBACKUP */
 
 	mutex_exit(&fil_system->mutex);
 
-	fil_flush(space_id);
+	fil_flush(space->id);
 
 	return(success);
 }
@@ -4712,10 +4713,9 @@ fil_extend_tablespaces_to_stored_len(void)
 
 		ut_a(error == DB_SUCCESS);
 
-		size_in_header = fsp_get_size_low(buf);
+		size_in_header = fsp_header_get_field(buf, FSP_SIZE);
 
-		success = fil_extend_space_to_desired_size(
-			&actual_size, space->id, size_in_header);
+		success = fil_space_extend(space, size_in_header);
 		if (!success) {
 			ib::error() << "Could not extend the tablespace of "
 				<< space->name  << " to the size stored in"

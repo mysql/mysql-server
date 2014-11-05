@@ -661,7 +661,7 @@ void Item_sum::update_used_tables ()
      reference an outer table, like COUNT (*) or COUNT(123).
     */
     used_tables_cache|= aggr_level == nest_level ?
-      ((table_map)1 << aggr_sel->join->tables) - 1 :
+      ((table_map)1 << aggr_sel->leaf_table_count) - 1 :
       OUTER_REF_TABLE_BIT;
 
   }
@@ -910,9 +910,8 @@ bool Aggregator_distinct::setup(THD *thd)
           item->marker=4;
       }    
     }    
-    if (!(table= create_tmp_table(thd, tmp_table_param, list, (ORDER*) 0, 1,
-                                  0,
-                                  (select_lex->options | thd->variables.option_bits),
+    if (!(table= create_tmp_table(thd, tmp_table_param, list, NULL, true, false,
+                                  select_lex->active_options(),
                                   HA_POS_ERROR, "")))
       return TRUE;
     table->file->extra(HA_EXTRA_NO_ROWS);		// Don't update rows
@@ -1283,6 +1282,8 @@ Item_sum_num::fix_fields(THD *thd, Item **ref)
   if (init_sum_func_check(thd))
     return TRUE;
 
+  Disable_semijoin_flattening DSF(thd->lex->current_select(), true);
+
   decimals=0;
   maybe_null=0;
   for (uint i=0 ; i < arg_count ; i++)
@@ -1316,6 +1317,8 @@ Item_sum_hybrid::fix_fields(THD *thd, Item **ref)
 
   if (init_sum_func_check(thd))
     return TRUE;
+
+  Disable_semijoin_flattening DSF(thd->lex->current_select(), true);
 
   // 'item' can be changed during fix_fields
   if ((!item->fixed && item->fix_fields(thd, args)) ||
@@ -3560,6 +3563,8 @@ Item_func_group_concat::fix_fields(THD *thd, Item **ref)
 
   maybe_null= 1;
 
+  Disable_semijoin_flattening DSF(thd->lex->current_select(), true);
+
   /*
     Fix fields for select list and ORDER clause
   */
@@ -3688,8 +3693,8 @@ bool Item_func_group_concat::setup(THD *thd)
     field list.
   */
   if (!(table= create_tmp_table(thd, tmp_table_param, all_fields,
-                                (ORDER*) 0, 0, TRUE,
-                                (select_lex->options | thd->variables.option_bits),
+                                NULL, false, true,
+                                select_lex->active_options(),
                                 HA_POS_ERROR, (char*) "")))
     DBUG_RETURN(TRUE);
   table->file->extra(HA_EXTRA_NO_ROWS);

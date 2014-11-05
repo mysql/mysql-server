@@ -14,12 +14,12 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 
+#include "my_global.h"
 #include "my_pthread.h"     /* my_thread_init, my_thread_end */
 #include "my_sys.h"         /* my_message_local */
 #include "my_timer.h"       /* my_timer_t */
 
 #include <string.h>         /* memset */
-#include <errno.h>
 #include <signal.h>
 
 #if defined(HAVE_SIGEV_THREAD_ID)
@@ -292,7 +292,7 @@ my_timer_initialize(void)
 void
 my_timer_deinitialize(void)
 {
-  assert(port_id >= 0);
+  DBUG_ASSERT(port_id >= 0);
 
   // close port
   close(port_id);

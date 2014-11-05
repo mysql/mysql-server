@@ -1360,7 +1360,7 @@ trx_undo_mem_create_at_db_start(
 
 	undo->table_id = mach_read_from_8(undo_header + TRX_UNDO_TABLE_ID);
 	undo->state = state;
-	undo->size = flst_get_len(seg_header + TRX_UNDO_PAGE_LIST, mtr);
+	undo->size = flst_get_len(seg_header + TRX_UNDO_PAGE_LIST);
 
 	/* If the log segment is being freed, the page list is inconsistent! */
 	if (state == TRX_UNDO_TO_FREE) {

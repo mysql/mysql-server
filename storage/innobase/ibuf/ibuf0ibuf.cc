@@ -476,15 +476,14 @@ static
 void
 ibuf_size_update(
 /*=============*/
-	const page_t*	root,	/*!< in: ibuf tree root */
-	mtr_t*		mtr)	/*!< in: mtr */
+	const page_t*	root)	/*!< in: ibuf tree root */
 {
 	ut_ad(mutex_own(&ibuf_mutex));
 
 	ibuf->free_list_len = flst_get_len(root + PAGE_HEADER
-					   + PAGE_BTR_IBUF_FREE_LIST, mtr);
+					   + PAGE_BTR_IBUF_FREE_LIST);
 
-	ibuf->height = 1 + btr_page_get_level(root, mtr);
+	ibuf->height = 1 + btr_page_get_level_low(root);
 
 	/* the '1 +' is the ibuf header page */
 	ibuf->size = ibuf->seg_size - (1 + ibuf->free_list_len);
@@ -547,7 +546,7 @@ ibuf_init_at_db_start(void)
 		root = buf_block_get_frame(block);
 	}
 
-	ibuf_size_update(root, &mtr);
+	ibuf_size_update(root);
 	mutex_exit(&ibuf_mutex);
 
 	ibuf->empty = page_is_empty(root);
@@ -3625,7 +3624,7 @@ fail_exit:
 		}
 
 		mutex_exit(&ibuf_pessimistic_insert_mutex);
-		ibuf_size_update(root, &mtr);
+		ibuf_size_update(root);
 		mutex_exit(&ibuf_mutex);
 		ibuf->empty = page_is_empty(root);
 
@@ -4398,7 +4397,7 @@ ibuf_delete_rec(
 #ifdef UNIV_IBUF_COUNT_DEBUG
 	ibuf_count_set(page_id, ibuf_count_get(page_id) - 1);
 #endif
-	ibuf_size_update(root, mtr);
+	ibuf_size_update(root);
 	mutex_exit(&ibuf_mutex);
 
 	ibuf->empty = page_is_empty(root);
