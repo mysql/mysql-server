@@ -52,7 +52,7 @@
 #include "sql_show.h"
 #include "transaction.h"
 #include "datadict.h"  // dd_frm_type()
-#include "sql_resolver.h"              // setup_order, fix_inner_refs
+#include "sql_resolver.h"              // setup_order
 #include "table_cache.h"
 #include "sql_trigger.h"               // change_trigger_table_name
 #include <mysql/psi/mysql_table.h>

@@ -661,7 +661,7 @@ void Item_sum::update_used_tables ()
      reference an outer table, like COUNT (*) or COUNT(123).
     */
     used_tables_cache|= aggr_level == nest_level ?
-      ((table_map)1 << aggr_sel->join->tables) - 1 :
+      ((table_map)1 << aggr_sel->leaf_table_count) - 1 :
       OUTER_REF_TABLE_BIT;
 
   }
@@ -910,9 +910,8 @@ bool Aggregator_distinct::setup(THD *thd)
           item->marker=4;
       }    
     }    
-    if (!(table= create_tmp_table(thd, tmp_table_param, list, (ORDER*) 0, 1,
-                                  0,
-                                  (select_lex->options | thd->variables.option_bits),
+    if (!(table= create_tmp_table(thd, tmp_table_param, list, NULL, true, false,
+                                  select_lex->active_options(),
                                   HA_POS_ERROR, "")))
       return TRUE;
     table->file->extra(HA_EXTRA_NO_ROWS);		// Don't update rows
@@ -3694,8 +3693,8 @@ bool Item_func_group_concat::setup(THD *thd)
     field list.
   */
   if (!(table= create_tmp_table(thd, tmp_table_param, all_fields,
-                                (ORDER*) 0, 0, TRUE,
-                                (select_lex->options | thd->variables.option_bits),
+                                NULL, false, true,
+                                select_lex->active_options(),
                                 HA_POS_ERROR, (char*) "")))
     DBUG_RETURN(TRUE);
   table->file->extra(HA_EXTRA_NO_ROWS);

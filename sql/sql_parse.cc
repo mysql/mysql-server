@@ -62,7 +62,7 @@
                               // mysql_show_grants,
                               // sp_grant_privileges, ...
 #include "sql_test.h"         // mysql_print_status
-#include "sql_select.h"       // handle_select, mysql_select,
+#include "sql_select.h"       // handle_query
 #include "sql_load.h"         // mysql_load
 #include "sql_servers.h"      // create_servers, alter_servers,
                               // drop_servers, servers_reload
@@ -2803,7 +2803,6 @@ case SQLCOM_PREPARE:
 "section of the manual.");
       }
       
-      select_lex->options|= SELECT_NO_UNLOCK;
       unit->set_limit(select_lex);
 
       /*
@@ -2871,7 +2870,6 @@ case SQLCOM_PREPARE:
                                        lex->duplicates,
                                        select_tables)))
         {
-          /* Push ignore / strict error handler */
           Ignore_error_handler ignore_handler;
           Strict_error_handler strict_handler;
           if (thd->lex->is_ignore())
@@ -2883,9 +2881,8 @@ case SQLCOM_PREPARE:
             CREATE from SELECT give its SELECT_LEX for SELECT,
             and item_list belong to SELECT
           */
-          res= handle_select(thd, result, 0);
+          res= handle_query(thd, lex, result, SELECT_NO_UNLOCK, 0);
 
-          /* Pop ignore / strict error handler */
           if (thd->lex->is_ignore() || thd->is_strict_mode())
             thd->pop_internal_handler();
 
@@ -3253,7 +3250,6 @@ end_with_restore_list:
       res= mysql_multi_update(thd,
                               &select_lex->item_list,
                               &lex->value_list,
-                              select_lex->options,
                               lex->duplicates,
                               select_lex,
                               &result_obj);
@@ -3388,9 +3384,6 @@ end_with_restore_list:
     if (lex->sql_command == SQLCOM_REPLACE_SELECT)
       lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_REPLACE_SELECT);
 
-    /* Don't unlock tables until command is written to binary log */
-    select_lex->options|= SELECT_NO_UNLOCK;
-
     unit->set_limit(select_lex);
 
     if (!(res= open_normal_and_derived_tables(thd, all_tables, 0)))
@@ -3401,6 +3394,7 @@ end_with_restore_list:
       select_lex->table_list.first= second_table;
       select_lex->context.table_list= 
         select_lex->context.first_name_resolution_table= second_table;
+
       res= mysql_insert_select_prepare(thd);
       if (!res && (sel_result= new select_insert(first_table,
                                                  first_table->table,
@@ -3410,24 +3404,22 @@ end_with_restore_list:
                                                  &lex->value_list,
                                                  lex->duplicates)))
       {
-        if (lex->describe)
-          res= explain_query(thd, thd->lex->unit, sel_result);
-        else
-        {
-          /* Push ignore / strict error handler */
-          Ignore_error_handler ignore_handler;
-          Strict_error_handler strict_handler;
-          if (thd->lex->is_ignore())
-            thd->push_internal_handler(&ignore_handler);
-          else if (thd->is_strict_mode())
-            thd->push_internal_handler(&strict_handler);
+        Ignore_error_handler ignore_handler;
+        Strict_error_handler strict_handler;
+        if (thd->lex->is_ignore())
+          thd->push_internal_handler(&ignore_handler);
+        else if (thd->is_strict_mode())
+          thd->push_internal_handler(&strict_handler);
 
-          res= handle_select(thd, sel_result, OPTION_SETUP_TABLES_DONE);
+        res= handle_query(thd, lex, sel_result,
+                          // Don't unlock tables until command is written
+                          // to binary log
+                          OPTION_SETUP_TABLES_DONE | SELECT_NO_UNLOCK,
+                          0);
 
-          /* Pop ignore / strict error handler */
-          if (thd->lex->is_ignore() || thd->is_strict_mode())
-            thd->pop_internal_handler();
-        }
+        if (thd->lex->is_ignore() || thd->is_strict_mode())
+          thd->pop_internal_handler();
+
         delete sel_result;
       }
       /* revert changes for SP */
@@ -3463,7 +3455,7 @@ end_with_restore_list:
       thd->push_internal_handler(&strict_handler);
 
     MYSQL_DELETE_START(const_cast<char*>(thd->query().str));
-    res = mysql_delete(thd, unit->select_limit_cnt, select_lex->options);
+    res = mysql_delete(thd, unit->select_limit_cnt);
     MYSQL_DELETE_DONE(res, (ulong) thd->get_row_count_func());
 
     /* Pop ignore / strict error handler */
@@ -3502,37 +3494,29 @@ end_with_restore_list:
     if (!thd->is_fatal_error &&
         (del_result= new multi_delete(aux_tables, del_table_count)))
     {
-      if (lex->describe)
-        res= explain_query(thd, unit, del_result) || thd->is_error();
-      else
-      {
-        DBUG_ASSERT(select_lex->having_cond() == NULL &&
-                    !select_lex->order_list.elements &&
-                    !select_lex->group_list.elements);
+      DBUG_ASSERT(select_lex->having_cond() == NULL &&
+                  !select_lex->order_list.elements &&
+                  !select_lex->group_list.elements);
 
-        /* Push ignore / strict error handler */
-        Ignore_error_handler ignore_handler;
-        Strict_error_handler strict_handler;
-        if (thd->lex->is_ignore())
-          thd->push_internal_handler(&ignore_handler);
-        else if (thd->is_strict_mode())
-          thd->push_internal_handler(&strict_handler);
+      Ignore_error_handler ignore_handler;
+      Strict_error_handler strict_handler;
+      if (thd->lex->is_ignore())
+        thd->push_internal_handler(&ignore_handler);
+      else if (thd->is_strict_mode())
+        thd->push_internal_handler(&strict_handler);
 
-        res= mysql_select(thd,
-                          select_lex->item_list,
-                          (select_lex->options | thd->variables.option_bits |
-                          SELECT_NO_JOIN_CACHE | SELECT_NO_UNLOCK |
-                          OPTION_SETUP_TABLES_DONE) & ~OPTION_BUFFER_RESULT,
-                          del_result, select_lex);
+      res= handle_query(thd, lex, del_result,
+                        SELECT_NO_JOIN_CACHE |
+                        SELECT_NO_UNLOCK |
+                        OPTION_SETUP_TABLES_DONE,
+                        OPTION_BUFFER_RESULT);
 
-        /* Pop ignore / strict error handler */
-        if (thd->lex->is_ignore() || thd->is_strict_mode())
-          thd->pop_internal_handler();
+      if (thd->lex->is_ignore() || thd->is_strict_mode())
+        thd->pop_internal_handler();
 
-        res|= thd->is_error();
-        if (res)
-          del_result->abort_result_set();
-      }
+      if (res)
+        del_result->abort_result_set();
+
       MYSQL_MULTI_DELETE_DONE(res, del_result->num_deleted());
       delete del_result;
     }
@@ -4951,7 +4935,6 @@ finish:
 static bool execute_sqlcom_select(THD *thd, TABLE_LIST *all_tables)
 {
   LEX	*lex= thd->lex;
-  select_result *result= lex->result;
 #ifdef HAVE_MY_TIMER
   bool statement_timer_armed= false;
 #endif
@@ -4973,7 +4956,8 @@ static bool execute_sqlcom_select(THD *thd, TABLE_LIST *all_tables)
 
   if (!(res= open_normal_and_derived_tables(thd, all_tables, 0)))
   {
-    if (lex->describe)
+    MYSQL_SELECT_START(const_cast<char*>(thd->query().str));
+    if (lex->is_explain())
     {
       /*
         We always use select_send for EXPLAIN, even if it's an EXPLAIN
@@ -4981,12 +4965,16 @@ static bool execute_sqlcom_select(THD *thd, TABLE_LIST *all_tables)
         to prepend EXPLAIN to any query and receive output for it,
         even if the query itself redirects the output.
       */
-      res= explain_query(thd, thd->lex->unit, NULL);
+      select_result *const result= new select_send;
+      if (!result)
+        return true; /* purecov: inspected */
+      res= handle_query(thd, lex, result, 0, 0);
     }
     else
     {
+      select_result *result= lex->result;
       if (!result && !(result= new select_send()))
-        return 1;                               /* purecov: inspected */
+        return true;                            /* purecov: inspected */
       select_result *save_result= result;
       select_result *analyse_result= NULL;
       if (lex->proc_analyse)
@@ -4995,11 +4983,12 @@ static bool execute_sqlcom_select(THD *thd, TABLE_LIST *all_tables)
                new select_analyse(result, lex->proc_analyse)) == NULL)
           return true;
       }
-      res= handle_select(thd, result, 0);
+      res= handle_query(thd, lex, result, 0, 0);
       delete analyse_result;
       if (save_result != lex->result)
         delete save_result;
     }
+    MYSQL_SELECT_DONE((int) res, (ulong) thd->limit_found_rows);
   }
 
 #ifdef HAVE_MY_TIMER

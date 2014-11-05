@@ -3975,20 +3975,23 @@ public:
   /**
     Change wrapped select_result.
 
-    Replace the wrapped result object with new_result and call
+    Replace the wrapped query result object with new_result and call
     prepare() and prepare2() on new_result.
 
     This base class implementation doesn't wrap other select_results.
 
-    @param new_result The new result object to wrap around
+    @param new_result The new query result object to wrap around
 
     @retval false Success
     @retval true  Error
   */
-  virtual bool change_result(select_result *new_result)
+  virtual bool change_query_result(select_result *new_result)
   {
     return false;
   }
+  /// @return true if an interceptor object is needed for EXPLAIN
+  virtual bool need_explain_interceptor() const { return false; }
+
   virtual int prepare(List<Item> &list, SELECT_LEX_UNIT *u)
   {
     unit= u;
@@ -4238,6 +4241,7 @@ public:
 
 public:
   ~select_insert();
+  virtual bool need_explain_interceptor() const { return true; }
   int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
   virtual int prepare2(void);
   bool send_data(List<Item> &items);
@@ -4453,7 +4457,7 @@ public:
 
   Function calls are forwarded to the wrapped select_result, but some
   functions are expected to be called only once for each query, so
-  they are only executed for the first SELECT in the union (execept
+  they are only executed for the first SELECT in the union (except
   for send_eof(), which is executed only for the last SELECT).
 
   This select_result is used when a UNION is not DISTINCT and doesn't
@@ -4486,7 +4490,7 @@ public:
     done_send_result_set_metadata(false), done_initialize_tables(false),
     limit_found_rows(0)
   {}
-  bool change_result(select_result *new_result);
+  bool change_query_result(select_result *new_result);
   uint field_count(List<Item> &fields) const
   {
     // Only called for top-level select_results, usually select_send
@@ -4913,6 +4917,7 @@ class multi_delete :public select_result_interceptor
 public:
   multi_delete(TABLE_LIST *dt, uint num_of_tables);
   ~multi_delete();
+  virtual bool need_explain_interceptor() const { return true; }
   int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
   bool send_data(List<Item> &items);
   bool initialize_tables (JOIN *join);
@@ -4980,6 +4985,7 @@ public:
 	       List<Item> *fields, List<Item> *values,
 	       enum_duplicates handle_duplicates);
   ~multi_update();
+  virtual bool need_explain_interceptor() const { return true; }
   int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
   bool send_data(List<Item> &items);
   bool initialize_tables (JOIN *join);

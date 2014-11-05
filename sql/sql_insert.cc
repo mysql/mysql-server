@@ -346,6 +346,8 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
                   List<Item> &update_values,
                   enum_duplicates duplic)
 {
+  DBUG_ENTER("mysql_insert");
+
   int error, res;
   bool err= true;
   bool transactional_table, joins_freed= FALSE;
@@ -382,7 +384,9 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
   bool prune_needs_default_values;
 #endif /* WITH_PARITITION_STORAGE_ENGINE */
 
-  DBUG_ENTER("mysql_insert");
+  SELECT_LEX *const select_lex= thd->lex->select_lex;
+
+  select_lex->make_active_options(0, 0);
 
   if (open_normal_and_derived_tables(thd, table_list, 0))
     DBUG_RETURN(true);
@@ -412,7 +416,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
                                           insert_table->write_set))
     goto exit_without_my_ok; /* purecov: inspected */
 
-  context= &thd->lex->select_lex->context;
+  context= &select_lex->context;
   /*
     These three asserts test the hypothesis that the resetting of the name
     resolution context below is not necessary at all since the list of local
@@ -525,12 +529,6 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
                          NULL, false, 0);
   DEBUG_SYNC(thd, "planned_single_insert");
 
-  if (thd->lex->describe)
-  {
-    err= explain_single_table_modification(thd, &plan, thd->lex->select_lex);
-    goto exit_without_my_ok;
-  }
-
 #ifdef WITH_PARTITION_STORAGE_ENGINE
   if (can_prune_partitions != partition_info::PRUNE_NO)
   {
@@ -558,6 +556,12 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
       lock_tables(thd, table_list, thd->lex->table_count, 0))
     DBUG_RETURN(true);
  
+  if (thd->lex->describe)
+  {
+    err= explain_single_table_modification(thd, &plan, select_lex);
+    goto exit_without_my_ok;
+  }
+
   /*
     Count warnings for all inserts.
     For single line insert, generate an error if try to set a NOT NULL field
@@ -713,7 +717,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
   } // Statement plan is available within these braces
 
   error= thd->get_stmt_da()->is_error();
-  free_underlaid_joins(thd, thd->lex->select_lex);
+  free_underlaid_joins(thd, select_lex);
   joins_freed= true;
 
   /*
@@ -862,7 +866,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
 
 exit_without_my_ok:
   if (!joins_freed)
-    free_underlaid_joins(thd, thd->lex->select_lex);
+    free_underlaid_joins(thd, select_lex);
   DBUG_RETURN(err);
 }
 
@@ -1929,9 +1933,15 @@ select_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
   */
   if (unique_table(thd, insert_table_ref, table_list->next_global, 0))
   {
-    /* Using same table for INSERT and SELECT */
-    lex->current_select()->options|= OPTION_BUFFER_RESULT;
-    lex->current_select()->join->select_options|= OPTION_BUFFER_RESULT;
+    // Using same table for INSERT and SELECT
+    /*
+      @todo: Use add_base_options instead of add_active_options, and only
+      if first_execution is true; but this can be implemented only when this
+      function is called before first_execution is set to true.
+      if (lex->current_select()->first_execution)
+        lex->current_select()->add_base_options(OPTION_BUFFER_RESULT);
+    */
+    lex->current_select()->add_active_options(OPTION_BUFFER_RESULT);
   }
   restore_record(table,s->default_values);		// Get empty record
   table->next_number_field=table->found_next_number_field;

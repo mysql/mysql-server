@@ -835,7 +835,7 @@ EXPLAIN UPDATE t2 straight_join t3 straight_join t1 SET t1.c2 = 30, t2.c2 = 40, 
 WHERE t1.c1=t2.c2 AND t2.c1=t3.c2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	t2	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where
-1	UPDATE	t3	NULL	ALL	NULL	NULL	NULL	NULL	5	20.00	Using where; Using join buffer (Block Nested Loop)
+1	UPDATE	t3	NULL	ALL	NULL	NULL	NULL	NULL	5	20.00	Using where
 1	UPDATE	t1	NULL	ref	c1	c1	5	test.t2.c2	1	100.00	NULL
 SELECT * FROM t3 ORDER BY c1;
 c1	c2

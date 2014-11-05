@@ -107,7 +107,7 @@ private:
   REPLACE/UPDATE/DELETE query like we use select_send in the context of
   EXPLAIN SELECT command:
     1) in presence of lex->describe flag we pass explain_send object to the
-       mysql_select() function,
+       handle_query() function,
     2) it call prepare(), prepare2() and initialize_tables() functions to
        mark modified tables etc.
 
@@ -134,10 +134,10 @@ protected:
   select_result *interceptor;
 
 public:
-  explain_send(select_result *interceptor_arg)
+  explain_send(st_select_lex_unit *unit_arg, select_result *interceptor_arg)
   : prepared(false), prepared2(false), initialized(false),
     interceptor(interceptor_arg)
-  {}
+  { unit= unit_arg; }
 
 protected:
   virtual int prepare(List<Item> &list, SELECT_LEX_UNIT *u)
@@ -178,7 +178,7 @@ bool explain_no_table(THD *thd, SELECT_LEX *select_lex, const char *message,
 bool explain_single_table_modification(THD *ethd,
                                        const Modification_plan *plan,
                                        SELECT_LEX *select);
-bool explain_query(THD *thd, SELECT_LEX_UNIT *unit, select_result *result);
+bool explain_query(THD *thd, SELECT_LEX_UNIT *unit);
 bool explain_query_expression(THD *thd, SELECT_LEX_UNIT *unit,
                               select_result *result);
 bool explain_query_specification(THD *ethd, SELECT_LEX *select_lex,
