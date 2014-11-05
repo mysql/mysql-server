@@ -81,6 +81,7 @@ public:
       them.
     */
     pc->select->select_n_where_fields+= child->select_n_where_fields;
+    pc->select->select_n_having_items+= child->select_n_having_items;
     value= query_expression_body->value;
     return false;
   }
