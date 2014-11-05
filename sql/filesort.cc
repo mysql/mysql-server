@@ -1757,9 +1757,9 @@ namespace {
  */
 struct Merge_chunk_less
 {
-  size_t       m_len;
-  qsort2_cmp   m_fun;
-  void        *m_arg;
+  size_t m_len;
+  Sort_param::chunk_compare_fun m_fun;
+  Merge_chunk_compare_context *m_arg;
 
   // CTOR for filesort()
   explicit Merge_chunk_less(size_t len)
@@ -1767,7 +1767,8 @@ struct Merge_chunk_less
   {}
 
   // CTOR for Unique::get()
-  Merge_chunk_less(qsort2_cmp fun, void *arg)
+  Merge_chunk_less(Sort_param::chunk_compare_fun fun,
+                   Merge_chunk_compare_context *arg)
     : m_len(0), m_fun(fun), m_arg(arg)
   {}
 
@@ -1779,7 +1780,7 @@ struct Merge_chunk_less
       return memcmp(key1, key2, m_len) > 0;
 
     if (m_fun)
-      return (*m_fun)(m_arg, &key1, &key2) > 0;
+      return (*m_fun)(m_arg, key1, key2) > 0;
 
     // We can actually have zero-length sort key for filesort().
     return false;
@@ -1787,43 +1788,6 @@ struct Merge_chunk_less
 };
 
 } // namespace
-
-
-/**
-  Put all room used by freed buffer to use in adjacent buffer.
-
-  Note, that we can't simply distribute memory evenly between all buffers,
-  because new areas must not overlap with old ones.
-*/
-void Merge_chunk::reuse_freed_buff(Merge_chunk *begin, Merge_chunk *end)
-{
-  for (Merge_chunk *mc= begin; mc != end; ++mc)
-  {
-    if (merge_freed_buff(mc))
-      return;
-  }
-  DBUG_ASSERT(0);
-}
-
-
-/**
-  Put all room used by freed buffer to use in adjacent buffer.
-
-  Note, that we can't simply distribute memory evenly between all buffers,
-  because new areas must not overlap with old ones.
-*/
-template<typename Heap_type>
-void reuse_freed_buff(Merge_chunk *old_top, Heap_type *heap)
-{
-  typename Heap_type::iterator it= heap->begin();
-  typename Heap_type::iterator end= heap->end();
-  for (; it != end; ++it)
-  {
-    if (old_top->merge_freed_buff(*it))
-      return;
-  }
-  DBUG_ASSERT(0);
-}
 
 
 /**
@@ -1858,8 +1822,8 @@ int merge_buffers(Sort_param *param, IO_CACHE *from_file,
   my_off_t to_start_filepos;
   uchar *strpos;
   Merge_chunk *merge_chunk;
-  qsort2_cmp cmp;
-  void *first_cmp_arg;
+  Sort_param::chunk_compare_fun cmp;
+  Merge_chunk_compare_context *first_cmp_arg;
   volatile THD::killed_state *killed= &current_thd->killed;
   THD::killed_state not_killable;
   DBUG_ENTER("merge_buffers");
@@ -1963,7 +1927,7 @@ int merge_buffers(Sort_param *param, IO_CACHE *from_file,
       {
         DBUG_ASSERT(!param->using_packed_addons());
         uchar *current_key= merge_chunk->current_key();
-        if (!(*cmp)(first_cmp_arg, &(param->unique_buff), &current_key))
+        if (!(*cmp)(first_cmp_arg, param->unique_buff, current_key))
           goto skip_duplicate;
         memcpy(param->unique_buff, merge_chunk->current_key(), rec_length);
       }
@@ -2019,7 +1983,7 @@ int merge_buffers(Sort_param *param, IO_CACHE *from_file,
   if (doing_unique)
   {
     uchar *current_key= merge_chunk->current_key();
-    if (!(*cmp)(first_cmp_arg, &(param->unique_buff), &current_key))
+    if (!(*cmp)(first_cmp_arg, param->unique_buff, current_key))
     {
       merge_chunk->advance_current_key(rec_length); // Remove duplicate
       merge_chunk->decrement_mem_count();
