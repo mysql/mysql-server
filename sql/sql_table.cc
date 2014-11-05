@@ -7342,8 +7342,8 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
           (def->gcol_info && def->gcol_info->get_field_stored()))
         my_error(ER_UNSUPPORTED_ACTION_ON_GENERATED_COLUMN,
                  MYF(0),
-                 "Virtual generated column combines with other columns  
-                 to be added together");
+                 "Virtual generated column combines with other columns "
+                 "to be added together");
     }
     else
     {
@@ -7351,8 +7351,8 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
       if (def->gcol_info && !def->gcol_info->get_field_stored())
         my_error(ER_UNSUPPORTED_ACTION_ON_GENERATED_COLUMN,
                  MYF(0),
-                 "Virtual generated column combines with other columns 
-                 to be added together");
+                 "Virtual generated column combines with other columns "
+                 "to be added together");
     }
     /*
       Check that the DATE/DATETIME not null field we are going to add is
