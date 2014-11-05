@@ -31,151 +31,6 @@
 #include "opt_explain_format.h"
 
 
-/**
-   Optimize all inner units which are already prepared.
-*/
-bool mysql_optimize_prepared_inner_units(THD *thd, SELECT_LEX_UNIT *unit,
-                                         ulong options)
-{
-  SELECT_LEX *select_lex= unit->first_select();
-  do
-  {
-    if (!select_lex)
-    {
-      if (unit->fake_select_lex)
-        select_lex= unit->fake_select_lex;
-      else
-        break;
-    }
-    for (SELECT_LEX_UNIT *unt= select_lex->first_inner_unit();
-         unt;
-         unt= unt->next_unit())
-    {
-      if (unt->first_select_prepared() &&
-          // result=NULL is meaningless but will not be used
-          mysql_union_prepare_and_optimize(thd, thd->lex, NULL, unt, options))
-        return true; /* purecov: inspected */
-    }
-    if (select_lex == unit->fake_select_lex)
-      break;
-    select_lex= select_lex->next_select();
-  } while (true);
-  return false;
-}
-
-/**
-  Prepare and optimize all selects in the union.
-
-  @param thd           thread handler
-  @param lex           lex handler
-  @param result        select result for top unit
-  @param unit          union to prepare and optimize
-  @param union_options options to pass to prepare
-
-  @returns
-    false - ok
-    true  - error
-*/
-
-bool mysql_union_prepare_and_optimize(THD *thd, LEX *lex,
-                                      select_result *result,
-                                      SELECT_LEX_UNIT *unit,
-                                      ulong union_options)
-{
-  DBUG_ASSERT(thd == unit->thd);
-
-  if (!unit->optimized)
-  {
-    if (unit->is_union() || unit->fake_select_lex)
-    {
-      if (unit->prepare(thd, result, SELECT_NO_UNLOCK | union_options))
-        return true; /* purecov: inspected */
-
-      /*
-        In case of non-EXPLAIN statement tables are not locked at this point,
-        it means that we have delayed this step until after prepare stage (i.e.
-        this moment). This allows to do better partition pruning and avoid locking
-        unused partitions.
-        As a consequence, in such a case, prepare stage can rely only on
-        metadata about tables used and not data from them.
-        We need to lock tables now in order to proceed with the remaning
-        stages of query optimization and execution.
-      */
-      if (!thd->lex->is_query_tables_locked() &&
-          lock_tables(thd, lex->query_tables, lex->table_count, 0))
-        return true; /* purecov: inspected */
-
-      /*
-        Tables must be locked before storing the query in the query cache.
-        Transactional engines must been signalled that the statement started,
-        which external_lock signals.
-      */
-      query_cache.store_query(thd, thd->lex->query_tables);
-
-      if (unit->optimize())
-        return true;
-    }
-    else
-    {
-      SELECT_LEX *const first= unit->first_select();
-      SELECT_LEX *const select_save= thd->lex->current_select();
-      bool free_join= false; // It's ignored for EXPLAIN
-      thd->lex->set_current_select(first);
-      unit->set_limit(unit->global_parameters());
-      if (mysql_prepare_and_optimize_select(thd,
-                        first->item_list,
-                        (first->options | thd->variables.option_bits |
-                           union_options),
-                        result, first, &free_join))
-        return true;
-      thd->lex->set_current_select(select_save);
-      unit->optimized= true;
-    }
-  }
-  /*
-    The preparation of a unit automatically prepares, through
-    mysql_derived_prepare () or Item_subselect::fix_fields(), all inner
-    units which will be needed. Other inner units can be considered as
-    eliminated without evaluation thus we don't prepare them here. 
-    For example:
-        SELECT (subquery) etc. ORDER BY (same subquery);
-    contains two inner units but the ORDER BY one will not be used (its
-    Item_subselect is replaced by a reference to the SELECT list subquery).
-  */
-  if (mysql_optimize_prepared_inner_units(thd, unit, union_options))
-    return true; /* purecov: inspected */
-  return false;
-}
-
-
-/**
-  Entry point for handling UNIONs: prepare, optimize and execute.
-
-  @param thd           thread handler
-  @param lex           lex handler
-  @param result        select result
-  @param unit          union to prepare and optimize
-  @param union_options options to pass to prepare
-
-  @returns
-    false - ok
-    true  - error
-*/
-
-bool mysql_union(THD *thd, LEX *lex, select_result *result,
-                 SELECT_LEX_UNIT *unit, ulong setup_tables_done_option)
-{
-  bool res;
-  DBUG_ENTER("mysql_union");
-
-  res= (mysql_union_prepare_and_optimize(thd, lex, result, unit,
-                                         setup_tables_done_option) ||
-        unit->exec());
-  /* Do partial cleanup (preserve plans for EXPLAIN) otherwise. */
-  res|= unit->cleanup(false);
-  DBUG_RETURN(res);
-}
-
 /***************************************************************************
 ** store records in temporary table for UNION
 ***************************************************************************/
@@ -193,16 +48,16 @@ bool select_union::send_data(List<Item> &values)
   if (unit->offset_limit_cnt)
   {						// using limit offset,count
     unit->offset_limit_cnt--;
-    return 0;
+    return false;
   }
   fill_record(thd, table->field, values,
               (table->hash_field ?
                &table->hash_field_bitmap : NULL), NULL);
   if (thd->is_error())
-    return 1;
+    return true;
 
   if (!check_unique_constraint(table, 0))
-    return 0;
+    return false;
 
   if ((error= table->file->ha_write_row(table->record[0])))
   {
@@ -210,18 +65,18 @@ bool select_union::send_data(List<Item> &values)
     if (!table->file->is_ignorable_error(error) &&
         create_ondisk_from_heap(thd, table, tmp_table_param.start_recinfo, 
                                 &tmp_table_param.recinfo, error, TRUE, NULL))
-      return 1;
+      return true;            /* purecov: inspected */
     // Table's engine changed, index is not initialized anymore
     if (table->hash_field)
       table->file->ha_index_init(0, false);
   }
-  return 0;
+  return false;
 }
 
 
 bool select_union::send_eof()
 {
-  return 0;
+  return false;
 }
 
 
@@ -231,32 +86,28 @@ bool select_union::flush()
   if ((error=table->file->extra(HA_EXTRA_NO_CACHE)))
   {
     table->file->print_error(error, MYF(0));
-    return 1;
+    return true;            /* purecov: inspected */
   }
-  return 0;
+  return false;
 }
 
-/*
+/**
   Create a temporary table to store the result of select_union.
 
-  SYNOPSIS
-    select_union::create_result_table()
-      thd                thread handle
-      column_types       a list of items used to define columns of the
-                         temporary table
-      is_union_distinct  if set, the temporary table will eliminate
-                         duplicates on insert
-      options            create options
-      table_alias        name of the temporary table
-      bit_fields_as_long convert bit fields to ulonglong
+  @param thd                thread handle
+  @param column_types       a list of items used to define columns of the
+                            temporary table
+  @param is_union_distinct  if set, the temporary table will eliminate
+                            duplicates on insert
+  @param options            create options
+  @param table_alias        name of the temporary table
+  @param bit_fields_as_long convert bit fields to ulonglong
 
-  DESCRIPTION
+  @details
     Create a temporary table that is used to store the result of a UNION,
     derived table, or a materialized cursor.
 
-  RETURN VALUE
-    0                    The table has been created successfully.
-    1                    create_tmp_table failed.
+  @returns false if table created, true if error
 */
 
 bool
@@ -273,7 +124,7 @@ select_union::create_result_table(THD *thd_arg, List<Item> *column_types,
   tmp_table_param.bit_fields_as_long= bit_fields_as_long;
 
   if (! (table= create_tmp_table(thd_arg, &tmp_table_param, *column_types,
-                                 (ORDER*) 0, is_union_distinct, 1,
+                                 NULL, is_union_distinct, true,
                                  options, HA_POS_ERROR, (char*) table_alias)))
     return TRUE;
   if (create_table)
@@ -308,28 +159,14 @@ void select_union::cleanup()
 
 
 /**
-   This is a bit different from is_prepared(). Indeed, single-SELECT does not
-   always go through SELECT_LEX_UNIT code, thus it is possible to have a unit
-   where "prepared" is false but the single SELECT_LEX inside it has a
-   prepared JOIN.
-   @todo if we always used SELECT_LEX_UNIT code, this function could be
-   replaced with is_prepared().
- */
-bool st_select_lex_unit::first_select_prepared()
-{
-  return first_select()->join != NULL;
-}
+  Replace the current query result with new_result and prepare it.  
 
-
-/**
-  Replace the current result with new_result and prepare it.  
-
-  @param new_result New result pointer
+  @param new_result New query result
 
   @retval FALSE Success
   @retval TRUE  Error
 */
-bool select_union_direct::change_result(select_result *new_result)
+bool select_union_direct::change_query_result(select_result *new_result)
 {
   result= new_result;
   return (result->prepare(unit->types, unit) || result->prepare2());
@@ -418,24 +255,24 @@ bool select_union_direct::send_eof()
 
 
 /**
-  Initialization procedures before fake_select_lex preparation()
+  Prepare the fake_select_lex query block
 
   @param thd		 Thread handler
-  @param no_const_tables Skip reading const tables. TRUE for EXPLAIN.
 
-  @returns
-    TRUE  OOM
-    FALSE Ok
+  @returns false if success, true if error
 */
 
-bool
-st_select_lex_unit::init_prepare_fake_select_lex(THD *thd_arg,
-                                                 bool no_const_tables)
+bool st_select_lex_unit::prepare_fake_select_lex(THD *thd_arg)
 {
-  DBUG_ENTER("st_select_lex_unit::init_prepare_fake_select_lex");
+  DBUG_ENTER("st_select_lex_unit::prepare_fake_select_lex");
+
   DBUG_ASSERT(thd_arg->lex->current_select() == fake_select_lex);
+
+  // The UNION result table is input table for this query block
   fake_select_lex->table_list.link_in_list(&result_table_list,
                                            &result_table_list.next_local);
+
+  // Set up the result table for name resolution
   fake_select_lex->context.table_list= 
     fake_select_lex->context.first_name_resolution_table= 
     fake_select_lex->get_table_list();
@@ -454,82 +291,70 @@ st_select_lex_unit::init_prepare_fake_select_lex(THD *thd_arg,
                          Item::WALK_POSTFIX,
                          (uchar*) &fake_select_lex->context);
   }
-  if (!fake_select_lex->join)
-  {
-    /*
-      allocate JOIN for fake select only once (prevent
-      mysql_select automatic allocation)
-      TODO: The above is nonsense. mysql_select() will not allocate the
-      join if one already exists. There must be some other reason why we
-      don't let it allocate the join. Perhaps this is because we need
-      some special parameter values passed to join constructor?
-    */
-    /*
-      We can come here from st_select_lex_unit::exec(), at this moment
-      explain_query_specification(fake_select_lex) may be running and thus
-      read fake_select_lex->join so we must use set_join():
-    */
-    JOIN *new_join;
-    if (!(new_join=
-          new JOIN(thd, item_list,
-                   fake_select_lex->options | found_rows_for_union, result)))
-    {
-      fake_select_lex->table_list.empty();
-      DBUG_RETURN(true);
-    }
-    fake_select_lex->set_join(new_join);
-    fake_select_lex->join->no_const_tables= no_const_tables;
+  fake_select_lex->set_query_result(query_result());
 
-    /*
-      Fake st_select_lex should have item list for correct ref_array
-      allocation.
-    */
-    fake_select_lex->item_list= item_list;
+  /*
+    For subqueries in form "a IN (SELECT .. UNION SELECT ..):
+    when optimizing the fake_select_lex that reads the results of the union
+    from a temporary table, do not mark the temp. table as constant because
+    the contents in it may vary from one subquery execution to another.
+  */
+  fake_select_lex->make_active_options(
+     (first_select()->active_options() & OPTION_FOUND_ROWS) |
+     OPTION_NO_CONST_TABLES |
+     SELECT_NO_UNLOCK,
+     0);
+  fake_select_lex->fields_list= item_list;
 
-    /*
-      We need to add up n_sum_items in order to make the correct
-      allocation in setup_ref_array().
-      Don't add more sum_items if we have already done SELECT_LEX::prepare
-      for this (with a different join object)
-    */
-    if (fake_select_lex->ref_pointer_array.is_null())
-      fake_select_lex->n_child_sum_items+= global_parameters()->n_sum_items;
-  }
+  /*
+    We need to add up n_sum_items in order to make the correct
+    allocation in setup_ref_array().
+    Don't add more sum_items if we have already done SELECT_LEX::prepare
+    for this (with a different join object)
+  */
+  if (fake_select_lex->ref_pointer_array.is_null())
+    fake_select_lex->n_child_sum_items+= global_parameters()->n_sum_items;
+
+  DBUG_ASSERT(fake_select_lex->with_wild == 0 &&
+              fake_select_lex->master_unit() == this &&
+              !fake_select_lex->group_list.elements &&
+              fake_select_lex->where_cond() == NULL &&
+              fake_select_lex->having_cond() == NULL);
+
+  if (fake_select_lex->prepare(thd_arg))
+    DBUG_RETURN(true);
+
   DBUG_RETURN(false);
 }
 
 
 /**
-   Prepares the unit.
+  Prepares all query blocks of a query expression, including fake_select_lex
 
-   @param thd_arg
-   @param sel_result         Result object where the unit's output should go.
-   @param additional_options The JOIN constructor will be passed the union of
-   these flags, those of THD, those of SELECT_LEX.
+  @param thd_arg       Thread handler
+  @param sel_result    Result object where the unit's output should go.
+  @param added_options These options will be added to the query blocks.
+  @param removed_options Options that cannot be used for this query
 
-   @todo Arguments are ignored if the unit is already prepared. This is
-   unfriendly to the users of this function.
+  @returns false if success, true if error
  */
 bool st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
-                                 ulong additional_options)
+                                 ulonglong added_options,
+                                 ulonglong removed_options)
 {
-  SELECT_LEX *lex_select_save= thd_arg->lex->current_select();
-  SELECT_LEX *sl, *first_sl= first_select();
-  select_result *tmp_result;
-  bool is_union_select;
-  bool instantiate_tmp_table= false;
   DBUG_ENTER("st_select_lex_unit::prepare");
 
-  if (prepared)
-    DBUG_RETURN(FALSE);
+  DBUG_ASSERT(!is_prepared());
 
-  prepared= 1;
-  saved_error= FALSE;
-  result= sel_result;
+  SELECT_LEX *lex_select_save= thd_arg->lex->current_select();
+  select_result *tmp_result;
+  bool instantiate_tmp_table= false;
+  bool status= false;          // Preparation error status
 
-  thd_arg->lex->set_current_select(sl= first_sl);
-  found_rows_for_union= first_sl->options & OPTION_FOUND_ROWS;
-  is_union_select= is_union() || fake_select_lex;
+  set_query_result(sel_result);
+
+  thd_arg->lex->set_current_select(first_select());
+  const bool is_union_select= is_union() || fake_select_lex;
 
   // Save fake_select_lex in case we don't need it for anything but
   // global parameters.
@@ -537,8 +362,6 @@ bool st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
   if (saved_fake_select_lex == NULL) // Don't overwrite on PS second prepare
     saved_fake_select_lex= fake_select_lex;
   mysql_mutex_unlock(&thd->LOCK_query_plan);
-
-
 
   /* Global option */
 
@@ -566,42 +389,34 @@ bool st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
   else
     tmp_result= sel_result;
 
-  sl->context.resolve_in_select_list= TRUE;
+  first_select()->context.resolve_in_select_list= true;
 
-  for (;sl; sl= sl->next_select())
+  for (SELECT_LEX *sl= first_select(); sl; sl= sl->next_select())
   {
-    sl->options|=  SELECT_NO_UNLOCK;
-    JOIN *join= new JOIN(thd_arg, sl->item_list, 
-			 sl->options | thd_arg->variables.option_bits | additional_options,
-			 tmp_result);
+    sl->set_query_result(tmp_result);
+    sl->make_active_options(added_options | SELECT_NO_UNLOCK, removed_options);
+    sl->fields_list= sl->item_list;
+
     /*
       setup_tables_done_option should be set only for very first SELECT,
       because it protect from secont setup_tables call for select-like non
       select commands (DELETE/INSERT/...) and they use only very first
       SELECT (for union it can be only INSERT ... SELECT).
     */
-    additional_options&= ~OPTION_SETUP_TABLES_DONE;
-    if (!join)
-      goto err;
+    added_options&= ~OPTION_SETUP_TABLES_DONE;
 
     thd_arg->lex->set_current_select(sl);
 
-    if (is_union_select && !(sl->braces && sl->explicit_limit))
-      sl->order_list.empty();      // Can skip ORDER BY
-
-    saved_error= sl->prepare(join);
-    /* There are no * in the statement anymore (for PS) */
-    sl->with_wild= 0;
-
-    if (saved_error || (saved_error= thd_arg->is_fatal_error))
+    if ((status= sl->prepare(thd_arg)))
       goto err;
+
     /*
       Use items list of underlaid select for derived tables to preserve
       information about fields lengths and exact types
     */
     if (!is_union_select)
-      types= first_sl->item_list;
-    else if (sl == first_sl)
+      types= first_select()->item_list;
+    else if (sl == first_select())
     {
       types.empty();
       List_iterator_fast<Item> it(sl->item_list);
@@ -629,30 +444,29 @@ bool st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
       while ((type= tp++, item_tmp= it++))
       {
         if (((Item_type_holder*)type)->join_types(thd_arg, item_tmp))
-	  DBUG_RETURN(TRUE);
+	  DBUG_RETURN(true);
       }
     }
   }
 
-  // If the query is using select_union_direct, we have postponed
-  // preparation of the underlying select_result until column types
-  // are known.
+  /*
+    If the query is using select_union_direct, we have postponed
+    preparation of the underlying select_result until column types are known.
+  */
   if (union_result != NULL && union_result->postponed_prepare(types))
     DBUG_RETURN(true);
 
   if (is_union_select)
   {
     /*
-      Check that it was possible to aggregate
-      all collations together for UNION.
-      We need this in case of UNION DISTINCT, to filter
-      out duplicates using the proper collation.
+      Check that it was possible to aggregate all collations together for UNION.
+      We need this in case of UNION DISTINCT, to filter out duplicates using
+      the proper collation.
 
       TODO: consider removing this test in case of UNION ALL.
     */
     List_iterator_fast<Item> tp(types);
     Item *type;
-    ulonglong create_options;
 
     while ((type= tp++))
     {
@@ -663,8 +477,8 @@ bool st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
         goto err;
       }
     }
-    create_options= (first_sl->options | thd_arg->variables.option_bits |
-                     TMP_TABLE_ALL_COLUMNS);
+    ulonglong create_options= first_select()->active_options() |
+                              TMP_TABLE_ALL_COLUMNS;
     /*
       Force the temporary table to be a MyISAM table if we're going to use
       fullext functions (MATCH ... AGAINST .. IN BOOLEAN MODE) when reading
@@ -672,7 +486,7 @@ bool st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
       out of MyISAM).
     */
     if (global_parameters()->ftfunc_list->elements)
-      create_options= create_options | TMP_TABLE_FORCE_MYISAM;
+      create_options|= TMP_TABLE_FORCE_MYISAM;
 
     if (union_result->create_result_table(thd, &types, MY_TEST(union_distinct),
                                           create_options, "", false,
@@ -685,29 +499,11 @@ bool st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
 
     if (!item_list.elements)
     {
-      {
-        Prepared_stmt_arena_holder ps_arena_holder(thd);
-        // Create fields list, but skip hash field that could be added at
-        // the end.
-        saved_error= table->fill_item_list(&item_list, types.elements);
-
-        if (saved_error)
-          goto err;
-      }
-
-      if (fake_select_lex != NULL && thd->stmt_arena->is_stmt_prepare())
-      {
-        thd_arg->lex->set_current_select(fake_select_lex);
-        /* Validate the global parameters of this union */
-        init_prepare_fake_select_lex(thd, false);
-        fake_select_lex->set_where_cond(NULL);
-        fake_select_lex->set_having_cond(NULL);
-        DBUG_ASSERT(fake_select_lex->with_wild == 0 &&
-                    fake_select_lex->master_unit() == this &&
-                    !fake_select_lex->group_list.elements);
-	saved_error= fake_select_lex->prepare(fake_select_lex->join);
-	fake_select_lex->table_list.empty();
-      }
+      Prepared_stmt_arena_holder ps_arena_holder(thd);
+      // Create fields list, but skip hash field that could be added at
+      // the end.
+      if ((status= table->fill_item_list(&item_list, types.elements)))
+        goto err;            /* purecov: inspected */
     }
     else
     {
@@ -717,89 +513,79 @@ bool st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
       */
       table->reset_item_list(&item_list, types.elements);
     }
+    if (fake_select_lex != NULL)
+    {
+      thd_arg->lex->set_current_select(fake_select_lex);
+
+      status= prepare_fake_select_lex(thd_arg);
+    }
   }
 
   thd_arg->lex->set_current_select(lex_select_save);
 
-  DBUG_RETURN(saved_error || thd_arg->is_fatal_error);
+  if (!status)
+    set_prepared();        // All query blocks prepared, update the state
+
+  DBUG_RETURN(status);
 
 err:
   thd_arg->lex->set_current_select(lex_select_save);
   (void) cleanup(false);
-  DBUG_RETURN(TRUE);
+  DBUG_RETURN(true);
 }
 
 
 /**
-  Run optimization phase.
+  Optimize all query blocks of a query expression, including fake_select_lex
 
-  @return FALSE unit successfully passed optimization phase.
-  @return TRUE an error occur.
+  @param thd    thread handler
+
+  @returns false if optimization successful, true if error
 */
 
-bool st_select_lex_unit::optimize()
+bool st_select_lex_unit::optimize(THD *thd)
 {
   SELECT_LEX *save_select= thd->lex->current_select();
   DBUG_ENTER("st_select_lex_unit::optimize");
 
-  if (optimized && item && item->assigned() && !uncacheable)
-    DBUG_RETURN(FALSE);
+  DBUG_ASSERT(is_prepared() && !is_optimized());
+
+  bool status= false;          // Optimization error status
 
   for (SELECT_LEX *sl= first_select(); sl; sl= sl->next_select())
   {
-    DBUG_ASSERT(sl->join);
-    if (optimized)
+    thd->lex->set_current_select(sl);
+    set_limit(sl);
+    if (sl == global_parameters() && is_union())
     {
-      saved_error= false;
-      sl->join->reset();
-    }
-    else
-    {
-      thd->lex->set_current_select(sl);
-      set_limit(sl);
-      if (sl == global_parameters() && is_union())
-      {
-        offset_limit_cnt= 0;
-        /*
-          We can't use LIMIT at this stage if we are using ORDER BY for the
-          whole UNION.
-        */
-        if (sl->order_list.first)
-          select_limit_cnt= HA_POS_ERROR;
-      }
-
+      /* purecov: begin deadcode */
+      DBUG_ASSERT(false);  // @todo: Investigate why this is not reached
+      offset_limit_cnt= 0;
       /*
-        When using braces, SQL_CALC_FOUND_ROWS affects the whole query:
-        we don't calculate found_rows() per union part.
-        Otherwise, SQL_CALC_FOUND_ROWS should be done on all sub parts.
+        We can't use LIMIT at this stage if we are using ORDER BY for the
+        whole UNION.
       */
-      sl->join->select_options= 
-        (select_limit_cnt == HA_POS_ERROR || sl->braces) ?
-        sl->options & ~OPTION_FOUND_ROWS : sl->options | found_rows_for_union;
-
-      saved_error= sl->join->optimize();
-      /*
-        Accumulate estimated number of rows. Notice that an implicitly grouped
-        query has one row (with HAVING it has zero or one rows).
-      */
-      if (result)
-        result->estimated_rowcount+=
-          sl->with_sum_func && sl->group_list.elements == 0 ?
-            1 :  sl->join->best_rowcount;
+      if (sl->order_list.first)
+        select_limit_cnt= HA_POS_ERROR;
+      /* purecov: end */
     }
-    if (saved_error)
+
+    if ((status= sl->optimize(thd)))
       break;
+    /*
+      Accumulate estimated number of rows. Notice that an implicitly grouped
+      query has one row (with HAVING it has zero or one rows).
+    */
+    if (query_result())
+      query_result()->estimated_rowcount+=
+        sl->with_sum_func && sl->group_list.elements == 0 ?
+          1 :  sl->join->best_rowcount;
+
   }
   if (fake_select_lex)
   {
     thd->lex->set_current_select(fake_select_lex);
     set_limit(fake_select_lex);
-    fake_select_lex->options|= SELECT_NO_UNLOCK;
-    if (init_prepare_fake_select_lex(thd, true) ||
-        thd->is_fatal_error)
-      DBUG_RETURN(true); /* purecov: inspected */
-
-    JOIN *const join= fake_select_lex->join;
 
     /*
       In EXPLAIN command, constant subqueries that do not use any
@@ -810,30 +596,20 @@ bool st_select_lex_unit::optimize()
       subquery execution rather than EXPLAIN line production. In order 
       to reset them back, we re-do all of the actions (yes it is ugly).
     */
-    if (!join->optimized || !join->tables)
-    {
-      bool dummy= false;
-      /*
-        IN(SELECT UNION SELECT)->EXISTS injects an equality in
-        fake_select_lex->where_cond, which is meaningless.
-      */
-      fake_select_lex->set_where_cond(NULL);
-      fake_select_lex->set_having_cond(NULL);
-      DBUG_ASSERT(fake_select_lex->with_wild == 0 &&
-                  fake_select_lex->master_unit() == this &&
-                  !fake_select_lex->group_list.elements &&
-                  fake_select_lex->get_table_list() == &result_table_list);
-      saved_error= mysql_prepare_and_optimize_select(thd,
-                            item_list,
-                            fake_select_lex->options | SELECT_NO_UNLOCK,
-                            result, fake_select_lex, &dummy);
-    }
+    DBUG_ASSERT(fake_select_lex->with_wild == 0 &&
+                fake_select_lex->master_unit() == this &&
+                !fake_select_lex->group_list.elements &&
+                fake_select_lex->get_table_list() == &result_table_list &&
+                fake_select_lex->where_cond() == NULL &&
+                fake_select_lex->having_cond() == NULL);
+
+    status= fake_select_lex->optimize(thd);
   }
-  if (!saved_error)
-    optimized= 1;
+  if (!status)
+    set_optimized();    // All query blocks optimized, update the state
   thd->lex->set_current_select(save_select);
 
-  DBUG_RETURN(saved_error);
+  DBUG_RETURN(status);
 }
 
 
@@ -841,6 +617,8 @@ bool st_select_lex_unit::optimize()
   Explain query starting from this unit.
 
   @param ethd  THD of explaining thread
+
+  @return false if success, true if error
 */
 
 bool st_select_lex_unit::explain(THD *ethd)
@@ -855,8 +633,8 @@ bool st_select_lex_unit::explain(THD *ethd)
 
   if (!other)
   {
-    DBUG_ASSERT((is_union() || fake_select_lex) && optimized);
-    executed= true;
+    DBUG_ASSERT((is_union() || fake_select_lex) && is_optimized());
+    set_executed();
   }
 
   if (fmt->begin_context(CTX_UNION))
@@ -867,8 +645,6 @@ bool st_select_lex_unit::explain(THD *ethd)
     if (fmt->begin_context(CTX_QUERY_SPEC))
       DBUG_RETURN(true);
     if (explain_query_specification(ethd, sl, CTX_JOIN) ||
-        // Explain code runs in ethd, should check it.
-        ethd->is_error() ||
         fmt->end_context(CTX_QUERY_SPEC))
       DBUG_RETURN(true);
   }
@@ -881,7 +657,7 @@ bool st_select_lex_unit::explain(THD *ethd)
   if (!other)
     DBUG_ASSERT(thd->lex->current_select() == lex_select_save);
 
-  if (ret || ethd->is_error())
+  if (ret)
     DBUG_RETURN(true);
   fmt->end_context(CTX_UNION);
 
@@ -890,140 +666,133 @@ bool st_select_lex_unit::explain(THD *ethd)
 
 
 /**
-  Execute UNION.
+  Execute a query expression that may be a UNION and/or have an ordered result.
+
+  @param thd          thread handle
+
+  @returns false if success, true if error
 */
 
-bool st_select_lex_unit::exec()
+bool st_select_lex_unit::execute(THD *thd)
 {
   SELECT_LEX *lex_select_save= thd->lex->current_select();
   ulonglong add_rows=0;
   DBUG_ENTER("st_select_lex_unit::exec");
-  DBUG_ASSERT((is_union() || fake_select_lex) && optimized);
+  DBUG_ASSERT((is_union() || fake_select_lex) && is_optimized());
 
-  if (executed && !uncacheable)
+  if (is_executed() && !uncacheable)
     DBUG_RETURN(false);
-  executed= true;
+
+  bool status= false;          // Execution error status
+
+  // Set "executed" state, even though execution may end with an error
+  set_executed();
   
-  if (uncacheable || !item || !item->assigned())
+  if (item)
   {
-    if (item)
-      item->reset_value_registration();
-    if (optimized && item)
+    item->reset_value_registration();
+
+    if (item->assigned())
     {
-      if (item->assigned())
+      item->assigned(false); // Prepare for re-execution of this unit
+      item->reset();
+      if (table->is_created())
       {
-        item->assigned(false); // We will reinit & rexecute unit
-        item->reset();
-        if (table->is_created())
-        {
-          table->file->ha_delete_all_rows();
-          table->file->info(HA_STATUS_VARIABLE);
-        }
-      }
-      /* re-enabling indexes for next subselect iteration */
-      if (union_distinct && table->file->ha_enable_indexes(HA_KEY_SWITCH_ALL))
-      {
-        DBUG_ASSERT(0);
+        table->file->ha_delete_all_rows();
+        table->file->info(HA_STATUS_VARIABLE);
       }
     }
+    // re-enable indexes for next subquery execution
+    if (union_distinct && table->file->ha_enable_indexes(HA_KEY_SWITCH_ALL))
+      DBUG_ASSERT(0);       /* purecov: inspected */
+  }
 
-    for (SELECT_LEX *sl= first_select(); sl; sl= sl->next_select())
+  for (SELECT_LEX *sl= first_select(); sl; sl= sl->next_select())
+  {
+    ha_rows rows_at_start= 0;
+    thd->lex->set_current_select(sl);
+    if (sl->join->is_executed())
+      sl->join->reset();
+
+    set_limit(sl);
+    if (sl == global_parameters())
     {
-      ha_rows records_at_start= 0;
-      DBUG_ASSERT(sl->join);
-      thd->lex->set_current_select(sl);
-      if (sl->join->is_executed())
-      {
-        saved_error= false;
-        sl->join->reset();
-      }
+      /* purecov: begin deadcode */
+      DBUG_ASSERT(false);  // @todo: Investigate why this is not reached
+      offset_limit_cnt= 0;
+      // Do not use LIMIT for this block if it is ordered
+      if (sl->order_list.first)
+        select_limit_cnt= HA_POS_ERROR;
+      /* purecov: end */
+    }
 
-      set_limit(sl);
-      if (sl == global_parameters())
+    rows_at_start= table->file->stats.records;
+    sl->join->exec();
+    status= sl->join->error != 0;
+    if (sl == union_distinct)
+    {
+      // This is UNION DISTINCT, so there should be a fake_select_lex
+      DBUG_ASSERT(fake_select_lex != NULL);
+      if (table->file->ha_disable_indexes(HA_KEY_SWITCH_ALL))
+        DBUG_RETURN(true); /* purecov: inspected */
+      table->no_keyread= 1;
+    }
+    if (status)
+    {
+      thd->lex->set_current_select(lex_select_save);
+      DBUG_RETURN(true);
+    }
+    offset_limit_cnt= (ha_rows)(sl->offset_limit ?
+                                sl->offset_limit->val_uint() : 0);
+    if (union_result->flush())
+    {
+      thd->lex->set_current_select(lex_select_save);/* purecov: inspected */
+      DBUG_RETURN(true); /* purecov: inspected */
+    }
+    if (fake_select_lex != NULL)
+    {
+      // Needed for the following test and for rows_at_start in next block
+      int error= table->file->info(HA_STATUS_VARIABLE);
+      if (error)
       {
-        offset_limit_cnt= 0;
-        /*
-          We can't use LIMIT at this stage if we are using ORDER BY for the
-          whole query
-        */
-        if (sl->order_list.first)
-          select_limit_cnt= HA_POS_ERROR;
+        table->file->print_error(error, MYF(0)); /* purecov: inspected */
+        DBUG_RETURN(true); /* purecov: inspected */
       }
-      if (!saved_error)
-      {
-        records_at_start= table->file->stats.records;
-        sl->join->exec();
-        if (sl == union_distinct)
-        {
-          // This is UNION DISTINCT, so there should be a fake_select_lex
-          DBUG_ASSERT(fake_select_lex != NULL);
-          if (table->file->ha_disable_indexes(HA_KEY_SWITCH_ALL))
-            DBUG_RETURN(true);
-          table->no_keyread=1;
-        }
-        saved_error= sl->join->error;
-        offset_limit_cnt= (ha_rows)(sl->offset_limit ?
-                                    sl->offset_limit->val_uint() :
-                                    0);
-        if (!saved_error)
-        {
-          if (union_result->flush())
-          {
-            thd->lex->set_current_select(lex_select_save); /* purecov: inspected */
-            DBUG_RETURN(true); /* purecov: inspected */
-          }
-        }
-      }
-      if (saved_error)
-      {
-        thd->lex->set_current_select(lex_select_save); /* purecov: inspected */
-        DBUG_RETURN(saved_error); /* purecov: inspected */
-      }
-      if (fake_select_lex != NULL)
-      {
-        /* Needed for the following test and for records_at_start in next loop */
-        int error= table->file->info(HA_STATUS_VARIABLE);
-        if(error)
-        {
-          table->file->print_error(error, MYF(0)); /* purecov: inspected */
-          DBUG_RETURN(true); /* purecov: inspected */
-        }
-      }
-      if (found_rows_for_union && !sl->braces && 
-          select_limit_cnt != HA_POS_ERROR)
-      {
-        /*
-          This is a union without braces. Remember the number of rows that
-          could also have been part of the result set.
-          We get this from the difference of between total number of possible
-          rows and actual rows added to the temporary table.
-        */
-        add_rows+= (ulonglong) (thd->limit_found_rows -
-                   (ulonglong)(table->file->stats.records - records_at_start));
-      }
+    }
+    if (sl->join->calc_found_rows)
+    {
+      /*
+        This is a union without braces. Remember the number of rows that
+        could also have been part of the result set.
+        We get this from the difference between total number of possible
+        rows and actual rows added to the temporary table.
+      */
+      /* purecov: begin deadcode */
+      DBUG_ASSERT(false);  // @todo: Investigate why this is not reached
+      add_rows+= (ulonglong) (thd->limit_found_rows -
+                 (ulonglong)(table->file->stats.records - rows_at_start));
+      /* purecov: end */
     }
   }
 
-  if (fake_select_lex != NULL && !saved_error && !thd->is_fatal_error)
+  if (fake_select_lex != NULL)
   {
-    /* Send result to 'result' */
-    saved_error= true;
+    // Send result to 'result'
+    thd->lex->set_current_select(fake_select_lex);
     // Index might have been used to weedout duplicates for UNION DISTINCT
     table->file->ha_index_or_rnd_end();
     set_limit(fake_select_lex);
     JOIN *join= fake_select_lex->join;
-    DBUG_ASSERT(join && join->optimized);
     join->examined_rows= 0;
-    saved_error= false;
     join->reset();
     join->exec();
-
+    status= join->error != 0;
     fake_select_lex->table_list.empty();
     thd->limit_found_rows = (ulonglong)table->file->stats.records + add_rows;
   }
 
   thd->lex->set_current_select(lex_select_save);
-  DBUG_RETURN(saved_error);
+  DBUG_RETURN(status);
 }
 
 
@@ -1104,7 +873,7 @@ void st_select_lex_unit::assert_not_fully_clean()
 
 void st_select_lex_unit::reinit_exec_mechanism()
 {
-  prepared= optimized= executed= 0;
+  prepared= optimized= executed= false;
 #ifndef DBUG_OFF
   if (is_union())
   {
@@ -1125,31 +894,26 @@ void st_select_lex_unit::reinit_exec_mechanism()
 
 
 /**
-  Change the select_result object used to return the final result of
+  Change the query result object used to return the final result of
   the unit, replacing occurences of old_result with new_result.
 
-  @param new_result New select_result object
-  @param old_result Old select_result object
+  @param new_result New query result object
+  @param old_result Old query result object
 
   @retval false Success
   @retval true  Error
 */
 
-bool st_select_lex_unit::change_result(select_result_interceptor *new_result,
+bool st_select_lex_unit::change_query_result(
+                                       select_result_interceptor *new_result,
                                        select_result_interceptor *old_result)
 {
   for (SELECT_LEX *sl= first_select(); sl; sl= sl->next_select())
   {
-    if (sl->join)
-      if (sl->join->change_result(new_result, old_result))
-	return true; /* purecov: inspected */
+    if (sl->query_result() && sl->change_query_result(new_result, old_result))
+      return true; /* purecov: inspected */
   }
-  /*
-    If there were a fake_select_lex->join, we would have to change the
-    result of that also, but change_result() is called before such an
-    object is created.
-  */
-  DBUG_ASSERT(fake_select_lex == NULL || fake_select_lex->join == NULL);
+  set_query_result(new_result);
   return false;
 }
 

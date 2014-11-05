@@ -389,7 +389,6 @@ public:
 };
 
 
-struct st_qsel_param;
 class PARAM;
 class SEL_ARG;
 

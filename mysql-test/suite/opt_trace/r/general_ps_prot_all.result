@@ -615,6 +615,16 @@ SELECT (SELECT 1 FROM t6 WHERE d = ifnull(c,null) UNION SELECT 2 FROM t6 WHERE d
             } /* creating_tmp_table */
           },
           {
+            "join_preparation": {
+              "select#": "fake",
+              "steps": [
+                {
+                  "expanded_query": "/* select#fake */ select `1` from dual"
+                }
+              ] /* steps */
+            } /* join_preparation */
+          },
+          {
             "expanded_query": "/* select#1 */ select (/* select#2 */ select 1 from `t6` where (`t6`.`d` = ifnull(`t5`.`c`,NULL)) union /* select#3 */ select 2 from `t6` where (`t6`.`d` = ifnull(`t5`.`c`,NULL))) AS `RESULT` from `t5`"
           }
         ] /* steps */
@@ -839,16 +849,6 @@ SELECT (SELECT 1 FROM t6 WHERE d = ifnull(c,null) UNION SELECT 2 FROM t6 WHERE d
       } /* join_optimization */
     },
     {
-      "join_preparation": {
-        "select#": "fake",
-        "steps": [
-          {
-            "expanded_query": "/* select#fake */ select `1` from dual"
-          }
-        ] /* steps */
-      } /* join_preparation */
-    },
-    {
       "join_optimization": {
         "select#": "fake",
         "steps": [
@@ -1017,6 +1017,16 @@ SELECT * FROM t5 WHERE 5 IN (SELECT 1 FROM t6 WHERE d = ifnull(c,null) UNION SEL
             } /* creating_tmp_table */
           },
           {
+            "join_preparation": {
+              "select#": "fake",
+              "steps": [
+                {
+                  "expanded_query": "/* select#fake */ select `1` from dual"
+                }
+              ] /* steps */
+            } /* join_preparation */
+          },
+          {
             "expanded_query": "/* select#1 */ select `t5`.`c` AS `c` from `t5` where <in_optimizer>(5,<exists>(/* select#2 */ select 1 from `t6` where ((`t6`.`d` = ifnull(`t5`.`c`,NULL)) and (<cache>(5) = 1)) union /* select#3 */ select 2 from `t6` where ((`t6`.`d` = ifnull(`t5`.`c`,NULL)) and (<cache>(5) = 2))))"
           }
         ] /* steps */
@@ -1143,24 +1153,6 @@ SELECT * FROM t5 WHERE 5 IN (SELECT 1 FROM t6 WHERE d = ifnull(c,null) UNION SEL
                   } /* join_optimization */
                 },
                 {
-                  "join_preparation": {
-                    "select#": "fake",
-                    "steps": [
-                      {
-                        "expanded_query": "/* select#fake */ select `1` from dual"
-                      },
-                      {
-                        "transformation": {
-                          "select#": "fake",
-                          "from": "IN (SELECT)",
-                          "to": "semijoin",
-                          "chosen": false
-                        } /* transformation */
-                      }
-                    ] /* steps */
-                  } /* join_preparation */
-                },
-                {
                   "join_optimization": {
                     "select#": "fake",
                     "steps": [
@@ -1281,7 +1273,7 @@ select (@query:=QUERY)+NULL, (@trace:=TRACE)+NULL from information_schema.OPTIMI
 NULL	NULL
 select length(@trace);
 length(@trace)
-12729
+12349
 set @max_mem_size=13900;
 set optimizer_trace_max_mem_size=@max_mem_size;
 select length(@query)+length(@trace) > @@optimizer_trace_max_mem_size;
@@ -1299,7 +1291,7 @@ select length(@trace2),
 (length(@trace2) + @missing_bytes) = length(@trace),
 @query2 = @query;
 length(@trace2)	(length(@trace2) + @missing_bytes) = length(@trace)	@query2 = @query
-12729	1	1
+12349	1	1
 select length(@query2) + length(@trace2)
 between (@@optimizer_trace_max_mem_size-200) and (@@optimizer_trace_max_mem_size+200);
 length(@query2) + length(@trace2)
@@ -4109,6 +4101,16 @@ SELECT * FROM t1 WHERE c1=5 UNION SELECT * FROM t2 WHERE c2=5	{
       } /* creating_tmp_table */
     },
     {
+      "join_preparation": {
+        "select#": "fake",
+        "steps": [
+          {
+            "expanded_query": "/* select#fake */ select `c1` AS `c1` from dual"
+          }
+        ] /* steps */
+      } /* join_preparation */
+    },
+    {
       "join_optimization": {
         "select#": 1,
         "steps": [
@@ -4301,16 +4303,6 @@ SELECT * FROM t1 WHERE c1=5 UNION SELECT * FROM t2 WHERE c2=5	{
           }
         ] /* steps */
       } /* join_optimization */
-    },
-    {
-      "join_preparation": {
-        "select#": "fake",
-        "steps": [
-          {
-            "expanded_query": "/* select#fake */ select `c1` AS `c1` from dual"
-          }
-        ] /* steps */
-      } /* join_preparation */
     },
     {
       "join_optimization": {
@@ -12229,6 +12221,16 @@ select TRACE into dumpfile 'MYSQLTEST_VARDIR/tmp/optimizer_trace.txt' from infor
       }
     },
     {
+      "join_preparation": {
+        "select#": "fake",
+        "steps": [
+          {
+            "expanded_query": "/* select#fake */ select `1` AS `1` from dual"
+          }
+        ]
+      }
+    },
+    {
       "join_optimization": {
         "select#": 1,
         "steps": [
@@ -12239,16 +12241,6 @@ select TRACE into dumpfile 'MYSQLTEST_VARDIR/tmp/optimizer_trace.txt' from infor
       "join_optimization": {
         "select#": 2,
         "steps": [
-        ]
-      }
-    },
-    {
-      "join_preparation": {
-        "select#": "fake",
-        "steps": [
-          {
-            "expanded_query": "/* select#fake */ select `1` AS `1` from dual"
-          }
         ]
       }
     },

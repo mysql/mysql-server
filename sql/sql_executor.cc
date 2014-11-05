@@ -106,15 +106,27 @@ JOIN::exec()
   List<Item> *columns_list= &fields_list;
   DBUG_ENTER("JOIN::exec");
 
-  DBUG_ASSERT(!tables || thd->lex->is_query_tables_locked());
+  DBUG_ASSERT(select_lex == thd->lex->current_select());
+
+  /*
+    Check that we either
+    - have no tables, or
+    - have tables and have locked them, or
+    - called for fake_select_lex, which may have temporary tables which do
+      not need locking up front.
+  */
+  DBUG_ASSERT(!tables || thd->lex->is_query_tables_locked() ||
+              select_lex == unit->fake_select_lex);
 
   THD_STAGE_INFO(thd, stage_executing);
   DEBUG_SYNC(thd, "before_join_exec");
 
-  executed= true;
+  set_executed();
 
   if (prepare_result())
     DBUG_VOID_RETURN;
+
+  select_result *const query_result= select_lex->query_result();
 
   if (!tables_list && (tables || !select_lex->with_sum_func))
   {                                           // Only test of functions
@@ -130,12 +142,10 @@ JOIN::exec()
     if (select_lex->cond_value != Item::COND_FALSE &&
         (!where_cond || where_cond->val_int()))
     {
-      if (result->send_result_set_metadata(*columns_list,
-                                           Protocol::SEND_NUM_ROWS |
-                                           Protocol::SEND_EOF))
-      {
+      if (query_result->send_result_set_metadata(*columns_list,
+                                                 Protocol::SEND_NUM_ROWS |
+                                                 Protocol::SEND_EOF))
         DBUG_VOID_RETURN;
-      }
 
       /*
         If the HAVING clause is either impossible or always true, then
@@ -145,13 +155,12 @@ JOIN::exec()
       */
       if (((select_lex->having_value != Item::COND_FALSE) &&
            (!having_cond || having_cond->val_int()))
-          && do_send_rows && result->send_data(fields_list))
+          && do_send_rows && query_result->send_data(fields_list))
         error= 1;
       else
       {
-        error= (int) result->send_eof();
-        send_records= ((select_options & OPTION_FOUND_ROWS) ? 1 :
-                       thd->get_sent_row_count());
+        error= (int) query_result->send_eof();
+        send_records= calc_found_rows ? 1 : thd->get_sent_row_count();
       }
       /* Query block (without union) always returns 0 or 1 row */
       thd->limit_found_rows= send_records;
@@ -185,7 +194,7 @@ JOIN::exec()
 
   THD_STAGE_INFO(thd, stage_sending_data);
   DBUG_PRINT("info", ("%s", thd->proc_info));
-  result->send_result_set_metadata(*fields,
+  query_result->send_result_set_metadata(*fields,
                                    Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF);
   error= do_select(this);
   /* Accumulate the counts from all join iterations of all join parts. */
@@ -221,8 +230,8 @@ JOIN::create_intermediate_table(QEP_TAB *const tab,
   tab->tmp_table_param->skip_create_table= true;
   TABLE* table= create_tmp_table(thd, tab->tmp_table_param, *tmp_table_fields,
                                tmp_table_group, select_distinct && !group_list,
-                               save_sum_fields, select_options, tmp_rows_limit, 
-                               "");
+                               save_sum_fields, select_lex->active_options(),
+                               tmp_rows_limit, "");
   if (!table)
     DBUG_RETURN(true);
   tmp_table_param.using_outer_summary_function=
@@ -244,7 +253,8 @@ JOIN::create_intermediate_table(QEP_TAB *const tab,
     explain_flags.set(ESC_DISTINCT, ESP_USING_TMPTABLE);
   }
   if ((!group_list && !order && !select_distinct) ||
-      (select_options & (SELECT_BIG_RESULT | OPTION_BUFFER_RESULT)))
+      (select_lex->active_options() &
+       (SELECT_BIG_RESULT | OPTION_BUFFER_RESULT)))
   {
     explain_flags.set(ESC_BUFFER_RESULT, ESP_USING_TMPTABLE);
   }
@@ -331,7 +341,7 @@ int JOIN::rollup_send_data(uint idx)
     if ((!having_cond || having_cond->val_int()))
     {
       if (send_records < unit->select_limit_cnt && do_send_rows &&
-	  result->send_data(rollup.fields[i]))
+	  select_lex->query_result()->send_data(rollup.fields[i]))
 	return 1;
       send_records++;
     }
@@ -721,7 +731,9 @@ return_zero_rows(JOIN *join, List<Item> &fields)
     join->thd->limit_found_rows= 0;
   }
 
-  if (!(join->result->send_result_set_metadata(fields,
+  SELECT_LEX *const select= join->select_lex;
+
+  if (!(select->query_result()->send_result_set_metadata(fields,
                                                Protocol::SEND_NUM_ROWS | 
                                                Protocol::SEND_EOF)))
   {
@@ -729,7 +741,7 @@ return_zero_rows(JOIN *join, List<Item> &fields)
     if (join->send_row_on_empty_set())
     {
       // Mark tables as containing only NULL values
-      for (TABLE_LIST *table= join->select_lex->leaf_tables; table;
+      for (TABLE_LIST *table= select->leaf_tables; table;
            table= table->next_leaf)
         mark_as_null_row(table->table);
 
@@ -746,10 +758,10 @@ return_zero_rows(JOIN *join, List<Item> &fields)
         item->no_rows_in_result();
 
       if (!join->having_cond || join->having_cond->val_int())
-        send_error= join->result->send_data(fields);
+        send_error= select->query_result()->send_data(fields);
     }
     if (!send_error)
-      join->result->send_eof();                 // Should be safe
+      select->query_result()->send_eof();                 // Should be safe
   }
   DBUG_VOID_RETURN;
 }
@@ -902,7 +914,7 @@ do_select(JOIN *join)
       join->clear();
 
       if (!join->having_cond || join->having_cond->val_int())
-        rc= join->result->send_data(*join->fields);
+        rc= join->select_lex->query_result()->send_data(*join->fields);
 
       if (save_nullinfo)
         restore_const_null_info(join, save_nullinfo);
@@ -947,7 +959,7 @@ do_select(JOIN *join)
       sort_tab= &join->qep_tab[const_tables];
     }
     if (sort_tab->filesort &&
-        join->select_options & OPTION_FOUND_ROWS &&
+        join->calc_found_rows &&
         sort_tab->filesort->sortorder &&
         sort_tab->filesort->limit != HA_POS_ERROR)
     {
@@ -968,7 +980,7 @@ do_select(JOIN *join)
       Sic: this branch works even if rc != 0, e.g. when
       send_data above returns an error.
     */
-    if (join->result->send_eof())
+    if (join->select_lex->query_result()->send_eof())
       rc= 1;                                  // Don't send error
     DBUG_PRINT("info",("%ld records output", (long) join->send_records));
   }
@@ -2830,7 +2842,7 @@ end_send(JOIN *join, QEP_TAB *qep_tab, bool end_of_records)
       DBUG_RETURN(NESTED_LOOP_OK);               // Didn't match having
     error=0;
     if (join->do_send_rows)
-      error=join->result->send_data(*fields);
+      error= join->select_lex->query_result()->send_data(*fields);
     if (error)
       DBUG_RETURN(NESTED_LOOP_ERROR); /* purecov: inspected */
 
@@ -2845,7 +2857,7 @@ end_send(JOIN *join, QEP_TAB *qep_tab, bool end_of_records)
         join_tab.
       */
       if (join->order &&
-          join->select_options & OPTION_FOUND_ROWS &&
+          join->calc_found_rows &&
           qep_tab > join->qep_tab &&
           qep_tab[-1].filesort &&
           qep_tab[-1].filesort->using_pq)
@@ -2857,7 +2869,7 @@ end_send(JOIN *join, QEP_TAB *qep_tab, bool end_of_records)
     if (join->send_records >= join->unit->select_limit_cnt &&
         join->do_send_rows)
     {
-      if (join->select_options & OPTION_FOUND_ROWS)
+      if (join->calc_found_rows)
       {
         QEP_TAB *first= &join->qep_tab[0];
 	if ((join->primary_tables == 1) &&
@@ -2927,7 +2939,7 @@ end_send_group(JOIN *join, QEP_TAB *qep_tab, bool end_of_records)
   {
     if (!join->group_sent &&
         (join->first_record ||
-         (end_of_records && !join->group && !join->group_optimized_away)))
+         (end_of_records && !join->grouped && !join->group_optimized_away)))
     {
       if (idx < (int) join->send_group_parts)
       {
@@ -2961,7 +2973,7 @@ end_send_group(JOIN *join, QEP_TAB *qep_tab, bool end_of_records)
 	  else
 	  {
 	    if (join->do_send_rows)
-	      error=join->result->send_data(*fields) ? 1 : 0;
+	      error= join->select_lex->query_result()->send_data(*fields);
 	    join->send_records++;
             join->group_sent= true;
 	  }
@@ -2981,7 +2993,7 @@ end_send_group(JOIN *join, QEP_TAB *qep_tab, bool end_of_records)
 	if (join->send_records >= join->unit->select_limit_cnt &&
 	    join->do_send_rows)
 	{
-	  if (!(join->select_options & OPTION_FOUND_ROWS))
+	  if (!join->calc_found_rows)
 	    DBUG_RETURN(NESTED_LOOP_QUERY_LIMIT); // Abort nicely
 	  join->do_send_rows=0;
 	  join->unit->select_limit_cnt = HA_POS_ERROR;
@@ -3267,7 +3279,7 @@ end_write(JOIN *join, QEP_TAB *const qep_tab, bool end_of_records)
             tmp_tbl->end_write_records &&
 	  join->do_send_rows)
       {
-	if (!(join->select_options & OPTION_FOUND_ROWS))
+	if (!join->calc_found_rows)
 	  DBUG_RETURN(NESTED_LOOP_QUERY_LIMIT);
 	join->do_send_rows=0;
 	join->unit->select_limit_cnt = HA_POS_ERROR;
@@ -3408,7 +3420,7 @@ end_write_group(JOIN *join, QEP_TAB *const qep_tab, bool end_of_records)
       (idx=test_if_item_cache_changed(join->group_fields)) >= 0)
   {
     Temp_table_param *const tmp_tbl= qep_tab->tmp_table_param;
-    if (join->first_record || (end_of_records && !join->group))
+    if (join->first_record || (end_of_records && !join->grouped))
     {
       int send_group_parts= join->send_group_parts;
       if (idx < send_group_parts)
@@ -3541,7 +3553,7 @@ create_sort_index(THD *thd, JOIN *join, QEP_TAB *tab)
   }
 
   /* Fill schema tables with data before filesort if it's necessary */
-  if ((join->select_lex->options & OPTION_SCHEMA_TABLE) &&
+  if ((join->select_lex->active_options() & OPTION_SCHEMA_TABLE) &&
       get_schema_tables_result(join, PROCESSED_BY_CREATE_SORT_INDEX))
     goto err;
 
@@ -3628,7 +3640,9 @@ QEP_TAB::remove_duplicates()
       field_count++;
   }
 
-  if (!field_count && !(join()->select_options & OPTION_FOUND_ROWS) && !having)
+  if (!field_count &&
+      !join()->calc_found_rows &&
+      !having) 
   {                    // only const items with no OPTION_FOUND_ROWS
     join()->unit->select_limit_cnt= 1;		// Only send first row
     DBUG_RETURN(false);
@@ -4468,7 +4482,7 @@ QEP_tmp_table::prepare_tmp_table()
     if (instantiate_tmp_table(table, tmp_tbl->keyinfo,
                               tmp_tbl->start_recinfo,
                               &tmp_tbl->recinfo,
-                              join->select_options,
+                              join->select_lex->active_options(),
                               join->thd->variables.big_tables,
                               &join->thd->opt_trace))
       return true;

@@ -202,7 +202,7 @@ COUNT(*)
 EXPLAIN DELETE FROM t1 USING t1 INNER JOIN t2 ON (t2.key1=t2.key1) WHERE t1.key1=3 OR t1.key2=4;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	DELETE	t1	NULL	index_merge	i1,i2	i1,i2	4,4	NULL	#	100.00	Using union(i1,i2); Using where
-1	SIMPLE	t2	NULL	index	NULL	i1	4	NULL	#	100.00	Using index; Using join buffer (Block Nested Loop)
+1	SIMPLE	t2	NULL	index	NULL	i1	4	NULL	#	100.00	Using index
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 2001
@@ -462,7 +462,7 @@ COUNT(*)
 EXPLAIN DELETE FROM t1 USING t1 INNER JOIN t2 ON (t2.key1=t2.key1) WHERE t1.key1=3 OR t1.key2=4;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	DELETE	t1	NULL	index_merge	i1,i2	i1,i2	4,4	NULL	#	100.00	Using sort_union(i1,i2); Using where
-1	SIMPLE	t2	NULL	index	NULL	i1	8	NULL	#	100.00	Using index; Using join buffer (Block Nested Loop)
+1	SIMPLE	t2	NULL	index	NULL	i1	8	NULL	#	100.00	Using index
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 2001

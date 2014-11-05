@@ -183,14 +183,13 @@ bool mysql_derived_prepare(THD *thd, LEX *lex, TABLE_LIST *derived)
 
     lex->context_analysis_only|= CONTEXT_ANALYSIS_ONLY_DERIVED;
     // st_select_lex_unit::prepare correctly work for single select
-    if ((res= unit->prepare(thd, derived_result, 0)))
+    if ((res= unit->prepare(thd, derived_result, 0, 0)))
       goto exit;
     lex->context_analysis_only&= ~CONTEXT_ANALYSIS_ONLY_DERIVED;
     if ((res= check_duplicate_names(unit->types, 0)))
       goto exit;
 
-    create_options= (first_select->options | thd->variables.option_bits |
-                     TMP_TABLE_ALL_COLUMNS);
+    create_options= first_select->active_options() | TMP_TABLE_ALL_COLUMNS;
     /*
       Temp table is created so that it honors if UNION without ALL is to be 
       processed
@@ -285,7 +284,7 @@ bool mysql_derived_optimize(THD *thd, LEX *lex, TABLE_LIST *derived)
   DBUG_ASSERT(unit);
 
   // optimize union without execution
-  if (unit->optimize() || thd->is_error())
+  if (unit->optimize(thd) || thd->is_error())
     DBUG_RETURN(TRUE);
 
   if (derived->materializable_is_const() &&
@@ -348,15 +347,14 @@ bool mysql_derived_create(THD *thd, LEX *lex, TABLE_LIST *derived)
     DBUG_RETURN(FALSE);
   }
   /* create tmp table */
-  select_union *result= (select_union*)unit->get_result();
+  select_union *result= (select_union*)unit->query_result();
 
   if (instantiate_tmp_table(table, table->key_info,
                             result->tmp_table_param.start_recinfo,
                             &result->tmp_table_param.recinfo,
-                            (unit->first_select()->options |
-                             thd->lex->select_lex->options |
-                             thd->variables.option_bits |
-                             TMP_TABLE_ALL_COLUMNS),
+                            unit->first_select()->active_options() |
+                            thd->lex->select_lex->active_options() |
+                            TMP_TABLE_ALL_COLUMNS,
                             thd->variables.big_tables, &thd->opt_trace))
     DBUG_RETURN(TRUE);
 
@@ -402,7 +400,7 @@ bool mysql_derived_materialize(THD *thd, LEX *lex, TABLE_LIST *derived)
   if (unit->is_union())
   {
     // execute union without clean up
-    res= unit->exec();
+    res= unit->execute(thd);
   }
   else
   {
@@ -411,11 +409,9 @@ bool mysql_derived_materialize(THD *thd, LEX *lex, TABLE_LIST *derived)
     SELECT_LEX *save_current_select= lex->current_select();
     lex->set_current_select(first_select);
 
-    DBUG_ASSERT(join && join->optimized);
+    DBUG_ASSERT(join && join->is_optimized());
 
     unit->set_limit(first_select);
-    if (unit->select_limit_cnt == HA_POS_ERROR)
-      first_select->options&= ~OPTION_FOUND_ROWS;
 
     join->exec();
     res= join->error;

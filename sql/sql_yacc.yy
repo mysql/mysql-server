@@ -11413,7 +11413,7 @@ opt_delete_options:
         ;
 
 opt_delete_option:
-          QUICK        { Select->options|= OPTION_QUICK; }
+          QUICK        { Select->add_base_options(OPTION_QUICK); }
         | LOW_PRIORITY
         {
           YYPS->m_lock_type= TL_WRITE_LOW_PRIORITY;
