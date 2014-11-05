@@ -4219,9 +4219,18 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
 	else
 	  key_info->flags|= HA_PACK_KEY;
       }
-      /* Check if the key segment is partial, set the key flag accordingly */
-      if (key_part_length != sql_field->key_length)
-        key_info->flags|= HA_KEY_HAS_PART_KEY_SEG;
+      /* 
+         Check if the key segment is partial, set the key flag
+         accordingly. The key segment for a POINT column is NOT considered
+         partial if key_length==MAX_LEN_GEOM_POINT_FIELD.
+      */
+      if (key_part_length != sql_field->key_length &&
+          !(sql_field->sql_type == MYSQL_TYPE_GEOMETRY &&
+            sql_field->geom_type == Field::GEOM_POINT &&
+            key_part_length == MAX_LEN_GEOM_POINT_FIELD))
+        {
+          key_info->flags|= HA_KEY_HAS_PART_KEY_SEG;
+        }
 
       key_length+= key_part_length;
       key_part_info++;
