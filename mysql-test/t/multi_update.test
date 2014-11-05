@@ -838,3 +838,22 @@ UPDATE v SET a=1 ORDER BY a;
 UPDATE v SET a=1 LIMIT 3;
 DROP TABLE t1;
 DROP VIEW v;
+
+
+--echo #
+--echo # Bug 18449085: WRONG VALUE AFTER MULTI UPDATE
+--echo #
+
+CREATE TABLE t1 (c1 INTEGER, c2 INTEGER, KEY(c1));
+CREATE TABLE t2 (c1 INTEGER, c2 INTEGER);
+CREATE TABLE t3 (c1 INTEGER, c2 INTEGER);
+INSERT INTO t1 VALUES(1,1),(2,2),(3,3),(4,4),(5,5);
+INSERT INTO t2 VALUES(11,1),(12,1),(13,1),(14,2),(15,6);
+INSERT INTO t3 VALUES(21,11),(22,11),(23,13),(24,14),(25,15);
+ANALYZE TABLE t1, t2, t3;
+let $my_stmt= UPDATE t2 straight_join t3 straight_join t1 SET t1.c2 = 30, t2.c2 = 40, t3.c2=50
+              WHERE t1.c1=t2.c2 AND t2.c1=t3.c2;
+eval $my_stmt;
+eval EXPLAIN $my_stmt;
+SELECT * FROM t3 ORDER BY c1;
+DROP TABLE t1, t2, t3;
