@@ -1311,6 +1311,28 @@ thd_is_select(
 	return(thd_sql_command(thd) == SQLCOM_SELECT);
 }
 
+/** Returns true if the thread is executing CREATE TABLE statement.
+@param[in]	thd	the current thread context
+@retval true if thread is executing CREATE TABLE. */
+static
+inline
+bool
+thd_is_create_table(const THD*	thd)
+{
+	return(thd_sql_command(thd) == SQLCOM_CREATE_TABLE);
+}
+
+/** Returns true if the thread is executing CREATE INDEX statement.
+@param[in]	thd	the current thread context
+@retval true if thread is executing CREATE INDEX. */
+static
+inline
+bool
+thd_is_create_index(const THD*	thd)
+{
+	return(thd_sql_command(thd) == SQLCOM_CREATE_INDEX);
+}
+
 /******************************************************************//**
 Returns true if the thread supports XA,
 global value of innodb_supports_xa if thd is NULL.
@@ -9812,9 +9834,14 @@ index_bad:
 	if (m_create_info->options & HA_LEX_CREATE_TMP_TABLE) {
 		m_flags2 |= DICT_TF2_TEMPORARY;
 
+		const bool	use_intrinsic
+			= THDVAR(m_thd, create_intrinsic)
+			&& (thd_is_create_table(m_thd)
+			    || thd_is_create_index(m_thd));
+
 		/* Intrinsic tables reside only in the shared
 		temporary tablespace. */
-		if ((THDVAR(m_thd, create_intrinsic)
+		if ((use_intrinsic
 		     || m_create_info->options
 			& HA_LEX_CREATE_INTERNAL_TMP_TABLE)
 		    && !m_file_per_table) {
