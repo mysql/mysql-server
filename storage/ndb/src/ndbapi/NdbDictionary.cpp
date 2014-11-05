@@ -3547,16 +3547,12 @@ NdbDictionary::printFormattedValue(NdbOut& out,
       NdbBlob::unpackBlobHead(head, (const char*) val_p, c->getBlobVersion());
       out << head.length << ":";
       const unsigned char* p = val_p + head.headsize;
-      if ((unsigned int) c->getInlineSize() < head.headsize)
-        out << "***error***"; // really cannot happen
-      else {
-        unsigned n = c->getInlineSize() - head.headsize;
-        for (unsigned k = 0; k < n && k < head.length; k++) {
-          if (c->getType() == NdbDictionary::Column::Blob)
-            out.print("%02X", (int)p[k]);
-          else
-            out.print("%c", (int)p[k]);
-        }
+      unsigned n = c->getInlineSize();
+      for (unsigned k = 0; k < n && k < head.length; k++) {
+        if (c->getType() == NdbDictionary::Column::Blob)
+          out.print("%02X", (int)p[k]);
+        else
+          out.print("%c", (int)p[k]);
       }
       j = length;
     }
