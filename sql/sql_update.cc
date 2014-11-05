@@ -1916,7 +1916,8 @@ multi_update::initialize_tables(JOIN *join)
         influence the selection of rows from t2. If those fields are also
         updated, it will not be possible to update t1 on-the-fly.
         Due to how the nested loop join algorithm works, when collecting
-        we can ignore the condition of t1.
+        we can ignore the condition attached to t1 - a row of t1 is read
+        only one time.
       */
       if (update_tables->next_local)
       {
@@ -1926,7 +1927,38 @@ multi_update::initialize_tables(JOIN *join)
           if (tab->condition())
             tab->condition()->walk(&Item::add_field_to_set_processor,
                       Item::enum_walk(Item::WALK_POSTFIX | Item::WALK_SUBQUERY),
-                      reinterpret_cast<uchar *>(table));
+                      reinterpret_cast<uchar *>(main_table));
+          /*
+            On top of checking conditions, we need to check conditions
+            referenced by index lookup on the following tables. They implement
+            conditions too, but their corresponding search conditions might
+            have been optimized away. The second table is an exception: even if
+            rows are read from it using index lookup which references a column
+            of main_table, the implementation of ref access will see the
+            before-update value;
+            consider this flow of a nested loop join:
+            read a row from main_table and:
+            - init ref access (cp_buffer_from_ref() in join_read_always_key()):
+              copy referenced value from main_table into 2nd table's ref buffer
+            - look up a first row in 2nd table (join_read_always_key)
+              - if it joins, update row of main_table on the fly
+            - look up a second row in 2nd table (join_read_next_same).
+            Because cp_buffer_from_ref() is not called again, the before-update
+            value of the row of main_table is still in the 2nd table's ref
+            buffer. So the lookup is not influenced by the just-done update of
+            main_table.
+          */
+          if (tab > join->join_tab + 1)
+          {
+            for (uint i= 0; i < tab->ref().key_parts; i++)
+            {
+              Item *ref_item= tab->ref().items[i];
+              if ((table_ref->map() & ref_item->used_tables()) != 0)
+                ref_item->walk(&Item::add_field_to_set_processor,
+                      Item::enum_walk(Item::WALK_POSTFIX | Item::WALK_SUBQUERY),
+                      reinterpret_cast<uchar *>(main_table));
+            }
+          }
         }
       }
       if (safe_update_on_fly(thd, join->best_ref[0], table_ref, all_tables))
