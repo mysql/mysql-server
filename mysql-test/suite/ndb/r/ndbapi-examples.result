@@ -18,3 +18,47 @@ update t0 set c0 = 5, c2 = 'H' where c0 = 3;
 delete from t0;
 drop table t0;
 Running mgmapi_logevent
+Running ndb_ndbapi_array_simple
+create table api_array_simple(
+ATTR1 INT UNSIGNED NOT NULL PRIMARY KEY,
+ATTR2 CHAR(20) NOT NULL,
+ATTR3 VARCHAR(20) NOT NULL,
+ATTR4 VARCHAR(500) NOT NULL,
+ATTR5 BINARY(20),
+ATTR6 VARBINARY(20),
+ATTR7 VARBINARY(500)
+) engine ndb charset latin1;
+Row ID : 17
+Column id: 1, name: ATTR2, size: 20, type: Char, stored string length: 17, value: ''''-,,,,|''''-,,
+Column id: 2, name: ATTR3, size: 18, type: Varchar, stored string length: 17, value: ''''-,,,,|''''-,,
+Column id: 3, name: ATTR4, size: 342, type: Longvarchar, stored string length: 340, value: ''''-,,,,|''''-,,,,|''''-,,,,|''''-,,,,|''''-,,,,|''''-,,,,|''''-,,,,|''''-,,,,|''''-,,,,|''''-,,,,|''''-,,,,|''''-,,,,|''''-,,,,|''''-,,,,|''''-,,,,|''''-,,,,|''''-,,,,|''''-,,,,|''''-,,,,|''''-,,,,|''''-,,,,|''''-,,,,|''''-,,,,|''''-,,,,|''''-,,,,|''''-,,,,|''''-,,,,|''''-,,,,|''''-,,,,|''''-,,,,|''''-,,,,|''''-,,,,|''''-,,,,|''''-,,,,|
+Column id: 4, name: ATTR5, size: 20, type: Binary, stored bytes length: 20, sum of byte array: 136
+Column id: 5, name: ATTR6, size: 18, type: Varbinary, stored bytes length: 17, sum of byte array: 136
+Column id: 6, name: ATTR7, size: 342, type: Longvarbinary, stored bytes length: 340, sum of byte array: 3358
+Verify values stored in the table
+select count(ATTR1) from api_array_simple;
+count(ATTR1)
+21
+drop table api_array_simple;
+Running ndb_ndbapi_array_using_adapter
+CREATE TABLE api_array_using_adapter(
+ATTR1 INT UNSIGNED NOT NULL PRIMARY KEY,
+ATTR2 CHAR(20) NOT NULL,
+ATTR3 VARCHAR(20) NOT NULL,
+ATTR4 VARCHAR(500) NOT NULL,
+ATTR5 BINARY(20) NOT NULL,
+ATTR6 VARBINARY(20) NOT NULL,
+ATTR7 VARBINARY(500)
+) engine ndb charset latin1;
+Row ID : 17
+Column id: 1, name: ATTR2, size: 20, type: Char, stored string length: 17, value: ''''-,,,,|''''-,,
+Column id: 2, name: ATTR3, size: 18, type: Varchar, stored string length: 17, value: ''''-,,,,|''''-,,
+Column id: 3, name: ATTR4, size: 342, type: Longvarchar, stored string length: 340, value: ''''-,,,,|''''-,,,,|''''-,,,,|''''-,,,,|''''-,,,,|''''-,,,,|''''-,,,,|''''-,,,,|''''-,,,,|''''-,,,,|''''-,,,,|''''-,,,,|''''-,,,,|''''-,,,,|''''-,,,,|''''-,,,,|''''-,,,,|''''-,,,,|''''-,,,,|''''-,,,,|''''-,,,,|''''-,,,,|''''-,,,,|''''-,,,,|''''-,,,,|''''-,,,,|''''-,,,,|''''-,,,,|''''-,,,,|''''-,,,,|''''-,,,,|''''-,,,,|''''-,,,,|''''-,,,,|
+Column id: 4, name: ATTR5, size: 20, type: Binary, stored bytes length: 20, sum of byte array: 136
+Column id: 5, name: ATTR6, size: 18, type: Varbinary, stored bytes length: 17, sum of byte array: 136
+Column id: 6, name: ATTR7, size: 342, type: Longvarbinary, stored bytes length: 340, sum of byte array: 3358
+Verify values stored in the table
+select count(ATTR1) from api_array_using_adapter;
+count(ATTR1)
+21
+drop table api_array_using_adapter;
