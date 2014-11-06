@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -48,6 +48,8 @@ public:
 			    char* messptr);
 
   static int get_trace_no();
+  
+  static void prepare_to_crash(bool first_phase, bool error_insert_crash);
 
 private:
   static enum NdbShutdownType s_errorHandlerShutdownType;
