@@ -25259,6 +25259,13 @@ Dbdict::execSCHEMA_TRANS_END_REQ(Signal* signal)
   SchemaTransPtr trans_ptr;
   ErrorInfo error;
   do {
+    const bool localTrans = (requestInfo & DictSignal::RF_LOCAL_TRANS);
+    if (getOwnNodeId() != c_masterNodeId && !localTrans) {
+      jam();
+      setError(error, SchemaTransEndRef::NotMaster, __LINE__);
+      break;
+    }
+
     if (!findSchemaTrans(trans_ptr, trans_key)) {
       jam();
       setError(error, SchemaTransEndRef::InvalidTransKey, __LINE__);
@@ -25271,13 +25278,14 @@ Dbdict::execSCHEMA_TRANS_END_REQ(Signal* signal)
       break;
     }
 
-    bool localTrans = (trans_ptr.p->m_requestInfo & DictSignal::RF_LOCAL_TRANS);
+    const bool localTrans2 =
+      (trans_ptr.p->m_requestInfo & DictSignal::RF_LOCAL_TRANS);
 
-    if (getOwnNodeId() != c_masterNodeId && !localTrans) {
+    if (localTrans != localTrans2)
+    {
       jam();
-      // future when MNF is handled
-      //ndbassert(false);
-      setError(error, SchemaTransEndRef::NotMaster, __LINE__);
+      ndbassert(false);
+      setError(error, SchemaTransEndRef::InvalidTransState, __LINE__);
       break;
     }
 
@@ -25306,15 +25314,6 @@ Dbdict::execSCHEMA_TRANS_END_REQ(Signal* signal)
 #ifdef MARTIN
     ndbout_c("Dbdict::execSCHEMA_TRANS_END_REQ: trans %u, state %u", trans_ptr.i, trans_ptr.p->m_state);
 #endif
-
-    bool localTrans2 = requestInfo & DictSignal::RF_LOCAL_TRANS;
-    if (localTrans != localTrans2)
-    {
-      jam();
-      ndbassert(false);
-      setError(error, SchemaTransEndRef::InvalidTransState, __LINE__);
-      break;
-    }
 
     // Assert that we are not in an inconsistent/incomplete state
     ndbassert(!hasError(trans_ptr.p->m_error));
