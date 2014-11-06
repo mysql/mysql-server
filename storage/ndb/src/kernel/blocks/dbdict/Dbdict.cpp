@@ -20313,12 +20313,15 @@ void Dbdict::check_takeover_replies(Signal* signal)
             ndbout_c("New master locked transaction %u", trans_key);
 #endif
           }
+          trans_ptr.p->m_nodes.clear();
           trans_ptr.p->m_rollforward_op = -1;
           trans_ptr.p->m_rollforward_op_state = SchemaOp::OS_COMPLETED;
           trans_ptr.p->m_rollback_op = 0;
           trans_ptr.p->m_rollback_op_state = SchemaOp::OS_INITIAL;
           trans_ptr.p->m_lowest_trans_state = SchemaTrans::TS_ENDING;
           trans_ptr.p->m_highest_trans_state = SchemaTrans::TS_INITIAL;
+          trans_ptr.p->check_partial_rollforward = false;
+          trans_ptr.p->ressurected_op = false;
         }
 
         trans_ptr.p->m_isMaster = true;
@@ -20469,6 +20472,12 @@ void Dbdict::check_takeover_replies(Signal* signal)
 #ifdef VM_TRACE
         ndbout_c("Node %u had %u operations, master has %u",i , nodePtr.p->takeOverConf.op_count, masterNodePtr.p->takeOverConf.op_count);
 #endif
+
+        /** BEWARE:
+         * 'takeOverConf' is not valid if a node replied TAKEOVER_REF,
+         * in that case node was cleared from 'masterNodePtr.p->m_nodes'.
+         */
+        ndbassert(masterNodePtr.p->m_nodes.get(i));
         if (nodePtr.p->takeOverConf.op_count == 0)
         {
           if (SchemaTrans::weight(trans_ptr.p->m_state)
@@ -20494,43 +20503,8 @@ void Dbdict::check_takeover_replies(Signal* signal)
             // Is this possible??
           }
         }
-        else if (nodePtr.p->takeOverConf.op_count <
-                 masterNodePtr.p->takeOverConf.op_count)
-        {
-          jam();
-          /*
-              Operation is missing on slave
-          */
-          if (SchemaTrans::weight(trans_ptr.p->m_state) <
-              SchemaTrans::weight(SchemaTrans::TS_PREPARING))
-          {
-            /*
-              Last parsed operation is missing on slave, skip it
-              when aborting parse.
-            */
-            jam();
-#ifdef VM_TRACE
-            ndbout_c("Node %u did not have all operations for transaction %u, skip > %u", i, trans_ptr.p->trans_key, nodePtr.p->takeOverConf.highest_op);
-#endif
-            nodePtr.p->recoveryState = NodeRecord::RS_PARTIAL_ROLLBACK;
-            nodePtr.p->start_op = nodePtr.p->takeOverConf.highest_op;
-            nodePtr.p->start_op_state = nodePtr.p->takeOverConf.highest_op_state;
-          }
-          else
-          {
-            /*
-              Slave has already ended some operations
-            */
-            jam();
-#ifdef VM_TRACE
-            ndbout_c("Node %u did not have all operations for transaction %u, skip < %u", i, trans_ptr.p->trans_key, nodePtr.p->takeOverConf.lowest_op);
-#endif
-            nodePtr.p->recoveryState = NodeRecord::RS_PARTIAL_ROLLFORWARD;
-            nodePtr.p->start_op = nodePtr.p->takeOverConf.lowest_op;
-            nodePtr.p->start_op_state = nodePtr.p->takeOverConf.lowest_op_state;
-          }
-        }
-        else if (nodePtr.p->takeOverConf.op_count >
+        else if (!masterNodePtr.p->m_nodes.get(c_masterNodeId) ||
+                 nodePtr.p->takeOverConf.op_count >
                  masterNodePtr.p->takeOverConf.op_count)
         {
           /*
@@ -20566,6 +20540,7 @@ void Dbdict::check_takeover_replies(Signal* signal)
 #ifdef VM_TRACE
                 ndbout_c("Created missing operation %u, on new master", missing_op_ptr.p->op_key);
 #endif
+                ndbassert(masterNodePtr.p->m_nodes.get(c_masterNodeId));
                 missing_op_ptr.p->m_state = nodePtr.p->takeOverConf.highest_op_state;
                 masterNodePtr.p->recoveryState = NodeRecord::RS_PARTIAL_ROLLBACK;
                 masterNodePtr.p->start_op = masterNodePtr.p->takeOverConf.highest_op;
@@ -20622,6 +20597,44 @@ void Dbdict::check_takeover_replies(Signal* signal)
               assert(false);
             }
             continue;
+          }
+        }
+        else if (nodePtr.p->takeOverConf.op_count <
+                 masterNodePtr.p->takeOverConf.op_count)
+        {
+          jam();
+          ndbassert(masterNodePtr.p->m_nodes.get(c_masterNodeId));
+
+          /*
+              Operation is missing on slave
+          */
+          if (SchemaTrans::weight(trans_ptr.p->m_state) <
+              SchemaTrans::weight(SchemaTrans::TS_PREPARING))
+          {
+            /*
+              Last parsed operation is missing on slave, skip it
+              when aborting parse.
+            */
+            jam();
+#ifdef VM_TRACE
+            ndbout_c("Node %u did not have all operations for transaction %u, skip > %u", i, trans_ptr.p->trans_key, nodePtr.p->takeOverConf.highest_op);
+#endif
+            nodePtr.p->recoveryState = NodeRecord::RS_PARTIAL_ROLLBACK;
+            nodePtr.p->start_op = nodePtr.p->takeOverConf.highest_op;
+            nodePtr.p->start_op_state = nodePtr.p->takeOverConf.highest_op_state;
+          }
+          else
+          {
+            /*
+              Slave has already ended some operations
+            */
+            jam();
+#ifdef VM_TRACE
+            ndbout_c("Node %u did not have all operations for transaction %u, skip < %u", i, trans_ptr.p->trans_key, nodePtr.p->takeOverConf.lowest_op);
+#endif
+            nodePtr.p->recoveryState = NodeRecord::RS_PARTIAL_ROLLFORWARD;
+            nodePtr.p->start_op = nodePtr.p->takeOverConf.lowest_op;
+            nodePtr.p->start_op_state = nodePtr.p->takeOverConf.lowest_op_state;
           }
         }
       }
