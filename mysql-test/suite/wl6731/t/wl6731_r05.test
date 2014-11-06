@@ -1,8 +1,0 @@
-CREATE TABLE t1 (c1 int);
-SHOW CREATE TABLE t1;
-SELECT table_name, engine FROM information_schema.tables WHERE table_name like 't1';
-DROP TABLE t1;
-CREATE TABLE t1 (c1 int) ENGINE=InnoDB;
-SHOW CREATE TABLE t1;
-SELECT table_name, engine FROM information_schema.tables WHERE table_name like 't1';
-DROP TABLE t1;
