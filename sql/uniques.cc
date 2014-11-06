@@ -32,7 +32,6 @@
 
 #include "sql_priv.h"
 #include "sql_sort.h"
-#include "queues.h"                             // QUEUE
 #include "my_tree.h"                            // element_count
 #include "opt_costmodel.h"
 #include "uniques.h"                            // Unique

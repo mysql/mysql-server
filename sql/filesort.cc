@@ -140,7 +140,7 @@ void Sort_param::try_to_pack_addons(ulong max_length_for_sort_data)
 
 
 static void trace_filesort_information(Opt_trace_context *trace,
-                                       const SORT_FIELD *sortorder,
+                                       const st_sort_field *sortorder,
                                        uint s_length)
 {
   if (!trace->is_started())
@@ -369,7 +369,7 @@ ha_rows filesort(THD *thd, QEP_TAB *qep_tab, Filesort *filesort,
 
   param.sort_form= table;
   param.local_sortorder=
-    Bounds_checked_array<SORT_FIELD>(filesort->sortorder, s_length);
+    Bounds_checked_array<st_sort_field>(filesort->sortorder, s_length);
   // New scope, because subquery execution must be traced within an array.
   {
     Opt_trace_array ota(trace, "filesort_execution");
@@ -558,7 +558,7 @@ void filesort_free_buffers(TABLE *table, bool full)
 uint Filesort::make_sortorder()
 {
   uint count;
-  SORT_FIELD *sort,*pos;
+  st_sort_field *sort,*pos;
   ORDER *ord;
   DBUG_ENTER("make_sortorder");
 
@@ -567,7 +567,7 @@ uint Filesort::make_sortorder()
   for (ord = order; ord; ord= ord->next)
     count++;
   if (!sortorder)
-    sortorder= (SORT_FIELD*) sql_alloc(sizeof(SORT_FIELD) * (count + 1));
+    sortorder= (st_sort_field*) sql_alloc(sizeof(st_sort_field) * (count + 1));
   pos= sort= sortorder;
 
   if (!pos)
@@ -1068,7 +1068,7 @@ void copy_native_longlong(uchar *to, size_t to_length,
 uint Sort_param::make_sortkey(uchar *to, const uchar *ref_pos)
 {
   uchar *orig_to= to;
-  const SORT_FIELD *sort_field;
+  const st_sort_field *sort_field;
 
   for (sort_field= local_sortorder.begin() ;
        sort_field != local_sortorder.end() ;
@@ -1331,7 +1331,7 @@ uint Sort_param::make_sortkey(uchar *to, const uchar *ref_pos)
 
 static void register_used_fields(Sort_param *param)
 {
-  Bounds_checked_array<SORT_FIELD>::const_iterator sort_field;
+  Bounds_checked_array<st_sort_field>::const_iterator sort_field;
   TABLE *table=param->sort_form;
   MY_BITMAP *bitmap= table->read_set;
 
@@ -2075,7 +2075,7 @@ static uint suffix_length(ulong string_length)
 */
 
 uint
-sortlength(THD *thd, SORT_FIELD *sortorder, uint s_length,
+sortlength(THD *thd, st_sort_field *sortorder, uint s_length,
            bool *multi_byte_charset)
 {
   uint total_length= 0;
