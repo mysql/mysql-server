@@ -30,6 +30,14 @@ public interface Constants {
      */
     static final String PROPERTY_CLUSTER_CONNECTSTRING = "com.mysql.clusterj.connectstring";
 
+    /** The name of the initial timeout for cluster connection to connect to MGM before connecting to data nodes
+     * <a href="http://dev.mysql.com/doc/ndbapi/en/ndb-ndb-cluster-connection-methods.html#ndb-ndb-cluster-connection-set-timeout">Ndb_cluster_connection::set_timeout()</a>
+     */
+    static final String PROPERTY_CLUSTER_CONNECT_TIMEOUT_MGM = "com.mysql.clusterj.connect.timeout.mgm";
+
+    /** The default value of the connection timeout mgm property */
+    static final int DEFAULT_PROPERTY_CLUSTER_CONNECT_TIMEOUT_MGM = 30000;
+
     /** The name of the connection retries property. For details, see
      * <a href="http://dev.mysql.com/doc/ndbapi/en/ndb-ndb-cluster-connection-methods.html#ndb-ndb-cluster-connection-connect">Ndb_cluster_connection::connect()</a>
      */
