@@ -63,6 +63,9 @@ public class ClusterConnectionImpl
     /** The node id requested for this connection; 0 for default */
     final int nodeId;
 
+    /** The timeout value to connect to mgm */
+    final int connectTimeoutMgm;
+
     /** All regular dbs (not dbForNdbRecord) given out by this cluster connection */
     private Map<DbImpl, Object> dbs = new IdentityHashMap<DbImpl, Object>();
 
@@ -87,12 +90,15 @@ public class ClusterConnectionImpl
      * @param connectString the connect string
      * @param nodeId the node id; node id of zero means "any node"
      */
-    public ClusterConnectionImpl(String connectString, int nodeId) {
+    public ClusterConnectionImpl(String connectString, int nodeId, int connectTimeoutMgm) {
         this.connectString = connectString;
         this.nodeId = nodeId;
+        this.connectTimeoutMgm = connectTimeoutMgm;
         clusterConnection = Ndb_cluster_connection.create(connectString, nodeId);
         handleError(clusterConnection, connectString, nodeId);
-        logger.info(local.message("INFO_Create_Cluster_Connection", connectString, nodeId));
+        int timeoutError = clusterConnection.set_timeout(connectTimeoutMgm);
+        handleError(timeoutError, connectString, nodeId, connectTimeoutMgm);
+        logger.info(local.message("INFO_Create_Cluster_Connection", connectString, nodeId, connectTimeoutMgm));
     }
 
     public void connect(int connectRetries, int connectDelay, boolean verbose) {
@@ -131,6 +137,14 @@ public class ClusterConnectionImpl
     private void checkConnection() {
         if (clusterConnection == null) {
             throw new ClusterJFatalInternalException(local.message("ERR_Cluster_Connection_Must_Not_Be_Null"));
+        }
+    }
+
+    protected static void handleError(int timeoutError, String connectString, int nodeId, int connectTimeoutMgm) {
+        if (timeoutError != 0) {
+            String message = local.message("ERR_Set_Timeout_Mgm", connectString, nodeId, connectTimeoutMgm, timeoutError);
+            logger.error(message);
+            throw new ClusterJDatastoreException(message);
         }
     }
 

@@ -62,6 +62,7 @@ public class SessionFactoryImpl implements SessionFactory, Constants {
     /** NdbCluster connect properties */
     String CLUSTER_CONNECTION_SERVICE;
     String CLUSTER_CONNECT_STRING;
+    int CLUSTER_CONNECT_TIMEOUT_MGM;
     int CLUSTER_CONNECT_RETRIES;
     int CLUSTER_CONNECT_DELAY;
     int CLUSTER_CONNECT_VERBOSE;
@@ -162,6 +163,8 @@ public class SessionFactoryImpl implements SessionFactory, Constants {
         CLUSTER_CONNECT_STRING = getRequiredStringProperty(props, PROPERTY_CLUSTER_CONNECTSTRING);
         CLUSTER_CONNECT_RETRIES = getIntProperty(props, PROPERTY_CLUSTER_CONNECT_RETRIES,
                 Constants.DEFAULT_PROPERTY_CLUSTER_CONNECT_RETRIES);
+        CLUSTER_CONNECT_TIMEOUT_MGM = getIntProperty(props, PROPERTY_CLUSTER_CONNECT_TIMEOUT_MGM,
+                Constants.DEFAULT_PROPERTY_CLUSTER_CONNECT_TIMEOUT_MGM);
         CLUSTER_CONNECT_DELAY = getIntProperty(props, PROPERTY_CLUSTER_CONNECT_DELAY,
                 Constants.DEFAULT_PROPERTY_CLUSTER_CONNECT_DELAY);
         CLUSTER_CONNECT_VERBOSE = getIntProperty(props, PROPERTY_CLUSTER_CONNECT_VERBOSE,
@@ -250,7 +253,7 @@ public class SessionFactoryImpl implements SessionFactory, Constants {
             ClusterConnectionService service, Map<?, ?> props, int nodeId) {
         ClusterConnection result = null;
         try {
-            result = service.create(CLUSTER_CONNECT_STRING, nodeId);
+            result = service.create(CLUSTER_CONNECT_STRING, nodeId, CLUSTER_CONNECT_TIMEOUT_MGM);
             result.connect(CLUSTER_CONNECT_RETRIES, CLUSTER_CONNECT_DELAY,true);
             result.waitUntilReady(CLUSTER_CONNECT_TIMEOUT_BEFORE,CLUSTER_CONNECT_TIMEOUT_AFTER);
         } catch (Exception ex) {
