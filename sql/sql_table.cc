@@ -7228,6 +7228,13 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
   */
   if (table->is_field_dependent_by_generated_columns(field->field_index))
     my_error(ER_DEPENDENT_BY_GENERATED_COLUMN, MYF(0), field->field_name);
+
+  /*
+    Mark the drop_column operation is on virtual GC so that a non-rebuild
+    on table can be done.
+  */
+  if (field->gcol_info && !field->stored_in_db)
+    alter_info->flags|= Alter_info::ALTER_VIRTUAL_GCOLUMN;
 	break;
       }
     }
