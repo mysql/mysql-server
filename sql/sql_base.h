@@ -700,12 +700,36 @@ public:
 class Strict_error_handler : public Internal_error_handler
 {
 public:
+
+  enum enum_set_select_behavior
+  {
+    DISABLE_SET_SELECT_STRICT_ERROR_HANDLER,
+    ENABLE_SET_SELECT_STRICT_ERROR_HANDLER
+  };
+
+  Strict_error_handler()
+    : m_set_select_behavior(DISABLE_SET_SELECT_STRICT_ERROR_HANDLER)
+  {}
+
+  Strict_error_handler(enum_set_select_behavior param)
+    : m_set_select_behavior(param)
+  {}
+
   bool handle_condition(THD *thd,
                         uint sql_errno,
                         const char* sqlstate,
                         Sql_condition::enum_severity_level *level,
                         const char* msg,
                         Sql_condition ** cond_hdl);
+
+private:
+  /*
+    For SELECT and SET statement, we do not always give error in STRICT mode.
+    For triggers, Strict_error_handler is pushed in the beginning of statement.
+    If a SELECT or SET is executed from the Trigger, it should not always give
+    error. We use this flag to choose when to give error and when warning.
+  */
+  enum_set_select_behavior m_set_select_behavior;
 };
 
 

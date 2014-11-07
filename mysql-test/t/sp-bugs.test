@@ -236,3 +236,135 @@ DROP PROCEDURE testp_bug11763507;
 DROP FUNCTION testf_bug11763507;
 
 --echo #END OF BUG#11763507 test.
+
+--echo #
+--echo # Bug#19418619 : SELECT QUERY WITH INVALID TIME WORKS FINE BUT SP FAILS UNDER STRICT MODE
+--echo #
+
+SET sql_mode='NO_ENGINE_SUBSTITUTION';
+# Create SF without STRICT mode
+delimiter |;
+CREATE FUNCTION f1(arg TINYINT UNSIGNED) RETURNS TINYINT
+BEGIN
+  RETURN abs('1abcd');
+END|
+delimiter ;|
+SELECT f1(-25);
+SELECT f1(25);
+SET sql_mode='STRICT_ALL_TABLES,STRICT_TRANS_TABLES';
+# Passing invalid argument from STRICT mode gives error.
+--error ER_WARN_DATA_OUT_OF_RANGE
+SELECT f1(-25);
+SELECT f1(10);
+DROP FUNCTION f1;
+
+SET sql_mode='NO_ENGINE_SUBSTITUTION';
+# Create SP without STRICT mode
+delimiter |;
+CREATE PROCEDURE f1(IN arg TINYINT UNSIGNED)
+BEGIN
+  DECLARE arg1 TINYINT;
+  select abs('1abcd') into arg;
+END|
+delimiter ;|
+CALL f1(-25);
+CALL f1(25);
+SET sql_mode='STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION';
+# Passing invalid argument from STRICT mode gives error.
+--error ER_WARN_DATA_OUT_OF_RANGE
+CALL f1(-25);
+CALL f1(10);
+DROP PROCEDURE f1;
+
+# Select does not give error in STRICT mode
+SELECT SUBTIME('2006-07-16' , '05:05:02.040778');
+SELECT abs('1bcd');
+
+# Create Stored Procedure in STRICT mode.
+delimiter |;
+CREATE PROCEDURE sp1()
+BEGIN
+SELECT SUBTIME('2006-07-16' , '05:05:02.040778');
+END|
+CREATE PROCEDURE sp2()
+BEGIN
+DECLARE v1 TINYINT DEFAULT 450000;
+END|
+delimiter ;|
+CALL sp1();
+--error ER_WARN_DATA_OUT_OF_RANGE
+CALL sp2();
+DROP PROCEDURE sp1;
+DROP PROCEDURE sp2;
+
+# Create Stored Function in STRICT mode
+CREATE FUNCTION fn1(arg TINYINT UNSIGNED) RETURNS float deterministic RETURN abs('1abcd');
+delimiter |;
+CREATE FUNCTION fn2() RETURNS tinyint
+BEGIN
+DECLARE v1 TINYINT DEFAULT 450000;
+RETURN v1;
+END|
+delimiter ;|
+# On passing valid argument function execution fails as it was created in STRICT mode.
+--error ER_TRUNCATED_WRONG_VALUE
+SELECT fn1(25);
+# Passing invalid argument from STRICT mode gives error for parameter evaluation.
+--error ER_WARN_DATA_OUT_OF_RANGE
+SELECT fn1(-25);
+
+--error ER_WARN_DATA_OUT_OF_RANGE
+SELECT fn2();
+SET sql_mode='NO_ENGINE_SUBSTITUTION';
+--error ER_TRUNCATED_WRONG_VALUE
+SELECT fn1(-25);
+DROP FUNCTION fn1;
+DROP FUNCTION fn2;
+
+#Create a function without STRICT mode
+CREATE FUNCTION fn1() RETURNS float deterministic RETURN floor('1.1a');
+# Create a function and Trigger in STRICT mode
+SET sql_mode='STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION';
+CREATE TABLE t1(a INT);
+CREATE FUNCTION fn2() RETURNS float deterministic RETURN floor('1.1a');
+CREATE TRIGGER tr1 BEFORE INSERT ON t1 FOR EACH ROW SET @a=fn2();
+#Error expected as function call returns error
+--error ER_TRUNCATED_WRONG_VALUE
+INSERT INTO t1 VALUES(1);
+DROP TRIGGER tr1;
+CREATE TRIGGER tr1 BEFORE INSERT ON t1 FOR EACH ROW SET @a=fn1();
+#No error as function call will not give error
+INSERT INTO t1 VALUES(1);
+DROP FUNCTION fn1;
+DROP FUNCTION fn2;
+DROP TRIGGER tr1;
+DROP TABLE t1;
+
+# Test for 'division by zero'
+SET sql_mode=traditional;
+# select passes
+SELECT 1/0;
+SET sql_mode='';
+delimiter |;
+CREATE PROCEDURE proc_c()
+BEGIN
+  DECLARE div_zero INTEGER;
+  SET SQL_MODE='TRADITIONAL';
+  SELECT 1/0;
+END|
+delimiter ;|
+# Procedure call passes.
+CALL proc_c();
+DROP PROCEDURE proc_c;
+#check for SET command inside SF in TRADITIONAL mode
+SET sql_mode=traditional;
+delimiter |;
+CREATE FUNCTION fn1() RETURNS TINYINT
+BEGIN
+SET  @x=floor('1a');
+RETURN 1;
+END|
+delimiter ;|
+SELECT fn1();
+DROP FUNCTION fn1;
+SET sql_mode= default;
