@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
+ *  Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -36,6 +36,7 @@ import com.mysql.ndbjtie.ndbapi.NdbScanOperation.ScanOptions;
 
 import com.mysql.clusterj.ClusterJDatastoreException;
 import com.mysql.clusterj.ClusterJFatalInternalException;
+import com.mysql.clusterj.ClusterJUserException;
 import com.mysql.clusterj.core.store.ClusterTransaction;
 import com.mysql.clusterj.core.store.Table;
 
@@ -88,6 +89,12 @@ class DbImpl implements com.mysql.clusterj.core.store.Db {
     /** The ClusterConnection */
     private ClusterConnectionImpl clusterConnection;
 
+    /** This db is closing */
+    private boolean closing = false;
+
+    /** The ClusterTransaction */
+    private ClusterTransaction clusterTransaction;
+
     /** The number of IndexBound created */
     private int numberOfIndexBoundCreated;
 
@@ -131,6 +138,16 @@ class DbImpl implements com.mysql.clusterj.core.store.Db {
         this.dictionary = new DictionaryImpl(ndbDictionary, clusterConnection);
     }
 
+    protected void assertOpen(String where) {
+        if (closing || ndb == null) {
+            throw new ClusterJUserException(local.message("ERR_Db_Is_Closing", where));
+        }
+    }
+
+    protected void closing() {
+        closing = true;
+    }
+
     public void close() {
         // check the counts of interface objects created versus deleted
         if (numberOfIndexBoundCreated != numberOfIndexBoundDeleted) {
@@ -149,6 +166,13 @@ class DbImpl implements com.mysql.clusterj.core.store.Db {
             logger.warn("numberOfScanOptionsCreated " + numberOfScanOptionsCreated + 
                     " != numberOfScanOptionsDeleted " + numberOfScanOptionsDeleted);
         }
+        if (clusterTransaction != null) {
+            if (clusterTransaction.isEnlisted()) {
+                throw new ClusterJUserException(local.message("ERR_Cannot_close_active_transaction")); 
+            }
+            clusterTransaction.close();
+            clusterTransaction = null;
+        }
         if (ndb != null) {
             Ndb.delete(ndb);
             ndb = null;
@@ -165,7 +189,9 @@ class DbImpl implements com.mysql.clusterj.core.store.Db {
     }
 
     public ClusterTransaction startTransaction(String joinTransactionId) {
-        return new ClusterTransactionImpl(clusterConnection, this, ndbDictionary, joinTransactionId);
+        assertOpen("startTransaction");
+        clusterTransaction = new ClusterTransactionImpl(clusterConnection, this, ndbDictionary, joinTransactionId);
+        return clusterTransaction;
     }
 
     protected void handleError(int returnCode, Ndb ndb) {
