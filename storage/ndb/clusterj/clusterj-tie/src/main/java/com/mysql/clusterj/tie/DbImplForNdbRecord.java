@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2012, Oracle and/or its affiliates. All rights reserved.
+ *  Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -23,6 +23,7 @@ import java.util.List;
 
 import com.mysql.clusterj.ClusterJDatastoreException;
 import com.mysql.clusterj.ClusterJFatalInternalException;
+import com.mysql.clusterj.ClusterJUserException;
 
 import com.mysql.clusterj.core.store.ClusterTransaction;
 
@@ -64,6 +65,9 @@ class DbImplForNdbRecord implements com.mysql.clusterj.core.store.Db {
     /** The ClusterConnection */
     private ClusterConnectionImpl clusterConnection;
 
+    /** This db is closing */
+    private boolean closing = false;
+
     public DbImplForNdbRecord(ClusterConnectionImpl clusterConnection, Ndb ndb) {
         this.clusterConnection = clusterConnection;
         this.ndb = ndb;
@@ -71,6 +75,16 @@ class DbImplForNdbRecord implements com.mysql.clusterj.core.store.Db {
         handleError(returnCode, ndb);
         ndbDictionary = ndb.getDictionary();
         handleError(ndbDictionary, ndb);
+    }
+
+    protected void assertOpen(String where) {
+        if (closing || ndb == null) {
+            throw new ClusterJUserException(local.message("ERR_Db_Is_Closing", where));
+        }
+    }
+
+    protected void closing() {
+        closing = true;
     }
 
     public void close() {
