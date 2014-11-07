@@ -153,10 +153,26 @@ bool Strict_error_handler::handle_condition(THD *thd,
                                             const char *msg,
                                             Sql_condition **cond_hdl)
 {
+  /*
+    STRICT error handler should not be effective if we have changed the
+    variable to turn off STRICT mode. This is the case when a SF/SP/Trigger
+    calls another SP/SF. A statement in SP/SF which is affected by STRICT mode
+    with push this handler for the statement. If the same statement calls
+    another SP/SF/Trigger, we already have the STRICT handler pushed for the
+    statement. We dont want the strict handler to be effective for the
+    next SP/SF/Trigger call if it was not created in STRICT mode.
+  */
+  if (!thd->is_strict_mode())
+    return false;
   /* STRICT MODE should affect only the below statements */
   switch (thd->lex->sql_command)
   {
+  case SQLCOM_SET_OPTION:
+  case SQLCOM_SELECT:
+    if (m_set_select_behavior == DISABLE_SET_SELECT_STRICT_ERROR_HANDLER)
+      return false;
   case SQLCOM_CREATE_TABLE:
+  case SQLCOM_CREATE_INDEX:
   case SQLCOM_DROP_INDEX:
   case SQLCOM_INSERT:
   case SQLCOM_REPLACE:
@@ -170,8 +186,6 @@ bool Strict_error_handler::handle_condition(THD *thd,
   case SQLCOM_LOAD:
   case SQLCOM_CALL:
   case SQLCOM_END:
-  case SQLCOM_SET_OPTION:
-  case SQLCOM_SELECT:
     break;
   default:
     return false;
@@ -189,7 +203,6 @@ bool Strict_error_handler::handle_condition(THD *thd,
   case ER_BAD_NULL_ERROR:
   case ER_NO_DEFAULT_FOR_FIELD:
   case ER_TOO_LONG_KEY:
-  case ER_WRONG_ARGUMENTS:
   case ER_NO_DEFAULT_FOR_VIEW_FIELD:
   case ER_WARN_NULL_TO_NOTNULL:
   case ER_CUT_VALUE_GROUP_CONCAT:
