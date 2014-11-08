@@ -133,7 +133,7 @@ int ha_tokudb::analyze(THD *thd, HA_CHECK_OPT *check_opt) {
     int result = HA_ADMIN_OK;
 
     // stub out analyze if optimize is remapped to alter recreate + analyze
-    if (thd_sql_command(thd) != SQLCOM_ANALYZE) {
+    if (thd_sql_command(thd) != SQLCOM_ANALYZE && thd_sql_command(thd) != SQLCOM_ALTER_TABLE) {
         TOKUDB_HANDLER_DBUG_RETURN(result);
     }
 
