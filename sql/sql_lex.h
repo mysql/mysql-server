@@ -105,6 +105,15 @@ struct sys_var_with_base
   LEX_STRING base_name;
 };
 
+struct LEX_TYPE
+{
+  enum enum_field_types type;
+  char *length, *dec;
+  CHARSET_INFO *charset;
+  void set(int t, char *l, char *d, CHARSET_INFO *cs)
+  { type= (enum_field_types)t; length= l; dec= d; charset= cs; }
+};
+
 #ifdef MYSQL_SERVER
 /*
   The following hack is needed because mysql_yacc.cc does not define

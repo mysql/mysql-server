@@ -2430,3 +2430,50 @@ a	b
 1	1
 unlock tables;
 drop table t1,t2;
+#
+# MDEV-6179: dynamic columns functions/cast()/convert() doesn't
+# play nice with CREATE/ALTER TABLE
+#
+create table t1 (
+color char(32) as (COLUMN_GET(dynamic_cols, 1 as char)) persistent,
+cl char(32) as (COLUMN_GET(COLUMN_ADD(COLUMN_CREATE(1 , 'blue' as char), 2, 'ttt'), i as char)) persistent,
+item_name varchar(32) primary key, -- A common attribute for all items
+i int,
+dynamic_cols  blob  -- Dynamic columns will be stored here
+);
+INSERT INTO t1(item_name, dynamic_cols, i) VALUES 
+('MariaDB T-shirt', COLUMN_CREATE(1, 'blue', 2, 'XL'), 1);
+INSERT INTO t1(item_name, dynamic_cols, i) VALUES
+('Thinkpad Laptop', COLUMN_CREATE(1, 'black', 3, 500), 2);
+select item_name, color, cl from t1;
+item_name	color	cl
+MariaDB T-shirt	blue	blue
+Thinkpad Laptop	black	ttt
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `color` char(32) AS (COLUMN_GET(dynamic_cols, 1 as char)) PERSISTENT,
+  `cl` char(32) AS (COLUMN_GET(COLUMN_ADD(COLUMN_CREATE(1 , 'blue' as char), 2, 'ttt'), i as char)) PERSISTENT,
+  `item_name` varchar(32) NOT NULL,
+  `i` int(11) DEFAULT NULL,
+  `dynamic_cols` blob,
+  PRIMARY KEY (`item_name`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+drop table t1;
+create table t1 (
+n int,
+c char(32) as (convert(cast(n as char), char)) persistent
+);
+insert into t1(n) values (1),(2),(3);
+select * from t1;
+n	c
+1	1
+2	2
+3	3
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `n` int(11) DEFAULT NULL,
+  `c` char(32) AS (convert(cast(n as char), char)) PERSISTENT
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+drop table t1;

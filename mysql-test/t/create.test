@@ -2021,3 +2021,35 @@ connection default;
 select * from t1;
 unlock tables;
 drop table t1,t2;
+
+--echo #
+--echo # MDEV-6179: dynamic columns functions/cast()/convert() doesn't
+--echo # play nice with CREATE/ALTER TABLE
+--echo #
+create table t1 (
+  color char(32) as (COLUMN_GET(dynamic_cols, 1 as char)) persistent,
+  cl char(32) as (COLUMN_GET(COLUMN_ADD(COLUMN_CREATE(1 , 'blue' as char), 2, 'ttt'), i as char)) persistent,
+  item_name varchar(32) primary key, -- A common attribute for all items
+  i int,
+  dynamic_cols  blob  -- Dynamic columns will be stored here
+);
+INSERT INTO t1(item_name, dynamic_cols, i) VALUES 
+  ('MariaDB T-shirt', COLUMN_CREATE(1, 'blue', 2, 'XL'), 1);
+INSERT INTO t1(item_name, dynamic_cols, i) VALUES
+  ('Thinkpad Laptop', COLUMN_CREATE(1, 'black', 3, 500), 2);
+
+select item_name, color, cl from t1;
+show create table t1;
+
+drop table t1;
+
+create table t1 (
+  n int,
+  c char(32) as (convert(cast(n as char), char)) persistent
+);
+insert into t1(n) values (1),(2),(3);
+
+select * from t1;
+show create table t1;
+
+drop table t1;
