@@ -18,10 +18,8 @@
 
 /** @file Name resolution functions */
 
-int setup_order(THD *thd, Ref_ptr_array ref_pointer_array, TABLE_LIST *tables,
-		List<Item> &fields, List <Item> &all_fields, ORDER *order);
-bool fix_inner_refs(THD *thd, List<Item> &all_fields, SELECT_LEX *select,
-                   Ref_ptr_array ref_pointer_array, ORDER *group_list= NULL);
+bool setup_order(THD *thd, Ref_ptr_array ref_pointer_array, TABLE_LIST *tables,
+                 List<Item> &fields, List <Item> &all_fields, ORDER *order);
 bool subquery_allows_materialization(Item_in_subselect *predicate,
                                      THD *thd, SELECT_LEX *select_lex,
                                      const SELECT_LEX *outer);

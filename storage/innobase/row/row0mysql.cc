@@ -4062,11 +4062,19 @@ row_drop_table_for_mysql(
 	latch */
 	table->to_be_dropped = true;
 
-	if (table->fts) {
-		fts_optimize_remove_table(table);
-	}
-
 	if (nonatomic) {
+		/* This trx did not acquire any locks on dictionary
+		table records yet. Thus it is safe to release and
+		reacquire the data dictionary latches. */
+		if (table->fts) {
+			ut_ad(!table->fts->add_wq);
+			ut_ad(lock_trx_has_sys_table_locks(trx) == 0);
+
+			row_mysql_unlock_data_dictionary(trx);
+			fts_optimize_remove_table(table);
+			row_mysql_lock_data_dictionary(trx);
+		}
+
 		/* Do not bother to deal with persistent stats for temp
 		tables since we know temp tables do not use persistent
 		stats. */
@@ -4506,6 +4514,20 @@ row_drop_table_for_mysql(
 			ut_a(index->page == FIL_NULL);
 			index->page = *page_no++;
 			rw_lock_x_unlock(dict_index_get_lock(index));
+		}
+	}
+
+	if (err != DB_SUCCESS && table != NULL) {
+		/* Drop table has failed with error but as drop table is not 
+		transaction safe we should mark the table as corrupted to avoid
+		unwarranted follow-up action on this table that can result
+		in more serious issues. */
+
+		table->corrupted = true;
+		for (dict_index_t* index = UT_LIST_GET_FIRST(table->indexes);
+		     index != NULL;
+		     index = UT_LIST_GET_NEXT(indexes, index)) {
+			dict_set_corrupted(index, trx, "DROP TABLE");
 		}
 	}
 

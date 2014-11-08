@@ -523,7 +523,7 @@ private:
   Explain_format(Explain_format &); // undefined
   Explain_format &operator=(Explain_format &); // undefined
 
-public:
+protected:
   select_result *output; ///< output resulting data there
 
 public:

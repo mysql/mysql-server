@@ -140,7 +140,7 @@ void Sort_param::try_to_pack_addons(ulong max_length_for_sort_data)
 
 
 static void trace_filesort_information(Opt_trace_context *trace,
-                                       const SORT_FIELD *sortorder,
+                                       const st_sort_field *sortorder,
                                        uint s_length)
 {
   if (!trace->is_started())
@@ -369,7 +369,7 @@ ha_rows filesort(THD *thd, QEP_TAB *qep_tab, Filesort *filesort,
 
   param.sort_form= table;
   param.local_sortorder=
-    Bounds_checked_array<SORT_FIELD>(filesort->sortorder, s_length);
+    Bounds_checked_array<st_sort_field>(filesort->sortorder, s_length);
   // New scope, because subquery execution must be traced within an array.
   {
     Opt_trace_array ota(trace, "filesort_execution");
@@ -558,7 +558,7 @@ void filesort_free_buffers(TABLE *table, bool full)
 uint Filesort::make_sortorder()
 {
   uint count;
-  SORT_FIELD *sort,*pos;
+  st_sort_field *sort,*pos;
   ORDER *ord;
   DBUG_ENTER("make_sortorder");
 
@@ -567,7 +567,7 @@ uint Filesort::make_sortorder()
   for (ord = order; ord; ord= ord->next)
     count++;
   if (!sortorder)
-    sortorder= (SORT_FIELD*) sql_alloc(sizeof(SORT_FIELD) * (count + 1));
+    sortorder= (st_sort_field*) sql_alloc(sizeof(st_sort_field) * (count + 1));
   pos= sort= sortorder;
 
   if (!pos)
@@ -1068,7 +1068,7 @@ void copy_native_longlong(uchar *to, size_t to_length,
 uint Sort_param::make_sortkey(uchar *to, const uchar *ref_pos)
 {
   uchar *orig_to= to;
-  const SORT_FIELD *sort_field;
+  const st_sort_field *sort_field;
 
   for (sort_field= local_sortorder.begin() ;
        sort_field != local_sortorder.end() ;
@@ -1331,7 +1331,7 @@ uint Sort_param::make_sortkey(uchar *to, const uchar *ref_pos)
 
 static void register_used_fields(Sort_param *param)
 {
-  Bounds_checked_array<SORT_FIELD>::const_iterator sort_field;
+  Bounds_checked_array<st_sort_field>::const_iterator sort_field;
   TABLE *table=param->sort_form;
   MY_BITMAP *bitmap= table->read_set;
 
@@ -1757,9 +1757,9 @@ namespace {
  */
 struct Merge_chunk_less
 {
-  size_t       m_len;
-  qsort2_cmp   m_fun;
-  void        *m_arg;
+  size_t m_len;
+  Sort_param::chunk_compare_fun m_fun;
+  Merge_chunk_compare_context *m_arg;
 
   // CTOR for filesort()
   explicit Merge_chunk_less(size_t len)
@@ -1767,7 +1767,8 @@ struct Merge_chunk_less
   {}
 
   // CTOR for Unique::get()
-  Merge_chunk_less(qsort2_cmp fun, void *arg)
+  Merge_chunk_less(Sort_param::chunk_compare_fun fun,
+                   Merge_chunk_compare_context *arg)
     : m_len(0), m_fun(fun), m_arg(arg)
   {}
 
@@ -1779,7 +1780,7 @@ struct Merge_chunk_less
       return memcmp(key1, key2, m_len) > 0;
 
     if (m_fun)
-      return (*m_fun)(m_arg, &key1, &key2) > 0;
+      return (*m_fun)(m_arg, key1, key2) > 0;
 
     // We can actually have zero-length sort key for filesort().
     return false;
@@ -1787,43 +1788,6 @@ struct Merge_chunk_less
 };
 
 } // namespace
-
-
-/**
-  Put all room used by freed buffer to use in adjacent buffer.
-
-  Note, that we can't simply distribute memory evenly between all buffers,
-  because new areas must not overlap with old ones.
-*/
-void Merge_chunk::reuse_freed_buff(Merge_chunk *begin, Merge_chunk *end)
-{
-  for (Merge_chunk *mc= begin; mc != end; ++mc)
-  {
-    if (merge_freed_buff(mc))
-      return;
-  }
-  DBUG_ASSERT(0);
-}
-
-
-/**
-  Put all room used by freed buffer to use in adjacent buffer.
-
-  Note, that we can't simply distribute memory evenly between all buffers,
-  because new areas must not overlap with old ones.
-*/
-template<typename Heap_type>
-void reuse_freed_buff(Merge_chunk *old_top, Heap_type *heap)
-{
-  typename Heap_type::iterator it= heap->begin();
-  typename Heap_type::iterator end= heap->end();
-  for (; it != end; ++it)
-  {
-    if (old_top->merge_freed_buff(*it))
-      return;
-  }
-  DBUG_ASSERT(0);
-}
 
 
 /**
@@ -1858,8 +1822,8 @@ int merge_buffers(Sort_param *param, IO_CACHE *from_file,
   my_off_t to_start_filepos;
   uchar *strpos;
   Merge_chunk *merge_chunk;
-  qsort2_cmp cmp;
-  void *first_cmp_arg;
+  Sort_param::chunk_compare_fun cmp;
+  Merge_chunk_compare_context *first_cmp_arg;
   volatile THD::killed_state *killed= &current_thd->killed;
   THD::killed_state not_killable;
   DBUG_ENTER("merge_buffers");
@@ -1963,7 +1927,7 @@ int merge_buffers(Sort_param *param, IO_CACHE *from_file,
       {
         DBUG_ASSERT(!param->using_packed_addons());
         uchar *current_key= merge_chunk->current_key();
-        if (!(*cmp)(first_cmp_arg, &(param->unique_buff), &current_key))
+        if (!(*cmp)(first_cmp_arg, param->unique_buff, current_key))
           goto skip_duplicate;
         memcpy(param->unique_buff, merge_chunk->current_key(), rec_length);
       }
@@ -2019,7 +1983,7 @@ int merge_buffers(Sort_param *param, IO_CACHE *from_file,
   if (doing_unique)
   {
     uchar *current_key= merge_chunk->current_key();
-    if (!(*cmp)(first_cmp_arg, &(param->unique_buff), &current_key))
+    if (!(*cmp)(first_cmp_arg, param->unique_buff, current_key))
     {
       merge_chunk->advance_current_key(rec_length); // Remove duplicate
       merge_chunk->decrement_mem_count();
@@ -2111,7 +2075,7 @@ static uint suffix_length(ulong string_length)
 */
 
 uint
-sortlength(THD *thd, SORT_FIELD *sortorder, uint s_length,
+sortlength(THD *thd, st_sort_field *sortorder, uint s_length,
            bool *multi_byte_charset)
 {
   uint total_length= 0;

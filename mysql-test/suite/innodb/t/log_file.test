@@ -90,8 +90,7 @@ let SEARCH_PATTERN=\[ERROR\] Aborting;
 
 --echo # 2. With ibdata1, without ibdata2
 --remove_file $bugdir/ibdata2
-# On windows, if crash reporter pops up, exit code will be 0
---error 0,1
+--error 1
 --exec $MYSQLD $args
 let SEARCH_PATTERN=Tablespace size stored in header is \d+ pages, but;
 --source include/search_pattern_in_file.inc

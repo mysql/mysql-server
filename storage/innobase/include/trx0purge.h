@@ -317,8 +317,19 @@ namespace undo {
 		static bool is_tablespace_truncated(ulint space_id)
 		{
 			return(std::find(s_spaces_to_truncate.begin(),
-				    s_spaces_to_truncate.end(), space_id)
+					 s_spaces_to_truncate.end(), space_id)
 			       != s_spaces_to_truncate.end());
+		}
+
+		/** Was a tablespace truncated at startup
+		@param[in]	space_id	space id to check
+		@return whether space_id was truncated at startup */
+		static bool was_tablespace_truncated(ulint space_id)
+		{
+			return(std::find(s_fix_up_spaces.begin(),
+					 s_fix_up_spaces.end(),
+					 space_id)
+			       != s_fix_up_spaces.end());
 		}
 
 		/** Get local rseg purge truncate frequency
@@ -366,7 +377,11 @@ namespace undo {
 
 		/** List of UNDO tablespace(s) to truncate. */
 		static undo_spaces_t	s_spaces_to_truncate;
+	public:
+		/** Undo tablespaces that were truncated at startup */
+		static undo_spaces_t	s_fix_up_spaces;
 	};	/* class Truncate */
+
 };	/* namespace undo */
 
 /** The control structure used in the purge operation */

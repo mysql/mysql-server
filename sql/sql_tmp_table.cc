@@ -2347,8 +2347,7 @@ bool create_ondisk_from_heap(THD *thd, TABLE *table,
   {
     if (create_myisam_tmp_table(&new_table, table->s->key_info,
                                 start_recinfo, recinfo,
-                               (thd->lex->select_lex->options |
-                                thd->variables.option_bits),
+                                thd->lex->select_lex->active_options(),
                                 thd->variables.big_tables))
       goto err2;
   }

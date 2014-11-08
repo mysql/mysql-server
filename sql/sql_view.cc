@@ -601,7 +601,7 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
 
   /* prepare select to resolve all fields */
   lex->context_analysis_only|= CONTEXT_ANALYSIS_ONLY_VIEW;
-  if (unit->prepare(thd, 0, 0))
+  if (unit->prepare(thd, 0, 0, 0))
   {
     /*
       some errors from prepare are reported to user, if is not then
@@ -1420,6 +1420,9 @@ bool mysql_make_view(THD *thd, TABLE_SHARE *share, TABLE_LIST *table,
     thd->variables.sql_mode= saved_mode;
     if (dbchanged && mysql_change_db(thd, to_lex_cstring(old_db), true))
       goto err;
+
+    // sql_calc_found_rows is only relevant for outer-most query expression
+    lex->select_lex->remove_base_options(OPTION_FOUND_ROWS);
   }
   if (!parse_status)
   {
@@ -1645,8 +1648,8 @@ bool mysql_make_view(THD *thd, TABLE_SHARE *share, TABLE_LIST *table,
     old_lex->safe_to_cache_query= (old_lex->safe_to_cache_query &&
 				   lex->safe_to_cache_query);
     /* move SQL_CACHE to whole query */
-    if (view_select->options & OPTION_TO_QUERY_CACHE)
-      old_lex->select_lex->options|= OPTION_TO_QUERY_CACHE;
+    if (view_select->active_options() & OPTION_TO_QUERY_CACHE)
+      old_lex->select_lex->add_base_options(OPTION_TO_QUERY_CACHE);
 
     if (table->view_suid)
     {

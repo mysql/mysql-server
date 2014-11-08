@@ -23,7 +23,6 @@
 #include "filesort.h"        // Filesort
 #include "opt_explain_format.h"
 #include "sql_base.h"      // lock_tables
-#include "sql_union.h"     // mysql_union_prepare_and_optimize
 #include "sql_acl.h"       // check_global_access, PROCESS_ACL
 #include "debug_sync.h"    // DEBUG_SYNC
 #include "opt_trace.h"     // Opt_trace_*
@@ -32,8 +31,7 @@
 
 typedef qep_row::extra extra;
 
-static bool mysql_explain_unit(THD *thd, SELECT_LEX_UNIT *unit,
-                               select_result *result);
+static bool mysql_explain_unit(THD *thd, SELECT_LEX_UNIT *unit);
 
 const char *join_type_str[]={ "UNKNOWN","system","const","eq_ref","ref",
 			      "ALL","range","index","fulltext",
@@ -227,15 +225,6 @@ protected:
 
 enum_parsing_context Explain::get_subquery_context(SELECT_LEX_UNIT *unit) const
 {
-  if (!explain_other && !unit->first_select_prepared())
-  {
-    /*
-      This is regular EXPLAIN, so the statement is surely completely
-      optimized, so a non-prepared inner unit was optimized away
-      (see the comments in mysql_union_prepare_and_optimize()).
-    */
-    return CTX_OPTIMIZED_AWAY_SUBQUERY;
-  }
   return unit->get_explain_marker();
 }
 
@@ -291,7 +280,7 @@ public:
   {
     /* it's a UNION: */
     DBUG_ASSERT(select_lex_arg ==
-    select_lex_arg->join->unit->fake_select_lex);
+                select_lex_arg->master_unit()->fake_select_lex);
     // Use optimized values from fake_select_lex's join
     order_list= MY_TEST(select_lex_arg->join->order);
     // A plan exists so the reads above are safe:
@@ -565,6 +554,7 @@ bool Explain::explain_subqueries()
        unit;
        unit= unit->next_unit())
   {
+    DBUG_ASSERT(explain_other || unit->is_optimized());
     SELECT_LEX *sl= unit->first_select();
     enum_parsing_context context= get_subquery_context(unit);
     if (context == CTX_NONE)
@@ -573,7 +563,7 @@ bool Explain::explain_subqueries()
     if (fmt->begin_context(context, unit))
       return true;
 
-    if (mysql_explain_unit(thd, unit, fmt->output))
+    if (mysql_explain_unit(thd, unit))
       return true;
 
     /*
@@ -667,7 +657,6 @@ bool Explain::send()
   thd->server_status&= ~(SERVER_QUERY_NO_INDEX_USED |
                          SERVER_QUERY_NO_GOOD_INDEX_USED);
 
-  DBUG_ASSERT(fmt->output);
   bool ret= shallow_explain() || explain_subqueries();
 
   if (!ret)
@@ -2017,9 +2006,14 @@ bool explain_single_table_modification(THD *ethd,
 
   if (!other)
   {
-    if (mysql_optimize_prepared_inner_units(ethd, ethd->lex->unit,
-                                            SELECT_DESCRIBE))
-      DBUG_RETURN(true); /* purecov: inspected */
+    for (SELECT_LEX_UNIT *unit= select->first_inner_unit();
+         unit;
+         unit= unit->next_unit())
+    {
+      // Derived tables and const subqueries are already optimized
+      if (!unit->is_optimized() && unit->optimize(ethd))
+        DBUG_RETURN(true);  /* purecov: inspected */
+    }
     mysql_mutex_lock(&ethd->LOCK_query_plan);
   }
 
@@ -2146,7 +2140,7 @@ explain_query_specification(THD *ethd, SELECT_LEX *select_lex,
       const bool need_order= flags->any(ESP_USING_FILESORT);
       const bool distinct= flags->get(ESC_DISTINCT, ESP_EXISTS);
 
-      if (select_lex == join->unit->fake_select_lex)
+      if (select_lex == select_lex->master_unit()->fake_select_lex)
         ret= Explain_union_result(ethd, select_lex).send();
       else
         ret= Explain_join(ethd, select_lex, need_tmp_table, need_order,
@@ -2157,6 +2151,8 @@ explain_query_specification(THD *ethd, SELECT_LEX *select_lex,
       DBUG_ASSERT(0); /* purecov: inspected */
       ret= true;
   }
+  DBUG_ASSERT(ret || !ethd->is_error());
+  ret|= ethd->is_error();
   return ret;
 }
 
@@ -2165,61 +2161,76 @@ explain_query_specification(THD *ethd, SELECT_LEX *select_lex,
   EXPLAIN handling for SELECT, INSERT/REPLACE SELECT, and multi-table
   UPDATE/DELETE queries
 
-  Send to the client a QEP data set for data-modifying commands those have a
-  regular JOIN tree (INSERT...SELECT, REPLACE...SELECT and multi-table
-  UPDATE and DELETE queries) like mysql_select() does for SELECT queries in
-  the "describe" mode.
+  Send to the client a QEP data set for any DML statement that has a QEP
+  represented completely by JOIN object(s).
+
+  This function uses a specific select_result object for sending explain
+  output to the client.
+
+  When explaining own query, the existing select_result object (found
+  in outermost SELECT_LEX_UNIT or SELECT_LEX) is used. However, if the
+  select_result is unsuitable for explanation (need_explain_interceptor()
+  returns true), wrap the select_result inside an explain_send object.
+
+  When explaining other query, create a select_send object and prepare it
+  as if it was a regular SELECT query.
 
   @note see explain_single_table_modification() for single-table
         UPDATE/DELETE EXPLAIN handling.
 
-  @note Unlike the mysql_select function, explain_query
-        calls abort_result_set() itself in the case of failure (OOM etc.)
-        since explain_multi_table_modification() uses internally created
-        select_result stream.
+  @note Unlike handle_query(), explain_query() calls abort_result_set()
+        itself in the case of failure (OOM etc.) since it may use
+        an internally created select_result object that has to be deleted
+        before exiting the function.
 
-  @param ethd    THD of the explaining query
+  @param ethd    THD of the explaining session
   @param unit    query tree to explain
-  @param result  pointer to select_insert, multi_delete or multi_update object:
-                 the function uses it to call result->prepare(),
-                 result->prepare2() and result->initialize_tables() only but
-                 not to modify table data or to send a result to client.
 
   @return false if success, true if error
 */
 
-bool explain_query(THD *ethd, SELECT_LEX_UNIT *unit, select_result *result)
+bool explain_query(THD *ethd, SELECT_LEX_UNIT *unit)
 {
   DBUG_ENTER("explain_query");
-  explain_send explain(result);
 
-  if (!result)
+  const THD *const query_thd= unit->thd; // THD of query to be explained
+  const bool other= (ethd != query_thd);
+
+  select_result *explain_result= NULL;
+
+  if (!other)
+    explain_result= unit->query_result() ?
+                    unit->query_result() : unit->first_select()->query_result();
+
+  explain_send explain_wrapper(unit, explain_result);
+
+  if (other)  
   {
-    if (!((result= new select_send)))
+    if (!((explain_result= new select_send)))
       return true; /* purecov: inspected */
     List<Item> dummy;
-    if (result->prepare(dummy, ethd->lex->unit) ||
-        result->prepare2())
+    if (explain_result->prepare(dummy, ethd->lex->unit) ||
+        explain_result->prepare2())
       return true; /* purecov: inspected */
   }
   else
-    result= &explain;
-  ethd->lex->explain_format->send_headers(result);
-  
-  const THD *query_thd= unit->thd; // THD of query to be explained
-  bool res= false;
-  bool const other= (ethd != query_thd);
+  {
+    DBUG_ASSERT(unit->is_optimized());
+    if (explain_result->need_explain_interceptor())
+      explain_result= &explain_wrapper;
+  }
+
+  ethd->lex->explain_format->send_headers(explain_result);
+
   if (!other)
   {
-    res= mysql_union_prepare_and_optimize(ethd, ethd->lex, result, unit,
-                                          SELECT_DESCRIBE);
-    // For 'other' the mutex is locked in mysql_explain_other
     mysql_mutex_lock(&ethd->LOCK_query_plan);
   }
   // Reset OFFSET/LIMIT for EXPLAIN output
   ethd->lex->unit->offset_limit_cnt= 0;
   ethd->lex->unit->select_limit_cnt= 0;
-  res= res || mysql_explain_unit(ethd, unit, result) || ethd->is_error();
+
+  const bool res= mysql_explain_unit(ethd, unit);
   /*
     1) The code which prints the extended description is not robust
        against malformed queries, so skip it if we have an error.
@@ -2228,7 +2239,7 @@ bool explain_query(THD *ethd, SELECT_LEX_UNIT *unit, select_result *result)
     3) Currently only SELECT queries can be printed (TODO: fix this)
   */
   if (!res &&                                       // (1)
-      ethd == query_thd &&                          // (2)
+      !other &&                                     // (2)
       query_thd->query_plan.get_command() == SQLCOM_SELECT) // (3)
   {
     StringBuffer<1024> str;
@@ -2244,11 +2255,13 @@ bool explain_query(THD *ethd, SELECT_LEX_UNIT *unit, select_result *result)
     mysql_mutex_unlock(&ethd->LOCK_query_plan);
 
   if (res)
-    result->abort_result_set();
+    explain_result->abort_result_set();
   else
-    result->send_eof();
-  if (result != &explain)
-    delete result;
+    explain_result->send_eof();
+
+  if (other)
+    delete explain_result;
+
   DBUG_RETURN(res);
 }
 
@@ -2261,25 +2274,21 @@ bool explain_query(THD *ethd, SELECT_LEX_UNIT *unit, select_result *result)
 
   @param ethd           THD of explaining thread
   @param unit           unit object, might not belong to ethd
-  @param result         result stream to send QEP dataset
 
   @return false if success, true if error
 */
 
-bool mysql_explain_unit(THD *ethd, SELECT_LEX_UNIT *unit, select_result *result)
+bool mysql_explain_unit(THD *ethd, SELECT_LEX_UNIT *unit)
 {
   DBUG_ENTER("mysql_explain_unit");
   bool res= false;
   if (unit->is_union())
-  {
     res= unit->explain(ethd);
-  }
   else
-  {
-    SELECT_LEX *first= unit->first_select();
-    res= explain_query_specification(ethd, first, CTX_JOIN);
-  }
-  DBUG_RETURN(res || ethd->is_error());
+    res= explain_query_specification(ethd, unit->first_select(), CTX_JOIN);
+  DBUG_ASSERT(res || !ethd->is_error());
+  res|= ethd->is_error();
+  DBUG_RETURN(res);
 }
 
 /**
@@ -2409,7 +2418,7 @@ void mysql_explain_other(THD *thd)
     case SQLCOM_REPLACE_SELECT:
     case SQLCOM_INSERT_SELECT:
     case SQLCOM_SELECT:
-      res= explain_query(thd, qp->get_lex()->unit, NULL);
+      res= explain_query(thd, qp->get_lex()->unit);
       break;
     case SQLCOM_UPDATE:
     case SQLCOM_DELETE:
