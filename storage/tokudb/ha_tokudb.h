@@ -184,6 +184,9 @@ public:
     enum { CLOSED, OPENING, OPENED, CLOSING, ERROR } m_state;
     int m_error;
     int m_initialize_count;
+
+    uint n_rec_per_key;
+    uint64_t *rec_per_key;
 };
 
 typedef struct st_filter_key_part_info {
