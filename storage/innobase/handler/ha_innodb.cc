@@ -4602,7 +4602,7 @@ innobase_match_index_columns(
 		since we don't need to know how it was set when the original
 		table was created before. We would do a double check later. */
 		col_type = get_innobase_type_from_mysql_type(
-			&is_unsigned, key_part->field, index_info->table, true);
+			&is_unsigned, key_part->field, true);
 
 		/* Ignore InnoDB specific system columns. */
 		while (mtype == DATA_SYS) {
@@ -5576,7 +5576,6 @@ VARCHAR and the new true VARCHAR in >= 5.0.3 by the 'prtype'.
 @param[out]	unsigned_flag	DATA_UNSIGNED if an 'unsigned type'; at least
 ENUM and SET, and unsigned integer types are 'unsigned types'
 @param[in]	f		MySQL Field
-@param[in]	table		table handler
 @param[in]	optimize_point_storage
 				true if we want to optimize POINT storage
 @return DATA_BINARY, DATA_VARCHAR, ... */
@@ -5584,7 +5583,6 @@ ulint
 get_innobase_type_from_mysql_type(
 	ulint*			unsigned_flag,
 	const void*		f,
-	const dict_table_t*	table,
 	bool			optimize_point_storage)
 {
 	const class Field* field = reinterpret_cast<const class Field*>(f);
@@ -6575,8 +6573,8 @@ ha_innobase::innobase_set_max_autoinc(
 }
 
 /** Write Row interface optimized for intrinisc table.
-@param[in]	record	a row in MySQL format. */
-
+@param[in]	record	a row in MySQL format.
+@return 0 on success or error code */
 int
 ha_innobase::intrinsic_table_write_row(uchar* record)
 {
@@ -8770,7 +8768,7 @@ create_table_check_doc_id_col(
 		field = form->field[i];
 
 		col_type = get_innobase_type_from_mysql_type(
-			&unsigned_type, field, NULL, optimize_point_storage);
+			&unsigned_type, field, optimize_point_storage);
 
 		col_len = field->pack_length();
 
@@ -8918,7 +8916,7 @@ create_table_info_t::create_table_def()
 		}
 
 		col_type = get_innobase_type_from_mysql_type(
-			&unsigned_type, field, table, optimize_point_storage);
+			&unsigned_type, field, optimize_point_storage);
 
 		if (!col_type) {
 			push_warning_printf(
@@ -9207,8 +9205,7 @@ found:
 		}
 
 		col_type = get_innobase_type_from_mysql_type(
-			&is_unsigned, key_part->field, handler,
-			optimize_point_storage);
+			&is_unsigned, key_part->field, optimize_point_storage);
 
 		if (DATA_LARGE_MTYPE(col_type)
 		    || (key_part->length < field->pack_length()

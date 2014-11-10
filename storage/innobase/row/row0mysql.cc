@@ -1375,7 +1375,7 @@ row_explicit_rollback(
 
 /** Convert a row in the MySQL format to a row in the Innobase format.
 This is specialized function used for intrinsic table with reduce branching.
-@param[in/out]	row		row where field values are copied.	
+@param[in/out]	row		row where field values are copied.
 @param[in]	prebuilt	prebuilt handler
 @param[in]	mysql_rec	row in mysql format. */
 static
@@ -1427,7 +1427,7 @@ row_mysql_to_innobase(
 
 #ifdef UNIV_DEBUG
 		if (dtype_get_mysql_type(dtype) == DATA_MYSQL_TRUE_VARCHAR) {
-			ut_ad(templ->mysql_length_bytes > 0);	
+			ut_ad(templ->mysql_length_bytes > 0);
 		}
 #endif /* UNIV_DEBUG */
 
@@ -1436,7 +1436,7 @@ row_mysql_to_innobase(
 		if (dtype->mtype == DATA_INT) {
 			/* Convert and Store in big-endian. */
 			byte*	buf = prebuilt->ins_upd_rec_buff
-				+ templ->mysql_col_offset; 
+				+ templ->mysql_col_offset;
 			byte*	copy_to = buf + col_len;
 			for (;;) {
 				copy_to--;
@@ -1453,8 +1453,13 @@ row_mysql_to_innobase(
 
 			ptr = buf;
 			buf += col_len;
-		}
-		if (dtype_get_mysql_type(dtype) == DATA_MYSQL_TRUE_VARCHAR) {
+		} else if (dtype_get_mysql_type(dtype) ==
+				DATA_MYSQL_TRUE_VARCHAR) {
+
+			ut_ad(dtype->mtype == DATA_VARCHAR
+			      || dtype->mtype == DATA_VARMYSQL
+			      || dtype->mtype == DATA_BINARY);
+
 			col_len = 0;
 			row_mysql_read_true_varchar(
 				&col_len, ptr, templ->mysql_length_bytes);
@@ -1496,8 +1501,7 @@ row_insert_for_mysql_using_cursor(
 	/* Step-2: Convert row from MySQL row format to InnoDB row format. */
 	row_mysql_to_innobase(node->row, prebuilt, mysql_rec);
 
-	/* Step-3: If an explicit clustered index is not specified then InnoDB
-	appends row-id to make the record unique. */
+	/* Step-3: Append row-id index is not unique. */
 	dict_index_t*	clust_index = dict_table_get_first_index(node->table);
 
 	if (!dict_index_is_unique(clust_index)) {
@@ -2147,8 +2151,7 @@ row_update_for_mysql_using_cursor(
 	dtuple_t*	entry;
 	dfield_t*	trx_id_field;
 
-	/* Step-1: Update row-id column if table has auto-generated index.
-	Every update will result in update of auto-generated index. */
+	/* Step-1: Update row-id column if table doesn't have unique index. */
 	if (!dict_index_is_unique(dict_table_get_first_index(table))) {
 		/* Update the row_id column. */
 		dfield_t*	row_id_field;
