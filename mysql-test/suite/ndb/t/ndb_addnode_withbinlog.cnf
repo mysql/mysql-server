@@ -1,0 +1,46 @@
+!include include/default_mysqld.cnf
+!include include/default_ndbd.cnf
+
+[cluster_config.1]
+NoOfReplicas=                  2
+ndbd=,,,
+ndb_mgmd=
+mysqld=,
+ndbapi=,,,,,,,,,,,
+
+[mysqld]
+# Make all mysqlds use cluster
+ndbcluster
+ndb-wait-connected=20
+ndb-wait-setup=60
+ndb-cluster-connection-pool=3
+ndb-extra-logging=99
+log-bin=mysql-binlog
+
+[cluster_config.ndbd.1.1]
+MaxNoOfExecutionThreads=8
+# 1 + 2 + 4
+__debug_mixology_level=7
+
+[cluster_config.ndbd.2.1]
+MaxNoOfExecutionThreads=8
+# 1 + 2 + 4
+__debug_mixology_level=7
+
+[cluster_config.ndbd.3.1]
+Nodegroup=65536
+
+[cluster_config.ndbd.4.1]
+Nodegroup=65536
+
+[ENV]
+NDB_CONNECTSTRING=             @mysql_cluster.1.ndb_connectstring
+MASTER_MYPORT=                 @mysqld.1.1.port
+MASTER_MYPORT1=                @mysqld.2.1.port
+
+NDB_BACKUP_DIR=                @cluster_config.ndbd.1.1.BackupDataDir
+unique=$unique
+BLOB=$BLOB
+
+
+
