@@ -2,7 +2,7 @@ SRCS = $(wildcard *.cc)
 TARGETS = $(patsubst %.cc,%,$(SRCS))
 CHECKS = $(patsubst %,%.check,$(TARGETS))
 CPPFLAGS = -I.. -D__STDC_FORMAT_MACROS
-CXXFLAGS = -g -Wall -Wextra -Wno-missing-field-initializers -Wshadow
+CXXFLAGS = -g -Wall -Wextra -Wno-missing-field-initializers -Wshadow -fopenmp
 
 FRACTALTREE_BASE_DIR = ../ft-index
 FRACTALTREE_INSTALL_DIR = $(FRACTALTREE_BASE_DIR)/install.debug
@@ -20,10 +20,13 @@ clean:
 check: $(CHECKS)
 	true
 
-%.check: % 
+%.check: %
 	LD_LIBRARY_PATH=$(FRACTALTREE_INSTALL_DIR)/lib $(VALGRIND) ./$<
 
 card.check: card_test.check card_1.check card_inf.check card_inf_1.check card_random_1.check card_etime.check
+	true
+
+vlq.check: vlq_test.check vlq_test_uint32.check vlq_test_uint64.check
 	true
 
 max_test.check: max_test
