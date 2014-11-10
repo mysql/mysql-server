@@ -438,6 +438,7 @@ const GsnName SignalNames [] = {
   ,{ GSN_DROP_TRIG_CONF,         "DROP_TRIG_CONF" }
   ,{ GSN_DROP_TRIG_REF,          "DROP_TRIG_REF" }
   ,{ GSN_FIRE_TRIG_ORD,          "FIRE_TRIG_ORD" }
+  ,{ GSN_FIRE_TRIG_ORD_L,        "FIRE_TRIG_ORD_L" }
   ,{ GSN_TRIG_ATTRINFO,          "TRIG_ATTRINFO" }
 
   ,{ GSN_CREATE_INDX_REQ,        "CREATE_INDX_REQ" }

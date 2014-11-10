@@ -483,6 +483,8 @@ private:
   Bitmask<MAX_NTRANSPORTERS/32> m_blocked;
   Bitmask<MAX_NTRANSPORTERS/32> m_blocked_disconnected;
   int m_disconnect_errors[MAX_NTRANSPORTERS];
+
+  Uint32 m_mixology_level;
 #endif
 
   /**
@@ -689,6 +691,10 @@ public:
   bool isBlocked(NodeId nodeId);
   void blockReceive(TransporterReceiveHandle&, NodeId nodeId);
   void unblockReceive(TransporterReceiveHandle&, NodeId nodeId);
+
+  /* Testing interleaving of signal processing */
+  Uint32 getMixologyLevel() const;
+  void setMixologyLevel(Uint32 l);
 #endif
 };
 
