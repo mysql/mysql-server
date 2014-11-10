@@ -1,6 +1,6 @@
 #ifndef _EVENT_QUEUE_H_
 #define _EVENT_QUEUE_H_
-/* Copyright (c) 2004, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -26,10 +26,12 @@
 */
 
 #include "my_global.h"                          // uint
-#include "queues.h"                             // QUEUE
 #include "sql_string.h"                         /* LEX_STRING */
 #include "my_time.h"                    /* my_time_t, interval_type */
 #include "my_pthread.h"                         // mysql_mutex_t
+
+#include "event_data_objects.h"
+#include "priority_queue.h"
 
 #ifdef HAVE_PSI_INTERFACE
 extern PSI_mutex_key key_LOCK_event_queue;
@@ -41,6 +43,49 @@ class Event_queue_element;
 class Event_queue_element_for_exec;
 
 class THD;
+
+
+/**
+  Compares the execute_at members of two Event_queue_element instances.
+  Used as compare operator for the prioritized queue when shifting
+  elements inside.
+
+  SYNOPSIS
+    event_queue_element_compare_q()
+    @param left     First Event_queue_element object
+    @param right    Second Event_queue_element object
+
+  @retval
+   -1   left->execute_at < right->execute_at
+    0   left->execute_at == right->execute_at
+    1   left->execute_at > right->execute_at
+
+  @remark
+    execute_at.second_part is not considered during comparison
+*/
+struct Event_queue_less
+{
+  /// Maps compare function to strict weak ordering required by Priority_queue.
+  bool operator()(Event_queue_element *left, Event_queue_element *right)
+  {
+    return event_queue_element_compare_q(left, right) > 0;
+  }
+
+  int event_queue_element_compare_q(Event_queue_element *left,
+                                    Event_queue_element *right)
+  {
+    if (left->status == Event_parse_data::DISABLED)
+      return right->status != Event_parse_data::DISABLED;
+
+    if (right->status == Event_parse_data::DISABLED)
+      return 1;
+
+    my_time_t lhs = left->execute_at;
+    my_time_t rhs = right->execute_at;
+    return (lhs < rhs ? -1 : (lhs > rhs ? 1 : 0));
+  }
+};
+
 
 /**
   Queue of active events awaiting execution.
@@ -116,7 +161,10 @@ private:
   mysql_cond_t COND_queue_state;
 
   /* The sorted queue with the Event_queue_element objects */
-  QUEUE queue;
+  Priority_queue<Event_queue_element*,
+                 std::vector<Event_queue_element*>,
+                 Event_queue_less>
+  queue;
 
   my_time_t next_activation_at;
 
