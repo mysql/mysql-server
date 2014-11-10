@@ -277,7 +277,10 @@ TransporterRegistry::TransporterRegistry(TransporterCallback *callback,
 #ifdef ERROR_INSERT
   m_blocked.clear();
   m_blocked_disconnected.clear();
+
+  m_mixology_level = 0;
 #endif
+
   // Initialize member variables
   nTransporters    = 0;
   nTCPTransporters = 0;
@@ -1753,6 +1756,33 @@ TransporterRegistry::unblockReceive(TransporterReceiveHandle& recvdata,
 
     report_disconnect(recvdata, nodeId, m_disconnect_errors[nodeId]);
   }
+}
+#endif
+
+#ifdef ERROR_INSERT
+Uint32
+TransporterRegistry::getMixologyLevel() const
+{
+  return m_mixology_level;
+}
+
+extern Uint32 MAX_RECEIVED_SIGNALS;  /* Packer.cpp */
+
+#define MIXOLOGY_MIX_INCOMING_SIGNALS 4
+
+void
+TransporterRegistry::setMixologyLevel(Uint32 l)
+{
+  m_mixology_level = l;
+  
+  if (m_mixology_level & MIXOLOGY_MIX_INCOMING_SIGNALS)
+  {
+    ndbout_c("MIXOLOGY_MIX_INCOMING_SIGNALS on");
+    /* Max one signal per transporter */
+    MAX_RECEIVED_SIGNALS = 1;
+  }
+
+  /* TODO : Add mixing of Send from NdbApi / MGMD */
 }
 #endif
 

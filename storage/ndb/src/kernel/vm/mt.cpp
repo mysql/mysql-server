@@ -2725,30 +2725,98 @@ link_thread_send_buffers(thr_repository::send_buffer * sb, Uint32 node)
   tmp.m_last_page = sentinel_page;
 
   Uint32 bytes = 0;
-  for (unsigned thr = 0; thr < num_threads; thr++, src++)
+
+#ifdef ERROR_INSERT
+
+#define MIXOLOGY_MIX_MT_SEND 2
+
+  if (unlikely(globalEmulatorData.theConfiguration->getMixologyLevel() &
+               MIXOLOGY_MIX_MT_SEND))
   {
-    Uint32 r = ri[thr];
-    Uint32 w = wi[thr];
-    if (r != w)
+    /**
+     * DEBUGGING only
+     * Interleave at the page level from all threads with
+     * pages to send - intended to help expose signal
+     * order dependency bugs
+     * TODO : Avoid having a whole separate implementation
+     * like this.
+     */
+    bool more_pages;
+    
+    do
     {
-      rmb();
-      while (r != w)
+      src = g_thr_repository->m_thread_send_buffers[node];
+      more_pages = false;
+      for (unsigned thr = 0; thr < num_threads; thr++, src++)
       {
-        thr_send_page * p = src->m_buffers[r];
-        assert(p->m_start == 0);
-        bytes += p->m_bytes;
-        tmp.m_last_page->m_next = p;
-        while (p->m_next != 0)
+        Uint32 r = ri[thr];
+        Uint32 w = wi[thr];
+        if (r != w)
         {
-          p = p->m_next;
+          rmb();
+          /* Take one page from this thread's send buffer for this node */
+          thr_send_page * p = src->m_buffers[r];
           assert(p->m_start == 0);
           bytes += p->m_bytes;
+          tmp.m_last_page->m_next = p;
+          tmp.m_last_page = p;
+          
+          /* Take page out of read_index slot list */
+          thr_send_page * next = p->m_next;
+          p->m_next = NULL;
+          src->m_buffers[r] = next;
+          
+          if (next == NULL)
+          {
+            /**
+             * Used up read slot, any more slots available to read
+             * from this thread?
+             */
+            r = (r+1) % thr_send_queue::SIZE;
+            more_pages |= (r != w);
+            
+            /* Update global and local per thread read indices */
+            sb->m_read_index[thr] = r;
+            ri[thr] = r;
+          }
+          else
+          {
+            more_pages |= true;
+          }        
         }
-        tmp.m_last_page = p;
-        assert(tmp.m_last_page != 0); /* Impossible */
-        r = (r + 1) % thr_send_queue::SIZE;
       }
-      sb->m_read_index[thr] = r;
+    } while (more_pages);
+  }
+  else
+
+#endif 
+
+  {
+    for (unsigned thr = 0; thr < num_threads; thr++, src++)
+    {
+      Uint32 r = ri[thr];
+      Uint32 w = wi[thr];
+      if (r != w)
+      {
+        rmb();
+        while (r != w)
+        {
+          thr_send_page * p = src->m_buffers[r];
+          assert(p->m_start == 0);
+          bytes += p->m_bytes;
+          tmp.m_last_page->m_next = p;
+          while (p->m_next != 0)
+          {
+            p = p->m_next;
+            assert(p->m_start == 0);
+            bytes += p->m_bytes;
+          }
+          tmp.m_last_page = p;
+          assert(tmp.m_last_page != 0); /* Impossible */
+          r = (r + 1) % thr_send_queue::SIZE;
+        }
+        sb->m_read_index[thr] = r;
+      }
     }
   }
 
@@ -3777,6 +3845,22 @@ run_job_buffers(thr_data *selfptr, Signal *sig)
         selfptr->m_max_extra_signals -= extra;
       }
     }
+
+#ifdef ERROR_INSERTED
+
+#define MIXOLOGY_MIX_MT_JBB 1
+
+    if (unlikely(globalEmulatorData.theConfiguration->getMixologyLevel() &
+                 MIXOLOGY_MIX_MT_JBB))
+    {
+      /**
+       * Let's maximise interleaving to find inter-thread
+       * signal order dependency bugs
+       */
+      perjb = 1;
+      extra = 0;
+    }
+#endif
 
     /* Now execute prio B signals from one thread. */
     signal_count += execute_signals(selfptr, queue, head, read_state,
