@@ -648,9 +648,13 @@
   included first (or at least before <features.h> - so, practically,
   before including any system headers).
 
-  __GLIBC__ is defined in <features.h>
+  Check the include order by looking at __GLIBC__ (defined in <features.h>)
+
+  But we cannot force all third-party clients/connectors to include
+  my_config.h first. So, their crashes are their responsibility,
+  we enable this check only for MariaDB sources (SAFE_MUTEX check).
 */
-#ifdef __GLIBC__
+#if defined(__GLIBC__) && defined(SAFE_MUTEX)
 #error <my_config.h> MUST be included first!
 #endif
 
