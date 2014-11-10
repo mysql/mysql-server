@@ -3859,7 +3859,7 @@ run_job_buffers(thr_data *selfptr, Signal *sig)
       }
     }
 
-#ifdef ERROR_INSERTED
+#ifdef ERROR_INSERT
 
 #define MIXOLOGY_MIX_MT_JBB 1
 
