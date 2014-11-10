@@ -34,6 +34,7 @@ var assert          = require("assert"),
     TableMapping    = require(mynode.api.TableMapping).TableMapping,
     FieldMapping    = require(mynode.api.TableMapping).FieldMapping,
     stats_module    = require(mynode.api.stats),
+    util            = require("util"),
     udebug          = unified_debug.getLogger("DBTableHandler.js");
 
 // forward declaration of DBIndexHandler to avoid lint issue

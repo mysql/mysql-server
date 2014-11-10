@@ -51,6 +51,7 @@ var spi            = require(conf.spi_module),
     Projection     = require("./Projection").Projection,
     unified_debug  = require("./unified_debug"),
     udebug         = unified_debug.getLogger("mynode.js"),
+    meta           = require("./Meta.js"), 
     userContext    = require("./UserContext.js");
 
 var converters = {};
@@ -177,4 +178,4 @@ exports.connections = connections;
 exports.Connection = Connection;
 exports.deleteFactory = deleteFactory;
 exports.converters = converters;
-
+exports.meta = meta;
