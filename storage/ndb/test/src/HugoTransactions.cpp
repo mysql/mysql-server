@@ -1,5 +1,5 @@
-/* Copyright (c) 2003-2007 MySQL AB
-
+/*
+   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -960,7 +960,7 @@ HugoTransactions::pkReadRecords(Ndb* pNdb,
       
       if (err.status == NdbError::TemporaryError){
 	NDB_ERR(err);
-	NdbSleep_MilliSleep(50);
+	NdbSleep_MilliSleep(500);
 	retryAttempt++;
 	continue;
       }
@@ -968,6 +968,7 @@ HugoTransactions::pkReadRecords(Ndb* pNdb,
       setNdbError(err);
       return NDBT_FAILED;
     }
+    retryAttempt = 0;
 
     NDB_TICKS timer_start;
     NDB_TICKS timer_stop;
@@ -1039,7 +1040,7 @@ HugoTransactions::pkReadRecords(Ndb* pNdb,
 	return NDBT_FAILED;
       }
     } else {
-
+      retryAttempt = 0;
       if(indexScans.size() > 0)
       {
         /* Index scan used to read records....*/
