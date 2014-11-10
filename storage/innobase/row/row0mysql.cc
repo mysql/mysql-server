@@ -4309,7 +4309,10 @@ row_drop_table_for_mysql(
 	that is going to be dropped. */
 
 	if (table->n_ref_count == 0) {
-		lock_remove_all_on_table(table, TRUE);
+		/* We don't take look on intrinsic table so nothing to remove.*/
+		if (!dict_table_is_intrinsic(table)) {
+			lock_remove_all_on_table(table, TRUE);
+		}
 		ut_a(table->n_rec_locks == 0);
 	} else if (table->n_ref_count > 0 || table->n_rec_locks > 0) {
 		ibool	added;
@@ -4347,7 +4350,7 @@ row_drop_table_for_mysql(
 	/* If we get this far then the table to be dropped must not have
 	any table or record locks on it. */
 
-	ut_a(!lock_table_has_locks(table));
+	ut_a(dict_table_is_intrinsic(table) || !lock_table_has_locks(table));
 
 	switch (trx_get_dict_operation(trx)) {
 	case TRX_DICT_OP_NONE:
