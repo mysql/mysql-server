@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -114,7 +114,12 @@ public:
   
   int getRestartOnErrorInsert() const;
   void setRestartOnErrorInsert(int);
-  
+
+#ifdef ERROR_INSERT
+  Uint32 getMixologyLevel() const;
+  void setMixologyLevel(Uint32);
+#endif 
+ 
   // Cluster configuration
   const char * fileSystemPath() const;
   const char * backupFilePath() const;
@@ -145,6 +150,9 @@ private:
   Uint32 _schedulerSpinTimer;
   Uint32 _realtimeScheduler;
   Uint32 _timeBetweenWatchDogCheckInitial;
+#ifdef ERROR_INSERT
+  Uint32 _mixologyLevel;
+#endif
 
   Vector<struct ThreadInfo> threadInfo;
   NdbMutex *threadIdMutex;
