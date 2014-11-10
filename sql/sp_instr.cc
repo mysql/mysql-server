@@ -997,7 +997,20 @@ bool sp_instr_set_trigger_field::exec_core(THD *thd, uint *nextp)
 {
   *nextp= get_ip() + 1;
   thd->count_cuted_fields= CHECK_FIELD_ERROR_FOR_NULL;
-  return m_trigger_field->set_value(thd, &m_value_item);
+  Strict_error_handler strict_handler(Strict_error_handler::
+                                      ENABLE_SET_SELECT_STRICT_ERROR_HANDLER);
+  /*
+    Before Triggers are executed after the 'data' is assigned
+    to the Field objects. If triggers wants to SET invalid value
+    to the Field objects (NEW.<variable_name>= <Invalid value>),
+    it should not be allowed.
+  */
+  if (thd->is_strict_mode() && !thd->lex->is_ignore())
+    thd->push_internal_handler(&strict_handler);
+  bool error= m_trigger_field->set_value(thd, &m_value_item);
+  if (thd->is_strict_mode() && !thd->lex->is_ignore())
+    thd->pop_internal_handler();
+  return error;
 }
 
 

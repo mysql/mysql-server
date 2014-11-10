@@ -332,6 +332,11 @@ struct mtr_t {
 		}
 	}
 
+	/** Set the tablespace associated with the mini-transaction
+	(needed for generating a MLOG_FILE_NAME record)
+	@param[in]	space	user or system tablespace */
+	void set_named_space(fil_space_t* space);
+
 #ifdef UNIV_DEBUG
 	/** Check the tablespace associated with the mini-transaction
 	(needed for generating a MLOG_FILE_NAME record)

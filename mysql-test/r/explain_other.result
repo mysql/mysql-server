@@ -288,25 +288,22 @@ EXPLAIN
             "cost_info": {
               "query_cost": "1.40"
             },
-            "grouping_operation": {
-              "using_filesort": false,
-              "table": {
-                "table_name": "t2",
-                "access_type": "ALL",
-                "rows_examined_per_scan": 2,
-                "rows_produced_per_join": 2,
-                "filtered": 100,
-                "using_where": true,
-                "cost_info": {
-                  "read_cost": "1.00",
-                  "eval_cost": "0.40",
-                  "prefix_cost": "1.40",
-                  "data_read_per_join": "16"
-                },
-                "used_columns": [
-                  "f1"
-                ]
-              }
+            "table": {
+              "table_name": "t2",
+              "access_type": "ALL",
+              "rows_examined_per_scan": 2,
+              "rows_produced_per_join": 2,
+              "filtered": 100,
+              "using_where": true,
+              "cost_info": {
+                "read_cost": "1.00",
+                "eval_cost": "0.40",
+                "prefix_cost": "1.40",
+                "data_read_per_join": "16"
+              },
+              "used_columns": [
+                "f1"
+              ]
             }
           }
         }

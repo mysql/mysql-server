@@ -2756,6 +2756,7 @@ innobase_pk_order_preserved(
 			old_clust_index->fields[old_field].col->ind;
 		ulint new_col_no =
 			new_clust_index->fields[new_field].col->ind;
+
 		ut_ad(new_col_no != ULINT_UNDEFINED);
 
 		old_col_no = col_map[old_col_no];
@@ -2764,6 +2765,13 @@ innobase_pk_order_preserved(
 			if (pk_col_dropped) {
 				/* Dropping columns in the middle
 				requires sorting. */
+				return(false);
+			}
+
+			if (old_clust_index->fields[old_field].prefix_len
+			    != new_clust_index->fields[new_field].prefix_len) {
+				/* Prefix length of the field
+				is changed. */
 				return(false);
 			}
 

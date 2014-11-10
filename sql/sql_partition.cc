@@ -1002,7 +1002,7 @@ static bool fix_fields_part_func(THD *thd, Item* func_expr, TABLE *table,
   LEX *old_lex= thd->lex;
   LEX lex;
   st_select_lex_unit unit(CTX_NONE);
-  st_select_lex select(NULL, NULL, NULL, NULL, NULL, NULL, 0);
+  st_select_lex select(NULL, NULL, NULL, NULL, NULL, NULL);
   lex.new_static_query(&unit, &select);
 
   DBUG_ENTER("fix_fields_part_func");
@@ -1039,7 +1039,7 @@ static bool fix_fields_part_func(THD *thd, Item* func_expr, TABLE *table,
 
     /*
       Restore agg_func and allow_sum_func,
-      fix_fields should not affect mysql_select later, see Bug#46923.
+      fix_fields should not affect the optimizer later, see Bug#46923.
     */
     thd->lex->current_select()->set_agg_func_used(save_agg_func);
     thd->lex->allow_sum_func= saved_allow_sum_func;
@@ -4346,7 +4346,7 @@ bool mysql_unpack_partition(THD *thd,
   LEX *old_lex= thd->lex;
   LEX lex;
   st_select_lex_unit unit(CTX_NONE);
-  st_select_lex select(NULL, NULL, NULL, NULL, NULL, NULL, 0);
+  st_select_lex select(NULL, NULL, NULL, NULL, NULL, NULL);
   lex.new_static_query(&unit, &select);
 
   sql_digest_state *parent_digest= thd->m_digest;

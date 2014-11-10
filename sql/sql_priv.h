@@ -47,7 +47,7 @@
 
 #define SELECT_DISTINCT         (1ULL << 0)     // SELECT, user
 #define SELECT_STRAIGHT_JOIN    (1ULL << 1)     // SELECT, user
-#define SELECT_DESCRIBE         (1ULL << 2)     // SELECT, user
+// Free slot, used to be SELECT_DESCRIBE: (1ULL << 2)
 #define SELECT_SMALL_RESULT     (1ULL << 3)     // SELECT, user
 #define SELECT_BIG_RESULT       (1ULL << 4)     // SELECT, user
 #define OPTION_FOUND_ROWS       (1ULL << 5)     // SELECT, user
@@ -69,7 +69,7 @@
 #define OPTION_BEGIN            (1ULL << 20)    // THD, intern
 #define OPTION_TABLE_LOCK       (1ULL << 21)    // THD, intern
 #define OPTION_QUICK            (1ULL << 22)    // SELECT (for DELETE)
-/* 23rd bit is unused. It was occupied by OPTION_KEEP_LOG. */
+#define OPTION_NO_CONST_TABLES  (1ULL << 23)    // No const tables, intern
 
 /* The following is used to detect a conflict with DISTINCT */
 #define SELECT_ALL              (1ULL << 24)    // SELECT, user, parser

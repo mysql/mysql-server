@@ -231,7 +231,7 @@ trx_rseg_mem_create(
 		rseg_header + TRX_RSEG_HISTORY_SIZE, MLOG_4BYTES, mtr)
 		+ 1 + sum_of_undo_sizes;
 
-	len = flst_get_len(rseg_header + TRX_RSEG_HISTORY, mtr);
+	len = flst_get_len(rseg_header + TRX_RSEG_HISTORY);
 
 	if (len > 0) {
 		trx_sys->rseg_history_len += len;

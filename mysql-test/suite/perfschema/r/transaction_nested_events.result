@@ -499,7 +499,7 @@ SELECT COUNT(*) FROM performance_schema.events_transactions_history;
 COUNT(*)
 0
 
-## Expect syntax error
+## Expect stored function does not exist
 
 SELECT fn_err1();
 ERROR 42000: FUNCTION db.fn_err1 does not exist
@@ -512,7 +512,7 @@ COUNT(*)
 CREATE FUNCTION fn_err2() RETURNS VARCHAR(10) BEGIN COMMIT; RETURN invalid ; END|
 ERROR HY000: Explicit or implicit commit is not allowed in stored function or trigger.
 
-## Expect syntax error
+## Expect stored function does not exist
 
 START TRANSACTION;
 DELETE FROM t1 WHERE s1 > 320;
@@ -653,6 +653,7 @@ CALL test.clear_history();
 ## Reset db.t1
 DELETE FROM db.t1;
 
+# TODO: Detect statement events from scheduled event
 #=======================================================================
 # Cleanup
 #=======================================================================

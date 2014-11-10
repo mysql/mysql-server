@@ -817,7 +817,16 @@ struct handlerton
    void (*drop_database)(handlerton *hton, char* path);
    int (*panic)(handlerton *hton, enum ha_panic_function flag);
    int (*start_consistent_snapshot)(handlerton *hton, THD *thd);
-   bool (*flush_logs)(handlerton *hton);
+   /**
+     Flush the log(s) of storage engine(s).
+
+     @param hton Handlerton of storage engine.
+     @param binlog_group_flush true if we got invoked by binlog group
+     commit during flush stage, false in other cases.
+     @retval false Succeed
+     @retval true Error
+   */
+   bool (*flush_logs)(handlerton *hton, bool binlog_group_flush);
    bool (*show_status)(handlerton *hton, THD *thd, stat_print_fn *print, enum ha_stat_type stat);
    uint (*partition_flags)();
    uint (*alter_table_flags)(uint flags);
@@ -3783,7 +3792,16 @@ TYPELIB* ha_known_exts();
 int ha_panic(enum ha_panic_function flag);
 void ha_close_connection(THD* thd);
 void ha_kill_connection(THD *thd);
-bool ha_flush_logs(handlerton *db_type);
+/**
+  Flush the log(s) of storage engine(s).
+
+  @param hton Handlerton of storage engine.
+  @param binlog_group_flush true if we got invoked by binlog group
+  commit during flush stage, false in other cases.
+  @retval false Succeed
+  @retval true Error
+*/
+bool ha_flush_logs(handlerton *db_type, bool binlog_group_flush= false);
 void ha_drop_database(char* path);
 int ha_create_table(THD *thd, const char *path,
                     const char *db, const char *table_name,
