@@ -33,7 +33,7 @@
 #include "records.h"                            // init_read_record,
                                                 // end_read_record
 #include "sql_optimizer.h"                      // remove_eq_conds
-#include "sql_resolver.h"                       // setup_order, fix_inner_refs
+#include "sql_resolver.h"                       // setup_order
 #include "table_trigger_dispatcher.h"           // Table_trigger_dispatcher
 #include "debug_sync.h"                         // DEBUG_SYNC
 #include "uniques.h"
@@ -46,30 +46,33 @@
   end of dispatch_command().
 */
 
-bool mysql_delete(THD *thd, ha_rows limit, ulonglong options)
+bool mysql_delete(THD *thd, ha_rows limit)
 {
+  DBUG_ENTER("mysql_delete");
+
   myf           error_flags= MYF(0);            /**< Flag for fatal errors */
   bool          will_batch;
   int           error, loc_error;
   READ_RECORD   info;
-  bool          using_limit= limit != HA_POS_ERROR;
-  bool          transactional_table, safe_update, const_cond;
-  bool          const_cond_result;
+  const bool    using_limit= limit != HA_POS_ERROR;
   ha_rows       deleted= 0;
   bool          reverse= false;
   bool          read_removal= false;
   bool          skip_record;
   bool          need_sort= false;
   bool          err= true;
+  bool          transactional_table, const_cond_result, const_cond; // const
 
   uint usable_index= MAX_KEY;
-  SELECT_LEX *select_lex= thd->lex->select_lex;
+  SELECT_LEX *const select_lex= thd->lex->select_lex;
   TABLE_LIST *const table_list= select_lex->get_table_list();
   ORDER *order= select_lex->order_list.first;
   THD::killed_state killed_status= THD::NOT_KILLED;
   THD::enum_binlog_query_type query_type= THD::ROW_QUERY_TYPE;
-  DBUG_ENTER("mysql_delete");
 
+  select_lex->make_active_options(0, 0);
+
+  const bool safe_update= thd->variables.option_bits & OPTION_SAFE_UPDATES;
   if (open_normal_and_derived_tables(thd, table_list, 0))
     DBUG_RETURN(TRUE);
 
@@ -113,7 +116,7 @@ bool mysql_delete(THD *thd, ha_rows limit, ulonglong options)
         setup_order(thd, select_lex->ref_pointer_array, &tables,
                     fields, all_fields, order))
     {
-      free_underlaid_joins(thd, thd->lex->select_lex);
+      free_underlaid_joins(thd, select_lex);
       DBUG_RETURN(TRUE);
     }
   }
@@ -155,7 +158,6 @@ bool mysql_delete(THD *thd, ha_rows limit, ulonglong options)
     DBUG_RETURN(true);
 
   const_cond= (!conds || conds->const_item());
-  safe_update= MY_TEST(thd->variables.option_bits & OPTION_SAFE_UPDATES);
   if (safe_update && const_cond)
   {
     my_message(ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE,
@@ -384,7 +386,7 @@ bool mysql_delete(THD *thd, ha_rows limit, ulonglong options)
       goto exit_without_my_ok;
     }
 
-    if (options & OPTION_QUICK)
+    if (select_lex->active_options() & OPTION_QUICK)
       (void) table->file->extra(HA_EXTRA_QUICK);
 
     if (need_sort)
@@ -553,7 +555,7 @@ bool mysql_delete(THD *thd, ha_rows limit, ulonglong options)
       table->file->extra(HA_EXTRA_NO_IGNORE_DUP_KEY);
     THD_STAGE_INFO(thd, stage_end);
     end_read_record(&info);
-    if (options & OPTION_QUICK)
+    if (select_lex->active_options() & OPTION_QUICK)
       (void) table->file->extra(HA_EXTRA_NORMAL);
   } // End of scope for Modification_plan
 
@@ -662,8 +664,7 @@ bool mysql_prepare_delete(THD *thd, const TABLE_LIST *delete_table_ref)
     DBUG_RETURN(true);
   }
 
-  if (select_lex->inner_refs_list.elements &&
-    fix_inner_refs(thd, all_fields, select_lex, select_lex->ref_pointer_array))
+  if (select_lex->inner_refs_list.elements && select_lex->fix_inner_refs(thd))
     DBUG_RETURN(true);                       /* purecov: inspected */
 
   select_lex->fix_prepare_information(thd);

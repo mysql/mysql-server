@@ -7,18 +7,24 @@
 --connection default
 --disable_query_log
 
-# Wait a short time before jumping into the queries
+# Poll till the activity of the actor connection con1 caused by the last
+# statement issued has finished.
 let $wait_timeout= 10;
 let $wait_condition=
-  SELECT COUNT(*) > 0 FROM performance_schema.events_statements_history_long
-  WHERE thread_id = @con1_thread_id;
+  SELECT COUNT(*) > 0 FROM performance_schema.threads
+  WHERE THREAD_ID = @con1_thread_id
+    AND (PROCESSLIST_STATE = 'Sleep' OR PROCESSLIST_STATE IS NULL)
+    AND PROCESSLIST_INFO IS NULL;
 --source include/wait_condition.inc
-
-let $wait_timeout= 10;
-let $wait_condition=
-  SELECT COUNT(*) > 0 FROM performance_schema.events_transactions_history_long
+if(!$success)
+{
+  --echo The activity of connection con1 did not finish.
+  SELECT thread_id , PROCESSLIST_id, PROCESSLIST_STATE, PROCESSLIST_INFO
+  FROM performance_schema.threads
   WHERE thread_id = @con1_thread_id;
---source include/wait_condition.inc
+  --echo Abort.
+  exit;
+}
 
 --echo #========================================================================
 --echo # Verify

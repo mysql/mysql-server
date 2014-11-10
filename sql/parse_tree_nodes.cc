@@ -54,7 +54,7 @@ bool PT_group::contextualize(Parse_context *pc)
                "global union parameters");
       return true;
     }
-    if (select->options & SELECT_DISTINCT)
+    if (select->is_distinct())
     {
       // DISTINCT+ROLLUP does not work
       my_error(ER_WRONG_USAGE, MYF(0), "WITH ROLLUP", "DISTINCT");

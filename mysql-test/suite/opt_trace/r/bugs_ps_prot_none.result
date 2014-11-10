@@ -1010,6 +1010,48 @@ FROM t1
                   } /* join_optimization */
                 },
                 {
+                  "join_optimization": {
+                    "select#": 3,
+                    "steps": [
+                      {
+                        "table_dependencies": [
+                          {
+                            "table": "`t2`",
+                            "row_may_be_null": false,
+                            "map_bit": 0,
+                            "depends_on_map_bits": [
+                            ] /* depends_on_map_bits */
+                          }
+                        ] /* table_dependencies */
+                      },
+                      {
+                        "rows_estimation": [
+                          {
+                            "table": "`t2`",
+                            "rows": 1,
+                            "cost": 1,
+                            "table_type": "system",
+                            "empty": false
+                          }
+                        ] /* rows_estimation */
+                      },
+                      {
+                        "attaching_conditions_to_tables": {
+                          "original_condition": null,
+                          "attached_conditions_computation": [
+                          ] /* attached_conditions_computation */,
+                          "attached_conditions_summary": [
+                          ] /* attached_conditions_summary */
+                        } /* attaching_conditions_to_tables */
+                      },
+                      {
+                        "refine_plan": [
+                        ] /* refine_plan */
+                      }
+                    ] /* steps */
+                  } /* join_optimization */
+                },
+                {
                   "join_execution": {
                     "select#": 2,
                     "steps": [
@@ -1017,48 +1059,6 @@ FROM t1
                         "subselect_execution": {
                           "select#": 3,
                           "steps": [
-                            {
-                              "join_optimization": {
-                                "select#": 3,
-                                "steps": [
-                                  {
-                                    "table_dependencies": [
-                                      {
-                                        "table": "`t2`",
-                                        "row_may_be_null": false,
-                                        "map_bit": 0,
-                                        "depends_on_map_bits": [
-                                        ] /* depends_on_map_bits */
-                                      }
-                                    ] /* table_dependencies */
-                                  },
-                                  {
-                                    "rows_estimation": [
-                                      {
-                                        "table": "`t2`",
-                                        "rows": 1,
-                                        "cost": 1,
-                                        "table_type": "system",
-                                        "empty": false
-                                      }
-                                    ] /* rows_estimation */
-                                  },
-                                  {
-                                    "attaching_conditions_to_tables": {
-                                      "original_condition": null,
-                                      "attached_conditions_computation": [
-                                      ] /* attached_conditions_computation */,
-                                      "attached_conditions_summary": [
-                                      ] /* attached_conditions_summary */
-                                    } /* attaching_conditions_to_tables */
-                                  },
-                                  {
-                                    "refine_plan": [
-                                    ] /* refine_plan */
-                                  }
-                                ] /* steps */
-                              } /* join_optimization */
-                            },
                             {
                               "join_execution": {
                                 "select#": 3,

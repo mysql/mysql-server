@@ -88,7 +88,7 @@ UPDATE t1 SET s1 = s1 + 1 WHERE s1 = 212;
 START TRANSACTION;
 INSERT INTO t1 VALUES (220, "INSERT 220"), (221, "INSERT 221");
 UPDATE t1 SET s2 = "UPDATE 221" WHERE s1 = 221;
-COMMIT; 
+COMMIT;
 
 ## Verify and reset
 --source ../include/transaction_nested_events_verifier.inc
@@ -108,11 +108,11 @@ INSERT INTO t1 VALUES (311, "INSERT 311");
 INSERT INTO t1 VALUES (312, "INSERT 312");
 INSERT INTO t1 VALUES (313, "INSERT 313");
 CALL tp_update();
-COMMIT; 
+COMMIT;
 
 ## Verify and reset
 --source ../include/transaction_nested_events_verifier.inc
-       
+
 --echo #
 --echo # STEP 3.2 - TRANSACTION STARTED WITHIN STORED PROCEDURE
 --echo #
@@ -125,7 +125,7 @@ INSERT INTO t1 VALUES (322, "INSERT 322"),(323, "INSERT 323");
 UPDATE t1 SET s1 = s1 + 1 WHERE s1 > 320;
 --echo
 SELECT * FROM t1 ORDER BY s1;
-COMMIT; 
+COMMIT;
 
 ## Verify and reset
 --source ../include/transaction_nested_events_verifier.inc
@@ -134,7 +134,7 @@ COMMIT;
 --echo # STEP 3.3 - TRANSACTION ENDED WITHIN STORED PROCEDURE
 --echo #
 --connection con1
-CREATE PROCEDURE tp_rollback() ROLLBACK; 
+CREATE PROCEDURE tp_rollback() ROLLBACK;
 CREATE PROCEDURE tp_commit() COMMIT;
 
 --echo
@@ -190,7 +190,7 @@ DELETE FROM t1 WHERE s1 > 410;
 SELECT * FROM t1 ORDER BY s1;
 --echo
 SELECT fn_add(413, 414);
-COMMIT; 
+COMMIT;
 --echo
 SELECT * FROM t1 ORDER BY s1;
 
@@ -216,9 +216,9 @@ SELECT * FROM t1 ORDER BY s1;
 --echo #
 --connection con1
 DELIMITER |;
---error 1422
-CREATE FUNCTION fn_err1() RETURNS VARCHAR(10) BEGIN START TRANSACTION ; RETURN invalid ; END| 
-DELIMITER ;| 
+--error ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG
+CREATE FUNCTION fn_err1() RETURNS VARCHAR(10) BEGIN START TRANSACTION ; RETURN invalid ; END|
+DELIMITER ;|
 
 --echo
 --echo ## Expect 0 transactions
@@ -227,9 +227,9 @@ SELECT COUNT(*) FROM performance_schema.events_transactions_history;
 --connection con1
 
 --echo
---echo ## Expect syntax error
+--echo ## Expect stored function does not exist
 --echo
---error 1305
+--error ER_SP_DOES_NOT_EXIST
 SELECT fn_err1();
 
 --echo
@@ -240,17 +240,17 @@ SELECT COUNT(*) FROM performance_schema.events_transactions_history;
 
 --echo
 DELIMITER |;
---error 1422 
-CREATE FUNCTION fn_err2() RETURNS VARCHAR(10) BEGIN COMMIT; RETURN invalid ; END| 
+--error ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG
+CREATE FUNCTION fn_err2() RETURNS VARCHAR(10) BEGIN COMMIT; RETURN invalid ; END|
 DELIMITER ;|
 
 --echo
---echo ## Expect syntax error
+--echo ## Expect stored function does not exist
 --echo
 START TRANSACTION;
 DELETE FROM t1 WHERE s1 > 320;
---error 1305
-SELECT fn_err2(); 
+--error ER_SP_DOES_NOT_EXIST
+SELECT fn_err2();
 
 --echo
 --echo ## Expect 0 transactions
@@ -303,7 +303,7 @@ SELECT * FROM t1 ORDER BY s1;
 --echo
 --echo ## Expect error when UPDATE hits record 505
 --echo
---error 1644
+--error ER_SIGNAL_EXCEPTION
 UPDATE t1 SET s1 = s1 * 2 WHERE s1 >= 500;
 --echo
 --echo ## Verify that INSERT succeeded, UPDATE failed and transaction did not rollback
@@ -316,7 +316,7 @@ DROP TRIGGER trigger_before_update;
 ## Verify and reset
 --source ../include/transaction_nested_events_verifier.inc
 
-## TODO: Detect statement events from scheduled event
+--echo # TODO: Detect statement events from scheduled event
 --disable_parsing
 --echo #========================================================================
 --echo # STEP 6 - SCHEDULED EVENTS
@@ -330,7 +330,7 @@ DROP TRIGGER trigger_before_update;
 --echo ## Create a one-time event that will insert, update, commit and rollback.
 --echo
 DELIMITER |;
-CREATE EVENT trx_event ON SCHEDULE AT CURRENT_TIMESTAMP + INTERVAL 5 SECOND DO 
+CREATE EVENT trx_event ON SCHEDULE AT CURRENT_TIMESTAMP + INTERVAL 5 SECOND DO
 BEGIN
   START TRANSACTION;
   INSERT INTO t1 VALUES (600, "INSERT 600");
@@ -352,11 +352,12 @@ DELIMITER ;|
 CALL test.clear_history();
 --connection con1
 --echo
---echo ## Wait a few seconds for scheduled event to execute
+--echo ## Wait a few seconds for scheduled event to execute and finish.
+# Check based on the expected content in t1.
+let $wait_condition= SELECT COUNT(*) = 4 FROM t1;
+--source include/wait_condition.inc
 --echo
-SELECT SLEEP(6);
---echo
---echo ## Confirm that the scheduled event completed
+--echo ## Confirm that the scheduled event completed and the content of t1 is right.
 --echo
 SELECT * FROM t1 ORDER BY s1;
 --echo
@@ -371,8 +372,10 @@ eval SET @all_threads= 0;
 --echo #=======================================================================
 --echo # Cleanup
 --echo #=======================================================================
---connection default
+--connection con1
 --disconnect con1
+--source include/wait_until_disconnected.inc
+--connection default
 DROP DATABASE db;
 UPDATE performance_schema.setup_instruments SET enabled='YES', timed='YES';
 

@@ -304,6 +304,12 @@ static buf_pool_chunk_map_t*			buf_chunk_map_reg;
 The map pointed by this should not be updated */
 static buf_pool_chunk_map_t*	buf_chunk_map_ref = NULL;
 
+#ifdef UNIV_DEBUG
+/** Protect reference for buf_chunk_map_ref from deleting map,
+because the reference can be caused by debug assertion code. */
+static rw_lock_t	buf_chunk_map_latch;
+#endif /* UNIV_DEBUG */
+
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 /** This is used to insert validation operations in execution
 in the debug version */
@@ -1686,6 +1692,11 @@ buf_pool_init(
 
 	buf_chunk_map_reg = UT_NEW_NOKEY(buf_pool_chunk_map_t());
 
+#ifdef UNIV_DEBUG
+	rw_lock_create(buf_chunk_map_latch_key, &buf_chunk_map_latch,
+		       SYNC_ANY_LATCH);
+#endif /* UNIV_DEBUG */
+
 	for (i = 0; i < n_instances; i++) {
 		buf_pool_t*	ptr	= &buf_pool_ptr[i];
 
@@ -1719,6 +1730,10 @@ buf_pool_free(
 	for (ulint i = 0; i < n_instances; i++) {
 		buf_pool_free_instance(buf_pool_from_array(i));
 	}
+
+#ifdef UNIV_DEBUG
+	rw_lock_free(&buf_chunk_map_latch);
+#endif /* UNIV_DEBUG */
 
 	UT_DELETE(buf_chunk_map_reg);
 	buf_chunk_map_reg = buf_chunk_map_ref = NULL;
@@ -2629,7 +2644,14 @@ withdraw_retry:
 		}
 	}
 
+#ifdef UNIV_DEBUG
+	rw_lock_x_lock(&buf_chunk_map_latch);
+#endif /* UNIV_DEBUG */
 	UT_DELETE(chunk_map_old);
+#ifdef UNIV_DEBUG
+	rw_lock_x_unlock(&buf_chunk_map_latch);
+#endif /* UNIV_DEBUG */
+
 	buf_pool_resizing = false;
 
 	/* Normalize other components, if the new size is too different */
@@ -3557,6 +3579,9 @@ buf_block_align(
 
 	ulint	counter = 0;
 retry:
+#ifdef UNIV_DEBUG
+	rw_lock_s_lock(&buf_chunk_map_latch);
+#endif /* UNIV_DEBUG */
 	buf_pool_chunk_map_t*	chunk_map = buf_chunk_map_ref;
 
 	if (ptr < reinterpret_cast<byte*>(srv_buf_pool_chunk_unit)) {
@@ -3567,6 +3592,9 @@ retry:
 	}
 
 	if (it == chunk_map->end()) {
+#ifdef UNIV_DEBUG
+		rw_lock_s_unlock(&buf_chunk_map_latch);
+#endif /* UNIV_DEBUG */
 		/* The block should always be found. */
 		++counter;
 		ut_a(counter < 10);
@@ -3575,6 +3603,10 @@ retry:
 	}
 
 	buf_chunk_t*	chunk = it->second;
+#ifdef UNIV_DEBUG
+	rw_lock_s_unlock(&buf_chunk_map_latch);
+#endif /* UNIV_DEBUG */
+
 	ulint		offs = ptr - chunk->blocks->frame;
 
 	offs >>= UNIV_PAGE_SIZE_SHIFT;
