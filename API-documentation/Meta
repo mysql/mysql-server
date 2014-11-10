@@ -1,0 +1,97 @@
+
+/** meta is a factory used to define forward mapping for tables and columns.
+ * Functions are called to create Meta objects that are stored with field mappings.
+ * The Meta objects returned from these functions can be annotated with additional properties.
+ *
+ * Functions that can be used with fields:
+ *    meta.binary(lengthInBytes)       doit callback.binary(lengthInBytes, lob, nullable);
+ *    meta.char(lengthInCharacters)    doit callback.char(lengthInCharacters, lob, nullable);
+ *    meta.date()                      doit callback.date(nullable);
+ *    meta.datetime(fsp)               doit callback.datetime(fsp, nullable);
+ *    meta.decimal(precision, scale)   doit callback.decimal(precision, scale, nullable);
+ *    meta.double()                    doit callback.double(nullable);
+ *    meta.float()                     doit callback.float(nullable);
+ *    meta.integer(bits)               doit callback.integer(bits, unsigned, nullable);
+ *    meta.interval(fsp)               doit callback.interval(fsp, nullable);
+ *    meta.int synonym for integer     doit callback.integer(bits, unsigned, nullable);
+ *    meta.number synonym for decimal  doit callback.decimal(precision, scale, nullable);
+ *    meta.time(fsp)                   doit callback.time(fsp, nullable);
+ *    meta.timestamp(fsp)              doit callback.timestamp(fsp, nullable);
+ *    meta.varchar(lengthInCharacters) doit callback.varchar(lengthInCharacters, lob, nullable);
+ *    meta.varbinary(lengthInBytes)    doit callback.varbinary(lengthInBytes, lob, nullable);
+ *    meta.year()                      doit callback.year(nullable);
+ *
+ * Meta objects can be modified to include additional properties that apply to field mapping:
+ *    Meta.charset(name1, name2)       character set and collation; applies to char and varchar types
+ *    Meta.hash()                      hash (only) index; applies to all indexable types
+ *    Meta.lob()                       large object; applies to varbinary and varchar
+ *    Meta.notNull()                   not null; applies to all types
+ *    Meta.primaryKey()                primary key; applies to all primary key types
+ *    Meta.uniqueKey()                 unique key; applies to all indexable types
+ *    Meta.unsigned()                  unsigned; applies to integer types
+ *
+ * Examples: 
+ *   tableMapping.mapField('id', meta.int(32).primaryKey().unsigned()) => id INT UNSIGNED PRIMARY KEY
+ *   tableMapping.mapField('name', meta.varchar(32).notNull()) => name VARCHAR(32) NOT NULL
+ *   tableMapping.mapField('ssn', meta.char(9).hash()) ==> ssn char(9) INDEX USING HASH
+ *   tableMapping.mapField('scan', meta.varchar(1024000).lob() ==> TEXT(1024000)
+ *
+ * Functions that can be used with tables:
+ *    meta.index([columnNames], optionalIndexName);
+ *    meta.primaryKey([columnNames]);
+ *    meta.uniqueKey([columnNames], optionalIndexName);
+ *    meta.hashKey([columnNames], optionalIndexName);
+ *    meta.orderedIndex([columnNames], optionalIndexName);
+ *
+ * Examples:
+ *  new TableMapping('a', meta.primaryKey(['b', 'c'])); specifies primary key over columns b and c
+ *  new TableMapping('a', meta.primaryKey(['b', 'c'])).hash; specifies hash-only primary key over columns b and c
+ *  new TableMapping('a', meta.uniqueKey('b')); specifies unique ordered key over column b
+ *  new TableMapping('a', meta.uniqueKey('b').hash()); specifies unique hash key over column b
+ *  new TableMapping('a', meta.index('b')); specifies ordered index over column b
+ *  new TableMapping('a', meta.hashKey('b')); specifies unique hash key over column b
+ 
+ */
+meta
+
+/** Create a new Meta object that holds meta information. This constructor function is private,
+ * and can only be used by a method on meta. All Meta objects are defined with a doit function
+ * which calls back a function specific to the type of the Meta. The callback may be used
+ * to create table definitions.
+ */
+Meta();
+
+/** Call back the caller based on the type of Meta. See above for method called based on type.
+ * A Meta constructed via meta.year() will call callback.year with the nullable value as a parameter
+ * and return the value to the caller of doit.
+ */
+doit(callback);
+
+/** Annotate a Meta with NOT NULL property. 
+ @return this; // allows fluent method chaining
+ */
+notNull();
+
+/** Annotate a Meta with UNSIGNED property. 
+ @return this; // allows fluent method chaining
+ */
+unsigned();
+
+/** Annotate a Meta with PRIMARY KEY property.
+ @return this; // allows fluent method chaining
+ */
+primary();
+
+/** Annotate a Meta with UNIQUE KEY property.
+ * This annotation specifies an ordered index unless hash is also used.
+ @return this; // allows fluent method chaining
+ */
+uniqueKey();
+unique();
+
+/** Annotate a Meta with USING HASH property. 
+ * When used with primaryKey or uniqueKey, this specifies that the index created uses a hash index (only).
+ @return this;
+ */
+hash();
+

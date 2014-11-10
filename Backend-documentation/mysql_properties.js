@@ -5,6 +5,7 @@
 
 var MysqlDefaultConnectionProperties = {
   "implementation" : "mysql",
+  "engine"         : "ndb",
   "database"       : "test",
   
   "mysql_host"     : "localhost",

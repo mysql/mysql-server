@@ -67,7 +67,7 @@ t3.run = function() {
   var tableMapping = new mynode.TableMapping('freeform');
   tableMapping.mapField('id');
   tableMapping.mapSparseFields('SPARSE', 1);
-  checkErrorMessage(testCase, tableMapping, 'must be a field name, an array of field names, or a converter object');
+  checkErrorMessage(testCase, tableMapping, 'an array of field names, or a converter object');
 };
 
 var t4 = new harness.ConcurrentTest('t4SparseMappingNumberInArrayOfFieldNames');
@@ -94,7 +94,7 @@ t6.run = function() {
   var tableMapping = new mynode.TableMapping('freeform');
   tableMapping.mapField('id');
   tableMapping.mapSparseFields('SPARSE', {f:9});
-  checkErrorMessage(testCase, tableMapping, 'an object that is not an array of field names or a converter object');
+  checkErrorMessage(testCase, tableMapping, 'an array of field names, or a converter object');
 };
 
 exports.tests = [t1, t2, t3, t4, t5, t6];

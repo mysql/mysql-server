@@ -23,6 +23,7 @@
 "use strict";
 
 var path = require("path");
+var util = require('util');
 
 var session_stats = {
 	"created" : 0,
