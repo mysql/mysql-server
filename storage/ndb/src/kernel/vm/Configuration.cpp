@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -354,6 +354,16 @@ Configuration::setupConfiguration(){
     ERROR_SET(fatal, NDBD_EXIT_INVALID_CONFIG, "Invalid configuration fetched", 
 	      "TimeBetweenWatchDogCheckInitial missing");
   }
+
+#ifdef ERROR_INSERT
+  _mixologyLevel = 0;
+  iter.get(CFG_MIXOLOGY_LEVEL, &_mixologyLevel);
+  if (_mixologyLevel)
+  {
+    ndbout_c("Mixology level set to 0x%x", _mixologyLevel);
+    globalTransporterRegistry.setMixologyLevel(_mixologyLevel);
+  }
+#endif
   
   /**
    * Get paths
@@ -610,6 +620,18 @@ void
 Configuration::setRestartOnErrorInsert(int i){
   m_restartOnErrorInsert = i;
 }
+
+#ifdef ERROR_INSERT
+Uint32
+Configuration::getMixologyLevel() const {
+  return _mixologyLevel;
+}
+
+void
+Configuration::setMixologyLevel(Uint32 l){
+  _mixologyLevel = l;
+}
+#endif
 
 const ndb_mgm_configuration_iterator * 
 Configuration::getOwnConfigIterator() const {

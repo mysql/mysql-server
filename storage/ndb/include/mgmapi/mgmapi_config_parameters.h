@@ -207,6 +207,10 @@
 
 #define CFG_DB_AT_RESTART_SKIP_INDEXES   633
 
+/* <= 641 used */
+
+#define CFG_MIXOLOGY_LEVEL            642
+
 #define CFG_NODE_ARBIT_RANK           200
 #define CFG_NODE_ARBIT_DELAY          201
 #define CFG_RESERVED_SEND_BUFFER_MEMORY 202

@@ -747,6 +747,17 @@ TransporterFacade::configure(NodeId nodeId,
   signalLogger.logOn(true, 0, SignalLoggerManager::LogInOut);
 #endif
 
+#ifdef ERROR_INSERT
+  Uint32 mixologyLevel = 0;
+
+  iter.get(CFG_MIXOLOGY_LEVEL, &mixologyLevel);
+  if (mixologyLevel)
+  {
+    ndbout_c("Mixology level set to 0x%x", mixologyLevel);
+    theTransporterRegistry->setMixologyLevel(mixologyLevel);
+  }
+#endif
+
   // Open connection between MGM servers
   if (!do_connect_mgm(nodeId, conf))
     DBUG_RETURN(false);

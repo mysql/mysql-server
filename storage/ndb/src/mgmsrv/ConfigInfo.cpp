@@ -2247,6 +2247,18 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "false",
     "true"
   },
+  {
+    CFG_MIXOLOGY_LEVEL,
+    "__debug_mixology_level",
+    DB_TOKEN,
+    "Artificial signal flow mixing to expose bugs.",
+    ConfigInfo::CI_USED,
+    false,
+    ConfigInfo::CI_INT,
+    "0",
+    "0",
+    STR_VALUE(MAX_INT_RNIL)
+  },
 
   /***************************************************************************
    * API
@@ -2489,6 +2501,18 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "0",
     STR_VALUE(NDB_DEFAULT_HASHMAP_BUCKETS)
   },
+  {
+    CFG_MIXOLOGY_LEVEL,
+    "__debug_mixology_level",
+    API_TOKEN,
+    "Artificial signal flow mixing to expose bugs.",
+    ConfigInfo::CI_USED,
+    false,
+    ConfigInfo::CI_INT,
+    "0",
+    "0",
+    STR_VALUE(MAX_INT_RNIL)
+  },
 
   /****************************************************************************
    * MGM
@@ -2706,6 +2730,19 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "1500",
     "100",
     STR_VALUE(MAX_INT_RNIL) },
+
+  {
+    CFG_MIXOLOGY_LEVEL,
+    "__debug_mixology_level",
+    MGM_TOKEN,
+    "Artificial signal flow mixing to expose bugs.",
+    ConfigInfo::CI_USED,
+    false,
+    ConfigInfo::CI_INT,
+    "0",
+    "0",
+    STR_VALUE(MAX_INT_RNIL)
+  },
 
   /****************************************************************************
    * TCP

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -191,6 +191,15 @@ public:
     DataBuffer<15>::Head m_attributeList; // Attribute if other than default
     DataBuffer<15>::Head m_boundInfo;  // For range scan
     
+    /**
+     * Current row 
+     * (assumes max 1 concurrent frag scan / syncrecord for LM_Exclusive)
+     */
+    Uint32 m_sourceInstance;
+    Uint32 m_headersSection;
+    Uint32 m_dataSection;
+
+
     void startScan(Signal*);
     void nextScan(Signal*);
     bool getNextFragment(TablePtr * tab, FragmentDescriptor * fd);

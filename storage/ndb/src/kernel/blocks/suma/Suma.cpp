@@ -2383,6 +2383,9 @@ Suma::execSUB_SYNC_REQ(Signal* signal)
   syncPtr.p->m_frag_cnt         = req->fragCount;
   syncPtr.p->m_frag_id          = req->fragId;
   syncPtr.p->m_tableId          = subPtr.p->m_tableId;
+  syncPtr.p->m_sourceInstance   = RNIL;
+  syncPtr.p->m_headersSection   = RNIL;
+  syncPtr.p->m_dataSection      = RNIL;
 
   {
     jam();
@@ -4124,12 +4127,43 @@ void Suma::suma_ndbrequire(bool v) { ndbrequire(v); }
 #define SUMA_BUF_SZ1 MAX_KEY_SIZE_IN_WORDS + MAX_TUPLE_SIZE_IN_WORDS
 #define SUMA_BUF_SZ MAX_ATTRIBUTES_IN_TABLE + SUMA_BUF_SZ1
 
-static Uint32 f_bufferLock = 0;
+#define NO_LOCK_VAL        0xffffffff
+#define TRIGGER_LOCK_BASE  0x00000000
+
+static Uint32 bufferLock = NO_LOCK_VAL;
 static Uint32 f_buffer[SUMA_BUF_SZ];
 static Uint32 f_trigBufferSize = 0;
-static Uint32 b_bufferLock = 0;
 static Uint32 b_buffer[SUMA_BUF_SZ];
 static Uint32 b_trigBufferSize = 0;
+
+static bool clearBufferLock()
+{
+  if (bufferLock == NO_LOCK_VAL)
+    return false;
+  
+  bufferLock = NO_LOCK_VAL;
+  
+  return true;
+}
+
+static bool setBufferLock(Uint32 lockVal)
+{
+  if (bufferLock != NO_LOCK_VAL)
+    return false;
+  
+  bufferLock = lockVal;
+  return true;
+}
+
+static bool setTriggerBufferLock(Uint32 triggerId)
+{
+  return setBufferLock(triggerId | TRIGGER_LOCK_BASE);
+}
+
+static bool checkTriggerBufferLock(Uint32 triggerId)
+{
+  return (bufferLock == (TRIGGER_LOCK_BASE | triggerId));
+}
 
 void
 Suma::execTRANSID_AI(Signal* signal)
@@ -4142,14 +4176,9 @@ Suma::execTRANSID_AI(Signal* signal)
   const Uint32 opPtrI = data->connectPtr;
   Uint32 length = signal->length() - 3;
 
-  if(f_bufferLock == 0){
-    f_bufferLock = opPtrI;
-  } else {
-    ndbrequire(f_bufferLock == opPtrI);
-  }
-  
   if (signal->getNoOfSections())
   {
+    /* Copy long data into linear signal buffer */
     SectionHandle handle(this, signal);
     SegmentedSectionPtr dataPtr;
     handle.getSection(dataPtr, 0);
@@ -4161,32 +4190,42 @@ Suma::execTRANSID_AI(Signal* signal)
   Ptr<SyncRecord> syncPtr;
   c_syncPool.getPtr(syncPtr, (opPtrI >> 16));
   
-  Uint32 sum = 0;
-  Uint32 * dst = f_buffer + MAX_ATTRIBUTES_IN_TABLE;
-  Uint32 * headers = f_buffer;
+  Uint32 headersSection = RNIL;
+  Uint32 dataSection = RNIL;
   const Uint32 * src = &data->attrData[0];
   const Uint32 * const end = &src[length];
   
   const Uint32 attribs = syncPtr.p->m_currentNoOfAttributes;
   for(Uint32 i = 0; i<attribs; i++){
     Uint32 tmp = * src++;
-    * headers++ = tmp;
     Uint32 len = AttributeHeader::getDataSize(tmp);
     
-    memcpy(dst, src, 4 * len);
-    dst += len;
+    if (! (appendToSection(headersSection, &tmp, 1) &&
+           appendToSection(dataSection, src, len)))
+    {
+      ErrorReporter::handleError(NDBD_EXIT_OUT_OF_LONG_SIGNAL_MEMORY,
+                                 "Out of LongMessageBuffer in SUMA scan",
+                                 "");
+    }
     src += len;
-    sum += len;
   }
-  f_trigBufferSize = sum;
 
   ndbrequire(src == end);
+  ndbrequire(syncPtr.p->m_sourceInstance == RNIL);
+  ndbrequire(syncPtr.p->m_headersSection == RNIL);
+  ndbrequire(syncPtr.p->m_dataSection == RNIL);
+  syncPtr.p->m_sourceInstance = refToInstance(signal->getSendersBlockRef());
+  syncPtr.p->m_headersSection = headersSection;
+  syncPtr.p->m_dataSection = dataSection;
+ 
 
   if ((syncPtr.p->m_requestInfo & SubSyncReq::LM_Exclusive) == 0)
   {
+    /* Send it now */
     sendScanSubTableData(signal, syncPtr, 0);
   }
 
+  /* Wait for KEYINFO20 */
   DBUG_VOID_RETURN;
 }
 
@@ -4199,10 +4238,14 @@ Suma::execKEYINFO20(Signal* signal)
   const Uint32 opPtrI = data->clientOpPtr;
   const Uint32 takeOver = data->scanInfo_Node;
 
-  ndbrequire(f_bufferLock == opPtrI);
-
   Ptr<SyncRecord> syncPtr;
   c_syncPool.getPtr(syncPtr, (opPtrI >> 16));
+
+  ndbrequire(syncPtr.p->m_sourceInstance ==
+             refToInstance(signal->getSendersBlockRef()));
+  ndbrequire(syncPtr.p->m_headersSection != RNIL);
+  ndbrequire(syncPtr.p->m_dataSection != RNIL);
+
   sendScanSubTableData(signal, syncPtr, takeOver);
 }
 
@@ -4210,22 +4253,14 @@ void
 Suma::sendScanSubTableData(Signal* signal,
                            Ptr<SyncRecord> syncPtr, Uint32 takeOver)
 {
-  const Uint32 attribs = syncPtr.p->m_currentNoOfAttributes;
-  const Uint32 sum =  f_trigBufferSize;
-
   /**
    * Send data to subscriber
    */
-  LinearSectionPtr ptr[3];
-  ptr[0].p = f_buffer;
-  ptr[0].sz = attribs;
-  
-  ptr[1].p = f_buffer + MAX_ATTRIBUTES_IN_TABLE;
-  ptr[1].sz = sum;
-
-  SubscriptionPtr subPtr;
-  c_subscriptions.getPtr(subPtr, syncPtr.p->m_subscriptionPtrI);
-  
+  SectionHandle sh(this);
+  sh.m_ptr[0].i = syncPtr.p->m_headersSection;
+  sh.m_ptr[1].i = syncPtr.p->m_dataSection;
+  getSections(2, sh.m_ptr);
+  sh.m_cnt = 2;
 
   /**
    * Initialize signal
@@ -4241,19 +4276,21 @@ Suma::sendScanSubTableData(Signal* signal,
   sdata->gci_lo = 0;
   sdata->takeOver = takeOver;
 #if PRINT_ONLY
-  ndbout_c("GSN_SUB_TABLE_DATA (scan) #attr: %d len: %d", attribs, sum);
+  ndbout_c("GSN_SUB_TABLE_DATA (scan) #attr: %d len: %d", 
+           getSectionSz(syncPtr.p->m_headersSection),
+           getSectionSz(syncPtr.p->m_dataSection));
 #else
   sendSignal(ref,
 	     GSN_SUB_TABLE_DATA,
 	     signal, 
 	     SubTableData::SignalLength, JBB,
-	     ptr, 2);
+	     &sh);
 #endif
   
-  /**
-   * Reset f_bufferLock
-   */
-  f_bufferLock = 0;
+  /* Clear section references */
+  syncPtr.p->m_sourceInstance = RNIL;
+  syncPtr.p->m_headersSection = RNIL;
+  syncPtr.p->m_dataSection = RNIL;  
 }
 
 /**********************************************************
@@ -4277,7 +4314,7 @@ Suma::execTRIG_ATTRINFO(Signal* signal)
   if(trg->getAttrInfoType() == TrigAttrInfo::BEFORE_VALUES){
     jam();
 
-    ndbrequire(b_bufferLock == trigId);
+    ndbrequire( checkTriggerBufferLock(trigId) );
 
     memcpy(b_buffer + b_trigBufferSize, trg->getData(), 4 * dataLen);
     b_trigBufferSize += dataLen;
@@ -4286,13 +4323,16 @@ Suma::execTRIG_ATTRINFO(Signal* signal)
   } else {
     jam();
 
-    if(f_bufferLock == 0){
-      f_bufferLock = trigId;
+    if (setTriggerBufferLock(trigId))
+    {
+      /* Lock was not taken, we have it now */
       f_trigBufferSize = 0;
-      b_bufferLock = trigId;
       b_trigBufferSize = 0;
-    } else {
-      ndbrequire(f_bufferLock == trigId);
+    }
+    else
+    {
+      /* Lock was taken, must be by us */
+      ndbrequire( checkTriggerBufferLock(trigId) );
     }
 
     memcpy(f_buffer + f_trigBufferSize, trg->getData(), 4 * dataLen);
@@ -4441,6 +4481,8 @@ Suma::execFIRE_TRIG_ORD_L(Signal* signal)
      * Copy value directly into local buffers
      */
     Uint32 trigId = ((FireTrigOrd*)ptr)->getTriggerId();
+    ndbrequire( setTriggerBufferLock(trigId) );
+    
     memcpy(signal->theData, ptr, 4 * siglen); // signal
     ptr += siglen;
     memcpy(f_buffer, ptr, 4*sec0len);
@@ -4452,8 +4494,6 @@ Suma::execFIRE_TRIG_ORD_L(Signal* signal)
 
     f_trigBufferSize = sec0len + sec2len;
     b_trigBufferSize = sec1len;
-    f_bufferLock = trigId;
-    b_bufferLock = trigId;
 
     execFIRE_TRIG_ORD(signal);
 
@@ -4494,10 +4534,7 @@ Suma::execFIRE_TRIG_ORD(Signal* signal)
     ndbassert(isNdbMtLqh());
     SectionHandle handle(this, signal);
 
-    ndbrequire(b_bufferLock == 0);
-    ndbrequire(f_bufferLock == 0);
-    f_bufferLock = trigId;
-    b_bufferLock = trigId;
+    ndbrequire( setTriggerBufferLock(trigId) );
 
     SegmentedSectionPtr ptr;
     handle.getSection(ptr, 0); // Keys
@@ -4515,12 +4552,13 @@ Suma::execFIRE_TRIG_ORD(Signal* signal)
   }
 
   jam();
-  ndbrequire(f_bufferLock == trigId);
+  ndbrequire( checkTriggerBufferLock(trigId) );
   /**
-   * Reset f_bufferLock
+   * Reset bufferlock 
+   * We will use the buffers until the end of 
+   * signal processing, but not after
    */
-  f_bufferLock = 0;
-  b_bufferLock = 0;
+  ndbrequire( clearBufferLock() );
   
   Uint32 tableId = subPtr.p->m_tableId;
   Uint32 schemaVersion =
@@ -5501,6 +5539,10 @@ Suma::SyncRecord::release(){
 
   LocalDataBuffer<15> boundBuf(suma.c_dataBufferPool, m_boundInfo);
   boundBuf.release();  
+
+  ndbassert(m_sourceInstance == RNIL);
+  ndbassert(m_headersSection == RNIL);
+  ndbassert(m_dataSection == RNIL);
 }
 
 
