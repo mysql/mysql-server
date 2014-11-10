@@ -104,7 +104,6 @@ public:
    */
   void ext_set_max_api_reg_req_interval(Uint32 ms);
   struct in_addr ext_get_connect_address(Uint32 nodeId);
-  void ext_forceHB();
   bool ext_isConnected(NodeId aNodeId);
   void ext_doConnect(int aNodeId);
 
@@ -128,6 +127,8 @@ public:
 
   NodeId get_an_alive_node();
   void trp_node_status(NodeId, Uint32 event);
+
+  bool is_cluster_completely_unavailable();
 
   /**
    * Send signal to each registered object
@@ -400,6 +401,13 @@ TransporterFacade::unlock_poll_mutex()
 
 #include "ClusterMgr.hpp"
 #include "ndb_cluster_connection_impl.hpp"
+
+inline
+bool
+TransporterFacade::is_cluster_completely_unavailable()
+{
+  return theClusterMgr->is_cluster_completely_unavailable();
+}
 
 inline
 unsigned Ndb_cluster_connection_impl::get_connect_count() const
