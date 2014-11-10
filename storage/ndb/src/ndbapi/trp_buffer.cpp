@@ -74,7 +74,6 @@ TFBuffer::validate() const
   {
     assert(p->m_bytes <= p->m_size);
     assert(p->m_start <= p->m_size);
-    assert((p->m_bytes & 3) == 0);
     assert(p->m_start + p->m_bytes <= p->m_size);
     assert(p->m_bytes <= (int)m_bytes_in_buffer);
     assert(p->m_next != p);
