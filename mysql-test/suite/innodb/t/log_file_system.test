@@ -2,7 +2,7 @@
 # Test the detection of innodb_data_file_path mismatch.
 
 --source include/have_innodb.inc
-# Embedded server does not support crashing
+# Embedded server does not support restarting
 --source include/not_embedded.inc
 
 let MYSQLD_DATADIR= `select @@datadir`;
@@ -59,9 +59,7 @@ call mtr.add_suppression("InnoDB: Tablespace size stored in header is [0-9]* pag
 --enable_query_log
 
 # Kill the server to inject faults.
---exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server 0
---source include/wait_until_disconnected.inc
+--source include/kill_mysqld.inc
 
 let SEARCH_FILE= $MYSQLTEST_VARDIR/log/my_restart.err;
 let $old_mysqld=$MYSQLD_CMD --console > $SEARCH_FILE 2>&1;
@@ -79,7 +77,9 @@ let SEARCH_PATTERN= \[ERROR\] InnoDB: Some file names in innodb_data_file_path d
 
 --echo # Recovery and clean shutdown with old data file path
 --error 2
---exec $old_mysqld --innodb-nonexistent-option
+# Empty the undo logs and the change buffer with innodb_fast_shutdown=0.
+# Otherwise, log_write_requests=0 could be violated after the last restart.
+--exec $old_mysqld --innodb-fast-shutdown=0 --innodb-nonexistent-option
 let SEARCH_PATTERN= \[ERROR\] unknown option '--innodb-nonexistent-option';
 --source include/search_pattern_in_file.inc
 --remove_file $SEARCH_FILE
@@ -101,9 +101,7 @@ EOF
 
 INSERT INTO t1 VALUES (1);
 # Kill the server to inject faults.
---exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server 0
---source include/wait_until_disconnected.inc
+--source include/kill_mysqld.inc
 
 --echo # Fault 2: Missing file in innodb_data_file_path
 
@@ -125,11 +123,7 @@ let SEARCH_PATTERN= \[ERROR\] unknown option '--innodb-nonexistent-option';
 --remove_file $MYSQLD_DATADIR/foo
 --remove_file $NEW_CNF
 
---exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
-
---enable_reconnect
---source include/wait_until_connected_again.inc
---disable_reconnect
+--source include/start_mysqld.inc
 
 --echo # No log should be generated while persistent tablespaces are idle
 CREATE TEMPORARY TABLE t (a SERIAL) ENGINE=InnoDB;

@@ -1,11 +1,14 @@
 CREATE TABLE t1(a INT PRIMARY KEY) ENGINE=InnoDB;
+# Kill the server
 # Fault 1: Extra file in innodb_data_file_path
 # Recovery and clean shutdown with old data file path
 # Start with new data file path
 INSERT INTO t1 VALUES (1);
+# Kill the server
 # Fault 2: Missing file in innodb_data_file_path
 # Recovery and shutdown with innodb-force-recovery (ignore unknown file)
 # Cleanup
+# restart
 # No log should be generated while persistent tablespaces are idle
 CREATE TEMPORARY TABLE t (a SERIAL) ENGINE=InnoDB;
 SELECT count FROM information_schema.innodb_metrics
