@@ -1505,7 +1505,7 @@ name_ok:
 			so we just assume optimize_point_storage=true, which
 			wouldn't affect the result */
 			switch (get_innobase_type_from_mysql_type(
-				&is_unsigned, field, NULL, true)) {
+				&is_unsigned, field, true)) {
 			default:
 				break;
 			case DATA_INT:
@@ -1624,7 +1624,7 @@ innobase_create_index_field_def(
 	index_field->col_no = key_part->fieldnr;
 
 	col_type = get_innobase_type_from_mysql_type(
-			&is_unsigned, field, NULL, true);
+			&is_unsigned, field, true);
 
 	if (DATA_POINT_MTYPE(col_type)) {
 		col_type = innobase_get_exact_point_type(
@@ -3143,7 +3143,7 @@ prepare_inplace_alter_table_dict(
 				= (ulint) field->type();
 			ulint		col_type
 				= get_innobase_type_from_mysql_type(
-					&is_unsigned, field, NULL, true);
+					&is_unsigned, field, true);
 			ulint		charset_no;
 			ulint		col_len;
 
