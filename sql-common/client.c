@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -3808,8 +3808,8 @@ void STDCALL mysql_close(MYSQL *mysql)
     {
       free_old_query(mysql);
       mysql->status=MYSQL_STATUS_READY; /* Force command */
-      mysql->reconnect=0;
       simple_command(mysql,COM_QUIT,(uchar*) 0,0,1);
+      mysql->reconnect=0;
       end_server(mysql);			/* Sets mysql->net.vio= 0 */
     }
     mysql_close_free_options(mysql);
