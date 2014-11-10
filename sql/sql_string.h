@@ -232,7 +232,9 @@ public:
   */
   inline void chop()
   {
-    Ptr[str_length--]= '\0'; 
+    str_length--;
+    Ptr[str_length]= '\0';
+    DBUG_ASSERT(strlen(Ptr) == str_length);
   }
 
   inline void free()
