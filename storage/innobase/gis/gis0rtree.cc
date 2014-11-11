@@ -463,7 +463,7 @@ update_mbr:
 			cur2_rec = cursor2->page_cur.rec;
 			offsets2 = rec_get_offsets(cur2_rec, index, NULL,
 						   ULINT_UNDEFINED, &heap);
-			
+
 			cur2_rec_info = rec_get_info_bits(cur2_rec,
 						rec_offs_comp(offsets2));
 			if (cur2_rec_info & REC_INFO_MIN_REC_FLAG) {

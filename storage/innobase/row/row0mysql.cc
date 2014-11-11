@@ -4518,7 +4518,7 @@ row_drop_table_for_mysql(
 	}
 
 	if (err != DB_SUCCESS && table != NULL) {
-		/* Drop table has failed with error but as drop table is not 
+		/* Drop table has failed with error but as drop table is not
 		transaction safe we should mark the table as corrupted to avoid
 		unwarranted follow-up action on this table that can result
 		in more serious issues. */

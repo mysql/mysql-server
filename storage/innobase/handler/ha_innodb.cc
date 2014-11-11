@@ -13069,7 +13069,7 @@ ha_innobase::external_lock(
 				trx_commit() will not be called. Reset
 				trx->is_dd_trx here */
 				ut_d(trx->is_dd_trx = false);
-			}		
+			}
 
 		} else if (trx->isolation_level <= TRX_ISO_READ_COMMITTED
 			   && MVCC::is_view_active(trx->read_view)) {
@@ -13637,7 +13637,6 @@ ha_innobase::store_lock(
 		++trx->will_lock;
 	}
 
-	
 #ifdef UNIV_DEBUG
 	if(trx->is_dd_trx) {
 		ut_ad(trx->will_lock == 0
