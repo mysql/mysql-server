@@ -94,6 +94,10 @@ any_reflected_ops_applied
 0
 last_conflict_epoch_increased
 1
+conflict_handling_in_progess
+1
+stable_epoch_is_older_than_max_replicated
+0
 Re-enable SECONDARY Slave, and check state there
 START SLAVE;
 SECONDARY content
@@ -120,6 +124,10 @@ reflected_op_prepare_count_greater_than_zero
 any_reflected_ops_applied
 1
 last_conflict_epoch_increased
+1
+conflict_handling_in_progess
+1
+stable_epoch_is_older_than_max_replicated
 1
 Look at PRIMARY exceptions table content
 SELECT k, v$old, v$new, c$old, c$new, ndb$op_type, ndb$cft_cause from test.t1$EX order by ndb$count;
@@ -229,6 +237,10 @@ any_reflected_ops_applied
 0
 last_conflict_epoch_increased
 0
+conflict_handling_in_progess
+0
+stable_epoch_is_older_than_max_replicated
+0
 Ok, now allow SECONDARY Binlog to propagate to Primary
 and realign it
 START SLAVE;
@@ -311,6 +323,10 @@ any_reflected_ops_applied
 0
 last_conflict_epoch_increased
 1
+conflict_handling_in_progess
+0
+stable_epoch_is_older_than_max_replicated
+0
 Now allow sync...
 START SLAVE;
 Allowing the sync should have allowed the second update
@@ -340,6 +356,10 @@ any_reflected_ops_applied
 0
 last_conflict_epoch_increased
 1
+conflict_handling_in_progess
+0
+stable_epoch_is_older_than_max_replicated
+0
 Show same for DELETE
 --------------------
 First stop SLAVEs
@@ -408,6 +428,10 @@ any_reflected_ops_applied
 0
 last_conflict_epoch_increased
 0
+conflict_handling_in_progess
+0
+stable_epoch_is_older_than_max_replicated
+0
 Now allow sync...
 START SLAVE;
 Allowing the sync should have allowed the insert
@@ -436,6 +460,10 @@ reflected_op_prepare_count_greater_than_zero
 any_reflected_ops_applied
 0
 last_conflict_epoch_increased
+0
+conflict_handling_in_progess
+0
+stable_epoch_is_older_than_max_replicated
 0
 Primary insert-delete obscures Secondary insert problem
 -------------------------------------------------------
@@ -523,6 +551,10 @@ any_reflected_ops_applied
 0
 last_conflict_epoch_increased
 0
+conflict_handling_in_progess
+0
+stable_epoch_is_older_than_max_replicated
+0
 Show primary's exceptions table content - expect there to be none.
 SELECT k, v$old, v$new, c$old, c$new, ndb$op_type, ndb$cft_cause from test.t1$EX order by ndb$count;
 k	v$old	v$new	c$old	c$new	ndb$op_type	ndb$cft_cause
@@ -554,6 +586,10 @@ reflected_op_prepare_count_greater_than_zero
 any_reflected_ops_applied
 1
 last_conflict_epoch_increased
+1
+conflict_handling_in_progess
+1
+stable_epoch_is_older_than_max_replicated
 1
 select * from test.t1 order by k;
 k	v	c
@@ -632,6 +668,10 @@ any_reflected_ops_applied
 0
 last_conflict_epoch_increased
 1
+conflict_handling_in_progess
+1
+stable_epoch_is_older_than_max_replicated
+0
 Re-enable SECONDARY Slave, and check state there
 START SLAVE;
 SECONDARY content
@@ -658,6 +698,10 @@ reflected_op_prepare_count_greater_than_zero
 any_reflected_ops_applied
 1
 last_conflict_epoch_increased
+1
+conflict_handling_in_progess
+1
+stable_epoch_is_older_than_max_replicated
 1
 Look at PRIMARY exceptions table content
 SELECT k, v$old, v$new, c$old, c$new, ndb$op_type, ndb$cft_cause from test.t1$EX order by ndb$count;
@@ -767,6 +811,10 @@ any_reflected_ops_applied
 0
 last_conflict_epoch_increased
 0
+conflict_handling_in_progess
+0
+stable_epoch_is_older_than_max_replicated
+0
 Ok, now allow SECONDARY Binlog to propagate to Primary
 and realign it
 START SLAVE;
@@ -849,6 +897,10 @@ any_reflected_ops_applied
 0
 last_conflict_epoch_increased
 1
+conflict_handling_in_progess
+0
+stable_epoch_is_older_than_max_replicated
+0
 Now allow sync...
 START SLAVE;
 Allowing the sync should have allowed the second update
@@ -878,6 +930,10 @@ any_reflected_ops_applied
 0
 last_conflict_epoch_increased
 1
+conflict_handling_in_progess
+0
+stable_epoch_is_older_than_max_replicated
+0
 Show same for DELETE
 --------------------
 First stop SLAVEs
@@ -946,6 +1002,10 @@ any_reflected_ops_applied
 0
 last_conflict_epoch_increased
 0
+conflict_handling_in_progess
+0
+stable_epoch_is_older_than_max_replicated
+0
 Now allow sync...
 START SLAVE;
 Allowing the sync should have allowed the insert
@@ -974,6 +1034,10 @@ reflected_op_prepare_count_greater_than_zero
 any_reflected_ops_applied
 0
 last_conflict_epoch_increased
+0
+conflict_handling_in_progess
+0
+stable_epoch_is_older_than_max_replicated
 0
 Primary insert-delete obscures Secondary insert problem
 -------------------------------------------------------
@@ -1061,6 +1125,10 @@ any_reflected_ops_applied
 0
 last_conflict_epoch_increased
 0
+conflict_handling_in_progess
+0
+stable_epoch_is_older_than_max_replicated
+0
 Show primary's exceptions table content - expect there to be none.
 SELECT k, v$old, v$new, c$old, c$new, ndb$op_type, ndb$cft_cause from test.t1$EX order by ndb$count;
 k	v$old	v$new	c$old	c$new	ndb$op_type	ndb$cft_cause
@@ -1092,6 +1160,10 @@ reflected_op_prepare_count_greater_than_zero
 any_reflected_ops_applied
 1
 last_conflict_epoch_increased
+1
+conflict_handling_in_progess
+1
+stable_epoch_is_older_than_max_replicated
 1
 select * from test.t1 order by k;
 k	v	c
@@ -1170,6 +1242,10 @@ any_reflected_ops_applied
 0
 last_conflict_epoch_increased
 1
+conflict_handling_in_progess
+1
+stable_epoch_is_older_than_max_replicated
+0
 Re-enable SECONDARY Slave, and check state there
 START SLAVE;
 SECONDARY content
@@ -1196,6 +1272,10 @@ reflected_op_prepare_count_greater_than_zero
 any_reflected_ops_applied
 1
 last_conflict_epoch_increased
+1
+conflict_handling_in_progess
+1
+stable_epoch_is_older_than_max_replicated
 1
 Look at PRIMARY exceptions table content
 SELECT k, v$old, v$new, c$old, c$new, ndb$op_type, ndb$cft_cause from test.t1$EX order by ndb$count;
@@ -1305,6 +1385,10 @@ any_reflected_ops_applied
 0
 last_conflict_epoch_increased
 0
+conflict_handling_in_progess
+0
+stable_epoch_is_older_than_max_replicated
+0
 Ok, now allow SECONDARY Binlog to propagate to Primary
 and realign it
 START SLAVE;
@@ -1387,6 +1471,10 @@ any_reflected_ops_applied
 0
 last_conflict_epoch_increased
 1
+conflict_handling_in_progess
+0
+stable_epoch_is_older_than_max_replicated
+0
 Now allow sync...
 START SLAVE;
 Allowing the sync should have allowed the second update
@@ -1416,6 +1504,10 @@ any_reflected_ops_applied
 0
 last_conflict_epoch_increased
 1
+conflict_handling_in_progess
+0
+stable_epoch_is_older_than_max_replicated
+0
 Show same for DELETE
 --------------------
 First stop SLAVEs
@@ -1484,6 +1576,10 @@ any_reflected_ops_applied
 0
 last_conflict_epoch_increased
 0
+conflict_handling_in_progess
+0
+stable_epoch_is_older_than_max_replicated
+0
 Now allow sync...
 START SLAVE;
 Allowing the sync should have allowed the insert
@@ -1512,6 +1608,10 @@ reflected_op_prepare_count_greater_than_zero
 any_reflected_ops_applied
 0
 last_conflict_epoch_increased
+0
+conflict_handling_in_progess
+0
+stable_epoch_is_older_than_max_replicated
 0
 Primary insert-delete obscures Secondary insert problem
 -------------------------------------------------------
@@ -1599,6 +1699,10 @@ any_reflected_ops_applied
 0
 last_conflict_epoch_increased
 0
+conflict_handling_in_progess
+0
+stable_epoch_is_older_than_max_replicated
+0
 Show primary's exceptions table content - expect there to be none.
 SELECT k, v$old, v$new, c$old, c$new, ndb$op_type, ndb$cft_cause from test.t1$EX order by ndb$count;
 k	v$old	v$new	c$old	c$new	ndb$op_type	ndb$cft_cause
@@ -1630,6 +1734,10 @@ reflected_op_prepare_count_greater_than_zero
 any_reflected_ops_applied
 1
 last_conflict_epoch_increased
+1
+conflict_handling_in_progess
+1
+stable_epoch_is_older_than_max_replicated
 1
 select * from test.t1 order by k;
 k	v	c
@@ -1708,6 +1816,10 @@ any_reflected_ops_applied
 0
 last_conflict_epoch_increased
 1
+conflict_handling_in_progess
+1
+stable_epoch_is_older_than_max_replicated
+0
 Re-enable SECONDARY Slave, and check state there
 START SLAVE;
 SECONDARY content
@@ -1734,6 +1846,10 @@ reflected_op_prepare_count_greater_than_zero
 any_reflected_ops_applied
 1
 last_conflict_epoch_increased
+1
+conflict_handling_in_progess
+1
+stable_epoch_is_older_than_max_replicated
 1
 Look at PRIMARY exceptions table content
 SELECT k, v$old, v$new, c$old, c$new, ndb$op_type, ndb$cft_cause from test.t1$EX order by ndb$count;
@@ -1843,6 +1959,10 @@ any_reflected_ops_applied
 0
 last_conflict_epoch_increased
 0
+conflict_handling_in_progess
+0
+stable_epoch_is_older_than_max_replicated
+0
 Ok, now allow SECONDARY Binlog to propagate to Primary
 and realign it
 START SLAVE;
@@ -1925,6 +2045,10 @@ any_reflected_ops_applied
 0
 last_conflict_epoch_increased
 1
+conflict_handling_in_progess
+0
+stable_epoch_is_older_than_max_replicated
+0
 Now allow sync...
 START SLAVE;
 Allowing the sync should have allowed the second update
@@ -1954,6 +2078,10 @@ any_reflected_ops_applied
 0
 last_conflict_epoch_increased
 1
+conflict_handling_in_progess
+0
+stable_epoch_is_older_than_max_replicated
+0
 Show same for DELETE
 --------------------
 First stop SLAVEs
@@ -2022,6 +2150,10 @@ any_reflected_ops_applied
 0
 last_conflict_epoch_increased
 0
+conflict_handling_in_progess
+0
+stable_epoch_is_older_than_max_replicated
+0
 Now allow sync...
 START SLAVE;
 Allowing the sync should have allowed the insert
@@ -2050,6 +2182,10 @@ reflected_op_prepare_count_greater_than_zero
 any_reflected_ops_applied
 0
 last_conflict_epoch_increased
+0
+conflict_handling_in_progess
+0
+stable_epoch_is_older_than_max_replicated
 0
 Primary insert-delete obscures Secondary insert problem
 -------------------------------------------------------
@@ -2137,6 +2273,10 @@ any_reflected_ops_applied
 0
 last_conflict_epoch_increased
 0
+conflict_handling_in_progess
+0
+stable_epoch_is_older_than_max_replicated
+0
 Show primary's exceptions table content - expect there to be none.
 SELECT k, v$old, v$new, c$old, c$new, ndb$op_type, ndb$cft_cause from test.t1$EX order by ndb$count;
 k	v$old	v$new	c$old	c$new	ndb$op_type	ndb$cft_cause
@@ -2168,6 +2308,10 @@ reflected_op_prepare_count_greater_than_zero
 any_reflected_ops_applied
 1
 last_conflict_epoch_increased
+1
+conflict_handling_in_progess
+1
+stable_epoch_is_older_than_max_replicated
 1
 select * from test.t1 order by k;
 k	v	c
@@ -2258,6 +2402,10 @@ any_reflected_ops_applied
 0
 last_conflict_epoch_increased
 0
+conflict_handling_in_progess
+0
+stable_epoch_is_older_than_max_replicated
+0
 Now look at secondary content and conflict counters
 select * from test.t1 order by k;
 k	v	c
@@ -2282,6 +2430,10 @@ reflected_op_prepare_count_greater_than_zero
 any_reflected_ops_applied
 0
 last_conflict_epoch_increased
+0
+conflict_handling_in_progess
+0
+stable_epoch_is_older_than_max_replicated
 0
 Now look at how row existence errors are handled
 insert into test.t1 values (6, 60, "Cigars");
@@ -2353,6 +2505,10 @@ any_reflected_ops_applied
 0
 last_conflict_epoch_increased
 0
+conflict_handling_in_progess
+0
+stable_epoch_is_older_than_max_replicated
+0
 Same for a Secondary sourced update of a row
 which doesn't exist on the primary.
 update test.t1 set c="Tawny Port" where c="Whisky";
@@ -2392,6 +2548,10 @@ any_reflected_ops_applied
 0
 last_conflict_epoch_increased
 0
+conflict_handling_in_progess
+0
+stable_epoch_is_older_than_max_replicated
+0
 Now show a row delete from the secondary for
 a row which does not exist on the primary
 delete from test.t1 where k=7;
@@ -2429,8 +2589,118 @@ any_reflected_ops_applied
 0
 last_conflict_epoch_increased
 0
+conflict_handling_in_progess
+0
+stable_epoch_is_older_than_max_replicated
+0
 Remove inconsistencies from the table
 delete from test.t1 where k in (3, 6);
+STOP SLAVE;
+set global ndb_slave_conflict_role="NONE";
+set global ndb_slave_conflict_role="PRIMARY";
+START SLAVE;
+STOP SLAVE;
+set global ndb_slave_conflict_role="NONE";
+set global ndb_slave_conflict_role="SECONDARY";
+START SLAVE;
+Test ndb_conflict_last_stable_epoch
+This status var is intended to help in situations
+where there is an unexpected PRIMARY failure, and
+the SECONDARY can determine that there were in-flight
+realignment ops (conflicts), based on 
+ndb_conflict_last_conflict_epoch > 
+ndb_slave_max_replicated_epoch
+ndb_conflict_last_stable_epoch will contain the 
+last (highest) SECONDARY epoch which is known
+to have replicated via the PRIMARY with no
+conflicts being discovered.  This is then
+a consistent baseline from which to potentially
+resolve any partial realignments.
+How to resolve them is an exercise left for
+the reader :)
+Testcase to show the variable in action
+Stop SECONDARY slave
+STOP SLAVE;
+Change on Primary, won't propagate to Secondary as SLAVE is stopped.
+update test.t1 set c="Loafing" where k=1;
+Conflicting change on Secondary
+update test.t1 set c="Idling" where k=1;
+Add some epochs after the conflicting modification
+insert into t1 values (10 + 10, 10, "Sequencing");
+insert into t1 values (9 + 10, 10, "Sequencing");
+insert into t1 values (8 + 10, 10, "Sequencing");
+insert into t1 values (7 + 10, 10, "Sequencing");
+insert into t1 values (6 + 10, 10, "Sequencing");
+insert into t1 values (5 + 10, 10, "Sequencing");
+insert into t1 values (4 + 10, 10, "Sequencing");
+insert into t1 values (3 + 10, 10, "Sequencing");
+insert into t1 values (2 + 10, 10, "Sequencing");
+insert into t1 values (1 + 10, 10, "Sequencing");
+Now look at Secondary values, should have
+Max_Replicated_Epoch == Last_Stable_Epoch
+Expect 1,0,1 - all is well.
+SELECT @ndb_last_conflict_epoch <= @ndb_max_replicated_epoch AS SECONDARY_IS_CURRENTLY_CONFLICT_FREE;
+SECONDARY_IS_CURRENTLY_CONFLICT_FREE
+1
+SELECT @ndb_last_stable_epoch < @ndb_max_replicated_epoch AS STABLE_EPOCH_LAGS_MAX_REPLICATED_EPOCH;
+STABLE_EPOCH_LAGS_MAX_REPLICATED_EPOCH
+0
+SELECT @ndb_last_stable_epoch = @ndb_max_replicated_epoch AS STABLE_EPOCH_IS_MAX_REPLICATED_EPOCH;
+STABLE_EPOCH_IS_MAX_REPLICATED_EPOCH
+1
+Stop PRIMARY slave just to have control
+STOP SLAVE;
+Conflict algorithm counter diff :
+ndb_conflict_fn_epoch2
+1
+ndb_conflict_fn_epoch2_trans
+0
+ndb_conflict_trans_reject_count
+0
+ndb_conflict_epoch_delete_delete_count
+0
+ndb_conflict_refresh_op_count
+0
+reflected_op_prepare_count_greater_than_zero
+0
+any_reflected_ops_applied
+0
+last_conflict_epoch_increased
+1
+conflict_handling_in_progess
+1
+stable_epoch_is_older_than_max_replicated
+0
+Now Start SECONDARY slave, to get conflict realignment
+and following SECONDARY epochs re-applied on the SEOCNDARY
+START SLAVE;
+Now look at variables on the SECONDARY again
+Expect 0,1,0 - Conflict handling open, stable epoch is old, most recent
+replicated epochs are not yet stable.
+SELECT @ndb_last_conflict_epoch <= @ndb_max_replicated_epoch AS SECONDARY_IS_CURRENTLY_CONFLICT_FREE;
+SECONDARY_IS_CURRENTLY_CONFLICT_FREE
+0
+SELECT @ndb_last_stable_epoch < @ndb_max_replicated_epoch AS STABLE_EPOCH_LAGS_MAX_REPLICATED_EPOCH;
+STABLE_EPOCH_LAGS_MAX_REPLICATED_EPOCH
+1
+SELECT @ndb_last_stable_epoch = @ndb_max_replicated_epoch AS STABLE_EPOCH_IS_MAX_REPLICATED_EPOCH;
+STABLE_EPOCH_IS_MAX_REPLICATED_EPOCH
+0
+Now make a SECONDARY change and allow it to flow
+START SLAVE;
+delete from test.t1 where k >=10;
+Now look at variables on the SECONDARY for third time
+Expect 1,0,1 - stability has returned
+SELECT @ndb_last_conflict_epoch <= @ndb_max_replicated_epoch AS SECONDARY_IS_CURRENTLY_CONFLICT_FREE;
+SECONDARY_IS_CURRENTLY_CONFLICT_FREE
+1
+SELECT @ndb_last_stable_epoch < @ndb_max_replicated_epoch AS STABLE_EPOCH_LAGS_MAX_REPLICATED_EPOCH;
+STABLE_EPOCH_LAGS_MAX_REPLICATED_EPOCH
+0
+SELECT @ndb_last_stable_epoch = @ndb_max_replicated_epoch AS STABLE_EPOCH_IS_MAX_REPLICATED_EPOCH;
+STABLE_EPOCH_IS_MAX_REPLICATED_EPOCH
+1
+Done.
 Cleanup conflict roles
 --------------------
 STOP SLAVE;

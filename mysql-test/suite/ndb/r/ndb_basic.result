@@ -83,6 +83,7 @@ Ndb_conflict_fn_max	#
 Ndb_conflict_fn_max_del_win	#
 Ndb_conflict_fn_old	#
 Ndb_conflict_last_conflict_epoch	#
+Ndb_conflict_last_stable_epoch	#
 Ndb_conflict_reflected_op_discard_count	#
 Ndb_conflict_reflected_op_prepare_count	#
 Ndb_conflict_refresh_op_count	#

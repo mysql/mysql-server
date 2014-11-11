@@ -435,6 +435,9 @@ struct st_ndb_slave_state
   /* Last conflict epoch */
   Uint64 last_conflicted_epoch;
 
+  /* Last stable epoch */
+  Uint64 last_stable_epoch;
+
   /* Cumulative counter values */
   Uint64 total_violation_count[CFT_NUMBER_OF_CFTS];
   Uint64 total_delete_delete_count;

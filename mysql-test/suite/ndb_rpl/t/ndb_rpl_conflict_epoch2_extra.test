@@ -787,6 +787,144 @@ delete from test.t1 where k in (3, 6);
 --source suite/ndb_rpl/t/ndb_connect_to_secondary.inc
 --source suite/ndb_rpl/t/ndb_sync_secondary_to_primary.inc
 
+--source suite/ndb_rpl/t/ndb_connect_to_primary.inc
+STOP SLAVE;
+set global ndb_slave_conflict_role="NONE";
+set global ndb_slave_conflict_role="PRIMARY";
+START SLAVE;
+--source suite/ndb_rpl/t/ndb_connect_to_secondary.inc
+STOP SLAVE;
+set global ndb_slave_conflict_role="NONE";
+set global ndb_slave_conflict_role="SECONDARY";
+START SLAVE;
+
+--echo Test ndb_conflict_last_stable_epoch
+--echo This status var is intended to help in situations
+--echo where there is an unexpected PRIMARY failure, and
+--echo the SECONDARY can determine that there were in-flight
+--echo realignment ops (conflicts), based on 
+--echo ndb_conflict_last_conflict_epoch > 
+--echo ndb_slave_max_replicated_epoch
+--echo ndb_conflict_last_stable_epoch will contain the 
+--echo last (highest) SECONDARY epoch which is known
+--echo to have replicated via the PRIMARY with no
+--echo conflicts being discovered.  This is then
+--echo a consistent baseline from which to potentially
+--echo resolve any partial realignments.
+--echo How to resolve them is an exercise left for
+--echo the reader :)
+
+--echo Testcase to show the variable in action
+--source suite/ndb_rpl/t/ndb_connect_to_secondary.inc
+--echo Stop SECONDARY slave
+STOP SLAVE;
+
+--source suite/ndb_rpl/t/ndb_connect_to_primary.inc
+--echo Change on Primary, won't propagate to Secondary as SLAVE is stopped.
+update test.t1 set c="Loafing" where k=1;
+
+--source suite/ndb_rpl/t/ndb_conflict_info_epoch2_init.inc
+
+--source suite/ndb_rpl/t/ndb_connect_to_secondary.inc
+--echo Conflicting change on Secondary
+update test.t1 set c="Idling" where k=1;
+
+--source include/wait_for_ndb_committed_to_binlog.inc
+
+--echo Add some epochs after the conflicting modification
+
+let $e_count=10;
+while ($e_count)
+{
+  eval insert into t1 values ($e_count + 10, 10, "Sequencing");
+  dec $e_count;
+  --source include/wait_for_ndb_committed_to_binlog.inc
+}
+
+--echo Now look at Secondary values, should have
+--echo Max_Replicated_Epoch == Last_Stable_Epoch
+
+--disable_query_log
+--disable_result_log
+SELECT @ndb_last_conflict_epoch:= VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_LAST_CONFLICT_EPOCH";
+SELECT @ndb_last_stable_epoch:=VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_LAST_STABLE_EPOCH";
+SELECT @ndb_max_replicated_epoch:=VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_SLAVE_MAX_REPLICATED_EPOCH";
+--enable_result_log
+--enable_query_log
+# SELECT @ndb_last_conflict_epoch, @ndb_last_stable_epoch, @ndb_max_replicated_epoch;
+
+--echo Expect 1,0,1 - all is well.
+SELECT @ndb_last_conflict_epoch <= @ndb_max_replicated_epoch AS SECONDARY_IS_CURRENTLY_CONFLICT_FREE;
+SELECT @ndb_last_stable_epoch < @ndb_max_replicated_epoch AS STABLE_EPOCH_LAGS_MAX_REPLICATED_EPOCH;
+SELECT @ndb_last_stable_epoch = @ndb_max_replicated_epoch AS STABLE_EPOCH_IS_MAX_REPLICATED_EPOCH;
+
+--source suite/ndb_rpl/t/ndb_sync_secondary_to_primary.inc
+--source suite/ndb_rpl/t/ndb_connect_to_primary.inc
+
+--echo Stop PRIMARY slave just to have control
+STOP SLAVE;
+
+--source suite/ndb_rpl/t/ndb_conflict_info_epoch2.inc
+
+--echo Now Start SECONDARY slave, to get conflict realignment
+--echo and following SECONDARY epochs re-applied on the SEOCNDARY
+
+--source suite/ndb_rpl/t/ndb_connect_to_secondary.inc
+START SLAVE;
+
+--source suite/ndb_rpl/t/ndb_connect_to_primary.inc
+--source suite/ndb_rpl/t/ndb_sync_primary_to_secondary.inc
+--source suite/ndb_rpl/t/ndb_connect_to_secondary.inc
+
+--echo Now look at variables on the SECONDARY again
+
+--disable_query_log
+--disable_result_log
+SELECT @ndb_last_conflict_epoch:= VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_LAST_CONFLICT_EPOCH";
+SELECT @ndb_last_stable_epoch:=VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_LAST_STABLE_EPOCH";
+SELECT @ndb_max_replicated_epoch:=VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_SLAVE_MAX_REPLICATED_EPOCH";
+--enable_result_log
+--enable_query_log
+#SELECT @ndb_last_conflict_epoch, @ndb_last_stable_epoch, @ndb_max_replicated_epoch;
+
+
+--echo Expect 0,1,0 - Conflict handling open, stable epoch is old, most recent
+--echo   replicated epochs are not yet stable.
+SELECT @ndb_last_conflict_epoch <= @ndb_max_replicated_epoch AS SECONDARY_IS_CURRENTLY_CONFLICT_FREE;
+SELECT @ndb_last_stable_epoch < @ndb_max_replicated_epoch AS STABLE_EPOCH_LAGS_MAX_REPLICATED_EPOCH;
+SELECT @ndb_last_stable_epoch = @ndb_max_replicated_epoch AS STABLE_EPOCH_IS_MAX_REPLICATED_EPOCH;
+
+--echo Now make a SECONDARY change and allow it to flow
+--source suite/ndb_rpl/t/ndb_connect_to_primary.inc
+START SLAVE;
+
+--source suite/ndb_rpl/t/ndb_connect_to_secondary.inc
+delete from test.t1 where k >=10;
+
+--source suite/ndb_rpl/t/ndb_sync_secondary_to_primary.inc
+--source suite/ndb_rpl/t/ndb_connect_to_primary.inc
+--source suite/ndb_rpl/t/ndb_sync_primary_to_secondary.inc
+--source suite/ndb_rpl/t/ndb_connect_to_secondary.inc
+
+--echo Now look at variables on the SECONDARY for third time
+
+--disable_query_log
+--disable_result_log
+SELECT @ndb_last_conflict_epoch:= VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_LAST_CONFLICT_EPOCH";
+SELECT @ndb_last_stable_epoch:=VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_LAST_STABLE_EPOCH";
+SELECT @ndb_max_replicated_epoch:=VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_SLAVE_MAX_REPLICATED_EPOCH";
+--enable_result_log
+--enable_query_log
+#SELECT @ndb_last_conflict_epoch, @ndb_last_stable_epoch, @ndb_max_replicated_epoch;
+
+--echo Expect 1,0,1 - stability has returned
+SELECT @ndb_last_conflict_epoch <= @ndb_max_replicated_epoch AS SECONDARY_IS_CURRENTLY_CONFLICT_FREE;
+SELECT @ndb_last_stable_epoch < @ndb_max_replicated_epoch AS STABLE_EPOCH_LAGS_MAX_REPLICATED_EPOCH;
+SELECT @ndb_last_stable_epoch = @ndb_max_replicated_epoch AS STABLE_EPOCH_IS_MAX_REPLICATED_EPOCH;
+
+--echo Done.
+
+
 --echo Cleanup conflict roles
 --echo --------------------
 --source suite/ndb_rpl/t/ndb_connect_to_primary.inc
