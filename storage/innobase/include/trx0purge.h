@@ -208,7 +208,7 @@ namespace undo {
 		void clear()
 		{
 			reset();
-			rseg_for_trunc_t	temp;	
+			rseg_for_trunc_t	temp;
 			m_rseg_for_trunc.swap(temp);
 		}
 
