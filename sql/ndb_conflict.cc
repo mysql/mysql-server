@@ -876,6 +876,7 @@ st_ndb_slave_state::st_ndb_slave_state()
     current_trans_row_reject_count(0),
     current_trans_in_conflict_count(0),
     last_conflicted_epoch(0),
+    last_stable_epoch(0),
     total_delete_delete_count(0),
     total_reflect_op_prepare_count(0),
     total_reflect_op_discard_count(0),
@@ -986,35 +987,67 @@ st_ndb_slave_state::atTransactionCommit(Uint64 epoch)
     max_rep_epoch = current_max_rep_epoch;
   }
 
-  if (total_conflicts > 0)
   {
-    /**
-     * Conflict detected locally
-     */
-    DBUG_PRINT("info", ("Last conflicted epoch increases from %llu to %llu",
-                        last_conflicted_epoch,
-                        epoch));
-    last_conflicted_epoch = epoch;
-  }
-  else
-  {
-    /**
-     * Update last_conflicted_epoch if we applied reflected or refresh ops
-     * (Implies Secondary role in asymmetric algorithms)
-     */
-    assert(current_reflect_op_prepare_count >= current_reflect_op_discard_count);
-    Uint32 current_reflect_op_apply_count = current_reflect_op_prepare_count - 
-      current_reflect_op_discard_count;
-    if (current_reflect_op_apply_count > 0 ||
-        current_refresh_op_count > 0)
+    bool hadConflict = false;
+    if (total_conflicts > 0)
     {
-      DBUG_PRINT("info", ("Reflected (%u) or Refresh (%u) operations applied this "
-                          "epoch, increasing last conflicted epoch from %llu to %llu.",
-                          current_reflect_op_apply_count,
-                          current_refresh_op_count,
+      /**
+       * Conflict detected locally
+       */
+      DBUG_PRINT("info", ("Last conflicted epoch increases from %llu to %llu",
                           last_conflicted_epoch,
                           epoch));
+      hadConflict = true;
+    }
+    else
+    {
+      /**
+       * Update last_conflicted_epoch if we applied reflected or refresh ops
+       * (Implies Secondary role in asymmetric algorithms)
+       */
+      assert(current_reflect_op_prepare_count >= current_reflect_op_discard_count);
+      Uint32 current_reflect_op_apply_count = current_reflect_op_prepare_count - 
+        current_reflect_op_discard_count;
+      if (current_reflect_op_apply_count > 0 ||
+          current_refresh_op_count > 0)
+      {
+        DBUG_PRINT("info", ("Reflected (%u) or Refresh (%u) operations applied this "
+                            "epoch, increasing last conflicted epoch from %llu to %llu.",
+                            current_reflect_op_apply_count,
+                            current_refresh_op_count,
+                            last_conflicted_epoch,
+                            epoch));
+        hadConflict = true;
+      }
+    }
+
+    /* Update status vars */
+    if (hadConflict)
+    {
       last_conflicted_epoch = epoch;
+    }
+    else
+    {
+      if (max_rep_epoch >= last_conflicted_epoch)
+      {
+        /**
+         * This epoch which has looped the circle was stable - 
+         * no new conflicts have been found / corrected since
+         * it was logged
+         */
+        last_stable_epoch = max_rep_epoch;
+        
+        /**
+         * Note that max_rep_epoch >= last_conflicted_epoch
+         * implies that there are no currently known-about
+         * conflicts.
+         * On the primary this is a definitive fact as it
+         * finds out about all conflicts immediately.
+         * On the secondary it does not mean that there
+         * are not committed conflicts, just that they 
+         * have not started being corrected yet.
+         */
+      }
     }
   }
 
@@ -1289,6 +1322,7 @@ st_ndb_slave_state::atResetSlave()
   retry_trans_count = 0;
   max_rep_epoch = 0;
   last_conflicted_epoch = 0;
+  last_stable_epoch = 0;
 
   /* Reset current master server epoch
    * This avoids warnings when replaying a lower

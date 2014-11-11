@@ -12,4 +12,15 @@ SELECT @reflect_rej_count:=VARIABLE_VALUE-@init_ndb_epoch_refresh_op_discard_cou
 SELECT @reflect_prep_count > 0 AS reflected_op_prepare_count_greater_than_zero;
 SELECT (@reflect_rej_count < @reflect_prep_count) AS any_reflected_ops_applied;
 SELECT @init_ndb_last_conflict_epoch < VARIABLE_VALUE AS last_conflict_epoch_increased FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_LAST_CONFLICT_EPOCH";
+--disable_result_log
+SELECT @ndb_last_conflict_epoch:= VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_LAST_CONFLICT_EPOCH";
+SELECT @ndb_last_stable_epoch:=VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_LAST_STABLE_EPOCH";
+SELECT @ndb_max_replicated_epoch:=VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_SLAVE_MAX_REPLICATED_EPOCH";
+--enable_result_log
+#SELECT @ndb_max_replicated_epoch, @ndb_last_conflict_epoch, @ndb_last_stable_epoch;
+
+SELECT @ndb_max_replicated_epoch < @ndb_last_conflict_epoch AS conflict_handling_in_progess;
+
+SELECT @ndb_last_stable_epoch < @ndb_max_replicated_epoch AS stable_epoch_is_older_than_max_replicated;
+
 --enable_query_log
