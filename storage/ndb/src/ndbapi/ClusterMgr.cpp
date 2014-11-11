@@ -411,8 +411,7 @@ ClusterMgr::threadMain()
  * We're holding the trp_client lock while performing poll from
  * ClusterMgr. So we always execute all the execSIGNAL-methods in
  * ClusterMgr with protection other methods that use the trp_client
- * lock (reportDisconnect, reportConnect, is_cluster_completely_unavailable,
- * ArbitMgr (sendSignalToQmgr)).
+ * lock (reportDisconnect, reportConnect, ArbitMgr (sendSignalToQmgr)).
  */
 void
 ClusterMgr::trp_deliver_signal(const NdbApiSignal* sig,
@@ -1053,7 +1052,8 @@ bool
 ClusterMgr::is_cluster_completely_unavailable()
 {
   bool ret_code = true;
-  lock();
+
+  Guard g(clusterMgrThreadMutex);
   for (NodeId n = 1; n < MAX_NDB_NODES ; n++)
   {
     const trp_node node = getNodeInfo(n);
@@ -1102,7 +1102,6 @@ ClusterMgr::is_cluster_completely_unavailable()
       break;
     }
   }
-  unlock();
   return ret_code;
 }
 
