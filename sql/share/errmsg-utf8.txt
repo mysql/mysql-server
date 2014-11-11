@@ -7444,6 +7444,15 @@ ER_WRONG_FILE_NAME
 
 ER_BOOST_GEOMETRY_INCONSISTENT_TURNS_EXCEPTION
   eng "Inconsistent intersection points."
+
+ER_WARN_OPTIMIZER_HINT_SYNTAX_ERROR
+  eng "Optimizer hint syntax error"
+
+ER_WARN_BAD_MAX_EXECUTION_TIME
+  eng "Unsupported MAX_EXECUTION_TIME"
+
+ER_WARN_UNSUPPORTED_MAX_EXECUTION_TIME
+  eng "MAX_EXECUTION_TIME hint is supported by SELECT statements only"
 #
 #  End of 5.7 error messages.
 #

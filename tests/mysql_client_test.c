@@ -19928,6 +19928,31 @@ static void test_bug17512527()
 }
 
 
+/**
+   WL#8016: Parser for optimizer hints
+*/
+static void test_wl8016()
+{
+  MYSQL_RES *result;
+  int        rc;
+
+  myheader("test_wl8016");
+
+  rc= mysql_query(mysql, "SELECT /*+ ICP(`test*/ 1");
+  myquery(rc);
+
+  rc= mysql_query(mysql, "SELECT /*+ ICP(`test*/`*/ 1");
+  DIE_UNLESS(rc);
+
+  /* get the result */
+  result= mysql_store_result(mysql);
+  mytest(result);
+
+  (void) my_process_result_set(result);
+  mysql_free_result(result);
+}
+
+
 static struct my_tests_st my_tests[]= {
   { "disable_query_logs", disable_query_logs },
   { "test_view_sp_list_fields", test_view_sp_list_fields },
@@ -20206,6 +20231,7 @@ static struct my_tests_st my_tests[]= {
   { "test_bug17309863", test_bug17309863},
 #endif
   { "test_bug17512527", test_bug17512527},
+  { "test_wl8016", test_wl8016},
   { 0, 0 }
 };
 

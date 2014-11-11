@@ -31,6 +31,7 @@
 #include "parse_tree_node_base.h"     // enum_parsing_context
 #include "query_options.h"            // OPTION_NO_CONST_TABLES
 #include "sql_alloc.h"                // Sql_alloc
+#include "sql_chars.h"
 #include "sql_alter.h"                // Alter_info
 #include "sql_connect.h"              // USER_RESOURCES
 #include "sql_data_change.h"          // enum_duplicates
@@ -41,6 +42,7 @@
 #include "trigger_def.h"              // enum_trigger_action_time_type
 #include "xa.h"                       // xa_option_words
 #include "select_lex_visitor.h"
+#include "parse_tree_hints.h"
 
 #ifdef MYSQL_SERVER
 #include "item_func.h"                // Cast_target
@@ -153,6 +155,7 @@ struct sys_var_with_base
 };
 
 
+#define YYSTYPE_IS_DECLARED 1
 union YYSTYPE;
 typedef YYSTYPE *LEX_YYSTYPE;
 
@@ -1493,8 +1496,20 @@ enum delete_option_enum {
 };
 
 
-#define YYSTYPE_IS_DECLARED
 union YYSTYPE {
+  /*
+    Hint parser section (sql_hints.yy)
+  */
+  LEX_CSTRING hint_string;
+  class PT_hint *hint;
+  class PT_hint_list *hint_list;
+  Hint_param_index_list *hint_param_index_list;
+  Hint_param_table hint_param_table;
+  Hint_param_table_list *hint_param_table_list;
+
+  /*
+    Main parser section (sql_yacc.yy)
+  */
   int  num;
   ulong ulong_num;
   ulonglong ulonglong_number;
@@ -1642,6 +1657,7 @@ union YYSTYPE {
   class Table_ident *table_ident;
   Mem_root_array_YY<Table_ident *> table_ident_list;
   delete_option_enum opt_delete_option;
+  class PT_hint_list *optimizer_hints;
 };
 
 #endif
@@ -2388,13 +2404,17 @@ enum enum_comment_state
     Not parsing comments.
   */
   NO_COMMENT,
+
   /**
     Parsing comments that need to be preserved.
+    (Copy '/' '*' and '*' '/' sequences to the preprocessed buffer.)
     Typically, these are user comments '/' '*' ... '*' '/'.
   */
   PRESERVE_COMMENT,
+
   /**
     Parsing comments that need to be discarded.
+    (Don't copy '/' '*' '!' and '*' '/' sequences to the preprocessed buffer.)
     Typically, these are special comments '/' '*' '!' ... '*' '/',
     or '/' '*' '!' 'M' 'M' 'm' 'm' 'm' ... '*' '/', where the comment
     markers should not be expanded.
@@ -3537,7 +3557,7 @@ struct st_lex_local: public LEX
 };
 
 
-extern void lex_init(void);
+extern bool lex_init(void);
 extern void lex_free(void);
 extern bool lex_start(THD *thd);
 extern void lex_end(LEX *lex);

@@ -22,12 +22,20 @@
 #include "sp_head.h"                   // sp_head
 #include "sql_class.h"                 // THD
 #include "sql_parse.h"                 // add_to_list
+#include "parse_tree_helpers.h"
+#include "sql_hints.yy.h"
+#include "sql_lex_hints.h"
+#include "sql_yacc.h"
 #include "sql_optimizer.h"             // JOIN
 #include "sql_plugin.h"                // plugin_unlock_list
 #include "sql_show.h"                  // append_identifier
 #include "sql_table.h"                 // primary_key_name
 #include "sql_insert.h"                // Sql_cmd_insert_base
 
+
+extern int HINT_PARSER_parse(THD *thd,
+                             Hint_scanner *scanner,
+                             PT_hint_list **ret);
 
 static int lex_one_token(YYSTYPE *yylval, THD *thd);
 
@@ -79,31 +87,6 @@ Query_tables_list::binlog_stmt_unsafe_errcode[BINLOG_STMT_UNSAFE_COUNT] =
 
 #define TOCK_NAME_LENGTH 24
 
-/*
-  The following data is based on the latin1 character set, and is only
-  used when comparing keywords
-*/
-
-static uchar to_upper_lex[]=
-{
-    0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 14, 15,
-   16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
-   32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47,
-   48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63,
-   64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79,
-   80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95,
-   96, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79,
-   80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90,123,124,125,126,127,
-  128,129,130,131,132,133,134,135,136,137,138,139,140,141,142,143,
-  144,145,146,147,148,149,150,151,152,153,154,155,156,157,158,159,
-  160,161,162,163,164,165,166,167,168,169,170,171,172,173,174,175,
-  176,177,178,179,180,181,182,183,184,185,186,187,188,189,190,191,
-  192,193,194,195,196,197,198,199,200,201,202,203,204,205,206,207,
-  208,209,210,211,212,213,214,215,216,217,218,219,220,221,222,223,
-  192,193,194,195,196,197,198,199,200,201,202,203,204,205,206,207,
-  208,209,210,211,212,213,214,247,216,217,218,219,220,221,222,255
-};
-
 /* 
   Names of the index hints (for error messages). Keep in sync with 
   index_hint_type 
@@ -133,25 +116,91 @@ const char *st_select_lex::type_str[SLT_total]=
 };
 
 
-inline int lex_casecmp(const char *s, const char *t, uint len)
-{
-  while (len-- != 0 &&
-	 to_upper_lex[(uchar) *s++] == to_upper_lex[(uchar) *t++]) ;
-  return (int) len+1;
-}
-
-#include <lex_hash.h> // Must be after lex_casecmp and to_upper_lex
-
-void lex_init(void)
+static bool init_state_maps(CHARSET_INFO *cs)
 {
   uint i;
-  DBUG_ENTER("lex_init");
-  for (i=0 ; i < array_elements(symbols) ; i++)
-    symbols[i].length=(uchar) strlen(symbols[i].name);
-  for (i=0 ; i < array_elements(sql_functions) ; i++)
-    sql_functions[i].length=(uchar) strlen(sql_functions[i].name);
+  uchar *ident_map;
 
-  DBUG_VOID_RETURN;
+  lex_state_maps_st *lex_state_maps=
+    (lex_state_maps_st *) my_once_alloc(sizeof(lex_state_maps_st), MYF(MY_WME));
+
+  if (lex_state_maps == NULL)
+    return true; // OOM
+
+  cs->state_maps= lex_state_maps;
+  my_lex_states *state_map= lex_state_maps->main_map;
+
+  if (!(cs->ident_map= ident_map= (uchar*) my_once_alloc(256, MYF(MY_WME))))
+    return true; // OOM
+
+  hint_lex_init_maps(cs, lex_state_maps->hint_map);
+
+  /* Fill state_map with states to get a faster parser */
+  for (i=0; i < 256 ; i++)
+  {
+    if (my_isalpha(cs,i))
+      state_map[i]= MY_LEX_IDENT;
+    else if (my_isdigit(cs,i))
+      state_map[i]= MY_LEX_NUMBER_IDENT;
+    else if (my_ismb1st(cs, i))
+      /* To get whether it's a possible leading byte for a charset. */
+      state_map[i]= MY_LEX_IDENT;
+    else if (my_isspace(cs,i))
+      state_map[i]= MY_LEX_SKIP;
+    else
+      state_map[i]= MY_LEX_CHAR;
+  }
+  state_map[(uchar)'_']=state_map[(uchar)'$']= MY_LEX_IDENT;
+  state_map[(uchar)'\'']= MY_LEX_STRING;
+  state_map[(uchar)'.']= MY_LEX_REAL_OR_POINT;
+  state_map[(uchar)'>']=state_map[(uchar)'=']=state_map[(uchar)'!']= MY_LEX_CMP_OP;
+  state_map[(uchar)'<']= MY_LEX_LONG_CMP_OP;
+  state_map[(uchar)'&']=state_map[(uchar)'|']= MY_LEX_BOOL;
+  state_map[(uchar)'#']= MY_LEX_COMMENT;
+  state_map[(uchar)';']= MY_LEX_SEMICOLON;
+  state_map[(uchar)':']= MY_LEX_SET_VAR;
+  state_map[0]= MY_LEX_EOL;
+  state_map[(uchar)'\\']= MY_LEX_ESCAPE;
+  state_map[(uchar)'/']= MY_LEX_LONG_COMMENT;
+  state_map[(uchar)'*']= MY_LEX_END_LONG_COMMENT;
+  state_map[(uchar)'@']= MY_LEX_USER_END;
+  state_map[(uchar) '`']= MY_LEX_USER_VARIABLE_DELIMITER;
+  state_map[(uchar)'"']= MY_LEX_STRING_OR_DELIMITER;
+
+  /*
+    Create a second map to make it faster to find identifiers
+  */
+  for (i=0; i < 256 ; i++)
+  {
+    ident_map[i]= (uchar) (state_map[i] == MY_LEX_IDENT ||
+			   state_map[i] == MY_LEX_NUMBER_IDENT);
+  }
+
+  /* Special handling of hex and binary strings */
+  state_map[(uchar)'x']= state_map[(uchar)'X']= MY_LEX_IDENT_OR_HEX;
+  state_map[(uchar)'b']= state_map[(uchar)'B']= MY_LEX_IDENT_OR_BIN;
+  state_map[(uchar)'n']= state_map[(uchar)'N']= MY_LEX_IDENT_OR_NCHAR;
+
+  return false;
+}
+
+
+bool lex_init(void)
+{
+  DBUG_ENTER("lex_init");
+
+  for (CHARSET_INFO **cs= all_charsets;
+       cs < all_charsets + array_elements(all_charsets) - 1 ;
+       cs++)
+  {
+    if (*cs && (*cs)->ctype && is_supported_parser_charset(*cs))
+    {
+      if (init_state_maps(*cs))
+        DBUG_RETURN(true); // OOM
+    }
+  }
+
+  DBUG_RETURN(false);
 }
 
 
@@ -813,11 +862,55 @@ Yacc_state::~Yacc_state()
   }
 }
 
+
+static bool consume_optimizer_hints(Lex_input_stream *lip)
+{
+  const my_lex_states *state_map= lip->query_charset->state_maps->main_map;
+  int whitespace= 0;
+  uchar c= lip->yyPeek();
+  size_t newlines= 0;
+
+  for (; state_map[c] == MY_LEX_SKIP; whitespace++, c= lip->yyPeekn(whitespace))
+  {
+    if (c == '\n')
+      newlines++;
+  }
+
+  if (lip->yyPeekn(whitespace) == '/' && lip->yyPeekn(whitespace + 1) == '*' &&
+      lip->yyPeekn(whitespace + 2) == '+')
+  {
+    lip->yylineno+= newlines;
+    lip->yySkipn(whitespace + 3); // skip whitespace and "/*+"
+
+    Hint_scanner hint_scanner(lip->m_thd, lip->yylineno, lip->get_ptr(),
+                              lip->get_end_of_query() - lip->get_ptr());
+    PT_hint_list *hint_list= NULL;
+    int rc= HINT_PARSER_parse(lip->m_thd, &hint_scanner, &hint_list);
+    if (rc == 2)
+      return true; // OOM
+    else if (rc == 1 && hint_list == NULL)
+      return true; // fatal hint syntax error: open commentary
+    else
+    {
+      lip->yylineno= hint_scanner.get_lineno();
+      lip->yySkipn(hint_scanner.get_ptr() - lip->get_ptr());
+      lip->yylval->optimizer_hints= hint_list;
+      return false; // NULL in case of syntax error
+    }
+  }
+  else
+    return false;
+}
+
+
 static int find_keyword(Lex_input_stream *lip, uint len, bool function)
 {
   const char *tok= lip->get_tok_start();
 
-  SYMBOL *symbol= get_hash_symbol(tok, len, function);
+  const SYMBOL *symbol= function ?
+    Lex_hash::sql_keywords_and_funcs.get_hash_symbol(tok, len) :
+    Lex_hash::sql_keywords.get_hash_symbol(tok, len);
+
   if (symbol)
   {
     lip->yylval->symbol.symbol=symbol;
@@ -830,6 +923,10 @@ static int find_keyword(Lex_input_stream *lip, uint len, bool function)
     if ((symbol->tok == OR_OR_SYM) &&
 	!(lip->m_thd->variables.sql_mode & MODE_PIPES_AS_CONCAT))
       return OR2_SYM;
+
+    lip->yylval->optimizer_hints= NULL;
+    if ((symbol->group & SG_HINTABLE_KEYWORDS) && consume_optimizer_hints(lip))
+      return ABORT_SYM;
 
     return symbol->tok;
   }
@@ -852,7 +949,7 @@ static int find_keyword(Lex_input_stream *lip, uint len, bool function)
 bool is_keyword(const char *name, size_t len)
 {
   DBUG_ASSERT(len != 0);
-  return get_hash_symbol(name,len,0)!=0;
+  return Lex_hash::sql_keywords.get_hash_symbol(name, len) != NULL;
 }
 
 /**
@@ -868,7 +965,8 @@ bool is_keyword(const char *name, size_t len)
 bool is_lex_native_function(const LEX_STRING *name)
 {
   DBUG_ASSERT(name != NULL);
-  return (get_hash_symbol(name->str, (uint) name->length, 1) != 0);
+  return Lex_hash::sql_keywords_and_funcs.get_hash_symbol(name->str,
+      (uint) name->length) != NULL;
 }
 
 /* make a copy of token before ptr and set yytoklen */
@@ -1289,9 +1387,8 @@ int MYSQLlex(YYSTYPE *yylval, YYLTYPE *yylloc, THD *thd)
       return WITH;
     }
     break;
-  default:
-    break;
   }
+
   yylloc->cpp.end= lip->get_cpp_ptr();
   yylloc->raw.end= lip->get_ptr();
   lip->add_digest_token(token, yylval);
@@ -1307,7 +1404,7 @@ static int lex_one_token(YYSTYPE *yylval, THD *thd)
   enum my_lex_states state;
   Lex_input_stream *lip= & thd->m_parser_state->m_lip;
   const CHARSET_INFO *cs= thd->charset();
-  const uchar *state_map= cs->state_map;
+  const my_lex_states *state_map= cs->state_maps->main_map;
   const uchar *ident_map= cs->ident_map;
 
   lip->yylval=yylval;			// The global state
@@ -1332,7 +1429,7 @@ static int lex_one_token(YYSTYPE *yylval, THD *thd)
       /* Start of real token */
       lip->restart_token();
       c= lip->yyGet();
-      state= (enum my_lex_states) state_map[c];
+      state= state_map[c];
       break;
     case MY_LEX_ESCAPE:
       if (lip->yyGet() == 'N')
