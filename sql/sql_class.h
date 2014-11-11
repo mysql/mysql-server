@@ -3016,6 +3016,18 @@ public:
 		      const char *from, size_t from_length,
 		      const CHARSET_INFO *from_cs);
 
+  bool convert_string(LEX_CSTRING *to, const CHARSET_INFO *to_cs,
+		      const char *from, size_t from_length,
+		      const CHARSET_INFO *from_cs)
+  {
+    LEX_STRING tmp;
+    if (convert_string(&tmp, to_cs, from, from_length, from_cs))
+      return true;
+    to->str= tmp.str;
+    to->length= tmp.length;
+    return false;
+  }
+
   bool convert_string(String *s, const CHARSET_INFO *from_cs,
                       const CHARSET_INFO *to_cs);
 

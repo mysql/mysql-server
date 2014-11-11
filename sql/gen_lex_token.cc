@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,7 +21,6 @@
 
 /* We only need the tokens here */
 #define YYSTYPE_IS_DECLARED
-#include <sql_yacc.h>
 #include <lex.h>
 
 #include <welcome_copyright_notice.h> /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
@@ -172,15 +171,9 @@ void compute_tokens()
   */
   for (i= 0; i< sizeof(symbols)/sizeof(symbols[0]); i++)
   {
+    if (!(symbols[i].group & SG_MAIN_PARSER))
+      continue;
     set_token(symbols[i].tok, symbols[i].name);
-  }
-
-  /*
-    See sql_functions[] in sql/lex.h
-  */
-  for (i= 0; i< sizeof(sql_functions)/sizeof(sql_functions[0]); i++)
-  {
-    set_token(sql_functions[i].tok, sql_functions[i].name);
   }
 
   /*
