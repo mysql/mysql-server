@@ -1,4 +1,4 @@
-# Copyright (c) 2011, 2012, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -28,6 +28,7 @@ SET(CMAKE_BINARY_DIR "@CMAKE_BINARY_DIR@")
 SET(CMAKE_GENERATOR "@CMAKE_GENERATOR@")
 SET(CMAKE_SIZEOF_VOID_P "@CMAKE_SIZEOF_VOID_P@")
 SET(BZR_EXECUTABLE "@BZR_EXECUTABLE@")
+SET(GIT_EXECUTABLE "@GIT_EXECUTABLE@")
 SET(CMAKE_CROSSCOMPILING "@CMAKE_CROSSCOMPILING@")
 SET(CMAKE_HOST_SYSTEM "@CMAKE_HOST_SYSTEM@")
 SET(CMAKE_HOST_SYSTEM_PROCESSOR "@CMAKE_HOST_SYSTEM_PROCESSOR@")
@@ -44,7 +45,24 @@ SET(CMAKE_SYSTEM_PROCESSOR "@CMAKE_SYSTEM_PROCESSOR@")
 MACRO(CREATE_INFO_SRC target_dir)
   SET(INFO_SRC "${target_dir}/INFO_SRC")
 
-  IF(BZR_EXECUTABLE AND EXISTS ${CMAKE_SOURCE_DIR}/.bzr)
+  IF(GIT_EXECUTABLE AND EXISTS ${CMAKE_SOURCE_DIR}/.git)
+    # Sources are in a GIT repository: Always update.
+    EXECUTE_PROCESS(
+      COMMAND ${GIT_EXECUTABLE} log -1
+      WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+      OUTPUT_VARIABLE VERSION_INFO
+      RESULT_VARIABLE RESULT
+    )
+    FILE(WRITE ${INFO_SRC} "git log -1: ${VERSION_INFO}\n")
+    EXECUTE_PROCESS(
+      COMMAND ${GIT_EXECUTABLE} branch
+      WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+      OUTPUT_VARIABLE VERSION_INFO
+      RESULT_VARIABLE RESULT
+    )
+    FILE(APPEND ${INFO_SRC} "${VERSION_INFO}\n")
+    FILE(APPEND ${INFO_SRC} "\nMySQL source ${VERSION}\n")
+  ELSEIF(BZR_EXECUTABLE AND EXISTS ${CMAKE_SOURCE_DIR}/.bzr)
     # Sources are in a BZR repository: Always update.
     # Add a timeout in case BZR hangs forever ...
     EXECUTE_PROCESS(
