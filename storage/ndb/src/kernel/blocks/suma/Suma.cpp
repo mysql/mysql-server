@@ -4378,6 +4378,13 @@ Suma::execTRANSID_AI(Signal* signal)
     Uint32 tmp = * src++;
     Uint32 len = AttributeHeader::getDataSize(tmp);
     
+    /**
+     * Separate AttributeHeaders and data in separate
+     * sections
+     * 
+     * Note that len == 0 is legitimate, and can result in 
+     * dataSection == RNIL
+     */
     if (! (appendToSection(headersSection, &tmp, 1) &&
            appendToSection(dataSection, src, len)))
     {
@@ -4386,7 +4393,7 @@ Suma::execTRANSID_AI(Signal* signal)
                                  "");
     }
     src += len;
-  }
+  } 
 
   ndbrequire(src == end);
   ndbrequire(syncPtr.p->m_sourceInstance == RNIL);
@@ -4431,6 +4438,28 @@ void
 Suma::sendScanSubTableData(Signal* signal,
                            Ptr<SyncRecord> syncPtr, Uint32 takeOver)
 {
+  if (unlikely(syncPtr.p->m_dataSection == RNIL))
+  {
+    jam();
+    
+    /* Zero length data section, but receivers expect 
+     * to get something :(
+     * import() currently supports empty sections
+     */
+    Ptr<SectionSegment> emptySection;
+    Uint32 junk = 0;
+    if (!import(emptySection, &junk, 0))
+    {
+      ErrorReporter::handleError(NDBD_EXIT_OUT_OF_LONG_SIGNAL_MEMORY,
+                                 "Out of LongMessageBuffer in SUMA scan",
+                                 "");
+    }
+    syncPtr.p->m_dataSection = emptySection.i;
+  }
+
+  ndbassert(syncPtr.p->m_headersSection != RNIL);
+  ndbassert(syncPtr.p->m_dataSection != RNIL);
+
   /**
    * Send data to subscriber
    */
