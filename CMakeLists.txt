@@ -37,6 +37,9 @@ ENDIF()
 
 MESSAGE(STATUS "Running cmake version ${CMAKE_VERSION}")
 
+# Will set GIT_EXECUTABLE and GIT_FOUND
+FIND_PACKAGE(Git)
+
 SET(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_SOURCE_DIR}/cmake)
 
 # First, decide about build type (debug or release)
