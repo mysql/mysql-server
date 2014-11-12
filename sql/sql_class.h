@@ -3287,11 +3287,13 @@ public:
   }
 
   /**
-    Return the statement or transaction group cache for this thread.
-    @param is_transactional if true, return the transaction group cache.
-    If false, return the statement group cache.
+    Return true if the statement/transaction cache is currently empty,
+    false otherwise.
+
+    @param is_transactional if true, check the transaction cache.
+    If false, check the statement cache.
   */
-  Group_cache *get_group_cache(bool is_transactional);
+  bool is_binlog_cache_empty(bool is_transactional);
 
   /**
     If this thread owns a single GTID, then owned_gtid is set to that
