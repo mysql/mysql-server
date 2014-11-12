@@ -14,6 +14,8 @@ VALGRIND = valgrind -q --leak-check=full --show-reachable=yes --suppressions=$(F
 
 ifeq ($(GCOV),1)
 CXXFLAGS += -fprofile-arcs -ftest-coverage
+else
+CXXFLAGS += -O3
 endif
 
 all: $(TARGETS)
