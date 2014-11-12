@@ -203,7 +203,7 @@ CONCAT('"',CONCAT_WS('";"',repeat('a',60),repeat('b',60),repeat('c',60),repeat('
 "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";"cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc";"dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
 select insert('txs',2,1,'hi'),insert('is ',4,0,'a'),insert('txxxxt',2,4,'es');
 insert('txs',2,1,'hi')	insert('is ',4,0,'a')	insert('txxxxt',2,4,'es')
-this	is a	test
+this	is 	test
 select replace('aaaa','a','b'),replace('aaaa','aa','b'),replace('aaaa','a','bb'),replace('aaaa','','b'),replace('bbbb','a','c');
 replace('aaaa','a','b')	replace('aaaa','aa','b')	replace('aaaa','a','bb')	replace('aaaa','','b')	replace('bbbb','a','c')
 bbbb	bb	bbbbbbbb	aaaa	bbbb
@@ -2435,7 +2435,7 @@ INSERT('abc', 3, 3, '1234')
 ab1234
 SELECT INSERT('abc', 4, 3, '1234');
 INSERT('abc', 4, 3, '1234')
-abc1234
+abc
 SELECT INSERT('abc', 5, 3, '1234');
 INSERT('abc', 5, 3, '1234')
 abc
@@ -2740,7 +2740,7 @@ CREATE TABLE t1 ( a TEXT );
 SELECT 'aaaaaaaaaaaaaa' INTO OUTFILE 'MYSQLTEST_VARDIR/tmp/bug58165.txt';;
 SELECT insert( substring_index( 'a', 'a', 'b' ), 1, 0, 'x' );
 insert( substring_index( 'a', 'a', 'b' ), 1, 0, 'x' )
-x
+
 Warnings:
 Warning	1292	Truncated incorrect INTEGER value: 'b'
 LOAD DATA INFILE 'MYSQLTEST_VARDIR/tmp/bug58165.txt' INTO TABLE t1;;
@@ -4617,6 +4617,53 @@ SELECT * FROM t1 WHERE a=to_base64('a');
 a
 DROP TABLE t1;
 SET NAMES latin1;
+#
+# Bug #11765149 DUPLICATE ENTRY ERROR WHEN DOING GROUP BY
+#
+create table t1(a varchar(20));
+insert into t1 values(''), (' '), ('xxxxxxxxxxxxxxx');
+create table t2(a int);
+insert into t2 values(0),(0),(1),(0),(10),(-2),(30),(NULL);
+select t1.a as str, length(t1.a) as str_length, t2.a as pos, t2.a + 10 as length, insert(t1.a, t2.a, t2.a + 10, '1234567') as 'insert' from t1, t2;
+str	str_length	pos	length	insert
+	0	0	10	
+ 	1	0	10	 
+xxxxxxxxxxxxxxx	15	0	10	xxxxxxxxxxxxxxx
+	0	0	10	
+ 	1	0	10	 
+xxxxxxxxxxxxxxx	15	0	10	xxxxxxxxxxxxxxx
+	0	1	11	
+ 	1	1	11	1234567
+xxxxxxxxxxxxxxx	15	1	11	1234567xxxx
+	0	0	10	
+ 	1	0	10	 
+xxxxxxxxxxxxxxx	15	0	10	xxxxxxxxxxxxxxx
+	0	10	20	
+ 	1	10	20	 
+xxxxxxxxxxxxxxx	15	10	20	xxxxxxxxx1234567
+	0	-2	8	
+ 	1	-2	8	 
+xxxxxxxxxxxxxxx	15	-2	8	xxxxxxxxxxxxxxx
+	0	30	40	
+ 	1	30	40	 
+xxxxxxxxxxxxxxx	15	30	40	xxxxxxxxxxxxxxx
+	0	NULL	NULL	NULL
+ 	1	NULL	NULL	NULL
+xxxxxxxxxxxxxxx	15	NULL	NULL	NULL
+drop table t1,t2;
+#
+# Bug #19174480: INSERT STRING FUNCTIONS RECENTLY CRASHING
+#
+CREATE TABLE t1(a TIMESTAMP(5)) ENGINE=INNODB;
+INSERT INTO t1 VALUES('1978-01-03 00:00:00'),('2000-001-02 00:00:00');
+SELECT 1 FROM t1 GROUP BY insert(a,'1','11','1');
+1
+1
+SELECT insert(a,1,1,1) FROM t1;
+insert(a,1,1,1)
+1978-01-03 00:00:00.00000
+1000-01-02 00:00:00.00000
+DROP TABLE t1;
 #
 # End of 5.6 tests
 #
