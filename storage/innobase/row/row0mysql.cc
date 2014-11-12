@@ -861,7 +861,7 @@ row_create_prebuilt(
 			ut_a(temp_index->n_user_defined_cols
 						== MAX_REF_PARTS););
 		uint temp_len = 0;
-		for (int i = 0; i < temp_index->n_uniq; i++) {
+		for (uint i = 0; i < temp_index->n_uniq; i++) {
 			ulint type = temp_index->fields[i].col->mtype;
 			if (type == DATA_INT) {
 				temp_len +=
@@ -4309,7 +4309,7 @@ row_drop_table_for_mysql(
 	that is going to be dropped. */
 
 	if (table->n_ref_count == 0) {
-		/* We don't take look on intrinsic table so nothing to remove.*/
+		/* We don't take lock on intrinsic table so nothing to remove.*/
 		if (!dict_table_is_intrinsic(table)) {
 			lock_remove_all_on_table(table, TRUE);
 		}
