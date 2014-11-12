@@ -4235,7 +4235,7 @@ bool MYSQL_BIN_LOG::open_binlog(const char *log_name,
     See further comments in the mysqld.
     /Alfranio
   */
-  if (current_thd && gtid_mode > 0)
+  if (current_thd)
   {
     Gtid_set logged_gtids_binlog(global_sid_map, global_sid_lock);
     Gtid_set* previous_logged_gtids;

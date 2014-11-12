@@ -13018,6 +13018,7 @@ Previous_gtids_log_event::Previous_gtids_log_event(const Gtid_set *set)
 {
   DBUG_ENTER("Previous_gtids_log_event::Previous_gtids_log_event(THD *, const Gtid_set *)");
   common_header->type_code= binary_log::PREVIOUS_GTIDS_LOG_EVENT;
+  common_header->flags|= LOG_EVENT_IGNORABLE_F;
   global_sid_lock->assert_some_lock();
   buf_size= set->get_encoded_length();
   uchar *buffer= (uchar *) my_malloc(key_memory_log_event,
