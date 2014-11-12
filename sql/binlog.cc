@@ -1013,45 +1013,68 @@ gtid_before_write_cache(THD* thd, binlog_cache_data* cache_data)
   DBUG_RETURN(error);
 }
 
-/**
-   The function logs an empty group with GTID and performs cleanup.
-   Its logic wrt GTID is equivalent to one of binlog_commit(). 
-   It's called at the end of statement execution in case binlog_commit()
-   was skipped.
-   Such cases are due ineffective binlogging incl an empty group
-   re-execution.
-
-   @param thd   The thread handle
-
-   @return
-    nonzero if an error pops up.
-*/
-int gtid_empty_group_log_and_cleanup(THD *thd)
+int MYSQL_BIN_LOG::gtid_end_transaction(THD *thd)
 {
-  int ret= 1;
-  binlog_cache_data* cache_data= NULL;
-  
-  DBUG_ENTER("gtid_empty_group_log_and_cleanup");
+  DBUG_ENTER("MYSQL_BIN_LOG::gtid_end_transaction");
 
-  Query_log_event qinfo(thd, STRING_WITH_LEN("BEGIN"), TRUE,
-                          FALSE, TRUE, 0, TRUE);
-  DBUG_ASSERT(!qinfo.is_using_immediate_logging());
+  DBUG_PRINT("info", ("query=%s", thd->query().str));
 
-  /*
-    thd->cache_mngr is uninitialized on the first empty transaction.
-  */
-  if (thd->binlog_setup_trx_data())
-    DBUG_RETURN(1);
-  cache_data= &thd_get_cache_mngr(thd)->trx_cache;
-  DBUG_PRINT("debug", ("Writing to trx_cache"));
-  if (cache_data->write_event(thd, &qinfo) ||
-      gtid_before_write_cache(thd, cache_data))
-    goto err;
+  if (thd->owned_gtid.sidno > 0)
+  {
+    DBUG_ASSERT(thd->variables.gtid_next.type == GTID_GROUP);
 
-  ret= mysql_bin_log.commit(thd, true);
+    if (!opt_bin_log || (thd->slave_thread && !opt_log_slave_updates))
+    {
+      /*
+        If the binary log is disabled for this thread (either by
+        log_bin=0 or sql_log_bin=0 or by log_slave_updates=0 for a
+        slave thread), then the statement must not be written to the
+        binary log.  In this case, we just save the GTID into the
+        table directly.
 
-err:
-  DBUG_RETURN(ret);
+        (This only happens for DDL, since DML will save the GTID into
+        table and release ownership inside ha_commit_trans.)
+      */
+      if (gtid_state->save(thd) != 0)
+      {
+        gtid_state->update_on_rollback(thd);
+        DBUG_RETURN(1);
+      }
+      else
+        gtid_state->update_on_commit(thd);
+    }
+    else
+    {
+      /*
+        If statement is supposed to be written to binlog, we write it
+        to the binary log.  Inserting into table and releasing
+        ownership will be done in the binlog commit handler.
+      */
+
+      /*
+        thd->cache_mngr may be uninitialized if the first transaction
+        executed by the client is empty.
+      */
+      if (thd->binlog_setup_trx_data())
+        DBUG_RETURN(1);
+      binlog_cache_data *cache_data= &thd_get_cache_mngr(thd)->trx_cache;
+
+      // Generate BEGIN event
+      Query_log_event qinfo(thd, STRING_WITH_LEN("BEGIN"), TRUE,
+                            FALSE, TRUE, 0, TRUE);
+      DBUG_ASSERT(!qinfo.is_using_immediate_logging());
+
+      /*
+        Write BEGIN event and then commit (which will generate commit
+        event and Gtid_log_event)
+      */
+      DBUG_PRINT("debug", ("Writing to trx_cache"));
+      if (cache_data->write_event(thd, &qinfo) ||
+          mysql_bin_log.commit(thd, true))
+        DBUG_RETURN(1);
+    }
+  }
+  DBUG_RETURN(0);
 }
 
 /**

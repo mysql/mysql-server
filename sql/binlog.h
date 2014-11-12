@@ -649,6 +649,42 @@ public:
     DBUG_ASSERT(is_relay_log);
     previous_gtid_set_relaylog= previous_gtid_set_param;
   }
+  /**
+    If the thread owns a GTID, this function generates an empty
+    transaction and releases ownership of the GTID.
+
+    - If the binary log is disabled for this thread, the GTID is
+      inserted directly into the mysql.gtid_executed table and the
+      GTID is included in @@global.gtid_executed.  (This only happens
+      for DDL, since DML will save the GTID into table and release
+      ownership inside ha_commit_trans.)
+
+    - If the binary log is enabled for this thread, an empty
+      transaction consisting of GTID, BEGIN, COMMIT is written to the
+      binary log, the GTID is included in @@global.gtid_executed, and
+      the GTID is added to the mysql.gtid_executed table on the next
+      binlog rotation.
+
+    This function must be called by any committing statement (COMMIT,
+    implicitly committing statements, or Xid_log_event), after the
+    statement has completed execution, regardless of whether the
+    statement updated the database.
+
+    This logic ensures that an empty transaction is generated for the
+    following cases:
+
+    - Explicit empty transaction:
+      SET GTID_NEXT = 'UUID:NUMBER'; BEGIN; COMMIT;
+
+    - Transaction or DDL that gets completely filtered out in the
+      slave thread.
+
+    @param thd The committing thread
+
+    @retval 0 Success
+    @retval nonzero Error
+  */
+  int gtid_end_transaction(THD *thd);
 private:
   /* The prevoius gtid set in relay log. */
   Gtid_set* previous_gtid_set_relaylog;
@@ -907,7 +943,6 @@ void check_binlog_cache_size(THD *thd);
 void check_binlog_stmt_cache_size(THD *thd);
 bool binlog_enabled();
 void register_binlog_handler(THD *thd, bool trx);
-int gtid_empty_group_log_and_cleanup(THD *thd);
 int query_error_code(THD *thd, bool not_killed);
 
 extern const char *log_bin_index;
