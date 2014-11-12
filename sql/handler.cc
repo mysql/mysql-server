@@ -1530,7 +1530,7 @@ int ha_commit_trans(THD *thd, bool all, bool ignore_global_read_lock)
   */
   if ((!opt_bin_log || (thd->slave_thread && !opt_log_slave_updates)) &&
       (all || !thd->in_multi_stmt_transaction_mode()) &&
-      !thd->owned_gtid.is_empty() && !thd->is_operating_gtid_table)
+      thd->owned_gtid.sidno > 0 && !thd->is_operating_gtid_table)
   {
     error= gtid_state->save(thd);
     need_clear_owned_gtid= true;

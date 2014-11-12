@@ -3296,12 +3296,36 @@ public:
   bool is_binlog_cache_empty(bool is_transactional);
 
   /**
-    If this thread owns a single GTID, then owned_gtid is set to that
-    group.  If this thread does not own any GTID at all,
-    owned_gtid.sidno==0.  If owned_gtid_set contains the set of owned
-    gtids, owned_gtid.sidno==-1.
+    The GTID of the currently owned transaction.
+
+    Initially, owned_gtid.sidno is set to 0.
+
+    For transactions executing with GTID_NEXT='UUID:NUMBER', this is
+    set to the GTID of the transaction when GTID_NEXT is set.
+
+    For transactions executing with GTID_NEXT='ANONYMOUS',
+    owned_gtid.sidno is set to OWNED_SIDNO_ANONYMOUS when GTID_NEXT is
+    set.
+
+    For transactions executing with GTID_NEXT='AUTOMATIC', this
+    remains 0 until the GTID is determined in the transaction flush
+    stage.  If the transaction is a GTID-transaction, it is set to the
+    GTID.  If the transaction is anonymous, owned_gtid.sidno is set to
+    OWNED_SIDNO_ANONYMOUS.
+
+    After storage engine commit, owned_gtid.sidno is set back to 0.
+    For GTID transactions this happens at the same time as the
+    ownership is released.
+
+    The number -1 is currently not used for owned_gtid.sidno.  It was
+    reserved for the case where multiple GTIDs are owned (using
+    gtid_next_list) and owned_gtid_set is used.  This functionality
+    has not been fully implemented.  We use the symbolic constant
+    OWNED_SIDNO_GTID_SET for this.
   */
   Gtid owned_gtid;
+  static const int OWNED_SIDNO_GTID_SET= -1;
+  static const int OWNED_SIDNO_ANONYMOUS= -2;
 
   /**
     For convenience, this contains the SID component of the GTID
@@ -3328,7 +3352,7 @@ public:
 
   void clear_owned_gtids()
   {
-    if (owned_gtid.sidno == -1)
+    if (owned_gtid.sidno == OWNED_SIDNO_GTID_SET)
     {
 #ifdef HAVE_GTID_NEXT_LIST
       owned_gtid_set.clear();

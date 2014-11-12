@@ -2292,9 +2292,10 @@ public:
   {
     DBUG_ENTER("Sys_var_gtid_owned::session_value_ptr");
     char *buf= NULL;
-    if (thd->owned_gtid.sidno == 0)
+    if (thd->owned_gtid.sidno == 0 ||
+        thd->owned_gtid.sidno == THD::OWNED_SIDNO_ANONYMOUS)
       DBUG_RETURN((uchar *)thd->mem_strdup(""));
-    if (thd->owned_gtid.sidno == -1)
+    if (thd->owned_gtid.sidno == THD::OWNED_SIDNO_GTID_SET)
     {
 #ifdef HAVE_GTID_NEXT_LIST
       buf= (char *)thd->alloc(thd->owned_gtid_set.get_string_length() + 1);
@@ -2314,11 +2315,7 @@ public:
     {
       buf= (char *)thd->alloc(Gtid::MAX_TEXT_LENGTH + 1);
       if (buf)
-      {
-        global_sid_lock->rdlock();
-        thd->owned_gtid.to_string(global_sid_map, buf);
-        global_sid_lock->unlock();
-      }
+        thd->owned_gtid.to_string(thd->owned_sid, buf);
       else
         my_error(ER_OUT_OF_RESOURCES, MYF(0));
     }

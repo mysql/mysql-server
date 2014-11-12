@@ -44,6 +44,13 @@ int gtid_acquire_ownership_single(THD *thd)
   DBUG_ENTER("gtid_acquire_ownership_single");
   int ret= 0;
   const Gtid gtid_next= thd->variables.gtid_next.gtid;
+
+  if (thd->variables.gtid_next.type == ANONYMOUS_GROUP)
+  {
+    thd->owned_gtid.sidno= THD::OWNED_SIDNO_ANONYMOUS;
+    DBUG_RETURN(ret);
+  }
+
   DBUG_ASSERT(thd->variables.gtid_next.type == GTID_GROUP);
   DBUG_ASSERT(gtid_next.sidno >= 1);
   DBUG_ASSERT(gtid_next.gno >= 1);
@@ -264,7 +271,8 @@ static inline bool is_already_logged_transaction(const THD *thd)
         DBUG_ASSERT(thd->owned_gtid.equals(gtid_next->gtid));
     }
     else
-      DBUG_ASSERT(thd->owned_gtid.sidno == 0);
+      DBUG_ASSERT(thd->owned_gtid.sidno == 0 ||
+                  thd->owned_gtid.sidno == THD::OWNED_SIDNO_ANONYMOUS);
   }
   else
   {
@@ -359,7 +367,8 @@ enum_gtid_statement_status gtid_pre_statement_checks(THD *thd)
     Gtid_log_event, gtid_next will be converted to ANONYMOUS.
   */
   DBUG_PRINT("info", ("gtid_next->type=%d gtid_mode=%lu", gtid_next->type, gtid_mode));
-  if (gtid_next->type == NOT_YET_DETERMINED_GROUP)
+  if (gtid_next->type == NOT_YET_DETERMINED_GROUP ||
+      (gtid_next->type == ANONYMOUS_GROUP && thd->owned_gtid.sidno == 0))
   {
     if (gtid_mode == GTID_MODE_ON)
     {
@@ -369,12 +378,12 @@ enum_gtid_statement_status gtid_pre_statement_checks(THD *thd)
     DBUG_PRINT("info", ("converting NOT_YET_DETERMINED_GROUP to ANONYMOUS_GROUP"));
 
     gtid_next->set_anonymous();
+    gtid_acquire_ownership_single(thd);
 
 #ifdef HAVE_REPLICATION
     thd->set_currently_executing_gtid_for_slave_thread();
 #endif
   }
-
 
   /*
     If a transaction updates both non-transactional and transactional

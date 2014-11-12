@@ -1074,6 +1074,10 @@ int MYSQL_BIN_LOG::gtid_end_transaction(THD *thd)
         DBUG_RETURN(1);
     }
   }
+  else if (thd->owned_gtid.sidno == THD::OWNED_SIDNO_ANONYMOUS)
+  {
+    thd->clear_owned_gtids();
+  }
   DBUG_RETURN(0);
 }
 

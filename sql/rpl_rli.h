@@ -836,21 +836,21 @@ public:
   }
 
   /**
-     Is the replication inside a group?
+    Is replication inside a group?
 
-     Replication is inside a group if either:
-     - The OPTION_BEGIN flag is set, meaning we're inside a transaction
-     - The RLI_IN_STMT flag is set, meaning we're inside a statement
-     - There is an GTID owned by the thd, meaning we've passed a SET GTID_NEXT
+    Replication is inside a group if either:
+    - The OPTION_BEGIN flag is set, meaning we're inside a transaction
+    - The RLI_IN_STMT flag is set, meaning we're inside a statement
+    - There is a GTID owned by the thd, meaning we've passed a SET GTID_NEXT
 
-     @retval true Replication thread is currently inside a group
-     @retval false Replication thread is currently not inside a group
-   */
+    @retval true Replication thread is currently inside a group
+    @retval false Replication thread is currently not inside a group
+  */
   bool is_in_group() const {
     return (info_thd->variables.option_bits & OPTION_BEGIN) ||
       (m_flags & (1UL << IN_STMT)) ||
       /* If a SET GTID_NEXT was issued we are inside of a group */
-      info_thd->owned_gtid.sidno;
+      info_thd->owned_gtid.sidno != 0;
   }
 
   int count_relay_log_space();
