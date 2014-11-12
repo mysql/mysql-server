@@ -88,7 +88,7 @@ significant bit denotes that the tail of a field is stored off-page. */
 
 /* Number of elements that should be initially allocated for the
 offsets[] array, first passed to rec_get_offsets() */
-#define REC_OFFS_NORMAL_SIZE	OFFS_IN_REC_NORMAL_SIZE	
+#define REC_OFFS_NORMAL_SIZE	OFFS_IN_REC_NORMAL_SIZE
 #define REC_OFFS_SMALL_SIZE	10
 
 /******************************************************//**
