@@ -842,9 +842,11 @@ class Gtid_event: public Binary_log_event
 {
 public:
   /*
-    Last committed as commit parent's sequence number,
-    and the transaction own sequence number.
-   */
+    The transaction's logical timestamps used for MTS: see
+    Transaction_ctx::last_committed and
+    Transaction_ctx::sequence_number for details.
+    Note: Transaction_ctx is in the MySQL server code.
+  */
   long long int last_committed;
   long long int sequence_number;
   /**
@@ -873,8 +875,11 @@ public:
   /**
     It is the minimal constructor which sets the commit_flag.
   */
-  explicit Gtid_event(bool commit_flag_arg)
+  explicit Gtid_event(long long int last_committed_arg,
+                      long long int sequence_number_arg, bool commit_flag_arg)
     : Binary_log_event(GTID_LOG_EVENT),
+      last_committed(last_committed_arg),
+      sequence_number(sequence_number_arg),
       commit_flag(commit_flag_arg)
   {}
 #ifndef HAVE_MYSYS
@@ -900,6 +905,9 @@ public:
     ENCODED_GNO_LENGTH       +  /* GNO length */
     COMMIT_TS_INDEX_LEN      +  /* TYPECODE for G_COMMIT_TS  */
     COMMIT_SEQ_LEN;             /* COMMIT sequence length */
+
+  static const int MAX_EVENT_LENGTH=
+    LOG_EVENT_HEADER_LEN + POST_HEADER_LENGTH;
 };
 
 
