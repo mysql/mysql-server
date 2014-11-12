@@ -25,6 +25,6 @@ class Item;
 template <typename T> class SQL_I_List;
 
 bool mysql_prepare_delete(THD *thd, const TABLE_LIST *delete_table_ref);
-bool mysql_delete(THD *thd, ha_rows rows, ulonglong options);
+bool mysql_delete(THD *thd, ha_rows rows);
 
 #endif /* SQL_DELETE_INCLUDED */

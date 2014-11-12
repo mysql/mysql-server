@@ -9,7 +9,4 @@
 #  Do not use any TAB characters for whitespace.
 #
 ##############################################################################
-perfschema.bad_option_1                  : Bug#12430653 2014-09-10 Anitha Frequent failures on PB2
-perfschema.bad_option_2                  : Bug#12430653 2014-09-10 Anitha Frequent failures on PB2
-perfschema.bad_option_3                  : Bug#12430653 2014-09-10 Anitha Frequent failures on PB2
-perfschema.bad_option_5                  : Bug#12430653 2014-09-10 Anitha Frequent failures on PB2
+# perfschema.pfs_ccccccc                   : Bug#nnnnnnnn 2014-09-10 Anitha Frequent failures on PB2

@@ -69,14 +69,20 @@ bool String::real_alloc(size_t length)
      - If the requested length is less or equal to what fits in the buffer, a
        null character is inserted at the appropriate position.
 
-   - If the String does not keep a private buffer on the heap, such a buffer
-     will be allocated and the string copied accoring to its length, as found
-     in String::length().
+   - If the String does not keep a private buffer on the heap:
+
+      - If the requested length is greater than what fits in the buffer, or
+        force_on_heap is true, a new buffer is allocated, data is copied.
+      - If the requested length is less or equal to what fits in the buffer,
+        and force_on_heap is false, a null character is inserted at the
+        appropriate position.
  
    For C compatibility, the new string buffer is null terminated.
 
    @param alloc_length The requested string size in characters, excluding any
    null terminator.
+   @param force_on_heap If the caller wants String's 'str' buffer to be on the
+   heap in all cases.
 
    @retval false Either the copy operation is complete or, if the size of the
    new buffer is smaller than the currently allocated buffer (if one exists),
@@ -84,14 +90,25 @@ bool String::real_alloc(size_t length)
 
    @retval true An error occured when attempting to allocate memory.
 */
-bool String::mem_realloc(size_t alloc_length)
+bool String::mem_realloc(size_t alloc_length, bool force_on_heap)
 {
   size_t len= ALIGN_SIZE(alloc_length + 1);
   DBUG_ASSERT(len > alloc_length);
   if (len <= alloc_length)
     return true;                                 /* Overflow */
+
+  if (force_on_heap && !m_is_alloced)
+  {
+    /*
+      Caller wants bytes on the heap, and the currently available bytes are
+      not; they are thus irrelevant:
+      */
+    m_alloced_length= 0;
+  }
+
   if (m_alloced_length < len)
   {
+    // Available bytes are not enough.
     char *new_ptr;
     if (m_is_alloced)
     {
@@ -116,6 +133,7 @@ bool String::mem_realloc(size_t alloc_length)
   m_ptr[alloc_length]= 0;			// This make other funcs shorter
   return false;
 }
+
 
 bool String::set_int(longlong num, bool unsigned_flag, const CHARSET_INFO *cs)
 {
@@ -809,17 +827,38 @@ int stringcmp(const String *s,const String *t)
   return (cmp) ? cmp : static_cast<int>(s_len) - static_cast<int>(t_len);
 }
 
+/**
+  Makes a copy of a String's buffer unless it's already heap-allocated.
+
+  If the buffer ('str') of 'from' is on the heap, this function returns
+  'from', possibly re-allocated to be at least from_length bytes long.
+  It is also the case if from==to or to==NULL.
+  Otherwise, this function makes and returns a copy of "from" into "to"; the
+  buffer of "to" is heap-allocated; a pre-condition is that from->str and
+  to->str must point to non-overlapping buffers.
+  The logic behind this complex design, is that a caller, typically a
+  val_str() function, sometimes has an input String ('from') which buffer it
+  wants to modify; but this String's buffer may or not be heap-allocated; if
+  it's not heap-allocated it is possibly in static storage or belongs to an
+  outer context, and thus should not be modified; in that case the caller
+  wants a heap-allocated copy which it can freely modify.
+
+  @param  to    destination string
+  @param  from  source string
+  @param  from_length  destination string will hold at least from_length bytes.
+ */
 
 String *copy_if_not_alloced(String *to,String *from, size_t from_length)
 {
-  if (from->m_alloced_length >= from_length)
+  if (from->m_is_alloced && from->m_alloced_length >= from_length)
     return from;
   if ((from->m_is_alloced && (from->m_alloced_length != 0)) || !to || from == to)
   {
-    (void) from->mem_realloc(from_length);
+    (void) from->mem_realloc(from_length,
+                            true /* force heap allocation */);
     return from;
   }
-  if (to->mem_realloc(from_length))
+  if (to->mem_realloc(from_length, true))
     return from;				// Actually an error
   if ((to->m_length= min(from->m_length, from_length)))
     memcpy(to->m_ptr, from->m_ptr, to->m_length);

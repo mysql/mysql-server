@@ -178,8 +178,8 @@ a foreign key references columns in this table.
 @param[in]	ignore_err	Error to be ignored when loading
 				table and its index definition
 @return table, NULL if does not exist; if the table is stored in an
-.ibd file, but the file does not exist, then we set the
-ibd_file_missing flag to true in the table object we return */
+.ibd file, but the file does not exist, then we set the ibd_file_missing
+flag in the table object we return. */
 dict_table_t*
 dict_load_table(
 	const char*	name,

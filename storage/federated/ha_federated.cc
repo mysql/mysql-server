@@ -1686,6 +1686,14 @@ int ha_federated::close(void)
   
   results.clear();
   
+  /*
+    Check to verify wheather the connection is still alive or not.
+    FLUSH TABLES will quit the connection and if connection is broken,
+    it will reconnect again and quit silently.
+  */
+  if (mysql && !vio_is_connected(mysql->net.vio))
+     mysql->net.error= 2;
+
   /* Disconnect from mysql */
   mysql_close(mysql);
   mysql= NULL;

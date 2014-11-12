@@ -880,9 +880,6 @@ Log_event::Log_event(THD* thd_arg, uint16 flags_arg,
   server_id= thd->server_id;
   unmasked_server_id= server_id;
   when= thd->start_time;
-#ifdef HAVE_REPLICATION
-  init_sql_alloc(PSI_INSTRUMENT_ME, &m_event_mem_root, 4096, 0);
-#endif //HAVE_REPLICATION
 }
 
 /**
@@ -907,9 +904,6 @@ Log_event::Log_event(enum_event_cache_type cache_type_arg,
   when.tv_sec=  0;
   when.tv_usec= 0;
   log_pos=	0;
-#ifdef HAVE_REPLICATION
-  init_sql_alloc(PSI_INSTRUMENT_ME, &m_event_mem_root, 4096, 0);
-#endif //HAVE_REPLICATION
 }
 #endif /* !MYSQL_CLIENT */
 
@@ -927,11 +921,7 @@ Log_event::Log_event(const char* buf,
 {
 #ifndef MYSQL_CLIENT
   thd = 0;
-#ifdef HAVE_REPLICATION
-  init_sql_alloc(PSI_INSTRUMENT_ME, &m_event_mem_root, 4096, 0);
-#endif //HAVE_REPLICATION
 #endif
-
   when.tv_sec= uint4korr(buf);
   when.tv_usec= 0;
   server_id = uint4korr(buf + SERVER_ID_OFFSET);
@@ -10232,8 +10222,7 @@ TABLE_OR_INDEX_HASH_SCAN:
   this->m_key_index= search_key_in_table(table, cols, (PRI_KEY_FLAG | UNIQUE_KEY_FLAG | MULTIPLE_KEY_FLAG));
   this->m_rows_lookup_algorithm= ROW_LOOKUP_HASH_SCAN;
   if (m_key_index < MAX_KEY)
-    m_distinct_key_spare_buf= (uchar*) alloc_root(&m_event_mem_root,
-                                                  table->key_info[m_key_index].key_length);
+    m_distinct_key_spare_buf= (uchar*) thd->alloc(table->key_info[m_key_index].key_length);
   DBUG_PRINT("info", ("decide_row_lookup_algorithm_and_key: decided - HASH_SCAN"));
   goto end;
 
@@ -10764,8 +10753,7 @@ Rows_log_event::add_key_to_distinct_keyset()
   if (ret.second)
   {
     /* Insert is successful, so allocate a new buffer for next key */
-    m_distinct_key_spare_buf= (uchar*) alloc_root(&m_event_mem_root,
-                                                  m_key_info->key_length);
+    m_distinct_key_spare_buf= (uchar*) thd->alloc(m_key_info->key_length);
     if (!m_distinct_key_spare_buf)
     {
       error= HA_ERR_OUT_OF_MEM;
@@ -11475,13 +11463,8 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
       {
         DBUG_ASSERT(ptr->m_tabledef_valid);
         TABLE *conv_table;
-        /*
-          Use special mem_root 'Log_event::m_event_mem_root' while doing
-          compatiblity check (i.e., while creating temporary table)
-         */
         if (!ptr->m_tabledef.compatible_with(thd, const_cast<Relay_log_info*>(rli),
-                                             ptr->table,
-                                             &conv_table,&m_event_mem_root))
+                                             ptr->table, &conv_table))
         {
           DBUG_PRINT("debug", ("Table: %s.%s is not compatible with master",
                                ptr->table->s->db.str,
@@ -11761,13 +11744,26 @@ AFTER_MAIN_EXEC_ROW_LOOP:
     DBUG_RETURN(error);
   }
 
-  if (get_flags(STMT_END_F) && (error= rows_event_stmt_cleanup(rli, thd)))
+  if (get_flags(STMT_END_F))
+  {
+   if((error= rows_event_stmt_cleanup(rli, thd)))
     slave_rows_error_report(ERROR_LEVEL,
                             thd->is_error() ? 0 : error,
                             rli, thd, table,
                             get_type_str(),
                             const_cast<Relay_log_info*>(rli)->get_rpl_log_name(),
                             (ulong) log_pos);
+   /* We are at end of the statement (STMT_END_F flag), lets clean
+     the memory which was used from thd's mem_root now.
+     This needs to be done only if we are here in SQL thread context.
+     In other flow ( in case of a regular thread which can happen
+     when the thread is applying BINLOG'...' row event) we should
+     *not* try to free the memory here. It will be done latter
+     in dispatch_command() after command execution is completed.
+    */
+   if (thd->slave_thread)
+     free_root(thd->mem_root, MYF(MY_KEEP_PREALLOC));
+  }
   DBUG_RETURN(error);
 }
 

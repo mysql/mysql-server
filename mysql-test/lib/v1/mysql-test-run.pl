@@ -1,7 +1,7 @@
 #!/usr/bin/perl
 # -*- cperl -*-
 
-# Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2008, 2014, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -2168,6 +2168,16 @@ sub environment_setup () {
   # Setup env so childs can execute perror  
   # ----------------------------------------------------
   $ENV{'MY_PERROR'}= mtr_native_path($exe_perror);
+
+  # ----------------------------------------------------
+  # mysql_tzinfo_to_sql
+  # ----------------------------------------------------
+  # mysql_tzinfo_to_sql is not used on Windows, but vs_config_dirs
+  # is needed when building with Xcode on OSX
+  my $exe_mysql_tzinfo_to_sql= 
+    mtr_exe_exists(vs_config_dirs('sql', 'mysql_tzinfo_to_sql'),
+                   "$basedir/bin/mysql_tzinfo_to_sql");
+  $ENV{'MYSQL_TZINFO_TO_SQL'}= native_path($exe_mysql_tzinfo_to_sql);
 
   # ----------------------------------------------------
   # Add the path where mysqld will find udf_example.so

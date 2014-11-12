@@ -208,7 +208,7 @@ start_again:
 
 	ib::info() << "Doublewrite buffer not found: creating new";
 
-	ulint min_doublewrite_size = 
+	ulint min_doublewrite_size =
 		( ( 2 * TRX_SYS_DOUBLEWRITE_BLOCK_SIZE
 		  + FSP_EXTENT_SIZE / 2
 		  + 100)
@@ -727,6 +727,10 @@ buf_dblwr_check_block(
 	const buf_block_t*	block)	/*!< in: block to check */
 {
 	ut_ad(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
+
+	if (block->skip_flush_check) {
+		return;
+	}
 
 	/* On uncompressed pages, it is possible that invalid
 	FIL_PAGE_TYPE was left behind by an older version of InnoDB

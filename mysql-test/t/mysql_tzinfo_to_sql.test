@@ -1,11 +1,12 @@
 #------------------------------------------------------------------------------
-# Test mysql_tzinfo_to_sql program
+# Test mysql_tzinfo_to_sql program against bundled zoneinfo files.
 # The mysql_tzinfo_to_sql program loads the time zone tables in the mysql 
 # database. It is used on systems that have a zoneinfo database (the set of 
 # files describing time zones). 
 # Examples of such systems are Linux, FreeBSD, Solaris, and Mac OS X. One 
 # likely location for these files is the /usr/share/zoneinfo directory 
-# (/usr/share/lib/zoneinfo on Solaris)
+# (/usr/share/lib/zoneinfo on Solaris) This test loads zoneinfo files from 
+# std_data/zoneinfo to ensure stability. 
 # usage: 
 # 1] mysql_tzinfo_to_sql tz_dir
 # 2] mysql_tzinfo_to_sql tz_file tz_name
@@ -17,74 +18,8 @@
 --source include/not_windows.inc
 # no embeeded run
 --source include/not_embedded.inc
-# Skip test if zoneinfo folder do not exists on system.
-
-let MYSQL_BASEDIR= `select @@basedir`; 
-
-perl;
-my $dir = $ENV{'MYSQLTEST_VARDIR'};
-open ( OUTPUT, ">$dir/tmp/zoneinfocheck.inc") ;
-@path=();
-# Check zoneinfo folder in default places
-if(-d "/usr/share/zoneinfo"){
-  $path[1] = "/usr/share/zoneinfo";
-}elsif(-d "/usr/share/lib/zoneinfo"){
-  $path[1] = "/usr/share/lib/zoneinfo";
-}else{
-   # check if whereis command knows zoneinfo location
-   system("whereis zoneinfo");
-   if ($?==0) {
-      @path = split (/\s+/, `whereis zoneinfo`);
-   }
-}
-# Wrire variable into file
-if (defined($path[1])) {
-   print OUTPUT "let zoneinfo_path = $path[1];\n";
-   print OUTPUT "let \$zoneinfo_exists = 1;\n";
-   if (-e "$path[1]/Japan") {
-      print OUTPUT "let \$zoneinfo_japan_exists = 1;\n";
-   }
-   if (-d "$path[1]/Europe") {
-      print OUTPUT "let \$zoneinfo_europe_exists = 1;\n";
-   }
-
-}else{
-   print OUTPUT "let \$zoneinfo_exists = 0;\n";
-}
-$binary_file = $ENV{'MYSQL_BASEDIR'}."/bin/mysql_tzinfo_to_sql";
-if (-e $binary_file) {
-    print OUTPUT "let \$binary_exists = 1;\n";
-}else {
-    print OUTPUT "let \$binary_exists = 0;\n";
-}
-close (OUTPUT);
-EOF
-#Read variables set from perl (i.e zoneinfo_exists and zoneinfo_path)
---source  $MYSQLTEST_VARDIR/tmp/zoneinfocheck.inc
-# skip run if binary do not exits
-if (!$binary_exists) {
-   --skip Test requires mysql_tzinfo_to_sql binary in MYSQL_BASEDIR/bin/ path
-}
-# Skip test if zoneinfo folder is not present
-if (!$zoneinfo_exists) {
-   --skip Test requires zoneinfo files on system
-}
-# 
-if (!$zoneinfo_japan_exists) {
-   --skip Test requires Japan zone file on system
-}
-# 
-if (!$zoneinfo_europe_exists) {
-   --skip Test requires Europe zone folder on system
-}
-#Remove the temp file
---remove_file $MYSQLTEST_VARDIR/tmp/zoneinfocheck.inc
-
-let MYSQL_BASEDIR= `select @@basedir`; 
 
 # Create tables zone tables in test_zone database
---disable_warnings
-DROP DATABASE IF EXISTS test_zone;
 CREATE DATABASE test_zone;
 USE test_zone;
 CREATE TABLE time_zone as SELECT * FROM mysql.time_zone WHERE 1 = 0;
@@ -92,55 +27,18 @@ CREATE TABLE time_zone_leap_second as SELECT * FROM mysql.time_zone_leap_second 
 CREATE TABLE time_zone_name as SELECT * FROM mysql.time_zone_name WHERE 1 = 0;
 CREATE TABLE time_zone_transition as SELECT * FROM mysql.time_zone_transition WHERE 1 = 0;
 CREATE TABLE time_zone_transition_type as SELECT * FROM mysql.time_zone_transition_type WHERE 1 = 0;
---enable_warnings
 
---echo # Load zone table for Japanese zones. Pass file as argument.
-perl;
-my $zone_file_for_loading = $ENV{'MYSQLTEST_VARDIR'}."/tmp/loadzonefile.sql";
-my $zone_path = $ENV{'zoneinfo_path'};
-my $binary_path = $ENV{'MYSQL_BASEDIR'}."/bin/mysql_tzinfo_to_sql";;
-system("$binary_path $zone_path/Japan test_japan >$zone_file_for_loading");
-EOF
-
+--echo # Load zone table for Japanese zones. (mysql_tzinfo_to_sql std_data/Japan test_japan).
+--exec $MYSQL_TZINFO_TO_SQL $MYSQLTEST_VARDIR/std_data/Japan test_japan >$MYSQLTEST_VARDIR/tmp/loadzonefile.sql
 --source $MYSQLTEST_VARDIR/tmp/loadzonefile.sql
-SELECT * FROM time_zone;
-SELECT * FROM time_zone_name;
-SELECT * FROM time_zone_leap_second;
-SELECT * FROM time_zone_transition;
-SELECT * FROM time_zone_transition_type;
 
---echo # Load zone table with --leap option((mysql_tzinfo_to_sql --leap <zonepath>/UTC))
-perl;
-my $zone_file_for_loading = $ENV{'MYSQLTEST_VARDIR'}."/tmp/loadzonefile.sql";
-my $zone_path = $ENV{'zoneinfo_path'};
-my $binary_path = $ENV{'MYSQL_BASEDIR'}."/bin/mysql_tzinfo_to_sql";;
-system("$binary_path --leap $zone_path/UTC >$zone_file_for_loading");
-EOF
-
+--echo # Load Moscow zone table with --leap option. (mysql_tzinfo_to_sql --leap std_data/Moscow_leap)
+--exec $MYSQL_TZINFO_TO_SQL --leap $MYSQLTEST_VARDIR/std_data/Moscow_leap >$MYSQLTEST_VARDIR/tmp/loadzonefile.sql
 --source $MYSQLTEST_VARDIR/tmp/loadzonefile.sql
-SELECT * FROM time_zone;
-SELECT * FROM time_zone_name;
-SELECT * FROM time_zone_leap_second;
-SELECT * FROM time_zone_transition;
-SELECT * FROM time_zone_transition_type;
 
---remove_file $MYSQLTEST_VARDIR/tmp/loadzonefile.sql
---echo #Load zone table file using folder(mysql_tzinfo_to_sql <zonepath>/Europe)
-perl;
-my $zone_file_for_loading = $ENV{'MYSQLTEST_VARDIR'}."/tmp/loadzonefile.sql";
-my $zone_path = $ENV{'zoneinfo_path'};
-my $binary_path = $ENV{'MYSQL_BASEDIR'}."/bin/mysql_tzinfo_to_sql";;
-system("$binary_path $zone_path/Europe/  >$zone_file_for_loading");
-if (-z $zone_file_for_loading) {
-   print "mysql_tzinfo_to_sql genereated empty file...!";
-}
-EOF
-# Mask statements as it generates lot of SQL statements
-# source will fail in case of error or command failure
---disable_query_log
+--echo # Load zone table files in Europe folder. (mysql_tzinfo_to_sql std_data/Europe)
+--exec $MYSQL_TZINFO_TO_SQL $MYSQLTEST_VARDIR/std_data/Europe >$MYSQLTEST_VARDIR/tmp/loadzonefile.sql
 --source $MYSQLTEST_VARDIR/tmp/loadzonefile.sql
---enable_query_log
-
 
 # Cleanup
 DROP DATABASE test_zone;

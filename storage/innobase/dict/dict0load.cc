@@ -1052,7 +1052,7 @@ bool
 dict_sys_tables_rec_read(
 	const rec_t*		rec,
 	const table_name_t&	table_name,
-	ulint*			table_id,
+	table_id_t*		table_id,
 	ulint*			space_id,
 	ulint*			n_cols,
 	ulint*			flags,
@@ -1067,7 +1067,7 @@ dict_sys_tables_rec_read(
 	field = rec_get_nth_field_old(
 		rec, DICT_FLD__SYS_TABLES__ID, &len);
 	ut_ad(len == 8);
-	*table_id = static_cast<ulint>(mach_read_from_8(field));
+	*table_id = static_cast<table_id_t>(mach_read_from_8(field));
 
 	field = rec_get_nth_field_old(
 		rec, DICT_FLD__SYS_TABLES__SPACE, &len);
@@ -1176,7 +1176,7 @@ dict_check_sys_tables(
 		const byte*	field;
 		ulint		len;
 		table_name_t	table_name;
-		ulint		table_id;
+		table_id_t	table_id;
 		ulint		space_id;
 		ulint		n_cols;
 		ulint		flags;
@@ -1242,8 +1242,12 @@ dict_check_sys_tables(
 			continue;
 		}
 
-		/*  Use the filepath from the data dictionary if known */
-		char*	filepath = dict_get_first_path(space_id);
+		/*  Use the filepath from the data dictionary if this
+		is a remote file-per-table tablespace. */
+		char*	filepath = NULL;
+		if (DICT_TF_HAS_DATA_DIR(flags)) {
+			filepath = dict_get_first_path(space_id);
+		}
 
 		/* Check that the .ibd file exists. We set the 2nd param
 		(fix_dict = true) here because we already have an x-lock
@@ -2179,7 +2183,7 @@ dict_load_table_low(
 	const rec_t*	rec,
 	dict_table_t**	table)
 {
-	ulint		table_id;
+	table_id_t	table_id;
 	ulint		space_id;
 	ulint		n_cols;
 	ulint		flags;
@@ -2291,8 +2295,8 @@ a foreign key references columns in this table.
 @param[in]	ignore_err	Error to be ignored when loading
 				table and its index definition
 @return table, NULL if does not exist; if the table is stored in an
-.ibd file, but the file does not exist, then we set the
-ibd_file_missing flag to true in the table object we return */
+.ibd file, but the file does not exist, then we set the ibd_file_missing
+flag in the table object we return. */
 dict_table_t*
 dict_load_table(
 	const char*	name,

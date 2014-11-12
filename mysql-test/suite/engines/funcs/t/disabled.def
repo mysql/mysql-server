@@ -1,7 +1,5 @@
 # List of disabled tests
 # test name : comment
-up_multi_db_table : BUG#18449085 disabled this on 2014-04-01 due to failing too often
-up_multi_table : Bug#18449085 disabled this on 2014-04-01 due to failing too often
 rpl_redirect : Fails due to bug#49978
 crash_manycolumns_string : Bug#50495 'Row size too large' for plugin, but works for built-in innodb
 ix_unique_lob : Bug#52283 Innodb reports extra warnings when SELECT/WHERE is performed using invalid value

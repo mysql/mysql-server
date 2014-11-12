@@ -79,21 +79,9 @@ STATUS: EQUAL
 QUERY: DELETE  t1,t2 from t2 left outer join t1  using (n) 
 STATUS: EQUAL
 QUERY: UPDATE t1 left join t2  on t1.a=t2.a set t1.b=2, t2.b=2 where t1.b=1 and t2.b=1 or t2.a is NULL 
-STATUS:NOT_EQUAL
-SYNC_POINT:before_reset_query_plan
-Diff: EXPLAIN NORMAL vs OTHER
-@@ -2,2 +2,2 @@
- 1	UPDATE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
--1	UPDATE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	75.00	Using where; Using join buffer (Block Nested Loop)
-+1	UPDATE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	75.00	Using where
+STATUS: EQUAL
 QUERY: UPDATE t1 LEFT JOIN t2 USING(id) SET s1 = 'b' 
-STATUS:NOT_EQUAL
-SYNC_POINT:before_reset_query_plan
-Diff: EXPLAIN NORMAL vs OTHER
-@@ -2,2 +2,2 @@
- 1	SIMPLE	t1	NULL	index	NULL	PRIMARY	4	NULL	64	100.00	Using index
--1	UPDATE	t2	NULL	ALL	NULL	NULL	NULL	NULL	64	100.00	Using where; Using join buffer (Block Nested Loop)
-+1	UPDATE	t2	NULL	ALL	NULL	NULL	NULL	NULL	64	100.00	Using where
+STATUS: EQUAL
 QUERY: SELECT * from t1 where a = 1 and b is null order by a desc, b desc 
 STATUS: EQUAL
 QUERY: SELECT * from t1 where b=1 or b is null order by a 

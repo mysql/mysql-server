@@ -245,7 +245,7 @@ make_set(3,c1,'ö')	make_set(3,'ö',c1)
 ß,ö	ö,ß
 select insert(c1,1,2,'ö'),insert('ö',1,2,c1) from t1;
 insert(c1,1,2,'ö')	insert('ö',1,2,c1)
-ö	ö
+ö	ß
 select trim(c1 from 'ß'),trim('ß' from c1) from t1;
 trim(c1 from 'ß')	trim('ß' from c1)
 	

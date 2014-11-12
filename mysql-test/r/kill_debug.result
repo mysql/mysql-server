@@ -27,7 +27,7 @@ INSERT INTO g2 VALUES (1,2),(2,3),(4,5);
 UPDATE IGNORE g1,g2 SET g1.b=0 WHERE g1.a=g2.a;
 SET debug= '+d,bug13820776_2';
 UPDATE IGNORE g1,g2 SET g1.b=0 WHERE g1.a=g2.a;
-ERROR HY000: Unknown error
+ERROR 70100: Query execution was interrupted
 SET debug= '-d,bug13820776_2';
 SET debug= '+d,bug13822652_1';
 UPDATE IGNORE g1,g2 SET g1.b=0 WHERE g1.a=g2.a;
