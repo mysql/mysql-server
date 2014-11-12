@@ -119,13 +119,6 @@ class ha_innobase: public handler
 		uint			key_len,
 		ha_rkey_function	find_flag);
 
-	int index_read_idx(
-		uchar*			buf,
-		uint			index,
-		const uchar*		key,
-		uint			key_len,
-		ha_rkey_function	find_flag);
-
 	int index_read_last(uchar * buf, const uchar * key, uint key_len);
 
 	int index_next(uchar * buf);
@@ -178,8 +171,6 @@ class ha_innobase: public handler
 	int reset();
 
 	int external_lock(THD *thd, int lock_type);
-
-	int transactional_table_lock(THD *thd, int lock_type);
 
 	int start_stmt(THD *thd, thr_lock_type lock_type);
 
@@ -238,8 +229,6 @@ class ha_innobase: public handler
 		ulonglong		nb_desired_values,
 		ulonglong*		first_value,
 		ulonglong*		nb_reserved_values);
-
-	int reset_auto_increment(ulonglong value);
 
 	virtual bool get_error_message(int error, String *buf);
 
@@ -354,8 +343,6 @@ private:
 	ulonglong innobase_peek_autoinc();
 
 	dberr_t innobase_set_max_autoinc(ulonglong auto_inc);
-
-	dberr_t innobase_reset_autoinc(ulonglong auto_inc);
 
 	dberr_t innobase_get_autoinc(ulonglong* value);
 

@@ -775,10 +775,6 @@ public:
     NOTE: This cannot be cached since it can depend on TRANSACTION ISOLATION
     LEVEL which is dynamic, see bug#39084.
 
-    HA_READ_RND_SAME:
-    Not currently used. (Means that the handler supports the rnd_same() call)
-    (MyISAM, HEAP)
-
     HA_TABLE_SCAN_ON_INDEX:
     Used to avoid scanning full tables on an index. If this flag is set then
     the handler always has a primary key (hidden if not defined) and this
@@ -1058,7 +1054,6 @@ public:
                                   ulonglong *nb_reserved_values);
   virtual void release_auto_increment();
 private:
-  virtual int reset_auto_increment(ulonglong value);
   virtual void lock_auto_increment()
   {
     /* lock already taken */
@@ -1145,15 +1140,6 @@ public:
     uint keylen)
     { return NULL; }
     virtual int ft_read(uchar *buf) { return HA_ERR_WRONG_COMMAND; }
-  */
-
-  /*
-     -------------------------------------------------------------------------
-     MODULE restart full table scan at position (MyISAM)
-     -------------------------------------------------------------------------
-     The following method is only used by MyISAM when used as
-     temporary tables in a join.
-     virtual int restart_rnd_next(uchar *buf, uchar *pos);
   */
 
   /*
