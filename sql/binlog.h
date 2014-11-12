@@ -774,7 +774,8 @@ public:
   }
 
   int wait_for_update_relay_log(THD* thd, const struct timespec * timeout);
-  int  wait_for_update_bin_log(THD* thd, const struct timespec * timeout);
+  int wait_for_update_bin_log(THD* thd, const struct timespec * timeout);
+  bool do_write_cache(IO_CACHE *cache, class Binlog_event_writer *writer);
 public:
   void init_pthread_objects();
   void cleanup();
@@ -806,9 +807,8 @@ public:
   int new_file(Format_description_log_event *extra_description_event);
 
   bool write_event(Log_event* event_info);
-  bool write_cache(THD *thd, class binlog_cache_data *binlog_cache_data);
-  int  do_write_cache(IO_CACHE *cache,
-                      int64 last_committed, int64 sequence_number);
+  bool write_cache(THD *thd, class binlog_cache_data *binlog_cache_data,
+                   class Binlog_event_writer *writer);
 
   void set_write_error(THD *thd, bool is_transactional);
   bool check_write_error(THD *thd);
