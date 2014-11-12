@@ -457,6 +457,7 @@ public:
   Item *expr_item;
   LEX_STRING expr_str;
   Item *item_free_list;
+  List<Field> base_columns_list;
   generated_column_info() 
   : expr_item(0), item_free_list(0),
     field_type(MYSQL_TYPE_LONG),
