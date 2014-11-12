@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -30,13 +30,6 @@ typedef NdbDictionary::Event  NDBEVENT;
 #define NDB_INVALID_SCHEMA_OBJECT 241
 
 static const char *ha_ndb_ext=".ndb";
-
-#ifdef HAVE_NDB_BINLOG
-#define NDB_EXCEPTIONS_TABLE_SUFFIX "$EX"
-#define NDB_EXCEPTIONS_TABLE_SUFFIX_LOWER "$ex"
-
-const uint error_conflict_fn_violation= 9999;
-#endif /* HAVE_NDB_BINLOG */
 
 extern Ndb_cluster_connection* g_ndb_cluster_connection;
 
