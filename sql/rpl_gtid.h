@@ -2815,16 +2815,6 @@ public:
   enum_add_group_status
     add_logged_group(const THD *thd, my_off_t binlog_offset);
 #endif // ifndef MYSQL_CLIENT
-#ifdef NON_DISABLED_GTID
-  /**
-    Adds an empty group with the given (SIDNO, GNO) to this cache.
-
-    @param gtid The GTID of the group.
-
-    @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
-  */
-  enum_add_group_status add_empty_group(const Gtid &gtid);
-#endif // ifdef NON_DISABLED_GTID
 #ifndef MYSQL_CLIENT
   /**
     Write all gtids in this cache to the global Gtid_state.

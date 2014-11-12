@@ -956,82 +956,6 @@ int binlog_cache_data::write_event(THD *thd, Log_event *ev)
 
 
 /**
-  Checks if the given GTID exists in the Group_cache. If not, add it
-  as an empty group.
-
-  @todo Move this function into the cache class?
-
-  @param thd THD object that owns the Group_cache
-  @param cache_data binlog_cache_data object for the cache
-  @param gtid GTID to check
-*/
-static int write_one_empty_group_to_cache(THD *thd,
-                                          binlog_cache_data *cache_data,
-                                          Gtid gtid)
-{
-  DBUG_ENTER("write_one_empty_group_to_cache");
-  Group_cache *group_cache= &cache_data->group_cache;
-  if (group_cache->contains_gtid(gtid))
-    DBUG_RETURN(0);
-  /*
-    Apparently this code is not being called. We need to
-    investigate if this is a bug or this code is not
-    necessary. /Alfranio
-
-    Empty groups are currently being handled in the function
-    gtid_empty_group_log_and_cleanup().
-  */
-  DBUG_ASSERT(0); /*NOTREACHED*/
-#ifdef NON_ERROR_GTID
-  IO_CACHE *cache= &cache_data->cache_log;
-  Group_cache::enum_add_group_status status= group_cache->add_empty_group(gtid);
-  if (status == Group_cache::ERROR_GROUP)
-    DBUG_RETURN(1);
-  DBUG_ASSERT(status == Group_cache::APPEND_NEW_GROUP);
-  Gtid_specification spec= { GTID_GROUP, gtid };
-  Gtid_log_event gtid_ev(thd, cache_data->is_trx_cache(), &spec);
-  if (gtid_ev.write(cache) != 0)
-    DBUG_RETURN(1);
-#endif
-  DBUG_RETURN(0);
-}
-
-/**
-  Writes all GTIDs that the thread owns to the stmt/trx cache, if the
-  GTID is not already in the cache.
-
-  @todo Move this function into the cache class?
-
-  @param thd THD object for the thread that owns the cache.
-  @param cache_data The cache.
-*/
-static int write_empty_groups_to_cache(THD *thd, binlog_cache_data *cache_data)
-{
-  DBUG_ENTER("write_empty_groups_to_cache");
-  if (thd->owned_gtid.sidno == -1)
-  {
-#ifdef HAVE_GTID_NEXT_LIST
-    Gtid_set::Gtid_iterator git(&thd->owned_gtid_set);
-    Gtid gtid= git.get();
-    while (gtid.sidno != 0)
-    {
-      if (write_one_empty_group_to_cache(thd, cache_data, gtid) != 0)
-        DBUG_RETURN(1);
-      git.next();
-      gtid= git.get();
-    }
-#else
-    DBUG_ASSERT(0);
-#endif
-  }
-  else if (thd->owned_gtid.sidno > 0)
-    if (write_one_empty_group_to_cache(thd, cache_data, thd->owned_gtid) != 0)
-      DBUG_RETURN(1);
-  DBUG_RETURN(0);
-}
-
-
-/**
 
   @todo Move this function into the cache class?
  */
@@ -1058,11 +982,6 @@ gtid_before_write_cache(THD* thd, binlog_cache_data* cache_data)
       global_sid_lock->unlock();
       DBUG_RETURN(1); 
     }
-  }
-  if (write_empty_groups_to_cache(thd, cache_data) != 0)
-  {
-    global_sid_lock->unlock();
-    DBUG_RETURN(1);
   }
 
   global_sid_lock->unlock();
@@ -7507,18 +7426,14 @@ TC_LOG::enum_result MYSQL_BIN_LOG::commit(THD *thd, bool all)
   */
   if (!cache_mngr->stmt_cache.is_binlog_empty())
   {
-    error= write_empty_groups_to_cache(thd, &cache_mngr->stmt_cache);
-    if (error == 0)
-    {
-      /*
-        Commit parent identification of non-transactional query 's
-        been deferred until now, except for the mixed transaction case.
-      */
-      trn_ctx->store_commit_parent(max_committed_transaction.get_timestamp());
-      if (cache_mngr->stmt_cache.finalize(thd))
-        DBUG_RETURN(RESULT_ABORTED);
-      stuff_logged= true;
-    }
+    /*
+      Commit parent identification of non-transactional query has
+      been deferred until now, except for the mixed transaction case.
+    */
+    trn_ctx->store_commit_parent(max_committed_transaction.get_timestamp());
+    if (cache_mngr->stmt_cache.finalize(thd))
+      DBUG_RETURN(RESULT_ABORTED);
+    stuff_logged= true;
   }
 
   /*
