@@ -26,7 +26,7 @@ clean:
 %.check: %
 	LD_LIBRARY_PATH=$(FRACTALTREE_INSTALL_DIR)/lib $(VALGRIND) ./$<
 
-card.check: card_test.check card_1.check card_inf.check card_inf_1.check card_random_1.check card_etime.check
+card.check: $(patsubst %.cc,%.check,$(wildcard card*.cc))
 	true
 
 ifndef USE_OPENMP
@@ -37,7 +37,7 @@ vlq_test_uint64.check: $(foreach i,0 1 2 3 4 5 6 7,vlq_test_uint64_$(i).check)
 	true
 endif
 
-vlq.check: vlq_test.check vlq_test_uint32.check vlq_test_uint64.check
+vlq.check: $(patsubst %.cc,%.check,$(wildcard vlq*.cc))
 	true
 
 max_test.check: max_test

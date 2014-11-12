@@ -110,5 +110,5 @@ public:
 };
 uint get_key_parts(KEY_INFO *key_info) {
     assert(key_info);
-    return 0;
+    return key_info->key_parts;
 }
