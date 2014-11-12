@@ -214,7 +214,12 @@ has been generated since the latest checkpoint */
 void
 log_make_checkpoint_at(
 	lsn_t	lsn,
-	bool	write_always);
+	bool	write_always
+#ifdef HAVE_PSI_STAGE_INTERFACE
+	, PSI_stage_progress*	progress = NULL
+#endif /* HAVE_PSI_STAGE_INTERFACE */
+);
+
 /****************************************************************//**
 Makes a checkpoint at the latest lsn and writes it to first page of each
 data file in the database, so that we know that the file spaces contain

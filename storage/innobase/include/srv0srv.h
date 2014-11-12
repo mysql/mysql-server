@@ -466,6 +466,26 @@ do {								\
 # endif /* UNIV_PFS_THREAD */
 
 #ifdef HAVE_PSI_STAGE_INTERFACE
+/** Performance schema stage event for monitoring ALTER TABLE progress
+everything after flush log_make_checkpoint_at(). */
+extern PSI_stage_info	srv_stage_alter_table_end;
+
+/** Performance schema stage event for monitoring ALTER TABLE progress
+log_make_checkpoint_at(). */
+extern PSI_stage_info	srv_stage_alter_table_flush;
+
+/** Performance schema stage event for monitoring ALTER TABLE progress
+row_merge_insert_index_tuples(). */
+extern PSI_stage_info	srv_stage_alter_table_insert;
+
+/** Performance schema stage event for monitoring ALTER TABLE progress
+row_merge_read_clustered_index(). */
+extern PSI_stage_info	srv_stage_alter_table_read_pk;
+
+/** Performance schema stage event for monitoring ALTER TABLE progress
+row_merge_sort(). */
+extern PSI_stage_info	srv_stage_alter_table_sort;
+
 /** Performance schema stage event for monitoring buffer pool load progress. */
 extern PSI_stage_info	srv_stage_buffer_pool_load;
 #endif /* HAVE_PSI_STAGE_INTERFACE */

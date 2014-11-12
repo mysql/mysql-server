@@ -1350,8 +1350,12 @@ static
 bool
 log_preflush_pool_modified_pages(
 /*=============================*/
-	lsn_t	new_oldest)	/*!< in: try to advance oldest_modified_lsn
+	lsn_t	new_oldest	/*!< in: try to advance oldest_modified_lsn
 				at least to this lsn */
+#ifdef HAVE_PSI_STAGE_INTERFACE
+	, PSI_stage_progress*	progress = NULL
+#endif /* HAVE_PSI_STAGE_INTERFACE */
+)
 {
 	bool	success;
 	ulint	n_pages;
@@ -1369,7 +1373,11 @@ log_preflush_pool_modified_pages(
 		recv_apply_hashed_log_recs(TRUE);
 	}
 
-	success = buf_flush_lists(ULINT_MAX, new_oldest, &n_pages);
+	success = buf_flush_lists(ULINT_MAX, new_oldest, &n_pages
+#ifdef HAVE_PSI_STAGE_INTERFACE
+				  , progress
+#endif /* HAVE_PSI_STAGE_INTERFACE */
+	);
 
 	buf_flush_wait_batch_end(NULL, BUF_FLUSH_LIST);
 
@@ -1793,12 +1801,20 @@ for the latest LSN
 has been generated since the latest checkpoint */
 void
 log_make_checkpoint_at(
-	lsn_t	lsn,
-	bool	write_always)
+	lsn_t			lsn,
+	bool			write_always
+#ifdef HAVE_PSI_STAGE_INTERFACE
+	, PSI_stage_progress*	progress
+#endif /* HAVE_PSI_STAGE_INTERFACE */
+)
 {
 	/* Preflush pages synchronously */
 
-	while (!log_preflush_pool_modified_pages(lsn)) {
+	while (!log_preflush_pool_modified_pages(lsn
+#ifdef HAVE_PSI_STAGE_INTERFACE
+						 , progress
+#endif /* HAVE_PSI_STAGE_INTERFACE */
+	)) {
 		/* Flush as much as we can */
 	}
 
