@@ -58,14 +58,14 @@ enum_return_status Gtid_state::acquire_ownership(THD *thd, const Gtid &gtid)
   global_sid_lock->assert_some_lock();
   gtid_state->assert_sidno_lock_owner(gtid.sidno);
   DBUG_ASSERT(!executed_gtids.contains_gtid(gtid));
-  DBUG_PRINT("info", ("group=%d:%lld", gtid.sidno, gtid.gno));
+  DBUG_PRINT("info", ("gtid=%d:%lld", gtid.sidno, gtid.gno));
   DBUG_ASSERT(thd->owned_gtid.sidno == 0);
   if (owned_gtids.add_gtid_owner(gtid, thd->thread_id()) != RETURN_STATUS_OK)
     goto err;
   if (thd->get_gtid_next_list() != NULL)
   {
 #ifdef HAVE_GTID_NEXT_LIST
-    thd->owned_gtid_set._add_gtid(gtid)
+    thd->owned_gtid_set._add_gtid(gtid);
     thd->owned_gtid.sidno= -1;
     thd->owned_sid.clear();
 #else
@@ -93,9 +93,7 @@ err:
     DBUG_ASSERT(0);
 #endif
   }
-  thd->owned_gtid_set.clear();
-  thd->owned_gtid.sidno= 0;
-  thd->owned_sid.clear();
+  thd->clear_owned_gtids();
   RETURN_REPORTED_ERROR;
 }
 
@@ -147,7 +145,7 @@ void Gtid_state::broadcast_owned_sidnos(const THD *thd)
 void Gtid_state::update_on_commit(THD *thd)
 {
   DBUG_ENTER("Gtid_state::update_on_commit");
-  if (!thd->owned_gtid.is_null())
+  if (!thd->owned_gtid.is_empty())
   {
     global_sid_lock->rdlock();
     if (!opt_bin_log || (thd->slave_thread && !opt_log_slave_updates))
@@ -186,7 +184,7 @@ void Gtid_state::update_on_rollback(THD *thd)
 {
   DBUG_ENTER("Gtid_state::update_on_rollback");
 
-  if (!thd->owned_gtid.is_null())
+  if (!thd->owned_gtid.is_empty())
   {
     if (thd->skip_gtid_rollback)
     {
@@ -501,7 +499,7 @@ int Gtid_state::save(THD *thd)
 {
   DBUG_ENTER("Gtid_state::save(THD *thd)");
   DBUG_ASSERT(gtid_table_persistor != NULL);
-  DBUG_ASSERT(!thd->owned_gtid.is_null());
+  DBUG_ASSERT(!thd->owned_gtid.is_empty());
   int error= 0;
 
   int ret= gtid_table_persistor->save(thd, &thd->owned_gtid);

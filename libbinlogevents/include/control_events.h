@@ -836,40 +836,7 @@ struct Uuid
 
   @section Gtid_event_binary_format Binary Format
 
-  The Body has five components:
-
-  <table>
-  <caption>Body for Gtid_event</caption>
-
-  <tr>
-    <th>Name</th>
-    <th>Format</th>
-    <th>Description</th>
-  </tr>
-
-  </tr>
-  <tr>
-    <td>ENCODED_FLAG_LENGTH</td>
-    <td>4 bytes static const integer</td>
-    <td>Length of the commit_flag in event encoding</td>
-  </tr>
-  <tr>
-    <td>ENCODED_SID_LENGTH</td>
-    <td>4 bytes static const integer</td>
-    <td>Length of SID in event encoding</td>
-  </tr>
-  <tr>
-    <td>ENCODED_GNO_LENGTH</td>
-    <td>4 bytes static const integer</td>
-    <td>Length of GNO in event encoding.</td>
-  </tr>
-  <tr>
-    <td>commit_flag</td>
-    <td>bool</td>
-    <td>True if this is the last group of the transaction</td>
-  </tr>
-  </table>
-
+  @todo
 */
 class Gtid_event: public Binary_log_event
 {

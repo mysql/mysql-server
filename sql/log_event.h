@@ -1120,13 +1120,13 @@ public:
      @return TRUE  if the event starts a group (transaction)
              FASE  otherwise
   */
-  virtual bool starts_group() { return FALSE; }
+  virtual bool starts_group() { return false; }
 
   /**
      @return TRUE  if the event ends a group (transaction)
              FASE  otherwise
   */
-  virtual bool ends_group()   { return FALSE; }
+  virtual bool ends_group()   { return false; }
 
   /**
      Apply the event to the database.
@@ -1893,7 +1893,7 @@ class Xid_log_event: public binary_log::Xid_event, public Log_event
 #ifdef MYSQL_SERVER
   bool write(IO_CACHE* file);
 #endif
-  virtual bool ends_group() { return TRUE; }
+  virtual bool ends_group() { return true; }
 private:
 #if defined(MYSQL_SERVER) && defined(HAVE_REPLICATION)
   virtual int do_apply_event(Relay_log_info const *rli);
@@ -3718,12 +3718,9 @@ extern TYPELIB binlog_checksum_typelib;
 /**
   @class Gtid_log_event
 
-  This is the subclass if Gtid_event and Log_event
-  Each transaction has a coordinate in the form of a pair:
-  GTID = (SID, GNO)
-  GTID stands for Global Transaction IDentifier,
-       SID for Source Identifier, and
-       GNO for Group Number.
+  This is a subclass if Gtid_event and Log_event.  It contains
+  per-transaction fields, including the GTID and logical timestamps
+  used by MTS.
 
   @internal
   The inheritance structure is as follows
@@ -3829,7 +3826,7 @@ public:
 
     @param sid_map The sid_map to use.
     @retval SIDNO if successful.
-    @negative if adding SID to sid_map causes an error.
+    @retval negative if adding SID to sid_map causes an error.
   */
   rpl_sidno get_sidno(Sid_map *sid_map)
   {

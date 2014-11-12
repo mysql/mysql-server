@@ -3307,12 +3307,14 @@ public:
   */
   rpl_sid owned_sid;
 
+#ifdef HAVE_GTID_NEXT_LIST
   /**
     If this thread owns a set of GTIDs (i.e., GTID_NEXT_LIST != NULL),
     then this member variable contains the subset of those GTIDs that
     are owned by this thread.
   */
   Gtid_set owned_gtid_set;
+#endif
 
   /*
    Replication related context.
@@ -3332,7 +3334,7 @@ public:
       DBUG_ASSERT(0);
 #endif
     }
-    owned_gtid.sidno= 0;
+    owned_gtid.clear();
     owned_sid.clear();
   }
 

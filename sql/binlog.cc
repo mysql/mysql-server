@@ -3869,7 +3869,7 @@ bool MYSQL_BIN_LOG::init_gtid_sets(Gtid_set *all_gtids, Gtid_set *lost_gtids,
   }
   if (lost_gtids != NULL && !reached_first_file)
   {
-    DBUG_PRINT("info", ("Iterating forwards through binary logs, looking for the first binary log that contains a Previous_gtids_log_event."));
+    DBUG_PRINT("info", ("Iterating forwards through binary logs, looking for the first binary log that contains both a Previous_gtids_log_event and a Gtid_log_event."));
     for (it= filename_list.begin(); it != filename_list.end(); it++)
     {
       const char *filename= it->c_str();
@@ -3953,7 +3953,7 @@ bool MYSQL_BIN_LOG::open_binlog(const char *log_name,
   // lock_index must be acquired *before* sid_lock.
   DBUG_ASSERT(need_sid_lock || !need_lock_index);
   DBUG_ENTER("MYSQL_BIN_LOG::open_binlog(const char *, ...)");
-  DBUG_PRINT("enter",("name: %s", log_name));
+  DBUG_PRINT("enter",("base filename: %s", log_name));
 
   mysql_mutex_assert_owner(get_log_lock());
 
@@ -3962,6 +3962,8 @@ bool MYSQL_BIN_LOG::open_binlog(const char *log_name,
     sql_print_error("MYSQL_BIN_LOG::open failed to generate new file name.");
     DBUG_RETURN(1);
   }
+
+  DBUG_PRINT("info", ("generated filename: %s", log_file_name));
 
   DEBUG_SYNC(current_thd, "after_log_file_name_initialized");
 
@@ -6395,6 +6397,8 @@ void MYSQL_BIN_LOG::purge()
 }
 
 /**
+  Execute a FLUSH LOGS statement.
+
   The method is a shortcut of @c rotate() and @c purge().
   LOCK_log is acquired prior to rotate and is released after it.
 

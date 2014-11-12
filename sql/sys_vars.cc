@@ -4952,10 +4952,12 @@ static bool check_gtid_next(sys_var *self, THD *thd, set_var *var)
 
 static bool update_gtid_next(sys_var *self, THD *thd, enum_var_type type)
 {
+  DBUG_ENTER("update_gtid_next");
   DBUG_ASSERT(type == OPT_SESSION);
   if (thd->variables.gtid_next.type == GTID_GROUP)
-    return gtid_acquire_ownership_single(thd) != 0 ? true : false;
-  return false;
+    if (gtid_acquire_ownership_single(thd) != 0)
+      DBUG_RETURN(true);
+  DBUG_RETURN(false);
 }
 
 #ifdef HAVE_GTID_NEXT_LIST

@@ -5817,7 +5817,7 @@ void pfs_start_transaction_v1(PSI_transaction_locker *locker,
     pfs->m_state= TRANS_STATE_ACTIVE;
     pfs->m_gtid_set= false;
     pfs->m_sid.clear();
-    pfs->m_gtid_spec.clear();
+    pfs->m_gtid_spec.set_automatic();
   }
 }
 

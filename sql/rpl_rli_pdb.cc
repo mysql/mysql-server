@@ -806,7 +806,7 @@ Slave_worker *map_db_to_worker(const char *dbname, Relay_log_info *rli,
 
   THD *thd= rli->info_thd;
 
-  DBUG_ENTER("get_slave_worker");
+  DBUG_ENTER("map_db_to_worker");
 
   DBUG_ASSERT(!rli->last_assigned_worker ||
               rli->last_assigned_worker == last_worker);
@@ -1189,7 +1189,7 @@ void Slave_worker::slave_worker_ends_group(Log_event* ev, int error)
     */
     Mts_submode_logical_clock* mts_submode=
       static_cast<Mts_submode_logical_clock*>(c_rli->current_mts_submode);
-    longlong min_child_waited_logical_ts=
+    int64 min_child_waited_logical_ts=
       my_atomic_load64(&mts_submode->min_waited_timestamp);
 
     if (error)
@@ -1341,7 +1341,7 @@ bool Slave_committed_queue::count_done(Relay_log_info* rli)
 
     ptr_g= &m_Q[i];
 
-    if (ptr_g->worker_id != (ulong) -1 && ptr_g->done)
+    if (ptr_g->worker_id != MTS_WORKER_UNDEF && ptr_g->done)
       cnt++;
   }
 
@@ -1638,9 +1638,9 @@ static bool may_have_timestamp(Log_event *ev)
   return res;
 }
 
-static longlong get_last_committed(Log_event *ev)
+static int64 get_last_committed(Log_event *ev)
 {
-  longlong res= SEQ_UNINIT;
+  int64 res= SEQ_UNINIT;
 
   switch (ev->get_type_code())
   {
@@ -1659,9 +1659,9 @@ static longlong get_last_committed(Log_event *ev)
   return res;
 }
 
-static longlong get_sequence_number(Log_event *ev)
+static int64 get_sequence_number(Log_event *ev)
 {
-  longlong res= SEQ_UNINIT;
+  int64 res= SEQ_UNINIT;
 
   switch (ev->get_type_code())
   {
@@ -1716,10 +1716,8 @@ int Slave_worker::slave_worker_exec_event(Log_event *ev)
 
     longlong lwm_estimate= static_cast<Mts_submode_logical_clock*>
       (rli->current_mts_submode)->estimate_lwm_timestamp();
-    longlong last_committed, sequence_number;
-
-    last_committed= get_last_committed(ev);
-    sequence_number= get_sequence_number(ev);
+    int64 last_committed= get_last_committed(ev);
+    int64 sequence_number= get_sequence_number(ev);
     /*
       The commit timestamp waiting condition:
 
