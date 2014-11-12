@@ -2290,6 +2290,49 @@ end:
 }
 
 /*
+  Register the base columns of a generated column
+
+  SYNOPSIS
+    register_base_columns()
+    table                Table with the checked field
+    gcol                 Pointer to the chedk field
+
+  RETURN VALUES
+    TRUE            Failure
+    FALSE           Success
+*/
+bool register_base_columns(TABLE *table, Field *gcol)
+{
+  Field *field;
+  MY_BITMAP base_columns;
+  uint fields_buff_size;
+  uint32 *bitbuf;
+  MY_BITMAP *save_old_read_set;
+
+  DBUG_ENTER("register_base_columns");
+  DBUG_ASSERT(gcol->gcol_info);
+  fields_buff_size= bitmap_buffer_size(table->s->fields);
+  bitbuf= (uint32 *)alloc_root(&table->mem_root, fields_buff_size);
+  if (!bitbuf)
+    DBUG_RETURN(TRUE);
+  bitmap_init(&base_columns, bitbuf, table->s->fields, 0);
+  bitmap_clear_all(&base_columns);
+  save_old_read_set= table->read_set;
+  table->read_set= &base_columns;
+
+  gcol->gcol_info->expr_item->walk(&Item::register_field_in_read_map,
+                                           Item::WALK_PREFIX, (uchar *) 0);
+  table->read_set= save_old_read_set;
+  for (uint i=0; i < table->s->fields; i++)
+  {
+    field= table->s->field[i];
+    if (bitmap_is_set(&base_columns, field->field_index))
+      gcol->gcol_info->base_columns_list.push_back(field);
+  }
+  DBUG_RETURN(FALSE);
+}
+
+/*
   Unpack the definition of a virtual column
 
   SYNOPSIS
@@ -2385,6 +2428,8 @@ bool unpack_gcol_info_from_frm(THD *thd,
     field->gcol_info= 0;
     goto parse_err;
   }
+  if (register_base_columns(table, field))
+    goto parse_err;
   thd->stmt_arena= backup_stmt_arena_ptr;
   thd->restore_active_arena(&gcol_arena, &backup_arena);
   field->gcol_info->item_free_list= gcol_arena.free_list;
