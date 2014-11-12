@@ -117,8 +117,14 @@ inline_mysql_end_stage()
 #ifdef HAVE_PSI_STAGE_INTERFACE
 #define mysql_stage_set_work_completed(P1, P2) \
   inline_mysql_stage_set_work_completed(P1, P2)
+
+#define mysql_stage_get_work_completed(P1) \
+  inline_mysql_stage_get_work_completed(P1)
 #else
 #define mysql_stage_set_work_completed(P1, P2) \
+  do {} while (0)
+
+#define mysql_stage_get_work_completed(P1) \
   do {} while (0)
 #endif
 
@@ -133,8 +139,14 @@ inline_mysql_end_stage()
 #ifdef HAVE_PSI_STAGE_INTERFACE
 #define mysql_stage_set_work_estimated(P1, P2) \
   inline_mysql_stage_set_work_estimated(P1, P2)
+
+#define mysql_stage_get_work_estimated(P1) \
+  inline_mysql_stage_get_work_estimated(P1)
 #else
 #define mysql_stage_set_work_estimated(P1, P2) \
+  do {} while (0)
+
+#define mysql_stage_get_work_estimated(P1) \
   do {} while (0)
 #endif
 
@@ -145,6 +157,12 @@ inline_mysql_stage_set_work_completed(PSI_stage_progress *progress,
 {
   if (progress != NULL)
     progress->m_work_completed= val;
+}
+
+static inline ulonglong
+inline_mysql_stage_get_work_completed(PSI_stage_progress *progress)
+{
+  return progress->m_work_completed;
 }
 #endif
 
@@ -165,6 +183,12 @@ inline_mysql_stage_set_work_estimated(PSI_stage_progress *progress,
 {
   if (progress != NULL)
     progress->m_work_estimated= val;
+}
+
+static inline ulonglong
+inline_mysql_stage_get_work_estimated(PSI_stage_progress *progress)
+{
+  return progress->m_work_estimated;
 }
 #endif
 
