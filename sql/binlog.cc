@@ -8383,9 +8383,9 @@ err1:
   return 1;
 }
 
-Group_cache *THD::get_group_cache(bool is_transactional)
+bool THD::is_binlog_cache_empty(bool is_transactional)
 {
-  DBUG_ENTER("THD::get_group_cache(bool)");
+  DBUG_ENTER("THD::is_binlog_cache_empty(bool)");
 
   // If opt_bin_log==0, it is not safe to call thd_get_cache_mngr
   // because binlog_hton has not been completely set up.
@@ -8400,7 +8400,7 @@ Group_cache *THD::get_group_cache(bool is_transactional)
     cache_mngr->get_binlog_cache_data(is_transactional);
   DBUG_ASSERT(cache_data != NULL);
 
-  DBUG_RETURN(&cache_data->group_cache);
+  DBUG_RETURN(cache_data->is_binlog_empty());
 }
 
 /*
