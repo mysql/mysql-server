@@ -889,7 +889,7 @@ inline int Log_event::do_apply_event_worker(Slave_worker *w)
                     if (w->id == 2)
                     {
                       DBUG_SET("-d,crash_in_a_worker");
-                      my_sleep((w->id)*2000000);
+                      my_sleep(2000000);
                       DBUG_SUICIDE();
                     }
                   });
@@ -3284,6 +3284,7 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
 int Log_event::apply_event(Relay_log_info *rli)
 {
   DBUG_ENTER("LOG_EVENT:apply_event");
+  DBUG_PRINT("info", ("event_type=%s", get_type_str()));
   bool parallel= FALSE;
   enum enum_mts_event_exec_mode actual_exec_mode= EVENT_EXEC_PARALLEL;
   THD *rli_thd= rli->info_thd;
@@ -7459,6 +7460,7 @@ void User_var_log_event::print(FILE* file, PRINT_EVENT_INFO* print_event_info)
 #if defined(HAVE_REPLICATION) && !defined(MYSQL_CLIENT)
 int User_var_log_event::do_apply_event(Relay_log_info const *rli)
 {
+  DBUG_ENTER("User_var_log_event::do_apply_event");
   Item *it= 0;
   CHARSET_INFO *charset;
   query_id_t sav_query_id= 0; /* memorize orig id when deferred applying */
@@ -7466,15 +7468,17 @@ int User_var_log_event::do_apply_event(Relay_log_info const *rli)
   if (rli->deferred_events_collecting)
   {
     set_deferred(current_thd->query_id);
-    return rli->deferred_events->add(this);
-  } else if (is_deferred())
+    int ret= rli->deferred_events->add(this);
+    DBUG_RETURN(ret);
+  }
+  else if (is_deferred())
   {
     sav_query_id= current_thd->query_id;
     current_thd->query_id= query_id; /* recreating original time context */
   }
 
   if (!(charset= get_charset(charset_number, MYF(MY_WME))))
-    return 1;
+    DBUG_RETURN(1);
   double real_val;
   longlong int_val;
 
@@ -7517,7 +7521,7 @@ int User_var_log_event::do_apply_event(Relay_log_info const *rli)
     case ROW_RESULT:
     default:
       DBUG_ASSERT(1);
-      return 0;
+      DBUG_RETURN(0);
     }
   }
   Item_func_set_user_var *e=
@@ -7531,7 +7535,7 @@ int User_var_log_event::do_apply_event(Relay_log_info const *rli)
     error.
   */
   if (e->fix_fields(thd, 0))
-    return 1;
+    DBUG_RETURN(1);
 
   /*
     A variable can just be considered as a table with
@@ -7545,7 +7549,7 @@ int User_var_log_event::do_apply_event(Relay_log_info const *rli)
   else
     current_thd->query_id= sav_query_id; /* restore current query's context */
 
-  return 0;
+  DBUG_RETURN(0);
 }
 
 int User_var_log_event::do_update_pos(Relay_log_info *rli)

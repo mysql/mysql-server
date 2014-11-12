@@ -758,12 +758,27 @@ struct Gtid
 
   /// Set both components to 0.
   void clear() { sidno= 0; gno= 0; }
-  // Set both components to input values.
-  void set(rpl_sidno sno, rpl_gno gtidno) { sidno= sno; gno= gtidno; }
-  // check if both components are zero or not.
-  bool empty() const { return (sidno == 0) && (gno == 0); }
-  bool is_null() const
-  { return sidno == 0; }
+  /// Set both components to the given, positive values.
+  void set(rpl_sidno sidno_arg, rpl_gno gno_arg)
+  {
+    DBUG_ASSERT(sidno_arg > 0);
+    DBUG_ASSERT(gno_arg > 0);
+    sidno= sidno_arg;
+    gno= gno_arg;
+  }
+  /**
+    Return true if sidno is zero (and assert that gno is zero too in
+    this case).
+  */
+  bool is_empty() const
+  {
+    // check that gno is not set inconsistently
+    if (sidno <= 0)
+      DBUG_ASSERT(gno == 0);
+    else
+      DBUG_ASSERT(gno > 0);
+    return sidno == 0;
+  }
   /**
     The maximal length of the textual representation of a SID, not
     including the terminating '\0'.
@@ -861,8 +876,8 @@ public:
 
     @param sid_map The Sid_map to use for SIDs.
     @param text The text to parse.
-    @param status Will be set GS_SUCCESS or GS_ERROR_PARSE or
-    GS_ERROR_OUT_OF_MEMORY.
+    @param status Will be set to RETURN_STATUS_OK on success or
+    RETURN_STATUS_REPORTED_ERROR on error.
     @param sid_lock Read/write lock to protect changes in the number
     of SIDs with. This may be NULL if such changes do not need to be
     protected.
@@ -995,7 +1010,7 @@ public:
     of bytes used by the encoding (which may be less than 'length').
     If this is NULL, an error is generated if the encoding is shorter
     than the given 'length'.
-    @return GS_SUCCESS or GS_ERROR_PARSE or GS_ERROR_OUT_OF_MEMORY
+    @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
   */
   enum_return_status add_gtid_encoding(const uchar *encoded, size_t length,
                                        size_t *actual_length= NULL);
@@ -2191,12 +2206,13 @@ public:
   void update_on_rollback(THD *thd);
 #endif // ifndef MYSQL_CLIENT
   /**
-    Allocates a GNO for an automatically numbered group.
+    Computes the next available GNO.
 
-    @param sidno The group's SIDNO.
+    @param sidno The GTID's SIDNO.
 
-    @retval negative the numeric value of GS_ERROR_OUT_OF_MEMORY
-    @retval other The GNO for the group.
+    @retval -1 The range of GNOs was exhausted (i.e., more than 1<<63-1
+    GTIDs with the same UUID have been generated).
+    @retval >0 The GNO for the GTID.
   */
   rpl_gno get_automatic_gno(rpl_sidno sidno) const;
   /// Locks a mutex for the given SIDNO.
@@ -2640,7 +2656,10 @@ struct Gtid_specification
   Gtid gtid;
   /// Set the type to GTID_GROUP and SID, GNO to the given values.
   void set(rpl_sidno sidno, rpl_gno gno)
-  { type= GTID_GROUP; gtid.sidno= sidno; gtid.gno= gno; }
+  {
+    gtid.set(sidno, gno);
+    type= GTID_GROUP;
+  }
   /// Set the type to GTID_GROUP and SID, GNO to the given Gtid.
   void set(const Gtid &gtid_param) { set(gtid_param.sidno, gtid_param.gno); }
   /// Set the type to AUTOMATIC_GROUP.
@@ -2664,8 +2683,6 @@ struct Gtid_specification
     if (type == GTID_GROUP)
       type= UNDEFINED_GROUP;
   }
-  /// Set the type to GTID_GROUP and SID, GNO to 0, 0.
-  void clear() { set(0, 0); }
   /// Return true if this Gtid_specification is equal to 'other'.
   bool equals(const Gtid_specification &other) const
   {

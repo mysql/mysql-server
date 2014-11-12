@@ -12,6 +12,8 @@
 --let $include_filename= rpl_default_connections.inc
 --source include/begin_include_file.inc
 
+--let $_have_default_connections= 1
+
 --let $rpl_connection_name= master
 --let $rpl_server_number= 1
 --source include/rpl_connect.inc

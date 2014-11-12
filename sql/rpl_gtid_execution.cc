@@ -44,6 +44,9 @@ int gtid_acquire_ownership_single(THD *thd)
   DBUG_ENTER("gtid_acquire_ownership_single");
   int ret= 0;
   const Gtid gtid_next= thd->variables.gtid_next.gtid;
+  DBUG_ASSERT(thd->variables.gtid_next.type == GTID_GROUP);
+  DBUG_ASSERT(gtid_next.sidno >= 1);
+  DBUG_ASSERT(gtid_next.gno >= 1);
   while (true)
   {
     global_sid_lock->rdlock();
@@ -66,6 +69,8 @@ int gtid_acquire_ownership_single(THD *thd)
       if (gtid_state->acquire_ownership(thd, gtid_next) != RETURN_STATUS_OK)
         ret= 1;
       thd->owned_gtid= gtid_next;
+      DBUG_ASSERT(thd->owned_gtid.sidno >= 1);
+      DBUG_ASSERT(thd->owned_gtid.gno >= 1);
       break;
     }
     // GTID owned by someone (other thread)
@@ -283,11 +288,8 @@ static inline bool is_already_logged_transaction(const THD *thd)
   Debug code executed when a transaction is skipped.
 
   @param  thd     The calling thread.
-
-  @retval GTID_STATEMENT_SKIP  Indicate that statement should be
-                               skipped by caller.
 */
-static inline enum_gtid_statement_status skip_statement(const THD *thd)
+static inline void skip_statement(const THD *thd)
 {
   DBUG_ENTER("skip_statement");
 
@@ -306,7 +308,7 @@ static inline enum_gtid_statement_status skip_statement(const THD *thd)
   global_sid_lock->unlock();
 #endif
 
-  DBUG_RETURN(GTID_STATEMENT_SKIP);
+  DBUG_VOID_RETURN;
 }
 
 
@@ -356,7 +358,7 @@ enum_gtid_statement_status gtid_pre_statement_checks(THD *thd)
     Gtid_log_event will set the GTID appropriately, but if there is no
     Gtid_log_event, gtid_next will be converted to ANONYMOUS.
   */
-  DBUG_PRINT("info", ("gtid_next->type=%d NOT_YET_DETERMINED_GROUP=%d gtid_mode=%lu", gtid_next->type, NOT_YET_DETERMINED_GROUP, gtid_mode));
+  DBUG_PRINT("info", ("gtid_next->type=%d gtid_mode=%lu", gtid_next->type, gtid_mode));
   if (gtid_next->type == NOT_YET_DETERMINED_GROUP)
   {
     if (gtid_mode == GTID_MODE_ON)
@@ -420,7 +422,10 @@ enum_gtid_statement_status gtid_pre_statement_checks(THD *thd)
   if (gtid_next_list == NULL)
   {
     if (skip_transaction)
-      DBUG_RETURN(skip_statement(thd));
+    {
+      skip_statement(thd);
+      DBUG_RETURN(GTID_STATEMENT_SKIP);
+    }
     DBUG_RETURN(GTID_STATEMENT_EXECUTE);
   }
   else
@@ -434,7 +439,10 @@ enum_gtid_statement_status gtid_pre_statement_checks(THD *thd)
       DBUG_RETURN(GTID_STATEMENT_CANCEL);
     case GTID_GROUP:
       if (skip_transaction)
-        DBUG_RETURN(skip_statement(thd));
+      {
+        skip_statement(thd);
+        DBUG_RETURN(GTID_STATEMENT_SKIP);
+      }
       /*FALLTHROUGH*/
     case ANONYMOUS_GROUP:
       DBUG_RETURN(GTID_STATEMENT_EXECUTE);

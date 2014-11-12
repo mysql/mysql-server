@@ -1135,7 +1135,9 @@ THD::THD(bool enable_plugins)
    debug_sync_control(0),
 #endif /* defined(ENABLED_DEBUG_SYNC) */
    m_enable_plugins(enable_plugins),
+#ifdef HAVE_GTID_NEXT_LIST
    owned_gtid_set(global_sid_map),
+#endif
    main_da(false),
    m_parser_da(false),
    m_stmt_da(&main_da)
@@ -1586,8 +1588,7 @@ void THD::init(void)
   session_tracker.init(this->charset());
   session_tracker.enable(this);
 
-  owned_gtid.sidno= 0;
-  owned_gtid.gno= 0;
+  owned_gtid.clear();
   owned_sid.clear();
 }
 

@@ -6183,7 +6183,8 @@ bool lock_tables(THD *thd, TABLE_LIST *tables, uint count,
       the same statement.
     */
     thd->lex->lock_tables_state= Query_tables_list::LTS_LOCKED;
-    DBUG_RETURN(thd->decide_logging_format(tables));
+    int ret= thd->decide_logging_format(tables);
+    DBUG_RETURN(ret);
   }
 
   /*
@@ -6375,7 +6376,8 @@ bool lock_tables(THD *thd, TABLE_LIST *tables, uint count,
   */
   thd->lex->lock_tables_state= Query_tables_list::LTS_LOCKED;
 
-  DBUG_RETURN(thd->decide_logging_format(tables));
+  int ret= thd->decide_logging_format(tables);
+  DBUG_RETURN(ret);
 }
 
 
