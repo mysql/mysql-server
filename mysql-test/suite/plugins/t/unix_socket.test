@@ -12,11 +12,14 @@ eval install plugin unix_socket soname '$AUTH_SOCKET_SO';
 --echo # with named user
 --echo #
 
---replace_result $USER USER
+--let $replace=create user $USER
+--replace_result $replace "create user USER"
 eval create user $USER identified via unix_socket;
 
 --write_file $MYSQLTEST_VARDIR/tmp/peercred_test.txt
---replace_result $USER USER
+--let $replace1=$USER@localhost
+--let $replace2=$USER@%
+--replace_result $replace1 "USER@localhost" $replace2 "USER@%"
 select user(), current_user(), database();
 EOF
 
@@ -31,7 +34,8 @@ EOF
 --error 1
 --exec $MYSQL_TEST -u foobar --plugin-dir=$plugindir < $MYSQLTEST_VARDIR/tmp/peercred_test.txt
 
---replace_result $USER USER
+--let $replace=drop user $USER
+--replace_result $replace "drop user USER"
 eval drop user $USER;
 
 --echo #

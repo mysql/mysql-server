@@ -16,11 +16,17 @@ change_user $USER;
 
 eval install plugin unix_socket soname '$AUTH_SOCKET_SO';
 
---replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT $USER USER
+# Make sure that the replace works, even if $USER is 'user' or something else
+# that matches other parts of the error message.
+--echo connect(localhost,USER,,test,MASTER_PORT,MASTER_SOCKET);
+--let $replace=Access denied for user '$USER'
+--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT $replace "Access denied for user 'USER'"
+--disable_query_log
 --error ER_ACCESS_DENIED_NO_PASSWORD_ERROR
 connect (fail,localhost,$USER);
+--enable_query_log
 
---replace_result $USER USER
+--replace_result  $replace "Access denied for user 'USER'"
 --error ER_ACCESS_DENIED_NO_PASSWORD_ERROR
 change_user $USER;
 
