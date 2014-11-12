@@ -105,7 +105,11 @@ buf_flush_do_batch(
 	buf_flush_t	type,
 	ulint		min_n,
 	lsn_t		lsn_limit,
-	ulint*		n_processed);
+	ulint*		n_processed
+#ifdef HAVE_PSI_STAGE_INTERFACE
+	, PSI_stage_progress*	progress = NULL
+#endif /* HAVE_PSI_STAGE_INTERFACE */
+);
 
 /*******************************************************************//**
 This utility flushes dirty blocks from the end of the flush list of
@@ -125,9 +129,14 @@ buf_flush_lists(
 					smaller than this should be flushed
 					(if their number does not exceed
 					min_n), otherwise ignored */
-	ulint*		n_processed);	/*!< out: the number of pages
+	ulint*		n_processed	/*!< out: the number of pages
 					which were processed is passed
 					back to caller. Ignored if NULL */
+#ifdef HAVE_PSI_STAGE_INTERFACE
+	, PSI_stage_progress*	progress = NULL
+#endif /* HAVE_PSI_STAGE_INTERFACE */
+);
+
 /******************************************************************//**
 This function picks up a single page from the tail of the LRU
 list, flushes it (if it is dirty), removes it from page_hash and LRU

@@ -49,6 +49,7 @@ Created 11/11/1995 Heikki Tuuri
 #include "trx0sys.h"
 #include "srv0mon.h"
 #include "fsp0sysspace.h"
+#include "ut0stage.h"
 
 /** Number of pages flushed through non flush_list flushes. */
 static ulint buf_lru_flush_page_count = 0;
@@ -1185,7 +1186,11 @@ buf_flush_try_neighbors(
 	const page_id_t&	page_id,
 	buf_flush_t		flush_type,
 	ulint			n_flushed,
-	ulint			n_to_flush)
+	ulint			n_to_flush
+#ifdef HAVE_PSI_STAGE_INTERFACE
+	, PSI_stage_progress*	progress
+#endif /* HAVE_PSI_STAGE_INTERFACE */
+)
 {
 	ulint		i;
 	ulint		low;
@@ -1220,6 +1225,11 @@ buf_flush_try_neighbors(
 			   for contiguous dirty area */
 			if (page_id.page_no() > low) {
 				for (i = page_id.page_no() - 1; i >= low; i--) {
+#ifdef HAVE_PSI_STAGE_INTERFACE
+					if (progress != NULL) {
+						ut_stage_inc(progress);
+					}
+#endif /* HAVE_PSI_STAGE_INTERFACE */
 					if (!buf_flush_check_neighbor(
 						page_id_t(page_id.space(), i),
 						flush_type)) {
@@ -1245,7 +1255,11 @@ buf_flush_try_neighbors(
 				     page_id_t(page_id.space(), i),
 				     flush_type);
 			     i++) {
-				/* do nothing */
+#ifdef HAVE_PSI_STAGE_INTERFACE
+				if (progress != NULL) {
+					ut_stage_inc(progress);
+				}
+#endif /* HAVE_PSI_STAGE_INTERFACE */
 			}
 			high = i;
 		}
@@ -1261,6 +1275,12 @@ buf_flush_try_neighbors(
 			      (unsigned) low, (unsigned) high));
 
 	for (ulint i = low; i < high; i++) {
+
+#ifdef HAVE_PSI_STAGE_INTERFACE
+		if (progress != NULL) {
+			ut_stage_inc(progress);
+		}
+#endif /* HAVE_PSI_STAGE_INTERFACE */
 
 		buf_page_t*	bpage;
 
@@ -1360,8 +1380,12 @@ buf_flush_page_and_try_neighbors(
 					or BUF_FLUSH_LIST */
 	ulint		n_to_flush,	/*!< in: number of pages to
 					flush */
-	ulint*		count)		/*!< in/out: number of pages
+	ulint*		count		/*!< in/out: number of pages
 					flushed */
+#ifdef HAVE_PSI_STAGE_INTERFACE
+	, PSI_stage_progress*	progress = NULL
+#endif /* HAVE_PSI_STAGE_INTERFACE */
+)
 {
 #ifdef UNIV_DEBUG
 	buf_pool_t*	buf_pool = buf_pool_from_bpage(bpage);
@@ -1389,7 +1413,11 @@ buf_flush_page_and_try_neighbors(
 
 		/* Try to flush also all the neighbors */
 		*count += buf_flush_try_neighbors(
-			page_id, flush_type, *count, n_to_flush);
+			page_id, flush_type, *count, n_to_flush
+#ifdef HAVE_PSI_STAGE_INTERFACE
+			, progress
+#endif /* HAVE_PSI_STAGE_INTERFACE */
+		);
 
 		buf_pool_mutex_enter(buf_pool);
 		flushed = TRUE;
@@ -1607,11 +1635,15 @@ buf_do_flush_list_batch(
 					of blocks flushed (it is not
 					guaranteed that the actual
 					number is that big, though) */
-	lsn_t		lsn_limit)	/*!< all blocks whose
+	lsn_t		lsn_limit	/*!< all blocks whose
 					oldest_modification is smaller
 					than this should be flushed (if
 					their number does not exceed
 					min_n) */
+#ifdef HAVE_PSI_STAGE_INTERFACE
+	, PSI_stage_progress*	progress
+#endif /* HAVE_PSI_STAGE_INTERFACE */
+)
 {
 	ulint		count = 0;
 	ulint		scanned = 0;
@@ -1647,7 +1679,11 @@ buf_do_flush_list_batch(
 		bool flushed =
 #endif /* UNIV_DEBUG */
 		buf_flush_page_and_try_neighbors(
-			bpage, BUF_FLUSH_LIST, min_n, &count);
+			bpage, BUF_FLUSH_LIST, min_n, &count
+#ifdef HAVE_PSI_STAGE_INTERFACE
+			, progress
+#endif /* HAVE_PSI_STAGE_INTERFACE */
+		);
 
 		buf_flush_list_mutex_enter(buf_pool);
 
@@ -1699,11 +1735,15 @@ buf_flush_batch(
 	ulint		min_n,		/*!< in: wished minimum mumber of blocks
 					flushed (it is not guaranteed that the
 					actual number is that big, though) */
-	lsn_t		lsn_limit)	/*!< in: in the case of BUF_FLUSH_LIST
+	lsn_t		lsn_limit	/*!< in: in the case of BUF_FLUSH_LIST
 					all blocks whose oldest_modification is
 					smaller than this should be flushed
 					(if their number does not exceed
 					min_n), otherwise ignored */
+#ifdef HAVE_PSI_STAGE_INTERFACE
+        , PSI_stage_progress*	progress = NULL
+#endif /* HAVE_PSI_STAGE_INTERFACE */
+)
 {
 	ulint		count	= 0;
 
@@ -1725,7 +1765,12 @@ buf_flush_batch(
 		count = buf_do_LRU_batch(buf_pool, min_n);
 		break;
 	case BUF_FLUSH_LIST:
-		count = buf_do_flush_list_batch(buf_pool, min_n, lsn_limit);
+		count = buf_do_flush_list_batch(buf_pool, min_n, lsn_limit
+#ifdef HAVE_PSI_STAGE_INTERFACE
+						, progress
+#endif /* HAVE_PSI_STAGE_INTERFACE */
+
+		);
 		break;
 	default:
 		ut_error;
@@ -1873,7 +1918,11 @@ buf_flush_do_batch(
 	buf_flush_t	type,
 	ulint		min_n,
 	lsn_t		lsn_limit,
-	ulint*		n_processed)
+	ulint*		n_processed
+#ifdef HAVE_PSI_STAGE_INTERFACE
+	, PSI_stage_progress*	progress
+#endif /* HAVE_PSI_STAGE_INTERFACE */
+)
 {
 	ulint		page_count;
 
@@ -1887,7 +1936,11 @@ buf_flush_do_batch(
 		return(false);
 	}
 
-	page_count = buf_flush_batch(buf_pool, type, min_n, lsn_limit);
+	page_count = buf_flush_batch(buf_pool, type, min_n, lsn_limit
+#ifdef HAVE_PSI_STAGE_INTERFACE
+				     , progress
+#endif /* HAVE_PSI_STAGE_INTERFACE */
+	);
 
 	buf_flush_end(buf_pool, type);
 
@@ -1916,10 +1969,13 @@ buf_flush_lists(
 					smaller than this should be flushed
 					(if their number does not exceed
 					min_n), otherwise ignored */
-	ulint*		n_processed)	/*!< out: the number of pages
+	ulint*		n_processed	/*!< out: the number of pages
 					which were processed is passed
 					back to caller. Ignored if NULL */
-
+#ifdef HAVE_PSI_STAGE_INTERFACE
+	, PSI_stage_progress*	progress
+#endif /* HAVE_PSI_STAGE_INTERFACE */
+)
 {
 	ulint		i;
 	ulint		n_flushed = 0;
@@ -1949,7 +2005,11 @@ buf_flush_lists(
 					BUF_FLUSH_LIST,
 					min_n,
 					lsn_limit,
-					&page_count)) {
+					&page_count
+#ifdef HAVE_PSI_STAGE_INTERFACE
+					, progress
+#endif /* HAVE_PSI_STAGE_INTERFACE */
+					)) {
 			/* We have two choices here. If lsn_limit was
 			specified then skipping an instance of buffer
 			pool means we cannot guarantee that all pages

@@ -571,6 +571,31 @@ static const ulint	SRV_PURGE_SLOT	= 1;
 static const ulint	SRV_MASTER_SLOT = 0;
 
 #ifdef HAVE_PSI_STAGE_INTERFACE
+/** Performance schema stage event for monitoring ALTER TABLE progress
+everything after flush log_make_checkpoint_at(). */
+PSI_stage_info	srv_stage_alter_table_end
+	= {0, "alter table (end)", PSI_FLAG_STAGE_PROGRESS};
+
+/** Performance schema stage event for monitoring ALTER TABLE progress
+log_make_checkpoint_at(). */
+PSI_stage_info	srv_stage_alter_table_flush
+	= {0, "alter table (flush)", PSI_FLAG_STAGE_PROGRESS};
+
+/** Performance schema stage event for monitoring ALTER TABLE progress
+row_merge_insert_index_tuples(). */
+PSI_stage_info	srv_stage_alter_table_insert
+	= {0, "alter table (insert)", PSI_FLAG_STAGE_PROGRESS};
+
+/** Performance schema stage event for monitoring ALTER TABLE progress
+row_merge_read_clustered_index(). */
+PSI_stage_info	srv_stage_alter_table_read_pk
+	= {0, "alter table (read PK)", PSI_FLAG_STAGE_PROGRESS};
+
+/** Performance schema stage event for monitoring ALTER TABLE progress
+row_merge_sort(). */
+PSI_stage_info	srv_stage_alter_table_sort
+	= {0, "alter table (sort)", PSI_FLAG_STAGE_PROGRESS};
+
 /** Performance schema stage event for monitoring buffer pool load progress. */
 PSI_stage_info	srv_stage_buffer_pool_load
 	= {0, "buffer pool load", PSI_FLAG_STAGE_PROGRESS};

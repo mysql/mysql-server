@@ -24,6 +24,13 @@ Created 12/4/2005 Jan Lindstrom
 Completed by Sunny Bains and Marko Makela
 *******************************************************/
 
+#include <math.h>
+
+#include "my_global.h"
+
+#include "mysql/psi/mysql_stage.h"
+#include "mysql/psi/psi.h"
+
 #include "ha_prototypes.h"
 
 #include "row0merge.h"
@@ -42,6 +49,7 @@ Completed by Sunny Bains and Marko Makela
 #include "btr0bulk.h"
 #include "fsp0sysspace.h"
 #include "ut0new.h"
+#include "ut0stage.h"
 
 /* Ignore posix_fadvise() on those platforms where it does not exist */
 #if defined _WIN32
@@ -275,7 +283,12 @@ row_merge_insert_index_tuples(
 	int			fd,
 	row_merge_block_t*	block,
 	const row_merge_buf_t*	row_buf,
-	BtrBulk*		btr_bulk);
+	BtrBulk*		btr_bulk
+#ifdef HAVE_PSI_STAGE_INTERFACE
+	, PSI_stage_progress*	progress = NULL
+	, ulint			inc_every_nth_rec = 1
+#endif /* HAVE_PSI_STAGE_INTERFACE */
+);
 
 /******************************************************//**
 Encode an index record. */
@@ -1386,6 +1399,23 @@ row_mtuple_cmp(
 		       n_unique, n_unique, *current_mtuple, *prev_mtuple, dup));
 }
 
+/** Estimate total work for an ALTER TABLE.
+@param[in]	pk_n_pages	total number of pages in the clustered index
+@param[in]	n_add_indexes	number of indexes being added
+@return estimated total work in abstract units
+*/
+inline
+uint64_t
+row_merge_estimate_alter_table(
+	ulint	pk_n_pages,
+	ulint	n_add_indexes)
+{
+	return(pk_n_pages
+	       * (1 /* read PK */
+		  + n_add_indexes * 2 /* sort & insert per created index */
+		  + 1 /* flush */));
+}
+
 /********************************************************************//**
 Reads clustered index of the table and create temporary files
 containing the index entries for the indexes to be built.
@@ -1430,7 +1460,12 @@ row_merge_read_clustered_index(
 	bool			skip_pk_sort,/*!< in: whether the new
 						PRIMARY KEY will follow
 						existing order */
-	int*			tmpfd)	/*!< in/out: temporary file handle */
+	int*			tmpfd 	/*!< in/out: temporary file handle */
+#ifdef HAVE_PSI_STAGE_INTERFACE
+	, PSI_stage_progress*	progress
+	, ulint			inc_every_nth_rec
+#endif /* HAVE_PSI_STAGE_INTERFACE */
+	)
 
 {
 	dict_index_t*		clust_index;	/* Clustered index */
@@ -1596,17 +1631,29 @@ row_merge_read_clustered_index(
 		prev_fields = NULL;
 	}
 
+	ulint	n_recs;
+	ulint	n_pages;
+
 	/* Scan the clustered index. */
-	for (;;) {
+	for (n_recs = 0, n_pages = 0; ; n_recs++) {
 		const rec_t*	rec;
 		ulint*		offsets;
 		const dtuple_t*	row;
 		row_ext_t*	ext;
 		page_cur_t*	cur	= btr_pcur_get_page_cur(&pcur);
 
+#ifdef HAVE_PSI_STAGE_INTERFACE
+		if (n_recs % inc_every_nth_rec == 0) {
+			ut_stage_inc(progress);
+		}
+#endif /* HAVE_PSI_STAGE_INTERFACE */
+
 		page_cur_move_to_next(cur);
 
 		if (page_cur_is_after_last(cur)) {
+
+			n_pages++;
+
 			if (UNIV_UNLIKELY(trx_is_interrupted(trx))) {
 				err = DB_INTERRUPTED;
 				trx->error_key_num = 0;
@@ -2209,6 +2256,13 @@ func_exit:
 	ut_free(nonnull);
 
 all_done:
+
+#if 1
+	mysql_stage_set_work_estimated(
+		progress,
+		row_merge_estimate_alter_table(n_pages, n_index));
+#endif
+
 	if (clust_btr_bulk != NULL) {
 		ut_ad(err != DB_SUCCESS);
 		clust_btr_bulk->latch();
@@ -2333,7 +2387,7 @@ wait_again:
 @param N number of the buffer (0 or 1)
 @param INDEX record descriptor
 @param AT_END statement to execute at end of input */
-#define ROW_MERGE_WRITE_GET_NEXT(N, INDEX, AT_END)			\
+#define ROW_MERGE_WRITE_GET_NEXT_LOW(N, INDEX, AT_END)			\
 	do {								\
 		b2 = row_merge_write_rec(&block[2 * srv_sort_buf_size], \
 					 &buf[2], b2,			\
@@ -2354,6 +2408,19 @@ wait_again:
 		}							\
 	} while (0)
 
+#ifdef HAVE_PSI_STAGE_INTERFACE
+#define ROW_MERGE_WRITE_GET_NEXT(N, INDEX, AT_END)			\
+	do {								\
+		if (progress != NULL && cnt % inc_every_nth_rec == 0) {	\
+			ut_stage_inc(progress);				\
+		}							\
+		ROW_MERGE_WRITE_GET_NEXT_LOW(N, INDEX, AT_END);		\
+	} while (0)
+#else /* HAVE_PSI_STAGE_INTERFACE */
+#define ROW_MERGE_WRITE_GET_NEXT(N, INDEX, AT_END)			\
+	ROW_MERGE_WRITE_GET_NEXT_LOW(N, INDEX, AT_END)
+#endif /* HAVE_PSI_STAGE_INTERFACE */
+
 /*************************************************************//**
 Merge two blocks of records on disk and write a bigger block.
 @return DB_SUCCESS or error code */
@@ -2370,7 +2437,12 @@ row_merge_blocks(
 					source list in the file */
 	ulint*			foffs1,	/*!< in/out: offset of second
 					source list in the file */
-	merge_file_t*		of)	/*!< in/out: output file */
+	merge_file_t*		of	/*!< in/out: output file */
+#ifdef HAVE_PSI_STAGE_INTERFACE
+	, PSI_stage_progress*	progress
+	, ulint			inc_every_nth_rec
+#endif /* HAVE_PSI_STAGE_INTERFACE */
+)
 {
 	mem_heap_t*	heap;	/*!< memory heap for offsets0, offsets1 */
 
@@ -2420,6 +2492,8 @@ corrupt:
 		goto corrupt;
 	}
 
+	ulint	cnt = 0;
+
 	while (mrec0 && mrec1) {
 		int cmp = cmp_rec_rec_simple(
 			mrec0, mrec1, offsets0, offsets1,
@@ -2432,6 +2506,7 @@ corrupt:
 			mem_heap_free(heap);
 			DBUG_RETURN(DB_DUPLICATE_KEY);
 		}
+		cnt++;
 	}
 
 merged:
@@ -2439,6 +2514,7 @@ merged:
 		/* append all mrec0 to output */
 		for (;;) {
 			ROW_MERGE_WRITE_GET_NEXT(0, dup->index, goto done0);
+			cnt++;
 		}
 	}
 done0:
@@ -2446,6 +2522,7 @@ done0:
 		/* append all mrec1 to output */
 		for (;;) {
 			ROW_MERGE_WRITE_GET_NEXT(1, dup->index, goto done1);
+			cnt++;
 		}
 	}
 done1:
@@ -2467,7 +2544,12 @@ row_merge_blocks_copy(
 	const merge_file_t*	file,	/*!< in: input file */
 	row_merge_block_t*	block,	/*!< in/out: 3 buffers */
 	ulint*			foffs0,	/*!< in/out: input file offset */
-	merge_file_t*		of)	/*!< in/out: output file */
+	merge_file_t*		of	/*!< in/out: output file */
+#ifdef HAVE_PSI_STAGE_INTERFACE
+	, PSI_stage_progress*	progress
+	, ulint			inc_every_nth_rec
+#endif /* HAVE_PSI_STAGE_INTERFACE */
+)
 {
 	mem_heap_t*	heap;	/*!< memory heap for offsets0, offsets1 */
 
@@ -2507,10 +2589,13 @@ corrupt:
 		goto corrupt;
 	}
 
+	ulint	cnt = 0;
+
 	if (mrec0) {
 		/* append all mrec0 to output */
 		for (;;) {
 			ROW_MERGE_WRITE_GET_NEXT(0, index, goto done0);
+			cnt++;
 		}
 	}
 done0:
@@ -2541,9 +2626,14 @@ row_merge(
 	int*			tmpfd,	/*!< in/out: temporary file handle */
 	ulint*			num_run,/*!< in/out: Number of runs remain
 					to be merged */
-	ulint*			run_offset) /*!< in/out: Array contains the
+	ulint*			run_offset /*!< in/out: Array contains the
 					first offset number for each merge
 					run */
+#ifdef HAVE_PSI_STAGE_INTERFACE
+	, PSI_stage_progress*	progress
+	, ulint			inc_every_nth_iter
+#endif /* HAVE_PSI_STAGE_INTERFACE */
+)
 {
 	ulint		foffs0;	/*!< first input offset */
 	ulint		foffs1;	/*!< second input offset */
@@ -2586,7 +2676,12 @@ row_merge(
 		run_offset[n_run++] = of.offset;
 
 		error = row_merge_blocks(dup, file, block,
-					 &foffs0, &foffs1, &of);
+					 &foffs0, &foffs1, &of
+#ifdef HAVE_PSI_STAGE_INTERFACE
+					 , progress
+					 , inc_every_nth_iter
+#endif /* HAVE_PSI_STAGE_INTERFACE */
+		);
 
 		if (error != DB_SUCCESS) {
 			return(error);
@@ -2605,7 +2700,12 @@ row_merge(
 		run_offset[n_run++] = of.offset;
 
 		if (!row_merge_blocks_copy(dup->index, file, block,
-					   &foffs0, &of)) {
+					   &foffs0, &of
+#ifdef HAVE_PSI_STAGE_INTERFACE
+					   , progress
+					   , inc_every_nth_iter
+#endif /* HAVE_PSI_STAGE_INTERFACE */
+		)) {
 			return(DB_CORRUPTION);
 		}
 	}
@@ -2621,7 +2721,12 @@ row_merge(
 		run_offset[n_run++] = of.offset;
 
 		if (!row_merge_blocks_copy(dup->index, file, block,
-					   &foffs1, &of)) {
+					   &foffs1, &of
+#ifdef HAVE_PSI_STAGE_INTERFACE
+					   , progress
+					   , inc_every_nth_iter
+#endif /* HAVE_PSI_STAGE_INTERFACE */
+		)) {
 			return(DB_CORRUPTION);
 		}
 	}
@@ -2667,7 +2772,12 @@ row_merge_sort(
 	merge_file_t*		file,	/*!< in/out: file containing
 					index entries */
 	row_merge_block_t*	block,	/*!< in/out: 3 buffers */
-	int*			tmpfd)	/*!< in/out: temporary file handle */
+	int*			tmpfd	/*!< in/out: temporary file handle */
+#ifdef HAVE_PSI_STAGE_INTERFACE
+	, PSI_stage_progress*	progress
+	, ulint			inc_every_nth_rec
+#endif /* HAVE_PSI_STAGE_INTERFACE */
+)
 {
 	const ulint	half	= file->offset / 2;
 	ulint		num_runs;
@@ -2694,10 +2804,18 @@ row_merge_sort(
 	of file marker).  Thus, it must be at least one block. */
 	ut_ad(file->offset > 0);
 
+	const ulint	inc_every_nth_iter = inc_every_nth_rec
+		* static_cast<ulint>(round(log2(file->offset)));
+
 	/* Merge the runs until we have one big run */
 	do {
 		error = row_merge(trx, dup, file, block, tmpfd,
-				  &num_runs, run_offset);
+				  &num_runs, run_offset
+#ifdef HAVE_PSI_STAGE_INTERFACE
+				  , progress
+				  , inc_every_nth_iter
+#endif /* HAVE_PSI_STAGE_INTERFACE */
+		);
 
 		if (error != DB_SUCCESS) {
 			break;
@@ -2815,7 +2933,12 @@ row_merge_insert_index_tuples(
 	int			fd,
 	row_merge_block_t*	block,
 	const row_merge_buf_t*	row_buf,
-	BtrBulk*		btr_bulk)
+	BtrBulk*		btr_bulk
+#ifdef HAVE_PSI_STAGE_INTERFACE
+	, PSI_stage_progress*	progress
+	, ulint			inc_every_nth_rec
+#endif /* HAVE_PSI_STAGE_INTERFACE */
+)
 {
 	const byte*		b;
 	mem_heap_t*		heap;
@@ -2870,13 +2993,18 @@ row_merge_insert_index_tuples(
 		}
 	}
 
-
-	for (;;) {
+	for (ulint i = 0; ; i++) {
 		const mrec_t*	mrec;
 		ulint		n_ext;
 		mtr_t		mtr;
 
-		 if (row_buf != NULL) {
+#ifdef HAVE_PSI_STAGE_INTERFACE
+		if (i % inc_every_nth_rec == 0) {
+			ut_stage_inc(progress);
+		}
+#endif /* HAVE_PSI_STAGE_INTERFACE */
+
+		if (row_buf != NULL) {
 			if (n_rows >= row_buf->n_tuples) {
 				break;
 			}
@@ -3925,8 +4053,12 @@ row_merge_build_indexes(
 					ULINT_UNDEFINED if none is added */
 	ib_sequence_t&	sequence,	/*!< in: autoinc instance if
 					add_autoinc != ULINT_UNDEFINED */
-	bool		skip_pk_sort)   /*!< in: whether the new PRIMARY KEY
+	bool		skip_pk_sort	/*!< in: whether the new PRIMARY KEY
 					will follow existing order */
+#ifdef HAVE_PSI_STAGE_INTERFACE
+	, PSI_stage_progress**	progress
+#endif /* HAVE_PSI_STAGE_INTERFACE */
+)
 {
 	merge_file_t*		merge_files;
 	row_merge_block_t*	block;
@@ -3945,6 +4077,22 @@ row_merge_build_indexes(
 	ut_ad(!srv_read_only_mode);
 	ut_ad((old_table == new_table) == !col_map);
 	ut_ad(!add_cols || col_map);
+
+#ifdef HAVE_PSI_STAGE_INTERFACE
+	*progress = mysql_set_stage(srv_stage_alter_table_read_pk.m_key);
+
+	const ulint		inc_every_nth_rec
+		= std::max(1UL,
+			   old_table->stat_n_rows
+			   / old_table->stat_clustered_index_size);
+#endif /* HAVE_PSI_STAGE_INTERFACE */
+
+	mysql_stage_set_work_estimated(
+		*progress,
+		row_merge_estimate_alter_table(
+			old_table->stat_clustered_index_size,
+			n_indexes));
+	mysql_stage_set_work_completed(*progress, 0);
 
 	/* Allocate memory for merge file data structure and initialize
 	fields */
@@ -4011,7 +4159,12 @@ row_merge_build_indexes(
 		trx, table, old_table, new_table, online, indexes,
 		fts_sort_idx, psort_info, merge_files, key_numbers,
 		n_indexes, add_cols, col_map, add_autoinc, sequence,
-		block, skip_pk_sort, &tmpfd);
+		block, skip_pk_sort, &tmpfd
+#ifdef HAVE_PSI_STAGE_INTERFACE
+		, *progress
+		, inc_every_nth_rec
+#endif /* HAVE_PSI_STAGE_INTERFACE */
+	);
 
 	if (error != DB_SUCCESS) {
 
@@ -4099,18 +4252,38 @@ wait_again:
 			row_merge_dup_t	dup = {
 				sort_idx, table, col_map, 0};
 
+#ifdef HAVE_PSI_STAGE_INTERFACE
+			ut_stage_change(progress,
+					&srv_stage_alter_table_sort);
+#endif /* HAVE_PSI_STAGE_INTERFACE */
+
 			error = row_merge_sort(
 				trx, &dup, &merge_files[i],
-				block, &tmpfd);
+				block, &tmpfd
+#ifdef HAVE_PSI_STAGE_INTERFACE
+				, *progress
+				, inc_every_nth_rec
+#endif /* HAVE_PSI_STAGE_INTERFACE */
+			);
 
 			if (error == DB_SUCCESS) {
 				BtrBulk	btr_bulk(sort_idx, trx->id);
 				btr_bulk.init();
 
+#ifdef HAVE_PSI_STAGE_INTERFACE
+			ut_stage_change(progress,
+					&srv_stage_alter_table_insert);
+#endif /* HAVE_PSI_STAGE_INTERFACE */
+
 				error = row_merge_insert_index_tuples(
 					trx->id, sort_idx, old_table,
 					merge_files[i].fd, block, NULL,
-					&btr_bulk);
+					&btr_bulk
+#ifdef HAVE_PSI_STAGE_INTERFACE
+					, *progress
+					, inc_every_nth_rec
+#endif /* HAVE_PSI_STAGE_INTERFACE */
+				);
 
 				error = btr_bulk.finish(error);
 			}
@@ -4213,7 +4386,15 @@ func_exit:
 	DBUG_EXECUTE_IF("ib_index_crash_after_bulk_load", DBUG_SUICIDE(););
 
 	if (error == DB_SUCCESS) {
-		log_make_checkpoint_at(LSN_MAX, TRUE);
+#ifdef HAVE_PSI_STAGE_INTERFACE
+		ut_stage_change(progress, &srv_stage_alter_table_flush);
+#endif /* HAVE_PSI_STAGE_INTERFACE */
+
+		log_make_checkpoint_at(LSN_MAX, TRUE
+#ifdef HAVE_PSI_STAGE_INTERFACE
+				       , *progress
+#endif /* HAVE_PSI_STAGE_INTERFACE */
+		);
 	}
 
 	DBUG_RETURN(error);

@@ -49,6 +49,7 @@ Smart ALTER TABLE
 #include "row0sel.h"
 #include "ha_innodb.h"
 #include "ut0new.h"
+#include "ut0stage.h"
 
 /** Operations for creating secondary indexes (no rebuild needed) */
 static const Alter_inplace_info::HA_ALTER_FLAGS INNOBASE_ONLINE_CREATE
@@ -4594,7 +4595,17 @@ ok_exit:
 		ctx->online,
 		ctx->add_index, ctx->add_key_numbers, ctx->num_to_add_index,
 		altered_table, ctx->add_cols, ctx->col_map,
-		ctx->add_autoinc, ctx->sequence, ctx->skip_pk_sort);
+		ctx->add_autoinc, ctx->sequence, ctx->skip_pk_sort
+#ifdef HAVE_PSI_STAGE_INTERFACE
+		, &ha_alter_info->alter_info->progress
+#endif /* HAVE_PSI_STAGE_INTERFACE */
+		);
+
+#ifdef HAVE_PSI_STAGE_INTERFACE
+	ut_stage_change(&ha_alter_info->alter_info->progress,
+			&srv_stage_alter_table_end);
+#endif /* HAVE_PSI_STAGE_INTERFACE */
+
 #ifndef DBUG_OFF
 oom:
 #endif /* !DBUG_OFF */
@@ -4609,6 +4620,8 @@ oom:
 	DBUG_EXECUTE_IF("create_index_fail",
 			error = DB_DUPLICATE_KEY;
 			m_prebuilt->trx->error_key_num = ULINT_UNDEFINED;);
+
+	mysql_end_stage();
 
 	/* After an error, remove all those index definitions
 	from the dictionary which were defined. */
@@ -6207,19 +6220,29 @@ ha_innobase::commit_inplace_alter_table(
 
 	DEBUG_SYNC_C("innodb_commit_inplace_alter_table_wait");
 
+#ifdef HAVE_PSI_STAGE_INTERFACE
+	if (ha_alter_info->alter_info->progress != NULL) {
+		ut_stage_change(&ha_alter_info->alter_info->progress,
+				&srv_stage_alter_table_end);
+	}
+#endif /* HAVE_PSI_STAGE_INTERFACE */
+
 	if (!commit) {
 		/* A rollback is being requested. So far we may at
 		most have created some indexes. If any indexes were to
 		be dropped, they would actually be dropped in this
 		method if commit=true. */
-		DBUG_RETURN(rollback_inplace_alter_table(
-				    ha_alter_info, table, m_prebuilt));
+		const bool	ret = rollback_inplace_alter_table(
+			ha_alter_info, table, m_prebuilt);
+		mysql_end_stage();
+		DBUG_RETURN(ret);
 	}
 
 	if (!(ha_alter_info->handler_flags & ~INNOBASE_INPLACE_IGNORE)) {
 		DBUG_ASSERT(!ctx0);
 		MONITOR_ATOMIC_DEC(MONITOR_PENDING_ALTER_TABLE);
 		ha_alter_info->group_commit_ctx = NULL;
+		mysql_end_stage();
 		DBUG_RETURN(false);
 	}
 
@@ -6276,6 +6299,7 @@ ha_innobase::commit_inplace_alter_table(
 		if (error != DB_SUCCESS) {
 			my_error_innodb(
 				error, table_share->table_name.str, 0);
+			mysql_end_stage();
 			DBUG_RETURN(true);
 		}
 	}
@@ -6622,6 +6646,7 @@ foreign_fail:
 
 		row_mysql_unlock_data_dictionary(trx);
 		trx_free_for_mysql(trx);
+		mysql_end_stage();
 		DBUG_RETURN(true);
 	}
 
@@ -6795,6 +6820,7 @@ foreign_fail:
 #endif /* DBUG_OFF */
 
 	MONITOR_ATOMIC_DEC(MONITOR_PENDING_ALTER_TABLE);
+	mysql_end_stage();
 	DBUG_RETURN(false);
 }
 
