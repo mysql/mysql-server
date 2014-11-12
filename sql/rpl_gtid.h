@@ -2677,11 +2677,11 @@ struct Gtid_specification
   {
     type= NOT_YET_DETERMINED_GROUP;
   }
-  /// Set to undefined if the current type is GTID_GROUP.
+  /// Set to undefined. Must only be called if the type is GTID_GROUP.
   void set_undefined()
   {
-    if (type == GTID_GROUP)
-      type= UNDEFINED_GROUP;
+    DBUG_ASSERT(type == GTID_GROUP);
+    type= UNDEFINED_GROUP;
   }
   /// Return true if this Gtid_specification is equal to 'other'.
   bool equals(const Gtid_specification &other) const

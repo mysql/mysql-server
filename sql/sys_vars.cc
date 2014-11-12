@@ -4930,14 +4930,19 @@ static bool check_gtid_next(sys_var *self, THD *thd, set_var *var)
 #endif
   }
   // check that we don't own a GTID
-  else if(thd->owned_gtid.sidno != 0)
+  else if (thd->owned_gtid.sidno != 0 &&
+           thd->owned_gtid.sidno != THD::OWNED_SIDNO_ANONYMOUS)
   {
     char buf[Gtid::MAX_TEXT_LENGTH + 1];
 #ifndef DBUG_OFF
     DBUG_ASSERT(thd->owned_gtid.sidno > 0);
     global_sid_lock->wrlock();
-    DBUG_ASSERT(gtid_state->get_owned_gtids()->
-                thread_owns_anything(thd->thread_id()));
+    if (thd->owned_gtid.sidno == THD::OWNED_SIDNO_ANONYMOUS)
+      DBUG_ASSERT(!gtid_state->get_owned_gtids()->
+                  thread_owns_anything(thd->thread_id()));
+    else
+      DBUG_ASSERT(gtid_state->get_owned_gtids()->
+                  thread_owns_anything(thd->thread_id()));
 #else
     global_sid_lock->rdlock();
 #endif
@@ -4954,7 +4959,8 @@ static bool update_gtid_next(sys_var *self, THD *thd, enum_var_type type)
 {
   DBUG_ENTER("update_gtid_next");
   DBUG_ASSERT(type == OPT_SESSION);
-  if (thd->variables.gtid_next.type == GTID_GROUP)
+  if (thd->variables.gtid_next.type == GTID_GROUP ||
+      thd->variables.gtid_next.type == ANONYMOUS_GROUP)
     if (gtid_acquire_ownership_single(thd) != 0)
       DBUG_RETURN(true);
   DBUG_RETURN(false);

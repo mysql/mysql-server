@@ -12942,10 +12942,9 @@ int Gtid_log_event::do_apply_event(Relay_log_info const *rli)
 
     DBUG_PRINT("info", ("setting gtid_next=%d:%lld",
                         sidno, spec.gtid.gno));
-
-    if (gtid_acquire_ownership_single(thd))
-      DBUG_RETURN(1);
   }
+  if (gtid_acquire_ownership_single(thd))
+    DBUG_RETURN(1);
 
   thd->set_currently_executing_gtid_for_slave_thread();
 

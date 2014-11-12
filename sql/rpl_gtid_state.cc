@@ -66,7 +66,7 @@ enum_return_status Gtid_state::acquire_ownership(THD *thd, const Gtid &gtid)
   {
 #ifdef HAVE_GTID_NEXT_LIST
     thd->owned_gtid_set._add_gtid(gtid);
-    thd->owned_gtid.sidno= -1;
+    thd->owned_gtid.sidno= THD::OWNED_SIDNO_GTID_SET;
     thd->owned_sid.clear();
 #else
     DBUG_ASSERT(0);
@@ -100,7 +100,7 @@ err:
 #ifdef HAVE_GTID_NEXT_LIST
 void Gtid_state::lock_owned_sidnos(const THD *thd)
 {
-  if (thd->owned_gtid.sidno == -1)
+  if (thd->owned_gtid.sidno == THD::OWNED_SIDNO_GTID_SET)
     lock_sidnos(&thd->owned_gtid_set);
   else if (thd->owned_gtid.sidno > 0)
     lock_sidno(thd->owned_gtid.sidno);
@@ -110,7 +110,7 @@ void Gtid_state::lock_owned_sidnos(const THD *thd)
 
 void Gtid_state::unlock_owned_sidnos(const THD *thd)
 {
-  if (thd->owned_gtid.sidno == -1)
+  if (thd->owned_gtid.sidno == THD::OWNED_SIDNO_GTID_SET)
   {
 #ifdef HAVE_GTID_NEXT_LIST
     unlock_sidnos(&thd->owned_gtid_set);
@@ -127,7 +127,7 @@ void Gtid_state::unlock_owned_sidnos(const THD *thd)
 
 void Gtid_state::broadcast_owned_sidnos(const THD *thd)
 {
-  if (thd->owned_gtid.sidno == -1)
+  if (thd->owned_gtid.sidno == THD::OWNED_SIDNO_GTID_SET)
   {
 #ifdef HAVE_GTID_NEXT_LIST
     broadcast_sidnos(&thd->owned_gtid_set);
@@ -207,7 +207,7 @@ void Gtid_state::update_gtids_impl(THD *thd, bool is_commit)
 
   // Caller must take lock on the SIDNO.
   global_sid_lock->assert_some_lock();
-  if (thd->owned_gtid.sidno == -1)
+  if (thd->owned_gtid.sidno == THD::OWNED_SIDNO_GTID_SET)
   {
 #ifdef HAVE_GTID_NEXT_LIST
     rpl_sidno prev_sidno= 0;
@@ -251,7 +251,8 @@ void Gtid_state::update_gtids_impl(THD *thd, bool is_commit)
   */
   broadcast_owned_sidnos(thd);
   unlock_owned_sidnos(thd);
-  thd->variables.gtid_next.set_undefined();
+  if (thd->variables.gtid_next.type == GTID_GROUP)
+    thd->variables.gtid_next.set_undefined();
   thd->clear_owned_gtids();
 
   DBUG_VOID_RETURN;

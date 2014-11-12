@@ -104,6 +104,7 @@ enum_return_status Group_cache::generate_automatic_gno(THD *thd)
         if (gtid_mode <= 1)
         {
           automatic_type= ANONYMOUS_GROUP;
+          thd->owned_gtid.sidno= THD::OWNED_SIDNO_ANONYMOUS;
         }
         else
         {
