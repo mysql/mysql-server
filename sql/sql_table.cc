@@ -52,7 +52,7 @@
 #include "sql_show.h"
 #include "transaction.h"
 #include "datadict.h"  // dd_frm_type()
-#include "sql_resolver.h"              // setup_order, fix_inner_refs
+#include "sql_resolver.h"              // setup_order
 #include "table_cache.h"
 #include "sql_trigger.h"               // change_trigger_table_name
 #include <mysql/psi/mysql_table.h>
@@ -4188,9 +4188,18 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
 	else
 	  key_info->flags|= HA_PACK_KEY;
       }
-      /* Check if the key segment is partial, set the key flag accordingly */
-      if (key_part_length != sql_field->key_length)
-        key_info->flags|= HA_KEY_HAS_PART_KEY_SEG;
+      /* 
+         Check if the key segment is partial, set the key flag
+         accordingly. The key segment for a POINT column is NOT considered
+         partial if key_length==MAX_LEN_GEOM_POINT_FIELD.
+      */
+      if (key_part_length != sql_field->key_length &&
+          !(sql_field->sql_type == MYSQL_TYPE_GEOMETRY &&
+            sql_field->geom_type == Field::GEOM_POINT &&
+            key_part_length == MAX_LEN_GEOM_POINT_FIELD))
+        {
+          key_info->flags|= HA_KEY_HAS_PART_KEY_SEG;
+        }
 
       key_length+= key_part_length;
       key_part_info++;
@@ -5749,6 +5758,17 @@ static bool has_index_def_changed(Alter_info *alter_info,
       ((table_key->flags & HA_KEYFLAG_MASK) !=
        (new_key->flags & HA_KEYFLAG_MASK)) ||
       (table_key->user_defined_key_parts != new_key->user_defined_key_parts))
+    return true;
+
+  /*
+    The key definition has changed, if an index comment is
+    added/dropped/changed.
+  */
+  if (table_key->comment.length != new_key->comment.length)
+    return true;
+
+  if (table_key->comment.length &&
+      strcmp(table_key->comment.str, new_key->comment.str))
     return true;
 
   /*

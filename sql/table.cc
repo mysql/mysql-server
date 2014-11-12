@@ -1816,8 +1816,10 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
   /* Fix key->name and key_part->field */
   if (key_parts)
   {
-    uint primary_key=(uint) (find_type(primary_key_name, &share->keynames,
-                                       FIND_TYPE_NO_PREFIX) - 1);
+    const int pk_off= find_type(primary_key_name, &share->keynames,
+                                  FIND_TYPE_NO_PREFIX);
+    uint primary_key= (pk_off > 0 ? pk_off-1 : MAX_KEY);
+
     longlong ha_option= handler_file->ha_table_flags();
     keyinfo= share->key_info;
     key_part= keyinfo->key_part;
@@ -4047,9 +4049,8 @@ bool TABLE_LIST::prep_where(THD *thd, Item **conds,
         evaluation of check_option when we insert/update/delete a row.
         So we must forbid semijoin transformation in fix_fields():
       */
-      Switch_resolve_place SRP(&thd->lex->current_select()->resolve_place,
-                               st_select_lex::RESOLVE_NONE,
-                               effective_with_check != VIEW_CHECK_NONE);
+      Disable_semijoin_flattening DSF(thd->lex->current_select(),
+                                      effective_with_check != VIEW_CHECK_NONE);
 
       if (where->fix_fields(thd, &where))
         DBUG_RETURN(TRUE);
@@ -6022,7 +6023,7 @@ void init_mdl_requests(TABLE_LIST *table_list)
 bool TABLE_LIST::materializable_is_const() const
 {
   DBUG_ASSERT(uses_materialization());
-  return get_unit()->get_result()->estimated_rowcount <= 1;
+  return get_unit()->query_result()->estimated_rowcount <= 1;
 }
 
 /**
@@ -6053,7 +6054,7 @@ int TABLE_LIST::fetch_number_of_rows()
       for table scan. The table scan cost for MyISAM thus always becomes
       the estimate for an empty table.
     */
-    table->file->stats.records= derived->get_result()->estimated_rowcount;
+    table->file->stats.records= derived->query_result()->estimated_rowcount;
   }
   else
     error= table->file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK);
@@ -6214,9 +6215,13 @@ static bool add_derived_key(List<Derived_key> &derived_key_list, Field *field,
 bool TABLE_LIST::update_derived_keys(Field *field, Item **values,
                                      uint num_values)
 {
-  /* Don't bother with keys for CREATE VIEW and for BLOB fields. */
+  /*
+    Don't bother with keys for CREATE VIEW, BLOB fields and fields with
+    zero length.
+  */
   if (field->table->in_use->lex->is_ps_or_view_context_analysis() ||
-      field->flags & BLOB_FLAG)
+      field->flags & BLOB_FLAG ||
+      field->field_length == 0)
     return FALSE;
 
   /* Allow all keys to be used. */

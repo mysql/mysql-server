@@ -515,7 +515,7 @@ rm -r $(readlink var) var
 
 %pre server
 /usr/sbin/groupadd -g 27 -o -r mysql >/dev/null 2>&1 || :
-/usr/sbin/useradd -M -N -g mysql -o -r -d /var/lib/mysql -s /bin/bash \
+/usr/sbin/useradd -M -N -g mysql -o -r -d /var/lib/mysql -s /bin/false \
     -c "MySQL Server" -u 27 mysql >/dev/null 2>&1 || :
 
 %post server
@@ -778,13 +778,14 @@ datadir=$(/usr/bin/my_print_defaults server mysqld | grep '^--datadir=' | sed -n
 %attr(755, root, root) %{_libdir}/mysql/libmysqld.so
 
 %changelog
-* Tue Oct 21 2014 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 5.7.6-0.2.m16
+* Wed Oct 29 2014 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 5.7.6-0.2.m16
 - Include boost sources
 - Add license info in each subpackage
 - Remove systemd conditional
 - Add support for Fedora 21
 - Various clean up
 - Soname bump, more compat packages
+- Updated default shell for mysql user
 
 * Thu Sep 18 2014 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 5.7.6-0.2.m16
 - Provide replication_observers_example_plugin.so plugin

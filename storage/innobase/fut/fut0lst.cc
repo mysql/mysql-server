@@ -56,7 +56,7 @@ flst_add_to_empty(
 	ut_ad(mtr_memo_contains_page_flagged(mtr, node,
 					     MTR_MEMO_PAGE_X_FIX
 					     | MTR_MEMO_PAGE_SX_FIX));
-	len = flst_get_len(base, mtr);
+	len = flst_get_len(base);
 	ut_a(len == 0);
 
 	buf_ptr_get_fsp_addr(node, &space, &node_addr);
@@ -95,7 +95,7 @@ flst_add_last(
 	ut_ad(mtr_memo_contains_page_flagged(mtr, node,
 					     MTR_MEMO_PAGE_X_FIX
 					     | MTR_MEMO_PAGE_SX_FIX));
-	len = flst_get_len(base, mtr);
+	len = flst_get_len(base);
 	last_addr = flst_get_last(base, mtr);
 
 	buf_ptr_get_fsp_addr(node, &space, &node_addr);
@@ -147,7 +147,7 @@ flst_add_first(
 	ut_ad(mtr_memo_contains_page_flagged(mtr, node,
 					     MTR_MEMO_PAGE_X_FIX
 					     | MTR_MEMO_PAGE_SX_FIX));
-	len = flst_get_len(base, mtr);
+	len = flst_get_len(base);
 	first_addr = flst_get_first(base, mtr);
 
 	buf_ptr_get_fsp_addr(node, &space, &node_addr);
@@ -234,7 +234,7 @@ flst_insert_after(
 	flst_write_addr(node1 + FLST_NEXT, node2_addr, mtr);
 
 	/* Update len of base node */
-	len = flst_get_len(base, mtr);
+	len = flst_get_len(base);
 	mlog_write_ulint(base + FLST_LEN, len + 1, MLOG_4BYTES, mtr);
 }
 
@@ -298,7 +298,7 @@ flst_insert_before(
 	flst_write_addr(node3 + FLST_PREV, node2_addr, mtr);
 
 	/* Update len of base node */
-	len = flst_get_len(base, mtr);
+	len = flst_get_len(base);
 	mlog_write_ulint(base + FLST_LEN, len + 1, MLOG_4BYTES, mtr);
 }
 
@@ -378,7 +378,7 @@ flst_remove(
 	}
 
 	/* Update len of base node */
-	len = flst_get_len(base, mtr);
+	len = flst_get_len(base);
 	ut_ad(len > 0);
 
 	mlog_write_ulint(base + FLST_LEN, len - 1, MLOG_4BYTES, mtr);
@@ -443,7 +443,7 @@ flst_cut_end(
 	flst_write_addr(base + FLST_LAST, node1_addr, mtr);
 
 	/* Update len of base node */
-	len = flst_get_len(base, mtr);
+	len = flst_get_len(base);
 	ut_ad(len >= n_nodes);
 
 	mlog_write_ulint(base + FLST_LEN, len - n_nodes, MLOG_4BYTES, mtr);
@@ -487,7 +487,7 @@ flst_truncate_end(
 	flst_write_addr(base + FLST_LAST, node2_addr, mtr);
 
 	/* Update len of base node */
-	len = flst_get_len(base, mtr);
+	len = flst_get_len(base);
 	ut_ad(len >= n_nodes);
 
 	mlog_write_ulint(base + FLST_LEN, len - n_nodes, MLOG_4BYTES, mtr);
@@ -531,7 +531,7 @@ flst_validate(
 
 	ut_ad(found);
 
-	len = flst_get_len(base, mtr1);
+	len = flst_get_len(base);
 	node_addr = flst_get_first(base, mtr1);
 
 	for (i = 0; i < len; i++) {
@@ -582,7 +582,7 @@ flst_print(
 					     | MTR_MEMO_PAGE_SX_FIX));
 	frame = page_align((byte*) base);
 
-	len = flst_get_len(base, mtr);
+	len = flst_get_len(base);
 
 	ib::info() << "FILE-BASED LIST: Base node in space "
 		<< page_get_space_id(frame)

@@ -2842,7 +2842,7 @@ err_exit:
 
 	/* Update SYS_TABLESPACES and SYS_DATAFILES if a new file-per-table
 	tablespace was created. */
-	if (err == DB_SUCCESS && dict_table_use_file_per_table(table)) {
+	if (err == DB_SUCCESS && dict_table_is_file_per_table(table)) {
 
 		ut_ad(!is_system_tablespace(table->space));
 
@@ -2890,7 +2890,7 @@ err_exit:
 	case DB_TOO_MANY_CONCURRENT_TRXS:
 		/* We already have .ibd file here. it should be deleted. */
 
-		if (dict_table_use_file_per_table(table)
+		if (dict_table_is_file_per_table(table)
 		    && fil_delete_tablespace(
 			    table->space,
 			    BUF_REMOVE_FLUSH_NO_WRITE)
@@ -3232,10 +3232,6 @@ row_drop_table_for_mysql_in_background(
 
 	trx->check_foreigns = false;
 
-	/*	fputs("InnoDB: Error: Dropping table ", stderr);
-	ut_print_name(stderr, trx, TRUE, name);
-	fputs(" in background drop list\n", stderr); */
-
 	/* Try to drop the table in InnoDB */
 
 	error = row_drop_table_for_mysql(name, trx, FALSE);
@@ -3389,10 +3385,6 @@ row_add_table_to_background_drop_list(
 	UT_LIST_ADD_LAST(row_mysql_drop_list, drop);
 
 	MONITOR_INC(MONITOR_BACKGROUND_DROP_TABLE);
-
-	/*	fputs("InnoDB: Adding table ", stderr);
-	ut_print_name(stderr, trx, TRUE, drop->table_name);
-	fputs(" to background drop list\n", stderr); */
 
 	mutex_exit(&row_drop_list_mutex);
 
@@ -4070,11 +4062,19 @@ row_drop_table_for_mysql(
 	latch */
 	table->to_be_dropped = true;
 
-	if (table->fts) {
-		fts_optimize_remove_table(table);
-	}
-
 	if (nonatomic) {
+		/* This trx did not acquire any locks on dictionary
+		table records yet. Thus it is safe to release and
+		reacquire the data dictionary latches. */
+		if (table->fts) {
+			ut_ad(!table->fts->add_wq);
+			ut_ad(lock_trx_has_sys_table_locks(trx) == 0);
+
+			row_mysql_unlock_data_dictionary(trx);
+			fts_optimize_remove_table(table);
+			row_mysql_lock_data_dictionary(trx);
+		}
+
 		/* Do not bother to deal with persistent stats for temp
 		tables since we know temp tables do not use persistent
 		stats. */
@@ -4514,6 +4514,20 @@ row_drop_table_for_mysql(
 			ut_a(index->page == FIL_NULL);
 			index->page = *page_no++;
 			rw_lock_x_unlock(dict_index_get_lock(index));
+		}
+	}
+
+	if (err != DB_SUCCESS && table != NULL) {
+		/* Drop table has failed with error but as drop table is not
+		transaction safe we should mark the table as corrupted to avoid
+		unwarranted follow-up action on this table that can result
+		in more serious issues. */
+
+		table->corrupted = true;
+		for (dict_index_t* index = UT_LIST_GET_FIRST(table->indexes);
+		     index != NULL;
+		     index = UT_LIST_GET_NEXT(indexes, index)) {
+			dict_set_corrupted(index, trx, "DROP TABLE");
 		}
 	}
 
@@ -5452,29 +5466,25 @@ func_exit:
 			}
 		}
 
+		const char* msg;
+
 		if (cmp > 0) {
 			ret = DB_INDEX_CORRUPT;
-			fputs("InnoDB: index records in a wrong order in ",
-			      stderr);
+			msg = "index records in a wrong order in ";
 not_ok:
-			dict_index_name_print(stderr,
-					      prebuilt->trx, index);
-			fputs("\n"
-			      "InnoDB: prev record ", stderr);
-			dtuple_print(stderr, prev_entry);
-			fputs("\n"
-			      "InnoDB: record ", stderr);
-			rec_print_new(stderr, rec, offsets);
-			putc('\n', stderr);
+			ib::error()
+				<< msg << index->name
+				<< " of table " << index->table->name
+				<< ": " << *prev_entry << ", "
+				<< rec_offsets_print(rec, offsets);
 			/* Continue reading */
 		} else if (dict_index_is_unique(index)
 			   && !contains_null
 			   && matched_fields
 			   >= dict_index_get_n_ordering_defined_by_user(
 				   index)) {
-
-			fputs("InnoDB: duplicate key in ", stderr);
 			ret = DB_DUPLICATE_KEY;
+			msg = "duplicate key in ";
 			goto not_ok;
 		}
 	}

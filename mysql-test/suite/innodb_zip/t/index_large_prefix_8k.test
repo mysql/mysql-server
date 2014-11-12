@@ -30,8 +30,10 @@ insert into worklog5743 values(repeat("a", 20000));
 update worklog5743 set a = (repeat("b", 16000));
 
 # Create a secondary index
+SET sql_mode= '';
 create index idx on worklog5743(a(2000));
 show warnings;
+SET sql_mode= default;
 
 # Start a few sessions to do selections on table being updated in default
 # session, so it would rebuild the previous version from undo log.
@@ -141,11 +143,11 @@ create table worklog5743_8(a1 int, a2 TEXT, a3 TEXT) KEY_BLOCK_SIZE=8;
 
 # Test edge cases for indexes using key_block_size=1
 set global innodb_large_prefix=0;
--- error ER_TOO_BIG_ROWSIZE
+-- error ER_TOO_LONG_KEY
 create index idx1 on worklog5743_1(a2(4000));
 show warnings;
 set global innodb_large_prefix=1;
--- error ER_TOO_BIG_ROWSIZE
+-- error ER_TOO_LONG_KEY
 create index idx2 on worklog5743_1(a2(4000));
 show warnings;
 -- error ER_TOO_BIG_ROWSIZE
@@ -163,6 +165,7 @@ show warnings;
 
 # Test edge cases for indexes using key_block_size=2
 set global innodb_large_prefix=0;
+SET sql_mode= '';
 create index idx1 on worklog5743_2(a2(4000));
 show warnings;
 set global innodb_large_prefix=1;
@@ -211,6 +214,7 @@ create index idx4 on worklog5743_8(a1, a2(1533));
 show warnings;
 create index idx5 on worklog5743_8(a1, a2(1532));
 show warnings;
+SET sql_mode= default;
 
 # Insert a large record into each of these tables.
 insert into worklog5743_1 values(9, repeat("a", 10000));
@@ -402,8 +406,10 @@ create table worklog5743(a TEXT not null) ROW_FORMAT=DYNAMIC;
 
 # Length exceeds maximum supported key length
 # It will be auto-truncated to 3072
+SET sql_mode= '';
 create index idx1 on worklog5743(a(3073));
 create index idx2 on worklog5743(a(3072));
+SET sql_mode= default;
 show create table worklog5743;
 drop table worklog5743;
 

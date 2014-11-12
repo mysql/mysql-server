@@ -815,3 +815,33 @@ UPDATE v SET a=1 LIMIT 3;
 Got one of the listed errors
 DROP TABLE t1;
 DROP VIEW v;
+#
+# Bug 18449085: WRONG VALUE AFTER MULTI UPDATE
+#
+CREATE TABLE t1 (c1 INTEGER, c2 INTEGER, KEY(c1));
+CREATE TABLE t2 (c1 INTEGER, c2 INTEGER);
+CREATE TABLE t3 (c1 INTEGER, c2 INTEGER);
+INSERT INTO t1 VALUES(1,1),(2,2),(3,3),(4,4),(5,5);
+INSERT INTO t2 VALUES(11,1),(12,1),(13,1),(14,2),(15,6);
+INSERT INTO t3 VALUES(21,11),(22,11),(23,13),(24,14),(25,15);
+ANALYZE TABLE t1, t2, t3;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+test.t3	analyze	status	OK
+UPDATE t2 straight_join t3 straight_join t1 SET t1.c2 = 30, t2.c2 = 40, t3.c2=50
+WHERE t1.c1=t2.c2 AND t2.c1=t3.c2;
+EXPLAIN UPDATE t2 straight_join t3 straight_join t1 SET t1.c2 = 30, t2.c2 = 40, t3.c2=50
+WHERE t1.c1=t2.c2 AND t2.c1=t3.c2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	UPDATE	t2	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where
+1	UPDATE	t3	NULL	ALL	NULL	NULL	NULL	NULL	5	20.00	Using where
+1	UPDATE	t1	NULL	ref	c1	c1	5	test.t2.c2	1	100.00	NULL
+SELECT * FROM t3 ORDER BY c1;
+c1	c2
+21	50
+22	50
+23	50
+24	50
+25	15
+DROP TABLE t1, t2, t3;

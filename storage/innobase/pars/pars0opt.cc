@@ -1209,6 +1209,7 @@ opt_search_plan(
 #endif
 }
 
+#if 1//def UNIV_SQL_DEBUG
 /********************************************************************//**
 Prints info of a query plan. */
 void
@@ -1246,11 +1247,13 @@ opt_print_query_plan(
 			n_fields = 0;
 		}
 
-		fputs("Table ", stderr);
-		dict_index_name_print(stderr, NULL, plan->index);
-		fprintf(stderr,"; exact m. %lu, match %lu, end conds %lu\n",
+		fprintf(stderr,
+			"Index %s of table %s"
+			"; exact m. %lu, match %lu, end conds %lu\n",
+			plan->index->name, plan->index->table_name,
 			(unsigned long) plan->n_exact_match,
 			(unsigned long) n_fields,
 			(unsigned long) UT_LIST_GET_LEN(plan->end_conds));
 	}
 }
+#endif /* UNIV_SQL_DEBUG */

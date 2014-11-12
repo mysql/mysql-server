@@ -289,8 +289,8 @@ bool cp_buffer_from_ref(THD *thd, TABLE *table, TABLE_REF *ref);
 int report_handler_error(TABLE *table, int error);
 
 int safe_index_read(QEP_TAB *tab);
-SORT_FIELD * make_unireg_sortorder(ORDER *order, uint *length,
-                                  SORT_FIELD *sortorder);
+st_sort_field * make_unireg_sortorder(ORDER *order, uint *length,
+                                      st_sort_field *sortorder);
 
 int join_read_const_table(JOIN_TAB *tab, POSITION *pos);
 void join_read_key_unlock_row(st_join_table *tab);

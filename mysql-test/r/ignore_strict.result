@@ -918,3 +918,14 @@ Warning	1261	Unhandled user-defined warning condition
 DROP PROCEDURE p1;
 # Restore the orginal sql_mode
 SET sql_mode= @org_mode;
+#
+# Bug #19873291 : MYSQL_EXECUTE_COMMAND(THD*): ASSERTION
+#                 `THD->IS_ERROR() || THD->KILLED' FAILED
+#
+CREATE TABLE t1(a INT);
+SET @org_safe_updates= @@sql_safe_updates;
+SET SESSION sql_safe_updates=ON;
+DELETE IGNORE FROM t1 WHERE a=1;
+ERROR HY000: You are using safe update mode and you tried to update a table without a WHERE that uses a KEY column
+DROP TABLE t1;
+SET sql_safe_updates= @org_safe_updates;

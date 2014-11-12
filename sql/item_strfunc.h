@@ -852,6 +852,7 @@ public:
                   double target_value, char *char_value, int bit_number);
   bool fill_and_check_fields();
   bool check_valid_latlong_type(Item *ref);
+  static bool is_item_null(Item *item);
 };
 
 
