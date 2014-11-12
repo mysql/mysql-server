@@ -1103,14 +1103,50 @@ bool Log_event::write_footer(IO_CACHE* file)
   return 0;
 }
 
-/*
-  Log_event::write()
-*/
+
+uint32 Log_event::write_header_to_memory(uchar *buf)
+{
+  // Query start time
+  ulong timestamp= (ulong) get_time();
+
+  if (DBUG_EVALUATE_IF("inc_event_time_by_1_hour",1,0)  &&
+      DBUG_EVALUATE_IF("dec_event_time_by_1_hour",1,0))
+  {
+    /**
+      This assertion guarantees that these debug flags are not
+      used at the same time (they would cancel each other).
+    */
+    DBUG_ASSERT(0);
+  }
+  else
+  {
+    DBUG_EXECUTE_IF("inc_event_time_by_1_hour", timestamp= timestamp + 3600;);
+    DBUG_EXECUTE_IF("dec_event_time_by_1_hour", timestamp= timestamp - 3600;);
+  }
+
+  /*
+    Header will be of size LOG_EVENT_HEADER_LEN for all events, except for
+    FORMAT_DESCRIPTION_EVENT and ROTATE_EVENT, where it will be
+    LOG_EVENT_MINIMAL_HEADER_LEN (remember these 2 have a frozen header,
+    because we read them before knowing the format).
+  */
+
+  int4store(buf, timestamp);
+  buf[EVENT_TYPE_OFFSET]= get_type_code();
+  int4store(buf + SERVER_ID_OFFSET, server_id);
+  int4store(buf + EVENT_LEN_OFFSET,
+            static_cast<uint32>(common_header->data_written));
+  int4store(buf + LOG_POS_OFFSET,
+            static_cast<uint32>(common_header->log_pos));
+  int2store(buf + FLAGS_OFFSET, common_header->flags);
+
+  return LOG_EVENT_HEADER_LEN;
+}
+
 
 bool Log_event::write_header(IO_CACHE* file, size_t event_data_length)
 {
   uchar header[LOG_EVENT_HEADER_LEN];
-  ulong now;
   bool ret;
   DBUG_ENTER("Log_event::write_header");
 
@@ -1167,67 +1203,27 @@ bool Log_event::write_header(IO_CACHE* file, size_t event_data_length)
     common_header->log_pos= my_b_safe_tell(file) + common_header->data_written;
   }
 
-  now= (ulong) get_time();                              // Query start time
-  if (DBUG_EVALUATE_IF("inc_event_time_by_1_hour",1,0)  &&
-      DBUG_EVALUATE_IF("dec_event_time_by_1_hour",1,0))
-  {
-    /** 
-       This assertion guarantees that these debug flags are not
-       used at the same time (they would cancel each other).
-    */
-    DBUG_ASSERT(0);
-  } 
-  else
-  {
-    DBUG_EXECUTE_IF("inc_event_time_by_1_hour", now= now + 3600;);
-    DBUG_EXECUTE_IF("dec_event_time_by_1_hour", now= now - 3600;);
-  }
+  write_header_to_memory(header);
+
+  ret= my_b_safe_write(file, header, LOG_EVENT_HEADER_LEN);
 
   /*
-    Header will be of size LOG_EVENT_HEADER_LEN for all events, except for
-    FORMAT_DESCRIPTION_EVENT and ROTATE_EVENT, where it will be
-    LOG_EVENT_MINIMAL_HEADER_LEN (remember these 2 have a frozen header,
-    because we read them before knowing the format).
-  */
+    Update the checksum.
 
-  int4store(header, now);              // timestamp
-  header[EVENT_TYPE_OFFSET]= get_type_code();
-  int4store(header+ SERVER_ID_OFFSET, server_id);
-  int4store(header+ EVENT_LEN_OFFSET, static_cast<uint32>(common_header->data_written));
-  int4store(header+ LOG_POS_OFFSET, static_cast<uint32>(common_header->log_pos));
-  /*
-    recording checksum of FD event computed with dropped
-    possibly active LOG_EVENT_BINLOG_IN_USE_F flag.
-    Similar step at verication: the active flag is dropped before
-    checksum computing.
+    In case this is a Format_description_log_event, we need to clear
+    the LOG_EVENT_BINLOG_IN_USE_F flag before computing the checksum,
+    since the flag will be cleared when the binlog is closed.  On
+    verification, the flag is dropped before computing the checksum
+    too.
   */
-  if (header[EVENT_TYPE_OFFSET] != binary_log::FORMAT_DESCRIPTION_EVENT ||
-      !need_checksum() || !(common_header->flags &
-      LOG_EVENT_BINLOG_IN_USE_F))
+  if (need_checksum() &&
+      (common_header->flags & LOG_EVENT_BINLOG_IN_USE_F) != 0)
   {
+    common_header->flags &= ~LOG_EVENT_BINLOG_IN_USE_F;
     int2store(header + FLAGS_OFFSET, common_header->flags);
-    ret= wrapper_my_b_safe_write(file, header, sizeof(header)) != 0;
   }
-  else
-  {
-    ret= (wrapper_my_b_safe_write(file, header, FLAGS_OFFSET) != 0);
-    if (!ret)
-    {
-      common_header->flags &= ~LOG_EVENT_BINLOG_IN_USE_F;
-      int2store(header + FLAGS_OFFSET, common_header->flags);
-      crc= binary_log::checksum_crc32(crc, header + FLAGS_OFFSET,
-                                   sizeof(common_header->flags));
-      common_header->flags|= LOG_EVENT_BINLOG_IN_USE_F;
-      int2store(header + FLAGS_OFFSET, common_header->flags);
-      ret= (my_b_safe_write(file, header + FLAGS_OFFSET,
-                            sizeof(common_header->flags)) != 0);
-    }
-    if (!ret)
-      ret= (wrapper_my_b_safe_write(file, header + FLAGS_OFFSET +
-                                    sizeof(common_header->flags), sizeof(header)
-                                    - (FLAGS_OFFSET +
-                                    sizeof(common_header->flags))) != 0);
-  }
+  crc= my_checksum(crc, header, LOG_EVENT_HEADER_LEN);
+
   DBUG_RETURN( ret);
 }
 
@@ -12837,11 +12833,11 @@ Gtid_log_event::print(FILE *file, PRINT_EVENT_INFO *print_event_info)
 #endif
 
 #ifdef MYSQL_SERVER
-bool Gtid_log_event::write_data_header(IO_CACHE *file)
+uint32 Gtid_log_event::write_data_header_to_memory(uchar *buffer,
+                                                   IO_CACHE *file)
 {
-  DBUG_ENTER("Gtid_log_event::write_data_header");
-  char buffer[POST_HEADER_LENGTH];
-  char* ptr_buffer= buffer;
+  DBUG_ENTER("Gtid_log_event::write_data_header_to_memory");
+  uchar *ptr_buffer= buffer;
 
   *ptr_buffer= commit_flag ? 1 : 0;
   ptr_buffer+= ENCODED_FLAG_LENGTH;
@@ -12853,7 +12849,7 @@ bool Gtid_log_event::write_data_header(IO_CACHE *file)
                       buf, spec.gtid.sidno, spec.gtid.gno));
 #endif
 
-  sid.copy_to((uchar *)ptr_buffer);
+  sid.copy_to(ptr_buffer);
   ptr_buffer+= ENCODED_SID_LENGTH;
 
   int8store(ptr_buffer, spec.gtid.gno);
@@ -12864,9 +12860,20 @@ bool Gtid_log_event::write_data_header(IO_CACHE *file)
   int8store(ptr_buffer + 8, SEQ_UNINIT);
   ptr_buffer+= COMMIT_SEQ_LEN;
 
-  DBUG_ASSERT(ptr_buffer == (buffer + sizeof(buffer)));
-  DBUG_RETURN(wrapper_my_b_safe_write(file, (uchar *) buffer, sizeof(buffer)));
+  DBUG_ASSERT(ptr_buffer == (buffer + POST_HEADER_LENGTH));
+
+  DBUG_RETURN(POST_HEADER_LENGTH);
 }
+
+bool Gtid_log_event::write_data_header(IO_CACHE *file)
+{
+  DBUG_ENTER("Gtid_log_event::write_data_header");
+  uchar buffer[POST_HEADER_LENGTH];
+  write_data_header_to_memory(buffer, file);
+  DBUG_RETURN(wrapper_my_b_safe_write(file, (uchar *) buffer,
+                                      POST_HEADER_LENGTH));
+}
+
 #endif // MYSQL_SERVER
 
 #if defined(MYSQL_SERVER) && defined(HAVE_REPLICATION)
