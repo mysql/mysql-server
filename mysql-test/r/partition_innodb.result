@@ -1,4 +1,3 @@
-set global internal_tmp_disk_storage_engine = myisam;
 drop table if exists t1, t2;
 #
 # Bug#13694811: THE OPTIMIZER WRONGLY USES THE FIRST
@@ -74,7 +73,7 @@ DROP TABLE t1;
 #
 SET @old_innodb_thread_concurrency := @@innodb_thread_concurrency;
 SET @old_innodb_thread_sleep_delay := @@innodb_thread_sleep_delay;
-SET GLOBAL innodb_thread_concurrency = 1;
+SET GLOBAL innodb_thread_concurrency = 2;
 CREATE TABLE t1
 (user_num BIGINT,
 hours SMALLINT,
@@ -799,4 +798,3 @@ test.t7	check	status	OK
 ALTER TABLE t7 CHANGE f1 f1 INT AFTER f4, ALGORITHM=INPLACE;
 ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
 DROP TABLE t1,t2,t3,t4,t5,t6,t7;
-set global internal_tmp_disk_storage_engine = INNODB;
