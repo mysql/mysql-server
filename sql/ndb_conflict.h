@@ -24,6 +24,7 @@
 
 #include <mysql_com.h>       // NAME_CHAR_LEN
 #include <sql_const.h>       // MAX_REF_PARTS
+#include <mysql/plugin.h>    // SHOW_VAR
 
 enum enum_conflict_fn_type
 {
@@ -166,14 +167,6 @@ enum enum_conflict_fn_table_flags
    (Ndb supports 32, but MySQL has a lower limit)
 */
 static const int NDB_MAX_KEY_PARTS = MAX_REF_PARTS;
-
-
-#define NDB_EXCEPTIONS_TABLE_COLUMN_PREFIX "NDB$"
-#define NDB_EXCEPTIONS_TABLE_OP_TYPE "NDB$OP_TYPE"
-#define NDB_EXCEPTIONS_TABLE_CONFLICT_CAUSE "NDB$CFT_CAUSE"
-#define NDB_EXCEPTIONS_TABLE_ORIG_TRANSID "NDB$ORIG_TRANSID"
-#define NDB_EXCEPTIONS_TABLE_COLUMN_OLD_SUFFIX "$OLD"
-#define NDB_EXCEPTIONS_TABLE_COLUMN_NEW_SUFFIX "$NEW"
 
 /**
    ExceptionsTableWriter
@@ -500,6 +493,52 @@ struct st_ndb_slave_state
   ~st_ndb_slave_state();
 };
 
+#ifdef HAVE_NDB_BINLOG
+
+const uint error_conflict_fn_violation= 9999;
+
+/**
+ * Conflict function setup infrastructure
+ */
+int
+parse_conflict_fn_spec(const char* conflict_fn_spec,
+                       const st_conflict_fn_def** conflict_fn,
+                       st_conflict_fn_arg* args,
+                       Uint32* max_args,
+                       char *msg, uint msg_len);
+int
+setup_conflict_fn(Ndb* ndb,
+                  NDB_CONFLICT_FN_SHARE** ppcfn_share,
+                  MEM_ROOT* share_mem_root,
+                  const char* dbName,
+                  const char* tabName,
+                  bool tableUsesBlobs,
+                  bool tableBinlogUseUpdate,
+                  const NdbDictionary::Table *ndbtab,
+                  char *msg, uint msg_len,
+                  const st_conflict_fn_def* conflict_fn,
+                  const st_conflict_fn_arg* args,
+                  const Uint32 num_args);
+
+void 
+slave_reset_conflict_fn(NDB_CONFLICT_FN_SHARE *cfn_share);
+
+bool 
+is_exceptions_table(const char *table_name);
+
+#endif /* HAVE_NDB_BINLOG */
+
+
+/**
+ * show_ndb_conflict_status_vars
+ *
+ * Function called as part of SHOW STATUS / INFORMATION_SCHEMA
+ * tables.
+ * This function returns info about ndb_conflict related status
+ * vars
+ */
+int
+show_ndb_conflict_status_vars(THD *thd, struct st_mysql_show_var *var, char *buff);
 
 /* NDB_CONFLICT_H */
 #endif

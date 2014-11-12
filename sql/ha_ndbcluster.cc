@@ -735,28 +735,6 @@ SHOW_VAR ndb_status_variables_dynamic[]= {
   {NullS, NullS, SHOW_LONG}
 };
 
-SHOW_VAR ndb_status_conflict_variables[]= {
-  {"fn_max",       (char*) &g_ndb_slave_state.total_violation_count[CFT_NDB_MAX], SHOW_LONGLONG},
-  {"fn_old",       (char*) &g_ndb_slave_state.total_violation_count[CFT_NDB_OLD], SHOW_LONGLONG},
-  {"fn_max_del_win", (char*) &g_ndb_slave_state.total_violation_count[CFT_NDB_MAX_DEL_WIN], SHOW_LONGLONG},
-  {"fn_epoch",     (char*) &g_ndb_slave_state.total_violation_count[CFT_NDB_EPOCH], SHOW_LONGLONG},
-  {"fn_epoch_trans", (char*) &g_ndb_slave_state.total_violation_count[CFT_NDB_EPOCH_TRANS], SHOW_LONGLONG},
-  {"fn_epoch2",    (char*) &g_ndb_slave_state.total_violation_count[CFT_NDB_EPOCH2], SHOW_LONGLONG},
-  {"fn_epoch2_trans", (char*) &g_ndb_slave_state.total_violation_count[CFT_NDB_EPOCH2_TRANS], SHOW_LONGLONG},
-  {"trans_row_conflict_count", (char*) &g_ndb_slave_state.trans_row_conflict_count, SHOW_LONGLONG},
-  {"trans_row_reject_count",   (char*) &g_ndb_slave_state.trans_row_reject_count, SHOW_LONGLONG},
-  {"trans_reject_count",       (char*) &g_ndb_slave_state.trans_in_conflict_count, SHOW_LONGLONG},
-  {"trans_detect_iter_count",  (char*) &g_ndb_slave_state.trans_detect_iter_count, SHOW_LONGLONG},
-  {"trans_conflict_commit_count",
-                               (char*) &g_ndb_slave_state.trans_conflict_commit_count, SHOW_LONGLONG},
-  {"epoch_delete_delete_count", (char*) &g_ndb_slave_state.total_delete_delete_count, SHOW_LONGLONG},
-  {"reflected_op_prepare_count", (char*) &g_ndb_slave_state.total_reflect_op_prepare_count, SHOW_LONGLONG},
-  {"reflected_op_discard_count", (char*) &g_ndb_slave_state.total_reflect_op_discard_count, SHOW_LONGLONG},
-  {"refresh_op_count", (char*) &g_ndb_slave_state.total_refresh_op_count, SHOW_LONGLONG},
-  {"last_conflict_epoch",    (char*) &g_ndb_slave_state.last_conflicted_epoch, SHOW_LONGLONG},
-  {"last_stable_epoch",    (char*) &g_ndb_slave_state.last_stable_epoch, SHOW_LONGLONG},
-  {NullS, NullS, SHOW_LONG}
-};
 
 SHOW_VAR ndb_status_injector_variables[]= {
   {"api_event_data_count_injector",     (char*) &g_event_data_count, SHOW_LONGLONG},
@@ -18359,7 +18337,7 @@ static int show_ndb_vars(THD *thd, SHOW_VAR *var, char *buff)
 
 SHOW_VAR ndb_status_variables_export[]= {
   {"Ndb",          (char*) &show_ndb_vars,                 SHOW_FUNC},
-  {"Ndb_conflict", (char*) &ndb_status_conflict_variables, SHOW_ARRAY},
+  {"Ndb_conflict", (char*) &show_ndb_conflict_status_vars, SHOW_FUNC},
   {"Ndb",          (char*) &ndb_status_injector_variables, SHOW_ARRAY},
   {"Ndb",          (char*) &ndb_status_slave_variables,    SHOW_ARRAY},
   {"Ndb",          (char*) &show_ndb_server_api_stats,     SHOW_FUNC},
