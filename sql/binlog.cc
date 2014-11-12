@@ -869,12 +869,6 @@ binlog_trans_log_savepos(THD *thd, my_off_t *pos)
 }
 
 
-// Forward declaration needed by
-// Binlog_event_writer::write_event_part.  This will be refactored in
-// the next patch.
-inline void write_commit_seq_no(IO_CACHE* cache, uchar* buff,
-                                longlong last_committed, longlong seq_number);
-
 /**
   Auxiliary class to copy serialized events to the binary log and
   correct some of the fields that are not known until just before
@@ -886,7 +880,6 @@ inline void write_commit_seq_no(IO_CACHE* cache, uchar* buff,
 
   The following fields are fixed before writing the event:
   - end_log_pos is set
-  - commit_seq_no is set (this logic will be removed in WL#7592 patch#8)
   - the checksum is computed if checksums are enabled
   - the length is incremented by the checksum size if checksums are enabled
 */
@@ -894,18 +887,11 @@ class Binlog_event_writer
 {
   IO_CACHE *output_cache;
   bool have_checksum;
-  IO_CACHE *thread_cache;
   ha_checksum initial_checksum;
   ha_checksum checksum;
   uint32 end_log_pos;
-  bool is_first_event;
 
 public:
-  // The following two are temporary fields which will be removed in
-  // WL#7592 patch#8
-  int64 last_committed;
-  int64 sequence_number;
-
   /**
     Constructs a new Binlog_event_writer. Should be called once before
     starting to flush the transaction or statement cache to the
@@ -914,16 +900,13 @@ public:
     @param output_cache_arg IO_CACHE to write to.
     @param have_checksum_al
   */
-  Binlog_event_writer(IO_CACHE *output_cache_arg,
-                      IO_CACHE *thread_cache_arg)
+  Binlog_event_writer(IO_CACHE *output_cache_arg)
     : output_cache(output_cache_arg),
       have_checksum(binlog_checksum_options !=
                     binary_log::BINLOG_CHECKSUM_ALG_OFF),
-      thread_cache(thread_cache_arg),
       initial_checksum(my_checksum(0L, NULL, 0)),
       checksum(initial_checksum),
-      end_log_pos(my_b_tell(output_cache)),
-      is_first_event(true)
+      end_log_pos(my_b_tell(output_cache))
   {
     // Simulate checksum error
     if (DBUG_EVALUATE_IF("fault_injection_crc_value", 1, 0))
@@ -975,30 +958,6 @@ public:
 
       // Read event length
       *event_len_p= uint4korr(*buf_p + EVENT_LEN_OFFSET);
-
-      // Write the commit_parent
-      if (is_first_event)
-      {
-        Log_event_type event_type= (Log_event_type)(*buf_p)[EVENT_TYPE_OFFSET];
-        if (event_type != binary_log::USER_VAR_EVENT &&
-            event_type != binary_log::INTVAR_EVENT &&
-            event_type != binary_log::RAND_EVENT)
-        {
-          /*
-            We should only write a commit parent for these event types.
-          */
-          DBUG_ASSERT(event_type == binary_log::QUERY_EVENT ||
-                      event_type == binary_log::GTID_LOG_EVENT);
-          write_commit_seq_no(thread_cache,
-                              *buf_p + LOG_EVENT_HEADER_LEN +
-                              thread_cache->commit_seq_offset,
-                              last_committed, sequence_number);
-        }
-        else
-          DBUG_PRINT("info",("Skipped strayed (USER/INT/RAND)_EVENT event "
-                             "while fixing commit seq"));
-        is_first_event= false;
-      }
 
       // Increase end_log_pos
       end_log_pos+= *event_len_p;
@@ -1113,20 +1072,6 @@ int binlog_cache_data::write_event(THD *thd, Log_event *ev)
 {
   DBUG_ENTER("binlog_cache_data::write_event");
 
-  if (gtid_mode > 0)
-  {
-    Group_cache::enum_add_group_status status= 
-      group_cache.add_logged_group(thd, get_byte_position());
-    if (status == Group_cache::ERROR_GROUP)
-      DBUG_RETURN(1);
-    else if (status == Group_cache::APPEND_NEW_GROUP)
-    {
-      Gtid_log_event gtid_ev(thd, is_trx_cache());
-      if (gtid_ev.write(&cache_log) != 0)
-        DBUG_RETURN(1);
-    }
-  }
-
   if (ev != NULL)
   {
     DBUG_EXECUTE_IF("simulate_disk_full_at_flush_pending",
@@ -1158,62 +1103,99 @@ int binlog_cache_data::write_event(THD *thd, Log_event *ev)
 
 
 /**
+  Write the Gtid_log_event to the binary log (prior to writing the
+  statement or transaction cache).
 
-  @todo Move this function into the cache class?
- */
-static int
-gtid_before_write_cache(THD* thd, binlog_cache_data* cache_data)
+  @param thd Thread that is committing.
+  @param cache_data The cache that is flushing.
+  @param writer The event will be written to this Binlog_event_writer object.
+
+  @retval false Success.
+  @retval true Error.
+*/
+bool MYSQL_BIN_LOG::write_gtid(THD *thd, binlog_cache_data *cache_data,
+                               Binlog_event_writer *writer)
 {
-  DBUG_ENTER("gtid_before_write_cache");
-  int error= 0;
+  DBUG_ENTER("MYSQL_BIN_LOG::write_gtid");
 
   DBUG_ASSERT(thd->variables.gtid_next.type != UNDEFINED_GROUP);
 
-  if (gtid_mode == 0)
-    DBUG_RETURN(0);
-
-  Group_cache* group_cache= &cache_data->group_cache;
-
-  global_sid_lock->rdlock();
-
+  /* Generate GTID */
   if (thd->variables.gtid_next.type == AUTOMATIC_GROUP)
   {
-    if (group_cache->generate_automatic_gno(thd) !=
-        RETURN_STATUS_OK)
+    if (gtid_state->generate_automatic_gtid(thd) != RETURN_STATUS_OK)
+      DBUG_RETURN(true);
+
+#ifdef HAVE_PSI_TRANSACTION_INTERFACE
+    /* Set the transaction GTID in the Performance Schema */
+    if (thd->m_transaction_psi != NULL && thd->owned_gtid.sidno >= 1)
+      MYSQL_SET_TRANSACTION_GTID(thd->m_transaction_psi, &thd->owned_sid,
+                                 &thd->variables.gtid_next);
+#endif
+  }
+  else
+  {
+    DBUG_PRINT("info", ("thd->variables.gtid_next.type=%d "
+                        "thd->owned_gtid.sidno=%d",
+                        thd->variables.gtid_next.type,
+                        thd->owned_gtid.sidno));
+    if (thd->variables.gtid_next.type == GTID_GROUP)
+      DBUG_ASSERT(thd->owned_gtid.sidno > 0);
+    else
     {
-      global_sid_lock->unlock();
-      DBUG_RETURN(1); 
+      DBUG_ASSERT(thd->variables.gtid_next.type == ANONYMOUS_GROUP);
+      DBUG_ASSERT(thd->owned_gtid.sidno == THD::OWNED_SIDNO_ANONYMOUS);
     }
   }
 
-  global_sid_lock->unlock();
-
-#ifdef HAVE_PSI_TRANSACTION_INTERFACE
-  /* Set the transaction GTID in the Performance Schema */
-  if (thd->m_transaction_psi != NULL && !error && thd->owned_gtid.sidno >= 1)
-    MYSQL_SET_TRANSACTION_GTID(thd->m_transaction_psi, &thd->owned_sid,
-                               &thd->variables.gtid_next);
-#endif
+  /* Generate logical timestamps for MTS */
 
   /*
-    If an automatic group number was generated, change the first event
-    into a "real" one.
-  */
-  if (thd->variables.gtid_next.type == AUTOMATIC_GROUP)
-  {
-    DBUG_ASSERT(group_cache->get_n_groups() == 1);
-    Cached_group *cached_group= group_cache->get_unsafe_pointer(0);
-    DBUG_ASSERT(cached_group->spec.type != AUTOMATIC_GROUP);
-    Gtid_log_event gtid_ev(thd, cache_data->is_trx_cache(),
-                           &cached_group->spec);
-    bool using_file= cache_data->cache_log.pos_in_file > 0;
-    my_off_t saved_position= cache_data->reset_write_pos(0, using_file);
-    error= gtid_ev.write(&cache_data->cache_log);
-    cache_data->reset_write_pos(saved_position, using_file);
-  }
+    Prepare sequence_number and last_committed relative to the current
+    binlog.  This is done by subtracting the binlog's clock offset
+    from the values.
 
-  DBUG_RETURN(error);
+    A transaction that commits after the binlog is rotated, can have a
+    commit parent in the previous binlog. In this case, subtracting
+    the offset from the sequence number results in a negative
+    number. The commit parent dependency gets lost in such
+    case. Therefore, we log the value SEQ_UNINIT in this case.
+  */
+
+  Transaction_ctx *trn_ctx= thd->get_transaction();
+  Logical_clock& clock= mysql_bin_log.max_committed_transaction;
+
+  DBUG_ASSERT(trn_ctx->sequence_number > clock.get_offset());
+
+  int64 relative_sequence_number= trn_ctx->sequence_number - clock.get_offset();
+  int64 relative_last_committed=
+    trn_ctx->last_committed <= clock.get_offset() ?
+    SEQ_UNINIT : trn_ctx->last_committed - clock.get_offset();
+  /*
+    In case both the transaction cache and the statement cache are
+    non-empty, both will be flushed in sequence and logged as
+    different transactions. Then the second transaction must only
+    be executed after the first one has committed. Therefore, we
+    need to set last_committed for the second transaction equal to
+    last_committed for the first transaction. This is done in
+    binlog_cache_data::flush. binlog_cache_data::flush uses the
+    condition trn_ctx->last_committed==SEQ_UNINIT to detect this
+    situation, hence the need to set it here.
+  */
+  trn_ctx->last_committed= SEQ_UNINIT;
+
+  /*
+    Generate and write the Gtid_log_event.
+  */
+  Gtid_log_event gtid_event(thd, cache_data->is_trx_cache(),
+                            relative_last_committed, relative_sequence_number);
+  uchar buf[Gtid_log_event::MAX_EVENT_LENGTH];
+  uint32 buf_len= gtid_event.write_to_memory(buf);
+  bool ret= writer->write_full_event(buf, buf_len);
+
+  DBUG_RETURN(ret);
 }
+
 
 int MYSQL_BIN_LOG::gtid_end_transaction(THD *thd)
 {
@@ -1371,11 +1353,18 @@ binlog_cache_data::flush(THD *thd, my_off_t *bytes_written, bool *wrote_xid)
       trn_ctx->last_committed= trn_ctx->sequence_number - 1;
 
     /*
-      The cache is always reset since subsequent rollbacks of the
-      transactions might trigger attempts to write to the binary log
-      if the cache is not reset.
-     */
-    Binlog_event_writer writer(mysql_bin_log.get_log_file(), &cache_log);
+      The GTID is written prior to flushing the statement cache, if
+      the transaction has written to the statement cache; and prior to
+      flushing the transaction cache if the transaction has written to
+      the transaction cache.  If GTIDs are enabled, then transactional
+      and non-transactional updates cannot be mixed, so at most one of
+      the caches can be non-empty, so just one GTID will be
+      generated. If GTIDs are disabled, then no GTID is generated at
+      all; if both the transactional cache and the statement cache are
+      non-empty then we get two Anonymous_gtid_log_events, which is
+      correct.
+    */
+    Binlog_event_writer writer(mysql_bin_log.get_log_file());
 
     DBUG_EXECUTE_IF("simulate_binlog_flush_error",
                     {
@@ -1387,7 +1376,7 @@ binlog_cache_data::flush(THD *thd, my_off_t *bytes_written, bool *wrote_xid)
                     };);
 
     if (!error)
-      error= gtid_before_write_cache(thd, this);
+      error= mysql_bin_log.write_gtid(thd, this, &writer);
     if (!error)
       error= mysql_bin_log.write_cache(thd, this, &writer);
 
@@ -6935,7 +6924,6 @@ bool MYSQL_BIN_LOG::write_cache(THD *thd, binlog_cache_data *cache_data,
 
   IO_CACHE *cache= &cache_data->cache_log;
   bool incident= cache_data->has_incident();
-  Transaction_ctx *trn_ctx= thd->get_transaction();
 
   mysql_mutex_assert_owner(&LOCK_log);
 
@@ -6952,48 +6940,15 @@ bool MYSQL_BIN_LOG::write_cache(THD *thd, binlog_cache_data *cache_data,
     */
     if (my_b_tell(cache) > 0)
     {
-      Logical_clock& clock= mysql_bin_log.max_committed_transaction;
-      /*
-        Prepare a relative (to the current binlog) sequence_number.
-        A transaction that commits after the binlog is rotated, can
-        have a commit parent in the previous binlog. In this case,
-        subtracting the offset from the sequence number results in a
-        negative number. The commit parent dependency gets lost
-        in such case, and to indicate that the logged
-        "relative" timestamp value is set to SEQ_UNINIT.
-        In the regular case of not rotated binlog
-        exact subtracted values are written.
-      */
-
-      DBUG_ASSERT(trn_ctx->sequence_number > clock.get_offset());
-
-      writer->sequence_number= trn_ctx->sequence_number - clock.get_offset();
-      writer->last_committed=
-        trn_ctx->last_committed <= clock.get_offset() ?
-        SEQ_UNINIT : trn_ctx->last_committed - clock.get_offset();
-      /*
-        In case both the transaction cache and the statement cache are
-        non-empty, both will be flushed in sequence and logged as
-        different transactions. Then the second transaction must only
-        be executed after the first one has committed. Therefore, we
-        need to set last_committed for the second transaction equal to
-        last_committed for the first transaction. This is done in
-        binlog_cache_data::flush. binlog_cache_data::flush uses the
-        condition trn_ctx->last_committed==SEQ_UNINIT to detect this
-        situation, hence the need to set it here.
-      */
-      trn_ctx->last_committed= SEQ_UNINIT;
-
       DBUG_EXECUTE_IF("crash_before_writing_xid",
                       {
                         if ((write_error= do_write_cache(cache, writer)))
                           DBUG_PRINT("info", ("error writing binlog cache: %d",
-                                               write_error));
+                                              write_error));
                         flush_and_sync(true);
                         DBUG_PRINT("info", ("crashing before writing xid"));
                         DBUG_SUICIDE();
                       });
-
       if ((write_error= do_write_cache(cache, writer)))
         goto err;
 

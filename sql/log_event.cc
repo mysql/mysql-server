@@ -12747,6 +12747,18 @@ Gtid_log_event::Gtid_log_event(const char *buffer, uint event_len,
 {
   DBUG_ENTER("Gtid_log_event::Gtid_log_event(const char *,"
              " uint, const Format_description_log_event *");
+
+#ifndef DBUG_OFF
+  uint8_t const common_header_len= description_event->common_header_len;
+  uint8 const post_header_len=
+    buffer[EVENT_TYPE_OFFSET] == binary_log::ANONYMOUS_GTID_LOG_EVENT ?
+    description_event->post_header_len[binary_log::ANONYMOUS_GTID_LOG_EVENT - 1] :
+    description_event->post_header_len[binary_log::GTID_LOG_EVENT - 1];
+  DBUG_PRINT("info",
+             ("event_len: %u; common_header_len: %d; post_header_len: %d",
+              event_len, common_header_len, post_header_len));
+#endif
+
   is_valid_param= true;
   spec.type= get_type_code() == binary_log::ANONYMOUS_GTID_LOG_EVENT ?
              ANONYMOUS_GROUP : GTID_GROUP;
@@ -12758,24 +12770,28 @@ Gtid_log_event::Gtid_log_event(const char *buffer, uint event_len,
 
 #ifndef MYSQL_CLIENT
 Gtid_log_event::Gtid_log_event(THD* thd_arg, bool using_trans,
-                               const Gtid_specification *spec_arg)
- : binary_log::Gtid_event(true),
-   Log_event(thd_arg, thd_arg->variables.gtid_next.type == ANONYMOUS_GROUP ?
+                               int64 last_committed_arg,
+                               int64 sequence_number_arg)
+: binary_log::Gtid_event(last_committed_arg, sequence_number_arg, true),
+  Log_event(thd_arg, thd_arg->variables.gtid_next.type == ANONYMOUS_GROUP ?
             LOG_EVENT_IGNORABLE_F : 0,
             using_trans ? Log_event::EVENT_TRANSACTIONAL_CACHE :
             Log_event::EVENT_STMT_CACHE, Log_event::EVENT_NORMAL_LOGGING,
             header(), footer())
 {
   DBUG_ENTER("Gtid_log_event::Gtid_log_event(THD *)");
-  spec= spec_arg ? *spec_arg : thd_arg->variables.gtid_next;
-  if (spec.type == GTID_GROUP)
+  if (thd->owned_gtid.sidno > 0)
   {
-    global_sid_lock->rdlock();
-    sid= global_sid_map->sidno_to_sid(spec.gtid.sidno);
-    global_sid_lock->unlock();
+    spec.set(thd->owned_gtid);
+    sid= thd->owned_sid;
   }
   else
+  {
+    DBUG_ASSERT(thd->owned_gtid.sidno == THD::OWNED_SIDNO_ANONYMOUS);
+    spec.set_anonymous();
+    spec.gtid.clear();
     sid.clear();
+  }
 
   Log_event_type event_type= (spec.type == ANONYMOUS_GROUP ?
                               binary_log::ANONYMOUS_GTID_LOG_EVENT :
@@ -12823,9 +12839,10 @@ Gtid_log_event::print(FILE *file, PRINT_EVENT_INFO *print_event_info)
   if (!print_event_info->short_form)
   {
     print_header(head, print_event_info, FALSE);
-    my_b_printf(head, "\tGTID [commit=%s]\tlast_committed=%llu\tsequence_number=%llu\n",
-                commit_flag ? "yes" : "no", (long long int)last_committed,
-                (long long int)sequence_number);
+    my_b_printf(head, "\t%s\tlast_committed=%llu\tsequence_number=%llu\n",
+                get_type_code() == binary_log::GTID_LOG_EVENT ?
+                "GTID" : "Anonymous_GTID",
+                last_committed, sequence_number);
   }
   to_string(buffer);
   my_b_printf(head, "%s%s\n", buffer, print_event_info->delimiter);
@@ -12833,8 +12850,7 @@ Gtid_log_event::print(FILE *file, PRINT_EVENT_INFO *print_event_info)
 #endif
 
 #ifdef MYSQL_SERVER
-uint32 Gtid_log_event::write_data_header_to_memory(uchar *buffer,
-                                                   IO_CACHE *file)
+uint32 Gtid_log_event::write_data_header_to_memory(uchar *buffer)
 {
   DBUG_ENTER("Gtid_log_event::write_data_header_to_memory");
   uchar *ptr_buffer= buffer;
@@ -12854,10 +12870,18 @@ uint32 Gtid_log_event::write_data_header_to_memory(uchar *buffer,
 
   int8store(ptr_buffer, spec.gtid.gno);
   ptr_buffer+= ENCODED_GNO_LENGTH;
-  file->commit_seq_offset= ptr_buffer- buffer;
   *ptr_buffer++= G_COMMIT_TS2;
-  int8store(ptr_buffer, SEQ_UNINIT);
-  int8store(ptr_buffer + 8, SEQ_UNINIT);
+
+  DBUG_ASSERT(sequence_number > last_committed);
+  DBUG_EXECUTE_IF("set_commit_parent_100",
+                  { last_committed= max<int64>(sequence_number > 1 ? 1 : 0,
+                                               sequence_number - 100); });
+  DBUG_EXECUTE_IF("set_commit_parent_150",
+                  { last_committed= max<int64>(sequence_number > 1 ? 1 : 0,
+                                               sequence_number - 150); });
+  DBUG_EXECUTE_IF("feign_commit_parent", { last_committed= sequence_number; });
+  int8store(ptr_buffer, last_committed);
+  int8store(ptr_buffer + 8, sequence_number);
   ptr_buffer+= COMMIT_SEQ_LEN;
 
   DBUG_ASSERT(ptr_buffer == (buffer + POST_HEADER_LENGTH));
@@ -12869,7 +12893,7 @@ bool Gtid_log_event::write_data_header(IO_CACHE *file)
 {
   DBUG_ENTER("Gtid_log_event::write_data_header");
   uchar buffer[POST_HEADER_LENGTH];
-  write_data_header_to_memory(buffer, file);
+  write_data_header_to_memory(buffer);
   DBUG_RETURN(wrapper_my_b_safe_write(file, (uchar *) buffer,
                                       POST_HEADER_LENGTH));
 }

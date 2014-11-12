@@ -365,6 +365,41 @@ rpl_gno Gtid_state::get_automatic_gno(rpl_sidno sidno) const
 }
 
 
+enum_return_status Gtid_state::generate_automatic_gtid(THD *thd)
+{
+  DBUG_ENTER("Gtid_state::generate_automatic_gtid");
+  enum_return_status ret= RETURN_STATUS_OK;
+
+  DBUG_ASSERT(thd->variables.gtid_next.type == AUTOMATIC_GROUP);
+
+  // If GTID_MODE = UPGRADE_STEP_2 or ON, generate a new GTID
+  if (gtid_mode >= GTID_MODE_UPGRADE_STEP_2)
+  {
+    Gtid automatic_gtid;
+    automatic_gtid.sidno= get_server_sidno();
+
+    sid_lock->rdlock();
+    lock_sidno(automatic_gtid.sidno);
+
+    automatic_gtid.gno= get_automatic_gno(automatic_gtid.sidno);
+
+    if (automatic_gtid.gno != -1)
+      acquire_ownership(thd, automatic_gtid);
+    else
+      ret= RETURN_STATUS_REPORTED_ERROR;
+
+    unlock_sidno(automatic_gtid.sidno);
+    sid_lock->unlock();
+  }
+  else
+    // If GTID_MODE = OFF or UPGRADE_STEP_1, just mark this thread as
+    // using an anonymous transaction.
+    thd->owned_gtid.sidno= THD::OWNED_SIDNO_ANONYMOUS;
+
+  DBUG_RETURN(ret);
+}
+
+
 int Gtid_state::wait_for_gtid(THD *thd, const Gtid &gtid, struct timespec* timeout)
 {
   DBUG_ENTER("Gtid_state::wait_for_gtid");

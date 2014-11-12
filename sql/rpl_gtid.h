@@ -2215,6 +2215,16 @@ public:
     @retval >0 The GNO for the GTID.
   */
   rpl_gno get_automatic_gno(rpl_sidno sidno) const;
+  /**
+    Generates the GTID (or ANONYMOUS, if GTID_MODE = OFF or
+    OFF_FLEXIBLE) for the THD, and acquires ownership.
+
+    @param THD The thread.
+
+    @return RETURN_STATUS_OK or RETURN_STATUS_ERROR. Error can happen
+    in case of out of memory or if the range of GNOs was exhausted.
+  */
+  enum_return_status generate_automatic_gtid(THD *thd);
   /// Locks a mutex for the given SIDNO.
   void lock_sidno(rpl_sidno sidno) { sid_locks.lock(sidno); }
   /// Unlocks a mutex for the given SIDNO.

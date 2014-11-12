@@ -809,6 +809,8 @@ public:
   bool write_event(Log_event* event_info);
   bool write_cache(THD *thd, class binlog_cache_data *binlog_cache_data,
                    class Binlog_event_writer *writer);
+  bool write_gtid(THD *thd, binlog_cache_data *cache_data,
+                  class Binlog_event_writer *writer);
 
   void set_write_error(THD *thd, bool is_transactional);
   bool check_write_error(THD *thd);

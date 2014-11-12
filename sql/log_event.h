@@ -3785,11 +3785,10 @@ class Gtid_log_event : public binary_log::Gtid_event, public Log_event
 public:
 #ifndef MYSQL_CLIENT
   /**
-    Create a new event using the GTID from the given Gtid_specification,
-    or from @@SESSION.GTID_NEXT if spec==NULL.
+    Create a new event using the GTID owned by the given thread.
   */
   Gtid_log_event(THD *thd_arg, bool using_trans,
-                 const Gtid_specification *spec= NULL);
+                 int64 last_committed_arg, int64 sequence_number_arg);
 #endif
 
 #ifndef MYSQL_CLIENT
@@ -3826,14 +3825,10 @@ private:
 
     @param buffer Buffer to which the post-header will be written.
 
-    @param file The IO_CACHE in which the commit sequence number is
-    stored. This is ugly but it is only here temporarily; the
-    parameter will be removed in the 8th patch of WL#7592.
-
     @return The number of bytes written, i.e., always
     Gtid_log_event::POST_HEADER_LENGTH.
   */
-  uint32 write_data_header_to_memory(uchar *buffer, IO_CACHE *file);
+  uint32 write_data_header_to_memory(uchar *buffer);
 #endif
 
 public:
@@ -3846,18 +3841,14 @@ public:
 
     @param buf The event will be written to this buffer.
 
-    @param file The IO_CACHE in which the commit sequence number is
-    stored. This is ugly but it is only here temporarily; the
-    parameter will be removed in the 8th patch of WL#7592.
-
     @return the number of bytes written, i.e., always
     LOG_EVENT_HEADER_LEN + Gtid_log_event::POST_HEADEr_LENGTH.
   */
-  uint32 write_to_memory(uchar *buf, IO_CACHE *file)
+  uint32 write_to_memory(uchar *buf)
   {
     common_header->data_written= LOG_EVENT_HEADER_LEN + get_data_size();
     uint32 len= write_header_to_memory(buf);
-    len+= write_data_header_to_memory(buf + len, file);
+    len+= write_data_header_to_memory(buf + len);
     return len;
   }
 #endif
