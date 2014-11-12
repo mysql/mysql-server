@@ -86,43 +86,6 @@ bool Group_cache::contains_gtid(const Gtid &gtid) const
 }
 
 
-/*
-  Apparently this code is not being called. We need to
-  investigate if this is a bug or this code is not
-  necessary. /Alfranio
-*/
-#ifdef NON_ERROR_GTID
-Group_cache::enum_add_group_status
-Group_cache::add_empty_group(const Gtid &gtid)
-{
-  DBUG_ENTER("Group_cache::add_empty_group");
-  // merge with previous group if possible
-  Cached_group *prev= get_last_group();
-  if (prev != NULL && prev->spec.equals(gtid))
-    DBUG_RETURN(EXTEND_EXISTING_GROUP);
-  // otherwise add new group
-  Cached_group *group= allocate_group();
-  if (group == NULL)
-    DBUG_RETURN(ERROR_GROUP);
-  group->spec.type= GTID_GROUP;
-  group->spec.gtid= gtid;
-  group->binlog_offset= prev != NULL ? prev->binlog_offset : 0;
-  // Update the internal status of this Group_cache (see comment above
-  // definition of enum_group_cache_type).
-  if (group->spec.type == GTID_GROUP)
-  {
-    /*
-      @todo: currently group_is_logged() requires a linear scan
-      through the cache. if this becomes a performance problem, we can
-      add a Gtid_set Group_cache::logged_groups and add logged groups
-      to it here. /Sven
-    */
-  }
-  DBUG_RETURN(APPEND_NEW_GROUP);
-}
-#endif
-
-
 enum_return_status Group_cache::generate_automatic_gno(THD *thd)
 {
   DBUG_ENTER("Group_cache::generate_automatic_gno");
