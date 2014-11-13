@@ -179,7 +179,6 @@ struct sql_ex_info
 #define SL_MASTER_POS_OFFSET    0
 #define SL_MASTER_HOST_OFFSET   10
 
-
 /* Intvar event post-header */
 
 /* Intvar event data */
@@ -3915,8 +3914,6 @@ public:
   }
   /// Return the GNO for this GTID.
   rpl_gno get_gno() const { return spec.gtid.gno; }
-  /// Return true if this is the last group of the transaction, else false.
-  bool get_commit_flag() const { return commit_flag; }
 
   /// string holding the text "SET @@GLOBAL.GTID_NEXT = '"
   static const char *SET_STRING_PREFIX;

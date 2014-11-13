@@ -873,14 +873,13 @@ public:
   Gtid_event(const char *buffer, uint32_t event_len,
              const Format_description_event *descr_event);
   /**
-    It is the minimal constructor which sets the commit_flag.
+    Constructor.
   */
   explicit Gtid_event(long long int last_committed_arg,
-                      long long int sequence_number_arg, bool commit_flag_arg)
+                      long long int sequence_number_arg)
     : Binary_log_event(GTID_LOG_EVENT),
       last_committed(last_committed_arg),
-      sequence_number(sequence_number_arg),
-      commit_flag(commit_flag_arg)
+      sequence_number(sequence_number_arg)
   {}
 #ifndef HAVE_MYSYS
   //TODO(WL#7684): Implement the method print_event_info and print_long_info
@@ -892,19 +891,22 @@ protected:
   static const int ENCODED_FLAG_LENGTH= 1;
   static const int ENCODED_SID_LENGTH= 16;// Uuid::BYTE_LENGTH;
   static const int ENCODED_GNO_LENGTH= 8;
-  /// Length of COMMIT TIMESTAMP index in event encoding
-  static const int COMMIT_TS_INDEX_LEN= 1;
+  /// Length of typecode for logical timestamps.
+  static const int LOGICAL_TIMESTAMP_TYPECODE_LENGTH= 1;
+  /// Length of two logical timestamps.
+  static const int LOGICAL_TIMESTAMP_LENGTH= 16;
+  // Type code used before the logical timestamps.
+  static const int LOGICAL_TIMESTAMP_TYPECODE= 2;
   gtid_info gtid_info_struct;
   Uuid Uuid_parent_struct;
-  bool commit_flag;
 public:
   /// Total length of post header
   static const int POST_HEADER_LENGTH=
-    ENCODED_FLAG_LENGTH      +  /* flags */
-    ENCODED_SID_LENGTH       +  /* SID length */
-    ENCODED_GNO_LENGTH       +  /* GNO length */
-    COMMIT_TS_INDEX_LEN      +  /* TYPECODE for G_COMMIT_TS  */
-    COMMIT_SEQ_LEN;             /* COMMIT sequence length */
+    ENCODED_FLAG_LENGTH               +  /* flags */
+    ENCODED_SID_LENGTH                +  /* SID length */
+    ENCODED_GNO_LENGTH                +  /* GNO length */
+    LOGICAL_TIMESTAMP_TYPECODE_LENGTH + /* length of typecode */
+    LOGICAL_TIMESTAMP_LENGTH;           /* length of two logical timestamps */
 
   static const int MAX_EVENT_LENGTH=
     LOG_EVENT_HEADER_LEN + POST_HEADER_LENGTH;

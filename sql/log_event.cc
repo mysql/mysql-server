@@ -3792,20 +3792,6 @@ bool Query_log_event::write(IO_CACHE* file)
   }
 
   /*
-    We store SEQ_UNINIT in the following status var since we don't have the
-    logical timestamp values as of yet. They will will be updated in the
-    do_write_cache.
-  */
-  if (file->commit_seq_offset == 0)
-  {
-    file->commit_seq_offset= Binary_log_event::QUERY_HEADER_LEN +
-                             (uint)(start-start_of_status);
-    *start++= Q_COMMIT_TS2;
-    int8store(start, SEQ_UNINIT);
-    int8store(start + 8, SEQ_UNINIT);
-    start+= COMMIT_SEQ_LEN;
-  }
-  /*
     NOTE: When adding new status vars, please don't forget to update
     the MAX_SIZE_LOG_EVENT_STATUS in log_event.h
 
@@ -12799,7 +12785,7 @@ Gtid_log_event::Gtid_log_event(const char *buffer, uint event_len,
 Gtid_log_event::Gtid_log_event(THD* thd_arg, bool using_trans,
                                int64 last_committed_arg,
                                int64 sequence_number_arg)
-: binary_log::Gtid_event(last_committed_arg, sequence_number_arg, true),
+: binary_log::Gtid_event(last_committed_arg, sequence_number_arg),
   Log_event(thd_arg, thd_arg->variables.gtid_next.type == ANONYMOUS_GROUP ?
             LOG_EVENT_IGNORABLE_F : 0,
             using_trans ? Log_event::EVENT_TRANSACTIONAL_CACHE :
@@ -12882,7 +12868,7 @@ uint32 Gtid_log_event::write_data_header_to_memory(uchar *buffer)
   DBUG_ENTER("Gtid_log_event::write_data_header_to_memory");
   uchar *ptr_buffer= buffer;
 
-  *ptr_buffer= commit_flag ? 1 : 0;
+  *ptr_buffer= 1;
   ptr_buffer+= ENCODED_FLAG_LENGTH;
 
 #ifndef DBUG_OFF
@@ -12897,7 +12883,9 @@ uint32 Gtid_log_event::write_data_header_to_memory(uchar *buffer)
 
   int8store(ptr_buffer, spec.gtid.gno);
   ptr_buffer+= ENCODED_GNO_LENGTH;
-  *ptr_buffer++= G_COMMIT_TS2;
+
+  *ptr_buffer= LOGICAL_TIMESTAMP_TYPECODE;
+  ptr_buffer+= LOGICAL_TIMESTAMP_TYPECODE_LENGTH;
 
   DBUG_ASSERT(sequence_number > last_committed);
   DBUG_EXECUTE_IF("set_commit_parent_100",
@@ -12909,7 +12897,7 @@ uint32 Gtid_log_event::write_data_header_to_memory(uchar *buffer)
   DBUG_EXECUTE_IF("feign_commit_parent", { last_committed= sequence_number; });
   int8store(ptr_buffer, last_committed);
   int8store(ptr_buffer + 8, sequence_number);
-  ptr_buffer+= COMMIT_SEQ_LEN;
+  ptr_buffer+= LOGICAL_TIMESTAMP_LENGTH;
 
   DBUG_ASSERT(ptr_buffer == (buffer + POST_HEADER_LENGTH));
 
