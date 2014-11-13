@@ -2839,6 +2839,8 @@ int gtid_acquire_ownership_single(THD *thd);
 int gtid_acquire_ownership_multiple(THD *thd);
 #endif
 
+void gtid_set_performance_schema_values(const THD *thd);
+
 #endif // ifndef MYSQL_CLIENT
 
 #endif /* RPL_GTID_H_INCLUDED */

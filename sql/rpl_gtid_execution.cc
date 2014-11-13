@@ -48,75 +48,74 @@ int gtid_acquire_ownership_single(THD *thd)
   if (thd->variables.gtid_next.type == ANONYMOUS_GROUP)
   {
     thd->owned_gtid.sidno= THD::OWNED_SIDNO_ANONYMOUS;
-    DBUG_RETURN(ret);
   }
-
-  DBUG_ASSERT(thd->variables.gtid_next.type == GTID_GROUP);
-  DBUG_ASSERT(gtid_next.sidno >= 1);
-  DBUG_ASSERT(gtid_next.gno >= 1);
-  while (true)
+  else
   {
-    global_sid_lock->rdlock();
-    // acquire lock before checking conditions
-    gtid_state->lock_sidno(gtid_next.sidno);
-
-    // GTID already logged
-    if (gtid_state->is_executed(gtid_next))
+    DBUG_ASSERT(thd->variables.gtid_next.type == GTID_GROUP);
+    DBUG_ASSERT(gtid_next.sidno >= 1);
+    DBUG_ASSERT(gtid_next.gno >= 1);
+    while (true)
     {
-      /*
-        Don't skip the statement here, skip it in
-        gtid_pre_statement_checks.
-      */
-      break;
-    }
-    my_thread_id owner= gtid_state->get_owner(gtid_next);
-    // GTID not owned by anyone: acquire ownership
-    if (owner == 0)
-    {
-      if (gtid_state->acquire_ownership(thd, gtid_next) != RETURN_STATUS_OK)
-        ret= 1;
-      thd->owned_gtid= gtid_next;
-      DBUG_ASSERT(thd->owned_gtid.sidno >= 1);
-      DBUG_ASSERT(thd->owned_gtid.gno >= 1);
-      break;
-    }
-    // GTID owned by someone (other thread)
-    else
-    {
-      // The call below releases the read lock on global_sid_lock and
-      // the mutex lock on SIDNO.
-      gtid_state->wait_for_gtid(thd, gtid_next);
+      global_sid_lock->rdlock();
+      // acquire lock before checking conditions
+      gtid_state->lock_sidno(gtid_next.sidno);
 
-      // global_sid_lock and mutex are now released
-
-      // Check if thread was killed.
-      if (thd->killed || abort_loop)
-        DBUG_RETURN(1);
-#ifdef HAVE_REPLICATION
-      // If this thread is a slave SQL thread or slave SQL worker
-      // thread, we need this additional condition to determine if it
-      // has been stopped by STOP SLAVE [SQL_THREAD].
-      if ((thd->system_thread &
-           (SYSTEM_THREAD_SLAVE_SQL | SYSTEM_THREAD_SLAVE_WORKER)) != 0)
+      // GTID already logged
+      if (gtid_state->is_executed(gtid_next))
       {
-        // TODO: error is *not* reported on cancel
-        DBUG_ASSERT(thd->rli_slave!= NULL);
-        Relay_log_info *c_rli= thd->rli_slave->get_c_rli();
-        if (c_rli->abort_slave)
-          DBUG_RETURN(1);
+        /*
+          Don't skip the statement here, skip it in
+          gtid_pre_statement_checks.
+        */
+        break;
       }
-#endif // HAVE_REPLICATION
-    }
-  }
-  gtid_state->unlock_sidno(gtid_next.sidno);
+      my_thread_id owner= gtid_state->get_owner(gtid_next);
+      // GTID not owned by anyone: acquire ownership
+      if (owner == 0)
+      {
+        if (gtid_state->acquire_ownership(thd, gtid_next) != RETURN_STATUS_OK)
+          ret= 1;
+        thd->owned_gtid= gtid_next;
+        DBUG_ASSERT(thd->owned_gtid.sidno >= 1);
+        DBUG_ASSERT(thd->owned_gtid.gno >= 1);
+        break;
+      }
+      // GTID owned by someone (other thread)
+      else
+      {
+        // The call below releases the read lock on global_sid_lock and
+        // the mutex lock on SIDNO.
+        gtid_state->wait_for_gtid(thd, gtid_next);
 
-  global_sid_lock->unlock();
+        // global_sid_lock and mutex are now released
+
+        // Check if thread was killed.
+        if (thd->killed || abort_loop)
+          DBUG_RETURN(1);
+#ifdef HAVE_REPLICATION
+        // If this thread is a slave SQL thread or slave SQL worker
+        // thread, we need this additional condition to determine if it
+        // has been stopped by STOP SLAVE [SQL_THREAD].
+        if ((thd->system_thread &
+             (SYSTEM_THREAD_SLAVE_SQL | SYSTEM_THREAD_SLAVE_WORKER)) != 0)
+        {
+          // TODO: error is *not* reported on cancel
+          DBUG_ASSERT(thd->rli_slave!= NULL);
+          Relay_log_info *c_rli= thd->rli_slave->get_c_rli();
+          if (c_rli->abort_slave)
+            DBUG_RETURN(1);
+        }
+#endif // HAVE_REPLICATION
+      }
+    }
+    gtid_state->unlock_sidno(gtid_next.sidno);
+
+    global_sid_lock->unlock();
+  }
 
 #ifdef HAVE_PSI_TRANSACTION_INTERFACE
-  /* Set the transaction GTID in the Performance Schema */
-  if (thd->m_transaction_psi != NULL && !ret && thd->owned_gtid.sidno >= 1)
-    MYSQL_SET_TRANSACTION_GTID(thd->m_transaction_psi, &thd->owned_sid,
-                               &thd->variables.gtid_next);
+  if (!ret)
+    gtid_set_performance_schema_values(thd);
 #endif
 
   DBUG_RETURN(ret);
@@ -499,5 +498,39 @@ void gtid_post_statement_checks(THD *thd)
        sql_command == SQLCOM_ROLLBACK))
     thd->variables.gtid_next.set_undefined();
 
+  DBUG_VOID_RETURN;
+}
+
+
+void gtid_set_performance_schema_values(const THD *thd)
+{
+  DBUG_ENTER("gtid_set_performance_schema_values");
+#ifdef HAVE_PSI_TRANSACTION_INTERFACE
+  if (thd->m_transaction_psi != NULL)
+  {
+    Gtid_specification spec;
+
+    // Thread owns GTID.
+    if (thd->owned_gtid.sidno >= 1)
+    {
+      spec.type= GTID_GROUP;
+      spec.gtid= thd->owned_gtid;
+    }
+
+    // Thread owns ANONYMOUS.
+    else if (thd->owned_gtid.sidno == THD::OWNED_SIDNO_ANONYMOUS)
+    {
+      spec.type= ANONYMOUS_GROUP;
+    }
+
+    // Thread does not own anything.
+    else
+    {
+      DBUG_ASSERT(thd->owned_gtid.sidno == 0);
+      spec.type= AUTOMATIC_GROUP;
+    }
+    MYSQL_SET_TRANSACTION_GTID(thd->m_transaction_psi, &thd->owned_sid, &spec);
+  }
+#endif
   DBUG_VOID_RETURN;
 }

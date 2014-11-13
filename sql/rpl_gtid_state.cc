@@ -392,9 +392,14 @@ enum_return_status Gtid_state::generate_automatic_gtid(THD *thd)
     sid_lock->unlock();
   }
   else
+  {
     // If GTID_MODE = OFF or UPGRADE_STEP_1, just mark this thread as
     // using an anonymous transaction.
     thd->owned_gtid.sidno= THD::OWNED_SIDNO_ANONYMOUS;
+    thd->owned_gtid.gno= 0;
+  }
+
+  gtid_set_performance_schema_values(thd);
 
   DBUG_RETURN(ret);
 }
