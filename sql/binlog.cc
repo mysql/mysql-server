@@ -3262,6 +3262,8 @@ bool MYSQL_BIN_LOG::open_binlog(const char *log_name,
     else
       global_sid_lock->assert_some_wrlock();
     Previous_gtids_log_event prev_gtids_ev(previous_gtid_set);
+    if (is_relay_log)
+      prev_gtids_ev.set_relay_log_event();
     if (need_sid_lock)
       global_sid_lock->unlock();
     prev_gtids_ev.checksum_alg= s.checksum_alg;
