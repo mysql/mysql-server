@@ -112,3 +112,4 @@ uint get_key_parts(KEY_INFO *key_info) {
     assert(key_info);
     return key_info->key_parts;
 }
+#define MAX_KEY (1U << 30)

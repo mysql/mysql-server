@@ -107,7 +107,6 @@ typedef unsigned long long ulonglong;
 typedef unsigned long ulong;
 #endif
 #include <tokudb_card.h>
-#define MAX_KEY 256
 
 static void test_no_keys() {
     TABLE_SHARE s = { 0, 0, 0, NULL };
