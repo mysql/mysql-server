@@ -303,3 +303,4 @@ void AsyncNdbContext::completeCallbacks() {
 }
 
 #endif
+
