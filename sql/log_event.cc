@@ -924,6 +924,35 @@ int Log_event::do_update_pos(Relay_log_info *rli)
 Log_event::enum_skip_reason
 Log_event::do_shall_skip(Relay_log_info *rli)
 {
+  /*
+    The logic for slave_skip_counter is as follows:
+
+    - Events that are skipped because they have the same server_id as
+      the slave do not decrease slave_skip_counter.
+
+    - Other events (that pass the server_id test) will decrease
+      slave_skip_counter.
+
+    - Except in one case: if slave_skip_counter==1, it will only
+      decrease to 0 if we are at a so-called group boundary. Here, a
+      group is defined as the range of events that represent a single
+      transaction in the relay log: see comment for is_in_group in
+      rpl_rli.h for a definition.
+
+    The difficult part to implement is the logic to avoid decreasing
+    the counter to 0.  Given that groups have the form described in
+    is_in_group in rpl_rli.h, we implement the logic as follows:
+
+    - Gtid, Rand, User_var, Int_var will never decrease the counter to
+      0.
+
+    - BEGIN will set thd->variables.option_bits & OPTION_BEGIN and
+      COMMIT/Xid will clear it.  This happens regardless of whether
+      the BEGIN/COMMIT/Xid is skipped itself.
+
+    - Other events will decrease the counter unless OPTION_BEGIN is
+      set.
+  */
   DBUG_PRINT("info", ("ev->server_id=%lu, ::server_id=%lu,"
                       " rli->replicate_same_server_id=%d,"
                       " rli->slave_skip_counter=%d",
@@ -4165,11 +4194,9 @@ void Query_log_event::print_query_header(IO_CACHE* file,
   if (!print_event_info->short_form)
   {
     print_header(file, print_event_info, FALSE);
-    my_b_printf(file, "\t%s\tthread_id=%lu\texec_time=%lu\terror_code=%d\t"
-                "last_committed=%llu\tsequence_number=%llu\n",
+    my_b_printf(file, "\t%s\tthread_id=%lu\texec_time=%lu\terror_code=%d\n",
                 get_type_str(), (ulong) thread_id, (ulong) exec_time,
-                error_code, (long long int)last_committed,
-                (long long int)sequence_number);
+                error_code);
   }
 
   bool suppress_use_flag= is_binlog_rewrite_db(db);
@@ -12994,6 +13021,11 @@ int Gtid_log_event::do_update_pos(Relay_log_info *rli)
                   sql_print_information("Crashing crash_after_update_pos_gtid.");
                   DBUG_SUICIDE(););
   return 0;
+}
+
+Log_event::enum_skip_reason Gtid_log_event::do_shall_skip(Relay_log_info *rli)
+{
+  return Log_event::continue_group(rli);
 }
 #endif
 

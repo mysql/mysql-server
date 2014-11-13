@@ -45,6 +45,7 @@ if ($rpl_multi_source)
 --let $_saved_channel_name= $rpl_channel_name
 if ($use_gtids)
 {
+  --source include/assert_gtid_mode_on.inc
   --let $_saved_gtids= query_get_value(SHOW SLAVE STATUS, Retrieved_Gtid_Set, 1)
   if ($rpl_debug)
   {

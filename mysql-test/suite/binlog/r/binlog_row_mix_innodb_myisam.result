@@ -174,6 +174,7 @@ insert into t1 values(13);
 insert into t2 select * from t1;
 rollback;
 include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 delete from t1;
 delete from t2;
 reset master;
@@ -456,6 +457,7 @@ select count(*) from tt /* 2 */;
 count(*)
 2
 include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 select count(*) from ti /* zero */;
 count(*)
 0
@@ -476,6 +478,7 @@ rollback;
 Warnings:
 Warning	1196	Some non-transactional changed tables couldn't be rolled back
 include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 select count(*) from ti /* zero */;
 count(*)
 0
@@ -698,6 +701,7 @@ select count(*) from tt /* 2 */;
 count(*)
 2
 include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 select count(*) from ti /* zero */;
 count(*)
 0
@@ -718,6 +722,7 @@ rollback;
 Warnings:
 Warning	1196	Some non-transactional changed tables couldn't be rolled back
 include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 select count(*) from ti /* zero */;
 count(*)
 0

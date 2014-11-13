@@ -115,7 +115,9 @@
 #      See include/wait_for_slave_param.inc
 #
 #    $use_gtids
-#      Use option MASTER_AUTO_POSITION = 1 to CHANGE MASTER.
+#      Use option MASTER_AUTO_POSITION = 1 to CHANGE MASTER, and use
+#      GTIDs in sync_*.inc. If the variable is not set, then this
+#      script sets it to 1 if GTID_MODE = ON and 0 otherwise.
 #
 #    $rpl_gtid_utils
 #      Create stored functions for GTID manipulation on every server (see

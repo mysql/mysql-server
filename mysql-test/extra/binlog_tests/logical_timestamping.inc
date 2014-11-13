@@ -1,6 +1,6 @@
 --let $MYSQLD_DATADIR= `select @@datadir`
 --let $events_file=$MYSQLTEST_VARDIR/tmp/events.sql
---let GREP_PRINT_NOT_VERBOSE=1
+--let $grep_output= print_count
 
 RESET MASTER;
 
@@ -9,10 +9,10 @@ RESET MASTER;
 CREATE TABLE t1 (a int) ENGINE= innodb;
 
 --exec $MYSQL_BINLOG --force-if-open $MYSQLD_DATADIR/master-bin.000001 > $events_file
---let GREP_FILE=$events_file
---let GREP_PATTERN=last_committed=0	sequence_number=1
+--let $grep_file=$events_file
+--let $grep_pattern=last_committed=0	sequence_number=1
 --echo Must be 1 occurence found
---source extra/rpl_tests/grep_pattern.inc
+--source include/grep_pattern.inc
 
 # A next transaction increments either counter
 
@@ -20,9 +20,9 @@ CREATE TABLE t1 (a int) ENGINE= innodb;
 INSERT INTO t1 SET a=1;
 
 --exec $MYSQL_BINLOG --force-if-open $MYSQLD_DATADIR/master-bin.000001 --start-position=$binlog_pos > $events_file
---let GREP_PATTERN=last_committed=1	sequence_number=2
+--let $grep_pattern=last_committed=1	sequence_number=2
 --echo Must be 1 occurence found
---source extra/rpl_tests/grep_pattern.inc
+--source include/grep_pattern.inc
 
 # Transaction's last committed timestamp is computed at its last
 # being executed query.
@@ -58,9 +58,9 @@ INSERT INTO t1 SET a=2;
 COMMIT;
 
 --exec $MYSQL_BINLOG --force-if-open $MYSQLD_DATADIR/master-bin.000001 --start-position=$binlog_pos > $events_file
---let GREP_PATTERN=last_committed=3	sequence_number=4
+--let $grep_pattern=last_committed=3	sequence_number=4
 --echo Must be 1 occurence found
---source extra/rpl_tests/grep_pattern.inc
+--source include/grep_pattern.inc
 
 
 --let $rpl_connection_name=one
@@ -69,9 +69,9 @@ COMMIT;
 --let $binlog_pos= query_get_value(SHOW MASTER STATUS, Position, 1)
 COMMIT;
 --exec $MYSQL_BINLOG --force-if-open $MYSQLD_DATADIR/master-bin.000001 --start-position=$binlog_pos > $events_file
---let GREP_PATTERN=last_committed=3	sequence_number=5
+--let $grep_pattern=last_committed=3	sequence_number=5
 --echo Must be 1 occurence found
---source extra/rpl_tests/grep_pattern.inc
+--source include/grep_pattern.inc
 
 # Two independent and concurrent (autoincrement)  transaction will either
 # have the same commit parent as the last committed of so far, or
@@ -95,10 +95,10 @@ COMMIT;
 --reap
 
 --exec $MYSQL_BINLOG --force-if-open $MYSQLD_DATADIR/master-bin.000001 --start-position=$binlog_pos > $events_file
---let GREP_PATTERN=last_committed=[56]	sequence_number=[67]
+--let $grep_pattern=last_committed=[56]	sequence_number=[67]
 
 --echo Must be 2 occurences found
---source extra/rpl_tests/grep_pattern.inc
+--source include/grep_pattern.inc
 
 
 #
@@ -129,9 +129,9 @@ COMMIT;
 # Not "rotated" 2nd transaction is logged following the regular rule.
 # Its timestamp pair of (1,2) must be found.
 --exec $MYSQL_BINLOG --force-if-open $MYSQLD_DATADIR/master-bin.000001 > $events_file
---let GREP_PATTERN=last_committed=1	sequence_number=2
+--let $grep_pattern=last_committed=1	sequence_number=2
 --echo Must be 1 occurence found
---source extra/rpl_tests/grep_pattern.inc
+--source include/grep_pattern.inc
 
 FLUSH LOGS;
 
@@ -143,9 +143,9 @@ COMMIT;
 # as expected. Its timestamp pair of (0,1) must be found.
 
 --exec $MYSQL_BINLOG --force-if-open $MYSQLD_DATADIR/master-bin.000002 > $events_file
---let GREP_PATTERN=last_committed=0	sequence_number=1
+--let $grep_pattern=last_committed=0	sequence_number=1
 --echo Must be 1 occurence found
---source extra/rpl_tests/grep_pattern.inc
+--source include/grep_pattern.inc
 
 #
 # Testing logging of transaction that commits after RESET MASTER.
@@ -180,9 +180,9 @@ COMMIT;
 # Not "rotated" 2nd transaction is logged following the regular rule.
 # Its timestamp pair of (1,2) must be found.
 --exec $MYSQL_BINLOG --force-if-open $MYSQLD_DATADIR/master-bin.000001 > $events_file
---let GREP_PATTERN=last_committed=1	sequence_number=2
+--let $grep_pattern=last_committed=1	sequence_number=2
 --echo Must be 1 occurence found
---source extra/rpl_tests/grep_pattern.inc
+--source include/grep_pattern.inc
 
 RESET MASTER;
 
@@ -197,9 +197,9 @@ COMMIT;
 # as expected. Its timestamp pair of (0,[12]) must be found.
 
 --exec $MYSQL_BINLOG --force-if-open $MYSQLD_DATADIR/master-bin.000001 > $events_file
---let GREP_PATTERN=last_committed=0	sequence_number=[12]
+--let $grep_pattern=last_committed=0	sequence_number=[12]
 --echo Must be 2 occurences found
---source extra/rpl_tests/grep_pattern.inc
+--source include/grep_pattern.inc
 
 #
 # Cleanup

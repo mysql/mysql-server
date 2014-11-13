@@ -1332,6 +1332,15 @@ bool Relay_log_info::is_until_satisfied(THD *thd, Log_event *ev)
     {
       if (ev && ev->server_id == (uint32) ::server_id && !replicate_same_server_id)
         DBUG_RETURN(false);
+      /*
+        Rotate events originating from the slave have server_id==0,
+        and their log_pos is relative to the slave, so in case their
+        log_pos is greater than the log_pos we are waiting for, they
+        can cause the slave to stop prematurely. So we ignore such
+        events.
+      */
+      if (ev && ev->server_id == 0)
+        DBUG_RETURN(false);
       log_name= group_master_log_name;
       if (!ev || is_in_group() || !ev->common_header->log_pos)
         log_pos= group_master_log_pos;

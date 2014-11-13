@@ -4038,12 +4038,13 @@ bool MYSQL_BIN_LOG::init_gtid_sets(Gtid_set *all_gtids, Gtid_set *lost_gtids,
           goto end;
         }
         case NO_GTIDS:
+        case GOT_PREVIOUS_GTIDS:
         {
           /*
             If the binlog_gtid_simple_recovery is enabled, and the
             first binary log does not contain any GTID event, do not
-            read any more binary logs, GLOBAL.GTID_PURGED should be
-            empty in the case.
+            read any more binary logs: GLOBAL.GTID_PURGED should be
+            empty in this case.
           */
           if (binlog_gtid_simple_recovery && !is_relay_log)
           {
@@ -4052,7 +4053,6 @@ bool MYSQL_BIN_LOG::init_gtid_sets(Gtid_set *all_gtids, Gtid_set *lost_gtids,
           }
           /*FALLTHROUGH*/
         }
-        case GOT_PREVIOUS_GTIDS:
         case TRUNCATED:
         {
           break;

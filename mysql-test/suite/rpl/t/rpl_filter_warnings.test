@@ -48,8 +48,8 @@ DROP TABLE t2;
 SET @@GLOBAL.DEBUG= '$debug_saved';
 
 --replace_regex /[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9]\.[0-9][0-9][0-9][0-9][0-9][0-9][-+Z][0-9:]* *[0-9]* *\[/DATE_TIME [/ s/Worker .* end_log_pos [0-9]*; //
---let GREP_FILE=$MYSQLTEST_VARDIR/tmp/slave.err
---let GREP_PATTERN=Slave SQL thread ignored the query because of replicate
---source extra/rpl_tests/grep_pattern.inc
+--let $grep_file=$MYSQLTEST_VARDIR/tmp/slave.err
+--let $grep_pattern=Slave SQL thread ignored the query because of replicate
+--source include/grep_pattern.inc
 
 --source include/rpl_end.inc
