@@ -7928,7 +7928,7 @@ alter_list_item:
           add_column column_def opt_place
           {
             Lex->create_last_non_select_table= Lex->last_table();
-            if (Lex->gcol_info && Lex->gcol_info->is_stored_field())
+            if (Lex->gcol_info && Lex->gcol_info->get_field_stored())
               Lex->alter_info.flags|= Alter_info::ALTER_STORED_GCOLUMN;
             else if (Lex->gcol_info)
               Lex->alter_info.flags|= Alter_info::ALTER_VIRTUAL_GCOLUMN;
@@ -7942,7 +7942,7 @@ alter_list_item:
           {
             Lex->alter_info.flags|= Alter_info::ALTER_ADD_COLUMN |
                                     Alter_info::ALTER_ADD_INDEX;
-            if (Lex->gcol_info && Lex->gcol_info->is_stored_field())
+            if (Lex->gcol_info && Lex->gcol_info->get_field_stored())
               Lex->alter_info.flags|= Alter_info::ALTER_STORED_GCOLUMN;
             else if (Lex->gcol_info)
               Lex->alter_info.flags|= Alter_info::ALTER_VIRTUAL_GCOLUMN;
@@ -7956,7 +7956,7 @@ alter_list_item:
           field_spec opt_place
           {
             Lex->create_last_non_select_table= Lex->last_table();
-            if (Lex->gcol_info && Lex->gcol_info->is_stored_field())
+            if (Lex->gcol_info && Lex->gcol_info->get_field_stored())
               Lex->alter_info.flags|= Alter_info::ALTER_STORED_GCOLUMN;
             else if (Lex->gcol_info)
               Lex->alter_info.flags|= Alter_info::ALTER_VIRTUAL_GCOLUMN;
@@ -7983,7 +7983,7 @@ alter_list_item:
                                   lex->uint_geom_type,
                                   lex->gcol_info))
               MYSQL_YYABORT;
-            if (Lex->gcol_info && Lex->gcol_info->is_stored_field())
+            if (Lex->gcol_info && Lex->gcol_info->get_field_stored())
               Lex->alter_info.flags|= Alter_info::ALTER_STORED_GCOLUMN;
             else if (Lex->gcol_info)
               Lex->alter_info.flags|= Alter_info::ALTER_VIRTUAL_GCOLUMN;

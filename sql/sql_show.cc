@@ -5035,7 +5035,12 @@ static int get_schema_column_record(THD *thd, TABLE_LIST *tables,
       table->field[IS_COLUMNS_EXTRA]->store(type.ptr(), type.length(), cs);
     if (field->gcol_info)
     {
-      table->field[IS_COLUMNS_EXTRA]->store(STRING_WITH_LEN("GENERATED"), cs);
+      if (field->stored_in_db)
+        table->field[IS_COLUMNS_EXTRA]->
+          store(STRING_WITH_LEN("STORED GENERATED"), cs);
+      else
+        table->field[IS_COLUMNS_EXTRA]->
+          store(STRING_WITH_LEN("VIRTUAL GENERATED"), cs);
       table->field[IS_COLUMNS_GENERATION_EXPRESSION]->
         store(field->gcol_info->expr_str.str,field->gcol_info->expr_str.length,
               cs);

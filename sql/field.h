@@ -461,7 +461,7 @@ public:
   generated_column_info() 
   : expr_item(0), item_free_list(0),
     field_type(MYSQL_TYPE_LONG),
-    stored_in_db(FALSE), data_inited(FALSE)
+    stored_in_db(FALSE)
   {
     expr_str.str= NULL;
     expr_str.length= 0;
@@ -469,28 +469,21 @@ public:
   ~generated_column_info() {}
   enum_field_types get_real_type()
   {
-    DBUG_ASSERT(data_inited);
     return field_type;
   }
+
   void set_field_type(enum_field_types fld_type)
   {
-    /* Calling this function can only be done once. */
-    DBUG_ASSERT(!data_inited);
-    data_inited= TRUE;
     field_type= fld_type;
   }
+
   bool get_field_stored()
   {
-    DBUG_ASSERT(data_inited);
     return stored_in_db;
   }
   void set_field_stored(bool stored)
   {
     stored_in_db= stored;
-  }
-  bool is_stored_field()
-  {
-    return stored_in_db;
   }
 private:
   /*
@@ -500,11 +493,6 @@ private:
   enum_field_types field_type;   /* Real field type*/
   bool stored_in_db;             /* Indication that the field is 
                                     phisically stored in the database*/
-  /*
-    This flag is used to prevent other applications from
-    reading and using incorrect data.
-  */
-  bool data_inited; 
 };
 
 class Field
