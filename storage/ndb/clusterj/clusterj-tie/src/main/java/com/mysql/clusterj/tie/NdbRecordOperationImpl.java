@@ -136,7 +136,7 @@ public class NdbRecordOperationImpl implements Operation {
             this.autoIncrement = true;
             this.autoIncrementColumnId = autoIncrementColumn.getColumnId();
         }
-        logger.info("autoIncrement for " + storeTable.getName() + " is: " + autoIncrement);
+        logger.detail("autoIncrement for " + storeTable.getName() + " is: " + autoIncrement);
         this.tableName = storeTable.getName();
         this.ndbRecordValues = clusterConnection.getCachedNdbRecordImpl(storeTable);
         this.ndbRecordKeys = ndbRecordValues;
@@ -165,7 +165,7 @@ public class NdbRecordOperationImpl implements Operation {
             this.autoIncrement = true;
             this.autoIncrementColumnId = autoIncrementColumn.getColumnId();
         }
-        logger.info("autoIncrement for " + storeTable.getName() + " is: " + autoIncrement);
+        logger.detail("autoIncrement for " + storeTable.getName() + " is: " + autoIncrement);
         this.tableName = storeTable.getName();
         this.ndbRecordValues = clusterTransaction.getCachedNdbRecordImpl(storeTable);
         this.valueBufferSize = ndbRecordValues.getBufferSize();

@@ -232,7 +232,7 @@ class ColumnImpl implements Column {
                 String message = 
                     local.message("ERR_Unknown_Column_Type",
                     tableName, ndbColumn.getName(), ndbType);
-                logger.info(message);
+                logger.warn(message);
                 throw new ClusterJFatalInternalException(message);
         }
         if (logger.isDetailEnabled()) logger.detail("Column " + columnName
@@ -302,7 +302,7 @@ class ColumnImpl implements Column {
                 String message = 
                     local.message("ERR_Unknown_Column_Type",
                     tableName, columnName, type);
-                logger.info(message);
+                logger.warn(message);
                 throw new ClusterJFatalInternalException(message);
         }
     }
