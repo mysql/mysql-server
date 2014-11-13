@@ -272,7 +272,7 @@ public class DomainTypeHandlerImpl<T> extends AbstractDomainTypeHandlerImpl<T> {
         // If not, this table has no primary key or there is no primary key field
         if (!indexHandlerImpls.get(0).isUsable()) {
             String reason = local.message("ERR_Primary_Field_Missing", name);
-            logger.info(reason);
+            logger.warn(reason);
             throw new ClusterJUserException(reason);
         }
 
