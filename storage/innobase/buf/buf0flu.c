@@ -2103,7 +2103,15 @@ buf_flush_stat_update(void)
 	ib_uint64_t		lsn;
 	ulint			n_flushed;
 
-	lsn = log_get_lsn();
+	lsn = log_get_lsn_nowait();
+
+	/* log_get_lsn_nowait tries to get log_sys->mutex with
+	mutex_enter_nowait, if this does not succeed function
+	returns 0, do not use that value to update stats. */
+	if (lsn == 0) {
+		return;
+	}
+
 	if (buf_flush_stat_cur.redo == 0) {
 		/* First time around. Just update the current LSN
 		and return. */

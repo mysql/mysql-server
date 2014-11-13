@@ -434,14 +434,14 @@ lsn_t
 log_get_lsn_nowait(void)
 /*=============*/
 {
-	lsn_t	lsn;
+	lsn_t	lsn=0;
 
-        if (mutex_enter_nowait(&(log_sys->mutex)))
-          return 0;
+	if (!mutex_enter_nowait(&(log_sys->mutex))) {
 
-	lsn = log_sys->lsn;
+		lsn = log_sys->lsn;
 
-	mutex_exit(&(log_sys->mutex));
+		mutex_exit(&(log_sys->mutex));
+	}
 
 	return(lsn);
 }
