@@ -249,14 +249,10 @@ bool log_in_use(const char* log_name)
   THD *tmp;
   bool result = 0;
 #ifndef MCP_BUG19553099
-  /*
-    Restarting mysqld with --expire-log-days=1 triggers 'log_in_use'
-    to be called without current_thd. Temporarily circumvent
-    problem by not doing debug sync when thd is NULL.
-  */
-  THD* thd = current_thd;
-  if (thd)
-    DEBUG_SYNC(thd,"purge_logs_after_lock_index_before_thread_count");
+#ifndef DBUG_OFF
+  if (current_thd)
+    DEBUG_SYNC(current_thd,"purge_logs_after_lock_index_before_thread_count");
+#endif
 #else
   DEBUG_SYNC(current_thd,"purge_logs_after_lock_index_before_thread_count");
 #endif
