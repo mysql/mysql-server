@@ -1766,6 +1766,141 @@ int runCheckNdbObjectList(NDBT_Context* ctx, NDBT_Step* step)
   
   return (cnt1 == do_cnt(con)) ? NDBT_OK : NDBT_FAILED;
 }
+
+
+static Ndb_cluster_connection* g_cluster_connection;
+
+int runNdbClusterConnectionDelete_connection_owner(NDBT_Context* ctx,
+                                                   NDBT_Step* step)
+{
+  // Get connectstring from main connection
+  char constr[256];
+  if (!ctx->m_cluster_connection.get_connectstring(constr,
+                                                   sizeof(constr)))
+  {
+    g_err << "Too short buffer for connectstring" << endl;
+    return NDBT_FAILED;
+  }
+
+  // Create a new cluster connection, connect it and assign
+  // to pointer so the other thread can access it.
+  Ndb_cluster_connection* con = new Ndb_cluster_connection(constr);
+
+  const int retries = 12;
+  const int retry_delay = 5;
+  const int verbose = 1;
+  if (con->connect(retries, retry_delay, verbose) != 0)
+  {
+    delete con;
+    g_err << "Ndb_cluster_connection.connect failed" << endl;
+    return NDBT_FAILED;
+  }
+
+  g_cluster_connection = con;
+
+  // Signal other thread that cluster connection has been creted
+  ctx->setProperty("CREATED", 1);
+
+  // Now wait for the other thread to use the connection
+  // until it signals this thread to continue and
+  // delete the cluster connection(since the
+  // other thread still have live Ndb objects created
+  // in the connection, this thread should hang in
+  // the delete until other thread has finished cleaning up)
+  ctx->getPropertyWait("CREATED", 2);
+
+  g_cluster_connection = NULL;
+  delete con;
+
+  return NDBT_OK;
+}
+
+int runNdbClusterConnectionDelete_connection_user(NDBT_Context* ctx, NDBT_Step* step)
+{
+  // Wait for the cluster connection to be created by other thread
+  ctx->getPropertyWait("CREATED", 1);
+
+  Ndb_cluster_connection* con = g_cluster_connection;
+
+  // Create some Ndb objects and start transactions
+  class ActiveTransactions
+  {
+    Vector<NdbTransaction*> m_transactions;
+
+  public:
+    void release()
+    {
+      while(m_transactions.size())
+      {
+        NdbTransaction* trans = m_transactions[0];
+        Ndb* ndb = trans->getNdb();
+        g_info << "Deleting Ndb object " << ndb <<
+                  "and transaction " << trans << endl;
+        ndb->closeTransaction(trans);
+        delete ndb;
+        m_transactions.erase(0);
+      }
+      // The list should be empty
+      assert(m_transactions.size() == 0);
+    }
+
+    ~ActiveTransactions()
+    {
+      release();
+    }
+
+    void push_back(NdbTransaction* trans)
+    {
+      m_transactions.push_back(trans);
+    }
+  } active_transactions;
+
+  g_info << "Creating Ndb objects and transactions.." << endl;
+  for (Uint32 i = 0; i<100; i++)
+  {
+    Ndb* ndb = new Ndb(con, "TEST_DB");
+    if (ndb == NULL){
+      g_err << "ndb == NULL" << endl;
+      return NDBT_FAILED;
+    }
+    if (ndb->init(256) != 0){
+      NDB_ERR(ndb->getNdbError());
+      delete ndb;
+      return NDBT_FAILED;
+    }
+
+    if (ndb->waitUntilReady() != 0){
+      NDB_ERR(ndb->getNdbError());
+      delete ndb;
+      return NDBT_FAILED;
+    }
+
+    NdbTransaction* trans = ndb->startTransaction();
+    if (trans == NULL){
+      g_err << "trans == NULL" << endl;
+      NDB_ERR(ndb->getNdbError());
+      delete ndb;
+      return NDBT_FAILED;
+    }
+
+    active_transactions.push_back(trans);
+  }
+  g_info << "  ok!" << endl;
+
+  // Signal to cluster connection owner that Ndb objects have been created
+  ctx->setProperty("CREATED", 2);
+
+  // Delay a little and then start closing transactions and
+  // deleting the Ndb objects
+  NdbSleep_SecSleep(1);
+
+  g_info << "Releasing transactions and related Ndb objects..." << endl;
+  active_transactions.release();
+  g_info << "  ok!" << endl;
+  return NDBT_OK;
+}
+
+
   
 static void
 testExecuteAsynchCallback(int res, NdbTransaction *con, void *data_ptr)
@@ -5970,6 +6105,12 @@ TESTCASE("IgnoreError", ""){
 TESTCASE("CheckNdbObjectList", 
 	 ""){ 
   INITIALIZER(runCheckNdbObjectList);
+}
+TESTCASE("DeleteClusterConnectionWhileUsed",
+         "Make sure that deleting of Ndb_cluster_connection will"
+         "not return until all it's Ndb objects has been deleted."){
+  STEP(runNdbClusterConnectionDelete_connection_owner)
+  STEP(runNdbClusterConnectionDelete_connection_user);
 }
 TESTCASE("ExecuteAsynch", 
 	 "Check that executeAsync() works (BUG#27495)\n"){ 
