@@ -120,6 +120,7 @@ private:
   Uint64 m_latest_trans_gci;
 
   NdbMutex* m_new_delete_ndb_mutex;
+  NdbCondition* m_new_delete_ndb_cond;
   Ndb* m_first_ndb_object;
   void link_ndb_object(Ndb*);
   void unlink_ndb_object(Ndb*);
