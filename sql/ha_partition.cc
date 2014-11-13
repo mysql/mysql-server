@@ -8791,25 +8791,6 @@ void ha_partition::cancel_pushed_idx_cond()
                 MODULE auto increment
 ****************************************************************************/
 
-
-int ha_partition::reset_auto_increment(ulonglong value)
-{
-  handler **file= m_file;
-  int res;
-  DBUG_ENTER("ha_partition::reset_auto_increment");
-  lock_auto_increment();
-  part_share->auto_inc_initialized= false;
-  part_share->next_auto_inc_val= 0;
-  do
-  {
-    if ((res= (*file)->ha_reset_auto_increment(value)) != 0)
-      break;
-  } while (*(++file));
-  unlock_auto_increment();
-  DBUG_RETURN(res);
-}
-
-
 /**
   This method is called by update_auto_increment which in turn is called
   by the individual handlers as part of write_row. We use the

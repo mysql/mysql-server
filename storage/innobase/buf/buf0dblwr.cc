@@ -209,7 +209,7 @@ start_again:
 
 	ib::info() << "Doublewrite buffer not found: creating new";
 
-	ulint min_doublewrite_size = 
+	ulint min_doublewrite_size =
 		( ( 2 * TRX_SYS_DOUBLEWRITE_BLOCK_SIZE
 		  + FSP_EXTENT_SIZE / 2
 		  + 100)

@@ -64,7 +64,7 @@ $found_revision = "No line 'revision-id: .....'";
 open(I_SRC,"<","$dir_docs/INFO_SRC") or print "Cannot open 'INFO_SRC' in '$dir_docs' (starting from bindir '$dir_bin')\n";
 while(defined ($line = <I_SRC>)) {
   if ($line =~ m|^MySQL source \d\.\d\.\d+|) {$found_version = "Found MySQL version number";}
-  if ($line =~ m|^revision-id: .*@.*-2\d{13}-\w+$|) {$found_revision = "Found BZR revision id";}
+  if ($line =~ m|^git log -1: commit \w{40}$|) {$found_revision = "Found GIT revision id";}
 }
 close I_SRC;
 print "INFO_SRC: $found_version / $found_revision\n";

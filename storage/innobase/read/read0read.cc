@@ -591,7 +591,7 @@ MVCC::view_open(ReadView*& view, trx_t* trx)
 }
 
 /**
-Get the oldest (active) view in the system. 
+Get the oldest (active) view in the system.
 @return oldest view if found or NULL */
 
 ReadView*

@@ -583,8 +583,6 @@ ndb_create_thd(char * stackptr)
     DBUG_RETURN(0);
   }
 
-  lex_start(thd);
-
   thd->init_for_queries();
   thd_set_command(thd, COM_DAEMON);
   thd->system_thread= SYSTEM_THREAD_NDBCLUSTER_BINLOG;
@@ -6827,7 +6825,6 @@ Ndb_binlog_thread::do_run()
     native_cond_signal(&injector_cond);
     DBUG_VOID_RETURN;
   }
-  lex_start(thd);
 
   thd_set_command(thd, COM_DAEMON);
   thd->system_thread= SYSTEM_THREAD_NDBCLUSTER_BINLOG;
