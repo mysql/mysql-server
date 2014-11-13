@@ -1,8 +1,13 @@
+# ==== Purpose ====
+#
 # This test checks that the slave I/O thread refuses to start if slave
 # and master have the same server id (because this is a useless setup,
 # and otherwise SHOW SLAVE STATUS shows progress but all queries are
-# ignored, which has caught our customers), unless
-# --replicate-same-server-id.
+# ignored, which has caught our customers).
+#
+# ==== Notes ====
+#
+# This test was called rpl_server_id1.test prior to MySQL 5.7.5.
 
 --let $rpl_topology= 2->2
 --let $rpl_skip_start_slave= 1

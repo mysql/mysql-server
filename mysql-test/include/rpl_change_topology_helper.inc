@@ -63,6 +63,10 @@ if (!$rpl_unconditional_change_master)
   }
 }
 
+if ($rpl_debug)
+{
+  --echo \$_rpl_server='$_rpl_server' \$_rpl_master='$_rpl_master' \$use_gtids=$use_gtids
+}
 
 if (!$_rpl_change_topology_helper_skip)
 {
@@ -72,6 +76,7 @@ if (!$_rpl_change_topology_helper_skip)
   # Configure whether we use AUTO_POSITION.
   if ($use_gtids)
   {
+    --source include/assert_gtid_mode_on.inc
     --let $_rpl_change_topology_helper_position= MASTER_AUTO_POSITION = 1,
   }
   if (!$use_gtids)

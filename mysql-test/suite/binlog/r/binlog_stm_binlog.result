@@ -457,9 +457,8 @@ BINLOG '
 3u9kSBMUAAAAKQAAAJEBAAAAABoAAAAAAAAABHRlc3QAAnQxAAEDAAA=
 3u9kSBcUAAAAIgAAALMBAAAQABoAAAAAAAEAAf/+AgAAAA==
 ';
-SHOW BINLOG EVENTS;
+include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-#	#	Format_desc	1	#	Server ver: #, Binlog ver: #
 #	#	Query	1	#	use `test`; CREATE TABLE t1 (a INT PRIMARY KEY)
 #	#	Query	1	#	BEGIN
 #	#	Query	1	#	use `test`; INSERT INTO t1 VALUES (1)

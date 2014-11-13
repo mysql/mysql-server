@@ -22,4 +22,5 @@ reset master;
 create table t2(unique(a)) select a from t1;
 ERROR 23000: Duplicate entry '1' for key 'a'
 include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 drop table t1;

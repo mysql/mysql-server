@@ -97,7 +97,7 @@ perl;
   $mysql .= " --port=$server_port --socket=$server_socket";
   my $outfile = $ENV{'_WRTF_OUTPUT_FILE'};
   open MYSQL, "| $mysql $redirection_type $outfile" or die "Failed to open MYSQL pipe: '$mysql > $outfile'";
-  print MYSQL $stmt, ';' or die "Error printing statement to MYSQL pipe: $!";
+  print MYSQL $stmt, ';' or die "Error printing statement '$stmt' to MYSQL pipe: $!";
   close MYSQL or $ENV{'_WRTF_ALLOW_ERROR'} or die "Error closing MYSQL pipe: $!";
 EOF
 

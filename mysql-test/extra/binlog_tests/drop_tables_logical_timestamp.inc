@@ -1,6 +1,6 @@
 --let $MYSQLD_DATADIR= `select @@datadir`
 --let $events_file=$MYSQLTEST_VARDIR/tmp/events.sql
---let GREP_PRINT_NOT_VERBOSE=1
+--let $grep_output= print_count
 
 #
 # Testing DROP of multiple tables logging when a query produces few groups
@@ -22,7 +22,7 @@ CREATE TEMPORARY TABLE tti1 (a INT) ENGINE=Innodb;
 DROP TABLE tm,t1,ttm1,tti1;
 
 --exec $MYSQL_BINLOG --force-if-open $MYSQLD_DATADIR/master-bin.000001 > $events_file
---let GREP_FILE=$events_file
+--let $grep_file=$events_file
 
 #
 # The final grep invocation should be done by the top level part.
