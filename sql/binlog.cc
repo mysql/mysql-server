@@ -322,11 +322,6 @@ public:
     return pending() == NULL && pos == 0;
   }
 
-  bool is_group_cache_empty() const
-  {
-    return group_cache.is_empty();
-  }
-
 #ifndef DBUG_OFF
   bool dbug_is_finalized() const {
     return flags.finalized;
@@ -406,8 +401,6 @@ public:
       variable after truncating the cache.
     */
     cache_log.disk_writes= 0;
-    cache_log.commit_seq_offset= 0;
-    group_cache.clear();
     DBUG_ASSERT(is_binlog_empty());
   }
 
@@ -446,11 +439,6 @@ public:
     Cache to store data before copying it to the binary log.
   */
   IO_CACHE cache_log;
-
-  /**
-    The group cache for this cache.
-  */
-  Group_cache group_cache;
 
 protected:
   /*
@@ -691,7 +679,6 @@ private:
 
   binlog_trx_cache_data& operator=(const binlog_trx_cache_data& info);
   binlog_trx_cache_data(const binlog_trx_cache_data& info);
-  inline void reset_commit_seq_offset(){ cache_log.commit_seq_offset= 0; }
 };
 
 class binlog_cache_mngr {
@@ -1059,8 +1046,6 @@ static int binlog_close_connection(handlerton *hton, THD *thd)
   DBUG_ENTER("binlog_close_connection");
   binlog_cache_mngr *const cache_mngr= thd_get_cache_mngr(thd);
   DBUG_ASSERT(cache_mngr->is_binlog_empty());
-  DBUG_ASSERT(cache_mngr->trx_cache.is_group_cache_empty() &&
-              cache_mngr->stmt_cache.is_group_cache_empty());
   DBUG_PRINT("debug", ("Set ha_data slot %d to 0x%llx", binlog_hton->slot, (ulonglong) NULL));
   thd_set_ha_data(thd, binlog_hton, NULL);
   cache_mngr->~binlog_cache_mngr();
@@ -1441,34 +1426,7 @@ binlog_trx_cache_data::truncate(THD *thd, bool all)
     transaction cache to remove the statement.
   */
   else if (get_prev_position() != MY_OFF_T_UNDEF)
-  {
     restore_prev_position();
-    if (is_binlog_empty())
-    {
-      /*
-        After restoring the previous position, we need to check if
-        the cache is empty. In such case, the group cache needs to
-        be cleaned up too because the GTID is removed too from the
-        cache.
-
-        So if any change happens again, the GTID must be rewritten
-        and this will not happen if the group cache is not cleaned
-        up.
-
-        After integrating this with NDB, we need to check if the
-        current approach is enough or the group cache needs to
-        explicitly support rollback to savepoints.
-      */
-      group_cache.clear();
-      /*
-        Also in such a case we must remove the commit parent offset
-        so that we do not end up currupting the binary log since the
-        offset of the commit seq number may differ in the new "BEGIN"
-        event (or B-events in general).
-      */
-      reset_commit_seq_offset();
-    }
-  }
 
   thd->clear_binlog_table_maps();
 
@@ -2016,8 +1974,6 @@ static int binlog_savepoint_rollback(handlerton *hton, THD *thd, void *sv)
   }
   // Otherwise, we truncate the cache
   cache_mngr->trx_cache.restore_savepoint(pos);
-  if (cache_mngr->trx_cache.is_binlog_empty())
-    cache_mngr->trx_cache.group_cache.clear();
   DBUG_RETURN(0);
 }
 
@@ -6592,46 +6548,6 @@ uint MYSQL_BIN_LOG::next_file_id()
   res = file_id++;
   mysql_mutex_unlock(&LOCK_log);
   return res;
-}
-
-
-/*
-  Auxiliary function to write the commit seq number for the cache involved in
-  do_write_cache.
-  @param cache   Instance of IO_CACHE being written to the disk
-  @param buff    Buffer which needs to be fixed to make sure that
-                 commit seq_number is written at the pre-allocated space
-  @param last_committed  the commit parent's logical timestamp
-  @param seq_number      the being flushed transaction's own logical timestamp
-*/
-inline void write_commit_seq_no(IO_CACHE* cache, uchar* buff,
-                                longlong last_committed, longlong seq_number)
-{
-  DBUG_ENTER("write_commit_seq_no");
-  uchar* pc_ptr= buff;
-  DBUG_PRINT("info", ("MTS:: cache_ptr:=%p", cache));
-  DBUG_PRINT("info", ("MTS:: commit sequence offset:=%d",
-                       cache->commit_seq_offset));
-  DBUG_PRINT("info", ("MTS:: Commit Timestamp:=%llu", last_committed));
-  DBUG_DUMP("info", pc_ptr, (COMMIT_SEQ_LEN+1));
-  DBUG_ASSERT((*pc_ptr == binary_log::Query_event::Q_COMMIT_TS2 ||
-               *pc_ptr == G_COMMIT_TS2));
-  pc_ptr++;
-
-  // notice parent's seqno could be zero as expected from SEQ_UNINIT declaration
-  DBUG_ASSERT(seq_number > last_committed);
-
-  DBUG_EXECUTE_IF("set_commit_parent_100",
-                  { last_committed= max<longlong>(seq_number > 1 ? 1 : 0, seq_number - 100); });
-  DBUG_EXECUTE_IF("set_commit_parent_150",
-                  { last_committed= max<longlong>(seq_number > 1 ? 1 : 0, seq_number - 150); });
-  DBUG_EXECUTE_IF("feign_commit_parent", { last_committed= seq_number; });
-
-  // Fix commit parent and stepped prepare point
-  int8store(pc_ptr, last_committed);
-  int8store(pc_ptr + 8, seq_number);
-  cache->commit_seq_offset= 0;
-  DBUG_VOID_RETURN;
 }
 
 

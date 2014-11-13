@@ -2205,6 +2205,7 @@ public:
   */
   void update_on_rollback(THD *thd);
 #endif // ifndef MYSQL_CLIENT
+private:
   /**
     Computes the next available GNO.
 
@@ -2215,6 +2216,7 @@ public:
     @retval >0 The GNO for the GTID.
   */
   rpl_gno get_automatic_gno(rpl_sidno sidno) const;
+public:
   /**
     Generates the GTID (or ANONYMOUS, if GTID_MODE = OFF or
     OFF_FLEXIBLE) for the THD, and acquires ownership.
@@ -2577,12 +2579,6 @@ enum enum_group_type
   */
 ANONYMOUS_GROUP,
   /**
-    Specifies that the GTID specification could not be parsed.  In
-    generate_automatic_gno() it is also used to specify that the GTID
-    has not yet been generated.  This is only used internally.
-  */
-  INVALID_GROUP,
-  /**
     GTID_NEXT is set to this state after a transaction with
     GTID_NEXT=='UUID:NUMBER' is committed.
 
@@ -2713,13 +2709,8 @@ struct Gtid_specification
     @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
   */
   enum_return_status parse(Sid_map *sid_map, const char *text);
-  /**
-    Returns the type of the group, if the given string is a valid Gtid_specification; INVALID otherwise.
-  */
-  static enum_group_type get_type(const char *text);
   /// Returns true if the given string is a valid Gtid_specification.
-  static bool is_valid(const char *text)
-  { return Gtid_specification::get_type(text) != INVALID_GROUP; }
+  static bool is_valid(const char *text);
 #endif
   static const int MAX_TEXT_LENGTH= binary_log::Uuid::TEXT_LENGTH + 1 +
                                     MAX_GNO_TEXT_LENGTH;
@@ -2786,216 +2777,6 @@ struct Cached_group
   rpl_binlog_pos binlog_offset;
 };
 
-
-/**
-  Represents a group cache: either the statement group cache or the
-  transaction group cache.
-*/
-class Group_cache
-{
-public:
-  /// Constructs a new Group_cache.
-  Group_cache();
-  /// Deletes a Group_cache.
-  ~Group_cache();
-  /// Removes all groups from this cache.
-  void clear();
-  /// Return the number of groups in this group cache.
-  inline int get_n_groups() const { return static_cast<int>(m_groups.size()); }
-  /// Return true iff the group cache contains zero groups.
-  inline bool is_empty() const { return get_n_groups() == 0; }
-  /**
-    Adds a group to this Group_cache.  The group should
-    already have been written to the stmt or trx cache.  The SIDNO and
-    GNO fields are taken from @@SESSION.GTID_NEXT.
-
-    @param thd The THD object from which we read session variables.
-    @param binlog_length Length of group in binary log.
-    @retval EXTEND_EXISTING_GROUP The last existing group had the same GTID
-    and has been extended to include this group too.
-    @retval APPEND_NEW_GROUP The group has been appended to this cache.
-    @retval ERROR An error (out of memory) occurred.
-    The error has been reported.
-  */
-  enum enum_add_group_status
-  {
-    EXTEND_EXISTING_GROUP, APPEND_NEW_GROUP, ERROR_GROUP
-  };
-#ifndef MYSQL_CLIENT
-  enum_add_group_status
-    add_logged_group(const THD *thd, my_off_t binlog_offset);
-#endif // ifndef MYSQL_CLIENT
-#ifndef MYSQL_CLIENT
-  /**
-    Write all gtids in this cache to the global Gtid_state.
-    @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
-  */
-  enum_return_status write_to_gtid_state() const;
-  /**
-    Generates GNO for all groups that are committed for the first time
-    in this Group_cache.
-
-    This acquires ownership of all groups.  After this call, this
-    Group_cache does not contain any Cached_groups that have
-    type==GTID_GROUP and gno<=0.
-
-    @param thd The THD that this Gtid_state belongs to.
-    @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR
-  */
-  enum_return_status generate_automatic_gno(THD *thd);
-#endif // ifndef MYSQL_CLIENT
-  /**
-    Return true if this Group_cache contains the given GTID.
-
-    @param gtid The Gtid to check.
-    @retval true The group exists in this cache.
-    @retval false The group does not exist in this cache.
-  */
-  bool contains_gtid(const Gtid &gtid) const;
-  /**
-    Add all GTIDs that exist in this Group_cache to the given Gtid_set.
-
-    @param gs The Gtid_set to which groups are added.
-    @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
-  */
-  enum_return_status get_gtids(Gtid_set *gs) const;
-
-#ifndef DBUG_OFF
-  /**
-    Debug only: store a textual representation of this Group_cache in
-    the given buffer and return the length.
-  */
-  size_t to_string(const Sid_map *sm, char *buf) const
-  {
-    int n_groups= get_n_groups();
-    char *s= buf;
-
-    s += sprintf(s, "%d groups = {\n", n_groups);
-    for (int i= 0; i < n_groups; i++)
-    {
-      Cached_group *group= get_unsafe_pointer(i);
-      char uuid[binary_log::Uuid::TEXT_LENGTH + 1]= "[]";
-      if (group->spec.gtid.sidno)
-        sm->sidno_to_sid(group->spec.gtid.sidno).to_string(uuid);
-      s += sprintf(s, "  %s:%lld [offset %lld] %s\n",
-                   uuid, group->spec.gtid.gno, group->binlog_offset,
-                   group->spec.type == GTID_GROUP ? "GTID" :
-                   group->spec.type == ANONYMOUS_GROUP ? "ANONYMOUS" :
-                   group->spec.type == AUTOMATIC_GROUP ? "AUTOMATIC" :
-                   "INVALID-GROUP-TYPE");
-    }
-    sprintf(s, "}\n");
-    return s - buf;
-  }
-  /**
-    Debug only: return an upper bound on the length of the string
-    generated by to_string(). The actual length may be shorter.
-  */
-  size_t get_max_string_length() const
-  {
-    return (2 + binary_log::Uuid::TEXT_LENGTH + 1 + MAX_GNO_TEXT_LENGTH + 4 + 2 +
-            40 + 10 + 21 + 1 + 100/*margin*/) * get_n_groups() + 100/*margin*/;
-  }
-  /**
-    Debug only: generate a textual representation of this Group_cache
-    and store in a newly allocated string. Return the string, or NULL
-    on out of memory.
-  */
-  char *to_string(const Sid_map *sm) const
-  {
-    char *str= (char *)my_malloc(key_memory_Group_cache_to_string,
-                                 get_max_string_length(), MYF(MY_WME));
-    if (str)
-      to_string(sm, str);
-    return str;
-  }
-  /// Debug only: print this Group_cache to stdout.
-  void print(const Sid_map *sm) const
-  {
-    char *str= to_string(sm);
-    printf("%s\n", str);
-    my_free(str);
-  }
-#endif
-  /**
-    Print this Gtid_cache to the trace file if debug is enabled; no-op
-    otherwise.
-  */
-  void dbug_print(const Sid_map *sid_map, const char *text= "") const
-  {
-#ifndef DBUG_OFF
-    char *str= to_string(sid_map);
-    DBUG_PRINT("info", ("%s%s%s", text, *text ? ": " : "", str));
-    my_free(str);
-#endif
-  }
-
-  /**
-    Returns a pointer to the given group.  The pointer is only valid
-    until the next time a group is added or removed.
-
-    @param index Index of the element: 0 <= index < get_n_groups().
-  */
-  inline Cached_group *get_unsafe_pointer(int index) const
-  {
-    DBUG_ASSERT(index >= 0 && index < get_n_groups());
-    return const_cast<Cached_group*>(&m_groups[index]);
-  }
-
-private:
-  /// List of all groups in this cache, of type Cached_group.
-  Prealloced_array<Cached_group, 8, true> m_groups;
-
-  /**
-    Return a pointer to the last group, or NULL if this Group_cache is
-    empty.
-  */
-  Cached_group *get_last_group()
-  {
-    int n_groups= get_n_groups();
-    return n_groups == 0 ? NULL : get_unsafe_pointer(n_groups - 1);
-  }
-
-  /**
-    Allocate space for one more group and return a pointer to it, or
-    NULL on error.
-  */
-  Cached_group *allocate_group()
-  {
-    if (m_groups.push_back(Cached_group()))
-    {
-      BINLOG_ERROR(("Out of memory."), (ER_OUT_OF_RESOURCES, MYF(0)));
-      return NULL;
-    }
-    return &m_groups.back();
-  }
-
-  /**
-    Adds the given group to this group cache, or merges it with the
-    last existing group in the cache if they are compatible.
-
-    @param group The group to add.
-    @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
-  */
-  enum_return_status add_group(const Cached_group *group);
-  /**
-    Prepare the cache to be written to the group log.
-
-    @todo The group log is not yet implemented. /Sven
-
-    @param trx_group_cache @see write_to_log.
-    @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
-  */
-  enum_return_status
-    write_to_log_prepare(Group_cache *trx_group_cache,
-                         rpl_binlog_pos offset_after_last_statement,
-                         Cached_group **last_non_empty_group);
-
-  /// Used by unit tests that need to access private members.
-#ifdef FRIEND_OF_GROUP_CACHE
-  friend FRIEND_OF_GROUP_CACHE;
-#endif
-};
 
 /**
   Indicates if a statement should be skipped or not. Used as return

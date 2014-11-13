@@ -1644,10 +1644,6 @@ static int64 get_last_committed(Log_event *ev)
 
   switch (ev->get_type_code())
   {
-  case binary_log::QUERY_EVENT:
-    res= static_cast<Query_log_event*>(ev)->last_committed;
-    break;
-
   case binary_log::GTID_LOG_EVENT:
     res= static_cast<Gtid_log_event*>(ev)->last_committed;
     break;
@@ -1665,10 +1661,6 @@ static int64 get_sequence_number(Log_event *ev)
 
   switch (ev->get_type_code())
   {
-  case binary_log::QUERY_EVENT:
-    res= static_cast<Query_log_event*>(ev)->sequence_number;
-    break;
-
   case binary_log::GTID_LOG_EVENT:
     res= static_cast<Gtid_log_event*>(ev)->sequence_number;
     break;

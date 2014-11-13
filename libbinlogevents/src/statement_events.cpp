@@ -117,8 +117,7 @@ Query_event::Query_event(const char* buf, unsigned int event_len,
   auto_increment_increment(1), auto_increment_offset(1),
   time_zone_len(0), catalog_len(0), lc_time_names_number(0),
   charset_database_number(0), table_map_for_update(0), master_data_written(0),
-  mts_accessed_dbs(OVER_MAX_DBS_IN_EVENT_MTS), last_committed(SEQ_UNINIT),
-  sequence_number(SEQ_UNINIT)
+  mts_accessed_dbs(OVER_MAX_DBS_IN_EVENT_MTS)
 {
   //buf is advanced in Binary_log_event constructor to point to
   //beginning of post-header
@@ -354,16 +353,6 @@ break;
         return;
       break;
     }
-    case Q_COMMIT_TS2:
-      CHECK_SPACE(pos, end, COMMIT_SEQ_LEN);
-      last_committed= 0;
-      memcpy(&last_committed, pos, 8);
-      last_committed= le64toh(last_committed);
-      sequence_number= 0;
-      memcpy(&sequence_number, pos + 8, 8);
-      sequence_number= le64toh(sequence_number);
-      pos+= COMMIT_SEQ_LEN;
-      break;
 
     default:
       /* That's why you must write status vars in growing order of code */

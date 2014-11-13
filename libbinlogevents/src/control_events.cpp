@@ -566,13 +566,27 @@ Gtid_event::Gtid_event(const char *buffer, uint32_t event_len,
                     description_event->server_version),
     last_committed(SEQ_UNINIT), sequence_number(SEQ_UNINIT)
 {
-  //buf is advanced in Binary_log_event constructor to point to
-  //beginning of post-header
-  uint8_t const common_header_len= description_event->common_header_len;
+  /*
+    The layout of the buffer is as follows:
+    +------+--------+-------+-------+--------------+---------------+
+    |unused|SID     |GNO    |lt_type|last_committed|sequence_number|
+    |1 byte|16 bytes|8 bytes|1 byte |8 bytes       |8 bytes        |
+    +------+--------+-------+-------+--------------+---------------+
 
+    The 'unused' field is not used.
+
+    lt_type (for logical timestamp typecode) is always equal to the
+    constant LOGICAL_TIMESTAMP_TYPECODE.
+
+    5.6 did not have TS_TYPE and the following fields. 5.7.4 and
+    earlier had a different value for TS_TYPE and a shorter length for
+    the following fields. Both these cases are accepted and ignored.
+
+    The buffer is advanced in Binary_log_event constructor to point to
+    beginning of post-header
+  */
   char const *ptr_buffer= buffer;
 
-  commit_flag= *ptr_buffer != 0;
   ptr_buffer+= ENCODED_FLAG_LENGTH;
 
   memcpy(Uuid_parent_struct.bytes, (const unsigned char*)ptr_buffer,
@@ -587,18 +601,22 @@ Gtid_event::Gtid_event(const char *buffer, uint32_t event_len,
   gtid_info_struct.rpl_gtid_gno= le64toh(gtid_info_struct.rpl_gtid_gno);
   ptr_buffer+= ENCODED_GNO_LENGTH;
 
-  /* fetch the commit timestamp */
-  if (*ptr_buffer == G_COMMIT_TS2 &&
-      (static_cast<unsigned int>(ptr_buffer - (buffer - common_header_len)) + 1 +
-      COMMIT_SEQ_LEN) <= event_len)
+  /*
+    Fetch the logical clocks. Check the length before reading, to
+    avoid out of buffer reads.
+  */
+  if (ptr_buffer + LOGICAL_TIMESTAMP_TYPECODE_LENGTH +
+      LOGICAL_TIMESTAMP_LENGTH <= buffer + event_len &&
+      *ptr_buffer == LOGICAL_TIMESTAMP_TYPECODE)
   {
-    ptr_buffer++;
+    ptr_buffer+= LOGICAL_TIMESTAMP_TYPECODE_LENGTH;
     memcpy(&last_committed, ptr_buffer, sizeof(last_committed));
     last_committed= (int64_t)le64toh(last_committed);
     memcpy(&sequence_number, ptr_buffer + 8, sizeof(sequence_number));
     sequence_number= (int64_t)le64toh(sequence_number);
-    ptr_buffer+= COMMIT_SEQ_LEN;
+    ptr_buffer+= LOGICAL_TIMESTAMP_LENGTH;
   }
+
   return;
 }
 
