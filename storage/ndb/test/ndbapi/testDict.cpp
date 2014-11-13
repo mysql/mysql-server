@@ -863,7 +863,7 @@ runDropTakeoverTest(NDBT_Context* ctx, NDBT_Step* step)
 
   /**
    * This error insert makes LQH resend the DROP_TAB_REQ to itself (with a
-   * delay) rather than executing it, until the error insert is reset.
+   * long delay) rather than executing it.
    * This makes it appear as if though the LQH block spends a long time 
    * executing the DROP_TAB_REQ signal.
    */
@@ -877,11 +877,11 @@ runDropTakeoverTest(NDBT_Context* ctx, NDBT_Step* step)
   g_info << "Insert error 5077 in node " << masterNodeId << endl;
   require(restarter.insertErrorInNode(masterNodeId, 5077) == 0);
 
-  // This dropTable should fail, since the master node dies.
+  // dropTable should succeed with the new master.
   g_info << "Trying to drop table " << copyName << endl;
-  if (dict->dropTable(copyName) == 0)
+  if (dict->dropTable(copyName))
   {
-    g_err << "Unexpectedly managed to drop table " << copyName << endl;
+    g_err << "Unexpectedly failed to drop table " << copyName << endl;
     return NDBT_FAILED;
   }
 
@@ -896,10 +896,6 @@ runDropTakeoverTest(NDBT_Context* ctx, NDBT_Step* step)
     return NDBT_FAILED;
   }
   
-  // Reset error insert.
-  g_info << "insert error 0 in node " << nonMasterNodeId << endl;
-  require(restarter.insertErrorInNode(nonMasterNodeId, 0) == 0);
-
   // Verify that old master comes back up, and that no other node crashed.
   g_info << "Waiting for all nodes to be up." << endl;
   if (restarter.waitClusterStarted() != 0)
