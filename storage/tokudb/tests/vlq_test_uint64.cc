@@ -101,9 +101,11 @@ namespace tokudb {
     template size_t vlq_decode_ui(uint64_t *np, void *p, size_t s);
 };
 
-static void test_vlq_uint64(void) {
+// test a slice of the number space where the slice is described by
+// a start number and a stride through the space.
+static void test_vlq_uint64(uint64_t start, uint64_t stride) {
     printf("%u\n", 0);
-    for (uint64_t v = 0; v < (1<<7); v++) {
+    for (uint64_t v = 0 + start; v < (1<<7); v += stride) {
         unsigned char b[10];
         size_t out_s = tokudb::vlq_encode_ui<uint64_t>(v, b, sizeof b);
         assert(out_s == 1);
@@ -113,7 +115,7 @@ static void test_vlq_uint64(void) {
     }
 
     printf("%u\n", 1<<7);
-    for (uint64_t v = (1<<7); v < (1<<14); v++) {
+    for (uint64_t v = (1<<7) + start; v < (1<<14); v += stride) {
         unsigned char b[10];
         size_t out_s = tokudb::vlq_encode_ui<uint64_t>(v, b, sizeof b);
         assert(out_s == 2);
@@ -123,7 +125,7 @@ static void test_vlq_uint64(void) {
     }
 
     printf("%u\n", 1<<14);
-    for (uint64_t v = (1<<14); v < (1<<21); v++) {
+    for (uint64_t v = (1<<14) + start; v < (1<<21); v += stride) {
         unsigned char b[10];
         size_t out_s = tokudb::vlq_encode_ui<uint64_t>(v, b, sizeof b);
         assert(out_s == 3);
@@ -133,7 +135,7 @@ static void test_vlq_uint64(void) {
     }
 
     printf("%u\n", 1<<21);
-    for (uint64_t v = (1<<21); v < (1<<28); v++) {
+    for (uint64_t v = (1<<21) + start; v < (1<<28); v += stride) {
         unsigned char b[10];
         size_t out_s = tokudb::vlq_encode_ui<uint64_t>(v, b, sizeof b);
         assert(out_s == 4);
@@ -143,9 +145,11 @@ static void test_vlq_uint64(void) {
     }
 
     printf("%u\n", 1<<28);
+#if USE_OPENMP
 #pragma omp parallel num_threads(4)
 #pragma omp for
-    for (uint64_t v = (1<<28); v < (1ULL<<35); v++) {
+#endif
+    for (uint64_t v = (1<<28) + start; v < (1ULL<<35); v += stride) {
         unsigned char b[10];
         size_t out_s = tokudb::vlq_encode_ui<uint64_t>(v, b, sizeof b);
         assert(out_s == 5);
@@ -155,7 +159,12 @@ static void test_vlq_uint64(void) {
     }
 }
 
-int main(void) {
-    test_vlq_uint64();
+int main(int argc, char *argv[]) {
+    uint64_t start = 0, stride = 1;
+    if (argc == 3) {
+        start = atoll(argv[1]);
+        stride = atoll(argv[2]);
+    }
+    test_vlq_uint64(start, stride);
     return 0;
 }

@@ -528,7 +528,7 @@ bool ha_tokudb::inplace_alter_table(TABLE *altered_table, Alter_inplace_info *ha
         error = alter_table_expand_blobs(altered_table, ha_alter_info);
 
     if (error == 0 && ctx->reset_card) {
-        error = tokudb::set_card_from_status(share->status_block, ctx->alter_txn, table->s, altered_table->s);
+        error = tokudb::alter_card(share->status_block, ctx->alter_txn, table->s, altered_table->s);
     }
     if (error == 0 && ctx->optimize_needed) {
         error = do_optimize(ha_thd());

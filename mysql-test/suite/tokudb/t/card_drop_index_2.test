@@ -1,0 +1,35 @@
+# test that add index keeps cardinality for older indexes
+
+source include/have_tokudb.inc;
+set default_storage_engine='tokudb';
+
+disable_warnings;
+drop table if exists tt;
+enable_warnings;
+
+create table tt (a int, b int, c int, primary key(a), key(b), key(c));
+let $a=0;
+while ($a < 500) {
+    eval insert into tt values ($a, $a, 0), ($a+1, $a, 0), ($a+2, $a, 0), ($a+3, $a, 0);
+    inc $a; inc $a; inc $a; inc $a;
+}
+select count(*) from tt;
+
+# compute cardinality
+show indexes from tt;
+analyze table tt;
+show indexes from tt;
+
+# drop key b
+alter table tt drop key b;
+show indexes from tt;
+
+# drop key c
+alter table tt drop key c;
+show indexes from tt;
+
+# test that cardinality is persistent
+flush tables;
+show indexes from tt;
+
+drop table tt;
