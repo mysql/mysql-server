@@ -338,7 +338,7 @@ public:
     return real_alloc(arg_length);
   }
   bool real_alloc(size_t arg_length);			// Empties old string
-  bool mem_realloc(size_t arg_length);
+  bool mem_realloc(size_t arg_length, bool force_on_heap= false);
 
   // Shrink the buffer, but only if it is allocated on the heap.
   void shrink(size_t arg_length)

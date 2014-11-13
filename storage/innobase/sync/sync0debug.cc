@@ -1193,6 +1193,12 @@ sync_latch_meta_init()
 	LATCH_ADD(SrvLatches, "hash_table_rw_lock",
 		  SYNC_BUF_PAGE_HASH,
 		  hash_table_locks_key);
+
+#ifdef UNIV_DEBUG
+	LATCH_ADD(SrvLatches, "buf_chunk_map_latch",
+		  SYNC_ANY_LATCH,
+		  buf_chunk_map_latch_key);
+#endif /* UNIV_DEBUG */
 }
 
 /**

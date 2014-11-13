@@ -2104,30 +2104,27 @@ String *Item_func_insert::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
   String *res,*res2;
-  longlong start, length;  /* must be longlong to avoid truncation */
+  longlong start, length, orig_len;  /* must be longlong to avoid truncation */
 
   null_value=0;
   res=args[0]->val_str(str);
-  // TODO: After fixing Bug#11765149, pls remove the following changes
-  // Copy result to avoid destroying constants
-  if (res && (res!= str))
-  {
-    str->set(*res, 0, res->length());
-    res= str;
-  }
-
   res2=args[3]->val_str(&tmp_value);
-  start= args[1]->val_int() - 1;
+  start= args[1]->val_int();
   length= args[2]->val_int();
 
   if (args[0]->null_value || args[1]->null_value || args[2]->null_value ||
       args[3]->null_value)
     goto null; /* purecov: inspected */
 
-  if ((start < 0) || (start > static_cast<longlong>(res->length())))
+  orig_len= static_cast<longlong>(res->length());
+
+  if ((start < 1) || (start > orig_len))
     return res;                                 // Wrong param; skip insert
-  if ((length < 0) || (length > static_cast<longlong>(res->length())))
-    length= res->length();
+
+  --start;    // Internal start from '0'
+
+  if ((length < 0) || (length > orig_len))
+    length= orig_len;
 
   /*
     There is one exception not handled (intentionaly) by the character set
@@ -2148,12 +2145,12 @@ String *Item_func_insert::val_str(String *str)
    length= res->charpos((int) length, (uint32) start);
 
   /* Re-testing with corrected params */
-  if (start > static_cast<longlong>(res->length()))
+  if (start > orig_len)
     return res; /* purecov: inspected */        // Wrong param; skip insert
-  if (length > static_cast<longlong>(res->length()) - start)
-    length= res->length() - start;
+  if (length > orig_len - start)
+    length= orig_len - start;
 
-  if ((ulonglong) (res->length() - length + res2->length()) >
+  if ((ulonglong) (orig_len - length + res2->length()) >
       (ulonglong) current_thd->variables.max_allowed_packet)
   {
     push_warning_printf(current_thd, Sql_condition::SL_WARNING,
@@ -2162,6 +2159,7 @@ String *Item_func_insert::val_str(String *str)
 			func_name(), current_thd->variables.max_allowed_packet);
     goto null;
   }
+  res= copy_if_not_alloced(str, res, orig_len);
   res->replace((uint32) start,(uint32) length,*res2);
   return res;
 null:

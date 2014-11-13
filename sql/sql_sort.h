@@ -18,16 +18,12 @@
 
 #include "m_string.h"                           /* memset */
 #include "my_global.h"                          /* uchar */
-#include "my_compiler.h"                        /* MY_GNUC_PREREQ */
 #include "my_base.h"                            /* ha_rows */
-#include "my_sys.h"                             /* qsort2_cmp */
 #include "sql_array.h"
+#include "mysql_com.h"
 #include "filesort_utils.h"
 #include "sql_alloc.h"
 #include <vector>
-
-typedef struct st_queue QUEUE;
-typedef struct st_sort_field SORT_FIELD;
 
 class Field;
 struct TABLE;
@@ -37,6 +33,19 @@ class Filesort;
 
 #define MERGEBUFF		7
 #define MERGEBUFF2		15
+
+/* Structs used when sorting */
+
+struct st_sort_field {
+  Field *field;				/* Field to sort */
+  Item	*item;				/* Item if not sorting fields */
+  uint	 length;			/* Length of sort field */
+  uint   suffix_length;                 /* Length suffix (0-4) */
+  Item_result result_type;		/* Type of item */
+  bool reverse;				/* if descending sort */
+  bool need_strxnfrm;			/* If we have to use strxnfrm() */
+};
+
 
 /**
   The structure Sort_addon_field describes the layout
@@ -291,7 +300,7 @@ public:
     ORDER BY list with some precalculated info for filesort.
     Array is created and owned by a Filesort instance.
    */
-  Bounds_checked_array<SORT_FIELD> local_sortorder;
+  Bounds_checked_array<st_sort_field> local_sortorder;
 
   Addon_fields *addon_fields; ///< Descriptors for addon fields.
   uchar *unique_buff;
