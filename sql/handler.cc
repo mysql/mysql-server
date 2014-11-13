@@ -1333,6 +1333,8 @@ void trans_register_ha(THD *thd, bool all, handlerton *ht_arg,
     thd->m_transaction_psi= MYSQL_START_TRANSACTION(&thd->m_transaction_state,
                                          xid, trxid, thd->tx_isolation,
                                          thd->tx_read_only, autocommit);
+    DEBUG_SYNC(thd, "after_set_transaction_psi_before_set_transaction_gtid");
+    gtid_set_performance_schema_values(thd);
   }
 #endif
   DBUG_VOID_RETURN;

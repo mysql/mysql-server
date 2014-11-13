@@ -1,0 +1,4 @@
+--connection server_1
+--let $result= `SELECT show_gtid()`
+--echo $result
+--connection default

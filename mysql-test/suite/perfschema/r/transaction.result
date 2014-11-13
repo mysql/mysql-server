@@ -447,46 +447,7 @@ CALL clear_transaction_tables();
 ========================================================================
 # STEP 10 - GTIDs
 ========================================================================
-#
-# STEP 10.1 - GTID_NEXT 'AUTOMATIC'
-#
-SET SESSION GTID_NEXT = 'AUTOMATIC';
-START TRANSACTION;
-INSERT INTO t1 VALUES (1010, 'INSERT 1010');
-COMMIT;
-
-## Expect 1 committed transaction with GTID = 'AUTOMATIC'
-CALL transaction_verifier(1, @con1_thread_id, 'transaction', 'COMMITTED', '', '', 'AUTOMATIC', 'READ WRITE', '', 'NO', 0, 0, 0, 1);
-ACTUAL	EXPECTED
-     1	       1
-CALL clear_transaction_tables();
-#
-# STEP 10.2 - GTID_NEXT = UUID:NUMBER
-#
-SET SESSION GTID_NEXT = '2fe7e8cc-4e36-11e3-80dd-00059a3c7a00:1';
-START TRANSACTION;
-INSERT INTO t1 VALUES (1020, 'INSERT 1020');
-COMMIT;
-
-## Expect 1 committed transaction with GTID = '2fe7e8cc-4e36-11e3-80dd-00059a3c7a00:1'
-CALL transaction_verifier(1, @con1_thread_id, 'transaction', 'COMMITTED', '', '', '2fe7e8cc-4e36-11e3-80dd-00059a3c7a00:1', 'READ WRITE', '', 'NO', 0, 0, 0, 1);
-ACTUAL	EXPECTED
-     1	       1
-CALL clear_transaction_tables();
-#
-# STEP 10.3 - GTID_NEXT = UUID:NUMBER WITH ROLLBACK
-#
-SET SESSION GTID_NEXT = '2fe7e8cc-4e36-11e3-80dd-00059a3c7a00:2';
-START TRANSACTION;
-INSERT INTO t1 VALUES (1030, 'INSERT 1030');
-ROLLBACK;
-SET SESSION GTID_NEXT = 'AUTOMATIC';
-
-## Expect 1 rolled back transaction with GTID = 'NULL'
-CALL transaction_verifier(1, @con1_thread_id, 'transaction', 'ROLLED BACK', '', '', 'NULL', 'READ WRITE', '', 'NO', 0, 0, 0, 1);
-ACTUAL	EXPECTED
-     1	       1
-CALL clear_transaction_tables();
+GTIDs are tested in transaction_gtid.test.
 
 ========================================================================
 # STEP 11 - MISCELLANY

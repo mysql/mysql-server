@@ -1110,13 +1110,6 @@ bool MYSQL_BIN_LOG::write_gtid(THD *thd, binlog_cache_data *cache_data,
   {
     if (gtid_state->generate_automatic_gtid(thd) != RETURN_STATUS_OK)
       DBUG_RETURN(true);
-
-#ifdef HAVE_PSI_TRANSACTION_INTERFACE
-    /* Set the transaction GTID in the Performance Schema */
-    if (thd->m_transaction_psi != NULL && thd->owned_gtid.sidno >= 1)
-      MYSQL_SET_TRANSACTION_GTID(thd->m_transaction_psi, &thd->owned_sid,
-                                 &thd->variables.gtid_next);
-#endif
   }
   else
   {
@@ -8834,6 +8827,8 @@ int THD::decide_logging_format(TABLE_LIST *tables)
                       variables.binlog_format));
   DBUG_PRINT("info", ("lex->get_stmt_unsafe_flags(): 0x%x",
                       lex->get_stmt_unsafe_flags()));
+
+  DEBUG_SYNC(current_thd, "begin_decide_logging_format");
 
   reset_binlog_local_stmt_filter();
 
