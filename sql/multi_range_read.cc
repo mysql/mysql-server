@@ -684,8 +684,19 @@ int Mrr_ordered_rndpos_reader::refill_from_index_reader()
     rowid_buffer->write_ptr2= (uchar*)&range_info;
     rowid_buffer->write();
   }
-   
-  index_reader->interrupt_read();
+  
+  /*
+    When index_reader_needs_refill=TRUE, this means we've got all of index
+    tuples for lookups keys that index_reader had. We are not in the middle
+    of an index read, so there is no need to call interrupt_read.
+
+    Actually, we must not call interrupt_read(), because it could be that we
+    haven't read a single row (because all index lookups returned
+    HA_ERR_KEY_NOT_FOUND). In this case, interrupt_read() will cause [harmless]
+    valgrind warnings when trying to save garbage from table->record[0].
+  */
+  if (!index_reader_needs_refill)
+    index_reader->interrupt_read();
   /* Sort the buffer contents by rowid */
   rowid_buffer->sort((qsort2_cmp)rowid_cmp_reverse, (void*)file);
 
