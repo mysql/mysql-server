@@ -2566,7 +2566,8 @@ Dblqh::execDROP_TAB_REQ(Signal* signal){
      * while there is an outstanding DROP_TAB_REQ.
      */
     jam();
-    sendSignalWithDelay(reference(), GSN_DROP_TAB_REQ, signal, 1000,
+    CLEAR_ERROR_INSERT_VALUE;
+    sendSignalWithDelay(reference(), GSN_DROP_TAB_REQ, signal, 10000,
                         signal->getLength());
     return;
   }
