@@ -11333,7 +11333,35 @@ void Dbdih::execSTART_LCP_REQ(Signal* signal)
   ndbrequire(c_lcpState.m_masterLcpDihRef == req->senderRef);
   c_lcpState.m_participatingDIH = req->participatingDIH;
   c_lcpState.m_participatingLQH = req->participatingLQH;
-  
+
+  for (Uint32 nodeId = 1; nodeId < MAX_NDB_NODES; nodeId++)
+  {
+    /**
+     * We could have a race here, a node could die while the START_LCP_REQ
+     * is in flight. We need remove the node from the set of nodes
+     * participating in this case. Not removing it here could lead to a
+     * potential LCP deadlock.
+     *
+     * For the PAUSE LCP code where we are included in the LCP we don't need
+     * to worry about this. If any node fails in the state of me being
+     * started, I will fail as well.
+     */
+    NodeRecordPtr nodePtr;
+    if (req->participatingDIH.get(nodeId) ||
+        req->participatingLQH.get(nodeId))
+    {
+      nodePtr.i = nodeId;
+      ptrAss(nodePtr, nodeRecord);
+      if (nodePtr.p->nodeStatus != NodeRecord::ALIVE)
+      {
+        jam();
+        jamLine(nodeId);
+        req->participatingDIH.clear(nodeId);
+        req->participatingLQH.clear(nodeId);
+      }
+    }
+  }
+
   c_lcpState.m_LCP_COMPLETE_REP_Counter_LQH = req->participatingLQH;
   if(isMaster())
   {
