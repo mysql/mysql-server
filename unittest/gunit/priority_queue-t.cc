@@ -896,6 +896,29 @@ TEST_F(PriorityQueueTest, UpdateTop)
 }
 
 
+TEST_F(PriorityQueueTest, PopAndRemove)
+{
+  Priority_queue<int> pqcopy= pq;
+
+  EXPECT_TRUE(pqcopy.size() == 10U);
+  pqcopy.pop();
+  EXPECT_TRUE(pqcopy.is_valid());
+  EXPECT_TRUE(pqcopy.size() == 9U);
+  pqcopy.remove(3);
+  EXPECT_TRUE(pqcopy.is_valid());
+  EXPECT_TRUE(pqcopy.size() == 8U);
+  pqcopy.remove(pqcopy.size() - 1);
+  EXPECT_TRUE(pqcopy.is_valid());
+  EXPECT_TRUE(pqcopy.size() == 7U);
+
+  Priority_queue<int> singleton;
+  EXPECT_FALSE(singleton.push(10));
+  singleton.pop();
+  EXPECT_TRUE(singleton.empty());
+  EXPECT_TRUE(singleton.is_valid());
+}
+
+
 TEST_F(PriorityQueueTest, Iterators)
 {
   Priority_queue<int>::iterator it;

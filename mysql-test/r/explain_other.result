@@ -1396,7 +1396,62 @@ EXPLAIN
   }
 }
 DROP TABLE tbl1, tbl2;
+# End of tests for WL#6369
+#
+# Bug#19822146 EXPLAIN FOR CONNECTION CRASHES IN 
+#              EXPLAIN_JOIN::EXPLAIN_QEP_TAB
+#
+DROP TABLE IF EXISTS t1, t2;
+create table t1(a char(10) charset latin1, key(a)) engine=innodb;
+create table t2(a binary(10), key(a)) engine=innodb;
+insert into t1 values('1'),('2'),('3');
+insert into t2 values('1'),('2'),('s');
+analyze table t1,t2;
+Table	Op	Msg_type	Msg_text
+mysqltest1.t1	analyze	status	OK
+mysqltest1.t2	analyze	status	OK
+# Connection cq
+# Let thread1 to suspend itself right before creating Quick object.
+SET DEBUG_SYNC= 'quick_not_created SIGNAL ready_for_explain WAIT_FOR explained';
+select 1 from  t1 inner join t2 using(a);  ;
+# Connection ce
+SET DEBUG_SYNC= 'now WAIT_FOR ready_for_explain';
+SET DEBUG_SYNC= 'after_explain_other SIGNAL explained';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	index	a	a	11	NULL	3	100.00	Using index
+1	SIMPLE	t1	NULL	ALL	a	NULL	NULL	NULL	3	100.00	Range checked for each record (index map: 0x1)
+connection: cq
+1
+SET DEBUG_SYNC= 'RESET';
+# Connection cq
+# Let thread1 to suspend itself right before the mutex section.
+SET DEBUG_SYNC= 'quick_created_before_mutex SIGNAL ready_for_explain WAIT_FOR explained';
+select 1 from  t1 inner join t2 using(a);;
+# Connection ce
+SET DEBUG_SYNC= 'now WAIT_FOR ready_for_explain';
+SET DEBUG_SYNC= 'after_explain_other SIGNAL explained';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	index	a	a	11	NULL	3	100.00	Using index
+1	SIMPLE	t1	NULL	ALL	a	NULL	NULL	NULL	3	100.00	Range checked for each record (index map: 0x1)
+connection: cq
+1
+SET DEBUG_SYNC= 'RESET';
+# Connection cq
+# Let thread1 to suspend itself right after quick object is droped.
+SET DEBUG_SYNC= 'quick_droped_after_mutex SIGNAL ready_for_explain WAIT_FOR explained';
+select 1 from  t1 inner join t2 using(a);;
+# Connection ce
+SET DEBUG_SYNC= 'now WAIT_FOR ready_for_explain';
+SET DEBUG_SYNC= 'after_explain_other SIGNAL explained';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	index	a	a	11	NULL	3	100.00	Using index
+1	SIMPLE	t1	NULL	range	a	a	11	NULL	1	100.00	Range checked for each record (index map: 0x1)
+connection: cq
+1
+# Connection default
+DROP TABLE t1, t2;
+SET DEBUG_SYNC= 'RESET';
+# End of test Bug#19822146
 USE test;
 DROP DATABASE mysqltest1;
-#
-# End of tests for WL#6369
+# End of test

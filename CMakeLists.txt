@@ -44,6 +44,9 @@ ENDIF()
 
 MESSAGE(STATUS "Running cmake version ${CMAKE_VERSION}")
 
+# Will set GIT_EXECUTABLE and GIT_FOUND
+FIND_PACKAGE(Git)
+
 SET(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_SOURCE_DIR}/cmake)
 
 # First, decide about build type (debug or release)
@@ -565,7 +568,8 @@ CONFIGURE_FILE(${CMAKE_SOURCE_DIR}/include/mysql_version.h.in
 CONFIGURE_FILE(${CMAKE_SOURCE_DIR}/sql/sql_builtin.cc.in
     ${CMAKE_BINARY_DIR}/sql/sql_builtin.cc)
 CONFIGURE_FILE(
-    ${CMAKE_SOURCE_DIR}/cmake/info_macros.cmake.in ${CMAKE_BINARY_DIR}/info_macros.cmake @ONLY)
+    ${CMAKE_SOURCE_DIR}/cmake/info_macros.cmake.in
+    ${CMAKE_BINARY_DIR}/info_macros.cmake @ONLY)
 
 # Handle the "INFO_*" files.
 INCLUDE(${CMAKE_BINARY_DIR}/info_macros.cmake)

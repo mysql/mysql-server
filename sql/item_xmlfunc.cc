@@ -2854,6 +2854,7 @@ String *Item_func_xml_extractvalue::val_str(String *str)
   null_value= 0;
   if (!nodeset_func)
     parse_xpath(args[1]);
+  tmp_value.set("", 0, pxml.charset());
   if (!nodeset_func ||
       !(res= args[0]->val_str(str)) || 
       !parse_xml(res, &pxml) ||

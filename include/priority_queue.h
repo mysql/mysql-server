@@ -21,6 +21,7 @@
 #include <functional>
 #include <utility>
 #include <vector>
+#include "template_utils.h"
 
 #if defined(EXTRA_CODE_FOR_UNIT_TESTING)
 #include <iostream>
@@ -179,6 +180,15 @@ public:
     : Base(less),
       m_container(first, beyond)
   {
+    build_heap();
+  }
+
+  /**
+    Constructs a heap based on container contents.
+    Can also be used when many elements have changed.
+  */
+  void build_heap()
+  {
     if (m_container.size() > 1)
     {
       for (size_type i = parent(m_container.size() - 1); i > 0; --i)
@@ -227,17 +237,23 @@ public:
   /// Pops the top-most element in the priority queue.
   void pop()
   {
-    DBUG_ASSERT(!empty());
+    remove(0);
+  }
 
-    if (m_container.size() == 1)
+  /// Removes the element at position i from the priority queue.
+  void remove(size_type i)
+  {
+    DBUG_ASSERT(i < size());
+
+    if (i == m_container.size() - 1)
     {
       m_container.pop_back();
       return;
     }
 
-    m_container[0] = m_container[m_container.size() - 1];
+    m_container[i] = m_container[m_container.size() - 1];
     m_container.pop_back();
-    heapify(0);
+    heapify(i);
   }
 
   /**
@@ -412,6 +428,12 @@ public:
   void clear()
   {
     m_container.clear();
+  }
+
+  /// Clears the priority queue, but deletes all elements first.
+  void delete_elements()
+  {
+    delete_container_pointers(m_container);
   }
 
   /// Returns the capacity of the internal container.

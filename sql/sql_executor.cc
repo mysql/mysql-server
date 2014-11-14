@@ -2351,9 +2351,10 @@ join_init_quick_read_record(QEP_TAB *tab)
       (tab->table()->file->inited != handler::NONE))
       tab->table()->file->ha_index_or_rnd_end();
 
-  delete tab->quick();
   key_map needed_reg_dummy;
+  QUICK_SELECT_I *old_qck= tab->quick();
   QUICK_SELECT_I *qck;
+  DEBUG_SYNC(thd, "quick_not_created");
   const int rc= test_quick_select(thd,
                                   tab->keys(),
                                   0,          // empty table map
@@ -2361,6 +2362,7 @@ join_init_quick_read_record(QEP_TAB *tab)
                                   false,      // don't force quick range
                                   ORDER::ORDER_NOT_RELEVANT, tab,
                                   tab->condition(), &needed_reg_dummy, &qck);
+  DBUG_ASSERT(old_qck == NULL || old_qck != qck) ;
   tab->set_quick(qck);
 
   /*
@@ -2371,10 +2373,13 @@ join_init_quick_read_record(QEP_TAB *tab)
     that, we need to take mutex and change type and quick_optim.
   */
 
+  DEBUG_SYNC(thd, "quick_created_before_mutex");
   mysql_mutex_lock(&thd->LOCK_query_plan);
   tab->set_type(qck ? calc_join_type(qck->get_type()) : JT_ALL);
   tab->set_quick_optim();
   mysql_mutex_unlock(&thd->LOCK_query_plan);
+  delete old_qck;
+  DEBUG_SYNC(thd, "quick_droped_after_mutex");
 
   return (rc == -1) ?
     -1 :				/* No possible records */

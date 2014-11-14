@@ -15477,7 +15477,6 @@ Ndb_util_thread::do_run()
   thd->thread_stack= (char*)&thd; /* remember where our stack is */
   if (thd->store_globals())
     goto ndb_util_thread_fail;
-  lex_start(thd);
   thd_set_command(thd, COM_DAEMON);
 #ifndef NDB_THD_HAS_NO_VERSION
   thd->version=refresh_version;
