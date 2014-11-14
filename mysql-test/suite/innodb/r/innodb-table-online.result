@@ -332,7 +332,6 @@ c22f	c1	c3	c4
 9	10	10foofoofoofoofoofoofoofoofoofoo	Online
 # session con1
 ALTER TABLE t1 DISCARD TABLESPACE;
-# Disconnect session con1
 # session default
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -343,10 +342,27 @@ t1	CREATE TABLE `t1` (
   `c4` varchar(6) NOT NULL DEFAULT 'Online',
   PRIMARY KEY (`c1`,`c22f`,`c4`(5))
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=REDUNDANT
+DROP TABLE t1;
+#
+# Bug#18894337 ONLINE ALTER TABLE LOG APPLY FAILS TO SKIP LOCKING
+#
+# session con1
+CREATE TABLE t1 (a SERIAL, c64 VARCHAR(64) UNIQUE) ENGINE=InnoDB;
+INSERT INTO t1 VALUES(0, NULL);
+SET DEBUG='+d,innodb_trx_duplicates';
+SET DEBUG_SYNC='row_log_table_apply1_before SIGNAL t1_ddl WAIT_FOR t1_dml';
+ALTER TABLE t1 ENGINE=InnoDB;
+# session default
+SET DEBUG_SYNC='now WAIT_FOR t1_ddl';
+INSERT INTO t1 VALUES(0, NULL), (0, NULL);
+SET DEBUG_SYNC='now SIGNAL t1_dml';
+# session con1
+# Disconnect session con1
+# session default
+DROP TABLE t1;
 SET DEBUG_SYNC = 'RESET';
 SET DEBUG = '';
 SET GLOBAL innodb_monitor_disable = module_ddl;
-DROP TABLE t1;
 SET GLOBAL DEBUG = '';
 SET GLOBAL innodb_file_per_table = @global_innodb_file_per_table_orig;
 SET GLOBAL innodb_monitor_enable  = default;
