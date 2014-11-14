@@ -156,6 +156,7 @@ function generate_cmake_cmd () {
         -D CMAKE_BUILD_TYPE=$cmake_build_type \
         -D CMAKE_TOKUDB_REVISION=$ft_revision \
         -D TOKUDB_VERSION=tokudb-${tokudb_version} \
+        -D WITH_JEMALLOC=bundled \
         -D BUILD_TESTING=OFF \
         -D USE_GTAGS=OFF \
         -D USE_CTAGS=OFF \
