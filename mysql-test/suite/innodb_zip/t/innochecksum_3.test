@@ -2,6 +2,7 @@
 # WL6045:Improve Innochecksum
 #************************************************************
 --source include/have_innodb.inc
+--source include/have_innodb_zip.inc
 
 # Valgrind would complain about memory leaks when we crash on purpose.
 --source include/not_valgrind.inc

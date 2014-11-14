@@ -1,4 +1,5 @@
 --source include/have_innodb.inc
+--source include/have_innodb_max_16k.inc
 
 let $innodb_file_per_table = `SELECT @@innodb_file_per_table`;
 let $innodb_file_format = `SELECT @@innodb_file_format`;

@@ -4013,6 +4013,12 @@ any_extern:
 	ut_a(!page_zip || page_zip_validate(page_zip, page, index));
 #endif /* UNIV_ZIP_DEBUG */
 
+	if (page_zip_rec_needs_ext(new_rec_size, page_is_comp(page),
+				   dict_index_get_n_fields(index),
+				   block->page.size)) {
+		goto any_extern;
+	}
+
 	if (page_zip) {
 		if (!btr_cur_update_alloc_zip(
 			    page_zip, page_cursor, index, *offsets,
