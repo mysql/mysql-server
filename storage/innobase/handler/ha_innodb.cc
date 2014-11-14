@@ -11979,7 +11979,6 @@ ha_innobase::check(
 	ulint		n_rows_in_table	= ULINT_UNDEFINED;
 	bool		is_ok		= true;
 	ulint		old_isolation_level;
-	ibool		table_corrupted;
 	dberr_t		ret;
 
 	DBUG_ENTER("ha_innobase::check");
@@ -12018,6 +12017,34 @@ ha_innobase::check(
 
 	m_prebuilt->trx->op_info = "checking table";
 
+	if (m_prebuilt->table->corrupted) {
+		/* If some previous oeration has marked the table as
+		corrupted in memory, and has not propagated such to
+		clustered index, we will do so here */
+		index = dict_table_get_first_index(m_prebuilt->table);
+
+		if (!dict_index_is_corrupted(index)) {
+			dict_set_corrupted(
+				index, m_prebuilt->trx, "CHECK TABLE");
+		}
+
+		push_warning_printf(m_user_thd,
+				    Sql_condition::SL_WARNING,
+				    HA_ERR_INDEX_CORRUPT,
+				    "InnoDB: Index %s is marked as"
+				    " corrupted",
+				    index->name);
+
+		/* Now that the table is already marked as corrupted,
+		there is no need to check any index of this table */
+		m_prebuilt->trx->op_info = "";
+		if (thd_killed(m_user_thd)) {
+			thd_set_kill_status(m_user_thd);
+		}
+
+		DBUG_RETURN(HA_ADMIN_CORRUPT);
+	}
+
 	old_isolation_level = m_prebuilt->trx->isolation_level;
 
 	/* We must run the index record counts at an isolation level
@@ -12026,13 +12053,7 @@ ha_innobase::check(
 	REPEATABLE READ here */
 	m_prebuilt->trx->isolation_level = TRX_ISO_REPEATABLE_READ;
 
-	/* Check whether the table is already marked as corrupted
-	before running the check table */
-	table_corrupted = m_prebuilt->table->corrupted;
-
-	/* Reset table->corrupted bit so that check table can proceed to
-	do additional check */
-	m_prebuilt->table->corrupted = FALSE;
+	ut_ad(!m_prebuilt->table->corrupted);
 
 	for (index = dict_table_get_first_index(m_prebuilt->table);
 	     index != NULL;
@@ -12042,7 +12063,8 @@ ha_innobase::check(
 			continue;
 		}
 
-		if (!(check_opt->flags & T_QUICK)) {
+		if (!(check_opt->flags & T_QUICK)
+		    && !dict_index_is_corrupted(index)) {
 			/* Enlarge the fatal lock wait timeout during
 			CHECK TABLE. */
 			os_atomic_increment_ulint(
@@ -12162,19 +12184,6 @@ ha_innobase::check(
 				index, m_prebuilt->trx,
 				"CHECK TABLE; Wrong count");
 		}
-	}
-
-	if (table_corrupted) {
-		/* If some previous operation has marked the table as
-		corrupted in memory, and has not propagated such to
-		clustered index, we will do so here */
-		index = dict_table_get_first_index(m_prebuilt->table);
-
-		if (!dict_index_is_corrupted(index)) {
-			dict_set_corrupted(
-				index, m_prebuilt->trx, "CHECK TABLE");
-		}
-		m_prebuilt->table->corrupted = TRUE;
 	}
 
 	/* Restore the original isolation level */
