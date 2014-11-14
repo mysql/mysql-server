@@ -441,13 +441,13 @@ protected:
   struct LcpRecord {
     enum {
       L_IDLE         = 0,
-      L_STARTING     = 1,
-      L_RUNNING      = 2,
-      L_COMPLETING_1 = 3,
-      L_COMPLETING_2 = 4,
-      L_COMPLETING_3 = 5
+      L_RUNNING      = 1,
+      L_COMPLETING_1 = 2,
+      L_COMPLETING_2 = 3,
+      L_COMPLETING_3 = 4
     } m_state;
     Uint32 m_lcpId;
+    Uint32 m_keepGci;
     Uint32 m_lcp_frag_ord_cnt;     // No of LCP_FRAG_ORD received
     Uint32 m_lcp_frag_rep_cnt;     // No of LCP_FRAG_REP sent
     Uint32 m_complete_outstanding; // Outstanding END_LCP_REQ

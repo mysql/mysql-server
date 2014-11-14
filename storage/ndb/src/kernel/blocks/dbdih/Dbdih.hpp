@@ -1667,7 +1667,9 @@ private:
     Uint32 minTableId;
     Uint32 minFragId;
     Uint32 failedNodeId;
+    bool use_empty_lcp;
   } c_lcpMasterTakeOverState;
+  bool check_if_empty_lcp_needed(void);
   
   Uint16 cmasterNodeId;
 

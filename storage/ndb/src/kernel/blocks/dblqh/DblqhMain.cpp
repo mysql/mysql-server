@@ -2509,6 +2509,7 @@ void
 Dblqh::dropTab_wait_usage(Signal* signal){
 
   TablerecPtr tabPtr;
+  FragrecordPtr loc_fragptr;
   tabPtr.i = signal->theData[1];
   ptrCheckGuard(tabPtr, ctabrecFileSize, tablerec);
 
@@ -2531,19 +2532,20 @@ Dblqh::dropTab_wait_usage(Signal* signal){
   {
     jam();
 
-    if(lcpPtr.p->currentFragment.lcpFragOrd.tableId == tabPtr.i)
+    for (Uint32 i = 0; i < NDB_ARRAY_SIZE(tabPtr.p->fragrec); i++)
     {
       jam();
-      lcpDone = false;
-    }
-   
-    for (Uint32 i = 0; i < lcpPtr.p->numFragLcpsQueued; i++)
-    {
-      if (lcpPtr.p->queuedFragment[i].lcpFragOrd.tableId == tabPtr.i)
+      loc_fragptr.i = tabPtr.p->fragrec[i];
+      if (loc_fragptr.i != RNIL)
       {
         jam();
-        lcpDone = false;
-        break;
+        c_fragment_pool.getPtr(loc_fragptr);
+        if (loc_fragptr.p->lcp_frag_ord_state == Fragrecord::LCP_QUEUED ||
+            loc_fragptr.p->lcp_frag_ord_state == Fragrecord::LCP_EXECUTING)
+        {
+          jam();
+          lcpDone = false;
+        }
       }
     }
   }
@@ -3091,7 +3093,6 @@ void Dblqh::timer_handling(Signal *signal)
 	 << "   firstLcpLocTup=" << TlcpPtr.p->firstLcpLocTup << endl
 	 << "   lcpAccptr=" << TlcpPtr.p->lcpAccptr << endl
 	 << "   lastFragmentFlag=" << TlcpPtr.p->lastFragmentFlag << endl
-	 << "   numFragLcpsQueued=" << TlcpPtr.p->numFragLcpsQueued << endl
 	 << "   reportEmptyref=" << TlcpPtr.p->reportEmptyRef << endl
 	 << "   reportEmpty=" << TlcpPtr.p->reportEmpty << endl;
 #endif
@@ -14466,6 +14467,11 @@ void Dblqh::sendCopyActiveConf(Signal* signal, Uint32 tableId)
  * ------------------------------------------------------------------------- */
 void Dblqh::execEMPTY_LCP_REQ(Signal* signal)
 {
+  /**
+   * This code executes only in ndbd nodes. In ndbmtd the Dblqh Proxy will
+   * take over of this processing. But since ndbd have no proxy block we have
+   * to handle it for ndbd here in the local Dblqh block.
+   */
   jamEntry();
   CRASH_INSERTION(5008);
   EmptyLcpReq * const emptyLcpOrd = (EmptyLcpReq*)&signal->theData[0];
@@ -14493,10 +14499,6 @@ void Dblqh::execEMPTY_LCP_REQ(Signal* signal)
       sendEMPTY_LCP_CONF(signal, false);
       break;
     case LCP_CLOSE_STARTED:
-      jam();
-    case ACC_LCP_CLOSE_COMPLETED:
-      jam();
-    case TUP_LCP_CLOSE_COMPLETED:
       jam();
       ok = true;
       break;
@@ -14555,33 +14557,6 @@ void Dblqh::execLCP_FRAG_ORD(Signal* signal)
   lcpPtr.i = 0;
   ptrAss(lcpPtr, lcpRecord);
   
-  lcpPtr.p->lastFragmentFlag = lcpFragOrd->lastFragmentFlag;
-  if (lcpFragOrd->lastFragmentFlag)
-  {
-    jam();
-    CRASH_INSERTION(5054);
-    if (lcpPtr.p->lcpState == LcpRecord::LCP_IDLE) {
-      jam();
-      /* ----------------------------------------------------------
-       *       NOW THE COMPLETE LOCAL CHECKPOINT ROUND IS COMPLETED.  
-       * -------------------------------------------------------- */
-      if (cnoOfFragsCheckpointed > 0) {
-        jam();
-        completeLcpRoundLab(signal, lcpId);
-      } else {
-        jam();
-        clcpCompletedState = LCP_IDLE;
-        sendLCP_COMPLETE_REP(signal, lcpId);
-      }//if
-    }
-    return;
-  }//if
-  tabptr.i = lcpFragOrd->tableId;
-  ptrCheckGuard(tabptr, ctabrecFileSize, tablerec);
-  
-  lcpPtr.i = 0;
-  ptrAss(lcpPtr, lcpRecord);
-
   if (c_lcpId < lcpFragOrd->lcpId)
   {
     jam();
@@ -14612,10 +14587,74 @@ void Dblqh::execLCP_FRAG_ORD(Signal* signal)
     setLogTail(signal, lcpFragOrd->keepGci);
     ndbrequire(clcpCompletedState == LCP_IDLE);
     clcpCompletedState = LCP_RUNNING;
+
+    /**
+     * We preset some variables that will stay the same for the entire
+     * LCP execution.
+     */
+    lcpPtr.p->currentFragment.lcpFragOrd.lcpId = c_lcpId;
+    lcpPtr.p->currentFragment.lcpFragOrd.keepGci = lcpFragOrd->keepGci;
+    lcpPtr.p->currentFragment.lcpFragOrd.lastFragmentFlag = FALSE;
+    /* These should be set before each LCP fragment execution */
+    lcpPtr.p->currentFragment.lcpFragOrd.tableId = RNIL;
+    lcpPtr.p->currentFragment.lcpFragOrd.fragmentId = RNIL;
+    lcpPtr.p->currentFragment.lcpFragOrd.lcpNo = RNIL;
+  }
+  else
+  {
+    jam();
+    ndbrequire(c_lcpId == lcpFragOrd->lcpId);
+    if (lcpPtr.p->lastFragmentFlag)
+    {
+      jam();
+      /**
+       * Drop any message received after LCP_FRAG_ORD with last fragment
+       * marker, must be ndbd we're running since Proxy should handle this.
+       * Can happen after a master takeover.
+       *
+       * DIH doesn't keep track of number of outstanding messages, so
+       * no need to do anything when receiving multiple LCP_FRAG_ORDs
+       * that are discarded.
+       */
+      ndbrequire(!isNdbMtLqh());
+      return;
+    }
   }
   
-  if (! (tabptr.p->tableStatus == Tablerec::TABLE_DEFINED || tabptr.p->tableStatus == Tablerec::TABLE_READ_ONLY))
+  if (lcpFragOrd->lastFragmentFlag)
   {
+    jam();
+    lcpPtr.p->lastFragmentFlag = true;
+    CRASH_INSERTION(5054);
+    if (lcpPtr.p->lcpState == LcpRecord::LCP_IDLE) {
+      jam();
+      /* ----------------------------------------------------------
+       *       NOW THE COMPLETE LOCAL CHECKPOINT ROUND IS COMPLETED.  
+       * -------------------------------------------------------- */
+      if (cnoOfFragsCheckpointed > 0) {
+        jam();
+        completeLcpRoundLab(signal, lcpId);
+      } else {
+        jam();
+        sendLCP_COMPLETE_REP(signal, lcpId);
+      }//if
+    }
+    return;
+  }//if
+
+  tabptr.i = lcpFragOrd->tableId;
+  ptrCheckGuard(tabptr, ctabrecFileSize, tablerec);
+  
+  if (! (tabptr.p->tableStatus == Tablerec::TABLE_DEFINED ||
+         tabptr.p->tableStatus == Tablerec::TABLE_READ_ONLY))
+  {
+    /**
+     * There is no way to discover if we had multiple messages for this
+     * since the table is already deleted and we don't keep information
+     * about it anymore. Should not be a problem since the signal is
+     * likely to be dropped somewhere and an extra LCP_FRAG_REP to a
+     * dropped table will simply be dropped again in DBDIH.
+     */
     jam();
     LcpRecord::FragOrd fragOrd;
     fragOrd.fragPtrI = RNIL;
@@ -14628,21 +14667,55 @@ void Dblqh::execLCP_FRAG_ORD(Signal* signal)
     return;
   }
 
-  cnoOfFragsCheckpointed++;
   ndbrequire(getFragmentrec(signal, lcpFragOrd->fragmentId));
+
+  if (fragptr.p->lcp_frag_ord_lcp_id == lcpFragOrd->lcpId)
+  {
+    /**
+     * The LCP_FRAG_ORD have already been received, we need to send a report
+     * back to the Proxy for ndbmtd to keep the outstanding counter up-to-date.
+     * For ndbd we can simply drop the signal.
+     */
+    jam();
+    if (!isNdbMtLqh())
+    {
+      jam();
+      return;
+    }
+    /**
+     * This signal is identified by its length, it will be used to decrease
+     * the number of outstanding LCP_FRAG_ORD operations to the LQH instances.
+     * From a modular point of view DBLQH will always drop this LCP_FRAG_ORD
+     * since it already received it. In the case of ndbmtd we do however need
+     * to ensure that DBLQH proxy also knows about the drop since it keeps
+     * track of the number of outstanding LCP_FRAG_ORDs. When DBLQH proxy
+     * receives this signal it will update the counter and then drop the
+     * signal. So no signal will be sent to DBDIH in any case.
+     */
+    sendSignal(DBLQH_REF, GSN_LCP_FRAG_REP, signal, 1, JBB);
+    return;
+  }
+
+  /**
+   * Add the fragment to the queue of LCP_FRAG_ORDs.
+   * We need to store lcpId as a flag that we received an
+   * LCP_FRAG_ORD for this LCP, we need the lcpNo for
+   * later when executing the LCP and we need the state
+   * to indicate if we have completed the LCP yet which
+   * is needed for drop table.
+   */
+  fragptr.p->lcp_frag_ord_lcp_no = lcpFragOrd->lcpNo;
+  fragptr.p->lcp_frag_ord_lcp_id = lcpFragOrd->lcpId;
+  fragptr.p->lcp_frag_ord_state = Fragrecord::LCP_QUEUED;
+  c_queued_lcp_frag_ord.addLast(fragptr);
+
+  cnoOfFragsCheckpointed++;
 
   if (lcpPtr.p->lcpState != LcpRecord::LCP_IDLE)
   {
-    Uint32 index = lcpPtr.p->numFragLcpsQueued;
-    lcpPtr.p->queuedFragment[index].fragPtrI = fragptr.i;
-    lcpPtr.p->queuedFragment[index].lcpFragOrd = * lcpFragOrd;
-    lcpPtr.p->numFragLcpsQueued++;
+    jam();
     return;
   }//if
-  
-  lcpPtr.p->currentFragment.fragPtrI = fragptr.i;
-  lcpPtr.p->currentFragment.lcpFragOrd = * lcpFragOrd;
-  
   sendLCP_FRAGIDREQ(signal);
 }//Dblqh::execLCP_FRAGORD()
 
@@ -14962,26 +15035,20 @@ void Dblqh::contChkpNextFragLab(Signal* signal)
   /**
    * Send rep when fragment is done + unblocked
    */
-  sendLCP_FRAG_REP(signal, lcpPtr.p->currentFragment,
-                   c_fragment_pool.getPtr(lcpPtr.p->currentFragment.fragPtrI));
+  FragrecordPtr curr_fragptr;
+  curr_fragptr.i = lcpPtr.p->currentFragment.fragPtrI;
+  c_fragment_pool.getPtr(curr_fragptr);
+  curr_fragptr.p->lcp_frag_ord_state = Fragrecord::LCP_EXECUTED;
+  sendLCP_FRAG_REP(signal, lcpPtr.p->currentFragment, curr_fragptr.p);
   
   /* ------------------------------------------------------------------------
    *       WE ALSO RELEASE THE LOCAL LCP RECORDS.
    * ----------------------------------------------------------------------- */
-  if (lcpPtr.p->numFragLcpsQueued) {
+  if (!c_queued_lcp_frag_ord.isEmpty())
+  {
     jam();
     /* ----------------------------------------------------------------------
-     *  Transfer the state from the queued to the active LCP.
-     * --------------------------------------------------------------------- */
-    lcpPtr.p->currentFragment = lcpPtr.p->queuedFragment[0];
-    for (Uint32 i = 1; i < lcpPtr.p->numFragLcpsQueued; i++)
-    {
-      lcpPtr.p->queuedFragment[i - 1] = lcpPtr.p->queuedFragment[i];
-    }
-    lcpPtr.p->numFragLcpsQueued--;
-    
-    /* ----------------------------------------------------------------------
-     *       START THE QUEUED LOCAL CHECKPOINT.
+     *       START THE FIRST QUEUED LOCAL CHECKPOINT.
      * --------------------------------------------------------------------- */
     sendLCP_FRAGIDREQ(signal);
     return;
@@ -15006,9 +15073,23 @@ void Dblqh::contChkpNextFragLab(Signal* signal)
 
 void Dblqh::sendLCP_FRAGIDREQ(Signal* signal)
 {
+  FragrecordPtr curr_fragptr;
   TablerecPtr tabPtr;
-  tabPtr.i = lcpPtr.p->currentFragment.lcpFragOrd.tableId;
-  ptrAss(tabPtr, tablerec);
+  /* ----------------------------------------------------------------------
+   *  Remove first queued fragment from queue.
+   *  Transfer the state from the queued to the active LCP.
+   * --------------------------------------------------------------------- */
+  c_queued_lcp_frag_ord.first(curr_fragptr);
+  c_queued_lcp_frag_ord.removeFirst(curr_fragptr);
+
+  tabPtr.i = curr_fragptr.p->tabRef;
+  ptrCheckGuard(tabPtr, ctabrecFileSize, tablerec);
+  curr_fragptr.p->lcp_frag_ord_state = Fragrecord::LCP_EXECUTING;
+  lcpPtr.p->currentFragment.fragPtrI = curr_fragptr.i;
+  lcpPtr.p->currentFragment.lcpFragOrd.lcpNo =
+    curr_fragptr.p->lcp_frag_ord_lcp_no;
+  lcpPtr.p->currentFragment.lcpFragOrd.fragmentId = curr_fragptr.p->fragId;
+  lcpPtr.p->currentFragment.lcpFragOrd.tableId = tabPtr.i;
 
   if(tabPtr.p->tableStatus != Tablerec::TABLE_DEFINED)
   {
@@ -15140,7 +15221,6 @@ void Dblqh::execEND_LCPCONF(Signal* signal)
   if(lcpPtr.p->m_outstanding == 0)
   {
     jam();
-    clcpCompletedState = LCP_IDLE;
     sendLCP_COMPLETE_REP(signal, lcpPtr.p->currentFragment.lcpFragOrd.lcpId);
 
     CRASH_INSERTION(5056);
@@ -15168,6 +15248,7 @@ void Dblqh::sendLCP_COMPLETE_REP(Signal* signal, Uint32 lcpId)
   lcpPtr.p->m_no_of_records = 0;
   lcpPtr.p->m_no_of_bytes = 0;
   cnoOfFragsCheckpointed = 0;
+  clcpCompletedState = LCP_IDLE;
   
   LcpCompleteRep* rep = (LcpCompleteRep*)signal->getDataPtrSend();
   rep->nodeId = getOwnNodeId();
@@ -21695,7 +21776,6 @@ void Dblqh::initialiseLcpRec(Signal* signal)
     for (lcpPtr.i = 0; lcpPtr.i < clcpFileSize; lcpPtr.i++) {
       ptrAss(lcpPtr, lcpRecord);
       lcpPtr.p->lcpState = LcpRecord::LCP_IDLE;
-      lcpPtr.p->numFragLcpsQueued = 0;
       lcpPtr.p->reportEmpty = false;
       lcpPtr.p->firstFragmentFlag = false;
       lcpPtr.p->lastFragmentFlag = false;
@@ -22138,7 +22218,6 @@ void Dblqh::initLcpSr(Signal* signal,
                       Uint32 fragId,
                       Uint32 fragPtr) 
 {
-  lcpPtr.p->numFragLcpsQueued = 0;
   lcpPtr.p->currentFragment.fragPtrI = fragPtr;
   lcpPtr.p->currentFragment.lcpFragOrd.lcpNo = lcpNo;
   lcpPtr.p->currentFragment.lcpFragOrd.lcpId = lcpId;
@@ -24016,8 +24095,7 @@ Dblqh::execDUMP_STATE_ORD(Signal* signal)
 	      TlcpPtr.p->currentFragment.fragPtrI);
     infoEvent("currentFragment.lcpFragOrd.tableId=%d",
 	      TlcpPtr.p->currentFragment.lcpFragOrd.tableId);
-    infoEvent(" numFragLcpsQueued=%d reportEmpty=%d",
-	      TlcpPtr.p->numFragLcpsQueued,
+    infoEvent(" reportEmpty=%d",
 	      TlcpPtr.p->reportEmpty);
     char buf[8*_NDB_NODE_BITMASK_SIZE+1];
     infoEvent(" m_EMPTY_LCP_REQ=%s",

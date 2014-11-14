@@ -5709,9 +5709,32 @@ void Dbdih::checkGcpOutstanding(Signal* signal, Uint32 failedNodeId){
 	       SubGcpCompleteAck::SignalLength, JBB);
   }
 }
- 
+
+/**
+ * This function checks if any node is started that doesn't support the
+ * functionality to remove the need of the EMPTY_LCP_REQ protocol.
+ */
+bool Dbdih::check_if_empty_lcp_needed(void)
+{
+  NodeRecordPtr specNodePtr;
+  specNodePtr.i = cfirstAliveNode;
+  do
+  {
+    jam();
+    if (getNodeInfo(specNodePtr.i).m_version < NDBD_EMPTY_LCP_NOT_NEEDED)
+    {
+      jam();
+      return true;
+    }
+    ptrCheckGuard(specNodePtr, MAX_NDB_NODES, nodeRecord);
+    specNodePtr.i = specNodePtr.p->nextNode;
+  } while (specNodePtr.i != RNIL);
+  return false;
+}
+
 void
-Dbdih::startLcpMasterTakeOver(Signal* signal, Uint32 nodeId){
+Dbdih::startLcpMasterTakeOver(Signal* signal, Uint32 nodeId)
+{
   jam();
 
   if (ERROR_INSERTED(7230))
@@ -5720,11 +5743,66 @@ Dbdih::startLcpMasterTakeOver(Signal* signal, Uint32 nodeId){
   }
 
   Uint32 oldNode = c_lcpMasterTakeOverState.failedNodeId;
+  
+  NodeRecordPtr nodePtr;
+  nodePtr.i = oldNode;
+  if (oldNode > 0 && oldNode < MAX_NDB_NODES)
+  {
+    jam();
+    ptrCheckGuard(nodePtr, MAX_NDB_NODES, nodeRecord);
+    if (nodePtr.p->m_nodefailSteps.get(NF_LCP_TAKE_OVER))
+    {
+      jam();
+      checkLocalNodefailComplete(signal, oldNode, NF_LCP_TAKE_OVER);
+    }
+  }
 
+  c_lcpMasterTakeOverState.use_empty_lcp = check_if_empty_lcp_needed();
+  if (!c_lcpMasterTakeOverState.use_empty_lcp)
+  {
+    jam();
+    /**
+     * As of NDBD_EMPTY_LCP_PROTOCOL_NOT_NEEDED version this is the
+     * normal path through the code.
+     *
+     * We now ensures that LQH keeps track of which LCP_FRAG_ORD it has
+     * received. So this means that we can be a bit more sloppy in master
+     * take over. We need not worry if we resend LCP_FRAG_ORD since LQH will
+     * simply drop it.
+     *
+     * So when we are done with the master take over we will simply start from
+     * scratch from the first table and fragment. We have sufficient
+     * information locally in the new master to skip resending all fragment
+     * replicas where we already received LCP_FRAG_REP. For those where we sent
+     * LCP_FRAG_ORD but not received LCP_FRAG_REP we simply send it again. If
+     * it was sent before then LQH will discover it and drop it.
+     *
+     * We also don't need to worry about sending too many LCP_FRAG_ORDs to LQH
+     * since we can send it for all fragment replicas given that we use the
+     * fragment record as the queueing record. So in practice the queue is
+     * always large enough.
+     *
+     * For old nodes we still have to run the EMPTY_LCP_REQ protocol to
+     * ensure that all outstanding LCP_FRAG_ORD have come back to all
+     * DBDIHs as LCP_FRAG_REPs to ensure that every DBDIH has a complete
+     * understanding of the LCP state and can take it over. What we do here
+     * is that if one node is old, then we run the old take over protocol
+     * for all nodes to not mess the code up too much. Theoretically it
+     * would suffice to send EMPTY_LCP_REQ to only old nodes, but we won't
+     * handle this, we will simply run the old code as it was.
+     */
+    c_lcpMasterTakeOverState.minTableId = 0;
+    c_lcpMasterTakeOverState.minFragId = 0;
+    c_lcpMasterTakeOverState.failedNodeId = nodeId;
+    c_lcpMasterTakeOverState.set(LMTOS_WAIT_LCP_FRAG_REP, __LINE__);
+    setLocalNodefailHandling(signal, nodeId, NF_LCP_TAKE_OVER);
+    checkEmptyLcpComplete(signal);
+    return;
+  }
+  
   c_lcpMasterTakeOverState.minTableId = ~0;
   c_lcpMasterTakeOverState.minFragId = ~0;
   c_lcpMasterTakeOverState.failedNodeId = nodeId;
-  
   c_lcpMasterTakeOverState.set(LMTOS_WAIT_EMPTY_LCP, __LINE__);
   
   EmptyLcpReq* req = (EmptyLcpReq*)signal->getDataPtrSend();
@@ -5757,20 +5835,6 @@ Dbdih::startLcpMasterTakeOver(Signal* signal, Uint32 nodeId){
       specNodePtr.i = specNodePtr.p->nextNode;
     } while (specNodePtr.i != RNIL);
   }
-  
-  NodeRecordPtr nodePtr;
-  nodePtr.i = oldNode;
-  if (oldNode > 0 && oldNode < MAX_NDB_NODES)
-  {
-    jam();
-    ptrCheckGuard(nodePtr, MAX_NDB_NODES, nodeRecord);
-    if (nodePtr.p->m_nodefailSteps.get(NF_LCP_TAKE_OVER))
-    {
-      jam();
-      checkLocalNodefailComplete(signal, oldNode, NF_LCP_TAKE_OVER);
-    }
-  }
-  
   setLocalNodefailHandling(signal, nodeId, NF_LCP_TAKE_OVER);
 }
 
@@ -6772,12 +6836,23 @@ void Dbdih::execEMPTY_LCP_CONF(Signal* signal)
 }//Dbdih::execEMPTY_LCPCONF()
 
 void
-Dbdih::checkEmptyLcpComplete(Signal *signal){
+Dbdih::checkEmptyLcpComplete(Signal *signal)
+{
   
   ndbrequire(c_lcpMasterTakeOverState.state == LMTOS_WAIT_LCP_FRAG_REP);
   
-  if(c_lcpState.noOfLcpFragRepOutstanding > 0){
+  if(c_lcpState.noOfLcpFragRepOutstanding > 0 &&
+     c_lcpMasterTakeOverState.use_empty_lcp)
+  {
     jam();
+    /**
+     * In the EMPTY_LCP_REQ we need to ensure that we have received
+     * LCP_FRAG_REP for all outstanding LCP_FRAG_ORDs. So we need to wait
+     * here for all to complete before we are ready to move on.
+     * 
+     * This is not needed when LQH can remove duplicate LCP_FRAG_ORDs, so
+     * we can proceed with the master takeover immediately.
+     */
     return;
   }
   
@@ -13483,11 +13558,27 @@ void Dbdih::storeNewLcpIdLab(Signal* signal)
   copyGciLab(signal, CopyGCIReq::LOCAL_CHECKPOINT);
 }//Dbdih::storeNewLcpIdLab()
 
-void Dbdih::startLcpRoundLab(Signal* signal) {
+void Dbdih::startLcpRoundLab(Signal* signal)
+{
   jam();
 
   CRASH_INSERTION(7218);
 
+  /**
+   * Next step in starting up a local checkpoint is to define which
+   * tables that should participate in the local checkpoint, while
+   * we are performing this step we don't want to have committing
+   * schema transactions in the middle of this, this mutex ensures
+   * that we will wait for a schema transaction to commit before we
+   * proceed and once we acquired the mutex, then schema transaction
+   * commits will block waiting for this LCP phase to complete.
+   * 
+   * The reason we need this mutex is to ensure that all nodes that
+   * participate in the LCP have the same view on the tables involved
+   * in the LCP. This makes it possible for a node to easily take
+   * over the master role in executing a LCP if the master node that
+   * controls the LCP fails.
+   */
   Mutex mutex(signal, c_mutexMgr, c_startLcpMutexHandle);
   Callback c = { safe_cast(&Dbdih::startLcpMutex_locked), 0 };
   ndbrequire(mutex.lock(c));
@@ -13993,7 +14084,21 @@ void Dbdih::execLCP_FRAG_REP(Signal* signal)
   case LMTOS_ALL_ACTIVE:
   case LMTOS_LCP_CONCLUDING:
   case LMTOS_COPY_ONGOING:
-    ndbrequire(false);
+    /**
+     * In the old code we ensured that all outstanding LCP_FRAG_REPs
+     * were handled before entering those states. So receiving an
+     * LCP_FRAG_REP is ok in new code, even in new code will block
+     * LCP_COMPLETE_REP such that we don't complete an LCP while
+     * processing a master take over. But we can still receive
+     * LCP_FRAG_REP while processing a master takeover.
+     *
+     * In old code we were blocked from coming here for LCP_FRAG_REPs since
+     * we enusred that we don't proceed here until all nodes have sent
+     * their EMPTY_LCP_CONF to us. So we keep ndbrequire to ensure that
+     * we come here only when running the new master take over code.
+     */
+    ndbrequire(!c_lcpMasterTakeOverState.use_empty_lcp);
+    return;
   }
   ndbrequire(ok);
   
@@ -14439,11 +14544,18 @@ void Dbdih::execLCP_COMPLETE_REP(Signal* signal)
   Uint32 nodeId = rep->nodeId;
   Uint32 blockNo = rep->blockNo;
 
-  if(c_lcpMasterTakeOverState.state > LMTOS_WAIT_LCP_FRAG_REP){
+  if(c_lcpMasterTakeOverState.state > LMTOS_WAIT_LCP_FRAG_REP)
+  {
     jam();
     /**
      * Don't allow LCP_COMPLETE_REP to arrive during
      * LCP master take over
+     *
+     * We keep this even when removing the need to use the EMPTY_LCP_REQ
+     * protocol. The reason is that we don't want to handle code to
+     * process LCP completion as part of master take over as a
+     * simplification. It is perfectly doable, but this makes the code
+     * a bit easier for a very small cost.
      */
     ndbrequire(isMaster());
     sendSignalWithDelay(reference(), GSN_LCP_COMPLETE_REP, signal, 100,
