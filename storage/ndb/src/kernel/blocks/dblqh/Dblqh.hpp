@@ -27,6 +27,7 @@
 #include <DLHashTable.hpp>
 
 #include <NodeBitmask.hpp>
+#include <signaldata/NodeRecoveryStatusRep.hpp>
 #include <signaldata/LCP.hpp>
 #include <signaldata/LqhTransConf.hpp>
 #include <signaldata/CreateTab.hpp>
@@ -2501,6 +2502,8 @@ private:
 
   // Statement blocks
 
+  void sendLOCAL_RECOVERY_COMPLETE_REP(Signal *signal,
+                LocalRecoveryCompleteRep::PhaseIds);
   void timer_handling(Signal *signal);
   void init_acc_ptr_list(ScanRecord*);
   bool seize_acc_ptr_list(ScanRecord*, Uint32, Uint32);

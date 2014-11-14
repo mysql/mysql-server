@@ -21,6 +21,7 @@
 #include <ndb_limits.h>
 #include <ndb_version.h>
 #include <SimpleProperties.hpp>
+#include <signaldata/NodeRecoveryStatusRep.hpp>
 #include <signaldata/DictTabInfo.hpp>
 #include <signaldata/SchemaTrans.hpp>
 #include <signaldata/CreateTable.hpp>
@@ -792,8 +793,9 @@ metadata informatiom.
 The reason for locking is that all meta data and distribution info is fully
 replicated. So we need to lock this information while we are copying the data
 from the master node to the starting node. While we retain this lock we cannot
-change meta data and also we cannot update distribution information while
-running local checkpoints.
+change meta data through meta data transactions. Before copying the meta data
+later we also need to ensure no local checkpoint is running since this also
+updates the distribution information.
 
 After locking this we need to request permission to start the node from the
 master node. The request for permission to start the node is handled by the
@@ -2018,11 +2020,25 @@ Ndbcntr::execCNTR_START_REQ(Signal * signal){
 
   const bool startInProgress = !c_start.m_starting.isclear();
 
-  if((starting && startInProgress) || (startInProgress && !parallellNR)){
+  if ((starting && startInProgress) || (startInProgress && !parallellNR))
+  {
     jam();
-    // We're already starting together with a bunch of nodes
-    // Let this node wait...
-    return;
+    /**
+     * We're already starting together with a bunch of nodes
+     * Let this node wait...
+     *
+     * We will report the wait to DBDIH to keep track of waiting times in
+     * the restart. We only report when a node restart is ongoing (that is
+     * we are not starting ourselves).
+     */
+    if (!starting)
+    {
+      NdbcntrStartWaitRep *rep = (NdbcntrStartWaitRep*)signal->getDataPtrSend();
+      rep->nodeId = nodeId;
+      EXECUTE_DIRECT(DBDIH, GSN_NDBCNTR_START_WAIT_REP, signal,
+                     NdbcntrStartWaitRep::SignalLength);
+      return;
+    }
   }
   
   if(starting){
@@ -2092,6 +2108,16 @@ Ndbcntr::startWaitingNodes(Signal * signal){
   c_startedNodes.copyto(NdbNodeBitmask::Size, conf->startedNodes);
   sendSignal(Tref, GSN_CNTR_START_CONF, signal, 
 	     CntrStartConf::SignalLength, JBB);
+
+  /**
+   * A node restart is ongoing where we are master and we just accepted this
+   * node to proceed with his node restart. Inform DBDIH about this event in
+   * the node restart.
+   */
+  NdbcntrStartedRep *rep = (NdbcntrStartedRep*)signal->getDataPtrSend();
+  rep->nodeId = nodeId;
+  EXECUTE_DIRECT(DBDIH, GSN_NDBCNTR_STARTED_REP, signal,
+                 NdbcntrStartedRep::SignalLength);
 
   c_start.m_waiting.clear(nodeId);
   c_start.m_withLog.clear(nodeId);

@@ -17,6 +17,7 @@
 #include "Dblqh.hpp"
 #include "DblqhCommon.hpp"
 
+#include <signaldata/NodeRecoveryStatusRep.hpp>
 #include <signaldata/StartFragReq.hpp>
 #include <signaldata/ExecFragReq.hpp>
 
@@ -80,6 +81,8 @@ DblqhProxy::DblqhProxy(Block_context& ctx) :
   // GSN_START_RECREQ
   addRecSignal(GSN_START_RECREQ, &DblqhProxy::execSTART_RECREQ);
   addRecSignal(GSN_START_RECCONF, &DblqhProxy::execSTART_RECCONF);
+  addRecSignal(GSN_LOCAL_RECOVERY_COMP_REP,
+               &DblqhProxy::execLOCAL_RECOVERY_COMP_REP);
 
   // GSN_LQH_TRANSREQ
   addRecSignal(GSN_LQH_TRANSREQ, &DblqhProxy::execLQH_TRANSREQ);
@@ -1227,6 +1230,10 @@ DblqhProxy::execSTART_RECREQ(Signal* signal)
   const StartRecReq* req = (const StartRecReq*)signal->getDataPtr();
   Ss_START_RECREQ& ss = ssSeize<Ss_START_RECREQ>();
   ss.m_req = *req;
+  ss.restoreFragCompletedCount = 0;
+  ss.undoDDCompletedCount = 0;
+  ss.execREDOLogCompletedCount = 0;
+  ss.phaseToSend = 0;
 
   // seize records for sub-ops
   Uint32 i;
@@ -1243,6 +1250,72 @@ DblqhProxy::execSTART_RECREQ(Signal* signal)
 
   ndbrequire(signal->getLength() == StartRecReq::SignalLength);
   sendREQ(signal, ss);
+}
+
+void
+DblqhProxy::execLOCAL_RECOVERY_COMP_REP(Signal *signal)
+{
+  LocalRecoveryCompleteRep *rep =
+    (LocalRecoveryCompleteRep*) &signal->theData[0];
+
+  LocalRecoveryCompleteRep::PhaseIds phaseId =
+    (LocalRecoveryCompleteRep::PhaseIds)rep->phaseId;
+
+  Uint32 ssId = rep->senderData;
+  Ss_START_RECREQ& ss = ssFind<Ss_START_RECREQ>(ssId);
+
+  switch (phaseId)
+  {
+  case LocalRecoveryCompleteRep::RESTORE_FRAG_COMPLETED:
+  {
+    ss.restoreFragCompletedCount++;
+    if (ss.restoreFragCompletedCount < c_workers)
+    {
+      jam();
+      return;
+    }
+    break;
+  }
+  case LocalRecoveryCompleteRep::UNDO_DD_COMPLETED:
+  {
+    ss.undoDDCompletedCount++;
+    if (ss.undoDDCompletedCount < c_workers)
+    {
+      jam();
+      return;
+    }
+    break;
+  }
+  case LocalRecoveryCompleteRep::EXECUTE_REDO_LOG_COMPLETED:
+  {
+    ss.execREDOLogCompletedCount++;
+    if (ss.execREDOLogCompletedCount < c_workers)
+    {
+      jam();
+      return;
+    }
+    break;
+  }
+  default:
+    ndbrequire(false);
+  }
+  /* All LDM workers have completed this phase */
+  ndbrequire(Uint32(ss.phaseToSend) == Uint32(phaseId));
+  ss.phaseToSend++;
+  Uint32 masterNodeId = refToNode(ss.m_req.senderRef);
+  Uint32 master_version = getNodeInfo(masterNodeId).m_version;
+  if (master_version >= NDBD_NODE_RECOVERY_STATUS_VERSION)
+  {
+    /* Only send this information to masters that have code to handle it. */
+    jam();
+    rep->nodeId = getOwnNodeId();
+    rep->phaseId = (Uint32)phaseId;
+    sendSignal(ss.m_req.senderRef, GSN_LOCAL_RECOVERY_COMP_REP, signal,
+               LocalRecoveryCompleteRep::SignalLengthMaster, JBB);
+    return;
+  }
+  jam();
+  return;
 }
 
 void
@@ -1292,6 +1365,8 @@ DblqhProxy::sendSTART_RECCONF(Signal* signal, Uint32 ssId)
     signal->theData[0] = 12003;
     sendSignal(LGMAN_REF, GSN_DUMP_STATE_ORD, signal, 1, JBB);
 
+    ndbrequire(ss.phaseToSend ==
+          Uint32(LocalRecoveryCompleteRep::LOCAL_RECOVERY_COMPLETED));
     StartRecConf* conf = (StartRecConf*)signal->getDataPtrSend();
     conf->startingNodeId = getOwnNodeId();
     conf->senderData = ss.m_req.senderData;

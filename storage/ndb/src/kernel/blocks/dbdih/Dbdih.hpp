@@ -335,6 +335,87 @@ public:
       DEAD = 5
     };      
 
+    /**
+     * The NodeRecoveryStatus variable and all the timers connected to this
+     * status is used for two purposes. The first purpose is for a NDBINFO
+     * table that the master node will use to be able to specify the times
+     * a node restart has spent in the various node restart phases.
+     *
+     * This will help both the users and the developers to understand where
+     * the node restart is spending time.
+     *
+     * In addition the timers are also used to estimate how much more time
+     * the node will need before reaching the next wait for local checkpoint
+     * (LCP). Starting LCPs with good timing is crucial to shorten the waits
+     * for LCPs by the starting nodes. We want to wait with starting LCPs
+     * to ensure that as many nodes as possible are handled in between
+     * LCPs as possible. At the same time we cannot block LCP execution for
+     * any extended period since it will jeopardize the future stability of
+     * the cluster.
+     */
+    enum NodeRecoveryStatus
+    {
+      /* No valid state or node not defined in cluster */
+      NOT_DEFINED_IN_CLUSTER = 0,
+
+      /* There is state for no information about restarts. */
+      NODE_NOT_RESTARTED_YET = 1,
+
+      /* Node failure states are used in all nodes. */
+      NODE_FAILED = 2,
+      NODE_FAILURE_COMPLETED = 3,
+
+      /* The first set of states are only used in master nodes. */
+      ALLOCATED_NODE_ID = 4,
+      INCLUDED_IN_HB_PROTOCOL = 5,
+      NDBCNTR_START_WAIT = 6,
+      NDBCNTR_STARTED = 7,
+      START_PERMITTED = 8,
+      WAIT_LCP_TO_COPY_DICT = 9,
+      COPY_DICT_TO_STARTING_NODE = 10,
+      INCLUDE_NODE_IN_LCP_AND_GCP = 11,
+      LOCAL_RECOVERY_STARTED = 12,
+      RESTORE_FRAG_COMPLETED = 13,
+      UNDO_DD_COMPLETED = 14,
+      EXECUTE_REDO_LOG_COMPLETED = 15,
+      COPY_FRAGMENTS_STARTED = 16,
+      WAIT_LCP_FOR_RESTART = 17,
+      WAIT_SUMA_HANDOVER = 18,
+      RESTART_COMPLETED = 19,
+
+      /* There is a set of states used in non-master nodes as well. */
+      NODE_GETTING_PERMIT = 20,
+      NODE_GETTING_INCLUDED = 21,
+      NODE_GETTING_SYNCHED = 22,
+      NODE_IN_LCP_WAIT_STATE = 23,
+      NODE_ACTIVE = 24
+    };
+    NodeRecoveryStatus nodeRecoveryStatus;
+    NDB_TICKS nodeFailTime;
+    NDB_TICKS nodeFailCompletedTime;
+    NDB_TICKS allocatedNodeIdTime;
+    NDB_TICKS includedInHBProtocolTime;
+    NDB_TICKS ndbcntrStartWaitTime;
+    NDB_TICKS ndbcntrStartedTime;
+    NDB_TICKS startPermittedTime;
+    NDB_TICKS waitLCPToCopyDictTime;
+    NDB_TICKS copyDictToStartingNodeTime;
+    NDB_TICKS includeNodeInLCPAndGCPTime;
+    NDB_TICKS startDatabaseRecoveryTime;
+    NDB_TICKS startUndoDDTime;
+    NDB_TICKS startExecREDOLogTime;
+    NDB_TICKS startBuildIndexTime;
+    NDB_TICKS copyFragmentsStartedTime;
+    NDB_TICKS waitLCPForRestartTime;
+    NDB_TICKS waitSumaHandoverTime;
+    NDB_TICKS restartCompletedTime;
+
+    NDB_TICKS nodeGettingPermitTime;
+    NDB_TICKS nodeGettingIncludedTime;
+    NDB_TICKS nodeGettingSynchedTime;
+    NDB_TICKS nodeInLCPWaitStateTime;
+    NDB_TICKS nodeActiveTime;
+
     struct FragmentCheckpointInfo {
       Uint32 tableId;
       Uint32 fragId;
@@ -348,7 +429,12 @@ public:
     bool allowNodeStart;
     bool m_inclDihLcp;
     Uint8 copyCompleted; // 0 = NO :-), 1 = YES, 2 = yes, first WAITING
-
+   
+    /**
+     * Used by master as part of running LCPs to keep track of fragments
+     * that have started checkpoints and fragments that have been queued
+     * for LCP execution.
+     */
     FragmentCheckpointInfo startedChkpt[MAX_STARTED_FRAG_CHECKPOINTS_PER_NODE];
     FragmentCheckpointInfo queuedChkpt[MAX_QUEUED_FRAG_CHECKPOINTS_PER_NODE];
 
@@ -703,7 +789,50 @@ public:
 private:
   friend class SimulatedBlock;
   BLOCK_DEFINES(Dbdih);
-  
+
+  /**
+   * Methods used in Node Recovery Status module
+   * -------------------------------------------
+   */
+  void execDBINFO_SCANREQ(Signal *);
+  void execALLOC_NODEID_REP(Signal *);
+  void execINCL_NODE_HB_PROTOCOL_REP(Signal *);
+  void execNDBCNTR_START_WAIT_REP(Signal *);
+  void execNDBCNTR_STARTED_REP(Signal *);
+  void execSUMA_HANDOVER_COMPLETE_REP(Signal *);
+  void execEND_TOREP(Signal *signal);
+  void execLOCAL_RECOVERY_COMP_REP(Signal *signal);
+
+  void sendEND_TOREP(Signal *signal, Uint32 startNodeId);
+  bool check_stall_lcp_start(void);
+  void check_node_not_restarted_yet(NodeRecordPtr nodePtr);
+  void setNodeRecoveryStatus(Uint32 nodeId,
+                             NodeRecord::NodeRecoveryStatus new_status);
+  void setNodeRecoveryStatusInitial(NodeRecordPtr nodePtr);
+  void initNodeRecoveryStatus(NodeRecordPtr nodePtr);
+  bool check_for_too_long_wait(Uint64 &lcp_max_wait_time,
+                               Uint64 &lcp_stall_time,
+                               NDB_TICKS now);
+  void calculate_time_remaining(Uint32 nodeId,
+                                Uint32 &node_waited_for,
+                                NodeRecord::NodeRecoveryStatus state,
+                                NDB_TICKS state_start_time,
+                                NDB_TICKS now,
+                                NodeRecord::NodeRecoveryStatus &max_status,
+                                Uint64 &time_since_state_start);
+  void calculate_most_recent_node(Uint32 nodeId,
+                          Uint32 *most_recent_node,
+                          NodeRecord::NodeRecoveryStatus *most_recent_state,
+                          NDB_TICKS *most_recent_start_time,
+                          NDB_TICKS state_start_time,
+                          NodeRecord::NodeRecoveryStatus state);
+  const char* get_status_str(NodeRecord::NodeRecoveryStatus status);
+  void fill_row_with_node_restart_status(NodeRecordPtr nodePtr,
+                                         Ndbinfo::Row &row);
+  void write_zero_columns(Ndbinfo::Row &row, Uint32 num_rows);
+  void handle_before_master(NodeRecordPtr nodePtr, Ndbinfo::Row &row);
+  /* End methods for Node Recovery Status module */
+
   void execDUMP_STATE_ORD(Signal *);
   void execNDB_TAMPER(Signal *);
   void execDEBUG_SIG(Signal *);
@@ -934,7 +1063,7 @@ private:
 // Methods for LCP functionality
 //------------------------------------
   void checkKeepGci(TabRecordPtr, Uint32, Fragmentstore*, Uint32);
-  void checkLcpStart(Signal *, Uint32 lineNo);
+  void checkLcpStart(Signal *, Uint32 lineNo, Uint32 delay);
   void checkStartMoreLcp(Signal *, Uint32 nodeId);
   bool reportLcpCompletion(const struct LcpFragRep *);
   void sendLCP_COMPLETE_REP(Signal *);
@@ -1562,6 +1691,14 @@ private:
       lcpStatus = status;
       lcpStatusUpdatedPlace = line;
     }
+
+    /**
+     * State of stalling LCPs for node restarts
+     */
+    Uint32 lcpStallStart;  /* Has started stalling lcp start */
+    NDB_TICKS lastLogTime; /* Last time we logged state of stall */
+    NDB_TICKS m_start_lcp_check_time; /* Time of stalling started */
+    Uint32 stall_node_waiting_for; /* The node we've logged about waiting for */
 
     Uint32 lcpStart;
     Uint32 lcpStopGcp; 

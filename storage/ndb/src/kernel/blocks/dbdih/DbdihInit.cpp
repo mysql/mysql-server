@@ -141,6 +141,22 @@ Dbdih::Dbdih(Block_context& ctx):
 {
   BLOCK_CONSTRUCTOR(Dbdih);
 
+  /* Node Recovery Status Module signals */
+  addRecSignal(GSN_ALLOC_NODEID_REP, &Dbdih::execALLOC_NODEID_REP);
+  addRecSignal(GSN_INCL_NODE_HB_PROTOCOL_REP,
+               &Dbdih::execINCL_NODE_HB_PROTOCOL_REP);
+  addRecSignal(GSN_NDBCNTR_START_WAIT_REP,
+               &Dbdih::execNDBCNTR_START_WAIT_REP);
+  addRecSignal(GSN_NDBCNTR_STARTED_REP,
+               &Dbdih::execNDBCNTR_STARTED_REP);
+  addRecSignal(GSN_SUMA_HANDOVER_COMPLETE_REP,
+               &Dbdih::execSUMA_HANDOVER_COMPLETE_REP);
+  addRecSignal(GSN_END_TOREP, &Dbdih::execEND_TOREP);
+  addRecSignal(GSN_LOCAL_RECOVERY_COMP_REP,
+               &Dbdih::execLOCAL_RECOVERY_COMP_REP);
+  addRecSignal(GSN_DBINFO_SCANREQ, &Dbdih::execDBINFO_SCANREQ);
+  /* End Node Recovery Status Module signals */
+
   addRecSignal(GSN_DUMP_STATE_ORD, &Dbdih::execDUMP_STATE_ORD);
   addRecSignal(GSN_NDB_TAMPER, &Dbdih::execNDB_TAMPER, true);
   addRecSignal(GSN_DEBUG_SIG, &Dbdih::execDEBUG_SIG);

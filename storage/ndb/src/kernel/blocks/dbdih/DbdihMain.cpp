@@ -24,6 +24,9 @@
 #include "Dbdih.hpp"
 #include "Configuration.hpp"
 
+#include <signaldata/DbinfoScan.hpp>
+#include <signaldata/AllocNodeId.hpp>
+#include <signaldata/NodeRecoveryStatusRep.hpp>
 #include <signaldata/BlockCommitOrd.hpp>
 #include <signaldata/CheckNodeGroups.hpp>
 #include <signaldata/CopyActive.hpp>
@@ -659,15 +662,6 @@ void Dbdih::execCONTINUEB(Signal* signal)
     Callback c = { safe_cast(&Dbdih::lcpFragmentMutex_locked), 
                    signal->theData[1] };
     ndbrequire(mutex.trylock(c, false));
-    return;
-  }
-  case DihContinueB::ZDELAY_RELEASE_FRAGMENT_INFO_MUTEX:
-  {
-    jam();
-    MutexHandle2<DIH_FRAGMENT_INFO> mh;
-    mh.setHandle(signal->theData[1]);
-    Mutex mutex(signal, c_mutexMgr, mh);
-    mutex.unlock();
     return;
   }
   case DihContinueB::ZTO_START_LOGGING:
@@ -1348,6 +1342,7 @@ void Dbdih::execREAD_CONFIG_REQ(Signal* signal)
       ptrAss(nodePtr, nodeRecord);
       new (nodePtr.p) NodeRecord();
       nodePtr.p->nodeGroup = RNIL;
+      initNodeRecoveryStatus(nodePtr);
     }
 
     ndb_mgm_configuration_iterator * iter =
@@ -1368,6 +1363,7 @@ void Dbdih::execREAD_CONFIG_REQ(Signal* signal)
         Uint32 ng;
         nodePtr.i = nodeId;
         ptrCheckGuard(nodePtr, MAX_NDB_NODES, nodeRecord);
+        setNodeRecoveryStatusInitial(nodePtr);
         if (ndb_mgm_get_int_parameter(iter, CFG_DB_NODEGROUP, &ng) == 0)
         {
           jam();
@@ -1618,6 +1614,8 @@ void Dbdih::execNDB_STTOR(Signal* signal)
     clocaltcblockref = calcTcBlockRef(ownNodeId);
     clocallqhblockref = calcLqhBlockRef(ownNodeId);
     cdictblockref = calcDictBlockRef(ownNodeId);
+    c_lcpState.lcpStallStart = 0;
+    NdbTick_Invalidate(&c_lcpState.m_start_lcp_check_time);
     ndbsttorry10Lab(signal, __LINE__);
     break;
     
@@ -1694,7 +1692,10 @@ void Dbdih::execNDB_STTOR(Signal* signal)
 
       /***********************************************************************
        * When starting nodes while system is operational we must be controlled
-       * by the master since only one node restart is allowed at a time. 
+       * by the master. There can be multiple node restarts ongoing, but this
+       * phase only allows for one node at a time. So it has to be controlled
+       * from the master node.
+       *
        * When this signal is confirmed the master has also copied the 
        * dictionary and the distribution information.
        */
@@ -1750,7 +1751,7 @@ void Dbdih::execNDB_STTOR(Signal* signal)
 
       c_lcpState.immediateLcpStart = true;
       cwaitLcpSr = true;
-      checkLcpStart(signal, __LINE__);
+      checkLcpStart(signal, __LINE__, 0);
       return;
     case NodeState::ST_NODE_RESTART:
     case NodeState::ST_INITIAL_NODE_RESTART:
@@ -2489,11 +2490,19 @@ void Dbdih::startInfoReply(Signal* signal, Uint32 nodeId)
   /**
    * We're finished with the START_INFOREQ's 
    */
-  if (c_nodeStartMaster.startInfoErrorCode == 0) {
+  if (c_nodeStartMaster.startInfoErrorCode == 0)
+  {
     jam();
     /**
      * Everything has been a success so far
+     *
+     * Update node recovery status that we now have received permission to
+     * perform node restart from all live nodes. This code only executes
+     * in the master node.
      */
+    setNodeRecoveryStatus(c_nodeStartMaster.startNode,
+                          NodeRecord::START_PERMITTED);
+
     StartPermConf * conf = (StartPermConf*)&signal->theData[0];
     conf->startingNodeId = c_nodeStartMaster.startNode;
     conf->systemFailureNo = cfailurenr;
@@ -2501,7 +2510,9 @@ void Dbdih::startInfoReply(Signal* signal, Uint32 nodeId)
     sendSignal(calcDihBlockRef(c_nodeStartMaster.startNode), 
                GSN_START_PERMCONF, signal, StartPermConf::SignalLength, JBB);
     c_nodeStartMaster.m_outstandingGsn = GSN_START_PERMCONF;
-  } else {
+  }
+  else
+  {
     jam();
     StartPermRef * ref = (StartPermRef*)&signal->theData[0];
     ref->startingNodeId = c_nodeStartMaster.startNode;
@@ -2556,6 +2567,16 @@ void
 Dbdih::startme_copygci_conf(Signal* signal)
 {
   jam();
+
+  /**
+   * We update the node recovery status to indicate we are now waiting to
+   * complete a local checkpoint such that we can keep track of node restart
+   * status to control the start of local checkpoints in a proper manner.
+   * This code is only executed in master nodes.
+   */
+  setNodeRecoveryStatus(c_nodeStartMaster.startNode,
+                        NodeRecord::WAIT_LCP_TO_COPY_DICT);
+
   Callback c = { safe_cast(&Dbdih::lcpBlockedLab), 
                  c_nodeStartMaster.startNode };
   Mutex mutex(signal, c_mutexMgr, c_nodeStartMaster.m_fragmentInfoMutex);
@@ -2589,10 +2610,15 @@ void Dbdih::lcpBlockedLab(Signal* signal, Uint32 nodeId, Uint32 retVal)
 
   ndbrequire(retVal == 0); // Mutex error
   ndbrequire(getNodeStatus(c_nodeStartMaster.startNode)==NodeRecord::STARTING);
-  /*------------------------------------------------------------------------*/
-  // NOW WE HAVE COPIED ALL INFORMATION IN DICT WE ARE NOW READY TO COPY ALL
-  // INFORMATION IN DIH TO THE NEW NODE.
-  /*------------------------------------------------------------------------*/
+
+  /**
+   * Now that we have locked both the DICT lock and the LCPs are locked from
+   * starting we are ready to copy both the distribution information and the
+   * dictionary information. We update the node recovery status indicating
+   * this. This code only executes in the master node.
+   */
+  setNodeRecoveryStatus(c_nodeStartMaster.startNode,
+                        NodeRecord::COPY_DICT_TO_STARTING_NODE);
 
   c_nodeStartMaster.wait = 10;
   signal->theData[0] = DihContinueB::ZCOPY_NODE;
@@ -2611,10 +2637,17 @@ void Dbdih::nodeDictStartConfLab(Signal* signal, Uint32 nodeId)
   sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 2, JBB);
 
   /*-------------------------------------------------------------------------*/
-  // NOW WE HAVE COPIED BOTH DIH AND DICT INFORMATION. WE ARE NOW READY TO
-  // INTEGRATE THE NODE INTO THE LCP AND GCP PROTOCOLS AND TO ALLOW UPDATES OF
-  // THE DICTIONARY AGAIN.
+  /* NOW WE HAVE COPIED BOTH DIH AND DICT INFORMATION. WE ARE NOW READY TO
+   * INTEGRATE THE NODE INTO THE LCP AND GCP PROTOCOLS AND TO ALLOW UPDATES OF
+   * THE DICTIONARY AGAIN.
+   *
+   * We update the node recovery status with this information to be able to
+   * track node restart status. This code only executes in the master node.
+   */
   /*-------------------------------------------------------------------------*/
+  setNodeRecoveryStatus(c_nodeStartMaster.startNode,
+                        NodeRecord::INCLUDE_NODE_IN_LCP_AND_GCP);
+
   c_nodeStartMaster.wait = ZFALSE;
   c_nodeStartMaster.blockGcp = 1;
 
@@ -2710,7 +2743,7 @@ void Dbdih::execINCL_NODECONF(Signal* signal)
       if (TstartNode != c_nodeStartSlave.nodeId)
       {
         jam();
-        warningEvent("Recevied INCL_NODECONF for %u from %s"
+        warningEvent("Received INCL_NODECONF for %u from %s"
                      " while %u is starting",
                      TstartNode,
                      getBlockName(refToBlock(TsendNodeId_or_blockref)),
@@ -2736,6 +2769,12 @@ void Dbdih::execINCL_NODECONF(Signal* signal)
 	 * All done, reply to master
 	 */
 	jam();
+        if (!isMaster())
+        {
+          jam();
+          setNodeRecoveryStatus(c_nodeStartSlave.nodeId,
+                                NodeRecord::NODE_GETTING_INCLUDED);
+        }
 	signal->theData[0] = c_nodeStartSlave.nodeId;
 	signal->theData[1] = cownNodeId;
 	sendSignal(cmasterdihref, GSN_INCL_NODECONF, signal, 2, JBB);
@@ -2749,7 +2788,7 @@ void Dbdih::execINCL_NODECONF(Signal* signal)
   if (c_nodeStartMaster.startNode != TstartNode)
   {
     jam();
-    warningEvent("Recevied INCL_NODECONF for %u from %u"
+    warningEvent("Received INCL_NODECONF for %u from %u"
                  " while %u is starting",
                  TstartNode,
                  TsendNodeId_or_blockref,
@@ -2776,17 +2815,9 @@ void Dbdih::execINCL_NODECONF(Signal* signal)
 
   signal->theData[0] = DihContinueB::ZSTART_GCP;
   sendSignal(reference(), GSN_CONTINUEB, signal, 1, JBB);
-  /**
-   * To increase likelyhood that multiple nodes starting simultaneously
-   *   gets to copy fragment-info before a new LCP is started
-   *   we delay the releasing of this mutex. So that node that (might)
-   *   be started when GSN_START_PERMREP arrives will get mutex
-   *   before LCP (which does trylock for 60s)
-   */
-  signal->theData[0] = DihContinueB::ZDELAY_RELEASE_FRAGMENT_INFO_MUTEX;
-  signal->theData[1] = c_nodeStartMaster.m_fragmentInfoMutex.getHandle();
-  c_nodeStartMaster.m_fragmentInfoMutex.clear();
-  sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 500, 2);
+
+  Mutex mutex(signal, c_mutexMgr, c_nodeStartMaster.m_fragmentInfoMutex);
+  mutex.unlock();
 }//Dbdih::execINCL_NODECONF()
 
 void Dbdih::execUNBLO_DICTCONF(Signal* signal) 
@@ -2831,6 +2862,45 @@ void Dbdih::execUNBLO_DICTCONF(Signal* signal)
   nodeResetStart(signal);
 
   /**
+   * At this point the master knows that the starting node will start executing
+   * the Database Recovery. This can take a fair amount of time. At the end of
+   * the recovery the starting node need to be part of a LCP. In order to
+   * synchronize for several nodes restarting at the same time we need to keep
+   * track of start times.
+   *
+   * We expect that in most parallel node restarts the nodes are restarted
+   * immediately after a crash or as part of a rolling restart. In this case
+   * the node restart times will be very similar. So we should be able to
+   * roughly estimate when the node restart will reach the point where it
+   * is ready to wait for an LCP.
+   *
+   * When the first node reaches this point and also later nodes reach this
+   * phase, then they will be able to estimate whether it is worth it to
+   * hold the LCP until the next node arrives to this phase.
+   *
+   * The similitude of a flight or a train waiting for passengers arriving
+   * on other flights or trains can be used here. It is useful to wait for
+   * some time since there is a high cost for passengers to miss the train.
+   * At the same time it isn't worthwhile to hold it for a very long time
+   * since then all other passengers will suffer greatly. In this case the
+   * other nodes waiting will suffer, but also we will risk running out of
+   * REDO log space if we wait for too long time.
+   *
+   * Given that we don't wait for more than a short time to synchronize
+   * means that the case of heterogenous nodes will also work ok in this
+   * context although we will optimize for the homogenous case.
+   *
+   * To get even better estimates of where we are and to give users even
+   * better understanding of what takes time in node restarts we have also
+   * adde that the LDMs report when they have completed the 3 local phases
+   * of local recovery. These are completion of restore fragments,
+   * completion of UNDO Disk data, completion of execution of REDO log and
+   * the final phase executed in LDMs are the ordered index rebuilds which is
+   * completed when the local recovery is completed.
+   */
+  setNodeRecoveryStatus(nodeId, NodeRecord::LOCAL_RECOVERY_STARTED);
+
+  /**
    * Allow next node to start...
    */
   signal->theData[0] = nodeId;
@@ -2851,7 +2921,16 @@ void Dbdih::execSTART_COPYREQ(Signal* signal)
   Uint32 startNodeId = req.startingNodeId;
 
   /*-------------------------------------------------------------------------*/
-  // REPORT Copy process of node restart is now about to start up.
+  /*
+   * REPORT Copy process of node restart is now about to start up.
+   * 
+   * We will report this both in an internal state that can be used to
+   * report progress in NDBINFO tables as well as being used to keep track of
+   * node restart status to make correct decisions on when to start LCPs.
+   * We also report it to cluster log and internal node log.
+   *
+   * This code is only executed in master node.
+   */
   /*-------------------------------------------------------------------------*/
   signal->theData[0] = NDB_LE_NR_CopyFragsStarted;
   signal->theData[1] = req.startingNodeId;
@@ -2944,6 +3023,11 @@ void Dbdih::execSTART_INFOREQ(Signal* signal)
     invalidateNodeLCP(signal, startNode, 0);
   } else {
     jam();
+    if (!isMaster())
+    {
+      jam();
+      setNodeRecoveryStatus(startNode, NodeRecord::NODE_GETTING_PERMIT);
+    }
     StartInfoConf * c = (StartInfoConf*)&signal->theData[0];
     c->sendingNodeId = cownNodeId;
     c->startingNodeId = startNode;
@@ -3076,6 +3160,9 @@ void Dbdih::execSTART_TOREQ(Signal* signal)
     takeOverPtr.p->toStartTime = c_current_time;
   }
   
+  setNodeRecoveryStatus(req.startingNodeId,
+                        NodeRecord::COPY_FRAGMENTS_STARTED);
+
   StartToConf * conf = (StartToConf *)&signal->theData[0];
   conf->senderData = req.senderData;
   conf->sendingNodeId = cownNodeId;
@@ -3399,59 +3486,6 @@ add_lcp_counter(Uint32 * counter, Uint32 add)
   * counter = Uint32(tmp);
 }
 
-void
-Dbdih::check_force_lcp(Ptr<TakeOverRecord> takeOverPtr)
-{
-  const Uint64 duration =
-    NdbTick_Elapsed(takeOverPtr.p->toStartTime, c_current_time).milliSec();
-
-  Uint64 lcp_time = c_lcpState.m_lcp_time;
-
-  Ptr<TakeOverRecord> tmp;
-  for (c_activeTakeOverList.first(tmp); !tmp.isNull(); 
-       c_activeTakeOverList.next(tmp))
-  {
-    jam();
-    if (tmp.p->toMasterStatus != TakeOverRecord::TO_WAIT_LCP)
-    {
-      jam();
-      
-      const Uint64 elapsed =
-        NdbTick_Elapsed(tmp.p->toStartTime, c_current_time).milliSec();
-      if (elapsed >= duration)
-      {
-        jam();
-        /**
-         * This has spent more...than our took...
-         *   expect it to finish soon...
-         *   i.e dont force LCP
-         */
-        infoEvent("Node %u not forcing LCP start(1 %llu >= %llu), wait on %u",
-                  takeOverPtr.p->toStartingNode,
-                  elapsed, duration,
-                  tmp.p->toStartingNode);
-        return;
-      }
-
-      Uint64 left = duration - elapsed;
-      if (left < lcp_time)
-      {
-        jam();
-        /**
-         * This has less than one lcp left...
-         *   dont force LCP
-         */
-        infoEvent("Node %u not forcing LCP start(2 %llu < %llu), wait on %u",
-                  takeOverPtr.p->toStartingNode,
-                  left, lcp_time,
-                  tmp.p->toStartingNode);
-        return;
-      }
-    }
-  }
-  add_lcp_counter(&c_lcpState.ctimer, (1 << 31));
-}
-
 void Dbdih::execEND_TOREQ(Signal* signal)
 {
   jamEntry();
@@ -3521,7 +3555,17 @@ void Dbdih::execEND_TOREQ(Signal* signal)
        */
       c_lcpState.lcpStopGcp = c_newest_restorable_gci;
 
-      check_force_lcp(takeOverPtr);
+      /**
+       * We want to keep track of how long time we wait for LCP to be able
+       * to present it in an ndbinfo table. This information is also used
+       * in deciding when to start LCPs.
+       *
+       * We ensure that we will not stall any LCPs in this state due to not
+       * having had enough activity. We can still stall due to waiting for
+       * other nodes to reach this state.
+       */
+      add_lcp_counter(&c_lcpState.ctimer, (1 << 31));
+      setNodeRecoveryStatus(nodePtr.i, NodeRecord::WAIT_LCP_FOR_RESTART);
       return;
     }
     nodePtr.p->copyCompleted = 1;
@@ -3651,6 +3695,22 @@ void Dbdih::execUPDATE_FRAG_STATEREQ(Signal* signal)
     frReplicaPtr.p->replicaLastGci[noCrashed] = (Uint32)-1;
   }
 
+  if (!isMaster())
+  {
+    jam();
+    NodeRecordPtr nodePtr;
+    nodePtr.i = tdestNodeid;
+    ptrCheckGuard(nodePtr, MAX_NDB_NODES, nodeRecord);
+    if (nodePtr.p->nodeRecoveryStatus != NodeRecord::NODE_GETTING_SYNCHED)
+    {
+      jam();
+      /**
+       * We come here many times, we will call the state transition
+       * code only the first time.
+       */
+      setNodeRecoveryStatus(tdestNodeid, NodeRecord::NODE_GETTING_SYNCHED);
+    }
+  }
   UpdateFragStateConf * const conf =
     (UpdateFragStateConf *)&signal->theData[0];
   conf->senderData = senderData;
@@ -3662,6 +3722,1925 @@ void Dbdih::execUPDATE_FRAG_STATEREQ(Signal* signal)
   sendSignal(senderRef, GSN_UPDATE_FRAG_STATECONF, signal,
              UpdateFragStateConf::SignalLength, JBB);
 }//Dbdih::execUPDATE_FRAG_STATEREQ()
+
+/**
+ * Node Recovery Status Module
+ * ---------------------------
+ * This module is used to keep track of the restart progress in the master node
+ * and also to report it to the user through a NDBINFO table. The module is
+ * also used to estimate when a restart reaches certain critical checkpoints
+ * in the restart execution. This is used to ensure that we hold up start of
+ * those critical parts (e.g. LCPs) if there is a good chance that we will
+ * reach there in reasonable time. Same principal as holding a train waiting
+ * for a batch of important customers. One can wait for a while, but not
+ * for too long time since this will affect many others as well.
+ *
+ * The only actions that are reported here happen in the master node. The only
+ * exception to this is the node failure and node failure completed events
+ * that happens in all nodes. Since the master node is the node that was
+ * started first of all nodes, this means that the master node will contain
+ * information about the node restarts of all nodes except those that
+ * was started at the same time as the master node.
+ */
+
+/* Debug Node Recovery Status module */
+//#define DBG_NRS(a)
+#define DBG_NRS(a) ndbout << a << endl
+
+void Dbdih::initNodeRecoveryStatus(NodeRecordPtr nodePtr)
+{
+  nodePtr.p->nodeRecoveryStatus = NodeRecord::NOT_DEFINED_IN_CLUSTER;
+  NdbTick_Invalidate(&nodePtr.p->nodeFailTime);
+  NdbTick_Invalidate(&nodePtr.p->nodeFailCompletedTime);
+  NdbTick_Invalidate(&nodePtr.p->allocatedNodeIdTime);
+  NdbTick_Invalidate(&nodePtr.p->includedInHBProtocolTime);
+  NdbTick_Invalidate(&nodePtr.p->ndbcntrStartWaitTime);
+  NdbTick_Invalidate(&nodePtr.p->ndbcntrStartedTime);
+  NdbTick_Invalidate(&nodePtr.p->startPermittedTime);
+  NdbTick_Invalidate(&nodePtr.p->waitLCPToCopyDictTime);
+  NdbTick_Invalidate(&nodePtr.p->copyDictToStartingNodeTime);
+  NdbTick_Invalidate(&nodePtr.p->includeNodeInLCPAndGCPTime);
+  NdbTick_Invalidate(&nodePtr.p->startDatabaseRecoveryTime);
+  NdbTick_Invalidate(&nodePtr.p->startUndoDDTime);
+  NdbTick_Invalidate(&nodePtr.p->startExecREDOLogTime);
+  NdbTick_Invalidate(&nodePtr.p->startBuildIndexTime);
+  NdbTick_Invalidate(&nodePtr.p->copyFragmentsStartedTime);
+  NdbTick_Invalidate(&nodePtr.p->waitLCPForRestartTime);
+  NdbTick_Invalidate(&nodePtr.p->waitSumaHandoverTime);
+  NdbTick_Invalidate(&nodePtr.p->restartCompletedTime);
+  NdbTick_Invalidate(&nodePtr.p->nodeGettingPermitTime);
+  NdbTick_Invalidate(&nodePtr.p->nodeGettingIncludedTime);
+  NdbTick_Invalidate(&nodePtr.p->nodeGettingSynchedTime);
+  NdbTick_Invalidate(&nodePtr.p->nodeInLCPWaitStateTime);
+  NdbTick_Invalidate(&nodePtr.p->nodeActiveTime);
+}
+
+/**
+ * A node has allocated a node id, this happens even before the angel starts
+ * a new ndbd/ndbmtd process or in a very early phase of ndbd/ndbmtd startup.
+ */
+void Dbdih::execALLOC_NODEID_REP(Signal *signal)
+{
+  NodeRecordPtr nodePtr;
+  AllocNodeIdRep *rep = (AllocNodeIdRep*)&signal->theData[0];
+
+  jamEntry();
+  if (rep->nodeId >= MAX_NDB_NODES)
+  {
+    jam();
+    return;
+  }
+  nodePtr.i = rep->nodeId;
+  ptrCheckGuard(nodePtr, MAX_NDB_NODES, nodeRecord);
+  if (nodePtr.p->nodeStatus == NodeRecord::NOT_IN_CLUSTER)
+  {
+    jam();
+    return;
+  }
+  setNodeRecoveryStatus(rep->nodeId, NodeRecord::ALLOCATED_NODE_ID);
+}
+
+/**
+ * A node have been included in the heartbeat protocol. This happens very early
+ * on in the restart, from here the node need to act as a real-time engine and
+ * thus has to avoid extremely time consuming activities that block execution.
+ */
+void Dbdih::execINCL_NODE_HB_PROTOCOL_REP(Signal *signal)
+{
+  InclNodeHBProtocolRep *rep = (InclNodeHBProtocolRep*)&signal->theData[0];
+  jamEntry();
+
+  setNodeRecoveryStatus(rep->nodeId, NodeRecord::INCLUDED_IN_HB_PROTOCOL);
+}
+
+/**
+ * The node is blocked to continue in its node restart handling since another
+ * node is currently going through the stages to among other things copy the
+ * meta data.
+ */
+void Dbdih::execNDBCNTR_START_WAIT_REP(Signal *signal)
+{
+  NdbcntrStartWaitRep *rep = (NdbcntrStartWaitRep*)&signal->theData[0];
+  jamEntry();
+
+  setNodeRecoveryStatus(rep->nodeId, NodeRecord::NDBCNTR_START_WAIT);
+}
+
+/**
+ * The node wasn't blocked by another node restart anymore, we can now
+ * continue processing the restart and soon go on to copy the meta data.
+ */
+void Dbdih::execNDBCNTR_STARTED_REP(Signal *signal)
+{
+  NdbcntrStartedRep *rep = (NdbcntrStartedRep*)&signal->theData[0];
+  jamEntry();
+
+  setNodeRecoveryStatus(rep->nodeId, NodeRecord::NDBCNTR_STARTED);
+}
+
+/**
+ * SUMA handover for the node has completed, this is the very final step
+ * of the node restart after which the node is fully up and running.
+ */
+void Dbdih::execSUMA_HANDOVER_COMPLETE_REP(Signal *signal)
+{
+  SumaHandoverCompleteRep *rep = (SumaHandoverCompleteRep*)&signal->theData[0];
+  jamEntry();
+
+  setNodeRecoveryStatus(rep->nodeId, NodeRecord::RESTART_COMPLETED);
+}
+
+void Dbdih::execLOCAL_RECOVERY_COMP_REP(Signal *signal)
+{
+  jamEntry();
+  if (reference() != cmasterdihref)
+  {
+    jam();
+    sendSignal(cmasterdihref, GSN_LOCAL_RECOVERY_COMP_REP, signal,
+               LocalRecoveryCompleteRep::SignalLengthMaster, JBB);
+    return;
+  }
+  LocalRecoveryCompleteRep *rep =
+    (LocalRecoveryCompleteRep*)&signal->theData[0];
+  LocalRecoveryCompleteRep::PhaseIds phaseId =
+    (LocalRecoveryCompleteRep::PhaseIds)rep->phaseId;
+  Uint32 nodeId = rep->nodeId;
+
+  switch (phaseId)
+  {
+  case LocalRecoveryCompleteRep::RESTORE_FRAG_COMPLETED:
+    jam();
+    setNodeRecoveryStatus(nodeId, NodeRecord::RESTORE_FRAG_COMPLETED);
+    break;
+  case LocalRecoveryCompleteRep::UNDO_DD_COMPLETED:
+    jam();
+    setNodeRecoveryStatus(nodeId, NodeRecord::UNDO_DD_COMPLETED);
+    break;
+  case LocalRecoveryCompleteRep::EXECUTE_REDO_LOG_COMPLETED:
+    jam();
+    setNodeRecoveryStatus(nodeId, NodeRecord::EXECUTE_REDO_LOG_COMPLETED);
+    break;
+  default:
+    ndbrequire(false);
+  }
+}
+
+/**
+ * Called by starting nodes to provide non-master nodes with an estimate of how
+ * long time it takes to synchronize the starting node with the alive nodes.
+ */
+void Dbdih::sendEND_TOREP(Signal *signal, Uint32 startingNodeId)
+{
+  EndToRep *rep = (EndToRep*)signal->getDataPtrSend();
+  NodeRecordPtr nodePtr;
+  nodePtr.i = cfirstAliveNode;
+  rep->nodeId = startingNodeId;
+
+  do
+  {
+    if (likely(getNodeInfo(nodePtr.i).m_version >=
+               NDBD_NODE_RECOVERY_STATUS_VERSION))
+    {
+      /**
+       * Don't send to nodes with earlier versions that don't have support
+       * for this code.
+       */
+      ptrCheckGuard(nodePtr, MAX_NDB_NODES, nodeRecord);
+      BlockReference ref = calcDihBlockRef(nodePtr.i);
+      if (ref != cmasterdihref)
+      {
+        jam();
+        sendSignal(ref, GSN_END_TOREP, signal, 
+	           EndToRep::SignalLength, JBB);
+      }
+    }
+    nodePtr.i = nodePtr.p->nextNode;
+  } while (nodePtr.i != RNIL);
+}
+
+/**
+ * Received in non-master nodes, to ensure we get estimate on synch time
+ * between starting node and alive nodes.
+ */
+void Dbdih::execEND_TOREP(Signal *signal)
+{
+  EndToRep *rep = (EndToRep*)&signal->theData[0];
+  jamEntry();
+  if (isMaster())
+  {
+    jam();
+    return;
+  }
+  setNodeRecoveryStatus(rep->nodeId, NodeRecord::NODE_IN_LCP_WAIT_STATE);
+}
+
+/**
+ * Called when setting state to ALLOCATED_NODE_ID or
+ * INCLUDE_IN_HB_PROTOCOL since a node can be dead for a long time
+ * while we've been master and potentially could even have allocated
+ * its node id before we became master.
+ */
+void Dbdih::check_node_not_restarted_yet(NodeRecordPtr nodePtr)
+{
+  if (nodePtr.p->nodeRecoveryStatus ==
+      NodeRecord::NODE_NOT_RESTARTED_YET)
+  {
+    jam();
+    /**
+     * A node which has been dead since we started is restarted.
+     * We set node failure time and node failure completed time
+     * to now in this case to initialise those unknown values, we
+     * rather report zero time than an uninitialised time.
+     */
+    nodePtr.p->nodeFailTime = c_current_time;
+    nodePtr.p->nodeFailCompletedTime = c_current_time;
+  }
+}
+
+void Dbdih::setNodeRecoveryStatus(Uint32 nodeId,
+                                  NodeRecord::NodeRecoveryStatus new_status)
+{
+  NodeRecordPtr nodePtr;
+  NDB_TICKS current_time;
+
+  c_current_time = NdbTick_getCurrentTicks();
+  current_time = c_current_time;
+
+  nodePtr.i = nodeId;
+  ptrCheckGuard(nodePtr, MAX_NDB_NODES, nodeRecord);
+  jam();
+  jamLine(nodePtr.p->nodeRecoveryStatus);
+
+  if (new_status != NodeRecord::NODE_FAILED &&
+      new_status != NodeRecord::NODE_FAILURE_COMPLETED)
+  {
+    jam();
+    if (getNodeState().startLevel != NodeState::SL_STARTED)
+    {
+      jam();
+      /**
+       * We will ignore all state transitions until we are started ourselves
+       * before we even attempt to record state transitions. This means we
+       * have no view into system restarts currently and inital starts. We
+       * only worry about node restarts.
+       */
+      return;
+    }
+    /**
+     * Given that QMGR, NDBCNTR, DBDICT and DBDIH executes in the same thread
+     * the possibility of jumping over a state doesn't exist. If we split out
+     * any of those into separate threads in the future it is important to
+     * check that the ndbrequire's in this function still holds.
+     */
+    if (!isMaster())
+    {
+      if (getNodeInfo(nodePtr.i).m_version <
+          NDBD_NODE_RECOVERY_STATUS_VERSION)
+      {
+        jam();
+        /**
+         * We ignore state changes for non-master nodes that are from
+         * too old versions to support all state transitions.
+         */
+        return;
+      }
+      if (nodePtr.p->nodeRecoveryStatus == NodeRecord::NODE_NOT_RESTARTED_YET &&
+          new_status != NodeRecord::NODE_GETTING_PERMIT)
+      {
+        jam();
+        /**
+         * We're getting into the game too late, we will ignore state changes
+         * for this node restart since it won't provide any useful info
+         * anyways.
+         */
+        return;
+      }
+    }
+  }
+  switch (new_status)
+  {
+    case NodeRecord::NODE_FAILED:
+    /* State generated in DBDIH */
+      jam();
+      /**
+       * A node failure can happen at any time and from any state. It should
+       * however never happen from the state NODE_FAILURE_COMPLETED since the
+       * node haven't started yet, also from ALLOCATED_NODE_ID state it should
+       * be impossible since the node haven't even been included in the
+       * heartbeat protocol yet. Also not defined in cluster isn't ok.
+       *
+       * This state change will be reported in all nodes at all times.
+       */
+      ndbrequire((nodePtr.p->nodeRecoveryStatus !=
+                  NodeRecord::NODE_FAILURE_COMPLETED) &&
+                  (nodePtr.p->nodeRecoveryStatus !=
+                   NodeRecord::ALLOCATED_NODE_ID) &&
+                  (nodePtr.p->nodeRecoveryStatus !=
+                   NodeRecord::NOT_DEFINED_IN_CLUSTER));
+      nodePtr.p->nodeFailTime = current_time;
+      break;
+    case NodeRecord::NODE_FAILURE_COMPLETED:
+    /* State generated in DBDIH */
+      jam();
+      /* This state change will be reported in all nodes at all times */
+      ndbrequire(nodePtr.p->nodeRecoveryStatus ==
+                 NodeRecord::NODE_FAILED);
+      nodePtr.p->nodeFailCompletedTime = current_time;
+      break;
+    case NodeRecord::ALLOCATED_NODE_ID:
+    /* State generated in QMGR */
+      jam();
+      ndbrequire(isMaster());
+      ndbrequire((nodePtr.p->nodeRecoveryStatus ==
+                  NodeRecord::NODE_FAILURE_COMPLETED) ||
+                 (nodePtr.p->nodeRecoveryStatus ==
+                  NodeRecord::NODE_NOT_RESTARTED_YET));
+      check_node_not_restarted_yet(nodePtr);
+      nodePtr.p->allocatedNodeIdTime = current_time;
+      break;
+    case NodeRecord::INCLUDED_IN_HB_PROTOCOL:
+    /* State generated in QMGR */
+      jam();
+      /**
+       * We can come here from ALLOCATED_NODE_ID obviously,
+       * but it seems that we should also be able to get
+       * here from a state where the node has been able to
+       * allocate a node id with an old master, now it is
+       * using this old allocated node id to be included in
+       * the heartbeat protocol. So the node could be in
+       * node not restarted yet or node failure completed.
+       */
+      ndbrequire(isMaster());
+      ndbrequire((nodePtr.p->nodeRecoveryStatus ==
+                  NodeRecord::ALLOCATED_NODE_ID) ||
+                 (nodePtr.p->nodeRecoveryStatus ==
+                  NodeRecord::NODE_NOT_RESTARTED_YET) ||
+                 (nodePtr.p->nodeRecoveryStatus ==
+                  NodeRecord::NODE_FAILURE_COMPLETED));
+      check_node_not_restarted_yet(nodePtr);
+      nodePtr.p->includedInHBProtocolTime = current_time;
+      break;
+    case NodeRecord::NDBCNTR_START_WAIT:
+    /* State generated in NDBCNTR */
+      jam();
+      ndbrequire(isMaster());
+      ndbrequire(nodePtr.p->nodeRecoveryStatus ==
+                 NodeRecord::INCLUDED_IN_HB_PROTOCOL);
+      nodePtr.p->ndbcntrStartWaitTime = current_time;
+      break;
+    case NodeRecord::NDBCNTR_STARTED:
+    /* State generated in NDBCNTR */
+      jam();
+      ndbrequire(isMaster());
+      ndbrequire((nodePtr.p->nodeRecoveryStatus ==
+                  NodeRecord::NDBCNTR_START_WAIT) ||
+                 (nodePtr.p->nodeRecoveryStatus ==
+                  NodeRecord::INCLUDED_IN_HB_PROTOCOL));
+
+      if (nodePtr.p->nodeRecoveryStatus ==
+          NodeRecord::INCLUDED_IN_HB_PROTOCOL)
+      {
+        jam();
+        nodePtr.p->ndbcntrStartWaitTime = current_time;
+      }
+      nodePtr.p->ndbcntrStartedTime = current_time;
+      break;
+    case NodeRecord::START_PERMITTED:
+    /* State generated in DBDIH */
+      jam();
+      ndbrequire(isMaster());
+      ndbrequire(nodePtr.p->nodeRecoveryStatus ==
+                 NodeRecord::NDBCNTR_STARTED);
+      nodePtr.p->startPermittedTime = current_time;
+      break;
+    case NodeRecord::WAIT_LCP_TO_COPY_DICT:
+    /* State generated in DBDIH */
+      jam();
+      ndbrequire(isMaster());
+      ndbrequire(nodePtr.p->nodeRecoveryStatus ==
+                 NodeRecord::START_PERMITTED);
+      nodePtr.p->waitLCPToCopyDictTime = current_time;
+      break;
+    case NodeRecord::COPY_DICT_TO_STARTING_NODE:
+    /* State generated in DBDIH */
+      jam();
+      ndbrequire(isMaster());
+      ndbrequire(nodePtr.p->nodeRecoveryStatus ==
+                 NodeRecord::WAIT_LCP_TO_COPY_DICT);
+      nodePtr.p->copyDictToStartingNodeTime = current_time;
+      break;
+    case NodeRecord::INCLUDE_NODE_IN_LCP_AND_GCP:
+    /* State generated in DBDIH */
+      jam();
+      ndbrequire(isMaster());
+      ndbrequire(nodePtr.p->nodeRecoveryStatus ==
+                 NodeRecord::COPY_DICT_TO_STARTING_NODE);
+      nodePtr.p->includeNodeInLCPAndGCPTime = current_time;
+      break;
+    case NodeRecord::LOCAL_RECOVERY_STARTED:
+    /* State generated in DBDIH */
+      jam();
+      ndbrequire(isMaster());
+      ndbrequire(nodePtr.p->nodeRecoveryStatus ==
+                 NodeRecord::INCLUDE_NODE_IN_LCP_AND_GCP);
+      nodePtr.p->startDatabaseRecoveryTime = current_time;
+      break;
+    case NodeRecord::RESTORE_FRAG_COMPLETED:
+    /* State generated in DBLQH in starting node */
+      jam();
+      ndbrequire(isMaster());
+      ndbrequire(nodePtr.p->nodeRecoveryStatus ==
+                 NodeRecord::LOCAL_RECOVERY_STARTED);
+      nodePtr.p->startUndoDDTime = current_time;
+      break;
+    case NodeRecord::UNDO_DD_COMPLETED:
+    /* State generated in DBLQH in starting node */
+      jam();
+      ndbrequire(isMaster());
+      ndbrequire(nodePtr.p->nodeRecoveryStatus ==
+                 NodeRecord::RESTORE_FRAG_COMPLETED);
+      nodePtr.p->startExecREDOLogTime = current_time;
+      break;
+    case NodeRecord::EXECUTE_REDO_LOG_COMPLETED:
+    /* State generated in DBLQH in starting node */
+      jam();
+      ndbrequire(isMaster());
+      ndbrequire(nodePtr.p->nodeRecoveryStatus ==
+                 NodeRecord::UNDO_DD_COMPLETED);
+      nodePtr.p->startBuildIndexTime = current_time;
+      break;
+    case NodeRecord::COPY_FRAGMENTS_STARTED:
+    /* State generated in DBDIH */
+      jam();
+      ndbrequire(isMaster());
+      /**
+       * If the starting node doesn't support reporting its
+       * local recovery status, then we come here from
+       * LOCAL_RECOVERY_STARTED, in the normal case with a
+       * new version of the starting node we come here rather from
+       * EXECUTE_REDO_LOG_COMPLETED.
+       */
+      ndbrequire((nodePtr.p->nodeRecoveryStatus ==
+                  NodeRecord::EXECUTE_REDO_LOG_COMPLETED) ||
+                 ((nodePtr.p->nodeRecoveryStatus ==
+                  NodeRecord::LOCAL_RECOVERY_STARTED) &&
+                  (getNodeInfo(nodePtr.i).m_version <
+                  NDBD_NODE_RECOVERY_STATUS_VERSION)));
+      if (nodePtr.p->nodeRecoveryStatus ==
+          NodeRecord::LOCAL_RECOVERY_STARTED)
+      {
+        /**
+         * We handle this state transition even for old versions since
+         * it still gives all the information we need to make the right
+         * decision about the LCP start.
+         */
+        NDB_TICKS start_time = nodePtr.p->startDatabaseRecoveryTime;
+        jam();
+        /* Set all local times to 0 if node doesn't support sending those */
+        nodePtr.p->startUndoDDTime = start_time;
+        nodePtr.p->startExecREDOLogTime = start_time;
+        nodePtr.p->startBuildIndexTime = start_time;
+      }
+      nodePtr.p->copyFragmentsStartedTime = current_time;
+      break;
+    case NodeRecord::WAIT_LCP_FOR_RESTART:
+    /* State generated in DBDIH */
+      jam();
+      ndbrequire(isMaster());
+      ndbrequire(nodePtr.p->nodeRecoveryStatus ==
+                 NodeRecord::COPY_FRAGMENTS_STARTED);
+      nodePtr.p->waitLCPForRestartTime = current_time;
+      break;
+    case NodeRecord::WAIT_SUMA_HANDOVER:
+    /* State generated in DBDIH */
+      jam();
+      ndbrequire(isMaster());
+      ndbrequire(nodePtr.p->nodeRecoveryStatus ==
+                 NodeRecord::WAIT_LCP_FOR_RESTART);
+      nodePtr.p->waitSumaHandoverTime = current_time;
+      break;
+    case NodeRecord::RESTART_COMPLETED:
+    /* State generated in DBDICT */
+      jam();
+      ndbrequire(isMaster());
+      ndbrequire(nodePtr.p->nodeRecoveryStatus ==
+                 NodeRecord::WAIT_SUMA_HANDOVER);
+      nodePtr.p->restartCompletedTime = current_time;
+      break;
+
+    /* Non-master states */
+    case NodeRecord::NODE_GETTING_PERMIT:
+    {
+      jam();
+      ndbrequire(!isMaster());
+      /**
+       * NODE_GETTING_PERMIT is the first state a non-master node sees.
+       * So we can come here from seeing node failure state or node
+       * failure completed state.
+       *
+       * For a non-master node we can always come to any state from the
+       * state NODE_NOT_RESTARTED_YET since we don't record any states
+       * until we have completed our own restart and at that time there
+       * can be other nodes restarting in any state.
+       *
+       * In addition we won't even record states for a starting node if
+       * we only seen the final phases of the restart. So the state
+       * NODE_NOT_RESTARTED_YET can be there through a major part of
+       * a node restart.
+       */
+      ndbrequire(nodePtr.p->nodeRecoveryStatus ==
+                 NodeRecord::NODE_FAILURE_COMPLETED ||
+                 nodePtr.p->nodeRecoveryStatus ==
+                 NodeRecord::NODE_NOT_RESTARTED_YET);
+      if (nodePtr.p->nodeRecoveryStatus ==
+          NodeRecord::NODE_NOT_RESTARTED_YET)
+      {
+        jam();
+        nodePtr.p->nodeFailTime = current_time;
+        nodePtr.p->nodeFailCompletedTime = current_time;
+      }
+      nodePtr.p->nodeGettingPermitTime = current_time;
+      break;
+    }
+    case NodeRecord::NODE_GETTING_INCLUDED:
+    {
+      jam();
+      ndbrequire(!isMaster());
+      ndbrequire(nodePtr.p->nodeRecoveryStatus ==
+                  NodeRecord::NODE_GETTING_PERMIT);
+      nodePtr.p->nodeGettingIncludedTime = current_time;
+      break;
+    }
+    case NodeRecord::NODE_GETTING_SYNCHED:
+    {
+      jam();
+      ndbrequire(!isMaster());
+      ndbrequire(nodePtr.p->nodeRecoveryStatus ==
+                  NodeRecord::NODE_GETTING_INCLUDED);
+      nodePtr.p->nodeGettingSynchedTime = current_time;
+      break;
+    }
+    case NodeRecord::NODE_IN_LCP_WAIT_STATE:
+    {
+      jam();
+      ndbrequire(!isMaster());
+      /**
+       * A weird case for coming to here with NODE_GETTING_INCLUDED is if
+       * there are no tables that require being synched. This is an
+       * unusual case, but still possible.
+       */
+      ndbrequire((nodePtr.p->nodeRecoveryStatus ==
+                  NodeRecord::NODE_GETTING_INCLUDED) ||
+                 (nodePtr.p->nodeRecoveryStatus ==
+                  NodeRecord::NODE_GETTING_SYNCHED));
+      if (nodePtr.p->nodeRecoveryStatus == NodeRecord::NODE_GETTING_INCLUDED)
+      {
+        jam();
+        /* No fragment updates, set time to 0 for synch */
+        nodePtr.p->nodeGettingSynchedTime = nodePtr.p->nodeGettingIncludedTime;
+      }
+      nodePtr.p->nodeInLCPWaitStateTime = current_time;
+      break;
+    }
+    case NodeRecord::NODE_ACTIVE:
+      jam();
+      ndbrequire(!isMaster());
+      ndbrequire(nodePtr.p->nodeRecoveryStatus ==
+                 NodeRecord::NODE_IN_LCP_WAIT_STATE);
+      nodePtr.p->nodeActiveTime = current_time;
+      break;
+    default:
+      ndbrequire(false);
+  }
+
+  g_eventLogger->info("Node Recovery Status: node= %u, old status= %s"
+                      " new status = %s",
+                      nodeId,
+                      get_status_str(nodePtr.p->nodeRecoveryStatus),
+                      get_status_str(new_status));
+
+  nodePtr.p->nodeRecoveryStatus = new_status;
+}
+
+void Dbdih::setNodeRecoveryStatusInitial(NodeRecordPtr nodePtr)
+{
+  DBG_NRS("setNodeRecoveryStatusInitial: node= " << nodePtr.i << "state= " <<
+          (Uint32)NodeRecord::NODE_NOT_RESTARTED_YET);
+  nodePtr.p->nodeRecoveryStatus = NodeRecord::NODE_NOT_RESTARTED_YET;
+}
+
+/**
+ * Define heuristic constants
+ * --------------------------
+ *
+ * The base for the maximum wait is the time the last LCP execution took.
+ * We will never wait for more than 35% of this time. We will check this
+ * even before attempting to wait any further. We will also cap the wait
+ * to never exceed an hour.
+ * 
+ * Next we will adjust the maximum wait time down to 85% of this value
+ * when we are calculating the estimate based on node states. This means
+ * that if we estimate that we will wait for more than around 30% of an
+ * LCP execution time, then we will start the LCP.
+ *
+ * If the node we are waiting for is in the early start phases then we
+ * even less inclined to wait and will decrease the time by another
+ * 50% dropping it to around 15% of an LCP execution time.
+ *
+ * If we have no node with a proper estimate, then we will drop the
+ * wait time even more to 25% of the previous value, so 7-8% for
+ * nodes in later start phases and only 3-4% in early start phases.
+ */
+#define STALL_MAX_ONE_HOUR (60 * 60 * 1000)
+#define MAX_PERCENTAGE_OF_LCP_TIME_WE_STALL 35
+#define MAX_PERCENTAGE_ADJUSTMENT_FOR_ESTIMATE 85
+#define MAX_PERCENTAGE_ADJUSTMENT_FOR_EARLY_START_PHASES 50
+#define MAX_PERCENTAGE_ADJUSTMENT_FOR_NO_ESTIMATE 25
+
+bool Dbdih::check_for_too_long_wait(Uint64 &lcp_max_wait_time,
+                                    Uint64 &lcp_stall_time,
+                                    NDB_TICKS now)
+{
+  /**
+   * We first get the time of the latest LCP execution. We want to stall
+   * execution of LCPs, but never for so long that we get into other
+   * problems such as out of REDO log.
+   */
+  Uint64 lcp_proc_time;
+  Uint64 lcp_time = c_lcpState.m_lcp_time;
+  Uint32 lcp_start = c_lcpState.lcpStallStart;
+  if (lcp_start == 0)
+  {
+    jam();
+    lcp_stall_time = 0;
+  }
+  else
+  {
+    jam();
+    lcp_stall_time = NdbTick_Elapsed(c_lcpState.m_start_lcp_check_time,
+                                     now).milliSec();
+  }
+
+  /**
+   * We never wait for more than 1 hour and at most 35% of the time it
+   * takes to execute an LCP. We calculate the maximum stall time here
+   * based on those two inputs.
+   */
+  lcp_proc_time = MAX_PERCENTAGE_OF_LCP_TIME_WE_STALL * lcp_time;
+  lcp_proc_time /= 100;
+  lcp_max_wait_time = STALL_MAX_ONE_HOUR;
+  if (lcp_max_wait_time > lcp_proc_time)
+  {
+    jam();
+    lcp_max_wait_time = lcp_proc_time;
+  }
+
+  DBG_NRS("lcp_stall_time is = " << lcp_stall_time
+           << " lcp_max_wait_time is = " << lcp_max_wait_time);
+  /**
+   * If we have already stalled for longer time than the maximum wait we
+   * will allow, then we need not check the states of node restarts, we
+   * will start the LCP anyways.
+   */
+  if (lcp_stall_time > lcp_max_wait_time)
+  {
+    jam();
+    return true;
+  }
+
+  /**
+   * In the calculated delay we will allow for a slightly shorter calculated
+   * delay than the maximum actual delay we will wait. This is to avoid that
+   * we wait for a long time only to stop waiting right before the wait is
+   * over.
+   */
+  lcp_max_wait_time *= MAX_PERCENTAGE_ADJUSTMENT_FOR_ESTIMATE;
+  lcp_max_wait_time /= 100; /* Decrease max time by 15% */
+  lcp_max_wait_time -= lcp_stall_time; /* Decrease by time we already waited */
+  return false;
+}
+
+void Dbdih::calculate_time_remaining(
+                                Uint32 nodeId,
+                                Uint32 &node_waited_for,
+                                NodeRecord::NodeRecoveryStatus state,
+                                NDB_TICKS state_start_time,
+                                NDB_TICKS now,
+                                NodeRecord::NodeRecoveryStatus &max_status,
+                                Uint64 &time_since_state_start)
+{
+  if (state > max_status)
+  {
+    jam();
+    time_since_state_start =
+      NdbTick_Elapsed(now, state_start_time).milliSec();
+    max_status = state;
+    node_waited_for = nodeId;
+  }
+  else if (state == max_status)
+  {
+    jam();
+    Uint64 loc_time_since_state_start;
+    loc_time_since_state_start =
+      NdbTick_Elapsed(now, state_start_time).milliSec();
+    if (loc_time_since_state_start > time_since_state_start)
+    {
+      jam();
+      time_since_state_start = loc_time_since_state_start;
+      node_waited_for = nodeId;
+    }
+  }
+}
+
+void Dbdih::calculate_most_recent_node(
+                        Uint32 nodeId,
+                        Uint32 *most_recent_node,
+                        NodeRecord::NodeRecoveryStatus *most_recent_state,
+                        NDB_TICKS *most_recent_start_time,
+                        NDB_TICKS state_start_time,
+                        NodeRecord::NodeRecoveryStatus state)
+{
+  ndbrequire(NdbTick_IsValid(state_start_time));
+  if ((*most_recent_node) == 0)
+  {
+    /* No state set, set this as state */
+    jam();
+  }
+  else if ((*most_recent_state) == state)
+  {
+    jam();
+    /* Same state as before, use most recent */
+    if (NdbTick_Compare((*most_recent_start_time),
+                        state_start_time) > 0)
+    {
+      jam();
+      return;
+    }
+    jam();
+  }
+  else if ((*most_recent_state) == NodeRecord::NODE_ACTIVE)
+  {
+    /* Old state from non-master, new from master, use this one */
+    jam();
+  }
+  else if ((*most_recent_state) > state)
+  {
+    /**
+     * Two master states, use the latest (this one)
+     * Latest is the one with the lowest state since
+     * the older one has progressed longer.
+     */
+    jam();
+  }
+  else
+  {
+    /* Ignore this state, we already have a better one */
+    jam();
+    return;
+  }
+  (*most_recent_state) = state;
+  (*most_recent_start_time) = state_start_time;
+  (*most_recent_node) = nodeId;
+  return;
+}
+
+/**
+ * We want to stall the LCP start if any node is encountering the place where
+ * we need to participate in an LCP to complete our restart. If any node is
+ * close to reaching this state we want to block the LCP until it has reached
+ * this state.
+ */
+bool Dbdih::check_stall_lcp_start(void)
+{
+  const NDB_TICKS now = c_current_time = NdbTick_getCurrentTicks();
+  /**
+   * The following variables are calculated to measure the node closest to
+   * reaching the WAIT_LCP_FOR_RESTART state.
+   */
+  NodeRecord::NodeRecoveryStatus max_status = NodeRecord::NOT_DEFINED_IN_CLUSTER;
+  Uint64 time_since_state_start = 0;
+  Uint32 node_waited_for = 0;
+  NDB_TICKS state_start_time;
+
+  /**
+   * This is the node we will use to estimate the time remaining. If no such
+   * node exists, then we have no measurements to use and we will have to
+   * fall back to heuristics. We also store the state and time of this variable
+   * to get the most recent estimate.
+   */
+  NodeRecord::NodeRecoveryStatus most_recent_node_status =
+    NodeRecord::ALLOCATED_NODE_ID;
+  Uint32 most_recent_node = 0;
+  NDB_TICKS most_recent_node_start_time;
+
+  /**
+   * If the estimated time until we reach the WAIT_LCP_FOR_RESTART state is
+   * higher than the below value, then we won't wait at all, we will start
+   * the LCP immediately in this case.
+   */
+  Uint64 lcp_max_wait_time = 0;
+  Uint64 lcp_stall_time = 0;
+
+  /**
+   * If we don't find any most recent node, then should we fall back to
+   * heuristics?. We fall back to heuristics when we have nodes in early
+   * stages of node restart that could potentially move through those
+   * stages rapidly.
+   */
+  NodeRecordPtr nodePtr;
+
+  Uint64 time_remaining;
+  Uint64 estimated_time;
+
+  if (check_for_too_long_wait(lcp_max_wait_time,
+                              lcp_stall_time,
+                              now))
+  {
+    jam();
+    goto immediate_start_label;
+  }
+
+  /**
+   * It is ok to wait before starting the new LCP, we will go through the
+   * data nodes and see if we have reasons to wait.
+   */
+  for (nodePtr.i = 1; nodePtr.i < MAX_NDB_NODES; nodePtr.i++)
+  {
+    ptrAss(nodePtr, nodeRecord);
+    switch (nodePtr.p->nodeRecoveryStatus)
+    {
+      case NodeRecord::NOT_DEFINED_IN_CLUSTER:
+      case NodeRecord::NODE_NOT_RESTARTED_YET:
+      {
+        jam();
+        /**
+         * We have no useful information about estimated time remaining
+         * and we're not restarting this node currently. Simply continue.
+         */
+        break;
+      }
+      /**
+       * The states NODE_ACTIVE, RESTART_COMPLETED, WAIT_LCP_FOR_RESTART and
+       * WAIT_SUMA_HANDOVER can all be used to estimate the time remaining
+       * for the node restarts still running. We use the most recent estimate,
+       * the WAIT_LCP_FOR_RESTART being most recent, then WAIT_SUMA_HANDOVER,
+       * then RESTART_COMPLETED and finally NODE_ACTIVE.
+       */
+      case NodeRecord::NODE_ACTIVE:
+      {
+        jam();
+        state_start_time = nodePtr.p->nodeActiveTime;
+        calculate_most_recent_node(nodePtr.i,
+                                   &most_recent_node,
+                                   &most_recent_node_status,
+                                   &most_recent_node_start_time,
+                                   state_start_time,
+                                   nodePtr.p->nodeRecoveryStatus);
+        break;
+      }
+      case NodeRecord::RESTART_COMPLETED:
+      {
+        jam();
+        state_start_time = nodePtr.p->restartCompletedTime;
+        calculate_most_recent_node(nodePtr.i,
+                                   &most_recent_node,
+                                   &most_recent_node_status,
+                                   &most_recent_node_start_time,
+                                   state_start_time,
+                                   nodePtr.p->nodeRecoveryStatus);
+        break;
+      }
+      case NodeRecord::WAIT_SUMA_HANDOVER:
+      {
+        jam();
+        state_start_time = nodePtr.p->waitSumaHandoverTime;
+        calculate_most_recent_node(nodePtr.i,
+                                   &most_recent_node,
+                                   &most_recent_node_status,
+                                   &most_recent_node_start_time,
+                                   state_start_time,
+                                   nodePtr.p->nodeRecoveryStatus);
+        break;
+      }
+      case NodeRecord::WAIT_LCP_FOR_RESTART:
+      {
+        jam();
+        state_start_time = nodePtr.p->waitLCPForRestartTime;
+        calculate_most_recent_node(nodePtr.i,
+                                   &most_recent_node,
+                                   &most_recent_node_status,
+                                   &most_recent_node_start_time,
+                                   state_start_time,
+                                   nodePtr.p->nodeRecoveryStatus);
+        break;
+      }
+      /**
+       * The following are states where we expect a node restart to either
+       * be ongoing or to very soon start up.
+       *
+       * The states ranging from NDBCNTR_STARTED to COPY_FRAGMENTS_STARTED
+       * are states that can be used to estimate the time remaining until
+       * someone reaches the WAIT_LCP_FOR_RESTART state. We get the state
+       * and time in this state for the node that has proceeded the
+       * furthest in the restart. The other states are less good for
+       * estimating the time remaining but will still be used with some
+       * extra heuristics.
+       */
+      case NodeRecord::NODE_FAILED:
+      {
+        jam();
+        state_start_time = nodePtr.p->nodeFailTime;
+        calculate_time_remaining(nodePtr.i,
+                                 node_waited_for,
+                                 nodePtr.p->nodeRecoveryStatus,
+                                 state_start_time,
+                                 now,
+                                 max_status,
+                                 time_since_state_start);
+        break;
+      }
+      case NodeRecord::NODE_FAILURE_COMPLETED:
+      {
+        jam();
+        state_start_time = nodePtr.p->nodeFailCompletedTime;
+        calculate_time_remaining(nodePtr.i,
+                                 node_waited_for,
+                                 nodePtr.p->nodeRecoveryStatus,
+                                 state_start_time,
+                                 now,
+                                 max_status,
+                                 time_since_state_start);
+        break;
+      }
+      case NodeRecord::ALLOCATED_NODE_ID:
+      {
+        jam();
+        state_start_time = nodePtr.p->allocatedNodeIdTime;
+        calculate_time_remaining(nodePtr.i,
+                                 node_waited_for,
+                                 nodePtr.p->nodeRecoveryStatus,
+                                 state_start_time,
+                                 now,
+                                 max_status,
+                                 time_since_state_start);
+        break;
+      }
+      case NodeRecord::INCLUDED_IN_HB_PROTOCOL:
+      {
+        jam();
+        state_start_time = nodePtr.p->includedInHBProtocolTime;
+        calculate_time_remaining(nodePtr.i,
+                                 node_waited_for,
+                                 nodePtr.p->nodeRecoveryStatus,
+                                 state_start_time,
+                                 now,
+                                 max_status,
+                                 time_since_state_start);
+        break;
+      }
+      case NodeRecord::NDBCNTR_START_WAIT:
+      {
+        jam();
+        state_start_time = nodePtr.p->ndbcntrStartWaitTime;
+        calculate_time_remaining(nodePtr.i,
+                                 node_waited_for,
+                                 nodePtr.p->nodeRecoveryStatus,
+                                 state_start_time,
+                                 now,
+                                 max_status,
+                                 time_since_state_start);
+        break;
+      }
+      case NodeRecord::NDBCNTR_STARTED:
+      {
+        jam();
+        state_start_time = nodePtr.p->ndbcntrStartedTime;
+        calculate_time_remaining(nodePtr.i,
+                                 node_waited_for,
+                                 nodePtr.p->nodeRecoveryStatus,
+                                 state_start_time,
+                                 now,
+                                 max_status,
+                                 time_since_state_start);
+        break;
+      }
+      case NodeRecord::START_PERMITTED:
+      {
+        jam();
+        state_start_time = nodePtr.p->startPermittedTime;
+        calculate_time_remaining(nodePtr.i,
+                                 node_waited_for,
+                                 nodePtr.p->nodeRecoveryStatus,
+                                 state_start_time,
+                                 now,
+                                 max_status,
+                                 time_since_state_start);
+        break;
+      }
+      case NodeRecord::WAIT_LCP_TO_COPY_DICT:
+      {
+        jam();
+        state_start_time = nodePtr.p->waitLCPToCopyDictTime;
+        calculate_time_remaining(nodePtr.i,
+                                 node_waited_for,
+                                 nodePtr.p->nodeRecoveryStatus,
+                                 state_start_time,
+                                 now,
+                                 max_status,
+                                 time_since_state_start);
+        break;
+      }
+      case NodeRecord::COPY_DICT_TO_STARTING_NODE:
+      {
+        jam();
+        state_start_time = nodePtr.p->copyDictToStartingNodeTime;
+        calculate_time_remaining(nodePtr.i,
+                                 node_waited_for,
+                                 nodePtr.p->nodeRecoveryStatus,
+                                 state_start_time,
+                                 now,
+                                 max_status,
+                                 time_since_state_start);
+        break;
+      }
+      case NodeRecord::INCLUDE_NODE_IN_LCP_AND_GCP:
+      {
+        jam();
+        state_start_time = nodePtr.p->includeNodeInLCPAndGCPTime;
+        calculate_time_remaining(nodePtr.i,
+                                 node_waited_for,
+                                 nodePtr.p->nodeRecoveryStatus,
+                                 state_start_time,
+                                 now,
+                                 max_status,
+                                 time_since_state_start);
+        break;
+      }
+      case NodeRecord::LOCAL_RECOVERY_STARTED:
+      {
+        jam();
+        state_start_time = nodePtr.p->startDatabaseRecoveryTime;
+        calculate_time_remaining(nodePtr.i,
+                                 node_waited_for,
+                                 nodePtr.p->nodeRecoveryStatus,
+                                 state_start_time,
+                                 now,
+                                 max_status,
+                                 time_since_state_start);
+        break;
+      }
+      case NodeRecord::RESTORE_FRAG_COMPLETED:
+      {
+        jam();
+        state_start_time = nodePtr.p->startUndoDDTime;
+        calculate_time_remaining(nodePtr.i,
+                                 node_waited_for,
+                                 nodePtr.p->nodeRecoveryStatus,
+                                 state_start_time,
+                                 now,
+                                 max_status,
+                                 time_since_state_start);
+        break;
+      }
+      case NodeRecord::UNDO_DD_COMPLETED:
+      {
+        jam();
+        state_start_time = nodePtr.p->startExecREDOLogTime;
+        calculate_time_remaining(nodePtr.i,
+                                 node_waited_for,
+                                 nodePtr.p->nodeRecoveryStatus,
+                                 state_start_time,
+                                 now,
+                                 max_status,
+                                 time_since_state_start);
+        break;
+      }
+      case NodeRecord::EXECUTE_REDO_LOG_COMPLETED:
+      {
+        jam();
+        state_start_time = nodePtr.p->startBuildIndexTime;
+        calculate_time_remaining(nodePtr.i,
+                                 node_waited_for,
+                                 nodePtr.p->nodeRecoveryStatus,
+                                 state_start_time,
+                                 now,
+                                 max_status,
+                                 time_since_state_start);
+        break;
+      }
+      case NodeRecord::COPY_FRAGMENTS_STARTED:
+      {
+        jam();
+        state_start_time = nodePtr.p->copyFragmentsStartedTime;
+        calculate_time_remaining(nodePtr.i,
+                                 node_waited_for,
+                                 nodePtr.p->nodeRecoveryStatus,
+                                 state_start_time,
+                                 now,
+                                 max_status,
+                                 time_since_state_start);
+        break;
+      }
+      default:
+      {
+        jamLine(nodePtr.p->nodeRecoveryStatus);
+        /* The states only used on non-masters should never occur here */
+        ndbrequire(false);
+      }
+    }
+  }
+  if (node_waited_for == 0)
+  {
+    jam();
+    /* No restart is ongoing, we can safely proceed with starting the LCP. */
+    goto immediate_start_label;
+  }
+  if (most_recent_node == 0)
+  {
+    jam();
+    /**
+     * We have restarts ongoing, but we have no node that can be used to
+     * estimate the remaining time. In this case we use a heuristic which
+     * means we're willing to wait for 25% of the max wait time (about
+     * 7% of the time to execute an LCP). If this wait is sufficient for a
+     * node to reach WAIT_LCP_FOR_RESTART we immediately get more recent
+     * estimate and can make more intelligent estimates at that time.
+     */
+    lcp_max_wait_time *= MAX_PERCENTAGE_ADJUSTMENT_FOR_NO_ESTIMATE;
+    lcp_max_wait_time /= 100;
+    if (lcp_stall_time > lcp_max_wait_time)
+    {
+      jam();
+      goto immediate_start_label;
+    }
+    else
+    {
+      jam();
+      goto wait_label;
+    }
+  }
+
+  /**
+   * A node exists which has estimates on times to execute the node restart.
+   * A node restart exists as well. We will estimate whether it makes sense
+   * to delay the LCP for a while more at this time.
+   */
+  nodePtr.i = most_recent_node;
+  ptrCheckGuard(nodePtr, MAX_NDB_NODES, nodeRecord);
+
+  if (nodePtr.p->nodeRecoveryStatus == NodeRecord::NODE_ACTIVE)
+  {
+    /**
+     * We have only access to a node where we gathered measurements during
+     * the time we were non-master node. We transfer times from non-master
+     * timers to master timers as best estimates to use below in our
+     * calculations. We also change the max_status to ensure that we read
+     * the correct timer when doing the calculations.
+     *
+     * Also we don't measure any time since state start since our calculations
+     * very rough and it would take a lot of logic to get a good estimate of
+     * time since the state start according the stats gathered as non-master.
+     *
+     * Also given that our estimates are less accurate we will decrease the
+     * maximum wait time by 50%.
+     */
+    if (max_status < NodeRecord::INCLUDE_NODE_IN_LCP_AND_GCP)
+    {
+      jam();
+      max_status = NodeRecord::NDBCNTR_STARTED;
+      nodePtr.p->ndbcntrStartedTime = nodePtr.p->nodeGettingPermitTime;
+    }
+    else if (max_status < NodeRecord::COPY_FRAGMENTS_STARTED)
+    {
+      jam();
+      max_status = NodeRecord::INCLUDE_NODE_IN_LCP_AND_GCP;
+      nodePtr.p->includeNodeInLCPAndGCPTime =
+        nodePtr.p->nodeGettingIncludedTime;
+    }
+    else
+    {
+      jam();
+      max_status = NodeRecord::COPY_FRAGMENTS_STARTED;
+      nodePtr.p->copyFragmentsStartedTime = nodePtr.p->nodeGettingSynchedTime;
+    }
+    nodePtr.p->waitLCPForRestartTime = nodePtr.p->nodeInLCPWaitStateTime;
+    time_since_state_start = 0;
+    lcp_max_wait_time *= MAX_PERCENTAGE_ADJUSTMENT_FOR_EARLY_START_PHASES;
+    lcp_max_wait_time /= 100;
+  }
+
+  /**
+   * Calculate estimated time remaining from start of the max state we've seen.
+   */
+  switch (max_status)
+  {
+    case NodeRecord::NODE_FAILED:
+    case NodeRecord::NODE_FAILURE_COMPLETED:
+    case NodeRecord::ALLOCATED_NODE_ID:
+    case NodeRecord::INCLUDED_IN_HB_PROTOCOL:
+    case NodeRecord::NDBCNTR_START_WAIT:
+    {
+      jam();
+      /**
+       * Estimate a complete restart, these states have wait states that are
+       * hard to estimate impact of. So here we simply want a measurement
+       * whether it pays off to wait, we also decrease the maximum wait time
+       * to decrease likelihood we will actually wait.
+       */
+      lcp_max_wait_time *= 50;
+      lcp_max_wait_time /= 100;
+      estimated_time = NdbTick_Elapsed(nodePtr.p->ndbcntrStartedTime,
+                              nodePtr.p->waitLCPForRestartTime).milliSec();
+      break;
+    }
+    case NodeRecord::NDBCNTR_STARTED:
+    {
+      jam();
+      estimated_time = NdbTick_Elapsed(nodePtr.p->ndbcntrStartedTime,
+                              nodePtr.p->waitLCPForRestartTime).milliSec();
+      break;
+    }
+    case NodeRecord::START_PERMITTED:
+    {
+      jam();
+      estimated_time = NdbTick_Elapsed(nodePtr.p->startPermittedTime,
+                              nodePtr.p->waitLCPForRestartTime).milliSec();
+      break;
+    }
+    case NodeRecord::WAIT_LCP_TO_COPY_DICT:
+    {
+      jam();
+      estimated_time = NdbTick_Elapsed(nodePtr.p->waitLCPToCopyDictTime,
+                              nodePtr.p->waitLCPForRestartTime).milliSec();
+      break;
+    }
+    case NodeRecord::COPY_DICT_TO_STARTING_NODE:
+    {
+      jam();
+      estimated_time = NdbTick_Elapsed(nodePtr.p->copyDictToStartingNodeTime,
+                              nodePtr.p->waitLCPForRestartTime).milliSec();
+      break;
+    }
+    case NodeRecord::INCLUDE_NODE_IN_LCP_AND_GCP:
+    {
+      jam();
+      estimated_time = NdbTick_Elapsed(nodePtr.p->includeNodeInLCPAndGCPTime,
+                              nodePtr.p->waitLCPForRestartTime).milliSec();
+      break;
+    }
+    case NodeRecord::LOCAL_RECOVERY_STARTED:
+    {
+      jam();
+      estimated_time = NdbTick_Elapsed(nodePtr.p->startDatabaseRecoveryTime,
+                              nodePtr.p->waitLCPForRestartTime).milliSec();
+      break;
+    }
+    case NodeRecord::RESTORE_FRAG_COMPLETED:
+    {
+      jam();
+      estimated_time = NdbTick_Elapsed(nodePtr.p->startUndoDDTime,
+                              nodePtr.p->waitLCPForRestartTime).milliSec();
+      break;
+    }
+    case NodeRecord::UNDO_DD_COMPLETED:
+    {
+      jam();
+      estimated_time = NdbTick_Elapsed(nodePtr.p->startExecREDOLogTime,
+                              nodePtr.p->waitLCPForRestartTime).milliSec();
+      break;
+    }
+    case NodeRecord::EXECUTE_REDO_LOG_COMPLETED:
+    {
+      jam();
+      estimated_time = NdbTick_Elapsed(nodePtr.p->startBuildIndexTime,
+                              nodePtr.p->waitLCPForRestartTime).milliSec();
+      break;
+    }
+    case NodeRecord::COPY_FRAGMENTS_STARTED:
+    {
+      jam();
+      estimated_time = NdbTick_Elapsed(nodePtr.p->copyFragmentsStartedTime,
+                              nodePtr.p->waitLCPForRestartTime).milliSec();
+      break;
+    }
+    default:
+    {
+      jamLine(max_status);
+      ndbrequire(false);
+    }
+  }
+
+  if (estimated_time < time_since_state_start)
+  {
+    jam();
+    time_remaining = 0;
+  }
+  else
+  {
+    jam();
+    time_remaining = estimated_time - time_since_state_start;
+  }
+  if (time_remaining > lcp_max_wait_time)
+  {
+    jam();
+    goto immediate_start_label;
+  }
+
+wait_label:
+  /**
+   * We exit from the routine to check for stalling LCPs with a decision
+   * to stall or continue stalling. We ensure that we output proper logs
+   * about this decision every now and then and that we record the proper
+   * information about the stalling decisions.
+   */
+  jam();
+  if (c_lcpState.lcpStallStart == 0)
+  {
+    /* Output a log message every time we start stalling */
+    jam();
+    c_lcpState.stall_node_waiting_for = node_waited_for;
+    c_lcpState.lastLogTime = now;
+    c_lcpState.m_start_lcp_check_time = now;
+    infoEvent("Start stall LCP, LCP execution time = %u seconds,"
+              " node waited for = %u, its state is %s"
+              " max wait time is %u seconds",
+              Uint32(c_lcpState.m_lcp_time / 1000),
+              node_waited_for,
+              get_status_str(max_status),
+              Uint32(lcp_max_wait_time/1000));
+  }
+  if (node_waited_for != c_lcpState.stall_node_waiting_for)
+  {
+    /* Output a log message every time we change node waited for */
+    jam();
+    c_lcpState.lastLogTime = now;
+    infoEvent("Stall LCP, wait for new node, LCP execution time = %u"
+              " seconds, node waited for = %u, its state is %s"
+              " current stall time is %u seconds,"
+              " max wait time is %u seconds",
+              Uint32(c_lcpState.m_lcp_time / 1000),
+              node_waited_for,
+              get_status_str(max_status),
+              Uint32(lcp_stall_time/1000),
+              Uint32(lcp_max_wait_time/1000));
+    /* Log */
+  }
+  if (NdbTick_Elapsed(c_lcpState.lastLogTime, now).milliSec() >
+      Uint64(120000))
+  {
+    /* Output a log message about stall every 2 minutes of stall */
+    jam();
+    c_lcpState.lastLogTime = now;
+    infoEvent("Stall LCP, LCP execution time = %u"
+              " seconds, node waited for = %u, its state is %s"
+              " current stall time is %u seconds,"
+              " max wait time is %u seconds",
+              Uint32(c_lcpState.m_lcp_time / 1000),
+              node_waited_for,
+              get_status_str(max_status),
+              Uint32(lcp_stall_time/1000),
+              Uint32(lcp_max_wait_time/1000));
+  }
+  c_lcpState.lcpStallStart = 1;
+  c_lcpState.stall_node_waiting_for = node_waited_for;
+  return true;
+
+immediate_start_label:
+  /**
+   * We quit waiting for starting the LCP, we will start immediately.
+   * This will be recorded as a start LCP, so no need for special
+   * logging message for this. Simply reset the stall state.
+   */
+  c_lcpState.lcpStallStart = 0;
+  return false;
+}
+
+const char*
+Dbdih::get_status_str(NodeRecord::NodeRecoveryStatus status)
+{
+  const char *status_str;
+  switch (status)
+  {
+  case NodeRecord::ALLOCATED_NODE_ID:
+    status_str="Allocated node id";
+    break;
+  case NodeRecord::INCLUDED_IN_HB_PROTOCOL:
+    status_str="Included in heartbeat protocol";
+    break;
+  case NodeRecord::NDBCNTR_START_WAIT:
+    status_str="Wait for NDBCNTR master to permit us to start";
+    break;
+  case NodeRecord::NDBCNTR_STARTED:
+    status_str="NDBCNTR master permitted us to start";
+    break;
+  case NodeRecord::NODE_GETTING_PERMIT:
+  case NodeRecord::START_PERMITTED:
+    status_str="All nodes permitted us to start";
+    break;
+  case NodeRecord::WAIT_LCP_TO_COPY_DICT:
+    status_str="Wait for LCP completion to start copying meta data";
+    break;
+  case NodeRecord::COPY_DICT_TO_STARTING_NODE:
+    status_str="Copying meta data to starting node";
+    break;
+  case NodeRecord::NODE_GETTING_INCLUDED:
+  case NodeRecord::INCLUDE_NODE_IN_LCP_AND_GCP:
+    status_str="Include node in LCP and GCP protocols";
+    break;
+  case NodeRecord::LOCAL_RECOVERY_STARTED:
+    status_str="Restore fragments ongoing";
+    break;
+  case NodeRecord::RESTORE_FRAG_COMPLETED:
+    status_str="Undo Disk data ongoing";
+    break;
+  case NodeRecord::UNDO_DD_COMPLETED:
+    status_str="Execute REDO logs ongoing";
+    break;
+  case NodeRecord::EXECUTE_REDO_LOG_COMPLETED:
+    status_str="Build indexes ongoing";
+    break;
+  case NodeRecord::NODE_GETTING_SYNCHED:
+  case NodeRecord::COPY_FRAGMENTS_STARTED:
+    status_str="Synchronizing starting node with live nodes";
+    break;
+  case NodeRecord::NODE_IN_LCP_WAIT_STATE:
+  case NodeRecord::WAIT_LCP_FOR_RESTART:
+    status_str="Wait for LCP to ensure durability";
+    break;
+  case NodeRecord::WAIT_SUMA_HANDOVER:
+    status_str="Wait for handover of subscriptions";
+    break;
+  case NodeRecord::NODE_ACTIVE:
+  case NodeRecord::RESTART_COMPLETED:
+    status_str="Restart completed";
+    break;
+  case NodeRecord::NODE_FAILED:
+    status_str="Node failed, failure handling in progress";
+    break;
+  case NodeRecord::NODE_FAILURE_COMPLETED:
+    status_str="Node failure handling completed";
+    break;
+  case NodeRecord::NODE_NOT_RESTARTED_YET:
+    status_str="Initial state";
+    break;
+  default:
+    jamLine(status);
+    ndbrequire(false);
+    break;
+  }
+  return status_str;
+}
+
+/**
+ * Fill the table with the following data:
+ * All the times are reported in seconds.
+ *
+ * NodeRestartStatus: This is a string which is derived from the
+ *  nodeRecoveryStatus.
+ *
+ * CompleteFailTime: Time to complete the node failure.
+ * AllocatedNodeIdTime: Time from completing node failure until we have
+ *   allocated a node id again.
+ * IncludeHeartbeatProtocolTime: Time from allocating node id until we
+ *   have been included in the heartbeat protocol.
+ * NdbcntrStartWaitTime: Time from being included in the heartbeat
+ *   protocol until we have been set to wait for NDBCNTR master to
+ *   allow us to continue starting.
+ * NdbcntrStartedTime: Time from we start waiting for NDBCNTR master
+ *   to accept us into the cluster until we are accepted into the cluster.
+ * StartPermittedTime: Time from we are accepted by NDBCNTR master to
+ *   start until we have received Start permit from all nodes.
+ * WaitLCPToCopyDictTime: Time from all nodes permit us to start until we
+ *   have finished waiting for LCP to complete before we copy the meta
+ *   data in the cluster.
+ * CopyToDictStartingNodeTime: Time from we have been allowed to start
+ *   copying meta data until we have completed this.
+ * IncludeNodeInLCPAndGCPTime: Time from we have copied the meta data
+ *   until we have stopped the GCP protocol and have been included into
+ *   the LCP and GCP protocol by all nodes.
+ * LocalRecoveryTime: Time from being included until we have fully completed
+ *   the Local Recovery in a node.
+ * RestoreFragmentTime:
+ * Time to restore all fragments from local files generated by the LCPs.
+ * UndoDDTime:
+ * Time to run Disk Data UNDO log on all restored fragments.
+ * ExecREDOLogTime:
+ * Time to execute the REDO log on all restored fragments.
+ * BuildIndexTime:
+ * Time to rebuild indexes on all restored fragments.
+ * CopyFragmentsTime: Time from completing Local Recovery until all recent data
+ *   have been copied from alive nodes to starting node.
+ * WaitSumaHandoverTime: Time from being fully up-to-date until we have
+ *   completed the handover of replication subscriptions.
+ * Total recovery time:
+ * Total time from node failure completed until we are started again.
+ *
+ * For nodes that have states set when we were not yet master we will only
+ * report a few times:
+ * StartPermittedTime: Time from node completed the node failure until our
+ *   node permitted the node to start.
+ * IncludeNodeInLCPAndGCPTime: Time from we permitted the node to start until
+ *   we completed including the node in the LCP and GCP protocol.
+ * LocalRecoveryTime: Time from we were included in the LCP and GCP protocol until
+ *   we started copying the fragments.
+ * CopyFragmentsTime: Time from we started synchronizing the starting node
+ *   until we completed the node restart.
+ *
+ * Any time not happened yet will be reported as 0.
+ */
+void Dbdih::write_zero_columns(Ndbinfo::Row &row, Uint32 num_rows)
+{
+  for (Uint32 i = 0; i < num_rows; i++)
+  {
+    jam();
+    row.write_uint32(Uint32(0));
+  }
+  return;
+}
+
+void Dbdih::fill_row_with_node_restart_status(NodeRecordPtr nodePtr,
+                                              Ndbinfo::Row &row)
+{
+  Uint64 elapsed;
+  NodeRecord::NodeRecoveryStatus status = nodePtr.p->nodeRecoveryStatus;
+  row.write_uint32(nodePtr.i);
+  const char *status_str = get_status_str(status);
+  row.write_string(status_str);
+  row.write_uint32(Uint32(nodePtr.p->nodeRecoveryStatus));
+
+  if (status == NodeRecord::NODE_ACTIVE)
+  {
+    handle_before_master(nodePtr, row);
+    return;
+  }
+  if (status == NodeRecord::NODE_FAILED)
+  {
+    write_zero_columns(row, 19);
+    return;
+  }
+  elapsed = NdbTick_Elapsed(nodePtr.p->nodeFailTime,
+                            nodePtr.p->nodeFailCompletedTime).milliSec();
+  elapsed/= 1000;
+  /* Time to complete node failure */
+  row.write_uint32(Uint32(elapsed));
+
+  if (status == NodeRecord::NODE_FAILURE_COMPLETED)
+  {
+    write_zero_columns(row, 18);
+    return;
+  }
+  elapsed = NdbTick_Elapsed(nodePtr.p->nodeFailCompletedTime,
+                            nodePtr.p->allocatedNodeIdTime).milliSec();
+  elapsed/= 1000;
+  /* Time to allocate node id */
+  row.write_uint32(Uint32(elapsed));
+
+  if (status == NodeRecord::ALLOCATED_NODE_ID)
+  {
+    write_zero_columns(row, 17);
+    return;
+  }
+  elapsed = NdbTick_Elapsed(nodePtr.p->allocatedNodeIdTime,
+                            nodePtr.p->includedInHBProtocolTime).milliSec();
+  elapsed/= 1000;
+  /* Time to include in HB Protocol */
+  row.write_uint32(Uint32(elapsed));
+
+  if (status == NodeRecord::INCLUDED_IN_HB_PROTOCOL)
+  {
+    write_zero_columns(row, 16);
+    return;
+  }
+  elapsed = NdbTick_Elapsed(nodePtr.p->includedInHBProtocolTime,
+                            nodePtr.p->ndbcntrStartWaitTime).milliSec();
+  elapsed/= 1000;
+  /* Time until wait for for ndbcntr master */
+  row.write_uint32(Uint32(elapsed));
+
+  if (status == NodeRecord::NDBCNTR_START_WAIT)
+  {
+    write_zero_columns(row, 15);
+    return;
+  }
+  elapsed = NdbTick_Elapsed(nodePtr.p->ndbcntrStartWaitTime,
+                            nodePtr.p->ndbcntrStartedTime).milliSec();
+  elapsed/= 1000;
+  /* Time wait for NDBCNTR master */
+  row.write_uint32(Uint32(elapsed));
+
+  if (status == NodeRecord::NDBCNTR_STARTED)
+  {
+    write_zero_columns(row, 14);
+    return;
+  }
+  elapsed = NdbTick_Elapsed(nodePtr.p->ndbcntrStartedTime,
+                            nodePtr.p->startPermittedTime).milliSec();
+  elapsed/= 1000;
+  /* Time to get start permitted */
+  row.write_uint32(Uint32(elapsed));
+
+  if (status == NodeRecord::START_PERMITTED)
+  {
+    write_zero_columns(row, 13);
+    return;
+  }
+  elapsed = NdbTick_Elapsed(nodePtr.p->startPermittedTime,
+                            nodePtr.p->waitLCPToCopyDictTime).milliSec();
+  elapsed/= 1000;
+  /* Time to wait for LCP to copy meta data */
+  row.write_uint32(Uint32(elapsed));
+
+  if (status == NodeRecord::WAIT_LCP_TO_COPY_DICT)
+  {
+    write_zero_columns(row, 12);
+    return;
+  }
+  elapsed = NdbTick_Elapsed(nodePtr.p->waitLCPToCopyDictTime,
+                            nodePtr.p->copyDictToStartingNodeTime).milliSec();
+  elapsed/= 1000;
+  /* Time to copy meta data */
+  row.write_uint32(Uint32(elapsed));
+
+  if (status == NodeRecord::COPY_DICT_TO_STARTING_NODE)
+  {
+    write_zero_columns(row, 11);
+    return;
+  }
+  elapsed = NdbTick_Elapsed(nodePtr.p->copyDictToStartingNodeTime,
+                            nodePtr.p->includeNodeInLCPAndGCPTime).milliSec();
+  elapsed/= 1000;
+  /* Time to include node in GCP+LCP protocols */
+  row.write_uint32(Uint32(elapsed));
+
+  if (status == NodeRecord::INCLUDE_NODE_IN_LCP_AND_GCP)
+  {
+    write_zero_columns(row, 10);
+    return;
+  }
+  elapsed = NdbTick_Elapsed(nodePtr.p->includeNodeInLCPAndGCPTime,
+                            nodePtr.p->startDatabaseRecoveryTime).milliSec();
+  elapsed/= 1000;
+  /* Time for starting node to request local recovery */
+  row.write_uint32(Uint32(elapsed));
+
+  if (status == NodeRecord::LOCAL_RECOVERY_STARTED)
+  {
+    write_zero_columns(row, 9);
+    return;
+  }
+
+  /* Total time of local recovery */
+  if (status < NodeRecord::COPY_FRAGMENTS_STARTED)
+  {
+    row.write_uint32(Uint32(0));
+  }
+  else
+  {
+    elapsed = NdbTick_Elapsed(nodePtr.p->startDatabaseRecoveryTime,
+                              nodePtr.p->copyFragmentsStartedTime).milliSec();
+    elapsed/= 1000;
+    row.write_uint32(Uint32(elapsed));
+  }
+
+  elapsed = NdbTick_Elapsed(nodePtr.p->startDatabaseRecoveryTime,
+                            nodePtr.p->startUndoDDTime).milliSec();
+  elapsed/= 1000;
+  /* Time to restore fragments */
+  row.write_uint32(Uint32(elapsed));
+
+  if (status == NodeRecord::RESTORE_FRAG_COMPLETED)
+  {
+    write_zero_columns(row, 7);
+    return;
+  }
+  elapsed = NdbTick_Elapsed(nodePtr.p->startUndoDDTime,
+                            nodePtr.p->startExecREDOLogTime).milliSec();
+  elapsed/= 1000;
+  /* Time to UNDO disk data parts */
+  row.write_uint32(Uint32(elapsed));
+
+  if (status == NodeRecord::UNDO_DD_COMPLETED)
+  {
+    write_zero_columns(row, 6);
+    return;
+  }
+  elapsed = NdbTick_Elapsed(nodePtr.p->startExecREDOLogTime,
+                            nodePtr.p->startBuildIndexTime).milliSec();
+  elapsed/= 1000;
+  /* Time to execute REDO logs */
+  row.write_uint32(Uint32(elapsed));
+
+  if (status == NodeRecord::EXECUTE_REDO_LOG_COMPLETED)
+  {
+    write_zero_columns(row, 5);
+    return;
+  }
+  elapsed = NdbTick_Elapsed(nodePtr.p->startBuildIndexTime,
+                            nodePtr.p->copyFragmentsStartedTime).milliSec();
+  elapsed/= 1000;
+  /* Time to build indexes */
+  row.write_uint32(Uint32(elapsed));
+
+  if (status == NodeRecord::COPY_FRAGMENTS_STARTED)
+  {
+    write_zero_columns(row, 4);
+    return;
+  }
+  elapsed = NdbTick_Elapsed(nodePtr.p->copyFragmentsStartedTime,
+                            nodePtr.p->waitLCPForRestartTime).milliSec();
+  elapsed/= 1000;
+  /* Time to synchronize starting node with alive nodes */
+  row.write_uint32(Uint32(elapsed));
+
+  if (status == NodeRecord::WAIT_LCP_FOR_RESTART)
+  {
+    write_zero_columns(row, 3);
+    return;
+  }
+  elapsed = NdbTick_Elapsed(nodePtr.p->waitLCPForRestartTime,
+                            nodePtr.p->waitSumaHandoverTime).milliSec();
+  elapsed/= 1000;
+  /* Time to wait for completion of LCPs */
+  row.write_uint32(Uint32(elapsed));
+
+  if (status == NodeRecord::WAIT_SUMA_HANDOVER)
+  {
+    write_zero_columns(row, 2);
+    return;
+  }
+  elapsed = NdbTick_Elapsed(nodePtr.p->waitSumaHandoverTime,
+                            nodePtr.p->restartCompletedTime).milliSec();
+  elapsed/= 1000;
+  /* Time to handover subscriptions to starting node */
+  row.write_uint32(Uint32(elapsed));
+
+  elapsed = NdbTick_Elapsed(nodePtr.p->nodeFailTime,
+                            nodePtr.p->restartCompletedTime).milliSec();
+  elapsed/= 1000;
+  /* Total recovery time */
+  row.write_uint32(Uint32(elapsed));
+
+  return;
+}
+
+void Dbdih::handle_before_master(NodeRecordPtr nodePtr,
+                                 Ndbinfo::Row &row)
+{
+  Uint64 elapsed;
+
+  /* Time to complete node failure */
+  elapsed = NdbTick_Elapsed(nodePtr.p->nodeFailTime,
+                            nodePtr.p->nodeFailCompletedTime).milliSec();
+  elapsed/= 1000;
+  row.write_uint32(Uint32(elapsed));
+
+  /**
+   * No report on
+   * 1) Allocate node id
+   * 2) Include in heartbeat protocol
+   * 3) Wait for NDBCNTR master
+   * 4) Time until ok from NDBCNTR master
+   */
+  row.write_uint32(Uint32(0));
+  row.write_uint32(Uint32(0));
+  row.write_uint32(Uint32(0));
+  row.write_uint32(Uint32(0));
+
+  /* Time to get from failure to start permitted */
+  elapsed = NdbTick_Elapsed(nodePtr.p->nodeFailTime,
+                            nodePtr.p->nodeGettingPermitTime).milliSec();
+  elapsed/= 1000;
+  row.write_uint32(Uint32(elapsed));
+
+  /**
+   * No report on
+   * 1) Time to wait for LCP to copy meta data
+   * 2) Time to copy meta data
+   */
+  row.write_uint32(Uint32(0));
+  row.write_uint32(Uint32(0));
+
+  /* Time from getting start permitted to getting included */
+  elapsed = NdbTick_Elapsed(nodePtr.p->nodeGettingPermitTime,
+                            nodePtr.p->nodeGettingIncludedTime).milliSec();
+  elapsed/= 1000;
+  row.write_uint32(Uint32(elapsed));
+
+  /**
+   * No report on
+   * 1) Time for starting node to request local recovery
+   */
+  row.write_uint32(Uint32(0));
+
+  /* Time for local recovery */
+  elapsed = NdbTick_Elapsed(nodePtr.p->nodeGettingIncludedTime,
+                            nodePtr.p->nodeGettingSynchedTime).milliSec();
+  elapsed/= 1000;
+  row.write_uint32(Uint32(elapsed));
+
+  /**
+   * No report on
+   * 1) Restore fragment time
+   * 2) UNDO DD time
+   * 3) Execute REDO log time
+   * 4) Build index time
+   */
+  row.write_uint32(Uint32(0));
+  row.write_uint32(Uint32(0));
+  row.write_uint32(Uint32(0));
+  row.write_uint32(Uint32(0));
+
+  /* Time to synchronize starting node with alive nodes */
+  elapsed = NdbTick_Elapsed(nodePtr.p->nodeGettingSynchedTime,
+                            nodePtr.p->nodeInLCPWaitStateTime).milliSec();
+  elapsed/= 1000;
+  row.write_uint32(Uint32(elapsed));
+
+  /**
+   * No report on
+   * 1) Time to wait for LCP to be restorable as a node
+   * 2) Time to handover subscriptions
+   */
+  row.write_uint32(Uint32(0));
+  row.write_uint32(Uint32(0));
+
+  /* Total time from node failure to node restarted */
+  elapsed = NdbTick_Elapsed(nodePtr.p->nodeFailTime,
+                            nodePtr.p->nodeActiveTime).milliSec();
+  elapsed/= 1000;
+  row.write_uint32(Uint32(elapsed));
+
+  return;
+}
+
+void Dbdih::execDBINFO_SCANREQ(Signal *signal)
+{
+  DbinfoScanReq req = *(DbinfoScanReq*)signal->theData;
+  const Ndbinfo::ScanCursor *cursor =
+    CAST_CONSTPTR(Ndbinfo::ScanCursor, DbinfoScan::getCursorPtr(&req));
+  Ndbinfo::Ratelimit rl;
+  bool sent_any = false;
+  jamEntry();
+
+  switch (req.tableId)
+  {
+  case Ndbinfo::RESTART_INFO_TABLEID:
+  {
+    if (isMaster() == false)
+    {
+      /* Only report from master node's view on restarts */
+      return;
+    }
+    if (getNodeState().startLevel != NodeState::SL_STARTED)
+    {
+      jam();
+      /* Ignore when we are starting up or shutting down */
+      return;
+    }
+
+    NodeRecordPtr nodePtr;
+    jam();
+    nodePtr.i = cursor->data[0];
+    if (nodePtr.i == 0)
+    {
+      nodePtr.i = 1; /* Ignore node 0 */
+    }
+    else if (nodePtr.i >= MAX_NDB_NODES)
+    {
+      break;
+    }
+    for (; nodePtr.i < MAX_NDB_NODES; nodePtr.i++)
+    {
+      ptrAss(nodePtr, nodeRecord);
+      if (nodePtr.p->nodeRecoveryStatus == NodeRecord::NODE_NOT_RESTARTED_YET ||
+          nodePtr.p->nodeRecoveryStatus == NodeRecord::NOT_DEFINED_IN_CLUSTER)
+        continue;
+      jamLine(nodePtr.i);
+      sent_any = true;
+      Ndbinfo::Row row(signal, req);
+      fill_row_with_node_restart_status(nodePtr, row);
+      ndbinfo_send_row(signal, req, row, rl);
+      if (rl.need_break(req))
+      {
+        jam();
+        ndbinfo_send_scan_break(signal, req, rl, nodePtr.i + 1);
+        return;
+      }
+    }
+    if (cursor->data[0] == 0 && !sent_any)
+    {
+      /* No nodes had any node restart data to report */
+      jam();
+      return;
+    }
+    break;
+  }
+  default:
+    break;
+  }
+  ndbinfo_send_scan_conf(signal, req, rl);
+}
+/* END Node Recovery Status Module */
 
 /*****************************************************************************/
 /***********     NODE ADDING  MODULE                             *************/
@@ -4040,6 +6019,7 @@ Dbdih::nr_start_logging(Signal* signal, TakeOverRecordPtr takeOverPtr)
       req->flags = takeOverPtr.p->m_flags;
       sendSignal(cmasterdihref, GSN_END_TOREQ,
                  signal, EndToReq::SignalLength, JBB);
+      sendEND_TOREP(signal, takeOverPtr.p->toStartingNode);
       return;
     }
     ptrAss(tabPtr, tabRecord);
@@ -4695,6 +6675,7 @@ void Dbdih::toCopyCompletedLab(Signal * signal, TakeOverRecordPtr takeOverPtr)
     req->flags = takeOverPtr.p->m_flags;
     sendSignal(cmasterdihref, GSN_END_TOREQ,
                signal, EndToReq::SignalLength, JBB);
+    sendEND_TOREP(signal, takeOverPtr.p->toStartingNode);
     return;
   }
 }//Dbdih::toCopyCompletedLab()
@@ -5078,9 +7059,8 @@ void Dbdih::execNODE_FAILREP(Signal* signal)
   /*-------------------------------------------------------------------------*/
   Uint32 index = 0;
   for (i = 1; i < MAX_NDB_NODES; i++) {
-    jam();
     if(NdbNodeBitmask::get(nodeFail->theNodes, i)){
-      jam();
+      jamLine(i);
       failedNodes[index] = i;
       index++;
     }//if
@@ -5100,6 +7080,7 @@ void Dbdih::execNODE_FAILREP(Signal* signal)
     NodeRecordPtr TNodePtr;
     TNodePtr.i = failedNodes[i];
     ptrCheckGuard(TNodePtr, MAX_NDB_NODES, nodeRecord);
+    setNodeRecoveryStatus(TNodePtr.i, NodeRecord::NODE_FAILED);
     TNodePtr.p->useInTransactions = false;
     TNodePtr.p->m_inclDihLcp = false;
     TNodePtr.p->recNODE_FAILREP = ZTRUE;
@@ -6374,6 +8355,11 @@ Dbdih::invalidateNodeLCP(Signal* signal, Uint32 nodeId, Uint32 tableId)
       setAllowNodeStart(nodeId, true);
       if (getNodeStatus(nodeId) == NodeRecord::STARTING) {
         jam();
+        if (!isMaster())
+        {
+          jam();
+          setNodeRecoveryStatus(nodeId, NodeRecord::NODE_GETTING_PERMIT);
+        }
         StartInfoConf * conf = (StartInfoConf*)&signal->theData[0];
         conf->sendingNodeId = cownNodeId;
         conf->startingNodeId = nodeId;
@@ -6874,8 +8860,6 @@ Dbdih::checkEmptyLcpComplete(Signal *signal)
       sendSignal(reference(), GSN_CONTINUEB, signal, 3, JBB);
     }
     
-    c_current_time = NdbTick_getCurrentTicks();
-    c_lcpState.m_start_time = c_current_time;
     c_lcpMasterTakeOverState.set(LMTOS_INITIAL, __LINE__);
     MasterLCPReq * const req = (MasterLCPReq *)&signal->theData[0];
     req->masterRef = reference();
@@ -7389,7 +9373,7 @@ void Dbdih::MASTER_LCPhandling(Signal* signal, Uint32 failedNodeId)
 #ifdef VM_TRACE
     g_eventLogger->info("MASTER_LCPhandling:: LMTOS_ALL_IDLE -> checkLcpStart");
 #endif
-    checkLcpStart(signal, __LINE__);
+    checkLcpStart(signal, __LINE__, 0);
     break;
   case LMTOS_COPY_ONGOING:
     jam();
@@ -7662,7 +9646,7 @@ void Dbdih::nodeFailCompletedCheckLab(Signal* signal,
   /* ---------------------------------------------------------------------- */
   signal->theData[0] = failedNodePtr.i;
   sendSignal(QMGR_REF, GSN_NDB_FAILCONF, signal, 1, JBB);
-  
+  setNodeRecoveryStatus(failedNodePtr.i, NodeRecord::NODE_FAILURE_COMPLETED);
   return;
 }//Dbdih::nodeFailCompletedCheckLab()
 
@@ -11401,7 +13385,14 @@ void Dbdih::execSTART_LCP_REQ(Signal* signal)
    * Init m_local_lcp_state
    */
   m_local_lcp_state.init(req);
- 
+
+  if (!isMaster())
+  {
+    jam();
+    c_current_time = NdbTick_getCurrentTicks();
+    c_lcpState.m_start_time = c_current_time;
+  }
+
   CRASH_INSERTION2(7021, isMaster());
   CRASH_INSERTION2(7022, !isMaster());
 
@@ -13275,9 +15266,8 @@ void Dbdih::checkTcCounterLab(Signal* signal)
     // We block LCP start if we have not completed one global checkpoints
     // before starting another local checkpoint.
     /* --------------------------------------------------------------------- */
-    signal->theData[0] = DihContinueB::ZCHECK_TC_COUNTER;
-    signal->theData[1] = __LINE__;
-    sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 1 * 100, 2);
+    c_lcpState.setLcpStatus(LCP_STATUS_IDLE, __LINE__);
+    checkLcpStart(signal, __LINE__, 100);
     return;
   }//if 
   c_lcpState.setLcpStatus(LCP_TCGET, __LINE__);
@@ -13286,17 +15276,25 @@ void Dbdih::checkTcCounterLab(Signal* signal)
   sendLoopMacro(TCGETOPSIZEREQ, sendTCGETOPSIZEREQ, RNIL);
 }//Dbdih::checkTcCounterLab()
 
-void Dbdih::checkLcpStart(Signal* signal, Uint32 lineNo)
+void Dbdih::checkLcpStart(Signal* signal, Uint32 lineNo, Uint32 delay)
 {
   /* ----------------------------------------------------------------------- */
   // Verify that we are not attempting to start another instance of the LCP
   // when it is not alright to do so.
   /* ----------------------------------------------------------------------- */
-  ndbrequire(c_lcpState.lcpStart == ZIDLE);
   c_lcpState.lcpStart = ZACTIVE;
   signal->theData[0] = DihContinueB::ZCHECK_TC_COUNTER;
   signal->theData[1] = lineNo;
-  sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 1000, 2);
+  if (delay == 0)
+  {
+    jam();
+    sendSignal(reference(), GSN_CONTINUEB, signal, 2, JBB);
+  }
+  else
+  {
+    jam();
+    sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, delay, 2);
+  }
 }//Dbdih::checkLcpStart()
 
 /* ------------------------------------------------------------------------- */
@@ -13330,13 +15328,23 @@ void Dbdih::execTCGETOPSIZECONF(Signal* signal)
     {
       jam();
       c_lcpState.setLcpStatus(LCP_STATUS_IDLE, __LINE__);
-
-      signal->theData[0] = DihContinueB::ZCHECK_TC_COUNTER;
-      signal->theData[1] = __LINE__;
-      sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 1 * 100, 2);
+      checkLcpStart(signal, __LINE__, 1000);
       return;
     }//if
-  }//if
+
+    /**
+     * Check if we have reason to stall the start of the LCP due to
+     * outstanding node restarts that are reasonably close to
+     * need a LCP to complete or to need a point in time where there
+     * are no LCPs ongoing.
+     */
+    if (check_stall_lcp_start())
+    {
+      c_lcpState.setLcpStatus(LCP_STATUS_IDLE, __LINE__);
+      checkLcpStart(signal, __LINE__, 3000);
+      return;
+    }
+  }
   c_lcpState.lcpStart = ZIDLE;
   c_lcpState.immediateLcpStart = false;
   /* ----------------------------------------------------------------------- 
@@ -13461,7 +15469,7 @@ void Dbdih::calculateKeepGciLab(Signal* signal, Uint32 tableId, Uint32 fragId)
 	/* HERE TO AVOID STRANGE PROBLEMS LATER.                              */
 	/* ------------------------------------------------------------------ */
         c_lcpState.setLcpStatus(LCP_STATUS_IDLE, __LINE__);
-        checkLcpStart(signal, __LINE__);
+        checkLcpStart(signal, __LINE__, 1000);
         return;
       }//if
     }//if
@@ -14676,6 +16684,17 @@ void Dbdih::allNodesLcpCompletedLab(Signal* signal)
           ptrCheckGuard(nodePtr, MAX_NDB_NODES, nodeRecord);   
           ndbrequire(nodePtr.p->copyCompleted == 2);
 
+          /**
+           * We have completed the node restart for this node. We set the
+           * node recovery status to completed. This is used also in
+           * estimating times for other nodes to complete their restarts.
+           * It is also used to build NDBINFO table about node restart
+           * status.
+           *
+           * This code is only executed in master node.
+           */
+          setNodeRecoveryStatus(nodePtr.i, NodeRecord::WAIT_SUMA_HANDOVER);
+
           EndToConf * conf = (EndToConf *)signal->getDataPtrSend();
           conf->senderData = takeOverPtr.p->m_senderData;
           conf->sendingNodeId = cownNodeId;
@@ -14693,6 +16712,14 @@ void Dbdih::allNodesLcpCompletedLab(Signal* signal)
   
   Sysfile::clearLCPOngoing(SYSFILE->systemRestartBits);
   setLcpActiveStatusEnd(signal);
+
+  /**
+   * We calculate LCP time also in non-master although it's only used by
+   * master nodes. The idea is to have an estimate of LCP execution time
+   * already when the master node is running it's first LCP.
+   */
+  c_lcpState.m_lcp_time = 
+    NdbTick_Elapsed(c_lcpState.m_start_time, c_current_time).milliSec();
 
   if(!isMaster()){
     jam();
@@ -14738,17 +16765,15 @@ void Dbdih::allNodesLcpCompletedLab(Signal* signal)
     c_lcpState.lcpStopGcp = c_newest_restorable_gci;
   }
   
-  /**
-   * Start checking for next LCP
-   */
-  checkLcpStart(signal, __LINE__);
-
   Mutex mutex(signal, c_mutexMgr, c_fragmentInfoMutex_lcp);
   mutex.unlock();
 
+  /**
+   * Start checking for next LCP
+   */
+  checkLcpStart(signal, __LINE__, 0);
+
   c_current_time = NdbTick_getCurrentTicks();
-  c_lcpState.m_lcp_time = 
-    NdbTick_Elapsed(c_lcpState.m_start_time, c_current_time).milliSec();
   
   if (cwaitLcpSr == true) {
     jam();
@@ -17726,6 +19751,18 @@ void Dbdih::setLcpActiveStatusEnd(Signal* signal)
         jam();
         // Do nothing
       }
+      if (nodePtr.p->nodeRecoveryStatus == NodeRecord::NODE_IN_LCP_WAIT_STATE)
+      {
+        jam();
+        /**
+         * This is a non-master node and this is the first time we heard this
+         * node is alive and active. We set the node recovery status, this
+         * status is only used in printouts if this node later becomes master
+         * and the node is still alive and kicking. This means we have no
+         * detailed information about its restart status.
+         */
+        setNodeRecoveryStatus(nodePtr.i, NodeRecord::NODE_ACTIVE);
+      }
     }
     else if (nodePtr.p->activeStatus == Sysfile::NS_Configured)
     {
@@ -18521,6 +20558,11 @@ Dbdih::execDUMP_STATE_ORD(Signal* signal)
     
     // Start immediate LCP
     add_lcp_counter(&c_lcpState.ctimer, (1 << 31));
+    if (cmasterNodeId == getOwnNodeId())
+    {
+      jam();
+      c_lcpState.immediateLcpStart = true;
+    }
     return;
   }
 
@@ -18571,13 +20613,18 @@ Dbdih::execDUMP_STATE_ORD(Signal* signal)
   if (arg == DumpStateOrd::DihStartLcpImmediately)
   {
     jam();
-    add_lcp_counter(&c_lcpState.ctimer, (1 << 31));
+    if (cmasterNodeId == getOwnNodeId())
+    {
+      jam();
+      c_lcpState.immediateLcpStart = true;
+      return;
+    }
 
+    add_lcp_counter(&c_lcpState.ctimer, (1 << 31));
     /**
      * If sent from local LQH, forward to master
      */
-    if (cmasterNodeId != getOwnNodeId() &&
-        refToMain(signal->getSendersBlockRef()) == DBLQH)
+    if (refToMain(signal->getSendersBlockRef()) == DBLQH)
     {
       jam();
       sendSignal(cmasterdihref, GSN_DUMP_STATE_ORD, signal, 1, JBB);
@@ -19739,7 +21786,6 @@ Dbdih::NodeRecord::NodeRecord(){
   copyCompleted = 0;
   allowNodeStart = true;
 }
-
 // DICT lock slave
 
 void

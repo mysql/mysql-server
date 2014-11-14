@@ -33,6 +33,7 @@
 #include <AttributeHeader.hpp>
 #include <KeyDescriptor.hpp>
 #include <Checksum.hpp>
+#include <signaldata/NodeRecoveryStatusRep.hpp>
 #include <signaldata/DictSchemaInfo.hpp>
 #include <signaldata/DictTabInfo.hpp>
 #include <signaldata/DropTabFile.hpp>
@@ -20428,9 +20429,24 @@ Dbdict::execDICT_UNLOCK_ORD(Signal* signal)
   if (ord->lockType == DictLockReq::SumaStartMe ||
       ord->lockType == DictLockReq::SumaHandOver)
   {
+    Uint32 nodeId = refToNode(ord->senderRef);
     jam();
-    g_eventLogger->info("clearing SumaStartMe dict lock for %u", refToNode(ord->senderRef));
-    c_sub_startstop_lock.clear(refToNode(ord->senderRef));
+    g_eventLogger->info("clearing SumaStartMe dict lock for %u", nodeId);
+    c_sub_startstop_lock.clear(nodeId);
+
+    if (ord->lockType == DictLockReq::SumaHandOver)
+    {
+      /**
+       * Inform the master DIH that the SUMA handover is now completed, this
+       * is the very last phase of the node recovery. This code is only
+       * executed in the master node.
+       */
+      SumaHandoverCompleteRep *rep =
+        (SumaHandoverCompleteRep*)signal->getDataPtrSend();
+      rep->nodeId = nodeId;
+      EXECUTE_DIRECT(DBDIH, GSN_SUMA_HANDOVER_COMPLETE_REP, signal,
+                     SumaHandoverCompleteRep::SignalLength);
+    }
     return;
   }
 
