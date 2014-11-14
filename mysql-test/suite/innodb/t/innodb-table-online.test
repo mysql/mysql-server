@@ -6,13 +6,6 @@ SELECT name, count FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE
 subsystem = 'ddl' and name not in
 ('ddl_sort_file_alter_table','ddl_log_file_alter_table') and count > 0;
 
---disable_query_log
-call mtr.add_suppression("InnoDB: Warning: Small buffer pool size");
-# these will be triggered by DISCARD TABLESPACE
-call mtr.add_suppression("InnoDB: Error: table 'test/t1'");
-call mtr.add_suppression("MySQL is trying to open a table handle but the \.ibd file for");
---enable_query_log
-
 # DISCARD TABLESPACE needs file-per-table
 SET @global_innodb_file_per_table_orig = @@global.innodb_file_per_table;
 SET GLOBAL innodb_file_per_table = on;
@@ -360,16 +353,44 @@ SELECT * FROM t1 LIMIT 10;
 --echo # session con1
 connection con1;
 ALTER TABLE t1 DISCARD TABLESPACE;
---echo # Disconnect session con1
-disconnect con1;
 
 --echo # session default
 connection default;
 SHOW CREATE TABLE t1;
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#18894337 ONLINE ALTER TABLE LOG APPLY FAILS TO SKIP LOCKING
+--echo #
+
+--echo # session con1
+connection con1;
+CREATE TABLE t1 (a SERIAL, c64 VARCHAR(64) UNIQUE) ENGINE=InnoDB;
+INSERT INTO t1 VALUES(0, NULL);
+SET DEBUG='+d,innodb_trx_duplicates';
+SET DEBUG_SYNC='row_log_table_apply1_before SIGNAL t1_ddl WAIT_FOR t1_dml';
+--send
+ALTER TABLE t1 ENGINE=InnoDB;
+
+--echo # session default
+connection default;
+
+SET DEBUG_SYNC='now WAIT_FOR t1_ddl';
+INSERT INTO t1 VALUES(0, NULL), (0, NULL);
+SET DEBUG_SYNC='now SIGNAL t1_dml';
+
+--echo # session con1
+connection con1;
+reap;
+--echo # Disconnect session con1
+disconnect con1;
+--echo # session default
+connection default;
+DROP TABLE t1;
+
 SET DEBUG_SYNC = 'RESET';
 SET DEBUG = '';
 SET GLOBAL innodb_monitor_disable = module_ddl;
-DROP TABLE t1;
 
 # Check that all connections opened by test cases in this file are really
 # gone so execution of other tests won't be affected by their presence.
