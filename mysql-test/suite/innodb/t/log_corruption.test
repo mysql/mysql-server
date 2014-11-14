@@ -1,4 +1,5 @@
 --source include/have_innodb.inc
+--source include/have_innodb_16k.inc
 
 --echo # Test a corrupted MLOG_FILE_NAME record.
 
