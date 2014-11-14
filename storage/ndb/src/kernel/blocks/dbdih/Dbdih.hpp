@@ -1101,7 +1101,7 @@ private:
   void nodeRestartPh2Lab2(Signal *);
   void initGciFilesLab(Signal *);
   void dictStartConfLab(Signal *);
-  void nodeDictStartConfLab(Signal *);
+  void nodeDictStartConfLab(Signal *, Uint32 nodeId);
   void ndbStartReqLab(Signal *, BlockReference ref);
   void nodeRestartStartRecConfLab(Signal *);
   void dihCopyCompletedLab(Signal *);

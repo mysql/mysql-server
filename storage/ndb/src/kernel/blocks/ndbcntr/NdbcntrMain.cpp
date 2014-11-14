@@ -758,6 +758,11 @@ the next node can only receive CNTR_START_CONF after the previous starting
 node have completed copying the metadata and releasing the metadata locks and
 locks on DIH info, that happens below in STTOR phase 5.
 
+So in a rolling restart it is quite common that the first node will get
+CNTR_START_CONF and then instead get blocked on the DICT lock waiting for
+an LCP to complete. The other nodes starting up in parallel will instead
+wait on CNTR_START_CONF since only one node at a time can pass this.
+
 After receiving CNTR_START_CONF, NDBCNTR continues by running NDB_STTOR
 phase 1. Here DBLQH initialises the node records, it starts a reporting
 service. It does also initialise the data about the REDO log, this also

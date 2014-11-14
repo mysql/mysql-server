@@ -3213,9 +3213,14 @@ void Qmgr::execNDB_FAILCONF(Signal* signal)
   }
   
   ptrCheckGuard(failedNodePtr, MAX_NDB_NODES, nodeRec);
-  if (failedNodePtr.p->failState == WAITING_FOR_NDB_FAILCONF){
+  if (failedNodePtr.p->failState == WAITING_FOR_NDB_FAILCONF)
+  {
+    g_eventLogger->info("Node %u has completed node fail handling",
+                        failedNodePtr.i);
     failedNodePtr.p->failState = NORMAL;
-  } else {
+  }
+  else
+  {
     jam();
 
     char buf[100];
