@@ -16,7 +16,6 @@
 
 #include "my_global.h"         // NO_EMBEDDED_ACCESS_CHECKS
 #include "sql_priv.h"
-#include "unireg.h"
 #include "sql_cache.h"         // query_cache_*
 #include "probes_mysql.h"
 #include "sql_show.h"          // append_identifier
@@ -85,35 +84,6 @@ struct SP_TABLE
   uint lock_count;
   uint query_lock_count;
   uint8 trg_event_map;
-};
-
-
-/**
-   A simple RAII wrapper around Strict_error_handler.
-*/
-class Strict_error_handler_wrapper
-{
-  THD *m_thd;
-  Strict_error_handler m_strict_handler;
-  bool m_active;
-
-public:
-  Strict_error_handler_wrapper(THD *thd, sp_head *sp_head)
-    : m_thd(thd), m_active(false)
-  {
-    if (sp_head->m_sql_mode & (MODE_STRICT_ALL_TABLES |
-                               MODE_STRICT_TRANS_TABLES))
-    {
-      m_thd->push_internal_handler(&m_strict_handler);
-      m_active= true;
-    }
-  }
-
-  ~Strict_error_handler_wrapper()
-  {
-    if (m_active)
-      m_thd->pop_internal_handler();
-  }
 };
 
 
@@ -1011,9 +981,6 @@ bool sp_head::execute_trigger(THD *thd,
   DBUG_ENTER("sp_head::execute_trigger");
   DBUG_PRINT("info", ("trigger %s", m_name.str));
 
-  // Push Strict_error_handler if the SP was created in STRICT mode.
-  Strict_error_handler_wrapper strict_wrapper(thd, this);
-
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   Security_context *save_ctx= NULL;
   LEX_CSTRING definer_user= {m_definer_user.str, m_definer_user.length};
@@ -1136,9 +1103,6 @@ bool sp_head::execute_function(THD *thd, Item **argp, uint argcount,
 
   DBUG_ENTER("sp_head::execute_function");
   DBUG_PRINT("info", ("function %s", m_name.str));
-
-  // Push Strict_error_handler if the SP was created in STRICT mode.
-  Strict_error_handler_wrapper strict_wrapper(thd, this);
 
   // Resetting THD::where to its default value
   thd->where= THD::DEFAULT_WHERE;
@@ -1382,9 +1346,6 @@ bool sp_head::execute_procedure(THD *thd, List<Item> *args)
 
   DBUG_ENTER("sp_head::execute_procedure");
   DBUG_PRINT("info", ("procedure %s", m_name.str));
-
-  // Push Strict_error_handler if the SP was created in STRICT mode.
-  Strict_error_handler_wrapper strict_wrapper(thd, this);
 
   if (args->elements != params)
   {

@@ -724,7 +724,9 @@ rtr_page_get_father_node_ptr_func(
 	offsets = rec_get_offsets(node_ptr, index, offsets,
 				  ULINT_UNDEFINED, &heap);
 
-	if (btr_node_ptr_get_child_page_no(node_ptr, offsets) != page_no) {
+	ulint	child_page = btr_node_ptr_get_child_page_no(node_ptr, offsets);
+
+	if (child_page != page_no) {
 		rec_t*	print_rec;
 		fputs("InnoDB: Dump of the child page:\n", stderr);
 		buf_page_print(page_align(user_rec), univ_page_size,
@@ -733,14 +735,10 @@ rtr_page_get_father_node_ptr_func(
 		buf_page_print(page_align(node_ptr), univ_page_size,
 			       BUF_PAGE_PRINT_NO_CRASH);
 
-		fputs("InnoDB: Corruption of an index tree: table ", stderr);
-		ut_print_name(stderr, NULL, index->table_name);
-		fprintf(stderr, ", index %s,\n"
-			"InnoDB: father ptr page no %lu, child page no %lu\n",
-			index->name,
-			(ulong)
-			btr_node_ptr_get_child_page_no(node_ptr, offsets),
-			(ulong) page_no);
+		ib::error() << "Corruption of index " << index->name
+			<< " of table " << index->table->name
+			<< " parent page " << page_no
+			<< " child page " << child_page;
 		print_rec = page_rec_get_next(
 			page_get_infimum_rec(page_align(user_rec)));
 		offsets = rec_get_offsets(print_rec, index,

@@ -5339,9 +5339,14 @@ Item_cond::fix_fields(THD *thd, Item **ref)
   DBUG_ASSERT(fixed == 0);
   List_iterator<Item> li(list);
   Item *item;
-  Switch_resolve_place SRP(&thd->lex->current_select()->resolve_place,
-                           st_select_lex::RESOLVE_NONE,
-                           functype() != COND_AND_FUNC);
+
+  /*
+    Semi-join flattening should only be performed for predicates on
+    the AND-top-level. Disable it if this condition is not an AND.
+  */
+  Disable_semijoin_flattening DSF(thd->lex->current_select(),
+                                  functype() != COND_AND_FUNC);
+
   uchar buff[sizeof(char*)];			// Max local vars in function
   used_tables_cache= 0;
   const_item_cache= true;
@@ -5960,6 +5965,10 @@ bool Item_func_like::itemize(Parse_context *pc, Item **res)
 longlong Item_func_like::val_int()
 {
   DBUG_ASSERT(fixed == 1);
+
+  if (!escape_evaluated && eval_escape_clause(current_thd))
+    return error_int();
+
   String* res = args[0]->val_str(&cmp.value1);
   if (args[0]->null_value)
   {
@@ -6008,8 +6017,12 @@ Item_func::optimize_type Item_func_like::select_optimize() const
 bool Item_func_like::fix_fields(THD *thd, Item **ref)
 {
   DBUG_ASSERT(fixed == 0);
+
+  Disable_semijoin_flattening DSF(thd->lex->current_select(), true);
+
   if (Item_bool_func2::fix_fields(thd, ref) ||
-      escape_item->fix_fields(thd, &escape_item))
+      escape_item->fix_fields(thd, &escape_item) ||
+      escape_item->check_cols(1))
     return true;
 
   if (!escape_item->const_during_execution())
@@ -6020,55 +6033,12 @@ bool Item_func_like::fix_fields(THD *thd, Item **ref)
   
   if (escape_item->const_item())
   {
-    /* If we are on execution stage */
-    String *escape_str= escape_item->val_str(&cmp.value1);
-    if (escape_str)
-    {
-      const char *escape_str_ptr= escape_str->ptr();
-      if (escape_used_in_parsing && (
-             (((thd->variables.sql_mode & MODE_NO_BACKSLASH_ESCAPES) &&
-                escape_str->numchars() != 1) ||
-               escape_str->numchars() > 1)))
-      {
-        my_error(ER_WRONG_ARGUMENTS,MYF(0),"ESCAPE");
-        return TRUE;
-      }
-
-      if (use_mb(cmp.cmp_collation.collation))
-      {
-        const CHARSET_INFO *cs= escape_str->charset();
-        my_wc_t wc;
-        int rc= cs->cset->mb_wc(cs, &wc,
-                                (const uchar*) escape_str_ptr,
-                                (const uchar*) escape_str_ptr +
-                                escape_str->length());
-        escape= (int) (rc > 0 ? wc : '\\');
-      }
-      else
-      {
-        /*
-          In the case of 8bit character set, we pass native
-          code instead of Unicode code as "escape" argument.
-          Convert to "cs" if charset of escape differs.
-        */
-        const CHARSET_INFO *cs= cmp.cmp_collation.collation;
-        size_t unused;
-        if (escape_str->needs_conversion(escape_str->length(),
-                                         escape_str->charset(), cs, &unused))
-        {
-          char ch;
-          uint errors;
-          size_t cnvlen= copy_and_convert(&ch, 1, cs, escape_str_ptr,
-                                          escape_str->length(),
-                                          escape_str->charset(), &errors);
-          escape= cnvlen ? ch : '\\';
-        }
-        else
-          escape= escape_str_ptr ? *escape_str_ptr : '\\';
-      }
-    }
-    else
-      escape= '\\';
+    /*
+      We need to know the escape character in order to apply Boyer-Moore. Since
+      it is const, it is safe to evaluate it now at the resolution stage.
+    */
+    if (eval_escape_clause(thd))
+      return true;
 
     /*
       We could also do boyer-more for non-const items, but as we would have to
@@ -6123,7 +6093,73 @@ bool Item_func_like::fix_fields(THD *thd, Item **ref)
 void Item_func_like::cleanup()
 {
   can_do_bm= false;
+  escape_evaluated= false;
   Item_bool_func2::cleanup();
+}
+
+/**
+  Evaluate the expression in the escape clause.
+
+  @param thd  thread handler
+  @return false on success, true on failure
+ */
+bool Item_func_like::eval_escape_clause(THD *thd)
+{
+  DBUG_ASSERT(!escape_evaluated);
+
+  String buf;
+  String *escape_str= escape_item->val_str(&buf);
+  if (escape_str)
+  {
+    const char *escape_str_ptr= escape_str->ptr();
+    if (escape_used_in_parsing && (
+           (((thd->variables.sql_mode & MODE_NO_BACKSLASH_ESCAPES) &&
+              escape_str->numchars() != 1) ||
+             escape_str->numchars() > 1)))
+    {
+      my_error(ER_WRONG_ARGUMENTS,MYF(0),"ESCAPE");
+      return true;
+    }
+
+    if (use_mb(cmp.cmp_collation.collation))
+    {
+      const CHARSET_INFO *cs= escape_str->charset();
+      my_wc_t wc;
+      int rc= cs->cset->mb_wc(cs, &wc,
+                              (const uchar*) escape_str_ptr,
+                              (const uchar*) escape_str_ptr +
+                              escape_str->length());
+      escape= (int) (rc > 0 ? wc : '\\');
+    }
+    else
+    {
+      /*
+        In the case of 8bit character set, we pass native
+        code instead of Unicode code as "escape" argument.
+        Convert to "cs" if charset of escape differs.
+      */
+      const CHARSET_INFO *cs= cmp.cmp_collation.collation;
+      size_t unused;
+      if (escape_str->needs_conversion(escape_str->length(),
+                                       escape_str->charset(), cs, &unused))
+      {
+        char ch;
+        uint errors;
+        size_t cnvlen= copy_and_convert(&ch, 1, cs, escape_str_ptr,
+                                        escape_str->length(),
+                                        escape_str->charset(), &errors);
+        escape= cnvlen ? ch : '\\';
+      }
+      else
+        escape= escape_str_ptr ? *escape_str_ptr : '\\';
+    }
+  }
+  else
+    escape= '\\';
+
+  escape_evaluated= true;
+
+  return false;
 }
 
 /**
@@ -6187,6 +6223,9 @@ bool
 Item_func_regex::fix_fields(THD *thd, Item **ref)
 {
   DBUG_ASSERT(fixed == 0);
+
+  Disable_semijoin_flattening DSF(thd->lex->current_select(), true);
+
   if ((!args[0]->fixed &&
        args[0]->fix_fields(thd, args)) || args[0]->check_cols(1) ||
       (!args[1]->fixed &&

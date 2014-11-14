@@ -14,7 +14,6 @@
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 #include "sql_priv.h"
-#include "unireg.h"
 #include "rpl_rli.h"
 #include "rpl_record.h"
 #include "rpl_slave.h"                  // Need to pull in slave_print_msg

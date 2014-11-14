@@ -634,7 +634,7 @@ row_undo_mod_del_unmark_sec_and_undo_update(
 		ut_ad(!dict_index_is_online_ddl(index));
 	}
 
-	btr_pcur_get_btr_cur(&pcur)->thr = thr;
+	btr_cur->thr = thr;
 
 	search_result = row_search_index_entry(index, entry, mode,
 					       &pcur, &mtr);
@@ -659,24 +659,12 @@ row_undo_mod_del_unmark_sec_and_undo_update(
 			finished building the index, but it does not
 			yet exist in MySQL. In this case, we suppress
 			the printout to the error log. */
-			fputs("InnoDB: error in sec index entry del undo in\n"
-			      "InnoDB: ", stderr);
-			dict_index_name_print(stderr, trx, index);
-			fputs("\n"
-			      "InnoDB: tuple ", stderr);
-			dtuple_print(stderr, entry);
-			fputs("\n"
-			      "InnoDB: record ", stderr);
-			rec_print(stderr, btr_pcur_get_rec(&pcur), index);
-			putc('\n', stderr);
-			trx_print(stderr, trx, 0);
-			fputs("\n"
-			      "InnoDB: Submit a detailed bug report"
-			      " to http://bugs.mysql.com\n", stderr);
-
 			ib::warn() << "Record in index " << index->name
+				<< " of table " << index->table->name
 				<< " was not found on rollback, trying to"
-				" insert";
+				" insert: " << *entry
+				<< " at: " << rec_index_print(
+					btr_cur_get_rec(btr_cur), index);
 		}
 
 		if (btr_cur->up_match >= dict_index_get_n_unique(index)

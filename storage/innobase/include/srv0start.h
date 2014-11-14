@@ -131,7 +131,7 @@ extern	bool	srv_is_being_started;
 extern	ibool	srv_was_started;
 /** TRUE if the server is being started, before rolling back any
 incomplete transactions */
-extern	ibool	srv_startup_is_before_trx_rollback_phase;
+extern	bool	srv_startup_is_before_trx_rollback_phase;
 
 /** TRUE if a raw partition is in use */
 extern	ibool	srv_start_raw_disk_in_use;

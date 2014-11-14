@@ -1089,13 +1089,6 @@ static bool parse_com_change_user_packet(MPVIO_EXT *mpvio, size_t packet_length)
     if (mpvio->charset_adapter->init_client_charset(uint2korr(ptr)))
       DBUG_RETURN(1);
   }
-  else
-  {
-    sql_print_warning("Client failed to provide its character set. "
-                      "'%s' will be used as client character set.",
-                      mpvio->charset_adapter->charset()->csname);
-  }
-
 
   /* Convert database and user names to utf8 */
   db_len= copy_and_convert(db_buff, sizeof(db_buff) - 1, system_charset_info,
@@ -1412,9 +1405,6 @@ static size_t parse_client_handshake_packet(MPVIO_EXT *mpvio,
     mpvio->client_capabilities= uint4korr(end);
     mpvio->max_client_packet_length= 0xfffff;
     charset_code= global_system_variables.character_set_client->number;
-    sql_print_warning("Client failed to provide its character set. "
-                      "'%s' will be used as client character set.",
-                      global_system_variables.character_set_client->csname);
     if (mpvio->charset_adapter->init_client_charset(charset_code))
       return packet_error;
     goto skip_to_ssl;
@@ -1452,9 +1442,6 @@ static size_t parse_client_handshake_packet(MPVIO_EXT *mpvio,
       was that they used what ever the server used.
     */
     charset_code= global_system_variables.character_set_client->number;
-    sql_print_warning("Client failed to provide its character set. "
-                      "'%s' will be used as client character set.",
-                      global_system_variables.character_set_client->csname);
   }
 
   DBUG_PRINT("info", ("client_character_set: %u", charset_code));

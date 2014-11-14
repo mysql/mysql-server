@@ -44,7 +44,14 @@ public:
 #endif
   }
 
-  ~Cost_model_server();
+  /**
+    Desctructor for Cost_model_server objects.
+
+    @note This is declared virtual in order to make it easier to implement
+    stubs for this class for use in unit tests.
+  */
+
+  virtual ~Cost_model_server();
 
   /**
     Initialize the cost model object for a query.

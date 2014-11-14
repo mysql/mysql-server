@@ -1267,22 +1267,15 @@ loop:
 	}
 }
 
-/****************************************************************//**
-Does a syncronous flush of the log buffer to disk. */
+/** write to the log file up to the last log entry.
+@param[in]	sync	whether we want the written log
+also to be flushed to disk. */
 void
-log_buffer_flush_to_disk(void)
-/*==========================*/
+log_buffer_flush_to_disk(
+	bool sync)
 {
-	lsn_t	lsn;
-
 	ut_ad(!srv_read_only_mode);
-	log_mutex_enter();
-
-	lsn = log_sys->lsn;
-
-	log_mutex_exit();
-
-	log_write_up_to(lsn, true);
+	log_write_up_to(log_get_lsn(), sync);
 }
 
 /****************************************************************//**

@@ -55,8 +55,7 @@ create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
   All methods presume that there is at least one field to change.
 */
 
-TABLE *create_virtual_tmp_table(THD *thd, List<Create_field> &field_list,
-                                MEM_ROOT *mem_root= NULL);
+TABLE *create_virtual_tmp_table(THD *thd, List<Create_field> &field_list);
 bool create_ondisk_from_heap(THD *thd, TABLE *table,
                              MI_COLUMNDEF *start_recinfo,
                              MI_COLUMNDEF **recinfo, 

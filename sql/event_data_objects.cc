@@ -16,7 +16,6 @@
 #define MYSQL_LEX 1
 #include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
 #include "sql_priv.h"
-#include "unireg.h"
 #include "sql_parse.h"                          // parse_sql
 #include "strfunc.h"                           // find_string_in_array
 #include "sql_db.h"                        // get_default_db_collation

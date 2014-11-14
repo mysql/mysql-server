@@ -821,6 +821,7 @@ SELECT f1(-2500);
 
 SET @@sql_mode = 'traditional';
 
+--error ER_WARN_DATA_OUT_OF_RANGE
 SELECT f1(-2500);
 
 # Recreate the function in TRADITIONAL mode.
@@ -885,6 +886,7 @@ SELECT f1(8388699);
 
 SET @@sql_mode = 'traditional';
 
+--error ER_WARN_DATA_OUT_OF_RANGE
 SELECT f1(8388699);
 
 # Recreate the function in TRADITIONAL mode.
