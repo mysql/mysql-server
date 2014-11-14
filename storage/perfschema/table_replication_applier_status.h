@@ -15,12 +15,12 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 
-#ifndef TABLE_REPLICATION_EXECUTE_STATUS_BY_COORDINATOR_H
-#define TABLE_REPLICATION_EXECUTE_STATUS_BY_COORDINATOR_H
+#ifndef TABLE_REPLICATION_APPLIER_STATUS_H
+#define TABLE_REPLICATION_APPLIER_STATUS_H
 
 /**
-  @file storage/perfschema/table_replication_execute_applier_by_coordinator.h
-  Table replication_execute_status_by_coordinator(declarations).
+  @file storage/perfschema/table_replication_applier_status.h
+  Table replication_applier_status (declarations).
 */
 
 #include "pfs_column_types.h"
@@ -39,31 +39,25 @@ class Master_info;
 
 #ifndef ENUM_RPL_YES_NO
 #define ENUM_RPL_YES_NO
-/** enum values for Service_State of coordinator thread */
+/** enum values for Service_State field*/
 enum enum_rpl_yes_no {
-  PS_RPL_YES= 1, /* Service_State= on */
-  PS_RPL_NO /* Service_State= off */
+  PS_RPL_YES= 1,
+  PS_RPL_NO
 };
 #endif
 
-/*
-  A row in coordinator's table. The fields with string values have an
-  additional length field denoted by <field_name>_length.
-*/
-struct st_row_coordinator {
+/** A row in the table. */
+struct st_row_applier_status {
   char channel_name[CHANNEL_NAME_LENGTH];
   uint channel_name_length;
-  ulonglong thread_id;
-  bool thread_id_is_null;
   enum_rpl_yes_no service_state;
-  uint last_error_number;
-  char last_error_message[MAX_SLAVE_ERRMSG];
-  uint last_error_message_length;
-  ulonglong last_error_timestamp;
+  uint remaining_delay;
+  bool remaining_delay_is_set;
+  ulong count_transactions_retries;
 };
 
-/** Table PERFORMANCE_SCHEMA.replication_execute_status_by_coordinator */
-class table_replication_execute_status_by_coordinator: public PFS_engine_table
+/** Table PERFORMANCE_SCHEMA.replication_applier_status */
+class table_replication_applier_status: public PFS_engine_table
 {
 private:
   void make_row(Master_info *mi);
@@ -73,7 +67,7 @@ private:
   /** Fields definition. */
   static TABLE_FIELD_DEF m_field_def;
   /** Current row */
-  st_row_coordinator m_row;
+  st_row_applier_status m_row;
   /** True is the current row exists. */
   bool m_row_exists;
   /** Current position. */
@@ -95,10 +89,10 @@ protected:
                               Field **fields,
                               bool read_all);
 
-  table_replication_execute_status_by_coordinator();
+  table_replication_applier_status();
 
 public:
-  ~table_replication_execute_status_by_coordinator();
+  ~table_replication_applier_status();
 
   /** Table share. */
   static PFS_engine_table_share m_share;
