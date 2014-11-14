@@ -25,7 +25,7 @@
 #include <NdbBackup.hpp>
 #include <ndb_version.h>
 #include <random.h>
-#include <NdbMutex.hpp>
+#include <NdbMutex.h>
 
 static Vector<BaseString> table_list;
 
@@ -310,7 +310,7 @@ createDropEvent(NDBT_Context* ctx, NDBT_Step* step, bool wait = true)
 {
   if (!wait)
   {
-    if (NdbMutex_TryLock(createDropEvent_mutex) != 0)
+    if (NdbMutex_Trylock(createDropEvent_mutex) != 0)
     {
       g_err << "Skipping createDropEvent since already running in other process" << endl;
       return NDBT_OK;
