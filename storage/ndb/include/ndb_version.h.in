@@ -873,4 +873,9 @@ ndbd_multi_tc_instance_takeover(Uint32 x)
  */
 #define NDBD_EXTRA_PARALLEL_FRAG_LCP NDB_MAKE_VERSION(7,4,1)
 
+/**
+ * Support for removing EMPTY_LCP_REQ protocol in master takeover
+ */
+#define NDBD_EMPTY_LCP_NOT_NEEDED NDB_MAKE_VERSION(7,4,3)
+
 #endif

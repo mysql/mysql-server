@@ -436,9 +436,7 @@ public:
   enum LcpCloseState {
     LCP_IDLE = 0,
     LCP_RUNNING = 1,       // LCP is running
-    LCP_CLOSE_STARTED = 2, // Completion(closing of files) has started
-    ACC_LCP_CLOSE_COMPLETED = 3,
-    TUP_LCP_CLOSE_COMPLETED = 4
+    LCP_CLOSE_STARTED = 2  // Completion(closing of files) has started
   };
 
   enum ExecUndoLogState {
@@ -835,6 +833,10 @@ public:
      */
     Uint16 copyNode;
     /**
+     * Instance key for fast access.
+     */
+    Uint16 lqhInstanceKey;
+    /**
      *       This variable ensures that only one copy fragment is
      *       active at a time on the fragment.
      */
@@ -882,11 +884,15 @@ public:
      * Log part
      */
     Uint32 m_log_part_ptr_i;
-
     /**
-     * Instance key for fast access.
+     * LCP_FRAG_ORD info for the c_queued_lcp_frag_ord queue.
      */
-    Uint16 lqhInstanceKey;
+    enum LcpExecutionState
+    {
+      LCP_QUEUED = 0,
+      LCP_EXECUTING = 1,
+      LCP_EXECUTED = 2
+    };
 
     /* 
        Usage counters. Except for m_queuedScanCount, these only count 'user' 
@@ -969,6 +975,9 @@ public:
         memset(this, 0, sizeof *this);
       }
     };
+    Uint32 lcp_frag_ord_lcp_no;
+    Uint32 lcp_frag_ord_lcp_id;
+    LcpExecutionState lcp_frag_ord_state;
     UsageStat m_useStat;
   };
   typedef Ptr<Fragrecord> FragrecordPtr;
@@ -1071,7 +1080,6 @@ public:
    *       checkpoint that is ongoing. This record is also used as a
    *       system restart record.
    */
-#define MAX_QUEUED_LCP_FRAGMENTS 128
   struct LcpRecord {
     LcpRecord() { m_EMPTY_LCP_REQ.clear(); }
     
@@ -1096,9 +1104,6 @@ public:
       LcpFragOrd lcpFragOrd;
     };
     FragOrd currentFragment;
-    
-    Uint32  numFragLcpsQueued;
-    FragOrd queuedFragment[MAX_QUEUED_LCP_FRAGMENTS];
     
     bool   reportEmpty;
     NdbNodeBitmask m_EMPTY_LCP_REQ;
@@ -3204,6 +3209,7 @@ private:
   DLFifoList<Fragrecord> c_lcp_waiting_fragments;  // StartFragReq'ed
   DLFifoList<Fragrecord> c_lcp_restoring_fragments; // Restoring as we speek
   DLFifoList<Fragrecord> c_lcp_complete_fragments;  // Restored
+  DLFifoList<Fragrecord> c_queued_lcp_frag_ord;     //Queue for LCP_FRAG_ORDs
   
 /* ------------------------------------------------------------------------- */
 /*USED DURING SYSTEM RESTART, INDICATES THE OLDEST GCI THAT CAN BE RESTARTED */
