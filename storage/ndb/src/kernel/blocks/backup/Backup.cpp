@@ -66,6 +66,9 @@
 #include <NdbTick.h>
 #include <dbtup/Dbtup.hpp>
 
+#include <EventLogger.hpp>
+extern EventLogger * g_eventLogger;
+
 #include <math.h>
 
 #define JAM_FILE_ID 475
@@ -537,7 +540,21 @@ Backup::send_next_reset_disk_speed_counter(Signal *signal)
 void
 Backup::execCHECK_NODE_RESTARTCONF(Signal *signal)
 {
+  bool old_is_any_node_restarting = m_is_any_node_restarting;
   m_is_any_node_restarting = (signal->theData[0] == 1);
+  if (old_is_any_node_restarting != m_is_any_node_restarting)
+  {
+    if (old_is_any_node_restarting)
+    {
+      g_eventLogger->info("We are adjusting Max Disk Write Speed,"
+                          " no restarts ongoing anymore");
+    }
+    else
+    {
+      g_eventLogger->info("We are adjusting Max Disk Write Speed,"
+                          " a restart is ongoing now");
+    }
+  }
 }
 
 void

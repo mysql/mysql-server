@@ -197,6 +197,8 @@ Backup::execREAD_CONFIG_REQ(Signal* signal)
      * we will remove the adaptiveness of the LCP speed.
      */
     jam();
+    ndbout << "Setting MaxDiskWriteSpeed to MinDiskWriteSpeed since max < min"
+           << endl;
     c_defaults.m_disk_write_speed_max = c_defaults.m_disk_write_speed_min;
   }
 
@@ -209,6 +211,8 @@ Backup::execREAD_CONFIG_REQ(Signal* signal)
      * at other nodes restarts.
      */
     jam();
+    ndbout << "MaxDiskWriteSpeed larger than MaxDiskWriteSpeedOtherNodeRestart"
+           << " setting both to MaxDiskWriteSpeed" << endl;
     c_defaults.m_disk_write_speed_max_other_node_restart =
       c_defaults.m_disk_write_speed_max;
   }
@@ -222,6 +226,9 @@ Backup::execREAD_CONFIG_REQ(Signal* signal)
      * LCP speed at other nodes restarts.
      */
     jam();
+    ndbout << "Setting MaxDiskWriteSpeedOwnRestart to "
+           << " MaxDiskWriteSpeedOtherNodeRestart since it was smaller"
+           << endl;
     c_defaults.m_disk_write_speed_max_own_restart =
       c_defaults.m_disk_write_speed_max_other_node_restart;
   }

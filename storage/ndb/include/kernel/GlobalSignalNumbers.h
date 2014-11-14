@@ -1092,4 +1092,7 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 #define GSN_INDEX_STAT_REP              656
 
 #define GSN_NODE_STARTED_REP            769
+
+#define GSN_CHECK_NODE_INCLUDED_REQ     770
+#define GSN_CHECK_NODE_INCLUDED_CONF    771
 #endif

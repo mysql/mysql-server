@@ -7221,6 +7221,32 @@ Qmgr::handleFailFromSuspect(Signal* signal,
   failReportLab(signal, sourceNode, (FailRep::FailCause) reason, getOwnNodeId());
 }
 
+/**
+ * We are checking if the node is included in the heartbeat protocol. We use
+ * information to decide if the node has started its restart yet. If it is
+ * included in the heartbeat protocol then it has started, it could be blocked
+ * in many places before being started, but at least it started its restart.
+ */
+void
+Qmgr::execCHECK_NODE_INCLUDED_REQ(Signal *signal)
+{
+  jamEntry();
+  Uint32 started = 0;
+  NodeRecPtr nodePtr;
+  nodePtr.i = signal->theData[0];
+  BlockReference ref = signal->theData[1];
+  ptrCheckGuard(nodePtr, MAX_NDB_NODES, nodeRec);
+  if (nodePtr.p->phase == ZRUNNING)
+  {
+    jam();
+    started = 1;
+  }
+  signal->theData[0] = nodePtr.i;
+  signal->theData[1] = ref;
+  signal->theData[2] = started;
+  sendSignal(DBDIH_REF, GSN_CHECK_NODE_INCLUDED_CONF, signal, 3, JBB);
+}
+
 void
 Qmgr::execDBINFO_SCANREQ(Signal *signal)
 {
