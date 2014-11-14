@@ -20,6 +20,7 @@
 #include "Qmgr.hpp"
 #include <pc.hpp>
 #include <NdbTick.h>
+#include <signaldata/NodeRecoveryStatusRep.hpp>
 #include <signaldata/EventReport.hpp>
 #include <signaldata/StartOrd.hpp>
 #include <signaldata/CloseComReqConf.hpp>
@@ -592,6 +593,119 @@ Qmgr::execREAD_NODESREF(Signal* signal)
 			GSN_READ_NODESREF);
 }
 
+/**
+ * Heartbeat Inclusion Protocol Handling
+ * -------------------------------------
+ * The protocol to include our node in the heartbeat protocol starts when
+ * we call execCM_INFOCONF. We start by opening communication to all nodes
+ * in the cluster. When we start this protocol we don't know anything about
+ * which nodes are up and running and we don't which node is currently the
+ * president of the heartbeat protocol.
+ *
+ * For us to be successful with being included in the heartbeat protocol we
+ * need to be connected to all nodes currently in the heartbeat protocol. It
+ * is important to remember that QMGR sees a node as alive if it is included
+ * in the heartbeat protocol. Higher level notions of aliveness is handled
+ * primarily by the DBDIH block, but also to some extent by NDBCNTR.
+ * 
+ * The protocol starts by the new node sending CM_REGREQ to all nodes it is
+ * connected to. Only the president will respond to this message. We could
+ * have a situation where there currently isn't a president choosen. In this
+ * case an election is held whereby a new president is assigned. In the rest
+ * of this comment we assume that a president already exists.
+ *
+ * So if we were connected to the president we will get a response to the
+ * CM_REGREQ from the president with CM_REGCONF. The CM_REGCONF contains
+ * the set of nodes currently included in the heartbeat protocol.
+ *
+ * The president will send in parallel to sending CM_REGCONF a CM_ADD(prepare)
+ * message to all nodes included in the protocol.
+ *
+ * When receiving CM_REGCONF the new node will send CM_NODEINFOREQ with
+ * information about version of the binary, number of LDM workers and
+ * MySQL version of binary.
+ *
+ * The nodes already included in the heartbeat protocol will wait until it
+ * receives both the CM_ADD(prepare) from the president and the
+ * CM_NODEINFOREQ from the starting node. When it receives those two
+ * messages it will send CM_ACKADD(prepare) to the president and
+ * CM_NODEINFOCONF to the starting node with its own node information.
+ *
+ * When the president received CM_ACKADD(prepare) from all nodes included
+ * in the heartbeat protocol then it sends CM_ADD(AddCommit) to all nodes
+ * included in the heartbeat protocol.
+ * 
+ * When the nodes receives CM_ADD(AddCommit) from the president then
+ * they will enable communication to the new node and immediately start
+ * sending heartbeats to the new node. They will also include the new
+ * node in their view of the nodes included in the heartbeat protocol.
+ * Next they will send CM_ACKADD(AddCommit) back to the president.
+ *
+ * When the president has received CM_ACKADD(AddCommit) from all nodes
+ * included in the heartbeat protocol then it sends CM_ADD(CommitNew)
+ * to the starting node.
+ *
+ * This is also the point where we report the node as included in the
+ * heartbeat protocol to DBDIH as from here the rest of the protocol is
+ * only about informing the new node about the outcome of inclusion
+ * protocol. When we receive the response to this message the new node
+ * can already have proceeded a bit into its restart.
+ *
+ * The starting node after receiving CM_REGCONF waits for all nodes
+ * included in the heartbeat protocol to send CM_NODEINFOCONF and
+ * also for receiving the CM_ADD(CommitNew) from the president. When
+ * all this have been received the new nodes adds itself and all nodes
+ * it have been informed about into its view of the nodes included in
+ * the heartbeat protocol and enables communication to all other
+ * nodes included therein. Finally it sends CM_ACKADD(CommitNew) to
+ * the president.
+ *
+ * When the president has received CM_ACKADD(CommitNew) from the starting
+ * node the inclusion protocol is completed and the president is ready
+ * to receive a new node into the cluster.
+ *
+ * It is the responsibility of the starting nodes to retry after a failed
+ * node inclusion, they will do so with 3 seconds delay. This means that
+ * at most one node per 3 seconds will normally be added to the cluster.
+ * So this phase of adding nodes to the cluster can add up to a little bit
+ * more than a minute of delay in a large cluster starting up.
+ *
+ * We try to depict the above in a graph here as well:
+ *
+ * New node           Nodes included in the heartbeat protocol        President
+ * ----------------------------------------------------------------------------
+ * ----CM_REGREQ--------------------->>
+ * ----CM_REGREQ---------------------------------------------------------->
+ *
+ * <----------------CM_REGCONF---------------------------------------------
+ *                                   <<------CM_ADD(Prepare)---------------
+ *
+ * -----CM_NODEINFOREQ--------------->>
+ *
+ * Nodes included in heartbeat protocol can receive CM_ADD(Prepare) and
+ * CM_NODEINFOREQ in any order.
+ *
+ * <<---CM_NODEINFOCONF-------------- --------CM_ACKADD(Prepare)--------->>
+ *
+ *                                   <<-------CM_ADD(AddCommit)------------
+ *
+ * Here nodes enables communication to new node and starts sending heartbeats
+ *
+ *                                   ---------CM_ACKADD(AddCommit)------->>
+ *
+ * Here we report to DBDIH about new node included in heartbeat protocol
+ * in master node.
+ *
+ * <----CM_ADD(CommitNew)--------------------------------------------------
+ *
+ * Here new node enables communication to new nodes and starts sending
+ * heartbeat messages.
+ *
+ * -----CM_ACKADD(CommitNew)---------------------------------------------->
+ *
+ * Here the president can complete the inclusion protocol and is ready to
+ * receive new nodes into the heartbeat protocol.
+ */
 /*******************************/
 /* CM_INFOCONF                */
 /*******************************/
@@ -688,7 +802,7 @@ Qmgr::sendCmRegReq(Signal * signal, Uint32 nodeId){
 4.4.11 CM_REGREQ */
 /**--------------------------------------------------------------------------
  * If this signal is received someone tries to get registrated. 
- * Only the president have the authority make decissions about new nodes, 
+ * Only the president have the authority make decisions about new nodes, 
  * so only a president or a node that claims to be the president may send a 
  * reply to this signal. 
  * This signal can occur any time after that STTOR was received. 
@@ -2353,6 +2467,14 @@ void Qmgr::execCM_ACKADD(Signal* signal)
     sendSignal(calcQmgrBlockRef(addNodePtr.i), GSN_CM_ADD, signal, 
 	       CmAdd::SignalLength, JBA);
     DEBUG_START(GSN_CM_ADD, addNodePtr.i, "CommitNew");
+    /**
+     * Report to DBDIH that a node have been added to the nodes included
+     * in the heartbeat protocol.
+     */
+    InclNodeHBProtocolRep *rep = (InclNodeHBProtocolRep*)signal->getDataPtrSend();
+    rep->nodeId = addNodePtr.i;
+    EXECUTE_DIRECT(DBDIH, GSN_INCL_NODE_HB_PROTOCOL_REP, signal,
+                   InclNodeHBProtocolRep::SignalLength);
     return;
   }
   case CmAdd::CommitNew:
@@ -3286,10 +3408,8 @@ Qmgr::execNF_COMPLETEREP(Signal* signal)
   }
 
   /**
-   * This is a disgrace...but execNF_COMPLETEREP in ndbapi is a mess
-   *   actually equally messy as it is in ndbd...
-   *   this is therefore a simple way of having ndbapi to get
-   *   earlier information that transactions can be aborted
+   * This is a simple way of having ndbapi to get
+   * earlier information that transactions can be aborted
    */
   signal->theData[0] = rep.failedNodeId;
   NodeRecPtr nodePtr;
@@ -6367,6 +6487,14 @@ Qmgr::execALLOC_NODEID_REQ(Signal * signal)
 
   NodeRecPtr nodePtr;
   nodePtr.i = req.nodeId;
+  if ((nodePtr.i >= MAX_NODES) ||
+      ((req.nodeType == NodeInfo::DB) &&
+       (nodePtr.i >= MAX_NDB_NODES)))
+  {
+    /* Ignore messages about nodes not even within range */
+    jam();
+    return;
+  }
   ptrAss(nodePtr, nodeRec);
 
   if (refToBlock(req.senderRef) != QMGR) // request from management server
@@ -6467,8 +6595,16 @@ Qmgr::execALLOC_NODEID_REQ(Signal * signal)
     jam();
     error = AllocNodeIdRef::NodeTypeMismatch;
   }
-  else if (nodePtr.p->failState != NORMAL)
+  else if ((nodePtr.p->failState != NORMAL) ||
+           ((req.nodeType == NodeInfo::DB) &&
+            (cfailedNodes.get(nodePtr.i))))
   {
+    /**
+     * Either the node has committed its node failure in QMGR but not yet
+     * completed the node internal node failure handling. Or the node
+     * failure commit process is still ongoing in QMGR. We should not
+     * allocate a node id in either case.
+     */
     jam();
     error = AllocNodeIdRef::NodeFailureHandlingNotCompleted;
   }
@@ -6559,11 +6695,34 @@ Qmgr::execALLOC_NODEID_REF(Signal * signal)
 
   jamEntry();
   const AllocNodeIdRef * ref = (AllocNodeIdRef*)signal->getDataPtr();
+
   if (ref->errorCode == AllocNodeIdRef::NF_FakeErrorREF)
   {
     jam();
-    opAllocNodeIdReq.m_tracker.ignoreRef(c_counterMgr,
-                                         refToNode(ref->senderRef));    
+    if (ref->nodeId == refToNode(ref->senderRef))
+    {
+      /**
+       * The node id we are trying to allocate has responded with a REF,
+       * this was sent in response to a node failure, so we are most
+       * likely not ready to allocate this node id yet. Report node
+       * failure handling not ready yet.
+       */
+      jam();
+      opAllocNodeIdReq.m_tracker.reportRef(c_counterMgr,
+                                           refToNode(ref->senderRef));
+      if (opAllocNodeIdReq.m_error == 0)
+      {
+        jam();
+        opAllocNodeIdReq.m_error =
+          AllocNodeIdRef::NodeFailureHandlingNotCompleted;
+      }
+    }
+    else
+    {
+      jam();
+      opAllocNodeIdReq.m_tracker.ignoreRef(c_counterMgr,
+                                           refToNode(ref->senderRef));
+    }
   }
   else
   {
@@ -6634,6 +6793,16 @@ Qmgr::completeAllocNodeIdReq(Signal *signal)
   conf->secret_hi = opAllocNodeIdReq.m_req.secret_hi;
   sendSignal(opAllocNodeIdReq.m_req.senderRef, GSN_ALLOC_NODEID_CONF, signal,
              AllocNodeIdConf::SignalLength, JBB);
+
+  /**
+   * We are the master and master DIH wants to keep track of node restart
+   * state to be able to control LCP start and stop and also to be able
+   * to easily report this state to the user when he asks for it.
+   */
+  AllocNodeIdRep *rep = (AllocNodeIdRep*)signal->getDataPtrSend();
+  rep->nodeId = opAllocNodeIdReq.m_req.nodeId;
+  EXECUTE_DIRECT(DBDIH, GSN_ALLOC_NODEID_REP, signal, 
+		 AllocNodeIdRep::SignalLength);
 }
 	
 void

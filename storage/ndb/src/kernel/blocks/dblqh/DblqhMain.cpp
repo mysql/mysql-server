@@ -21,6 +21,7 @@
 #include <md5_hash.hpp>
 
 #include <ndb_version.h>
+#include <signaldata/NodeRecoveryStatusRep.hpp>
 #include <signaldata/TuxBound.hpp>
 #include <signaldata/AccScan.hpp>
 #include <signaldata/CopyActive.hpp>
@@ -14540,7 +14541,7 @@ Dblqh::force_lcp(Signal* signal)
   }
 
   c_last_force_lcp_time = cLqhTimeOutCount;
-  signal->theData[0] = 7099;
+  signal->theData[0] = DumpStateOrd::DihStartLcpImmediately;
   sendSignal(DBDIH_REF, GSN_DUMP_STATE_ORD, signal, 1, JBB);
 }
 
@@ -18427,6 +18428,8 @@ void Dblqh::execSTART_RECCONF(Signal* signal)
   g_eventLogger->info("LDM instance %u: Completed DD Undo log application",
                       instance());
 
+  sendLOCAL_RECOVERY_COMPLETE_REP(signal,
+           LocalRecoveryCompleteRep::UNDO_DD_COMPLETED);
   if (cstartType == NodeState::ST_INITIAL_NODE_RESTART)
   {
     jam();
@@ -18441,6 +18444,36 @@ void Dblqh::execSTART_RECCONF(Signal* signal)
                       instance(), 
                       csrPhasesCompleted);
   startExecSr(signal);
+}
+
+void Dblqh::sendLOCAL_RECOVERY_COMPLETE_REP(Signal *signal,
+                                  LocalRecoveryCompleteRep::PhaseIds phaseId)
+{
+  LocalRecoveryCompleteRep *rep =
+    (LocalRecoveryCompleteRep*)signal->getDataPtrSend();
+
+  rep->nodeId = getOwnNodeId();
+  rep->phaseId = phaseId;
+  if (isNdbMtLqh())
+  {
+    jam();
+    rep->senderData = cstartRecReqData;
+    rep->instanceId = instance();
+    sendSignal(DBLQH_REF, GSN_LOCAL_RECOVERY_COMP_REP, signal,
+               LocalRecoveryCompleteRep::SignalLengthLocal, JBB);
+  }
+  else
+  {
+    jam();
+    Uint32 master_node_id = refToNode(cmasterDihBlockref);
+    Uint32 master_version = getNodeInfo(master_node_id).m_version;
+    if (master_version >= NDBD_NODE_RECOVERY_STATUS_VERSION)
+    {
+      jam();
+      sendSignal(cmasterDihBlockref, GSN_LOCAL_RECOVERY_COMP_REP, signal,
+                 LocalRecoveryCompleteRep::SignalLengthMaster, JBB);
+    }
+  }
 }
 
 /* ***************> */
@@ -18462,8 +18495,10 @@ Dblqh::rebuildOrderedIndexes(Signal* signal, Uint32 tableId)
     jam();
     g_eventLogger->info("LDM instance %u: Starting to rebuild ordered indexes",
                         instance());
-  }
 
+    sendLOCAL_RECOVERY_COMPLETE_REP(signal,
+                    LocalRecoveryCompleteRep::EXECUTE_REDO_LOG_COMPLETED);
+  }
   if (tableId >= ctabrecFileSize)
   {
     jam();
@@ -26373,6 +26408,9 @@ Dblqh::mark_end_of_lcp_restore(Signal* signal)
                       c_fragmentsStartedWithCopy);
   g_eventLogger->info("LDM instance %u: Starting DD Undo log application",
                       instance());
+
+  sendLOCAL_RECOVERY_COMPLETE_REP(signal,
+                 LocalRecoveryCompleteRep::RESTORE_FRAG_COMPLETED);
 }
 
 void

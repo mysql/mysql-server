@@ -65,9 +65,10 @@ table_id	table_name	comment
 18	disk_write_speed_base	Actual speed of disk writes per LDM thread, base data
 19	disk_write_speed_aggregate	Actual speed of disk writes per LDM thread, aggregate data
 20	frag_operations	Per fragment operational information
+21	restart_info	Times of restart phases in seconds and current state
 SELECT COUNT(*) FROM ndb$tables;
 COUNT(*)
-21
+22
 SELECT * FROM ndb$tables WHERE table_id = 2;
 table_id	table_name	comment
 2	test	for testing
@@ -88,11 +89,12 @@ table_id	table_name	comment
 18	disk_write_speed_base	Actual speed of disk writes per LDM thread, base data
 19	disk_write_speed_aggregate	Actual speed of disk writes per LDM thread, aggregate data
 20	frag_operations	Per fragment operational information
+21	restart_info	Times of restart phases in seconds and current state
 SELECT * FROM ndb$tables WHERE table_name = 'LOGDESTINATION';
 table_id	table_name	comment
 SELECT COUNT(*) FROM ndb$tables t1, ndb$tables t2 WHERE t1.table_id = t1.table_id;
 COUNT(*)
-441
+484
 
 SELECT table_id, table_name, comment from ndb$tables
   WHERE table_id > 2 AND table_id <= 5 ORDER BY table_id;
@@ -120,6 +122,7 @@ table_id	table_name
 14	operations
 3	pools
 7	resources
+21	restart_info
 0	tables
 2	test
 11	threadblocks
@@ -182,6 +185,7 @@ table_id
 18
 19
 20
+21
 
 TRUNCATE ndb$tables;
 ERROR HY000: Table 'ndb$tables' is read only
@@ -460,6 +464,33 @@ node_id
 select count(*) from disk_write_speed_aggregate_node;
 count(*)
 2
+
+desc restart_info;
+Field	Type	Null	Key	Default	Extra
+node_id	int(10) unsigned	YES		NULL	
+node_restart_status	varchar(256)	YES		NULL	
+node_restart_status_int	int(10) unsigned	YES		NULL	
+secs_to_complete_node_failure	int(10) unsigned	YES		NULL	
+secs_to_allocate_node_id	int(10) unsigned	YES		NULL	
+secs_to_include_in_heartbeat_protocol	int(10) unsigned	YES		NULL	
+secs_until_wait_for_ndbcntr_master	int(10) unsigned	YES		NULL	
+secs_wait_for_ndbcntr_master	int(10) unsigned	YES		NULL	
+secs_to_get_start_permitted	int(10) unsigned	YES		NULL	
+secs_to_wait_for_lcp_for_copy_meta_data	int(10) unsigned	YES		NULL	
+secs_to_copy_meta_data	int(10) unsigned	YES		NULL	
+secs_to_include_node	int(10) unsigned	YES		NULL	
+secs_starting_node_to_request_local_recovery	int(10) unsigned	YES		NULL	
+secs_for_local_recovery	int(10) unsigned	YES		NULL	
+secs_restore_fragments	int(10) unsigned	YES		NULL	
+secs_undo_disk_data	int(10) unsigned	YES		NULL	
+secs_exec_redo_log	int(10) unsigned	YES		NULL	
+secs_index_rebuild	int(10) unsigned	YES		NULL	
+secs_to_synchronize_starting_node	int(10) unsigned	YES		NULL	
+secs_wait_lcp_for_restart	int(10) unsigned	YES		NULL	
+secs_wait_subscription_handover	int(10) unsigned	YES		NULL	
+total_restart_secs	int(10) unsigned	YES		NULL	
+select * from restart_info;
+node_id	node_restart_status	node_restart_status_int	secs_to_complete_node_failure	secs_to_allocate_node_id	secs_to_include_in_heartbeat_protocol	secs_until_wait_for_ndbcntr_master	secs_wait_for_ndbcntr_master	secs_to_get_start_permitted	secs_to_wait_for_lcp_for_copy_meta_data	secs_to_copy_meta_data	secs_to_include_node	secs_starting_node_to_request_local_recovery	secs_for_local_recovery	secs_restore_fragments	secs_undo_disk_data	secs_exec_redo_log	secs_index_rebuild	secs_to_synchronize_starting_node	secs_wait_lcp_for_restart	secs_wait_subscription_handover	total_restart_secs
 
 desc cluster_transactions;
 Field	Type	Null	Key	Default	Extra

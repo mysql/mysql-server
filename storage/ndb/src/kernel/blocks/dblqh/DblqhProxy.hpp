@@ -243,6 +243,10 @@ protected:
      */
     static const char* name() { return "START_RECREQ"; }
     StartRecReq m_req;
+    Uint32 phaseToSend;
+    Uint32 restoreFragCompletedCount;
+    Uint32 undoDDCompletedCount;
+    Uint32 execREDOLogCompletedCount;
     // pointers to START_RECREQ_2 for LGMAN, TSMAN
     enum { m_req2cnt = 2 };
     struct {
@@ -264,6 +268,7 @@ protected:
   void execSTART_RECREQ(Signal*);
   void sendSTART_RECREQ(Signal*, Uint32 ssId, SectionHandle*);
   void execSTART_RECCONF(Signal*);
+  void execLOCAL_RECOVERY_COMP_REP(Signal*);
   void sendSTART_RECCONF(Signal*, Uint32 ssId);
 
   // GSN_START_RECREQ_2 [ sub-op, fictional gsn ]

@@ -232,6 +232,9 @@ select node_id from disk_write_speed_base group by node_id, thr_no;
 
 select count(*) from disk_write_speed_aggregate_node;
 
+desc restart_info;
+select * from restart_info;
+
 desc cluster_transactions;
 desc server_transactions;
 desc cluster_operations;

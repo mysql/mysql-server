@@ -24,7 +24,7 @@
  *
  * When adding a new signal, remember to update MAX_GSN and SignalNames.cpp
  */
-const GlobalSignalNumber MAX_GSN = 769;
+const GlobalSignalNumber MAX_GSN = 778;
 
 struct GsnName {
   GlobalSignalNumber gsn;
@@ -1093,6 +1093,13 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 
 #define GSN_NODE_STARTED_REP            769
 
-#define GSN_CHECK_NODE_INCLUDED_REQ     770
-#define GSN_CHECK_NODE_INCLUDED_CONF    771
+#define GSN_ALLOC_NODEID_REP            770
+#define GSN_INCL_NODE_HB_PROTOCOL_REP   771
+#define GSN_NDBCNTR_START_WAIT_REP      772
+#define GSN_NDBCNTR_STARTED_REP         773
+#define GSN_SUMA_HANDOVER_COMPLETE_REP  774
+#define GSN_END_TOREP                   775
+#define GSN_LOCAL_RECOVERY_COMP_REP     776
+#define GSN_CHECK_NODE_INCLUDED_REQ     777
+#define GSN_CHECK_NODE_INCLUDED_CONF    778
 #endif

@@ -437,6 +437,56 @@ DECLARE_NDBINFO_TABLE(FRAG_OPERATIONS, 27) =
   }
 };
 
+DECLARE_NDBINFO_TABLE(RESTART_INFO, 22) =
+{ { "restart_info", 22, 0,
+       "Times of restart phases in seconds and current state" },
+  {
+    {"node_id",                                             Ndbinfo::Number,
+     "node_id" },
+    {"node_restart_status",                                 Ndbinfo::String,
+     "Current state of node recovery"},
+    {"node_restart_status_int",                             Ndbinfo::Number,
+     "Current state of node recovery as number"},
+    {"secs_to_complete_node_failure",                       Ndbinfo::Number,
+     "Seconds to complete node failure handling" },
+    {"secs_to_allocate_node_id",                            Ndbinfo::Number,
+     "Seconds from node failure completion to allocation of node id" },
+    {"secs_to_include_in_heartbeat_protocol",               Ndbinfo::Number,
+     "Seconds from allocation of node id to inclusion in HB protocol" },
+    {"secs_until_wait_for_ndbcntr_master",                     Ndbinfo::Number,
+     "Seconds from included in HB protocol until we wait for ndbcntr master"},
+    {"secs_wait_for_ndbcntr_master",                        Ndbinfo::Number,
+     "Seconds we waited for being accepted by NDBCNTR master to start" },
+    {"secs_to_get_start_permitted",                         Ndbinfo::Number,
+     "Seconds from permit by master until all nodes accepted our start" },
+    {"secs_to_wait_for_lcp_for_copy_meta_data",             Ndbinfo::Number,
+     "Seconds waiting for LCP completion before copying meta data" },
+    {"secs_to_copy_meta_data",                              Ndbinfo::Number,
+     "Seconds to copy meta data to starting node from master" },
+    {"secs_to_include_node",                                Ndbinfo::Number,
+     "Seconds to wait for GCP and inclusion of all nodes into protocols" },
+    {"secs_starting_node_to_request_local_recovery",        Ndbinfo::Number,
+     "Seconds for starting node to request local recovery" },
+    {"secs_for_local_recovery",                             Ndbinfo::Number,
+     "Seconds for local recovery in starting node" },
+    {"secs_restore_fragments",                              Ndbinfo::Number,
+     "Seconds to restore fragments from LCP files" },
+    {"secs_undo_disk_data",                                 Ndbinfo::Number,
+     "Seconds to execute UNDO log on disk data part of records" },
+    {"secs_exec_redo_log",                                  Ndbinfo::Number,
+     "Seconds to execute REDO log on all restored fragments" },
+    {"secs_index_rebuild",                                  Ndbinfo::Number,
+     "Seconds to rebuild indexes on restored fragments" },
+    {"secs_to_synchronize_starting_node",                   Ndbinfo::Number,
+     "Seconds to synchronize starting node from live nodes" },
+    {"secs_wait_lcp_for_restart",                           Ndbinfo::Number,
+  "Seconds to wait for LCP start and completion before restart is completed" },
+    {"secs_wait_subscription_handover",                     Ndbinfo::Number,
+     "Seconds waiting for handover of replication subscriptions" },
+    {"total_restart_secs",                                  Ndbinfo::Number,
+     "Total number of seconds from node failure until node is started again" },
+  }
+};
 
 #define DBINFOTBL(x) { Ndbinfo::x##_TABLEID, (Ndbinfo::Table*)&ndbinfo_##x }
 
@@ -467,7 +517,8 @@ struct ndbinfo_table_list_entry {
   DBINFOTBL(FRAG_MEM_USE),
   DBINFOTBL(DISK_WRITE_SPEED_BASE),
   DBINFOTBL(DISK_WRITE_SPEED_AGGREGATE),
-  DBINFOTBL(FRAG_OPERATIONS)
+  DBINFOTBL(FRAG_OPERATIONS),
+  DBINFOTBL(RESTART_INFO)
 };
 
 static int no_ndbinfo_tables =
