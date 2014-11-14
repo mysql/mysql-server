@@ -934,7 +934,7 @@ void Dbdih::execDICTSTARTCONF(Signal* signal)
   Uint32 nodeId = refToNode(signal->getSendersBlockRef());
   if (nodeId != getOwnNodeId()) {
     jam();
-    nodeDictStartConfLab(signal);
+    nodeDictStartConfLab(signal, nodeId);
   } else {
     jam();
     dictStartConfLab(signal);
@@ -2601,13 +2601,14 @@ void Dbdih::lcpBlockedLab(Signal* signal, Uint32 nodeId, Uint32 retVal)
   c_nodeStartMaster.m_outstandingGsn = GSN_COPY_TABREQ;
 }//Dbdih::lcpBlockedLab()
 
-void Dbdih::nodeDictStartConfLab(Signal* signal) 
+void Dbdih::nodeDictStartConfLab(Signal* signal, Uint32 nodeId)
 {
   /*-----------------------------------------------------------------*/
   // Report that node restart has completed copy of dictionary.
   /*-----------------------------------------------------------------*/
   signal->theData[0] = NDB_LE_NR_CopyDict;
-  sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 1, JBB);
+  signal->theData[1] = nodeId;
+  sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 2, JBB);
 
   /*-------------------------------------------------------------------------*/
   // NOW WE HAVE COPIED BOTH DIH AND DICT INFORMATION. WE ARE NOW READY TO

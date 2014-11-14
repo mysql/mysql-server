@@ -3215,6 +3215,7 @@ MgmtSrvr::alloc_node_id_req(NodeId free_node_id,
                             enum ndb_mgm_node_type type,
                             Uint32 timeout_ms)
 {
+  bool first_attempt = true;
   SignalSender ss(theFacade);
   ss.lock(); // lock will be released on exit
 
@@ -3260,6 +3261,7 @@ MgmtSrvr::alloc_node_id_req(NodeId free_node_id,
       const AllocNodeIdConf * const conf =
         CAST_CONSTPTR(AllocNodeIdConf, signal->getDataPtr());
 #endif
+      g_eventLogger->info("Alloc node id %u succeeded", free_node_id);
       return 0;
     }
     case GSN_ALLOC_NODEID_REF:
@@ -3273,6 +3275,8 @@ MgmtSrvr::alloc_node_id_req(NodeId free_node_id,
           The data nodes haven't decided who is the president (yet)
           and thus can't allocate nodeids -> return "no contact"
         */
+        g_eventLogger->info("Alloc node id %u failed, no new president yet",
+                            free_node_id);
         return NO_CONTACT_WITH_DB_NODES;
       }
 
@@ -3286,6 +3290,13 @@ MgmtSrvr::alloc_node_id_req(NodeId free_node_id,
 	  nodeId = 0;
         if (ref->errorCode != AllocNodeIdRef::NotMaster)
         {
+          if (first_attempt)
+          {
+            first_attempt = false;
+            g_eventLogger->info("Alloc node id %u failed with error code %u, will retry",
+                                free_node_id,
+                                ref->errorCode);
+          }
           /* sleep for a while (100ms) before retrying */
           ss.unlock();
           NdbSleep_MilliSleep(100);  

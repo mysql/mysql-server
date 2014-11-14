@@ -475,14 +475,26 @@ void getTextNR_CopyDict(QQQQ) {
   // REPORT Node Restart completed copy of dictionary information.
   //-----------------------------------------------------------------------
   BaseString::snprintf(m_text, m_text_len, 
-		       "Node restart completed copy of dictionary information");
+		       "Node restart completed copy of dictionary information"
+                       " to Node %u",
+                       theData[1]);
 }
 void getTextNR_CopyDistr(QQQQ) {
   //-----------------------------------------------------------------------
   // REPORT Node Restart completed copy of distribution information.
   //-----------------------------------------------------------------------
-  BaseString::snprintf(m_text, m_text_len, 
-		       "Node restart completed copy of distribution information");
+  if (len == 2)
+  {
+    BaseString::snprintf(m_text, m_text_len, 
+		   "Node restart completed copy of distribution information"
+                       " to Node %u",
+                       theData[1]);
+  }
+  else
+  {
+    BaseString::snprintf(m_text, m_text_len, 
+		   "Node restart completed copy of distribution information");
+  }
 }
 void getTextNR_CopyFragsStarted(QQQQ) {
   //-----------------------------------------------------------------------
