@@ -5224,7 +5224,6 @@ void Dbdih::checkCopyTab(Signal* signal, NodeRecordPtr failedNodePtr)
   switch(c_nodeStartMaster.m_outstandingGsn){
   case GSN_COPY_TABREQ:
     jam();
-    ndbrequire(c_COPY_TABREQ_Counter.isWaitingFor(failedNodePtr.i));
     releaseTabPages(failedNodePtr.p->activeTabptr);
     c_COPY_TABREQ_Counter.clearWaitingFor(failedNodePtr.i);
     c_nodeStartMaster.wait = ZFALSE;
