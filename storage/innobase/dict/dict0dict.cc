@@ -977,7 +977,7 @@ dict_init(void)
 	rw_lock_create(dict_operation_lock_key,
 		       &dict_operation_lock, SYNC_DICT_OPERATION);
 
-	dict_foreign_err_file = os_file_create_tmpfile();
+	dict_foreign_err_file = os_file_create_tmpfile(NULL);
 	ut_a(dict_foreign_err_file);
 
 	mutex_create("dict_foreign_err", &dict_foreign_err_mutex);
@@ -1035,7 +1035,7 @@ dict_table_open_on_name(
 	table = dict_table_check_if_in_cache_low(table_name);
 
 	if (table == NULL) {
-		table = dict_load_table(table_name, TRUE, ignore_err);
+		table = dict_load_table(table_name, true, ignore_err);
 	}
 
 	ut_ad(!table || table->cached);
@@ -1521,7 +1521,7 @@ dict_table_rename_in_cache(
 
 		ut_ad(!is_system_tablespace(table->space));
 		ut_ad(!dict_table_is_temporary(table));
-		ut_ad(dict_table_use_file_per_table(table));
+		ut_ad(dict_table_is_file_per_table(table));
 
 		/* Make sure the data_dir_path is set. */
 		dict_get_and_save_data_dir_path(table, true);
@@ -1554,7 +1554,8 @@ dict_table_rename_in_cache(
 
 		ut_free(filepath);
 
-	} else if (dict_table_use_file_per_table(table)) {
+	} else if (dict_table_is_file_per_table(table)) {
+
 		if (table->dir_path_of_temp_table != NULL) {
 			ib::error() << "Trying to rename a TEMPORARY TABLE "
 				<< old_name
@@ -5532,19 +5533,6 @@ dict_print_info_on_foreign_keys(
 	mutex_exit(&dict_sys->mutex);
 }
 
-/********************************************************************//**
-Displays the names of the index and the table. */
-void
-dict_index_name_print(
-/*==================*/
-	FILE*			file,	/*!< in: output stream */
-	const trx_t*		trx,	/*!< in: transaction */
-	const dict_index_t*	index)	/*!< in: index to print */
-{
-	fprintf(file, "index %s of table ", index->name);
-	ut_print_name(file, trx, index->table_name);
-}
-
 /**********************************************************************//**
 Find a table in dict_sys->table_LRU list with specified space id
 @return table if found, NULL if not */
@@ -5678,11 +5666,11 @@ dict_set_corrupted(
 
 	dict_index_copy_types(tuple, sys_index, 2);
 
-	btr_cur_search_to_nth_level(sys_index, 0, tuple, PAGE_CUR_GE,
+	btr_cur_search_to_nth_level(sys_index, 0, tuple, PAGE_CUR_LE,
 				    BTR_MODIFY_LEAF,
 				    &cursor, 0, __FILE__, __LINE__, &mtr);
 
-	if (cursor.up_match == dtuple_get_n_fields(tuple)) {
+	if (cursor.low_match == dtuple_get_n_fields(tuple)) {
 		/* UPDATE SYS_INDEXES SET TYPE=index->type
 		WHERE TABLE_ID=index->table->id AND INDEX_ID=index->id */
 		ulint	len;

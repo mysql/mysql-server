@@ -17,7 +17,6 @@
 /* Mallocs for used in threads */
 
 #include "sql_priv.h"
-#include "unireg.h"
 #include "thr_malloc.h"
 #include "sql_class.h"
 

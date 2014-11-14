@@ -17,7 +17,6 @@
 
 #include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
 #include "sql_priv.h"
-#include "unireg.h"                    // REQUIRED: for other includes
 #include <mysql.h>
 #include <m_ctype.h>
 #include "my_dir.h"
@@ -7198,7 +7197,7 @@ Item *Item_field::update_value_transformer(uchar *select_arg)
   if (field->table != select->context.table_list->table &&
       type() != Item::TRIGGER_FIELD_ITEM)
   {
-    List<Item> *all_fields= &select->join->all_fields;
+    List<Item> *all_fields= &select->all_fields;
     Ref_ptr_array &ref_pointer_array= select->ref_pointer_array;
     int el= all_fields->elements;
     Item_ref *ref;

@@ -482,17 +482,16 @@ private:
    See Item_subselect::explain_subquery_checker
   */
   enum_parsing_context explain_marker;
-  /* TRUE <=> prepare phase already performed for all selects in the unit. */
-  bool  prepared;
 
-protected:
+  bool prepared; ///< All query blocks in query expression are prepared
+  bool optimized; ///< All query blocks in query expression are optimized
+  bool executed; ///< Query expression has been executed
+
   TABLE_LIST result_table_list;
   select_union *union_result;
   TABLE *table; /* temporary table using for appending UNION results */
 
-  select_result *result;
-  ulonglong found_rows_for_union;
-  bool saved_error;
+  select_result *m_query_result;
 
 public:
   /**
@@ -505,10 +504,6 @@ public:
   uint8 uncacheable;
 
   st_select_lex_unit(enum_parsing_context parsing_context);
-
-  bool
-    optimized, // optimize phase already performed for UNION (unit)
-    executed; // already executed
 
   /// Values for st_select_lex_unit::cleaned
   enum enum_clean_state
@@ -581,13 +576,13 @@ public:
 
   st_select_lex_unit* next_unit() const { return next; }
 
-  select_result *get_result() const { return result; }
-  inline void set_result(select_result *res) { result= res; }
-
+  select_result *query_result() const { return m_query_result; }
+  void set_query_result(select_result *res) { m_query_result= res; }
   /* UNION methods */
-  bool prepare(THD *thd, select_result *result, ulong additional_options);
-  bool optimize();
-  bool exec();
+  bool prepare(THD *thd, select_result *result, ulonglong added_options,
+               ulonglong removed_options);
+  bool optimize(THD *thd);
+  bool execute(THD *thd);
   bool explain(THD *ethd);
   bool cleanup(bool full);
   inline void unclean() { cleaned= UC_DIRTY; }
@@ -596,11 +591,16 @@ public:
   void print(String *str, enum_query_type query_type);
 
   bool add_fake_select_lex(THD *thd);
-  bool init_prepare_fake_select_lex(THD *thd, bool no_const_tables);
-  inline bool is_prepared() const { return prepared; }
-  bool first_select_prepared();
-  bool change_result(select_result_interceptor *result,
-                     select_result_interceptor *old_result);
+  bool prepare_fake_select_lex(THD *thd);
+  void set_prepared() { prepared= true; }
+  void set_optimized() { optimized= true; }
+  void set_executed() { executed= true; }
+  void reset_executed() { executed= false; }
+  bool is_prepared() const { return prepared; }
+  bool is_optimized() const { return optimized; }
+  bool is_executed() const { return executed; }
+  bool change_query_result(select_result_interceptor *result,
+                           select_result_interceptor *old_result);
   void set_limit(st_select_lex *values);
   void set_thd(THD *thd_arg) { thd= thd_arg; }
   inline bool is_union () const;
@@ -661,11 +661,80 @@ typedef Bounds_checked_array<Item*> Ref_ptr_array;
 class st_select_lex: public Sql_alloc
 {
 public:
+  /// @returns a slice of ref_pointer_array
+  Ref_ptr_array ref_ptr_array_slice(size_t slice_num)
+  {
+    size_t slice_sz= ref_pointer_array.size() / 5U;
+    DBUG_ASSERT(ref_pointer_array.size() % 5 == 0);
+    DBUG_ASSERT(slice_num < 5U);
+    return Ref_ptr_array(&ref_pointer_array[slice_num * slice_sz], slice_sz);
+  }
+
   Item  *where_cond() const { return m_where_cond; }
   void   set_where_cond(Item *cond) { m_where_cond= cond; }
   Item **where_cond_ref() { return &m_where_cond; }
   Item  *having_cond() const { return m_having_cond; }
   void   set_having_cond(Item *cond) { m_having_cond= cond; }
+
+  void set_query_result(select_result *result) { m_query_result= result; }
+  select_result *query_result() const { return m_query_result; }
+  bool change_query_result(select_result_interceptor *new_result,
+                           select_result_interceptor *old_result);
+
+  /// Set base options for a query block (and active options too)
+  void set_base_options(ulonglong options_arg)
+  {
+    DBUG_EXECUTE_IF("no_const_tables", options_arg|= OPTION_NO_CONST_TABLES;);
+
+    // Make sure we do not overwrite options by accident
+    DBUG_ASSERT(m_base_options == 0 && m_active_options == 0);
+    m_base_options= options_arg;
+    m_active_options= options_arg;
+  }
+
+  /// Add base options to a query block, also update active options
+  void add_base_options(ulonglong options)
+  {
+    DBUG_ASSERT(first_execution);
+    m_base_options|= options;
+    m_active_options|= options;
+  }
+
+  /**
+    Remove base options from a query block.
+    Active options are also updated, and we assume here that "extra" options
+    cannot override removed base options.
+  */
+  void remove_base_options(ulonglong options)
+  {
+    DBUG_ASSERT(first_execution);
+    m_base_options&= ~options;
+    m_active_options&= ~options;
+  }
+
+  /// Make active options from base options, supplied options and environment:
+  void make_active_options(ulonglong added_options, ulonglong removed_options);
+
+  /// Adjust the active option set
+  void add_active_options(ulonglong options)
+  { m_active_options|= options; }
+
+  /// @return the active query options
+  ulonglong active_options() const { return m_active_options; }
+
+  /// @return true if query block has the DISTINCT qualifier
+  bool is_distinct() const { return active_options() & SELECT_DISTINCT; }
+
+  /// @return true if query block is explicitly grouped
+  bool is_explicitly_grouped() const { return group_list.elements; }
+
+  /// @return true if query block is implicity grouped
+  bool is_implicitly_grouped() const
+  { return m_agg_func_used && group_list.elements == 0; }
+
+  /// @return true if query block is grouped (explicitly or implicitly)
+  bool is_grouped() const
+  { return m_agg_func_used || group_list.elements; }
 
 private:
   /**
@@ -684,14 +753,28 @@ private:
   st_select_lex *link_next;
   st_select_lex **link_prev;
 
+  /// Result of this query block
+  select_result *m_query_result;
+
+  /**
+    Options assigned from parsing and throughout resolving,
+    should not be modified after resolving is done.
+  */
+  ulonglong m_base_options;
+  /**
+    Active options. Derived from base options, modifiers added during
+    resolving and values from session variable option_bits. Since the latter
+    may change, active options are refreshed per execution of a statement.
+  */
+  ulonglong m_active_options;
+
 public:
   /**
     In sql_cache we store SQL_CACHE flag as specified by user to be
     able to restore SELECT statement from internal structures.
   */
   enum e_sql_cache { SQL_CACHE_UNSPECIFIED, SQL_NO_CACHE, SQL_CACHE };
-
-  ulonglong options;
+  
   e_sql_cache sql_cache;
   /*
     result of this query can't be cached, bit field, can be :
@@ -705,13 +788,19 @@ public:
   bool no_table_names_allowed; ///< used for global order by
   Name_resolution_context context;
   /**
-    Two fields used by semi-join transformations to know when semi-join is
+    Three fields used by semi-join transformations to know when semi-join is
     possible, and in which condition tree the subquery predicate is located.
   */
   enum Resolve_place { RESOLVE_NONE, RESOLVE_JOIN_NEST, RESOLVE_CONDITION,
                        RESOLVE_HAVING, RESOLVE_SELECT_LIST };
   Resolve_place resolve_place; ///< Indicates part of query being resolved
   TABLE_LIST *resolve_nest;    ///< Used when resolving outer join condition
+  /**
+    Disables semi-join flattening when resolving a subtree in which flattening
+    is not allowed. The flag should be true while resolving items that are not
+    on the AND-top-level of a condition tree.
+  */
+  bool semijoin_disallowed;
   char *db;
 private:
   /**
@@ -761,14 +850,20 @@ public:
   */
   List<Item>          item_list;
   bool	              is_item_list_lookup;
-  /* 
-    Usualy it is pointer to ftfunc_list_alloc, but in union used to create fake
-    select_lex for calling mysql_select under results of union
+
+  /// Number of GROUP BY expressions added to all_fields
+  int hidden_group_field_count;
+
+  List<Item> &fields_list; ///< hold field list
+  List<Item> all_fields; ///< to store all expressions used in query
+  /**
+    Usually a pointer to ftfunc_list_alloc, but in UNION this is used to create
+    fake select_lex that consolidates result fields of UNION
   */
   List<Item_func_match> *ftfunc_list;
   List<Item_func_match> ftfunc_list_alloc;
   /**
-    After SELECT_LEX::prepare it is pointer to corresponding JOIN. This member
+    After optimization it is pointer to corresponding JOIN. This member
     should be changed only when THD::LOCK_query_plan mutex is taken.
   */
   JOIN *join;
@@ -812,8 +907,10 @@ public:
 
   Item *select_limit, *offset_limit;  /* LIMIT clause parameters */
 
-  /// Array of pointers to top elements of all_fields list
+  /// The complete ref pointer array, with 5 slices (see class JOIN too)
   Ref_ptr_array ref_pointer_array;
+  /// Slice 0 of array, with pointers to all expressions in all_fields
+  Ref_ptr_array ref_ptrs;
 
   /// Number of derived tables and views
   uint derived_table_count;
@@ -922,9 +1019,9 @@ public:
           constructor when the parser is converted into a true bottom-up design.
   */
   st_select_lex(TABLE_LIST *table_list, List<Item> *item_list,
-                Item *where, Item *having, Item *limit, Item *offset,
-                //SQL_I_LIST<ORDER> *group_by, SQL_I_LIST<ORDER> order_by,
-                ulonglong options);
+                Item *where, Item *having, Item *limit, Item *offset
+                //SQL_I_LIST<ORDER> *group_by, SQL_I_LIST<ORDER> order_by
+                );
 
   st_select_lex_unit *master_unit() const { return master; }
   st_select_lex_unit *first_inner_unit() const { return slave; }
@@ -1086,14 +1183,13 @@ public:
     Does permanent transformations which are local to a query block (which do
     not merge it to another block).
   */
-  bool apply_local_transforms();
+  bool apply_local_transforms(THD *thd);
 
   bool get_optimizable_conditions(THD *thd,
                                   Item **new_where, Item **new_having);
 
-  bool check_outermost_option(THD *thd, const char *wrong_option);
-  bool set_query_block_options(THD *thd, ulonglong options_arg,
-                               ulong max_statement_time);
+  bool validate_outermost_option(LEX *lex, const char *wrong_option) const;
+  bool validate_base_options(LEX *lex, ulonglong options) const;
 
 private:
   bool m_agg_func_used;
@@ -1115,7 +1211,16 @@ private:
                       uint *changelog= NULL);
   bool convert_subquery_to_semijoin(Item_exists_subselect *subq_pred);
   bool resolve_subquery(THD *thd);
+  bool resolve_rollup(THD *thd);
+  bool change_group_ref(THD *thd, Item_func *expr, bool *changed);
   bool flatten_subqueries();
+  bool setup_wild(THD *thd);
+  bool setup_order_final(THD *thd, int hidden_order_field_count);
+  bool setup_group(THD *thd);
+  void remove_redundant_subquery_clauses(THD *thd,
+                                         int hidden_group_field_count,
+                                         int hidden_order_field_count);
+  void empty_order_list(int hidden_order_field_count);
   /**
     Pointer to collection of subqueries candidate for semijoin
     conversion.
@@ -1123,8 +1228,10 @@ private:
   */
   Mem_root_array<Item_exists_subselect*, true> *sj_candidates;
 public:
-  int setup_conds(THD *thd);
-  int prepare(JOIN *join);
+  bool fix_inner_refs(THD *thd);
+  bool setup_conds(THD *thd);
+  bool prepare(THD *thd);
+  bool optimize(THD *thd);
   void reset_nj_counters(List<TABLE_LIST> *join_list= NULL);
   bool check_only_full_group_by(THD *thd);
 };
@@ -1386,30 +1493,31 @@ union YYSTYPE {
 #endif
 
 
-/// Utility RAII class to save/modify/restore a Resolve_place
-class Switch_resolve_place
+/**
+  Utility RAII class to save/modify/restore the
+  semijoin_disallowed flag.
+*/
+class Disable_semijoin_flattening
 {
 public:
-  Switch_resolve_place(SELECT_LEX::Resolve_place *rp_ptr,
-                       SELECT_LEX::Resolve_place new_rp,
-                       bool apply)
-    : rp(NULL), saved_rp()
+  Disable_semijoin_flattening(SELECT_LEX *select_ptr, bool apply)
+    : select(NULL), saved_value()
   {
-    if (apply)
+    if (select_ptr && apply)
     {
-      rp= rp_ptr;
-      saved_rp= *rp;
-      *rp= new_rp;
+      select= select_ptr;
+      saved_value= select->semijoin_disallowed;
+      select->semijoin_disallowed= true;
     }
   }
-  ~Switch_resolve_place()
+  ~Disable_semijoin_flattening()
   {
-    if (rp)
-      *rp= saved_rp;
+    if (select)
+      select->semijoin_disallowed= saved_value;
   }
 private:
-  SELECT_LEX::Resolve_place *rp;
-  SELECT_LEX::Resolve_place saved_rp;
+  SELECT_LEX *select;
+  bool saved_value;
 };
 
 
@@ -2615,7 +2723,8 @@ public:
                 thd == current_thd);    //(2)
     m_current_select= select;
   }
-
+  /// @return true if this is an EXPLAIN statement
+  bool is_explain() const { return describe; }
   char *length,*dec,*change;
   LEX_STRING name;
   char *help_arg;

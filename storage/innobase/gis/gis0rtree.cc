@@ -955,6 +955,9 @@ rtr_split_page_move_rec_list(
 		}
 	}
 
+	/* Update the lock table */
+	lock_rtr_move_rec_list(new_block, block, rec_move, moved);
+
 	/* Delete recs in second group from the old page. */
 	for (cur_split_node = node_array;
 	     cur_split_node < end_split_node; ++cur_split_node) {
@@ -969,9 +972,6 @@ rtr_split_page_move_rec_list(
 				index, offsets, mtr);
 		}
 	}
-
-	/* Update the lock table */
-	lock_rtr_move_rec_list(new_block, block, rec_move, moved);
 
 	return(true);
 }
@@ -1119,7 +1119,13 @@ func_start:
 					     first_rec_group,
 					     new_block, block, first_rec,
 					     cursor->index, *heap, mtr)) {
-		ulint n = 0;
+		ulint			n		= 0;
+		rec_t*			rec;
+		ulint			moved		= 0;
+		ulint			max_to_move	= 0;
+		rtr_rec_move_t*		rec_move	= NULL;
+		ulint			pos;
+
 		/* For some reason, compressing new_page failed,
 		even though it should contain fewer records than
 		the original page.  Copy the page byte for byte
@@ -1131,6 +1137,36 @@ func_start:
 				   page_zip, page, cursor->index, mtr);
 
 		page_cursor = btr_cur_get_page_cur(cursor);
+
+		/* Move locks on recs. */
+		max_to_move = page_get_n_recs(page);
+		rec_move = static_cast<rtr_rec_move_t*>(mem_heap_alloc(
+				*heap,
+				sizeof (*rec_move) * max_to_move));
+
+		/* Init the rec_move array for moving lock on recs.  */
+		for (cur_split_node = rtr_split_node_array;
+		     cur_split_node < end_split_node - 1; ++cur_split_node) {
+			if (cur_split_node->n_node != first_rec_group) {
+				pos = page_rec_get_n_recs_before(
+					cur_split_node->key);
+				rec = page_rec_get_nth(new_page, pos);
+				ut_a(rec);
+
+				rec_move[moved].new_rec = rec;
+				rec_move[moved].old_rec = cur_split_node->key;
+				rec_move[moved].moved = false;
+				moved++;
+
+				if (moved > max_to_move) {
+					ut_ad(0);
+					break;
+				}
+			}
+		}
+
+		/* Update the lock table */
+		lock_rtr_move_rec_list(new_block, block, rec_move, moved);
 
 		/* Delete recs in first group from the new page. */
 		for (cur_split_node = rtr_split_node_array;

@@ -852,11 +852,18 @@ static void ndbcluster_reset_slave(THD *thd)
 /**
   Upon the sql command flush logs, we need to ensure that all outstanding
   ndb data to be logged has made it to the binary log to get a deterministic
-  behavior on the rotation of the log.
+  behavior on the rotation of the log. Do nothing if the ndbcluster_flush_logs
+  is caused by binlog group commit during flush stage.
+
+  @param hton NDB handlerton.
+  @param binlog_group_flush true if we got invoked by binlog group
+  commit during flush stage, false in other cases.
+  @return false Success always.
  */
-static bool ndbcluster_flush_logs(handlerton *hton)
+static bool ndbcluster_flush_logs(handlerton *hton, bool binlog_group_flush)
 {
-  ndbcluster_binlog_wait(current_thd);
+  if (!binlog_group_flush)
+    ndbcluster_binlog_wait(current_thd);
   return FALSE;
 }
 

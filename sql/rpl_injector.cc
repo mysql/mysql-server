@@ -14,7 +14,6 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
 #include "sql_priv.h" 
-#include "unireg.h"                             // REQUIRED by later includes
 #include "rpl_injector.h"
 #include "transaction.h"
 #include "sql_parse.h"                          // begin_trans, end_trans, COMMIT

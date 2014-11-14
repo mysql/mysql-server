@@ -16,7 +16,6 @@
 #ifndef SQL_BASE_INCLUDED
 #define SQL_BASE_INCLUDED
 
-#include "unireg.h"                    // REQUIRED: for other includes
 #include "sql_class.h"                          /* enum_mark_columns */
 #include "mysqld.h"                             /* key_map */
 
@@ -34,6 +33,59 @@ class Table_trigger_dispatcher;
 typedef class st_select_lex SELECT_LEX;
 
 typedef struct st_lock_param_type ALTER_PARTITION_PARAM_TYPE;
+
+#define TEMP_PREFIX	"MY"
+
+	/* Defines for use with openfrm, openprt and openfrd */
+
+#define READ_ALL		1	/* openfrm: Read all parameters */
+#define EXTRA_RECORD		8	/* Reservera plats f|r extra record */
+#define DELAYED_OPEN	        4096    /* Open table later */
+#define OPEN_VIEW		8196    /* Allow open on view */
+#define OPEN_VIEW_NO_PARSE     16384    /* Open frm only if it's a view,
+                                           but do not parse view itself */
+/**
+  This flag is used in function get_all_tables() which fills
+  I_S tables with data which are retrieved from frm files and storage engine
+  The flag means that we need to open FRM file only to get necessary data.
+*/
+#define OPEN_FRM_FILE_ONLY     32768
+/**
+  This flag is used in function get_all_tables() which fills
+  I_S tables with data which are retrieved from frm files and storage engine
+  The flag means that we need to process tables only to get necessary data.
+  Views are not processed.
+*/
+#define OPEN_TABLE_ONLY        OPEN_FRM_FILE_ONLY*2
+/**
+  This flag is used in function get_all_tables() which fills
+  I_S tables with data which are retrieved from frm files and storage engine
+  The flag means that we need to process views only to get necessary data.
+  Tables are not processed.
+*/
+#define OPEN_VIEW_ONLY         OPEN_TABLE_ONLY*2
+/**
+  This flag is used in function get_all_tables() which fills
+  I_S tables with data which are retrieved from frm files and storage engine.
+  The flag means that we need to open a view using
+  open_normal_and_derived_tables() function.
+*/
+#define OPEN_VIEW_FULL         OPEN_VIEW_ONLY*2
+/**
+  This flag is used in function get_all_tables() which fills
+  I_S tables with data which are retrieved from frm files and storage engine.
+  The flag means that I_S table uses optimization algorithm.
+*/
+#define OPTIMIZE_I_S_TABLE     OPEN_VIEW_FULL*2
+/**
+  The flag means that we need to process trigger files only.
+*/
+#define OPEN_TRIGGER_ONLY      OPTIMIZE_I_S_TABLE*2
+/**
+  This flag is used to instruct tdc_open_view() to check metadata version.
+*/
+#define CHECK_METADATA_VERSION OPEN_TRIGGER_ONLY*2
+
 
 /*
   This enumeration type is used only by the function find_item_in_list
@@ -186,8 +238,6 @@ bool fill_record_n_invoke_before_triggers(THD *thd, Field **field,
 bool insert_fields(THD *thd, Name_resolution_context *context,
 		   const char *db_name, const char *table_name,
                    List_iterator<Item> *it, bool any_privileges);
-int setup_wild(THD *thd, List<Item> &fields,
-               List<Item> *sum_func_list, uint wild_num);
 bool setup_fields(THD *thd, Ref_ptr_array ref_pointer_array,
                   List<Item> &item, enum_mark_columns mark_used_columns,
                   List<Item> *sum_func_list, bool allow_sum_func);
@@ -651,12 +701,36 @@ public:
 class Strict_error_handler : public Internal_error_handler
 {
 public:
+
+  enum enum_set_select_behavior
+  {
+    DISABLE_SET_SELECT_STRICT_ERROR_HANDLER,
+    ENABLE_SET_SELECT_STRICT_ERROR_HANDLER
+  };
+
+  Strict_error_handler()
+    : m_set_select_behavior(DISABLE_SET_SELECT_STRICT_ERROR_HANDLER)
+  {}
+
+  Strict_error_handler(enum_set_select_behavior param)
+    : m_set_select_behavior(param)
+  {}
+
   bool handle_condition(THD *thd,
                         uint sql_errno,
                         const char* sqlstate,
                         Sql_condition::enum_severity_level *level,
                         const char* msg,
                         Sql_condition ** cond_hdl);
+
+private:
+  /*
+    For SELECT and SET statement, we do not always give error in STRICT mode.
+    For triggers, Strict_error_handler is pushed in the beginning of statement.
+    If a SELECT or SET is executed from the Trigger, it should not always give
+    error. We use this flag to choose when to give error and when warning.
+  */
+  enum_set_select_behavior m_set_select_behavior;
 };
 
 

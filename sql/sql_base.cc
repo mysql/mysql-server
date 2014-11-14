@@ -18,7 +18,6 @@
 #include "sql_base.h"                           // setup_table_map
 #include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
 #include "sql_priv.h"
-#include "unireg.h"
 #include "debug_sync.h"
 #include "lock.h"        // mysql_lock_remove,
                          // mysql_unlock_tables,
@@ -154,10 +153,26 @@ bool Strict_error_handler::handle_condition(THD *thd,
                                             const char *msg,
                                             Sql_condition **cond_hdl)
 {
+  /*
+    STRICT error handler should not be effective if we have changed the
+    variable to turn off STRICT mode. This is the case when a SF/SP/Trigger
+    calls another SP/SF. A statement in SP/SF which is affected by STRICT mode
+    with push this handler for the statement. If the same statement calls
+    another SP/SF/Trigger, we already have the STRICT handler pushed for the
+    statement. We dont want the strict handler to be effective for the
+    next SP/SF/Trigger call if it was not created in STRICT mode.
+  */
+  if (!thd->is_strict_mode())
+    return false;
   /* STRICT MODE should affect only the below statements */
   switch (thd->lex->sql_command)
   {
+  case SQLCOM_SET_OPTION:
+  case SQLCOM_SELECT:
+    if (m_set_select_behavior == DISABLE_SET_SELECT_STRICT_ERROR_HANDLER)
+      return false;
   case SQLCOM_CREATE_TABLE:
+  case SQLCOM_CREATE_INDEX:
   case SQLCOM_DROP_INDEX:
   case SQLCOM_INSERT:
   case SQLCOM_REPLACE:
@@ -171,8 +186,6 @@ bool Strict_error_handler::handle_condition(THD *thd,
   case SQLCOM_LOAD:
   case SQLCOM_CALL:
   case SQLCOM_END:
-  case SQLCOM_SET_OPTION:
-  case SQLCOM_SELECT:
     break;
   default:
     return false;
@@ -190,7 +203,6 @@ bool Strict_error_handler::handle_condition(THD *thd,
   case ER_BAD_NULL_ERROR:
   case ER_NO_DEFAULT_FOR_FIELD:
   case ER_TOO_LONG_KEY:
-  case ER_WRONG_ARGUMENTS:
   case ER_NO_DEFAULT_FOR_VIEW_FIELD:
   case ER_WARN_NULL_TO_NOTNULL:
   case ER_CUT_VALUE_GROUP_CONCAT:
@@ -3412,8 +3424,7 @@ share_found:
                                        HA_OPEN_RNDFILE |
                                        HA_GET_INDEX |
                                        HA_TRY_READ_ONLY),
-                               (READ_KEYINFO | COMPUTE_TYPES |
-                                EXTRA_RECORD),
+                                       EXTRA_RECORD,
                                thd->open_options, table, FALSE);
 
   if (error)
@@ -4285,7 +4296,7 @@ static bool auto_repair_table(THD *thd, TABLE_LIST *table_list)
                             (uint) (HA_OPEN_KEYFILE | HA_OPEN_RNDFILE |
                                     HA_GET_INDEX |
                                     HA_TRY_READ_ONLY),
-                            READ_KEYINFO | COMPUTE_TYPES | EXTRA_RECORD,
+                            EXTRA_RECORD,
                             ha_open_options | HA_OPEN_FOR_REPAIR,
                             entry, FALSE) || ! entry->file ||
       (entry->file->is_crashed() && entry->file->ha_check_and_repair(thd)))
@@ -4522,8 +4533,8 @@ recover_from_failed_open()
           do not modify data but only read it, since in this case nothing is
           written to the binary log. Argument routine_modifies_data
           denotes the same. So effectively, if the statement is not a
-          update query and routine_modifies_data is false, then
-          prelocking_placeholder does not take importance.
+          LOCK TABLE, not a update query and routine_modifies_data is false
+          then prelocking_placeholder does not take importance.
 
           Furthermore, this does not apply to I_S and log tables as it's
           always unsafe to replicate such tables under statement-based
@@ -4550,18 +4561,38 @@ thr_lock_type read_lock_type_for_table(THD *thd,
     at THD::variables::sql_log_bin member.
   */
   bool log_on= mysql_bin_log.is_open() && thd->variables.sql_log_bin;
-  ulong binlog_format= thd->variables.binlog_format;
-  if ((log_on == FALSE) || (binlog_format == BINLOG_FORMAT_ROW) ||
-      (table_list->table->s->table_category == TABLE_CATEGORY_LOG) ||
+
+  /*
+    When we do not write to binlog or when we use row based replication,
+    it is safe to use a weaker lock.
+  */
+  if (log_on == false ||
+      thd->variables.binlog_format == BINLOG_FORMAT_ROW)
+    return TL_READ;
+
+  if ((table_list->table->s->table_category == TABLE_CATEGORY_LOG) ||
       (table_list->table->s->table_category == TABLE_CATEGORY_RPL_INFO) ||
       (table_list->table->s->table_category == TABLE_CATEGORY_GTID) ||
-      (table_list->table->s->table_category == TABLE_CATEGORY_PERFORMANCE) ||
-      !(is_update_query(prelocking_ctx->sql_command) ||
-        (routine_modifies_data && table_list->prelocking_placeholder) ||
-        (thd->locked_tables_mode > LTM_LOCK_TABLES)))
+      (table_list->table->s->table_category == TABLE_CATEGORY_PERFORMANCE))
     return TL_READ;
-  else
+
+  // SQL queries which updates data need a stronger lock.
+  if (is_update_query(prelocking_ctx->sql_command))
     return TL_READ_NO_INSERT;
+
+  /*
+    table_list is placeholder for prelocking.
+    Ignore prelocking_placeholder status for non "LOCK TABLE" statement's
+    table_list objects when routine_modifies_data is false.
+  */
+  if (table_list->prelocking_placeholder &&
+      (routine_modifies_data || thd->in_lock_tables))
+    return TL_READ_NO_INSERT;
+
+  if (thd->locked_tables_mode > LTM_LOCK_TABLES)
+    return TL_READ_NO_INSERT;
+
+  return TL_READ;
 }
 
 
@@ -6521,7 +6552,7 @@ TABLE *open_table_uncached(THD *thd, const char *path, const char *db,
                             open_in_engine ?
                             (uint) (HA_OPEN_KEYFILE | HA_OPEN_RNDFILE |
                                     HA_GET_INDEX) : 0,
-                            READ_KEYINFO | COMPUTE_TYPES | EXTRA_RECORD,
+                            EXTRA_RECORD,
                             ha_open_options,
                             tmp_table,
                             /*
@@ -8514,83 +8545,6 @@ static bool setup_natural_join_row_types(THD *thd,
 
 
 /****************************************************************************
-** Expand all '*' in given fields
-****************************************************************************/
-
-int setup_wild(THD *thd, List<Item> &fields, List<Item> *sum_func_list,
-               uint wild_num)
-{
-  if (!wild_num)
-    return(0);
-
-  Item *item;
-  List_iterator<Item> it(fields);
-  DBUG_ENTER("setup_wild");
-
-  /*
-    Don't use arena if we are not in prepared statements or stored procedures
-    For PS/SP we have to use arena to remember the changes
-  */
-  Prepared_stmt_arena_holder ps_arena_holder(thd);
-
-  while (wild_num && (item= it++))
-  {
-    if (item->type() == Item::FIELD_ITEM &&
-        ((Item_field*) item)->field_name &&
-	((Item_field*) item)->field_name[0] == '*' &&
-	!((Item_field*) item)->field)
-    {
-      uint elem= fields.elements;
-      bool any_privileges= ((Item_field *) item)->any_privileges;
-      Item_subselect *subsel= thd->lex->current_select()->master_unit()->item;
-      if (subsel &&
-          subsel->substype() == Item_subselect::EXISTS_SUBS)
-      {
-        /*
-          It is EXISTS(SELECT * ...) and we can replace * by any constant.
-
-          Item_int do not need fix_fields() because it is basic constant.
-        */
-        it.replace(new Item_int(NAME_STRING("Not_used"), (longlong) 1,
-                                MY_INT64_NUM_DECIMAL_DIGITS));
-      }
-      else if (insert_fields(thd, ((Item_field*) item)->context,
-                             ((Item_field*) item)->db_name,
-                             ((Item_field*) item)->table_name, &it,
-                             any_privileges))
-      {
-	DBUG_RETURN(-1);
-      }
-      if (sum_func_list)
-      {
-	/*
-	  sum_func_list is a list that has the fields list as a tail.
-	  Because of this we have to update the element count also for this
-	  list after expanding the '*' entry.
-	*/
-	sum_func_list->elements+= fields.elements - elem;
-      }
-      wild_num--;
-    }
-  }
-
-  if (ps_arena_holder.is_activated())
-  {
-    /* make * substituting permanent */
-    SELECT_LEX *select_lex= thd->lex->current_select();
-    select_lex->with_wild= 0;
-    /*   
-      The assignment below is translated to memcpy() call (at least on some
-      platforms). memcpy() expects that source and destination areas do not
-      overlap. That problem was detected by valgrind. 
-    */
-    if (&select_lex->item_list != &fields)
-      select_lex->item_list= fields;
-  }
-  DBUG_RETURN(0);
-}
-
-/****************************************************************************
 ** Check that all given fields exists and fill struct with current data
 ****************************************************************************/
 
@@ -9821,15 +9775,21 @@ int setup_ftfuncs(SELECT_LEX *select_lex)
                                  lj(*(select_lex->ftfunc_list));
   Item_func_match *ftf, *ftf2;
 
-  while ((ftf=li++))
+  while ((ftf= li++))
   {
     if (ftf->fix_index())
       return 1;
     lj.rewind();
-    while ((ftf2=lj++) != ftf)
+
+    /*
+      Notice that expressions added late (e.g. in ORDER BY) may be deleted
+      during resolving. It is therefore important that an "early" expression
+      is used as master for a "late" one, and not the other way around.
+    */
+    while ((ftf2= lj++) != ftf)
     {
-      if (ftf->eq(ftf2,1) && !ftf2->master)
-        ftf->set_master(ftf2);
+      if (ftf->eq(ftf2, 1) && !ftf->master)
+        ftf2->set_master(ftf);
     }
   }
 

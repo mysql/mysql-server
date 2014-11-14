@@ -2010,3 +2010,74 @@ connection default;
 --disable_connect_log
 DROP TABLE t1;
 SET sql_mode = default;
+
+
+--echo #
+--echo # BUG 19779365: INDEX COMMENT IN ADD INDEX IS IGNORED.
+--echo #
+
+--echo # After the patch, the alter table reflects the new
+--echo # index comment or the lack of comment for the indexes.
+CREATE TABLE t1(fld1 int, key key1(fld1));
+SHOW INDEX FROM t1;
+ALTER TABLE t1 DROP INDEX key1, ADD INDEX key1(fld1) COMMENT 'test';
+SHOW INDEX FROM t1;
+DROP TABLE t1;
+
+CREATE TABLE t1(fld1 int, key key1(fld1) COMMENT 'test');
+SHOW INDEX FROM t1;
+ALTER TABLE t1 DROP INDEX key1, ADD INDEX key1(fld1);
+SHOW INDEX FROM t1;
+DROP TABLE t1;
+
+CREATE TABLE t1(fld1 int, key key1(fld1) COMMENT 'test');
+SHOW INDEX FROM t1;
+ALTER TABLE t1 DROP INDEX key1, ADD INDEX key1(fld1) COMMENT 'success';
+SHOW INDEX FROM t1;
+DROP TABLE t1;
+
+# Alter the comment, but keep the same comment length
+CREATE TABLE t1(fld1 int, key key1(fld1) COMMENT 'old comment');
+SHOW INDEX FROM t1;
+ALTER TABLE t1 DROP INDEX key1, ADD INDEX key1(fld1) COMMENT 'new comment';
+SHOW INDEX FROM t1;
+DROP TABLE t1; 
+
+
+--echo #
+--echo # Bug#19635706
+--echo # Verify that it is possible to add a unique key to a not-NULL POINT 
+--echo # column and that this key is promoted to primary key
+--echo # 
+
+CREATE TABLE t1(a INT NOT NULL, b POINT NOT NULL) ENGINE=INNODB;
+SHOW CREATE TABLE t1;
+ALTER TABLE t1 ADD UNIQUE INDEX (b);
+
+--echo # Note that SHOW CREATE TABLE does not list b as a primary key, 
+--echo # even though it was promoted. This appears to be the case also 
+--echo # for other column types.
+SHOW CREATE TABLE t1;
+
+ALTER TABLE t1 ADD UNIQUE INDEX (a);
+SHOW CREATE TABLE t1;
+
+--echo # Verify that the expected indices have been created by Innodb
+SELECT T.NAME AS TABLE_NAME, I.NAME AS INDEX_NAME, 
+       CASE I.TYPE 
+            WHEN 0 THEN 'Secondary' 
+            WHEN 1 THEN 'Clustered' 
+            WHEN 2 THEN 'Unique' 
+            WHEN 3 THEN 'Primary' 
+            WHEN 32 THEN 'Full text' 
+            WHEN 64 THEN 'Spatial' 
+            ELSE 'Unknown' 
+       END AS INDEX_TYPE, 
+       F.NAME AS FIELD_NAME, F.POS AS FIELD_POS FROM 
+              INFORMATION_SCHEMA.INNODB_SYS_TABLES AS T JOIN 
+              INFORMATION_SCHEMA.INNODB_SYS_INDEXES AS I JOIN 
+              INFORMATION_SCHEMA.INNODB_SYS_FIELDS AS F 
+              ON I.INDEX_ID = F.INDEX_ID AND I.TABLE_ID = T.TABLE_ID 
+       WHERE T.NAME = 'test/t1';
+
+DROP TABLE t1;

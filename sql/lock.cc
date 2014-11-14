@@ -75,7 +75,6 @@
 
 #include "sql_priv.h"
 #include "debug_sync.h"
-#include "unireg.h"                    // REQUIRED: for other includes
 #include "lock.h"
 #include "sql_base.h"                       // close_tables_for_reopen
 #include "sql_parse.h"                     // is_log_table_write_query

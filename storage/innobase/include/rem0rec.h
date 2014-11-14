@@ -32,10 +32,8 @@ Created 5/30/1994 Heikki Tuuri
 #include "mtr0types.h"
 #include "page0types.h"
 #include "trx0types.h"
-#ifndef DBUG_OFF
-# include <ostream>
-# include <sstream>
-#endif /* !DBUG_OFF */
+#include <ostream>
+#include <sstream>
 
 /* Info bit denoting the predefined minimum record: this bit is set
 if and only if the record is the first user record on a non-leaf
@@ -961,18 +959,61 @@ rec_print(
 	const dict_index_t*	index)	/*!< in: record descriptor */
 	__attribute__((nonnull));
 
-# ifndef DBUG_OFF
-/***************************************************************//**
-Prints a physical record. */
+/** Pretty-print a record.
+@param[in,out]	o	output stream
+@param[in]	rec	physical record
+@param[in]	info	rec_get_info_bits(rec)
+@param[in]	offsets	rec_get_offsets(rec) */
 void
 rec_print(
-/*======*/
-	std::ostream&	o,	/*!< in/out: output stream */
-	const rec_t*	rec,	/*!< in: physical record */
-	ulint		info,	/*!< in: rec_get_info_bits(rec) */
-	const ulint*	offsets)/*!< in: array returned by rec_get_offsets() */
-	__attribute__((nonnull));
+	std::ostream&	o,
+	const rec_t*	rec,
+	ulint		info,
+	const ulint*	offsets);
 
+/** Wrapper for pretty-printing a record */
+struct rec_index_print
+{
+	/** Constructor */
+	rec_index_print(const rec_t* rec, const dict_index_t* index) :
+		m_rec(rec), m_index(index)
+	{}
+
+	/** Record */
+	const rec_t*		m_rec;
+	/** Index */
+	const dict_index_t*	m_index;
+};
+
+/** Display a record.
+@param[in,out]	o	output stream
+@param[in]	r	record to display
+@return	the output stream */
+std::ostream&
+operator<<(std::ostream& o, const rec_index_print& r);
+
+/** Wrapper for pretty-printing a record */
+struct rec_offsets_print
+{
+	/** Constructor */
+	rec_offsets_print(const rec_t* rec, const ulint* offsets) :
+		m_rec(rec), m_offsets(offsets)
+	{}
+
+	/** Record */
+	const rec_t*		m_rec;
+	/** Offsets to each field */
+	const ulint*		m_offsets;
+};
+
+/** Display a record.
+@param[in,out]	o	output stream
+@param[in]	r	record to display
+@return	the output stream */
+std::ostream&
+operator<<(std::ostream& o, const rec_offsets_print& r);
+
+# ifndef DBUG_OFF
 /** Pretty-printer of records and tuples */
 class rec_printer : public std::ostringstream {
 public:

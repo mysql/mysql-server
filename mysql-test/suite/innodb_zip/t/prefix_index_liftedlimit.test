@@ -1225,13 +1225,13 @@ WHERE col_1_text = REPEAT("c", 4000) AND col_2_text = REPEAT("o", 4000);
 # Drop index
 DROP INDEX prefix_idx ON worklog5743;
 
-# Again add index length > 3072. Expect error.Length exceeds maximum supported
-# key length
 # Again add index length > 3072.
 # If "innodb_large_prefix" is turned on, than the index prefix larger than 3072
-# will be truncated to 3072. If the table is REDUNDANT and COMPACT, which does
-# not support prefix > 767, the create index will be rejected.
+# will be truncated to 3072. In STRICT mode, the statement will fail with error.
+# If the table is REDUNDANT and COMPACT, which does not support prefix > 767, the create index will be rejected.
+--error ER_TOO_LONG_KEY
 CREATE INDEX prefix_idx ON worklog5743(col_1_text (4000));
+CREATE INDEX prefix_idx ON worklog5743(col_1_text (3072));
 INSERT INTO worklog5743 VALUES(REPEAT("a", 4000),REPEAT("o", 4000));
 SELECT col_1_text = REPEAT("a", 4000) FROM worklog5743;
 UPDATE worklog5743 SET col_1_text = REPEAT("c", 4000)
@@ -1374,7 +1374,9 @@ PRIMARY KEY (col_1_varchar(767))
 INSERT INTO worklog5743 VALUES(REPEAT('a',4000),REPEAT('b',4000));
 # Prefix index > 767 is truncated with REDUNDANT and COMPACT
 --enable_info
+--error ER_TOO_LONG_KEY
 CREATE INDEX prefix_idx ON worklog5743(col_1_varchar (1000));
+CREATE INDEX prefix_idx ON worklog5743(col_1_varchar (767));
 ALTER TABLE worklog5743 ROW_FORMAT=REDUNDANT;
 --disable_info
 SHOW CREATE TABLE worklog5743;

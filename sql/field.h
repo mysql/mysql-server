@@ -3856,18 +3856,18 @@ private:
 class Field_set :public Field_enum {
 public:
   Field_set(uchar *ptr_arg, uint32 len_arg, uchar *null_ptr_arg,
-	    uchar null_bit_arg,
-	    enum utype unireg_check_arg, const char *field_name_arg,
-	    uint32 packlength_arg,
-	    TYPELIB *typelib_arg, const CHARSET_INFO *charset_arg)
+            uchar null_bit_arg,
+            enum utype unireg_check_arg, const char *field_name_arg,
+            uint32 packlength_arg,
+            TYPELIB *typelib_arg, const CHARSET_INFO *charset_arg)
     :Field_enum(ptr_arg, len_arg, null_ptr_arg, null_bit_arg,
-		    unireg_check_arg, field_name_arg,
+                unireg_check_arg, field_name_arg,
                 packlength_arg,
                 typelib_arg,charset_arg),
-      empty_set_string("", 0, charset_arg)
-    {
-      flags= (flags & ~ENUM_FLAG) | SET_FLAG;
-    }
+     empty_set_string("", 0, charset_arg)
+  {
+    flags= (flags & ~ENUM_FLAG) | SET_FLAG;
+  }
   type_conversion_status store(const char *to, size_t length,
                                const CHARSET_INFO *charset);
   type_conversion_status store(double nr)
@@ -4233,8 +4233,7 @@ Field *make_field(TABLE_SHARE *share, uchar *ptr, size_t field_length,
 		  const CHARSET_INFO *cs,
 		  Field::geometry_type geom_type,
 		  Field::utype unireg_check,
-		  TYPELIB *interval, const char *field_name,
-		  MEM_ROOT *mem_root= NULL);
+		  TYPELIB *interval, const char *field_name);
 uint pack_length_to_packflag(uint type);
 enum_field_types get_blob_type_from_length(ulong length);
 size_t calc_pack_length(enum_field_types type, size_t length);

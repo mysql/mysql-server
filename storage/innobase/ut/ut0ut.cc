@@ -427,7 +427,6 @@ ut_print_buf(
 	putc(';', file);
 }
 
-#ifndef DBUG_OFF
 /*************************************************************//**
 Prints the contents of a memory buffer in hex. */
 void
@@ -477,7 +476,6 @@ ut_print_buf(
 
 	ut_print_buf_hex(o, buf, len);
 }
-#endif /* !DBUG_OFF */
 
 /*************************************************************//**
 Calculates fast the number rounded up to the nearest power of 2.
@@ -502,7 +500,7 @@ ut_2_power_up(
 
 #ifndef UNIV_HOTBACKUP
 /**********************************************************************//**
-Get  a fixed-length string, quoted as an SQL identifier.
+Get a fixed-length string, quoted as an SQL identifier.
 If the string contains a slash '/', the string will be
 output as two identifiers separated by a period (.),
 as in SQL database_name.identifier.

@@ -130,6 +130,7 @@ FTS_0	test/FTS_AUX_DELETED
 FTS_0	test/FTS_AUX_DELETED_CACHE
 DROP TABLE t1;
 # Non windows aux table flag failure and rebuild the corrupted index.
+# restart
 call mtr.add_suppression("\\[Warning\\] InnoDB: Parent table of FTS auxiliary table .* not found.");
 call mtr.add_suppression("\\[Warning\\] InnoDB: Setting aux table .* to hex format failed.");
 call mtr.add_suppression("\\[ERROR] InnoDB: Index .* of table .*..* is corrupted");

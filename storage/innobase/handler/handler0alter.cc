@@ -2756,6 +2756,7 @@ innobase_pk_order_preserved(
 			old_clust_index->fields[old_field].col->ind;
 		ulint new_col_no =
 			new_clust_index->fields[new_field].col->ind;
+
 		ut_ad(new_col_no != ULINT_UNDEFINED);
 
 		old_col_no = col_map[old_col_no];
@@ -2764,6 +2765,13 @@ innobase_pk_order_preserved(
 			if (pk_col_dropped) {
 				/* Dropping columns in the middle
 				requires sorting. */
+				return(false);
+			}
+
+			if (old_clust_index->fields[old_field].prefix_len
+			    != new_clust_index->fields[new_field].prefix_len) {
+				/* Prefix length of the field
+				is changed. */
 				return(false);
 			}
 
@@ -2981,6 +2989,9 @@ prepare_inplace_alter_table_dict(
 	in the table. */
 
 	ctx->num_to_add_index = ha_alter_info->index_add_count;
+
+	const char*	path = thd_innodb_tmpdir(
+		ctx->prebuilt->trx->mysql_thd);
 
 	index_defs = innobase_create_key_defs(
 		ctx->heap, ha_alter_info, altered_table, ctx->num_to_add_index,
@@ -3363,7 +3374,8 @@ prepare_inplace_alter_table_dict(
 					goto error_handling;);
 			rw_lock_x_lock(&ctx->add_index[a]->lock);
 			bool ok = row_log_allocate(ctx->add_index[a],
-						   NULL, true, NULL, NULL);
+						   NULL, true, NULL, NULL,
+						   path);
 			rw_lock_x_unlock(&ctx->add_index[a]->lock);
 
 			if (!ok) {
@@ -3394,7 +3406,7 @@ prepare_inplace_alter_table_dict(
 				clust_index, ctx->new_table,
 				!(ha_alter_info->handler_flags
 				  & Alter_inplace_info::ADD_PK_INDEX),
-				ctx->add_cols, ctx->col_map);
+				ctx->add_cols, ctx->col_map, path);
 			rw_lock_x_unlock(&clust_index->lock);
 
 			if (!ok) {

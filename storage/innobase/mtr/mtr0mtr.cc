@@ -386,7 +386,6 @@ private:
 
 /** Check if a mini-transaction is dirtying a clean page.
 @return true if the mtr is dirtying a clean page. */
-
 bool
 mtr_t::is_block_dirtied(const buf_block_t* block)
 {
@@ -431,7 +430,6 @@ mtr_write_log(
 /** Start a mini-transaction.
 @param sync		true if it is a synchronous mini-transaction
 @param read_only	true if read only mini-transaction */
-
 void
 mtr_t::start(bool sync, bool read_only)
 {
@@ -462,7 +460,6 @@ mtr_t::start(bool sync, bool read_only)
 }
 
 /** Release the resources */
-
 void
 mtr_t::Command::release_resources()
 {
@@ -489,7 +486,6 @@ mtr_t::Command::release_resources()
 }
 
 /** Commit a mini-transaction. */
-
 void
 mtr_t::commit()
 {
@@ -523,7 +519,6 @@ MLOG_FILE_NAME records and a MLOG_CHECKPOINT marker.
 The caller must invoke log_mutex_enter() and log_mutex_exit().
 This is to be used at log_checkpoint().
 @param[in]	checkpoint_lsn	the LSN of the log checkpoint  */
-
 void
 mtr_t::commit_checkpoint(lsn_t checkpoint_lsn)
 {
@@ -572,7 +567,6 @@ mtr_t::commit_checkpoint(lsn_t checkpoint_lsn)
 (needed for generating a MLOG_FILE_NAME record)
 @param[in]	space	tablespace
 @return whether the mini-transaction is associated with the space */
-
 bool
 mtr_t::is_named_space(ulint space) const
 {
@@ -610,7 +604,6 @@ NOTE: use mtr_x_lock_space().
 @param[in]	file		file name from where called
 @param[in]	line		line number in file
 @return the tablespace object (never NULL) */
-
 fil_space_t*
 mtr_t::x_lock_space(ulint space_id, const char* file, ulint line)
 {
@@ -648,7 +641,6 @@ mtr_t::x_lock_space(ulint space_id, const char* file, ulint line)
 }
 
 /** Look up the system tablespace. */
-
 void
 mtr_t::lookup_sys_space()
 {
@@ -659,7 +651,6 @@ mtr_t::lookup_sys_space()
 
 /** Look up the user tablespace.
 @param[in]	space_id	tablespace ID */
-
 void
 mtr_t::lookup_user_space(ulint space_id)
 {
@@ -670,9 +661,25 @@ mtr_t::lookup_user_space(ulint space_id)
 	ut_ad(m_impl.m_user_space);
 }
 
+/** Set the tablespace associated with the mini-transaction
+(needed for generating a MLOG_FILE_NAME record)
+@param[in]	space	user or system tablespace */
+void
+mtr_t::set_named_space(fil_space_t* space)
+{
+	ut_ad(m_impl.m_user_space_id == TRX_SYS_SPACE);
+	ut_d(m_impl.m_user_space_id = space->id);
+	if (space->id == TRX_SYS_SPACE) {
+		ut_ad(m_impl.m_sys_space == NULL
+		      || m_impl.m_sys_space == space);
+		m_impl.m_sys_space = space;
+	} else {
+		m_impl.m_user_space = space;
+	}
+}
+
 /** Release an object in the memo stack.
 @return true if released */
-
 bool
 mtr_t::memo_release(const void* object, ulint type)
 {
@@ -696,7 +703,6 @@ mtr_t::memo_release(const void* object, ulint type)
 
 /** Prepare to write the mini-transaction log to the redo log buffer.
 @return number of bytes to write in finish_write() */
-
 ulint
 mtr_t::Command::prepare_write()
 {
@@ -772,7 +778,6 @@ mtr_t::Command::prepare_write()
 
 /** Append the redo log records to the redo log buffer
 @param[in] len	number of bytes to write */
-
 void
 mtr_t::Command::finish_write(
 	ulint	len)
@@ -804,7 +809,6 @@ mtr_t::Command::finish_write(
 }
 
 /** Release the latches and blocks acquired by this mini-transaction */
-
 void
 mtr_t::Command::release_all()
 {
@@ -818,7 +822,6 @@ mtr_t::Command::release_all()
 }
 
 /** Release the latches acquired by this mini-transaction */
-
 void
 mtr_t::Command::release_latches()
 {
@@ -832,7 +835,6 @@ mtr_t::Command::release_latches()
 }
 
 /** Release the blocks used in this mini-transaction */
-
 void
 mtr_t::Command::release_blocks()
 {
@@ -844,7 +846,6 @@ mtr_t::Command::release_blocks()
 
 /** Write the redo log record, add dirty pages to the flush list and release
 the resources. */
-
 void
 mtr_t::Command::execute()
 {
@@ -879,7 +880,6 @@ mtr_t::Command::execute()
 #ifdef UNIV_DEBUG
 /** Check if memo contains the given item.
 @return	true if contains */
-
 bool
 mtr_t::memo_contains(
 	mtr_buf_t*	memo,
@@ -897,7 +897,6 @@ mtr_t::memo_contains(
 @param ptr		record
 @param type		type of
 @return	true if contains */
-
 bool
 mtr_t::memo_contains_page(mtr_buf_t* memo, const byte* ptr, ulint type)
 {
@@ -932,7 +931,6 @@ struct FlaggedCheck {
 @param flags		specify types of object (can be ORred) of
 			MTR_MEMO_PAGE_S_FIX ... values
 @return true if contains */
-
 bool
 mtr_t::memo_contains_flagged(const void* ptr, ulint flags) const
 {
@@ -950,7 +948,6 @@ mtr_t::memo_contains_flagged(const void* ptr, ulint flags) const
 @param flags		specify types of object with OR of
 			MTR_MEMO_PAGE_S_FIX... values
 @return true if contains */
-
 bool
 mtr_t::memo_contains_page_flagged(
 	const byte*	ptr,
@@ -960,7 +957,6 @@ mtr_t::memo_contains_page_flagged(
 }
 
 /** Print info of an mtr handle. */
-
 void
 mtr_t::print() const
 {

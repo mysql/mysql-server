@@ -24,13 +24,11 @@
     str is a (long) to record position where 0 is the first position.
 */
 
-#include "sql_priv.h"
 #include "unireg.h"
-#include "sql_partition.h"                    // struct partition_info
-#include "sql_table.h"                        // validate_comment_length   
-#include "sql_class.h"                  // THD, Internal_error_handler
-#include <m_ctype.h>
-#include <assert.h>
+#include "table.h"
+#include "sql_class.h"
+#include "partition_info.h"
+#include "sql_table.h"
 
 #include <algorithm>
 
@@ -38,6 +36,9 @@ using std::min;
 using std::max;
 
 #define FCOMP			17		/* Bytes for a packed field */
+#define SC_INFO_LENGTH 4		/* Form format constant */
+#define TE_INFO_LENGTH 3
+#define MTYP_NOEMPTY_BIT 128
 
 static uchar * pack_screens(List<Create_field> &create_fields,
 			    uint *info_length, uint *screens, bool small_file);

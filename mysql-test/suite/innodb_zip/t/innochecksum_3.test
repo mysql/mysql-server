@@ -114,13 +114,11 @@ SELECT * FROM tab2 ORDER BY col_7;
 --exec $INNOCHECKSUM  --write=CRC32 $MYSQLD_DATADIR/test/tab1.ibd
 --exec $INNOCHECKSUM  --write=CRC32 $MYSQLD_DATADIR/test/tab2.ibd
 --exec $INNOCHECKSUM  --write=CRC32 $MYSQLD_DATADIR/ibdata1
---exec $INNOCHECKSUM --no-check --write=crc32 $MYSQLD_DATADIR/mysql/innodb_index_stats.ibd
---exec $INNOCHECKSUM --no-check --write=crc32 $MYSQLD_DATADIR/mysql/innodb_table_stats.ibd
---exec $INNOCHECKSUM --no-check --write=crc32 $MYSQLD_DATADIR/mysql/slave_master_info.ibd
---exec $INNOCHECKSUM --no-check --write=crc32 $MYSQLD_DATADIR/mysql/slave_relay_log_info.ibd
---exec $INNOCHECKSUM --no-check --write=crc32 $MYSQLD_DATADIR/mysql/slave_worker_info.ibd
---exec $INNOCHECKSUM --no-check --write=crc32 $MYSQLD_DATADIR/mysql/server_cost.ibd
---exec $INNOCHECKSUM --no-check --write=crc32 $MYSQLD_DATADIR/mysql/engine_cost.ibd
+perl;
+foreach (glob("$ENV{MYSQLD_DATADIR}/mysql/*.ibd")) {
+	system("$ENV{INNOCHECKSUM} --no-check --write=crc32 $_")
+}
+EOF
 
 --echo # start the server with innodb_checksum_algorithm=strict_crc32
 --let restart_options= : --innodb_checksum_algorithm=strict_crc32 --default_storage_engine=InnoDB
@@ -159,21 +157,11 @@ SELECT * FROM tab2 ORDER BY col_7;
 --exec $INNOCHECKSUM --write=none  $MYSQLD_DATADIR/test/tab1.ibd
 --exec $INNOCHECKSUM --write=none  $MYSQLD_DATADIR/test/tab2.ibd
 --exec $INNOCHECKSUM --write=none $MYSQLD_DATADIR/ibdata1
---exec $INNOCHECKSUM --no-check --write=NONE $MYSQLD_DATADIR/mysql/innodb_index_stats.ibd
---exec $INNOCHECKSUM --no-check --write=NONE $MYSQLD_DATADIR/mysql/innodb_table_stats.ibd
---exec $INNOCHECKSUM --no-check --write=NONE $MYSQLD_DATADIR/mysql/slave_master_info.ibd
---exec $INNOCHECKSUM --no-check --write=NONE $MYSQLD_DATADIR/mysql/slave_relay_log_info.ibd
---exec $INNOCHECKSUM --no-check --write=NONE $MYSQLD_DATADIR/mysql/slave_worker_info.ibd
---exec $INNOCHECKSUM --no-check --write=NONE $MYSQLD_DATADIR/mysql/server_cost.ibd
---exec $INNOCHECKSUM --no-check --write=NONE $MYSQLD_DATADIR/mysql/engine_cost.ibd
-
---exec $INNOCHECKSUM --no-check --write=NONE $MYSQLD_DATADIR/mysql/time_zone.ibd
---exec $INNOCHECKSUM --no-check --write=NONE $MYSQLD_DATADIR/mysql/time_zone_leap_second.ibd
---exec $INNOCHECKSUM --no-check --write=NONE $MYSQLD_DATADIR/mysql/time_zone_name.ibd
---exec $INNOCHECKSUM --no-check --write=NONE $MYSQLD_DATADIR/mysql/time_zone_transition.ibd
---exec $INNOCHECKSUM --no-check --write=NONE $MYSQLD_DATADIR/mysql/time_zone_transition_type.ibd
 perl;
 foreach (glob("$ENV{MYSQLD_DATADIR}/undo*")) {
+	system("$ENV{INNOCHECKSUM} --no-check --write=NONE $_")
+}
+foreach (glob("$ENV{MYSQLD_DATADIR}/mysql/*.ibd")) {
 	system("$ENV{INNOCHECKSUM} --no-check --write=NONE $_")
 }
 EOF
