@@ -1403,6 +1403,7 @@ row_mtuple_cmp(
 		       n_unique, n_unique, *current_mtuple, *prev_mtuple, dup));
 }
 
+#ifdef HAVE_PSI_STAGE_INTERFACE
 /** Estimate total work for an ALTER TABLE.
 @param[in]	pk_n_pages	total number of pages in the clustered index
 @param[in]	n_add_indexes	number of indexes being added
@@ -1419,6 +1420,7 @@ row_merge_estimate_alter_table(
 		  + n_add_indexes * 2 /* sort & insert per created index */
 		  + 1 /* flush */));
 }
+#endif /* HAVE_PSI_STAGE_INTERFACE */
 
 /********************************************************************//**
 Reads clustered index of the table and create temporary files
@@ -1467,7 +1469,8 @@ row_merge_read_clustered_index(
 	int*			tmpfd 	/*!< in/out: temporary file handle */
 #ifdef HAVE_PSI_STAGE_INTERFACE
 	, PSI_stage_progress*	progress
-	, ulint			inc_every_nth_rec
+	, ulint*		n_recs
+	, ulint*		n_pages
 #endif /* HAVE_PSI_STAGE_INTERFACE */
 	)
 
@@ -1636,28 +1639,29 @@ row_merge_read_clustered_index(
 		prev_fields = NULL;
 	}
 
-	ulint	n_recs;
-	ulint	n_pages;
+#ifdef HAVE_PSI_STAGE_INTERFACE
+	*n_recs = 0;
+	*n_pages = 0;
+#endif /* HAVE_PSI_STAGE_INTERFACE */
 
 	/* Scan the clustered index. */
-	for (n_recs = 0, n_pages = 0; ; n_recs++) {
+	for (;;) {
 		const rec_t*	rec;
 		ulint*		offsets;
 		const dtuple_t*	row;
 		row_ext_t*	ext;
 		page_cur_t*	cur	= btr_pcur_get_page_cur(&pcur);
 
-#ifdef HAVE_PSI_STAGE_INTERFACE
-		if (n_recs % inc_every_nth_rec == 0) {
-			ut_stage_inc(progress);
-		}
-#endif /* HAVE_PSI_STAGE_INTERFACE */
-
 		page_cur_move_to_next(cur);
+
+		(*n_recs)++;
 
 		if (page_cur_is_after_last(cur)) {
 
-			n_pages++;
+#ifdef HAVE_PSI_STAGE_INTERFACE
+			(*n_pages)++;
+			ut_stage_inc(progress);
+#endif /* HAVE_PSI_STAGE_INTERFACE */
 
 			if (UNIV_UNLIKELY(trx_is_interrupted(trx))) {
 				err = DB_INTERRUPTED;
@@ -2261,12 +2265,6 @@ func_exit:
 	ut_free(nonnull);
 
 all_done:
-
-#if 1
-	mysql_stage_set_work_estimated(
-		progress,
-		row_merge_estimate_alter_table(n_pages, n_index));
-#endif
 
 	if (clust_btr_bulk != NULL) {
 		ut_ad(err != DB_SUCCESS);
@@ -4086,11 +4084,6 @@ row_merge_build_indexes(
 
 #ifdef HAVE_PSI_STAGE_INTERFACE
 	*progress = mysql_set_stage(srv_stage_alter_table_read_pk.m_key);
-
-	const ulint		inc_every_nth_rec
-		= std::max(1UL,
-			   old_table->stat_n_rows
-			   / old_table->stat_clustered_index_size);
 #endif /* HAVE_PSI_STAGE_INTERFACE */
 
 	mysql_stage_set_work_estimated(
@@ -4159,6 +4152,9 @@ row_merge_build_indexes(
 	duplicate keys. */
 	innobase_rec_reset(table);
 
+	ulint	n_recs;
+	ulint	n_pages;
+
 	/* Read clustered index of the table and create files for
 	secondary index entries for merge sort */
 	error = row_merge_read_clustered_index(
@@ -4168,9 +4164,21 @@ row_merge_build_indexes(
 		block, skip_pk_sort, &tmpfd
 #ifdef HAVE_PSI_STAGE_INTERFACE
 		, *progress
-		, inc_every_nth_rec
+		, &n_recs
+		, &n_pages
 #endif /* HAVE_PSI_STAGE_INTERFACE */
 	);
+
+#if 1
+	printf("counted %lu pages in PK\n", n_pages);
+	mysql_stage_set_work_estimated(
+		*progress,
+		row_merge_estimate_alter_table(n_pages, n_indexes));
+#endif
+
+#ifdef HAVE_PSI_STAGE_INTERFACE
+	const ulint	inc_every_nth_rec = std::max(1UL, n_recs / n_pages);
+#endif /* HAVE_PSI_STAGE_INTERFACE */
 
 	if (error != DB_SUCCESS) {
 

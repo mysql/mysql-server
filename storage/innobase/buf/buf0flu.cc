@@ -1223,11 +1223,6 @@ buf_flush_try_neighbors(
 			   for contiguous dirty area */
 			if (page_id.page_no() > low) {
 				for (i = page_id.page_no() - 1; i >= low; i--) {
-#ifdef HAVE_PSI_STAGE_INTERFACE
-					if (progress != NULL) {
-						ut_stage_inc(progress);
-					}
-#endif /* HAVE_PSI_STAGE_INTERFACE */
 					if (!buf_flush_check_neighbor(
 						page_id_t(page_id.space(), i),
 						flush_type)) {
@@ -1253,11 +1248,6 @@ buf_flush_try_neighbors(
 				     page_id_t(page_id.space(), i),
 				     flush_type);
 			     i++) {
-#ifdef HAVE_PSI_STAGE_INTERFACE
-				if (progress != NULL) {
-					ut_stage_inc(progress);
-				}
-#endif /* HAVE_PSI_STAGE_INTERFACE */
 			}
 			high = i;
 		}
@@ -1982,6 +1972,38 @@ buf_flush_lists(
 	if (n_processed) {
 		*n_processed = 0;
 	}
+
+#ifdef HAVE_PSI_STAGE_INTERFACE
+	if (progress != NULL) {
+		ulint	pages_to_flush = 0;
+
+		/* Estimate how many pages are we going to flush from all
+		buffer pool instances. */
+		for (i = 0; i < srv_buf_pool_instances; i++) {
+			buf_pool_t*	buf_pool = buf_pool_from_array(i);
+
+			buf_pool_mutex_enter(buf_pool);
+			buf_flush_list_mutex_enter(buf_pool);
+
+			pages_to_flush += UT_LIST_GET_LEN(buf_pool->flush_list);
+
+			buf_flush_list_mutex_exit(buf_pool);
+			buf_pool_mutex_exit(buf_pool);
+
+			if (pages_to_flush > min_n) {
+				break;
+			}
+		}
+
+		/* We will not flush more than 'min_n' pages. */
+		pages_to_flush = std::min(min_n, pages_to_flush);
+
+		mysql_stage_set_work_estimated(
+			progress,
+			mysql_stage_get_work_completed(progress)
+			+ pages_to_flush);
+	}
+#endif /* HAVE_PSI_STAGE_INTERFACE */
 
 	if (min_n != ULINT_MAX) {
 		/* Ensure that flushing is spread evenly amongst the
