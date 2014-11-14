@@ -2270,7 +2270,7 @@ run_old_flexAsynch(ThreadNdb *pThreadData,
     }
     if (tRunType == RunAll)
     {
-      a_i.addObservation((1000*noOfTransacts * tNoOfOpsPerTrans) / timer.elapsedTime());
+      a_i.addObservation((1000ULL*noOfTransacts * tNoOfOpsPerTrans) / timer.elapsedTime());
       PRINT_TIMER("insert", noOfTransacts, tNoOfOpsPerTrans);
 
       if (0 < failed)
@@ -2320,7 +2320,7 @@ run_old_flexAsynch(ThreadNdb *pThreadData,
         STOP_TIMER;
         if (tRunType == RunAll)
         {
-          a_r.addObservation((1000 * noOfTransacts * tNoOfOpsPerTrans) / timer.elapsedTime());
+          a_r.addObservation((1000ULL * noOfTransacts * tNoOfOpsPerTrans) / timer.elapsedTime());
           PRINT_TIMER("read", noOfTransacts, tNoOfOpsPerTrans);
         }//if
       }//for
@@ -2375,7 +2375,7 @@ run_old_flexAsynch(ThreadNdb *pThreadData,
     }//if
     if (tRunType == RunAll)
     {
-      a_u.addObservation((1000 * noOfTransacts * tNoOfOpsPerTrans) / timer.elapsedTime());
+      a_u.addObservation((1000ULL * noOfTransacts * tNoOfOpsPerTrans) / timer.elapsedTime());
       PRINT_TIMER("update", noOfTransacts, tNoOfOpsPerTrans) ;
 
       if (0 < failed)
@@ -2423,7 +2423,7 @@ run_old_flexAsynch(ThreadNdb *pThreadData,
         START_TIMER;
         execute(stRead);
         STOP_TIMER;
-        a_r.addObservation((1000 * noOfTransacts * tNoOfOpsPerTrans) / timer.elapsedTime());
+        a_r.addObservation((1000ULL * noOfTransacts * tNoOfOpsPerTrans) / timer.elapsedTime());
         PRINT_TIMER("read", noOfTransacts, tNoOfOpsPerTrans);
       }
 
@@ -2474,7 +2474,7 @@ run_old_flexAsynch(ThreadNdb *pThreadData,
     }//if
     if (tRunType == RunAll)
     {
-      a_d.addObservation((1000 * noOfTransacts * tNoOfOpsPerTrans) / timer.elapsedTime());
+      a_d.addObservation((1000ULL * noOfTransacts * tNoOfOpsPerTrans) / timer.elapsedTime());
       PRINT_TIMER("delete", noOfTransacts, tNoOfOpsPerTrans);
 
       if (0 < failed) {
