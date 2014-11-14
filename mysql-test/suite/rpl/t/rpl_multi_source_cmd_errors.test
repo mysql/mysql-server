@@ -143,7 +143,7 @@ SET GLOBAL DEBUG=@old_debug;
 --echo # Assert that channels are not created for failed CHANGE MASTER command.
 --echo # and number of channels configured must be 4
 --let $assert_text= there shall be only four rows representing 4 channels.
---let $assert_cond= [SELECT COUNT(*) FROM performance_schema.replication_execute_configuration] = 4;
+--let $assert_cond= [SELECT COUNT(*) FROM performance_schema.replication_applier_configuration] = 4;
 --source include/assert.inc
 
 #

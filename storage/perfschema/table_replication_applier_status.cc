@@ -15,15 +15,15 @@
       Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /**
-  @file storage/perfschema/table_replication_execute_status.cc
-  Table replication_execute_status (implementation).
+  @file storage/perfschema/table_replication_applier_status.cc
+  Table replication_applier_status (implementation).
 */
 
 #define HAVE_REPLICATION
 
 #include "my_global.h"
 #include "sql_priv.h"
-#include "table_replication_execute_status.h"
+#include "table_replication_applier_status.h"
 #include "pfs_instr_class.h"
 #include "pfs_instr.h"
 #include "rpl_slave.h"
@@ -33,7 +33,7 @@
 #include "sql_parse.h"
 #include "rpl_msr.h"    /*Multi source replication */
 
-THR_LOCK table_replication_execute_status::m_table_lock;
+THR_LOCK table_replication_applier_status::m_table_lock;
 
 /*
   numbers in varchar count utf8 characters.
@@ -63,18 +63,18 @@ static const TABLE_FIELD_TYPE field_types[]=
 };
 
 TABLE_FIELD_DEF
-table_replication_execute_status::m_field_def=
+table_replication_applier_status::m_field_def=
 { 4, field_types };
 
 PFS_engine_table_share
-table_replication_execute_status::m_share=
+table_replication_applier_status::m_share=
 {
-  { C_STRING_WITH_LEN("replication_execute_status") },
+  { C_STRING_WITH_LEN("replication_applier_status") },
   &pfs_readonly_acl,
-  table_replication_execute_status::create,
+  table_replication_applier_status::create,
   NULL, /* write_row */
   NULL, /* delete_all_rows */
-  table_replication_execute_status::get_row_count,    /* records */
+  table_replication_applier_status::get_row_count,    /* records */
   sizeof(PFS_simple_index), /* ref length */
   &m_table_lock,
   &m_field_def,
@@ -82,32 +82,32 @@ table_replication_execute_status::m_share=
 };
 
 
-PFS_engine_table* table_replication_execute_status::create(void)
+PFS_engine_table* table_replication_applier_status::create(void)
 {
-  return new table_replication_execute_status();
+  return new table_replication_applier_status();
 }
 
-table_replication_execute_status::table_replication_execute_status()
+table_replication_applier_status::table_replication_applier_status()
   : PFS_engine_table(&m_share, &m_pos),
     m_row_exists(false), m_pos(0), m_next_pos(0)
 {}
 
-table_replication_execute_status::~table_replication_execute_status()
+table_replication_applier_status::~table_replication_applier_status()
 {}
 
-void table_replication_execute_status::reset_position(void)
+void table_replication_applier_status::reset_position(void)
 {
   m_pos.m_index= 0;
   m_next_pos.m_index= 0;
 }
 
-ha_rows table_replication_execute_status::get_row_count()
+ha_rows table_replication_applier_status::get_row_count()
 {
  return msr_map.get_max_channels();
 }
 
 
-int table_replication_execute_status::rnd_next(void)
+int table_replication_applier_status::rnd_next(void)
 {
   Master_info *mi;
 
@@ -134,7 +134,7 @@ int table_replication_execute_status::rnd_next(void)
 }
 
 
-int table_replication_execute_status::rnd_pos(const void *pos)
+int table_replication_applier_status::rnd_pos(const void *pos)
 {
   Master_info *mi=NULL;
   set_position(pos);
@@ -154,7 +154,7 @@ int table_replication_execute_status::rnd_pos(const void *pos)
 
 }
 
-void table_replication_execute_status::make_row(Master_info *mi)
+void table_replication_applier_status::make_row(Master_info *mi)
 {
   char *slave_sql_running_state= NULL;
 
@@ -201,7 +201,7 @@ void table_replication_execute_status::make_row(Master_info *mi)
   m_row_exists= true;
 }
 
-int table_replication_execute_status::read_row_values(TABLE *table,
+int table_replication_applier_status::read_row_values(TABLE *table,
                                        unsigned char *buf,
                                        Field **fields,
                                        bool read_all)

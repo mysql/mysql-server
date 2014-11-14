@@ -15,15 +15,15 @@
       Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /**
-  @file storage/perfschema/table_replication_execute_status_by_worker.cc
-  Table replication_execute_status_by_worker (implementation).
+  @file storage/perfschema/table_replication_applier_status_by_worker.cc
+  Table replication_applier_status_by_worker (implementation).
 */
 
 #define HAVE_REPLICATION
 
 #include "my_global.h"
 #include "sql_priv.h"
-#include "table_replication_execute_status_by_worker.h"
+#include "table_replication_applier_status_by_worker.h"
 #include "pfs_instr_class.h"
 #include "pfs_instr.h"
 #include "rpl_slave.h"
@@ -34,7 +34,7 @@
 #include "rpl_rli_pdb.h"
 #include "rpl_msr.h"    /*Multi source replication */
 
-THR_LOCK table_replication_execute_status_by_worker::m_table_lock;
+THR_LOCK table_replication_applier_status_by_worker::m_table_lock;
 
 /* numbers in varchar count utf8 characters. */
 static const TABLE_FIELD_TYPE field_types[]=
@@ -83,46 +83,46 @@ static const TABLE_FIELD_TYPE field_types[]=
 };
 
 TABLE_FIELD_DEF
-table_replication_execute_status_by_worker::m_field_def=
+table_replication_applier_status_by_worker::m_field_def=
 { 8, field_types };
 
 PFS_engine_table_share
-table_replication_execute_status_by_worker::m_share=
+table_replication_applier_status_by_worker::m_share=
 {
-  { C_STRING_WITH_LEN("replication_execute_status_by_worker") },
+  { C_STRING_WITH_LEN("replication_applier_status_by_worker") },
   &pfs_readonly_acl,
-  table_replication_execute_status_by_worker::create,
+  table_replication_applier_status_by_worker::create,
   NULL, /* write_row */
   NULL, /* delete_all_rows */
-  table_replication_execute_status_by_worker::get_row_count, /*records*/
+  table_replication_applier_status_by_worker::get_row_count, /*records*/
   sizeof(PFS_simple_index), /* ref length */
   &m_table_lock,
   &m_field_def,
   false /* checked */
 };
 
-PFS_engine_table* table_replication_execute_status_by_worker::create(void)
+PFS_engine_table* table_replication_applier_status_by_worker::create(void)
 {
-  return new table_replication_execute_status_by_worker();
+  return new table_replication_applier_status_by_worker();
 }
 
-table_replication_execute_status_by_worker
-  ::table_replication_execute_status_by_worker()
+table_replication_applier_status_by_worker
+  ::table_replication_applier_status_by_worker()
   : PFS_engine_table(&m_share, &m_pos),
     m_row_exists(false), m_pos(), m_next_pos()
 {}
 
-table_replication_execute_status_by_worker
-  ::~table_replication_execute_status_by_worker()
+table_replication_applier_status_by_worker
+  ::~table_replication_applier_status_by_worker()
 {}
 
-void table_replication_execute_status_by_worker::reset_position(void)
+void table_replication_applier_status_by_worker::reset_position(void)
 {
   m_pos.reset();
   m_next_pos.reset();
 }
 
-ha_rows table_replication_execute_status_by_worker::get_row_count()
+ha_rows table_replication_applier_status_by_worker::get_row_count()
 {
   /*
     Return an estimate, number of master info's multipled by worker threads
@@ -131,7 +131,7 @@ ha_rows table_replication_execute_status_by_worker::get_row_count()
 }
 
 
-int table_replication_execute_status_by_worker::rnd_next(void)
+int table_replication_applier_status_by_worker::rnd_next(void)
 {
   Slave_worker *worker;
   Master_info *mi;
@@ -161,7 +161,7 @@ int table_replication_execute_status_by_worker::rnd_next(void)
   return HA_ERR_END_OF_FILE;
 }
 
-int table_replication_execute_status_by_worker::rnd_pos(const void *pos)
+int table_replication_applier_status_by_worker::rnd_pos(const void *pos)
 {
   Slave_worker *worker;
   Master_info *mi;
@@ -194,7 +194,7 @@ int table_replication_execute_status_by_worker::rnd_pos(const void *pos)
   return HA_ERR_RECORD_DELETED;
 }
 
-void table_replication_execute_status_by_worker::make_row(Slave_worker *w)
+void table_replication_applier_status_by_worker::make_row(Slave_worker *w)
 {
   m_row_exists= false;
 
@@ -272,7 +272,7 @@ void table_replication_execute_status_by_worker::make_row(Slave_worker *w)
   m_row_exists= true;
 }
 
-int table_replication_execute_status_by_worker
+int table_replication_applier_status_by_worker
   ::read_row_values(TABLE *table, unsigned char *buf,  Field **fields,
                     bool read_all)
 {

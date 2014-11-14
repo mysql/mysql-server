@@ -15,28 +15,28 @@ Note	####	Storing MySQL user name or password information in the master info rep
 [connection server_1]
 include/assert.inc [Number of rows = 0 on master for repliation_connection_configuration table.]
 include/assert.inc [Number of rows = 0 on master for repliation_connection_status table.]
-include/assert.inc [Number of rows = 0 on master for repliation_execute_configuration table.]
-include/assert.inc [Number of rows = 0 on master for repliation_execute_status table.]
-include/assert.inc [Number of rows = 0 on master for replication_execut_status_by coordinator table.]
-include/assert.inc [Number of rows = 0 on master for replication_execut_status_by_worker table.]
+include/assert.inc [Number of rows = 0 on master for repliation_applier_configuration table.]
+include/assert.inc [Number of rows = 0 on master for repliation_applier_status table.]
+include/assert.inc [Number of rows = 0 on master for replication_applier_status_by coordinator table.]
+include/assert.inc [Number of rows = 0 on master for replication_applier_status_by_worker table.]
 #
 # Test case 2: On the slave,  number of rows should be zero for a non existent channel
 #
 [connection server_2]
 include/assert.inc [Number of rows= 0 on slave for a non existent channel for repliation_connection_configuration table.]
 include/assert.inc [Number of rows= 0 on slave for a non existent channel for repliation_connection_status table.]
-include/assert.inc [Number of rows= 0 on slave for a non existent channel for repliation_execute_configuration table.]
-include/assert.inc [Number of rows= 0 on slave for a non existent channel for repliation_execute_status table.]
-include/assert.inc [Number of rows= 0 on slave for a non existent channel for repliation_execute_status_by_coordinaotor table.]
-include/assert.inc [Number of rows= 0 on slave for a non existent channel for replication_execute_status_by_worker table.]
+include/assert.inc [Number of rows= 0 on slave for a non existent channel for repliation_applier_configuration table.]
+include/assert.inc [Number of rows= 0 on slave for a non existent channel for repliation_applier_status table.]
+include/assert.inc [Number of rows= 0 on slave for a non existent channel for repliation_applier_status_by_coordinaotor table.]
+include/assert.inc [Number of rows= 0 on slave for a non existent channel for replication_applier_status_by_worker table.]
 #
 #  Test case 3: Rows on multi sourced slave, shall be 2. In workers table it should be
 #               2*@@global.slave_parallel_workers
 USE performance_schema;
 include/assert.inc [there shall be 2 rows for replication_connection_configuration]
 include/assert.inc [there shall be 2 rows for replication_connection_status]
-include/assert.inc [there shall be 2 rows for replication_execute_configuration]
-include/assert.inc [there shall be 2 rows for replication_execute_status]
+include/assert.inc [there shall be 2 rows for replication_applier_configuration]
+include/assert.inc [there shall be 2 rows for replication_applier_status]
 include/assert.inc [there shall be 2 rows for replication_connection_configuration]
 include/assert.inc [there shall be 2*global.slave_parallel_workers rows for 2 configured channels.]
 #
@@ -58,12 +58,12 @@ include/stop_slave.inc
 #
 include/assert.inc [After stop slave for channel, replication_connection_configuration is intact]
 include/assert.inc [After stop slave for channel, service state is OFF for connection_status table.]
-include/assert.inc [After stop slave for channel, service state is OFF for execute_status table.]
-include/assert.inc [After stop slave for channel, service state is OFF by replication_execute_status_by_coordinator table.]
+include/assert.inc [After stop slave for channel, service state is OFF for applier_status table.]
+include/assert.inc [After stop slave for channel, service state is OFF by replication_applier_status_by_coordinator table.]
 #
 #  Test case 6): Do a sanity check that joins can be performed as replication tables
 #                 contain multiple rows now.
-(select * from replication_connection_status, replication_execute_status_by_coordinator where replication_connection_status.channel_name= replication_execute_status_by_coordinator.channel_name);
+(select * from replication_connection_status, replication_applier_status_by_coordinator where replication_connection_status.channel_name= replication_applier_status_by_coordinator.channel_name);
 CHANNEL_NAME	channel_1
 SOURCE_UUID	#
 THREAD_ID	#
@@ -103,9 +103,9 @@ include/stop_slave.inc
 RESET SLAVE ALL FOR CHANNEL 'channel_3';
 include/assert.inc [there shall be 1 in replication connection_configuration table after a channel is deleted.]
 include/assert.inc [there shall be 1 in replication connection_status table after a channel is deleted.]
-include/assert.inc [there shall be 1 in replication execute_config table after a channel is deleted.]
-include/assert.inc [there shall be 1 in replication execute_status table after a channel is deleted.]
-include/assert.inc [there shall be 1 in replication execute_status_by_coordinator table after a channel is deleted.]
+include/assert.inc [there shall be 1 in replication applier_config table after a channel is deleted.]
+include/assert.inc [there shall be 1 in replication applier_status table after a channel is deleted.]
+include/assert.inc [there shall be 1 in replication applier_status_by_coordinator table after a channel is deleted.]
 include/assert.inc [there shall be global.slave_parallel_workers rows after a channel is deleted.]
 #
 #  Test case 8: Do a complete delete and see if the number of rows are zero
