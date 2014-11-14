@@ -316,6 +316,7 @@ private:
   void execSTOP_REQ(Signal* signal);
 
   // Received signals
+  void execCHECK_NODE_INCLUDED_REQ(Signal *signal);
   void execDUMP_STATE_ORD(Signal* signal);
   void execCONNECT_REP(Signal* signal);
   void execNDB_FAILCONF(Signal* signal);

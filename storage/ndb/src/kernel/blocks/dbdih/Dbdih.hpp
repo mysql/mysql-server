@@ -762,7 +762,14 @@ private:
 
   void execDIH_GET_TABINFO_REQ(Signal*);
 
+  /**
+   * A number of functions used to find out if any node is currently is
+   * restarting.
+   */
   void execCHECK_NODE_RESTARTREQ(Signal*);
+  void execCHECK_NODE_INCLUDED_CONF(Signal*);
+  void check_node_in_restart(Signal*, BlockReference, Uint32);
+  void sendCHECK_NODE_RESTARTCONF(Signal*, BlockReference, Uint32);
 
   int handle_invalid_lcp_no(const struct LcpFragRep*, ReplicaRecordPtr);
   void execLCP_FRAG_REP(Signal *);
@@ -1690,6 +1697,13 @@ private:
   Uint32 cnoReplicas;
 
   bool cwaitLcpSr;
+
+  /**
+   * After a node failure we want to increase the disk checkpoint speed until
+   * we have completed the current ongoing node failure. We also increase the
+   * checkpoint speed when we know that a node restart is ongoing.
+   */
+  bool c_increase_lcp_speed_after_nf;
   /**
    * Available nodegroups (ids) (length == cnoOfNodeGroups)
    *   use to support nodegroups 2,4,6 (not just consequtive nodegroup ids)

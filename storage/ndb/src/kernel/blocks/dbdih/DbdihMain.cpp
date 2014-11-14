@@ -1382,7 +1382,7 @@ void Dbdih::execREAD_CONFIG_REQ(Signal* signal)
     }
   }
   return;
-}//Dbdih::execSIZEALT_REP()
+}
 
 void Dbdih::execSTART_COPYREF(Signal* signal) 
 {
@@ -5070,7 +5070,7 @@ void Dbdih::execNODE_FAILREP(Signal* signal)
     SET_ERROR_INSERT_VALUE(7000);
   }
 
-
+  c_increase_lcp_speed_after_nf = true;
 
   /*-------------------------------------------------------------------------*/
   // The first step is to convert from a bit mask to an array of failed nodes.
@@ -11074,33 +11074,92 @@ void Dbdih::execCOPY_GCICONF(Signal* signal)
   }
 }//Dbdih::execCOPY_GCICONF()
 
+void
+Dbdih::check_node_in_restart(Signal *signal,
+                             BlockReference ref,
+                             Uint32 nodeId)
+{
+  NodeRecordPtr nodePtr;
+  for (nodePtr.i = nodeId; nodePtr.i < MAX_NDB_NODES; nodePtr.i++)
+  {
+    jam();
+    ptrAss(nodePtr, nodeRecord);
+    if (nodePtr.p->nodeGroup != RNIL &&
+        nodePtr.p->nodeStatus != NodeRecord::ALIVE)
+    {
+      jam();
+      /**
+       * Found a DB node that is used to store data which is currently not
+       * alive. We need to check if this node has started its restart yet.
+       * If it has we will set the node restart flag, otherwise we will
+       * allow the disk checkpoint speed to stay low since the node could
+       * be permanently dead for some reason.
+       *
+       * We will check in QMGR if the node has been included in the
+       * heartbeat protocol yet, this is one of the first times we hear about
+       * a node which is restarting.
+       */
+      signal->theData[0] = nodePtr.i;
+      signal->theData[1] = ref;
+      sendSignal(QMGR_REF, GSN_CHECK_NODE_INCLUDED_REQ, signal, 2, JBB);
+      return;
+    }
+  }
+  jam();
+  /* All nodes are up and running, no restart is ongoing */
+  sendCHECK_NODE_RESTARTCONF(signal, ref, 0);
+  return;
+}
+
+void Dbdih::sendCHECK_NODE_RESTARTCONF(Signal *signal,
+                                        BlockReference ref,
+                                        Uint32 node_restart)
+{
+  signal->theData[0] = node_restart;
+  sendSignal(ref, GSN_CHECK_NODE_RESTARTCONF, signal, 1, JBB);
+}
+
+void Dbdih::execCHECK_NODE_INCLUDED_CONF(Signal *signal)
+{
+  jamEntry();
+  Uint32 nodeId = signal->theData[0];
+  BlockReference ref = signal->theData[1];
+  Uint32 started = signal->theData[2];
+
+  if (started == 1)
+  {
+    jam();
+    sendCHECK_NODE_RESTARTCONF(signal, ref, 1);
+    return;
+  }
+  check_node_in_restart(signal, ref, nodeId + 1);
+  return;
+}
+
 void Dbdih::execCHECK_NODE_RESTARTREQ(Signal *signal)
 {
   NodeRecordPtr nodePtr;
   Uint32 ref = signal->theData[0];
-  Uint32 node_restart = 0; /* Default all nodes started */
+  jamEntry();
   /**
    * No signal data sent, this signal is sent to
    * check if we have any nodes that are currently
    * part of a LCP which is not yet been started.
    */
-  for (nodePtr.i = 1; nodePtr.i < MAX_NDB_NODES; nodePtr.i++)
+  if (c_increase_lcp_speed_after_nf == true)
   {
+    /**
+     * A node recently failed, we will run LCP faster until this LCP
+     * has completed to ensure that we quickly get to a point where
+     * we can copy the distribution and dictionary information.
+     */
     jam();
-    ptrAss(nodePtr, nodeRecord);
-    if (NdbNodeBitmask::get(SYSFILE->lcpActive, nodePtr.i))
-    {
-      /* Node active in LCP */
-      if (nodePtr.p->activeStatus == Sysfile::NS_Active)
-      {
-        /* Node isn't started yet */
-        node_restart = 1;
-        break;
-      }
-    }
+    sendCHECK_NODE_RESTARTCONF(signal, ref, 1);
+    return;
   }
-  signal->theData[0] = node_restart;
-  sendSignal(ref, GSN_CHECK_NODE_RESTARTCONF, signal, 1, JBB);
+  Uint32 start_node = 1;
+  check_node_in_restart(signal, ref, start_node);
+  return;
 }
 
 void Dbdih::invalidateLcpInfoAfterSr(Signal* signal)
@@ -14445,6 +14504,7 @@ void Dbdih::allNodesLcpCompletedLab(Signal* signal)
   signal->setTrace(0);
 
   c_lcpState.setLcpStatus(LCP_STATUS_IDLE, __LINE__);
+  c_increase_lcp_speed_after_nf = false;
 
   /**
    * Update m_local_lcp_state
