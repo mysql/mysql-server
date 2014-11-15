@@ -2291,7 +2291,8 @@ void THD::cleanup_after_query()
     binlog_accessed_db_names= NULL;
     m_trans_fixed_log_file= NULL;
 
-    if (gtid_mode > 0)
+    /// @todo WL#7083: why only if gtid_mode!=off? should be unconditional? /sven
+    if (get_gtid_mode() != GTID_MODE_OFF)
       gtid_post_statement_checks(this);
 #ifndef EMBEDDED_LIBRARY
     /*

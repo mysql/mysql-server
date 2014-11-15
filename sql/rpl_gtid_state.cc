@@ -415,8 +415,8 @@ enum_return_status Gtid_state::generate_automatic_gtid(THD *thd,
   DBUG_ASSERT(specified_gno >= 0);
   DBUG_ASSERT(thd->owned_gtid.is_empty());
 
-  // If GTID_MODE = UPGRADE_STEP_2 or ON, generate a new GTID
-  if (gtid_mode >= GTID_MODE_UPGRADE_STEP_2)
+  // If GTID_MODE = ON_PERMISSIVE or ON, generate a new GTID
+  if (get_gtid_mode() >= GTID_MODE_ON_PERMISSIVE)
   {
     Gtid automatic_gtid= { specified_sidno, specified_gno };
 
@@ -439,7 +439,7 @@ enum_return_status Gtid_state::generate_automatic_gtid(THD *thd,
   }
   else
   {
-    // If GTID_MODE = OFF or UPGRADE_STEP_1, just mark this thread as
+    // If GTID_MODE = OFF or OFF_PERMISSIVE, just mark this thread as
     // using an anonymous transaction.
     thd->owned_gtid.sidno= THD::OWNED_SIDNO_ANONYMOUS;
     thd->owned_gtid.gno= 0;

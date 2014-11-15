@@ -395,12 +395,7 @@ my_bool enforce_gtid_consistency;
 my_bool binlog_gtid_simple_recovery;
 ulong binlog_error_action;
 const char *binlog_error_action_list[]= {"IGNORE_ERROR", "ABORT_SERVER", NullS};
-ulong gtid_mode;
 uint gtid_executed_compression_period= 0;
-const char *gtid_mode_names[]=
-{"OFF", "UPGRADE_STEP_1", "UPGRADE_STEP_2", "ON", NullS};
-TYPELIB gtid_mode_typelib=
-{ array_elements(gtid_mode_names) - 1, "", gtid_mode_names, NULL };
 
 #ifdef HAVE_INITGROUPS
 volatile sig_atomic_t calling_initgroups= 0; /**< Used in SIGSEGV handler. */
@@ -4211,21 +4206,23 @@ a file name for --log-bin-index option", opt_binlog_index_name);
     unireg_abort(1);
   }
 
-  if (gtid_mode >= 1 && opt_bootstrap)
+  /// @todo: this looks suspicious, revisit this /sven
+  if (get_gtid_mode() != GTID_MODE_OFF && opt_bootstrap)
   {
     sql_print_warning("Bootstrap mode disables GTIDs. Bootstrap mode "
     "should only be used by mysql_install_db which initializes the MySQL "
     "data directory and creates system tables.");
-    gtid_mode= 0;
+    _gtid_mode= GTID_MODE_OFF;
   }
-  if (gtid_mode >= 2 && !enforce_gtid_consistency)
+  if (get_gtid_mode() >= GTID_MODE_ON_PERMISSIVE && !enforce_gtid_consistency)
   {
-    sql_print_error("--gtid-mode=ON or UPGRADE_STEP_1 requires --enforce-gtid-consistency");
+    sql_print_error("--gtid-mode=ON or ON_PERMISSIVE requires --enforce-gtid-consistency");
     unireg_abort(1);
   }
-  if (gtid_mode == 1 || gtid_mode == 2)
+  if (get_gtid_mode() == GTID_MODE_OFF_PERMISSIVE ||
+      get_gtid_mode() == GTID_MODE_ON_PERMISSIVE)
   {
-    sql_print_error("--gtid-mode=UPGRADE_STEP_1 or --gtid-mode=UPGRADE_STEP_2 are not yet supported");
+    sql_print_error("--gtid-mode=OFF_PERMISSIVE or --gtid-mode=ON_PERMISSIVE are not yet supported");
     unireg_abort(1);
   }
 
@@ -4769,7 +4766,8 @@ int mysqld_main(int argc, char **argv)
 
       (void) RUN_HOOK(server_state, after_engine_recovery, (NULL));
     }
-    else if (gtid_mode > GTID_MODE_OFF)
+    /// @todo WL#7083: Fetch gtids from table unconditionally
+    else if (get_gtid_mode() != GTID_MODE_OFF)
     {
       /*
         If gtid_mode is enabled and binlog is disabled, initialize
@@ -4917,7 +4915,8 @@ int mysqld_main(int argc, char **argv)
 #endif
   start_handle_manager();
 
-  if (gtid_mode > GTID_MODE_UPGRADE_STEP_1)
+  /// @todo WL#7083 change this to != GTID_MODE_OFF
+  if (get_gtid_mode() >= GTID_MODE_ON_PERMISSIVE)
     create_compress_gtid_table_thread();
 
   sql_print_information(ER_DEFAULT(ER_STARTUP),
@@ -4966,7 +4965,7 @@ int mysqld_main(int argc, char **argv)
 
   DBUG_PRINT("info", ("No longer listening for incoming connections"));
 
-  if (gtid_mode > GTID_MODE_UPGRADE_STEP_1)
+  if (get_gtid_mode() >= GTID_MODE_ON_PERMISSIVE)
   {
     terminate_compress_gtid_table_thread();
     /*

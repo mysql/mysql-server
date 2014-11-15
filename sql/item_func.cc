@@ -4599,7 +4599,7 @@ longlong Item_wait_for_executed_gtid_set::val_int()
 
   null_value= 0;
 
-  if (gtid_mode == 0)
+  if (get_gtid_mode() == GTID_MODE_OFF)
   {
     my_error(ER_GTID_MODE_OFF, MYF(0), "use WAIT_FOR_EXECUTED_GTID_SET");
     null_value= 1;
@@ -4648,7 +4648,7 @@ longlong Item_master_gtid_set_wait::val_int()
   int event_count= 0;
 
   null_value=0;
-  if (thd->slave_thread || !gtid || 0 == gtid_mode)
+  if (thd->slave_thread || !gtid || get_gtid_mode() == GTID_MODE_OFF)
   {
     null_value = 1;
     return event_count;

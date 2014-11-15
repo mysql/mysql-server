@@ -245,7 +245,7 @@ get_server_startup_prerequirements(Trans_context_info& requirements)
   requirements.binlog_enabled= opt_bin_log;
   requirements.binlog_format= global_system_variables.binlog_format;
   requirements.binlog_checksum_options= binlog_checksum_options;
-  requirements.gtid_mode= gtid_mode;
+  requirements.gtid_mode= get_gtid_mode();
   requirements.transaction_write_set_extraction=
     global_system_variables.transaction_write_set_extraction;
   requirements.mi_repository_type= opt_mi_repository_id;
@@ -256,7 +256,7 @@ get_server_startup_prerequirements(Trans_context_info& requirements)
 bool get_server_encoded_gtid_executed(uchar **encoded_gtid_executed,
                                       uint *length)
 {
-  DBUG_ASSERT(gtid_mode > 0);
+  DBUG_ASSERT(get_gtid_mode() > 0);
 
   global_sid_lock->wrlock();
   const Gtid_set *executed_gtids= gtid_state->get_executed_gtids();

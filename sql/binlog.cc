@@ -5415,7 +5415,7 @@ int MYSQL_BIN_LOG::purge_logs(const char *to_log,
   }
 
   // Update gtid_state->lost_gtids
-  if (gtid_mode > 0 && !is_relay_log)
+  if (get_gtid_mode() != GTID_MODE_OFF && !is_relay_log)
   {
     global_sid_lock->wrlock();
     error= init_gtid_sets(NULL,
@@ -6062,7 +6062,8 @@ int MYSQL_BIN_LOG::new_file_impl(bool need_lock_log, Format_description_log_even
   flush_io_cache(&log_file);
   DEBUG_SYNC(current_thd, "after_rotate_event_appended");
 
-  if (!is_relay_log && gtid_mode > GTID_MODE_UPGRADE_STEP_1)
+  /// @todo WL#7083 revisit this and enable this code when gtid_mode != off
+  if (!is_relay_log && get_gtid_mode() >= GTID_MODE_ON_PERMISSIVE)
   {
     /* Save set of GTIDs of the last binlog into table on binlog rotation */
     if ((error= gtid_state->save_gtids_of_last_binlog_into_table(true)))
