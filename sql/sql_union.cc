@@ -315,18 +315,6 @@ bool st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
 
     can_skip_order_by= is_union_select && !(sl->braces && sl->explicit_limit);
 
-    /*
-      Remove all references from the select_lex_units to the subqueries that
-      are inside the ORDER BY clause.
-    */
-    if (can_skip_order_by)
-    {
-      for (ORDER *ord= (ORDER *)sl->order_list.first; ord; ord= ord->next)
-      {
-        (*ord->item)->walk(&Item::eliminate_subselect_processor, FALSE, NULL);
-      }
-    }
-
     saved_error= join->prepare(&sl->ref_pointer_array,
                                sl->table_list.first,
                                sl->with_wild,
@@ -349,6 +337,18 @@ bool st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
 
     if (saved_error || (saved_error= thd_arg->is_fatal_error))
       goto err;
+    /*
+      Remove all references from the select_lex_units to the subqueries that
+      are inside the ORDER BY clause.
+    */
+    if (can_skip_order_by)
+    {
+      for (ORDER *ord= (ORDER *)sl->order_list.first; ord; ord= ord->next)
+      {
+        (*ord->item)->walk(&Item::eliminate_subselect_processor, FALSE, NULL);
+      }
+    }
+
     /*
       Use items list of underlaid select for derived tables to preserve
       information about fields lengths and exact types

@@ -1330,3 +1330,23 @@ create table t1 (a int);
 insert t1 values (1),(2),(3),(1);
 explain select 1 from dual where exists (select max(a) from t1 group by a union select a+2 from t1);
 drop table t1;
+
+--echo #
+--echo # MDEV-6868:MariaDB  server crash ( select with union and order by
+--echo # with subquery )
+--echo #
+
+CREATE TABLE t1 ( id INTEGER, sample_name1 VARCHAR(100), sample_name2 VARCHAR(100), PRIMARY KEY(id) );
+					
+INSERT INTO t1 ( id, sample_name1, sample_name2 ) VALUES ( 1, 'aaaa', 'bbbb' ), ( 2, 'cccc', 'dddd' );
+										
+(
+	SELECT sample_name1 AS testname FROM t1
+)
+UNION
+(
+	SELECT sample_name2 AS testname FROM t1 C ORDER BY (SELECT T.sample_name1 FROM t1 T WHERE T.id = C.id)
+)
+;
+
+drop table t1;
