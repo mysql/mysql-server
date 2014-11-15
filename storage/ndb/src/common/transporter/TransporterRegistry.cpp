@@ -380,6 +380,8 @@ TransporterRegistry::allocate_send_buffers(Uint64 total_send_buffer,
     page->m_next = m_page_freelist;
     m_page_freelist = page;
   }
+  m_tot_send_buffer_memory = SendBufferPage::PGSIZE * send_buffer_pages;
+  m_tot_used_buffer_memory = 0;
 }
 
 void TransporterRegistry::set_mgm_handle(NdbMgmHandle h)
@@ -2523,7 +2525,10 @@ TransporterRegistry::connect_ndb_mgmd(const char* server_name,
 }
 
 /**
- * Default implementation of transporter send buffer handler.
+ * The calls below are used by all implementations: NDB API, ndbd and
+ * ndbmtd. The calls to handle->getWritePtr, handle->updateWritePtr
+ * are handled by special implementations for NDB API, ndbd and
+ * ndbmtd.
  */
 
 Uint32 *
@@ -2690,6 +2695,7 @@ TransporterRegistry::alloc_page()
   SendBufferPage *page = m_page_freelist;
   if (page != NULL)
   {
+    m_tot_used_buffer_memory += SendBufferPage::PGSIZE;
     m_page_freelist = page->m_next;
     return page;
   }
@@ -2703,9 +2709,14 @@ TransporterRegistry::release_page(SendBufferPage *page)
 {
   assert(page != NULL);
   page->m_next = m_page_freelist;
+  m_tot_used_buffer_memory -= SendBufferPage::PGSIZE;
   m_page_freelist = page;
 }
 
+/**
+ * These are the TransporterSendBufferHandle methods used by the
+ * single-threaded ndbd.
+ */
 Uint32 *
 TransporterRegistry::getWritePtr(NodeId node, Uint32 lenBytes, Uint32 prio,
                                  Uint32 max_use)
@@ -2744,6 +2755,22 @@ TransporterRegistry::getWritePtr(NodeId node, Uint32 lenBytes, Uint32 prio,
     b->m_last_page = page;
   }
   return (Uint32 *)(page->m_data);
+}
+
+/**
+ * This is used by the ndbd, so here only one thread is using this, so
+ * values will always be consistent.
+ */
+void
+TransporterRegistry::getSendBufferLevel(NodeId node, SB_LevelType &level)
+{
+  SendBuffer *b = m_send_buffers + node;
+  calculate_send_buffer_level(b->m_used_bytes,
+                              m_tot_send_buffer_memory,
+                              m_tot_used_buffer_memory,
+                              0,
+                              level);
+  return;
 }
 
 Uint32
@@ -2840,5 +2867,82 @@ TransporterRegistry::get_connect_count(Uint32 nodeId)
   return theTransporters[nodeId]->get_connect_count();
 }
 
+/**
+ * We calculate the risk level for a send buffer.
+ * The primary instrument is the current size of
+ * the node send buffer. However if the total
+ * buffer for all send buffers is also close to
+ * empty, then we will adjust the node send
+ * buffer size for this. In this manner a very
+ * contested total buffer will also slow down
+ * the entire node operation.
+ */
+void
+calculate_send_buffer_level(Uint64 node_send_buffer_size,
+                            Uint64 total_send_buffer_size,
+                            Uint64 total_used_send_buffer_size,
+                            Uint32 num_threads,
+                            SB_LevelType &level)
+{
+  Uint64 percentage =
+    (total_used_send_buffer_size * 100) / total_send_buffer_size;
+
+  if (percentage < 90)
+  {
+    ;
+  }
+  else if (percentage < 95)
+  {
+    node_send_buffer_size *= 2;
+  }
+  else if (percentage < 97)
+  {
+    node_send_buffer_size *= 4;
+  }
+  else if (percentage < 98)
+  {
+    node_send_buffer_size *= 8;
+  }
+  else if (percentage < 99)
+  {
+    node_send_buffer_size *= 16;
+  }
+  else
+  {
+    level = SB_CRITICAL_LEVEL;
+    return;
+  }
+  
+  if (node_send_buffer_size < 128 * 1024)
+  {
+    level = SB_NO_RISK_LEVEL;
+    return;
+  }
+  else if (node_send_buffer_size < 256 * 1024)
+  {
+    level = SB_LOW_LEVEL;
+    return;
+  }
+  else if (node_send_buffer_size < 384 * 1024)
+  {
+    level = SB_MEDIUM_LEVEL;
+    return;
+  }
+  else if (node_send_buffer_size < 1024 * 1024)
+  {
+    level = SB_HIGH_LEVEL;
+    return;
+  }
+  else if (node_send_buffer_size < 2 * 1024 * 1024)
+  {
+    level = SB_RISK_LEVEL;
+    return;
+  }
+  else
+  {
+    level = SB_CRITICAL_LEVEL;
+    return;
+  }
+}
 
 template class Vector<TransporterRegistry::Transporter_interface>;

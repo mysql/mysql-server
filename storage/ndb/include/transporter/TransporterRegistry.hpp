@@ -617,6 +617,7 @@ public:
   virtual Uint32 *getWritePtr(NodeId node, Uint32 lenBytes, Uint32 prio,
                               Uint32 max_use);
   virtual Uint32 updateWritePtr(NodeId node, Uint32 lenBytes, Uint32 prio);
+  virtual void getSendBufferLevel(NodeId node, SB_LevelType &level);
   virtual bool forceSend(NodeId node);
 
 
@@ -662,10 +663,19 @@ private:
   bool m_use_default_send_buffer;
   /* Send buffers. */
   SendBuffer *m_send_buffers;
+  /**
+   * Make sure m_send_buffers array (read-only) is not using same
+   * cacheline as the data below which is often updated.
+   */
+  char unused[NDB_CL];
+
   /* Linked list of free pages. */
   SendBufferPage *m_page_freelist;
   /* Original block of memory for pages (so we can free it at exit). */
   unsigned char *m_send_buffer_memory;
+  
+  Uint64 m_tot_send_buffer_memory;
+  Uint64 m_tot_used_buffer_memory;
   /**
    * Sum of max transporter memory for each transporter.
    * Used to compute default send buffer size.
@@ -843,4 +853,15 @@ TransporterRegistry::backoff_update_and_check_time_for_connect(NodeId nodeId)
   return (connectingTime[nodeId] % attempt_moments[attempt_moments_count - 1] == 0);
 }
 
+/**
+ * A function used to calculate a send buffer level given the size of the node
+ * send buffer and the total send buffer size for all nodes and the total send
+ * buffer used for all nodes. There is also a thread parameter that specifies
+ * the number of threads used (this is 0 except for ndbmtd).
+ */
+void calculate_send_buffer_level(Uint64 node_send_buffer_size,
+                                 Uint64 total_send_buffer_size,
+                                 Uint64 total_used_send_buffer_size,
+                                 Uint32 num_threads,
+                                 SB_LevelType &level);
 #endif // Define of TransporterRegistry_H

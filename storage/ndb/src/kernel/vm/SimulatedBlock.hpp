@@ -308,7 +308,9 @@ protected:
   static Callback TheNULLCallback;
   void execute(Signal* signal, Callback & c, Uint32 returnCode);
   
-  
+
+  void getSendBufferLevel(NodeId node, SB_LevelType &level);
+
   /**********************************************************
    * Send signal - dialects
    */

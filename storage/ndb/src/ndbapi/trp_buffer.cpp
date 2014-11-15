@@ -36,6 +36,8 @@ TFPool::init(size_t mem, size_t page_sz)
     p->m_next = m_first_free;
     m_first_free = p;
   }
+  m_tot_send_buffer = mem;
+  m_tot_used_send_buffer = 0;
   return true;
 }
 

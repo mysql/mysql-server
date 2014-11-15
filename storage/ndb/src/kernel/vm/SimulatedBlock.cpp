@@ -501,6 +501,16 @@ releaseSections(SPC_ARG Uint32 secCount, SegmentedSectionPtr ptr[3]){
   ErrorReporter::handleAssert(msg, __FILE__, __LINE__);
 }
 
+void
+SimulatedBlock::getSendBufferLevel(NodeId node, SB_LevelType &level)
+{
+#ifdef NDBD_MULTITHREADED
+  mt_getSendBufferLevel(m_threadId, node, level);
+#else
+  globalTransporterRegistry.getSendBufferLevel(node, level);
+#endif
+}
+
 void 
 SimulatedBlock::sendSignal(BlockReference ref, 
 			   GlobalSignalNumber gsn, 

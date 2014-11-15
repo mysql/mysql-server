@@ -102,6 +102,7 @@ private:
   virtual Uint32 *getWritePtr(NodeId node, Uint32 lenBytes, Uint32 prio,
                               Uint32 max_use);
   virtual Uint32 updateWritePtr(NodeId node, Uint32 lenBytes, Uint32 prio);
+  virtual void getSendBufferLevel(NodeId node, SB_LevelType &level);
   virtual bool forceSend(NodeId node);
 
 private:

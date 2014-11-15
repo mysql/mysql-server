@@ -367,6 +367,12 @@ private:
     bool m_node_active;
 
     /**
+     * A protected view of the current send buffer size of the node.
+     * This is to support getSendBufferLevel.
+     */
+    Uint32 m_current_send_buffer_size;
+
+    /**
      * This is data that have been "scheduled" to be sent
      */
     TFBuffer m_buffer;
@@ -377,6 +383,10 @@ private:
     TFBuffer m_out_buffer;
   } m_send_buffers[MAX_NODES];
 
+  Uint32 get_current_send_buffer_size(NodeId node)
+  {
+    return m_send_buffers[node].m_current_send_buffer_size;
+  }
   void wakeup_send_thread(void);
   NdbMutex * m_send_thread_mutex;
   NdbCondition * m_send_thread_cond;

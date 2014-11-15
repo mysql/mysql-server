@@ -605,7 +605,7 @@ void TransporterFacade::threadMainSend(void)
     }
     m_send_thread_nodes.clear(SEND_THREAD_NO);
     NdbMutex_Unlock(m_send_thread_mutex);
-    bool all_empty = true;
+    bool all_empty;
     do
     {
       all_empty = true;
@@ -615,14 +615,16 @@ void TransporterFacade::threadMainSend(void)
         if (!b->m_node_active)
           continue;
         NdbMutex_Lock(&b->m_mutex);
+        Uint32 bytes_in_buffer = b->m_buffer.m_bytes_in_buffer;
+        Uint32 bytes_in_out_buffer = b->m_out_buffer.m_bytes_in_buffer;
         if (b->m_sending)
         {
           /**
            * sender does stuff when clearing m_sending
            */
         }
-        else if (b->m_buffer.m_bytes_in_buffer > 0 ||
-                 b->m_out_buffer.m_bytes_in_buffer > 0)
+        else if (bytes_in_buffer > 0 ||
+                 bytes_in_out_buffer > 0)
         {
           /**
            * Copy all data from m_buffer to m_out_buffer
@@ -637,12 +639,16 @@ void TransporterFacade::threadMainSend(void)
           }
           theTransporterRegistry->performSend(i);
           NdbMutex_Lock(&b->m_mutex);
+          bytes_in_buffer = b->m_buffer.m_bytes_in_buffer;
+          bytes_in_out_buffer = b->m_out_buffer.m_bytes_in_buffer;
           b->m_sending = false;
-          if (b->m_buffer.m_bytes_in_buffer > 0 ||
-              b->m_out_buffer.m_bytes_in_buffer > 0)
+          if (bytes_in_buffer > 0 ||
+              bytes_in_out_buffer > 0)
           {
             all_empty = false;
           }
+          b->m_current_send_buffer_size =
+            bytes_in_buffer + bytes_in_out_buffer;
         }
         NdbMutex_Unlock(&b->m_mutex);
       }
@@ -2749,9 +2755,11 @@ SignalSectionIterator::getNextWords(Uint32& sz)
 void
 TransporterFacade::flush_send_buffer(Uint32 node, const TFBuffer * sb)
 {
-  Guard g(&m_send_buffers[node].m_mutex);
+  struct TFSendBuffer * b = m_send_buffers + node;
+  Guard g(&b->m_mutex);
   assert(node < NDB_ARRAY_SIZE(m_send_buffers));
-  link_buffer(&m_send_buffers[node].m_buffer, sb);
+  b->m_current_send_buffer_size += b->m_buffer.m_bytes_in_buffer;
+  link_buffer(&b->m_buffer, sb);
 }
 
 void
@@ -2761,6 +2769,7 @@ TransporterFacade::flush_and_send_buffer(Uint32 node, const TFBuffer * sb)
   struct TFSendBuffer * b = m_send_buffers + node;
   bool wake = false;
   NdbMutex_Lock(&b->m_mutex);
+  b->m_current_send_buffer_size += b->m_buffer.m_bytes_in_buffer;
   link_buffer(&b->m_buffer, sb);
 
   if (b->m_sending == true)
@@ -2783,12 +2792,15 @@ TransporterFacade::flush_and_send_buffer(Uint32 node, const TFBuffer * sb)
     link_buffer(&b->m_out_buffer, &copy);
     theTransporterRegistry->performSend(node);
     NdbMutex_Lock(&b->m_mutex);
+    Uint32 bytes_in_buffer = b->m_buffer.m_bytes_in_buffer;
+    Uint32 bytes_in_out_buffer = b->m_out_buffer.m_bytes_in_buffer;
     b->m_sending = false;
-    if (b->m_buffer.m_bytes_in_buffer > 0 ||
-        b->m_out_buffer.m_bytes_in_buffer > 0)
+    if (bytes_in_buffer > 0 ||
+        bytes_in_out_buffer > 0)
     {
       wake = true;
     }
+    b->m_current_send_buffer_size = bytes_in_buffer + bytes_in_out_buffer;
   }
   NdbMutex_Unlock(&b->m_mutex);
 
@@ -2829,6 +2841,7 @@ TransporterFacade::bytes_sent(NodeId node, Uint32 bytes)
   TFBuffer *b = &m_send_buffers[node].m_out_buffer;
   TFBufferGuard g0(* b);
   Uint32 used_bytes = b->m_bytes_in_buffer;
+  Uint32 page_count = 0;
 
   if (bytes == 0)
   {
@@ -2846,11 +2859,12 @@ TransporterFacade::bytes_sent(NodeId node, Uint32 bytes)
     prev = page;
     bytes -= page->m_bytes;
     page = page->m_next;
+    page_count++;
   }
 
   if (used_bytes == 0)
   {
-    m_send_buffer.release(b->m_head, b->m_tail);
+    m_send_buffer.release(b->m_head, b->m_tail, page_count);
     b->m_head = 0;
     b->m_tail = 0;
   }
@@ -2858,7 +2872,7 @@ TransporterFacade::bytes_sent(NodeId node, Uint32 bytes)
   {
     if (prev)
     {
-      m_send_buffer.release(b->m_head, prev);
+      m_send_buffer.release(b->m_head, prev, page_count);
     }
 
     page->m_start += bytes;
@@ -2900,7 +2914,7 @@ TransporterFacade::reset_send_buffer(NodeId node, bool should_be_empty)
     TFBuffer *b = &m_send_buffers[node].m_buffer;
     if (b->m_head != 0)
     {
-      m_send_buffer.release(b->m_head, b->m_tail);
+      m_send_buffer.release_list(b->m_head);
     }
     memset(b, 0, sizeof(* b));
   }
@@ -2909,7 +2923,7 @@ TransporterFacade::reset_send_buffer(NodeId node, bool should_be_empty)
     TFBuffer *b = &m_send_buffers[node].m_out_buffer;
     if (b->m_head != 0)
     {
-      m_send_buffer.release(b->m_head, b->m_tail);
+      m_send_buffer.release_list(b->m_head);
     }
     memset(b, 0, sizeof(* b));
   }
