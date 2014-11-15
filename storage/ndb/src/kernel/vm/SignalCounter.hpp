@@ -36,6 +36,7 @@ public:
   /**
    * When sending to different node
    */
+  void setWaitingFor(NdbNodeBitmask nodes);
   void setWaitingFor(Uint32 nodeId);
   void clearWaitingFor(Uint32 nodeId);
   void forceClearWaitingFor(Uint32 nodeId);
@@ -56,6 +57,14 @@ public:
   SignalCounter& operator+=(Uint32);
   Uint32 getCount() const;
 };
+
+inline
+void
+SignalCounter::setWaitingFor(NdbNodeBitmask nodes)
+{
+  m_nodes.assign(nodes);
+  m_count = nodes.count();
+}
 
 inline
 void 

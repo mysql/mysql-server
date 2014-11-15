@@ -620,6 +620,7 @@ static const char* const jamFileNames[] =
    "ErrorReporter.cpp",                  // 490
    "angel.hpp",                          // 491
    "SimBlockList.cpp"                    // 492
+   "CopyTab.hpp"                         // 493
    };
 
 bool 

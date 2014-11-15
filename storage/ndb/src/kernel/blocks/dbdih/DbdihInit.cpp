@@ -105,9 +105,7 @@ void Dbdih::initRecords()
                                   sizeof(PageRecord), 
                                   cpageFileSize);
 
-  replicaRecord = (ReplicaRecord*)allocRecord("ReplicaRecord",
-                                              sizeof(ReplicaRecord), 
-                                              creplicaFileSize);
+  c_replicaRecordPool.setSize(creplicaFileSize);
 
   tabRecord = (TabRecord*)allocRecord("TabRecord",
                                               sizeof(TabRecord), 
@@ -134,6 +132,7 @@ void Dbdih::initRecords()
 
 Dbdih::Dbdih(Block_context& ctx):
   SimulatedBlock(DBDIH, ctx),
+  c_queued_lcp_frag_rep(c_replicaRecordPool),
   c_activeTakeOverList(c_takeOverPool),
   c_waitGCPProxyList(waitGCPProxyPool),
   c_waitGCPMasterList(waitGCPMasterPool),
@@ -341,7 +340,6 @@ Dbdih::Dbdih(Block_context& ctx):
   fileRecord = 0;
   fragmentstore = 0;
   pageRecord = 0;
-  replicaRecord = 0;
   tabRecord = 0;
   createReplicaRecord = 0;
   nodeGroupRecord = 0;
@@ -384,10 +382,6 @@ Dbdih::~Dbdih()
   deallocRecord((void **)&pageRecord, "PageRecord",
                 sizeof(PageRecord), 
                 cpageFileSize);
-  
-  deallocRecord((void **)&replicaRecord, "ReplicaRecord",
-                sizeof(ReplicaRecord), 
-                creplicaFileSize);
   
   deallocRecord((void **)&tabRecord, "TabRecord",
                 sizeof(TabRecord), 

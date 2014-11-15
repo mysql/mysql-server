@@ -512,7 +512,7 @@ public:
     /* THE FREE LIST OR IT REFERS TO THE NEXT IN A LIST OF REPLICAS ON A    */
     /* FRAGMENT.                                                            */
     /* -------------------------------------------------------------------- */
-    Uint32 nextReplica;
+    Uint32 nextPool;
 
     /* -------------------------------------------------------------------- */
     /*       THE NODE ID WHERE THIS REPLICA IS STORED.                      */
@@ -526,6 +526,32 @@ public:
       Uint32 lcpIdStarted;   // Started or queued
       Uint32 m_restorable_gci;
     };
+
+    /**
+     * Information needed to put the LCP_FRAG_REP into a queue and avoid
+     * sending the information onwards to all the other nodes in the
+     * cluster. We use a doubly linked list to support removal from
+     * queue due to drop table.
+     *
+     * By queueing in the local DIH we can make it appear as if the LCP
+     * is paused from the point of view of all the DIH blocks in the cluster.
+     *
+     * In the DBLQH the LCP is continuing unabated as long as there are
+     * fragments queued to execute LCPs on. The purpose of this pause support
+     * is to be able to copy the meta data without having to wait for the
+     * current LCP to be fully completed. Instead we can copy it while we are
+     * pausing the LCP reporting. This gives a possibility to provide
+     * new node with a snapshot of the metadata from the master node
+     * without having to stop the progress with the LCP execution.
+     */
+    Uint32 nextList;
+    Uint32 prevList;
+    Uint32 repMaxGciStarted;
+    Uint32 repMaxGciCompleted;
+    Uint32 fragId;
+    Uint32 tableId;
+    /* lcpNo == nextLcp, checked at queueing */
+    /* nodeId == procNode */
 
     /* -------------------------------------------------------------------- */
     /* THIS VARIABLE SPECIFIES WHAT THE STATUS OF THE LOCAL CHECKPOINT IS.IT*/
@@ -553,6 +579,9 @@ public:
     Uint8 lcpOngoingFlag;
   };
   typedef Ptr<ReplicaRecord> ReplicaRecordPtr;
+
+  ArrayPool<ReplicaRecord> c_replicaRecordPool;
+  DLFifoList<ReplicaRecord> c_queued_lcp_frag_rep;
 
   /*************************************************************************
    * TAB_DESCRIPTOR IS A DESCRIPTOR OF THE LOCATION OF THE FRAGMENTS BELONGING
@@ -922,6 +951,103 @@ private:
 
   MutexHandle2<DIH_FRAGMENT_INFO> c_fragmentInfoMutex_lcp;
 
+  /* LCP Pausing module start */
+  void execFLUSH_LCP_REP_REQ(Signal*);
+  void execFLUSH_LCP_REP_CONF(Signal*);
+  void execPAUSE_LCP_REQ(Signal*);
+  void execPAUSE_LCP_CONF(Signal*);
+
+  void sendPAUSE_LCP_REQ(Signal*, bool pause);
+  bool check_if_lcp_idle(void);
+  void pause_lcp(Signal *signal,
+                 Uint32 startNode,
+                 BlockReference sender_ref);
+  void unpause_lcp(Signal *signal,
+                   Uint32 startNode,
+                   BlockReference sender_ref,
+                   PauseLcpReq::PauseAction pauseAction);
+  void check_for_pause_action(Signal *signal);
+  void stop_pause(Signal *signal);
+  void handle_node_failure_in_pause(Signal *signal);
+  void dequeue_lcp_rep(Signal*);
+  void start_copy_meta_data(Signal*);
+  void start_lcp(Signal*);
+  bool check_if_pause_lcp_possible(void);
+  void start_lcp_before_mutex(Signal*);
+  void queue_lcp_frag_rep(Signal *signal, LcpFragRep *lcpReport);
+  void queue_lcp_complete_rep(Signal *signal, Uint32 lcpId);
+  void init_lcp_pausing_module(void);
+  bool check_pause_state_sanity(void);
+
+  /**
+   * Keep track of who sent the current pause lcp request. If this isn't the
+   * same as the master node, then the sender of the current pause has failed.
+   */
+  BlockReference c_pause_lcp_reference;
+
+  /**
+   * This is only true when an LCP is running and it is running with
+   * support for PAUSE LCP (all DIH nodes support it). Actually this
+   * is set when we have passed the START_LCP_REQ step. After this
+   * step we release the fragment info mutex if we can use the pause
+   * lcp protocol with all nodes.
+   */
+  bool c_lcp_runs_with_pause_support;
+
+  /**
+   * When c_lcp_paused is true then c_dequeue_lcp_rep_ongoing is false.
+   * When c_lcp_paused is false then c_dequeue_lcp_rep_ongoing is true
+   * until we have dequeued all queued requests. Requests will be
+   * queued as long as either of them are true to ensure that we keep
+   * the order of signals.
+   */
+  bool c_lcp_paused;
+  bool c_dequeue_lcp_rep_ongoing;
+
+  bool c_pause_lcp_requested;
+  bool c_old_node_waiting_for_lcp_end;
+
+  /**
+   * While we have outstanding PAUSE_LCP_REQ signals, c_pauseAction
+   * tells us whether the outstanding action is pause or unpause.
+   * In all other occasions it is set to NoAction.
+   */
+  PauseLcpReq::PauseAction c_pauseAction;
+
+  bool c_queued_lcp_complete_rep;
+
+  /**
+   * As soon as we have some LCP_FRAG_REP or LCP_COMPLETE_REP queued, this
+   * variable gives us the lcp Id of the paused LCP.
+   */
+  Uint32 c_lcp_id_paused;
+
+  /**
+   * We set the LCP Id when receiving COPY_TABREQ to be used in the
+   * updateLcpInfo routine.
+   */
+  Uint32 c_lcp_id_while_copy_meta_data;
+
+  /**
+   * This variable states which is the node starting up that requires a
+   * pause of the LCP to copy the meta data during an ongoing LCP.
+   * If the node fails this variable is set to RNIL to indicate we no
+   * longer need to worry about signals handling this pause.
+   */
+  Uint32 c_pause_lcp_start_node;
+
+  /**
+   * Bitmask of nodes that we're expecting a PAUSE_LCP_CONF response from.
+   * This bitmask is cleared if the starting node dies (or for that matter
+   * if any node dies since this will cause the starting node to also fail).
+   * The PAUSE_LCP_REQ_Counter is only used in the master node.
+   * Similarly a bitmask for outstanding FLUSH_LCP_REP_REQ messages to know
+   * when all nodes have sent their reply.
+   */
+  SignalCounter c_PAUSE_LCP_REQ_Counter;
+  SignalCounter c_FLUSH_LCP_REP_REQ_Counter;
+  /* LCP Pausing module end   */
+
   void execBLOCK_COMMIT_ORD(Signal *);
   void execUNBLOCK_COMMIT_ORD(Signal *);
 
@@ -1153,7 +1279,12 @@ private:
   void readFragment(RWFragment* rf, FragmentstorePtr regFragptr);
   Uint32 readPageWord(RWFragment* rf);
   void readReplica(RWFragment* rf, ReplicaRecordPtr readReplicaPtr);
-  void readReplicas(RWFragment* rf, FragmentstorePtr regFragptr);
+  void readReplicas(RWFragment* rf,
+                    TabRecord *regTabPtr,
+                    FragmentstorePtr regFragptr);
+  void updateLcpInfo(TabRecord *regTabPtr,
+                     Fragmentstore *regFragPtr,
+                     ReplicaRecord *regReplicaPtr);
   void readRestorableGci(Signal *, FileRecordPtr regFilePtr);
   void readTabfile(Signal *, TabRecord* tab, FileRecordPtr regFilePtr);
   void writeFragment(RWFragment* wf, FragmentstorePtr regFragptr);

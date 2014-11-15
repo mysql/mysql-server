@@ -76,6 +76,7 @@ private:
     ,ZTO_START_LOGGING = 49
     ,ZGET_TABINFO = 50
     ,ZGET_TABINFO_SEND = 51
+    ,ZDEQUEUE_LCP_REP = 52
   };
 };
 

@@ -30,10 +30,10 @@ printSTART_LCP_REQ(FILE * output, const Uint32 * theData,
   char buf1[8*_NDB_NODE_BITMASK_SIZE+1];
   char buf2[8*_NDB_NODE_BITMASK_SIZE+1];
   fprintf(output, 
-	  " Sender: %d LcpId: %d\n"
+	  " Sender: %d LcpId: %d PauseStart: %d\n"
 	  " ParticipatingDIH = %s\n"
 	  " ParticipatingLQH = %s\n",
-	  refToNode(sig->senderRef), sig->lcpId,
+	  refToNode(sig->senderRef), sig->lcpId, sig->pauseStart,
 	  sig->participatingDIH.getText(buf1),
 	  sig->participatingLQH.getText(buf2));
   

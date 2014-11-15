@@ -339,18 +339,23 @@ inline
 bool
 ArrayPool<T>::setSize(Uint32 noOfElements, 
 		      bool align, bool exit_on_error, bool guard, Uint32 paramId){
-  if(size == 0){
+  if(size == 0)
+  {
     if(noOfElements == 0)
+    {
       return true;
-  Uint64 real_size = (Uint64)noOfElements * sizeof(T);
-  size_t req_size = (size_t)real_size;
-  Uint64 real_size_align = real_size + sizeof(T);
-  size_t req_size_align = (size_t)real_size_align;
+    }
+    Uint64 real_size = (Uint64)noOfElements * sizeof(T);
+    size_t req_size = (size_t)real_size;
+    Uint64 real_size_align = real_size + sizeof(T);
+    size_t req_size_align = (size_t)real_size_align;
 
     if(align)
     {
       if((Uint64)req_size_align == real_size_align && req_size_align > 0)
-        alloc_ptr = ndbd_malloc(req_size_align);  
+      {
+        alloc_ptr = ndbd_malloc(req_size_align);
+      }
       UintPtr p = (UintPtr)alloc_ptr;
       UintPtr mod = p % sizeof(T);
       if (mod)
@@ -360,7 +365,9 @@ ArrayPool<T>::setSize(Uint32 noOfElements,
       theArray = (T *)p;
     }
     else if((Uint64)req_size == real_size && req_size > 0)
+    {
       theArray = (T *)(alloc_ptr = ndbd_malloc(req_size));
+    }
 
     if(theArray == 0)
     {
@@ -370,7 +377,9 @@ ArrayPool<T>::setSize(Uint32 noOfElements,
       if (!exit_on_error)
 	return false;
 
-      if(0 != paramId && 0 == ndb_mgm_get_db_parameter_info(paramId, &param_info, &tsize)) {
+      if(0 != paramId &&
+         0 == ndb_mgm_get_db_parameter_info(paramId, &param_info, &tsize))
+      {
         BaseString::snprintf(errmsg, sizeof(errmsg), 
                 "Malloc memory for %s failed", param_info.m_name);
       }
@@ -387,7 +396,8 @@ ArrayPool<T>::setSize(Uint32 noOfElements,
      * Set next pointers
      */
     T * t = &theArray[0];
-    for(Uint32 i = 0; i<size; i++){
+    for(Uint32 i = 0; i<size; i++)
+    {
       t->nextPool = (i + 1);
       t++;
     }
@@ -407,7 +417,9 @@ ArrayPool<T>::setSize(Uint32 noOfElements,
     return true;
   }
   if (!exit_on_error)
+  {
     return false;
+  }
 
   ErrorReporter::handleAssert("ArrayPool<T>::setSize called twice", __FILE__, __LINE__);
   return false; // not reached
