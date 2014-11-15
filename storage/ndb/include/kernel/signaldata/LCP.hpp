@@ -42,12 +42,22 @@ struct StartLcpReq {
   friend bool printSTART_LCP_REQ(FILE *, const Uint32 *, Uint32, Uint16);  
 public:
 
-  STATIC_CONST( SignalLength = 2 + 2 * NdbNodeBitmask::Size );
+  STATIC_CONST( SignalLength = 2 + 2 * NdbNodeBitmask::Size + 1 );
   Uint32 senderRef;
   Uint32 lcpId;
   
   NdbNodeBitmask participatingDIH;
   NdbNodeBitmask participatingLQH;
+  /**
+   * pauseStart = 0 normal start
+   * pauseStart = 1 starting node into already running LCP,
+   *                bitmasks contains participants
+   * pauseStart = 2 starting node into already running LCP,
+   *                bitmasks contains completion bitmasks
+   * pauseStart = 1 requires no response since pauseStart = 2 will arrive
+   *                immediately after it.
+   */
+  Uint32 pauseStart;
 };
 
 class StartLcpConf {
@@ -338,6 +348,49 @@ private:
   Uint32 error;
 };
 
+class PauseLcpReq
+{
+public:
+  STATIC_CONST (SignalLength = 3 );
+
+  enum PauseAction
+  {
+    NoAction = 0,
+    Pause = 1,
+    UnPauseIncludeInLcp = 2,
+    UnPauseNotIncludeInLcp = 3
+  };
+  Uint32 senderRef;
+  Uint32 pauseAction;
+  Uint32 startNodeId;
+};
+
+class PauseLcpConf
+{
+public:
+  STATIC_CONST (SignalLength = 2 );
+
+  Uint32 senderRef;
+  Uint32 startNodeId;
+};
+
+class FlushLcpRepReq
+{
+public:
+  STATIC_CONST (SignalLength = 2 );
+
+  Uint32 senderRef;
+  Uint32 startNodeId;
+};
+
+class FlushLcpRepConf
+{
+public:
+  STATIC_CONST (SignalLength = 2 );
+
+  Uint32 senderRef;
+  Uint32 startNodeId;
+};
 
 #undef JAM_FILE_ID
 
