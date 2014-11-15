@@ -1070,6 +1070,7 @@ struct mt_send_handle  : public TransporterSendBufferHandle
 
   virtual Uint32 *getWritePtr(NodeId node, Uint32 len, Uint32 prio, Uint32 max);
   virtual Uint32 updateWritePtr(NodeId node, Uint32 lenBytes, Uint32 prio);
+  virtual void getSendBufferLevel(NodeId node, SB_LevelType &level);
   virtual bool forceSend(NodeId node);
 };
 
@@ -1166,6 +1167,7 @@ struct thr_repository
     struct thr_spin_lock m_send_lock;   //Protect m_sending + transporter
     struct thr_send_buffer m_sending;
 
+    Uint64 m_node_total_send_buffer_size; //Protected by m_buffer_lock
     /**
      * Flag used to coordinate sending to same remote node from different
      * threads when there are contention on m_send_lock.
@@ -2899,7 +2901,7 @@ link_thread_send_buffers(thr_repository::send_buffer * sb, Uint32 node)
       }
     }
   }
-
+  Uint64 node_total_send_buffer_size = sb->m_node_total_send_buffer_size;
   if (bytes)
   {
     /**
@@ -2921,6 +2923,8 @@ link_thread_send_buffers(thr_repository::send_buffer * sb, Uint32 node)
       sb->m_buffer.m_last_page = tmp.m_last_page;
     }
   }
+  sb->m_node_total_send_buffer_size =
+    node_total_send_buffer_size + bytes;
   return bytes;
 }
 
@@ -3118,11 +3122,13 @@ Uint32
 bytes_sent(thread_local_pool<thr_send_page>* pool,
            thr_repository::send_buffer* sb, Uint32 bytes)
 {
+  Uint64 node_total_send_buffer_size = sb->m_node_total_send_buffer_size;
   assert(bytes);
 
   Uint32 remain = bytes;
   thr_send_page * prev = NULL;
   thr_send_page * curr = sb->m_sending.m_first_page;
+  sb->m_node_total_send_buffer_size = node_total_send_buffer_size - bytes;
 
   /* Some, or all, in 'm_sending' was sent, find endpoint. */
   while (remain && remain >= curr->m_bytes)
@@ -3273,7 +3279,6 @@ trp_callback::reset_send_buffer(NodeId node, bool should_be_empty)
     sb->m_buffer.m_last_page  = NULL;
     assert(!should_be_empty); // Got data when it should be empty
   }
-  unlock(&sb->m_buffer_lock);
 
   /* Drop all pending data in m_sending buffers. */
   if (sb->m_sending.m_first_page)
@@ -3284,6 +3289,8 @@ trp_callback::reset_send_buffer(NodeId node, bool should_be_empty)
 
     assert(!should_be_empty); // Got data when it should be empty
   }
+  sb->m_node_total_send_buffer_size = 0;
+  unlock(&sb->m_buffer_lock);
   unlock(&sb->m_send_lock);
 
   pool.release_all(rep->m_mm, RG_TRANSPORTER_BUFFERS);
@@ -3637,6 +3644,10 @@ do_send(struct thr_data* selfptr, bool must_send)
   return selfptr->m_pending_send_count;
 }
 
+/**
+ * These are the implementations of the TransporterSendBufferHandle methods
+ * in ndbmtd.
+ */
 Uint32 *
 mt_send_handle::getWritePtr(NodeId node, Uint32 len, Uint32 prio, Uint32 max)
 {
@@ -3664,6 +3675,50 @@ mt_send_handle::getWritePtr(NodeId node, Uint32 len, Uint32 prio, Uint32 max)
     return (Uint32*)p->m_data;
   }
   return 0;
+}
+
+void
+mt_getSendBufferLevel(Uint32 self, NodeId node, SB_LevelType &level)
+{
+  Resource_limit rl, rl_shared;
+  const Uint32 page_size = thr_send_page::PGSIZE;
+  thr_repository *rep = g_thr_repository;
+  thr_repository::send_buffer *b = &rep->m_send_buffers[node];
+  Uint64 current_node_send_buffer_size = b->m_node_total_send_buffer_size;
+  
+  rep->m_mm->get_resource_limit_nolock(RG_TRANSPORTER_BUFFERS, rl);
+  Uint64 current_send_buffer_size = rl.m_min * page_size;
+  Uint64 current_used_send_buffer_size = rl.m_curr * page_size * 100;
+  Uint64 current_percentage =
+    current_used_send_buffer_size / current_send_buffer_size;
+
+  if (current_percentage >= 90)
+  {
+    rep->m_mm->get_resource_limit(0, rl_shared);
+    Uint32 avail_shared = rl_shared.m_max - rl_shared.m_curr;
+    if (rl.m_min + avail_shared > rl.m_max)
+    {
+      current_send_buffer_size = rl.m_max * page_size;
+    }
+    else
+    {
+      current_send_buffer_size = (rl.m_min + avail_shared) * page_size;
+    }
+  }
+  calculate_send_buffer_level(current_node_send_buffer_size,
+                              current_send_buffer_size,
+                              current_used_send_buffer_size,
+                              num_threads,
+                              level);
+  return;
+}
+
+void
+mt_send_handle::getSendBufferLevel(NodeId node, SB_LevelType &level)
+{
+  (void)node;
+  (void)level;
+  return;
 }
 
 Uint32

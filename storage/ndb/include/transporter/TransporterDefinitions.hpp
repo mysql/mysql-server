@@ -48,6 +48,16 @@ enum TransporterType {
   tt_SHM_TRANSPORTER = 3
 };
 
+enum SB_LevelType
+{
+  SB_NO_RISK_LEVEL = 0,
+  SB_LOW_LEVEL = 1,
+  SB_MEDIUM_LEVEL = 2,
+  SB_HIGH_LEVEL = 3,
+  SB_RISK_LEVEL = 4,
+  SB_CRITICAL_LEVEL = 5
+};
+
 /**
  * Maximum message sizes
  * ---------------------

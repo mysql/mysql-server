@@ -251,6 +251,13 @@ public:
   virtual Uint32 updateWritePtr(NodeId node, Uint32 lenBytes, Uint32 prio) = 0;
 
   /**
+   * Provide a mechanism to check the level of risk in using the send buffer.
+   * This is useful in long-running activities to ensure that they don't
+   * jeopardize short, high priority actions in the cluster.
+   */
+  virtual void getSendBufferLevel(NodeId node, SB_LevelType &level) = 0;
+
+  /**
    * Called during prepareSend() if send buffer gets full, to do an emergency
    * send to the remote node with the hope of freeing up send buffer for the
    * signal to be queued.

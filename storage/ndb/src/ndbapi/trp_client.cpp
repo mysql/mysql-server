@@ -245,6 +245,35 @@ trp_client::getWritePtr(NodeId node, Uint32 lenBytes, Uint32 prio,
   return NULL;
 }
 
+/**
+ * This is the implementation used by the NDB API. I update the
+ * current send buffer size every time a thread gets the send mutex and
+ * links their buffers to the common pool of buffers. I recalculate the
+ * buffer size also every time a send to the node has been completed.
+ *
+ * The values we read here are read unprotected, the idea is that the
+ * value reported from here should only used for guidance. So it should
+ * only implement throttling, it should not completely stop send activities,
+ * merely delay it. So the harm in getting an inconsistent view of data
+ * should not be high. Also we expect measures of slowing down to occur
+ * at a fairly early stage, so not close to when the buffers are filling up.
+ */
+void
+trp_client::getSendBufferLevel(NodeId node, SB_LevelType &level)
+{
+  Uint32 current_send_buffer_size = m_facade->get_current_send_buffer_size(node);
+  Uint64 tot_send_buffer_size =
+    m_facade->m_send_buffer.get_total_send_buffer_size();
+  Uint64 tot_used_send_buffer_size =
+    m_facade->m_send_buffer.get_total_used_send_buffer_size();
+  calculate_send_buffer_level(current_send_buffer_size,
+                              tot_send_buffer_size,
+                              tot_used_send_buffer_size,
+                              0,
+                              level);
+  return;
+}
+
 Uint32
 trp_client::updateWritePtr(NodeId node, Uint32 lenBytes, Uint32 prio)
 {
