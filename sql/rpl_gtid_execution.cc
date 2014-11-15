@@ -74,7 +74,6 @@ int gtid_acquire_ownership_single(THD *thd)
       {
         if (gtid_state->acquire_ownership(thd, gtid_next) != RETURN_STATUS_OK)
           ret= 1;
-        thd->owned_gtid= gtid_next;
         DBUG_ASSERT(thd->owned_gtid.sidno >= 1);
         DBUG_ASSERT(thd->owned_gtid.gno >= 1);
         break;

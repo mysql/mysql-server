@@ -49,7 +49,7 @@ int Gtid_state::clear(THD *thd)
 enum_return_status Gtid_state::acquire_ownership(THD *thd, const Gtid &gtid)
 {
   DBUG_ENTER("Gtid_state::acquire_ownership");
-  // caller must take lock on the SIDNO.
+  // caller must take both global_sid_lock and lock on the SIDNO.
   global_sid_lock->assert_some_lock();
   gtid_state->assert_sidno_lock_owner(gtid.sidno);
   DBUG_ASSERT(!executed_gtids.contains_gtid(gtid));
@@ -203,8 +203,9 @@ void Gtid_state::update_gtids_impl(THD *thd, bool is_commit)
 {
   DBUG_ENTER("Gtid_state::update_gtids_impl");
 
-  // Caller must take lock on the SIDNO.
+  // Caller must take global_sid_lock.
   global_sid_lock->assert_some_lock();
+
   if (thd->owned_gtid.sidno == THD::OWNED_SIDNO_GTID_SET)
   {
 #ifdef HAVE_GTID_NEXT_LIST
@@ -225,6 +226,12 @@ void Gtid_state::update_gtids_impl(THD *thd, bool is_commit)
     if (is_commit && !thd->owned_gtid_set.is_empty())
       thd->rpl_thd_ctx.session_gtids_ctx().
         notify_after_gtid_executed_update(thd);
+
+    thd->variables.gtid_next.set_undefined();
+    thd->owned_gtid.dbug_print(NULL,
+                               "set owned_gtid (clear; old was gtid_set) "
+                               "in update_gtids_impl");
+    thd->clear_owned_gtids();
 #else
     DBUG_ASSERT(0);
 #endif
@@ -404,7 +411,9 @@ enum_return_status Gtid_state::generate_automatic_gtid(THD *thd,
   enum_return_status ret= RETURN_STATUS_OK;
 
   DBUG_ASSERT(thd->variables.gtid_next.type == AUTOMATIC_GROUP);
-  DBUG_ASSERT(specified_sidno >= 0 && specified_gno >= 0);
+  DBUG_ASSERT(specified_sidno >= 0);
+  DBUG_ASSERT(specified_gno >= 0);
+  DBUG_ASSERT(thd->owned_gtid.is_empty());
 
   // If GTID_MODE = UPGRADE_STEP_2 or ON, generate a new GTID
   if (gtid_mode >= GTID_MODE_UPGRADE_STEP_2)
@@ -579,7 +588,7 @@ int Gtid_state::save(THD *thd)
 {
   DBUG_ENTER("Gtid_state::save(THD *thd)");
   DBUG_ASSERT(gtid_table_persistor != NULL);
-  DBUG_ASSERT(!thd->owned_gtid.is_empty());
+  DBUG_ASSERT(thd->owned_gtid.sidno > 0);
   int error= 0;
 
   int ret= gtid_table_persistor->save(thd, &thd->owned_gtid);

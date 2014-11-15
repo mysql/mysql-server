@@ -293,6 +293,26 @@ int reset_slave(THD *thd, Master_info* mi, bool reset_all);
 int reset_slave(THD *thd);
 int init_slave();
 int init_recovery(Master_info* mi, const char** errmsg);
+/**
+  Call mi->init_info() and/or mi->rli->init_info(), which will read
+  the replication configuration from repositories.
+
+  This takes care of creating a transaction context in case table
+  repository is needed.
+
+  @param mi The Master_info object to use.
+
+  @param ignore_if_no_info If this is false, and the repository does
+  not exist, it will be created. If this is true, and the repository
+  does not exist, nothing is done.
+
+  @param thread_mask Indicate which repositories will be initialized:
+  if (thread_mask&SLAVE_IO)!=0, then mi->init_info is called; if
+  (thread_mask&SLAVE_SQL)!=0, then mi->rli->init_info is called.
+
+  @retval 0 Success
+  @retval nonzero Error
+*/
 int global_init_info(Master_info* mi, bool ignore_if_no_info, int thread_mask);
 void end_info(Master_info* mi);
 int remove_info(Master_info* mi);

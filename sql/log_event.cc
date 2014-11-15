@@ -13001,7 +13001,7 @@ int Gtid_log_event::do_apply_event(Relay_log_info const *rli)
     this case the only sensible thing to do is to discard the
     truncated transaction and move on.
   */
-  if (thd->owned_gtid.sidno)
+  if (!thd->owned_gtid.is_empty())
   {
     /*
       Slave will execute this code if a previous Gtid_log_event was applied
