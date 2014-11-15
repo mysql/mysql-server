@@ -4564,10 +4564,7 @@ static bool check_slave_skip_counter(sys_var *self, THD *thd, set_var *var)
 {
   bool result= false;
 
-  /* slave_skip_counter becomes per channel in multisource replication*/
-  mysql_mutex_lock(&LOCK_msr_map);
-
-  if (gtid_mode == GTID_MODE_ON)
+  if (get_gtid_mode() == GTID_MODE_ON)
   {
     my_message(ER_SQL_SLAVE_SKIP_COUNTER_NOT_SETTABLE_IN_GTID_MODE,
                ER(ER_SQL_SLAVE_SKIP_COUNTER_NOT_SETTABLE_IN_GTID_MODE),
@@ -4575,7 +4572,6 @@ static bool check_slave_skip_counter(sys_var *self, THD *thd, set_var *var)
     result= true;
   }
 
-  mysql_mutex_unlock(&LOCK_msr_map);
   return result;
 }
 
@@ -4779,7 +4775,7 @@ static bool check_enforce_gtid_consistency(
   if (check_top_level_stmt_and_super(self, thd, var) ||
       check_outside_transaction(self, thd, var))
     DBUG_RETURN(true);
-  if (gtid_mode >= 2 && var->value->val_int() == 0)
+  if (get_gtid_mode() >= GTID_MODE_ON_PERMISSIVE && var->value->val_int() == 0)
   {
     my_error(ER_GTID_MODE_2_OR_3_REQUIRES_ENFORCE_GTID_CONSISTENCY_ON, MYF(0));
     DBUG_RETURN(true);
@@ -4920,9 +4916,9 @@ static bool check_gtid_next(sys_var *self, THD *thd, set_var *var)
   global_sid_lock->unlock();
 
   // check compatibility with GTID_MODE
-  if (gtid_mode == 0 && spec.type == GTID_GROUP)
+  if (get_gtid_mode() == GTID_MODE_OFF && spec.type == GTID_GROUP)
     my_error(ER_CANT_SET_GTID_NEXT_TO_GTID_WHEN_GTID_MODE_IS_OFF, MYF(0));
-  if (gtid_mode == 3 && spec.type == ANONYMOUS_GROUP)
+  if (get_gtid_mode() == GTID_MODE_ON && spec.type == ANONYMOUS_GROUP)
     my_error(ER_CANT_SET_GTID_NEXT_TO_ANONYMOUS_WHEN_GTID_MODE_IS_ON, MYF(0));
 
   if (gtid_next_list != NULL)
@@ -4995,7 +4991,7 @@ static bool check_gtid_next_list(sys_var *self, THD *thd, set_var *var)
   if (check_top_level_stmt_and_super(self, thd, var) ||
       check_outside_transaction(self, thd, var))
     DBUG_RETURN(true);
-  if (gtid_mode == 0 && var->save_result.string_value.str != NULL)
+  if (gtid_mode == GTID_MODE_OFF && var->save_result.string_value.str != NULL)
     my_error(ER_CANT_SET_GTID_NEXT_LIST_TO_NON_NULL_WHEN_GTID_MODE_IS_OFF,
              MYF(0));
   DBUG_RETURN(false);
@@ -5046,7 +5042,8 @@ static bool check_gtid_purged(sys_var *self, THD *thd, set_var *var)
       check_outside_sp(self, thd, var))
     DBUG_RETURN(true);
 
-  if (0 == gtid_mode)
+  /// @todo WL#7083: revisit this and remove the check
+  if (get_gtid_mode() == GTID_MODE_OFF)
   {
     my_error(ER_CANT_SET_GTID_PURGED_WHEN_GTID_MODE_IS_OFF, MYF(0));
     DBUG_RETURN(true);
@@ -5139,7 +5136,7 @@ static bool check_gtid_mode(sys_var *self, THD *thd, set_var *var)
     my_error(ER_GTID_MODE_CAN_ONLY_CHANGE_ONE_STEP_AT_A_TIME, MYF(0));
     DBUG_RETURN(true);
   }
-  if (new_gtid_mode >= 1)
+  if (new_gtid_mode > GTID_MODE_OFF)
   {
     if (!opt_bin_log || !opt_log_slave_updates)
     {
@@ -5147,10 +5144,10 @@ static bool check_gtid_mode(sys_var *self, THD *thd, set_var *var)
       DBUG_RETURN(false);
     }
   }
-  if (new_gtid_mode >= 2)
+  if (new_gtid_mode >= GTID_MODE_ON_PERMISSIVE)
   {
     /*
-    if (new_gtid_mode == 3 &&
+    if (new_gtid_mode == GTID_MODE_ON &&
         (there are un-processed anonymous transactions in relay log ||
          there is a client executing an anonymous transaction))
     {
@@ -5168,7 +5165,7 @@ static bool check_gtid_mode(sys_var *self, THD *thd, set_var *var)
   else
   {
     /*
-    if (new_gtid_mode == 0 &&
+    if (new_gtid_mode == GTID_MODE_OFF &&
         (there are un-processed GTIDs in relay log ||
          there is a client executing a GTID transaction))
     {
@@ -5184,17 +5181,25 @@ static bool check_gtid_mode(sys_var *self, THD *thd, set_var *var)
 static Sys_var_enum Sys_gtid_mode(
        "gtid_mode",
        /*
-       "Whether Global Transaction Identifiers (GTIDs) are enabled: OFF, "
-       "UPGRADE_STEP_1, UPGRADE_STEP_2, or ON. OFF means GTIDs are not "
-       "supported at all, ON means GTIDs are supported by all servers in "
-       "the replication topology. To safely switch from OFF to ON, first "
-       "set all servers to UPGRADE_STEP_1, then set all servers to "
-       "UPGRADE_STEP_2, then wait for all anonymous transactions to "
-       "be re-executed on all servers, and finally set all servers to ON.",
+       "Controls whether Global Transaction Identifiers (GTIDs) are "
+       "enabled. Can be OFF, OFF_PERMISSIVE, ON_PERMISSIVE, or ON. OFF "
+       "means that no transaction has a GTID. OFF_PERMISSIVE means that "
+       "new transactions (committed in a client session using "
+       "GTID_NEXT='AUTOMATIC') are not assigned any GTID, and "
+       "replicated transactions are allowed to have or not have a "
+       "GTID. ON_PERMISSIVE means that new transactions are assigned a "
+       "GTID, and replicated transactions are allowed to have or not "
+       "have a GTID. ON means that all transactions have a GTID. "
+       "ON is required on a master before any slave can use "
+       "MASTER_AUTO_POSITION=1. To safely switch from OFF to ON, first "
+       "set all servers to OFF_PERMISSIVE, then set all servers to "
+       "ON_PERMISSIVE, then wait for all transactions without a GTID to "
+       "be replicated and executed on all servers, and finally set all "
+       "servers to GTID_MODE = ON.",
        */
        "Whether Global Transaction Identifiers (GTIDs) are enabled. Can be "
        "ON or OFF.",
-       READ_ONLY GLOBAL_VAR(gtid_mode), CMD_LINE(REQUIRED_ARG),
+       READ_ONLY GLOBAL_VAR(_gtid_mode), CMD_LINE(REQUIRED_ARG),
        gtid_mode_names, DEFAULT(GTID_MODE_OFF),
        NO_MUTEX_GUARD, NOT_IN_BINLOG
 #ifdef NON_DISABLED_GTID

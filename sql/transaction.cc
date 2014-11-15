@@ -199,7 +199,8 @@ bool trans_commit(THD *thd)
     ha_commit_trans(...) Consequently, we need to reset it back,
     much like we are doing before calling ha_commit_trans(...).
   */
-  if (gtid_mode > GTID_MODE_UPGRADE_STEP_1)
+  /// @todo WL#7083: remove this guard /sven
+  if (get_gtid_mode() >= GTID_MODE_ON_PERMISSIVE)
     thd->server_status&= ~SERVER_STATUS_IN_TRANS;
   thd->variables.option_bits&= ~OPTION_BEGIN;
   thd->get_transaction()->reset_unsafe_rollback_flags(Transaction_ctx::SESSION);

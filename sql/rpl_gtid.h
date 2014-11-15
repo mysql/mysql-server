@@ -217,6 +217,97 @@ inline enum_return_status map_macro_enum(int status)
 }
 
 
+/// Possible values for @@GLOBAL.GTID_MODE.
+enum enum_gtid_mode
+{
+  /**
+    New transactions are anonymous. Replicated transactions must be
+    anonymous; replicated GTID-transactions generate an error.
+  */
+  GTID_MODE_OFF= 0,
+  /**
+    New transactions are anonyomus. Replicated transactions can be
+    either anonymous or GTID-transactions.
+  */
+  GTID_MODE_OFF_PERMISSIVE= 1,
+  /**
+    New transactions are GTID-transactions. Replicated transactions
+    can be either anonymous or GTID-transactions.
+  */
+  GTID_MODE_ON_PERMISSIVE= 2,
+  /**
+    New transactions are GTID-transactions. Replicated transactions
+    must be GTID-transactions; replicated anonymous transactions
+    generate an error.
+  */
+  GTID_MODE_ON= 3
+};
+/**
+  The gtid_mode.
+
+  Please do not access this directly - use the getters and setters
+  defined below.
+
+  It is ulong rather than enum_gtid_mode because of how sys_vars are
+  updated.
+*/
+extern ulong _gtid_mode;
+/**
+  Strings holding the enumeration values for gtid_mode. Use
+  get_gtid_mode_string instead of accessing this directly.
+*/
+extern const char *gtid_mode_names[];
+/**
+  'Typelib' for the mode names. Use get_gtid_mode_string instead
+  of accessing this directly.
+*/
+extern TYPELIB gtid_mode_typelib;
+
+/**
+  Return the given string GTID_MODE as an enumeration value.
+
+  @param string The string to decode.
+
+  @param[OUT] error If the string does not represent a valid
+  GTID_MODE, this is set to true, otherwise it is left untouched.
+
+  @return The GTID_MODE.
+*/
+inline enum_gtid_mode get_gtid_mode(const char *string, bool *error)
+{
+  int ret= find_type(string, &gtid_mode_typelib, 1);
+  if (ret == 0)
+  {
+    *error= true;
+    return GTID_MODE_OFF;
+  }
+  else
+    return (enum_gtid_mode)(ret - 1);
+}
+/// Return the given GTID_MODE as a string.
+inline const char *get_gtid_mode_string(enum_gtid_mode gtid_mode_arg)
+{
+  return gtid_mode_names[gtid_mode_arg];
+}
+/**
+  Return the current GTID_MODE as an enumeration value.
+
+  Writes to this are protected to global_sid_lock->wrlock.
+
+  Reads are usually protected by global_sid_lock but in cases where it
+  is not important to protect it, it may be read without a lock.
+
+  @todo WL#7083: check that the lock is taken when it needs to be taken.
+*/
+inline enum_gtid_mode get_gtid_mode() { return (enum_gtid_mode)_gtid_mode; }
+
+#ifndef DBUG_OFF
+/**
+  Return the current GTID_MODE as a string. Used only for debugging.
+*/
+inline const char *get_gtid_mode_string() { return get_gtid_mode_string(get_gtid_mode()); }
+#endif
+
 /// The maximum value of GNO
 const rpl_gno MAX_GNO= LLONG_MAX;
 /// The length of MAX_GNO when printed in decimal.
@@ -2258,7 +2349,7 @@ public:
   rpl_gno get_last_executed_gno(rpl_sidno sidno) const;
   /**
     Generates the GTID (or ANONYMOUS, if GTID_MODE = OFF or
-    OFF_FLEXIBLE) for the THD, and acquires ownership.
+    OFF_PERMISSIVE) for the THD, and acquires ownership.
 
     @param THD The thread.
     @param specified_sidno Externaly generated sidno.
@@ -2592,9 +2683,9 @@ enum enum_group_type
   /**
     Specifies that the GTID has not been generated yet; it will be
     generated on commit.  It will depend on the GTID_MODE: if
-    GTID_MODE<=UPGRADE_STEP_1, then the transaction will be anonymous;
-    if GTID_MODE>=UPGRADE_STEP_2, then the transaction will be
-    assigned a new GTID.
+    GTID_MODE<=OFF_PERMISSIVE, then the transaction will be anonymous;
+    if GTID_MODE>=ON_PERMISSIVE, then the transaction will be assigned
+    a new GTID.
 
     This is the default value: thd->variables.gtid_next has this state
     when GTID_NEXT="AUTOMATIC".
@@ -2662,10 +2753,10 @@ ANONYMOUS_GROUP,
 
     Background: when the slave applier thread reads a relay log that
     comes from a pre-GTID master, it must preserve the transactions as
-    anonymous transactions, even if GTID_MODE>=UPGRADE_STEP2.  This
+    anonymous transactions, even if GTID_MODE>=ON_PERMISSIVE.  This
     may happen, e.g., if the relay log was received when master and
     slave had GTID_MODE=OFF or when master and slave were old, and the
-    relay log is applied when slave has GTID_MODE>=UPGRADE_STEP_2.
+    relay log is applied when slave has GTID_MODE>=ON_PERMISSIVE.
 
     So the slave thread should set GTID_NEXT=ANONYMOUS for the next
     transaction when it starts to process an old binary log.  However,
@@ -2678,8 +2769,8 @@ log.  So at the time the binary log begins, we just set
     NOT_YET_DETERMINED when the next transaction begins,
     gtid_pre_statement_checks will automatically turn it into an
     anonymous transaction.  If a Gtid_log_event comes across before
-    the next transaction starts, then the Gtid_log_event will just
-    set GTID_NEXT='UUID:NUMBER' accordingly.
+    the next transaction starts, then the Gtid_log_event will just set
+    GTID_NEXT='UUID:NUMBER' accordingly.
   */
   NOT_YET_DETERMINED_GROUP
 };

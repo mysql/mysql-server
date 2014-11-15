@@ -2854,6 +2854,8 @@ when it try to get the value of TIME_ZONE global variable from master.";
 
   if (DBUG_EVALUATE_IF("simulate_slave_unaware_gtid", 0, 1))
   {
+    enum_gtid_mode master_gtid_mode= GTID_MODE_OFF;
+    enum_gtid_mode slave_gtid_mode= get_gtid_mode();
     switch (io_thread_init_command(mi, "SELECT @@GLOBAL.GTID_MODE",
                                    ER_UNKNOWN_SYSTEM_VARIABLE,
                                    &master_res, &master_row))
@@ -2862,39 +2864,41 @@ when it try to get the value of TIME_ZONE global variable from master.";
       DBUG_RETURN(2);
     case COMMAND_STATUS_ALLOWED_ERROR:
       // master is old and does not have @@GLOBAL.GTID_MODE
-      mi->master_gtid_mode= 0;
+      master_gtid_mode= GTID_MODE_OFF;
       break;
     case COMMAND_STATUS_OK:
-      int typelib_index= find_type(master_row[0], &gtid_mode_typelib, 1);
+    {
+      bool error= false;
+      master_gtid_mode= get_gtid_mode(master_row[0], &error);
       mysql_free_result(master_res);
-      if (typelib_index == 0)
+      if (error)
       {
         mi->report(ERROR_LEVEL, ER_SLAVE_FATAL_ERROR,
                    "The slave IO thread stops because the master has "
                    "an unknown @@GLOBAL.GTID_MODE.");
         DBUG_RETURN(1);
       }
-      mi->master_gtid_mode= typelib_index - 1;
       break;
     }
-    if (mi->master_gtid_mode > gtid_mode + 1 ||
-        gtid_mode > mi->master_gtid_mode + 1)
+    }
+    if (master_gtid_mode > slave_gtid_mode + 1 ||
+        slave_gtid_mode > master_gtid_mode + 1)
     {
       mi->report(ERROR_LEVEL, ER_SLAVE_FATAL_ERROR,
                  "The slave IO thread stops because the master has "
                  "@@GLOBAL.GTID_MODE %s and this server has "
                  "@@GLOBAL.GTID_MODE %s",
-                 gtid_mode_names[mi->master_gtid_mode],
-                 gtid_mode_names[gtid_mode]);
+                 get_gtid_mode_string(master_gtid_mode),
+                 get_gtid_mode_string(slave_gtid_mode));
       DBUG_RETURN(1);
     }
-    if (mi->is_auto_position() && mi->master_gtid_mode != 3)
+    if (mi->is_auto_position() && master_gtid_mode != GTID_MODE_ON)
     {
       mi->report(ERROR_LEVEL, ER_SLAVE_FATAL_ERROR,
                  "The slave IO thread stops because the master has "
                  "@@GLOBAL.GTID_MODE %s and we are trying to connect "
                  "using MASTER_AUTO_POSITION.",
-                 gtid_mode_names[mi->master_gtid_mode]);
+                 get_gtid_mode_string(master_gtid_mode));
       DBUG_RETURN(1);
     }
   }
@@ -7847,7 +7851,8 @@ int queue_event(Master_info* mi,const char* buf, ulong event_len)
                 hb.get_log_ident(), hb.get_ident_len())
          && mi->get_master_log_name() != NULL)
         || ((mi->get_master_log_pos() != hb.common_header->log_pos
-        && gtid_mode == 0) ||
+             /// @todo WL#7083: revisit this logic /sven
+             && get_gtid_mode() == GTID_MODE_OFF) ||
             /*
               When Gtid mode is on only monotocity can be claimed.
               Todo: enhance HB event with the skipped events size
@@ -7893,7 +7898,7 @@ int queue_event(Master_info* mi,const char* buf, ulong event_len)
 
   case binary_log::GTID_LOG_EVENT:
   {
-    if (gtid_mode == 0)
+    if (get_gtid_mode() == GTID_MODE_OFF)
     {
       error= ER_FOUND_GTID_EVENT_WHEN_GTID_MODE_IS_OFF;
       goto err;
@@ -7912,6 +7917,7 @@ int queue_event(Master_info* mi,const char* buf, ulong event_len)
   break;
 
   case binary_log::ANONYMOUS_GTID_LOG_EVENT:
+    /// @todo WL#7083: generate error when gtid_mode=on or auto_position=1
 
   default:
     inc_pos= event_len;
@@ -10262,8 +10268,10 @@ int change_master(THD* thd, Master_info* mi, LEX_MASTER_INFO* lex_mi,
     }
   }
 
+  /// @todo WL#7083: relax this to allow auto_position when gtid_mode != off
   /* CHANGE MASTER TO MASTER_AUTO_POSITION = 1 requires GTID_MODE = ON */
-  if (lex_mi->auto_position == LEX_MASTER_INFO::LEX_MI_ENABLE && gtid_mode != 3)
+  if (lex_mi->auto_position == LEX_MASTER_INFO::LEX_MI_ENABLE &&
+      get_gtid_mode() != GTID_MODE_ON)
   {
     error= ER_AUTO_POSITION_REQUIRES_GTID_MODE_ON;
     my_message(ER_AUTO_POSITION_REQUIRES_GTID_MODE_ON,

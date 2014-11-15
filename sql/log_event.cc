@@ -13032,7 +13032,7 @@ int Gtid_log_event::do_apply_event(Relay_log_info const *rli)
 
   if (spec.type == ANONYMOUS_GROUP)
   {
-    if (gtid_mode == GTID_MODE_ON)
+    if (get_gtid_mode() == GTID_MODE_ON)
     {
       rli->report(ERROR_LEVEL,
                   ER_CANT_SET_GTID_NEXT_TO_ANONYMOUS_WHEN_GTID_MODE_IS_ON,
@@ -13044,7 +13044,7 @@ int Gtid_log_event::do_apply_event(Relay_log_info const *rli)
   }
   else
   {
-    if (gtid_mode == GTID_MODE_OFF)
+    if (get_gtid_mode() == GTID_MODE_OFF)
     {
       rli->report(ERROR_LEVEL,
                   ER_CANT_SET_GTID_NEXT_TO_GTID_WHEN_GTID_MODE_IS_OFF,

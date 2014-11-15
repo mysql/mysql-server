@@ -332,12 +332,12 @@ bool gtid_reacquire_ownership_if_anonymous(THD *thd)
     Gtid_log_event will set the GTID appropriately, but if there is no
     Gtid_log_event, gtid_next will be converted to ANONYMOUS.
   */
-  DBUG_PRINT("info", ("gtid_next->type=%d gtid_mode=%lu",
-                      gtid_next->type, gtid_mode));
+  DBUG_PRINT("info", ("gtid_next->type=%d gtid_mode=%s",
+                      gtid_next->type, get_gtid_mode_string()));
   if (gtid_next->type == NOT_YET_DETERMINED_GROUP ||
       (gtid_next->type == ANONYMOUS_GROUP && thd->owned_gtid.sidno == 0))
   {
-    if (gtid_mode == GTID_MODE_ON)
+    if (get_gtid_mode() == GTID_MODE_ON)
     {
       my_error(ER_CANT_SET_GTID_NEXT_TO_ANONYMOUS_WHEN_GTID_MODE_IS_ON, MYF(0));
       DBUG_RETURN(true);

@@ -24,6 +24,14 @@
 #endif
 
 
+
+ulong _gtid_mode;
+const char *gtid_mode_names[]=
+{"OFF", "OFF_PERMISSIVE", "ON_PERMISSIVE", "ON", NullS};
+TYPELIB gtid_mode_typelib=
+{ array_elements(gtid_mode_names) - 1, "", gtid_mode_names, NULL };
+
+
 enum_return_status Gtid::parse(Sid_map *sid_map, const char *text)
 {
   DBUG_ENTER("Gtid::parse");

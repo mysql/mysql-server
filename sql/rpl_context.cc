@@ -41,7 +41,8 @@ Session_consistency_gtids_ctx::~Session_consistency_gtids_ctx()
 
 inline bool Session_consistency_gtids_ctx::shall_collect(const THD* thd)
 {
-  return  gtid_mode == GTID_MODE_ON &&
+  /// @todo: WL#7083 revisit this check
+  return  get_gtid_mode() == GTID_MODE_ON &&
           /* if there is no listener/tracker, then there is no reason to collect */
           m_listener != NULL &&
           /* ROLLBACK statements may end up calling trans_commit_stmt */
@@ -81,7 +82,8 @@ bool Session_consistency_gtids_ctx::notify_after_gtid_executed_update(const THD 
 {
   DBUG_ENTER("Rpl_consistency_ctx::notify_after_gtid_executed_update");
   DBUG_ASSERT(thd);
-  DBUG_ASSERT(gtid_mode == GTID_MODE_ON);
+  /// @todo: WL#7083 revisit this check
+  DBUG_ASSERT(get_gtid_mode() == GTID_MODE_ON);
   bool res= false;
 
   if (!shall_collect(thd))
@@ -128,7 +130,8 @@ bool Session_consistency_gtids_ctx::notify_after_response_packet(const THD *thd)
 {
   int res= false;
   DBUG_ENTER("Rpl_consistency_ctx::notify_after_response_packet");
-  if (gtid_mode != GTID_MODE_ON)
+  /// @todo: WL#7083 revisit this check
+  if (get_gtid_mode() != GTID_MODE_ON)
     DBUG_RETURN(res);
 
   if (m_gtid_set && !m_gtid_set->is_empty())
