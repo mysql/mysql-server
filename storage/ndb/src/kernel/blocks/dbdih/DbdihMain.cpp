@@ -3250,6 +3250,7 @@ void Dbdih::stop_pause(Signal *signal)
 {
   ndbrequire(!c_dequeue_lcp_rep_ongoing);
   c_lcp_paused = false;
+  c_pauseAction = PauseLcpReq::NoAction;
   c_pause_lcp_reference = 0;
   c_pause_lcp_start_node = RNIL;
   c_dequeue_lcp_rep_ongoing = true;
