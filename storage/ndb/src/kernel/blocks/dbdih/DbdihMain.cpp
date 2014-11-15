@@ -1347,10 +1347,10 @@ void Dbdih::execREAD_CONFIG_REQ(Signal* signal)
     for (nodePtr.i = 0; nodePtr.i < MAX_NDB_NODES; nodePtr.i++)
     {
       ptrAss(nodePtr, nodeRecord);
-      new (nodePtr.p) NodeRecord();
+      initNodeRecord(nodePtr);
       nodePtr.p->nodeGroup = RNIL;
-      initNodeRecoveryStatus(nodePtr);
     }
+    initNodeRecoveryStatus();
 
     ndb_mgm_configuration_iterator * iter =
       m_ctx.m_config.getClusterConfigIterator();
@@ -4146,7 +4146,7 @@ void Dbdih::execINCL_NODEREQ(Signal* signal)
   Sysfile::ActiveStatus TsaveState = nodePtr.p->activeStatus;
   Uint32 TnodeGroup = nodePtr.p->nodeGroup;
 
-  new (nodePtr.p) NodeRecord();
+  initNodeRecord(nodePtr);
   nodePtr.p->nodeGroup = TnodeGroup;
   nodePtr.p->activeStatus = TsaveState;
   nodePtr.p->nodeStatus = NodeRecord::ALIVE;
@@ -4777,9 +4777,22 @@ void Dbdih::execUPDATE_FRAG_STATEREQ(Signal* signal)
 //#define DBG_NRS(a)
 #define DBG_NRS(a) ndbout << a << endl
 
-void Dbdih::initNodeRecoveryStatus(NodeRecordPtr nodePtr)
+void Dbdih::initNodeRecoveryStatus()
 {
-  nodePtr.p->nodeRecoveryStatus = NodeRecord::NOT_DEFINED_IN_CLUSTER;
+  NodeRecordPtr nodePtr;
+
+  jam();
+  for (nodePtr.i = 0; nodePtr.i < MAX_NDB_NODES; nodePtr.i++)
+  {
+    ptrAss(nodePtr, nodeRecord);
+    nodePtr.p->nodeRecoveryStatus = NodeRecord::NOT_DEFINED_IN_CLUSTER;
+    initNodeRecoveryTimers(nodePtr);
+  }
+}
+
+void Dbdih::initNodeRecoveryTimers(NodeRecordPtr nodePtr)
+{
+  jam();
   NdbTick_Invalidate(&nodePtr.p->nodeFailTime);
   NdbTick_Invalidate(&nodePtr.p->nodeFailCompletedTime);
   NdbTick_Invalidate(&nodePtr.p->allocatedNodeIdTime);
@@ -5060,6 +5073,10 @@ void Dbdih::setNodeRecoveryStatus(Uint32 nodeId,
        * heartbeat protocol yet. Also not defined in cluster isn't ok.
        *
        * This state change will be reported in all nodes at all times.
+       *
+       * We will clear all timers when a node fails since we want to ensure
+       * that we only have valid timers backwards in time to avoid reading
+       * old timers.
        */
       ndbrequire((nodePtr.p->nodeRecoveryStatus !=
                   NodeRecord::NODE_FAILURE_COMPLETED) &&
@@ -5067,6 +5084,7 @@ void Dbdih::setNodeRecoveryStatus(Uint32 nodeId,
                    NodeRecord::ALLOCATED_NODE_ID) &&
                   (nodePtr.p->nodeRecoveryStatus !=
                    NodeRecord::NOT_DEFINED_IN_CLUSTER));
+      initNodeRecoveryTimers(nodePtr);
       nodePtr.p->nodeFailTime = current_time;
       break;
     case NodeRecord::NODE_FAILURE_COMPLETED:
@@ -5108,6 +5126,11 @@ void Dbdih::setNodeRecoveryStatus(Uint32 nodeId,
                  (nodePtr.p->nodeRecoveryStatus ==
                   NodeRecord::NODE_FAILURE_COMPLETED));
       check_node_not_restarted_yet(nodePtr);
+      if (nodePtr.p->nodeRecoveryStatus == NodeRecord::NODE_FAILURE_COMPLETED)
+      {
+        jam();
+        nodePtr.p->allocatedNodeIdTime = current_time;
+      }
       nodePtr.p->includedInHBProtocolTime = current_time;
       break;
     case NodeRecord::NDBCNTR_START_WAIT:
@@ -5343,13 +5366,14 @@ void Dbdih::setNodeRecoveryStatus(Uint32 nodeId,
       ndbrequire(false);
   }
 
-  g_eventLogger->info("Node Recovery Status: node= %u, old status= %s"
-                      " new status = %s",
+  g_eventLogger->info("Node Recovery Status: node= %u, OLD Status= %s"
+                      " NEW Status = %s",
                       nodeId,
                       get_status_str(nodePtr.p->nodeRecoveryStatus),
                       get_status_str(new_status));
 
   nodePtr.p->nodeRecoveryStatus = new_status;
+  ndbassert(check_node_recovery_timers(nodePtr.i));
 }
 
 void Dbdih::setNodeRecoveryStatusInitial(NodeRecordPtr nodePtr)
@@ -5452,45 +5476,48 @@ bool Dbdih::check_for_too_long_wait(Uint64 &lcp_max_wait_time,
 
 void Dbdih::calculate_time_remaining(
                                 Uint32 nodeId,
-                                Uint32 &node_waited_for,
-                                NodeRecord::NodeRecoveryStatus state,
                                 NDB_TICKS state_start_time,
                                 NDB_TICKS now,
-                                NodeRecord::NodeRecoveryStatus &max_status,
-                                Uint64 &time_since_state_start)
+                                NodeRecord::NodeRecoveryStatus state,
+                                Uint32 *node_waited_for,
+                                Uint64 *time_since_state_start,
+                                NodeRecord::NodeRecoveryStatus *max_status)
 {
-  if (state > max_status)
+  ndbassert(NdbTick_IsValid(now));
+  ndbassert(NdbTick_IsValid(state_start_time));
+
+  if (state > (*max_status))
   {
     jam();
-    time_since_state_start =
+    (*time_since_state_start) =
       NdbTick_Elapsed(now, state_start_time).milliSec();
-    max_status = state;
-    node_waited_for = nodeId;
+    (*max_status) = state;
+    (*node_waited_for) = nodeId;
   }
-  else if (state == max_status)
+  else if (state == (*max_status))
   {
     jam();
     Uint64 loc_time_since_state_start;
     loc_time_since_state_start =
       NdbTick_Elapsed(now, state_start_time).milliSec();
-    if (loc_time_since_state_start > time_since_state_start)
+    if (loc_time_since_state_start > (*time_since_state_start))
     {
       jam();
-      time_since_state_start = loc_time_since_state_start;
-      node_waited_for = nodeId;
+      (*time_since_state_start) = loc_time_since_state_start;
+      (*node_waited_for) = nodeId;
     }
   }
 }
 
 void Dbdih::calculate_most_recent_node(
                         Uint32 nodeId,
-                        Uint32 *most_recent_node,
-                        NodeRecord::NodeRecoveryStatus *most_recent_state,
-                        NDB_TICKS *most_recent_start_time,
                         NDB_TICKS state_start_time,
-                        NodeRecord::NodeRecoveryStatus state)
+                        NodeRecord::NodeRecoveryStatus state,
+                        Uint32 *most_recent_node,
+                        NDB_TICKS *most_recent_start_time,
+                        NodeRecord::NodeRecoveryStatus *most_recent_state)
 {
-  ndbrequire(NdbTick_IsValid(state_start_time));
+  ndbassert(NdbTick_IsValid(state_start_time));
   if ((*most_recent_node) == 0)
   {
     /* No state set, set this as state */
@@ -5534,6 +5561,86 @@ void Dbdih::calculate_most_recent_node(
   return;
 }
 
+#if 0
+/* Useful debug function when trying to find overwrite of node record */
+void Dbdih::check_all_node_recovery_timers(void)
+{
+  Uint32 nodeId;
+  for (nodeId = 1; nodeId < MAX_NDB_NODES; nodeId++)
+  {
+    ndbassert(check_node_recovery_timers(nodeId));
+  }
+}
+#endif
+
+bool Dbdih::check_node_recovery_timers(Uint32 nodeId)
+{
+  NodeRecordPtr nodePtr;
+  nodePtr.i = nodeId;
+  ptrCheckGuard(nodePtr, MAX_NDB_NODES, nodeRecord);
+
+  switch (nodePtr.p->nodeRecoveryStatus)
+  {
+  case NodeRecord::RESTART_COMPLETED:
+    ndbassert(NdbTick_IsValid(nodePtr.p->restartCompletedTime));
+  case NodeRecord::WAIT_SUMA_HANDOVER:
+    ndbassert(NdbTick_IsValid(nodePtr.p->waitSumaHandoverTime));
+  case NodeRecord::WAIT_LCP_FOR_RESTART:
+    ndbassert(NdbTick_IsValid(nodePtr.p->waitLCPForRestartTime));
+  case NodeRecord::COPY_FRAGMENTS_STARTED:
+    ndbassert(NdbTick_IsValid(nodePtr.p->copyFragmentsStartedTime));
+  case NodeRecord::EXECUTE_REDO_LOG_COMPLETED:
+    ndbassert(NdbTick_IsValid(nodePtr.p->startBuildIndexTime));
+  case NodeRecord::UNDO_DD_COMPLETED:
+    ndbassert(NdbTick_IsValid(nodePtr.p->startExecREDOLogTime));
+  case NodeRecord::RESTORE_FRAG_COMPLETED:
+    ndbassert(NdbTick_IsValid(nodePtr.p->startUndoDDTime));
+  case NodeRecord::LOCAL_RECOVERY_STARTED:
+    ndbassert(NdbTick_IsValid(nodePtr.p->startDatabaseRecoveryTime));
+  case NodeRecord::INCLUDE_NODE_IN_LCP_AND_GCP:
+    ndbassert(NdbTick_IsValid(nodePtr.p->includeNodeInLCPAndGCPTime));
+  case NodeRecord::COPY_DICT_TO_STARTING_NODE:
+    ndbassert(NdbTick_IsValid(nodePtr.p->copyDictToStartingNodeTime));
+  case NodeRecord::WAIT_LCP_TO_COPY_DICT:
+    ndbassert(NdbTick_IsValid(nodePtr.p->waitLCPToCopyDictTime));
+  case NodeRecord::START_PERMITTED:
+    ndbassert(NdbTick_IsValid(nodePtr.p->startPermittedTime));
+  case NodeRecord::NDBCNTR_STARTED:
+    ndbassert(NdbTick_IsValid(nodePtr.p->ndbcntrStartedTime));
+  case NodeRecord::NDBCNTR_START_WAIT:
+    ndbassert(NdbTick_IsValid(nodePtr.p->ndbcntrStartWaitTime));
+  case NodeRecord::INCLUDED_IN_HB_PROTOCOL:
+    ndbassert(NdbTick_IsValid(nodePtr.p->includedInHBProtocolTime));
+  case NodeRecord::ALLOCATED_NODE_ID:
+    ndbassert(NdbTick_IsValid(nodePtr.p->allocatedNodeIdTime));
+    ndbassert(NdbTick_IsValid(nodePtr.p->nodeFailCompletedTime));
+    ndbassert(NdbTick_IsValid(nodePtr.p->nodeFailTime));
+    break;
+  case NodeRecord::NODE_ACTIVE:
+    ndbassert(NdbTick_IsValid(nodePtr.p->nodeActiveTime));
+  case NodeRecord::NODE_IN_LCP_WAIT_STATE:
+    ndbassert(NdbTick_IsValid(nodePtr.p->nodeInLCPWaitStateTime));
+  case NodeRecord::NODE_GETTING_SYNCHED:
+    ndbassert(NdbTick_IsValid(nodePtr.p->nodeGettingSynchedTime));
+  case NodeRecord::NODE_GETTING_INCLUDED:
+    ndbassert(NdbTick_IsValid(nodePtr.p->nodeGettingIncludedTime));
+  case NodeRecord::NODE_GETTING_PERMIT:
+    ndbassert(NdbTick_IsValid(nodePtr.p->nodeGettingPermitTime));
+    ndbassert(NdbTick_IsValid(nodePtr.p->nodeFailCompletedTime));
+    ndbassert(NdbTick_IsValid(nodePtr.p->nodeFailTime));
+    break;
+  case NodeRecord::NODE_FAILURE_COMPLETED:
+    ndbassert(NdbTick_IsValid(nodePtr.p->nodeFailCompletedTime));
+  case NodeRecord::NODE_FAILED:
+    ndbassert(NdbTick_IsValid(nodePtr.p->nodeFailTime));
+    break;
+  default:
+    jam();
+    break;
+  }
+  return true;
+}
+ 
 /**
  * We want to stall the LCP start if any node is encountering the place where
  * we need to participate in an LCP to complete our restart. If any node is
@@ -5582,6 +5689,9 @@ bool Dbdih::check_stall_lcp_start(void)
   Uint64 time_remaining;
   Uint64 estimated_time;
 
+  NdbTick_Invalidate(&most_recent_node_start_time);
+  NdbTick_Invalidate(&state_start_time);
+
   if (check_for_too_long_wait(lcp_max_wait_time,
                               lcp_stall_time,
                               now))
@@ -5621,11 +5731,11 @@ bool Dbdih::check_stall_lcp_start(void)
         jam();
         state_start_time = nodePtr.p->nodeActiveTime;
         calculate_most_recent_node(nodePtr.i,
-                                   &most_recent_node,
-                                   &most_recent_node_status,
-                                   &most_recent_node_start_time,
                                    state_start_time,
-                                   nodePtr.p->nodeRecoveryStatus);
+                                   nodePtr.p->nodeRecoveryStatus,
+                                   &most_recent_node,
+                                   &most_recent_node_start_time,
+                                   &most_recent_node_status);
         break;
       }
       case NodeRecord::RESTART_COMPLETED:
@@ -5633,11 +5743,11 @@ bool Dbdih::check_stall_lcp_start(void)
         jam();
         state_start_time = nodePtr.p->restartCompletedTime;
         calculate_most_recent_node(nodePtr.i,
-                                   &most_recent_node,
-                                   &most_recent_node_status,
-                                   &most_recent_node_start_time,
                                    state_start_time,
-                                   nodePtr.p->nodeRecoveryStatus);
+                                   nodePtr.p->nodeRecoveryStatus,
+                                   &most_recent_node,
+                                   &most_recent_node_start_time,
+                                   &most_recent_node_status);
         break;
       }
       case NodeRecord::WAIT_SUMA_HANDOVER:
@@ -5645,23 +5755,25 @@ bool Dbdih::check_stall_lcp_start(void)
         jam();
         state_start_time = nodePtr.p->waitSumaHandoverTime;
         calculate_most_recent_node(nodePtr.i,
-                                   &most_recent_node,
-                                   &most_recent_node_status,
-                                   &most_recent_node_start_time,
                                    state_start_time,
-                                   nodePtr.p->nodeRecoveryStatus);
+                                   nodePtr.p->nodeRecoveryStatus,
+                                   &most_recent_node,
+                                   &most_recent_node_start_time,
+                                   &most_recent_node_status);
         break;
       }
       case NodeRecord::WAIT_LCP_FOR_RESTART:
       {
         jam();
         state_start_time = nodePtr.p->waitLCPForRestartTime;
+        ndbassert(NdbTick_IsValid(nodePtr.p->includeNodeInLCPAndGCPTime));
+        ndbassert(NdbTick_IsValid(nodePtr.p->copyDictToStartingNodeTime));
         calculate_most_recent_node(nodePtr.i,
-                                   &most_recent_node,
-                                   &most_recent_node_status,
-                                   &most_recent_node_start_time,
                                    state_start_time,
-                                   nodePtr.p->nodeRecoveryStatus);
+                                   nodePtr.p->nodeRecoveryStatus,
+                                   &most_recent_node,
+                                   &most_recent_node_start_time,
+                                   &most_recent_node_status);
         break;
       }
       /**
@@ -5681,12 +5793,12 @@ bool Dbdih::check_stall_lcp_start(void)
         jam();
         state_start_time = nodePtr.p->nodeFailTime;
         calculate_time_remaining(nodePtr.i,
-                                 node_waited_for,
-                                 nodePtr.p->nodeRecoveryStatus,
                                  state_start_time,
                                  now,
-                                 max_status,
-                                 time_since_state_start);
+                                 nodePtr.p->nodeRecoveryStatus,
+                                 &node_waited_for,
+                                 &time_since_state_start,
+                                 &max_status);
         break;
       }
       case NodeRecord::NODE_FAILURE_COMPLETED:
@@ -5694,12 +5806,12 @@ bool Dbdih::check_stall_lcp_start(void)
         jam();
         state_start_time = nodePtr.p->nodeFailCompletedTime;
         calculate_time_remaining(nodePtr.i,
-                                 node_waited_for,
-                                 nodePtr.p->nodeRecoveryStatus,
                                  state_start_time,
                                  now,
-                                 max_status,
-                                 time_since_state_start);
+                                 nodePtr.p->nodeRecoveryStatus,
+                                 &node_waited_for,
+                                 &time_since_state_start,
+                                 &max_status);
         break;
       }
       case NodeRecord::ALLOCATED_NODE_ID:
@@ -5707,12 +5819,12 @@ bool Dbdih::check_stall_lcp_start(void)
         jam();
         state_start_time = nodePtr.p->allocatedNodeIdTime;
         calculate_time_remaining(nodePtr.i,
-                                 node_waited_for,
-                                 nodePtr.p->nodeRecoveryStatus,
                                  state_start_time,
                                  now,
-                                 max_status,
-                                 time_since_state_start);
+                                 nodePtr.p->nodeRecoveryStatus,
+                                 &node_waited_for,
+                                 &time_since_state_start,
+                                 &max_status);
         break;
       }
       case NodeRecord::INCLUDED_IN_HB_PROTOCOL:
@@ -5720,12 +5832,12 @@ bool Dbdih::check_stall_lcp_start(void)
         jam();
         state_start_time = nodePtr.p->includedInHBProtocolTime;
         calculate_time_remaining(nodePtr.i,
-                                 node_waited_for,
-                                 nodePtr.p->nodeRecoveryStatus,
                                  state_start_time,
                                  now,
-                                 max_status,
-                                 time_since_state_start);
+                                 nodePtr.p->nodeRecoveryStatus,
+                                 &node_waited_for,
+                                 &time_since_state_start,
+                                 &max_status);
         break;
       }
       case NodeRecord::NDBCNTR_START_WAIT:
@@ -5733,12 +5845,12 @@ bool Dbdih::check_stall_lcp_start(void)
         jam();
         state_start_time = nodePtr.p->ndbcntrStartWaitTime;
         calculate_time_remaining(nodePtr.i,
-                                 node_waited_for,
-                                 nodePtr.p->nodeRecoveryStatus,
                                  state_start_time,
                                  now,
-                                 max_status,
-                                 time_since_state_start);
+                                 nodePtr.p->nodeRecoveryStatus,
+                                 &node_waited_for,
+                                 &time_since_state_start,
+                                 &max_status);
         break;
       }
       case NodeRecord::NDBCNTR_STARTED:
@@ -5746,12 +5858,12 @@ bool Dbdih::check_stall_lcp_start(void)
         jam();
         state_start_time = nodePtr.p->ndbcntrStartedTime;
         calculate_time_remaining(nodePtr.i,
-                                 node_waited_for,
-                                 nodePtr.p->nodeRecoveryStatus,
                                  state_start_time,
                                  now,
-                                 max_status,
-                                 time_since_state_start);
+                                 nodePtr.p->nodeRecoveryStatus,
+                                 &node_waited_for,
+                                 &time_since_state_start,
+                                 &max_status);
         break;
       }
       case NodeRecord::START_PERMITTED:
@@ -5759,12 +5871,12 @@ bool Dbdih::check_stall_lcp_start(void)
         jam();
         state_start_time = nodePtr.p->startPermittedTime;
         calculate_time_remaining(nodePtr.i,
-                                 node_waited_for,
-                                 nodePtr.p->nodeRecoveryStatus,
                                  state_start_time,
                                  now,
-                                 max_status,
-                                 time_since_state_start);
+                                 nodePtr.p->nodeRecoveryStatus,
+                                 &node_waited_for,
+                                 &time_since_state_start,
+                                 &max_status);
         break;
       }
       case NodeRecord::WAIT_LCP_TO_COPY_DICT:
@@ -5772,12 +5884,12 @@ bool Dbdih::check_stall_lcp_start(void)
         jam();
         state_start_time = nodePtr.p->waitLCPToCopyDictTime;
         calculate_time_remaining(nodePtr.i,
-                                 node_waited_for,
-                                 nodePtr.p->nodeRecoveryStatus,
                                  state_start_time,
                                  now,
-                                 max_status,
-                                 time_since_state_start);
+                                 nodePtr.p->nodeRecoveryStatus,
+                                 &node_waited_for,
+                                 &time_since_state_start,
+                                 &max_status);
         break;
       }
       case NodeRecord::COPY_DICT_TO_STARTING_NODE:
@@ -5785,12 +5897,12 @@ bool Dbdih::check_stall_lcp_start(void)
         jam();
         state_start_time = nodePtr.p->copyDictToStartingNodeTime;
         calculate_time_remaining(nodePtr.i,
-                                 node_waited_for,
-                                 nodePtr.p->nodeRecoveryStatus,
                                  state_start_time,
                                  now,
-                                 max_status,
-                                 time_since_state_start);
+                                 nodePtr.p->nodeRecoveryStatus,
+                                 &node_waited_for,
+                                 &time_since_state_start,
+                                 &max_status);
         break;
       }
       case NodeRecord::INCLUDE_NODE_IN_LCP_AND_GCP:
@@ -5798,12 +5910,12 @@ bool Dbdih::check_stall_lcp_start(void)
         jam();
         state_start_time = nodePtr.p->includeNodeInLCPAndGCPTime;
         calculate_time_remaining(nodePtr.i,
-                                 node_waited_for,
-                                 nodePtr.p->nodeRecoveryStatus,
                                  state_start_time,
                                  now,
-                                 max_status,
-                                 time_since_state_start);
+                                 nodePtr.p->nodeRecoveryStatus,
+                                 &node_waited_for,
+                                 &time_since_state_start,
+                                 &max_status);
         break;
       }
       case NodeRecord::LOCAL_RECOVERY_STARTED:
@@ -5811,12 +5923,12 @@ bool Dbdih::check_stall_lcp_start(void)
         jam();
         state_start_time = nodePtr.p->startDatabaseRecoveryTime;
         calculate_time_remaining(nodePtr.i,
-                                 node_waited_for,
-                                 nodePtr.p->nodeRecoveryStatus,
                                  state_start_time,
                                  now,
-                                 max_status,
-                                 time_since_state_start);
+                                 nodePtr.p->nodeRecoveryStatus,
+                                 &node_waited_for,
+                                 &time_since_state_start,
+                                 &max_status);
         break;
       }
       case NodeRecord::RESTORE_FRAG_COMPLETED:
@@ -5824,12 +5936,12 @@ bool Dbdih::check_stall_lcp_start(void)
         jam();
         state_start_time = nodePtr.p->startUndoDDTime;
         calculate_time_remaining(nodePtr.i,
-                                 node_waited_for,
-                                 nodePtr.p->nodeRecoveryStatus,
                                  state_start_time,
                                  now,
-                                 max_status,
-                                 time_since_state_start);
+                                 nodePtr.p->nodeRecoveryStatus,
+                                 &node_waited_for,
+                                 &time_since_state_start,
+                                 &max_status);
         break;
       }
       case NodeRecord::UNDO_DD_COMPLETED:
@@ -5837,12 +5949,12 @@ bool Dbdih::check_stall_lcp_start(void)
         jam();
         state_start_time = nodePtr.p->startExecREDOLogTime;
         calculate_time_remaining(nodePtr.i,
-                                 node_waited_for,
-                                 nodePtr.p->nodeRecoveryStatus,
                                  state_start_time,
                                  now,
-                                 max_status,
-                                 time_since_state_start);
+                                 nodePtr.p->nodeRecoveryStatus,
+                                 &node_waited_for,
+                                 &time_since_state_start,
+                                 &max_status);
         break;
       }
       case NodeRecord::EXECUTE_REDO_LOG_COMPLETED:
@@ -5850,12 +5962,12 @@ bool Dbdih::check_stall_lcp_start(void)
         jam();
         state_start_time = nodePtr.p->startBuildIndexTime;
         calculate_time_remaining(nodePtr.i,
-                                 node_waited_for,
-                                 nodePtr.p->nodeRecoveryStatus,
                                  state_start_time,
                                  now,
-                                 max_status,
-                                 time_since_state_start);
+                                 nodePtr.p->nodeRecoveryStatus,
+                                 &node_waited_for,
+                                 &time_since_state_start,
+                                 &max_status);
         break;
       }
       case NodeRecord::COPY_FRAGMENTS_STARTED:
@@ -5863,12 +5975,12 @@ bool Dbdih::check_stall_lcp_start(void)
         jam();
         state_start_time = nodePtr.p->copyFragmentsStartedTime;
         calculate_time_remaining(nodePtr.i,
-                                 node_waited_for,
-                                 nodePtr.p->nodeRecoveryStatus,
                                  state_start_time,
                                  now,
-                                 max_status,
-                                 time_since_state_start);
+                                 nodePtr.p->nodeRecoveryStatus,
+                                 &node_waited_for,
+                                 &time_since_state_start,
+                                 &max_status);
         break;
       }
       default:
@@ -5917,6 +6029,8 @@ bool Dbdih::check_stall_lcp_start(void)
    */
   nodePtr.i = most_recent_node;
   ptrCheckGuard(nodePtr, MAX_NDB_NODES, nodeRecord);
+  jamLine(most_recent_node);
+  jamLine(node_waited_for);
 
   if (nodePtr.p->nodeRecoveryStatus == NodeRecord::NODE_ACTIVE)
   {
@@ -20188,7 +20302,7 @@ void
     jam();
     nodePtr.i = nodeArray[i];
     ptrCheckGuard(nodePtr, MAX_NDB_NODES, nodeRecord);
-    new (nodePtr.p) NodeRecord();
+    initNodeRecord(nodePtr);
     if (NdbNodeBitmask::get(readNodes->inactiveNodes, nodePtr.i) == false){
       jam();
       nodePtr.p->nodeStatus = NodeRecord::ALIVE;
@@ -23084,24 +23198,25 @@ bool Dbdih::isActiveMaster()
   return ((reference() == cmasterdihref) && (cmasterState == MASTER_ACTIVE));
 }//Dbdih::isActiveMaster()
 
-Dbdih::NodeRecord::NodeRecord(){
-  m_nodefailSteps.clear();
+void Dbdih::initNodeRecord(NodeRecordPtr nodePtr)
+{
+  nodePtr.p->m_nodefailSteps.clear();
 
-  activeStatus = Sysfile::NS_NotDefined;
-  recNODE_FAILREP = ZFALSE;
-  dbtcFailCompleted = ZTRUE;
-  dbdictFailCompleted = ZTRUE;
-  dbdihFailCompleted = ZTRUE;
-  dblqhFailCompleted = ZTRUE;
-  noOfStartedChkpt = 0;
-  noOfQueuedChkpt = 0;
-  lcpStateAtTakeOver = (MasterLCPConf::State)255;
+  nodePtr.p->activeStatus = Sysfile::NS_NotDefined;
+  nodePtr.p->recNODE_FAILREP = ZFALSE;
+  nodePtr.p->dbtcFailCompleted = ZTRUE;
+  nodePtr.p->dbdictFailCompleted = ZTRUE;
+  nodePtr.p->dbdihFailCompleted = ZTRUE;
+  nodePtr.p->dblqhFailCompleted = ZTRUE;
+  nodePtr.p->noOfStartedChkpt = 0;
+  nodePtr.p->noOfQueuedChkpt = 0;
+  nodePtr.p->lcpStateAtTakeOver = (MasterLCPConf::State)255;
 
-  activeTabptr = RNIL;
-  nodeStatus = NodeRecord::NOT_IN_CLUSTER;
-  useInTransactions = false;
-  copyCompleted = 0;
-  allowNodeStart = true;
+  nodePtr.p->activeTabptr = RNIL;
+  nodePtr.p->nodeStatus = NodeRecord::NOT_IN_CLUSTER;
+  nodePtr.p->useInTransactions = false;
+  nodePtr.p->copyCompleted = 0;
+  nodePtr.p->allowNodeStart = true;
 }
 // DICT lock slave
 

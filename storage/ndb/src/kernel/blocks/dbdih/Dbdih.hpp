@@ -323,9 +323,18 @@ public:
     NF_LCP_TAKE_OVER = 4
   };
   
-  struct NodeRecord {
-    NodeRecord();
-    
+  struct NodeRecord
+  {
+    /**
+     * Removed the constructor method and replaced it with the method
+     * initNodeRecord. The problem with the constructor method is that
+     * in debug compiled code it will initialise the entire object to
+     * zero. This didn't play well at all with the node recovery status
+     * which is used from the start of the node until it dies, so it
+     * should not be initialised when DIH finds it appropriate to
+     * initialise it. One could also long-term separate the two functions
+     * into two separate objects.
+     */
     enum NodeStatus {
       NOT_IN_CLUSTER = 0,
       ALIVE = 1,
@@ -390,6 +399,7 @@ public:
       NODE_IN_LCP_WAIT_STATE = 23,
       NODE_ACTIVE = 24
     };
+
     NodeRecoveryStatus nodeRecoveryStatus;
     NDB_TICKS nodeFailTime;
     NDB_TICKS nodeFailCompletedTime;
@@ -838,23 +848,27 @@ private:
   void setNodeRecoveryStatus(Uint32 nodeId,
                              NodeRecord::NodeRecoveryStatus new_status);
   void setNodeRecoveryStatusInitial(NodeRecordPtr nodePtr);
-  void initNodeRecoveryStatus(NodeRecordPtr nodePtr);
+  void initNodeRecoveryTimers(NodeRecordPtr nodePtr);
+  void initNodeRecoveryStatus();
+  void initNodeRecord(NodeRecordPtr);
   bool check_for_too_long_wait(Uint64 &lcp_max_wait_time,
                                Uint64 &lcp_stall_time,
                                NDB_TICKS now);
+  void check_all_node_recovery_timers(void);
+  bool check_node_recovery_timers(Uint32 nodeId);
   void calculate_time_remaining(Uint32 nodeId,
-                                Uint32 &node_waited_for,
-                                NodeRecord::NodeRecoveryStatus state,
                                 NDB_TICKS state_start_time,
                                 NDB_TICKS now,
-                                NodeRecord::NodeRecoveryStatus &max_status,
-                                Uint64 &time_since_state_start);
+                                NodeRecord::NodeRecoveryStatus state,
+                                Uint32 *node_waited_for,
+                                Uint64 *time_since_state_start,
+                                NodeRecord::NodeRecoveryStatus *max_status);
   void calculate_most_recent_node(Uint32 nodeId,
-                          Uint32 *most_recent_node,
-                          NodeRecord::NodeRecoveryStatus *most_recent_state,
-                          NDB_TICKS *most_recent_start_time,
                           NDB_TICKS state_start_time,
-                          NodeRecord::NodeRecoveryStatus state);
+                          NodeRecord::NodeRecoveryStatus state,
+                          Uint32 *most_recent_node,
+                          NDB_TICKS *most_recent_start_time,
+                          NodeRecord::NodeRecoveryStatus *most_recent_state);
   const char* get_status_str(NodeRecord::NodeRecoveryStatus status);
   void fill_row_with_node_restart_status(NodeRecordPtr nodePtr,
                                          Ndbinfo::Row &row);
