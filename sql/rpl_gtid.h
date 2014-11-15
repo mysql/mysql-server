@@ -268,6 +268,7 @@ public:
   {
 #ifndef DBUG_OFF
     lock_state= 0;
+    dbug_trace= true;
 #else
     is_write_lock= false;
 #endif
@@ -289,6 +290,8 @@ public:
     mysql_rwlock_rdlock(&rwlock);
     assert_no_wrlock();
 #ifndef DBUG_OFF
+    if (dbug_trace)
+      DBUG_PRINT("info", ("%p.rdlock()", this));
     my_atomic_add32(&lock_state, 1);
 #endif
   }
@@ -298,6 +301,8 @@ public:
     mysql_rwlock_wrlock(&rwlock);
     assert_no_lock();
 #ifndef DBUG_OFF
+    if (dbug_trace)
+      DBUG_PRINT("info", ("%p.wrlock()", this));
     my_atomic_store32(&lock_state, -1);
 #else
     is_write_lock= true;
@@ -308,6 +313,8 @@ public:
   {
     assert_some_lock();
 #ifndef DBUG_OFF
+    if (dbug_trace)
+      DBUG_PRINT("info", ("%p.unlock()", this));
     int val= my_atomic_load32(&lock_state);
     if (val > 0)
       my_atomic_add32(&lock_state, -1);
@@ -353,8 +360,12 @@ public:
   inline void assert_no_lock() const
   { DBUG_ASSERT(get_state() == 0); }
 
-private:
 #ifndef DBUG_OFF
+
+  /// If enabled, print any lock/unlock operations to the DBUG trace.
+  bool dbug_trace;
+
+private:
   /**
     The state of the lock:
     0 - not locked
@@ -367,8 +378,12 @@ private:
   {
     return my_atomic_load32(const_cast<volatile int32*>(&lock_state));
   }
+
 #else
+
+private:
   bool is_write_lock;
+
 #endif
   /// The rwlock.
   mysql_rwlock_t rwlock;
@@ -2830,10 +2845,10 @@ enum enum_gtid_statement_status
   Perform GTID-related checks before executing a statement:
 
   - Check that the current statement does not contradict
-    enforce_gtid_consistency
+    enforce_gtid_consistency.
 
   - Check that there is no implicit commit in a transaction when
-    GTID_NEXT==UUID:NUMBER
+    GTID_NEXT==UUID:NUMBER.
 
   - Change thd->variables.gtid_next.type to ANONYMOUS_GROUP if it is
     currently NOT_YET_DETERMINED_GROUP.

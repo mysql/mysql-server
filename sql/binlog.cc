@@ -9320,6 +9320,20 @@ int THD::decide_logging_format(TABLE_LIST *tables)
         if (lex->is_stmt_unsafe() || lex->is_stmt_row_injection()
             || (flags_write_all_set & HA_BINLOG_STMT_CAPABLE) == 0)
         {
+#ifndef DBUG_OFF
+          int flags= lex->get_stmt_unsafe_flags();
+          DBUG_PRINT("info", ("setting row format for unsafe statement"));
+          for (int i= 0; i < Query_tables_list::BINLOG_STMT_UNSAFE_COUNT; i++)
+          {
+            if (flags & (1 << i))
+              DBUG_PRINT("info", ("unsafe reason: %s",
+                                  ER(Query_tables_list::binlog_stmt_unsafe_errcode[i])));
+          }
+          DBUG_PRINT("info", ("is_row_injection=%d",
+                              lex->is_stmt_row_injection()));
+          DBUG_PRINT("info", ("stmt_capable=%llu",
+                              (flags_write_all_set & HA_BINLOG_STMT_CAPABLE)));
+#endif
           /* log in row format! */
           set_current_stmt_binlog_format_row_if_mixed();
         }

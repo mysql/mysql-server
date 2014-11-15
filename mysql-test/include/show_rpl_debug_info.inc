@@ -135,6 +135,9 @@ while ($_rpl_server)
   --echo
   --echo **** slave_master_info on $CURRENT_CONNECTION ****
   SELECT * FROM mysql.slave_master_info;
+  --echo
+  --echo **** mysql.gtid_executed on $CURRENT_CONNECTION ****
+  SELECT * FROM mysql.gtid_executed;
 
   --let $_rpl_is_first_server= 0
   --dec $_rpl_server
