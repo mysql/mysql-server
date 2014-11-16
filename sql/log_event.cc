@@ -61,6 +61,9 @@ slave_ignored_err_throttle(window_size,
 using std::min;
 using std::max;
 
+/* The number of event types need to be permuted. */
+static const uint EVENT_TYPE_PERMUTATION_NUM= 23;
+
 /**
   BINLOG_CHECKSUM variable.
 */
@@ -1436,7 +1439,6 @@ Log_event* Log_event::read_log_event(const char* buf, uint event_len,
 
   /* Check the integrity */
   if (event_len < EVENT_LEN_OFFSET ||
-      buf[EVENT_TYPE_OFFSET] >= ENUM_END_EVENT ||
       (uint) event_len != uint4korr(buf+EVENT_LEN_OFFSET))
   {
     DBUG_PRINT("error", ("event_len=%u EVENT_LEN_OFFSET=%d "
@@ -1500,9 +1502,11 @@ Log_event* Log_event::read_log_event(const char* buf, uint event_len,
       DBUG_PRINT("info", ("Corrupt the event at Log_event::read_log_event(char*,...): byte on position %d", debug_cor_pos));
       DBUG_SET("");
     }
-  );                                                 
+  );
   if (crc_check &&
-      event_checksum_test((uchar *) buf, event_len, alg))
+      event_checksum_test((uchar *) buf, event_len, alg) &&
+      /* Skip the crc check when simulating an unknown ignorable log event. */
+      !DBUG_EVALUATE_IF("simulate_unknown_ignorable_log_event", 1, 0))
   {
     *error= "Event crc check failed! Most likely there is event corruption.";
 #ifdef MYSQL_CLIENT
@@ -1516,7 +1520,12 @@ Log_event* Log_event::read_log_event(const char* buf, uint event_len,
   }
 
   if (event_type > description_event->number_of_event_types &&
-      event_type != FORMAT_DESCRIPTION_EVENT)
+      event_type != FORMAT_DESCRIPTION_EVENT &&
+      /*
+        Skip the event type check when simulating an
+        unknown ignorable log event.
+      */
+      !DBUG_EVALUATE_IF("simulate_unknown_ignorable_log_event", 1, 0))
   {
     /*
       It is unsafe to use the description_event if its post_header_len
@@ -1542,10 +1551,16 @@ Log_event* Log_event::read_log_event(const char* buf, uint event_len,
     */
     if (description_event->event_type_permutation)
     {
-      int new_event_type= description_event->event_type_permutation[event_type];
+      uint new_event_type;
+      if (event_type >= EVENT_TYPE_PERMUTATION_NUM)
+        /* Safe guard for read out of bounds of event_type_permutation. */
+        new_event_type= UNKNOWN_EVENT;
+      else
+        new_event_type= description_event->event_type_permutation[event_type];
+
       DBUG_PRINT("info", ("converting event type %d to %d (%s)",
-                   event_type, new_event_type,
-                   get_type_str((Log_event_type)new_event_type)));
+                 event_type, new_event_type,
+                 get_type_str((Log_event_type)new_event_type)));
       event_type= new_event_type;
     }
 
@@ -2875,9 +2890,9 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
       if (!(get_type_code() == INTVAR_EVENT ||
             get_type_code() == RAND_EVENT ||
             get_type_code() == USER_VAR_EVENT ||
-            get_type_code() == ROWS_QUERY_LOG_EVENT ||
             get_type_code() == BEGIN_LOAD_QUERY_EVENT ||
-            get_type_code() == APPEND_BLOCK_EVENT))
+            get_type_code() == APPEND_BLOCK_EVENT ||
+            is_ignorable_event()))
       {
         DBUG_ASSERT(!ret_worker);
 
@@ -5613,7 +5628,7 @@ Format_description_log_event(const char* buf,
       post_header_len= NULL;
       DBUG_VOID_RETURN;
     }
-    static const uint8 perm[23]=
+    static const uint8 perm[EVENT_TYPE_PERMUTATION_NUM]=
       {
         UNKNOWN_EVENT, START_EVENT_V3, QUERY_EVENT, STOP_EVENT, ROTATE_EVENT,
         INTVAR_EVENT, LOAD_EVENT, SLAVE_EVENT, CREATE_FILE_EVENT,
@@ -5634,10 +5649,10 @@ Format_description_log_event(const char* buf,
       Since we use (permuted) event id's to index the post_header_len
       array, we need to permute the post_header_len array too.
     */
-    uint8 post_header_len_temp[23];
-    for (int i= 1; i < 23; i++)
+    uint8 post_header_len_temp[EVENT_TYPE_PERMUTATION_NUM];
+    for (uint i= 1; i < EVENT_TYPE_PERMUTATION_NUM; i++)
       post_header_len_temp[perm[i] - 1]= post_header_len[i - 1];
-    for (int i= 0; i < 22; i++)
+    for (uint i= 0; i < EVENT_TYPE_PERMUTATION_NUM - 1; i++)
       post_header_len[i] = post_header_len_temp[i];
   }
   DBUG_VOID_RETURN;
