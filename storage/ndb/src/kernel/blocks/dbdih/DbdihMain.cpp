@@ -5129,8 +5129,22 @@ void Dbdih::setNodeRecoveryStatus(Uint32 nodeId,
       ndbrequire((nodePtr.p->nodeRecoveryStatus ==
                   NodeRecord::NODE_FAILURE_COMPLETED) ||
                  (nodePtr.p->nodeRecoveryStatus ==
+                  NodeRecord::ALLOCATED_NODE_ID) ||
+                 (nodePtr.p->nodeRecoveryStatus ==
                   NodeRecord::NODE_NOT_RESTARTED_YET));
       check_node_not_restarted_yet(nodePtr);
+      if (nodePtr.p->nodeRecoveryStatus == NodeRecord::ALLOCATED_NODE_ID)
+      {
+        jam();
+        /**
+         * If a node first allocates a node id and then comes back again to
+         * allocate it again, then start counting time from node failed
+         * as from now since a long time might have passed since we actually
+         * failed.
+         */
+        nodePtr.p->nodeFailTime = current_time;
+        nodePtr.p->nodeFailCompletedTime = current_time;
+      }
       nodePtr.p->allocatedNodeIdTime = current_time;
       break;
     case NodeRecord::INCLUDED_IN_HB_PROTOCOL:
