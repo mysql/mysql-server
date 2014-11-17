@@ -1,0 +1,12 @@
+# test case for DB-768
+source include/have_tokudb.inc;
+set default_storage_engine='tokudb';
+disable_warnings;
+drop table if exists t;
+enable_warnings;
+create table t (id int primary key);
+set autocommit=OFF;
+lock tables t write;
+optimize table t;
+unlock tables;
+drop table t;
