@@ -1365,14 +1365,17 @@ found, NULL otherwise. If NULL is passed then the hash_lock is released by
 this function.
 @param[in]	lock_mode	RW_LOCK_X or RW_LOCK_S. Ignored if
 lock == NULL
-@return pointer to the bpage or NULL; if NULL, lock is also NULL. */
+@param[in]	watch		if true, return watch sentinel also.
+@return pointer to the bpage or NULL; if NULL, lock is also NULL or
+a watch sentinel. */
 UNIV_INLINE
 buf_page_t*
 buf_page_hash_get_locked(
 	buf_pool_t*		buf_pool,
 	const page_id_t&	page_id,
 	rw_lock_t**		lock,
-	ulint			lock_mode);
+	ulint			lock_mode,
+	bool			watch = false);
 
 /** Returns the control block of a file page, NULL if not found.
 If the block is found and lock is not NULL then the appropriate
@@ -1409,6 +1412,8 @@ buf_page_hash_get_low() function.
 	buf_page_hash_get_locked(b, page_id, l, RW_LOCK_X)
 #define buf_page_hash_get(b, page_id)				\
 	buf_page_hash_get_locked(b, page_id, NULL, 0)
+#define buf_page_get_also_watch(b, page_id)			\
+	buf_page_hash_get_locked(b, page_id, NULL, 0, true)
 
 #define buf_block_hash_get_s_locked(b, page_id, l)		\
 	buf_block_hash_get_locked(b, page_id, l, RW_LOCK_S)

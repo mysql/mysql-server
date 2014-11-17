@@ -2227,10 +2227,10 @@ EXECUTE stmt;
 DROP PREPARE stmt;
 
 --
--- TABLE replication_execute_configuration
+-- TABLE replication_applier_configuration
 --
 
-SET @cmd="CREATE TABLE performance_schema.replication_execute_configuration("
+SET @cmd="CREATE TABLE performance_schema.replication_applier_configuration("
   "CHANNEL_NAME CHAR(64) collate utf8_general_ci not null,"
   "DESIRED_DELAY INTEGER not null"
   ") ENGINE=PERFORMANCE_SCHEMA;";
@@ -2241,10 +2241,10 @@ EXECUTE stmt;
 DROP PREPARE stmt;
 
 --
--- TABLE replication_execute_status
+-- TABLE replication_applier_status
 --
 
-SET @cmd="CREATE TABLE performance_schema.replication_execute_status("
+SET @cmd="CREATE TABLE performance_schema.replication_applier_status("
   "CHANNEL_NAME CHAR(64) collate utf8_general_ci not null,"
   "SERVICE_STATE ENUM('ON','OFF') not null,"
   "REMAINING_DELAY INTEGER unsigned,"
@@ -2257,10 +2257,10 @@ EXECUTE stmt;
 DROP PREPARE stmt;
 
 --
--- TABLE replication_execute_status_by_coordinator
+-- TABLE replication_applier_status_by_coordinator
 --
 
-SET @cmd="CREATE TABLE performance_schema.replication_execute_status_by_coordinator("
+SET @cmd="CREATE TABLE performance_schema.replication_applier_status_by_coordinator("
   "CHANNEL_NAME CHAR(64) collate utf8_general_ci not null,"
   "THREAD_ID BIGINT UNSIGNED,"
   "SERVICE_STATE ENUM('ON','OFF') not null,"
@@ -2275,10 +2275,10 @@ EXECUTE stmt;
 DROP PREPARE stmt;
 
 --
--- TABLE replication_execute_status_by_worker
+-- TABLE replication_applier_status_by_worker
 --
 
-SET @cmd="CREATE TABLE performance_schema.replication_execute_status_by_worker("
+SET @cmd="CREATE TABLE performance_schema.replication_applier_status_by_worker("
   "CHANNEL_NAME CHAR(64) collate utf8_general_ci not null,"
   "WORKER_ID BIGINT UNSIGNED not null,"
   "THREAD_ID BIGINT UNSIGNED,"
