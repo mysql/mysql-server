@@ -132,7 +132,7 @@ DROP TABLE t1;
 # Non windows aux table flag failure and rebuild the corrupted index.
 call mtr.add_suppression("\\[Warning\\] InnoDB: Parent table of FTS auxiliary table .* not found.");
 call mtr.add_suppression("\\[Warning\\] InnoDB: Setting aux table .* to hex format failed.");
-call mtr.add_suppression("\\[ERROR] InnoDB: Index .* of table .*..* is corrupted");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: Index .* of table .* is corrupted");
 SET GLOBAL DEBUG='+d,innodb_test_wrong_fts_aux_table_name';
 SET GLOBAL DEBUG='+d,innodb_test_wrong_non_windows_fts_aux_table_name';
 CREATE TABLE t1(a TEXT, b TEXT, c TEXT, FULLTEXT `AB` (a, b), FULLTEXT `C1`(c));
@@ -144,13 +144,18 @@ TEST1	TEST2	TEXT3
 SELECT * FROM t1 WHERE MATCH(c) AGAINST ('TEXT5');
 a	b	c
 TEXT1	TEXT2	TEXT5
-SET GLOBAL DEBUG='-d,innodb_test_wrong_fts_sys_table_name';
+# restart: --debug=d,aux_table_flag_fail
 SELECT * FROM t1 WHERE MATCH(a, b) AGAINST ('TEST2');
 ERROR HY000: The table does not have FULLTEXT index to support this query
 SELECT * FROM t1 WHERE MATCH(c) AGAINST ('TEXT5');
 ERROR HY000: The table does not have FULLTEXT index to support this query
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	Warning	InnoDB: Index AB is marked as corrupted
+test.t1	check	Warning	InnoDB: Index C1 is marked as corrupted
+test.t1	check	error	Corrupt
 ALTER TABLE t1 ADD FULLTEXT(b);
-# Restart the server
+ERROR 42000: Can't open table
 # restart
 SELECT * FROM t1 WHERE MATCH(a, b) AGAINST ('TEST2');
 ERROR HY000: The table does not have FULLTEXT index to support this query
@@ -182,7 +187,7 @@ TEST1	TEST2	TEXT3
 SELECT * FROM t1 WHERE MATCH(c) AGAINST ('TEXT5');
 a	b	c
 TEXT1	TEXT2	TEXT5
-SET GLOBAL DEBUG='-d,innodb_test_wrong_fts_sys_table_name';
+# restart
 SELECT * FROM t1 WHERE MATCH(a, b) AGAINST ('TEST2');
 a	b	c
 TEST1	TEST2	TEXT3
@@ -240,13 +245,11 @@ TEST1	TEST2	TEXT3
 SELECT * FROM t1 WHERE MATCH(c) AGAINST ('TEXT5');
 a	b	c
 TEXT1	TEXT2	TEXT5
-SET SESSION debug='-d,innodb_test_wrong_fts_sys_table_name';
-# Restart server.
+# restart: --debug=d,rename_aux_table_fail
 ALTER TABLE t1 ADD FULLTEXT(b);
 ERROR HY000: Upgrade index name failed, please use create index(alter table) algorithm copy to rebuild index.
 SELECT * FROM t1 WHERE MATCH(a, b) AGAINST ('TEST2');
 ERROR HY000: The table does not have FULLTEXT index to support this query
-# Restart server.
 # restart
 SELECT * FROM t1 WHERE MATCH(a, b) AGAINST ('TEST2');
 ERROR HY000: The table does not have FULLTEXT index to support this query
