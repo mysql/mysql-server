@@ -1138,6 +1138,8 @@ THD::THD(bool enable_plugins)
 #ifdef HAVE_GTID_NEXT_LIST
    owned_gtid_set(global_sid_map),
 #endif
+   skip_gtid_rollback(false),
+   is_commit_in_middle_of_statement(false),
    main_da(false),
    m_parser_da(false),
    m_stmt_da(&main_da)
@@ -1213,7 +1215,6 @@ THD::THD(bool enable_plugins)
   slave_net = 0;
   set_command(COM_CONNECT);
   *scramble= '\0';
-  skip_gtid_rollback= false;
 
   /* Call to init() below requires fully initialized Open_tables_state. */
   reset_open_tables_state();
@@ -1590,6 +1591,7 @@ void THD::init(void)
 
   owned_gtid.clear();
   owned_sid.clear();
+  owned_gtid.dbug_print(NULL, "set owned_gtid (clear) in THD::init");
 }
 
 

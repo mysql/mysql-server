@@ -93,10 +93,39 @@ int Gtid::to_string(const rpl_sid &sid, char *buf) const
 }
 
 
-int Gtid::to_string(const Sid_map *sid_map, char *buf) const
+int Gtid::to_string(const Sid_map *sid_map, char *buf, bool need_lock) const
 {
   DBUG_ENTER("Gtid::to_string");
-  int ret= to_string(sid_map->sidno_to_sid(sidno), buf);
+  int ret;
+  if (sid_map != NULL)
+  {
+    Checkable_rwlock *lock= sid_map->get_sid_lock();
+    if (lock)
+    {
+      if (need_lock)
+        lock->rdlock();
+      else
+        lock->assert_some_lock();
+    }
+    const rpl_sid &sid= sid_map->sidno_to_sid(sidno);
+    if (lock && need_lock)
+      lock->unlock();
+    ret= to_string(sid, buf);
+  }
+  else
+  {
+#ifdef DBUG_OFF
+    /*
+      NULL is only allowed in debug mode, since the sidno does not
+      make sense for users but is useful to include in debug
+      printouts.  Therefore, we want to ASSERT(0) in non-debug mode.
+      Since there is no ASSERT in non-debug mode, we use abort
+      instead.
+    */
+    abort();
+#endif
+    ret= sprintf(buf, "%d:%lld", sidno, gno);
+  }
   DBUG_RETURN(ret);
 }
 

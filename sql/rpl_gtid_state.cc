@@ -75,6 +75,7 @@ enum_return_status Gtid_state::acquire_ownership(THD *thd, const Gtid &gtid)
   else
   {
     thd->owned_gtid= gtid;
+    thd->owned_gtid.dbug_print(NULL, "set owned_gtid in acquire_ownership");
     thd->owned_sid= sid_map->sidno_to_sid(gtid.sidno);
   }
   RETURN_OK;
@@ -94,6 +95,8 @@ err:
 #endif
   }
   thd->clear_owned_gtids();
+  thd->owned_gtid.dbug_print(NULL,
+                             "set owned_gtid (clear) in acquire_ownership");
   RETURN_REPORTED_ERROR;
 }
 
@@ -253,7 +256,27 @@ void Gtid_state::update_gtids_impl(THD *thd, bool is_commit)
   unlock_owned_sidnos(thd);
   if (thd->variables.gtid_next.type == GTID_GROUP)
     thd->variables.gtid_next.set_undefined();
-  thd->clear_owned_gtids();
+  /*
+    This early return prevents releasing anonymous ownership when a
+    non-transactional statement is flushed to the binary log in the
+    middle of a transaction.  If we would release ownership in the
+    middle of a transaction when gtid_next.type==ANONYMOUS_GROUP, it
+    would be possible for a concurrent transaction to change GTID_MODE
+    to ON in the middle of a transaction, making it impossible to
+    commit.
+  */
+  if (opt_bin_log && thd->variables.gtid_next.type == ANONYMOUS_GROUP)
+  {
+    // Needed before is_binlog_cache_empty.
+    thd->binlog_setup_trx_data();
+    if (!thd->is_binlog_cache_empty(true))
+      DBUG_VOID_RETURN;
+  }
+  if (!(thd->variables.gtid_next.type == ANONYMOUS_GROUP &&
+        thd->is_commit_in_middle_of_statement))
+    thd->clear_owned_gtids();
+  thd->owned_gtid.dbug_print(NULL,
+                             "set owned_gtid (clear) in update_gtids_impl");
 
   DBUG_VOID_RETURN;
 }
@@ -397,6 +420,8 @@ enum_return_status Gtid_state::generate_automatic_gtid(THD *thd)
     // using an anonymous transaction.
     thd->owned_gtid.sidno= THD::OWNED_SIDNO_ANONYMOUS;
     thd->owned_gtid.gno= 0;
+    thd->owned_gtid.dbug_print(NULL,
+                               "set owned_gtid (anonymous) in generate_automatic_gtid");
   }
 
   gtid_set_performance_schema_values(thd);

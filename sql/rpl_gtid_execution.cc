@@ -117,6 +117,7 @@ int gtid_acquire_ownership_single(THD *thd)
   if (!ret)
     gtid_set_performance_schema_values(thd);
 #endif
+  thd->owned_gtid.dbug_print(NULL, "Set owned_gtid in gtid_acquire_ownership");
 
   DBUG_RETURN(ret);
 }
@@ -319,9 +320,46 @@ static inline void skip_statement(const THD *thd)
 }
 
 
+bool gtid_reacquire_ownership_if_anonymous(THD *thd)
+{
+  DBUG_ENTER("gtid_reacquire_ownership_if_anonymous(THD *)");
+  Gtid_specification *gtid_next= &thd->variables.gtid_next;
+  /*
+    When the slave applier thread executes a
+    Format_description_log_event originating from a master
+    (corresponding to a new master binary log), it sets gtid_next to
+    NOT_YET_DETERMINED_GROUP.  This allows any following
+    Gtid_log_event will set the GTID appropriately, but if there is no
+    Gtid_log_event, gtid_next will be converted to ANONYMOUS.
+  */
+  DBUG_PRINT("info", ("gtid_next->type=%d gtid_mode=%lu",
+                      gtid_next->type, gtid_mode));
+  if (gtid_next->type == NOT_YET_DETERMINED_GROUP ||
+      (gtid_next->type == ANONYMOUS_GROUP && thd->owned_gtid.sidno == 0))
+  {
+    if (gtid_mode == GTID_MODE_ON)
+    {
+      my_error(ER_CANT_SET_GTID_NEXT_TO_ANONYMOUS_WHEN_GTID_MODE_IS_ON, MYF(0));
+      DBUG_RETURN(true);
+    }
+    DBUG_PRINT("info", ("converting NOT_YET_DETERMINED_GROUP to ANONYMOUS_GROUP"));
+
+    gtid_next->set_anonymous();
+    gtid_acquire_ownership_single(thd);
+
+#ifdef HAVE_REPLICATION
+    thd->set_currently_executing_gtid_for_slave_thread();
+#endif
+  }
+  DBUG_RETURN(false);
+}
+
+
 enum_gtid_statement_status gtid_pre_statement_checks(THD *thd)
 {
   DBUG_ENTER("gtid_pre_statement_checks");
+
+  Gtid_specification *gtid_next= &thd->variables.gtid_next;
 
   if (enforce_gtid_consistency && !thd->is_ddl_gtid_compatible())
   {
@@ -329,7 +367,6 @@ enum_gtid_statement_status gtid_pre_statement_checks(THD *thd)
     DBUG_RETURN(GTID_STATEMENT_CANCEL);
   }
 
-  Gtid_specification *gtid_next= &thd->variables.gtid_next;
   if (stmt_causes_implicit_commit(thd, CF_IMPLICIT_COMMIT_BEGIN) &&
       thd->in_active_multi_stmt_transaction() &&
       gtid_next->type == GTID_GROUP)
@@ -337,6 +374,19 @@ enum_gtid_statement_status gtid_pre_statement_checks(THD *thd)
     my_error(ER_CANT_DO_IMPLICIT_COMMIT_IN_TRX_WHEN_GTID_NEXT_IS_SET, MYF(0));
     DBUG_RETURN(GTID_STATEMENT_CANCEL);
   }
+
+  /*
+    Ensure that we hold anonymous ownership before executing any
+    statement, if gtid_next=anonymous or not_yet_determined.  But do
+    not acquire anonymous ownership if the statement is a SET that
+    does not invoke a stored function, since it could be a
+    SET GTID_NEXT=UUID:NUMBER.
+  */
+  enum_sql_command sql_command= thd->lex->sql_command;
+  if (sql_command != SQLCOM_SET_OPTION || thd->lex->is_set_password_sql ||
+      thd->lex->uses_stored_routines())
+    if (gtid_reacquire_ownership_if_anonymous(thd))
+      DBUG_RETURN(GTID_STATEMENT_CANCEL);
 
   /*
     Always allow:
@@ -349,40 +399,12 @@ enum_gtid_statement_status gtid_pre_statement_checks(THD *thd)
 
     @todo: figure out how to handle SQLCOM_XA_*
   */
-  enum_sql_command sql_command= thd->lex->sql_command;
   if (sql_command == SQLCOM_COMMIT || sql_command == SQLCOM_BEGIN ||
       sql_command == SQLCOM_ROLLBACK ||
       ((sql_command == SQLCOM_SELECT ||
         (sql_command == SQLCOM_SET_OPTION && !thd->lex->is_set_password_sql)) &&
        !thd->lex->uses_stored_routines()))
     DBUG_RETURN(GTID_STATEMENT_EXECUTE);
-
-  /*
-    When the slave applier thread executes a
-    Format_description_log_event originating from a master
-    (corresponding to a new master binary log), it sets gtid_next to
-    NOT_YET_DETERMINED_GROUP.  This allows any following
-    Gtid_log_event will set the GTID appropriately, but if there is no
-    Gtid_log_event, gtid_next will be converted to ANONYMOUS.
-  */
-  DBUG_PRINT("info", ("gtid_next->type=%d gtid_mode=%lu", gtid_next->type, gtid_mode));
-  if (gtid_next->type == NOT_YET_DETERMINED_GROUP ||
-      (gtid_next->type == ANONYMOUS_GROUP && thd->owned_gtid.sidno == 0))
-  {
-    if (gtid_mode == GTID_MODE_ON)
-    {
-      my_error(ER_CANT_SET_GTID_NEXT_TO_ANONYMOUS_WHEN_GTID_MODE_IS_ON, MYF(0));
-      DBUG_RETURN(GTID_STATEMENT_CANCEL);
-    }
-    DBUG_PRINT("info", ("converting NOT_YET_DETERMINED_GROUP to ANONYMOUS_GROUP"));
-
-    gtid_next->set_anonymous();
-    gtid_acquire_ownership_single(thd);
-
-#ifdef HAVE_REPLICATION
-    thd->set_currently_executing_gtid_for_slave_thread();
-#endif
-  }
 
   /*
     If a transaction updates both non-transactional and transactional

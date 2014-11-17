@@ -454,8 +454,10 @@ public:
   /**
     Get the SID for a given SIDNO.
 
-    An assertion is raised if the caller does not hold a lock on
-    sid_lock, or if the SIDNO is not valid.
+    Raises an assertion if the SIDNO is not valid.
+
+    If need_lock is true, acquires sid_lock->rdlock; otherwise asserts
+    that it is held already.
 
     @param sidno The SIDNO.
     @retval NULL The SIDNO does not exist in this map.
@@ -464,12 +466,20 @@ public:
     even after this Sid_map is modified, but not if this Sid_map is
     destroyed.
   */
-  const rpl_sid &sidno_to_sid(rpl_sidno sidno) const
+  const rpl_sid &sidno_to_sid(rpl_sidno sidno, bool need_lock= false) const
   {
     if (sid_lock != NULL)
-      sid_lock->assert_some_lock();
+    {
+      if (need_lock)
+        sid_lock->rdlock();
+      else
+        sid_lock->assert_some_lock();
+    }
     DBUG_ASSERT(sidno >= 1 && sidno <= get_max_sidno());
-    return (_sidno_to_sid[sidno - 1])->sid;
+    const rpl_sid &ret= (_sidno_to_sid[sidno - 1])->sid;
+    if (sid_lock != NULL && need_lock)
+      sid_lock->unlock();
+    return ret;
   }
   /**
     Return the n'th smallest sidno, in the order of the SID's UUID.
@@ -497,6 +507,9 @@ public:
       sid_lock->assert_some_lock();
     return static_cast<rpl_sidno>(_sidno_to_sid.size());
   }
+
+  /// Return the sid_lock.
+  Checkable_rwlock *get_sid_lock() const { return sid_lock; }
 
 private:
   /// Node pointed to by both the hash and the array.
@@ -802,9 +815,10 @@ struct Gtid
     @param sid_map sid_map to use when converting sidno to a SID.
     @param[out] buf Buffer to store the Gtid in (normally
     MAX_TEXT_LENGTH+1 bytes long).
+    @param need_lock If true, the function will acquire sid_map->sid_lock; otherwise it will assert that the lock is held.
     @return Length of the string, not counting '\0'.
   */
-  int to_string(const Sid_map *sid_map, char *buf) const;
+  int to_string(const Sid_map *sid_map, char *buf, bool need_lock= false) const;
   /// Returns true if this Gtid has the same sid and gno as 'other'.
   bool equals(const Gtid &other) const
   { return sidno == other.sidno && gno == other.gno; }
@@ -826,11 +840,12 @@ struct Gtid
   }
 #endif
   /// Print this Gtid to the trace file if debug is enabled; no-op otherwise.
-  void dbug_print(const Sid_map *sid_map, const char *text= "") const
+  void dbug_print(const Sid_map *sid_map, const char *text= "",
+                  bool need_lock= false) const
   {
 #ifndef DBUG_OFF
     char buf[MAX_TEXT_LENGTH + 1];
-    to_string(sid_map, buf);
+    to_string(sid_map, buf, need_lock);
     DBUG_PRINT("info", ("%s%s%s", text, *text ? ": " : "", buf));
 #endif
   }
@@ -2712,17 +2727,18 @@ struct Gtid_specification
   /// Returns true if the given string is a valid Gtid_specification.
   static bool is_valid(const char *text);
 #endif
-  static const int MAX_TEXT_LENGTH= binary_log::Uuid::TEXT_LENGTH + 1 +
-                                    MAX_GNO_TEXT_LENGTH;
+  static const int MAX_TEXT_LENGTH= Gtid::MAX_TEXT_LENGTH;
   /**
     Writes this Gtid_specification to the given string buffer.
 
     @param sid_map Sid_map to use if the type of this
     Gtid_specification is GTID_GROUP.
     @param buf[out] The buffer
+    @param need_lock If true, will acquire global_sid_lock.rdlock when
+    reading the sid_map.
     @retval The number of characters written.
   */
-  int to_string(const Sid_map *sid_map, char *buf) const;
+  int to_string(const Sid_map *sid_map, char *buf, bool need_lock= false) const;
   /**
     Writes this Gtid_specification to the given string buffer.
 
@@ -2747,11 +2763,11 @@ struct Gtid_specification
     Print this Gtid_specificatoin to the trace file if debug is
     enabled; no-op otherwise.
   */
-  void dbug_print(const char *text= "") const
+  void dbug_print(const char *text= "", bool need_lock= false) const
   {
 #ifndef DBUG_OFF
     char buf[MAX_TEXT_LENGTH + 1];
-    to_string(global_sid_map, buf);
+    to_string(global_sid_map, buf, need_lock);
     DBUG_PRINT("info", ("%s%s%s", text, *text ? ": " : "", buf));
 #endif
   }
@@ -2840,6 +2856,20 @@ int gtid_acquire_ownership_multiple(THD *thd);
 #endif
 
 void gtid_set_performance_schema_values(const THD *thd);
+
+/**
+  If gtid_next=ANONYMOUS or NOT_YET_DETERMINED, but the thread does
+  not hold anonymous ownership, acquire anonymous ownership.
+
+  @param thd Thread.
+
+  @retval true Error (can happen if gtid_mode=ON and
+  gtid_next=anonymous). The error has already been reported using
+  my_error.
+
+  @retval false Success.
+*/
+bool gtid_reacquire_ownership_if_anonymous(THD *thd);
 
 #endif // ifndef MYSQL_CLIENT
 

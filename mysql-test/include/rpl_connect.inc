@@ -53,6 +53,12 @@ if ($rpl_debug)
 }
 --connect ($rpl_connection_name,127.0.0.1,root,,test,$_rpl_port,)
 
+# When debug trace is enabled, this makes it easy to map debug trace
+# thread id's to mysqltest connection names, since it prints
+# mysqltests' connection name printed to the trace.
+
+--source include/rpl_connection.inc
+--let $unused= `SELECT "This is mysqltest's connection '$CURRENT_CONNECTION'"`
 
 --let $include_filename= rpl_connect.inc
 --source include/end_include_file.inc

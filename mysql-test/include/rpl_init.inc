@@ -10,6 +10,11 @@
 #  - Verifies that @@server_id of all servers are different.
 #  - Calls RESET MASTER, RESET SLAVE, USE test, CHANGE MASTER, START SLAVE.
 #  - Sets the connection to server_1 before exiting.
+#  - Sets the following mtr variables for convenience:
+#    $gtid_mode: the value of @@global.gtid_mode on server 1
+#    $gtid_mode_on: 1 if gtid_mode=on, 0 if gtid_mode=off
+#    $server_1_datadir, ..., $server_10_datadir: the @@datadir on each server.
+#    $server_1_uuid, ..., $server_10_uuid: the @@server_uuid on each server.
 #
 # ==== Usage ====
 #
@@ -241,6 +246,13 @@ if (!$rpl_debug)
 }
 
 
+--let $gtid_mode= `SELECT @@GLOBAL.GTID_MODE`
+--let $gtid_mode_on= 0
+if ($gtid_mode == 'ON')
+{
+  --let $gtid_mode_on= 1
+}
+
 # Create two connections to each server; reset master/slave, select
 # database, set autoinc variables.
 --let $_rpl_server= $rpl_server_count
@@ -279,33 +291,43 @@ while ($_rpl_server)
   # Only way to do this in mtr :-(
   if ($_rpl_server == 1) {
     --let $server_1_datadir= `SELECT @@datadir`
+    --let $server_1_uuid= `SELECT @@server_uuid`
   }
   if ($_rpl_server == 2) {
     --let $server_2_datadir= `SELECT @@datadir`
+    --let $server_2_uuid= `SELECT @@server_uuid`
   }
   if ($_rpl_server == 3) {
     --let $server_3_datadir= `SELECT @@datadir`
+    --let $server_3_uuid= `SELECT @@server_uuid`
   }
   if ($_rpl_server == 4) {
     --let $server_4_datadir= `SELECT @@datadir`
+    --let $server_4_uuid= `SELECT @@server_uuid`
   }
   if ($_rpl_server == 5) {
     --let $server_5_datadir= `SELECT @@datadir`
+    --let $server_5_uuid= `SELECT @@server_uuid`
   }
   if ($_rpl_server == 6) {
     --let $server_6_datadir= `SELECT @@datadir`
+    --let $server_6_uuid= `SELECT @@server_uuid`
   }
   if ($_rpl_server == 7) {
     --let $server_7_datadir= `SELECT @@datadir`
+    --let $server_7_uuid= `SELECT @@server_uuid`
   }
   if ($_rpl_server == 8) {
     --let $server_8_datadir= `SELECT @@datadir`
+    --let $server_8_uuid= `SELECT @@server_uuid`
   }
   if ($_rpl_server == 9) {
     --let $server_9_datadir= `SELECT @@datadir`
+    --let $server_9_uuid= `SELECT @@server_uuid`
   }
   if ($_rpl_server == 10) {
     --let $server_10_datadir= `SELECT @@datadir`
+    --let $server_10_uuid= `SELECT @@server_uuid`
   }
 
   --dec $_rpl_server
@@ -355,7 +377,7 @@ if ($rpl_check_server_ids)
 # Determine if we should use gtids or not.
 if ($use_gtids == '')
 {
-  --let $use_gtids= `SELECT @@GLOBAL.GTID_MODE = 'ON'`
+  --let $use_gtids= $gtid_mode_on
 }
 
 

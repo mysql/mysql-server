@@ -7005,6 +7005,15 @@ int Xid_log_event::do_apply_event(Relay_log_info const *rli)
 
   lex_start(thd);
   mysql_reset_thd_for_next_command(thd);
+  /*
+    Anonymous GTID ownership may be released here if the last
+    statement before XID updated a non-transactional table and was
+    written to the binary log as a separate transaction (either
+    because binlog_format=row or because
+    binlog_direct_non_transactional_updates=1).  So we need to
+    re-acquire anonymous ownership.
+  */
+  gtid_reacquire_ownership_if_anonymous(thd);
   Relay_log_info *rli_ptr= const_cast<Relay_log_info *>(rli);
 
   /* For a slave Xid_log_event is COMMIT */
