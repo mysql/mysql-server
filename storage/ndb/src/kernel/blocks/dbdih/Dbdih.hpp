@@ -1447,7 +1447,9 @@ private:
 //------------------------------------
   void allocStoredReplica(FragmentstorePtr regFragptr,
                           ReplicaRecordPtr& newReplicaPtr,
-                          Uint32 nodeId);
+                          Uint32 nodeId,
+                          Uint32 fragId,
+                          Uint32 tableId);
   Uint32 extractNodeInfo(EmulatedJamBuffer *jambuf,
                          const Fragmentstore * fragPtr,
                          Uint32 nodes[]);
