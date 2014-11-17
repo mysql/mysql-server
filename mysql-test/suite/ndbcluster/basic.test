@@ -1,0 +1,27 @@
+--source include/have_ndb.inc
+
+#
+# The very basic test
+# - showing table can be created in the storage engine NDB
+# - read and write the table
+#
+CREATE TABLE t1 (
+  a int PRIMARY KEY,
+  b varchar(255)
+) ENGINE = NDB;
+
+INSERT INTO t1 VALUES (1, "MySQL Server with NDB");
+INSERT INTO t1 (a, b) VALUES (11, "Barrier effect");
+INSERT INTO t1 (a, b) VALUES
+  (12, "The third row"),
+  (37, "And of course number 37");
+SELECT * FROM t1 WHERE a = 1;
+UPDATE t1 SET b = CONCAT(b, " test") WHERE a = 1;
+SELECT * FROM t1 WHERE a = 1;
+REPLACE t1 (a, b) VALUES (12, "Another layer");
+SELECT * FROM t1 WHERE a = 12 ORDER BY a;
+DELETE FROM t1 WHERE a = 11;
+SELECT COUNT(*) FROM t1;
+SELECT b FROM t1 WHERE b LIKE "MySQL%";
+DELETE FROM t1 ORDER BY b DESC;
+DROP TABLE t1;
