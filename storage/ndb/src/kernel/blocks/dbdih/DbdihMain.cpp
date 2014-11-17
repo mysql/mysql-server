@@ -2923,6 +2923,20 @@ bool Dbdih::check_if_lcp_idle(void)
     ndbrequire(c_queued_lcp_frag_rep.isEmpty());
     ndbrequire(c_queued_lcp_complete_rep);
     return true;
+  case LCP_STATUS_ACTIVE:
+    jam();
+    return false;
+  case LCP_TAB_COMPLETED:
+    jam();
+  case LCP_TAB_SAVED:
+    jam();
+  /**
+   * For LCP_TAB_COMPLETED and LCP_TAB_COMPLETED we have already received
+   * all the table information and thus there is no need to get the new
+   * node into the LCP, there won't be any updates to the LCP data until
+   * the next LCP happens.
+   */
+    return true;
   default:
     jam();
     return false;
@@ -2948,6 +2962,7 @@ void Dbdih::sendPAUSE_LCP_REQ(Signal *signal, bool pause)
     c_pause_lcp_start_node = c_nodeStartMaster.startNode;
     c_pauseAction = PauseLcpReq::Pause;
     req->pauseAction = PauseLcpReq::Pause;
+    infoEvent("PAUSE LCP for starting node %u", c_nodeStartMaster.startNode);
   }
   else
   {
@@ -2958,12 +2973,16 @@ void Dbdih::sendPAUSE_LCP_REQ(Signal *signal, bool pause)
       jam();
       c_pauseAction = PauseLcpReq::UnPauseIncludeInLcp;
       req->pauseAction = PauseLcpReq::UnPauseIncludeInLcp;
+      infoEvent("UNPAUSE LCP for starting node %u, include in LCP",
+                c_nodeStartMaster.startNode);
     }
     else
     {
       jam();
       c_pauseAction = PauseLcpReq::UnPauseNotIncludeInLcp;
       req->pauseAction = PauseLcpReq::UnPauseNotIncludeInLcp;
+      infoEvent("UNPAUSE LCP for starting node %u, not include in LCP",
+                c_nodeStartMaster.startNode);
     }
   }
   /**
@@ -4109,14 +4128,6 @@ void Dbdih::execINCL_NODEREQ(Signal* signal)
   CRASH_INSERTION(7127);
   m_micro_gcp.m_current_gci = gci;
   m_micro_gcp.m_old_gci = gci - 1;
-  if (!isMaster()) {
-    jam();
-    /*-----------------------------------------------------------------------*/
-    // We don't want to change the state of the master since he can be in the
-    // state LCP_TCGET at this time.
-    /*-----------------------------------------------------------------------*/
-    c_lcpState.setLcpStatus(LCP_STATUS_IDLE, __LINE__);
-  }//if
 
   /*-------------------------------------------------------------------------*/
   // When a node is restarted we must ensure that a lcp will be run
@@ -14625,6 +14636,14 @@ void Dbdih::execSTART_LCP_REQ(Signal* signal)
       c_lcpState.m_LCP_COMPLETE_REP_Counter_DIH.clearWaitingFor();
       c_lcpState.m_LCP_COMPLETE_REP_From_Master_Received = false;  
 
+      c_current_time = NdbTick_getCurrentTicks();
+      c_lcpState.m_start_time = c_current_time;
+
+      g_eventLogger->info("Our node now in LCP execution after pausing LCP");
+      g_eventLogger->info("LCP_COMPLETE_REP_Counter_LQH bitmap= %s",
+          c_lcpState.m_LCP_COMPLETE_REP_Counter_LQH.getText());
+      ndbrequire(!checkLcpAllTablesDoneInLqh(__LINE__));
+
       StartLcpConf * conf = (StartLcpConf*)signal->getDataPtrSend();
       conf->senderRef = reference();
       sendSignal(c_lcpState.m_masterLcpDihRef, GSN_START_LCP_CONF, signal,
@@ -16516,6 +16535,7 @@ void Dbdih::sendCopyTable(Signal* signal, CopyTableNode* ctn,
        */
       req->tabLcpStatus = CopyTabReq::LcpCompleted;
     }
+    req->currentLcpId = SYSFILE->latestLCP_ID;
     sig_len = CopyTabReq::SignalLengthExtra;
   }
   sendSignal(ref, GSN_COPY_TABREQ, signal, sig_len, JBB);
@@ -18029,6 +18049,8 @@ void Dbdih::allNodesLcpCompletedLab(Signal* signal)
   
   if (c_lcpState.lcpStatus != LCP_TAB_SAVED) {
     jam();
+    ndbrequire(!c_lcpState.m_LCP_COMPLETE_REP_Counter_LQH.done() ||
+                c_lcpState.lcpStatus == LCP_TAB_COMPLETED);
     /**
      * We have not sent LCP_COMPLETE_REP to master DIH yet
      */
@@ -20611,8 +20633,13 @@ void Dbdih::readReplica(RWFragment* rf, ReplicaRecordPtr readReplicaPtr)
   readReplicaPtr.p->noCrashedReplicas = readPageWord(rf);
   readReplicaPtr.p->nextLcp = readPageWord(rf);
 
+  /**
+   * Initialise LCP inclusion data, this is to enable us to be included
+   * in an LCP during a node restart.
+   */
   readReplicaPtr.p->fragId = rf->fragId;
   readReplicaPtr.p->tableId = rf->rwfTabPtr.i;
+  readReplicaPtr.p->lcpOngoingFlag = false;
 
   for (i = 0; i < MAX_LCP_STORED; i++) {
     readReplicaPtr.p->maxGciCompleted[i] = readPageWord(rf);
@@ -20656,6 +20683,16 @@ void Dbdih::updateLcpInfo(TabRecord *regTabPtr,
       jam();
       regReplicaPtr->lcpOngoingFlag = true;
       regFragPtr->noLcpReplicas++;
+#if 0
+      g_eventLogger->info("LCP Ongoing: TableId: %u, fragId: %u, node: %u"
+                          " lastLcpNo: %u, lastLcpId: %u, lcpId: %u",
+      regReplicaPtr->tableId,
+      regReplicaPtr->fragId,
+      regReplicaPtr->procNode,
+      lastLcpNo,
+      regReplicaPtr->lcpId[lastLcpNo],
+      c_lcp_id_while_copy_meta_data);
+#endif
     }
   }
 }
@@ -20674,6 +20711,7 @@ void Dbdih::readReplicas(RWFragment* rf,
   /* ----------------------------------------------------------------------- */
   fragPtr.p->noStoredReplicas = 0;
   fragPtr.p->noOldStoredReplicas = 0;
+  fragPtr.p->noLcpReplicas = 0;
   Uint32 replicaIndex = 0;
   ndbrequire(noStoredReplicas + noOldStoredReplicas <= MAX_REPLICAS);
   for (i = 0; i < noStoredReplicas; i++) 
