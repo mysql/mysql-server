@@ -15,15 +15,15 @@
       Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /**
-  @file storage/perfschema/table_replication_execute_status_by_cordinator.cc
-  Table replication_execute_status_by_coordinator (implementation).
+  @file storage/perfschema/table_replication_applier_status_by_cordinator.cc
+  Table replication_applier_status_by_coordinator (implementation).
 */
 
 #define HAVE_REPLICATION
 
 #include "my_global.h"
 #include "sql_priv.h"
-#include "table_replication_execute_status_by_coordinator.h"
+#include "table_replication_applier_status_by_coordinator.h"
 #include "pfs_instr_class.h"
 #include "pfs_instr.h"
 #include "rpl_slave.h"
@@ -33,7 +33,7 @@
 #include "sql_parse.h"
 #include "rpl_msr.h"       /* Multisource replication */
 
-THR_LOCK table_replication_execute_status_by_coordinator::m_table_lock;
+THR_LOCK table_replication_applier_status_by_coordinator::m_table_lock;
 
 /*
   numbers in varchar count utf8 characters.
@@ -74,52 +74,52 @@ static const TABLE_FIELD_TYPE field_types[]=
 };
 
 TABLE_FIELD_DEF
-table_replication_execute_status_by_coordinator::m_field_def=
+table_replication_applier_status_by_coordinator::m_field_def=
 { 6, field_types };
 
 PFS_engine_table_share
-table_replication_execute_status_by_coordinator::m_share=
+table_replication_applier_status_by_coordinator::m_share=
 {
-  { C_STRING_WITH_LEN("replication_execute_status_by_coordinator") },
+  { C_STRING_WITH_LEN("replication_applier_status_by_coordinator") },
   &pfs_readonly_acl,
-  table_replication_execute_status_by_coordinator::create,
+  table_replication_applier_status_by_coordinator::create,
   NULL, /* write_row */
   NULL, /* delete_all_rows */
-  table_replication_execute_status_by_coordinator::get_row_count,
+  table_replication_applier_status_by_coordinator::get_row_count,
   sizeof(PFS_simple_index), /* ref length */
   &m_table_lock,
   &m_field_def,
   false /* checked */
 };
 
-PFS_engine_table* table_replication_execute_status_by_coordinator::create(void)
+PFS_engine_table* table_replication_applier_status_by_coordinator::create(void)
 {
-  return new table_replication_execute_status_by_coordinator();
+  return new table_replication_applier_status_by_coordinator();
 }
 
-table_replication_execute_status_by_coordinator
-  ::table_replication_execute_status_by_coordinator()
+table_replication_applier_status_by_coordinator
+  ::table_replication_applier_status_by_coordinator()
   : PFS_engine_table(&m_share, &m_pos),
     m_row_exists(false), m_pos(0), m_next_pos(0)
 {}
 
-table_replication_execute_status_by_coordinator
-  ::~table_replication_execute_status_by_coordinator()
+table_replication_applier_status_by_coordinator
+  ::~table_replication_applier_status_by_coordinator()
 {}
 
-void table_replication_execute_status_by_coordinator::reset_position(void)
+void table_replication_applier_status_by_coordinator::reset_position(void)
 {
   m_pos.m_index= 0;
   m_next_pos.m_index= 0;
 }
 
-ha_rows table_replication_execute_status_by_coordinator::get_row_count()
+ha_rows table_replication_applier_status_by_coordinator::get_row_count()
 {
  return msr_map.get_max_channels();
 }
 
 
-int table_replication_execute_status_by_coordinator::rnd_next(void)
+int table_replication_applier_status_by_coordinator::rnd_next(void)
 {
   Master_info *mi;
 
@@ -146,7 +146,7 @@ int table_replication_execute_status_by_coordinator::rnd_next(void)
 
 }
 
-int table_replication_execute_status_by_coordinator::rnd_pos(const void *pos)
+int table_replication_applier_status_by_coordinator::rnd_pos(const void *pos)
 {
   Master_info *mi=NULL;
 
@@ -167,7 +167,7 @@ int table_replication_execute_status_by_coordinator::rnd_pos(const void *pos)
 
 }
 
-void table_replication_execute_status_by_coordinator::make_row(Master_info *mi)
+void table_replication_applier_status_by_coordinator::make_row(Master_info *mi)
 {
   m_row_exists= false;
 
@@ -223,7 +223,7 @@ void table_replication_execute_status_by_coordinator::make_row(Master_info *mi)
   m_row_exists= true;
 }
 
-int table_replication_execute_status_by_coordinator
+int table_replication_applier_status_by_coordinator
   ::read_row_values(TABLE *table, unsigned char *buf,
                     Field **fields, bool read_all)
 {

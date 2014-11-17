@@ -13168,7 +13168,8 @@ ndbcluster_cache_retrieval_allowed(THD *thd,
 
 my_bool
 ha_ndbcluster::register_query_cache_table(THD *thd,
-                                          char *full_name, uint full_name_len,
+                                          char *full_name,
+                                          size_t full_name_len,
                                           qc_engine_callback *engine_callback,
                                           ulonglong *engine_data)
 {

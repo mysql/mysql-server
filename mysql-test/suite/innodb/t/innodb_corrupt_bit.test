@@ -38,10 +38,10 @@ SET SESSION debug="+d,dict_set_index_corrupted";
 check table corrupt_bit_test_ā;
 SET SESSION debug="-d,dict_set_index_corrupted";
 
-# New index that is not set as corrupted
+# Cannot create new indexes while corrupted indexes exist
+--error ER_CHECK_NO_SUCH_TABLE
 CREATE INDEX idx3 ON corrupt_bit_test_ā(b, c);
-
-# creating an index should succeed even if other secondary indexes are corrupted
+--error ER_CHECK_NO_SUCH_TABLE
 CREATE INDEX idx4 ON corrupt_bit_test_ā(b, z);
 
 # This selection intend to use the corrupted index. Expect to fail
@@ -78,6 +78,18 @@ select z from corrupt_bit_test_ā;
 
 # Drop the corrupted index
 drop index idxē on corrupt_bit_test_ā;
+
+# Cannot create new indexes while a corrupt index exists.
+--error ER_CHECK_NO_SUCH_TABLE
+CREATE INDEX idx3 ON corrupt_bit_test_ā(b, c);
+--error ER_CHECK_NO_SUCH_TABLE
+CREATE INDEX idx4 ON corrupt_bit_test_ā(b, z);
+
+drop index idx on corrupt_bit_test_ā;
+
+# Now that there exist no corrupted indexes, we can create new indexes.
+CREATE INDEX idx3 ON corrupt_bit_test_ā(b, c);
+CREATE INDEX idx4 ON corrupt_bit_test_ā(b, z);
 
 # Now select back to normal
 select z from corrupt_bit_test_ā limit 10;
