@@ -1466,7 +1466,7 @@ row_merge_read_clustered_index(
 	bool			skip_pk_sort,/*!< in: whether the new
 						PRIMARY KEY will follow
 						existing order */
-	int*			tmpfd 	/*!< in/out: temporary file handle */
+	int*			tmpfd	/*!< in/out: temporary file handle */
 #ifdef HAVE_PSI_STAGE_INTERFACE
 	, PSI_stage_progress*	progress
 	, ulint*		n_recs
@@ -1654,7 +1654,9 @@ row_merge_read_clustered_index(
 
 		page_cur_move_to_next(cur);
 
+#ifdef HAVE_PSI_STAGE_INTERFACE
 		(*n_recs)++;
+#endif /* HAVE_PSI_STAGE_INTERFACE */
 
 		if (page_cur_is_after_last(cur)) {
 
@@ -2265,7 +2267,6 @@ func_exit:
 	ut_free(nonnull);
 
 all_done:
-
 	if (clust_btr_bulk != NULL) {
 		ut_ad(err != DB_SUCCESS);
 		clust_btr_bulk->latch();
@@ -4156,8 +4157,10 @@ row_merge_build_indexes(
 	duplicate keys. */
 	innobase_rec_reset(table);
 
+#ifdef HAVE_PSI_STAGE_INTERFACE
 	ulint	n_recs;
 	ulint	n_pages;
+#endif /* HAVE_PSI_STAGE_INTERFACE */
 
 	/* Read clustered index of the table and create files for
 	secondary index entries for merge sort */
@@ -4173,12 +4176,9 @@ row_merge_build_indexes(
 #endif /* HAVE_PSI_STAGE_INTERFACE */
 	);
 
-#if 1
-	printf("counted %lu pages in PK\n", n_pages);
 	mysql_stage_set_work_estimated(
 		*progress,
 		row_merge_estimate_alter_table(n_pages, n_indexes));
-#endif
 
 #ifdef HAVE_PSI_STAGE_INTERFACE
 	const ulint	inc_every_nth_rec = std::max(1UL, n_recs / n_pages);
