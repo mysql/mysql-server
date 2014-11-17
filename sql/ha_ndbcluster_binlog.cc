@@ -2098,9 +2098,18 @@ end:
       int i;
       int no_storage_nodes= g_ndb_cluster_connection->no_db_nodes();
       set_timespec(abstime, 1);
+
+      // Unlock the schema object and wait for injector to signal that
+      // something has happened. (NOTE! convoluted in order to
+      // only use injector_cond with injector_mutex)
+      pthread_mutex_unlock(&ndb_schema_object->mutex);
+      pthread_mutex_lock(&injector_mutex);
       int ret= pthread_cond_timedwait(&injector_cond,
-                                      &ndb_schema_object->mutex,
+                                      &injector_mutex,
                                       &abstime);
+      pthread_mutex_unlock(&injector_mutex);
+      pthread_mutex_lock(&ndb_schema_object->mutex);
+
       if (thd->killed)
         break;
 
@@ -6010,9 +6019,18 @@ ndbcluster_handle_drop_table(THD *thd, Ndb *ndb, NDB_SHARE *share,
   {
     struct timespec abstime;
     set_timespec(abstime, 1);
+
+    // Unlock the share and wait for injector to signal that
+    // something has happened. (NOTE! convoluted in order to
+    // only use injector_cond with injector_mutex)
+    pthread_mutex_unlock(&share->mutex);
+    pthread_mutex_lock(&injector_mutex);
     int ret= pthread_cond_timedwait(&injector_cond,
-                                    &share->mutex,
+                                    &injector_mutex,
                                     &abstime);
+    pthread_mutex_unlock(&injector_mutex);
+    pthread_mutex_lock(&share->mutex);
+
     if (thd->killed ||
         share->op == 0)
       break;
