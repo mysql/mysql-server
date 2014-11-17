@@ -2721,6 +2721,19 @@ String *Item_func_rpad::val_str(String *str)
     res->set_charset(&my_charset_bin);
     rpad->set_charset(&my_charset_bin);
   }
+#if MARIADB_VERSION_ID < 1000000
+  /*
+    Well-formedness is handled on a higher level in 10.0,
+    no needs to check it here again.
+  */
+  else
+  {
+    // This will chop off any trailing illegal characters from rpad.
+    String *well_formed_pad= args[2]->check_well_formed_result(rpad, false);
+    if (!well_formed_pad)
+      goto err;
+  }
+#endif
 
   if (count <= (res_char_length= res->numchars()))
   {						// String to pad is big enough
@@ -2826,6 +2839,18 @@ String *Item_func_lpad::val_str(String *str)
     res->set_charset(&my_charset_bin);
     pad->set_charset(&my_charset_bin);
   }
+#if MARIADB_VERSION_ID < 1000000
+  /*
+    Well-formedness is handled on a higher level in 10.0,
+    no needs to check it here again.
+  */  else
+  {
+    // This will chop off any trailing illegal characters from pad.
+    String *well_formed_pad= args[2]->check_well_formed_result(pad, false);
+    if (!well_formed_pad)
+      goto err;
+  }
+#endif
 
   res_char_length= res->numchars();
 

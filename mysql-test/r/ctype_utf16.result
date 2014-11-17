@@ -1198,5 +1198,14 @@ a	512
 Warnings:
 Warning	1260	Row 1 was cut by GROUP_CONCAT()
 #
+# MDEV-6865 Merge Bug#18935421 RPAD DIES WITH CERTAIN PADSTR INTPUTS..
+#
+DO RPAD(_utf16 0x0061 COLLATE utf16_unicode_ci, 10000, 0x0061DE989999);
+Warnings:
+Warning	1300	Invalid utf16 character string: 'DE9899'
+DO LPAD(_utf16 0x0061 COLLATE utf16_unicode_ci, 10000, 0x0061DE989999);
+Warnings:
+Warning	1300	Invalid utf16 character string: 'DE9899'
+#
 # End of 5.5 tests
 #
