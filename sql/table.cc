@@ -2325,10 +2325,17 @@ bool register_base_columns(TABLE *table, Field *gcol)
   gcol->gcol_info->expr_item->walk(&Item::register_field_in_read_map,
                                            Item::WALK_PREFIX, (uchar *) 0);
   table->read_set= save_old_read_set;
-  for (uint i=0; i < table->s->fields; i++)
+  /* Only consider the columns prior to current gcol */
+  for (uint i=0; i < gcol->field_index; i++)
   {
     field= table->s->field[i];
-    if (bitmap_is_set(&base_columns, field->field_index))
+    /* Generated columns are not needed */
+    /**
+      TODO: If gcol only depends on some stored GCs, we can only register
+      these GCs as the base columns
+    */
+    if (!field->gcol_info &&
+        bitmap_is_set(&base_columns, field->field_index))
       gcol->gcol_info->base_columns_list.push_back(field);
   }
   DBUG_RETURN(FALSE);
