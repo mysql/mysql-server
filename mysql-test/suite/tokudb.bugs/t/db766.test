@@ -1,0 +1,12 @@
+# reproducer for DB-766
+source include/have_tokudb.inc;
+source include/have_partition.inc;
+set default_storage_engine=TokuDB;
+disable_warnings;
+drop table if exists t1;
+enable_warnings;
+CREATE TABLE t1(c1 INT,c2 CHAR)PARTITION BY KEY(c1) PARTITIONS 5;
+insert INTO t1 values(1,1),(2,1),(2,2),(2,3);
+--error ER_DUP_KEY
+ALTER TABLE t1 ADD UNIQUE INDEX i1(c1);
+drop table t1;
