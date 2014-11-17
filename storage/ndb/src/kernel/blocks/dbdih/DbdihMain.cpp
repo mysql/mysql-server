@@ -2787,7 +2787,7 @@ bool Dbdih::check_pause_state_sanity(void)
                !c_dequeue_lcp_rep_ongoing &&
                c_pause_lcp_start_node != RNIL);
   }
-  else if (!c_lcp_pause_requested)
+  else if (!c_pause_lcp_requested)
   {
     ndbrequire(c_pause_lcp_reference == 0 &&
                c_pause_lcp_start_node == RNIL);
