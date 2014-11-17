@@ -352,7 +352,7 @@ static void set_tabname(const char *pathname, char *tabname);
   int ndb_err(NdbTransaction*);
 
   my_bool register_query_cache_table(THD *thd, char *table_key,
-                                     uint key_length,
+                                     size_t key_length,
                                      qc_engine_callback *engine_callback,
                                      ulonglong *engine_data);
 enum_alter_inplace_result

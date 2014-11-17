@@ -3303,6 +3303,17 @@ prepare_inplace_alter_table_dict(
 	} else {
 		DBUG_ASSERT(!innobase_need_rebuild(ha_alter_info));
 
+		for (dict_index_t* index
+			     = dict_table_get_first_index(user_table);
+		     index != NULL;
+		     index = dict_table_get_next_index(index)) {
+			if (!index->to_be_dropped
+			    && dict_index_is_corrupted(index)) {
+				my_error(ER_CHECK_NO_SUCH_TABLE, MYF(0));
+				goto error_handled;
+			}
+		}
+
 		if (!ctx->new_table->fts
 		    && innobase_fulltext_exist(altered_table)) {
 			ctx->new_table->fts = fts_create(
@@ -3956,6 +3967,15 @@ ha_innobase::prepare_inplace_alter_table(
 	}
 
 	indexed_table = m_prebuilt->table;
+
+	if (indexed_table->corrupted
+	    || dict_table_get_first_index(indexed_table) == NULL
+	    || dict_index_is_corrupted(
+		    dict_table_get_first_index(indexed_table))) {
+		/* The clustered index is corrupted. */
+		my_error(ER_CHECK_NO_SUCH_TABLE, MYF(0));
+		DBUG_RETURN(true);
+	}
 
 	/* ALTER TABLE will not implicitly move a table from a single-table
 	tablespace to the system tablespace when innodb_file_per_table=OFF.
@@ -5879,7 +5899,19 @@ commit_try_norebuild(
 		DBUG_ASSERT(!index->is_committed());
 		error = row_merge_rename_index_to_add(
 			trx, ctx->new_table->id, index->id);
-		if (error != DB_SUCCESS) {
+		switch (error) {
+		case DB_SUCCESS:
+			break;
+		case DB_TOO_MANY_CONCURRENT_TRXS:
+			/* If we wrote some undo log here, then the
+			persistent data dictionary for this table may
+			probably be corrupted. This is because a
+			'trigger' on SYS_INDEXES could already have invoked
+			btr_free_if_exists(), which cannot be rolled back. */
+			DBUG_ASSERT(trx->undo_no == 0);
+			my_error(ER_TOO_MANY_CONCURRENT_TRXS, MYF(0));
+			DBUG_RETURN(true);
+		default:
 			sql_print_error(
 				"InnoDB: rename index to add: %lu\n",
 				(ulong) error);
