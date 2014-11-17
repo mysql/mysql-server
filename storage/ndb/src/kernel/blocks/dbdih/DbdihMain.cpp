@@ -8364,7 +8364,11 @@ void Dbdih::checkCopyTab(Signal* signal, NodeRecordPtr failedNodePtr)
   case GSN_COPY_TABREQ:
     jam();
     releaseTabPages(failedNodePtr.p->activeTabptr);
-    c_COPY_TABREQ_Counter.clearWaitingFor(failedNodePtr.i);
+    if (c_COPY_TABREQ_Counter.isWaitingFor(failedNodePtr.i))
+    {
+      jam();
+      c_COPY_TABREQ_Counter.clearWaitingFor(failedNodePtr.i);
+    }
     c_nodeStartMaster.wait = ZFALSE;
     break;
   case GSN_START_INFOREQ:
@@ -14604,7 +14608,6 @@ void Dbdih::execSTART_LCP_REQ(Signal* signal)
        * master keeps this information.
        */
       jam();
-      ndbrequire(req->participatingDIH.get(getOwnNodeId()));
       ndbrequire(c_lcpState.lcpStatus == LCP_STATUS_ACTIVE);
       ndbrequire(c_lcpState.m_masterLcpDihRef == cmasterdihref);
       c_lcpState.m_LCP_COMPLETE_REP_Counter_LQH = req->participatingLQH;
