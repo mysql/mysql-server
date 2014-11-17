@@ -3155,14 +3155,18 @@ row_merge_drop_indexes_dict(
 	trx->op_info = "dropping indexes";
 	error = que_eval_sql(info, sql, FALSE, trx);
 
-	if (error != DB_SUCCESS) {
+	switch (error) {
+	case DB_SUCCESS:
+		break;
+	default:
 		/* Even though we ensure that DDL transactions are WAIT
 		and DEADLOCK free, we could encounter other errors e.g.,
 		DB_TOO_MANY_CONCURRENT_TRXS. */
-		trx->error_state = DB_SUCCESS;
-
-		ib::error() << "row_merge_drop_indexes_dict failed with error"
+		ib::error() << "row_merge_drop_indexes_dict failed with error "
 			<< error;
+		/* fall through */
+	case DB_TOO_MANY_CONCURRENT_TRXS:
+		trx->error_state = DB_SUCCESS;
 	}
 
 	trx->op_info = "";
