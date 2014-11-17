@@ -3143,6 +3143,7 @@ void Dbdih::pause_lcp(Signal *signal,
   c_FLUSH_LCP_REP_REQ_Counter.setWaitingFor(c_lcpState.m_participatingDIH);
   c_FLUSH_LCP_REP_REQ_Counter.clearWaitingFor(getOwnNodeId());
   NodeReceiverGroup rg(DBDIH, c_lcpState.m_participatingDIH);
+  rg.m_nodes.clear(getOwnNodeId());
 
   sendSignal(rg, GSN_FLUSH_LCP_REP_REQ, signal,
              FlushLcpRepReq::SignalLength, JBB);
