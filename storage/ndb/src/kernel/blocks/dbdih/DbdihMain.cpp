@@ -2771,6 +2771,7 @@ void Dbdih::init_lcp_pausing_module(void)
   c_lcp_paused = false;
   c_dequeue_lcp_rep_ongoing = false;
   c_pause_lcp_requested = false;
+  c_queued_lcp_complete_rep = false;
   c_pauseAction = PauseLcpReq::NoAction;
   c_old_node_waiting_for_lcp_end = false;
   c_lcp_id_paused = RNIL;
