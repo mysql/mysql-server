@@ -2787,10 +2787,14 @@ bool Dbdih::check_pause_state_sanity(void)
                !c_dequeue_lcp_rep_ongoing &&
                c_pause_lcp_start_node != RNIL);
   }
-  else
+  else if (!c_lcp_pause_requested)
   {
     ndbrequire(c_pause_lcp_reference == 0 &&
                c_pause_lcp_start_node == RNIL);
+  }
+  else
+  {
+    ndbrequire(c_pause_lcp_start_node != RNIL);
   }
   ndbrequire(c_pauseAction == PauseLcpReq::NoAction ||
              c_lcp_paused ||
@@ -3065,6 +3069,7 @@ void Dbdih::execPAUSE_LCP_CONF(Signal *signal)
   ndbrequire(c_pauseAction == PauseLcpReq::UnPauseIncludeInLcp ||
              c_pauseAction == PauseLcpReq::UnPauseNotIncludeInLcp);
   c_pause_lcp_requested = false;
+  c_pause_lcp_start_node = RNIL;
   c_pauseAction = PauseLcpReq::NoAction; /* Clear pause action */
   ndbassert(check_pause_state_sanity());
   dihCopyCompletedLab(signal);
