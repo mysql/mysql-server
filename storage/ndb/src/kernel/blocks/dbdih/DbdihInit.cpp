@@ -156,6 +156,13 @@ Dbdih::Dbdih(Block_context& ctx):
   addRecSignal(GSN_DBINFO_SCANREQ, &Dbdih::execDBINFO_SCANREQ);
   /* End Node Recovery Status Module signals */
 
+  /* LCP Pause module */
+  addRecSignal(GSN_PAUSE_LCP_REQ, &Dbdih::execPAUSE_LCP_REQ);
+  addRecSignal(GSN_PAUSE_LCP_CONF, &Dbdih::execPAUSE_LCP_CONF);
+  addRecSignal(GSN_FLUSH_LCP_REP_REQ, &Dbdih::execFLUSH_LCP_REP_REQ);
+  addRecSignal(GSN_FLUSH_LCP_REP_CONF, &Dbdih::execFLUSH_LCP_REP_CONF);
+  /* End LCP Pause module */
+
   addRecSignal(GSN_DUMP_STATE_ORD, &Dbdih::execDUMP_STATE_ORD);
   addRecSignal(GSN_NDB_TAMPER, &Dbdih::execNDB_TAMPER, true);
   addRecSignal(GSN_DEBUG_SIG, &Dbdih::execDEBUG_SIG);
