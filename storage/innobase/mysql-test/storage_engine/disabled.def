@@ -1,5 +1,4 @@
 alter_table_online : MDEV-397 (Changing a column name via ALTER ONLINE does not work for InnoDB)
-autoinc_vars : MySQL:65225 (InnoDB miscalculates auto-increment)
 tbl_opt_ai : MySQL:65901 (AUTO_INCREMENT option on InnoDB table is ignored if added before autoinc column)
 delete_low_prio : InnoDB does not use table-level locking
 insert_high_prio : InnoDB does not use table-level locking

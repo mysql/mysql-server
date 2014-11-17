@@ -1,2 +1,0 @@
-alter_table_online : MDEV-5266 (Temporary MERGE table with temporary underlying is broken by ALTER)
-

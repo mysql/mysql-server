@@ -1,0 +1,44 @@
+--- suite/storage_engine/alter_table_online.result	2014-09-25 12:15:42.000000000 +0400
++++ suite/storage_engine/alter_table_online.reject	2014-11-17 20:25:16.000000000 +0400
+@@ -9,20 +9,35 @@
+ CREATE TEMPORARY TABLE t1 (a <INT_COLUMN>, b <CHAR_COLUMN>) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS>;
+ INSERT INTO t1 (a,b) VALUES (1,'a'),(2,'b'),(3,'c');
+ ALTER ONLINE TABLE t1 MODIFY b <INT_COLUMN> DEFAULT 5;
+-ERROR HY000: Can't execute the given 'ALTER' command as online
++# ERROR: Statement succeeded (expected results: ER_CANT_DO_ONLINE)
++# ------------ UNEXPECTED RESULT ------------
++# The statement|command succeeded unexpectedly.
++# Functionality or the mix could be unsupported|malfunctioning, or the problem was caused by previous errors. 
++# You can change the engine code, or create an rdiff, or disable the test by adding it to disabled.def.
++# Further in this test, the message might sometimes be suppressed; a part of the test might be skipped.
++# Also, this problem may cause a chain effect (more errors of different kinds in the test).
++# -------------------------------------------
+ ALTER ONLINE TABLE t1 CHANGE b new_name <INT_COLUMN>;
+-ERROR HY000: Can't execute the given 'ALTER' command as online
++# ERROR: Statement succeeded (expected results: ER_CANT_DO_ONLINE)
+ ALTER ONLINE TABLE t1 COMMENT 'new comment';
+-ERROR HY000: Can't execute the given 'ALTER' command as online
++# ERROR: Statement succeeded (expected results: ER_CANT_DO_ONLINE)
+ ALTER ONLINE TABLE t1 RENAME TO t2;
+-ERROR HY000: Can't execute the given 'ALTER' command as online
++# ERROR: Statement succeeded (expected results: ER_CANT_DO_ONLINE)
+ DROP TABLE t1;
++ERROR 42S02: Unknown table 't1'
+ CREATE TABLE t1 (a <INT_COLUMN>, b <INT_COLUMN>, c <CHAR_COLUMN>) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS>;
+ INSERT INTO t1 (a,b,c) VALUES (1,100,'a'),(2,200,'b'),(3,300,'c');
+ ALTER ONLINE TABLE t1 DROP COLUMN b, ADD b <INT_COLUMN>;
+-ERROR HY000: Can't execute the given 'ALTER' command as online
++# ERROR: Statement succeeded (expected results: ER_CANT_DO_ONLINE)
++# ------------ UNEXPECTED RESULT ------------
++# The statement|command succeeded unexpectedly.
++# Functionality or the mix could be unsupported|malfunctioning, or the problem was caused by previous errors. 
++# You can change the engine code, or create an rdiff, or disable the test by adding it to disabled.def.
++# Further in this test, the message might sometimes be suppressed; a part of the test might be skipped.
++# Also, this problem may cause a chain effect (more errors of different kinds in the test).
++# -------------------------------------------
+ ALTER ONLINE TABLE t1 MODIFY b BIGINT <CUSTOM_COL_OPTIONS>;
+-ERROR HY000: Can't execute the given 'ALTER' command as online
++# ERROR: Statement succeeded (expected results: ER_CANT_DO_ONLINE)
+ ALTER ONLINE TABLE t1 ENGINE=MEMORY;
+ ERROR HY000: Can't execute the given 'ALTER' command as online
+ DROP TABLE t1;
