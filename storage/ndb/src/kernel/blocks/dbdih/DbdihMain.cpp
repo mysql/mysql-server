@@ -3246,18 +3246,22 @@ void Dbdih::unpause_lcp(Signal *signal,
   sendSignal(c_pause_lcp_reference, GSN_PAUSE_LCP_CONF, signal,
              PauseLcpConf::SignalLength, JBB);
 
-  stop_pause(signal);
+  stop_pause(signal, isMaster());
 }
 
-void Dbdih::stop_pause(Signal *signal)
+void Dbdih::stop_pause(Signal *signal, bool isMaster)
 {
+  if (!isMaster)
+  {
+    jam();
+    c_pause_lcp_requested = false;
+    c_pause_lcp_start_node = RNIL;
+    c_pauseAction = PauseLcpReq::NoAction;
+  }
   ndbrequire(!c_dequeue_lcp_rep_ongoing);
   c_lcp_paused = false;
-  c_pauseAction = PauseLcpReq::NoAction;
-  c_pause_lcp_requested = false;
-  c_pause_lcp_reference = 0;
-  c_pause_lcp_start_node = RNIL;
   c_dequeue_lcp_rep_ongoing = true;
+  c_pause_lcp_reference = 0;
   ndbassert(check_pause_state_sanity());
   dequeue_lcp_rep(signal);
 }
@@ -3274,7 +3278,7 @@ void Dbdih::handle_node_failure_in_pause(Signal *signal)
 {
   c_FLUSH_LCP_REP_REQ_Counter.clearWaitingFor();
   c_PAUSE_LCP_REQ_Counter.clearWaitingFor();
-  stop_pause(signal);
+  stop_pause(signal, false);
   ndbassert(check_pause_state_sanity());
 }
 
