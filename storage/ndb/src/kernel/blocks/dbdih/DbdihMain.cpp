@@ -11399,7 +11399,11 @@ void Dbdih::execDIADDTABREQ(Signal* signal)
     for (Uint32 i = 0; i<noReplicas; i++) {
       const Uint32 nodeId = fragments[index++];
       ReplicaRecordPtr replicaPtr;
-      allocStoredReplica(fragPtr, replicaPtr, nodeId);
+      allocStoredReplica(fragPtr,
+                         replicaPtr,
+                         nodeId,
+                         fragId,
+                         tabPtr.i);
       if (getNodeStatus(nodeId) == NodeRecord::ALIVE) {
         jam();
         ndbrequire(activeIndex < MAX_REPLICAS);
@@ -12168,7 +12172,11 @@ Dbdih::add_fragments_to_table(Ptr<TabRecord> tabPtr, const Uint16 buf[])
     {
       const Uint32 nodeId = buf[2+(1 + replicas)*i + 1 + j];
       ReplicaRecordPtr replicaPtr;
-      allocStoredReplica(fragPtr, replicaPtr, nodeId);
+      allocStoredReplica(fragPtr,
+                         replicaPtr,
+                         nodeId,
+                         current + i,
+                         tabPtr.i);
       if (getNodeStatus(nodeId) == NodeRecord::ALIVE) {
         jam();
         ndbrequire(activeIndex < MAX_REPLICAS);
@@ -14573,7 +14581,9 @@ void Dbdih::execSTART_LCP_REQ(Signal* signal)
       /**
        * The message was sent as part of start of LCPs when PAUSE LCP was used.
        * We have already performed initialisation of the LCP data while copying
-       * the table.
+       * the table. Since we are not at this moment part of the pause LCP
+       * handling we will add ourselves to the bitmap of the DIH participants
+       * in the LCP.
        */
       jam();
       ndbrequire(cmasterdihref == req->senderRef);
@@ -14582,7 +14592,8 @@ void Dbdih::execSTART_LCP_REQ(Signal* signal)
       c_lcpState.m_participatingLQH = req->participatingLQH;
       c_lcpState.m_masterLcpDihRef = cmasterdihref;
       c_lcpState.setLcpStatus(LCP_STATUS_ACTIVE, __LINE__);
-      ndbrequire(req->participatingDIH.get(getOwnNodeId()));
+      ndbrequire(!req->participatingDIH.get(getOwnNodeId()));
+      c_lcpState.m_participatingDIH.set(getOwnNodeId());
       return;
     }
     if (req->pauseStart == 2)
@@ -18816,7 +18827,9 @@ void Dbdih::allocpage(PageRecordPtr& pagePtr)
 /*************************************************************************/
 void Dbdih::allocStoredReplica(FragmentstorePtr fragPtr,
                                ReplicaRecordPtr& newReplicaPtr,
-                               Uint32 nodeId) 
+                               Uint32 nodeId,
+                               Uint32 fragId,
+                               Uint32 tableId)
 {
   Uint32 i;
   ReplicaRecordPtr arrReplicaPtr;
@@ -18829,6 +18842,8 @@ void Dbdih::allocStoredReplica(FragmentstorePtr fragPtr,
     newReplicaPtr.p->lcpId[i] = 0;
     newReplicaPtr.p->lcpStatus[i] = ZINVALID;
   }//for
+  newReplicaPtr.p->fragId = fragId;
+  newReplicaPtr.p->tableId = tableId;
   newReplicaPtr.p->noCrashedReplicas = 0;
   newReplicaPtr.p->initialGci = (Uint32)(m_micro_gcp.m_current_gci >> 32);
   for (i = 0; i < MAX_CRASHED_REPLICAS; i++) {
@@ -20578,6 +20593,9 @@ void Dbdih::readReplica(RWFragment* rf, ReplicaRecordPtr readReplicaPtr)
   readReplicaPtr.p->initialGci = readPageWord(rf);
   readReplicaPtr.p->noCrashedReplicas = readPageWord(rf);
   readReplicaPtr.p->nextLcp = readPageWord(rf);
+
+  readReplicaPtr.p->fragId = rf->fragId;
+  readReplicaPtr.p->tableId = rf->rwfTabPtr.i;
 
   for (i = 0; i < MAX_LCP_STORED; i++) {
     readReplicaPtr.p->maxGciCompleted[i] = readPageWord(rf);
