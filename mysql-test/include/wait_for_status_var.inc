@@ -32,9 +32,8 @@
 #   setting $status_timeout. The unit is tenths of seconds.
 #
 # $status_fail_query
-#   This is a new parameter to the wait_for_status_var.inc to check 
-#   the value of the failed query. 
-#
+#   This can be set to an SQL statement which will be executed if the
+#   script fails. Useful for debugging.
 
 if (`SELECT STRCMP('$status_type', '') * STRCMP(UPPER('$status_type'), 'SESSION') * STRCMP(UPPER('$status_type'), 'GLOBAL')`)
 {
@@ -74,15 +73,11 @@ while (`$_query`)
 {
   if (!$_status_timeout_counter)
   {
-    if(!$status_fail_query)
+    if ($status_fail_query)
     { 
-      --echo **** ERROR: failed waiting for the response for the $status_var and checking the status of the failing query ***
+      --echo # debug output:
       eval $status_fail_query;
     }
-  }
-
-  if (!$_status_timeout_counter)
-  {
     --echo **** ERROR: failed while waiting for $status_type $status_var $_status_var_comparsion $status_var_value ****
     --echo Note: the following output may have changed since the failure was detected
     --echo **** Showing STATUS, PROCESSLIST ****

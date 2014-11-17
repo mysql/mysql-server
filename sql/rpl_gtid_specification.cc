@@ -98,9 +98,9 @@ int Gtid_specification::to_string(const rpl_sid *sid, char *buf) const
 }
 
 
-int Gtid_specification::to_string(const Sid_map *sid_map, char *buf) const
+int Gtid_specification::to_string(const Sid_map *sid_map, char *buf, bool need_lock) const
 {
   return to_string(type == GTID_GROUP || type == UNDEFINED_GROUP ?
-                   &sid_map->sidno_to_sid(gtid.sidno) : NULL,
+                   &sid_map->sidno_to_sid(gtid.sidno, need_lock) : NULL,
                    buf);
 }

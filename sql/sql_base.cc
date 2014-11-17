@@ -1743,14 +1743,16 @@ bool close_temporary_tables(THD *thd)
 
     DBUG_RETURN(FALSE);
   }
-  /* We are about to generate DROP TEMPORARY TABLE statements for all
-    the left out temporary tables. If this part of the code is reached
-    when GTIDs are enabled, we must make sure that it will be able to
-    generate GTIDs for the statements with this server's UUID. Thence
-    gtid_next is set to AUTOMATIC_GROUP below.
+  /*
+    We are about to generate DROP TEMPORARY TABLE statements for all
+    the left out temporary tables. If GTID_NEXT is set (e.g. if user
+    did SET GTID_NEXT just before disconnecting the client), we must
+    ensure that it will be able to generate GTIDs for the statements
+    with this server's UUID. Therefore we set gtid_next to
+    AUTOMATIC_GROUP.
   */
-  if (gtid_mode > 0)
-    thd->variables.gtid_next.set_automatic();
+  gtid_state->update_on_rollback(thd);
+  thd->variables.gtid_next.set_automatic();
 
   /*
     We must separate transactional temp tables and

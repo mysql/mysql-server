@@ -322,11 +322,9 @@ public:
     return pending() == NULL && pos == 0;
   }
 
-#ifndef DBUG_OFF
-  bool dbug_is_finalized() const {
+  bool is_finalized() const {
     return flags.finalized;
   }
-#endif
 
   Rows_log_event *pending() const
   {
@@ -719,7 +717,7 @@ public:
 
 #ifndef DBUG_OFF
   bool dbug_any_finalized() const {
-    return stmt_cache.dbug_is_finalized() || trx_cache.dbug_is_finalized();
+    return stmt_cache.is_finalized() || trx_cache.is_finalized();
   }
 #endif
 
@@ -739,8 +737,28 @@ public:
     my_off_t stmt_bytes= 0;
     my_off_t trx_bytes= 0;
     DBUG_ASSERT(stmt_cache.has_xid() == 0);
-    if (int error= stmt_cache.flush(thd, &stmt_bytes, wrote_xid))
+    int error= stmt_cache.flush(thd, &stmt_bytes, wrote_xid);
+    if (error)
       return error;
+    else
+    {
+      /*
+        If both trx_cache and stmt_cache are nonempty, and
+        gtid_next='AUTOMATIC', we need to release anonymous ownership.
+        (This can only happen for anonymous transactions, since GTID
+        consistency forbids mixing transactional and non-transactional
+        tables in the same statement.)  It is important to release
+        anonymous ownership, because when the transaction cache is
+        flushed, it calls Gtid_state::generate_automatic_gtid, which
+        expects (and asserts) that nothing is owned.
+      */
+      if (trx_cache.is_finalized() &&
+          thd->variables.gtid_next.type == AUTOMATIC_GROUP &&
+          thd->owned_gtid.sidno == THD::OWNED_SIDNO_ANONYMOUS)
+      {
+        thd->clear_owned_gtids();
+      }
+    }
     if (int error= trx_cache.flush(thd, &trx_bytes, wrote_xid))
       return error;
     *bytes_written= stmt_bytes + trx_bytes;
