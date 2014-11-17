@@ -1,4 +1,4 @@
-/*
+eck_pa/*
    Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
@@ -2792,7 +2792,9 @@ bool Dbdih::check_pause_state_sanity(void)
     ndbrequire(c_pause_lcp_reference == 0 &&
                c_pause_lcp_start_node == RNIL);
   }
-  ndbrequire(c_pauseAction == PauseLcpReq::NoAction || c_lcp_paused);
+  ndbrequire(c_pauseAction == PauseLcpReq::NoAction ||
+             c_lcp_paused ||
+             c_pause_lcp_requested);
   ndbrequire(c_lcp_id_paused == RNIL ||
              c_lcp_paused ||
              c_dequeue_lcp_rep_ongoing);
@@ -3008,15 +3010,15 @@ void Dbdih::execPAUSE_LCP_CONF(Signal *signal)
   Uint32 startNode = conf->startNodeId;
 
   ndbrequire(isMaster());
-  ndbrequire(c_pause_lcp_requested);
-  ndbassert(check_pause_state_sanity());
   
-  if (c_pause_lcp_start_node == startNode)
+  if (c_pause_lcp_start_node != startNode)
   {
     /* Ignore, node died in the process */
     jam();
     return;
   }
+  ndbassert(check_pause_state_sanity());
+  ndbrequire(c_pause_lcp_requested);
   receiveLoopMacro(PAUSE_LCP_REQ, nodeId);
 
   if (c_pauseAction == PauseLcpReq::Pause)
@@ -3251,6 +3253,7 @@ void Dbdih::stop_pause(Signal *signal)
   ndbrequire(!c_dequeue_lcp_rep_ongoing);
   c_lcp_paused = false;
   c_pauseAction = PauseLcpReq::NoAction;
+  c_pause_lcp_requested = false;
   c_pause_lcp_reference = 0;
   c_pause_lcp_start_node = RNIL;
   c_dequeue_lcp_rep_ongoing = true;
