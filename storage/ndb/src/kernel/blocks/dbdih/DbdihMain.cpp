@@ -1,4 +1,4 @@
-eck_pa/*
+/*
    Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
