@@ -56,10 +56,14 @@ XA PREPARE 'xa2';
 --connection default
 --enable_reconnect
 --append_file $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
-restart
+wait
 EOF
 --shutdown_server 0
 --source include/wait_until_disconnected.inc
+
+--append_file $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+restart
+EOF
 --source include/wait_until_connected_again.inc
 XA RECOVER;
 XA ROLLBACK 'xa1';
