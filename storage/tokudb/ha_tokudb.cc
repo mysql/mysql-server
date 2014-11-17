@@ -5980,6 +5980,8 @@ int ha_tokudb::extra(enum ha_extra_function operation) {
     case HA_EXTRA_NO_IGNORE_NO_KEY:
         using_ignore_no_key = false;
         break;
+    case HA_EXTRA_NOT_USED:
+        break; // must do nothing and return 0
     default:
         break;
     }
