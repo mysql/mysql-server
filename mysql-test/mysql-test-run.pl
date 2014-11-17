@@ -2476,6 +2476,11 @@ sub environment_setup {
   $ENV{'MYSQL_BUG25714'}=  native_path($exe_bug25714);
 
   # ----------------------------------------------------
+  # Get the bin dir
+  # ----------------------------------------------------
+  $ENV{'MYSQL_BIN_PATH'}=  native_path($bindir);
+
+  # ----------------------------------------------------
   # mysql_fix_privilege_tables.sql
   # ----------------------------------------------------
   my $file_mysql_fix_privilege_tables=
