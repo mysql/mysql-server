@@ -95,7 +95,10 @@ if ($commands != '')
     {
       if ($failure != 'd,crash_after_apply')
       {
-        --let $outcome= O1
+        if ($failure != 'd,crash_after_commit_before_update_pos')
+        {
+          --let $outcome= O1
+        }
       }
     }
     --echo FAILURE $failure and OUTCOME $outcome
