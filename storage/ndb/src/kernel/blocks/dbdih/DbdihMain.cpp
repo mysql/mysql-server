@@ -17356,7 +17356,8 @@ void Dbdih::execLCP_FRAG_REP(Signal* signal)
   CRASH_INSERTION2(7016, !isMaster());
   CRASH_INSERTION2(7191, (!isMaster() && tableId));
 
-  bool fromTimeQueue = (signal->senderBlockRef()==reference()&&!broadcast_req);
+  bool fromTimeQueue = (signal->length()==LcpFragRep::SignalLengthTQ &&
+                        !broadcast_req);
   
   TabRecordPtr tabPtr;
   tabPtr.i = tableId;
@@ -17376,7 +17377,9 @@ void Dbdih::execLCP_FRAG_REP(Signal* signal)
       A cleaner/better way would be to check the time queue if it is full or
       not before sending this signal.
     */
-    sendSignal(reference(), GSN_LCP_FRAG_REP, signal, signal->length(), JBB);  
+
+    sendSignal(reference(), GSN_LCP_FRAG_REP, signal,
+               LcpFragRep::SignalLengthTQ, JBB);
     /* Kept here for reference
        sendSignalWithDelay(reference(), GSN_LCP_FRAG_REP, 
        signal, 20, signal->length());
