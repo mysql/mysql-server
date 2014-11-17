@@ -2325,8 +2325,7 @@ bool register_base_columns(TABLE *table, Field *gcol)
   gcol->gcol_info->expr_item->walk(&Item::register_field_in_read_map,
                                            Item::WALK_PREFIX, (uchar *) 0);
   table->read_set= save_old_read_set;
-  /* Only consider the columns prior to current gcol */
-  for (uint i=0; i < gcol->field_index; i++)
+  for (uint i=0; i < table->s->fields; i++)
   {
     field= table->s->field[i];
     /* Generated columns are not needed */
