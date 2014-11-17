@@ -2944,6 +2944,7 @@ void Dbdih::sendPAUSE_LCP_REQ(Signal *signal, bool pause)
     jam();
     ndbrequire(!c_pause_lcp_requested);
     c_pause_lcp_requested = true;
+    c_pause_lcp_start_node = c_nodeStartMaster.startNode;
     c_pauseAction = PauseLcpReq::Pause;
     req->pauseAction = PauseLcpReq::Pause;
   }
