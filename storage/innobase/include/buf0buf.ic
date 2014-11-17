@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2014, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -1172,7 +1172,7 @@ page_hash lock is acquired in the specified lock mode. Otherwise,
 mode value is ignored. It is up to the caller to release the
 lock. If the block is found and the lock is NULL then the page_hash
 lock is released by this function.
-@return	block, NULL if not found */
+@return	block, NULL if not found, or watch sentinel (if watch is true) */
 UNIV_INLINE
 buf_page_t*
 buf_page_hash_get_locked(
@@ -1188,9 +1188,11 @@ buf_page_hash_get_locked(
 					found. NULL otherwise. If NULL
 					is passed then the hash_lock
 					is released by this function */
-	ulint		lock_mode)	/*!< in: RW_LOCK_EX or
+	ulint		lock_mode,	/*!< in: RW_LOCK_EX or
 					RW_LOCK_SHARED. Ignored if
 					lock == NULL */
+	bool		watch)		/*!< in: if true, return watch
+					sentinel also. */
 {
 	buf_page_t*	bpage = NULL;
 	ulint		fold;
@@ -1221,7 +1223,9 @@ buf_page_hash_get_locked(
 	bpage = buf_page_hash_get_low(buf_pool, space, offset, fold);
 
 	if (!bpage || buf_pool_watch_is_sentinel(buf_pool, bpage)) {
-		bpage = NULL;
+		if (!watch) {
+			bpage = NULL;
+		}
 		goto unlock_and_exit;
 	}
 
