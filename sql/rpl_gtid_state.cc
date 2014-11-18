@@ -143,34 +143,10 @@ void Gtid_state::broadcast_owned_sidnos(const THD *thd)
 void Gtid_state::update_on_commit(THD *thd)
 {
   DBUG_ENTER("Gtid_state::update_on_commit");
+
   if (!thd->owned_gtid.is_empty())
   {
     global_sid_lock->rdlock();
-    if (!opt_bin_log || (thd->slave_thread && !opt_log_slave_updates))
-    {
-      Gtid *gtid= &thd->owned_gtid;
-#ifndef DBUG_OFF
-      lock_sidno(gtid->sidno);
-      DBUG_ASSERT(!executed_gtids.contains_gtid(*gtid));
-      unlock_sidno(gtid->sidno);
-#endif
-      /*
-        If binlog is disabled, any session adds transaction owned GTID
-        into global executed_gtids.
-        If binlog is enabled and log_slave_updates is disabled, slave
-        SQL thread or slave worker thread adds transaction owned GTID
-        into global executed_gtids and gtids_only_in_table.
-      */
-      lock_sidno(gtid->sidno);
-      DBUG_EXECUTE_IF(
-        "rpl_gtid_update_on_commit_simulate_out_of_memory",
-        DBUG_SET("+d,rpl_gtid_get_free_interval_simulate_out_of_memory"););
-      executed_gtids._add_gtid(*gtid);
-      if (thd->slave_thread && opt_bin_log && !opt_log_slave_updates)
-        gtids_only_in_table._add_gtid(*gtid);
-      unlock_sidno(gtid->sidno);
-    }
-
     update_gtids_impl(thd, true);
     global_sid_lock->unlock();
   }
@@ -239,13 +215,34 @@ void Gtid_state::update_gtids_impl(THD *thd, bool is_commit)
   else if (thd->owned_gtid.sidno > 0)
   {
     lock_sidno(thd->owned_gtid.sidno);
+    DBUG_ASSERT(!executed_gtids.contains_gtid(thd->owned_gtid));
     owned_gtids.remove_gtid(thd->owned_gtid);
 
     if (is_commit)
     {
+      DBUG_EXECUTE_IF(
+        "rpl_gtid_update_on_commit_simulate_out_of_memory",
+        DBUG_SET("+d,rpl_gtid_get_free_interval_simulate_out_of_memory"););
+      /*
+        Any session adds transaction owned GTID into global executed_gtids.
+
+        If binlog is disabled, we report @@GLOBAL.GTID_PURGED from
+        executed_gtids, since @@GLOBAL.GTID_PURGED and @@GLOBAL.GTID_EXECUTED
+        are always same, so we did not save gtid into lost_gtids for every
+        transaction for improving performance.
+
+        If binlog is enabled and log_slave_updates is disabled, slave
+        SQL thread or slave worker thread adds transaction owned GTID
+        into global executed_gtids, lost_gtids and gtids_only_in_table.
+      */
       executed_gtids._add_gtid(thd->owned_gtid);
       thd->rpl_thd_ctx.session_gtids_ctx().
         notify_after_gtid_executed_update(thd);
+      if (thd->slave_thread && opt_bin_log && !opt_log_slave_updates)
+      {
+        lost_gtids._add_gtid(thd->owned_gtid);
+        gtids_only_in_table._add_gtid(thd->owned_gtid);
+      }
     }
   }
 
@@ -648,17 +645,13 @@ int Gtid_state::save_gtids_of_last_binlog_into_table(bool on_rotation)
 }
 
 
-int Gtid_state::fetch_gtids(Gtid_set *gtid_set)
+int Gtid_state::read_gtid_executed_from_table()
 {
-  DBUG_ENTER("Gtid_state::fetch_gtids");
-  int ret= gtid_table_persistor->fetch_gtids(gtid_set);
-  DBUG_RETURN(ret);
+  return gtid_table_persistor->fetch_gtids(&executed_gtids);
 }
 
 
 int Gtid_state::compress(THD *thd)
 {
-  DBUG_ENTER("Gtid_state::compress");
-  int ret= gtid_table_persistor->compress(thd);
-  DBUG_RETURN(ret);
+  return gtid_table_persistor->compress(thd);
 }

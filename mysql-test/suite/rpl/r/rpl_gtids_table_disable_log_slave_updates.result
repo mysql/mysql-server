@@ -56,7 +56,7 @@ SLAVE_UUID	1	2
 # logs if binlog is enabled and log_slave_updates is disabled.
 #
 PURGE BINARY LOGS TO 'slave-bin.000002';
-include/assert.inc [purged gtids SLAVE_UUID:1-2]
+include/assert.inc [purged gtids SLAVE_UUID:1-2,MASTER_UUID:1-4]
 #
 # Verify that we can get the correct set from 'gtid_executed' table
 # when executing a big transaction that exceeds the max size of the

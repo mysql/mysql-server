@@ -2580,8 +2580,6 @@ public:
     Fetch gtids from gtid_executed table and store them into
     gtid_executed set.
 
-    @param[out]  gtid_set store gtids fetched from the gtid_executed table.
-
     @retval
       0    OK
     @retval
@@ -2589,7 +2587,7 @@ public:
     @retval
       -1   Error
   */
-  int fetch_gtids(Gtid_set *gtid_set);
+  int read_gtid_executed_from_table();
   /**
     Compress the gtid_executed table, read each row by the PK(sid, gno_start)
     in increasing order, compress the first consecutive gtids range

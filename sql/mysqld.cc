@@ -4625,30 +4625,36 @@ int mysqld_main(int argc, char **argv)
   {
     if (init_server_auto_options())
     {
-      sql_print_error("Initialzation of the server's UUID failed because it could"
+      sql_print_error("Initialization of the server's UUID failed because it could"
                       " not be read from the auto.cnf file. If this is a new"
                       " server, the initialization failed because it was not"
                       " possible to generate a new UUID.");
       unireg_abort(1);
     }
 
-    Gtid_set *executed_gtids=
-      const_cast<Gtid_set *>(gtid_state->get_executed_gtids());
-    Gtid_set *lost_gtids=
-      const_cast<Gtid_set *>(gtid_state->get_lost_gtids());
+    /*
+      Add server_uuid to the sid_map.  This must be done after
+      server_uuid has been initialized in init_server_auto_options and
+      after the binary log (and sid_map file) has been initialized in
+      init_server_components().
+
+      No error message is needed: init_sid_map() prints a message.
+
+      Strictly speaking, this is not currently needed when
+      opt_bin_log==0, since the variables that gtid_state->init
+      initializes are not currently used in that case.  But we call it
+      regardless to avoid possible future bugs if gtid_state ever
+      needs to do anything else.
+    */
+    global_sid_lock->rdlock();
+    int ret= gtid_state->init();
+    global_sid_lock->unlock();
+    // Initialize executed_gtids from mysql.gtid_executed table.
+    if (gtid_state->read_gtid_executed_from_table() == -1)
+      unireg_abort(1);
+
     if (opt_bin_log)
     {
-      /*
-        Add server_uuid to the sid_map.  This must be done after
-        server_uuid has been initialized in init_server_auto_options and
-        after the binary log (and sid_map file) has been initialized in
-        init_server_components().
-
-        No error message is needed: init_sid_map() prints a message.
-      */
-      global_sid_lock->rdlock();
-      int ret= gtid_state->init();
-      global_sid_lock->unlock();
       if (ret)
         unireg_abort(1);
 
@@ -4656,32 +4662,36 @@ int mysqld_main(int argc, char **argv)
         Initialize GLOBAL.GTID_EXECUTED and GLOBAL.GTID_PURGED from
         gtid_executed table and binlog files during server startup.
       */
-      Gtid_set purged_gtids_binlog(global_sid_map, global_sid_lock);
-      Gtid_set logged_gtids_binlog(global_sid_map, global_sid_lock);
-      Gtid_set unsaved_gtids_in_table(global_sid_map, global_sid_lock);
+      Gtid_set *executed_gtids=
+        const_cast<Gtid_set *>(gtid_state->get_executed_gtids());
+      Gtid_set *lost_gtids=
+        const_cast<Gtid_set *>(gtid_state->get_lost_gtids());
       Gtid_set *gtids_only_in_table=
         const_cast<Gtid_set *>(gtid_state->get_gtids_only_in_table());
       Gtid_set *previous_gtids_logged=
         const_cast<Gtid_set *>(gtid_state->get_previous_gtids_logged());
 
-      if (mysql_bin_log.init_gtid_sets(&logged_gtids_binlog,
-                                       &purged_gtids_binlog,
+      Gtid_set purged_gtids_from_binlog(global_sid_map, global_sid_lock);
+      Gtid_set gtids_in_binlog(global_sid_map, global_sid_lock);
+      Gtid_set gtids_in_binlog_not_in_table(global_sid_map, global_sid_lock);
+
+      if (mysql_bin_log.init_gtid_sets(&gtids_in_binlog,
+                                       &purged_gtids_from_binlog,
                                        opt_master_verify_checksum,
                                        true/*true=need lock*/,
                                        NULL/*trx_parser*/,
                                        NULL/*gtid_partial_trx*/,
-                                       true/*is_server_starting*/) ||
-          gtid_state->fetch_gtids(executed_gtids) == -1)
+                                       true/*is_server_starting*/))
         unireg_abort(1);
 
       global_sid_lock->wrlock();
 
-      if (!logged_gtids_binlog.is_empty() &&
-          !logged_gtids_binlog.is_subset(executed_gtids))
+      if (!gtids_in_binlog.is_empty() &&
+          !gtids_in_binlog.is_subset(executed_gtids))
       {
-        unsaved_gtids_in_table.add_gtid_set(&logged_gtids_binlog);
+        gtids_in_binlog_not_in_table.add_gtid_set(&gtids_in_binlog);
         if (!executed_gtids->is_empty())
-          unsaved_gtids_in_table.remove_gtid_set(executed_gtids);
+          gtids_in_binlog_not_in_table.remove_gtid_set(executed_gtids);
         /*
           Save unsaved GTIDs into gtid_executed table, in the following
           four cases:
@@ -4696,37 +4706,38 @@ int mysqld_main(int argc, char **argv)
                gtid_executed table and executed_gtids during recovery
                from the crash.
         */
-        if (gtid_state->save(&unsaved_gtids_in_table) == -1)
+        if (gtid_state->save(&gtids_in_binlog_not_in_table) == -1)
         {
           global_sid_lock->unlock();
           unireg_abort(1);
         }
-        executed_gtids->add_gtid_set(&unsaved_gtids_in_table);
+        executed_gtids->add_gtid_set(&gtids_in_binlog_not_in_table);
       }
 
-      /* gtids_only_in_table= executed_gtids - logged_gtids_binlog */
+      /* gtids_only_in_table= executed_gtids - gtids_in_binlog */
       if (gtids_only_in_table->add_gtid_set(executed_gtids) !=
           RETURN_STATUS_OK)
       {
         global_sid_lock->unlock();
         unireg_abort(1);
       }
-      gtids_only_in_table->remove_gtid_set(&logged_gtids_binlog);
+      gtids_only_in_table->remove_gtid_set(&gtids_in_binlog);
       /*
         lost_gtids = executed_gtids -
-                     (logged_gtids_binlog - purged_gtids_binlog)
-                   = gtids_only_in_table + purged_gtids_binlog;
+                     (gtids_in_binlog - purged_gtids_from_binlog)
+                   = gtids_only_in_table + purged_gtids_from_binlog;
       */
       DBUG_ASSERT(lost_gtids->is_empty());
       if (lost_gtids->add_gtid_set(gtids_only_in_table) != RETURN_STATUS_OK ||
-          lost_gtids->add_gtid_set(&purged_gtids_binlog) != RETURN_STATUS_OK)
+          lost_gtids->add_gtid_set(&purged_gtids_from_binlog) !=
+          RETURN_STATUS_OK)
       {
         global_sid_lock->unlock();
         unireg_abort(1);
       }
 
       /* Prepare previous_gtids_logged for next binlog */
-      if (previous_gtids_logged->add_gtid_set(&logged_gtids_binlog) !=
+      if (previous_gtids_logged->add_gtid_set(&gtids_in_binlog) !=
           RETURN_STATUS_OK)
       {
         global_sid_lock->unlock();
@@ -4741,7 +4752,7 @@ int mysqld_main(int argc, char **argv)
 
         /Alfranio
       */
-      Previous_gtids_log_event prev_gtids_ev(&logged_gtids_binlog);
+      Previous_gtids_log_event prev_gtids_ev(&gtids_in_binlog);
 
       global_sid_lock->unlock();
 
@@ -4759,16 +4770,6 @@ int mysqld_main(int argc, char **argv)
       mysql_bin_log.update_binlog_end_pos();
 
       (void) RUN_HOOK(server_state, after_engine_recovery, (NULL));
-    }
-    /// @todo WL#7083: Fetch gtids from table unconditionally
-    else if (get_gtid_mode() != GTID_MODE_OFF)
-    {
-      /*
-        If gtid_mode is enabled and binlog is disabled, initialize
-        executed_gtids from gtid_executed table.
-      */
-      if (gtid_state->fetch_gtids(executed_gtids) == -1)
-        unireg_abort(1);
     }
   }
 
@@ -4909,9 +4910,7 @@ int mysqld_main(int argc, char **argv)
 #endif
   start_handle_manager();
 
-  /// @todo WL#7083 change this to != GTID_MODE_OFF
-  if (get_gtid_mode() >= GTID_MODE_ON_PERMISSIVE)
-    create_compress_gtid_table_thread();
+  create_compress_gtid_table_thread();
 
   sql_print_information(ER_DEFAULT(ER_STARTUP),
                         my_progname,
@@ -4959,19 +4958,19 @@ int mysqld_main(int argc, char **argv)
 
   DBUG_PRINT("info", ("No longer listening for incoming connections"));
 
-  if (get_gtid_mode() >= GTID_MODE_ON_PERMISSIVE)
-  {
-    terminate_compress_gtid_table_thread();
-    /*
-      Save set of GTIDs of the last binlog into gtid_executed table
-      on server shutdown.
-    */
+  terminate_compress_gtid_table_thread();
+  /*
+    Save set of GTIDs of the last binlog into gtid_executed table
+    on server shutdown.
+  */
+  if (opt_bin_log)
     if (gtid_state->save_gtids_of_last_binlog_into_table(false))
-      sql_print_warning("Failed to save set of GTIDs of the last binlog "
-                        "into gtid_executed table on server shutdown, "
-                        "so we save it into gtid_executed table and "
-                        "executed_gtids during next server startup.");
-  }
+      sql_print_warning("Failed to save the set of Global Transaction "
+                        "Identifiers of the last binary log into the "
+                        "mysql.gtid_executed table while the server was "
+                        "shutting down. The next server restart will make "
+                        "another attempt to save Global Transaction "
+                        "Identifiers into the table.");
 
 #ifndef _WIN32
   mysql_mutex_lock(&LOCK_socket_listener_active);
