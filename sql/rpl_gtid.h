@@ -289,24 +289,65 @@ inline const char *get_gtid_mode_string(enum_gtid_mode gtid_mode_arg)
 {
   return gtid_mode_names[gtid_mode_arg];
 }
+
+/**
+  Locks needed to access gtid_mode.
+
+  When writing, all these locks must be held (for the rwlocks, the
+  wrlock must be held).
+
+  When reading, one of them must be held (for the wrlocks, the rdlock
+  suffices).
+*/
+enum enum_gtid_mode_lock
+{
+  /// No lock held.
+  GTID_MODE_LOCK_NONE,
+  /// The specific gtid_mode_lock is held.
+  GTID_MODE_LOCK_GTID_MODE,
+  /// global_sid_lock held.
+  GTID_MODE_LOCK_SID,
+  /// LOCK_msr_map held.
+  GTID_MODE_LOCK_MSR_MAP,
+/*
+  Currently, no function that calls get_gtid_mode needs
+  this. Uncomment this, and uncomment the case in get_gtid_mode, if it
+  is ever needed.
+
+  /// mysql_bin_log.get_log_lock() held.
+  GTID_MODE_LOCK_LOG
+*/
+};
 /**
   Return the current GTID_MODE as an enumeration value.
 
-  Writes to this are protected to global_sid_lock->wrlock.
+  This variable can be read while holding any one of the locks
+  enumerated in enum_gtid_mode_lock (see above).
 
-  Reads are usually protected by global_sid_lock but in cases where it
-  is not important to protect it, it may be read without a lock.
+  When the variable is updated by a SET GTID_MODE statement, all these
+  locks will be taken (the wrlock on global_sid_map).
 
-  @todo WL#7083: check that the lock is taken when it needs to be taken.
+  To avoid the mistake of reading the GTID_MODE with no lock, the
+  caller has to pass the lock type as a parameter.  The function will
+  assert that the corresponding lock is held.  If no lock is held, it
+  will acquire and release global_sid_lock.rdlock.
+
+  @param have_lock The lock type held by the caller.
 */
-inline enum_gtid_mode get_gtid_mode() { return (enum_gtid_mode)_gtid_mode; }
+enum_gtid_mode get_gtid_mode(enum_gtid_mode_lock have_lock);
 
 #ifndef DBUG_OFF
 /**
   Return the current GTID_MODE as a string. Used only for debugging.
+
+  @param need_lock Pass this parameter to get_gtid_mode(bool).
 */
-inline const char *get_gtid_mode_string() { return get_gtid_mode_string(get_gtid_mode()); }
-#endif
+inline const char *get_gtid_mode_string(enum_gtid_mode_lock have_lock)
+{
+  return get_gtid_mode_string(get_gtid_mode(have_lock));
+}
+#endif // ifndef DBUG_OFF
+
 
 /// The maximum value of GNO
 const rpl_gno MAX_GNO= LLONG_MAX;
@@ -355,7 +396,11 @@ class Checkable_rwlock
 {
 public:
   /// Initialize this Checkable_rwlock.
-  Checkable_rwlock()
+  Checkable_rwlock(
+#ifdef MYSQL_SERVER
+                   PSI_rwlock_key psi_key
+#endif
+                   )
   {
 #ifndef DBUG_OFF
     lock_state= 0;
@@ -364,7 +409,7 @@ public:
     is_write_lock= false;
 #endif
 #ifdef MYSQL_SERVER
-    mysql_rwlock_init(key_rwlock_global_sid_lock, &rwlock);
+    mysql_rwlock_init(psi_key, &rwlock);
 #else
     mysql_rwlock_init(0, &rwlock);
 #endif
@@ -483,6 +528,10 @@ private:
 
 /// Protects Gtid_state.  See comment above gtid_state for details.
 extern Checkable_rwlock *global_sid_lock;
+
+/// One of the locks that protects GTID_MODE.  See
+/// get_gtid_mode(enum_gtid_mode_lock).
+extern Checkable_rwlock *gtid_mode_lock;
 
 
 /**

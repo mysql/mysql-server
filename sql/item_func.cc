@@ -4599,7 +4599,13 @@ longlong Item_wait_for_executed_gtid_set::val_int()
 
   null_value= 0;
 
-  if (get_gtid_mode() == GTID_MODE_OFF)
+  /**
+    @todo WL#7083 We only protect gtid_mode while reading it, and
+    release it before starting to wait. So user can change GTID_MODE
+    to OFF while the function is running. This will be fixed in a
+    later step of WL#7083.
+  */
+  if (get_gtid_mode(GTID_MODE_LOCK_NONE) == GTID_MODE_OFF)
   {
     my_error(ER_GTID_MODE_OFF, MYF(0), "use WAIT_FOR_EXECUTED_GTID_SET");
     null_value= 1;
@@ -4643,22 +4649,31 @@ bool Item_master_gtid_set_wait::itemize(Parse_context *pc, Item **res)
 longlong Item_master_gtid_set_wait::val_int()
 {
   DBUG_ASSERT(fixed == 1);
-  THD* thd = current_thd;
-  String *gtid= args[0]->val_str(&value);
   int event_count= 0;
 
   null_value=0;
-  if (thd->slave_thread || !gtid || get_gtid_mode() == GTID_MODE_OFF)
-  {
-    null_value = 1;
-    return event_count;
-  }
 
 #if defined(HAVE_REPLICATION)
+  String *gtid= args[0]->val_str(&value);
+  THD* thd = current_thd;
   Master_info *mi= NULL;
   longlong timeout = (arg_count>= 2) ? args[1]->val_int() : 0;
 
   mysql_mutex_lock(&LOCK_msr_map);
+
+  /*
+    @todo WL#7083 We only protect gtid_mode while reading it, and
+    release it before starting to wait. So user can change GTID_MODE
+    to OFF while the function is running. This will be fixed in a
+    later step of WL#7083.
+  */
+  if (thd->slave_thread || !gtid ||
+      get_gtid_mode(GTID_MODE_LOCK_MSR_MAP) == GTID_MODE_OFF)
+  {
+    mysql_mutex_unlock(&LOCK_msr_map);
+    null_value = 1;
+    return event_count;
+  }
 
   /* If replication channel is mentioned */
   if (arg_count == 3)

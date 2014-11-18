@@ -1328,7 +1328,8 @@ void gtid_server_cleanup()
 bool gtid_server_init()
 {
   bool res=
-    (!(global_sid_lock= new Checkable_rwlock) ||
+    (!(global_sid_lock= new Checkable_rwlock(key_rwlock_global_sid_lock)) ||
+     !(gtid_mode_lock= new Checkable_rwlock(key_rwlock_gtid_mode_lock)) ||
      !(global_sid_map= new Sid_map(global_sid_lock)) ||
      !(gtid_state= new Gtid_state(global_sid_lock, global_sid_map))||
      !(gtid_table_persistor= new Gtid_table_persistor()));
@@ -4207,14 +4208,15 @@ a file name for --log-bin-index option", opt_binlog_index_name);
   }
 
   /// @todo: this looks suspicious, revisit this /sven
-  if (get_gtid_mode() != GTID_MODE_OFF && opt_bootstrap)
+  enum_gtid_mode gtid_mode= get_gtid_mode(GTID_MODE_LOCK_NONE);
+  if (gtid_mode != GTID_MODE_OFF && opt_bootstrap)
   {
     sql_print_warning("Bootstrap mode disables GTIDs. Bootstrap mode "
     "should only be used by mysql_install_db which initializes the MySQL "
     "data directory and creates system tables.");
     _gtid_mode= GTID_MODE_OFF;
   }
-  if (get_gtid_mode() >= GTID_MODE_ON_PERMISSIVE && !enforce_gtid_consistency)
+  if (gtid_mode >= GTID_MODE_ON_PERMISSIVE && !enforce_gtid_consistency)
   {
     sql_print_error("--gtid-mode=ON or ON_PERMISSIVE requires --enforce-gtid-consistency");
     unireg_abort(1);
@@ -8305,7 +8307,8 @@ static PSI_mutex_info all_server_mutexes[]=
 PSI_rwlock_key key_rwlock_LOCK_grant, key_rwlock_LOCK_logger,
   key_rwlock_LOCK_sys_init_connect, key_rwlock_LOCK_sys_init_slave,
   key_rwlock_LOCK_system_variables_hash, key_rwlock_query_cache_query_lock,
-  key_rwlock_global_sid_lock, key_rwlock_proxy_users;
+  key_rwlock_global_sid_lock, key_rwlock_gtid_mode_lock,
+  key_rwlock_proxy_users;
 
 PSI_rwlock_key key_rwlock_Trans_delegate_lock;
 PSI_rwlock_key key_rwlock_Server_state_delegate_lock;
@@ -8331,6 +8334,7 @@ static PSI_rwlock_info all_server_rwlocks[]=
   { &key_rwlock_LOCK_system_variables_hash, "LOCK_system_variables_hash", PSI_FLAG_GLOBAL},
   { &key_rwlock_query_cache_query_lock, "Query_cache_query::lock", 0},
   { &key_rwlock_global_sid_lock, "gtid_commit_rollback", PSI_FLAG_GLOBAL},
+  { &key_rwlock_gtid_mode_lock, "gtid_mode_lock", PSI_FLAG_GLOBAL},
   { &key_rwlock_Trans_delegate_lock, "Trans_delegate::lock", PSI_FLAG_GLOBAL},
   { &key_rwlock_Server_state_delegate_lock, "Server_state_delegate::lock", PSI_FLAG_GLOBAL},
   { &key_rwlock_Binlog_storage_delegate_lock, "Binlog_storage_delegate::lock", PSI_FLAG_GLOBAL},

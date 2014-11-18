@@ -4561,17 +4561,21 @@ static Sys_var_uint Sys_slave_net_timeout(
 
 static bool check_slave_skip_counter(sys_var *self, THD *thd, set_var *var)
 {
-  bool result= false;
-
-  if (get_gtid_mode() == GTID_MODE_ON)
+  /*
+    @todo: move this check into the set function and hold the lock on
+    gtid_mode_lock until the operation has completed, so that we are
+    sure a concurrent connection does not change gtid_mode between
+    check and fix.
+  */
+  if (get_gtid_mode(GTID_MODE_LOCK_NONE) == GTID_MODE_ON)
   {
     my_message(ER_SQL_SLAVE_SKIP_COUNTER_NOT_SETTABLE_IN_GTID_MODE,
                ER(ER_SQL_SLAVE_SKIP_COUNTER_NOT_SETTABLE_IN_GTID_MODE),
                MYF(0));
-    result= true;
+    return true;
   }
 
-  return result;
+  return false;
 }
 
 static PolyLock_mutex PLock_sql_slave_skip_counter(&LOCK_sql_slave_skip_counter);
@@ -4773,7 +4777,15 @@ static bool check_enforce_gtid_consistency(
 
   if (check_super_outside_trx_outside_sf_outside_sp(self, thd, var))
     DBUG_RETURN(true);
-  if (get_gtid_mode() >= GTID_MODE_ON_PERMISSIVE && var->value->val_int() == 0)
+
+  /*
+    @todo WL#7083: move all these checks into the set function and
+    hold the lock on global_sid_lock until the operation has
+    completed, so that we are sure a concurrent connection does not
+    change gtid_mode between check and fix.
+  */
+  if (get_gtid_mode(GTID_MODE_LOCK_NONE) >= GTID_MODE_ON_PERMISSIVE &&
+      var->value->val_int() == 0)
   {
     my_error(ER_GTID_MODE_2_OR_3_REQUIRES_ENFORCE_GTID_CONSISTENCY_ON, MYF(0));
     DBUG_RETURN(true);
@@ -4884,7 +4896,14 @@ static bool check_gtid_next_list(sys_var *self, THD *thd, set_var *var)
   my_error(ER_NOT_SUPPORTED_YET, MYF(0), "GTID_NEXT_LIST");
   if (check_super_outside_trx_outside_sf_outside_sp(self, thd, var))
     DBUG_RETURN(true);
-  if (gtid_mode == GTID_MODE_OFF && var->save_result.string_value.str != NULL)
+  /*
+    @todo: move this check into the set function and hold the lock on
+    gtid_mode_lock until the operation has completed, so that we are
+    sure a concurrent connection does not change gtid_mode between
+    check and fix - if we ever implement this variable.
+  */
+  if (get_gtid_mode(GTID_MODE_LOCK_NONE) == GTID_MODE_OFF &&
+      var->save_result.string_value.str != NULL)
     my_error(ER_CANT_SET_GTID_NEXT_LIST_TO_NON_NULL_WHEN_GTID_MODE_IS_OFF,
              MYF(0));
   DBUG_RETURN(false);
@@ -4909,7 +4928,7 @@ static Sys_var_gtid_set Sys_gtid_next_list(
        ON_UPDATE(update_gtid_next_list)
 );
 export sys_var *Sys_gtid_next_list_ptr= &Sys_gtid_next_list;
-#endif
+#endif //HAVE_GTID_NEXT_LIST
 
 static Sys_var_gtid_next Sys_gtid_next(
        "gtid_next",

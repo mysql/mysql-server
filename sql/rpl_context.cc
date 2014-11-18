@@ -93,7 +93,7 @@ bool Session_consistency_gtids_ctx::notify_after_gtid_executed_update(const THD 
 
   if (m_curr_session_track_gtids == OWN_GTID)
   {
-    DBUG_ASSERT(get_gtid_mode() != GTID_MODE_OFF);
+    DBUG_ASSERT(get_gtid_mode(GTID_MODE_LOCK_SID) != GTID_MODE_OFF);
     DBUG_ASSERT(thd->owned_gtid.sidno > 0);
     const Gtid& gtid= thd->owned_gtid;
     if (gtid.sidno == -1) // we need to add thd->owned_gtid_set

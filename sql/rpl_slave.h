@@ -218,10 +218,13 @@ extern bool server_id_supplied;
       mi.run_lock, rli.run_lock, (init_relay_log_pos) rli.data_lock,
       relay.log_lock
 
+    Sys_var_gtid_mode::global_update:
+      gtid_mode_lock, LOCK_msr_map, binlog.LOCK_log, global_sid_lock
+
   So the DAG of lock acquisition order (not counting the buggy
   purge_logs) is, empirically:
 
-    LOCK_msr_map, mi.run_lock, rli.run_lock,
+    gtid_mode_lock, LOCK_msr_map, mi.run_lock, rli.run_lock,
       ( rli.data_lock,
         ( LOCK_thd_list,
           (

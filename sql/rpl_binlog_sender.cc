@@ -82,7 +82,8 @@ void Binlog_sender::init()
     DBUG_VOID_RETURN;
   }
 
-  if (m_using_gtid_protocol && get_gtid_mode() != GTID_MODE_ON)
+  if (m_using_gtid_protocol &&
+      get_gtid_mode(GTID_MODE_LOCK_NONE) != GTID_MODE_ON)
   {
     set_fatal_error("Request to dump GTID when @@GLOBAL_.GTID_MODE <> ON.");
     DBUG_VOID_RETURN;

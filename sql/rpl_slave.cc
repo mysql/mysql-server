@@ -2855,7 +2855,7 @@ when it try to get the value of TIME_ZONE global variable from master.";
   if (DBUG_EVALUATE_IF("simulate_slave_unaware_gtid", 0, 1))
   {
     enum_gtid_mode master_gtid_mode= GTID_MODE_OFF;
-    enum_gtid_mode slave_gtid_mode= get_gtid_mode();
+    enum_gtid_mode slave_gtid_mode= get_gtid_mode(GTID_MODE_LOCK_NONE);
     switch (io_thread_init_command(mi, "SELECT @@GLOBAL.GTID_MODE",
                                    ER_UNKNOWN_SYSTEM_VARIABLE,
                                    &master_res, &master_row))
@@ -7847,22 +7847,13 @@ int queue_event(Master_info* mi,const char* buf, ulong event_len)
 
        TODO: handling `when' for SHOW SLAVE STATUS' snds behind
     */
-    if ((memcmp(const_cast<char *>(mi->get_master_log_name()),
-                hb.get_log_ident(), hb.get_ident_len())
-         && mi->get_master_log_name() != NULL)
-        || ((mi->get_master_log_pos() != hb.common_header->log_pos
-             /// @todo WL#7083: revisit this logic /sven
-             && get_gtid_mode() == GTID_MODE_OFF) ||
-            /*
-              When Gtid mode is on only monotocity can be claimed.
-              Todo: enhance HB event with the skipped events size
-              and to convert HB.pos  == MI.pos to HB.pos - HB.skip_size == MI.pos
-            */
-            (mi->get_master_log_pos() > hb.common_header->log_pos)))
+    if (memcmp(const_cast<char *>(mi->get_master_log_name()),
+               hb.get_log_ident(), hb.get_ident_len())
+        || (mi->get_master_log_pos() > hb.common_header->log_pos))
     {
       /* missed events of heartbeat from the past */
       error= ER_SLAVE_HEARTBEAT_FAILURE;
-      error_msg.append(STRING_WITH_LEN("heartbeat is not compatible with local info;"));
+      error_msg.append(STRING_WITH_LEN("heartbeat is not compatible with local info; "));
       error_msg.append(STRING_WITH_LEN("the event's data: log_file_name "));
       error_msg.append(hb.get_log_ident(), strlen(hb.get_log_ident()));
       error_msg.append(STRING_WITH_LEN(" log_pos "));
@@ -7898,13 +7889,15 @@ int queue_event(Master_info* mi,const char* buf, ulong event_len)
 
   case binary_log::GTID_LOG_EVENT:
   {
-    if (get_gtid_mode() == GTID_MODE_OFF)
+    global_sid_lock->rdlock();
+    if (get_gtid_mode(GTID_MODE_LOCK_SID) == GTID_MODE_OFF)
     {
+      global_sid_lock->unlock();
       error= ER_FOUND_GTID_EVENT_WHEN_GTID_MODE_IS_OFF;
       goto err;
     }
-    global_sid_lock->rdlock();
-    Gtid_log_event gtid_ev(buf, checksum_alg != binary_log::BINLOG_CHECKSUM_ALG_OFF ?
+    Gtid_log_event gtid_ev(buf,
+                           checksum_alg != binary_log::BINLOG_CHECKSUM_ALG_OFF ?
                            event_len - BINLOG_CHECKSUM_LEN : event_len,
                            mi->get_mi_description_event());
     gtid.sidno= gtid_ev.get_sidno(false);
@@ -10268,10 +10261,15 @@ int change_master(THD* thd, Master_info* mi, LEX_MASTER_INFO* lex_mi,
     }
   }
 
-  /// @todo WL#7083: relax this to allow auto_position when gtid_mode != off
-  /* CHANGE MASTER TO MASTER_AUTO_POSITION = 1 requires GTID_MODE = ON */
+  /* CHANGE MASTER TO MASTER_AUTO_POSITION = 1 requires GTID_MODE != OFF */
   if (lex_mi->auto_position == LEX_MASTER_INFO::LEX_MI_ENABLE &&
-      get_gtid_mode() != GTID_MODE_ON)
+      /*
+        We hold lock_msr_map for the duration of the CHANGE MASTER.
+        This is important since it prevents that a concurrent
+        connection changes to GTID_MODE=OFF between this check and the
+        point where AUTO_POSITION is stored in the table and in mi.
+      */
+      get_gtid_mode(GTID_MODE_LOCK_MSR_MAP) == GTID_MODE_OFF)
   {
     error= ER_AUTO_POSITION_REQUIRES_GTID_MODE_ON;
     my_message(ER_AUTO_POSITION_REQUIRES_GTID_MODE_ON,
