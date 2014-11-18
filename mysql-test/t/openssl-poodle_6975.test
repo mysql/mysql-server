@@ -1,0 +1,38 @@
+#
+# MDEV-6975 Implement TLS protocol
+#
+# test SSLv3 and TLSv1.2 ciphers when OpenSSL is restricted to SSLv3 or TLSv1.2
+#
+source include/have_ssl_communication.inc;
+
+# this is OpenSSL test.
+
+grant select on test.* to ssl_sslv3@localhost require cipher "RC4-SHA";
+grant select on test.* to ssl_tls12@localhost require cipher "AES128-SHA256";
+
+let $mysql=$MYSQL --ssl-key=$MYSQL_TEST_DIR/std_data/client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/client-cert.pem -e "SHOW STATUS LIKE 'ssl_Cipher'" 2>&1;
+
+disable_abort_on_error;
+echo TLS1.2 ciphers: user is ok with any cipher;
+exec $mysql                  --ssl-cipher=AES128-SHA256;
+exec $mysql                  --ssl-cipher=TLSv1.2;
+echo TLS1.2 ciphers: user requires SSLv3 cipher RC4-SHA;
+exec $mysql --user ssl_sslv3 --ssl-cipher=AES128-SHA256;
+exec $mysql --user ssl_sslv3 --ssl-cipher=TLSv1.2;
+echo TLS1.2 ciphers: user requires TLSv1.2 cipher AES128-SHA256;
+exec $mysql --user ssl_tls12 --ssl-cipher=AES128-SHA256;
+exec $mysql --user ssl_tls12 --ssl-cipher=TLSv1.2;
+
+echo SSLv3 ciphers: user is ok with any cipher;
+exec $mysql                  --ssl-cipher=RC4-SHA;
+exec $mysql                  --ssl-cipher=SSLv3;
+echo SSLv3 ciphers: user requires SSLv3 cipher RC4-SHA;
+exec $mysql --user ssl_sslv3 --ssl-cipher=RC4-SHA;
+exec $mysql --user ssl_sslv3 --ssl-cipher=SSLv3;
+echo SSLv3 ciphers: user requires TLSv1.2 cipher AES128-SHA256;
+exec $mysql --user ssl_tls12 --ssl-cipher=RC4-SHA;
+exec $mysql --user ssl_tls12 --ssl-cipher=SSLv3;
+
+drop user ssl_sslv3@localhost;
+drop user ssl_tls12@localhost;
+

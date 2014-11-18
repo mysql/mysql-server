@@ -4801,6 +4801,8 @@ sub extract_warning_lines ($$) {
      qr|feedback plugin: failed to retrieve the MAC address|,
      qr|Plugin 'FEEDBACK' init function returned error|,
      qr|Plugin 'FEEDBACK' registration as a INFORMATION SCHEMA failed|,
+     qr|Failed to setup SSL|,
+     qr|SSL error: Failed to set ciphers to use|,
     );
 
   my $matched_lines= [];

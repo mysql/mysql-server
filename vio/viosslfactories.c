@@ -190,8 +190,8 @@ new_VioSSLFd(const char *key_file, const char *cert_file,
     DBUG_RETURN(0);
 
   if (!(ssl_fd->ssl_context= SSL_CTX_new(is_client_method ? 
-                                         TLSv1_client_method() :
-                                         TLSv1_server_method())))
+                                         SSLv23_client_method() :
+                                         SSLv23_server_method())))
   {
     *error= SSL_INITERR_MEMFAIL;
     DBUG_PRINT("error", ("%s", sslGetErrString(*error)));

@@ -11,6 +11,7 @@
 connect (ssl_compress_con,localhost,root,,,,,SSL COMPRESS);
 
 # Check ssl turned on
+--replace_result DHE-RSA-AES256-GCM-SHA384 DHE-RSA-AES256-SHA
 SHOW STATUS LIKE 'Ssl_cipher';
 
 # Check compression turned on
@@ -20,6 +21,7 @@ SHOW STATUS LIKE 'Compression';
 -- source include/common-tests.inc
 
 # Check ssl turned on
+--replace_result DHE-RSA-AES256-GCM-SHA384 DHE-RSA-AES256-SHA
 SHOW STATUS LIKE 'Ssl_cipher';
 
 # Check compression turned on
