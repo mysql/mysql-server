@@ -5093,11 +5093,8 @@ void Dbdih::setNodeRecoveryStatus(Uint32 nodeId,
     /* State generated in DBDIH */
       jam();
       /**
-       * A node failure can happen at any time and from any state. It should
-       * however never happen from the state NODE_FAILURE_COMPLETED since the
-       * node haven't started yet, also from ALLOCATED_NODE_ID state it should
-       * be impossible since the node haven't even been included in the
-       * heartbeat protocol yet. Also not defined in cluster isn't ok.
+       * A node failure can happen at any time and from any state as long as
+       * it is defined in the cluster.
        *
        * This state change will be reported in all nodes at all times.
        *
@@ -5106,11 +5103,7 @@ void Dbdih::setNodeRecoveryStatus(Uint32 nodeId,
        * old timers.
        */
       ndbrequire((nodePtr.p->nodeRecoveryStatus !=
-                  NodeRecord::NODE_FAILURE_COMPLETED) &&
-                  (nodePtr.p->nodeRecoveryStatus !=
-                   NodeRecord::ALLOCATED_NODE_ID) &&
-                  (nodePtr.p->nodeRecoveryStatus !=
-                   NodeRecord::NOT_DEFINED_IN_CLUSTER));
+                  NodeRecord::NOT_DEFINED_IN_CLUSTER));
       initNodeRecoveryTimers(nodePtr);
       nodePtr.p->nodeFailTime = current_time;
       break;
