@@ -82,8 +82,8 @@ CREATE TABLE t1 (a INT);
 # These are parameters to include/execute_at_sync_point.inc,
 # which will remain the same each time the script is invoked.
 --let $main_connection= default
---let $middle_statement= SELECT show_gtid()
---let $middle_connection= server_1
+--let $other_statement= SELECT show_gtid()
+--let $other_connection= server_1
 --let $quiet= 1
 
 --let $n= 1
@@ -97,6 +97,7 @@ while ($n <= 4) {
     --let $gtid= AUTOMATIC
   }
   if ($n == 3) {
+    --let $rpl_gtid_mode= ON
     --source include/rpl_set_gtid_mode.inc
     --echo ---- Case 3: Specify GTID prior to transaction ----
     --let $gtid= aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1
@@ -195,5 +196,8 @@ DROP TABLE t1;
 # DROP TABLE t_1, t_2, t_3, t_4;
 DROP FUNCTION fix_gtid;
 DROP FUNCTION show_gtid;
+
+--let $rpl_gtid_mode= OFF
+--source include/rpl_set_gtid_mode.inc
 
 --source include/rpl_end.inc
