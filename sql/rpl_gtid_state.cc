@@ -619,27 +619,42 @@ int Gtid_state::save_gtids_of_last_binlog_into_table(bool on_rotation)
   DBUG_ENTER("Gtid_state::save_gtids_of_last_binlog_into_table");
   int ret= 0;
 
-  Gtid_set logged_gtids_last_binlog(global_sid_map, global_sid_lock);
+  /*
+    Use local Sid_map, so that we don't need a lock while inserting
+    into the table.
+  */
+  Sid_map sid_map(NULL);
+  Gtid_set logged_gtids_last_binlog(&sid_map, NULL);
+  // Allocate some intervals on stack to reduce allocation.
+  static const int PREALLOCATED_INTERVAL_COUNT= 64;
+  Gtid_set::Interval iv[PREALLOCATED_INTERVAL_COUNT];
+  logged_gtids_last_binlog.add_interval_memory(PREALLOCATED_INTERVAL_COUNT, iv);
   /*
     logged_gtids_last_binlog= executed_gtids - previous_gtids_logged -
                               gtids_only_in_table
   */
   global_sid_lock->wrlock();
-  if ((ret = (logged_gtids_last_binlog.add_gtid_set(&executed_gtids) !=
-              RETURN_STATUS_OK)) == 0)
+  ret= (logged_gtids_last_binlog.add_gtid_set(&executed_gtids) !=
+        RETURN_STATUS_OK);
+  if (!ret)
   {
     logged_gtids_last_binlog.remove_gtid_set(&previous_gtids_logged);
     logged_gtids_last_binlog.remove_gtid_set(&gtids_only_in_table);
     if (!logged_gtids_last_binlog.is_empty())
     {
-      /* Save set of GTIDs of the last binlog into gtid_executed table */
-      ret= save(&logged_gtids_last_binlog);
       /* Prepare previous_gtids_logged for next binlog on binlog rotation */
-      if (!ret && on_rotation)
+      if (on_rotation)
         ret= previous_gtids_logged.add_gtid_set(&logged_gtids_last_binlog);
+      global_sid_lock->unlock();
+      /* Save set of GTIDs of the last binlog into gtid_executed table */
+      if (!ret)
+        ret= save(&logged_gtids_last_binlog);
     }
+    else
+      global_sid_lock->unlock();
   }
-  global_sid_lock->unlock();
+  else
+    global_sid_lock->unlock();
 
   DBUG_RETURN(ret);
 }
