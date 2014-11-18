@@ -7,6 +7,8 @@ grant select on test.* to ssl_user3@localhost require cipher "DHE-RSA-AES256-SHA
 grant select on test.* to ssl_user4@localhost require cipher "DHE-RSA-AES256-SHA" AND SUBJECT "/C=SE/ST=Uppsala/O=MySQL AB" ISSUER "/C=SE/ST=Uppsala/L=Uppsala/O=MySQL AB";
 grant select on test.* to ssl_user5@localhost require cipher "DHE-RSA-AES256-SHA" AND SUBJECT "xxx";
 flush privileges;
+connect(localhost,ssl_user2,,test,MASTER_PORT,MASTER_SOCKET);
+ERROR 28000: Access denied for user 'ssl_user2'@'localhost' (using password: NO)
 connect(localhost,ssl_user5,,test,MASTER_PORT,MASTER_SOCKET);
 ERROR 28000: Access denied for user 'ssl_user5'@'localhost' (using password: NO)
 SHOW STATUS LIKE 'Ssl_cipher';
