@@ -66,47 +66,7 @@ call mtr.add_suppression("MASTER_AUTO_POSITION in the master info file was 1 but
 --source include/sync_slave_sql_with_master.inc
 --source include/stop_slave.inc
 
---connection master
-
-
---echo ==== Master and slave have GTID_MODE = OFF ====
-
---echo ---- Default value for GTID_MODE ----
-
---let $assert_text= Default value for GTID_MODE should be OFF
---let $assert_cond= "[SELECT @@GTID_MODE]" = "OFF"
---source include/assert.inc
-
---echo ---- GTID_MODE is read-only ----
-
---error ER_INCORRECT_GLOBAL_LOCAL_VAR
-SET GTID_MODE = OFF;
-
---error ER_INCORRECT_GLOBAL_LOCAL_VAR
-SET GTID_MODE = UPGRADE_STEP_1;
-
---error ER_INCORRECT_GLOBAL_LOCAL_VAR
-SET GTID_MODE = UPGRADE_STEP_2;
-
---error ER_INCORRECT_GLOBAL_LOCAL_VAR
-SET GTID_MODE = ON;
-
---let $assert_text= GTID_MODE should still be OFF after failing to change GTID_MODE
---let $assert_cond= "[SELECT @@GTID_MODE]" = "OFF"
-
---echo ---- GTID_NEXT must be ANONYMOUS or AUTOMATIC ----
-
-# should not generate error
-SET GTID_NEXT = 'AUTOMATIC';
-
-# should not generate error
-SET GTID_NEXT = 'ANONYMOUS';
-
-# should generate error
---error ER_CANT_SET_GTID_NEXT_TO_GTID_WHEN_GTID_MODE_IS_OFF
-eval SET GTID_NEXT = '$uuida:1';
-
---echo ---- CHANGE MASTER TO MASTER_AUTO_POSITION not supported ----
+--echo ---- CHANGE MASTER TO MASTER_AUTO_POSITION not allowed ----
 
 --connection slave
 
