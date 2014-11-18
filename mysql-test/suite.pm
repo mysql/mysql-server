@@ -39,6 +39,9 @@ sub skip_combinations {
   }
   $skip{'include/check_ipv6.inc'} = 'No IPv6' unless ipv6_ok();
 
+  $skip{'t/openssl-poodle_6975.test'} = 'no or too old openssl'
+    unless ! IS_WINDOWS and ! system "openssl ciphers TLSv1.2 2>&1 >/dev/null";
+
   %skip;
 }
 
