@@ -4934,13 +4934,6 @@ static bool check_gtid_purged(sys_var *self, THD *thd, set_var *var)
       check_super_outside_trx_outside_sf_outside_sp(self, thd, var))
     DBUG_RETURN(true);
 
-  /// @todo WL#7083: revisit this and remove the check
-  if (get_gtid_mode() == GTID_MODE_OFF)
-  {
-    my_error(ER_CANT_SET_GTID_PURGED_WHEN_GTID_MODE_IS_OFF, MYF(0));
-    DBUG_RETURN(true);
-  }
-
   if (var->value->result_type() != STRING_RESULT ||
       !var->save_result.string_value.str)
     DBUG_RETURN(true);
