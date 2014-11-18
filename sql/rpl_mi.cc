@@ -487,7 +487,8 @@ bool Master_info::read_info(Rpl_info_handler *from)
   auto_position= MY_TEST(temp_auto_position);
 
   /// @todo WL#7083: revisit this logic, it should not silently change the value /sven
-  if (auto_position != 0 && get_gtid_mode() != GTID_MODE_ON)
+  if (auto_position != 0 &&
+      get_gtid_mode(GTID_MODE_LOCK_NONE) != GTID_MODE_ON)
   {
     auto_position = 0;
     sql_print_warning("MASTER_AUTO_POSITION in the master info file was 1 but "

@@ -2386,15 +2386,20 @@ public:
 
       Hold global_sid_lock.wrlock so that:
       - other transactions cannot acquire ownership of any gtid.
+
+      Hold gtid_mode_lock so that all places that don't want to hold
+      any of the other locks, but want to read gtid_mode, don't need
+      to take the other locks.
     */
+    gtid_mode_lock->wrlock();
     mysql_mutex_lock(&LOCK_msr_map);
     mysql_mutex_lock(mysql_bin_log.get_log_lock());
     global_sid_lock->wrlock();
-    int lock_count= 3;
+    int lock_count= 4;
 
     enum_gtid_mode new_gtid_mode=
       (enum_gtid_mode)var->save_result.ulonglong_value;
-    enum_gtid_mode old_gtid_mode= get_gtid_mode();
+    enum_gtid_mode old_gtid_mode= get_gtid_mode(GTID_MODE_LOCK_SID);
     DBUG_ASSERT(new_gtid_mode <= GTID_MODE_ON);
 
     if (new_gtid_mode == old_gtid_mode)
@@ -2403,7 +2408,7 @@ public:
     // Update the mode
     global_var(ulong)= new_gtid_mode;
     global_sid_lock->unlock();
-    lock_count= 2;
+    lock_count= 3;
 
     // Generate note in log
     sql_print_information("Changed GTID_MODE from %s to %s.",
@@ -2420,10 +2425,13 @@ public:
 end:
     ret= false;
 err:
-    if (lock_count >= 3)
+    DBUG_ASSERT(lock_count >= 0);
+    DBUG_ASSERT(lock_count <= 4);
+    if (lock_count == 4)
       global_sid_lock->unlock();
     mysql_mutex_unlock(mysql_bin_log.get_log_lock());
     mysql_mutex_unlock(&LOCK_msr_map);
+    gtid_mode_lock->unlock();
     DBUG_RETURN(ret);
   }
 };

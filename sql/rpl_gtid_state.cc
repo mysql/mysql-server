@@ -412,15 +412,16 @@ enum_return_status Gtid_state::generate_automatic_gtid(THD *thd,
   DBUG_ASSERT(specified_gno >= 0);
   DBUG_ASSERT(thd->owned_gtid.is_empty());
 
+  sid_lock->rdlock();
+
   // If GTID_MODE = ON_PERMISSIVE or ON, generate a new GTID
-  if (get_gtid_mode() >= GTID_MODE_ON_PERMISSIVE)
+  if (get_gtid_mode(GTID_MODE_LOCK_SID) >= GTID_MODE_ON_PERMISSIVE)
   {
     Gtid automatic_gtid= { specified_sidno, specified_gno };
 
     if (automatic_gtid.sidno == 0)
       automatic_gtid.sidno= get_server_sidno();
 
-    sid_lock->rdlock();
     lock_sidno(automatic_gtid.sidno);
 
     if (automatic_gtid.gno == 0)
@@ -432,7 +433,6 @@ enum_return_status Gtid_state::generate_automatic_gtid(THD *thd,
       ret= RETURN_STATUS_REPORTED_ERROR;
 
     unlock_sidno(automatic_gtid.sidno);
-    sid_lock->unlock();
   }
   else
   {
@@ -443,6 +443,8 @@ enum_return_status Gtid_state::generate_automatic_gtid(THD *thd,
     thd->owned_gtid.dbug_print(NULL,
                                "set owned_gtid (anonymous) in generate_automatic_gtid");
   }
+
+  sid_lock->unlock();
 
   gtid_set_performance_schema_values(thd);
 
