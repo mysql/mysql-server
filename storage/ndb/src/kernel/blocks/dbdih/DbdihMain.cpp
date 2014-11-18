@@ -5531,7 +5531,7 @@ void Dbdih::calculate_time_remaining(
   {
     jam();
     (*time_since_state_start) =
-      NdbTick_Elapsed(now, state_start_time).milliSec();
+      NdbTick_Elapsed(state_start_time, now).milliSec();
     (*max_status) = state;
     (*node_waited_for) = nodeId;
   }
@@ -5540,7 +5540,7 @@ void Dbdih::calculate_time_remaining(
     jam();
     Uint64 loc_time_since_state_start;
     loc_time_since_state_start =
-      NdbTick_Elapsed(now, state_start_time).milliSec();
+      NdbTick_Elapsed(state_start_time, now).milliSec();
     if (loc_time_since_state_start > (*time_since_state_start))
     {
       jam();
