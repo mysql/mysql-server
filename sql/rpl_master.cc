@@ -951,6 +951,34 @@ void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
     if (using_gtid_protocol)
     {
       /*
+        In normal scenarios, it is not possible that Slave will
+        contain more gtids than Master with resepctive to Master's
+        UUID. But it could be possible case if Master's binary log
+        is truncated(due to raid failure) or Master's binary log is
+        deleted but GTID_PURGED was not set properly. That scenario
+        needs to be validated, i.e., it should *always* be the case that
+        Slave's gtid executed set (+retrieved set) is a subset of
+        Master's gtid executed set with respective to Master's UUID.
+        If it happens, dump thread will be stopped during the handshake
+        with Slave (thus the Slave's I/O thread will be stopped with the
+        error. Otherwise, it can lead to data inconsistency between Master
+        and Slave.
+      */
+      Sid_map* slave_sid_map= slave_gtid_executed->get_sid_map();
+      DBUG_ASSERT(slave_sid_map);
+      global_sid_lock->wrlock();
+      const rpl_sid &server_sid= gtid_state->get_server_sid();
+      rpl_sidno subset_sidno= slave_sid_map->sid_to_sidno(server_sid);
+      if (!slave_gtid_executed->is_subset_for_sid(gtid_state->get_logged_gtids(),
+                                                  gtid_state->get_server_sidno(),
+                                                  subset_sidno))
+      {
+        errmsg= ER(ER_SLAVE_HAS_MORE_GTIDS_THAN_MASTER);
+        my_errno= ER_MASTER_FATAL_ERROR_READING_BINLOG;
+        global_sid_lock->unlock();
+        GOTO_ERR;
+      }
+      /*
         Setting GTID_PURGED (when GTID_EXECUTED set is empty i.e., when
         previous_gtids are also empty) will make binlog rotate. That
         leaves first binary log with empty previous_gtids and second
@@ -975,8 +1003,7 @@ void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
         while checking for subset previous_gtids binary log, the logic
         will not find one and an error ER_MASTER_HAS_PURGED_REQUIRED_GTIDS
         is thrown from there.
-       */
-      global_sid_lock->wrlock();
+      */
       if (!gtid_state->get_lost_gtids()->is_subset(slave_gtid_executed))
       {
         errmsg= ER(ER_MASTER_HAS_PURGED_REQUIRED_GTIDS);

@@ -504,6 +504,7 @@ while ($i != 5)
   --connection slave
   --source include/stop_slave.inc
   RESET SLAVE;
+  RESET MASTER;
   --connection master
   RESET MASTER;
   --connection slave
@@ -525,14 +526,13 @@ while ($i != 5)
 
   #  5.3 - Makes the slave to retrieve and apply these transactions.
   --source include/sync_slave_sql_with_master.inc
-
   # Check property 1.2, 2.1, 3.1 and 3.2
   --let $binlog= binlog
   --let $server_uuid= $master_uuid
-  --let $gtid_set_ini= 1
-  --let $gtid_set_end= 4
-  --let $gtid_ini=
-  --let $gtid_end=
+  --let $gtid_set_ini=
+  --let $gtid_set_end=
+  --let $gtid_ini= 1
+  --let $gtid_end= 2
   --source extra/rpl_tests/rpl_check_gtid.inc
 
   #  5.4 - Rotates both the binary logs on the slave and master.

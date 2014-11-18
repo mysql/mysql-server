@@ -63,6 +63,7 @@ CALL mtr.add_suppression("The slave coordinator and worker threads are stopped, 
 --echo ---- Clean up ----
 --source include/stop_slave_io.inc
 RESET SLAVE;
+RESET MASTER;
 DROP DATABASE db1;
 --source include/rpl_connection_master.inc
 RESET MASTER;
