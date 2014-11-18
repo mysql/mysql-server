@@ -244,23 +244,20 @@ void TOKUDB_SHARE::destroy(void) {
     tokudb_pthread_mutex_destroy(&mutex);
     rwlock_destroy(&num_DBs_lock);
     tokudb_pthread_cond_destroy(&m_openclose_cond);
+    tokudb_my_free(rec_per_key);
+    rec_per_key = NULL;
 }
 
 // MUST have tokudb_mutex locked on input    
 static TOKUDB_SHARE *get_share(const char *table_name, TABLE_SHARE* table_share) {
     TOKUDB_SHARE *share = NULL;
     int error = 0;
-    uint length;
-
-    length = (uint) strlen(table_name);
-
+    uint length = (uint) strlen(table_name);
     if (!(share = (TOKUDB_SHARE *) my_hash_search(&tokudb_open_tables, (uchar *) table_name, length))) {
         char *tmp_name;
 
-        //
         // create share and fill it with all zeroes
         // hence, all pointers are initialized to NULL
-        //
         share = (TOKUDB_SHARE *) tokudb_my_multi_malloc(MYF(MY_WME | MY_ZEROFILL), 
             &share, sizeof(*share),
             &tmp_name, length + 1, 
@@ -1597,11 +1594,7 @@ exit:
     return ret_val;
 }
 
-int ha_tokudb::initialize_share(
-    const char* name,
-    int mode
-    )
-{
+int ha_tokudb::initialize_share(const char* name, int mode) {
     int error = 0;
     uint64_t num_rows = 0;
     DB_TXN* txn = NULL;
@@ -1748,17 +1741,12 @@ int ha_tokudb::initialize_share(
     init_hidden_prim_key_info(txn);
 
     // initialize cardinality info from the status dictionary
-    {
-        uint total_key_parts = tokudb::compute_total_key_parts(table_share);
-        uint64_t rec_per_key[total_key_parts];
-        error = tokudb::get_card_from_status(share->status_block, txn, total_key_parts, rec_per_key);
-        if (error == 0) {
-            tokudb::set_card_in_key_info(table, total_key_parts, rec_per_key);
-        } else {
-            for (uint i = 0; i < total_key_parts; i++)
-                rec_per_key[i] = 0;
-            tokudb::set_card_in_key_info(table, total_key_parts, rec_per_key);
-        }
+    share->n_rec_per_key = tokudb::compute_total_key_parts(table_share);
+    share->rec_per_key = (uint64_t *) tokudb_my_realloc(share->rec_per_key, share->n_rec_per_key * sizeof (uint64_t), MYF(MY_FAE));
+    error = tokudb::get_card_from_status(share->status_block, txn, share->n_rec_per_key, share->rec_per_key);
+    if (error) {
+        for (uint i = 0; i < share->n_rec_per_key; i++)
+            share->rec_per_key[i] = 0;
     }
 
     error = 0;
@@ -5958,6 +5946,7 @@ int ha_tokudb::info(uint flag) {
     }
     if ((flag & HA_STATUS_CONST)) {
         stats.max_data_file_length=  9223372036854775807ULL;
+        tokudb::set_card_in_key_info(table, share->n_rec_per_key, share->rec_per_key);
     }
 
     /* Don't return key if we got an error for the internal primary key */

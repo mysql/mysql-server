@@ -155,6 +155,8 @@ function generate_cmake_cmd () {
         -D BUILD_CONFIG=mysql_release \
         -D CMAKE_BUILD_TYPE=$cmake_build_type \
         -D CMAKE_TOKUDB_REVISION=$ft_revision \
+        -D TOKUDB_VERSION=tokudb-${tokudb_version} \
+        -D WITH_JEMALLOC=bundled \
         -D BUILD_TESTING=OFF \
         -D USE_GTAGS=OFF \
         -D USE_CTAGS=OFF \
@@ -211,8 +213,6 @@ if [ $build_tgz != 0 ] ; then
 
     mkdir -p build.$cmake_build_type
     pushd build.$cmake_build_type
-
-    export TOKUDB_VERSION=$tokudb_version
 
     # actually build
     cmd=$(generate_cmake_cmd)

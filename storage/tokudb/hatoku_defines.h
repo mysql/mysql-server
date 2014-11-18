@@ -442,6 +442,8 @@ static inline void *tokudb_my_malloc(size_t s, myf flags) {
 }
 
 static inline void *tokudb_my_realloc(void *p, size_t s, myf flags) {
+    if (s == 0)
+        return p;
 #if 50700 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50799
     return my_realloc(0, p, s, flags);
 #else
@@ -450,7 +452,8 @@ static inline void *tokudb_my_realloc(void *p, size_t s, myf flags) {
 }
 
 static inline void tokudb_my_free(void *ptr) {
-    my_free(ptr);
+    if (ptr)
+        my_free(ptr);
 }
 
 static inline char *tokudb_my_strdup(const char *p, myf flags) {

@@ -1,0 +1,158 @@
+set default_storage_engine='tokudb';
+drop table if exists tt;
+create table tt (a int, b int, c int, primary key(a), key(b), key(c));
+insert into tt values (0, 0, 0), (0+1, 0, 0), (0+2, 0, 0), (0+3, 0, 0);
+insert into tt values (4, 4, 0), (4+1, 4, 0), (4+2, 4, 0), (4+3, 4, 0);
+insert into tt values (8, 8, 0), (8+1, 8, 0), (8+2, 8, 0), (8+3, 8, 0);
+insert into tt values (12, 12, 0), (12+1, 12, 0), (12+2, 12, 0), (12+3, 12, 0);
+insert into tt values (16, 16, 0), (16+1, 16, 0), (16+2, 16, 0), (16+3, 16, 0);
+insert into tt values (20, 20, 0), (20+1, 20, 0), (20+2, 20, 0), (20+3, 20, 0);
+insert into tt values (24, 24, 0), (24+1, 24, 0), (24+2, 24, 0), (24+3, 24, 0);
+insert into tt values (28, 28, 0), (28+1, 28, 0), (28+2, 28, 0), (28+3, 28, 0);
+insert into tt values (32, 32, 0), (32+1, 32, 0), (32+2, 32, 0), (32+3, 32, 0);
+insert into tt values (36, 36, 0), (36+1, 36, 0), (36+2, 36, 0), (36+3, 36, 0);
+insert into tt values (40, 40, 0), (40+1, 40, 0), (40+2, 40, 0), (40+3, 40, 0);
+insert into tt values (44, 44, 0), (44+1, 44, 0), (44+2, 44, 0), (44+3, 44, 0);
+insert into tt values (48, 48, 0), (48+1, 48, 0), (48+2, 48, 0), (48+3, 48, 0);
+insert into tt values (52, 52, 0), (52+1, 52, 0), (52+2, 52, 0), (52+3, 52, 0);
+insert into tt values (56, 56, 0), (56+1, 56, 0), (56+2, 56, 0), (56+3, 56, 0);
+insert into tt values (60, 60, 0), (60+1, 60, 0), (60+2, 60, 0), (60+3, 60, 0);
+insert into tt values (64, 64, 0), (64+1, 64, 0), (64+2, 64, 0), (64+3, 64, 0);
+insert into tt values (68, 68, 0), (68+1, 68, 0), (68+2, 68, 0), (68+3, 68, 0);
+insert into tt values (72, 72, 0), (72+1, 72, 0), (72+2, 72, 0), (72+3, 72, 0);
+insert into tt values (76, 76, 0), (76+1, 76, 0), (76+2, 76, 0), (76+3, 76, 0);
+insert into tt values (80, 80, 0), (80+1, 80, 0), (80+2, 80, 0), (80+3, 80, 0);
+insert into tt values (84, 84, 0), (84+1, 84, 0), (84+2, 84, 0), (84+3, 84, 0);
+insert into tt values (88, 88, 0), (88+1, 88, 0), (88+2, 88, 0), (88+3, 88, 0);
+insert into tt values (92, 92, 0), (92+1, 92, 0), (92+2, 92, 0), (92+3, 92, 0);
+insert into tt values (96, 96, 0), (96+1, 96, 0), (96+2, 96, 0), (96+3, 96, 0);
+insert into tt values (100, 100, 0), (100+1, 100, 0), (100+2, 100, 0), (100+3, 100, 0);
+insert into tt values (104, 104, 0), (104+1, 104, 0), (104+2, 104, 0), (104+3, 104, 0);
+insert into tt values (108, 108, 0), (108+1, 108, 0), (108+2, 108, 0), (108+3, 108, 0);
+insert into tt values (112, 112, 0), (112+1, 112, 0), (112+2, 112, 0), (112+3, 112, 0);
+insert into tt values (116, 116, 0), (116+1, 116, 0), (116+2, 116, 0), (116+3, 116, 0);
+insert into tt values (120, 120, 0), (120+1, 120, 0), (120+2, 120, 0), (120+3, 120, 0);
+insert into tt values (124, 124, 0), (124+1, 124, 0), (124+2, 124, 0), (124+3, 124, 0);
+insert into tt values (128, 128, 0), (128+1, 128, 0), (128+2, 128, 0), (128+3, 128, 0);
+insert into tt values (132, 132, 0), (132+1, 132, 0), (132+2, 132, 0), (132+3, 132, 0);
+insert into tt values (136, 136, 0), (136+1, 136, 0), (136+2, 136, 0), (136+3, 136, 0);
+insert into tt values (140, 140, 0), (140+1, 140, 0), (140+2, 140, 0), (140+3, 140, 0);
+insert into tt values (144, 144, 0), (144+1, 144, 0), (144+2, 144, 0), (144+3, 144, 0);
+insert into tt values (148, 148, 0), (148+1, 148, 0), (148+2, 148, 0), (148+3, 148, 0);
+insert into tt values (152, 152, 0), (152+1, 152, 0), (152+2, 152, 0), (152+3, 152, 0);
+insert into tt values (156, 156, 0), (156+1, 156, 0), (156+2, 156, 0), (156+3, 156, 0);
+insert into tt values (160, 160, 0), (160+1, 160, 0), (160+2, 160, 0), (160+3, 160, 0);
+insert into tt values (164, 164, 0), (164+1, 164, 0), (164+2, 164, 0), (164+3, 164, 0);
+insert into tt values (168, 168, 0), (168+1, 168, 0), (168+2, 168, 0), (168+3, 168, 0);
+insert into tt values (172, 172, 0), (172+1, 172, 0), (172+2, 172, 0), (172+3, 172, 0);
+insert into tt values (176, 176, 0), (176+1, 176, 0), (176+2, 176, 0), (176+3, 176, 0);
+insert into tt values (180, 180, 0), (180+1, 180, 0), (180+2, 180, 0), (180+3, 180, 0);
+insert into tt values (184, 184, 0), (184+1, 184, 0), (184+2, 184, 0), (184+3, 184, 0);
+insert into tt values (188, 188, 0), (188+1, 188, 0), (188+2, 188, 0), (188+3, 188, 0);
+insert into tt values (192, 192, 0), (192+1, 192, 0), (192+2, 192, 0), (192+3, 192, 0);
+insert into tt values (196, 196, 0), (196+1, 196, 0), (196+2, 196, 0), (196+3, 196, 0);
+insert into tt values (200, 200, 0), (200+1, 200, 0), (200+2, 200, 0), (200+3, 200, 0);
+insert into tt values (204, 204, 0), (204+1, 204, 0), (204+2, 204, 0), (204+3, 204, 0);
+insert into tt values (208, 208, 0), (208+1, 208, 0), (208+2, 208, 0), (208+3, 208, 0);
+insert into tt values (212, 212, 0), (212+1, 212, 0), (212+2, 212, 0), (212+3, 212, 0);
+insert into tt values (216, 216, 0), (216+1, 216, 0), (216+2, 216, 0), (216+3, 216, 0);
+insert into tt values (220, 220, 0), (220+1, 220, 0), (220+2, 220, 0), (220+3, 220, 0);
+insert into tt values (224, 224, 0), (224+1, 224, 0), (224+2, 224, 0), (224+3, 224, 0);
+insert into tt values (228, 228, 0), (228+1, 228, 0), (228+2, 228, 0), (228+3, 228, 0);
+insert into tt values (232, 232, 0), (232+1, 232, 0), (232+2, 232, 0), (232+3, 232, 0);
+insert into tt values (236, 236, 0), (236+1, 236, 0), (236+2, 236, 0), (236+3, 236, 0);
+insert into tt values (240, 240, 0), (240+1, 240, 0), (240+2, 240, 0), (240+3, 240, 0);
+insert into tt values (244, 244, 0), (244+1, 244, 0), (244+2, 244, 0), (244+3, 244, 0);
+insert into tt values (248, 248, 0), (248+1, 248, 0), (248+2, 248, 0), (248+3, 248, 0);
+insert into tt values (252, 252, 0), (252+1, 252, 0), (252+2, 252, 0), (252+3, 252, 0);
+insert into tt values (256, 256, 0), (256+1, 256, 0), (256+2, 256, 0), (256+3, 256, 0);
+insert into tt values (260, 260, 0), (260+1, 260, 0), (260+2, 260, 0), (260+3, 260, 0);
+insert into tt values (264, 264, 0), (264+1, 264, 0), (264+2, 264, 0), (264+3, 264, 0);
+insert into tt values (268, 268, 0), (268+1, 268, 0), (268+2, 268, 0), (268+3, 268, 0);
+insert into tt values (272, 272, 0), (272+1, 272, 0), (272+2, 272, 0), (272+3, 272, 0);
+insert into tt values (276, 276, 0), (276+1, 276, 0), (276+2, 276, 0), (276+3, 276, 0);
+insert into tt values (280, 280, 0), (280+1, 280, 0), (280+2, 280, 0), (280+3, 280, 0);
+insert into tt values (284, 284, 0), (284+1, 284, 0), (284+2, 284, 0), (284+3, 284, 0);
+insert into tt values (288, 288, 0), (288+1, 288, 0), (288+2, 288, 0), (288+3, 288, 0);
+insert into tt values (292, 292, 0), (292+1, 292, 0), (292+2, 292, 0), (292+3, 292, 0);
+insert into tt values (296, 296, 0), (296+1, 296, 0), (296+2, 296, 0), (296+3, 296, 0);
+insert into tt values (300, 300, 0), (300+1, 300, 0), (300+2, 300, 0), (300+3, 300, 0);
+insert into tt values (304, 304, 0), (304+1, 304, 0), (304+2, 304, 0), (304+3, 304, 0);
+insert into tt values (308, 308, 0), (308+1, 308, 0), (308+2, 308, 0), (308+3, 308, 0);
+insert into tt values (312, 312, 0), (312+1, 312, 0), (312+2, 312, 0), (312+3, 312, 0);
+insert into tt values (316, 316, 0), (316+1, 316, 0), (316+2, 316, 0), (316+3, 316, 0);
+insert into tt values (320, 320, 0), (320+1, 320, 0), (320+2, 320, 0), (320+3, 320, 0);
+insert into tt values (324, 324, 0), (324+1, 324, 0), (324+2, 324, 0), (324+3, 324, 0);
+insert into tt values (328, 328, 0), (328+1, 328, 0), (328+2, 328, 0), (328+3, 328, 0);
+insert into tt values (332, 332, 0), (332+1, 332, 0), (332+2, 332, 0), (332+3, 332, 0);
+insert into tt values (336, 336, 0), (336+1, 336, 0), (336+2, 336, 0), (336+3, 336, 0);
+insert into tt values (340, 340, 0), (340+1, 340, 0), (340+2, 340, 0), (340+3, 340, 0);
+insert into tt values (344, 344, 0), (344+1, 344, 0), (344+2, 344, 0), (344+3, 344, 0);
+insert into tt values (348, 348, 0), (348+1, 348, 0), (348+2, 348, 0), (348+3, 348, 0);
+insert into tt values (352, 352, 0), (352+1, 352, 0), (352+2, 352, 0), (352+3, 352, 0);
+insert into tt values (356, 356, 0), (356+1, 356, 0), (356+2, 356, 0), (356+3, 356, 0);
+insert into tt values (360, 360, 0), (360+1, 360, 0), (360+2, 360, 0), (360+3, 360, 0);
+insert into tt values (364, 364, 0), (364+1, 364, 0), (364+2, 364, 0), (364+3, 364, 0);
+insert into tt values (368, 368, 0), (368+1, 368, 0), (368+2, 368, 0), (368+3, 368, 0);
+insert into tt values (372, 372, 0), (372+1, 372, 0), (372+2, 372, 0), (372+3, 372, 0);
+insert into tt values (376, 376, 0), (376+1, 376, 0), (376+2, 376, 0), (376+3, 376, 0);
+insert into tt values (380, 380, 0), (380+1, 380, 0), (380+2, 380, 0), (380+3, 380, 0);
+insert into tt values (384, 384, 0), (384+1, 384, 0), (384+2, 384, 0), (384+3, 384, 0);
+insert into tt values (388, 388, 0), (388+1, 388, 0), (388+2, 388, 0), (388+3, 388, 0);
+insert into tt values (392, 392, 0), (392+1, 392, 0), (392+2, 392, 0), (392+3, 392, 0);
+insert into tt values (396, 396, 0), (396+1, 396, 0), (396+2, 396, 0), (396+3, 396, 0);
+insert into tt values (400, 400, 0), (400+1, 400, 0), (400+2, 400, 0), (400+3, 400, 0);
+insert into tt values (404, 404, 0), (404+1, 404, 0), (404+2, 404, 0), (404+3, 404, 0);
+insert into tt values (408, 408, 0), (408+1, 408, 0), (408+2, 408, 0), (408+3, 408, 0);
+insert into tt values (412, 412, 0), (412+1, 412, 0), (412+2, 412, 0), (412+3, 412, 0);
+insert into tt values (416, 416, 0), (416+1, 416, 0), (416+2, 416, 0), (416+3, 416, 0);
+insert into tt values (420, 420, 0), (420+1, 420, 0), (420+2, 420, 0), (420+3, 420, 0);
+insert into tt values (424, 424, 0), (424+1, 424, 0), (424+2, 424, 0), (424+3, 424, 0);
+insert into tt values (428, 428, 0), (428+1, 428, 0), (428+2, 428, 0), (428+3, 428, 0);
+insert into tt values (432, 432, 0), (432+1, 432, 0), (432+2, 432, 0), (432+3, 432, 0);
+insert into tt values (436, 436, 0), (436+1, 436, 0), (436+2, 436, 0), (436+3, 436, 0);
+insert into tt values (440, 440, 0), (440+1, 440, 0), (440+2, 440, 0), (440+3, 440, 0);
+insert into tt values (444, 444, 0), (444+1, 444, 0), (444+2, 444, 0), (444+3, 444, 0);
+insert into tt values (448, 448, 0), (448+1, 448, 0), (448+2, 448, 0), (448+3, 448, 0);
+insert into tt values (452, 452, 0), (452+1, 452, 0), (452+2, 452, 0), (452+3, 452, 0);
+insert into tt values (456, 456, 0), (456+1, 456, 0), (456+2, 456, 0), (456+3, 456, 0);
+insert into tt values (460, 460, 0), (460+1, 460, 0), (460+2, 460, 0), (460+3, 460, 0);
+insert into tt values (464, 464, 0), (464+1, 464, 0), (464+2, 464, 0), (464+3, 464, 0);
+insert into tt values (468, 468, 0), (468+1, 468, 0), (468+2, 468, 0), (468+3, 468, 0);
+insert into tt values (472, 472, 0), (472+1, 472, 0), (472+2, 472, 0), (472+3, 472, 0);
+insert into tt values (476, 476, 0), (476+1, 476, 0), (476+2, 476, 0), (476+3, 476, 0);
+insert into tt values (480, 480, 0), (480+1, 480, 0), (480+2, 480, 0), (480+3, 480, 0);
+insert into tt values (484, 484, 0), (484+1, 484, 0), (484+2, 484, 0), (484+3, 484, 0);
+insert into tt values (488, 488, 0), (488+1, 488, 0), (488+2, 488, 0), (488+3, 488, 0);
+insert into tt values (492, 492, 0), (492+1, 492, 0), (492+2, 492, 0), (492+3, 492, 0);
+insert into tt values (496, 496, 0), (496+1, 496, 0), (496+2, 496, 0), (496+3, 496, 0);
+select count(*) from tt;
+count(*)
+500
+show indexes from tt;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
+tt	0	PRIMARY	1	a	A	500	NULL	NULL		BTREE		
+tt	1	b	1	b	A	NULL	NULL	NULL	YES	BTREE		
+tt	1	c	1	c	A	NULL	NULL	NULL	YES	BTREE		
+analyze table tt;
+Table	Op	Msg_type	Msg_text
+test.tt	analyze	status	OK
+show indexes from tt;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
+tt	0	PRIMARY	1	a	A	500	NULL	NULL		BTREE		
+tt	1	b	1	b	A	125	NULL	NULL	YES	BTREE		
+tt	1	c	1	c	A	1	NULL	NULL	YES	BTREE		
+alter table tt drop key b;
+show indexes from tt;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
+tt	0	PRIMARY	1	a	A	500	NULL	NULL		BTREE		
+tt	1	c	1	c	A	NULL	NULL	NULL	YES	BTREE		
+alter table tt drop key c;
+show indexes from tt;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
+tt	0	PRIMARY	1	a	A	500	NULL	NULL		BTREE		
+flush tables;
+show indexes from tt;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
+tt	0	PRIMARY	1	a	A	500	NULL	NULL		BTREE		
+drop table tt;

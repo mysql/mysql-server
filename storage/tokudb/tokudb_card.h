@@ -174,9 +174,14 @@ namespace tokudb {
         return false;
     }
 
+    static void copy_card(uint64_t *dest, uint64_t *src, size_t n) {
+        for (size_t i = 0; i < n; i++)
+            dest[i] = src[i];
+    }
+
     // Altered table cardinality = select cardinality data from current table cardinality for keys that exist 
     // in the altered table and the current table.
-    int set_card_from_status(DB *status_db, DB_TXN *txn, TABLE_SHARE *table_share, TABLE_SHARE *altered_table_share) {
+    int alter_card(DB *status_db, DB_TXN *txn, TABLE_SHARE *table_share, TABLE_SHARE *altered_table_share) {
         int error;
         // read existing cardinality data from status
         uint table_total_key_parts = tokudb::compute_total_key_parts(table_share);
@@ -201,7 +206,7 @@ namespace tokudb {
                 uint ith_key_parts = get_key_parts(&altered_table_share->key_info[i]);
                 uint orig_key_index;
                 if (find_index_of_key(altered_table_share->key_info[i].name, table_share, &orig_key_index)) {
-                    memcpy(&altered_rec_per_key[next_key_parts], &rec_per_key[orig_key_offset[orig_key_index]], ith_key_parts);
+                    copy_card(&altered_rec_per_key[next_key_parts], &rec_per_key[orig_key_offset[orig_key_index]], ith_key_parts);
                 }
                 next_key_parts += ith_key_parts;
             }
@@ -217,7 +222,7 @@ namespace tokudb {
     // For each key part, put records per key part in *rec_per_key_part[key_part_index].
     // Returns 0 if success, otherwise an error number.
     // TODO statistical dives into the FT
-    int analyze_card(DB *db, DB_TXN *txn, bool is_unique __attribute__((unused)), uint64_t num_key_parts, uint64_t *rec_per_key_part,
+    int analyze_card(DB *db, DB_TXN *txn, bool is_unique, uint64_t num_key_parts, uint64_t *rec_per_key_part,
                      int (*key_compare)(DB *, const DBT *, const DBT *, uint),
                      int (*analyze_progress)(void *extra, uint64_t rows), void *progress_extra) {
         int error = 0;
