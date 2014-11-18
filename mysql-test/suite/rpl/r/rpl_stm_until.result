@@ -69,7 +69,7 @@ ERROR HY000: Incorrect parameter or combination of parameters for START SLAVE UN
 start slave sql_thread;
 start slave until master_log_file='master-bin.000001', master_log_pos=MASTER_LOG_POS;
 Warnings:
-Note	1968	Replication thread(s) for channel '' are already runnning.
+Note	1969	Replication thread(s) for channel '' are already runnning.
 include/stop_slave.inc
 drop table if exists t1;
 reset slave;
