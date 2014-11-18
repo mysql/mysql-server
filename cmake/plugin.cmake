@@ -65,7 +65,7 @@ MACRO(MYSQL_ADD_PLUGIN)
   ENDIF()
   
   IF(WITH_${plugin}_STORAGE_ENGINE 
-    OR WITH_{$plugin}
+    OR WITH_${plugin}
     OR WITH_ALL 
     OR WITH_MAX 
     AND NOT WITHOUT_${plugin}_STORAGE_ENGINE
