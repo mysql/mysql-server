@@ -1754,3 +1754,8 @@ PARTITION pmax VALUES LESS THAN MAXVALUE);
 ERROR HY000: Constant, random or timezone-dependent expressions in (sub)partitioning function are not allowed
 DROP TABLE t1;
 End of 5.1 tests
+create table t1 (a int) partition by list (values(a) div 1) (partition p0 values in (0), partition p1 values in (1));
+ERROR HY000: This partition function is not allowed
+create table t1 (a int) partition by list (uuid_short()) (partition p0 values in (0), partition p1 values in (1));
+ERROR 42000: Constant, random or timezone-dependent expressions in (sub)partitioning function are not allowed near ') (partition p0 values in (0), partition p1 values in (1))' at line 1
+End of 5.5 tests

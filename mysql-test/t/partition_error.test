@@ -2005,3 +2005,14 @@ PARTITION pmax VALUES LESS THAN MAXVALUE);
 DROP TABLE t1;
 
 --echo End of 5.1 tests
+
+#
+# MDEV-7113 difference between check_vcol_func_processor and check_partition_func_processor
+#
+--error ER_PARTITION_FUNCTION_IS_NOT_ALLOWED
+create table t1 (a int) partition by list (values(a) div 1) (partition p0 values in (0), partition p1 values in (1));
+
+--error ER_PARSE_ERROR
+create table t1 (a int) partition by list (uuid_short()) (partition p0 values in (0), partition p1 values in (1));
+
+--echo End of 5.5 tests

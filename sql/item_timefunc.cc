@@ -450,16 +450,14 @@ err:
   Create a formated date/time value in a string.
 */
 
-bool make_date_time(DATE_TIME_FORMAT *format, MYSQL_TIME *l_time,
-		    timestamp_type type, String *str)
+static bool make_date_time(DATE_TIME_FORMAT *format, MYSQL_TIME *l_time,
+                           timestamp_type type, MY_LOCALE *locale, String *str)
 {
   char intbuff[15];
   uint hours_i;
   uint weekday;
   ulong length;
   const char *ptr, *end;
-  THD *thd= current_thd;
-  MY_LOCALE *locale= thd->variables.lc_time_names;
 
   str->length(0);
 
@@ -1726,6 +1724,8 @@ overflow:
 void Item_func_date_format::fix_length_and_dec()
 {
   THD* thd= current_thd;
+  locale= thd->variables.lc_time_names;
+
   /*
     Must use this_item() in case it's a local SP variable
     (for ->max_length and ->str_value)
@@ -1889,7 +1889,7 @@ String *Item_func_date_format::val_str(String *str)
   if (!make_date_time(&date_time_format, &l_time,
                       is_time_format ? MYSQL_TIMESTAMP_TIME :
                                        MYSQL_TIMESTAMP_DATE,
-                      str))
+                      locale, str))
     return str;
 
 null_date:
@@ -1900,8 +1900,9 @@ null_date:
 
 void Item_func_from_unixtime::fix_length_and_dec()
 { 
-  thd= current_thd;
+  THD *thd= current_thd;
   thd->time_zone_used= 1;
+  tz= thd->variables.time_zone;
   decimals= args[0]->decimals;
   Item_temporal_func::fix_length_and_dec();
 }
@@ -1922,7 +1923,7 @@ bool Item_func_from_unixtime::get_date(MYSQL_TIME *ltime,
   if (args[0]->null_value || sign || sec > TIMESTAMP_MAX_VALUE)
     return (null_value= 1);
 
-  thd->variables.time_zone->gmt_sec_to_TIME(ltime, (my_time_t)sec);
+  tz->gmt_sec_to_TIME(ltime, (my_time_t)sec);
 
   ltime->second_part= sec_part;
 

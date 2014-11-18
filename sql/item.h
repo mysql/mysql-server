@@ -3939,6 +3939,7 @@ public:
     return arg->walk(processor, walk_subquery, args) ||
 	    (this->*processor)(args);
   }
+  bool check_partition_func_processor(uchar *int_arg) {return TRUE;}
   bool check_vcol_func_processor(uchar *arg) 
   {
     return trace_unsupported_by_check_vcol_func_processor("values");

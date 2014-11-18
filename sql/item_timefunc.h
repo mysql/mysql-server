@@ -688,6 +688,7 @@ public:
 
 class Item_func_date_format :public Item_str_func
 {
+  MY_LOCALE *locale;
   int fixed_length;
   const bool is_time_format;
   String value;
@@ -705,7 +706,7 @@ public:
 
 class Item_func_from_unixtime :public Item_temporal_func
 {
-  THD *thd;
+  Time_zone *tz;
  public:
   Item_func_from_unixtime(Item *a) :Item_temporal_func(a) {}
   const char *func_name() const { return "from_unixtime"; }
@@ -1045,11 +1046,5 @@ public:
   const char *func_name() const { return "last_day"; }
   bool get_date(MYSQL_TIME *res, ulonglong fuzzy_date);
 };
-
-
-/* Function prototypes */
-
-bool make_date_time(DATE_TIME_FORMAT *format, MYSQL_TIME *l_time,
-                    timestamp_type type, String *str);
 
 #endif /* ITEM_TIMEFUNC_INCLUDED */

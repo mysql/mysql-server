@@ -1,0 +1,58 @@
+#
+# MDEV-7113 difference between check_vcol_func_processor and check_partition_func_processor
+#
+
+# the following functions must not be supported in virtual columns.
+# but for compatibility reasons it won't be done in a GA version,
+# we'll only fix most critical issues (inconsistent results, crashes)
+
+connect (con1, localhost, root);
+
+set lc_time_names = 'es_MX';
+set time_zone='+10:00';
+set div_precision_increment=20;
+
+create table t1 (a int, b int, v decimal(20,19) as (a/3));
+--error ER_VIRTUAL_COLUMN_FUNCTION_IS_NOT_ALLOWED
+create table t2 (a int, b int, v int as (a+@a));
+--error ER_VIRTUAL_COLUMN_FUNCTION_IS_NOT_ALLOWED
+create table t3 (a int, b int, v int as (a+@@error_count));
+--error ER_VIRTUAL_COLUMN_FUNCTION_IS_NOT_ALLOWED
+create table t4 (a int, b int, v int as (@a:=a));
+create table t5 (a int, b int, v varchar(100) as (monthname(a)));
+create table t6 (a int, b int, v varchar(100) as (dayname(a)));
+create table t7 (a int, b int, v varchar(100) as (date_format(a, '%W %a %M %b')));
+create table t8 (a int, b int, v varchar(100) as (from_unixtime(a)));
+
+insert t1 (a,b) values (1,2);
+insert t5 (a,b) values (20141010,2);
+insert t6 (a,b) values (20141010,2);
+insert t7 (a,b) values (20141010,2);
+insert t8 (a,b) values (1234567890,2);
+
+select * from t1;
+select * from t5;
+select * from t6;
+select * from t7;
+select * from t8;
+
+disconnect con1;
+connection default;
+set time_zone='+1:00';
+
+select * from t1;
+select * from t5;
+select * from t6;
+select * from t7;
+select * from t8;
+
+flush tables;
+
+select * from t1;
+select * from t5;
+select * from t6;
+select * from t7;
+select * from t8;
+
+drop table t1, t5, t6, t7, t8;
+
