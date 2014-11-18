@@ -278,7 +278,19 @@ The following options may be given as the first argument:
  special case, if variable is 0, the thread never wakes up
  to compress the gtid_executed table.
  --gtid-mode=name    Whether Global Transaction Identifiers (GTIDs) are
- enabled. Can be ON or OFF.
+ enabled: OFF, OFF_RELAXED, ON_RELAXED, or ON. OFF means
+ that no transaction may have a GTID. OFF_RELAXED means
+ that new transactions (with GTID_NEXT='AUTOMATIC') are
+ not assigned any GTID, and replicated transactions are
+ allowed to have or not have a GTID. ON_RELAXED means that
+ new transactions are assigned a GTID, and replicated
+ transactions are allowed to have or not have a GTID. ON
+ means that all transactions must have a GTID. To safely
+ switch from OFF to ON, first set all servers to
+ OFF_RELAXED, then set all servers to ON_RELAXED, then
+ wait for all transactions without a GTID to be replicated
+ and executed on all servers, and finally set all servers
+ to ON.
  -?, --help          Display this help and exit.
  --host-cache-size=# How many host names should be cached to avoid resolving.
  --ignore-builtin-innodb 

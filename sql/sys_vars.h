@@ -35,6 +35,7 @@
 #include "strfunc.h"              // find_type
 #include "sys_vars_shared.h"      // throw_bounds_warning
 #include "tztime.h"               // Time_zone
+#include "binlog.h"               // mysql_bin_log
 
 
 /*
@@ -2336,6 +2337,90 @@ public:
     DBUG_RETURN((uchar *)buf);
   }
 };
+
+#ifdef HAVE_REPLICATION
+class Sys_var_gtid_mode : public Sys_var_enum
+{
+public:
+  Sys_var_gtid_mode(const char *name_arg,
+                    const char *comment,
+                    int flag_args,
+                    ptrdiff_t off,
+                    size_t size,
+                    CMD_LINE getopt,
+                    const char *values[],
+                    uint def_val,
+                    PolyLock *lock=0,
+                    enum binlog_status_enum binlog_status_arg=VARIABLE_NOT_IN_BINLOG,
+                    on_check_function on_check_func=0) :
+                      Sys_var_enum(name_arg, comment, flag_args, off, size,
+                                   getopt, values, def_val, lock, binlog_status_arg,
+                                   on_check_func)
+  { }
+
+  bool global_update(THD *thd, set_var *var)
+  {
+    DBUG_ENTER("Sys_var_gtid_mode::global_update");
+    bool ret= true;
+
+    /*
+      Hold lock_log so that:
+      - other transactions are not flushed while gtid_mode is changed;
+      - gtid_mode is not changed while some other thread is rotating
+        the binlog.
+
+      Hold lock_msr_map so that:
+      - gtid_mode is not changed during the execution of some
+        replication command; particularly CHANGE MASTER. CHANGE MASTER
+        checks if GTID_MODE is compatible with AUTO_POSITION, and
+        later it actually updates the in-memory structure for
+        AUTO_POSITION.  If gtid_mode was changed between these calls,
+        auto_position could be set incompatible with gtid_mode.
+
+      Hold global_sid_lock.wrlock so that:
+      - other transactions cannot acquire ownership of any gtid.
+    */
+    mysql_mutex_lock(&LOCK_msr_map);
+    mysql_mutex_lock(mysql_bin_log.get_log_lock());
+    global_sid_lock->wrlock();
+    int lock_count= 3;
+
+    enum_gtid_mode new_gtid_mode=
+      (enum_gtid_mode)var->save_result.ulonglong_value;
+    enum_gtid_mode old_gtid_mode= get_gtid_mode();
+    DBUG_ASSERT(new_gtid_mode <= GTID_MODE_ON);
+
+    if (new_gtid_mode == old_gtid_mode)
+      goto end;
+
+    // Update the mode
+    global_var(ulong)= new_gtid_mode;
+    global_sid_lock->unlock();
+    lock_count= 2;
+
+    // Generate note in log
+    sql_print_information("Changed GTID_MODE from %s to %s.",
+                          gtid_mode_names[old_gtid_mode],
+                          gtid_mode_names[new_gtid_mode]);
+
+    // Rotate
+    {
+      bool dont_care= false;
+      if (mysql_bin_log.rotate(true, &dont_care))
+        goto err;
+    }
+
+end:
+    ret= false;
+err:
+    if (lock_count >= 3)
+      global_sid_lock->unlock();
+    mysql_mutex_unlock(mysql_bin_log.get_log_lock());
+    mysql_mutex_unlock(&LOCK_msr_map);
+    DBUG_RETURN(ret);
+  }
+};
+#endif /* HAVE_REPLICATION */
 
 #endif /* SYS_VARS_H_INCLUDED */
 

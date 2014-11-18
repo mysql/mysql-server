@@ -5111,71 +5111,8 @@ static Sys_var_gtid_owned Sys_gtid_owned(
        "The global variable lists all GTIDs owned by all threads. "
        "The session variable lists all GTIDs owned by the current thread.");
 
-/*
-  This code is not being used but we will keep it as it may be
-  useful when we improve the code around Sys_gtid_mode.
-*/
-#ifdef NON_DISABLED_GTID
-static bool check_gtid_mode(sys_var *self, THD *thd, set_var *var)
-{
-  DBUG_ENTER("check_gtid_mode");
-
-  my_error(ER_NOT_SUPPORTED_YET, MYF(0), "GTID_MODE");
-  DBUG_RETURN(true);
-
-  if (check_super_outside_trx_outside_sf(self, thd, var))
-    DBUG_RETURN(true);
-  uint new_gtid_mode= var->value->val_int();
-  if (abs((long)(new_gtid_mode - gtid_mode)) > 1)
-  {
-    my_error(ER_GTID_MODE_CAN_ONLY_CHANGE_ONE_STEP_AT_A_TIME, MYF(0));
-    DBUG_RETURN(true);
-  }
-  if (new_gtid_mode > GTID_MODE_OFF)
-  {
-    if (!opt_bin_log || !opt_log_slave_updates)
-    {
-      my_error(ER_GTID_MODE_REQUIRES_BINLOG, MYF(0));
-      DBUG_RETURN(false);
-    }
-  }
-  if (new_gtid_mode >= GTID_MODE_ON_PERMISSIVE)
-  {
-    /*
-    if (new_gtid_mode == GTID_MODE_ON &&
-        (there are un-processed anonymous transactions in relay log ||
-         there is a client executing an anonymous transaction))
-    {
-      my_error(ER_CANT_SET_GTID_MODE_3_WITH_UNPROCESSED_ANONYMOUS_GROUPS,
-               MYF(0));
-      DBUG_RETURN(true);
-    }
-    */
-    if (!enforce_gtid_consistency)
-    {
-      //my_error(ER_GTID_MODE_2_OR_3_REQUIRES_ENFORCE_GTID_CONSISTENCY), MYF(0));
-      DBUG_RETURN(true);
-    }
-  }
-  else
-  {
-    /*
-    if (new_gtid_mode == GTID_MODE_OFF &&
-        (there are un-processed GTIDs in relay log ||
-         there is a client executing a GTID transaction))
-    {
-      my_error(ER_CANT_SET_GTID_MODE_0_WITH_UNPROCESSED_GTID_GROUPS, MYF(0));
-      DBUG_RETURN(true);
-    }
-    */
-  }
-  DBUG_RETURN(false);
-}
-#endif
-
-static Sys_var_enum Sys_gtid_mode(
+static Sys_var_gtid_mode Sys_gtid_mode(
        "gtid_mode",
-       /*
        "Controls whether Global Transaction Identifiers (GTIDs) are "
        "enabled. Can be OFF, OFF_PERMISSIVE, ON_PERMISSIVE, or ON. OFF "
        "means that no transaction has a GTID. OFF_PERMISSIVE means that "
@@ -5191,17 +5128,9 @@ static Sys_var_enum Sys_gtid_mode(
        "ON_PERMISSIVE, then wait for all transactions without a GTID to "
        "be replicated and executed on all servers, and finally set all "
        "servers to GTID_MODE = ON.",
-       */
-       "Whether Global Transaction Identifiers (GTIDs) are enabled. Can be "
-       "ON or OFF.",
-       READ_ONLY GLOBAL_VAR(_gtid_mode), CMD_LINE(REQUIRED_ARG),
-       gtid_mode_names, DEFAULT(GTID_MODE_OFF),
-       NO_MUTEX_GUARD, NOT_IN_BINLOG
-#ifdef NON_DISABLED_GTID
-       , ON_CHECK(check_gtid_mode));
-#else
-       );
-#endif
+       GLOBAL_VAR(_gtid_mode), CMD_LINE(REQUIRED_ARG), gtid_mode_names,
+       DEFAULT(GTID_MODE_OFF), NO_MUTEX_GUARD, NOT_IN_BINLOG,
+       ON_CHECK(check_super_outside_trx_outside_sf_outside_sp));
 
 #endif // HAVE_REPLICATION
 

@@ -4219,12 +4219,6 @@ a file name for --log-bin-index option", opt_binlog_index_name);
     sql_print_error("--gtid-mode=ON or ON_PERMISSIVE requires --enforce-gtid-consistency");
     unireg_abort(1);
   }
-  if (get_gtid_mode() == GTID_MODE_OFF_PERMISSIVE ||
-      get_gtid_mode() == GTID_MODE_ON_PERMISSIVE)
-  {
-    sql_print_error("--gtid-mode=OFF_PERMISSIVE or --gtid-mode=ON_PERMISSIVE are not yet supported");
-    unireg_abort(1);
-  }
 
   if (opt_bin_log)
   {
