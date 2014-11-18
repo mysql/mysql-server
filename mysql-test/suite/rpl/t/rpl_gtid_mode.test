@@ -34,7 +34,7 @@
 #   Option values and combinations:
 #    - Default is GTID_MODE = OFF
 #    - GTID_MODE is read-only.
-#    - GTID_MODE cannot (yet) be set to UPGRADE_STEP_1 or UPGRADE_STEP_2
+#    - GTID_MODE cannot (yet) be set to OFF_RELAXED or ON_RELAXED
 #    - GTID_MODE=ON requires all of --log-bin, --log-slave-updates,
 #      and --enforce-gtid-consistency.
 #
@@ -51,11 +51,8 @@
 -- source include/big_test.inc
 --source include/not_windows.inc
 --source include/not_gtid_enabled.inc
---disable_warnings
+--let $rpl_gtid_utils= 1
 --source include/master-slave.inc
---enable_warnings
-
---let $uuida= aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa
 
 call mtr.add_suppression("Slave I/O for channel '': The slave IO thread stops because the master has @@GLOBAL.GTID_MODE");
 call mtr.add_suppression("Error reading packet from server: Lost connection to MySQL");
@@ -84,23 +81,19 @@ CHANGE MASTER TO MASTER_AUTO_POSITION = 0;
 --enable_warnings
 --connection master
 
+--source include/save_binlog_position.inc
 SET GTID_NEXT = 'AUTOMATIC';
 CREATE TABLE t1 (a INT) ENGINE = InnoDB;
 SET GTID_NEXT = 'ANONYMOUS';
 INSERT INTO t1 VALUES (1);
 
---let $binlog_file= LAST
-# binlog_limit=2 because it contains Previous_gtids, Anonymous_gtid
---let $binlog_limit= 2
---let $keep_gtid_events= 1
---source include/show_binlog_events.inc
+--let $binlog_events= Anonymous_Gtid # !Q(CREATE.*) # Anonymous_Gtid # !Q(INSERT.*)
+--source include/assert_binlog_events.inc
 
 --source include/sync_slave_sql_with_master.inc
---source include/show_binlog_events.inc
-# binlog_limit=4 because it contains:
-# Previous_gtids, Rotate, Rotate, Anonymous_gtid
---let $binlog_limit= 4
---source include/show_relaylog_events.inc
+
+--let $binlog_events= Anonymous_Gtid # !Q(CREATE.*) # Anonymous_Gtid # !Q(INSERT.*)
+--source include/assert_binlog_events.inc
 
 --echo ==== Checks performed at server start when GTID_MODE = ON ====
 
@@ -118,19 +111,19 @@ INSERT INTO t1 VALUES (1);
 
 --let $assert_status= 1
 
---echo ---- GTID_MODE = UPGRADE_STEP_[1|2] not supported ----
+--echo ---- GTID_MODE = [ON|OFF]_RELAXED not supported ----
 
---let $assert_regex= --gtid-mode=UPGRADE_STEP_1 or --gtid-mode=UPGRADE_STEP_2 are not yet supported
+--let $assert_regex= --gtid-mode=OFF_RELAXED or --gtid-mode=ON_RELAXED are not yet supported
 
---let $assert_command= $server2_cmd --gtid-mode=upgrade_step_1 --enforce-gtid-consistency 2>&1
+--let $assert_command= $server2_cmd --gtid-mode=off_relaxed --enforce-gtid-consistency 2>&1
 --source include/assert_command_output.inc
 
---let $assert_command= $server2_cmd --gtid-mode=upgrade_step_2 --enforce-gtid-consistency 2>&1
+--let $assert_command= $server2_cmd --gtid-mode=on_relaxed --enforce-gtid-consistency 2>&1
 --source include/assert_command_output.inc
 
 --echo ---- GTID_MODE=ON requires --enforce-gtid-consistency ----
 
---let $assert_regex= --gtid-mode=ON or UPGRADE_STEP_1 requires --enforce-gtid-consistency
+--let $assert_regex= --gtid-mode=ON or ON_RELAXED requires --enforce-gtid-consistency
 --let $assert_command= $server2_cmd --gtid-mode=on 2>&1
 --source include/assert_command_output.inc
 
@@ -153,10 +146,7 @@ START SLAVE;
 
 --connection slave
 --let $rpl_server_number= 1
---source include/rpl_stop_server.inc
---let $rpl_server_number= 1
---let $rpl_start_with_gtids= 1
---source include/rpl_start_server.inc
+--source include/rpl_restart_server.inc
 --disable_warnings
 --source include/start_slave.inc
 --enable_warnings
@@ -164,10 +154,15 @@ START SLAVE;
 --connection master
 
 --let $assert_text= GTID_MODE should be ON now.
---let $assert_cond= "[SELECT @@GLOBAL.GTID_MODE]" = "ON"
+--let $assert_cond= @@GLOBAL.GTID_MODE = "ON"
 --source include/assert.inc
 
 --echo ---- GTID_NEXT must be SID:GNO or AUTOMATIC -----
+
+# should generate error
+--error ER_CANT_SET_GTID_NEXT_TO_ANONYMOUS_WHEN_GTID_MODE_IS_ON
+SET GTID_NEXT = 'ANONYMOUS';
+ROLLBACK;
 
 # should not generate error
 SET GTID_NEXT = 'AUTOMATIC';
@@ -175,28 +170,44 @@ SET GTID_NEXT = 'AUTOMATIC';
 # should not generate error
 eval SET GTID_NEXT = '$uuida:1';
 
-# should generate error
---error ER_CANT_SET_GTID_NEXT_TO_ANONYMOUS_WHEN_GTID_MODE_IS_ON
-SET GTID_NEXT = 'ANONYMOUS';
 ROLLBACK;
 
-#
-# Show that setting the same GTID twice raises an error the second time
-#
-SET SESSION GTID_NEXT='7805be8e-51ab-11e1-bacc-6706c20ad7ba:1';
+--echo ---- Setting GTID_NEXT when owning a GTID generates an error ----
+
+# same GTID
+eval SET SESSION GTID_NEXT='$uuida:1';
+
 --error ER_CANT_SET_GTID_NEXT_WHEN_OWNING_GTID
-SET SESSION GTID_NEXT='7805be8e-51ab-11e1-bacc-6706c20ad7ba:1';
+eval SET SESSION GTID_NEXT = '$uuida:1';
+
+# other GTID
+eval SET SESSION GTID_NEXT='$uuida:1';
+
+--error ER_CANT_SET_GTID_NEXT_WHEN_OWNING_GTID
+eval SET SESSION GTID_NEXT = '$uuidb:1';
+
+# automatic
+eval SET SESSION GTID_NEXT='$uuida:1';
+
+--error ER_CANT_SET_GTID_NEXT_WHEN_OWNING_GTID
+eval SET SESSION GTID_NEXT = 'AUTOMATIC';
+
+# anonymous
+eval SET SESSION GTID_NEXT='$uuida:1';
+
+--error ER_CANT_SET_GTID_NEXT_WHEN_OWNING_GTID
+SET GTID_NEXT = 'ANONYMOUS';
+
 ROLLBACK;
 
-#
-# Show that connection close releases GTID_NEXT
-#
+--echo ---- Connection close releases GTID_NEXT ----
+
 connect (master_gtid,127.0.0.1,root,,test,$MASTER_MYPORT);
 --connection master_gtid
-SET SESSION GTID_NEXT='7805be8e-51ab-11e1-bacc-6706c20ad7ba:1';
+eval SET SESSION GTID_NEXT='$uuida:1';
 disconnect master_gtid;
 --connection master
-SET SESSION GTID_NEXT='7805be8e-51ab-11e1-bacc-6706c20ad7ba:1';
+eval SET SESSION GTID_NEXT='$uuida:1';
 ROLLBACK;
 
 --echo ---- GTIDs are in binlog ----

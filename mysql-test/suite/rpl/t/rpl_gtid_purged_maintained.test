@@ -47,7 +47,7 @@
 
 --let $rpl_gtid_utils= 1
 --source include/master-slave.inc
---source include/rpl_set_gtid_mode.inc
+--source include/have_gtid.inc
 --source include/have_debug.inc
 
 --echo ######## Initialize ########
