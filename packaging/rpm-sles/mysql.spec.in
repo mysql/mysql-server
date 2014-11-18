@@ -709,7 +709,6 @@ fi
 %{_libdir}/mysql/libmysqlservices.a
 %{_libdir}/mysql/libmysqlclient_r.so
 %{_libdir}/mysql/libmysqlclient.so
-%{_libdir}/mysql/libbinlogevents.a
 
 %files libs
 %defattr(-, root, root, -)

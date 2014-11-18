@@ -36,7 +36,6 @@ ENDIF()
 SET_TARGET_PROPERTIES(binlogevents_static PROPERTIES
                       OUTPUT_NAME "binlogevents")
 
-INSTALL(TARGETS binlogevents_static DESTINATION ${INSTALL_LIBDIR} COMPONENT Development)
 SET_TARGET_PROPERTIES(binlogevents_static PROPERTIES
   ARCHIVE_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/libbinlogevents/lib)
 
