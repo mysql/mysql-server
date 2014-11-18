@@ -1237,11 +1237,15 @@ int Gis_polygon::store_shapes(Gcalc_shape_transporter *trn) const
     trn->start_ring();
     get_point(&first_x, &first_y, data);
     data+= POINT_DATA_SIZE;
-    n_points--;
+
     prev_x= first_x;
     prev_y= first_y;
     if (trn->add_point(first_x, first_y))
       return 1;
+
+    if (--n_points == 0)
+      goto single_point_ring;
+
     while (--n_points)
     {
       double x, y;
@@ -1266,6 +1270,8 @@ int Gis_polygon::store_shapes(Gcalc_shape_transporter *trn) const
         return 1;
     }
     data+= POINT_DATA_SIZE;
+
+single_point_ring:
     trn->complete_ring();
   }
 

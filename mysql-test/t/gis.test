@@ -1401,6 +1401,11 @@ insert into t1 values(geomfromtext("POINT(0 9.2233720368548e18)"));
 select equals(`a`,convert(`a` using utf8)) from `t1`;
 drop table t1;
 
+--echo #
+--echo # MDEV-6883 ST_WITHIN crashes server if (0,0) is matched to POLYGON((0 0))
+--echo #
+select st_within(GeomFromText('Polygon((0 0))'), Point(0,0));
+
 --echo End of 5.3 tests
 
 --echo #

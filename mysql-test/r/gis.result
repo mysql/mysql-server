@@ -1546,6 +1546,12 @@ Warnings:
 Warning	1300	Invalid utf8 character string: 'E043'
 Warning	1300	Invalid utf8 character string: 'E043'
 drop table t1;
+#
+# MDEV-6883 ST_WITHIN crashes server if (0,0) is matched to POLYGON((0 0))
+#
+select st_within(GeomFromText('Polygon((0 0))'), Point(0,0));
+st_within(GeomFromText('Polygon((0 0))'), Point(0,0))
+1
 End of 5.3 tests
 #
 # Bug#11908153: CRASH AND/OR VALGRIND ERRORS IN FIELD_BLOB::GET_KEY_IMAGE
