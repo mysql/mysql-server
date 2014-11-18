@@ -26,6 +26,18 @@
 
 #ifdef HAVE_OPENSSL
 
+#ifndef HAVE_YASSL
+/*
+  yassl seem to be different here, SSL_get_error() value can be
+  directly passed to ERR_error_string(), and these errors don't go
+  into ERR_get_error() stack.
+  in openssl, apparently, SSL_get_error() values live in a different
+  namespace, one needs to use ERR_get_error() as an argument
+  for ERR_error_string().
+*/
+#define SSL_get_error(X,Y) ERR_get_error()
+#endif
+
 #ifndef DBUG_OFF
 
 static void
