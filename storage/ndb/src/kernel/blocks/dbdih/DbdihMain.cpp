@@ -2777,6 +2777,17 @@ void Dbdih::init_lcp_pausing_module(void)
   c_lcp_id_paused = RNIL;
   c_pause_lcp_start_node = RNIL;
   c_lcp_id_while_copy_meta_data = RNIL;
+  c_last_id_lcp_complete_rep = RNIL;
+}
+
+void Dbdih::check_pause_state_lcp_idle(void)
+{
+  /**
+   * We should not be able to complete an LCP while still having
+   * queued LCP_COMPLETE_REP and LCP_FRAG_REP.
+   */
+  ndbrequire(c_queued_lcp_frag_rep.isEmpty());
+  ndbrequire(!c_queued_lcp_complete_rep);
 }
 
 /* Support function only called within ndbassert */
@@ -2920,8 +2931,7 @@ bool Dbdih::check_if_lcp_idle(void)
   case LCP_TC_CLOPSIZE:
   case LCP_WAIT_MUTEX:
     jam();
-    ndbrequire(c_queued_lcp_frag_rep.isEmpty());
-    ndbrequire(c_queued_lcp_complete_rep);
+    check_pause_state_lcp_idle();
     return true;
   case LCP_STATUS_ACTIVE:
     jam();
@@ -17981,6 +17991,15 @@ void Dbdih::execLCP_COMPLETE_REP(Signal* signal)
      */
     rep->nodeId = getOwnNodeId();
 
+    /**
+     * We want to ensure that we don't receive multiple LCP_COMPLETE_REP
+     * from our LQH for the same LCP id. This wouldn't fly with the
+     * PAUSE LCP protocol handling.
+     */
+    ndbrequire(c_last_id_lcp_complete_rep != rep->lcpId ||
+               c_last_id_lcp_complete_rep == RNIL);
+    c_last_id_lcp_complete_rep = rep->lcpId;
+    if (c_last_id_lcp_complete_rep == rep->lcpId)
     if (c_lcp_paused || c_dequeue_lcp_rep_ongoing)
     {
       jam();
@@ -18076,7 +18095,7 @@ void Dbdih::allNodesLcpCompletedLab(Signal* signal)
       c_lcpState.m_LCP_COMPLETE_REP_From_Master_Received == false){
     jam();
     /**
-     * Wait until master DIH has signaled lcp is complete
+     * Wait until master DIH has signalled lcp is complete
      */
     return;
   }
@@ -18102,6 +18121,8 @@ void Dbdih::allNodesLcpCompletedLab(Signal* signal)
   CRASH_INSERTION(7019);
   signal->setTrace(0);
 
+  /* Check pause states */
+  check_pause_state_lcp_idle();
   c_lcpState.setLcpStatus(LCP_STATUS_IDLE, __LINE__);
   c_increase_lcp_speed_after_nf = false;
 
