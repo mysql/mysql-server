@@ -136,12 +136,12 @@ cflags="$include @CFLAGS@ " #note: end space!
 for remove in DDBUG_OFF DSAFE_MUTEX DUNIV_MUST_NOT_INLINE DFORCE_INIT_OF_VARS \
               DEXTRA_DEBUG DHAVE_valgrind O 'O[0-9]' 'xO[0-9]' 'W[-A-Za-z]*' \
               'mtune=[-A-Za-z0-9]*' 'mcpu=[-A-Za-z0-9]*' 'march=[-A-Za-z0-9]*' \
-              Xa xstrconst "xc99=none" AC99 \
+              Xa xstrconst "xc99=none" AC99 'W[-A-Za-z]*=[-A-Za-z0-9]*' \
               unroll2 ip mp restrict
 do
   # The first option we might strip will always have a space before it because
   # we set -I$pkgincludedir as the first option
-  cflags=`echo "$cflags"|sed -e "s/ -$remove  */ /g"` 
+  cflags=`echo "$cflags"|sed -e ':again' -e "s/ -$remove  */ /g" -e 't again'`
 done
 cflags=`echo "$cflags"|sed -e 's/ *\$//'` 
 
