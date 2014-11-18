@@ -3929,45 +3929,43 @@ public:
     GTID. Currently, the following cases may lead to errors
     (e.g. duplicated GTIDs) and as such are forbidden:
 
-     1. Statements that could possibly do DML in a non-transactional
-        table;
+     1. DML statements that mix non-transactional updates with
+        transactional updates.
 
-     2. CREATE...SELECT statement;
+     2. Transactions that use non-transactional tables after
+        having used transactional tables.
 
-     3. CREATE TEMPORARY TABLE or DROP TEMPORARY TABLE within a transaction
+     3. CREATE...SELECT statement;
 
-    The first condition has to be checked in decide_logging_format,
-    because that's where we know if the table is transactional or not.
-    The second and third conditions have to be checked in
+     4. CREATE TEMPORARY TABLE or DROP TEMPORARY TABLE within a
+        transaction
+
+    The first two conditions have to be checked in
+    decide_logging_format, because that's where we know if the table
+    is transactional or not.
+
+    The third and fourth conditions have to be checked in
     mysql_execute_command because (1) that prevents implicit commit
     from being executed if the statement fails; (2) DROP TEMPORARY
     TABLE does not invoke decide_logging_format.
 
-    Later, we can relax the first condition as follows:
-     - do not wrap non-transactional updates inside BEGIN ... COMMIT
-       when writing them to the binary log.
-     - allow non-transactional updates that are made outside of
-       transactional context
-
-    Moreover, we can drop the second condition if we fix BUG#11756034.
-
-    @param transactional_table true if the statement updates some
+    @param some_transactional_table true if the statement updates some
     transactional table; false otherwise.
 
-    @param non_transactional_table true if the statement updates some
-    non-transactional table; false otherwise.
+    @param some_non_transactional_table true if the statement updates
+    some non-transactional table; false otherwise.
 
-    @param non_transactional_tmp_tables true if row binlog format is
-    used and all non-transactional tables are temporary.
+    @param non_transactional_tables_are_tmp true if all updated
+    non-transactional tables are temporary.
 
     @retval true if the statement is compatible;
     @retval false if the statement is not compatible.
   */
   bool
-  is_dml_gtid_compatible(bool transactional_table,
-                         bool non_transactional_table,
-                         bool non_transactional_tmp_tables) const;
-  bool is_ddl_gtid_compatible() const;
+  is_dml_gtid_compatible(bool some_transactional_table,
+                         bool some_non_transactional_table,
+                         bool non_transactional_tables_are_tmp);
+  bool is_ddl_gtid_compatible();
   void binlog_invoker() { m_binlog_invoker= TRUE; }
   bool need_binlog_invoker() { return m_binlog_invoker; }
   void get_definer(LEX_USER *definer);

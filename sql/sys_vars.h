@@ -2529,7 +2529,77 @@ err:
     DBUG_RETURN(ret);
   }
 };
+
 #endif /* HAVE_REPLICATION */
+
+
+class Sys_var_enforce_gtid_consistency : public Sys_var_enum
+{
+public:
+  Sys_var_enforce_gtid_consistency(
+    const char *name_arg,
+    const char *comment,
+    int flag_args,
+    ptrdiff_t off,
+    size_t size,
+    CMD_LINE getopt,
+    const char *values[],
+    uint def_val,
+    PolyLock *lock=0,
+    enum binlog_status_enum binlog_status_arg=VARIABLE_NOT_IN_BINLOG,
+    on_check_function on_check_func=0) :
+  Sys_var_enum(name_arg, comment, flag_args, off, size,
+               getopt, values, def_val, lock, binlog_status_arg,
+               on_check_func)
+  { }
+
+  bool global_update(THD *thd, set_var *var)
+  {
+    DBUG_ENTER("Sys_var_enforce_gtid_consistency::global_update");
+    bool ret= true;
+
+    /*
+      Hold global_sid_lock.wrlock so that other transactions cannot
+      acquire ownership of any gtid.
+    */
+    global_sid_lock->wrlock();
+
+    enum_gtid_consistency_mode new_mode=
+      (enum_gtid_consistency_mode)var->save_result.ulonglong_value;
+    enum_gtid_consistency_mode old_mode= get_gtid_consistency_mode();
+    enum_gtid_mode gtid_mode= get_gtid_mode(GTID_MODE_LOCK_SID);
+
+    DBUG_ASSERT(new_mode <= GTID_CONSISTENCY_MODE_WARN);
+
+    DBUG_PRINT("info", ("old enforce_gtid_consistency=%d "
+                        "new enforce_gtid_consistency=%d",
+                        old_mode, new_mode));
+
+    if (new_mode == old_mode)
+      goto end;
+
+    // Can't turn off GTID-consistency when GTID_MODE=ON.
+    if (new_mode != GTID_CONSISTENCY_MODE_ON && gtid_mode == GTID_MODE_ON)
+    {
+      my_error(ER_GTID_MODE_ON_REQUIRES_ENFORCE_GTID_CONSISTENCY_ON, MYF(0));
+      goto err;
+    }
+
+    // Update the mode
+    global_var(ulong)= new_mode;
+
+    // Generate note in log
+    sql_print_information("Changed ENFORCE_GTID_CONSISTENCY from %s to %s.",
+                          get_gtid_consistency_mode_string(old_mode),
+                          get_gtid_consistency_mode_string(new_mode));
+
+end:
+    ret= false;
+err:
+    global_sid_lock->unlock();
+    DBUG_RETURN(ret);
+  }
+};
 
 #endif /* SYS_VARS_H_INCLUDED */
 

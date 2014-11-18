@@ -774,7 +774,6 @@ static bool check_outside_trx(sys_var *self, THD *thd, set_var *var)
   return false;
 }
 
-#ifdef HAVE_REPLICATION
 static bool check_super_outside_trx_outside_sf(sys_var *self, THD *thd, set_var *var)
 {
   if (thd->in_sub_stmt)
@@ -800,7 +799,6 @@ static bool check_super_outside_trx_outside_sf_outside_sp(sys_var *self, THD *th
   }
   return false;
 }
-#endif /* HAVE_REPLICATION */
 
 static bool binlog_format_check(sys_var *self, THD *thd, set_var *var)
 {
@@ -4761,53 +4759,16 @@ static Sys_var_charptr Sys_ignore_db_dirs(
        NO_CMD_LINE,
        IN_FS_CHARSET, DEFAULT(0));
 
-/*
-  This code is not being used but we will keep it as it may be
-  useful if we decide to keeep enforce_gtid_consistency.
-*/
-#ifdef NON_DISABLED_GTID
-static bool check_enforce_gtid_consistency(
-  sys_var *self, THD *thd, set_var *var)
-{
-  DBUG_ENTER("check_enforce_gtid_consistency");
-
-  my_error(ER_NOT_SUPPORTED_YET, MYF(0),
-           "ENFORCE_GTID_CONSISTENCY");
-  DBUG_RETURN(true);
-
-  if (check_super_outside_trx_outside_sf_outside_sp(self, thd, var))
-    DBUG_RETURN(true);
-
-  /*
-    @todo WL#7083: move all these checks into the set function and
-    hold the lock on global_sid_lock until the operation has
-    completed, so that we are sure a concurrent connection does not
-    change gtid_mode between check and fix.
-  */
-  if (get_gtid_mode(GTID_MODE_LOCK_NONE) >= GTID_MODE_ON_PERMISSIVE &&
-      var->value->val_int() == 0)
-  {
-    my_error(ER_GTID_MODE_2_OR_3_REQUIRES_ENFORCE_GTID_CONSISTENCY_ON, MYF(0));
-    DBUG_RETURN(true);
-  }
-  DBUG_RETURN(false);
-}
-#endif
-
-static Sys_var_mybool Sys_enforce_gtid_consistency(
+static Sys_var_enforce_gtid_consistency Sys_enforce_gtid_consistency(
        "enforce_gtid_consistency",
        "Prevents execution of statements that would be impossible to log "
        "in a transactionally safe manner. Currently, the disallowed "
        "statements include CREATE TEMPORARY TABLE inside transactions, "
        "all updates to non-transactional tables, and CREATE TABLE ... SELECT.",
-       READ_ONLY GLOBAL_VAR(enforce_gtid_consistency),
-       CMD_LINE(OPT_ARG), DEFAULT(FALSE),
-       NO_MUTEX_GUARD, NOT_IN_BINLOG
-#ifdef NON_DISABLED_GTID
-       , ON_CHECK(check_enforce_gtid_consistency));
-#else
-       );
-#endif
+       GLOBAL_VAR(_gtid_consistency_mode), CMD_LINE(OPT_ARG),
+       gtid_consistency_mode_names,
+       DEFAULT(GTID_CONSISTENCY_MODE_OFF), NO_MUTEX_GUARD, NOT_IN_BINLOG,
+       ON_CHECK(check_super_outside_trx_outside_sf_outside_sp));
 
 static Sys_var_mybool Sys_binlog_gtid_simple_recovery(
        "binlog_gtid_simple_recovery",

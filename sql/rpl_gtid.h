@@ -350,6 +350,48 @@ inline const char *get_gtid_mode_string(enum_gtid_mode_lock have_lock)
 #endif // ifndef DBUG_OFF
 
 
+/**
+  Possible values for ENFORCE_GTID_CONSISTENCY.
+*/
+enum enum_gtid_consistency_mode
+{
+  GTID_CONSISTENCY_MODE_OFF= 0,
+  GTID_CONSISTENCY_MODE_ON= 1,
+  GTID_CONSISTENCY_MODE_WARN= 2
+};
+/**
+  Strings holding the enumeration values for
+  gtid_consistency_mode_names.  Use get_gtid_consistency_mode_string
+  instead of accessing this directly.
+*/
+extern const char *gtid_consistency_mode_names[];
+/**
+  Current value for ENFORCE_GTID_CONSISTENCY.
+  Don't use this directly; use get_gtid_consistency_mode.
+*/
+extern ulong _gtid_consistency_mode;
+/**
+  Return the current value of ENFORCE_GTID_CONSISTENCY.
+
+  Caller must hold global_sid_lock.rdlock.
+*/
+enum_gtid_consistency_mode get_gtid_consistency_mode();
+/// Return the given GTID_CONSISTENCY_MODE as a string.
+inline const char *get_gtid_consistency_mode_string(enum_gtid_consistency_mode mode)
+{
+  return gtid_consistency_mode_names[(int)mode];
+}
+/**
+  Return the current value of ENFORCE_GTID_CONSISTENCY as a string.
+
+  Caller must hold global_sid_lock.rdlock.
+*/
+inline const char *get_gtid_consistency_mode_string()
+{
+  return get_gtid_consistency_mode_string(get_gtid_consistency_mode());
+}
+
+
 /// The maximum value of GNO
 const rpl_gno MAX_GNO= LLONG_MAX;
 /// The length of MAX_GNO when printed in decimal.

@@ -1,0 +1,203 @@
+--echo ---- Mixing trx/non-trx updates with binlog_direct_non_transactional_updates=$binlog_direct_non_transactional_updates: violation cases ----
+
+SET @OLD_BINLOG_DIRECT_NON_TRANSACTIONAL_UPDATES= @@SESSION.BINLOG_DIRECT_NON_TRANSACTIONAL_UPDATES;
+eval SET @@SESSION.BINLOG_DIRECT_NON_TRANSACTIONAL_UPDATES= $binlog_direct_non_transactional_updates;
+
+--let $error_code= ER_GTID_UNSAFE_NON_TRANSACTIONAL_TABLE
+--let $error_message= Statement violates GTID consistency: Updates to non-transactional tables
+
+CREATE TABLE myisam1 (a INT) ENGINE = MyISAM;
+CREATE TABLE myisam2 (a INT) ENGINE = MyISAM;
+CREATE TABLE innodb (a INT) ENGINE = InnoDB;
+
+--let $gtid_violation= 1
+
+# InnoDB and MyISAM on base tables in the same transaction or in the
+# same statement is a GTID-violation.
+
+--echo # InnoDB followed by MyISAM in one trx: Violation.
+--let $expect_counter_value= 1
+--let $pre_statement= BEGIN; INSERT INTO innodb VALUES (1)
+--let $statement= INSERT INTO myisam1 VALUES (1)
+--source extra/binlog_tests/enforce_gtid_consistency_statement.inc
+
+--echo # InnoDB and MyISAM in one autocommit statement: Violation.
+CREATE TRIGGER trig BEFORE INSERT ON innodb FOR EACH ROW INSERT INTO myisam1 VALUES (1);
+--let $statement= INSERT INTO innodb VALUES (1)
+--source extra/binlog_tests/enforce_gtid_consistency_statement.inc
+
+--echo # InnoDB and MyISAM in one statement inside trx: Violation.
+--let $expect_counter_value= 1
+--let $pre_statement= BEGIN
+--let $statement= INSERT INTO innodb VALUES (1)
+--source extra/binlog_tests/enforce_gtid_consistency_statement.inc
+DROP TRIGGER trig;
+
+# If the MyISAM update is temporary and binlog_format=row, it is not a
+# GTID-violation since the temporary updates are not logged. But if
+# binlog_format=statement or mixed, it is an violation; that is what
+# we check here.
+
+--echo # InnoDB followed by temp MyISAM in one trx, binlog_format=stm: Violation.
+SET SESSION BINLOG_FORMAT = STATEMENT;
+
+CREATE TEMPORARY TABLE tmyisam1 (a INT) ENGINE = MyISAM;
+CREATE TEMPORARY TABLE tmyisam2 (a INT) ENGINE = MyISAM;
+
+--let $expect_counter_value= 1
+--let $pre_statement= BEGIN; INSERT INTO innodb VALUES (1)
+--let $statement= INSERT INTO tmyisam1 VALUES (1)
+--source extra/binlog_tests/enforce_gtid_consistency_statement.inc
+
+--echo # InnoDB and temp MyISAM in one autocommit statement, binlog_format=stm: Violation.
+CREATE TRIGGER trig BEFORE INSERT ON innodb FOR EACH ROW INSERT INTO tmyisam1 VALUES (1);
+--let $statement= INSERT INTO innodb VALUES (1)
+--source extra/binlog_tests/enforce_gtid_consistency_statement.inc
+
+--echo # InnoDB and temp MyISAM in one statement inside trx, binlog_format=stm: Violation.
+--let $expect_counter_value= 1
+--let $pre_statement= BEGIN
+--let $statement= INSERT INTO innodb VALUES (1)
+--source extra/binlog_tests/enforce_gtid_consistency_statement.inc
+DROP TRIGGER trig;
+
+SET SESSION BINLOG_FORMAT = MIXED;
+
+--echo # InnoDB followed by temp MyISAM in one trx, binlog_format=mix using stm: Violation.
+--let $gtid_violation= 0
+--let $expect_counter_value= 0
+--let $pre_statement= BEGIN; INSERT INTO innodb VALUES (1)
+--let $statement= INSERT INTO tmyisam1 VALUES (1)
+--source extra/binlog_tests/enforce_gtid_consistency_statement.inc
+
+--echo # InnoDB and temp MyISAM in one autocommit statement, binlog_format=mix using stm: Violation.
+--let $violation= 1
+--eval CREATE TRIGGER trig BEFORE INSERT ON innodb FOR EACH ROW BEGIN INSERT INTO tmyisam1 VALUES (1); INSERT INTO tmyisam2 VALUES (1); END
+--let $statement= INSERT INTO innodb VALUES (1)
+--source extra/binlog_tests/enforce_gtid_consistency_statement.inc
+DROP TRIGGER trig;
+
+# Drop temp tables and recreate them after SET BINLOG_FORMAT, since
+# it's not allowed to have temp tables open when switching from
+# binlog_format=row to statement.
+DROP TEMPORARY TABLE tmyisam1, tmyisam2;
+
+--replace_regex /'[A-Z]*'/#/
+eval SET BINLOG_FORMAT = '$binlog_format';
+
+
+--echo ---- Mixing trx/non-trx updates with binlog_direct_non_transactional_updates=$binlog_direct_non_transactional_updates: consistent cases ----
+
+--let $gtid_violation= 0
+
+CREATE TEMPORARY TABLE tmyisam1 (a INT) ENGINE = MyISAM;
+CREATE TEMPORARY TABLE tmyisam2 (a INT) ENGINE = MyISAM;
+
+# Mixing two MyISAM updates in the same statement or transaction is
+# GTID-consistent (it is only when *both* transactional and
+# non-transactional updates are mixed that it violates
+# GTID-consistency).
+
+--echo # MyISAM followed by MyISAM, in one 'trx': Consistent, except if gtid_next=GTID, it generates ER_GTID_NEXT_TYPE_UNDEFINED_GROUP.
+--let $pre_statement= BEGIN; INSERT INTO myisam1 VALUES (1)
+--let $statement= INSERT INTO myisam2 VALUES (1)
+if ($gtid_next == 'GTID')
+{
+  --let $error_code= ER_GTID_NEXT_TYPE_UNDEFINED_GROUP
+  --let $error_message= When @@SESSION.GTID_NEXT is set to a GTID
+  --let $gtid_violation= 1
+}
+--source extra/binlog_tests/enforce_gtid_consistency_statement.inc
+--let $gtid_violation= 0
+
+--echo # MyISAM and MyISAM in one statement: Consistent.
+CREATE TRIGGER trig BEFORE INSERT ON myisam1 FOR EACH ROW INSERT INTO myisam2 VALUES (1);
+--let $statement= INSERT INTO tmyisam1 VALUES (1)
+--source extra/binlog_tests/enforce_gtid_consistency_statement.inc
+DROP TRIGGER trig;
+
+# As a special case, when MyISAM precedes InnoDB in a transaction, the
+# MyISAM is executed as if it was outside the transaction, so that is
+# GTID-consistent too.
+
+--echo # MyISAM followed by InnoDB, in one 'trx': Consistent, except if gtid_next=GTID, it generates ER_GTID_NEXT_TYPE_UNDEFINED_GROUP.
+--let $pre_statement= BEGIN; INSERT INTO myisam1 VALUES (1)
+--let $statement= INSERT INTO innodb VALUES (1)
+if ($gtid_next == 'GTID')
+{
+  --let $gtid_violation= 1
+}
+--source extra/binlog_tests/enforce_gtid_consistency_statement.inc
+--let $gtid_violation= 0
+
+# When InnoDB is mixed with *temporary* MyISAM and binlog_format=row,
+# or binlog_format=mixed and it logs in row format, it is
+# GTID-consistent since DML on temporary tables is not logged in row
+# format.
+
+# Use binlog_format=mixed and force it to switch to row format.
+SET SESSION BINLOG_FORMAT = MIXED;
+INSERT INTO tmyisam1 VALUES (RAND());
+
+--echo # InnoDB followed by temp MyISAM in one trx, binlog_format=mix using row: Consistent.
+--let $pre_statement= BEGIN; INSERT INTO innodb VALUES (1)
+--let $statement= INSERT INTO tmyisam1 VALUES (1)
+--source extra/binlog_tests/enforce_gtid_consistency_statement.inc
+
+--echo # InnoDB and temp MyISAM in one statement, binlog_format=mix using row: Consistent.
+--eval CREATE TRIGGER trig BEFORE INSERT ON innodb FOR EACH ROW BEGIN INSERT INTO tmyisam1 VALUES (1); INSERT INTO tmyisam2 VALUES (1); END
+--let $statement= INSERT INTO innodb VALUES (1)
+--source extra/binlog_tests/enforce_gtid_consistency_statement.inc
+DROP TRIGGER trig;
+
+SET BINLOG_FORMAT = ROW;
+
+--echo # InnoDB followed by temp MyISAM in one trx, binlog_format=row: Consistent.
+--let $pre_statement= BEGIN; INSERT INTO innodb VALUES (1)
+--let $statement= INSERT INTO tmyisam1 VALUES (1)
+--source extra/binlog_tests/enforce_gtid_consistency_statement.inc
+
+--echo # InnoDB and temp MyISAM in one statement, binlog_format=row: Consistent.
+--eval CREATE TRIGGER trig BEFORE INSERT ON innodb FOR EACH ROW BEGIN INSERT INTO tmyisam1 VALUES (1); INSERT INTO tmyisam2 VALUES (1); END
+--let $statement= INSERT INTO innodb VALUES (1)
+--source extra/binlog_tests/enforce_gtid_consistency_statement.inc
+DROP TRIGGER trig;
+
+# Drop temp tables and recreate them after SET BINLOG_FORMAT, since
+# it's not allowed to have temp tables open when switching from
+# binlog_format=row to statement.
+DROP TEMPORARY TABLE tmyisam1, tmyisam2;
+
+--replace_regex /'[A-Z]*'/#/
+eval SET BINLOG_FORMAT = '$binlog_format';
+
+CREATE TEMPORARY TABLE tmyisam1 (a INT) ENGINE = MyISAM;
+CREATE TEMPORARY TABLE tmyisam2 (a INT) ENGINE = MyISAM;
+
+# When SQL_LOG_BIN=0, it is GTID-consistent since nothing is logged.
+
+SET SQL_LOG_BIN = 0;
+
+--echo # InnoDB and MyISAM in one statement, SQL_LOG_BIN=0: Consistent.
+--eval CREATE TRIGGER trig BEFORE INSERT ON innodb FOR EACH ROW BEGIN INSERT INTO myisam1 VALUES (1); INSERT INTO myisam2 VALUES (1); END
+--let $statement= INSERT INTO innodb VALUES (1)
+--source extra/binlog_tests/enforce_gtid_consistency_statement.inc
+DROP TRIGGER trig;
+
+--echo # InnoDB followed by MyISAM, in one trx, SQL_LOG_BIN=0: Consistent.
+--let $pre_statement= BEGIN; INSERT INTO innodb VALUES (1)
+--let $statement= INSERT INTO myisam1 VALUES (1)
+--source extra/binlog_tests/enforce_gtid_consistency_statement.inc
+
+--echo # InnoDB and MyISAM in one statement inside trx, SQL_LOG_BIN=0: Consistent.
+--eval CREATE TRIGGER trig BEFORE INSERT ON innodb FOR EACH ROW BEGIN INSERT INTO myisam1 VALUES (1); INSERT INTO myisam2 VALUES (1); END
+--let $pre_statement= BEGIN
+--let $statement= INSERT INTO innodb VALUES (1)
+--source extra/binlog_tests/enforce_gtid_consistency_statement.inc
+DROP TRIGGER trig;
+
+SET SQL_LOG_BIN = 1;
+
+DROP TABLE myisam1, myisam2, tmyisam1, tmyisam2, innodb;
+
+SET @@SESSION.BINLOG_DIRECT_NON_TRANSACTIONAL_UPDATES= @old_binlog_direct_non_transactional_updates;

@@ -1,202 +1,159 @@
-
 # ==== Purpose ====
 #
-# Test that @@GLOBAL.ENFORCE_GTID_CONSISTENCY works as expected.
-# When this variable is set to 1, the following should hold:
+# Test that GTID-consistency violations generate warnings or errors,
+# or pass with success, as expected.
 #
-#  - CREATE TABLE ... SELECT should fail, unless it has the TEMPORARY
-#    keyword.
+# Generally, the following statement types are considered to be GTID
+# consistency violations:
 #
-#  - Non-transactional DML should fail, but non-transactional DDL
-#    should succeed.
+#  1. DML statements that mix non-transactional updates with
+#     transactional updates. (Exception: non-transactional *temporary*
+#     tables do not count, in case the statement is logged in row
+#     format.)
 #
-#  - CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE are only allowed
-#    outside transactions.
+#  2. Transactions that use non-transactional tables after having used
+#     transactional tables. (Exception: non-transactional *temporary*
+#     tables do not count, in case the statement is logged in row
+#     format.)
 #
-# The restrictions only apply when @@SESSION.SQL_LOG_BIN =
-# 0. Everything is allowed when @@SESSION.SQL_LOG_BIN = 1.
+#  3. CREATE TABLE ... SELECT.
+#
+#  4. CREATE TEMPORARY TABLE or DROP TEMPORARY TABLE within a
+#     transaction
+#
+# A GTID-violating statement can pass with success, generate a
+# warning, or generate an error, according to the following rules:
+#
+#  1. If ENFORCE_GTID_CONSISTENCY=ON, or GTID_NEXT='UUID:NUMBER', or
+#     (GTID_NEXT='AUTOMATIC' and GTID_MODE=ON or ON_PERMISSIVE),
+#     generate an error.
+#
+#  2. Otherwise, if ENFORCE_GTID_CONSISTENCY=WARN, generate a warning.
+#
+#  3. Otherwise, statement should pass without warning or error.
 #
 # ==== Implementation ====
 #
-# We cannot start the server with --enforce-gtid-consistency=1
-# initially, because check-testcase updates MyISAM tables.  Instead,
-# we let the server start with the option off, then we restart the
-# server with the option on.
+# Iterate over all values of enforce_gtid_consistency.
+# Iterate over all values of gtid_mode.
+# For each gtid_next in automatic, anonymus, and GTID:
+#   source extra/binlog_tests/enforce_gtid_consistency.test
 #
-# Once the server is running with the option on, we simply test all
-# conditions one by one.
+# extra/binlog_tests/enforce_gtid_consistency.test, in turn, sources
+# three different files:
+# extra/binlog/enforce_gtid_consistency_[temporary|create_select|trx_nontrx].test
+# The "trx_nontrx" file is sourced twice: with
+# binlog_direct_non_transactional_updates=0 and 1.
+#
+# Each of
+# extra/binlog/enforce_gtid_consistency_[temporary|create_select|trx_nontrx].test
+# contains a number of specific test scenarios. Each test scenario has
+# a statement that will be tested. For some scenarios, the expectation
+# is that the statement violates GTID consistency, for other scenarios
+# the expectation si that the statement does not violate GTID
+# consistency.  Each scenario sources
+# extra/binlog_tests/enforce_gtid_consistency_statement.inc to execute
+# the statement and verify that the outcome is as expected.
 #
 # ==== References ====
 #
-# Added in WL#3584 - Global Transaction Identifiers
+# WL#3584: Global Transaction Identifiers
+# - Created the test.
+# WL#7083: GTIDs: set gtid_mode=ON online
+# - Rewrote the test to improve coverage and test new logic for
+#   enforce_gtid_consistency.
 
-# This test will switch ENFORCE_GTID_CONSISTENCY to 1 during execution.
+# Iterates over all GTID_MODEs; not meaningful to run more than once.
 --source include/not_gtid_enabled.inc
 
-# Use this so that we can use rpl_restart_server.inc later.
+# This test uses ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT and
+# AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT, which are only define in
+# debug mode.
+--source include/have_debug.inc
+
+--source include/have_myisam.inc
+--source include/have_innodb.inc
+--let $rpl_gtid_utils= 1
 --let $rpl_server_count= 1
 --let $rpl_topology= none
---source include/have_myisam.inc
 --source include/rpl_init.inc
---source include/rpl_default_connections.inc
 
---echo ==== Variable is read-only and default is off ====
+# Disable warnings from binlog_format-unsafe statements, since they
+# confuses the logic for checking that a GTID-violation warning was
+# generated.
+SET @old_sql_notes= @@GLOBAL.SQL_NOTES;
+SET GLOBAL SQL_NOTES= 0;
+SET SESSION SQL_NOTES= 0;
+
+CALL mtr.add_suppression('Statement violates GTID consistency:');
+CALL mtr.add_suppression('Unsafe statement written to the binary log');
 
 --let $assert_text= ENFORCE_GTID_CONSISTENCY should default to 0
---let $assert_cond= [SELECT @@GLOBAL.ENFORCE_GTID_CONSISTENCY] = 0
+--let $assert_cond= @@GLOBAL.ENFORCE_GTID_CONSISTENCY = "OFF"
 --source include/assert.inc
 
---error ER_INCORRECT_GLOBAL_LOCAL_VAR
-SET @@GLOBAL.ENFORCE_GTID_CONSISTENCY = 1;
+--let $gtid_next_mask_mode= 1
+--let $gtid_next_connection= default
 
---error ER_INCORRECT_GLOBAL_LOCAL_VAR
-SET @@GLOBAL.ENFORCE_GTID_CONSISTENCY = 0;
+# For enforce_gtid_consistency = 0, 1, 2.
+--let $enforce_gtid_consistency= 0
+while ($enforce_gtid_consistency < 3)
+{
+  --echo ############ ENFORCE_GTID_CONSISTENCY=$enforce_gtid_consistency ############
+  eval SET GLOBAL ENFORCE_GTID_CONSISTENCY = $enforce_gtid_consistency;
+  SELECT @@GLOBAL.ENFORCE_GTID_CONSISTENCY;
 
---echo ==== Restart server ====
+  # For gtid_mode = [3,] 2, 1, 0.
+  # 3 is only used when enforce_gtid_consistncy=1.
+  SET GLOBAL GTID_MODE = OFF_PERMISSIVE;
+  SET GLOBAL GTID_MODE = ON_PERMISSIVE;
+  if ($enforce_gtid_consistency != 1)
+  {
+    --let $gtid_mode= 2
+  }
+  if ($enforce_gtid_consistency == 1)
+  {
+    --let $gtid_mode= 3
+    SET GLOBAL GTID_MODE = ON;
+  }
+  while ($gtid_mode >= 0)
+  {
+    --echo ******** GTID_MODE=$gtid_mode ********
+    eval SET GLOBAL GTID_MODE = $gtid_mode;
 
---let $rpl_server_number= 1
---let $rpl_server_parameters= --enforce-gtid-consistency=1
---source include/rpl_restart_server.inc
+    --echo ==== GTID_NEXT=AUTOMATIC ====
+    --let $gtid_next= AUTOMATIC
+    --let $violation_result= $enforce_gtid_consistency
+    if ($gtid_mode >= 2)
+    {
+      --let $violation_result= 1
+    }
+    --source extra/binlog_tests/enforce_gtid_consistency.test
 
---let $assert_text= ENFORCE_GTID_CONSISTENCY should be set to 1 at restart
---let $assert_cond= [SELECT @@GLOBAL.ENFORCE_GTID_CONSISTENCY] = 1
---source include/assert.inc
+    if ($gtid_mode < 3)
+    {
+      --echo ==== GTID_NEXT=ANONYMOUS ====
+      --let $gtid_next= ANONYMOUS
+      --let $violation_result= $enforce_gtid_consistency
+      --source extra/binlog_tests/enforce_gtid_consistency.test
+    }
+    if ($gtid_mode > 0)
+    {
+      --echo ==== GTID_NEXT=UUID:NUMBER ====
+      --let $gtid_next= GTID
+      --let $violation_result= 1
+      --source extra/binlog_tests/enforce_gtid_consistency.test
+    }
 
---echo ==== CREATE TABLE .... SELECT not allowed ====
+    --dec $gtid_mode
+  }
 
---error ER_GTID_UNSAFE_CREATE_SELECT
-CREATE TABLE t1 (a INT) ENGINE = InnoDB SELECT 1;
+  --inc $enforce_gtid_consistency
+}
 
---error ER_GTID_UNSAFE_CREATE_SELECT
-CREATE TABLE t1 (a INT) ENGINE = MyISAM SELECT 1;
+--connection server_1
 
-# Temporary tables should be ok
-CREATE TEMPORARY TABLE t1 (a INT) ENGINE = InnoDB SELECT 1;
-CREATE TEMPORARY TABLE t2 (a INT) ENGINE = InnoDB SELECT 1;
-DROP TEMPORARY TABLE t1, t2;
-
-# No problem if we turn off binlogging.
-SET SQL_LOG_BIN = 0;
-CREATE TABLE t1 (a INT) ENGINE = InnoDB SELECT 1;
-CREATE TABLE t2 (a INT) ENGINE = MyISAM SELECT 1;
-DROP TABLE t1;
-DROP TABLE t2;
-SET SQL_LOG_BIN = 1;
-
---echo ==== Non-transactional updates not allowed ====
---echo Non-transactional updates are allowed when row binlog format
---echo is used and all non-transactional tables on a transaction are
---echo temporary.
-
-CREATE TABLE t1 (a INT) ENGINE = MyISAM;
-CREATE TEMPORARY TABLE t2 (a INT) ENGINE = MyISAM;
-
-INSERT INTO t1 VALUES (1);
-INSERT INTO t2 VALUES (1);
-
-CREATE TABLE t3 (a INT) ENGINE = InnoDB;
---eval CREATE TRIGGER trig BEFORE INSERT ON t3 FOR EACH ROW BEGIN INSERT INTO t1 VALUES (1); END
---error ER_GTID_UNSAFE_NON_TRANSACTIONAL_TABLE
-INSERT INTO t3 VALUES (1);
-
-# No problem if we turn off binlogging.
-SET SQL_LOG_BIN = 0;
-INSERT INTO t1 VALUES (1);
-INSERT INTO t2 VALUES (1);
-INSERT INTO t3 VALUES (1);
-SET SQL_LOG_BIN = 1;
-
-ALTER TABLE t1 ADD COLUMN (b INT);
-ALTER TABLE t2 ADD COLUMN (b INT);
-DROP TABLE t1, t2, t3;
-
---echo ==== [CREATE|DROP] TEMPORARY TABLE inside a transaction ====
-
-CREATE TEMPORARY TABLE t1 (a INT) ENGINE = InnoDB;
-ALTER TABLE t1 ADD COLUMN (b INT);
-DROP TABLE t1;
-
-CREATE TEMPORARY TABLE t1 (a INT) ENGINE = InnoDB;
-DROP TEMPORARY TABLE t1;
-
-# CREATE TEMPORARY TABLE is not allowed in a transaction.
-BEGIN;
---error ER_GTID_UNSAFE_CREATE_DROP_TEMPORARY_TABLE_IN_TRANSACTION
-CREATE TEMPORARY TABLE t1 (a INT) ENGINE = InnoDB;
-COMMIT;
-
-SET AUTOCOMMIT = 0;
---error ER_GTID_UNSAFE_CREATE_DROP_TEMPORARY_TABLE_IN_TRANSACTION
-CREATE TEMPORARY TABLE t1 (a INT) ENGINE = InnoDB;
-
-SET AUTOCOMMIT = 1;
-CREATE TEMPORARY TABLE t1 (a INT) ENGINE = InnoDB;
-
-# ALTER TABLE is not affected because it always does implicit commit.
-BEGIN;
-ALTER TABLE t1 ADD COLUMN (b INT);
-COMMIT;
-
-SET AUTOCOMMIT = 0;
-ALTER TABLE t1 ADD COLUMN (c INT);
-
-SET AUTOCOMMIT = 1;
-ALTER TABLE t1 ADD COLUMN (d INT);
-
-# DROP TEMPORARY TABLE is not allowed inside transaction.
-BEGIN;
---error ER_GTID_UNSAFE_CREATE_DROP_TEMPORARY_TABLE_IN_TRANSACTION
-DROP TEMPORARY TABLE t1;
-COMMIT;
-
-SET AUTOCOMMIT = 0;
---error ER_GTID_UNSAFE_CREATE_DROP_TEMPORARY_TABLE_IN_TRANSACTION
-DROP TEMPORARY TABLE t1;
-COMMIT;
-
-# DROP TEMPORARY TABLE is allowed outside transactions.
-SET AUTOCOMMIT = 1;
-DROP TEMPORARY TABLE t1;
-
-# DROP TABLE is not affected because it always does an implicit commit.
-CREATE TEMPORARY TABLE t1 (a INT) ENGINE = InnoDB;
-BEGIN;
-DROP TABLE t1;
-COMMIT;
-
-CREATE TEMPORARY TABLE t1 (a INT) ENGINE = InnoDB;
-SET AUTOCOMMIT = 0;
-DROP TABLE t1;
-SET AUTOCOMMIT = 1;
-
-# No problem if we turn off binlogging.
-SET SQL_LOG_BIN = 0;
-BEGIN;
-CREATE TEMPORARY TABLE t1 (a INT) ENGINE = InnoDB;
-CREATE TEMPORARY TABLE t2 (a INT) ENGINE = MyISAM;
-COMMIT;
-BEGIN;
-DROP TEMPORARY TABLE t1;
-DROP TEMPORARY TABLE t2;
-COMMIT;
-SET AUTOCOMMIT = 0;
-CREATE TEMPORARY TABLE t1 (a INT) ENGINE = InnoDB;
-CREATE TEMPORARY TABLE t2 (a INT) ENGINE = MyISAM;
-COMMIT;
-DROP TEMPORARY TABLE t1;
-DROP TEMPORARY TABLE t2;
-COMMIT;
-SET AUTOCOMMIT = 1;
-SET SQL_LOG_BIN = 1;
-
-# Revert to default enforce-gtid-consistency value
---echo ==== Restart server ====
---let $rpl_server_number= 1
---let $rpl_server_parameters= --enforce-gtid-consistency=0
---source include/rpl_restart_server.inc
-
---let $assert_text= ENFORCE_GTID_CONSISTENCY should be set to 0 at restart
---let $assert_cond= [SELECT @@GLOBAL.ENFORCE_GTID_CONSISTENCY] = 0
---source include/assert.inc
+SET GLOBAL ENFORCE_GTID_CONSISTENCY = OFF;
+SET GLOBAL SQL_NOTES = @old_sql_notes;
 
 --source include/rpl_end.inc
