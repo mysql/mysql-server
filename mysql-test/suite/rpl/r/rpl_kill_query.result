@@ -45,6 +45,7 @@ include/assert.inc [Nothing should be inserted on slave]
 ---- Clean up ----
 include/stop_slave_io.inc
 RESET SLAVE;
+RESET MASTER;
 DROP DATABASE db1;
 [connection master]
 RESET MASTER;
