@@ -18063,8 +18063,6 @@ void Dbdih::allNodesLcpCompletedLab(Signal* signal)
   
   if (c_lcpState.lcpStatus != LCP_TAB_SAVED) {
     jam();
-    ndbrequire(!c_lcpState.m_LCP_COMPLETE_REP_Counter_LQH.done() ||
-                c_lcpState.lcpStatus == LCP_TAB_COMPLETED);
     /**
      * We have not sent LCP_COMPLETE_REP to master DIH yet
      */
