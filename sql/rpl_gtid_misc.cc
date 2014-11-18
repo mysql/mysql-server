@@ -72,6 +72,22 @@ enum_gtid_mode get_gtid_mode(enum_gtid_mode_lock have_lock)
 #endif
 
 
+ulong _gtid_consistency_mode;
+const char *gtid_consistency_mode_names[]=
+{"OFF", "ON", "WARN", NullS};
+TYPELIB gtid_consistency_mode_typelib=
+{ array_elements(gtid_consistency_mode_names) - 1, "", gtid_consistency_mode_names, NULL };
+
+
+#ifndef MYSQL_CLIENT
+enum_gtid_consistency_mode get_gtid_consistency_mode()
+{
+  global_sid_lock->assert_some_lock();
+  return (enum_gtid_consistency_mode)_gtid_consistency_mode;
+}
+#endif
+
+
 enum_return_status Gtid::parse(Sid_map *sid_map, const char *text)
 {
   DBUG_ENTER("Gtid::parse");

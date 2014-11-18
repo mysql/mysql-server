@@ -1,0 +1,14 @@
+# ==== Purpose ====
+#
+# Test many GTID-consistency violations.  This file is sourced from
+# binlog_enforce_gtid_consistency.test; see that file for details.
+
+--source extra/binlog_tests/enforce_gtid_consistency_create_select.test
+
+--let $binlog_direct_non_transactional_updates= 0
+--source extra/binlog_tests/enforce_gtid_consistency_trx_nontrx.test
+
+--let $binlog_direct_non_transactional_updates= 1
+--source extra/binlog_tests/enforce_gtid_consistency_trx_nontrx.test
+
+--source extra/binlog_tests/enforce_gtid_consistency_temporary.test

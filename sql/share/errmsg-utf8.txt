@@ -6675,7 +6675,7 @@ ER_VARIABLE_NOT_SETTABLE_IN_TRANSACTION
 ER_GTID_NEXT_IS_NOT_IN_GTID_NEXT_LIST
   eng "The system variable @@SESSION.GTID_NEXT has the value %.200s, which is not listed in @@SESSION.GTID_NEXT_LIST."
 
-ER_CANT_CHANGE_GTID_NEXT_IN_TRANSACTION_WHEN_GTID_NEXT_LIST_IS_NULL
+ER_CANT_CHANGE_GTID_NEXT_IN_TRANSACTION
   eng "The system variable @@SESSION.GTID_NEXT cannot change inside a transaction."
 
 ER_SET_STATEMENT_CANNOT_INVOKE_FUNCTION
@@ -6708,8 +6708,8 @@ ER_AUTO_POSITION_REQUIRES_GTID_MODE_NOT_OFF
 ER_CANT_DO_IMPLICIT_COMMIT_IN_TRX_WHEN_GTID_NEXT_IS_SET
   eng "Cannot execute statements with implicit commit inside a transaction when @@SESSION.GTID_NEXT == 'UUID:NUMBER'."
 
-ER_GTID_MODE_2_OR_3_REQUIRES_ENFORCE_GTID_CONSISTENCY_ON
-  eng "@@GLOBAL.GTID_MODE = ON or ON_PERMISSIVE requires @@GLOBAL.ENFORCE_GTID_CONSISTENCY = 1."
+ER_GTID_MODE_ON_REQUIRES_ENFORCE_GTID_CONSISTENCY_ON
+  eng "GTID_MODE = ON requires ENFORCE_GTID_CONSISTENCY = ON."
 
 ER_GTID_MODE_REQUIRES_BINLOG
   eng "@@GLOBAL.GTID_MODE = ON or ON_PERMISSIVE or OFF_PERMISSIVE requires --log-bin and --log-slave-updates."
@@ -6727,13 +6727,13 @@ ER_FOUND_GTID_EVENT_WHEN_GTID_MODE_IS_OFF__UNUSED
   eng "Found a Gtid_log_event when @@GLOBAL.GTID_MODE = OFF."
 
 ER_GTID_UNSAFE_NON_TRANSACTIONAL_TABLE
-  eng "When @@GLOBAL.ENFORCE_GTID_CONSISTENCY = 1, updates to non-transactional tables can only be done in either autocommitted statements or single-statement transactions, and never in the same statement as updates to transactional tables."
+  eng "Statement violates GTID consistency: Updates to non-transactional tables can only be done in either autocommitted statements or single-statement transactions, and never in the same statement as updates to transactional tables."
 
 ER_GTID_UNSAFE_CREATE_SELECT
-  eng "CREATE TABLE ... SELECT is forbidden when @@GLOBAL.ENFORCE_GTID_CONSISTENCY = 1."
+  eng "Statement violates GTID consistency: CREATE TABLE ... SELECT."
 
 ER_GTID_UNSAFE_CREATE_DROP_TEMPORARY_TABLE_IN_TRANSACTION
- eng "When @@GLOBAL.ENFORCE_GTID_CONSISTENCY = 1, the statements CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can be executed in a non-transactional context only, and require that AUTOCOMMIT = 1."
+  eng "Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context."
 
 ER_GTID_MODE_CAN_ONLY_CHANGE_ONE_STEP_AT_A_TIME
   eng "The value of @@GLOBAL.GTID_MODE can only be changed one step at a time: OFF <-> OFF_PERMISSIVE <-> ON_PERMISSIVE <-> ON. Also note that this value must be stepped up or down simultaneously on all servers. See the Manual for instructions."

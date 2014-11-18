@@ -42,5 +42,5 @@ SET @@global.gtid_purged= '11111111-1111-1111-1111-111111111111:3';
 SELECT @@global.gtid_purged;
 
 #
-# See rpl_gtid_purged.test for a comprehensive test case.
+# See rpl_gtid_purged_maintained.test for a comprehensive test case.
 #

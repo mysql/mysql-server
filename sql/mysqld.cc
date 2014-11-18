@@ -391,7 +391,6 @@ ulong binlog_checksum_options;
 my_bool opt_master_verify_checksum= 0;
 my_bool opt_slave_sql_verify_checksum= 1;
 const char *binlog_format_names[]= {"MIXED", "STATEMENT", "ROW", NullS};
-my_bool enforce_gtid_consistency;
 my_bool binlog_gtid_simple_recovery;
 ulong binlog_error_action;
 const char *binlog_error_action_list[]= {"IGNORE_ERROR", "ABORT_SERVER", NullS};
@@ -4216,7 +4215,8 @@ a file name for --log-bin-index option", opt_binlog_index_name);
     "data directory and creates system tables.");
     _gtid_mode= GTID_MODE_OFF;
   }
-  if (gtid_mode == GTID_MODE_ON && !enforce_gtid_consistency)
+  if (gtid_mode == GTID_MODE_ON &&
+      _gtid_consistency_mode != GTID_CONSISTENCY_MODE_ON)
   {
     sql_print_error("GTID_MODE = ON requires ENFORCE_GTID_CONSISTENCY = ON.");
     unireg_abort(1);

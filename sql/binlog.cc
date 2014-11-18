@@ -9368,7 +9368,7 @@ int THD::decide_logging_format(TABLE_LIST *tables)
       clear_binlog_local_stmt_filter();
     }
 
-    if (!error && enforce_gtid_consistency &&
+    if (!error &&
         !is_dml_gtid_compatible(write_to_some_transactional_table,
                                 write_to_some_non_transactional_table,
                                 write_all_non_transactional_are_tmp_tables))
@@ -9468,7 +9468,68 @@ int THD::decide_logging_format(TABLE_LIST *tables)
 }
 
 
-bool THD::is_ddl_gtid_compatible() const
+/**
+  Given that a possible violation of gtid consistency has happened,
+  checks if gtid-inconsistencies are forbidden by the current value of
+  ENFORCE_GTID_CONSISTENCY and GTID_MODE. If forbidden, generates
+  error or warning accordingly.
+
+  @param thd The thread that has issued the GTID-violating statement.
+
+  @param error_code The error code to use, if error or warning is to
+  be generated.
+
+  @retval false Error was generated.
+  @retval true No error was generated (possibly a warning was generated).
+*/
+static bool handle_gtid_consistency_violation(THD *thd, int error_code)
+{
+  DBUG_ENTER("handle_gtid_consistency_violation");
+
+  enum_group_type gtid_next_type= thd->variables.gtid_next.type;
+  global_sid_lock->rdlock();
+  enum_gtid_consistency_mode gtid_consistency_mode=
+    get_gtid_consistency_mode();
+  enum_gtid_mode gtid_mode= get_gtid_mode(GTID_MODE_LOCK_SID);
+  global_sid_lock->unlock();
+
+  DBUG_PRINT("info", ("gtid_next.type=%d gtid_mode=%s "
+                      "gtid_consistency_mode=%d error=%d query=%s",
+                      gtid_next_type,
+                      get_gtid_mode_string(gtid_mode),
+                      gtid_consistency_mode,
+                      error_code,
+                      thd->query().str));
+
+  /*
+    GTID violations should generate error if:
+    - GTID_MODE=ON or ON_PERMISSIVE and GTID_NEXT='AUTOMATIC' (since the
+      transaction is expected to commit using a GTID), or
+    - GTID_NEXT='UUID:NUMBER' (since the transaction is expected to
+      commit usinga GTID), or
+    - ENFORCE_GTID_CONSISTENCY=ON.
+  */
+  if ((gtid_next_type == AUTOMATIC_GROUP &&
+       gtid_mode >= GTID_MODE_ON_PERMISSIVE) ||
+      gtid_next_type == GTID_GROUP ||
+      gtid_consistency_mode == GTID_CONSISTENCY_MODE_ON)
+  {
+    my_error(error_code, MYF(0));
+    DBUG_RETURN(false);
+  }
+  else if (gtid_consistency_mode == GTID_CONSISTENCY_MODE_WARN)
+  {
+    // Need to print to log so that replication admin knows when users
+    // have adjusted their workloads.
+    sql_print_warning("%s", ER(error_code));
+    // Need to print to client so that users can adjust their workload.
+    push_warning(thd, Sql_condition::SL_WARNING, error_code, ER(error_code));
+  }
+  DBUG_RETURN(true);
+}
+
+
+bool THD::is_ddl_gtid_compatible()
 {
   DBUG_ENTER("THD::is_ddl_gtid_compatible");
 
@@ -9476,6 +9537,15 @@ bool THD::is_ddl_gtid_compatible() const
   // doable by SUPER), then no problem, we can execute any statement.
   if ((variables.option_bits & OPTION_BIN_LOG) == 0)
     DBUG_RETURN(true);
+
+  DBUG_PRINT("info",
+             ("SQLCOM_CREATE:%d CREATE-TMP:%d SELECT:%d SQLCOM_DROP:%d DROP-TMP:%d trx:%d",
+              lex->sql_command == SQLCOM_CREATE_TABLE,
+              lex->create_info.options & HA_LEX_CREATE_TMP_TABLE,
+              lex->select_lex->item_list.elements,
+              lex->sql_command == SQLCOM_DROP_TABLE,
+              lex->drop_temporary,
+              in_multi_stmt_transaction_mode()));
 
   if (lex->sql_command == SQLCOM_CREATE_TABLE &&
       !(lex->create_info.options & HA_LEX_CREATE_TMP_TABLE) &&
@@ -9488,12 +9558,12 @@ bool THD::is_ddl_gtid_compatible() const
       and then written to the slave's binary log as two separate
       transactions with the same GTID.
     */
-    my_error(ER_GTID_UNSAFE_CREATE_SELECT, MYF(0));
-    DBUG_RETURN(false);
+    DBUG_RETURN(handle_gtid_consistency_violation(
+      this, ER_GTID_UNSAFE_CREATE_SELECT));
   }
-  if ((lex->sql_command == SQLCOM_CREATE_TABLE &&
-       (lex->create_info.options & HA_LEX_CREATE_TMP_TABLE) != 0) ||
-      (lex->sql_command == SQLCOM_DROP_TABLE && lex->drop_temporary))
+  else if ((lex->sql_command == SQLCOM_CREATE_TABLE &&
+            (lex->create_info.options & HA_LEX_CREATE_TMP_TABLE) != 0) ||
+           (lex->sql_command == SQLCOM_DROP_TABLE && lex->drop_temporary))
   {
     /*
       [CREATE|DROP] TEMPORARY TABLE is unsafe to execute
@@ -9502,20 +9572,17 @@ bool THD::is_ddl_gtid_compatible() const
       GTID even if the transaction is rolled back.
     */
     if (in_multi_stmt_transaction_mode())
-    {
-      my_error(ER_GTID_UNSAFE_CREATE_DROP_TEMPORARY_TABLE_IN_TRANSACTION,
-               MYF(0));
-      DBUG_RETURN(false);
-    }
+      DBUG_RETURN(handle_gtid_consistency_violation(
+        this, ER_GTID_UNSAFE_CREATE_DROP_TEMPORARY_TABLE_IN_TRANSACTION));
   }
   DBUG_RETURN(true);
 }
 
 
 bool
-THD::is_dml_gtid_compatible(bool transactional_table,
-                            bool non_transactional_table,
-                            bool non_transactional_tmp_tables) const
+THD::is_dml_gtid_compatible(bool some_transactional_table,
+                            bool some_non_transactional_table,
+                            bool non_transactional_tables_are_tmp)
 {
   DBUG_ENTER("THD::is_dml_gtid_compatible(bool, bool, bool)");
 
@@ -9541,13 +9608,24 @@ THD::is_dml_gtid_compatible(bool transactional_table,
     old tests that were not written with the restrictions of GTIDs in
     mind.
   */
-  if (non_transactional_table &&
-      (transactional_table || trans_has_updated_trans_table(this)) &&
-      !(non_transactional_tmp_tables && is_current_stmt_binlog_format_row()) &&
+  DBUG_PRINT("info", ("some_non_transactional_table=%d "
+                      "some_transactional_table=%d "
+                      "trans_has_updated_trans_table=%d "
+                      "non_transactional_tables_are_tmp=%d "
+                      "is_current_stmt_binlog_format_row=%d",
+                      some_non_transactional_table,
+                      some_transactional_table,
+                      trans_has_updated_trans_table(this),
+                      non_transactional_tables_are_tmp,
+                      is_current_stmt_binlog_format_row()));
+  if (some_non_transactional_table &&
+      (some_transactional_table || trans_has_updated_trans_table(this)) &&
+      !(non_transactional_tables_are_tmp &&
+        is_current_stmt_binlog_format_row()) &&
       !DBUG_EVALUATE_IF("allow_gtid_unsafe_non_transactional_updates", 1, 0))
   {
-    my_error(ER_GTID_UNSAFE_NON_TRANSACTIONAL_TABLE, MYF(0));
-    DBUG_RETURN(false);
+    DBUG_RETURN(handle_gtid_consistency_violation(
+      this, ER_GTID_UNSAFE_NON_TRANSACTIONAL_TABLE));
   }
 
   DBUG_RETURN(true);
