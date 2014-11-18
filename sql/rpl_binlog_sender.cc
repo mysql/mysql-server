@@ -779,7 +779,7 @@ int Binlog_sender::send_format_description_event(IO_CACHE *log_cache,
   }
 
   m_event_checksum_alg=
-        Log_event_footer::get_checksum_alg((const char *)event_ptr, event_len);
+    Log_event_footer::get_checksum_alg((const char *)event_ptr, event_len);
 
   DBUG_ASSERT(m_event_checksum_alg < binary_log::BINLOG_CHECKSUM_ALG_ENUM_END ||
               m_event_checksum_alg == binary_log::BINLOG_CHECKSUM_ALG_UNDEF);
