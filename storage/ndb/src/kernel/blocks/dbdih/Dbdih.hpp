@@ -992,6 +992,7 @@ private:
   void queue_lcp_complete_rep(Signal *signal, Uint32 lcpId);
   void init_lcp_pausing_module(void);
   bool check_pause_state_sanity(void);
+  void check_pause_state_lcp_idle(void);
 
   /**
    * Keep track of who sent the current pause lcp request. If this isn't the
@@ -1021,6 +1022,12 @@ private:
   bool c_pause_lcp_requested;
   bool c_old_node_waiting_for_lcp_end;
 
+  /**
+   * Last LCP id we heard LCP_COMPLETE_REP from local LQH. We record this
+   * to ensure we only get one LCP_COMPLETE_REP per LCP from our local
+   * LQH.
+   */
+  Uint32 c_last_id_lcp_complete_rep;
   /**
    * While we have outstanding PAUSE_LCP_REQ signals, c_pauseAction
    * tells us whether the outstanding action is pause or unpause.
