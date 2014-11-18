@@ -147,3 +147,11 @@ DROP TABLE t1;
 #
 # End of 5.3 tests
 #
+SELECT UNCOMPRESS(CAST(0 AS BINARY(5)));
+UNCOMPRESS(CAST(0 AS BINARY(5)))
+NULL
+Warnings:
+Warning	1259	ZLIB: Input data corrupted
+#
+# End of 5.5 tests
+#

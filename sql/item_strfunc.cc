@@ -3720,7 +3720,7 @@ String *Item_func_uncompress::val_str(String *str)
     goto err;
 
   if ((err= uncompress((Byte*)buffer.ptr(), &new_size,
-		       ((const Bytef*)res->ptr())+4,res->length())) == Z_OK)
+		       ((const Bytef*)res->ptr())+4,res->length()-4)) == Z_OK)
   {
     buffer.length((uint32) new_size);
     return &buffer;

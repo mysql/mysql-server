@@ -136,3 +136,12 @@ DROP TABLE t1;
 --echo #
 --echo # End of 5.3 tests
 --echo #
+
+#
+# MDEV-4513 Valgrind warnings (Conditional jump or move depends on uninitialised value) in inflate on UNCOMPRESS
+#
+SELECT UNCOMPRESS(CAST(0 AS BINARY(5)));
+
+--echo #
+--echo # End of 5.5 tests
+--echo #
