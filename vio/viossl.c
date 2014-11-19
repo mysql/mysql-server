@@ -144,7 +144,7 @@ int vio_ssl_close(Vio *vio)
       break;
     default: /* Shutdown failed */
       DBUG_PRINT("vio_error", ("SSL_shutdown() failed, error: %d",
-                               SSL_get_error(ssl, r)));
+                               (int)SSL_get_error(ssl, r)));
       break;
     }
   }

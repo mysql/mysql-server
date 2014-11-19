@@ -200,6 +200,8 @@ new_VioSSLFd(const char *key_file, const char *cert_file,
     DBUG_RETURN(0);
   }
 
+  SSL_CTX_set_options(ssl_fd->ssl_context, SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3);
+
   /*
     Set the ciphers that can be used
     NOTE: SSL_CTX_set_cipher_list will return 0 if
