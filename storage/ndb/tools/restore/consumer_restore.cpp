@@ -1837,6 +1837,46 @@ bool is_array(NDBCOL::Type type)
 }
 
 bool
+BackupRestore::check_blobs(TableS & tableS)
+{
+  /**
+   * For blob tables, check if there is a conversion on any PK of the main table.
+   * If there is, the blob table PK needs the same conversion as the main table PK.
+   * Copy the conversion to the blob table. 
+   */
+  if(match_blob(tableS.getTableName()) == -1)
+    return true;
+
+  int mainColumnId = tableS.getMainColumnId();
+  const TableS *mainTableS = tableS.getMainTable();
+  if(mainTableS->m_dictTable->getColumn(mainColumnId)->getBlobVersion() == NDB_BLOB_V1)
+    return true; /* only to make old ndb_restore_compat* tests on v1 blobs pass */
+
+  /* check all PK columns in v2 blob table */
+  for(int i=0; i<tableS.m_dictTable->getNoOfColumns(); i++)
+  {
+    NDBCOL *col = tableS.m_dictTable->getColumn(i);
+    AttributeDesc *attrDesc = tableS.getAttributeDesc(col->getAttrId());
+  
+    /* get corresponding pk column in main table */
+    NDBCOL *mainCol = mainTableS->m_dictTable->getColumn(col->getName());
+    if(!mainCol || !mainCol->getPrimaryKey()) 
+      return true; /* no more PKs */
+
+    int mainTableAttrId = mainCol->getAttrId();
+    AttributeDesc *mainTableAttrDesc = mainTableS->getAttributeDesc(mainTableAttrId);
+    if(mainTableAttrDesc->convertFunc)
+    {
+      /* copy convertFunc from main table PK to blob table PK */
+      attrDesc->convertFunc = mainTableAttrDesc->convertFunc;     
+      attrDesc->parameter = malloc(mainTableAttrDesc->parameterSz);
+      memcpy(attrDesc->parameter, mainTableAttrDesc->parameter, mainTableAttrDesc->parameterSz);
+    }
+  }
+  return true;
+}
+
+bool
 BackupRestore::table_compatible_check(TableS & tableS)
 {
   if (!m_restore)
@@ -2064,6 +2104,7 @@ BackupRestore::table_compatible_check(TableS & tableS)
       s->n_new = m_attrSize * m_arraySize;
       memset(s->new_row, 0 , m_attrSize * m_arraySize + 2);
       attr_desc->parameter = s;
+      attr_desc->parameterSz = size + 2;
     }
     else
     {
@@ -2075,6 +2116,7 @@ BackupRestore::table_compatible_check(TableS & tableS)
         exitHandler();
       }
       memset(attr_desc->parameter, 0, size + 2);
+      attr_desc->parameterSz = size + 2;
     }
 
     info << "Data for column "
