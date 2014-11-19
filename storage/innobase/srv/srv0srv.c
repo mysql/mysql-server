@@ -749,6 +749,13 @@ static ulint	srv_meter_high_water[SRV_MASTER + 1];
 static ulint	srv_meter_high_water2[SRV_MASTER + 1];
 static ulint	srv_meter_foreground[SRV_MASTER + 1];
 #endif
+/* The number of rows modified before we calculate new statistics (default 0
+= current limits) */
+UNIV_INTERN unsigned long long srv_stats_modified_counter = 0;
+
+/* Enable traditional statistic calculation based on number of configured
+pages default false. */
+UNIV_INTERN my_bool	srv_stats_sample_traditional = FALSE;
 
 /* The following values give info about the activity going on in
 the database. They are protected by the server mutex. The arrays

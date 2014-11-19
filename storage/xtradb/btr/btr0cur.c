@@ -3944,16 +3944,29 @@ btr_estimate_number_of_different_key_vals(
 		ut_error;
         }
 
-	/* It makes no sense to test more pages than are contained
-	in the index, thus we lower the number if it is too high */
-	if (srv_stats_sample_pages > index->stat_index_size) {
+	if (srv_stats_sample_traditional) {
+		/* It makes no sense to test more pages than are contained
+		in the index, thus we lower the number if it is too high */
+		if (srv_stats_sample_pages > index->stat_index_size) {
+			if (index->stat_index_size > 0) {
+				n_sample_pages = index->stat_index_size;
+			} else {
+				n_sample_pages = 1;
+			}
+		} else {
+			n_sample_pages = srv_stats_sample_pages;
+		}
+	} else {
+		/* New logaritmic number of pages that are estimated. We
+		first pick minimun from srv_stats_sample_pages and number of
+		pages on index. Then we pick maximum from previous number of
+		pages and log2(number of index pages) * srv_stats_sample_pages. */
 		if (index->stat_index_size > 0) {
-			n_sample_pages = index->stat_index_size;
+			n_sample_pages = ut_max(ut_min(srv_stats_sample_pages, index->stat_index_size),
+				                log2(index->stat_index_size)*srv_stats_sample_pages);
 		} else {
 			n_sample_pages = 1;
 		}
-	} else {
-		n_sample_pages = srv_stats_sample_pages;
 	}
 
 	/* We sample some pages in the index to get an estimate */

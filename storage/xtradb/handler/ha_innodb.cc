@@ -13107,6 +13107,16 @@ static MYSQL_SYSVAR_ULONGLONG(stats_sample_pages, srv_stats_sample_pages,
   "The number of index pages to sample when calculating statistics (default 8)",
   NULL, NULL, 8, 1, ~0ULL, 0);
 
+static MYSQL_SYSVAR_ULONGLONG(stats_modified_counter, srv_stats_modified_counter,
+  PLUGIN_VAR_RQCMDARG,
+  "The number of rows modified before we calculate new statistics (default 0 = current limits)",
+  NULL, NULL, 0, 0, ~0ULL, 0);
+
+static MYSQL_SYSVAR_BOOL(stats_traditional, srv_stats_sample_traditional,
+  PLUGIN_VAR_RQCMDARG,
+  "Enable traditional statistic calculation based on number of configured pages (default false)",
+  NULL, NULL, FALSE);
+
 static MYSQL_SYSVAR_ULINT(stats_auto_update, srv_stats_auto_update,
   PLUGIN_VAR_RQCMDARG,
   "Enable/Disable InnoDB's auto update statistics of indexes. "
@@ -13680,6 +13690,8 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(persistent_stats_root_page),
 #endif
   MYSQL_SYSVAR(stats_sample_pages),
+  MYSQL_SYSVAR(stats_modified_counter),
+  MYSQL_SYSVAR(stats_traditional),
   MYSQL_SYSVAR(adaptive_hash_index),
   MYSQL_SYSVAR(adaptive_hash_index_partitions),
   MYSQL_SYSVAR(stats_method),

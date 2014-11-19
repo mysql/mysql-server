@@ -211,6 +211,8 @@ extern ulint	srv_fast_shutdown;	 /* If this is 1, do not do a
 extern ibool	srv_innodb_status;
 
 extern unsigned long long	srv_stats_sample_pages;
+extern unsigned long long	srv_stats_modified_counter;
+extern my_bool			srv_stats_sample_traditional;
 
 extern ibool	srv_use_doublewrite_buf;
 extern ibool	srv_use_atomic_writes;
