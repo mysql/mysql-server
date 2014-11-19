@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2012, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -586,6 +586,16 @@ Dbspj::execNODE_FAILREP(Signal* signal)
 
   c_alive_nodes.bitANDC(failed);
 
+  /* Clean up possibly fragmented signals being received or sent */
+  for (Uint32 node = 1; node < MAX_NDB_NODES; node++)
+  {
+    if (failed.get(node))
+    {
+      jam();
+      simBlockNodeFailure(signal, node);
+    }//if
+  }//for
+
   signal->theData[0] = 1;
   signal->theData[1] = 0;
   failed.copyto(NdbNodeBitmask::Size, signal->theData + 2);
@@ -603,7 +613,15 @@ Dbspj::execAPI_FAILREQ(Signal* signal)
   /**
    * We only need to care about lookups
    *   as SCAN's are aborted by DBTC
+   *
+   * As SPJ does not receive / send fragmented signals 
+   *   directly to API nodes, simBlockNodeFailure()
+   *   should not really be required - assert this.
    */
+  Uint32 elementsCleaned = simBlockNodeFailure(signal, failedApiNode);
+  ndbassert(elementsCleaned == 0); // As SPJ has no fragmented API signals
+  (void) elementsCleaned;          // Avoid compiler error
+
   signal->theData[0] = failedApiNode;
   signal->theData[1] = reference();
   sendSignal(ref, GSN_API_FAILCONF, signal, 2, JBB);
@@ -5054,9 +5072,24 @@ Dbspj::scanFrag_send(Signal* signal,
   }
 
   ndbrequire(refToNode(ref) == getOwnNodeId());
-  sendSignal(ref, GSN_SCAN_FRAGREQ, signal,
-             NDB_ARRAY_SIZE(treeNodePtr.p->m_scanfrag_data.m_scanFragReq),
-             JBB, &handle);
+  {
+    FragmentSendInfo fragSendInfo;
+    // See comment about fragmented send pattern in ::scanIndex_send()
+    sendFirstFragment(fragSendInfo,
+                      ref,
+                      GSN_SCAN_FRAGREQ,
+                      signal,
+                      NDB_ARRAY_SIZE(treeNodePtr.p->m_scanfrag_data.m_scanFragReq),
+                      JBB,
+                      &handle, false);
+
+    while (fragSendInfo.m_status != FragmentSendInfo::SendComplete) // SendNotComplete
+    {
+      jam();
+      // Send remaining fragments
+      sendNextSegmentedFragment(signal, fragSendInfo);
+    }
+  }
 
   requestPtr.p->m_completed_nodes.clear(treeNodePtr.p->m_node_no);
   requestPtr.p->m_outstanding++;
@@ -6516,8 +6549,6 @@ Dbspj::scanIndex_send(Signal* signal,
         continue;
       }
 
-      SectionHandle handle(this);
-
       Uint32 attrInfoPtrI = treeNodePtr.p->m_send.m_attrInfoPtrI;
 
       /**
@@ -6525,6 +6556,7 @@ Dbspj::scanIndex_send(Signal* signal,
        */
       req->senderData = fragPtr.i;
       req->fragmentNoKeyLen = fragPtr.p->m_fragId;
+      req->variableData[0] = batchRange;
 
       // Test for online downgrade.
       if (unlikely(ref != 0 && 
@@ -6595,7 +6627,7 @@ Dbspj::scanIndex_send(Signal* signal,
         }
       }
 
-      req->variableData[0] = batchRange;
+      SectionHandle handle(this);
       getSection(handle.m_ptr[0], attrInfoPtrI);
       getSection(handle.m_ptr[1], keyInfoPtrI);
       handle.m_cnt = 2;
@@ -6620,41 +6652,65 @@ Dbspj::scanIndex_send(Signal* signal,
         c_Counters.incr_counter(CI_REMOTE_RANGE_SCANS_SENT, 1);
       }
 
-      if (prune && !repeatable)
-      {
-        /**
-         * For a non-repeatable pruned scan, key info is unique for each
-         * fragment and therefore cannot be reused, so we release key info
-         * right away.
-         */
-        jam();
+      /**
+       * For a non-repeatable pruned scan, key info is unique for each
+       * fragment and therefore cannot be reused, so we release key info
+       * right away.
+       */
 
-        if (ERROR_INSERTED(17110) ||
-           (ERROR_INSERTED(17111) && treeNodePtr.p->isLeaf()) ||
-           (ERROR_INSERTED(17112) && treeNodePtr.p->m_parentPtrI != RNIL))
+      if (ERROR_INSERTED(17110) ||
+         (ERROR_INSERTED(17111) && treeNodePtr.p->isLeaf()) ||
+         (ERROR_INSERTED(17112) && treeNodePtr.p->m_parentPtrI != RNIL))
+      {
+        jam();
+        CLEAR_ERROR_INSERT_VALUE;
+        ndbout_c("Injecting invalid schema version error at line %d file %s",
+                 __LINE__,  __FILE__);
+        // Provoke 'Invalid schema version' in order to receive SCAN_FRAGREF
+        req->schemaVersion++;
+      }
+
+      /**
+       * To reduce the copy burden we want to keep hold of the
+       * AttrInfo and KeyInfo sections after sending them to 
+       * LQH.  To do this we perform the fragmented send inline, 
+       * so that all fragments are sent *now*.  This avoids any 
+       * problems with the fragmented send CONTINUE 'thread' using 
+       * the section while we hold or even release it.  The
+       * signal receiver can still take realtime breaks when 
+       * receiving.
+       * 
+       * Indicate to sendFirstFragment that we want to keep the
+       * fragments, so it must not free them, unless this is the
+       * last request in which case they can be freed. If the
+       * last request is a local send then a copy is avoided.
+       */
+      const bool release = prune && !repeatable;
+      {
+        FragmentSendInfo fragSendInfo;
+        sendFirstFragment(fragSendInfo,
+                          ref,
+                          GSN_SCAN_FRAGREQ,
+                          signal,
+                          NDB_ARRAY_SIZE(data.m_scanFragReq),
+                          JBB,
+                          &handle,
+                          !release);  // Keep sent sections unless
+                                      // last send
+
+        while (fragSendInfo.m_status != FragmentSendInfo::SendComplete)
         {
           jam();
-          CLEAR_ERROR_INSERT_VALUE;
-          ndbout_c("Injecting invalid schema version error at line %d file %s",
-                   __LINE__,  __FILE__);
-          // Provoke 'Invalid schema version' in order to receive SCAN_FRAGREF
-          req->schemaVersion++;
+          // Send remaining fragments
+          sendNextSegmentedFragment(signal, fragSendInfo);
         }
+      }
 
-        sendSignal(ref, GSN_SCAN_FRAGREQ, signal,
-                   NDB_ARRAY_SIZE(data.m_scanFragReq), JBB, &handle);
+      if (release)
+      {
+        jam();
         fragPtr.p->m_rangePtrI = RNIL;
         fragPtr.p->reset_ranges();
-      }
-      else
-      {
-        /**
-         * Reuse key info for multiple fragments and/or multiple repetitions
-         * of the scan.
-         */
-        jam();
-        sendSignalNoRelease(ref, GSN_SCAN_FRAGREQ, signal,
-                            NDB_ARRAY_SIZE(data.m_scanFragReq), JBB, &handle);
       }
       handle.clear();
 
