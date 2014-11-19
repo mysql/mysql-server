@@ -1477,6 +1477,28 @@ main(int argc, char** argv)
           } 
         }
       }
+      for (i=0; i < metaData.getNoOfTables(); i++)
+      {
+        if (checkSysTable(metaData, i) &&
+            checkDbAndTableName(metaData[i]))
+        {
+          // blob table checks use data which is populated by table compatibility checks
+          TableS & tableS = *metaData[i];
+          if(isBlobTable(&tableS))
+          {
+            for(Uint32 j= 0; j < g_consumers.size(); j++)
+            {
+              if (!g_consumers[j]->check_blobs(tableS))
+              {
+                  err << "Restore: Failed to restore data, ";
+                  err << tableS.getTableName() << " table's blobs incompatible with backup's ... Exiting " << endl;
+                  exitHandler(NDBT_FAILED);
+              }
+            }
+          }
+        }
+      }
+        
       RestoreDataIterator dataIter(metaData, &free_data_callback);
       
       // Read data file header
