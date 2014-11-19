@@ -8100,8 +8100,9 @@ void Dbtc::timeOutLoopStartLab(Signal* signal, Uint32 api_con_ptr)
   }
   for ( ; api_con_ptr < end_ptr; api_con_ptr++) {
     Uint32 api_timer= getApiConTimer(api_con_ptr);
-    jam();
     if (api_timer != 0) {
+      jam();
+      jamLine(api_con_ptr & 0xFFFF);
       Uint32 error= ZTIME_OUT_ERROR;
       time_out_value= time_out_param + (ndb_rand() & mask_value);
       if (unlikely(old_mask_value)) // abort during single user mode
