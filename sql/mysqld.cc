@@ -318,16 +318,6 @@ ulong slow_start_timeout;
 #endif
 
 my_bool opt_bootstrap= 0;
-
-/**
-   @brief 'grant_option' is used to indicate if privileges needs
-   to be checked, in which case the lock, LOCK_grant, is used
-   to protect access to the grant table.
-   @note This flag is dropped in 5.1
-   @see grant_init()
- */
-bool volatile grant_option;
-
 my_bool opt_skip_slave_start = 0; ///< If set, slave is not autostarted
 my_bool opt_reckless_slave = 0;
 my_bool opt_enable_named_pipe= 0;
@@ -6629,7 +6619,6 @@ static int mysql_init_variables(void)
   opt_endinfo= using_udf_functions= 0;
   opt_using_transactions= 0;
   abort_loop= false;
-  grant_option= 0;
   aborted_threads= 0;
   delayed_insert_threads= delayed_insert_writes= delayed_rows_in_use= 0;
   delayed_insert_errors= 0;
