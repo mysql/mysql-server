@@ -5980,6 +5980,8 @@ int ha_tokudb::extra(enum ha_extra_function operation) {
     case HA_EXTRA_NO_IGNORE_NO_KEY:
         using_ignore_no_key = false;
         break;
+    case HA_EXTRA_NOT_USED:
+        break; // must do nothing and return 0
     default:
         break;
     }
@@ -6225,7 +6227,11 @@ int ha_tokudb::start_stmt(THD * thd, thr_lock_type lock_type) {
 
     int error = 0;
     tokudb_trx_data *trx = (tokudb_trx_data *) thd_get_ha_data(thd, tokudb_hton);
-    DBUG_ASSERT(trx);
+    if (!trx) {
+        error = create_tokudb_trx_data_instance(&trx);
+        if (error) { goto cleanup; }
+        thd_set_ha_data(thd, tokudb_hton, trx);
+    }
 
     /*
        note that trx->stmt may have been already initialized as start_stmt()
