@@ -3154,6 +3154,41 @@ void Dbdih::pause_lcp(Signal *signal,
                       Uint32 startNode,
                       BlockReference sender_ref)
 {
+  /**
+   * Since the message comes from the master on behalf of the starting
+   * node we need to ensure that the starting node hasn't failed already.
+   * We handle stopping of pause at node failure, but if this arrives
+   * after we already received NODE_FAILREP we need to ensure that we
+   * don't proceed since this will cause havoc.
+   */
+  if (isMaster())
+  {
+    if (c_pause_lcp_start_node != startNode)
+    {
+      jam();
+      /* Ignore, node already died */
+      return;
+    }
+  }
+  else
+  {
+    /**
+     * We should come here after getting permit to start node, but before
+     * we the node is included into the LCP and GCP protocol, this happens
+     * immediately after we copied the meta data which the PAUSE LCP
+     * protocol is part of handling.
+     */
+    NodeRecordPtr nodePtr;
+    nodePtr.i = startNode;
+    ptrCheckGuard(nodePtr, MAX_NDB_NODES, nodeRecord);
+    if (nodePtr.p->nodeRecoveryStatus != NodeRecord::NODE_GETTING_PERMIT)
+    {
+      jam();
+      /* Ignore, node already died */
+      return;
+    }
+  }
+
   c_pause_lcp_reference = sender_ref;
   if (c_dequeue_lcp_rep_ongoing)
   {
@@ -3261,6 +3296,12 @@ void Dbdih::unpause_lcp(Signal *signal,
                         BlockReference sender_ref,
                         PauseLcpReq::PauseAction pauseAction)
 {
+  if (c_pause_lcp_start_node != startNode)
+  {
+    jam();
+    /* Ignore, node already died */
+    return;
+  }
   /**
    * When we stop pausing we will set the dequeue flag, LCP_FRAG_REPs and
    * LCP_COMPLETE_REPs will continue to be queued while any of those two
