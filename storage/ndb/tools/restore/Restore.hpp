@@ -104,6 +104,7 @@ struct AttributeDesc {
   Uint32 m_nullBitIndex;
   AttrConvertFunc convertFunc;
   void *parameter;
+  Uint32 parameterSz; 
   bool truncation_detected;
   bool staging;
 

@@ -117,6 +117,7 @@ public:
   virtual bool has_temp_error();
   virtual bool createSystable(const TableS & table);
   virtual bool table_compatible_check(TableS & tableS);
+  virtual bool check_blobs(TableS & tableS); 
   virtual bool column_compatible_check(const char* tableName,
                                        const NDBCOL* backupCol, 
                                        const NDBCOL* dbCol);

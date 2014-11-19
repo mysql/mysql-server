@@ -536,6 +536,23 @@ t13 text, t14 mediumtext, t15 longtext, t16 tinytext)engine=NDB;
 8 rows returned
 NDBT_ProgramExit: 0 - OK
 pk	t1	t2	t3	t4	t5	t6	t7	t8	t9	t10	t11	t12	t13	t14	t15	t16
+drop table text2text;
+# restore with pk built-in conversion and blob staging conversion
+create table text2text(id char(10) primary key, val text)engine=ndb;
+insert into text2text values("1111111111", REPEAT("A", 500));
+insert into text2text values("2222222222", REPEAT("B", 500));
+# run backup
+drop table text2text;
+create table text2text(id varchar(5) primary key, val mediumtext)engine=ndb;
+# run restore
+# run ndb_select_all to print restored table 
+
+
+"11111"	500:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+"22222"	500:BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB
+2 rows returned
+NDBT_ProgramExit: 0 - OK
+id	val
 # ndb_restore TEXT -> TINYTEXT truncation with utf8
 drop table text2text;
 set character_set_client=utf8;
