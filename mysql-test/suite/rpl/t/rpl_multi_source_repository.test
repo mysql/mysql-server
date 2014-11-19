@@ -83,7 +83,7 @@ call mtr.add_suppression("Failed to create or recover replication info repositor
 --query_vertical SHOW SLAVE STATUS
 # Assert that pfs tables are empty
 --let $assert_text= there shall be only 0 rows as the slave is not configured.
---let $assert_cond= [SELECT COUNT(*) FROM performance_schema.replication_execute_configuration] =0;
+--let $assert_cond= [SELECT COUNT(*) FROM performance_schema.replication_applier_configuration] =0;
 --source include/assert.inc
 
 # subsequent commands shall fail with ER_SLAVE_CONFIGURATION i.e slave not setup
@@ -100,7 +100,7 @@ call mtr.add_suppression("Failed to create or recover replication info repositor
 --source include/rpl_restart_server.inc
 #assert that two rows are present
 --let $assert_text= there shall be only 2 rows as slave is restarted properly
---let $assert_cond= [SELECT COUNT(*) FROM performance_schema.replication_execute_configuration] = 2;
+--let $assert_cond= [SELECT COUNT(*) FROM performance_schema.replication_applier_configuration] = 2;
 --source include/assert.inc
 
 --echo #

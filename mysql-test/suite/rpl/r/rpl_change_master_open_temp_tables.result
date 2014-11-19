@@ -13,23 +13,23 @@ include/sync_slave_sql_with_master.inc
 
 STOP SLAVE;
 Warnings:
-Warning	1907	This operation may not be safe when the slave has temporary tables. The tables will be kept open until the server restarts or until the tables are deleted by any replicated DROP statement. Suggest to wait until slave_open_temp_tables = 0.
+Warning	1908	This operation may not be safe when the slave has temporary tables. The tables will be kept open until the server restarts or until the tables are deleted by any replicated DROP statement. Suggest to wait until slave_open_temp_tables = 0.
 include/wait_for_slave_to_stop.inc
 
 # Make sure STOP SLAVE SQL_THREAD generates a warning.
 
 STOP SLAVE SQL_THREAD;
 Warnings:
-Note	1969	Replication thread(s) for channel '' are already stopped.
-Warning	1907	This operation may not be safe when the slave has temporary tables. The tables will be kept open until the server restarts or until the tables are deleted by any replicated DROP statement. Suggest to wait until slave_open_temp_tables = 0.
+Note	1970	Replication thread(s) for channel '' are already stopped.
+Warning	1908	This operation may not be safe when the slave has temporary tables. The tables will be kept open until the server restarts or until the tables are deleted by any replicated DROP statement. Suggest to wait until slave_open_temp_tables = 0.
 include/wait_for_slave_sql_to_stop.inc
 
 # Make sure STOP SLAVE IO_THREAD generates a warning.
 
 STOP SLAVE IO_THREAD;
 Warnings:
-Note	1969	Replication thread(s) for channel '' are already stopped.
-Warning	1907	This operation may not be safe when the slave has temporary tables. The tables will be kept open until the server restarts or until the tables are deleted by any replicated DROP statement. Suggest to wait until slave_open_temp_tables = 0.
+Note	1970	Replication thread(s) for channel '' are already stopped.
+Warning	1908	This operation may not be safe when the slave has temporary tables. The tables will be kept open until the server restarts or until the tables are deleted by any replicated DROP statement. Suggest to wait until slave_open_temp_tables = 0.
 include/wait_for_slave_io_to_stop.inc
 
 # No warning here since we are changing a configuration parameter only.
@@ -41,17 +41,17 @@ CHANGE MASTER TO MASTER_HEARTBEAT_PERIOD= 10;
 CHANGE MASTER TO MASTER_AUTO_POSITION= 0;
 CHANGE MASTER TO MASTER_LOG_FILE= 'MASTER_LOG_FILE';
 Warnings:
-Warning	1907	This operation may not be safe when the slave has temporary tables. The tables will be kept open until the server restarts or until the tables are deleted by any replicated DROP statement. Suggest to wait until slave_open_temp_tables = 0.
-Warning	1908	CHANGE MASTER TO with a MASTER_LOG_FILE clause but no MASTER_LOG_POS clause may not be safe. The old position value may not be valid for the new binary log file.
+Warning	1908	This operation may not be safe when the slave has temporary tables. The tables will be kept open until the server restarts or until the tables are deleted by any replicated DROP statement. Suggest to wait until slave_open_temp_tables = 0.
+Warning	1909	CHANGE MASTER TO with a MASTER_LOG_FILE clause but no MASTER_LOG_POS clause may not be safe. The old position value may not be valid for the new binary log file.
 CHANGE MASTER TO MASTER_LOG_POS= MASTER_LOG_POS;
 Warnings:
-Warning	1907	This operation may not be safe when the slave has temporary tables. The tables will be kept open until the server restarts or until the tables are deleted by any replicated DROP statement. Suggest to wait until slave_open_temp_tables = 0.
+Warning	1908	This operation may not be safe when the slave has temporary tables. The tables will be kept open until the server restarts or until the tables are deleted by any replicated DROP statement. Suggest to wait until slave_open_temp_tables = 0.
 CHANGE MASTER TO RELAY_LOG_FILE= 'RELAY_LOG_FILE';
 Warnings:
-Warning	1907	This operation may not be safe when the slave has temporary tables. The tables will be kept open until the server restarts or until the tables are deleted by any replicated DROP statement. Suggest to wait until slave_open_temp_tables = 0.
+Warning	1908	This operation may not be safe when the slave has temporary tables. The tables will be kept open until the server restarts or until the tables are deleted by any replicated DROP statement. Suggest to wait until slave_open_temp_tables = 0.
 CHANGE MASTER TO RELAY_LOG_POS= RELAY_LOG_POS;
 Warnings:
-Warning	1907	This operation may not be safe when the slave has temporary tables. The tables will be kept open until the server restarts or until the tables are deleted by any replicated DROP statement. Suggest to wait until slave_open_temp_tables = 0.
+Warning	1908	This operation may not be safe when the slave has temporary tables. The tables will be kept open until the server restarts or until the tables are deleted by any replicated DROP statement. Suggest to wait until slave_open_temp_tables = 0.
 CHANGE MASTER TO MASTER_AUTO_POSITION= SAVE_AUTOPOSITION;
 
 # cleanup

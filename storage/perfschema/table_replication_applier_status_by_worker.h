@@ -15,12 +15,12 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 
-#ifndef TABLE_REPLICATION_EXECUTE_STATUS_BY_WORKER_H
-#define TABLE_REPLICATION_EXECUTE_STATUS_BY_WORKER_H
+#ifndef TABLE_REPLICATION_APPLIER_STATUS_BY_WORKER_H
+#define TABLE_REPLICATION_APPLIER_STATUS_BY_WORKER_H
 
 /**
-  @file storage/perfschema/table_replication_execute_status_by_worker.h
-  Table replication_execute_status_by_worker (declarations).
+  @file storage/perfschema/table_replication_applier_status_by_worker.h
+  Table replication_applier_status_by_worker (declarations).
 */
 
 #include "pfs_column_types.h"
@@ -101,8 +101,8 @@ struct workers_per_channel
 };
 
 
-/** Table PERFORMANCE_SCHEMA.replication_execute_status_by_worker */
-class table_replication_execute_status_by_worker: public PFS_engine_table
+/** Table PERFORMANCE_SCHEMA.replication_applier_status_by_worker */
+class table_replication_applier_status_by_worker: public PFS_engine_table
 {
 private:
   void make_row(Slave_worker *);
@@ -134,10 +134,10 @@ protected:
                               Field **fields,
                               bool read_all);
 
-  table_replication_execute_status_by_worker();
+  table_replication_applier_status_by_worker();
 
 public:
-  ~table_replication_execute_status_by_worker();
+  ~table_replication_applier_status_by_worker();
 
   /** Table share. */
   static PFS_engine_table_share m_share;

@@ -6886,9 +6886,9 @@ drop procedure if exists p;
 set @old_mode= @@sql_mode;
 set @@sql_mode= cast(pow(2,32)-1 as unsigned integer);
 Warnings:
-Warning	1912	'ERROR_FOR_DIVISION_BY_ZERO' mode no longer has any effect. Use STRICT_ALL_TABLES or STRICT_TRANS_TABLES instead.
-Warning	1912	'NO_ZERO_DATE' mode no longer has any effect. Use STRICT_ALL_TABLES or STRICT_TRANS_TABLES instead.
-Warning	1912	'NO_ZERO_IN_DATE' mode no longer has any effect. Use STRICT_ALL_TABLES or STRICT_TRANS_TABLES instead.
+Warning	1913	'ERROR_FOR_DIVISION_BY_ZERO' mode no longer has any effect. Use STRICT_ALL_TABLES or STRICT_TRANS_TABLES instead.
+Warning	1913	'NO_ZERO_DATE' mode no longer has any effect. Use STRICT_ALL_TABLES or STRICT_TRANS_TABLES instead.
+Warning	1913	'NO_ZERO_IN_DATE' mode no longer has any effect. Use STRICT_ALL_TABLES or STRICT_TRANS_TABLES instead.
 select @@sql_mode into @full_mode;
 create procedure p() begin end;
 call p();

@@ -15,12 +15,12 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 
-#ifndef TABLE_REPLICATION_EXECUTE_STATUS_H
-#define TABLE_REPLICATION_EXECUTE_STATUS_H
+#ifndef TABLE_REPLICATION_APPLIER_CONFIGURATION_H
+#define TABLE_REPLICATION_APPLIER_CONFIGURATION_H
 
 /**
-  @file storage/perfschema/table_replication_execute_status.h
-  Table replication_execute_status (declarations).
+  @file storage/perfschema/table_replication_applier_configuration.h
+  Table replication_applier_configuration (declarations).
 */
 
 #include "pfs_column_types.h"
@@ -28,7 +28,7 @@
 #include "rpl_mi.h"
 #include "mysql_com.h"
 #include "rpl_msr.h"
-#include "rpl_info.h" /*CHANNEL_NAME_LENGTH*/
+#include "rpl_info.h"  /*CHANNEL_NAME_LENGTH*/
 
 class Master_info;
 
@@ -37,27 +37,16 @@ class Master_info;
   @{
 */
 
-#ifndef ENUM_RPL_YES_NO
-#define ENUM_RPL_YES_NO
-/** enum values for Service_State field*/
-enum enum_rpl_yes_no {
-  PS_RPL_YES= 1,
-  PS_RPL_NO
-};
-#endif
-
-/** A row in the table. */
-struct st_row_execute_status {
+/** A row in the table*/
+struct st_row_applier_config {
   char channel_name[CHANNEL_NAME_LENGTH];
   uint channel_name_length;
-  enum_rpl_yes_no service_state;
-  uint remaining_delay;
-  bool remaining_delay_is_set;
-  ulong count_transactions_retries;
+  time_t desired_delay;
+  bool desired_delay_is_set;
 };
 
-/** Table PERFORMANCE_SCHEMA.replication_execute_status */
-class table_replication_execute_status: public PFS_engine_table
+/** Table PERFORMANCE_SCHEMA.replication_applier_configuration */
+class table_replication_applier_configuration: public PFS_engine_table
 {
 private:
   void make_row(Master_info *mi);
@@ -67,7 +56,7 @@ private:
   /** Fields definition. */
   static TABLE_FIELD_DEF m_field_def;
   /** Current row */
-  st_row_execute_status m_row;
+  st_row_applier_config m_row;
   /** True is the current row exists. */
   bool m_row_exists;
   /** Current position. */
@@ -89,10 +78,10 @@ protected:
                               Field **fields,
                               bool read_all);
 
-  table_replication_execute_status();
+  table_replication_applier_configuration();
 
 public:
-  ~table_replication_execute_status();
+  ~table_replication_applier_configuration();
 
   /** Table share. */
   static PFS_engine_table_share m_share;

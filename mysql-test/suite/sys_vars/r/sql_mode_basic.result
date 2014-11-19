@@ -61,7 +61,7 @@ SELECT @@global.sql_mode;
 ANSI_QUOTES
 SET @@global.sql_mode = ERROR_FOR_DIVISION_BY_ZERO;
 Warnings:
-Warning	1912	'ERROR_FOR_DIVISION_BY_ZERO' mode no longer has any effect. Use STRICT_ALL_TABLES or STRICT_TRANS_TABLES instead.
+Warning	1913	'ERROR_FOR_DIVISION_BY_ZERO' mode no longer has any effect. Use STRICT_ALL_TABLES or STRICT_TRANS_TABLES instead.
 SELECT @@global.sql_mode;
 @@global.sql_mode
 
@@ -111,13 +111,13 @@ SELECT @@global.sql_mode;
 NO_UNSIGNED_SUBTRACTION
 SET @@global.sql_mode = NO_ZERO_DATE;
 Warnings:
-Warning	1912	'NO_ZERO_DATE' mode no longer has any effect. Use STRICT_ALL_TABLES or STRICT_TRANS_TABLES instead.
+Warning	1913	'NO_ZERO_DATE' mode no longer has any effect. Use STRICT_ALL_TABLES or STRICT_TRANS_TABLES instead.
 SELECT @@global.sql_mode;
 @@global.sql_mode
 
 SET @@global.sql_mode = NO_ZERO_IN_DATE;
 Warnings:
-Warning	1912	'NO_ZERO_IN_DATE' mode no longer has any effect. Use STRICT_ALL_TABLES or STRICT_TRANS_TABLES instead.
+Warning	1913	'NO_ZERO_IN_DATE' mode no longer has any effect. Use STRICT_ALL_TABLES or STRICT_TRANS_TABLES instead.
 SELECT @@global.sql_mode;
 @@global.sql_mode
 
@@ -197,7 +197,7 @@ SELECT @@session.sql_mode;
 ANSI_QUOTES
 SET @@session.sql_mode = ERROR_FOR_DIVISION_BY_ZERO;
 Warnings:
-Warning	1912	'ERROR_FOR_DIVISION_BY_ZERO' mode no longer has any effect. Use STRICT_ALL_TABLES or STRICT_TRANS_TABLES instead.
+Warning	1913	'ERROR_FOR_DIVISION_BY_ZERO' mode no longer has any effect. Use STRICT_ALL_TABLES or STRICT_TRANS_TABLES instead.
 SELECT @@session.sql_mode;
 @@session.sql_mode
 
@@ -247,13 +247,13 @@ SELECT @@session.sql_mode;
 NO_UNSIGNED_SUBTRACTION
 SET @@session.sql_mode = NO_ZERO_DATE;
 Warnings:
-Warning	1912	'NO_ZERO_DATE' mode no longer has any effect. Use STRICT_ALL_TABLES or STRICT_TRANS_TABLES instead.
+Warning	1913	'NO_ZERO_DATE' mode no longer has any effect. Use STRICT_ALL_TABLES or STRICT_TRANS_TABLES instead.
 SELECT @@session.sql_mode;
 @@session.sql_mode
 
 SET @@session.sql_mode = NO_ZERO_IN_DATE;
 Warnings:
-Warning	1912	'NO_ZERO_IN_DATE' mode no longer has any effect. Use STRICT_ALL_TABLES or STRICT_TRANS_TABLES instead.
+Warning	1913	'NO_ZERO_IN_DATE' mode no longer has any effect. Use STRICT_ALL_TABLES or STRICT_TRANS_TABLES instead.
 SELECT @@session.sql_mode;
 @@session.sql_mode
 
@@ -376,9 +376,9 @@ SELECT @@global.sql_mode;
 REAL_AS_FLOAT,PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,ONLY_FULL_GROUP_BY,POSTGRESQL,NO_KEY_OPTIONS,NO_TABLE_OPTIONS,NO_FIELD_OPTIONS,MYSQL323,MYSQL40,ANSI,HIGH_NOT_PRECEDENCE
 SET @@global.sql_mode = 4294967295;
 Warnings:
-Warning	1912	'ERROR_FOR_DIVISION_BY_ZERO' mode no longer has any effect. Use STRICT_ALL_TABLES or STRICT_TRANS_TABLES instead.
-Warning	1912	'NO_ZERO_DATE' mode no longer has any effect. Use STRICT_ALL_TABLES or STRICT_TRANS_TABLES instead.
-Warning	1912	'NO_ZERO_IN_DATE' mode no longer has any effect. Use STRICT_ALL_TABLES or STRICT_TRANS_TABLES instead.
+Warning	1913	'ERROR_FOR_DIVISION_BY_ZERO' mode no longer has any effect. Use STRICT_ALL_TABLES or STRICT_TRANS_TABLES instead.
+Warning	1913	'NO_ZERO_DATE' mode no longer has any effect. Use STRICT_ALL_TABLES or STRICT_TRANS_TABLES instead.
+Warning	1913	'NO_ZERO_IN_DATE' mode no longer has any effect. Use STRICT_ALL_TABLES or STRICT_TRANS_TABLES instead.
 SELECT @@global.sql_mode;
 @@global.sql_mode
 REAL_AS_FLOAT,PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,,,ONLY_FULL_GROUP_BY,NO_UNSIGNED_SUBTRACTION,NO_DIR_IN_CREATE,POSTGRESQL,ORACLE,MSSQL,DB2,MAXDB,NO_KEY_OPTIONS,NO_TABLE_OPTIONS,NO_FIELD_OPTIONS,MYSQL323,MYSQL40,ANSI,NO_AUTO_VALUE_ON_ZERO,NO_BACKSLASH_ESCAPES,STRICT_TRANS_TABLES,STRICT_ALL_TABLES,ALLOW_INVALID_DATES,TRADITIONAL,NO_AUTO_CREATE_USER,HIGH_NOT_PRECEDENCE,NO_ENGINE_SUBSTITUTION,PAD_CHAR_TO_FULL_LENGTH

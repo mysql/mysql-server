@@ -1,4 +1,38 @@
 #
+# Bug#20015132 ALTER TABLE FAILS TO CHECK IF TABLE IS CORRUPTED
+#
+CREATE TABLE t1(c1 INT PRIMARY KEY, c2 CHAR(1), c3 INT UNSIGNED) ENGINE=InnoDB;
+SET DEBUG='+d,ib_create_table_fail_too_many_trx';
+ALTER TABLE t1 ADD INDEX (c2), ADD INDEX (c3);
+ERROR HY000: Too many active concurrent transactions
+SET DEBUG='-d,ib_create_table_fail_too_many_trx';
+ALTER TABLE t1 ADD INDEX (c2), ADD INDEX (c3);
+SET DEBUG='+d,dict_set_index_corrupted';
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	Warning	InnoDB: The B-tree of index c2 is corrupted.
+test.t1	check	Warning	InnoDB: The B-tree of index c3 is corrupted.
+test.t1	check	error	Corrupt
+# restart
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	Warning	InnoDB: Index c2 is marked as corrupted
+test.t1	check	Warning	InnoDB: Index c3 is marked as corrupted
+test.t1	check	error	Corrupt
+ALTER TABLE t1 DROP INDEX c2;
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	Warning	InnoDB: Index c3 is marked as corrupted
+test.t1	check	error	Corrupt
+ALTER TABLE t1 ADD INDEX (c2,c3);
+ERROR 42000: Can't open table
+ALTER TABLE t1 CHANGE c3 c3 INT NOT NULL;
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+ALTER TABLE t1 ADD INDEX (c2,c3);
+DROP TABLE t1;
+#
 # Bug #14669848 CRASH DURING ALTER MAKES ORIGINAL TABLE INACCESSIBLE
 #
 # -- Scenario 1:
@@ -38,7 +72,6 @@ DROP TABLE t1;
 CREATE TABLE t1 (f1 INT NOT NULL, f2 INT NOT NULL) ENGINE=InnoDB;
 ALTER TABLE t1 ADD PRIMARY KEY (f2, f1);
 DROP TABLE t1;
-call mtr.add_suppression("table 'test/");
 # -- Scenario 2:
 # Crash the server in ha_innobase::commit_inplace_alter_table()
 # just before committing the dictionary changes, but after
