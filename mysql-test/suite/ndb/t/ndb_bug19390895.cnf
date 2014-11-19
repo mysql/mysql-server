@@ -1,0 +1,15 @@
+!include ../my.cnf
+
+####################
+# Set large batchsizes such that SPJ will build
+# a SCAN_FRAGREQ message exceeding the max limit
+# of 32K for a non-fragmenented signal
+
+[cluster_config]
+BatchSize=992
+BatchByteSize=1M
+MaxScanBatchSize=16M
+
+LongMessageBuffer=16M
+
+
