@@ -1805,6 +1805,7 @@ AttributeDesc::AttributeDesc(NdbDictionary::Column *c)
   size = 8*NdbColumnImpl::getImpl(* c).m_attrSize;
   arraySize = NdbColumnImpl::getImpl(* c).m_arraySize;
   staging = false;
+  parameterSz = 0;
 }
 
 void TableS::createAttr(NdbDictionary::Column *column)
