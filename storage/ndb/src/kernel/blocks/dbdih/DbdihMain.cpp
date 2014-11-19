@@ -3101,7 +3101,7 @@ void Dbdih::execPAUSE_LCP_CONF(Signal *signal)
   jam();
   ndbrequire(c_pauseAction == PauseLcpReq::UnPauseIncludeInLcp ||
              c_pauseAction == PauseLcpReq::UnPauseNotIncludeInLcp);
-  end_pause(signal);
+  end_pause(signal, c_pauseAction);
   dihCopyCompletedLab(signal);
 }
 
@@ -3324,12 +3324,13 @@ void Dbdih::unpause_lcp(Signal *signal,
      */
     return;
   }
-  end_pause(signal);
+  end_pause(signal, pauseAction);
 }
 
-void Dbdih::end_pause(Signal *signal)
+void Dbdih::end_pause(Signal *signal,
+                      PauseLcpReq::PauseAction pauseAction)
 {
-  if (c_pauseAction == PauseLcpReq::UnPauseIncludeInLcp)
+  if (pauseAction == PauseLcpReq::UnPauseIncludeInLcp)
   {
     jam();
     c_lcpState.m_participatingDIH.set(c_pause_lcp_start_node);
