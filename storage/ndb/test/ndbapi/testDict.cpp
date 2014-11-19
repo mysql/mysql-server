@@ -868,14 +868,14 @@ runDropTakeoverTest(NDBT_Context* ctx, NDBT_Step* step)
    * executing the DROP_TAB_REQ signal.
    */
   g_info << "Insert error 5076 in node " << nonMasterNodeId << endl;
-  require(restarter.insertErrorInNode(nonMasterNodeId, 5076) == 0);
+  restarter.insertErrorInNode(nonMasterNodeId, 5076);
   /**
    * This error insert makes the master node crash when one of its LQH 
    * blocks tries to execute a DROP_TAB_REQ signal. This will then trigger
    * a takeover.
    */
   g_info << "Insert error 5077 in node " << masterNodeId << endl;
-  require(restarter.insertErrorInNode(masterNodeId, 5077) == 0);
+  restarter.insertErrorInNode(masterNodeId, 5077);
 
   // dropTable should succeed with the new master.
   g_info << "Trying to drop table " << copyName << endl;
@@ -9153,34 +9153,56 @@ runGetTabInfoRef(NDBT_Context* ctx, NDBT_Step* step)
    * This error insert makes DICT respond with GET_TABINFOREF where
    * error==busy when receiving the next GET_TABINFOREQ signal.
    */
-  require(restarter.insertErrorInAllNodes(6026) == 0);
+  restarter.insertErrorInAllNodes(6026);
 
-  int nodeSet[MAX_NDB_NODES];
-  for (int i = 0; i < restarter.getNumDbNodes() - 1; i++)
+  /* Find a node in each nodegroup to restart. */
+  Vector<int> nodeSet;
+  Bitmask<MAX_NDB_NODES/32> nodeGroupMap;
+  for (int i = 0; i < restarter.getNumDbNodes(); i++)
   {
-    nodeSet[i] = restarter.getDbNodeId(i);
-    g_info << "Node " << nodeSet[i] << " will be stopped." << endl;
+    const int node = restarter.getDbNodeId(i);
+    const int ng = restarter.getNodeGroup(node);
+    if (!nodeGroupMap.get(ng))
+    {
+      g_info << "Node " << node << " will be stopped." << endl;
+      nodeSet.push_back(node);
+      nodeGroupMap.set(ng);
+    }
   }
 
-  require(restarter.restartNodes(nodeSet, restarter.getNumDbNodes() - 1,
-                                 NdbRestarter::NRRF_NOSTART |
-                                 NdbRestarter::NRRF_ABORT) == 0);
+  if (restarter.restartNodes(nodeSet.getBase(), (int)nodeSet.size(),
+                             NdbRestarter::NRRF_NOSTART |
+                             NdbRestarter::NRRF_ABORT))
+  {
+    g_err << "Failed to stop nodes" << endl;
+    restarter.insertErrorInAllNodes(0);
+    return NDBT_FAILED;
+  }
 
   g_info << "Waiting for nodes to stop." << endl;
-  require(restarter.waitNodesNoStart(nodeSet, restarter.getNumDbNodes() - 1)
-          == 0);
+  if (restarter.waitNodesNoStart(nodeSet.getBase(), (int)nodeSet.size()))
+  {
+    g_err << "Failed to wait for nodes to stop" << endl;
+    restarter.insertErrorInAllNodes(0);
+    return NDBT_FAILED;
+  }
 
-  require(restarter.startNodes(nodeSet, restarter.getNumDbNodes() - 1) == 0);
+  if (restarter.startNodes(nodeSet.getBase(), (int)nodeSet.size()))
+  {
+    g_err << "Failed to restart nodes" << endl;
+    restarter.insertErrorInAllNodes(0);
+    return NDBT_FAILED;
+  }
 
   g_info << "Waiting for nodes to start again." << endl;
   if (restarter.waitClusterStarted() != 0)
   {
     g_err << "Failed to restart cluster " << endl;
-    require(restarter.insertErrorInAllNodes(0) == 0);
+    restarter.insertErrorInAllNodes(0);
     return NDBT_FAILED;
   }
 
-  require(restarter.insertErrorInAllNodes(0) == 0);
+  restarter.insertErrorInAllNodes(0);
   return NDBT_OK;
 } // runGetTabInfoRef()
 
