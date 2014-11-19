@@ -474,8 +474,6 @@ mutex_set_waiters(
 
 	ptr = &(mutex->waiters);
 
-        os_wmb;
-
 	*ptr = n;		/* Here we assume that the write of a single
 				word in memory is atomic */
 }
