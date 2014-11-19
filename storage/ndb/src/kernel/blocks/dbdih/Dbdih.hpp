@@ -981,7 +981,8 @@ private:
                    BlockReference sender_ref,
                    PauseLcpReq::PauseAction pauseAction);
   void check_for_pause_action(Signal *signal);
-  void stop_pause(Signal *signal, bool isMaster);
+  void end_pause(Signal *signal);
+  void stop_pause(Signal *signal);
   void handle_node_failure_in_pause(Signal *signal);
   void dequeue_lcp_rep(Signal*);
   void start_copy_meta_data(Signal*);
