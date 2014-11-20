@@ -499,7 +499,6 @@ que_graph_free_recursive(
 
 		que_graph_free_recursive(cre_tab->tab_def);
 		que_graph_free_recursive(cre_tab->col_def);
-		que_graph_free_recursive(cre_tab->commit_node);
 
 		mem_heap_free(cre_tab->heap);
 
@@ -509,7 +508,6 @@ que_graph_free_recursive(
 
 		que_graph_free_recursive(cre_ind->ind_def);
 		que_graph_free_recursive(cre_ind->field_def);
-		que_graph_free_recursive(cre_ind->commit_node);
 
 		mem_heap_free(cre_ind->heap);
 
