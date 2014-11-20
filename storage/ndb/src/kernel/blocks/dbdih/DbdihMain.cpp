@@ -22472,6 +22472,33 @@ Dbdih::execDUMP_STATE_ORD(Signal* signal)
       ndbrequire(false);
     }
   }
+  if (arg == DumpStateOrd::DihDisplayPauseState)
+  {
+    infoEvent("Pause LCP ref: %x, c_lcp_paused %u,"
+              " c_dequeue_lcp_rep_ongoing %u",
+              c_pause_lcp_reference,
+              c_lcp_paused,
+              c_dequeue_lcp_rep_ongoing);
+    infoEvent("c_pause_lcp_requested: %u, c_old_node_waiting_for_lcp_end: %u"
+              " c_last_id_lcp_complete_rep: %u",
+              c_pause_lcp_requested,
+              c_old_node_waiting_for_lcp_end,
+              c_last_id_lcp_complete_rep);
+    infoEvent("c_pauseAction: %u, c_queud_lcp_complete_rep: %u"
+              " c_lcp_id_paused: %u",
+              Uint32(c_pauseAction),
+              c_queued_lcp_complete_rep,
+              c_lcp_id_paused);
+    infoEvent("c_lcp_id_while_copy_meta_data: %u, c_pause_lcp_start_node: %u"
+              " c_PAUSE_LCP_REQ_Counter: %s",
+              c_lcp_id_while_copy_meta_data,
+              c_pause_lcp_start_node,
+              c_PAUSE_LCP_REQ_Counter.getText());
+    infoEvent("c_FLUSH_LCP_REP_REQ_Counter: %s"
+              " c_lcp_runs_with_pause_support: %u",
+              c_FLUSH_LCP_REP_REQ_Counter.getText(),
+              c_lcp_runs_with_pause_support);
+  }
 
   DECLARE_DUMP0(DBDIH, 7213, "Set error 7213 with extra arg")
   {
