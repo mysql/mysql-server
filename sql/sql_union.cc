@@ -570,11 +570,15 @@ bool st_select_lex_unit::optimize()
 
       saved_error= sl->join->optimize();
       /*
-        Accumulate estimated number of rows. Notice that an implicitly grouped
-        query has one row (with HAVING it has zero or one rows).
+        Accumulate estimated number of rows.
+        1. Implicitly grouped query has one row (with HAVING it has zero or one
+           rows).
+        2. If GROUP BY clause is optimized away because it was a constant then
+           query produces at most one row.
       */
       result->estimated_rowcount+=
-        sl->with_sum_func && sl->group_list.elements == 0 ?
+        (sl->with_sum_func && sl->group_list.elements == 0) ||
+        sl->join->group_optimized_away ?
           1 : sl->join->best_rowcount;
 
       thd->lex->current_select= lex_select_save;
