@@ -2831,7 +2831,7 @@ dict_index_find_cols(
 		/* It is an error not to find a matching column. */
 		ib::error() << "No matching column for " << field->name
 			<< " in index " << index->name
-			<< " of table " << index->table->name;
+			<< " of table " << table->name;
 #endif /* UNIV_DEBUG */
 		return(FALSE);
 
