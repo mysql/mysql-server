@@ -1098,8 +1098,7 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 #define GSN_FLUSH_LCP_REP_REQ           772
 #define GSN_FLUSH_LCP_REP_CONF          773
 
-#define GSN_CHECK_NODE_INCLUDED_REQ     774
-#define GSN_CHECK_NODE_INCLUDED_CONF    775
+/* 774 and 775 free, never used in released version */
 
 #define GSN_ALLOC_NODEID_REP            776
 #define GSN_INCL_NODE_HB_PROTOCOL_REP   777

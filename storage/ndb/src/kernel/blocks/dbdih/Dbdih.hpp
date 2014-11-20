@@ -939,7 +939,6 @@ private:
    * restarting.
    */
   void execCHECK_NODE_RESTARTREQ(Signal*);
-  void execCHECK_NODE_INCLUDED_CONF(Signal*);
   void check_node_in_restart(Signal*, BlockReference, Uint32);
   void sendCHECK_NODE_RESTARTCONF(Signal*, BlockReference, Uint32);
 

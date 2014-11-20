@@ -14463,26 +14463,38 @@ Dbdih::check_node_in_restart(Signal *signal,
   {
     jam();
     ptrAss(nodePtr, nodeRecord);
-    if (nodePtr.p->nodeGroup != RNIL &&
-        nodePtr.p->nodeStatus != NodeRecord::ALIVE)
+    if (nodePtr.p->nodeGroup == RNIL ||
+        nodePtr.p->nodeRecoveryStatus == NodeRecord::NOT_DEFINED_IN_CLUSTER ||
+        nodePtr.p->nodeRecoveryStatus == NodeRecord::NODE_NOT_RESTARTED_YET ||
+        nodePtr.p->nodeRecoveryStatus == NodeRecord::NODE_FAILED ||
+        nodePtr.p->nodeRecoveryStatus == NodeRecord::NODE_FAILURE_COMPLETED ||
+        nodePtr.p->nodeRecoveryStatus == NodeRecord::ALLOCATED_NODE_ID ||
+        nodePtr.p->nodeRecoveryStatus == NodeRecord::RESTART_COMPLETED ||
+        nodePtr.p->nodeRecoveryStatus == NodeRecord::NODE_ACTIVE)
     {
-      jam();
       /**
-       * Found a DB node that is used to store data which is currently not
-       * alive. We need to check if this node has started its restart yet.
-       * If it has we will set the node restart flag, otherwise we will
-       * allow the disk checkpoint speed to stay low since the node could
-       * be permanently dead for some reason.
-       *
-       * We will check in QMGR if the node has been included in the
-       * heartbeat protocol yet, this is one of the first times we hear about
-       * a node which is restarting.
+       * Nodes that aren't part of a node group won't be part of LCPs,
+       * Nodes not defined in Cluster we can ignore
+       * Nodes not restarted yet while we were started have no impact
+       * on LCP speed, if they restart while we restart doesn't matter
+       * since in this case we will run at a speed for starting nodes.
+       * Nodes recently failed and even those that completed will speed
+       * up LCPs temporarily but using the c_increase_lcp_speed_after_nf
+       * variable instead.
+       * Nodes that have allocated a node id haven't really started yet.
+       * Nodes that have completed their restart also need no speed up.
        */
-      signal->theData[0] = nodePtr.i;
-      signal->theData[1] = ref;
-      sendSignal(QMGR_REF, GSN_CHECK_NODE_INCLUDED_REQ, signal, 2, JBB);
-      return;
+      continue;
     }
+    /**
+     * All other states indicate that the node is in some or the other
+     * node restart state, so thus it is a good idea to speed up LCP
+     * processing.
+     */
+    jam();
+    jamLine(nodePtr.i);
+    sendCHECK_NODE_RESTARTCONF(signal, ref, 1);
+    return;
   }
   jam();
   /* All nodes are up and running, no restart is ongoing */
@@ -14496,23 +14508,6 @@ void Dbdih::sendCHECK_NODE_RESTARTCONF(Signal *signal,
 {
   signal->theData[0] = node_restart;
   sendSignal(ref, GSN_CHECK_NODE_RESTARTCONF, signal, 1, JBB);
-}
-
-void Dbdih::execCHECK_NODE_INCLUDED_CONF(Signal *signal)
-{
-  jamEntry();
-  Uint32 nodeId = signal->theData[0];
-  BlockReference ref = signal->theData[1];
-  Uint32 started = signal->theData[2];
-
-  if (started == 1)
-  {
-    jam();
-    sendCHECK_NODE_RESTARTCONF(signal, ref, 1);
-    return;
-  }
-  check_node_in_restart(signal, ref, nodeId + 1);
-  return;
 }
 
 void Dbdih::execCHECK_NODE_RESTARTREQ(Signal *signal)
