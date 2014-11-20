@@ -136,5 +136,6 @@ MASTER_UUID	16	18
 include/assert.inc [committed gtids MASTER_UUID:1-7:16-17]
 include/assert.inc [Table t3 must not contain 1]
 DROP TABLE t3;
-include/start_slave.inc
+DROP TABLE t3;
+RESET SLAVE;
 include/rpl_end.inc
