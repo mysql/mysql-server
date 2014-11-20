@@ -5100,21 +5100,21 @@ void Dbdih::setNodeRecoveryStatus(Uint32 nodeId,
   jam();
   jamLine(nodePtr.p->nodeRecoveryStatus);
 
+  if (getNodeState().startLevel != NodeState::SL_STARTED)
+  {
+    jam();
+    /**
+     * We will ignore all state transitions until we are started ourselves
+     * before we even attempt to record state transitions. This means we
+     * have no view into system restarts currently and inital starts. We
+     * only worry about node restarts for now.
+     */
+    return;
+  }
   if (new_status != NodeRecord::NODE_FAILED &&
       new_status != NodeRecord::NODE_FAILURE_COMPLETED)
   {
     jam();
-    if (getNodeState().startLevel != NodeState::SL_STARTED)
-    {
-      jam();
-      /**
-       * We will ignore all state transitions until we are started ourselves
-       * before we even attempt to record state transitions. This means we
-       * have no view into system restarts currently and inital starts. We
-       * only worry about node restarts.
-       */
-      return;
-    }
     /**
      * Given that QMGR, NDBCNTR, DBDICT and DBDIH executes in the same thread
      * the possibility of jumping over a state doesn't exist. If we split out
@@ -5143,6 +5143,42 @@ void Dbdih::setNodeRecoveryStatus(Uint32 nodeId,
          * anyways.
          */
         return;
+      }
+    }
+    else if (nodePtr.p->nodeRecoveryStatus ==
+             NodeRecord::NODE_NOT_RESTARTED_YET)
+    {
+      jam();
+      switch (new_status)
+      {
+        case NodeRecord::ALLOCATED_NODE_ID:
+          jam();
+        case NodeRecord::INCLUDED_IN_HB_PROTOCOL:
+          jam();
+          /**
+           * These are the normal states to hear about as first states after
+           * we completed our own start. We can either first hear a node
+           * failure and then we are sure we will follow the right path
+           * since we heard about the node failure after being started.
+           * If we weren't there for the node failure we are also ok with
+           * starting all the way from allocated node id and included in
+           * heartbeat protocol.
+           */
+          break;
+        default:
+          jam();
+          jamLine(new_status);
+          /**
+           * This was due to a partial system restart, we haven't gotten
+           * around to supporting this yet. This requires more work
+           * before we can support it, this would mean that we come into
+           * the action midway, so this will be solved when we handle
+           * system restarts properly, but this is more work needed and
+           * not done yet. So for now we ignore those states and will
+           * handle the next time the node starts up instead.
+           * TODO
+           */
+          return;
       }
     }
   }
