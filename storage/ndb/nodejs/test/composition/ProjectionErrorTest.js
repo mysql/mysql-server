@@ -20,6 +20,7 @@
 
 "use strict";
 
+var util = require("util");
 var lib = require('./lib.js');
 
 /** Error conditions to be tested:
@@ -286,6 +287,7 @@ t10.run = function() {
   var session;
   var expectedErrorMessage = 'neither side defined the join table';
   function BadCustomer() {}
+  function BadDiscount() {}
   var badCustomerMapping = new mynode.TableMapping('customer');
   badCustomerMapping.mapField('id');
   badCustomerMapping.mapManyToMany( {
@@ -293,7 +295,6 @@ t10.run = function() {
     targetField: 'customers',
     target:      BadDiscount
   } );
-  function BadDiscount() {}
   var badDiscountMapping = new mynode.TableMapping('discount');
   badDiscountMapping.mapField('id');
   badDiscountMapping.mapManyToMany( {
@@ -328,6 +329,7 @@ t11.run = function() {
   var session;
   var expectedErrorMessage = 'neither side defined the foreign key';
   function BadCustomer() {}
+  function BadShoppingCart() {}
   var badCustomerMapping = new mynode.TableMapping('customer');
   badCustomerMapping.mapField('id');
   badCustomerMapping.mapOneToOne( {
@@ -335,7 +337,6 @@ t11.run = function() {
     targetField: 'customer',
     target:      BadShoppingCart
   } );
-  function BadShoppingCart() {}
   var badShoppingCartMapping = new mynode.TableMapping('shoppingcart');
   badShoppingCartMapping.mapField('id');
   badShoppingCartMapping.mapManyToMany( {

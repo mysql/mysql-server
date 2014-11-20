@@ -27,17 +27,18 @@ var stats = {
   }
 };
 
-var adapter         = require(path.join(build_dir, "ndb_adapter.node")),
+var path            = require("path"),
+    adapter         = require(path.join(mynode.fs.build_dir, "ndb_adapter.node")),
     ndboperation    = require("./NdbOperation.js"),
     dbtxhandler     = require("./NdbTransactionHandler.js"),
     ndbconnpool     = require("./NdbConnectionPool.js"),
     util            = require("util"),
     assert          = require("assert"),
     udebug          = unified_debug.getLogger("NdbSession.js"),
-    QueuedAsyncCall = require("../common/QueuedAsyncCall.js").QueuedAsyncCall,
+    QueuedAsyncCall  = require(mynode.common.QueuedAsyncCall).QueuedAsyncCall,
     NdbSession;
 
-require(path.join(api_dir,"stats.js")).register(stats, "spi","ndb","DBSession");
+require(mynode.api.stats).register(stats, "spi","ndb","DBSession");
 
 /** 
   A session has a single transaction visible to the user at any time: 

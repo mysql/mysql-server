@@ -18,8 +18,6 @@
  02110-1301  USA
 */
 
-/*global assert, unified_debug, path, api_dir, api_doc_dir */
-
 "use strict";
 
 var stats = {
@@ -32,9 +30,11 @@ var stats = {
 	"DBIndexHandler_created" : 0
 };
 
-var TableMapping    = require(path.join(api_dir, "TableMapping")).TableMapping,
-    FieldMapping    = require(path.join(api_dir, "TableMapping")).FieldMapping,
-    stats_module    = require(path.join(api_dir, "stats")), 
+var assert          = require("assert"),
+    TableMapping    = require(mynode.api.TableMapping).TableMapping,
+    FieldMapping    = require(mynode.api.TableMapping).FieldMapping,
+    stats_module    = require(mynode.api.stats),
+    util            = require("util"),
     udebug          = unified_debug.getLogger("DBTableHandler.js");
 
 // forward declaration of DBIndexHandler to avoid lint issue
@@ -139,6 +139,7 @@ function DBTableHandler(dbtable, tablemapping, ctor) {
   this.autoIncFieldName       = null;
   this.autoIncColumnNumber    = null;
   this.numberOfLobColumns     = 0;
+  this.numberOfNotPersistentFields = 0;
    
   /* New Arrays */
   this.columnNumberToFieldMap = [];  
@@ -182,6 +183,9 @@ function DBTableHandler(dbtable, tablemapping, ctor) {
         // relationship field
         this.relationshipFields.push(f);
       }
+    } else {
+      // increment not-persistent field count
+      ++this.numberOfNotPersistentFields;
     }
   }
 
@@ -210,7 +214,7 @@ function DBTableHandler(dbtable, tablemapping, ctor) {
   }
 
   /* Total number of mapped fields */
-  nMappedFields = this.mapping.fields.length + stubFields.length;
+  nMappedFields = this.mapping.fields.length + stubFields.length - this.numberOfNotPersistentFields;
          
   /* Create the resolved mapping to be returned by getMapping() */
   this.resolvedMapping = {};
@@ -414,7 +418,7 @@ DBTableHandler.prototype.applyFieldConverters = function(obj, adapter) {
     }
     if(f.domainTypeConverter) {
       value = obj[f.fieldName];
-      convertedValue = f.domainTypeConverter.fromDB(value);
+      convertedValue = f.domainTypeConverter.fromDB(value, obj, f);
       obj[f.fieldName] = convertedValue;
     }
   }
@@ -581,7 +585,7 @@ DBTableHandler.prototype.get = function(obj, fieldNumber, adapter, fieldValueDef
     throw new Error('FatalInternalError: field number does not exist: ' + fieldNumber);
   }
   if(f.domainTypeConverter) {
-    result = f.domainTypeConverter.toDB(obj[f.fieldName]);
+    result = f.domainTypeConverter.toDB(obj[f.fieldName], obj, f);
   }
   else {
     result = obj[f.fieldName];
@@ -594,6 +598,11 @@ DBTableHandler.prototype.get = function(obj, fieldNumber, adapter, fieldValueDef
     if (typeof(result) === 'undefined') {
       fieldValueDefinedListener.setUndefined(fieldNumber);
     } else {
+      if (this.fieldNumberToColumnMap[fieldNumber].isBinary && result.constructor && result.constructor.name !== 'Buffer') {
+        var err = new Error('Binary field with non-Buffer data for field ' + f.fieldName);
+        err.sqlstate = '22000';
+        fieldValueDefinedListener.err = err;
+      }
       fieldValueDefinedListener.setDefined(fieldNumber);
     }
   }
@@ -607,7 +616,7 @@ DBTableHandler.prototype.getFieldsSimple = function(obj, fieldNumber) {
   var f;
   f = this.fieldNumberToFieldMap[fieldNumber];
   if(f.domainTypeConverter) {
-    return f.domainTypeConverter.toDB(obj[f.fieldName]);
+    return f.domainTypeConverter.toDB(obj[f.fieldName], obj, f);
   }
   return obj[f.fieldName];
 };
@@ -652,7 +661,7 @@ DBTableHandler.prototype.set = function(obj, fieldNumber, value, adapter) {
       userValue = databaseTypeConverter.fromDB(value);
     }
     if(f.domainTypeConverter) {
-      userValue = f.domainTypeConverter.fromDB(userValue);
+      userValue = f.domainTypeConverter.fromDB(userValue, obj, f);
     }
     obj[f.fieldName] = userValue;
     return true; 
@@ -680,7 +689,7 @@ DBTableHandler.prototype.setFields = function(obj, values, adapter) {
 
 
 /* DBIndexHandler constructor and prototype */
-function DBIndexHandler(parent, dbIndex) {
+DBIndexHandler = function (parent, dbIndex) {
   udebug.log("DBIndexHandler constructor");
   stats.DBIndexHandler_created++;
   var i, colNo;
@@ -701,7 +710,7 @@ function DBIndexHandler(parent, dbIndex) {
   } else {
     this.singleColumn = null;
   }
-}
+};
 
 /* DBIndexHandler inherits some methods from DBTableHandler */
 DBIndexHandler.prototype = {

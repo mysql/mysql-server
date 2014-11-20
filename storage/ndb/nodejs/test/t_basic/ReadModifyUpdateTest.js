@@ -21,9 +21,10 @@
 /*jslint newcap: true */
 /*global t_basic, verify_t_basic, fail_verify_t_basic */
 
+var path = require("path");
 var ndbimpl;
 try {
-  ndbimpl = require(path.join(build_dir, "ndb_adapter.node")).ndb.impl; 
+  ndbimpl = require(path.join(mynode.fs.build_dir, "ndb_adapter.node")).ndb.impl;
 }
 catch(e) {}
 

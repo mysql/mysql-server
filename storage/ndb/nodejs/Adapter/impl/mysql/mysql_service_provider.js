@@ -18,16 +18,19 @@
  02110-1301  USA
 */
 
-/*global unified_debug */
-
 "use strict";
 
-var udebug = unified_debug.getLogger("mysql_service_provider.js");
-var saved_err;
+var udebug = unified_debug.getLogger("mysql_service_provider.js"),
+    path = require("path"),
+    saved_err,
+    mysqlconnection,
+    mysqldictionary,
+    mysqlmetadatamanager = null;
 
 try {
   /* Let unmet module dependencies be caught by loadRequiredModules() */
-  var mysqlconnection = require("./MySQLConnectionPool.js");
+  mysqlconnection = require("./MySQLConnectionPool.js");
+  mysqldictionary = require("./MySQLDictionary.js");
 }
 catch(e) {
   saved_err = e;
@@ -52,26 +55,8 @@ exports.loadRequiredModules = function() {
 };
 
 
-var MysqlDefaultConnectionProperties = {  
-  "implementation" : "mysql",
-  "database"       : "test",
-  
-  "mysql_host"     : "localhost",
-  "mysql_port"     : 3306,
-  "mysql_user"     : "root",
-  "mysql_password" : "",
-  "mysql_charset"  : "UTF8MB4",
-  "mysql_sql_mode" : "STRICT_ALL_TABLES",
-  "mysql_socket"   : null,
-  "debug"          : true,
-  "mysql_trace"    : false,
-  "mysql_debug"    : false,
-  "mysql_pool_size": 10
-};
-
-
 exports.getDefaultConnectionProperties = function() {
-  return MysqlDefaultConnectionProperties;
+  return require(path.join(mynode.fs.backend_doc_dir,"mysql_properties.js"));
 };
 
 
@@ -96,4 +81,12 @@ exports.connect = function(properties, sessionFactory_callback) {
   connectionPool.connect(function(err, connection) {
     callback(err, connectionPool);
   });
+};
+
+
+exports.getDBMetadataManager = function() {
+  if(! mysqlmetadatamanager) {
+    mysqlmetadatamanager = new mysqldictionary.MetadataManager();
+  }
+  return mysqlmetadatamanager;
 };

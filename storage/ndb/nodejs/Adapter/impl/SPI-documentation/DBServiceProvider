@@ -28,7 +28,7 @@
   function getFactoryKey(properties) {};
 
 
-/* Array loadRequiredModules()
+/* Bool loadRequiredModules()
    IMMEDIATE
    The module should attempt to load all of its prerequisite modules.
    If succesful, return true.
@@ -38,3 +38,10 @@
    module itself even if the dependencies are missing.
 */
   function loadRequiredModules() {};
+
+
+/* Object getDBMetadataManager()
+   IMMEDIATE
+   Returns a DBMetadataManager for this service provider
+*/
+  function getDBMetadataManager() {};

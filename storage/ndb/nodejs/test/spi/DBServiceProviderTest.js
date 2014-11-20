@@ -22,9 +22,11 @@
 
 "use strict";
 
-var spi = require(spi_module),
+var path = require("path"),
+    fs   = require("fs"),
+    spi  = require(mynode.spi),
     service = spi.getDBServiceProvider(global.adapter),
-    doc_parser  = require(path.join(suites_dir, "lib", "doc_parser"));
+    doc_parser  = require("../lib/doc_parser");
 
 var t1 = new harness.ConcurrentTest("getDefaultConnectionProperties");
 t1.run = function() {
@@ -46,7 +48,7 @@ t2.run = function() {
 */
 var t4 = new harness.ConcurrentTest("PublicFunctions");
 t4.run = function() {
-  var docFile = path.join(spi_doc_dir, "DBServiceProvider");
+  var docFile = path.join(mynode.fs.spi_doc_dir, "DBServiceProvider");
   var functionList = doc_parser.listFunctions(docFile);
   var tester = new doc_parser.ClassTester(service, "DBServiceProvider");
   tester.test(functionList);

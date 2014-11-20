@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2012, Oracle and/or its affiliates. All rights
+ Copyright (c) 2014, Oracle and/or its affiliates. All rights
  reserved.
  
  This program is free software; you can redistribute it and/or
@@ -20,9 +20,11 @@
 
 "use strict";
 
-var DatetimeConverter = require(path.join(converters_dir, "NdbDatetimeConverter"));
-var TimeConverter = require(path.join(converters_dir, "NdbTimeConverter"));
-var DateConverter = require(path.join(converters_dir, "NdbDateConverter"));
+var path = require("path");
+var fs = require("fs");
+var DatetimeConverter = require(path.join(mynode.fs.converters_dir, "NdbDatetimeConverter"));
+var TimeConverter = require(path.join(mynode.fs.converters_dir, "NdbTimeConverter"));
+var DateConverter = require(path.join(mynode.fs.converters_dir, "NdbDateConverter"));
 
 try {
   var DBConnectionPool = require("./NdbConnectionPool.js").DBConnectionPool;
@@ -35,11 +37,16 @@ catch(e) {
 var udebug  = unified_debug.getLogger("ndb_service_provider.js");
 
 var NdbDefaultConnectionProperties = 
-  require(path.join(spi_doc_dir, "NDB_Properties"));
+  require(path.join(mynode.fs.backend_doc_dir, "ndb_properties"));
+
+/* Rely on MySQL SPI for MetadataManager */
+var mysqlService = require(mynode.spi).getDBServiceProvider("mysql"),
+    mysqlMetadataManager = mysqlService.getDBMetadataManager();
+
 
 exports.loadRequiredModules = function() {
   var err, ldp, module, msg;
-  module = path.join(build_dir, "ndb_adapter.node");
+  module = path.join(mynode.fs.build_dir, "ndb_adapter.node");
   var existsSync = fs.existsSync || path.existsSync;
   try {
     require(module);
@@ -93,4 +100,9 @@ exports.getFactoryKey = function(properties) {
   udebug.log("getFactoryKey");
   var key = properties.implementation + "://" + properties.ndb_connectstring;
   return key;
+};
+
+
+exports.getDBMetadataManager = function() {
+  return mysqlMetadataManager;
 };
