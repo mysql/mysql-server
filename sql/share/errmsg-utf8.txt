@@ -7408,6 +7408,9 @@ ER_GENERATED_COLUMN_REF_AUTO_INC,
 ER_FEATURE_NOT_AVAILABLE
   eng "The '%-.64s' feature is not available; you need to remove '%-.64s' or use MySQL built with '%-.64s'"
 
+ER_CANT_SET_GTID_MODE
+  eng "SET @@GLOBAL.GTID_MODE = %-.64s is not allowed because %-.384s."
+
 #
 #  End of 5.7 error messages.
 #
