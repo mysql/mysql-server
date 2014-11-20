@@ -418,17 +418,20 @@ Backup::calculate_disk_write_speed(Signal *signal)
     c_defaults.m_disk_write_speed_max_other_node_restart :
     c_defaults.m_disk_write_speed_max;
   /**
-   * Calculate the max - min and divide by 10 to get the adjustment parameter
-   * which is 10% of max - min. We will never adjust faster than this to avoid
-   * to quick adaptiveness. For adjustments down we will adapt faster and use
-   * division by 5 to get 20% adjustments instead.
+   * Calculate the max - min and divide by 12 to get the adjustment parameter
+   * which is 8% of max - min. We will never adjust faster than this to avoid
+   * to quick adaptiveness. For adjustments down we will adapt faster for IO
+   * lags, for CPU speed we will adapt a bit slower dependent on how high
+   * the CPU load is.
    */
   int diff_disk_write_speed =
     max_disk_write_speed -
       c_defaults.m_disk_write_speed_min;
 
-  int adjust_speed_up = diff_disk_write_speed / 10;
-  int adjust_speed_down = diff_disk_write_speed / 5;
+  int adjust_speed_up = diff_disk_write_speed / 12;
+  int adjust_speed_down_high = diff_disk_write_speed / 7;
+  int adjust_speed_down_medium = diff_disk_write_speed / 10;
+  int adjust_speed_down_low = diff_disk_write_speed / 14;
   
   jam();
   if (diff_disk_write_speed <= 0 ||
@@ -454,17 +457,18 @@ Backup::calculate_disk_write_speed(Signal *signal)
      * for more REDO logging bandwidth. The definition of REDO log IO lagging
      * is kept in DBLQH, but will be a number of seconds of outstanding REDO
      * IO requests that LQH is still waiting for completion of.
+     * This is a harder condition, so here we will immediately slow down fast.
      */
     jam();
     slowdowns_due_to_io_lag++;
-    adjust_disk_write_speed_down(adjust_speed_down);
+    adjust_disk_write_speed_down(adjust_speed_down_high);
   }
   else
   {
     /**
      * Get CPU usage of this LDM thread during last second.
      * If CPU usage is over or equal to 95% we will decrease the LCP speed
-     * If CPU usage is below 80% we will increase the LCP speed
+     * If CPU usage is below 90% we will increase the LCP speed
      * one more step. Otherwise we will keep it where it currently is.
      *
      * The speed of writing backups and LCPs are fairly linear to the
@@ -497,8 +501,8 @@ Backup::calculate_disk_write_speed(Signal *signal)
      * spend more and more time doing useful work. At low loads we spend a
      * significant time simply waiting for new signals to arrive and going to
      * sleep and waking up. So being at 95% load still means that we have
-     * a bit more than 5% capacity left and even being at 80% means we
-     * might have as much as 30% more capacity to use.
+     * a bit more than 5% capacity left and even being at 90% means we
+     * might have as much as 20% more capacity to use.
      */
     jam();
     EXECUTE_DIRECT(THRMAN,
@@ -507,20 +511,35 @@ Backup::calculate_disk_write_speed(Signal *signal)
                    1,
                    getThrmanInstance());
     Uint32 cpu_usage = signal->theData[0];
-    if (cpu_usage < 80)
+    if (cpu_usage < 90)
     {
       jamEntry();
       adjust_disk_write_speed_up(adjust_speed_up);
     }
-    else if (cpu_usage >= 95)
+    else if (cpu_usage < 95)
     {
       jamEntry();
+    }
+    else if (cpu_usage < 97)
+    {
+      jamEntry();
+      /* 95-96% load, slightly slow down */
       slowdowns_due_to_high_cpu++;
-      adjust_disk_write_speed_down(adjust_speed_down);
+      adjust_disk_write_speed_down(adjust_speed_down_low);
+    }
+    else if (cpu_usage < 99)
+    {
+      jamEntry();
+      /* 97-98% load, slow down */
+      slowdowns_due_to_high_cpu++;
+      adjust_disk_write_speed_down(adjust_speed_down_medium);
     }
     else
     {
       jamEntry();
+      /* 99-100% load, slow down a bit faster */
+      slowdowns_due_to_high_cpu++;
+      adjust_disk_write_speed_down(adjust_speed_down_high);
     }
   }
 }
