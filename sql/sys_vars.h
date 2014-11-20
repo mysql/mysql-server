@@ -36,6 +36,7 @@
 #include "sys_vars_shared.h"      // throw_bounds_warning
 #include "tztime.h"               // Time_zone
 #include "binlog.h"               // mysql_bin_log
+#include "rpl_rli.h"              // sql_slave_skip_counter
 
 
 /*
@@ -2409,6 +2410,15 @@ public:
     if (abs((int)new_gtid_mode - (int)old_gtid_mode) > 1)
     {
       my_error(ER_GTID_MODE_CAN_ONLY_CHANGE_ONE_STEP_AT_A_TIME, MYF(0));
+      goto err;
+    }
+
+    // Not allowed with slave_sql_skip_counter
+    DBUG_PRINT("info", ("sql_slave_skip_counter=%d", sql_slave_skip_counter));
+    if (new_gtid_mode == GTID_MODE_ON && sql_slave_skip_counter > 0)
+    {
+      my_error(ER_CANT_SET_GTID_MODE, MYF(0), "ON",
+               "@@GLOBAL.SQL_SLAVE_SKIP_COUNTER is greater than zero");
       goto err;
     }
 
