@@ -185,6 +185,7 @@ public:
     DihAddFragFailCleanedUp = 7024,
     DihDumpPageRecInfo = 7032,
     DihFragmentsPerNode = 7033,
+    DihDisplayPauseState = 7034,
     EnableUndoDelayDataWrite = 7080, // DIH+ACC+TUP
     DihSetTimeBetweenGcp = 7090,
     DihStartLcpImmediately = 7099,
