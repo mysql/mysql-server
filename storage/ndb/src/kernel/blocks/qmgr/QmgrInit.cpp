@@ -169,8 +169,6 @@ Qmgr::Qmgr(Block_context& ctx)
   addRecSignal(GSN_PRES_TOCONF, &Qmgr::execPRES_TOCONF);
 
   // Received signals
-  addRecSignal(GSN_CHECK_NODE_INCLUDED_REQ,
-               &Qmgr::execCHECK_NODE_INCLUDED_REQ);
   addRecSignal(GSN_CONNECT_REP, &Qmgr::execCONNECT_REP);
   addRecSignal(GSN_NDB_FAILCONF, &Qmgr::execNDB_FAILCONF);
   addRecSignal(GSN_NF_COMPLETEREP, &Qmgr::execNF_COMPLETEREP);
