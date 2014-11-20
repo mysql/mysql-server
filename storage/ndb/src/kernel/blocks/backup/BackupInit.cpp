@@ -190,87 +190,11 @@ Backup::execREAD_CONFIG_REQ(Signal* signal)
   ndb_mgm_get_int_parameter(p, CFG_DB_COMPRESSED_LCP,
 			    &c_defaults.m_compressed_lcp);
 
-  if (c_defaults.m_disk_write_speed_max < c_defaults.m_disk_write_speed_min)
-  {
-    /** 
-     * By setting max disk write speed equal or smaller than the minimum
-     * we will remove the adaptiveness of the LCP speed.
-     */
-    jam();
-    ndbout << "Setting MaxDiskWriteSpeed to MinDiskWriteSpeed since max < min"
-           << endl;
-    c_defaults.m_disk_write_speed_max = c_defaults.m_disk_write_speed_min;
-  }
-
-  if (c_defaults.m_disk_write_speed_max_other_node_restart <
-        c_defaults.m_disk_write_speed_max)
-  {
-    /** 
-     * By setting max disk write speed during restart equal or smaller than
-     * the maximum we will remove the extra adaptiveness of the LCP speed
-     * at other nodes restarts.
-     */
-    jam();
-    ndbout << "MaxDiskWriteSpeed larger than MaxDiskWriteSpeedOtherNodeRestart"
-           << " setting both to MaxDiskWriteSpeed" << endl;
-    c_defaults.m_disk_write_speed_max_other_node_restart =
-      c_defaults.m_disk_write_speed_max;
-  }
-
-  if (c_defaults.m_disk_write_speed_max_own_restart <
-        c_defaults.m_disk_write_speed_max_other_node_restart)
-  {
-    /** 
-     * By setting restart disk write speed during our restart equal or
-     * smaller than the maximum we will remove the extra adaptiveness of the
-     * LCP speed at other nodes restarts.
-     */
-    jam();
-    ndbout << "Setting MaxDiskWriteSpeedOwnRestart to "
-           << " MaxDiskWriteSpeedOtherNodeRestart since it was smaller"
-           << endl;
-    c_defaults.m_disk_write_speed_max_own_restart =
-      c_defaults.m_disk_write_speed_max_other_node_restart;
-  }
+  calculate_real_disk_write_speed_parameters();
 
   m_backup_report_frequency = 0;
   ndb_mgm_get_int_parameter(p, CFG_DB_BACKUP_REPORT_FREQUENCY, 
 			    &m_backup_report_frequency);
-  /*
-    We adjust the disk speed parameters from bytes per second to rather be
-    words per 100 milliseconds. We convert disk synch size from bytes per
-    second to words per second.
-  */
-  c_defaults.m_disk_write_speed_min /=
-    CURR_DISK_SPEED_CONVERSION_FACTOR_TO_SECONDS;
-  c_defaults.m_disk_write_speed_max /=
-    CURR_DISK_SPEED_CONVERSION_FACTOR_TO_SECONDS;
-  c_defaults.m_disk_write_speed_max_other_node_restart /=
-    CURR_DISK_SPEED_CONVERSION_FACTOR_TO_SECONDS;
-  c_defaults.m_disk_write_speed_max_own_restart /=
-    CURR_DISK_SPEED_CONVERSION_FACTOR_TO_SECONDS;
-
-  /*
-    Temporary fix, we divide the speed by number of ldm threads since we
-    now can write in all ldm threads in parallel. Since previously we could
-    write in 2 threads we also multiply by 2 if number of ldm threads is
-    at least 2.
-
-    The real fix will be to make the speed of writing more adaptable and also
-    to use the real configured value and also add a new max disk speed value
-    that can be used when one needs to write faster.
-  */
-  Uint32 num_ldm_threads = globalData.ndbMtLqhThreads;
-  if (num_ldm_threads == 0)
-  {
-    /* We are running with ndbd binary */
-    jam();
-    num_ldm_threads = 1;
-  }
-  c_defaults.m_disk_write_speed_min /= num_ldm_threads;
-  c_defaults.m_disk_write_speed_max /= num_ldm_threads;
-  c_defaults.m_disk_write_speed_max_other_node_restart /= num_ldm_threads;
-  c_defaults.m_disk_write_speed_max_own_restart /= num_ldm_threads;
 
   ndb_mgm_get_int_parameter(p, CFG_DB_PARALLEL_BACKUPS, &noBackups);
   //  ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_DB_NO_TABLES, &noTables));
@@ -384,3 +308,100 @@ Backup::execREAD_CONFIG_REQ(Signal* signal)
 	     ReadConfigConf::SignalLength, JBB);
 }
 
+/* Broken out in its own routine to enable setting via DUMP command. */
+void Backup::calculate_real_disk_write_speed_parameters(void)
+{
+  if (c_defaults.m_disk_write_speed_max < c_defaults.m_disk_write_speed_min)
+  {
+    /** 
+     * By setting max disk write speed equal or smaller than the minimum
+     * we will remove the adaptiveness of the LCP speed.
+     */
+    jam();
+    ndbout << "Setting MaxDiskWriteSpeed to MinDiskWriteSpeed since max < min"
+           << endl;
+    c_defaults.m_disk_write_speed_max = c_defaults.m_disk_write_speed_min;
+  }
+
+  if (c_defaults.m_disk_write_speed_max_other_node_restart <
+        c_defaults.m_disk_write_speed_max)
+  {
+    /** 
+     * By setting max disk write speed during restart equal or smaller than
+     * the maximum we will remove the extra adaptiveness of the LCP speed
+     * at other nodes restarts.
+     */
+    jam();
+    ndbout << "MaxDiskWriteSpeed larger than MaxDiskWriteSpeedOtherNodeRestart"
+           << " setting both to MaxDiskWriteSpeed" << endl;
+    c_defaults.m_disk_write_speed_max_other_node_restart =
+      c_defaults.m_disk_write_speed_max;
+  }
+
+  if (c_defaults.m_disk_write_speed_max_own_restart <
+        c_defaults.m_disk_write_speed_max_other_node_restart)
+  {
+    /** 
+     * By setting restart disk write speed during our restart equal or
+     * smaller than the maximum we will remove the extra adaptiveness of the
+     * LCP speed at other nodes restarts.
+     */
+    jam();
+    ndbout << "Setting MaxDiskWriteSpeedOwnRestart to "
+           << " MaxDiskWriteSpeedOtherNodeRestart since it was smaller"
+           << endl;
+    c_defaults.m_disk_write_speed_max_own_restart =
+      c_defaults.m_disk_write_speed_max_other_node_restart;
+  }
+
+  /*
+    We adjust the disk speed parameters from bytes per second to rather be
+    words per 100 milliseconds. We convert disk synch size from bytes per
+    second to words per second.
+  */
+  c_defaults.m_disk_write_speed_min /=
+    CURR_DISK_SPEED_CONVERSION_FACTOR_TO_SECONDS;
+  c_defaults.m_disk_write_speed_max /=
+    CURR_DISK_SPEED_CONVERSION_FACTOR_TO_SECONDS;
+  c_defaults.m_disk_write_speed_max_other_node_restart /=
+    CURR_DISK_SPEED_CONVERSION_FACTOR_TO_SECONDS;
+  c_defaults.m_disk_write_speed_max_own_restart /=
+    CURR_DISK_SPEED_CONVERSION_FACTOR_TO_SECONDS;
+
+  Uint32 num_ldm_threads = globalData.ndbMtLqhThreads;
+  if (num_ldm_threads == 0)
+  {
+    /* We are running with ndbd binary */
+    jam();
+    num_ldm_threads = 1;
+  }
+  c_defaults.m_disk_write_speed_min /= num_ldm_threads;
+  c_defaults.m_disk_write_speed_max /= num_ldm_threads;
+  c_defaults.m_disk_write_speed_max_other_node_restart /= num_ldm_threads;
+  c_defaults.m_disk_write_speed_max_own_restart /= num_ldm_threads;
+}
+
+void Backup::restore_disk_write_speed_numbers(void)
+{
+  c_defaults.m_disk_write_speed_min *=
+    CURR_DISK_SPEED_CONVERSION_FACTOR_TO_SECONDS;
+  c_defaults.m_disk_write_speed_max *=
+    CURR_DISK_SPEED_CONVERSION_FACTOR_TO_SECONDS;
+  c_defaults.m_disk_write_speed_max_other_node_restart *=
+    CURR_DISK_SPEED_CONVERSION_FACTOR_TO_SECONDS;
+  c_defaults.m_disk_write_speed_max_own_restart *=
+    CURR_DISK_SPEED_CONVERSION_FACTOR_TO_SECONDS;
+
+  Uint32 num_ldm_threads = globalData.ndbMtLqhThreads;
+  if (num_ldm_threads == 0)
+  {
+    /* We are running with ndbd binary */
+    jam();
+    num_ldm_threads = 1;
+  }
+
+  c_defaults.m_disk_write_speed_min *= num_ldm_threads;
+  c_defaults.m_disk_write_speed_max *= num_ldm_threads;
+  c_defaults.m_disk_write_speed_max_other_node_restart *= num_ldm_threads;
+  c_defaults.m_disk_write_speed_max_own_restart *= num_ldm_threads;
+}

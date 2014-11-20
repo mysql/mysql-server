@@ -61,6 +61,12 @@ public:
 
     _BackupMin   = 100000,
     BackupStatus = 100000,
+    BackupMinWriteSpeed32 = 100001,
+    BackupMaxWriteSpeed32 = 100002,
+    BackupMaxWriteSpeedOtherNodeRestart32 = 100003,
+    BackupMinWriteSpeed64 = 100004,
+    BackupMaxWriteSpeed64 = 100005,
+    BackupMaxWriteSpeedOtherNodeRestart64 = 100006,
     _BackupMax   = 100999,
 
     _TCMin       = 101000,

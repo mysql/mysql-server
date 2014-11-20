@@ -641,6 +641,11 @@ public:
   void calculate_disk_write_speed(Signal *signal);
   void send_next_reset_disk_speed_counter(Signal *signal);
 
+  void restore_disk_write_speed_numbers(void);
+  void calculate_real_disk_write_speed_parameters(void);
+  Uint64 get_new_speed_val32(Signal *signal);
+  Uint64 get_new_speed_val64(Signal *signal);
+
   /**
    * Methods used in ndbinfo reporting of checkpoint speed.
    */
