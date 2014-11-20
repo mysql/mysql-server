@@ -565,9 +565,30 @@ bool st_select_lex_unit::optimize(THD *thd)
         We can't use LIMIT at this stage if we are using ORDER BY for the
         whole UNION.
       */
+<<<<<<< HEAD
       if (sl->order_list.first)
         select_limit_cnt= HA_POS_ERROR;
       /* purecov: end */
+=======
+      sl->join->select_options= 
+        (select_limit_cnt == HA_POS_ERROR || sl->braces) ?
+        sl->options & ~OPTION_FOUND_ROWS : sl->options | found_rows_for_union;
+
+      saved_error= sl->join->optimize();
+      /*
+        Accumulate estimated number of rows.
+        1. Implicitly grouped query has one row (with HAVING it has zero or one
+           rows).
+        2. If GROUP BY clause is optimized away because it was a constant then
+           query produces at most one row.
+      */
+      result->estimated_rowcount+=
+        (sl->with_sum_func && sl->group_list.elements == 0) ||
+        sl->join->group_optimized_away ?
+          1 : sl->join->best_rowcount;
+
+      thd->lex->current_select= lex_select_save;
+>>>>>>> Bug #18607971 : 5.5 TO 5.6 REGRESSION WITH A SUBQUERY IN THE FROM CLAUSE.
     }
 
     if ((status= sl->optimize(thd)))
