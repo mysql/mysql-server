@@ -374,7 +374,7 @@ NDB_COMMAND(flexBench, "flexBench", "flexBench", "flexbench", 65535)
       pThreadsData[i].threadNo = i;
       pThreadsData[i].threadLife = NdbThread_Create(flexBenchThread,
                                                     (void**)&pThreadsData[i],
-                                                    32768,
+                                                    64 * 1024,  // 64K stack
                                                     "flexBenchThread",
                                                     NDB_THREAD_PRIO_LOW);
     }
@@ -655,6 +655,16 @@ static void* flexBenchThread(void* pArg)
   for (int tab= 0; tab<(int)tNoOfTables; tab++)
   {
     const NdbDictionary::Table *table= dict->getTable(tableName[tab]);
+    if (table == NULL)
+    {
+      // This is a fatal error, abort program
+      ndbout << "Failed to find table: " << tableName[tab];
+      ndbout << ", in thread: " << threadNo;
+      ndbout << endl;
+      tResult = 1; // Indicate fatal error
+      break;
+    }
+
     int numPKs= (useLongKeys ? tNoOfLongPK : 1);
 
     /* First create NdbRecord for just the primary key(s). */
