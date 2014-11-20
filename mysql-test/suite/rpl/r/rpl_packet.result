@@ -50,6 +50,7 @@ Last_IO_Error = 'Got a packet bigger than 'slave_max_allowed_packet' bytes'
 STOP SLAVE;
 RESET SLAVE;
 RESET MASTER;
+RESET MASTER;
 SET @max_allowed_packet_0= @@session.max_allowed_packet;
 SHOW BINLOG EVENTS;
 SET @max_allowed_packet_1= @@session.max_allowed_packet;

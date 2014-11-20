@@ -1,0 +1,69 @@
+###############################################################################
+# Bug#19843808: DEADLOCK ON FLUSH TABLES WITH READ LOCK + SHOW
+# SLAVE STATUS
+#
+# Problem:
+# ========
+# If a client thread on an slave does FLUSH TABLES WITH READ
+# LOCK; then master does some updates, SHOW SLAVE STATUS in
+# the same client will be blocked.
+#
+# Test:
+# =====
+# Execute a DML on master and make it blocked on slave after entering commit.
+# Execute FLUSH TABLES WITH READ LOCK on slave. Allow the blocked DML to
+# continue. The sql thread will be blocked in a state where it has acquired
+# rli->data_lock and it is waiting for MDL COMMIT lock. Now execute show slave
+# status command from the same client where FLUSH TABLES WITH READ LOCK was
+# issued. The show slave status command should not be blocked.
+###############################################################################
+--source include/have_binlog_format_mixed.inc
+--source include/master-slave.inc
+--source include/have_debug.inc
+--source include/have_innodb.inc
+--source include/have_debug_sync.inc
+
+--echo # Let master and slave synced with t1 table created
+CREATE TABLE t1 (f INT) ENGINE= INNODB;
+--source include/sync_slave_sql_with_master.inc
+
+--echo # Setup GLOBAL.DEBUG at slave to reach commit
+--source include/rpl_connection_slave.inc
+--let $debug_saved= `SELECT @@GLOBAL.DEBUG`
+SET @@GLOBAL.DEBUG= '+d,dbug.reached_commit';
+
+--echo # Do some DML operation on master so that it will be blocked on
+--echo # slave as global read lock is in place.
+--source include/rpl_connection_master.inc
+INSERT INTO t1 VALUES (10);
+
+--echo # Issue FLUSH TABLES WITH READ LOCK after Reached is signaled
+--source include/rpl_connection_slave.inc
+SET DEBUG_SYNC='now WAIT_FOR Reached';
+FLUSH TABLES WITH READ LOCK;
+--echo # Let sql thread continue to try to obtain commit lock
+SET DEBUG_SYNC= 'now SIGNAL signal.commit_continue';
+
+--echo # Wait until sql thread enters "Waiting for commit lock" state
+let $wait_condition= SELECT COUNT(*) = 1 FROM information_schema.processlist
+                     WHERE state = "Waiting for commit lock";
+--source include/wait_condition.inc
+
+--source include/rpl_connection_slave.inc
+--disable_result_log
+query_vertical SHOW SLAVE STATUS;
+--enable_result_log
+UNLOCK TABLES;
+SET @@GLOBAL.DEBUG= '$debug_saved';
+
+--source include/rpl_connection_master.inc
+--source include/sync_slave_sql_with_master.inc
+
+let $diff_tables= master:t1, slave:t1;
+source include/diff_tables.inc;
+
+--source include/rpl_connection_master.inc
+DROP TABLE t1;
+--source include/sync_slave_sql_with_master.inc
+
+--source include/rpl_end.inc
