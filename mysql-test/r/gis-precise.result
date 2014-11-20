@@ -981,7 +981,7 @@ NULL
 do st_distance(linestring(point(26,87),point(13,95)),
 geometrycollection(point(4.297374e+307,8.433875e+307)));
 Warnings:
-Error	1922	Invalid GIS data provided to function st_distance.
+Error	1923	Invalid GIS data provided to function st_distance.
 select st_distance(linestring(point(26,87),point(13,95)),
 geometrycollection(point(4.297374e+307,8.433875e+307))) as dist;
 ERROR 22023: Invalid GIS data provided to function st_distance.

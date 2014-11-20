@@ -31,6 +31,7 @@
 #include "trigger_def.h"              // enum_trigger_action_time_type
 #include "xa.h"                       // XID, xa_option_words
 #include "prealloced_array.h"
+#include "sql_data_change.h"
 
 /* YACC and LEX Definitions */
 
@@ -97,6 +98,26 @@ extern uint binlog_unsafe_map[256];
 */
 void binlog_unsafe_map_init();
 #endif
+
+enum keytype {
+  KEYTYPE_PRIMARY,
+  KEYTYPE_UNIQUE,
+  KEYTYPE_MULTIPLE,
+  KEYTYPE_FULLTEXT,
+  KEYTYPE_SPATIAL,
+  KEYTYPE_FOREIGN
+};
+
+enum enum_ha_read_modes { RFIRST, RNEXT, RPREV, RLAST, RKEY, RNEXT_SAME };
+
+enum enum_filetype { FILETYPE_CSV, FILETYPE_XML };
+
+enum fk_match_opt { FK_MATCH_UNDEF, FK_MATCH_FULL,
+                    FK_MATCH_PARTIAL, FK_MATCH_SIMPLE};
+
+enum fk_option { FK_OPTION_UNDEF, FK_OPTION_RESTRICT, FK_OPTION_CASCADE,
+                 FK_OPTION_SET_NULL, FK_OPTION_NO_ACTION, FK_OPTION_DEFAULT};
+
 
 /**
   used by the parser to store internal variable name
@@ -1378,7 +1399,7 @@ union YYSTYPE {
   LEX_USER *lex_user;
   struct sys_var_with_base variable;
   enum enum_var_type var_type;
-  Key::Keytype key_type;
+  keytype key_type;
   enum ha_key_alg key_alg;
   handlerton *db_type;
   enum row_type row_type;
@@ -1412,7 +1433,7 @@ union YYSTYPE {
   struct p_elem_val *p_elem_value;
   enum index_hint_type index_hint;
   enum enum_filetype filetype;
-  enum Foreign_key::fk_option m_fk_option;
+  enum fk_option m_fk_option;
   enum enum_yes_no_unknown m_yes_no_unk;
   enum_condition_item_name da_condition_item_name;
   Diagnostics_information::Which_area diag_area;
@@ -2852,9 +2873,9 @@ public:
   uint profile_options;
   uint uint_geom_type;
   uint grant, grant_tot_col, which_columns;
-  enum Foreign_key::fk_match_opt fk_match_option;
-  enum Foreign_key::fk_option fk_update_opt;
-  enum Foreign_key::fk_option fk_delete_opt;
+  enum fk_match_opt fk_match_option;
+  enum fk_option fk_update_opt;
+  enum fk_option fk_delete_opt;
   uint slave_thd_opt, start_transaction_opt;
   int select_number;                     ///< Number of query block (by EXPLAIN)
   uint8 describe;

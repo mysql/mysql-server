@@ -2829,7 +2829,7 @@ err_exit:
 		ut_ad(strstr(table->name.m_name, "/FTS_") != NULL);
 	}
 
-	node = tab_create_graph_create(table, heap, commit);
+	node = tab_create_graph_create(table, heap);
 
 	thr = pars_complete_graph_for_exec(node, trx, heap);
 
@@ -3017,7 +3017,7 @@ row_create_index_for_mysql(
 
 		heap = mem_heap_create(512);
 
-		node = ind_create_graph_create(index, heap, true);
+		node = ind_create_graph_create(index, heap);
 
 		thr = pars_complete_graph_for_exec(node, trx, heap);
 

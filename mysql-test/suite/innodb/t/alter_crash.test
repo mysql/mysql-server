@@ -18,11 +18,11 @@ call mtr.add_suppression('InnoDB: Index c[23] .*is corrupted');
 --echo #
 
 CREATE TABLE t1(c1 INT PRIMARY KEY, c2 CHAR(1), c3 INT UNSIGNED) ENGINE=InnoDB;
-SET GLOBAL innodb_trx_rseg_n_slots_debug=1;
+SET DEBUG='+d,ib_create_table_fail_too_many_trx';
 --error ER_TOO_MANY_CONCURRENT_TRXS
 ALTER TABLE t1 ADD INDEX (c2), ADD INDEX (c3);
 
-SET GLOBAL innodb_trx_rseg_n_slots_debug=0;
+SET DEBUG='-d,ib_create_table_fail_too_many_trx';
 ALTER TABLE t1 ADD INDEX (c2), ADD INDEX (c3);
 # Flag the secondary indexes corrupted.
 SET DEBUG='+d,dict_set_index_corrupted';
