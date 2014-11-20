@@ -1065,6 +1065,7 @@ Cmvmi::execSTART_ORD(Signal* signal) {
         globalTransporterRegistry.do_connect(i);
       }
     }
+    g_eventLogger->info("First START_ORD executed to connect MGM servers");
 
     globalData.theStartLevel = NodeState::SL_CMVMI;
     sendSignal(QMGR_REF, GSN_START_ORD, signal, 1, JBA);
@@ -1074,7 +1075,6 @@ Cmvmi::execSTART_ORD(Signal* signal) {
   if(globalData.theStartLevel == NodeState::SL_CMVMI)
   {
     jam();
-    
     globalData.theStartLevel  = NodeState::SL_STARTING;
     globalData.theRestartFlag = system_started;
     /**
@@ -1082,7 +1082,17 @@ Cmvmi::execSTART_ORD(Signal* signal) {
      *
      * Do Restart
      */
-    
+    if (signal->getSendersBlockRef() == 0)
+    {
+      jam();
+      g_eventLogger->info("Received second START_ORD as part of normal start");
+    }
+    else
+    {
+      jam();
+      g_eventLogger->info("Received second START_ORD from node %u",
+                          refToNode(signal->getSendersBlockRef()));
+    }
     // Disconnect all nodes as part of the system restart. 
     // We need to ensure that we are starting up
     // without any connected nodes.   
@@ -1094,12 +1104,14 @@ Cmvmi::execSTART_ORD(Signal* signal) {
         globalTransporterRegistry.setIOState(i, HaltIO);
       }
     }
+    g_eventLogger->info("Disconnect all non-MGM servers");
 
     CRASH_INSERTION(9994);
     
     /**
      * Start running startphases
      */
+    g_eventLogger->info("Start excuting the start phases");
     sendSignal(NDBCNTR_REF, GSN_START_ORD, signal, 1, JBA);  
     return;
   }
