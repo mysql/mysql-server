@@ -21,6 +21,8 @@
 "use strict";
 /*global fail_openSession */
 
+var assert = require("assert");
+
 var good_properties = global.test_conn_properties;
 
 var bad_properties = {

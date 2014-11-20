@@ -26,6 +26,8 @@
 /* Requires version 2.0 of Felix Geisendoerfer's MySQL client */
 
 var util   = require('util'),
+    path   = require("path"),
+    child_process = require("child_process"),
     udebug = unified_debug.getLogger("MySQLDictionary.js");
 
 exports.DataDictionary = function(pooledConnection, dbConnectionPool) {
@@ -426,5 +428,59 @@ exports.DataDictionary.prototype.getTableMetadata = function(databaseName, table
     }
   };
   this.connection.query('show create table ' + databaseName + '.' + tableName, showCreateTable_callback);
+};
+
+
+/* SQL DDL Utilities
+*/
+exports.MetadataManager = function() {
+
+  function runSQL(connectionProperties, sqlPath, callback) {
+    /* prepend the file containing the engine.sql (ndb.sql or innodb.sql)
+       to the file containing the sql commands  */
+    var engine = "ndb";
+    if(connectionProperties.mysql_storage_engine) {
+      engine = connectionProperties.mysql_storage_engine;
+    }
+    var enginesqlPath = path.join(mynode.fs.suites_dir, engine + '.sql ');
+    var cmd = 'cat ' + enginesqlPath + ' ' + sqlPath + ' | mysql';
+    var p = connectionProperties;
+
+    function childProcess(error, stdout, stderr) {
+      udebug.log_detail('child process completed.');
+      udebug.log_detail('stdout: ' + stdout);
+      udebug.log_detail('stderr: ' + stderr);
+      if (error !== null) {
+        udebug.log('exec error: ' + error);
+      } else {
+        udebug.log_detail('exec OK');
+      }
+      if(callback) {
+        callback(error);
+      }
+    }
+
+    if(p) {
+      if(p.mysql_socket)     { cmd += " --socket=" + p.mysql_socket; }
+      else if(p.mysql_port)  { cmd += " --port=" + p.mysql_port; }
+      if(p.mysql_host)     { cmd += " -h " + p.mysql_host; }
+      if(p.mysql_user)     { cmd += " -u " + p.mysql_user; }
+      if(p.mysql_password) { cmd += " --password=" + p.mysql_password; }
+    }
+    udebug.log_detail('harness runSQL forking process...' + cmd);
+    var child = child_process.exec(cmd, childProcess);
+  }
+
+  this.createTestTables = function(connectionProperties, suiteName, callback) {
+    udebug.log("createTestTables", suiteName);
+    var sqlPath = path.join(mynode.fs.suites_dir, suiteName, 'create.sql');
+    runSQL(connectionProperties, sqlPath, callback);
+  };
+
+  this.dropTestTables = function(connectionProperties, suiteName, callback) {
+    udebug.log("dropTestTables", suiteName);
+    var sqlPath = path.join(mynode.fs.suites_dir, suiteName, 'drop.sql');
+    runSQL(connectionProperties, sqlPath, callback);
+  };
 };
 

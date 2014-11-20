@@ -23,13 +23,11 @@
     This tests the loading of required compiled code in shared library files.
  */
 
-/*global assert, spi_module, harness */
-
 "use strict";
 
 var http = require("http");
 
-var stats_module = require(path.join(api_dir, "stats.js"));
+var stats_module = require(mynode.api.stats);
 
 var test = new harness.SerialTest("statsServer");
 

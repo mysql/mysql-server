@@ -20,8 +20,8 @@
 
 
 
-var MySQLTime = require(path.join(spi_dir,"common","MySQLTime.js")),
-    unified_debug = require(path.join(api_dir, "unified_debug")),
+var path = require("path"),
+    MySQLTime = require(path.join(mynode.fs.spi_dir,"common","MySQLTime.js")),
     udebug = unified_debug.getLogger("NdbDateConverter.js");
 
 

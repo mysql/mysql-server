@@ -23,7 +23,9 @@
 
 "use strict";
 
-var adapter            = require(path.join(build_dir, "ndb_adapter.node")),
+var path               = require("path"),
+    assert             = require("assert"),
+    adapter            = require(path.join(mynode.fs.build_dir, "ndb_adapter.node")),
     NdbInterpretedCode = adapter.ndb.ndbapi.NdbInterpretedCode,
     NdbScanFilter      = adapter.ndb.ndbapi.NdbScanFilter,
     udebug             = unified_debug.getLogger("NdbScanFilter.js");

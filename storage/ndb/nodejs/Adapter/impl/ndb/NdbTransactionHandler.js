@@ -30,12 +30,14 @@ var stats = {
   "rollback"     : 0
 };
 
-var adapter         = require(path.join(build_dir, "ndb_adapter.node")).ndb,
+var path            = require("path"),
+    assert          = require("assert"),
+    adapter         = require(path.join(mynode.fs.build_dir, "ndb_adapter.node")).ndb,
     ndboperation    = require("./NdbOperation.js"),
-    doc             = require(path.join(spi_doc_dir, "DBTransactionHandler")),
-    stats_module    = require(path.join(api_dir,"stats.js")),
+    doc             = require(path.join(mynode.fs.spi_doc_dir, "DBTransactionHandler")),
+    stats_module    = require(mynode.api.stats),
     udebug          = unified_debug.getLogger("NdbTransactionHandler.js"),
-    QueuedAsyncCall = require("../common/QueuedAsyncCall.js").QueuedAsyncCall,
+    QueuedAsyncCall = require(mynode.common.QueuedAsyncCall).QueuedAsyncCall,
     AutoIncHandler  = require("./NdbAutoIncrement.js").AutoIncHandler,
     COMMIT          = adapter.ndbapi.Commit,
     NOCOMMIT        = adapter.ndbapi.NoCommit,

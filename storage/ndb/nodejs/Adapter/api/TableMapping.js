@@ -19,12 +19,12 @@
  02110-1301  USA
  */
 
-/*global assert, path, api_doc_dir, unified_debug */
-
 "use strict";
 
 var udebug       = unified_debug.getLogger("TableMapping.js"),
-    doc          = require(path.join(api_doc_dir, "TableMapping"));
+    path         = require("path"),
+    util         = require("util"),
+    doc          = require(path.join(mynode.fs.api_doc_dir, "TableMapping"));
 
 /* file scope mapping id used to uniquely identify a mapped domain object */
 var mappingId = 0;
@@ -52,6 +52,20 @@ function isValidConverterObject(converter) {
 
 function isValidConstructor(constructor) {
   return (constructor != null && typeof constructor === 'function');
+}
+
+function isMeta(value) {
+  var i;
+  if (Array.isArray(value)) {
+    for (i=0; i > value.length; ++i) {
+      if (!value[i].isMeta || ! value[i].isMeta()) {
+        return false;
+      }
+    }
+  } else {
+    return (value.isMeta());
+  }
+  return true;
 }
 
 function Relationship() {
@@ -85,7 +99,8 @@ var fieldMappingProperties = {
   "persistent"   : isBool,
   "converter"    : isValidConverterObject,
   "relationship" : isBool,
-  "user"         : function() { return true; }
+  "user"         : function() { return true; },
+  "meta"         : isMeta
 };
 
 var manyToOneMappingProperties = {
@@ -183,6 +198,17 @@ function isValidFieldMappingArray(fieldMappings) {
   return isValid;
 }
 
+function isStringOrStringArray(arg) {
+  var i;
+  if (typeof arg === 'string') return true;
+  if (!Array.isArray(arg)) return 'must be a string or string array';
+  for (i = 0; i < arg.length; ++i) {
+    if (typeof arg[i] !== 'string') return 'must be a string or string array';
+  }
+  return true;
+}
+
+
 var tableMappingProperties = {
   "error"         : isString,
   "table"         : isNonEmptyString,
@@ -190,7 +216,10 @@ var tableMappingProperties = {
   "mapAllColumns" : isBool,
   "field"         : isValidFieldMapping,
   "fields"        : isValidFieldMappingArray,
-  "user"          : function() { return true; }
+  "user"          : function() { return true; },
+  "excludedFieldNames": isStringOrStringArray,
+  "mappedFieldNames" : isStringOrStringArray,
+  "meta"          : isMeta
 };
 
 function isValidTableMapping(tm) {
@@ -239,6 +268,7 @@ function makeCanonical(tableMapping) {
 */
 function TableMapping(tableNameOrLiteral) {
   var err;
+  var i, arg;
   switch(typeof tableNameOrLiteral) {
     case 'object':
       buildMappingFromObject(this, tableNameOrLiteral, tableMappingProperties);
@@ -258,13 +288,26 @@ function TableMapping(tableNameOrLiteral) {
         this.table = parts[0];
       }
       this.fields = [];
+      this.mappedFieldNames = [];
+      if (arguments.length >1) {
+        this.meta = [];
+        // look for optional meta following the table name
+        for (i = 1; i < arguments.length; i++) {
+          arg = arguments[i];
+          if (arg && arg.isMeta && arg.isMeta()) {
+            this.meta.push(arg);
+          } else {
+            this.error += 'MappingError: valid arguments are meta; invalid argument ' + i + ': (' + typeof arg + ') ' + arg;
+          }
+        }
+      }
       break;
     
     default: 
       this.error = "MappingError: string tableName or literal tableMapping is a required parameter.";
   }
   err = isValidTableMapping(this);
-  if (err) {
+   if (err) {
     this.error += err;
   }
 }
@@ -291,7 +334,7 @@ FieldMapping.prototype = doc.FieldMapping;
    Create or replace FieldMapping for fieldName
 */
 TableMapping.prototype.mapField = function() {
-  var i, args, fieldName, fieldMapping;
+  var i, args, arg, fieldName, fieldMapping;
   args = arguments;  
 
   function getFieldMapping(tableMapping, fieldName) {
@@ -308,23 +351,29 @@ TableMapping.prototype.mapField = function() {
   }
 
   /* mapField() starts here */
-  
-  if(typeof args[0] === 'string') {
-    fieldName = args[0];
+  arg = args[0];
+  if(typeof arg === 'string') {
+    fieldName = arg;
     fieldMapping = getFieldMapping(this, fieldName);
     for(i = 1; i < args.length ; i++) {
-      switch(typeof args[i]) {
+      arg = args[i];
+      switch(typeof arg) {
         case 'string':
-          fieldMapping.columnName = args[i];
+          fieldMapping.columnName = arg;
           break;
         case 'boolean':
-          fieldMapping.persistent = args[i];
+          fieldMapping.persistent = arg;
           break;
         case 'object':
-          fieldMapping.converter = args[i];
+          // argument is a meta or converter
+          if (arg && arg.isMeta && arg.isMeta()) {
+            fieldMapping.meta = arg;
+          } else {
+            fieldMapping.converter = arg;
+          }
           break;
         default:
-          this.error += "mapField(): Invalid argument " + args[i];
+          this.error += "mapField(): Invalid argument " + arg;
       }
     }
   }
@@ -339,7 +388,7 @@ TableMapping.prototype.mapField = function() {
 
   /* Validate the candidate mapping */
   this.error  += isValidFieldMapping(fieldMapping);
-
+  this.mappedFieldNames.push(fieldName);
   return this;
 };
 
@@ -441,6 +490,101 @@ TableMapping.prototype.mapManyToMany = function(literalMapping) {
   return this;
 };
 
+/** excludeFields(fieldNames)
+ * Exclude the named field(s) from being persisted as part of sparse field handling.
+ */
+TableMapping.prototype.excludeFields = function() {
+  var i, j, fieldName;
+  if (!this.excludedFieldNames) this.excludedFieldNames = [];
+  for (i = 0; i < arguments.length; ++i) {
+    var fieldNames = arguments[i];
+    if (typeof fieldNames === 'string') {
+      this.excludedFieldNames.push(fieldNames);
+    } else if (Array.isArray(fieldNames)) {
+      for (j = 0; j < fieldNames.length; ++j) {
+        fieldName = fieldNames[j];
+        if (typeof fieldName === 'string') {
+          this.excludedFieldNames.push(fieldName);
+        } else {
+          this.error += '\nMappingError: excludeFields argument must be a field name or an array or list of field names: \"' +
+              fieldName + '\"';
+        }
+      }
+    } else {
+      this.error += '\nMappingError: excludeFields argument must be a field name or an array or list of field names: \"' +
+          fieldNames + '\"';
+    }
+  }
+};
+
+
+/* mapSparseFields(columnName, fieldNames, converter)
+ * columnName: required
+ * fieldNames: optional string or array of strings
+ * converter: optional converter function default Converters/JSONSparseFieldsConverter
+ */
+TableMapping.prototype.mapSparseFields = function() {
+  var i, j, args, arg, columnName, fieldMapping, sparseFieldNames = [];
+  args = arguments;  
+    
+  if(typeof args[0] === 'string') {
+    columnName = args[0];
+    fieldMapping = new FieldMapping(columnName);
+    fieldMapping.tableMapping = this;
+    for(i = 1; i < args.length ; i++) {
+      arg = args[i];
+      switch(typeof arg) {
+        case 'string':
+          sparseFieldNames.push(arg);
+          break;
+        case 'object':
+          if (Array.isArray(arg)) {
+            // verify array of field names
+            for (j = 0; j < arg.length; ++j) {
+              if (typeof arg[j] !== 'string') {
+                this.error += "\nmapSparseFields Illegal argument; element " + j + 
+                    " is not a string: \"" + util.inspect(arg[j]) + "\"";
+              } else {
+                sparseFieldNames.push(arg[j]);
+              }
+            }
+          } else {
+            // argument is a meta or converter
+            if (arg && arg.isMeta && arg.isMeta()) {
+              fieldMapping.meta = arg;
+            } else {
+              // validate converter
+              if (isValidConverterObject(arg)) {
+                fieldMapping.converter = arg;
+              } else {
+                this.error += "\nmapSparseFields Argument is an object " +
+                    "that is not a meta, an array of field names, or a converter object: \"" + util.inspect(arg) + "\"";
+              }
+            }
+          }
+          break;
+        default:
+          this.error += "\nmapSparseFields: Argument must be a field name, a meta, an array of field names, or a converter object: \"" + 
+            util.inspect(arg) + "\"";
+      }
+    }
+    if (!fieldMapping.converter) {
+      // default sparse fields converter
+      fieldMapping.converter = mynode.converters.JSONSparseConverter;
+    }
+    if (sparseFieldNames.length !== 0) {
+      fieldMapping.sparseFieldNames = sparseFieldNames;
+    }
+    fieldMapping.sparseFieldMapping = true;
+    this.fields.push(fieldMapping);
+  }
+  else {
+    this.error +="\nmapSparseFields() requires a valid arguments list with column name as the first argument";
+  }
+  return this;
+
+};
+
 
 /* applyToClass(constructor) 
    IMMEDIATE
@@ -451,11 +595,9 @@ TableMapping.prototype.applyToClass = function(ctor) {
     ctor.prototype.mynode.mapping = this;
     ctor.prototype.mynode.constructor = ctor;
     ctor.prototype.mynode.mappingId = ++mappingId;
-  }
-  else {
+  } else {
     this.error += '\nMappingError: applyToClass() parameter must be constructor';
   }
-  
   return ctor;
 };
 

@@ -60,3 +60,23 @@ close(function(error));
    @param converterObject is as defined in Converter
 */
 registerTypeConverter(typeName, converterObject);
+
+/** db(): get a new db object bound to a database that supports "easy to use"
+ *  insert and find operations without defining tables or mappings. Each operation
+ *  is executed in auto-commit mode using a new session.
+ *  IMMEDIATE
+ *  @param databaseName is the name of the database to use; default is session factory's database
+ *  @return the db object
+ */
+db db(databaseName);
+
+/** mapTable(): associate a TableMapping with a database and table name.
+ *  If a table is needed for an operation and the table does not exist, use the TableMapping
+ *  meta to define the table. The database and table name are taken from the TableMapping.
+ *  If the TableMapping does not include the datbase, use the default database for this session
+ *  factory. If there is already a TableMapping with the same database and table, it is replaced.
+ *  IMMEDIATE
+ *  @param tableMapping is the mapping to associate with the database and table in this session factory
+ */
+mapTable(tableMapping);
+

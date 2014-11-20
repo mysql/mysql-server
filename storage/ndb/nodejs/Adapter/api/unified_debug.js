@@ -18,13 +18,12 @@
  02110-1301  USA
 */
 
-/*global assert */
-
 "use strict";
 
 
 var path = require("path"),
     util = require("util"),
+    assert = require("assert"),
 
     UDEB_OFF      = 0,
     UDEB_URGENT   = 1,
@@ -124,10 +123,10 @@ exports.set_file_level = function(filename, level) {
     fileLoggers[filename].set_file_level(level);
   }
   else {
-    /* Maybe a JavaScript file not yet registered */
+    /* Maybe a  file not yet registered */
     presetPerFileLevel[filename] = level;
 
-    /* Or maybe a C++ file */
+    /* Maybe a C++ file */
     for(i = 0 ; i < nativeCodeClients.length ; i++) {
       var client = nativeCodeClients[i];
       client.setFileLevel(filename,level);
@@ -210,13 +209,21 @@ logListeners.push(write_log_message);
 /* Register a C client so that it can send debugging output up to JavaScript
 */
 exports.register_client = function(client) {
+  var fileName;
   assert(typeof client.setLogger === 'function');
   assert(typeof client.setLevel  === 'function');
   
   client.setLogger(handle_log_event);
   client.setLevel(udeb_level);
   
-  nativeCodeClients.push(client);  
+  nativeCodeClients.push(client);
+  
+  /* Register per-file logging levels */
+  for(fileName in presetPerFileLevel) {
+    if(presetPerFileLevel.hasOwnProperty(fileName)) {
+      client.setFileLevel(fileName, presetPerFileLevel[fileName]);
+    }
+  }
 };
 
 
@@ -264,7 +271,13 @@ exports.getLogger = function(filename) {
   }
 
   var theLogger = new Logger();
-  theLogger.file_level = presetPerFileLevel[filename] || UDEB_URGENT;
+  var perFileLevel; 
+  if(presetPerFileLevel[filename]) {
+    theLogger.file_level = presetPerFileLevel[filename];
+    delete presetPerFileLevel[filename];
+  } else {
+    theLogger.file_level = UDEB_URGENT;
+  }
 
   theLogger.log_urgent     = makeLogFunction(1);
   theLogger.log_notice     = makeLogFunction(2);

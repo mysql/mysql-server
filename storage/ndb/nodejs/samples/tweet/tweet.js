@@ -32,6 +32,7 @@
 'use strict';
 
 var http   = require('http'),
+    assert = require('assert'),
     url    = require('url'),
     nosql  = require('../..'),
     udebug = unified_debug.getLogger("tweet.js"),

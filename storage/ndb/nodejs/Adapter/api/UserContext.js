@@ -18,8 +18,6 @@
  02110-1301  USA
 */
 
-/*global assert, unified_debug */
-
 "use strict";
 
 var stats = {
@@ -31,15 +29,15 @@ var stats = {
 	}
 };
 
-var commonDBTableHandler = require(path.join(spi_dir,"common","DBTableHandler.js")),
-    apiSession = require("./Session.js"),
+var util           = require("util"),
+    mynode         = require("./mynode.js"),
+    DBTableHandler = require(mynode.common.DBTableHandler).DBTableHandler,
+    apiSession     = require("./Session.js"),
     sessionFactory = require("./SessionFactory.js"),
-    mynode     = require("./mynode.js"),
-    query      = require("./Query.js"),
-    spi        = require(path.join(spi_dir,"SPI")),
-    udebug     = unified_debug.getLogger("UserContext.js"),
-    stats_module = require(path.join(api_dir, "./stats.js")),
-    util       = require("util");
+    query          = require("./Query.js"),
+    spi            = require(mynode.spi),
+    udebug         = unified_debug.getLogger("UserContext.js"),
+    stats_module   = require(mynode.api.stats);
 
 stats_module.register(stats, "api", "UserContext");
 
@@ -306,8 +304,8 @@ exports.UserContext = function(user_arguments, required_parameter_count, returne
   this.session_factory = session_factory;
   /* indicates that batch.clear was called before this context had executed */
   this.clear = false;
-  if (this.session !== null) {
-    this.autocommit = !this.session.tx.isActive();
+  if (this.session) {
+    this.autocommit = ! this.session.tx.isActive();
   }
   this.errorMessages = '';
   this.promise = new Promise();
@@ -322,15 +320,22 @@ exports.UserContext.prototype.appendErrorMessage = function(message) {
  */
 exports.UserContext.prototype.getTableMetadata = function() {
   var userContext = this;
-  var getTableMetadataOnTableMetadata = function(err, tableMetadata) {
-    userContext.applyCallback(err, tableMetadata);
+  var err, databaseName, tableName, dbSession;
+  var getTableMetadataOnTableMetadata = function(metadataErr, tableMetadata) {
+    udebug.log('UserContext.getTableMetadata.getTableMetadataOnTableMetadata with err', metadataErr);
+    userContext.applyCallback(metadataErr, tableMetadata);
   };
-  
-  var databaseName = this.user_arguments[0];
-  var tableName = this.user_arguments[1];
-  var dbSession = (this.session)?this.session.dbSession:null;
-  this.session_factory.dbConnectionPool.getTableMetadata(
-      databaseName, tableName, dbSession, getTableMetadataOnTableMetadata);
+  databaseName = userContext.user_arguments[0];
+  tableName = userContext.user_arguments[1];
+  dbSession = (userContext.session)?userContext.session.dbSession:null;
+  if (typeof databaseName !== 'string' || typeof tableName !== 'string') {
+    err = new Error('getTableMetadata(databaseName, tableName) illegal argument types (' +
+        typeof databaseName + ', ' + typeof tableName + ')');
+    userContext.applyCallback(err, null);
+  } else {
+    this.session_factory.dbConnectionPool.getTableMetadata(
+        databaseName, tableName, dbSession, getTableMetadataOnTableMetadata);
+  }
   return userContext.promise;
 };
 
@@ -347,6 +352,23 @@ exports.UserContext.prototype.listTables = function() {
   var databaseName = this.user_arguments[0];
   var dbSession = (this.session)?this.session.dbSession:null;
   this.session_factory.dbConnectionPool.listTables(databaseName, dbSession, listTablesOnTableList);
+  return userContext.promise;
+};
+
+/** Create schema from a table mapping. 
+ * promise = createTable(tableMapping, callback);
+ */
+exports.UserContext.prototype.createTable = function() {
+  var userContext = this;
+  var tableMapping, dbSession;
+  function createTableOnTableCreated(err) {
+    userContext.applyCallback(err);
+  }
+
+  // createTable starts here
+  tableMapping = userContext.user_arguments[0];
+  userContext.session_factory.dbConnectionPool.createTable(tableMapping, userContext.session, userContext.session_factory,
+      createTableOnTableCreated);
   return userContext.promise;
 };
 
@@ -410,6 +432,7 @@ var getTableHandler = function(domainObjectTableNameOrConstructor, session, onTa
       var tableHandlerFactory = this;
       var tableHandler;
       var tableMetadata;
+      var tableMapping;
       
       var onTableMetadata = function(err, tableMetadata) {
         var tableHandler;
@@ -427,29 +450,27 @@ var getTableHandler = function(domainObjectTableNameOrConstructor, session, onTa
             tableHandlerFactory.sessionFactory.tableMetadatas[tableKey] = tableMetadata;
           }
           // we have the table metadata; now create the table handler if needed
-          if (tableHandlerFactory.mapping === null) {
-            // put the default table handler into the session factory
-            if (typeof(tableHandlerFactory.sessionFactory.tableHandlers[tableKey]) === 'undefined') {
-              if(udebug.is_detail()) {
-                udebug.log('UserContext caching the table handler in the sessionFactory for ', 
-                  tableHandlerFactory.tableName);
-              }
-              tableHandler = new commonDBTableHandler.DBTableHandler(tableMetadata, tableHandlerFactory.mapping,
-                  tableHandlerFactory.ctor);
-              tableHandlerFactory.sessionFactory.tableHandlers[tableKey] = tableHandler;
-            } else {
-              tableHandler = tableHandlerFactory.sessionFactory.tableHandlers[tableKey];
-              if(udebug.is_detail()) {
-                udebug.log('UserContext got tableHandler but someone else put it in the cache first for ', 
-                  tableHandlerFactory.tableName);
-              }
+          // put the table handler into the session factory
+          if (typeof(tableHandlerFactory.sessionFactory.tableHandlers[tableKey]) === 'undefined') {
+            if(udebug.is_detail()) {
+              udebug.log('UserContext caching the table handler in the sessionFactory for ', 
+                tableHandlerFactory.tableName);
+            }
+            tableHandler = new DBTableHandler(tableMetadata, tableHandlerFactory.mapping,
+                tableHandlerFactory.ctor);
+            tableHandlerFactory.sessionFactory.tableHandlers[tableKey] = tableHandler;
+          } else {
+            tableHandler = tableHandlerFactory.sessionFactory.tableHandlers[tableKey];
+            if(udebug.is_detail()) {
+              udebug.log('UserContext got tableHandler but someone else put it in the cache first for ', 
+                tableHandlerFactory.tableName);
             }
           }
           if (tableHandlerFactory.ctor) {
             if (typeof(tableHandlerFactory.ctor.prototype.mynode.tableHandler) === 'undefined') {
               // if a domain object mapping, cache the table handler in the prototype
               stats.TableHandler.success++;
-              tableHandler = new commonDBTableHandler.DBTableHandler(tableMetadata, tableHandlerFactory.mapping,
+              tableHandler = new DBTableHandler(tableMetadata, tableHandlerFactory.mapping,
                   tableHandlerFactory.ctor);
               if (tableHandler.isValid) {
                 tableHandlerFactory.ctor.prototype.mynode.tableHandler = tableHandler;
@@ -471,6 +492,15 @@ var getTableHandler = function(domainObjectTableNameOrConstructor, session, onTa
           tableHandlerFactory.onTableHandler(tableHandlerFactory.err, tableHandler);
         }
       };
+
+      function tableHandlerFactoryOnCreateTable(err) {
+        if (err) {
+          onTableMetadata(err, null);
+        } else {
+          sessionFactory.dbConnectionPool.getTableMetadata(tableHandlerFactory.tableSpecification.dbName,
+              tableHandlerFactory.tableSpecification.unqualifiedTableName, session.dbSession, onTableMetadata);
+        }
+      }
       
       // start of createTableHandler
       
@@ -481,6 +511,13 @@ var getTableHandler = function(domainObjectTableNameOrConstructor, session, onTa
         // we already have cached the table metadata
         onTableMetadata(null, tableMetadata);
       } else {
+        // create the schema if it does not already exist
+        tableMapping = sessionFactory.tableMappings[tableSpecification.qualifiedTableName];
+        if (tableMapping) {
+          udebug.log('tableHandlerFactory.createTableHandler creating schema using tableMapping: ', tableMapping);
+          sessionFactory.createTable(tableMapping, tableHandlerFactoryOnCreateTable);
+          return;
+        }
         // get the table metadata from the db connection pool
         // getTableMetadata(dbSession, databaseName, tableName, callback(error, DBTable));
         udebug.log('TableHandlerFactory.createTableHandler for ', 
@@ -494,7 +531,7 @@ var getTableHandler = function(domainObjectTableNameOrConstructor, session, onTa
   };
     
   // start of getTableHandler 
-  var err, mynode, tableHandler, tableHandlerFactory, tableIndicatorType, tableSpecification, databaseDotTable;
+  var err, mynode, tableHandler, tableMapping, tableHandlerFactory, tableIndicatorType, tableSpecification, databaseDotTable;
 
   tableIndicatorType = typeof(domainObjectTableNameOrConstructor);
   if (tableIndicatorType === 'string') {
@@ -509,11 +546,13 @@ var getTableHandler = function(domainObjectTableNameOrConstructor, session, onTa
     if (typeof(tableHandler) === 'undefined') {
       udebug.log('UserContext.getTableHandler did not find cached tableHandler for table ',
           tableSpecification.qualifiedTableName);
+      // get a table mapping from session factory
+      tableMapping = session.sessionFactory.tableMappings[tableSpecification.qualifiedTableName];
       // create a new table handler for a table name with no mapping
       // create a closure to create the table handler
       tableHandlerFactory = new TableHandlerFactory(
           null, tableSpecification, session.sessionFactory, session.dbSession,
-          null, null, onTableHandler);
+          tableMapping, null, onTableHandler);
       tableHandlerFactory.createTableHandler(null);
     } else {
       if(udebug.is_detail()) {
@@ -2153,6 +2192,36 @@ exports.UserContext.prototype.closeSession = function() {
   userContext.session.dbSession.close(closeSessionOnDBSessionClose);
   return userContext.promise;
 };
+
+
+/** Close all open SessionFactories
+ *
+ */
+exports.UserContext.prototype.closeAllOpenSessionFactories = function() {
+  var userContext, openFactories, nToClose;
+
+  userContext   = this;
+  openFactories = mynode.getOpenSessionFactories();
+  nToClose      = openFactories.length;
+
+  function onFactoryClose() {
+    nToClose--;
+    if(nToClose === 0) {
+      userContext.applyCallback(null);
+    }
+  }
+
+  if(nToClose > 0) {
+    while(openFactories[0]) {
+      openFactories[0].close(onFactoryClose);
+      openFactories.shift();
+    }
+  } else {
+    userContext.applyCallback(null);
+  }
+  return userContext.promise;
+};
+
 
 /** Complete the user function by calling back the user with the results of the function.
  * Apply the user callback using the current arguments and the extra parameters from the original function.
