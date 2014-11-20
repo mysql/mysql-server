@@ -53,7 +53,7 @@ private:
   NDB_TICKS prev_cpu_usage_check;
 
   static const Uint32 ZCONTINUEB_MEASURE_CPU_USAGE = 1;
-  static const Uint32 default_cpu_load = 80;
+  static const Uint32 default_cpu_load = 90;
 };
 
 class ThrmanProxy : public LocalProxy

@@ -36,7 +36,7 @@ Thrman::Thrman(Block_context & ctx, Uint32 instanceno) :
   addRecSignal(GSN_READ_CONFIG_REQ, &Thrman::execREAD_CONFIG_REQ);
   addRecSignal(GSN_STTOR, &Thrman::execSTTOR);
 
-  current_cpu_load = 80;
+  current_cpu_load = 90;
 }
 
 Thrman::~Thrman()
@@ -139,7 +139,7 @@ Thrman::measure_cpu_usage(void)
   {
     /**
      * We lack at least one valid measurement to make any conclusions.
-     * We set CPU usage to 80 as the default value.
+     * We set CPU usage to 90 as the default value.
      */
     current_cpu_load = default_cpu_load;
   }
