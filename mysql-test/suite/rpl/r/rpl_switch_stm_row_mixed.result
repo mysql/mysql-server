@@ -252,20 +252,20 @@ end|
 insert into t11 values("try_560_");
 insert delayed into t2 values("delay_1_");
 Warnings:
-Warning	1890	INSERT DELAYED is no longer supported. The statement was converted to INSERT.
+Warning	1891	INSERT DELAYED is no longer supported. The statement was converted to INSERT.
 insert delayed into t2 values(concat("delay_2_",UUID()));
 Warnings:
-Warning	1890	INSERT DELAYED is no longer supported. The statement was converted to INSERT.
+Warning	1891	INSERT DELAYED is no longer supported. The statement was converted to INSERT.
 insert delayed into t2 values("delay_6_");
 Warnings:
-Warning	1890	INSERT DELAYED is no longer supported. The statement was converted to INSERT.
+Warning	1891	INSERT DELAYED is no longer supported. The statement was converted to INSERT.
 insert delayed into t2 values(rand());
 Warnings:
-Warning	1890	INSERT DELAYED is no longer supported. The statement was converted to INSERT.
+Warning	1891	INSERT DELAYED is no longer supported. The statement was converted to INSERT.
 set @a=2.345;
 insert delayed into t2 values(@a);
 Warnings:
-Warning	1890	INSERT DELAYED is no longer supported. The statement was converted to INSERT.
+Warning	1891	INSERT DELAYED is no longer supported. The statement was converted to INSERT.
 include/sync_slave_sql_with_master.inc
 create table t20 select * from t1;
 create table t21 select * from t2;

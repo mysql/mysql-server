@@ -812,10 +812,10 @@ btr_cur_search_to_nth_level(
 
 	ut_ad(!s_latch_by_caller
 	      || srv_read_only_mode
-	      || mtr_memo_contains(mtr, dict_index_get_lock(index),
-				   BTR_LATCH_MODE_WITHOUT_FLAGS(latch_mode)
-				   == BTR_SEARCH_TREE
-				   ? MTR_MEMO_SX_LOCK : MTR_MEMO_S_LOCK));
+	      || mtr_memo_contains_flagged(mtr,
+					   dict_index_get_lock(index),
+					   MTR_MEMO_S_LOCK
+					   | MTR_MEMO_SX_LOCK));
 
 	/* These flags are mutually exclusive, they are lumped together
 	with the latch mode for historical reasons. It's possible for
@@ -2155,10 +2155,10 @@ btr_cur_open_at_index_side_func(
 		break;
 	default:
 		ut_ad(!s_latch_by_caller
-		      || mtr_memo_contains(mtr, dict_index_get_lock(index),
-					   latch_mode == BTR_SEARCH_TREE
-					   ? MTR_MEMO_SX_LOCK
-					   : MTR_MEMO_S_LOCK));
+		      || mtr_memo_contains_flagged(mtr,
+						 dict_index_get_lock(index),
+						 MTR_MEMO_SX_LOCK
+						 | MTR_MEMO_S_LOCK));
 		if (!srv_read_only_mode) {
 			if (!s_latch_by_caller) {
 				/* BTR_SEARCH_TREE is intended to be used with
