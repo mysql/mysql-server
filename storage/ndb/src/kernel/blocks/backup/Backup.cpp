@@ -876,6 +876,37 @@ Backup::execBACKUP_LOCK_TAB_REF(Signal *signal)
   ndbrequire(false /* Not currently possible. */);
 }
 
+Uint64 Backup::get_new_speed_val64(Signal *signal)
+{
+  if (signal->length() == 3)
+  {
+    jam();
+    Uint64 val = Uint64(signal->theData[1]);
+    val <<= 32;
+    val += Uint64(signal->theData[2]);
+    return val;
+  }
+  else
+  {
+    jam();
+    return 0;
+  }
+}
+
+Uint64 Backup::get_new_speed_val32(Signal *signal)
+{
+  if (signal->length() == 2)
+  {
+    jam();
+    return Uint64(signal->theData[1]);
+  }
+  else
+  {
+    jam();
+    return 0;
+  }
+}
+
 void
 Backup::execDUMP_STATE_ORD(Signal* signal)
 {
@@ -902,6 +933,100 @@ Backup::execDUMP_STATE_ORD(Signal* signal)
     }
     if (!reported)
       reportStatus(signal, ptr, result_ref);
+    return;
+  }
+  case DumpStateOrd::BackupMinWriteSpeed32:
+  {
+    jam();
+    Uint64 new_val = get_new_speed_val32(signal);
+    if (new_val < Uint64(1024*1024))
+    {
+      jam();
+      g_eventLogger->info("Use: DUMP 100001 MinDiskWriteSpeed");
+      return;
+    }
+    restore_disk_write_speed_numbers();
+    c_defaults.m_disk_write_speed_min = new_val;
+    calculate_real_disk_write_speed_parameters();
+    return;
+  }
+  case DumpStateOrd::BackupMaxWriteSpeed32:
+  {
+    jam();
+    Uint64 new_val = get_new_speed_val32(signal);
+    if (new_val < Uint64(1024*1024))
+    {
+      jam();
+      g_eventLogger->info("Use: DUMP 100002 MaxDiskWriteSpeed");
+      return;
+    }
+    restore_disk_write_speed_numbers();
+    c_defaults.m_disk_write_speed_max = new_val;
+    calculate_real_disk_write_speed_parameters();
+    return;
+  }
+  case DumpStateOrd::BackupMaxWriteSpeedOtherNodeRestart32:
+  {
+    jam();
+    Uint64 new_val = get_new_speed_val32(signal);
+    if (new_val < Uint64(1024*1024))
+    {
+      jam();
+      g_eventLogger->info("Use: DUMP 100003 MaxDiskWriteSpeedOtherNodeRestart");
+      return;
+    }
+    restore_disk_write_speed_numbers();
+    c_defaults.m_disk_write_speed_max_other_node_restart = new_val;
+    calculate_real_disk_write_speed_parameters();
+    return;
+  }
+  case DumpStateOrd::BackupMinWriteSpeed64:
+  {
+    jam();
+    Uint64 new_val = get_new_speed_val64(signal);
+    if (new_val < Uint64(1024*1024))
+    {
+      jam();
+      g_eventLogger->info("Use: DUMP 100004 MinDiskWriteSpeed(MSB) "
+                          "MinDiskWriteSpeed(LSB)");
+      return;
+    }
+    restore_disk_write_speed_numbers();
+    c_defaults.m_disk_write_speed_min = new_val;
+    calculate_real_disk_write_speed_parameters();
+    return;
+  }
+  case DumpStateOrd::BackupMaxWriteSpeed64:
+  {
+    jam();
+    Uint64 new_val = get_new_speed_val64(signal);
+    if (new_val < Uint64(1024*1024))
+    {
+      jam();
+      g_eventLogger->info("Use: DUMP 100005 MaxDiskWriteSpeed(MSB) "
+                          "MaxDiskWriteSpeed(LSB)");
+      return;
+    }
+    restore_disk_write_speed_numbers();
+    c_defaults.m_disk_write_speed_max = new_val;
+    calculate_real_disk_write_speed_parameters();
+    return;
+  }
+  case DumpStateOrd::BackupMaxWriteSpeedOtherNodeRestart64:
+  {
+    jam();
+    Uint64 new_val = get_new_speed_val64(signal);
+    if (new_val < Uint64(1024*1024))
+    {
+      jam();
+      g_eventLogger->info("Use: DUMP 100006"
+                          " MaxDiskWriteSpeedOtherNodeRestart(MSB)"
+                          " MaxDiskWriteSpeedOtherNodeRestart(LSB)");
+      return;
+    }
+    restore_disk_write_speed_numbers();
+    c_defaults.m_disk_write_speed_max_other_node_restart = new_val;
+    calculate_real_disk_write_speed_parameters();
     return;
   }
   default:
