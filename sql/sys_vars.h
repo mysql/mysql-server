@@ -2405,6 +2405,13 @@ public:
     if (new_gtid_mode == old_gtid_mode)
       goto end;
 
+    // Can only change one step at a time.
+    if (abs((int)new_gtid_mode - (int)old_gtid_mode) > 1)
+    {
+      my_error(ER_GTID_MODE_CAN_ONLY_CHANGE_ONE_STEP_AT_A_TIME, MYF(0));
+      goto err;
+    }
+
     // Update the mode
     global_var(ulong)= new_gtid_mode;
     global_sid_lock->unlock();
