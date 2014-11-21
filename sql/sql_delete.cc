@@ -76,6 +76,9 @@ bool mysql_delete(THD *thd, ha_rows limit)
   if (open_normal_and_derived_tables(thd, table_list, 0))
     DBUG_RETURN(TRUE);
 
+  if (run_before_dml_hook(thd))
+    DBUG_RETURN(true);
+
   if (!table_list->updatable)
   {
     my_error(ER_NON_UPDATABLE_TABLE, MYF(0), table_list->alias, "DELETE");

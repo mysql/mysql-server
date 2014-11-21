@@ -74,6 +74,11 @@ int repl_semi_report_binlog_sync(Binlog_storage_param *param,
   return 0;
 }
 
+int repl_semi_report_before_dml(Trans_param *param, int& out)
+{
+  return 0;
+}
+
 int repl_semi_request_commit(Trans_param *param)
 {
   return 0;
@@ -401,6 +406,7 @@ static void fix_rpl_semi_sync_master_wait_no_slave(MYSQL_THD thd,
 Trans_observer trans_observer = {
   sizeof(Trans_observer),		// len
 
+  repl_semi_report_before_dml,      //before_dml
   repl_semi_report_before_commit,   // before_commit
   repl_semi_report_before_rollback, // before_rollback
   repl_semi_report_commit,	// after_commit

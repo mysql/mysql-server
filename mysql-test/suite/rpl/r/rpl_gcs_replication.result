@@ -1,4 +1,6 @@
+SET SESSION sql_log_bin= 0;
 call mtr.add_suppression("The group name *.*");
+SET SESSION sql_log_bin= 1;
 [ON THE NODE]
 SET GLOBAL gcs_replication_plugin_group_name= "8a94f357-aab4-11df-86ab-invalid";
 ERROR 42000: Variable 'gcs_replication_plugin_group_name' can't be set to the value of '8a94f357-aab4-11df-86ab-invalid'

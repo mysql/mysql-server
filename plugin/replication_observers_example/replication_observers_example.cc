@@ -156,6 +156,7 @@ Server_state_observer server_state_observer = {
   after_server_shutdown,     //after shutdown
 };
 
+static int trans_before_dml_call= 0;
 static int trans_before_commit_call= 0;
 static int trans_before_rollback_call= 0;
 static int trans_after_commit_call= 0;
@@ -163,6 +164,13 @@ static int trans_after_rollback_call= 0;
 
 static void dump_transaction_calls()
 {
+
+  if(trans_before_dml_call)
+  {
+    my_plugin_log_message(&plugin_info_ptr,
+                          MY_INFORMATION_LEVEL,
+                          "\nreplication_observers_example_plugin:trans_before_dml");
+  }
 
   if(trans_before_commit_call)
   {
@@ -192,9 +200,17 @@ static void dump_transaction_calls()
                           "\nreplication_observers_example_plugin:trans_after_rollback");
   }
 }
+
 /*
   Transaction lifecycle events observers.
 */
+int trans_before_dml(Trans_param *param, int& out_val)
+{
+  trans_before_dml_call++;
+
+  return 0;
+}
+
 int trans_before_commit(Trans_param *param)
 {
   trans_before_commit_call++;
@@ -226,6 +242,7 @@ int trans_after_rollback(Trans_param *param)
 Trans_observer trans_observer = {
   sizeof(Trans_observer),
 
+  trans_before_dml,
   trans_before_commit,
   trans_before_rollback,
   trans_after_commit,

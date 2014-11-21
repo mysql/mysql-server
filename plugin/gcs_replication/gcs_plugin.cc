@@ -100,6 +100,8 @@ Cluster_member_info* local_member_info= NULL;
 */
 static int check_group_name_string(const char *str);
 
+static int check_if_server_properly_configured();
+
 static bool init_cluster_sidno();
 
 static bool server_engine_initialized();
@@ -467,6 +469,8 @@ int gcs_rpl_start()
 
   if (is_gcs_rpl_running())
     DBUG_RETURN(GCS_ALREADY_RUNNING);
+  if (check_if_server_properly_configured())
+    DBUG_RETURN(GCS_CONFIGURATION_ERROR);
   if (check_group_name_string(gcs_group_pointer))
     DBUG_RETURN(GCS_CONFIGURATION_ERROR);
   if (init_cluster_sidno())
@@ -933,6 +937,56 @@ static bool server_engine_initialized(){
 
 void register_server_reset_master(){
   known_server_reset= true;
+}
+
+/*
+  This method is used to accomplish the startup validations of the GCS plugin
+  regarding system configuration.
+
+  It currently verifies:
+  - Binlog enabled
+  - Binlog checksum mode
+  - Binlog format
+  - Gtid mode
+
+  @return If the operation succeed or failed
+    @retval 0 in case of success
+    @retval 1 in case of failure
+ */
+static int check_if_server_properly_configured()
+{
+  DBUG_ENTER("check_if_server_properly_configured");
+
+  //Struct that holds startup and runtime GCS requirements
+  Trans_context_info startup_pre_reqs;
+
+  get_server_startup_prerequirements(startup_pre_reqs);
+
+  if(!startup_pre_reqs.binlog_enabled)
+  {
+    log_message(MY_ERROR_LEVEL, "Binlog must be enabled for Group Replication");
+    DBUG_RETURN(1);
+  }
+
+  if(startup_pre_reqs.binlog_checksum_options != BINLOG_CHECKSUM_ALG_OFF)
+  {
+    log_message(MY_ERROR_LEVEL, "Binlog checksum should be OFF for Group Replication");
+    DBUG_RETURN(1);
+  }
+
+  if(startup_pre_reqs.binlog_format != BINLOG_FORMAT_ROW)
+  {
+    log_message(MY_ERROR_LEVEL, "Binlog format should be ROW for Group Replication");
+    DBUG_RETURN(1);
+  }
+
+  if(startup_pre_reqs.gtid_mode != GTID_MODE_ON)
+  {
+    log_message(MY_ERROR_LEVEL, "Gtid mode should be ON for Group Replication");
+    DBUG_RETURN(1);
+  }
+
+  DBUG_RETURN(0);
 }
 
 static int check_group_name_string(const char *str)

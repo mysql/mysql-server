@@ -15,7 +15,9 @@
 #       Vs slave.                                                           #
 #############################################################################
 
+SET SESSION sql_log_bin= 0;
 CALL mtr.add_suppression('Statement may not be safe to log in statement format.');
+SET SESSION sql_log_bin= 1;
 
 # Begin clean up test section
 connection master;

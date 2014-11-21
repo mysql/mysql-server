@@ -6,7 +6,10 @@
 
 --source include/have_gcs_replication_plugin.inc
 
+SET SESSION sql_log_bin= 0;
 call mtr.add_suppression("The group name *.*");
+SET SESSION sql_log_bin= 1;
+
 --let $gcs_group_name= 8a94f357-aab4-11df-86ab-c80aa9429563
 --echo [ON THE NODE]
 

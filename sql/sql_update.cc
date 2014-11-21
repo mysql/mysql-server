@@ -44,7 +44,8 @@
 #include "opt_trace.h"   // Opt_trace_object
 #include "sql_tmp_table.h"                      // tmp tables
 #include "sql_optimizer.h"                      // remove_eq_conds
-#include "sql_resolver.h"                       // setup_order
+#include "sql_resolver.h"                       // setup_order, fix_inner_refs
+
 
 /**
    True if the table's input and output record buffers are comparable using
@@ -1389,6 +1390,10 @@ int mysql_multi_update_prepare(THD *thd)
                                      (thd->stmt_arena->is_stmt_prepare() ?
                                       MYSQL_OPEN_FORCE_SHARED_MDL : 0)))
     DBUG_RETURN(TRUE);
+
+  if (run_before_dml_hook(thd))
+    DBUG_RETURN(true);
+
   /*
     setup_tables() need for VIEWs. SELECT_LEX::prepare() will call
     setup_tables() second time, but this call will do nothing (there are check

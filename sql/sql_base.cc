@@ -48,6 +48,7 @@
 #include <my_dir.h>
 #include <hash.h>
 #include "rpl_filter.h"
+#include "rpl_handler.h"
 #include "sql_table.h"                          // build_table_filename
 #include "datadict.h"   // dd_frm_type()
 #include "sql_hset.h"   // Hash_set
@@ -5072,6 +5073,30 @@ extern "C" uchar *schema_set_get_key(const uchar *record, size_t *length,
   TABLE_LIST *table=(TABLE_LIST*) record;
   *length= table->db_length;
   return (uchar*) table->db;
+}
+
+/**
+  Run the server hook called "before_dml". This is a hook originated from
+  replication that allow server plugins to execute code before any DML
+  instruction is executed.
+  In case of negative outcome, it will set my_error to
+  ER_BEFORE_DML_VALIDATION_ERROR
+
+  @param thd Thread context
+
+  @return hook outcome
+    @retval 0    Everything is fine
+    @retval !=0  Error in the outcome of the hook.
+ */
+int run_before_dml_hook(THD *thd)
+{
+  int out_value= 0;
+  (void) RUN_HOOK(transaction, before_dml, (thd, out_value));
+
+  if (out_value)
+    my_error(ER_BEFORE_DML_VALIDATION_ERROR, MYF(0));
+
+  return out_value;
 }
 
 /**

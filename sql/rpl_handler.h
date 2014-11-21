@@ -40,7 +40,7 @@ class Delegate {
 public:
   typedef List<Observer_info> Observer_info_list;
   typedef List_iterator<Observer_info> Observer_info_iterator;
-  
+
   int add_observer(void *observer, st_plugin_int *plugin)
   {
     int ret= FALSE;
@@ -62,7 +62,7 @@ public:
     unlock();
     return ret;
   }
-  
+
   int remove_observer(void *observer, st_plugin_int *plugin)
   {
     int ret= FALSE;
@@ -169,6 +169,8 @@ public:
   {}
 
   typedef Trans_observer Observer;
+
+  int before_dml(THD *thd, int& result);
   int before_commit(THD *thd, bool all,
                     IO_CACHE *trx_cache_log,
                     IO_CACHE *stmt_cache_log,
@@ -177,6 +179,10 @@ public:
   int before_rollback(THD *thd, bool all);
   int after_commit(THD *thd, bool all);
   int after_rollback(THD *thd, bool all);
+private:
+  void prepare_table_info(THD* thd,
+                          Trans_table_info*& table_info_list,
+                          uint& number_of_tables);
 };
 
 #ifdef HAVE_PSI_INTERFACE

@@ -22,6 +22,10 @@
 #include "rpl_handler.h"
 #include "debug_sync.h"
 
+#include <vector>
+
+using std::vector;
+
 Trans_delegate *transaction_delegate;
 Binlog_storage_delegate *binlog_storage_delegate;
 Server_state_delegate *server_state_delegate;
@@ -196,7 +200,7 @@ void delegates_destroy()
   This macro is used by almost all the Delegate methods to iterate
   over all the observers running given callback function of the
   delegate .
-  
+
   Add observer plugins to the thd->lex list, after each statement, all
   plugins add to thd->lex will be automatically unlocked.
  */
@@ -230,7 +234,7 @@ void delegates_destroy()
     }                                                                   \
   }                                                                     \
   unlock();                                                             \
-  /* 
+  /*
      Unlock plugins should be done after we released the Delegate lock
      to avoid possible deadlock when this is the last user of the
      plugin, and when we unlock the plugin, it will try to
@@ -240,6 +244,51 @@ void delegates_destroy()
   if (!plugins.empty())                                                 \
     plugin_unlock_list(0, &plugins[0], plugins.size());
 
+#define FOREACH_OBSERVER_ERROR_OUT(r, f, thd, args, out)                \
+  /*
+     Use a struct to make sure that they are allocated adjacent, check
+     delete_dynamic().
+  */                                                                    \
+  Prealloced_array<plugin_ref, 8> plugins(PSI_NOT_INSTRUMENTED);        \
+  read_lock();                                                          \
+  Observer_info_iterator iter= observer_info_iter();                    \
+  Observer_info *info= iter++;                                          \
+                                                                        \
+  int error_out= 0;                                                     \
+  for (; info; info= iter++)                                            \
+  {                                                                     \
+    plugin_ref plugin=                                                  \
+      my_plugin_lock(0, &info->plugin);                                 \
+    if (!plugin)                                                        \
+    {                                                                   \
+      /* plugin is not intialized or deleted, this is not an error */   \
+      r= 0;                                                             \
+      break;                                                            \
+    }                                                                   \
+    plugins.push_back(plugin);                                          \
+                                                                        \
+    bool hook_error= false;                                             \
+    hook_error= ((Observer *)info->observer)->f (args, error_out);      \
+                                                                        \
+    out += error_out;                                                   \
+    if (hook_error)                                                     \
+    {                                                                   \
+      r= 1;                                                             \
+      sql_print_error("Run function '" #f "' in plugin '%s' failed",    \
+                      info->plugin_int->name.str);                      \
+      break;                                                            \
+    }                                                                   \
+  }                                                                     \
+  unlock();                                                             \
+  /*
+     Unlock plugins should be done after we released the Delegate lock
+     to avoid possible deadlock when this is the last user of the
+     plugin, and when we unlock the plugin, it will try to
+     deinitialize the plugin, which will try to lock the Delegate in
+     order to remove the observers.
+  */                                                                    \
+  if (!plugins.empty())                                                 \
+    plugin_unlock_list(0, &plugins[0], plugins.size());
 
 int Trans_delegate::before_commit(THD *thd, bool all,
                                   IO_CACHE *trx_cache_log,
@@ -248,7 +297,7 @@ int Trans_delegate::before_commit(THD *thd, bool all,
                                   std::list<uint32> *pke_write_set)
 {
   DBUG_ENTER("Trans_delegate::before_commit");
-  Trans_param param = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+  Trans_param param = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, {0, 0, 0, 0} };
   param.server_id= thd->server_id;
   param.server_uuid= server_uuid;
   param.thread_id= thd->thread_id();
@@ -267,10 +316,124 @@ int Trans_delegate::before_commit(THD *thd, bool all,
   DBUG_RETURN(ret);
 }
 
+/**
+ Helper method to create table information for the hook call
+ */
+void
+Trans_delegate::prepare_table_info(THD* thd,
+                                   Trans_table_info*& table_info_list,
+                                   uint& number_of_tables)
+{
+  DBUG_ENTER("Trans_delegate::prepare_table_info");
+
+  TABLE* open_tables= thd->open_tables;
+
+  // Fail if tables are not open
+  if(open_tables == NULL)
+  {
+    DBUG_VOID_RETURN;
+  }
+
+  //Gather table information
+  vector<Trans_table_info> table_info_holder;
+  for(; open_tables != NULL; open_tables= open_tables->next)
+  {
+    Trans_table_info table_info = {0,0,0};
+
+    table_info.table_name= open_tables->s->table_name.str;
+
+    uint primary_keys= 0;
+    if(open_tables->key_info != NULL)
+    {
+      primary_keys= open_tables->s->primary_key;
+
+      //if primary keys is still 0, lets double check on another var
+      if(primary_keys == 0)
+      {
+        primary_keys= open_tables->key_info->user_defined_key_parts;
+      }
+    }
+
+    table_info.number_of_primary_keys= primary_keys;
+
+    table_info.transactional_table= open_tables->file->has_transactions();
+
+    table_info_holder.push_back(table_info);
+  }
+
+  //Now that one has all the information, one should build the
+  // data that will be delivered to the plugin
+  if(table_info_holder.size() > 0)
+  {
+    number_of_tables= table_info_holder.size();
+
+    table_info_list= (Trans_table_info*)my_malloc(
+#ifdef HAVE_PSI_MEMORY_INTERFACE
+                               PSI_NOT_INSTRUMENTED,
+#endif
+                               number_of_tables * sizeof(Trans_table_info),
+                               MYF(0));
+
+    vector<Trans_table_info>::iterator table_info_holder_it
+                                                  = table_info_holder.begin();
+    for(int table= 0;
+        table_info_holder_it != table_info_holder.end();
+        table_info_holder_it++, table++)
+    {
+      table_info_list[table].number_of_primary_keys
+                                = (*table_info_holder_it).number_of_primary_keys;
+      table_info_list[table].table_name
+                                = (*table_info_holder_it).table_name;
+      table_info_list[table].transactional_table
+                                = (*table_info_holder_it).transactional_table;
+    }
+  }
+
+  DBUG_VOID_RETURN;
+}
+
+/**
+  Helper that gathers all table runtime information
+
+  @param[in]   THD       the current execution thread
+  @param[out]  ctx_info  Trans_context_info in which the result is stored.
+ */
+void prepare_transaction_context(THD* thd, Trans_context_info& ctx_info)
+{
+  //Extracting the session value of SQL binlogging
+  ctx_info.binlog_enabled= thd->variables.sql_log_bin;
+
+  //Extracting the session value of binlog format
+  ctx_info.binlog_format= thd->variables.binlog_format;
+
+  //Extracting the global mutable value of binlog checksum
+  ctx_info.binlog_checksum_options= binlog_checksum_options;
+}
+
+int Trans_delegate::before_dml(THD* thd, int& result)
+{
+  DBUG_ENTER("Trans_delegate::before_dml");
+  Trans_param param = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, {0, 0, 0, 0} };
+
+  param.server_id= thd->server_id;
+  param.server_uuid= server_uuid;
+  param.thread_id= thd->thread_id();
+
+  prepare_table_info(thd, param.tables_info, param.number_of_tables);
+  prepare_transaction_context(thd, param.trans_ctx_info);
+
+  int ret= 0;
+  FOREACH_OBSERVER_ERROR_OUT(ret, before_dml, thd, &param, result);
+
+  my_free(param.tables_info);
+
+  DBUG_RETURN(ret);
+}
+
 int Trans_delegate::before_rollback(THD *thd, bool all)
 {
   DBUG_ENTER("Trans_delegate::before_rollback");
-  Trans_param param = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+  Trans_param param = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ,0 ,0, {0, 0, 0, 0} };
   param.server_id= thd->server_id;
   param.server_uuid= server_uuid;
   param.thread_id= thd->thread_id();
@@ -288,7 +451,7 @@ int Trans_delegate::before_rollback(THD *thd, bool all)
 int Trans_delegate::after_commit(THD *thd, bool all)
 {
   DBUG_ENTER("Trans_delegate::after_commit");
-  Trans_param param = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+  Trans_param param = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ,0, 0, {0, 0, 0, 0} };
   param.server_uuid= server_uuid;
   param.thread_id= thd->thread_id();
 
@@ -311,7 +474,7 @@ int Trans_delegate::after_commit(THD *thd, bool all)
 int Trans_delegate::after_rollback(THD *thd, bool all)
 {
   DBUG_ENTER("Trans_delegate::after_rollback");
-  Trans_param param = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+  Trans_param param = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ,0, 0, {0, 0, 0, 0} };
   param.server_uuid= server_uuid;
   param.thread_id= thd->thread_id();
 

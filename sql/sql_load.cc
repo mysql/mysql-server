@@ -233,6 +233,10 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
 
   if (open_and_lock_tables(thd, table_list, TRUE, 0))
     DBUG_RETURN(TRUE);
+
+  if (run_before_dml_hook(thd))
+    DBUG_RETURN(true);
+
   if (setup_tables_and_check_access(thd, &thd->lex->select_lex->context,
                                     &thd->lex->select_lex->top_join_list,
                                     table_list,

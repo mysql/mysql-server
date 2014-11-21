@@ -1,0 +1,102 @@
+include/start_gcs_replication.inc
+CREATE TABLE t1 (c1 char(50)) ENGINE=InnoDB;
+CREATE TABLE t2 (c1 char(50) NOT NULL PRIMARY KEY) ENGINE=MyISAM;
+CREATE TABLE t3 (c1 char(50)) ENGINE=MyISAM;
+CREATE TABLE tn (cn char(50) NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+#
+# Testing all tables that will fail.
+#
+INSERT INTO t3 VALUES('a');
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+UPDATE t3 SET c1 = 'a';
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+INSERT INTO t3 (c1) SELECT tn.cn FROM tn;
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+DELETE FROM t3;
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+LOAD DATA INFILE '../../std_data/words.dat' INTO TABLE t3;
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+REPLACE INTO t3(c1) VALUES('a');
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+REPLACE INTO t3 (c1) SELECT tn.cn FROM tn;
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+DELETE t3, tn FROM t3, tn;
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+UPDATE t3, tn SET c1 = 'a';
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+DROP TABLE t3;
+INSERT INTO t2 VALUES('a');
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+UPDATE t2 SET c1 = 'a';
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+INSERT INTO t2 (c1) SELECT tn.cn FROM tn;
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+DELETE FROM t2;
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+LOAD DATA INFILE '../../std_data/words.dat' INTO TABLE t2;
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+REPLACE INTO t2(c1) VALUES('a');
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+REPLACE INTO t2 (c1) SELECT tn.cn FROM tn;
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+DELETE t2, tn FROM t2, tn;
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+UPDATE t2, tn SET c1 = 'a';
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+DROP TABLE t2;
+INSERT INTO t1 VALUES('a');
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+UPDATE t1 SET c1 = 'a';
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+INSERT INTO t1 (c1) SELECT tn.cn FROM tn;
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+DELETE FROM t1;
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+LOAD DATA INFILE '../../std_data/words.dat' INTO TABLE t1;
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+REPLACE INTO t1(c1) VALUES('a');
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+REPLACE INTO t1 (c1) SELECT tn.cn FROM tn;
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+DELETE t1, tn FROM t1, tn;
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+UPDATE t1, tn SET c1 = 'a';
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+DROP TABLE t1;
+#
+# Lets test the global variables that might change in
+# runtime and which values are not allowed.
+#
+SET GLOBAL binlog_checksum= CRC32;
+INSERT INTO tn VALUES ('a');
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+SET GLOBAL binlog_checksum= NONE;
+SET SESSION binlog_format= STATEMENT;
+INSERT INTO tn VALUES ('a');
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+SET SESSION binlog_format= ROW;
+#
+# Now, lets repeat all the tests with group replication stopped.
+# They all must succeed or fail with other errors that not the
+# ones from validation.
+#
+# It will be a single table simpler test just to assess that the
+# hook is not longer active.
+#
+STOP GCS_REPLICATION;
+CREATE TABLE t1 (c1 char(50)) ENGINE=InnoDB;
+UPDATE t1 SET c1 = 'a';
+INSERT INTO t1 VALUES('a');
+INSERT INTO t1 (c1) SELECT tn.cn FROM tn;
+DELETE FROM t1;
+LOAD DATA INFILE '../../std_data/words2.dat' INTO TABLE t1;
+REPLACE INTO t1(c1) VALUES('a');
+REPLACE INTO t1 (c1) SELECT tn.cn FROM tn;
+DELETE t1, tn FROM t1, tn;
+UPDATE t1, tn SET c1 = 'a';
+DROP TABLE t1, tn;
+call mtr.add_suppression("Table.*is not transactional. This is not compatible with Group Replication");
+call mtr.add_suppression("Table.*does not have any PRIMARY KEY. This is not compatible with Group Replication");
+call mtr.add_suppression("Binlog checksum should be OFF for Group Replication");
+call mtr.add_suppression("Binlog format should be ROW for Group Replication");
+call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");

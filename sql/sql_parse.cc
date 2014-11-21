@@ -81,7 +81,6 @@
 #include <myisam.h>
 #include <my_dir.h>
 #include <dur_prop.h>
-#include "rpl_handler.h"
 
 #include "sp_head.h"
 #include "sp.h"
@@ -3201,6 +3200,9 @@ end_with_restore_list:
     // Need to open to check for multi-update
     if (!(res= open_normal_and_derived_tables(thd, all_tables, 0)))
     {
+      if (run_before_dml_hook(thd))
+        goto error;
+
       if (!all_tables->multitable_view)
       {
         /* Push ignore / strict error handler */
@@ -3444,6 +3446,9 @@ end_with_restore_list:
 
     if (!(res= open_normal_and_derived_tables(thd, all_tables, 0)))
     {
+      if (run_before_dml_hook(thd))
+        goto error;
+
       MYSQL_INSERT_SELECT_START(const_cast<char*>(thd->query().str));
       /* Skip first table, which is the table we are inserting in */
       TABLE_LIST *second_table= first_table->next_local;
@@ -3539,6 +3544,9 @@ end_with_restore_list:
     THD_STAGE_INFO(thd, stage_init);
     if ((res= open_normal_and_derived_tables(thd, all_tables, 0)))
       break;
+
+    if (run_before_dml_hook(thd))
+      goto error;
 
     MYSQL_MULTI_DELETE_START(const_cast<char*>(thd->query().str));
     if ((res= mysql_multi_delete_prepare(thd, &del_table_count)))

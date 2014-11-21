@@ -19,7 +19,9 @@
 --echo #
 
 --connection server1
+SET SESSION sql_log_bin= 0;
 call mtr.add_suppression(".*Error when configuring the connection to the donor");
+SET SESSION sql_log_bin= 1;
 
 --source include/start_gcs_replication.inc
 
@@ -34,6 +36,10 @@ INSERT INTO t1 VALUES (1);
 --let $first_donor_gtid= `SELECT @@GLOBAL.GTID_EXECUTED`
 
 --connection server2
+SET SESSION sql_log_bin= 0;
+call mtr.add_suppression(".*Error when configuring the connection to the donor");
+SET SESSION sql_log_bin= 1;
+
 --source include/start_gcs_replication.inc
 
 --let $gcs_number_of_nodes= 2
@@ -46,6 +52,10 @@ INSERT INTO t1 VALUES (1);
 SET @debug_save= @@GLOBAL.DEBUG;
 
 --connection server3
+SET SESSION sql_log_bin= 0;
+call mtr.add_suppression(".*Error when configuring the connection to the donor");
+SET SESSION sql_log_bin= 1;
+
 SET @@GLOBAL.DEBUG='d,recovery_thread_wait';
 SET GLOBAL gcs_replication_plugin_group_name= "55d07150-9a4d-11e3-a5e2-0800200c9a66";
 START GCS_REPLICATION;

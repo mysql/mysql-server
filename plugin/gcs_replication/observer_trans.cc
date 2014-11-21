@@ -57,6 +57,72 @@ int add_write_set(Transaction_context_log_event *tcle,
 /*
   Transaction lifecycle events observers.
 */
+
+int gcs_trans_before_dml(Trans_param *param, int& out)
+{
+  DBUG_ENTER("gcs_trans_before_dml");
+
+  out= 0;
+
+  //If group replication has not started, then moving along...
+  if (!is_gcs_rpl_running())
+  {
+    DBUG_RETURN(0);
+  }
+
+  /*
+   The first check to be made is if the session binlog is active
+   If it is not active, this query is not relevant for the plugin.
+   */
+  if(!param->trans_ctx_info.binlog_enabled)
+  {
+    DBUG_RETURN(0);
+  }
+
+  /*
+   In runtime, check the global variables that can change.
+   */
+  if( (out+= (param->trans_ctx_info.binlog_format != BINLOG_FORMAT_ROW)) )
+  {
+    log_message(MY_ERROR_LEVEL, "Binlog format should be ROW for Group Replication");
+
+    DBUG_RETURN(0);
+  }
+
+  if( (out+= (param->trans_ctx_info.binlog_checksum_options !=
+                                                   BINLOG_CHECKSUM_ALG_OFF)) )
+  {
+    log_message(MY_ERROR_LEVEL, "Binlog checksum should be OFF for Group Replication");
+
+    DBUG_RETURN(0);
+  }
+
+  /*
+    Cycle through all involved tables to assess if they all
+    comply with the runtime GCS requirements. For now:
+    - The table must be from a transactional engine
+    - It must contain at least one primary key
+   */
+  for(uint table=0; out == 0 && table < param->number_of_tables; table++)
+  {
+    if(!(param->tables_info[table].transactional_table))
+    {
+      log_message(MY_ERROR_LEVEL, "Table %s is not transactional. This is not compatible with Group Replication",
+                  param->tables_info[table].table_name);
+      out++;
+    }
+
+    if(param->tables_info[table].number_of_primary_keys == 0)
+    {
+      log_message(MY_ERROR_LEVEL, "Table %s does not have any PRIMARY KEY. This is not compatible with Group Replication",
+                  param->tables_info[table].table_name);
+      out++;
+    }
+  }
+
+  DBUG_RETURN(0);
+}
+
 int gcs_trans_before_commit(Trans_param *param)
 {
   DBUG_ENTER("gcs_trans_before_commit");
@@ -238,6 +304,7 @@ int gcs_trans_after_rollback(Trans_param *param)
 Trans_observer trans_observer = {
   sizeof(Trans_observer),
 
+  gcs_trans_before_dml,
   gcs_trans_before_commit,
   gcs_trans_before_rollback,
   gcs_trans_after_commit,

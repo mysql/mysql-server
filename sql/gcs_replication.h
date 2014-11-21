@@ -22,6 +22,7 @@
 #include "rpl_gtid.h"
 #include "log.h"
 #include "log_event.h"
+#include "replication.h"
 #include <map>
 
 class Gcs_replication_handler
@@ -182,6 +183,15 @@ void reset_retrieved_seq_number();
   @param[out] uuid
 */
 void get_server_host_port_uuid(char **hostname, uint *port, char** uuid);
+
+/**
+  Returns a struct containing all server startup information needed to evaluate
+  if one has conditions to proceed executing master-master replication.
+
+  @param[out] requirements
+ */
+void
+get_server_startup_prerequirements(Trans_context_info& requirements);
 
 /**
   Returns the server GTID_EXECUTED encoded as a binary string.

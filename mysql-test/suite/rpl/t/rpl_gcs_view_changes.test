@@ -26,7 +26,10 @@
 # First prepare four nodes and manually create a table on each.
 #
 --connection server1
+
+SET SESSION sql_log_bin= 0;
 call mtr.add_suppression("could not form the cluster");
+SET SESSION sql_log_bin= 1;
 
 if (`select view_id <> 0 from performance_schema.replication_connection_status`)
 {

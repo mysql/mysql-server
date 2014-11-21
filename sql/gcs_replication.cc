@@ -300,6 +300,15 @@ void get_server_host_port_uuid(char **hostname, uint *port, char** uuid)
   return;
 }
 
+void
+get_server_startup_prerequirements(Trans_context_info& requirements)
+{
+  requirements.binlog_enabled= opt_bin_log;
+  requirements.binlog_format= global_system_variables.binlog_format;
+  requirements.binlog_checksum_options= binlog_checksum_options;
+  requirements.gtid_mode= gtid_mode;
+}
+
 bool get_server_encoded_gtid_executed(uchar **encoded_gtid_executed,
                                       uint *length)
 {

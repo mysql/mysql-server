@@ -391,6 +391,9 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
   if (open_normal_and_derived_tables(thd, table_list, 0))
     DBUG_RETURN(true);
 
+  if (run_before_dml_hook(thd))
+    DBUG_RETURN(true);
+
   THD_STAGE_INFO(thd, stage_init);
   thd->lex->used_tables=0;
 

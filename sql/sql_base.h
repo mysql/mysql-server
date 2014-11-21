@@ -290,6 +290,7 @@ void update_non_unique_table_error(TABLE_LIST *update,
                                    TABLE_LIST *duplicate);
 int setup_ftfuncs(SELECT_LEX* select);
 int init_ftfuncs(THD *thd, SELECT_LEX* select);
+int run_before_dml_hook(THD *thd);
 bool lock_table_names(THD *thd, TABLE_LIST *table_list,
                       TABLE_LIST *table_list_end, ulong lock_wait_timeout,
                       uint flags);
