@@ -1,6 +1,7 @@
 #!/bin/sh
 
-# Copyright (C) 2003, 2008 MySQL AB
+# Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+# Use is subject to license terms
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -24,13 +25,17 @@ then
     done
 fi
 
-f=`find result -name 'log.out' | xargs grep "NDBT_ProgramExit: " | grep -c "Failed"`
-o=`find result -name 'log.out' | xargs grep "NDBT_ProgramExit: " | grep -c "OK"`
-
-if [ $o -gt 0 -a $f -eq 0 ]
-then
-    exit 0
-fi
-
-exit 1
-
+STATEFILE=atrt-analyze-result.state
+OLDOK=`cat "${STATEFILE}" 2>/dev/null`
+LOGFILES=`find result/ -name log.out`
+awk '
+BEGIN                  { FAILED = OK = 0 }
+/NDBT_ProgramExit: OK/ { OK++ ; next }
+/NDBT_ProgramExit: /   { FAILED++ }
+END                    { if (FAILED || !(OK > int(OLDOK)))
+                           { OK = 0 }
+                         print OK
+                         if (OK) { exit(0) }
+                         else    { exit(1) }
+                       }
+' OLDOK="${OLDOK}" ${LOGFILES} > "${STATEFILE}"
