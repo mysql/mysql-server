@@ -20,7 +20,6 @@
 #include "my_global.h"
 #include "my_sys.h"
 #include "my_md5.h"
-#include "sql_class.h"
 #include "sql_lex.h"
 #include "sql_signal.h"
 #include "sql_get_diagnostics.h"
