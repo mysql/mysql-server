@@ -1336,3 +1336,5 @@ create temporary table old_count
        group by counter_name;
 drop table old_count;
 set @@optimizer_switch=default;
+
+select * from ndbinfo.config_params order by param_number;
