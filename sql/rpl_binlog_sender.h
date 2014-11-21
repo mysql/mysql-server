@@ -71,6 +71,7 @@ private:
   bool m_wait_new_events;
 
   Diagnostics_area m_diag_area;
+  char m_errmsg_buf[MYSQL_ERRMSG_SIZE];
   const char *m_errmsg;
   int m_errno;
   /*
@@ -347,7 +348,10 @@ private:
   bool has_error() { return m_errno != 0; }
   void set_error(int errorno, const char *errmsg)
   {
-    m_errmsg= errmsg;
+    // Need to set the final '\0' since strncpy does not do that.
+    strncpy(m_errmsg_buf, errmsg, sizeof(m_errmsg_buf) - 1);
+    m_errmsg_buf[sizeof(m_errmsg_buf) - 1]= '\0';
+    m_errmsg= m_errmsg_buf;
     m_errno= errorno;
   }
 
