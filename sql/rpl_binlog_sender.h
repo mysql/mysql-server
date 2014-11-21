@@ -19,7 +19,7 @@
 #ifdef HAVE_REPLICATION
 #include "my_global.h"
 #include "binlog.h"           // LOG_INFO
-#include "binlog_event.h"     // enum_binlog_checksum_alg
+#include "binlog_event.h"     // enum_binlog_checksum_alg, Log_event_type
 #include "mysqld_error.h"     // ER_*
 #include "sql_error.h"        // Diagnostics_area
 
@@ -277,6 +277,24 @@ private:
   inline int read_event(IO_CACHE *log_cache,
                         binary_log::enum_binlog_checksum_alg checksum_alg,
                         uchar **event_ptr, uint32 *event_len);
+  /**
+    Check if it is allowed to send this event type.
+
+    The following are disallowed:
+    - GTID_MODE=ON and type==ANONYMOUS_GTID_LOG_EVENT
+    - AUTO_POSITION=1 and type==ANONYMOUS_GTID_LOG_EVENT
+    - GTID_MODE=OFF and type==GTID_LOG_EVENT
+
+    @param type The event type.
+    @param log_file The binary log file (used in error messages).
+    @param log_pos The binary log position (used in error messages).
+
+    @retval true The event is not allowed. In this case, this function
+    calls set_fatal_error().
+    @retval false The event is allowed.
+  */
+  bool check_event_type(binary_log::Log_event_type type,
+                        const char *log_file, my_off_t log_pos);
   /**
     It checks if the event is in m_exclude_gtid.
 
