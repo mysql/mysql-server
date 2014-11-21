@@ -772,16 +772,31 @@ static void tokudb_cleanup_handlers(tokudb_trx_data *trx, DB_TXN *txn) {
     }
 }
 
+#if MYSQL_VERSION_ID >= 50600
+extern "C" enum durability_properties thd_get_durability_property(const MYSQL_THD thd);
+#endif
+
+// Determine if an fsync is used when a transaction is committed.  The MySQL durability property 
+// has precedence over the tokudb commit sync setting as it has a better idea of what is going on.
+static bool tokudb_fsync_on_commit(THD *thd) {
+#if MYSQL_VERSION_ID >= 50600
+    if (thd_get_durability_property(thd) == HA_IGNORE_DURABILITY)
+        return false;
+    else
+#endif
+        return THDVAR(thd, commit_sync) != 0;
+}
+
 static int tokudb_commit(handlerton * hton, THD * thd, bool all) {
     TOKUDB_DBUG_ENTER("");
     DBUG_PRINT("trans", ("ending transaction %s", all ? "all" : "stmt"));
-    uint32_t syncflag = THDVAR(thd, commit_sync) ? 0 : DB_TXN_NOSYNC;
+    uint32_t syncflag = tokudb_fsync_on_commit(thd) ? 0 : DB_TXN_NOSYNC;
     tokudb_trx_data *trx = (tokudb_trx_data *) thd_get_ha_data(thd, hton);
     DB_TXN **txn = all ? &trx->all : &trx->stmt;
     DB_TXN *this_txn = *txn;
     if (this_txn) {
         if (tokudb_debug & TOKUDB_DEBUG_TXN) {
-            TOKUDB_TRACE("commit trx %u txn %p", all, this_txn);
+            TOKUDB_TRACE("commit trx %u txn %p syncflag %u", all, this_txn, syncflag);
         }
         // test hook to induce a crash on a debug build
         DBUG_EXECUTE_IF("tokudb_crash_commit_before", DBUG_SUICIDE(););
