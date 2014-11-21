@@ -705,4 +705,18 @@ select type_name from ndb$dict_obj_types where type_id = 3;
 select count(*) from information_schema.tables
   where table_schema = 'ndbinfo' and engine != 'ndbinfo';
 
+#
+# BUG#20075747 RND_INIT() ON AN OPEN SCAN IS USED TO REPOSITION THE CURSOR
+# - rnd_init() on an open scan is used to reposition the "cursor"
+#   back to first row
+#
+set @@optimizer_switch='block_nested_loop=off';
+create temporary table old_count
+       select counter_name, sum(val) as val
+       from ndbinfo.counters
+       where block_name='DBSPJ'
+       group by counter_name;
+drop table old_count;
+set @@optimizer_switch=default;
+
 --source ndbinfo_drop.inc

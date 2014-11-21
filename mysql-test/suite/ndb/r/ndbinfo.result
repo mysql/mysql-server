@@ -1328,3 +1328,11 @@ select count(*) from information_schema.tables
 count(*)
 0
 
+set @@optimizer_switch='block_nested_loop=off';
+create temporary table old_count
+       select counter_name, sum(val) as val
+       from ndbinfo.counters
+       where block_name='DBSPJ'
+       group by counter_name;
+drop table old_count;
+set @@optimizer_switch=default;
