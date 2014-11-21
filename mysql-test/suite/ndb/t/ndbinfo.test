@@ -719,4 +719,12 @@ create temporary table old_count
 drop table old_count;
 set @@optimizer_switch=default;
 
+#
+# Bug#16731538 MYSQLD CRITICAL FAILURE DURING ORDERED SELECT FROM NDBINFO.CLUSTER_OPERATIONS
+#  - ha_ndbinfo::estimate_rows_upper_bound() returned 0 rows
+#
+--disable_result_log
+select * from ndbinfo.config_params order by param_number;
+--enable_result_log
+
 --source ndbinfo_drop.inc
