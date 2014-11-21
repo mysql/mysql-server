@@ -3256,17 +3256,23 @@ void Dbdih::check_for_pause_action(Signal *signal)
     req->pauseStart = 1;
     sendSignal(ref, GSN_START_LCP_REQ, signal, StartLcpReq::SignalLength, JBB);
 
+    bool found = false;
     for (Uint32 nodeId = 1; nodeId < MAX_NDB_NODES; nodeId++)
     {
       if (c_lcpState.m_LCP_COMPLETE_REP_Counter_LQH.isWaitingFor(nodeId))
       {
         req->participatingLQH.set(nodeId);
+        found = true;
       }
       else
       {
         req->participatingLQH.clear(nodeId);
       }
     }
+    /** We should not be able to have all LQH sent completed, but not all
+     * LCP_FRAG_REP yet received.
+     */
+    ndbrequire(found);
     req->pauseStart = 2;
     sendSignal(ref, GSN_START_LCP_REQ, signal, StartLcpReq::SignalLength, JBB);
     return;
@@ -14739,8 +14745,8 @@ void Dbdih::execSTART_LCP_REQ(Signal* signal)
       g_eventLogger->info("Our node now in LCP execution after pausing LCP");
       g_eventLogger->info("LCP_COMPLETE_REP_Counter_LQH bitmap= %s",
           c_lcpState.m_LCP_COMPLETE_REP_Counter_LQH.getText());
-      ndbrequire(!checkLcpAllTablesDoneInLqh(__LINE__));
 
+      ndbrequire(!checkLcpAllTablesDoneInLqh(__LINE__));
       StartLcpConf * conf = (StartLcpConf*)signal->getDataPtrSend();
       conf->senderRef = reference();
       sendSignal(c_lcpState.m_masterLcpDihRef, GSN_START_LCP_CONF, signal,
