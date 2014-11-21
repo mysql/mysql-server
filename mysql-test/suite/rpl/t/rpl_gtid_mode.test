@@ -68,7 +68,7 @@ call mtr.add_suppression("MASTER_AUTO_POSITION in the master info file was 1 but
 --connection slave
 
 # should generate error
---error ER_AUTO_POSITION_REQUIRES_GTID_MODE_ON
+--error ER_AUTO_POSITION_REQUIRES_GTID_MODE_NOT_OFF
 CHANGE MASTER TO MASTER_AUTO_POSITION = 1;
 
 # No error

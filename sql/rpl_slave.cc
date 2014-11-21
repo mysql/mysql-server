@@ -10271,9 +10271,9 @@ int change_master(THD* thd, Master_info* mi, LEX_MASTER_INFO* lex_mi,
       */
       get_gtid_mode(GTID_MODE_LOCK_MSR_MAP) == GTID_MODE_OFF)
   {
-    error= ER_AUTO_POSITION_REQUIRES_GTID_MODE_ON;
-    my_message(ER_AUTO_POSITION_REQUIRES_GTID_MODE_ON,
-               ER(ER_AUTO_POSITION_REQUIRES_GTID_MODE_ON), MYF(0));
+    error= ER_AUTO_POSITION_REQUIRES_GTID_MODE_NOT_OFF;
+    my_message(ER_AUTO_POSITION_REQUIRES_GTID_MODE_NOT_OFF,
+               ER(ER_AUTO_POSITION_REQUIRES_GTID_MODE_NOT_OFF), MYF(0));
     goto err;
   }
 
