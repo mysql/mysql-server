@@ -4216,9 +4216,9 @@ a file name for --log-bin-index option", opt_binlog_index_name);
     "data directory and creates system tables.");
     _gtid_mode= GTID_MODE_OFF;
   }
-  if (gtid_mode >= GTID_MODE_ON_PERMISSIVE && !enforce_gtid_consistency)
+  if (gtid_mode == GTID_MODE_ON && !enforce_gtid_consistency)
   {
-    sql_print_error("--gtid-mode=ON or ON_PERMISSIVE requires --enforce-gtid-consistency");
+    sql_print_error("GTID_MODE = ON requires ENFORCE_GTID_CONSISTENCY = ON.");
     unireg_abort(1);
   }
 
