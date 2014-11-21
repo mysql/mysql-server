@@ -3221,75 +3221,81 @@ void Dbdih::pause_lcp(Signal *signal,
 
 void Dbdih::check_for_pause_action(Signal *signal)
 {
-  if (c_lcp_paused && c_lcpState.lcpStatus != check_if_lcp_idle())
+  if (c_lcp_paused)
   {
-    jam();
-    /**
-     * A final step when we have paused the LCP execution is to get the
-     * starting node active in the LCP handling. This means we need to send
-     * START_LCP_REQ to the node. We won't track the reply here since a
-     * missing reply is due to a crashed node and then the node failure
-     * handling will ensure that the LCP is restarted and that the pause of
-     * the LCP is unpaused.
-     * (A test case for this is needed).
-     *
-     * At this point in time we have stalled all activity in the LCP.
-     * This means that the bit maps on participating LQHs and DIHs is
-     * stable, it also means that the bit maps for which LQHs and DIHs
-     * that have completed is also stable (we have stopped LCP_COMPLETE_REP
-     * to pass through in all nodes). There might be LQHs and DIHs that
-     * have already completed and we need this information to also be
-     * transferred to the starting node for it to be able to complete
-     * the LCP processing properly.
-     *
-     * This means we actually have to send two signals with all four
-     * bitmaps. After these signals have been sent over we will
-     * be ready to unpause and complete this LCP with the starting node
-     * as a new participant.
-     */
-    StartLcpReq* req = (StartLcpReq*)signal->getDataPtrSend();
-    BlockReference ref = calcDihBlockRef(c_nodeStartMaster.startNode);
-    req->senderRef = reference();
-    req->lcpId = SYSFILE->latestLCP_ID;
-    req->participatingLQH = c_lcpState.m_participatingLQH;
-    req->participatingDIH = c_lcpState.m_participatingDIH;
-    req->pauseStart = 1;
-    sendSignal(ref, GSN_START_LCP_REQ, signal, StartLcpReq::SignalLength, JBB);
-
-    bool found = false;
-    for (Uint32 nodeId = 1; nodeId < MAX_NDB_NODES; nodeId++)
+    if (!check_if_lcp_idle())
     {
-      if (c_lcpState.m_LCP_COMPLETE_REP_Counter_LQH.isWaitingFor(nodeId))
+      jam();
+      /**
+       * A final step when we have paused the LCP execution is to get the
+       * starting node active in the LCP handling. This means we need to send
+       * START_LCP_REQ to the node. We won't track the reply here since a
+       * missing reply is due to a crashed node and then the node failure
+       * handling will ensure that the LCP is restarted and that the pause of
+       * the LCP is unpaused.
+       * (A test case for this is needed).
+       *
+       * At this point in time we have stalled all activity in the LCP.
+       * This means that the bit maps on participating LQHs and DIHs is
+       * stable, it also means that the bit maps for which LQHs and DIHs
+       * that have completed is also stable (we have stopped LCP_COMPLETE_REP
+       * to pass through in all nodes). There might be LQHs and DIHs that
+       * have already completed and we need this information to also be
+       * transferred to the starting node for it to be able to complete
+       * the LCP processing properly.
+       *
+       * This means we actually have to send two signals with all four
+       * bitmaps. After these signals have been sent over we will
+       * be ready to unpause and complete this LCP with the starting node
+       * as a new participant.
+       */
+      StartLcpReq* req = (StartLcpReq*)signal->getDataPtrSend();
+      BlockReference ref = calcDihBlockRef(c_nodeStartMaster.startNode);
+      req->senderRef = reference();
+      req->lcpId = SYSFILE->latestLCP_ID;
+      req->participatingLQH = c_lcpState.m_participatingLQH;
+      req->participatingDIH = c_lcpState.m_participatingDIH;
+      req->pauseStart = 1;
+      sendSignal(ref, GSN_START_LCP_REQ, signal,
+                 StartLcpReq::SignalLength, JBB);
+      bool found = false;
+      for (Uint32 nodeId = 1; nodeId < MAX_NDB_NODES; nodeId++)
       {
-        req->participatingLQH.set(nodeId);
-        found = true;
+        if (c_lcpState.m_LCP_COMPLETE_REP_Counter_LQH.isWaitingFor(nodeId))
+        {
+          req->participatingLQH.set(nodeId);
+          found = true;
+        }
+        else
+        {
+          req->participatingLQH.clear(nodeId);
+        }
       }
-      else
-      {
-        req->participatingLQH.clear(nodeId);
-      }
+      /**
+       * We should not be able to have all LQH sent completed, but not all
+       * LCP_FRAG_REP yet received.
+       */
+      ndbrequire(found);
+      req->pauseStart = 2;
+      sendSignal(ref, GSN_START_LCP_REQ, signal,
+                 StartLcpReq::SignalLength, JBB);
+      return;
     }
-    /** We should not be able to have all LQH sent completed, but not all
-     * LCP_FRAG_REP yet received.
-     */
-    ndbrequire(found);
-    req->pauseStart = 2;
-    sendSignal(ref, GSN_START_LCP_REQ, signal, StartLcpReq::SignalLength, JBB);
-    return;
+    else
+    {
+      jam();
+      /**
+       * The LCP completed while we paused, this could happen as a consequence
+       * of signals arriving from other DIHs that was sent before the pause
+       * arrived in the node. So when we receive PAUSE_LCP_CONF we know if
+       * this is the case, but we won't take any action to start a new LCP
+       * until we have unpaused.
+       */
+      sendPAUSE_LCP_REQ(signal, false);
+      return;
+    }
   }
-  if (c_lcp_paused && c_lcpState.lcpStatus == check_if_lcp_idle())
-  {
-    jam();
-    /**
-     * The LCP completed while we paused, this could happen as a consequence of
-     * signals arriving from other DIHs that was sent before the pause arrived
-     * in the node. So when we receive PAUSE_LCP_CONF we know if this is the
-     * case, but we won't take any action to start a new LCP until we have
-     * unpaused.
-     */
-    sendPAUSE_LCP_REQ(signal, false);
-    return;
-  }
+  jam();
   /**
    * We didn't start up any PAUSE LCP protocol, so we can proceed immediately
    * to the next step in the start process.
@@ -16396,6 +16402,7 @@ void Dbdih::copyNodeLab(Signal* signal, Uint32 tableId)
       }//if
     }//if
   }//while
+  jam();
   check_for_pause_action(signal);
 }//Dbdih::copyNodeLab()
 
