@@ -1383,7 +1383,6 @@ DROP TABLE t2, t1;
 
 --echo # End of test for Bug #17814492
 
-<<<<<<< HEAD
 --echo #
 --echo # Bug#19793998 ASSERTION FAILED: ROWS >= 0.0 IN
 --echo #              HANDLER::INDEX_SCAN_COST()
@@ -1408,8 +1407,6 @@ eval explain $query;
 eval $query;
 
 DROP TABLE t1, t2;
-=======
->>>>>>> Bug #18607971 : 5.5 TO 5.6 REGRESSION WITH A SUBQUERY IN THE FROM CLAUSE.
 
 --echo #
 --echo # Bug #18607971 : 5.5 TO 5.6 REGRESSION WITH A SUBQUERY IN THE FROM
@@ -1515,10 +1512,6 @@ EXPLAIN SELECT * FROM
              WHERE b.id BETWEEN 1 AND 10;
 
 #Test view ref in group by.
-<<<<<<< HEAD
-=======
-
->>>>>>> Bug #18607971 : 5.5 TO 5.6 REGRESSION WITH A SUBQUERY IN THE FROM CLAUSE.
 CREATE VIEW v1 AS SELECT c1 a FROM t WHERE c1 = 3;
 CREATE VIEW v2 AS SELECT c2 b FROM t WHERE c2 > 3;
 EXPLAIN SELECT * FROM (SELECT v1.a
@@ -1542,7 +1535,3 @@ EXPLAIN SELECT * FROM (SELECT v1.a
 
 DROP VIEW v1, v2;
 DROP TABLE t;
-<<<<<<< HEAD
-=======
-
->>>>>>> Bug #18607971 : 5.5 TO 5.6 REGRESSION WITH A SUBQUERY IN THE FROM CLAUSE.
