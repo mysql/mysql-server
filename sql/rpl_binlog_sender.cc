@@ -82,11 +82,18 @@ void Binlog_sender::init()
     DBUG_VOID_RETURN;
   }
 
-  if (m_using_gtid_protocol &&
-      get_gtid_mode(GTID_MODE_LOCK_NONE) != GTID_MODE_ON)
+  if (m_using_gtid_protocol)
   {
-    set_fatal_error("Request to dump GTID when @@GLOBAL_.GTID_MODE <> ON.");
-    DBUG_VOID_RETURN;
+    enum_gtid_mode gtid_mode= get_gtid_mode(GTID_MODE_LOCK_NONE);
+    if (gtid_mode != GTID_MODE_ON)
+    {
+      char buf[MYSQL_ERRMSG_SIZE];
+      sprintf(buf, "The replication sender thread cannot start in "
+              "AUTO_POSITION mode: this server has GTID_MODE = %.192s "
+              "instead of ON.", get_gtid_mode_string(gtid_mode));
+      set_fatal_error(buf);
+      DBUG_VOID_RETURN;
+    }
   }
 
   if (check_start_file())
