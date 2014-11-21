@@ -2019,7 +2019,10 @@ check_password_lifetime(THD *thd, const ACL_USER *acl_user)
     if (!acl_user->use_default_password_lifetime)
       interval.day= acl_user->password_lifetime;
     else
+    {
+      AutoRLock lock(PolyLock_mutex(&LOCK_default_password_lifetime));
       interval.day= default_password_lifetime;
+    }
     if (interval.day)
     {
       if (!date_add_interval(&password_change_by, INTERVAL_DAY, interval))
