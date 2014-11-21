@@ -1338,3 +1338,9 @@ drop table old_count;
 set @@optimizer_switch=default;
 
 select * from ndbinfo.config_params order by param_number;
+UPDATE ndb$config_params SET param_number=1 WHERE param_name = "NoOfReplicas";
+ERROR HY000: Table 'ndb$config_params' is read only
+
+UPDATE config_params SET param_number=1 WHERE param_name = "NoOfReplicas";
+ERROR HY000: Table 'ndb$config_params' is read only
+
