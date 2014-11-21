@@ -7481,6 +7481,7 @@ static int queue_old_event(Master_info *mi, const char *buf,
 
 int queue_event(Master_info* mi,const char* buf, ulong event_len)
 {
+  bool reported_error= false;
   int error= 0;
   String error_msg;
   ulong inc_pos= 0;
@@ -7898,10 +7899,24 @@ int queue_event(Master_info* mi,const char* buf, ulong event_len)
   case binary_log::GTID_LOG_EVENT:
   {
     global_sid_lock->rdlock();
+    /*
+      This can happen if the master uses GTID_MODE=OFF_PERMISSIVE, and
+      sends GTID events to the slave. A possible scenario is that user
+      does not follow the upgrade procedure for GTIDs, and creates a
+      topology like A->B->C, where A uses GTID_MODE=ON_PERMISSIVE, B
+      uses GTID_MODE=OFF_PERMISSIVE, and C uses GTID_MODE=OFF.  Each
+      connection is allowed, but the master A will generate GTID
+      transactions which will be sent through B to C.  Then C will hit
+      this error.
+    */
     if (get_gtid_mode(GTID_MODE_LOCK_SID) == GTID_MODE_OFF)
     {
       global_sid_lock->unlock();
-      error= ER_FOUND_GTID_EVENT_WHEN_GTID_MODE_IS_OFF;
+      error= ER_CANT_REPLICATE_GTID_WITH_GTID_MODE_OFF;
+      reported_error= true;
+      mi->report(ERROR_LEVEL, ER_CANT_REPLICATE_GTID_WITH_GTID_MODE_OFF,
+                 ER(ER_CANT_REPLICATE_GTID_WITH_GTID_MODE_OFF),
+                 mi->get_master_log_name(), mi->get_master_log_pos());
       goto err;
     }
     Gtid_log_event gtid_ev(buf,
@@ -7918,7 +7933,43 @@ int queue_event(Master_info* mi,const char* buf, ulong event_len)
   break;
 
   case binary_log::ANONYMOUS_GTID_LOG_EVENT:
-    /// @todo WL#7083: generate error when gtid_mode=on or auto_position=1
+    /*
+      This cannot normally happen, because the master has a check that
+      prevents it from sending anonymous events when auto_position is
+      enabled.  However, the master could be something else than
+      mysqld, which could contain bugs that we have no control over.
+      So we need this check on the slave to be sure that whoever is on
+      the other side of the protocol does not break the protocol.
+    */
+    if (mi->is_auto_position())
+    {
+      error= ER_CANT_REPLICATE_ANONYMOUS_WITH_AUTO_POSITION;
+      reported_error= true;
+      mi->report(ERROR_LEVEL, ER_CANT_REPLICATE_ANONYMOUS_WITH_AUTO_POSITION,
+                 ER(ER_CANT_REPLICATE_ANONYMOUS_WITH_AUTO_POSITION),
+                 mi->get_master_log_name(), mi->get_master_log_pos());
+      goto err;
+    }
+    /*
+      This can happen if the master uses GTID_MODE=ON_PERMISSIVE, and
+      sends an anonymous event to the slave. A possible scenario is
+      that user does not follow the upgrade procedure for GTIDs, and
+      creates a topology like A->B->C, where A uses
+      GTID_MODE=OFF_PERMISSIVE, B uses GTID_MODE=ON_PERMISSIVE, and C
+      uses GTID_MODE=ON.  Each connection is allowed, but the master A
+      will generate anonymous transactions which will be sent through
+      B to C.  Then C will hit this error.
+    */
+    else if (get_gtid_mode(GTID_MODE_LOCK_NONE) == GTID_MODE_ON)
+    {
+      error= ER_CANT_REPLICATE_ANONYMOUS_WITH_GTID_MODE_ON;
+      reported_error= true;
+      mi->report(ERROR_LEVEL, ER_CANT_REPLICATE_ANONYMOUS_WITH_GTID_MODE_ON,
+                 ER(ER_CANT_REPLICATE_ANONYMOUS_WITH_GTID_MODE_ON),
+                 mi->get_master_log_name(), mi->get_master_log_pos());
+      goto err;
+    }
+    /* fall through */
 
   default:
     inc_pos= event_len;
@@ -8064,7 +8115,7 @@ err:
   if (unlock_data_lock)
     mysql_mutex_unlock(&mi->data_lock);
   DBUG_PRINT("info", ("error: %d", error));
-  if (error)
+  if (error && !reported_error)
     mi->report(ERROR_LEVEL, error, ER(error), 
                (error == ER_SLAVE_RELAY_LOG_WRITE_FAILURE)?
                "could not queue event from master" :
