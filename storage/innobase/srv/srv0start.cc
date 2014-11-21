@@ -1983,8 +1983,6 @@ files_checked:
 			return(srv_init_abort(err));
 		}
 
-		srv_startup_is_before_trx_rollback_phase = false;
-
 		buf_flush_sync_all_buf_pools();
 
 		flushed_lsn = log_get_lsn();
@@ -2205,8 +2203,6 @@ files_checked:
 				logfile0);
 		}
 
-		srv_startup_is_before_trx_rollback_phase = false;
-
 		recv_recovery_rollback_active();
 
 		/* It is possible that file_format tag has never
@@ -2273,6 +2269,8 @@ files_checked:
 		ut_a(srv_read_only_mode);
 		srv_undo_logs = ULONG_UNDEFINED;
 	}
+
+	srv_startup_is_before_trx_rollback_phase = false;
 
 	if (!srv_read_only_mode) {
 		/* Create the thread which watches the timeouts
