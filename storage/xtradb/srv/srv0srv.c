@@ -416,8 +416,8 @@ UNIV_INTERN ulong	srv_sys_stats_root_page = 0;
 UNIV_INTERN unsigned long long srv_stats_modified_counter = 0;
 
 /* Enable traditional statistic calculation based on number of configured
-pages default false. */
-UNIV_INTERN my_bool	srv_stats_sample_traditional = FALSE;
+pages default true. */
+UNIV_INTERN my_bool	srv_stats_sample_traditional = TRUE;
 
 UNIV_INTERN ibool	srv_use_doublewrite_buf	= TRUE;
 UNIV_INTERN ibool       srv_use_atomic_writes = FALSE;

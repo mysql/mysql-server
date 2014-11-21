@@ -13114,8 +13114,8 @@ static MYSQL_SYSVAR_ULONGLONG(stats_modified_counter, srv_stats_modified_counter
 
 static MYSQL_SYSVAR_BOOL(stats_traditional, srv_stats_sample_traditional,
   PLUGIN_VAR_RQCMDARG,
-  "Enable traditional statistic calculation based on number of configured pages (default false)",
-  NULL, NULL, FALSE);
+  "Enable traditional statistic calculation based on number of configured pages (default true)",
+  NULL, NULL, TRUE);
 
 static MYSQL_SYSVAR_ULINT(stats_auto_update, srv_stats_auto_update,
   PLUGIN_VAR_RQCMDARG,
