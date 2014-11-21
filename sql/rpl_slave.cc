@@ -1737,6 +1737,12 @@ int start_slave_threads(bool need_lock_slave, bool wait_for_start,
     DBUG_RETURN(error);
   }
 
+  if (mi->is_auto_position() && (thread_mask & SLAVE_IO) &&
+      get_gtid_mode(GTID_MODE_LOCK_NONE) == GTID_MODE_OFF)
+  {
+    DBUG_RETURN(ER_CANT_USE_AUTO_POSITION_WITH_GTID_MODE_OFF);
+  }
+
   if (need_lock_slave)
   {
     lock_io = &mi->run_lock;
@@ -2881,13 +2887,15 @@ when it try to get the value of TIME_ZONE global variable from master.";
       break;
     }
     }
-    if (master_gtid_mode > slave_gtid_mode + 1 ||
-        slave_gtid_mode > master_gtid_mode + 1)
+    if ((slave_gtid_mode == GTID_MODE_OFF &&
+         master_gtid_mode >= GTID_MODE_ON_PERMISSIVE) ||
+        (slave_gtid_mode == GTID_MODE_ON &&
+         master_gtid_mode <= GTID_MODE_OFF_PERMISSIVE))
     {
       mi->report(ERROR_LEVEL, ER_SLAVE_FATAL_ERROR,
-                 "The slave IO thread stops because the master has "
-                 "@@GLOBAL.GTID_MODE %s and this server has "
-                 "@@GLOBAL.GTID_MODE %s",
+                 "The replication receiver thread cannot start because "
+                 "the master has GTID_MODE = %.192s and this server has "
+                 "GTID_MODE = %.192s.",
                  get_gtid_mode_string(master_gtid_mode),
                  get_gtid_mode_string(slave_gtid_mode));
       DBUG_RETURN(1);
@@ -2895,9 +2903,9 @@ when it try to get the value of TIME_ZONE global variable from master.";
     if (mi->is_auto_position() && master_gtid_mode != GTID_MODE_ON)
     {
       mi->report(ERROR_LEVEL, ER_SLAVE_FATAL_ERROR,
-                 "The slave IO thread stops because the master has "
-                 "@@GLOBAL.GTID_MODE %s and we are trying to connect "
-                 "using MASTER_AUTO_POSITION.",
+                 "The replication receiver thread cannot start in "
+                 "AUTO_POSITION mode: the master has GTID_MODE = %.192s "
+                 "instead of ON.",
                  get_gtid_mode_string(master_gtid_mode));
       DBUG_RETURN(1);
     }
