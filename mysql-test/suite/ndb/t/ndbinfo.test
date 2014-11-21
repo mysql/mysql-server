@@ -727,4 +727,16 @@ set @@optimizer_switch=default;
 select * from ndbinfo.config_params order by param_number;
 --enable_result_log
 
+#
+# Bug#11762750 TABLE NDBINFO.CONFIG_PARAMS SHOULD BE READ-ONLY (FOR NOW)
+#
+#
+# Checking the table
+--error ER_OPEN_AS_READONLY
+UPDATE ndb$config_params SET param_number=1 WHERE param_name = "NoOfReplicas";
+
+# Checking the view
+--error ER_OPEN_AS_READONLY
+UPDATE config_params SET param_number=1 WHERE param_name = "NoOfReplicas";
+
 --source ndbinfo_drop.inc
