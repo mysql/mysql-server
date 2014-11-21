@@ -588,6 +588,11 @@ spin_loop:
 
 	mutex_set_waiters(mutex, 1);
 
+	/* Make sure waiters store won't pass over mutex_test_and_set */
+#ifdef __powerpc__
+	os_mb;
+#endif
+
 	/* Try to reserve still a few times */
 	for (i = 0; i < 4; i++) {
 		if (mutex_test_and_set(mutex) == 0) {
