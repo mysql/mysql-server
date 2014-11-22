@@ -219,7 +219,7 @@ NDB_COMMAND(printSysfile,
     return 0;
   }
 
-  for (Uint32 i = 1; i<argc; i++)
+  for (int i = 1; i<argc; i++)
   {
     const char * filename = argv[i];
 
