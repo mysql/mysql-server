@@ -17,5 +17,10 @@
 MYSQL_ADD_EXECUTABLE(ndb_print_sys_file
   printSysfile.cpp
   COMPONENT ClusterTools)
+MYSQL_ADD_EXECUTABLE(ndb_print_frag_file
+  printFragfile.cpp
+  COMPONENT ClusterTools)
+TARGET_LINK_LIBRARIES(ndb_print_frag_file
+    ndbtrace ndblogger ndbgeneral ndbportlib)
 TARGET_LINK_LIBRARIES(ndb_print_sys_file
     ndbtrace ndblogger ndbgeneral ndbportlib)
