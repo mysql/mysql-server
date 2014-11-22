@@ -3469,7 +3469,7 @@ void Dbdih::dequeue_lcp_rep(Signal *signal)
 
       lcpCompleteRep->nodeId = getOwnNodeId();
       lcpCompleteRep->lcpId = c_lcp_id_paused;
-      lcpCompleteRep->blockNo = DBDIH;
+      lcpCompleteRep->blockNo = DBLQH;
 
       NodeReceiverGroup rg(DBDIH, c_lcpState.m_participatingDIH);
       sendSignal(rg, GSN_LCP_COMPLETE_REP, signal,
@@ -18089,6 +18089,7 @@ void Dbdih::execLCP_COMPLETE_REP(Signal* signal)
      * from our LQH for the same LCP id. This wouldn't fly with the
      * PAUSE LCP protocol handling.
      */
+    ndbrequire(rep->blockNo == DBLQH);
     ndbrequire(c_last_id_lcp_complete_rep != rep->lcpId ||
                c_last_id_lcp_complete_rep == RNIL);
     c_last_id_lcp_complete_rep = rep->lcpId;
