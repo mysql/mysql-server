@@ -114,11 +114,19 @@ public class Utility {
     public static final int SET_NOT_NULL_TO_NULL = 4203;
     public static final int INDEX_NOT_FOUND = 4243;
     public static final int ROW_NOT_FOUND = 626;
+    public static final int DUPLICATE_PRIMARY_KEY = 630;
+    public static final int DUPLICATE_UNIQUE_KEY = 893;
+    public static final int FOREIGN_KEY_NO_PARENT = 255;
+    public static final int FOREIGN_KEY_REFERENCED_ROW_EXISTS = 256;
 
     static {
         NonSevereErrorCodes.add(SET_NOT_NULL_TO_NULL); // Attempt to set a NOT NULL attribute to NULL
         NonSevereErrorCodes.add(INDEX_NOT_FOUND); // Index not found
         NonSevereErrorCodes.add(ROW_NOT_FOUND); // Tuple did not exist
+        NonSevereErrorCodes.add(DUPLICATE_PRIMARY_KEY); // Duplicate primary key on insert
+        NonSevereErrorCodes.add(DUPLICATE_UNIQUE_KEY); // Duplicate unique key on insert
+        NonSevereErrorCodes.add(FOREIGN_KEY_NO_PARENT); // Foreign key violation; no parent exists
+        NonSevereErrorCodes.add(FOREIGN_KEY_REFERENCED_ROW_EXISTS); // Foreign key violation; referenced row exists
     }
 
     // TODO: this is intended to investigate a class loader issue with Sparc java
