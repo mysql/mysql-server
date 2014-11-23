@@ -30,7 +30,7 @@ OLDOK=`cat "${STATEFILE}" 2>/dev/null`
 LOGFILES=`find result/ -name log.out`
 awk '
 BEGIN                  { FAILED = OK = 0 }
-/NDBT_ProgramExit: OK/ { OK++ ; next }
+/NDBT_ProgramExit: .*OK/ { OK++ ; next }
 /NDBT_ProgramExit: /   { FAILED++ }
 END                    { if (FAILED || !(OK > int(OLDOK)))
                            { OK = 0 }
