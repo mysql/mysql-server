@@ -1405,16 +1405,24 @@ row_mtuple_cmp(
 
 #ifdef HAVE_PSI_STAGE_INTERFACE
 /** Estimate total work for an ALTER TABLE.
-@param[in]	pk_n_pages	total number of pages in the clustered index
-@param[in]	n_add_indexes	number of indexes being added
+@param[in]	pk_n_pages			total number of pages in the
+clustered index
+@param[in]	n_add_indexes			number of indexes being added
+@param[in]	include_sort_and_insert_phases	true if the code will execute
+the sort and insert phases and thus they should be included in the estimation
 @return estimated total work in abstract units
 */
 inline
 uint64_t
 row_merge_estimate_alter_table(
 	ulint	pk_n_pages,
-	ulint	n_add_indexes)
+	ulint	n_add_indexes,
+	bool	include_sort_and_insert_phases)
 {
+	if (!include_sort_and_insert_phases) {
+		n_add_indexes = 0;
+	}
+
 	return(pk_n_pages
 	       * (1 /* read PK */
 		  + n_add_indexes * 2 /* sort & insert per created index */
@@ -4094,8 +4102,8 @@ row_merge_build_indexes(
 	mysql_stage_set_work_estimated(
 		*progress,
 		row_merge_estimate_alter_table(
-			old_table->stat_clustered_index_size,
-			n_indexes));
+			old_table->stat_clustered_index_size, n_indexes,
+			old_table == new_table));
 	mysql_stage_set_work_completed(*progress, 0);
 
 	/* Allocate memory for merge file data structure and initialize
@@ -4178,7 +4186,8 @@ row_merge_build_indexes(
 
 	mysql_stage_set_work_estimated(
 		*progress,
-		row_merge_estimate_alter_table(n_pages, n_indexes));
+		row_merge_estimate_alter_table(n_pages, n_indexes,
+					       old_table == new_table));
 
 #ifdef HAVE_PSI_STAGE_INTERFACE
 	const ulint	inc_every_nth_rec = std::max(1UL, n_recs / n_pages);
