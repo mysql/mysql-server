@@ -447,7 +447,7 @@ lock_sys_create(
 	lock_sys->prdt_page_hash = hash_create(n_cells);
 
 	if (!srv_read_only_mode) {
-		lock_latest_err_file = os_file_create_tmpfile(NULL);
+		lock_latest_err_file = os_file_create_tmpfile();
 		ut_a(lock_latest_err_file);
 	}
 }
