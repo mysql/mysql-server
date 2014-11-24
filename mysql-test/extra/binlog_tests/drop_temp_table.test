@@ -66,6 +66,10 @@ connection con2;
 # To be sure that logging has been done, we use a user lock.
 SELECT GET_LOCK("a",10);
 let $VERSION=`SELECT VERSION()`;
+
+let $wait_binlog_event=DROP /*!40005 TEMPORARY */ TABLE IF EXISTS;
+source include/wait_for_binlog_event.inc;
+
 source include/show_binlog_events.inc;
 DROP DATABASE `drop-temp+table-test`;
 
