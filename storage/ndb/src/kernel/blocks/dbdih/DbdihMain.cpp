@@ -3792,6 +3792,10 @@ void Dbdih::nodeDictStartConfLab(Signal* signal, Uint32 nodeId)
 
 void Dbdih::dihCopyCompletedLab(Signal* signal)
 {
+  signal->theData[0] = NDB_LE_NR_CopyDistr;
+  signal->theData[1] = c_nodeStartMaster.startNode;
+  sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 2, JBB);
+
   BlockReference ref = calcDictBlockRef(c_nodeStartMaster.startNode);
   DictStartReq * req = (DictStartReq*)&signal->theData[0];
   req->restartGci = (Uint32)(m_micro_gcp.m_new_gci >> 32);
