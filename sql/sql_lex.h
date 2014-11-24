@@ -1485,6 +1485,14 @@ struct Field_separators
   }
 };
 
+
+enum delete_option_enum {
+  DELETE_QUICK        = 1 << 0,
+  DELETE_LOW_PRIORITY = 1 << 1,
+  DELETE_IGNORE       = 1 << 2
+};
+
+
 #define YYSTYPE_IS_DECLARED
 union YYSTYPE {
   int  num;
@@ -1569,7 +1577,7 @@ union YYSTYPE {
   struct Limit_options limit_options;
   Query_options select_options;
   class PT_limit_clause *limit_clause;
-  class Parse_tree_node *node;
+  Parse_tree_node *node;
   class PT_select_part2_derived *select_part2_derived;
   enum olap_type olap_type;
   class PT_group *group;
@@ -1611,6 +1619,29 @@ union YYSTYPE {
   class PTI_text_literal *text_literal;
   XID *xid;
   enum xa_option_words xa_option_type;
+  struct {
+    Item *column;
+    Item *value;
+  } column_value_pair;
+  struct {
+    class PT_item_list *column_list;
+    class PT_item_list *value_list;
+  } column_value_list_pair;
+  struct {
+    class PT_item_list *column_list;
+    class PT_insert_values_list *row_value_list;
+  } column_row_value_list_pair;
+  struct {
+    class PT_item_list *column_list;
+    class PT_insert_query_expression *insert_query_expression;
+  } insert_from_subquery;
+  class PT_create_select *create_select;
+  class PT_insert_values_list *values_list;
+  class PT_insert_query_expression *insert_query_expression;
+  class PT_statement *statement;
+  class Table_ident *table_ident;
+  Mem_root_array_YY<Table_ident *> table_ident_list;
+  delete_option_enum opt_delete_option;
 };
 
 #endif
@@ -2904,18 +2935,41 @@ public:
 
   List<Key_part_spec> col_list;
   List<Key_part_spec> ref_list;
+  List<String>	      interval_list;
+  List<LEX_USER>      users_list;
+  List<LEX_COLUMN>    columns;
+
+  ulonglong           bulk_insert_row_cnt;
+
+  // LOAD statement-specific fields:
+
+  List<Item>          load_field_list;
+  List<Item>          load_update_list;
+  List<Item>          load_value_list;
   /*
     A list of strings is maintained to store the SET clause command user strings
     which are specified in load data operation.  This list will be used
     during the reconstruction of "load data" statement at the time of writing
     to binary log.
-   */
+  */
   List<String>        load_set_str_list;
-  List<String>	      interval_list;
-  List<LEX_USER>      users_list;
-  List<LEX_COLUMN>    columns;
-  List<Item>	      *insert_list,field_list,value_list,update_list;
-  List<List_item>     many_values;
+
+  // PURGE statement-specific fields:
+  List<Item>          purge_value_list;
+
+  // KILL statement-specific fields:
+  List<Item>          kill_value_list;
+
+  // CALL statement-specific fields:
+  List<Item>          call_value_list;
+
+  // DO statement-specific fields:
+  List<Item>          *do_insert_list;
+
+  // HANDLER statement-specific fields:
+  List<Item>          *handler_insert_list;
+
+  // other stuff:
   List<set_var_base>  var_list;
   List<Item_func_set_user_var> set_var_list; // in-query assignment list
   List<Item_param>    param_list;
@@ -3008,7 +3062,7 @@ public:
   uint8 create_view_algorithm;
   uint8 create_view_check;
   uint8 context_analysis_only;
-  bool drop_if_exists, drop_temporary, local_file, one_shot_set;
+  bool drop_if_exists, drop_temporary, local_file;
   bool autocommit;
   bool verbose, no_write_to_binlog;
 
@@ -3105,11 +3159,6 @@ public:
   Event_parse_data *event_parse_data;
 
   bool only_view;       /* used for SHOW CREATE TABLE/VIEW */
-  /*
-    field_list was created for view and should be removed before PS/SP
-    rexecuton
-  */
-  bool empty_field_list_on_rset;
   /*
     view created to be run from definer (standard behaviour)
   */

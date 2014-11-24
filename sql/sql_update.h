@@ -18,6 +18,7 @@
 
 #include "sql_data_change.h" // enum_duplicates
 #include "sql_class.h"       // select_result_interceptor
+#include "sql_cmd_dml.h"     // Sql_cmd_dml
 
 class Item;
 class multi_update;
@@ -27,7 +28,8 @@ typedef class st_select_lex SELECT_LEX;
 
 bool mysql_update_prepare_table(THD *thd, SELECT_LEX *select);
 bool mysql_prepare_update(THD *thd, const TABLE_LIST *update_table_ref,
-                          key_map *covering_keys_for_cond);
+                          key_map *covering_keys_for_cond,
+                          List<Item> &update_value_list);
 bool mysql_update(THD *thd, List<Item> &fields,
                   List<Item> &values, ha_rows limit,
                   enum enum_duplicates handle_duplicates,
@@ -39,7 +41,6 @@ bool mysql_multi_update(THD *thd,
                         multi_update **result);
 bool records_are_comparable(const TABLE *table);
 bool compare_records(const TABLE *table);
-int mysql_multi_update_prepare(THD *thd);
 
 class multi_update :public select_result_interceptor
 {
@@ -105,6 +106,29 @@ public:
     return updated;
   }
   virtual void abort_result_set();
+};
+
+class Sql_cmd_update : public Sql_cmd_dml
+{
+public:
+  enum_sql_command sql_command;
+  List<Item> update_value_list;
+
+  explicit Sql_cmd_update() : sql_command(SQLCOM_UPDATE) {}
+
+  virtual enum_sql_command sql_command_code() const { return sql_command; }
+
+  virtual bool execute(THD *thd);
+  virtual bool prepare(THD *thd) { return mysql_multi_update_prepare(thd); }
+  virtual bool prepared_statement_test(THD *thd);
+
+private:
+  bool try_single_table_update(THD *thd, bool *switch_to_multitable);
+  bool execute_multi_table_update(THD *thd);
+  int mysql_multi_update_prepare(THD *thd);
+  int mysql_test_update(THD *thd);
+  bool multi_update_precheck(THD *thd, TABLE_LIST *tables);
+  bool update_precheck(THD *thd, TABLE_LIST *tables);
 };
 
 #endif /* SQL_UPDATE_INCLUDED */

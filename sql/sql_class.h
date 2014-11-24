@@ -2518,7 +2518,7 @@ public:
   char	     scramble[SCRAMBLE_LENGTH+1];
 
   /// @todo: slave_thread is completely redundant, we should use 'system_thread' instead /sven
-  bool       slave_thread, one_shot_set;
+  bool       slave_thread;
   bool	     no_errors;
   uchar      password;
   /**
@@ -4061,6 +4061,8 @@ public:
 
   Session_tracker session_tracker;
   Session_sysvar_resource_manager session_sysvar_res_mgr;
+
+  void parse_error_at(const YYLTYPE &location, const char *s= NULL);
 };
 
 /**
@@ -4910,11 +4912,6 @@ void add_diff_to_status(STATUS_VAR *to_var, STATUS_VAR *from_var,
 inline bool add_item_to_list(THD *thd, Item *item)
 {
   return thd->lex->select_lex->add_item_to_list(thd, item);
-}
-
-inline bool add_value_to_list(THD *thd, Item *value)
-{
-  return thd->lex->value_list.push_back(value);
 }
 
 inline void add_order_to_list(THD *thd, ORDER *order)

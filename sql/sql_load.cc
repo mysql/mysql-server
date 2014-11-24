@@ -747,9 +747,9 @@ static bool write_execute_load_query_log_event(THD *thd, sql_exchange* ex,
   /*
     prepare fields-list and SET if needed; print_query won't do that for us.
   */
-  if (!thd->lex->field_list.is_empty())
+  if (!thd->lex->load_field_list.is_empty())
   {
-    List_iterator<Item>  li(thd->lex->field_list);
+    List_iterator<Item> li(thd->lex->load_field_list);
 
     pfields.append(" (");
     n= 0;
@@ -768,9 +768,9 @@ static bool write_execute_load_query_log_event(THD *thd, sql_exchange* ex,
     pfields.append(")");
   }
 
-  if (!thd->lex->update_list.is_empty())
+  if (!thd->lex->load_update_list.is_empty())
   {
-    List_iterator<Item> lu(thd->lex->update_list);
+    List_iterator<Item> lu(thd->lex->load_update_list);
     List_iterator<String> ls(thd->lex->load_set_str_list);
 
     pfields.append(" SET ");
