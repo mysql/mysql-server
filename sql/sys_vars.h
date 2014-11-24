@@ -37,6 +37,7 @@
 #include "tztime.h"               // Time_zone
 #include "binlog.h"               // mysql_bin_log
 #include "rpl_rli.h"              // sql_slave_skip_counter
+#include "rpl_msr.h"              // msr_map
 
 
 /*
@@ -2420,6 +2421,29 @@ public:
       my_error(ER_CANT_SET_GTID_MODE, MYF(0), "ON",
                "@@GLOBAL.SQL_SLAVE_SKIP_COUNTER is greater than zero");
       goto err;
+    }
+
+    // Cannot set OFF when some channel uses AUTO_POSITION.
+    if (new_gtid_mode == GTID_MODE_OFF)
+    {
+      for (mi_map::iterator it= msr_map.begin(); it!= msr_map.end(); it++)
+      {
+        Master_info *mi= it->second;
+        DBUG_PRINT("info", ("auto_position for channel '%s' is %d",
+                            mi->get_channel(), mi->is_auto_position()));
+        if (mi != NULL && mi->is_auto_position())
+        {
+          char buf[512];
+          sprintf(buf, "replication channel '%.192s' is configured "
+                  "in AUTO_POSITION mode. Execute "
+                  "CHANGE MASTER TO MASTER_AUTO_POSITION = 0 "
+                  "FOR CHANNEL '%.192s' before you set "
+                  "@@GLOBAL.GTID_MODE = OFF.",
+                  mi->get_channel(), mi->get_channel());
+          my_error(ER_CANT_SET_GTID_MODE, MYF(0), "OFF", buf);
+          goto err;
+        }
+      }
     }
 
     // Update the mode
