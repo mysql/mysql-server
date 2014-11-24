@@ -2814,9 +2814,8 @@ row_log_allocate(
 	const dtuple_t*	add_cols,
 				/*!< in: default values of
 				added columns, or NULL */
-	const ulint*	col_map,/*!< in: mapping of old column
+	const ulint*	col_map)/*!< in: mapping of old column
 				numbers to new ones, or NULL if !table */
-	const char*	path)	/*!< in: where to create temporary file */
 {
 	row_log_t*	log;
 	DBUG_ENTER("row_log_allocate");
@@ -2835,7 +2834,7 @@ row_log_allocate(
 		DBUG_RETURN(false);
 	}
 
-	log->fd = row_merge_file_create_low(path);
+	log->fd = row_merge_file_create_low();
 	if (log->fd < 0) {
 		ut_free(log);
 		DBUG_RETURN(false);
