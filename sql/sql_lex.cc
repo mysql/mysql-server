@@ -26,6 +26,7 @@
 #include "sql_plugin.h"                // plugin_unlock_list
 #include "sql_show.h"                  // append_identifier
 #include "sql_table.h"                 // primary_key_name
+#include "sql_insert.h"                // Sql_cmd_insert_base
 
 
 static int lex_one_token(YYSTYPE *yylval, THD *thd);
@@ -430,8 +431,18 @@ void LEX::reset()
   m_current_select= NULL;
   all_selects_list= NULL;
   load_set_str_list.empty();
-  value_list.empty();
-  update_list.empty();
+
+  bulk_insert_row_cnt= 0;
+
+  load_update_list.empty();
+  load_value_list.empty();
+
+  call_value_list.empty();
+
+  purge_value_list.empty();
+
+  kill_value_list.empty();
+
   set_var_list.empty();
   param_list.empty();
   view_list.empty();
@@ -445,7 +456,6 @@ void LEX::reset()
   insert_table= NULL;
   leaf_tables_insert= NULL;
   parsing_options.reset();
-  empty_field_list_on_rset= false;
   length= 0;
   part_info= NULL;
   duplicates= DUP_ERROR;
@@ -4568,7 +4578,8 @@ bool LEX::accept(Select_lex_visitor *visitor)
     return true;
   if (sql_command == SQLCOM_INSERT)
   {
-    List_iterator<Item> it(*insert_list);
+    List_iterator<Item> it(
+        static_cast<Sql_cmd_insert_base *>(m_sql_cmd)->insert_value_list);
     Item *end= NULL;
     for (Item *item= it++; item != end; item= it++)
       if (walk_item(item, visitor))

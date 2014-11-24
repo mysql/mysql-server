@@ -22,7 +22,9 @@
                                         /* any_db */
 #include "binlog.h"                     /* mysql_bin_log */
 #include "sp.h"                         /* sp_exist_routines */
+#include "sql_insert.h"                 /* Sql_cmd_insert_base */
 
+#include "sql_update.h"
 #include "auth_internal.h"
 #include "sql_auth_cache.h"
 #include "sql_authentication.h"
@@ -174,7 +176,7 @@ bool select_precheck(THD *thd, LEX *lex, TABLE_LIST *tables,
     TRUE  Error
 */
 
-bool multi_update_precheck(THD *thd, TABLE_LIST *tables)
+bool Sql_cmd_update::multi_update_precheck(THD *thd, TABLE_LIST *tables)
 {
   LEX *lex= thd->lex;
   DBUG_ENTER("multi_update_precheck");
@@ -289,7 +291,7 @@ bool multi_delete_precheck(THD *thd, TABLE_LIST *tables)
     TRUE  Error
 */
 
-bool update_precheck(THD *thd, TABLE_LIST *tables)
+bool Sql_cmd_update::update_precheck(THD *thd, TABLE_LIST *tables)
 {
   DBUG_ENTER("update_precheck");
   const bool res= check_one_table_access(thd, UPDATE_ACL, tables);
@@ -332,7 +334,7 @@ bool delete_precheck(THD *thd, TABLE_LIST *tables)
     TRUE   error
 */
 
-bool insert_precheck(THD *thd, TABLE_LIST *tables)
+bool Sql_cmd_insert_base::insert_precheck(THD *thd, TABLE_LIST *tables)
 {
   LEX *lex= thd->lex;
   DBUG_ENTER("insert_precheck");
@@ -343,7 +345,7 @@ bool insert_precheck(THD *thd, TABLE_LIST *tables)
   */
   ulong privilege= (INSERT_ACL |
                     (lex->duplicates == DUP_REPLACE ? DELETE_ACL : 0) |
-                    (lex->value_list.elements ? UPDATE_ACL : 0));
+                    (insert_value_list.elements ? UPDATE_ACL : 0));
 
   if (check_one_table_access(thd, privilege, tables))
     DBUG_RETURN(TRUE);

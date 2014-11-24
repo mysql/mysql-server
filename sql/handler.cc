@@ -3167,14 +3167,14 @@ int handler::update_auto_increment()
       if ((auto_inc_intervals_count == 0) && (estimation_rows_to_insert > 0))
         nb_desired_values= estimation_rows_to_insert;
       else if ((auto_inc_intervals_count == 0) &&
-               (thd->lex->many_values.elements > 0))
+               (thd->lex->bulk_insert_row_cnt > 0))
       {
         /*
           For multi-row inserts, if the bulk inserts cannot be started, the
           handler::estimation_rows_to_insert will not be set. But we still
           want to reserve the autoinc values.
         */
-        nb_desired_values= thd->lex->many_values.elements;
+        nb_desired_values= thd->lex->bulk_insert_row_cnt;
       }
       else /* go with the increasing defaults */
       {
