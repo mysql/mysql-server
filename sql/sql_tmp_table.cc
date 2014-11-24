@@ -1155,8 +1155,6 @@ update_hidden:
 err:
   thd->mem_root= mem_root_save;
   free_tmp_table(thd,table);                    /* purecov: inspected */
-  if (temp_pool_slot != MY_BIT_NONE)
-    bitmap_lock_clear_bit(&temp_pool, temp_pool_slot);
   DBUG_RETURN(NULL);				/* purecov: inspected */
 }
 
@@ -1454,8 +1452,6 @@ TABLE *create_duplicate_weedout_tmp_table(THD *thd,
 err:
   thd->mem_root= mem_root_save;
   free_tmp_table(thd,table);                    /* purecov: inspected */
-  if (temp_pool_slot != MY_BIT_NONE)
-    bitmap_lock_clear_bit(&temp_pool, temp_pool_slot);
   DBUG_RETURN(NULL);				/* purecov: inspected */
 }
 
@@ -1759,6 +1755,17 @@ bool create_myisam_tmp_table(TABLE *table, KEY *keyinfo,
                        )))
   {
     table->file->print_error(error,MYF(0));	/* purecov: inspected */
+    /*
+      Table name which was allocated from temp-pool is already occupied
+      in SE. Probably we hit a bug in server or some problem with system
+      configuration. Prevent problem from re-occurring by marking temp-pool
+      slot for this name as permanently busy, to do this we only need to set
+      TABLE::temp_pool_slot to MY_BIT_NONE in order to avoid freeing it
+      in free_tmp_table().
+    */
+    if (error == EEXIST)
+      table->temp_pool_slot= MY_BIT_NONE;
+
     table->db_stat=0;
     goto err;
   }
@@ -1833,8 +1840,12 @@ bool instantiate_tmp_table(TABLE *table, KEY *keyinfo,
     // Make empty record so random data is not written to disk
     empty_record(table);
   }
+
   if (open_tmp_table(table))
+  {
+    table->file->ha_delete_table(table->s->table_name.str);
     return TRUE;
+  }
 
   if (unlikely(trace->is_started()))
   {
