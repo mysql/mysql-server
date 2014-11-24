@@ -527,16 +527,8 @@ ulong get_max_connections(void)
 
 extern "C" int mysql_tmpfile(const char *prefix)
 {
-  return mysql_tmpfile_path(mysql_tmpdir, prefix);
-}
-
-int mysql_tmpfile_path(const char *path, const char *prefix)
-{
-  DBUG_ASSERT(path != NULL);
-  DBUG_ASSERT((strlen(path) + strlen(prefix)) <= FN_REFLEN);
-
   char filename[FN_REFLEN];
-  File fd = create_temp_file(filename, path, prefix,
+  File fd = create_temp_file(filename, mysql_tmpdir, prefix,
 #ifdef __WIN__
                              O_BINARY | O_TRUNC | O_SEQUENTIAL |
                              O_SHORT_LIVED |
@@ -556,6 +548,7 @@ int mysql_tmpfile_path(const char *path, const char *prefix)
 
   return fd;
 }
+
 
 extern "C"
 int thd_in_lock_tables(const THD *thd)
