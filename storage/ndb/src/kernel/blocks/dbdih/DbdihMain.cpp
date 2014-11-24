@@ -2978,7 +2978,7 @@ void Dbdih::sendPAUSE_LCP_REQ(Signal *signal, bool pause)
   {
     jam();
     ndbrequire(c_pause_lcp_requested);
-    if (c_lcpState.lcpStatus != check_if_lcp_idle())
+    if (!check_if_lcp_idle())
     {
       jam();
       c_pauseAction = PauseLcpReq::UnPauseIncludeInLcp;
