@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10963,8 +10963,6 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
 err:
   thd->mem_root= mem_root_save;
   free_tmp_table(thd,table);                    /* purecov: inspected */
-  if (temp_pool_slot != MY_BIT_NONE)
-    bitmap_lock_clear_bit(&temp_pool, temp_pool_slot);
   DBUG_RETURN(NULL);				/* purecov: inspected */
 }
 
@@ -11225,6 +11223,16 @@ static bool create_myisam_tmp_table(TABLE *table,TMP_TABLE_PARAM *param,
 		       HA_CREATE_TMP_TABLE)))
   {
     table->file->print_error(error,MYF(0));	/* purecov: inspected */
+    /*
+      Table name which was allocated from temp-pool is already occupied
+      in SE. Probably we hit a bug in server or some problem with system
+      configuration. Prevent problem from re-occurring by marking temp-pool
+      slot for this name as permanently busy, to do this we only need to set
+      TABLE::temp_pool_slot to MY_BIT_NONE in order to avoid freeing it
+      in free_tmp_table().
+    */
+    if (error == EEXIST)
+      table->temp_pool_slot= MY_BIT_NONE;
     table->db_stat=0;
     goto err;
   }
