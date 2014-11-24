@@ -486,16 +486,6 @@ bool Master_info::read_info(Rpl_info_handler *from)
   master_log_pos= (my_off_t) temp_master_log_pos;
   auto_position= MY_TEST(temp_auto_position);
 
-  /// @todo WL#7083: revisit this logic, it should not silently change the value /sven
-  if (auto_position != 0 &&
-      get_gtid_mode(GTID_MODE_LOCK_NONE) != GTID_MODE_ON)
-  {
-    auto_position = 0;
-    sql_print_warning("MASTER_AUTO_POSITION in the master info file was 1 but "
-                      "server is started with @@GLOBAL.GTID_MODE = OFF. Forcing "
-                      "MASTER_AUTO_POSITION to 0.");
-  }
-
 #ifndef HAVE_OPENSSL
   if (ssl)
     sql_print_warning("SSL information in the master info file "

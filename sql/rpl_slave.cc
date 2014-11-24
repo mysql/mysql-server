@@ -436,6 +436,25 @@ int init_slave()
     }
   }
 
+  if (get_gtid_mode(GTID_MODE_LOCK_MSR_MAP) == GTID_MODE_OFF)
+  {
+    for (mi_map::iterator it= msr_map.begin(); it != msr_map.end(); it++)
+    {
+      Master_info *mi= it->second;
+      if (mi != NULL && mi->is_auto_position())
+      {
+        sql_print_warning("Detected misconfiguration: replication channel "
+                          "'%.192s' was configured with AUTO_POSITION = 1, "
+                          "but the server was started with --gtid-mode=off. "
+                          "Either reconfigure replication using "
+                          "CHANGE MASTER TO MASTER_AUTO_POSITION = 0 "
+                          "FOR CHANNEL '%.192s', or change GTID_MODE to some "
+                          "value other than OFF, before starting the slave "
+                          "receiver thread.",
+                          mi->get_channel(), mi->get_channel());
+      }
+    }
+  }
 
   /*
     Loop through the msr_map and start slave threads for each channel.
