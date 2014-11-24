@@ -3003,7 +3003,7 @@ row_merge_insert_index_tuples(
 		mtr_t		mtr;
 
 #ifdef HAVE_PSI_STAGE_INTERFACE
-		if (i % inc_every_nth_rec == 0) {
+		if (progress != NULL && i % inc_every_nth_rec == 0) {
 			ut_stage_inc(progress);
 		}
 #endif /* HAVE_PSI_STAGE_INTERFACE */
