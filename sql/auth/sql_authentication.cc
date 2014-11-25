@@ -44,6 +44,7 @@
 #include "sql_authentication.h"
 #include "tztime.h"
 #include "sql_time.h"
+#include <mutex_lock.h>
 
 /****************************************************************************
    AUTHENTICATION CODE
@@ -2020,7 +2021,7 @@ check_password_lifetime(THD *thd, const ACL_USER *acl_user)
       interval.day= acl_user->password_lifetime;
     else
     {
-      AutoRLock lock(PolyLock_mutex(&LOCK_default_password_lifetime));
+      Mutex_lock lock(&LOCK_default_password_lifetime);
       interval.day= default_password_lifetime;
     }
     if (interval.day)
