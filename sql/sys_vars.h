@@ -2757,6 +2757,23 @@ public:
       goto err;
     }
 
+    // Compatible with ongoing GTID-violating transactions
+    DBUG_PRINT("info", ("automatic_gtid_violating_transaction_count=%d",
+                        gtid_state->get_automatic_gtid_violating_transaction_count()));
+    if (new_gtid_mode >= GTID_MODE_ON_PERMISSIVE &&
+        gtid_state->get_automatic_gtid_violating_transaction_count() > 0)
+    {
+      my_error(ER_CANT_SET_GTID_MODE, MYF(0), "ON_PERMISSIVE",
+               "there are ongoing transactions that use "
+               "GTID_NEXT = 'AUTOMATIC', which violate GTID "
+               "consistency. Adjust your workload to be "
+               "GTID-consistent before setting "
+               "@@GLOBAL.GTID_MODE = ON_PERMISSIVE. "
+               "See the Manual for "
+               "@@GLOBAL.ENFORCE_GTID_CONSISTENCY for details");
+      goto err;
+    }
+
     // Update the mode
     global_var(ulong)= new_gtid_mode;
     global_sid_lock->unlock();
@@ -2834,8 +2851,9 @@ public:
     DBUG_ASSERT(new_mode <= GTID_CONSISTENCY_MODE_WARN);
 
     DBUG_PRINT("info", ("old enforce_gtid_consistency=%d "
-                        "new enforce_gtid_consistency=%d",
-                        old_mode, new_mode));
+                        "new enforce_gtid_consistency=%d "
+                        "gtid_mode=%d ",
+                        old_mode, new_mode, gtid_mode));
 
     if (new_mode == old_mode)
       goto end;
@@ -2845,6 +2863,34 @@ public:
     {
       my_error(ER_GTID_MODE_ON_REQUIRES_ENFORCE_GTID_CONSISTENCY_ON, MYF(0));
       goto err;
+    }
+    // If there are ongoing GTID-violating transactions, and we are
+    // moving from OFF->ON, WARN->ON, or OFF->WARN, generate warning
+    // or error accordingly.
+    if (new_mode == GTID_CONSISTENCY_MODE_ON ||
+        (old_mode == GTID_CONSISTENCY_MODE_OFF &&
+         new_mode == GTID_CONSISTENCY_MODE_WARN))
+    {
+      DBUG_PRINT("info",
+                 ("automatic_gtid_violating_transaction_count=%d "
+                  "anonymous_gtid_violating_transaction_count=%d",
+                  gtid_state->get_automatic_gtid_violating_transaction_count(),
+                  gtid_state->get_anonymous_gtid_violating_transaction_count()));
+      if (gtid_state->get_automatic_gtid_violating_transaction_count() > 0 ||
+          gtid_state->get_anonymous_gtid_violating_transaction_count() > 0)
+      {
+        if (new_mode == GTID_CONSISTENCY_MODE_ON)
+        {
+          my_error(ER_CANT_SET_ENFORCE_GTID_CONSISTENCY_ON_WITH_ONGOING_GTID_VIOLATING_TRANSACTIONS, MYF(0));
+          goto err;
+        }
+        else
+        {
+          push_warning_printf(thd, Sql_condition::SL_WARNING,
+                              ER_SET_ENFORCE_GTID_CONSISTENCY_WARN_WITH_ONGOING_GTID_VIOLATING_TRANSACTIONS,
+                              "%s", ER(ER_SET_ENFORCE_GTID_CONSISTENCY_WARN_WITH_ONGOING_GTID_VIOLATING_TRANSACTIONS));
+        }
+      }
     }
 
     // Update the mode

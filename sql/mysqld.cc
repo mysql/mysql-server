@@ -6119,6 +6119,27 @@ static int show_slave_rows_last_search_algorithm_used(THD *thd, SHOW_VAR *var, c
 
   return 0;
 }
+
+static int show_ongoing_automatic_gtid_violating_transaction_count(
+  THD *thd, SHOW_VAR *var, char *buf)
+{
+  var->type= SHOW_CHAR;
+  var->value= buf;
+  sprintf(buf, "%d",
+          gtid_state->get_automatic_gtid_violating_transaction_count());
+  return 0;
+}
+
+static int show_ongoing_anonymous_gtid_violating_transaction_count(
+  THD *thd, SHOW_VAR *var, char *buf)
+{
+  var->type= SHOW_CHAR;
+  var->value= buf;
+  sprintf(buf, "%d",
+          gtid_state->get_anonymous_gtid_violating_transaction_count());
+  return 0;
+}
+
 #endif
 
 static int show_ongoing_anonymous_transaction_count(
@@ -6531,7 +6552,13 @@ SHOW_VAR status_vars[]= {
   {"Aborted_connects",         (char*) &show_aborted_connects,  SHOW_FUNC},
 #endif
 #ifdef HAVE_REPLICATION
+#ifndef DBUG_OFF
+  {"Ongoing_anonymous_gtid_violating_transaction_count",(char*) &show_ongoing_anonymous_gtid_violating_transaction_count, SHOW_FUNC},
+#endif//!DBUG_OFF
   {"Ongoing_anonymous_transaction_count",(char*) &show_ongoing_anonymous_transaction_count, SHOW_FUNC},
+#ifndef DBUG_OFF
+  {"Ongoing_automatic_gtid_violating_transaction_count",(char*) &show_ongoing_automatic_gtid_violating_transaction_count, SHOW_FUNC},
+#endif//!DBUG_OFF
 #endif//HAVE_REPLICATION
   {"Binlog_cache_disk_use",    (char*) &binlog_cache_disk_use,  SHOW_LONG},
   {"Binlog_cache_use",         (char*) &binlog_cache_use,       SHOW_LONG},

@@ -7423,6 +7423,12 @@ ER_CANT_REPLICATE_ANONYMOUS_WITH_GTID_MODE_ON
 ER_CANT_REPLICATE_GTID_WITH_GTID_MODE_OFF
   eng "Cannot replicate GTID-transaction when @@GLOBAL.GTID_MODE = OFF, at file %.512s, position %lld."
 
+ER_CANT_SET_ENFORCE_GTID_CONSISTENCY_ON_WITH_ONGOING_GTID_VIOLATING_TRANSACTIONS
+  eng "Cannot set ENFORCE_GTID_CONSISTENCY = ON because there are ongoing transactions that violate GTID consistency."
+
+ER_SET_ENFORCE_GTID_CONSISTENCY_WARN_WITH_ONGOING_GTID_VIOLATING_TRANSACTIONS
+  eng "There are ongoing transactions that violate GTID consistency."
+
 #
 #  End of 5.7 error messages.
 #
