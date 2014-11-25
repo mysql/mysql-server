@@ -2460,6 +2460,96 @@ public:
     return anonymous_gtid_count.atomic_get();
   }
 
+  /**
+    Increase the global counter when starting a GTID-violating
+    transaction having GTID_NEXT=AUTOMATIC.
+  */
+  void begin_automatic_gtid_violating_transaction()
+  {
+    DBUG_ENTER("Gtid_state::begin_automatic_gtid_violating_transaction");
+    DBUG_ASSERT(get_gtid_mode(GTID_MODE_LOCK_SID) <= GTID_MODE_OFF_PERMISSIVE);
+    DBUG_ASSERT(get_gtid_consistency_mode() != GTID_CONSISTENCY_MODE_ON);
+#ifndef DBUG_OFF
+    int32 old_value=
+#endif
+      automatic_gtid_violation_count.atomic_add(1);
+    DBUG_PRINT("info", ("ongoing_automatic_gtid_violating_transaction_count increased to %d", old_value + 1));
+    DBUG_ASSERT(old_value >= 0);
+    DBUG_VOID_RETURN;
+  }
+
+  /**
+    Decrease the global counter when ending a GTID-violating
+    transaction having GTID_NEXT=AUTOMATIC.
+  */
+  void end_automatic_gtid_violating_transaction()
+  {
+    DBUG_ENTER("Gtid_state::end_automatic_gtid_violating_transaction");
+    DBUG_ASSERT(get_gtid_mode(GTID_MODE_LOCK_SID) <= GTID_MODE_OFF_PERMISSIVE);
+    DBUG_ASSERT(get_gtid_consistency_mode() != GTID_CONSISTENCY_MODE_ON);
+#ifndef DBUG_OFF
+    int32 old_value=
+#endif
+      automatic_gtid_violation_count.atomic_add(-1);
+    DBUG_PRINT("info", ("ongoing_automatic_gtid_violating_transaction_count decreased to %d", old_value - 1));
+    DBUG_ASSERT(old_value >= 1);
+    DBUG_VOID_RETURN;
+  }
+
+  /**
+    Return the number of ongoing GTID-violating transactions having
+    GTID_NEXT=AUTOMATIC.
+  */
+  int32 get_automatic_gtid_violating_transaction_count()
+  {
+    return automatic_gtid_violation_count.atomic_get();
+  }
+
+  /**
+    Increase the global counter when starting a GTID-violating
+    transaction having GTID_NEXT=ANONYMOUS.
+  */
+  void begin_anonymous_gtid_violating_transaction()
+  {
+    DBUG_ENTER("Gtid_state::begin_anonymous_gtid_violating_transaction");
+    DBUG_ASSERT(get_gtid_mode(GTID_MODE_LOCK_SID) != GTID_MODE_ON);
+    DBUG_ASSERT(get_gtid_consistency_mode() != GTID_CONSISTENCY_MODE_ON);
+#ifndef DBUG_OFF
+    int32 old_value=
+#endif
+      anonymous_gtid_violation_count.atomic_add(1);
+    DBUG_PRINT("info", ("ongoing_anonymous_gtid_violating_transaction_count increased to %d", old_value + 1));
+    DBUG_ASSERT(old_value >= 0);
+    DBUG_VOID_RETURN;
+  }
+
+  /**
+    Decrease the global counter when ending a GTID-violating
+    transaction having GTID_NEXT=ANONYMOUS.
+  */
+  void end_anonymous_gtid_violating_transaction()
+  {
+    DBUG_ENTER("Gtid_state::end_anonymous_gtid_violating_transaction");
+    DBUG_ASSERT(get_gtid_mode(GTID_MODE_LOCK_SID) != GTID_MODE_ON);
+    DBUG_ASSERT(get_gtid_consistency_mode() != GTID_CONSISTENCY_MODE_ON);
+#ifndef DBUG_OFF
+    int32 old_value=
+#endif
+      anonymous_gtid_violation_count.atomic_add(-1);
+    DBUG_PRINT("info", ("ongoing_anonymous_gtid_violating_transaction_count decreased to %d", old_value - 1));
+    DBUG_ASSERT(old_value >= 1);
+    DBUG_VOID_RETURN;
+  }
+
+  /**
+    Return the number of ongoing GTID-violating transactions having
+    GTID_NEXT=AUTOMATIC.
+  */
+  int32 get_anonymous_gtid_violating_transaction_count()
+  {
+    return anonymous_gtid_violation_count.atomic_get();
+  }
+
 #endif // ifndef MYSQL_CLIENT
 private:
   /**
@@ -2754,10 +2844,13 @@ private:
 
     This will:
 
-    - release ownership of all GTIDs owned by the THD;
-    - add all GTIDs in the Group_cache to executed_gtids is only done if the
-      is_commit flag is set.
-    - send a broadcast on the condition variable for every sidno for
+    - Release ownership of all GTIDs owned by the THD. This removes
+      the GTID from Owned_gtids and clears the ownership status in the
+      THD object.
+    - Add the owned GTID to executed_gtids if the is_commit flag is
+      set.
+    - Decrease counters of GTID-violating transactions.
+    - Send a broadcast on the condition variable for every sidno for
       which we released ownership.
 
     @param[in] thd - Thread for which owned groups are updated.
@@ -2795,6 +2888,10 @@ private:
 
   /// The number of anonymous transactions owned by any client.
   Atomic_int32 anonymous_gtid_count;
+  /// The number of GTID-violating transactions that use GTID_NEXT=AUTOMATIC.
+  Atomic_int32 automatic_gtid_violation_count;
+  /// The number of GTID-violating transactions that use GTID_NEXT=AUTOMATIC.
+  Atomic_int32 anonymous_gtid_violation_count;
 
   /// Used by unit tests that need to access private members.
 #ifdef FRIEND_OF_GTID_STATE

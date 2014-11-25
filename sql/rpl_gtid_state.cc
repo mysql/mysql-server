@@ -158,18 +158,41 @@ void Gtid_state::update_on_rollback(THD *thd)
 {
   DBUG_ENTER("Gtid_state::update_on_rollback");
 
-  if (!thd->owned_gtid.is_empty())
+  /*
+    If we don't own anything, there is nothing to do, so we do an
+    early return.  Except if there is a GTID consistency violation;
+    then we need to decrement the counter, so then we go ahead and
+    call update_gtids_impl.
+  */
+  if (thd->owned_gtid.is_empty() && !thd->has_gtid_consistency_violation)
   {
-    if (thd->skip_gtid_rollback)
-    {
-      DBUG_PRINT("info",("skipping the gtid_rollback"));
-      DBUG_VOID_RETURN;
-    }
-
-    global_sid_lock->rdlock();
-    update_gtids_impl(thd, false);
-    global_sid_lock->unlock();
+    DBUG_PRINT("info", ("skipping gtid rollback because "
+                        "thread does not own anything and does not violate "
+                        "gtid consistency"));
+    DBUG_VOID_RETURN;
   }
+
+  /*
+    The administrative commands [CHECK|REPAIR|OPTIMIZE|ANALYZE] TABLE
+    are written to the binary log even when they fail.  When the
+    commands fail, they will call update_on_rollback; later they will
+    write the binary log.  But we must not do any of the things in
+    update_gtids_impl if we are going to write the binary log.  So
+    these statements set the skip_gtid_rollback flag, which tells
+    update_on_rollback to return early.  When the statements are
+    written to the binary log they will call update_on_commit as
+    usual.
+  */
+  if (thd->skip_gtid_rollback)
+  {
+    DBUG_PRINT("info", ("skipping gtid rollback because "
+                        "thd->skip_gtid_rollback is set"));
+    DBUG_VOID_RETURN;
+  }
+
+  global_sid_lock->rdlock();
+  update_gtids_impl(thd, false);
+  global_sid_lock->unlock();
 
   DBUG_VOID_RETURN;
 }
@@ -344,6 +367,19 @@ void Gtid_state::update_gtids_impl(THD *thd, bool is_commit)
     // transaction.
     DBUG_ASSERT(!is_commit);
     DBUG_ASSERT(thd->variables.gtid_next.type == AUTOMATIC_GROUP);
+  }
+
+  if (thd->has_gtid_consistency_violation &&
+      !more_transactions_with_same_gtid_next)
+  {
+    if (thd->variables.gtid_next.type == AUTOMATIC_GROUP)
+      gtid_state->end_automatic_gtid_violating_transaction();
+    else
+    {
+      DBUG_ASSERT(thd->variables.gtid_next.type == ANONYMOUS_GROUP);
+      gtid_state->end_anonymous_gtid_violating_transaction();
+    }
+    thd->has_gtid_consistency_violation= false;
   }
 
   thd->owned_gtid.dbug_print(NULL,
