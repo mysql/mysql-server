@@ -764,9 +764,6 @@ void set_var_user::print(THD *thd, String *str)
 /**
   Check the validity of the SET PASSWORD request
 
-  User name and no host is used for SET PASSWORD =
-  No user name and no host used for SET PASSWORD for CURRENT_USER() =
-
   @param  thd  The current thread
   @return      status code
   @retval 0    failure
@@ -775,24 +772,6 @@ void set_var_user::print(THD *thd, String *str)
 int set_var_password::check(THD *thd)
 {
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
-  if (!user->host.str)
-  {
-    DBUG_ASSERT(thd->security_ctx->priv_host);
-    user->host.str= (char *) thd->security_ctx->priv_host;
-    user->host.length= strlen(thd->security_ctx->priv_host);
-  }
-  /*
-    In case of anonymous user, user->user is set to empty string with length 0.
-    But there might be case when user->user.str could be NULL. For Ex:
-    "set password for current_user() = password('xyz');". In this case,
-    set user information as of the current user.
-  */
-  if (!user->user.str)
-  {
-    DBUG_ASSERT(thd->security_ctx->user);
-    user->user.str= (char *) thd->security_ctx->user;
-    user->user.length= strlen(thd->security_ctx->user);
-  }
   /* Returns 1 as the function sends error to client */
   return check_change_password(thd, user->host.str, user->user.str,
                                password, strlen(password)) ? 1 : 0;
