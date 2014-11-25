@@ -9491,7 +9491,6 @@ static bool handle_gtid_consistency_violation(THD *thd, int error_code)
   enum_gtid_consistency_mode gtid_consistency_mode=
     get_gtid_consistency_mode();
   enum_gtid_mode gtid_mode= get_gtid_mode(GTID_MODE_LOCK_SID);
-  global_sid_lock->unlock();
 
   DBUG_PRINT("info", ("gtid_next.type=%d gtid_mode=%s "
                       "gtid_consistency_mode=%d error=%d query=%s",
@@ -9514,18 +9513,59 @@ static bool handle_gtid_consistency_violation(THD *thd, int error_code)
       gtid_next_type == GTID_GROUP ||
       gtid_consistency_mode == GTID_CONSISTENCY_MODE_ON)
   {
+    global_sid_lock->unlock();
     my_error(error_code, MYF(0));
     DBUG_RETURN(false);
   }
-  else if (gtid_consistency_mode == GTID_CONSISTENCY_MODE_WARN)
+  else
   {
-    // Need to print to log so that replication admin knows when users
-    // have adjusted their workloads.
-    sql_print_warning("%s", ER(error_code));
-    // Need to print to client so that users can adjust their workload.
-    push_warning(thd, Sql_condition::SL_WARNING, error_code, ER(error_code));
+    /*
+      If we are not generating an error, we must increase the counter
+      of GTID-violating transactions.  This will prevent a concurrent
+      client from executing a SET GTID_MODE or SET
+      ENFORCE_GTID_CONSISTENCY statement that would be incompatible
+      with this transaction.
+
+      If the transaction had already been accounted as a gtid violating
+      transaction, then don't increment the counters, just issue the
+      warning below. This prevents calling
+      begin_automatic_gtid_violating_transaction or
+      begin_anonymous_gtid_violating_transaction multiple times for the
+      same transaction, which would make the counter go out of sync.
+    */
+    if (!thd->has_gtid_consistency_violation)
+    {
+      if (gtid_next_type == AUTOMATIC_GROUP)
+        gtid_state->begin_automatic_gtid_violating_transaction();
+      else
+      {
+        DBUG_ASSERT(gtid_next_type == ANONYMOUS_GROUP);
+        gtid_state->begin_anonymous_gtid_violating_transaction();
+      }
+
+      /*
+        If a transaction generates multiple GTID violation conditions,
+        it must still only update the counters once.  Hence we use
+        this per-thread flag to keep track of whether the thread has a
+        consistency or not.  This function must only be called if the
+        transaction does not already have a GTID violation.
+      */
+      thd->has_gtid_consistency_violation= true;
+    }
+
+    global_sid_lock->unlock();
+
+    // Generate warning if ENFORCE_GTID_CONSISTENCY = WARN.
+    if (gtid_consistency_mode == GTID_CONSISTENCY_MODE_WARN)
+    {
+      // Need to print to log so that replication admin knows when users
+      // have adjusted their workloads.
+      sql_print_warning("%s", ER(error_code));
+      // Need to print to client so that users can adjust their workload.
+      push_warning(thd, Sql_condition::SL_WARNING, error_code, ER(error_code));
+    }
+    DBUG_RETURN(true);
   }
-  DBUG_RETURN(true);
 }
 
 

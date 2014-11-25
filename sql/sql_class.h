@@ -3617,6 +3617,11 @@ public:
     flag.
   */
   bool is_commit_in_middle_of_statement;
+  /*
+    True while the transaction is executing, if one of
+    is_ddl_gtid_consistent or is_dml_gtid_consistent returned false.
+  */
+  bool has_gtid_consistency_violation;
 
   const LEX_CSTRING &db() const
   { return m_db; }
