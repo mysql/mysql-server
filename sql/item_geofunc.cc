@@ -54,6 +54,9 @@
 #endif
 
 static int check_geometry_valid(Geometry *geom);
+namespace bg= boost::geometry;
+namespace bgm= boost::geometry::model;
+namespace bgcs= boost::geometry::cs;
 
 
 /// A wrapper and interface for all geometry types used here. Make these
@@ -79,9 +82,42 @@ public:
   typedef CoordinateSystemType Coordsys;
 };
 
-namespace bg= boost::geometry;
-namespace bgm= boost::geometry::model;
-namespace bgcs= boost::geometry::cs;
+
+template<>
+class BG_models<double, bgcs::cartesian>
+{
+public:
+  typedef Gis_point Point;
+  // An counter-clockwise, closed Polygon type. It can hold open Polygon data,
+  // but not clockwise ones, otherwise things can go wrong, e.g. intersection.
+  typedef Gis_polygon Polygon;
+  typedef Gis_line_string Linestring;
+  typedef Gis_multi_point Multipoint;
+  typedef Gis_multi_line_string Multilinestring;
+  typedef Gis_multi_polygon Multipolygon;
+
+  typedef double Coord_type;
+  typedef bgcs::cartesian Coordsys;
+};
+
+
+template<>
+class BG_models<double, bgcs::spherical_equatorial<bg::degree> >
+{
+public:
+  typedef Gis_point_spherical Point;
+  // An counter-clockwise, closed Polygon type. It can hold open Polygon data,
+  // but not clockwise ones, otherwise things can go wrong, e.g. intersection.
+  typedef Gis_polygon_spherical  Polygon;
+  typedef Gis_line_string_spherical  Linestring;
+  typedef Gis_multi_point_spherical  Multipoint;
+  typedef Gis_multi_line_string_spherical  Multilinestring;
+  typedef Gis_multi_polygon_spherical  Multipolygon;
+
+  typedef double Coord_type;
+  typedef bgcs::spherical_equatorial<bg::degree> Coordsys;
+};
+
 
 template <typename Point_range>
 static bool is_colinear(const Point_range &ls);
@@ -1469,17 +1505,14 @@ String *Item_func_validate::val_str(String *str)
   Geometry *geom= NULL;
 
   if ((null_value= (!swkb || args[0]->null_value)))
-    return 0;
+    return error_str();
   if (!(geom= Geometry::construct(&buffer, swkb)))
     return error_str();
-
-  if (geom->get_geotype() == Geometry::wkb_geometrycollection)
-    return swkb;
 
   if (check_geometry_valid(geom))
     return swkb;
   else
-    return NULL;
+    return error_str();
 }
 
 
@@ -1492,49 +1525,65 @@ Field::geometry_type Item_func_make_envelope::get_geometry_type() const
 String *Item_func_make_envelope::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
-  String arg_val;
-  String *swkb= args[0]->val_str(&arg_val);
-  double offset= args[1]->val_real();
-  Geometry_buffer buffer;
-  Geometry *geom= NULL;
+  String arg_val1, arg_val2;
+  String *pt1= args[0]->val_str(&arg_val1);
+  String *pt2= args[1]->val_str(&arg_val2);
+  Geometry_buffer buffer1, buffer2;
+  Geometry *geom1= NULL, *geom2= NULL;
   uint32 srid;
 
-  if ((null_value= (!swkb || args[0]->null_value || args[1]->null_value)))
-    return 0;
-  if (!(geom= Geometry::construct(&buffer, swkb)))
+  if ((null_value= (!pt1 || !pt2 ||
+                    args[0]->null_value || args[1]->null_value)))
+    return error_str();
+  if ((null_value= (!(geom1= Geometry::construct(&buffer1, pt1)) ||
+                    !(geom2= Geometry::construct(&buffer2, pt2)))))
   {
     my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
     return error_str();
   }
 
-  if (geom->get_type() != Geometry::wkb_point || offset <= 0)
+  if (geom1->get_type() != Geometry::wkb_point ||
+      geom2->get_type() != Geometry::wkb_point)
   {
     my_error(ER_WRONG_ARGUMENTS, MYF(0), func_name());
     return error_str();
   }
 
-  srid= uint4korr(swkb->ptr());
+  if (geom1->get_srid() != geom2->get_srid())
+  {
+    my_error(ER_GIS_DIFFERENT_SRIDS, MYF(0), func_name());
+    return error_str();
+  }
+  
+  Gis_point *gpt1= static_cast<Gis_point *>(geom1);
+  Gis_point *gpt2= static_cast<Gis_point *>(geom2);
+  double x1= gpt1->get<0>(), y1= gpt1->get<1>();
+  double x2= gpt2->get<0>(), y2= gpt2->get<1>();
+  if (x1 > x2 || y1 > y2)
+  {
+    my_error(ER_WRONG_ARGUMENTS, MYF(0), func_name());
+    return error_str();
+  }
+
+  srid= uint4korr(pt1->ptr());
   str->set_charset(&my_charset_bin);
   str->length(0);
-  if (str->reserve(GEOM_HEADER_SIZE + 4 + 4 + 5 * POINT_DATA_SIZE, 512))
-    return 0;
-  write_geometry_header(const_cast<char *>(str->ptr()), srid,
-                        Geometry::wkb_polygon, 1);
-  str->length(GEOM_HEADER_SIZE + 4);
+  if (str->reserve(GEOM_HEADER_SIZE + 4 + 4 + 5 * POINT_DATA_SIZE, 128))
+    return error_str();
+
+  write_geometry_header(str, srid, Geometry::wkb_polygon, 1);
   str->q_append((uint32) 5);
 
-  Gis_point *pt= static_cast<Gis_point *>(geom);
-  double x= pt->get<0>(), y= pt->get<1>();
-  str->q_append(x - offset);
-  str->q_append(y - offset);
-  str->q_append(x + offset);
-  str->q_append(y - offset);
-  str->q_append(x + offset);
-  str->q_append(y + offset);
-  str->q_append(x - offset);
-  str->q_append(y + offset);
-  str->q_append(x - offset);
-  str->q_append(y - offset);
+  str->q_append(x1);
+  str->q_append(y1);
+  str->q_append(x2);
+  str->q_append(y1);
+  str->q_append(x2);
+  str->q_append(y2);
+  str->q_append(x1);
+  str->q_append(y2);
+  str->q_append(x1);
+  str->q_append(y1);
   return str;
 }
 
@@ -8540,6 +8589,64 @@ longlong Item_func_isclosed::val_int()
 }
 
 
+/**
+  Checks the validity of a geometry collection, which is valid
+  if and only if all its components are valid.
+ */
+class GeomColl_validity_checker: public WKB_scanner_event_handler
+{
+  bool isvalid;
+  std::stack<Geometry::wkbType> types;
+public:
+  explicit GeomColl_validity_checker() :isvalid(true)
+  {
+  }
+
+  bool is_valid() const { return isvalid; }
+
+  virtual void on_wkb_start(Geometry::wkbByteOrder bo,
+                            Geometry::wkbType geotype,
+                            const void *wkb, uint32 len, bool has_hdr)
+  {
+    if (!isvalid)
+      return;
+    Geometry::wkbType top= Geometry::wkb_invalid_type;
+    if (types.size() > 0)
+      top= types.top();
+    else
+      DBUG_ASSERT(geotype == Geometry::wkb_geometrycollection);
+
+    types.push(geotype);
+    // A geometry collection's vaidity is determined by that of its components.
+    if (geotype == Geometry::wkb_geometrycollection)
+      return;
+    // If not owned by a GC(i.e. not a direct component of a GC), it doesn't
+    // influence the GC's validity.
+    if (top != Geometry::wkb_geometrycollection)
+      return;
+    DBUG_ASSERT(top != Geometry::wkb_invalid_type);
+    Geometry_buffer geobuf;
+    Geometry *geo= NULL;
+    const char *pwkb= static_cast<const char *>(wkb) +
+      (has_hdr ? WKB_HEADER_SIZE : 0);
+    DBUG_ASSERT(len > WKB_HEADER_SIZE);
+    len-= (has_hdr ? WKB_HEADER_SIZE : 0);
+    geo= Geometry::construct(&geobuf, pwkb, len);
+
+    if (geo == NULL)
+      isvalid= false;
+    isvalid= check_geometry_valid(geo);
+  }
+
+
+  virtual void on_wkb_end(const void *wkb)
+  {
+    if (types.size() > 0)
+      types.pop();
+  }
+};
+
+
 /*
   Call Boost Geometry algorithm to check whether a geometry is valid as
   defined by OGC.
@@ -8547,6 +8654,11 @@ longlong Item_func_isclosed::val_int()
 static int check_geometry_valid(Geometry *geom)
 {
   int ret= 0;
+
+  // Empty geometry collection is always valid. This is shortcut for
+  // flat empty GCs, nested empty GC are also valid but will be computed below.
+  if (is_empty_geocollection(geom))
+    return 1L;
 
   switch (geom->get_type())
   {
@@ -8598,6 +8710,17 @@ static int check_geometry_valid(Geometry *geom)
     ret= bg::is_valid(bg);
     break;
   }
+  case Geometry::wkb_geometrycollection:
+  {
+    uint32 wkb_len= geom->get_data_size();
+    GeomColl_validity_checker validity_checker;
+
+    wkb_scanner(geom->get_cptr(), &wkb_len,
+                Geometry::wkb_geometrycollection, false,
+                &validity_checker);
+    ret= validity_checker.is_valid();
+    break;
+  }
   default:
     DBUG_ASSERT(false);
     break;
@@ -8618,11 +8741,9 @@ longlong Item_func_isvalid::val_int()
   if ((null_value= (!swkb || args[0]->null_value)))
     return 0L;
 
+  // It should return false if the argument isn't a valid GEOMETRY string.
   if (!(geom= Geometry::construct(&buffer, swkb)))
     return 0L;
-  if (geom->get_type() == Geometry::wkb_geometrycollection)
-    return 1L;
-
   int ret= check_geometry_valid(geom);
 
   return ret;
@@ -9019,6 +9140,13 @@ double Item_func_distance::val_real()
 
   DBUG_ENTER("Item_func_distance::val_real");
   DBUG_ASSERT(fixed == 1);
+
+  if ((arg_count != 2 && arg_count != 3) || (arg_count == 3 && !is_spherical))
+  {
+    my_error(ER_WRONG_ARGUMENTS, MYF(0), func_name());
+    DBUG_RETURN(error_real());
+  }
+
   String *res1= args[0]->val_str(&tmp_value1);
   String *res2= args[1]->val_str(&tmp_value2);
   Geometry_buffer buffer1, buffer2;
@@ -9055,6 +9183,27 @@ double Item_func_distance::val_real()
 
   if (is_spherical)
   {
+    Geometry::wkbType gt1= g1->get_geotype();
+    Geometry::wkbType gt2= g2->get_geotype();
+    if (!((gt1 == Geometry::wkb_point || gt1 == Geometry::wkb_multipoint) &&
+          (gt2 == Geometry::wkb_point || gt2 == Geometry::wkb_multipoint)))
+    {
+      my_error(ER_GIS_UNSUPPORTED_ARGUMENT, MYF(0), func_name());
+      DBUG_RETURN(error_real());
+    }
+
+    if (arg_count == 3)
+    {
+      earth_radius= args[2]->val_real();
+      if (args[2]->null_value)
+        return error_real();
+      if (earth_radius <= 0)
+      {
+        my_error(ER_WRONG_ARGUMENTS, MYF(0), func_name());
+        DBUG_RETURN(error_real());
+      }
+    }
+
     /*
       Make sure all points' coordinates are valid:
       x in [-180, 180], y in [-90, 90].
@@ -9083,7 +9232,10 @@ double Item_func_distance::val_real()
       g2->get_type() != Geometry::wkb_geometrycollection)
   {
     if (is_spherical)
-      distance= bg_distance<bgcs::spherical<bg::degree> >(g1, g2, &isdone);
+    {
+      isdone= true;
+      distance= bg_distance_spherical(g1, g2);
+    }
     else
       distance= bg_distance<bgcs::cartesian>(g1, g2, &isdone);
   }
@@ -9135,7 +9287,11 @@ double Item_func_distance::val_real()
         }
 
         if (is_spherical)
-          dist= bg_distance<bgcs::spherical<bg::degree> >(*i, *j, &isdone2);
+        {
+          // For now this is never reached because we only support
+          // distance([multi]point, [multi]point) for spherical.
+          DBUG_ASSERT(false);
+        }
         else
           dist= bg_distance<bgcs::cartesian>(*i, *j, &isdone2);
         if (!isdone2 && !null_value)
@@ -9325,17 +9481,111 @@ mem_error:
 }
 
 
-const long EARTH_SPHERICAL_RADIUS= 6370986;     // in meters.
-#define BG_DISTANCE(bg1, bg2, strategy) \
-  (is_spherical ? bg::distance((bg1), (bg2), (strategy)) :   \
-   bg::distance((bg1), (bg2)))
+typedef bgcs::spherical_equatorial<bg::degree> bgcssed;
+double Item_func_distance::
+distance_point_geometry_spherical(const Geometry *g1, const Geometry *g2)
+{
+  double res= 0;
+  bg::strategy::distance::haversine<double, double>
+    dist_strategy(earth_radius);
+
+  typename BG_models<double, bgcssed>::Point
+    bg1(g1->get_data_ptr(), g1->get_data_size(),
+        g1->get_flags(), g1->get_srid());
+
+  switch (g2->get_type())
+  {
+  case Geometry::wkb_point:
+    {
+      typename BG_models<double, bgcssed>::Point
+        bg2(g2->get_data_ptr(), g2->get_data_size(),
+            g2->get_flags(), g2->get_srid());
+      res= bg::distance(bg1, bg2, dist_strategy);
+    }
+    break;
+  case Geometry::wkb_multipoint:
+    {
+      typename BG_models<double, bgcssed>::Multipoint
+        bg2(g2->get_data_ptr(), g2->get_data_size(),
+            g2->get_flags(), g2->get_srid());
+
+      typename BG_models<double, bgcssed>::Multipoint mpt1;
+      mpt1.push_back(bg1);
+      res= bg::distance(mpt1, bg2, dist_strategy);
+    }
+    break;
+  default:
+    DBUG_ASSERT(false);
+    break;
+  }
+  return res;
+}
+
+
+double Item_func_distance::
+distance_multipoint_geometry_spherical(const Geometry *g1, const Geometry *g2)
+{
+  double res= 0;
+  bg::strategy::distance::haversine<double, double>
+    dist_strategy(earth_radius);
+
+  typename BG_models<double, bgcssed>::Multipoint
+    bg1(g1->get_data_ptr(), g1->get_data_size(),
+        g1->get_flags(), g1->get_srid());
+
+  switch (g2->get_type())
+  {
+  case Geometry::wkb_point:
+    res= bg_distance_spherical(g2, g1);
+    break;
+  case Geometry::wkb_multipoint:
+    {
+      typename BG_models<double, bgcssed>::Multipoint
+        bg2(g2->get_data_ptr(), g2->get_data_size(),
+            g2->get_flags(), g2->get_srid());
+      res= bg::distance(bg1, bg2, dist_strategy);
+    }
+    break;
+  default:
+    DBUG_ASSERT(false);
+    break;
+  }
+
+  return res;
+}
+
+
+double Item_func_distance::
+bg_distance_spherical(const Geometry *g1, const Geometry *g2)
+{
+  double res= 0;
+
+  try
+  {
+    switch (g1->get_type())
+    {
+    case Geometry::wkb_point:
+      res= distance_point_geometry_spherical(g1, g2);
+      break;
+    case Geometry::wkb_multipoint:
+      res= distance_multipoint_geometry_spherical(g1, g2);
+      break;
+    default:
+      DBUG_ASSERT(false);
+      break;
+    }
+  }
+  CATCH_ALL("st_distance_sphere", null_value= true)
+
+  return res;
+}
+
+
 template <typename Coordsys>
 double Item_func_distance::
 distance_point_geometry(const Geometry *g1, const Geometry *g2, bool *isdone)
 {
   double res= 0;
-  bg::strategy::distance::haversine<double, double>
-    dist_strategy(EARTH_SPHERICAL_RADIUS);
   *isdone= false;
 
   typename BG_models<double, Coordsys>::Point
@@ -9349,7 +9599,7 @@ distance_point_geometry(const Geometry *g1, const Geometry *g2, bool *isdone)
       typename BG_models<double, Coordsys>::Point
         bg2(g2->get_data_ptr(), g2->get_data_size(),
             g2->get_flags(), g2->get_srid());
-      res= BG_DISTANCE(bg1, bg2, dist_strategy);
+      res= bg::distance(bg1, bg2);
     }
     break;
   case Geometry::wkb_multipoint:
@@ -9357,7 +9607,7 @@ distance_point_geometry(const Geometry *g1, const Geometry *g2, bool *isdone)
       typename BG_models<double, Coordsys>::Multipoint
         bg2(g2->get_data_ptr(), g2->get_data_size(),
             g2->get_flags(), g2->get_srid());
-      res= BG_DISTANCE(bg1, bg2, dist_strategy);
+      res= bg::distance(bg1, bg2);
     }
     break;
   case Geometry::wkb_linestring:
@@ -9365,7 +9615,7 @@ distance_point_geometry(const Geometry *g1, const Geometry *g2, bool *isdone)
       typename BG_models<double, Coordsys>::Linestring
         bg2(g2->get_data_ptr(), g2->get_data_size(),
             g2->get_flags(), g2->get_srid());
-      res= BG_DISTANCE(bg1, bg2, dist_strategy);
+      res= bg::distance(bg1, bg2);
     }
     break;
   case Geometry::wkb_multilinestring:
@@ -9373,7 +9623,7 @@ distance_point_geometry(const Geometry *g1, const Geometry *g2, bool *isdone)
       typename BG_models<double, Coordsys>::Multilinestring
         bg2(g2->get_data_ptr(), g2->get_data_size(),
             g2->get_flags(), g2->get_srid());
-      res= BG_DISTANCE(bg1, bg2, dist_strategy);
+      res= bg::distance(bg1, bg2);
     }
     break;
   case Geometry::wkb_polygon:
@@ -9381,7 +9631,7 @@ distance_point_geometry(const Geometry *g1, const Geometry *g2, bool *isdone)
       typename BG_models<double, Coordsys>::Polygon
         bg2(g2->get_data_ptr(), g2->get_data_size(),
             g2->get_flags(), g2->get_srid());
-      res= BG_DISTANCE(bg1, bg2, dist_strategy);
+      res= bg::distance(bg1, bg2);
     }
     break;
   case Geometry::wkb_multipolygon:
@@ -9389,7 +9639,7 @@ distance_point_geometry(const Geometry *g1, const Geometry *g2, bool *isdone)
       typename BG_models<double, Coordsys>::Multipolygon
         bg2(g2->get_data_ptr(), g2->get_data_size(),
             g2->get_flags(), g2->get_srid());
-      res= BG_DISTANCE(bg1, bg2, dist_strategy);
+      res= bg::distance(bg1, bg2);
     }
     break;
   default:
@@ -9407,8 +9657,6 @@ distance_multipoint_geometry(const Geometry *g1, const Geometry *g2,
                              bool *isdone)
 {
   double res= 0;
-  bg::strategy::distance::haversine<double, double>
-    dist_strategy(EARTH_SPHERICAL_RADIUS);
   *isdone= false;
 
   typename BG_models<double, Coordsys>::Multipoint
@@ -9425,7 +9673,7 @@ distance_multipoint_geometry(const Geometry *g1, const Geometry *g2,
       typename BG_models<double, Coordsys>::Multipoint
         bg2(g2->get_data_ptr(), g2->get_data_size(),
             g2->get_flags(), g2->get_srid());
-      res= BG_DISTANCE(bg1, bg2, dist_strategy);
+      res= bg::distance(bg1, bg2);
     }
     break;
   case Geometry::wkb_linestring:
@@ -9433,7 +9681,7 @@ distance_multipoint_geometry(const Geometry *g1, const Geometry *g2,
       typename BG_models<double, Coordsys>::Linestring
         bg2(g2->get_data_ptr(), g2->get_data_size(),
             g2->get_flags(), g2->get_srid());
-      res= BG_DISTANCE(bg1, bg2, dist_strategy);
+      res= bg::distance(bg1, bg2);
     }
     break;
   case Geometry::wkb_multilinestring:
@@ -9441,7 +9689,7 @@ distance_multipoint_geometry(const Geometry *g1, const Geometry *g2,
       typename BG_models<double, Coordsys>::Multilinestring
         bg2(g2->get_data_ptr(), g2->get_data_size(),
             g2->get_flags(), g2->get_srid());
-      res= BG_DISTANCE(bg1, bg2, dist_strategy);
+      res= bg::distance(bg1, bg2);
     }
     break;
   case Geometry::wkb_polygon:
@@ -9449,7 +9697,7 @@ distance_multipoint_geometry(const Geometry *g1, const Geometry *g2,
       typename BG_models<double, Coordsys>::Polygon
         bg2(g2->get_data_ptr(), g2->get_data_size(),
             g2->get_flags(), g2->get_srid());
-      res= BG_DISTANCE(bg1, bg2, dist_strategy);
+      res= bg::distance(bg1, bg2);
     }
     break;
   case Geometry::wkb_multipolygon:
@@ -9457,7 +9705,7 @@ distance_multipoint_geometry(const Geometry *g1, const Geometry *g2,
       typename BG_models<double, Coordsys>::Multipolygon
         bg2(g2->get_data_ptr(), g2->get_data_size(),
             g2->get_flags(), g2->get_srid());
-      res= BG_DISTANCE(bg1, bg2, dist_strategy);
+      res= bg::distance(bg1, bg2);
     }
     break;
   default:
