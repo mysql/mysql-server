@@ -3802,7 +3802,9 @@ innobase_rollback(
 	we come here to roll back the latest SQL statement) we
 	release it now before a possibly lengthy rollback */
 
-	lock_unlock_table_autoinc(trx);
+	if (!trx_in_innodb.is_aborted()) {
+		lock_unlock_table_autoinc(trx);
+	}
 
 	/* This is a statement level variable. */
 
@@ -3867,8 +3869,9 @@ innobase_rollback_trx(
 	/* If we had reserved the auto-inc lock for some table (if
 	we come here to roll back the latest SQL statement) we
 	release it now before a possibly lengthy rollback */
-
-	lock_unlock_table_autoinc(trx);
+	if (!TrxInInnoDB::is_aborted(trx)) {
+		lock_unlock_table_autoinc(trx);
+	}
 
 	if (trx_is_rseg_updated(trx)) {
 		error = trx_rollback_for_mysql(trx);
