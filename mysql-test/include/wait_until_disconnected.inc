@@ -4,6 +4,10 @@
 --disable_result_log
 --disable_query_log
 let $counter= 500;
+if ($disconnect_timeout)
+{
+  let $counter = `SELECT $disconnect_timeout * 10`;
+}
 let $mysql_errno= 0;
 while (!$mysql_errno)
 {
