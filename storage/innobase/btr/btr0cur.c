@@ -3793,7 +3793,7 @@ btr_estimate_number_of_different_key_vals(
 	}
 
 	/* Sanity check */
-	ut_ad(n_sample_pages > 0 && n_sample_pages < (index->stat_index_size <= 1 ? 1 : index->stat_index_size));
+	ut_ad(n_sample_pages > 0 && n_sample_pages <= (index->stat_index_size <= 1 ? 1 : index->stat_index_size));
 
 	/* We sample some pages in the index to get an estimate */
 
