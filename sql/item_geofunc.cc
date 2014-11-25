@@ -1565,7 +1565,16 @@ String *Item_func_make_envelope::val_str(String *str)
     return error_str();
   }
 
-  srid= uint4korr(pt1->ptr());
+  /*
+    Use default invalid SRID because we are computing the envelope on an
+    "abstract plain", that is, we are not aware of any detailed information
+    of the coordinate system, we simply suppose the points given to us
+    are in the abstract cartesian coordinate system, so we always use the
+    point with minimum coordinates of all dimensions and the point with maximum
+    coordinates of all dimensions and combine the two groups of coordinate
+    values  to get 2^N points for the N dimension points.
+   */
+  srid= 0;
   str->set_charset(&my_charset_bin);
   str->length(0);
   if (str->reserve(GEOM_HEADER_SIZE + 4 + 4 + 5 * POINT_DATA_SIZE, 128))
