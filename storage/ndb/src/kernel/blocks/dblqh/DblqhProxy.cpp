@@ -513,7 +513,6 @@ DblqhProxy::execLCP_FRAG_ORD(Signal* signal)
 
   jam();
   D("LCP: continue" << V(req->lcpId) << V(c_lcpRecord.m_lcp_frag_ord_cnt));
-  ndbrequire(c_lcpRecord.m_state == LcpRecord::L_RUNNING);
   ndbrequire(c_lcpRecord.m_lcpId == req->lcpId);
 
   if (c_lcpRecord.m_lastFragmentFlag)
@@ -528,6 +527,7 @@ DblqhProxy::execLCP_FRAG_ORD(Signal* signal)
     D("LCP: lastFragmentFlag already received");
     return;
   }
+  ndbrequire(c_lcpRecord.m_state == LcpRecord::L_RUNNING);
   if (lcp_complete_ord)
   {
     jam();
