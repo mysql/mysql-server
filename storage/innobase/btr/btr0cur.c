@@ -3718,8 +3718,8 @@ btr_estimate_number_of_different_key_vals(
 	ib_int64_t*	n_diff;
 	ib_int64_t*	n_not_null;
 	ibool		stats_null_not_equal;
-	ullint		n_sample_pages; /* number of pages to sample */
-	ulint		not_empty_flag	= 0;
+	ullint		n_sample_pages = 1; /* number of pages to sample */
+	ulint		not_empty_flag = 0;
 	ulint		total_external_size = 0;
 	ulint		i;
 	ulint		j;
@@ -3770,8 +3770,6 @@ btr_estimate_number_of_different_key_vals(
 		if (srv_stats_sample_pages > index->stat_index_size) {
 			if (index->stat_index_size > 0) {
 				n_sample_pages = index->stat_index_size;
-			} else {
-				n_sample_pages = 1;
 			}
 		} else {
 			n_sample_pages = srv_stats_sample_pages;
@@ -3779,18 +3777,46 @@ btr_estimate_number_of_different_key_vals(
 	} else {
 		/* New logaritmic number of pages that are estimated.
 		Number of pages estimated should be between 1 and
-		index->stat_index_size. We pick index->stat_index_size
-		as maximum and log2(index->stat_index_size)*sr_stats_sample_pages
-		if between range as minimum.*/
-		if (index->stat_index_size > 0) {
-			n_sample_pages = ut_min(index->stat_index_size,
-				                ut_max(ut_min(srv_stats_sample_pages,
-							      index->stat_index_size),
-						       log2(index->stat_index_size)*srv_stats_sample_pages));
-		} else {
-			n_sample_pages = 1;
+		index->stat_index_size.
+
+		If we have only 0 or 1 index pages then we can only take 1
+		sample. We have already initialized n_sample_pages to 1.
+
+		So taking index size as I and sample as S and log(I)*S as L
+
+		requirement 1) we want the out limit of the expression to not exceed I;
+		requirement 2) we want the ideal pages to be at least S;
+		so the current expression is min(I, max( min(S,I), L)
+
+		looking for simplifications:
+
+		case 1: assume S < I
+		min(I, max( min(S,I), L) -> min(I , max( S, L))
+
+		but since L=LOG2(I)*S and log2(I) >=1   L>S always so max(S,L) = L.
+
+		so we have: min(I , L)
+
+		case 2: assume I < S
+		    min(I, max( min(S,I), L) -> min(I, max( I, L))
+
+		case 2a: L > I
+		    min(I, max( I, L)) -> min(I, L) -> I
+
+		case 2b: when L < I
+		    min(I, max( I, L))  ->  min(I, I ) -> I
+
+		so taking all case2 paths is I, our expression is:
+		n_pages = S < I? min(I,L) : I
+                */
+		if (index->stat_index_size > 1) {
+			n_sample_pages = (srv_stats_sample_pages < index->stat_index_size) ?
+				ut_min(index->stat_index_size,
+				       log2(index->stat_index_size)*srv_stats_sample_pages)
+				: index->stat_index_size;
+
 		}
-	}
+       	}
 
 	/* Sanity check */
 	ut_ad(n_sample_pages > 0 && n_sample_pages <= (index->stat_index_size <= 1 ? 1 : index->stat_index_size));
