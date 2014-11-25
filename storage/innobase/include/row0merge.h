@@ -167,13 +167,13 @@ void
 row_merge_drop_temp_indexes(void);
 /*=============================*/
 
-/** Create temporary merge files in the given paramater path, and if
-UNIV_PFS_IO defined, register the file descriptor with Performance Schema.
-@param[in]	path	location for creating temporary merge files
+/*********************************************************************//**
+Creates temporary merge files, and if UNIV_PFS_IO defined, register
+the file descriptor with Performance Schema.
 @return File descriptor */
 int
-row_merge_file_create_low(
-	const char*	path)
+row_merge_file_create_low(void)
+/*===========================*/
 	__attribute__((warn_unused_result));
 /*********************************************************************//**
 Destroy a merge file. And de-register the file from Performance Schema
@@ -333,15 +333,13 @@ row_merge_buf_empty(
 /*================*/
 	row_merge_buf_t*	buf)	/*!< in,own: sort buffer */
 	__attribute__((warn_unused_result, nonnull));
-
-/** Create a merge file in the given location.
-@param[out]	merge_file	merge file structure
-@param[in]	path		location for creating temporary file
+/*********************************************************************//**
+Create a merge file.
 @return file descriptor, or -1 on failure */
 int
 row_merge_file_create(
-	merge_file_t*	merge_file,
-	const char*	path)
+/*==================*/
+	merge_file_t*	merge_file)	/*!< out: merge file structure */
 	__attribute__((nonnull));
 /*********************************************************************//**
 Merge disk files.

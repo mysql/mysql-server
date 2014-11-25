@@ -193,8 +193,6 @@ struct row_log_t {
 				or by index->lock X-latch only */
 	row_log_buf_t	head;	/*!< reader context; protected by MDL only;
 				modifiable by row_log_apply_ops() */
-	const char*	path;	/*!< where to create temporary file during
-				log operation */
 };
 
 
@@ -208,7 +206,7 @@ row_log_tmpfile(
 {
 	DBUG_ENTER("row_log_tmpfile");
 	if (log->fd < 0) {
-		log->fd = row_merge_file_create_low(log->path);
+		log->fd = row_merge_file_create_low();
 		DBUG_EXECUTE_IF("row_log_tmpfile_fail",
 				if (log->fd > 0)
 					row_merge_file_destroy_low(log->fd);
@@ -2857,9 +2855,8 @@ row_log_allocate(
 	const dtuple_t*	add_cols,
 				/*!< in: default values of
 				added columns, or NULL */
-	const ulint*	col_map,/*!< in: mapping of old column
+	const ulint*	col_map)/*!< in: mapping of old column
 				numbers to new ones, or NULL if !table */
-	const char*	path)	/*!< in: where to create temporary file */
 {
 	row_log_t*	log;
 	DBUG_ENTER("row_log_allocate");
@@ -2893,7 +2890,6 @@ row_log_allocate(
 	log->tail.block = log->head.block = NULL;
 	log->head.blocks = log->head.bytes = 0;
 	log->head.total = 0;
-	log->path = path;
 	dict_index_set_online_status(index, ONLINE_INDEX_CREATION);
 	index->online_log = log;
 
