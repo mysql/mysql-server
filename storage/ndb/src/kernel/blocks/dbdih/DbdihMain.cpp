@@ -4999,8 +4999,17 @@ void Dbdih::execLOCAL_RECOVERY_COMP_REP(Signal *signal)
   if (reference() != cmasterdihref)
   {
     jam();
-    sendSignal(cmasterdihref, GSN_LOCAL_RECOVERY_COMP_REP, signal,
-               LocalRecoveryCompleteRep::SignalLengthMaster, JBB);
+    if (likely(getNodeInfo(refToNode(cmasterdihref)).m_version >=
+               NDBD_NODE_RECOVERY_STATUS_VERSION))
+    {
+      jam();
+      sendSignal(cmasterdihref, GSN_LOCAL_RECOVERY_COMP_REP, signal,
+                 LocalRecoveryCompleteRep::SignalLengthMaster, JBB);
+    }
+    else
+    {
+      jam();
+    }
     return;
   }
   LocalRecoveryCompleteRep *rep =
