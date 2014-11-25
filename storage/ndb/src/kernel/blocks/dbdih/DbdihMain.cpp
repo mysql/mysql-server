@@ -18286,6 +18286,26 @@ void Dbdih::allNodesLcpCompletedLab(Signal* signal)
 
       takeOverPtr = nextPtr;
     }
+    /**
+     * We send the LCP_COMPLETE_REP from the master node to all nodes
+     * that participated in the LCP in DIH, we could have alive nodes
+     * here that didn't participate in the LCP because they became
+     * alive so recently that they didn't need to participate in the
+     * LCP since it was already closing when they entered through the
+     * PAUSE LCP protocol. Sending to those nodes is not a good idea
+     * since they are not at all set up to receive a LCP_COMPLETE_REP
+     * message.
+     */
+    LcpCompleteRep * rep = (LcpCompleteRep*)signal->getDataPtrSend();
+    rep->nodeId = getOwnNodeId();
+    rep->lcpId = SYSFILE->latestLCP_ID;
+    rep->blockNo = 0; // 0 = Sent from master
+    NodeReceiverGroup rg(DBDIH, c_lcpState.m_participatingDIH);
+    rg.m_nodes.clear(getOwnNodeId());
+    sendSignal(rg, GSN_LCP_COMPLETE_REP, signal,
+               LcpCompleteRep::SignalLength, JBB);
+
+    jam();
   }
   
   Sysfile::clearLCPOngoing(SYSFILE->systemRestartBits);
@@ -18307,28 +18327,6 @@ void Dbdih::allNodesLcpCompletedLab(Signal* signal)
     return;
   }
 
-  // Send LCP_COMPLETE_REP to all other nodes
-  // allowing them to set their lcpStatus to LCP_STATUS_IDLE
-  LcpCompleteRep * rep = (LcpCompleteRep*)signal->getDataPtrSend();
-  rep->nodeId = getOwnNodeId();
-  rep->lcpId = SYSFILE->latestLCP_ID;
-  rep->blockNo = 0; // 0 = Sent from master
-  
-  NodeRecordPtr nodePtr;
-  nodePtr.i = cfirstAliveNode;
-  do {
-    jam();
-    ptrCheckGuard(nodePtr, MAX_NDB_NODES, nodeRecord);   
-    if (nodePtr.i != cownNodeId){
-      BlockReference ref = calcDihBlockRef(nodePtr.i);
-      sendSignal(ref, GSN_LCP_COMPLETE_REP, signal, 
-		 LcpCompleteRep::SignalLength, JBB); 
-    }    
-    nodePtr.i = nodePtr.p->nextNode;
-  } while (nodePtr.i != RNIL);        
-
-  
-  jam();
   /***************************************************************************/
   // Report the event that a local checkpoint has completed.
   /***************************************************************************/
