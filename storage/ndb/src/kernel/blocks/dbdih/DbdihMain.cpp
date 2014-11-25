@@ -5050,6 +5050,7 @@ void Dbdih::sendEND_TOREP(Signal *signal, Uint32 startingNodeId)
 
   do
   {
+    ptrCheckGuard(nodePtr, MAX_NDB_NODES, nodeRecord);
     if (likely(getNodeInfo(nodePtr.i).m_version >=
                NDBD_NODE_RECOVERY_STATUS_VERSION))
     {
@@ -5057,7 +5058,7 @@ void Dbdih::sendEND_TOREP(Signal *signal, Uint32 startingNodeId)
        * Don't send to nodes with earlier versions that don't have support
        * for this code.
        */
-      ptrCheckGuard(nodePtr, MAX_NDB_NODES, nodeRecord);
+      jamLine(nodePtr.i);
       BlockReference ref = calcDihBlockRef(nodePtr.i);
       if (ref != cmasterdihref)
       {
