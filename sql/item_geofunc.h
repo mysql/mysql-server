@@ -970,7 +970,10 @@ public:
 
 class Item_func_distance: public Item_real_func
 {
+  // Default earch radius in meters.
+  const static double EARTH_SPHERICAL_RADIUS= 6370986.0;
   bool is_spherical;
+  double earth_radius;
   String tmp_value1;
   String tmp_value2;
   Gcalc_heap collector;
@@ -999,6 +1002,11 @@ class Item_func_distance: public Item_real_func
   double distance_multipolygon_geometry(const Geometry *g1, const Geometry *g2,
                                         bool *isdone);
 
+  double distance_point_geometry_spherical(const Geometry *g1,
+                                           const Geometry *g2);
+  double bg_distance_spherical(const Geometry *g1, const Geometry *g2);
+  double distance_multipoint_geometry_spherical(const Geometry *g1,
+                                                const Geometry *g2);
 public:
   Item_func_distance(const POS &pos, Item *a, Item *b, bool isspherical)
     : Item_real_func(pos, a, b), is_spherical(isspherical)
@@ -1008,6 +1016,7 @@ public:
       for a distance between them. 
     */
     maybe_null= true;
+    earth_radius= EARTH_SPHERICAL_RADIUS;
   }
 
   void fix_length_and_dec()
@@ -1017,7 +1026,10 @@ public:
   }
 
   double val_real();
-  const char *func_name() const { return "st_distance"; }
+  const char *func_name() const
+  {
+    return is_spherical ? "st_distance_sphere" : "st_distance";
+  }
 };
 
 
