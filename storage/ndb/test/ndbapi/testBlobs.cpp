@@ -4638,6 +4638,16 @@ bugtest_27018()
 
 
 struct bug27370_data {
+  bug27370_data() :
+    m_ndb(NULL)
+  {
+  }
+
+  ~bug27370_data()
+  {
+    delete m_ndb;
+  }
+
   Ndb *m_ndb;
   char m_current_write_value;
   char *m_writebuf;
