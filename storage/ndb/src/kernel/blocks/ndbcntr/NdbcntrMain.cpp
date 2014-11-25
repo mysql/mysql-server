@@ -1664,8 +1664,17 @@ void Ndbcntr::startPhase2Lab(Signal* signal)
 
   DihRestartReq * req = CAST_PTR(DihRestartReq, signal->getDataPtrSend());
   req->senderRef = reference();
-  sendSignal(DBDIH_REF, GSN_DIH_RESTARTREQ, signal,
-             DihRestartReq::SignalLength, JBB);
+  if (ERROR_INSERTED(1021))
+  {
+    CLEAR_ERROR_INSERT_VALUE;
+    sendSignalWithDelay(DBDIH_REF, GSN_DIH_RESTARTREQ, signal,
+                        30000, DihRestartReq::SignalLength);
+  }
+  else
+  {
+    sendSignal(DBDIH_REF, GSN_DIH_RESTARTREQ, signal,
+               DihRestartReq::SignalLength, JBB);
+  }
   return;
 }//Ndbcntr::startPhase2Lab()
 
@@ -2349,6 +2358,14 @@ void Ndbcntr::ph4BLab(Signal* signal)
     sendNdbSttor(signal);
     return;
   }//if
+  if (ERROR_INSERTED(1010))
+  {
+    /* Just delay things for 10 seconds */
+    CLEAR_ERROR_INSERT_VALUE;
+    sendSignalWithDelay(reference(), GSN_NDB_STTORRY, signal,
+                        10000, 1);
+    return;
+  }
   g_eventLogger->info("NDB start phase 3 completed");
   if ((ctypeOfStart == NodeState::ST_NODE_RESTART) ||
       (ctypeOfStart == NodeState::ST_INITIAL_NODE_RESTART))
@@ -3887,7 +3904,7 @@ void Ndbcntr::sendNdbSttor(Signal* signal)
 /*---------------------------------------------------------------------------*/
 // JUST SEND THE SIGNAL
 /*---------------------------------------------------------------------------*/
-void Ndbcntr::sendSttorry(Signal* signal) 
+void Ndbcntr::sendSttorry(Signal* signal, Uint32 delayed)
 {
   signal->theData[3] = ZSTART_PHASE_1;
   signal->theData[4] = ZSTART_PHASE_2;
@@ -3899,7 +3916,12 @@ void Ndbcntr::sendSttorry(Signal* signal)
   signal->theData[9] = ZSTART_PHASE_8;
   signal->theData[10] = ZSTART_PHASE_9;
   signal->theData[11] = ZSTART_PHASE_END;
-  sendSignal(NDBCNTR_REF, GSN_STTORRY, signal, 12, JBB);
+  if (delayed == 0)
+  {
+    sendSignal(NDBCNTR_REF, GSN_STTORRY, signal, 12, JBB);
+    return;
+  }
+  sendSignalWithDelay(NDBCNTR_REF, GSN_STTORRY, signal, delayed, 12);
 }//Ndbcntr::sendSttorry()
 
 void

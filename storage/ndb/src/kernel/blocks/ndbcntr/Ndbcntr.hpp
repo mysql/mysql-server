@@ -239,7 +239,7 @@ private:
   void sendCntrStartReq(Signal* signal);
   void sendCntrStartRef(Signal*, Uint32 nodeId, CntrStartRef::ErrorCode);
   void sendNdbSttor(Signal* signal);
-  void sendSttorry(Signal* signal);
+  void sendSttorry(Signal* signal, Uint32 delayed = 0);
 
   bool trySystemRestart(Signal* signal);
   void startWaitingNodes(Signal* signal);
