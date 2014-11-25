@@ -3259,16 +3259,14 @@ void Dbdih::check_for_pause_action(Signal *signal)
       sendSignal(ref, GSN_START_LCP_REQ, signal,
                  StartLcpReq::SignalLength, JBB);
       bool found = false;
+      req->participatingLQH.clear();
       for (Uint32 nodeId = 1; nodeId < MAX_NDB_NODES; nodeId++)
       {
         if (c_lcpState.m_LCP_COMPLETE_REP_Counter_LQH.isWaitingFor(nodeId))
         {
+          jamLine(nodeId);
           req->participatingLQH.set(nodeId);
           found = true;
-        }
-        else
-        {
-          req->participatingLQH.clear(nodeId);
         }
       }
       /**
