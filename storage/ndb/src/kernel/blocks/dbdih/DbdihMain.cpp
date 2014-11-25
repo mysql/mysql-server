@@ -22509,7 +22509,7 @@ Dbdih::execDUMP_STATE_ORD(Signal* signal)
               c_pause_lcp_requested,
               c_old_node_waiting_for_lcp_end,
               c_last_id_lcp_complete_rep);
-    infoEvent("c_pauseAction: %u, c_queud_lcp_complete_rep: %u"
+    infoEvent("c_pauseAction: %u, c_queued_lcp_complete_rep: %u"
               " c_lcp_id_paused: %u",
               Uint32(c_pauseAction),
               c_queued_lcp_complete_rep,
