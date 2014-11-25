@@ -2098,15 +2098,20 @@ Ndbcntr::startWaitingNodes(Signal * signal){
   ndbrequire(nodeId != c_start.m_waiting.NotFound);
 
   NodeState::StartType nrType = NodeState::ST_NODE_RESTART;
+  const char *start_type_str = "node restart";
   if(c_start.m_withoutLog.get(nodeId))
   {
     jam();
     nrType = NodeState::ST_INITIAL_NODE_RESTART;
+    start_type_str = "initial node restart";
   }
   
   /**
    * Let node perform restart
    */
+  infoEvent("Start node: %u using %s as part of system restart",
+            nodeId, start_type_str);
+
   CntrStartConf * conf = (CntrStartConf*)signal->getDataPtrSend();
   conf->noStartNodes = 1;
   conf->startType = nrType;
@@ -2261,7 +2266,15 @@ Ndbcntr::trySystemRestart(Signal* signal){
   c_startedNodes.copyto(NdbNodeBitmask::Size, conf->startedNodes);
   
   ndbrequire(c_start.m_lastGciNodeId == getOwnNodeId());
-  
+ 
+  infoEvent("System Restart: master node: %u, num starting: %u, gci: %u",
+            conf->noStartNodes,
+            conf->masterNodeId,
+            conf->startGci);
+  char buf[100];
+  infoEvent("CNTR_START_CONF: started: %s", c_startedNodes.getText(buf));
+  infoEvent("CNTR_START_CONF: starting: %s", c_start.m_starting.getText(buf));
+
   NodeReceiverGroup rg(NDBCNTR, c_start.m_starting);
   sendSignal(rg, GSN_CNTR_START_CONF, signal, CntrStartConf::SignalLength,JBB);
   
@@ -2492,9 +2505,9 @@ void Ndbcntr::execNDB_STARTCONF(Signal* signal)
        * Some nodes has been "excluded" from SR
        */
       char buf0[100], buf1[100];
-      ndbout_c("execNDB_STARTCONF: changing from %s to %s",
-               c_start.m_starting.getText(buf0),
-               tmp.getText(buf1));
+      g_eventLogger->info("execNDB_STARTCONF: changing from %s to %s",
+                          c_start.m_starting.getText(buf0),
+                          tmp.getText(buf1));
       
       NdbNodeBitmask waiting = c_start.m_starting;
       waiting.bitANDC(tmp);
@@ -2909,6 +2922,11 @@ Ndbcntr::wait_sp_rep(Signal* signal)
       c_start.m_wait_sp[node] = 0;
     }
   }
+
+  char buf[100];
+  g_eventLogger->info("Grant nodes to start phase: %u, nodes: %s",
+                      min,
+                      grantnodes.getText(buf));
 
   NodeReceiverGroup rg(NDBCNTR, grantnodes);
   CntrWaitRep * conf = (CntrWaitRep*)signal->getDataPtrSend();
