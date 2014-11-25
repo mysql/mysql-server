@@ -1367,24 +1367,6 @@ thd_set_lock_wait_time(
 	}
 }
 
-/** Get the value of innodb_tmpdir.
-@param[in]	thd	thread handle, or NULL to query
-			the global innodb_tmpdir.
-@return value or NULL if innodb_tmpdir is set to default value "" */
-const char*
-thd_innodb_tmpdir(
-	THD*	thd)
-{
-	const char*	tmp_dir = THDVAR(thd, tmpdir);
-	btrsea_sync_check	check(false);
-	ut_ad(!sync_check_iterate(check));
-	if (tmp_dir != NULL && *tmp_dir == '\0') {
-		tmp_dir = NULL;
-	}
-
-	return(tmp_dir);
-}
-
 /** Obtain the private handler of InnoDB session specific data.
 @param[in,out]	thd	MySQL thread handler.
 @return reference to private handler */
