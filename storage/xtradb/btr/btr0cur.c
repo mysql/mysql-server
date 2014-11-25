@@ -3957,17 +3957,23 @@ btr_estimate_number_of_different_key_vals(
 			n_sample_pages = srv_stats_sample_pages;
 		}
 	} else {
-		/* New logaritmic number of pages that are estimated. We
-		first pick minimun from srv_stats_sample_pages and number of
-		pages on index. Then we pick maximum from previous number of
-		pages and log2(number of index pages) * srv_stats_sample_pages. */
+		/* New logaritmic number of pages that are estimated.
+		Number of pages estimated should be between 1 and
+		index->stat_index_size. We pick index->stat_index_size
+		as maximum and log2(index->stat_index_size)*sr_stats_sample_pages
+		if between range as minimum.*/
 		if (index->stat_index_size > 0) {
-			n_sample_pages = ut_max(ut_min(srv_stats_sample_pages, index->stat_index_size),
-				                log2(index->stat_index_size)*srv_stats_sample_pages);
+			n_sample_pages = ut_min(index->stat_index_size,
+				                ut_max(ut_min(srv_stats_sample_pages,
+							      index->stat_index_size),
+						       log2(index->stat_index_size)*srv_stats_sample_pages));
 		} else {
 			n_sample_pages = 1;
 		}
 	}
+
+	/* Sanity check */
+	ut_ad(n_sample_pages > 0 && n_sample_pages <= (index->stat_index_size < 1 ? 1 : index->stat_index_size));
 
 	/* We sample some pages in the index to get an estimate */
 

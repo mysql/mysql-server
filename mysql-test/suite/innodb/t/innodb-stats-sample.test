@@ -1,0 +1,78 @@
+--source include/have_innodb.inc
+#
+# Test that mysqld does not crash when running ANALYZE TABLE with
+# different values of the parameter innodb_stats_sample_pages.
+#
+
+# we care only that the following SQL commands do not produce errors
+# and do not crash the server
+-- disable_query_log
+-- disable_result_log
+-- enable_warnings
+
+let $sample_pages=`select @@innodb_stats_sample_pages`;
+let $traditional=`select @@innodb_stats_traditional`;
+SET GLOBAL innodb_stats_sample_pages=0;
+#use new method to calculate statistics
+SET GLOBAL innodb_stats_traditional=0;
+
+# check that the value has been adjusted to 1
+-- enable_result_log
+SHOW VARIABLES LIKE 'innodb_stats_sample_pages';
+SHOW VARIABLES LIKE 'innodb_stats_traditional';
+-- disable_result_log
+
+CREATE TABLE innodb_analyze (
+	a INT,
+	b INT,
+        c char(50),
+	KEY(a),
+	KEY(b,a)
+) ENGINE=InnoDB;
+
+# test with empty table
+ANALYZE TABLE innodb_analyze;
+
+SET GLOBAL innodb_stats_sample_pages=2;
+ANALYZE TABLE innodb_analyze;
+
+SET GLOBAL innodb_stats_sample_pages=1;
+ANALYZE TABLE innodb_analyze;
+
+SET GLOBAL innodb_stats_sample_pages=8000;
+ANALYZE TABLE innodb_analyze;
+
+delimiter //;
+create procedure innodb_insert_proc (repeat_count int)
+begin
+  declare current_num int;
+  set current_num = 0;
+  while current_num < repeat_count do
+    insert into innodb_analyze values(current_num, current_num*100,substring(MD5(RAND()), -44));
+    set current_num = current_num + 1;
+  end while;
+end//
+delimiter ;//
+commit;
+
+set autocommit=0;
+call innodb_insert_proc(7000);
+commit;
+set autocommit=1;
+
+SET GLOBAL innodb_stats_sample_pages=1;
+ANALYZE TABLE innodb_analyze;
+
+SET GLOBAL innodb_stats_sample_pages=8;
+ANALYZE TABLE innodb_analyze;
+
+SET GLOBAL innodb_stats_sample_pages=16;
+ANALYZE TABLE innodb_analyze;
+
+SET GLOBAL innodb_stats_sample_pages=8000;
+ANALYZE TABLE innodb_analyze;
+
+DROP PROCEDURE innodb_insert_proc;
+DROP TABLE innodb_analyze;
+EVAL SET GLOBAL innodb_stats_sample_pages=$sample_pages;
+EVAL SET GLOBAL innodb_stats_traditional=$traditional;
