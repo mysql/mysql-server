@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 # Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
 # Use is subject to license terms
@@ -52,7 +52,7 @@ for file in ${LOGFILES} ; do
   oks=`grep -c 'NDBT_ProgramExit: .*OK' "${file}"`
   if [ $oks -gt 0 ] ; then
     OK=`expr ${OK} + ${oks}`
-    chars=`wc -c < "${file}"`
+    chars=`wc -c < "${file}" | awk '{ print $1 }'`
     sum=`dd 2>/dev/null if="$file" bs="${chars}" count=1 | sum`
     echo "${file}" "${oks}" "${chars}" "${sum}"
   fi
