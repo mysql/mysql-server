@@ -451,14 +451,23 @@ void copy_integer(uchar *to, size_t to_length,
 }
 
 
-class generated_column_info: public Sql_alloc
+/**
+  This class is used for recording the information of
+  generated column. It will be created during define a
+  generated column or the table is opened.
+
+  If one field with such an object, it means such a field
+  is a genereated one.
+*/
+class Generated_column: public Sql_alloc
 {
 public:
   Item *expr_item;
   LEX_STRING expr_str;
+  /* It's used to free the items created in parsing generated expression */
   Item *item_free_list;
   List<Field> base_columns_list;
-  generated_column_info() 
+  Generated_column() 
   : expr_item(0), item_free_list(0),
     field_type(MYSQL_TYPE_LONG),
     stored_in_db(FALSE)
@@ -466,8 +475,8 @@ public:
     expr_str.str= NULL;
     expr_str.length= 0;
   };
-  ~generated_column_info() {}
-  enum_field_types get_real_type()
+  ~Generated_column() {}
+  enum_field_types get_real_type() const
   {
     return field_type;
   }
@@ -477,7 +486,7 @@ public:
     field_type= fld_type;
   }
 
-  bool get_field_stored()
+  bool get_field_stored() const
   {
     return stored_in_db;
   }
@@ -630,12 +639,12 @@ private:
   unsigned int m_warnings_pushed;
 
 public:
-  /* Virtual column data */
-  generated_column_info *gcol_info;
+  /* Generated column data */
+  Generated_column *gcol_info;
   /*
     Indication that the field is phycically stored in tables 
     rather than just generated on SQL queries.
-    As of now, FALSE can only be set for generated-only virtual columns.
+    As of now, FALSE can only be set for virtual generated columns.
   */
   bool stored_in_db;
 
@@ -4084,12 +4093,12 @@ public:
   uint8 row,col,sc_length,interval_id;	// For rea_create_table
   uint	offset,pack_flag;
 
-  /* Virtual column expression statement */
-  generated_column_info *gcol_info;
+  /* Generated column expression statement */
+  Generated_column *gcol_info;
   /*
     Indication that the field is phycically stored in tables 
     rather than just generated on SQL queries.
-    As of now, FALSE can only be set for generated-only virtual columns.
+    As of now, FALSE can only be set for virtual generated columns.
   */
   bool stored_in_db;
 
@@ -4111,7 +4120,7 @@ public:
             Item *default_value, Item *on_update_value, LEX_STRING *comment,
             const char *change, List<String> *interval_list,
             const CHARSET_INFO *cs, uint uint_geom_type,
-            generated_column_info *gcol_info= NULL);
+            Generated_column *gcol_info= NULL);
 
   ha_storage_media field_storage_type() const
   {

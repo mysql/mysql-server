@@ -68,7 +68,7 @@ LEX_STRING WORKER_INFO_NAME= {C_STRING_WITH_LEN("slave_worker_info")};
 /* GTID_EXECUTED name */
 LEX_STRING GTID_EXECUTED_NAME= {C_STRING_WITH_LEN("gtid_executed")};
 
-/* Keyword for parsing virtual column functions */
+/* Keyword for parsing generated column functions */
 LEX_STRING PARSE_GCOL_KEYWORD= {C_STRING_WITH_LEN("parse_gcol_expr")};
 
 
@@ -1636,7 +1636,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
     const CHARSET_INFO *charset=NULL;
     Field::geometry_type geom_type= Field::GEOM_GEOMETRY;
     LEX_STRING comment;
-    generated_column_info *gcol_info= 0;
+    Generated_column *gcol_info= 0;
     bool fld_stored_in_db= TRUE;
 
     if (new_frm_ver >= 3)
@@ -1684,15 +1684,15 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
       if (unireg_type & Field::GENERATED_FIELD)
       {
         /*
-          Get virtual column data stored in the .frm file as follows:
+          Get generated column data stored in the .frm file as follows:
           byte 1      = 1 (always 1 to allow for future extensions)
           byte 2,3    = expression length
           byte 4      = flags, as of now:
                           0 - no flags
                           1 - field is physically stored
-          byte 5-...  = virtual column expression (text data)
+          byte 5-...  = generated column expression (text data)
         */
-        gcol_info= new generated_column_info();
+        gcol_info= new Generated_column();
         if ((uint)gcol_screen_pos[0] != 1)
         {
           error= 4;
@@ -2149,17 +2149,13 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
   DBUG_RETURN(error);
 } /* open_binary_frm */
 
-/*
-  Clear flag GET_FIXED_FIELDS_FLAG in all fields of the table.
-  This routine is used for error handling purposes.
+/**
+  @brief  clear_field_flag
+    Clear flag GET_FIXED_FIELDS_FLAG in all fields of the table.
+    This routine is used for error handling purposes.
 
-  SYNOPSIS
-    clear_field_flag()
-    table                TABLE object for which virtual columns are set-up
-
-  RETURN VALUE
-    NONE
-*/
+  @param table    TABLE object for which virtual columns are set-up
+ */
 static void clear_field_flag(TABLE *table)
 {
   Field **ptr;
@@ -2170,25 +2166,22 @@ static void clear_field_flag(TABLE *table)
   DBUG_VOID_RETURN;
 }
 
-/*
-  The function uses the feature in fix_fields where the flag 
-  GET_FIXED_FIELDS_FLAG is set for all fields in the item tree.
-  This field must always be reset before returning from the function
-  since it is used for other purposes as well.
+/**
+  @brief  fix_fields_gcol_func
+    The function uses the feature in fix_fields where the flag
+    GET_FIXED_FIELDS_FLAG is set for all fields in the item tree.
+    This field must always be reset before returning from the function
+    since it is used for other purposes as well.
 
-  SYNOPSIS
-    fix_fields_gcol_func()
-    thd                  The thread object
-    func_item            The item tree reference of the virtual columnfunction
-    table                The table object
-    field_name           The name of the processed field
+  @param thd                The thread object
+  @param field              The processed field
 
-  RETURN VALUE
+  @return
     TRUE                 An error occurred, something was wrong with the
                          function.
+  @return
     FALSE                Ok, a partition field array was created
-*/
-
+ */
 bool fix_fields_gcol_func(THD *thd, Field *field)
 {
   uint dir_length, home_dir_length;
@@ -2241,13 +2234,13 @@ bool fix_fields_gcol_func(THD *thd, Field *field)
   func_expr->walk(&Item::change_context_processor, Item::WALK_POSTFIX,
                   (uchar*) context);
   save_where= thd->where;
-  thd->where= "virtual column function";
+  thd->where= "generated column function";
 
   /* Save the context before fixing the fields*/
   save_use_only_table_context= thd->lex->use_only_table_context;
   thd->lex->use_only_table_context= TRUE;
 
-  /* Fix fields referenced to by the virtual column function */
+  /* Fix fields referenced to by the generated column function */
   error= func_expr->fix_fields(thd, &dummy);
   /* Restore the original context*/
   thd->lex->use_only_table_context= save_use_only_table_context;
@@ -2257,15 +2250,15 @@ bool fix_fields_gcol_func(THD *thd, Field *field)
 
   if (unlikely(error))
   {
-    DBUG_PRINT("info", ("Field in virtual column function not part of table"));
+    DBUG_PRINT("info", ("Field in generated column function not part of table"));
     clear_field_flag(table);
     goto end;
   }
   thd->where= save_where;
   /* 
     Walk through the Item tree checking if all items are valid
-    to be part of the virtual column. Needs to be done after fix_fields to
-    allow checking references to other virtual columns.
+    to be part of the generated column. Needs to be done after fix_fields to
+    allow checking references to other generated columns.
   */
   error= func_expr->walk(&Item::check_gcol_func_processor, Item::WALK_POSTFIX,
                          (uchar*)&fld_idx);
@@ -2291,18 +2284,18 @@ end:
   DBUG_RETURN(result);
 }
 
-/*
-  Register the base columns of a generated column
+/**
+  @brief  register_base_columns 
+    Register the base columns of a generated column
 
-  SYNOPSIS
-    register_base_columns()
-    table                Table with the checked field
-    gcol                 Pointer to the chedk field
+  @param table    Table with the checked field
+  @param gcol     Pointer to the chedk field
 
-  RETURN VALUES
+  @return
     TRUE            Failure
+  @return
     FALSE           Success
-*/
+ */
 bool register_base_columns(TABLE *table, Field *gcol)
 {
   Field *field;
@@ -2340,23 +2333,24 @@ bool register_base_columns(TABLE *table, Field *gcol)
   DBUG_RETURN(FALSE);
 }
 
-/*
-  Unpack the definition of a virtual column
+/**
+  @brief  unpack_gcol_info_from_frm
+    Unpack the definition of a virtual column
 
-  SYNOPSIS
-    unpack_gcol_info_from_frm()
-    thd                  Thread handler
-    table                Table with the checked field
-    field                Pointer to Field object
-    is_create_table      Indicates that table is opened as part
-                         of CREATE or ALTER and does not yet exist in SE
-    error_reported       updated flag for the caller that no other error
-                         messages are to be generated.
+  @param thd                  Thread handler
+  @param table                Table with the checked field
+  @param field                Pointer to Field object
+  @param is_create_table      Indicates that table is opened as part
+                              of CREATE or ALTER and does not yet exist in SE
+  @param error_reported       updated flag for the caller that no other error
+                              messages are to be generated.
 
-  RETURN VALUES
+  @return
     TRUE            Failure
+  @return
     FALSE           Success
-*/
+ */
+
 bool unpack_gcol_info_from_frm(THD *thd,
                                TABLE *table,
                                Field *field,
@@ -2717,7 +2711,7 @@ partititon_err:
     }
   }
 #endif
-  /* Check virtual columns against table's storage engine. */
+  /* Check generated columns against table's storage engine. */
   if (share->vfields && outparam->file &&
       !(outparam->file->ha_table_flags() & HA_GENERATED_COLUMNS))
   {
@@ -2730,7 +2724,7 @@ partititon_err:
 
   /*
     Allocate bitmaps
-    This needs to be done prior to virtual columns as they'll call
+    This needs to be done prior to generated columns as they'll call
     fix_fields and functions might want to access bitmaps.
   */
 
@@ -2751,7 +2745,7 @@ partititon_err:
   outparam->default_column_bitmaps();
 
   /*
-    Process virtual columns, if any.
+    Process generated columns, if any.
   */
   if (!(vfield_ptr = (Field **) alloc_root(&outparam->mem_root,
                                           (uint) ((share->vfields+1)*
@@ -5221,26 +5215,6 @@ const char *Field_iterator_table::name()
   return (*ptr)->field_name;
 }
 
-Item *create_table_gcol_field(THD *thd, Item **field_ref,
-                              const char *fld_name,
-                              const char *tbl_name)
-{
-  Item *field= *field_ref;
-  DBUG_ENTER("create_table_gcol_field");
-  DBUG_ASSERT(field);
-
-  if (!field->fixed)
-  {
-    if (field->fix_fields(thd, field_ref))
-    {
-      DBUG_RETURN(0);
-    }
-    field= *field_ref;
-  }
-  field->item_name.copy(fld_name, strlen(fld_name), system_charset_info);
-  DBUG_RETURN(field);
-}
-
 Item *Field_iterator_table::create_item(THD *thd)
 {
   SELECT_LEX *select= thd->lex->current_select();
@@ -6186,7 +6160,7 @@ void TABLE::mark_columns_needed_for_insert()
   }
   if (found_next_number_field)
     mark_auto_increment_column();
-  /* Mark all virtual columns as writable */
+  /* Mark all generated columns as writable */
   mark_generated_columns(FALSE);
 }
 
@@ -6270,8 +6244,10 @@ void TABLE::mark_generated_columns(bool is_update)
 /*
   @brief Check whether a base field is dependent by any generated columns.
 
-  @return      TRUE     The field is dependent by some GC.
-               FALSE    The field has no dependency by any GC.
+  @return
+    TRUE     The field is dependent by some GC.
+  @return
+    FALSE    The field has no dependency by any GC.
 
 */
 bool TABLE::is_field_dependent_by_generated_columns(uint field_index)
@@ -7013,28 +6989,24 @@ bool is_simple_order(ORDER *order)
   return TRUE;
 }
 
+/**
+  @brief  update_generated_fields 
+    Calculate data for each virtual field marked for write in the
+    corresponding column map.
+  @param table          The TABLE object
 
-/*
-  Calculate data for each virtual field marked for write in the
-  corresponding column map.
-
-  SYNOPSIS
-    update_generated_fields_marked_for_write()
-    table                  The TABLE object
- 
-  RETURN
-    0  - Success
-    >0 - Error occurred during the generation/calculation of a virtual field value
-
-*/
-
-int update_generated_fields_marked_for_write(TABLE *table)
+  @return
+    FALSE  - Success
+  @return
+    TRUE - Error occurred during the generation/calculation of a virtual field value
+ */
+bool update_generated_fields(TABLE *table)
 {
-  DBUG_ENTER("update_generated_fields_marked_for_write");
+  DBUG_ENTER("update_generated_fields");
   Field **vfield_ptr, *vfield;
   int error= 0;
   if (!table || !table->vfield)
-    DBUG_RETURN(0);
+    DBUG_RETURN(FALSE);
 
   /* Iterate over generated fields in the table */
   for (vfield_ptr= table->vfield; *vfield_ptr; vfield_ptr++)
@@ -7057,6 +7029,9 @@ int update_generated_fields_marked_for_write(TABLE *table)
       DBUG_PRINT("info", ("field '%s' - skipped", vfield->field_name));
     }
   }
-  DBUG_RETURN(error);
+
+  if (error > 0)
+    DBUG_RETURN(TRUE);
+  DBUG_RETURN(FALSE);
 }
 

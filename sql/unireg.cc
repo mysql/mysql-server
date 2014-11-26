@@ -730,7 +730,7 @@ static bool pack_header(uchar *forminfo, enum legacy_db_type table_type,
       if (tmp_len < field->gcol_info->expr_str.length)
       {
         my_error(ER_WRONG_STRING_LENGTH, MYF(0),
-                 field->gcol_info->expr_str.str,"VIRTUAL COLUMN EXPRESSION",
+                 field->gcol_info->expr_str.str,"GENERATED COLUMN EXPRESSION",
                  (uint) GENERATED_COLUMN_EXPRESSION_MAXLEN);
         DBUG_RETURN(1);
       }
@@ -759,8 +759,14 @@ static bool pack_header(uchar *forminfo, enum legacy_db_type table_type,
       time_stamp_pos= (uint) field->offset+ (uint) data_offset + 1;
     length=field->pack_length;
     /* Ensure we don't have any bugs when generating offsets */
-    // TODO why is this not needed???
-//    DBUG_ASSERT(reclength == field->offset + data_offset);
+    /**
+      Because the virtual generated columns are not stored physically,
+      they are put at the tail of record. The details can be checked
+      in mysql_prepare_create_table. So the offset is messed up by
+      vitual generated columns. The original assert is not correct
+      any more.
+      DBUG_ASSERT(reclength == field->offset + data_offset);
+     */
     if (field->offset + data_offset + length > reclength)
       reclength= field->offset + data_offset + length;
     n_length+= strlen(field->field_name) + 1;
@@ -1044,7 +1050,7 @@ static bool pack_fields(File file, List<Create_field> &create_fields,
         byte 4      = flags, as of now:
                         0 - no flags
                         1 - field is physically stored
-        byte 5-...  = virtual column expression (text data)
+        byte 5-...  = generated column expression (text data)
       */
       if (field->gcol_info && field->gcol_info->expr_str.length)
       {
