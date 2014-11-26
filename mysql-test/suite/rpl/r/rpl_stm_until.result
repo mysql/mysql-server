@@ -103,4 +103,38 @@ one
 1
 drop table t1;
 start slave;
+[connection master]
+# Make sure the master will put the new events in a new binlog file
+FLUSH LOGS;
+# Testing the execution until the last transaction of the master binlog
+include/sync_slave_sql_with_master.inc
+include/stop_slave_sql.inc
+[connection master]
+CREATE TABLE t1 (a INT) ENGINE=InnoDB;
+include/sync_slave_io_with_master.inc
+# Start SQL thread until it executed the CREATE TABLE
+START SLAVE SQL_THREAD UNTIL MASTER_LOG_FILE = "MASTER_FILE", MASTER_LOG_POS = MASTER_POS;
+# Wait until SQL thread reaches last master binlog file
+include/wait_for_slave_param.inc [Relay_Master_Log_File]
+# Wait until SQL thread reaches desired master binlog position
+include/wait_for_slave_param.inc [Exec_Master_Log_Pos]
+# If the desired position was reached, SQL thread should stop.
+include/wait_for_slave_sql_to_stop.inc
+include/assert.inc [t1 should be replicated]
+# Testing the execution until the last transaction of the slave relaylog
+[connection master]
+CREATE TABLE t2 (a INT) ENGINE=InnoDB;
+include/sync_slave_io_with_master.inc
+# Start SQL thread until it executed the CREATE TABLE
+START SLAVE SQL_THREAD UNTIL RELAY_LOG_FILE = "SLAVE_FILE", RELAY_LOG_POS = SLAVE_POS;
+# Wait until SQL thread reaches last slave relaylog file
+include/wait_for_slave_param.inc [Relay_Log_File]
+# Wait until SQL thread reaches desired slave relaylog position
+include/wait_for_slave_param.inc [Relay_Log_Pos]
+# If the desired position was reached, SQL thread should stop.
+include/wait_for_slave_sql_to_stop.inc
+include/assert.inc [t2 should be replicated]
+include/start_slave_sql.inc
+[connection master]
+DROP TABLE t1, t2;
 include/rpl_end.inc

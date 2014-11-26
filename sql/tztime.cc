@@ -2176,7 +2176,7 @@ end:
     1 - String doesn't contain valid time zone offset
 */
 my_bool
-str_to_offset(const char *str, uint length, long *offset)
+str_to_offset(const char *str, size_t length, long *offset)
 {
   const char *end= str + length;
   my_bool negative;

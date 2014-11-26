@@ -69,7 +69,8 @@ const char *primary_key_name="PRIMARY";
 
 static bool check_if_keyname_exists(const char *name,KEY *start, KEY *end);
 static char *make_unique_key_name(const char *field_name,KEY *start,KEY *end);
-static int copy_data_between_tables(TABLE *from,TABLE *to,
+static int copy_data_between_tables(PSI_stage_progress *psi,
+                                    TABLE *from,TABLE *to,
                                     List<Create_field> &create,
 				    ha_rows *copied,ha_rows *deleted,
                                     Alter_info::enum_enable_or_disable keys_onoff,
@@ -3078,7 +3079,7 @@ static TYPELIB *create_typelib(MEM_ROOT *mem_root,
   String conv;
   for (uint i=0; i < result->count; i++)
   {
-    uint32 dummy;
+    size_t dummy;
     size_t length;
     String *tmp= it++;
 
@@ -3471,7 +3472,7 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
         for (uint i= 0; (tmp= int_it++); i++)
         {
           size_t lengthsp;
-          uint32 dummy2;
+          size_t dummy2;
           if (String::needs_conversion(tmp->length(), tmp->charset(),
                                        cs, &dummy2))
           {
@@ -3987,7 +3988,7 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
 	  }
           if (f_is_geom(sql_field->pack_flag) && sql_field->geom_type ==
               Field::GEOM_POINT)
-            column->length= 25;
+            column->length= MAX_LEN_GEOM_POINT_FIELD;
 	  if (!column->length)
 	  {
 	    my_error(ER_BLOB_KEY_WITHOUT_LENGTH, MYF(0), column->field_name.str);
@@ -5214,7 +5215,7 @@ mysql_rename_table(handlerton *base, const char *old_db,
   handler *file;
   int error=0;
   ulonglong save_bits= thd->variables.option_bits;
-  int length;
+  size_t length;
   bool was_truncated;
   DBUG_ENTER("mysql_rename_table");
   DBUG_PRINT("enter", ("old: '%s'.'%s'  new: '%s'.'%s'",
@@ -8777,7 +8778,8 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
         my_error(ER_LOCK_WAIT_TIMEOUT, MYF(0));
         goto err_new_table_cleanup;
       });
-    if (copy_data_between_tables(table, new_table,
+    if (copy_data_between_tables(thd->m_stage_progress_psi,
+                                 table, new_table,
                                  alter_info->create_list,
                                  &copied, &deleted,
                                  alter_info->keys_onoff,
@@ -9100,7 +9102,8 @@ bool mysql_trans_commit_alter_copy_data(THD *thd)
 
 
 static int
-copy_data_between_tables(TABLE *from,TABLE *to,
+copy_data_between_tables(PSI_stage_progress *psi,
+                         TABLE *from,TABLE *to,
 			 List<Create_field> &create,
 			 ha_rows *copied,
 			 ha_rows *deleted,
@@ -9135,6 +9138,8 @@ copy_data_between_tables(TABLE *from,TABLE *to,
 
   from->file->info(HA_STATUS_VARIABLE);
   to->file->ha_start_bulk_insert(from->file->stats.records);
+
+  mysql_stage_set_work_estimated(psi, from->file->stats.records);
 
   save_sql_mode= thd->variables.sql_mode;
 
@@ -9273,7 +9278,11 @@ copy_data_between_tables(TABLE *from,TABLE *to,
       }
     }
     else
+    {
+      DEBUG_SYNC(thd, "copy_data_between_tables_before");
       found_count++;
+      mysql_stage_set_work_completed(psi, found_count);
+    }
     thd->get_stmt_da()->inc_current_row_for_condition();
   }
   end_read_record(&info);

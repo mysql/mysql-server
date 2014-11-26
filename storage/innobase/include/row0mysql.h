@@ -262,14 +262,12 @@ row_lock_table_for_mysql(
 /** Does an insert for MySQL.
 @param[in]	mysql_rec	row in the MySQL format
 @param[in,out]	prebuilt	prebuilt struct in MySQL handle
-@param[in,out]	session		session handler
 @return error code or DB_SUCCESS*/
 
 dberr_t
 row_insert_for_mysql(
 	const byte*		mysql_rec,
-	row_prebuilt_t*		prebuilt,
-	innodb_session_t*	session)
+	row_prebuilt_t*		prebuilt)
 	__attribute__((warn_unused_result));
 
 /*********************************************************************//**
@@ -304,14 +302,12 @@ row_table_got_default_clust_index(
 /** Does an update or delete of a row for MySQL.
 @param[in]	mysql_rec	row in the MySQL format
 @param[in,out]	prebuilt	prebuilt struct in MySQL handle
-@param[in,out]	session		session handler
 @return error code or DB_SUCCESS */
 
 dberr_t
 row_update_for_mysql(
 	const byte*		mysql_rec,
-	row_prebuilt_t*		prebuilt,
-	innodb_session_t*	session)
+	row_prebuilt_t*		prebuilt)
 	__attribute__((warn_unused_result));
 
 /** Delete all rows for the given table by freeing/truncating indexes.
@@ -599,9 +595,8 @@ row_scan_index_for_mysql(
 	bool			check_keys,	/*!< in: true=check for mis-
 						ordered or duplicate records,
 						false=count the rows only */
-	ulint*			n_rows,		/*!< out: number of entries
+	ulint*			n_rows)		/*!< out: number of entries
 						seen in the consistent read */
-	innodb_session_t*	session)	/*!< in,out: session handler. */
 	__attribute__((warn_unused_result));
 /*********************************************************************//**
 Initialize this module */

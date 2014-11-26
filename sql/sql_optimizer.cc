@@ -144,8 +144,6 @@ JOIN::optimize()
 
   Prepare_error_tracker tracker(thd);
 
-  optimized= true;
-
   DEBUG_SYNC(thd, "before_join_optimize");
 
   THD_STAGE_INFO(thd, stage_optimizing);
@@ -177,6 +175,9 @@ JOIN::optimize()
 
   if (select_lex->get_optimizable_conditions(thd, &where_cond, &having_cond))
     DBUG_RETURN(1);
+
+  optimized= true;
+
   tables_list= select_lex->get_table_list();
 
   /* dump_TABLE_LIST_graph(select_lex, select_lex->leaf_tables); */

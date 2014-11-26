@@ -4,9 +4,12 @@ CREATE TABLE t1 (c1 INT PRIMARY KEY, c2 INT, c3 TEXT)
 ENGINE=InnoDB STATS_PERSISTENT=0;
 INSERT INTO t1 VALUES (1,1,''), (2,2,''), (3,3,''), (4,4,''), (5,5,'');
 SET GLOBAL innodb_monitor_enable = module_ddl;
-SELECT name, count FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE
-subsystem = 'ddl' and count > 0;
+SELECT name, count FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE subsystem = 'ddl';
 name	count
+ddl_background_drop_indexes	0
+ddl_background_drop_tables	0
+ddl_online_create_index	0
+ddl_pending_alter_table	0
 SET DEBUG_SYNC = 'RESET';
 SET DEBUG_SYNC = 'write_row_noreplace SIGNAL have_handle WAIT_FOR go_ahead';
 INSERT INTO t1 VALUES(1,2,3);
@@ -16,10 +19,12 @@ ALTER TABLE t1 ADD UNIQUE INDEX(c2);
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 SET DEBUG_SYNC = 'now SIGNAL go_ahead';
 ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
-SELECT name, count FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE
-subsystem = 'ddl' and count > 0;
+SELECT name, count FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE subsystem = 'ddl';
 name	count
-SET GLOBAL innodb_monitor_reset = module_ddl;
+ddl_background_drop_indexes	0
+ddl_background_drop_tables	0
+ddl_online_create_index	0
+ddl_pending_alter_table	0
 SET SESSION DEBUG = '+d,innodb_OOM_prepare_inplace_alter';
 ALTER TABLE t1 ADD UNIQUE INDEX(c2);
 ERROR HY000: Out of memory; check if mysqld or some other process uses all available memory; if not, you may have to use 'ulimit' to allow mysqld to use more memory or you can add more swap space
@@ -53,12 +58,12 @@ ALTER TABLE t1 ADD UNIQUE INDEX(c2), LOCK = EXCLUSIVE, ALGORITHM = INPLACE;
 DROP INDEX c2 ON t1;
 ALTER TABLE t1 ADD UNIQUE INDEX(c2);
 SET DEBUG_SYNC = 'now WAIT_FOR scanned';
-SELECT name, count FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE
-subsystem = 'ddl' and count > 0;
+SELECT name, count FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE subsystem = 'ddl';
 name	count
+ddl_background_drop_indexes	0
+ddl_background_drop_tables	0
 ddl_online_create_index	1
 ddl_pending_alter_table	1
-SET GLOBAL innodb_monitor_reset = module_ddl;
 BEGIN;
 INSERT INTO t1 VALUES(7,4,2);
 ROLLBACK;
@@ -67,20 +72,23 @@ ERROR 23000: Duplicate entry '4' for key 'c2'
 SET DEBUG_SYNC = 'row_log_apply_after SIGNAL created WAIT_FOR dml_done';
 ALTER TABLE t1 ADD UNIQUE INDEX(c2);
 SET DEBUG_SYNC = 'now WAIT_FOR created';
-SELECT name, count FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE
-subsystem = 'ddl' and count > 0;
+SELECT name, count FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE subsystem = 'ddl';
 name	count
+ddl_background_drop_indexes	0
+ddl_background_drop_tables	0
+ddl_online_create_index	0
 ddl_pending_alter_table	1
-SET GLOBAL innodb_monitor_reset = module_ddl;
 INSERT INTO t1 VALUES(6,3,1);
 SET DEBUG_SYNC = 'now SIGNAL dml_done';
 ERROR 23000: Duplicate entry for key 'c2'
 DELETE FROM t1 WHERE c1=6;
 ALTER TABLE t1 ADD UNIQUE INDEX(c2);
-SELECT name, count FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE
-subsystem = 'ddl' and count > 0;
+SELECT name, count FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE subsystem = 'ddl';
 name	count
-SET GLOBAL innodb_monitor_reset = module_ddl;
+ddl_background_drop_indexes	0
+ddl_background_drop_tables	0
+ddl_online_create_index	0
+ddl_pending_alter_table	0
 INSERT INTO t1 VALUES(6,3,1);
 ERROR 23000: Duplicate entry '3' for key 'c2'
 INSERT INTO t1 VALUES(7,4,2);
@@ -120,19 +128,21 @@ ERROR 70100: Query execution was interrupted
 SET DEBUG_SYNC = 'row_log_apply_before SIGNAL c2d_created WAIT_FOR kill_done';
 CREATE INDEX c2d ON t1(c2);
 SET DEBUG_SYNC = 'now WAIT_FOR c2d_created';
-SELECT name, count FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE
-subsystem = 'ddl' and count > 0;
+SELECT name, count FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE subsystem = 'ddl';
 name	count
+ddl_background_drop_indexes	0
+ddl_background_drop_tables	0
 ddl_online_create_index	1
 ddl_pending_alter_table	1
-SET GLOBAL innodb_monitor_reset = module_ddl;
 KILL QUERY @id;
 SET DEBUG_SYNC = 'now SIGNAL kill_done';
 ERROR 70100: Query execution was interrupted
-SELECT name, count FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE
-subsystem = 'ddl' and count > 0;
+SELECT name, count FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE subsystem = 'ddl';
 name	count
-SET GLOBAL innodb_monitor_reset = module_ddl;
+ddl_background_drop_indexes	0
+ddl_background_drop_tables	0
+ddl_online_create_index	0
+ddl_pending_alter_table	0
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
@@ -183,12 +193,12 @@ INSERT INTO t1 SELECT  80 + c1, c2, c3 FROM t1;
 INSERT INTO t1 SELECT 160 + c1, c2, c3 FROM t1;
 UPDATE t1 SET c2 = c2 + 1;
 SET DEBUG_SYNC = 'now WAIT_FOR c2e_created';
-SELECT name, count FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE
-subsystem = 'ddl' and count > 0;
+SELECT name, count FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE subsystem = 'ddl';
 name	count
+ddl_background_drop_indexes	0
+ddl_background_drop_tables	0
 ddl_online_create_index	1
 ddl_pending_alter_table	1
-SET GLOBAL innodb_monitor_reset = module_ddl;
 BEGIN;
 DELETE FROM t1;
 ROLLBACK;
@@ -205,12 +215,12 @@ BEGIN;
 UPDATE t1 SET c2 = c2 + 1;
 DELETE FROM t1;
 ROLLBACK;
-SELECT name, count FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE
-subsystem = 'ddl' and count > 0;
+SELECT name, count FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE subsystem = 'ddl';
 name	count
+ddl_background_drop_indexes	0
+ddl_background_drop_tables	0
 ddl_online_create_index	1
 ddl_pending_alter_table	1
-SET GLOBAL innodb_monitor_reset = module_ddl;
 SELECT sf.name, sf.pos FROM INFORMATION_SCHEMA.INNODB_SYS_INDEXES si
 INNER JOIN INFORMATION_SCHEMA.INNODB_SYS_FIELDS sf
 ON si.index_id = sf.index_id WHERE si.name = '?c2e';
@@ -218,34 +228,38 @@ name	pos
 c2	0
 SET DEBUG_SYNC = 'now SIGNAL dml2_done';
 ERROR HY000: Creating index 'c2e' required more than 'innodb_online_alter_log_max_size' bytes of modification log. Please try again.
-SELECT name, count FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE
-subsystem = 'ddl' and count > 0;
+SELECT name, count FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE subsystem = 'ddl';
 name	count
 ddl_background_drop_indexes	1
-SET GLOBAL innodb_monitor_reset = module_ddl;
+ddl_background_drop_tables	0
+ddl_online_create_index	0
+ddl_pending_alter_table	0
 SELECT sf.name, sf.pos FROM INFORMATION_SCHEMA.INNODB_SYS_INDEXES si
 INNER JOIN INFORMATION_SCHEMA.INNODB_SYS_FIELDS sf
 ON si.index_id = sf.index_id WHERE si.name = 'c2e';
 name	pos
-SELECT name, count FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE
-subsystem = 'ddl' and count > 0;
+SELECT name, count FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE subsystem = 'ddl';
 name	count
 ddl_background_drop_indexes	1
-SET GLOBAL innodb_monitor_reset = module_ddl;
+ddl_background_drop_tables	0
+ddl_online_create_index	0
+ddl_pending_alter_table	0
 ALTER TABLE t1 COMMENT 'testing if c2e will be dropped';
-SELECT name, count FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE
-subsystem = 'ddl' and count > 0;
+SELECT name, count FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE subsystem = 'ddl';
 name	count
-SET GLOBAL innodb_monitor_reset = module_ddl;
+ddl_background_drop_indexes	0
+ddl_background_drop_tables	0
+ddl_online_create_index	0
+ddl_pending_alter_table	0
 SET DEBUG_SYNC = 'row_log_apply_before SIGNAL c2f_created WAIT_FOR dml3_done';
 ALTER TABLE t1 ADD INDEX c2f(c22f), CHANGE c2 c22f INT;
 SET DEBUG_SYNC = 'now WAIT_FOR c2f_created';
-SELECT name, count FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE
-subsystem = 'ddl' and count > 0;
+SELECT name, count FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE subsystem = 'ddl';
 name	count
+ddl_background_drop_indexes	0
+ddl_background_drop_tables	0
 ddl_online_create_index	1
 ddl_pending_alter_table	1
-SET GLOBAL innodb_monitor_reset = module_ddl;
 BEGIN;
 INSERT INTO t1 SELECT 320 + c1, c2, c3 FROM t1 WHERE c1 > 160;
 DELETE FROM t1 WHERE c1 > 320;
@@ -254,19 +268,21 @@ BEGIN;
 UPDATE t1 SET c2 = c2 + 1;
 DELETE FROM t1;
 ROLLBACK;
-SELECT name, count FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE
-subsystem = 'ddl' and count > 0;
+SELECT name, count FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE subsystem = 'ddl';
 name	count
+ddl_background_drop_indexes	0
+ddl_background_drop_tables	0
 ddl_online_create_index	1
 ddl_pending_alter_table	1
-SET GLOBAL innodb_monitor_reset = module_ddl;
 SET DEBUG_SYNC = 'now SIGNAL dml3_done';
 Warnings:
 Warning	1831	Duplicate index 'c2f' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
-SELECT name, count FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE
-subsystem = 'ddl' and count > 0;
+SELECT name, count FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE subsystem = 'ddl';
 name	count
-SET GLOBAL innodb_monitor_reset = module_ddl;
+ddl_background_drop_indexes	0
+ddl_background_drop_tables	0
+ddl_online_create_index	0
+ddl_pending_alter_table	0
 SELECT COUNT(c22f) FROM t1;
 COUNT(c22f)
 320
@@ -293,16 +309,18 @@ SELECT sf.name, sf.pos FROM INFORMATION_SCHEMA.INNODB_SYS_INDEXES si
 INNER JOIN INFORMATION_SCHEMA.INNODB_SYS_FIELDS sf
 ON si.index_id = sf.index_id WHERE si.name = 'c3p5';
 name	pos
-SELECT name, count FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE
-subsystem = 'ddl' and count > 0;
+SELECT name, count FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE subsystem = 'ddl';
 name	count
 ddl_background_drop_indexes	1
-SET GLOBAL innodb_monitor_reset = module_ddl;
-SELECT name, count FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE
-subsystem = 'ddl' and count > 0;
+ddl_background_drop_tables	0
+ddl_online_create_index	0
+ddl_pending_alter_table	0
+SELECT name, count FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE subsystem = 'ddl';
 name	count
 ddl_background_drop_indexes	1
-SET GLOBAL innodb_monitor_reset = module_ddl;
+ddl_background_drop_tables	0
+ddl_online_create_index	0
+ddl_pending_alter_table	0
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -314,10 +332,12 @@ t1	CREATE TABLE `t1` (
   KEY `c2f` (`c22f`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 STATS_PERSISTENT=1 COMMENT='testing if c2e will be dropped'
 ALTER TABLE t1 DROP INDEX c2d, DROP INDEX c2f;
-SELECT name, count FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE
-subsystem = 'ddl' and count > 0;
+SELECT name, count FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE subsystem = 'ddl';
 name	count
-SET GLOBAL innodb_monitor_reset = module_ddl;
+ddl_background_drop_indexes	0
+ddl_background_drop_tables	0
+ddl_online_create_index	0
+ddl_pending_alter_table	0
 ALTER TABLE t1 ADD INDEX c2h(c22f), ALGORITHM = INPLACE;
 ALTER TABLE t1 ADD INDEX c2h(c22f), ALGORITHM = COPY;
 ERROR 42000: Duplicate key name 'c2h'
@@ -327,6 +347,5 @@ SET GLOBAL innodb_monitor_disable = module_ddl;
 DROP TABLE t1;
 SET GLOBAL DEBUG = '';
 SET GLOBAL innodb_file_per_table = @global_innodb_file_per_table_orig;
-SET GLOBAL innodb_monitor_reset = default;
-SET GLOBAL innodb_monitor_enable = default;
+SET GLOBAL innodb_monitor_enable  = default;
 SET GLOBAL innodb_monitor_disable = default;

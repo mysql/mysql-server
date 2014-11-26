@@ -2589,7 +2589,8 @@ int Gis_multi_line_string::geometry_n(uint32 num, String *result) const
     wkb.skip_unsafe(length);
   }
   return result->append(wkb.data() - 4 - WKB_HEADER_SIZE,
-                        length + 4 + WKB_HEADER_SIZE, (uint32) 0);
+                        length + 4 + WKB_HEADER_SIZE,
+                        static_cast<size_t>(0));
 }
 
 
@@ -2874,7 +2875,7 @@ int Gis_multi_polygon::geometry_n(uint32 num, String *result) const
     return 1;
   return result->append(start_of_polygon,
                         (uint32) (wkb.data() - start_of_polygon),
-                        (uint32) 0);
+                        static_cast<size_t>(0));
 }
 
 

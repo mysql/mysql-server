@@ -14331,7 +14331,7 @@ static void append_range_all_keyparts(Opt_trace_array *range_trace,
   const KEY_PART_INFO *cur_key_part= key_parts + keypart_root->part;
   const SEL_ARG *keypart_range= keypart_root->first();
 
-  const uint save_range_so_far_length= range_so_far->length();
+  const size_t save_range_so_far_length= range_so_far->length();
 
   while (keypart_range)
   {

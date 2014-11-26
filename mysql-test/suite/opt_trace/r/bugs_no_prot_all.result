@@ -3399,3 +3399,51 @@ field1	field2
 EXECUTE prep_stmt;
 field1	field2
 DROP TABLE t1,t2,t3;
+#
+# Bug#19063289 CRASH IN PRINT_TABLE_ARRAY ON 2ND EXECUTION OF PS WITH SUBQUERY AND VIEW
+#
+CREATE TABLE B (
+pk INTEGER,
+col_int_key INTEGER,
+col_varchar_nokey VARCHAR(1)
+);
+CREATE TABLE C (
+col_int_nokey INTEGER,
+col_int_key INTEGER,
+col_varchar_key VARCHAR(1),
+col_varchar_nokey VARCHAR(1)
+) ;
+CREATE TABLE CC (
+pk INTEGER,
+col_int_key INTEGER
+) ENGINE=MYISAM;
+INSERT INTO CC VALUES (1, 0),(2, 7);
+PREPARE stmt FROM "
+SELECT
+alias1.col_int_key AS field1 ,
+COUNT(alias1.pk) AS field2
+FROM
+CC AS alias1
+GROUP BY field1
+HAVING
+alias1.col_int_key >
+  (
+    SELECT
+    MAX(  SQ2_alias2.col_int_key ) AS SQ2_field1
+    FROM
+    C AS SQ2_alias1 LEFT  JOIN
+       ( B AS SQ2_alias2 INNER JOIN C AS SQ2_alias3
+         ON 1)
+       ON 1
+  )
+OR field2 < 2
+";
+EXECUTE stmt;
+field1	field2
+0	1
+7	1
+EXECUTE stmt;
+field1	field2
+0	1
+7	1
+DROP TABLE B,C,CC;

@@ -37,10 +37,10 @@ public:
      this->item_name.set(name_par);
   }
   enum Type type() const { return Item::PROC_ITEM; }
-  virtual void set(const char *str,uint length, const CHARSET_INFO *cs)=0;
+  virtual void set(const char *str, size_t length, const CHARSET_INFO *cs)=0;
   virtual void set(longlong nr)=0;
   virtual enum_field_types field_type() const=0;
-  void set(const char *str) { set(str,(uint) strlen(str), default_charset()); }
+  void set(const char *str) { set(str, strlen(str), default_charset()); }
   unsigned int size_of() { return sizeof(*this);}  
 };
 
@@ -54,7 +54,7 @@ public:
   enum Item_result result_type () const { return INT_RESULT; }
   enum_field_types field_type() const { return MYSQL_TYPE_LONGLONG; }
   void set(longlong nr) { value=nr; }
-  void set(const char *str,uint length, const CHARSET_INFO *cs)
+  void set(const char *str, size_t length, const CHARSET_INFO *cs)
   { int err; value=my_strntoll(cs,str,length,10,NULL,&err); }
   double val_real() { return (double) value; }
   longlong val_int() { return value; }
@@ -80,7 +80,7 @@ public:
   enum Item_result result_type () const { return STRING_RESULT; }
   enum_field_types field_type() const { return MYSQL_TYPE_VARCHAR; }
   void set(longlong nr) { str_value.set(nr, default_charset()); }
-  void set(const char *str, uint length, const CHARSET_INFO *cs)
+  void set(const char *str, size_t length, const CHARSET_INFO *cs)
   { str_value.copy(str,length,cs); }
   double val_real()
   {

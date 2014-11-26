@@ -2722,7 +2722,7 @@ public:
   void set_double(double i);
   void set_decimal(const char *str, ulong length);
   void set_decimal(const my_decimal *dv);
-  bool set_str(const char *str, ulong length);
+  bool set_str(const char *str, size_t length);
   bool set_longdata(const char *str, ulong length);
   void set_time(MYSQL_TIME *tm, timestamp_type type, uint32 max_length_arg);
   bool set_from_user_var(THD *thd, const user_var_entry *entry);
@@ -3115,7 +3115,7 @@ protected:
   void init(const char *str, size_t length,
             const CHARSET_INFO *cs, Derivation dv, uint repertoire)
   {
-    str_value.set_or_copy_aligned(str, static_cast<uint32>(length), cs);
+    str_value.set_or_copy_aligned(str, length, cs);
     collation.set(cs, dv, repertoire);
     /*
       We have to have a different max_length than 'length' here to
@@ -3124,7 +3124,7 @@ protected:
       number of chars for a string of this type because we in Create_field::
       divide the max_length with mbmaxlen).
     */
-    max_length= str_value.numchars()*cs->mbmaxlen;
+    max_length= static_cast<uint32>(str_value.numchars() * cs->mbmaxlen);
     item_name.copy(str, length, cs);
     decimals=NOT_FIXED_DEC;
     // it is constant => can be used without fix_fields (and frequently used)
@@ -3163,9 +3163,9 @@ public:
               uint repertoire= MY_REPERTOIRE_UNICODE30)
     : m_cs_specified(FALSE)
   {
-    str_value.set_or_copy_aligned(str, static_cast<uint32>(length), cs);
+    str_value.set_or_copy_aligned(str, length, cs);
     collation.set(cs, dv, repertoire);
-    max_length= str_value.numchars()*cs->mbmaxlen;
+    max_length= static_cast<uint32>(str_value.numchars() * cs->mbmaxlen);
     item_name= name_par;
     decimals=NOT_FIXED_DEC;
     // it is constant => can be used without fix_fields (and frequently used)
@@ -3176,9 +3176,9 @@ public:
               uint repertoire= MY_REPERTOIRE_UNICODE30)
     : super(pos), m_cs_specified(FALSE)
   {
-    str_value.set_or_copy_aligned(str, static_cast<uint32>(length), cs);
+    str_value.set_or_copy_aligned(str, length, cs);
     collation.set(cs, dv, repertoire);
-    max_length= str_value.numchars()*cs->mbmaxlen;
+    max_length= static_cast<uint32>(str_value.numchars()*cs->mbmaxlen);
     item_name= name_par;
     decimals=NOT_FIXED_DEC;
     // it is constant => can be used without fix_fields (and frequently used)
@@ -3193,11 +3193,9 @@ public:
     : super(pos), m_cs_specified(FALSE)
   {
     str_value.set_or_copy_aligned(literal.str ? literal.str : "",
-                                  literal.str ? static_cast<uint32>(
-                                  literal.length) : 0,
-                                  cs);
+                                  literal.str ? literal.length : 0, cs);
     collation.set(cs, dv, repertoire);
-    max_length= str_value.numchars()*cs->mbmaxlen;
+    max_length= static_cast<uint32>(str_value.numchars()*cs->mbmaxlen);
     item_name= name_par;
     decimals=NOT_FIXED_DEC;
     // it is constant => can be used without fix_fields (and frequently used)
@@ -3211,7 +3209,8 @@ public:
   void set_str_with_copy(const char *str_arg, uint length_arg)
   {
     str_value.copy(str_arg, length_arg, collation.collation);
-    max_length= str_value.numchars() * collation.collation->mbmaxlen;
+    max_length= static_cast<uint32>(str_value.numchars() *
+                                    collation.collation->mbmaxlen);
   }
   void set_repertoire_from_value()
   {
@@ -3243,15 +3242,16 @@ public:
   bool eq(const Item *item, bool binary_cmp) const;
   Item *clone_item() 
   {
-    return new Item_string(static_cast<Name_string>(item_name), str_value.ptr(), 
+    return new Item_string(static_cast<Name_string>(item_name), str_value.ptr(),
     			   str_value.length(), collation.collation);
   }
   Item *safe_charset_converter(const CHARSET_INFO *tocs);
   Item *charset_converter(const CHARSET_INFO *tocs, bool lossless);
   inline void append(char *str, size_t length)
   {
-    str_value.append(str, static_cast<uint32>(length));
-    max_length= str_value.numchars() * collation.collation->mbmaxlen;
+    str_value.append(str, length);
+    max_length= static_cast<uint32>(str_value.numchars() *
+                                    collation.collation->mbmaxlen);
   }
   virtual void print(String *str, enum_query_type query_type);
   bool check_partition_func_processor(uchar *int_arg) {return false;}
@@ -4435,6 +4435,11 @@ public:
   enum_trigger_variable_type trigger_var_type;
   /* Next in list of all Item_trigger_field's in trigger */
   Item_trigger_field *next_trg_field;
+  /*
+    Next list of Item_trigger_field's in "sp_head::
+    m_list_of_trig_fields_item_lists".
+  */
+  SQL_I_List<Item_trigger_field> *next_trig_field_list;
   /* Index of the field in the TABLE::field array */
   uint field_idx;
   /* Pointer to an instance of Table_trigger_field_support interface */
@@ -4446,7 +4451,7 @@ public:
                      ulong priv, const bool ro)
     :Item_field(context_arg,
                (const char *)NULL, (const char *)NULL, field_name_arg),
-     trigger_var_type(trigger_var_type_arg),
+     trigger_var_type(trigger_var_type_arg), next_trig_field_list(NULL),
      field_idx((uint)-1), original_privilege(priv),
      want_privilege(priv), table_grants(NULL), read_only (ro)
   {}

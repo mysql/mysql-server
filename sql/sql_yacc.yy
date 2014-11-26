@@ -6499,7 +6499,8 @@ spatial_type:
         | GEOMETRYCOLLECTION  { $$= Field::GEOM_GEOMETRYCOLLECTION; }
         | POINT_SYM
           {
-            Lex->length= (char*)"25";
+            Lex->length= const_cast<char*>(STRINGIFY_ARG
+                                           (MAX_LEN_GEOM_POINT_FIELD));
             $$= Field::GEOM_POINT;
           }
         | MULTIPOINT          { $$= Field::GEOM_MULTIPOINT; }
@@ -6642,11 +6643,7 @@ attribute:
             Lex->type|= EXPLICIT_NULL_FLAG;
           }
         | not NULL_SYM { Lex->type|= NOT_NULL_FLAG; }
-        | DEFAULT now_or_signed_literal 
-          { 
-            Lex->default_value=$2;
-            Lex->alter_info.flags|= Alter_info::ALTER_CHANGE_COLUMN_DEFAULT;
-          }
+        | DEFAULT now_or_signed_literal { Lex->default_value=$2; }
         | ON UPDATE_SYM now
           {
             Item *item= new (YYTHD->mem_root) Item_func_now_local($3);

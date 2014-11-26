@@ -4644,8 +4644,11 @@ col_loop1:
 	std::pair<dict_foreign_set::iterator, bool>	ret
 		= local_fk_set.insert(foreign);
 
-	ut_a(ret.second);	/* second is true if the insertion
-				took place */
+	if (!ret.second) {
+		/* A duplicate foreign key name has been found */
+		dict_foreign_free(foreign);
+		return(DB_CANNOT_ADD_CONSTRAINT);
+	}
 
 	foreign->foreign_table = table;
 	foreign->foreign_table_name = mem_heap_strdup(

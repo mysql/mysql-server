@@ -571,7 +571,7 @@ db_find_routine(THD *thd, enum_sp_type type, sp_name *name, sp_head **sphp)
   longlong modified;
   st_sp_chistics chistics;
   char *ptr;
-  uint length;
+  size_t length;
   char buff[65];
   String str(buff, sizeof(buff), &my_charset_bin);
   bool saved_time_zone_used= thd->time_zone_used;

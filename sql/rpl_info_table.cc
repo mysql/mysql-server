@@ -25,7 +25,7 @@ Rpl_info_table::Rpl_info_table(uint nparam,
   str_schema.str= str_table.str= NULL;
   str_schema.length= str_table.length= 0;
 
-  uint schema_length= strlen(param_schema);
+  size_t schema_length= strlen(param_schema);
   if ((str_schema.str= (char *) my_malloc(key_memory_Rpl_info_table,
                                           schema_length + 1, MYF(0))))
   {
@@ -33,7 +33,7 @@ Rpl_info_table::Rpl_info_table(uint nparam,
     strmake(str_schema.str, param_schema, schema_length);
   }
   
-  uint table_length= strlen(param_table);
+  size_t table_length= strlen(param_table);
   if ((str_table.str= (char *) my_malloc(key_memory_Rpl_info_table,
                                          table_length + 1, MYF(0))))
   {

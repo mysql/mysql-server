@@ -2709,8 +2709,8 @@ buf_page_get_gen(
 	unsigned	access_time;
 	rw_lock_t*	hash_lock;
 	buf_block_t*	fix_block;
-	ulint		retries = 0;
 	BPageMutex*	fix_mutex = NULL;
+	ulint		retries = 0;
 	buf_pool_t*	buf_pool = buf_pool_get(page_id);
 
 	ut_ad(mtr->is_active());
@@ -2792,23 +2792,30 @@ loop:
 				increment the fix count to make
 				sure that no state change takes place. */
 				fix_block = block;
+
+#ifdef PAGE_ATOMIC_REF_COUNT
+				/* Get block mutex as this is also being used
+				for synchronization between user thread and
+				flush thread. For table residing in system
+				temporary tablespace lock are not obtain and
+				so synchronization is done using fix_count
+				and io_state. Check buf_flush_page for flush
+				thread counterpart.
+				For non-atomic case, fix-count increment is
+				protected using mutex-get/release.  */
 				fix_mutex = buf_page_get_mutex(
 					&fix_block->page);
 
 				if (fsp_is_system_temporary(page_id.space())) {
-					/* Flush thread synchronization for
-					object residing in temporary tablespace
-					is done using fix_count and io_fix state
-					so before changing any of it get the
-					mutex. */
 					mutex_enter(fix_mutex);
 				}
-
+#endif /* PAGE_ATOMIC_REF_COUNT */
 				buf_block_fix(fix_block);
-
+#ifdef PAGE_ATOMIC_REF_COUNT
 				if (fsp_is_system_temporary(page_id.space())) {
 					mutex_exit(fix_mutex);
 				}
+#endif /* PAGE_ATOMIC_REF_COUNT */
 
 				/* Now safe to release page_hash mutex */
 				rw_lock_x_unlock(hash_lock);
@@ -2862,20 +2869,27 @@ loop:
 		fix_block = block;
 	}
 
+#ifdef PAGE_ATOMIC_REF_COUNT
+	/* Get block mutex as this is also being used for synchronization
+	between user thread and flush thread. For table residing in system
+	temporary tablespace lock are not obtain and so synchronization is done
+	using fix_count and io_state. Check buf_flush_page for flush thread
+	counterpart. For non-atomic case fix-count increment is protected
+	using mutex-get/release.  */
 	fix_mutex = buf_page_get_mutex(&fix_block->page);
 
 	if (fsp_is_system_temporary(page_id.space())) {
 		mutex_enter(fix_mutex);
 	}
+#endif /* PAGE_ATOMIC_REF_COUNT */
 
-	/* Flush thread synchronization for object residing in temporary
-	tablespace is done using fix_count and io_fix state so before changing
-	any of it get the mutex. */
 	buf_block_fix(fix_block);
 
+#ifdef PAGE_ATOMIC_REF_COUNT
 	if (fsp_is_system_temporary(page_id.space())) {
 		mutex_exit(fix_mutex);
 	}
+#endif /* PAGE_ATOMIC_REF_COUNT */
 
 	/* Now safe to release page_hash mutex */
 	rw_lock_s_unlock(hash_lock);
@@ -2889,6 +2903,7 @@ got_block:
 		{
 			buf_page_t*	fix_page = &fix_block->page;
 
+			fix_mutex = buf_page_get_mutex(fix_page);
 			mutex_enter(fix_mutex);
 
 			buf_io_fix	io_fix = buf_page_get_io_fix(fix_page);
@@ -5647,7 +5662,7 @@ buf_get_free_list_len(void)
 
 #else /* !UNIV_HOTBACKUP */
 
-/** Inits a page to the buffer buf_pool, for use in ibbackup --restore.
+/** Inits a page to the buffer buf_pool, for use in mysqlbackup --restore.
 @param[in]	page_id		page id
 @param[in]	page_size	page size
 @param[in,out]	block		block to init */

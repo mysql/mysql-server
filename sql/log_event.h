@@ -3617,7 +3617,7 @@ public:
   bool is_valid() const { return 1; }
 };
 #endif
-char *str_to_hex(char *to, const char *from, uint len);
+char *str_to_hex(char *to, const char *from, size_t len);
 
 /**
   @class Table_map_log_event

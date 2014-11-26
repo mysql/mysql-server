@@ -40,7 +40,15 @@ MACRO(CHECK_DTRACE)
    SET(ENABLE_DTRACE ON CACHE BOOL "Enable dtrace")
  ENDIF()
  SET(HAVE_DTRACE ${ENABLE_DTRACE})
- IF(CMAKE_SYSTEM_NAME MATCHES "SunOS")
+ EXECUTE_PROCESS(
+   COMMAND ${DTRACE} -V
+   OUTPUT_VARIABLE out)
+ IF(out MATCHES "Sun D" AND
+    NOT CMAKE_SYSTEM_NAME MATCHES "FreeBSD" AND
+    NOT CMAKE_SYSTEM_NAME MATCHES "Darwin")
+   SET(HAVE_REAL_DTRACE_INSTRUMENTING ON CACHE BOOL "Real DTrace detected")
+ ENDIF()
+ IF(HAVE_REAL_DTRACE_INSTRUMENTING)
    IF(SIZEOF_VOIDP EQUAL 4)
      SET(DTRACE_FLAGS -32 CACHE INTERNAL "DTrace architecture flags")
    ELSE()
@@ -93,7 +101,7 @@ FUNCTION(DTRACE_INSTRUMENT target)
     ADD_DEPENDENCIES(${target} gen_dtrace_header)
 
     # Invoke dtrace to generate object file and link it together with target.
-    IF(CMAKE_SYSTEM_NAME MATCHES "SunOS")
+    IF(HAVE_REAL_DTRACE_INSTRUMENTING)
       SET(objdir ${CMAKE_CURRENT_BINARY_DIR}/CMakeFiles/${target}.dir)
       SET(outfile ${objdir}/${target}_dtrace.o)
       GET_TARGET_PROPERTY(target_type ${target} TYPE)
@@ -155,7 +163,7 @@ ENDFUNCTION()
 # run them again through dtrace -G to generate an ELF file that links
 # to mysqld.
 MACRO (DTRACE_INSTRUMENT_STATIC_LIBS target libs)
-IF(CMAKE_SYSTEM_NAME MATCHES "SunOS" AND ENABLE_DTRACE)
+IF(HAVE_REAL_DTRACE_INSTRUMENTING AND ENABLE_DTRACE)
   # Filter out non-static libraries in the list, if any
   SET(static_libs)
   FOREACH(lib ${libs})

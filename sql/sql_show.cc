@@ -911,7 +911,7 @@ mysqld_show_create(THD *thd, TABLE_LIST *table_list)
   {
     field_list.push_back(new Item_empty_string("View",NAME_CHAR_LEN));
     field_list.push_back(new Item_empty_string("Create View",
-                                               max(buffer.length(), 1024U)));
+                                               max<uint>(buffer.length(), 1024U)));
     field_list.push_back(new Item_empty_string("character_set_client",
                                                MY_CS_NAME_SIZE));
     field_list.push_back(new Item_empty_string("collation_connection",
@@ -922,7 +922,7 @@ mysqld_show_create(THD *thd, TABLE_LIST *table_list)
     field_list.push_back(new Item_empty_string("Table",NAME_CHAR_LEN));
     // 1024 is for not to confuse old clients
     field_list.push_back(new Item_empty_string("Create Table",
-                                               max(buffer.length(), 1024U)));
+                                               max<size_t>(buffer.length(), 1024U)));
   }
 
   if (protocol->send_result_set_metadata(&field_list,
@@ -1110,7 +1110,7 @@ mysqld_list_fields(THD *thd, TABLE_LIST *table_list, const char *wild)
     0	No conflicting character
 */
 
-static const char *require_quotes(const char *name, uint name_length)
+static const char *require_quotes(const char *name, size_t name_length)
 {
   bool pure_digit= TRUE;
   const char *end= name + name_length;
@@ -8823,7 +8823,7 @@ static void get_cs_converted_string_value(THD *thd,
   }
   {
     const uchar *ptr;
-    uint i, len;
+    size_t i, len;
     char buf[3];
 
     output_str->append("_");

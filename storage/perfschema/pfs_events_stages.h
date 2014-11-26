@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -31,7 +31,7 @@ struct PFS_host;
 /** A stage record. */
 struct PFS_events_stages : public PFS_events
 {
-  /* No specific attributes */
+  PSI_stage_progress m_progress;
 };
 
 void insert_events_stages_history(PFS_thread *thread, PFS_events_stages *stage);
