@@ -1,7 +1,7 @@
 #ifndef SYS_VARS_SHARED_INCLUDED
 #define SYS_VARS_SHARED_INCLUDED
 
-/* Copyright (c) 2002, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -25,7 +25,6 @@
   classes in the sys_var hierarchy (sql_plugin.cc)
 */
 
-#include <sql_priv.h>
 #include "set_var.h"
 
 extern bool throw_bounds_warning(THD *thd, const char *name,

@@ -328,14 +328,6 @@
 
 #if defined(ENABLED_DEBUG_SYNC)
 
-/*
-  Due to weaknesses in our include files, we need to include
-  sql_priv.h here. To have THD declared, we need to include
-  sql_class.h. This includes log_event.h, which in turn requires
-  declarations from sql_priv.h (e.g. OPTION_AUTO_IS_NULL).
-  sql_priv.h includes almost everything, so is sufficient here.
-*/
-#include "sql_priv.h"
 #include "sql_parse.h"
 #include "log.h"
 
