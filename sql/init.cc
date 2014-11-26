@@ -26,7 +26,6 @@
 #include "my_sys.h"
 #include "mysqld.h"                             // abort_loop, ...
 #include "my_time.h"                            // my_init_time
-#include "unireg.h"                             // SPECIAL_SAME_DB_NAME
 #include <m_ctype.h>
 
 #ifdef _WIN32
@@ -47,6 +46,6 @@ void unireg_init(ulong options)
 
   (void) my_stpcpy(reg_ext,".frm");
   reg_ext_length= 4;
-  specialflag=SPECIAL_SAME_DB_NAME | options;  /* Set options from argv */
+  specialflag= options;  /* Set options from argv */
   DBUG_VOID_RETURN;
 }

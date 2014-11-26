@@ -464,9 +464,100 @@ let $format= json;
 
 DROP TABLE tbl1, tbl2;
 
-USE test;
-DROP DATABASE mysqltest1;
---echo #
 --echo # End of tests for WL#6369
 
 
+--echo #
+--echo # Bug#19822146 EXPLAIN FOR CONNECTION CRASHES IN 
+--echo #              EXPLAIN_JOIN::EXPLAIN_QEP_TAB
+--echo #
+
+connection default;
+
+--disable_warnings
+DROP TABLE IF EXISTS t1, t2;
+--enable_warnings
+
+create table t1(a char(10) charset latin1, key(a)) engine=innodb;
+create table t2(a binary(10), key(a)) engine=innodb;
+
+insert into t1 values('1'),('2'),('3');
+insert into t2 values('1'),('2'),('s');
+analyze table t1,t2;
+
+let $query= select 1 from  t1 inner join t2 using(a);
+
+--echo # Connection cq
+connection cq;
+--disable_query_log
+let $QID= `SELECT CONNECTION_ID()`;
+--enable_query_log
+--echo # Let thread1 to suspend itself right before creating Quick object.
+SET DEBUG_SYNC= 'quick_not_created SIGNAL ready_for_explain WAIT_FOR explained';
+--send_eval $query;  
+
+--echo # Connection ce
+connection ce;
+SET DEBUG_SYNC= 'now WAIT_FOR ready_for_explain';
+SET DEBUG_SYNC= 'after_explain_other SIGNAL explained';
+--disable_query_log
+eval EXPLAIN FOR CONNECTION $QID; 
+--enable_query_log
+
+connection cq;
+--echo connection: cq
+--reap 
+
+connection default;
+SET DEBUG_SYNC= 'RESET';
+
+--echo # Connection cq
+connection cq;
+--echo # Let thread1 to suspend itself right before the mutex section.
+SET DEBUG_SYNC= 'quick_created_before_mutex SIGNAL ready_for_explain WAIT_FOR explained';
+--send_eval $query;
+
+--echo # Connection ce
+connection ce;
+SET DEBUG_SYNC= 'now WAIT_FOR ready_for_explain';
+SET DEBUG_SYNC= 'after_explain_other SIGNAL explained';
+--disable_query_log
+eval EXPLAIN FOR CONNECTION $QID; 
+--enable_query_log
+
+connection cq;
+--echo connection: cq
+--reap
+
+connection default;
+SET DEBUG_SYNC= 'RESET';
+
+--echo # Connection cq
+connection cq;
+--echo # Let thread1 to suspend itself right after quick object is droped.
+SET DEBUG_SYNC= 'quick_droped_after_mutex SIGNAL ready_for_explain WAIT_FOR explained';
+--send_eval $query;
+
+--echo # Connection ce
+connection ce;
+SET DEBUG_SYNC= 'now WAIT_FOR ready_for_explain';
+SET DEBUG_SYNC= 'after_explain_other SIGNAL explained';
+--disable_query_log
+eval EXPLAIN FOR CONNECTION $QID; 
+--enable_query_log
+
+connection cq;
+--echo connection: cq
+--reap
+
+--echo # Connection default
+connection default;
+DROP TABLE t1, t2;
+SET DEBUG_SYNC= 'RESET';
+disconnect cq;
+disconnect ce;
+--echo # End of test Bug#19822146
+
+USE test;
+DROP DATABASE mysqltest1;
+--echo # End of test

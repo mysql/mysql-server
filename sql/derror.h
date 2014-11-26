@@ -18,6 +18,8 @@
 
 #include "my_global.h"                          /* uint */
 
+#define ERRMSG_FILE	"errmsg.sys"
+
 bool init_errmessage(void);
 bool read_texts(const char *file_name, const char *language,
                 const char **&errmsgs, uint error_messages);

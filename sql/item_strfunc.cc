@@ -2104,30 +2104,27 @@ String *Item_func_insert::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
   String *res,*res2;
-  longlong start, length;  /* must be longlong to avoid truncation */
+  longlong start, length, orig_len;  /* must be longlong to avoid truncation */
 
   null_value=0;
   res=args[0]->val_str(str);
-  // TODO: After fixing Bug#11765149, pls remove the following changes
-  // Copy result to avoid destroying constants
-  if (res && (res!= str))
-  {
-    str->set(*res, 0, res->length());
-    res= str;
-  }
-
   res2=args[3]->val_str(&tmp_value);
-  start= args[1]->val_int() - 1;
+  start= args[1]->val_int();
   length= args[2]->val_int();
 
   if (args[0]->null_value || args[1]->null_value || args[2]->null_value ||
       args[3]->null_value)
     goto null; /* purecov: inspected */
 
-  if ((start < 0) || (start > static_cast<longlong>(res->length())))
+  orig_len= static_cast<longlong>(res->length());
+
+  if ((start < 1) || (start > orig_len))
     return res;                                 // Wrong param; skip insert
-  if ((length < 0) || (length > static_cast<longlong>(res->length())))
-    length= res->length();
+
+  --start;    // Internal start from '0'
+
+  if ((length < 0) || (length > orig_len))
+    length= orig_len;
 
   /*
     There is one exception not handled (intentionaly) by the character set
@@ -2148,12 +2145,12 @@ String *Item_func_insert::val_str(String *str)
    length= res->charpos((int) length, (uint32) start);
 
   /* Re-testing with corrected params */
-  if (start > static_cast<longlong>(res->length()))
+  if (start > orig_len)
     return res; /* purecov: inspected */        // Wrong param; skip insert
-  if (length > static_cast<longlong>(res->length()) - start)
-    length= res->length() - start;
+  if (length > orig_len - start)
+    length= orig_len - start;
 
-  if ((ulonglong) (res->length() - length + res2->length()) >
+  if ((ulonglong) (orig_len - length + res2->length()) >
       (ulonglong) current_thd->variables.max_allowed_packet)
   {
     push_warning_printf(current_thd, Sql_condition::SL_WARNING,
@@ -2162,6 +2159,7 @@ String *Item_func_insert::val_str(String *str)
 			func_name(), current_thd->variables.max_allowed_packet);
     goto null;
   }
+  res= copy_if_not_alloced(str, res, orig_len);
   res->replace((uint32) start,(uint32) length,*res2);
   return res;
 null:
@@ -3232,11 +3230,16 @@ bool Item_func_geohash::fix_fields(THD *thd, Item **ref)
     /*
       First argument expected to be a point and second argument is expected
       to be geohash output length.
+
+      PARAM_ITEM and the binary charset checks are to allow prepared statements
+      and usage of user-defined variables.
     */
     geohash_length_arg_index= 1;
     maybe_null= (args[0]->maybe_null || args[1]->maybe_null);
-    if (args[0]->field_type() != MYSQL_TYPE_GEOMETRY &&
-        args[0]->field_type() != MYSQL_TYPE_NULL)
+    if (!is_item_null(args[0]) &&
+        args[0]->field_type() != MYSQL_TYPE_GEOMETRY &&
+        args[0]->type() != PARAM_ITEM &&
+        args[0]->collation.collation != &my_charset_bin)
     {
       my_error(ER_INCORRECT_TYPE, MYF(0), "point", func_name());
       return true;
@@ -3273,14 +3276,24 @@ bool Item_func_geohash::fix_fields(THD *thd, Item **ref)
     return true;
   }
 
-  // Check if geohash length argument is of valid type.
+
+  /*
+    Check if geohash length argument is of valid type.
+
+    PARAM_ITEM is to allow parameter marker during PREPARE, and INT_ITEM is to
+    allow EXECUTE of prepared statements and usage of user-defined variables.
+  */
+  if (is_item_null(args[geohash_length_arg_index]))
+    return false;
+
   bool is_binary_charset=
     (args[geohash_length_arg_index]->collation.collation == &my_charset_bin);
+  bool is_parameter=
+    (args[geohash_length_arg_index]->type() == PARAM_ITEM ||
+     args[geohash_length_arg_index]->type() == INT_ITEM);
 
   switch (args[geohash_length_arg_index]->field_type())
   {
-  case MYSQL_TYPE_NULL:
-    break;
   case MYSQL_TYPE_TINY:
   case MYSQL_TYPE_SHORT:
   case MYSQL_TYPE_LONG:
@@ -3293,7 +3306,7 @@ bool Item_func_geohash::fix_fields(THD *thd, Item **ref)
   case MYSQL_TYPE_MEDIUM_BLOB:
   case MYSQL_TYPE_LONG_BLOB:
   case MYSQL_TYPE_BLOB:
-    if (is_binary_charset)
+    if (is_binary_charset && !is_parameter)
     {
       my_error(ER_INCORRECT_TYPE, MYF(0), "geohash max length", func_name());
       return true;
@@ -3317,12 +3330,17 @@ bool Item_func_geohash::fix_fields(THD *thd, Item **ref)
 */
 bool Item_func_geohash::check_valid_latlong_type(Item *arg)
 {
-  bool is_binary_charset= (arg->collation.collation == &my_charset_bin);
+  if (is_item_null(arg))
+    return true;
 
+  /*
+    is_field_type_valid will be true if the item is a constant or a field of
+    valid type.
+  */
+  bool is_binary_charset= (arg->collation.collation == &my_charset_bin);
+  bool is_field_type_valid= false;
   switch (arg->field_type())
   {
-  case MYSQL_TYPE_NULL:
-    return true;
   case MYSQL_TYPE_DECIMAL:
   case MYSQL_TYPE_NEWDECIMAL:
   case MYSQL_TYPE_TINY:
@@ -3339,10 +3357,54 @@ bool Item_func_geohash::check_valid_latlong_type(Item *arg)
   case MYSQL_TYPE_MEDIUM_BLOB:
   case MYSQL_TYPE_LONG_BLOB:
   case MYSQL_TYPE_BLOB:
-    return !is_binary_charset;
+    is_field_type_valid= !is_binary_charset;
+    break;
   default:
-    return false;
+    is_field_type_valid= false;
+    break;
   }
+
+  /*
+    Parameters and parameter markers always have
+    field_type() == MYSQL_TYPE_VARCHAR. type() is dependent on if it's a
+    parameter marker or parameter (PREPARE or EXECUTE, respectively).
+  */
+  bool is_parameter= (arg->type() == INT_ITEM || arg->type() == DECIMAL_ITEM ||
+                      arg->type() == REAL_ITEM || arg->type() == STRING_ITEM) &&
+                     (arg->field_type() == MYSQL_TYPE_VARCHAR);
+  bool is_parameter_marker= (arg->type() == PARAM_ITEM &&
+                             arg->field_type() == MYSQL_TYPE_VARCHAR);
+
+  if (is_field_type_valid || is_parameter_marker || is_parameter)
+    return true;
+  return false;
+}
+
+
+/**
+  Check if a Item is NULL. This includes NULL in the form of literal
+  NULL, NULL in a user-defined variable and NULL in prepared statements.
+
+  Note that it will return true for MEDIUM_BLOB for FUNC_ITEM as well, in order
+  to allow NULL in user-defined variables.
+
+  @param item The item to check for NULL.
+
+  @return true if the item is NULL, false otherwise.
+*/
+bool Item_func_geohash::is_item_null(Item *item)
+{
+  if (item->field_type() == MYSQL_TYPE_NULL || item->type() == NULL_ITEM)
+    return true;
+
+  // The following will allow the usage of NULL in user-defined variables.
+  bool is_binary_charset= (item->collation.collation == &my_charset_bin);
+  if (is_binary_charset && item->type() == FUNC_ITEM &&
+      item->field_type() == MYSQL_TYPE_MEDIUM_BLOB)
+  {
+    return true;
+  }
+  return false;
 }
 
 

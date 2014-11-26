@@ -37,23 +37,23 @@
 --let $assert_cond= $num= 0;
 --source include/assert.inc
 
---let $num= `select count(*) from performance_schema.replication_execute_configuration`
---let $assert_text= Number of rows = 0 on master for repliation_execute_configuration table.
+--let $num= `select count(*) from performance_schema.replication_applier_configuration`
+--let $assert_text= Number of rows = 0 on master for repliation_applier_configuration table.
 --let $assert_cond= $num = 0;
 --source include/assert.inc
 
---let $num= `select count(*) from performance_schema.replication_execute_status`
---let $assert_text= Number of rows = 0 on master for repliation_execute_status table.
+--let $num= `select count(*) from performance_schema.replication_applier_status`
+--let $assert_text= Number of rows = 0 on master for repliation_applier_status table.
 --let $assert_cond= $num = 0;
 --source include/assert.inc
 
---let $num= `select count(*) from performance_schema.replication_execute_status_by_coordinator`
---let $assert_text= Number of rows = 0 on master for replication_execut_status_by coordinator table.
+--let $num= `select count(*) from performance_schema.replication_applier_status_by_coordinator`
+--let $assert_text= Number of rows = 0 on master for replication_applier_status_by coordinator table.
 --let $assert_cond= $num = 0;
 --source include/assert.inc
 
---let $num= `select count(*) from performance_schema.replication_execute_status_by_worker`
---let $assert_text= Number of rows = 0 on master for replication_execut_status_by_worker table.
+--let $num= `select count(*) from performance_schema.replication_applier_status_by_worker`
+--let $assert_text= Number of rows = 0 on master for replication_applier_status_by_worker table.
 --let $assert_cond= "$num" = 0;
 --source include/assert.inc
 
@@ -73,23 +73,23 @@
 --let $assert_cond= $num = 0;
 --source include/assert.inc
 
---let $num= `select count(*) from performance_schema.replication_execute_configuration where channel_name="non_existent"`
---let $assert_text= Number of rows= 0 on slave for a non existent channel for repliation_execute_configuration table.
+--let $num= `select count(*) from performance_schema.replication_applier_configuration where channel_name="non_existent"`
+--let $assert_text= Number of rows= 0 on slave for a non existent channel for repliation_applier_configuration table.
 --let $assert_cond= $num= 0;
 --source include/assert.inc
 
---let $num= `select count(*) from performance_schema.replication_execute_status where channel_name="non_existent"`
---let $assert_text= Number of rows= 0 on slave for a non existent channel for repliation_execute_status table.
+--let $num= `select count(*) from performance_schema.replication_applier_status where channel_name="non_existent"`
+--let $assert_text= Number of rows= 0 on slave for a non existent channel for repliation_applier_status table.
 --let $assert_cond= $num = 0;
 --source include/assert.inc
 
---let $num= `select count(*) from performance_schema.replication_execute_status_by_coordinator where channel_name="non_existent"`
---let $assert_text= Number of rows= 0 on slave for a non existent channel for repliation_execute_status_by_coordinaotor table.
+--let $num= `select count(*) from performance_schema.replication_applier_status_by_coordinator where channel_name="non_existent"`
+--let $assert_text= Number of rows= 0 on slave for a non existent channel for repliation_applier_status_by_coordinaotor table.
 --let $assert_cond= $num= 0;
 --source include/assert.inc
 
---let $num= `select count(*) from performance_schema.replication_execute_status_by_worker where channel_name="non_existent"`
---let $assert_text= Number of rows= 0 on slave for a non existent channel for replication_execute_status_by_worker table.
+--let $num= `select count(*) from performance_schema.replication_applier_status_by_worker where channel_name="non_existent"`
+--let $assert_text= Number of rows= 0 on slave for a non existent channel for replication_applier_status_by_worker table.
 --let $assert_cond= "$num"= 0;
 --source include/assert.inc
 
@@ -106,19 +106,19 @@ USE performance_schema;
 --let $assert_cond= [select count(*) from performance_schema.replication_connection_status] = 2;
 --source include/assert.inc
 
---let $assert_text= there shall be 2 rows for replication_execute_configuration
---let $assert_cond= [select count(*) from performance_schema.replication_execute_configuration] = 2 ;
+--let $assert_text= there shall be 2 rows for replication_applier_configuration
+--let $assert_cond= [select count(*) from performance_schema.replication_applier_configuration] = 2 ;
 --source include/assert.inc
 
---let $assert_text= there shall be 2 rows for replication_execute_status
---let $assert_cond= [select count(*) from performance_schema.replication_execute_status] = 2;
+--let $assert_text= there shall be 2 rows for replication_applier_status
+--let $assert_cond= [select count(*) from performance_schema.replication_applier_status] = 2;
 --source include/assert.inc
 
 --let $assert_text= there shall be 2 rows for replication_connection_configuration
---let $assert_cond= [select count(*) from performance_schema.replication_execute_status_by_coordinator] = 2;
+--let $assert_cond= [select count(*) from performance_schema.replication_applier_status_by_coordinator] = 2;
 --source include/assert.inc
 
---let $pfs_w_rows= `select count(*) from performance_schema.replication_execute_status_by_worker`
+--let $pfs_w_rows= `select count(*) from performance_schema.replication_applier_status_by_worker`
 --let $w_rows= `select 2*@@global.slave_parallel_workers`
 --let $assert_text= there shall be 2*global.slave_parallel_workers rows for 2 configured channels.
 --let $assert_cond= "$pfs_w_rows" = "$w_rows"
@@ -141,24 +141,24 @@ USE performance_schema;
 --source include/assert.inc
 
 let $sss_value=query_get_value(SHOW SLAVE STATUS FOR CHANNEL 'channel_3', SQL_Delay, 1);
-let $ps_value= query_get_value(select Desired_Delay from performance_schema.replication_execute_configuration where channel_name = "channel_3", Desired_Delay, 1);
+let $ps_value= query_get_value(select Desired_Delay from performance_schema.replication_applier_configuration where channel_name = "channel_3", Desired_Delay, 1);
 let $assert_text= Value returned by SSS and PS table for Desired_Delay should be same.;
 let $assert_cond= "$sss_value" = "$ps_value";
 --source include/assert.inc
 
---let $service_state= `select service_state from performance_schema.replication_execute_status where channel_name="channel_3"`
+--let $service_state= `select service_state from performance_schema.replication_applier_status where channel_name="channel_3"`
 --let $assert_text= service state shall be ON
 --let $assert_cond= "ON" = "$service_state"
 --source include/assert.inc
 
---let $service_state= `select service_state from performance_schema.replication_execute_status_by_coordinator where channel_name="channel_3"`
+--let $service_state= `select service_state from performance_schema.replication_applier_status_by_coordinator where channel_name="channel_3"`
 --let $assert_text= service state of coordinator shall be ON
 --let $assert_cond= "ON" = "$service_state"
 --source include/assert.inc
 
 if ( `select @@GLOBAL.slave_parallel_workers > 0`)
 {
-  --let $service_state= `select service_state from performance_schema.replication_execute_status_by_worker where channel_name="channel_3" and worker_id= 1`
+  --let $service_state= `select service_state from performance_schema.replication_applier_status_by_worker where channel_name="channel_3" and worker_id= 1`
   --let $assert_text= service state of worker thread shall be ON
   --let $assert_cond= "ON" = "$service_state"
   --let $include_silent= 1
@@ -188,19 +188,19 @@ if ( `select @@GLOBAL.slave_parallel_workers > 0`)
 --let $assert_cond= "OFF" = "$service_state"
 --source include/assert.inc
 
---let $service_state= `select service_state from performance_schema.replication_execute_status where channel_name="channel_1"`
---let $assert_text=  After stop slave for channel, service state is OFF for execute_status table.
+--let $service_state= `select service_state from performance_schema.replication_applier_status where channel_name="channel_1"`
+--let $assert_text=  After stop slave for channel, service state is OFF for applier_status table.
 --let $assert_cond= "OFF" = "$service_state"
 --source include/assert.inc
 
---let $service_state= `select service_state from performance_schema.replication_execute_status_by_coordinator where channel_name="channel_1"`
---let $assert_text=  After stop slave for channel, service state is OFF by replication_execute_status_by_coordinator table.
+--let $service_state= `select service_state from performance_schema.replication_applier_status_by_coordinator where channel_name="channel_1"`
+--let $assert_text=  After stop slave for channel, service state is OFF by replication_applier_status_by_coordinator table.
 --let $assert_cond= "OFF" = "$service_state"
 --source include/assert.inc
 
 if ( `select @@GLOBAL.slave_parallel_workers > 0`)
 {
-  --let $service_state= `select service_state from performance_schema.replication_execute_status_by_worker where channel_name="channel_1" and worker_id= 1`
+  --let $service_state= `select service_state from performance_schema.replication_applier_status_by_worker where channel_name="channel_1" and worker_id= 1`
   --let $assert_text= service state of worker thread shall be OFF
   --let $assert_cond= "OFF" = "$service_state"
   --let $include_silent= 1
@@ -214,7 +214,7 @@ if ( `select @@GLOBAL.slave_parallel_workers > 0`)
 --echo #                 contain multiple rows now.
 #Check the result file for the whole join.
 --replace_column 2 # 3 # 12 #
---query_vertical(select * from replication_connection_status, replication_execute_status_by_coordinator where replication_connection_status.channel_name= replication_execute_status_by_coordinator.channel_name)
+--query_vertical(select * from replication_connection_status, replication_applier_status_by_coordinator where replication_connection_status.channel_name= replication_applier_status_by_coordinator.channel_name)
 
 --echo #
 --echo # Test case 7: Delete channel_3 and count the number of rows in each table.
@@ -231,19 +231,19 @@ RESET SLAVE ALL FOR CHANNEL 'channel_3';
 --let $assert_cond= [select count(*) from performance_schema.replication_connection_status] = 1;
 --source include/assert.inc
 
---let $assert_text= there shall be 1 in replication execute_config table after a channel is deleted.
---let $assert_cond= [select count(*) from performance_schema.replication_execute_configuration] = 1 ;
+--let $assert_text= there shall be 1 in replication applier_config table after a channel is deleted.
+--let $assert_cond= [select count(*) from performance_schema.replication_applier_configuration] = 1 ;
 --source include/assert.inc
 
---let $assert_text= there shall be 1 in replication execute_status table after a channel is deleted.
---let $assert_cond= [select count(*) from performance_schema.replication_execute_status] = 1;
+--let $assert_text= there shall be 1 in replication applier_status table after a channel is deleted.
+--let $assert_cond= [select count(*) from performance_schema.replication_applier_status] = 1;
 --source include/assert.inc
 
---let $assert_text= there shall be 1 in replication execute_status_by_coordinator table after a channel is deleted.
---let $assert_cond= [select count(*) from performance_schema.replication_execute_status_by_coordinator] = 1;
+--let $assert_text= there shall be 1 in replication applier_status_by_coordinator table after a channel is deleted.
+--let $assert_cond= [select count(*) from performance_schema.replication_applier_status_by_coordinator] = 1;
 --source include/assert.inc
 
---let $pfs_w_rows= `select count(*) from performance_schema.replication_execute_status_by_worker`
+--let $pfs_w_rows= `select count(*) from performance_schema.replication_applier_status_by_worker`
 --let $w_rows= `select @@global.slave_parallel_workers`
 --let $assert_text= there shall be global.slave_parallel_workers rows after a channel is deleted.
 --let $assert_cond= "$pfs_w_rows" = "$w_rows"
@@ -264,18 +264,18 @@ RESET SLAVE ALL;
 --source include/assert.inc
 
 --let $assert_text= there shall be 0 rows after all channels are deleted.
---let $assert_cond= [select count(*) from performance_schema.replication_execute_configuration] = 0 ;
+--let $assert_cond= [select count(*) from performance_schema.replication_applier_configuration] = 0 ;
 --source include/assert.inc
 
 --let $assert_text= there shall be 0 rows after all channels are deleted.
---let $assert_cond= [select count(*) from performance_schema.replication_execute_status] = 0;
+--let $assert_cond= [select count(*) from performance_schema.replication_applier_status] = 0;
 --source include/assert.inc
 
 --let $assert_text= there shall be 0 rows after all channels are deleted.
---let $assert_cond= [select count(*) from performance_schema.replication_execute_status_by_coordinator] = 0;
+--let $assert_cond= [select count(*) from performance_schema.replication_applier_status_by_coordinator] = 0;
 --source include/assert.inc
 
---let $pfs_w_rows= `select count(*) from performance_schema.replication_execute_status_by_worker`
+--let $pfs_w_rows= `select count(*) from performance_schema.replication_applier_status_by_worker`
 --let $w_rows= `select @@global.slave_parallel_workers`
 --let $assert_text= there shall be global.slave_parallel_workers rows after a channel is deleted.
 

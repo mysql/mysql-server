@@ -52,7 +52,7 @@
 #include "sql_show.h"
 #include "transaction.h"
 #include "datadict.h"  // dd_frm_type()
-#include "sql_resolver.h"              // setup_order, fix_inner_refs
+#include "sql_resolver.h"              // setup_order
 #include "table_cache.h"
 #include "sql_trigger.h"               // change_trigger_table_name
 #include <mysql/psi/mysql_table.h>
@@ -60,6 +60,8 @@
 #include <algorithm>
 using std::max;
 using std::min;
+
+#define ER_THD_OR_DEFAULT(thd,X) ((thd) ? ER_THD(thd, X) : ER_DEFAULT(X))
 
 const char *primary_key_name="PRIMARY";
 
@@ -3703,7 +3705,7 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
   {
     DBUG_PRINT("info", ("key name: '%s'  type: %d", key->name.str ? key->name.str :
                         "(none)" , key->type));
-    if (key->type == Key::FOREIGN_KEY)
+    if (key->type == KEYTYPE_FOREIGN)
     {
       fk_key_count++;
       Foreign_key *fk_key= (Foreign_key*) key;
@@ -3734,7 +3736,7 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
       DBUG_RETURN(TRUE);
     }
     key_iterator2.rewind ();
-    if (key->type != Key::FOREIGN_KEY)
+    if (key->type != KEYTYPE_FOREIGN)
     {
       while ((key2 = key_iterator2++) != key)
       {
@@ -3743,7 +3745,7 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
           'generated', and a generated key is a prefix of the other key.
           Then we do not need the generated shorter key.
         */
-        if ((key2->type != Key::FOREIGN_KEY &&
+        if ((key2->type != KEYTYPE_FOREIGN &&
              key2->name.str != ignore_key &&
              !foreign_key_prefix(key, key2)))
         {
@@ -3767,7 +3769,7 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
       key_parts+=key->columns.elements;
     else
       (*key_count)--;
-    if (key->name.str && !tmp_table && (key->type != Key::PRIMARY) &&
+    if (key->name.str && !tmp_table && (key->type != KEYTYPE_PRIMARY) &&
 	!my_strcasecmp(system_charset_info, key->name.str, primary_key_name))
     {
       my_error(ER_WRONG_NAME_FOR_INDEX, MYF(0), key->name.str);
@@ -3804,20 +3806,20 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
     }
 
     switch (key->type) {
-    case Key::MULTIPLE:
+    case KEYTYPE_MULTIPLE:
 	key_info->flags= 0;
 	break;
-    case Key::FULLTEXT:
+    case KEYTYPE_FULLTEXT:
 	key_info->flags= HA_FULLTEXT;
 	if ((key_info->parser_name= &key->key_create_info.parser_name)->str)
           key_info->flags|= HA_USES_PARSER;
         else
           key_info->parser_name= 0;
 	break;
-    case Key::SPATIAL:
+    case KEYTYPE_SPATIAL:
 	key_info->flags= HA_SPATIAL;
 	break;
-    case Key::FOREIGN_KEY:
+    case KEYTYPE_FOREIGN:
       key_number--;				// Skip this key
       continue;
     default:
@@ -3833,7 +3835,7 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
     key_info->usable_key_parts= key_number;
     key_info->algorithm= key->key_create_info.algorithm;
 
-    if (key->type == Key::FULLTEXT)
+    if (key->type == KEYTYPE_FULLTEXT)
     {
       if (!(file->ha_table_flags() & HA_CAN_FULLTEXT))
       {
@@ -3928,7 +3930,7 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
 	}
       }
       cols2.rewind();
-      if (key->type == Key::FULLTEXT)
+      if (key->type == KEYTYPE_FULLTEXT)
       {
 	if ((sql_field->sql_type != MYSQL_TYPE_STRING &&
 	     sql_field->sql_type != MYSQL_TYPE_VARCHAR &&
@@ -3954,7 +3956,7 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
       {
 	column->length*= sql_field->charset->mbmaxlen;
 
-        if (key->type == Key::SPATIAL)
+        if (key->type == KEYTYPE_SPATIAL)
         {
           if (column->length)
           {
@@ -3969,7 +3971,7 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
         }
 
 	if (f_is_blob(sql_field->pack_flag) ||
-            (f_is_geom(sql_field->pack_flag) && key->type != Key::SPATIAL))
+            (f_is_geom(sql_field->pack_flag) && key->type != KEYTYPE_SPATIAL))
 	{
 	  if (!(file->ha_table_flags() & HA_CAN_INDEX_BLOBS))
 	  {
@@ -3985,7 +3987,7 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
 	    DBUG_RETURN(TRUE);
 	  }
 	}
-	if (key->type == Key::SPATIAL)
+	if (key->type == KEYTYPE_SPATIAL)
 	{
 	  if (!column->length)
 	  {
@@ -4022,7 +4024,7 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
              Default constant value assigned due to implicit promotion of second
              timestamp column is removed.
         */
-        if (key->type == Key::PRIMARY && !sql_field->def &&
+        if (key->type == KEYTYPE_PRIMARY && !sql_field->def &&
             !(sql_field->flags & AUTO_INCREMENT_FLAG) &&
             !(real_type_with_now_as_default(sql_field->sql_type) &&
               (sql_field->unireg_check == Field::TIMESTAMP_DN_FIELD ||
@@ -4036,14 +4038,14 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
           explicitly requested to be NULL by the user.
         */
         if ((sql_field->flags & EXPLICIT_NULL_FLAG) &&
-            (key->type == Key::PRIMARY))
+            (key->type == KEYTYPE_PRIMARY))
         {
           my_error(ER_PRIMARY_CANT_HAVE_NULL, MYF(0));
           DBUG_RETURN(true);
         }
 	if (!(sql_field->flags & NOT_NULL_FLAG))
 	{
-	  if (key->type == Key::PRIMARY)
+	  if (key->type == KEYTYPE_PRIMARY)
 	  {
 	    /* Implicitly set primary key fields to NOT NULL for ISO conf. */
 	    sql_field->flags|= NOT_NULL_FLAG;
@@ -4058,7 +4060,7 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
               my_error(ER_NULL_COLUMN_IN_INDEX, MYF(0), column->field_name.str);
               DBUG_RETURN(TRUE);
             }
-            if (key->type == Key::SPATIAL)
+            if (key->type == KEYTYPE_SPATIAL)
             {
               my_message(ER_SPATIAL_CANT_HAVE_NULL,
                          ER(ER_SPATIAL_CANT_HAVE_NULL), MYF(0));
@@ -4098,7 +4100,7 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
 	    key_part_length= min(max_key_length, file->max_key_part_length());
 	    if (max_field_size)
               key_part_length= min(key_part_length, max_field_size);
-	    if (key->type == Key::MULTIPLE)
+	    if (key->type == KEYTYPE_MULTIPLE)
 	    {
 	      /* not a critical problem */
 	      push_warning_printf(thd, Sql_condition::SL_WARNING,
@@ -4147,10 +4149,10 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
 	  DBUG_RETURN(TRUE);
       }
       if (key_part_length > file->max_key_part_length() &&
-          key->type != Key::FULLTEXT)
+          key->type != KEYTYPE_FULLTEXT)
       {
         key_part_length= file->max_key_part_length();
-	if (key->type == Key::MULTIPLE)
+	if (key->type == KEYTYPE_MULTIPLE)
 	{
 	  /* not a critical problem */
 	  push_warning_printf(thd, Sql_condition::SL_WARNING,
@@ -4186,9 +4188,18 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
 	else
 	  key_info->flags|= HA_PACK_KEY;
       }
-      /* Check if the key segment is partial, set the key flag accordingly */
-      if (key_part_length != sql_field->key_length)
-        key_info->flags|= HA_KEY_HAS_PART_KEY_SEG;
+      /* 
+         Check if the key segment is partial, set the key flag
+         accordingly. The key segment for a POINT column is NOT considered
+         partial if key_length==MAX_LEN_GEOM_POINT_FIELD.
+      */
+      if (key_part_length != sql_field->key_length &&
+          !(sql_field->sql_type == MYSQL_TYPE_GEOMETRY &&
+            sql_field->geom_type == Field::GEOM_POINT &&
+            key_part_length == MAX_LEN_GEOM_POINT_FIELD))
+        {
+          key_info->flags|= HA_KEY_HAS_PART_KEY_SEG;
+        }
 
       key_length+= key_part_length;
       key_part_info++;
@@ -4196,7 +4207,7 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
       /* Create the key name based on the first column (if not given) */
       if (column_nr == 0)
       {
-	if (key->type == Key::PRIMARY)
+	if (key->type == KEYTYPE_PRIMARY)
 	{
 	  if (primary_key)
 	  {
@@ -4227,7 +4238,7 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
     if (!(key_info->flags & HA_NULL_PART_KEY))
       unique_key=1;
     key_info->key_length=(uint16) key_length;
-    if (key_length > max_key_length && key->type != Key::FULLTEXT)
+    if (key_length > max_key_length && key->type != KEYTYPE_FULLTEXT)
     {
       my_error(ER_TOO_LONG_KEY,MYF(0),max_key_length);
       DBUG_RETURN(TRUE);
@@ -4764,7 +4775,7 @@ bool create_table_impl(THD *thd,
       List_iterator_fast<Key> key_iterator(alter_info->key_list);
       while ((key= key_iterator++))
       {
-        if (key->type == Key::FOREIGN_KEY)
+        if (key->type == KEYTYPE_FOREIGN)
         {
           my_error(ER_FOREIGN_KEY_ON_PARTITIONED, MYF(0));
           goto err;
@@ -5747,6 +5758,17 @@ static bool has_index_def_changed(Alter_info *alter_info,
       ((table_key->flags & HA_KEYFLAG_MASK) !=
        (new_key->flags & HA_KEYFLAG_MASK)) ||
       (table_key->user_defined_key_parts != new_key->user_defined_key_parts))
+    return true;
+
+  /*
+    The key definition has changed, if an index comment is
+    added/dropped/changed.
+  */
+  if (table_key->comment.length != new_key->comment.length)
+    return true;
+
+  if (table_key->comment.length &&
+      strcmp(table_key->comment.str, new_key->comment.str))
     return true;
 
   /*
@@ -7431,7 +7453,7 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
     {
       KEY_CREATE_INFO key_create_info;
       Key *key;
-      enum Key::Keytype key_type;
+      keytype key_type;
       memset(&key_create_info, 0, sizeof(key_create_info));
 
       /* If this index is to stay in the table check if it has to be renamed. */
@@ -7471,18 +7493,18 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
         key_create_info.comment= key_info->comment;
 
       if (key_info->flags & HA_SPATIAL)
-        key_type= Key::SPATIAL;
+        key_type= KEYTYPE_SPATIAL;
       else if (key_info->flags & HA_NOSAME)
       {
         if (! my_strcasecmp(system_charset_info, key_name, primary_key_name))
-          key_type= Key::PRIMARY;
+          key_type= KEYTYPE_PRIMARY;
         else
-          key_type= Key::UNIQUE;
+          key_type= KEYTYPE_UNIQUE;
       }
       else if (key_info->flags & HA_FULLTEXT)
-        key_type= Key::FULLTEXT;
+        key_type= KEYTYPE_FULLTEXT;
       else
-        key_type= Key::MULTIPLE;
+        key_type= KEYTYPE_MULTIPLE;
       
       if (index_column_dropped)
       {

@@ -38,7 +38,6 @@
 #endif
 
 #include "sql_priv.h"
-#include "unireg.h"
 #include "sql_parse.h"    // test_if_data_home_dir
 #include "sql_cache.h"    // query_cache, query_cache_*
 #include "sql_locale.h"   // MY_LOCALES, my_locales, my_locale_by_name
@@ -319,16 +318,6 @@ ulong slow_start_timeout;
 #endif
 
 my_bool opt_bootstrap= 0;
-
-/**
-   @brief 'grant_option' is used to indicate if privileges needs
-   to be checked, in which case the lock, LOCK_grant, is used
-   to protect access to the grant table.
-   @note This flag is dropped in 5.1
-   @see grant_init()
- */
-bool volatile grant_option;
-
 my_bool opt_skip_slave_start = 0; ///< If set, slave is not autostarted
 my_bool opt_reckless_slave = 0;
 my_bool opt_enable_named_pipe= 0;
@@ -369,7 +358,10 @@ my_bool opt_super_large_pages= 0;
 my_bool opt_myisam_use_mmap= 0;
 my_bool offline_mode= 0;
 uint   opt_large_page_size= 0;
-volatile uint default_password_lifetime= 0;
+uint default_password_lifetime= 0;
+
+mysql_mutex_t LOCK_default_password_lifetime;
+
 #if defined(ENABLED_DEBUG_SYNC)
 MYSQL_PLUGIN_IMPORT uint    opt_debug_sync_timeout= 0;
 #endif /* defined(ENABLED_DEBUG_SYNC) */
@@ -1504,6 +1496,7 @@ static void clean_up_mutexes()
   mysql_mutex_destroy(&LOCK_slave_net_timeout);
   mysql_mutex_destroy(&LOCK_error_messages);
   mysql_mutex_destroy(&LOCK_offline_mode);
+  mysql_mutex_destroy(&LOCK_default_password_lifetime);
   mysql_cond_destroy(&COND_manager);
 #ifdef _WIN32
   mysql_cond_destroy(&COND_handler_count);
@@ -3205,6 +3198,8 @@ static int init_thread_environment()
                    &LOCK_log_throttle_qni, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_LOCK_offline_mode,
                    &LOCK_offline_mode, MY_MUTEX_INIT_FAST);
+  mysql_mutex_init(key_LOCK_default_password_lifetime,
+                   &LOCK_default_password_lifetime, MY_MUTEX_INIT_FAST);
 #ifdef HAVE_OPENSSL
   mysql_mutex_init(key_LOCK_des_key_file,
                    &LOCK_des_key_file, MY_MUTEX_INIT_FAST);
@@ -3961,7 +3956,7 @@ a file name for --log-bin-index option", opt_binlog_index_name);
     unireg_abort(0);
 
   /* if the errmsg.sys is not loaded, terminate to maintain behaviour */
-  if (!DEFAULT_ERRMSGS[0][0])
+  if (!my_default_lc_messages->errmsgs->errmsgs[0][0])
   {
     sql_print_error("Unable to read errmsg.sys file");
     unireg_abort(1);
@@ -5231,7 +5226,7 @@ void adjust_table_cache_size(ulong requested_open_files)
     char msg[1024];
 
     my_snprintf(msg, sizeof(msg),
-                "Changed limits: table_cache: %lu (requested %lu)",
+                "Changed limits: table_open_cache: %lu (requested %lu)",
                 limit, table_cache_size);
     buffered_logs.buffer(WARNING_LEVEL, msg);
 
@@ -6632,7 +6627,6 @@ static int mysql_init_variables(void)
   opt_endinfo= using_udf_functions= 0;
   opt_using_transactions= 0;
   abort_loop= false;
-  grant_option= 0;
   aborted_threads= 0;
   delayed_insert_threads= delayed_insert_writes= delayed_rows_in_use= 0;
   delayed_insert_errors= 0;
@@ -7867,6 +7861,7 @@ PSI_mutex_key key_mts_gaq_LOCK;
 PSI_mutex_key key_thd_timer_mutex;
 #endif
 PSI_mutex_key key_LOCK_offline_mode;
+PSI_mutex_key key_LOCK_default_password_lifetime;
 
 #ifdef HAVE_REPLICATION
 PSI_mutex_key key_commit_order_manager_mutex;
@@ -7957,6 +7952,7 @@ static PSI_mutex_info all_server_mutexes[]=
   { &key_mutex_slave_worker_hash, "Relay_log_info::slave_worker_hash_lock", 0},
 #endif
   { &key_LOCK_offline_mode, "LOCK_offline_mode", PSI_FLAG_GLOBAL},
+  { &key_LOCK_default_password_lifetime, "LOCK_default_password_lifetime", PSI_FLAG_GLOBAL}
 };
 
 PSI_rwlock_key key_rwlock_LOCK_grant, key_rwlock_LOCK_logger,

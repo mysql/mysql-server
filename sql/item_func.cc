@@ -217,10 +217,13 @@ Item_func::fix_fields(THD *thd, Item **ref)
   Item **arg,**arg_end;
   uchar buff[STACK_BUFF_ALLOC];			// Max argument in function
 
-  Switch_resolve_place SRP(thd->lex->current_select() ?
-                           &thd->lex->current_select()->resolve_place : NULL,
-                           st_select_lex::RESOLVE_NONE,
-                           thd->lex->current_select());
+  /*
+    Semi-join flattening should only be performed for top-level
+    predicates. Disable it for predicates that live under an
+    Item_func.
+  */
+  Disable_semijoin_flattening DSF(thd->lex->current_select(), true);
+
   used_tables_cache= get_initial_pseudo_tables();
   not_null_tables_cache= 0;
   const_item_cache=1;
@@ -2299,23 +2302,25 @@ bool Item_func_latlongfromgeohash::fix_fields(THD *thd, Item **ref)
 bool
 Item_func_latlongfromgeohash::check_geohash_argument_valid_type(Item *item)
 {
+  if (Item_func_geohash::is_item_null(item))
+    return true;
+
   /*
     If charset is not binary and field_type() is BLOB,
     we have a TEXT column (which is allowed).
   */
   bool is_binary_charset= (item->collation.collation == &my_charset_bin);
+  bool is_parameter_marker= (item->type() == PARAM_ITEM);
 
   switch (item->field_type())
   {
-  case MYSQL_TYPE_NULL:
-    return true;
   case MYSQL_TYPE_VARCHAR:
   case MYSQL_TYPE_VAR_STRING:
   case MYSQL_TYPE_BLOB:
   case MYSQL_TYPE_TINY_BLOB:
   case MYSQL_TYPE_MEDIUM_BLOB:
   case MYSQL_TYPE_LONG_BLOB:
-    return !is_binary_charset;
+    return (!is_binary_charset || is_parameter_marker);
   default:
     return false;
   }
@@ -5584,27 +5589,22 @@ longlong Item_func_sleep::val_int()
   timeout= args[0]->val_real();
  
   /*
-    Prepare to report error or warning depends on the value of SQL_MODE.
+    Report error or warning depending on the value of SQL_MODE.
     If SQL is STRICT then report error, else report warning and continue
     execution.
   */
-  Strict_error_handler strict_handler;
-  if (!thd->lex->is_ignore() && thd->is_strict_mode())
-    thd->push_internal_handler(&strict_handler);
 
   if (args[0]->null_value || timeout < 0)
-    push_warning_printf(thd, Sql_condition::SL_WARNING, ER_WRONG_ARGUMENTS,
-                        ER(ER_WRONG_ARGUMENTS), "sleep.");
-
-  if (!thd->lex->is_ignore() && thd->is_strict_mode())
-    thd->pop_internal_handler();
-  /*
-    If conversion error occurred in the strict SQL_MODE
-    then leave method.
-  */
-  if (thd->is_error())
-    return 0;
- 
+  {
+    if (!thd->lex->is_ignore() && thd->is_strict_mode())
+    {
+      my_error(ER_WRONG_ARGUMENTS, MYF(0), "sleep.");
+      return 0;
+    }
+    else
+      push_warning_printf(thd, Sql_condition::SL_WARNING, ER_WRONG_ARGUMENTS,
+                          ER(ER_WRONG_ARGUMENTS), "sleep.");
+  }
   /*
     On 64-bit OSX mysql_cond_timedwait() waits forever
     if passed abstime time has already been exceeded by 

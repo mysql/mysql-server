@@ -2550,3 +2550,97 @@ disconnect con2;
 connection default;
 DROP TABLE t1;
 SET sql_mode = default;
+#
+# BUG 19779365: INDEX COMMENT IN ADD INDEX IS IGNORED.
+#
+# After the patch, the alter table reflects the new
+# index comment or the lack of comment for the indexes.
+CREATE TABLE t1(fld1 int, key key1(fld1));
+SHOW INDEX FROM t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
+t1	1	key1	1	fld1	A	NULL	NULL	NULL	YES	BTREE		
+ALTER TABLE t1 DROP INDEX key1, ADD INDEX key1(fld1) COMMENT 'test';
+SHOW INDEX FROM t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
+t1	1	key1	1	fld1	A	NULL	NULL	NULL	YES	BTREE		test
+DROP TABLE t1;
+CREATE TABLE t1(fld1 int, key key1(fld1) COMMENT 'test');
+SHOW INDEX FROM t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
+t1	1	key1	1	fld1	A	NULL	NULL	NULL	YES	BTREE		test
+ALTER TABLE t1 DROP INDEX key1, ADD INDEX key1(fld1);
+SHOW INDEX FROM t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
+t1	1	key1	1	fld1	A	NULL	NULL	NULL	YES	BTREE		
+DROP TABLE t1;
+CREATE TABLE t1(fld1 int, key key1(fld1) COMMENT 'test');
+SHOW INDEX FROM t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
+t1	1	key1	1	fld1	A	NULL	NULL	NULL	YES	BTREE		test
+ALTER TABLE t1 DROP INDEX key1, ADD INDEX key1(fld1) COMMENT 'success';
+SHOW INDEX FROM t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
+t1	1	key1	1	fld1	A	NULL	NULL	NULL	YES	BTREE		success
+DROP TABLE t1;
+CREATE TABLE t1(fld1 int, key key1(fld1) COMMENT 'old comment');
+SHOW INDEX FROM t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
+t1	1	key1	1	fld1	A	NULL	NULL	NULL	YES	BTREE		old comment
+ALTER TABLE t1 DROP INDEX key1, ADD INDEX key1(fld1) COMMENT 'new comment';
+SHOW INDEX FROM t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
+t1	1	key1	1	fld1	A	NULL	NULL	NULL	YES	BTREE		new comment
+DROP TABLE t1;
+#
+# Bug#19635706
+# Verify that it is possible to add a unique key to a not-NULL POINT 
+# column and that this key is promoted to primary key
+# 
+CREATE TABLE t1(a INT NOT NULL, b POINT NOT NULL) ENGINE=INNODB;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` point NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+ALTER TABLE t1 ADD UNIQUE INDEX (b);
+# Note that SHOW CREATE TABLE does not list b as a primary key, 
+# even though it was promoted. This appears to be the case also 
+# for other column types.
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` point NOT NULL,
+  UNIQUE KEY `b` (`b`(25))
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+ALTER TABLE t1 ADD UNIQUE INDEX (a);
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` point NOT NULL,
+  UNIQUE KEY `b` (`b`(25)),
+  UNIQUE KEY `a` (`a`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+# Verify that the expected indices have been created by Innodb
+SELECT T.NAME AS TABLE_NAME, I.NAME AS INDEX_NAME, 
+CASE I.TYPE 
+WHEN 0 THEN 'Secondary' 
+WHEN 1 THEN 'Clustered' 
+WHEN 2 THEN 'Unique' 
+WHEN 3 THEN 'Primary' 
+WHEN 32 THEN 'Full text' 
+WHEN 64 THEN 'Spatial' 
+ELSE 'Unknown' 
+END AS INDEX_TYPE, 
+F.NAME AS FIELD_NAME, F.POS AS FIELD_POS FROM 
+INFORMATION_SCHEMA.INNODB_SYS_TABLES AS T JOIN 
+INFORMATION_SCHEMA.INNODB_SYS_INDEXES AS I JOIN 
+INFORMATION_SCHEMA.INNODB_SYS_FIELDS AS F 
+ON I.INDEX_ID = F.INDEX_ID AND I.TABLE_ID = T.TABLE_ID 
+WHERE T.NAME = 'test/t1';
+TABLE_NAME	INDEX_NAME	INDEX_TYPE	FIELD_NAME	FIELD_POS
+test/t1	b	Primary	b	0
+test/t1	a	Unique	a	0
+DROP TABLE t1;

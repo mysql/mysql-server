@@ -185,8 +185,22 @@ t1	CREATE TABLE `t1` (
   `d` bit(25) DEFAULT NULL,
   `e` bit(13) DEFAULT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=latin1
+CREATE TABLE t2(i INTEGER);
+CREATE TRIGGER t1_tr BEFORE INSERT ON t1 FOR EACH ROW
+BEGIN
+INSERT INTO t2 VALUES(1);
+END $$
+INSERT INTO t1 VALUES (
+b'1010101',
+b'10101011',
+b'101010110101010101111',
+b'10101010101',
+b'10101011111'
+  );
+include/sync_slave_sql_with_master.inc
 *** Cleanup  ***
 DROP TABLE t1;
+DROP TABLE t2;
 include/sync_slave_sql_with_master.inc
 SET GLOBAL SLAVE_TYPE_CONVERSIONS = @saved_slave_type_conversions;
 include/rpl_end.inc

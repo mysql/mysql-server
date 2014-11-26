@@ -682,12 +682,14 @@ static Sys_var_charptr Sys_default_authentication_plugin(
        READ_ONLY GLOBAL_VAR(default_auth_plugin), CMD_LINE(REQUIRED_ARG),
        IN_FS_CHARSET, DEFAULT("mysql_native_password"));
 
+static PolyLock_mutex Plock_default_password_lifetime(
+                        &LOCK_default_password_lifetime);
 static Sys_var_uint Sys_default_password_lifetime(
        "default_password_lifetime", "The number of days after which the "
        "password will expire.",
        GLOBAL_VAR(default_password_lifetime), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(0, UINT_MAX16), DEFAULT(360), BLOCK_SIZE(1),
-       NO_MUTEX_GUARD);
+       &Plock_default_password_lifetime);
 
 #ifndef EMBEDDED_LIBRARY
 static Sys_var_charptr Sys_my_bind_addr(
@@ -2412,7 +2414,7 @@ static Sys_var_ulong Sys_open_files_limit(
        "open_files_limit",
        "If this is not 0, then mysqld will use this value to reserve file "
        "descriptors to use with setrlimit(). If this value is 0 then mysqld "
-       "will reserve max_connections*5 or max_connections + table_cache*2 "
+       "will reserve max_connections*5 or max_connections + table_open_cache*2 "
        "(whichever is larger) number of file descriptors",
        READ_ONLY GLOBAL_VAR(open_files_limit), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(0, OS_FILE_LIMIT), DEFAULT(0), BLOCK_SIZE(1),

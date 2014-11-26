@@ -1901,6 +1901,12 @@ id	a
 3	gmail email
 4	ghome windows
 1	know database
+SELECT * FROM t1 WHERE MATCH (a) AGAINST ('g * good' IN NATURAL LANGUAGE MODE WITH QUERY EXPANSION);
+id	a
+2	good database
+3	gmail email
+4	ghome windows
+1	know database
 SELECT * FROM t1 WHERE MATCH (a) AGAINST ('gm * go *' IN NATURAL LANGUAGE MODE WITH QUERY EXPANSION);
 id	a
 3	gmail email

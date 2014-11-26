@@ -21694,7 +21694,7 @@ set @@sql_mode = 'ansi, error_for_division_by_zero';
 ERROR 42000: Variable 'sql_mode' can't be set to the value of ' error_for_division_by_zero'
 set @@sql_mode = 'ansi,error_for_division_by_zero';
 Warnings:
-Warning	1912	'ERROR_FOR_DIVISION_BY_ZERO' mode no longer has any effect. Use STRICT_ALL_TABLES or STRICT_TRANS_TABLES instead.
+Warning	1913	'ERROR_FOR_DIVISION_BY_ZERO' mode no longer has any effect. Use STRICT_ALL_TABLES or STRICT_TRANS_TABLES instead.
 SHOW VARIABLES LIKE 'sql_mode';
 Variable_name	Value
 sql_mode	REAL_AS_FLOAT,PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,ONLY_FULL_GROUP_BY,ANSI

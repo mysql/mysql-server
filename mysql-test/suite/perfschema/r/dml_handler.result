@@ -64,23 +64,23 @@ SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=59;
 HANDLER performance_schema.rwlock_instances OPEN;
 ERROR HY000: Table storage engine for 'rwlock_instances' doesn't have this option
 SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=58;
-HANDLER performance_schema.replication_execute_status_by_worker OPEN;
-ERROR HY000: Table storage engine for 'replication_execute_status_by_worker' doesn't have this option
-SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=57;
-HANDLER performance_schema.replication_execute_status_by_coordinator OPEN;
-ERROR HY000: Table storage engine for 'replication_execute_status_by_coordinator' doesn't have this option
-SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=56;
-HANDLER performance_schema.replication_execute_status OPEN;
-ERROR HY000: Table storage engine for 'replication_execute_status' doesn't have this option
-SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=55;
-HANDLER performance_schema.replication_execute_configuration OPEN;
-ERROR HY000: Table storage engine for 'replication_execute_configuration' doesn't have this option
-SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=54;
 HANDLER performance_schema.replication_connection_status OPEN;
 ERROR HY000: Table storage engine for 'replication_connection_status' doesn't have this option
-SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=53;
+SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=57;
 HANDLER performance_schema.replication_connection_configuration OPEN;
 ERROR HY000: Table storage engine for 'replication_connection_configuration' doesn't have this option
+SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=56;
+HANDLER performance_schema.replication_applier_status_by_worker OPEN;
+ERROR HY000: Table storage engine for 'replication_applier_status_by_worker' doesn't have this option
+SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=55;
+HANDLER performance_schema.replication_applier_status_by_coordinator OPEN;
+ERROR HY000: Table storage engine for 'replication_applier_status_by_coordinator' doesn't have this option
+SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=54;
+HANDLER performance_schema.replication_applier_status OPEN;
+ERROR HY000: Table storage engine for 'replication_applier_status' doesn't have this option
+SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=53;
+HANDLER performance_schema.replication_applier_configuration OPEN;
+ERROR HY000: Table storage engine for 'replication_applier_configuration' doesn't have this option
 SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=52;
 HANDLER performance_schema.prepared_statements_instances OPEN;
 ERROR HY000: Table storage engine for 'prepared_statements_instances' doesn't have this option

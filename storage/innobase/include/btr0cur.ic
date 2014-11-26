@@ -28,7 +28,7 @@ Created 10/16/1994 Heikki Tuuri
 
 #ifdef UNIV_DEBUG
 # define LIMIT_OPTIMISTIC_INSERT_DEBUG(NREC, CODE)\
-if (btr_cur_limit_optimistic_insert_debug\
+if (btr_cur_limit_optimistic_insert_debug > 1\
     && (NREC) >= (ulint)btr_cur_limit_optimistic_insert_debug) {\
         CODE;\
 }

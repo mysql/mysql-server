@@ -1398,8 +1398,6 @@ update_hidden:
 err:
   thd->mem_root= mem_root_save;
   free_tmp_table(thd,table);                    /* purecov: inspected */
-  if (temp_pool_slot != MY_BIT_NONE)
-    bitmap_lock_clear_bit(&temp_pool, temp_pool_slot);
   DBUG_RETURN(NULL);				/* purecov: inspected */
 }
 
@@ -1779,8 +1777,6 @@ err:
   thd->mem_root= mem_root_save;
   table->file->ha_index_or_rnd_end();
   free_tmp_table(thd,table);                    /* purecov: inspected */
-  if (temp_pool_slot != MY_BIT_NONE)
-    bitmap_lock_clear_bit(&temp_pool, temp_pool_slot);
   DBUG_RETURN(NULL);				/* purecov: inspected */
 }
 
@@ -1801,17 +1797,12 @@ err:
 
   @param thd         connection handle
   @param field_list  list of column definitions
-  @param mem_root    mem_root from which allocations happens
-                     inside the function. Default is NULL
-                     and thread's mem_root will be considered
-                     in that case.
 
   @return
     0 if out of memory, TABLE object in case of success
 */
 
-TABLE *create_virtual_tmp_table(THD *thd, List<Create_field> &field_list,
-                                MEM_ROOT *mem_root /* default = NULL */)
+TABLE *create_virtual_tmp_table(THD *thd, List<Create_field> &field_list)
 {
   uint field_count= field_list.elements;
   uint blob_count= 0;
@@ -1825,11 +1816,7 @@ TABLE *create_virtual_tmp_table(THD *thd, List<Create_field> &field_list,
   TABLE *table;
   TABLE_SHARE *share;
 
-  /* if mem_root is not supplied, use thd's mem_root.*/
-  if (mem_root == NULL)
-    mem_root= thd->mem_root;
-
-  if (!multi_alloc_root(mem_root,
+  if (!multi_alloc_root(thd->mem_root,
                         &table, sizeof(*table),
                         &share, sizeof(*share),
                         &field, (field_count + 1) * sizeof(Field*),
@@ -1857,7 +1844,7 @@ TABLE *create_virtual_tmp_table(THD *thd, List<Create_field> &field_list,
                        f_maybe_null(cdef->pack_flag) ? 1 : 0,
                        cdef->pack_flag, cdef->sql_type, cdef->charset,
                        cdef->geom_type, cdef->unireg_check,
-                       cdef->interval, cdef->field_name, mem_root);
+                       cdef->interval, cdef->field_name);
     if (!*field)
       goto error;
     (*field)->init(table);
@@ -1877,7 +1864,7 @@ TABLE *create_virtual_tmp_table(THD *thd, List<Create_field> &field_list,
   null_pack_length= (null_count + 7)/8;
   share->reclength= record_length + null_pack_length;
   share->rec_buff_length= ALIGN_SIZE(share->reclength + 1);
-  table->record[0]= (uchar*) alloc_root(mem_root, share->rec_buff_length);
+  table->record[0]= (uchar*) thd->alloc(share->rec_buff_length);
   if (!table->record[0])
     goto error;
 
@@ -2064,6 +2051,17 @@ bool create_myisam_tmp_table(TABLE *table, KEY *keyinfo,
                        )))
   {
     table->file->print_error(error,MYF(0));	/* purecov: inspected */
+    /*
+      Table name which was allocated from temp-pool is already occupied
+      in SE. Probably we hit a bug in server or some problem with system
+      configuration. Prevent problem from re-occurring by marking temp-pool
+      slot for this name as permanently busy, to do this we only need to set
+      TABLE::temp_pool_slot to MY_BIT_NONE in order to avoid freeing it
+      in free_tmp_table().
+    */
+    if (error == EEXIST)
+      table->temp_pool_slot= MY_BIT_NONE;
+
     table->db_stat=0;
     goto err;
   }
@@ -2119,6 +2117,22 @@ bool create_innodb_tmp_table(TABLE *table, KEY *keyinfo)
   if ((error= table->file->create(share->table_name.str, table, &create_info)))
   {
     table->file->print_error(error,MYF(0));    /* purecov: inspected */
+    /*
+      Table name which was allocated from temp-pool is already occupied
+      in SE. Probably we hit a bug in server or some problem with system
+      configuration. Prevent problem from re-occurring by marking temp-pool
+      slot for this name as permanently busy, to do this we only need to set
+      TABLE::temp_pool_slot to MY_BIT_NONE in order to avoid freeing it
+      in free_tmp_table().
+
+      Note that currently InnoDB never reports an error in this case but
+      instead aborts on failed assertion. So the below if-statement is here
+      mostly to make code future-proof and consistent with MyISAM case.
+   */
+
+   if (error == HA_ERR_FOUND_DUPP_KEY || error == HA_ERR_TABLESPACE_EXISTS ||
+       error == HA_ERR_TABLE_EXIST)
+     table->temp_pool_slot= MY_BIT_NONE;
     table->db_stat= 0;
     DBUG_RETURN(true);
   }
@@ -2208,8 +2222,12 @@ bool instantiate_tmp_table(TABLE *table, KEY *keyinfo,
     // Make empty record so random data is not written to disk
     empty_record(table);
   }
+
   if (open_tmp_table(table))
+  {
+    table->file->ha_delete_table(table->s->table_name.str);
     return TRUE;
+  }
 
   if (unlikely(trace->is_started()))
   {
@@ -2356,8 +2374,7 @@ bool create_ondisk_from_heap(THD *thd, TABLE *table,
   {
     if (create_myisam_tmp_table(&new_table, table->s->key_info,
                                 start_recinfo, recinfo,
-                               (thd->lex->select_lex->options |
-                                thd->variables.option_bits),
+                                thd->lex->select_lex->active_options(),
                                 thd->variables.big_tables))
       goto err2;
   }

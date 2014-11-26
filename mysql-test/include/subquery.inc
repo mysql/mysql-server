@@ -3942,11 +3942,11 @@ INSERT INTO t1 VALUES (1,1,1), (1,1,1);
 # so "c" is not dependent on the group column:
 --error ER_WRONG_FIELD_WITH_GROUP
 EXPLAIN EXTENDED 
-  SELECT c FROM 
+  SELECT cc FROM 
     ( SELECT 
       (SELECT COUNT(a) FROM 
         (SELECT COUNT(b) FROM t1) AS x GROUP BY c
-      ) FROM t1 GROUP BY b
+      ) AS cc FROM t1 GROUP BY b
     ) AS y;
 SHOW WARNINGS;
 
@@ -6360,3 +6360,21 @@ HAVING field1 != 'r'
 ORDER BY CONCAT(alias2.col_varchar_nokey, alias2.col_varchar_nokey) DESC, field1;
 
 DROP TABLE t1, t2;
+
+--echo # Bug#19778967: Assert failed in JOIN::optimize
+
+CREATE TABLE t1(a INTEGER);
+CREATE VIEW v1 AS SELECT * FROM t1;
+
+INSERT INTO t1 VALUES(0), (1);
+
+let $query=SELECT * FROM t1 WHERE a <ANY (SELECT a FROM v1);
+eval EXPLAIN $query;
+eval PREPARE s FROM "$query";
+
+EXECUTE s;
+EXECUTE s;
+
+DEALLOCATE PREPARE s;
+DROP VIEW v1;
+DROP TABLE t1;

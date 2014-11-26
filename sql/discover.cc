@@ -22,9 +22,11 @@
 */
 
 #include "sql_priv.h"
-#include "unireg.h"
 #include "discover.h"
+#include "mysqld.h"
+#include "table.h"
 #include <my_dir.h>
+#include "my_sys.h"
 
 /**
   Read the contents of a .frm file.

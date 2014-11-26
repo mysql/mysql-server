@@ -62,7 +62,7 @@ where event_name like 'wait/io/table/%'
 and object_schema = 'test'
 and object_name =  'no_index_tab';
 SUM(NUMBER_OF_BYTES)
-101
+100
 truncate table performance_schema.events_waits_history_long;
 update performance_schema.setup_consumers set enabled='YES';
 select avg(a) from test.index_tab;
@@ -75,7 +75,7 @@ where event_name like 'wait/io/table/%'
 and object_schema = 'test'
 and object_name =  'index_tab';
 SUM(NUMBER_OF_BYTES)
-101
+100
 truncate table performance_schema.events_waits_history_long;
 update performance_schema.setup_consumers set enabled='YES';
 select 1 as my_column from test.no_index_tab where a = 50;
@@ -88,7 +88,7 @@ where event_name like 'wait/io/table/%'
 and object_schema = 'test'
 and object_name =  'no_index_tab';
 SUM(NUMBER_OF_BYTES)
-101
+100
 truncate table performance_schema.events_waits_history_long;
 update performance_schema.setup_consumers set enabled='YES';
 select 1 as my_column from test.index_tab where a = 50;

@@ -220,3 +220,49 @@ select 0x00b25278956e0044683dfc180cd886aeff2f5bc3fc18 like '%-122%';
 select 0xbc24421ce6194ab5c260e80af647ae58fdbfca18a19dc8411424 like '%-106%';
 0xbc24421ce6194ab5c260e80af647ae58fdbfca18a19dc8411424 like '%-106%'
 0
+#
+# Bug#19931126 VALGRIND REPORTS USE OF UNINITIALIZED VALUE IN
+#              MY_WILDCMP_BIN_IMPL
+#
+CREATE TABLE t1(x CHAR(1)) ENGINE=InnoDB;
+SELECT ('a%b' LIKE 'a\%b' ESCAPE (SELECT x FROM t1));
+('a%b' LIKE 'a\%b' ESCAPE (SELECT x FROM t1))
+1
+SELECT ('a%b' LIKE 'ax%b' ESCAPE (SELECT x FROM t1));
+('a%b' LIKE 'ax%b' ESCAPE (SELECT x FROM t1))
+0
+INSERT INTO t1 VALUES ('x');
+SELECT ('a%b' LIKE 'a\%b' ESCAPE (SELECT x FROM t1));
+('a%b' LIKE 'a\%b' ESCAPE (SELECT x FROM t1))
+0
+SELECT ('a%b' LIKE 'ax%b' ESCAPE (SELECT x FROM t1));
+('a%b' LIKE 'ax%b' ESCAPE (SELECT x FROM t1))
+1
+SELECT ('a%b' LIKE 'ax%b' ESCAPE (SELECT 'xy' FROM t1));
+ERROR HY000: Incorrect arguments to ESCAPE
+INSERT INTO t1 VALUES ('y');
+SELECT ('a%b' LIKE 'ax%b' ESCAPE (SELECT x FROM t1));
+ERROR 21000: Subquery returns more than 1 row
+DELETE FROM t1 WHERE x = 'y';
+SELECT ('a%b' LIKE 'ax%b' ESCAPE (SELECT x, x FROM t1));
+ERROR 21000: Operand should contain 1 column(s)
+SELECT ('a%b' LIKE 'ax%b' ESCAPE ('x', 'y'));
+ERROR 21000: Operand should contain 1 column(s)
+SELECT ('a%b' LIKE 'ax%b' ESCAPE x) FROM t1;
+ERROR HY000: Incorrect arguments to ESCAPE
+CREATE TABLE t2(x int, y varchar(100)) ENGINE=InnoDB;
+CREATE INDEX idx ON t2(y);
+INSERT INTO t2 VALUES (1, 'abcd'), (2, 'ab%cde');
+ANALYZE TABLE t2;
+Table	Op	Msg_type	Msg_text
+test.t2	analyze	status	OK
+EXPLAIN SELECT * FROM t2 WHERE y LIKE 'abc%%' ESCAPE (SELECT 'c' FROM t1) ORDER BY y;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t2	NULL	ALL	idx	NULL	NULL	NULL	2	50.00	Using where; Using filesort
+2	SUBQUERY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`x` AS `x`,`test`.`t2`.`y` AS `y` from `test`.`t2` where (`test`.`t2`.`y` like 'abc%%') order by `test`.`t2`.`y`
+SELECT * FROM t2 WHERE y LIKE 'abc%%' ESCAPE (SELECT 'c' FROM t1) ORDER BY y;
+x	y
+2	ab%cde
+DROP TABLE t1, t2;

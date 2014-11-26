@@ -2506,6 +2506,11 @@ sub environment_setup {
   $ENV{'MYSQL_BUG25714'}=  native_path($exe_bug25714);
 
   # ----------------------------------------------------
+  # Get the bin dir
+  # ----------------------------------------------------
+  $ENV{'MYSQL_BIN_PATH'}=  native_path($bindir);
+
+  # ----------------------------------------------------
   # mysql_fix_privilege_tables.sql
   # ----------------------------------------------------
   my $file_mysql_fix_privilege_tables=
@@ -2571,6 +2576,18 @@ sub environment_setup {
 				 "$path_client_bindir/perror");
   $ENV{'MY_PERROR'}= native_path($exe_perror);
 
+
+  # ----------------------------------------------------
+  # mysql_tzinfo_to_sql
+  # ----------------------------------------------------
+  # mysql_tzinfo_to_sql is not used on Windows, but vs_config_dirs
+  # is needed when building with Xcode on OSX
+  my $exe_mysql_tzinfo_to_sql= 
+    mtr_exe_exists(vs_config_dirs('sql', 'mysql_tzinfo_to_sql'),
+                   "$basedir/bin/mysql_tzinfo_to_sql");
+  $ENV{'MYSQL_TZINFO_TO_SQL'}= native_path($exe_mysql_tzinfo_to_sql);
+
+
   # ----------------------------------------------------
   # replace
   # ----------------------------------------------------
@@ -2578,6 +2595,7 @@ sub environment_setup {
                                  "$basedir/extra/replace",
                                  "$path_client_bindir/replace");
   $ENV{'REPLACE'}= native_path($exe_replace);
+
 
   # Create an environment variable to make it possible
   # to detect that valgrind is being used from test cases
@@ -2914,7 +2932,7 @@ sub check_ndbcluster_support ($) {
       if ($opt_include_ndbcluster)
       {
 	mtr_error("Could not detect ndbcluster support ".
-		  "requested with --include-ndbcluster");
+                  "requested with --[ndb|include-ndbcluster]");
       }
 
       # Silently skip, mysqld was compiled without ndbcluster
@@ -2930,15 +2948,12 @@ sub check_ndbcluster_support ($) {
     }
 
 
-    # Not a MySQL Cluster tree, enable ndbcluster
-    # if --include-ndbcluster was used
-    if ($opt_include_ndbcluster)
+    if (!$opt_include_ndbcluster)
     {
-      # enable ndbcluster
-    }
-    else
-    {
-      mtr_report(" - skipping ndbcluster(disabled by default)");
+      # Add only the test suite for ndbcluster integration check
+      mtr_report(" - enabling ndbcluster(for integration checks)");
+      $ndbcluster_enabled= 1;
+      $DEFAULT_SUITES.=",ndbcluster";
       return;
     }
   }
@@ -2946,7 +2961,7 @@ sub check_ndbcluster_support ($) {
   mtr_report(" - enabling ndbcluster");
   $ndbcluster_enabled= 1;
   # Add MySQL Cluster test suites
-  $DEFAULT_SUITES.=",ndb,ndb_binlog,rpl_ndb,ndb_rpl,ndb_memcache";
+  $DEFAULT_SUITES.=",ndb,ndb_binlog,rpl_ndb,ndb_rpl,ndb_memcache,ndbcluster";
   return;
 }
 

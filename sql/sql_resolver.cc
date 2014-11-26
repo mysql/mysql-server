@@ -38,84 +38,44 @@
 static const Item::enum_walk walk_subquery=
   Item::enum_walk(Item::WALK_POSTFIX | Item::WALK_SUBQUERY);
 
-static void remove_redundant_subquery_clauses(st_select_lex *subq_select_lex,
-                                              int hidden_group_field_count,
-                                              int hidden_order_field_count,
-                                              List<Item> &fields,
-                                              Ref_ptr_array ref_pointer_array);
-static inline int 
-setup_without_group(THD *thd, Ref_ptr_array ref_pointer_array,
-                    TABLE_LIST *tables,
-                    List<Item> &fields,
-                    List<Item> &all_fields,
-                    ORDER *order,
-                    ORDER *group,
-                    int *hidden_group_field_count,
-                    int *hidden_order_field_count);
-static int
-setup_group(THD *thd, Ref_ptr_array ref_pointer_array, TABLE_LIST *tables,
-            List<Item> &fields, List<Item> &all_fields, ORDER *order);
 uint build_bitmap_for_nested_joins(List<TABLE_LIST> *join_list,
                                    uint first_unused);
 
 
 /**
-  Prepare of whole select (including sub queries in future).
+  Prepare query block for optimization.
 
-  @todo
-    Add check of calculation of GROUP functions and fields:
-    SELECT COUNT(*)+table.col1 from table1;
+  Resolve table and column information.
+  Resolve all expressions (item trees), ie WHERE clause, join conditions,
+  GROUP BY clause, HAVING clause, ORDER BY clause, LIMIT clause.
+  Prepare all subqueries recursively as part of resolving the expressions.
+  Apply permanent transformations to the abstract syntax tree, such as
+  semi-join transformation, derived table transformation, elimination of
+  constant values and redundant clauses (e.g ORDER BY, GROUP BY).
 
-  @retval
-    -1   on error
-  @retval
-    0   on success
+  @param thd    thread handler
+
+  @returns false if success, true if error
 */
-int SELECT_LEX::prepare(JOIN *join)
+bool SELECT_LEX::prepare(THD *thd)
 {
   DBUG_ENTER("SELECT_LEX::prepare");
-
-  // to prevent double initialization on EXPLAIN
-  if (join->optimized)
-    DBUG_RETURN(0);
-
-  THD *const thd= join->thd;
 
   // We may do subquery transformation, or Item substitution:
   Prepare_error_tracker tracker(thd);
 
-  {
-    ORDER *const first_order= order_list.first;
-    ORDER *const first_group= group_list.first;
-    join->order= JOIN::ORDER_with_src(first_order, ESC_ORDER_BY);
-    join->group_list= JOIN::ORDER_with_src(first_group, ESC_GROUP_BY);
-    if (first_order)
-      join->explain_flags.set(ESC_ORDER_BY, ESP_EXISTS);
-    if (first_group)
-      join->explain_flags.set(ESC_GROUP_BY, ESP_EXISTS);
-    if (join->select_options & SELECT_DISTINCT)
-      join->explain_flags.set(ESC_DISTINCT, ESP_EXISTS);
-  }
-
-  // Those members should still be un-initialized at this point:
-  DBUG_ASSERT(join->where_cond == (Item*)1 &&
-              join->having_cond == (Item*)1 &&
-              join->having_for_explain == (Item*)1 &&
-              join->tables_list == (TABLE_LIST*)1);
-
-  join->select_lex= this;
   DBUG_ASSERT(this == thd->lex->current_select());
-  set_join(join);
-  SELECT_LEX_UNIT *const unit= master_unit();
-  join->union_part= unit->is_union();
+  DBUG_ASSERT(join == NULL);
 
-  is_item_list_lookup= 1;
+  SELECT_LEX_UNIT *const unit= master_unit();
+
+  is_item_list_lookup= true;
   /*
     If we have already executed SELECT, then it have not sense to prevent
     its table from update (see unique_table())
   */
   if (thd->derived_tables_processing)
-    exclude_from_table_unique_test= TRUE;
+    exclude_from_table_unique_test= true;
 
   Opt_trace_context * const trace= &thd->opt_trace;
   Opt_trace_object trace_wrapper(trace);
@@ -123,13 +83,16 @@ int SELECT_LEX::prepare(JOIN *join)
   trace_prepare.add_select_number(select_number);
   Opt_trace_array trace_steps(trace, "steps");
 
+  // Initially, "all_fields" is the select list
+  all_fields= fields_list;
+
   /* Check that all tables, fields, conds and order are ok */
 
-  if (!(join->select_options & OPTION_SETUP_TABLES_DONE) &&
+  if (!(active_options() & OPTION_SETUP_TABLES_DONE) &&
       setup_tables_and_check_access(thd, &context, &top_join_list,
                                     get_table_list(), &leaf_tables,
                                     FALSE, SELECT_ACL, SELECT_ACL))
-      DBUG_RETURN(-1);
+      DBUG_RETURN(true);
 
   derived_table_count= 0;
   materialized_table_count= 0;
@@ -151,9 +114,6 @@ int SELECT_LEX::prepare(JOIN *join)
       partitioned_table_count++;
 #endif
   }
-  // Primary input tables of the query:
-  join->primary_tables= leaf_table_count;
-  join->tables= join->primary_tables; // total number of tables, for now
 
   Mem_root_array<Item_exists_subselect *, true>
     sj_candidates_local(thd->mem_root);
@@ -169,27 +129,64 @@ int SELECT_LEX::prepare(JOIN *join)
   parsing_place= CTX_NONE;
 
   resolve_place= RESOLVE_SELECT_LIST;
-  if (setup_wild(thd, join->fields_list, &join->all_fields, with_wild))
-    DBUG_RETURN(-1);
+
+  if (with_wild && setup_wild(thd))
+    DBUG_RETURN(true);
   if (setup_ref_array(thd))
-    DBUG_RETURN(-1);
-
-  join->ref_ptrs= join->ref_ptr_array_slice(0);
-
-  if (setup_fields(thd, join->ref_ptrs, join->fields_list, MARK_COLUMNS_READ,
-                   &join->all_fields, 1))
-    DBUG_RETURN(-1);
+    DBUG_RETURN(true); /* purecov: inspected */
+  
+  if (setup_fields(thd, ref_ptrs, fields_list, MARK_COLUMNS_READ,
+                   &all_fields, 1))
+    DBUG_RETURN(true);
 
   resolve_place= RESOLVE_NONE;
 
-  int hidden_order_field_count;
-  if (setup_without_group(thd, join->ref_ptrs, get_table_list(),
-                          join->fields_list,
-                          join->all_fields,
-                          join->order, join->group_list,
-                          &join->hidden_group_field_count,
-                          &hidden_order_field_count))
-    DBUG_RETURN(-1);
+  const nesting_map save_allow_sum_func= thd->lex->allow_sum_func;
+
+  // Do not allow local set functions for join conditions, WHERE and GROUP BY
+  thd->lex->allow_sum_func&= ~((nesting_map)1 << nest_level);
+
+  // Set up join conditions and WHERE clause
+  if (setup_conds(thd))
+    DBUG_RETURN(true);
+
+  // Set up the GROUP BY clause
+  int all_fields_count= all_fields.elements;
+  if (group_list.elements && setup_group(thd))
+    DBUG_RETURN(true);
+  hidden_group_field_count= all_fields.elements - all_fields_count;
+
+  // Allow local set functions in HAVING and ORDER BY
+  thd->lex->allow_sum_func|= (nesting_map)1 << nest_level;
+
+  // Setup the HAVING clause
+  if (m_having_cond)
+  {
+    thd->where="having clause";
+    having_fix_field= true;
+    resolve_place= RESOLVE_HAVING;
+    if (!m_having_cond->fixed &&
+        (m_having_cond->fix_fields(thd, &m_having_cond) ||
+         m_having_cond->check_cols(1)))
+      DBUG_RETURN(true);
+
+    having_fix_field= false;
+    resolve_place= RESOLVE_NONE;
+  }
+
+  // Set up the ORDER BY clause
+  all_fields_count= all_fields.elements;
+  int hidden_order_field_count= 0;
+  if (order_list.elements)
+  {
+    if (setup_order(thd, ref_ptrs, get_table_list(), fields_list, all_fields,
+                    order_list.first))
+      DBUG_RETURN(true);
+    hidden_order_field_count= all_fields.elements - all_fields_count;
+   }
+
+  // Query block is completely resolved, restore set function allowance
+  thd->lex->allow_sum_func= save_allow_sum_func;
 
   /*
     Permanently remove redundant parts from the query if
@@ -200,51 +197,32 @@ int SELECT_LEX::prepare(JOIN *join)
          query involving a view is optimized, not when the view
          is created
   */
-  if (master_unit()->item &&                               // 1)
+  if (unit->item &&                                        // 1)
       first_execution &&                                   // 2)
       !(thd->lex->context_analysis_only & CONTEXT_ANALYSIS_ONLY_VIEW)) // 3)
   {
-    remove_redundant_subquery_clauses(this, join->hidden_group_field_count,
-                                      hidden_order_field_count,
-                                      join->all_fields, join->ref_ptrs);
+    remove_redundant_subquery_clauses(thd, hidden_group_field_count,
+                                      hidden_order_field_count);
   }
 
-  if (join->group_list || agg_func_used())
-  {
-    if (join->hidden_group_field_count == 0 &&
-        olap == UNSPECIFIED_OLAP_TYPE)
-    {
-      /*
-        All GROUP expressions are in SELECT list, so resulting rows are
-        distinct. ROLLUP is not specified, so adds no row. So all rows in the
-        result set are distinct, DISTINCT is useless.
-        @todo could remove DISTINCT if ROLLUP were specified and all GROUP
-        expressions were non-nullable, because ROLLUP adds only NULL
-        values. Currently, ROLLUP+DISTINCT is rejected because executor
-        cannot handle it in all cases.
-      */
-      options&= ~SELECT_DISTINCT;
-      join->select_distinct= false;
-    }
-  }
+  if (order_list.elements && setup_order_final(thd, hidden_order_field_count))
+    DBUG_RETURN(true);     /* purecov: inspected */
 
-  if (m_having_cond)
+  if (is_distinct() &&
+      is_grouped() &&
+      hidden_group_field_count == 0 &&
+      olap == UNSPECIFIED_OLAP_TYPE)
   {
-    nesting_map save_allow_sum_func= thd->lex->allow_sum_func;
-    thd->where="having clause";
-    thd->lex->allow_sum_func|= (nesting_map)1 << nest_level;
-    having_fix_field= 1;
-    resolve_place= RESOLVE_HAVING;
-    bool having_fix_rc= (!m_having_cond->fixed &&
-                         (m_having_cond->
-                          fix_fields(thd, &m_having_cond) ||
-                          m_having_cond->check_cols(1)));
-    having_fix_field= 0;
-
-    resolve_place= RESOLVE_NONE;
-    if (having_fix_rc || thd->is_error())
-      DBUG_RETURN(-1);				/* purecov: inspected */
-    thd->lex->allow_sum_func= save_allow_sum_func;
+    /*
+      All GROUP expressions are in SELECT list, so resulting rows are distinct.
+      ROLLUP is not specified, so adds no row. So all rows in the result set
+      are distinct, DISTINCT is useless.
+      @todo could remove DISTINCT if ROLLUP were specified and all GROUP
+      expressions were non-nullable, because ROLLUP adds only NULL values.
+      Currently, ROLLUP+DISTINCT is rejected because executor cannot handle
+      it in all cases.
+    */
+    remove_base_options(SELECT_DISTINCT);
   }
 
   /*
@@ -268,29 +246,19 @@ int SELECT_LEX::prepare(JOIN *join)
     undone in favour of materialization, when optimizing a later statement
     using the view)
   */
-  if (master_unit()->item &&    // This is a subquery
-                                            // Not normalizing a view
+  if (unit->item &&                      // This is a subquery
+      this != unit->fake_select_lex &&   // A real query block
+                                         // Not normalizing a view
       !(thd->lex->context_analysis_only & CONTEXT_ANALYSIS_ONLY_VIEW))
   {
-    /* Join object is a subquery within an IN/ANY/ALL/EXISTS predicate */
+    // Query block represents a subquery within an IN/ANY/ALL/EXISTS predicate
     if (resolve_subquery(thd))
-      DBUG_RETURN(-1);
-  }
-
-  if (join->order)
-  {
-    for (ORDER *ord= join->order; ord; ord= ord->next)
-    {
-      Item *item= *ord->item;
-      if (item->with_sum_func && item->type() != Item::SUM_FUNC_ITEM)
-        item->split_sum_func(thd, join->ref_ptrs, join->all_fields);
-    }
+      DBUG_RETURN(true);
   }
 
   if (m_having_cond && m_having_cond->with_sum_func)
-    m_having_cond->
-      split_sum_func2(thd, join->ref_ptrs,
-                      join->all_fields, &m_having_cond, TRUE);
+    m_having_cond->split_sum_func2(thd, ref_ptrs, all_fields, &m_having_cond,
+                                   true);
   if (inner_sum_func_list)
   {
     Item_sum *end=inner_sum_func_list;
@@ -298,17 +266,15 @@ int SELECT_LEX::prepare(JOIN *join)
     do
     { 
       item_sum= item_sum->next;
-      item_sum->split_sum_func2(thd, join->ref_ptrs,
-                                join->all_fields, item_sum->ref_by, FALSE);
+      item_sum->split_sum_func2(thd, ref_ptrs,
+                                all_fields, item_sum->ref_by, false);
     } while (item_sum != end);
   }
 
-  if (inner_refs_list.elements &&
-      fix_inner_refs(thd, join->all_fields, this, join->ref_ptrs,
-                     join->group_list))
-    DBUG_RETURN(-1);
+  if (inner_refs_list.elements && fix_inner_refs(thd))
+    DBUG_RETURN(true);  /* purecov: inspected */
 
-  if (join->group_list)
+  if (group_list.elements)
   {
     /*
       Because HEAP tables can't index BIT fields we need to use an
@@ -316,52 +282,28 @@ int SELECT_LEX::prepare(JOIN *join)
       converted to a LONG field. Original field will remain of the
       BIT type and will be returned to a client.
     */
-    for (ORDER *ord= join->group_list; ord; ord= ord->next)
+    for (ORDER *ord= (ORDER *)group_list.first; ord; ord= ord->next)
     {
       if ((*ord->item)->type() == Item::FIELD_ITEM &&
           (*ord->item)->field_type() == MYSQL_TYPE_BIT)
       {
         Item_field *field= new Item_field(thd, *(Item_field**)ord->item);
-        int el= join->all_fields.elements;
-        join->ref_ptrs[el]= field;
-        join->all_fields.push_front(field);
-        ord->item= &join->ref_ptrs[el];
+        int el= all_fields.elements;
+        ref_ptrs[el]= field;
+        all_fields.push_front(field);
+        ord->item= &ref_ptrs[el];
       }
     }
   }
 
   if (setup_ftfuncs(this)) /* should be after having->fix_fields */
-    DBUG_RETURN(-1);
+    DBUG_RETURN(true);
 
-  {
-    /* Caclulate the number of groups */
-    join->send_group_parts= 0;
-    for (ORDER *group_tmp= join->group_list ;
-         group_tmp ;
-         group_tmp= group_tmp->next)
-      join->send_group_parts++;
-  }
+  if (query_result() && query_result()->prepare(fields_list, unit))
+    DBUG_RETURN(true);
 
-  if (join->result && join->result->prepare(join->fields_list, unit))
-    DBUG_RETURN(-1); /* purecov: inspected */
-
-  /* Init join struct */
-  count_field_types(this, &join->tmp_table_param, join->all_fields, false,
-                    false);
-  join->group= join->group_list != 0;
-  join->unit= unit;
-
-  if (join->tmp_table_param.sum_func_count && !join->group_list)
-  {
-    join->implicit_grouping= TRUE;
-    // Result will contain zero or one row - ordering is meaningless
-    join->order= NULL;
-  }
-
-  if (olap == ROLLUP_TYPE && join->rollup_init())
-    DBUG_RETURN(-1); /* purecov: inspected */
-  if (join->alloc_func_list())
-    DBUG_RETURN(-1); /* purecov: inspected */
+  if (olap == ROLLUP_TYPE && resolve_rollup(thd))
+    DBUG_RETURN(true); /* purecov: inspected */
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
   if (partitioned_table_count)
@@ -375,35 +317,29 @@ int SELECT_LEX::prepare(JOIN *join)
       if (prune_partitions(thd, tbl->table,
                            tbl->join_cond() ? tbl->join_cond() :
                                               m_where_cond))
-        DBUG_RETURN(-1); /* purecov: inspected */
+        DBUG_RETURN(true); /* purecov: inspected */
     }
   }
 #endif
 
-  {
-    uint count= leaf_table_count;
-    if (flatten_subqueries())
-      DBUG_RETURN(-1); /* purecov: inspected */
-    count= leaf_table_count - count;
-    join->tables+= count;
-    join->primary_tables+= count;
-    sj_candidates= NULL;
-  }
+  if (flatten_subqueries())
+    DBUG_RETURN(true);
 
-  SELECT_LEX *const parent= outer_select();
-  if (!parent || !parent->join)
+  sj_candidates= NULL;
+
+  if (!outer_select())
   {
     /*
-      We come here in several cases:
-      - if this is the definition of a derived table
-      - if this is the top query block of a SELECT or multi-table
-      UPDATE/DELETE statement.
+      This code is invoked in the following cases:
+      - if this is an outer-most query block of a SELECT or multi-table
+        UPDATE/DELETE statement. Notice that for a UNION, this applies to
+        all query blocks. It also applies to a fake_select_lex object.
       - if this is one of highest-level subqueries, if the statement is
-      something else; like subq-i in:
-        UPDATE t1 SET col1=(subq-1), col2=(subq-2);
+        something else; like subq-i in:
+          UPDATE t1 SET col1=(subq-1), col2=(subq-2);
 
       Local transforms are applied after query block merging.
-      This means that we avoid unecessary invocations, as local transforms
+      This means that we avoid unnecessary invocations, as local transforms
       would otherwise have been performed first before query block merging and
       then another time after query block merging.
       Thus, apply_local_transforms() may run only after the top query
@@ -411,31 +347,30 @@ int SELECT_LEX::prepare(JOIN *join)
       apply_local_transforms() is initiated only by the top query, and then
       recurses into subqueries.
     */
-    if (apply_local_transforms())
-      DBUG_RETURN(-1);
+    if (apply_local_transforms(thd))
+      DBUG_RETURN(true);  /* purecov: inspected */
   }
 
-  // At end of preparation, we only have primary tables.
-  DBUG_ASSERT(join->tables == join->primary_tables);
-
-  DBUG_RETURN(0); // All OK
+  DBUG_ASSERT(!thd->is_error());
+  DBUG_RETURN(false);
 }
 
 
-bool SELECT_LEX::apply_local_transforms()
+/**
+  Apply local transformations to a query block.
+
+  @param thd      thread handler
+
+  @returns false if success, true if error
+
+  Since this is called after flattening of query blocks, call this function
+  while traversing the query block hierarchy top-down. 
+*/
+
+bool SELECT_LEX::apply_local_transforms(THD *thd)
 {
   DBUG_ENTER("SELECT_LEX::apply_local_transforms");
-  if (!join)
-  {
-    /*
-      If this is UNION, SELECT_LEX::prepare() for fake_select_lex (and thus
-      its subqueries-in-ORDER-BY) may be delayed to
-      st_select_lex_unit::optimize (see that function and also
-      st_select_unit::prepare), thus join is NULL here for
-      subqueries-in-ORDER-BY.
-    */
-    DBUG_RETURN(false);
-  }
+
   for (SELECT_LEX_UNIT *unit= first_inner_unit();
        unit;
        unit= unit->next_unit())
@@ -444,19 +379,16 @@ bool SELECT_LEX::apply_local_transforms()
          sl;
          sl= sl->next_select())
     {
-      if (sl->apply_local_transforms())
+      if (sl->apply_local_transforms(thd))
         DBUG_RETURN(true);
     }
     if (unit->fake_select_lex &&
-        unit->fake_select_lex->apply_local_transforms())
+        unit->fake_select_lex->apply_local_transforms(thd))
       DBUG_RETURN(true);
   }
 
-  if (!first_execution)
-      DBUG_RETURN(false);
-
-  THD *const thd= join->thd;
-  if (!(thd->lex->context_analysis_only & CONTEXT_ANALYSIS_ONLY_VIEW))
+  if (first_execution &&
+      !(thd->lex->context_analysis_only & CONTEXT_ANALYSIS_ONLY_VIEW))
   {
     /*
       The following code will allocate the new items in a permanent
@@ -495,8 +427,7 @@ bool SELECT_LEX::apply_local_transforms()
       when the view is later used (SELECTed...)
     */
     if ((thd->variables.sql_mode & MODE_ONLY_FULL_GROUP_BY) &&
-        ((options & SELECT_DISTINCT) || group_list.elements ||
-         agg_func_used()) &&
+        (is_distinct() || is_grouped()) &&
         check_only_full_group_by(thd))
       DBUG_RETURN(true);
   }
@@ -690,6 +621,7 @@ bool SELECT_LEX::resolve_subquery(THD *thd)
     thd->lex->set_current_select(outer);
     char const *save_where= thd->where;
     thd->where= "IN/ALL/ANY subquery";
+    Disable_semijoin_flattening DSF(outer, true);
 
     bool result= !in_predicate->left_expr->fixed &&
                   in_predicate->left_expr->fix_fields(thd,
@@ -697,7 +629,7 @@ bool SELECT_LEX::resolve_subquery(THD *thd)
     thd->lex->set_current_select(this);
     thd->where= save_where;
     if (result)
-      DBUG_RETURN(TRUE); /* purecov: deadcode */
+      DBUG_RETURN(true);
 
     /*
       Check if the left and right expressions have the same # of
@@ -710,7 +642,7 @@ bool SELECT_LEX::resolve_subquery(THD *thd)
     if (item_list.elements != in_predicate->left_expr->cols())
     {
       my_error(ER_OPERAND_COLUMNS, MYF(0), in_predicate->left_expr->cols());
-      DBUG_RETURN(TRUE);
+      DBUG_RETURN(true);
     }
   }
 
@@ -722,7 +654,8 @@ bool SELECT_LEX::resolve_subquery(THD *thd)
       2. Subquery is a single SELECT (not a UNION)
       3. Subquery does not have GROUP BY
       4. Subquery does not use aggregate functions or HAVING
-      5. Subquery predicate is at the AND-top-level of ON/WHERE clause
+      5. Subquery predicate is (a) in an ON/WHERE clause, and (b) at
+      the AND-top-level of that clause.
       6. Parent query block accepts semijoins (i.e we are not in a subquery of
       a single table UPDATE/DELETE (TODO: We should handle this at some
       point by switching to multi-table UPDATE/DELETE)
@@ -735,15 +668,17 @@ bool SELECT_LEX::resolve_subquery(THD *thd)
       in_predicate &&                                                   // 1
       !is_part_of_union() &&                                            // 2
       !group_list.elements &&                                           // 3
-      !m_having_cond && !with_sum_func &&                                 // 4
-      (outer->resolve_place == st_select_lex::RESOLVE_CONDITION ||      // 5
-       outer->resolve_place == st_select_lex::RESOLVE_JOIN_NEST) &&     // 5
+      !m_having_cond && !with_sum_func &&                               // 4
+      (outer->resolve_place == st_select_lex::RESOLVE_CONDITION ||      // 5a
+       outer->resolve_place == st_select_lex::RESOLVE_JOIN_NEST) &&     // 5a
+      !outer->semijoin_disallowed &&                                    // 5b
       outer->sj_candidates &&                                           // 6
       leaf_table_count &&                                               // 7
       in_predicate->exec_method ==
                            Item_exists_subselect::EXEC_UNSPECIFIED &&   // 8
       outer->leaf_table_count &&                                        // 9
-      !((options | outer->options) & SELECT_STRAIGHT_JOIN))             // 10
+      !((active_options() | outer->active_options()) &
+       SELECT_STRAIGHT_JOIN))                                           //10
   {
     DBUG_PRINT("info", ("Subquery is semi-join conversion candidate"));
 
@@ -763,25 +698,91 @@ bool SELECT_LEX::resolve_subquery(THD *thd)
     oto1.add("chosen", chose_semijoin);
   }
 
-  // This is the only part of the function which depends on JOIN:
   if (!chose_semijoin &&
-      subq_predicate->select_transformer(join) ==
+      subq_predicate->select_transformer(this) ==
       Item_subselect::RES_ERROR)
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
 
-  DBUG_RETURN(FALSE);
+  DBUG_RETURN(false);
 }
 
+
+/**
+  Expand all '*' in list of expressions with the matching column references
+
+  Function should not be called with no wild cards in select list
+
+  @param  thd     thread handler
+
+  @returns false if OK, true if error
+*/
+
+bool SELECT_LEX::setup_wild(THD *thd)
+{
+  DBUG_ENTER("SELECT_LEX::setup_wild");
+
+  DBUG_ASSERT(with_wild);
+
+  // PS/SP uses arena so that changes are made permanently.
+  Prepared_stmt_arena_holder ps_arena_holder(thd);
+
+  Item *item;
+  List_iterator<Item> it(fields_list);
+
+  while (with_wild && (item= it++))
+  {
+    Item_field *item_field;
+    if (item->type() == Item::FIELD_ITEM &&
+        (item_field= (Item_field *) item) &&
+        item_field->field_name &&
+        item_field->field_name[0] == '*' &&
+        !item_field->field)
+    {
+      const uint elem= fields_list.elements;
+      const bool any_privileges= item_field->any_privileges;
+      Item_subselect *subsel= master_unit()->item;
+      if (subsel && subsel->substype() == Item_subselect::EXISTS_SUBS)
+      {
+        /*
+          It is EXISTS(SELECT * ...) and we can replace * by any constant.
+
+          Item_int do not need fix_fields() because it is basic constant.
+        */
+        it.replace(new Item_int(NAME_STRING("Not_used"), (longlong) 1,
+                                MY_INT64_NUM_DECIMAL_DIGITS));
+      }
+      else
+      {
+        if (insert_fields(thd, item_field->context,
+                          item_field->db_name, item_field->table_name,
+                          &it, any_privileges))
+          DBUG_RETURN(true);
+      }
+      /*
+        all_fields is a list that has the fields list as a tail.
+        Because of this we have to update the element count also for this
+        list after expanding the '*' entry.
+      */
+      all_fields.elements+= fields_list.elements - elem;
+
+      with_wild--;
+    }
+  }
+
+  DBUG_RETURN(false);
+}
 
 /**
   Fix all conditions and outer join expressions.
 
   @param  thd     thread handler
 
-  @returns 0 if OK, 1 if error
+  @returns false if OK, true if error
 */
-int SELECT_LEX::setup_conds(THD *thd)
+bool SELECT_LEX::setup_conds(THD *thd)
 {
+  DBUG_ENTER("SELECT_LEX::setup_conds");
+
   TABLE_LIST *table= NULL;	// For HP compilers
   /*
     it_is_update set to TRUE when tables of primary SELECT_LEX (SELECT_LEX
@@ -795,7 +796,6 @@ int SELECT_LEX::setup_conds(THD *thd)
     thd->lex->which_check_option_applicable();
   bool save_is_item_list_lookup= is_item_list_lookup;
   is_item_list_lookup= 0;
-  DBUG_ENTER("setup_conds");
 
   thd->mark_used_columns= MARK_COLUMNS_READ;
   DBUG_PRINT("info", ("thd->mark_used_columns: %d", thd->mark_used_columns));
@@ -888,11 +888,11 @@ int SELECT_LEX::setup_conds(THD *thd)
   }
 
   thd->lex->current_select()->is_item_list_lookup= save_is_item_list_lookup;
-  DBUG_RETURN(MY_TEST(thd->is_error()));
+  DBUG_RETURN(thd->is_error());
 
 err_no_arena:
   is_item_list_lookup= save_is_item_list_lookup;
-  DBUG_RETURN(1);
+  DBUG_RETURN(true);
 }
 
 
@@ -1071,7 +1071,7 @@ SELECT_LEX::simplify_joins(THD *thd,
   NESTED_JOIN *nested_join;
   TABLE_LIST *prev_table= 0;
   List_iterator<TABLE_LIST> li(*join_list);
-  const bool straight_join= options & SELECT_STRAIGHT_JOIN;
+  const bool straight_join= active_options() & SELECT_STRAIGHT_JOIN;
   DBUG_ENTER("simplify_joins");
 
   /* 
@@ -1663,9 +1663,22 @@ SELECT_LEX::convert_subquery_to_semijoin(Item_exists_subselect *subq_pred)
        pointers to Item_direct_view_refs are guaranteed to be stable as 
        Item_direct_view_refs doesn't substitute itself with anything in 
        Item_direct_view_ref::fix_fields.
+
+    We have a special case for IN predicates with a scalar subquery or a
+    row subquery in the predicand (left operand), such as this:
+       (SELECT 1,2 FROM t1) IN (SELECT x,y FROM t2)
+    We cannot make the join condition 1=x AND 2=y, since that might evaluate
+    to TRUE even if t1 is empty. Instead make the join condition
+    (SELECT 1,2 FROM t1) = (x,y) in this case.
+
     */
 
-    if (in_subq_pred->left_expr->type() == Item::SUBSELECT_ITEM)
+    Item_subselect *left_subquery=
+      (in_subq_pred->left_expr->type() == Item::SUBSELECT_ITEM) ?
+      static_cast<Item_subselect *>(in_subq_pred->left_expr) : NULL;
+
+    if (left_subquery &&
+        (left_subquery->substype() == Item_subselect::SINGLEROW_SUBS))
     {
       List<Item> ref_list;
       uint i;
@@ -2011,7 +2024,7 @@ bool SELECT_LEX::flatten_subqueries()
     thd->lex->set_current_select((*subq)->unit->first_select());
 
     // This is the only part of the function which uses a JOIN.
-    res= (*subq)->select_transformer((*subq)->unit->first_select()->join);
+    res= (*subq)->select_transformer((*subq)->unit->first_select());
 
     thd->lex->set_current_select(save_select_lex);
 
@@ -2038,13 +2051,9 @@ bool SELECT_LEX::flatten_subqueries()
 
 
 /**
-  Fix fields referenced from inner selects.
+  Fix fields referenced from inner query blocks.
 
   @param thd               Thread handle
-  @param all_fields        List of all fields used in select
-  @param select            Current select
-  @param ref_pointer_array Array of references to Items used in current select
-  @param group_list        GROUP BY list (is NULL by default)
 
   @details
     The function serves 3 purposes
@@ -2056,9 +2065,9 @@ bool SELECT_LEX::flatten_subqueries()
 
     - fixes references (Item_ref objects) to these fields.
 
-    If a field isn't already on the select list and the ref_pointer_array
+    If a field isn't already on the select list and the ref_ptrs array
     is provided then it is added to the all_fields list and the pointer to
-    it is saved in the ref_pointer_array.
+    it is saved in the ref_ptrs array.
 
     The class to access the outer field is determined by the following rules:
 
@@ -2081,57 +2090,51 @@ bool SELECT_LEX::flatten_subqueries()
     After this we proceed with fixing references (Item_outer_ref objects) to
     this field from inner subqueries.
 
-  @return Status
-  @retval true An error occured.
-  @retval false OK.
+  @return false if success, true if error
  */
 
-bool
-fix_inner_refs(THD *thd, List<Item> &all_fields, SELECT_LEX *select,
-               Ref_ptr_array ref_pointer_array, ORDER *group_list)
+bool SELECT_LEX::fix_inner_refs(THD *thd)
 {
   Item_outer_ref *ref;
 
-  List_iterator<Item_outer_ref> ref_it(select->inner_refs_list);
+  List_iterator<Item_outer_ref> ref_it(inner_refs_list);
   while ((ref= ref_it++))
   {
     bool direct_ref= false;
     Item *item= ref->outer_ref;
     Item **item_ref= ref->ref;
-    Item_ref *new_ref;
     /*
       TODO: this field item already might be present in the select list.
       In this case instead of adding new field item we could use an
       existing one. The change will lead to less operations for copying fields,
       smaller temporary tables and less data passed through filesort.
     */
-    if (!ref_pointer_array.is_null() && !ref->found_in_select_list)
+    if (!ref_ptrs.is_null() && !ref->found_in_select_list)
     {
       int el= all_fields.elements;
-      ref_pointer_array[el]= item;
+      ref_ptrs[el]= item;
       /* Add the field item to the select list of the current select. */
       all_fields.push_front(item);
       /*
         If it's needed reset each Item_ref item that refers this field with
         a new reference taken from ref_pointer_array.
       */
-      item_ref= &ref_pointer_array[el];
+      item_ref= &ref_ptrs[el];
     }
 
     if (ref->in_sum_func)
     {
-      Item_sum *sum_func;
-      if (ref->in_sum_func->nest_level > select->nest_level)
-        direct_ref= TRUE;
+      if (ref->in_sum_func->nest_level > nest_level)
+        direct_ref= true;
       else
       {
-        for (sum_func= ref->in_sum_func; sum_func &&
-             sum_func->aggr_level >= select->nest_level;
+        for (Item_sum *sum_func= ref->in_sum_func;
+             sum_func && sum_func->aggr_level >= nest_level;
              sum_func= sum_func->in_sum_func)
         {
-          if (sum_func->aggr_level == select->nest_level)
+          if (sum_func->aggr_level == nest_level)
           {
-            direct_ref= TRUE;
+            direct_ref= true;
             break;
           }
         }
@@ -2143,30 +2146,30 @@ fix_inner_refs(THD *thd, List<Item> &all_fields, SELECT_LEX *select,
         Check if GROUP BY item trees contain the outer ref:
         in this case we have to use Item_direct_ref instead of Item_ref.
       */
-      for (ORDER *group= group_list; group; group= group->next)
+      for (ORDER *group= group_list.first; group; group= group->next)
       {
         if ((*group->item)->walk(&Item::find_item_processor, walk_subquery,
                                  (uchar *) ref))
         {
-          direct_ref= TRUE;
+          direct_ref= true;
           break;
         }
       }
     }
-    new_ref= direct_ref ?
+    Item_ref *const new_ref= direct_ref ?
               new Item_direct_ref(ref->context, item_ref, ref->table_name,
                                   ref->field_name, ref->is_alias_of_expr()) :
               new Item_ref(ref->context, item_ref, ref->table_name,
                            ref->field_name, ref->is_alias_of_expr());
     if (!new_ref)
-      return TRUE;
+      return true;         /* purecov: inspected */
     ref->outer_ref= new_ref;
     ref->ref= &ref->outer_ref;
 
     if (!ref->fixed && ref->fix_fields(thd, 0))
-      return TRUE;
+      return true;         /* purecov: inspected */
     thd->lex->used_tables|= item->used_tables();
-    thd->lex->current_select()->select_list_tables|= item->used_tables();
+    select_list_tables|= item->used_tables();
   }
   return false;
 }
@@ -2179,33 +2182,24 @@ fix_inner_refs(THD *thd, List<Item> &all_fields, SELECT_LEX *select,
 
    ORDER BY
    DISTINCT
-   GROUP BY   if there are no aggregate functions and no HAVING
-              clause
+   GROUP BY   if there are no aggregate functions and no HAVING clause
 
-   Because redundant clauses are removed both from JOIN and
-   select_lex, the removal is permanent. Thus, it only makes sense to
-   call this function for normal queries and on first execution of
-   SP/PS
+   This removal is permanent. Thus, it only makes sense to call this function
+   for regular queries and on first execution of SP/PS
 
-   @param subq_select_lex   select_lex that is part of a subquery 
-                            predicate. This object and the associated 
-                            join is modified.
+   @param thd               thread handler
    @param hidden_group_field_count Number of hidden group fields added
                             by setup_group().
    @param hidden_order_field_count Number of hidden order fields added
                             by setup_order().
-   @param fields            Fields list from which to remove items.
-   @param ref_pointer_array Pointers to top level of all_fields.
 */
 
-static
-void remove_redundant_subquery_clauses(st_select_lex *subq_select_lex,
-                                       int hidden_group_field_count,
-                                       int hidden_order_field_count,
-                                       List<Item> &fields,
-                                       Ref_ptr_array ref_pointer_array)
+
+void SELECT_LEX::remove_redundant_subquery_clauses(THD *thd,
+                                                   int hidden_group_field_count,
+                                                   int hidden_order_field_count)
 {
-  Item_subselect *subq_predicate= subq_select_lex->master_unit()->item;
+  Item_subselect *subq_predicate= master_unit()->item;
   /*
     The removal should happen for IN, ALL, ANY and EXISTS subqueries,
     which means all but single row subqueries. Example single row
@@ -2232,57 +2226,40 @@ void remove_redundant_subquery_clauses(st_select_lex *subq_select_lex,
 
   uint changelog= 0;
 
-  if (subq_select_lex->order_list.elements)
+  if (order_list.elements)
   {
     changelog|= REMOVE_ORDER;
-    for (ORDER *o= subq_select_lex->order_list.first; o != NULL; o= o->next)
-    {
-      if (*o->item == o->item_ptr)
-        (*o->item)->walk(&Item::clean_up_after_removal, walk_subquery,
-                         reinterpret_cast<uchar*>(subq_select_lex));
-    }
-    subq_select_lex->join->order= NULL;
-    subq_select_lex->order_list.empty();
-    while (hidden_order_field_count-- > 0)
-    {
-      fields.pop();
-      ref_pointer_array[fields.elements]= NULL;
-    }
+    empty_order_list(hidden_order_field_count);
   }
 
-  if (subq_select_lex->options & SELECT_DISTINCT)
+  if (is_distinct())
   {
     changelog|= REMOVE_DISTINCT;
-    subq_select_lex->join->select_distinct= false;
-    subq_select_lex->options&= ~SELECT_DISTINCT;
+    remove_base_options(SELECT_DISTINCT);
   }
 
-  /*
-    Remove GROUP BY if there are no aggregate functions and no HAVING
-    clause
-  */
-  if (subq_select_lex->group_list.elements &&
-      !subq_select_lex->with_sum_func && !subq_select_lex->having_cond())
+  // Remove GROUP BY if there are no aggregate functions and no HAVING clause
+
+  if (group_list.elements && !agg_func_used() && !having_cond())
   {
     changelog|= REMOVE_GROUP;
-    for (ORDER *g= subq_select_lex->group_list.first; g != NULL; g= g->next)
+    for (ORDER *g= group_list.first; g != NULL; g= g->next)
     {
       if (*g->item == g->item_ptr)
         (*g->item)->walk(&Item::clean_up_after_removal, walk_subquery,
-                         reinterpret_cast<uchar*>(subq_select_lex));
+                         reinterpret_cast<uchar*>(this));
     }
-    subq_select_lex->join->group_list= NULL;
-    subq_select_lex->group_list.empty();
+    group_list.empty();
     while (hidden_group_field_count-- > 0)
     {
-      fields.pop();
-      ref_pointer_array[fields.elements]= NULL;
+      all_fields.pop();
+      ref_ptrs[all_fields.elements]= NULL;
     }
   }
 
   if (changelog)
   {
-    Opt_trace_context * trace= &subq_select_lex->join->thd->opt_trace;
+    Opt_trace_context * trace= &thd->opt_trace;
     if (unlikely(trace->is_started()))
     {
       Opt_trace_object trace_wrapper(trace);
@@ -2299,41 +2276,27 @@ void remove_redundant_subquery_clauses(st_select_lex *subq_select_lex,
 
 
 /**
-  Function to setup clauses without sum functions.
+  Empty the ORDER list.
+  Delete corresponding elements from all_fields and ref_ptrs too.
+  If ORDER list contain any subqueries, delete them from the query block list.
+
+  @param hidden_order_field_count Number of hidden order fields to remove
 */
-static inline int
-setup_without_group(THD *thd, Ref_ptr_array ref_pointer_array,
-                    TABLE_LIST *tables,
-                    List<Item> &fields,
-                    List<Item> &all_fields,
-                    ORDER *order,
-                    ORDER *group,
-                    int *hidden_group_field_count,
-                    int *hidden_order_field_count)
+
+void SELECT_LEX::empty_order_list(int hidden_order_field_count)
 {
-  int res;
-  st_select_lex *const select= thd->lex->current_select();
-  nesting_map save_allow_sum_func=thd->lex->allow_sum_func;
-  DBUG_ENTER("setup_without_group");
-
-  thd->lex->allow_sum_func&= ~((nesting_map)1 << select->nest_level);
-  DBUG_ASSERT(tables == select->get_table_list());
-  res= select->setup_conds(thd);
-
-  // GROUP BY
-  int all_fields_count= all_fields.elements;
-  res= res || setup_group(thd, ref_pointer_array, tables, fields, all_fields,
-                          group);
-  *hidden_group_field_count= all_fields.elements - all_fields_count;
-
-  // ORDER BY
-  all_fields_count= all_fields.elements;
-  thd->lex->allow_sum_func|= (nesting_map)1 << select->nest_level;
-  res= res || setup_order(thd, ref_pointer_array, tables, fields, all_fields,
-                          order);
-  *hidden_order_field_count= all_fields.elements - all_fields_count;
-  thd->lex->allow_sum_func= save_allow_sum_func;
-  DBUG_RETURN(res);
+  for (ORDER *o= order_list.first; o != NULL; o= o->next)
+  {
+    if (*o->item == o->item_ptr)
+      (*o->item)->walk(&Item::clean_up_after_removal, walk_subquery,
+                       reinterpret_cast<uchar*>(this));
+  }
+  order_list.empty();
+  while (hidden_order_field_count-- > 0)
+  {
+    all_fields.pop();
+    ref_ptrs[all_fields.elements]= NULL;
+  }
 }
 
 
@@ -2519,8 +2482,7 @@ find_order_in_list(THD *thd, Ref_ptr_array ref_pointer_array, TABLE_LIST *tables
     thd->lex->current_select()->group_fix_field= TRUE;
   bool ret= (!order_item->fixed &&
       (order_item->fix_fields(thd, order->item) ||
-       (order_item= *order->item)->check_cols(1) ||
-       thd->is_fatal_error));
+       (order_item= *order->item)->check_cols(1)));
   thd->lex->current_select()->group_fix_field= save_group_fix_field;
   if (ret)
     return TRUE; /* Wrong field. */
@@ -2541,29 +2503,35 @@ find_order_in_list(THD *thd, Ref_ptr_array ref_pointer_array, TABLE_LIST *tables
 
 
 /**
-  Change order to point at item in select list.
+  Resolve and setup list of expressions in ORDER BY clause.
 
+  Change order to point at item in select list.
   If item isn't a number and doesn't exists in the select list, add it to the
   the field list.
+
+  @param thd  Thread handler
+
+  @returns false if success, true if error
 */
 
-int setup_order(THD *thd, Ref_ptr_array ref_pointer_array, TABLE_LIST *tables,
-		List<Item> &fields, List<Item> &all_fields, ORDER *order)
+bool setup_order(THD *thd, Ref_ptr_array ref_pointer_array, TABLE_LIST *tables,
+                 List<Item> &fields, List<Item> &all_fields, ORDER *order)
 {
+  DBUG_ASSERT(order);
+
   SELECT_LEX *const select= thd->lex->current_select();
 
   thd->where="order clause";
 
   const bool for_union= select->master_unit()->is_union() &&
                         select == select->master_unit()->fake_select_lex;
-  const bool is_aggregated= select->agg_func_used() ||
-                            select->group_list.elements;
+  const bool is_aggregated= select->is_grouped();
 
   for (uint number= 1; order; order=order->next, number++)
   {
     if (find_order_in_list(thd, ref_pointer_array, tables, order, fields,
-			   all_fields, FALSE))
-      return 1;
+			   all_fields, false))
+      return true;
     if ((*order->item)->with_sum_func)
     {
       /*
@@ -2577,7 +2545,7 @@ int setup_order(THD *thd, Ref_ptr_array ref_pointer_array, TABLE_LIST *tables,
       if (for_union)
       {
         my_error(ER_AGGREGATE_ORDER_FOR_UNION, MYF(0), number);
-        return 1;
+        return true;
       }
 
       /*
@@ -2590,11 +2558,11 @@ int setup_order(THD *thd, Ref_ptr_array ref_pointer_array, TABLE_LIST *tables,
       if (!is_aggregated && select->agg_func_used())
       {
         my_error(ER_AGGREGATE_ORDER_NON_AGG_QUERY, MYF(0), number);
-        return 1;
+        return true;
       }
     }
   }
-  return 0;
+  return false;
 }
 
 
@@ -2602,7 +2570,6 @@ int setup_order(THD *thd, Ref_ptr_array ref_pointer_array, TABLE_LIST *tables,
    Runs checks mandated by ONLY_FULL_GROUP_BY
 
    @param  thd                     THD pointer
-   @param  select                  Query block
 
    @returns true if ONLY_FULL_GROUP_BY is violated.
 */
@@ -2611,7 +2578,7 @@ bool SELECT_LEX::check_only_full_group_by(THD *thd)
 {
   bool rc= false;
 
-  if (group_list.elements || agg_func_used())
+  if (is_grouped())
   {
     MEM_ROOT root;
     /*
@@ -2628,7 +2595,7 @@ bool SELECT_LEX::check_only_full_group_by(THD *thd)
   }
 
   if (!rc &&
-      (options & SELECT_DISTINCT) &&
+      is_distinct() &&
       // aggregate without GROUP => single-row result => don't bother user
       !(!group_list.elements && agg_func_used()))
   {
@@ -2641,45 +2608,79 @@ bool SELECT_LEX::check_only_full_group_by(THD *thd)
 
 
 /**
-  Initialize the GROUP BY list.
+  Do final setup of ORDER BY clause, after the query block is fully resolved.
 
-  @param thd			Thread handler
-  @param ref_pointer_array	We store references to all fields that was
-                               not in 'fields' here.
-  @param fields		All fields in the select part. Any item in
-                               'order' that is part of these list is replaced
-                               by a pointer to this fields.
-  @param all_fields		Total list of all unique fields used by the
-                               select. All items in 'order' that was not part
-                               of fields will be added first to this list.
-  @param order			The fields we should do GROUP BY on.
+  Check that ORDER BY clause is not redundant.
+  Split any aggregate functions.
 
-  @retval
-    0  ok
-  @retval
-    1  error (probably out of memory)
+  @param thd                      Thread handler
+  @param hidden_order_field_count Number of fields to delete from ref array
+                                  if ORDER BY clause is redundant.
+
+  @returns false if success, true if error
 */
-
-static int
-setup_group(THD *thd, Ref_ptr_array ref_pointer_array, TABLE_LIST *tables,
-            List<Item> &fields, List<Item> &all_fields, ORDER *order)
+bool SELECT_LEX::setup_order_final(THD *thd, int hidden_order_field_count)
 {
-  if (!order)
-    return 0;				/* Everything is ok */
-
-  thd->where="group statement";
-  for (ORDER *ord= order; ord; ord= ord->next)
+  if (is_implicitly_grouped())
   {
-    if (find_order_in_list(thd, ref_pointer_array, tables, ord, fields,
-			   all_fields, TRUE))
-      return 1;
-    if ((*ord->item)->with_sum_func)
+    // Result will contain zero or one row - ordering is redundant
+    empty_order_list(hidden_order_field_count);
+    return false;
+  }
+
+  if ((master_unit()->is_union() || master_unit()->fake_select_lex) &&
+      this != master_unit()->fake_select_lex &&
+      !(braces && explicit_limit))
+  {
+    // Part of UNION which requires global ordering may skip local order
+    empty_order_list(hidden_order_field_count);
+    return false;
+  }
+
+  for (ORDER *ord= (ORDER *)order_list.first; ord; ord= ord->next)
+  {
+    Item *const item= *ord->item;
+
+    if (item->with_sum_func && item->type() != Item::SUM_FUNC_ITEM)
     {
-      my_error(ER_WRONG_GROUP_FIELD, MYF(0), (*ord->item)->full_name());
-      return 1;
+      item->split_sum_func(thd, ref_ptrs, all_fields);
+      if (thd->is_error())
+        return true;       /* purecov: inspected */
     }
   }
-  return 0;
+  return false;
+}
+
+
+/**
+  Resolve and set up the GROUP BY list.
+
+  @param thd			Thread handler
+
+  @todo
+    change ER_WRONG_FIELD_WITH_GROUP to more detailed
+    ER_NON_GROUPING_FIELD_USED
+
+  @returns false if success, true if error
+*/
+
+bool SELECT_LEX::setup_group(THD *thd)
+{
+  DBUG_ASSERT(group_list.elements);
+
+  thd->where="group statement";
+  for (ORDER *group= group_list.first; group; group= group->next)
+  {
+    if (find_order_in_list(thd, ref_ptrs, get_table_list(), group, fields_list,
+			   all_fields, true))
+      return true;
+    if ((*group->item)->with_sum_func)
+    {
+      my_error(ER_WRONG_GROUP_FIELD, MYF(0), (*group->item)->full_name());
+      return true;
+    }
+  }
+  return false;
 }
 
 
@@ -2688,7 +2689,7 @@ setup_group(THD *thd, Ref_ptr_array ref_pointer_array, TABLE_LIST *tables,
 ****************************************************************************/
 
 /**
-  Replace occurences of group by fields in an expression by ref items.
+  Replace occurrences of group by fields in an expression by ref items.
 
   The function replaces occurrences of group by fields in expr
   by ref objects for these fields unless they are under aggregate
@@ -2714,148 +2715,95 @@ setup_group(THD *thd, Ref_ptr_array ref_pointer_array, TABLE_LIST *tables,
 
   @param thd                  reference to the context
   @param expr                 expression to make replacement
-  @param group_list           list of references to group by items
-  @param changed        out:  returns 1 if item contains a replaced field item
+  @param changed[out]  returns true if item contains a replaced field item
 
   @todo
     - TODO: Some functions are not null-preserving. For those functions
     updating of the maybe_null attribute is an overkill. 
 
-  @retval
-    0	if ok
-  @retval
-    1   on error
+  @returns false if success, true if error
+
 */
 
-static bool change_group_ref(THD *thd, Item_func *expr, ORDER *group_list,
-                             bool *changed)
+bool SELECT_LEX::change_group_ref(THD *thd, Item_func *expr, bool *changed)
 {
-  if (expr->arg_count)
+  Item **arg,**arg_end;
+  bool arg_changed= false;
+  for (arg= expr->arguments(),
+       arg_end= expr->arguments()+expr->arg_count;
+       arg != arg_end; arg++)
   {
-    Name_resolution_context *context= &thd->lex->current_select()->context;
-    Item **arg,**arg_end;
-    bool arg_changed= FALSE;
-    for (arg= expr->arguments(),
-         arg_end= expr->arguments()+expr->arg_count;
-         arg != arg_end; arg++)
+    Item *const item= *arg;
+    if (item->type() == Item::FIELD_ITEM || item->type() == Item::REF_ITEM)
     {
-      Item *item= *arg;
-      if (item->type() == Item::FIELD_ITEM || item->type() == Item::REF_ITEM)
+      for (ORDER *group= (ORDER *)group_list.first; group; group= group->next)
       {
-        ORDER *group_tmp;
-        for (group_tmp= group_list; group_tmp; group_tmp= group_tmp->next)
+        if (item->eq(*group->item, 0))
         {
-          if (item->eq(*group_tmp->item,0))
-          {
-            Item *new_item;
-            if (!(new_item= new Item_ref(context, group_tmp->item, 0,
-                                        item->item_name.ptr())))
-              return 1;                                 // fatal_error is set
-            thd->change_item_tree(arg, new_item);
-            arg_changed= TRUE;
-          }
+          Item *new_item;
+          if (!(new_item= new Item_ref(&context, group->item, 0,
+                                       item->item_name.ptr())))
+            return true;              /* purecov: inspected */
+          thd->change_item_tree(arg, new_item);
+          arg_changed= true;
         }
       }
-      else if (item->type() == Item::FUNC_ITEM)
-      {
-        if (change_group_ref(thd, (Item_func *) item, group_list, &arg_changed))
-          return 1;
-      }
     }
-    if (arg_changed)
+    else if (item->type() == Item::FUNC_ITEM)
     {
-      expr->maybe_null= 1;
-      *changed= TRUE;
+      if (change_group_ref(thd, (Item_func *) item, &arg_changed))
+        return true;
     }
   }
-  return 0;
+  if (arg_changed)
+  {
+    expr->maybe_null= true;
+    *changed= true;
+  }
+  return false;
 }
 
 
-/** Allocate memory needed for other rollup functions. */
+/**
+  Resolve items for rollup processing
 
-bool JOIN::rollup_init()
+  @param   thd   Thread handler
+
+  @returns false if success, true if error
+*/
+
+bool SELECT_LEX::resolve_rollup(THD *thd)
 {
-  uint i,j;
-  Item **ref_array;
-  ORDER *group_tmp;
-
-  tmp_table_param.quick_group= 0;	// Can't create groups in tmp table
-  rollup.state= ROLLUP::STATE_INITED;
-
-  /*
-    Create pointers to the different sum function groups
-    These are updated by rollup_make_fields()
-  */
-  tmp_table_param.group_parts= send_group_parts;
-
-  Item_null_result **null_items=
-    static_cast<Item_null_result**>(thd->alloc(sizeof(Item*)*send_group_parts));
-
-  rollup.null_items= Item_null_array(null_items, send_group_parts);
-  rollup.ref_pointer_arrays=
-    static_cast<Ref_ptr_array*>
-    (thd->alloc((sizeof(Ref_ptr_array) +
-                 all_fields.elements * sizeof(Item*)) * send_group_parts));
-  rollup.fields=
-    static_cast<List<Item>*>(thd->alloc(sizeof(List<Item>) * send_group_parts));
-
-  if (!null_items || !rollup.ref_pointer_arrays || !rollup.fields)
-    return true;
-
-  ref_array= (Item**) (rollup.ref_pointer_arrays+send_group_parts);
-
-  /*
-    Prepare space for field list for the different levels
-    These will be filled up in rollup_make_fields()
-  */
-  group_tmp= group_list;
-  for (i= 0 ; i < send_group_parts ; i++)
-  {
-    rollup.null_items[i]=
-      new (thd->mem_root) Item_null_result((*group_tmp->item)->field_type(),
-                                           (*group_tmp->item)->result_type());
-    List<Item> *rollup_fields= &rollup.fields[i];
-    rollup_fields->empty();
-    rollup.ref_pointer_arrays[i]= Ref_ptr_array(ref_array, all_fields.elements);
-    ref_array+= all_fields.elements;
-    group_tmp= group_tmp->next;
-  }
-  for (i= 0 ; i < send_group_parts; i++)
-  {
-    for (j=0 ; j < fields_list.elements ; j++)
-      rollup.fields[i].push_back(rollup.null_items[i]);
-  }
   List_iterator<Item> it(all_fields);
   Item *item;
   while ((item= it++))
   {
-    bool found_in_group= 0;
+    bool found_in_group= false;
 
-    for (group_tmp= group_list; group_tmp; group_tmp= group_tmp->next)
+    for (ORDER *group= (ORDER *)group_list.first; group; group= group->next)
     {
-      if (*group_tmp->item == item)
+      if (*group->item == item)
       {
-        item->maybe_null= 1;
-        found_in_group= 1;
+        item->maybe_null= true;
+        found_in_group= true;
         break;
       }
     }
     if (item->type() == Item::FUNC_ITEM && !found_in_group)
     {
-      bool changed= FALSE;
-      if (change_group_ref(thd, (Item_func *) item, group_list, &changed))
-        return 1;
+      bool changed= false;
+      if (change_group_ref(thd, (Item_func *) item, &changed))
+        return true;       /* purecov: inspected */
       /*
         We have to prevent creation of a field in a temporary table for
         an expression that contains GROUP BY attributes.
         Marking the expression item as 'with_sum_func' will ensure this.
       */ 
       if (changed)
-        item->with_sum_func= 1;
+        item->with_sum_func= true;
     }
   }
-  return 0;
+  return false;
 }
 
 

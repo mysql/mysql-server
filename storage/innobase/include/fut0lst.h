@@ -122,15 +122,13 @@ flst_truncate_end(
 	flst_node_t*		node2,	/*!< in: first node not to remove */
 	ulint			n_nodes,/*!< in: number of nodes to remove */
 	mtr_t*			mtr);	/*!< in: mini-transaction handle */
-/********************************************************************//**
-Gets list length.
+/** Get the length of a list.
+@param[in]	base	base node
 @return length */
 UNIV_INLINE
 ulint
 flst_get_len(
-/*=========*/
-	const flst_base_node_t*	base,	/*!< in: pointer to base node */
-	mtr_t*			mtr);	/*!< in: mini-transaction handle */
+	const flst_base_node_t*	base);
 /********************************************************************//**
 Gets list first node address.
 @return file address */
