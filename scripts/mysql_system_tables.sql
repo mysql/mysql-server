@@ -2390,22 +2390,6 @@ PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
 
-# Only create objects if ndbinfo namespace is free
-SET @str=IF(@have_ndbinfo,'SET @@ndbinfo_show_hidden=TRUE','SET @dummy = 0');
-PREPARE stmt FROM @str;
-EXECUTE stmt;
-DROP PREPARE stmt;
-
-SET @str=IF(@have_ndbinfo,'SELECT @have_ndbinfo:= COUNT(*) = 0 FROM information_schema.tables WHERE table_schema = @@ndbinfo_database AND LEFT(table_name, LENGTH(@@ndbinfo_table_prefix)) = @@ndbinfo_table_prefix AND engine != "ndbinfo"','SET @dummy = 0');
-PREPARE stmt FROM @str;
-EXECUTE stmt;
-DROP PREPARE stmt;
-
-SET @str=IF(@have_ndbinfo,'SET @@ndbinfo_show_hidden=default','SET @dummy = 0');
-PREPARE stmt FROM @str;
-EXECUTE stmt;
-DROP PREPARE stmt;
-
 SET @str=IF(@have_ndbinfo,'CREATE DATABASE IF NOT EXISTS `ndbinfo`','SET @dummy = 0');
 PREPARE stmt FROM @str;
 EXECUTE stmt;
