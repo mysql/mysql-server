@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2014, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -42,7 +42,6 @@ TODO:
 */
 
 #include "my_global.h"
-#include "sql_priv.h"
 #include "sql_class.h"                          // SSV
 #include <mysql/plugin.h>
 #include <mysql/psi/mysql_file.h>

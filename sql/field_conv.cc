@@ -24,7 +24,6 @@
     gives much more speed.
 */
 
-#include "sql_priv.h"
 #include "sql_class.h"                          // THD
 #include "sql_time.h"
 #include <m_ctype.h>
