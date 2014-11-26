@@ -146,8 +146,35 @@ if (!$myisam_engine)
   --echo # SELECT * FROM tbl_name WHERE <non-gcol expr> ORDER BY <non-indexed gcol>
   let $s = select * from t3 where a between 1 and 2 order by b;
   eval $s;
+  eval explain $s; 
+  --echo # bug#20022189: WL411:DEBUG ASSERT AT FIELD_LONG::VAL_INT IN SQL/FIELD.CC
+  --echo # SELECT * FROM tbl_name WHERE <non-gcol expr> ORDER BY <non-indexed stored gcol>
+  let $s = select * from t3 where a between 1 and 2 order by c;
+  eval $s;
   eval explain $s;
 }
+--echo # bug#20022189: WL411:DEBUG ASSERT AT FIELD_LONG::VAL_INT IN SQL/FIELD.CC
+CREATE TABLE t4 (
+  `pk` int(11) NOT NULL AUTO_INCREMENT,
+  `col_int_nokey` int(11) GENERATED ALWAYS AS (pk + col_int_key) STORED,
+  `col_int_key` int(11) DEFAULT NULL,
+  `col_date_nokey` date DEFAULT NULL,
+  `col_datetime_key` datetime DEFAULT NULL,
+  PRIMARY KEY (`pk`),
+  KEY `col_int_key` (`col_int_key`),
+  KEY `col_datetime_key` (`col_datetime_key`)
+);
+
+INSERT INTO t4 VALUES
+(1,default,4,'2008-12-05','1900-01-01 00:00:00');
+
+SELECT
+SQL_BIG_RESULT 
+GRANDPARENT1 . `col_int_nokey` AS g1
+FROM t4 AS GRANDPARENT1 LEFT JOIN t4 AS GRANDPARENT2 ON ( GRANDPARENT2 .
+`col_datetime_key` <= GRANDPARENT1 . `col_date_nokey` )
+GROUP BY GRANDPARENT1 . `pk`;
+DROP TABLE t4;
 
 --echo # SELECT * FROM tbl_name WHERE <non-gcol expr> ORDER BY <indexed gcol>
 let $s = select * from t3 where a between 1 and 2 order by c;

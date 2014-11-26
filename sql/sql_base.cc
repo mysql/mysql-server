@@ -9176,7 +9176,7 @@ fill_record(THD * thd, List<Item> &fields, List<Item> &values,
       if (table != prev_table)
       {
         prev_table= table;
-        if (table->vfield && update_generated_fields(table))
+        if (table->vfield && update_generated_write_fields(table))
           goto err;
       }
     }
@@ -9373,7 +9373,7 @@ fill_record_n_invoke_before_triggers(THD *thd, List<Item> &fields,
         if (item_field && item_field->field && 
             (table= item_field->field->table) &&
             table->vfield)
-          rc= update_generated_fields(table);
+          rc= update_generated_write_fields(table);
       }
     }
     table->triggers->disable_fields_temporary_nullability();
@@ -9475,7 +9475,7 @@ fill_record(THD *thd, Field **ptr, List<Item> &values,
       if (table != prev_table)
       {
         prev_table= table;
-        if (table->vfield && update_generated_fields(table))
+        if (table->vfield && update_generated_write_fields(table))
           goto err;
       }
     }
@@ -9551,7 +9551,7 @@ fill_record_n_invoke_before_triggers(THD *thd, Field **ptr,
     {
       TABLE *table= (*ptr)->table;
       if (table->vfield)
-        rc= update_generated_fields(table);
+        rc= update_generated_write_fields(table);
     }
     bitmap_free(&insert_into_fields_bitmap);
     table->triggers->disable_fields_temporary_nullability();
