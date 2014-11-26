@@ -5790,7 +5790,6 @@ bool Item_func_set_user_var::register_field_in_read_map(uchar *arg)
 
 /*
   Mark field in bitmap supplied as *arg
-
 */
 
 bool Item_func_set_user_var::register_field_in_bitmap(uchar *arg)

@@ -5543,7 +5543,7 @@ bool add_field_to_list(THD *thd, LEX_STRING *field_name, enum_field_types type,
 		       char *change,
                        List<String> *interval_list, const CHARSET_INFO *cs,
 		       uint uint_geom_type,
-                       generated_column_info *gcol_info)
+                       Generated_column *gcol_info)
 {
   Create_field *new_field;
   LEX  *lex= thd->lex;

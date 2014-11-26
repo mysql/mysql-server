@@ -87,10 +87,10 @@ enum enum_server_command
   COM_END
 };
 
-/* The length of the header part for each virtual column in the .frm file. */
+/* The length of the header part for each generated column in the .frm file. */
 #define FRM_GCOL_HEADER_SIZE 4
 /*
-  Maximum length of the expression statement defined for virtual columns.
+  Maximum length of the expression statement defined for generated columns.
 */
 #define GENERATED_COLUMN_EXPRESSION_MAXLEN 65535 - FRM_GCOL_HEADER_SIZE
 /*

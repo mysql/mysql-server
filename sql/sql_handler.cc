@@ -792,7 +792,8 @@ retry:
       goto ok;
     }
     /* Generate values for generated fields */
-    update_generated_fields_marked_for_write(table);
+    if (table->vfield && update_generated_fields(table))
+      goto err;
     if (cond && !cond->val_int())
     {
       if (thd->is_error())

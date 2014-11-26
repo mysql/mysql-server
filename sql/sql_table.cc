@@ -3662,7 +3662,7 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
       auto_increment++;
     /*
       For now skip fields that are not physically stored in the database
-      (virtual fields) and update their offset later 
+      (generated fields) and update their offset later 
       (see the next loop).
     */
     if (sql_field->stored_in_db)
@@ -9347,7 +9347,8 @@ copy_data_between_tables(PSI_stage_progress *psi,
     {
       copy_ptr->invoke_do_copy(copy_ptr);
     }
-    update_generated_fields_marked_for_write(to);
+    if (to->vfield && update_generated_fields(to))
+      goto err;
     if (thd->is_error())
     {
       error= 1;

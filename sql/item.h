@@ -1846,14 +1846,17 @@ public:
   {
     return FALSE;
   }
-  /*
-    Check if an expression/function is allowed for a virtual column
-    SYNOPSIS
-      check_gcol_func_processor()
-      int_arg is just ignored
-    RETURN VALUE
-      TRUE                           Function not accepted
-      FALSE                          Function accepted
+
+ /**
+   @brief  check_gcol_func_processor
+     Check if an expression/function is allowed for a virtual column
+
+   @param int_arg It is just ignored
+
+   @return
+     TRUE                           Function not accepted
+   @return
+     FALSE                          Function accepted
   */
   virtual bool check_gcol_func_processor(uchar *int_arg) 
   {

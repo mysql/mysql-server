@@ -2,7 +2,7 @@
 # inc/gcol_unsupported_storage_engines.inc                                     #
 #                                                                              #
 # Purpose:                                                                     #
-#  Ensure that defining a virtual column for an unsupported table type         #
+#  Ensure that defining a generated column for an unsupported table type       #
 #  results in a graceful error.                                                #
 #                                                                              #
 #------------------------------------------------------------------------------#

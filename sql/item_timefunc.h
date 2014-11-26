@@ -499,7 +499,7 @@ public:
   {
     /*
       TODO: Allow UNIX_TIMESTAMP called with an argument to be a part
-      of the expression for a virtual column
+      of the expression for a generated column
     */
     DBUG_ENTER("Item_func_unix_timestamp::check_gcol_func_processor");
     DBUG_PRINT("info",

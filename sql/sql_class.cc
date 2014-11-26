@@ -411,14 +411,18 @@ bool foreign_key_prefix(Key *a, Key *b)
 #endif
 }
 
-/*
-  Check if the foreign key options are compatible with columns
-  on which the FK is created.
+/**
+  @brief  validate
+    Check if the foreign key options are compatible with columns
+    on which the FK is created.
 
-  RETURN
+  @param table_fields         List of columns 
+
+  @return
     0   Key valid
+  @return
     1   Key invalid
-*/
+ */
 bool Foreign_key::validate(List<Create_field> &table_fields)
 {
   Create_field  *sql_field;

@@ -7113,11 +7113,11 @@ find_field_in_table(THD *thd, TABLE *table, const char *name, size_t length,
         gcol_item->walk(&Item::register_field_in_read_map, Item::WALK_PREFIX,
                         (uchar *) 0);
         /*
-          As non-persistent virtual columns are calculated on the fly, they
+          As non-persistent generated columns are calculated on the fly, they
           needs to be stored (written, even for read-only statements) to the
-          field in order to be used, so set the virtual field for write here if
+          field in order to be used, so set the generated field for write here if
           1) this procedure is called for a read-only operation (SELECT), and
-          2) the virtual column is not phycically stored in the table
+          2) the generated column is not phycically stored in the table
         */
         if (thd->mark_used_columns != MARK_COLUMNS_WRITE && 
             !(*field_ptr)->stored_in_db)
@@ -8995,7 +8995,7 @@ insert_fields(THD *thd, Name_resolution_context *context, const char *db_name,
         /* Mark fields as used to allow storage engine to optimze access */
         bitmap_set_bit(field->table->read_set, field->field_index);
         /*
-          Mark virtual fields for write and others that the virtual fields
+          Mark generated fields for write and others that the generated fields
           depend on for read.
         */
         if (field->gcol_info)
@@ -9161,7 +9161,7 @@ fill_record(THD * thd, List<Item> &fields, List<Item> &values,
       bitmap_set_bit(insert_into_fields_bitmap, rfield->field_index);
     tbl_list.push_back(table);
   }
-  /* Update virtual fields*/
+  /* Update generated fields*/
   if (tbl_list.elements)
   {
     tbl_list.sort((Node_cmp_func)ptr_cmp_func, NULL);
@@ -9171,18 +9171,13 @@ fill_record(THD * thd, List<Item> &fields, List<Item> &values,
     {
       /*
         Do simple optimization to prevent unnecessary re-generating 
-        values for virtual fields
+        values for generated fields
       */
       if (table != prev_table)
       {
         prev_table= table;
-        if (table->vfield)
-        {
-          if (update_generated_fields_marked_for_write(table))
-          {
-            goto err;
-          }
-        }
+        if (table->vfield && update_generated_fields(table))
+          goto err;
       }
     }
   }
@@ -9362,7 +9357,7 @@ fill_record_n_invoke_before_triggers(THD *thd, List<Item> &fields,
           table->triggers->process_triggers(thd, event, TRG_ACTION_BEFORE, true);
     }
     /* 
-      Re-calculate virtual fields to cater for cases when base columns are 
+      Re-calculate generated fields to cater for cases when base columns are 
       updated by the triggers.
     */
     if (!rc)
@@ -9378,7 +9373,7 @@ fill_record_n_invoke_before_triggers(THD *thd, List<Item> &fields,
         if (item_field && item_field->field && 
             (table= item_field->field->table) &&
             table->vfield)
-          rc= update_generated_fields_marked_for_write(table);
+          rc= update_generated_fields(table);
       }
     }
     table->triggers->disable_fields_temporary_nullability();
@@ -9465,7 +9460,7 @@ fill_record(THD *thd, Field **ptr, List<Item> &values,
     if (insert_into_fields_bitmap)
       bitmap_set_bit(insert_into_fields_bitmap, field->field_index);
   }
-  /* Update virtual fields*/
+  /* Update generated fields*/
   if (tbl_list.head())
   {
     tbl_list.sort((Node_cmp_func)ptr_cmp_func, NULL);
@@ -9475,18 +9470,13 @@ fill_record(THD *thd, Field **ptr, List<Item> &values,
     {
       /*
         Do simple optimization to prevent unnecessary re-generating 
-        values for virtual fields
+        values for generated fields
       */
       if (table != prev_table)
       {
         prev_table= table;
-        if (table->vfield)
-        {
-          if (update_generated_fields_marked_for_write(table))
-          {
-            goto err;
-          }
-        }
+        if (table->vfield && update_generated_fields(table))
+          goto err;
       }
     }
   }
@@ -9554,14 +9544,14 @@ fill_record_n_invoke_before_triggers(THD *thd, Field **ptr,
                                       &insert_into_fields_bitmap);
 
     /* 
-      Re-calculate virtual fields to cater for cases when base columns are 
+      Re-calculate generated fields to cater for cases when base columns are 
       updated by the triggers.
     */
     if (!rc && *ptr)
     {
       TABLE *table= (*ptr)->table;
       if (table->vfield)
-        rc= update_generated_fields_marked_for_write(table);
+        rc= update_generated_fields(table);
     }
     bitmap_free(&insert_into_fields_bitmap);
     table->triggers->disable_fields_temporary_nullability();

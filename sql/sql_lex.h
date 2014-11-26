@@ -2737,7 +2737,7 @@ public:
   LEX_STRING comment, ident;
   LEX_USER *grant_user;
   THD *thd;
-  generated_column_info *gcol_info;
+  Generated_column *gcol_info;
 
   /* maintain a list of used plugins for this LEX */
   typedef Prealloced_array<plugin_ref,
@@ -2842,7 +2842,7 @@ public:
   bool expr_allows_subselect;
   /*
     A special command "PARSE_VCOL_EXPR" is defined for the parser 
-    to translate an expression statement of a virtual column \
+    to translate an expression statement of a generated column \
     (stored in the *.frm file as a string) into an Item object.
     The following flag is used to prevent other applications to use 
     this command.
