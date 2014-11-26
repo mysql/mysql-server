@@ -45,6 +45,10 @@ void
 ut_stage_inc(
 	PSI_stage_progress*	progress)
 {
+	if (progress == NULL) {
+		return;
+	}
+
 	const int	inc_val = 1;
 	const ulonglong	old_work_estimated
 		= mysql_stage_get_work_estimated(progress);
@@ -70,10 +74,18 @@ ut_stage_change(
 	PSI_stage_progress**	progress,
 	const PSI_stage_info*	new_stage)
 {
+	if (*progress == NULL) {
+		return;
+	}
+
 	const ulonglong	completed = mysql_stage_get_work_completed(*progress);
 	const ulonglong	estimated = mysql_stage_get_work_estimated(*progress);
 
 	*progress = mysql_set_stage(new_stage->m_key);
+
+	if (*progress == NULL) {
+		return;
+	}
 
 	mysql_stage_set_work_completed(*progress, completed);
 	mysql_stage_set_work_estimated(*progress, estimated);

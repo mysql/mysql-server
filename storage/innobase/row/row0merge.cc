@@ -2410,7 +2410,7 @@ wait_again:
 #ifdef HAVE_PSI_STAGE_INTERFACE
 #define ROW_MERGE_WRITE_GET_NEXT(N, INDEX, AT_END)			\
 	do {								\
-		if (progress != NULL && cnt % inc_every_nth_rec == 0) {	\
+		if (cnt % inc_every_nth_rec == 0) {			\
 			ut_stage_inc(progress);				\
 		}							\
 		ROW_MERGE_WRITE_GET_NEXT_LOW(N, INDEX, AT_END);		\
@@ -2998,7 +2998,7 @@ row_merge_insert_index_tuples(
 		mtr_t		mtr;
 
 #ifdef HAVE_PSI_STAGE_INTERFACE
-		if (progress != NULL && i % inc_every_nth_rec == 0) {
+		if (i % inc_every_nth_rec == 0) {
 			ut_stage_inc(progress);
 		}
 #endif /* HAVE_PSI_STAGE_INTERFACE */
