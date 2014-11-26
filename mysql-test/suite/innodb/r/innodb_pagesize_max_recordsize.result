@@ -1,4 +1,4 @@
-/work/wl5757/mysql/mysql-test/var/tmp/bootstrap.log
+MYSQL_TMP_DIR/bootstrap.log
 # Stop DB server which was created by MTR default
 # Run the bootstrap command with page size 32k
 # Start the DB server with page size 32k

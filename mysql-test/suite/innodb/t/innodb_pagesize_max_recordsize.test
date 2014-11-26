@@ -19,7 +19,7 @@
 --source include/not_embedded.inc
 # can not run parallel > 1 
 --source include/not_parallel.inc
-# can not run windows 
+# can not run windows
 --source include/linux.inc
 
 let $MYSQLD_BASEDIR= `select @@basedir`;
@@ -29,11 +29,12 @@ let $MYSQLD_BASEDIR= `select @@basedir`;
 --mkdir $MYSQL_TMP_DIR/datadir1/data
 --mkdir $MYSQL_TMP_DIR/datadir1/data/test
 
-# Set different paths for --datadir 
+# Set different paths for --datadir
 let $MYSQLD_DATADIR1 = $MYSQL_TMP_DIR/datadir1/data;
 
 # Create a bootstrap file in temp location
---exec echo $MYSQLTEST_VARDIR/tmp/bootstrap.log
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+--exec echo $MYSQL_TMP_DIR/bootstrap.log
 
 # Stop the MTR default datadir, as it was started with default 16k page size
 --echo # Stop DB server which was created by MTR default
@@ -204,8 +205,15 @@ SELECT @@innodb_page_size;
 --shutdown_server 30
 --source include/wait_until_disconnected.inc
 
-# Remove residue files from datadir of page size 32K
---exec rm -rf $MYSQL_TMP_DIR/datadir1/data
+# Remove residue files and data folder of page size 32K
+perl;
+use File::Path;
+my $tempdir= $ENV{'MYSQL_TMP_DIR'}."/datadir1/data";
+die "usage: $0 dir ..\n" unless $tempdir;
+    foreach $dir ($tempdir) {
+    rmtree($dir);
+}
+EOF
 
 # Create datadir path,rathan than mtr defaults path
 --mkdir $MYSQL_TMP_DIR/datadir1/data
