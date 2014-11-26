@@ -761,6 +761,16 @@ ORDER BY cc	{
     },
     {
       "join_preparation": {
+        "select#": "fake",
+        "steps": [
+          {
+            "expanded_query": "/* select#fake */ select `c1` AS `c1`,`c2` AS `c2` from dual"
+          }
+        ] /* steps */
+      } /* join_preparation */
+    },
+    {
+      "join_preparation": {
         "select#": 1,
         "steps": [
           {
@@ -918,16 +928,6 @@ ORDER BY cc	{
                 }
               ] /* steps */
             } /* join_optimization */
-          },
-          {
-            "join_preparation": {
-              "select#": "fake",
-              "steps": [
-                {
-                  "expanded_query": "/* select#fake */ select `c1` AS `c1`,`c2` AS `c2` from dual"
-                }
-              ] /* steps */
-            } /* join_preparation */
           },
           {
             "join_optimization": {

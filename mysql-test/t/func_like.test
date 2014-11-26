@@ -152,3 +152,54 @@ select 0x961838f6fc3c7f9ec17b5d900410d8aa like '%-113%';
 select 0x6a8473fc1c64ce4f2684c05a400c5e7ca4a01a like '%emailin%';
 select 0x00b25278956e0044683dfc180cd886aeff2f5bc3fc18 like '%-122%';
 select 0xbc24421ce6194ab5c260e80af647ae58fdbfca18a19dc8411424 like '%-106%';
+
+--echo #
+--echo # Bug#19931126 VALGRIND REPORTS USE OF UNINITIALIZED VALUE IN
+--echo #              MY_WILDCMP_BIN_IMPL
+--echo #
+
+CREATE TABLE t1(x CHAR(1)) ENGINE=InnoDB;
+
+# The escape string is null and defaults to '\'.
+SELECT ('a%b' LIKE 'a\%b' ESCAPE (SELECT x FROM t1));
+SELECT ('a%b' LIKE 'ax%b' ESCAPE (SELECT x FROM t1));
+
+# The escape string is 'x'.
+INSERT INTO t1 VALUES ('x');
+SELECT ('a%b' LIKE 'a\%b' ESCAPE (SELECT x FROM t1));
+SELECT ('a%b' LIKE 'ax%b' ESCAPE (SELECT x FROM t1));
+
+# The escape string cannot have more than one character.
+--error ER_WRONG_ARGUMENTS
+SELECT ('a%b' LIKE 'ax%b' ESCAPE (SELECT 'xy' FROM t1));
+
+# The subquery cannot return more than one row.
+INSERT INTO t1 VALUES ('y');
+--error ER_SUBQUERY_NO_1_ROW
+SELECT ('a%b' LIKE 'ax%b' ESCAPE (SELECT x FROM t1));
+DELETE FROM t1 WHERE x = 'y';
+
+# The escape clause must have exactly one column.
+--error ER_OPERAND_COLUMNS
+SELECT ('a%b' LIKE 'ax%b' ESCAPE (SELECT x, x FROM t1));
+--error ER_OPERAND_COLUMNS
+SELECT ('a%b' LIKE 'ax%b' ESCAPE ('x', 'y'));
+
+# The escape clause needs to be constant during execution.
+--error ER_WRONG_ARGUMENTS
+SELECT ('a%b' LIKE 'ax%b' ESCAPE x) FROM t1;
+
+# Also test on an indexed column to exercise the range optimizer.
+# (The range optimizer will give up because it doesn't know the
+# value of the escape character, so the query execution plan will
+# not actually use range optimization.)
+CREATE TABLE t2(x int, y varchar(100)) ENGINE=InnoDB;
+CREATE INDEX idx ON t2(y);
+INSERT INTO t2 VALUES (1, 'abcd'), (2, 'ab%cde');
+ANALYZE TABLE t2;
+let $query=
+SELECT * FROM t2 WHERE y LIKE 'abc%%' ESCAPE (SELECT 'c' FROM t1) ORDER BY y;
+eval EXPLAIN $query;
+eval $query;
+
+DROP TABLE t1, t2;

@@ -1730,7 +1730,26 @@ SELECT * FROM t1 WHERE a=hex('a');
 SELECT * FROM t1 WHERE a=to_base64('a');
 DROP TABLE t1;
 SET NAMES latin1;
+--echo #
+--echo # Bug #11765149 DUPLICATE ENTRY ERROR WHEN DOING GROUP BY
+--echo #
+create table t1(a varchar(20));
+insert into t1 values(''), (' '), ('xxxxxxxxxxxxxxx');
+create table t2(a int);
+insert into t2 values(0),(0),(1),(0),(10),(-2),(30),(NULL);
 
+select t1.a as str, length(t1.a) as str_length, t2.a as pos, t2.a + 10 as length, insert(t1.a, t2.a, t2.a + 10, '1234567') as 'insert' from t1, t2;
+drop table t1,t2;
+
+--echo #
+--echo # Bug #19174480: INSERT STRING FUNCTIONS RECENTLY CRASHING
+--echo #
+CREATE TABLE t1(a TIMESTAMP(5)) ENGINE=INNODB;
+INSERT INTO t1 VALUES('1978-01-03 00:00:00'),('2000-001-02 00:00:00');
+SELECT 1 FROM t1 GROUP BY insert(a,'1','11','1');
+SELECT insert(a,1,1,1) FROM t1;
+
+DROP TABLE t1;
 --echo #
 --echo # End of 5.6 tests
 --echo #

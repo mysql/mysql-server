@@ -18,7 +18,6 @@
 */
 
 #include "sql_priv.h"
-#include "unireg.h"
 #include "sql_rename.h"
 #include "sql_cache.h"                          // query_cache_*
 #include "sql_table.h"                         // build_table_filename

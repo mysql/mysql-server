@@ -900,3 +900,77 @@ SELECT
       4326
     )
   );
+
+#########################
+#     Bug#19383904      #
+#########################
+# This table is for testing functions with DOUBLE values. Literals like 10.2 are
+# recognized as DECIMAL.
+CREATE TABLE t1 (val DOUBLE);
+INSERT INTO t1 (val) VALUES (12.2);
+SELECT val INTO @double FROM t1;
+DROP TABLE t1;
+
+SET @null = NULL;
+SET @geohash = "01bbgcee";
+PREPARE stmt FROM "SELECT ST_LongFromGeoHash(?)";
+EXECUTE stmt USING @geohash;
+DEALLOCATE PREPARE stmt;
+SELECT ST_LongFromGeoHash(@geohash);
+SELECT ST_LongFromGeoHash(@null);
+
+PREPARE stmt FROM "SELECT ST_LatFromGeoHash(?)";
+EXECUTE stmt USING @geohash;
+DEALLOCATE PREPARE stmt;
+SELECT ST_LatFromGeoHash(@geohash);
+SELECT ST_LatFromGeoHash(@null);
+
+PREPARE stmt FROM "SELECT ST_AsText(ST_PointFromGeoHash(?, 1))";
+EXECUTE stmt USING @geohash;
+DEALLOCATE PREPARE stmt;
+SELECT ST_AsText(ST_PointFromGeoHash(@geohash, 1));
+
+SET @srid = 4326;
+PREPARE stmt FROM "SELECT ST_AsText(ST_PointFromGeoHash(\"00\", ?))";
+EXECUTE stmt USING @srid;
+DEALLOCATE PREPARE stmt;
+SELECT ST_AsText(ST_PointFromGeoHash("00", @srid));
+
+SET @maxlen = 3;
+PREPARE stmt FROM "SELECT ST_GeoHash(POINT(10, 10), ?)";
+EXECUTE stmt USING @maxlen;
+DEALLOCATE PREPARE stmt;
+SELECT ST_GeoHash(POINT(10, 10), @maxlen);
+SELECT ST_GeoHash(POINT(10, 10), @null);
+
+SET @point = POINT(10, 10);
+PREPARE stmt FROM "SELECT ST_GeoHash(?, 10)";
+EXECUTE stmt USING @point;
+DEALLOCATE PREPARE stmt;
+SELECT ST_GeoHash(@point, 10);
+SELECT ST_GeoHash(@null, 10);
+
+SET @long = 22.0311;
+PREPARE stmt FROM "SELECT ST_GeoHash(?, 10, 10)";
+EXECUTE stmt USING @long;
+DEALLOCATE PREPARE stmt;
+SELECT ST_GeoHash(@long, 10, 10);
+SELECT ST_GeoHash(@null, 10, 10);
+
+SET @lat = -54.123;
+PREPARE stmt FROM "SELECT ST_GeoHash(10, ?, 10)";
+EXECUTE stmt USING @lat;
+DEALLOCATE PREPARE stmt;
+SELECT ST_GeoHash(10, @lat, 10);
+SELECT ST_GeoHash(10, @null, 10);
+
+PREPARE stmt FROM "SELECT ST_GeoHash(10, 10, ?)";
+EXECUTE stmt USING @maxlen;
+DEALLOCATE PREPARE stmt;
+SELECT ST_GeoHash(10, 10, @maxlen);
+SELECT ST_GeoHash(@double, @double, 10);
+
+--error ER_INCORRECT_TYPE
+SELECT ST_GeoHash(POINT(10, 10), @double);
+--error ER_INCORRECT_TYPE
+SELECT ST_PointFromGeoHash("00", @double);

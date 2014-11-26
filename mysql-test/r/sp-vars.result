@@ -848,10 +848,7 @@ Warnings:
 Warning	1264	Out of range value for column 'arg' at row 1
 SET @@sql_mode = 'traditional';
 SELECT f1(-2500);
-f1(-2500)
-0
-Warnings:
-Warning	1264	Out of range value for column 'arg' at row 1
+ERROR 22003: Out of range value for column 'arg' at row 1
 DROP FUNCTION f1;
 CREATE FUNCTION f1(arg TINYINT UNSIGNED) RETURNS TINYINT
 BEGIN
@@ -878,10 +875,7 @@ Warnings:
 Warning	1264	Out of range value for column 'arg' at row 1
 SET @@sql_mode = 'traditional';
 SELECT f1(8388699);
-f1(8388699)
-8388607
-Warnings:
-Warning	1264	Out of range value for column 'arg' at row 1
+ERROR 22003: Out of range value for column 'arg' at row 1
 DROP FUNCTION f1;
 CREATE FUNCTION f1(arg MEDIUMINT) RETURNS MEDIUMINT
 BEGIN

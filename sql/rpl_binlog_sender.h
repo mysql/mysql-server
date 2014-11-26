@@ -183,7 +183,8 @@ private:
     the active log file.
 
     @param[in] log_cache  IO_CACHE of the binlog will be sent
-    @param[in] start_pos  Only the events after start_pos are sent
+    @param[in] start_pos  Position requested by the slave's IO thread.
+                          Only the events after the position are sent.
 
     @return It returns 0 if succeeds, otherwise 1 is returned.
   */
@@ -258,12 +259,13 @@ private:
      Format_description_log_event has to be set to 0. So the slave
      will not increment its master's binlog position.
 
-     @param[in] log_cache      IO_CACHE of the binlog will be dumpped
-     @param[in] clear_log_pos  If clears end_pos field in the event.
+     @param[in] log_cache IO_CACHE of the binlog will be dumpped
+     @param[in] start_pos Position requested by the slave's IO thread.
+                          Only the events after the position are sent.
 
      @return It returns 0 if succeeds, otherwise 1 is returned.
   */
-  int send_format_description_event(IO_CACHE *log, bool clear_log_pos);
+  int send_format_description_event(IO_CACHE *log, my_off_t start_pos);
   /**
      It sends a heartbeat to the client.
 

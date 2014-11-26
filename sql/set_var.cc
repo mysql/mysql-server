@@ -19,7 +19,6 @@
 #include "sql_class.h"                   // set_var.h: session_var_ptr
 #include "set_var.h"
 #include "sql_priv.h"
-#include "unireg.h"
 #include "mysqld.h"                             // lc_messages_dir
 #include "sys_vars_shared.h"
 #include "transaction.h"

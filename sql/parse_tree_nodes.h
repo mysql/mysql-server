@@ -81,6 +81,7 @@ public:
       them.
     */
     pc->select->select_n_where_fields+= child->select_n_where_fields;
+    pc->select->select_n_having_items+= child->select_n_having_items;
     value= query_expression_body->value;
     return false;
   }
@@ -474,7 +475,10 @@ public:
 
     select->parsing_place= CTX_SELECT_LIST;
 
-    select->set_query_block_options(thd, opt_query_spec_options, 0);
+    if (select->validate_base_options(thd->lex, opt_query_spec_options))
+      return true;
+    select->set_base_options(opt_query_spec_options);
+    DBUG_ASSERT(!(opt_query_spec_options & SELECT_MAX_STATEMENT_TIME));
     if (opt_query_spec_options & SELECT_HIGH_PRIORITY)
     {
       Yacc_state *yyps= &thd->m_parser_state->m_yacc;

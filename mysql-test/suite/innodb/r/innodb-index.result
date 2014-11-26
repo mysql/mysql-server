@@ -1545,3 +1545,33 @@ select count(*) from t1;
 count(*)
 481
 drop table t1, t480;
+#
+# Bug #19896922	SORTING SKIPPED WHEN PREFIX LENGTH OF THE PK
+#		FIELD IS CHANGED
+#
+create table t1(a int not null, b varchar(30) not null,
+primary key (b(10), a)) engine = innodb;
+insert into t1 values(0,'khdHps6UxW8Lwaoxa604oK6zkb'),(1,'khdHps6UxW8L');
+select * from t1;
+a	b
+0	khdHps6UxW8Lwaoxa604oK6zkb
+1	khdHps6UxW8L
+alter table t1 drop primary key, add primary key (b(18),a);
+select * from t1;
+a	b
+1	khdHps6UxW8L
+0	khdHps6UxW8Lwaoxa604oK6zkb
+drop table t1;
+create table t1(a int not null, b varchar(30) not null,
+primary key (b(10), a)) engine = innodb;
+insert into t1 values(0,'khdHps6UxW8Lwaoxa604oK6zkb'),(1,'khdHps6UtW8L');
+select * from t1;
+a	b
+1	khdHps6UtW8L
+0	khdHps6UxW8Lwaoxa604oK6zkb
+alter table t1 drop primary key, add primary key (b(8),a);
+select * from t1;
+a	b
+0	khdHps6UxW8Lwaoxa604oK6zkb
+1	khdHps6UtW8L
+drop table t1;

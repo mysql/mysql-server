@@ -74,6 +74,13 @@ typedef Bitmap<((MAX_INDEXES+7)/8*8)> key_map; /* Used for finding keys */
 #define TEST_DO_QUICK_LEAK_CHECK 4096   /**< Do Valgrind leak check for
                                            each command. */
 
+#define SPECIAL_NO_NEW_FUNC	2		/* Skip new functions */
+#define SPECIAL_SKIP_SHOW_DB    4               /* Don't allow 'show db' */
+#define SPECIAL_ENGLISH        32		/* English error messages */
+#define SPECIAL_NO_RESOLVE     64		/* Don't use gethostname */
+#define SPECIAL_NO_HOST_CACHE	512		/* Don't cache hosts */
+#define SPECIAL_SHORT_LOG_FORMAT 1024
+
 /* Function prototypes */
 #ifndef EMBEDDED_LIBRARY
 void kill_mysql(void);
@@ -181,7 +188,7 @@ extern const char *log_output_str;
 extern const char *log_backup_output_str;
 extern char *mysql_home_ptr, *pidfile_name_ptr;
 extern char *default_auth_plugin;
-extern volatile uint default_password_lifetime;
+extern uint default_password_lifetime;
 extern char *my_bind_addr_str;
 extern char glob_hostname[FN_REFLEN], mysql_home[FN_REFLEN];
 extern char pidfile_name[FN_REFLEN], system_time_zone[30], *opt_init_file;
@@ -416,6 +423,7 @@ extern PSI_mutex_key key_mts_gaq_LOCK;
 extern PSI_mutex_key key_thd_timer_mutex;
 #endif
 extern PSI_mutex_key key_LOCK_offline_mode;
+extern PSI_mutex_key key_LOCK_default_password_lifetime;
 
 #ifdef HAVE_REPLICATION
 extern PSI_mutex_key key_commit_order_manager_mutex;
@@ -793,7 +801,7 @@ extern mysql_mutex_t
        LOCK_global_system_variables, LOCK_user_conn, LOCK_log_throttle_qni,
        LOCK_prepared_stmt_count, LOCK_error_messages,
        LOCK_sql_slave_skip_counter, LOCK_slave_net_timeout,
-       LOCK_offline_mode;
+       LOCK_offline_mode, LOCK_default_password_lifetime;
 #ifdef HAVE_OPENSSL
 extern mysql_mutex_t LOCK_des_key_file;
 #endif
@@ -931,5 +939,10 @@ static inline THD *_current_thd(void)
 }
 #endif
 #define current_thd _current_thd()
+
+#define ER_DEFAULT(X) my_default_lc_messages->errmsgs->errmsgs[(X) - ER_ERROR_FIRST]
+#define ER_THD(thd,X) ((thd)->variables.lc_messages->errmsgs->errmsgs[(X) - \
+                       ER_ERROR_FIRST])
+#define ER(X)         ER_THD(current_thd,X)
 
 #endif /* MYSQLD_INCLUDED */

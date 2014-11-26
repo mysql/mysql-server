@@ -1191,7 +1191,7 @@ ha_ndbcluster::create_fks(THD *thd, Ndb *ndb)
   List_iterator<Key> key_iterator(thd->lex->alter_info.key_list);
   while ((key=key_iterator++))
   {
-    if (key->type != Key::FOREIGN_KEY)
+    if (key->type != KEYTYPE_FOREIGN)
       continue;
 
     NDBDICT *dict= ndb->getDictionary();
@@ -1437,21 +1437,21 @@ ha_ndbcluster::create_fks(THD *thd, Ndb *ndb)
     ndbfk.setParent(* parent_tab.get_table(), parent_index, parentcols);
     ndbfk.setChild(* child_tab.get_table(), child_index, childcols);
 
-    switch((Foreign_key::fk_option)fk->delete_opt){
-    case Foreign_key::FK_OPTION_UNDEF:
-    case Foreign_key::FK_OPTION_NO_ACTION:
+    switch((fk_option)fk->delete_opt){
+    case FK_OPTION_UNDEF:
+    case FK_OPTION_NO_ACTION:
       ndbfk.setOnDeleteAction(NdbDictionary::ForeignKey::NoAction);
       break;
-    case Foreign_key::FK_OPTION_RESTRICT:
+    case FK_OPTION_RESTRICT:
       ndbfk.setOnDeleteAction(NdbDictionary::ForeignKey::Restrict);
       break;
-    case Foreign_key::FK_OPTION_CASCADE:
+    case FK_OPTION_CASCADE:
       ndbfk.setOnDeleteAction(NdbDictionary::ForeignKey::Cascade);
       break;
-    case Foreign_key::FK_OPTION_SET_NULL:
+    case FK_OPTION_SET_NULL:
       ndbfk.setOnDeleteAction(NdbDictionary::ForeignKey::SetNull);
       break;
-    case Foreign_key::FK_OPTION_DEFAULT:
+    case FK_OPTION_DEFAULT:
       ndbfk.setOnDeleteAction(NdbDictionary::ForeignKey::SetDefault);
       break;
     default:
@@ -1459,21 +1459,21 @@ ha_ndbcluster::create_fks(THD *thd, Ndb *ndb)
       ndbfk.setOnDeleteAction(NdbDictionary::ForeignKey::NoAction);
     }
 
-    switch((Foreign_key::fk_option)fk->update_opt){
-    case Foreign_key::FK_OPTION_UNDEF:
-    case Foreign_key::FK_OPTION_NO_ACTION:
+    switch((fk_option)fk->update_opt){
+    case FK_OPTION_UNDEF:
+    case FK_OPTION_NO_ACTION:
       ndbfk.setOnUpdateAction(NdbDictionary::ForeignKey::NoAction);
       break;
-    case Foreign_key::FK_OPTION_RESTRICT:
+    case FK_OPTION_RESTRICT:
       ndbfk.setOnUpdateAction(NdbDictionary::ForeignKey::Restrict);
       break;
-    case Foreign_key::FK_OPTION_CASCADE:
+    case FK_OPTION_CASCADE:
       ndbfk.setOnUpdateAction(NdbDictionary::ForeignKey::Cascade);
       break;
-    case Foreign_key::FK_OPTION_SET_NULL:
+    case FK_OPTION_SET_NULL:
       ndbfk.setOnUpdateAction(NdbDictionary::ForeignKey::SetNull);
       break;
-    case Foreign_key::FK_OPTION_DEFAULT:
+    case FK_OPTION_DEFAULT:
       ndbfk.setOnUpdateAction(NdbDictionary::ForeignKey::SetDefault);
       break;
     default:

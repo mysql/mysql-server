@@ -2803,6 +2803,8 @@ row_log_table_apply(
 	dict_index_t*	clust_index;
 
 	thr_get_trx(thr)->error_key_num = 0;
+	DBUG_EXECUTE_IF("innodb_trx_duplicates",
+			thr_get_trx(thr)->duplicates = TRX_DUP_REPLACE;);
 
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(!rw_lock_own(&dict_operation_lock, RW_LOCK_S));
@@ -2833,6 +2835,8 @@ row_log_table_apply(
 	}
 
 	rw_lock_x_unlock(dict_index_get_lock(clust_index));
+	DBUG_EXECUTE_IF("innodb_trx_duplicates",
+			thr_get_trx(thr)->duplicates = 0;);
 	return(error);
 }
 

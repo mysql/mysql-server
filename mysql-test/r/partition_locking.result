@@ -4142,7 +4142,7 @@ a	b
 3	First row, p3, same as min(a) + 2 in t2, UPDATED2
 EXPLAIN PARTITIONS INSERT INTO t1 VALUES (12, "First row, p12");
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	INSERT	t1	p0,p1,p2,p3,p4,p5,p6,p7,p8,p9,p10,p11,p12	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+1	INSERT	t1	p12	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
 Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 FLUSH STATUS;
@@ -4568,7 +4568,7 @@ t2.b = CONCAT(t2.b, ",(1) t1.b:", t1.b)
 WHERE t2.b = t1.b and t1.a = 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	t1	p1	ALL	b	NULL	NULL	NULL	#	50.00	Using where
-1	UPDATE	t2	p0,p1,p2,p3,p4,p5,p6,p7,p8,p9,p10,p11,p12	ALL	NULL	NULL	NULL	NULL	#	7.69	Using where; Using join buffer (Block Nested Loop)
+1	UPDATE	t2	p0,p1,p2,p3,p4,p5,p6,p7,p8,p9,p10,p11,p12	ALL	NULL	NULL	NULL	NULL	#	7.69	Using where
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS
@@ -4585,7 +4585,7 @@ t2.b = CONCAT(t2.b, ",(1) t1.b:", t1.b)
 WHERE t2.b = t1.b and t1.a = 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	t1	p1	ALL	b	NULL	NULL	NULL	#	50.00	Using where
-1	UPDATE	t2	p0,p1,p2,p3,p4,p5,p6,p7,p8,p9,p10,p11,p12	ALL	NULL	NULL	NULL	NULL	#	7.69	Using where; Using join buffer (Block Nested Loop)
+1	UPDATE	t2	p0,p1,p2,p3,p4,p5,p6,p7,p8,p9,p10,p11,p12	ALL	NULL	NULL	NULL	NULL	#	7.69	Using where
 Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS

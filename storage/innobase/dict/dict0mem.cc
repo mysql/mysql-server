@@ -81,7 +81,7 @@ dict_mem_table_create(
 
 	ut_ad(name);
 	ut_a(dict_tf2_is_valid(flags, flags2));
-	ut_a(!(flags2 & ~DICT_TF2_BIT_MASK));
+	ut_a(!(flags2 & DICT_TF2_UNUSED_BIT_MASK));
 
 	heap = mem_heap_create(DICT_HEAP_SIZE);
 

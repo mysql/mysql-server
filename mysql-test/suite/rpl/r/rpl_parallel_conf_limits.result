@@ -14,7 +14,7 @@ SELECT id from Information_Schema.processlist
 where state like 'Waiting for an event from Coordinator';
 include/stop_slave.inc
 Warnings:
-Note	1969	Replication thread(s) for channel '' are already stopped.
+Note	1970	Replication thread(s) for channel '' are already stopped.
 set @save_slave_pending_jobs_size_max = @@global.slave_pending_jobs_size_max;
 set @@global.slave_pending_jobs_size_max= 1024;
 include/start_slave.inc

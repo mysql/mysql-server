@@ -514,7 +514,8 @@ FOREACH(tool glibtoolize libtoolize aclocal autoconf autoheader automake gtar
 ENDFOREACH()
 
 CONFIGURE_FILE(
-  ${CMAKE_SOURCE_DIR}/cmake/make_dist.cmake.in ${CMAKE_BINARY_DIR}/make_dist.cmake @ONLY)
+  ${CMAKE_SOURCE_DIR}/cmake/make_dist.cmake.in
+  ${CMAKE_BINARY_DIR}/make_dist.cmake @ONLY)
 
 ADD_CUSTOM_TARGET(dist 
   COMMAND ${CMAKE_COMMAND} -P ${CMAKE_BINARY_DIR}/make_dist.cmake

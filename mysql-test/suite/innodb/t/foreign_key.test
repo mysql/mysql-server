@@ -23,3 +23,65 @@ alter table t2 add constraint c1 foreign key (f1) references t1(f1);
 
 drop table t2, t1;
 
+--echo #
+--echo # Bug #20031243 CREATE TABLE FAILS TO CHECK IF FOREIGN KEY COLUMN
+--echo # NULL/NOT NULL MISMATCH
+--echo #
+
+set foreign_key_checks = 1;
+show variables like 'foreign_key_checks';
+
+CREATE TABLE t1
+(a INT NOT NULL,
+ b INT NOT NULL,
+ INDEX idx(a)) ENGINE=InnoDB;
+
+CREATE TABLE t2
+(a INT KEY,
+ b INT,
+ INDEX ind(b),
+ FOREIGN KEY (b) REFERENCES t1(a) ON DELETE CASCADE ON UPDATE CASCADE)
+ ENGINE=InnoDB;
+
+show create table t1;
+show create table t2;
+
+INSERT INTO t1 VALUES (1, 80);
+INSERT INTO t1 VALUES (2, 81);
+INSERT INTO t1 VALUES (3, 82);
+INSERT INTO t1 VALUES (4, 83);
+INSERT INTO t1 VALUES (5, 84);
+
+INSERT INTO t2 VALUES (51, 1);
+INSERT INTO t2 VALUES (52, 2);
+INSERT INTO t2 VALUES (53, 3);
+INSERT INTO t2 VALUES (54, 4);
+INSERT INTO t2 VALUES (55, 5);
+
+SELECT a, b FROM t1 ORDER BY a;
+SELECT a, b FROM t2 ORDER BY a;
+
+--error ER_NO_REFERENCED_ROW_2
+INSERT INTO t2 VALUES (56, 6);
+
+ALTER TABLE t1 CHANGE a id INT;
+
+SELECT id, b FROM t1 ORDER BY id;
+SELECT a, b FROM t2 ORDER BY a;
+
+--echo # Operations on child table
+--error ER_NO_REFERENCED_ROW_2
+INSERT INTO t2 VALUES (56, 6);
+--error ER_NO_REFERENCED_ROW_2
+UPDATE t2 SET b = 99 WHERE a = 51;
+DELETE FROM t2 WHERE a = 53;
+SELECT id, b FROM t1 ORDER BY id;
+SELECT a, b FROM t2 ORDER BY a;
+
+--echo # Operations on parent table
+DELETE FROM t1 WHERE id = 1;
+UPDATE t1 SET id = 50 WHERE id = 5;
+SELECT id, b FROM t1 ORDER BY id;
+SELECT a, b FROM t2 ORDER BY a;
+
+DROP TABLE t2, t1;

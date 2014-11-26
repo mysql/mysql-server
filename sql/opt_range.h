@@ -21,7 +21,7 @@
 
 #include "thr_malloc.h"                         /* sql_memdup */
 #include "records.h"                            /* READ_RECORD */
-#include "queues.h"                             /* QUEUE */
+
 /*
   It is necessary to include set_var.h instead of item.h because there
   are dependencies on include order for set_var.h and item.h. This
@@ -30,6 +30,7 @@
 #include "sql_class.h"                          // set_var.h: THD
 #include "set_var.h"                            /* Item */
 #include "prealloced_array.h"
+#include "priority_queue.h"
 
 #include <algorithm>
 
@@ -388,7 +389,6 @@ public:
 };
 
 
-struct st_qsel_param;
 class PARAM;
 class SEL_ARG;
 
@@ -748,6 +748,23 @@ public:
 
 
 /*
+  Comparison function to be used QUICK_ROR_UNION_SELECT::queue priority
+  queue.
+*/
+struct Quick_ror_union_less
+{
+  explicit Quick_ror_union_less(const QUICK_SELECT_I *me)
+    : m_me(me)
+  {}
+  bool operator()(QUICK_SELECT_I *a, QUICK_SELECT_I *b)
+  {
+    return m_me->head->file->cmp_ref(a->last_rowid, b->last_rowid) > 0;
+  }
+  const QUICK_SELECT_I *m_me;
+};
+
+
+/*
   Rowid-Ordered Retrieval index union select.
   This quick select produces union of row sequences returned by several
   quick select it "merges".
@@ -811,7 +828,10 @@ public:
       quick->get_fields_used(used_fields);
   }
 
-  QUEUE queue;    /* Priority queue for merge operation */
+  Priority_queue<QUICK_SELECT_I*,
+                 std::vector<QUICK_SELECT_I*>,
+                 Quick_ror_union_less>
+    queue;    /* Priority queue for merge operation */
   MEM_ROOT alloc; /* Memory pool for this and merged quick selects data. */
 
   THD *thd;             /* current thread */

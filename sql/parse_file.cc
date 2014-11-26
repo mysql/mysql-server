@@ -22,12 +22,15 @@
 
 #include "sql_priv.h"
 #include "parse_file.h"
-#include "unireg.h"                            // CREATE_MODE
 #include "sql_table.h"                        // build_table_filename
 #include <errno.h>
 #include <m_ctype.h>
 #include <my_sys.h>
 #include <my_dir.h>
+#include "mysqld.h"                           // reg_ext
+#include "mysqld_error.h"                     // ER_*
+#include "sql_const.h"                        // CREATE_MODE
+#include "sql_list.h"                         // List_iterator_fast
 
 /* from sql_db.cc */
 extern long mysql_rm_arc_files(THD *thd, MY_DIR *dirp, const char *org_path);

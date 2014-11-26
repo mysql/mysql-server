@@ -1272,6 +1272,7 @@ loop:
 				static_cast<my_bool>(mon_value_was);
 		}
 
+		block->skip_flush_check = false;
 		return(block);
 	}
 
