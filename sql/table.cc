@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2138,7 +2138,9 @@ partititon_err:
   outparam->no_replicate= outparam->file &&
                           test(outparam->file->ha_table_flags() &
                                HA_HAS_OWN_BINLOGGING);
-  thd->status_var.opened_tables++;
+  /* Increment the opened_tables counter, only when open flags set. */
+  if (db_stat)
+    thd->status_var.opened_tables++;
 
   DBUG_RETURN (0);
 
