@@ -26,8 +26,10 @@
 #ifdef MYSQL_SERVER
 #include <mysqld.h>
 #endif
+#include "prealloced_array.h"
 #include <list>
-using std::list;
+
+
 /**
   Report an error from code that can be linked into either the server
   or mysqlbinlog.  There is no common error reporting mechanism, so we
@@ -528,7 +530,7 @@ public:
     if (sid_lock != NULL)
       sid_lock->assert_some_lock();
     DBUG_ASSERT(sidno >= 1 && sidno <= get_max_sidno());
-    return (*dynamic_element(&_sidno_to_sid, sidno - 1, Node **))->sid;
+    return (_sidno_to_sid[sidno - 1])->sid;
   }
   /**
     Return the n'th smallest sidno, in the order of the SID's UUID.
@@ -542,8 +544,7 @@ public:
   {
     if (sid_lock != NULL)
       sid_lock->assert_some_lock();
-    rpl_sidno ret= *dynamic_element(&_sorted, n, rpl_sidno *);
-    return ret;
+    return _sorted[n];
   }
   /**
     Return the biggest sidno in this Sid_map.
@@ -555,7 +556,7 @@ public:
   {
     if (sid_lock != NULL)
       sid_lock->assert_some_lock();
-    return _sidno_to_sid.elements;
+    return static_cast<rpl_sidno>(_sidno_to_sid.size());
   }
 
 private:
@@ -586,7 +587,7 @@ private:
     Array that maps SIDNO to SID; the element at index N points to a
     Node with SIDNO N-1.
   */
-  DYNAMIC_ARRAY _sidno_to_sid;
+  Prealloced_array<Node*, 8, true>_sidno_to_sid;
   /**
     Hash that maps SID to SIDNO.  The keys in this array are of type
     rpl_sid.
@@ -598,7 +599,7 @@ private:
 
     @see Sid_map::get_sorted_sidno.
   */
-  DYNAMIC_ARRAY _sorted;
+  Prealloced_array<rpl_sidno, 8, true> _sorted;
 };
 
 
@@ -1185,7 +1186,7 @@ public:
 
     @param[out] gtid_intervals Store all gtid intervals from this Gtid_set.
   */
-  void get_gtid_intervals(list<Gtid_interval> *gtid_intervals) const;
+  void get_gtid_intervals(std::list<Gtid_interval> *gtid_intervals) const;
   /**
     The default String_format: the format understood by
     add_gtid_text(const char *).

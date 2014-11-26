@@ -1,5 +1,3 @@
-# Skip this on valgrind as it creates havoc in the weekly testing
--- source include/not_valgrind.inc
 # Test for BUG#1858 "OPTIMIZE TABLE done by a client
 # thread stops the slave SQL thread".
 # You can replace OPTIMIZE by REPAIR.

@@ -866,6 +866,7 @@ sync_arr_cell_can_wake_up(
 
 		mutex = cell->latch.mutex;
 
+		os_rmb;
 		if (mutex->state() == MUTEX_STATE_UNLOCKED) {
 
 			return(true);

@@ -908,7 +908,7 @@ error:
 ha_federated::ha_federated(handlerton *hton,
                            TABLE_SHARE *table_arg)
   :handler(hton, table_arg),
-  mysql(0), stored_result(0)
+   mysql(0), stored_result(0), results(fe_key_memory_federated_share)
 {
   trx_next= 0;
   memset(&bulk_insert, 0, sizeof(bulk_insert));
@@ -1661,7 +1661,6 @@ int ha_federated::open(const char *name, int mode, uint test_if_locked)
   ref_length= sizeof(MYSQL_RES *) + sizeof(MYSQL_ROW_OFFSET);
   DBUG_PRINT("info", ("ref_length: %u", ref_length));
 
-  my_init_dynamic_array(&results, sizeof(MYSQL_RES *), 4, 4);
   reset();
 
   DBUG_RETURN(0);
@@ -1685,7 +1684,7 @@ int ha_federated::close(void)
 
   free_result();
   
-  delete_dynamic(&results);
+  results.clear();
   
   /* Disconnect from mysql */
   mysql_close(mysql);
@@ -1720,7 +1719,7 @@ bool ha_federated::append_stmt_insert(String *query)
 {
   char insert_buffer[FEDERATED_QUERY_BUFFER_SIZE];
   Field **field;
-  uint tmp_length;
+  size_t tmp_length;
   bool added_field= FALSE;
 
   /* The main insert query string */
@@ -1800,7 +1799,7 @@ int ha_federated::write_row(uchar *buf)
   char values_buffer[FEDERATED_QUERY_BUFFER_SIZE];
   char insert_field_value_buffer[STRING_BUFFER_USUAL_SIZE];
   Field **field;
-  uint tmp_length;
+  size_t tmp_length;
   int error= 0;
   bool use_bulk_insert;
   bool auto_increment_update_required= (table->next_number_field != NULL);
@@ -2381,7 +2380,7 @@ int ha_federated::index_read_idx(uchar *buf, uint index, const uchar *key,
                                               &mysql_result)))
     DBUG_RETURN(retval);
   mysql_free_result(mysql_result);
-  results.elements--;
+  results.pop_back();
   DBUG_RETURN(0);
 }
 
@@ -2446,7 +2445,7 @@ int ha_federated::index_read_idx_with_result_set(uchar *buf, uint index,
   if ((retval= read_next(buf, *result)))
   {
     mysql_free_result(*result);
-    results.elements--;
+    results.pop_back();
     *result= 0;
     table->status= STATUS_NOT_FOUND;
     DBUG_RETURN(retval);
@@ -2984,13 +2983,11 @@ int ha_federated::reset(void)
   replace_duplicates= FALSE;
 
   /* Free stored result sets. */
-  for (uint i= 0; i < results.elements; i++)
+  for (MYSQL_RES **result= results.begin(); result != results.end(); ++result)
   {
-    MYSQL_RES *result;
-    get_dynamic(&results, (uchar *) &result, i);
-    mysql_free_result(result);
+    mysql_free_result(*result);
   }
-  reset_dynamic(&results);
+  results.clear();
 
   return 0;
 }
@@ -3284,7 +3281,7 @@ MYSQL_RES *ha_federated::store_result(MYSQL *mysql_arg)
   DBUG_ENTER("ha_federated::store_result");
   if (result)
   {
-    (void) insert_dynamic(&results, &result);
+    results.push_back(result);
   }
   position_called= FALSE;
   DBUG_RETURN(result);
@@ -3298,8 +3295,8 @@ void ha_federated::free_result()
   {
     mysql_free_result(stored_result);
     stored_result= 0;
-    if (results.elements > 0)
-      results.elements--;
+    if (!results.empty())
+      results.pop_back();
   }
   DBUG_VOID_RETURN;
 }

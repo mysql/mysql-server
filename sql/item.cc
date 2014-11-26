@@ -1257,7 +1257,7 @@ Item *Item_param::safe_charset_converter(const CHARSET_INFO *tocs)
     if (cnv_errors)
        return NULL;
     cnvitem->str_value.mark_as_const();
-    cnvitem->max_length= cnvitem->str_value.numchars() * tocs->mbmaxlen;
+    cnvitem->max_length= static_cast<uint32>(cnvitem->str_value.numchars() * tocs->mbmaxlen);
     return cnvitem;
   }
   return Item::safe_charset_converter(tocs);
@@ -2368,7 +2368,7 @@ bool agg_item_set_converter(DTCollation &coll, const char *fname,
   for (i= 0, arg= args; i < nargs; i++, arg+= item_sep)
   {
     Item* conv;
-    uint32 dummy_offset;
+    size_t dummy_offset;
     if (!String::needs_conversion(1, (*arg)->collation.collation,
                                   coll.collation,
                                   &dummy_offset))
@@ -3664,7 +3664,7 @@ void Item_param::set_time(MYSQL_TIME *tm, timestamp_type time_type,
 }
 
 
-bool Item_param::set_str(const char *str, ulong length)
+bool Item_param::set_str(const char *str, size_t length)
 {
   DBUG_ENTER("Item_param::set_str");
   /*
@@ -3755,7 +3755,7 @@ bool Item_param::set_from_user_var(THD *thd, const user_var_entry *entry)
     {
       const CHARSET_INFO *fromcs= entry->collation.collation;
       const CHARSET_INFO *tocs= thd->variables.collation_connection;
-      uint32 dummy_offset;
+      size_t dummy_offset;
 
       value.cs_info.character_set_of_placeholder= fromcs;
       value.cs_info.character_set_client= thd->variables.character_set_client;
@@ -4113,7 +4113,7 @@ bool Item_param::convert_str_value(THD *thd)
       str_value.set_charset(value.cs_info.final_character_set_of_str_value);
     /* Here str_value is guaranteed to be in final_character_set_of_str_value */
 
-    max_length= str_value.numchars() * str_value.charset()->mbmaxlen;
+    max_length= static_cast<uint32>(str_value.numchars() * str_value.charset()->mbmaxlen);
 
     /* For the strings converted to numeric form within some functions */
     decimals= NOT_FIXED_DEC;
@@ -6019,14 +6019,14 @@ String *Item::check_well_formed_result(String *str, bool send_error)
   /* Check whether we got a well-formed string */
   const CHARSET_INFO *cs= str->charset();
   int well_formed_error;
-  uint wlen= cs->cset->well_formed_len(cs,
-                                       str->ptr(), str->ptr() + str->length(),
-                                       str->length(), &well_formed_error);
+  size_t wlen= cs->cset->well_formed_len(cs,
+                                         str->ptr(), str->ptr() + str->length(),
+                                         str->length(), &well_formed_error);
   if (wlen < str->length())
   {
     THD *thd= current_thd;
     char hexbuf[7];
-    uint diff= str->length() - wlen;
+    size_t diff= str->length() - wlen;
     set_if_smaller(diff, 3);
     octet2hex(hexbuf, str->ptr() + wlen, diff);
     if (send_error)
@@ -6805,7 +6805,7 @@ Item_hex_string::save_in_field(Field *field, bool no_conversions)
                         collation.collation);
 
   ulonglong nr;
-  uint32 length= str_value.length();
+  size_t length= str_value.length();
   if (!length)
   {
     field->reset();

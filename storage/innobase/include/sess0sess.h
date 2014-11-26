@@ -38,9 +38,7 @@ public:
 	@param[in,out]	handler		table handler. */
 	dict_intrinsic_table_t(dict_table_t*	handler)
 		:
-		m_handler(handler),
-		m_sess_row_id(),
-		m_sess_trx_id()
+		m_handler(handler)
 	{
 		/* Do nothing. */
 	}
@@ -49,7 +47,6 @@ public:
 	~dict_intrinsic_table_t()
 	{
 		m_handler = NULL;
-		m_sess_row_id = m_sess_trx_id = 0;
 	}
 
 public:
@@ -57,18 +54,6 @@ public:
 	/* Table Handler holding other metadata information commonly needed
 	for any table. */
 	dict_table_t*				m_handler;
-
-	/** row-id counter for use by intrinsic table for getting row-id.
-	Given intrinsic table semantics, row-id can be locally maintained
-	instead of getting it from central generator which involves mutex
-	locking. */
-	ib_uint64_t				m_sess_row_id;
-
-	/** trx_id counter for use by intrinsic table for getting trx-id.
-	Intrinsic table are not shared so don't need a central trx-id
-	but just need a increased counter to track consistent view while
-	proceeding SELECT as part of UPDATE. */
-	ib_uint64_t				m_sess_trx_id;
 };
 
 /** InnoDB private data that is cached in THD */
@@ -115,41 +100,6 @@ public:
 		table_cache_t::iterator it = m_open_tables.find(table_name);
 		return((it == m_open_tables.end())
 		       ? NULL : it->second->m_handler);
-	}
-
-	/** Get table session row-id and increment the row-id counter for
-	next use.
-	@param[in]	table_name	name of the table to lookup
-	@return next table local row-id. */
-	row_id_t get_next_table_sess_row_id(
-			const char*	table_name)
-	{
-		table_cache_t::iterator it = m_open_tables.find(table_name);
-		ut_ad(it != m_open_tables.end());
-		return(++it->second->m_sess_row_id);
-	}
-
-	/** Get table session trx-id and increment the trx-id counter for
-	next use.
-	@param[in]	table_name	name of the table to lookup
-	@return next table local trx-id. */
-	trx_id_t get_next_table_sess_trx_id(
-			const char*	table_name)
-	{
-		table_cache_t::iterator it = m_open_tables.find(table_name);
-		ut_ad(it != m_open_tables.end());
-		return(++it->second->m_sess_trx_id);
-	}
-
-	/** Get table session trx-id.
-	@param[in]	table_name	name of the table to lookup
-	@return next table local trx-id. */
-	trx_id_t get_table_curr_sess_trx_id(
-			const char*	table_name)
-	{
-		table_cache_t::iterator it = m_open_tables.find(table_name);
-		ut_ad(it != m_open_tables.end());
-		return(it->second->m_sess_trx_id);
 	}
 
 	/** Remove table handler entry.

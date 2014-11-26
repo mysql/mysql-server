@@ -664,7 +664,7 @@ String *Item_func_spatial_collection::val_str(String *str)
   for (i= 0; i < arg_count; ++i)
   {
     String *res= args[i]->val_str(&arg_value);
-    uint32 len;
+    size_t len;
     if (args[i]->null_value || ((len= res->length()) < WKB_HEADER_SIZE))
       goto err;
 

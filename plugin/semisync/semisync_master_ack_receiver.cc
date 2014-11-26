@@ -182,7 +182,9 @@ void Ack_receiver::remove_slave(THD *thd)
 
 inline void Ack_receiver::set_stage_info(const PSI_stage_info &stage)
 {
+#ifdef HAVE_PSI_STAGE_INTERFACE
   MYSQL_SET_STAGE(stage.m_key, __FILE__, __LINE__);
+#endif /* HAVE_PSI_STAGE_INTERFACE */
 }
 
 inline void Ack_receiver::wait_for_slave_connection()

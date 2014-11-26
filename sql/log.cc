@@ -1532,9 +1532,9 @@ bool Slow_log_throttle::log(THD *thd, bool eligible)
 }
 
 
-bool Error_log_throttle::log(THD *thd)
+bool Error_log_throttle::log()
 {
-  ulonglong end_utime_of_query= thd->current_utime();
+  ulonglong end_utime_of_query= my_micro_time();
 
   /*
     If the window has expired, we'll try to write a summary line.
@@ -1557,7 +1557,7 @@ bool Error_log_throttle::log(THD *thd)
 }
 
 
-bool Error_log_throttle::flush(THD *thd)
+bool Error_log_throttle::flush()
 {
   // Write summary if we throttled.
   ulong     suppressed_count= prepare_summary(1);

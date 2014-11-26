@@ -70,7 +70,7 @@ class READ_INFO {
   uint	buff_length;			/* Length of buffer */
   const uchar *field_term_ptr, *line_term_ptr;
   const char *line_start_ptr, *line_start_end;
-  uint	field_term_length,line_term_length,enclosed_length;
+  size_t	field_term_length,line_term_length,enclosed_length;
   int	field_term_char,line_term_char,enclosed_char,escape_char;
   int	*stack,*stack_pos;
   bool	found_end_of_line,start_of_line,eof;
@@ -980,7 +980,7 @@ read_sep_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
   List_iterator_fast<Item> it(fields_vars);
   Item *item;
   TABLE *table= table_list->table;
-  uint enclosed_length;
+  size_t enclosed_length;
   bool err;
   DBUG_ENTER("read_sep_field");
 
@@ -1469,7 +1469,7 @@ READ_INFO::READ_INFO(File file_par, uint tot_length, const CHARSET_INFO *cs,
 
 
   /* Set of a stack for unget if long terminators */
-  uint length= max(cs->mbmaxlen, max(field_term_length, line_term_length)) + 1;
+  size_t length= max<size_t>(cs->mbmaxlen, max(field_term_length, line_term_length)) + 1;
   set_if_bigger(length,line_start.length());
   stack=stack_pos=(int*) sql_alloc(sizeof(int)*length);
 
@@ -1920,7 +1920,7 @@ int READ_INFO::clear_level(int level_arg)
   Return -1 on error;
 */
 static int
-my_xml_entity_to_char(const char *name, uint length)
+my_xml_entity_to_char(const char *name, size_t length)
 {
   if (length == 2)
   {

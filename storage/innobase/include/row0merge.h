@@ -307,9 +307,7 @@ row_merge_build_indexes(
 	ulint		add_autoinc,	/*!< in: number of added
 					AUTO_INCREMENT column, or
 					ULINT_UNDEFINED if none is added */
-	ib_sequence_t&	sequence,	/*!< in/out: autoinc sequence */
-	bool		skip_pk_sort)	/*!< in: whether the new PRIMARY KEY
-					will follow existing order */
+	ib_sequence_t&	sequence)	/*!< in/out: autoinc sequence */
 	__attribute__((nonnull(1,2,3,5,6,8), warn_unused_result));
 /********************************************************************//**
 Write a buffer to a block. */

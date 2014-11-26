@@ -543,13 +543,13 @@ extern log_t*	log_sys;
 					megabyte.
 
 					This information might have been used
-					since ibbackup version 0.35 but
+					since mysqlbackup version 0.35 but
 					before 1.41 to decide if unused ends of
 					non-auto-extending data files
 					in space 0 can be truncated.
 
 					This information was made obsolete
-					by ibbackup --compress. */
+					by mysqlbackup --compress. */
 #define LOG_CHECKPOINT_FSP_MAGIC_N	(12 + LOG_CHECKPOINT_ARRAY_END)
 					/*!< Not used (0);
 					This magic number tells if the
@@ -578,7 +578,7 @@ extern log_t*	log_sys;
 					/* a 32-byte field which contains
 					the string 'ibbackup' and the
 					creation time if the log file was
-					created by ibbackup --restore;
+					created by mysqlbackup --restore;
 					when mysqld is first time started
 					on the restored database, it can
 					print helpful info for the user */

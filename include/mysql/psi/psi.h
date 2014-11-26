@@ -188,6 +188,17 @@ typedef struct PSI_sp_locker PSI_sp_locker;
 struct PSI_metadata_lock;
 typedef struct PSI_metadata_lock PSI_metadata_lock;
 
+/**
+  Interface for an instrumented stage progress.
+  This is a public structure, for efficiency.
+*/
+struct PSI_stage_progress
+{
+  ulonglong m_work_completed;
+  ulonglong m_work_estimated;
+};
+typedef struct PSI_stage_progress PSI_stage_progress;
+
 /** Entry point for the performance schema interface. */
 struct PSI_bootstrap
 {
@@ -1878,9 +1889,12 @@ typedef void (*end_file_close_wait_v1_t)
   @param key the key of the new stage
   @param src_file the source file name
   @param src_line the source line number
+  @return the new stage progress
 */
-typedef void (*start_stage_v1_t)
+typedef PSI_stage_progress* (*start_stage_v1_t)
   (PSI_stage_key key, const char *src_file, int src_line);
+
+typedef PSI_stage_progress* (*get_current_stage_progress_v1_t)(void);
 
 /** End the current stage. */
 typedef void (*end_stage_v1_t) (void);
@@ -2471,6 +2485,8 @@ struct PSI_v1
   end_file_close_wait_v1_t end_file_close_wait;
   /** @sa start_stage_v1_t. */
   start_stage_v1_t start_stage;
+  /** @sa get_current_stage_progress_v1_t. */
+  get_current_stage_progress_v1_t get_current_stage_progress;
   /** @sa end_stage_v1_t. */
   end_stage_v1_t end_stage;
   /** @sa get_thread_statement_locker_v1_t. */

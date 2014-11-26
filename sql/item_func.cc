@@ -1278,7 +1278,7 @@ void Item_func_signed::print(String *str, enum_query_type query_type)
 longlong Item_func_signed::val_int_from_str(int *error)
 {
   char buff[MAX_FIELD_WIDTH], *end, *start;
-  uint32 length;
+  size_t length;
   String tmp(buff,sizeof(buff), &my_charset_bin), *res;
   longlong value;
   const CHARSET_INFO *cs;
@@ -3422,7 +3422,7 @@ longlong Item_func_locate::val_int()
   {
     start0= start= args[2]->val_int() - 1;
 
-    if ((start < 0) || (start > a->length()))
+    if ((start < 0) || (start > static_cast<longlong>(a->length())))
       return 0;
 
     /* start is now sufficiently valid to pass to charpos function */
@@ -3637,8 +3637,7 @@ longlong Item_func_find_in_set::val_int()
   }
   null_value=0;
 
-  int diff;
-  if ((diff=buffer->length() - find->length()) >= 0)
+  if (buffer->length() >= find->length())
   {
     my_wc_t wc= 0;
     const CHARSET_INFO *cs= cmp_collation.collation;
@@ -3646,7 +3645,7 @@ longlong Item_func_find_in_set::val_int()
     const char *str_end= buffer->ptr();
     const char *real_end= str_end+buffer->length();
     const uchar *find_str= (const uchar *) find->ptr();
-    uint find_str_len= find->length();
+    size_t find_str_len= find->length();
     int position= 0;
     while (1)
     {
@@ -4540,7 +4539,8 @@ longlong Item_func_get_lock::val_int()
     null_value=1;
     DBUG_RETURN(0);
   }
-  DBUG_PRINT("info", ("lock %.*s, thd=%lu", res->length(), res->ptr(),
+  DBUG_PRINT("info", ("lock %.*s, thd=%lu",
+                      static_cast<int>(res->length()), res->ptr(),
                       (ulong) thd->real_id));
   null_value=0;
 
@@ -4552,9 +4552,9 @@ longlong Item_func_get_lock::val_int()
 
   if (!(ull= ((User_level_lock *) my_hash_search(&hash_user_locks,
                                                  (uchar*) res->ptr(),
-                                                 (size_t) res->length()))))
+                                                 res->length()))))
   {
-    ull= new User_level_lock((uchar*) res->ptr(), (size_t) res->length(),
+    ull= new User_level_lock((uchar*) res->ptr(), res->length(),
                              thd->thread_id);
     if (!ull || !ull->initialized())
     {
@@ -4663,7 +4663,8 @@ longlong Item_func_release_lock::val_int()
     null_value=1;
     DBUG_RETURN(0);
   }
-  DBUG_PRINT("info", ("lock %.*s", res->length(), res->ptr()));
+  DBUG_PRINT("info", ("lock %.*s", static_cast<int>(res->length()),
+                      res->ptr()));
   null_value=0;
 
   result=0;
@@ -5025,7 +5026,7 @@ bool Item_func_set_user_var::register_field_in_read_map(uchar *arg)
 }
 
 
-bool user_var_entry::realloc(uint length)
+bool user_var_entry::realloc(size_t length)
 {
   if (length <= extra_size)
   {
@@ -5061,7 +5062,7 @@ bool user_var_entry::realloc(uint length)
   @retval  true    on allocation error
 
 */
-bool user_var_entry::store(const void *from, uint length, Item_result type)
+bool user_var_entry::store(const void *from, size_t length, Item_result type)
 {
   // Store strings with end \0
   if (realloc(length + MY_TEST(type == STRING_RESULT)))
@@ -5105,7 +5106,7 @@ bool user_var_entry::store(const void *from, uint length, Item_result type)
     true    failure
 */
 
-bool user_var_entry::store(const void *ptr, uint length, Item_result type,
+bool user_var_entry::store(const void *ptr, size_t length, Item_result type,
                            const CHARSET_INFO *cs, Derivation dv,
                            bool unsigned_arg)
 {
@@ -5982,7 +5983,7 @@ void Item_user_var_as_out_param::set_null_value(const CHARSET_INFO* cs)
 }
 
 
-void Item_user_var_as_out_param::set_value(const char *str, uint length,
+void Item_user_var_as_out_param::set_value(const char *str, size_t length,
                                            const CHARSET_INFO* cs)
 {
   entry->store((void*) str, length, STRING_RESULT, cs,
@@ -7195,13 +7196,13 @@ Item_func_sp::func_name() const
 {
   THD *thd= current_thd;
   /* Calculate length to avoid reallocation of string for sure */
-  uint len= (((m_name->m_explicit_name ? m_name->m_db.length : 0) +
-              m_name->m_name.length)*2 + //characters*quoting
-             2 +                         // ` and `
-             (m_name->m_explicit_name ?
-              3 : 0) +                   // '`', '`' and '.' for the db
-             1 +                         // end of string
-             ALIGN_SIZE(1));             // to avoid String reallocation
+  size_t len= (((m_name->m_explicit_name ? m_name->m_db.length : 0) +
+                m_name->m_name.length)*2 + //characters*quoting
+               2 +                         // ` and `
+               (m_name->m_explicit_name ?
+                3 : 0) +                   // '`', '`' and '.' for the db
+               1 +                         // end of string
+               ALIGN_SIZE(1));             // to avoid String reallocation
   String qname((char *)alloc_root(thd->mem_root, len), len,
                system_charset_info);
 

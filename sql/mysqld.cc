@@ -522,12 +522,6 @@ bool thread_cache_size_specified= false;
 bool host_cache_size_specified= false;
 bool table_definition_cache_specified= false;
 
-Error_log_throttle err_log_throttle(Log_throttle::LOG_THROTTLE_WINDOW_SIZE,
-                                    sql_print_error,
-                                    "Error log throttle: %10lu 'Can't create"
-                                    " thread to handle new connection'"
-                                    " error(s) suppressed");
-
 /**
   Limit of the total number of prepared statements in the server.
   Is necessary to protect the server against out-of-memory attacks.
@@ -8091,7 +8085,7 @@ PSI_stage_info stage_connecting_to_master= { 0, "Connecting to master", 0};
 PSI_stage_info stage_converting_heap_to_myisam= { 0, "converting HEAP to MyISAM", 0};
 PSI_stage_info stage_copying_to_group_table= { 0, "Copying to group table", 0};
 PSI_stage_info stage_copying_to_tmp_table= { 0, "Copying to tmp table", 0};
-PSI_stage_info stage_copy_to_tmp_table= { 0, "copy to tmp table", 0};
+PSI_stage_info stage_copy_to_tmp_table= { 0, "copy to tmp table", PSI_FLAG_STAGE_PROGRESS};
 PSI_stage_info stage_creating_sort_index= { 0, "Creating sort index", 0};
 PSI_stage_info stage_creating_table= { 0, "creating table", 0};
 PSI_stage_info stage_creating_tmp_table= { 0, "Creating tmp table", 0};

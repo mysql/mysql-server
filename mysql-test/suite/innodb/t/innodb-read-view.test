@@ -47,7 +47,7 @@ BEGIN;
 SELECT * FROM t1;
 SELECT * FROM t2;
 
-connection default;
+connection con1;
 --echo 'T1'
 UPDATE t2 SET c1 = c1 + 100;
 SELECT * FROM t2;
@@ -61,7 +61,7 @@ COMMIT;
 
 connection con2;
 --echo 'T3'
-SET DEBUG_SYNC='row_select_wait WAIT_FOR waiting1';
+SET DEBUG_SYNC='row_search_for_mysql_before_return WAIT_FOR waiting1';
 --send SELECT * FROM t1;
 
 connection default;
@@ -75,7 +75,7 @@ reap;
 
 connection con2;
 --echo 'T3'
-SET DEBUG_SYNC='row_select_wait WAIT_FOR waiting1';
+SET DEBUG_SYNC='row_search_for_mysql_before_return WAIT_FOR waiting1';
 --send SELECT * FROM t2;
 
 connection default;

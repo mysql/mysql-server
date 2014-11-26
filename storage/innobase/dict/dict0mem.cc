@@ -114,6 +114,9 @@ dict_mem_table_create(
 
 	table->autoinc = 0;
 
+	table->sess_row_id = 0;
+	table->sess_trx_id = 0;
+
 	/* The number of transactions that are either waiting on the
 	AUTOINC lock or have been granted the lock. */
 	table->n_waiting_or_granted_auto_inc_locks = 0;

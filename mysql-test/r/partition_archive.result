@@ -126,3 +126,29 @@ select count(*) from t1;
 count(*)
 100
 drop table t1;
+#
+#BUG 18618561: FAILED ALTER TABLE ENGINE CHANGE WITH PARTITIONS
+#              CORRUPTS FRM
+CREATE TABLE t1 (fld1 INT PRIMARY KEY) ENGINE= MYISAM PARTITION BY HASH(fld1)
+PARTITIONS 5;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `fld1` int(11) NOT NULL,
+  PRIMARY KEY (`fld1`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY HASH (fld1)
+PARTITIONS 5 */
+ALTER TABLE t1 ENGINE= ARCHIVE;
+ERROR HY000: Got error -1 from storage engine
+#After the patch, the ENGINE is correctly displayed as MyISAM
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `fld1` int(11) NOT NULL,
+  PRIMARY KEY (`fld1`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY HASH (fld1)
+PARTITIONS 5 */
+#Cleanup.
+DROP TABLE t1;

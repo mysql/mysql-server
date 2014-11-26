@@ -46,7 +46,7 @@ void Binlog_sender::init()
   /* Initialize the buffer only once. */
   m_packet.realloc(PACKET_MIN_SIZE); // size of the buffer
   m_new_shrink_size= PACKET_MIN_SIZE;
-  DBUG_PRINT("info", ("Initial packet->alloced_length: %u",
+  DBUG_PRINT("info", ("Initial packet->alloced_length: %zu",
                       m_packet.alloced_length()));
 
   sql_print_information("Start binlog_dump to master_thread_id(%lu) "
@@ -624,7 +624,7 @@ int Binlog_sender::fake_rotate_event(const char *next_log_file,
   if (reset_transmit_packet(0, event_len))
     DBUG_RETURN(1);
 
-  uint32 event_offset= m_packet.length();
+  size_t event_offset= m_packet.length();
   m_packet.length(event_len + event_offset);
   uchar *header= (uchar *)m_packet.ptr() + event_offset;
   uchar *rotate_header= header + LOG_EVENT_HEADER_LEN;
@@ -658,7 +658,7 @@ inline void Binlog_sender::calc_event_checksum(uchar *event_ptr, uint32 event_le
 inline int Binlog_sender::reset_transmit_packet(ushort flags, uint32 event_len)
 {
   DBUG_ENTER("Binlog_sender::reset_transmit_packet");
-  DBUG_PRINT("info", ("event_len: %u, m_packet->alloced_length: %u",
+  DBUG_PRINT("info", ("event_len: %u, m_packet->alloced_length: %zu",
                       event_len, m_packet.alloced_length()));
   DBUG_ASSERT(m_packet.alloced_length() >= PACKET_MIN_SIZE);
 
@@ -677,7 +677,7 @@ inline int Binlog_sender::reset_transmit_packet(ushort flags, uint32 event_len)
   if (grow_packet(event_len))
     DBUG_RETURN(1);
 
-  DBUG_PRINT("info", ("m_packet.alloced_length: %u (after potential "
+  DBUG_PRINT("info", ("m_packet.alloced_length: %zu (after potential "
                       "reallocation)", m_packet.alloced_length()));
 
   DBUG_RETURN(0);
@@ -784,7 +784,7 @@ inline int Binlog_sender::read_event(IO_CACHE *log_cache, uint8 checksum_alg,
 {
   DBUG_ENTER("Binlog_sender::read_event");
 
-  uint32 event_offset;
+  size_t event_offset;
   int error= 0;
 
   if ((error= Log_event::peek_event_length(event_len, log_cache)))
@@ -845,7 +845,7 @@ int Binlog_sender::send_heartbeat_event(my_off_t log_pos)
   if (reset_transmit_packet(0, event_len))
     DBUG_RETURN(1);
 
-  uint32 event_offset= m_packet.length();
+  size_t event_offset= m_packet.length();
   m_packet.length(event_len + event_offset);
   uchar *header= (uchar *)m_packet.ptr() + event_offset;
 
@@ -950,9 +950,9 @@ inline int Binlog_sender::check_event_count()
 inline bool Binlog_sender::grow_packet(uint32 extra_size)
 {
   DBUG_ENTER("Binlog_sender::grow_packet");
-  uint32 cur_buffer_size= m_packet.alloced_length();
-  uint32 cur_buffer_used= m_packet.length();
-  uint32 needed_buffer_size= cur_buffer_used + extra_size;
+  size_t cur_buffer_size= m_packet.alloced_length();
+  size_t cur_buffer_used= m_packet.length();
+  size_t needed_buffer_size= cur_buffer_used + extra_size;
 
   if (extra_size > (PACKET_MAX_SIZE - cur_buffer_used))
     /*
@@ -988,8 +988,8 @@ inline bool Binlog_sender::shrink_packet()
 {
   DBUG_ENTER("Binlog_sender::shrink_packet");
   bool res= false;
-  uint32 cur_buffer_size= m_packet.alloced_length();
-  uint32 buffer_used= m_packet.length();
+  size_t cur_buffer_size= m_packet.alloced_length();
+  size_t buffer_used= m_packet.length();
 
   DBUG_ASSERT(!(cur_buffer_size < PACKET_MIN_SIZE));
 

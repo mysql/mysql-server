@@ -4469,13 +4469,13 @@ void Field_float::make_sort_key(uchar *to, size_t length)
   }
   else
 #endif
-    memcpy(&nr, ptr, min<uint>(length, sizeof(float)));
+    memcpy(&nr, ptr, min(length, sizeof(float)));
 
   uchar *tmp= to;
   if (nr == (float) 0.0)
   {						/* Change to zero string */
     tmp[0]=(uchar) 128;
-    memset(tmp + 1, 0, min<uint>(length, sizeof(nr) - 1));
+    memset(tmp + 1, 0, min(length, sizeof(nr) - 1));
   }
   else
   {
@@ -6776,7 +6776,7 @@ type_conversion_status
 Field_string::store(const char *from, size_t length,const CHARSET_INFO *cs)
 {
   ASSERT_COLUMN_MARKED_FOR_WRITE;
-  uint copy_length;
+  size_t copy_length;
   const char *well_formed_error_pos;
   const char *cannot_convert_error_pos;
   const char *from_end_pos;
@@ -7281,7 +7281,7 @@ type_conversion_status Field_varstring::store(const char *from, size_t length,
                                               const CHARSET_INFO *cs)
 {
   ASSERT_COLUMN_MARKED_FOR_WRITE;
-  uint copy_length;
+  size_t copy_length;
   const char *well_formed_error_pos;
   const char *cannot_convert_error_pos;
   const char *from_end_pos;
@@ -7923,13 +7923,13 @@ Field_blob::store_internal(const char *from, size_t length,
       is never used to limit the length of the data. The cut of long data
       is done with the new_length value.
     */
-    uint copy_length= well_formed_copy_nchars(field_charset,
-                                              tmp, new_length,
-                                              cs, from, length,
-                                              length,
-                                              &well_formed_error_pos,
-                                              &cannot_convert_error_pos,
-                                              &from_end_pos);
+    size_t copy_length= well_formed_copy_nchars(field_charset,
+                                                tmp, new_length,
+                                                cs, from, length,
+                                                length,
+                                                &well_formed_error_pos,
+                                                &cannot_convert_error_pos,
+                                                &from_end_pos);
 
     store_ptr_and_length(tmp, copy_length);
     return check_string_copy_error(well_formed_error_pos,
@@ -9458,9 +9458,9 @@ Field_bit::compatible_field_size(uint field_metadata,
 void Field_bit::sql_type(String &res) const
 {
   const CHARSET_INFO *cs= res.charset();
-  ulong length= cs->cset->snprintf(cs, (char*) res.ptr(), res.alloced_length(),
+  size_t length= cs->cset->snprintf(cs, (char*) res.ptr(), res.alloced_length(),
                                    "bit(%d)", (int) field_length);
-  res.length((uint) length);
+  res.length(length);
 }
 
 
@@ -9634,9 +9634,9 @@ type_conversion_status Field_bit_as_char::store(const char *from, size_t length,
 void Field_bit_as_char::sql_type(String &res) const
 {
   const CHARSET_INFO *cs= res.charset();
-  ulong length= cs->cset->snprintf(cs, (char*) res.ptr(), res.alloced_length(),
-                                   "bit(%d)", (int) field_length);
-  res.length((uint) length);
+  size_t length= cs->cset->snprintf(cs, (char*) res.ptr(), res.alloced_length(),
+                                    "bit(%d)", (int) field_length);
+  res.length(length);
 }
 
 

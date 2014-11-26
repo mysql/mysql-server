@@ -71,6 +71,16 @@ static const TABLE_FIELD_TYPE field_types[]=
     { NULL, 0}
   },
   {
+    { C_STRING_WITH_LEN("WORK_COMPLETED") },
+    { C_STRING_WITH_LEN("bigint(20)") },
+    { NULL, 0}
+  },
+  {
+    { C_STRING_WITH_LEN("WORK_ESTIMATED") },
+    { C_STRING_WITH_LEN("bigint(20)") },
+    { NULL, 0}
+  },
+  {
     { C_STRING_WITH_LEN("NESTING_EVENT_ID") },
     { C_STRING_WITH_LEN("bigint(20)") },
     { NULL, 0}
@@ -84,7 +94,7 @@ static const TABLE_FIELD_TYPE field_types[]=
 
 TABLE_FIELD_DEF
 table_events_stages_current::m_field_def=
-{10 , field_types };
+{12 , field_types };
 
 PFS_engine_table_share
 table_events_stages_current::m_share=
@@ -179,6 +189,17 @@ void table_events_stages_common::make_row(PFS_events_stages *stage)
   if (m_row.m_source_length > sizeof(m_row.m_source))
     m_row.m_source_length= sizeof(m_row.m_source);
 
+  if (klass->is_progress())
+  {
+    m_row.m_progress= true;
+    m_row.m_work_completed= stage->m_progress.m_work_completed;
+    m_row.m_work_estimated= stage->m_progress.m_work_estimated;
+  }
+  else
+  {
+    m_row.m_progress= false;
+  }
+
   m_row_exists= true;
   return;
 }
@@ -194,8 +215,9 @@ int table_events_stages_common::read_row_values(TABLE *table,
     return HA_ERR_RECORD_DELETED;
 
   /* Set the null bits */
-  DBUG_ASSERT(table->s->null_bytes == 1);
+  DBUG_ASSERT(table->s->null_bytes == 2);
   buf[0]= 0;
+  buf[1]= 0;
 
   for (; (f= *fields) ; fields++)
   {
@@ -239,13 +261,25 @@ int table_events_stages_common::read_row_values(TABLE *table,
         else
           f->set_null();
         break;
-      case 8: /* NESTING_EVENT_ID */
+      case 8: /* WORK_COMPLETED */
+        if (m_row.m_progress)
+          set_field_ulonglong(f, m_row.m_work_completed);
+        else
+          f->set_null();
+        break;
+      case 9: /* WORK_ESTIMATED */
+        if (m_row.m_progress)
+          set_field_ulonglong(f, m_row.m_work_estimated);
+        else
+          f->set_null();
+        break;
+      case 10: /* NESTING_EVENT_ID */
         if (m_row.m_nesting_event_id != 0)
           set_field_ulonglong(f, m_row.m_nesting_event_id);
         else
           f->set_null();
         break;
-      case 9: /* NESTING_EVENT_TYPE */
+      case 11: /* NESTING_EVENT_TYPE */
         if (m_row.m_nesting_event_id != 0)
           set_field_enum(f, m_row.m_nesting_event_type);
         else

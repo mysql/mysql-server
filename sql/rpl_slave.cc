@@ -3863,14 +3863,20 @@ static int exec_relay_log_event(THD* thd, Relay_log_info* rli)
   mysql_mutex_lock(&rli->data_lock);
 
   /*
-    UNTIL_SQL_AFTER_GTIDS requires special handling since we have to check
-    whether the until_condition is satisfied *before* the SQL threads goes on
-    a wait inside next_event() for the relay log to grow. This is reuired since
-    if we have already applied the last event in the waiting set but since he
-    check happens only at the start of the next event we may end up waiting
-    forever the next event is not available or is delayed.
+    UNTIL_SQL_AFTER_GTIDS, UNTIL_MASTER_POS and UNTIL_RELAY_POS require
+    special handling since we have to check whether the until_condition is
+    satisfied *before* the SQL threads goes on a wait inside next_event()
+    for the relay log to grow.
+    This is required in the following case: We have already applied the last
+    event in the waiting set, but the relay log ends after this event. Then it
+    is not enough to check the condition in next_event; we also have to check
+    it here, before going to sleep. Otherwise, if no updates were coming from
+    the master, we would sleep forever despite having reached the required
+    position.
   */
-  if (rli->until_condition == Relay_log_info::UNTIL_SQL_AFTER_GTIDS &&
+  if ((rli->until_condition == Relay_log_info::UNTIL_SQL_AFTER_GTIDS ||
+       rli->until_condition == Relay_log_info::UNTIL_MASTER_POS ||
+       rli->until_condition == Relay_log_info::UNTIL_RELAY_POS) &&
        rli->is_until_satisfied(thd, NULL))
   {
     rli->abort_slave= 1;

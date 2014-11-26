@@ -2948,7 +2948,7 @@ err:
       to the client side.
      */
     thd->clear_error();
-    my_error(ER_BINLOG_LOGGING_IMPOSSIBLE, MYF(0), "Either disc is full or "
+    my_error(ER_BINLOG_LOGGING_IMPOSSIBLE, MYF(0), "Either disk is full or "
              "file system is read only while opening the binlog. Aborting the "
              "server");
     thd->protocol->end_statement();
@@ -3766,7 +3766,7 @@ err:
       to the client side.
      */
     thd->clear_error();
-    my_error(ER_BINLOG_LOGGING_IMPOSSIBLE, MYF(0), "Either disc is full or "
+    my_error(ER_BINLOG_LOGGING_IMPOSSIBLE, MYF(0), "Either disk is full or "
              "file system is read only while opening the binlog. Aborting the "
              "server");
     thd->protocol->end_statement();
@@ -5409,7 +5409,7 @@ end:
         to the client side.
        */
       thd->clear_error();
-      my_error(ER_BINLOG_LOGGING_IMPOSSIBLE, MYF(0), "Either disc is full or "
+      my_error(ER_BINLOG_LOGGING_IMPOSSIBLE, MYF(0), "Either disk is full or "
                "file system is read only while rotating the binlog. Aborting "
                "the server");
       thd->protocol->end_statement();

@@ -142,7 +142,7 @@ public:
   { 
     return (MY_XPATH_FLT*) (ptr() + i * sizeof(MY_XPATH_FLT));
   }
-  inline uint32 numelements()
+  inline size_t numelements()
   {
     return length() / sizeof(MY_XPATH_FLT);
   }
