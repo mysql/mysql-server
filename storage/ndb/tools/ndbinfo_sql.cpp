@@ -570,19 +570,6 @@ int main(int argc, char** argv){
              " (@@ndbinfo_version >= (7 << 16) | (1 << 8)) || @ndbinfo_skip_version_check");
   print_conditional_sql(sql);
 
-  printf("# Only create objects if ndbinfo namespace is free\n");
-  sql.assfmt("SET @@ndbinfo_show_hidden=TRUE");
-  print_conditional_sql(sql);
-  sql.assfmt("SELECT @have_ndbinfo:= COUNT(*) = 0"
-             " FROM information_schema.tables WHERE"
-             " table_schema = @@ndbinfo_database AND"
-             " LEFT(table_name, LENGTH(@@ndbinfo_table_prefix)) ="
-             " @@ndbinfo_table_prefix AND"
-             " engine != \"ndbinfo\"");
-  print_conditional_sql(sql);
-  sql.assfmt("SET @@ndbinfo_show_hidden=default");
-  print_conditional_sql(sql);
-
   sql.assfmt("CREATE DATABASE IF NOT EXISTS `%s`", opt_ndbinfo_db);
   print_conditional_sql(sql);
 
