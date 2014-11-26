@@ -594,7 +594,6 @@ extern PSI_memory_key key_memory_hash_index_key_buffer;
 extern PSI_memory_key key_memory_THD_handler_tables_hash;
 extern PSI_memory_key key_memory_JOIN_CACHE;
 extern PSI_memory_key key_memory_READ_INFO;
-extern PSI_memory_key key_memory_mysql_manager;
 extern PSI_memory_key key_memory_partition_syntax_buffer;
 extern PSI_memory_key key_memory_global_system_variables;
 extern PSI_memory_key key_memory_THD_variables;
