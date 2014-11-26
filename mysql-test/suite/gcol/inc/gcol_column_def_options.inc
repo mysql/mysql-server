@@ -3,7 +3,7 @@
 #                                                                              #
 # Purpose:                                                                     #
 #  Testing different optional parameters specified when defining               #
-#  a virtual column.                                                           #
+#  a generated column.                                                         #
 #                                                                              #
 #                                                                              #
 #------------------------------------------------------------------------------#

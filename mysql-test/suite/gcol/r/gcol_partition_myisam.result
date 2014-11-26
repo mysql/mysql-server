@@ -1,6 +1,6 @@
 SET @@session.default_storage_engine = 'MyISAM';
 drop table if exists t1;
-# Case 1. Partitioning by RANGE based on a non-stored virtual column.
+# Case 1. Partitioning by RANGE based on a non-stored generated column.
 CREATE TABLE t1 (
 a DATE NOT NULL,
 b int generated always as (year(a)) virtual
@@ -17,7 +17,7 @@ a	b
 2005-01-01	2005
 2006-01-01	2006
 2007-01-01	2007
-# Modify the expression of virtual column b
+# Modify the expression of generated column b
 ALTER TABLE t1 modify b int generated always as (year(a)-1) virtual;
 select * from t1;
 a	b
@@ -25,7 +25,7 @@ a	b
 2006-01-01	2005
 2007-01-01	2006
 drop table t1;
-# Case 2. Partitioning by LIST based on a stored virtual column.
+# Case 2. Partitioning by LIST based on a stored generated column.
 CREATE TABLE t1 (a int, b int generated always as (a % 3 ) stored)
 PARTITION BY LIST (a+1)
 (PARTITION p1 VALUES IN (1), PARTITION p2 VALUES IN (2));
@@ -37,7 +37,7 @@ select * from t1;
 a	b
 1	1
 drop table t1;
-# Case 3. Partitioning by HASH based on a non-stored virtual column.
+# Case 3. Partitioning by HASH based on a non-stored generated column.
 CREATE TABLE t1 (
 a DATE NOT NULL,
 b int generated always as (year(a)) virtual
@@ -49,7 +49,7 @@ select * from t1;
 a	b
 2005-01-01	2005
 2006-01-01	2006
-# Modify the expression of virtual column b
+# Modify the expression of generated column b
 ALTER TABLE t1 modify b int generated always as (year(a)-1) virtual;
 select * from t1;
 a	b

@@ -306,7 +306,7 @@ bool partition_info::can_prune_insert(THD* thd,
   }
 
   /*
-    Can't prune partitions over virtual columns, as their values are
+    Can't prune partitions over generated columns, as their values are
     calculated much later.
   */
   if (table->vfield)
