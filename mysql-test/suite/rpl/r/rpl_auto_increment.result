@@ -193,6 +193,7 @@ a
 32
 42
 drop table t1;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 create table t1 (a tinyint not null auto_increment primary key) engine=myisam;
 insert into t1 values(103);
 set auto_increment_increment=11;
@@ -238,6 +239,7 @@ select * from t3 order by a;
 a
 127
 drop table t1,t2,t3;
+SET sql_mode = default;
 include/sync_slave_sql_with_master.inc
 set auto_increment_increment=1;
 set auto_increment_offset=1;

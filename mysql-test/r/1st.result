@@ -9,6 +9,7 @@ show tables in mysql;
 Tables_in_mysql
 columns_priv
 db
+engine_cost
 event
 func
 general_log
@@ -24,6 +25,7 @@ plugin
 proc
 procs_priv
 proxies_priv
+server_cost
 servers
 slave_master_info
 slave_relay_log_info

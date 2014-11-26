@@ -12,7 +12,7 @@
 
 --disable_abort_on_error
 --enable_query_log
-
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 # use the same .inc to cleanup before and after the test
 --source suite/funcs_1/storedproc/cleanup_sp_tb.inc
 
@@ -102,3 +102,4 @@ engine = $engine_type;
 --replace_result $MYSQLTEST_VARDIR <MYSQLTEST_VARDIR>
 eval
 load data infile '$MYSQLTEST_VARDIR/std_data/funcs_1/t4.txt' into table t11;
+SET sql_mode = default;

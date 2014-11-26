@@ -61,7 +61,7 @@ if (!$skip_update)
   UPDATE t1 SET c1 = -1 WHERE c1 = 40;
   SELECT AUTO_INCREMENT FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA='test'
   AND TABLE_NAME='t1';
-  UPDATE t1 SET c1 = NULL WHERE c1 = 4;
+  UPDATE IGNORE t1 SET c1 = NULL WHERE c1 = 4;
   INSERT INTO t1 VALUES (NULL);
   INSERT INTO t1 VALUES (NULL);
 }
@@ -243,7 +243,7 @@ if (!$skip_update)
   UPDATE t1 SET c1 = 140 WHERE c1 = 150;
   SELECT AUTO_INCREMENT FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA='test'
   AND TABLE_NAME='t1';
-  UPDATE t1 SET c1 = NULL WHERE c1 = 4;
+  UPDATE IGNORE t1 SET c1 = NULL WHERE c1 = 4;
   INSERT INTO t1 VALUES (NULL);
   INSERT INTO t1 VALUES (NULL);
 }
@@ -804,7 +804,7 @@ INSERT INTO t(c2) VALUES (10);
 INSERT INTO t(c2) VALUES (20);
 INSERT INTO t VALUES (126,30);
 INSERT INTO t VALUES (127,40);
-
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 --error 0, ER_DUP_ENTRY, ER_DUP_KEY
 INSERT INTO t VALUES (128,50);
 if (!$mysql_errno)
@@ -899,7 +899,7 @@ UPDATE t SET c1 = -6 WHERE c1 = 2;
 SELECT * FROM t ORDER BY c1 ASC;
 
 DROP TABLE t;
-
+SET sql_mode = default;
 --echo # Updating the partition table with a value that crosses the upper limits
 --echo # on both the positive and the negative side.
 
@@ -915,14 +915,14 @@ SELECT * FROM t ORDER BY c1 ASC;
 
 if (!$skip_update)
 { 
-UPDATE t SET c1 = 130 where c1 = 127;
+UPDATE IGNORE t SET c1 = 130 where c1 = 127;
 }
 
 SELECT * FROM t ORDER BY c1 ASC;
 
 if (!$skip_update)
 { 
-UPDATE t SET c1 = -140 where c1 = 126;
+UPDATE IGNORE t SET c1 = -140 where c1 = 126;
 }
 
 SELECT * FROM t ORDER BY c1 ASC;

@@ -305,6 +305,7 @@ drop table t1;
 #
 #  WL#946 TIME/DATETIME/TIMESTAMP with fractional precision
 #
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 CREATE TABLE t1 (
 t6 TIME(6), t5 TIME(5), t4 TIME(4),
 t3 TIME(3), t2 TIME(2), t1 TIME(1),
@@ -345,3 +346,4 @@ def	test	t1	t1	ts1	ts1	7	21	0	N	129	1	63
 def	test	t1	t1	ts0	ts0	7	19	0	N	129	0	63
 t6	t5	t4	t3	t2	t1	t0	dt6	dt5	dt4	dt3	dt2	dt1	dt0	ts6	ts5	ts4	ts3	ts2	ts1	ts0
 DROP TABLE t1;
+SET sql_mode = default;

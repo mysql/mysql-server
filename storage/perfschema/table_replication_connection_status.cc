@@ -54,6 +54,16 @@ static const TABLE_FIELD_TYPE field_types[]=
     {NULL, 0}
   },
   {
+    {C_STRING_WITH_LEN("COUNT_RECEIVED_HEARTBEATS")},
+    {C_STRING_WITH_LEN("bigint(20)")},
+    {NULL, 0}
+  },
+  {
+    {C_STRING_WITH_LEN("LAST_HEARTBEAT_TIMESTAMP")},
+    {C_STRING_WITH_LEN("timestamp")},
+    {NULL, 0}
+  },
+  {
     {C_STRING_WITH_LEN("RECEIVED_TRANSACTION_SET")},
     {C_STRING_WITH_LEN("text")},
     {NULL, 0}
@@ -77,7 +87,7 @@ static const TABLE_FIELD_TYPE field_types[]=
 
 TABLE_FIELD_DEF
 table_replication_connection_status::m_field_def=
-{ 7, field_types };
+{ 9, field_types };
 
 PFS_engine_table_share
 table_replication_connection_status::m_share=
@@ -220,6 +230,13 @@ void table_replication_connection_status::make_row()
       m_row.service_state= PS_RPL_CONNECT_SERVICE_STATE_NO;
   }
 
+  m_row.count_received_heartbeats= active_mi->received_heartbeats;
+  /*
+    Time in Milliseconds since epoch. active_mi->last_heartbeat contains
+    number of seconds so we multiply by 1000000.
+  */
+  m_row.last_heartbeat_timestamp= (ulonglong)active_mi->last_heartbeat*1000000;
+
   mysql_mutex_lock(&active_mi->err_lock);
   mysql_mutex_lock(&active_mi->rli->err_lock);
 
@@ -252,7 +269,9 @@ void table_replication_connection_status::make_row()
     memcpy(m_row.last_error_message, temp_store,
            m_row.last_error_message_length);
 
-    /** time in millisecond since epoch */
+    /*
+      Time in millisecond since epoch. active_mi->last_error().skr contains
+      number of seconds so we multiply by 1000000. */
     m_row.last_error_timestamp= (ulonglong)active_mi->last_error().skr*1000000;
   }
 
@@ -298,18 +317,24 @@ int table_replication_connection_status::read_row_values(TABLE *table,
       case 2: /** service_state */
         set_field_enum(f, m_row.service_state);
         break;
-      case 3: /** received_transaction_set */
+      case 3: /** number of heartbeat events received **/
+        set_field_ulonglong(f, m_row.count_received_heartbeats);
+        break;
+      case 4: /** time of receipt of last heartbeat event **/
+        set_field_timestamp(f, m_row.last_heartbeat_timestamp);
+        break;
+      case 5: /** received_transaction_set */
         set_field_longtext_utf8(f, m_row.received_transaction_set,
                                 m_row.received_transaction_set_length);
         break;
-      case 4: /*last_error_number*/
+      case 6: /*last_error_number*/
         set_field_ulong(f, m_row.last_error_number);
         break;
-      case 5: /*last_error_message*/
+      case 7: /*last_error_message*/
         set_field_varchar_utf8(f, m_row.last_error_message,
                                m_row.last_error_message_length);
         break;
-      case 6: /*last_error_timestamp*/
+      case 8: /*last_error_timestamp*/
          set_field_timestamp(f, m_row.last_error_timestamp);
         break;
       default:

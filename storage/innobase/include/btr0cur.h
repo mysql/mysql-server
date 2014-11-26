@@ -688,7 +688,9 @@ enum blob_op {
 	/** Store off-page columns for an insert by update */
 	BTR_STORE_INSERT_UPDATE,
 	/** Store off-page columns for an update */
-	BTR_STORE_UPDATE
+	BTR_STORE_UPDATE,
+	/** Store off-page columns for a freshly inserted record by bulk */
+	BTR_STORE_INSERT_BULK
 };
 
 /*******************************************************************//**
@@ -754,9 +756,7 @@ btr_free_externally_stored_field(
 	ulint		i,		/*!< in: field number of field_ref;
 					ignored if rec == NULL */
 	bool		rollback,	/*!< in: performing rollback? */
-	mtr_t*		local_mtr);	/*!< in: mtr containing the latch to
-					data an an X-latch to the index
-					tree */
+	mtr_t*		local_mtr);	/*!< in: mtr containing the latch */
 /** Copies the prefix of an externally stored field of a record.
 The clustered index record must be protected by a lock or a page latch.
 @param[out]	buf		the field, or a prefix of it

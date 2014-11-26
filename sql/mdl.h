@@ -96,8 +96,16 @@ public:
   virtual int  is_killed() = 0;
 
   /**
-     This one is only used for DEBUG_SYNC.
-     (Do not use it to peek/poke into other parts of THD.)
+    Does the owner still have connection to the client?
+  */
+  virtual bool is_connected() = 0;
+
+  /**
+     Within MDL subsystem this one is only used for DEBUG_SYNC.
+     Do not use it to peek/poke into other parts of THD from MDL.
+     However it is OK to use this method in callbacks provided
+     by SQL-layer to MDL subsystem (since SQL-layer has full
+     access to THD anyway).
    */
   virtual THD* get_thd() = 0;
 
@@ -305,9 +313,12 @@ public:
      - PROCEDURE is for stored procedures.
      - TRIGGER is for triggers.
      - EVENT is for event scheduler events
+     - USER_LEVEL_LOCK is for user-level locks
     Note that although there isn't metadata locking on triggers,
     it's necessary to have a separate namespace for them since
     MDL_key is also used outside of the MDL subsystem.
+    Also note that requests waiting for user-level locks get special
+    treatment - waiting is aborted if connection to client is lost.
   */
   enum enum_mdl_namespace { GLOBAL=0,
                             SCHEMA,
@@ -317,6 +328,7 @@ public:
                             TRIGGER,
                             EVENT,
                             COMMIT,
+                            USER_LEVEL_LOCK,
                             /* This should be the last ! */
                             NAMESPACE_END };
 
@@ -578,6 +590,7 @@ public:
   virtual bool accept_visitor(MDL_wait_for_graph_visitor *gvisitor) = 0;
 
   static const uint DEADLOCK_WEIGHT_DML= 0;
+  static const uint DEADLOCK_WEIGHT_ULL= 50;
   static const uint DEADLOCK_WEIGHT_DDL= 100;
 
   /* A helper used to determine which lock request should be aborted. */
@@ -633,6 +646,7 @@ public:
   }
   enum_mdl_type get_type() const { return m_type; }
   MDL_lock *get_lock() const { return m_lock; }
+  const MDL_key *get_key() const;
   void downgrade_lock(enum_mdl_type type);
 
   bool has_stronger_or_equal_type(enum_mdl_type type) const;
@@ -775,6 +789,18 @@ private:
 };
 
 
+/**
+  Abstract visitor class for inspecting MDL_context.
+*/
+
+class MDL_context_visitor
+{
+public:
+  virtual ~MDL_context_visitor() {}
+  virtual void visit_context(const MDL_context *ctx) = 0;
+};
+
+
 typedef I_P_List<MDL_request, I_P_List_adapter<MDL_request,
                  &MDL_request::next_in_list,
                  &MDL_request::prev_in_list>,
@@ -816,6 +842,8 @@ public:
                                    const char *db, const char *name,
                                    enum_mdl_type mdl_type);
 
+  bool find_lock_owner(const MDL_key *mdl_key, MDL_context_visitor *visitor);
+
   bool has_lock(const MDL_savepoint &mdl_savepoint, MDL_ticket *mdl_ticket);
 
   inline bool has_locks() const
@@ -839,7 +867,7 @@ public:
   void release_transactional_locks();
   void rollback_to_savepoint(const MDL_savepoint &mdl_savepoint);
 
-  MDL_context_owner *get_owner() { return m_owner; }
+  MDL_context_owner *get_owner() const { return m_owner; }
 
   /** @pre Only valid if we started waiting for lock. */
   inline uint get_deadlock_weight() const
@@ -915,6 +943,11 @@ public:
     return m_rand_state;
   }
 
+  /**
+    Within MDL subsystem this one is only used for DEBUG_SYNC.
+    Do not use it to peek/poke into other parts of THD from MDL.
+    @sa MDL_context_owner::get_thd().
+  */
   THD *get_thd() const { return m_owner->get_thd(); }
 
 public:
@@ -930,9 +963,9 @@ private:
     Lists of MDL tickets:
     ---------------------
     The entire set of locks acquired by a connection can be separated
-    in three subsets according to their: locks released at the end of
-    statement, at the end of transaction and locks are released
-    explicitly.
+    in three subsets according to their duration: locks released at
+    the end of statement, at the end of transaction and locks are
+    released explicitly.
 
     Statement and transactional locks are locks with automatic scope.
     They are accumulated in the course of a transaction, and released
@@ -941,11 +974,12 @@ private:
     locks). They must not be (and never are) released manually,
     i.e. with release_lock() call.
 
-    Locks with explicit duration are taken for locks that span
+    Tickets with explicit duration are taken for locks that span
     multiple transactions or savepoints.
     These are: HANDLER SQL locks (HANDLER SQL is
     transaction-agnostic), LOCK TABLES locks (you can COMMIT/etc
-    under LOCK TABLES, and the locked tables stay locked), and
+    under LOCK TABLES, and the locked tables stay locked), user level
+    locks (GET_LOCK()/RELEASE_LOCK() functions) and
     locks implementing "global read lock".
 
     Statement/transactional locks are always prepended to the
@@ -954,29 +988,13 @@ private:
     a savepoint, we start popping and releasing tickets from the
     front until we reach the last ticket acquired after the savepoint.
 
-    Locks with explicit duration stored are not stored in any
+    Locks with explicit duration are not stored in any
     particular order, and among each other can be split into
-    three sets:
-
-    [LOCK TABLES locks] [HANDLER locks] [GLOBAL READ LOCK locks]
-
-    The following is known about these sets:
-
-    * GLOBAL READ LOCK locks are always stored after LOCK TABLES
-      locks and after HANDLER locks. This is because one can't say
-      SET GLOBAL read_only=1 or FLUSH TABLES WITH READ LOCK
-      if one has locked tables. One can, however, LOCK TABLES
-      after having entered the read only mode. Note, that
-      subsequent LOCK TABLES statement will unlock the previous
-      set of tables, but not the GRL!
-      There are no HANDLER locks after GRL locks because
-      SET GLOBAL read_only performs a FLUSH TABLES WITH
-      READ LOCK internally, and FLUSH TABLES, in turn, implicitly
-      closes all open HANDLERs.
-      However, one can open a few HANDLERs after entering the
-      read only mode.
-    * LOCK TABLES locks include intention exclusive locks on
-      involved schemas and global intention exclusive lock.
+    four sets:
+    - LOCK TABLES locks
+    - User-level locks
+    - HANDLER locks
+    - GLOBAL READ LOCK locks
   */
   Ticket_list m_tickets[MDL_DURATION_END];
   MDL_context_owner *m_owner;

@@ -21,10 +21,7 @@ DROP TABLE u;
 SELECT @@innodb_fast_shutdown;
 let $MYSQLD_DATADIR=`select @@datadir`;
 
-# Shut down the server
--- exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
--- shutdown_server 30
--- source include/wait_until_disconnected.inc
+--source include/shutdown_mysqld.inc
 
 # Check the tail of ID_IND (SYS_TABLES.ID)
 let IBDATA1=$MYSQLD_DATADIR/ibdata1;
@@ -43,10 +40,7 @@ close(FILE);
 print unpack("H*", $_), "\n";
 EOF
 
-# Restart the server.
--- exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
--- enable_reconnect
--- source include/wait_until_connected_again.inc
+--source include/start_mysqld.inc
 
 -- disable_query_log
 USE mysql;

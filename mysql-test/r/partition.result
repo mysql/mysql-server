@@ -307,13 +307,13 @@ Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 show indexes from t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
-t1	1	a	1	a	A	4	NULL	NULL	YES	BTREE		
+t1	1	a	1	a	A	1	NULL	NULL	YES	BTREE		
 analyze table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 show indexes from t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
-t1	1	a	1	a	A	4	NULL	NULL	YES	BTREE		
+t1	1	a	1	a	A	1	NULL	NULL	YES	BTREE		
 drop table t1;
 create table t1 (a int)
 partition by hash (a);
@@ -2561,9 +2561,7 @@ FROM t1
 WHERE c > geomfromtext('point(1 1)')
 GROUP BY b
 );
-1
-1
-1
+ERROR HY000: Incorrect arguments to >
 DROP TABLE t1;
 #
 # WL#5855 (EXPLAIN FORMAT=JSON) partition test

@@ -256,9 +256,9 @@ public:
   { DBUG_ASSERT(0); return true; }
 
   /**
-    Add a CTX_JOIN_TAB node to a CTX_JOIN node
+    Add a CTX_QEP_TAB node to a CTX_JOIN node
 
-    @param ctx          CTX_JOIN_TAB node
+    @param ctx          CTX_QEP_TAB node
 
     @retval false           Ok
     @retval true            Error
@@ -304,7 +304,7 @@ public:
     Associate WHERE subqueries of given context and unit with this object
 
     @param ctx          Context of WHERE subquery
-    @param subquery     For CTX_JOIN_TAB: match given unit with a previously
+    @param subquery     For CTX_QEP_TAB: match given unit with a previously
                         collected by the register_where_subquery function.
     @returns
       -1   subquery wasn't found
@@ -737,7 +737,7 @@ public:
 
 
 /**
-  Common part of CTX_JOIN_TAB and CTX_MESSAGE nodes
+  Common part of CTX_QEP_TAB and CTX_MESSAGE nodes
 
   This class implements functionality for WHERE and derived subqueries that
   are associated with the table node.
@@ -790,7 +790,7 @@ public:
 
 
 /**
-  Base for CTX_JOIN_TAB, CTX_DUPLICATES_WEEDOUT and CTX_MATERIALIZATION nodes
+  Base for CTX_QEP_TAB, CTX_DUPLICATES_WEEDOUT and CTX_MATERIALIZATION nodes
 
   This class implements a base to explain individual JOIN_TABs as well
   as JOIN_TAB groups like in semi-join materialization.
@@ -860,7 +860,7 @@ public:
 
 
 /**
-  Node class for the CTX_JOIN_TAB context
+  Node class for the CTX_QEP_TAB context
 */
 class join_tab_ctx : public joinable_ctx,
                      public table_with_where_and_derived
@@ -1069,7 +1069,7 @@ public:
   virtual qep_row *entry() { return this; }
 
   /**
-    Associate a CTX_DERIVED node with its CTX_JOIN_TAB node
+    Associate a CTX_DERIVED node with its CTX_QEP_TAB node
 
     @param subquery     derived subquery tree
   */
@@ -1724,7 +1724,7 @@ bool Explain_format_JSON::begin_context(enum_parsing_context ctx,
       current_context= ctx;
       break;
     }
-  case CTX_JOIN_TAB:
+  case CTX_QEP_TAB:
     {
       DBUG_ASSERT(current_context->type == CTX_JOIN ||
                   current_context->type == CTX_MATERIALIZATION ||
@@ -1736,7 +1736,7 @@ bool Explain_format_JSON::begin_context(enum_parsing_context ctx,
                   current_context->type == CTX_SIMPLE_GROUP_BY ||
                   current_context->type == CTX_SIMPLE_ORDER_BY ||
                   current_context->type == CTX_SIMPLE_DISTINCT);
-      join_tab_ctx *ctx= new join_tab_ctx(CTX_JOIN_TAB, current_context);
+      join_tab_ctx *ctx= new join_tab_ctx(CTX_QEP_TAB, current_context);
       if (ctx == NULL || current_context->add_join_tab(ctx))
         return true;
       current_context= ctx;
@@ -1944,7 +1944,7 @@ bool Explain_format_JSON::begin_context(enum_parsing_context ctx,
   case CTX_MESSAGE:
     {
       /*
-        Like CTX_JOIN_TAB:
+        Like CTX_QEP_TAB:
       */
       DBUG_ASSERT(current_context->type == CTX_JOIN ||
                   current_context->type == CTX_MATERIALIZATION ||

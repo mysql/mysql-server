@@ -84,7 +84,7 @@ public:
   char *user;
   /**
     The salt variable is used as the password hash for
-    native_password_authetication and old_password_authentication.
+    native_password_authetication.
   */
   uint8 salt[SCRAMBLE_LENGTH + 1];       // scrambled password in binary form
   /**

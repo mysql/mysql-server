@@ -168,6 +168,21 @@ TEST_F(SetRingOrderTest, RingDegradedToPointTest)
 class GeometryManipulationTest : public SetRingOrderTest
 {
 public:
+  void assign_multipolygon_back(Gis_multi_polygon &mpl2, const Gis_polygon &pl)
+  {
+    for (size_t i = 0; i < pl.outer().size(); i++)
+      mpl2.back().outer().push_back(pl.outer()[i]);
+    for (size_t i = 0; i < pl.inners().size(); i+=2)
+    {
+      mpl2.back().inners().push_back(pl.inners()[i]);
+      if (i + 1 < pl.inners().size())
+      {
+        mpl2.back().inners().resize(mpl2.back().inners().size() + 1);
+        for (size_t j = 0; j < pl.inners()[i+1].size(); j++)
+          mpl2.back().inners().back().push_back(pl.inners()[i+1][j]);
+      }
+    }
+  }
 };
 
 
@@ -235,6 +250,11 @@ TEST_F(GeometryManipulationTest, PolygonManipulationTest)
                    plgn0->get_flags(), plgn0->get_srid());
   Gis_line_string ls(ls0->get_data_ptr(), ls0->get_data_size(),
                      ls0->get_flags(), ls0->get_srid());
+  Gis_line_string ls00(*ls0);
+
+  ls= ls;
+  ls00= ls00;
+  plgn= plgn;
 
   Geometry_buffer buffer3;
   String wkt3, str3;
@@ -280,6 +300,131 @@ TEST_F(GeometryManipulationTest, PolygonManipulationTest)
   EXPECT_EQ(mplgn.get_data_size(), mplgn2->get_data_size());
   EXPECT_EQ(memcmp(mplgn.get_data_ptr(), mplgn2->get_data_ptr(),
                    mplgn2->get_data_size()), 0);
+}
+
+
+TEST_F(GeometryManipulationTest, ResizeAssignmentTest)
+{
+  Gis_polygon_ring ring1;
+  Gis_line_string ls4, ls5, ls6, ls7, ls8;
+  for (int i = 0; i < 5; i++)
+  {
+    Gis_point pt;
+    pt.set<0>(i);
+    pt.set<1>(i);
+    ring1.push_back(pt);
+    ls4.push_back(pt);
+    ls6.push_back(pt);
+    ls7.push_back(pt);
+    if (i != 4)
+      ls8.push_back(pt);
+  }
+  Gis_point pt;
+  pt.set<0>(0);
+  pt.set<1>(0);
+  ls7.push_back(pt);
+
+
+  Gis_polygon plgn3, plgn4, plgn5;
+  plgn3.outer() = ring1;
+  plgn3.inners().push_back(ring1);
+  plgn3.inners().resize(plgn3.inners().size());
+
+  plgn5.outer() = *((Gis_polygon_ring *)(&ls8));
+  plgn5.inners().push_back(*((Gis_polygon_ring *)(&ls7)));
+  plgn5.inners().push_back(*((Gis_polygon_ring *)(&ls6)));
+
+  Gis_multi_polygon mplgn3, mplgn4;
+  mplgn3.push_back(plgn3);
+  mplgn3.resize(2);
+  assign_multipolygon_back(mplgn3, plgn5);
+  mplgn3.push_back(plgn3);
+  mplgn3.resize(4);
+  assign_multipolygon_back(mplgn3, plgn5);
+
+  mplgn4.resize(1);
+  assign_multipolygon_back(mplgn4, plgn3);
+  mplgn4.push_back(plgn5);
+  mplgn4.resize(3);
+  assign_multipolygon_back(mplgn4, plgn3);
+  mplgn4.push_back(plgn5);
+  mplgn3.reassemble();
+  mplgn4.reassemble();
+  EXPECT_EQ(mplgn3.get_ptr() != mplgn4.get_ptr() &&
+            mplgn3.get_nbytes() == mplgn4.get_nbytes() &&
+            memcmp(mplgn3.get_ptr(), mplgn4.get_ptr(),
+                   mplgn3.get_nbytes()) == 0, true);
+
+
+  Gis_multi_line_string mls1, mls2;
+  mls1.resize(1);
+  for (size_t i= 0; i < ls4.size(); i++)
+    mls1.back().push_back(ls4[i]);
+  mls1.push_back(ls6);
+  mls1.resize(3);
+  for (size_t i= 0; i < ls7.size(); i++)
+    mls1.back().push_back(ls7[i]);
+  mls1.push_back(ls8);
+
+  mls2.push_back(ls4);
+  mls2.resize(2);
+  for (size_t i= 0; i < ls6.size(); i++)
+    mls2.back().push_back(ls6[i]);
+
+  mls2.push_back(ls7);
+  mls2.resize(4);
+  for (size_t i= 0; i < ls8.size(); i++)
+    mls2.back().push_back(ls8[i]);
+
+  mls1.reassemble();
+  mls2.reassemble();
+  EXPECT_EQ(mls1.get_ptr() != mls2.get_ptr() &&
+            mls1.get_nbytes() == mls2.get_nbytes() &&
+            memcmp(mls1.get_ptr(), mls2.get_ptr(), mls1.get_nbytes()) == 0,
+            true);
+  String str1, str2;
+  str1.append(mls1.get_cptr(), mls1.get_nbytes(), &my_charset_bin);
+  Gis_geometry_collection geocol(0, Geometry::wkb_multipolygon, &str1, &str2);
+
+  ls4= ls5;
+  EXPECT_EQ(ls4.get_ptr() == NULL && ls4.get_nbytes() == 0, true);
+  EXPECT_EQ(ls5.get_ptr() == NULL && ls5.get_nbytes() == 0, true);
+  plgn3= plgn4;
+  plgn3.to_wkb_unparsed();
+  EXPECT_EQ(plgn3.get_ptr() == NULL && plgn3.get_nbytes() == 0, true);
+
+  ls4= ls6;
+  EXPECT_EQ(ls4.get_ptr() != ls6.get_ptr() &&
+            ls4.get_nbytes() == ls6.get_nbytes() &&
+            memcmp(ls4.get_ptr(), ls6.get_ptr(), ls6.get_nbytes()) == 0, true);
+
+  ls4= ls7;
+  EXPECT_EQ(ls4.get_ptr() != ls7.get_ptr() &&
+            ls4.get_nbytes() == ls7.get_nbytes() &&
+            memcmp(ls4.get_ptr(), ls7.get_ptr(), ls7.get_nbytes()) == 0, true);
+
+  ls4= ls6;
+  EXPECT_EQ(ls4.get_ptr() != ls6.get_ptr() &&
+            ls4.get_nbytes() == ls6.get_nbytes() &&
+            memcmp(ls4.get_ptr(), ls6.get_ptr(), ls6.get_nbytes()) == 0, true);
+
+  void *buf= gis_wkb_alloc(ls8.get_nbytes() + 32);
+  memcpy(buf, ls8.get_ptr(), ls8.get_nbytes());
+  char *cbuf= static_cast<char *>(buf);
+  memset(cbuf + ls8.get_nbytes(), 0xff, 32);
+  cbuf[ls8.get_nbytes() + 31] = '\0';
+
+  ls4.set_ptr(buf, ls8.get_nbytes());
+  EXPECT_EQ(ls4.get_ptr() != ls8.get_ptr() &&
+            ls4.get_nbytes() == ls8.get_nbytes() &&
+            memcmp(ls4.get_ptr(), ls8.get_ptr(), ls8.get_nbytes()) == 0, true);
+
+  for (size_t i= ls4.size() + 1; i < 64; i++)
+  {
+    ls4.resize(i);
+    ls4.back().set<0>(i);
+    ls4.back().set<1>(i);
+  }
 }
 
 }

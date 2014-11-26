@@ -41,9 +41,7 @@ set @save.slave_transaction_retries= @@global.slave_transaction_retries;
 # Resetting of SBM is a possibility whenever Coordinator
 # notices no more groups left neither to read nor to process (demo 2).
 #
-
-start slave io_thread;
-source include/wait_for_slave_io_to_start.inc;
+--source include/start_slave.inc
 
 connection master;
 
@@ -54,10 +52,12 @@ call mtr.add_suppression('.*Unsafe statement written to the binary log using sta
 
 create table t1 (f1 int) engine=innodb;
 create table t2 (f1 int) engine=innodb;
-save_master_pos;
+--source include/sync_slave_sql_with_master.inc
 
+--source include/stop_slave_sql.inc
 # 1st transaction that will be used to compute SBM.
 # It will hang $idle time at least in processing to get min estimate for SBM
+connection master;
 let $idle= 3;
 
 begin;
@@ -69,25 +69,16 @@ begin;
   insert into t2 values (1);
 commit;
 
-connection slave;
-source include/start_slave.inc;
-
 #
 # all events are in relay-log
 #
-connection master;
-
 source include/sync_slave_io_with_master.inc;
-
-# tables are created on slave
-connection slave;
-sync_with_master;
 
 connection slave1;
 lock table t2 write;  # to block 2nd trans
 
 connection slave;
-
+--source include/start_slave_sql.inc
 let $count= 1;
 let $table= t1;
 source include/wait_until_rows_count.inc;
@@ -102,16 +93,6 @@ let $slave_param= Seconds_Behind_Master;
 let $slave_param_comparison= >=; 
 let $slave_param_value= $idle;
 source include/wait_for_slave_param.inc;
-
-# checking sanity of SBM value
-let $sbm= query_get_value("SHOW SLAVE STATUS", Seconds_Behind_Master, 1);
-let $lower_bound= $idle;
-if (`SELECT $sbm < $idle`)
-{
-  -- echo *** Seconds behind master is $sbm less than minimum expected $idle ***
-  -- source include/show_rpl_debug_info.inc
-  -- die
-}
 
 --echo Seconds_Behind_Master after first transaction is as expected.
 

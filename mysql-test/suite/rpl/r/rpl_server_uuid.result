@@ -6,7 +6,7 @@ Note	####	Storing MySQL user name or password information in the master info rep
 call mtr.add_suppression("Slave I/O thread .* register on master");
 call mtr.add_suppression("Slave I/O: Master command COM_REGISTER_SLAVE failed: .*");
 CALL mtr.add_suppression(".*master and slave have equal MySQL server UUIDs.*");
-CALL mtr.add_suppression("Master's UUID has changed, its old UUID is.*");
+CALL mtr.add_suppression("Master's UUID has changed, although this should not happen unless you have changed it manually");
 CALL mtr.add_suppression("Slave I/O: SET @master_heartbeat_period to master failed with error: Lost connection to MySQL server during query");
 CALL mtr.add_suppression("Notifying master by SET @master_binlog_checksum= @@global.binlog_checksum failed with error");
 include/sync_slave_sql_with_master.inc
@@ -118,4 +118,25 @@ include/check_slave_param.inc [Slave_IO_Running]
 CHANGE MASTER TO 
 MASTER_LOG_FILE= 'MASTER_LOG_FILE', MASTER_LOG_POS= MASTER_POS;
 include/start_slave.inc
+
+# Case 6:
+# In an existing master-slave replication forum (M->S1), if another
+# slave (S2) with the same UUID as S1 joins the forum and connects
+# to Master(M), then there will be ping-pong reconnections happens
+# between M->S2, M->S1, M->S2, M->S1,.... And both slave1 and slave2
+# will be informed about this UUID misconfiguration in their error
+# log file. And Master log will be populated with information that
+# it found a zombie dump thread and it is killing it(only when
+# log_warnings is greater than 1)
+-----------------------------------------------------------------------------
+include/rpl_restart_server.inc [server_number=3]
+CREATE TABLE t1(i int);
+DROP TABLE t1;
+include/sync_slave_sql_with_master.inc
+include/sync_slave_sql_with_master.inc
+Pattern "found a zombie dump thread with the same UUID" found
+Pattern "master receives a binlog send request from a duplicate server UUID" found
+Pattern "master receives a binlog send request from a duplicate server UUID" found
+include/rpl_restart_server.inc [server_number=3]
+include/stop_slave.inc
 include/rpl_end.inc

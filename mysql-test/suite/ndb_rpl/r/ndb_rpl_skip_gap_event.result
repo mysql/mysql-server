@@ -8,6 +8,7 @@ select count(*) from t1;
 count(*)
 1000
 Restarting mysqld
+# restart
 show binlog events in 'master-bin.000002'  from <start_pos> limit 0,1;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000002	#	Incident	1	<end_pos>	#1 (LOST_EVENTS)

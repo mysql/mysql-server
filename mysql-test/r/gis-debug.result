@@ -525,7 +525,7 @@ SELECT * FROM t1 ORDER BY cast(st_distance(1,1) as DECIMAL);
 a
 1
 DELETE FROM t1 ORDER BY cast(st_distance(1,1) as DECIMAL);
-ERROR HY000: Invalid GIS data provided to function st_distance.
+ERROR 22023: Invalid GIS data provided to function st_distance.
 UPDATE t1 SET a=1 ORDER BY cast(st_distance(1,1) as DECIMAL);
-ERROR HY000: Invalid GIS data provided to function st_distance.
+ERROR 22023: Invalid GIS data provided to function st_distance.
 DROP TABLE t1;

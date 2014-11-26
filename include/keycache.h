@@ -110,13 +110,13 @@ typedef struct st_key_cache
 extern KEY_CACHE dflt_key_cache_var, *dflt_key_cache;
 
 extern int init_key_cache(KEY_CACHE *keycache, uint key_cache_block_size,
-			  size_t use_mem, uint division_limit,
-			  uint age_threshold);
+			  size_t use_mem, ulonglong division_limit,
+			  ulonglong age_threshold);
 extern int resize_key_cache(KEY_CACHE *keycache, uint key_cache_block_size,
-			    size_t use_mem, uint division_limit,
-			    uint age_threshold);
-extern void change_key_cache_param(KEY_CACHE *keycache, uint division_limit,
-				   uint age_threshold);
+			    size_t use_mem, ulonglong division_limit,
+			    ulonglong age_threshold);
+extern void change_key_cache_param(KEY_CACHE *keycache, ulonglong division_limit,
+				   ulonglong age_threshold);
 extern uchar *key_cache_read(KEY_CACHE *keycache,
                             File file, my_off_t filepos, int level,
                             uchar *buff, uint length,

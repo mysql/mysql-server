@@ -85,6 +85,7 @@ DROP TABLE test_ps_flag;
 =====
 CREATE TABLE test_ps_flag (a INT) ENGINE=INNODB STATS_PERSISTENT=0;
 ALTER TABLE test_ps_flag STATS_PERSISTENT=1;
+# restart
 SHOW CREATE TABLE test_ps_flag;
 Table	Create Table
 test_ps_flag	CREATE TABLE `test_ps_flag` (
@@ -142,6 +143,7 @@ DROP TABLE test_ps_flag;
 =====
 CREATE TABLE test_ps_flag (a INT) ENGINE=INNODB STATS_PERSISTENT=1;
 ALTER TABLE test_ps_flag STATS_PERSISTENT=0;
+# restart
 SHOW CREATE TABLE test_ps_flag;
 Table	Create Table
 test_ps_flag	CREATE TABLE `test_ps_flag` (

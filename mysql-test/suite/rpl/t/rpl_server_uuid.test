@@ -12,13 +12,14 @@
 --source include/not_gtid_enabled.inc
 --source include/master-slave.inc
 --source include/not_embedded.inc
+--source include/no_valgrind_without_big.inc
 --source include/have_debug.inc
 --source include/have_debug_sync.inc
 
 call mtr.add_suppression("Slave I/O thread .* register on master");
 call mtr.add_suppression("Slave I/O: Master command COM_REGISTER_SLAVE failed: .*");
 CALL mtr.add_suppression(".*master and slave have equal MySQL server UUIDs.*");
-CALL mtr.add_suppression("Master's UUID has changed, its old UUID is.*");
+CALL mtr.add_suppression("Master's UUID has changed, although this should not happen unless you have changed it manually");
 CALL mtr.add_suppression("Slave I/O: SET @master_heartbeat_period to master failed with error: Lost connection to MySQL server during query");
 CALL mtr.add_suppression("Notifying master by SET @master_binlog_checksum= @@global.binlog_checksum failed with error");
 
@@ -236,4 +237,66 @@ RESET SLAVE;
 eval CHANGE MASTER TO 
        MASTER_LOG_FILE= '$old_master_log_file', MASTER_LOG_POS= $old_master_log_pos;
 --source include/start_slave.inc
+
+--echo
+--echo # Case 6:
+--echo # In an existing master-slave replication forum (M->S1), if another
+--echo # slave (S2) with the same UUID as S1 joins the forum and connects
+--echo # to Master(M), then there will be ping-pong reconnections happens
+--echo # between M->S2, M->S1, M->S2, M->S1,.... And both slave1 and slave2
+--echo # will be informed about this UUID misconfiguration in their error
+--echo # log file. And Master log will be populated with information that
+--echo # it found a zombie dump thread and it is killing it(only when
+--echo # log_warnings is greater than 1)
+--echo -----------------------------------------------------------------------------
+
+# Step-1: Copy server 2(S1)'s auto.cnf into server 3 (S2)'s data directory.
+--connection server_2
+--let $datadir2=`select @@datadir`
+-- connection server_3
+--let $datadir3=`select @@datadir`
+--copy_file $datadir3/auto.cnf $datadir3/auto_backup.cnf
+--remove_file $datadir3/auto.cnf
+--copy_file $datadir2/auto.cnf $datadir3/auto.cnf
+
+# Step-2: Restart the server(two servers with the same UUID)
+--let $rpl_server_number= 3
+--source include/rpl_restart_server.inc
+
+# Step-3: Just do some command on server_1
+--connection server_1
+CREATE TABLE t1(i int);
+DROP TABLE t1;
+
+# Step-4: Sync the data on both the slaves and observe that
+# sync will be success at both slaves.
+--let $sync_slave_connection= server_2
+--source include/sync_slave_sql_with_master.inc
+
+--connection server_1
+--let $sync_slave_connection= server_3
+--source include/sync_slave_sql_with_master.inc
+
+# Step-5: Observe that misconfiguration messages are in their respective
+# error log files.
+
+--let SEARCH_FILE=$MYSQLTEST_VARDIR/tmp/rpl_server_uuid_test.mysqld.1.err
+--let SEARCH_PATTERN=found a zombie dump thread with the same UUID
+--source include/search_pattern.inc
+
+--let SEARCH_FILE=$MYSQLTEST_VARDIR/tmp/rpl_server_uuid_test.mysqld.2.err
+--let SEARCH_PATTERN=master receives a binlog send request from a duplicate server UUID
+--source include/search_pattern.inc
+
+--let SEARCH_FILE=$MYSQLTEST_VARDIR/tmp/rpl_server_uuid_test.mysqld.3.err
+--let SEARCH_PATTERN=master receives a binlog send request from a duplicate server UUID
+--source include/search_pattern.inc
+
+# Cleanup (restore the server 3's auto.cnf back to proper one and restart)
+--remove_file $datadir3/auto.cnf
+--copy_file $datadir3/auto_backup.cnf $datadir3/auto.cnf
+--remove_file $datadir3/auto_backup.cnf
+--let $rpl_server_number= 3
+--source include/rpl_restart_server.inc
+--source include/stop_slave.inc
 --source include/rpl_end.inc

@@ -91,7 +91,7 @@ drop table t1;
 CREATE TABLE t1( a SET('a', 'b', 'c') );
 CREATE TABLE t2( a SET('a', 'b', 'c') );
 
-INSERT INTO t1 VALUES ('d');
+INSERT IGNORE INTO t1 VALUES ('d');
 INSERT INTO t2 VALUES ('');
 
 SELECT CONVERT( a USING latin1 ) FROM t1;

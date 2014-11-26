@@ -16,6 +16,7 @@ update t2 set test_name= replace(test_name, "objects_summary_", "os_");
 update t2 set test_name= replace(test_name, "table_io_waits_summary_", "tiws_");
 update t2 set test_name= replace(test_name, "table_lock_waits_summary_", "tlws_");
 update t2 set test_name= replace(test_name, "memory_summary_", "mems_");
+update t2 set test_name= replace(test_name, "user_variables_", "uvar_");
 delete from t2 where t2.test_name in (select t1.test_name from t1);
 select test_name as `MISSING DDL/DML TESTS` from t2;
 MISSING DDL/DML TESTS

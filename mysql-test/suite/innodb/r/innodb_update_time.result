@@ -41,8 +41,7 @@ INSERT INTO t VALUES (5);
 XA END 'xatrx';
 XA PREPARE 'xatrx';
 call mtr.add_suppression("Found 1 prepared XA transactions");
-# forcefully shutdown mysqld immediately (kill)
-# restart mysqld
+# Kill and restart
 SELECT update_time FROM information_schema.tables WHERE table_name = 't';
 update_time
 NULL

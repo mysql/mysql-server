@@ -1,0 +1,46 @@
+#
+# WL#6965: Truncate UNDO logs.
+#
+
+--source include/have_innodb.inc
+# this is must to ensure that trx_purge_truncate is called with increased
+# frequency so that undo logs are cleared.
+--source include/have_debug.inc
+# We are printing size of undo log below and if page size keeps on
+# varying then initial size too keeps on varying.
+--source include/have_innodb_16k.inc
+--source include/have_undo_tablespaces.inc
+
+# TC check if truncate is completed in given time frame. When
+# test is run under valgrind there is no such time assurance.
+--source include/not_valgrind.inc
+--source include/big_test.inc
+
+################################################################################
+# Test-case will test following scenarios.
+#
+# 1. Perform DML action using multiple clients and multiple undo tablespace.
+#    tablespace configured to 2 through master.opt file.
+#
+################################################################################
+
+#-----------------------------------------------------------------------------
+#
+# create test-bed
+#
+let MYSQL_DATA_DIR_ENV = `select @@datadir`;
+let $MYSQL_DATA_DIR = `select @@datadir`;
+let SEARCH_FILE = $MYSQLTEST_VARDIR/log/mysqld.1.err;
+
+#-----------------------------------------------------------------------------
+#
+# 1. Perform DML action using multiple clients and multiple undo tablespace.
+#
+#
+--source suite/innodb_undo/include/undo_trunc_multi_client.inc
+
+#-----------------------------------------------------------------------------
+#
+# remove test-bed
+#
+

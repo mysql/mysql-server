@@ -1,3 +1,6 @@
+--disable_query_log
+SET sql_mode='NO_ENGINE_SUBSTITUTION';
+--enable_query_log
 eval SET NAMES $cset;
 
 let $std_cset= 1;
@@ -31,3 +34,6 @@ DELETE FROM test.t1 WHERE CHAR_LENGTH(a) <> 1;
 SELECT HEX(ASCII(a)) AS a_ascii, CHAR_LENGTH(a) AS a_len FROM test.t1 ORDER BY a, ORD(a);
 
 DROP TABLE test.t1;
+--disable_query_log
+SET sql_mode=default;
+--enable_query_log

@@ -13,6 +13,8 @@
 drop table if exists t1;
 --enable_warnings
 
+--source include/turn_off_only_full_group_by.inc
+
 update performance_schema.setup_instruments set enabled = 'NO';
 update performance_schema.setup_consumers set enabled = 'NO';
 
@@ -190,3 +192,4 @@ update performance_schema.setup_instruments
   set enabled = 'YES', timed = 'YES';
 
 drop table test.t1;
+--source include/restore_sql_mode_after_turn_off_only_full_group_by.inc

@@ -121,6 +121,7 @@ DROP TABLE t1;
 #
 # Bug#6608
 #
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 CREATE TABLE t1 (
   `id` int(11) NOT NULL auto_increment,
   `url` varchar(200) NOT NULL default '',
@@ -161,7 +162,7 @@ SET collation_connection='tis620_thai_ci';
 SET collation_connection='tis620_bin';
 -- source include/ctype_filesort.inc
 -- source include/ctype_like_escape.inc
-
+SET sql_mode = default;
 # End of 4.1 tests
 
 

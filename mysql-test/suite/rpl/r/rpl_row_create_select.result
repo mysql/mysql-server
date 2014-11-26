@@ -7,6 +7,7 @@ Note	####	Storing MySQL user name or password information in the master info rep
 # BUG#17994219: CREATE TABLE .. SELECT PRODUCES INVALID STRUCTURE, 
 #               BREAKS RBR 
 #
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 #After the patch, the display width is set to a default
 #value of 21.
 CREATE TABLE t1 AS SELECT REPEAT('A', 1000) DIV 1 AS a;
@@ -28,4 +29,5 @@ t2	CREATE TABLE `t2` (
 #After the patch, no error is reported.
 DROP TABLE t1;
 DROP TABLE t2;
+SET sql_mode = default;
 include/rpl_end.inc

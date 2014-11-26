@@ -1520,7 +1520,7 @@ innodb_get(
 	ib_err_t		err = DB_SUCCESS;
 	mci_item_t*		result = NULL;
 	ENGINE_ERROR_CODE	err_ret = ENGINE_SUCCESS;
-	innodb_conn_data_t*	conn_data;
+	innodb_conn_data_t*	conn_data = NULL;
 	meta_cfg_info_t*	meta_info = innodb_eng->meta_info;
 	int			option_length;
 	const char*		option_delimiter;
@@ -1785,6 +1785,13 @@ func_exit:
 	}
 
 err_exit:
+
+	/* If error return, memcached will not call InnoDB Memcached's
+	callback function "innodb_release" to reset the result_in_use
+	value. So we reset it here */
+	if (err_ret != ENGINE_SUCCESS && conn_data) {
+		conn_data->result_in_use = false;
+	}
 	return(err_ret);
 }
 

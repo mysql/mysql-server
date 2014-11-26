@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -565,8 +565,8 @@ bool Sql_cmd_alter_table_exchange_partition::
                        swap_table_list->table_name,
                        "", 0);
   /* create a unique temp name #sqlx-nnnn_nnnn, x for eXchange */
-  my_snprintf(temp_name, sizeof(temp_name), "%sx-%lx_%lx",
-              tmp_file_prefix, current_pid, thd->thread_id);
+  my_snprintf(temp_name, sizeof(temp_name), "%sx-%lx_%x",
+              tmp_file_prefix, current_pid, thd->thread_id());
   if (lower_case_table_names)
     my_casedn_str(files_charset_info, temp_name);
   build_table_filename(temp_file_name, sizeof(temp_file_name),
@@ -594,12 +594,19 @@ bool Sql_cmd_alter_table_exchange_partition::
   if (compare_table_with_partition(thd, swap_table, part_table, part_elem))
     DBUG_RETURN(TRUE);
 
-  /* Table and partition has same structure/options, OK to exchange */
+  /* Table and partition has same structure/options */
 
-  thd_proc_info(thd, "verifying data with partition");
+  if (alter_info->with_validation)
+  {
+    thd_proc_info(thd, "verifying data with partition");
 
-  if (verify_data_with_partition(swap_table, part_table, swap_part_id))
-    DBUG_RETURN(TRUE);
+    if (verify_data_with_partition(swap_table, part_table, swap_part_id))
+    {
+      DBUG_RETURN(true);
+    }
+  }
+
+  /* OK to exchange */
 
   /*
     Get exclusive mdl lock on both tables, alway the non partitioned table

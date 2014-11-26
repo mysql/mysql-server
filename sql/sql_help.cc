@@ -18,10 +18,11 @@
 #include "sql_help.h"
 #include "sql_table.h"                          // primary_key_name
 #include "sql_base.h"               // REPORT_ALL_ERRORS, setup_tables
-#include "opt_range.h"              // SQL_SELECT
+#include "opt_range.h"              // test_quick_select
 #include "opt_trace.h"              // Opt_trace_object
 #include "records.h"          // init_read_record, end_read_record
 #include "debug_sync.h"
+#include "sql_executor.h"                       // QEP_TAB
 
 struct st_find_field
 {
@@ -186,22 +187,23 @@ void memorize_variant_topic(THD *thd, TABLE *topics, int count,
 
 */
 
-int search_topics(THD *thd, TABLE *topics, struct st_find_field *find_fields,
-		  SQL_SELECT *select, List<String> *names,
+int search_topics(THD *thd, QEP_TAB *topics, struct st_find_field *find_fields,
+		  List<String> *names,
 		  String *name, String *description, String *example)
 {
   int count= 0;
   READ_RECORD read_record_info;
   DBUG_ENTER("search_topics");
 
-  if (init_read_record(&read_record_info, thd, topics, select, 1, 0, FALSE))
+  if (init_read_record(&read_record_info, thd, NULL, topics,
+                       1, 0, FALSE))
     DBUG_RETURN(0);
 
   while (!read_record_info.read_record(&read_record_info))
   {
-    if (!select->cond->val_int())		// Doesn't match like
+    if (!topics->condition()->val_int())        // Doesn't match like
       continue;
-    memorize_variant_topic(thd,topics,count,find_fields,
+    memorize_variant_topic(thd,topics->table(),count,find_fields,
 			   names,name,description,example);
     count++;
   }
@@ -229,19 +231,19 @@ int search_topics(THD *thd, TABLE *topics, struct st_find_field *find_fields,
     2   found more then one topic matching the mask
 */
 
-int search_keyword(THD *thd, TABLE *keywords, struct st_find_field *find_fields,
-                   SQL_SELECT *select, int *key_id)
+int search_keyword(THD *thd, QEP_TAB *keywords, struct st_find_field *find_fields,
+                   int *key_id)
 {
   int count= 0;
   READ_RECORD read_record_info;
   DBUG_ENTER("search_keyword");
 
-  if (init_read_record(&read_record_info, thd, keywords, select, 1, 0, FALSE))
+  if (init_read_record(&read_record_info, thd, NULL, keywords, 1, 0, FALSE))
     DBUG_RETURN(0);
 
   while (!read_record_info.read_record(&read_record_info) && count<2)
   {
-    if (!select->cond->val_int())		// Dosn't match like
+    if (!keywords->condition()->val_int())		// Dosn't match like
       continue;
 
     *key_id= (int)find_fields[help_keyword_help_keyword_id].field->val_int();
@@ -359,9 +361,9 @@ int get_topics_for_keyword(THD *thd, TABLE *topics, TABLE *relations,
     #			Number of categories found
 */
 
-int search_categories(THD *thd, TABLE *categories,
+int search_categories(THD *thd, QEP_TAB *categories,
 		      struct st_find_field *find_fields,
-		      SQL_SELECT *select, List<String> *names, int16 *res_id)
+		      List<String> *names, int16 *res_id)
 {
   Field *pfname= find_fields[help_category_name].field;
   Field *pcat_id= find_fields[help_category_help_category_id].field;
@@ -370,13 +372,13 @@ int search_categories(THD *thd, TABLE *categories,
 
   DBUG_ENTER("search_categories");
 
-  if (init_read_record(&read_record_info, thd, categories, select,
+  if (init_read_record(&read_record_info, thd, NULL, categories,
                        1, 0, FALSE))
     DBUG_RETURN(0);
     
   while (!read_record_info.read_record(&read_record_info))
   {
-    if (select && !select->cond->val_int())
+    if (categories->condition() && !categories->condition()->val_int())
       continue;
     String *lname= new (thd->mem_root) String;
     get_field(thd->mem_root,pfname,lname);
@@ -401,18 +403,18 @@ int search_categories(THD *thd, TABLE *categories,
     res     list of finded names
 */
 
-void get_all_items_for_category(THD *thd, TABLE *items, Field *pfname,
-				SQL_SELECT *select, List<String> *res)
+void get_all_items_for_category(THD *thd, QEP_TAB *items, Field *pfname,
+				List<String> *res)
 {
   READ_RECORD read_record_info;
   DBUG_ENTER("get_all_items_for_category");
 
-  if (init_read_record(&read_record_info, thd, items, select,
+  if (init_read_record(&read_record_info, thd, NULL, items,
                        1, 0, FALSE))
     DBUG_VOID_RETURN;
   while (!read_record_info.read_record(&read_record_info))
   {
-    if (!select->cond->val_int())
+    if (!items->condition()->val_int())
       continue;
     String *name= new (thd->mem_root) String();
     get_field(thd->mem_root,pfname,name);
@@ -569,23 +571,22 @@ int send_variant_2_list(MEM_ROOT *mem_root, Protocol *protocol,
   DBUG_RETURN(0);
 }
 
-/*
-  Prepare simple SQL_SELECT table.* WHERE <Item>
+/**
+  Prepare access method to do "SELECT * FROM table WHERE <cond>"
 
-  SYNOPSIS
-    prepare_simple_select()
-    thd      Thread handler
-    cond     WHERE part of select
-    table    goal table
+  @param thd      Thread handler
+  @param cond     WHERE part of select
+  @param table    goal table
+  @param tab      QEP_TAB
 
-    error    code of error (out)
+  @returns true if error
 
-  RETURN VALUES
-    #  created SQL_SELECT
+  @note Side-effects: 'table', 'cond' and possibly a 'quick' are assigned to
+  'tab'
 */
 
-SQL_SELECT *prepare_simple_select(THD *thd, Item *cond,
-				  TABLE *table, int *error)
+bool prepare_simple_select(THD *thd, Item *cond,
+                           TABLE *table, QEP_TAB *tab)
 {
   if (!cond->fixed)
     cond->fix_fields(thd, &cond);	// can never fail
@@ -596,48 +597,49 @@ SQL_SELECT *prepare_simple_select(THD *thd, Item *cond,
   /* Assume that no indexes cover all required fields */
   table->covering_keys.clear_all();
 
-  SQL_SELECT *res= make_select(table, 0, 0, cond, 0, error);
+  tab->set_table(table);
+  tab->set_condition(cond);
 
   // Wrapper for correct JSON in optimizer trace
   Opt_trace_object wrapper(&thd->opt_trace);
-  if (*error || (res && res->check_quick(thd, 0, HA_POS_ERROR)) ||
-      (res && res->quick && res->quick->reset()))
-  {
-    delete res;
-    res=0;
-  }
-  return res;
+  key_map keys_to_use(key_map::ALL_BITS), needed_reg_dummy;
+  QUICK_SELECT_I *qck;
+  const bool impossible=
+    test_quick_select(thd, keys_to_use, 0, HA_POS_ERROR, false,
+                      ORDER::ORDER_NOT_RELEVANT, tab, cond,
+                      &needed_reg_dummy, &qck) < 0;
+  tab->set_quick(qck);
+
+  return impossible || (tab->quick() && tab->quick()->reset());
 }
 
-/*
-  Prepare simple SQL_SELECT table.* WHERE table.name LIKE mask
 
-  SYNOPSIS
-    prepare_select_for_name()
-    thd      Thread handler
-    mask     mask for compare with name
-    mlen     length of mask
-    tables   list of tables, used in WHERE
-    table    goal table
-    pfname   field "name" in table
+/**
+  Prepare access method to do "SELECT * FROM table LIKE mask"
 
-    error    code of error (out)
+  @param  thd      Thread handler
+  @param  mask     mask for compare with name
+  @param  mlen     length of mask
+  @param  tables   list of tables, used in WHERE
+  @param  table    goal table
+  @param  pfname   field "name" in table
+  @param  tab      QEP_TAB
 
-  RETURN VALUES
-    #  created SQL_SELECT
+  @returns true if error
+  @see prepare_simple_select()
 */
 
-SQL_SELECT *prepare_select_for_name(THD *thd, const char *mask, size_t mlen,
-				    TABLE_LIST *tables, TABLE *table,
-				    Field *pfname, int *error)
+bool prepare_select_for_name(THD *thd, const char *mask, size_t mlen,
+                             TABLE_LIST *tables, TABLE *table,
+                             Field *pfname, QEP_TAB *tab)
 {
   Item *cond= new Item_func_like(new Item_field(pfname),
 				 new Item_string(mask,mlen,pfname->charset()),
 				 new Item_string("\\",1,&my_charset_latin1),
                                  FALSE);
   if (thd->is_fatal_error)
-    return 0;					// OOM
-  return prepare_simple_select(thd, cond, table, error);
+    return true;                                /* purecov: inspected */
+  return prepare_simple_select(thd, cond, table, tab);
 }
 
 
@@ -656,13 +658,12 @@ SQL_SELECT *prepare_select_for_name(THD *thd, const char *mask, size_t mlen,
 bool mysqld_help(THD *thd, const char *mask)
 {
   Protocol *protocol= thd->protocol;
-  SQL_SELECT *select;
   st_find_field used_fields[array_elements(init_used_fields)];
   TABLE_LIST *leaves= 0;
   TABLE_LIST tables[4];
   List<String> topics_list, categories_list, subcategories_list;
   String name, description, example;
-  int count_topics, count_categories, error;
+  int count_topics, count_categories;
   size_t mlen= strlen(mask);
   size_t i;
   MEM_ROOT *mem_root= thd->mem_root;
@@ -689,11 +690,8 @@ bool mysqld_help(THD *thd, const char *mask)
 
   /*
     HELP must be available under LOCK TABLES. 
-    Reset and backup the current open tables state to
-    make it possible.
   */
-  Open_tables_backup open_tables_state_backup;
-  if (open_system_tables_for_read(thd, tables, &open_tables_state_backup))
+  if (open_trans_system_tables_for_read(thd, tables))
     goto error2;
 
   /*
@@ -712,28 +710,30 @@ bool mysqld_help(THD *thd, const char *mask)
   for (i=0; i<sizeof(tables)/sizeof(TABLE_LIST); i++)
     tables[i].table->file->init_table_handle_for_HANDLER();
 
-  if (!(select=
-	prepare_select_for_name(thd,mask,mlen,tables,tables[0].table,
-				used_fields[help_topic_name].field,&error)))
-    goto error;
+  {
+    QEP_TAB_standalone qep_tab_st;
+    QEP_TAB &tab= qep_tab_st.as_QEP_TAB();
+    if (prepare_select_for_name(thd,mask,mlen,tables,tables[0].table,
+                                used_fields[help_topic_name].field,&tab))
+      goto error;
 
-  count_topics= search_topics(thd,tables[0].table,used_fields,
-			      select,&topics_list,
-			      &name, &description, &example);
-  delete select;
+    count_topics= search_topics(thd, &tab, used_fields,
+                                &topics_list,
+                                &name, &description, &example);
+  }
 
   if (count_topics == 0)
   {
     int key_id= 0;
-    if (!(select=
-          prepare_select_for_name(thd,mask,mlen,tables,tables[3].table,
-                                  used_fields[help_keyword_name].field,
-                                  &error)))
+    QEP_TAB_standalone qep_tab_st;
+    QEP_TAB &tab= qep_tab_st.as_QEP_TAB();
+
+    if (prepare_select_for_name(thd,mask,mlen,tables,tables[3].table,
+                                used_fields[help_keyword_name].field,
+                                &tab))
       goto error;
 
-    count_topics= search_keyword(thd,tables[3].table, used_fields, select,
-                                 &key_id);
-    delete select;
+    count_topics= search_keyword(thd, &tab, used_fields, &key_id);
     count_topics= (count_topics != 1) ? 0 :
                   get_topics_for_keyword(thd,tables[0].table,tables[2].table,
                                          used_fields,key_id,&topics_list,&name,
@@ -744,18 +744,20 @@ bool mysqld_help(THD *thd, const char *mask)
   {
     int16 category_id;
     Field *cat_cat_id= used_fields[help_category_parent_category_id].field;
-    if (!(select=
-          prepare_select_for_name(thd,mask,mlen,tables,tables[1].table,
+    {
+      QEP_TAB_standalone qep_tab_st;
+      QEP_TAB &tab= qep_tab_st.as_QEP_TAB();
+
+      if (prepare_select_for_name(thd,mask,mlen,tables,tables[1].table,
                                   used_fields[help_category_name].field,
-                                  &error)))
-      goto error;
+                                  &tab))
+        goto error;
 
-    DEBUG_SYNC(thd, "before_help_record_read");
+      DEBUG_SYNC(thd, "before_help_record_read");
 
-    count_categories= search_categories(thd, tables[1].table, used_fields,
-					select,
-					&categories_list,&category_id);
-    delete select;
+      count_categories= search_categories(thd, &tab, used_fields,
+                                          &categories_list,&category_id);
+    }
     if (!count_categories)
     {
       if (send_header_2(protocol,FALSE))
@@ -776,20 +778,29 @@ bool mysqld_help(THD *thd, const char *mask)
       Item *cond_cat_by_cat=
 	new Item_func_equal(new Item_field(cat_cat_id),
 			    new Item_int((int32)category_id));
-      if (!(select= prepare_simple_select(thd, cond_topic_by_cat,
-                                          tables[0].table, &error)))
-        goto error;
-      get_all_items_for_category(thd,tables[0].table,
-				 used_fields[help_topic_name].field,
-				 select,&topics_list);
-      delete select;
-      if (!(select= prepare_simple_select(thd, cond_cat_by_cat,
-                                          tables[1].table, &error)))
-        goto error;
-      get_all_items_for_category(thd,tables[1].table,
-				 used_fields[help_category_name].field,
-				 select,&subcategories_list);
-      delete select;
+
+      {
+        QEP_TAB_standalone qep_tab_st;
+        QEP_TAB &tab= qep_tab_st.as_QEP_TAB();
+
+        if (prepare_simple_select(thd, cond_topic_by_cat,
+                                  tables[0].table, &tab))
+          goto error;
+        get_all_items_for_category(thd, &tab,
+                                   used_fields[help_topic_name].field,
+                                   &topics_list);
+      }
+      {
+        QEP_TAB_standalone qep_tab_st;
+        QEP_TAB &tab= qep_tab_st.as_QEP_TAB();
+
+        if (prepare_simple_select(thd, cond_cat_by_cat,
+                                  tables[1].table, &tab))
+          goto error;
+        get_all_items_for_category(thd, &tab,
+                                   used_fields[help_category_name].field,
+                                   &subcategories_list);
+      }
       String *cat= categories_list.head();
       if (send_header_2(protocol, TRUE) ||
 	  send_variant_2_list(mem_root,protocol,&topics_list,       "N",cat) ||
@@ -808,13 +819,15 @@ bool mysqld_help(THD *thd, const char *mask)
     if (send_header_2(protocol, FALSE) ||
 	send_variant_2_list(mem_root,protocol, &topics_list, "N", 0))
       goto error;
-    if (!(select=
-          prepare_select_for_name(thd,mask,mlen,tables,tables[1].table,
-                                  used_fields[help_category_name].field,&error)))
+
+    QEP_TAB_standalone qep_tab_st;
+    QEP_TAB &tab= qep_tab_st.as_QEP_TAB();
+
+    if (prepare_select_for_name(thd,mask,mlen,tables,tables[1].table,
+                                used_fields[help_category_name].field,&tab))
       goto error;
-    search_categories(thd, tables[1].table, used_fields,
-		      select,&categories_list, 0);
-    delete select;
+    search_categories(thd, &tab, used_fields,
+		      &categories_list, 0);
     /* Then send categories */
     if (send_variant_2_list(mem_root,protocol, &categories_list, "Y", 0))
       goto error;
@@ -825,11 +838,11 @@ bool mysqld_help(THD *thd, const char *mask)
 
   my_eof(thd);
 
-  close_system_tables(thd, &open_tables_state_backup);
+  close_trans_system_tables(thd);
   DBUG_RETURN(FALSE);
 
 error:
-  close_system_tables(thd, &open_tables_state_backup);
+  close_trans_system_tables(thd);
 
 error2:
   DBUG_RETURN(TRUE);

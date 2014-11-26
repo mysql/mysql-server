@@ -24,32 +24,6 @@ Created 5/30/1994 Heikki Tuuri
 *******************************************************************/
 
 /******************************************************//**
-Calculates the minimum of two ulints.
-@return minimum */
-UNIV_INLINE
-ulint
-ut_min(
-/*===*/
-	ulint	 n1,	/*!< in: first number */
-	ulint	 n2)	/*!< in: second number */
-{
-	return((n1 <= n2) ? n1 : n2);
-}
-
-/******************************************************//**
-Calculates the maximum of two ulints.
-@return maximum */
-UNIV_INLINE
-ulint
-ut_max(
-/*===*/
-	ulint	 n1,	/*!< in: first number */
-	ulint	 n2)	/*!< in: second number */
-{
-	return((n1 <= n2) ? n2 : n1);
-}
-
-/******************************************************//**
 Compares two ulints.
 @return 1 if a > b, 0 if a == b, -1 if a < b */
 UNIV_INLINE

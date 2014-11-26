@@ -60,6 +60,20 @@ struct TABLE_SHARE;
 
 struct sql_digest_storage;
 
+#ifdef __cplusplus
+  class THD;
+#else
+  /*
+    Phony declaration when compiling C code.
+    This is ok, because the C code will never have a THD anyway.
+  */
+  struct opaque_THD
+  {
+    int dummy;
+  };
+  typedef struct opaque_THD THD;
+#endif
+
 /**
   @file mysql/psi/psi.h
   Performance schema instrumentation interface.
@@ -544,7 +558,12 @@ enum PSI_mutex_operation
 };
 typedef enum PSI_mutex_operation PSI_mutex_operation;
 
-/** Operation performed on an instrumented rwlock. */
+/**
+  Operation performed on an instrumented rwlock.
+  For basic READ / WRITE lock,
+  operations are "READ" or "WRITE".
+  For SX-locks, operations are "SHARED", "SHARED-EXCLUSIVE" or "EXCLUSIVE".
+*/
 enum PSI_rwlock_operation
 {
   /** Read lock. */
@@ -554,7 +573,21 @@ enum PSI_rwlock_operation
   /** Read lock attempt. */
   PSI_RWLOCK_TRYREADLOCK= 2,
   /** Write lock attempt. */
-  PSI_RWLOCK_TRYWRITELOCK= 3
+  PSI_RWLOCK_TRYWRITELOCK= 3,
+
+  /** Shared lock. */
+  PSI_RWLOCK_SHAREDLOCK= 4,
+  /** Shared Exclusive lock. */
+  PSI_RWLOCK_SHAREDEXCLUSIVELOCK= 5,
+  /** Exclusive lock. */
+  PSI_RWLOCK_EXCLUSIVELOCK= 6,
+  /** Shared lock attempt. */
+  PSI_RWLOCK_TRYSHAREDLOCK= 7,
+  /** Shared Exclusive lock attempt. */
+  PSI_RWLOCK_TRYSHAREDEXCLUSIVELOCK= 8,
+  /** Exclusive lock attempt. */
+  PSI_RWLOCK_TRYEXCLUSIVELOCK= 9
+
 };
 typedef enum PSI_rwlock_operation PSI_rwlock_operation;
 
@@ -1527,6 +1560,14 @@ typedef struct PSI_thread* (*new_thread_v1_t)
   (PSI_thread_key key, const void *identity, ulonglong thread_id);
 
 /**
+  Assign a THD to an instrumented thread.
+  @param thread the instrumented thread
+  @param THD the sql layer THD to assign
+*/
+typedef void (*set_thread_THD_v1_t)(struct PSI_thread *thread,
+                                    THD *thd);
+
+/**
   Assign an id to an instrumented thread.
   @param thread the instrumented thread
   @param id the id to assign
@@ -1787,8 +1828,11 @@ typedef struct PSI_table_locker* (*start_table_io_wait_v1_t)
 /**
   Record a table instrumentation io wait end event.
   @param locker a table locker for the running thread
+  @param numrows the number of rows involved in io
 */
-typedef void (*end_table_io_wait_v1_t)(struct PSI_table_locker *locker);
+typedef void (*end_table_io_wait_v1_t)
+  (struct PSI_table_locker *locker,
+   ulonglong numrows);
 
 /**
   Record a table instrumentation lock wait start event.
@@ -2404,6 +2448,8 @@ struct PSI_v1
   new_thread_v1_t new_thread;
   /** @sa set_thread_id_v1_t. */
   set_thread_id_v1_t set_thread_id;
+  /** @sa set_thread_THD_v1_t. */
+  set_thread_THD_v1_t set_thread_THD;
   /** @sa get_thread_v1_t. */
   get_thread_v1_t get_thread;
   /** @sa set_thread_user_v1_t. */

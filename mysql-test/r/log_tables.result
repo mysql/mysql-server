@@ -451,6 +451,7 @@ Level	Code	Message
 FLUSH TABLE mysql.slow_log;
 show warnings;
 Level	Code	Message
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 DROP TABLE IF EXISTS `db_17876.slow_log_data`;
 DROP TABLE IF EXISTS `db_17876.general_log_data`;
 DROP PROCEDURE IF EXISTS `db_17876.archiveSlowLog`;
@@ -568,6 +569,7 @@ DROP PROCEDURE IF EXISTS `db_17876.archiveGeneralLog`;
 DROP DATABASE IF EXISTS `db_17876`;
 SET GLOBAL general_log = @old_general_log;
 SET GLOBAL slow_query_log = @old_slow_query_log;
+SET sql_mode = default;
 select CONNECTION_ID() into @thread_id;
 truncate table mysql.general_log;
 set global general_log = on;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -558,6 +558,7 @@ void **thd_ha_data(const MYSQL_THD thd, const struct handlerton *hton);
 void thd_storage_lock_wait(MYSQL_THD thd, long long value);
 int thd_tx_isolation(const MYSQL_THD thd);
 int thd_tx_is_read_only(const MYSQL_THD thd);
+int thd_tx_is_dd_trx(const MYSQL_THD thd);
 char *thd_security_context(MYSQL_THD thd, char *buffer, size_t length,
                            size_t max_query_len);
 /* Increments the row counter, see THD::row_count */
@@ -647,8 +648,8 @@ void thd_get_xid(const MYSQL_THD thd, MYSQL_XID *xid);
   Invalidate the query cache for a given table.
 
   @param thd         user thread connection handle
-  @param key         databasename\\0tablename\\0
-  @param key_length  length of key in bytes, including the NUL bytes
+  @param key         databasename/tablename in the canonical format.
+  @param key_length  length of key in bytes, including the PATH separator
   @param using_trx   flag: TRUE if using transactions, FALSE otherwise
 */
 void mysql_query_cache_invalidate4(MYSQL_THD thd,

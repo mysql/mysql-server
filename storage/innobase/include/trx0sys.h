@@ -43,32 +43,11 @@ Created 3/26/1996 Heikki Tuuri
 #include "ut0mutex.h"
 #include "trx0trx.h"
 
-typedef UT_LIST_BASE_NODE_T(trx_t) trx_list_t;
+typedef UT_LIST_BASE_NODE_T(trx_t) trx_ut_list_t;
 
 // Forward declaration
 class MVCC;
 class ReadView;
-
-/** In a MySQL replication slave, in crash recovery we store the master log
-file name and position here. */
-/* @{ */
-/** Master binlog file name */
-extern char		trx_sys_mysql_master_log_name[];
-/** Master binlog file position.  We have successfully got the updates
-up to this position.  -1 means that no crash recovery was needed, or
-there was no master log position info inside InnoDB.*/
-extern int64_t		trx_sys_mysql_master_log_pos;
-/* @} */
-
-/** If this MySQL server uses binary logging, after InnoDB has been inited
-and if it has done a crash recovery, we store the binlog file name and position
-here. */
-/* @{ */
-/** Binlog file name */
-extern char		trx_sys_mysql_bin_log_name[];
-/** Binlog file position, or -1 if unknown */
-extern int64_t		trx_sys_mysql_bin_log_pos;
-/* @} */
 
 /** The transaction system */
 extern trx_sys_t*	trx_sys;
@@ -510,9 +489,7 @@ rollback segment.  It initialized some arrays with this number of entries.
 We must remember this limit in order to keep file compatibility. */
 #define TRX_SYS_OLD_N_RSEGS		256
 
-/** Maximum length of MySQL binlog file name, in bytes.
-@see trx_sys_mysql_master_log_name
-@see trx_sys_mysql_bin_log_name */
+/** Maximum length of MySQL binlog file name, in bytes. */
 #define TRX_SYS_MYSQL_LOG_NAME_LEN	512
 /** Contents of TRX_SYS_MYSQL_LOG_MAGIC_N_FLD */
 #define TRX_SYS_MYSQL_LOG_MAGIC_N	873422344
@@ -618,7 +595,7 @@ struct trx_sys_t {
 					volatile because it can be accessed
 					without holding any mutex during
 					AC-NL-RO view creation. */
-	trx_list_t	serialisation_list;
+	trx_ut_list_t	serialisation_list;
 					/*!< Ordered on trx_t::no of all the
 					currenrtly active RW transactions */
 #ifdef UNIV_DEBUG
@@ -627,13 +604,13 @@ struct trx_sys_t {
 #endif /* UNIV_DEBUG */
 
 	char		pad1[64];	/*!< To avoid false sharing */
-	trx_list_t	rw_trx_list;	/*!< List of active and committed in
+	trx_ut_list_t	rw_trx_list;	/*!< List of active and committed in
 					memory read-write transactions, sorted
 					on trx id, biggest first. Recovered
 					transactions are always on this list. */
 
 	char		pad2[64];	/*!< To avoid false sharing */
-	trx_list_t	mysql_trx_list;	/*!< List of transactions created
+	trx_ut_list_t	mysql_trx_list;	/*!< List of transactions created
 					for MySQL. All user transactions are
 					on mysql_trx_list. The rw_trx_list
 					can contain system transactions and

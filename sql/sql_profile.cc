@@ -267,7 +267,7 @@ void PROF_MEASUREMENT::collect()
 
 
 QUERY_PROFILE::QUERY_PROFILE(PROFILING *profiling_arg, const char *status_arg)
-  :profiling(profiling_arg), profiling_query_id(0), query_source(NULL)
+  :profiling(profiling_arg), profiling_query_id(0), m_query_source(NULL_STR)
 {
   m_seq_counter= 1;
   PROF_MEASUREMENT *prof= new PROF_MEASUREMENT(this, status_arg);
@@ -282,7 +282,7 @@ QUERY_PROFILE::~QUERY_PROFILE()
   while (! entries.is_empty())
     delete entries.pop();
 
-  my_free(query_source);
+  my_free(m_query_source.str);
 }
 
 /**
@@ -294,10 +294,13 @@ void QUERY_PROFILE::set_query_source(const char *query_source_arg,
   /* Truncate to avoid DoS attacks. */
   size_t length= min(MAX_QUERY_LENGTH, query_length_arg);
 
-  DBUG_ASSERT(query_source == NULL); /* we don't leak memory */
+  DBUG_ASSERT(m_query_source.str == NULL); /* we don't leak memory */
   if (query_source_arg != NULL)
-    query_source= my_strndup(key_memory_PROFILE,
-                             query_source_arg, length, MYF(0));
+  {
+    m_query_source.str= my_strndup(key_memory_PROFILE,
+                                   query_source_arg, length, MYF(0));
+    m_query_source.length= length;
+  }
 }
 
 void QUERY_PROFILE::new_status(const char *status_arg,
@@ -426,7 +429,7 @@ void PROFILING::finish_current_query()
 
     if ((enabled) &&                                    /* ON at start? */
         ((thd->variables.option_bits & OPTION_PROFILING) != 0) &&   /* and ON at end? */
-        (current->query_source != NULL) &&
+        (current->m_query_source.str != NULL) &&
         (! current->entries.is_empty()))
     {
       current->profiling_query_id= next_profile_id();   /* assign an id */
@@ -492,8 +495,8 @@ bool PROFILING::show_profiles()
     protocol->store((uint32)(prof->profiling_query_id));
     protocol->store((double)(query_time_usecs/(1000.0*1000)),
                     (uint32) TIME_FLOAT_DIGITS-1, &elapsed);
-    if (prof->query_source != NULL)
-      protocol->store(prof->query_source, strlen(prof->query_source),
+    if (prof->m_query_source.str != NULL)
+      protocol->store(prof->m_query_source.str, prof->m_query_source.length,
                       system_charset_info);
     else
       protocol->store_null();

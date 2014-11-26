@@ -26,6 +26,9 @@ Created 2013/03/27 Allen Lai and Jimmy Yang
 #include "gis0geo.h"
 #include "page0cur.h"
 #include "ut0rnd.h"
+#include "mach0data.h"
+
+#include <spatial.h>
 
 /* These definitions are for comparing 2 mbrs. */
 
@@ -745,3 +748,32 @@ rtree_area_increase(
 	return(loc_ab_area - a_area);
 }
 
+/** Get the wkb of default POINT value, which represents POINT(0 0)
+if it's of dimension 2, etc.
+@param[in]	n_dims		dimensions
+@param[out]	wkb		wkb buffer for default POINT
+@param[in]	len		length of wkb buffer
+@return non-0 indicate the length of wkb of the default POINT,
+0 if the buffer is too small */
+uint
+get_wkb_of_default_point(
+	uint	n_dims,
+	uchar*	wkb,
+	uint	len)
+{
+	if (len < GEOM_HEADER_SIZE + sizeof(double) * n_dims) {
+		return(0);
+	}
+
+	/** POINT wkb comprises SRID, wkb header(byte order and type)
+	and coordinates of the POINT */
+	len = GEOM_HEADER_SIZE + sizeof(double) * n_dims;
+	/** We always use 0 as default coordinate */
+	memset(wkb, 0, len);
+	/** We don't need to write SRID, write 0x01 for Byte Order */
+	mach_write_to_n_little_endian(wkb + SRID_SIZE, 1, 0x01);
+	/** Write wkbType::wkbPoint for the POINT type */
+	mach_write_to_n_little_endian(wkb + SRID_SIZE + 1, 4, wkbPoint);
+
+	return(len);
+}

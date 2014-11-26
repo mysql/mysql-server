@@ -374,7 +374,7 @@ SHOW WARNINGS;
 --echo
 --echo # Statement information runtime
 --echo
-
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 SELECT CAST(-19999999999999999999 AS SIGNED),
        CAST(-19999999999999999999 AS SIGNED);
 GET DIAGNOSTICS @var = NUMBER;
@@ -989,3 +989,4 @@ END|
 delimiter ;|
 CALL p1();
 DROP PROCEDURE p1;
+SET sql_mode = default;

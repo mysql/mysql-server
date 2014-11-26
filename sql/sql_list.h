@@ -766,9 +766,7 @@ public:
   void move_elements_to(I_List<T>* new_owner) {
     base_ilist<T>::move_elements_to(new_owner);
   }
-#ifndef _lint
   friend class I_List_iterator<T>;
-#endif
 };
 
 

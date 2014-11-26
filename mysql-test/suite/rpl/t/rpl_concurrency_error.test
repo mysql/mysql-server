@@ -77,7 +77,7 @@ while ($type)
     SET AUTOCOMMIT = 0;
   }
   --error ER_LOCK_WAIT_TIMEOUT
-  eval UPDATE t SET f = 'magenta $type' WHERE f = 'red';
+  eval UPDATE IGNORE t SET f = 'magenta $type' WHERE f = 'red';
   eval INSERT INTO t VALUES (5 + ($type * 10),"brown");
   INSERT INTO n VALUES (now(),"brown");
   
@@ -112,7 +112,7 @@ while ($type)
     SET AUTOCOMMIT = 0;
   }
   --error ER_LOCK_WAIT_TIMEOUT
-  eval UPDATE t SET f = 'dark blue $type' WHERE f = 'red';
+  eval UPDATE IGNORE t SET f = 'dark blue $type' WHERE f = 'red';
   eval INSERT INTO t VALUES (6 + ($type * 10),"brown");
   INSERT INTO n VALUES (now(),"brown");
   

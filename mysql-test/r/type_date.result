@@ -100,7 +100,7 @@ f2
 19781126
 DROP TABLE t1, t2, t3;
 CREATE TABLE t1 (y YEAR);
-INSERT INTO t1 VALUES ('abc');
+INSERT IGNORE INTO t1 VALUES ('abc');
 Warnings:
 Warning	1366	Incorrect integer value: 'abc' for column 'y' at row 1
 SELECT * FROM t1;
@@ -137,7 +137,7 @@ Warning	1292	Incorrect datetime value: '1311'
 Warning	1292	Incorrect datetime value: '1311'
 Warning	1292	Incorrect datetime value: '1311'
 create table t1 (d  date , dt datetime , ts timestamp);
-insert into t1 values (9912101,9912101,9912101);
+insert ignore into t1 values (9912101,9912101,9912101);
 Warnings:
 Warning	1265	Data truncated for column 'd' at row 1
 Warning	1265	Data truncated for column 'dt' at row 1
@@ -155,8 +155,11 @@ INSERT INTO t1 VALUES (1);
 INSERT INTO t1 VALUES (NULL);
 SELECT str_to_date( '', a ) FROM t1;
 str_to_date( '', a )
-0000-00-00 00:00:00.000000
 NULL
+NULL
+Warnings:
+Warning	1411	Incorrect datetime value: '' for function str_to_date
+Warning	1411	Incorrect datetime value: '' for function str_to_date
 DROP TABLE t1;
 CREATE TABLE t1 (a DATE, b INT, PRIMARY KEY (a,b));
 INSERT INTO t1 VALUES (DATE(NOW()), 1);
@@ -198,16 +201,28 @@ DROP TABLE t1;
 CREATE TABLE t1 (a DATE);
 CREATE TABLE t2 (a DATE);
 CREATE INDEX i ON t1 (a);
-INSERT INTO t1 VALUES ('0000-00-00'),('0000-00-00');
-INSERT INTO t2 VALUES ('0000-00-00'),('0000-00-00');
+INSERT IGNORE INTO t1 VALUES ('0000-00-00'),('0000-00-00');
+Warnings:
+Warning	1264	Out of range value for column 'a' at row 1
+Warning	1264	Out of range value for column 'a' at row 2
+INSERT IGNORE INTO t2 VALUES ('0000-00-00'),('0000-00-00');
+Warnings:
+Warning	1264	Out of range value for column 'a' at row 1
+Warning	1264	Out of range value for column 'a' at row 2
 SELECT * FROM t1 WHERE a = '0000-00-00';
 a
 0000-00-00
 0000-00-00
+Warnings:
+Warning	1292	Incorrect date value: '0000-00-00' for column 'a' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'a' at row 1
 SELECT * FROM t2 WHERE a = '0000-00-00';
 a
 0000-00-00
 0000-00-00
+Warnings:
+Warning	1292	Incorrect date value: '0000-00-00' for column 'a' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'a' at row 1
 SET SQL_MODE=TRADITIONAL;
 EXPLAIN SELECT * FROM t1 WHERE a = '0000-00-00';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -237,16 +252,24 @@ DROP TABLE t1,t2;
 CREATE TABLE t1 (a DATE);
 CREATE TABLE t2 (a DATE);
 CREATE INDEX i ON t1 (a);
-INSERT INTO t1 VALUES ('1000-00-00'),('1000-00-00');
-INSERT INTO t2 VALUES ('1000-00-00'),('1000-00-00');
+INSERT IGNORE INTO t1 VALUES ('1000-00-00'),('1000-00-00');
+Warnings:
+Warning	1264	Out of range value for column 'a' at row 1
+Warning	1264	Out of range value for column 'a' at row 2
+INSERT IGNORE INTO t2 VALUES ('1000-00-00'),('1000-00-00');
+Warnings:
+Warning	1264	Out of range value for column 'a' at row 1
+Warning	1264	Out of range value for column 'a' at row 2
 SELECT * FROM t1 WHERE a = '1000-00-00';
 a
-1000-00-00
-1000-00-00
+Warnings:
+Warning	1292	Incorrect date value: '1000-00-00' for column 'a' at row 1
+Warning	1292	Incorrect date value: '1000-00-00' for column 'a' at row 1
 SELECT * FROM t2 WHERE a = '1000-00-00';
 a
-1000-00-00
-1000-00-00
+Warnings:
+Warning	1292	Incorrect date value: '1000-00-00' for column 'a' at row 1
+Warning	1292	Incorrect date value: '1000-00-00' for column 'a' at row 1
 SET SQL_MODE=TRADITIONAL;
 EXPLAIN SELECT * FROM t1 WHERE a = '1000-00-00';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -257,15 +280,11 @@ Warning	1292	Incorrect date value: '1000-00-00' for column 'a' at row 1
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` = '1000-00-00')
 SELECT * FROM t1 WHERE a = '1000-00-00';
 a
-1000-00-00
-1000-00-00
 Warnings:
 Warning	1292	Incorrect date value: '1000-00-00' for column 'a' at row 1
 Warning	1292	Incorrect date value: '1000-00-00' for column 'a' at row 1
 SELECT * FROM t2 WHERE a = '1000-00-00';
 a
-1000-00-00
-1000-00-00
 Warnings:
 Warning	1292	Incorrect date value: '1000-00-00' for column 'a' at row 1
 Warning	1292	Incorrect date value: '1000-00-00' for column 'a' at row 1
@@ -281,9 +300,14 @@ DROP TABLE t1;
 End of 5.0 tests
 create table t1 (a date, primary key (a))engine=memory;
 insert into t1 values ('0000-01-01'), ('0000-00-01'), ('0001-01-01');
+Warnings:
+Warning	1264	Out of range value for column 'a' at row 2
 select * from t1 where a between '0000-00-01' and '0000-00-02';
 a
-0000-00-01
+0000-00-00
+Warnings:
+Warning	1292	Incorrect date value: '0000-00-01' for column 'a' at row 1
+Warning	1292	Incorrect date value: '0000-00-02' for column 'a' at row 1
 drop table t1;
 #
 # Bug#50918: Date columns treated differently in Views than in Base
@@ -358,21 +382,21 @@ SET timestamp=UNIX_TIMESTAMP('2001-01-01 00:00:00');
 CREATE TABLE t1 (a DATE);
 INSERT INTO t1 VALUES ('2001-01-01 23:59:59.4');
 Warnings:
-Note	1265	Data truncated for column 'a' at row 1
+Note	1292	Incorrect date value: '2001-01-01 23:59:59.4' for column 'a' at row 1
 INSERT INTO t1 VALUES (TIMESTAMP'2001-01-01 23:59:59.4');
 Warnings:
-Note	1265	Data truncated for column 'a' at row 1
+Note	1292	Incorrect date value: '2001-01-01 23:59:59' for column 'a' at row 1
 INSERT INTO t1 VALUES (20010101235959.4);
 Warnings:
-Note	1265	Data truncated for column 'a' at row 1
+Note	1292	Incorrect date value: '20010101235959.4' for column 'a' at row 1
 INSERT INTO t1 VALUES (TIME'23:59:59.4');
 Warnings:
-Note	1265	Data truncated for column 'a' at row 1
+Note	1292	Incorrect date value: '23:59:59' for column 'a' at row 1
 INSERT INTO t1 VALUES
 (TIMESTAMP'9999-12-30 23:59:59.4'),
 (TIMESTAMP'9999-12-31 23:59:59.4');
 Warnings:
-Note	1265	Data truncated for column 'a' at row 1
+Note	1292	Incorrect date value: '9999-12-30 23:59:59' for column 'a' at row 1
 Note	1265	Data truncated for column 'a' at row 2
 SELECT * FROM t1;
 a
@@ -505,15 +529,15 @@ SELECT * FROM t1 WHERE LAST_DAY('0000-00-00 00:00:00') IS NULL;
 a
 1
 Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00'
-Warning	1292	Incorrect datetime value: '0000-00-00'
-Warning	1292	Incorrect datetime value: '0000-00-00'
+Warning	1292	Incorrect datetime value: '0000-00-00 00:00:00'
+Warning	1292	Incorrect datetime value: '0000-00-00 00:00:00'
+Warning	1292	Incorrect datetime value: '0000-00-00 00:00:00'
 SELECT * FROM t1 WHERE
 LAST_DAY((SELECT b FROM t2 WHERE b = '0000-00-00 00:00:00')) IS NULL;
 a
 1
 Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00'
+Warning	1292	Incorrect datetime value: '0000-00-00 00:00:00'
 DROP TABLE t1,t2;
 #
 # Test for bug#11747847 - 34280: create table fails if NO_ZERO_DATE

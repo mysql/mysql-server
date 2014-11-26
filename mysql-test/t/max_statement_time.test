@@ -9,7 +9,7 @@
 # Save the initial number of concurrent sessions.
 --source include/count_sessions.inc
 
-SET SESSION query_cache_type=0;
+SET SESSION query_cache_type= 0;
 
 --echo #
 --echo # 1. Test MAX_STATEMENT_TIME option syntax.
@@ -19,7 +19,7 @@ CREATE TABLE t1 (a INT);
 INSERT INTO t1 VALUES (10);
 
 --error ER_PARSE_ERROR
-SET @var = (SELECT MAX_STATEMENT_TIME=0 1);
+SET @var= (SELECT MAX_STATEMENT_TIME=0 1);
 --error ER_PARSE_ERROR
 SELECT 1 FROM t1 WHERE a IN (SELECT MAX_STATEMENT_TIME=0 1);
 
@@ -72,9 +72,9 @@ DROP TABLE t1;
 --echo #
 # Statement level timeout value setting.
 SELECT @@max_statement_time;
-SET @@SESSION.max_statement_time = 1;
+SET @@SESSION.max_statement_time= 1;
 SELECT @@max_statement_time;
-SET @@SESSION.max_statement_time = 0;
+SET @@SESSION.max_statement_time= 0;
 
 --echo #
 --echo # 3. Test the MAX_STATEMENT_TIME option by setting value for it at,
@@ -86,9 +86,9 @@ SET @@SESSION.max_statement_time = 0;
 SELECT MAX_STATEMENT_TIME=1 SLEEP(5);
 
 # timeout value set at session level.
-SET @@SESSION.max_statement_time = 1;
+SET @@SESSION.max_statement_time= 1;
 SELECT SLEEP(5);
-SET @@SESSION.max_statement_time = 0;
+SET @@SESSION.max_statement_time= 0;
 
 --echo # 
 --echo # 4. Test statement timeout functionality.
@@ -112,11 +112,11 @@ INSERT INTO t1 SELECT * FROM t1;
 INSERT INTO t1 SELECT * FROM t1;
 
 # Set Session max_statement_time to 2 millisecond
-SET @@SESSION.max_statement_time = 2;
+SET @@SESSION.max_statement_time= 2;
 
 # Case 4.1: Following select should timeout
 --error ER_QUERY_TIMEOUT
-SELECT * from t1;
+SELECT *, SLEEP(0.5) from t1;
 
 # Case 4.2: MDL lock request wait is interrupted on timeout.
 connect(con1, localhost, root,,);
@@ -141,7 +141,7 @@ CREATE TABLE t2 SELECT * FROM t1;
 ALTER TABLE t2 ADD c VARCHAR(200) default 'new_col';
 
 # Case 4.4: max_statement_time is not applicable to UPDATE statement.
-UPDATE t1 SET b='new_string';
+UPDATE t1 SET b= 'new_string';
 
 # Case 4.5: max_statement_time is not applicable to INSERT statement.
 INSERT INTO t1 SELECT * FROM t1;
@@ -159,8 +159,8 @@ SELECT MAX_STATEMENT_TIME=3600000 (SELECT SLEEP(0.5)) AS true_if_subquery_is_tim
 --echo #
 --echo # 6. Test max_statement_time with prepared statements.
 --echo #
-PREPARE stmt1 FROM "SELECT * from t1 where b='new_string'";
-PREPARE stmt2 FROM "SELECT MAX_STATEMENT_TIME=2 * FROM t1 WHERE b='new_string'";
+PREPARE stmt1 FROM "SELECT *, SLEEP(0.5) FROM t1 WHERE b= 'new_string'";
+PREPARE stmt2 FROM "SELECT MAX_STATEMENT_TIME=2 *, SLEEP(0.5) FROM t1 WHERE b= 'new_string'";
 PREPARE stmt3 FROM "SELECT MAX_STATEMENT_TIME=3600000 count(*) FROM t1";
 
 # Following EXECUTE stmt1 should timeout.
@@ -210,12 +210,10 @@ DELIMITER ;|
 INSERT INTO t2 VALUES (1, 'string1', 'string2');
 
 # Set Session max_statement_time to 2 millisecond
-SET @@SESSION.max_statement_time = 2;
+SET @@SESSION.max_statement_time= 2;
 # Following SELECT should timeout as max_statement_time is set for top level select now.
 --error ER_QUERY_TIMEOUT
 SELECT f1();
-# @a=1
-SELECT @a;
 
 # Following SELECT should not time out as it is not a read only query.  Note,
 # for desabling timer is generated for this query.
@@ -253,7 +251,7 @@ DROP TABLE t2;
 # Case 7.3: Events.
 #           Execution time limit is not applicable to SELECTs of events.
 SET @global_event_scheduler_status= @@global.event_scheduler;
-SET @@global.event_scheduler = ON;
+SET @@global.event_scheduler= ON;
 SET @@global.max_statement_time= 1;
 CREATE TABLE t2 (f1 int);
 
@@ -335,14 +333,14 @@ DROP TABLE t1,t2;
 
 # Session MAX_STATEMENT_TIME is used when statament level MAX_STATEMENT_TIME 
 # value is not set.
-SET @@SESSION.max_statement_time = 3;
+SET @@SESSION.max_statement_time= 3;
 SELECT sleep(5);
 
 # Statement level MAX_STATEMENT_TIME takes precedence over session level
 # MAX_STATEMENT_TIME.
 SELECT MAX_STATEMENT_TIME=2 sleep(5);
 
-SET @@SESSION.max_statement_time = 0;
+SET @@SESSION.max_statement_time= 0;
 
 --echo #
 --echo # 9. MAX_STATEMENT_TIME status variables.
@@ -351,11 +349,11 @@ SET @@SESSION.max_statement_time = 0;
 # Case 9.1 Check MAX_STATEMENT_TIME_SET and MAX_STATEMENT_TIME_EXCEEDED status.
 SELECT CONVERT(VARIABLE_VALUE, UNSIGNED) INTO @time_set
   FROM INFORMATION_SCHEMA.GLOBAL_STATUS
-  WHERE VARIABLE_NAME = 'MAX_STATEMENT_TIME_SET';
+  WHERE VARIABLE_NAME= 'MAX_STATEMENT_TIME_SET';
 
 SELECT CONVERT(VARIABLE_VALUE, UNSIGNED) INTO @time_exceeded
   FROM INFORMATION_SCHEMA.GLOBAL_STATUS
-  WHERE VARIABLE_NAME = 'MAX_STATEMENT_TIME_EXCEEDED';
+  WHERE VARIABLE_NAME= 'MAX_STATEMENT_TIME_EXCEEDED';
 
 SELECT MAX_STATEMENT_TIME=10 SLEEP(1);
 
@@ -365,11 +363,11 @@ SELECT MAX_STATEMENT_TIME=10 SLEEP(1);
 --echo # are incremented.
 
 SELECT 1 AS STATUS FROM INFORMATION_SCHEMA.GLOBAL_STATUS
-  WHERE VARIABLE_NAME = 'MAX_STATEMENT_TIME_SET'
+  WHERE VARIABLE_NAME= 'MAX_STATEMENT_TIME_SET'
         AND CONVERT(VARIABLE_VALUE, UNSIGNED) > @time_set;
 
 SELECT 1 AS STATUS FROM INFORMATION_SCHEMA.GLOBAL_STATUS
-  WHERE VARIABLE_NAME = 'MAX_STATEMENT_TIME_EXCEEDED'
+  WHERE VARIABLE_NAME= 'MAX_STATEMENT_TIME_EXCEEDED'
         AND CONVERT(VARIABLE_VALUE, UNSIGNED) > @time_exceeded;
 
 # Case 9.2 Check MAX_STATEMENT_TIME_FAILED status on timer creation failure.
@@ -377,65 +375,37 @@ connect(con1, localhost, root,,);
 
 SELECT CONVERT(VARIABLE_VALUE, UNSIGNED) INTO @time_set_failed
   FROM INFORMATION_SCHEMA.GLOBAL_STATUS
-  WHERE VARIABLE_NAME = 'MAX_STATEMENT_TIME_SET_FAILED';
+  WHERE VARIABLE_NAME= 'MAX_STATEMENT_TIME_SET_FAILED';
 
-SET DEBUG='+d,thd_timer_create_failure';
-select MAX_STATEMENT_TIME=10 SLEEP(1);
-SET DEBUG='-d,thd_timer_create_failure';
+SET DEBUG= '+d,thd_timer_create_failure';
+SELECT MAX_STATEMENT_TIME=10 SLEEP(1);
+SET DEBUG= '-d,thd_timer_create_failure';
 
 SELECT 1 AS STATUS FROM INFORMATION_SCHEMA.GLOBAL_STATUS
-  WHERE VARIABLE_NAME = 'MAX_STATEMENT_TIME_SET_FAILED'
+  WHERE VARIABLE_NAME= 'MAX_STATEMENT_TIME_SET_FAILED'
         AND CONVERT(VARIABLE_VALUE, UNSIGNED) > @time_set_failed;
 
 # Case 9.3 Check MAX_STATEMENT_TIME_FAILED status on timer set failure.
 SELECT CONVERT(VARIABLE_VALUE, UNSIGNED) INTO @time_set_failed
   FROM INFORMATION_SCHEMA.GLOBAL_STATUS
-  WHERE VARIABLE_NAME = 'MAX_STATEMENT_TIME_SET_FAILED';
+  WHERE VARIABLE_NAME= 'MAX_STATEMENT_TIME_SET_FAILED';
 
-SET DEBUG='+d,thd_timer_set_failure';
-select MAX_STATEMENT_TIME=10 SLEEP(1);
-SET DEBUG='-d,thd_timer_set_failure';
+SET DEBUG= '+d,thd_timer_set_failure';
+SELECT MAX_STATEMENT_TIME=10 SLEEP(1);
+SET DEBUG= '-d,thd_timer_set_failure';
 
 SELECT 1 AS STATUS FROM INFORMATION_SCHEMA.GLOBAL_STATUS
-  WHERE VARIABLE_NAME = 'MAX_STATEMENT_TIME_SET_FAILED'
+  WHERE VARIABLE_NAME= 'MAX_STATEMENT_TIME_SET_FAILED'
         AND CONVERT(VARIABLE_VALUE, UNSIGNED) > @time_set_failed;
 
 connection default;
 disconnect con1;
 
---echo #
---echo # 10. Test max statement time interruption precision.
---echo #
-
-SET @@SESSION.max_statement_time = 100;
-SELECT SLEEP(1);
-
-SET @@SESSION.max_statement_time = 250;
-SELECT SLEEP(1);
-
-SET @@SESSION.max_statement_time = 500;
-SELECT SLEEP(1);
-
-SET @@SESSION.max_statement_time = 750;
-SELECT SLEEP(1);
-
-SET @@SESSION.max_statement_time = 850;
-SELECT SLEEP(1);
-
-SET @@SESSION.max_statement_time = 950;
-SELECT SLEEP(1);
-
-SET @@SESSION.max_statement_time = 1250;
-SELECT SLEEP(1);
-
-SET @@SESSION.max_statement_time = 1500;
-SELECT SLEEP(1);
-
 --echo # 
---echo # 11. Test Query cache behavior with max_statement_time.
+--echo # 10. Test Query cache behavior with max_statement_time.
 --echo #
-SET SESSION query_cache_type=1;
-SET @@SESSION.max_statement_time = 50;
+SET SESSION query_cache_type= 1;
+SET @@SESSION.max_statement_time= 0;
 
 CREATE TABLE t1 (fld1 int);
 INSERT INTO t1 VALUES (1), (2), (3);
@@ -446,66 +416,66 @@ FLUSH QUERY CACHE;
 # Check Query Cache status
 SELECT CONVERT(VARIABLE_VALUE, UNSIGNED) INTO @qc_inserts
   FROM INFORMATION_SCHEMA.GLOBAL_STATUS
-    WHERE VARIABLE_NAME = 'Qcache_inserts';
+    WHERE VARIABLE_NAME= 'Qcache_inserts';
 SELECT CONVERT(VARIABLE_VALUE, UNSIGNED) INTO @qc_hits
   FROM INFORMATION_SCHEMA.GLOBAL_STATUS
-    WHERE VARIABLE_NAME = 'Qcache_hits';
+    WHERE VARIABLE_NAME= 'Qcache_hits';
 
 SELECT * FROM t1;
 
 #Check whether query result is cached or not.
 SELECT 1 AS STATUS FROM INFORMATION_SCHEMA.GLOBAL_STATUS
-  WHERE VARIABLE_NAME = 'Qcache_inserts'
+  WHERE VARIABLE_NAME= 'Qcache_inserts'
         AND CONVERT(VARIABLE_VALUE, UNSIGNED) > @qc_inserts;
 
 SELECT * FROM t1;
 
 #Since both the queries are identical, results is taken from cache.
 SELECT 1 AS STATUS FROM INFORMATION_SCHEMA.GLOBAL_STATUS
-  WHERE VARIABLE_NAME = 'Qcache_hits'
+  WHERE VARIABLE_NAME= 'Qcache_hits'
         AND CONVERT(VARIABLE_VALUE, UNSIGNED) > @qc_hits;
 
 #Get current query cache status.        
 SELECT CONVERT(VARIABLE_VALUE, UNSIGNED) INTO @qc_inserts
   FROM INFORMATION_SCHEMA.GLOBAL_STATUS
-    WHERE VARIABLE_NAME = 'Qcache_inserts';
+    WHERE VARIABLE_NAME= 'Qcache_inserts';
 SELECT CONVERT(VARIABLE_VALUE, UNSIGNED) INTO @qc_hits
   FROM INFORMATION_SCHEMA.GLOBAL_STATUS
-    WHERE VARIABLE_NAME = 'Qcache_hits';
+    WHERE VARIABLE_NAME= 'Qcache_hits';
 
-SELECT MAX_STATEMENT_TIME=100 * FROM t1;
+SELECT MAX_STATEMENT_TIME=3600000 * FROM t1;
 #Though query is symatically identical to cached SELECT but textually not. So
 #result is not read from the cache.
 SELECT 1 AS STATUS FROM INFORMATION_SCHEMA.GLOBAL_STATUS
-  WHERE VARIABLE_NAME = 'Qcache_hits'
+  WHERE VARIABLE_NAME= 'Qcache_hits'
         AND CONVERT(VARIABLE_VALUE, UNSIGNED) > @qc_hits;
 #It is cached in another block.
 SELECT 1 AS STATUS FROM INFORMATION_SCHEMA.GLOBAL_STATUS
-  WHERE VARIABLE_NAME = 'Qcache_inserts'
+  WHERE VARIABLE_NAME= 'Qcache_inserts'
         AND CONVERT(VARIABLE_VALUE, UNSIGNED) > @qc_inserts;
 
 #Get current query cache status.        
 SELECT CONVERT(VARIABLE_VALUE, UNSIGNED) INTO @qc_inserts
   FROM INFORMATION_SCHEMA.GLOBAL_STATUS
-    WHERE VARIABLE_NAME = 'Qcache_inserts';
+    WHERE VARIABLE_NAME= 'Qcache_inserts';
 SELECT CONVERT(VARIABLE_VALUE, UNSIGNED) INTO @qc_hits
   FROM INFORMATION_SCHEMA.GLOBAL_STATUS
-    WHERE VARIABLE_NAME = 'Qcache_hits';
+    WHERE VARIABLE_NAME= 'Qcache_hits';
 
-SELECT MAX_STATEMENT_TIME=100 * FROM t1;
+SELECT MAX_STATEMENT_TIME=3600000 * FROM t1;
 #Since, SELECT is idetical to 2ns cached SELECT, result is taken from cache.
 SELECT 1 AS STATUS FROM INFORMATION_SCHEMA.GLOBAL_STATUS
-  WHERE VARIABLE_NAME = 'Qcache_hits'
+  WHERE VARIABLE_NAME= 'Qcache_hits'
         AND CONVERT(VARIABLE_VALUE, UNSIGNED) > @qc_hits;
 #No changes in Qcache_insert here.
 SELECT 1 AS STATUS FROM INFORMATION_SCHEMA.GLOBAL_STATUS
-  WHERE VARIABLE_NAME = 'Qcache_inserts'
+  WHERE VARIABLE_NAME= 'Qcache_inserts'
         AND CONVERT(VARIABLE_VALUE, UNSIGNED) > @qc_inserts;
 
 FLUSH QUERY CACHE; 
 DROP TABLE t1;
 
-SET @@SESSION.max_statement_time = 0;
+SET @@SESSION.max_statement_time= 0;
 
 # Check that all connections opened by test cases in this file are really gone
 # so execution of other tests won't be affected by their presence.

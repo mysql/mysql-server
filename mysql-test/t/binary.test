@@ -53,7 +53,9 @@ drop table t1;
 create table t1 (b char(8));
 insert into t1 values(NULL);
 select b from t1 where binary b like '';
+--source include/turn_off_only_full_group_by.inc
 select b from t1 group by binary b like '';
+--source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
 select b from t1 having binary b like '';
 drop table t1;
 

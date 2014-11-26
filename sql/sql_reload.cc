@@ -29,6 +29,7 @@
 #include "rpl_mi.h"
 #include "debug_sync.h"
 #include "connection_handler_impl.h"
+#include "opt_costconstantcache.h"     // reload_optimizer_cost_constants
 
 
 /**
@@ -184,7 +185,7 @@ bool reload_acl_and_cache(THD *thd, unsigned long options,
     {
       delete tmp_thd;
       /* Remember that we don't have a THD */
-      my_pthread_setspecific_ptr(THR_THD,  0);
+      my_pthread_set_THR_THD(NULL);
       thd= 0;
     }
   }
@@ -201,6 +202,7 @@ bool reload_acl_and_cache(THD *thd, unsigned long options,
   DBUG_ASSERT(!thd || thd->locked_tables_mode ||
               !thd->mdl_context.has_locks() ||
               thd->handler_tables_hash.records ||
+              thd->ull_hash.records ||
               thd->global_read_lock.is_acquired());
 
   /*
@@ -334,6 +336,8 @@ bool reload_acl_and_cache(THD *thd, unsigned long options,
      }
    }
 #endif
+  if (options & REFRESH_OPTIMIZER_COSTS)
+    reload_optimizer_cost_constants();
 #ifdef HAVE_REPLICATION
  if (options & REFRESH_SLAVE)
  {

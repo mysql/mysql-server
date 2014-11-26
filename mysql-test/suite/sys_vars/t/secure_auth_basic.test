@@ -5,7 +5,7 @@
 # Access Type: Dynamic                                                        #
 # Data Type: boolean                                                          #
 # Default Value: FALSE                                                        #
-# Valid Values: TRUE, FALSE                                                   #
+# Valid Values: TRUE                                                          #
 #                                                                             #
 #                                                                             #
 # Creation Date: 2008-02-07                                                   #
@@ -42,7 +42,6 @@ SELECT @global_start_value;
 #           Display the DEFAULT value of secure_auth                   #
 ######################################################################## 
 
-SET @@global.secure_auth = 0;
 SET @@global.secure_auth = DEFAULT;
 SELECT @@global.secure_auth;
 
@@ -66,6 +65,7 @@ SELECT @@global.secure_auth;
 #              Change the value of secure_auth to a valid value        #
 ######################################################################## 
 
+--error ER_WRONG_VALUE_FOR_VAR
 SET @@global.secure_auth = 0;
 SELECT @@global.secure_auth;
 SET @@global.secure_auth = 1;
@@ -105,11 +105,11 @@ SET @@global.secure_auth = NO;
 ########################################################################### 
 
 --Error ER_GLOBAL_VARIABLE
-SET @@session.secure_auth = 0;
+SET @@session.secure_auth = 1;
 --Error ER_GLOBAL_VARIABLE
-SET @@secure_auth = 0;
+SET @@secure_auth = 1;
 --Error ER_GLOBAL_VARIABLE
-SET @@local.secure_auth = 0;
+SET @@local.secure_auth = 1;
 --Error ER_INCORRECT_GLOBAL_LOCAL_VAR
 SELECT @@session.secure_auth;
 --Error ER_INCORRECT_GLOBAL_LOCAL_VAR
@@ -143,6 +143,7 @@ WHERE VARIABLE_NAME='secure_auth';
 #        Check if ON and OFF values can be used on variable       #
 ################################################################### 
 
+--error ER_WRONG_VALUE_FOR_VAR
 SET @@global.secure_auth = OFF;
 SELECT @@global.secure_auth;
 SET @@global.secure_auth = ON;
@@ -155,6 +156,7 @@ SELECT @@global.secure_auth;
 
 SET @@global.secure_auth = TRUE;
 SELECT @@global.secure_auth;
+--error ER_WRONG_VALUE_FOR_VAR
 SET @@global.secure_auth = FALSE;
 SELECT @@global.secure_auth;
 

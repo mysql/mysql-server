@@ -13,7 +13,7 @@ CREATE TABLE articles (
 id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
 title VARCHAR(200)
 ) ENGINE=InnoDB;
-INSERT INTO articles (title) VALUES
+INSERT IGNORE INTO articles (title) VALUES
 ('love'),('LOVE'),('lòve'),('LÒVE'),('löve'),('LÖVE'),('løve'),('LØVE'),
 ('lṓve'),('LṒVE');
 CREATE FULLTEXT INDEX ft_idx ON articles(title);
@@ -42,7 +42,7 @@ CREATE TABLE articles (
 id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
 title VARCHAR(200)
 ) ENGINE=InnoDB DEFAULT CHARACTER SET latin1 COLLATE latin1_general_ci;
-INSERT INTO articles (title) VALUES
+INSERT IGNORE INTO articles (title) VALUES
 ('love'),('LOVE'),('lòve'),('LÒVE'),('löve'),('LÖVE'),('løve'),('LØVE'),
 ('lṓve'),('LṒVE');
 call mtr.add_suppression("InnoDB: user stopword table test/user_stopword does not exist.");
@@ -73,7 +73,7 @@ CREATE TABLE articles (
 id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
 title VARCHAR(200)
 ) ENGINE=InnoDB DEFAULT CHARACTER SET latin1 COLLATE latin1_spanish_ci;
-INSERT INTO articles (title) VALUES
+INSERT IGNORE INTO articles (title) VALUES
 ('love'),('LOVE'),('lòve'),('LÒVE'),('löve'),('LÖVE'),('løve'),('LØVE'),
 ('lṓve'),('LṒVE');
 CREATE FULLTEXT INDEX ft_idx ON articles(title);
@@ -234,7 +234,7 @@ CREATE TABLE articles (
 id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
 title VARCHAR(200)
 ) ENGINE=InnoDB;
-INSERT INTO articles (title) VALUES
+INSERT IGNORE INTO articles (title) VALUES
 ('love'),('LOVE'),('lòve'),('LÒVE'),('löve'),('LÖVE'),('løve'),('LØVE'),
 ('lṓve'),('LṒVE');
 CREATE FULLTEXT INDEX ft_idx ON articles(title);
@@ -257,8 +257,9 @@ SELECT * FROM articles WHERE MATCH (title)
 AGAINST ('love' IN NATURAL LANGUAGE MODE);
 id	title
 # Shutdown and restart mysqld
+# restart
 SET NAMES utf8;
-INSERT INTO articles (title) VALUES
+INSERT IGNORE INTO articles (title) VALUES
 ('love'),('LOVE'),('lòve'),('LÒVE'),('löve'),('LÖVE'),('løve'),('LØVE'),
 ('lṓve'),('LṒVE');
 SELECT * FROM articles WHERE MATCH (title)
@@ -274,7 +275,7 @@ CREATE TABLE articles (
 id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
 title VARCHAR(200)
 ) ENGINE=InnoDB;
-INSERT INTO articles (title) VALUES
+INSERT IGNORE INTO articles (title) VALUES
 ('love'),('LOVE'),('lòve'),('LÒVE'),('löve'),('LÖVE'),('løve'),('LØVE'),
 ('lṓve'),('LṒVE');
 CREATE FULLTEXT INDEX ft_idx ON articles(title);
@@ -298,8 +299,9 @@ AGAINST ('love' IN NATURAL LANGUAGE MODE);
 id	title
 DROP TABLE user_stopword;
 # Shutdown and restart mysqld
+# restart
 SET NAMES utf8;
-INSERT INTO articles (title) VALUES
+INSERT IGNORE INTO articles (title) VALUES
 ('love'),('LOVE'),('lòve'),('LÒVE'),('löve'),('LÖVE'),('løve'),('LØVE'),
 ('lṓve'),('LṒVE');
 SELECT * FROM articles WHERE MATCH (title)

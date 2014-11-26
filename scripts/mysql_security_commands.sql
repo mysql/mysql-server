@@ -19,8 +19,6 @@
 # 1) Set passwords for the root account.
 # Note that the password 'ABC123xyz' will be replaced by a random string
 # when these commands are transferred to the server.
-SET @@old_passwords=1; 
-UPDATE mysql.user SET Password=PASSWORD('ABC123xyz') WHERE User='root' and plugin='mysql_old_password';
 SET @@old_passwords=0; 
 UPDATE mysql.user SET Password=PASSWORD('ABC123xyz') WHERE User='root' and plugin in ('', 'mysql_native_password');
 SET @@old_passwords=2; 

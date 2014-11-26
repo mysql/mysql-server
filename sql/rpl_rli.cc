@@ -17,6 +17,7 @@
 #include "unireg.h"                             // HAVE_*
 #include "rpl_mi.h"
 #include "rpl_rli.h"
+#include "rpl_mts_submode.h"
 #include "sql_base.h"                        // close_thread_tables
 #include <my_dir.h>    // For MY_STAT
 #include "log_event.h" // Format_description_log_event, Log_event,
@@ -79,7 +80,8 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery
    cur_log_fd(-1), relay_log(&sync_relaylog_period, SEQ_READ_APPEND),
    is_relay_log_recovery(is_slave_recovery),
    save_temporary_tables(0),
-   cur_log_old_open_count(0), group_relay_log_pos(0), event_relay_log_pos(0),
+   cur_log_old_open_count(0), group_relay_log_pos(0), event_relay_log_number(0),
+   event_relay_log_pos(0), event_start_pos(0),
    group_master_log_pos(0),
    gtid_set(global_sid_map, global_sid_lock),
    rli_fake(is_rli_fake),
@@ -92,10 +94,14 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery
    until_log_pos(0),
    until_sql_gtids(global_sid_map),
    until_sql_gtids_first_event(true),
-   retried_trans(0),
+   trans_retries(0), retried_trans(0),
    tables_to_lock(0), tables_to_lock_count(0),
    rows_query_ev(NULL), last_event_start_time(0), deferred_events(NULL),
-   workers_array_initialized(false), slave_parallel_workers(0),
+   workers(PSI_NOT_INSTRUMENTED),
+   workers_array_initialized(false),
+   curr_group_assigned_parts(PSI_NOT_INSTRUMENTED),
+   curr_group_da(PSI_NOT_INSTRUMENTED),
+   slave_parallel_workers(0),
    recovery_parallel_workers(0), checkpoint_seqno(0),
    checkpoint_group(opt_mts_checkpoint_group),
    recovery_groups_inited(false), mts_recovery_group_cnt(0),
@@ -131,7 +137,7 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery
   group_relay_log_name[0]= event_relay_log_name[0]=
     group_master_log_name[0]= 0;
   until_log_name[0]= ign_master_log_name_end[0]= 0;
-  set_timespec_nsec(last_clock, 0);
+  set_timespec_nsec(&last_clock, 0);
   memset(&cache_buf, 0, sizeof(cache_buf));
   cached_charset_invalidate();
 
@@ -166,7 +172,7 @@ void Relay_log_info::init_workers(ulong n_workers)
   mts_wq_excess_cnt= mts_wq_no_underrun_cnt= mts_wq_overfill_cnt= 0;
   mts_last_online_stat= 0;
 
-  my_init_dynamic_array(&workers, sizeof(Slave_worker *), n_workers, 4);
+  workers.reserve(n_workers);
   workers_array_initialized= true; //set after init
 }
 
@@ -175,7 +181,7 @@ void Relay_log_info::init_workers(ulong n_workers)
 */
 void Relay_log_info::deinit_workers()
 {
-  delete_dynamic(&workers);
+  workers.clear();
 }
 
 Relay_log_info::~Relay_log_info()
@@ -190,7 +196,7 @@ Relay_log_info::~Relay_log_info()
 
     if(workers_copy_pfs.size())
     {
-      for (int i= workers_copy_pfs.size() - 1; i >= 0; i--)
+      for (int i= static_cast<int>(workers_copy_pfs.size()) - 1; i >= 0; i--)
         delete workers_copy_pfs[i];
       workers_copy_pfs.clear();
     }
@@ -222,9 +228,9 @@ void Relay_log_info::reset_notified_relay_log_change()
 {
   if (!is_parallel_exec())
     return;
-  for (uint i= 0; i < workers.elements; i++)
+  for (Slave_worker **it= workers.begin(); it != workers.end(); ++it)
   {
-    Slave_worker *w= *(Slave_worker **) dynamic_array_ptr(&workers, i);
+    Slave_worker *w= *it;
     w->relay_log_change_notified= FALSE;
   }
 }
@@ -255,9 +261,9 @@ void Relay_log_info::reset_notified_checkpoint(ulong shift, time_t new_ts,
   if (!is_parallel_exec())
     return;
 
-  for (uint i= 0; i < workers.elements; i++)
+  for (Slave_worker **it= workers.begin(); it != workers.end(); ++it)
   {
-    Slave_worker *w= *(Slave_worker **) dynamic_array_ptr(&workers, i);
+    Slave_worker *w= *it;
     /*
       Reseting the notification information in order to force workers to
       assign jobs with the new updated information.
@@ -278,8 +284,9 @@ void Relay_log_info::reset_notified_checkpoint(ulong shift, time_t new_ts,
       w->master_log_change_notified= false;
 
     DBUG_PRINT("mts", ("reset_notified_checkpoint shift --> %lu, "
-               "worker->bitmap_shifted --> %lu, worker --> %u.",
-               shift, w->bitmap_shifted, i));  
+                       "worker->bitmap_shifted --> %lu, worker --> %u.",
+                       shift, w->bitmap_shifted,
+                       static_cast<unsigned>(it - workers.begin())));
   }
   /*
     There should not be a call where (shift == 0 && checkpoint_seqno != 0).
@@ -318,9 +325,9 @@ bool Relay_log_info::mts_finalize_recovery()
 
   DBUG_ENTER("Relay_log_info::mts_finalize_recovery");
 
-  for (i= 0; !ret && i < workers.elements; i++)
+  for (Slave_worker **it= workers.begin(); !ret && it != workers.end(); ++it)
   {
-    Slave_worker *w= *(Slave_worker **) dynamic_array_ptr(&workers, i);
+    Slave_worker *w= *it;
     ret= w->reset_recovery_info();
     DBUG_EXECUTE_IF("mts_debug_recovery_reset_fails", ret= true;);
   }
@@ -330,7 +337,7 @@ bool Relay_log_info::mts_finalize_recovery()
     even temporary holes. Therefore stale records are deleted
     from the tail.
   */
-  for (i= recovery_parallel_workers; i > workers.elements && !ret; i--)
+  for (i= recovery_parallel_workers; i > workers.size() && !ret; i--)
   {
     Slave_worker *w=
       Rpl_info_factory::create_worker(repo_type, i - 1, this, true);
@@ -490,10 +497,8 @@ int Relay_log_info::init_relay_log_pos(const char* log,
     goto err;
   }
 
-  strmake(group_relay_log_name, linfo.log_file_name,
-          sizeof(group_relay_log_name) - 1);
-  strmake(event_relay_log_name, linfo.log_file_name,
-          sizeof(event_relay_log_name) - 1);
+  set_group_relay_log_name(linfo.log_file_name);
+  set_event_relay_log_name(linfo.log_file_name);
 
   if (relay_log.is_active(linfo.log_file_name))
   {
@@ -682,7 +687,7 @@ int Relay_log_info::wait_for_pos(THD* thd, String* log_name,
   DBUG_PRINT("enter",("log_name: '%s'  log_pos: %lu  timeout: %lu",
                       log_name->c_ptr_safe(), (ulong) log_pos, (ulong) timeout));
 
-  set_timespec(abstime,timeout);
+  set_timespec(&abstime, timeout);
   mysql_mutex_lock(&data_lock);
   thd->ENTER_COND(&data_cond, &data_lock,
                   &stage_waiting_for_the_slave_thread_to_advance_position,
@@ -880,7 +885,7 @@ int Relay_log_info::wait_for_gtid_set(THD* thd, String* gtid,
   DBUG_PRINT("info", ("Waiting for %s timeout %lld", gtid->c_ptr_safe(),
              timeout));
 
-  set_timespec(abstime, timeout);
+  set_timespec(&abstime, timeout);
   mysql_mutex_lock(&data_lock);
   thd->ENTER_COND(&data_cond, &data_lock,
                   &stage_waiting_for_the_slave_thread_to_advance_position,
@@ -1178,10 +1183,8 @@ int Relay_log_info::purge_relay_logs(THD *thd, bool just_reset,
     goto err;
   }
   /* Save name of used relay log file */
-  strmake(group_relay_log_name, relay_log.get_log_fname(),
-          sizeof(group_relay_log_name)-1);
-  strmake(event_relay_log_name, relay_log.get_log_fname(),
-          sizeof(event_relay_log_name)-1);
+  set_group_relay_log_name(relay_log.get_log_fname());
+  set_event_relay_log_name(relay_log.get_log_fname());
   group_relay_log_pos= event_relay_log_pos= BIN_LOG_HEADER_SIZE;
   if (count_relay_log_space())
   {
@@ -1253,9 +1256,8 @@ bool Relay_log_info::is_until_satisfied(THD *thd, Log_event *ev)
       if (ev && ev->server_id == (uint32) ::server_id && !replicate_same_server_id)
         DBUG_RETURN(false);
       log_name= group_master_log_name;
-      log_pos= (!ev)? group_master_log_pos :
-        ((thd->variables.option_bits & OPTION_BEGIN || !ev->log_pos) ?
-         group_master_log_pos : ev->log_pos - ev->data_written);
+      log_pos= (!ev || is_in_group() || !ev->log_pos) ?
+        group_master_log_pos : ev->log_pos - ev->data_written;
     }
     else
     { /* until_condition == UNTIL_RELAY_POS */
@@ -2175,7 +2177,7 @@ bool Relay_log_info::read_info(Rpl_info_handler *from)
     overwritten by the second row later.
   */
   if (from->prepare_info_for_read() ||
-      from->get_info(group_relay_log_name, (size_t) sizeof(group_relay_log_name),
+      from->get_info(group_relay_log_name, sizeof(group_relay_log_name),
                      (char *) ""))
     DBUG_RETURN(TRUE);
 
@@ -2185,7 +2187,7 @@ bool Relay_log_info::read_info(Rpl_info_handler *from)
       *first_non_digit=='\0' && lines >= LINES_IN_RELAY_LOG_INFO_WITH_DELAY)
   {
     /* Seems to be new format => read group relay log name */
-    if (from->get_info(group_relay_log_name, (size_t) sizeof(group_relay_log_name),
+    if (from->get_info(group_relay_log_name, sizeof(group_relay_log_name),
                        (char *) ""))
       DBUG_RETURN(TRUE);
   }
@@ -2195,7 +2197,7 @@ bool Relay_log_info::read_info(Rpl_info_handler *from)
   if (from->get_info((ulong *) &temp_group_relay_log_pos,
                      (ulong) BIN_LOG_HEADER_SIZE) ||
       from->get_info(group_master_log_name,
-                     (size_t) sizeof(group_relay_log_name),
+                     sizeof(group_relay_log_name),
                      (char *) "") ||
       from->get_info((ulong *) &temp_group_master_log_pos,
                      (ulong) 0))
@@ -2300,9 +2302,9 @@ void Relay_log_info::set_rli_description_event(Format_description_log_event *fe)
 
       if (is_parallel_exec())
       {
-        for (uint i= 0; i < workers.elements; i++)
+        for (Slave_worker **it= workers.begin(); it != workers.end(); ++it)
         {
-          Slave_worker *w= *(Slave_worker **) dynamic_array_ptr(&workers, i);
+          Slave_worker *w= *it;
           mysql_mutex_lock(&w->jobs_lock);
           if (w->running_status == Slave_worker::RUNNING)
             w->set_rli_description_event(fe);
@@ -2462,6 +2464,22 @@ void Relay_log_info::adapt_to_master_version(Format_description_log_event *fdle)
       s_features[i].upgrade(thd);
     }
   }
+}
+
+void Relay_log_info::relay_log_number_to_name(uint number,
+                                              char name[FN_REFLEN+1])
+{
+  char *str= NULL;
+
+  /* str points to closing null relay log basename */
+  str= strmake(name, relay_log_basename, FN_REFLEN+1);
+  *str++= '.';
+  sprintf(str, "%06u", number);
+}
+
+uint Relay_log_info::relay_log_name_to_number(const char *name)
+{
+  return static_cast<uint>(atoi(fn_ext(name)+1));
 }
 
 bool is_mts_db_partitioned(Relay_log_info * rli)

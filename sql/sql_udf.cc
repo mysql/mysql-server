@@ -37,12 +37,13 @@
 #include "lock.h"                               // MYSQL_LOCK_IGNORE_TIMEOUT
 #include "log.h"
 
+#ifdef HAVE_DLFCN_H
+#include <dlfcn.h>
+#endif
+
 #ifdef HAVE_DLOPEN
-extern "C"
-{
 #include <stdarg.h>
 #include <hash.h>
-}
 
 static bool initialized = 0;
 static MEM_ROOT mem;
@@ -168,7 +169,10 @@ void udf_init()
   initialized = 1;
   new_thd->thread_stack= (char*) &new_thd;
   new_thd->store_globals();
-  new_thd->set_db(db, sizeof(db)-1);
+  {
+    LEX_CSTRING db_lex_cstr= { STRING_WITH_LEN(db) };
+    new_thd->set_db(db_lex_cstr);
+  }
 
   tables.init_one_table(db, sizeof(db)-1, "func", 4, "func", TL_READ);
 
@@ -189,7 +193,7 @@ void udf_init()
     DBUG_PRINT("info",("init udf record"));
     LEX_STRING name;
     name.str=get_field(&mem, table->field[0]);
-    name.length = (uint) strlen(name.str);
+    name.length = strlen(name.str);
     char *dl_name= get_field(&mem, table->field[2]);
     bool new_dl=0;
     Item_udftype udftype=UDFTYPE_FUNCTION;

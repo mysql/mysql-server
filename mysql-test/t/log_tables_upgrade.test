@@ -30,3 +30,5 @@ DROP TABLE general_log;
 RENAME TABLE renamed_general_log TO general_log;
 SET GLOBAL general_log = @saved_general_log;
 USE test;
+
+--source include/mysql_upgrade_cleanup.inc

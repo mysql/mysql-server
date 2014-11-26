@@ -750,6 +750,7 @@ connection n1;
 
 --error ER_VIEW_INVALID
 SELECT * FROM mysqltest1.v_t1;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 --error ER_VIEW_INVALID
 INSERT INTO mysqltest1.v_t1 VALUES(4);
 --error ER_VIEW_INVALID
@@ -760,6 +761,7 @@ UPDATE mysqltest1.v_t1 SET x = 3 WHERE x = 2;
 UPDATE mysqltest1.v_t1 SET x = 3;
 --error ER_VIEW_INVALID
 DELETE FROM mysqltest1.v_t1;
+SET sql_mode = default;
 --error ER_VIEW_INVALID
 SELECT 1 FROM mysqltest1.v_t1;
 --error ER_TABLEACCESS_DENIED_ERROR

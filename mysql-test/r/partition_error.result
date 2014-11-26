@@ -45,7 +45,7 @@ ERROR HY000: Constant, random or timezone-dependent expressions in (sub)partitio
 CREATE TABLE t1 (a DATE)
 PARTITION BY RANGE (DAYOFWEEK(a))
 (PARTITION a1 VALUES LESS THAN (60));
-INSERT INTO t1 VALUES ('test'),('a'),('5');
+INSERT IGNORE INTO t1 VALUES ('test'),('a'),('5');
 Warnings:
 Warning	1265	Data truncated for column 'a' at row 1
 Warning	1265	Data truncated for column 'a' at row 2
@@ -59,7 +59,7 @@ DROP TABLE t1;
 CREATE TABLE t1 (a DATETIME)
 PARTITION BY RANGE (DAYOFWEEK(a))
 (PARTITION a1 VALUES LESS THAN (60));
-INSERT INTO t1 VALUES ('test'),('a'),('5');
+INSERT IGNORE INTO t1 VALUES ('test'),('a'),('5');
 Warnings:
 Warning	1265	Data truncated for column 'a' at row 1
 Warning	1265	Data truncated for column 'a' at row 2
@@ -1455,6 +1455,7 @@ ERROR HY000: This partition function is not allowed
 # Bug #42849: innodb crash with varying time_zone on partitioned
 #             timestamp primary key
 #
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 CREATE TABLE old (a TIMESTAMP NOT NULL PRIMARY KEY)
 PARTITION BY RANGE (UNIX_TIMESTAMP(a)) (
 PARTITION p VALUES LESS THAN (1219089600),
@@ -1849,3 +1850,4 @@ pUpTo10	p-10sp1	This is a long comment (2050 ascii characters)   50 pUpTo10 part
 pMax	pMaxsp0	This is a long comment (2050 ascii characters)   50 pMax partition comment .80-!
 pMax	pMaxsp1	This is a long comment (2050 ascii characters)   50 pMax partition comment .80-!
 DROP TABLE t1;
+SET sql_mode = default;

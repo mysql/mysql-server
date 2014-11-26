@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -641,9 +641,9 @@ void DES_EDE3::ProcessAndXorBlock(const byte* in, const byte* xOr,
 
 
 #ifdef _MSC_VER
-    __declspec(naked)
+    __declspec(naked) 
 #else
-    __attribute__ ((noinline)) 
+    __attribute__ ((noinline))
 #endif
 void DES_EDE3::AsmProcess(const byte* in, byte* out, void* box) const
 {
@@ -663,8 +663,8 @@ void DES_EDE3::AsmProcess(const byte* in, byte* out, void* box) const
     #define EPILOG()  \
         "pop ebp;" \
         "pop ebx;" \
-               "emms;" \
-               ".att_syntax;" \
+       	"emms;" \
+       	".att_syntax;" \
             :  \
             : "d" (this), "S" (in), "a" (box), "c" (out) \
             : "%edi", "memory", "cc" \

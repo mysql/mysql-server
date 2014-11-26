@@ -33,12 +33,7 @@ INSERT INTO t1 (a, b) VALUES (5, '5');
 begin;
 INSERT INTO t1 (a, b) VALUES (6, REPEAT('a', 4*1024*1024));
 
---exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server 0
---source include/wait_until_disconnected.inc
---enable_reconnect
---source include/wait_until_connected_again.inc
---disable_reconnect
+--source include/kill_and_restart_mysqld.inc
 
 SELECT a, right(b, 50) FROM t1;
 
@@ -54,12 +49,7 @@ SELECT a, right(b, 50) FROM t1;
 begin;
 UPDATE t1 set b = REPEAT('a', 4*1024*1024) where a = 5 ;
 
---exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server 0
---source include/wait_until_disconnected.inc
---enable_reconnect
---source include/wait_until_connected_again.inc
---disable_reconnect
+--source include/kill_and_restart_mysqld.inc
 
 SELECT a, right(b, 50) FROM t1;
 
@@ -75,12 +65,7 @@ SELECT a, right(b, 50) FROM t1;
 begin;
 UPDATE t1 set b = REPEAT('$', 50000) where a = 1 ;
 
---exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server 0
---source include/wait_until_disconnected.inc
---enable_reconnect
---source include/wait_until_connected_again.inc
---disable_reconnect
+--source include/kill_and_restart_mysqld.inc
 
 SELECT a, right(b, 50) FROM t1;
 
@@ -134,14 +119,11 @@ select f1, right(f2, 20), right(f3, 20) from t2;
 
 SET GLOBAL innodb_log_checkpoint_now=ON;
 
-# We expect a restart.
---exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server 0
---source include/wait_until_disconnected.inc
+--source include/kill_mysqld.inc
 
 --echo # Starting server with --innodb-force-recovery-crash=99
 let SEARCH_FILE = $MYSQLTEST_VARDIR/log/my_restart.err;
-let args = --loose-console > $SEARCH_FILE 2>&1;
+let args = --loose-console --core-file > $SEARCH_FILE 2>&1;
 let crash = $args --innodb-force-recovery-crash;
 
 --error 3
@@ -150,13 +132,7 @@ let crash = $args --innodb-force-recovery-crash;
 let SEARCH_PATTERN = innodb_force_recovery_crash=99;
 --source include/search_pattern_in_file.inc
 
---echo # Restarting server in normal mode
---enable_reconnect
---exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
-
-# Wait for the server to come back up, and reconnect.
---source include/wait_until_connected_again.inc
---disable_reconnect
+--source include/start_mysqld.inc
 
 select f1, right(f2, 20), right(f3, 20) from t2;
 check table t2;
@@ -188,12 +164,7 @@ begin;
 INSERT INTO t3 (f1, f2, f3) VALUES (6, repeat('/', 40000), repeat('<', 40000));
 --enable_query_log
 
---exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server 0
---source include/wait_until_disconnected.inc
---enable_reconnect
---source include/wait_until_connected_again.inc
---disable_reconnect
+--source include/kill_and_restart_mysqld.inc
 
 select f1, length(f2), length(f3) from t3;
 select f1, right(f2, 30), right(f3, 20) from t3;
@@ -214,12 +185,7 @@ insert into t3 values (2, repeat('!', 30), repeat('+', 30));
 begin;
 UPDATE t3 set f2 = repeat('>', 40000) where f1 = 2;
 
---exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server 0
---source include/wait_until_disconnected.inc
---enable_reconnect
---source include/wait_until_connected_again.inc
---disable_reconnect
+--source include/kill_and_restart_mysqld.inc
 
 select f1, length(f2), length(f3) from t3;
 select f1, right(f2, 30), right(f3, 20) from t3;
@@ -240,12 +206,7 @@ insert into t3 values (3, repeat('%', 40000), repeat('~', 40000));
 begin;
 UPDATE t3 set f2 = concat(f2, repeat(',', 10)) where f1 = 3;
 
---exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server 0
---source include/wait_until_disconnected.inc
---enable_reconnect
---source include/wait_until_connected_again.inc
---disable_reconnect
+--source include/kill_and_restart_mysqld.inc
 
 select f1, length(f2), length(f3) from t3;
 select f1, right(f2, 30), right(f3, 20) from t3;

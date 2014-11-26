@@ -288,7 +288,7 @@ let $message= Testcase 3.5.8.5 (IF):;
 #            portion of a trigger definition.
 let $message= Testcase 3.5.8.5-case:;
 --source include/show_msg.inc
-	
+	SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 	delimiter //;
 	create trigger trg3 before insert on tb3 for each row
 	BEGIN
@@ -367,7 +367,7 @@ let $message= Testcase 3.5.8.5-case:;
 	drop trigger trg3;
 	delete from tb3 where f121='Test 3.5.8.5-case';	
 	--enable_warnings
-
+        SET sql_mode = default;
 #Section 3.5.8.5 (LOOP)
 # Test case: Ensure that the stored procedure-specific flow control
 #            statement like LOOP / LEAVE work correctly when they are

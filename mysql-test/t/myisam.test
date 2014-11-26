@@ -15,7 +15,7 @@
 drop table if exists t1,t2;
 --enable_warnings
 SET SQL_WARNINGS=1;
-
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 #
 # Test problem with CHECK TABLE;
 #
@@ -477,6 +477,8 @@ create table t1 (a int not null);
 create table t2 (a int not null, primary key (a));
 insert into t1 values (1);
 insert into t2 values (1),(2);
+--source include/turn_off_only_full_group_by.inc
+
 select sql_big_result distinct t1.a from t1,t2 order by t2.a;
 FLUSH STATUS;
 select distinct t1.a from t1,t2 order by t2.a;
@@ -484,6 +486,8 @@ SHOW SESSION STATUS LIKE 'Sort_scan%';
 select sql_big_result distinct t1.a from t1,t2;
 explain select sql_big_result distinct t1.a from t1,t2 order by t2.a;
 explain select distinct t1.a from t1,t2 order by t2.a;
+
+--source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
 drop table t1,t2;
 
 #
@@ -1822,4 +1826,4 @@ SELECT count(*) FROM t1 WHERE col1_id= 1414;
 DELETE FROM t1 WHERE col1= '5cm' AND col1_dummy= '5cm';
 SELECT count(*) FROM t1 WHERE col1= '5cm';
 DROP TABLE t1;
-
+SET sql_mode = default;

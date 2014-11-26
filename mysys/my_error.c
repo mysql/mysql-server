@@ -97,7 +97,7 @@ char *my_strerror(char *buf, size_t len, int nr)
     */
 #if defined(_WIN32)
     strerror_s(buf, len, nr);
-    if (my_winerr != 0)
+    if (mysys_thread_var()->thr_winerr != 0)
     {
       /*
         If error code is EINVAL, and Windows Error code has been set, we append
@@ -108,12 +108,12 @@ char *my_strerror(char *buf, size_t len, int nr)
         char tmp_buff[256] ;
 
         my_snprintf(tmp_buff, sizeof(tmp_buff), 
-                    " [OS Error Code : 0x%x]", my_winerr);
+                    " [OS Error Code : 0x%x]", mysys_thread_var()->thr_winerr);
 
         strcat_s(buf, len, tmp_buff);
       }
 
-      my_winerr= 0;
+      mysys_thread_var()->thr_winerr= 0;
     }
 #elif ((defined _POSIX_C_SOURCE && (_POSIX_C_SOURCE >= 200112L)) ||    \
        (defined _XOPEN_SOURCE   && (_XOPEN_SOURCE >= 600)))      &&    \

@@ -10,7 +10,7 @@ SHOW CREATE TABLE t1;
 DELETE FROM t1;
 ALTER TABLE t1 ADD c3 CHAR(4) CHARACTER SET utf8;
 SHOW CREATE TABLE t1;
-INSERT INTO t1 VALUES ('aaaabbbbccccdddd','aaaabbbbccccdddd','aaaabbbbccccdddd');
+INSERT IGNORE INTO t1 VALUES ('aaaabbbbccccdddd','aaaabbbbccccdddd','aaaabbbbccccdddd');
 SELECT * FROM t1;
 DROP TABLE t1;
 

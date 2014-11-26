@@ -1,6 +1,7 @@
 --disable_warnings
 DROP TABLE IF EXISTS t1,t2,t3,t4;
 --enable_warnings
+SET sql_mode='NO_ENGINE_SUBSTITUTION';
 
 ######## Running DELETE tests for DECIMAL ########
 
@@ -380,4 +381,4 @@ SELECT * FROM t4;
 --disable_warnings
 DROP TABLES IF EXISTS t1,t2,t3,t4;
 --enable_warnings
-
+SET sql_mode=default;

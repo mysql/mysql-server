@@ -129,4 +129,71 @@ connection master;
 drop table t1;
 #connection slave
 --source include/sync_slave_sql_with_master.inc
+
+--echo # === Bug#18192817 IGNORE_SERVER_IDS IS SHOWING DUPLICATE SERVER IDS ===
+
+# The bug caused the field Replicate_Ignore_Server_Ids in SHOW SLAVE STATUS
+# show up duplicate values. Verify that the values are NOT duplicated.
+
+--source include/stop_slave.inc
+
+--echo The list should have 0 elements.
+--let $status_items= Replicate_Ignore_Server_Ids
+--source include/show_slave_status.inc
+--echo
+
+CHANGE MASTER TO IGNORE_SERVER_IDS= (110,220,330,420);
+
+--echo The list should have 4 elements.
+--let $status_items= Replicate_Ignore_Server_Ids
+--source include/show_slave_status.inc
+--echo
+
+CHANGE MASTER TO IGNORE_SERVER_IDS= (110,220,330,420), IGNORE_SERVER_IDS= (110,220,330,420);
+
+--echo The list should still have only 4 elements.
+--let $status_items= Replicate_Ignore_Server_Ids
+--source include/show_slave_status.inc
+--echo
+
+--echo ISSUE WAS HERE: All server ids should be stored and showed only once, while they are set twice or even more.
+--echo The list should have 5 elements.
+CHANGE MASTER TO IGNORE_SERVER_IDS= (110,220,330,420), IGNORE_SERVER_IDS= (111,220,330,420);
+
+--let $status_items= Replicate_Ignore_Server_Ids
+--source include/show_slave_status.inc
+--echo
+
+CHANGE MASTER TO IGNORE_SERVER_IDS= (110,220,330,420), IGNORE_SERVER_IDS= (111,221,330,420);
+
+--echo The list should have 6 elements.
+--let $status_items= Replicate_Ignore_Server_Ids
+--source include/show_slave_status.inc
+--echo
+
+CHANGE MASTER TO IGNORE_SERVER_IDS= (110,220,330,420), IGNORE_SERVER_IDS= (111,221,331,420);
+
+--echo The list should have 7 elements.
+--let $status_items= Replicate_Ignore_Server_Ids
+--source include/show_slave_status.inc
+--echo
+
+CHANGE MASTER TO IGNORE_SERVER_IDS= (110,220,330,420), IGNORE_SERVER_IDS= (111,221,331,421);
+
+--echo The list should have 8 elements.
+--let $status_items= Replicate_Ignore_Server_Ids
+--source include/show_slave_status.inc
+--echo
+
+# Cleanup
+CHANGE MASTER TO IGNORE_SERVER_IDS= ();
+
+--echo The list should have NO elements.
+--let $status_items= Replicate_Ignore_Server_Ids
+--source include/show_slave_status.inc
+--echo
+
+--source include/start_slave.inc
+--connection master
+
 --source include/rpl_end.inc

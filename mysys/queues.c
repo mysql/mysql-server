@@ -259,14 +259,6 @@ uchar *queue_remove(QUEUE *queue, uint idx)
   return element;
 }
 
-	/* Fix when element on top has been replaced */
-
-#ifndef queue_replaced
-void queue_replaced(QUEUE *queue)
-{
-  _downheap(queue,1);
-}
-#endif
 
 void _downheap(QUEUE *queue, uint idx)
 {

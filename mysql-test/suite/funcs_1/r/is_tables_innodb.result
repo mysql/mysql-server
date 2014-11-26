@@ -7,10 +7,10 @@ CREATE TABLE test1.t2  (f1 VARCHAR(20)) ENGINE = <engine_to_be_used>;
 CREATE TABLE test2.t1 (f1 VARCHAR(20)) ENGINE = <engine_to_be_used>;
 SELECT *,
 LEFT( table_comment,
-IF(INSTR(table_comment,'InnoDB free') = 0
+IF(INSTR(table_comment,'TMP_TABLE_ENGINE free') = 0
 AND INSTR(table_comment,'number_of_replicas') = 0,
 LENGTH(table_comment),
-INSTR(table_comment,'InnoDB free')
+INSTR(table_comment,'TMP_TABLE_ENGINE free')
 + INSTR(table_comment,'number_of_replicas') - 1))
 AS "user_comment",
 '-----------------------------------------------------' AS "Separator"
@@ -21,7 +21,7 @@ TABLE_CATALOG	def
 TABLE_SCHEMA	test1
 TABLE_NAME	t1
 TABLE_TYPE	BASE TABLE
-ENGINE	InnoDB
+ENGINE	TMP_TABLE_ENGINE
 VERSION	10
 ROW_FORMAT	Compact
 TABLE_ROWS	#TBLR#
@@ -44,7 +44,7 @@ TABLE_CATALOG	def
 TABLE_SCHEMA	test1
 TABLE_NAME	t2
 TABLE_TYPE	BASE TABLE
-ENGINE	InnoDB
+ENGINE	TMP_TABLE_ENGINE
 VERSION	10
 ROW_FORMAT	Compact
 TABLE_ROWS	#TBLR#
@@ -67,7 +67,7 @@ TABLE_CATALOG	def
 TABLE_SCHEMA	test2
 TABLE_NAME	t1
 TABLE_TYPE	BASE TABLE
-ENGINE	InnoDB
+ENGINE	TMP_TABLE_ENGINE
 VERSION	10
 ROW_FORMAT	Compact
 TABLE_ROWS	#TBLR#
@@ -99,10 +99,10 @@ GRANT SELECT ON test1.* TO testuser1@localhost;
 # Establish connection testuser1 (user=testuser1)
 SELECT *,
 LEFT( table_comment,
-IF(INSTR(table_comment,'InnoDB free') = 0
+IF(INSTR(table_comment,'TMP_TABLE_ENGINE free') = 0
 AND INSTR(table_comment,'number_of_replicas') = 0,
 LENGTH(table_comment),
-INSTR(table_comment,'InnoDB free')
+INSTR(table_comment,'TMP_TABLE_ENGINE free')
 + INSTR(table_comment,'number_of_replicas') - 1))
 AS "user_comment",
 '-----------------------------------------------------' AS "Separator"
@@ -113,7 +113,7 @@ TABLE_CATALOG	def
 TABLE_SCHEMA	test1
 TABLE_NAME	t1
 TABLE_TYPE	BASE TABLE
-ENGINE	InnoDB
+ENGINE	TMP_TABLE_ENGINE
 VERSION	10
 ROW_FORMAT	Compact
 TABLE_ROWS	#TBLR#
@@ -136,7 +136,7 @@ TABLE_CATALOG	def
 TABLE_SCHEMA	test1
 TABLE_NAME	t2
 TABLE_TYPE	BASE TABLE
-ENGINE	InnoDB
+ENGINE	TMP_TABLE_ENGINE
 VERSION	10
 ROW_FORMAT	Compact
 TABLE_ROWS	#TBLR#

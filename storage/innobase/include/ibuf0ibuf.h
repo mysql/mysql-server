@@ -448,6 +448,14 @@ ibuf_check_bitmap_on_import(
 	ulint		space_id)	/*!< in: tablespace identifier */
 	__attribute__((nonnull, warn_unused_result));
 
+/** Updates free bits and buffered bits for bulk loaded page.
+@param[in]      block   index page
+@param]in]      reset   flag if reset free val */
+void
+ibuf_set_bitmap_for_bulk_load(
+	buf_block_t*    block,
+	bool		reset);
+
 #define IBUF_HEADER_PAGE_NO	FSP_IBUF_HEADER_PAGE_NO
 #define IBUF_TREE_ROOT_PAGE_NO	FSP_IBUF_TREE_ROOT_PAGE_NO
 

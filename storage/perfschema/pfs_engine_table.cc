@@ -99,6 +99,8 @@
 #include "table_md_locks.h"
 #include "table_table_handles.h"
 
+#include "table_uvar_by_thread.h"
+
 /* For show status */
 #include "pfs_column_values.h"
 #include "pfs_instr_class.h"
@@ -203,6 +205,8 @@ static PFS_engine_table_share *all_shares[]=
   &table_replication_execute_status_by_worker::m_share,
 
   &table_prepared_stmt_instances::m_share,
+
+  &table_uvar_by_thread::m_share,
   NULL
 };
 
@@ -573,6 +577,14 @@ void PFS_engine_table::set_field_longtext_utf8(Field *f, const char* str,
   f2->store(str, len, &my_charset_utf8_bin);
 }
 
+void PFS_engine_table::set_field_blob(Field *f, const char* val,
+                                      uint len)
+{
+  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_BLOB);
+  Field_blob *f2= (Field_blob*) f;
+  f2->store(val, len, &my_charset_utf8_bin);
+}
+
 void PFS_engine_table::set_field_enum(Field *f, ulonglong value)
 {
   DBUG_ASSERT(f->real_type() == MYSQL_TYPE_ENUM);
@@ -588,6 +600,13 @@ void PFS_engine_table::set_field_timestamp(Field *f, ulonglong value)
   DBUG_ASSERT(f->real_type() == MYSQL_TYPE_TIMESTAMP2);
   Field_timestampf *f2= (Field_timestampf*) f;
   f2->store_timestamp(& tm);
+}
+
+void PFS_engine_table::set_field_double(Field *f, double value)
+{
+  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_DOUBLE);
+  Field_double *f2= (Field_double*) f;
+  f2->store(value);
 }
 
 ulonglong PFS_engine_table::get_field_enum(Field *f)
@@ -685,7 +704,7 @@ void initialize_performance_schema_acl(bool bootstrap)
   */
   if (! bootstrap)
   {
-    ACL_internal_schema_registry::register_schema(&PERFORMANCE_SCHEMA_str,
+    ACL_internal_schema_registry::register_schema(PERFORMANCE_SCHEMA_str,
                                                   &pfs_internal_access);
   }
 }

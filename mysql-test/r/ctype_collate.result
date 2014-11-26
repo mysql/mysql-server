@@ -670,6 +670,7 @@ check table t1 extended;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 drop table t1;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 select least(_latin1'a',_latin2'b',_latin5'c' collate latin5_turkish_ci);
 least(_latin1'a',_latin2'b',_latin5'c' collate latin5_turkish_ci)
 a
@@ -689,6 +690,7 @@ latin5_turkish_ci then 2 else 3 end
 select concat(_latin1'a',_latin2'b',_latin5'c' collate latin5_turkish_ci);
 concat(_latin1'a',_latin2'b',_latin5'c' collate latin5_turkish_ci)
 abc
+SET sql_mode = default;
 #
 # Bug#11765016 57926: ILLEGAL MIX OF COLLATIONS FOR OPERATION 'UNION' .. USING CONCAT/FUNCTION/
 # Not a bug: only adding coverage tests

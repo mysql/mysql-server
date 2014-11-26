@@ -4,7 +4,7 @@
 --disable_warnings
 drop table if exists t1,t2;
 --enable_warnings
-
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 create table t1 (a int, b int not null,unique key (a,b),index(b)) engine=myisam;
 insert ignore into t1 values (1,1),(2,2),(3,3),(4,4),(5,5),(6,6),(null,7),(9,9),(8,8),(7,7),(null,9),(null,9),(6,6);
 explain select * from t1 where a is null;
@@ -275,3 +275,4 @@ SELECT a FROM t1 WHERE a IN (42) OR (a IS TRUE AND a IS NULL);
 explain SELECT a FROM t1 WHERE a IN (42) OR (a=NULL);
 SELECT a FROM t1 WHERE a IN (42) OR (a=NULL);
 drop table t1;
+SET sql_mode = default;

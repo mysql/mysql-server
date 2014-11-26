@@ -23,7 +23,7 @@
 #                           testsuite funcs_1
 #                   Create this script based on older scripts and new code.
 #
-
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 --source suite/funcs_1/datadict/datadict_bug_12777.inc
 eval
 SELECT * FROM information_schema.columns
@@ -84,3 +84,4 @@ SELECT CHARACTER_OCTET_LENGTH / CHARACTER_MAXIMUM_LENGTH AS COL_CML,
 FROM information_schema.columns
 $my_where
 ORDER BY TABLE_SCHEMA, TABLE_NAME, ORDINAL_POSITION;
+SET sql_mode = default;

@@ -554,3 +554,6 @@ bug56143_2	CREATE TABLE `bug56143_2` (
   CONSTRAINT `aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa98` FOREIGN KEY (`a`) REFERENCES `bug56143_1` (`a`) ON UPDATE SET NULL,
   CONSTRAINT `aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa99` FOREIGN KEY (`a`) REFERENCES `bug56143_1` (`a`) ON UPDATE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
+count_alloc WHERE event_name like 'memory/innodb/other'
+count_alloc
+0

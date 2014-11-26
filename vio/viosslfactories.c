@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -81,7 +81,8 @@ ssl_error_string[] =
   "Private key does not match the certificate public key",
   "SSL_CTX_set_default_verify_paths failed",
   "Failed to set ciphers to use",
-  "SSL_CTX_new failed"
+  "SSL_CTX_new failed",
+  "SSL context is not usable without certificate and private key"
 };
 
 const char*
@@ -275,6 +276,16 @@ new_VioSSLFd(const char *key_file, const char *cert_file,
     DBUG_PRINT("error", ("vio_set_cert_stuff failed"));
     report_errors();
     SSL_CTX_free(ssl_fd->ssl_context);
+    my_free(ssl_fd);
+    DBUG_RETURN(0);
+  }
+
+  /* Server specific check : Must have certificate and key file */
+  if (!is_client && !key_file && !cert_file)
+  {
+    *error= SSL_INITERR_NO_USABLE_CTX;
+    DBUG_PRINT("error", ("%s", sslGetErrString(*error)));
+    report_errors();
     my_free(ssl_fd);
     DBUG_RETURN(0);
   }

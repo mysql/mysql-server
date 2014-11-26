@@ -1,5 +1,5 @@
 # Set the environmental variables
-call mtr.add_suppression("InnoDB: Unable to read tablespace .* page no .* into the buffer pool after 100 attempts");
+call mtr.add_suppression("\\[ERROR\\] \\[FATAL\\] InnoDB: Unable to read page \\[page id: space=.*, page number=.*\\] into the buffer pool after 100 attempts");
 call mtr.add_suppression("\\[ERROR\\] InnoDB: Database page corruption on disk or a failed");
 SET GLOBAL innodb_file_per_table=on;
 SET GLOBAL innodb_file_format='barracuda';
@@ -14,6 +14,7 @@ Munged a string.
 Munged a string.
 # Backup the corrupted t1.ibd for reuse for further testing.
 # Write file to make mysql-test-run.pl start up the server again
+# restart
 # Write file to make mysql-test-run.pl expect the "crash", but don't
 # start it until it's told to
 # The below SELECT query will crash the server because some pages
@@ -22,16 +23,19 @@ SELECT * FROM t1;
 ERROR HY000: Lost connection to MySQL server during query
 [1(a)]: Repair the ibd file with innochecksum with --write=innodb
 # Start the server
+# restart
 select count(*) from t1;
 # Shutdown the server
 # Move the corrupted ibd file to t1.ibd
 [1(b)]: Repair the ibd file with innochecksum with --write=crc32
 # Start the server
+# restart
 select count(*) from t1;
 # Shutdown the server
 # Move the corrupted ib file to t1.ibd
 [1(c)]: Repair the ibd file with innochecksum with --write=none
 # Start the server
+# restart
 select * from t1;
 DROP TABLE t1;
 [19]: Test Completed
@@ -87,6 +91,7 @@ Fail: page 4 invalid
 [6]: Test for checksum check for only pageno.= 2
 [7]: Further Test are for rewrite checksum (innodb|crc32|none) for all ibd file & start the server.
 # Restart the server
+# restart
 DROP TABLE tab1;
 SET GLOBAL innodb_file_per_table=default;
 SET GLOBAL innodb_file_format=default;

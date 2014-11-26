@@ -192,13 +192,15 @@ class QUICK_RANGE :public Sql_alloc {
     quick select doesn't use Sql_alloc/MEM_ROOT allocation because "range
     checked for each record" functionality may create/destroy
     O(#records_in_some_table) quick selects during query execution.
+    See Bug#18684036 ELIMINATE LAST FEW HEAP USAGE FROM THE
+    RANGE OPTIMIZER.
 */
 
 class QUICK_SELECT_I
 {
 public:
   ha_rows records;  /* estimate of # of records to be retrieved */
-  double  read_time; /* time to perform this retrieval          */
+  Cost_estimate cost_est; ///> cost to perform this retrieval
   TABLE   *head;
   /*
     Index this quick select uses, or MAX_KEY for quick selects
@@ -298,7 +300,9 @@ public:
   };
 
   /* Get type of this quick select - one of the QS_TYPE_* values */
-  virtual int get_type() = 0;
+  virtual int get_type() const = 0;
+  virtual bool is_loose_index_scan() const = 0;
+  virtual bool is_agg_loose_index_scan() const = 0;
 
   /*
     Initialize this quick select as a merged scan inside a ROR-union or a ROR-
@@ -487,7 +491,9 @@ public:
   int init_ror_merged_scan(bool reuse_handler);
   void save_last_pos()
   { file->position(record); }
-  int get_type() { return QS_TYPE_RANGE; }
+  int get_type() const { return QS_TYPE_RANGE; }
+  virtual bool is_loose_index_scan() const { return false; }
+  virtual bool is_agg_loose_index_scan() const { return false; }
   void add_keys_and_lengths(String *key_names, String *used_lengths);
   void add_info_string(String *str);
 #ifndef DBUG_OFF
@@ -593,7 +599,9 @@ public:
   bool reverse_sorted() const { return false; }
   bool reverse_sort_possible() const { return false; }
   bool unique_key_range() { return false; }
-  int get_type() { return QS_TYPE_INDEX_MERGE; }
+  int get_type() const { return QS_TYPE_INDEX_MERGE; }
+  virtual bool is_loose_index_scan() const { return false; }
+  virtual bool is_agg_loose_index_scan() const { return false; }
   void add_keys_and_lengths(String *key_names, String *used_lengths);
   void add_info_string(String *str);
   bool is_keys_used(const MY_BITMAP *fields);
@@ -683,7 +691,9 @@ public:
   bool reverse_sorted() const { return false; }
   bool reverse_sort_possible() const { return false; }
   bool unique_key_range() { return false; }
-  int get_type() { return QS_TYPE_ROR_INTERSECT; }
+  int get_type() const { return QS_TYPE_ROR_INTERSECT; }
+  virtual bool is_loose_index_scan() const { return false; }
+  virtual bool is_agg_loose_index_scan() const { return false; }
   void add_keys_and_lengths(String *key_names, String *used_lengths);
   void add_info_string(String *str);
   bool is_keys_used(const MY_BITMAP *fields);
@@ -763,7 +773,9 @@ public:
   bool reverse_sorted() const { return false; }
   bool reverse_sort_possible() const { return false; }
   bool unique_key_range() { return false; }
-  int get_type() { return QS_TYPE_ROR_UNION; }
+  int get_type() const { return QS_TYPE_ROR_UNION; }
+  virtual bool is_loose_index_scan() const { return false; }
+  virtual bool is_agg_loose_index_scan() const { return false; }
   void add_keys_and_lengths(String *key_names, String *used_lengths);
   void add_info_string(String *str);
   bool is_keys_used(const MY_BITMAP *fields);
@@ -899,8 +911,9 @@ public:
                              KEY_PART_INFO *min_max_arg_part,
                              uint group_prefix_len, uint group_key_parts,
                              uint used_key_parts, KEY *index_info, uint
-                             use_index, double read_cost, ha_rows records, uint
-                             key_infix_len, uchar *key_infix, MEM_ROOT
+                             use_index, const Cost_estimate *cost_est,
+                             ha_rows records, uint key_infix_len,
+                             uchar *key_infix, MEM_ROOT
                              *parent_alloc, bool is_index_scan);
   ~QUICK_GROUP_MIN_MAX_SELECT();
   bool add_range(SEL_ARG *sel_range);
@@ -914,12 +927,14 @@ public:
   bool reverse_sorted() const { return false; }
   bool reverse_sort_possible() const { return false; }
   bool unique_key_range() { return false; }
-  int get_type() { return QS_TYPE_GROUP_MIN_MAX; }
+  int get_type() const { return QS_TYPE_GROUP_MIN_MAX; }
+  virtual bool is_loose_index_scan() const { return true; }
+  virtual bool is_agg_loose_index_scan() const { return is_agg_distinct(); }
   void add_keys_and_lengths(String *key_names, String *used_lengths);
 #ifndef DBUG_OFF
   void dbug_dump(int indent, bool verbose);
 #endif
-  bool is_agg_distinct() { return have_agg_distinct; }
+  bool is_agg_distinct() const { return have_agg_distinct; }
   virtual void append_loose_scan_type(String *str) 
   {
     if (is_index_scan)
@@ -943,7 +958,9 @@ public:
   int get_next();
   bool reverse_sorted() const { return true; }
   bool reverse_sort_possible() const { return true; }
-  int get_type() { return QS_TYPE_RANGE_DESC; }
+  int get_type() const { return QS_TYPE_RANGE_DESC; }
+  virtual bool is_loose_index_scan() const { return false; }
+  virtual bool is_agg_loose_index_scan() const { return false; }
   QUICK_SELECT_I *make_reverse(uint used_key_parts_arg)
   {
     return this; // is already reverse sorted
@@ -957,57 +974,15 @@ private:
 };
 
 
-/**
-  This class represents a single-table access method for a range scan
-  with all relevant cost information and the object quick is used for
-  data access. The function test_quick_select() runs the range
-  optimizer, chooses the best range scan access method, stores the
-  cost information for the chosen method and constructs a "quick
-  select" object that represents it.
-*/
-class SQL_SELECT :public Sql_alloc {
- public:
-  QUICK_SELECT_I *quick;	///< Non-NULL if quick-select used.
-  Item		*cond;		///< Where condition.
-  Item		*icp_cond;	///< Conditions pushed to index.
-  TABLE	*head;
-  IO_CACHE file;		///< Positions to used records.
-  ha_rows records;		///< Records in use if read from file.
-  double read_time;		///< Time to read rows.
-  key_map needed_reg;		///< Possible quick keys after prev tables.
-  table_map const_tables,read_tables;
-  bool	free_cond;
+class QEP_shared_owner;
 
-  /**
-    Used for QS_DYNAMIC_RANGE, i.e., "Range checked for each record".
-    Used by optimizer tracing to decide whether or not dynamic range
-    analysis of this select has been traced already. If optimizer
-    trace option DYNAMIC_RANGE is enabled, range analysis will be
-    traced with different ranges for every record to the left of this
-    table in the join. If disabled, range analysis will only be traced
-    for the first range.
-  */
-  bool traced_before;
-
-  SQL_SELECT();
-  ~SQL_SELECT();
-  void set_quick(QUICK_SELECT_I *new_quick);
-  bool check_quick(THD *thd, bool force_quick_range, ha_rows limit)
-  {
-    key_map tmp(key_map::ALL_BITS);
-    return test_quick_select(thd, tmp, 0, limit, force_quick_range,
-                             ORDER::ORDER_NOT_RELEVANT) < 0;
-  }
-  inline bool skip_record(THD *thd, bool *skip_record)
-  {
-    *skip_record= cond ? cond->val_int() == FALSE : FALSE;
-    return thd->is_error();
-  }
-  int test_quick_select(THD *thd, key_map keys, table_map prev_tables,
-                        ha_rows limit, bool force_quick_range,
-                        const ORDER::enum_order interesting_order);
-};
-
+int test_quick_select(THD *thd, key_map keys, table_map prev_tables,
+                      ha_rows limit, bool force_quick_range,
+                      const ORDER::enum_order interesting_order,
+                      const QEP_shared_owner *tab,
+                      Item *cond,
+                      key_map *needed_reg,
+                      QUICK_SELECT_I **quick);
 
 class FT_SELECT: public QUICK_RANGE_SELECT 
 {
@@ -1023,17 +998,15 @@ public:
   }
   int reset() { return 0; }
   int get_next() { return file->ft_read(record); }
-  int get_type() { return QS_TYPE_FULLTEXT; }
+  int get_type() const { return QS_TYPE_FULLTEXT; }
+  virtual bool is_loose_index_scan() const { return false; }
+  virtual bool is_agg_loose_index_scan() const { return false; }
 };
 
 FT_SELECT *get_ft_select(THD *thd, TABLE *table, uint key);
 QUICK_RANGE_SELECT *get_quick_select_for_ref(THD *thd, TABLE *table,
                                              struct st_table_ref *ref,
                                              ha_rows records);
-SQL_SELECT *make_select(TABLE *head, table_map const_tables,
-			table_map read_tables, Item *conds,
-                        bool allow_null_cond,  int *error);
-
 #ifdef WITH_PARTITION_STORAGE_ENGINE
 bool prune_partitions(THD *thd, TABLE *table, Item *pprune_cond);
 void store_key_image_to_rec(Field *field, uchar *ptr, uint len);

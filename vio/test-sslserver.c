@@ -91,7 +91,7 @@ main(int argc __attribute__((unused)), char** argv)
 	struct sockaddr_in sa_cli;
 	int listen_sd;
 	int err;
-        size_socket client_len;
+        socket_len_t client_len;
 	int	reuseaddr = 1; /* better testing, uh? */
 
 	MY_INIT(argv[0]);

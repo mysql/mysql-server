@@ -254,6 +254,7 @@ DROP TABLE t1;
 # Coverage tests
 #
 
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 CREATE TABLE t1 (a INT);
 # Trivial query:
 SELECT * FROM t1 PROCEDURE ANALYSE();
@@ -387,4 +388,5 @@ ERROR 42000: You have an error in your SQL syntax; check the manual that corresp
 SELECT * FROM t1 PROCEDURE ANALYSE(100, 200, 300);
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ' 300)' at line 1
 DROP TABLE t1, t2;
+SET sql_mode = default;
 # End of 5.6 tests

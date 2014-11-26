@@ -738,11 +738,18 @@ struct row_prebuilt_t {
 					the secondary index, then this is
 					set to TRUE */
 	unsigned	templ_contains_blob:1;/*!< TRUE if the template contains
-					a column with DATA_BLOB ==
-					get_innobase_type_from_mysql_type();
+					a column with DATA_LARGE_MTYPE(
+					get_innobase_type_from_mysql_type())
+					is TRUE;
 					not to be confused with InnoDB
 					externally stored columns
 					(VARCHAR can be off-page too) */
+	unsigned	templ_contains_fixed_point:1;/*!< TRUE if the
+					template contains a column with
+					DATA_POINT. Since InnoDB regards
+					DATA_POINT as non-BLOB type, the
+					templ_contains_blob can't tell us
+					if there is DATA_POINT */
 	mysql_row_templ_t* mysql_template;/*!< template used to transform
 					rows fast between MySQL and Innobase
 					formats; memory for this template
@@ -912,6 +919,14 @@ struct row_prebuilt_t {
 
 	innodb_session_t*
 			session;	/*!< InnoDB session handler. */
+	byte*		srch_key_val1;  /*!< buffer used in converting
+					search key values from MySQL format
+					to InnoDB format.*/
+	byte*		srch_key_val2;  /*!< buffer used in converting
+					search key values from MySQL format
+					to InnoDB format.*/
+	uint		srch_key_val_len; /*!< Size of search key */
+
 };
 
 /** Callback for row_mysql_sys_index_iterate() */

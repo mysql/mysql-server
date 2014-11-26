@@ -6,7 +6,7 @@
 drop table if exists t1, t2;
 drop function if exists f1;
 --enable_warnings
-
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 
 # 
 # Let us first check +HH:MM style timezones
@@ -303,7 +303,7 @@ SELECT UNIX_TIMESTAMP('2003-03-30 01:59:59'), 'Before the gap' AS b;
 SELECT UNIX_TIMESTAMP('2003-03-30 02:30:00'), 'Inside the gap' AS b;
 SELECT UNIX_TIMESTAMP('2003-03-30 03:00:00'), 'After the gap' AS b;
 SET time_zone=DEFAULT;
-
+SET sql_mode = default;
 --echo #
 --echo # End of 5.6 tests
 --echo #

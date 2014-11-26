@@ -24,11 +24,13 @@ delete from t2;
 let $count=255;
 --echo $count inserts;
 --disable_query_log
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 while ($count)
 {
 eval insert into t2 values (1901+$count);
 dec $count;
 }
+SET sql_mode = default;
 --enable_query_log
 select count(*) from t2;
 select * from t2;

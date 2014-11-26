@@ -9,10 +9,11 @@ set @@global.slave_parallel_workers= 4;
 set @save.slave_checkpoint_period= @@global.slave_checkpoint_period;
 set @@global.slave_checkpoint_period= 500;
 set @save.slave_transaction_retries= @@global.slave_transaction_retries;
-start slave io_thread;
-include/wait_for_slave_io_to_start.inc
+include/start_slave.inc
 create table t1 (f1 int) engine=innodb;
 create table t2 (f1 int) engine=innodb;
+include/sync_slave_sql_with_master.inc
+include/stop_slave_sql.inc
 begin;
 insert into t1 values (sleep(3) + 1);
 Warnings:
@@ -21,9 +22,9 @@ commit;
 begin;
 insert into t2 values (1);
 commit;
-include/start_slave.inc
 include/sync_slave_io_with_master.inc
 lock table t2 write;
+include/start_slave_sql.inc
 First transaction is done, now get Seconds_Behind_Master after it...
 include/wait_for_slave_param.inc [Seconds_Behind_Master]
 Seconds_Behind_Master after first transaction is as expected.

@@ -1,5 +1,3 @@
-#!/usr/sbin/dtrace -s 
-
 /*
   This Dtrace script is used by the test "dynamic_tracing.test" for
   dynamic tracing. This script is executed in background by

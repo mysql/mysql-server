@@ -80,7 +80,7 @@ start(){
 	    chmod 0755 "$datadir"
 	    [ -x /sbin/restorecon ] && /sbin/restorecon "$datadir"
 	    # Now create the database
-	    action $"Initializing MySQL database: " /usr/bin/mysql_install_db --rpm --datadir="$datadir" --user=mysql
+	    action $"Initializing MySQL database: " /usr/bin/mysql_install_db --datadir="$datadir" --user=mysql
 	    ret=$?
 	    chown -R mysql:mysql "$datadir"
 	    if [ $ret -ne 0 ] ; then

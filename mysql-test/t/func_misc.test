@@ -5,7 +5,7 @@
 #
 # Testing of misc functions
 #
-
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 --disable_warnings
 DROP TABLE IF EXISTS t1, t2;
 --enable_warnings
@@ -52,42 +52,6 @@ select a from t1 where mid(a+0,6,3) = ( mid(20040106123400,6,3) );
 
 drop table t1;
 
-
-#
-# Bug#16501: IS_USED_LOCK does not appear to work
-#
-
-CREATE TABLE t1 (conn CHAR(7), connection_id INT);
-INSERT INTO t1 VALUES ('default', CONNECTION_ID());
-
-SELECT GET_LOCK('bug16501',600);
-
-connect (con1,localhost,root,,);
-INSERT INTO t1 VALUES ('con1', CONNECTION_ID());
-SELECT IS_USED_LOCK('bug16501') = connection_id
-FROM t1
-WHERE conn = 'default';
-send SELECT GET_LOCK('bug16501',600);
-
-connection default;
-SELECT IS_USED_LOCK('bug16501') = CONNECTION_ID();
-SELECT RELEASE_LOCK('bug16501');
-connection con1;
-reap;
-connection default;
-SELECT IS_USED_LOCK('bug16501') = connection_id
-FROM t1
-WHERE conn = 'con1';
-
-connection con1;
-SELECT IS_USED_LOCK('bug16501') = CONNECTION_ID();
-SELECT RELEASE_LOCK('bug16501');
-SELECT IS_USED_LOCK('bug16501');
-
-disconnect con1;
-connection default;
-
-DROP TABLE t1;
 
 #
 # Bug #21531: EXPORT_SET() doesn't accept args with coercible character sets
@@ -855,7 +819,7 @@ DROP TABLE t2;
 --echo
 --echo # -- Done.
 --echo
-
+SET sql_mode = default;
 --echo #
 --echo # End of tests
 --echo #

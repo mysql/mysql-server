@@ -198,7 +198,7 @@ DROP TABLE t1;
 --echo # Coverage tests
 --echo #
 --echo
-
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 CREATE TABLE t1 (a INT);
 
 --echo # Trivial query:
@@ -340,6 +340,6 @@ SELECT * FROM t1 PROCEDURE ANALYSE(100, 3.1415);
 SELECT * FROM t1 PROCEDURE ANALYSE(100, 200, 300);
 
 DROP TABLE t1, t2;
-
+SET sql_mode = default;
 --echo # End of 5.6 tests
 

@@ -145,7 +145,7 @@ public:
     mysql_mutex_init(key_LOCK_done, &m_lock_done, MY_MUTEX_INIT_FAST);
     mysql_cond_init(key_COND_done, &m_cond_done);
 #ifndef DBUG_OFF
-    /* reuse key_COND_done 'cos a new PSI object would be wasteful in DBUG_ON */
+    /* reuse key_COND_done 'cos a new PSI object would be wasteful in !DBUG_OFF */
     mysql_cond_init(key_COND_done, &m_cond_preempt);
 #endif
     m_queue[FLUSH_STAGE].init(
@@ -576,12 +576,15 @@ public:
 
     @param[out] binlog_file_name, the file name of oldest binary log found
     @param[in]  gtid_set, the given gtid set
+    @param[out] first_gtid, the first GTID information from the binary log
+                file returned at binlog_file_name
     @param[out] errmsg, the error message outputted, which is left untouched
                 if the function returns false
     @return false on success, true on error.
   */
   bool find_first_log_not_in_gtid_set(char *binlog_file_name,
                                       const Gtid_set *gtid_set,
+                                      Gtid *first_gtid,
                                       const char **errmsg);
 
   /**
@@ -599,11 +602,12 @@ public:
     @param need_lock If true, LOCK_log, LOCK_index, and
     global_sid_lock->wrlock are acquired; otherwise they are asserted
     to be taken already.
+    @param is_server_starting True if the server is starting.
     @return false on success, true on error.
   */
   bool init_gtid_sets(Gtid_set *gtid_set, Gtid_set *lost_groups,
                       Gtid *last_gtid, bool verify_checksum,
-                      bool need_lock);
+                      bool need_lock, bool is_server_starting= false);
 
   void set_previous_gtid_set_relaylog(Gtid_set *previous_gtid_set_param)
   {
@@ -804,6 +808,7 @@ public:
   int find_log_pos(LOG_INFO* linfo, const char* log_name,
                    bool need_lock_index);
   int find_next_log(LOG_INFO* linfo, bool need_lock_index);
+  int find_next_relay_log(char log_name[FN_REFLEN+1]);
   int get_current_log(LOG_INFO* linfo);
   int raw_get_current_log(LOG_INFO* linfo);
   uint next_file_id();

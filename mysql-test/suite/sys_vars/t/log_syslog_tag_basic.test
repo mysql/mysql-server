@@ -1,0 +1,52 @@
+################## mysql-test\t\log_syslog_tag_basic.test #####################
+#                                                                             #
+# Variable Name: log_syslog_tag                                               #
+# Scope: Global                                                               #
+# Access Type: Dynamic                                                        #
+# Data Type: string                                                           #
+#                                                                             #
+#                                                                             #
+# Creation Date: 2014-02-14                                                   #
+# Author : Azundris (tnuernbe)                                                #
+#                                                                             #
+# Description:Test Cases of Dynamic System Variable                           #
+#             log_syslog_tag                                                  #
+#             that checks the behavior of this variable in the following ways #
+#              * Value Check                                                  #
+#              * Scope Check                                                  #
+#                                                                             #
+# Reference:                                                                  #
+#  http://dev.mysql.com/doc/refman/5.7/en/server-system-variables.html        #
+#                                                                             #
+###############################################################################
+
+--source include/not_windows.inc
+
+SET @start_value= @@global.log_syslog_tag;
+
+SET @@global.log_syslog_tag= DEFAULT;
+SELECT @@global.log_syslog_tag;
+
+SET @@global.log_syslog_tag="production";
+SELECT @@global.log_syslog_tag;
+
+SET @@global.log_syslog_tag= "";
+SELECT @@global.log_syslog_tag;
+
+# wrong
+--error ER_WRONG_TYPE_FOR_VAR
+SET @@global.log_syslog_tag= 9;
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.log_syslog_tag= "path/like";
+
+--error ER_WRONG_TYPE_FOR_VAR
+SET GLOBAL log_syslog_tag= 0.01;
+
+--error ER_GLOBAL_VARIABLE
+SET SESSION log_syslog_tag= "staging";
+
+--error ER_GLOBAL_VARIABLE
+SET LOCAL log_syslog_tag= "staging";
+
+SET @@global.log_syslog_tag= @start_value;

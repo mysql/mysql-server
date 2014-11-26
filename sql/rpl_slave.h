@@ -56,6 +56,7 @@ typedef enum { SLAVE_THD_IO, SLAVE_THD_SQL, SLAVE_THD_WORKER } SLAVE_THD_TYPE;
 
 #define MTS_WORKER_UNDEF ((ulong) -1)
 #define MTS_MAX_WORKERS  1024
+#define MAX_SLAVE_RETRY_PAUSE 5
 
 /* 
    When using tables to store the slave workers bitmaps,
@@ -166,21 +167,21 @@ extern bool server_id_supplied;
       global_sid_lock->wrlock
 
     purge_logs:
-      .LOCK_index, LOCK_thd_count, thd.linfo.lock
+      .LOCK_index, LOCK_thd_list, thd.linfo.lock
 
       [Note: purge_logs contains a known bug: LOCK_index should not be
-      taken before LOCK_thd_count.  This implies that, e.g.,
+      taken before LOCK_thd_list.  This implies that, e.g.,
       purge_master_logs can deadlock with reset_master.  However,
       although purge_first_log and reset_slave take locks in reverse
       order, they cannot deadlock because they both first acquire
       rli.data_lock.]
 
     purge_master_logs, purge_master_logs_before_date, purge:
-      (binlog.purge_logs) binlog.LOCK_index, LOCK_thd_count, thd.linfo.lock
+      (binlog.purge_logs) binlog.LOCK_index, LOCK_thd_list, thd.linfo.lock
 
     purge_first_log:
       rli.data_lock, relay.LOCK_index, rli.log_space_lock,
-      (relay.purge_logs) LOCK_thd_count, thd.linfo.lock
+      (relay.purge_logs) LOCK_thd_list, thd.linfo.lock
 
     MYSQL_BIN_LOG::new_file_impl:
       .LOCK_log, .LOCK_index,
@@ -193,7 +194,7 @@ extern bool server_id_supplied;
       global_sid_lock->wrlock
 
     kill_zombie_dump_threads:
-      LOCK_thd_count, thd.LOCK_thd_data
+      LOCK_thd_list, thd.LOCK_thd_data
 
     init_relay_log_pos:
       rli.data_lock, relay.log_lock
@@ -215,7 +216,7 @@ extern bool server_id_supplied;
 
     LOCK_active_mi, mi.run_lock, rli.run_lock,
       ( rli.data_lock,
-        ( LOCK_thd_count,
+        ( LOCK_thd_list,
           (
             ( binlog.LOCK_log, binlog.LOCK_index
             | relay.LOCK_log, relay.LOCK_index

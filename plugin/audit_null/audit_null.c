@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License as
@@ -17,10 +17,7 @@
 #include <stdio.h>
 #include <mysql/plugin.h>
 #include <mysql/plugin_audit.h>
-
-#if !defined(__attribute__) && (defined(__cplusplus) || !defined(__GNUC__)  || __GNUC__ == 2 && __GNUC_MINOR__ < 8)
-#define __attribute__(A)
-#endif
+#include "my_compiler.h"
 
 static volatile int number_of_calls; /* for SHOW STATUS, see below */
 /* Count MYSQL_AUDIT_GENERAL_CLASS event instances */

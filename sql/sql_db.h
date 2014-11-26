@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -23,15 +23,16 @@ typedef struct charset_info_st CHARSET_INFO;
 typedef struct st_ha_create_information HA_CREATE_INFO;
 typedef struct st_mysql_lex_string LEX_STRING;
 
-int mysql_create_db(THD *thd, char *db, HA_CREATE_INFO *create, bool silent);
+int mysql_create_db(THD *thd, const char *db, HA_CREATE_INFO *create,
+                    bool silent);
 bool mysql_alter_db(THD *thd, const char *db, HA_CREATE_INFO *create);
-bool mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent);
-bool mysql_upgrade_db(THD *thd, LEX_STRING *old_db);
-bool mysql_change_db(THD *thd, const LEX_STRING *new_db_name,
+bool mysql_rm_db(THD *thd,const LEX_CSTRING &db,bool if_exists, bool silent);
+bool mysql_upgrade_db(THD *thd, const LEX_CSTRING &old_db);
+bool mysql_change_db(THD *thd, const LEX_CSTRING &new_db_name,
                      bool force_switch);
 
 bool mysql_opt_change_db(THD *thd,
-                         const LEX_STRING *new_db_name,
+                         const LEX_CSTRING &new_db_name,
                          LEX_STRING *saved_db_name,
                          bool force_switch,
                          bool *cur_db_changed);

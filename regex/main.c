@@ -2,6 +2,9 @@
 #include <m_string.h>
 #include <sys/types.h>
 #include <assert.h>
+#ifdef HAVE_UNISTD_H
+#include <unistd.h>
+#endif
 
 #include "my_regex.h"
 #include "main.ih"

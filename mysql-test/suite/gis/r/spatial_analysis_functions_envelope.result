@@ -1,0 +1,976 @@
+#Turn on the geometry data print.
+SET SESSION debug="+d,row_print_geometry_data";
+#Confirming the storage engine
+SHOW VARIABLES LIKE '%engine%';
+Variable_name	Value
+default_storage_engine	MyISAM
+default_tmp_storage_engine	MyISAM
+internal_tmp_disk_storage_engine	MYISAM
+#Creating the spatial Geometry object
+USE test;
+DROP TABLE IF EXISTS gis_geometrycollection;
+CREATE TABLE gis_geometrycollection (fid INTEGER NOT NULL PRIMARY KEY, g GEOMETRYCOLLECTION);
+SET @star_elem_vertical= 'POLYGON((5 0,15 25,25 0,15 5,5 0))';
+SET @star_elem_horizontal= 'POLYGON((25 0,0 15,30 15,22 10,25 0))';
+SET @star_center= 'POINT(15 10)';
+SET @star_top= 'POINT(15 25)';
+SET @star_bottom_left= 'POINT(5 0)';
+SET @star_bottom_right= 'POINT(25 0)';
+SET @star_bottom_points= 'MULTIPOINT(5 0,25 0)';
+SET @star_all_points= 'MULTIPOINT(5 0,25 0,15 10,15 25)';
+SET @star_line_horizontal= 'LINESTRING(10 15,20 15)';
+SET @star_line_vertical= 'LINESTRING(15 5,15 25)';
+SET @star_top_to_center= 'LINESTRING(15 25,15 10)';
+SET @star_lines_near_horizontal= 'MULTILINESTRING((25 0,0 15,15 30,0 5))';
+SET @star_lines_near_vertical= 'MULTILINESTRING((0 5,15 25,0 25))';
+SET @star= 'POLYGON((5 0,7 10,0 15,10 15,15 25,20 15,30 15,22 10,25 0,15 5,5 0))';
+SET @star_elem_vertical_val= '((5 0,15 25,25 0,15 5,5 0))';
+SET @star_elem_horizontal_val= '((25 0,0 15,30 15,22 10,25 0))';
+SET @star_of_elems='MULTIPOLYGON(((5 0,15 25,25 0,15 5,5 0)),((25 0,0 15,30 15,22 10,25 0)))';
+SET @star_collection_elems='GEOMETRYCOLLECTION(MULTIPOLYGON(((5 0,15 25,25 0,15 5,5 0)),((25 0,0 15,30 15,22 10,25 0))),POLYGON((5 0,7 10,0 15,10 15,15 25,20 15,30 15,22 10,25 0,15 5,5 0)),LINESTRING(15 25,15 10),MULTIPOINT(5 0,25 0),POINT(15 25))';
+SET @star_collection_multilinestr='GEOMETRYCOLLECTION(MULTIPOLYGON(((5 0,15 25,25 0,15 5,5 0)),((25 0,0 15,30 15,22 10,25 0))),POLYGON((5 0,7 10,0 15,10 15,15 25,20 15,30 15,22 10,25 0,15 5,5 0)),MULTILINESTRING((25 0,0 15,15 30,0 5)),LINESTRING(15 25,15 10),MULTIPOINT(5 0,25 0),POINT(15 25))';
+#INSERT base star
+INSERT INTO gis_geometrycollection VALUES
+(100,GeomFromText(@star)),
+(101,GeomFromText(@star_elem_vertical)),
+(102,GeomFromText(@star_elem_horizontal)),
+(103,GeomFromText(@star_of_elems)),
+(104,GeomFromText(@star_top)),
+(105,GeomFromText(@star_center)),
+(106,GeomFromText(@star_bottom_left)),
+(107,GeomFromText(@star_bottom_right)),
+(108,GeomFromText(@star_bottom_points)),
+(109,GeomFromText(@star_all_points)),
+(110,GeomFromText(@star_line_horizontal)),
+(111,GeomFromText(@star_line_vertical)),
+(112,GeomFromText(@star_top_to_center)),
+(113,GeomFromText(@star_lines_near_horizontal)),
+(114,GeomFromText(@star_lines_near_vertical)),
+(115,GeomFromText(@star_collection_elems)),
+(116,GeomFromText(@star_collection_multilinestr));
+#Checking the integrity of the above create/insert statements 
+#17 rows. 
+SELECT count(astext(g) != 'NULL') FROM gis_geometrycollection;
+count(astext(g) != 'NULL')
+17
+#====================================================================================
+# Envelope(geometry)
+#====================================================================================
+#------------------------------------------------------------------------------------
+# point
+#------------------------------------------------------------------------------------
+SELECT AsText(Envelope(GeomFromText(@star_center)));
+AsText(Envelope(GeomFromText(@star_center)))
+POLYGON((15 10,15 10,15 10,15 10,15 10))
+SELECT AsText(Envelope(GeomFromText(@star_top)));
+AsText(Envelope(GeomFromText(@star_top)))
+POLYGON((15 25,15 25,15 25,15 25,15 25))
+SELECT AsText(Envelope(ST_GeomFromText('POINT(-0 0)')));
+AsText(Envelope(ST_GeomFromText('POINT(-0 0)')))
+POLYGON((0 0,0 0,0 0,0 0,0 0))
+SELECT AsText(Envelope(GeomFromText('POINT(2.34 -2.34)')));
+AsText(Envelope(GeomFromText('POINT(2.34 -2.34)')))
+POLYGON((2.34 -2.34,2.34 -2.34,2.34 -2.34,2.34 -2.34,2.34 -2.34))
+SELECT AsText(Envelope(GeomFromText('POINT(1e308 -1e308)')));
+AsText(Envelope(GeomFromText('POINT(1e308 -1e308)')))
+POLYGON((1e308 -1e308,1e308 -1e308,1e308 -1e308,1e308 -1e308,1e308 -1e308))
+SELECT AsText(Envelope(GeomFromText('POINT(-0.0000 0.000001)')));
+AsText(Envelope(GeomFromText('POINT(-0.0000 0.000001)')))
+POLYGON((0 0.000001,0 0.000001,0 0.000001,0 0.000001,0 0.000001))
+SELECT AsText(Envelope(g)) FROM gis_geometrycollection WHERE fid=105;
+AsText(Envelope(g))
+POLYGON((15 10,15 10,15 10,15 10,15 10))
+#------------------------------------------------------------------------------------
+# multipoint
+#------------------------------------------------------------------------------------
+SELECT AsText(Envelope(GeomFromText(@star_all_points)));
+AsText(Envelope(GeomFromText(@star_all_points)))
+POLYGON((5 0,25 0,25 25,5 25,5 0))
+SELECT AsText(Envelope(GeomFromText(@star_bottom_points)));
+AsText(Envelope(GeomFromText(@star_bottom_points)))
+POLYGON((5 0,25 0,25 0,5 0,5 0))
+SELECT AsText(Envelope(GeomFromText('MULTIPOINT(0 0,0 0,0 0,0 0)')));
+AsText(Envelope(GeomFromText('MULTIPOINT(0 0,0 0,0 0,0 0)')))
+POLYGON((0 0,0 0,0 0,0 0,0 0))
+SELECT AsText(Envelope(GeomFromText('MULTIPOINT(0 0,0 5,5 5,5 0,0 0)')));
+AsText(Envelope(GeomFromText('MULTIPOINT(0 0,0 5,5 5,5 0,0 0)')))
+POLYGON((0 0,5 0,5 5,0 5,0 0))
+SELECT AsText(Envelope(GeomFromText('MULTIPOINT(1 -1,1e308 -1e308,0.0001 0.000)')));
+AsText(Envelope(GeomFromText('MULTIPOINT(1 -1,1e308 -1e308,0.0001 0.000)')))
+POLYGON((0.0001 -1e308,1e308 -1e308,1e308 0,0.0001 0,0.0001 -1e308))
+SELECT AsText(Envelope(g)) FROM gis_geometrycollection WHERE fid=108;
+AsText(Envelope(g))
+POLYGON((5 0,25 0,25 0,5 0,5 0))
+#------------------------------------------------------------------------------------
+# linestring
+#------------------------------------------------------------------------------------
+SELECT AsText(Envelope(GeomFromText(@star_top_to_center)));
+AsText(Envelope(GeomFromText(@star_top_to_center)))
+POLYGON((15 10,15 10,15 25,15 25,15 10))
+SELECT AsText(Envelope(GeomFromText(@star_line_horizontal)));
+AsText(Envelope(GeomFromText(@star_line_horizontal)))
+POLYGON((10 15,20 15,20 15,10 15,10 15))
+SELECT AsText(Envelope(GeomFromText('LINESTRING(0 0,-0.00 0,0.0 0)')));
+AsText(Envelope(GeomFromText('LINESTRING(0 0,-0.00 0,0.0 0)')))
+POLYGON((0 0,0 0,0 0,0 0,0 0))
+SELECT AsText(Envelope(GeomFromText('LINESTRING(0 0,0 5,5 5,5 0,0 0)')));
+AsText(Envelope(GeomFromText('LINESTRING(0 0,0 5,5 5,5 0,0 0)')))
+POLYGON((0 0,5 0,5 5,0 5,0 0))
+SELECT AsText(Envelope(GeomFromText('LINESTRING(1 -1,1e308 -1e308,0.0001 0.000)')));
+AsText(Envelope(GeomFromText('LINESTRING(1 -1,1e308 -1e308,0.0001 0.000)')))
+POLYGON((0.0001 -1e308,1e308 -1e308,1e308 0,0.0001 0,0.0001 -1e308))
+SELECT AsText(Envelope(g)) FROM gis_geometrycollection WHERE fid=110;
+AsText(Envelope(g))
+POLYGON((10 15,20 15,20 15,10 15,10 15))
+#------------------------------------------------------------------------------------
+# multilinestring
+#------------------------------------------------------------------------------------
+SELECT AsText(Envelope(GeomFromText(@star_lines_near_vertical)));
+AsText(Envelope(GeomFromText(@star_lines_near_vertical)))
+POLYGON((0 5,15 5,15 25,0 25,0 5))
+SELECT AsText(Envelope(GeomFromText(@star_lines_near_horizontal)));
+AsText(Envelope(GeomFromText(@star_lines_near_horizontal)))
+POLYGON((0 0,25 0,25 30,0 30,0 0))
+SELECT AsText(Envelope(GeomFromText('MULTILINESTRING((0 0,-0.00 0),(0.0 0))')));
+AsText(Envelope(GeomFromText('MULTILINESTRING((0 0,-0.00 0),(0.0 0))')))
+POLYGON((0 0,0 0,0 0,0 0,0 0))
+SELECT AsText(Envelope(GeomFromText('MULTILINESTRING((0 0,0 5,5 5,5 0,0 0))')));
+AsText(Envelope(GeomFromText('MULTILINESTRING((0 0,0 5,5 5,5 0,0 0))')))
+POLYGON((0 0,5 0,5 5,0 5,0 0))
+SELECT AsText(Envelope(GeomFromText('MULTILINESTRING((0 10,10 0),(10 0,0 0),(0 0,10 10))')));
+AsText(Envelope(GeomFromText('MULTILINESTRING((0 10,10 0),(10 0,0 0),(0 0,10 10))')))
+POLYGON((0 0,10 0,10 10,0 10,0 0))
+SELECT AsText(Envelope(GeomFromText('MULTILINESTRING((1 -1,1e308 -1e308,0.0001 0.000),(2 2,4 -9.002))')));
+AsText(Envelope(GeomFromText('MULTILINESTRING((1 -1,1e308 -1e308,0.0001 0.000),(2 2,4 -9.002))')))
+POLYGON((0.0001 -1e308,1e308 -1e308,1e308 2,0.0001 2,0.0001 -1e308))
+SELECT AsText(Envelope(g)) FROM gis_geometrycollection WHERE fid=114;
+AsText(Envelope(g))
+POLYGON((0 5,15 5,15 25,0 25,0 5))
+#------------------------------------------------------------------------------------
+# polygon
+#------------------------------------------------------------------------------------
+SELECT AsText(Envelope(GeomFromText(@star)));
+AsText(Envelope(GeomFromText(@star)))
+POLYGON((0 0,30 0,30 25,0 25,0 0))
+SELECT AsText(Envelope(GeomFromText(@star_elem_vertical)));
+AsText(Envelope(GeomFromText(@star_elem_vertical)))
+POLYGON((5 0,25 0,25 25,5 25,5 0))
+SELECT AsText(Envelope(GeomFromText('POLYGON((0 0,0 5,5 5))')));
+AsText(Envelope(GeomFromText('POLYGON((0 0,0 5,5 5))')))
+POLYGON((0 0,5 0,5 5,0 5,0 0))
+SELECT AsText(Envelope(GeomFromText('POLYGON((0 0,0 10,10 10,10 0,0 0))')));
+AsText(Envelope(GeomFromText('POLYGON((0 0,0 10,10 10,10 0,0 0))')))
+POLYGON((0 0,10 0,10 10,0 10,0 0))
+SELECT AsText(Envelope(GeomFromText('POLYGON((10 10,10 0,0 20,0 10,10 10))')));
+AsText(Envelope(GeomFromText('POLYGON((10 10,10 0,0 20,0 10,10 10))')))
+POLYGON((0 0,10 0,10 20,0 20,0 0))
+SELECT AsText(Envelope(GeomFromText('POLYGON((0 0,0 10,10 10,10 0,0 0,-10 0,-10 -10,0 -10))')));
+AsText(Envelope(GeomFromText('POLYGON((0 0,0 10,10 10,10 0,0 0,-10 0,-10 -10,0 -10))')))
+POLYGON((-10 -10,10 -10,10 10,-10 10,-10 -10))
+SELECT AsText(Envelope(GeomFromText('POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4))')));
+AsText(Envelope(GeomFromText('POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4))')))
+POLYGON((0 0,10 0,10 10,0 10,0 0))
+SELECT AsText(Envelope(GeomFromText('POLYGON((0 0,0 10,10 10,10 0,0 0),(0 0,0 10,10 10,10 0,0 0))')));
+AsText(Envelope(GeomFromText('POLYGON((0 0,0 10,10 10,10 0,0 0),(0 0,0 10,10 10,10 0,0 0))')))
+POLYGON((0 0,10 0,10 10,0 10,0 0))
+SELECT AsText(Envelope(GeomFromText('POLYGON((4 4,4 6,6 6,6 4,4 4),(0 0,0 10,10 10,10 0,0 0))')));
+AsText(Envelope(GeomFromText('POLYGON((4 4,4 6,6 6,6 4,4 4),(0 0,0 10,10 10,10 0,0 0))')))
+POLYGON((0 0,10 0,10 10,0 10,0 0))
+SELECT AsText(Envelope(GeomFromText('POLYGON((4 4,4 6,6 6,6 4,4 4),(8 8,8 10,10 10,10 8,8 8))')));
+AsText(Envelope(GeomFromText('POLYGON((4 4,4 6,6 6,6 4,4 4),(8 8,8 10,10 10,10 8,8 8))')))
+POLYGON((4 4,10 4,10 10,4 10,4 4))
+SELECT AsText(Envelope(g)) FROM gis_geometrycollection WHERE fid=100;
+AsText(Envelope(g))
+POLYGON((0 0,30 0,30 25,0 25,0 0))
+#------------------------------------------------------------------------------------
+# multipolygon
+#------------------------------------------------------------------------------------
+SELECT AsText(Envelope(GeomFromText(@star_of_elems)));
+AsText(Envelope(GeomFromText(@star_of_elems)))
+POLYGON((0 0,30 0,30 25,0 25,0 0))
+SELECT AsText(Envelope(GeomFromText('MULTIPOLYGON(((0 0,0 5,5 5)))')));
+AsText(Envelope(GeomFromText('MULTIPOLYGON(((0 0,0 5,5 5)))')))
+POLYGON((0 0,5 0,5 5,0 5,0 0))
+SELECT AsText(Envelope(GeomFromText('MULTIPOLYGON(((0 10,10 0,0 0)),((0 0,10 10,10 0)))')));
+AsText(Envelope(GeomFromText('MULTIPOLYGON(((0 10,10 0,0 0)),((0 0,10 10,10 0)))')))
+POLYGON((0 0,10 0,10 10,0 10,0 0))
+SELECT AsText(Envelope(GeomFromText('MULTIPOLYGON(((0 0,0 10,10 10)),((10 10,10 15,15 15,10 10)))')));
+AsText(Envelope(GeomFromText('MULTIPOLYGON(((0 0,0 10,10 10)),((10 10,10 15,15 15,10 10)))')))
+POLYGON((0 0,15 0,15 15,0 15,0 0))
+SELECT AsText(Envelope(GeomFromText('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0)),((4 4,4 6,6 6,6 4)))')));
+AsText(Envelope(GeomFromText('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0)),((4 4,4 6,6 6,6 4)))')))
+POLYGON((0 0,10 0,10 10,0 10,0 0))
+SELECT AsText(Envelope(GeomFromText('MULTIPOLYGON(((0 0,0 10,10 10,10 0),(4 4,4 6,6 6,6 4)))')));
+AsText(Envelope(GeomFromText('MULTIPOLYGON(((0 0,0 10,10 10,10 0),(4 4,4 6,6 6,6 4)))')))
+POLYGON((0 0,10 0,10 10,0 10,0 0))
+SELECT AsText(Envelope(GeomFromText('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),(0 0,0 10,10 10,10 0,0 0)))')));
+AsText(Envelope(GeomFromText('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),(0 0,0 10,10 10,10 0,0 0)))')))
+POLYGON((0 0,10 0,10 10,0 10,0 0))
+SELECT AsText(Envelope(GeomFromText('MULTIPOLYGON(((4 4,4 6,6 6,6 4,4 4),(0 0,0 10,10 10,10 0,0 0)))')));
+AsText(Envelope(GeomFromText('MULTIPOLYGON(((4 4,4 6,6 6,6 4,4 4),(0 0,0 10,10 10,10 0,0 0)))')))
+POLYGON((0 0,10 0,10 10,0 10,0 0))
+SELECT AsText(Envelope(GeomFromText('MULTIPOLYGON(((4 4,4 6,6 6,6 4,4 4),(8 8,8 10,10 10,10 8,8 8)))')));
+AsText(Envelope(GeomFromText('MULTIPOLYGON(((4 4,4 6,6 6,6 4,4 4),(8 8,8 10,10 10,10 8,8 8)))')))
+POLYGON((4 4,10 4,10 10,4 10,4 4))
+SELECT AsText(Envelope(GeomFromText('MULTIPOLYGON(((10 10,10 0,5 10,10 10)),((0 10,0 20,5 10,0 10)))')));
+AsText(Envelope(GeomFromText('MULTIPOLYGON(((10 10,10 0,5 10,10 10)),((0 10,0 20,5 10,0 10)))')))
+POLYGON((0 0,10 0,10 20,0 20,0 0))
+SELECT AsText(Envelope(GeomFromText('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),(0 0,0 10,10 10,10 0,0 0)),((0 0,0 10,10 10,10 0,0 0)))')));
+AsText(Envelope(GeomFromText('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),(0 0,0 10,10 10,10 0,0 0)),((0 0,0 10,10 10,10 0,0 0)))')))
+POLYGON((0 0,10 0,10 10,0 10,0 0))
+SELECT AsText(Envelope(GeomFromText('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),(0 0,0 10,10 10,10 0,0 0)),((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6)))')));
+AsText(Envelope(GeomFromText('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),(0 0,0 10,10 10,10 0,0 0)),((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6)))')))
+POLYGON((0 0,10 0,10 10,0 10,0 0))
+SELECT AsText(Envelope(g)) FROM gis_geometrycollection WHERE fid=103;
+AsText(Envelope(g))
+POLYGON((0 0,30 0,30 25,0 25,0 0))
+#------------------------------------------------------------------------------------
+# geometrycollection
+#------------------------------------------------------------------------------------
+SELECT AsText(Envelope(GeomFromText(@star_collection_elems)));
+AsText(Envelope(GeomFromText(@star_collection_elems)))
+POLYGON((0 0,30 0,30 25,0 25,0 0))
+SELECT AsText(Envelope(GeomFromText(@star_collection_multilinestr)));
+AsText(Envelope(GeomFromText(@star_collection_multilinestr)))
+POLYGON((0 0,30 0,30 30,0 30,0 0))
+SELECT AsText(Envelope(GeomFromText('GEOMETRYCOLLECTION()')));
+AsText(Envelope(GeomFromText('GEOMETRYCOLLECTION()')))
+NULL
+SELECT AsText(Envelope(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())')));
+AsText(Envelope(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())')))
+NULL
+SELECT AsText(Envelope(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(GEOMETRYCOLLECTION()))')));
+AsText(Envelope(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(GEOMETRYCOLLECTION()))')))
+NULL
+SELECT AsText(Envelope(GeomFromText('GEOMETRYCOLLECTION(POINT(10 10),MULTIPOINT(0 0,10 10))')));
+AsText(Envelope(GeomFromText('GEOMETRYCOLLECTION(POINT(10 10),MULTIPOINT(0 0,10 10))')))
+POLYGON((0 0,10 0,10 10,0 10,0 0))
+SELECT AsText(Envelope(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(10 10),MULTIPOINT(0 0,10 10)))')));
+AsText(Envelope(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(10 10),MULTIPOINT(0 0,10 10)))')))
+POLYGON((0 0,10 0,10 10,0 10,0 0))
+SELECT AsText(Envelope(GeomFromText('GEOMETRYCOLLECTION(LINESTRING(0 0,0 10,10 10))')));
+AsText(Envelope(GeomFromText('GEOMETRYCOLLECTION(LINESTRING(0 0,0 10,10 10))')))
+POLYGON((0 0,10 0,10 10,0 10,0 0))
+SELECT AsText(Envelope(GeomFromText('GEOMETRYCOLLECTION(LINESTRING(0 0,0 10,10 10),GEOMETRYCOLLECTION())')));
+AsText(Envelope(GeomFromText('GEOMETRYCOLLECTION(LINESTRING(0 0,0 10,10 10),GEOMETRYCOLLECTION())')))
+POLYGON((0 0,10 0,10 10,0 10,0 0))
+SELECT AsText(Envelope(GeomFromText('GEOMETRYCOLLECTION(LINESTRING(1 1,2 2,3 3),MULTILINESTRING((0 0,0 10,10 10,10 0),(10 10,10 15,15 15,10 10)))')));
+AsText(Envelope(GeomFromText('GEOMETRYCOLLECTION(LINESTRING(1 1,2 2,3 3),MULTILINESTRING((0 0,0 10,10 10,10 0),(10 10,10 15,15 15,10 10)))')))
+POLYGON((0 0,15 0,15 15,0 15,0 0))
+SELECT AsText(Envelope(GeomFromText('GEOMETRYCOLLECTION(POINT(10 10),MULTIPOINT(0 0,10 10),LINESTRING(1 1,2 2,3 3),MULTILINESTRING((0 0,0 10,10 10,10 0),(10 10,10 15,15 15,10 10)))')));
+AsText(Envelope(GeomFromText('GEOMETRYCOLLECTION(POINT(10 10),MULTIPOINT(0 0,10 10),LINESTRING(1 1,2 2,3 3),MULTILINESTRING((0 0,0 10,10 10,10 0),(10 10,10 15,15 15,10 10)))')))
+POLYGON((0 0,15 0,15 15,0 15,0 0))
+SELECT AsText(Envelope(GeomFromText('GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0)))')));
+AsText(Envelope(GeomFromText('GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0)))')))
+POLYGON((0 0,10 0,10 10,0 10,0 0))
+SELECT AsText(Envelope(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0)))))')));
+AsText(Envelope(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0)))))')))
+POLYGON((0 0,10 0,10 10,0 10,0 0))
+SELECT AsText(Envelope(GeomFromText('GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4)),MULTIPOLYGON(((0 0,0 10,10 10,10 0)),((10 10,10 15,15 15,15 10,10 10))))')));
+AsText(Envelope(GeomFromText('GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4)),MULTIPOLYGON(((0 0,0 10,10 10,10 0)),((10 10,10 15,15 15,15 10,10 10))))')))
+POLYGON((0 0,15 0,15 15,0 15,0 0))
+SELECT AsText(Envelope(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(10 10),MULTIPOINT(0 0,10 10)),GEOMETRYCOLLECTION(LINESTRING(1 1,2 2,3 3),MULTILINESTRING((0 0,0 10,10 10,10 0),(10 10,10 15,15 15,10 10))))')));
+AsText(Envelope(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(10 10),MULTIPOINT(0 0,10 10)),GEOMETRYCOLLECTION(LINESTRING(1 1,2 2,3 3),MULTILINESTRING((0 0,0 10,10 10,10 0),(10 10,10 15,15 15,10 10))))')))
+POLYGON((0 0,15 0,15 15,0 15,0 0))
+SELECT AsText(Envelope(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(10 10),MULTIPOINT(0 0,10 10)),GEOMETRYCOLLECTION(LINESTRING(1 1,2 2,3 3),MULTILINESTRING((0 0,0 10,10 10,10 0),(10 10,10 15,15 15,10 10))),GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4)),MULTIPOLYGON(((0 0,0 10,10 10,10 0)),((10 10,10 15,15 15,15 10,10 10)))))')));
+AsText(Envelope(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(10 10),MULTIPOINT(0 0,10 10)),GEOMETRYCOLLECTION(LINESTRING(1 1,2 2,3 3),MULTILINESTRING((0 0,0 10,10 10,10 0),(10 10,10 15,15 15,10 10))),GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10
+POLYGON((0 0,15 0,15 15,0 15,0 0))
+SELECT AsText(Envelope(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(10 10),MULTIPOINT(0 0,10 10)),GEOMETRYCOLLECTION(LINESTRING(1 1,2 2,3 3),MULTILINESTRING((0 0,0 10,10 10,10 0),(10 10,10 15,15 15,10 10))),GEOMETRYCOLLECTION(GEOMETRYCOLLECTION()))')));
+AsText(Envelope(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(10 10),MULTIPOINT(0 0,10 10)),GEOMETRYCOLLECTION(LINESTRING(1 1,2 2,3 3),MULTILINESTRING((0 0,0 10,10 10,10 0),(10 10,10 15,15 15,10 10))),GEOMETRYCOLLECTION(GEOMETRYCOLLECTION()))'
+POLYGON((0 0,15 0,15 15,0 15,0 0))
+SELECT AsText(Envelope(g)) FROM gis_geometrycollection WHERE fid=115;
+AsText(Envelope(g))
+POLYGON((0 0,30 0,30 25,0 25,0 0))
+#====================================================================================
+# ST_Envelope(geometry)
+#====================================================================================
+#------------------------------------------------------------------------------------
+# point
+#------------------------------------------------------------------------------------
+SELECT AsText(ST_Envelope(GeomFromText(@star_center)));
+AsText(ST_Envelope(GeomFromText(@star_center)))
+POLYGON((15 10,15 10,15 10,15 10,15 10))
+SELECT AsText(ST_Envelope(GeomFromText(@star_top)));
+AsText(ST_Envelope(GeomFromText(@star_top)))
+POLYGON((15 25,15 25,15 25,15 25,15 25))
+SELECT AsText(ST_Envelope(ST_GeomFromText('POINT(-0 0)')));
+AsText(ST_Envelope(ST_GeomFromText('POINT(-0 0)')))
+POLYGON((0 0,0 0,0 0,0 0,0 0))
+SELECT AsText(ST_Envelope(GeomFromText('POINT(2.34 -2.34)')));
+AsText(ST_Envelope(GeomFromText('POINT(2.34 -2.34)')))
+POLYGON((2.34 -2.34,2.34 -2.34,2.34 -2.34,2.34 -2.34,2.34 -2.34))
+SELECT AsText(ST_Envelope(GeomFromText('POINT(1e308 -1e308)')));
+AsText(ST_Envelope(GeomFromText('POINT(1e308 -1e308)')))
+POLYGON((1e308 -1e308,1e308 -1e308,1e308 -1e308,1e308 -1e308,1e308 -1e308))
+SELECT AsText(ST_Envelope(GeomFromText('POINT(-0.0000 0.000001)')));
+AsText(ST_Envelope(GeomFromText('POINT(-0.0000 0.000001)')))
+POLYGON((0 0.000001,0 0.000001,0 0.000001,0 0.000001,0 0.000001))
+SELECT AsText(ST_Envelope(g)) FROM gis_geometrycollection WHERE fid=105;
+AsText(ST_Envelope(g))
+POLYGON((15 10,15 10,15 10,15 10,15 10))
+#------------------------------------------------------------------------------------
+# multipoint
+#------------------------------------------------------------------------------------
+SELECT AsText(ST_Envelope(GeomFromText(@star_all_points)));
+AsText(ST_Envelope(GeomFromText(@star_all_points)))
+POLYGON((5 0,25 0,25 25,5 25,5 0))
+SELECT AsText(ST_Envelope(GeomFromText(@star_bottom_points)));
+AsText(ST_Envelope(GeomFromText(@star_bottom_points)))
+POLYGON((5 0,25 0,25 0,5 0,5 0))
+SELECT AsText(ST_Envelope(GeomFromText('MULTIPOINT(0 0,0 0,0 0,0 0)')));
+AsText(ST_Envelope(GeomFromText('MULTIPOINT(0 0,0 0,0 0,0 0)')))
+POLYGON((0 0,0 0,0 0,0 0,0 0))
+SELECT AsText(ST_Envelope(GeomFromText('MULTIPOINT(0 0,0 5,5 5,5 0,0 0)')));
+AsText(ST_Envelope(GeomFromText('MULTIPOINT(0 0,0 5,5 5,5 0,0 0)')))
+POLYGON((0 0,5 0,5 5,0 5,0 0))
+SELECT AsText(ST_Envelope(GeomFromText('MULTIPOINT(1 -1,1e308 -1e308,0.0001 0.000)')));
+AsText(ST_Envelope(GeomFromText('MULTIPOINT(1 -1,1e308 -1e308,0.0001 0.000)')))
+POLYGON((0.0001 -1e308,1e308 -1e308,1e308 0,0.0001 0,0.0001 -1e308))
+SELECT AsText(ST_Envelope(g)) FROM gis_geometrycollection WHERE fid=108;
+AsText(ST_Envelope(g))
+POLYGON((5 0,25 0,25 0,5 0,5 0))
+#------------------------------------------------------------------------------------
+# linestring
+#------------------------------------------------------------------------------------
+SELECT AsText(ST_Envelope(GeomFromText(@star_top_to_center)));
+AsText(ST_Envelope(GeomFromText(@star_top_to_center)))
+POLYGON((15 10,15 10,15 25,15 25,15 10))
+SELECT AsText(ST_Envelope(GeomFromText(@star_line_horizontal)));
+AsText(ST_Envelope(GeomFromText(@star_line_horizontal)))
+POLYGON((10 15,20 15,20 15,10 15,10 15))
+SELECT AsText(ST_Envelope(GeomFromText('LINESTRING(0 0,-0.00 0,0.0 0)')));
+AsText(ST_Envelope(GeomFromText('LINESTRING(0 0,-0.00 0,0.0 0)')))
+POLYGON((0 0,0 0,0 0,0 0,0 0))
+SELECT AsText(ST_Envelope(GeomFromText('LINESTRING(0 0,0 5,5 5,5 0,0 0)')));
+AsText(ST_Envelope(GeomFromText('LINESTRING(0 0,0 5,5 5,5 0,0 0)')))
+POLYGON((0 0,5 0,5 5,0 5,0 0))
+SELECT AsText(ST_Envelope(GeomFromText('LINESTRING(1 -1,1e308 -1e308,0.0001 0.000)')));
+AsText(ST_Envelope(GeomFromText('LINESTRING(1 -1,1e308 -1e308,0.0001 0.000)')))
+POLYGON((0.0001 -1e308,1e308 -1e308,1e308 0,0.0001 0,0.0001 -1e308))
+SELECT AsText(ST_Envelope(g)) FROM gis_geometrycollection WHERE fid=110;
+AsText(ST_Envelope(g))
+POLYGON((10 15,20 15,20 15,10 15,10 15))
+#------------------------------------------------------------------------------------
+# multilinestring
+#------------------------------------------------------------------------------------
+SELECT AsText(ST_Envelope(GeomFromText(@star_lines_near_vertical)));
+AsText(ST_Envelope(GeomFromText(@star_lines_near_vertical)))
+POLYGON((0 5,15 5,15 25,0 25,0 5))
+SELECT AsText(ST_Envelope(GeomFromText(@star_lines_near_horizontal)));
+AsText(ST_Envelope(GeomFromText(@star_lines_near_horizontal)))
+POLYGON((0 0,25 0,25 30,0 30,0 0))
+SELECT AsText(ST_Envelope(GeomFromText('MULTILINESTRING((0 0,-0.00 0),(0.0 0))')));
+AsText(ST_Envelope(GeomFromText('MULTILINESTRING((0 0,-0.00 0),(0.0 0))')))
+POLYGON((0 0,0 0,0 0,0 0,0 0))
+SELECT AsText(ST_Envelope(GeomFromText('MULTILINESTRING((0 0,0 5,5 5,5 0,0 0))')));
+AsText(ST_Envelope(GeomFromText('MULTILINESTRING((0 0,0 5,5 5,5 0,0 0))')))
+POLYGON((0 0,5 0,5 5,0 5,0 0))
+SELECT AsText(ST_Envelope(GeomFromText('MULTILINESTRING((0 10,10 0),(10 0,0 0),(0 0,10 10))')));
+AsText(ST_Envelope(GeomFromText('MULTILINESTRING((0 10,10 0),(10 0,0 0),(0 0,10 10))')))
+POLYGON((0 0,10 0,10 10,0 10,0 0))
+SELECT AsText(ST_Envelope(GeomFromText('MULTILINESTRING((1 -1,1e308 -1e308,0.0001 0.000),(2 2,4 -9.002))')));
+AsText(ST_Envelope(GeomFromText('MULTILINESTRING((1 -1,1e308 -1e308,0.0001 0.000),(2 2,4 -9.002))')))
+POLYGON((0.0001 -1e308,1e308 -1e308,1e308 2,0.0001 2,0.0001 -1e308))
+SELECT AsText(ST_Envelope(g)) FROM gis_geometrycollection WHERE fid=114;
+AsText(ST_Envelope(g))
+POLYGON((0 5,15 5,15 25,0 25,0 5))
+#------------------------------------------------------------------------------------
+# polygon
+#------------------------------------------------------------------------------------
+SELECT AsText(ST_Envelope(GeomFromText(@star)));
+AsText(ST_Envelope(GeomFromText(@star)))
+POLYGON((0 0,30 0,30 25,0 25,0 0))
+SELECT AsText(ST_Envelope(GeomFromText(@star_elem_vertical)));
+AsText(ST_Envelope(GeomFromText(@star_elem_vertical)))
+POLYGON((5 0,25 0,25 25,5 25,5 0))
+SELECT AsText(ST_Envelope(GeomFromText('POLYGON((0 0,0 5,5 5))')));
+AsText(ST_Envelope(GeomFromText('POLYGON((0 0,0 5,5 5))')))
+POLYGON((0 0,5 0,5 5,0 5,0 0))
+SELECT AsText(ST_Envelope(GeomFromText('POLYGON((0 0,0 10,10 10,10 0,0 0))')));
+AsText(ST_Envelope(GeomFromText('POLYGON((0 0,0 10,10 10,10 0,0 0))')))
+POLYGON((0 0,10 0,10 10,0 10,0 0))
+SELECT AsText(ST_Envelope(GeomFromText('POLYGON((10 10,10 0,0 20,0 10,10 10))')));
+AsText(ST_Envelope(GeomFromText('POLYGON((10 10,10 0,0 20,0 10,10 10))')))
+POLYGON((0 0,10 0,10 20,0 20,0 0))
+SELECT AsText(ST_Envelope(GeomFromText('POLYGON((0 0,0 10,10 10,10 0,0 0,-10 0,-10 -10,0 -10))')));
+AsText(ST_Envelope(GeomFromText('POLYGON((0 0,0 10,10 10,10 0,0 0,-10 0,-10 -10,0 -10))')))
+POLYGON((-10 -10,10 -10,10 10,-10 10,-10 -10))
+SELECT AsText(ST_Envelope(GeomFromText('POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4))')));
+AsText(ST_Envelope(GeomFromText('POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4))')))
+POLYGON((0 0,10 0,10 10,0 10,0 0))
+SELECT AsText(ST_Envelope(GeomFromText('POLYGON((0 0,0 10,10 10,10 0,0 0),(0 0,0 10,10 10,10 0,0 0))')));
+AsText(ST_Envelope(GeomFromText('POLYGON((0 0,0 10,10 10,10 0,0 0),(0 0,0 10,10 10,10 0,0 0))')))
+POLYGON((0 0,10 0,10 10,0 10,0 0))
+SELECT AsText(ST_Envelope(GeomFromText('POLYGON((4 4,4 6,6 6,6 4,4 4),(0 0,0 10,10 10,10 0,0 0))')));
+AsText(ST_Envelope(GeomFromText('POLYGON((4 4,4 6,6 6,6 4,4 4),(0 0,0 10,10 10,10 0,0 0))')))
+POLYGON((0 0,10 0,10 10,0 10,0 0))
+SELECT AsText(ST_Envelope(GeomFromText('POLYGON((4 4,4 6,6 6,6 4,4 4),(8 8,8 10,10 10,10 8,8 8))')));
+AsText(ST_Envelope(GeomFromText('POLYGON((4 4,4 6,6 6,6 4,4 4),(8 8,8 10,10 10,10 8,8 8))')))
+POLYGON((4 4,10 4,10 10,4 10,4 4))
+SELECT AsText(ST_Envelope(g)) FROM gis_geometrycollection WHERE fid=100;
+AsText(ST_Envelope(g))
+POLYGON((0 0,30 0,30 25,0 25,0 0))
+#------------------------------------------------------------------------------------
+# multipolygon
+#------------------------------------------------------------------------------------
+SELECT AsText(ST_Envelope(GeomFromText(@star_of_elems)));
+AsText(ST_Envelope(GeomFromText(@star_of_elems)))
+POLYGON((0 0,30 0,30 25,0 25,0 0))
+SELECT AsText(ST_Envelope(GeomFromText('MULTIPOLYGON(((0 0,0 5,5 5)))')));
+AsText(ST_Envelope(GeomFromText('MULTIPOLYGON(((0 0,0 5,5 5)))')))
+POLYGON((0 0,5 0,5 5,0 5,0 0))
+SELECT AsText(ST_Envelope(GeomFromText('MULTIPOLYGON(((0 10,10 0,0 0)),((0 0,10 10,10 0)))')));
+AsText(ST_Envelope(GeomFromText('MULTIPOLYGON(((0 10,10 0,0 0)),((0 0,10 10,10 0)))')))
+POLYGON((0 0,10 0,10 10,0 10,0 0))
+SELECT AsText(ST_Envelope(GeomFromText('MULTIPOLYGON(((0 0,0 10,10 10)),((10 10,10 15,15 15,10 10)))')));
+AsText(ST_Envelope(GeomFromText('MULTIPOLYGON(((0 0,0 10,10 10)),((10 10,10 15,15 15,10 10)))')))
+POLYGON((0 0,15 0,15 15,0 15,0 0))
+SELECT AsText(ST_Envelope(GeomFromText('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0)),((4 4,4 6,6 6,6 4)))')));
+AsText(ST_Envelope(GeomFromText('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0)),((4 4,4 6,6 6,6 4)))')))
+POLYGON((0 0,10 0,10 10,0 10,0 0))
+SELECT AsText(ST_Envelope(GeomFromText('MULTIPOLYGON(((0 0,0 10,10 10,10 0),(4 4,4 6,6 6,6 4)))')));
+AsText(ST_Envelope(GeomFromText('MULTIPOLYGON(((0 0,0 10,10 10,10 0),(4 4,4 6,6 6,6 4)))')))
+POLYGON((0 0,10 0,10 10,0 10,0 0))
+SELECT AsText(ST_Envelope(GeomFromText('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),(0 0,0 10,10 10,10 0,0 0)))')));
+AsText(ST_Envelope(GeomFromText('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),(0 0,0 10,10 10,10 0,0 0)))')))
+POLYGON((0 0,10 0,10 10,0 10,0 0))
+SELECT AsText(ST_Envelope(GeomFromText('MULTIPOLYGON(((4 4,4 6,6 6,6 4,4 4),(0 0,0 10,10 10,10 0,0 0)))')));
+AsText(ST_Envelope(GeomFromText('MULTIPOLYGON(((4 4,4 6,6 6,6 4,4 4),(0 0,0 10,10 10,10 0,0 0)))')))
+POLYGON((0 0,10 0,10 10,0 10,0 0))
+SELECT AsText(ST_Envelope(GeomFromText('MULTIPOLYGON(((4 4,4 6,6 6,6 4,4 4),(8 8,8 10,10 10,10 8,8 8)))')));
+AsText(ST_Envelope(GeomFromText('MULTIPOLYGON(((4 4,4 6,6 6,6 4,4 4),(8 8,8 10,10 10,10 8,8 8)))')))
+POLYGON((4 4,10 4,10 10,4 10,4 4))
+SELECT AsText(ST_Envelope(GeomFromText('MULTIPOLYGON(((10 10,10 0,5 10,10 10)),((0 10,0 20,5 10,0 10)))')));
+AsText(ST_Envelope(GeomFromText('MULTIPOLYGON(((10 10,10 0,5 10,10 10)),((0 10,0 20,5 10,0 10)))')))
+POLYGON((0 0,10 0,10 20,0 20,0 0))
+SELECT AsText(ST_Envelope(GeomFromText('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),(0 0,0 10,10 10,10 0,0 0)),((0 0,0 10,10 10,10 0,0 0)))')));
+AsText(ST_Envelope(GeomFromText('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),(0 0,0 10,10 10,10 0,0 0)),((0 0,0 10,10 10,10 0,0 0)))')))
+POLYGON((0 0,10 0,10 10,0 10,0 0))
+SELECT AsText(ST_Envelope(GeomFromText('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),(0 0,0 10,10 10,10 0,0 0)),((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6)))')));
+AsText(ST_Envelope(GeomFromText('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),(0 0,0 10,10 10,10 0,0 0)),((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6)))')))
+POLYGON((0 0,10 0,10 10,0 10,0 0))
+SELECT AsText(ST_Envelope(g)) FROM gis_geometrycollection WHERE fid=103;
+AsText(ST_Envelope(g))
+POLYGON((0 0,30 0,30 25,0 25,0 0))
+#------------------------------------------------------------------------------------
+# geometrycollection
+#------------------------------------------------------------------------------------
+SELECT AsText(ST_Envelope(GeomFromText(@star_collection_elems)));
+AsText(ST_Envelope(GeomFromText(@star_collection_elems)))
+POLYGON((0 0,30 0,30 25,0 25,0 0))
+SELECT AsText(ST_Envelope(GeomFromText(@star_collection_multilinestr)));
+AsText(ST_Envelope(GeomFromText(@star_collection_multilinestr)))
+POLYGON((0 0,30 0,30 30,0 30,0 0))
+SELECT AsText(ST_Envelope(GeomFromText('GEOMETRYCOLLECTION()')));
+AsText(ST_Envelope(GeomFromText('GEOMETRYCOLLECTION()')))
+NULL
+SELECT AsText(ST_Envelope(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())')));
+AsText(ST_Envelope(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())')))
+NULL
+SELECT AsText(ST_Envelope(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(GEOMETRYCOLLECTION()))')));
+AsText(ST_Envelope(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(GEOMETRYCOLLECTION()))')))
+NULL
+SELECT AsText(ST_Envelope(GeomFromText('GEOMETRYCOLLECTION(POINT(10 10),MULTIPOINT(0 0,10 10))')));
+AsText(ST_Envelope(GeomFromText('GEOMETRYCOLLECTION(POINT(10 10),MULTIPOINT(0 0,10 10))')))
+POLYGON((0 0,10 0,10 10,0 10,0 0))
+SELECT AsText(ST_Envelope(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(10 10),MULTIPOINT(0 0,10 10)))')));
+AsText(ST_Envelope(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(10 10),MULTIPOINT(0 0,10 10)))')))
+POLYGON((0 0,10 0,10 10,0 10,0 0))
+SELECT AsText(ST_Envelope(GeomFromText('GEOMETRYCOLLECTION(LINESTRING(1 1,2 2,3 3),MULTILINESTRING((0 0,0 10,10 10,10 0),(10 10,10 15,15 15,10 10)))')));
+AsText(ST_Envelope(GeomFromText('GEOMETRYCOLLECTION(LINESTRING(1 1,2 2,3 3),MULTILINESTRING((0 0,0 10,10 10,10 0),(10 10,10 15,15 15,10 10)))')))
+POLYGON((0 0,15 0,15 15,0 15,0 0))
+SELECT AsText(ST_Envelope(GeomFromText('GEOMETRYCOLLECTION(LINESTRING(0 0,0 10,10 10))')));
+AsText(ST_Envelope(GeomFromText('GEOMETRYCOLLECTION(LINESTRING(0 0,0 10,10 10))')))
+POLYGON((0 0,10 0,10 10,0 10,0 0))
+SELECT AsText(ST_Envelope(GeomFromText('GEOMETRYCOLLECTION(LINESTRING(0 0,0 10,10 10),GEOMETRYCOLLECTION())')));
+AsText(ST_Envelope(GeomFromText('GEOMETRYCOLLECTION(LINESTRING(0 0,0 10,10 10),GEOMETRYCOLLECTION())')))
+POLYGON((0 0,10 0,10 10,0 10,0 0))
+SELECT AsText(ST_Envelope(GeomFromText('GEOMETRYCOLLECTION(POINT(10 10),MULTIPOINT(0 0,10 10),LINESTRING(1 1,2 2,3 3),MULTILINESTRING((0 0,0 10,10 10,10 0),(10 10,10 15,15 15,10 10)))')));
+AsText(ST_Envelope(GeomFromText('GEOMETRYCOLLECTION(POINT(10 10),MULTIPOINT(0 0,10 10),LINESTRING(1 1,2 2,3 3),MULTILINESTRING((0 0,0 10,10 10,10 0),(10 10,10 15,15 15,10 10)))')))
+POLYGON((0 0,15 0,15 15,0 15,0 0))
+SELECT AsText(ST_Envelope(GeomFromText('GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0)))')));
+AsText(ST_Envelope(GeomFromText('GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0)))')))
+POLYGON((0 0,10 0,10 10,0 10,0 0))
+SELECT AsText(ST_Envelope(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0)))))')));
+AsText(ST_Envelope(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0)))))')))
+POLYGON((0 0,10 0,10 10,0 10,0 0))
+SELECT AsText(ST_Envelope(GeomFromText('GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4)),MULTIPOLYGON(((0 0,0 10,10 10,10 0)),((10 10,10 15,15 15,15 10,10 10))))')));
+AsText(ST_Envelope(GeomFromText('GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4)),MULTIPOLYGON(((0 0,0 10,10 10,10 0)),((10 10,10 15,15 15,15 10,10 10))))')))
+POLYGON((0 0,15 0,15 15,0 15,0 0))
+SELECT AsText(ST_Envelope(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(10 10),MULTIPOINT(0 0,10 10)),GEOMETRYCOLLECTION(LINESTRING(1 1,2 2,3 3),MULTILINESTRING((0 0,0 10,10 10,10 0),(10 10,10 15,15 15,10 10))))')));
+AsText(ST_Envelope(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(10 10),MULTIPOINT(0 0,10 10)),GEOMETRYCOLLECTION(LINESTRING(1 1,2 2,3 3),MULTILINESTRING((0 0,0 10,10 10,10 0),(10 10,10 15,15 15,10 10))))')))
+POLYGON((0 0,15 0,15 15,0 15,0 0))
+SELECT AsText(ST_Envelope(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(10 10),MULTIPOINT(0 0,10 10)),GEOMETRYCOLLECTION(LINESTRING(1 1,2 2,3 3),MULTILINESTRING((0 0,0 10,10 10,10 0),(10 10,10 15,15 15,10 10))),GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4)),MULTIPOLYGON(((0 0,0 10,10 10,10 0)),((10 10,10 15,15 15,15 10,10 10)))))')));
+AsText(ST_Envelope(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(10 10),MULTIPOINT(0 0,10 10)),GEOMETRYCOLLECTION(LINESTRING(1 1,2 2,3 3),MULTILINESTRING((0 0,0 10,10 10,10 0),(10 10,10 15,15 15,10 10))),GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10
+POLYGON((0 0,15 0,15 15,0 15,0 0))
+SELECT AsText(ST_Envelope(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(10 10),MULTIPOINT(0 0,10 10)),GEOMETRYCOLLECTION(LINESTRING(1 1,2 2,3 3),MULTILINESTRING((0 0,0 10,10 10,10 0),(10 10,10 15,15 15,10 10))),GEOMETRYCOLLECTION(GEOMETRYCOLLECTION()))')));
+AsText(ST_Envelope(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(10 10),MULTIPOINT(0 0,10 10)),GEOMETRYCOLLECTION(LINESTRING(1 1,2 2,3 3),MULTILINESTRING((0 0,0 10,10 10,10 0),(10 10,10 15,15 15,10 10))),GEOMETRYCOLLECTION(GEOMETRYCOLLECTION()
+POLYGON((0 0,15 0,15 15,0 15,0 0))
+SELECT AsText(ST_Envelope(g)) FROM gis_geometrycollection WHERE fid=115;
+AsText(ST_Envelope(g))
+POLYGON((0 0,30 0,30 25,0 25,0 0))
+#====================================================================================
+# Envelope(geometry), WKB data
+#====================================================================================
+#------------------------------------------------------------------------------------
+# point
+#------------------------------------------------------------------------------------
+SELECT AsText(Envelope(GeomFromWKB(0x010100000000000000000000000000000000000000)));
+AsText(Envelope(GeomFromWKB(0x010100000000000000000000000000000000000000)))
+POLYGON((0 0,0 0,0 0,0 0,0 0))
+SELECT AsText(Envelope(GeomFromWKB(0x01010000005CA0B4B32784B1498F3ACA087E5E1B4A)));
+AsText(Envelope(GeomFromWKB(0x01010000005CA0B4B32784B1498F3ACA087E5E1B4A)))
+POLYGON((1e47 1e49,1e47 1e49,1e47 1e49,1e47 1e49,1e47 1e49))
+SELECT AsText(Envelope(GeomFromWKB(0x0000000001BFF3AE147AE147AE0000000000000000)));
+AsText(Envelope(GeomFromWKB(0x0000000001BFF3AE147AE147AE0000000000000000)))
+POLYGON((-1.23 0,-1.23 0,-1.23 0,-1.23 0,-1.23 0))
+SELECT AsText(Envelope(GeomFromWKB(0x0000000001FFE1CCF385EBC8A00000000000000000)));
+AsText(Envelope(GeomFromWKB(0x0000000001FFE1CCF385EBC8A00000000000000000)))
+POLYGON((-1e308 0,-1e308 0,-1e308 0,-1e308 0,-1e308 0))
+#------------------------------------------------------------------------------------
+# multipoint
+#------------------------------------------------------------------------------------
+SELECT AsText(Envelope(GeomFromWKB(0x01040000000300000001010000000000000000000000000000000000000001010000001EA7E8482EFFF43F00000000000000000101000000000000000000F03F000000000000F03F)));
+AsText(Envelope(GeomFromWKB(0x01040000000300000001010000000000000000000000000000000000000001010000001EA7E8482EFFF43F00000000000000000101000000000000000000F03F000000000000F03F)))
+POLYGON((0 0,1.3123 0,1.3123 1,0 1,0 0))
+SELECT AsText(Envelope(GeomFromWKB(0x010400000003000000010100000048E17A14AE47F5BF000000000000000001010000000000000000000000B0726891ED7CBFBF0101000000000000007E842E410000000000002240)));
+AsText(Envelope(GeomFromWKB(0x010400000003000000010100000048E17A14AE47F5BF000000000000000001010000000000000000000000B0726891ED7CBFBF0101000000000000007E842E410000000000002240)))
+POLYGON((-1.33 -0.123,999999 -0.123,999999 9,-1.33 9,-1.33 -0.123))
+SELECT AsText(Envelope(GeomFromWKB(0x00000000040000000300000000010000000000000000000000000000000000000000014024000000000000402400000000000000000000013FF428F5C28F5C293FFFAE147AE147AE)));
+AsText(Envelope(GeomFromWKB(0x00000000040000000300000000010000000000000000000000000000000000000000014024000000000000402400000000000000000000013FF428F5C28F5C293FFFAE147AE147AE)))
+POLYGON((0 0,10 0,10 10,0 10,0 0))
+SELECT AsText(Envelope(GeomFromWKB(0x0000000004000000030000000001000000000000000000000000000000000000000001C02400000000000040240000000000000000000001601DD55745CBB7EDE8D56785FBBDD55A)));
+AsText(Envelope(GeomFromWKB(0x0000000004000000030000000001000000000000000000000000000000000000000001C02400000000000040240000000000000000000001601DD55745CBB7EDE8D56785FBBDD55A)))
+POLYGON((-10 -1e197,1e155 -1e197,1e155 10,-10 10,-10 -1e197))
+#------------------------------------------------------------------------------------
+# linestring
+#------------------------------------------------------------------------------------
+SELECT AsText(Envelope(GeomFromWKB(0x010200000002000000EB73B515FBCBF1BF2B8716D9CEF7F13FF7C77BD5CA84BF3FDD2406819543CBBF)));
+AsText(Envelope(GeomFromWKB(0x010200000002000000EB73B515FBCBF1BF2B8716D9CEF7F13FF7C77BD5CA84BF3FDD2406819543CBBF)))
+POLYGON((-1.1123 -0.213,0.12312 -0.213,0.12312 1.123,-1.1123 1.123,-1.1123 -0.213))
+SELECT AsText(Envelope(GeomFromWKB(0x010200000003000000EB73B515FBCBF1BF2B8716D9CEF7F13F1B695743B8179E47EA8CA039593E294621D7E6FAE031F445350332B7F4AD5445)));
+AsText(Envelope(GeomFromWKB(0x010200000003000000EB73B515FBCBF1BF2B8716D9CEF7F13F1B695743B8179E47EA8CA039593E294621D7E6FAE031F445350332B7F4AD5445)))
+POLYGON((-1.1123 1.123,1e37 1.123,1e37 1e30,-1.1123 1e30,-1.1123 1.123))
+SELECT AsText(Envelope(GeomFromWKB(0x000000000200000003000000000000000000000000000000000000000000000000402400000000000040240000000000000000000000000000)));
+AsText(Envelope(GeomFromWKB(0x000000000200000003000000000000000000000000000000000000000000000000402400000000000040240000000000000000000000000000)))
+POLYGON((0 0,10 0,10 10,0 10,0 0))
+SELECT AsText(Envelope(GeomFromWKB(0x00000000020000000300000000000000003FE3D70A3D70A3D73FCB4395810624DDC024000000000000BFE224DD2F1A9FBE0000000000000000)));
+AsText(Envelope(GeomFromWKB(0x00000000020000000300000000000000003FE3D70A3D70A3D73FCB4395810624DDC024000000000000BFE224DD2F1A9FBE0000000000000000)))
+POLYGON((-0.567 -10,0.213 -10,0.213 0.62,-0.567 0.62,-0.567 -10))
+#------------------------------------------------------------------------------------
+# multilinestring
+#------------------------------------------------------------------------------------
+SELECT AsText(Envelope(GeomFromWKB(0x01050000000100000001020000000200000000000000000000000000000000002440000000000000F0BFD7A3703D0AD70140)));
+AsText(Envelope(GeomFromWKB(0x01050000000100000001020000000200000000000000000000000000000000002440000000000000F0BFD7A3703D0AD70140)))
+POLYGON((-1 2.23,0 2.23,0 10,-1 10,-1 2.23))
+SELECT AsText(Envelope(GeomFromWKB(0x01050000000200000001020000000200000000000000000000000000000000002440000000000000F0BFD7A3703D0AD70140010200000003000000000000000000000000000000000000000000000000001440000000000000144000000000000024400000000000002440)));
+AsText(Envelope(GeomFromWKB(0x01050000000200000001020000000200000000000000000000000000000000002440000000000000F0BFD7A3703D0AD70140010200000003000000000000000000000000000000000000000000000000001440000000000000144000000000000024400000000000002440)))
+POLYGON((-1 0,10 0,10 10,-1 10,-1 0))
+SELECT AsText(Envelope(GeomFromWKB(0x000000000500000002000000000200000003000000000000000000000000000000000000000000000000402400000000000040240000000000000000000000000000000000000200000003000000000000000000000000000000000000000000000000402400000000000040240000000000000000000000000000)));
+AsText(Envelope(GeomFromWKB(0x000000000500000002000000000200000003000000000000000000000000000000000000000000000000402400000000000040240000000000000000000000000000000000000200000003000000000000000000000000000000000000000000000000402400000000000040240000000
+POLYGON((0 0,10 0,10 10,0 10,0 0))
+SELECT AsText(Envelope(GeomFromWKB(0x0000000005000000020000000002000000035FB317E5EF3AB327E3A4B378469B67320000000000000000C0240000000000003FF05FD8ADAB9F560000000000000000000000000200000003000000000000000000000000000000000000000000000000BFF08B439581062540240000000000004341C37937E08000)));
+AsText(Envelope(GeomFromWKB(0x0000000005000000020000000002000000035FB317E5EF3AB327E3A4B378469B67320000000000000000C0240000000000003FF05FD8ADAB9F560000000000000000000000000200000003000000000000000000000000000000000000000000000000BFF08B439581062540240000000
+POLYGON((0 -1e172,1e153 -1e172,1e153 1e16,0 1e16,0 -1e172))
+#------------------------------------------------------------------------------------
+# polygon
+#------------------------------------------------------------------------------------
+SELECT AsText(Envelope(GeomFromWKB(0x0103000000010000000400000000000000000000000000000000000000000000000000244000000000000000000000000000002440000000000000244000000000000000000000000000000000)));
+AsText(Envelope(GeomFromWKB(0x0103000000010000000400000000000000000000000000000000000000000000000000244000000000000000000000000000002440000000000000244000000000000000000000000000000000)))
+POLYGON((0 0,10 0,10 10,0 10,0 0))
+SELECT AsText(Envelope(GeomFromWKB(0x01030000000200000004000000000000000000000000000000000000000000000000002440000000000000000000000000000024400000000000002440000000000000000000000000000000000400000000000000000000400000000000000040000000000000004000000000000010400000000000001040000000000000104000000000000000400000000000000040)));
+AsText(Envelope(GeomFromWKB(0x010300000002000000040000000000000000000000000000000000000000000000000024400000000000000000000000000000244000000000000024400000000000000000000000000000000004000000000000000000004000000000000000400000000000000040000000000000104
+POLYGON((0 0,10 0,10 10,0 10,0 0))
+SELECT AsText(Envelope(GeomFromWKB(0x0000000003000000010000000400000000000000000000000000000000402400000000000000000000000000004024000000000000402400000000000000000000000000000000000000000000)));
+AsText(Envelope(GeomFromWKB(0x0000000003000000010000000400000000000000000000000000000000402400000000000000000000000000004024000000000000402400000000000000000000000000000000000000000000)))
+POLYGON((0 0,10 0,10 10,0 10,0 0))
+SELECT AsText(Envelope(GeomFromWKB(0x00000000030000000200000004000000000000000000000000000000004024000000000000000000000000000040240000000000004024000000000000000000000000000000000000000000000000000440000000000000004000000000000000400000000000000040100000000000004010000000000000401000000000000040000000000000004000000000000000)));
+AsText(Envelope(GeomFromWKB(0x000000000300000002000000040000000000000000000000000000000040240000000000000000000000000000402400000000000040240000000000000000000000000000000000000000000000000004400000000000000040000000000000004000000000000000401000000000000
+POLYGON((0 0,10 0,10 10,0 10,0 0))
+#------------------------------------------------------------------------------------
+# multipolygon
+#------------------------------------------------------------------------------------
+SELECT AsText(Envelope(GeomFromWKB(0x0106000000010000000103000000010000000400000000000000000000000000000000000000000000000000244000000000000000000000000000002440000000000000244000000000000000000000000000000000)));
+AsText(Envelope(GeomFromWKB(0x0106000000010000000103000000010000000400000000000000000000000000000000000000000000000000244000000000000000000000000000002440000000000000244000000000000000000000000000000000)))
+POLYGON((0 0,10 0,10 10,0 10,0 0))
+SELECT AsText(Envelope(GeomFromWKB(0x01060000000100000001030000000200000004000000000000000000000000000000000000000000000000002440000000000000000000000000000024400000000000002440000000000000000000000000000000000400000000000000000000400000000000000040000000000000004000000000000010400000000000001040000000000000104000000000000000400000000000000040)));
+AsText(Envelope(GeomFromWKB(0x010600000001000000010300000002000000040000000000000000000000000000000000000000000000000024400000000000000000000000000000244000000000000024400000000000000000000000000000000004000000000000000000004000000000000000400000000000000
+POLYGON((0 0,10 0,10 10,0 10,0 0))
+SELECT AsText(Envelope(GeomFromWKB(0x0000000006000000010000000003000000010000000400000000000000000000000000000000402400000000000000000000000000004024000000000000402400000000000000000000000000000000000000000000)));
+AsText(Envelope(GeomFromWKB(0x0000000006000000010000000003000000010000000400000000000000000000000000000000402400000000000000000000000000004024000000000000402400000000000000000000000000000000000000000000)))
+POLYGON((0 0,10 0,10 10,0 10,0 0))
+SELECT AsText(Envelope(GeomFromWKB(0x00000000060000000100000000030000000200000004000000000000000000000000000000004024000000000000000000000000000040240000000000004024000000000000000000000000000000000000000000000000000440000000000000004000000000000000400000000000000040100000000000004010000000000000401000000000000040000000000000004000000000000000)));
+AsText(Envelope(GeomFromWKB(0x000000000600000001000000000300000002000000040000000000000000000000000000000040240000000000000000000000000000402400000000000040240000000000000000000000000000000000000000000000000004400000000000000040000000000000004000000000000
+POLYGON((0 0,10 0,10 10,0 10,0 0))
+#------------------------------------------------------------------------------------
+# geometrycollection
+#------------------------------------------------------------------------------------
+SELECT AsText(Envelope(GeomFromWKB(0x010700000002000000010100000000000000000024400000000000002440010200000002000000000000000000F03F000000000000F03F00000000000000400000000000000040)));
+AsText(Envelope(GeomFromWKB(0x010700000002000000010100000000000000000024400000000000002440010200000002000000000000000000F03F000000000000F03F00000000000000400000000000000040)))
+POLYGON((1 1,10 1,10 10,1 10,1 1))
+SELECT AsText(Envelope(GeomFromWKB(0x0107000000010000000103000000010000000400000000000000000000000000000000000000000000000000000000000000000024400000000000002440000000000000244000000000000000000000000000000000)));
+AsText(Envelope(GeomFromWKB(0x0107000000010000000103000000010000000400000000000000000000000000000000000000000000000000000000000000000024400000000000002440000000000000244000000000000000000000000000000000)))
+POLYGON((0 0,10 0,10 10,0 10,0 0))
+SELECT AsText(Envelope(GeomFromWKB(0x0000000007000000020000000001402400000000000040240000000000000000000002000000023FF00000000000003FF000000000000040000000000000004000000000000000)));
+AsText(Envelope(GeomFromWKB(0x0000000007000000020000000001402400000000000040240000000000000000000002000000023FF00000000000003FF000000000000040000000000000004000000000000000)))
+POLYGON((1 1,10 1,10 10,1 10,1 1))
+SELECT AsText(Envelope(GeomFromWKB(0x0000000007000000010000000003000000010000000400000000000000000000000000000000000000000000000040240000000000004024000000000000402400000000000000000000000000000000000000000000)));
+AsText(Envelope(GeomFromWKB(0x0000000007000000010000000003000000010000000400000000000000000000000000000000000000000000000040240000000000004024000000000000402400000000000000000000000000000000000000000000)))
+POLYGON((0 0,10 0,10 10,0 10,0 0))
+#====================================================================================
+# ST_Envelope(geometry), WKB data
+#====================================================================================
+#------------------------------------------------------------------------------------
+# point
+#------------------------------------------------------------------------------------
+SELECT AsText(ST_Envelope(GeomFromWKB(0x010100000000000000000000000000000000000000)));
+AsText(ST_Envelope(GeomFromWKB(0x010100000000000000000000000000000000000000)))
+POLYGON((0 0,0 0,0 0,0 0,0 0))
+SELECT AsText(ST_Envelope(GeomFromWKB(0x01010000005CA0B4B32784B1498F3ACA087E5E1B4A)));
+AsText(ST_Envelope(GeomFromWKB(0x01010000005CA0B4B32784B1498F3ACA087E5E1B4A)))
+POLYGON((1e47 1e49,1e47 1e49,1e47 1e49,1e47 1e49,1e47 1e49))
+SELECT AsText(ST_Envelope(GeomFromWKB(0x0000000001BFF3AE147AE147AE0000000000000000)));
+AsText(ST_Envelope(GeomFromWKB(0x0000000001BFF3AE147AE147AE0000000000000000)))
+POLYGON((-1.23 0,-1.23 0,-1.23 0,-1.23 0,-1.23 0))
+SELECT AsText(ST_Envelope(GeomFromWKB(0x0000000001FFE1CCF385EBC8A00000000000000000)));
+AsText(ST_Envelope(GeomFromWKB(0x0000000001FFE1CCF385EBC8A00000000000000000)))
+POLYGON((-1e308 0,-1e308 0,-1e308 0,-1e308 0,-1e308 0))
+#------------------------------------------------------------------------------------
+# multipoint
+#------------------------------------------------------------------------------------
+SELECT AsText(ST_Envelope(GeomFromWKB(0x01040000000300000001010000000000000000000000000000000000000001010000001EA7E8482EFFF43F00000000000000000101000000000000000000F03F000000000000F03F)));
+AsText(ST_Envelope(GeomFromWKB(0x01040000000300000001010000000000000000000000000000000000000001010000001EA7E8482EFFF43F00000000000000000101000000000000000000F03F000000000000F03F)))
+POLYGON((0 0,1.3123 0,1.3123 1,0 1,0 0))
+SELECT AsText(ST_Envelope(GeomFromWKB(0x010400000003000000010100000048E17A14AE47F5BF000000000000000001010000000000000000000000B0726891ED7CBFBF0101000000000000007E842E410000000000002240)));
+AsText(ST_Envelope(GeomFromWKB(0x010400000003000000010100000048E17A14AE47F5BF000000000000000001010000000000000000000000B0726891ED7CBFBF0101000000000000007E842E410000000000002240)))
+POLYGON((-1.33 -0.123,999999 -0.123,999999 9,-1.33 9,-1.33 -0.123))
+SELECT AsText(ST_Envelope(GeomFromWKB(0x00000000040000000300000000010000000000000000000000000000000000000000014024000000000000402400000000000000000000013FF428F5C28F5C293FFFAE147AE147AE)));
+AsText(ST_Envelope(GeomFromWKB(0x00000000040000000300000000010000000000000000000000000000000000000000014024000000000000402400000000000000000000013FF428F5C28F5C293FFFAE147AE147AE)))
+POLYGON((0 0,10 0,10 10,0 10,0 0))
+SELECT AsText(ST_Envelope(GeomFromWKB(0x0000000004000000030000000001000000000000000000000000000000000000000001C02400000000000040240000000000000000000001601DD55745CBB7EDE8D56785FBBDD55A)));
+AsText(ST_Envelope(GeomFromWKB(0x0000000004000000030000000001000000000000000000000000000000000000000001C02400000000000040240000000000000000000001601DD55745CBB7EDE8D56785FBBDD55A)))
+POLYGON((-10 -1e197,1e155 -1e197,1e155 10,-10 10,-10 -1e197))
+#------------------------------------------------------------------------------------
+# linestring
+#------------------------------------------------------------------------------------
+SELECT AsText(ST_Envelope(GeomFromWKB(0x010200000002000000EB73B515FBCBF1BF2B8716D9CEF7F13FF7C77BD5CA84BF3FDD2406819543CBBF)));
+AsText(ST_Envelope(GeomFromWKB(0x010200000002000000EB73B515FBCBF1BF2B8716D9CEF7F13FF7C77BD5CA84BF3FDD2406819543CBBF)))
+POLYGON((-1.1123 -0.213,0.12312 -0.213,0.12312 1.123,-1.1123 1.123,-1.1123 -0.213))
+SELECT AsText(ST_Envelope(GeomFromWKB(0x010200000003000000EB73B515FBCBF1BF2B8716D9CEF7F13F1B695743B8179E47EA8CA039593E294621D7E6FAE031F445350332B7F4AD5445)));
+AsText(ST_Envelope(GeomFromWKB(0x010200000003000000EB73B515FBCBF1BF2B8716D9CEF7F13F1B695743B8179E47EA8CA039593E294621D7E6FAE031F445350332B7F4AD5445)))
+POLYGON((-1.1123 1.123,1e37 1.123,1e37 1e30,-1.1123 1e30,-1.1123 1.123))
+SELECT AsText(ST_Envelope(GeomFromWKB(0x000000000200000003000000000000000000000000000000000000000000000000402400000000000040240000000000000000000000000000)));
+AsText(ST_Envelope(GeomFromWKB(0x000000000200000003000000000000000000000000000000000000000000000000402400000000000040240000000000000000000000000000)))
+POLYGON((0 0,10 0,10 10,0 10,0 0))
+SELECT AsText(ST_Envelope(GeomFromWKB(0x00000000020000000300000000000000003FE3D70A3D70A3D73FCB4395810624DDC024000000000000BFE224DD2F1A9FBE0000000000000000)));
+AsText(ST_Envelope(GeomFromWKB(0x00000000020000000300000000000000003FE3D70A3D70A3D73FCB4395810624DDC024000000000000BFE224DD2F1A9FBE0000000000000000)))
+POLYGON((-0.567 -10,0.213 -10,0.213 0.62,-0.567 0.62,-0.567 -10))
+#------------------------------------------------------------------------------------
+# multilinestring
+#------------------------------------------------------------------------------------
+SELECT AsText(ST_Envelope(GeomFromWKB(0x01050000000100000001020000000200000000000000000000000000000000002440000000000000F0BFD7A3703D0AD70140)));
+AsText(ST_Envelope(GeomFromWKB(0x01050000000100000001020000000200000000000000000000000000000000002440000000000000F0BFD7A3703D0AD70140)))
+POLYGON((-1 2.23,0 2.23,0 10,-1 10,-1 2.23))
+SELECT AsText(ST_Envelope(GeomFromWKB(0x01050000000200000001020000000200000000000000000000000000000000002440000000000000F0BFD7A3703D0AD70140010200000003000000000000000000000000000000000000000000000000001440000000000000144000000000000024400000000000002440)));
+AsText(ST_Envelope(GeomFromWKB(0x01050000000200000001020000000200000000000000000000000000000000002440000000000000F0BFD7A3703D0AD70140010200000003000000000000000000000000000000000000000000000000001440000000000000144000000000000024400000000000002440)))
+POLYGON((-1 0,10 0,10 10,-1 10,-1 0))
+SELECT AsText(ST_Envelope(GeomFromWKB(0x000000000500000002000000000200000003000000000000000000000000000000000000000000000000402400000000000040240000000000000000000000000000000000000200000003000000000000000000000000000000000000000000000000402400000000000040240000000000000000000000000000)));
+AsText(ST_Envelope(GeomFromWKB(0x000000000500000002000000000200000003000000000000000000000000000000000000000000000000402400000000000040240000000000000000000000000000000000000200000003000000000000000000000000000000000000000000000000402400000000000040240000
+POLYGON((0 0,10 0,10 10,0 10,0 0))
+SELECT AsText(ST_Envelope(GeomFromWKB(0x0000000005000000020000000002000000035FB317E5EF3AB327E3A4B378469B67320000000000000000C0240000000000003FF05FD8ADAB9F560000000000000000000000000200000003000000000000000000000000000000000000000000000000BFF08B439581062540240000000000004341C37937E08000)));
+AsText(ST_Envelope(GeomFromWKB(0x0000000005000000020000000002000000035FB317E5EF3AB327E3A4B378469B67320000000000000000C0240000000000003FF05FD8ADAB9F560000000000000000000000000200000003000000000000000000000000000000000000000000000000BFF08B439581062540240000
+POLYGON((0 -1e172,1e153 -1e172,1e153 1e16,0 1e16,0 -1e172))
+#------------------------------------------------------------------------------------
+# polygon
+#------------------------------------------------------------------------------------
+SELECT AsText(ST_Envelope(GeomFromWKB(0x0103000000010000000400000000000000000000000000000000000000000000000000244000000000000000000000000000002440000000000000244000000000000000000000000000000000)));
+AsText(ST_Envelope(GeomFromWKB(0x0103000000010000000400000000000000000000000000000000000000000000000000244000000000000000000000000000002440000000000000244000000000000000000000000000000000)))
+POLYGON((0 0,10 0,10 10,0 10,0 0))
+SELECT AsText(ST_Envelope(GeomFromWKB(0x01030000000200000004000000000000000000000000000000000000000000000000002440000000000000000000000000000024400000000000002440000000000000000000000000000000000400000000000000000000400000000000000040000000000000004000000000000010400000000000001040000000000000104000000000000000400000000000000040)));
+AsText(ST_Envelope(GeomFromWKB(0x010300000002000000040000000000000000000000000000000000000000000000000024400000000000000000000000000000244000000000000024400000000000000000000000000000000004000000000000000000004000000000000000400000000000000040000000000000
+POLYGON((0 0,10 0,10 10,0 10,0 0))
+SELECT AsText(ST_Envelope(GeomFromWKB(0x0000000003000000010000000400000000000000000000000000000000402400000000000000000000000000004024000000000000402400000000000000000000000000000000000000000000)));
+AsText(ST_Envelope(GeomFromWKB(0x0000000003000000010000000400000000000000000000000000000000402400000000000000000000000000004024000000000000402400000000000000000000000000000000000000000000)))
+POLYGON((0 0,10 0,10 10,0 10,0 0))
+SELECT AsText(ST_Envelope(GeomFromWKB(0x00000000030000000200000004000000000000000000000000000000004024000000000000000000000000000040240000000000004024000000000000000000000000000000000000000000000000000440000000000000004000000000000000400000000000000040100000000000004010000000000000401000000000000040000000000000004000000000000000)));
+AsText(ST_Envelope(GeomFromWKB(0x000000000300000002000000040000000000000000000000000000000040240000000000000000000000000000402400000000000040240000000000000000000000000000000000000000000000000004400000000000000040000000000000004000000000000000401000000000
+POLYGON((0 0,10 0,10 10,0 10,0 0))
+#------------------------------------------------------------------------------------
+# multipolygon
+#------------------------------------------------------------------------------------
+SELECT AsText(ST_Envelope(GeomFromWKB(0x0106000000010000000103000000010000000400000000000000000000000000000000000000000000000000244000000000000000000000000000002440000000000000244000000000000000000000000000000000)));
+AsText(ST_Envelope(GeomFromWKB(0x0106000000010000000103000000010000000400000000000000000000000000000000000000000000000000244000000000000000000000000000002440000000000000244000000000000000000000000000000000)))
+POLYGON((0 0,10 0,10 10,0 10,0 0))
+SELECT AsText(ST_Envelope(GeomFromWKB(0x01060000000100000001030000000200000004000000000000000000000000000000000000000000000000002440000000000000000000000000000024400000000000002440000000000000000000000000000000000400000000000000000000400000000000000040000000000000004000000000000010400000000000001040000000000000104000000000000000400000000000000040)));
+AsText(ST_Envelope(GeomFromWKB(0x010600000001000000010300000002000000040000000000000000000000000000000000000000000000000024400000000000000000000000000000244000000000000024400000000000000000000000000000000004000000000000000000004000000000000000400000000000
+POLYGON((0 0,10 0,10 10,0 10,0 0))
+SELECT AsText(ST_Envelope(GeomFromWKB(0x0000000006000000010000000003000000010000000400000000000000000000000000000000402400000000000000000000000000004024000000000000402400000000000000000000000000000000000000000000)));
+AsText(ST_Envelope(GeomFromWKB(0x0000000006000000010000000003000000010000000400000000000000000000000000000000402400000000000000000000000000004024000000000000402400000000000000000000000000000000000000000000)))
+POLYGON((0 0,10 0,10 10,0 10,0 0))
+SELECT AsText(ST_Envelope(GeomFromWKB(0x00000000060000000100000000030000000200000004000000000000000000000000000000004024000000000000000000000000000040240000000000004024000000000000000000000000000000000000000000000000000440000000000000004000000000000000400000000000000040100000000000004010000000000000401000000000000040000000000000004000000000000000)));
+AsText(ST_Envelope(GeomFromWKB(0x000000000600000001000000000300000002000000040000000000000000000000000000000040240000000000000000000000000000402400000000000040240000000000000000000000000000000000000000000000000004400000000000000040000000000000004000000000
+POLYGON((0 0,10 0,10 10,0 10,0 0))
+#------------------------------------------------------------------------------------
+# geometrycollection
+#------------------------------------------------------------------------------------
+SELECT AsText(ST_Envelope(GeomFromWKB(0x010700000002000000010100000000000000000024400000000000002440010200000002000000000000000000F03F000000000000F03F00000000000000400000000000000040)));
+AsText(ST_Envelope(GeomFromWKB(0x010700000002000000010100000000000000000024400000000000002440010200000002000000000000000000F03F000000000000F03F00000000000000400000000000000040)))
+POLYGON((1 1,10 1,10 10,1 10,1 1))
+SELECT AsText(ST_Envelope(GeomFromWKB(0x0107000000010000000103000000010000000400000000000000000000000000000000000000000000000000000000000000000024400000000000002440000000000000244000000000000000000000000000000000)));
+AsText(ST_Envelope(GeomFromWKB(0x0107000000010000000103000000010000000400000000000000000000000000000000000000000000000000000000000000000024400000000000002440000000000000244000000000000000000000000000000000)))
+POLYGON((0 0,10 0,10 10,0 10,0 0))
+SELECT AsText(ST_Envelope(GeomFromWKB(0x0000000007000000020000000001402400000000000040240000000000000000000002000000023FF00000000000003FF000000000000040000000000000004000000000000000)));
+AsText(ST_Envelope(GeomFromWKB(0x0000000007000000020000000001402400000000000040240000000000000000000002000000023FF00000000000003FF000000000000040000000000000004000000000000000)))
+POLYGON((1 1,10 1,10 10,1 10,1 1))
+SELECT AsText(ST_Envelope(GeomFromWKB(0x0000000007000000010000000003000000010000000400000000000000000000000000000000000000000000000040240000000000004024000000000000402400000000000000000000000000000000000000000000)));
+AsText(ST_Envelope(GeomFromWKB(0x0000000007000000010000000003000000010000000400000000000000000000000000000000000000000000000040240000000000004024000000000000402400000000000000000000000000000000000000000000)))
+POLYGON((0 0,10 0,10 10,0 10,0 0))
+#====================================================================================
+# Envelope(geometry) with different SRID values
+#====================================================================================
+SELECT AsText(Envelope(GeomFromText(@star_center,-1024)));
+AsText(Envelope(GeomFromText(@star_center,-1024)))
+POLYGON((15 10,15 10,15 10,15 10,15 10))
+SELECT AsText(Envelope(GeomFromText(@star_all_points,-1)));
+AsText(Envelope(GeomFromText(@star_all_points,-1)))
+POLYGON((5 0,25 0,25 25,5 25,5 0))
+SELECT AsText(Envelope(GeomFromText(@star_top_to_center,0)));
+AsText(Envelope(GeomFromText(@star_top_to_center,0)))
+POLYGON((15 10,15 10,15 25,15 25,15 10))
+SELECT AsText(Envelope(GeomFromText(@star_lines_near_vertical,1000)));
+AsText(Envelope(GeomFromText(@star_lines_near_vertical,1000)))
+POLYGON((0 5,15 5,15 25,0 25,0 5))
+SELECT AsText(Envelope(GeomFromText(@star,123456789)));
+AsText(Envelope(GeomFromText(@star,123456789)))
+POLYGON((0 0,30 0,30 25,0 25,0 0))
+SELECT AsText(Envelope(GeomFromText(@star_elem_vertical,4294967295)));
+AsText(Envelope(GeomFromText(@star_elem_vertical,4294967295)))
+POLYGON((5 0,25 0,25 25,5 25,5 0))
+SELECT AsText(Envelope(GeomFromText(@star_of_elems,4294967296)));
+AsText(Envelope(GeomFromText(@star_of_elems,4294967296)))
+POLYGON((0 0,30 0,30 25,0 25,0 0))
+SELECT AsText(Envelope(GeomFromText(@star_collection_elems,4294967295000)));
+AsText(Envelope(GeomFromText(@star_collection_elems,4294967295000)))
+POLYGON((0 0,30 0,30 25,0 25,0 0))
+#====================================================================================
+# ST_Envelope(geometry) with different SRID values
+#====================================================================================
+SELECT AsText(ST_Envelope(GeomFromText(@star_center,-1024)));
+AsText(ST_Envelope(GeomFromText(@star_center,-1024)))
+POLYGON((15 10,15 10,15 10,15 10,15 10))
+SELECT AsText(ST_Envelope(GeomFromText(@star_all_points,-1)));
+AsText(ST_Envelope(GeomFromText(@star_all_points,-1)))
+POLYGON((5 0,25 0,25 25,5 25,5 0))
+SELECT AsText(ST_Envelope(GeomFromText(@star_top_to_center,0)));
+AsText(ST_Envelope(GeomFromText(@star_top_to_center,0)))
+POLYGON((15 10,15 10,15 25,15 25,15 10))
+SELECT AsText(ST_Envelope(GeomFromText(@star_lines_near_vertical,1000)));
+AsText(ST_Envelope(GeomFromText(@star_lines_near_vertical,1000)))
+POLYGON((0 5,15 5,15 25,0 25,0 5))
+SELECT AsText(ST_Envelope(GeomFromText(@star,123456789)));
+AsText(ST_Envelope(GeomFromText(@star,123456789)))
+POLYGON((0 0,30 0,30 25,0 25,0 0))
+SELECT AsText(ST_Envelope(GeomFromText(@star_elem_vertical,4294967295)));
+AsText(ST_Envelope(GeomFromText(@star_elem_vertical,4294967295)))
+POLYGON((5 0,25 0,25 25,5 25,5 0))
+SELECT AsText(ST_Envelope(GeomFromText(@star_of_elems,4294967296)));
+AsText(ST_Envelope(GeomFromText(@star_of_elems,4294967296)))
+POLYGON((0 0,30 0,30 25,0 25,0 0))
+SELECT AsText(ST_Envelope(GeomFromText(@star_collection_elems,4294967295000)));
+AsText(ST_Envelope(GeomFromText(@star_collection_elems,4294967295000)))
+POLYGON((0 0,30 0,30 25,0 25,0 0))
+#====================================================================================
+# Envelope(geometry) with different SRID values, WKB data
+#====================================================================================
+SELECT AsText(Envelope(GeomFromWKB(0x010100000000000000000000000000000000000000,-1024)));
+AsText(Envelope(GeomFromWKB(0x010100000000000000000000000000000000000000,-1024)))
+POLYGON((0 0,0 0,0 0,0 0,0 0))
+SELECT AsText(Envelope(GeomFromWKB(0x01010000005CA0B4B32784B1498F3ACA087E5E1B4A,-1)));
+AsText(Envelope(GeomFromWKB(0x01010000005CA0B4B32784B1498F3ACA087E5E1B4A,-1)))
+POLYGON((1e47 1e49,1e47 1e49,1e47 1e49,1e47 1e49,1e47 1e49))
+SELECT AsText(Envelope(GeomFromWKB(0x0000000001BFF3AE147AE147AE0000000000000000,0)));
+AsText(Envelope(GeomFromWKB(0x0000000001BFF3AE147AE147AE0000000000000000,0)))
+POLYGON((-1.23 0,-1.23 0,-1.23 0,-1.23 0,-1.23 0))
+SELECT AsText(Envelope(GeomFromWKB(0x0000000001FFE1CCF385EBC8A00000000000000000,100000)));
+AsText(Envelope(GeomFromWKB(0x0000000001FFE1CCF385EBC8A00000000000000000,100000)))
+POLYGON((-1e308 0,-1e308 0,-1e308 0,-1e308 0,-1e308 0))
+SELECT AsText(Envelope(GeomFromWKB(0x010200000002000000EB73B515FBCBF1BF2B8716D9CEF7F13FF7C77BD5CA84BF3FDD2406819543CBBF,4294967295)));
+AsText(Envelope(GeomFromWKB(0x010200000002000000EB73B515FBCBF1BF2B8716D9CEF7F13FF7C77BD5CA84BF3FDD2406819543CBBF,4294967295)))
+POLYGON((-1.1123 -0.213,0.12312 -0.213,0.12312 1.123,-1.1123 1.123,-1.1123 -0.213))
+SELECT AsText(Envelope(GeomFromWKB(0x0107000000010000000103000000010000000400000000000000000000000000000000000000000000000000000000000000000024400000000000002440000000000000244000000000000000000000000000000000,4294967296)));
+AsText(Envelope(GeomFromWKB(0x0107000000010000000103000000010000000400000000000000000000000000000000000000000000000000000000000000000024400000000000002440000000000000244000000000000000000000000000000000,4294967296)))
+POLYGON((0 0,10 0,10 10,0 10,0 0))
+SELECT AsText(Envelope(GeomFromWKB(0x0000000007000000010000000003000000010000000400000000000000000000000000000000000000000000000040240000000000004024000000000000402400000000000000000000000000000000000000000000,4294967295000)));
+AsText(Envelope(GeomFromWKB(0x0000000007000000010000000003000000010000000400000000000000000000000000000000000000000000000040240000000000004024000000000000402400000000000000000000000000000000000000000000,4294967295000)))
+POLYGON((0 0,10 0,10 10,0 10,0 0))
+#====================================================================================
+# ST_Envelope(geometry) with different SRID values, WKB data
+#====================================================================================
+SELECT AsText(ST_Envelope(GeomFromWKB(0x010100000000000000000000000000000000000000,-1024)));
+AsText(ST_Envelope(GeomFromWKB(0x010100000000000000000000000000000000000000,-1024)))
+POLYGON((0 0,0 0,0 0,0 0,0 0))
+SELECT AsText(ST_Envelope(GeomFromWKB(0x01010000005CA0B4B32784B1498F3ACA087E5E1B4A,-1)));
+AsText(ST_Envelope(GeomFromWKB(0x01010000005CA0B4B32784B1498F3ACA087E5E1B4A,-1)))
+POLYGON((1e47 1e49,1e47 1e49,1e47 1e49,1e47 1e49,1e47 1e49))
+SELECT AsText(ST_Envelope(GeomFromWKB(0x0000000001BFF3AE147AE147AE0000000000000000,0)));
+AsText(ST_Envelope(GeomFromWKB(0x0000000001BFF3AE147AE147AE0000000000000000,0)))
+POLYGON((-1.23 0,-1.23 0,-1.23 0,-1.23 0,-1.23 0))
+SELECT AsText(ST_Envelope(GeomFromWKB(0x0000000001FFE1CCF385EBC8A00000000000000000,100000)));
+AsText(ST_Envelope(GeomFromWKB(0x0000000001FFE1CCF385EBC8A00000000000000000,100000)))
+POLYGON((-1e308 0,-1e308 0,-1e308 0,-1e308 0,-1e308 0))
+SELECT AsText(ST_Envelope(GeomFromWKB(0x010200000002000000EB73B515FBCBF1BF2B8716D9CEF7F13FF7C77BD5CA84BF3FDD2406819543CBBF,4294967295)));
+AsText(ST_Envelope(GeomFromWKB(0x010200000002000000EB73B515FBCBF1BF2B8716D9CEF7F13FF7C77BD5CA84BF3FDD2406819543CBBF,4294967295)))
+POLYGON((-1.1123 -0.213,0.12312 -0.213,0.12312 1.123,-1.1123 1.123,-1.1123 -0.213))
+SELECT AsText(ST_Envelope(GeomFromWKB(0x0107000000010000000103000000010000000400000000000000000000000000000000000000000000000000000000000000000024400000000000002440000000000000244000000000000000000000000000000000,4294967296)));
+AsText(ST_Envelope(GeomFromWKB(0x0107000000010000000103000000010000000400000000000000000000000000000000000000000000000000000000000000000024400000000000002440000000000000244000000000000000000000000000000000,4294967296)))
+POLYGON((0 0,10 0,10 10,0 10,0 0))
+SELECT AsText(ST_Envelope(GeomFromWKB(0x0000000007000000010000000003000000010000000400000000000000000000000000000000000000000000000040240000000000004024000000000000402400000000000000000000000000000000000000000000,4294967295000)));
+AsText(ST_Envelope(GeomFromWKB(0x0000000007000000010000000003000000010000000400000000000000000000000000000000000000000000000040240000000000004024000000000000402400000000000000000000000000000000000000000000,4294967295000)))
+POLYGON((0 0,10 0,10 10,0 10,0 0))
+#====================================================================================
+# Invalid function calls
+#====================================================================================
+#---------------------------------------------------------------------------------------
+# Envelope()
+SELECT AsText(Envelope());
+ERROR 42000: Incorrect parameter count in the call to native function 'Envelope'
+SELECT AsText(Envelope(NULL));
+AsText(Envelope(NULL))
+NULL
+SELECT AsText(Envelope(GeomFromText('POINT()')));
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+SELECT AsText(Envelope(GeomFromText('LINESTRING()')));
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+SELECT AsText(Envelope(GeomFromText('POLYGON(())')));
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+SELECT AsText(Envelope(GeomFromText('MULTIPOINT()')));
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+SELECT AsText(Envelope(GeomFromText('MULTILINESTRING(())')));
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+SELECT AsText(Envelope(GeomFromText('MULTIPOLYGON((()))')));
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+SELECT AsText(Envelope(GeomFromText('POINT(a 0)')));
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+SELECT AsText(Envelope(GeomFromText('POINT(! 0)')));
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+SELECT AsText(Envelope(GeomFromText('POINT('!' 0)')));
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0)')))' at line 1
+SELECT AsText(Envelope(GeomFromText('POINT(12,34 0)')));
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+SELECT AsText(Envelope(GeomFromText('LINESTRING(a 0,10 10)')));
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+SELECT AsText(Envelope(GeomFromText('LINESTRING(0 0,! 10)')));
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+SELECT AsText(Envelope(GeomFromText('LINESTRING('!' 0,10 10)')));
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0,10 10)')))' at line 1
+SELECT AsText(Envelope(GeomFromText('LINESTRING(12,34 0,10 10)')));
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+SELECT AsText(Envelope(GeomFromText('POLYGON((a 0,10 10,10 0,0 0))')));
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+SELECT AsText(Envelope(GeomFromText('POLYGON((0 0,! 10,10 0,0 0))')));
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+SELECT AsText(Envelope(GeomFromText('POLYGON(('!' 0,10 10,10 0,0 0))')));
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0,10 10,10 0,0 0))')))' at line 1
+SELECT AsText(Envelope(GeomFromText('POLYGON((12,34 0,10 10,10 0,0 0))')));
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+SELECT AsText(Envelope(GeomFromText('POLYGON((0 0))')));
+ERROR 22023: Invalid GIS data provided to function st_envelope.
+SELECT AsText(Envelope(GeomFromText('POLYGON((0 0,5 5))')));
+ERROR 22023: Invalid GIS data provided to function st_envelope.
+SELECT AsText(Envelope(GeomFromText('POLYGON((0 0,5 5,10 10))')));
+ERROR 22023: Invalid GIS data provided to function st_envelope.
+SELECT AsText(Envelope(GeomFromText('POLYGON((0 0,0 5,10 10),(0 0))')));
+ERROR 22023: Invalid GIS data provided to function st_envelope.
+SELECT AsText(Envelope(GeomFromText('MULTIPOLYGON(((0 0,5 5)),((10 10)))')));
+ERROR 22023: Invalid GIS data provided to function st_envelope.
+SELECT AsText(Envelope(GeomFromText('MULTIPOLYGON(((0 0,5 5)),((1 1,1 1,1 1,1 1)))')));
+ERROR 22023: Invalid GIS data provided to function st_envelope.
+SELECT AsText(Envelope(GeomFromText('MULTIPOLYGON(((0 0,5 5,10 10)),((10 10))')));
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+SELECT AsText(Envelope(0x000000000200000000000000000000000000000000));
+ERROR HY000: Geometry byte string must be little endian.
+SELECT AsText(Envelope(0x010100000001000000010100000000000000000000));
+ERROR HY000: Geometry byte string must be little endian.
+SELECT AsText(Envelope(0x010100000002000000000000000000000000000000));
+ERROR HY000: Geometry byte string must be little endian.
+SELECT AsText(Envelope(0x000000000600000001000000000200000002000000));
+ERROR HY000: Geometry byte string must be little endian.
+SELECT AsText(Envelope(0x000000000200000001000000050000000000000000));
+ERROR HY000: Geometry byte string must be little endian.
+SELECT AsText(Envelope(0x010300000002000000010300000002000000050000));
+ERROR HY000: Geometry byte string must be little endian.
+SELECT AsText(Envelope(0x010400000002000000010100000000000000000000));
+ERROR HY000: Geometry byte string must be little endian.
+#---------------------------------------------------------------------------------------
+# ST_Envelope()
+SELECT AsText(ST_Envelope());
+ERROR 42000: Incorrect parameter count in the call to native function 'ST_Envelope'
+SELECT AsText(ST_Envelope(NULL));
+AsText(ST_Envelope(NULL))
+NULL
+SELECT AsText(ST_Envelope(GeomFromText('POINT()')));
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+SELECT AsText(ST_Envelope(GeomFromText('LINESTRING()')));
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+SELECT AsText(ST_Envelope(GeomFromText('POLYGON(())')));
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+SELECT AsText(ST_Envelope(GeomFromText('MULTIPOINT()')));
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+SELECT AsText(ST_Envelope(GeomFromText('MULTILINESTRING(())')));
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+SELECT AsText(ST_Envelope(GeomFromText('MULTIPOLYGON((()))')));
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+SELECT AsText(ST_Envelope(GeomFromText('POINT(a 0)')));
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+SELECT AsText(ST_Envelope(GeomFromText('POINT(! 0)')));
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+SELECT AsText(ST_Envelope(GeomFromText('POINT('!' 0)')));
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0)')))' at line 1
+SELECT AsText(ST_Envelope(GeomFromText('POINT(12,34 0)')));
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+SELECT AsText(ST_Envelope(GeomFromText('LINESTRING(a 0,10 10)')));
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+SELECT AsText(ST_Envelope(GeomFromText('LINESTRING(0 0,! 10)')));
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+SELECT AsText(ST_Envelope(GeomFromText('LINESTRING('!' 0,10 10)')));
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0,10 10)')))' at line 1
+SELECT AsText(ST_Envelope(GeomFromText('LINESTRING(12,34 0,10 10)')));
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+SELECT AsText(ST_Envelope(GeomFromText('POLYGON((a 0,10 10,10 0,0 0))')));
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+SELECT AsText(ST_Envelope(GeomFromText('POLYGON((0 0,! 10,10 0,0 0))')));
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+SELECT AsText(ST_Envelope(GeomFromText('POLYGON(('!' 0,10 10,10 0,0 0))')));
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0,10 10,10 0,0 0))')))' at line 1
+SELECT AsText(ST_Envelope(GeomFromText('POLYGON((12,34 0,10 10,10 0,0 0))')));
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+SELECT AsText(ST_Envelope(GeomFromText('POLYGON((0 0))')));
+ERROR 22023: Invalid GIS data provided to function st_envelope.
+SELECT AsText(ST_Envelope(GeomFromText('POLYGON((0 0,5 5))')));
+ERROR 22023: Invalid GIS data provided to function st_envelope.
+SELECT AsText(ST_Envelope(GeomFromText('POLYGON((0 0,5 5,10 10))')));
+ERROR 22023: Invalid GIS data provided to function st_envelope.
+SELECT AsText(ST_Envelope(GeomFromText('POLYGON((0 0,0 5,10 10),(0 0))')));
+ERROR 22023: Invalid GIS data provided to function st_envelope.
+SELECT AsText(ST_Envelope(GeomFromText('MULTIPOLYGON(((0 0,5 5)),((10 10)))')));
+ERROR 22023: Invalid GIS data provided to function st_envelope.
+SELECT AsText(ST_Envelope(GeomFromText('MULTIPOLYGON(((0 0,5 5)),((1 1,1 1,1 1,1 1)))')));
+ERROR 22023: Invalid GIS data provided to function st_envelope.
+SELECT AsText(ST_Envelope(GeomFromText('MULTIPOLYGON(((0 0,5 5,10 10)),((10 10))')));
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+SELECT AsText(ST_Envelope(0x000000000200000000000000000000000000000000));
+ERROR HY000: Geometry byte string must be little endian.
+SELECT AsText(ST_Envelope(0x010100000001000000010100000000000000000000));
+ERROR HY000: Geometry byte string must be little endian.
+SELECT AsText(ST_Envelope(0x010100000002000000000000000000000000000000));
+ERROR HY000: Geometry byte string must be little endian.
+SELECT AsText(ST_Envelope(0x000000000600000001000000000200000002000000));
+ERROR HY000: Geometry byte string must be little endian.
+SELECT AsText(ST_Envelope(0x000000000200000001000000050000000000000000));
+ERROR HY000: Geometry byte string must be little endian.
+SELECT AsText(ST_Envelope(0x010300000002000000010300000002000000050000));
+ERROR HY000: Geometry byte string must be little endian.
+SELECT AsText(ST_Envelope(0x010400000002000000010100000000000000000000));
+ERROR HY000: Geometry byte string must be little endian.
+#clean up
+DROP TABLE IF EXISTS gis_geometrycollection;

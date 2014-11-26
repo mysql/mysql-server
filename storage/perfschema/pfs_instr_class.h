@@ -166,6 +166,12 @@ struct PFS_instr_class
     return m_flags & PSI_FLAG_STAGE_PROGRESS;
   }
 
+  bool is_shared_exclusive() const
+  {
+    DBUG_ASSERT(m_type == PFS_CLASS_RWLOCK);
+    return m_flags & PSI_RWLOCK_FLAG_SX;
+  }
+
   static void set_enabled(PFS_instr_class *pfs, bool enabled);
   static void set_timed(PFS_instr_class *pfs, bool timed);
 

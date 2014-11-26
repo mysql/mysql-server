@@ -39,7 +39,7 @@ delimiter ;|
 
 --echo check the update_time Before DML, whether it is NULL
 SELECT table_name,update_time
-FROM information_schema.tables 
+FROM information_schema.tables
 WHERE table_name IN ('tab1','tab3','tab4','tab5');
 
 SET AUTOCOMMIT=OFF;
@@ -70,9 +70,11 @@ SELECT * FROM tab4;
 SELECT * FROM tab5;
 
 --echo check the update_time After Commit, whether it is not NULL
+--sorted_result
 SELECT table_name,COUNT(update_time)
-FROM information_schema.tables 
-WHERE table_name IN ('tab1','tab3','tab4','tab5');
+FROM information_schema.tables
+WHERE table_name IN ('tab1','tab3','tab4','tab5')
+GROUP BY table_name;
 
 --echo #restart the server
 --source include/restart_mysqld.inc

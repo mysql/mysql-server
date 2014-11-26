@@ -69,6 +69,7 @@ Number of pages:#
 Number of pages:#
 [4]:# Print the version of innochecksum and exit
 innochecksum Ver #.#.## Restart the DB server
+# restart
 DROP TABLE t1;
 [5]:# Check the innochecksum for compressed table t1 with different key_block_size
 # Test for KEY_BLOCK_SIZE=1
@@ -133,5 +134,6 @@ select * from t1;
 drop table t1;
 # Test[5] completed
 # Restart the server
+# restart
 SET GLOBAL innodb_file_per_table=default;
 SET GLOBAL innodb_file_format=default;

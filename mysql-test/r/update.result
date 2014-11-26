@@ -348,8 +348,10 @@ a	b
 22	3
 23	3
 drop table t1;
-create table t1 (f1 date not null);
+create table t1 (f1 date not null) engine=myisam;
 insert into t1 values('2000-01-01'),('0000-00-00');
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 2
 update t1 set f1='2002-02-02' where f1 is null;
 select * from t1;
 f1
@@ -393,6 +395,7 @@ create table t1(f1 int);
 update t1 set f2=1 order by f2;
 ERROR 42S22: Unknown column 'f2' in 'order clause'
 drop table t1;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 CREATE TABLE t1 (
 request_id int unsigned NOT NULL auto_increment,
 user_id varchar(12) default NULL,
@@ -454,6 +457,7 @@ Handler_read_prev	0
 Handler_read_rnd	0
 Handler_read_rnd_next	0
 DROP TABLE t1;
+SET sql_mode = default;
 CREATE TABLE t1 (
 a INT(11),
 quux decimal( 31, 30 ),
@@ -546,6 +550,7 @@ DROP VIEW v1;
 #
 # Bug#54734 assert in Diagnostics_area::set_ok_status
 #
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 DROP TABLE IF EXISTS t1, not_exists;
 DROP FUNCTION IF EXISTS f1;
 DROP VIEW IF EXISTS v1;
@@ -557,6 +562,7 @@ ERROR HY000: View 'test.v1' references invalid table(s) or column(s) or function
 DROP VIEW v1;
 DROP FUNCTION f1;
 DROP TABLE t1;
+SET sql_mode = default;
 #
 # Verify that UPDATE does the same number of handler_update
 # operations, no matter if there is ORDER BY or not.

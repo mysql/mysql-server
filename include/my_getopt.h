@@ -38,6 +38,16 @@ C_MODE_START
 #define GET_FLAGSET   15
 #define GET_PASSWORD  16
 
+#if SIZEOF_INT == 4
+#define GET_INT32 GET_INT
+#define GET_UINT32 GET_UINT
+#elif SIZEOF_LONG == 4
+#define GET_INT32 GET_LONG
+#define GET_UINT32 GET_ULONG
+#else
+#error Neither int or long is of 4 bytes width
+#endif
+
 #define GET_ASK_ADDR	 128
 #define GET_TYPE_MASK	 127
 
@@ -58,7 +68,7 @@ struct my_option
                                            marks the end of the my_option[]
                                            array.
                                          */
-  int        id;                        /**< For 0<id<255 it's means one
+  int        id;                        /**< For 0<id<=255 it's means one
                                            character for a short option
                                            (like -A), if >255 no short option
                                            is created, but a long option still

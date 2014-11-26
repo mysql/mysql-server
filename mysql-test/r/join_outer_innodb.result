@@ -48,7 +48,7 @@ AND t1.pk IS NULL OR t1.pk IN (5)
 ORDER BY pk;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	NULL	index	PRIMARY	PRIMARY	4	NULL	1	100.00	Using index
-1	SIMPLE	t1	NULL	const	PRIMARY,col_int_key	PRIMARY	4	const	1	25.00	Using where
+1	SIMPLE	t1	NULL	const	PRIMARY,col_int_key	PRIMARY	4	const	1	12.50	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk` from `test`.`t2` join `test`.`t1` where ((`test`.`t1`.`col_int` = `test`.`t2`.`pk`) and (((`test`.`t1`.`col_int_key` between 5 and 6) and isnull(`test`.`t1`.`pk`)) or (`test`.`t1`.`pk` = 5))) order by `test`.`t1`.`pk`
 

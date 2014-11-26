@@ -37,6 +37,10 @@
 #include "errmsg.h"
 #include <mysql/client_plugin.h>
 
+#ifdef HAVE_DLFCN_H
+#include <dlfcn.h>
+#endif
+
 #if defined(CLIENT_PROTOCOL_TRACING)
 #include <mysql/plugin_trace.h>
 #endif

@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License as
@@ -22,9 +22,8 @@
 
 
 Owned_gtids::Owned_gtids(Checkable_rwlock *_sid_lock)
-  : sid_lock(_sid_lock)
+  : sid_lock(_sid_lock), sidno_to_hash(key_memory_Owned_gtids_sidno_to_hash)
 {
-  my_init_dynamic_array(&sidno_to_hash, sizeof(HASH *), 0, 8);
   /*
   my_hash_init(&gtid_to_owner, &my_charset_bin, 20,
                offsetof(Node, group), sizeof(Group), NULL,
@@ -46,7 +45,6 @@ Owned_gtids::~Owned_gtids()
     my_hash_free(hash);
     my_free(hash);
   }
-  delete_dynamic(&sidno_to_hash);
   sid_lock->unlock();
   //sid_lock->assert_no_lock();
 }
@@ -59,8 +57,8 @@ enum_return_status Owned_gtids::ensure_sidno(rpl_sidno sidno)
   rpl_sidno max_sidno= get_max_sidno();
   if (sidno > max_sidno || get_hash(sidno) == NULL)
   {
-    if (allocate_dynamic(&sidno_to_hash, sidno))
-      goto error;
+    if (sidno > get_max_sidno())
+      sidno_to_hash.resize(sidno);
     for (int i= max_sidno; i < sidno; i++)
     {
       HASH *hash= (HASH *)my_malloc(key_memory_Owned_gtids_sidno_to_hash,
@@ -70,7 +68,7 @@ enum_return_status Owned_gtids::ensure_sidno(rpl_sidno sidno)
       my_hash_init(hash, &my_charset_bin, 20,
                    offsetof(Node, gno), sizeof(rpl_gno), NULL,
                    my_free, 0);
-      set_dynamic(&sidno_to_hash, &hash, i);
+      sidno_to_hash[i]= hash;
     }
   }
   RETURN_OK;

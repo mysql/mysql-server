@@ -23,7 +23,7 @@ ALTER TABLE t1 CHANGE b fail varchar(4);
 SET DEBUG = '-d,ib_resize_column_error';
 ALTER TABLE t1 CHANGE b c varchar(4);
 --disable_info
-INSERT INTO t1 (c) VALUES('eeeee'),('ffffff');
+INSERT IGNORE INTO t1 (c) VALUES('eeeee'),('ffffff');
 INSERT INTO t1 (c) VALUES('ccc'),('dddd');
 SELECT * FROM t1 ORDER BY c;
 DROP TABLE t1;
@@ -31,7 +31,7 @@ DROP TABLE t1;
 --echo # Bug#15863023 - case1
 SET DEBUG_SYNC = 'RESET';
 CREATE TABLE t1 (a INT AUTO_INCREMENT PRIMARY KEY, b VARCHAR(254)) ENGINE = Innodb;
-INSERT INTO t1 (b) VALUES (repeat('a',254)),(repeat('b',254)),(repeat('c',300));
+INSERT IGNORE INTO t1 (b) VALUES (repeat('a',254)),(repeat('b',254)),(repeat('c',300));
 SELECT a,LEFT(b,10),LENGTH(b) = 254 FROM t1 ORDER BY a;
 connect (con1,localhost,root,,);
 connection con1;
@@ -62,9 +62,9 @@ SHOW CREATE TABLE t1;
 disconnect con1;
 
 connection default;
-INSERT INTO t1 (b) VALUES (repeat('d',300));
+INSERT IGNORE INTO t1 (b) VALUES (repeat('d',300));
 SELECT a,LEFT(b,10),LENGTH(b) = 254 FROM t1 ORDER BY a;
-UPDATE t1 SET b = repeat('y',300) WHERE b = repeat('a',254) ;
+UPDATE IGNORE t1 SET b = repeat('y',300) WHERE b = repeat('a',254) ;
 SELECT a,LEFT(b,10),LENGTH(b) = 254 FROM t1 ORDER BY a;
 DELETE FROM t1 WHERE b = repeat('y',255);
 SELECT a,LEFT(b,10),LENGTH(b) = 254 FROM t1 ORDER BY a;
@@ -74,7 +74,7 @@ DROP TABLE t1;
 --echo # Bug#15863023 - case2 . enlarge varchar with add.drop index/column
 SET DEBUG_SYNC = 'RESET';
 CREATE TABLE t1 (a INT , b VARCHAR(254)) ENGINE=Innodb;
-INSERT INTO t1 (a,b) VALUES (1,repeat('a',254)),(2,repeat('b',254)),(3,repeat('c',300));
+INSERT IGNORE INTO t1 (a,b) VALUES (1,repeat('a',254)),(2,repeat('b',254)),(3,repeat('c',300));
 SELECT a,LEFT(b,10),LENGTH(b) = 254 FROM t1 ORDER BY a;
 connect (con1,localhost,root,,);
 connection con1;
@@ -83,9 +83,9 @@ SET DEBUG_SYNC = 'row_log_apply_before SIGNAL s1 WAIT_FOR s2';
 connection default;
 # DML go through
 SET DEBUG_SYNC='now WAIT_FOR s1';
-INSERT INTO t1 (a,b) VALUES (4,repeat('d',300));
+INSERT IGNORE INTO t1 (a,b) VALUES (4,repeat('d',300));
 SELECT a,LEFT(b,10),LENGTH(b) = 254 FROM t1 ORDER BY a;
-UPDATE t1 SET b = repeat('y',300) WHERE b = repeat('a',254) ;
+UPDATE IGNORE t1 SET b = repeat('y',300) WHERE b = repeat('a',254) ;
 SELECT a,LEFT(b,10),LENGTH(b) = 254 FROM t1 ORDER BY a;
 DELETE FROM t1 WHERE b = repeat('y',254);
 SELECT a,LEFT(b,10),LENGTH(b) = 254 FROM t1 ORDER BY a;
@@ -97,9 +97,9 @@ SHOW CREATE TABLE t1;
 disconnect con1;
 
 connection default;
-INSERT INTO t1 (a,b) VALUES (5,repeat('d',300));
+INSERT IGNORE INTO t1 (a,b) VALUES (5,repeat('d',300));
 SELECT a,LEFT(b,10),LENGTH(b) = 254 FROM t1 ORDER BY a;
-UPDATE t1 SET b = repeat('y',300) WHERE b = repeat('b',254) ;
+UPDATE IGNORE t1 SET b = repeat('y',300) WHERE b = repeat('b',254) ;
 SELECT a,LEFT(b,10),LENGTH(b) = 254 FROM t1 ORDER BY a;
 DELETE FROM t1 WHERE b = repeat('y',255);
 SELECT a,LEFT(b,10),LENGTH(b) = 254 FROM t1 ORDER BY a;
@@ -111,7 +111,7 @@ SET DEBUG_SYNC = 'RESET';
 CREATE TABLE t1 (a INT DEFAULT 100 , b VARCHAR(254) CHARACTER SET latin1,
 c VARCHAR(254) CHARACTER SET utf8) ENGINE=Innodb CHARSET=utf8;
 CREATE INDEX c1 ON t1(c);
-INSERT INTO t1 (a,b) VALUES (1,repeat('a',254)),(2,repeat('b',254)),(3,repeat('c',300));
+INSERT IGNORE INTO t1 (a,b) VALUES (1,repeat('a',254)),(2,repeat('b',254)),(3,repeat('c',300));
 SELECT a,LEFT(b,10),LENGTH(b) = 254 FROM t1 ORDER BY a;
 connect (con1,localhost,root,,);
 connection con1;
@@ -120,13 +120,13 @@ SET DEBUG_SYNC = 'row_log_apply_before SIGNAL s1 WAIT_FOR s2';
 connection default;
 # DML go through
 SET DEBUG_SYNC='now WAIT_FOR s1';
-INSERT INTO t1 (a,b) VALUES (4,repeat('d',300));
+INSERT IGNORE INTO t1 (a,b) VALUES (4,repeat('d',300));
 SELECT a,LEFT(b,10),LENGTH(b) = 254,c FROM t1 ORDER BY a;
-UPDATE t1 SET b = repeat('y',300) WHERE b = repeat('a',254) ;
+UPDATE IGNORE t1 SET b = repeat('y',300) WHERE b = repeat('a',254) ;
 SELECT a,LEFT(b,10),LENGTH(b) = 254,c FROM t1 ORDER BY a;
 DELETE FROM t1 WHERE b = repeat('y',254);
 SELECT a,LEFT(b,10),LENGTH(b) = 254,c FROM t1 ORDER BY a;
-INSERT INTO t1 (b,c) VALUES (repeat('z',300),"Môžem");
+INSERT IGNORE INTO t1 (b,c) VALUES (repeat('z',300),"Môžem");
 SELECT a,LEFT(b,10),LENGTH(b) = 254,c FROM t1 ORDER BY a;
 SET DEBUG_SYNC='now SIGNAL s2';
 
@@ -136,9 +136,9 @@ SHOW CREATE TABLE t1;
 disconnect con1;
 
 connection default;
-INSERT INTO t1 (a,b,c) VALUES (5,repeat('d',300),"Môžem");
+INSERT IGNORE INTO t1 (a,b,c) VALUES (5,repeat('d',300),"Môžem");
 SELECT a,LEFT(b,10),LENGTH(b) = 254,c FROM t1 ORDER BY a;
-UPDATE t1 SET b = repeat('y',300) WHERE b = repeat('b',254) ;
+UPDATE IGNORE t1 SET b = repeat('y',300) WHERE b = repeat('b',254) ;
 SELECT a,LEFT(b,10),LENGTH(b) = 254,c FROM t1 ORDER BY a;
 DELETE FROM t1 WHERE b = repeat('y',255);
 SELECT a,LEFT(b,10),LENGTH(b) = 254,c FROM t1 ORDER BY a;
@@ -151,7 +151,7 @@ SET DEBUG_SYNC = 'RESET';
 CREATE TABLE t1 (a INT DEFAULT 100 , b VARCHAR(254) CHARACTER SET latin1,
 c VARCHAR(254) CHARACTER SET utf8, d CHAR(10) DEFAULT 'test') ENGINE=Innodb CHARSET=utf8;
 CREATE INDEX c1 ON t1(c);
-INSERT INTO t1 (a,b) VALUES (1,repeat('a',254)),(2,repeat('b',254)),(3,repeat('c',300));
+INSERT IGNORE INTO t1 (a,b) VALUES (1,repeat('a',254)),(2,repeat('b',254)),(3,repeat('c',300));
 SELECT a,LEFT(b,10),LENGTH(b) = 254 FROM t1 ORDER BY a;
 # increase size > 255
 --ERROR ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
@@ -170,8 +170,8 @@ DROP TABLE t1;
 SET DEBUG_SYNC = 'RESET';
 CREATE TABLE t1 (a INT , b VARCHAR(254) PRIMARY KEY) ENGINE=Innodb;
 CREATE TABLE t2 (a2 INT , b2 VARCHAR(254) , CONSTRAINT fk FOREIGN KEY (b2) REFERENCES t1 (b) ON UPDATE CASCADE ON DELETE CASCADE) ENGINE=Innodb;
-INSERT INTO t1 (a,b) VALUES (1,repeat('a',254)),(2,repeat('b',254)),(3,repeat('c',300));
-INSERT INTO t2 (a2,b2) VALUES (1,repeat('a',254)),(2,repeat('b',254)),(3,repeat('c',300));
+INSERT IGNORE INTO t1 (a,b) VALUES (1,repeat('a',254)),(2,repeat('b',254)),(3,repeat('c',300));
+INSERT IGNORE INTO t2 (a2,b2) VALUES (1,repeat('a',254)),(2,repeat('b',254)),(3,repeat('c',300));
 SELECT a,LEFT(b,10),LENGTH(b) = 254 FROM t1,t2 WHERE t1.a = t2.a2 ORDER BY a;
 connect (con1,localhost,root,,);
 connection con1;
@@ -185,9 +185,9 @@ SET foreign_key_checks = 0;
 connection default;
 # DML go through
 SET DEBUG_SYNC='now WAIT_FOR s1';
-INSERT INTO t1 (a,b) VALUES (4,repeat('d',300));
+INSERT IGNORE INTO t1 (a,b) VALUES (4,repeat('d',300));
 SELECT a,LEFT(b,10),LENGTH(b) = 254 FROM t1 ORDER BY a;
-UPDATE t1 SET b = repeat('y',300) WHERE b = repeat('a',254) ;
+UPDATE IGNORE t1 SET b = repeat('y',300) WHERE b = repeat('a',254) ;
 SELECT a,LEFT(b,10),LENGTH(b) = 254 FROM t1 ORDER BY a;
 DELETE FROM t1 WHERE b = repeat('y',254);
 SELECT a,LEFT(b,10),LENGTH(b) = 254 FROM t1 ORDER BY a;
@@ -202,9 +202,9 @@ SHOW CREATE TABLE t2;
 disconnect con1;
 
 connection default;
-INSERT INTO t1 (a,b) VALUES (5,repeat('k',300));
+INSERT IGNORE INTO t1 (a,b) VALUES (5,repeat('k',300));
 SELECT a,LEFT(b,10),LENGTH(b) = 254 FROM t1 ORDER BY a;
-UPDATE t1 SET b = repeat('z',300) WHERE b = repeat('b',254) ;
+UPDATE IGNORE t1 SET b = repeat('z',300) WHERE b = repeat('b',254) ;
 SELECT a,LEFT(b,10),LENGTH(b) = 254 FROM t1 ORDER BY a;
 --ERROR 1451
 DELETE FROM t1 WHERE b = repeat('c',254);
@@ -217,8 +217,8 @@ DROP TABLE t2,t1;
 SET DEBUG_SYNC = 'RESET';
 CREATE TABLE t1 (a INT PRIMARY KEY, b VARCHAR(254) ) ENGINE=Innodb;
 CREATE TABLE t2 (a2 INT , b2 VARCHAR(254) , CONSTRAINT fk FOREIGN KEY (a2) REFERENCES t1 (a) ON UPDATE CASCADE ON DELETE CASCADE) ENGINE=Innodb;
-INSERT INTO t1 (a,b) VALUES (1,repeat('a',254)),(2,repeat('b',254)),(3,repeat('c',300));
-INSERT INTO t2 (a2,b2) VALUES (1,repeat('a',254)),(2,repeat('b',254)),(3,repeat('c',300));
+INSERT IGNORE INTO t1 (a,b) VALUES (1,repeat('a',254)),(2,repeat('b',254)),(3,repeat('c',300));
+INSERT IGNORE INTO t2 (a2,b2) VALUES (1,repeat('a',254)),(2,repeat('b',254)),(3,repeat('c',300));
 SELECT a,LEFT(b,10),LENGTH(b) = 254 FROM t1,t2 WHERE t1.a = t2.a2 ORDER BY a;
 connect (con1,localhost,root,,);
 connection con1;
@@ -229,9 +229,9 @@ SET DEBUG_SYNC = 'row_log_apply_before SIGNAL s1 WAIT_FOR s2';
 connection default;
 # DML go through
 SET DEBUG_SYNC='now WAIT_FOR s1';
-INSERT INTO t1 (a,b) VALUES (4,repeat('d',300));
+INSERT IGNORE INTO t1 (a,b) VALUES (4,repeat('d',300));
 SELECT a,LEFT(b,10),LENGTH(b) = 254 FROM t1 ORDER BY a;
-UPDATE t1 SET b = repeat('y',300) WHERE b = repeat('a',254) ;
+UPDATE IGNORE t1 SET b = repeat('y',300) WHERE b = repeat('a',254) ;
 SELECT a,LEFT(b,10),LENGTH(b) = 254 FROM t1 ORDER BY a;
 DELETE FROM t1 WHERE b = repeat('y',254);
 SELECT a,LEFT(b,10),LENGTH(b) = 254 FROM t1 ORDER BY a;
@@ -244,9 +244,9 @@ SHOW CREATE TABLE t1;
 disconnect con1;
 
 connection default;
-INSERT INTO t1 (a,b) VALUES (5,repeat('k',300));
+INSERT IGNORE INTO t1 (a,b) VALUES (5,repeat('k',300));
 SELECT a,LEFT(b,10),LENGTH(b) = 254 FROM t1 ORDER BY a;
-UPDATE t1 SET b = repeat('y',300) WHERE b = repeat('b',254) ;
+UPDATE IGNORE t1 SET b = repeat('y',300) WHERE b = repeat('b',254) ;
 SELECT a,LEFT(b,10),LENGTH(b) = 254 FROM t1 ORDER BY a;
 DELETE FROM t1 WHERE b = repeat('y',255);
 SELECT a,LEFT(b,10),LENGTH(b) = 254 FROM t1 ORDER BY a;

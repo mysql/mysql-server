@@ -479,6 +479,7 @@ t2	CREATE TABLE `t2` (
 /*!50100 PARTITION BY KEY (a)
 PARTITIONS 27 */
 0 inserts;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 insert into t2 values (char(ascii('A')+26));
 Warnings:
 Warning	1265	Data truncated for column 'a' at row 1
@@ -507,6 +508,7 @@ insert into t2 values (char(ascii('A')+4));
 insert into t2 values (char(ascii('A')+3));
 insert into t2 values (char(ascii('A')+2));
 insert into t2 values (char(ascii('A')+1));
+SET sql_mode = default;
 insert into t2 values ('1'),('2'),('3'),('4'),('5'),('6'),('7'),('8'),('9'),('0');
 select count(*) from t2;
 count(*)

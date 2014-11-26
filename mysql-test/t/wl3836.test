@@ -50,6 +50,8 @@ INSERT t1 SELECT 0 FROM t1 AS a1, t1 AS a2 LIMIT 4032;
 
 INSERT INTO t2 SELECT id FROM t1;
 
+--source include/turn_off_only_full_group_by.inc
+
 # Intentionally create a long running query
 send SELECT id FROM t1 WHERE id IN
      (SELECT DISTINCT a.id FROM t2 a, t2 b, t2 c, t2 d

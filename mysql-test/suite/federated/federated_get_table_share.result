@@ -93,8 +93,8 @@ pk
 # Now, both ta and tb should be open:
 SHOW OPEN TABLES IN federated;
 Database	Table	In_use	Name_locked
-federated	tb	0	0
 federated	ta	0	0
+federated	tb	0	0
 #
 connection master;
 # Back to the master, we flush table tb and do a new insert,

@@ -40,9 +40,7 @@ if ($stat != 0)
 let $MYSQL_BASEDIR= `select @@basedir`;
 
 --echo # Stop server
--- exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
--- shutdown_server 30
--- source include/wait_until_disconnected.inc
+--source include/shutdown_mysqld.inc
 
 --echo # Copy the remote tablespace & DB zip files from suite location to working location.
 --copy_file $MYSQL_BASEDIR/mysql-test/suite/innodb/t/portability_wl5980_windows.zip $MYSQL_TMP_DIR/portability_wl5980_windows.zip
@@ -142,9 +140,7 @@ EOF
 -- exec $MYSQL -e "UPDATE mysql.user SET plugin = 'mysql_native_password'"
 
 -- echo # Stop server
--- exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
--- shutdown_server 30
--- source include/wait_until_disconnected.inc
+-- source include/shutdown_mysqld.inc
 
 --echo # Restart the DB server from unzip location of MySQL Data Dir 
 -- exec echo "restart: --datadir=$MYSQL_TMP_DIR/mysqld.5980/data/ " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect

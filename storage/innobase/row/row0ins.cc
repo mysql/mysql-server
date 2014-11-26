@@ -926,18 +926,8 @@ row_ins_invalidate_query_cache(
 	const char*	name)		/*!< in: table name prefixed with
 					database name and a '/' character */
 {
-	char*	buf;
-	char*	ptr;
 	ulint	len = strlen(name) + 1;
-
-	buf = mem_strdupl(name, len);
-
-	ptr = strchr(buf, '/');
-	ut_a(ptr);
-	*ptr = '\0';
-
-	innobase_invalidate_query_cache(thr_get_trx(thr), buf, len);
-	ut_free(buf);
+	innobase_invalidate_query_cache(thr_get_trx(thr), name, len);
 }
 
 /*********************************************************************//**
@@ -1925,7 +1915,8 @@ row_ins_scan_sec_index_for_duplicate(
 
 
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(s_latch == rw_lock_own(&index->lock, RW_LOCK_S));
+	ut_ad(s_latch == rw_lock_own_flagged(
+			&index->lock, RW_LOCK_FLAG_S | RW_LOCK_FLAG_SX));
 #endif /* UNIV_SYNC_DEBUG */
 
 	n_unique = dict_index_get_n_unique(index);
@@ -1963,7 +1954,7 @@ row_ins_scan_sec_index_for_duplicate(
 	do {
 		const rec_t*		rec	= btr_pcur_get_rec(&pcur);
 		const buf_block_t*	block	= btr_pcur_get_block(&pcur);
-		ulint			lock_type;
+		const ulint		lock_type = LOCK_ORDINARY;
 
 		if (page_rec_is_infimum(rec)) {
 
@@ -1972,16 +1963,6 @@ row_ins_scan_sec_index_for_duplicate(
 
 		offsets = rec_get_offsets(rec, index, offsets,
 					  ULINT_UNDEFINED, &offsets_heap);
-
-		/* If the transaction isolation level is no stronger than
-		READ COMMITTED, then avoid gap locks. */
-		if (!page_rec_is_supremum(rec)
-		    && thr_get_trx(thr)->isolation_level
-					<= TRX_ISO_READ_COMMITTED) {
-			lock_type = LOCK_REC_NOT_GAP;
-		} else {
-			lock_type = LOCK_ORDINARY;
-		}
 
 		if (flags & BTR_NO_LOCKING_FLAG) {
 			/* Set no locks when applying log
@@ -2561,7 +2542,7 @@ last successful insert. To be used when data is sorted.
 @param[in]	thr	query thread
 
 @return error code */
-
+static
 dberr_t
 row_ins_sorted_clust_index_entry(
 	ulint		flags,
@@ -3403,6 +3384,19 @@ row_ins_index_entry_set_vals(
 					dfield_get_data(row_field)));
 
 			ut_ad(!dfield_is_ext(row_field));
+		}
+
+		/* Since DATA_POINT is of fixed length, and no other geometry
+		data would be of length less than POINT, if we get data
+		longer than DATA_POINT_LEN, there must be an error,
+		unless it's a field of length 0 resulting from ADD COLUMN.
+		Currently, server doesn't do geometry data type checking,
+		we should do this for POINT specially. */
+		if (DATA_POINT_MTYPE(row_field->type.mtype)
+		    && !(len == DATA_POINT_LEN
+			 || len == 0
+			 || len == UNIV_SQL_NULL)) {
+			return (DB_CANT_CREATE_GEOMETRY_OBJECT);
 		}
 
 		/* Handle spatial index. For the first field, replace

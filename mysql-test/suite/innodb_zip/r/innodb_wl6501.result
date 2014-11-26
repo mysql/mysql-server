@@ -891,6 +891,7 @@ count(*)
 drop table t1;
 drop procedure populate_t1;
 use test;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 create procedure populate_t1()
 begin
 declare i int default 1;
@@ -912,6 +913,7 @@ commit;
 select count(*) from t1;
 count(*)
 200
+SET sql_mode = default;
 set session debug = "+d,ib_trunc_crash_before_log_checkpoint";
 truncate table t1;
 ERROR HY000: Lost connection to MySQL server during query
@@ -1084,6 +1086,7 @@ i	j
 2	2
 3	3
 # Restart the MySQL server
+# restart
 select * from t;
 i	j
 1	1

@@ -34,7 +34,7 @@ select count(*) from t1;
 source include/show_binlog_events.inc;
 
 let $binlog_limit= 1;
-if (!`SELECT COUNT(*) = 0 OR VARIABLE_VALUE != 'ON' FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME = 'GTID_MODE'`)
+if (`SELECT COUNT(*) > 0 FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME = 'GTID_MODE' AND VARIABLE_VALUE = 'ON'`)
 {
   # if GTID_MODE=ON, there is the extra event entry the binary log: Gtid_log_event
   --let $binlog_limit= 2,1
@@ -43,7 +43,7 @@ if (!`SELECT COUNT(*) = 0 OR VARIABLE_VALUE != 'ON' FROM INFORMATION_SCHEMA.GLOB
 source include/show_binlog_events.inc;
 --let $from_event= 1
 --let $number_of_events= 4
-if (!`SELECT COUNT(*) = 0 OR VARIABLE_VALUE != 'ON' FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME = 'GTID_MODE'`)
+if (`SELECT COUNT(*) > 0 FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME = 'GTID_MODE' AND VARIABLE_VALUE = 'ON'`)
 {
   # if GTID_MODE=ON, there is the extra event entry the binary log: Gtid_log_event
   --let $from_event= `SELECT $from_event * 2 + 1`

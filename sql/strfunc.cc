@@ -44,7 +44,7 @@
 
 static const char field_separator=',';
 
-ulonglong find_set(TYPELIB *lib, const char *str, uint length,
+ulonglong find_set(TYPELIB *lib, const char *str, size_t length,
                    const CHARSET_INFO *cs,
                    char **err_pos, uint *err_len, bool *set_warning)
 {
@@ -152,13 +152,14 @@ uint find_type(const TYPELIB *lib, const char *find, size_t length,
     >0  Offset+1 in typelib for matched string
 */
 
-uint find_type2(const TYPELIB *typelib, const char *x, uint length,
+uint find_type2(const TYPELIB *typelib, const char *x, size_t length,
                 const CHARSET_INFO *cs)
 {
   int pos;
   const char *j;
   DBUG_ENTER("find_type2");
-  DBUG_PRINT("enter",("x: '%.*s'  lib: 0x%lx", length, x, (long) typelib));
+  DBUG_PRINT("enter",("x: '%.*s'  lib: 0x%p",
+                      static_cast<int>(length), x, typelib));
 
   if (!typelib->count)
   {
@@ -344,7 +345,7 @@ int find_string_in_array(LEX_STRING * const haystack, LEX_STRING * const needle,
     if (!cs->coll->strnncollsp(cs, (uchar *) pos->str, pos->length,
                                (uchar *) needle->str, needle->length, 0))
     {
-      return (pos - haystack);
+      return static_cast<int>(pos - haystack);
     }
   return -1;
 }

@@ -108,7 +108,7 @@ enum commands {
   ADMIN_FLUSH_HOSTS,      ADMIN_FLUSH_TABLES,    ADMIN_PASSWORD,
   ADMIN_PING,             ADMIN_EXTENDED_STATUS, ADMIN_FLUSH_STATUS,
   ADMIN_FLUSH_PRIVILEGES, ADMIN_START_SLAVE,     ADMIN_STOP_SLAVE,
-  ADMIN_FLUSH_THREADS,    ADMIN_OLD_PASSWORD
+  ADMIN_FLUSH_THREADS
 };
 static const char *command_names[]= {
   "create",               "drop",                "shutdown",
@@ -118,7 +118,7 @@ static const char *command_names[]= {
   "flush-hosts",          "flush-tables",        "password",
   "ping",                 "extended-status",     "flush-status",
   "flush-privileges",     "start-slave",         "stop-slave",
-  "flush-threads","old-password",
+  "flush-threads",
   NullS
 };
 
@@ -194,8 +194,8 @@ static struct my_option my_long_options[] =
    &opt_relative, &opt_relative, 0, GET_BOOL, NO_ARG, 0, 0, 0,
   0, 0, 0},
   {"secure-auth", OPT_SECURE_AUTH, "Refuse client connecting to server if it"
-   " uses old (pre-4.1.1) protocol.", &opt_secure_auth,
-   &opt_secure_auth, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
+    " uses old (pre-4.1.1) protocol. Deprecated. Always TRUE",
+    &opt_secure_auth, &opt_secure_auth, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
 #if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
   {"shared-memory-base-name", OPT_SHARED_MEMORY_BASE_NAME,
    "Base name of shared memory.", &shared_memory_base_name, &shared_memory_base_name,
@@ -317,6 +317,14 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   case OPT_ENABLE_CLEARTEXT_PLUGIN:
     using_opt_enable_cleartext_plugin= TRUE;
     break;
+  case OPT_SECURE_AUTH:
+    CLIENT_WARN_DEPRECATED_NO_REPLACEMENT("--secure-auth");
+    if (!opt_secure_auth)
+    {
+      usage();
+      exit(1);
+    }
+    break;
   }
   if (error)
   {
@@ -370,8 +378,6 @@ int main(int argc,char *argv[])
 
   if (opt_bind_addr)
     mysql_options(&mysql,MYSQL_OPT_BIND,opt_bind_addr);
-  if (!opt_secure_auth)
-    mysql_options(&mysql, MYSQL_SECURE_AUTH,(char*)&opt_secure_auth);
   if (opt_compress)
     mysql_options(&mysql,MYSQL_OPT_COMPRESS,NullS);
   if (opt_connect_timeout)
@@ -403,8 +409,7 @@ int main(int argc,char *argv[])
                   (char*) &opt_enable_cleartext_plugin);
 
   first_command= find_type(argv[0], &command_typelib, FIND_TYPE_BASIC);
-  can_handle_passwords= 
-    (first_command == ADMIN_PASSWORD || first_command == ADMIN_OLD_PASSWORD) ?
+  can_handle_passwords= first_command == ADMIN_PASSWORD ?
     TRUE : FALSE;
   mysql_options(&mysql, MYSQL_OPT_CAN_HANDLE_EXPIRED_PASSWORDS,
                 &can_handle_passwords);
@@ -1008,16 +1013,12 @@ static int execute_commands(MYSQL *mysql,int argc, char **argv)
       }
       break;
     }
-    case ADMIN_OLD_PASSWORD:
     case ADMIN_PASSWORD:
     {
       char buff[128],crypted_pw[64];
       time_t start_time;
       char *typed_password= NULL, *verified= NULL;
       bool log_off= true, err= false;
-      int retry_count= 0;                       /* Attempts to SET PASSWORD */
-
-      bool old= (option == ADMIN_OLD_PASSWORD);
 
       /* Do initialization the same way as we do in mysqld */
       start_time=time((time_t*) 0);
@@ -1055,66 +1056,23 @@ static int execute_commands(MYSQL *mysql,int argc, char **argv)
           printf("Warning: single quotes were not trimmed from the password by"
                  " your command\nline client, as you might have expected.\n");
 #endif
-        /*
-           If we don't already know to use an old-style password, see
-           (if possible) what the server is using.
-        */
-        if (!old)
+        /* turn logging off if we can */
+        if (mysql_query(mysql, "set sql_log_off=1"))
         {
-          if (mysql_query(mysql, "SHOW VARIABLES LIKE 'old_passwords'"))
-          {
-            bool fatal= (mysql_errno(mysql) != ER_MUST_CHANGE_PASSWORD);
-            if (fatal || opt_verbose)
-              my_printf_error(0, "Could not determine old_passwords setting "
-                              "from server; error: '%s'.", error_flags,
-                              mysql_error(mysql));
-            if (fatal)
-            {
-              err= true;
-              goto error;
-            }
-          }
-          else
-          {
-            MYSQL_RES *res= mysql_store_result(mysql);
-            if (!res)
-            {
-              my_printf_error(0,
-                              "Could not get old_passwords setting from "
-                              "server; error: '%s'.",
-                              error_flags, mysql_error(mysql));
-              err= true;
-              goto error;
-            }
-            if (!mysql_num_rows(res))
-              old= 1;
-            else
-            {
-              MYSQL_ROW row= mysql_fetch_row(res);
-              old= (!strncmp(row[1], "ON", 2) || !strncmp(row[1], "1", 1));
-            }
-            mysql_free_result(res);
-          }
+          if (opt_verbose)
+            fprintf(stderr, "Note: Can't turn off logging; '%s'", mysql_error(mysql));
+          log_off= false;
         }
-      /* turn logging off if we can */
-      if (mysql_query(mysql,"set sql_log_off=1"))
-      {
-        if (opt_verbose)
-          fprintf(stderr, "Note: Can't turn off logging; '%s'", mysql_error(mysql));
-        log_off= false;
-      }
 
-retry:
         /*
           In case the password_expired flag is set ('Y'), then there is no way
-          to determine the password format. So, we first try to set the
-          password using native format. If it fails with ER_PASSWORD_LENGTH,
-          we will give one more try with old format.
+          to determine the password format. So, assume that setting the
+          password using the server's default authentication format
+          (mysql_native_password) will work.
+          TODO: make sure this always uses SSL and then let the server
+          calculate the scramble.
         */
-        if (old)
-          make_scrambled_password_323(crypted_pw, typed_password);
-        else
-          make_scrambled_password(crypted_pw, typed_password);
+        make_scrambled_password(crypted_pw, typed_password);
       }
       else
 	crypted_pw[0]=0;			/* No password */
@@ -1123,16 +1081,6 @@ retry:
 
       if (mysql_query(mysql,buff))
       {
-        if ((mysql_errno(mysql) == ER_PASSWD_LENGTH) &&
-            !(option == ADMIN_OLD_PASSWORD) && !retry_count)
-        {
-          /* Try to set the password using old format. */
-          memset(crypted_pw, 0, 64);
-          old= 0;
-          retry_count ++;
-          goto retry;
-        }
-
 	if (mysql_errno(mysql)!=1290)
 	{
 	  my_printf_error(0,"unable to change password; error: '%s'",
@@ -1264,8 +1212,7 @@ static char **mask_password(int argc, char ***argv)
   while (argc > 0)
   {
     temp_argv[argc]= my_strdup(PSI_NOT_INSTRUMENTED, (*argv)[argc], MYF(MY_FAE));
-    if (find_type((*argv)[argc - 1],&command_typelib, FIND_TYPE_BASIC) == ADMIN_PASSWORD ||
-        find_type((*argv)[argc - 1],&command_typelib, FIND_TYPE_BASIC) == ADMIN_OLD_PASSWORD)
+    if (find_type((*argv)[argc - 1],&command_typelib, FIND_TYPE_BASIC) == ADMIN_PASSWORD)
     {
       char *start= (*argv)[argc];
       while (*start)

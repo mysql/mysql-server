@@ -1,1 +1,1 @@
---new --default-storage-engine=ndbcluster --innodb
+--new --default-storage-engine=ndbcluster

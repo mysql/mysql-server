@@ -196,15 +196,20 @@ bool select_union::send_data(List<Item> &values)
     unit->offset_limit_cnt--;
     return 0;
   }
-  fill_record(thd, table->field, values, NULL, NULL);
+  fill_record(thd, table->field, values,
+              (table->hash_field ?
+               &table->hash_field_bitmap : NULL), NULL);
   if (thd->is_error())
     return 1;
 
+  if (!check_unique_constraint(table, 0))
+    return 0;
+
   if ((error= table->file->ha_write_row(table->record[0])))
   {
-    /* create_myisam_from_heap will generate error if needed */
+    /* create_ondisk_from_heap will generate error if needed */
     if (!table->file->is_ignorable_error(error) &&
-        create_myisam_from_heap(thd, table, tmp_table_param.start_recinfo, 
+        create_ondisk_from_heap(thd, table, tmp_table_param.start_recinfo, 
                                 &tmp_table_param.recinfo, error, TRUE, NULL))
       return 1;
   }
@@ -273,6 +278,8 @@ select_union::create_result_table(THD *thd_arg, List<Item> *column_types,
   {
     table->file->extra(HA_EXTRA_WRITE_CACHE);
     table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
+    if (table->hash_field)
+      table->file->ha_index_init(0, 0);
   }
   return FALSE;
 }
@@ -287,7 +294,11 @@ select_union::create_result_table(THD *thd_arg, List<Item> *column_types,
 
 void select_union::cleanup()
 {
+  if (!table)
+    return;
   table->file->extra(HA_EXTRA_RESET_STATE);
+  if (table->hash_field)
+    table->file->ha_index_or_rnd_end();
   table->file->ha_delete_all_rows();
   free_io_cache(table);
   filesort_free_buffers(table,0);
@@ -386,7 +397,8 @@ bool select_union_direct::initialize_tables (JOIN *join)
 bool select_union_direct::send_eof()
 {
   // Reset for each SELECT_LEX, so accumulate here
-  limit_found_rows+= thd->limit_found_rows;
+  limit_found_rows+= thd->limit_found_rows -
+                     thd->lex->current_select()->get_offset();
 
   if (unit->thd->lex->current_select() == last_select_lex)
   {
@@ -673,8 +685,9 @@ bool st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
     {
       {
         Prepared_stmt_arena_holder ps_arena_holder(thd);
-
-        saved_error= table->fill_item_list(&item_list);
+        // Create fields list, but skip hash field that could be added at
+        // the end.
+        saved_error= table->fill_item_list(&item_list, types.elements);
 
         if (saved_error)
           goto err;
@@ -700,7 +713,7 @@ bool st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
         We're in execution of a prepared statement or stored procedure:
         reset field items to point at fields from the created temporary table.
       */
-      table->reset_item_list(&item_list);
+      table->reset_item_list(&item_list, types.elements);
     }
   }
 
@@ -993,7 +1006,8 @@ bool st_select_lex_unit::exec()
   {
     /* Send result to 'result' */
     saved_error= true;
-
+    // Index might have been used to weedout duplicates for UNION DISTINCT
+    table->file->ha_index_or_rnd_end();
     set_limit(fake_select_lex);
     JOIN *join= fake_select_lex->join;
     DBUG_ASSERT(join && join->optimized);
@@ -1044,6 +1058,7 @@ bool st_select_lex_unit::cleanup(bool full)
   // fake_select_lex's table depends on Temp_table_param inside union_result
   if (full && union_result)
   {
+    union_result->cleanup();
     delete union_result;
     union_result=0; // Safety
     if (table)
@@ -1212,7 +1227,7 @@ bool st_select_lex::cleanup(bool full)
       join= NULL;
     }
     else
-      join->cleanup(false);
+      join->cleanup();
   }
 
   for (SELECT_LEX_UNIT *lex_unit= first_inner_unit(); lex_unit ;
@@ -1220,22 +1235,20 @@ bool st_select_lex::cleanup(bool full)
   {
     error|= lex_unit->cleanup(full);
   }
-  cur_pos_in_all_fields= ALL_FIELDS_UNDEF_POS;
-  non_agg_fields.empty();
   inner_refs_list.empty();
   DBUG_RETURN(error);
 }
 
 
-void st_select_lex::cleanup_all_joins(bool full)
+void st_select_lex::cleanup_all_joins()
 {
   SELECT_LEX_UNIT *unit;
   SELECT_LEX *sl;
 
   if (join)
-    join->cleanup(full);
+    join->cleanup();
 
   for (unit= first_inner_unit(); unit; unit= unit->next_unit())
     for (sl= unit->first_select(); sl; sl= sl->next_select())
-      sl->cleanup_all_joins(full);
+      sl->cleanup_all_joins();
 }

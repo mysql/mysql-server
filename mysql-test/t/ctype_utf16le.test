@@ -61,7 +61,7 @@ CREATE TABLE t1 (a VARCHAR(10), pad INT, b VARCHAR(10)) CHARACTER SET utf16le;
 INSERT INTO t1 VALUES (_ucs2 X'0420', 10, _ucs2 X'0421');
 INSERT INTO t1 VALUES (_ucs2 X'0420', 10, _ucs2 X'04210422');
 INSERT INTO t1 VALUES (_ucs2 X'0420', 10, _ucs2 X'042104220423');
-INSERT INTO t1 VALUES (_ucs2 X'0420042104220423042404250426042704280429042A042B',10,_ucs2 X'042104220423');
+INSERT IGNORE INTO t1 VALUES (_ucs2 X'0420042104220423042404250426042704280429042A042B',10,_ucs2 X'042104220423');
 INSERT INTO t1 VALUES (_utf32 X'010000', 10, _ucs2 X'0421');
 INSERT INTO t1 VALUES (_ucs2 X'0421', 10, _utf32 X'010000');
 SELECT a, pad, b, LPAD(a, pad, b), HEX(LPAD(a, pad, b)) FROM t1;
@@ -491,6 +491,7 @@ DROP TABLE t1;
 --echo #
 --echo # via ALTER
 --echo #
+SET sql_mode = '';
 CREATE TABLE t1 (s1 VARCHAR(50) CHARACTER SET ucs2);
 INSERT INTO t1 VALUES (0xDF84);
 ALTER TABLE t1 MODIFY column s1 VARCHAR(50) CHARACTER SET utf16le;
@@ -505,7 +506,7 @@ INSERT INTO t1 (s1) VALUES (0xdf84);
 UPDATE t1 set s2 = s1;
 SELECT HEX(s2) FROM t1;
 DROP TABLE t1;
-
+SET sql_mode = default;
 
 --echo #
 --echo # Testing cs->cset->lengthsp()
@@ -603,7 +604,7 @@ DROP TABLE t1;
 --echo #
 CREATE TABLE t1 (a int);
 INSERT INTO t1 VALUES ('-1234.1e2');
-INSERT INTO t1 VALUES ('-1234.1e2xxxx');
+INSERT IGNORE INTO t1 VALUES ('-1234.1e2xxxx');
 INSERT INTO t1 VALUES ('-1234.1e2    ');
 INSERT INTO t1 VALUES ('123');
 INSERT INTO t1 VALUES ('-124');
@@ -629,7 +630,7 @@ DROP TABLE t1;
 --echo #
 CREATE TABLE t1 (a int);
 INSERT INTO t1 VALUES ('1 ');
-INSERT INTO t1 VALUES ('1 x');
+INSERT IGNORE INTO t1 VALUES ('1 x');
 SELECT * FROM t1;
 DROP TABLE t1;
 
@@ -637,10 +638,11 @@ DROP TABLE t1;
 --echo #
 --echo # Testing auto-conversion to TEXT
 --echo #
+SET sql_mode = '';
 CREATE TABLE t1 (a VARCHAR(17000) CHARACTER SET utf16le);
 SHOW CREATE TABLE t1;
 DROP TABLE t1;
-
+SET sql_mode = default;
 
 --echo #
 --echo # Testing that maximim possible key length is 1000 bytes for MyISAM

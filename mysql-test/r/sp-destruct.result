@@ -1,6 +1,7 @@
 call mtr.add_suppression("Column count of mysql.proc is wrong. Expected 20, found 19. The table is probably corrupted");
 call mtr.add_suppression("Stored routine .test...bug14233_[123].: invalid value in column mysql.proc");
 use test;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 drop procedure if exists bug14233;
 drop function if exists bug14233;
 drop table if exists t1;
@@ -169,3 +170,4 @@ Error	1728	Cannot load from mysql.proc. The table is probably corrupted
 # Restore mysql.proc
 DROP TABLE mysql.proc;
 RENAME TABLE proc_backup TO mysql.proc;
+SET sql_mode = default;

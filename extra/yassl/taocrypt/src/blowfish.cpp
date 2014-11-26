@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2006, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -237,8 +237,8 @@ void Blowfish::ProcessAndXorBlock(const byte* in, const byte* xOr, byte* out)
         #define EPILOG()  \
             "pop ebp;" \
             "pop ebx;" \
-                   "emms;" \
-                   ".att_syntax;" \
+       	    "emms;" \
+       	    ".att_syntax;" \
                 : \
                 : "c" (this), "S" (inBlock), "a" (outBlock) \
                 : "%edi", "%edx", "memory", "cc" \
@@ -291,7 +291,7 @@ void Blowfish::ProcessAndXorBlock(const byte* in, const byte* xOr, byte* out)
 
 
 #ifdef _MSC_VER
-    __declspec(naked)
+    __declspec(naked) 
 #else
     __attribute__ ((noinline))
 #endif

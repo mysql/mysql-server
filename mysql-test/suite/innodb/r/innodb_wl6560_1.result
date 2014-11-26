@@ -1,7 +1,6 @@
 call mtr.add_suppression("Please add another temp-data file or use 'autoextend' for the last data file");
 call mtr.add_suppression("The table 't1' is full");
 set global innodb_file_per_table = off;
-DROP TABLE IF EXISTS t1;
 SELECT @@global.innodb_file_per_table;
 @@global.innodb_file_per_table
 0
@@ -131,11 +130,9 @@ UNLOCK TABLES;
 ibtmp1
 t4.ibd
 DROP TABLE t1,t2,t3,t4;
-DROP TABLE IF EXISTS t1,t2;
 SELECT @@global.innodb_file_per_table;
 @@global.innodb_file_per_table
 1
-USE test;
 CREATE TEMPORARY TABLE t1 (a INT AUTO_INCREMENT PRIMARY KEY, b FLOAT(5,3),
 c BLOB(100),d VARCHAR(100),e TEXT) ENGINE=InnoDB;
 CREATE TABLE t2 (a INT AUTO_INCREMENT PRIMARY KEY, b FLOAT(5,3),
@@ -165,6 +162,7 @@ a	b	RIGHT(c,10)	RIGHT(d,10)	RIGHT(e,10)
 6	11.111	a1a1a1a1a1	a1a1a1a1a1	a1a1a1a1a1
 # shutting down the server
 # list_file, no files expected - temp tablespace cleared on stopping server
+# restart
 CREATE TEMPORARY TABLE t1 (a INT AUTO_INCREMENT PRIMARY KEY, b FLOAT(5,3),
 c BLOB(100),d VARCHAR(100),e TEXT) ENGINE=InnoDB;
 INSERT INTO t1(b,c,d,e) VALUES (11.111,REPEAT('a1',50),REPEAT('a1',50),
@@ -181,12 +179,8 @@ SELECT a,b,RIGHT(c,10),RIGHT(d,10),RIGHT(e,10) FROM t1;
 a	b	RIGHT(c,10)	RIGHT(d,10)	RIGHT(e,10)
 6	11.111	a1a1a1a1a1	a1a1a1a1a1	a1a1a1a1a1
 DROP TABLE t1;
-# restart server
-USE test;
+# restart
 SHOW TABLES;
 Tables_in_test
 t2
-set global innodb_file_format = Antelope;
-set global innodb_file_per_table = 1;
-set global innodb_file_format = Antelope;
-set global innodb_file_per_table = 1;
+DROP TABLE t2;

@@ -1085,7 +1085,7 @@ my_convert(char *to, size_t to_length, const CHARSET_INFO *to_cs,
   @param[in]  cs   charset_info
   @param[in]  s    start of the char sequence
   @param[in]  e    end of the char sequence
-  @return     The length of the first code
+  @return     The length of the first code, or 0 for invalid code
 */
 uint
 my_mbcharlen_ptr(const CHARSET_INFO *cs, const char *s, const char *e)
@@ -1094,8 +1094,9 @@ my_mbcharlen_ptr(const CHARSET_INFO *cs, const char *s, const char *e)
   if (len == 0 && my_mbmaxlenlen(cs) == 2 && s + 1 < e)
   {
     len= my_mbcharlen_2(cs, (uchar) *s, (uchar) *(s + 1));
-    /* Must be gb18030 charset */
-    DBUG_ASSERT(len == 2 || len == 4);
+    /* It could be either a valid multi-byte GB18030 code, or invalid
+    gb18030 code if return value is 0 */
+    DBUG_ASSERT(len == 0 || len == 2 || len == 4);
   }
 
   return len;

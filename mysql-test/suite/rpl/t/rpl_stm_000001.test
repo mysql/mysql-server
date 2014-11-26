@@ -99,9 +99,12 @@ insert into t3 select get_lock('crash_lock%20C', 1) from t2;
 --enable_warnings
 
 connection master;
-send update t1 set n = n + get_lock('crash_lock%20C', 2);
+send update t1 set n = n + if(n > 50, 1, get_lock('crash_lock%20C', 100));
 connection master1;
-sleep 3;
+let $wait_condition=
+  select count(*) > 0 from information_schema.processlist
+  where state = "User lock" and info like "update t1%";
+--source include/wait_condition.inc
 select (@id := id) - id from t2;
 kill @id;
 drop table t2;
@@ -128,7 +131,7 @@ connection master1;
 drop table t1;
 create table t1 (n int);
 insert into t1 values(3456);
-insert into mysql.user (Host, User, Password)
+insert ignore into mysql.user (Host, User, Password)
  VALUES ("10.10.10.%", "blafasel2", password("blafasel2"));
 select select_priv,user from mysql.user where user = _binary'blafasel2';
 update mysql.user set Select_priv = "Y" where User= _binary"blafasel2";

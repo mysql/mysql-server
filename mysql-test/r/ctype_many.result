@@ -1,3 +1,4 @@
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 DROP TABLE IF EXISTS t1;
 SET CHARACTER SET latin1;
 CREATE TABLE t1 (
@@ -1787,3 +1788,4 @@ SELECT * FROM t2 WHERE a=(SELECT a FROM t1) AND a=_LATIN1'x';
 ERROR 21000: Subquery returns more than 1 row
 DROP TABLE t2;
 DROP TABLE t1;
+SET sql_mode = default;

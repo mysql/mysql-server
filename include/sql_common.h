@@ -151,9 +151,11 @@ typedef struct st_mysql_methods
     : (set_mysql_error(mysql, CR_COMMANDS_OUT_OF_SYNC, unknown_sqlstate), 1))
 
 extern CHARSET_INFO *default_client_charset_info;
-MYSQL_FIELD *unpack_fields(MYSQL *mysql, MYSQL_DATA *data,MEM_ROOT *alloc,
-                           uint fields, my_bool default_value, 
+MYSQL_FIELD *unpack_fields(MYSQL *mysql, MYSQL_ROWS *data,MEM_ROOT *alloc,
+                           uint fields, my_bool default_value,
                            uint server_capabilities);
+MYSQL_FIELD * cli_read_metadata(MYSQL *mysql, unsigned long field_count,
+                               unsigned int fields);
 void free_rows(MYSQL_DATA *cur);
 void free_old_query(MYSQL *mysql);
 void end_server(MYSQL *mysql);
@@ -165,7 +167,9 @@ cli_advanced_command(MYSQL *mysql, enum enum_server_command command,
 		     const unsigned char *header, size_t header_length,
 		     const unsigned char *arg, size_t arg_length,
                      my_bool skip_check, MYSQL_STMT *stmt);
-unsigned long cli_safe_read(MYSQL *mysql);
+unsigned long cli_safe_read(MYSQL *mysql, my_bool *is_data_packet);
+unsigned long cli_safe_read_with_ok(MYSQL *mysql, my_bool parse_ok,
+                                    my_bool *is_data_packet);
 void net_clear_error(NET *net);
 void set_stmt_errmsg(MYSQL_STMT *stmt, NET *net);
 void set_stmt_error(MYSQL_STMT *stmt, int errcode, const char *sqlstate,
@@ -181,10 +185,12 @@ int run_plugin_auth(MYSQL *mysql, char *data, uint data_len,
                     const char *data_plugin, const char *db);
 int mysql_client_plugin_init();
 void mysql_client_plugin_deinit();
+
 struct st_mysql_client_plugin;
 extern struct st_mysql_client_plugin *mysql_client_builtins[];
 uchar * send_client_connect_attrs(MYSQL *mysql, uchar *buf);
 extern my_bool libmysql_cleartext_plugin_enabled;
+void read_ok_ex(MYSQL *mysql, unsigned long len);
 
 #ifdef	__cplusplus
 }

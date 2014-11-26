@@ -9,25 +9,25 @@ drop table if exists t1, t2;
 --enable_warnings
 
 create table t1 (a date, b date, c date not null, d date);
-load data infile '../../std_data/loaddata1.dat' into table t1 fields terminated by ',';
+load data infile '../../std_data/loaddata1.dat' ignore into table t1 fields terminated by ',';
 load data infile '../../std_data/loaddata1.dat' into table t1 fields terminated by ',' IGNORE 2 LINES;
 SELECT * from t1;
 truncate table t1;
 
-load data infile '../../std_data/loaddata1.dat' into table t1 fields terminated by ',' LINES STARTING BY ',' (b,c,d);
+load data infile '../../std_data/loaddata1.dat' ignore into table t1 fields terminated by ',' LINES STARTING BY ',' (b,c,d);
 SELECT * from t1;
 drop table t1;
 
 create table t1 (a text, b text);
-load data infile '../../std_data/loaddata2.dat' into table t1 fields terminated by ',' enclosed by '''';
+load data infile '../../std_data/loaddata2.dat' ignore into table t1 fields terminated by ',' enclosed by '''';
 select concat('|',a,'|'), concat('|',b,'|') from t1;
 drop table t1;
 
 create table t1 (a int, b char(10));
-load data infile '../../std_data/loaddata3.dat' into table t1 fields terminated by '' enclosed by '' ignore 1 lines;
+load data infile '../../std_data/loaddata3.dat' ignore into table t1 fields terminated by '' enclosed by '' ignore 1 lines;
 select * from t1;
 truncate table t1;
-load data infile '../../std_data/loaddata4.dat' into table t1 fields terminated by '' enclosed by '' lines terminated by '' ignore 1 lines;
+load data infile '../../std_data/loaddata4.dat' ignore into table t1 fields terminated by '' enclosed by '' lines terminated by '' ignore 1 lines;
 
 # The empty line last comes from the end line field in the file
 select * from t1;
@@ -129,7 +129,7 @@ select * from t1;
 select @a, @b;
 truncate table t1;
 # Reading of all columns with set
-load data infile '../../std_data/rpl_loaddata.dat' into table t1 set c=b;
+load data infile '../../std_data/rpl_loaddata.dat' ignore into table t1 set c=b;
 select * from t1;
 truncate table t1;
 # now going to test fixed field-row file format
@@ -198,7 +198,7 @@ create table t2(f1 int);
 insert into t2 values(1),(2);
 disable_query_log;
 eval select * into outfile '$MYSQLTEST_VARDIR/tmp/t2' from t2;
-eval load data infile '$MYSQLTEST_VARDIR/tmp/t2' into table t1;
+eval load data infile '$MYSQLTEST_VARDIR/tmp/t2' ignore into table t1;
 enable_query_log;
 select f1 from t1 where f2 <> '0000-00-00 00:00:00' order by f1;
 remove_file $MYSQLTEST_VARDIR/tmp/t2;
@@ -207,7 +207,7 @@ disable_query_log;
 eval SELECT * INTO OUTFILE '$MYSQLTEST_VARDIR/tmp/t2'
 FIELDS TERMINATED BY '' OPTIONALLY ENCLOSED BY '' LINES TERMINATED BY '\r\n'
 FROM t2;
-eval load data infile '$MYSQLTEST_VARDIR/tmp/t2' into table t1
+eval load data infile '$MYSQLTEST_VARDIR/tmp/t2' ignore into table t1
 FIELDS TERMINATED BY '' OPTIONALLY ENCLOSED BY '' LINES TERMINATED BY '\r\n';
 enable_query_log;
 select f1 from t1 where f2 <> '0000-00-00 00:00:00' order by f1;

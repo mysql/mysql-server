@@ -3,10 +3,8 @@
 # InnoDB needs to support GEOMETRY datatypes,
 # so that InnoDB stores them properly and understands them.
 
-# Not supported in embedded
+# Restarting is not supported in embedded
 --source include/not_embedded.inc
-# Exclude valgrind, since it'll complain when restart.
---source include/not_valgrind.inc
 --source include/have_innodb.inc
 --source include/have_debug.inc
 
@@ -72,18 +70,10 @@ INSERT INTO t_wl6455 VALUES(10, POINT(10,10));
 COMMIT;
 
 INSERT INTO t_wl6455 VALUES(11, POINT(11,11));
-
-# Test crash and recover.
-# Request a crash, and restart the server.
-SET DEBUG='+d,crash_commit_before';
-# Write file to make mysql-test-run.pl restart the server
---exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---error 2013
+BEGIN;
 INSERT INTO t_wl6455 VALUES(1, POINT(1,1));
 
---enable_reconnect
---source include/wait_until_connected_again.inc
---disable_reconnect
+--source include/kill_and_restart_mysqld.inc
 
 CHECK TABLE t_wl6455;
 SELECT AsText(g) FROM t_wl6455;

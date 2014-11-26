@@ -4,7 +4,7 @@
 let $explicit_defaults_for_timestamp=1;
 
 --source type_timestamp.test
-
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 --echo #
 --echo # WL6292 - Test cases to test new behavior with 
 --echo #          --explicit_defaults_for_timestamp
@@ -68,3 +68,4 @@ SELECT * FROM t1;
 UPDATE t1 SET c1=NULL,c2=NULL,c3=NULL;
 SELECT * FROM t1;
 DROP TABLE t1;
+SET sql_mode = default;

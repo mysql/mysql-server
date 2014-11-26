@@ -17,7 +17,6 @@
 
 #include "log.h"
 #include "key.h"
-#include "sql_base.h"
 #include "sql_parse.h"
 #include "replication.h"
 #include "rpl_gtid_persist.h"
@@ -65,16 +64,15 @@ static void deinit_thd(THD *thd)
   thd->release_resources();
   thd->restore_globals();
   delete thd;
-  my_pthread_setspecific_ptr(THR_THD,  NULL);
+  my_pthread_set_THR_THD(NULL);
   DBUG_VOID_RETURN;
 }
 
 
 THD *Gtid_table_access_context::create_thd()
 {
-  THD *thd= NULL;
-  thd= new THD;
-  init_thd(&thd);
+  THD *thd= System_table_access::create_thd();
+  thd->system_thread= SYSTEM_THREAD_COMPRESS_GTID_TABLE;
   /*
     This is equivalent to a new "statement". For that reason, we call
     both lex_start() and mysql_reset_thd_for_next_command.
@@ -86,10 +84,18 @@ THD *Gtid_table_access_context::create_thd()
 }
 
 
-void Gtid_table_access_context::drop_thd(THD *thd)
+void Gtid_table_access_context::before_open(THD* thd)
 {
-  DBUG_ENTER("Gtid_table_access_context::drop_thd");
-  deinit_thd(thd);
+  DBUG_ENTER("Gtid_table_access_context::before_open");
+  /*
+    Allow to operate the gtid_executed table
+    while disconnecting the session.
+  */
+  m_flags= (MYSQL_OPEN_IGNORE_GLOBAL_READ_LOCK |
+            MYSQL_LOCK_IGNORE_GLOBAL_READ_ONLY |
+            MYSQL_OPEN_IGNORE_FLUSH |
+            MYSQL_LOCK_IGNORE_TIMEOUT |
+            MYSQL_OPEN_IGNORE_KILLED);
   DBUG_VOID_RETURN;
 }
 
@@ -107,7 +113,11 @@ bool Gtid_table_access_context::init(THD **thd, TABLE **table, bool is_write)
     m_tmp_disable_binlog__save_options= (*thd)->variables.option_bits;
     (*thd)->variables.option_bits&= ~OPTION_BIN_LOG;
   }
-  bool ret= this->open_table(*thd, m_is_write ? TL_WRITE : TL_READ, table);
+  (*thd)->is_operating_gtid_table= true;
+  bool ret= this->open_table(*thd, DB_NAME, TABLE_NAME,
+                             Gtid_table_persistor::number_fields,
+                             m_is_write ? TL_WRITE : TL_READ,
+                             table, &m_backup);
 
   DBUG_RETURN(ret);
 }
@@ -118,7 +128,8 @@ void Gtid_table_access_context::deinit(THD *thd, TABLE *table,
 {
   DBUG_ENTER("Gtid_table_access_context::deinit");
 
-  this->close_table(thd, table, 0 != error, need_commit);
+  this->close_table(thd, table, &m_backup, 0 != error, need_commit);
+  thd->is_operating_gtid_table= false;
   /* Reenable binlog */
   if (m_is_write)
     thd->variables.option_bits= m_tmp_disable_binlog__save_options;
@@ -126,130 +137,6 @@ void Gtid_table_access_context::deinit(THD *thd, TABLE *table,
     this->drop_thd(m_drop_thd_object);
 
   DBUG_VOID_RETURN;
-}
-
-
-void Gtid_table_access_context::close_table(THD *thd, TABLE *table,
-                                            bool error, bool need_commit)
-{
-  Query_tables_list query_tables_list_backup;
-
-  DBUG_ENTER("Gtid_table_access_context::close_table");
-
-  if (table)
-  {
-    if (error)
-      ha_rollback_trans(thd, false);
-    else
-    {
-      /*
-        To make the commit not to block with global read lock set
-        "ignore_global_read_lock" flag to true.
-      */
-      ha_commit_trans(thd, false, true);
-    }
-
-    if (need_commit)
-    {
-      if (error)
-        ha_rollback_trans(thd, true);
-      else
-      {
-        ha_commit_trans(thd, true, true);
-      }
-    }
-
-    /*
-      In order not to break execution of current statement we have to
-      backup/reset/restore Query_tables_list part of LEX, which is
-      accessed and updated in the process of closing tables.
-    */
-    thd->lex->reset_n_backup_query_tables_list(&query_tables_list_backup);
-    close_thread_tables(thd);
-    thd->lex->restore_backup_query_tables_list(&query_tables_list_backup);
-    thd->restore_backup_open_tables_state(&m_backup);
-  }
-  thd->is_operating_gtid_table= false;
-
-  DBUG_VOID_RETURN;
-}
-
-
-bool Gtid_table_access_context::open_table(THD *thd,
-                                           enum thr_lock_type lock_type,
-                                           TABLE **table)
-{
-  DBUG_ENTER("Gtid_table_access_context::open_table");
-
-  TABLE_LIST tables;
-  Query_tables_list query_tables_list_backup;
-
-  /*
-    Allow to operate the gtid_executed table
-    when disconnecting the session.
-  */
-  uint flags= (MYSQL_OPEN_IGNORE_GLOBAL_READ_LOCK |
-               MYSQL_LOCK_IGNORE_GLOBAL_READ_ONLY |
-               MYSQL_OPEN_IGNORE_FLUSH |
-               MYSQL_LOCK_IGNORE_TIMEOUT |
-               MYSQL_OPEN_IGNORE_KILLED);
-
-  /*
-    We need to use new Open_tables_state in order not to be affected
-    by LOCK TABLES/prelocked mode.
-    Also in order not to break execution of current statement we also
-    have to backup/reset/restore Query_tables_list part of LEX, which
-    is accessed and updated in the process of opening and locking
-    tables.
-  */
-  thd->lex->reset_n_backup_query_tables_list(&query_tables_list_backup);
-  thd->reset_n_backup_open_tables_state(&m_backup);
-
-  thd->is_operating_gtid_table= true;
-  tables.init_one_table(
-      DB_NAME.str, DB_NAME.length,
-      TABLE_NAME.str, TABLE_NAME.length,
-      TABLE_NAME.str, lock_type);
-
-  tables.open_strategy= TABLE_LIST::OPEN_IF_EXISTS;
-  /* Save value that is changed in mysql_lock_tables() */
-  ulonglong save_utime_after_lock= thd->utime_after_lock;
-  if (!open_n_lock_single_table(thd, &tables, tables.lock_type, flags))
-  {
-    close_thread_tables(thd);
-    thd->restore_backup_open_tables_state(&m_backup);
-    thd->lex->restore_backup_query_tables_list(&query_tables_list_backup);
-    thd->utime_after_lock= save_utime_after_lock;
-    sql_print_warning("Gtid table is not ready to be used. Table "
-                      "'%s.%s' cannot be opened.", DB_NAME.str,
-                      TABLE_NAME.str);
-    DBUG_RETURN(true);
-  }
-  thd->utime_after_lock= save_utime_after_lock;
-
-  DBUG_ASSERT(tables.table->s->table_category == TABLE_CATEGORY_GTID);
-
-  if (tables.table->s->fields < Gtid_table_persistor::number_fields)
-  {
-    /*
-      Safety: this can only happen if someone started the server and then
-      altered the table.
-    */
-    ha_rollback_trans(thd, false);
-    close_thread_tables(thd);
-    thd->restore_backup_open_tables_state(&m_backup);
-    thd->lex->restore_backup_query_tables_list(&query_tables_list_backup);
-    my_error(ER_COL_COUNT_DOESNT_MATCH_CORRUPTED_V2, MYF(0),
-             tables.table->s->db.str, tables.table->s->table_name.str,
-             Gtid_table_persistor::number_fields, tables.table->s->fields);
-    DBUG_RETURN(true);
-  }
-
-  thd->lex->restore_backup_query_tables_list(&query_tables_list_backup);
-
-  *table= tables.table;
-  tables.table->use_all_columns();
-  DBUG_RETURN(false);
 }
 
 
@@ -847,7 +734,7 @@ int Gtid_table_persistor::delete_all(TABLE *table)
 pthread_handler_t compress_gtid_table(void *p_thd)
 {
   THD *thd=(THD*) p_thd;
-  mysql_thread_set_psi_id(thd->thread_id);
+  mysql_thread_set_psi_id(thd->thread_id());
   my_thread_init();
   DBUG_ENTER("compress_gtid_table");
   init_thd(&thd);
@@ -907,14 +794,16 @@ void create_compress_gtid_table_thread()
                     "it is failed to allocate the THD.");
     return;
   }
-  thd->thread_id=
-    thd->variables.pseudo_thread_id= (unsigned long) pthread_self();
+
+  thd->set_new_thread_id();
+
   THD_CHECK_SENTRY(thd);
 
   if (pthread_attr_init(&attr))
   {
     sql_print_error("Failed to initialize thread attribute "
                     "when creating compression thread.");
+    delete thd;
     return;
   }
 
@@ -925,8 +814,12 @@ void create_compress_gtid_table_thread()
       (error= mysql_thread_create(key_thread_compress_gtid_table,
                                   &compress_thread_id, &attr,
                                   compress_gtid_table, (void*) thd)))
+  {
     sql_print_error("Can not create thread to compress gtid_executed table "
                     "(errno= %d)", error);
+    /* Delete the created THD after failed to create a compression thread. */
+    delete thd;
+  }
 
   (void) pthread_attr_destroy(&attr);
 }

@@ -11,14 +11,14 @@
 drop table if exists t1;
 --enable_warnings
 
-create table t1 (t datetime);
-insert into t1 values (101),(691231),(700101),(991231),(10000101),(99991231),(101000000),(691231000000),(700101000000),(991231235959),(10000101000000),(99991231235959),(20030100000000),(20030000000000);
+create table t1 (t datetime) ENGINE=InnoDB;
+insert ignore into t1 values (101),(691231),(700101),(991231),(10000101),(99991231),(101000000),(691231000000),(700101000000),(991231235959),(10000101000000),(99991231235959),(20030100000000),(20030000000000);
 select * from t1;
 delete from t1 where t > 0;
 optimize table t1;
 check table t1;
 delete from t1;
-insert into t1 values("000101"),("691231"),("700101"),("991231"),("00000101"),("00010101"),("99991231"),("00101000000"),("691231000000"),("700101000000"),("991231235959"),("10000101000000"),("99991231235959"),("20030100000000"),("20030000000000");
+insert ignore into t1 values("000101"),("691231"),("700101"),("991231"),("00000101"),("00010101"),("99991231"),("00101000000"),("691231000000"),("700101000000"),("991231235959"),("10000101000000"),("99991231235959"),("20030100000000"),("20030000000000");
 
 # Strange dates
 insert into t1 values ("2003-003-03");
@@ -29,25 +29,25 @@ select * from t1;
 
 # Test some wrong dates
 truncate table t1;
-insert into t1 values("2003-0303 12:13:14");
+insert ignore into t1 values("2003-0303 12:13:14");
 select * from t1;
 drop table t1;
 
 #
 # Test insert of now() and curtime()
 #
-
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 CREATE TABLE t1 (a timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, b date, c time, d datetime);
 insert into t1 (b,c,d) values(now(),curtime(),now());
 select date_format(a,"%Y-%m-%d")=b,right(a+0,6)=c+0,a=d+0 from t1;
 drop table t1;
-
+SET sql_mode = default;
 #
 # Test of datetime and not null
 #
 
 CREATE TABLE t1 (a datetime not null);
-insert into t1 values (0);
+insert ignore into t1 values (0);
 select * from t1 where a is null;
 drop table t1;
 
@@ -66,7 +66,7 @@ drop table t1;
 #
 # Test of datetime optimization
 #
-
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 CREATE TABLE `t1` (
   `date` datetime NOT NULL default '0000-00-00 00:00:00',
   `numfacture` int(6) unsigned NOT NULL default '0',
@@ -117,7 +117,7 @@ insert into t1 values ("12-00-00"), ("00-00-00 01:00:00");
 insert into t1 values ("00-00-00"), ("00-00-00 00:00:00");
 select * from t1;
 drop table t1;
-
+SET sql_mode = default;
 #
 # Bug #16546 DATETIME+0 not always coerced the same way 
 #
@@ -461,8 +461,8 @@ SELECT CAST(CAST('2008-07-29T10:42:51.1234567' AS DateTime) AS DECIMAL(30,7));
 --echo # Day is ZERO 
 --echo # 
 CREATE TABLE t1 (dt1 DATETIME);
-INSERT INTO t1 (dt1) VALUES ('0000-00-01 00:00:01');
-DELETE   FROM t1 WHERE dt1 = '0000-00-01 00:00:01';
+INSERT IGNORE INTO t1 (dt1) VALUES ('0000-00-01 00:00:01');
+DELETE IGNORE  FROM t1 WHERE dt1 = '0000-00-01 00:00:01';
 --echo # Should be empty
 SELECT * FROM t1;
 DROP TABLE t1;
@@ -522,10 +522,10 @@ DROP TABLE t1;
 --echo #
 
 CREATE TABLE t1 (a DATE NOT NULL, b INT);
-INSERT INTO t1 VALUES ('0000-00-00',1), ('1999-05-10',2);
+INSERT IGNORE INTO t1 VALUES ('0000-00-00',1), ('1999-05-10',2);
 
 CREATE TABLE t2 (a DATETIME NOT NULL, b INT);
-INSERT INTO t2 VALUES ('0000-00-00 00:00:00',1), ('1999-05-10 00:00:00',2);
+INSERT IGNORE INTO t2 VALUES ('0000-00-00 00:00:00',1), ('1999-05-10 00:00:00',2);
 
 --echo
 SELECT * FROM t1 WHERE a IS NULL;

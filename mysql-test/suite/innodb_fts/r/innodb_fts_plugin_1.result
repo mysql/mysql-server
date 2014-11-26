@@ -277,6 +277,7 @@ CREATE FULLTEXT INDEX idx on t1 (a,b) WITH PARSER simple_parser;
 INSERT INTO t1 (a,b) VALUES
 ('adding record using session 1','for verifying multiple concurrent transactions'),
 ('Мога да ям стъкло', 'то Mне ми вреди'),(NULL,NULL);
+# restart:--innodb_ft_min_token_size=5 --innodb_ft_max_token_size=10
 SELECT @@innodb_ft_min_token_size,@@innodb_ft_max_token_size;
 @@innodb_ft_min_token_size	@@innodb_ft_max_token_size
 5	10

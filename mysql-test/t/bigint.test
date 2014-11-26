@@ -8,7 +8,7 @@
 --disable_warnings
 drop table if exists t1, t2;
 --enable_warnings
-
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 #
 # Test of reading of bigint values
 #
@@ -458,3 +458,4 @@ SELECT (184467440737095 BETWEEN 0 AND 18446744073709551500);
 
 SELECT 184467440737095 >= 0;
 SELECT 0 <= 18446744073709551500;
+SET sql_mode = default;

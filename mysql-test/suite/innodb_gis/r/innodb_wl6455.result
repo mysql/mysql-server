@@ -51,9 +51,9 @@ AsText(g)
 INSERT INTO t_wl6455 VALUES(10, POINT(10,10));
 COMMIT;
 INSERT INTO t_wl6455 VALUES(11, POINT(11,11));
-SET DEBUG='+d,crash_commit_before';
+BEGIN;
 INSERT INTO t_wl6455 VALUES(1, POINT(1,1));
-ERROR HY000: Lost connection to MySQL server during query
+# Kill and restart
 CHECK TABLE t_wl6455;
 Table	Op	Msg_type	Msg_text
 test.t_wl6455	check	status	OK
@@ -69,6 +69,7 @@ POLYGON((0 0,0 3,3 0,0 0),(1 1,1 2,2 1,1 1))
 MULTIPOLYGON(((0 0,0 3,3 3,3 0,0 0),(1 1,1 2,2 2,2 1,1 1)))
 GEOMETRYCOLLECTION(POINT(1 1),LINESTRING(2 2,3 3))
 POINT(10 10)
+POINT(11 11)
 SELECT sc.name, sc.pos, sc.mtype
 FROM information_schema.innodb_sys_columns sc
 INNER JOIN information_schema.innodb_sys_tables st

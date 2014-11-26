@@ -22,7 +22,7 @@
 
 struct st_thd_timer_info
 {
-  ulong thread_id;
+  my_thread_id thread_id;
   my_timer_t timer;
   mysql_mutex_t mutex;
   bool destroy;
@@ -152,7 +152,7 @@ thd_timer_set(THD *thd, THD_timer_info *thd_timer, unsigned long time)
   DBUG_ASSERT(!thd_timer->destroy && !thd_timer->thread_id);
 
   /* Mark the notification as pending. */
-  thd_timer->thread_id= thd->thread_id;
+  thd_timer->thread_id= thd->thread_id();
 
   /* Arm the timer. */
   if (DBUG_EVALUATE_IF("thd_timer_set_failure", 0, 1) &&

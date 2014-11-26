@@ -3,10 +3,9 @@ SELECT @global_start_value;
 @global_start_value
 1
 '#--------------------FN_DYNVARS_143_01------------------------#'
-SET @@global.secure_auth = 0;
-Warnings:
-Warning	1287	'pre-4.1 password hash' is deprecated and will be removed in a future release. Please use post-4.1 password hash instead
 SET @@global.secure_auth = DEFAULT;
+Warnings:
+Warning	1681	'--secure-auth' is deprecated and will be removed in a future release.
 SELECT @@global.secure_auth;
 @@global.secure_auth
 1
@@ -19,17 +18,20 @@ SELECT @@secure_auth;
 SELECT global.secure_auth;
 ERROR 42S02: Unknown table 'global' in field list
 SET global secure_auth = 1;
+Warnings:
+Warning	1681	'--secure-auth' is deprecated and will be removed in a future release.
 SELECT @@global.secure_auth;
 @@global.secure_auth
 1
 '#--------------------FN_DYNVARS_143_03------------------------#'
 SET @@global.secure_auth = 0;
-Warnings:
-Warning	1287	'pre-4.1 password hash' is deprecated and will be removed in a future release. Please use post-4.1 password hash instead
+ERROR 42000: Variable 'secure_auth' can't be set to the value of '0'
 SELECT @@global.secure_auth;
 @@global.secure_auth
-0
+1
 SET @@global.secure_auth = 1;
+Warnings:
+Warning	1681	'--secure-auth' is deprecated and will be removed in a future release.
 SELECT @@global.secure_auth;
 @@global.secure_auth
 1
@@ -55,11 +57,11 @@ ERROR 42000: Variable 'secure_auth' can't be set to the value of ' 1'
 SET @@global.secure_auth = NO;
 ERROR 42000: Variable 'secure_auth' can't be set to the value of 'NO'
 '#-------------------FN_DYNVARS_143_05----------------------------#'
-SET @@session.secure_auth = 0;
+SET @@session.secure_auth = 1;
 ERROR HY000: Variable 'secure_auth' is a GLOBAL variable and should be set with SET GLOBAL
-SET @@secure_auth = 0;
+SET @@secure_auth = 1;
 ERROR HY000: Variable 'secure_auth' is a GLOBAL variable and should be set with SET GLOBAL
-SET @@local.secure_auth = 0;
+SET @@local.secure_auth = 1;
 ERROR HY000: Variable 'secure_auth' is a GLOBAL variable and should be set with SET GLOBAL
 SELECT @@session.secure_auth;
 ERROR HY000: Variable 'secure_auth' is a GLOBAL variable
@@ -87,27 +89,31 @@ VARIABLE_VALUE
 ON
 '#---------------------FN_DYNVARS_143_08-------------------------#'
 SET @@global.secure_auth = OFF;
-Warnings:
-Warning	1287	'pre-4.1 password hash' is deprecated and will be removed in a future release. Please use post-4.1 password hash instead
+ERROR 42000: Variable 'secure_auth' can't be set to the value of 'OFF'
 SELECT @@global.secure_auth;
 @@global.secure_auth
-0
+1
 SET @@global.secure_auth = ON;
+Warnings:
+Warning	1681	'--secure-auth' is deprecated and will be removed in a future release.
 SELECT @@global.secure_auth;
 @@global.secure_auth
 1
 '#---------------------FN_DYNVARS_143_09----------------------#'
 SET @@global.secure_auth = TRUE;
+Warnings:
+Warning	1681	'--secure-auth' is deprecated and will be removed in a future release.
 SELECT @@global.secure_auth;
 @@global.secure_auth
 1
 SET @@global.secure_auth = FALSE;
-Warnings:
-Warning	1287	'pre-4.1 password hash' is deprecated and will be removed in a future release. Please use post-4.1 password hash instead
+ERROR 42000: Variable 'secure_auth' can't be set to the value of '0'
 SELECT @@global.secure_auth;
 @@global.secure_auth
-0
+1
 SET @@global.secure_auth = @global_start_value;
+Warnings:
+Warning	1681	'--secure-auth' is deprecated and will be removed in a future release.
 SELECT @@global.secure_auth;
 @@global.secure_auth
 1

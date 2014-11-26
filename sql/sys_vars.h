@@ -29,6 +29,7 @@
 #include <my_dir.h>
 #include "keycaches.h"
 #include "strfunc.h"
+#include "sql_plugin.h"                         // SHOW_HA_ROWS etc.
 #include "tztime.h"     // my_tz_find, my_tz_SYSTEM, struct Time_zone
 #include "rpl_gtid.h"
 #include <ctype.h>

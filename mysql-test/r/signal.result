@@ -1116,6 +1116,7 @@ end $$
 call test_signal() $$
 ERROR 42000: Variable 'MYSQL_ERRNO' can't be set to the value of '999999999999999999999999999999999999999999999999999'
 drop procedure test_signal $$
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 create procedure test_signal()
 begin
 DECLARE aaax VARCHAR(65);
@@ -1175,6 +1176,8 @@ Warning	1647	Data truncated for condition item 'CURSOR_NAME'
 Warning	1647	Data truncated for condition item 'MESSAGE_TEXT'
 Warning	10000	11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111112222222222222222222288888888
 drop procedure test_signal $$
+SET sql_mode = default;
+# Test that HANDLER can catch conditions raised by SIGNAL
 create procedure test_signal()
 begin
 DECLARE warn CONDITION FOR SQLSTATE "01234";
@@ -1488,6 +1491,7 @@ before RESIGNAL
 before RESIGNAL
 ERROR 55555: Raising an error
 drop procedure test_resignal $$
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 create procedure test_resignal()
 begin
 DECLARE CONTINUE HANDLER for sqlwarning
@@ -1503,6 +1507,7 @@ handler called
 Warnings:
 Warning	1264	Out of range value for column 'a' at row 1
 drop procedure test_resignal $$
+SET sql_mode = default;
 create procedure test_resignal()
 begin
 DECLARE x integer;
@@ -1597,6 +1602,7 @@ before RESIGNAL
 before RESIGNAL
 ERROR 33333: RESIGNAL of an error
 drop procedure test_resignal $$
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 create procedure test_resignal()
 begin
 DECLARE CONTINUE HANDLER for sqlwarning
@@ -1614,6 +1620,7 @@ handler called
 Warnings:
 Warning	5555	RESIGNAL of a warning
 drop procedure test_resignal $$
+SET sql_mode = default;
 create procedure test_resignal()
 begin
 DECLARE x integer;
@@ -1859,6 +1866,7 @@ Level	Code	Message
 Error	1012	Raising an error
 Error	5555	RESIGNAL to error
 drop procedure test_resignal $$
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 create procedure test_resignal()
 begin
 DECLARE CONTINUE HANDLER for sqlwarning
@@ -1919,6 +1927,10 @@ Level	Code	Message
 Warning	1264	Out of range value for column 'a' at row 1
 Error	5555	RESIGNAL to an error
 drop procedure test_resignal $$
+SET sql_mode = default;
+# 3 tests:
+# {not found}
+# --> RESIGNAL SQLSTATE {warning, not found, error} SET ...
 create procedure test_resignal()
 begin
 DECLARE x integer;
@@ -2339,6 +2351,7 @@ drop procedure test_signal $$
 #
 # Double RESIGNAL of warning
 #
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 CREATE PROCEDURE p1()
 BEGIN
 DECLARE CONTINUE HANDLER FOR SQLWARNING
@@ -2715,3 +2728,4 @@ DROP PROCEDURE p9;
 DROP PROCEDURE p10;
 DROP PROCEDURE p11;
 DROP PROCEDURE p12;
+SET sql_mode = default;

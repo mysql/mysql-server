@@ -20,6 +20,7 @@
 #include <stddef.h>
 
 #include "bounded_queue.h"
+#include "fake_costmodel.h"
 #include "filesort_utils.h"
 #include "my_sys.h"
 #include "opt_costmodel.h"
@@ -259,6 +260,30 @@ TEST_F(BoundedQueueTest, PushAndPopKeepSmallest)
 }
 
 
+static void my_string_ptr_sort(uchar *base, uint items, size_t size)
+{
+#if INT_MAX > 65536L
+  uchar **ptr=0;
+
+  if (radixsort_is_appliccable(items, size) &&
+      (ptr= (uchar**) my_malloc(PSI_NOT_INSTRUMENTED,
+                                items*sizeof(char*),MYF(0))))
+  {
+    radixsort_for_str_ptr((uchar**) base,items,size,ptr);
+    my_free(ptr);
+  }
+  else
+#endif
+  {
+    if (size && items)
+    {
+      my_qsort2(base,items, sizeof(uchar*), get_ptr_compare(size),
+                (void*) &size);
+    }
+  }
+}
+
+
 /*
   Verifies that push, with bounded size, followed by sort() works.
  */
@@ -292,11 +317,8 @@ TEST(CostEstimationTest, MergeManyBuff)
   ulong row_lenght= 100;
   double prev_cost= 0.0;
 
-  // Set up the optimizer cost model
-  Cost_model_server cost_model_server;
-  cost_model_server.init();
-  Cost_model_table cost_model_table;
-  cost_model_table.init(&cost_model_server);
+  // Make a cost model object that the merge code will use
+  Fake_Cost_model_table cost_model_table;
 
   while (num_rows <= MAX_FILE_SIZE/4)
   {

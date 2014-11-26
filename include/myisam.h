@@ -18,22 +18,19 @@
 
 #ifndef _myisam_h
 #define _myisam_h
+
+#include "my_base.h"
+#include "m_ctype.h"
+#include "keycache.h"
+#include "my_compare.h"
+#include "mysql/plugin.h"
+#include "my_check_opt.h"
+#include "m_string.h"
+
 #ifdef	__cplusplus
 extern "C" {
 #endif
 
-#ifndef _my_base_h
-#include <my_base.h>
-#endif
-#ifndef _m_ctype_h
-#include <m_ctype.h>
-#endif
-#ifndef _keycache_h
-#include "keycache.h"
-#endif
-#include "my_compare.h"
-#include <mysql/plugin.h>
-#include <my_check_opt.h>
 /*
   Limit max keys according to HA_MAX_POSSIBLE_KEY
 */

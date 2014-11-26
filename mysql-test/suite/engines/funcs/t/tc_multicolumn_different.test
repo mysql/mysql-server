@@ -2,6 +2,7 @@
 --source include/no_valgrind_without_big.inc
 #Considering the time taken for this test on slow solaris platforms making it a big test
 --source include/big_test.inc
+SET sql_mode='NO_ENGINE_SUBSTITUTION';
 
 --disable_warnings
 DROP TABLE IF EXISTS m3;
@@ -9606,4 +9607,4 @@ SHOW TABLES;
 let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE m3; DROP TABLE m3; SHOW TABLES;
-
+SET sql_mode=default;

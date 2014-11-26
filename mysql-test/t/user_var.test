@@ -211,11 +211,13 @@ drop table bigfailure;
 #
 create table t1(f1 int, f2 int);
 insert into t1 values (1,2),(2,3),(3,1);
+--source include/turn_off_only_full_group_by.inc
 select @var:=f2 from t1 group by f1 order by f2 desc limit 1;
 select @var;
 create table t2 as select @var:=f2 from t1 group by f1 order by f2 desc limit 1;
 select * from t2;
 select @var;
+--source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
 drop table t1,t2;
 
 #
@@ -311,11 +313,13 @@ INSERT INTO t2 VALUES(10, 10, 10);
 INSERT INTO t2 VALUES(10, 10, 10);
 INSERT INTO t3 VALUES(10, 10);
 INSERT INTO t3 VALUES(10, 10);
+--source include/turn_off_only_full_group_by.inc
 
 SELECT MIN(t2.f1),
 @bar:= (SELECT MIN(t3.f2) FROM t3 WHERE t3.f2 > foo)
 FROM t1,t2 WHERE t1.f1 = t2.f1 ORDER BY t2.f1;
 
+--source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
 DROP TABLE t1, t2, t3;
 
 --echo End of 5.0 tests
@@ -446,9 +450,11 @@ INSERT INTO t1 VALUES (1,2),(2,3),(3,1);
 CREATE TABLE t2(a INT);
 INSERT INTO t2 VALUES (1);
 SET @var=NULL;
+--source include/turn_off_only_full_group_by.inc
 SELECT @var:=(SELECT f2 FROM t2 WHERE @var) FROM t1 GROUP BY f1 ORDER BY f2 DESC
 LIMIT 1;
 SELECT @var;
+--source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
 DROP TABLE t1, t2;
 
 #
@@ -478,3 +484,30 @@ eval explain format=json $query;
 eval $query;
 
 DROP TABLE t1, t2, t3;
+
+#
+# Starting with MySQL 5.7:
+# Enforcing max length on variable names
+#
+
+# Length 64 is ok.
+set    @X234567890123456789012345678901234567890123456789012345678901234 = 12;
+select @X234567890123456789012345678901234567890123456789012345678901234;
+
+# Length 65 is illegal
+-- error ER_ILLEGAL_USER_VAR
+set    @X2345678901234567890123456789012345678901234567890123456789012345 = 12;
+
+# Length 0 is illegal
+-- error ER_ILLEGAL_USER_VAR
+set @``= "illegal";
+
+# trailing spaces are illegal
+-- error ER_ILLEGAL_USER_VAR
+set @`endswithspace `= "illegal";
+
+# No error reported, illegal identifier treated as non existent
+select @X2345678901234567890123456789012345678901234567890123456789012345;
+select @``;
+select @`endswithspace `;
+

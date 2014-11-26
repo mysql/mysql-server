@@ -7,7 +7,7 @@ create table table_11789106(`a` point,`b` int,`c` char(2),
 			   primary key (`a`(1),`c`(1)), key (`b`))
 character set latin2 engine=innodb;
 
-insert into table_11789106 values (geomfromtext('point(1 1)'),'','');
+insert ignore into table_11789106 values (geomfromtext('point(1 1)'),'','');
 
 # This will trigger the assertion failure in
 # row_sel_field_store_in_mysql_format_func()

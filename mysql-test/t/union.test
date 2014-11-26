@@ -594,6 +594,7 @@ drop table t1;
 #
 # parser stack overflow
 #
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 CREATE TABLE t1 ( ID1 int(10) unsigned NOT NULL DEFAULT '0' , ID2 datetime NOT NULL DEFAULT '0000-00-00 00:00:00' , DATA1 varchar(10) , DATA2 double(5,4) , DATA3 datetime , PRIMARY KEY (ID1,ID2));
 
 CREATE TABLE t2 ( ID int(3) unsigned NOT NULL DEFAULT '0' , DATA1 timestamp DEFAULT '0000-00-00 00:00:00' , PRIMARY KEY (ID));
@@ -622,7 +623,7 @@ PARTITIONED_B WHERE PARTITIONED_B.ID=PARTITIONED.ID1) UNION
 (SELECT * FROM t1 AS PARTITIONED, t2 AS
 PARTITIONED_B WHERE PARTITIONED_B.ID=PARTITIONED.ID1);
 drop table t1,t2;
-
+SET sql_mode = default;
 #
 # merging ENUM and SET fields in one UNION
 #
@@ -896,10 +897,12 @@ drop table t1;
 #
 # Bug#12185: Data type aggregation may produce wrong result
 #
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 create table t1(f1 char(1), f2 char(5), f3 binary(1), f4 binary(5), f5 timestamp NOT NULL DEFAULT '0000-00-00 00:00:00', f6 varchar(1) character set utf8 collate utf8_general_ci, f7 text);
 create table t2 as select *, f6 as f8 from t1 union select *, f7 from t1;
 show create table t2;
 drop table t1, t2;
+SET sql_mode = default;
 
 #
 # Bug#18175: Union select over 129 tables with a sum function fails.
@@ -1330,10 +1333,12 @@ CREATE TABLE t1 (a INT PRIMARY KEY);
 CREATE TABLE t2 (a INT PRIMARY KEY);
 INSERT INTO t2 VALUES (1);
 
+--source include/turn_off_only_full_group_by.inc
 SELECT a, SUM(a) FROM t2 UNION ALL SELECT a, MIN(a) FROM t1 ;
 
 SELECT FOUND_ROWS();
 
+--source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
 DROP TABLE t1, t2;
 
 --echo # Bug #17669551 CRASH/ASSERT AT SELECT_CREATE::PREPARE2 AT

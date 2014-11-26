@@ -81,7 +81,7 @@ CREATE TABLE t1 (a VARCHAR(10), pad INT, b VARCHAR(10)) CHARACTER SET utf16le;
 INSERT INTO t1 VALUES (_ucs2 X'0420', 10, _ucs2 X'0421');
 INSERT INTO t1 VALUES (_ucs2 X'0420', 10, _ucs2 X'04210422');
 INSERT INTO t1 VALUES (_ucs2 X'0420', 10, _ucs2 X'042104220423');
-INSERT INTO t1 VALUES (_ucs2 X'0420042104220423042404250426042704280429042A042B',10,_ucs2 X'042104220423');
+INSERT IGNORE INTO t1 VALUES (_ucs2 X'0420042104220423042404250426042704280429042A042B',10,_ucs2 X'042104220423');
 Warnings:
 Warning	1265	Data truncated for column 'a' at row 1
 INSERT INTO t1 VALUES (_utf32 X'010000', 10, _ucs2 X'0421');
@@ -101,8 +101,8 @@ RPAD(_utf16le X'2004',10,_utf16le X'2104') r;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `l` varchar(10) CHARACTER SET utf16le NOT NULL DEFAULT '',
-  `r` varchar(10) CHARACTER SET utf16le NOT NULL DEFAULT ''
+  `l` varchar(10) CHARACTER SET utf16le DEFAULT NULL,
+  `r` varchar(10) CHARACTER SET utf16le DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 SELECT HEX(l), HEX(r) FROM t1;
 HEX(l)	HEX(r)
@@ -675,7 +675,7 @@ CREATE TABLE t1 AS SELECT REPEAT('a',1) AS a LIMIT 0;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` varchar(1) CHARACTER SET utf16le COLLATE utf16le_bin NOT NULL DEFAULT ''
+  `a` varchar(1) CHARACTER SET utf16le COLLATE utf16le_bin DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 INSERT INTO t1 VALUES (_utf8mb4 0xEFBE9D),(_utf8mb4 0xF0908E84);
 INSERT INTO t1 VALUES (_utf8mb4 0xCE85),(_utf8mb4 0xF4808080);
@@ -999,6 +999,7 @@ DROP TABLE t1;
 #
 # via ALTER
 #
+SET sql_mode = '';
 CREATE TABLE t1 (s1 VARCHAR(50) CHARACTER SET ucs2);
 INSERT INTO t1 VALUES (0xDF84);
 ALTER TABLE t1 MODIFY column s1 VARCHAR(50) CHARACTER SET utf16le;
@@ -1020,6 +1021,7 @@ SELECT HEX(s2) FROM t1;
 HEX(s2)
 3F00
 DROP TABLE t1;
+SET sql_mode = default;
 #
 # Testing cs->cset->lengthsp()
 #
@@ -1174,7 +1176,7 @@ DROP TABLE t1;
 #
 CREATE TABLE t1 (a int);
 INSERT INTO t1 VALUES ('-1234.1e2');
-INSERT INTO t1 VALUES ('-1234.1e2xxxx');
+INSERT IGNORE INTO t1 VALUES ('-1234.1e2xxxx');
 Warnings:
 Warning	1265	Data truncated for column 'a' at row 1
 INSERT INTO t1 VALUES ('-1234.1e2    ');
@@ -1224,7 +1226,7 @@ DROP TABLE t1;
 #
 CREATE TABLE t1 (a int);
 INSERT INTO t1 VALUES ('1 ');
-INSERT INTO t1 VALUES ('1 x');
+INSERT IGNORE INTO t1 VALUES ('1 x');
 Warnings:
 Warning	1265	Data truncated for column 'a' at row 1
 SELECT * FROM t1;
@@ -1235,6 +1237,7 @@ DROP TABLE t1;
 #
 # Testing auto-conversion to TEXT
 #
+SET sql_mode = '';
 CREATE TABLE t1 (a VARCHAR(17000) CHARACTER SET utf16le);
 Warnings:
 Note	1246	Converting column 'a' from VARCHAR to TEXT
@@ -1244,6 +1247,7 @@ t1	CREATE TABLE `t1` (
   `a` mediumtext CHARACTER SET utf16le
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 DROP TABLE t1;
+SET sql_mode = default;
 #
 # Testing that maximim possible key length is 1000 bytes for MyISAM
 #
@@ -1357,7 +1361,7 @@ CREATE TABLE t1 AS SELECT REPEAT('a',2) as s1 LIMIT 0;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `s1` varchar(2) CHARACTER SET utf16le NOT NULL DEFAULT ''
+  `s1` varchar(2) CHARACTER SET utf16le DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 INSERT INTO t1 VALUES ('ab'),('AE'),('ab'),('AE');
 SELECT * FROM t1 ORDER BY s1;
@@ -1429,7 +1433,7 @@ ALTER TABLE t1 ADD PRIMARY KEY(c);
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c` varchar(10) CHARACTER SET utf16le COLLATE utf16le_bin NOT NULL DEFAULT '',
+  `c` varchar(10) CHARACTER SET utf16le COLLATE utf16le_bin NOT NULL,
   PRIMARY KEY (`c`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 INSERT INTO t1 VALUES ('abc'),('zyx'),('acb');

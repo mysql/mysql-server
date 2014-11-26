@@ -647,7 +647,7 @@ public:
     a callback or engine_data that would work for a generic engine.
   */
   virtual my_bool register_query_cache_table(THD *thd, char *table_key,
-                                             uint key_length,
+                                             size_t key_length,
                                              qc_engine_callback
                                                *engine_callback,
                                              ulonglong *engine_data)
@@ -727,7 +727,7 @@ public:
     underlying handlers must have the same implementation for it to work.
   */
   virtual uint8 table_cache_type();
-  virtual ha_rows records();
+  virtual int records(ha_rows *num_rows);
 
   /* Calculate hash value for PARTITION BY KEY tables. */
   uint32 calculate_key_hash_value(Field **field_array);

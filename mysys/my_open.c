@@ -43,10 +43,8 @@ File my_open(const char *FileName, int Flags, myf MyFlags)
 		   FileName, Flags, MyFlags));
 #if defined(_WIN32)
   fd= my_win_open(FileName, Flags);
-#elif !defined(NO_OPEN_3)
-  fd = open(FileName, Flags, my_umask);	/* Normal unix */
 #else
-  fd = open((char *) FileName, Flags);
+  fd = open(FileName, Flags, my_umask);	/* Normal unix */
 #endif
 
   fd= my_register_filename(fd, FileName, FILE_BY_OPEN, EE_FILENOTFOUND, MyFlags);

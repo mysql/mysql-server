@@ -53,10 +53,8 @@ int mi_delete_all_rows(MI_INFO *info)
     since it was locked then there may be key blocks in the key cache
   */
   flush_key_blocks(share->key_cache, share->kfile, FLUSH_IGNORE_CHANGED);
-#ifdef HAVE_MMAP
   if (share->file_map)
     mi_munmap_file(info);
-#endif
   if (mysql_file_chsize(info->dfile, 0, 0, MYF(MY_WME)) ||
       mysql_file_chsize(share->kfile, share->base.keystart, 0, MYF(MY_WME)))
     goto err;

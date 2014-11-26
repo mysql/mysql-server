@@ -84,7 +84,6 @@ int mi_close(MI_INFO *info)
       if (mysql_file_close(share->kfile, MYF(0)))
         error = my_errno;
     }
-#ifdef HAVE_MMAP
     if (share->file_map)
     {
       if (share->options & HA_OPTION_COMPRESS_RECORD)
@@ -92,7 +91,6 @@ int mi_close(MI_INFO *info)
       else
         mi_munmap_file(info);
     }
-#endif
     if (share->decode_trees)
     {
       my_free(share->decode_trees);

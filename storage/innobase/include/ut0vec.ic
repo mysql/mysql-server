@@ -23,6 +23,8 @@ A vector of pointers to data items
 Created 4/6/2006 Osku Salerma
 ************************************************************************/
 
+#include "ut0new.h"
+
 #define	IB_VEC_OFFSET(v, i)	(vec->sizeof_value * i)
 
 /********************************************************************
@@ -104,74 +106,6 @@ ib_heap_allocator_free(
 	ib_alloc_t*	ib_ut_alloc)	/* in: alloc instace to free */
 {
 	mem_heap_free((mem_heap_t*) ib_ut_alloc->arg);
-}
-
-/********************************************************************
-Wrapper around ut_malloc(). */
-UNIV_INLINE
-void*
-ib_ut_malloc(
-/*=========*/
-	ib_alloc_t*	allocator UNIV_UNUSED,	/* in: allocator */
-	ulint		size)			/* in: size in bytes */
-{
-	return(ut_malloc(size));
-}
-
-/********************************************************************
-Wrapper around ut_free(). */
-UNIV_INLINE
-void
-ib_ut_free(
-/*=======*/
-	ib_alloc_t*	allocator UNIV_UNUSED,	/* in: allocator */
-	void*		ptr)			/* in: size in bytes */
-{
-	ut_free(ptr);
-}
-
-/********************************************************************
-Wrapper aroung ut_realloc(). */
-UNIV_INLINE
-void*
-ib_ut_resize(
-/*=========*/
-	ib_alloc_t*	allocator UNIV_UNUSED,	/* in: allocator */
-	void*		old_ptr,	/* in: pointer to memory */
-	ulint		old_size UNIV_UNUSED,/* in: old size in bytes */
-	ulint		new_size)	/* in: new size in bytes */
-{
-	return(ut_realloc(old_ptr, new_size));
-}
-
-/********************************************************************
-Create a ut allocator. */
-UNIV_INLINE
-ib_alloc_t*
-ib_ut_allocator_create(void)
-/*========================*/
-{
-	ib_alloc_t*	ib_ut_alloc;
-
-	ib_ut_alloc = (ib_alloc_t*) ut_malloc(sizeof(*ib_ut_alloc));
-
-	ib_ut_alloc->arg = NULL;
-	ib_ut_alloc->mem_release = ib_ut_free;
-	ib_ut_alloc->mem_malloc = ib_ut_malloc;
-	ib_ut_alloc->mem_resize = ib_ut_resize;
-
-	return(ib_ut_alloc);
-}
-
-/********************************************************************
-Free a ut allocator. */
-UNIV_INLINE
-void
-ib_ut_allocator_free(
-/*=================*/
-	ib_alloc_t*	ib_ut_alloc)	/* in: alloc instace to free */
-{
-	ut_free(ib_ut_alloc);
 }
 
 /********************************************************************
@@ -394,24 +328,13 @@ ib_vector_free(
 /*===========*/
 	ib_vector_t*	vec)		/* in, own: vector */
 {
-	/* Currently we only support two types of allocators, heap
-	and ut_malloc(), when the heap is freed all the elements are
-	freed too. With ut allocator, we need to free the elements,
-	the vector instance and the allocator separately. */
+	/* Currently we only support one type of allocator - heap,
+	when the heap is freed all the elements are freed too. */
 
 	/* Only the heap allocator uses the arg field. */
-	if (vec->allocator->arg) {
-		mem_heap_free((mem_heap_t*) vec->allocator->arg);
-	} else {
-		ib_alloc_t*	allocator;
+	ut_ad(vec->allocator->arg != NULL);
 
-		allocator = vec->allocator;
-
-		allocator->mem_release(allocator, vec->data);
-		allocator->mem_release(allocator, vec);
-
-		ib_ut_allocator_free(allocator);
-	}
+	mem_heap_free((mem_heap_t*) vec->allocator->arg);
 }
 
 /********************************************************************

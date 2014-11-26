@@ -1416,7 +1416,9 @@ drop table tmp;
 SET BIG_TABLES=1;
 select distinct concat(fld3," ",fld3) as namn from t2,t3 where t2.fld1=t3.t2nr order by namn limit 10;
 SET BIG_TABLES=0;
+--source include/turn_off_only_full_group_by.inc
 select distinct concat(fld3," ",fld3) from t2,t3 where t2.fld1=t3.t2nr order by fld3 limit 10;
+--source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
 select distinct fld5 from t2 limit 10;
 
 #
@@ -1644,7 +1646,10 @@ select t2.fld3,count(*) from t2,t3 where t2.fld1=158402 and t3.name=t2.fld3 grou
 # Group with extra not group fields.
 #
 
+--source include/turn_off_only_full_group_by.inc
 select companynr|0,companyname from t4 group by 1;
+--source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
+
 select t2.companynr,companyname,count(*) from t2,t4 where t2.companynr=t4.companynr group by t2.companynr order by companyname;
 select t2.fld1,count(*) from t2,t3 where t2.fld1=158402 and t3.name=t2.fld3 group by t3.name;
 
@@ -1748,7 +1753,9 @@ select t1.period as "Nuvarande period" from t1 as t1 limit 1;
 select period as ok_period from t1 limit 1;
 select period as ok_period from t1 group by ok_period limit 1;
 select 1+1 as summa from t1 group by summa limit 1;
+--source include/turn_off_only_full_group_by.inc
 select period as "Nuvarande period" from t1 group by "Nuvarande period" limit 1;
+--source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
 
 #
 # Some simple show commands
@@ -1768,7 +1775,7 @@ show keys from t2;
 
 drop table t4, t3, t2, t1;
 
-
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 CREATE TABLE t1 (
   cont_nr int(11) NOT NULL auto_increment,
   ver_nr int(11) NOT NULL default '0',
@@ -1818,7 +1825,7 @@ CREATE TABLE t1 (
   KEY kundentyp(kundentyp),
   KEY p_nr(p_nr,suffix)
 ) ENGINE=MyISAM;
-
+SET sql_mode = default;
 INSERT INTO t1 VALUES (3359356,405,3359356,'Mustermann Musterfrau',52500,'2000-05-20','workflow','Auftrag erledigt','Originalvertrag eingegangen und geprüft','','privat',1485525,2122316,'+','','N',1909160,'MobilComSuper92000D2',NULL,NULL,'MS9ND2',3,24,'MobilCom Shop Koeln',52500,NULL,'auto',20010202105916,'Mobilfunk','PP','','','');
 INSERT INTO t1 VALUES (3359357,468,3359357,'Mustermann Musterfrau',7001,'2000-05-20','workflow','Auftrag erledigt','Originalvertrag eingegangen und geprüft','','privat',1503580,2139699,'+','','P',1909171,'MobilComSuper9D1T10SFreisprech(Akquise)',NULL,NULL,'MS9NS1',327,24,'MobilCom Intern',7003,NULL,'auto',20010202105916,'Mobilfunk','PP','','','');
 INSERT INTO t1 VALUES (3359358,407,3359358,'Mustermann Musterfrau',7001,'2000-05-20','workflow','Auftrag erledigt','Originalvertrag eingegangen und geprüft','','privat',1501358,2137473,'N','','N',1909159,'MobilComSuper92000D2',NULL,NULL,'MS9ND2',325,24,'MobilCom Intern',7003,NULL,'auto',20010202105916,'Mobilfunk','PP','','','');
@@ -1827,7 +1834,11 @@ INSERT INTO t1 VALUES (3359360,0,0,'Mustermann Musterfrau',29674907,'2000-05-20'
 INSERT INTO t1 VALUES (3359361,406,3359361,'Mustermann Musterfrau',7001,'2000-05-20','workflow','Auftrag storniert','','(7001-84):Storno, Kd. möchte nicht mehr','privat',NULL,0,'+','','P',1909150,'MobilComSuper92000D1(Akquise)',NULL,NULL,'MS9ND1',325,24,'MobilCom Intern',7003,NULL,'auto',20010202105916,'Mobilfunk','PP','','','');
 INSERT INTO t1 VALUES (3359362,406,3359362,'Mustermann Musterfrau',7001,'2000-05-20','workflow','Auftrag erledigt','Originalvertrag eingegangen und geprüft','','privat',1509984,2145874,'+','','P',1909154,'MobilComSuper92000D1(Akquise)',NULL,NULL,'MS9ND1',327,24,'MobilCom Intern',7003,NULL,'auto',20010202105916,'Mobilfunk','PP','','','');
 
+--source include/turn_off_only_full_group_by.inc
+
 --disable_ps_protocol
 SELECT ELT(FIELD(kundentyp,'PP','PPA','PG','PGA','FK','FKA','FP','FPA','K','KA','V','VA',''), 'Privat (Private Nutzung)','Privat (Private Nutzung) Sitz im Ausland','Privat (geschaeftliche Nutzung)','Privat (geschaeftliche Nutzung) Sitz im Ausland','Firma (Kapitalgesellschaft)','Firma (Kapitalgesellschaft) Sitz im Ausland','Firma (Personengesellschaft)','Firma (Personengesellschaft) Sitz im Ausland','oeff. rechtl. Koerperschaft','oeff. rechtl. Koerperschaft Sitz im Ausland','Eingetragener Verein','Eingetragener Verein Sitz im Ausland','Typ unbekannt') AS Kundentyp ,kategorie FROM t1 WHERE hdl_nr < 2000000 AND kategorie IN ('Prepaid','Mobilfunk') AND st_klasse = 'Workflow' GROUP BY kundentyp ORDER BY kategorie;
 --enable_ps_protocol
+
+--source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
 drop table t1;

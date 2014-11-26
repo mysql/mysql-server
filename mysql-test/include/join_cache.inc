@@ -1269,6 +1269,7 @@ INSERT INTO t2 VALUES (2),(3);
 --echo # The query shall return 1 record with a max value 9 and one of the 
 --echo # int_key values inserted above (undefined which one). A changed 
 --echo # execution plan may change the value in the second column
+--source include/turn_off_only_full_group_by.inc
 SELECT  MAX(t1.int_key), t1.int_key
 FROM t1 STRAIGHT_JOIN t2  
 ORDER BY t1.int_key;
@@ -1281,7 +1282,7 @@ FROM t1 STRAIGHT_JOIN t2
 ORDER BY t1.int_key;
 
 --echo
-
+--source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
 DROP TABLE t1,t2;
 
 --echo #
@@ -1543,6 +1544,8 @@ drop table t1;
 --echo # and join_cache_level=5-8"
 --echo #
 
+--source include/turn_off_only_full_group_by.inc
+
 CREATE TABLE t1 (
   `col_int_key` int,
   `col_datetime` datetime,
@@ -1588,6 +1591,7 @@ eval explain $query;
 eval $query;
 
 drop table t1,t2;
+--source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
 
 --echo
 --echo # Bug#11766522 "59651: ASSERTION `TABLE_REF->HAS_RECORD' FAILED
@@ -1870,12 +1874,14 @@ RIGHT JOIN t2 ON t2.pk = t1.col_int_key
 GROUP BY field1 , field4 
 ORDER BY t1.col_datetime_key ;
 
+--source include/turn_off_only_full_group_by.inc
 eval explain $query;
 # even though there is ORDER BY, it does not cover all columns, so
 # there is still randomness, so we have to sort client-side:
 --sorted_result
 eval $query;
 
+--source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
 DROP TABLE t1,t2;
 
 --echo
@@ -2005,11 +2011,13 @@ INSERT INTO t1 VALUES ('a','a');
 
 CREATE TABLE t2 (i varchar(10)) ENGINE=innodb;
 INSERT INTO t2 VALUES ('a');
+--source include/turn_off_only_full_group_by.inc
 
 SELECT t1.col1
 FROM t1 JOIN t2 ON t1.col1 = t2.i 
 GROUP BY t1.col2;
 
+--source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
 DROP TABLE t1,t2;
 
 --echo # End of Bug#12997905

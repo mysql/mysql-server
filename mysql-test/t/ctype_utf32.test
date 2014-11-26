@@ -596,6 +596,7 @@ drop table t1;
 #
 # Bug#32914 Character sets: illegal characters in utf8 and utf32 columns
 #
+SET sql_mode = '';
 create table t1 (utf32 varchar(2) character set utf32);
 --echo Wrong character with pad
 insert into t1 values (0x110000);
@@ -612,7 +613,7 @@ insert into t1 values (0x00800037);
 --echo Wrong character with pad with the second byte higher than 0x10
 insert into t1 values (0x00800037);
 drop table t1;
-
+SET sql_mode = default;
 #
 # Bug#32394 Character sets: crash if comparison with 0xfffd
 #
@@ -699,7 +700,7 @@ select left('aaa','1');
 #
 create table t1 (a int);
 insert into t1 values ('-1234.1e2');
-insert into t1 values ('-1234.1e2xxxx');
+insert ignore into t1 values ('-1234.1e2xxxx');
 insert into t1 values ('-1234.1e2    ');
 select * from t1;
 drop table t1;
@@ -709,17 +710,18 @@ drop table t1;
 #
 create table t1 (a int);
 insert into t1 values ('1 ');
-insert into t1 values ('1 x');
+insert ignore into t1 values ('1 x');
 select * from t1;
 drop table t1;
 
 #
 # Testing auto-conversion to TEXT
 #
+SET sql_mode = '';
 create table t1 (a varchar(17000) character set utf32);
 show create table t1;
 drop table t1;
-
+SET sql_mode = default;
 #
 # Testing that maximim possible key length is 1000 bytes for MyISAM
 #
@@ -742,12 +744,13 @@ create table t1 (a varchar(334) character set utf32 primary key);
 #
 # Testing mi_check with long key values
 #
+SET sql_mode = '';
 create table t1 (a varchar(333) character set utf32, key(a));
 insert into t1 values (repeat('a',333)), (repeat('b',333));
 flush tables;
 check table t1;
 drop table t1;
-
+SET sql_mode = default;
 #
 # Test how character set works with date/time
 #
@@ -828,10 +831,10 @@ DROP TABLE t1;
 --echo #
 CREATE TABLE t1 (utf32 CHAR(5) CHARACTER SET utf32, latin1 CHAR(5) CHARACTER SET latin1);
 INSERT INTO t1 (utf32) VALUES (0xc581);
-UPDATE t1 SET latin1 = utf32;
+UPDATE IGNORE t1 SET latin1 = utf32;
 DELETE FROM t1;
 INSERT INTO t1 (utf32) VALUES (0x100cc);
-UPDATE t1 SET latin1 = utf32;
+UPDATE IGNORE t1 SET latin1 = utf32;
 DROP TABLE t1;
 
 --echo #

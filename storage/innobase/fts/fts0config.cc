@@ -149,7 +149,7 @@ fts_config_create_index_param_name(
 	len = strlen(param);
 
 	/* Caller is responsible for deleting name. */
-	name = static_cast<char*>(ut_malloc(
+	name = static_cast<char*>(ut_malloc_nokey(
 		len + FTS_AUX_MIN_TABLE_ID_LENGTH + 2));
 	::strcpy(name, param);
 	name[len] = '_';
@@ -319,7 +319,7 @@ fts_config_get_index_ulint(
 	/* We set the length of value to the max bytes it can hold. This
 	information is used by the callback that reads the value.*/
 	value.f_len = FTS_MAX_CONFIG_VALUE_LEN;
-	value.f_str = static_cast<byte*>(ut_malloc(value.f_len + 1));
+	value.f_str = static_cast<byte*>(ut_malloc_nokey(value.f_len + 1));
 
 	error = fts_config_get_index_value(trx, index, name, &value);
 
@@ -354,7 +354,7 @@ fts_config_set_index_ulint(
 	/* We set the length of value to the max bytes it can hold. This
 	information is used by the callback that reads the value.*/
 	value.f_len = FTS_MAX_CONFIG_VALUE_LEN;
-	value.f_str = static_cast<byte*>(ut_malloc(value.f_len + 1));
+	value.f_str = static_cast<byte*>(ut_malloc_nokey(value.f_len + 1));
 
 	// FIXME: Get rid of snprintf
 	ut_a(FTS_MAX_INT_LEN < FTS_MAX_CONFIG_VALUE_LEN);
@@ -394,7 +394,7 @@ fts_config_get_ulint(
 	/* We set the length of value to the max bytes it can hold. This
 	information is used by the callback that reads the value.*/
 	value.f_len = FTS_MAX_CONFIG_VALUE_LEN;
-	value.f_str = static_cast<byte*>(ut_malloc(value.f_len + 1));
+	value.f_str = static_cast<byte*>(ut_malloc_nokey(value.f_len + 1));
 
 	error = fts_config_get_value(trx, fts_table, name, &value);
 
@@ -429,7 +429,7 @@ fts_config_set_ulint(
 	/* We set the length of value to the max bytes it can hold. This
 	information is used by the callback that reads the value.*/
 	value.f_len = FTS_MAX_CONFIG_VALUE_LEN;
-	value.f_str = static_cast<byte*>(ut_malloc(value.f_len + 1));
+	value.f_str = static_cast<byte*>(ut_malloc_nokey(value.f_len + 1));
 
 	ut_a(FTS_MAX_INT_LEN < FTS_MAX_CONFIG_VALUE_LEN);
 
@@ -473,7 +473,7 @@ fts_config_increment_value(
 	/* We set the length of value to the max bytes it can hold. This
 	information is used by the callback that reads the value.*/
 	value.f_len = FTS_MAX_CONFIG_VALUE_LEN;
-	value.f_str = static_cast<byte*>(ut_malloc(value.f_len + 1));
+	value.f_str = static_cast<byte*>(ut_malloc_nokey(value.f_len + 1));
 
 	*value.f_str = '\0';
 

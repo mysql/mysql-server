@@ -940,6 +940,7 @@ c1	c2	c3	c4	c5	c6	c7	c9	c10	c11
 -2	-2	a	a	a	a	a	100.550	99	test
 DROP TABLE t1_1 ,t2_1 ,t3_1,t4_1;
 DROP TABLE t1_2 ,t2_2 ,t3_2,t4_2;
+# restart: --innodb_undo_tablespaces=0 --innodb_rollback_segments=20 --innodb_undo_logs=20 --innodb_log_files_in_group=4
 call populate_tables('_1');;
 call populate_tables('_2');;
 "#connection 1 - verify tables"
@@ -1498,6 +1499,7 @@ c1
 138
 140
 DROP TABLE t1_2 ,t2_2 ,t3_2,t4_2;
+# restart: --innodb_undo_tablespaces=0 --innodb_rollback_segments=30 --innodb_undo_logs=20 --innodb_log_files_in_group=4
 call populate_tables('_1');;
 call populate_tables('_2');;
 "#connection 1 - verify tables"

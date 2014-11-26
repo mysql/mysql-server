@@ -1,6 +1,9 @@
 #
 # WL#6219: Deprecate and remove YEAR(2) type
 #
+--disable_query_log
+CALL mtr.add_suppression("Found incompatible YEAR");
+--enable_query_log
 
 --source include/mysql_upgrade_preparation.inc
 --source include/have_innodb.inc
@@ -23,12 +26,30 @@ SHOW CREATE TABLE t1;
 --echo # Run CHECK TABLE, it should indicate table need a REPAIR TABLE
 CHECK TABLE t1 FOR UPGRADE;
 
+--error ER_CRASHED_ON_USAGE
+SELECT * FROM t1;
+--error ER_CRASHED_ON_USAGE
+INSERT INTO t1 () VALUES ();
+--error ER_CRASHED_ON_USAGE
+INSERT INTO t1 (i) VALUES (10);
+--error ER_CRASHED_ON_USAGE
+INSERT INTO t1 (y2) VALUES (10);
+--error ER_CRASHED_ON_USAGE
+UPDATE t1 SET y2=10;
+--error ER_CRASHED_ON_USAGE
+DELETE FROM t1 LIMIT 1;
+
+CHECK TABLE t1 FOR UPGRADE;
+
 --echo # Run REPAIR TABLE to alter the table and repair the YEAR(2) fields
 REPAIR TABLE t1;
 
 --echo # Now check it's back to normal
 SHOW CREATE TABLE t1;
 SELECT * FROM t1;
+INSERT INTO t1 () VALUES ();
+UPDATE t1 SET y2=10;
+DELETE FROM t1 LIMIT 1;
 
 DROP TABLE t1;
 
@@ -64,6 +85,19 @@ SHOW CREATE TABLE t1;
 --echo # Run CHECK TABLE, it should indicate table need a REPAIR TABLE
 CHECK TABLE t1 FOR UPGRADE;
 
+--error ER_CRASHED_ON_USAGE
+SELECT * FROM t1;
+--error ER_CRASHED_ON_USAGE
+INSERT INTO t1 () VALUES ();
+--error ER_CRASHED_ON_USAGE
+INSERT INTO t1 (i) VALUES (10);
+--error ER_CRASHED_ON_USAGE
+INSERT INTO t1 (y2) VALUES (10);
+--error ER_CRASHED_ON_USAGE
+UPDATE t1 SET y2=10;
+--error ER_CRASHED_ON_USAGE
+DELETE FROM t1 LIMIT 1;
+
 --echo # Run REPAIR TABLE to alter the table and repair the YEAR(2) fields
 REPAIR TABLE t1;
 
@@ -82,6 +116,19 @@ DROP TABLE t1;
 --copy_file std_data/wl6219_55.MYI $MYSQLD_DATADIR/test/t1.MYI
 --chmod 0777 $MYSQLD_DATADIR/test/t1.MYI
 
+--error ER_CRASHED_ON_USAGE
+SELECT * FROM t1;
+--error ER_CRASHED_ON_USAGE
+INSERT INTO t1 () VALUES ();
+--error ER_CRASHED_ON_USAGE
+INSERT INTO t1 (i) VALUES (10);
+--error ER_CRASHED_ON_USAGE
+INSERT INTO t1 (y2) VALUES (10);
+--error ER_CRASHED_ON_USAGE
+UPDATE t1 SET y2=10;
+--error ER_CRASHED_ON_USAGE
+DELETE FROM t1 LIMIT 1;
+
 ALTER TABLE t1 FORCE;
 SHOW CREATE TABLE t1;
 
@@ -99,6 +146,20 @@ DROP TABLE t1;
 --chmod 0777 $MYSQLD_DATADIR/test/t1.MYI
 
 --echo # Create InnoDB table with YEAR(4) columns
+
+--error ER_CRASHED_ON_USAGE
+SELECT * FROM t1;
+--error ER_CRASHED_ON_USAGE
+INSERT INTO t1 () VALUES ();
+--error ER_CRASHED_ON_USAGE
+INSERT INTO t1 (i) VALUES (10);
+--error ER_CRASHED_ON_USAGE
+INSERT INTO t1 (y2) VALUES (10);
+--error ER_CRASHED_ON_USAGE
+UPDATE t1 SET y2=10;
+--error ER_CRASHED_ON_USAGE
+DELETE FROM t1 LIMIT 1;
+SHOW WARNINGS;
 
 ALTER TABLE t1 ENGINE=InnoDB;
 SHOW CREATE TABLE t1;
@@ -135,7 +196,8 @@ DROP TABLE t1;
 --chmod 0777 $MYSQLD_DATADIR/test/t1.MYI
 
 --exec $MYSQL_UPGRADE --skip-verbose --force 2>&1
---remove_file $MYSQLD_DATADIR/mysql_upgrade_info
+
+--source include/mysql_upgrade_cleanup.inc
 
 SHOW CREATE TABLE t1;
 

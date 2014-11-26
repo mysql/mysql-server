@@ -200,6 +200,7 @@ DROP TABLE t1;
 #
 # Bug#20577: Partitions: use of to_days() function leads to selection failures
 #
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 --let $explain_partitions= 1;
 --let $verify_without_partitions= 0;
 --echo # test of RANGE and index
@@ -259,7 +260,7 @@ INSERT INTO t1 VALUES ('0000-00-00'), ('0000-01-02'), ('0001-01-01'),
 ALTER TABLE t1 DROP KEY a;
 --source include/partition_date_range.inc
 DROP TABLE t1;
-
+SET sql_mode = default;
 
 #
 # Bug#46362: Endpoint should be set to false for TO_DAYS(DATE)

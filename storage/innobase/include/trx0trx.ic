@@ -32,34 +32,40 @@ that is serving a running transaction.
 A running RW transaction must be in trx_sys->rw_trx_list.
 @return TRUE if trx->state == state */
 UNIV_INLINE
-ibool
+bool
 trx_state_eq(
 /*=========*/
 	const trx_t*	trx,	/*!< in: transaction */
-	trx_state_t	state)	/*!< in: state;
-				if state != TRX_STATE_NOT_STARTED
-				asserts that
-				trx->state != TRX_STATE_NOT_STARTED */
+	trx_state_t	state)	/*!< in: state */
 {
 #ifdef UNIV_DEBUG
 	switch (trx->state) {
 	case TRX_STATE_PREPARED:
+
 		ut_ad(!trx_is_autocommit_non_locking(trx));
 		return(trx->state == state);
 
 	case TRX_STATE_ACTIVE:
+
 		assert_trx_nonlocking_or_in_list(trx);
 		return(state == trx->state);
 
 	case TRX_STATE_COMMITTED_IN_MEMORY:
+
 		check_trx_state(trx);
 		return(state == trx->state);
 
 	case TRX_STATE_NOT_STARTED:
-		/* This state is not allowed for running transactions. */
-		ut_a(state == TRX_STATE_NOT_STARTED);
+	case TRX_STATE_FORCED_ROLLBACK:
+
+		/* These states is not allowed for running transactions. */
+		ut_a(state == TRX_STATE_NOT_STARTED
+		     || state == TRX_STATE_FORCED_ROLLBACK);
+
 		ut_ad(!trx->in_rw_trx_list);
-		return(state == trx->state);
+
+		return(state == TRX_STATE_NOT_STARTED
+		       || state == TRX_STATE_FORCED_ROLLBACK);
 	}
 	ut_error;
 #endif /* UNIV_DEBUG */
@@ -327,4 +333,17 @@ trx_get_read_view(
 	const trx_t*	trx)
 {
 	return(!MVCC::is_view_active(trx->read_view) ? NULL : trx->read_view);
+}
+
+/**
+Check if transaction is started.
+@param[in] trx		Transaction whose state we need to check
+@reutrn true if transaction is in state started */
+UNIV_INLINE
+bool
+trx_is_started(
+	const trx_t*	trx)
+{
+	return(trx->state != TRX_STATE_NOT_STARTED
+	       && trx->state != TRX_STATE_FORCED_ROLLBACK);
 }

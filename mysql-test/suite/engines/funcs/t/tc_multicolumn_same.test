@@ -1,6 +1,7 @@
 --disable_warnings
 DROP TABLE IF EXISTS m1;
 --enable_warnings
+SET sql_mode='NO_ENGINE_SUBSTITUTION';
 CREATE TABLE m1(c1 BIT NULL, c2 BIT NOT NULL, c3 BIT NULL, c4 BIT NOT NULL PRIMARY KEY, c5 BIT NOT NULL UNIQUE KEY);
 SHOW TABLES;
 let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
@@ -101,4 +102,4 @@ SHOW TABLES;
 let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE m1; DROP TABLE m1; SHOW TABLES;
-
+SET sql_mode=default;

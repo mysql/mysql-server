@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2014, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -205,7 +205,7 @@ rw_lock_debug_t*
 rw_lock_debug_create(void)
 /*======================*/
 {
-	return((rw_lock_debug_t*) ut_malloc(sizeof(rw_lock_debug_t)));
+	return((rw_lock_debug_t*) ut_malloc_nokey(sizeof(rw_lock_debug_t)));
 }
 
 /******************************************************************//**
@@ -972,7 +972,7 @@ rw_lock_add_debug_info(
 		if ((lock_type == RW_LOCK_X
 		     && lock->lock_word <  -X_LOCK_HALF_DECR)
 		    || (lock_type == RW_LOCK_SX
-		       && (lock->lock_word < 0 || lock->sx_recursive > 1))) {
+		       && (lock->lock_word < 0 || lock->sx_recursive == 1))) {
 
 			sync_check_lock(lock);
 		} else {

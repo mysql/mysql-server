@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -55,5 +55,18 @@ public:
   {}
 };
 
+
+/**
+  A mock for the handlerton struct
+*/
+class Fake_handlerton : public handlerton
+{
+public:
+  /// Minimal initialization of the handlerton
+  Fake_handlerton()
+  {
+    slot= 0;
+  }
+};
 
 #endif  // HANDLER_T_INCLUDED

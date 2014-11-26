@@ -67,6 +67,7 @@ index_name	PRIMARY
 compress_ops	65
 compress_ops_ok	65
 uncompress_ops	0
+# restart
 SET GLOBAL innodb_cmp_per_index_enabled=ON;
 SELECT COUNT(*) FROM t;
 COUNT(*)	128

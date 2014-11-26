@@ -599,13 +599,24 @@ typedef struct st_mysql_cond mysql_cond_t;
 
 /**
   @def mysql_thread_set_psi_id(I)
-  Set the thread indentifier for the instrumentation.
+  Set the thread identifier for the instrumentation.
   @param I The thread identifier
 */
 #ifdef HAVE_PSI_THREAD_INTERFACE
   #define mysql_thread_set_psi_id(I) inline_mysql_thread_set_psi_id(I)
 #else
   #define mysql_thread_set_psi_id(I) do {} while (0)
+#endif
+
+/**
+  @def mysql_thread_set_psi_THD(T)
+  Set the thread sql session for the instrumentation.
+  @param I The thread identifier
+*/
+#ifdef HAVE_PSI_THREAD_INTERFACE
+  #define mysql_thread_set_psi_THD(T) inline_mysql_thread_set_psi_THD(T)
+#else
+  #define mysql_thread_set_psi_THD(T) do {} while (0)
 #endif
 
 static inline void inline_mysql_mutex_register(
@@ -1278,11 +1289,21 @@ static inline int inline_mysql_thread_create(
   return result;
 }
 
-static inline void inline_mysql_thread_set_psi_id(ulong id)
+static inline void inline_mysql_thread_set_psi_id(my_thread_id id)
 {
   struct PSI_thread *psi= PSI_THREAD_CALL(get_thread)();
   PSI_THREAD_CALL(set_thread_id)(psi, id);
 }
+
+#ifdef __cplusplus
+class THD;
+static inline void inline_mysql_thread_set_psi_THD(THD *thd)
+{
+  struct PSI_thread *psi= PSI_THREAD_CALL(get_thread)();
+  PSI_THREAD_CALL(set_thread_THD)(psi, thd);
+}
+#endif /* __cplusplus */
+
 #endif
 
 #endif /* DISABLE_MYSQL_THREAD_H */

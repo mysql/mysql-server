@@ -46,6 +46,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#ifdef HAVE_DLFCN_H
+#include <dlfcn.h>
+#endif
+
 #if !defined (_GNU_SOURCE)
 # define _GNU_SOURCE /* for RTLD_DEFAULT */
 #endif

@@ -891,6 +891,7 @@ test
 select ExtractValue('<a><self>test</self></a>', '/a/self');
 ExtractValue('<a><self>test</self></a>', '/a/self')
 test
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 set @i=1;
 select ExtractValue('<a><b>b1</b><b>b2</b></a>','/a/b[$@i]');
 ExtractValue('<a><b>b1</b><b>b2</b></a>','/a/b[$@i]')
@@ -1006,6 +1007,7 @@ Warnings:
 Warning	1292	Truncated incorrect INTEGER value: 'string          '
 Warning	1292	Truncated incorrect INTEGER value: 'string          '
 DROP PROCEDURE spxml;
+SET sql_mode = default;
 select UpdateXML('<a>a</a>',repeat('a b ',1000),'');
 ERROR HY000: XPATH syntax error: 'b a b a b a b a b a b a b a b a '
 select ExtractValue('<a>a</a>', '/a[@x=@y0123456789_0123456789_0123456789_0123456789]');

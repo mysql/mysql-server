@@ -55,7 +55,7 @@
   #define PFS_STATEMENTS_STACK_SIZE 10
 #endif
 #ifndef PFS_MAX_MEMORY_CLASS
-  #define PFS_MAX_MEMORY_CLASS 250
+  #define PFS_MAX_MEMORY_CLASS 320
 #endif
 
 /** Sizing hints, from the server configuration. */

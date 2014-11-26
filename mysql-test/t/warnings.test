@@ -26,11 +26,11 @@ create table t (i);
 show count(*) errors;
 show errors;
 insert into t1 values (1);
-insert into t1 values ("hej");
-insert into t1 values ("hej"),("då");
+insert ignore into t1 values ("hej");
+insert ignore into t1 values ("hej"),("då");
 set SQL_WARNINGS=1;
-insert into t1 values ("hej");
-insert into t1 values ("hej"),("då");
+insert ignore into t1 values ("hej");
+insert ignore into t1 values ("hej"),("då");
 drop table t1;
 set SQL_WARNINGS=0;
 
@@ -67,17 +67,19 @@ drop table t1;
 #
 
 create table t1(a tinyint NOT NULL, b tinyint unsigned, c char(5));
-insert into t1 values(NULL,100,'mysql'),(10,-1,'mysql ab'),(500,256,'open source'),(20,NULL,'test');
+insert ignore into t1 values(NULL,100,'mysql'),(10,-1,'mysql ab'),(500,256,'open source'),(20,NULL,'test');
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 alter table t1 modify c char(4);
+SET sql_mode = default;
 alter table t1 add d char(2);
-update t1 set a=NULL where a=10;
-update t1 set c='mysql ab' where c='test';
-update t1 set d=c;
+update ignore t1 set a=NULL where a=10;
+update ignore t1 set c='mysql ab' where c='test';
+update ignore t1 set d=c;
 create table t2(a tinyint NOT NULL, b char(3));
-insert into t2 select b,c from t1;
-insert into t2(b) values('mysqlab');
+insert ignore into t2 select b,c from t1;
+insert ignore into t2(b) values('mysqlab');
 set sql_warnings=1;
-insert into t2(b) values('mysqlab');
+insert ignore into t2(b) values('mysqlab');
 set sql_warnings=0;
 drop table t1, t2;
 
@@ -96,7 +98,7 @@ while ($1)
 enable_query_log;
 alter table t1 add b char;
 set max_error_count=10;
-update t1 set b=a;
+update ignore t1 set b=a;
 --disable_ps_protocol
 select @@warning_count;
 --enable_ps_protocol
@@ -104,7 +106,7 @@ select @@warning_count;
 # Bug#9072
 set max_error_count=0;
 show variables like 'max_error_count';
-update t1 set b='hi';
+update ignore t1 set b='hi';
 --disable_ps_protocol
 select @@warning_count;
 --enable_ps_protocol
@@ -122,7 +124,7 @@ drop table t1;
 create table t1 (a int);
 insert into t1 (a) values (1), (2), (3), (4), (5), (6), (7), (8), (9), (10);
 # should generate 10 warnings
-update t1 set a='abc';
+update ignore t1 set a='abc';
 show warnings limit 2, 1;
 show warnings limit 0, 10;
 show warnings limit 9, 1;
@@ -155,6 +157,7 @@ INSERT INTO t3 VALUES ( 'a`', 'a`', '1000-01-1' );
 DROP PROCEDURE IF EXISTS sp1;
 DROP PROCEDURE IF EXISTS sp2;
 DROP PROCEDURE IF EXISTS sp3;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 delimiter //;
 CREATE PROCEDURE sp1()
 BEGIN
@@ -191,7 +194,7 @@ DROP TABLE t3;
 DROP PROCEDURE sp1;
 DROP PROCEDURE sp2;
 DROP PROCEDURE sp3;
-
+SET sql_mode = default;
 
 #
 # Bug#30059: End-space truncation warnings are inconsistent or incorrect

@@ -28,6 +28,7 @@ Created 3/26/1996 Heikki Tuuri
 
 #include "ut0byte.h"
 #include "ut0mutex.h"
+#include "ut0new.h"
 
 #include <set>
 #include <queue>
@@ -58,9 +59,18 @@ enum trx_que_t {
 
 /** Transaction states (trx_t::state) */
 enum trx_state_t {
+
 	TRX_STATE_NOT_STARTED,
+
+	/** Same as not started but with additional semantics that it
+	was rolled back asynchronously the last time it was active. */
+	TRX_STATE_FORCED_ROLLBACK,
+
 	TRX_STATE_ACTIVE,
-	TRX_STATE_PREPARED,			/* Support for 2PC/XA */
+
+	/** Support for 2PC/XA */
+	TRX_STATE_PREPARED,
+
 	TRX_STATE_COMMITTED_IN_MEMORY
 };
 
@@ -148,7 +158,8 @@ typedef ib_mutex_t TrxSysMutex;
 scheduled for purge. */
 class TrxUndoRsegs {
 private:
-	typedef std::vector<trx_rseg_t*> trx_rsegs_t;
+	typedef std::vector<trx_rseg_t*, ut_allocator<trx_rseg_t*> >
+		trx_rsegs_t;
 public:
 	typedef trx_rsegs_t::iterator iterator;
 
@@ -174,6 +185,20 @@ public:
 	void push_back(trx_rseg_t* rseg)
 	{
 		m_rsegs.push_back(rseg);
+	}
+
+	/** Erase the element pointed by given iterator.
+	@param[in]	iterator	iterator */
+	void erase(iterator& it)
+	{
+		m_rsegs.erase(it);
+	}
+
+	/** Number of registered rsegs.
+	@return size of rseg list. */
+	ulint size() const
+	{
+		return(m_rsegs.size());
 	}
 
 	/**
@@ -223,9 +248,11 @@ private:
 };
 
 typedef std::priority_queue<
-	TrxUndoRsegs, std::vector<TrxUndoRsegs>, TrxUndoRsegs> purge_pq_t;
+	TrxUndoRsegs,
+	std::vector<TrxUndoRsegs, ut_allocator<TrxUndoRsegs> >,
+	TrxUndoRsegs>	purge_pq_t;
 
-typedef std::vector<trx_id_t> trx_ids_t;
+typedef std::vector<trx_id_t, ut_allocator<trx_id_t> >	trx_ids_t;
 
 /** Mapping read-write transactions from id to transaction instance, for
 creating read views and during trx id lookup for MVCC and locking. */
@@ -270,6 +297,7 @@ struct TrxTrackCmp {
 };
 
 //typedef std::unordered_set<TrxTrack, TrxTrackHash, TrxTrackHashCmp> TrxIdSet;
-typedef std::set<TrxTrack, TrxTrackCmp> TrxIdSet;
+typedef std::set<TrxTrack, TrxTrackCmp, ut_allocator<TrxTrack> >
+	TrxIdSet;
 
 #endif /* trx0types_h */

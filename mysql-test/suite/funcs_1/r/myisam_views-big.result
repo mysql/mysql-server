@@ -49,7 +49,7 @@ f102 time not null default 20,
 f103 datetime not null default '2/2/2',
 f104 timestamp not null default 20001231235959,
 f105 year not null default 2000,
-f106 year(3) not null default 2000,
+f106 year(4) not null default 2000,
 f107 year(4) not null default 2000,
 f108 enum("1enum","2enum") not null default "1enum",
 f109 set("1set","2set") not null default "1set",
@@ -62,8 +62,6 @@ f115 VARBINARY(27) null ,
 f116 VARBINARY(64) null,
 f117 VARBINARY(192) null
 ) engine = myisam;
-Warnings:
-Warning	1818	YEAR(3) column type is deprecated. Creating YEAR(4) column instead.
 load data infile '<MYSQLTEST_VARDIR>/std_data/funcs_1/myisam_tb2.txt'
 into table tb2;
 DROP DATABASE IF EXISTS test1;
@@ -118,7 +116,7 @@ f102 time not null default 20,
 f103 datetime not null default '2/2/2',
 f104 timestamp not null default 20001231235959,
 f105 year not null default 2000,
-f106 year(3) not null default 2000,
+f106 year(4) not null default 2000,
 f107 year(4) not null default 2000,
 f108 enum("1enum","2enum") not null default "1enum",
 f109 set("1set","2set") not null default "1set",
@@ -131,8 +129,6 @@ f115 VARBINARY(27) null ,
 f116 VARBINARY(64) null,
 f117 VARBINARY(192) null
 ) engine = myisam;
-Warnings:
-Warning	1818	YEAR(3) column type is deprecated. Creating YEAR(4) column instead.
 load data infile '<MYSQLTEST_VARDIR>/std_data/funcs_1/myisam_tb2.txt'
 into table tb2;
 USE test;

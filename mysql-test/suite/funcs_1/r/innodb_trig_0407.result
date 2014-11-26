@@ -237,14 +237,14 @@ ERROR HY000: Trigger in wrong schema
 grant INSERT, SELECT on dbtest_two.t2 to test_general;
 grant SELECT on dbtest_one.* to test_general;
 use dbtest_two;
-Insert into t2 values ('1st Insert 3.5.5.4');
+Insert ignore into t2 values ('1st Insert 3.5.5.4');
 Warnings:
 Warning	1265	Data truncated for column 'f1' at row 1
 Select * from t2;
 f1
 1st Insert 3.5.
 use dbtest_one;
-Insert into dbtest_two.t2 values ('2nd Insert 3.5.5.4');
+Insert ignore into dbtest_two.t2 values ('2nd Insert 3.5.5.4');
 Warnings:
 Warning	1265	Data truncated for column 'f1' at row 1
 Select * from dbtest_two.t2 order by f1;

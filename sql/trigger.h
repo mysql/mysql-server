@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -65,8 +65,8 @@ public:
                                      String *binlog_create_trigger_stmt);
 
   static Trigger *create_from_dd(MEM_ROOT *mem_root,
-                                 const LEX_STRING &db_name,
-                                 const LEX_STRING &subject_table_name,
+                                 const LEX_CSTRING &db_name,
+                                 const LEX_CSTRING &subject_table_name,
                                  const LEX_STRING &definition,
                                  sql_mode_t sql_mode,
                                  const LEX_STRING &definer,
@@ -93,10 +93,10 @@ public:
    * Attribute accessors.
    ***********************************************************************/
 
-  const LEX_STRING &get_db_name() const
+  const LEX_CSTRING &get_db_name() const
   { return m_db_name; }
 
-  const LEX_STRING &get_subject_table_name() const
+  const LEX_CSTRING &get_subject_table_name() const
   { return m_subject_table_name; }
 
   const LEX_STRING &get_trigger_name() const
@@ -186,8 +186,8 @@ public:
 
 private:
   Trigger(MEM_ROOT *mem_root,
-          const LEX_STRING &db_name,
-          const LEX_STRING &table_name,
+          const LEX_CSTRING &db_name,
+          const LEX_CSTRING &table_name,
           const LEX_STRING &definition,
           sql_mode_t sql_mode,
           const LEX_STRING &definer,
@@ -228,10 +228,10 @@ private:
    ***********************************************************************/
 
   /// Database name.
-  LEX_STRING m_db_name;
+  LEX_CSTRING m_db_name;
 
   /// Table name.
-  LEX_STRING m_subject_table_name;
+  LEX_CSTRING m_subject_table_name;
 
   /// Trigger definition to save in TRG-file.
   LEX_STRING m_definition;

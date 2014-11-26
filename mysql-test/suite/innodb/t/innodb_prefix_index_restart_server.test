@@ -9,10 +9,7 @@
 #                                                                    #
 ######################################################################
 
-# Don't test this under valgrind, memory leaks will occur due restart
---source include/not_valgrind.inc
-# Test restart the server and "shutdown_server" looks for pid file
-# which is not there with embedded mode
+# Embedded server does not support restarting
 --source include/not_embedded.inc
 --source include/have_innodb.inc
 --source include/have_innodb_16k.inc
@@ -25,11 +22,6 @@ let $innodb_large_prefix_orig=`select @@innodb_large_prefix`;
 set global innodb_file_format="Barracuda";
 set global innodb_file_per_table=1;
 set global innodb_large_prefix=1;
-
--- disable_warnings
-DROP TABLE IF EXISTS worklog5743;
--- enable_warnings
-
 
 #------------------------------------------------------------------------------
 # Stop the server in between when prefix index are created and see if state is
@@ -116,11 +108,3 @@ SELECT col_1_text = REPEAT("a", 3500) , col_2_text  = REPEAT("o", 3500) FROM
 worklog5743;
 
 DROP TABLE worklog5743;
-
-
-#------------------------------------------------------------------------------
-
-eval SET GLOBAL innodb_file_format=$innodb_file_format_orig;
-eval SET GLOBAL innodb_file_per_table=$innodb_file_per_table_orig;
-eval SET GLOBAL innodb_large_prefix=$innodb_large_prefix_orig;
-

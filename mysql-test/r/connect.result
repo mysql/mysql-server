@@ -3,6 +3,7 @@ show tables;
 Tables_in_mysql
 columns_priv
 db
+engine_cost
 event
 func
 general_log
@@ -18,6 +19,7 @@ plugin
 proc
 procs_priv
 proxies_priv
+server_cost
 servers
 slave_master_info
 slave_relay_log_info
@@ -42,6 +44,7 @@ show tables;
 Tables_in_mysql
 columns_priv
 db
+engine_cost
 event
 func
 general_log
@@ -57,6 +60,7 @@ plugin
 proc
 procs_priv
 proxies_priv
+server_cost
 servers
 slave_master_info
 slave_relay_log_info
@@ -79,61 +83,12 @@ connect(localhost,test,zorro,test2,MASTER_PORT,MASTER_SOCKET);
 ERROR 28000: Access denied for user 'test'@'localhost' (using password: YES)
 connect(localhost,test,zorro,test,MASTER_PORT,MASTER_SOCKET);
 ERROR 28000: Access denied for user 'test'@'localhost' (using password: YES)
-SET GLOBAL secure_auth = OFF;
-Warnings:
-Warning	1287	'pre-4.1 password hash' is deprecated and will be removed in a future release. Please use post-4.1 password hash instead
-update mysql.user set password=old_password("gambling2"), plugin="mysql_old_password" where user=_binary"test";
-flush privileges;
-set password="";
-set password='gambling3';
-ERROR HY000: Password hash should be a 16-digit hexadecimal number
-set password=old_password('gambling3');
-Warnings:
-Warning	1287	'pre-4.1 password hash' is deprecated and will be removed in a future release. Please use post-4.1 password hash instead
-show tables;
-Tables_in_mysql
-columns_priv
-db
-event
-func
-general_log
-gtid_executed
-help_category
-help_keyword
-help_relation
-help_topic
-innodb_index_stats
-innodb_table_stats
-ndb_binlog_index
-plugin
-proc
-procs_priv
-proxies_priv
-servers
-slave_master_info
-slave_relay_log_info
-slave_worker_info
-slow_log
-tables_priv
-time_zone
-time_zone_leap_second
-time_zone_name
-time_zone_transition
-time_zone_transition_type
-user
-show tables;
-Tables_in_test
 connect(localhost,test,,test2,MASTER_PORT,MASTER_SOCKET);
 ERROR 28000: Access denied for user 'test'@'localhost' (using password: NO)
 connect(localhost,test,,test,MASTER_PORT,MASTER_SOCKET);
 ERROR 28000: Access denied for user 'test'@'localhost' (using password: NO)
-connect(localhost,test,zorro,test2,MASTER_PORT,MASTER_SOCKET);
-ERROR 28000: Access denied for user 'test'@'localhost' (using password: YES)
-connect(localhost,test,zorro,test,MASTER_PORT,MASTER_SOCKET);
-ERROR 28000: Access denied for user 'test'@'localhost' (using password: YES)
 delete from mysql.user where user=_binary"test";
 flush privileges;
-SET GLOBAL secure_auth = DEFAULT;
 create table t1 (id integer not null auto_increment primary key);
 create temporary table t2(id integer not null auto_increment primary key);
 set @id := 1;
@@ -242,38 +197,6 @@ SET GLOBAL event_scheduler = OFF;
 # ------------------------------------------------------------------
 # -- End of 5.1 tests
 # ------------------------------------------------------------------
-#
-# Bug #13586336 : SRVGEN - HIBISCUS: ISSUE DEPRECATION WARNING FOR
-# LEGACY AUTHENTICATION METHOD
-#
-#Expect 1
-SELECT @@global.secure_auth;
-@@global.secure_auth
-1
-SET old_passwords=1;
-#Expect deprecation warning
-CREATE USER old_pwd@localhost IDENTIFIED WITH 'mysql_old_password';
-SET PASSWORD FOR old_pwd@localhost= OLD_PASSWORD('aha');
-Warnings:
-Warning	1287	'pre-4.1 password hash' is deprecated and will be removed in a future release. Please use post-4.1 password hash instead
-#Expect deprecation warning
-SET PASSWORD FOR old_pwd@localhost = OLD_PASSWORD('aha2');
-Warnings:
-Warning	1287	'pre-4.1 password hash' is deprecated and will be removed in a future release. Please use post-4.1 password hash instead
-#Expect deprecation warning
-GRANT SELECT on test.* TO old_gpwd@localhost 
-IDENTIFIED BY 'aha3';
-ERROR HY000: The password hash doesn't have the expected format. Check if the correct password algorithm is being used with the PASSWORD() function.
-#Expect deprecation warning
-GRANT SELECT on test.* TO old_gpwd@localhost 
-IDENTIFIED WITH 'mysql_old_password';
-SET PASSWORD FOR old_gpwd@localhost= OLD_PASSWORD('aha4');
-Warnings:
-Warning	1287	'pre-4.1 password hash' is deprecated and will be removed in a future release. Please use post-4.1 password hash instead
-#Expected normal flush, no warnings  
-FLUSH PRIVILEGES;
-DROP USER old_pwd@localhost, old_gpwd@localhost;
-SET old_passwords=default;
 #
 # WL#2392: Change Password at next login
 #

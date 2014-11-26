@@ -20,8 +20,8 @@ class THD;
 struct TABLE_LIST;
 
 bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list, bool silent);
-bool do_rename(THD *thd, TABLE_LIST *ren_table, char *new_db,
-               char *new_table_name, char *new_table_alias,
+bool do_rename(THD *thd, TABLE_LIST *ren_table, const char *new_db,
+               const char *new_table_name, const char *new_table_alias,
                bool skip_error);
 
 #endif /* SQL_RENAME_INCLUDED */

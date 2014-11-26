@@ -2,7 +2,7 @@ set @org_mode=@@sql_mode;
 set @@sql_mode='ansi,traditional';
 select @@sql_mode;
 @@sql_mode
-REAL_AS_FLOAT,PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,ANSI,STRICT_TRANS_TABLES,STRICT_ALL_TABLES,TRADITIONAL,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
+REAL_AS_FLOAT,PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,ONLY_FULL_GROUP_BY,ANSI,STRICT_TRANS_TABLES,STRICT_ALL_TABLES,TRADITIONAL,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
 DROP TABLE IF EXISTS t1, t2;
 CREATE TABLE t1 (col1 date);
 INSERT INTO t1 VALUES('2004-01-01'),('2004-02-29');
@@ -1391,6 +1391,7 @@ i int comment
  123456789*123456789*123456789*123456789*');
 ERROR HY000: Comment for field 'i' is too long (max = 1024)
 set @@sql_mode= @org_mode;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 create table t1
 (i int comment
 '123456789*123456789*123456789*123456789*
@@ -1422,6 +1423,7 @@ create table t1
   123456789*123456789*123456789*123456789*');
 Warnings:
 Warning	1629	Comment for field 'i' is too long (max = 1024)
+SET sql_mode = default;
 select column_name, column_comment from information_schema.columns where
 table_schema = 'test' and table_name = 't1';
 column_name	column_comment

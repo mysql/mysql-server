@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -88,9 +88,7 @@ handler_create_thd(
 	}
 
 	my_net_init(&thd->net,(st_vio*) 0);
-        Global_THD_manager *thd_manager= Global_THD_manager::get_instance();
-        thd->variables.pseudo_thread_id= thd_manager->get_inc_thread_id();
-        thd->thread_id= thd->variables.pseudo_thread_id;
+        thd->set_new_thread_id();
 	thd->thread_stack = reinterpret_cast<char*>(&thd);
 	thd->store_globals();
 
@@ -116,13 +114,13 @@ handler_thd_attach(
 	THD*	thd = static_cast<THD*>(my_thd);
 
 	if (original_thd) {
-		*original_thd = my_pthread_getspecific(THD*, THR_THD);
+          *original_thd = static_cast<THD*>(my_get_thread_local(THR_THD));
 		assert(thd->mysys_var);
 	}
 
-	my_pthread_setspecific_ptr(THR_THD, thd);
-	my_pthread_setspecific_ptr(THR_MALLOC, &thd->mem_root);
-	set_mysys_var(thd->mysys_var);
+	my_set_thread_local(THR_THD, thd);
+	my_set_thread_local(THR_MALLOC, &thd->mem_root);
+	set_mysys_thread_var(thd->mysys_var);
 }
 
 /**********************************************************************//**

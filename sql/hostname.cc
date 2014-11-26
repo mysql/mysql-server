@@ -33,17 +33,15 @@
                                                 // sql_print_information
 #include "violite.h"                            // vio_getnameinfo,
                                                 // vio_get_normalized_ip_string
-#ifdef	__cplusplus
-extern "C" {					// Because of SCO 3.2V4.2
+
+#ifdef HAVE_ARPA_INET_H
+#include <arpa/inet.h>
 #endif
-#if !defined(_WIN32)
 #ifdef HAVE_SYS_UN_H
 #include <sys/un.h>
 #endif
+#if !defined(_WIN32)
 #include <sys/utsname.h>
-#endif // _WIN32
-#ifdef	__cplusplus
-}
 #endif
 
 Host_errors::Host_errors()

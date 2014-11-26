@@ -107,15 +107,17 @@ b
 DROP TABLE t3,t2,t1;
 CREATE TABLE t1 (a INT) ENGINE = InnoDB;
 INSERT INTO t1 VALUES (1),(NULL),(2);
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 ALTER TABLE t1 CHANGE a a INT NOT NULL;
 Warnings:
 Warning	1265	Data truncated for column 'a' at row 2
+SET sql_mode = default;
 SELECT * FROM t1;
 a
 1
 0
 2
-UPDATE t1 SET a=NULL WHERE a=0;
+UPDATE IGNORE t1 SET a=NULL WHERE a=0;
 Warnings:
 Warning	1048	Column 'a' cannot be null
 SELECT * FROM t1;
@@ -132,7 +134,7 @@ Warning	1048	Column 'a' cannot be null
 SELECT * FROM t1;
 a
 0
-INSERT INTO t1 VALUES (NULL),(3);
+INSERT IGNORE INTO t1 VALUES (NULL),(3);
 Warnings:
 Warning	1048	Column 'a' cannot be null
 SELECT * FROM t1;
@@ -145,7 +147,7 @@ CREATE TABLE t1(a INT, b INT) ENGINE = InnoDB;
 CREATE TABLE t2(a INT, b INT NOT NULL) ENGINE = InnoDB;
 INSERT INTO t1 VALUES(1, NULL),(2,NULL);
 INSERT INTO t2 VALUES (1,3), (2,4);
-UPDATE t1,t2 SET t2.b=NULL;
+UPDATE IGNORE t1,t2 SET t2.b=NULL;
 Warnings:
 Warning	1048	Column 'b' cannot be null
 Warning	1048	Column 'b' cannot be null
@@ -351,17 +353,16 @@ Warnings:
 Warning	1526	Table has no partition for value 4
 DROP TABLE t1;
 CREATE TABLE t11 (a INT NOT NULL, b INT, PRIMARY KEY (a)) ENGINE = InnoDB;
-CREATE TABLE t12 (a INT NOT NULL, b INT, PRIMARY KEY (a)) ENGINE = InnoDB;
 CREATE TABLE t2 (a INT NOT NULL, b INT, PRIMARY KEY (a)) ENGINE = InnoDB;
 INSERT INTO t11 VALUES (0, 10),(1, 11),(2, 12);
-INSERT INTO t12 VALUES (33, 10),(0, 11),(2, 12);
 INSERT INTO t2 VALUES (1, 21),(2, 12),(3, 23);
-DELETE t11.*, t12.* FROM t11,t12 WHERE t11.a = t12.a AND t11.b <> (SELECT b FROM t2 WHERE t11.a < t2.a);
+DELETE FROM t11 WHERE t11.b = (SELECT b FROM t2 WHERE t11.a < t2.a);
 ERROR 21000: Subquery returns more than 1 row
-DELETE IGNORE t11.*, t12.* FROM t11,t12 WHERE t11.a = t12.a AND t11.b <> (SELECT b FROM t2 WHERE t11.a < t2.a);
+DELETE IGNORE FROM t11 WHERE t11.b = (SELECT b FROM t2 WHERE t11.a < t2.a);
 Warnings:
 Warning	1242	Subquery returns more than 1 row
-DROP TABLE t11, t12, t2;
+Warning	1242	Subquery returns more than 1 row
+DROP TABLE t11, t2;
 CREATE TABLE t1 (a INT) ENGINE = InnoDB;
 CREATE VIEW v1 AS SELECT * FROM t1 WHERE a < 2 WITH CHECK OPTION;
 INSERT INTO v1 VALUES (1), (3);
@@ -738,15 +739,17 @@ b
 DROP TABLE t3,t2,t1;
 CREATE TABLE t1 (a INT) ENGINE = MyISAM;
 INSERT INTO t1 VALUES (1),(NULL),(2);
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 ALTER TABLE t1 CHANGE a a INT NOT NULL;
 Warnings:
 Warning	1265	Data truncated for column 'a' at row 2
+SET sql_mode = default;
 SELECT * FROM t1;
 a
 1
 0
 2
-UPDATE t1 SET a=NULL WHERE a=0;
+UPDATE IGNORE t1 SET a=NULL WHERE a=0;
 Warnings:
 Warning	1048	Column 'a' cannot be null
 SELECT * FROM t1;
@@ -763,7 +766,7 @@ Warning	1048	Column 'a' cannot be null
 SELECT * FROM t1;
 a
 0
-INSERT INTO t1 VALUES (NULL),(3);
+INSERT IGNORE INTO t1 VALUES (NULL),(3);
 Warnings:
 Warning	1048	Column 'a' cannot be null
 SELECT * FROM t1;
@@ -776,13 +779,13 @@ CREATE TABLE t1(a INT, b INT) ENGINE = MyISAM;
 CREATE TABLE t2(a INT, b INT NOT NULL) ENGINE = MyISAM;
 INSERT INTO t1 VALUES(1, NULL),(2,NULL);
 INSERT INTO t2 VALUES (1,3), (2,4);
-UPDATE t1,t2 SET t2.b=NULL;
+UPDATE IGNORE t1,t2 SET t2.b=NULL;
 Warnings:
 Warning	1048	Column 'b' cannot be null
 Warning	1048	Column 'b' cannot be null
 Warning	1048	Column 'b' cannot be null
 Warning	1048	Column 'b' cannot be null
-UPDATE t2,t1 SET t2.b=NULL;
+UPDATE IGNORE t2,t1 SET t2.b=NULL;
 Warnings:
 Warning	1048	Column 'b' cannot be null
 Warning	1048	Column 'b' cannot be null

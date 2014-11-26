@@ -129,11 +129,41 @@ TEST(CostEstimateTest, Operators)
   EXPECT_DOUBLE_EQ(2*import1_import_cost + import2_import_cost, 
                    ce_mi_copy.get_import_cost());
 
+  // operator-
+  ce_mi_copy= ce_mem_import1 - ce_mem_import2;
+  EXPECT_DOUBLE_EQ(ce_mi_copy.get_mem_cost(),
+                   ce_mem_import1.get_mem_cost() -
+                   ce_mem_import2.get_mem_cost());
+  EXPECT_DOUBLE_EQ(ce_mi_copy.get_import_cost(),
+                   ce_mem_import1.get_import_cost() -
+                   ce_mem_import2.get_import_cost());
+
   // copy assignment
   Cost_estimate ce_copy3;
   ce_copy3= ce_copy2;
   EXPECT_DOUBLE_EQ(copy2_totcost, ce_copy3.total_cost());
 }
+
+TEST(CostEstimateTest, MaxValue)
+{
+  Cost_estimate ce;
+  Cost_estimate ce2;
+
+  EXPECT_FALSE(ce.is_max_cost());
+
+  ce.set_max_cost();
+  EXPECT_TRUE(ce.is_max_cost());
+
+  EXPECT_TRUE(ce > ce2);
+  EXPECT_FALSE(ce < ce2);
+  EXPECT_FALSE(ce2 > ce);
+  EXPECT_TRUE(ce2 < ce);
+
+  ce2= ce;
+  EXPECT_TRUE(ce2.is_max_cost());
+  EXPECT_FALSE(ce < ce2);
+  EXPECT_FALSE(ce2 > ce);
+ }
 
 
 } //namespace

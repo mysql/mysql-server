@@ -554,10 +554,23 @@ void ReplSemiSyncMaster::remove_slave()
       and after a slave exists, turn off semi-semi master immediately if active
       slaves are less then required slave numbers.
     */
-    if (!rpl_semi_sync_master_wait_no_slave &&
-        rpl_semi_sync_master_clients ==
-        rpl_semi_sync_master_wait_for_slave_count - 1)
+    if ((rpl_semi_sync_master_clients ==
+         rpl_semi_sync_master_wait_for_slave_count - 1) &&
+        (!rpl_semi_sync_master_wait_no_slave || abort_loop))
+    {
+      if (abort_loop)
+      {
+        if (commit_file_name_inited_ && reply_file_name_inited_)
+        {
+          int cmp = ActiveTranx::compare(reply_file_name_, reply_file_pos_ ,
+                                         commit_file_name_, commit_file_pos_);
+          if (cmp < 0)
+            sql_print_warning("SEMISYNC: Forced shutdown. Some updates might "
+                              "not be replicated.");
+        }
+      }
       switch_off();
+    }
   }
   unlock();
 }
@@ -674,7 +687,7 @@ int ReplSemiSyncMaster::commitTrx(const char* trx_wait_binlog_name,
     int wait_result;
     PSI_stage_info old_stage;
 
-    set_timespec(start_ts, 0);
+    set_timespec(&start_ts, 0);
 #if defined(ENABLED_DEBUG_SYNC)
     /* debug sync may not be initialized for a master */
     if (current_thd->debug_sync_control)
@@ -772,6 +785,15 @@ int ReplSemiSyncMaster::commitTrx(const char* trx_wait_binlog_name,
        * when replication has progressed far enough, we will release
        * these waiting threads.
        */
+      if (abort_loop && (rpl_semi_sync_master_clients ==
+                         rpl_semi_sync_master_wait_for_slave_count - 1) && is_on())
+      {
+        sql_print_warning("SEMISYNC: Forced shutdown. Some updates might "
+                          "not be replicated.");
+        switch_off();
+        break;
+      }
+
       rpl_semi_sync_master_wait_sessions++;
       
       if (trace_level_ & kTraceDetail)
@@ -1364,7 +1386,7 @@ static int getWaitTime(const struct timespec& start_ts)
   start_usecs = timespec_to_usec(&start_ts);
 
   /* Get the wait time interval. */
-  set_timespec(end_ts, 0);
+  set_timespec(&end_ts, 0);
 
   /* Ending time in microseconds(us). */
   end_usecs = timespec_to_usec(&end_ts);

@@ -1,4 +1,4 @@
-call mtr.add_suppression("Flagged corruption of idx.*in CHECK TABLE");
+call mtr.add_suppression("Flagged corruption of \"idx.*in CHECK TABLE");
 set names utf8;
 CREATE TABLE corrupt_bit_test_ā(
 a INT AUTO_INCREMENT PRIMARY KEY,

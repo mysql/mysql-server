@@ -368,6 +368,20 @@ trx_undo_free_prepared(
 /*===================*/
 	trx_t*	trx)	/*!< in/out: PREPARED transaction */
 	UNIV_COLD __attribute__((nonnull));
+
+/* Forward declaration. */
+namespace undo {
+	class Truncate;
+};
+
+/** Truncate UNDO tablespace, reinitialize header and rseg.
+@param[in]	undo_trunc	UNDO tablespace handler
+@return true if success else false. */
+
+bool
+trx_undo_truncate_tablespace(
+	undo::Truncate*	undo_trunc);
+
 #endif /* !UNIV_HOTBACKUP */
 /***********************************************************//**
 Parses the redo log entry of an undo log page initialization.
@@ -485,6 +499,8 @@ struct trx_undo_t {
 	undo_no_t	top_undo_no;	/*!< undo number of the latest record */
 	buf_block_t*	guess_block;	/*!< guess for the buffer block where
 					the top page might reside */
+	ulint		withdraw_clock;	/*!< the withdraw clock value of the
+					buffer pool when guess_block was stored */
 	/*-----------------------------*/
 	UT_LIST_NODE_T(trx_undo_t) undo_list;
 					/*!< undo log objects in the rollback

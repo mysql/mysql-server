@@ -38,8 +38,9 @@ Created 2011-05-26 Marko Makela
 #include "que0que.h"
 #include "srv0mon.h"
 #include "handler0alter.h"
+#include "ut0new.h"
 
-#include<map>
+#include <map>
 
 /** Table row modification operations during online table rebuild.
 Delete-marked records are not copied to the rebuilt table. */
@@ -66,6 +67,9 @@ enum row_op {
 /** Log block for modifications during online ALTER TABLE */
 struct row_log_buf_t {
 	byte*		block;	/*!< file block buffer */
+	ut_new_pfx_t	block_pfx; /*!< opaque descriptor of "block". Set
+				by ut_allocator::allocate_large() and fed to
+				ut_allocator::deallocate_large(). */
 	mrec_buf_t	buf;	/*!< buffer for accessing a record
 				that spans two blocks */
 	ulint		blocks; /*!< current position in blocks */
@@ -74,7 +78,6 @@ struct row_log_buf_t {
 				the start of the row_log_table log;
 				0 for row_log_online_op() and
 				row_log_apply(). */
-	ulint		size;	/*!< allocated size of block */
 };
 
 /** Tracks BLOB allocation during online ALTER TABLE */
@@ -143,7 +146,12 @@ If a page number maps to 0, it is an off-page column that has been freed.
 If a page number maps to a nonzero number, the number is a byte offset
 into the index->online_log, indicating that the page is safe to access
 when applying log records starting from that offset. */
-typedef std::map<ulint, row_log_table_blob_t> page_no_map;
+typedef std::map<
+	ulint,
+	row_log_table_blob_t,
+	std::less<ulint>,
+	ut_allocator<std::pair<const ulint, row_log_table_blob_t> > >
+	page_no_map;
 
 /** @brief Buffer for logging modifications during online index creation
 
@@ -188,6 +196,29 @@ struct row_log_t {
 };
 
 
+/** Create the file or online log if it does not exist.
+@param[in,out] log     online rebuild log
+@return true if success, false if not */
+static __attribute__((warn_unused_result))
+int
+row_log_tmpfile(
+	row_log_t*	log)
+{
+	DBUG_ENTER("row_log_tmpfile");
+	if (log->fd < 0) {
+		log->fd = row_merge_file_create_low();
+		DBUG_EXECUTE_IF("row_log_tmpfile_fail",
+				if (log->fd > 0)
+					row_merge_file_destroy_low(log->fd);
+				log->fd = -1;);
+		if (log->fd >= 0) {
+			MONITOR_ATOMIC_INC(MONITOR_ALTER_TABLE_LOG_FILES);
+		}
+	}
+
+	DBUG_RETURN(log->fd);
+}
+
 /** Allocate the memory for the log buffer.
 @param[in,out]	log_buf	Buffer used for log operation
 @return TRUE if success, false if not */
@@ -198,13 +229,15 @@ row_log_block_allocate(
 {
 	DBUG_ENTER("row_log_block_allocate");
 	if (log_buf.block == NULL) {
-		log_buf.size = srv_sort_buf_size;
-		log_buf.block = (byte*) os_mem_alloc_large(&log_buf.size);
-		DBUG_EXECUTE_IF("simulate_row_log_allocation_failure",
-			if (log_buf.block)
-				os_mem_free_large(log_buf.block, log_buf.size);
-			log_buf.block = NULL;);
-		if (!log_buf.block) {
+		DBUG_EXECUTE_IF(
+			"simulate_row_log_allocation_failure",
+			DBUG_RETURN(false);
+		);
+
+		log_buf.block = ut_allocator<byte>(mem_key_row_log_buf)
+			.allocate_large(srv_sort_buf_size, &log_buf.block_pfx);
+
+		if (log_buf.block == NULL) {
 			DBUG_RETURN(false);
 		}
 	}
@@ -220,7 +253,8 @@ row_log_block_free(
 {
 	DBUG_ENTER("row_log_block_free");
 	if (log_buf.block != NULL) {
-		os_mem_free_large(log_buf.block, log_buf.size);
+		ut_allocator<byte>(mem_key_row_log_buf).deallocate_large(
+			log_buf.block, &log_buf.block_pfx);
 		log_buf.block = NULL;
 	}
 	DBUG_VOID_RETURN;
@@ -331,6 +365,12 @@ row_log_online_op(
 			       log->tail.buf, avail_size);
 		}
 		UNIV_MEM_ASSERT_RW(log->tail.block, srv_sort_buf_size);
+
+		if (row_log_tmpfile(log) < 0) {
+			log->error = DB_OUT_OF_MEMORY;
+			goto err_exit;
+		}
+
 		ret = os_file_write(
 			"(modification log)",
 			OS_FILE_FROM_FD(log->fd),
@@ -441,6 +481,12 @@ row_log_table_close_func(
 			       log->tail.buf, avail);
 		}
 		UNIV_MEM_ASSERT_RW(log->tail.block, srv_sort_buf_size);
+
+		if (row_log_tmpfile(log) < 0) {
+			log->error = DB_OUT_OF_MEMORY;
+			goto err_exit;
+		}
+
 		ret = os_file_write(
 			"(modification log)",
 			OS_FILE_FROM_FD(log->fd),
@@ -460,6 +506,7 @@ write_failed:
 
 	log->tail.total += size;
 	UNIV_MEM_INVALID(log->tail.buf, sizeof log->tail.buf);
+err_exit:
 	mutex_exit(&log->mutex);
 }
 
@@ -1221,8 +1268,8 @@ row_log_table_blob_free(
 
 	page_no_map*	blobs	= index->online_log->blobs;
 
-	if (!blobs) {
-		index->online_log->blobs = blobs = new page_no_map();
+	if (blobs == NULL) {
+		index->online_log->blobs = blobs = UT_NEW_NOKEY(page_no_map());
 	}
 
 #ifdef UNIV_DEBUG
@@ -2450,7 +2497,7 @@ row_log_table_apply_ops(
 
 	UNIV_MEM_INVALID(&mrec_end, sizeof mrec_end);
 
-	offsets = static_cast<ulint*>(ut_malloc(i * sizeof *offsets));
+	offsets = static_cast<ulint*>(ut_malloc_nokey(i * sizeof *offsets));
 	offsets[0] = i;
 	offsets[1] = dict_index_get_n_fields(index);
 
@@ -2498,7 +2545,8 @@ corruption:
 		if (index->online_log->head.blocks) {
 #ifdef HAVE_FTRUNCATE
 			/* Truncate the file in order to save space. */
-			if (ftruncate(index->online_log->fd, 0) == -1) {
+			if (index->online_log->fd > 0
+			    && ftruncate(index->online_log->fd, 0) == -1) {
 				perror("ftruncate");
 			}
 #endif /* HAVE_FTRUNCATE */
@@ -2830,18 +2878,12 @@ row_log_allocate(
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own(dict_index_get_lock(index), RW_LOCK_X));
 #endif /* UNIV_SYNC_DEBUG */
-	log = (row_log_t*) ut_malloc(sizeof *log);
+	log = (row_log_t*) ut_malloc_nokey(sizeof *log);
 	if (!log) {
 		DBUG_RETURN(false);
 	}
 
-	log->fd = row_merge_file_create_low();
-
-	if (log->fd < 0) {
-		ut_free(log);
-		DBUG_RETURN(false);
-	}
-
+	log->fd = -1;
 	mutex_create("index_online_log", &log->mutex);
 
 	log->blobs = NULL;
@@ -2877,13 +2919,13 @@ row_log_free(
 {
 	MONITOR_ATOMIC_DEC(MONITOR_ONLINE_CREATE_INDEX);
 
-	delete log->blobs;
+	UT_DELETE(log->blobs);
 	row_log_block_free(log->tail);
 	row_log_block_free(log->head);
 	row_merge_file_destroy_low(log->fd);
 	mutex_free(&log->mutex);
 	ut_free(log);
-	log = 0;
+	log = NULL;
 }
 
 /******************************************************//**
@@ -3289,7 +3331,7 @@ row_log_apply_ops(
 	ut_ad(index->online_log);
 	UNIV_MEM_INVALID(&mrec_end, sizeof mrec_end);
 
-	offsets = static_cast<ulint*>(ut_malloc(i * sizeof *offsets));
+	offsets = static_cast<ulint*>(ut_malloc_nokey(i * sizeof *offsets));
 	offsets[0] = i;
 	offsets[1] = dict_index_get_n_fields(index);
 
@@ -3334,7 +3376,8 @@ corruption:
 		if (index->online_log->head.blocks) {
 #ifdef HAVE_FTRUNCATE
 			/* Truncate the file in order to save space. */
-			if (ftruncate(index->online_log->fd, 0) == -1) {
+			if (index->online_log->fd > 0
+			    && ftruncate(index->online_log->fd, 0) == -1) {
 				perror("ftruncate");
 			}
 #endif /* HAVE_FTRUNCATE */

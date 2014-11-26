@@ -27,11 +27,13 @@ show create table t2;
 let $letter=26;
 --echo $count inserts;
 #--disable_query_log
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 while ($letter)
 {
 eval insert into t2 values (char(ascii('A')+$letter));
 dec $letter;
 }
+SET sql_mode = default;
 insert into t2 values ('1'),('2'),('3'),('4'),('5'),('6'),('7'),('8'),('9'),('0');
 select count(*) from t2;
 select * from t2;

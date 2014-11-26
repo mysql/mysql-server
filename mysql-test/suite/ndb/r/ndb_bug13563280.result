@@ -5,6 +5,7 @@ a	b
 1	xxx
 2	yyy
 3	zzz
+# restart
 select * from t1 order by a;
 a	b
 1	xxx

@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2014, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -99,7 +99,7 @@ C_MODE_END
 
 #define MY_TIMER_ROUTINE_ASM_X86                  1
 #define MY_TIMER_ROUTINE_ASM_X86_64               2
-#define MY_TIMER_ROUTINE_RDTSCLL                  3
+/* #define MY_TIMER_ROUTINE_RDTSCLL                  3 - No longer used */
 #define MY_TIMER_ROUTINE_ASM_X86_WIN              4
 #define MY_TIMER_ROUTINE_RDTSC                    5
 #define MY_TIMER_ROUTINE_ASM_IA64                 6

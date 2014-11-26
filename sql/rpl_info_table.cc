@@ -79,7 +79,7 @@ int Rpl_info_table::do_init_info(enum_find_method method, uint instance)
   int error= 1;
   enum enum_return_id res= FOUND_ID;
   TABLE *table= NULL;
-  ulong saved_mode;
+  sql_mode_t saved_mode;
   Open_tables_backup backup;
 
   DBUG_ENTER("Rlp_info_table::do_init_info");
@@ -143,7 +143,7 @@ int Rpl_info_table::do_flush_info(const bool force)
   int error= 1;
   enum enum_return_id res= FOUND_ID;
   TABLE *table= NULL;
-  ulong saved_mode;
+  sql_mode_t saved_mode;
   Open_tables_backup backup;
 
   DBUG_ENTER("Rpl_info_table::do_flush_info");
@@ -229,8 +229,9 @@ end:
              mts_debug_concurrent_access < 2 && mts_debug_concurrent_access >  0)
       {
         DBUG_PRINT("mts", ("Waiting while locks are acquired to show "
-          "concurrency in mts: %u %lu\n", mts_debug_concurrent_access,
-          (ulong) thd->thread_id));
+                           "concurrency in mts: %u %u\n",
+                           mts_debug_concurrent_access,
+                           thd->thread_id()));
         my_sleep(6000000);
       }
     };
@@ -256,7 +257,7 @@ int Rpl_info_table::do_clean_info()
   int error= 1;
   enum enum_return_id res= FOUND_ID;
   TABLE *table= NULL;
-  ulong saved_mode;
+  sql_mode_t saved_mode;
   Open_tables_backup backup;
 
   DBUG_ENTER("Rpl_info_table::do_remove_info");
@@ -307,7 +308,7 @@ int Rpl_info_table::do_reset_info(uint nparam,
 {
   int error= 1;
   TABLE *table= NULL;
-  ulong saved_mode;
+  sql_mode_t saved_mode;
   Open_tables_backup backup;
   Rpl_info_table *info= NULL;
   THD *thd= NULL;
@@ -360,7 +361,7 @@ end:
 enum_return_check Rpl_info_table::do_check_info()
 {
   TABLE *table= NULL;
-  ulong saved_mode;
+  sql_mode_t saved_mode;
   Open_tables_backup backup;
   enum_return_check return_check= ERROR_CHECKING_REPOSITORY;
 
@@ -415,7 +416,7 @@ end:
 enum_return_check Rpl_info_table::do_check_info(uint instance)
 {
   TABLE *table= NULL;
-  ulong saved_mode;
+  sql_mode_t saved_mode;
   Open_tables_backup backup;
   enum_return_check return_check= ERROR_CHECKING_REPOSITORY;
 
@@ -474,7 +475,7 @@ bool Rpl_info_table::do_count_info(uint nparam,
 {
   int error= 1;
   TABLE *table= NULL;
-  ulong saved_mode;
+  sql_mode_t saved_mode;
   Open_tables_backup backup;
   Rpl_info_table *info= NULL;
   THD *thd= NULL;
@@ -686,7 +687,7 @@ bool Rpl_info_table::do_is_transactional()
 bool Rpl_info_table::do_update_is_transactional()
 {
   bool error= TRUE;
-  ulong saved_mode;
+  sql_mode_t saved_mode;
   TABLE *table= NULL;
   Open_tables_backup backup;
 

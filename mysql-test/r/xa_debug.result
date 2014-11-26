@@ -9,6 +9,7 @@ XA END 'xid1';
 XA PREPARE 'xid1';
 XA RECOVER;
 ERROR HY000: Lost connection to MySQL server during query
+# restart
 XA RECOVER;
 formatID	gtrid_length	bqual_length	data
 1	4	0	xid1
@@ -30,6 +31,7 @@ INSERT INTO t1 VALUES (1);
 XA END 'xid1';
 XA RECOVER;
 ERROR HY000: Lost connection to MySQL server during query
+# restart
 XA RECOVER;
 formatID	gtrid_length	bqual_length	data
 SELECT * FROM t1;
@@ -46,6 +48,7 @@ XA END 'xid1', 'br\'_1';
 XA PREPARE 'xid1', 'br\'_1';
 XA RECOVER;
 ERROR HY000: Lost connection to MySQL server during query
+# restart
 XA RECOVER;
 formatID	gtrid_length	bqual_length	data
 1	4	5	xid1br'_1
@@ -62,6 +65,7 @@ XA PREPARE 'xid1';
 set session debug="+d,crash_after_xa_recover";
 XA RECOVER;
 ERROR HY000: Lost connection to MySQL server during query
+# restart
 set session debug="-d,crash_after_xa_recover";
 XA RECOVER;
 formatID	gtrid_length	bqual_length	data

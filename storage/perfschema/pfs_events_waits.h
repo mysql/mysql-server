@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2014, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -85,8 +85,9 @@ struct PFS_events_waits : public PFS_events
   /** Operation performed. */
   enum_operation_type m_operation;
   /**
-    Number of bytes read/written.
-    This member is populated for file READ/WRITE operations only.
+    Number of bytes/rows read/written.
+    This member is populated for FILE READ/WRITE operations, with a number of bytes.
+    This member is populated for TABLE IO operations, with a number of rows.
   */
   size_t m_number_of_bytes;
   /**

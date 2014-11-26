@@ -96,7 +96,7 @@ SET collation_connection=gb18030_bin;
 --echo # Bugs#12635232: VALGRIND WARNINGS: IS_IPV6, IS_IPV4, INET6_ATON,
 --echo # INETTO_NTOA + MULTIBYTE CHARSET.
 --echo #
-
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 --source include/ctype_inet.inc
 
 --echo #
@@ -253,11 +253,13 @@ DROP TABLE t1;
 SET NAMES utf8mb4;
 CREATE TABLE t1 (c VARCHAR(10) CHARACTER SET gb18030);
 INSERT INTO t1 VALUES (_gb18030 0x8BF5819AEDC3), (_gb18030 0x99CC), (_gb18030 0x90459958), (_gb18030 0xAA95C0E59E509AED), (_gb18030 0xCCE7), (_gb18030 0x9068), (_gb18030 0x90459958);
-SELECT HEX(c), COUNT(c) FROM t1 GROUP BY c COLLATE gb18030_chinese_ci;
+# Because of the COLLATE, the uniqueness of HEX(c) per group is not
+# guaranteed, hence ANY_VALUE is used.
+SELECT ANY_VALUE(HEX(c)), COUNT(c) FROM t1 GROUP BY c COLLATE gb18030_chinese_ci;
 DROP TABLE t1;
 
 DROP DATABASE gb18030;
-
+SET sql_mode = default;
 --echo #
 --echo # End of 5.7 tests
 --echo #

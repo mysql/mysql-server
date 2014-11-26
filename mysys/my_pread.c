@@ -18,10 +18,6 @@
 #include "my_base.h"
 #include <m_string.h>
 #include <errno.h>
-#if !defined (_WIN32)
-#include <unistd.h>
-#endif
-
 
 
 /*
@@ -165,7 +161,7 @@ size_t my_pwrite(File Filedes, const uchar *Buffer, size_t Count,
     }
     DBUG_PRINT("error",("Write only %u bytes", (uint) writtenbytes));
 
-    if (my_thread_var->abort)
+    if (mysys_thread_var()->abort)
       MyFlags&= ~ MY_WAIT_IF_FULL;		/* End if aborted by user */
 
     if ((my_errno == ENOSPC || my_errno == EDQUOT) &&

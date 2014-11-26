@@ -122,9 +122,9 @@ static int get_errno_from_oserr(unsigned long oserrno)
 void my_osmaperr( unsigned long oserrno)
 {
   /*
-    set my_winerr so that we could return the Windows Error Code
+    set thr_winerr so that we could return the Windows Error Code
     when it is EINVAL.
   */
-  my_winerr= oserrno;
+  mysys_thread_var()->thr_winerr= oserrno;
   errno= get_errno_from_oserr(oserrno);
 }

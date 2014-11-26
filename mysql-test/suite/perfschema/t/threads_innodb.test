@@ -7,6 +7,8 @@
 --source include/have_innodb.inc
 --source include/have_perfschema.inc
 
+--source include/turn_off_only_full_group_by.inc
+
 # There are several InnoDB io_handler_threads servicing for read IO, write IO etc.
 # The number of these threads is at least for some types configurable.
 # We suppress here duplicates rows with the goal to avoid that the test fails
@@ -18,3 +20,4 @@ FROM performance_schema.threads
 WHERE name LIKE 'thread/innodb/%'
 GROUP BY name;
 
+--source include/restore_sql_mode_after_turn_off_only_full_group_by.inc

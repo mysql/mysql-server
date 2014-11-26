@@ -129,7 +129,7 @@ size_t cleanup_dirname(char *to, const char *from)
   char *start;
   char parent[5],				/* for "FN_PARENTDIR" */
        buff[FN_REFLEN+1],*end_parentdir;
-#ifdef BACKSLASH_MBTAIL
+#ifdef _WIN32
   CHARSET_INFO *fs= fs_character_set();
 #endif
   DBUG_ENTER("cleanup_dirname");
@@ -149,7 +149,7 @@ size_t cleanup_dirname(char *to, const char *from)
   length=(size_t) (my_stpcpy(parent+1,FN_PARENTDIR)-parent);
   for (pos=start ; (*pos= *from_ptr++) != 0 ; pos++)
   {
-#ifdef BACKSLASH_MBTAIL
+#ifdef _WIN32
     uint l;
     if (use_mb(fs) && (l= my_ismbchar(fs, from_ptr - 1, from_ptr + 2)))
     {

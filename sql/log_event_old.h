@@ -126,7 +126,7 @@ public:
 #endif
 
   /* Member functions to implement superclass interface */
-  virtual int get_data_size();
+  virtual size_t get_data_size();
 
   MY_BITMAP const *get_cols() const { return &m_cols; }
   size_t get_width() const          { return m_width; }

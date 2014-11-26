@@ -1,0 +1,116 @@
+#
+# Bug #14669848 CRASH DURING ALTER MAKES ORIGINAL TABLE INACCESSIBLE
+#
+# -- Scenario 1:
+# Crash the server in ha_innobase::commit_inplace_alter_table()
+# just after committing the dictionary changes.
+CREATE TABLE t1 (f1 INT NOT NULL, f2 INT NOT NULL) ENGINE=innodb;
+INSERT INTO t1 VALUES (1,2),(3,4);
+SET DEBUG='d,innodb_alter_commit_crash_after_commit';
+ALTER TABLE t1 ADD PRIMARY KEY (f2, f1);
+ERROR HY000: Lost connection to MySQL server during query
+# Restart mysqld after the crash and reconnect.
+# restart
+# Manual *.frm recovery begin.
+# Manual recovery end
+# Drop the orphaned original table.
+# Files in datadir after manual recovery.
+t1.frm
+t1.ibd
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int(11) NOT NULL,
+  `f2` int(11) NOT NULL,
+  PRIMARY KEY (`f2`,`f1`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+INSERT INTO t1 VALUES (5,6),(7,8);
+SELECT * FROM t1;
+f1	f2
+1	2
+3	4
+5	6
+7	8
+DROP TABLE t1;
+CREATE TABLE t1 (f1 INT NOT NULL, f2 INT NOT NULL) ENGINE=InnoDB;
+ALTER TABLE t1 ADD PRIMARY KEY (f2, f1);
+DROP TABLE t1;
+call mtr.add_suppression("table 'test/");
+# -- Scenario 2:
+# Crash the server in ha_innobase::commit_inplace_alter_table()
+# just before committing the dictionary changes, but after
+# writing the MLOG_FILE_RENAME records. As the mini-transaction
+# is not committed, the renames will not be replayed.
+CREATE TABLE t2 (f1 int not null, f2 int not null) ENGINE=InnoDB;
+INSERT INTO t2 VALUES (1,2),(3,4);
+SET DEBUG='d,innodb_alter_commit_crash_before_commit';
+ALTER TABLE t2 ADD PRIMARY KEY (f2, f1);
+ERROR HY000: Lost connection to MySQL server during query
+# Startup the server after the crash
+# restart
+# Read and remember the temporary table name
+# Manual *.frm recovery begin. The dictionary was not updated
+# and the files were not renamed. The rebuilt table
+# was left behind on purpose, to faciliate data recovery.
+# Manual recovery end
+# Drop the orphaned rebuilt table.
+SHOW TABLES;
+Tables_in_test
+t2
+INSERT INTO t2 VALUES (5,6),(7,8);
+SELECT * from t2;
+f1	f2
+1	2
+3	4
+5	6
+7	8
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `f1` int(11) NOT NULL,
+  `f2` int(11) NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+DROP TABLE t2;
+CREATE TABLE t2 (f1 INT NOT NULL, f2 INT NOT NULL) ENGINE=InnoDB;
+ALTER TABLE t2 ADD PRIMARY KEY (f2, f1);
+DROP TABLE t2;
+# -------------------------
+# End of Testing Scenario 2
+# -------------------------
+#
+# Bug#19330255 WL#7142 - CRASH DURING ALTER TABLE LEADS TO
+# DATA DICTIONARY INCONSISTENCY
+#
+CREATE TABLE t1(a int PRIMARY KEY, b varchar(255), c int NOT NULL);
+INSERT INTO t1 SET a=1,c=2;
+SET DEBUG='d,innodb_alter_commit_crash_after_commit';
+ALTER TABLE t1 ADD INDEX (b), CHANGE c d int;
+ERROR HY000: Lost connection to MySQL server during query
+# Restart mysqld after the crash and reconnect.
+# restart
+# Manual *.frm recovery begin.
+# Manual recovery end
+# Drop the orphaned original table.
+# Files in datadir after manual recovery.
+t1.frm
+t1.ibd
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` varchar(255) DEFAULT NULL,
+  `d` int(11) DEFAULT NULL,
+  PRIMARY KEY (`a`),
+  KEY `b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+UPDATE t1 SET d=NULL;
+SELECT * FROM t1;
+a	b	d
+1	NULL	NULL
+DROP TABLE t1;

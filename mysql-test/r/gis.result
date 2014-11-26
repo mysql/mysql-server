@@ -1,3 +1,4 @@
+SET sql_mode = 'ONLY_FULL_GROUP_BY,NO_ENGINE_SUBSTITUTION';
 DROP TABLE IF EXISTS t1, gis_point, gis_line, gis_polygon, gis_multi_point, gis_multi_line, gis_multi_polygon, gis_geometrycollection, gis_geometry;
 CREATE TABLE gis_point  (fid INTEGER NOT NULL PRIMARY KEY, g POINT);
 CREATE TABLE gis_line  (fid INTEGER NOT NULL PRIMARY KEY, g LINESTRING);
@@ -322,8 +323,8 @@ fid	IsClosed(g)
 116	0
 SELECT fid, AsText(Centroid(g)) FROM gis_multi_polygon;
 fid	AsText(Centroid(g))
-117	POINT(55.58852775304245 17.426536064113982)
-118	POINT(55.58852775304245 17.426536064113982)
+117	POINT(57.98031067576927 17.854754130800437)
+118	POINT(57.98031067576927 17.854754130800437)
 119	POINT(2 2)
 SELECT fid, Area(g) FROM gis_multi_polygon;
 fid	Area(g)
@@ -662,11 +663,11 @@ insert into t1 values ('85984',GeomFromText('MULTIPOLYGON(((-115.006363
 select object_id, geometrytype(geo), ISSIMPLE(GEO), ASTEXT(centroid(geo)) from
 t1 where object_id=85998;
 object_id	geometrytype(geo)	ISSIMPLE(GEO)	ASTEXT(centroid(geo))
-85998	MULTIPOLYGON	1	POINT(115.31877315203187 -36.23747282102153)
+85998	MULTIPOLYGON	1	POINT(-115.29706046728724 36.23335610879761)
 select object_id, geometrytype(geo), ISSIMPLE(GEO), ASTEXT(centroid(geo)) from
 t1 where object_id=85984;
 object_id	geometrytype(geo)	ISSIMPLE(GEO)	ASTEXT(centroid(geo))
-85984	MULTIPOLYGON	1	POINT(-114.87787186923313 36.33101763469059)
+85984	MULTIPOLYGON	1	POINT(-114.86854472052883 36.347252182538156)
 drop table t1;
 create table t1 (fl geometry not null);
 insert into t1 values (1);
@@ -676,7 +677,7 @@ ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
 insert into t1 values ("qwerty");
 ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
 insert into t1 values (pointfromtext('point(1,1)'));
-ERROR 23000: Column 'fl' cannot be null
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 drop table t1;
 select (asWKT(geomfromwkb((0x000000000140240000000000004024000000000000))));
 (asWKT(geomfromwkb((0x000000000140240000000000004024000000000000))))
@@ -724,10 +725,7 @@ within(b, b) IS NULL, contains(b, b) IS NULL, overlaps(b, b) IS NULL,
 equals(b, b) IS NULL, disjoint(b, b) IS NULL, touches(b, b) IS NULL, 
 intersects(b, b) IS NULL, crosses(b, b) IS NULL
 from t1;
-within(b, b) IS NULL	contains(b, b) IS NULL	overlaps(b, b) IS NULL	equals(b, b) IS NULL	disjoint(b, b) IS NULL	touches(b, b) IS NULL	intersects(b, b) IS NULL	crosses(b, b) IS NULL
-1	1	1	1	1	1	1	1
-1	1	1	1	1	1	1	1
-1	1	1	1	1	1	1	1
+ERROR 22023: Invalid GIS data provided to function mbrwithin.
 select 
 point(b, b) IS NULL, linestring(b) IS NULL, polygon(b) IS NULL, multipoint(b) IS NULL, 
 multilinestring(b) IS NULL, multipolygon(b) IS NULL, 
@@ -744,8 +742,7 @@ DROP TABLE t1;
 CREATE TABLE `t1` ( `col9` set('a'), `col89` date);
 INSERT INTO `t1` VALUES ('','0000-00-00');
 select geomfromtext(col9,col89) as a from t1;
-a
-NULL
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 DROP TABLE t1;
 CREATE TABLE t1 (
 geomdata polygon NOT NULL,
@@ -789,7 +786,7 @@ drop procedure if exists fn3;
 create function fn3 () returns point deterministic return GeomFromText("point(1 1)");
 show create function fn3;
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
-fn3	NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `fn3`() RETURNS point
+fn3	ONLY_FULL_GROUP_BY,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `fn3`() RETURNS point
     DETERMINISTIC
 return GeomFromText("point(1 1)")	latin1	latin1_swedish_ci	latin1_swedish_ci
 select astext(fn3());
@@ -994,8 +991,7 @@ drop table t1;
 create table `t1` (`col002` point)engine=myisam;
 insert into t1 values (),(),();
 select min(`col002`) from t1 union select `col002` from t1;
-min(`col002`)
-NULL
+ERROR HY000: Incorrect arguments to min(
 drop table t1;
 #
 # Bug #47780: crash when comparing GIS items from subquery
@@ -1043,8 +1039,10 @@ ERROR 22007: Illegal non geometric ''00000'' value found during parsing
 #
 SET @a=0x00000000030000000100000000000000000000000000144000000000000014400000000000001840000000000000184000000000000014400000000000001440;
 SET @a=POLYFROMWKB(@a);
+ERROR 22023: Invalid GIS data provided to function st_geometryfromwkb.
 SET @a=0x00000000030000000000000000000000000000000000144000000000000014400000000000001840000000000000184000000000000014400000000000001440;
 SET @a=POLYFROMWKB(@a);
+ERROR 22023: Invalid GIS data provided to function st_geometryfromwkb.
 create table t1(a polygon NOT NULL)engine=myisam;
 insert into t1 values (geomfromtext("point(0 1)"));
 insert into t1 values (geomfromtext("point(1 0)"));
@@ -1131,7 +1129,7 @@ CREATE TABLE g1(a TEXT NOT NULL, KEY(a(255)));
 INSERT INTO g1 VALUES ('a'),('a');
 SELECT 1 FROM g1 WHERE a >= ANY
 (SELECT 1 FROM g1 WHERE a = geomfromtext('') OR a) ;
-1
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 DROP TABLE g1;
 #
 # Bug#16451878 GEOMETRY QUERY CRASHES SERVER
@@ -1518,8 +1516,7 @@ DROP DATABASE gis_ogs;
 # Bug#13362660 ASSERTION `FIELD_POS < FIELD_COUNT' FAILED. IN PROTOCOL_TEXT::STORE
 #
 SELECT ST_Union('', ''), md5(1);
-ST_Union('', '')	md5(1)
-NULL	c4ca4238a0b923820dcc509a6f75849b
+ERROR 22023: Invalid GIS data provided to function st_union.
 #
 # Bug#18413646: SINCE 5.7 ERROR 1416 IS CONSIDERED FATAL,
 #               BUT IT SHOULDN'T BE.
@@ -1546,3 +1543,4 @@ Handler activated
 Handler activated
 DROP PROCEDURE p1;
 DROP TABLE t1;
+SET sql_mode = default;

@@ -1,0 +1,36 @@
+call mtr.add_suppression("InnoDB: Resizing redo log");
+call mtr.add_suppression("InnoDB: Starting to delete and rewrite log files");
+call mtr.add_suppression("InnoDB: New log files created");
+call mtr.add_suppression("InnoDB: The log sequence numbers [0-9]+ and [0-9]+ in ibdata files do not match the log sequence number [0-9]+ in the ib_logfiles");
+CREATE TABLE t1(a INT PRIMARY KEY) ENGINE=InnoDB;
+BEGIN;
+INSERT INTO t1 VALUES (42);
+# Kill and restart: --innodb-log-file-size=6M
+SELECT * FROM t1;
+a
+INSERT INTO t1 VALUES (42);
+BEGIN;
+DELETE FROM t1;
+# Kill and restart: --innodb-log-files-in-group=3 --innodb-log-file-size=5M
+SELECT * FROM t1;
+a
+42
+INSERT INTO t1 VALUES (123);
+BEGIN;
+DELETE FROM t1;
+# Kill the server
+--innodb-force-recovery-crash=1
+--innodb-force-recovery-crash=3
+--innodb-force-recovery-crash=4
+--innodb-force-recovery-crash=5
+--innodb-force-recovery-crash=6
+--innodb-force-recovery-crash=7
+--innodb-force-recovery-crash=8
+--innodb-force-recovery-crash=9
+--innodb-force-recovery-crash=10
+# restart: --innodb-log-files-in-group=3 --innodb-log-file-size=5M
+SELECT * FROM t1;
+a
+42
+123
+DROP TABLE t1;

@@ -75,7 +75,7 @@ TRIGGERS	CREATE TEMPORARY TABLE `TRIGGERS` (
   `CHARACTER_SET_CLIENT` varchar(32) NOT NULL DEFAULT '',
   `COLLATION_CONNECTION` varchar(32) NOT NULL DEFAULT '',
   `DATABASE_COLLATION` varchar(32) NOT NULL DEFAULT ''
-) ENGINE=MyISAM DEFAULT CHARSET=utf8
+) ENGINE=TMP_TABLE_ENGINE DEFAULT CHARSET=utf8
 SHOW COLUMNS FROM information_schema.TRIGGERS;
 Field	Type	Null	Key	Default	Extra
 TRIGGER_CATALOG	varchar(512)	NO			
@@ -135,10 +135,10 @@ GRANT SELECT ON db_datadict.t1 TO 'testuser3'@'localhost';
 SELECT * FROM information_schema.triggers
 WHERE trigger_name = 'trg1';
 TRIGGER_CATALOG	TRIGGER_SCHEMA	TRIGGER_NAME	EVENT_MANIPULATION	EVENT_OBJECT_CATALOG	EVENT_OBJECT_SCHEMA	EVENT_OBJECT_TABLE	ACTION_ORDER	ACTION_CONDITION	ACTION_STATEMENT	ACTION_ORIENTATION	ACTION_TIMING	ACTION_REFERENCE_OLD_TABLE	ACTION_REFERENCE_NEW_TABLE	ACTION_REFERENCE_OLD_ROW	ACTION_REFERENCE_NEW_ROW	CREATED	SQL_MODE	DEFINER	CHARACTER_SET_CLIENT	COLLATION_CONNECTION	DATABASE_COLLATION
-def	db_datadict	trg1	INSERT	def	db_datadict	t1	1	NULL	SET @test_before = 2, new.f1 = @test_before	ROW	BEFORE	NULL	NULL	OLD	NEW	#	NO_ENGINE_SUBSTITUTION	testuser1@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
+def	db_datadict	trg1	INSERT	def	db_datadict	t1	1	NULL	SET @test_before = 2, new.f1 = @test_before	ROW	BEFORE	NULL	NULL	OLD	NEW	#	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION	testuser1@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
 SHOW TRIGGERS FROM db_datadict;
 Trigger	Event	Table	Statement	Timing	Created	sql_mode	Definer	character_set_client	collation_connection	Database Collation
-trg1	INSERT	t1	SET @test_before = 2, new.f1 = @test_before	BEFORE	#	NO_ENGINE_SUBSTITUTION	testuser1@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
+trg1	INSERT	t1	SET @test_before = 2, new.f1 = @test_before	BEFORE	#	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION	testuser1@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
 # Establish connection testuser2 (user=testuser2)
 SHOW GRANTS FOR 'testuser2'@'localhost';
 Grants for testuser2@localhost
@@ -159,10 +159,10 @@ GRANT SELECT ON `db_datadict`.`t1` TO 'testuser3'@'localhost'
 SELECT * FROM information_schema.triggers
 WHERE trigger_name = 'trg1';
 TRIGGER_CATALOG	TRIGGER_SCHEMA	TRIGGER_NAME	EVENT_MANIPULATION	EVENT_OBJECT_CATALOG	EVENT_OBJECT_SCHEMA	EVENT_OBJECT_TABLE	ACTION_ORDER	ACTION_CONDITION	ACTION_STATEMENT	ACTION_ORIENTATION	ACTION_TIMING	ACTION_REFERENCE_OLD_TABLE	ACTION_REFERENCE_NEW_TABLE	ACTION_REFERENCE_OLD_ROW	ACTION_REFERENCE_NEW_ROW	CREATED	SQL_MODE	DEFINER	CHARACTER_SET_CLIENT	COLLATION_CONNECTION	DATABASE_COLLATION
-def	db_datadict	trg1	INSERT	def	db_datadict	t1	1	NULL	SET @test_before = 2, new.f1 = @test_before	ROW	BEFORE	NULL	NULL	OLD	NEW	#	NO_ENGINE_SUBSTITUTION	testuser1@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
+def	db_datadict	trg1	INSERT	def	db_datadict	t1	1	NULL	SET @test_before = 2, new.f1 = @test_before	ROW	BEFORE	NULL	NULL	OLD	NEW	#	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION	testuser1@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
 SHOW TRIGGERS FROM db_datadict;
 Trigger	Event	Table	Statement	Timing	Created	sql_mode	Definer	character_set_client	collation_connection	Database Collation
-trg1	INSERT	t1	SET @test_before = 2, new.f1 = @test_before	BEFORE	#	NO_ENGINE_SUBSTITUTION	testuser1@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
+trg1	INSERT	t1	SET @test_before = 2, new.f1 = @test_before	BEFORE	#	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION	testuser1@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
 # Establish connection testuser4 (user=testuser4)
 SHOW GRANTS FOR 'testuser4'@'localhost';
 Grants for testuser4@localhost
@@ -175,18 +175,18 @@ ERROR 42000: SELECT command denied to user 'testuser4'@'localhost' for table 't1
 SELECT * FROM information_schema.triggers
 WHERE trigger_name = 'trg1';
 TRIGGER_CATALOG	TRIGGER_SCHEMA	TRIGGER_NAME	EVENT_MANIPULATION	EVENT_OBJECT_CATALOG	EVENT_OBJECT_SCHEMA	EVENT_OBJECT_TABLE	ACTION_ORDER	ACTION_CONDITION	ACTION_STATEMENT	ACTION_ORIENTATION	ACTION_TIMING	ACTION_REFERENCE_OLD_TABLE	ACTION_REFERENCE_NEW_TABLE	ACTION_REFERENCE_OLD_ROW	ACTION_REFERENCE_NEW_ROW	CREATED	SQL_MODE	DEFINER	CHARACTER_SET_CLIENT	COLLATION_CONNECTION	DATABASE_COLLATION
-def	db_datadict	trg1	INSERT	def	db_datadict	t1	1	NULL	SET @test_before = 2, new.f1 = @test_before	ROW	BEFORE	NULL	NULL	OLD	NEW	#	NO_ENGINE_SUBSTITUTION	testuser1@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
+def	db_datadict	trg1	INSERT	def	db_datadict	t1	1	NULL	SET @test_before = 2, new.f1 = @test_before	ROW	BEFORE	NULL	NULL	OLD	NEW	#	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION	testuser1@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
 SHOW TRIGGERS FROM db_datadict;
 Trigger	Event	Table	Statement	Timing	Created	sql_mode	Definer	character_set_client	collation_connection	Database Collation
-trg1	INSERT	t1	SET @test_before = 2, new.f1 = @test_before	BEFORE	#	NO_ENGINE_SUBSTITUTION	testuser1@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
+trg1	INSERT	t1	SET @test_before = 2, new.f1 = @test_before	BEFORE	#	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION	testuser1@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
 # Switch to connection default and close connections testuser1 - testuser4
 SELECT * FROM information_schema.triggers
 WHERE trigger_name = 'trg1';
 TRIGGER_CATALOG	TRIGGER_SCHEMA	TRIGGER_NAME	EVENT_MANIPULATION	EVENT_OBJECT_CATALOG	EVENT_OBJECT_SCHEMA	EVENT_OBJECT_TABLE	ACTION_ORDER	ACTION_CONDITION	ACTION_STATEMENT	ACTION_ORIENTATION	ACTION_TIMING	ACTION_REFERENCE_OLD_TABLE	ACTION_REFERENCE_NEW_TABLE	ACTION_REFERENCE_OLD_ROW	ACTION_REFERENCE_NEW_ROW	CREATED	SQL_MODE	DEFINER	CHARACTER_SET_CLIENT	COLLATION_CONNECTION	DATABASE_COLLATION
-def	db_datadict	trg1	INSERT	def	db_datadict	t1	1	NULL	SET @test_before = 2, new.f1 = @test_before	ROW	BEFORE	NULL	NULL	OLD	NEW	#	NO_ENGINE_SUBSTITUTION	testuser1@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
+def	db_datadict	trg1	INSERT	def	db_datadict	t1	1	NULL	SET @test_before = 2, new.f1 = @test_before	ROW	BEFORE	NULL	NULL	OLD	NEW	#	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION	testuser1@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
 SHOW TRIGGERS FROM db_datadict;
 Trigger	Event	Table	Statement	Timing	Created	sql_mode	Definer	character_set_client	collation_connection	Database Collation
-trg1	INSERT	t1	SET @test_before = 2, new.f1 = @test_before	BEFORE	#	NO_ENGINE_SUBSTITUTION	testuser1@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
+trg1	INSERT	t1	SET @test_before = 2, new.f1 = @test_before	BEFORE	#	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION	testuser1@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
 DROP USER 'testuser1'@'localhost';
 DROP USER 'testuser2'@'localhost';
 DROP USER 'testuser3'@'localhost';

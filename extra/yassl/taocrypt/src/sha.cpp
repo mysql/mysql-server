@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -776,12 +776,11 @@ void SHA::AsmTransform(const byte* data, word32 times)
         ".intel_syntax noprefix;" \
         "push ebx;" \
         "push ebp;"
-
     #define EPILOG()  \
         "pop ebp;" \
         "pop ebx;" \
-               "emms;" \
-               ".att_syntax;" \
+       	"emms;" \
+       	".att_syntax;" \
             : \
             : "c" (this), "D" (data), "a" (times) \
             : "%esi", "%edx", "memory", "cc" \
@@ -830,7 +829,7 @@ void SHA::AsmTransform(const byte* data, word32 times)
 #ifdef _MSC_VER
     AS1( loopStart: )  // loopStart
 #else
-    AS1( 0: )          // loopStart for some gas (need numeric for jump back
+    AS1( 0: )          // loopStart for some gas (need numeric for jump back 
 #endif
 
     // byte reverse 16 words of input, 4 at a time, put on stack for W[]
@@ -1022,7 +1021,7 @@ void SHA::AsmTransform(const byte* data, word32 times)
     AS1(    jnz   0b )         // loopStart
 #endif
 
-    // inline adjust
+    // inline adjust 
     AS2(    add   esp, 68               )   // fix room on stack
 
     EPILOG()

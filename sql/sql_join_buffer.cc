@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -29,6 +29,7 @@
 #include "sql_optimizer.h"  // JOIN
 #include "sql_join_buffer.h"
 #include "sql_tmp_table.h"  // instantiate_tmp_table()
+#include "opt_trace.h"
 
 #include <algorithm>
 using std::max;
@@ -105,7 +106,7 @@ uint add_flag_field_to_join_cache(uchar *str, uint length, CACHE_FIELD **field)
 */
 
 static
-uint add_table_data_fields_to_join_cache(JOIN_TAB *tab, 
+uint add_table_data_fields_to_join_cache(QEP_TAB *tab,
                                          MY_BITMAP *field_set,
                                          uint *field_cnt, 
                                          CACHE_FIELD **descr,
@@ -117,7 +118,7 @@ uint add_table_data_fields_to_join_cache(JOIN_TAB *tab,
   CACHE_FIELD *copy= *descr;
   CACHE_FIELD **copy_ptr= *descr_ptr;
   uint used_fields= bitmap_bits_set(field_set);
-  for (fld_ptr= tab->table->field; used_fields; fld_ptr++)
+  for (fld_ptr= tab->table()->field; used_fields; fld_ptr++)
   {
     if (bitmap_is_set(field_set, (*fld_ptr)->field_index))
     {
@@ -167,12 +168,14 @@ void JOIN_CACHE::calc_record_fields()
     - if in a regular execution, start with the first non-const table.
     - if in a materialized subquery, start with the first table of the subquery.
   */
-  JOIN_TAB *tab = prev_cache ?
-                    prev_cache->join_tab :
-                    sj_is_materialize_strategy(join_tab->get_sj_strategy()) ?
-                      join_tab->first_sj_inner_tab :
-                      join->join_tab+join->const_tables;
-  tables= join_tab-tab;
+  QEP_TAB *tab =
+    prev_cache ?
+    prev_cache->qep_tab :
+    sj_is_materialize_strategy(qep_tab->get_sj_strategy()) ?
+    &QEP_AT(qep_tab, first_sj_inner()) :
+    &join->qep_tab[join->const_tables];
+
+  tables= qep_tab - tab;
 
   fields= 0;
   blobs= 0;
@@ -181,19 +184,21 @@ void JOIN_CACHE::calc_record_fields()
   data_field_ptr_count= 0;
   referenced_fields= 0;
 
-  for ( ; tab < join_tab ; tab++)
-  {	    
-    calc_used_field_length(join->thd, tab);
-    flag_fields+= MY_TEST(tab->used_null_fields || tab->used_uneven_bit_fields);
-    flag_fields+= MY_TEST(tab->table->maybe_null);
-    fields+= tab->used_fields;
-    blobs+= tab->used_blobs;
-
-    fields+= tab->check_rowid_field();
+  for ( ; tab < qep_tab ; tab++)
+  {
+    uint used_fields, used_fieldlength, used_blobs;
+    calc_used_field_length(join->thd, tab->table(),
+                           tab->keep_current_rowid,
+                           &used_fields, &used_fieldlength, &used_blobs,
+                           &tab->used_null_fields, &tab->used_uneven_bit_fields);
+    flag_fields+= tab->used_null_fields || tab->used_uneven_bit_fields;
+    flag_fields+= MY_TEST(tab->table()->maybe_null);
+    fields+= used_fields;
+    blobs+= used_blobs;
   }
-  if ((with_match_flag= (join_tab->is_first_inner_for_outer_join() ||
-                         (join_tab->first_sj_inner_tab == join_tab &&
-                          join_tab->get_sj_strategy() == SJ_OPT_FIRST_MATCH))))
+  if ((with_match_flag= (qep_tab->is_first_inner_for_outer_join() ||
+                         (qep_tab->first_sj_inner() == qep_tab->idx() &&
+                          qep_tab->get_sj_strategy() == SJ_OPT_FIRST_MATCH))))
     flag_fields++;
   fields+= flag_fields;
 }
@@ -272,24 +277,20 @@ int JOIN_CACHE::alloc_fields(uint external_fields)
 
 void JOIN_CACHE::create_flag_fields()
 {
-  CACHE_FIELD *copy;
-  JOIN_TAB *tab;
-
-  copy= field_descr;
+  CACHE_FIELD *copy= field_descr;
 
   length=0;
 
   /* If there is a match flag the first field is always used for this flag */ 
   if (with_match_flag)
-    length+= add_flag_field_to_join_cache((uchar*) &join_tab->found,
-                                          sizeof(join_tab->found),
+    length+= add_flag_field_to_join_cache((uchar*) &qep_tab->found,
+                                          sizeof(qep_tab->found),
 	                                  &copy);
 
   /* Create fields for all null bitmaps and null row flags that are needed */
-  for (tab= join_tab-tables; tab < join_tab; tab++)
+  for (QEP_TAB *tab= qep_tab - tables; tab < qep_tab; tab++)
   {
-    TABLE *table= tab->table;
-
+    TABLE *table= tab->table();
     /* Create a field for the null bitmap from table if needed */
     if (tab->used_null_fields || tab->used_uneven_bit_fields)
       length+= add_flag_field_to_join_cache(table->null_flags,
@@ -324,13 +325,13 @@ void JOIN_CACHE::create_flag_fields()
     for each table tab, the set of the read fields for which the descriptors
     have to be added is determined as the difference between all read fields
     and and those for which the descriptors have been already created.
-    The latter are supposed to be marked in the bitmap tab->table->tmp_set.
+    The latter are supposed to be marked in the bitmap tab->table()->tmp_set.
     The function increases the value of 'length' to the the total length of
     the added fields.
    
   NOTES
     If 'all_read_fields' is false the function modifies the value of
-    tab->table->tmp_set for a each table whose fields are stored in the cache.
+    tab->table()->tmp_set for a each table whose fields are stored in the cache.
     The function calls the method Field::fill_cache_field to figure out
     the type of the cache field and the maximal length of its representation
     in the join buffer. If this is a blob field then additionally a pointer
@@ -347,14 +348,13 @@ void JOIN_CACHE::create_flag_fields()
 
 void JOIN_CACHE:: create_remaining_fields(bool all_read_fields)
 {
-  JOIN_TAB *tab;
   CACHE_FIELD *copy= field_descr+flag_fields+data_field_count;
   CACHE_FIELD **copy_ptr= blob_ptr+data_field_ptr_count;
 
-  for (tab= join_tab-tables; tab < join_tab; tab++)
+  for (QEP_TAB *tab= qep_tab-tables; tab < qep_tab; tab++)
   {
     MY_BITMAP *rem_field_set;
-    TABLE *table= tab->table;
+    TABLE *table= tab->table();
 
     if (all_read_fields)
       rem_field_set= table->read_set;
@@ -451,7 +451,7 @@ void JOIN_CACHE::set_constants()
                length;
   pack_length_with_blob_ptrs= pack_length + blobs*sizeof(uchar *);
 
-  check_only_first_match= calc_check_only_first_match(join_tab);
+  check_only_first_match= calc_check_only_first_match(qep_tab);
 }
 
 
@@ -522,6 +522,26 @@ int JOIN_CACHE_BNL::init()
   
   reset_cache(true); 
 
+  if (qep_tab->condition() && qep_tab->first_inner() == NO_PLAN_IDX)
+  {
+    /*
+      When we read a record from qep_tab->table(), we can filter it by testing
+      conditions which depend only on this table. Note that such condition
+      must not depend on previous tables (except const ones) as the record is
+      going to be joined with all buffered records of the previous tables.
+    */
+    const table_map available= join->best_ref[qep_tab->idx()]->added_tables();
+    Item *const tmp= make_cond_for_table(qep_tab->condition(),
+                                         join->const_table_map | available,
+                                         available, false);
+    if (tmp)
+    {
+      Opt_trace_object (&join->thd->opt_trace).
+        add("constant_condition_in_bnl", tmp);
+      const_cond= tmp;
+    }
+  }
+
   DBUG_RETURN(0);
 }
 
@@ -554,8 +574,6 @@ int JOIN_CACHE_BNL::init()
 
 int JOIN_CACHE_BKA::init()
 {
-  JOIN_TAB *tab;
-  JOIN_CACHE *cache;
   local_key_arg_fields= 0;
   external_key_arg_fields= 0;
   DBUG_ENTER("JOIN_CACHE_BKA::init");
@@ -563,33 +581,33 @@ int JOIN_CACHE_BKA::init()
   calc_record_fields();
 
   /* Mark all fields that can be used as arguments for this key access */
-  TABLE_REF *ref= &join_tab->ref;
-  cache= this;
+  TABLE_REF *ref= &qep_tab->ref();
+  JOIN_CACHE *cache= this;
   do
   {
     /* 
       Traverse the ref expressions and find the occurrences of fields in them for
       each table 'tab' whose fields are to be stored in the 'cache' join buffer.
-      Mark these fields in the bitmap tab->table->tmp_set.
+      Mark these fields in the bitmap tab->table()->tmp_set.
       For these fields count the number of them stored in this cache and the
       total number of them stored in the previous caches. Save the result
       of the counting 'in local_key_arg_fields' and 'external_key_arg_fields'
       respectively.
     */ 
-    for (tab= cache->join_tab-cache->tables; tab < cache->join_tab ; tab++)
+    for (QEP_TAB *tab= cache->qep_tab-cache->tables; tab < cache->qep_tab ; tab++)
     { 
       uint key_args;
-      bitmap_clear_all(&tab->table->tmp_set);
+      bitmap_clear_all(&tab->table()->tmp_set);
       for (uint i= 0; i < ref->key_parts; i++)
       {
         Item *ref_item= ref->items[i]; 
-        if (!(tab->table->map & ref_item->used_tables()))
+        if (!(tab->table_ref->map() & ref_item->used_tables()))
 	  continue;
 	 ref_item->walk(&Item::add_field_to_set_processor,
                       Item::enum_walk(Item::WALK_POSTFIX | Item::WALK_SUBQUERY),
-                      (uchar *) tab->table);
+                        (uchar *) tab->table());
       }
-      if ((key_args= bitmap_bits_set(&tab->table->tmp_set)))
+      if ((key_args= bitmap_bits_set(&tab->table()->tmp_set)))
       {
         if (cache == this)
           local_key_arg_fields+= key_args;
@@ -617,10 +635,10 @@ int JOIN_CACHE_BKA::init()
   while (ext_key_arg_cnt)
   {
     cache= cache->prev_cache;
-    for (tab= cache->join_tab-cache->tables; tab < cache->join_tab ; tab++)
+    for (QEP_TAB *tab= cache->qep_tab-cache->tables; tab < cache->qep_tab ; tab++)
     { 
       CACHE_FIELD *copy_end;
-      MY_BITMAP *key_read_set= &tab->table->tmp_set;
+      MY_BITMAP *key_read_set= &tab->table()->tmp_set;
       /* key_read_set contains the bitmap of tab's fields referenced by ref */ 
       if (bitmap_is_clear_all(key_read_set))
         continue;
@@ -632,7 +650,7 @@ int JOIN_CACHE_BKA::init()
                 copy->field==NULL
         */
         if (copy->field &&  // (1)
-            copy->field->table == tab->table &&
+            copy->field->table == tab->table() &&
             bitmap_is_set(key_read_set, copy->field->field_index))
         {
           *copy_ptr++= copy; 
@@ -660,9 +678,9 @@ int JOIN_CACHE_BKA::init()
   
   /* Now create local fields that are used to build ref for this key access */
   copy= field_descr+flag_fields;
-  for (tab= join_tab-tables; tab < join_tab ; tab++)
+  for (QEP_TAB *tab= qep_tab-tables; tab < qep_tab ; tab++)
   {
-    length+= add_table_data_fields_to_join_cache(tab, &tab->table->tmp_set,
+    length+= add_table_data_fields_to_join_cache(tab, &tab->table()->tmp_set,
                                                  &data_field_count, &copy,
                                                  &data_field_ptr_count, 
                                                  &copy_ptr);
@@ -671,7 +689,7 @@ int JOIN_CACHE_BKA::init()
   use_emb_key= check_emb_key_usage();
 
   create_remaining_fields(FALSE);
-  bitmap_clear_all(&tab->table->tmp_set);
+  bitmap_clear_all(&qep_tab->table()->tmp_set);
 
   set_constants();
 
@@ -726,8 +744,8 @@ bool JOIN_CACHE_BKA::check_emb_key_usage()
   CACHE_FIELD *copy;
   CACHE_FIELD *copy_end;
   uint len= 0;
-  TABLE *table= join_tab->table;
-  TABLE_REF *ref= &join_tab->ref;
+  TABLE *table= qep_tab->table();
+  TABLE_REF *ref= &qep_tab->ref();
   KEY *keyinfo= table->key_info+ref->key;
 
   /* 
@@ -832,37 +850,34 @@ bool JOIN_CACHE_BKA::check_emb_key_usage()
 }    
 
 
-/* 
+/**
   Calculate the increment of the MRR buffer for a record write       
 
-  SYNOPSIS
-    aux_buffer_incr()
+  This implementation of the virtual function aux_buffer_incr
+  determines for how much the size of the MRR buffer should be
+  increased when another record is added to the cache.
 
-  DESCRIPTION
-    This implementation of the virtual function aux_buffer_incr determines
-    for how much the size of the MRR buffer should be increased when another
-    record is added to the cache.   
-
-  RETURN
-    the increment of the size of the MRR buffer for the next record
+  @return the increment of the size of the MRR buffer for the next record
 */
 
 uint JOIN_CACHE_BKA::aux_buffer_incr()
 {
   uint incr= 0;
-  TABLE_REF *ref= &join_tab->ref;
-  TABLE *tab= join_tab->table;
-  uint rec_per_key= tab->key_info[ref->key].rec_per_key[ref->key_parts-1];
-  set_if_bigger(rec_per_key, 1);
+  TABLE_REF *ref= &qep_tab->ref();
+  TABLE *tab= qep_tab->table();
+
   if (records == 1)
     incr=  ref->key_length + tab->file->ref_length;
   /*
     When adding a new record to the join buffer this can match
-    multiple keys in this table. We use rec_per_key as estimate for
+    multiple keys in this table. We use "records per key" as estimate for
     the number of records that will match and reserve space in the
     DS-MRR sort buffer for this many record references.
   */
-  incr+= tab->file->stats.mrr_length_per_rec * rec_per_key;
+  rec_per_key_t rec_per_key=
+    tab->key_info[ref->key].records_per_key(ref->key_parts - 1);
+  set_if_bigger(rec_per_key, 1.0f);
+  incr+= static_cast<uint>(tab->file->stats.mrr_length_per_rec * rec_per_key);
   return incr; 
 }
 
@@ -879,8 +894,8 @@ uint JOIN_CACHE_BKA::aux_buffer_min_size() const
     For DS-MRR to work, the sort buffer must have space to store the
     reference (or primary key) for at least one record.
   */
-  DBUG_ASSERT(join_tab->table->file->stats.mrr_length_per_rec > 0);
-  return join_tab->table->file->stats.mrr_length_per_rec;
+  DBUG_ASSERT(qep_tab->table()->file->stats.mrr_length_per_rec > 0);
+  return qep_tab->table()->file->stats.mrr_length_per_rec;
 }
 
 
@@ -926,7 +941,7 @@ bool JOIN_CACHE_BKA::skip_index_tuple(range_seq_t rseq, char *range_info)
   DBUG_ENTER("JOIN_CACHE_BKA::skip_index_tuple");
   JOIN_CACHE_BKA *cache= (JOIN_CACHE_BKA *) rseq;
   cache->get_record_by_pos((uchar*)range_info);
-  DBUG_RETURN(!join_tab->cache_idx_cond->val_int());
+  DBUG_RETURN(!qep_tab->cache_idx_cond->val_int());
 }
 
 
@@ -1006,21 +1021,15 @@ bool bka_skip_index_tuple(range_seq_t rseq, char *range_info)
 
 uint JOIN_CACHE::write_record_data(uchar * link, bool *is_full)
 {
-  uint len;
-  bool last_record;
-  CACHE_FIELD *copy;
-  CACHE_FIELD *copy_end;
   uchar *cp= pos;
   uchar *init_pos= cp;
-  uchar *rec_len_ptr= 0;
  
   records++;  /* Increment the counter of records in the cache */
-
-  len= pack_length;
 
   /* Make an adjustment for the size of the auxiliary buffer if there is any */
   uint incr= aux_buffer_incr();
   ulong rem= rem_space();
+  uint len= pack_length;
   aux_buff_size+= len+incr < rem ? incr : rem;
 
   /*
@@ -1056,13 +1065,14 @@ uint JOIN_CACHE::write_record_data(uchar * link, bool *is_full)
     This function is called only in the case when there is enough space left in
     the cache to store at least non-blob parts of the current record.
   */
-  last_record= (len+pack_length_with_blob_ptrs) > rem_space();
+  bool last_record= (len+pack_length_with_blob_ptrs) > rem_space();
   
   /* 
     Save the position for the length of the record in the cache if it's needed.
     The length of the record will be inserted here when all fields of the record
     are put into the cache.  
   */
+  uchar *rec_len_ptr= NULL;
   if (with_length)
   {
     rec_len_ptr= cp;   
@@ -1082,12 +1092,12 @@ uint JOIN_CACHE::write_record_data(uchar * link, bool *is_full)
   curr_rec_pos= cp;
   
   /* If the there is a match flag set its value to 0 */
-  copy= field_descr;
+  CACHE_FIELD *copy= field_descr;
   if (with_match_flag)
     *copy[0].str= 0;
 
   /* First put into the cache the values of all flag fields */
-  copy_end= field_descr+flag_fields;
+  CACHE_FIELD *copy_end= field_descr+flag_fields;
   for ( ; copy < copy_end; copy++)
   {
     memcpy(cp, copy->str, copy->length);
@@ -1693,9 +1703,9 @@ enum_nested_loop_state JOIN_CACHE::join_records(bool skip_last)
       STATUS_UPDATED cannot be on as multi-table DELETE/UPDATE never use join
       buffering. So we only have three bits to save.
     */
-    TABLE * const table= join_tab[- cnt].table;
-    const uint8 status= table->status;
-    const table_map map= table->map;
+    TABLE_LIST * const tr= qep_tab[- cnt].table_ref;
+    const uint8 status= tr->table->status;
+    const table_map map= tr->map();
     DBUG_ASSERT((status & (STATUS_DELETED | STATUS_UPDATED)) == 0);
     if (status & STATUS_GARBAGE)
       saved_status_bits[0]|= map;
@@ -1703,18 +1713,23 @@ enum_nested_loop_state JOIN_CACHE::join_records(bool skip_last)
       saved_status_bits[1]|= map;
     if (status & STATUS_NULL_ROW)
       saved_status_bits[2]|= map;
-    table->status= 0;                           // Record exists.
+    tr->table->status= 0;                           // Record exists.
   }
 
-  const bool outer_join_first_inner=
-    join_tab->is_first_inner_for_outer_join();
-  if (outer_join_first_inner && !join_tab->first_unmatched)
-    join_tab->not_null_compl= TRUE;   
+  const bool outer_join_first_inner= qep_tab->is_first_inner_for_outer_join();
+  if (outer_join_first_inner && qep_tab->first_unmatched == NO_PLAN_IDX)
+    qep_tab->not_null_compl= true;
 
-  if (!join_tab->first_unmatched)
+  if (qep_tab->first_unmatched == NO_PLAN_IDX)
   {
+    const bool pfs_batch_update= qep_tab->pfs_batch_update(join);
+    if (pfs_batch_update)
+      qep_tab->table()->file->start_psi_batch_mode();
     /* Find all records from join_tab that match records from join buffer */
-    rc= join_matching_records(skip_last);   
+    rc= join_matching_records(skip_last);
+    if (pfs_batch_update)
+      qep_tab->table()->file->end_psi_batch_mode();
+
     if (rc != NESTED_LOOP_OK)
       goto finish;
     if (outer_join_first_inner)
@@ -1732,14 +1747,13 @@ enum_nested_loop_state JOIN_CACHE::join_records(bool skip_last)
         if (rc != NESTED_LOOP_OK)
           goto finish;
       }
-      join_tab->not_null_compl= FALSE;
+      qep_tab->not_null_compl= false;
       /* Prepare for generation of null complementing extensions */
-      for (JOIN_TAB *tab= join_tab->first_inner;
-           tab <= join_tab->last_inner; tab++)
-        tab->first_unmatched= join_tab->first_inner;
+      for (plan_idx i= qep_tab->first_inner(); i <= qep_tab->last_inner(); ++i)
+        join->qep_tab[i].first_unmatched= qep_tab->first_inner();
     }
   }
-  if (join_tab->first_unmatched)
+  if (qep_tab->first_unmatched != NO_PLAN_IDX)
   {
     if (is_key_access())
       restore_last_record();
@@ -1784,9 +1798,8 @@ finish:
       outer records from join buffer. Restore the state of the
       first_unmatched values to 0 to avoid another null complementing.
     */
-    for (JOIN_TAB *tab= join_tab->first_inner;
-         tab <= join_tab->last_inner; tab++)
-      tab->first_unmatched= NULL;
+    for (plan_idx i= qep_tab->first_inner();  i <= qep_tab->last_inner(); ++i)
+      join->qep_tab[i].first_unmatched= NO_PLAN_IDX;
   }
   for (int cnt= 1; cnt <= static_cast<int>(tables); cnt++)
   {
@@ -1794,8 +1807,8 @@ finish:
       We must restore the status of outer tables as it was before entering
       this function.
     */
-    TABLE * const table= join_tab[- cnt].table;
-    const table_map map= table->map;
+    TABLE_LIST *const tr= qep_tab[- cnt].table_ref;
+    const table_map map= tr->map();
     uint8 status= 0;
     if (saved_status_bits[0] & map)
       status|= STATUS_GARBAGE;
@@ -1803,7 +1816,7 @@ finish:
       status|= STATUS_NOT_FOUND;
     if (saved_status_bits[2] & map)
       status|= STATUS_NULL_ROW;
-    table->status= status;
+    tr->table->status= status;
   }
   restore_last_record();
   reset_cache(true);
@@ -1841,13 +1854,10 @@ finish:
 
 enum_nested_loop_state JOIN_CACHE_BNL::join_matching_records(bool skip_last)
 {
-  uint cnt;
   int error;
-  READ_RECORD *info;
   enum_nested_loop_state rc= NESTED_LOOP_OK;
-  SQL_SELECT *select= join_tab->cache_select;
 
-  join_tab->table->null_row= 0;
+  qep_tab->table()->null_row= 0;
 
   /* Return at once if there are no records in the join buffer */
   if (!records)     
@@ -1861,20 +1871,19 @@ enum_nested_loop_state JOIN_CACHE_BNL::join_matching_records(bool skip_last)
   */             
   if (skip_last)     
     put_record_in_cache();     
- 
-  if (join_tab->use_quick == QS_DYNAMIC_RANGE && join_tab->select->quick)
-    /* A dynamic range access was used last. Clean up after it */
-    join_tab->select->set_quick(NULL);
+
+  // See setup_join_buffering(=: dynamic range => no cache.
+  DBUG_ASSERT(!(qep_tab->dynamic_range() && qep_tab->quick()));
 
   /* Start retrieving all records of the joined table */
-  if ((error= (*join_tab->read_first_record)(join_tab))) 
+  if ((error= (*qep_tab->read_first_record)(qep_tab)))
     return error < 0 ? NESTED_LOOP_OK : NESTED_LOOP_ERROR;
 
-  info= &join_tab->read_record;
+  READ_RECORD *info= &qep_tab->read_record;
   do
   {
-    if (join_tab->keep_current_rowid)
-      join_tab->table->file->position(join_tab->table->record[0]);
+    if (qep_tab->keep_current_rowid)
+      qep_tab->table()->file->position(qep_tab->table()->record[0]);
 
     if (join->thd->killed)
     {
@@ -1889,19 +1898,21 @@ enum_nested_loop_state JOIN_CACHE_BNL::join_matching_records(bool skip_last)
     */
     if (rc == NESTED_LOOP_OK)
     {
-      bool skip_record;
-      bool consider_record= (!select || 
-                             (!select->skip_record(join->thd, &skip_record) &&
-                              !skip_record));
-      if (select && join->thd->is_error())
-        return NESTED_LOOP_ERROR;
-      if (consider_record)
+      join->examined_rows++;
+      if (const_cond)
+      {
+        const bool consider_record= const_cond->val_int() != FALSE;
+        if (join->thd->is_error())              // error in condition evaluation
+          return NESTED_LOOP_ERROR;
+        if (!consider_record)
+          continue;
+      }
       {
         /* Prepare to read records from the join buffer */
         reset_cache(false);
 
         /* Read each record from the join buffer and look for matches */
-        for (cnt= records - MY_TEST(skip_last) ; cnt; cnt--)
+        for (uint cnt= records - MY_TEST(skip_last) ; cnt; cnt--)
         { 
           /* 
             If only the first match is needed and it has been already found for
@@ -1924,7 +1935,20 @@ enum_nested_loop_state JOIN_CACHE_BNL::join_matching_records(bool skip_last)
   return rc;
 }
 
-     
+
+bool JOIN_CACHE::calc_check_only_first_match(const QEP_TAB *t) const
+{
+  if ((t->last_sj_inner() == t->idx() &&
+       t->get_sj_strategy() == SJ_OPT_FIRST_MATCH))
+    return true;
+  if (t->first_inner() != NO_PLAN_IDX &&
+      QEP_AT(t, first_inner()).last_inner() == t->idx() &&
+      t->table()->reginfo.not_exists_optimize)
+    return true;
+  return false;
+}
+
+
 /*
   Set match flag for a record in join buffer if it has not been set yet    
 
@@ -1949,7 +1973,7 @@ enum_nested_loop_state JOIN_CACHE_BNL::join_matching_records(bool skip_last)
     FALSE  the match flag has been set before this call
 */ 
 
-bool JOIN_CACHE::set_match_flag_if_none(JOIN_TAB *first_inner,
+bool JOIN_CACHE::set_match_flag_if_none(QEP_TAB *first_inner,
                                         uchar *rec_ptr)
 {
   if (!first_inner->op)
@@ -1962,12 +1986,12 @@ bool JOIN_CACHE::set_match_flag_if_none(JOIN_TAB *first_inner,
       return FALSE;
     else
     {
-      first_inner->found= 1;
+      first_inner->found= true;
       return TRUE;
     }
   }
   JOIN_CACHE *cache= this;
-  while (cache->join_tab != first_inner)
+  while (cache->qep_tab != first_inner)
   {
     cache= cache->prev_cache;
     DBUG_ASSERT(cache);
@@ -1976,7 +2000,7 @@ bool JOIN_CACHE::set_match_flag_if_none(JOIN_TAB *first_inner,
   if (rec_ptr[0] == 0)
   {
     rec_ptr[0]= 1;
-    first_inner->found= 1;
+    first_inner->found= true;
     return TRUE;  
   }
   return FALSE;
@@ -2003,19 +2027,18 @@ bool JOIN_CACHE::set_match_flag_if_none(JOIN_TAB *first_inner,
 enum_nested_loop_state JOIN_CACHE::generate_full_extensions(uchar *rec_ptr)
 {
   enum_nested_loop_state rc= NESTED_LOOP_OK;
-  
   /*
     Check whether the extended partial join record meets
     the pushdown conditions. 
   */
   if (check_match(rec_ptr))
-  {    
+  {
     int res= 0;
-    if (!join_tab->check_weed_out_table || 
-        !(res= do_sj_dups_weedout(join->thd, join_tab->check_weed_out_table)))
+    if (!qep_tab->check_weed_out_table ||
+        !(res= do_sj_dups_weedout(join->thd, qep_tab->check_weed_out_table)))
     {
       set_curr_rec_link(rec_ptr);
-      rc= (join_tab->next_select)(join, join_tab+1, 0);
+      rc= (qep_tab->next_select)(join, qep_tab + 1, 0);
       if (rc != NESTED_LOOP_OK)
       {
         reset_cache(true);
@@ -2059,14 +2082,13 @@ bool JOIN_CACHE::check_match(uchar *rec_ptr)
 {
   bool skip_record;
   /* Check whether pushdown conditions are satisfied */
-  if (join_tab->select &&
-      (join_tab->select->skip_record(join->thd, &skip_record) || skip_record))
+  if (qep_tab->skip_record(join->thd, &skip_record) || skip_record)
     return FALSE;
 
-  if (!((join_tab->first_inner &&
-         join_tab->first_inner->last_inner == join_tab) ||
-        (join_tab->last_sj_inner_tab == join_tab &&
-         join_tab->get_sj_strategy() == SJ_OPT_FIRST_MATCH)))
+  if (! ((qep_tab->first_inner() != NO_PLAN_IDX &&
+          QEP_AT(qep_tab, first_inner()).last_inner() == qep_tab->idx()) ||
+         (qep_tab->last_sj_inner() == qep_tab->idx() &&
+          qep_tab->get_sj_strategy() == SJ_OPT_FIRST_MATCH)) )
     return TRUE; // not the last inner table
 
   /* 
@@ -2074,16 +2096,18 @@ bool JOIN_CACHE::check_match(uchar *rec_ptr)
      and maybe of other embedding outer joins, or
      this is the last inner table of a semi-join.
   */
-  JOIN_TAB *first_inner= join_tab->first_inner ?
-    join_tab->first_inner :
-    ((join_tab->get_sj_strategy() == SJ_OPT_FIRST_MATCH) ?
-     join_tab->first_sj_inner_tab : NULL);
+  plan_idx f_i= qep_tab->first_inner() != NO_PLAN_IDX ?
+    qep_tab->first_inner() :
+    ((qep_tab->get_sj_strategy() == SJ_OPT_FIRST_MATCH) ?
+     qep_tab->first_sj_inner() : NO_PLAN_IDX);
 
-  do
+  QEP_TAB *first_inner= &join->qep_tab[f_i];
+
+  for(;;)
   {
     set_match_flag_if_none(first_inner, rec_ptr);
     if (calc_check_only_first_match(first_inner) &&
-        !join_tab->first_inner)
+        qep_tab->first_inner() == NO_PLAN_IDX)
       return TRUE;
     /* 
       This is the first match for the outer table row.
@@ -2095,16 +2119,19 @@ bool JOIN_CACHE::check_match(uchar *rec_ptr)
       such that 'not exists' optimization can  be applied to it, 
       the re-evaluation of the pushdown predicates is not needed.
     */      
-    for (JOIN_TAB *tab= first_inner; tab <= join_tab; tab++)
+    for (QEP_TAB *tab= first_inner; tab <= qep_tab; tab++)
     {
-      if (tab->select &&
-          (tab->select->skip_record(join->thd, &skip_record) || skip_record))
+      if (tab->skip_record(join->thd, &skip_record) || skip_record)
         return FALSE;
     }
+    f_i= first_inner->first_upper();
+    if (f_i == NO_PLAN_IDX)
+      break;
+    first_inner= &join->qep_tab[f_i];
+    if (first_inner->last_inner() != qep_tab->idx())
+      break;
   }
-  while ((first_inner= first_inner->first_upper) &&
-         first_inner->last_inner == join_tab);
-  
+
   return TRUE;
 } 
 
@@ -2139,7 +2166,7 @@ enum_nested_loop_state JOIN_CACHE::join_null_complements(bool skip_last)
 {
   uint cnt; 
   enum_nested_loop_state rc= NESTED_LOOP_OK;
-  bool is_first_inner= join_tab == join_tab->first_unmatched;
+  bool is_first_inner= qep_tab->idx() == qep_tab->first_unmatched;
   DBUG_ENTER("JOIN_CACHE::join_null_complements");
 
   /* Return at once if there are no records in the join buffer */
@@ -2149,12 +2176,12 @@ enum_nested_loop_state JOIN_CACHE::join_null_complements(bool skip_last)
   cnt= records - (is_key_access() ? 0 : MY_TEST(skip_last));
 
   /* This function may be called only for inner tables of outer joins */ 
-  DBUG_ASSERT(join_tab->first_inner);
+  DBUG_ASSERT(qep_tab->first_inner() != NO_PLAN_IDX);
 
   // Make sure that the rowid buffer is bound, duplicates weedout needs it
-  if (join_tab->copy_current_rowid &&
-      !join_tab->copy_current_rowid->buffer_is_bound())
-    join_tab->copy_current_rowid->bind_buffer(join_tab->table->file->ref);
+  if (qep_tab->copy_current_rowid &&
+      !qep_tab->copy_current_rowid->buffer_is_bound())
+    qep_tab->copy_current_rowid->bind_buffer(qep_tab->table()->file->ref);
 
   for ( ; cnt; cnt--)
   {
@@ -2170,8 +2197,8 @@ enum_nested_loop_state JOIN_CACHE::join_null_complements(bool skip_last)
     {
       get_record();
       /* The outer row is complemented by nulls for each inner table */
-      restore_record(join_tab->table, s->default_values);
-      mark_as_null_row(join_tab->table);  
+      restore_record(qep_tab->table(), s->default_values);
+      mark_as_null_row(qep_tab->table());  
       rc= generate_full_extensions(get_curr_rec());
       if (rc != NESTED_LOOP_OK)
         goto finish;
@@ -2240,7 +2267,7 @@ uint bka_range_seq_next(range_seq_t rseq, KEY_MULTI_RANGE *range)
 {
   DBUG_ENTER("bka_range_seq_next");
   JOIN_CACHE_BKA *cache= (JOIN_CACHE_BKA *) rseq;
-  TABLE_REF *ref= &cache->join_tab->ref;
+  TABLE_REF *ref= &cache->qep_tab->ref();
   key_range *start_key= &range->start_key;
   if ((start_key->length= cache->get_next_key((uchar **) &start_key->key)))
   {
@@ -2355,14 +2382,14 @@ enum_nested_loop_state JOIN_CACHE_BKA::join_matching_records(bool skip_last)
                             bka_range_seq_next,
                             check_only_first_match ?
                               bka_range_seq_skip_record : 0,
-                            join_tab->cache_idx_cond ?
+                            qep_tab->cache_idx_cond ?
                               bka_skip_index_tuple : 0 };
 
   if (init_join_matching_records(&seq_funcs, records))
     return NESTED_LOOP_ERROR;
 
   int error;
-  handler *file= join_tab->table->file;
+  handler *file= qep_tab->table()->file;
   enum_nested_loop_state rc= NESTED_LOOP_OK;
   uchar *rec_ptr= NULL;
 
@@ -2374,8 +2401,8 @@ enum_nested_loop_state JOIN_CACHE_BKA::join_matching_records(bool skip_last)
       join->thd->send_kill_message();
       return NESTED_LOOP_KILLED;
     }
-    if (join_tab->keep_current_rowid)
-      join_tab->table->file->position(join_tab->table->record[0]);
+    if (qep_tab->keep_current_rowid)
+      qep_tab->table()->file->position(qep_tab->table()->record[0]);
     /* 
       If only the first match is needed and it has been already found 
       for the associated partial join record then the returned candidate
@@ -2428,12 +2455,12 @@ enum_nested_loop_state JOIN_CACHE_BKA::join_matching_records(bool skip_last)
 bool
 JOIN_CACHE_BKA::init_join_matching_records(RANGE_SEQ_IF *seq_funcs, uint ranges)
 {
-  handler *file= join_tab->table->file;
+  handler *file= qep_tab->table()->file;
 
-  join_tab->table->null_row= 0;
+  qep_tab->table()->null_row= 0;
 
   /* Dynamic range access is never used with BKA */
-  DBUG_ASSERT(join_tab->use_quick != QS_DYNAMIC_RANGE);
+  DBUG_ASSERT(!qep_tab->dynamic_range());
 
   init_mrr_buff();
 
@@ -2443,7 +2470,7 @@ JOIN_CACHE_BKA::init_join_matching_records(RANGE_SEQ_IF *seq_funcs, uint ranges)
   */ 
   if (!file->inited)
   {
-    const int error= file->ha_index_init(join_tab->ref.key, 1);
+    const int error= file->ha_index_init(qep_tab->ref().key, 1);
     if (error)
     {
       file->print_error(error, MYF(0));
@@ -2495,7 +2522,7 @@ void JOIN_CACHE::read_all_flag_fields_by_pos(uchar *rec_ptr)
     the flag fields of the record.
     If the key is embedded, which means that its value can be read directly
     from the join buffer, then *key is set to the beginning of the key in
-    this buffer. Otherwise the key is built in the join_tab->ref->key_buff.
+    this buffer. Otherwise the key is built in the join_tab->ref()->key_buff.
     The function returns the length of the key if it succeeds ro read it.
     If is assumed that the functions starts reading at the position of
     the record length which is provided for each records in a BKA cache.
@@ -2601,7 +2628,7 @@ uint JOIN_CACHE_BKA::get_next_key(uchar ** key)
       for ( ; copy < copy_end; copy++)
         read_record_field(copy, blob_in_rec_buff);
 
-      TABLE_REF *ref= &join_tab->ref;
+      TABLE_REF *ref= &qep_tab->ref();
       if (ref->impossible_null_ref())
       {
         DBUG_PRINT("info", ("JOIN_CACHE_BKA::get_next_key null_rejected"));
@@ -2611,7 +2638,7 @@ uint JOIN_CACHE_BKA::get_next_key(uchar ** key)
       else
       {
         /* Build the key over the fields read into the record buffers */
-        cp_buffer_from_ref(join->thd, join_tab->table, ref);
+        cp_buffer_from_ref(join->thd, qep_tab->table(), ref);
         *key= ref->key_buff;
         len= ref->key_length;
         DBUG_ASSERT(len != 0);
@@ -2654,7 +2681,7 @@ uint JOIN_CACHE_BKA::get_next_key(uchar ** key)
 int JOIN_CACHE_BKA_UNIQUE::init()
 {
   int rc= 0;
-  TABLE_REF *ref= &join_tab->ref;
+  TABLE_REF *ref= &qep_tab->ref();
   
   DBUG_ENTER("JOIN_CACHE_BKA_UNIQUE::init");
 
@@ -2776,7 +2803,7 @@ JOIN_CACHE_BKA_UNIQUE::put_record_in_cache()
   uchar *key;
   uint key_len= key_length;
   uchar *key_ref_ptr;
-  TABLE_REF *ref= &join_tab->ref;
+  TABLE_REF *ref= &qep_tab->ref();
   uchar *next_ref_ptr= pos;
   pos+= get_size_of_rec_offset();
 
@@ -2791,7 +2818,7 @@ JOIN_CACHE_BKA_UNIQUE::put_record_in_cache()
   else
   {
     /* Build the key over the fields read into the record buffers */ 
-    cp_buffer_from_ref(join->thd, join_tab->table, ref);
+    cp_buffer_from_ref(join->thd, qep_tab->table(), ref);
     key= ref->key_buff;
     if (ref->impossible_null_ref())
     {
@@ -3073,7 +3100,7 @@ uint bka_unique_range_seq_next(range_seq_t rseq, KEY_MULTI_RANGE *range)
 {
   DBUG_ENTER("bka_unique_range_seq_next");
   JOIN_CACHE_BKA_UNIQUE *cache= (JOIN_CACHE_BKA_UNIQUE *) rseq;
-  TABLE_REF *ref= &cache->join_tab->ref;
+  TABLE_REF *ref= &cache->qep_tab->ref();
   key_range *start_key= &range->start_key;
   if ((start_key->length= cache->get_next_key((uchar **) &start_key->key)))
   {
@@ -3176,7 +3203,7 @@ bool JOIN_CACHE_BKA_UNIQUE::skip_index_tuple(range_seq_t rseq, char *range_info)
     next_rec_ref_ptr= cache->get_next_rec_ref(next_rec_ref_ptr);
     uchar *rec_ptr= next_rec_ref_ptr + cache->rec_fields_offset;
     cache->get_record_by_pos(rec_ptr);
-    if (join_tab->cache_idx_cond->val_int())
+    if (qep_tab->cache_idx_cond->val_int())
       DBUG_RETURN(FALSE);
   } while(next_rec_ref_ptr != last_rec_ref_ptr);
   DBUG_RETURN(TRUE);
@@ -3258,7 +3285,7 @@ JOIN_CACHE_BKA_UNIQUE::join_matching_records(bool skip_last)
                             bka_unique_range_seq_next,
                             check_only_first_match && !no_association ?
                               bka_unique_range_seq_skip_record : 0,
-                            join_tab->cache_idx_cond ?
+                            qep_tab->cache_idx_cond ?
                               bka_unique_skip_index_tuple : 0  };
 
   if (init_join_matching_records(&seq_funcs, key_entries))
@@ -3266,16 +3293,16 @@ JOIN_CACHE_BKA_UNIQUE::join_matching_records(bool skip_last)
 
   int error;
   uchar *key_chain_ptr;
-  handler *file= join_tab->table->file;
+  handler *file= qep_tab->table()->file;
   enum_nested_loop_state rc= NESTED_LOOP_OK;
 
   while (!(error= file->multi_range_read_next((char **) &key_chain_ptr)))
   {
+    TABLE *table= qep_tab->table();
     if (no_association)
     {
       uchar *key_ref_ptr;
-      TABLE *table= join_tab->table;
-      TABLE_REF *ref= &join_tab->ref;
+      TABLE_REF *ref= &qep_tab->ref();
       KEY *keyinfo= table->key_info+ref->key;
       /* 
         Build the key value out of  the record returned by the call of
@@ -3288,8 +3315,8 @@ JOIN_CACHE_BKA_UNIQUE::join_matching_records(bool skip_last)
       key_chain_ptr= key_ref_ptr+get_size_of_key_offset();
     } 
 
-    if (join_tab->keep_current_rowid)
-      join_tab->table->file->position(join_tab->table->record[0]);
+    if (qep_tab->keep_current_rowid)
+      table->file->position(table->record[0]);
 
     uchar *last_rec_ref_ptr= get_next_rec_ref(key_chain_ptr);
     uchar *next_rec_ref_ptr= last_rec_ref_ptr;
@@ -3408,8 +3435,8 @@ uint JOIN_CACHE_BKA_UNIQUE::get_next_key(uchar ** key)
 bool JOIN_CACHE_BKA_UNIQUE::check_match(uchar *rec_ptr)
 {
   /* recheck pushed down index condition */
-  if (join_tab->cache_idx_cond != NULL &&
-      !join_tab->cache_idx_cond->val_int())
+  if (qep_tab->cache_idx_cond != NULL &&
+      !qep_tab->cache_idx_cond->val_int())
       return FALSE;
   /* continue with generic tests */
   return JOIN_CACHE_BKA::check_match(rec_ptr);

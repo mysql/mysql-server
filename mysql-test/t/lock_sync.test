@@ -1118,6 +1118,57 @@ DROP TABLES t1, t2;
 --disable_connect_log
 
 
+--echo #
+--echo #Bug#18110156: RECREATE+ANALYZE OPTIMIZE TABLE T AND ONLINE 
+--echo #              ALTER TABLE T MAY DEADLOCK
+
+CREATE TABLE t1 (fld1 INT) ENGINE=InnoDB;
+connect (con1, localhost, root);
+connect (con2, localhost, root);
+
+--enable_connect_log
+connection con1;
+SET DEBUG_SYNC= 'before_lock_tables_takes_lock SIGNAL before_thr_lock WAIT_FOR do_thr_lock EXECUTE 3';
+SET DEBUG_SYNC= 'ha_admin_open_ltable SIGNAL opti_recreate WAIT_FOR opti_analyze';
+--send OPTIMIZE TABLE t1
+
+connection con2;
+--echo # Skip thr_lock acquisition during the initial phase of OPTIMIZE TABLE
+SET DEBUG_SYNC= 'now WAIT_FOR before_thr_lock';
+SET DEBUG_SYNC= 'now SIGNAL do_thr_lock';
+--echo # Skip thr_lock acquisition during the recreate phase of OPTIMIZE TABLE
+SET DEBUG_SYNC= 'now WAIT_FOR before_thr_lock';
+SET DEBUG_SYNC= 'now SIGNAL do_thr_lock';
+SET DEBUG_SYNC= 'now WAIT_FOR opti_recreate';
+SET DEBUG_SYNC= 'alter_table_inplace_after_lock_downgrade SIGNAL lock_downgraded
+WAIT_FOR finish_alter';
+--send ALTER TABLE t1 ADD INDEX index1(fld1), ALGORITHM=INPLACE, LOCK=NONE
+
+--echo #Without the patch, the test case hangs.
+connection default;
+SET DEBUG_SYNC= 'now WAIT_FOR lock_downgraded';
+SET DEBUG_SYNC= 'now SIGNAL opti_analyze';
+SET DEBUG_SYNC= 'now WAIT_FOR before_thr_lock';
+SET DEBUG_SYNC= 'now SIGNAL finish_alter';
+SET DEBUG_SYNC= 'now SIGNAL do_thr_lock';
+
+--echo #Reap: OPTIMIZE TABLE t1
+--connection con1
+--reap
+
+--echo #Reap: ALTER TABLE t1
+--connection con2
+--reap
+--disable_connect_log
+
+--echo #Clean up.
+--connection default
+DROP TABLE t1;
+SET DEBUG_SYNC= 'RESET';
+--disconnect con2
+--disconnect con1
+
+
 # Check that all connections opened by test cases in this file are really
 # gone so execution of other tests won't be affected by their presence.
 --source include/wait_until_count_sessions.inc

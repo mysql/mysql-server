@@ -112,12 +112,12 @@ inline int read_identifier(const sql_digest_storage* digest_storage,
 */
 inline void store_token_identifier(sql_digest_storage* digest_storage,
                                    uint token,
-                                   uint id_length, const char *id_name)
+                                   size_t id_length, const char *id_name)
 {
   DBUG_ASSERT(digest_storage->m_byte_count >= 0);
   DBUG_ASSERT(digest_storage->m_byte_count <= MAX_DIGEST_STORAGE_SIZE);
 
-  uint bytes_needed= 2 * SIZE_OF_A_TOKEN + id_length;
+  size_t bytes_needed= 2 * SIZE_OF_A_TOKEN + id_length;
   if (digest_storage->m_byte_count + bytes_needed <= MAX_DIGEST_STORAGE_SIZE)
   {
     unsigned char* dest= & digest_storage->m_token_array[digest_storage->m_byte_count];
@@ -194,7 +194,7 @@ void compute_digest_text(const sql_digest_storage* digest_storage,
   const uint max_converted_size= MAX_DIGEST_STORAGE_SIZE * 4;
   char id_buffer[max_converted_size];
   char *id_string;
-  int  id_length;
+  size_t  id_length;
   bool convert_text= !my_charset_same(from_cs, to_cs);
 
   DBUG_ASSERT(byte_count <= MAX_DIGEST_STORAGE_SIZE);
@@ -507,7 +507,7 @@ sql_digest_state* digest_add_token(sql_digest_state *state,
     {
       YYSTYPE *lex_token= yylval;
       char *yytext= lex_token->lex_str.str;
-      int yylen= lex_token->lex_str.length;
+      size_t yylen= lex_token->lex_str.length;
 
       /* Add this token and identifier string to digest storage. */
       store_token_identifier(digest_storage, token, yylen, yytext);

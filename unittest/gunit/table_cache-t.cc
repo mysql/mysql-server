@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,6 +20,7 @@
 
 #include "table_cache.h"
 
+#include "mysqld_thd_manager.h"
 #include "ha_example.h"
 
 /*
@@ -59,10 +60,13 @@ protected:
 
   virtual void SetUp()
   {
+    Global_THD_manager *thd_manager= Global_THD_manager::get_instance();
+    thd_manager->set_unit_test();
+    // Reset thread ID counter for each test.
+    thd_manager->set_thread_id_counter(1);
     for (uint i= 0; i < MAX_THREADS; ++i)
     {
       initializer[i].SetUp();
-      initializer[i].thd()->thread_id= i + 1;
     }
 
     ::testing::FLAGS_gtest_death_test_style = "threadsafe";

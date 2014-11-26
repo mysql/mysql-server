@@ -249,7 +249,7 @@ void opt_trace_print_expanded_query(THD *thd, st_select_lex *select_lex,
   if (likely(!trace->support_I_S()))
     return;
   char buff[1024];
-  String str(buff,(uint32) sizeof(buff), system_charset_info);
+  String str(buff, sizeof(buff), system_charset_info);
   str.length(0);
   /*
     If this statement is not SELECT, what is shown here can be inexact.

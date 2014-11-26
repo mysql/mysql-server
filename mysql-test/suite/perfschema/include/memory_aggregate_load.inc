@@ -19,9 +19,9 @@ execute dump_hosts;
 # Notes about this test
 #
 # get_lock("marker") causes the following memory allocation:
-# memory/sql/User_level_lock::key, 1 malloc, size 6 (strlen of "marker").
+# memory/sql/User_level_lock, 1 malloc, size 16 (size 8 for 32-bit systems).
 # release_lock("marker") causes the following memory free:
-# memory/sql/User_level_lock::key, 1 free, size 6 (strlen of "marker").
+# memory/sql/User_level_lock, 1 free, size 16 (size 8 for 32-bit systems).
 #
 # To avoid noise from main, the background threads are disabled.
 

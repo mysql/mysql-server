@@ -1316,7 +1316,7 @@ USE test;
 --echo # Check that Inserting NO_ZERO_DATE, NO_ZERO_IN_DATE and ERROR_FOR_DIVISION_BY_ZERO modes
 --echo # manually into mysql.event table do not show up in SHOW CREATE event OUTPUT.
 --echo #
-INSERT INTO mysql.event VALUES ('test','ev1','select 1','root@localhost','NULL','1','SECOND','1970-01-01 05:30:00','1970-01-01 05:30:00','NULL','1970-01-01 05:30:00','NULL','ENABLED','DROP','NO_ZERO_DATE,NO_ZERO_IN_DATE,ERROR_FOR_DIVISION_BY_ZERO,STRICT_ALL_TABLES','','0','SYSTEM', 'utf8', 'utf8_general_ci', 'latin1_swedish_ci', 'select 1');
+INSERT IGNORE INTO mysql.event VALUES ('test','ev1','select 1','root@localhost','NULL','1','SECOND','1970-01-01 05:30:00','1970-01-01 05:30:00','NULL','1970-01-01 05:30:00','NULL','ENABLED','DROP','NO_ZERO_DATE,NO_ZERO_IN_DATE,ERROR_FOR_DIVISION_BY_ZERO,STRICT_ALL_TABLES','','0','SYSTEM', 'utf8', 'utf8_general_ci', 'latin1_swedish_ci', 'select 1');
 
 --echo # NO_ZERO_* modes should not show up in the output.
 SHOW CREATE EVENT ev1;

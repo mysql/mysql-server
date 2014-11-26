@@ -31,7 +31,11 @@ Created 2012/04/12 by Sunny Bains
 #include "os0thread.h"
 
 /** CPU cache line size */
+#ifdef __powerpc__
+#define CACHE_LINE_SIZE		128
+#else
 #define CACHE_LINE_SIZE		64
+#endif /* __powerpc__ */
 
 /** Default number of slots to use in ib_counter_t */
 #define IB_N_SLOTS		64
@@ -69,7 +73,7 @@ struct get_sched_indexer_t : public generic_indexer_t<Type, N> {
 		return(size_t(cpu));
 	}
 };
-#elif HAVE_GETCURRENTPROCESSORNUMBER
+#elif _WIN32
 template <typename Type=ulint, int N=1>
 struct get_sched_indexer_t : public generic_indexer_t<Type, N> {
 	/** Default constructor/destructor should be OK. */
@@ -128,11 +132,11 @@ struct single_indexer_t {
 	}
 };
 
-#if defined(HAVE_SCHED_GETCPU) || defined(HAVE_GETCURRENTPROCESSORNUMBER)
+#if defined(HAVE_SCHED_GETCPU) || defined(_WIN32)
 #define	default_indexer_t	get_sched_indexer_t
 #else
 #define default_indexer_t	thread_id_indexer_t
-#endif /* HAVE_SCHED_GETCPU || HAVE_GETCURRENTPROCESSORNUMBER */
+#endif /* HAVE_SCHED_GETCPU || _WIN32 */
 
 /** Class for using fuzzy counters. The counter is not protected by any
 mutex and the results are not guaranteed to be 100% accurate but close

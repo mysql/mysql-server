@@ -13,14 +13,11 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include <my_global.h>
-#include <my_sys.h>
+#ifndef MYSYS_PRIV_INCLUDED
+#define MYSYS_PRIV_INCLUDED
 
-#ifdef HAVE_SYS_RESOURCE_H
-#include <sys/resource.h>
-#endif
-
-#include <my_pthread.h>
+#include "my_global.h"
+#include "my_pthread.h"
 
 #ifdef HAVE_PSI_INTERFACE
 
@@ -86,7 +83,6 @@ extern PSI_memory_key key_memory_QUEUE;
 extern PSI_memory_key key_memory_DYNAMIC_STRING;
 extern PSI_memory_key key_memory_TREE;
 extern PSI_memory_key key_memory_defaults;
-extern PSI_memory_key key_memory_radix_sort;
 
 #ifdef _WIN32
 extern PSI_memory_key key_memory_win_SECURITY_ATTRIBUTES;
@@ -130,3 +126,5 @@ extern File     my_win_dup(File fd);
 extern File     my_win_sopen(const char *path, int oflag, int shflag, int perm);
 extern File     my_open_osfhandle(HANDLE handle, int oflag);
 #endif
+
+#endif /* MYSYS_PRIV_INCLUDED */

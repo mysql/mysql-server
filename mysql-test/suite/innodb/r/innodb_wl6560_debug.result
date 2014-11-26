@@ -8,10 +8,9 @@ ibtmp1
 # files in MYSQL_DATA_DIR
 --innodb-force-recovery-crash=100
 "Next stmt will crash server"
-"restarting server in normal mode"
+# restart
 # files in MYSQL_DATA_DIR
 ibtmp1
-use test;
 create temporary table t1 (keyc int, c1 char(100), c2 char(100)) engine=innodb;
 insert into t1 values (1, 'c', 'b');
 select * from t1;
@@ -27,7 +26,6 @@ create temporary table t1
 ERROR HY000: Lost connection to MySQL server during query
 # files in MYSQL_DATA_DIR
 ibtmp1
-use test;
 create temporary table t1
 (a int, b int, primary key(a), index(b)) engine = innodb;
 insert into t1 values (1, 2);
@@ -36,7 +34,6 @@ a	b
 1	2
 drop table t1;
 set session debug="-d,ib_ddl_crash_during_create";
-SET DEBUG_SYNC = 'RESET';
 use test;
 create temporary table t1
 (a int, b char(100), c char(100)) engine = innodb;
@@ -99,7 +96,6 @@ count(*)
 0
 drop procedure populate_t1_t2;
 drop table t2;
-set DEBUG_SYNC = 'RESET';
 use test;
 create temporary table t1
 (a int, b char(100), c char(100)) engine = innodb;
@@ -130,14 +126,12 @@ a	b	c
 1	a	b
 2	a	b
 3	a	b
-set DEBUG_SYNC = 'RESET';
 create temporary table t1
 (a int, b char(100), c char(100)) engine = innodb;
 insert into t1 values (1, 'a', 'b');
-set session debug="+d,crash_commit_before";
+begin;
 insert into t2 values (4, 'a', 'b');
-ERROR HY000: Lost connection to MySQL server during query
-use test;
+# Kill and restart
 show tables;
 Tables_in_test
 t2
@@ -152,14 +146,12 @@ a	b	c
 -3	a	b
 -2	a	b
 -1	a	b
-set DEBUG_SYNC = 'RESET';
 create temporary table t1
 (a int, b char(100), c char(100)) engine = innodb;
 insert into t1 values (1, 'a', 'b');
-set session debug="+d,crash_commit_before";
+begin;
 insert into t1 values (4, 'a', 'b');
-ERROR HY000: Lost connection to MySQL server during query
-use test;
+# Kill and restart
 show tables;
 Tables_in_test
 t2
@@ -175,5 +167,3 @@ a	b	c
 2	a	b
 3	a	b
 drop table t2;
-set global innodb_file_format = Antelope;
-set global innodb_file_per_table = 1;

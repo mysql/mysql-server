@@ -38,6 +38,9 @@ ERROR 42000: Variable 'slave_type_conversions' can't be set to the value of 'NON
 SELECT @@global.slave_type_conversions;
 @@global.slave_type_conversions
 ALL_LOSSY,ALL_NON_LOSSY
+SET @@global.log_error_verbosity=1;
+include/stop_slave.inc
+include/start_slave.inc
 SET GLOBAL SLAVE_TYPE_CONVERSIONS='';
 **** Running tests with @@SLAVE_TYPE_CONVERSIONS = '' ****
 include/rpl_reset.inc
@@ -50,6 +53,7 @@ include/rpl_reset.inc
 SET GLOBAL SLAVE_TYPE_CONVERSIONS='ALL_LOSSY,ALL_NON_LOSSY';
 **** Running tests with @@SLAVE_TYPE_CONVERSIONS = 'ALL_LOSSY,ALL_NON_LOSSY' ****
 include/rpl_reset.inc
+SET @@global.log_error_verbosity= SAVED_LOG_ERROR_VERBOSITY;
 **** Result of conversions ****
 Source_Type	Target_Type	All_Type_Conversion_Flags	Value_On_Slave
 TINYBLOB       	TINYBLOB       	                         	<Correct value>

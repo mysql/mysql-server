@@ -1,3 +1,4 @@
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 DROP TABLE IF EXISTS t1, t2;
 CREATE TABLE t1 (
 fid INT NOT NULL AUTO_INCREMENT PRIMARY KEY, 
@@ -805,7 +806,7 @@ CREATE TABLE t1 (st varchar(100));
 INSERT INTO t1 VALUES ("Fake string");
 CREATE TABLE t2 (geom GEOMETRY NOT NULL, SPATIAL KEY gk(geom));
 INSERT INTO t2 SELECT GeomFromText(st) FROM t1;
-ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 drop table t1, t2;
 CREATE TABLE t1 (`geometry` geometry NOT NULL default '',SPATIAL KEY `gndx` (`geometry`)) ENGINE=MyISAM DEFAULT CHARSET=latin1;
 Warnings:
@@ -1508,37 +1509,21 @@ SELECT 1 FROM t1 WHERE a = GEOMFROMTEXT('LINESTRING(-1 -1, 1 -1, -1 -1, -1 1, 1 
 1
 1
 EXPLAIN SELECT 1 FROM t1 WHERE a < GEOMFROMTEXT('LINESTRING(-1 -1, 1 -1, -1 -1, -1 1, 1 1)');
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	a	NULL	NULL	NULL	2	50.00	Using where
-Warnings:
-Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` where (`test`.`t1`.`a` < <cache>(st_geometryfromtext('LINESTRING(-1 -1, 1 -1, -1 -1, -1 1, 1 1)')))
+ERROR HY000: Incorrect arguments to <
 SELECT 1 FROM t1 WHERE a < GEOMFROMTEXT('LINESTRING(-1 -1, 1 -1, -1 -1, -1 1, 1 1)');
-1
+ERROR HY000: Incorrect arguments to <
 EXPLAIN SELECT 1 FROM t1 WHERE a <= GEOMFROMTEXT('LINESTRING(-1 -1, 1 -1, -1 -1, -1 1, 1 1)');
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	a	NULL	NULL	NULL	2	50.00	Using where
-Warnings:
-Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` where (`test`.`t1`.`a` <= <cache>(st_geometryfromtext('LINESTRING(-1 -1, 1 -1, -1 -1, -1 1, 1 1)')))
+ERROR HY000: Incorrect arguments to <=
 SELECT 1 FROM t1 WHERE a <= GEOMFROMTEXT('LINESTRING(-1 -1, 1 -1, -1 -1, -1 1, 1 1)');
-1
-1
-1
+ERROR HY000: Incorrect arguments to <=
 EXPLAIN SELECT 1 FROM t1 WHERE a > GEOMFROMTEXT('LINESTRING(-1 -1, 1 -1, -1 -1, -1 1, 1 1)');
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	a	NULL	NULL	NULL	2	50.00	Using where
-Warnings:
-Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` where (`test`.`t1`.`a` > <cache>(st_geometryfromtext('LINESTRING(-1 -1, 1 -1, -1 -1, -1 1, 1 1)')))
+ERROR HY000: Incorrect arguments to >
 SELECT 1 FROM t1 WHERE a > GEOMFROMTEXT('LINESTRING(-1 -1, 1 -1, -1 -1, -1 1, 1 1)');
-1
+ERROR HY000: Incorrect arguments to >
 EXPLAIN SELECT 1 FROM t1 WHERE a >= GEOMFROMTEXT('LINESTRING(-1 -1, 1 -1, -1 -1, -1 1, 1 1)');
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	a	NULL	NULL	NULL	2	50.00	Using where
-Warnings:
-Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` where (`test`.`t1`.`a` >= <cache>(st_geometryfromtext('LINESTRING(-1 -1, 1 -1, -1 -1, -1 1, 1 1)')))
+ERROR HY000: Incorrect arguments to >=
 SELECT 1 FROM t1 WHERE a >= GEOMFROMTEXT('LINESTRING(-1 -1, 1 -1, -1 -1, -1 1, 1 1)');
-1
-1
-1
+ERROR HY000: Incorrect arguments to >=
 DROP TABLE t1;
 #
 # Bug #51357: crash when using handler commands on spatial indexes
@@ -1571,7 +1556,7 @@ CREATE TABLE t1(a LINESTRING NOT NULL, b GEOMETRY NOT NULL,
 SPATIAL KEY(a), SPATIAL KEY(b)) ENGINE=MyISAM;
 INSERT INTO t1 VALUES(GEOMFROMTEXT("point (0 0)"), GEOMFROMTEXT("point (1 1)"));
 INSERT IGNORE INTO t1 SET a=GEOMFROMTEXT("point (-6 0)"), b=GEOMFROMTEXT("error");
-ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 INSERT IGNORE INTO t1 SET a=GEOMFROMTEXT("point (-6 0)"), b=NULL;
 ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
 SELECT ASTEXT(a), ASTEXT(b) FROM t1;
@@ -1582,11 +1567,12 @@ CREATE TABLE t1(a INT NOT NULL, b GEOMETRY NOT NULL,
 KEY(a), SPATIAL KEY(b)) ENGINE=MyISAM;
 INSERT INTO t1 VALUES(0, GEOMFROMTEXT("point (1 1)"));
 INSERT IGNORE INTO t1 SET a=0, b=GEOMFROMTEXT("error");
-ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 INSERT IGNORE INTO t1 SET a=1, b=NULL;
 ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
 SELECT a, ASTEXT(b) FROM t1;
 a	ASTEXT(b)
 0	POINT(1 1)
 DROP TABLE t1;
+SET sql_mode = default;
 End of 5.1 tests

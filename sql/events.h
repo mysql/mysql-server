@@ -116,7 +116,7 @@ public:
   drop_event(THD *thd, LEX_STRING dbname, LEX_STRING name, bool if_exists);
 
   static void
-  drop_schema_events(THD *thd, char *db);
+  drop_schema_events(THD *thd, const char *db);
 
   static bool
   show_create_event(THD *thd, LEX_STRING dbname, LEX_STRING name);

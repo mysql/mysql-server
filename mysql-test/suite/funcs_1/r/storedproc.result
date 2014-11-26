@@ -1,6 +1,7 @@
 
 --source suite/funcs_1/storedproc/load_sp_tb.inc
 --------------------------------------------------------------------------------
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 
 --source suite/funcs_1/storedproc/cleanup_sp_tb.inc
 --------------------------------------------------------------------------------
@@ -61,6 +62,8 @@ load data infile '<MYSQLTEST_VARDIR>/std_data/funcs_1/t4.txt' into table t10;
 create table t11(f1 char(20),f2 char(25),f3 date,f4 int,f5 char(25),f6 int)
 engine = <engine_to_be_tested>;
 load data infile '<MYSQLTEST_VARDIR>/std_data/funcs_1/t4.txt' into table t11;
+SET sql_mode = default;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 
 Section 3.1.1 - Syntax checks for the CREATE PROCEDURE, CREATE
 FUNCTION, ALTER PROCEDURE, ALTER FUNCTION, DROP PROCEDURE, DROP FUNCTION, SHOW
@@ -3096,10 +3099,6 @@ DROP FUNCTION timestamp;
 CREATE FUNCTION year(f1 year) returns year
 return f1;
 DROP FUNCTION year;
-CREATE FUNCTION year(3)(f1 year(3)) returns year(3)
-return f1;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '3)(f1 year(3)) returns year(3)
-return f1' at line 1
 CREATE FUNCTION year(4)(f1 year(4)) returns year(4)
 return f1;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '4)(f1 year(4)) returns year(4)
@@ -3376,13 +3375,6 @@ DROP FUNCTION IF EXISTS fn1;
 CREATE FUNCTION fn1(f1 year ) returns year
 return f1;
 DROP FUNCTION IF EXISTS fn1;
-CREATE FUNCTION fn1(f1 year(f1 3) ) returns year(3)
-return f1;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'f1 3) ) returns year(3)
-return f1' at line 1
-DROP FUNCTION IF EXISTS fn1;
-Warnings:
-Note	1305	FUNCTION db_storedproc.fn1 does not exist
 CREATE FUNCTION fn1(f1 year(f1 4) ) returns year(4)
 return f1;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'f1 4) ) returns year(4)
@@ -6911,15 +6903,6 @@ END' at line 3
 DROP PROCEDURE IF EXISTS sp1;
 CREATE PROCEDURE sp1( )
 BEGIN
-declare year(3) not null  x;
-SELECT f106 into x from tb2 limit 9998, 1;
-END//
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '(3) not null  x;
-SELECT f106 into x from tb2 limit 9998, 1;
-END' at line 3
-DROP PROCEDURE IF EXISTS sp1;
-CREATE PROCEDURE sp1( )
-BEGIN
 declare year(4) not null  x;
 SELECT f107 into x from tb2 limit 9998, 1;
 END//
@@ -7527,19 +7510,6 @@ END//
 CALL sp1();
 x	y	z
 2005	2005	2005
-DROP PROCEDURE IF EXISTS sp1;
-CREATE PROCEDURE sp1( )
-BEGIN
-declare x, y, z year(3) default 2005;
-SELECT x, y, z;
-END//
-Warnings:
-Warning	1818	YEAR(3) column type is deprecated. Creating YEAR(4) column instead.
-CALL sp1();
-x	y	z
-2005	2005	2005
-Warnings:
-Warning	1818	YEAR(3) column type is deprecated. Creating YEAR(4) column instead.
 DROP PROCEDURE IF EXISTS sp1;
 CREATE PROCEDURE sp1( )
 BEGIN
@@ -14382,13 +14352,6 @@ DROP PROCEDURE IF EXISTS sp1;
 CREATE PROCEDURE sp1()
 BEGIN
 declare x year;
-SELECT f1 into x from t2 limit 1;
-END//
-CALL sp1();
-DROP PROCEDURE IF EXISTS sp1;
-CREATE PROCEDURE sp1()
-BEGIN
-declare x year(3);
 SELECT f1 into x from t2 limit 1;
 END//
 CALL sp1();
@@ -21734,7 +21697,7 @@ Warnings:
 Warning	1912	'ERROR_FOR_DIVISION_BY_ZERO' mode no longer has any effect. Use STRICT_ALL_TABLES or STRICT_TRANS_TABLES instead.
 SHOW VARIABLES LIKE 'sql_mode';
 Variable_name	Value
-sql_mode	REAL_AS_FLOAT,PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,ANSI
+sql_mode	REAL_AS_FLOAT,PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,ONLY_FULL_GROUP_BY,ANSI
 CREATE PROCEDURE sp4()
 BEGIN
 declare a int;
@@ -21747,7 +21710,7 @@ show warnings;
 END//
 show CREATE PROCEDURE sp4;
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
-sp4	REAL_AS_FLOAT,PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,ANSI	CREATE DEFINER="root"@"localhost" PROCEDURE "sp4"()
+sp4	REAL_AS_FLOAT,PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,ONLY_FULL_GROUP_BY,ANSI	CREATE DEFINER="root"@"localhost" PROCEDURE "sp4"()
 BEGIN
 declare a int;
 declare b int;
@@ -23318,6 +23281,7 @@ SELECT @done, @x;
 1	1
 DROP PROCEDURE IF EXISTS h1;
 DROP TABLE IF EXISTS res_t1;
+SET sql_mode = default;
 
 --source suite/funcs_1/storedproc/cleanup_sp_tb.inc
 --------------------------------------------------------------------------------

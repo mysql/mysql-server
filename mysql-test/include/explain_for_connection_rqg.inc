@@ -73,7 +73,7 @@ CREATE TABLE f1 (
   KEY col_varchar_1024_latin1_key (col_varchar_1024_latin1_key(1000))
   ) ENGINE=MyISAM AUTO_INCREMENT=8 DEFAULT CHARSET=latin1;
 
-insert into f1 values
+insert ignore into f1 values
 (1,"I'll"),
 (2,'v'),
 (3,'time'),
@@ -245,6 +245,9 @@ create view view_aa as select * from aa;
 create view view_bb as select * from bb;
 create view view_cc as select * from cc;
 
+# Lots of bad queries:
+--source include/turn_off_only_full_group_by.inc
+
 let $query=SELECT DISTINCT   alias2.col_time_key AS field1 , alias2.col_varchar_key AS field2 , alias2.col_varchar_key AS field3 , alias2.col_int_nokey AS field4 FROM ( c AS alias1 , ( view_a AS alias2 , c AS alias3 ) )   GROUP BY field1, field2, field3, field4 HAVING (field1 < 'w' OR field1 != 'ni') ORDER BY field3 ;
 
 --source include/explain_for_connection.inc 
@@ -299,7 +302,7 @@ let $query=SELECT    CONCAT( table1.col_varchar_nokey , table1.col_varchar_key )
 --source include/explain_for_connection.inc
 let $query=SELECT    CONCAT( table2.col_varchar_key , table1.col_varchar_key ) AS field1 , table2.pk AS field2 , table1.pk AS field3 FROM ( cc AS table1 STRAIGHT_JOIN ( ( ( SELECT  SQL_SMALL_RESULT subquery1_t2.* FROM ( cc AS subquery1_t1 RIGHT OUTER JOIN bb AS subquery1_t2 ON (subquery1_t2.col_int_nokey = subquery1_t1.pk  ) )  ) AS table2 INNER JOIN cc AS table3 ON (table3.pk = table2.pk  ) ) ) ON (table3.col_int_key = table2.col_int_nokey  ) ) WHERE (   EXISTS (SELECT   subquery2_t1.col_int_nokey AS subquery2_field1 FROM ( c AS subquery2_t1 INNER JOIN ( c AS subquery2_t2 STRAIGHT_JOIN b AS subquery2_t3 ON (subquery2_t3.col_int_key = subquery2_t2.pk  AND subquery2_t2.col_int_key NOT IN (SELECT   child_subquery1_t1.col_int_nokey AS child_subquery1_field1 FROM ( cc AS child_subquery1_t1 LEFT  JOIN c AS child_subquery1_t2 ON (child_subquery1_t2.col_int_nokey = child_subquery1_t1.col_int_key ) )    ) ) ) ON (subquery2_t3.col_varchar_key = subquery2_t2.col_varchar_key  ) ) WHERE subquery2_t3.col_varchar_nokey <= table2.col_varchar_nokey AND subquery2_t3.pk <= table2.pk ) ) OR ( table3.col_varchar_nokey <= 'c' AND table2.col_varchar_key != table2.col_varchar_nokey ) ORDER BY table1.col_varchar_key /*+JavaDB:Postgres: NULLS FIRST*/ , table1 .pk DESC /*+JavaDB:Postgres: NULLS LAST */, field1 /*+JavaDB:Postgres: NULLS FIRST */, field2 /*+JavaDB:Postgres: NULLS FIRST */, field3 /*+JavaDB:Postgres: NULLS FIRST */ ;
 --source include/explain_for_connection.inc
- let $query=SELECT     (SELECT   MAX( DISTINCT sq1_alias1.col_int_key ) AS sq1_field1 FROM ( cc AS sq1_alias1 , bb AS sq1_alias2 ) WHERE sq1_alias2.pk <> alias1.pk AND sq1_alias2.pk <= alias1.col_int_key ) AS field1 , COUNT(  alias1.col_varchar_key ) AS field2 FROM ( bb AS alias1 LEFT OUTER JOIN ( ( cc AS alias2 INNER JOIN cc AS alias3 ON (alias3.col_int_key = alias2.col_int_key  ) ) ) ON (alias3.col_varchar_nokey = alias2.col_varchar_key  ) ) WHERE (   EXISTS ( (SELECT   sq2_alias1.col_varchar_nokey AS sq2_field1 FROM c AS sq2_alias1 WHERE  ( sq2_alias1.col_varchar_nokey , sq2_alias1.col_varchar_nokey )  IN (SELECT   c_sq1_alias1.col_varchar_key AS c_sq1_field1 , MAX(  c_sq1_alias1.col_varchar_nokey ) AS c_sq1_field2 FROM cc AS c_sq1_alias1    ) GROUP BY sq2_field1 ) ) ) OR ( alias1.col_int_key > 51 AND alias1.col_int_key < ( 51 + 209 ) OR alias1.col_int_key > 51 AND alias1.col_int_key < ( 51 + 159 ) ) OR  (SELECT  SQL_SMALL_RESULT MIN(  sq3_alias1.pk ) AS sq3_field1 FROM ( c AS sq3_alias1 RIGHT OUTER JOIN c AS sq3_alias2 ON (sq3_alias2.col_int_key = sq3_alias1.pk  ) )  ) IS NOT NULL  GROUP BY field1 HAVING field2 <> 5 ORDER BY alias1.col_time_key ASC , field2  , CONCAT( alias2.col_varchar_key, alias3.col_varchar_key );
+let $query=SELECT     (SELECT   MAX( DISTINCT sq1_alias1.col_int_key ) AS sq1_field1 FROM ( cc AS sq1_alias1 , bb AS sq1_alias2 ) WHERE sq1_alias2.pk <> alias1.pk AND sq1_alias2.pk <= alias1.col_int_key ) AS field1 , COUNT(  alias1.col_varchar_key ) AS field2 FROM ( bb AS alias1 LEFT OUTER JOIN ( ( cc AS alias2 INNER JOIN cc AS alias3 ON (alias3.col_int_key = alias2.col_int_key  ) ) ) ON (alias3.col_varchar_nokey = alias2.col_varchar_key  ) ) WHERE (   EXISTS ( (SELECT   sq2_alias1.col_varchar_nokey AS sq2_field1 FROM c AS sq2_alias1 WHERE  ( sq2_alias1.col_varchar_nokey , sq2_alias1.col_varchar_nokey )  IN (SELECT   c_sq1_alias1.col_varchar_key AS c_sq1_field1 , MAX(  c_sq1_alias1.col_varchar_nokey ) AS c_sq1_field2 FROM cc AS c_sq1_alias1    ) GROUP BY sq2_field1 ) ) ) OR ( alias1.col_int_key > 51 AND alias1.col_int_key < ( 51 + 209 ) OR alias1.col_int_key > 51 AND alias1.col_int_key < ( 51 + 159 ) ) OR  (SELECT  SQL_SMALL_RESULT MIN(  sq3_alias1.pk ) AS sq3_field1 FROM ( c AS sq3_alias1 RIGHT OUTER JOIN c AS sq3_alias2 ON (sq3_alias2.col_int_key = sq3_alias1.pk  ) )  ) IS NOT NULL  GROUP BY field1 HAVING field2 <> 5 ORDER BY alias1.col_time_key ASC , field2  , CONCAT( alias2.col_varchar_key, alias3.col_varchar_key );
 --source include/explain_for_connection.inc
 let $query=SELECT     (SELECT 5 FROM dummy ) AS field1 FROM ( b AS table1 INNER JOIN ( ( ( SELECT   subquery2_t1.* FROM ( cc AS subquery2_t1 INNER JOIN cc AS subquery2_t2 ON (subquery2_t2.col_varchar_key = subquery2_t1.col_varchar_key  ) )  ) AS table2 LEFT  JOIN cc AS table3 ON (table3.col_int_key = table2.pk  ) ) ) ON (table3.col_varchar_key = table2.col_varchar_key  ) ) WHERE (   EXISTS ( (SELECT   subquery3_t2.col_varchar_nokey AS subquery3_field1 FROM ( d AS subquery3_t1 INNER JOIN bb AS subquery3_t2 ON (subquery3_t2.col_int_key = subquery3_t1.pk  ) )   ) ) ) OR ( table1.col_varchar_key = 'w' AND table1.col_varchar_key = table3.col_varchar_key ) ORDER BY table1.col_varchar_key DESC /*+JavaDB:Postgres: NULLS LAST */ , field1 /*+JavaDB:Postgres: NULLS FIRST */ LIMIT 10 OFFSET 6;
 --source include/explain_for_connection.inc
@@ -331,6 +334,7 @@ let $query=SELECT    table2.pk AS field1 FROM ( ( SELECT   subquery1_t1.* FROM (
 --source include/explain_for_connection.inc
 let $query=SELECT    CONCAT( table2.col_varchar_key , table2.col_varchar_nokey ) AS field1 FROM ( ( SELECT   subquery1_t1.* FROM ( c AS subquery1_t1 INNER JOIN bb AS subquery1_t2 ON (subquery1_t2.col_int_key = subquery1_t1.pk  OR subquery1_t1.col_int_nokey >= ALL (SELECT 3 FROM dummy UNION SELECT 4 FROM dummy ) ) ) WHERE  NOT EXISTS (SELECT  SQL_SMALL_RESULT child_subquery2_t1.col_int_key AS child_subquery1_field1 FROM ( a AS child_subquery2_t1 STRAIGHT_JOIN ( ( cc AS child_subquery2_t2 INNER JOIN c AS child_subquery2_t3 ON (child_subquery2_t3.col_varchar_key = child_subquery2_t2.col_varchar_nokey ) ) ) ON (child_subquery2_t3.col_int_nokey = child_subquery2_t2.pk ) ) WHERE child_subquery2_t1.pk <= subquery1_t2.col_int_key ) ) AS table1 INNER JOIN ( SELECT   subquery2_t1.* FROM c AS subquery2_t1  ) AS table2 ON (table2.pk = table1.pk  ) ) WHERE (  (SELECT  SQL_SMALL_RESULT SUM( DISTINCT subquery3_t1.col_int_key ) AS subquery3_field1 FROM ( bb AS subquery3_t1 INNER JOIN cc AS subquery3_t2 ON (subquery3_t2.col_varchar_key = subquery3_t1.col_varchar_nokey  ) )  ) IS  NULL ) AND ( table1.col_varchar_key  IN ('g', 'z', 'w', 'v', 't') OR table1.pk > 39 AND table1.pk < ( 39 + 233 ) ) OR table1.col_varchar_key IS  NULL ORDER BY table1.col_int_key ASC /*+JavaDB:Postgres: NULLS FIRST */ , field1 /*+JavaDB:Postgres: NULLS FIRST */ LIMIT 100;
 --source include/explain_for_connection.inc
+
 DROP TABLE a;
 DROP TABLE aa;
 DROP TABLE b;
@@ -348,4 +352,4 @@ DROP VIEW view_bb;
 DROP VIEW view_c;
 DROP VIEW view_cc;
 DROP VIEW view_d;
-
+--source include/restore_sql_mode_after_turn_off_only_full_group_by.inc

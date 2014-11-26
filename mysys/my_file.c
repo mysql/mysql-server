@@ -80,7 +80,7 @@ static uint set_max_open_files(uint max_file_limit)
 static uint set_max_open_files(uint max_file_limit)
 {
   /* We don't know the limit. Return best guess */
-  return min(max_file_limit, OS_FILE_LIMIT);
+  return MY_MIN(max_file_limit, OS_FILE_LIMIT);
 }
 #endif
 

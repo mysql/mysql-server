@@ -1,5 +1,3 @@
-#Want to skip this test from daily Valgrind execution
---source include/no_valgrind_without_big.inc
 # ==== Purpose ====
 #
 # Test that it is possible to change the topology completely randomly,
@@ -79,8 +77,13 @@
 #
 # ==== References ====
 #
-# Created as part of WL#3584: Global Transaction Identifiers
+# WL#3584: Global Transaction Identifiers
+# - Created as part of this worklog
+# BUG#18385953: RPL_GTID_STRESS_FAILOVER FAILS WITH "ERROR IN SYNC_WITH_MASTER.INC"
+# - fixed bug in cleanup code
 
+#Want to skip this test from daily Valgrind execution
+--source include/no_valgrind_without_big.inc
 --source include/big_test.inc
 --source include/have_gtid.inc
 
@@ -97,7 +100,10 @@
 
 --echo ==== Configure ====
 
---let $max_seconds= 300
+if ($max_seconds == '')
+{
+  --let $max_seconds= 300
+}
 if ($max_iterations == '')
 {
   --let $max_iterations= 10000
@@ -394,7 +400,7 @@ while ($server <= $n_servers)
     {
       --source include/show_rpl_debug_info.inc
       --echo ERROR: GTID_EXECUTED differs between server 1 and server $server
-      --echo ERROR: GTID_EXECUTED on server 1: '$saved_gtid_executed'
+      --echo ERROR: GTID_EXECUTED on server 1: '$last_gtid_executed'
       --echo ERROR: GTID_EXECUTED on server $server: '$gtid_executed'
       --die GTID_EXECUTED differs between two servers
     }
@@ -410,15 +416,22 @@ while ($server <= $n_servers)
 
 --echo ==== Clean up ====
 
+# drop database
 --connection default
 --let $server= 1
 while ($server <= $n_servers)
 {
-  --connection default
   eval DROP DATABASE db_$server;
+  --inc $server
+}
+--source include/rpl_sync.inc
 
-  # restoring the AUTO_POSITION 
+# restore AUTO_POSITION
+--let $server= 1
+while ($server <= $n_servers)
+{
   --connection server_$server
+
   --let $include_silent=1
   --source include/stop_slave.inc
   CHANGE MASTER TO MASTER_AUTO_POSITION=0;

@@ -118,6 +118,7 @@ set LC_TIME_NAMES='en_US';
 #
 # Bug #2366  	Wrong utf8 behaviour when data is truncated
 #
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 set names koi8r;
 create table t1 (s1 char(1) character set utf8);
 insert into t1 values (_koi8r'ÁÂ');
@@ -142,22 +143,22 @@ insert into t1 select repeat('Ña',66000);
 insert into t1 select repeat('ÑÑ',66000);
 select length(s1),char_length(s1) from t1;
 drop table t1;
-
+SET sql_mode = default;
 #
 # Bug #2368 Multibyte charsets do not check that incoming data is well-formed
 #
 create table t1 (s1 char(10) character set utf8);
-insert into t1 values (0x41FF);
+insert ignore into t1 values (0x41FF);
 select hex(s1) from t1;
 drop table t1;
 
 create table t1 (s1 varchar(10) character set utf8);
-insert into t1 values (0x41FF);
+insert ignore into t1 values (0x41FF);
 select hex(s1) from t1;
 drop table t1;
 
 create table t1 (s1 text character set utf8);
-insert into t1 values (0x41FF);
+insert ignore into t1 values (0x41FF);
 select hex(s1) from t1;
 drop table t1;
 
@@ -798,7 +799,7 @@ create table t1 (x enum('A', 'B') default 0) character set utf8;
 #
 # Test for bug #11167: join for utf8 varchar value longer than 255 bytes 
 #
-
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 SET NAMES UTF8;
 
 CREATE TABLE t1 (
@@ -836,17 +837,18 @@ INSERT INTO t2 VALUES ('1234567890',2,'2005-05-24 13:53:25');
 SELECT content, t2.msisdn FROM t1, t2 WHERE t1.msisdn = '1234567890';
 
 DROP TABLE t1,t2;
-
+SET sql_mode = default;
 #
 # Bug#11591: CHAR column with utf8 does not work properly
 # (more chars than expected)
 #
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 create table t1 (a char(20) character set utf8);
 insert into t1 values ('123456'),('Ð°Ð½Ð´Ñ€ÐµÐ¹');
 alter table t1 modify a char(2) character set utf8;
 select char_length(a), length(a), a from t1 order by a;
 drop table t1;
-
+SET sql_mode = default;
 #
 # Bugs#12611
 # ESCAPE + LIKE do not work when the escape char is a multibyte one
@@ -1215,6 +1217,7 @@ DROP TABLE t1;
 # Bug#20095 Changing length of VARCHAR field with UTF8
 # collation does not truncate values
 #
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 create table t1 (
   a varchar(26) not null
 ) default character set utf8;
@@ -1244,7 +1247,7 @@ insert into t1 values (repeat('a',4000));
 alter table t1 change a a varchar(3000) character set utf8 not null;
 select length(a) from t1;
 drop table t1;
-
+SET sql_mode = default;
 
 #
 #  Bug#10504: Character set does not support traditional mode
@@ -1461,14 +1464,20 @@ DROP TABLE t1;
 #
 CREATE TABLE t1 (a INT NOT NULL, b INT NOT NULL);
 INSERT INTO t1 VALUES (70000, 1092), (70001, 1085), (70002, 1065);
+
+--source include/turn_off_only_full_group_by.inc
 SELECT CONVERT(a, CHAR), CONVERT(b, CHAR) FROM t1 GROUP BY b;
 SELECT CONVERT(a, CHAR), CONVERT(b, CHAR) FROM t1;
+--source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
 ALTER TABLE t1 ADD UNIQUE (b);
 SELECT CONVERT(a, CHAR), CONVERT(b, CHAR) FROM t1 GROUP BY b;
 DROP INDEX b ON t1;
+--source include/turn_off_only_full_group_by.inc
 SELECT CONVERT(a, CHAR), CONVERT(b, CHAR) FROM t1 GROUP BY b;
 ALTER TABLE t1 ADD INDEX (b);
 SELECT CONVERT(a, CHAR), CONVERT(b, CHAR) from t1 GROUP BY b;
+--source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
+
 DROP TABLE t1;
 
 --echo End of 5.0 tests
@@ -1588,7 +1597,6 @@ SET NAMES utf8;
 SET NAMES utf8;
 CREATE TABLE t1 (a INT);
 INSERT INTO t1 VALUES (0), (0), (1), (0), (0);
---error ER_DUP_ENTRY
 SELECT COUNT(*) FROM t1, t1 t2 
 GROUP BY INSERT('', t2.a, t1.a, (@@global.max_binlog_size));
 DROP TABLE t1;

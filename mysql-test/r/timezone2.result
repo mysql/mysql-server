@@ -1,5 +1,6 @@
 drop table if exists t1, t2;
 drop function if exists f1;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 create table t1 (ts timestamp);
 set time_zone='+00:00';
 select unix_timestamp(utc_timestamp())-unix_timestamp(current_timestamp());
@@ -336,6 +337,7 @@ SELECT UNIX_TIMESTAMP('2003-03-30 03:00:00'), 'After the gap' AS b;
 UNIX_TIMESTAMP('2003-03-30 03:00:00')	b
 1048978800	After the gap
 SET time_zone=DEFAULT;
+SET sql_mode = default;
 #
 # End of 5.6 tests
 #

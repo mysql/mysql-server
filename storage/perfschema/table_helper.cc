@@ -265,6 +265,11 @@ int PFS_object_row::make_row(const MDL_key *mdl)
     m_schema_name_length= 0;
     m_object_name_length= 0;
     break;
+  case MDL_key::USER_LEVEL_LOCK:
+    m_object_type= OBJECT_TYPE_USER_LEVEL_LOCK;
+    m_schema_name_length= 0;
+    m_object_name_length= mdl->name_length();
+    break;
   case MDL_key::NAMESPACE_END:
   default:
     m_object_type= NO_OBJECT_TYPE;
@@ -522,6 +527,9 @@ void set_field_object_type(Field *f, enum_object_type object_type)
   case OBJECT_TYPE_COMMIT:
     PFS_engine_table::set_field_varchar_utf8(f, "COMMIT", 6);
     break;
+  case OBJECT_TYPE_USER_LEVEL_LOCK:
+    PFS_engine_table::set_field_varchar_utf8(f, "USER LEVEL LOCK", 15);
+    break;
   case NO_OBJECT_TYPE:
   default:
     DBUG_ASSERT(false);
@@ -756,4 +764,35 @@ void set_field_xa_state(Field *f, enum_xa_transaction_state xa_state)
   }
 }
 
+void PFS_variable_name_row::make_row(const char* str, uint length)
+{
+  DBUG_ASSERT(length <= sizeof(m_str));
+  if (length > 0)
+  {
+    memcpy(m_str, str, length);
+  }
+  m_length= length;
+}
+
+void PFS_variable_value_row::clear()
+{
+  my_free(m_value);
+  m_value= NULL;
+  m_value_length= 0;
+}
+
+void PFS_variable_value_row::make_row(const char* val, size_t length)
+{
+  if (length > 0)
+  {
+    m_value= (char*) my_malloc(PSI_NOT_INSTRUMENTED, length, MYF(0));
+    m_value_length= length;
+    memcpy(m_value, val, length);
+  }
+  else
+  {
+    m_value= NULL;
+    m_value_length= 0;
+  }
+}
 

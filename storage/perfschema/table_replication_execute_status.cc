@@ -49,11 +49,16 @@ static const TABLE_FIELD_TYPE field_types[]=
     {C_STRING_WITH_LEN("int")},
     {NULL, 0}
   },
+  {
+    {C_STRING_WITH_LEN("COUNT_TRANSACTIONS_RETRIES")},
+    {C_STRING_WITH_LEN("bigint")},
+    {NULL, 0}
+  },
 };
 
 TABLE_FIELD_DEF
 table_replication_execute_status::m_field_def=
-{ 2, field_types };
+{ 3, field_types };
 
 PFS_engine_table_share
 table_replication_execute_status::m_share=
@@ -173,6 +178,8 @@ void table_replication_execute_status::make_row()
   else
     m_row.remaining_delay_is_set= false;
 
+  m_row.count_transactions_retries= active_mi->rli->retried_trans;
+
   mysql_mutex_unlock(&active_mi->rli->data_lock);
   mysql_mutex_unlock(&active_mi->data_lock);
   mysql_mutex_unlock(&LOCK_active_mi);
@@ -207,6 +214,9 @@ int table_replication_execute_status::read_row_values(TABLE *table,
           set_field_ulong(f, m_row.remaining_delay);
         else
           f->set_null();
+        break;
+      case 2: /* total number of times transactions were retried */
+        set_field_ulonglong(f, m_row.count_transactions_retries);
         break;
       default:
         DBUG_ASSERT(false);

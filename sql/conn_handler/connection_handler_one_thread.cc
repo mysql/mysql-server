@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -29,8 +29,6 @@
 
 bool One_thread_connection_handler::add_connection(Channel_info* channel_info)
 {
-  Global_THD_manager *thd_manager= Global_THD_manager::get_instance();
-
   if (my_thread_init())
   {
     connection_errors_internal++;
@@ -48,8 +46,7 @@ bool One_thread_connection_handler::add_connection(Channel_info* channel_info)
     return true;
   }
 
-  thd->variables.pseudo_thread_id= thd_manager->get_inc_thread_id();
-  thd->thread_id= thd->variables.pseudo_thread_id;
+  thd->set_new_thread_id();
 
   thd->start_utime= thd->thr_create_utime= my_micro_time();
 
@@ -71,9 +68,10 @@ bool One_thread_connection_handler::add_connection(Channel_info* channel_info)
     return true;
   }
 
-  mysql_thread_set_psi_id(thd->thread_id);
+  mysql_thread_set_psi_id(thd->thread_id());
   mysql_socket_set_thread_owner(thd->net.vio->mysql_socket);
 
+  Global_THD_manager *thd_manager= Global_THD_manager::get_instance();
   thd_manager->add_thd(thd);
 
   bool error= false;

@@ -547,6 +547,7 @@ public:
     DBUG_ASSERT(fixed);
     return decimals;
   }
+  virtual void print(String *str, enum_query_type query_type);
 };
 
 

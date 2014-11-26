@@ -28,6 +28,15 @@
 #ifdef FIONREAD_IN_SYS_FILIO
 # include <sys/filio.h>
 #endif
+#ifndef _WIN32
+# include <netinet/tcp.h>
+#endif
+#ifdef HAVE_POLL_H
+# include <poll.h>
+#endif
+#ifdef HAVE_SYS_IOCTL_H
+# include <sys/ioctl.h>
+#endif
 
 int vio_errno(Vio *vio __attribute__((unused)))
 {
@@ -615,7 +624,7 @@ my_bool vio_peer_addr(Vio *vio, char *ip_buffer, uint16 *port,
 
     struct sockaddr_storage addr_storage;
     struct sockaddr *addr= (struct sockaddr *) &addr_storage;
-    size_socket addr_length= sizeof (addr_storage);
+    socket_len_t addr_length= sizeof (addr_storage);
 
     /* Get sockaddr by socked fd. */
 

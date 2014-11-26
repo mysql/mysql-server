@@ -40,7 +40,7 @@
 select '------ delete tests ------' as test_sequence ;
 --enable_query_log
 --source include/ps_renew.inc
-
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 ## delete without parameter
 prepare stmt1 from 'delete from t1 where a=2' ;
 execute stmt1;
@@ -354,4 +354,4 @@ while ($1)
   set @arg00= @arg00 + 1 ;
   dec $1 ;
 }
-
+SET sql_mode = default;

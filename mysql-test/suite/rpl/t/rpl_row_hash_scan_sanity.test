@@ -163,6 +163,44 @@ UPDATE t4 SET c1= 7;
 -- let $expected_alg= 'INDEX_SCAN'
 -- source include/rpl_hash_scan_assertion.inc
 
+# Begin of Test cases for Bug#18860225
+# HASH_SCAN SEEMS BROKEN: CAN'T FIND RECORD IN 'T1' ERROR_CODE: 1032
+# Test Case 1: Key type is <Int>
+--connection slave
+SET @@global.slave_rows_search_algorithms= 'HASH_SCAN';
+--connection master
+CREATE TABLE t5(c1 INT, c2 INT, KEY(c2));
+INSERT INTO t5 VALUES (1,1),(2,2),(3,1),(4,NULL),(5,2),(6,3);
+DELETE FROM t5 ORDER BY c1;
+DROP TABLE t5;
+--source include/sync_slave_sql_with_master.inc
+
+# Test Case 2: Key type is <BigInt>
+--connection master
+CREATE TABLE t5(c1 BIGINT, c2 BIGINT, KEY(c2));
+INSERT INTO t5 VALUES (1,1),(2,2),(3,1),(4,NULL),(5,2),(6,3);
+DELETE FROM t5 ORDER BY c1;
+DROP TABLE t5;
+--source include/sync_slave_sql_with_master.inc
+
+# Test Case 3: Key type is <Varchar>
+--connection master
+CREATE TABLE t5(c1 INT, c2 VARCHAR(20), KEY(c2));
+INSERT INTO t5 VALUES (1,"value1"),(2,"value2"),(3,"value1"),(4,NULL),(5,"value2"),(6,"value3");
+DELETE FROM t5 ORDER BY c1;
+DROP TABLE t5;
+--source include/sync_slave_sql_with_master.inc
+
+# Test Case 4: Key is composite key and type is <Int,Varchar>
+#  and Varchar key having different length values
+--connection master
+CREATE TABLE t5(c1 INT, c2 INT, c3 VARCHAR(20), KEY(c2,c3));
+INSERT INTO t5 VALUES (1,1,"ab"),(2,2,"cde"),(3,1,"12345"),(4,4,"random"),(5,NULL,NULL),(6,5,NULL),(7,NULL,"lmnopqr");
+DELETE FROM t5 ORDER BY c1;
+DROP TABLE t5;
+--source include/sync_slave_sql_with_master.inc
+# End of Test cases for Bug#18860225
+
 -- connection slave
 
 SET @@global.slave_rows_search_algorithms= @saved_slave_rows_search_algorithms;

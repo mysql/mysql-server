@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, 2014 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -47,6 +47,7 @@ struct st_row_execute_status {
   enum_rpl_yes_no service_state;
   uint remaining_delay;
   bool remaining_delay_is_set;
+  ulong count_transactions_retries;
 };
 
 /** Table PERFORMANCE_SCHEMA.replication_execute_status */

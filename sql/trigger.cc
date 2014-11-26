@@ -328,8 +328,8 @@ Trigger *Trigger::create_from_parser(THD *thd,
   Trigger *t=
     new (&subject_table->mem_root) Trigger(
       &subject_table->mem_root,
-      subject_table->s->db,
-      subject_table->s->table_name,
+      to_lex_cstring(subject_table->s->db),
+      to_lex_cstring(subject_table->s->table_name),
       definition,
       thd->variables.sql_mode,
       definer,
@@ -368,8 +368,8 @@ Trigger *Trigger::create_from_parser(THD *thd,
   @see also Trigger::create_from_parser()
 */
 Trigger *Trigger::create_from_dd(MEM_ROOT *mem_root,
-                                 const LEX_STRING &db_name,
-                                 const LEX_STRING &subject_table_name,
+                                 const LEX_CSTRING &db_name,
+                                 const LEX_CSTRING &subject_table_name,
                                  const LEX_STRING &definition,
                                  sql_mode_t sql_mode,
                                  const LEX_STRING &definer,
@@ -398,8 +398,8 @@ Trigger *Trigger::create_from_dd(MEM_ROOT *mem_root,
   Trigger constructor.
 */
 Trigger::Trigger(MEM_ROOT *mem_root,
-                 const LEX_STRING &db_name,
-                 const LEX_STRING &subject_table_name,
+                 const LEX_CSTRING &db_name,
+                 const LEX_CSTRING &subject_table_name,
                  const LEX_STRING &definition,
                  sql_mode_t sql_mode,
                  const LEX_STRING &definer,
@@ -472,8 +472,8 @@ bool Trigger::execute(THD *thd)
   thd->lex->set_current_select(NULL);
   err_status=
     m_sp->execute_trigger(thd,
-                          &m_db_name,
-                          &m_subject_table_name,
+                          m_db_name,
+                          m_subject_table_name,
                           &m_subject_table_grant);
   thd->lex->set_current_select(save_current_select);
 
@@ -511,8 +511,8 @@ bool Trigger::parse(THD *thd)
   thd->lex= &lex;
   lex_start(thd);
 
-  LEX_STRING current_db_name_saved= {thd->db, thd->db_length};
-  thd->reset_db(m_db_name.str, m_db_name.length);
+  LEX_CSTRING current_db_name_saved= thd->db();
+  thd->reset_db(m_db_name);
 
   Deprecated_trigger_syntax_handler error_handler;
   thd->push_internal_handler(&error_handler);
@@ -710,7 +710,7 @@ bool Trigger::parse(THD *thd)
 
 cleanup:
   lex_end(&lex);
-  thd->reset_db(current_db_name_saved.str, current_db_name_saved.length);
+  thd->reset_db(current_db_name_saved);
   thd->lex= lex_saved;
 
   return fatal_parse_error;

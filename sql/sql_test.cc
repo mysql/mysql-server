@@ -28,22 +28,19 @@
 #include "sql_optimizer.h"  // JOIN
 #include "opt_explain.h"    // join_type_str
 #include <hash.h>
-#if defined(HAVE_MALLOC_INFO) && defined(HAVE_MALLOC_H)
-#include <malloc.h>
-#elif defined(HAVE_MALLOC_INFO) && defined(HAVE_SYS_MALLOC_H)
-#include <sys/malloc.h>
-#endif
-
 #ifndef EMBEDDED_LIBRARY
 #include "events.h"
 #endif
-
 #include "table_cache.h" // table_cache_manager
 #include "mysqld_thd_manager.h"  // Global_THD_manager
 #include "prealloced_array.h"
 
 #include <algorithm>
 #include <functional>
+
+#if defined(HAVE_MALLOC_INFO) && defined(HAVE_MALLOC_H)
+#include <malloc.h>
+#endif
 
 const char *lock_descriptions[TL_WRITE_ONLY + 1] =
 {
@@ -69,7 +66,7 @@ void
 print_where(Item *cond,const char *info, enum_query_type query_type)
 {
   char buff[256];
-  String str(buff,(uint32) sizeof(buff), system_charset_info);
+  String str(buff, sizeof(buff), system_charset_info);
   str.length(0);
   if (cond)
     cond->print(&str, query_type);
@@ -106,7 +103,7 @@ TEST_join(JOIN *join)
 {
   uint i,ref;
   DBUG_ENTER("TEST_join");
-
+  DBUG_ASSERT(!join->join_tab);
   /*
     Assemble results of all the calls to full_name() first,
     in order not to garble the tabular output below.
@@ -114,10 +111,10 @@ TEST_join(JOIN *join)
   String ref_key_parts[MAX_TABLES];
   for (i= 0; i < join->tables; i++)
   {
-    JOIN_TAB *tab= join->join_tab + i;
-    for (ref= 0; ref < tab->ref.key_parts; ref++)
+    JOIN_TAB *tab= join->best_ref[i];
+    for (ref= 0; ref < tab->ref().key_parts; ref++)
     {
-      ref_key_parts[i].append(tab->ref.items[ref]->full_name());
+      ref_key_parts[i].append(tab->ref().items[ref]->full_name());
       ref_key_parts[i].append("  ");
     }
   }
@@ -126,34 +123,32 @@ TEST_join(JOIN *join)
   (void) fputs("\nInfo about JOIN\n",DBUG_FILE);
   for (i=0 ; i < join->tables ; i++)
   {
-    JOIN_TAB *tab=join->join_tab+i;
-    TABLE *form=tab->table;
+    JOIN_TAB *tab= join->best_ref[i];
+    TABLE *form=tab->table();
     if (!form)
       continue;
     char key_map_buff[128];
     fprintf(DBUG_FILE,"%-16.16s  type: %-7s  q_keys: %s  refs: %d  key: %d  len: %d\n",
 	    form->alias,
-	    join_type_str[tab->type],
-	    tab->keys.print(key_map_buff),
-	    tab->ref.key_parts,
-	    tab->ref.key,
-	    tab->ref.key_length);
-    if (tab->select)
+	    join_type_str[tab->type()],
+	    tab->keys().print(key_map_buff),
+	    tab->ref().key_parts,
+	    tab->ref().key,
+	    tab->ref().key_length);
+    if (tab->quick())
     {
       char buf[MAX_KEY/8+1];
       if (tab->use_quick == QS_DYNAMIC_RANGE)
 	fprintf(DBUG_FILE,
 		"                  quick select checked for each record (keys: %s)\n",
                 form->quick_keys.print(buf));
-      else if (tab->select->quick)
+      else
       {
 	fprintf(DBUG_FILE, "                  quick select used:\n");
-        tab->select->quick->dbug_dump(18, FALSE);
+        tab->quick()->dbug_dump(18, FALSE);
       }
-      else
-	(void) fputs("                  select used\n",DBUG_FILE);
     }
-    if (tab->ref.key_parts)
+    if (tab->ref().key_parts)
     {
       fprintf(DBUG_FILE,
               "                  refs:  %s\n", ref_key_parts[i].ptr());
@@ -183,9 +178,9 @@ void print_keyuse_array(Opt_trace_context *trace,
                        keyuse.optimize, keyuse.used_tables,
                        (ulong)keyuse.ref_table_rows, keyuse.keypart_map));
     Opt_trace_object(trace).
-      add_utf8_table(keyuse.table).
+      add_utf8_table(keyuse.table_ref->table).
       add_utf8("field", (keyuse.keypart == FT_KEYPART) ? "<fulltext>" :
-               keyuse.table->key_info[keyuse.key].
+               keyuse.table_ref->table->key_info[keyuse.key].
                key_part[keyuse.keypart].field->field_name).
       add("equals", keyuse.val).
       add("null_rejecting", keyuse.null_rejecting);
@@ -252,7 +247,7 @@ print_plan(JOIN* join, uint idx, double record_count, double read_time,
   for (i= 0; i < idx ; i++)
   {
     pos = join->positions[i];
-    table= pos.table->table;
+    table= pos.table->table();
     if (table)
       fputs(table->alias, DBUG_FILE);
     fputc(' ', DBUG_FILE);
@@ -269,7 +264,7 @@ print_plan(JOIN* join, uint idx, double record_count, double read_time,
     for (i= 0; i < idx ; i++)
     {
       pos= join->best_positions[i];
-      table= pos.table->table;
+      table= pos.table->table();
       if (table)
         fputs(table->alias, DBUG_FILE);
       fputc(' ', DBUG_FILE);
@@ -282,10 +277,10 @@ print_plan(JOIN* join, uint idx, double record_count, double read_time,
   for (plan_nodes= join->best_ref ; *plan_nodes ; plan_nodes++)
   {
     join_table= (*plan_nodes);
-    fputs(join_table->table->s->table_name.str, DBUG_FILE);
+    fputs(join_table->table()->s->table_name.str, DBUG_FILE);
     fprintf(DBUG_FILE, "(%lu,%lu,%lu)",
             (ulong) join_table->found_records,
-            (ulong) join_table->records,
+            (ulong) join_table->records(),
             (ulong) join_table->read_time);
     fputc(' ', DBUG_FILE);
   }
@@ -302,7 +297,7 @@ C_MODE_END
 
 typedef struct st_debug_lock
 {
-  ulong thread_id;
+  my_thread_id thread_id;
   char table_name[FN_REFLEN];
   bool waiting;
   const char *lock_text;
@@ -347,7 +342,7 @@ static void push_locks_into_array(Saved_locks_array *ar, THR_LOCK_DATA *data,
     if (table && table->s->tmp_table == NO_TMP_TABLE)
     {
       TABLE_LOCK_INFO table_lock_info;
-      table_lock_info.thread_id= table->in_use->thread_id;
+      table_lock_info.thread_id= table->in_use->thread_id();
       memcpy(table_lock_info.table_name, table->s->table_cache_key.str,
 	     table->s->table_cache_key.length);
       table_lock_info.table_name[strlen(table_lock_info.table_name)]='.';
@@ -411,7 +406,7 @@ static void display_table_locks(void)
   Saved_locks_array::iterator it;
   for (it= saved_table_locks.begin(); it != saved_table_locks.end(); ++it)
   {
-    printf("%-8ld%-28.28s%-22s%s\n",
+    printf("%-8u%-28.28s%-22s%s\n",
 	   it->thread_id,
            it->table_name,
            it->lock_text,
