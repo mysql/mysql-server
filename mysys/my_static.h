@@ -1,7 +1,7 @@
 #ifndef MYSYS_MY_STATIC_INCLUDED
 #define MYSYS_MY_STATIC_INCLUDED
 
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,20 +21,10 @@
   a shared library
 */
 
+#include "my_global.h"
+
 C_MODE_START
-#include <signal.h>
-
-#define MAX_SIGNALS	10		/* Max signals under a dont-allow */
-
-struct st_remember {
-  int number;
-  void (*func)(int number);
-};
-
 extern char curr_dir[FN_REFLEN], home_dir_buff[FN_REFLEN];
-
-extern volatile int _my_signals;
-extern struct st_remember _my_sig_remember[MAX_SIGNALS];
 
 extern const char *soundex_map;
 

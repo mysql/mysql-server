@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -133,7 +133,7 @@ extern "C" void handle_fatal_signal(int sig)
     "Hope that's ok; if not, decrease some variables in the equation.\n\n");
 
 #ifdef HAVE_STACKTRACE
-  THD *thd= my_pthread_getspecific(THD *, THR_THD);
+  THD *thd= my_pthread_get_THR_THD();
 
   if (!(test_flags & TEST_NO_STACKTRACE))
   {
@@ -175,8 +175,8 @@ extern "C" void handle_fatal_signal(int sig)
 
     my_safe_printf_stderr("Query (%p): ", thd->query().str);
     my_safe_puts_stderr(thd->query().str, MY_MIN(1024U, thd->query().length));
-    my_safe_printf_stderr("Connection ID (thread ID): %lu\n",
-                          (ulong) thd->thread_id);
+    my_safe_printf_stderr("Connection ID (thread ID): %u\n",
+                          thd->thread_id());
     my_safe_printf_stderr("Status: %s\n\n", kreason);
   }
   my_safe_printf_stderr("%s",

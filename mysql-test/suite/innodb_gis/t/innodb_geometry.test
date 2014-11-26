@@ -17,6 +17,7 @@ SET default_storage_engine=InnoDB;
 # Turn on the geometry data print.
 SET SESSION debug="+d,row_print_geometry_data";
 
+--replace_result INNODB TMP_TABLE_ENGINE MYISAM TMP_TABLE_ENGINE 
 SHOW VARIABLES LIKE '%engine%';
 
 #
@@ -124,7 +125,7 @@ SELECT fid, AsText(g) FROM gis_geometry;
 CREATE TABLE tab(c1 POINT,c2 LINESTRING,c3 POLYGON,C4 MULTIPOINT,c5 MULTILINESTRING ,
 c6 MULTIPOLYGON,c7 GEOMETRYCOLLECTION ,c8 GEOMETRY) ENGINE=InnoDB;
 
---echo #check information schema for all the columns refer to 14
+--echo #check information schema for all the columns refer to 14, except POINT which is 15
 SELECT sc.name, sc.pos, sc.mtype
 FROM information_schema.innodb_sys_columns sc
 INNER JOIN information_schema.innodb_sys_tables st
@@ -184,14 +185,17 @@ WHERE c8=GeometryFromWKB(AsWKB(GeomCollFromText('GeometryCollection(Point(1 1),L
 
 --echo #check range predicate on the index columns
 --replace_column 10 #
+--error ER_WRONG_ARGUMENTS
 EXPLAIN SELECT ASText(c1),AsText(c2),AsText(c8) FROM tab
 WHERE c2>=LineFromText('LINESTRING(10 10,20 20,30 30)');
 
 --replace_column 10 #
+--error ER_WRONG_ARGUMENTS
 EXPLAIN SELECT ASText(c1),AsText(c2),AsText(c8) FROM tab
 WHERE c3>=PolyFromText('POLYGON((0 0,5 5,10 10,15 15,0 0),(10 10,20 20,30 30,40 40,10 10))');
 
 --replace_column 10 #
+--error ER_WRONG_ARGUMENTS
 EXPLAIN SELECT ASText(c1),AsText(c2),AsText(c8) FROM tab
 WHERE c8>=GeomCollFromText('GeometryCollection(Point(1 1),LineString(2 2, 3 3))');
 
@@ -480,12 +484,12 @@ ALTER TABLE tab3 KEY_BLOCK_SIZE=16 ROW_FORMAT=Dynamic;
 --echo #check file format
 SHOW CREATE TABLE tab3;
 
---echo #check information schema for all the columns refer to 14
+--echo #check information schema for all the columns refer to 14, except POINT which is 15
 SELECT sc.name, sc.pos, sc.mtype
 FROM information_schema.innodb_sys_columns sc
 INNER JOIN information_schema.innodb_sys_tables st
 ON sc.TABLE_ID=st.TABLE_ID
-WHERE st.NAME='test/tab'
+WHERE st.NAME='test/tab3'
 ORDER BY sc.name;
 
 --echo #check Perform convesrion before INSERT using WKT functions
@@ -542,14 +546,17 @@ WHERE c8=GeometryFromWKB(AsWKB(GeomCollFromText('GeometryCollection(Point(1 1),L
 
 --echo #check range predicate on the index columns
 --replace_column 10 #
+--error ER_WRONG_ARGUMENTS
 EXPLAIN SELECT ASText(c1),AsText(c2),AsText(c8) FROM tab3
 WHERE c2>=LineFromText('LINESTRING(10 10,20 20,30 30)');
 
 --replace_column 10 #
+--error ER_WRONG_ARGUMENTS
 EXPLAIN SELECT ASText(c1),AsText(c2),AsText(c8) FROM tab3
 WHERE c3>=PolyFromText('POLYGON((0 0,5 5,10 10,15 15,0 0),(10 10,20 20,30 30,40 40,10 10))');
 
 --replace_column 10 #
+--error ER_WRONG_ARGUMENTS
 EXPLAIN SELECT ASText(c1),AsText(c2),AsText(c8) FROM tab3
 WHERE c8>=GeomCollFromText('GeometryCollection(Point(1 1),LineString(2 2, 3 3))');
 

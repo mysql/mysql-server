@@ -92,13 +92,13 @@ CREATE TABLE t1 (a INT);
 CREATE TRIGGER tr1_bi BEFORE INSERT ON t1 FOR EACH ROW SET @a:=1;
 SHOW TRIGGERS;
 Trigger	Event	Table	Statement	Timing	Created	sql_mode	Definer	character_set_client	collation_connection	Database Collation
-tr1_bi	INSERT	t1	SET @a:=1	BEFORE	#	NO_ENGINE_SUBSTITUTION	root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
+tr1_bi	INSERT	t1	SET @a:=1	BEFORE	#	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION	root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
 SELECT * FROM INFORMATION_SCHEMA.TRIGGERS WHERE trigger_schema = 'test';
 TRIGGER_CATALOG	TRIGGER_SCHEMA	TRIGGER_NAME	EVENT_MANIPULATION	EVENT_OBJECT_CATALOG	EVENT_OBJECT_SCHEMA	EVENT_OBJECT_TABLE	ACTION_ORDER	ACTION_CONDITION	ACTION_STATEMENT	ACTION_ORIENTATION	ACTION_TIMING	ACTION_REFERENCE_OLD_TABLE	ACTION_REFERENCE_NEW_TABLE	ACTION_REFERENCE_OLD_ROW	ACTION_REFERENCE_NEW_ROW	CREATED	SQL_MODE	DEFINER	CHARACTER_SET_CLIENT	COLLATION_CONNECTION	DATABASE_COLLATION
-def	test	tr1_bi	INSERT	def	test	t1	1	NULL	SET @a:=1	ROW	BEFORE	NULL	NULL	OLD	NEW	#	NO_ENGINE_SUBSTITUTION	root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
+def	test	tr1_bi	INSERT	def	test	t1	1	NULL	SET @a:=1	ROW	BEFORE	NULL	NULL	OLD	NEW	#	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION	root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
 SHOW CREATE TRIGGER tr1_bi;
 Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
-tr1_bi	NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER tr1_bi BEFORE INSERT ON t1 FOR EACH ROW SET @a:=1	latin1	latin1_swedish_ci	latin1_swedish_ci	#
+tr1_bi	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER tr1_bi BEFORE INSERT ON t1 FOR EACH ROW SET @a:=1	latin1	latin1_swedish_ci	latin1_swedish_ci	#
 DROP TABLE t1;
 #
 # Test 6.
@@ -141,7 +141,7 @@ SET TIMESTAMP=UNIX_TIMESTAMP('2013-01-31 09:00:01');
 CREATE TRIGGER tr1_bi BEFORE INSERT ON t1 FOR EACH ROW SET @a:=1;
 SHOW CREATE TRIGGER tr1_bi;
 Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
-tr1_bi	NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER tr1_bi BEFORE INSERT ON t1 FOR EACH ROW SET @a:=1	latin1	latin1_swedish_ci	latin1_swedish_ci	2013-01-31 09:00:01.00
+tr1_bi	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER tr1_bi BEFORE INSERT ON t1 FOR EACH ROW SET @a:=1	latin1	latin1_swedish_ci	latin1_swedish_ci	2013-01-31 09:00:01.00
 DROP TABLE t1;
 SET TIMESTAMP=DEFAULT;
 #
@@ -154,10 +154,10 @@ SET TIMESTAMP=UNIX_TIMESTAMP('2013-01-31 09:00:01');
 CREATE TRIGGER tr1_bi BEFORE INSERT ON t1 FOR EACH ROW SET @a:=1;
 SHOW TRIGGERS;
 Trigger	Event	Table	Statement	Timing	Created	sql_mode	Definer	character_set_client	collation_connection	Database Collation
-tr1_bi	INSERT	t1	SET @a:=1	BEFORE	2013-01-31 09:00:01.00	NO_ENGINE_SUBSTITUTION	root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
+tr1_bi	INSERT	t1	SET @a:=1	BEFORE	2013-01-31 09:00:01.00	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION	root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
 SELECT * FROM INFORMATION_SCHEMA.TRIGGERS WHERE trigger_schema = 'test';
 TRIGGER_CATALOG	TRIGGER_SCHEMA	TRIGGER_NAME	EVENT_MANIPULATION	EVENT_OBJECT_CATALOG	EVENT_OBJECT_SCHEMA	EVENT_OBJECT_TABLE	ACTION_ORDER	ACTION_CONDITION	ACTION_STATEMENT	ACTION_ORIENTATION	ACTION_TIMING	ACTION_REFERENCE_OLD_TABLE	ACTION_REFERENCE_NEW_TABLE	ACTION_REFERENCE_OLD_ROW	ACTION_REFERENCE_NEW_ROW	CREATED	SQL_MODE	DEFINER	CHARACTER_SET_CLIENT	COLLATION_CONNECTION	DATABASE_COLLATION
-def	test	tr1_bi	INSERT	def	test	t1	1	NULL	SET @a:=1	ROW	BEFORE	NULL	NULL	OLD	NEW	2013-01-31 09:00:01.00	NO_ENGINE_SUBSTITUTION	root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
+def	test	tr1_bi	INSERT	def	test	t1	1	NULL	SET @a:=1	ROW	BEFORE	NULL	NULL	OLD	NEW	2013-01-31 09:00:01.00	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION	root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
 DROP TABLE t1;
 SET TIMESTAMP=DEFAULT;
 #
@@ -295,12 +295,12 @@ CREATE TRIGGER tr1_ai AFTER INSERT ON t1 FOR EACH ROW FOLLOWS tr1_bi SET @a:=3;
 ERROR HY000: Referenced trigger 'tr1_bi' for the given action time and event type does not exist.
 SHOW TRIGGERS;
 Trigger	Event	Table	Statement	Timing	Created	sql_mode	Definer	character_set_client	collation_connection	Database Collation
-tr1_bi	INSERT	t1	SET @a:=1	BEFORE	#	NO_ENGINE_SUBSTITUTION	root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
-tr1_bu	UPDATE	t1	SET @a:=3	BEFORE	#	NO_ENGINE_SUBSTITUTION	root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
+tr1_bi	INSERT	t1	SET @a:=1	BEFORE	#	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION	root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
+tr1_bu	UPDATE	t1	SET @a:=3	BEFORE	#	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION	root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
 SELECT * FROM INFORMATION_SCHEMA.TRIGGERS WHERE trigger_schema = 'test';
 TRIGGER_CATALOG	TRIGGER_SCHEMA	TRIGGER_NAME	EVENT_MANIPULATION	EVENT_OBJECT_CATALOG	EVENT_OBJECT_SCHEMA	EVENT_OBJECT_TABLE	ACTION_ORDER	ACTION_CONDITION	ACTION_STATEMENT	ACTION_ORIENTATION	ACTION_TIMING	ACTION_REFERENCE_OLD_TABLE	ACTION_REFERENCE_NEW_TABLE	ACTION_REFERENCE_OLD_ROW	ACTION_REFERENCE_NEW_ROW	CREATED	SQL_MODE	DEFINER	CHARACTER_SET_CLIENT	COLLATION_CONNECTION	DATABASE_COLLATION
-def	test	tr1_bi	INSERT	def	test	t1	1	NULL	SET @a:=1	ROW	BEFORE	NULL	NULL	OLD	NEW	#	NO_ENGINE_SUBSTITUTION	root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
-def	test	tr1_bu	UPDATE	def	test	t1	1	NULL	SET @a:=3	ROW	BEFORE	NULL	NULL	OLD	NEW	#	NO_ENGINE_SUBSTITUTION	root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
+def	test	tr1_bi	INSERT	def	test	t1	1	NULL	SET @a:=1	ROW	BEFORE	NULL	NULL	OLD	NEW	#	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION	root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
+def	test	tr1_bu	UPDATE	def	test	t1	1	NULL	SET @a:=3	ROW	BEFORE	NULL	NULL	OLD	NEW	#	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION	root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
 DROP TABLE t1;
 #
 # Test 17. Check that table's triggers are dumped correctly.
@@ -322,7 +322,7 @@ CREATE TABLE `t1` (
 /*!50003 SET character_set_results = latin1 */ ;
 /*!50003 SET collation_connection  = latin1_swedish_ci */ ;
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
-/*!50003 SET sql_mode              = 'NO_ENGINE_SUBSTITUTION' */ ;
+/*!50003 SET sql_mode              = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION' */ ;
 DELIMITER ;;
 /*!50003 CREATE*/ /*!50017 DEFINER=`root`@`localhost`*/ /*!50003 TRIGGER tr1_bi BEFORE INSERT ON t1 FOR EACH ROW SET @a:=1 */;;
 DELIMITER ;
@@ -337,7 +337,7 @@ DELIMITER ;
 /*!50003 SET character_set_results = latin1 */ ;
 /*!50003 SET collation_connection  = latin1_swedish_ci */ ;
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
-/*!50003 SET sql_mode              = 'NO_ENGINE_SUBSTITUTION' */ ;
+/*!50003 SET sql_mode              = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION' */ ;
 DELIMITER ;;
 /*!50003 CREATE*/ /*!50017 DEFINER=`root`@`localhost`*/ /*!50003 TRIGGER tr2_bi BEFORE INSERT ON t1 FOR EACH ROW SET @a:=2 */;;
 DELIMITER ;
@@ -352,7 +352,7 @@ DELIMITER ;
 /*!50003 SET character_set_results = latin1 */ ;
 /*!50003 SET collation_connection  = latin1_swedish_ci */ ;
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
-/*!50003 SET sql_mode              = 'NO_ENGINE_SUBSTITUTION' */ ;
+/*!50003 SET sql_mode              = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION' */ ;
 DELIMITER ;;
 /*!50003 CREATE*/ /*!50017 DEFINER=`root`@`localhost`*/ /*!50003 TRIGGER tr1_bu BEFORE UPDATE ON t1 FOR EACH ROW SET @a:=3 */;;
 DELIMITER ;
@@ -384,7 +384,7 @@ CREATE TABLE `t1` (
 /*!50003 SET character_set_results = latin1 */ ;
 /*!50003 SET collation_connection  = latin1_swedish_ci */ ;
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
-/*!50003 SET sql_mode              = 'NO_ENGINE_SUBSTITUTION' */ ;
+/*!50003 SET sql_mode              = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION' */ ;
 DELIMITER ;;
 /*!50003 CREATE*/ /*!50017 DEFINER=`root`@`localhost`*/ /*!50003 TRIGGER tr0_bi BEFORE INSERT ON t1 FOR EACH ROW SET @a:=0 */;;
 DELIMITER ;
@@ -399,7 +399,7 @@ DELIMITER ;
 /*!50003 SET character_set_results = latin1 */ ;
 /*!50003 SET collation_connection  = latin1_swedish_ci */ ;
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
-/*!50003 SET sql_mode              = 'NO_ENGINE_SUBSTITUTION' */ ;
+/*!50003 SET sql_mode              = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION' */ ;
 DELIMITER ;;
 /*!50003 CREATE*/ /*!50017 DEFINER=`root`@`localhost`*/ /*!50003 TRIGGER tr1_bi BEFORE INSERT ON t1 FOR EACH ROW SET @a:=1 */;;
 DELIMITER ;
@@ -414,7 +414,7 @@ DELIMITER ;
 /*!50003 SET character_set_results = latin1 */ ;
 /*!50003 SET collation_connection  = latin1_swedish_ci */ ;
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
-/*!50003 SET sql_mode              = 'NO_ENGINE_SUBSTITUTION' */ ;
+/*!50003 SET sql_mode              = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION' */ ;
 DELIMITER ;;
 /*!50003 CREATE*/ /*!50017 DEFINER=`root`@`localhost`*/ /*!50003 TRIGGER tr1_1_bi BEFORE INSERT ON t1 FOR EACH ROW SET @a:=0 */;;
 DELIMITER ;
@@ -429,7 +429,7 @@ DELIMITER ;
 /*!50003 SET character_set_results = latin1 */ ;
 /*!50003 SET collation_connection  = latin1_swedish_ci */ ;
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
-/*!50003 SET sql_mode              = 'NO_ENGINE_SUBSTITUTION' */ ;
+/*!50003 SET sql_mode              = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION' */ ;
 DELIMITER ;;
 /*!50003 CREATE*/ /*!50017 DEFINER=`root`@`localhost`*/ /*!50003 TRIGGER tr2_bi BEFORE INSERT ON t1 FOR EACH ROW SET @a:=2 */;;
 DELIMITER ;
@@ -453,17 +453,17 @@ SET TIMESTAMP=DEFAULT;
 	<table_data name="t1">
 	</table_data>
 	<triggers name="t1">
-		<trigger Trigger="tr1_bi" sql_mode="NO_ENGINE_SUBSTITUTION" character_set_client="latin1" collation_connection="latin1_swedish_ci" Database_Collation="latin1_swedish_ci" Created="2013-01-31 09:00:00.00">
+		<trigger Trigger="tr1_bi" sql_mode="ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION" character_set_client="latin1" collation_connection="latin1_swedish_ci" Database_Collation="latin1_swedish_ci" Created="2013-01-31 09:00:00.00">
 <![CDATA[
 CREATE DEFINER=`root`@`localhost` TRIGGER tr1_bi BEFORE INSERT ON t1 FOR EACH ROW SET @a:=1
 ]]>
 		</trigger>
-		<trigger Trigger="tr2_bi" sql_mode="NO_ENGINE_SUBSTITUTION" character_set_client="latin1" collation_connection="latin1_swedish_ci" Database_Collation="latin1_swedish_ci" Created="2013-01-31 09:00:00.00">
+		<trigger Trigger="tr2_bi" sql_mode="ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION" character_set_client="latin1" collation_connection="latin1_swedish_ci" Database_Collation="latin1_swedish_ci" Created="2013-01-31 09:00:00.00">
 <![CDATA[
 CREATE DEFINER=`root`@`localhost` TRIGGER tr2_bi BEFORE INSERT ON t1 FOR EACH ROW SET @a:=2
 ]]>
 		</trigger>
-		<trigger Trigger="tr1_bu" sql_mode="NO_ENGINE_SUBSTITUTION" character_set_client="latin1" collation_connection="latin1_swedish_ci" Database_Collation="latin1_swedish_ci" Created="2013-01-31 09:00:00.00">
+		<trigger Trigger="tr1_bu" sql_mode="ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION" character_set_client="latin1" collation_connection="latin1_swedish_ci" Database_Collation="latin1_swedish_ci" Created="2013-01-31 09:00:00.00">
 <![CDATA[
 CREATE DEFINER=`root`@`localhost` TRIGGER tr1_bu BEFORE UPDATE ON t1 FOR EACH ROW SET @a:=3
 ]]>

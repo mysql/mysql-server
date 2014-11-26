@@ -2,11 +2,11 @@
 # Test opening a corrupted table.
 #
 
-# Don't test under valgrind, memory leaks will occur
+# Valgrind can hang or return spurious messages on DBUG_SUICIDE
 source include/not_valgrind.inc;
 # Avoid CrashReporter popup on Mac
 source include/not_crashrep.inc;
-# Don't test under embedded
+# Restarting is not supported under embedded
 source include/not_embedded.inc;
 # Require InnoDB
 source include/have_innodb.inc;
@@ -14,7 +14,7 @@ source include/have_innodb.inc;
 source include/have_debug.inc;
 
 --disable_query_log
-CALL mtr.add_suppression("Unable to read tablespace .* page no .* into the buffer pool after 100 attempts");
+CALL mtr.add_suppression("\\[ERROR\\] \\[FATAL\\] InnoDB: Unable to read page \\[page id: space=.*, page number=.*\\] into the buffer pool after 100 attempts");
 CALL mtr.add_suppression("\\[ERROR\\] InnoDB: Database page corruption on disk or a failed");
 --enable_query_log
 
@@ -34,17 +34,7 @@ INSERT INTO t1 (b) VALUES ('corrupt me');
 let $MYSQLD_DATADIR=`select @@datadir`;
 let t1_IBD = $MYSQLD_DATADIR/test/t1.ibd;
 
---echo # Write file to make mysql-test-run.pl expect the "crash", but don't
---echo # start it until it's told to
---exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
-
---echo # We give 30 seconds to do a clean shutdown because we do not want
---echo # to redo apply the pages of t1.ibd at the time of recovery.
---echo # We want SQL to initiate the first access to t1.ibd.
-shutdown_server 30;
-
---echo # Wait until disconnected.
---source include/wait_until_disconnected.inc
+--source include/shutdown_mysqld.inc
 
 --echo # Backup the t1.ibd before corrupting
 --copy_file $t1_IBD $MYSQLD_DATADIR/test/t1.ibd.backup
@@ -76,10 +66,7 @@ while ($len = sysread IBD_FILE, $chunk, 1024)
 close IBD_FILE;
 EOF
 
---echo # Write file to make mysql-test-run.pl start up the server again
---exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
---source include/wait_until_connected_again.inc
+--source include/start_mysqld.inc
 
 SET DEBUG = '+d,innodb_page_corruption_retries';
 
@@ -101,10 +88,7 @@ SLEEP 1;
 --remove_file $MYSQLD_DATADIR/test/t1.ibd
 --move_file $MYSQLD_DATADIR/test/t1.ibd.backup $MYSQLD_DATADIR/test/t1.ibd
 
---echo # Write file to make mysql-test-run.pl start up the server again
---exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
---source include/wait_until_connected_again.inc
+--source include/start_mysqld.inc
 
 # Note SET DEBUG = '-d,innodb_page_corruption_retries' is not required
 # because the session information is lost after server restart

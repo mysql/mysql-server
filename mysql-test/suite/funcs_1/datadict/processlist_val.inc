@@ -72,6 +72,7 @@ echo
 # Show the definition of the PROCESSLIST table
 #--------------------------------------------------------------------------
 ;
+--replace_result InnoDB TMP_TABLE_ENGINE MyISAM TMP_TABLE_ENGINE 
 SHOW CREATE TABLE INFORMATION_SCHEMA.PROCESSLIST;
 
 echo

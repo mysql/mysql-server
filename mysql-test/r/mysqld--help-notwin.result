@@ -276,6 +276,8 @@ The following options may be given as the first argument:
  --interactive-timeout=# 
  The number of seconds the server waits for activity on an
  interactive connection before closing it
+ --internal-tmp-disk-storage-engine[=name] 
+ The default storage engine for on-disk internal tmp table
  --join-buffer-size=# 
  The size of the buffer that is used for full joins
  --keep-files-on-create 
@@ -355,6 +357,25 @@ The following options may be given as the first argument:
  --log-slow-slave-statements 
  Log slow statements executed by slave thread to the slow
  log if it is open.
+ --log-syslog        Errors, warnings, and similar issues eligible for MySQL's
+ error log file may additionally be sent to the host
+ operating system's system log ("syslog").
+ --log-syslog-facility=name 
+ When logging issues using the host operating system's
+ syslog, identify as a facility of the given type (to aid
+ in log filtering).
+ --log-syslog-include-pid 
+ When logging issues using the host operating system's
+ syslog, include this MySQL server's process ID (PID).
+ This setting does not affect MySQL's own error log file.
+ (Defaults to on; use --skip-log-syslog-include-pid to disable.)
+ --log-syslog-tag=name 
+ When logging issues using the host operating system's
+ syslog, tag the entries from this particular MySQL server
+ with this ident. This will help distinguish entries from
+ MySQL servers co-existing on the same host machine. A
+ non-empty tag will be appended to the default ident of
+ 'mysqld', connected by a hyphen.
  --log-tc=name       Path to transaction coordinator log (used for
  transactions that affect more than one storage engine,
  when binary log is disabled).
@@ -864,7 +885,7 @@ The following options may be given as the first argument:
  --safe-user-create  Don't allow new user creation by the user who has no
  write privileges to the mysql.user table.
  --secure-auth       Disallow authentication for accounts that have old
- (pre-4.1) passwords
+ (pre-4.1) passwords. Deprecated. Always TRUE.
  (Defaults to on; use --skip-secure-auth to disable.)
  --secure-file-priv=name 
  Limit LOAD DATA, SELECT ... OUTFILE, and LOAD_FILE() to
@@ -882,6 +903,19 @@ The following options may be given as the first argument:
  --show-slave-auth-info 
  Show user and password in SHOW SLAVE HOSTS on this
  master.
+ --simplified-binlog-gtid-recovery 
+ If this option is enabled, the server does not scan more
+ than one binary log for every iteration when initializing
+ GTID sets on server restart. Enabling this option is very
+ useful when restarting a server which has already
+ generated lots of binary logs without GTID events. Note:
+ If this option is enabled, GLOBAL.GTID_EXECUTED and
+ GLOBAL.GTID_PURGED cannot be initialized correctly if
+ binary log(s) with GTID events were generated before
+ binary log(s) without GTID events, for example if
+ gtid_mode is disabled when the server has already
+ generated binary log(s) with GTID events and not purged
+ them. 
  --skip-grant-tables Start without grant tables. This gives all users FULL
  ACCESS to all tables.
  --skip-host-cache   Don't cache host names.
@@ -1138,6 +1172,7 @@ init-connect
 init-file (No default value)
 init-slave 
 interactive-timeout 28800
+internal-tmp-disk-storage-engine MYISAM
 join-buffer-size 262144
 keep-files-on-create FALSE
 key-buffer-size 8388608
@@ -1165,6 +1200,10 @@ log-short-format FALSE
 log-slave-updates FALSE
 log-slow-admin-statements FALSE
 log-slow-slave-statements FALSE
+log-syslog FALSE
+log-syslog-facility daemon
+log-syslog-include-pid TRUE
+log-syslog-tag 
 log-tc tc.log
 log-tc-size 24576
 log-throttle-queries-not-using-indexes 0
@@ -1262,7 +1301,7 @@ performance-schema-max-cond-instances -1
 performance-schema-max-file-classes 50
 performance-schema-max-file-handles 32768
 performance-schema-max-file-instances -1
-performance-schema-max-memory-classes 250
+performance-schema-max-memory-classes 320
 performance-schema-max-metadata-locks -1
 performance-schema-max-mutex-classes 200
 performance-schema-max-mutex-instances -1
@@ -1320,6 +1359,7 @@ session-track-schema TRUE
 session-track-state-change FALSE
 session-track-system-variables time_zone,autocommit,character_set_client,character_set_results,character_set_connection
 show-slave-auth-info FALSE
+simplified-binlog-gtid-recovery FALSE
 skip-grant-tables TRUE
 skip-name-resolve FALSE
 skip-networking FALSE
@@ -1345,7 +1385,7 @@ slow-launch-time 2
 slow-query-log FALSE
 sort-buffer-size 262144
 sporadic-binlog-dump-fail FALSE
-sql-mode NO_ENGINE_SUBSTITUTION
+sql-mode ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION
 stored-program-cache 256
 symbolic-links FALSE
 sync-binlog 0

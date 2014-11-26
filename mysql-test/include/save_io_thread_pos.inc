@@ -28,7 +28,7 @@
 
 if ($use_gtids)
 {
-  --let $_saved_gtids= query_get_value(SHOW SLAVE STATUS, Retrieved_Gtid_set, 1)
+  --let $_saved_gtids= query_get_value(SHOW SLAVE STATUS, Retrieved_Gtid_Set, 1)
   if ($rpl_debug)
   {
     --echo save_io_thread_pos.inc saved gtid='$_saved_gtids'

@@ -1,4 +1,5 @@
 set @name="This is a very long string, that mustn't find room in a system field like Table_name. Thus it should be cut by the actual size of the field. So we can use this string to find out the actual length of the field and to use it in any compare queries";
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 create table test_db select * from mysql.db;
 delete from test_db;
 insert into test_db (Host,Db,User) values (@name,@name,@name);
@@ -57,3 +58,4 @@ drop table test_tables_priv;
 drop table test_func;
 drop table test_user;
 drop table test_db;
+SET sql_mode = default;

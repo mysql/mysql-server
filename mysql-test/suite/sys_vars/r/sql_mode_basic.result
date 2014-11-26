@@ -1,22 +1,22 @@
 SET @global_start_value = @@global.sql_mode;
 SELECT @global_start_value;
 @global_start_value
-NO_ENGINE_SUBSTITUTION
+ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION
 SET @session_start_value = @@session.sql_mode;
 SELECT @session_start_value;
 @session_start_value
-NO_ENGINE_SUBSTITUTION
+ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION
 '#--------------------FN_DYNVARS_152_01------------------------#'
 SET @@global.sql_mode = ANSI;
 SET @@global.sql_mode = DEFAULT;
 SELECT @@global.sql_mode;
 @@global.sql_mode
-NO_ENGINE_SUBSTITUTION
+ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION
 SET @@session.sql_mode = ANSI;
 SET @@session.sql_mode = DEFAULT;
 SELECT @@session.sql_mode;
 @@session.sql_mode
-NO_ENGINE_SUBSTITUTION
+ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION
 '#---------------------FN_DYNVARS_152_02-------------------------#'
 SET @@global.sql_mode = NULL;
 ERROR 42000: Variable 'sql_mode' can't be set to the value of 'NULL'
@@ -42,7 +42,7 @@ SELECT @@session.sql_mode;
 SET @@global.sql_mode = ANSI;
 SELECT @@global.sql_mode;
 @@global.sql_mode
-REAL_AS_FLOAT,PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,ANSI
+REAL_AS_FLOAT,PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,ONLY_FULL_GROUP_BY,ANSI
 SET @@global.sql_mode = STRICT_TRANS_TABLES;
 SELECT @@global.sql_mode;
 @@global.sql_mode
@@ -178,7 +178,7 @@ ERROR 42000: Variable 'sql_mode' can't be set to the value of 'OFF'
 SET @@session.sql_mode = ANSI;
 SELECT @@session.sql_mode;
 @@session.sql_mode
-REAL_AS_FLOAT,PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,ANSI
+REAL_AS_FLOAT,PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,ONLY_FULL_GROUP_BY,ANSI
 SET @@session.sql_mode = STRICT_TRANS_TABLES;
 SELECT @@session.sql_mode;
 @@session.sql_mode
@@ -436,8 +436,8 @@ ANSI_QUOTES
 SET @@global.sql_mode = @global_start_value;
 SELECT @@global.sql_mode;
 @@global.sql_mode
-NO_ENGINE_SUBSTITUTION
+ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION
 SET @@session.sql_mode = @session_start_value;
 SELECT @@session.sql_mode;
 @@session.sql_mode
-NO_ENGINE_SUBSTITUTION
+ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION

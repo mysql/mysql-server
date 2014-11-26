@@ -9,6 +9,8 @@
 drop table if exists t1,t2,t3;
 --enable_warnings
 
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
+
 #
 # Simple test without tables
 
@@ -228,10 +230,13 @@ INSERT INTO t2 VALUES ('Setup','CCC/CCCCCC','id0002','','');
 INSERT INTO t2 VALUES ('Unspecified','CCC/CCCCCC','id0002','','');
 INSERT INTO t2 VALUES ('Web Interface','AAAAAAAA-AAA','id0001','','');
 INSERT INTO t2 VALUES ('Host communication','AAAAA','id0001','','');
+--source include/turn_off_only_full_group_by.inc
+
 select value,description,bug_id from t2 left join t1 on t2.program=t1.product and t2.value=t1.component where program="AAAAA";
 select value,description,COUNT(bug_id) from t2 left join t1 on t2.program=t1.product and t2.value=t1.component where program="AAAAA" group by value;
 select value,description,COUNT(bug_id) from t2 left join t1 on t2.program=t1.product and t2.value=t1.component where program="AAAAA" group by value having COUNT(bug_id) IN (0,2);
 
+--source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
 drop table t1,t2;
 
 #
@@ -286,6 +291,8 @@ drop table t1;
 
 CREATE TABLE t1 (a char(1));
 INSERT INTO t1 VALUES ('A'),('B'),('A'),('B'),('A'),('B'),(NULL),('a'),('b'),(NULL),('A'),('B'),(NULL);
+--source include/turn_off_only_full_group_by.inc
+
 SELECT a FROM t1 GROUP BY a;
 SELECT a,count(*) FROM t1 GROUP BY a;
 SELECT a FROM t1 GROUP BY binary a;
@@ -301,6 +308,8 @@ SELECT a,count(*) FROM t1 GROUP BY binary a;
 SELECT binary a FROM t1 GROUP BY 1;
 SELECT binary a,count(*) FROM t1 GROUP BY 1;
 SET BIG_TABLES=0;
+
+--source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
 drop table t1;
 
 #
@@ -461,8 +470,10 @@ CREATE TABLE t1 (
   j int(11) default NULL
 );
 INSERT INTO t1 VALUES (1,2),(2,3),(4,5),(3,5),(1,5),(23,5);
+--source include/turn_off_only_full_group_by.inc
 SELECT i, COUNT(DISTINCT(i)) FROM t1 GROUP BY j ORDER BY NULL;
 explain SELECT i, COUNT(DISTINCT(i)) FROM t1 GROUP BY j ORDER BY NULL;
+--source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
 DROP TABLE t1;
 
 #Test for BUG#6976: Aggregate functions have incorrect NULL-ness
@@ -487,6 +498,7 @@ drop table t1;
 
 create table t1 (a integer, b integer, c integer);
 insert into t1 (a,b) values (1,2),(1,3),(2,5);
+
 select a, 0.1*0+1 r2, sum(1) r1 from t1 where a = 1 group  by a having r1>1 and r2=1;
 # rand(100)*10 will be < 2 only for the first row (of 6)
 select a, round(rand(100)*10) r2, sum(1) r1 from t1 where a = 1 group  by a having r1>1 and r2<=2;
@@ -496,6 +508,7 @@ select sum(a)*sum(b) from t1 where a=1 group by c;
 select a,sum(b) from t1 where a=1 group by c having a=1;
 select a as d,sum(b) from t1 where a=1 group by c having d=1;
 select sum(a)*sum(b) as d from t1 where a=1 group by c having d > 0;
+
 drop table t1;
 
 # Test for BUG#9213 GROUP BY query on utf-8 key returns wrong results
@@ -555,9 +568,12 @@ DROP TABLE t1;
 
 CREATE TABLE t1 (a  int, b int);
 INSERT INTO t1 VALUES (1,2), (1,3);
+--source include/turn_off_only_full_group_by.inc
+
 SELECT a, b FROM t1 GROUP BY 'const';
 SELECT DISTINCT a, b FROM t1 GROUP BY 'const';
 
+--source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
 DROP TABLE t1;
 
 #
@@ -569,8 +585,11 @@ INSERT INTO t1 VALUES ( 1, '2005-05-01 12:30:00' );
 INSERT INTO t1 VALUES ( 1, '2005-05-01 12:30:00' );
 INSERT INTO t1 VALUES ( 1, '2005-05-01 12:30:00' );
 INSERT INTO t1 VALUES ( 1, '2005-05-01 12:30:00' );
+--source include/turn_off_only_full_group_by.inc
+
 SELECT dt DIV 1 AS f, id FROM t1 GROUP BY f;
 
+--source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
 DROP TABLE t1;
 
 #
@@ -621,15 +640,18 @@ drop table t1;
 #
 CREATE TABLE t1(a INT); INSERT INTO t1 VALUES (1),(2);
 
+--source include/turn_off_only_full_group_by.inc
 SELECT a FROM t1 GROUP BY 'a';
 SELECT a FROM t1 GROUP BY "a";
+--source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
+
 SELECT a FROM t1 GROUP BY `a`;
 
 set sql_mode=ANSI_QUOTES;
 SELECT a FROM t1 GROUP BY "a";
 SELECT a FROM t1 GROUP BY 'a';
 SELECT a FROM t1 GROUP BY `a`;
-set sql_mode='';
+set sql_mode=DEFAULT;
 
 SELECT a FROM t1 HAVING 'a' > 1;
 SELECT a FROM t1 HAVING "a" > 1;
@@ -673,10 +695,14 @@ create table t2 (c3 char(3), c4 char(3));
 insert into t1 values ('aaa', 'bb1'), ('aaa', 'bb2');
 insert into t2 values ('aaa', 'bb1'), ('aaa', 'bb2');
 
+--source include/turn_off_only_full_group_by.inc
+
 # query with ambiguous column reference 'c2'
 select t1.c1 as c2 from t1, t2 where t1.c2 = t2.c4
 group by c2;
 show warnings;
+
+--source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
 
 # this query has no ambiguity
 select t1.c1 as c2 from t1, t2 where t1.c2 = t2.c4
@@ -734,7 +760,7 @@ DROP TABLE t1;
 #
 # Bug #23417: Too strict checks against GROUP BY in the ONLY_FULL_GROUP_BY mode
 #
-CREATE TABLE t1 (a INT PRIMARY KEY, b INT);
+CREATE TABLE t1 (a INT, b INT);
 INSERT INTO t1 VALUES (1,1),(2,1),(3,2),(4,2),(5,3),(6,3);
 
 SET SQL_MODE = 'ONLY_FULL_GROUP_BY';
@@ -759,9 +785,25 @@ SELECT (SELECT SUM(t1_inner.a) FROM t1 AS t1_inner LIMIT 1)
   FROM t1 AS t1_outer GROUP BY t1_outer.b;
 SELECT (SELECT SUM(t1_inner.a) FROM t1 AS t1_inner GROUP BY t1_inner.b LIMIT 1)
   FROM t1 AS t1_outer;
---error ER_WRONG_FIELD_WITH_GROUP 
+# This statement is valid, as aggregation happens in outer query.
+let $query=
 SELECT (SELECT SUM(t1_outer.a) FROM t1 AS t1_inner LIMIT 1) 
   FROM t1 AS t1_outer GROUP BY t1_outer.b;
+eval $query;
+SET SQL_MODE = '';
+eval $query;
+SET SQL_MODE = 'ONLY_FULL_GROUP_BY';
+let $query=
+SELECT (SELECT SUM(t1_outer.a+0*t1_inner.a) FROM t1 AS t1_inner LIMIT 1) 
+  FROM t1 AS t1_outer GROUP BY t1_outer.b;
+# Here we add a column of t1_inner in the MAX() so aggregation happens
+# in inner Q, which cannot know what value of t1_outer.a to pick, this
+# is invalid. And the result changes (multiples of 6).
+--error ER_WRONG_FIELD_WITH_GROUP 
+eval $query;
+SET SQL_MODE = '';
+eval $query;
+SET SQL_MODE = 'ONLY_FULL_GROUP_BY';
 
 SELECT 1 FROM t1 as t1_outer 
   WHERE (SELECT t1_outer.b FROM t1 AS t1_inner GROUP BY t1_inner.b LIMIT 1);
@@ -775,6 +817,7 @@ SELECT 1 FROM t1 GROUP BY b HAVING ROW (b,b) = ROW (1,1);
 SELECT 1 FROM t1 GROUP BY b HAVING a = 2;
 --error ER_INVALID_GROUP_FUNC_USE
 SELECT 1 FROM t1 GROUP BY SUM(b);
+# I deleted pk from table, as it was making query below become valid.
 --error ER_WRONG_FIELD_WITH_GROUP 
 SELECT b FROM t1 AS t1_outer GROUP BY a HAVING t1_outer.a IN 
   (SELECT SUM(t1_inner.b)+t1_outer.b FROM t1 AS t1_inner GROUP BY t1_inner.a
@@ -794,7 +837,7 @@ select * from t1 group by f1, f2;
 --error 1055
 select t1.f1,t.* from t1, t1 t group by 1;
 drop table t1;
-SET SQL_MODE = '';
+SET SQL_MODE = DEFAULT;
 
 #
 # Bug #32202: ORDER BY not working with GROUP BY
@@ -821,11 +864,15 @@ SELECT * FROM t1 GROUP BY c2 ,c1, id ORDER BY c2, c1;
 SELECT * FROM t1 GROUP BY c2, c1, id ORDER BY c2 DESC, c1;
 SELECT * FROM t1 GROUP BY c2, c1, id ORDER BY c2 DESC, c1 DESC;
 
+--source include/turn_off_only_full_group_by.inc
+
 # Show that results are correctly ordered when GROUP BY fields
 # are a subset of ORDER BY ones
 SELECT * FROM t1 GROUP BY c2  ORDER BY c2, c1;
 SELECT * FROM t1 GROUP BY c2  ORDER BY c2 DESC, c1;
 SELECT * FROM t1 GROUP BY c2  ORDER BY c2 DESC, c1 DESC;
+
+--source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
 
 DROP TABLE t1;
 
@@ -841,24 +888,22 @@ INSERT INTO t1 (a, b) VALUES (3,3), (2,2), (3,3), (2,2), (3,3), (4,4);
 CREATE TABLE t2 SELECT * FROM t1;
 SELECT COUNT(*) FROM t1 ORDER BY COUNT(*);
 SELECT COUNT(*) FROM t1 ORDER BY COUNT(*) + 1;
---error 1140
+# This is a bad ORDER BY, but as the result is guaranteed to have only
+# one row, there is no actual issue - ordering doesn't matter.
 SELECT COUNT(*) FROM t1 ORDER BY COUNT(*) + a;
 SELECT COUNT(*) FROM t1 ORDER BY COUNT(*), 1;
---error 1140
 SELECT COUNT(*) FROM t1 ORDER BY COUNT(*), a;
 SELECT COUNT(*) FROM t1 ORDER BY SUM(a);
 SELECT COUNT(*) FROM t1 ORDER BY SUM(a + 1);
 SELECT COUNT(*) FROM t1 ORDER BY SUM(a) + 1;
---error 1140
 SELECT COUNT(*) FROM t1 ORDER BY SUM(a), b;
 
 SELECT SUM(a) FROM t1 ORDER BY COUNT(b);
 
 SELECT t1.a FROM t1 ORDER BY (SELECT SUM(t2.a) FROM t2);
 
---error 1140
+--error ER_OPERAND_COLUMNS
 SELECT t1.a FROM t1 ORDER BY (SELECT SUM(t2.a), t2.a FROM t2);
---error 1140
 SELECT t1.a FROM t1 ORDER BY (SELECT SUM(t2.a) FROM t2 ORDER BY t2.a);
 --error ER_AGGREGATE_ORDER_NON_AGG_QUERY
 SELECT t1.a FROM t1 ORDER BY (SELECT t2.a FROM t2 ORDER BY SUM(t2.b) LIMIT 1);
@@ -886,16 +931,15 @@ SELECT 1 FROM t1 GROUP BY t1.a
   HAVING (SELECT AVG(SUM(t1.b) + 1) FROM t2 ORDER BY SUM(t2.a) LIMIT 1);
 SELECT 1 FROM t1 GROUP BY t1.a
   HAVING (SELECT AVG(SUM(t1.b) + t2.b) FROM t2 ORDER BY SUM(t2.a) LIMIT 1);
+--error ER_WRONG_FIELD_WITH_GROUP
 SELECT 1 FROM t1 GROUP BY t1.a
   HAVING (SELECT AVG(t1.b + t2.b) FROM t2 ORDER BY SUM(t2.a) LIMIT 1);
 
---error 1140
 SELECT 1 FROM t1 GROUP BY t1.a
   HAVING (SELECT AVG(SUM(t1.b) + 1) FROM t2 ORDER BY t2.a LIMIT 1);
---error 1140
 SELECT 1 FROM t1 GROUP BY t1.a
   HAVING (SELECT AVG(SUM(t1.b) + t2.b) FROM t2 ORDER BY t2.a LIMIT 1);
---error 1140
+--error ER_WRONG_FIELD_WITH_GROUP
 SELECT 1 FROM t1 GROUP BY t1.a
   HAVING (SELECT AVG(t1.b + t2.b) FROM t2 ORDER BY t2.a LIMIT 1);
 
@@ -1131,7 +1175,6 @@ SET @@sql_mode='ONLY_FULL_GROUP_BY';
 SELECT b c, (SELECT a FROM t1 WHERE b = c)
 FROM t1;
 
---error ER_NON_GROUPING_FIELD_USED
 SELECT b c, (SELECT a FROM t1 WHERE b = c)
 FROM t1 
 HAVING b = 10;
@@ -1185,6 +1228,8 @@ SELECT (SELECT t1.a) aa, COUNT(DISTINCT b) FROM t1 GROUP BY aa;
 
 SELECT (SELECT (SELECT t1.a)) aa, COUNT(DISTINCT b) FROM t1 GROUP BY aa;
 
+--source include/turn_off_only_full_group_by.inc
+
 SELECT (SELECT t1.a) aa, COUNT(DISTINCT b) FROM t1 GROUP BY aa+0;
 
 --echo # should return the same result in a reverse order:
@@ -1196,6 +1241,8 @@ SELECT (SELECT t1.a) aa, COUNT(DISTINCT b) FROM t1 GROUP BY aa+0;
 
 EXPLAIN EXTENDED
 SELECT (SELECT t1.a) aa, COUNT(DISTINCT b) FROM t1 GROUP BY -aa;
+
+--source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
 
 --echo # should return only one record
 SELECT (SELECT tt.a FROM t1 tt LIMIT 1) aa, COUNT(DISTINCT b) FROM t1
@@ -1339,6 +1386,10 @@ SET BIG_TABLES=0;
 --echo #
 --echo # Bug#49771: Incorrect MIN (date) when minimum value is 0000-00-00
 --echo #
+
+SET @save_sql_mode=@@sql_mode;
+SET @@sql_mode='ONLY_FULL_GROUP_BY';
+
 CREATE TABLE t1 (f1 int, f2 DATE);
 
 INSERT INTO t1 VALUES (1,'2004-04-19'), (1,'0000-00-00'), (1,'2004-04-18'),
@@ -1357,6 +1408,9 @@ SELECT MIN(f2),MAX(f2) FROM t1;
 SELECT f1,MIN(f2),MAX(f2) FROM t1 GROUP BY 1;
 
 DROP TABLE t1;
+
+SET sql_mode=@save_sql_mode;
+
 --echo #End of test#49771
 
 --echo #
@@ -1594,10 +1648,14 @@ CREATE TABLE ot (
 ) ENGINE=MyISAM;
 INSERT INTO ot VALUES (10,8);
 
+--source include/turn_off_only_full_group_by.inc
+
 --echo
 SELECT col_int_nokey, MAX( pk ) 
 FROM ot 
 WHERE (8, 1) IN ( SELECT pk, COUNT( col_int_nokey ) FROM it );
+
+--source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
 
 --echo
 DROP TABLE it,ot;
@@ -1612,8 +1670,12 @@ INSERT INTO t1 VALUES (1);
 CREATE TABLE t2 (j INT) ENGINE=MyISAM;
 INSERT INTO t2 VALUES (1),(2);
 
+--source include/turn_off_only_full_group_by.inc
+
 --echo
 SELECT i, j, COUNT(i) FROM t1 JOIN t2 WHERE j=3;
+
+--source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
 
 --echo
 DROP TABLE t1,t2;
@@ -1648,6 +1710,11 @@ DROP TABLE t1,t2;
 
 --echo # Bug 11923239 - ERROR WITH CORRELATED SUBQUERY IN VIEW WITH
 --echo # ONLY_FULL_GROUP_BY SQL MODE
+
+
+SET @old_sql_mode = @@sql_mode;
+SET sql_mode='';
+
 CREATE TABLE t1 (
   pk INT,
   col_int_key INT,
@@ -1697,7 +1764,6 @@ eval CREATE VIEW v1 AS $query_with_alias_in_group_by;
 
 SHOW CREATE VIEW v1;
 
-SET @old_sql_mode = @@sql_mode;
 SET @@sql_mode='ONLY_FULL_GROUP_BY';
 
 eval $query_with_alias_in_group_by;
@@ -1884,7 +1950,6 @@ NULL, col_varchar_key varchar(1) NOT NULL, col_varchar_nokey varchar(1) NOT
 NULL, PRIMARY KEY (pk), KEY col_int_key (col_int_key), KEY col_varchar_key
 (col_varchar_key,col_int_key));
 
---error ER_WRONG_FIELD_WITH_GROUP
 SELECT SUM(alias2.col_varchar_nokey) , alias2.pk AS field2 FROM t1 AS alias1
 STRAIGHT_JOIN t2 AS alias2 ON alias2.pk = alias1.col_int_key WHERE alias1.pk
 group by field2 ORDER BY alias1.col_int_key,alias2.pk ;
@@ -1935,12 +2000,16 @@ DROP TABLE t1,t2;
 
 create table t1 (branch varchar(40), id int);
 
+--source include/turn_off_only_full_group_by.inc
+
 select count(*) from t1 group by branch having
 branch<>'mumbai' order by id desc,branch desc limit 100;
 
 select branch, count(*)/max(id) from t1 group by branch
 having (branch<>'mumbai' OR count(*)<2)
 order by id desc,branch desc limit 100;
+
+--source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
 
 SET @@sql_mode='ONLY_FULL_GROUP_BY';
 
@@ -2179,3 +2248,68 @@ SELECT 1 FROM r GROUP BY MAKE_SET(1,c) WITH ROLLUP;
 
 DROP TABLE r;
 
+--echo #
+--echo # Bug #18921626 	DEBUG CRASH IN PLAN_CHANGE_WATCHDOG::~PLAN_CHANGE_WATCHDOG AT SQL_OPTIMIZER.CC
+--echo #
+
+SET @old_sql_mode = @@sql_mode;
+set sql_mode='';
+
+CREATE TABLE AA (
+col_varchar_1024_latin1 varchar(1024)  CHARACTER SET latin1,
+pk integer auto_increment,
+col_varchar_1024_utf8_key varchar(1024)  CHARACTER SET utf8,
+col_varchar_1024_latin1_key varchar(1024)  CHARACTER SET latin1,
+col_varchar_10_utf8_key varchar(10)  CHARACTER SET utf8,
+col_varchar_10_latin1_key varchar(10)  CHARACTER SET latin1,
+col_int int,
+col_varchar_10_latin1 varchar(10)  CHARACTER SET latin1,
+col_varchar_10_utf8 varchar(10)  CHARACTER SET utf8,
+col_varchar_1024_utf8 varchar(1024)  CHARACTER SET utf8,
+col_int_key int,
+primary key (pk),
+key (col_varchar_1024_utf8_key ),
+key (col_varchar_1024_latin1_key ),
+key (col_varchar_10_utf8_key ),
+key (col_varchar_10_latin1_key ),
+key (col_int_key )) ENGINE=innodb;
+
+CREATE OR REPLACE VIEW view_AA AS SELECT * FROM AA;
+
+CREATE TABLE B (
+col_varchar_1024_latin1_key varchar(1024)  CHARACTER SET latin1,
+col_varchar_10_latin1 varchar(10)  CHARACTER SET latin1,
+col_varchar_10_utf8_key varchar(10)  CHARACTER SET utf8,
+col_int_key int,
+col_varchar_1024_latin1 varchar(1024)  CHARACTER SET latin1,
+col_varchar_1024_utf8_key varchar(1024)  CHARACTER SET utf8,
+col_varchar_10_utf8 varchar(10)  CHARACTER SET utf8,
+col_int int,
+pk integer auto_increment,
+col_varchar_10_latin1_key varchar(10)  CHARACTER SET latin1,
+col_varchar_1024_utf8 varchar(1024)  CHARACTER SET utf8,
+key (col_varchar_1024_latin1_key ),
+key (col_varchar_10_utf8_key ),
+key (col_int_key ),
+key (col_varchar_1024_utf8_key ),
+primary key (pk),
+key (col_varchar_10_latin1_key )) ENGINE=myisam;
+
+INSERT INTO B VALUES  ('at', repeat('a',1000), 'the',
+-1622540288, 'as', repeat('a',1000), 'want', 1810890752, NULL, 'v', 'just');
+
+SELECT
+DISTINCT table1 . pk AS field1
+FROM  view_AA AS table1  LEFT  JOIN B AS table2
+ON  table1 . col_varchar_10_latin1_key =  table2 .
+col_varchar_1024_latin1_key
+WHERE ( ( table2 . pk > table1 . col_int_key AND table1 . pk NOT
+BETWEEN 3 AND ( 3 + 3 ) ) AND table2 . pk <> 6 )
+GROUP BY table1 . pk;
+
+DROP TABLE AA,B;
+DROP VIEW view_AA;
+
+SET @@sql_mode = @old_sql_mode;
+
+SET sql_mode = default;

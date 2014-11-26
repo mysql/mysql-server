@@ -145,6 +145,9 @@ extern os_event_t	srv_error_event;
 /** The buffer pool dump/load thread waits on this event. */
 extern os_event_t	srv_buf_dump_event;
 
+/** The buffer pool resize thread waits on this event. */
+extern os_event_t	srv_buf_resize_event;
+
 /** The buffer pool dump/load file name */
 #define SRV_BUF_DUMP_FILENAME_DEFAULT	"ib_buffer_pool"
 extern char*		srv_buf_dump_filename;
@@ -235,8 +238,20 @@ extern ulint	srv_undo_tablespaces_open;
 /** The number of undo segments to use */
 extern ulong	srv_undo_logs;
 
+/** Maximum size of undo tablespace. */
+extern unsigned long long	srv_max_undo_log_size;
+
+/** Rate at which UNDO records should be purged. */
+extern ulong	srv_purge_rseg_truncate_frequency;
+
+/** Enable or Disable Truncate of UNDO tablespace. */
+extern my_bool	srv_undo_log_truncate;
+
 /** UNDO logs not redo logged, these logs reside in the temp tablespace.*/
 extern const ulong	srv_tmp_undo_logs;
+
+/** Default size of UNDO tablespace while it is created new. */
+extern const ulint	SRV_UNDO_TABLESPACE_SIZE_IN_PAGES;
 
 extern char*	srv_log_group_home_dir;
 
@@ -257,19 +272,32 @@ even if they are marked as "corrupted". Mostly it is for DBA to process
 corrupted index and table */
 extern my_bool	srv_load_corrupted;
 
-extern ulint	srv_buf_pool_size;	/*!< requested size in bytes */
-#define SRV_BUF_POOL_INSTANCES_NOT_SET	0
-extern ulong	srv_buf_pool_instances; /*!< requested number of buffer pool instances */
-extern ulong	srv_n_page_hash_locks;	/*!< number of locks to
-					protect buf_pool->page_hash */
-extern ulong	srv_LRU_scan_depth;	/*!< Scan depth for LRU
-					flush batch */
-extern ulong	srv_flush_neighbors;	/*!< whether or not to flush
-					neighbors of a block */
-extern ulint	srv_buf_pool_old_size;	/*!< previously requested size */
-extern ulint	srv_buf_pool_curr_size;	/*!< current size in bytes */
-extern ulong	srv_buf_pool_dump_pct;	/*!< dump that may % of each buffer
-					pool during BP dump */
+/** Requested size in bytes */
+extern ulint		srv_buf_pool_size;
+/** Minimum pool size in bytes */
+extern const ulint	srv_buf_pool_min_size;
+/** Requested buffer pool chunk size. Each buffer pool instance consists
+of one or more chunks. */
+extern ulong		srv_buf_pool_chunk_unit;
+/** Requested number of buffer pool instances */
+extern ulong		srv_buf_pool_instances;
+/** Default number of buffer pool instances */
+extern const ulong	srv_buf_pool_instances_default;
+/** Number of locks to protect buf_pool->page_hash */
+extern ulong	srv_n_page_hash_locks;
+/** Scan depth for LRU flush batch i.e.: number of blocks scanned*/
+extern ulong	srv_LRU_scan_depth;
+/** Whether or not to flush neighbors of a block */
+extern ulong	srv_flush_neighbors;
+/** Previously requested size */
+extern ulint	srv_buf_pool_old_size;
+/** Current size as scaling factor for the other components */
+extern ulint	srv_buf_pool_base_size;
+/** Current size in bytes */
+extern ulint	srv_buf_pool_curr_size;
+/** Dump this % of each buffer pool during BP dump */
+extern ulong	srv_buf_pool_dump_pct;
+/** Lock table size in bytes */
 extern ulint	srv_lock_table_size;
 
 extern ulint	srv_n_file_io_threads;
@@ -277,6 +305,8 @@ extern my_bool	srv_random_read_ahead;
 extern ulong	srv_read_ahead_threshold;
 extern ulint	srv_n_read_io_threads;
 extern ulint	srv_n_write_io_threads;
+
+extern uint	srv_change_buffer_max_size;
 
 /* Number of IO operations per second the server can do */
 extern ulong    srv_io_capacity;
@@ -348,6 +378,9 @@ extern ibool	srv_error_monitor_active;
 /* TRUE during the lifetime of the buffer pool dump/load thread */
 extern ibool	srv_buf_dump_thread_active;
 
+/* true during the lifetime of the buffer pool resize thread */
+extern bool	srv_buf_resize_thread_active;
+
 /* TRUE during the lifetime of the stats thread */
 extern ibool	srv_dict_stats_thread_active;
 
@@ -359,8 +392,6 @@ extern ibool	srv_priority_boost;
 
 extern ulint	srv_truncated_status_writes;
 extern ulint	srv_available_undo_logs;
-
-extern	ulint	srv_lock_table_size;
 
 #if defined UNIV_DEBUG || defined UNIV_IBUF_DEBUG
 extern my_bool	srv_ibuf_disable_background_merge;
@@ -403,19 +434,21 @@ extern srv_stats_t	srv_stats;
 
 # ifdef UNIV_PFS_THREAD
 /* Keys to register InnoDB threads with performance schema */
-extern mysql_pfs_key_t	page_cleaner_thread_key;
-extern mysql_pfs_key_t	trx_rollback_clean_thread_key;
+extern mysql_pfs_key_t	buf_dump_thread_key;
+extern mysql_pfs_key_t	dict_stats_thread_key;
+extern mysql_pfs_key_t	io_handler_thread_key;
 extern mysql_pfs_key_t	io_ibuf_thread_key;
 extern mysql_pfs_key_t	io_log_thread_key;
 extern mysql_pfs_key_t	io_read_thread_key;
 extern mysql_pfs_key_t	io_write_thread_key;
-extern mysql_pfs_key_t	io_handler_thread_key;
-extern mysql_pfs_key_t	srv_lock_timeout_thread_key;
-extern mysql_pfs_key_t	srv_error_monitor_thread_key;
-extern mysql_pfs_key_t	srv_monitor_thread_key;
-extern mysql_pfs_key_t	srv_master_thread_key;
-extern mysql_pfs_key_t	srv_purge_thread_key;
+extern mysql_pfs_key_t	page_cleaner_thread_key;
 extern mysql_pfs_key_t	recv_writer_thread_key;
+extern mysql_pfs_key_t	srv_error_monitor_thread_key;
+extern mysql_pfs_key_t	srv_lock_timeout_thread_key;
+extern mysql_pfs_key_t	srv_master_thread_key;
+extern mysql_pfs_key_t	srv_monitor_thread_key;
+extern mysql_pfs_key_t	srv_purge_thread_key;
+extern mysql_pfs_key_t	trx_rollback_clean_thread_key;
 
 /* This macro register the current thread and its key with performance
 schema */
@@ -766,6 +799,7 @@ struct export_var_t{
 	ulint innodb_data_reads;		/*!< I/O read requests */
 	char  innodb_buffer_pool_dump_status[512];/*!< Buf pool dump status */
 	char  innodb_buffer_pool_load_status[512];/*!< Buf pool load status */
+	char  innodb_buffer_pool_resize_status[512];/*!< Buf pool resize status */
 	ulint innodb_buffer_pool_pages_total;	/*!< Buffer pool size */
 	ulint innodb_buffer_pool_pages_data;	/*!< Data pages */
 	ulint innodb_buffer_pool_bytes_data;	/*!< File bytes used */

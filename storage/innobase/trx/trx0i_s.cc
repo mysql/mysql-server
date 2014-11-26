@@ -337,7 +337,7 @@ table_cache_create_empty_row(
 		chunk = &table_cache->chunks[i];
 
 		got_bytes = req_bytes;
-		chunk->base = ut_malloc(req_bytes);
+		chunk->base = ut_malloc_nokey(req_bytes);
 
 		got_rows = got_bytes / table_cache->row_size;
 
@@ -1263,7 +1263,7 @@ fetch_data_into_cache_low(
 	trx_i_s_cache_t*	cache,		/*!< in/out: cache */
 	bool			read_write,	/*!< in: only read-write
 						transactions */
-	trx_list_t*		trx_list)	/*!< in: trx list */
+	trx_ut_list_t*		trx_list)	/*!< in: trx list */
 {
 	const trx_t*		trx;
 	bool			rw_trx_list = trx_list == &trx_sys->rw_trx_list;
@@ -1287,7 +1287,7 @@ fetch_data_into_cache_low(
 
 		/* Note: Read only transactions that modify temporary
 		tables an have a transaction ID */
-		if (trx->state == TRX_STATE_NOT_STARTED
+		if (!trx_is_started(trx)
 		    || (!rw_trx_list && trx->id != 0 && !trx->read_only)) {
 
 			continue;

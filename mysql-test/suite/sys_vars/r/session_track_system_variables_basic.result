@@ -14,15 +14,15 @@ time_zone,autocommit,character_set_client,character_set_results,character_set_co
 # via INFORMATION_SCHEMA.GLOBAL_VARIABLES
 SELECT * FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME LIKE 'session_track%';
 VARIABLE_NAME	VARIABLE_VALUE
-SESSION_TRACK_STATE_CHANGE	OFF
 SESSION_TRACK_SCHEMA	ON
 SESSION_TRACK_SYSTEM_VARIABLES	time_zone,autocommit,character_set_client,character_set_results,character_set_connection
+SESSION_TRACK_STATE_CHANGE	OFF
 # via INFORMATION_SCHEMA.SESSION_VARIABLES
 SELECT * FROM INFORMATION_SCHEMA.SESSION_VARIABLES WHERE VARIABLE_NAME LIKE 'session_track%';
 VARIABLE_NAME	VARIABLE_VALUE
-SESSION_TRACK_STATE_CHANGE	OFF
 SESSION_TRACK_SCHEMA	ON
 SESSION_TRACK_SYSTEM_VARIABLES	time_zone,autocommit,character_set_client,character_set_results,character_set_connection
+SESSION_TRACK_STATE_CHANGE	OFF
 SET @global_saved_tmp =  @@global.session_track_system_variables;
 
 # Altering global variable's value

@@ -3,9 +3,6 @@
 #
 
 --source include/have_innodb.inc
-#--source include/have_debug.inc
-# Valgrind would complain about memory leaks when we crash on purpose.
---source include/not_valgrind.inc
 # Embedded server does not support crashing
 --source include/not_embedded.inc
 # Avoid CrashReporter popup on Mac
@@ -22,7 +19,7 @@ call mtr.add_suppression("The table 't1' is full");
 # 1. ddl + dml operation involving temp-tablespace.
 #    a) insert/delete/update/transacion/select
 #    b) create index/drop index/add column/drop column
-#    c) alter inplace/copy on temp table 
+#    c) alter inplace/copy on temp table
 
 # 2. ddl + dml operation on temp table from 2 sessions.
 #    a) Both session create 20 tables each of same name.
@@ -34,7 +31,7 @@ call mtr.add_suppression("The table 't1' is full");
 #    a) can not create temp table with partition
 #    b) can not create/drop view on temp tables.
 #    c) select/join on temp tables.
-#    d) Lock/flush on tables 
+#    d) Lock/flush on tables
 #    e) create temp table as select
 
 
@@ -46,8 +43,6 @@ call mtr.add_suppression("The table 't1' is full");
 
 #-----------------------------------------------------------------------------
 #
-let $per_table = `select @@innodb_file_per_table`;
-let $format = `select @@innodb_file_format`;
 
 set global innodb_file_per_table = off;
 let $MYSQL_DATA_DIR = `select @@datadir`;
@@ -58,10 +53,7 @@ let $MYSQL_TMP_DIR = `select @@tmpdir`;
 # 1. ddl + dml operation involving temp-tablespace.
 #    a) insert/delete/update/transacion/select
 #    b) create index/drop index/add column/drop column
-#    c) alter inplace/copy on temp table   
---disable_warnings
-DROP TABLE IF EXISTS t1;
---enable_warnings
+#    c) alter inplace/copy on temp table
 SELECT @@global.innodb_file_per_table;
 --replace_column 1 NUM
 SELECT @mycount_SYS_DATAFILES:=COUNT(*)  FROM information_schema.INNODB_SYS_DATAFILES;
@@ -299,12 +291,8 @@ DROP TABLE t1,t2,t3,t4;
 # 4. Temp table operation -
 #    a) restart on existing datadir and see ibtmp1 removed on clean shutdown
 #
---disable_warnings
-DROP TABLE IF EXISTS t1,t2;
---enable_warnings
 # check by allowing file per table on
 SELECT @@global.innodb_file_per_table;
-USE test;
 
 CREATE TEMPORARY TABLE t1 (a INT AUTO_INCREMENT PRIMARY KEY, b FLOAT(5,3),
 c BLOB(100),d VARCHAR(100),e TEXT) ENGINE=InnoDB;
@@ -329,17 +317,11 @@ SELECT a,b,RIGHT(c,10),RIGHT(d,10),RIGHT(e,10) FROM t2;
 
 #
 --echo # shutting down the server
---exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server
---source include/wait_until_disconnected.inc
+--source include/shutdown_mysqld.inc
 --echo # list_file, no files expected - temp tablespace cleared on stopping server
 --list_files $MYSQL_DATA_DIR/ ibtmp1*
 #
---source include/wait_until_disconnected.inc
---exec echo "restart:  " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
---source include/wait_until_connected_again.inc
---disable_reconnect
+--source include/start_mysqld.inc
 
 # check temp table after restart
 CREATE TEMPORARY TABLE t1 (a INT AUTO_INCREMENT PRIMARY KEY, b FLOAT(5,3),
@@ -355,31 +337,8 @@ DELETE FROM t1 WHERE a > 6;
 SELECT a,b,RIGHT(c,10),RIGHT(d,10),RIGHT(e,10) FROM t1;
 DROP TABLE t1;
 
---echo # restart server
---exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server
---source include/wait_until_disconnected.inc
---exec echo "restart:  " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
---source include/wait_until_connected_again.inc
---disable_reconnect
+--source include/restart_mysqld.inc
 
-#
-USE test;
 # check not temp table
 SHOW TABLES;
-
-#-----------------------------------------------------------------------------
-#
-# remove test-bed/cleanup
-#
-eval set global innodb_file_format = $format;
-eval set global innodb_file_per_table = $per_table;
-
-
-#-----------------------------------------------------------------------------
-#
-# remove test-bed/cleanup
-#
-eval set global innodb_file_format = $format;
-eval set global innodb_file_per_table = $per_table;
+DROP TABLE t2;

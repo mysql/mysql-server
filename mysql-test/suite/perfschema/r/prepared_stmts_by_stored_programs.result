@@ -7,6 +7,7 @@ a INT,
 b CHAR(10),
 name CHAR(10)
 );
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 INSERT INTO t VALUES (1,"kuchipudi","Vempati");
 INSERT INTO t VALUES (2,"odissi","Mohapatra");
 INSERT INTO t VALUES (3,"kathak","Maharaj");
@@ -15,6 +16,7 @@ Warnings:
 Warning	1265	Data truncated for column 'name' at row 1
 INSERT INTO t VALUES (5,"manipuri","Guru");
 INSERT INTO t VALUES (6,"kathakali","Manavedan");
+SET sql_mode= default;
 CREATE PROCEDURE p1()
 BEGIN
 PREPARE st FROM 'SELECT * FROM t WHERE a<=?' ;

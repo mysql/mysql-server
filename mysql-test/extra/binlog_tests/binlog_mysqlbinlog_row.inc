@@ -448,6 +448,7 @@ INSERT INTO t1 VALUES (NOW(6), NOW(6), NOW(6), NOW(6), NOW(6), NOW(6));
 DROP TABLE t1;
 
 SET @ts='2001-01-01 00:00:00.123456';
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 CREATE TABLE t1 (
   c85 TIMESTAMP(6), c86 TIMESTAMP(5), c87 TIMESTAMP(4),
   c88 TIMESTAMP(3), c89 TIMESTAMP(2), c90 TIMESTAMP(1)
@@ -459,6 +460,7 @@ DROP TABLE t1;
 
 SET timestamp=1000000000;
 SET time_zone=default;
+SET sql_mode = default;
 #
 # End of FSP-enabled data types
 #

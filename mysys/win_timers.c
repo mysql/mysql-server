@@ -59,7 +59,7 @@ static void*
 timer_notify_thread_func(void *arg __attribute__((unused)))
 {
   DWORD timer_state;
-  ULONG compl_key;
+  ULONG_PTR compl_key;
   LPOVERLAPPED overlapped;
   my_timer_t *timer;
 

@@ -156,7 +156,7 @@ dict_hdr_flush_row_id(void)
 	row_id_t	id;
 	mtr_t		mtr;
 
-	ut_ad(mutex_own(&(dict_sys->mutex)));
+	ut_ad(mutex_own(&dict_sys->mutex));
 
 	id = dict_sys->row_id;
 
@@ -316,7 +316,7 @@ dict_boot(void)
 
 	heap = mem_heap_create(450);
 
-	mutex_enter(&(dict_sys->mutex));
+	mutex_enter(&dict_sys->mutex);
 
 	/* Get the dictionary header */
 	dict_hdr = dict_hdr_get(&mtr);
@@ -493,9 +493,8 @@ dict_boot(void)
 
 	if (srv_read_only_mode && !ibuf_is_empty()) {
 
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Change buffer must be empty when --innodb-read-only"
-			" is set!");
+		ib::error() << "Change buffer must be empty when"
+			" --innodb-read-only is set!";
 
 		err = DB_ERROR;
 	} else {
@@ -507,7 +506,7 @@ dict_boot(void)
 		dict_load_sys_table(dict_sys->sys_fields);
 	}
 
-	mutex_exit(&(dict_sys->mutex));
+	mutex_exit(&dict_sys->mutex);
 
 	return(err);
 }

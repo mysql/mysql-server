@@ -168,7 +168,7 @@ DROP TABLE t1;
 --echo #
 CREATE TABLE t1 (a DECIMAL(23,4));
 INSERT INTO t1 VALUES (NULL),(101010.9999),(-101010.9999);
-INSERT INTO t1 VALUES (9999999999999999999999.1), (999999.1);
+INSERT IGNORE INTO t1 VALUES (9999999999999999999999.1), (999999.1);
 SELECT a, CAST(a AS TIME(3)) FROM t1;
 DROP TABLE t1;
 
@@ -537,6 +537,7 @@ DROP TABLE t1;
 --echo #
 --echo # Testing bad values
 --echo #
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 CREATE TABLE t1 (a TIME(6));
 INSERT INTO t1 VALUES (106060);
 INSERT INTO t1 VALUES (106060.0);
@@ -544,7 +545,7 @@ INSERT INTO t1 VALUES (106060e0);
 INSERT INTO t1 VALUES ('106060');
 SELECT * FROM t1;
 DROP TABLE t1;
-
+SET sql_mode = default;
 --echo #
 --echo # Testing bad values with TRADITIONAL mode
 --echo #
@@ -602,6 +603,7 @@ DROP TABLE t1;
 --echo #
 --echo # Testing huge values
 --echo #
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 CREATE TABLE t1 (a TIME(6));
 INSERT INTO t1 VALUES (CAST(0xFFFFFFFF00000000 AS SIGNED));
 INSERT INTO t1 VALUES (CAST(0xFFFFFFFF00000000 AS UNSIGNED));
@@ -621,7 +623,7 @@ CREATE TABLE t1 (a TIME(6));
 INSERT INTO t1 VALUES ('00:00:00.111111 xxx');
 SELECT * FROM t1;
 DROP TABLE t1;
-
+SET sql_mode = default;
 
 --echo #
 --echo # Testing IN
@@ -835,6 +837,7 @@ DROP TABLE t1;
 --echo #
 --echo # Testing INSERT with near-maximum and near-minimum supported values.
 --echo #
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 CREATE TABLE t1 (a TIME(6));
 INSERT INTO t1 VALUES ('838:59:59.999999');
 INSERT INTO t1 VALUES ('838:59:59');
@@ -943,7 +946,7 @@ INSERT INTO t1 VALUES (-8385959.999999e0);
 INSERT INTO t1 VALUES (-8390000.0e0);
 SELECT * FROM t1;
 DROP TABLE t1;
-
+SET sql_mode = default;
 --echo #
 --echo # Testing UPDATE between TIME(6) and TIME/INT/DECIMAL/FLOAT
 --echo #
@@ -1702,6 +1705,7 @@ SELECT MAKETIME(838, 59, 59.00000056789);
 --echo #
 --echo # Testing CAST to TIME and TIME(6)
 --echo #
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 CREATE TABLE t1 AS SELECT
 CAST(1 AS TIME),
 CAST(100000000 AS TIME),
@@ -1720,7 +1724,7 @@ CAST('1' AS TIME(6)),
 CAST(1e0 AS TIME(6));
 SHOW CREATE TABLE t1;
 DROP TABLE t1;
-
+SET sql_mode = default;
 CREATE TABLE t1 (a TIME, b TIME(6));
 INSERT INTO t1 VALUES ('11:22:33', '11:22:33.123456');
 CREATE TABLE t2 AS SELECT CAST(a AS TIME), CAST(b AS TIME) FROM t1;
@@ -2239,6 +2243,7 @@ ALTER TABLE t1
   ADD d0 DATETIME(0),
   ADD d1 DATETIME(1), ADD d2 DATETIME(2), ADD d3 DATETIME(3),
   ADD d4 DATETIME(4), ADD d5 DATETIME(5), ADD d6 DATETIME(6);
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 UPDATE t1 SET
   a0= LEFT(a6, LENGTH(a6) - 6),
   a1= LEFT(a6, LENGTH(a6) - 5),
@@ -2246,7 +2251,7 @@ UPDATE t1 SET
   a3= LEFT(a6, LENGTH(a6) - 3),
   a4= LEFT(a6, LENGTH(a6) - 2),
   a5= LEFT(a6, LENGTH(a6) - 1);
-UPDATE t1 SET d0= a0, d1= a1, d2= a2, d3= a3, d4= a4, d5= a5, d6= a6;
+UPDATE IGNORE t1 SET d0= a0, d1= a1, d2= a2, d3= a3, d4= a4, d5= a5, d6= a6;
 SELECT a6, d6, HEX(WEIGHT_STRING(d6)) FROM t1 ORDER BY d6;
 SELECT a5, d5, HEX(WEIGHT_STRING(d5)) FROM t1 ORDER BY d5, a6;
 SELECT a4, d4, HEX(WEIGHT_STRING(d4)) FROM t1 ORDER BY d4, a6;
@@ -2267,6 +2272,7 @@ FROM t1;
 --query_vertical SELECT * FROM  v1 WHERE a6 LIKE '%.999999' ORDER BY a6, d6;
 --query_vertical SELECT * FROM  v1 WHERE a6 LIKE '%.000000' ORDER BY a6, d6;
 --query_vertical SELECT * FROM  v1 WHERE a6 LIKE '%.100000' ORDER BY a6, d6;
+SET sql_mode = default;
 DROP VIEW v1;
 DROP TABLE t1;
 
@@ -2302,6 +2308,7 @@ SELECT NOW(31);
 --echo #
 --echo # Testing INSERT, ORDER, KEY, BETWEEN, comparison
 --echo #
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 CREATE TABLE t1 (a DATETIME(6) NOT NULL);
 INSERT INTO t1 VALUES ('0000-00-00 00:00:00.000000');
 INSERT INTO t1 VALUES ('0000-00-00 23:59:59.999999');
@@ -2393,7 +2400,7 @@ INSERT INTO t1 VALUES (-100000000000000000.1);
 INSERT INTO t1 VALUES (-100000000000000000.1e0);
 SELECT * FROM t1;
 DROP TABLE t1;
-
+SET sql_mode = default;
 --echo #
 --echo # Testing values with zeros in dates
 --echo #
@@ -2454,6 +2461,7 @@ SET sql_mode=default;
 --echo #
 --echo # Testing rounding
 --echo #
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 CREATE TABLE t1 (a DATETIME(6));
 INSERT INTO t1 VALUES (20010101100000.1234567);
 INSERT INTO t1 VALUES (20010228235959.9999997);
@@ -3040,7 +3048,7 @@ FROM t1;
 SHOW CREATE TABLE t2;
 DROP TABLE t2;
 DROP TABLE t1;
-
+SET sql_mode = default;
 --echo #
 --echo # Testing functions ADDTIME, SUBTIME, TIMESTAMP, TIMEDIFF, DATE_ADD/SUB
 --echo #
@@ -3148,6 +3156,7 @@ DROP TABLE t1;
 --echo #
 --echo # Testing copy from DATETIME to DATETIME(6) and vice versa
 --echo #
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 CREATE TABLE t1 (a DATETIME(6), b DATETIME);
 INSERT INTO t1 VALUES ('2001-01-01 01:02:03.123456','0000-00-00 00:00:00');
 UPDATE t1 SET b=a;
@@ -6218,7 +6227,6 @@ INSERT INTO t1 VALUES ('1000-00-01 00:00:00');
 INSERT INTO t1 VALUES (TIMESTAMP'1000-00-01 00:00:00');
 SELECT * FROM t1;
 DROP TABLE t1;
-SET sql_mode=default;
 
 # SYSDATE(n) post-decimal digits are not zeros
 # Disable warnings, see Bug#61216: Incorrect warning for "datetime LIKE string"
@@ -6425,6 +6433,8 @@ CREATE TABLE t1 (
   KEY col_time_not_null_key (col_time_not_null_key),
   KEY col_time_4_not_null_key (col_time_4_not_null_key))
 /*!50100 PARTITION BY KEY (pk)PARTITIONS 2 */;
+--source include/turn_off_only_full_group_by.inc
+
 SELECT col_datetime_3_key , COUNT( col_timestamp_5_key )
 FROM t1 FORCE KEY
   (PRIMARY, col_datetime_5_not_null_key, col_datetime_6_key, col_time_5_key, col_time_2_key) 
@@ -6457,6 +6467,8 @@ AND
 AND
 (col_datetime_4_not_null_key IS NULL OR col_time_5_key BETWEEN '20051201163954.001782' AND '0000-00-00 00:00:00')
 GROUP BY col_datetime_6_not_null_key;
+
+--source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
 DROP TABLE t1;
 
 
@@ -7827,6 +7839,6 @@ INSERT INTO t VALUES (1, '0102031'), (2, '01020312'), (3, '010203123'), (4, '010
 (9, '01:02:0312.3');
 SELECT * FROM t ORDER BY key1;
 DROP TABLE t;
-
+SET sql_mode = default;
 
 --echo # End of 5.6 tests

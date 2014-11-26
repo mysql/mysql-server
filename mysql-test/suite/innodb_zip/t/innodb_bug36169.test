@@ -25,6 +25,7 @@ call mtr.add_suppression("Cannot add field .* in table .* because after adding i
 # Creating a table with 94 columns and 24 indexes
 DROP TABLE IF EXISTS `table0`;
 set innodb_strict_mode=on;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 --error ER_TOO_BIG_ROWSIZE
 CREATE TABLE IF NOT EXISTS `table0`
 (`col0` BOOL,
@@ -146,6 +147,7 @@ KEY `idx21` (`col83`(54)),
 KEY `idx22` (`col51`,`col7`(120)),
 KEY `idx23` (`col7`(163),`col31`,`col71`,`col14`)
 )engine=innodb ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=1;
+SET sql_mode = default;
 
 # Creating a table with 10 columns and 32 indexes
 DROP TABLE IF EXISTS `table1`;
@@ -197,6 +199,7 @@ KEY `idx31` (`col4`(1),`col0`)
 
 # Creating a table with 141 columns and 18 indexes
 DROP TABLE IF EXISTS `table2`;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 --error ER_TOO_BIG_ROWSIZE
 CREATE TABLE IF NOT EXISTS `table2`
 (`col0` BOOL,
@@ -1158,3 +1161,4 @@ DROP TABLE IF EXISTS table6;
 
 EVAL SET GLOBAL innodb_file_format=$file_format;
 EVAL SET GLOBAL innodb_file_per_table=$file_per_table;
+SET sql_mode = default;

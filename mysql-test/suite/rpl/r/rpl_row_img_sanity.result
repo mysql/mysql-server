@@ -32,9 +32,15 @@ SHOW VARIABLES LIKE 'binlog_row_image';
 Variable_name	Value
 binlog_row_image	FULL
 CREATE TABLE t (c1 int, c2 int, c3 blob, primary key(c1));
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 INSERT INTO t(c1,c3) VALUES (1, 'a');
+SET sql_mode = default;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 UPDATE t SET c1=2 WHERE c1=1;;
+SET sql_mode = default;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 DELETE FROM t;;
+SET sql_mode = default;
 DROP TABLE t;
 include/sync_slave_sql_with_master.inc
 SET @img_types= 'MINIMAL NOBLOB FULL';
@@ -51,11 +57,21 @@ include/rpl_reset.inc
 CREATING TABLE IN master WITH INDEX 'UK-NOT-NULL'
 CREATE TABLE t (c1 int NOT NULL, c2 int, c3 blob, unique key(c1));
 include/sync_slave_sql_with_master.inc
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 INSERT INTO t VALUES (1,2,"a");
+SET sql_mode = default;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 INSERT INTO t(c1,c3) VALUES (10,"a");
+SET sql_mode = default;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 INSERT INTO t(c1) VALUES (1000);
+SET sql_mode = default;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 UPDATE t SET c1=2 WHERE c1=1;
+SET sql_mode = default;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 DELETE FROM t WHERE c2=2;
+SET sql_mode = default;
 DROP TABLE t;
 include/sync_slave_sql_with_master.inc
 ITERATIONS: row_img: MINIMAL, indexes: PK
@@ -63,11 +79,21 @@ include/rpl_reset.inc
 CREATING TABLE IN master WITH INDEX 'PK'
 CREATE TABLE t (c1 int, c2 int, c3 blob, primary key(c1));
 include/sync_slave_sql_with_master.inc
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 INSERT INTO t VALUES (1,2,"a");
+SET sql_mode = default;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 INSERT INTO t(c1,c3) VALUES (10,"a");
+SET sql_mode = default;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 INSERT INTO t(c1) VALUES (1000);
+SET sql_mode = default;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 UPDATE t SET c1=2 WHERE c1=1;
+SET sql_mode = default;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 DELETE FROM t WHERE c2=2;
+SET sql_mode = default;
 DROP TABLE t;
 include/sync_slave_sql_with_master.inc
 ITERATIONS: row_img: MINIMAL, indexes: UK
@@ -75,11 +101,21 @@ include/rpl_reset.inc
 CREATING TABLE IN master WITH INDEX 'UK'
 CREATE TABLE t (c1 int, c2 int, c3 blob, unique key(c1));
 include/sync_slave_sql_with_master.inc
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 INSERT INTO t VALUES (1,2,"a");
+SET sql_mode = default;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 INSERT INTO t(c1,c3) VALUES (10,"a");
+SET sql_mode = default;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 INSERT INTO t(c1) VALUES (1000);
+SET sql_mode = default;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 UPDATE t SET c1=2 WHERE c1=1;
+SET sql_mode = default;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 DELETE FROM t WHERE c2=2;
+SET sql_mode = default;
 DROP TABLE t;
 include/sync_slave_sql_with_master.inc
 ITERATIONS: row_img: MINIMAL, indexes: K
@@ -87,11 +123,21 @@ include/rpl_reset.inc
 CREATING TABLE IN master WITH INDEX 'K'
 CREATE TABLE t (c1 int, c2 int, c3 blob, key(c1));
 include/sync_slave_sql_with_master.inc
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 INSERT INTO t VALUES (1,2,"a");
+SET sql_mode = default;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 INSERT INTO t(c1,c3) VALUES (10,"a");
+SET sql_mode = default;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 INSERT INTO t(c1) VALUES (1000);
+SET sql_mode = default;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 UPDATE t SET c1=2 WHERE c1=1;
+SET sql_mode = default;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 DELETE FROM t WHERE c2=2;
+SET sql_mode = default;
 DROP TABLE t;
 include/sync_slave_sql_with_master.inc
 ITERATIONS: row_img: MINIMAL, indexes: NONE
@@ -99,11 +145,21 @@ include/rpl_reset.inc
 CREATING TABLE IN master WITH INDEX 'NONE'
 CREATE TABLE t (c1 int, c2 int, c3 blob);
 include/sync_slave_sql_with_master.inc
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 INSERT INTO t VALUES (1,2,"a");
+SET sql_mode = default;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 INSERT INTO t(c1,c3) VALUES (10,"a");
+SET sql_mode = default;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 INSERT INTO t(c1) VALUES (1000);
+SET sql_mode = default;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 UPDATE t SET c1=2 WHERE c1=1;
+SET sql_mode = default;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 DELETE FROM t WHERE c2=2;
+SET sql_mode = default;
 DROP TABLE t;
 include/sync_slave_sql_with_master.inc
 CON: 'master', IMG: 'NOBLOB', RESTART SLAVE: 'N'
@@ -119,11 +175,21 @@ include/rpl_reset.inc
 CREATING TABLE IN master WITH INDEX 'UK-NOT-NULL'
 CREATE TABLE t (c1 int NOT NULL, c2 int, c3 blob, unique key(c1));
 include/sync_slave_sql_with_master.inc
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 INSERT INTO t VALUES (1,2,"a");
+SET sql_mode = default;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 INSERT INTO t(c1,c3) VALUES (10,"a");
+SET sql_mode = default;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 INSERT INTO t(c1) VALUES (1000);
+SET sql_mode = default;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 UPDATE t SET c1=2 WHERE c1=1;
+SET sql_mode = default;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 DELETE FROM t WHERE c2=2;
+SET sql_mode = default;
 DROP TABLE t;
 include/sync_slave_sql_with_master.inc
 ITERATIONS: row_img: NOBLOB, indexes: PK
@@ -131,11 +197,21 @@ include/rpl_reset.inc
 CREATING TABLE IN master WITH INDEX 'PK'
 CREATE TABLE t (c1 int, c2 int, c3 blob, primary key(c1));
 include/sync_slave_sql_with_master.inc
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 INSERT INTO t VALUES (1,2,"a");
+SET sql_mode = default;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 INSERT INTO t(c1,c3) VALUES (10,"a");
+SET sql_mode = default;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 INSERT INTO t(c1) VALUES (1000);
+SET sql_mode = default;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 UPDATE t SET c1=2 WHERE c1=1;
+SET sql_mode = default;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 DELETE FROM t WHERE c2=2;
+SET sql_mode = default;
 DROP TABLE t;
 include/sync_slave_sql_with_master.inc
 ITERATIONS: row_img: NOBLOB, indexes: UK
@@ -143,11 +219,21 @@ include/rpl_reset.inc
 CREATING TABLE IN master WITH INDEX 'UK'
 CREATE TABLE t (c1 int, c2 int, c3 blob, unique key(c1));
 include/sync_slave_sql_with_master.inc
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 INSERT INTO t VALUES (1,2,"a");
+SET sql_mode = default;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 INSERT INTO t(c1,c3) VALUES (10,"a");
+SET sql_mode = default;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 INSERT INTO t(c1) VALUES (1000);
+SET sql_mode = default;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 UPDATE t SET c1=2 WHERE c1=1;
+SET sql_mode = default;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 DELETE FROM t WHERE c2=2;
+SET sql_mode = default;
 DROP TABLE t;
 include/sync_slave_sql_with_master.inc
 ITERATIONS: row_img: NOBLOB, indexes: K
@@ -155,11 +241,21 @@ include/rpl_reset.inc
 CREATING TABLE IN master WITH INDEX 'K'
 CREATE TABLE t (c1 int, c2 int, c3 blob, key(c1));
 include/sync_slave_sql_with_master.inc
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 INSERT INTO t VALUES (1,2,"a");
+SET sql_mode = default;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 INSERT INTO t(c1,c3) VALUES (10,"a");
+SET sql_mode = default;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 INSERT INTO t(c1) VALUES (1000);
+SET sql_mode = default;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 UPDATE t SET c1=2 WHERE c1=1;
+SET sql_mode = default;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 DELETE FROM t WHERE c2=2;
+SET sql_mode = default;
 DROP TABLE t;
 include/sync_slave_sql_with_master.inc
 ITERATIONS: row_img: NOBLOB, indexes: NONE
@@ -167,11 +263,21 @@ include/rpl_reset.inc
 CREATING TABLE IN master WITH INDEX 'NONE'
 CREATE TABLE t (c1 int, c2 int, c3 blob);
 include/sync_slave_sql_with_master.inc
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 INSERT INTO t VALUES (1,2,"a");
+SET sql_mode = default;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 INSERT INTO t(c1,c3) VALUES (10,"a");
+SET sql_mode = default;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 INSERT INTO t(c1) VALUES (1000);
+SET sql_mode = default;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 UPDATE t SET c1=2 WHERE c1=1;
+SET sql_mode = default;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 DELETE FROM t WHERE c2=2;
+SET sql_mode = default;
 DROP TABLE t;
 include/sync_slave_sql_with_master.inc
 CON: 'master', IMG: 'FULL', RESTART SLAVE: 'N'
@@ -187,11 +293,21 @@ include/rpl_reset.inc
 CREATING TABLE IN master WITH INDEX 'UK-NOT-NULL'
 CREATE TABLE t (c1 int NOT NULL, c2 int, c3 blob, unique key(c1));
 include/sync_slave_sql_with_master.inc
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 INSERT INTO t VALUES (1,2,"a");
+SET sql_mode = default;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 INSERT INTO t(c1,c3) VALUES (10,"a");
+SET sql_mode = default;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 INSERT INTO t(c1) VALUES (1000);
+SET sql_mode = default;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 UPDATE t SET c1=2 WHERE c1=1;
+SET sql_mode = default;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 DELETE FROM t WHERE c2=2;
+SET sql_mode = default;
 DROP TABLE t;
 include/sync_slave_sql_with_master.inc
 ITERATIONS: row_img: FULL, indexes: PK
@@ -199,11 +315,21 @@ include/rpl_reset.inc
 CREATING TABLE IN master WITH INDEX 'PK'
 CREATE TABLE t (c1 int, c2 int, c3 blob, primary key(c1));
 include/sync_slave_sql_with_master.inc
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 INSERT INTO t VALUES (1,2,"a");
+SET sql_mode = default;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 INSERT INTO t(c1,c3) VALUES (10,"a");
+SET sql_mode = default;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 INSERT INTO t(c1) VALUES (1000);
+SET sql_mode = default;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 UPDATE t SET c1=2 WHERE c1=1;
+SET sql_mode = default;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 DELETE FROM t WHERE c2=2;
+SET sql_mode = default;
 DROP TABLE t;
 include/sync_slave_sql_with_master.inc
 ITERATIONS: row_img: FULL, indexes: UK
@@ -211,11 +337,21 @@ include/rpl_reset.inc
 CREATING TABLE IN master WITH INDEX 'UK'
 CREATE TABLE t (c1 int, c2 int, c3 blob, unique key(c1));
 include/sync_slave_sql_with_master.inc
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 INSERT INTO t VALUES (1,2,"a");
+SET sql_mode = default;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 INSERT INTO t(c1,c3) VALUES (10,"a");
+SET sql_mode = default;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 INSERT INTO t(c1) VALUES (1000);
+SET sql_mode = default;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 UPDATE t SET c1=2 WHERE c1=1;
+SET sql_mode = default;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 DELETE FROM t WHERE c2=2;
+SET sql_mode = default;
 DROP TABLE t;
 include/sync_slave_sql_with_master.inc
 ITERATIONS: row_img: FULL, indexes: K
@@ -223,11 +359,21 @@ include/rpl_reset.inc
 CREATING TABLE IN master WITH INDEX 'K'
 CREATE TABLE t (c1 int, c2 int, c3 blob, key(c1));
 include/sync_slave_sql_with_master.inc
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 INSERT INTO t VALUES (1,2,"a");
+SET sql_mode = default;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 INSERT INTO t(c1,c3) VALUES (10,"a");
+SET sql_mode = default;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 INSERT INTO t(c1) VALUES (1000);
+SET sql_mode = default;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 UPDATE t SET c1=2 WHERE c1=1;
+SET sql_mode = default;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 DELETE FROM t WHERE c2=2;
+SET sql_mode = default;
 DROP TABLE t;
 include/sync_slave_sql_with_master.inc
 ITERATIONS: row_img: FULL, indexes: NONE
@@ -235,11 +381,21 @@ include/rpl_reset.inc
 CREATING TABLE IN master WITH INDEX 'NONE'
 CREATE TABLE t (c1 int, c2 int, c3 blob);
 include/sync_slave_sql_with_master.inc
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 INSERT INTO t VALUES (1,2,"a");
+SET sql_mode = default;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 INSERT INTO t(c1,c3) VALUES (10,"a");
+SET sql_mode = default;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 INSERT INTO t(c1) VALUES (1000);
+SET sql_mode = default;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 UPDATE t SET c1=2 WHERE c1=1;
+SET sql_mode = default;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 DELETE FROM t WHERE c2=2;
+SET sql_mode = default;
 DROP TABLE t;
 include/sync_slave_sql_with_master.inc
 SET @img_types= 'MINIMAL NOBLOB FULL';
@@ -310,13 +466,23 @@ binlog_row_image	NOBLOB
 # PK (contains blob)
 ###################################
 CREATE TABLE t (c1 int, c2 int, c3 blob, primary key(c1,c3(512)));
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 INSERT INTO t VALUES (1,2,"a");
+SET sql_mode = default;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 INSERT INTO t(c1,c3) VALUES (10,"a");
+SET sql_mode = default;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 INSERT INTO t(c1) VALUES (1000);
 Warnings:
 Warning	1364	Field 'c3' doesn't have a default value
+SET sql_mode = default;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 UPDATE t SET c1=2 WHERE c1=1;
+SET sql_mode = default;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 DELETE FROM t WHERE c2=2;
+SET sql_mode = default;
 DROP TABLE t;
 include/sync_slave_sql_with_master.inc
 ###################################
@@ -324,15 +490,25 @@ include/sync_slave_sql_with_master.inc
 ###################################
 include/rpl_reset.inc
 CREATE TABLE t (c1 int, c2 int, c3 blob, primary key(c1,c2));
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 INSERT INTO t VALUES (1,2,"a");
+SET sql_mode = default;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 INSERT INTO t(c1,c3) VALUES (10,"a");
 Warnings:
 Warning	1364	Field 'c2' doesn't have a default value
+SET sql_mode = default;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 INSERT INTO t(c1) VALUES (1000);
 Warnings:
 Warning	1364	Field 'c2' doesn't have a default value
+SET sql_mode = default;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 UPDATE t SET c3='b' WHERE c1=1;
+SET sql_mode = default;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 DELETE FROM t WHERE c2=2;
+SET sql_mode = default;
 DROP TABLE t;
 include/sync_slave_sql_with_master.inc
 ###################################
@@ -356,7 +532,9 @@ SHOW VARIABLES LIKE 'binlog_row_image';
 Variable_name	Value
 binlog_row_image	MINIMAL
 CREATE TABLE t (c1 int NOT NULL AUTO_INCREMENT, c2 int, c3 blob, primary key(c1,c2));
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 INSERT INTO t(c2) VALUES (2);
+SET sql_mode = default;
 DROP TABLE t;
 include/sync_slave_sql_with_master.inc
 ##################################################################
@@ -383,8 +561,12 @@ SET SQL_LOG_BIN=0;
 CREATE TABLE t (c1 int NOT NULL AUTO_INCREMENT, c2 int, c3 blob, primary key(c1,c2));
 SET SQL_LOG_BIN=1;
 CREATE TABLE t (c1 int, c2 int, primary key(c1));
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 INSERT INTO t(c2,c3) VALUES (2,'aaaaa');
+SET sql_mode = default;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 UPDATE t SET c2=3, c3='bbbbb' WHERE c2=2;
+SET sql_mode = default;
 DROP TABLE t;
 include/sync_slave_sql_with_master.inc
 ##################################################################
@@ -411,8 +593,12 @@ SET SQL_LOG_BIN=0;
 CREATE TABLE t (c1 int, c2 int);
 SET SQL_LOG_BIN=1;
 CREATE TABLE t (c1 int, c2 int, c3 int DEFAULT 2005);
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 INSERT INTO t(c1) VALUES (1);
+SET sql_mode = default;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 INSERT INTO t(c1) VALUES (2);
+SET sql_mode = default;
 SELECT * FROM t;
 c1	c2	c3
 1	NULL	2005
@@ -447,8 +633,12 @@ SET SQL_LOG_BIN=0;
 CREATE TABLE t (c1 int NOT NULL, c2 int, c3 int, primary key(c1, c3), unique key(c1));
 SET SQL_LOG_BIN=1;
 CREATE TABLE t (c1 int NOT NULL, c2 int, unique key(c1));
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 INSERT INTO t VALUES (1, 2, 3);
+SET sql_mode = default;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 UPDATE t SET c2= 4 WHERE c1=1;
+SET sql_mode = default;
 SELECT * FROM t;
 c1	c2
 1	4
@@ -482,9 +672,15 @@ SET SQL_LOG_BIN=0;
 CREATE TABLE t (c1 int NOT NULL, c2 int, c3 int, primary key(c1));
 SET SQL_LOG_BIN=1;
 CREATE TABLE t (c1 int NOT NULL, c2 int, c3 int, c4 blob, unique key(c1));
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 INSERT INTO t VALUES (1, 2, 3);
+SET sql_mode = default;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 UPDATE t SET c2= 4 WHERE c1=1;
+SET sql_mode = default;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 DELETE FROM t WHERE c2=4;
+SET sql_mode = default;
 DROP TABLE t;
 include/sync_slave_sql_with_master.inc
 include/rpl_reset.inc
@@ -508,9 +704,15 @@ SET SQL_LOG_BIN=0;
 CREATE TABLE t (c1 int NOT NULL, c2 int, c3 int, primary key(c1));
 SET SQL_LOG_BIN=1;
 CREATE TABLE t (c1 int NOT NULL, c2 int, c3 int, c4 blob, unique key(c1));
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 INSERT INTO t VALUES (1, 2, 3);
+SET sql_mode = default;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 UPDATE t SET c2= 4 WHERE c1=1;
+SET sql_mode = default;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 DELETE FROM t WHERE c2=4;
+SET sql_mode = default;
 DROP TABLE t;
 include/sync_slave_sql_with_master.inc
 ################################################################

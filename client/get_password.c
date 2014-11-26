@@ -30,7 +30,9 @@
 #endif /* HAVE_PWD_H */
 #else /* ! HAVE_GETPASS */
 #ifndef _WIN32
+#ifdef HAVE_SYS_IOCTL_H
 #include <sys/ioctl.h>
+#endif
 #ifdef HAVE_TERMIOS_H				/* For tty-password */
 #include	<termios.h>
 #define TERMIO	struct termios

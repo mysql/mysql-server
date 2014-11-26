@@ -5,6 +5,7 @@
 
 # The test case below demonstrates that meta-data changes are detected
 # by triggers.
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 CREATE TABLE t1 (a INT, b INT);
 CREATE TABLE t2 (a INT, b INT);
 CREATE TABLE t3 (a INT);
@@ -1786,3 +1787,4 @@ latin1
 DROP TABLE t1;
 DROP TABLE t2;
 DROP VIEW v1;
+SET sql_mode = default;

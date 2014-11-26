@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -41,6 +41,13 @@ void
 btr_search_sys_create(
 /*==================*/
 	ulint	hash_size);	/*!< in: hash index hash table size */
+
+/** Resize hash index hash table.
+@param[in]	hash_size	hash index hash table size */
+
+void
+btr_search_sys_resize(
+	ulint	hash_size);
 /*****************************************************************//**
 Frees the adaptive search system at a database shutdown. */
 
@@ -202,6 +209,8 @@ struct btr_search_t{
 	the machine word, i.e., they cannot be turned into bit-fields. */
 	buf_block_t* root_guess;/*!< the root page frame when it was last time
 				fetched, or NULL */
+	ulint	withdraw_clock;	/*!< the withdraw clock value of the buffer
+				pool when root_guess was stored */
 	ulint	hash_analysis;	/*!< when this exceeds
 				BTR_SEARCH_HASH_ANALYSIS, the hash
 				analysis starts; this is reset if no

@@ -869,6 +869,7 @@ t2	CREATE TABLE `t2` (
   `MAX(b)` datetime DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1, t2;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 create table t1(f1 datetime);
 insert into t1 values (now());
 create table t2 select f2 from (select max(now()) f2 from t1) a;
@@ -881,6 +882,7 @@ show columns from t2;
 Field	Type	Null	Key	Default	Extra
 f2	datetime	NO		0000-00-00 00:00:00	
 drop table t2, t1;
+SET sql_mode = default;
 CREATE TABLE t1(
 id int PRIMARY KEY,
 a  int,
@@ -1492,12 +1494,10 @@ NULL
 DROP TABLE t1;
 CREATE TABLE t1 (a INT);
 INSERT INTO t1 VALUES (1),(2),(3),(4);
-SET SQL_MODE=ONLY_FULL_GROUP_BY;
 SELECT a FROM t1 HAVING COUNT(*)>2;
-ERROR 42000: Mixing of GROUP columns (MIN(),MAX(),COUNT(),...) with no GROUP columns is illegal if there is no GROUP BY clause
+ERROR 42000: In aggregated query without GROUP BY, expression #1 of SELECT list contains nonaggregated column 'test.t1.a'; this is incompatible with sql_mode=only_full_group_by
 SELECT COUNT(*), a FROM t1;
-ERROR 42000: Mixing of GROUP columns (MIN(),MAX(),COUNT(),...) with no GROUP columns is illegal if there is no GROUP BY clause
-SET SQL_MODE=DEFAULT;
+ERROR 42000: In aggregated query without GROUP BY, expression #2 of SELECT list contains nonaggregated column 'test.t1.a'; this is incompatible with sql_mode=only_full_group_by
 SELECT a FROM t1 HAVING COUNT(*)>2;
 a
 1
@@ -1552,13 +1552,7 @@ LIMIT 1)
 FROM D AS X 
 WHERE X.int_key < 13  
 GROUP BY int_nokey LIMIT 1;
-(SELECT COUNT( int_nokey ) 
-FROM derived1 AS X 
-WHERE 
-X.int_nokey < 61 
-GROUP BY pk 
-LIMIT 1)
-1
+ERROR 42000: Expression #1 of SELECT list is not in GROUP BY clause and contains nonaggregated column 'test.X.pk' which is not functionally dependent on columns in GROUP BY clause; this is incompatible with sql_mode=only_full_group_by
 DROP TABLE derived1;
 DROP TABLE D;
 CREATE TABLE t1 (a INT, b INT);
@@ -1571,13 +1565,13 @@ SELECT COUNT(*) FROM t1 where a=1;
 COUNT(*)
 3
 SELECT COUNT(*),a FROM t1;
-ERROR 42000: Mixing of GROUP columns (MIN(),MAX(),COUNT(),...) with no GROUP columns is illegal if there is no GROUP BY clause
+ERROR 42000: In aggregated query without GROUP BY, expression #2 of SELECT list contains nonaggregated column 'test.t1.a'; this is incompatible with sql_mode=only_full_group_by
 SELECT COUNT(*) FROM t1 a JOIN t1 b ON a.a= b.a;
 COUNT(*)
 9
 SELECT COUNT(*), (SELECT count(*) FROM t1 inr WHERE inr.a = outr.a) 
 FROM t1 outr;
-ERROR 42000: Mixing of GROUP columns (MIN(),MAX(),COUNT(),...) with no GROUP columns is illegal if there is no GROUP BY clause
+ERROR 42000: In aggregated query without GROUP BY, expression #2 of SELECT list contains nonaggregated column 'test.outr.a'; this is incompatible with sql_mode=only_full_group_by
 SELECT COUNT(*) FROM t1 a JOIN t1 outr 
 ON a.a= (SELECT count(*) FROM t1 inr WHERE inr.a = outr.a);
 COUNT(*)
@@ -1632,10 +1626,9 @@ max	i
 DROP TABLE t1;
 #
 # Bug#43668: Wrong comparison and MIN/MAX for YEAR(2)
+# WL#6263: Remove year(2)
 #
-create table t1 (f1 year(2), f2 year(4), f3 date, f4 datetime);
-Warnings:
-Warning	1818	YEAR(2) column type is deprecated. Creating YEAR(4) column instead.
+create table t1 (f1 year(4), f2 year(4), f3 date, f4 datetime);
 insert into t1 values
 (98,1998,19980101,"1998-01-01 00:00:00"),
 ('00',2000,20000101,"2000-01-01 00:00:01"),

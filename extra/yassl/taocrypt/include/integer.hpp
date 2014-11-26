@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -47,7 +47,7 @@
 
 #ifdef TAOCRYPT_X86ASM_AVAILABLE
     #if defined(__GNUC__) && (__GNUC__ >= 4)
-        // GCC 4 or greater optimizes too much inline on recursive for bigint,
+        // GCC 4 or greater optimizes too much inline on recursive for bigint, 
         // -O3 just as fast without asm here anyway
         #undef TAOCRYPT_X86ASM_AVAILABLE
     #endif

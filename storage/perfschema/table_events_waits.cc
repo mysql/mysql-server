@@ -320,7 +320,7 @@ int table_events_waits_common::make_socket_object_columns(PFS_events_waits *wait
                                    safe_socket->m_addr_len);
 
     /* Convert port number to a string (length includes ':') */
-    int port_len= int10_to_str(port, (port_str+1), 10) - port_str + 1;
+    size_t port_len= int10_to_str(port, (port_str+1), 10) - port_str + 1;
 
     /* OBJECT NAME */
     m_row.m_object_name_length= ip_len + port_len;
@@ -404,6 +404,12 @@ int table_events_waits_common::make_metadata_lock_object_columns(PFS_events_wait
       m_row.m_object_type_length= 6;
       m_row.m_object_schema_length= 0;
       m_row.m_object_name_length= 0;
+      break;
+    case MDL_key::USER_LEVEL_LOCK:
+      m_row.m_object_type= "USER LEVEL LOCK";
+      m_row.m_object_type_length= 15;
+      m_row.m_object_schema_length= 0;
+      m_row.m_object_name_length= mdl->name_length();
       break;
     case MDL_key::NAMESPACE_END:
     default:
@@ -570,11 +576,19 @@ static const LEX_STRING operation_names_map[]=
   { C_STRING_WITH_LEN("lock") },
   { C_STRING_WITH_LEN("try_lock") },
 
-  /* RWLock operations */
+  /* RWLock operations (RW-lock) */
   { C_STRING_WITH_LEN("read_lock") },
   { C_STRING_WITH_LEN("write_lock") },
   { C_STRING_WITH_LEN("try_read_lock") },
   { C_STRING_WITH_LEN("try_write_lock") },
+
+  /* RWLock operations (SX-lock) */
+  { C_STRING_WITH_LEN("shared_lock") },
+  { C_STRING_WITH_LEN("shared_exclusive_lock") },
+  { C_STRING_WITH_LEN("exclusive_lock") },
+  { C_STRING_WITH_LEN("try_shared_lock") },
+  { C_STRING_WITH_LEN("try_shared_exclusive_lock") },
+  { C_STRING_WITH_LEN("try_exclusive_lock") },
 
   /* Condition operations */
   { C_STRING_WITH_LEN("wait") },
@@ -769,14 +783,18 @@ int table_events_waits_common::read_row_values(TABLE *table,
         operation= &operation_names_map[(int) m_row.m_operation - 1];
         set_field_varchar_utf8(f, operation->str, operation->length);
         break;
-      case 17: /* NUMBER_OF_BYTES */
+      case 17: /* NUMBER_OF_BYTES (also used for ROWS) */
         if ((m_row.m_operation == OPERATION_TYPE_FILEREAD) ||
             (m_row.m_operation == OPERATION_TYPE_FILEWRITE) ||
             (m_row.m_operation == OPERATION_TYPE_FILECHSIZE) ||
             (m_row.m_operation == OPERATION_TYPE_SOCKETSEND) ||
             (m_row.m_operation == OPERATION_TYPE_SOCKETRECV) ||
             (m_row.m_operation == OPERATION_TYPE_SOCKETSENDTO) ||
-            (m_row.m_operation == OPERATION_TYPE_SOCKETRECVFROM))
+            (m_row.m_operation == OPERATION_TYPE_SOCKETRECVFROM) ||
+            (m_row.m_operation == OPERATION_TYPE_TABLE_FETCH) ||
+            (m_row.m_operation == OPERATION_TYPE_TABLE_WRITE_ROW) ||
+            (m_row.m_operation == OPERATION_TYPE_TABLE_UPDATE_ROW) ||
+            (m_row.m_operation == OPERATION_TYPE_TABLE_DELETE_ROW))
           set_field_ulonglong(f, m_row.m_number_of_bytes);
         else
           f->set_null();

@@ -64,4 +64,5 @@ SET @@GLOBAL.DEBUG= '+d, simulate_error_on_delete_gtid_from_table';
 RESET MASTER;
 ERROR HY000: Got error -1 from storage engine
 SET GLOBAL DEBUG= @debug_save;
+# restart
 RESET MASTER;

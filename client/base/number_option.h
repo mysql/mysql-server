@@ -1,0 +1,176 @@
+/*
+   Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; version 2 of the License.
+
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
+
+#ifndef NUMBER_OPTION_INCLUDED
+#define NUMBER_OPTION_INCLUDED
+
+#include <string>
+#include "abstract_integer_number_option.h"
+
+ulonglong getopt_double2ulonglong(double v);
+
+namespace Mysql{
+namespace Tools{
+namespace Base{
+namespace Options{
+
+using std::string;
+
+/**
+  Template class for all number options.
+ */
+template<typename T_value> class Number_option
+  : public Abstract_integer_number_option<Number_option<T_value>, T_value>
+{
+private:
+  /**
+    This class cannot be instanced. It is only as template for specialized
+    implementations.
+   */
+  Number_option();
+};
+
+template<typename T_value> Number_option<T_value>::Number_option()
+{}
+
+/**
+  32-bit signed number option.
+ */
+template<> class Number_option<int32>
+: public Abstract_integer_number_option<Number_option<int32>, int32>
+{
+public:
+  /**
+    Constructs new 32-bit signed number option.
+    @param value Pointer to int32 object to receive option value.
+    @param name Name of option. It is used in command line option name as
+      --name.
+    @param desription Description of option to be printed in --help.
+   */
+  Number_option(int32* value, string name, string description)
+    : Abstract_integer_number_option<Number_option<int32>, int32>(
+    value, GET_INT32, name, description)
+  {}
+};
+
+/**
+  32-bit unsigned number option.
+ */
+template<> class Number_option<uint32>
+: public Abstract_integer_number_option<Number_option<uint32>, uint32>
+{
+public:
+  /**
+    Constructs new 32-bit unsigned number option.
+    @param value Pointer to uint32 object to receive option value.
+    @param name Name of option. It is used in command line option name as
+      --name.
+    @param desription Description of option to be printed in --help.
+   */
+  Number_option(uint32* value, string name, string description)
+    : Abstract_integer_number_option<Number_option<uint32>, uint32>(
+    value, GET_UINT32, name, description)
+  {}
+};
+
+/**
+  64-bit signed number option.
+ */
+template<> class Number_option<int64>
+: public Abstract_integer_number_option<Number_option<int64>, int64>
+{
+public:
+  /**
+    Constructs new 64-bit signed number option.
+    @param value Pointer to int64 object to receive option value.
+    @param name Name of option. It is used in command line option name as
+      --name.
+    @param desription Description of option to be printed in --help.
+   */
+  Number_option(int64* value, string name, string description)
+    : Abstract_integer_number_option<Number_option<int64>, int64>(
+    value, GET_LL, name, description)
+  {}
+};
+
+/**
+  64-bit unsigned number option.
+ */
+template<> class Number_option<uint64>
+: public Abstract_integer_number_option<Number_option<uint64>, uint64>
+{
+public:
+  /**
+    Constructs new 64-bit unsigned number option.
+    @param value Pointer to uint64 object to receive option value.
+    @param name Name of option. It is used in command line option name as
+      --name.
+    @param desription Description of option to be printed in --help.
+   */
+  Number_option(uint64* value, string name, string description)
+    : Abstract_integer_number_option<Number_option<uint64>, uint64>(
+    value, GET_ULL, name, description)
+  {}
+};
+
+/**
+  Double precision floating-point number option.
+ */
+template<> class Number_option<double>
+: public Abstract_number_option<Number_option<double>, double>
+{
+public:
+  /**
+    Constructs new floating-point number option.
+    @param value Pointer to double object to receive option value.
+    @param name Name of option. It is used in command line option name as
+      --name.
+    @param desription Description of option to be printed in --help.
+   */
+  Number_option(double* value, string name, string description)
+    : Abstract_number_option<Number_option<double>, double>(
+      value, GET_DOUBLE, name, description,
+      getopt_double2ulonglong((double)*value))
+  {}
+
+  /**
+    Sets minimum value boundary for option value. Smaller values passed as
+    option value will be changed to this minimum value.
+   */
+  virtual Number_option<double>* set_minimum_value(double minimum)
+  {
+    this->m_option_structure.min_value= getopt_double2ulonglong(minimum);
+    return this;
+  }
+
+  /**
+    Sets maximum value boundary for option value. Greater values passed as
+    option value will be changed to this maximum value.
+   */
+  virtual Number_option<double>* set_maximum_value(double maximum)
+  {
+     this->m_option_structure.max_value= getopt_double2ulonglong(maximum);
+     return this;
+  }
+};
+
+}
+}
+}
+}
+
+#endif

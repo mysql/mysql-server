@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -27,6 +27,7 @@
 #include <time.h>
 
 #if defined(_WIN32)
+    #define _WIN32_WINNT 0x0400
     #include <windows.h>
     #include <wincrypt.h>
 #else

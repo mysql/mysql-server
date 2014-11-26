@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -227,10 +227,10 @@ void Rabbit::Process(byte* output, const byte* input, word32 msglen)
     /* Encrypt/decrypt remaining data */
     if (msglen) {
 
-      word32 tmp[4];
-      byte*  buffer = (byte*)tmp;
+        word32 tmp[4];
+        byte*  buffer = (byte*)tmp;
 
-      memset(tmp, 0, sizeof(tmp));   /* help static analysis */
+        memset(tmp, 0, sizeof(tmp));   /* help static analysis */
 
         /* Iterate the system */
         NextState(Work);
@@ -238,11 +238,11 @@ void Rabbit::Process(byte* output, const byte* input, word32 msglen)
         /* Generate 16 bytes of pseudo-random data */
         tmp[0] = LITTLE32(workCtx_.x[0] ^
                   (workCtx_.x[5]>>16) ^ U32V(workCtx_.x[3]<<16));
-        tmp[1] = LITTLE32(workCtx_.x[2] ^
+        tmp[1] = LITTLE32(workCtx_.x[2] ^ 
                   (workCtx_.x[7]>>16) ^ U32V(workCtx_.x[5]<<16));
-        tmp[2] = LITTLE32(workCtx_.x[4] ^
+        tmp[2] = LITTLE32(workCtx_.x[4] ^ 
                   (workCtx_.x[1]>>16) ^ U32V(workCtx_.x[7]<<16));
-        tmp[3] = LITTLE32(workCtx_.x[6] ^
+        tmp[3] = LITTLE32(workCtx_.x[6] ^ 
                   (workCtx_.x[3]>>16) ^ U32V(workCtx_.x[1]<<16));
 
         /* Encrypt/decrypt the data */

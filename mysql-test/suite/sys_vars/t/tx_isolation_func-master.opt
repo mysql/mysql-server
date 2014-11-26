@@ -1,3 +1,2 @@
---innodb
 --innodb_lock_wait_timeout=2
 --binlog-format=row 

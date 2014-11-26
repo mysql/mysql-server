@@ -86,6 +86,7 @@ USER_PRIVILEGES
 VIEWS
 columns_priv
 db
+engine_cost
 event
 func
 general_log
@@ -98,6 +99,7 @@ plugin
 proc
 procs_priv
 proxies_priv
+server_cost
 servers
 slave_master_info
 slave_relay_log_info
@@ -357,13 +359,13 @@ sub1	NULL
 sub2	return i+1
 show create procedure sel2;
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
-sel2	NO_ENGINE_SUBSTITUTION	NULL	latin1	latin1_swedish_ci	latin1_swedish_ci
+sel2	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION	NULL	latin1	latin1_swedish_ci	latin1_swedish_ci
 show create function sub1;
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
-sub1	NO_ENGINE_SUBSTITUTION	NULL	latin1	latin1_swedish_ci	latin1_swedish_ci
+sub1	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION	NULL	latin1	latin1_swedish_ci	latin1_swedish_ci
 show create function sub2;
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
-sub2	NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`mysqltest_1`@`localhost` FUNCTION `sub2`(i int) RETURNS int(11)
+sub2	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`mysqltest_1`@`localhost` FUNCTION `sub2`(i int) RETURNS int(11)
 return i+1	latin1	latin1_swedish_ci	latin1_swedish_ci
 show function status like "sub2";
 Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
@@ -371,7 +373,7 @@ test	sub2	FUNCTION	mysqltest_1@localhost	#	#	DEFINER		latin1	latin1_swedish_ci	l
 drop function sub2;
 show create procedure sel2;
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
-sel2	NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `sel2`()
+sel2	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `sel2`()
 begin
 select * from t1;
 select * from t2;
@@ -903,7 +905,7 @@ AND table_name not like 'ndb%' AND table_name not like 'innodb_%'
 GROUP BY TABLE_SCHEMA;
 table_schema	count(*)
 information_schema	31
-mysql	26
+mysql	28
 create table t1 (i int, j int);
 create trigger trg1 before insert on t1 for each row
 begin
@@ -929,34 +931,34 @@ trg1	INSERT	t1	begin
 if new.j > 10 then
 set new.j := 10;
 end if;
-end	BEFORE	#	NO_ENGINE_SUBSTITUTION	root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
+end	BEFORE	#	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION	root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
 trg2	UPDATE	t1	begin
 if old.i % 2 = 0 then
 set new.j := -1;
 end if;
-end	BEFORE	#	NO_ENGINE_SUBSTITUTION	root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
+end	BEFORE	#	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION	root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
 trg3	UPDATE	t1	begin
 if new.j = -1 then
 set @fired:= "Yes";
 end if;
-end	AFTER	#	NO_ENGINE_SUBSTITUTION	root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
+end	AFTER	#	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION	root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
 select * from information_schema.triggers where trigger_schema in ('mysql', 'information_schema', 'test', 'mysqltest');
 TRIGGER_CATALOG	TRIGGER_SCHEMA	TRIGGER_NAME	EVENT_MANIPULATION	EVENT_OBJECT_CATALOG	EVENT_OBJECT_SCHEMA	EVENT_OBJECT_TABLE	ACTION_ORDER	ACTION_CONDITION	ACTION_STATEMENT	ACTION_ORIENTATION	ACTION_TIMING	ACTION_REFERENCE_OLD_TABLE	ACTION_REFERENCE_NEW_TABLE	ACTION_REFERENCE_OLD_ROW	ACTION_REFERENCE_NEW_ROW	CREATED	SQL_MODE	DEFINER	CHARACTER_SET_CLIENT	COLLATION_CONNECTION	DATABASE_COLLATION
 def	test	trg1	INSERT	def	test	t1	1	NULL	begin
 if new.j > 10 then
 set new.j := 10;
 end if;
-end	ROW	BEFORE	NULL	NULL	OLD	NEW	#	NO_ENGINE_SUBSTITUTION	root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
+end	ROW	BEFORE	NULL	NULL	OLD	NEW	#	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION	root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
 def	test	trg2	UPDATE	def	test	t1	1	NULL	begin
 if old.i % 2 = 0 then
 set new.j := -1;
 end if;
-end	ROW	BEFORE	NULL	NULL	OLD	NEW	#	NO_ENGINE_SUBSTITUTION	root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
+end	ROW	BEFORE	NULL	NULL	OLD	NEW	#	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION	root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
 def	test	trg3	UPDATE	def	test	t1	1	NULL	begin
 if new.j = -1 then
 set @fired:= "Yes";
 end if;
-end	ROW	AFTER	NULL	NULL	OLD	NEW	#	NO_ENGINE_SUBSTITUTION	root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
+end	ROW	AFTER	NULL	NULL	OLD	NEW	#	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION	root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
 drop trigger trg1;
 drop trigger trg2;
 drop trigger trg3;
@@ -1251,11 +1253,11 @@ f1	RETURN @a + 1
 p1	SET @a= 1
 SHOW CREATE PROCEDURE p1;
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
-p1	NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `p1`()
+p1	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `p1`()
 SET @a= 1	latin1	latin1_swedish_ci	latin1_swedish_ci
 SHOW CREATE FUNCTION f1;
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
-f1	NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `f1`() RETURNS int(11)
+f1	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `f1`() RETURNS int(11)
 RETURN @a + 1	latin1	latin1_swedish_ci	latin1_swedish_ci
 SELECT ROUTINE_NAME, ROUTINE_DEFINITION FROM INFORMATION_SCHEMA.ROUTINES WHERE ROUTINE_SCHEMA='test';
 ROUTINE_NAME	ROUTINE_DEFINITION
@@ -1263,10 +1265,10 @@ f1	NULL
 p1	NULL
 SHOW CREATE PROCEDURE p1;
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
-p1	NO_ENGINE_SUBSTITUTION	NULL	latin1	latin1_swedish_ci	latin1_swedish_ci
+p1	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION	NULL	latin1	latin1_swedish_ci	latin1_swedish_ci
 SHOW CREATE FUNCTION f1;
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
-f1	NO_ENGINE_SUBSTITUTION	NULL	latin1	latin1_swedish_ci	latin1_swedish_ci
+f1	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION	NULL	latin1	latin1_swedish_ci	latin1_swedish_ci
 CALL p1();
 SELECT f1();
 f1()
@@ -1404,7 +1406,7 @@ trigger_name
 t1_ai
 show triggers from mysqltest;
 Trigger	Event	Table	Statement	Timing	Created	sql_mode	Definer	character_set_client	collation_connection	Database Collation
-t1_ai	INSERT	t1	set @a = new.a + new.b + new.c	AFTER	#	NO_ENGINE_SUBSTITUTION	root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
+t1_ai	INSERT	t1	set @a = new.a + new.b + new.c	AFTER	#	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION	root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
 show columns from t1;
 Field	Type	Null	Key	Default	Extra
 b	int(11)	YES		NULL	
@@ -1697,7 +1699,7 @@ drop table if exists t1;drop table if exists t1;
 drop table if exists t1;drop table if exists t1;
 drop table if exists t1;drop table if exists
 Warnings:
-Warning	1265	Data truncated for column 'VARIABLE_VALUE' at row 1
+Warning	1406	Data too long for column 'VARIABLE_VALUE' at row 1
 set global init_connect="";
 create table t0 select * from information_schema.global_status where VARIABLE_NAME='COM_SELECT';
 SELECT 1;
@@ -1760,7 +1762,7 @@ FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='ubig';
 TABLE_NAME	COLUMN_NAME	NUMERIC_PRECISION
 ubig	a	19
 ubig	b	20
-INSERT INTO ubig VALUES (0xFFFFFFFFFFFFFFFF,0xFFFFFFFFFFFFFFFF);
+INSERT IGNORE INTO ubig VALUES (0xFFFFFFFFFFFFFFFF,0xFFFFFFFFFFFFFFFF);
 Warnings:
 Warning	1264	Out of range value for column 'a' at row 1
 SELECT length(CAST(b AS CHAR)) FROM ubig;
@@ -2142,3 +2144,23 @@ ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_
 #
 # End of 5.6 tests
 #
+#
+# Bug#19307777 ASSERTION `QEP_TAB->CONDITION() == QEP_TAB->CONDITION_OPTIM()' FAILED
+#
+EXPLAIN select * from
+information_schema . innodb_cmp as table1
+left outer join mysql . procs_priv as table2
+on ( table2 . routine_name = table1 . compress_time )
+where not table1 . compress_time <> '2006-09-03 10:11:37.046313'
+having  table2 . grantor <> '2008-02-28 22:17:05.025739' limit 9;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible HAVING noticed after reading const tables
+Warnings:
+Note	1003	/* select#1 */ select `table1`.`page_size` AS `page_size`,`table1`.`compress_ops` AS `compress_ops`,`table1`.`compress_ops_ok` AS `compress_ops_ok`,`table1`.`compress_time` AS `compress_time`,`table1`.`uncompress_ops` AS `uncompress_ops`,`table1`.`uncompress_time` AS `uncompress_time`,NULL AS `Host`,NULL AS `Db`,NULL AS `User`,NULL AS `Routine_name`,NULL AS `Routine_type`,NULL AS `Grantor`,NULL AS `Proc_priv`,NULL AS `Timestamp` from `information_schema`.`innodb_cmp` `table1` where (`table1`.`compress_time` = '2006-09-03 10:11:37.046313') having 0 limit 9
+select * from
+information_schema . innodb_cmp as table1
+left outer join mysql . procs_priv as table2
+on ( table2 . routine_name = table1 . compress_time )
+where not table1 . compress_time <> '2006-09-03 10:11:37.046313'
+having  table2 . grantor <> '2008-02-28 22:17:05.025739' limit 9;
+page_size	compress_ops	compress_ops_ok	compress_time	uncompress_ops	uncompress_time	Host	Db	User	Routine_name	Routine_type	Grantor	Proc_priv	Timestamp

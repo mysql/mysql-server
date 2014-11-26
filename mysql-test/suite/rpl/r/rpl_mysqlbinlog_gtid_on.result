@@ -38,6 +38,12 @@ include/rpl_restart_server.inc [server_number=1 parameters: --gtid-mode=0]
 INSERT INTO t1 VALUES(20);
 INSERT INTO t1 VALUES(21);
 include/rpl_restart_server.inc [server_number=1]
+==== Error cases ====
+ERROR: The option read-from-remote-server cannot be used when read-from-remote-master is defined and is not equal to BINLOG-DUMP-NON-GTIDS
+ERROR: The --raw flag requires one of --read-from-remote-master or --read-from-remote-server
+ERROR: You cannot use both of --exclude-gtids and --raw together with one of --read-from-remote-server or --read-from-remote-master=BINLOG-DUMP-NON-GTID.
+ERROR: You cannot use both of --exclude-gtids and --raw together with one of --read-from-remote-server or --read-from-remote-master=BINLOG-DUMP-NON-GTID.
+ERROR: You cannot use --include-gtids and --raw together.
 FLUSH LOGS;
 DROP TABLE t1;
 CHANGE MASTER TO MASTER_AUTO_POSITION=0;

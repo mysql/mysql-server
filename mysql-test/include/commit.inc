@@ -267,7 +267,7 @@ select * from t2;
 insert into t2 (a) values (1026);
 --replace_result $MYSQLTEST_VARDIR ..
 --error ER_DUP_ENTRY
-eval load data infile "../../std_data/words.dat" into table t1 (a) set a:=f2(26);
+eval load data infile "../../std_data/words.dat" ignore into table t1 (a) set a:=f2(26);
 
 select * from t2;
 rollback;

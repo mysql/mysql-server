@@ -19,7 +19,7 @@ select count(*) from t1;
 count(*)
 0
 set @@sql_mode=@org_mode;
-insert into t1 values(null);
+insert ignore into t1 values(null);
 Warnings:
 Warning	1264	Out of range value for column 'a' at row 1
 select * from t1;

@@ -203,7 +203,7 @@ private:
 
 public:
   bool get_error_message(int error, String *buf);
-  ha_rows records();
+  virtual int records(ha_rows *num_rows);
   ha_rows estimate_rows_upper_bound()
     { return HA_POS_ERROR; }
   int info(uint);

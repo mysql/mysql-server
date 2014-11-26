@@ -31,6 +31,7 @@ if (`SELECT COUNT(*) = 0 FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE LOWER(varia
 let $innodb_file_per_table_orig=`select @@innodb_file_per_table`;
 let $innodb_file_format_orig=`select @@innodb_file_format`;
 let $innodb_file_format_max_orig=`select @@innodb_file_format_max`;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 --enable_query_log
 
 # Create procedure to perform 
@@ -469,5 +470,6 @@ drop table prep_1;
 eval set global innodb_file_format=$innodb_file_format_orig;
 eval set global innodb_file_format_max=$innodb_file_format_max_orig;
 eval set global innodb_file_per_table=$innodb_file_per_table_orig;
+SET sql_mode = default;
 -- enable_query_log
 

@@ -429,20 +429,25 @@ ALTER TABLE tab ADD INDEX idx6(c4(10)) USING BTREE;
 ALTER TABLE tab MODIFY COLUMN c2 GEOMETRY NOT NULL;
 ALTER TABLE tab MODIFY COLUMN c3 POLYGON NOT NULL;
 ALTER TABLE tab MODIFY COLUMN c4 POINT NOT NULL;
+ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
+ALTER TABLE tab add COLUMN c7 POINT NOT NULL;
+ALTER TABLE tab add COLUMN c8 POINT NOT NULL, ALGORITHM = INPLACE, LOCK=NONE;
+ERROR 0A000: LOCK=NONE is not supported. Reason: Do not support online operation on table with GIS index. Try LOCK=SHARED.
 SHOW CREATE TABLE tab;
 Table	Create Table
 tab	CREATE TABLE `tab` (
   `c1` int(11) NOT NULL,
   `c2` geometry NOT NULL,
   `c3` polygon NOT NULL,
-  `c4` point NOT NULL,
+  `c4` polygon NOT NULL,
   `c5` geometry NOT NULL,
+  `c7` point NOT NULL,
   PRIMARY KEY (`c1`),
   SPATIAL KEY `idx2` (`c2`),
   SPATIAL KEY `idx3` (`c3`),
   SPATIAL KEY `idx4` (`c4`) COMMENT 'testing spatial index on Polygon',
   SPATIAL KEY `idx5` (`c5`) COMMENT 'testing spatial index on Geometry',
-  KEY `idx6` (`c4`(25)) USING BTREE
+  KEY `idx6` (`c4`(10)) USING BTREE
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 SHOW INDEX FROM tab;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
@@ -451,7 +456,7 @@ tab	1	idx2	1	c2	A	#	32	NULL		SPATIAL
 tab	1	idx3	1	c3	A	#	32	NULL		SPATIAL		
 tab	1	idx4	1	c4	A	#	32	NULL		SPATIAL		testing spatial index on Polygon
 tab	1	idx5	1	c5	A	#	32	NULL		SPATIAL		testing spatial index on Geometry
-tab	1	idx6	1	c4	A	#	25	NULL		BTREE		
+tab	1	idx6	1	c4	A	#	10	NULL		BTREE		
 SET @g1 = GeomFromText( 'POLYGON((7 1,6 2,6 3,10 3,10 1,7 1))');
 UPDATE tab SET C2 = GeomFromText('POINT(1000 1000)') 
 WHERE Contains(tab.c4, @g1);
@@ -463,21 +468,23 @@ SELECT c1,Astext(c2),Astext(c4) FROM tab WHERE Contains(tab.c4, @g1) ORDER BY c1
 c1	Astext(c2)	Astext(c4)
 ALTER TABLE tab MODIFY COLUMN c2 POLYGON NOT NULL;
 ALTER TABLE tab MODIFY COLUMN c3 POINT NOT NULL;
+ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
 ALTER TABLE tab MODIFY COLUMN c4 GEOMETRY NOT NULL;
 SHOW CREATE TABLE tab;
 Table	Create Table
 tab	CREATE TABLE `tab` (
   `c1` int(11) NOT NULL,
   `c2` polygon NOT NULL,
-  `c3` point NOT NULL,
+  `c3` polygon NOT NULL,
   `c4` geometry NOT NULL,
   `c5` geometry NOT NULL,
+  `c7` point NOT NULL,
   PRIMARY KEY (`c1`),
   SPATIAL KEY `idx2` (`c2`),
   SPATIAL KEY `idx3` (`c3`),
   SPATIAL KEY `idx4` (`c4`) COMMENT 'testing spatial index on Polygon',
   SPATIAL KEY `idx5` (`c5`) COMMENT 'testing spatial index on Geometry',
-  KEY `idx6` (`c4`(25)) USING BTREE
+  KEY `idx6` (`c4`(10)) USING BTREE
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 SHOW INDEX FROM tab;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
@@ -486,7 +493,7 @@ tab	1	idx2	1	c2	A	#	32	NULL		SPATIAL
 tab	1	idx3	1	c3	A	#	32	NULL		SPATIAL		
 tab	1	idx4	1	c4	A	#	32	NULL		SPATIAL		testing spatial index on Polygon
 tab	1	idx5	1	c5	A	#	32	NULL		SPATIAL		testing spatial index on Geometry
-tab	1	idx6	1	c4	A	#	25	NULL		BTREE		
+tab	1	idx6	1	c4	A	#	10	NULL		BTREE		
 ANALYZE TABLE tab;
 Table	Op	Msg_type	Msg_text
 test.tab	analyze	status	OK
@@ -522,12 +529,13 @@ tab	CREATE TABLE `tab` (
   `c3` linestring NOT NULL,
   `c4` polygon NOT NULL,
   `c5` geometry NOT NULL,
+  `c7` point NOT NULL,
   PRIMARY KEY (`c1`),
   SPATIAL KEY `idx2` (`c2`),
   SPATIAL KEY `idx3` (`c3`),
   SPATIAL KEY `idx4` (`c4`) COMMENT 'testing spatial index on Polygon',
   SPATIAL KEY `idx5` (`c5`) COMMENT 'testing spatial index on Geometry',
-  KEY `idx6` (`c4`(25)) USING BTREE
+  KEY `idx6` (`c4`(10)) USING BTREE
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 SHOW INDEX FROM tab;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
@@ -536,7 +544,7 @@ tab	1	idx2	1	c2	A	#	32	NULL		SPATIAL
 tab	1	idx3	1	c3	A	#	32	NULL		SPATIAL		
 tab	1	idx4	1	c4	A	#	32	NULL		SPATIAL		testing spatial index on Polygon
 tab	1	idx5	1	c5	A	#	32	NULL		SPATIAL		testing spatial index on Geometry
-tab	1	idx6	1	c4	A	#	25	NULL		BTREE		
+tab	1	idx6	1	c4	A	#	10	NULL		BTREE		
 ANALYZE TABLE tab;
 Table	Op	Msg_type	Msg_text
 test.tab	analyze	status	OK

@@ -30,6 +30,7 @@ SET(TESTS
   mem0mem
   ut0crc32
   ut0mem
+  ut0new
 )
 
 IF (MERGE_UNITTESTS)

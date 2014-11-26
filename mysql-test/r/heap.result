@@ -315,9 +315,11 @@ t1	CREATE TABLE `t1` (
   `c` varchar(10) DEFAULT NULL,
   `t` varchar(50) DEFAULT NULL
 ) ENGINE=MEMORY DEFAULT CHARSET=latin1
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 alter table t1 modify t varchar(10);
 Warnings:
 Warning	1265	Data truncated for column 't' at row 2
+SET sql_mode = default;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (

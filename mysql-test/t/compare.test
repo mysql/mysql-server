@@ -86,12 +86,12 @@ DROP TABLE t1,t2;
 #
 # Bug #39353: Multiple conditions on timestamp column crashes server
 #
-
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 CREATE TABLE t1 (a TIMESTAMP); 
 INSERT INTO t1 VALUES (NOW()),(NOW()),(NOW());
 SELECT * FROM t1 WHERE a > '2008-01-01' AND a = '0000-00-00';
 DROP TABLE t1;
-
+SET sql_mode = default;
 --echo End of 5.0 tests
 
 #

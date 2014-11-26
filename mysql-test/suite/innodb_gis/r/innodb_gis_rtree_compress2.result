@@ -20,10 +20,7 @@ truncate table t1;
 call mtr.add_suppression("InnoDB: page [0-9]+ in the doublewrite buffer is not within space bounds.*");
 START TRANSACTION;
 CALL insert_t1(5000);
-SET DEBUG='+d,crash_commit_after';
 COMMIT;
-ERROR HY000: Lost connection to MySQL server during query
-
+# Kill and restart
 drop procedure insert_t1;
-SET GLOBAL innodb_file_format=Antelope;
 drop table t1;

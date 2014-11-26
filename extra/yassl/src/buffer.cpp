@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -34,8 +34,19 @@ namespace yaSSL {
 
 
 
-void NoCheck::check(uint, uint) 
+/* return 0 on check success, always true for NoCheck policy */
+int NoCheck::check(uint, uint) 
 {
+    return 0;
+}
+
+/* return 0 on check success */
+int Check::check(uint i, uint max) 
+{
+    if (i < max)
+        return 0;
+
+    return -1;
 }
 
 
@@ -50,18 +61,20 @@ void NoCheck::check(uint, uint)
 
 
 input_buffer::input_buffer() 
-    : size_(0), current_(0), buffer_(0), end_(0) 
+    : size_(0), current_(0), buffer_(0), end_(0), error_(0), zero_(0)
 {}
 
 
 input_buffer::input_buffer(uint s) 
-    : size_(0), current_(0), buffer_(NEW_YS byte[s]), end_(buffer_ + s)
+    : size_(0), current_(0), buffer_(NEW_YS byte[s]), end_(buffer_ + s),
+      error_(0), zero_(0)
 {}
 
 
 // with assign
 input_buffer::input_buffer(uint s, const byte* t, uint len) 
-    : size_(0), current_(0), buffer_(NEW_YS byte[s]), end_(buffer_ + s) 
+    : size_(0), current_(0), buffer_(NEW_YS byte[s]), end_(buffer_ + s),
+      error_(0), zero_(0)
 { 
     assign(t, len); 
 }
@@ -76,8 +89,10 @@ input_buffer::~input_buffer()
 // users can pass defualt zero length buffer and then allocate
 void input_buffer::allocate(uint s) 
 { 
-    buffer_ = NEW_YS byte[s];
-    end_ = buffer_ + s; 
+    if (error_ == 0) {
+        buffer_ = NEW_YS byte[s];
+        end_ = buffer_ + s;
+    }
 }
 
 
@@ -92,40 +107,67 @@ byte* input_buffer::get_buffer() const
 // if you know the size before the write use assign()
 void input_buffer::add_size(uint i) 
 { 
-    check(size_ + i-1, get_capacity()); 
-    size_ += i; 
+    if (error_ == 0 && check(size_ + i-1, get_capacity()) == 0)
+        size_ += i;
+    else
+        error_ = -1;
 }
 
 
 uint input_buffer::get_capacity()  const 
 { 
-    return (uint) (end_ - buffer_); 
+    if (error_ == 0)
+        return end_ - buffer_;
+
+    return 0;
 }
 
 
 uint input_buffer::get_current()   const 
 { 
-    return current_; 
+    if (error_ == 0)
+        return current_;
+
+    return 0;
 }
 
 
 uint input_buffer::get_size()      const 
 { 
-    return size_; 
+    if (error_ == 0)
+        return size_;
+
+    return 0;
 }
 
 
 uint input_buffer::get_remaining() const 
 { 
-    return size_ - current_; 
+    if (error_ == 0)
+        return size_ - current_;
+
+    return 0;
+}
+
+
+int input_buffer::get_error() const 
+{ 
+    return error_;
+}
+
+
+void input_buffer::set_error()
+{ 
+    error_ = -1;
 }
 
 
 void input_buffer::set_current(uint i) 
 {
-    if (i)
-        check(i - 1, size_); 
-    current_ = i; 
+    if (error_ == 0 && i && check(i - 1, size_) == 0)
+        current_ = i;
+    else
+        error_ = -1;
 }
 
 
@@ -133,40 +175,59 @@ void input_buffer::set_current(uint i)
 // user passes in AUTO index for ease of use
 const byte& input_buffer::operator[](uint i) 
 {
-    check(current_, size_);
-    return buffer_[current_++];
+    if (error_ == 0 && check(current_, size_) == 0)
+        return buffer_[current_++];
+
+    error_ = -1;
+    return zero_;
 }
 
 
 // end of input test
 bool input_buffer::eof() 
 { 
+    if (error_ != 0)
+        return true;
+
     return current_ >= size_; 
 }
 
 
 // peek ahead
-byte input_buffer::peek() const
+byte input_buffer::peek()
 {
-    return buffer_[current_];
+    if (error_ == 0 && check(current_, size_) == 0)
+        return buffer_[current_];
+
+    error_ = -1;
+    return 0;
 }
 
 
 // write function, should use at/near construction
 void input_buffer::assign(const byte* t, uint s)
 {
-    check(current_, get_capacity());
-    add_size(s);
-    memcpy(&buffer_[current_], t, s);
+    if (t && error_ == 0 && check(current_, get_capacity()) == 0) {
+        add_size(s);
+        if (error_ == 0) {
+            memcpy(&buffer_[current_], t, s);
+            return;  // success
+        }
+    }
+
+    error_ = -1;
 }
 
 
 // use read to query input, adjusts current
 void input_buffer::read(byte* dst, uint length)
 {
-    check(current_ + length - 1, size_);
-    memcpy(dst, &buffer_[current_], length);
-    current_ += length;
+    if (dst && error_ == 0 && check(current_ + length - 1, size_) == 0) {
+        memcpy(dst, &buffer_[current_], length);
+        current_ += length;
+    } else {
+        error_ = -1;
+    }
 }
 
 

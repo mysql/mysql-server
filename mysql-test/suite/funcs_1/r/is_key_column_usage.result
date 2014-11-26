@@ -83,6 +83,9 @@ def	mysql	PRIMARY	def	mysql	columns_priv	Column_name
 def	mysql	PRIMARY	def	mysql	db	Host
 def	mysql	PRIMARY	def	mysql	db	Db
 def	mysql	PRIMARY	def	mysql	db	User
+def	mysql	PRIMARY	def	mysql	engine_cost	cost_name
+def	mysql	PRIMARY	def	mysql	engine_cost	engine_name
+def	mysql	PRIMARY	def	mysql	engine_cost	device_type
 def	mysql	PRIMARY	def	mysql	event	db
 def	mysql	PRIMARY	def	mysql	event	name
 def	mysql	PRIMARY	def	mysql	func	name
@@ -118,6 +121,7 @@ def	mysql	PRIMARY	def	mysql	proxies_priv	Host
 def	mysql	PRIMARY	def	mysql	proxies_priv	User
 def	mysql	PRIMARY	def	mysql	proxies_priv	Proxied_host
 def	mysql	PRIMARY	def	mysql	proxies_priv	Proxied_user
+def	mysql	PRIMARY	def	mysql	server_cost	cost_name
 def	mysql	PRIMARY	def	mysql	servers	Server_name
 def	mysql	PRIMARY	def	mysql	slave_master_info	Host
 def	mysql	PRIMARY	def	mysql	slave_master_info	Port

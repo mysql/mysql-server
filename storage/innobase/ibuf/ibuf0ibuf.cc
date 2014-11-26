@@ -293,31 +293,31 @@ static ib_mutex_t	ibuf_mutex;
 static ib_mutex_t	ibuf_bitmap_mutex;
 
 /** The area in pages from which contract looks for page numbers for merge */
-#define	IBUF_MERGE_AREA			8UL
+const ulint		IBUF_MERGE_AREA = 8;
 
 /** Inside the merge area, pages which have at most 1 per this number less
 buffered entries compared to maximum volume that can buffered for a single
 page are merged along with the page whose buffer became full */
-#define IBUF_MERGE_THRESHOLD		4
+const ulint		IBUF_MERGE_THRESHOLD = 4;
 
 /** In ibuf_contract at most this number of pages is read to memory in one
 batch, in order to merge the entries for them in the insert buffer */
-#define	IBUF_MAX_N_PAGES_MERGED		IBUF_MERGE_AREA
+const ulint		IBUF_MAX_N_PAGES_MERGED = IBUF_MERGE_AREA;
 
 /** If the combined size of the ibuf trees exceeds ibuf->max_size by this
 many pages, we start to contract it in connection to inserts there, using
 non-synchronous contract */
-#define IBUF_CONTRACT_ON_INSERT_NON_SYNC	0
+const ulint		IBUF_CONTRACT_ON_INSERT_NON_SYNC = 0;
 
 /** If the combined size of the ibuf trees exceeds ibuf->max_size by this
 many pages, we start to contract it in connection to inserts there, using
 synchronous contract */
-#define IBUF_CONTRACT_ON_INSERT_SYNC		5
+const ulint		IBUF_CONTRACT_ON_INSERT_SYNC = 5;
 
 /** If the combined size of the ibuf trees exceeds ibuf->max_size by
 this many pages, we start to contract it synchronous contract, but do
 not insert */
-#define IBUF_CONTRACT_DO_NOT_INSERT		10
+const ulint		IBUF_CONTRACT_DO_NOT_INSERT = 10;
 
 /* TODO: how to cope with drop table if there are records in the insert
 buffer for the indexes of the table? Is there actually any problem,
@@ -510,7 +510,7 @@ ibuf_init_at_db_start(void)
 	page_t*		header_page;
 	dberr_t		error;
 
-	ibuf = static_cast<ibuf_t*>(ut_zalloc(sizeof(ibuf_t)));
+	ibuf = static_cast<ibuf_t*>(ut_zalloc_nokey(sizeof(ibuf_t)));
 
 	/* At startup we intialize ibuf to have a maximum of
 	CHANGE_BUFFER_DEFAULT_SIZE in terms of percentage of the
@@ -931,6 +931,7 @@ ibuf_set_free_bits_func(
 			break;
 		}
 		/* fall through */
+	case FIL_TYPE_TEMPORARY:
 	case FIL_TYPE_IMPORT:
 		mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
 	}
@@ -2323,7 +2324,8 @@ ibuf_get_merge_page_nos_func(
 
 	*n_stored = 0;
 
-	limit = ut_min(IBUF_MAX_N_PAGES_MERGED, buf_pool_get_curr_size() / 4);
+	limit = ut_min(IBUF_MAX_N_PAGES_MERGED,
+		       buf_pool_get_curr_size() / 4);
 
 	if (page_rec_is_supremum(rec)) {
 
@@ -4632,7 +4634,7 @@ ibuf_merge_or_delete_for_page(
 		rw_lock_x_lock_move_ownership(&(block->lock));
 		page_zip = buf_block_get_page_zip(block);
 
-		if (fil_page_get_type(block->frame) != FIL_PAGE_INDEX
+		if (!fil_page_index_page_check(block->frame)
 		    || !page_is_leaf(block->frame)) {
 
 			page_t*	bitmap_page;
@@ -5197,4 +5199,39 @@ ibuf_check_bitmap_on_import(
 	mutex_exit(&ibuf_mutex);
 	return(DB_SUCCESS);
 }
+
+/** Updates free bits and buffered bits for bulk loaded page.
+@param[in]	block	index page
+@param[in]	reset	flag if reset free val */
+void
+ibuf_set_bitmap_for_bulk_load(
+	buf_block_t*	block,
+	bool		reset)
+{
+	page_t*	bitmap_page;
+	mtr_t	mtr;
+	ulint	free_val;
+
+	ut_a(page_is_leaf(buf_block_get_frame(block)));
+
+	free_val = ibuf_index_page_calc_free(block);
+
+	mtr_start(&mtr);
+	mtr.set_named_space(block->page.id.space());
+
+	bitmap_page = ibuf_bitmap_get_map_page(block->page.id,
+                                               block->page.size, &mtr);
+
+	free_val = reset ? 0 : ibuf_index_page_calc_free(block);
+	ibuf_bitmap_page_set_bits(
+		bitmap_page, block->page.id, block->page.size,
+		IBUF_BITMAP_FREE, free_val, &mtr);
+
+	ibuf_bitmap_page_set_bits(
+		bitmap_page, block->page.id, block->page.size,
+		IBUF_BITMAP_BUFFERED, FALSE, &mtr);
+
+	mtr_commit(&mtr);
+}
+
 #endif /* !UNIV_HOTBACKUP */

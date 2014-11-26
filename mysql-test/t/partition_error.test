@@ -61,13 +61,13 @@ PARTITION BY RANGE (DAYOFWEEK(a))
 CREATE TABLE t1 (a DATE)
 PARTITION BY RANGE (DAYOFWEEK(a))
 (PARTITION a1 VALUES LESS THAN (60));
-INSERT INTO t1 VALUES ('test'),('a'),('5');
+INSERT IGNORE INTO t1 VALUES ('test'),('a'),('5');
 SHOW WARNINGS;
 DROP TABLE t1;
 CREATE TABLE t1 (a DATETIME)
 PARTITION BY RANGE (DAYOFWEEK(a))
 (PARTITION a1 VALUES LESS THAN (60));
-INSERT INTO t1 VALUES ('test'),('a'),('5');
+INSERT IGNORE INTO t1 VALUES ('test'),('a'),('5');
 SHOW WARNINGS;
 DROP TABLE t1;
 --error ER_WRONG_EXPR_IN_PARTITION_FUNC_ERROR
@@ -1635,7 +1635,7 @@ partition by hash (extractvalue(a,'a'));
 --echo # Bug #42849: innodb crash with varying time_zone on partitioned
 --echo #             timestamp primary key
 --echo #
-
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 # A correctly partitioned table to test that trying to repartition it using
 # timezone-dependent expression will throw an error.
 CREATE TABLE old (a TIMESTAMP NOT NULL PRIMARY KEY)
@@ -2052,3 +2052,4 @@ SELECT PARTITION_NAME, SUBPARTITION_NAME, PARTITION_COMMENT FROM INFORMATION_SCH
 WHERE TABLE_NAME = 't1' AND TABLE_SCHEMA = 'test';
 
 DROP TABLE t1;
+SET sql_mode = default;

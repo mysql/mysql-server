@@ -1,0 +1,48 @@
+--source include/not_embedded.inc
+--source include/have_innodb.inc
+
+--echo #
+--echo # Bug#13955083 ALLOW IN-PLACE DDL OPERATIONS ON MISSING
+--echo # OR DISCARDED TABLESPACES
+--echo #
+
+let $MYSQLD_DATADIR=`select @@datadir`;
+SET GLOBAL innodb_file_per_table=1;
+CREATE TABLE t(a INT)ENGINE=InnoDB;
+
+--source include/shutdown_mysqld.inc
+
+# Remove the tablespace file.
+let IBD=$MYSQLD_DATADIR/test/t.ibd;
+perl;
+unlink "$ENV{IBD}" || die "Unable to unlink $ENV{IBD}\n";
+EOF
+
+--source include/start_mysqld.inc
+
+--disable_query_log
+call mtr.add_suppression("\\[Warning\\] InnoDB: cannot calculate statistics for table \"test\"\.\"t\" because the \.ibd file is missing");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: Operating system error number 2 in a file operation.");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: The error means the system cannot find the path specified.");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: If you are installing InnoDB, remember that you must create directories yourself, InnoDB does not create them.");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: Cannot open datafile for read-only:");
+call mtr.add_suppression("InnoDB: Table 'test/t'$");
+call mtr.add_suppression("Could not find a valid tablespace file for");
+call mtr.add_suppression("InnoDB: Tablespace open failed for \"test\"\.\"t\", ignored");
+call mtr.add_suppression("InnoDB: Failed to find tablespace for table \"test\"\.\"t\" in the cache");
+call mtr.add_suppression("InnoDB: Cannot delete tablespace [0-9]+.*not found");
+call mtr.add_suppression("Table .*t in the InnoDB data dictionary has tablespace id .*, but tablespace with that id or name does not exist");
+--enable_query_log
+
+# The ER_NO_SUCH_TABLE is being thrown by ha_innobase::open().
+# The table does exist, only the tablespace does not exist.
+--error ER_NO_SUCH_TABLE
+SELECT * FROM t;
+
+--error ER_NO_SUCH_TABLE
+ALTER TABLE t ADD INDEX (a), ALGORITHM=INPLACE;
+--error ER_NO_SUCH_TABLE
+ALTER TABLE t1 ADD INDEX (a), ALGORITHM=COPY;
+
+ALTER TABLE t DISCARD TABLESPACE;
+DROP TABLE t;

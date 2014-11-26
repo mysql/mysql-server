@@ -497,7 +497,8 @@ public:
 };
 
 class Item_maxmin_subselect;
-struct st_join_table;
+class JOIN;
+
 /*
   trigcond<param>(arg) ::= param? arg : TRUE
 
@@ -554,23 +555,28 @@ public:
 private:
   /** Pointer to trigger variable */
   bool *trig_var;
-  /** Optional table(s) which are the source of trig_var; for printing */
-  const struct st_join_table *trig_tab;
+  /// Optional: JOIN of table which is the source of trig_var
+  const JOIN *m_join;
+  /// Optional: if join!=NULL: index of table
+  plan_idx m_idx;
   /** Type of trig_var; for printing */
   enum_trig_type trig_type;
 public:
   /**
      @param a             the item for <condition>
      @param f             pointer to trigger variable
-     @param tab           optional table which is source of 'f',
-                          NULL if not applicable
+     @param join          if a table's property is the source of 'f', JOIN
+     which owns this table; NULL otherwise.
+     @param idx           if join!=NULL: index of this table in the
+     JOIN_TAB/QEP_TAB array. NO_PLAN_IDX otherwise.
      @param trig_type_arg type of 'f'
   */
-  Item_func_trig_cond(Item *a, bool *f, struct st_join_table *tab,
+  Item_func_trig_cond(Item *a, bool *f, JOIN *join, plan_idx idx,
                       enum_trig_type trig_type_arg)
-    : Item_bool_func(a), trig_var(f), trig_tab(tab), trig_type(trig_type_arg)
+  : Item_bool_func(a), trig_var(f), m_join(join), m_idx(idx),
+    trig_type(trig_type_arg)
   {}
-  longlong val_int() { return *trig_var ? args[0]->val_int() : 1; }
+  longlong val_int();
   enum Functype functype() const { return TRIG_COND_FUNC; };
   /// '<if>', to distinguish from the if() SQL function
   const char *func_name() const { return "<if>"; };
@@ -931,6 +937,9 @@ protected:
   Item_func_coalesce(const POS &pos, Item *a, Item *b)
     : Item_func_numhybrid(pos, a, b)
   {}
+  Item_func_coalesce(const POS &pos, Item *a)
+    : Item_func_numhybrid(pos, a)
+  {}
 public:
   Item_func_coalesce(const POS &pos, PT_item_list *list);
   double real_op();
@@ -966,6 +975,21 @@ public:
   const char *func_name() const { return "ifnull"; }
   Field *tmp_table_field(TABLE *table);
   uint decimal_precision() const;
+};
+
+
+/**
+   ANY_VALUE(expr) is like expr except that it is not checked by
+   aggregate_check logic. It serves as a solution for users who want to
+   bypass this logic.
+*/
+class Item_func_any_value :public Item_func_coalesce
+{
+public:
+  Item_func_any_value(const POS &pos, Item *a) :Item_func_coalesce(pos, a) {}
+  const char *func_name() const { return "any_value"; }
+  bool aggregate_check_group(uchar *arg);
+  bool aggregate_check_distinct(uchar *arg);
 };
 
 

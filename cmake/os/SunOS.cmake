@@ -1,4 +1,4 @@
-# Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -16,9 +16,42 @@
 INCLUDE(CheckSymbolExists)
 INCLUDE(CheckCSourceRuns)
 INCLUDE(CheckCSourceCompiles) 
+INCLUDE(CheckCXXSourceCompiles)
+
+# We require at least GCC 4.4 or SunStudio 12u2 (CC 5.11)
+IF(NOT FORCE_UNSUPPORTED_COMPILER)
+  IF(CMAKE_COMPILER_IS_GNUCC)
+    EXECUTE_PROCESS(COMMAND ${CMAKE_C_COMPILER} -dumpversion
+                    OUTPUT_VARIABLE GCC_VERSION)
+    IF(GCC_VERSION VERSION_LESS 4.4)
+      MESSAGE(FATAL_ERROR "GCC 4.4 or newer is required!")
+    ENDIF()
+  ELSEIF(CMAKE_C_COMPILER_ID MATCHES "SunPro")
+    EXECUTE_PROCESS(
+      COMMAND ${CMAKE_CXX_COMPILER} "-V"
+      OUTPUT_VARIABLE stdout
+      ERROR_VARIABLE  stderr
+      RESULT_VARIABLE result
+    )
+    STRING(REGEX MATCH "CC: Sun C\\+\\+ 5\\.([0-9]+)" VERSION_STRING ${stderr})
+    SET(CC_MINOR_VERSION ${CMAKE_MATCH_1})
+    IF(${CC_MINOR_VERSION} LESS 11)
+      MESSAGE(FATAL_ERROR "SunStudio 12u2 or newer is required!")
+    ENDIF()
+  ELSE()
+    MESSAGE(FATAL_ERROR "Unsupported compiler!")
+  ENDIF()
+ENDIF()
 
 # Enable 64 bit file offsets
-SET(_FILE_OFFSET_BITS 64)
+ADD_DEFINITIONS(-D_FILE_OFFSET_BITS=64)
+
+# Enable general POSIX extensions. See standards(5) man page.
+ADD_DEFINITIONS(-D__EXTENSIONS__)
+
+# Solaris threads with POSIX semantics:
+# http://docs.oracle.com/cd/E19455-01/806-5257/6je9h033k/index.html
+ADD_DEFINITIONS(-D_POSIX_PTHREAD_SEMANTICS -D_REENTRANT)
 
 # On  Solaris, use of intrinsics will screw the lib search logic
 # Force using -lm, so rint etc are found.
@@ -60,6 +93,27 @@ CHECK_C_SOURCE_RUNS(
   }
 "  HAVE_SOLARIS_ATOMIC)
 
+CHECK_CXX_SOURCE_COMPILES("
+    #undef inline
+    #if !defined(_REENTRANT)
+    #define _REENTRANT
+    #endif
+    #include <pthread.h>
+    #include <sys/types.h>
+    #include <sys/socket.h>
+    #include <netinet/in.h>
+    #include <arpa/inet.h>
+    #include <netdb.h>
+    int main()
+    {
+
+       struct hostent *foo =
+       gethostbyaddr_r((const char *) 0,
+          0, 0, (struct hostent *) 0, (char *) NULL,  0, (int *)0);
+       return 0;
+    }
+  "
+  HAVE_SOLARIS_STYLE_GETHOST)
 
 # Check is special processor flag needs to be set on older GCC
 #that defaults to v8 sparc . Code here is taken from my_rdtsc.c 

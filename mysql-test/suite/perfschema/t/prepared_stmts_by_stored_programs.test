@@ -7,7 +7,6 @@
 --source suite/perfschema/include/no_protocol.inc
 
 --let $psi_select = SELECT STATEMENT_NAME, SQL_TEXT, COUNT_EXECUTE, COUNT_REPREPARE, OWNER_OBJECT_TYPE, OWNER_OBJECT_SCHEMA, OWNER_OBJECT_NAME FROM performance_schema.prepared_statements_instances
-
 TRUNCATE TABLE performance_schema.prepared_statements_instances; 
 
 CREATE DATABASE db;
@@ -19,14 +18,14 @@ CREATE TABLE t
   b CHAR(10),
   name CHAR(10)
 );
-
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 INSERT INTO t VALUES (1,"kuchipudi","Vempati");
 INSERT INTO t VALUES (2,"odissi","Mohapatra");
 INSERT INTO t VALUES (3,"kathak","Maharaj");
 INSERT INTO t VALUES (4,"mohiyattam","Kalyanikutty");
 INSERT INTO t VALUES (5,"manipuri","Guru");
 INSERT INTO t VALUES (6,"kathakali","Manavedan");
-
+SET sql_mode= default;
 # Stored Procedure
 DELIMITER |;
 CREATE PROCEDURE p1()

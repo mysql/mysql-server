@@ -1,0 +1,1 @@
+--innodb-open-files=10 --innodb-log-files-in-group=5

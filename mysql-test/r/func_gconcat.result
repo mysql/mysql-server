@@ -815,7 +815,7 @@ LENGTH( GROUP_CONCAT( DISTINCT a ) )
 CREATE TABLE t3( a TEXT, b INT  );
 INSERT INTO t3 VALUES( REPEAT( 'a', 65534 ), 1 );
 INSERT INTO t3 VALUES( REPEAT( 'a', 65535 ), 2 );
-INSERT INTO t3 VALUES( REPEAT( 'a', 65536 ), 3 );
+INSERT IGNORE INTO t3 VALUES( REPEAT( 'a', 65536 ), 3 );
 Warnings:
 Warning	1265	Data truncated for column 'a' at row 1
 SELECT LENGTH( GROUP_CONCAT( a ) ) FROM t3 WHERE b = 1;
@@ -839,7 +839,7 @@ id	group_concat(b.name)
 2	óra,óra
 drop table t1;
 create table t1(a bit not null);
-insert into t1 values (), (), ();
+insert ignore into t1 values (), (), ();
 Warnings:
 Warning	1364	Field 'a' doesn't have a default value
 select group_concat(distinct a) from t1;

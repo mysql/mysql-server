@@ -401,14 +401,7 @@ for synchronization */
 	} while (0);
 
 /** barrier definitions for memory ordering */
-#if defined __i386__ || defined __x86_64__ || defined _M_IX86 || defined _M_X64 || defined __WIN__
-/* Performance regression was observed at some conditions for Intel
-architecture. Disable memory barrier for Intel architecture for now. */
-# define os_rmb
-# define os_wmb
-# define IB_MEMORY_BARRIER_STARTUP_MSG \
-	"Memory barrier is not used"
-#elif defined(HAVE_IB_GCC_ATOMIC_THREAD_FENCE)
+#ifdef HAVE_IB_GCC_ATOMIC_THREAD_FENCE
 # define HAVE_MEMORY_BARRIER
 # define os_rmb	__atomic_thread_fence(__ATOMIC_ACQUIRE)
 # define os_wmb	__atomic_thread_fence(__ATOMIC_RELEASE)

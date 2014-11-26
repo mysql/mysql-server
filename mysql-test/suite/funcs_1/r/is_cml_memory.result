@@ -10,6 +10,7 @@ f5 VARCHAR(0)   UNICODE,
 f6 VARCHAR(255) UNICODE,
 f7 VARCHAR(260) UNICODE
 ) ENGINE = MEMORY;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 SELECT * FROM information_schema.columns
 WHERE table_schema LIKE 'test%'
 ORDER BY table_schema, table_name, column_name;
@@ -79,4 +80,5 @@ NULL	test	t1	f2	char	0	0	ucs2	ucs2_general_ci	char(0)
 NULL	test	t1	f5	varchar	0	0	ucs2	ucs2_general_ci	varchar(0)
 2.0000	test	t1	f6	varchar	255	510	ucs2	ucs2_general_ci	varchar(255)
 2.0000	test	t1	f7	varchar	260	520	ucs2	ucs2_general_ci	varchar(260)
+SET sql_mode = default;
 DROP TABLE t1;

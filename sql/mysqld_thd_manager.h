@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,10 +19,7 @@
 #include "my_global.h"   // ulonglong
 #include "my_pthread.h"  // mysql_mutex_t
 #include "my_atomic.h"   // my_atomic_add32
-
-#include <set>
-#include <functional>
-#include <algorithm>
+#include "prealloced_array.h"
 
 class THD;
 
@@ -80,12 +77,18 @@ public:
   It also provide mutators for inserting, and removing an element:
   add_thd() inserts a THD into the set, and increments the counter.
   remove_thd() removes a THD from the set, and decrements the counter.
-  Method remove_thd() also broadcasts COND_thd_count.
+  Method remove_thd() also broadcasts COND_thd_list.
 */
 
 class Global_THD_manager
 {
 public:
+  /**
+    Value for thread_id reserved for THDs which does not have an
+    assigned value yet. get_new_thread_id() will never return this
+    value.
+  */
+  static const my_thread_id reserved_thread_id;
 
   /**
     Retrieves singleton instance
@@ -155,31 +158,45 @@ public:
   /**
     Retrieves thread created statistic variable.
     @return ulonglong Returns the total number of threads created
-    after server start
+                      after server start
     @note             This is a dirty read.
   */
-  ulonglong get_num_thread_created() const { return thread_created; }
+  ulonglong get_num_thread_created() const
+  {
+    return static_cast<ulonglong>(thread_created);
+  }
 
   /**
     Increments thread created statistic variable.
   */
-  void inc_thread_created();
+  void inc_thread_created()
+  {
+    my_atomic_add64(&thread_created, 1);
+  }
 
   /**
-    Returns the current thread id counter value and increments it.
-    @return my_thread_id Returns the thread id counter value
+    Returns an unused thread id.
   */
-  my_thread_id get_inc_thread_id()
-  {
-    return static_cast<my_thread_id>(my_atomic_add64(&thread_id, 1));
-  }
+  my_thread_id get_new_thread_id();
+
+  /**
+    Releases a thread id so that it can be reused.
+    Note that this is done automatically by remove_thd().
+  */
+  void release_thread_id(my_thread_id thread_id);
 
   /**
     Retrieves thread id counter value.
     @return my_thread_id Returns the thread id counter value
     @note                This is a dirty read.
   */
-  my_thread_id get_thread_id() const { return static_cast<my_thread_id>(thread_id); }
+  my_thread_id get_thread_id() const { return thread_id_counter; }
+
+  /**
+    Sets thread id counter value. Only used in testing for now.
+    @param new_id  The next ID to hand out (if it's unused).
+  */
+  void set_thread_id_counter(my_thread_id new_id);
 
   /**
     Retrieves total number of items in global THD list.
@@ -227,25 +244,31 @@ private:
   // Singleton instance.
   static Global_THD_manager *thd_manager;
 
-  std::set<THD*> *thd_list;  // Protected by LOCK_thd_count.
+  // Array of current THDs. Protected by LOCK_thd_list.
+  typedef Prealloced_array<THD*, 500, true> THD_array;
+  THD_array thd_list;
 
-  mysql_cond_t COND_thd_count;
+  // Array of thread ID in current use. Protected by LOCK_thread_ids.
+  typedef Prealloced_array<my_thread_id, 1000, true> Thread_id_array;
+  Thread_id_array thread_ids;
 
-  // Mutex that guards thd_list.
-  mysql_mutex_t LOCK_thd_count;
+  mysql_cond_t COND_thd_list;
+
+  // Mutex that guards thd_list
+  mysql_mutex_t LOCK_thd_list;
   // Mutex used to guard removal of elements from thd list.
   mysql_mutex_t LOCK_thd_remove;
-  // Mutex used to guard thread_created statistics variable.
-  mysql_mutex_t LOCK_thread_created;
+  // Mutex protecting thread_ids
+  mysql_mutex_t LOCK_thread_ids;
 
   // Count of active threads which are running queries in the system.
-  int num_thread_running;          // Protected by thread_running_lock.
+  volatile int32 num_thread_running;
 
   // Cumulative number of threads created by mysqld daemon.
-  ulonglong thread_created;        // Protected by LOCK_thread_created.
+  volatile int64 thread_created;
 
   // Counter to assign thread id.
-  volatile int64 thread_id;        // Protected by thread_id_lock.
+  my_thread_id thread_id_counter;
 
   // Used during unit test to bypass creating real THD object.
   bool unit_test;

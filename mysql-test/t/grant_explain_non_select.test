@@ -40,7 +40,7 @@ connection con1;
 EXPLAIN INSERT INTO t1 VALUES (10);
         INSERT INTO t1 VALUES (10);
 
---replace_column 10 #
+--replace_column 10 # 11 #
 EXPLAIN INSERT INTO t1 SELECT * FROM t2;
         INSERT INTO t1 SELECT * FROM t2;
 
@@ -95,7 +95,7 @@ connection con1;
 EXPLAIN REPLACE INTO t1 VALUES (10);
         REPLACE INTO t1 VALUES (10);
 
---replace_column 10 #
+--replace_column 10 # 11 #
 EXPLAIN REPLACE INTO t1 SELECT * FROM t2;
         REPLACE INTO t1 SELECT * FROM t2;
 
@@ -146,11 +146,11 @@ connection default;
 GRANT UPDATE, SELECT ON privtest_db.t1 TO 'privtest'@'localhost';
 connection con1;
 
---replace_column 10 x
+--replace_column 10 x 11 x
 EXPLAIN UPDATE t1 SET a = a + 1;
         UPDATE t1 SET a = a + 1;
 
---replace_column 10 x
+--replace_column 10 x 11 x
 EXPLAIN UPDATE t1, t2 SET t1.a = t1.a + 1 WHERE t1.a = t2.a;
         UPDATE t1, t2 SET t1.a = t1.a + 1 WHERE t1.a = t2.a;
 
@@ -202,11 +202,11 @@ REVOKE ALL PRIVILEGES ON privtest_db.t1 FROM 'privtest'@'localhost';
 GRANT DELETE, SELECT ON privtest_db.t1 TO 'privtest'@'localhost';
 connection con1;
 
---replace_column 10 x
+--replace_column 10 x 11 x
 EXPLAIN DELETE FROM t1 WHERE a = 10;
         DELETE FROM t1 WHERE a = 10;
 
---replace_column 10 x
+--replace_column 10 x 11 x
 EXPLAIN DELETE FROM t1 USING t1, t2 WHERE t1.a = t2.a;
         DELETE FROM t1 USING t1, t2 WHERE t1.a = t2.a;
 

@@ -130,7 +130,6 @@ public:
 /* Data Structures */
 
 extern LEX_CSTRING native_password_plugin_name;
-extern LEX_CSTRING old_password_plugin_name;
 extern LEX_CSTRING sha256_password_plugin_name;
 extern LEX_CSTRING validate_password_plugin_name;
 extern LEX_CSTRING default_auth_plugin_name;
@@ -139,9 +138,6 @@ extern LEX_CSTRING default_auth_plugin_name;
 extern bool allow_all_hosts;
 #endif /* NO_EMBEDDED_ACCESS_CHECKS */
 
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
-extern plugin_ref old_password_plugin;
-#endif /* NO_EMBEDDED_ACCESS_CHECKS */
 extern plugin_ref native_password_plugin;
 
 #endif /* SQL_AUTHENTICATION_INCLUDED */

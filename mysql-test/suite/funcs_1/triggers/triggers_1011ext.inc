@@ -13,7 +13,6 @@ eval
 load data infile '$MYSQLTEST_VARDIR/std_data/funcs_1/memory_tb3.txt'
 into table tb3;
 
-
 --disable_abort_on_error
 
 ##############################################
@@ -152,6 +151,7 @@ let $message= Testcase 3.5.10.extra:;
 		for each row set @counter=@counter+1;
 		# declare continue handler for sqlstate '01000' set done = 1;
 
+        SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 	delimiter //;
 	create procedure trig_sp()
 	begin
@@ -363,6 +363,7 @@ set @sql_mode='traditional';
 	set @@max_sp_recursion_depth= 10;
 	set @counter=0;
 	select @counter;
+        
 	--error ER_CANT_UPDATE_USED_TABLE_IN_SF_OR_TRG
 	call trig_sp();
 	select @counter;
@@ -427,5 +428,5 @@ let $message= Testcase y.y.y.5: Rollback of nested trigger references;
 	drop table t2;
 	drop table t3;
 	drop table t4;
-
 DROP TABLE test.tb3;
+SET sql_mode = default;

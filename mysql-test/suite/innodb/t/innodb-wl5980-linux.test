@@ -22,9 +22,7 @@ if (`select convert(@@version_compile_os using latin1) IN ("Linux") = 0`)
 let MYSQL_BASEDIR= `select @@basedir`;
 
 --echo # Stop server
--- exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
--- shutdown_server 30
--- source include/wait_until_disconnected.inc
+--source include/shutdown_mysqld.inc
 
 --echo # Copy the remote tablespace & DB zip files from suite location to working location.
 #--copy_file $MYSQLTEST_VARDIR/../mysql-test/suite/innodb/t/portability_wl5980_linux.zip $MYSQL_TMP_DIR/portability_wl5980_linux.zip
@@ -38,7 +36,7 @@ sub find_zip () {
        my $src_file = $File::Find::name;
        my $srcfile = File::Spec->catfile("$src_file") ;
        my $destfile = File::Spec->catfile("$dest_dir", "portability_wl5980_linux.zip");
-       if (! -e $destfile) {   
+       if (! -e $destfile) {
           copy($srcfile,$destfile) or die "copy @args failed: $!";
        }
    }
@@ -91,7 +89,7 @@ EOF
 --exec echo $MYSQL_TMP_DIR/mysqld.5980/tab4/test/emp4#p#p1.ibd > $MYSQL_TMP_DIR/mysqld.5980/data/test/emp4#p#p1.isl
 --exec echo $MYSQL_TMP_DIR/mysqld.5980/tab5/test/emp4#p#p2.ibd > $MYSQL_TMP_DIR/mysqld.5980/data/test/emp4#p#p2.isl
 
---exec echo $MYSQL_TMP_DIR/mysqld.5980/part0/test/purchase#p#p0#sp#s0.ibd > $MYSQL_TMP_DIR/mysqld.5980/data/test/purchase#p#p0#sp#s0.isl 
+--exec echo $MYSQL_TMP_DIR/mysqld.5980/part0/test/purchase#p#p0#sp#s0.ibd > $MYSQL_TMP_DIR/mysqld.5980/data/test/purchase#p#p0#sp#s0.isl
 --exec echo $MYSQL_TMP_DIR/mysqld.5980/part1/test/purchase#p#p0#sp#s1.ibd > $MYSQL_TMP_DIR/mysqld.5980/data/test/purchase#p#p0#sp#s1.isl
 --exec echo $MYSQL_TMP_DIR/mysqld.5980/part2/test/purchase#p#p1#sp#s2.ibd > $MYSQL_TMP_DIR/mysqld.5980/data/test/purchase#p#p1#sp#s2.isl
 --exec echo $MYSQL_TMP_DIR/mysqld.5980/part3/test/purchase#p#p1#sp#s3.ibd > $MYSQL_TMP_DIR/mysqld.5980/data/test/purchase#p#p1#sp#s3.isl
@@ -108,16 +106,17 @@ EOF
 -- exec echo "restart:--lower_case_table_names=1 --datadir=$MYSQL_TMP_DIR/mysqld.5980/data/ --skip-grant-tables" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 -- enable_reconnect
 -- source include/wait_until_connected_again.inc
+-- disable_reconnect
 
 -- exec $MYSQL -e "UPDATE mysql.user SET plugin = 'mysql_native_password'"
+
 -- echo # Stop server
--- exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
--- shutdown_server 30
--- source include/wait_until_disconnected.inc
+-- source include/shutdown_mysqld.inc
 
 -- exec echo "restart:--lower_case_table_names=1 --datadir=$MYSQL_TMP_DIR/mysqld.5980/data/ " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 -- enable_reconnect
 -- source include/wait_until_connected_again.inc
+-- disable_reconnect
 
 --echo # Check the DB & tables with DML statements.
 use test;
@@ -154,14 +153,14 @@ SELECT COUNT(*) FROM purchase;
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 SELECT path FROM information_schema.innodb_sys_datafiles
        WHERE path LIKE '%test%' ORDER BY space;
-SELECT name,file_format,row_format 
+SELECT name,file_format,row_format
        FROM information_schema.innodb_sys_tablespaces
        ORDER BY name;
-SELECT name,n_cols,file_format,row_format 
-       FROM information_schema.innodb_sys_tables 
+SELECT name,n_cols,file_format,row_format
+       FROM information_schema.innodb_sys_tables
        WHERE name LIKE '%emp%' ORDER BY name;
-SELECT name,n_cols,file_format,row_format 
-       FROM information_schema.innodb_sys_tables 
+SELECT name,n_cols,file_format,row_format
+       FROM information_schema.innodb_sys_tables
        WHERE name LIKE '%purchase%' ORDER BY name;
 
 --echo #

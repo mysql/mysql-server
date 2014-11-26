@@ -8,7 +8,7 @@
 --disable_warnings
 drop table if exists t1,t2,t3;
 --enable_warnings
-
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 create table t1 (a int not null);
 insert into t1 values (1);
 insert into t1 values (a+2);
@@ -327,7 +327,7 @@ INSERT INTO t1(a,c) VALUES (-5000e+0, -5000e+0);
 SELECT * FROM t1;
 
 DROP TABLE t1;
-
+SET sql_mode = default;
 #
 # Bug #31152: assertion in Field_str::store(double)
 #

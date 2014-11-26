@@ -1,5 +1,5 @@
 # -*- cperl -*-
-# Copyright (c) 2007, 2011, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2007, 2014, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU Library General Public
@@ -253,6 +253,7 @@ my @mysqld_rules=
  { 'ssl-ca' => \&fix_ssl_ca },
  { 'ssl-cert' => \&fix_ssl_server_cert },
  { 'ssl-key' => \&fix_ssl_server_key },
+ { 'loose-sha256_password_auto_generate_rsa_keys' => "0"},
   );
 
 if (IS_WINDOWS)
@@ -369,7 +370,6 @@ my @mysqlbinlog_rules=
 #
 my @mysql_upgrade_rules=
 (
- { 'tmpdir' => sub { return shift->{ARGS}->{tmpdir}; } },
 );
 
 

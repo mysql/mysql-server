@@ -42,14 +42,23 @@ int get_user_var_int(const char *name,
                      long long int *value, int *null_value)
 {
   my_bool null_val;
-  user_var_entry *entry= 
-    (user_var_entry*) my_hash_search(&current_thd->user_vars,
+  THD *thd= current_thd;
+
+  /* Protects thd->user_vars. */
+  mysql_mutex_lock(&thd->LOCK_thd_data);
+
+  user_var_entry *entry=
+    (user_var_entry*) my_hash_search(&thd->user_vars,
                                   (uchar*) name, strlen(name));
   if (!entry)
+  {
+    mysql_mutex_unlock(&thd->LOCK_thd_data);
     return 1;
+  }
   *value= entry->val_int(&null_val);
   if (null_value)
     *null_value= null_val;
+  mysql_mutex_unlock(&thd->LOCK_thd_data);
   return 0;
 }
 
@@ -57,14 +66,23 @@ int get_user_var_real(const char *name,
                       double *value, int *null_value)
 {
   my_bool null_val;
-  user_var_entry *entry= 
-    (user_var_entry*) my_hash_search(&current_thd->user_vars,
+  THD *thd= current_thd;
+
+  /* Protects thd->user_vars. */
+  mysql_mutex_lock(&thd->LOCK_thd_data);
+
+  user_var_entry *entry=
+    (user_var_entry*) my_hash_search(&thd->user_vars,
                                   (uchar*) name, strlen(name));
   if (!entry)
+  {
+    mysql_mutex_unlock(&thd->LOCK_thd_data);
     return 1;
+  }
   *value= entry->val_real(&null_val);
   if (null_value)
     *null_value= null_val;
+  mysql_mutex_unlock(&thd->LOCK_thd_data);
   return 0;
 }
 
@@ -73,15 +91,24 @@ int get_user_var_str(const char *name, char *value,
 {
   String str;
   my_bool null_val;
-  user_var_entry *entry= 
-    (user_var_entry*) my_hash_search(&current_thd->user_vars,
+  THD *thd= current_thd;
+
+  /* Protects thd->user_vars. */
+  mysql_mutex_lock(&thd->LOCK_thd_data);
+
+  user_var_entry *entry=
+    (user_var_entry*) my_hash_search(&thd->user_vars,
                                   (uchar*) name, strlen(name));
   if (!entry)
+  {
+    mysql_mutex_unlock(&thd->LOCK_thd_data);
     return 1;
+  }
   entry->val_str(&null_val, &str, precision);
   strncpy(value, str.c_ptr(), len);
   if (null_value)
     *null_value= null_val;
+  mysql_mutex_unlock(&thd->LOCK_thd_data);
   return 0;
 }
 
@@ -172,15 +199,7 @@ void delegates_destroy()
      Use a struct to make sure that they are allocated adjacent, check
      delete_dynamic().
   */                                                                    \
-  struct {                                                              \
-    DYNAMIC_ARRAY plugins;                                              \
-    /* preallocate 8 slots */                                           \
-    plugin_ref plugins_buffer[8];                                       \
-  } s;                                                                  \
-  DYNAMIC_ARRAY *plugins= &s.plugins;                                   \
-  plugin_ref *plugins_buffer= s.plugins_buffer;                         \
-  my_init_dynamic_array2(plugins, sizeof(plugin_ref),                   \
-                         plugins_buffer, 8, 8);                         \
+  Prealloced_array<plugin_ref, 8> plugins(PSI_NOT_INSTRUMENTED);        \
   read_lock();                                                          \
   Observer_info_iterator iter= observer_info_iter();                    \
   Observer_info *info= iter++;                                          \
@@ -194,7 +213,7 @@ void delegates_destroy()
       r= 0;                                                             \
       break;                                                            \
     }                                                                   \
-    insert_dynamic(plugins, &plugin);                                   \
+    plugins.push_back(plugin);                                          \
     if (((Observer *)info->observer)->f                                 \
         && ((Observer *)info->observer)->f args)                        \
     {                                                                   \
@@ -212,9 +231,8 @@ void delegates_destroy()
      deinitialize the plugin, which will try to lock the Delegate in
      order to remove the observers.
   */                                                                    \
-  plugin_unlock_list(0, (plugin_ref*)plugins->buffer,                   \
-                     plugins->elements);                                \
-  delete_dynamic(plugins)
+  if (!plugins.empty())                                                 \
+    plugin_unlock_list(0, &plugins[0], plugins.size());
 
 
 int Trans_delegate::after_commit(THD *thd, bool all)

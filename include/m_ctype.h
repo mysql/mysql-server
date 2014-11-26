@@ -813,14 +813,6 @@ uint my_mbcharlen_ptr(const CHARSET_INFO *cs, const char *s, const char *e);
 #define my_strntoull(s, a, b, c,d, e) ((s)->cset->strntoull((s),(a),(b),(c),(d),(e)))
 #define my_strntod(s, a, b, c, d)     ((s)->cset->strntod((s),(a),(b),(c),(d)))
 
-
-/* XXX: still need to take care of this one */
-#ifdef MY_CHARSET_TIS620
-#error The TIS620 charset is broken at the moment.  Tell tim to fix it.
-#define USE_TIS620
-#include "t_ctype.h"
-#endif
-
 #ifdef	__cplusplus
 }
 #endif

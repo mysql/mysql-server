@@ -153,7 +153,7 @@ parse_key_value_before_filespecs(const char *src,
   for (unsigned i = 0; i < list.size(); i++)
   {
     list[i].trim();
-    if (strncasecmp(list[i].c_str(), key, keylen) == 0)
+    if (native_strncasecmp(list[i].c_str(), key, keylen) == 0)
     {
       // key found, save its value
       value = parse_size(list[i].c_str() + keylen);
@@ -604,7 +604,11 @@ catchsigs(bool foreground){
 #elif defined SIGINFO
     SIGINFO,
 #endif
+#ifdef _WIN32
+    SIGTERM,
+#else
     SIGQUIT,
+#endif
     SIGTERM,
 #ifdef SIGTSTP
     SIGTSTP,
@@ -640,7 +644,11 @@ catchsigs(bool foreground){
   };
 
   static const int signals_ignore[] = {
+#ifdef _WIN32
+    SIGINT
+#else
     SIGPIPE
+#endif
   };
 
   size_t i;

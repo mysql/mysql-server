@@ -36,8 +36,8 @@ as whether the page is compressed or not. */
 class page_size_t {
 public:
 	/** Constructor from (physical, logical, is_compressed).
-	@param[in]	physical	physical (on-disk) page size
-	@param[in]	logical		logical (in-memory) page size
+	@param[in]	physical	physical (on-disk/zipped) page size
+	@param[in]	logical		logical (in-memory/unzipped) page size
 	@param[in]	is_compressed	whether the page is compressed */
 	page_size_t(ulint physical, ulint logical, bool is_compressed)
 		:

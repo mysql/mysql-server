@@ -19,6 +19,7 @@ SET @old_log_bin_trust_function_creators= @@global.log_bin_trust_function_creato
 create table t1 (a int) engine = innodb;
 
 SET GLOBAL log_bin_trust_function_creators = 1;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 
 # 1. Test simple variables use.
 delimiter //;
@@ -225,7 +226,7 @@ end //
 
 create function sf_bug26199(b BIT(7)) returns int
 begin
-  insert into t2 values(b);
+  insert ignore into t2 values(b);
   return 0;
 end//
 
@@ -253,6 +254,7 @@ drop procedure sp_bug26199;
 drop function sf_bug26199;
 
 SET @@global.log_bin_trust_function_creators= @old_log_bin_trust_function_creators;
+SET sql_mode = default;
 
 --source include/sync_slave_sql_with_master.inc
 

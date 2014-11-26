@@ -12,12 +12,9 @@
 #                                                                    #
 ######################################################################
 
-# Don't test this under valgrind, memory leaks will occur due restart
---source include/not_valgrind.inc
-# Not supported in embedded
+# Restarting is not supported in embedded
 --source include/not_embedded.inc
-
--- source include/have_innodb.inc
+--source include/have_innodb.inc
 
 # This test takes long time, so only run it with the --big-test mtr-flag.
 --source include/big_test.inc
@@ -40,16 +37,13 @@ SELECT @@innodb_large_prefix;
 let $MYSQLD_DATADIR = `SELECT @@datadir`;
 let $data_index_directory = DATA DIRECTORY='$MYSQL_TMP_DIR/alt_dir';
 
---disable_warnings
-DROP DATABASE IF EXISTS testdb_wl6445;
---enable_warnings
 CREATE DATABASE testdb_wl6445;
 
 
 #------------------------------------------------------------------------------
 # Testcase 1 covers
 # a) Create table/data , restart server in readonly mode
-# b) verfiy DDL/DML/DCL in read only mode
+# b) verify DDL/DML/DCL in read only mode
 # c) statements blocked for non root and root user from differet sessions.
 #------------------------------------------------------------------------------
 --echo case # 1
@@ -77,15 +71,8 @@ SELECT * FROM otherlocation ORDER BY id;
 
 #
 
-
---exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server 30
---source include/wait_until_disconnected.inc
-# Do something while server is down
---enable_reconnect
-# Write file to make mysql-test-run.pl start up the server again
---exec echo "restart: --innodb-read-only " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---source include/wait_until_connected_again.inc
+let $restart_parameters = restart: --innodb-read-only;
+--source include/restart_mysqld.inc
 
 SET GLOBAL innodb_file_per_table = 1;
 SET GLOBAL innodb_file_format = `Barracuda`;
@@ -170,20 +157,11 @@ UNLOCK TABLES;
 #------------------------------------------------------------------------------
 #
 
-
---exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server 30
---source include/wait_until_disconnected.inc
-# Do something while server is down
---enable_reconnect
-# Write file to make mysql-test-run.pl start up the server again
---exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---source include/wait_until_connected_again.inc
-USE testdb_wl6445;
+let $restart_parameters = restart;
+--source include/restart_mysqld.inc
 DROP USER 'test1'@'localhost';
 DROP USER 'test2'@'localhost';
 DROP USER 'test3'@'localhost';
-DROP TABLE otherlocation;
 DROP DATABASE testdb_wl6445;
 
 
@@ -193,9 +171,6 @@ DROP DATABASE testdb_wl6445;
 # b) verfiy DDL/DML/DCL in read only mode
 #------------------------------------------------------------------------------
 --echo case # 2
---disable_warnings
-DROP DATABASE IF EXISTS testdb_wl6445;
---enable_warnings
 CREATE DATABASE testdb_wl6445;
 
 SET GLOBAL innodb_file_per_table = 1;
@@ -233,15 +208,8 @@ SELECT COUNT(*) FROM testdb_wl6445.t1;
 
 #
 
-
---exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server 30
---source include/wait_until_disconnected.inc
-# Do something while server is down
---enable_reconnect
-# Write file to make mysql-test-run.pl start up the server again
---exec echo "restart: --innodb-read-only " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---source include/wait_until_connected_again.inc
+let $restart_parameters = restart: --innodb-read-only;
+--source include/restart_mysqld.inc
 
 USE testdb_wl6445;
 --ERROR ER_CANT_LOCK
@@ -370,20 +338,9 @@ UNLOCK TABLES;
 # clean-up
 #------------------------------------------------------------------------------
 #
-
-
---exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server 30
---source include/wait_until_disconnected.inc
-# Do something while server is down
---enable_reconnect
-# Write file to make mysql-test-run.pl start up the server again
---exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---source include/wait_until_connected_again.inc
-USE testdb_wl6445;
+let $restart_parameters = restart;
+--source include/restart_mysqld.inc
 DROP DATABASE testdb_wl6445;
-
-
 
 #------------------------------------------------------------------------------
 # Testcase 3 covers
@@ -392,9 +349,6 @@ DROP DATABASE testdb_wl6445;
 # c) verfiy behavior with trigger,procedure,partitioned and temp table
 #------------------------------------------------------------------------------
 --echo case # 3
---disable_warnings
-DROP DATABASE IF EXISTS testdb_wl6445;
---enable_warnings
 CREATE DATABASE testdb_wl6445;
 USE testdb_wl6445;
 CREATE TABLE t1 ( i int PRIMARY KEY , j blob) ENGINE = InnoDB;
@@ -435,15 +389,8 @@ SELECT * FROM t3;
 
 #
 
-
---exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server 30
---source include/wait_until_disconnected.inc
-# Do something while server is down
---enable_reconnect
-# Write file to make mysql-test-run.pl start up the server again
---exec echo "restart: --innodb-read-only " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---source include/wait_until_connected_again.inc
+let $restart_parameters = restart: --innodb-read-only;
+--source include/restart_mysqld.inc
 
 SET GLOBAL innodb_file_per_table = 1;
 SET GLOBAL innodb_file_format = `Barracuda`;
@@ -479,18 +426,9 @@ UNLOCK TABLES;
 #------------------------------------------------------------------------------
 #
 
-
---exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server 30
---source include/wait_until_disconnected.inc
-# Do something while server is down
---enable_reconnect
-# Write file to make mysql-test-run.pl start up the server again
---exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---source include/wait_until_connected_again.inc
-USE testdb_wl6445;
+let $restart_parameters = restart;
+--source include/restart_mysqld.inc
 DROP DATABASE testdb_wl6445;
-
 
 #------------------------------------------------------------------------------
 # Testcase 4 covers
@@ -499,9 +437,6 @@ DROP DATABASE testdb_wl6445;
 #    ( they will be ignored)
 #------------------------------------------------------------------------------
 --echo case # 4
---disable_warnings
-DROP DATABASE IF EXISTS testdb_wl6445;
---enable_warnings
 CREATE DATABASE testdb_wl6445;
 USE testdb_wl6445;
 CREATE TABLE t1 ( i int PRIMARY KEY , j VARCHAR(300), FULLTEXT KEY (j)) ENGINE = InnoDB;
@@ -525,16 +460,8 @@ let $innodb_change_buffering_orig = `select @@innodb_change_buffering`;
 let $innodb_print_all_deadlocks_orig = `select @@innodb_print_all_deadlocks`;
 
 
-
---exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server 30
---source include/wait_until_disconnected.inc
-# Do something while server is down
---enable_reconnect
-# Write file to make mysql-test-run.pl start up the server again
---exec echo "restart: --innodb-read-only --innodb_purge_threads=5 --innodb_buffer_pool_size=16M" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---source include/wait_until_connected_again.inc
-
+let $restart_parameters = restart: --innodb-read-only --innodb_purge_threads=5 --innodb_buffer_pool_size=16M;
+--source include/restart_mysqld.inc
 
 SET GLOBAL innodb_max_purge_lag = 10;
 SET GLOBAL innodb_max_purge_lag_delay = 10;
@@ -584,16 +511,8 @@ eval SET GLOBAL innodb_print_all_deadlocks = $innodb_print_all_deadlocks_orig;
 #------------------------------------------------------------------------------
 #
 
-
---exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server 30
---source include/wait_until_disconnected.inc
-# Do something while server is down
---enable_reconnect
-# Write file to make mysql-test-run.pl start up the server again
---exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---source include/wait_until_connected_again.inc
-USE testdb_wl6445;
+let $restart_parameters = restart;
+--source include/restart_mysqld.inc
 DROP DATABASE testdb_wl6445;
 
 #------------------------------------------------------------------------------
@@ -603,9 +522,6 @@ DROP DATABASE testdb_wl6445;
 # c) check starting with only --read-only
 #------------------------------------------------------------------------------
 --echo case # 5
---disable_warnings
-DROP DATABASE IF EXISTS testdb_wl6445;
---enable_warnings
 CREATE DATABASE testdb_wl6445;
 USE testdb_wl6445;
 CREATE TABLE t1 ( i int PRIMARY KEY , j VARCHAR(300), FULLTEXT KEY (j)) ENGINE = InnoDB;
@@ -616,16 +532,8 @@ INSERT INTO t1 VALUES (4,'mysql database'),(5,'mysql database innodb support'),(
 SELECT * FROM t1 WHERE MATCH (j) AGAINST ('mysql (+database -innodb)' IN BOOLEAN MODE) ;
 SELECT * FROM t1 WHERE MATCH (j) AGAINST ('innodb') ;
 
-
-
---exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server 30
---source include/wait_until_disconnected.inc
-# Do something while server is down
---enable_reconnect
-# Write file to make mysql-test-run.pl start up the server again
---exec echo "restart: --innodb-read-only --read-only" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---source include/wait_until_connected_again.inc
+let $restart_parameters = restart: --innodb-read-only --read-only;
+--source include/restart_mysqld.inc
 USE testdb_wl6445;
 show tables;
 select * from t1 where i = 4;
@@ -641,15 +549,8 @@ CREATE TABLE t2 ( i INT ) ENGINE = Innodb;
 CREATE USER 'test5'@'localhost' IDENTIFIED BY '123';
 GRANT ALL ON testdb_wl6445.* TO 'test5'@'localhost';
 
-
---exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server 30
---source include/wait_until_disconnected.inc
-# Do something while server is down
---enable_reconnect
-# Write file to make server can be start with --read-only
---exec echo "restart: --read-only" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---source include/wait_until_connected_again.inc
+let $restart_parameters = restart: --read-only;
+--source include/restart_mysqld.inc
 USE testdb_wl6445;
 # check if root user able to do DML/DDL
 INSERT INTO t1 VALUES (11,repeat('a',200)),(12,repeat('b',200)),(13,repeat('c',200));
@@ -668,16 +569,8 @@ GRANT ALL ON testdb_wl6445.* TO 'test5_2'@'localhost';
 #------------------------------------------------------------------------------
 #
 
-
---exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server 30
---source include/wait_until_disconnected.inc
-# Do something while server is down
---enable_reconnect
-# Write file to make mysql-test-run.pl start up the server again
---exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---source include/wait_until_connected_again.inc
-USE testdb_wl6445;
+let $restart_parameters = restart;
+--source include/restart_mysqld.inc
 DROP USER 'test5_2'@'localhost';
 DROP USER 'test5'@'localhost';
 DROP DATABASE testdb_wl6445;
@@ -688,9 +581,6 @@ DROP DATABASE testdb_wl6445;
 # b) check mysqldump/mysqlimport work
 #------------------------------------------------------------------------------
 --echo case # 6
---disable_warnings
-DROP DATABASE IF EXISTS testdb_wl6445;
---enable_warnings
 CREATE DATABASE testdb_wl6445;
 USE testdb_wl6445;
 CREATE TABLE t1 ( i int PRIMARY KEY ) ENGINE = InnoDB;
@@ -706,15 +596,8 @@ SELECT i FROM t1 ORDER BY i;
 EOF
 
 
-
---exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server 30
---source include/wait_until_disconnected.inc
-# Do something while server is down
---enable_reconnect
-# Write file to make mysql-test-run.pl start up the server again
---exec echo "restart: --innodb-read-only " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---source include/wait_until_connected_again.inc
+let $restart_parameters = restart: --innodb-read-only;
+--source include/restart_mysqld.inc
 
 USE testdb_wl6445;
 # try mysql import
@@ -736,15 +619,8 @@ SELECT i FROM t1 ORDER BY i;
 #------------------------------------------------------------------------------
 # clean-up
 #------------------------------------------------------------------------------
---exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server 30
---source include/wait_until_disconnected.inc
-# Do something while server is down
---enable_reconnect
-# Write file to make mysql-test-run.pl start up the server again
---exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---source include/wait_until_connected_again.inc
-USE testdb_wl6445;
+let $restart_parameters = restart;
+--source include/restart_mysqld.inc
 DROP DATABASE testdb_wl6445;
 --rmdir $MYSQL_TMP_DIR/alt_dir/testdb_wl6445
 --rmdir $MYSQL_TMP_DIR/alt_dir
@@ -795,22 +671,15 @@ commit;
 check table t1 extended;
 #
 #
---echo "restarting server in read-only-mode"
---exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server 30
---source include/wait_until_disconnected.inc
---enable_reconnect
---exec echo "restart: --innodb-read-only " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
---source include/wait_until_connected_again.inc
---disable_reconnect
+let $restart_parameters = restart: --innodb-read-only;
+--source include/restart_mysqld.inc
 #
 check table t1 extended;
 
 #------------------------------------------------------------------------------
 # clean-up
 #------------------------------------------------------------------------------
---echo "restarting server in normal mode"
+let $restart_parameters = restart;
 --source include/restart_mysqld.inc
 check table t1 extended;
 drop table t1;

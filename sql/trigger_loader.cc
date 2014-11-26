@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -653,11 +653,9 @@ bool Trigger_loader::load_triggers(THD *thd,
                    thd->variables.collation_database->name);
   }
 
-  LEX_STRING db_name_str;
-  lex_string_set(&db_name_str, db_name);
+  LEX_CSTRING db_name_str= {db_name, strlen(db_name)};
 
-  LEX_STRING table_name_str;
-  lex_string_set(&table_name_str, table_name);
+  LEX_CSTRING table_name_str= {table_name, strlen(table_name)};
 
   List_iterator_fast<LEX_STRING> it_definition(trg.definitions);
   List_iterator_fast<sql_mode_t> it_sql_mode(trg.sql_modes);
@@ -936,7 +934,7 @@ bool Trigger_loader::drop_all_triggers(const char *db_name,
       continue;
     }
 #ifdef HAVE_PSI_SP_INTERFACE                                                    
-    LEX_STRING db_name= t->get_db_name();
+    LEX_CSTRING db_name= t->get_db_name();
     /* Drop statistics for this stored program from performance schema. */      
     MYSQL_DROP_SP(SP_TYPE_TRIGGER,                                       
                   db_name.str, db_name.length,    

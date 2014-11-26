@@ -17,7 +17,7 @@ disable_query_log;
 call mtr.add_suppression("Timeout waiting for reply of binlog");
 call mtr.add_suppression("Read semi-sync reply");
 call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT.");
-call mtr.add_suppression("Semi-sync master failed on net_flush() before waiting for slave reply");
+call mtr.add_suppression("Semi-sync master failed on net_flush.. before waiting for slave reply");
 call mtr.add_suppression("Master server does not support semi-sync");
 call mtr.add_suppression("Semi-sync slave .* reply");
 call mtr.add_suppression("Slave SQL.*Request to stop slave SQL Thread received while applying a group that has non-transactional changes; waiting for completion of the group");

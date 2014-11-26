@@ -235,6 +235,12 @@ return 0;
 
 # End of Bug#18239
 
+# Test that Item_sum::eq() works when using an aggregate UDF
+
+create table t1(sum int, price float(24));
+select distinct avgcost(sum,price) from t1 order by avgcost(sum,price);
+drop table t1;
+
 #
 # Drop the example functions from udf_example
 #

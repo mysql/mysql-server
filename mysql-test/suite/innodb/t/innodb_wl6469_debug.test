@@ -7,7 +7,7 @@
 # Must have debug code to use SET SESSION debug
 --source include/have_debug.inc
 
-# Valgrind would complain about memory leaks when we crash on purpose.
+# Valgrind can hang or return spurious messages on DBUG_SUICIDE
 --source include/not_valgrind.inc
 
 # Embedded server does not support crashing
@@ -89,29 +89,10 @@ insert into child values (5),(6);
 select * from parent;
 select * from child;
 #
---echo # restart server
---exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server 40
---source include/wait_until_disconnected.inc
---enable_reconnect
---exec echo "restart " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
---source include/wait_until_connected_again.inc
---disable_reconnect
+--source include/restart_mysqld.inc
 #
 # parent table will be removed on restart as its temp table
 --error ER_NO_SUCH_TABLE
 select * from parent ;
 select * from child ;
 drop table child;
-#
-
-#-------------------------------------------------------------
-#
-# remove test-bed.
-#
-eval set global innodb_file_format = $format;
-eval set global innodb_file_per_table = $per_table;
-
-
-

@@ -41,8 +41,6 @@ Created 10/4/1994 Heikki Tuuri
 
 #include <algorithm>
 
-using std::min;
-
 #ifdef PAGE_CUR_ADAPT
 # ifdef UNIV_SEARCH_PERF_STAT
 static ulint	page_cur_short_succ	= 0;
@@ -120,7 +118,8 @@ page_cur_try_search_shortcut(
 	ut_ad(rec);
 	ut_ad(page_rec_is_user_rec(rec));
 
-	low_match = up_match = min(*ilow_matched_fields, *iup_matched_fields);
+	low_match = up_match = std::min(*ilow_matched_fields,
+					*iup_matched_fields);
 
 	if (cmp_dtuple_rec_with_match(tuple, rec, offsets, &low_match) < 0) {
 		goto exit_func;
@@ -188,7 +187,7 @@ page_cur_rec_field_extends(
 	    || type->mtype == DATA_FIXBINARY
 	    || type->mtype == DATA_BINARY
 	    || type->mtype == DATA_BLOB
-	    || type->mtype == DATA_GEOMETRY
+	    || DATA_GEOMETRY_MTYPE(type->mtype)
 	    || type->mtype == DATA_VARMYSQL
 	    || type->mtype == DATA_MYSQL) {
 
@@ -426,8 +425,8 @@ page_cur_search_with_match(
 		slot = page_dir_get_nth_slot(page, mid);
 		mid_rec = page_dir_slot_get_rec(slot);
 
-		cur_matched_fields = min(low_matched_fields,
-					 up_matched_fields);
+		cur_matched_fields = std::min(low_matched_fields,
+					      up_matched_fields);
 
 		offsets = offsets_;
 		if (index->rec_cache.fixed_len_key) {
@@ -488,8 +487,8 @@ up_slot_match:
 
 		mid_rec = page_rec_get_next_const(low_rec);
 
-		cur_matched_fields = min(low_matched_fields,
-					 up_matched_fields);
+		cur_matched_fields = std::min(low_matched_fields,
+					      up_matched_fields);
 
 		offsets = offsets_;
 		if (index->rec_cache.fixed_len_key) {
@@ -923,7 +922,7 @@ page_cur_parse_insert_rec(
 		buf = buf1;
 	} else {
 		buf = static_cast<byte*>(
-			ut_malloc(mismatch_index + end_seg_len));
+			ut_malloc_nokey(mismatch_index + end_seg_len));
 	}
 
 	/* Build the inserted record to buf */
@@ -1015,7 +1014,7 @@ page_cur_insert_rec_low(
 	page = page_align(current_rec);
 	ut_ad(dict_table_is_comp(index->table)
 	      == (ibool) !!page_is_comp(page));
-	ut_ad(fil_page_get_type(page) == FIL_PAGE_INDEX);
+	ut_ad(fil_page_index_page_check(page));
 	ut_ad(mach_read_from_8(page + PAGE_HEADER + PAGE_INDEX_ID) == index->id
 	      || recv_recovery_is_on()
 	      || (mtr ? mtr->is_inside_ibuf() : dict_index_is_ibuf(index)));
@@ -1235,7 +1234,7 @@ page_cur_direct_insert_rec_low(
 	ut_ad(dict_table_is_comp(index->table)
 	      == (ibool) !!page_is_comp(page));
 
-	ut_ad(fil_page_get_type(page) == FIL_PAGE_INDEX);
+	ut_ad(fil_page_index_page_check(page));
 
 	ut_ad(mach_read_from_8(page + PAGE_HEADER + PAGE_INDEX_ID)
 	      == index->id);
@@ -1452,7 +1451,7 @@ page_cur_insert_rec_zip(
 	page = page_cur_get_page(cursor);
 	ut_ad(dict_table_is_comp(index->table));
 	ut_ad(page_is_comp(page));
-	ut_ad(fil_page_get_type(page) == FIL_PAGE_INDEX);
+	ut_ad(fil_page_index_page_check(page));
 	ut_ad(mach_read_from_8(page + PAGE_HEADER + PAGE_INDEX_ID) == index->id
 	      || (mtr ? mtr->is_inside_ibuf() : dict_index_is_ibuf(index))
 	      || recv_recovery_is_on());
@@ -2266,7 +2265,7 @@ page_cur_delete_rec(
 	current_rec = cursor->rec;
 	ut_ad(rec_offs_validate(current_rec, index, offsets));
 	ut_ad(!!page_is_comp(page) == dict_table_is_comp(index->table));
-	ut_ad(fil_page_get_type(page) == FIL_PAGE_INDEX);
+	ut_ad(fil_page_index_page_check(page));
 	ut_ad(mach_read_from_8(page + PAGE_HEADER + PAGE_INDEX_ID) == index->id
 	      || (mtr ? mtr->is_inside_ibuf() : dict_index_is_ibuf(index))
 	      || recv_recovery_is_on());

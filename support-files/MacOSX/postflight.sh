@@ -1,7 +1,6 @@
 #!/bin/sh
-
-# Copyright (C) 2003, 2005 MySQL AB
-# Use is subject to license terms
+#
+# Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU Library General Public
@@ -29,7 +28,7 @@
 
 if cd @prefix@ ; then
 	if [ ! -f data/mysql/db.frm ] ; then
-		./scripts/mysql_install_db --rpm
+		./bin/mysql_install_db --datadir=@prefix@/data --basedir=@prefix@
 	fi
 
 	if [ -d data ] ; then

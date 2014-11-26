@@ -2526,7 +2526,7 @@ DROP PROCEDURE IF EXISTS p4;
 DROP PROCEDURE IF EXISTS p5;
 DROP PROCEDURE IF EXISTS p6;
 --enable_warnings
-
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 delimiter |;
 
 CREATE PROCEDURE p1()
@@ -2636,7 +2636,7 @@ DROP PROCEDURE p6;
 DROP PROCEDURE p7;
 
 DROP TABLE t1;
-
+SET sql_mode = default;
 --echo
 --echo # - Case 3: check that "Exception trumps No Data".
 --echo
@@ -2712,7 +2712,7 @@ DROP PROCEDURE p1;
 --echo #
 --echo # Bug#5889: Exit handler for a warning doesn't hide the warning in trigger
 --echo #
-
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 CREATE TABLE t1(a INT, b INT);
 INSERT INTO t1 VALUES (1, 2);
 
@@ -2736,7 +2736,7 @@ SELECT * FROM t1;
 
 DROP TRIGGER t1_bu;
 DROP TABLE t1;
-
+SET sql_mode = default;
 --echo #
 --echo # Bug#9857: Stored procedures: handler for sqlwarning ignored
 --echo #
@@ -2780,7 +2780,7 @@ SET sql_mode = @sql_mode_saved;
 --echo #
 --echo # Bug#55850: Trigger warnings not cleared.
 --echo #
-
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 --disable_warnings
 DROP TABLE IF EXISTS t1;
 DROP TABLE IF EXISTS t2;
@@ -2856,7 +2856,7 @@ SHOW WARNINGS;
 DROP TABLE t1;
 DROP TABLE t2;
 DROP PROCEDURE p1;
-
+SET sql_mode = default;
 --echo
 --echo ###################################################################
 --echo # Tests for the following bugs:
@@ -3453,7 +3453,7 @@ DROP PROCEDURE p13;
 --echo
 --echo # Bug#12731619: NESTED SP HANDLERS CAN TRIGGER ASSERTION
 --echo
-
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 --disable_warnings
 DROP FUNCTION IF EXISTS f1;
 DROP TABLE IF EXISTS t1;
@@ -3689,13 +3689,13 @@ DROP PROCEDURE p5;
 DROP PROCEDURE p6;
 DROP TABLE t1;
 DROP TABLE t2;
-
+SET sql_mode = default;
 --echo
 --echo # Bug#13059316: ASSERTION FAILURE IN SP_RCONTEXT.CC 
 --echo # Check DECLARE statements that raise conditions before handlers
 --echo # are declared.
 --echo
-
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 --disable_warnings
 DROP PROCEDURE IF EXISTS p1;
 DROP PROCEDURE IF EXISTS p2;
@@ -3727,7 +3727,7 @@ delimiter ;|
 --echo
 DROP PROCEDURE p1;
 DROP PROCEDURE p2;
-
+SET sql_mode = default;
 
 --echo #
 --echo # Bug#13113222 RQG_SIGNAL_RESIGNAL FAILED WITH ASSERTION.

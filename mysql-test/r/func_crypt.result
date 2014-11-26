@@ -17,18 +17,9 @@ password('abc')
 select password('');
 password('')
 
-select old_password('abc');
-old_password('abc')
-7cd2b5942be28759
-select old_password('');
-old_password('')
-
 select password('gabbagabbahey');
 password('gabbagabbahey')
 *B0F99D2963660DD7E16B751EC9EE2F17B6A68FA6
-select old_password('idkfa');
-old_password('idkfa')
-5c078dc54ca0fcca
 select length(password('1'));
 length(password('1'))
 41
@@ -38,39 +29,9 @@ length(encrypt('test'))
 select encrypt('test','aa');
 encrypt('test','aa')
 aaqPiZY5xR5l.
-select old_password(NULL);
-old_password(NULL)
-NULL
 select password(NULL);
 password(NULL)
 
-set global old_passwords=1;
-select password('');
-password('')
-
-select old_password('');
-old_password('')
-
-select password('idkfa');
-password('idkfa')
-*B669C9DAC3AA6F2254B03CDEF8DFDD6B2D1054BA
-select old_password('idkfa');
-old_password('idkfa')
-5c078dc54ca0fcca
-set old_passwords=1;
-select password('idkfa');
-password('idkfa')
-5c078dc54ca0fcca
-select old_password('idkfa');
-old_password('idkfa')
-5c078dc54ca0fcca
-set global old_passwords=0;
-select password('idkfa');
-password('idkfa')
-5c078dc54ca0fcca
-select old_password('idkfa');
-old_password('idkfa')
-5c078dc54ca0fcca
 set old_passwords=0;
 select password('idkfa ');
 password('idkfa ')
@@ -81,30 +42,24 @@ password('idkfa')
 select password(' idkfa');
 password(' idkfa')
 *12B099E56BB7FE8D43C78FD834A9D1D11178D045
-select old_password('idkfa');
-old_password('idkfa')
-5c078dc54ca0fcca
-select old_password(' i 	 d k f a ');
-old_password(' i 	 d k f a ')
-5c078dc54ca0fcca
-explain extended select password('idkfa '), old_password('idkfa');
+explain extended select password('idkfa ');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-Note	1003	/* select#1 */ select password('idkfa ') AS `password('idkfa ')`,old_password('idkfa') AS `old_password('idkfa')`
+Note	1003	/* select#1 */ select password('idkfa ') AS `password('idkfa ')`
 select encrypt('1234','_.');
 encrypt('1234','_.')
 #
 #
-# Bug #44767: invalid memory reads in password() and old_password() 
+# Bug #44767: invalid memory reads in password()
 #             functions
 #
 CREATE TABLE t1(c1 MEDIUMBLOB);
 INSERT INTO t1 VALUES (REPEAT('a', 1024));
-SELECT OLD_PASSWORD(c1), PASSWORD(c1) FROM t1;
-OLD_PASSWORD(c1)	PASSWORD(c1)
-77023ffe214c04ff	*82E58A2C08AAFE72C8EB523069CD8ADB33F78F58
+SELECT PASSWORD(c1) FROM t1;
+PASSWORD(c1)
+*82E58A2C08AAFE72C8EB523069CD8ADB33F78F58
 DROP TABLE t1;
 End of 5.0 tests
 #

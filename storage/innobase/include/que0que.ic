@@ -305,3 +305,4 @@ que_graph_is_select(
 
 	return(FALSE);
 }
+

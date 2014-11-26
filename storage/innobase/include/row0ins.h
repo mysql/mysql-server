@@ -103,30 +103,6 @@ row_ins_clust_index_entry_low(
 				and return. don't execute actual insert. */
 	__attribute__((warn_unused_result));
 
-/** This is a specialized function meant for direct insertion to
-auto-generated clustered index based on cached position from
-last successful insert. To be used when data is sorted.
-
-@param[in]	flags	undo logging and locking flags
-@param[in]	mode	BTR_MODIFY_LEAF or BTR_MODIFY_TREE.
-			depending on whether we wish optimistic or
-			pessimistic descent down the index tree
-@param[in,out]	index	clustered index
-@param[in,out]	entry	index entry to insert
-@param[in]	thr	query thread
-
-@return error code */
-
-dberr_t
-row_ins_sorted_clust_index_entry(
-	ulint		flags,
-	ulint		mode,
-	dict_index_t*	index,
-	ulint		n_uniq,
-	dtuple_t*	entry,
-	ulint		n_ext,
-	que_thr_t*	thr)
-	__attribute__((warn_unused_result));
 /***************************************************************//**
 Tries to insert an entry into a secondary index. If a record with exactly the
 same fields is found, the other record is necessarily marked deleted.

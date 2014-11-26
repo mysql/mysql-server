@@ -1,4 +1,5 @@
 drop table if exists t1,t2,t3,t4,t5,t6,t7;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 CREATE TABLE t1 (a blob, b text, c blob(250), d text(70000), e text(70000000));
 show columns from t1;
 Field	Type	Null	Key	Default	Extra
@@ -885,19 +886,17 @@ ERROR 42000: Column length too big for column 'a' (max = 255); use BLOB or TEXT 
 CREATE TABLE b15776 (a char(4294967296));
 ERROR 42000: Display width out of range for column 'a' (max = 4294967295)
 CREATE TABLE b15776 (a year(4294967295));
-Warnings:
-Warning	1818	YEAR(4294967295) column type is deprecated. Creating YEAR(4) column instead.
+ERROR HY000: Supports only YEAR or YEAR(4) column.
+CREATE TABLE b15776 (a year(4));
 INSERT INTO b15776 VALUES (42);
 SELECT * FROM b15776;
 a
 2042
 DROP TABLE b15776;
 CREATE TABLE b15776 (a year(4294967296));
-ERROR 42000: Display width out of range for column 'a' (max = 4294967295)
+ERROR HY000: Supports only YEAR or YEAR(4) column.
 CREATE TABLE b15776 (a year(0));
-Warnings:
-Warning	1818	YEAR(0) column type is deprecated. Creating YEAR(4) column instead.
-DROP TABLE b15776;
+ERROR HY000: Supports only YEAR or YEAR(4) column.
 CREATE TABLE b15776 (a year(-2));
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '-2))' at line 1
 CREATE TABLE b15776 (a int(999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999));
@@ -905,7 +904,7 @@ ERROR 42000: Display width out of range for column 'a' (max = 4294967295)
 CREATE TABLE b15776 (a char(999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999));
 ERROR 42000: Display width out of range for column 'a' (max = 4294967295)
 CREATE TABLE b15776 (a year(999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999));
-ERROR 42000: Display width out of range for column 'a' (max = 4294967295)
+ERROR HY000: Supports only YEAR or YEAR(4) column.
 CREATE TABLE b15776 select cast(null as char(4294967295));
 show columns from b15776;
 Field	Type	Null	Key	Default	Extra
@@ -1010,4 +1009,203 @@ COUNT(*)
 2
 DROP FUNCTION f1;
 DROP TABLE t1;
+SET sql_mode = default;
 End of 5.1 tests
+#
+# Bug #18127749: OPTIMIZER SHOULD THROW AN ERROR WHEN USER USES
+#                COMPARISION OPERATORS ON GIS DATA
+#
+CREATE TABLE tab(c1 int NOT NULL PRIMARY KEY,c2 POINT NOT NULL,
+c3 LINESTRING NOT NULL,c4 POLYGON NOT NULL,
+c5 GEOMETRY NOT NULL);
+INSERT INTO tab(c1,c2,c3,c4,c5)
+VALUES(1,GeomFromText('POINT(10 10)'),
+GeomFromText('LINESTRING(5 5,20 20,30 30)'),
+GeomFromText('POLYGON((30 30,40 40,50 50,30 50,30 40,30 30))'),
+GeomFromText('POLYGON((30 30,40 40,50 50,30 50,30 40,30 30))'));
+INSERT INTO tab(c1,c2,c3,c4,c5)
+VALUES(2,GeomFromText('POINT(20 20)'),
+GeomFromText('LINESTRING(20 20,30 30,40 40)'),
+GeomFromText('POLYGON((40 50,40 70,50 100,70 100,80 80,70 50,40 50))'),
+GeomFromText('POLYGON((40 50,40 70,50 100,70 100,80 80,70 50,40 50))'));
+SET @g1 = GeomFromText('POLYGON((30 30,40 40,50 50,30 50,30 40,30 30))');
+SELECT c1,Astext(c4) FROM tab WHERE c4<@g1;
+ERROR HY000: Incorrect arguments to <
+SELECT c1,Astext(c4) FROM tab WHERE
+c4=GeomFromText('POLYGON((30 30,40 40,50 50,30 50,30 40,30 30))');
+c1	Astext(c4)
+1	POLYGON((30 30,40 40,50 50,30 50,30 40,30 30))
+SELECT c1,Astext(c4) FROM tab WHERE c4>@g1+3;
+ERROR HY000: Incorrect arguments to >
+SELECT * FROM tab WHERE c2+4 > 5;
+ERROR HY000: Incorrect arguments to +
+SELECT * FROM tab WHERE c3-4 > 5;
+ERROR HY000: Incorrect arguments to -
+SELECT * FROM tab WHERE c4*4 > 5;
+ERROR HY000: Incorrect arguments to *
+SELECT * FROM tab WHERE c5/4 > 5;
+ERROR HY000: Incorrect arguments to /
+SELECT * FROM tab WHERE c3%4 > 5;
+ERROR HY000: Incorrect arguments to %
+SELECT * FROM tab WHERE c3 DIV 4 > 5;
+ERROR HY000: Incorrect arguments to DIV
+select count(*) from tab;
+count(*)
+2
+select count(distinct c2) from tab;
+count(distinct c2)
+2
+select sum(c2) from tab;
+ERROR HY000: Incorrect arguments to sum(
+select sum(distinct c2) from tab;
+ERROR HY000: Incorrect arguments to sum(distinct 
+select avg(c2) from tab;
+ERROR HY000: Incorrect arguments to avg(
+select avg(distinct c2) from tab;
+ERROR HY000: Incorrect arguments to avg(distinct 
+select min(c2) from tab;
+ERROR HY000: Incorrect arguments to min(
+select max(c2) from tab;
+ERROR HY000: Incorrect arguments to max(
+select std(c2) from tab;
+ERROR HY000: Incorrect arguments to std(
+drop table tab;
+set @g1 = 1;
+set @g2 = 2;
+select @g1 < @g2;
+@g1 < @g2
+1
+select @g1 = @g2;
+@g1 = @g2
+0
+select @g1 > @g2;
+@g1 > @g2
+0
+select @g1 + @g2;
+@g1 + @g2
+3
+SET @g1 = GeomFromText('POLYGON((30 30,40 40,50 50,30 50,30 40,30 30))');
+SET @g2 = GeomFromText('POLYGON((30 30,40 40,50 50,30 50,30 40,30 30))');
+select @g1=GeomFromText('POLYGON((30 30,40 40,50 50,30 50,30 40,30 30))');
+@g1=GeomFromText('POLYGON((30 30,40 40,50 50,30 50,30 40,30 30))')
+1
+select @g1+GeomFromText('POLYGON((30 30,40 40,50 50,30 50,30 40,30 30))');
+ERROR HY000: Incorrect arguments to +
+select @g1-GeomFromText('POLYGON((30 30,40 40,50 50,30 50,30 40,30 30))');
+ERROR HY000: Incorrect arguments to -
+select @g1*GeomFromText('POLYGON((30 30,40 40,50 50,30 50,30 40,30 30))');
+ERROR HY000: Incorrect arguments to *
+select @g1/GeomFromText('POLYGON((30 30,40 40,50 50,30 50,30 40,30 30))');
+ERROR HY000: Incorrect arguments to /
+select @g1%GeomFromText('POLYGON((30 30,40 40,50 50,30 50,30 40,30 30))');
+ERROR HY000: Incorrect arguments to %
+select 42 / GEOMFROMTEXT('LINESTRING(-1 -1, 1 -1, -1 -1, -1 1, 1 1)');
+ERROR HY000: Incorrect arguments to /
+select 42 + GEOMFROMTEXT('LINESTRING(-1 -1, 1 -1, -1 -1, -1 1, 1 1)');
+ERROR HY000: Incorrect arguments to +
+select -(GEOMFROMTEXT('LINESTRING(-1 -1, 1 -1, -1 -1, -1 1, 1 1)'));
+ERROR HY000: Incorrect arguments to -
+select @g1 > GeomFromText('POLYGON((30 30,40 40,50 50,30 50,30 40,30 30))');
+ERROR HY000: Incorrect arguments to >
+select @g1 >= GeomFromText('POLYGON((30 30,40 40,50 50,30 50,30 40,30 30))');
+ERROR HY000: Incorrect arguments to >=
+select @g1 < GeomFromText('POLYGON((30 30,40 40,50 50,30 50,30 40,30 30))');
+ERROR HY000: Incorrect arguments to <
+select @g1 <= GeomFromText('POLYGON((30 30,40 40,50 50,30 50,30 40,30 30))');
+ERROR HY000: Incorrect arguments to <=
+select @g1 = GeomFromText('POLYGON((30 30,40 40,50 50,30 50,30 40,30 30))');
+@g1 = GeomFromText('POLYGON((30 30,40 40,50 50,30 50,30 40,30 30))')
+1
+select @g1 != GeomFromText('POLYGON((30 30,40 40,50 50,30 50,30 40,30 30))');
+@g1 != GeomFromText('POLYGON((30 30,40 40,50 50,30 50,30 40,30 30))')
+0
+select @g1 between @g1 and GeomFromText('POLYGON((30 30,40 40,50 50,30 50,30 40,30 30))');
+ERROR HY000: Incorrect arguments to between
+select least(GEOMFROMTEXT('LINESTRING(-1 -1, 1 -1, -1 -1, -1 1, 1 1)'),
+GEOMFROMTEXT('LINESTRING(-1 -1, 1 -1, -1 -1, -1 1, 1 1)'));
+ERROR HY000: Incorrect arguments to least
+select greatest(GEOMFROMTEXT('LINESTRING(-1 -1, 1 -1, -1 -1, -1 1, 1 1)'),
+GEOMFROMTEXT('LINESTRING(-1 -1, 1 -1, -1 -1, -1 1, 1 1)'));
+ERROR HY000: Incorrect arguments to greatest
+select abs(GEOMFROMTEXT('LINESTRING(-1 -1, 1 -1, -1 -1, -1 1, 1 1)'));
+ERROR HY000: Incorrect arguments to abs
+select acos(GEOMFROMTEXT('LINESTRING(-1 -1, 1 -1, -1 -1, -1 1, 1 1)'));
+ERROR HY000: Incorrect arguments to acos
+select asin(GEOMFROMTEXT('LINESTRING(-1 -1, 1 -1, -1 -1, -1 1, 1 1)'));
+ERROR HY000: Incorrect arguments to asin
+select atan(GEOMFROMTEXT('LINESTRING(-1 -1, 1 -1, -1 -1, -1 1, 1 1)'));
+ERROR HY000: Incorrect arguments to atan
+select atan2(GEOMFROMTEXT('LINESTRING(-1 -1, 1 -1, -1 -1, -1 1, 1 1)'));
+ERROR HY000: Incorrect arguments to atan
+select ceil(GEOMFROMTEXT('LINESTRING(-1 -1, 1 -1, -1 -1, -1 1, 1 1)'));
+ERROR HY000: Incorrect arguments to ceiling
+select ceiling(GEOMFROMTEXT('LINESTRING(-1 -1, 1 -1, -1 -1, -1 1, 1 1)'));
+ERROR HY000: Incorrect arguments to ceiling
+select conv(GEOMFROMTEXT('LINESTRING(-1 -1, 1 -1, -1 -1, -1 1, 1 1)'), 2, 10);
+ERROR HY000: Incorrect arguments to conv
+select cos(GEOMFROMTEXT('LINESTRING(-1 -1, 1 -1, -1 -1, -1 1, 1 1)'));
+ERROR HY000: Incorrect arguments to cos
+select cot(GEOMFROMTEXT('LINESTRING(-1 -1, 1 -1, -1 -1, -1 1, 1 1)'));
+ERROR HY000: Incorrect arguments to cot
+select crc32(GEOMFROMTEXT('LINESTRING(-1 -1, 1 -1, -1 -1, -1 1, 1 1)'));
+crc32(GEOMFROMTEXT('LINESTRING(-1 -1, 1 -1, -1 -1, -1 1, 1 1)'))
+2439882226
+select degrees(GEOMFROMTEXT('LINESTRING(-1 -1, 1 -1, -1 -1, -1 1, 1 1)'));
+ERROR HY000: Incorrect arguments to degrees
+select exp(GEOMFROMTEXT('LINESTRING(-1 -1, 1 -1, -1 -1, -1 1, 1 1)'));
+ERROR HY000: Incorrect arguments to exp
+select floor(GEOMFROMTEXT('LINESTRING(-1 -1, 1 -1, -1 -1, -1 1, 1 1)'));
+ERROR HY000: Incorrect arguments to floor
+select format(GEOMFROMTEXT('LINESTRING(-1 -1, 1 -1, -1 -1, -1 1, 1 1)'), 5);
+ERROR HY000: Incorrect arguments to format
+select hex(GEOMFROMTEXT('LINESTRING(-1 -1, 1 -1, -1 -1, -1 1, 1 1)'));
+hex(GEOMFROMTEXT('LINESTRING(-1 -1, 1 -1, -1 -1, -1 1, 1 1)'))
+00000000010200000005000000000000000000F0BF000000000000F0BF000000000000F03F000000000000F0BF000000000000F0BF000000000000F0BF000000000000F0BF000000000000F03F000000000000F03F000000000000F03F
+select ln(GEOMFROMTEXT('LINESTRING(-1 -1, 1 -1, -1 -1, -1 1, 1 1)'));
+ERROR HY000: Incorrect arguments to ln
+select log(2, GEOMFROMTEXT('LINESTRING(-1 -1, 1 -1, -1 -1, -1 1, 1 1)'));
+ERROR HY000: Incorrect arguments to log
+select log2(GEOMFROMTEXT('LINESTRING(-1 -1, 1 -1, -1 -1, -1 1, 1 1)'));
+ERROR HY000: Incorrect arguments to log2
+select log10(GEOMFROMTEXT('LINESTRING(-1 -1, 1 -1, -1 -1, -1 1, 1 1)'));
+ERROR HY000: Incorrect arguments to log10
+select mod(GEOMFROMTEXT('LINESTRING(-1 -1, 1 -1, -1 -1, -1 1, 1 1)'), 7);
+ERROR HY000: Incorrect arguments to %
+select pow(2, GEOMFROMTEXT('LINESTRING(-1 -1, 1 -1, -1 -1, -1 1, 1 1)'));
+ERROR HY000: Incorrect arguments to pow
+select power(2, GEOMFROMTEXT('LINESTRING(-1 -1, 1 -1, -1 -1, -1 1, 1 1)'));
+ERROR HY000: Incorrect arguments to pow
+select radians(GEOMFROMTEXT('LINESTRING(-1 -1, 1 -1, -1 -1, -1 1, 1 1)'));
+ERROR HY000: Incorrect arguments to radians
+select rand(GEOMFROMTEXT('LINESTRING(-1 -1, 1 -1, -1 -1, -1 1, 1 1)'));
+ERROR HY000: Incorrect arguments to rand
+select round(GEOMFROMTEXT('LINESTRING(-1 -1, 1 -1, -1 -1, -1 1, 1 1)'));
+ERROR HY000: Incorrect arguments to round
+select sign(GEOMFROMTEXT('LINESTRING(-1 -1, 1 -1, -1 -1, -1 1, 1 1)'));
+ERROR HY000: Incorrect arguments to sign
+select sin(GEOMFROMTEXT('LINESTRING(-1 -1, 1 -1, -1 -1, -1 1, 1 1)'));
+ERROR HY000: Incorrect arguments to sin
+select sqrt(GEOMFROMTEXT('LINESTRING(-1 -1, 1 -1, -1 -1, -1 1, 1 1)'));
+ERROR HY000: Incorrect arguments to sqrt
+select tan(GEOMFROMTEXT('LINESTRING(-1 -1, 1 -1, -1 -1, -1 1, 1 1)'));
+ERROR HY000: Incorrect arguments to tan
+select truncate(GEOMFROMTEXT('LINESTRING(-1 -1, 1 -1, -1 -1, -1 1, 1 1)'),0);
+ERROR HY000: Incorrect arguments to truncate
+select @g1=@g2;
+@g1=@g2
+1
+set @g1 = 'abc';
+set @g2 = 'def';
+select @g1 < @g2;
+@g1 < @g2
+1
+select @g1 = @g2;
+@g1 = @g2
+0
+select @g1 > @g2;
+@g1 > @g2
+0
+SET @g3 = GeomFromText('POLYGON((30 30,40 40,50 50,30 50,30 40,30 30))');
+select @g1 > @g3;
+@g1 > @g3
+1

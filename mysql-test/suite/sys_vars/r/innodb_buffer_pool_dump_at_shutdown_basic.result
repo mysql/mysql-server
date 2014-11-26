@@ -16,3 +16,4 @@ SET GLOBAL innodb_buffer_pool_dump_at_shutdown = "string";
 Got one of the listed errors
 SET GLOBAL innodb_buffer_pool_dump_at_shutdown = 5;
 Got one of the listed errors
+# restart

@@ -42,6 +42,14 @@
 #define TABLE_PARTITION_COMMENT_MAXLEN 1024
 
 /*
+  Maximum length of protocol packet.
+  OK packet length limit also restricted to this value as any length greater
+  than this value will have first byte of OK packet to be 254 thus does not
+  provide a means to identify if this is OK or EOF packet.
+*/
+#define MAX_PACKET_LENGTH (256L*256L*256L-1)
+
+/*
   USER_HOST_BUFF_SIZE -- length of string buffer, that is enough to contain
   username and hostname parts of the user identifier with trailing zero in
   MySQL standard format:
@@ -85,10 +93,9 @@ enum enum_server_command
   obfuscated password, recieved from client
 */
 #define SCRAMBLE_LENGTH 20
-#define SCRAMBLE_LENGTH_323 8
+#define AUTH_PLUGIN_DATA_PART_1_LENGTH 8
 /* length of password stored in the db: new passwords are preceeded with '*' */
 #define SCRAMBLED_PASSWORD_CHAR_LENGTH (SCRAMBLE_LENGTH*2+1)
-#define SCRAMBLED_PASSWORD_CHAR_LENGTH_323 (SCRAMBLE_LENGTH_323*2)
 
 
 #define NOT_NULL_FLAG	1		/* Field can't be NULL */
@@ -155,6 +162,7 @@ enum enum_server_command
 #define REFRESH_DES_KEY_FILE	0x40000L
 #define REFRESH_USER_RESOURCES	0x80000L
 #define REFRESH_FOR_EXPORT      0x100000L /* FLUSH TABLES ... FOR EXPORT */
+#define REFRESH_OPTIMIZER_COSTS 0x200000L /* FLUSH OPTIMIZER_COSTS */
 
 #define CLIENT_LONG_PASSWORD	1	/* new more secure passwords */
 #define CLIENT_FOUND_ROWS	2	/* Found instead of affected rows */
@@ -171,7 +179,7 @@ enum enum_server_command
 #define CLIENT_IGNORE_SIGPIPE   4096    /* IGNORE sigpipes */
 #define CLIENT_TRANSACTIONS	8192	/* Client knows about transactions */
 #define CLIENT_RESERVED         16384   /* Old flag for 4.1 protocol  */
-#define CLIENT_SECURE_CONNECTION 32768  /* New 4.1 authentication */
+#define CLIENT_RESERVED2        32768   /* Old flag for 4.1 authentication */
 #define CLIENT_MULTI_STATEMENTS (1UL << 16) /* Enable/disable multi-stmt support */
 #define CLIENT_MULTI_RESULTS    (1UL << 17) /* Enable/disable multi-results */
 #define CLIENT_PS_MULTI_RESULTS (1UL << 18) /* Multi-results in PS-protocol */
@@ -190,6 +198,8 @@ enum enum_server_command
   server to include the state change information in Ok packet.
 */
 #define CLIENT_SESSION_TRACK (1UL << 23)
+/* Client no longer needs EOF packet */
+#define CLIENT_DEPRECATE_EOF (1UL << 24)
 
 #define CLIENT_SSL_VERIFY_SERVER_CERT (1UL << 30)
 #define CLIENT_REMEMBER_OPTIONS (1UL << 31)
@@ -216,7 +226,7 @@ enum enum_server_command
                            | CLIENT_IGNORE_SIGPIPE \
                            | CLIENT_TRANSACTIONS \
                            | CLIENT_RESERVED \
-                           | CLIENT_SECURE_CONNECTION \
+                           | CLIENT_RESERVED2 \
                            | CLIENT_MULTI_STATEMENTS \
                            | CLIENT_MULTI_RESULTS \
                            | CLIENT_PS_MULTI_RESULTS \
@@ -227,6 +237,7 @@ enum enum_server_command
                            | CLIENT_PLUGIN_AUTH_LENENC_CLIENT_DATA \
                            | CLIENT_CAN_HANDLE_EXPIRED_PASSWORDS \
                            | CLIENT_SESSION_TRACK \
+                           | CLIENT_DEPRECATE_EOF \
 )
 
 /*

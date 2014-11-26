@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -290,10 +290,11 @@ hash_create(
 
 	prime = ut_find_prime(n);
 
-	table = static_cast<hash_table_t*>(ut_malloc(sizeof(hash_table_t)));
+	table = static_cast<hash_table_t*>(
+		ut_malloc_nokey(sizeof(hash_table_t)));
 
 	array = static_cast<hash_cell_t*>(
-		ut_malloc(sizeof(hash_cell_t) * prime));
+		ut_malloc_nokey(sizeof(hash_cell_t) * prime));
 
 	/* The default type of hash_table is HASH_TABLE_SYNC_NONE i.e.:
 	the caller is responsible for access control to the table. */
@@ -356,7 +357,7 @@ hash_create_sync_obj(
 	switch (table->type) {
 	case HASH_TABLE_SYNC_MUTEX:
 		table->sync_obj.mutexes = static_cast<ib_mutex_t*>(
-			ut_malloc(n_sync_obj * sizeof(ib_mutex_t)));
+			ut_malloc_nokey(n_sync_obj * sizeof(ib_mutex_t)));
 
 		for (ulint i = 0; i < n_sync_obj; i++) {
 			mutex_create(name, table->sync_obj.mutexes + i);
@@ -371,7 +372,7 @@ hash_create_sync_obj(
 		ut_a(level != SYNC_UNKNOWN);
 
 		table->sync_obj.rw_locks = static_cast<rw_lock_t*>(
-			ut_malloc(n_sync_obj * sizeof(rw_lock_t)));
+			ut_malloc_nokey(n_sync_obj * sizeof(rw_lock_t)));
 
 		for (ulint i = 0; i < n_sync_obj; i++) {
 			rw_lock_create(hash_table_locks_key,

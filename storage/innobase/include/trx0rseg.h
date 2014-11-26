@@ -170,8 +170,8 @@ struct trx_rseg_t {
 	system file copy */
 	ulint				id;
 
-	/** mutex protecting the fields in this struct except id,
-	which is constant */
+	/** mutex protecting the fields in this struct except id,space,page_no
+	which are constant */
 	RsegMutex			mutex;
 
 	/** space where the rollback segment header is placed */
@@ -219,6 +219,13 @@ struct trx_rseg_t {
 
 	/** TRUE if the last not yet purged log needs purging */
 	ibool				last_del_marks;
+
+	/** Reference counter to track rseg allocated transactions. */
+	ulint				trx_ref_count;
+
+	/** If true, then skip allocating this rseg as it reside in
+	UNDO-tablespace marked for truncate. */
+	bool				skip_allocation;
 };
 
 /* Undo log segment slot in a rollback segment header */

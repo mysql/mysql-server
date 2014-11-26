@@ -224,7 +224,9 @@ alter table t1 modify c varchar(10);
 show create table t1;
 alter table t1 modify v char(10);
 show create table t1;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 alter table t1 modify t varchar(10);
+SET sql_mode = default;
 show create table t1;
 select concat('*',v,'*',c,'*',t,'*') from t1;
 drop table t1,t2,t3;
@@ -484,6 +486,8 @@ DROP TABLE t1;
 --echo #
 --echo # BUG#11825482: Broken key length calculation for btree index
 --echo #
+--source include/turn_off_only_full_group_by.inc
+
 CREATE TABLE h1 (f1 VARCHAR(1), f2 INT NOT NULL,
                  UNIQUE KEY h1i (f1,f2) USING BTREE ) ENGINE=HEAP;
 INSERT INTO h1 VALUES(NULL,0),(NULL,1);
@@ -516,6 +520,7 @@ WHERE ('h', 0) NOT IN ( SELECT * FROM v1);
 
 DROP TABLE t1,t2,h1;
 DROP VIEW v1;
+--source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
 
 #
 # BUG 11755870 - 47704: HASH INDEX ON VARCHAR PREFIX NOT WORKING CORRECTLY.

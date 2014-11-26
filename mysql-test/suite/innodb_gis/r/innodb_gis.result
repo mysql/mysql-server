@@ -330,8 +330,8 @@ fid	IsClosed(g)
 116	0
 SELECT fid, AsText(Centroid(g)) FROM gis_multi_polygon ORDER by fid;
 fid	AsText(Centroid(g))
-117	POINT(55.58852775304245 17.426536064113982)
-118	POINT(55.58852775304245 17.426536064113982)
+117	POINT(57.98031067576927 17.854754130800437)
+118	POINT(57.98031067576927 17.854754130800437)
 119	POINT(2 2)
 SELECT fid, Area(g) FROM gis_multi_polygon ORDER by fid;
 fid	Area(g)
@@ -465,7 +465,7 @@ ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
 insert into t1 (fl) values ("qwerty");
 ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
 insert into t1 (fl) values (pointfromtext('point(1,1)'));
-ERROR 23000: Column 'fl' cannot be null
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 drop table t1;
 End of 4.1 tests
 CREATE TABLE t1 (name VARCHAR(100), square GEOMETRY);

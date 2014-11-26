@@ -72,8 +72,8 @@ int safe_mutex_lock(my_mutex_t *mp, my_bool try_lock,
     {
       fprintf(stderr,
               "safe_mutex: Trying to lock mutex at %s, line %d, when the"
-              " mutex was already locked at %s, line %d in thread %s\n",
-              file,line,mp->file, mp->line, my_thread_name());
+              " mutex was already locked at %s, line %d in thread T@%u\n",
+              file,line,mp->file, mp->line, mysys_thread_var()->id);
       fflush(stderr);
       abort();
     }

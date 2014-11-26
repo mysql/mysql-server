@@ -21,19 +21,27 @@
 #include <m_ctype.h>
 #include <my_sys.h>
 #include <m_string.h>
+#include <my_getopt.h>
+
 #ifndef WIN32
 #  include <sys/types.h>
-#  include <sys/socket.h>
-#  include <netinet/in.h>
-#  include <arpa/inet.h>
 #  include <netdb.h>
 #endif
-#include <my_net.h>
-#include <my_getopt.h>
+#ifdef HAVE_SYS_SOCKET_H
+#  include <sys/socket.h>
+#endif
+#ifdef HAVE_NETINET_IN_H
+#  include <netinet/in.h>
+#endif
+#ifdef HAVE_ARPA_INET_H
+#  include <arpa/inet.h>
+#endif
 
 #if !defined(h_errno)
 extern int h_errno;
 #endif
+
+typedef uint32 in_addr_t;
 
 static my_bool silent;
 

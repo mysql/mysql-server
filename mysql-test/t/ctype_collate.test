@@ -87,13 +87,14 @@ SELECT latin1_f COLLATE koi8r_general_ci  AS latin1_f_as FROM t1 ORDER BY latin1
 # GROUP BY
 
 SELECT latin1_f,count(*) FROM t1 GROUP BY latin1_f;
+--source include/turn_off_only_full_group_by.inc
 SELECT latin1_f,count(*) FROM t1 GROUP BY latin1_f COLLATE latin1_swedish_ci;
 SELECT latin1_f,count(*) FROM t1 GROUP BY latin1_f COLLATE latin1_german2_ci;
 SELECT latin1_f,count(*) FROM t1 GROUP BY latin1_f COLLATE latin1_general_ci;
 SELECT latin1_f,count(*) FROM t1 GROUP BY latin1_f COLLATE latin1_bin;
 --error 1253
 SELECT latin1_f,count(*) FROM t1 GROUP BY latin1_f COLLATE koi8r_general_ci;
-
+--source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
 
 # DISTINCT
 
@@ -263,6 +264,7 @@ drop table t1;
 #
 # Bug#41627 Illegal mix of collations in LEAST / GREATEST / CASE
 #
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 select least(_latin1'a',_latin2'b',_latin5'c' collate latin5_turkish_ci);
 create table t1
 select least(_latin1'a',_latin2'b',_latin5'c' collate latin5_turkish_ci) as f1;
@@ -276,7 +278,7 @@ select case _latin1'a' when _latin2'b' then 1 when _latin5'c' collate
 latin5_turkish_ci then 2 else 3 end;
 
 select concat(_latin1'a',_latin2'b',_latin5'c' collate latin5_turkish_ci);
-
+SET sql_mode = default;
 
 --echo #
 --echo # Bug#11765016 57926: ILLEGAL MIX OF COLLATIONS FOR OPERATION 'UNION' .. USING CONCAT/FUNCTION/

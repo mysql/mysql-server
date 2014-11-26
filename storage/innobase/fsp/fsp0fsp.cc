@@ -693,11 +693,18 @@ fsp_space_modify_check(
 		when there is a higher-level redo log record written. */
 		break;
 	case MTR_LOG_NO_REDO:
-		ut_ad(id == srv_tmp_space.space_id()
-		      || srv_is_tablespace_truncated(id)
-		      || fil_space_is_being_truncated(id)
-		      || fil_space_get_flags(id) == ULINT_UNDEFINED
-		      || fil_space_get_type(id) == FIL_TYPE_TEMPORARY);
+#ifdef UNIV_DEBUG
+		{
+			const fil_type_t	type = fil_space_get_type(id);
+			ut_a(id == srv_tmp_space.space_id()
+			     || srv_is_tablespace_truncated(id)
+			     || fil_space_is_being_truncated(id)
+			     || fil_space_get_flags(id) == ULINT_UNDEFINED
+			     || type == FIL_TYPE_TEMPORARY
+			     || type == FIL_TYPE_IMPORT
+			     || fil_space_is_redo_skipped(id));
+		}
+#endif /* UNIV_DEBUG */
 		return;
 	case MTR_LOG_ALL:
 		/* We must not write redo log for the shared temporary
@@ -876,11 +883,8 @@ fsp_header_get_space_id(
 			id = ULINT_UNDEFINED;);
 
 	if (id != fsp_id) {
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Space ID in fsp header is %lu,"
-			" but in the page header it is %lu.",
-			fsp_id, id);
-
+		ib::error() << "Space ID in fsp header is " << fsp_id
+			<< ", but in the page header it is " << id << ".";
 		return(ULINT_UNDEFINED);
 	}
 
@@ -1039,9 +1043,9 @@ fsp_try_extend_data_file(
 		to reset the flag to false as dealing with this
 		error requires server restart. */
 		if (!srv_sys_space.get_tablespace_full_status()) {
-			ib_logf(IB_LOG_LEVEL_ERROR,
-				"Tablespace %s %s innodb_data_file_path.",
-				srv_sys_space.name(), OUT_OF_SPACE_MSG);
+			ib::error() << "Tablespace " << srv_sys_space.name()
+				<< " " << OUT_OF_SPACE_MSG
+				<< " innodb_data_file_path.";
 			srv_sys_space.set_tablespace_full_status(true);
 		}
 		return(FALSE);
@@ -1053,9 +1057,9 @@ fsp_try_extend_data_file(
 		to reset the flag to false as dealing with this
 		error requires server restart. */
 		if (!srv_tmp_space.get_tablespace_full_status()) {
-			ib_logf(IB_LOG_LEVEL_ERROR,
-				"Tablespace %s %s innodb_temp_data_file_path.",
-				srv_tmp_space.name(), OUT_OF_SPACE_MSG);
+			ib::error() << "Tablespace " << srv_tmp_space.name()
+				<< " " << OUT_OF_SPACE_MSG
+				<< " innodb_temp_data_file_path.";
 			srv_tmp_space.set_tablespace_full_status(true);
 		}
 		return(FALSE);
@@ -1563,12 +1567,10 @@ fsp_alloc_free_page(
 
 		ut_a(!is_system_tablespace(space));
 		if (page_no >= FSP_EXTENT_SIZE) {
-			ib_logf(IB_LOG_LEVEL_ERROR,
-				"Trying to extend a single-table tablespace"
-				" %lu, by single page(s) though the space size"
-				" %lu. Page no %lu.",
-				(ulong) space, (ulong) space_size,
-				(ulong) page_no);
+			ib::error() << "Trying to extend a single-table"
+				" tablespace " << space << " , by single"
+				" page(s) though the space size " << space_size
+				<< ". Page no " << page_no << ".";
 			return(NULL);
 		}
 		if (!fsp_try_extend_data_file_with_pages(space, page_no,
@@ -1614,10 +1616,8 @@ fsp_free_page(
 	state = xdes_get_state(descr, mtr);
 
 	if (state != XDES_FREE_FRAG && state != XDES_FULL_FRAG) {
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"File space extent descriptor of page " UINT32PF
-			" has state %lu",
-			page_id.page_no(), (ulong) state);
+		ib::error() << "File space extent descriptor of page "
+			<< page_id << " has state " << state;
 		fputs("InnoDB: Dump of descriptor: ", stderr);
 		ut_print_buf(stderr, ((byte*) descr) - 50, 200);
 		putc('\n', stderr);
@@ -1638,10 +1638,8 @@ fsp_free_page(
 	if (xdes_mtr_get_bit(descr, XDES_FREE_BIT,
 			     page_id.page_no() % FSP_EXTENT_SIZE, mtr)) {
 
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"File space extent descriptor of page " UINT32PF
-			" says it is free. Dump of descriptor: ",
-			page_id.page_no());
+		ib::error() << "File space extent descriptor of page "
+			<< page_id << " says it is free. Dump of descriptor: ";
 		ut_print_buf(stderr, ((byte*) descr) - 50, 200);
 		putc('\n', stderr);
 		/* Crash in debug version, so that we get a core dump
@@ -2721,13 +2719,11 @@ take_hinted_page:
 			tablespace whose size is still < 64 pages */
 
 			if (ret_page >= FSP_EXTENT_SIZE) {
-				ib_logf(IB_LOG_LEVEL_ERROR,
-					"Error (2): trying to extend"
-					" a single-table tablespace %lu"
-					" by single page(s) though"
-					" the space size %lu. Page no %lu.",
-					(ulong) space, (ulong) space_size,
-					(ulong) ret_page);
+				ib::error() << "Error (2): trying to extend"
+					" a single-table tablespace " << space
+					<< " by single page(s) though the"
+					<< " space size " << space_size
+					<< ". Page no " << ret_page << ".";
 				ut_ad(!has_done_reservation);
 				return(NULL);
 			}
@@ -2924,7 +2920,8 @@ fsp_reserve_free_extents(
 			then this can be 0, otherwise it is n_ext */
 	ulint	space,	/*!< in: space id */
 	ulint	n_ext,	/*!< in: number of extents to reserve */
-	ulint	alloc_type,/*!< in: FSP_NORMAL, FSP_UNDO, or FSP_CLEANING */
+	fsp_reserve_t	alloc_type,
+			/*!< in: page reservation type */
 	mtr_t*	mtr)	/*!< in/out: mini-transaction */
 {
 	fsp_header_t*	space_header;
@@ -2952,7 +2949,7 @@ fsp_reserve_free_extents(
 try_again:
 	size = mtr_read_ulint(space_header + FSP_SIZE, MLOG_4BYTES, mtr);
 
-	if (size < FSP_EXTENT_SIZE / 2) {
+	if (alloc_type != FSP_BLOB && size < FSP_EXTENT_SIZE / 2) {
 		/* Use different rules for small single-table tablespaces */
 		*n_reserved = 0;
 		return(fsp_reserve_free_pages(space, space_header, size, mtr));
@@ -2977,7 +2974,8 @@ try_again:
 
 	n_free = n_free_list_ext + n_free_up;
 
-	if (alloc_type == FSP_NORMAL) {
+	switch (alloc_type) {
+	case FSP_NORMAL:
 		/* We reserve 1 extent + 0.5 % of the space size to undo logs
 		and 1 extent + 0.5 % to cleaning operations; NOTE: this source
 		code is duplicated in the function below! */
@@ -2988,7 +2986,8 @@ try_again:
 
 			goto try_to_extend;
 		}
-	} else if (alloc_type == FSP_UNDO) {
+		break;
+	case FSP_UNDO:
 		/* We reserve 0.5 % of the space size to cleaning operations */
 
 		reserve = 1 + ((size / FSP_EXTENT_SIZE) * 1) / 200;
@@ -2997,8 +2996,12 @@ try_again:
 
 			goto try_to_extend;
 		}
-	} else {
-		ut_a(alloc_type == FSP_CLEANING);
+		break;
+	case FSP_CLEANING:
+	case FSP_BLOB:
+		break;
+	default:
+		ut_error;
 	}
 
 	success = fil_space_reserve_free_extents(space, n_free, n_ext);
@@ -3242,15 +3245,13 @@ fseg_free_page_low(
 		fputs("InnoDB: Dump of the tablespace extent descriptor: ",
 		      stderr);
 		ut_print_buf(stderr, descr, 40);
-
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"InnoDB is trying to free page " UINT32PF
-			" though it is already marked as free in the"
+		ib::error() << "InnoDB is trying to free page " << page_id
+			<< " though it is already marked as free in the"
 			" tablespace! The tablespace free space info is"
 			" corrupt. You may need to dump your tables and"
-			" recreate the whole database!", page_id.page_no());
+			" recreate the whole database!";
 crash:
-		ib_logf(IB_LOG_LEVEL_FATAL, "%s", FORCE_RECOVERY_MSG);
+		ib::fatal() << FORCE_RECOVERY_MSG;
 	}
 
 	state = xdes_get_state(descr, mtr);
@@ -3286,13 +3287,9 @@ crash:
 		ut_print_buf(stderr, seg_inode, 40);
 		putc('\n', stderr);
 
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"InnoDB is trying to free space " UINT32PF " page"
-			" " UINT32PF ", which does not belong to segment"
-			" " IB_ID_FMT " but belongs to segment " IB_ID_FMT ".",
-			page_id.space(), page_id.page_no(),
-			descr_id, seg_id);
-
+		ib::error() << "InnoDB is trying to free page " << page_id
+			<< ", which does not belong to segment " << descr_id
+			<< " but belongs to segment " << seg_id << ".";
 		goto crash;
 	}
 
@@ -3529,9 +3526,8 @@ fseg_free_step(
 	inode = fseg_inode_try_get(header, space, page_size, mtr);
 
 	if (inode == NULL) {
-		ib_logf(IB_LOG_LEVEL_INFO,
-			"Double free of inode from %u:%u",
-			(unsigned) space, (unsigned) header_page);
+		ib::info() << "Double free of inode from "
+			<< page_id_t(space, header_page);
 		return(TRUE);
 	}
 
@@ -3858,16 +3854,15 @@ fseg_print_low(
 	n_not_full = flst_get_len(inode + FSEG_NOT_FULL, mtr);
 	n_full = flst_get_len(inode + FSEG_FULL, mtr);
 
-	ib_logf(IB_LOG_LEVEL_INFO,
-		"SEGMENT id " IB_ID_FMT
-		" space %lu; page %lu; res %lu used %lu;"
-		" full ext %lu; fragm pages %lu; free extents %lu;"
-		" not full extents %lu: pages %lu",
-		seg_id,
-		(ulong) space, (ulong) page_no,
-		(ulong) reserved, (ulong) used, (ulong) n_full,
-		(ulong) n_frag, (ulong) n_free, (ulong) n_not_full,
-		(ulong) n_used);
+	ib::info() << "SEGMENT id " << seg_id
+		<< " space " << space << ";"
+		<< " page " << page_no << ";"
+		<< " res " << reserved << " used " << used << ";"
+		<< " full ext " << n_full << ";"
+		<< " fragm pages " << n_frag << ";"
+		<< " free extents " << n_free << ";"
+		<< " not full extents " << n_not_full << ": pages " << n_used;
+
 	ut_ad(mach_read_from_4(inode + FSEG_MAGIC_N) == FSEG_MAGIC_N_VALUE);
 }
 

@@ -1022,20 +1022,6 @@ sub collect_one_test_case {
     push(@{$tinfo->{'master_opt'}}, "--default-tmp-storage-engine=MyISAM");
     push(@{$tinfo->{'slave_opt'}}, "--default-tmp-storage-engine=MyISAM");
   }
- else {
-    # This is a test that needs innodb
-    if ( $::mysqld_variables{'innodb'} eq "OFF" ||
-         ! exists $::mysqld_variables{'innodb'} )
-    {
-      # innodb is not supported, skip it
-      $tinfo->{'skip'}= 1;
-      # This comment is checked for running with innodb plugin (see above),
-      # please keep that in mind if changing the text.
-      $tinfo->{'comment'}= "No innodb support";
-      # But continue processing if we may run it with innodb plugin
-      return $tinfo unless $do_innodb_plugin;
-    }
-  }
   if ( $tinfo->{'need_binlog'} )
   {
     if (grep(/^--skip-log-bin/,  @::opt_extra_mysqld_opt) )

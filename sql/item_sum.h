@@ -353,13 +353,6 @@ public:
   int8 max_arg_level;     /* max level of unbound column references          */
   int8 max_sum_func_level;/* max level of aggregation for embedded functions */
   bool quick_group;			/* If incremental update of fields */
-  /*
-    This list is used by the check for mixing non aggregated fields and
-    sum functions in the ONLY_FULL_GROUP_BY_MODE. We save all outer fields
-    directly or indirectly used under this function it as it's unclear
-    at the moment of fixing outer field whether it's aggregated or not.
-  */
-  List<Item_field> outer_fields;
 
 protected:  
   uint arg_count;
@@ -435,7 +428,7 @@ public:
   */
   virtual void update_field()=0;
   virtual bool keep_field_type(void) const { return 0; }
-  virtual void fix_length_and_dec() { maybe_null=1; null_value=1; }
+  virtual void fix_length_and_dec();
   virtual Item *result_item(Field *field)
     { return new Item_field(field); }
   table_map used_tables() const { return used_tables_cache; }
@@ -450,7 +443,7 @@ public:
   virtual bool const_during_execution() const { return false; }
   virtual void print(String *str, enum_query_type query_type);
   void fix_num_length_and_dec();
-
+  bool eq(const Item *item, bool binary_cmp) const;
   /**
     Mark an aggregate as having no rows.
 
@@ -473,6 +466,8 @@ public:
   virtual Field *create_tmp_field(bool group, TABLE *table);
   bool walk(Item_processor processor, enum_walk walk, uchar *arg);
   virtual bool clean_up_after_removal(uchar *arg);
+  virtual bool aggregate_check_group(uchar *arg);
+  virtual bool aggregate_check_distinct(uchar *arg);
   bool init_sum_func_check(THD *thd);
   bool check_sum_func(THD *thd, Item **ref);
   bool register_sum_func(THD *thd, Item **ref);

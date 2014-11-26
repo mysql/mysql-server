@@ -51,20 +51,20 @@
 #include "key.h"                                // key_cmp_if_same
 #include "sql_select.h"
 
-static bool find_key_for_maxmin(bool max_fl, TABLE_REF *ref, Field* field,
-                                Item *cond, uint *range_fl,
-                                uint *key_prefix_length);
-static int reckey_in_range(bool max_fl, TABLE_REF *ref, Field* field,
+static bool find_key_for_maxmin(bool max_fl, TABLE_REF *ref,
+                                Item_field *item_field, Item *cond,
+                                uint *range_fl, uint *key_prefix_length);
+static int reckey_in_range(bool max_fl, TABLE_REF *ref, Item_field *item_field,
                             Item *cond, uint range_fl, uint prefix_len);
-static int maxmin_in_range(bool max_fl, Field* field, Item *cond);
+static int maxmin_in_range(bool max_fl, Item_field *item_field, Item *cond);
 
 
 /*
   Get exact count of rows in all tables
 
   SYNOPSIS
-    get_exact_records()
-    tables		List of tables
+    get_exact_record_count()
+    @param tables  List of tables
 
   NOTES
     When this is called, we know all table handlers supports HA_HAS_RECORDS
@@ -80,8 +80,9 @@ static ulonglong get_exact_record_count(TABLE_LIST *tables)
   ulonglong count= 1;
   for (TABLE_LIST *tl= tables; tl; tl= tl->next_leaf)
   {
-    ha_rows tmp= tl->table->file->records();
-    if (tmp == HA_POS_ERROR)
+    ha_rows tmp= 0;
+    int error= tl->table->file->ha_records(&tmp);
+    if (error != 0)
       return ULONGLONG_MAX;
     count*= tmp;
   }
@@ -265,10 +266,10 @@ int opt_sum_query(THD *thd,
   */
   for (TABLE_LIST *tl= tables; tl; tl= tl->next_leaf)
   {
-    if (tl->optim_join_cond() || tl->outer_join_nest())
+    if (tl->join_cond_optim() || tl->outer_join_nest())
     /* Don't replace expression on a table that is part of an outer join */
     {
-      outer_tables|= tl->table->map;
+      outer_tables|= tl->map();
 
       /*
         We can't optimise LEFT JOIN in cases where the WHERE condition
@@ -276,11 +277,11 @@ int opt_sum_query(THD *thd,
           SELECT MAX(t1.a) FROM t1 LEFT JOIN t2 join-condition
           WHERE t2.field IS NULL;
       */
-      if (tl->table->map & where_tables)
+      if (tl->map() & where_tables)
         DBUG_RETURN(0);
     }
     else
-      used_tables|= tl->table->map;
+      used_tables|= tl->map();
 
     /*
       If the storage manager of 'tl' gives exact row count as part of
@@ -416,8 +417,9 @@ int opt_sum_query(THD *thd,
             Type of range for the key part for this field will be
             returned in range_fl.
           */
-          if (table->file->inited || (outer_tables & table->map) ||
-              !find_key_for_maxmin(is_max, &ref, item_field->field, conds,
+          if (table->file->inited ||
+              (outer_tables & item_field->table_ref->map()) ||
+              !find_key_for_maxmin(is_max, &ref, item_field, conds,
                                    &range_fl, &prefix_len))
           {
             const_result= 0;
@@ -436,7 +438,7 @@ int opt_sum_query(THD *thd,
                                      prefix_len);
 
           /* Verify that the read tuple indeed matches the search key */
-	  if (!error && reckey_in_range(is_max, &ref, item_field->field, 
+	  if (!error && reckey_in_range(is_max, &ref, item_field, 
 			                conds, range_fl, prefix_len))
 	    error= HA_ERR_KEY_NOT_FOUND;
           table->set_keyread(FALSE);
@@ -449,7 +451,7 @@ int opt_sum_query(THD *thd,
  	    table->file->print_error(error, MYF(0));
             DBUG_RETURN(error);
 	  }
-          removed_tables|= table->map;
+          removed_tables|= item_field->table_ref->map();
         }
         else if (!expr->const_item() || conds || !is_exact_count)
         {
@@ -643,6 +645,7 @@ bool simple_pred(Item_func *func_item, Item **args, bool *inv_order)
    @param[in]     keyinfo        Reference to the key info
    @param[in]     field_part     Pointer to the key part for the field
    @param[in]     cond           WHERE condition
+   @param[in]     map            Table map for the key
    @param[in,out] key_part_used  Map of matchings parts. The function will output
                                  the set of key parts actually being matched in 
                                  this set, yet it relies on the caller to 
@@ -662,14 +665,14 @@ bool simple_pred(Item_func *func_item, Item **args, bool *inv_order)
 
 static bool matching_cond(bool max_fl, TABLE_REF *ref, KEY *keyinfo, 
                           KEY_PART_INFO *field_part, Item *cond,
-                          key_part_map *key_part_used, uint *range_fl,
-                          uint *prefix_len)
+                          table_map map, key_part_map *key_part_used,
+                          uint *range_fl, uint *prefix_len)
 {
   DBUG_ENTER("matching_cond");
   if (!cond)
     DBUG_RETURN(TRUE);
-  Field *field= field_part->field;
-  if (!(cond->used_tables() & field->table->map))
+
+  if (!(cond->used_tables() & map))
   {
     /* Condition doesn't restrict the used table */
     DBUG_RETURN(TRUE);
@@ -684,7 +687,7 @@ static bool matching_cond(bool max_fl, TABLE_REF *ref, KEY *keyinfo,
     Item *item;
     while ((item= li++))
     {
-      if (!matching_cond(max_fl, ref, keyinfo, field_part, item,
+      if (!matching_cond(max_fl, ref, keyinfo, field_part, item, map,
                          key_part_used, range_fl, prefix_len))
         DBUG_RETURN(FALSE);
     }
@@ -767,7 +770,7 @@ static bool matching_cond(bool max_fl, TABLE_REF *ref, KEY *keyinfo,
   key_part_map org_key_part_used= *key_part_used;
   if (eq_type || between || max_fl == less_fl)
   {
-    uint length= (key_ptr-ref->key_buff)+part->store_length;
+    size_t length= (key_ptr-ref->key_buff)+part->store_length;
     if (ref->key_length < length)
     {
     /* Ultimately ref->key_length will contain the length of the search key */
@@ -878,7 +881,7 @@ static bool matching_cond(bool max_fl, TABLE_REF *ref, KEY *keyinfo,
 
   @param[in]     max_fl      0 for MIN(field) / 1 for MAX(field)
   @param[in,out] ref         Reference to the structure we store the key value
-  @param[in]     field       Field used inside MIN() / MAX()
+  @param[in]     item_field  Field used inside MIN() / MAX()
   @param[in]     cond        WHERE condition
   @param[out]    range_fl    Bit flags for how to search if key is ok
   @param[out]    prefix_len  Length of prefix for the search range
@@ -897,15 +900,17 @@ static bool matching_cond(bool max_fl, TABLE_REF *ref, KEY *keyinfo,
 
       
 static bool find_key_for_maxmin(bool max_fl, TABLE_REF *ref,
-                                Field* field, Item *cond,
+                                Item_field *item_field, Item *cond,
                                 uint *range_fl, uint *prefix_len)
 {
+  Field *const field= item_field->field;
+
   if (!(field->flags & PART_KEY_FLAG))
     return false;                               // Not key field
 
   DBUG_ENTER("find_key_for_maxmin");
 
-  TABLE *table= field->table;
+  TABLE *const table= field->table;
   uint idx= 0;
 
   KEY *keyinfo,*keyinfo_end;
@@ -944,6 +949,7 @@ static bool find_key_for_maxmin(bool max_fl, TABLE_REF *ref,
         key_part_map key_part_used= 0;
         *range_fl= NO_MIN_RANGE | NO_MAX_RANGE;
         if (matching_cond(max_fl, ref, keyinfo, part, cond,
+                          item_field->table_ref->map(),
                           &key_part_used, range_fl, prefix_len) &&
             !(key_part_to_use & ~key_part_used))
         {
@@ -991,7 +997,7 @@ static bool find_key_for_maxmin(bool max_fl, TABLE_REF *ref,
 
   @param[in] max_fl         0 for MIN(field) / 1 for MAX(field)
   @param[in] ref            Reference to the key value and info
-  @param[in] field          Field used the MIN/MAX expression
+  @param[in] item_field     Item representing field used in MIN/MAX expression
   @param[in] cond           WHERE condition
   @param[in] range_fl       Says whether there is a condition to to be checked
   @param[in] prefix_len     Length of the constant part of the key
@@ -1002,14 +1008,15 @@ static bool find_key_for_maxmin(bool max_fl, TABLE_REF *ref,
     1        WHERE was not true for the found row
 */
 
-static int reckey_in_range(bool max_fl, TABLE_REF *ref, Field* field,
+static int reckey_in_range(bool max_fl, TABLE_REF *ref, Item_field *item_field,
                             Item *cond, uint range_fl, uint prefix_len)
 {
-  if (key_cmp_if_same(field->table, ref->key_buff, ref->key, prefix_len))
+  if (key_cmp_if_same(item_field->field->table, ref->key_buff, ref->key,
+                      prefix_len))
     return 1;
   if (!cond || (range_fl & (max_fl ? NO_MIN_RANGE : NO_MAX_RANGE)))
     return 0;
-  return maxmin_in_range(max_fl, field, cond);
+  return maxmin_in_range(max_fl, item_field, cond);
 }
 
 
@@ -1017,7 +1024,7 @@ static int reckey_in_range(bool max_fl, TABLE_REF *ref, Field* field,
   Check whether {MAX|MIN}(field) is in range specified by conditions.
 
   @param[in] max_fl          0 for MIN(field) / 1 for MAX(field)
-  @param[in] field           Field used the MIN/MAX expression
+  @param[in] item_field      Item representing field used in MIN/MAX expression
   @param[in] cond            WHERE condition
 
   @retval
@@ -1026,7 +1033,7 @@ static int reckey_in_range(bool max_fl, TABLE_REF *ref, Field* field,
     1        WHERE was not true for the found row
 */
 
-static int maxmin_in_range(bool max_fl, Field* field, Item *cond)
+static int maxmin_in_range(bool max_fl, Item_field *item_field, Item *cond)
 {
   /* If AND/OR condition */
   if (cond->type() == Item::COND_ITEM)
@@ -1035,13 +1042,13 @@ static int maxmin_in_range(bool max_fl, Field* field, Item *cond)
     Item *item;
     while ((item= li++))
     {
-      if (maxmin_in_range(max_fl, field, item))
+      if (maxmin_in_range(max_fl, item_field, item))
         return 1;
     }
     return 0;
   }
 
-  if (cond->used_tables() != field->table->map)
+  if (cond->used_tables() != item_field->table_ref->map())
     return 0;
   bool less_fl= 0;
   switch (((Item_func*) cond)->functype()) {

@@ -866,9 +866,9 @@ end:
 }
 
 #ifndef NDB_MUTEX_DEADLOCK_DETECTOR
-static pthread_key(void*, tls_keys[NDB_THREAD_TLS_MAX]);
+static thread_local_key_t tls_keys[NDB_THREAD_TLS_MAX];
 #else
-static pthread_key(void*, tls_keys[NDB_THREAD_TLS_MAX + 1]);
+static thread_local_key_t tls_keys[NDB_THREAD_TLS_MAX + 1];
 #endif
 
 struct NdbThread* NdbThread_GetNdbThread()
@@ -878,12 +878,12 @@ struct NdbThread* NdbThread_GetNdbThread()
 
 void *NdbThread_GetTlsKey(NDB_THREAD_TLS key)
 {
-  return pthread_getspecific(tls_keys[key]);
+  return my_get_thread_local(tls_keys[key]);
 }
 
 void NdbThread_SetTlsKey(NDB_THREAD_TLS key, void *value)
 {
-  pthread_setspecific(tls_keys[key], value);
+  my_set_thread_local(tls_keys[key], value);
 }
 
 int
@@ -891,11 +891,11 @@ NdbThread_Init()
 { 
   g_ndb_thread_mutex = NdbMutex_Create();
   g_ndb_thread_condition = NdbCondition_Create();
-  pthread_key_create(&(tls_keys[NDB_THREAD_TLS_JAM]), NULL);
-  pthread_key_create(&(tls_keys[NDB_THREAD_TLS_THREAD]), NULL);
-  pthread_key_create(&(tls_keys[NDB_THREAD_TLS_NDB_THREAD]), NULL);
+  my_create_thread_local_key(&(tls_keys[NDB_THREAD_TLS_JAM]), NULL);
+  my_create_thread_local_key(&(tls_keys[NDB_THREAD_TLS_THREAD]), NULL);
+  my_create_thread_local_key(&(tls_keys[NDB_THREAD_TLS_NDB_THREAD]), NULL);
 #ifdef NDB_MUTEX_DEADLOCK_DETECTOR
-  pthread_key_create(&(tls_keys[NDB_THREAD_TLS_MAX]), NULL);
+  my_create_thread_local_key(&(tls_keys[NDB_THREAD_TLS_MAX]), NULL);
 #endif
   NdbThread_CreateObject(0);
   return 0;

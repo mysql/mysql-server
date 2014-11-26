@@ -21,7 +21,6 @@
 #include "my_global.h"
 #include "my_sys.h"
 #include "pfs_global.h"
-#include "my_net.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -29,11 +28,14 @@
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #endif
-
 #ifdef _WIN32
-  #include <winsock2.h>
-#else
-  #include <arpa/inet.h>
+#include <winsock2.h>
+#endif
+#ifdef HAVE_ARPA_INET_H
+#include <arpa/inet.h>
+#endif
+#ifdef HAVE_NETINET_IN_H
+#include <netinet/in.h>
 #endif
 
 bool pfs_initialized= false;

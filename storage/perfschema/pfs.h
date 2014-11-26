@@ -33,7 +33,7 @@
 */
 extern struct PSI_bootstrap PFS_bootstrap;
 /** Performance schema Thread Local Storage key.  */
-extern pthread_key(PFS_thread*, THR_PFS);
+extern thread_local_key_t THR_PFS;
 /** True when @c THR_PFS is initialized. */
 extern bool THR_PFS_initialized;
 

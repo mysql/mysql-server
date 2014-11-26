@@ -1,0 +1,30 @@
+--source include/have_innodb.inc
+--source include/not_embedded.inc
+--source include/no_valgrind_without_big.inc
+
+let $n=250;
+let $t=veryLongTableNameToCreateMLOG_FILE_NAMErecords;
+
+--disable_query_log
+call mtr.add_suppression("InnoDB: Resizing redo log");
+call mtr.add_suppression("InnoDB: Starting to delete and rewrite log files");
+call mtr.add_suppression("InnoDB: New log files created");
+
+let $i=$n;
+while ($i)
+{
+--eval CREATE TABLE $t$i(a INT PRIMARY KEY) ENGINE=InnoDB;
+dec $i;
+}
+
+let $restart_parameters = restart: --innodb-log-files-in-group=2 --innodb-log-file-size=1M;
+--source include/kill_and_restart_mysqld.inc
+
+--disable_query_log
+let $i=$n;
+while ($i)
+{
+--eval DROP TABLE $t$i;
+dec $i;
+}
+--enable_query_log

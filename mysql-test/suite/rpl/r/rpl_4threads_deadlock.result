@@ -18,7 +18,7 @@ SET DEBUG_SYNC='purge_logs_after_lock_index_before_thread_count SIGNAL parked2 W
 PURGE BINARY LOGS BEFORE '9999-12-31';
 "Wait_for parked2"
 SET DEBUG_SYNC='now WAIT_FOR parked2';
-SET DEBUG_SYNC='processlist_after_LOCK_thd_count_before_LOCK_thd_data SIGNAL parked3 WAIT_FOR go_parked3';
+SET DEBUG_SYNC='processlist_after_LOCK_thd_list_before_LOCK_thd_data SIGNAL parked3 WAIT_FOR go_parked3';
 SELECT * FROM information_schema.processlist;
 "Wait_for parked3"
 SET DEBUG_SYNC='now WAIT_FOR parked3';
@@ -39,7 +39,7 @@ SET DEBUG_SYNC='purge_logs_after_lock_index_before_thread_count SIGNAL parked2 W
 PURGE BINARY LOGS BEFORE '9999-12-31';
 "Wait_for parked2"
 SET DEBUG_SYNC='now WAIT_FOR parked2';
-SET DEBUG_SYNC='processlist_after_LOCK_thd_count_before_LOCK_thd_data SIGNAL parked3 WAIT_FOR go_parked3';
+SET DEBUG_SYNC='processlist_after_LOCK_thd_list_before_LOCK_thd_data SIGNAL parked3 WAIT_FOR go_parked3';
 SHOW PROCESSLIST;
 "Wait_for parked3"
 SET DEBUG_SYNC='now WAIT_FOR parked3';

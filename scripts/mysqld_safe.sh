@@ -28,6 +28,7 @@ err_log=
 
 syslog_tag_mysqld=mysqld
 syslog_tag_mysqld_safe=mysqld_safe
+syslog_facility=daemon
 
 trap '' 1 2 3 15			# we shouldn't let anyone kill us
 trap '' 13                              # not even SIGPIPE
@@ -128,6 +129,7 @@ log_generic () {
     init) ;;  # Just echo the message, don't save it anywhere
     file) echo "$msg" >> "$err_log" ;;
     syslog) logger -t "$syslog_tag_mysqld_safe" -p "$priority" "$*" ;;
+    both) echo "$msg" >> "$err_log"; logger -t "$syslog_tag_mysqld_safe" -p "$priority" "$*" ;;
     *)
       echo "Internal program error (non-fatal):" \
            " unknown logging method '$logging'" >&2
@@ -136,11 +138,11 @@ log_generic () {
 }
 
 log_error () {
-  log_generic daemon.error "$@" >&2
+  log_generic ${syslog_facility}.error "$@" >&2
 }
 
 log_notice () {
-  log_generic daemon.notice "$@"
+  log_generic ${syslog_facility}.notice "$@"
 }
 
 eval_log_error () {
@@ -148,14 +150,10 @@ eval_log_error () {
   case $logging in
     file) cmd="$cmd >> "`shell_quote_string "$err_log"`" 2>&1" ;;
     syslog)
-      # mysqld often prefixes its messages with a timestamp, which is
-      # redundant when logging to syslog (which adds its own timestamp)
-      # However, we don't strip the timestamp with sed here, because
-      # sed buffers output (only GNU sed supports a -u (unbuffered) option)
-      # which means that messages may not get sent to syslog until the
-      # mysqld process quits.
-      cmd="$cmd 2>&1 | logger -t '$syslog_tag_mysqld' -p daemon.error"
+      cmd="$cmd --log-syslog=1 --log-syslog-facility=$syslog_facility '--log-syslog-tag=$syslog_tag' > /dev/null 2>&1"
       ;;
+    both)
+      cmd="$cmd --log-syslog=1 --log-syslog-facility=$syslog_facility '--log-syslog-tag=$syslog_tag' >> "`shell_quote_string "$err_log"`" 2>&1" ;;
     *)
       echo "Internal program error (non-fatal):" \
            " unknown logging method '$logging'" >&2
@@ -558,6 +556,19 @@ then
   fi
 fi
 
+if [ $want_syslog -eq 1 ]
+then
+  if [ -n "$syslog_tag" ]
+  then
+    # Sanitize the syslog tag
+    syslog_tag=`echo "$syslog_tag" | sed -e 's/[^a-zA-Z0-9_-]/_/g'`
+    syslog_tag_mysqld_safe="${syslog_tag_mysqld_safe}-$syslog_tag"
+    syslog_tag_mysqld="${syslog_tag_mysqld}-$syslog_tag"
+  fi
+  log_notice "Logging to syslog."
+  logging=syslog
+fi
+
 if [ -n "$err_log" -o $want_syslog -eq 0 ]
 then
   if [ -n "$err_log" ]
@@ -586,31 +597,20 @@ then
 
   append_arg_to_args "--log-error=$err_log"
 
-  if [ $want_syslog -eq 1 ]
-  then
-    # User explicitly asked for syslog, so warn that it isn't used
-    log_error "Can't log to error log and syslog at the same time.  Remove all --log-error configuration options for --syslog to take effect."
-  fi
-
   # Log to err_log file
   log_notice "Logging to '$err_log'."
-  logging=file
+  if [ $want_syslog -eq 1 ]
+  then
+    logging=both
+  else
+    logging=file
+  fi
 
   if [ ! -f "$err_log" ]; then                  # if error log already exists,
     touch "$err_log"                            # we just append. otherwise,
     chmod "$fmode" "$err_log"                   # fix the permissions here!
   fi
 
-else
-  if [ -n "$syslog_tag" ]
-  then
-    # Sanitize the syslog tag
-    syslog_tag=`echo "$syslog_tag" | sed -e 's/[^a-zA-Z0-9_-]/_/g'`
-    syslog_tag_mysqld_safe="${syslog_tag_mysqld_safe}-$syslog_tag"
-    syslog_tag_mysqld="${syslog_tag_mysqld}-$syslog_tag"
-  fi
-  log_notice "Logging to syslog."
-  logging=syslog
 fi
 
 USER_OPTION=""

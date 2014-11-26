@@ -1,6 +1,6 @@
 /***************************************************************************//**
 
-Copyright (c) 2007, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2007, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -23,6 +23,9 @@ Red-Black tree implementation
 Created 2007-03-20 Sunny Bains
 ***********************************************************************/
 
+#include "univ.i"
+
+#include "ut0new.h"
 #include "ut0rbt.h"
 
 /**********************************************************************//**
@@ -799,19 +802,19 @@ rbt_create(
 	ib_rbt_t*	tree;
 	ib_rbt_node_t*	node;
 
-	tree = (ib_rbt_t*) ut_zalloc(sizeof(*tree));
+	tree = (ib_rbt_t*) ut_zalloc_nokey(sizeof(*tree));
 
 	tree->sizeof_value = sizeof_value;
 
 	/* Create the sentinel (NIL) node. */
-	node = tree->nil = (ib_rbt_node_t*) ut_zalloc(sizeof(*node));
+	node = tree->nil = (ib_rbt_node_t*) ut_zalloc_nokey(sizeof(*node));
 
 	node->color = IB_RBT_BLACK;
 	node->parent = node->left = node->right = node;
 
 	/* Create the "fake" root, the real root node will be the
 	left child of this node. */
-	node = tree->root = (ib_rbt_node_t*) ut_zalloc(sizeof(*node));
+	node = tree->root = (ib_rbt_node_t*) ut_zalloc_nokey(sizeof(*node));
 
 	node->color = IB_RBT_BLACK;
 	node->parent = node->left = node->right = tree->nil;
@@ -836,7 +839,7 @@ rbt_insert(
 	ib_rbt_node_t*	node;
 
 	/* Create the node that will hold the value data. */
-	node = (ib_rbt_node_t*) ut_malloc(SIZEOF_NODE(tree));
+	node = (ib_rbt_node_t*) ut_malloc_nokey(SIZEOF_NODE(tree));
 
 	memcpy(node->value, value, tree->sizeof_value);
 	node->parent = node->left = node->right = tree->nil;
@@ -865,7 +868,7 @@ rbt_add_node(
 	ib_rbt_node_t*	node;
 
 	/* Create the node that will hold the value data */
-	node = (ib_rbt_node_t*) ut_malloc(SIZEOF_NODE(tree));
+	node = (ib_rbt_node_t*) ut_malloc_nokey(SIZEOF_NODE(tree));
 
 	memcpy(node->value, value, tree->sizeof_value);
 	node->parent = node->left = node->right = tree->nil;

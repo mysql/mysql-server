@@ -1,14 +1,9 @@
 DROP TABLE IF EXISTS t1,t2,t3,t4;
+SET sql_mode='NO_ENGINE_SUBSTITUTION';
 CREATE TABLE t1(c1 YEAR NOT NULL,c2 YEAR, PRIMARY KEY(c1));
 CREATE TABLE t2(c1 YEAR NOT NULL, c2 YEAR, UNIQUE INDEX idx(c1,c2));
-CREATE TABLE t3(c1 YEAR(2) NOT NULL,c2 YEAR(2), PRIMARY KEY(c1));
-Warnings:
-Warning	1818	YEAR(2) column type is deprecated. Creating YEAR(4) column instead.
-Warning	1818	YEAR(2) column type is deprecated. Creating YEAR(4) column instead.
-CREATE TABLE t4(c1 YEAR(2), c2 YEAR(2), UNIQUE INDEX idx(c1,c2));
-Warnings:
-Warning	1818	YEAR(2) column type is deprecated. Creating YEAR(4) column instead.
-Warning	1818	YEAR(2) column type is deprecated. Creating YEAR(4) column instead.
+CREATE TABLE t3(c1 YEAR(4) NOT NULL,c2 YEAR(4), PRIMARY KEY(c1));
+CREATE TABLE t4(c1 YEAR(4), c2 YEAR(4), UNIQUE INDEX idx(c1,c2));
 INSERT INTO t1 VALUES (1901,1901),(1970,1970),(1999,1999),(2000,2000),(2155,2155);
 INSERT INTO t2 VALUES (1901,1901),(1970,1970),(1999,1999),(2000,2000),(2155,2155);
 INSERT INTO t3 VALUES (1901,1901),(1970,1970),(1999,1999),(2000,2000),(2155,2155);
@@ -793,9 +788,7 @@ c1
 2001
 2003
 2071
-SET SQL_MODE=DEFAULT
-#Update with invalid values
-#UPDATE t2 SET c1='def' WHERE c2=2064;
+SET sql_mode='NO_ENGINE_SUBSTITUTION';
 UPDATE t4 SET c1=-70 WHERE c2=75;
 Warnings:
 Warning	1264	Out of range value for column 'c1' at row 17
@@ -980,3 +973,4 @@ c1	c2
 2155	2155
 NULL	NULL
 DROP TABLE IF EXISTS t1,t2,t3,t4;
+SET sql_mode=default;

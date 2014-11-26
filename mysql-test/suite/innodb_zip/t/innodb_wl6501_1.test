@@ -14,7 +14,7 @@
 --source include/big_test.inc
 --source include/have_innodb_16k.inc
 
-# Valgrind would complain about memory leaks when we crash on purpose.
+# Valgrind would result in a "long semaphore wait" inside InnoDB
 --source include/not_valgrind.inc
 # Embedded server does not support crashing
 --source include/not_embedded.inc
@@ -137,7 +137,7 @@ while ($cnt) {
 	{
 		start transaction;
 
-		eval insert into t1 values(
+		eval insert ignore into t1 values(
 			$n, $n,
 			repeat(concat(' tc3_',$n), 42),
 			repeat(concat(' tc4_',$n), 300),
@@ -146,7 +146,7 @@ while ($cnt) {
 			repeat(concat(' tc7_',$n), 300),
 			now(), (100.55+$n));
 
-		eval insert into t2 values(
+		eval insert ignore into t2 values(
 			$n, $n,
 			repeat(concat(' tc3_',$n), 42),
 			repeat(concat(' tc4_',$n), 300),
@@ -155,7 +155,7 @@ while ($cnt) {
 			repeat(concat(' tc7_',$n), 300),
 			now(), (100.55+$n));
 
-		eval insert into t3 values(
+		eval insert ignore into t3 values(
 			$n, $n,
 			repeat(concat(' tc3_',$n), 42),
 			repeat(concat(' tc4_',$n), 300),
@@ -164,7 +164,7 @@ while ($cnt) {
 			repeat(concat(' tc7_',$n), 300),
 			now(), (100.55+$n));
 
-		eval insert into t4 values(
+		eval insert ignore into t4 values(
 			$n, $n,
 			repeat(concat(' tc3_',$n), 42),
 			repeat(concat(' tc4_',$n), 300),
@@ -173,7 +173,7 @@ while ($cnt) {
 			repeat(concat(' tc7_',$n), 300),
 			now(), (100.55+$n));
 
-		eval insert into t5 values(
+		eval insert ignore into t5 values(
 			$n, $n,
 			repeat(concat(' tc3_',$n), 42),
 			repeat(concat(' tc4_',$n), 300),

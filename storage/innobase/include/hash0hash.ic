@@ -222,4 +222,62 @@ hash_get_lock(
 
 	return(hash_get_nth_lock(table, i));
 }
+
+/** If not appropriate rw_lock for a fold value in a hash table,
+relock S-lock the another rw_lock until appropriate for a fold value.
+@param[in]	hash_lock	latched rw_lock to be confirmed
+@param[in]	table		hash table
+@param[in]	fold		fold value
+@return	latched rw_lock */
+UNIV_INLINE
+rw_lock_t*
+hash_lock_s_confirm(
+	rw_lock_t*	hash_lock,
+	hash_table_t*	table,
+	ulint		fold)
+{
+#ifdef UNIV_SYNC_DEBUG
+	ut_ad(rw_lock_own(hash_lock, RW_LOCK_S));
+#endif /* UNIV_SYNC_DEBUG */
+
+	rw_lock_t*	hash_lock_tmp = hash_get_lock(table, fold);
+
+	while (hash_lock_tmp != hash_lock) {
+		rw_lock_s_unlock(hash_lock);
+		hash_lock = hash_lock_tmp;
+		rw_lock_s_lock(hash_lock);
+		hash_lock_tmp = hash_get_lock(table, fold);
+	}
+
+	return(hash_lock);
+}
+
+/** If not appropriate rw_lock for a fold value in a hash table,
+relock X-lock the another rw_lock until appropriate for a fold value.
+@param[in]	hash_lock	latched rw_lock to be confirmed
+@param[in]	table		hash table
+@param[in]	fold		fold value
+@return	latched rw_lock */
+UNIV_INLINE
+rw_lock_t*
+hash_lock_x_confirm(
+	rw_lock_t*	hash_lock,
+	hash_table_t*	table,
+	ulint		fold)
+{
+#ifdef UNIV_SYNC_DEBUG
+	ut_ad(rw_lock_own(hash_lock, RW_LOCK_X));
+#endif /* UNIV_SYNC_DEBUG */
+
+	rw_lock_t*	hash_lock_tmp = hash_get_lock(table, fold);
+
+	while (hash_lock_tmp != hash_lock) {
+		rw_lock_x_unlock(hash_lock);
+		hash_lock = hash_lock_tmp;
+		rw_lock_x_lock(hash_lock);
+		hash_lock_tmp = hash_get_lock(table, fold);
+	}
+
+	return(hash_lock);
+}
 #endif /* !UNIV_HOTBACKUP */

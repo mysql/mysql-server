@@ -227,6 +227,12 @@ public:
     return lex_string;
   }
 
+  LEX_CSTRING lex_cstring() const
+  {
+    LEX_CSTRING lex_cstring = { ptr(), length() };
+    return lex_cstring;
+  }
+
   void set(String &str,size_t offset, size_t arg_length)
   {
     DBUG_ASSERT(&str != this);
@@ -434,6 +440,12 @@ public:
   bool append_parenthesized(long nr, int radix= 10);
   int strstr(const String &search,size_t offset=0); // Returns offset to substring or -1
   int strrstr(const String &search,size_t offset=0); // Returns offset to substring or -1
+  /**
+   * Returns substring of given characters lenght, starting at given character offset.
+   * Note that parameter indexes are character indexes and not byte indexes.
+   */
+  String substr(int offset, int count);
+
   bool replace(size_t offset, size_t arg_length,const char *to, size_t length);
   bool replace(size_t offset, size_t arg_length,const String &to);
   bool append(char chr)
@@ -614,4 +626,23 @@ static inline bool check_if_only_end_space(const CHARSET_INFO *cs, char *str,
   return str+ cs->cset->scan(cs, str, end, MY_SEQ_SPACES) == end;
 }
 
+
+inline LEX_CSTRING to_lex_cstring(const LEX_STRING &s)
+{
+  LEX_CSTRING cstr= { s.str, s.length };
+  return cstr;
+}
+
+
+inline LEX_STRING to_lex_string(const LEX_CSTRING &s)
+{
+  LEX_STRING str= { const_cast<char *>(s.str),  s.length };
+  return str;
+}
+
+inline LEX_CSTRING to_lex_cstring(const char *s)
+{
+  LEX_CSTRING cstr= { s, s != NULL ? strlen(s) : 0 };
+  return cstr;
+}
 #endif /* SQL_STRING_INCLUDED */

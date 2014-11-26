@@ -9,7 +9,7 @@
 --disable_warnings
 drop table if exists t1,t2;
 --enable_warnings
-
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 # Set timezone to GMT-3, to make it possible to use "interval 3 hour"
 set time_zone="+03:00";
 
@@ -490,7 +490,7 @@ SELECT * FROM t1;
 SELECT TIMESTAMP'2000-01-27 23:13:41' - TIMESTAMP'2003-05-16 23:53:29'; 
 SELECT TIMESTAMP('2000-01-27','23:13:41') - TIMESTAMP('2003-05-16','23:53:29'); 
 DROP TABLE t1;
-
+SET sql_mode = default;
 --echo #
 --echo # Test for bug#11747847 - 34280: create table fails if NO_ZERO_DATE
 --echo # or NO_ZERO_IN_DATE SQL mode is set.

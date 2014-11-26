@@ -1510,7 +1510,8 @@ void my_print_variables(const struct my_option *options)
 
 void my_print_variables_ex(const struct my_option *options, FILE* file)
 {
-  uint name_space= 34, length, nr;
+  uint name_space= 34, nr;
+  size_t length;
   ulonglong llvalue;
   char buff[255];
   const struct my_option *optp;

@@ -1,5 +1,5 @@
 
-# Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -17,10 +17,36 @@
 # This file includes Linux specific options and quirks, related to system checks
 
 INCLUDE(CheckSymbolExists)
+INCLUDE(CheckCSourceRuns)
 
-# Something that needs to be set on legacy reasons
-SET(TARGET_OS_LINUX 1)
-SET(_GNU_SOURCE 1)
+# We require at least GCC 4.4 or Clang 3.3.
+IF(NOT FORCE_UNSUPPORTED_COMPILER)
+  IF(CMAKE_COMPILER_IS_GNUCC)
+    EXECUTE_PROCESS(COMMAND ${CMAKE_C_COMPILER} -dumpversion
+                    OUTPUT_VARIABLE GCC_VERSION)
+    IF(GCC_VERSION VERSION_LESS 4.4)
+      MESSAGE(FATAL_ERROR "GCC 4.4 or newer is required!")
+    ENDIF()
+  ELSEIF(CMAKE_C_COMPILER_ID MATCHES "Clang")
+    CHECK_C_SOURCE_RUNS("
+      int main()
+      {
+        return (__clang_major__ < 3) ||
+               (__clang_major__ == 3 && __clang_minor__ < 3);
+      }" HAVE_SUPPORTED_CLANG_VERSION)
+    IF(NOT HAVE_SUPPORTED_CLANG_VERSION)
+      MESSAGE(FATAL_ERROR "Clang 3.3 or newer is required!")
+    ENDIF()
+  ELSE()
+    MESSAGE(FATAL_ERROR "Unsupported compiler!")
+  ENDIF()
+ENDIF()
+
+# ISO C89, ISO C99, POSIX.1, POSIX.2, BSD, SVID, X/Open, LFS, and GNU extensions.
+ADD_DEFINITIONS(-D_GNU_SOURCE)
+
+# 64 bit file offset support flag
+ADD_DEFINITIONS(-D_FILE_OFFSET_BITS=64)
 
 # Fix CMake (< 2.8) flags. -rdynamic exports too many symbols.
 FOREACH(LANG C CXX)
@@ -36,9 +62,6 @@ ENDFOREACH()
 IF(NOT WITH_ASAN AND NOT WITH_MSAN)
   SET(LINK_FLAG_NO_UNDEFINED "-Wl,--no-undefined")
 ENDIF()
-
-# 64 bit file offset support flag
-SET(_FILE_OFFSET_BITS 64)
 
 # Linux specific HUGETLB /large page support
 CHECK_SYMBOL_EXISTS(SHM_HUGETLB sys/shm.h HAVE_LINUX_LARGE_PAGES)

@@ -1,0 +1,120 @@
+# ==== Purpose ====
+#
+# BUG#16741603: MYSQLD SCANS ALL BINARY LOGS ON CRASH RECOVERY
+#
+# Verify that the server does not scan more than one binary log
+# in every iteration when initializing GTID sets on server start
+# if simplified-binlog-gtid-recovery is enabled.
+#
+#
+# ==== Implementation ====
+#
+# 1) Start server and generate four binary logs with gtid_mode off.
+# 2) Move master-bin.000002 to master-bin.000002.bkp and
+#    master-bin.000003 to master-bin.000003.bkp
+# 3) Only master-bin.000001 and master-bin.000004 remain, others are moved
+#    , restart the server with enabled simplified-binlog-gtid-recovery
+#    and gtid_mode on. If the server scans more than one binary log in
+#    every iteration, it will cause read error on the 2nd and 3rd files.
+# 4) Verify that GLOBAL.GTID_EXECUTED and GLOBAL.GTID_PURGED are empty
+#    after server restarts.
+# 5) Move master-bin.000004 to master-bin.000004.bkp
+# 6) Only master-bin.000001 and master-bin.000005 remain, others are moved
+#    , restart the server with enabled simplified-binlog-gtid-recovery
+#    and gtid_mode on again. If the server scans more than one binary
+#    log in every iteration, it will cause read error on the 2nd and
+#    4th files.
+# 7) Verify that GLOBAL.GTID_EXECUTED contains committed gtid MASTER_UUID:1
+#    and GLOBAL.GTID_PURGED is empty after server restarts again.
+# 8) Move binary logs back.
+#
+
+--source include/not_gtid_enabled.inc
+
+# Invoke rpl_init.inc in order to set up the connections needed by
+# rpl_restart_server.inc
+--let $rpl_server_count= 1
+--let $rpl_topology= none
+--source include/rpl_init.inc
+--source include/rpl_default_connections.inc
+
+--let $MYSQLD_DATADIR= `select @@datadir`
+--let $master_uuid= `SELECT @@GLOBAL.SERVER_UUID`
+CREATE TABLE t1 (
+  c1 INT NOT NULL PRIMARY KEY
+);
+
+--echo # Generate master-bin.000002
+FLUSH LOGS;
+INSERT INTO t1 VALUES (1);
+--let $binlog_file2= query_get_value(SHOW MASTER STATUS, File, 1)
+
+--echo # Generate master-bin.000003
+FLUSH LOGS;
+INSERT INTO t1 VALUES (2);
+--let $binlog_file3= query_get_value(SHOW MASTER STATUS, File, 1)
+
+--echo # Generate master-bin.000004
+FLUSH LOGS;
+INSERT INTO t1 VALUES (3);
+--let $binlog_file4= query_get_value(SHOW MASTER STATUS, File, 1)
+
+--echo # Move master-bin.000002 to master-bin.000002.bkp and
+--echo # master-bin.000003 to master-bin.000003.bkp
+--move_file $MYSQLD_DATADIR/$binlog_file2 $MYSQLD_DATADIR/$binlog_file2.bkp
+--move_file $MYSQLD_DATADIR/$binlog_file3 $MYSQLD_DATADIR/$binlog_file3.bkp
+
+--echo #
+--echo # Only master-bin.000001 and master-bin.000004 remain, others are moved
+--echo # , restart the server with enabled simplified-binlog-gtid-recovery
+--echo # and gtid_mode on. If the server scans more than one binary log in
+--echo # every iteration, it will cause read error on the 2nd and 3rd files.
+--echo #
+--let $rpl_server_number= 1
+--let $rpl_server_parameters= --simplified-binlog-gtid-recovery=on --gtid-mode=on --enforce-gtid-consistency --log-slave-updates
+--source include/rpl_restart_server.inc
+
+--echo #
+--echo # Verify that GLOBAL.GTID_EXECUTED and GLOBAL.GTID_PURGED are empty
+--echo # after server restarts.
+--echo #
+--let $assert_text= GLOBAL.GTID_EXECUTED must be empty.
+--let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = ""
+--source include/assert.inc
+--let $assert_text= GLOBAL.GTID_PURGED must be empty.
+--let $assert_cond= "[SELECT @@GLOBAL.GTID_PURGED]" = ""
+--source include/assert.inc
+
+DROP TABLE t1;
+--echo # Move master-bin.000004 to master-bin.000004.bkp
+--move_file $MYSQLD_DATADIR/$binlog_file4 $MYSQLD_DATADIR/$binlog_file4.bkp
+
+--echo #
+--echo # Only master-bin.000001 and master-bin.000005 remain, others are moved
+--echo # , restart the server with enabled simplified-binlog-gtid-recovery
+--echo # and gtid_mode on again. If the server scans more than one binary
+--echo # log in every iteration, it will cause read error on the 2nd and
+--echo # 4th files.
+--echo #
+--let $rpl_server_number= 1
+--let $rpl_server_parameters= --simplified-binlog-gtid-recovery=on --gtid-mode=on --enforce-gtid-consistency --log-slave-updates
+--source include/rpl_restart_server.inc
+
+--echo #
+--echo # Verify that GLOBAL.GTID_EXECUTED contains committed gtid MASTER_UUID:1
+--echo # and GLOBAL.GTID_PURGED is empty after server restarts again.
+--echo #
+--let $assert_text= committed gtid MASTER_UUID:1
+--let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$master_uuid:1"
+--source include/assert.inc
+--let $assert_text= GLOBAL.GTID_PURGED is empty
+--let $assert_cond= "[SELECT @@GLOBAL.GTID_PURGED]" = ""
+--source include/assert.inc
+
+--echo # Move binary logs back.
+--move_file $MYSQLD_DATADIR/$binlog_file2.bkp $MYSQLD_DATADIR/$binlog_file2
+--move_file $MYSQLD_DATADIR/$binlog_file3.bkp $MYSQLD_DATADIR/$binlog_file3
+--move_file $MYSQLD_DATADIR/$binlog_file4.bkp $MYSQLD_DATADIR/$binlog_file4
+
+--source include/rpl_end.inc
+

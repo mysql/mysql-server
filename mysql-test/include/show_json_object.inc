@@ -13,6 +13,7 @@ BEGIN
  DECLARE opened INT;
  DECLARE closed INT;
  DECLARE inside INT;
+ DECLARE stop INT;
  DECLARE open_symbol VARCHAR(1);
  DECLARE close_symbol VARCHAR(1);
  SET pos = LOCATE(extract, trace);
@@ -33,9 +34,21 @@ BEGIN
  SET trace = SUBSTRING(trace, pos);
  SET pos = 1;
  SET inside = 0;
+ # A counter to break an infinite loop, in case of bug in SP or bad trace
+ SET stop = 1000;
  LOOP
+   SET stop = stop - 1;
+   IF stop = 0
+   THEN
+     RETURN "ERROR";
+   END IF;
    SET closed = LOCATE(close_symbol, trace, pos);
    SET opened = LOCATE(open_symbol, trace, pos);
+   IF opened = 0
+   THEN
+     # symbol not found, treat it as "very far ahead"
+     SET opened = 2000000;
+   END IF;
    IF opened < closed
    THEN
      SET inside = inside + 1;

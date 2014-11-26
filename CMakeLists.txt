@@ -34,10 +34,12 @@ ENDIF()
 
 # We use the LOCATION target property (CMP0026)
 # and get_target_property() for non-existent targets (CMP0045)
+# and INSTALL_NAME_DIR (CMP0042)
 IF(CMAKE_VERSION VERSION_EQUAL "3.0.0" OR
    CMAKE_VERSION VERSION_GREATER "3.0.0")
  CMAKE_POLICY(SET CMP0026 OLD)
  CMAKE_POLICY(SET CMP0045 OLD)
+ CMAKE_POLICY(SET CMP0042 OLD)
 ENDIF()
 
 MESSAGE(STATUS "Running cmake version ${CMAKE_VERSION}")
@@ -223,8 +225,6 @@ IF(DISABLE_SHARED)
   SET(WITHOUT_DYNAMIC_PLUGINS 1)
 ENDIF()
 OPTION(ENABLED_PROFILING "Enable profiling" ON)
-OPTION(CYBOZU "" OFF)
-OPTION(BACKUP_TEST "" OFF)
 OPTION(WITHOUT_SERVER OFF)
 IF(UNIX)
   OPTION(WITH_VALGRIND "Valgrind instrumentation" OFF)
@@ -232,7 +232,8 @@ ENDIF()
 IF(NOT WITHOUT_SERVER)
   OPTION (WITH_UNIT_TESTS "Compile MySQL with unit tests" ON)
 ENDIF()
-MARK_AS_ADVANCED(CYBOZU BACKUP_TEST WITHOUT_SERVER DISABLE_SHARED)
+OPTION(FORCE_UNSUPPORTED_COMPILER "Disable compiler version checks" OFF)
+MARK_AS_ADVANCED(WITHOUT_SERVER DISABLE_SHARED FORCE_UNSUPPORTED_COMPILER)
 
 
 include(CheckCSourceCompiles)
@@ -417,11 +418,8 @@ IF(NOT CMAKE_BUILD_TYPE
     AND NOT CMAKE_GENERATOR MATCHES "Xcode") 
     # This is the case of no CMAKE_BUILD_TYPE choosen, typical for VS and Xcode
     # or if custom C flags are set. In VS and Xcode for non-Debug configurations 
-    # DBUG_OFF is already correctly set. Use DBUG_OFF for Makefile based projects 
-    # without build type too, unless user specifically requests DBUG. 
-    IF(NOT CMAKE_C_FLAGS MATCHES "-DDBUG_ON")
-      ADD_DEFINITIONS(-DDBUG_OFF)
-    ENDIF()
+    # DBUG_OFF is already correctly set.
+    ADD_DEFINITIONS(-DDBUG_OFF)
 ENDIF()
 
 # Add safemutex for debug configurations
@@ -472,7 +470,10 @@ INCLUDE(configure.cmake)
 
 # Common defines and includes
 ADD_DEFINITIONS(-DHAVE_CONFIG_H)
-INCLUDE_DIRECTORIES(${CMAKE_CURRENT_BINARY_DIR}/include)
+INCLUDE_DIRECTORIES(
+  ${CMAKE_CURRENT_BINARY_DIR}/include
+  ${CMAKE_SOURCE_DIR}/extra/rapidjson/include
+)
 
 # Add bundled or system zlib.
 MYSQL_CHECK_ZLIB_WITH_COMPRESS()
@@ -488,7 +489,7 @@ MYSQL_CHECK_LIBEVENT()
 # not run with the warning options as to not perturb fragile checks
 # (i.e. do not make warnings into errors).
 #
-# Why doesn't these flags affect the entire build?
+# Why don't these flags affect the entire build?
 # Because things may already have been included with ADD_SUBDIRECTORY
 #
 OPTION(MYSQL_MAINTAINER_MODE
@@ -568,6 +569,7 @@ IF(NOT WITHOUT_SERVER)
   ENDIF()
   ADD_SUBDIRECTORY(packaging/rpm-oel)
   ADD_SUBDIRECTORY(packaging/rpm-fedora)
+  ADD_SUBDIRECTORY(packaging/rpm-sles)
 ENDIF()
 
 INCLUDE(cmake/abi_check.cmake)

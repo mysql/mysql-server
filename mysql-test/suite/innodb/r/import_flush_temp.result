@@ -1,0 +1,40 @@
+#
+# Bug#18663997 INNODB: TOO MANY FILES STAY OPEN
+#
+CREATE TABLE t1 (
+a INT AUTO_INCREMENT PRIMARY KEY,
+b char(22),
+c varchar(255),
+KEY (b)
+) ENGINE=INNODB;
+CREATE TABLE t2 (a INT) ENGINE=INNODB;
+INSERT INTO t1 (b, c) VALUES
+('aaaaaaaaaaaaaaaaaaaaaa', 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'),
+('bbbbbbbbbbbbbbbbbbbbbb', 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb'),
+('cccccccccccccccccccccc', 'cccccccccccccccccccccccccccccccccccccccc'),
+('dddddddddddddddddddddd', 'dddddddddddddddddddddddddddddddddddddddd'),
+('eeeeeeeeeeeeeeeeeeeeee', 'eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee');
+INSERT INTO t1 (b, c) SELECT b, c FROM t1;
+INSERT INTO t1 (b, c) SELECT b, c FROM t1;
+INSERT INTO t1 (b, c) SELECT b, c FROM t1;
+INSERT INTO t1 (b, c) SELECT b, c FROM t1;
+INSERT INTO t1 (b, c) SELECT b, c FROM t1;
+INSERT INTO t1 (b, c) SELECT b, c FROM t1;
+INSERT INTO t1 (b, c) SELECT b, c FROM t1;
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+640
+t1.frm
+t1.ibd
+t2.frm
+t2.ibd
+FLUSH TABLE t1 FOR EXPORT;
+UNLOCK TABLES;
+ALTER TABLE t1 DISCARD TABLESPACE;
+SELECT * FROM t2;
+a
+SET GLOBAL debug="+d,ib_import_flush_temp";
+ALTER TABLE t1 IMPORT TABLESPACE;
+SET GLOBAL debug="-d,ib_import_flush_temp";
+DROP TABLE t2;
+DROP TABLE t1;

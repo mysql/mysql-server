@@ -436,9 +436,9 @@ drop table t2;
 #
 create table t1 (col1 varchar(1)) character set cp932;
 insert into t1 values ('a');
-insert into t1 values ('ab');
+insert ignore into t1 values ('ab');
 select * from t1;
-insert into t1 values ('abc');
+insert ignore into t1 values ('abc');
 select * from t1;
 drop table t1;
 

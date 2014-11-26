@@ -17,7 +17,7 @@
   let $point=   before_reset_query_plan;
 
   create table t1 (a char(10) character set koi8r) ;
-  insert into t1 values ('ÔÅÓÔ') ;
+  insert ignore into t1 values ('ÔÅÓÔ') ;
   let $point=   before_reset_query_plan;let $query=  DELETE from t1 ;
   --source include/explain_for_connection.inc
   drop table t1 ;
@@ -269,7 +269,7 @@
 
 
 
-
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 
   CREATE TABLE t1 ( mot varchar(30) character set latin1 NOT NULL default '', topic mediumint(8) unsigned NOT NULL default '0', date date NOT NULL default '0000-00-00', pseudo varchar(35) character set latin1 NOT NULL default '', PRIMARY KEY  (mot,pseudo,date,topic), KEY pseudo (pseudo,date,topic), KEY topic (topic) ) ENGINE=MyISAM CHARSET=latin1 ROW_FORMAT=DYNAMIC ;
   CREATE TABLE t2 ( mot varchar(30) character set latin1 NOT NULL default '', topic mediumint(8) unsigned NOT NULL default '0', date date NOT NULL default '0000-00-00', pseudo varchar(35) character set latin1 NOT NULL default '', PRIMARY KEY  (mot,pseudo,date,topic), KEY pseudo (pseudo,date,topic), KEY topic (topic) ) ENGINE=MyISAM CHARSET=latin1 ROW_FORMAT=DYNAMIC ;
@@ -283,7 +283,7 @@
   --source include/explain_for_connection.inc
   drop table t1, t2, t3 ;
 
-
+SET sql_mode = default;
 
 
 

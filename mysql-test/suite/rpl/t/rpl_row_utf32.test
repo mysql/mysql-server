@@ -10,8 +10,10 @@
 #
 
 SET SQL_LOG_BIN=0;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 --replace_result $key_length_innodb 1000
 CREATE TABLE t1 (c1 char(255) DEFAULT NULL, KEY c1 (c1)) DEFAULT CHARSET=utf32;
+SET sql_mode = default;
 SET SQL_LOG_BIN=1;
 
 -- connection slave
@@ -28,8 +30,10 @@ SET GLOBAL SLAVE_TYPE_CONVERSIONS='ALL_NON_LOSSY';
 -- source include/start_slave.inc
 
 SET SQL_LOG_BIN=0;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 --replace_result $key_length_innodb 1000
 CREATE TABLE t1 ( c1 varchar(255) DEFAULT NULL, KEY c1 (c1)) DEFAULT CHARSET=utf32;
+SET sql_mode = default;
 SET SQL_LOG_BIN=1;
 
 -- connection master

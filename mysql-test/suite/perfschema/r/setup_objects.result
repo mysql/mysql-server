@@ -25,6 +25,7 @@ insert into performance_schema.setup_objects
 values ('TABLE', 'db4', 't1', 'NO', 'YES');
 insert into performance_schema.setup_objects
 values ('TABLE', 'db4', '%', 'YES', 'NO');
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 insert into performance_schema.setup_objects
 values ('SOMETHING', 'bad1', 'bad1', 'YES', 'NO');
 ERROR 23000: Cannot add or update a child row: a foreign key constraint fails ()
@@ -81,6 +82,7 @@ TABLE	db3	t1	YES	YES
 TABLE	db3	t2	NO	NO
 TABLE	db4	%	YES	NO
 TABLE	db4	t1	NO	YES
+SET sql_mode = default;
 drop database if exists db1;
 drop database if exists db2;
 drop database if exists db3;

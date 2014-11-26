@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -30,8 +30,8 @@ class Trigger_creation_ctx : public Stored_program_creation_ctx,
 {
 public:
   static Trigger_creation_ctx *create(THD *thd,
-                                      const LEX_STRING &db_name,
-                                      const LEX_STRING &table_name,
+                                      const LEX_CSTRING &db_name,
+                                      const LEX_CSTRING &table_name,
                                       const LEX_STRING &client_cs_name,
                                       const LEX_STRING &connection_cl_name,
                                       const LEX_STRING &db_cl_name);

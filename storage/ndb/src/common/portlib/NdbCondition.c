@@ -194,7 +194,7 @@ NdbCondition_ComputeAbsTime(struct timespec * abstime, unsigned msecs)
     abstime->tv_nsec -= 1000000000;
   }
 #else
-  set_timespec_nsec(*abstime,msecs*1000000ULL);
+  set_timespec_nsec(abstime,msecs*1000000ULL);
 #endif
 }
 

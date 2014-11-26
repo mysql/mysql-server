@@ -213,6 +213,7 @@ DROP TABLE t1, t2, t3;
 # Bug#42580 - Innodb's ORDER BY ..LIMIT returns no rows for 
 #             null-safe operator <=> NULL
 #
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 CREATE TABLE t1(
 c1 DATE NOT NULL, 
 c2 DATE NULL, 
@@ -239,11 +240,13 @@ c1	c2	c3	c4
 2008-01-17	NULL	NULL	2009-01-29 00:00:00
 
 DROP TABLE t1;
+SET sql_mode = default;
 #
 # Bug#43617 - Innodb returns wrong results with timestamp's range value 
 #             in IN clause
 # (Note: Fixed by patch for BUG#42580)
 #
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 CREATE TABLE t1(
 c1 TIMESTAMP NOT NULL, 
 c2 TIMESTAMP NULL, 
@@ -291,6 +294,7 @@ c1	c2	c3	c4
 2038-01-09 03:14:07	2038-01-09 03:14:07	2009-01-05	2009-01-06 00:00:00
 
 DROP TABLE t1;
+SET sql_mode = default;
 #
 # Bug#43249 - Innodb returns zero time for the time column 
 #             with <=> NULL order by limit 
@@ -329,6 +333,7 @@ INSERT INTO t1 VALUES
 ('2038-01-09','d');
 
 # Execute select with invalid timestamp, desc ordering
+SET sql_mode = '';
 SELECT *
 FROM t1 
 WHERE ts BETWEEN '0000-00-00' AND '2010-00-01 00:00:00' 
@@ -337,6 +342,7 @@ LIMIT 2;
 ts	c
 2008-01-01 00:00:00	c
 2007-05-25 00:00:00	b
+SET sql_mode = default;
 
 # Should use index condition
 EXPLAIN
@@ -662,7 +668,7 @@ CREATE TABLE t2 (
 t2_int int PRIMARY KEY,
 t2_int2 INT
 );
-INSERT INTO t2 VALUES ();
+INSERT IGNORE INTO t2 VALUES ();
 INSERT INTO t1 VALUES ();
 
 SELECT *
@@ -788,7 +794,7 @@ COL1000 VARBINARY(179) NOT NULL,
 col1003 DATE DEFAULT NULL,
 KEY idx4267 (col1000, col1003)
 );
-INSERT INTO t1 VALUES (),();
+INSERT IGNORE INTO t1 VALUES (),();
 Warnings:
 Warning	1364	Field 'col999' doesn't have a default value
 Warning	1364	Field 'COL1000' doesn't have a default value

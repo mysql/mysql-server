@@ -210,10 +210,12 @@ SELECT table_name FROM information_schema.tables
 WHERE table_name = 't1_second';
 #
 # DISTINCT + SUBQUERY
+--source include/turn_off_only_full_group_by.inc
 SELECT DISTINCT table_schema FROM information_schema.tables
 WHERE table_name IN (SELECT table_name FROM information_schema.tables
                      WHERE table_schema = 'db_datadict')
 ORDER BY table_name;
+--source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
 #
 # JOIN
 SELECT table_name FROM information_schema.tables t1

@@ -11,7 +11,7 @@ kill query ID;
 select
 (@a:=load_file("MYSQLTEST_VARDIR/tmp/kill_query_calling_sp.binlog"))
 is not null;
-set @result= 2 - 1 - 1;
+set @result= 1 - 0 - 1;
 select @result /* must be zero either way */;
 @result
 0

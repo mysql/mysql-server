@@ -33,7 +33,7 @@ CREATE TABLE t1 (`tinyint` TINYINT,
 
 -- echo ### insert max unsigned
 -- echo ### a) declarative
--- eval INSERT INTO t1 VALUES ($max_unsigned_long, $max_unsigned_long, $max_unsigned_long, $max_unsigned_long, $max_unsigned_long, $max_unsigned_long, $max_unsigned_long,$max_unsigned_long, $max_unsigned_long, $max_unsigned_long, $max_unsigned_long, $max_unsigned_long, $max_unsigned_long, $max_unsigned_long);
+-- eval INSERT IGNORE INTO t1 VALUES ($max_unsigned_long, $max_unsigned_long, $max_unsigned_long, $max_unsigned_long, $max_unsigned_long, $max_unsigned_long, $max_unsigned_long,$max_unsigned_long, $max_unsigned_long, $max_unsigned_long, $max_unsigned_long, $max_unsigned_long, $max_unsigned_long, $max_unsigned_long);
 
 -- echo #########################################
 -- echo #### [ on master ]
@@ -50,20 +50,20 @@ CREATE TABLE t1 (`tinyint` TINYINT,
 TRUNCATE t1;
 
 -- echo ### b) user var
-INSERT INTO t1 VALUES (@positive,
-                       @positive,
-                       @positive,
-                       @positive,
-                       @positive,
-                       @positive,
-                       @positive,
-                       @positive,
-                       @positive,
-                       @positive,
-                       @positive,
-                       @positive,
-                       @positive,
-                       @positive);
+INSERT IGNORE INTO t1 VALUES (@positive,
+                              @positive,
+                              @positive,
+                              @positive,
+                              @positive,
+                              @positive,
+                              @positive,
+                              @positive,
+                              @positive,
+                              @positive,
+                              @positive,
+                              @positive,
+                              @positive,
+                              @positive);
 
 -- echo #########################################
 -- echo #### [ on master ]
@@ -82,7 +82,7 @@ TRUNCATE t1;
 
 -- echo ### insert min signed
 -- echo ### a) declarative
--- eval INSERT INTO t1 VALUES ($min_signed_long, $min_signed_long, $min_signed_long, $min_signed_long, $min_signed_long, $min_signed_long, $min_signed_long,$min_signed_long, $min_signed_long, $min_signed_long, $min_signed_long, $min_signed_long, $min_signed_long, $min_signed_long);
+-- eval INSERT IGNORE INTO t1 VALUES ($min_signed_long, $min_signed_long, $min_signed_long, $min_signed_long, $min_signed_long, $min_signed_long, $min_signed_long,$min_signed_long, $min_signed_long, $min_signed_long, $min_signed_long, $min_signed_long, $min_signed_long, $min_signed_long);
 
 -- echo #########################################
 -- echo #### [ on master ]
@@ -99,20 +99,20 @@ TRUNCATE t1;
 TRUNCATE t1;
 
 -- echo ### b) user var
-INSERT INTO t1 VALUES (@negative,
-                       @negative,
-                       @negative,
-                       @negative,
-                       @negative,
-                       @negative,
-                       @negative,
-                       @negative,
-                       @negative,
-                       @negative,
-                       @negative,
-                       @negative,
-                       @negative,
-                       @negative);
+INSERT IGNORE INTO t1 VALUES (@negative,
+                              @negative,
+                              @negative,
+                              @negative,
+                              @negative,
+                              @negative,
+                              @negative,
+                              @negative,
+                              @negative,
+                              @negative,
+                              @negative,
+                              @negative,
+                              @negative,
+                              @negative);
 
 -- echo #########################################
 -- echo #### [ on master ]
@@ -145,6 +145,8 @@ DROP TABLE t1;
 --source include/rpl_reset.inc
 -- connection master
 
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
+
 CREATE TABLE t1 ( c INT, PRIMARY KEY (c)) Engine=MyISAM;
 
 # offending trigger that would reset the unsigned flag for aux before
@@ -165,6 +167,8 @@ INSERT INTO t1 VALUES (@aux) , (@aux1);
 --connection master
 DROP TRIGGER tr1;
 DROP TABLE t1;
+
+SET sql_mode = default;
 
 --source include/sync_slave_sql_with_master.inc
 

@@ -50,7 +50,7 @@ Created 3/26/1996 Heikki Tuuri
 
 /** This many pages must be undone before a truncate is tried within
 rollback */
-#define TRX_ROLL_TRUNC_THRESHOLD	1
+static const ulint TRX_ROLL_TRUNC_THRESHOLD = 1;
 
 /** In crash recovery, the current trx to be rolled back; NULL otherwise */
 static const trx_t*	trx_roll_crash_recv_trx	= NULL;
@@ -132,6 +132,9 @@ trx_rollback_to_savepoint_low(
 
 	mem_heap_free(heap);
 
+	/* There might be work for utility threads.*/
+	srv_active_wake_master_thread();
+
 	MONITOR_DEC(MONITOR_TRX_ACTIVE);
 }
 
@@ -149,19 +152,9 @@ trx_rollback_to_savepoint(
 {
 	ut_ad(!trx_mutex_own(trx));
 
-	/* Tell Innobase server that there might be work for
-	utility threads: */
-
-	srv_active_wake_master_thread();
-
 	trx_start_if_not_started_xa(trx, true);
 
 	trx_rollback_to_savepoint_low(trx, savept);
-
-	/* Tell Innobase server that there might be work for
-	utility threads: */
-
-	srv_active_wake_master_thread();
 
 	return(trx->error_state);
 }
@@ -175,8 +168,6 @@ trx_rollback_for_mysql_low(
 /*=======================*/
 	trx_t*	trx)	/*!< in/out: transaction */
 {
-	srv_active_wake_master_thread();
-
 	trx->op_info = "rollback";
 
 	/* If we are doing the XA recovery of prepared transactions,
@@ -189,8 +180,6 @@ trx_rollback_for_mysql_low(
 	trx->op_info = "";
 
 	ut_a(trx->error_state == DB_SUCCESS);
-
-	srv_active_wake_master_thread();
 
 	return(trx->error_state);
 }
@@ -211,6 +200,8 @@ trx_rollback_for_mysql(
 
 	switch (trx->state) {
 	case TRX_STATE_NOT_STARTED:
+	case TRX_STATE_FORCED_ROLLBACK:
+		trx->will_lock = 0;
 		ut_ad(trx->in_mysql_trx_list);
 		return(DB_SUCCESS);
 
@@ -251,7 +242,9 @@ trx_rollback_last_sql_stat_for_mysql(
 
 	switch (trx->state) {
 	case TRX_STATE_NOT_STARTED:
+	case TRX_STATE_FORCED_ROLLBACK:
 		return(DB_SUCCESS);
+
 	case TRX_STATE_ACTIVE:
 		assert_trx_nonlocking_or_in_list(trx);
 
@@ -260,7 +253,7 @@ trx_rollback_last_sql_stat_for_mysql(
 		err = trx_rollback_to_savepoint(
 			trx, &trx->last_sql_stat_start);
 
-		if (trx->fts_trx) {
+		if (trx->fts_trx != NULL) {
 			fts_savepoint_rollback_last_stmt(trx);
 		}
 
@@ -271,6 +264,7 @@ trx_rollback_last_sql_stat_for_mysql(
 		trx->op_info = "";
 
 		return(err);
+
 	case TRX_STATE_PREPARED:
 	case TRX_STATE_COMMITTED_IN_MEMORY:
 		/* The statement rollback is only allowed on an ACTIVE
@@ -430,14 +424,20 @@ trx_rollback_to_savepoint_for_mysql(
 
 	switch (trx->state) {
 	case TRX_STATE_NOT_STARTED:
+	case TRX_STATE_FORCED_ROLLBACK:
+
 		ib_logf(IB_LOG_LEVEL_ERROR,
 			"Transaction has a savepoint %s"
 			" though it is not started",
 			ut_get_name(trx, FALSE, savep->name).c_str());
+
 		return(DB_ERROR);
+
 	case TRX_STATE_ACTIVE:
+
 		return(trx_rollback_to_savepoint_for_mysql_low(
 				trx, savep, mysql_binlog_cache_pos));
+
 	case TRX_STATE_PREPARED:
 	case TRX_STATE_COMMITTED_IN_MEMORY:
 		/* The savepoint rollback is only allowed on an ACTIVE
@@ -483,7 +483,8 @@ trx_savepoint_for_mysql(
 
 	/* Create a new savepoint and add it as the last in the list */
 
-	savep = static_cast<trx_named_savept_t*>(ut_malloc(sizeof(*savep)));
+	savep = static_cast<trx_named_savept_t*>(
+		ut_malloc_nokey(sizeof(*savep)));
 
 	savep->name = mem_strdup(savepoint_name);
 
@@ -712,6 +713,7 @@ trx_rollback_resurrected(
 	case TRX_STATE_PREPARED:
 		return(FALSE);
 	case TRX_STATE_NOT_STARTED:
+	case TRX_STATE_FORCED_ROLLBACK:
 		break;
 	}
 

@@ -847,7 +847,7 @@ trx_undo_page_report_modify(
 					/* If prefix is 0, and this GEOMETRY
 					col is ord entry, then there is a
 					spatial index on it, log its MBR */
-					if (col->mtype == DATA_GEOMETRY
+					if (DATA_GEOMETRY_MTYPE(col->mtype)
 					    && col->max_prefix == 0) {
 						is_spatial = true;
 
@@ -1149,7 +1149,7 @@ trx_undo_rec_get_partial_row(
 
 		if (len != UNIV_SQL_NULL
 		    && len >= UNIV_EXTERN_STORAGE_FIELD) {
-			if (col->mtype == DATA_GEOMETRY
+			if (DATA_GEOMETRY_MTYPE(col->mtype)
 			    && col->max_prefix == 0
 			    && col->ord_part) {
 				dfield_set_len(
@@ -1367,8 +1367,9 @@ trx_undo_report_row_operation(
 	page_no = undo->last_page_no;
 
 	undo_block = buf_page_get_gen(
-		page_id_t(undo->space, page_no), undo->page_size,
-		RW_X_LATCH, undo->guess_block, BUF_GET, __FILE__, __LINE__,
+		page_id_t(undo->space, page_no), undo->page_size, RW_X_LATCH,
+		buf_pool_is_obsolete(undo->withdraw_clock)
+		? NULL : undo->guess_block, BUF_GET, __FILE__, __LINE__,
 		&mtr);
 
 	buf_block_dbg_add_level(undo_block, SYNC_TRX_UNDO_PAGE);
@@ -1429,7 +1430,7 @@ trx_undo_report_row_operation(
 			mtr_commit(&mtr);
 		} else {
 			/* Success */
-
+			undo->withdraw_clock = buf_withdraw_clock;
 			mtr_commit(&mtr);
 
 			undo->empty = FALSE;

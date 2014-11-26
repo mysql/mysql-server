@@ -1,1 +1,1 @@
---innodb --ndbcluster
+--ndbcluster

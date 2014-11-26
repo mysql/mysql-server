@@ -1,4 +1,5 @@
 drop table if exists t1, t2;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 select CASE "b" when "a" then 1 when "b" then 2 END;
 CASE "b" when "a" then 1 when "b" then 2 END
 2
@@ -227,3 +228,4 @@ CREATE TABLE t1(a YEAR);
 SELECT 1 FROM t1 WHERE a=1 AND CASE 1 WHEN a THEN 1 ELSE 1 END;
 1
 DROP TABLE t1;
+SET sql_mode = default;

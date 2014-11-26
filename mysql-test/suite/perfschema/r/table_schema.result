@@ -861,16 +861,20 @@ def	performance_schema	replication_connection_configuration	SSL_CRL_FILE	13	NULL
 def	performance_schema	replication_connection_configuration	SSL_CRL_PATH	14	NULL	NO	varchar	255	765	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(255)			select,insert,update,references	
 def	performance_schema	replication_connection_configuration	CONNECTION_RETRY_INTERVAL	15	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references	
 def	performance_schema	replication_connection_configuration	CONNECTION_RETRY_COUNT	16	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	replication_connection_configuration	HEARTBEAT_INTERVAL	17	NULL	NO	double	NULL	NULL	10	3	NULL	NULL	NULL	double(10,3) unsigned			select,insert,update,references	Number of seconds after which a heartbeat will be sent .
 def	performance_schema	replication_connection_status	SOURCE_UUID	1	NULL	NO	char	36	108	NULL	NULL	NULL	utf8	utf8_bin	char(36)			select,insert,update,references	
 def	performance_schema	replication_connection_status	THREAD_ID	2	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
 def	performance_schema	replication_connection_status	SERVICE_STATE	3	NULL	NO	enum	10	30	NULL	NULL	NULL	utf8	utf8_general_ci	enum('ON','OFF','CONNECTING')			select,insert,update,references	
-def	performance_schema	replication_connection_status	RECEIVED_TRANSACTION_SET	4	NULL	NO	text	65535	65535	NULL	NULL	NULL	utf8	utf8_general_ci	text			select,insert,update,references	
-def	performance_schema	replication_connection_status	LAST_ERROR_NUMBER	5	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references	
-def	performance_schema	replication_connection_status	LAST_ERROR_MESSAGE	6	NULL	NO	varchar	1024	3072	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(1024)			select,insert,update,references	
-def	performance_schema	replication_connection_status	LAST_ERROR_TIMESTAMP	7	CURRENT_TIMESTAMP	NO	timestamp	NULL	NULL	NULL	NULL	0	NULL	NULL	timestamp		on update CURRENT_TIMESTAMP	select,insert,update,references	
+def	performance_schema	replication_connection_status	COUNT_RECEIVED_HEARTBEATS	4	0	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	replication_connection_status	LAST_HEARTBEAT_TIMESTAMP	5	CURRENT_TIMESTAMP	NO	timestamp	NULL	NULL	NULL	NULL	0	NULL	NULL	timestamp		on update CURRENT_TIMESTAMP	select,insert,update,references	Shows when the most recent heartbeat signal was received.
+def	performance_schema	replication_connection_status	RECEIVED_TRANSACTION_SET	6	NULL	NO	text	65535	65535	NULL	NULL	NULL	utf8	utf8_general_ci	text			select,insert,update,references	
+def	performance_schema	replication_connection_status	LAST_ERROR_NUMBER	7	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references	
+def	performance_schema	replication_connection_status	LAST_ERROR_MESSAGE	8	NULL	NO	varchar	1024	3072	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(1024)			select,insert,update,references	
+def	performance_schema	replication_connection_status	LAST_ERROR_TIMESTAMP	9	0000-00-00 00:00:00	NO	timestamp	NULL	NULL	NULL	NULL	0	NULL	NULL	timestamp			select,insert,update,references	
 def	performance_schema	replication_execute_configuration	DESIRED_DELAY	1	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references	
 def	performance_schema	replication_execute_status	SERVICE_STATE	1	NULL	NO	enum	3	9	NULL	NULL	NULL	utf8	utf8_general_ci	enum('ON','OFF')			select,insert,update,references	
 def	performance_schema	replication_execute_status	REMAINING_DELAY	2	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(10) unsigned			select,insert,update,references	
+def	performance_schema	replication_execute_status	COUNT_TRANSACTIONS_RETRIES	3	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
 def	performance_schema	replication_execute_status_by_coordinator	THREAD_ID	1	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
 def	performance_schema	replication_execute_status_by_coordinator	SERVICE_STATE	2	NULL	NO	enum	3	9	NULL	NULL	NULL	utf8	utf8_general_ci	enum('ON','OFF')			select,insert,update,references	
 def	performance_schema	replication_execute_status_by_coordinator	LAST_ERROR_NUMBER	3	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references	
@@ -1134,6 +1138,9 @@ def	performance_schema	threads	INSTRUMENTED	14	NULL	NO	enum	3	9	NULL	NULL	NULL	u
 def	performance_schema	users	USER	1	NULL	YES	char	16	48	NULL	NULL	NULL	utf8	utf8_bin	char(16)			select,insert,update,references	
 def	performance_schema	users	CURRENT_CONNECTIONS	2	NULL	NO	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(20)			select,insert,update,references	
 def	performance_schema	users	TOTAL_CONNECTIONS	3	NULL	NO	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(20)			select,insert,update,references	
+def	performance_schema	user_variables_by_thread	THREAD_ID	1	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	user_variables_by_thread	VARIABLE_NAME	2	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select,insert,update,references	
+def	performance_schema	user_variables_by_thread	VARIABLE_VALUE	3	NULL	YES	longblob	4294967295	4294967295	NULL	NULL	NULL	NULL	NULL	longblob			select,insert,update,references	
 select count(*) from information_schema.columns
 where table_schema="performance_schema" and data_type = "bigint"
    and column_name like "%number_of_bytes" into @count_byte_columns;

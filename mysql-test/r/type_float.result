@@ -1,4 +1,5 @@
 drop table if exists t1,t2;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 SELECT 10,10.0,10.,.1e+2,100.0e-1;
 10	10.0	10.	.1e+2	100.0e-1
 10	10.0	10	10	10
@@ -469,3 +470,4 @@ f
 1
 2
 DROP TABLE t1;
+SET sql_mode = default;

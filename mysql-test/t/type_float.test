@@ -12,7 +12,7 @@
 --disable_warnings
 drop table if exists t1,t2;
 --enable_warnings
-
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 SELECT 10,10.0,10.,.1e+2,100.0e-1;
 SELECT 6e-16, -6e-16, --6e-16, -6e-16+1.000000;
 SELECT 1e1,1.e1,1.0e1,1e+1,1.e+1,1.0e+1,1e-1,1.e-1,1.0e-1;
@@ -358,3 +358,4 @@ INSERT INTO t1 VALUES ('2.0.');
 INSERT INTO t1 VALUES ('.');
 SELECT * FROM t1 ORDER BY f;
 DROP TABLE t1;
+SET sql_mode = default;

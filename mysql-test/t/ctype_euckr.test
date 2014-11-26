@@ -39,6 +39,7 @@ DROP TABLE t1;
 #
 #Bug #30315 Character sets: insertion of euckr code value 0xa141 fails
 #
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 create table t1 (s1 varchar(5) character set euckr);
 # Insert some valid characters
 insert into t1 values (0xA141);
@@ -56,7 +57,7 @@ insert into t1 values (0xA180);
 insert into t1 values (0xA1FF);
 select hex(s1), hex(convert(s1 using utf8)) from t1 order by binary s1;
 drop table t1;
-
+SET sql_mode = default;
 --echo End of 5.0 tests
 
 
@@ -75,7 +76,7 @@ DROP TABLE t1;
 --echo # WL#3332 Korean Enhancements
 --echo # euckr valid codes are now [81..FE][41..5A,61..7A,81..FE]
 --echo #
-
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 CREATE TABLE t1 (a binary(1), key(a));
 --disable_query_log
 let $1=255;
@@ -107,7 +108,7 @@ DELETE FROM t2 WHERE u='?';
 SELECT count(*) as roundtrip_problem_chars FROM t2 WHERE hex(a) <> hex(a2);
 SELECT s, hex(a), hex(u), hex(a2) FROM t2 ORDER BY s;
 DROP TABLE t1, t2;
-
+SET sql_mode = default;
 --echo End of 5.4 tests
 
 
@@ -119,6 +120,7 @@ DROP TABLE t1, t2;
 --echo #
 --echo # Testing WL#4583 Case conversion in Asian character sets 
 --echo #
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 #
 # Populate t1 with all hex digits
 #
@@ -167,7 +169,7 @@ WHERE HEX(CAST(UPPER(a) AS CHAR CHARACTER SET utf8)) <>
       HEX(UPPER(CAST(a AS CHAR CHARACTER SET utf8))) ORDER BY code;
 
 DROP TABLE t1;
-
+SET sql_mode = default;
 
 
 

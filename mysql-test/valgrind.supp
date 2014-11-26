@@ -865,8 +865,8 @@
    fun:my_b_flush_io_cache
    fun:_my_b_write
    fun:_Z*10write_keysP10Sort_paramP13Filesort_infojP11st_io_cacheS4_
-   fun:_Z*13find_all_keysP10Sort_paramP10SQL_SELECTP13Filesort_infoP11st_io_cacheS6_P13Bounded_queueIPhS8_S_EPy
-   fun:_Z8filesortP3THDP5TABLEP8FilesortbPyS5_
+   fun:_Z*13find_all_keysP10Sort_paramP7QEP_TABP13Filesort_infoP11st_io_cacheS6_P13Bounded_queueIPhS8_S_EPy
+   fun:_Z8filesortP3THDP7QEP_TABP8FilesortbPyS5_
 }
 
 {
@@ -878,6 +878,33 @@
    fun:load_builtin_compressions
    fun:SSL_COMP_get_compression_methods
    fun:SSL_library_init
+}
+
+{
+   OpenSSL still reachable.
+   Memcheck:Leak
+   fun:malloc
+   fun:CRYPTO_malloc
+   fun:engine_cleanup_add_last
+   fun:ENGINE_add
+}
+
+{
+   OpenSSL still reachable.
+   Memcheck:Leak
+   fun:malloc
+   fun:CRYPTO_malloc
+   fun:sk_new
+   fun:engine_cleanup_add_last
+   fun:ENGINE_add
+}
+
+{
+   OpenSSL still reachable.
+   Memcheck:Leak
+   fun:malloc
+   fun:CRYPTO_malloc
+   fun:ENGINE_new
 }
 
 {

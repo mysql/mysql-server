@@ -50,7 +50,7 @@ fts_ast_node_create(void)
 {
 	fts_ast_node_t*	node;
 
-	node = (fts_ast_node_t*) ut_zalloc(sizeof(*node));
+	node = (fts_ast_node_t*) ut_zalloc_nokey(sizeof(*node));
 
 	return(node);
 }
@@ -710,9 +710,10 @@ fts_ast_string_create(
 
 	ut_ad(len > 0);
 
-	ast_str = static_cast<fts_ast_string_t*>
-			(ut_malloc(sizeof(fts_ast_string_t)));
-	ast_str->str = static_cast<byte*>(ut_malloc(len + 1));
+	ast_str = static_cast<fts_ast_string_t*>(
+		ut_malloc_nokey(sizeof(fts_ast_string_t)));
+
+	ast_str->str = static_cast<byte*>(ut_malloc_nokey(len + 1));
 
 	ast_str->len = len;
 	memcpy(ast_str->str, str, len);

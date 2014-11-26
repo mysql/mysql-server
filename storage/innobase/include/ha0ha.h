@@ -97,6 +97,20 @@ ib_create(
 				the memory heap is going to be used e.g.:
 				MEM_HEAP_FOR_BTR_SEARCH or
 				MEM_HEAP_FOR_PAGE_HASH */
+
+/** Recreate a hash table with at least n array cells. The actual number
+of cells is chosen to be a prime number slightly bigger than n.
+The new cells are all cleared. The heaps are recreated.
+The sync objects are reused.
+@param[in,out]	table	hash table to be resuzed (to be freed later)
+@param[in]	n	number of array cells
+@return	resized new table */
+
+hash_table_t*
+ib_recreate(
+	hash_table_t*	table,
+	ulint		n);
+
 /*************************************************************//**
 Empties a hash table and frees the memory heaps. */
 

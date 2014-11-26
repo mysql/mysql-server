@@ -70,11 +70,7 @@ my_ulonglong net_field_length_ll(uchar **packet)
     return (my_ulonglong) uint3korr(pos+1);
   }
   (*packet)+=9;					/* Must be 254 when here */
-#ifdef NO_CLIENT_LONGLONG
-  return (my_ulonglong) uint4korr(pos+1);
-#else
   return (my_ulonglong) uint8korr(pos+1);
-#endif
 }
 
 /*

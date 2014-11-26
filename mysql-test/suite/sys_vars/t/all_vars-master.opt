@@ -1,1 +1,1 @@
-$SEMISYNC_PLUGIN_OPT --loose-innodb --loose-skip-ndbinfo
+$SEMISYNC_PLUGIN_OPT --loose-skip-ndbinfo

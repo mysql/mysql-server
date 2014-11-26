@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -119,7 +119,11 @@ public:
   uint max_supported_keys()          const { return 1; }
   uint max_supported_key_length()    const { return sizeof(ulonglong); }
   uint max_supported_key_part_length() const { return sizeof(ulonglong); }
-  ha_rows records() { return share->rows_recorded; }
+  virtual int records(ha_rows *num_rows)
+  {
+    *num_rows= share->rows_recorded;
+    return 0;
+  }
   int index_init(uint keynr, bool sorted);
   virtual int index_read(uchar * buf, const uchar * key,
 			 uint key_len, enum ha_rkey_function find_flag);

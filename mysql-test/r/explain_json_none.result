@@ -2766,7 +2766,7 @@ EXPLAIN
                 "a",
                 "b"
               ] /* used_columns */,
-              "attached_condition": "(`test`.`t1`.`b` <> 30)"
+              "attached_condition": "((`test`.`t1`.`b` <> 30) and (<cache>(`test`.`t2`.`a`) = `test`.`t1`.`a`))"
             } /* table */
           } /* query_block */
         }

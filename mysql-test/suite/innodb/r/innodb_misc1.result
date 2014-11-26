@@ -122,6 +122,7 @@ character set = latin1 engine = innodb;
 create table t8 (col1 blob, index(col1(767)))
 character set = latin1 engine = innodb;
 drop table t1, t2, t3, t4, t5, t6, t7, t8;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 create table t1 (col1 varchar(768), index(col1))
 character set = latin1 engine = innodb;
 Warnings:
@@ -145,6 +146,7 @@ t1	CREATE TABLE `t1` (
   KEY `col1` (`col1`(767))
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1, t2, t3, t4;
+SET sql_mode = default;
 create table t1 (col1 varchar(768) primary key)
 character set = latin1 engine = innodb;
 ERROR 42000: Specified key was too long; max key length is 767 bytes
@@ -318,8 +320,10 @@ hex(s1)
 4100
 update t1 set s1=0x12 where a=1;
 ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `c` FOREIGN KEY (`s1`) REFERENCES `t1` (`s1`) ON UPDATE CASCADE)
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 update t1 set s1=0x12345678 where a=1;
 ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `c` FOREIGN KEY (`s1`) REFERENCES `t1` (`s1`) ON UPDATE CASCADE)
+SET sql_mode = default;
 update t1 set s1=0x123457 where a=1;
 ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `c` FOREIGN KEY (`s1`) REFERENCES `t1` (`s1`) ON UPDATE CASCADE)
 update t1 set s1=0x1220 where a=1;
@@ -811,3 +815,6 @@ Variable_name	Value
 Handler_update	1
 Variable_name	Value
 Handler_delete	1
+count_alloc WHERE event_name like 'memory/innodb/other'
+count_alloc
+0

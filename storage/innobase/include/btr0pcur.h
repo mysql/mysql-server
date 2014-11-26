@@ -522,6 +522,9 @@ struct btr_pcur_t{
 	ib_uint64_t	modify_clock;	/*!< the modify clock value of the
 					buffer block when the cursor position
 					was stored */
+	ulint		withdraw_clock;	/*!< the withdraw clock value of the
+					buffer pool when the cursor position
+					was stored */
 	enum pcur_pos_t	pos_state;	/*!< btr_pcur_store_position() and
 					btr_pcur_restore_position() state. */
 	ulint		search_mode;	/*!< PAGE_CUR_G, ... */

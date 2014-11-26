@@ -33,7 +33,7 @@ while ($iteration < 6)
 
 insert into t1 select col1_idx, col2_idx, col3, col4, 'america', 'america' from t1;
 insert into t1 select col1_idx, col2_idx, col3, col4, 'england america', 'england america' from t1;
-insert into t1 select col1_idx, col2_idx, col3, col4, 'germany england america', 'germany england america' from t1;
+insert ignore into t1 select col1_idx, col2_idx, col3, col4, 'germany england america', 'germany england america' from t1;
 
 insert into t1 select col1_idx, col2_idx, col3, col4, 'norway sweden', 'norway sweden' from t1 limit 5;
 
@@ -78,6 +78,12 @@ insert into t25 select pk+2, i from t25;
 insert into t25 select pk+4, i from t25;
 insert into t25 select pk+8, i from t25;
 insert into t25 select pk+16, i from t25 limit 9;
+
+--disable_query_log
+--disable_result_log
+ANALYZE TABLE t10, t19, t25;
+--enable_result_log
+--enable_query_log
 
 EXPLAIN SELECT * FROM (
 SELECT t10_1.*

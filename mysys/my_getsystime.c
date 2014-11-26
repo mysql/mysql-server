@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,13 +17,12 @@
 /* thus to get the current time we should use the system function
    with the highest possible resolution */
 
-/* 
-   TODO: in functions my_micro_time() and my_micro_time_and_time() there
-   exists some common code that should be merged into a function.
-*/
-
 #include "mysys_priv.h"
 #include "my_static.h"
+
+#if HAVE_SYS_TIME_H
+#include <sys/time.h>
+#endif
 
 /**
   Get high-resolution time.
@@ -118,72 +117,6 @@ ulonglong my_micro_time()
   {}
   newtime= (ulonglong)t.tv_sec * 1000000 + t.tv_usec;
   return newtime;
-#endif
-}
-
-
-/**
-  Return time in seconds and timer in microseconds (not different start!)
-
-  @param  time_arg  Will be set to seconds since epoch.
-
-  @remark This function is to be useful when we need both the time and
-          microtime. For example in MySQL this is used to get the query
-          time start of a query and to measure the time of a query (for
-          the slow query log)
-
-  @remark The time source is the same as for my_micro_time(), meaning
-          that time values returned by both functions can be intermixed
-          in meaningful ways (i.e. for comparison purposes).
-
-  @retval Value in microseconds from some undefined point in time.
-*/
-
-/* Difference between GetSystemTimeAsFileTime() and now() */
-
-ulonglong my_micro_time_and_time(time_t *time_arg)
-{
-#ifdef _WIN32
-  ulonglong newtime;
-  GetSystemTimeAsFileTime((FILETIME*)&newtime);
-  *time_arg= (time_t) ((newtime - OFFSET_TO_EPOCH) / 10000000);
-  return (newtime/10);
-#else
-  ulonglong newtime;
-  struct timeval t;
-  /*
-    The following loop is here because gettimeofday may fail on some systems
-  */
-  while (gettimeofday(&t, NULL) != 0)
-  {}
-  *time_arg= t.tv_sec;
-  newtime= (ulonglong)t.tv_sec * 1000000 + t.tv_usec;
-  return newtime;
-#endif
-}
-
-
-/**
-  Returns current time.
-
-  @param  microtime Value from very recent my_micro_time().
-
-  @remark This function returns the current time. The microtime argument
-          is only used if my_micro_time() uses a function that can safely
-          be converted to the current time.
-
-  @retval current time.
-*/
-
-time_t my_time_possible_from_micro(ulonglong microtime __attribute__((unused)))
-{
-#ifdef _WIN32
-  time_t t;
-  while ((t= time(0)) == (time_t) -1)
-  {}
-  return t;
-#else
-  return (time_t) (microtime / 1000000);
 #endif
 }
 

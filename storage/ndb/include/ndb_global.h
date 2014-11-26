@@ -26,6 +26,15 @@
 #endif
 
 #include <my_global.h>
+#ifdef HAVE_UNISTD_H
+#include <unistd.h>
+#endif
+#ifdef HAVE_SYS_TIME_H
+#include <sys/time.h>
+#endif
+#ifdef _WIN32
+#include <process.h>
+#endif
 
 #if defined __GNUC__
 # define ATTRIBUTE_FORMAT(style, m, n) __attribute__((format(style, m, n)))

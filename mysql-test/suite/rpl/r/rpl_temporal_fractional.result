@@ -5,6 +5,7 @@ Note	####	Storing MySQL user name or password information in the master info rep
 [connection master]
 SET @@time_zone='+00:00';
 SET @@timestamp=25810.123456;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 CREATE TABLE t1
 (
 ts0 TIMESTAMP(0),
@@ -15,6 +16,7 @@ ts4 TIMESTAMP(4),
 ts5 TIMESTAMP(5),
 ts6 TIMESTAMP(6)
 );
+SET sql_mode = default;
 SET @ts='2001-01-01 10:10:10.123456';
 INSERT INTO t1 VALUES (@ts, @ts, @ts, @ts, @ts, @ts, @ts);
 INSERT INTO t1 VALUES (NOW(), NOW(), NOW(), NOW(), NOW(), NOW(), NOW());

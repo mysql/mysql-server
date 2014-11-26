@@ -11,6 +11,8 @@ drop table if exists t1,t2;
 drop database if exists mysqltest;
 --enable_warnings
 
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
+
 create table t1 (
 col1 int not null auto_increment primary key,
 col2 varchar(30) not null,
@@ -1559,7 +1561,7 @@ DROP TABLE tm1;
 --echo # Bug#11815557 60269: MYSQL SHOULD REJECT ATTEMPTS TO CREATE SYSTEM
 --echo #                     TABLES IN INCORRECT ENGINE
 --echo #
---echo # Note: This test assumes that only MyISAM supports system tables.
+--echo # Note: This test assumes that only MyISAM and InnoDB supports system tables.
 --echo #       If other engines are made to support system tables,
 --echo #       then this test needs to be updated
 --echo #
@@ -1586,8 +1588,7 @@ ALTER TABLE columns_priv ENGINE=csv;
 --error ER_UNSUPPORTED_ENGINE
 ALTER TABLE time_zone ENGINE=merge;
 --error ER_UNSUPPORTED_ENGINE
-ALTER TABLE help_topic ENGINE=innodb;
-
+ALTER TABLE help_topic ENGINE=merge;
 --error ER_UNSUPPORTED_ENGINE
 CREATE TABLE db (dummy int) ENGINE=innodb;
 --error ER_UNSUPPORTED_ENGINE
@@ -1609,7 +1610,7 @@ CREATE TABLE columns_priv (dummy int) ENGINE=csv;
 --error ER_UNSUPPORTED_ENGINE
 CREATE TABLE time_zone (dummy int) ENGINE=merge;
 --error ER_UNSUPPORTED_ENGINE
-CREATE TABLE help_topic (dummy int) ENGINE=innodb;
+CREATE TABLE help_topic (dummy int) ENGINE=merge;
 use test;
 --echo # End of Bug#11815557
 
@@ -2008,3 +2009,4 @@ disconnect con2;
 connection default;
 --disable_connect_log
 DROP TABLE t1;
+SET sql_mode = default;

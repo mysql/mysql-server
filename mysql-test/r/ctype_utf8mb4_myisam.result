@@ -155,6 +155,7 @@ F0CEC4	Пнд
 F0CFCEC5C4C5CCD8CEC9CB	Понедельник
 drop table t1;
 set LC_TIME_NAMES='en_US';
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 set names koi8r;
 create table t1 (s1 char(1) character set utf8mb4) engine MyISAM;
 insert into t1 values (_koi8r'��');
@@ -219,8 +220,9 @@ length(s1)	char_length(s1)
 65535	43690
 65535	65535
 drop table t1;
+SET sql_mode = default;
 create table t1 (s1 char(10) character set utf8mb4) engine MyISAM;
-insert into t1 values (0x41FF);
+insert ignore into t1 values (0x41FF);
 Warnings:
 Warning	1366	Incorrect string value: '\xFF' for column 's1' at row 1
 select hex(s1) from t1;
@@ -228,7 +230,7 @@ hex(s1)
 41
 drop table t1;
 create table t1 (s1 varchar(10) character set utf8mb4) engine MyISAM;
-insert into t1 values (0x41FF);
+insert ignore into t1 values (0x41FF);
 Warnings:
 Warning	1366	Incorrect string value: '\xFF' for column 's1' at row 1
 select hex(s1) from t1;
@@ -236,7 +238,7 @@ hex(s1)
 41
 drop table t1;
 create table t1 (s1 text character set utf8mb4) engine MyISAM;
-insert into t1 values (0x41FF);
+insert ignore into t1 values (0x41FF);
 Warnings:
 Warning	1366	Incorrect string value: '\xFF' for column 's1' at row 1
 select hex(s1) from t1;
@@ -879,8 +881,8 @@ create table t2 engine MyISAM select concat(a,_utf8mb4'') as a, concat(b,_utf8mb
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `a` varchar(5) CHARACTER SET utf8mb4 NOT NULL DEFAULT '',
-  `b` varchar(15) CHARACTER SET utf8mb4 NOT NULL DEFAULT ''
+  `a` varchar(5) CHARACTER SET utf8mb4 DEFAULT NULL,
+  `b` varchar(15) CHARACTER SET utf8mb4 DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t2;
 drop table t1;
@@ -1149,6 +1151,7 @@ create table t1 (x set('A', 'B') default 0) character set utf8mb4 engine MyISAM;
 ERROR 42000: Invalid default value for 'x'
 create table t1 (x enum('A', 'B') default 0) character set utf8mb4 engine MyISAM;
 ERROR 42000: Invalid default value for 'x'
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 SET NAMES UTF8;
 CREATE TABLE t1 (
 `id` int(20) NOT NULL auto_increment,
@@ -1183,6 +1186,8 @@ content	msisdn
 ERR Имри.Афимим.Аеимимримдмримрмрирор имримримримр имридм ирбднримрфмририримрфмфмим.Ад.Д имдимримрад.Адимримримрмдиримримримр м.Дадимфшьмримд им.Адимимрн имадми	1234567890
 11 g	1234567890
 DROP TABLE t1,t2;
+SET sql_mode = default;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 create table t1 (a char(20) character set utf8mb4) engine MyISAM;
 insert into t1 values ('123456'),('андрей');
 alter table t1 modify a char(2) character set utf8mb4;
@@ -1194,6 +1199,7 @@ char_length(a)	length(a)	a
 2	2	12
 2	4	ан
 drop table t1;
+SET sql_mode = default;
 set names utf8mb4;
 select 'andre%' like 'andreñ%' escape 'ñ';
 'andre%' like 'andreñ%' escape 'ñ'
@@ -1237,6 +1243,7 @@ select * from t1 where a like "%abc\d%";
 a
 abcd
 drop table t1;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 CREATE TABLE t1 (
 a varchar(255) NOT NULL default '',
 KEY a (a)
@@ -1250,6 +1257,7 @@ hex(a)
 5B
 E880BD
 drop table t1;
+SET sql_mode = default;
 set names 'latin1';
 create table t1 (a varchar(255)) default charset=utf8mb4 engine MyISAM;
 select * from t1 where find_in_set('-1', a);
@@ -1284,6 +1292,7 @@ Cote d'Ivoire
 \
 \
 DROP TABLE t1;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 SET NAMES utf8mb4;
 DROP TABLE IF EXISTS t1;
 Warnings:
@@ -1332,6 +1341,7 @@ check table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 drop table t1;
+SET sql_mode = default;
 set names utf8mb4;
 create table t1 (s1 char(5) character set utf8mb4) engine MyISAM;
 insert into t1 values
@@ -1674,6 +1684,7 @@ aa
 xxx
 yyy
 DROP TABLE t1;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 create table t1 (
 a varchar(26) not null
 ) default character set utf8mb4 ENGINE MyISAM;
@@ -1717,6 +1728,7 @@ select length(a) from t1;
 length(a)
 3000
 drop table t1;
+SET sql_mode = default;
 set names utf8mb4;
 select hex(char(1 using utf8mb4));
 hex(char(1 using utf8mb4))
@@ -1732,12 +1744,12 @@ char(53647 using utf8mb4)
 я
 select char(0xff,0x8f using utf8mb4);
 char(0xff,0x8f using utf8mb4)
-
+NULL
 Warnings:
 Warning	1300	Invalid utf8mb4 character string: 'FF8F'
 select convert(char(0xff,0x8f) using utf8mb4);
 convert(char(0xff,0x8f) using utf8mb4)
-
+NULL
 Warnings:
 Warning	1300	Invalid utf8mb4 character string: 'FF8F'
 set sql_mode=traditional;
@@ -1946,12 +1958,12 @@ ERROR HY000: Invalid utf8mb4 character string: 'FF'
 set sql_mode=default;
 select hex(char(0xFF using utf8mb4));
 hex(char(0xFF using utf8mb4))
-
+NULL
 Warnings:
 Warning	1300	Invalid utf8mb4 character string: 'FF'
 select hex(convert(0xFF using utf8mb4));
 hex(convert(0xFF using utf8mb4))
-
+NULL
 Warnings:
 Warning	1300	Invalid utf8mb4 character string: 'FF'
 select hex(_utf8mb4 0x616263FF);
@@ -2113,7 +2125,7 @@ create table t1 (utf8mb4 char(1) character set utf8mb4) engine MyISAM;
 Testing [F0][90..BF][80..BF][80..BF]
 insert into t1 values (0xF0908080);
 insert into t1 values (0xF0BFBFBF);
-insert into t1 values (0xF08F8080);
+insert ignore into t1 values (0xF08F8080);
 Warnings:
 Warning	1366	Incorrect string value: '\xF0\x8F\x80\x80' for column 'utf8mb4' at row 1
 select hex(utf8mb4) from t1;
@@ -2133,7 +2145,7 @@ delete from t1;
 Testing [F4][80..8F][80..BF][80..BF]
 insert into t1 values (0xF4808080);
 insert into t1 values (0xF48F8080);
-insert into t1 values (0xF4908080);
+insert ignore into t1 values (0xF4908080);
 Warnings:
 Warning	1366	Incorrect string value: '\xF4\x90\x80\x80' for column 'utf8mb4' at row 1
 select hex(utf8mb4) from t1;
@@ -2167,6 +2179,7 @@ set max_sort_length=default;
 #
 # Bug#26180: Can't add columns to tables created with utf8mb4 text indexes
 #
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 CREATE TABLE t1 (
 clipid INT NOT NULL,
 Tape TINYTEXT,
@@ -2186,6 +2199,7 @@ t1	CREATE TABLE `t1` (
   KEY `tape` (`Tape`(250))
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 DROP TABLE t1;
+SET sql_mode = default;
 #
 # Testing 4-byte values.
 #
@@ -2211,7 +2225,7 @@ INSERT INTO t1 VALUES (119040, x'f09d8480'),
 (917999, x'f3a087af');
 INSERT INTO t1 VALUES (119070, x'f09d849ef09d859ef09d859ef09d8480f09d859ff09d859ff09d859ff09d85a0f09d85a0f09d8480');
 INSERT INTO t1 VALUES (65131, x'efb9abf09d849ef09d859ef09d859ef09d8480f09d859fefb9abefb9abf09d85a0efb9ab');
-INSERT INTO t1 VALUES (119070, x'f09d849ef09d859ef09d859ef09d8480f09d859ff09d859ff09d859ff09d85a0f09d85a0f09d8480f09d85a0');
+INSERT IGNORE INTO t1 VALUES (119070, x'f09d849ef09d859ef09d859ef09d8480f09d859ff09d859ff09d859ff09d85a0f09d85a0f09d8480f09d85a0');
 Warnings:
 Warning	1265	Data truncated for column 'utf8mb4_encoding' at row 1
 SELECT u_decimal, hex(utf8mb4_encoding) FROM t1 ORDER BY utf8mb4_encoding COLLATE utf8mb4_general_ci, BINARY utf8mb4_encoding;
@@ -2227,7 +2241,7 @@ u_decimal	hex(utf8mb4_encoding)
 120735	F09D9E9F
 65131	EFB9ABF09D849EF09D859EF09D859EF09D8480F09D859FEFB9ABEFB9ABF09D85A0EFB9AB
 917999	F3A087AF
-INSERT INTO t1 VALUES (1114111, x'f5808080');
+INSERT IGNORE INTO t1 VALUES (1114111, x'f5808080');
 Warnings:
 Warning	1366	Incorrect string value: '\xF5\x80\x80\x80' for column 'utf8mb4_encoding' at row 1
 SELECT character_maximum_length, character_octet_length FROM information_schema.columns WHERE
@@ -2241,14 +2255,14 @@ utf8mb3_encoding VARCHAR(10) NOT NULL
 ) CHARACTER SET utf8mb3 ENGINE MyISAM;
 INSERT INTO t2 VALUES (42856, x'ea9da8');
 INSERT INTO t2 VALUES (65131, x'efb9ab');
-INSERT INTO t2 VALUES (1114111, x'f48fbfbf');
+INSERT IGNORE INTO t2 VALUES (1114111, x'f48fbfbf');
 Warnings:
 Warning	1366	Incorrect string value: '\xF4\x8F\xBF\xBF' for column 'utf8mb3_encoding' at row 1
 SELECT character_maximum_length, character_octet_length FROM information_schema.columns WHERE
 table_name= 't2' AND column_name= 'utf8mb3_encoding';
 character_maximum_length	character_octet_length
 10	30
-UPDATE t2 SET utf8mb3_encoding= x'f48fbfbd' where u_decimal= 42856;
+UPDATE IGNORE t2 SET utf8mb3_encoding= x'f48fbfbd' where u_decimal= 42856;
 Warnings:
 Warning	1366	Incorrect string value: '\xF4\x8F\xBF\xBD' for column 'utf8mb3_encoding' at row 1
 UPDATE t2 SET utf8mb3_encoding= _utf8mb4 x'ea9da8' where u_decimal= 42856;
@@ -2308,6 +2322,7 @@ SELECT count(*) FROM t1, t2
 WHERE t1.utf8mb4_encoding > t2.utf8mb3_encoding;
 count(*)
 33
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 ALTER TABLE t1 CONVERT TO CHARACTER SET utf8;
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -2329,6 +2344,7 @@ u_decimal	hex(utf8mb4_encoding)	utf8mb4_encoding
 120735	3F	?
 65131	EFB9AB3F3F3F3F3FEFB9ABEFB9AB3FEFB9AB	﹫?????﹫﹫?﹫
 917999	3F	?
+SET sql_mode = default;
 ALTER TABLE t2 CONVERT TO CHARACTER SET utf8mb4;
 SHOW CREATE TABLE t2;
 Table	Create Table
@@ -2448,7 +2464,7 @@ Table	Create Table
 t3	CREATE TEMPORARY TABLE `t3` (
   `utf8mb4` varchar(10) CHARACTER SET utf8mb4 NOT NULL,
   `utf8mb3` varchar(10) CHARACTER SET utf8 NOT NULL,
-  `concat(utf8mb4,utf8mb3)` varchar(20) CHARACTER SET utf8mb4 NOT NULL DEFAULT ''
+  `concat(utf8mb4,utf8mb3)` varchar(20) CHARACTER SET utf8mb4 DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 DROP TEMPORARY TABLE t3;
 SELECT * FROM t1, t2 WHERE t1.utf8mb4 > t2.utf8mb3;

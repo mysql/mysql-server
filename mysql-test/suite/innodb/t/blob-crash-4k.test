@@ -46,13 +46,7 @@ connection con1;
 --echo # Connection default:
 connection default;
 
---exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---disable_reconnect
---shutdown_server 0
---source include/wait_until_disconnected.inc
---enable_reconnect
---source include/wait_until_connected_again.inc
---disable_reconnect
+--source include/kill_and_restart_mysqld.inc
 
 select f1, length(f2), length(f3) from t2;
 select f1, right(f2, 40), right(f3, 40) from t2;
@@ -103,12 +97,7 @@ connection con2;
 --echo # Connection default:
 connection default;
 
---exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server 0
---source include/wait_until_disconnected.inc
---enable_reconnect
---source include/wait_until_connected_again.inc
---disable_reconnect
+--source include/kill_and_restart_mysqld.inc
 
 select f1, length(f2), length(f3) from t3;
 select f1, right(f2, 30), right(f3, 20) from t3;

@@ -2638,8 +2638,9 @@ ASN1_STRING* StringHolder::GetString()
     int DeCompress(input_buffer& in, int sz, input_buffer& out)
     {
         byte tmp[LENGTH_SZ];
-    
-        in.read(tmp, sizeof(tmp));
+   
+        tmp[0] = in[AUTO]; 
+        tmp[1] = in[AUTO]; 
 
         uint16 len;
         ato16(tmp, len);

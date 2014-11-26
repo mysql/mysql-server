@@ -26,6 +26,11 @@ extern "C" {
 
 	/* Defines for my_dir and my_stat */
 
+#ifdef _WIN32
+#define S_IROTH _S_IREAD
+#define S_IFIFO _S_IFIFO
+#endif
+
 #define MY_S_IFMT	S_IFMT	/* type of file */
 #define MY_S_IFDIR	S_IFDIR /* directory */
 #define MY_S_IFCHR	S_IFCHR /* character special */

@@ -267,11 +267,9 @@ insert into t1 select * from t1;
 insert into t1 select * from t1;
 insert into t1 select * from t1;
 insert into t1 select * from t1;
-insert into t1 select * from t1;
-insert into t1 select * from t1;
 select count(*) from t1;
 count(*)
-18432
+4608
 set @g1 = GeomFromText('Polygon((0 0,0 100,100 100,100 0,0 0))');
 set transaction isolation level read uncommitted;
 SET DEBUG_SYNC= 'row_search_for_mysql_before_return SIGNAL siga WAIT_FOR sigb';

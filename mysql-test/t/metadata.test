@@ -210,6 +210,7 @@ drop table t1;
 --echo #
 --echo #  WL#946 TIME/DATETIME/TIMESTAMP with fractional precision
 --echo #
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 CREATE TABLE t1 (
   t6 TIME(6), t5 TIME(5), t4 TIME(4),
   t3 TIME(3), t2 TIME(2), t1 TIME(1),
@@ -229,4 +230,4 @@ CREATE TABLE t1 (
 SELECT * FROM t1;
 --disable_metadata
 DROP TABLE t1;
-
+SET sql_mode = default;

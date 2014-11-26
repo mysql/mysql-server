@@ -1,3 +1,4 @@
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 select database();
 database()
 test
@@ -69,6 +70,7 @@ drop table t1;
 select TRUE,FALSE,NULL;
 TRUE	FALSE	NULL
 1	0	NULL
+SET sql_mode = default;
 create table t1 (c1 char(5)) character set=latin1;
 insert into t1 values('row 1');
 insert into t1 values('row 2');

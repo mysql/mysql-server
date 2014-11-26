@@ -32,7 +32,7 @@ KEY price (price,area,type,transityes,shopsyes,schoolsyes,petsyes)
 );
 INSERT INTO t1 VALUES (900,'Vancouver','Shared/Roomate','N','N','N','N');
 INSERT INTO t1 VALUES (900,'Vancouver','Shared/Roomate','N','N','N','N');
-INSERT INTO t1 VALUES (900,'Vancouver','Shared/Roomate','','','','');
+INSERT IGNORE INTO t1 VALUES (900,'Vancouver','Shared/Roomate','','','','');
 Warnings:
 Warning	1265	Data truncated for column 'transityes' at row 1
 Warning	1265	Data truncated for column 'shopsyes' at row 1
@@ -157,7 +157,7 @@ t1	1	c	1	c	A	0	NULL	NULL	YES	BTREE
 drop table t1;
 CREATE TABLE t1 (c CHAR(10) NOT NULL,i INT NOT NULL AUTO_INCREMENT,
 UNIQUE (c,i)) ENGINE=MYISAM;
-INSERT INTO t1 (c) VALUES (NULL),(NULL);
+INSERT IGNORE INTO t1 (c) VALUES (NULL),(NULL);
 Warnings:
 Warning	1048	Column 'c' cannot be null
 SELECT * FROM t1;
@@ -190,10 +190,10 @@ drop table t1;
 set global innodb_large_prefix=1;
 SET GLOBAL innodb_file_format = `Barracuda`;
 create table t1 (i int, a char(200), b text, unique (a), unique (b(300))) charset utf8 row_format=dynamic engine=innodb;
-insert t1 values (1, repeat('a',210), repeat('b', 310));
+insert ignore t1 values (1, repeat('a',210), repeat('b', 310));
 Warnings:
 Warning	1265	Data truncated for column 'a' at row 1
-insert t1 values (2, repeat(0xD0B1,215), repeat(0xD0B1, 310));
+insert ignore t1 values (2, repeat(0xD0B1,215), repeat(0xD0B1, 310));
 Warnings:
 Warning	1265	Data truncated for column 'a' at row 1
 select i, length(a), length(b), char_length(a), char_length(b) from t1;

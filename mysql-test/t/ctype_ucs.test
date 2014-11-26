@@ -416,7 +416,7 @@ SELECT * FROM t1;
 DROP TABLE t1;
 CREATE TABLE t1 (Field1 int(10) unsigned default '0');
 # this should generate a "Data truncated" warning
-INSERT INTO t1 VALUES ('-1');
+INSERT IGNORE INTO t1 VALUES ('-1');
 DROP TABLE t1;
 SET NAMES latin1;
 
@@ -759,11 +759,12 @@ SET NAMES latin1;
 --echo #
 --echo # Bug #13832953 	MY_STRNXFRM_UNICODE: ASSERTION `SRC' FAILED
 --echo #
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 CREATE TABLE t1 (c1 SET('','') CHARACTER SET ucs2);
 INSERT INTO t1 VALUES ('');
 SELECT COALESCE(c1) FROM t1 ORDER BY 1;
 DROP TABLE t1;
-
+SET sql_mode = default;
 
 --echo #
 --echo # End of 5.5 tests
@@ -837,7 +838,7 @@ SET sql_mode='strict_all_tables';
 INSERT INTO t1 VALUES (CONVERT('9e99999999' USING ucs2));
 SET sql_mode=DEFAULT;
 
-INSERT INTO t1 VALUES (CONVERT('aaa' USING ucs2)); 
+INSERT IGNORE INTO t1 VALUES (CONVERT('aaa' USING ucs2)); 
 
 DROP TABLE t1;
 

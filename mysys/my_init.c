@@ -16,17 +16,18 @@
 #include "mysys_priv.h"
 #include "my_static.h"
 #include "mysys_err.h"
-#include <m_string.h>
-#include <m_ctype.h>
-#include <signal.h>
-#include <mysql/psi/mysql_stage.h>
+#include "m_string.h"
+#include "mysql/psi/mysql_stage.h"
+
+#ifdef HAVE_SYS_RESOURCE_H
+#include <sys/resource.h>
+#endif
+
 #ifdef _WIN32
-#ifdef _MSC_VER
 #include <locale.h>
 #include <crtdbg.h>
 /* WSAStartup needs winsock library*/
 #pragma comment(lib, "ws2_32")
-#endif
 my_bool have_tcpip=0;
 static void my_win_init(void);
 static my_bool win32_init_tcp_ip();
@@ -38,7 +39,7 @@ static my_bool win32_init_tcp_ip();
 #define SCALE_USEC      10000
 
 my_bool my_init_done= 0;
-ulong   my_thread_stack_size= 65536;
+ulong  my_thread_stack_size= 65536;
 
 static ulong atoi_octal(const char *str)
 {
@@ -535,8 +536,7 @@ static PSI_memory_info all_mysys_memory[]=
   { &key_memory_MY_STAT, "MY_STAT", 0},
   { &key_memory_QUEUE, "QUEUE", 0},
   { &key_memory_DYNAMIC_STRING, "DYNAMIC_STRING", 0},
-  { &key_memory_TREE, "TREE", 0},
-  { &key_memory_radix_sort, "radix_sort", 0}
+  { &key_memory_TREE, "TREE", 0}
 };
 
 void my_init_mysys_psi_keys()

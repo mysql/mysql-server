@@ -30,9 +30,10 @@ DROP TABLE IF EXISTS test.t2;
 --enable_warnings
 
 # Section 1 test from Peter G. This test changes uses a stored function to update rows and return the timestamp. We change the value of the time stamp on the master to see what is replicated.
-
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 CREATE TABLE test.t1 (a INT NOT NULL AUTO_INCREMENT, t TIMESTAMP, t2 TIMESTAMP, PRIMARY KEY(a));
 CREATE TABLE test.t2 (a INT NOT NULL AUTO_INCREMENT, t TIMESTAMP, t2 TIMESTAMP, PRIMARY KEY(a));
+SET sql_mode = default;
 
 delimiter //;
 create function test.f1() RETURNS TIMESTAMP 

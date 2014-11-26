@@ -7,6 +7,7 @@
 #
 set default_storage_engine=myisam;
 SET TIME_ZONE = "+00:00";
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 #
 # Test of errors for column data types that dont support function
 # defaults.
@@ -1556,12 +1557,14 @@ a	b
 1999-12-01 11:22:33	1999-12-01 11:22:33
 2001-09-09 04:46:40	2001-09-09 04:46:40
 DROP TABLE t1;
+SET sql_mode = default;
 #
 # Function defaults run 2. Six digits scale on seconds
 # precision. InnoDB.
 #
 set default_storage_engine=innodb;
 SET TIME_ZONE = "+00:00";
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 #
 # Test of errors for column data types that dont support function
 # defaults.
@@ -3111,3 +3114,4 @@ a	b
 1999-12-01 11:22:33.000000	1999-12-01 11:22:33.000000
 2001-09-09 04:46:40.000000	2001-09-09 04:46:40.000000
 DROP TABLE t1;
+SET sql_mode = default;

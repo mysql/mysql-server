@@ -423,15 +423,21 @@ String *get_slave_uuid(THD *thd, String *value)
 
   if (value == NULL)
     return NULL;
+
+  /* Protects thd->user_vars. */
+  mysql_mutex_lock(&thd->LOCK_thd_data);
+
   user_var_entry *entry=
     (user_var_entry*) my_hash_search(&thd->user_vars, name, sizeof(name)-1);
   if (entry && entry->length() > 0)
   {
     value->copy(entry->ptr(), entry->length(), NULL);
+    mysql_mutex_unlock(&thd->LOCK_thd_data);
     return value;
   }
-  else
-    return NULL;
+
+  mysql_mutex_unlock(&thd->LOCK_thd_data);
+  return NULL;
 }
 
 /**
@@ -499,6 +505,11 @@ void kill_zombie_dump_threads(String *slave_uuid)
       it will be slow because it will iterate through the list
       again. We just to do kill the thread ourselves.
     */
+    if (log_warnings > 1)
+      sql_print_information("While initializing dump thread for slave with "
+                            "UUID <%s>, found a zombie dump thread with "
+                            "the same UUID. Master is killing the zombie dump "
+                            "thread.", slave_uuid->c_ptr());
     tmp->awake(THD::KILL_QUERY);
     mysql_mutex_unlock(&tmp->LOCK_thd_data);
   }
@@ -579,7 +590,7 @@ bool show_master_status(THD* thd)
   {
     LOG_INFO li;
     mysql_bin_log.get_current_log(&li);
-    int dir_len = dirname_length(li.log_file_name);
+    size_t dir_len = dirname_length(li.log_file_name);
     protocol->store(li.log_file_name + dir_len, &my_charset_bin);
     protocol->store((ulonglong) li.pos);
     protocol->store(binlog_filter->get_do_db());
@@ -613,8 +624,8 @@ bool show_binlogs(THD* thd)
   File file;
   char fname[FN_REFLEN];
   List<Item> field_list;
-  uint length;
-  int cur_dir_len;
+  size_t length;
+  size_t cur_dir_len;
   Protocol *protocol= thd->protocol;
   DBUG_ENTER("show_binlogs");
 
@@ -646,7 +657,7 @@ bool show_binlogs(THD* thd)
   /* The file ends with EOF or empty line */
   while ((length=my_b_gets(index_file, fname, sizeof(fname))) > 1)
   {
-    int dir_len;
+    size_t dir_len;
     ulonglong file_length= 0;                   // Length if open fails
     fname[--length] = '\0';                     // remove the newline
 

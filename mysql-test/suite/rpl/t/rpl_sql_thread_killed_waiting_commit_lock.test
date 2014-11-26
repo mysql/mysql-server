@@ -1,0 +1,122 @@
+# ==== Purpose ====
+#
+# Test if sql thread doesn't assert when it is killed at
+# 'Waiting for commit lock' state.
+#
+# Test if killing sql thread which is waiting for commit lock and restarting
+# it doesn't cause a transaction to be skipped on slave.
+#
+# ==== Related Bugs and Worklogs ====
+#
+# BUG#16861624: KILLING WAITING SLAVE SQL THREAD:
+#               M_STATUS == DA_ERROR || M_STATUS == DA_OK
+#
+# ==== Implementation ====
+#
+# In order to get the sql thread in the 'Waiting for commit lock' state
+# we have to put some data into the master and, then, while replication
+# is happening, lock the slave with 'FLUSH TABLES WITH READ LOCK'.
+#
+# Debug sync points were created to allow us to precisely put the
+# sql thread in the desired state.
+#
+# After having the sql thread waiting for the commit lock, the test kills
+# it identifying its ID by querying information_schema.processlist table.
+#
+# Bug#17450876: REPLICATION STOP WITH "ERROR IN XID_LOG_EVENT: COMMIT COULD
+# NOT BE COMPLETED"
+#
+# Killing the sql thread that is waiting for a commit lock and restarting it
+# will cause one transaction to be skipped on the slave. When sql thread is
+# killed at this state its positions are updated in rli object but the
+# transaction is yet to be committed. At the time of restart the rli object is
+# read back causing a transaction to be missed. Post fix the positions in rli
+# object will be rolled back. Test script ensures that rli's memory contents
+# are in sync with the positions in rli repository.
+
+--source include/not_gtid_enabled.inc
+--source include/have_binlog_format_mixed.inc
+--source include/master-slave.inc
+--source include/have_debug.inc
+--source include/have_innodb.inc
+--source include/have_debug_sync.inc
+
+call mtr.add_suppression("Query execution was interrupted.");
+call mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
+
+--echo # Let master and slave synced with t1 table created
+CREATE TABLE t1 (f INT) ENGINE= INNODB;
+--source include/sync_slave_sql_with_master.inc
+
+--echo # Setup GLOBAL.DEBUG at slave to reach commit
+--source include/rpl_connection_slave.inc
+--let $debug_saved= `SELECT @@GLOBAL.DEBUG`
+SET @@GLOBAL.DEBUG= '+d,dbug.reached_commit';
+
+--echo # Do some DML operation on master so that it will be blocked on
+--echo # slave as global read lock is in place.
+--source include/rpl_connection_master.inc
+INSERT INTO t1 VALUES (10);
+
+--echo # Issue FLUSH TABLES WITH READ LOCK after Reached is signaled
+--source include/rpl_connection_slave.inc
+SET DEBUG_SYNC='now WAIT_FOR Reached';
+FLUSH TABLES WITH READ LOCK;
+--echo # Let sql thread continue to try to obtain commit lock
+SET DEBUG_SYNC= 'now SIGNAL signal.commit_continue';
+
+--echo # Wait until sql thread enters "Waiting for commit lock" state
+let $wait_condition= SELECT COUNT(*) = 1 FROM information_schema.processlist
+                     WHERE state = "Waiting for commit lock";
+--source include/wait_condition.inc
+
+--echo # Kill sql thread
+let $sql_thread_id= `SELECT ID FROM information_schema.processlist
+                     WHERE state= "Waiting for commit lock"`;
+--disable_query_log
+--eval KILL $sql_thread_id
+--enable_query_log
+--let $er_query_interrupted= convert_error(ER_QUERY_INTERRUPTED)
+--let $er_mts_inconsistent_data= convert_error(ER_MTS_INCONSISTENT_DATA)
+--let $slave_sql_errno= $er_query_interrupted, $er_mts_inconsistent_data
+--source include/wait_for_slave_sql_error.inc
+
+--echo # Restart sql thread to let it finish the replication
+SET @@GLOBAL.DEBUG= '-d,dbug.reached_commit';
+UNLOCK TABLES;
+# Check to ensure that in memory rli positions are equal to the positions in
+# slave's repository table.
+if (`SELECT @@GLOBAL.relay_log_info_repository = 'TABLE'`)
+{
+  --let $slave_master_log_pos_in_repo= `SELECT Master_log_pos FROM mysql.slave_relay_log_info LIMIT 1`
+}
+if (`SELECT @@GLOBAL.relay_log_info_repository = 'FILE'`)
+{
+  --disable_query_log
+  CREATE TABLE rli_table(rli_info VARCHAR(100));
+  --let $MYSQLD_DATADIR= `select @@datadir`
+  --let $rli_file=$MYSQLD_DATADIR/relay-log.info
+  --replace_result $rli_file rli_file
+  --eval LOAD DATA LOCAL INFILE '$rli_file' INTO TABLE rli_table
+  --let $slave_master_log_pos_in_repo= `SELECT * FROM rli_table LIMIT 4,1`
+  DROP TABLE rli_table;
+  --enable_query_log
+}
+
+--let $slave_master_log_pos= query_get_value(SHOW SLAVE STATUS, Exec_Master_Log_Pos, 1)
+--let $assert_text= Exec_Master_Log_Pos in SHOW SLAVE STATUS must be equal to mater_log_pos in slave's repository
+--let $assert_cond= $slave_master_log_pos = $slave_master_log_pos_in_repo
+--source include/assert.inc
+--source include/start_slave_sql.inc
+
+# Check consistency
+--source include/rpl_connection_master.inc
+--source include/sync_slave_sql_with_master.inc
+--let $diff_tables= master:t1, slave:t1
+--source include/diff_tables.inc
+
+# Cleanup
+SET @@GLOBAL.DEBUG= '$debug_saved';
+--source include/rpl_connection_master.inc
+DROP TABLE t1;
+--source include/rpl_end.inc

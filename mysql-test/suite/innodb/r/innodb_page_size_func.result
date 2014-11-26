@@ -23,3 +23,4 @@
 #    - to be successful in case start of test page size = minimal legal page size.
 #      In this case we omit the execution of the current sub test!
 # 7. Restart the server and cleanup
+# restart

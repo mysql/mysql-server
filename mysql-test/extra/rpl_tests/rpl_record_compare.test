@@ -12,7 +12,7 @@
 INSERT INTO t1 ( c5, c6 ) VALUES ( 1   , 35 );
 INSERT INTO t1 ( c5, c6 ) VALUES ( NULL, 35 );
 -- disable_warnings
-UPDATE t1 SET c5 = 'a';
+UPDATE IGNORE t1 SET c5 = 'a';
 -- enable_warnings
 -- source include/sync_slave_sql_with_master.inc
 
@@ -33,7 +33,7 @@ DROP TABLE t1;
 INSERT INTO t1 ( c5, c6 ) VALUES ( 1   , 35 );
 INSERT INTO t1 ( c5, c6 ) VALUES ( NULL, 35 );
 -- disable_warnings
-UPDATE t1 SET c5 = 'a';
+UPDATE IGNORE t1 SET c5 = 'a';
 -- enable_warnings
 -- source include/sync_slave_sql_with_master.inc
 

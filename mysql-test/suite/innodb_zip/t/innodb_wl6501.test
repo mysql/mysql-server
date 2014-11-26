@@ -212,6 +212,7 @@ drop procedure populate_t1;
 # 4. Compressed table with small key-block-size.
 #
 use test;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 delimiter |;
 create procedure populate_t1()
 begin
@@ -235,6 +236,7 @@ begin;
 call populate_t1();
 commit;
 select count(*) from t1;
+SET sql_mode = default;
 #
 set session debug = "+d,ib_trunc_crash_before_log_checkpoint";
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect

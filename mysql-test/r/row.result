@@ -490,7 +490,10 @@ drop table t1,t2;
 # Bug#52124 memory leaks like a sieve in datetime, timestamp, time, date fields + warnings
 #
 CREATE TABLE t1 (a DATETIME NOT NULL, b TINYINT);
-INSERT INTO t1 VALUES (0, 0),(0, 0);
+INSERT IGNORE INTO t1 VALUES (0, 0),(0, 0);
+Warnings:
+Warning	1264	Out of range value for column 'a' at row 1
+Warning	1264	Out of range value for column 'a' at row 2
 SELECT 1 FROM t1 WHERE ROW(a, b) >=
 ROW('1', (SELECT 1 FROM t1 WHERE a > 1234));
 1

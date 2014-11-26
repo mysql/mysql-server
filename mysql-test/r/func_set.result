@@ -149,7 +149,7 @@ NULL
 drop table t1;
 CREATE TABLE t1( a SET('a', 'b', 'c') );
 CREATE TABLE t2( a SET('a', 'b', 'c') );
-INSERT INTO t1 VALUES ('d');
+INSERT IGNORE INTO t1 VALUES ('d');
 Warnings:
 Warning	1265	Data truncated for column 'a' at row 1
 INSERT INTO t2 VALUES ('');
@@ -246,3 +246,4 @@ from( make_set( ( extract( minute_second from
 ;
 Warnings:
 Warning	1292	Truncated incorrect date value: '1.01'
+Warning	1411	Incorrect datetime value: '1.01' for function str_to_date

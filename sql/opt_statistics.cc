@@ -49,7 +49,7 @@ rec_per_key_t guess_rec_per_key(const TABLE *const table, const KEY *const key,
 {
   DBUG_ASSERT(used_keyparts >= 1);
   DBUG_ASSERT(used_keyparts <= key->user_defined_key_parts);
-  DBUG_ASSERT(key->rec_per_key[used_keyparts - 1] == 0);
+  DBUG_ASSERT(!key->has_records_per_key(used_keyparts - 1));
 
   const ha_rows table_rows= table->file->stats.records;
   
@@ -59,9 +59,10 @@ rec_per_key_t guess_rec_per_key(const TABLE *const table, const KEY *const key,
     If not, we assume the whole key matches ten records for a non-unique
     index and 1 record for a unique index.
   */
-  rec_per_key_t rec_per_key_all=
-    rec_per_key_t(key->rec_per_key[key->user_defined_key_parts - 1]);
-  if (rec_per_key_all == 0.0f)
+  rec_per_key_t rec_per_key_all;
+  if (key->has_records_per_key(key->user_defined_key_parts - 1))
+    rec_per_key_all= key->records_per_key(key->user_defined_key_parts - 1);
+  else
   {
     if (key->actual_flags & HA_NOSAME)
       rec_per_key_all= 1.0f;                     // Unique index

@@ -218,7 +218,9 @@ prepare dump_waits_global from
   order by event_name;";
 
 prepare dump_waits_history from
-  "select event_name, count(event_name), object_type, object_schema, object_name
+  "select event_name,
+    sum(if(number_of_bytes is null, 1, number_of_bytes)) as 'count(event_name)',
+    object_type, object_schema, object_name
   from performance_schema.events_waits_history_long
   where event_name in
   (\'wait/io/table/sql/handler\',

@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,22 +19,28 @@
 #include "sql_priv.h"
 #include <table.h>
 #include <key.h>
-#include <sql_base.h>
+#include "rpl_table_access.h"
 #include "rpl_info_handler.h"
 #include "rpl_info_values.h"
 
 enum enum_return_id { FOUND_ID= 1, NOT_FOUND_ID, ERROR_ID };
 
-class Rpl_info_table_access
+class Rpl_info_table_access : public System_table_access
 {
 public:
-  Rpl_info_table_access() { };
+  Rpl_info_table_access(): thd_created(false) { };
   virtual ~Rpl_info_table_access() { };
 
-  bool open_table(THD* thd, const LEX_STRING dbstr, const LEX_STRING tbstr,
-                  uint max_num_field, enum thr_lock_type lock_type,
-                  TABLE** table, Open_tables_backup* backup);
-  bool close_table(THD* thd, TABLE* table, Open_tables_backup* backup,
+  /**
+    Prepares before opening table.
+    - set flags
+    - start lex and reset the part of THD responsible
+      for the state of command processing if needed.
+
+    @param[in]  thd  Thread requesting to open the table
+  */
+  void before_open(THD* thd);
+  void close_table(THD* thd, TABLE* table, Open_tables_backup* backup,
                    bool error);
   enum enum_return_id find_info(Rpl_info_values *field_values, TABLE *table);
   enum enum_return_id scan_info(TABLE *table, uint instance);
@@ -44,10 +50,10 @@ public:
   bool store_info_values(uint max_num_field, Field **fields,
                          Rpl_info_values *field_values);
   THD *create_thd();
-  bool drop_thd(THD* thd);
+  void drop_thd(THD* thd);
 
 private:
-  THD *saved_current_thd;
+  bool thd_created;
 
   Rpl_info_table_access& operator=(const Rpl_info_table_access& info);
   Rpl_info_table_access(const Rpl_info_table_access& info);

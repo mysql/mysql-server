@@ -366,6 +366,15 @@ rtr_update_mbr_field(
 				goto update_mbr;
 			}
 
+			/* Record could be repositioned */
+			rec = btr_cur_get_rec(cursor);
+
+#ifdef UNIV_DEBUG
+			/* Make sure it is still the first record */
+			rec_info = rec_get_info_bits(
+					rec, rec_offs_comp(offsets));
+			ut_ad(rec_info & REC_INFO_MIN_REC_FLAG);
+#endif /* UNIV_DEBUG */
 		}
 
 		if (!rtr_update_mbr_field_in_place(index, rec,
@@ -829,6 +838,9 @@ rtr_split_page_move_rec_list(
 		= buf_block_get_page_zip(new_block);
 	rec_t*			rec;
 	rec_t*			ret;
+	ulint			moved		= 0;
+	ulint			max_to_move	= 0;
+	rtr_rec_move_t*		rec_move	= NULL;
 
 	rec_offs_init(offsets_);
 
@@ -846,6 +858,12 @@ rtr_split_page_move_rec_list(
 	if (new_page_zip) {
 		log_mode = mtr_set_log_mode(mtr, MTR_LOG_NONE);
 	}
+
+	max_to_move = page_get_n_recs(
+				buf_block_get_frame(block));
+	rec_move = static_cast<rtr_rec_move_t*>(mem_heap_alloc(
+			heap,
+			sizeof (*rec_move) * max_to_move));
 
 	/* Insert the recs in group 2 to new page.  */
 	for (cur_split_node = node_array;
@@ -874,6 +892,16 @@ rtr_split_page_move_rec_list(
 				new_block, rec, block);
 
 			page_cur_move_to_next(&new_page_cursor);
+
+			rec_move[moved].new_rec = rec;
+			rec_move[moved].old_rec = cur_split_node->key;
+			rec_move[moved].moved = false;
+			moved++;
+
+			if (moved > max_to_move) {
+				ut_ad(0);
+				break;
+			}
 		}
 	}
 
@@ -942,6 +970,9 @@ rtr_split_page_move_rec_list(
 				index, offsets, mtr);
 		}
 	}
+
+	/* Update the lock table */
+	lock_rtr_move_rec_list(new_block, block, rec_move, moved);
 
 	return(true);
 }
@@ -1412,11 +1443,11 @@ rtr_page_copy_rec_list_end_no_locks(
 					dict_table_is_comp(index->table))) {
 					goto next;
 				} else {
+					/* We have two identical leaf records,
+					skip copying the undeleted one, and
+					unmark deleted on the current page */
 					btr_rec_set_deleted_flag(
-						cur_rec,
-						buf_block_get_page_zip(
-							new_block),
-						FALSE);
+						cur_rec, NULL, FALSE);
 					goto next;
 				}
 			}

@@ -11,6 +11,11 @@ typedef int opaque_mdl_duration;
 typedef int opaque_mdl_status;
 struct TABLE_SHARE;
 struct sql_digest_storage;
+  struct opaque_THD
+  {
+    int dummy;
+  };
+  typedef struct opaque_THD THD;
 struct PSI_mutex;
 typedef struct PSI_mutex PSI_mutex;
 struct PSI_rwlock;

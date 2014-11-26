@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2014, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -54,28 +54,14 @@
 #include "my_global.h"
 #include "my_rdtsc.h"
 
+#include <stdio.h>
 #if defined(_WIN32)
-#include <stdio.h>
 #include "windows.h"
-#else
-#include <stdio.h>
 #endif
 
-#if !defined(_WIN32)
-#if TIME_WITH_SYS_TIME
+#if defined(TIME_WITH_SYS_TIME)
 #include <sys/time.h>
 #include <time.h>           /* for clock_gettime */
-#else
-#if HAVE_SYS_TIME_H
-#include <sys/time.h>
-#else
-#include <time.h>
-#endif
-#endif
-#endif
-
-#if defined(HAVE_ASM_MSR_H) && defined(HAVE_RDTSCLL)
-#include <asm/msr.h>         /* for rdtscll */
 #endif
 
 #if defined(HAVE_SYS_TIMES_H) && defined(HAVE_TIMES)
@@ -128,12 +114,6 @@ ulonglong my_timer_cycles(void)
                         "orq %%rdx,%%rax"
                         : "=a" (result) :: "%edx");
   return result;
-#elif defined(HAVE_ASM_MSR_H) && defined(HAVE_RDTSCLL)
-  {
-    ulonglong result;
-    rdtscll(result);
-    return result;
-  }
 #elif defined(_WIN32) && defined(_M_IX86)
   __asm {rdtsc};
 #elif defined(_WIN64) && defined(_M_X64)
@@ -179,13 +159,13 @@ ulonglong my_timer_cycles(void)
   return (my_timer_cycles_il_i386());
 #elif (defined(__SUNPRO_CC) || defined(__SUNPRO_C)) && defined(__x86_64) && defined(_LP64)
   return (my_timer_cycles_il_x86_64());
-#elif defined(__GNUC__) && defined(__sparcv9) && defined(_LP64)  && (__GNUC__>2)
+#elif defined(__GNUC__) && defined(__sparcv9) && defined(_LP64)
   {
     ulonglong result;
     __asm __volatile__ ("rd %%tick,%0" : "=r" (result));
     return result;
   }
-#elif defined(__GNUC__) && defined(__sparc__) && !defined(_LP64) && (__GNUC__>2)
+#elif defined(__GNUC__) && defined(__sparc__) && !defined(_LP64)
   {
       union {
               ulonglong wholeresult;
@@ -477,8 +457,6 @@ void my_timer_init(MY_TIMER_INFO *mti)
   mti->cycles.routine= MY_TIMER_ROUTINE_ASM_X86;
 #elif defined(__GNUC__) && defined(__x86_64__)
   mti->cycles.routine= MY_TIMER_ROUTINE_ASM_X86_64;
-#elif defined(HAVE_ASM_MSR_H) && defined(HAVE_RDTSCLL)
-  mti->cycles.routine= MY_TIMER_ROUTINE_RDTSCLL;
 #elif defined(_WIN32) && defined(_M_IX86)
   mti->cycles.routine= MY_TIMER_ROUTINE_ASM_X86_WIN;
 #elif defined(_WIN64) && defined(_M_X64)
@@ -497,9 +475,9 @@ void my_timer_init(MY_TIMER_INFO *mti)
   mti->cycles.routine= MY_TIMER_ROUTINE_ASM_SUNPRO_I386;
 #elif (defined(__SUNPRO_CC) || defined(__SUNPRO_C)) && defined(__x86_64) && defined(_LP64)
   mti->cycles.routine= MY_TIMER_ROUTINE_ASM_SUNPRO_X86_64;
-#elif defined(__GNUC__) && defined(__sparcv9) && defined(_LP64) && (__GNUC__>2)
+#elif defined(__GNUC__) && defined(__sparcv9) && defined(_LP64)
   mti->cycles.routine= MY_TIMER_ROUTINE_ASM_GCC_SPARC64;
-#elif defined(__GNUC__) && defined(__sparc__) && !defined(_LP64) && (__GNUC__>2)
+#elif defined(__GNUC__) && defined(__sparc__) && !defined(_LP64)
   mti->cycles.routine= MY_TIMER_ROUTINE_ASM_GCC_SPARC32;
 #elif defined(HAVE_SYS_TIMES_H) && defined(HAVE_GETHRTIME)
   mti->cycles.routine= MY_TIMER_ROUTINE_GETHRTIME;

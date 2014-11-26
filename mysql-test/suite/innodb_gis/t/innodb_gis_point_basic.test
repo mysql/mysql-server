@@ -1,0 +1,948 @@
+#********************************************************
+# wl6942: Store certain GIS data type in the row rather
+# than as BLOB.
+#
+#********************************************************
+
+--source include/have_geometry.inc
+--source include/have_innodb.inc
+
+
+--echo #
+--echo # Test for basic POINT operation
+--echo #
+CREATE TABLE gis_point(p1 POINT, p2 POINT) ENGINE=InnoDB;
+INSERT INTO gis_point VALUES
+(PointFromText('POINT(0 0)'), PointFromText('POINT(0 0)')),
+(PointFromText('POINT(10 -20)'), PointFromText('POINT(10 -20)')),
+(PointFromText('POINT(3.1415926 3.535897)'), PointFromText('POINT(-3.932626 -3.488272)')),
+(PointFromText('POINT(-111.9876 234.1357)'), PointFromText('POINT(-957.1914 958.1919)'));
+SELECT X(p1), Y(p2) FROM gis_point;
+DROP TABLE gis_point;
+
+
+--echo #
+--echo # Test when POINT is not on any indexes
+--echo #
+CREATE TABLE gis_point(p1 POINT, p2 POINT) ENGINE=InnoDB;
+INSERT INTO gis_point VALUES
+(PointFromText('POINT(100.32374832 101.23741821)'), PointFromText('POINT(100.32374832 101.23741821)')),
+(PointFromText('POINT(105.34523342 103.18492302)'), PointFromText('POINT(100.32374832 101.23741821)')),
+(PointFromText('POINT(100.32374832 101.23741821)'), PointFromText('POINT(200.32247328 101.86728201)')),
+(PointFromText('POINT(100.32374832 101.23741821)'), PointFromText('POINT(100.32374832 101.98527111)'));
+
+--replace_column 10 #
+EXPLAIN SELECT AsText(p1), AsText(p2) FROM gis_point GROUP BY p1, p2;
+SELECT AsText(p1), AsText(p2) FROM gis_point GROUP BY p1, p2;
+
+SELECT AsText(p1) FROM gis_point WHERE p1 = p2;
+SELECT AsText(p1), AsText(p2) FROM gis_point WHERE p1 = PointFromText('POINT(100.32374832 101.23741821)');
+SELECT AsText(p1), AsText(p2) FROM gis_point WHERE p2 = PointFromText('POINT(200.32247328 101.86728201)');
+
+DROP TABLE gis_point;
+
+
+--echo #
+--echo # Test for innodb_optimize_point_storage
+--echo #
+SET @start_optimize_point_storage = @@session.innodb_optimize_point_storage;
+SET @@session.innodb_optimize_point_storage = 1;
+SELECT @@session.innodb_optimize_point_storage;
+
+--echo # Create a geometry table and check mtypes
+CREATE TABLE t1 (
+  p POINT NOT NULL,
+  g GEOMETRY NOT NULL
+) ENGINE=InnoDB;
+
+SELECT name, mtype, prtype, len FROM INFORMATION_SCHEMA.INNODB_SYS_COLUMNS WHERE name = 'p' OR name = 'g';
+
+INSERT INTO t1 VALUES(PointFromText('POINT(0 1)'), PointFromText('POINT(10 11)'));
+INSERT INTO t1 VALUES(PointFromText('POINT(1 1)'), PointFromText('POINT(10 12)'));
+INSERT INTO t1 VALUES(PointFromText('POINT(1 0)'), PointFromText('POINT(10 13)'));
+INSERT INTO t1 VALUES(PointFromText('POINT(0 0)'), PointFromText('POINT(10 14)'));
+
+SELECT AsText(p), AsText(g) FROM t1;
+
+DROP TABLE t1;
+
+--echo # Changing the setting and verify the mtype of POINT would change for new
+--echo # geometry tables
+SET @@session.innodb_optimize_point_storage = 0;
+SELECT @@session.innodb_optimize_point_storage;
+
+CREATE TABLE t1 (
+  p POINT NOT NULL,
+  g GEOMETRY NOT NULL
+) ENGINE=InnoDB;
+
+INSERT INTO t1 VALUES(PointFromText('POINT(0 1)'), PointFromText('POINT(10 11)'));
+INSERT INTO t1 VALUES(PointFromText('POINT(1 1)'), PointFromText('POINT(10 12)'));
+INSERT INTO t1 VALUES(PointFromText('POINT(1 0)'), PointFromText('POINT(10 13)'));
+INSERT INTO t1 VALUES(PointFromText('POINT(0 0)'), PointFromText('POINT(10 14)'));
+
+SELECT AsText(p), AsText(g) FROM t1;
+
+SELECT name, mtype, prtype, len FROM INFORMATION_SCHEMA.INNODB_SYS_COLUMNS WHERE name = 'p' OR name = 'g';
+
+--echo # Changing the setting would affect the new introduced POINT mtype, if it's an in-place alter table
+SET @@session.innodb_optimize_point_storage = 1;
+SELECT @@session.innodb_optimize_point_storage;
+ALTER TABLE t1 ADD COLUMN p1 POINT NOT NULL, ADD COLUMN p2 POINT NOT NULL, ADD KEY(p), ADD KEY(p1), ADD KEY(p2);
+SELECT name, mtype, prtype, len FROM INFORMATION_SCHEMA.INNODB_SYS_COLUMNS WHERE name = 'p' OR name = 'g' OR name = 'p1' OR name = 'p2';
+
+--echo # NOT NULL POINT will use POINT(0 0) as default value
+SELECT count(*) AS `Expect 4` FROM t1 WHERE p1 = PointFromText('POINT(0 0)');
+SELECT count(*) AS `Expect 4` FROM t1 WHERE p2 = PointFromText('POINT(0 0)');
+
+SELECT AsText(p), AsText(p1) FROM t1 WHERE p = p1;
+SELECT AsText(p), AsText(p1) FROM t1 WHERE p = p2;
+
+ALTER TABLE t1 DROP COLUMN p2;
+
+--echo # NULLABLE POINT will use null
+ALTER TABLE t1 ADD COLUMN p2 POINT, ADD KEY(p2);
+SELECT name, mtype, prtype, len FROM INFORMATION_SCHEMA.INNODB_SYS_COLUMNS WHERE name = 'p' OR name = 'g' OR name = 'p1' OR name = 'p2';
+
+SELECT count(*) AS `Expect 4` FROM t1 WHERE p2 IS NULL;
+UPDATE t1 SET p2 = PointFromText('POINT(10 20)');
+SELECT AsText(p2) FROM t1;
+
+ALTER TABLE t1 DROP COLUMN p2;
+SELECT name, mtype, prtype, len FROM INFORMATION_SCHEMA.INNODB_SYS_COLUMNS WHERE name = 'p' OR name = 'g' OR name = 'p1';
+
+SET @@session.innodb_optimize_point_storage = 0;
+SELECT @@session.innodb_optimize_point_storage;
+
+--echo # NULLABLE POINT will use null
+ALTER TABLE t1 ADD COLUMN p2 POINT, ADD KEY(p2);
+SELECT name, mtype, prtype, len FROM INFORMATION_SCHEMA.INNODB_SYS_COLUMNS WHERE name = 'p' OR name = 'g' OR name = 'p1' OR name = 'p2';
+
+SELECT count(*) AS `Expect 4` FROM t1 WHERE p2 IS NULL;
+UPDATE t1 SET p2 = PointFromText('POINT(10 20)');
+SELECT AsText(p2) FROM t1;
+
+ALTER TABLE t1 DROP COLUMN p2;
+
+SET @@session.innodb_optimize_point_storage = 1;
+SELECT @@session.innodb_optimize_point_storage;
+
+ALTER TABLE t1 ADD COLUMN p2 POINT, ADD KEY(p2);
+SELECT name, mtype, prtype, len FROM INFORMATION_SCHEMA.INNODB_SYS_COLUMNS WHERE name = 'p' OR name = 'g' OR name = 'p1' OR name = 'p2';
+
+SELECT count(*) AS `Expect 4` FROM t1 WHERE p2 IS NULL;
+
+SELECT AsText(p2) FROM t1;
+
+ALTER TABLE t1 DROP COLUMN p2;
+
+UPDATE t1 SET p1 = PointFromText('POINT(10 20)');
+
+SELECT AsText(p), AsText(p1) FROM t1;
+
+SELECT AsText(p), AsText(p1) FROM t1 WHERE p = p1;
+
+INSERT INTO t1 VALUES (PointFromText('POINT(0.5 0.5)'), PointFromText('POINT(0 1)'), PointFromText('POINT(10 19)'));
+SELECT AsText(p1) FROM t1;
+DELETE FROM t1 WHERE p1 = PointFromText('POINT(10 19)');
+SELECT AsText(p1) FROM t1;
+
+--echo # Add spatial keys on the table
+ALTER TABLE t1 ADD SPATIAL(p), ADD SPATIAL(p1);
+SELECT name, mtype, prtype, len FROM INFORMATION_SCHEMA.INNODB_SYS_COLUMNS WHERE name = 'p' OR name = 'g' OR name = 'p1';
+
+SELECT AsText(p), AsText(p1) FROM t1 WHERE p1 = PointFromText('POINT(10 30)');
+SELECT AsText(p), AsText(p1) FROM t1 WHERE p1 = PointFromText('POINT(10 20)');
+
+SELECT AsText(p), AsText(p1) FROM t1 WHERE Within(p1, GeomFromText('POLYGON((5 5, 20 5, 20 21, 5 21, 5 5))'));
+SELECT AsText(p), AsText(p1) FROM t1 WHERE Within(p, GeomFromText('POLYGON((-1 0.5, -1 -0.5, 1 -0.5, 1 0.5, -1 0.5))'));
+
+--echo # Drop spatial keys on the table
+ALTER TABLE t1 DROP KEY p, DROP KEY p1;
+SELECT name, mtype, prtype, len FROM INFORMATION_SCHEMA.INNODB_SYS_COLUMNS WHERE name = 'p' OR name = 'g' OR name = 'p1';
+
+SELECT AsText(p), AsText(p1) FROM t1 WHERE p1 = PointFromText('POINT(10 30)');
+SELECT AsText(p), AsText(p1) FROM t1 WHERE p1 = PointFromText('POINT(10 20)');
+
+SELECT AsText(p), AsText(p1) FROM t1 WHERE Within(p1, GeomFromText('POLYGON((5 5, 20 5, 20 21, 5 21, 5 5))'));
+SELECT AsText(p), AsText(p1) FROM t1 WHERE Within(p, GeomFromText('POLYGON((-1 0.5, -1 -0.5, 1 -0.5, 1 0.5, -1 0.5))'));
+
+--echo # Change it again to test for ALTER TABLE ... ALGORITHM = COPY
+SET @@session.innodb_optimize_point_storage = 0;
+SELECT @@session.innodb_optimize_point_storage;
+
+TRUNCATE t1;
+
+ALTER TABLE t1 DROP COLUMN p, DROP COLUMN p1;
+SELECT name, mtype, prtype, len FROM INFORMATION_SCHEMA.INNODB_SYS_COLUMNS WHERE name = 'p' OR name = 'g' OR name = 'p1';
+
+ALTER TABLE t1 ADD COLUMN p POINT NOT NULL, ADD COLUMN p1 POINT NOT NULL;
+SELECT name, mtype, prtype, len FROM INFORMATION_SCHEMA.INNODB_SYS_COLUMNS WHERE name = 'p' OR name = 'g' OR name = 'p1';
+
+SHOW CREATE TABLE t1;
+
+INSERT INTO t1 VALUES(PointFromText('POINT(0.5 0.5)'), PointFromText('POINT(0 1)'), PointFromText('POINT(10 19)'));
+INSERT INTO t1 VALUES(PointFromText('POINT(0.6 0.6)'), PointFromText('POINT(1 1)'), PointFromText('POINT(10 20)'));
+INSERT INTO t1 VALUES(PointFromText('POINT(0.7 0.7)'), PointFromText('POINT(1 0)'), PointFromText('POINT(10 21)'));
+INSERT INTO t1 VALUES(PointFromText('POINT(0.8 0.8)'), PointFromText('POINT(0 0)'), PointFromText('POINT(10 22)'));
+
+SELECT AsText(p), AsText(p1) FROM t1 WHERE p1 = PointFromText('POINT(10 30)');
+SELECT AsText(p), AsText(p1) FROM t1 WHERE p1 = PointFromText('POINT(10 20)');
+
+SELECT AsText(p), AsText(p1) FROM t1 WHERE Within(p1, GeomFromText('POLYGON((5 5, 20 5, 20 21, 5 21, 5 5))'));
+SELECT AsText(p), AsText(p1) FROM t1 WHERE Within(p, GeomFromText('POLYGON((-1 0.5, -1 -0.5, 1 -0.5, 1 0.5, -1 0.5))'));
+
+--echo # CHANGE COLUMN might change the mtype
+SET @@session.innodb_optimize_point_storage = 1;
+SELECT @@session.innodb_optimize_point_storage;
+
+ALTER TABLE t1 DROP COLUMN p1, ADD COLUMN p1 POINT NOT NULL, CHANGE COLUMN p pp POINT NOT NULL AFTER p1;
+SELECT name, mtype, prtype, len FROM INFORMATION_SCHEMA.INNODB_SYS_COLUMNS WHERE name = 'pp' OR name = 'g' OR name = 'p1';
+
+UPDATE t1 SET p1 = PointFromText('POINT(5 5)');
+
+SELECT AsText(pp), AsText(p1) FROM t1;
+
+SET @@session.innodb_optimize_point_storage = 0;
+SELECT @@session.innodb_optimize_point_storage;
+
+ALTER TABLE t1 ADD SPATIAL(p1), ADD SPATIAL(pp), ALGORITHM = COPY;
+SELECT name, mtype, prtype, len FROM INFORMATION_SCHEMA.INNODB_SYS_COLUMNS WHERE name = 'pp' OR name = 'g' OR name = 'p1';
+
+SELECT AsText(pp), AsText(p1) FROM t1 WHERE p1 = PointFromText('POINT(10 30)');
+SELECT AsText(pp), AsText(p1) FROM t1 WHERE p1 = PointFromText('POINT(10 20)');
+
+SELECT AsText(pp), AsText(p1) FROM t1 WHERE Within(p1, GeomFromText('POLYGON((5 5, 20 5, 20 21, 5 21, 5 5))')) ORDER BY pp;
+SELECT AsText(pp), AsText(p1) FROM t1 WHERE Within(pp, GeomFromText('POLYGON((-1 0.5, -1 -0.5, 1 -0.5, 1 0.5, -1 0.5))')) ORDER BY pp;
+
+DROP TABLE t1;
+
+
+--echo #
+--echo # Test when the POINT is on B-TREE
+--echo #
+CREATE TABLE gis_point(fid INTEGER NOT NULL PRIMARY KEY AUTO_INCREMENT, p POINT, KEY(p)) ENGINE=InnoDB;
+
+INSERT INTO gis_point VALUES
+(101, PointFromText('POINT(10 10)')),
+(102, PointFromText('POINT(20 10)')),
+(103, PointFromText('POINT(20 20)')),
+(104, PointFromWKB(AsWKB(PointFromText('POINT(10 20)'))));
+
+SELECT AsText(p) FROM gis_point;
+SELECT AsText(p) FROM gis_point WHERE p = PointFromText('POINT(20 20)');
+
+INSERT INTO gis_point VALUES
+(201, PointFromText('POINT(100.32374832 101.23741821)')),
+(202, PointFromText('POINT(102.43287328 100.23489233)')),
+(203, PointFromText('POINT(101.43284962 100.45892392)')),
+(204, PointFromWKB(AsWKB(PointFromText('POINT(103.43718640 105.248206478)')))),
+(205, PointFromText('POINT(101.43284962 100.45892392)')),
+(206, PointFromWKB(AsWKB(PointFromText('POINT(103.43718640 105.248206478)'))));
+
+-- echo 'The ORDER BY will use filesort'
+--replace_column 10 #
+EXPLAIN SELECT AsText(p) FROM gis_point ORDER BY p;
+SELECT AsText(p) FROM gis_point ORDER BY p;
+
+SELECT AsText(p), COUNT(*) FROM gis_point GROUP BY p;
+
+TRUNCATE gis_point;
+
+INSERT INTO gis_point VALUES
+(101, PointFromText('POINT(10 10)')),
+(102, PointFromText('POINT(20 10)')),
+(103, PointFromText('POINT(20 20)')),
+(104, PointFromWKB(AsWKB(PointFromText('POINT(10 20)'))));
+
+--echo # Check if we can create prefix index on POINT
+ALTER TABLE gis_point ADD COLUMN g POINT, ADD KEY(g(8));
+
+INSERT INTO gis_point VALUES
+(105, PointFromText('POINT(25 15)'), PointFromText('POINT(100 100)')),
+(106, PointFromText('POINT(25 25)'), PointFromText('POINT(110 110)'));
+
+SELECT AsText(p) FROM gis_point;
+SELECT AsText(p), AsText(g) FROM gis_point WHERE g IS NULL;
+
+UPDATE gis_point SET g = PointFromText('POINT(200 200)') WHERE g IS NULL OR g = PointFromText('POINT(110 110)');
+SELECT AsText(g) FROM gis_point WHERE g IS NULL OR g = PointFromText('POINT(200 200)');
+
+--echo # Check the information schema tables
+SELECT table_name, column_name, data_type, column_type FROM INFORMATION_SCHEMA.COLUMNS WHERE table_name='gis_point' AND (column_name = 'p' OR column_name = 'g');
+
+SELECT name, mtype, prtype, len FROM INFORMATION_SCHEMA.INNODB_SYS_COLUMNS WHERE name = 'p' OR name = 'g';
+
+SELECT length(p) FROM gis_point;
+
+SET @@session.innodb_optimize_point_storage = 0;
+ALTER TABLE gis_point DROP COLUMN g, ALGORITHM = COPY;
+SELECT name, mtype, prtype, len FROM INFORMATION_SCHEMA.INNODB_SYS_COLUMNS WHERE name = 'pp';
+
+TRUNCATE gis_point;
+
+INSERT INTO gis_point VALUES
+(101, PointFromText('POINT(10 10)')),
+(102, PointFromText('POINT(20 10)')),
+(103, PointFromText('POINT(20 20)')),
+(104, PointFromWKB(AsWKB(PointFromText('POINT(10 20)'))));
+
+--echo # Check if we can create prefix index on POINT
+ALTER TABLE gis_point ADD COLUMN g POINT, ADD KEY(g(8));
+
+INSERT INTO gis_point VALUES
+(105, PointFromText('POINT(25 15)'), PointFromText('POINT(100 100)')),
+(106, PointFromText('POINT(25 25)'), PointFromText('POINT(110 110)'));
+
+SELECT AsText(p) FROM gis_point;
+SELECT AsText(p), AsText(g) FROM gis_point WHERE g IS NULL;
+
+UPDATE gis_point SET g = PointFromText('POINT(200 200)') WHERE g IS NULL OR g = PointFromText('POINT(110 110)');
+SELECT AsText(g) FROM gis_point WHERE g IS NULL OR g = PointFromText('POINT(200 200)');
+
+CHECK TABLE gis_point;
+
+SELECT name, mtype, prtype, len FROM INFORMATION_SCHEMA.INNODB_SYS_COLUMNS WHERE name = 'p' OR name = 'g';
+
+SET @@session.innodb_optimize_point_storage = 1;
+
+DROP TABLE gis_point;
+
+
+--echo #
+--echo # Check the mtype of other geometry data types should be 15
+--echo #
+CREATE TABLE g (
+  geom GEOMETRY NOT NULL,
+  l LINESTRING NOT NULL,
+  poly POLYGON NOT NULL,
+  mp MULTIPOINT NOT NULL,
+  ml MULTILINESTRING NOT NULL,
+  mpoly MULTIPOLYGON NOT NULL,
+  gc GEOMETRYCOLLECTION NOT NULL
+) ENGINE=InnoDB;
+SELECT name, mtype, prtype, len FROM INFORMATION_SCHEMA.INNODB_SYS_COLUMNS WHERE name = 'p' OR name = 'g' OR name = 'geom' OR name = 'l' OR name = 'poly' OR name = 'mp' OR name = 'ml' OR name = 'mpoly' OR name = 'gc';
+
+DROP TABLE g;
+
+--echo #
+--echo # check the mtype and len with CREATE TABLE AS
+--echo #
+
+SET innodb_optimize_point_storage = 0;
+
+select @@innodb_optimize_point_storage;
+
+CREATE TABLE t1 (
+  p POINT NOT NULL,
+  g GEOMETRY NOT NULL
+) ENGINE=InnoDB;
+
+
+INSERT INTO t1 VALUES(PointFromText('POINT(10 10)'),GeomFromText('POLYGON((30 30,40 40,50 50,30 50,30 40,30 30))'));
+
+# Check the mtype and len of the table
+SELECT name, mtype, prtype, len FROM INFORMATION_SCHEMA.INNODB_SYS_COLUMNS WHERE name = 'p' OR name = 'g' AND name='t1';
+
+
+SET innodb_optimize_point_storage = 1;
+
+SELECT @@innodb_optimize_point_storage;
+
+CREATE TABLE t2 AS SELECT * FROM t1;
+
+# Cleanup
+DROP TABLE t1;
+
+# Check the mtype and len of the table, should be 14,25
+SELECT name, mtype, prtype, len FROM INFORMATION_SCHEMA.INNODB_SYS_COLUMNS WHERE name = 'p' OR name = 'g' AND name='t2';
+
+# Cleanup
+DROP table t2; 
+
+
+--echo #
+--echo # Test when POINT is used in spatial index
+--echo #
+SET @ls1 = GeomFromText('LINESTRING(0 20, 10 0)');
+SET @ls2 = GeomFromText('LINESTRING(0 0, 10 20)');
+SET @ls3 = GeomFromText('LINESTRING(20 -40, 21 -42)');
+SET @ls4 = GeomFromText('LINESTRING(20 -42, 21 -40)');
+SET @poly1 = GeomFromText('POLYGON((2 2, 2 10, 10 10, 10 2, 2 2))');
+SET @poly2 = GeomFromText('POLYGON((0 0, -5 0, -4 -1, -6 -15, -3 -15, 0 0))');
+SET @poly3 = GeomFromText('POLYGON((10.0 10.0, 20.5 20, 20.5 50, 32.0 64.0, 32.3 64.6, 5 60, 10 10))');
+SET @poly4 = GeomFromText('POLYGON((0 10, -10 10, -10 -10, 0 -10, 0 10))');
+SET @p1 = PointFromText('POINT(0 0)');
+SET @mpoly = GeomFromText('MULTIPOLYGON(((3 3, 3 16, 16 16, 16 3, 3 3)), ((10 10, 10 50, 50 50, 50 10, 10 10)))');
+
+CREATE TABLE gis_point (p1 POINT NOT NULL, p2 POINT NOT NULL, SPATIAL KEY k1 (p1), SPATIAL KEY k2 (p2)) ENGINE=InnoDB;
+
+INSERT INTO gis_point VALUES
+(PointFromText('POINT(1 2)'), PointFromText('POINT(-1 -3)')),
+(PointFromText('POINT(2 4)'), PointFromText('POINT(-2 -6)')),
+(PointFromText('POINT(3 6)'), PointFromText('POINT(-3 -9)')),
+(PointFromText('POINT(4 8)'), PointFromText('POINT(-4 -12)')),
+(PointFromText('POINT(5 10)'), PointFromText('POINT(-5 -15)')),
+(PointFromText('POINT(6 12)'), PointFromText('POINT(-6 -18)')),
+(PointFromText('POINT(7 14)'), PointFromText('POINT(-7 -21)')),
+(PointFromText('POINT(8 16)'), PointFromText('POINT(0 0)')),
+(PointFromText('POINT(9 18)'), PointFromText('POINT(-4 2)')),
+(PointFromText('POINT(10 21)'), PointFromText('POINT(-6 3)')),
+(PointFromText('POINT(20.5 41)'), PointFromText('POINT(-8 4)')),
+(PointFromText('POINT(26.25 57)'), PointFromText('POINT(1 2)')),
+(PointFromText('POINT(32.1234 64.2468)'), PointFromText('POINT(-1 -1)'));
+
+SET @@session.innodb_optimize_point_storage = 0;
+CREATE TABLE gis_point1 SELECT * FROM gis_point;
+SET @@session.innodb_optimize_point_storage = 1;
+
+SELECT name, mtype, prtype, len FROM INFORMATION_SCHEMA.INNODB_SYS_COLUMNS WHERE name = 'p1' OR name = 'p2';
+
+SELECT AsText(p1), AsText(p2) FROM gis_point1;
+SELECT AsText(p1) FROM gis_point1 WHERE ST_Intersection(@ls1, @ls2) = p1;
+SELECT AsText(p1) FROM gis_point1 WHERE Within(p1, @poly1);
+SELECT AsText(p2) FROM gis_point1 WHERE ST_Contains(@poly2, p2);
+SELECT AsText(p2) FROM gis_point1 WHERE ST_Equals(p2, @p1);
+SELECT AsText(p1) FROM gis_point1 WHERE TOUCHES(@poly3, p1) AND Within(p2, @poly4);
+SELECT AsText(p1) FROM gis_point1 WHERE ST_Contains(@mpoly, p1);
+SELECT AsText(p1) FROM gis_point1 WHERE ST_Contains(@mpoly, p1) AND NOT Within(p1, @mpoly);
+
+--echo # Check functions that use MBR, with line type data
+SELECT AsText(p1) FROM gis_point1 WHERE Intersects(p1, @ls1);
+SELECT AsText(p1) FROM gis_point1 WHERE Within(p1, @ls1);
+SELECT AsText(p1) FROM gis_point1 WHERE Touches(p1, @ls1);
+SELECT AsText(p1) FROM gis_point1 WHERE Disjoint(p1, @ls1);
+
+--echo # No matching records
+SELECT AsText(p1) FROM gis_point1 WHERE Equals(p1, @ls1);
+SELECT AsText(p1) FROM gis_point1 WHERE Contains(p1, @ls1);
+SELECT AsText(p1) FROM gis_point1 WHERE Overlaps(p1, @ls3);
+SELECT AsText(p1) FROM gis_point1 WHERE Crosses(p1, @ls1);
+
+--echo # Check functions that use MBR, with polygon type data
+SELECT AsText(p1) FROM gis_point1 WHERE Intersects(p1, @poly1);
+SELECT AsText(p1) FROM gis_point1 WHERE Within(p1, @poly1);
+SELECT AsText(p1) FROM gis_point1 WHERE Touches(p1, @poly1);
+SELECT AsText(p1) FROM gis_point1 WHERE Crosses(p1, @poly1);
+SELECT AsText(p1) FROM gis_point1 WHERE Disjoint(p1, @poly1);
+
+--echo # No matching records
+SELECT AsText(p1) FROM gis_point1 WHERE Equals(p1, @poly1);
+SELECT AsText(p1) FROM gis_point1 WHERE Contains(p1, @poly1);
+SELECT AsText(p1) FROM gis_point1 WHERE Overlaps(p1, @poly1);
+
+--echo # Check functions that use MBR, with point type data
+SELECT AsText(p1) FROM gis_point1 WHERE Intersects(p1, @p1);
+SELECT AsText(p1) FROM gis_point1 WHERE Within(p1, @p1);
+SELECT AsText(p1) FROM gis_point1 WHERE Touches(p1, @p1);
+SELECT AsText(p1) FROM gis_point1 WHERE Equals(p1, @p1);
+SELECT AsText(p1) FROM gis_point1 WHERE Contains(p1, @p1);
+SELECT AsText(p1) FROM gis_point1 WHERE Disjoint(p1, @p1);
+
+--echo # No matching records
+SELECT AsText(p1) FROM gis_point1 WHERE Overlaps(p1, @p1);
+SELECT AsText(p1) FROM gis_point1 WHERE Crosses(p1, @p1);
+
+--echo # Check with MBR functions point type data
+SELECT AsText(p1) FROM gis_point1 WHERE MBRIntersects(p1, @p1);
+SELECT AsText(p1) FROM gis_point1 WHERE MBRWithin(p1, @p1);
+SELECT AsText(p1) FROM gis_point1 WHERE MBRTouches(p1, @p1);
+SELECT AsText(p1) FROM gis_point1 WHERE MBRContains(p1, @p1);
+SELECT AsText(p1) FROM gis_point1 WHERE MBRDisjoint(p1, @p1);
+SELECT AsText(p1) FROM gis_point1 WHERE MBRequal(p1, @p1);
+
+--echo # No matching records
+SELECT AsText(p1) FROM gis_point1 WHERE MBROverlaps(p1, @p1);
+
+--echo # Check with MBR functions point polygon data
+SELECT AsText(p1) FROM gis_point1 WHERE MBRIntersects(p1, @p1);
+SELECT AsText(p1) FROM gis_point1 WHERE MBRWithin(p1, @p1);
+SELECT AsText(p1) FROM gis_point1 WHERE MBRTouches(p1, @p1);
+SELECT AsText(p1) FROM gis_point1 WHERE MBRContains(p1, @p1);
+SELECT AsText(p1) FROM gis_point1 WHERE MBRDisjoint(p1, @p1);
+SELECT AsText(p1) FROM gis_point1 WHERE MBRequal(p1, @p1);
+
+--echo # No matching records
+SELECT AsText(p1) FROM gis_point1 WHERE MBROverlaps(p1, @p1);
+
+--echo # Check with MBR functions polygon type data
+SELECT AsText(p1) FROM gis_point1 WHERE MBRIntersects(p1, @poly1);
+SELECT AsText(p1) FROM gis_point1 WHERE MBRWithin(p1, @poly1);
+SELECT AsText(p1) FROM gis_point1 WHERE MBRTouches(p1, @poly1);
+SELECT AsText(p1) FROM gis_point1 WHERE MBRDisjoint(p1, @poly1);
+
+--echo # No matching records
+SELECT AsText(p1) FROM gis_point1 WHERE MBROverlaps(p1, @poly1);
+SELECT AsText(p1) FROM gis_point1 WHERE MBRContains(p1, @poly1);
+SELECT AsText(p1) FROM gis_point1 WHERE MBRequal(p1, @poly1);
+
+--echo # Check with MBR functions line type data
+SELECT AsText(p1) FROM gis_point1 WHERE MBRIntersects(p1, @ls1);
+SELECT AsText(p1) FROM gis_point1 WHERE MBRWithin(p1, @ls1);
+SELECT AsText(p1) FROM gis_point1 WHERE MBRTouches(p1, @ls1);
+SELECT AsText(p1) FROM gis_point1 WHERE MBRDisjoint(p1, @ls1);
+SELECT AsText(p1) FROM gis_point1 WHERE MBRequal(p1, @ls1);
+
+--echo # No matching records
+SELECT AsText(p1) FROM gis_point1 WHERE MBROverlaps(p1, @ls1);
+SELECT AsText(p1) FROM gis_point1 WHERE MBRContains(p1, @ls1);
+
+DROP TABLE gis_point1;
+
+SELECT AsText(p1), AsText(p2) FROM gis_point;
+SELECT AsText(p1) FROM gis_point WHERE ST_Intersection(@ls1, @ls2) = p1;
+SELECT AsText(p1) FROM gis_point WHERE Within(p1, @poly1);
+SELECT AsText(p2) FROM gis_point WHERE ST_Contains(@poly2, p2);
+SELECT AsText(p2) FROM gis_point WHERE ST_Equals(p2, @p1);
+SELECT AsText(p1) FROM gis_point WHERE TOUCHES(@poly3, p1) AND Within(p2, @poly4);
+SELECT AsText(p1) FROM gis_point WHERE ST_Contains(@mpoly, p1);
+SELECT AsText(p1) FROM gis_point WHERE ST_Contains(@mpoly, p1) AND NOT Within(p1, @mpoly);
+
+--echo # Check functions that use MBR, with line type data
+SELECT AsText(p1) FROM gis_point WHERE Intersects(p1, @ls1);
+SELECT AsText(p1) FROM gis_point WHERE Within(p1, @ls1);
+SELECT AsText(p1) FROM gis_point WHERE Touches(p1, @ls1);
+SELECT AsText(p1) FROM gis_point WHERE Disjoint(p1, @ls1);
+
+--echo # No matching records
+SELECT AsText(p1) FROM gis_point WHERE Equals(p1, @ls1);
+SELECT AsText(p1) FROM gis_point WHERE Contains(p1, @ls1);
+SELECT AsText(p1) FROM gis_point WHERE Overlaps(p1, @ls3);
+SELECT AsText(p1) FROM gis_point WHERE Crosses(p1, @ls1);
+
+--echo # Check functions that use MBR, with polygon type data
+SELECT AsText(p1) FROM gis_point WHERE Intersects(p1, @poly1);
+SELECT AsText(p1) FROM gis_point WHERE Within(p1, @poly1);
+SELECT AsText(p1) FROM gis_point WHERE Touches(p1, @poly1);
+SELECT AsText(p1) FROM gis_point WHERE Crosses(p1, @poly1);
+SELECT AsText(p1) FROM gis_point WHERE Disjoint(p1, @poly1);
+
+--echo # No matching records
+SELECT AsText(p1) FROM gis_point WHERE Equals(p1, @poly1);
+SELECT AsText(p1) FROM gis_point WHERE Contains(p1, @poly1);
+SELECT AsText(p1) FROM gis_point WHERE Overlaps(p1, @poly1);
+
+--echo # Check functions that use MBR, with point type data
+SELECT AsText(p1) FROM gis_point WHERE Intersects(p1, @p1);
+SELECT AsText(p1) FROM gis_point WHERE Within(p1, @p1);
+SELECT AsText(p1) FROM gis_point WHERE Touches(p1, @p1);
+SELECT AsText(p1) FROM gis_point WHERE Equals(p1, @p1);
+SELECT AsText(p1) FROM gis_point WHERE Contains(p1, @p1);
+SELECT AsText(p1) FROM gis_point WHERE Disjoint(p1, @p1);
+
+--echo # No matching records
+SELECT AsText(p1) FROM gis_point WHERE Overlaps(p1, @p1);
+SELECT AsText(p1) FROM gis_point WHERE Crosses(p1, @p1);
+
+--echo # Check with MBR functions point type data
+SELECT AsText(p1) FROM gis_point WHERE MBRIntersects(p1, @p1);
+SELECT AsText(p1) FROM gis_point WHERE MBRWithin(p1, @p1);
+SELECT AsText(p1) FROM gis_point WHERE MBRTouches(p1, @p1);
+SELECT AsText(p1) FROM gis_point WHERE MBRContains(p1, @p1);
+SELECT AsText(p1) FROM gis_point WHERE MBRDisjoint(p1, @p1);
+SELECT AsText(p1) FROM gis_point WHERE MBRequal(p1, @p1);
+
+--echo # No matching records
+SELECT AsText(p1) FROM gis_point WHERE MBROverlaps(p1, @p1);
+
+--echo # Check with MBR functions point polygon data
+SELECT AsText(p1) FROM gis_point WHERE MBRIntersects(p1, @p1);
+SELECT AsText(p1) FROM gis_point WHERE MBRWithin(p1, @p1);
+SELECT AsText(p1) FROM gis_point WHERE MBRTouches(p1, @p1);
+SELECT AsText(p1) FROM gis_point WHERE MBRContains(p1, @p1);
+SELECT AsText(p1) FROM gis_point WHERE MBRDisjoint(p1, @p1);
+SELECT AsText(p1) FROM gis_point WHERE MBRequal(p1, @p1);
+
+--echo # No matching records
+SELECT AsText(p1) FROM gis_point WHERE MBROverlaps(p1, @p1);
+
+--echo # Check with MBR functions polygon type data
+SELECT AsText(p1) FROM gis_point WHERE MBRIntersects(p1, @poly1);
+SELECT AsText(p1) FROM gis_point WHERE MBRWithin(p1, @poly1);
+SELECT AsText(p1) FROM gis_point WHERE MBRTouches(p1, @poly1);
+SELECT AsText(p1) FROM gis_point WHERE MBRDisjoint(p1, @poly1);
+
+--echo # No matching records
+SELECT AsText(p1) FROM gis_point WHERE MBROverlaps(p1, @poly1);
+SELECT AsText(p1) FROM gis_point WHERE MBRContains(p1, @poly1);
+SELECT AsText(p1) FROM gis_point WHERE MBRequal(p1, @poly1);
+
+--echo # Check with MBR functions line type data
+SELECT AsText(p1) FROM gis_point WHERE MBRIntersects(p1, @ls1);
+SELECT AsText(p1) FROM gis_point WHERE MBRWithin(p1, @ls1);
+SELECT AsText(p1) FROM gis_point WHERE MBRTouches(p1, @ls1);
+SELECT AsText(p1) FROM gis_point WHERE MBRDisjoint(p1, @ls1);
+SELECT AsText(p1) FROM gis_point WHERE MBRequal(p1, @ls1);
+
+--echo # No matching records
+SELECT AsText(p1) FROM gis_point WHERE MBROverlaps(p1, @ls1);
+SELECT AsText(p1) FROM gis_point WHERE MBRContains(p1, @ls1);
+
+--echo # Modify the storage engine to Myisam, Check the spatial functions
+ALTER TABLE gis_point ENGINE Myisam;
+
+--echo # Check functions that use MBR, with line type data
+SELECT AsText(p1) FROM gis_point WHERE Intersects(p1, @ls1);
+SELECT AsText(p1) FROM gis_point WHERE Within(p1, @ls1);
+SELECT AsText(p1) FROM gis_point WHERE Touches(p1, @ls1);
+SELECT AsText(p1) FROM gis_point WHERE Disjoint(p1, @ls1);
+
+--echo # No matching records
+SELECT AsText(p1) FROM gis_point WHERE Equals(p1, @ls1);
+SELECT AsText(p1) FROM gis_point WHERE Contains(p1, @ls1);
+SELECT AsText(p1) FROM gis_point WHERE Overlaps(p1, @ls3);
+SELECT AsText(p1) FROM gis_point WHERE Crosses(p1, @ls1);
+
+--echo # Check functions that use MBR, with polygon type data
+SELECT AsText(p1) FROM gis_point WHERE Intersects(p1, @poly1);
+SELECT AsText(p1) FROM gis_point WHERE Within(p1, @poly1);
+SELECT AsText(p1) FROM gis_point WHERE Touches(p1, @poly1);
+SELECT AsText(p1) FROM gis_point WHERE Crosses(p1, @poly1);
+SELECT AsText(p1) FROM gis_point WHERE Disjoint(p1, @poly1);
+
+--echo # No matching records
+SELECT AsText(p1) FROM gis_point WHERE Equals(p1, @poly1);
+SELECT AsText(p1) FROM gis_point WHERE Contains(p1, @poly1);
+SELECT AsText(p1) FROM gis_point WHERE Overlaps(p1, @poly1);
+
+--echo # Check functions that use MBR, with point type data
+SELECT AsText(p1) FROM gis_point WHERE Intersects(p1, @p1);
+SELECT AsText(p1) FROM gis_point WHERE Within(p1, @p1);
+SELECT AsText(p1) FROM gis_point WHERE Touches(p1, @p1);
+SELECT AsText(p1) FROM gis_point WHERE Equals(p1, @p1);
+SELECT AsText(p1) FROM gis_point WHERE Contains(p1, @p1);
+SELECT AsText(p1) FROM gis_point WHERE Disjoint(p1, @p1);
+
+--echo # No matching records
+SELECT AsText(p1) FROM gis_point WHERE Overlaps(p1, @p1);
+SELECT AsText(p1) FROM gis_point WHERE Crosses(p1, @p1);
+
+--echo # Check with MBR functions point type data
+SELECT AsText(p1) FROM gis_point WHERE MBRIntersects(p1, @p1);
+SELECT AsText(p1) FROM gis_point WHERE MBRWithin(p1, @p1);
+SELECT AsText(p1) FROM gis_point WHERE MBRTouches(p1, @p1);
+SELECT AsText(p1) FROM gis_point WHERE MBRContains(p1, @p1);
+SELECT AsText(p1) FROM gis_point WHERE MBRDisjoint(p1, @p1);
+SELECT AsText(p1) FROM gis_point WHERE MBRequal(p1, @p1);
+
+--echo # No matching records
+SELECT AsText(p1) FROM gis_point WHERE MBROverlaps(p1, @p1);
+
+--echo # Check with MBR functions point polygon data
+SELECT AsText(p1) FROM gis_point WHERE MBRIntersects(p1, @p1);
+SELECT AsText(p1) FROM gis_point WHERE MBRWithin(p1, @p1);
+SELECT AsText(p1) FROM gis_point WHERE MBRTouches(p1, @p1);
+SELECT AsText(p1) FROM gis_point WHERE MBRContains(p1, @p1);
+SELECT AsText(p1) FROM gis_point WHERE MBRDisjoint(p1, @p1);
+SELECT AsText(p1) FROM gis_point WHERE MBRequal(p1, @p1);
+
+--echo # No matching records
+SELECT AsText(p1) FROM gis_point WHERE MBROverlaps(p1, @p1);
+
+--echo # Check with MBR functions polygon type data
+SELECT AsText(p1) FROM gis_point WHERE MBRIntersects(p1, @poly1);
+SELECT AsText(p1) FROM gis_point WHERE MBRWithin(p1, @poly1);
+SELECT AsText(p1) FROM gis_point WHERE MBRTouches(p1, @poly1);
+SELECT AsText(p1) FROM gis_point WHERE MBRDisjoint(p1, @poly1);
+
+--echo # No matching records
+SELECT AsText(p1) FROM gis_point WHERE MBROverlaps(p1, @poly1);
+SELECT AsText(p1) FROM gis_point WHERE MBRContains(p1, @poly1);
+SELECT AsText(p1) FROM gis_point WHERE MBRequal(p1, @poly1);
+
+--echo # Check with MBR functions line type data
+SELECT AsText(p1) FROM gis_point WHERE MBRIntersects(p1, @ls1);
+SELECT AsText(p1) FROM gis_point WHERE MBRWithin(p1, @ls1);
+SELECT AsText(p1) FROM gis_point WHERE MBRTouches(p1, @ls1);
+SELECT AsText(p1) FROM gis_point WHERE MBRDisjoint(p1, @ls1);
+SELECT AsText(p1) FROM gis_point WHERE MBRequal(p1, @ls1);
+
+--echo # No matching records
+SELECT AsText(p1) FROM gis_point WHERE MBROverlaps(p1, @ls1);
+SELECT AsText(p1) FROM gis_point WHERE MBRContains(p1, @ls1);
+
+--echo # Modify the storage engine to InnoDB again, do following testing
+ALTER TABLE gis_point ENGINE InnoDB;
+
+CHECK TABLE gis_point;
+
+-- echo The ORDER BY for spatial index will use filesort
+--replace_column 10 #
+EXPLAIN SELECT AsText(p1), AsText(p2) FROM gis_point ORDER BY p1, p2;
+SELECT AsText(p1), AsText(p2) FROM gis_point ORDER BY p1, p2;
+
+-- echo Try to do IDU on the table and verify the result
+DELETE FROM gis_point WHERE ST_Equals(p2, PointFromText('POINT(-8 4)'));
+
+INSERT INTO gis_point VALUES(PointFromText('POINT(20.5 -41)'), PointFromText('POINT(8 -4)'));
+
+SELECT AsText(p1) AS 'Expect (32.1234 64.2468)' FROM gis_point WHERE TOUCHES(@poly3, p1) AND Within(p2, @poly4);
+
+UPDATE gis_point SET p1 = PointFromText('POINT(20.5 41)'), p2 = PointFromText('POINT(-8 4)') WHERE ST_Intersection(@ls3, @ls4) = p1;
+
+SELECT AsText(p1) AS 'Expect (32.1234 64.2468) AND (20.5 41)' FROM gis_point WHERE TOUCHES(@poly3, p1) AND Within(p2, @poly4);
+
+CHECK TABLE gis_point;
+
+-- echo Use a trx to test the IDU on the table and verify the result
+START TRANSACTION;
+
+DELETE FROM gis_point WHERE ST_Equals(p2, PointFromText('POINT(-8 4)'));
+
+INSERT INTO gis_point VALUES(PointFromText('POINT(20.5 -41)'), PointFromText('POINT(8 -4)'));
+
+SELECT AsText(p1) AS 'Expect (32.1234 64.2468)' FROM gis_point WHERE TOUCHES(@poly3, p1) AND Within(p2, @poly4);
+
+UPDATE gis_point SET p1 = PointFromText('POINT(20.5 49)'), p2 = PointFromText('POINT(-8 4)') WHERE ST_Intersection(@ls3, @ls4) = p1;
+
+SELECT AsText(p1) AS 'Expect (32.1234 64.2468) AND (20.5 49)' FROM gis_point WHERE TOUCHES(@poly3, p1) AND Within(p2, @poly4);
+
+ROLLBACK;
+
+SELECT AsText(p1) AS 'Expect (32.1234 64.2468) AND (20.5 41)' FROM gis_point WHERE TOUCHES(@poly3, p1) AND Within(p2, @poly4);
+
+CHECK TABLE gis_point;
+
+-- echo Test the same trx for optimize_point_storage = 0
+SELECT name, mtype, prtype, len FROM INFORMATION_SCHEMA.INNODB_SYS_COLUMNS WHERE name = 'p1' OR name = 'p3';
+SET @@session.innodb_optimize_point_storage = 0;
+ALTER TABLE gis_point CHANGE COLUMN p2 p3 POINT NOT NULL, ALGORITHM = COPY;
+SELECT name, mtype, prtype, len FROM INFORMATION_SCHEMA.INNODB_SYS_COLUMNS WHERE name = 'p1' OR name = 'p3';
+
+START TRANSACTION;
+
+DELETE FROM gis_point WHERE ST_Equals(p3, PointFromText('POINT(-8 4)'));
+
+INSERT INTO gis_point VALUES(PointFromText('POINT(20.5 -41)'), PointFromText('POINT(8 -4)'));
+
+SELECT AsText(p1) AS 'Expect (32.1234 64.2468)' FROM gis_point WHERE TOUCHES(@poly3, p1) AND Within(p3, @poly4);
+
+UPDATE gis_point SET p1 = PointFromText('POINT(20.5 49)'), p3 = PointFromText('POINT(-8 4)') WHERE ST_Intersection(@ls3, @ls4) = p1;
+
+SELECT AsText(p1) AS 'Expect (32.1234 64.2468) AND (20.5 49)' FROM gis_point WHERE TOUCHES(@poly3, p1) AND Within(p3, @poly4);
+
+ROLLBACK;
+
+SELECT AsText(p1) AS 'Expect (32.1234 64.2468) AND (20.5 41)' FROM gis_point WHERE TOUCHES(@poly3, p1) AND Within(p3, @poly4);
+
+CHECK TABLE gis_point;
+
+SET @@session.innodb_optimize_point_storage = 1;
+
+DROP TABLE gis_point;
+
+
+
+--echo #
+--echo # Test inserting/updating different type data into POINT field
+--echo #
+
+CREATE TABLE gis_point (i INT, p POINT) ENGINE=InnoDB;
+CREATE TABLE geom (i INT, g GEOMETRY NOT NULL, SPATIAL KEY(g)) ENGINE=InnoDB;
+
+INSERT INTO gis_point VALUES(0, PointFromText('POINT(1 1)'));
+INSERT INTO gis_point VALUES(1, PointFromText('POINT(2 2)'));
+INSERT INTO gis_point VALUES(2, NULL);
+--error ER_CANT_CREATE_GEOMETRY_OBJECT
+INSERT INTO gis_point VALUES(3, GeomFromText('POLYGON((7 1,6 2,6 3,10 3,10 1,7 1))'));
+
+SET @@session.innodb_optimize_point_storage = 0;
+ALTER TABLE gis_point ADD COLUMN j INT, ALGORITHM = COPY;
+
+SELECT name, mtype, prtype, len FROM INFORMATION_SCHEMA.INNODB_SYS_COLUMNS WHERE name = 'p';
+
+--error ER_CANT_CREATE_GEOMETRY_OBJECT
+INSERT INTO gis_point VALUES(3, GeomFromText('POLYGON((7 1,6 2,6 3,10 3,10 1,7 1))'), 5);
+
+--error ER_CANT_CREATE_GEOMETRY_OBJECT
+UPDATE gis_point SET p = GeomFromText('POLYGON((7 1,6 2,6 3,10 3,10 1,7 1))');
+
+SET @@session.innodb_optimize_point_storage = 1;
+ALTER TABLE gis_point DROP COLUMN j, ALGORITHM = COPY;
+
+SELECT name, mtype, prtype, len FROM INFORMATION_SCHEMA.INNODB_SYS_COLUMNS WHERE name = 'p';
+
+SELECT i, AsText(p) FROM gis_point;
+
+--error ER_CANT_CREATE_GEOMETRY_OBJECT
+UPDATE gis_point SET p = GeomFromText('POLYGON((7 1,6 2,6 3,10 3,10 1,7 1))');
+UPDATE gis_point SET p = NULL WHERE p = PointFromText('POINT(1 1)');
+UPDATE gis_point SET p = PointFromText('POINT(1 2)') WHERE p = PointFromText('POINT(2 2)');
+UPDATE gis_point SET p = PointFromText('POINT(1 1)') WHERE p IS NULL;
+
+SELECT i, AsText(p) FROM gis_point;
+
+INSERT INTO geom VALUES(0, PointFromText('POINT(0 0)'));
+INSERT INTO geom VALUES(1, PointFromText('POINT(10 10)'));
+INSERT INTO geom VALUES(2, GeomFromText('POLYGON((7 1,6 2,6 3,10 3,10 1,7 1))'));
+
+SELECT AsText(g) FROM geom;
+
+--error ER_CANT_CREATE_GEOMETRY_OBJECT
+INSERT INTO gis_point SELECT * FROM geom;
+
+SELECT AsText(p) FROM gis_point;
+
+--echo From GEOMETRY to POINT, and NOT ALL the data are POINT
+--error ER_CANT_CREATE_GEOMETRY_OBJECT
+ALTER TABLE geom MODIFY g POINT NOT NULL;
+
+DELETE FROM geom WHERE g = GeomFromText('POLYGON((7 1,6 2,6 3,10 3,10 1,7 1))');
+--echo From GEOMETRY to POINT, now ALL the data are POINT
+ALTER TABLE geom MODIFY g POINT NOT NULL;
+SHOW CREATE TABLE geom;
+SELECT AsText(g) FROM geom;
+
+--echo From POINT to GEOMETRY, all data are POINT
+ALTER TABLE geom MODIFY g GEOMETRY NOT NULL;
+SHOW CREATE TABLE geom;
+
+TRUNCATE TABLE geom;
+
+--echo From GEOMETRY to POINT, the table is empty
+ALTER TABLE geom MODIFY g POINT NOT NULL;
+SHOW CREATE TABLE geom;
+SELECT AsText(g) FROM geom;
+
+CHECK TABLE gis_point;
+CHECK TABLE geom;
+
+DROP TABLE gis_point, geom;
+
+
+
+--echo #
+--echo # Test when a geom field, such as POINT, is also a primary key
+--echo #
+
+CREATE TABLE t1 (
+  a INT NOT NULL,
+  p POINT NOT NULL,
+  l LINESTRING NOT NULL,
+  g GEOMETRY NOT NULL,
+  PRIMARY KEY(p),
+  SPATIAL KEY `idx2` (p),
+  SPATIAL KEY `idx3` (l),
+  SPATIAL KEY `idx4` (g)
+) ENGINE=InnoDB;
+
+INSERT INTO t1 VALUES(
+1, GeomFromText('POINT(10 10)'),
+GeomFromText('LINESTRING(1 1, 5 5, 10 10)'),
+GeomFromText('POLYGON((30 30, 40 40, 50 50, 30 50, 30 40, 30 30))'));
+
+INSERT INTO t1 VALUES(
+2, GeomFromText('POINT(20 20)'),
+GeomFromText('LINESTRING(2 3, 7 8, 9 10, 15 16)'),
+GeomFromText('POLYGON((10 30, 30 40, 40 50, 40 30, 30 20, 10 30))'));
+
+SELECT a, AsText(p), AsText(l), AsText(g) FROM t1;
+
+--replace_column 10 #
+EXPLAIN UPDATE t1 SET p = GeomFromText('POINT(30 30)') WHERE p = GeomFromText('POINT(20 20)');
+UPDATE t1 SET p = GeomFromText('POINT(30 30)') WHERE p = GeomFromText('POINT(20 20)');
+
+# Once Bug 18265942 - GIS: INNODB WOULD GET POSSIBLE WRONG FIND_FLAG FOR SELECT FROM SERVER is fixed, we can test all the following statements commented out.
+#SELECT AsText(p) FROM t1 WHERE Within(p, GeomFromText('POLYGON((25 25, 25 35, 35 35, 35 25, 25 25))'));
+#UPDATE t1 SET p = GeomFromText('POINT(15 15)') WHERE Within(p, GeomFromText('POLYGON((25 25, 25 35, 35 35, 35 25, 25 25))'));
+#DELETE FROM t1 WHERE Within(p, GeomFromText('LINESTRING(15 15, 15 25, 25 25, 35 15, 15 15)'));
+#SELECT a, AsText(p), AsText(l), AsText(g) FROM t1;
+#INSERT INTO t1 VALUES(
+#3, GeomFromText('POINT(25 25)'),
+#GeomFromText('LINESTRING(2 3, 7 8, 9 10, 15 16)'),
+#GeomFromText('POLYGON((10 30, 30 40, 40 50, 40 30, 30 20, 10 30))'));
+#UPDATE t1 SET p = GeomFromText('POINT(50 50)'), l = GeomFromText('LINESTRING(20 20, 21 21, 22 22, 23 23)') WHERE Within(g, GeomFromText('LINESTRING(25 25, 25 50, 50 50, 50 25, 25 25)'));
+
+SELECT a, AsText(p), AsText(l), AsText(g) FROM t1;
+
+ALTER TABLE t1 DROP PRIMARY KEY;
+ALTER TABLE t1 ADD PRIMARY KEY(a);
+
+SELECT a, AsText(p), AsText(l), AsText(g) FROM t1;
+
+ALTER TABLE t1 DROP PRIMARY KEY;
+ALTER TABLE t1 ADD PRIMARY KEY(p);
+
+SELECT a, AsText(p), AsText(l), AsText(g) FROM t1;
+
+SHOW CREATE TABLE t1;
+
+# Also waiting for Bug 18265942
+#UPDATE t1 SET p = PointFromText('POINT(20 20)') WHERE ST_Equals(p, PointFromText('POINT(30 30)'));
+#INSERT INTO t1 VALUES(
+#3, GeomFromText('POINT(25 25)'),
+#GeomFromText('LINESTRING(2 3, 7 8, 9 10, 15 16)'),
+#GeomFromText('POLYGON((10 30, 30 40, 40 50, 40 30, 30 20, 10 30))'));
+
+SELECT a, AsText(p), AsText(l), AsText(g) FROM t1;
+
+ALTER TABLE t1 DROP PRIMARY KEY;
+ALTER TABLE t1 ADD PRIMARY KEY(p);
+
+--replace_column 10 #
+EXPLAIN SELECT a, AsText(p) FROM t1 WHERE a = 2 AND p = GeomFromText('POINT(30 30)');
+SELECT a, AsText(p) FROM t1 WHERE a = 2 AND p = GeomFromText('POINT(30 30)');
+
+SELECT a, AsText(p), AsText(l), AsText(g) FROM t1;
+
+CHECK TABLE t1;
+
+DROP TABLE t1;
+
+
+--echo #
+--echo # Test for foreign keys.
+--echo #
+CREATE TABLE parent(p POINT, PRIMARY KEY(p)) ENGINE=InnoDB;
+CREATE TABLE child(p POINT NOT NULL) ENGINE=InnoDB;
+ALTER TABLE parent ADD SPATIAL INDEX idx1(p ASC);
+ALTER TABLE child ADD SPATIAL INDEX idx2(p ASC);
+SHOW CREATE TABLE parent;
+SHOW CREATE TABLE child;
+
+--error ER_CANNOT_ADD_FOREIGN
+ALTER TABLE child ADD FOREIGN KEY(p) REFERENCES parent(p);
+
+ALTER TABLE parent DROP INDEX idx1;
+--error ER_CANNOT_ADD_FOREIGN
+ALTER TABLE child ADD FOREIGN KEY(p) REFERENCES parent(p);
+
+ALTER TABLE child DROP INDEX idx2;
+ALTER TABLE child ADD FOREIGN KEY(p) REFERENCES parent(p);
+
+--error ER_NO_REFERENCED_ROW_2
+INSERT INTO child VALUES(GeomFromText('POINT(10 10)'));
+
+INSERT INTO parent VALUES(GeomFromText('POINT(10 10)'));
+INSERT INTO child VALUES(GeomFromText('POINT(10 10)'));
+
+--error ER_ROW_IS_REFERENCED_2
+DELETE FROM parent;
+
+--error ER_ROW_IS_REFERENCED
+DROP TABLE parent;
+
+SET FOREIGN_KEY_CHECKS = 0;
+DROP TABLE parent;
+SET FOREIGN_KEY_CHECKS = 1;
+
+--error ER_NO_REFERENCED_ROW_2
+INSERT INTO child VALUES(GeomFromText('POINT(15 15)'));
+
+DROP TABLE child;
+
+
+--echo #
+--echo # Bug#28763: Selecting geometry fields in UNION caused server crash.
+--echo #
+CREATE TABLE t1(f1 GEOMETRY, f2 POINT, f3 GEOMETRY) ENGINE=InnoDB;
+SELECT f1 FROM t1 UNION SELECT f1 FROM t1;
+INSERT INTO t1 (f2,f3) VALUES (GeomFromText('POINT(1 1)'),
+  GeomFromText('POINT(2 2)'));
+SELECT AsText(f2),AsText(f3) FROM t1;
+SELECT AsText(a) FROM (SELECT f2 AS a FROM t1 UNION SELECT f3 FROM t1) t;
+CREATE TABLE t2 AS SELECT f2 AS a FROM t1 UNION SELECT f3 FROM t1;
+DESC t2;
+SELECT AsText(a) FROM t2;
+DROP TABLE t1, t2;
+

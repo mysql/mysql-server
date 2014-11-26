@@ -196,6 +196,7 @@ drop table t2;
 #
 use test;
 let $large_prefix = `select @@innodb_large_prefix`;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 #
 create temporary table t (
 	a int not null,
@@ -219,9 +220,11 @@ create temporary table t (
 	index sk (b(3021))
 	) row_format = dynamic engine=innodb;
 drop table t;
+SET sql_mode = default;
 #
 set global innodb_large_prefix = 1;
 #
+SET sql_mode='NO_ENGINE_SUBSTITUTION';
 --disable_warnings
 --error ER_INDEX_COLUMN_TOO_LONG
 create temporary table t (
@@ -288,5 +291,5 @@ SELECT COUNT(*) FROM information_schema.INNODB_SYS_TABLES WHERE NAME LIKE '%test
 eval set global innodb_file_format = $format;
 eval set global innodb_file_per_table = $per_table;
 eval set global innodb_change_buffering = $change_buffer_value;
-
+SET sql_mode=default;
 

@@ -680,13 +680,17 @@ longlong sequence(UDF_INIT *initid __attribute__((unused)), UDF_ARGS *args,
 **
 ****************************************************************************/
 
-#ifdef _WIN32
-#include <winsock2.h>
-#else
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
+#ifndef _WIN32
 #include <netdb.h>
+#endif
+#ifdef HAVE_ARPA_INET_H
+#include <arpa/inet.h>
+#endif
+#ifdef HAVE_NETINET_IN_H
+#include <netinet/in.h>
+#endif
+#ifdef HAVE_SYS_SOCKET_H
+#include <sys/socket.h>
 #endif
 
 C_MODE_START;

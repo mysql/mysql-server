@@ -1,0 +1,19 @@
+#
+# only GLOBAL
+#
+SELECT @@GLOBAL.simplified_binlog_gtid_recovery;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@SESSION.simplified_binlog_gtid_recovery;
+SHOW GLOBAL VARIABLES LIKE 'simplified_binlog_gtid_recovery';
+SHOW SESSION VARIABLES LIKE 'simplified_binlog_gtid_recovery';
+SELECT * FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME='simplified_binlog_gtid_recovery';
+SELECT * FROM INFORMATION_SCHEMA.SESSION_VARIABLES WHERE VARIABLE_NAME='simplified_binlog_gtid_recovery';
+
+#
+# show that it's read-only
+#
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET GLOBAL simplified_binlog_gtid_recovery=1;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET SESSION simplified_binlog_gtid_recovery=1;
+

@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,107 +18,30 @@
 #include "handler.h"
 #include "sql_parse.h"
 
-/**
-  Opens and locks a table.
 
-  It's assumed that the caller knows what they are doing:
-  - whether it was necessary to reset-and-backup the open tables state
-  - whether the requested lock does not lead to a deadlock
-  - whether this open mode would work under LOCK TABLES, or inside a
-  stored function or trigger.
-
-  Note that if the table can't be locked successfully this operation will
-  close it. Therefore it provides guarantee that it either opens and locks
-  table or fails without leaving any tables open.
-
-  @param[in]  thd           Thread requesting to open the table
-  @param[in]  dbstr         Database where the table resides
-  @param[in]  tbstr         Table to be openned
-  @param[in]  max_num_field Maximum number of fields
-  @param[in]  lock_type     How to lock the table
-  @param[out] table         We will store the open table here
-  @param[out] backup        Save the lock info. here
-
-  @return
-    @retval TRUE open and lock failed - an error message is pushed into the
-                                        stack
-    @retval FALSE success
-*/
-bool Rpl_info_table_access::open_table(THD* thd, const LEX_STRING dbstr,
-                                       const LEX_STRING tbstr,
-                                       uint max_num_field,
-                                       enum thr_lock_type lock_type,
-                                       TABLE** table,
-                                       Open_tables_backup* backup)
+void Rpl_info_table_access::before_open(THD *thd)
 {
-  TABLE_LIST tables;
-  Query_tables_list query_tables_list_backup;
+  DBUG_ENTER("Rpl_info_table_access::before_open");
 
-  uint flags= (MYSQL_OPEN_IGNORE_GLOBAL_READ_LOCK |
-               MYSQL_LOCK_IGNORE_GLOBAL_READ_ONLY |
-               MYSQL_OPEN_IGNORE_FLUSH |
-               MYSQL_LOCK_IGNORE_TIMEOUT |
-               MYSQL_LOCK_RPL_INFO_TABLE);
-
-  DBUG_ENTER("Rpl_info_table_access::open_table");
+  m_flags= (MYSQL_OPEN_IGNORE_GLOBAL_READ_LOCK |
+            MYSQL_LOCK_IGNORE_GLOBAL_READ_ONLY |
+            MYSQL_OPEN_IGNORE_FLUSH |
+            MYSQL_LOCK_IGNORE_TIMEOUT |
+            MYSQL_LOCK_RPL_INFO_TABLE);
 
   /*
     This is equivalent to a new "statement". For that reason, we call both
     lex_start() and mysql_reset_thd_for_next_command.
   */
   if (thd->slave_thread || !current_thd)
-  { 
+  {
     lex_start(thd);
     mysql_reset_thd_for_next_command(thd);
   }
 
-  /*
-    We need to use new Open_tables_state in order not to be affected
-    by LOCK TABLES/prelocked mode.
-    Also in order not to break execution of current statement we also
-    have to backup/reset/restore Query_tables_list part of LEX, which
-    is accessed and updated in the process of opening and locking
-    tables.
-  */
-  thd->lex->reset_n_backup_query_tables_list(&query_tables_list_backup);
-  thd->reset_n_backup_open_tables_state(backup);
-
-  tables.init_one_table(dbstr.str, dbstr.length, tbstr.str, tbstr.length,
-                        tbstr.str, lock_type);
-
-  if (!open_n_lock_single_table(thd, &tables, tables.lock_type, flags))
-  {
-    close_thread_tables(thd);
-    thd->restore_backup_open_tables_state(backup);
-    thd->lex->restore_backup_query_tables_list(&query_tables_list_backup);
-    my_error(ER_NO_SUCH_TABLE, MYF(0), dbstr.str, tbstr.str);
-    DBUG_RETURN(TRUE);
-  }
-
-  DBUG_ASSERT(tables.table->s->table_category == TABLE_CATEGORY_RPL_INFO);
-
-  if (tables.table->s->fields < max_num_field)
-  {
-    /*
-      Safety: this can only happen if someone started the server and then
-      altered the table.
-    */
-    ha_rollback_trans(thd, FALSE);
-    close_thread_tables(thd);
-    thd->restore_backup_open_tables_state(backup);
-    thd->lex->restore_backup_query_tables_list(&query_tables_list_backup);
-    my_error(ER_COL_COUNT_DOESNT_MATCH_CORRUPTED_V2, MYF(0),
-             tables.table->s->db.str, tables.table->s->table_name.str,
-             max_num_field, tables.table->s->fields);
-    DBUG_RETURN(TRUE);
-  }
-
-  thd->lex->restore_backup_query_tables_list(&query_tables_list_backup);
-
-  *table= tables.table;
-  tables.table->use_all_columns();
-  DBUG_RETURN(FALSE);
+  DBUG_VOID_RETURN;
 }
+
 
 /**
   Commits the changes, unlocks the table and closes it. This method
@@ -137,56 +60,14 @@ bool Rpl_info_table_access::open_table(THD* thd, const LEX_STRING dbstr,
   committed. In this case, the changes were not done on behalf of
   any user transaction and if not finished, there would be pending
   changes.
-  
-  @return
-    @retval FALSE No error
-    @retval TRUE  Failure
 */
-bool Rpl_info_table_access::close_table(THD *thd, TABLE* table,
+void Rpl_info_table_access::close_table(THD *thd, TABLE* table,
                                         Open_tables_backup *backup,
                                         bool error)
 {
-  Query_tables_list query_tables_list_backup;
-
   DBUG_ENTER("Rpl_info_table_access::close_table");
-
-  if (table)
-  {
-    if (error)
-      ha_rollback_trans(thd, FALSE);
-    else
-    {
-      /*
-        To make the commit not to block with global read lock set
-        "ignore_global_read_lock" flag to true.
-       */
-      ha_commit_trans(thd, FALSE, TRUE);
-    }
-    if (saved_current_thd != current_thd)
-    {
-      if (error)
-        ha_rollback_trans(thd, TRUE);
-      else
-      {
-        /*
-          To make the commit not to block with global read lock set
-          "ignore_global_read_lock" flag to true.
-         */
-        ha_commit_trans(thd, TRUE, TRUE);
-      }
-    }
-    /*
-      In order not to break execution of current statement we have to
-      backup/reset/restore Query_tables_list part of LEX, which is
-      accessed and updated in the process of closing tables.
-    */
-    thd->lex->reset_n_backup_query_tables_list(&query_tables_list_backup);
-    close_thread_tables(thd);
-    thd->lex->restore_backup_query_tables_list(&query_tables_list_backup);
-    thd->restore_backup_open_tables_state(backup);
-  }
-
-  DBUG_RETURN(FALSE);
+  System_table_access::close_table(thd, table, backup, error, thd_created);
+  DBUG_VOID_RETURN;
 }
 
 /**
@@ -441,19 +322,14 @@ bool Rpl_info_table_access::store_info_values(uint max_num_field, Field **fields
 */
 THD *Rpl_info_table_access::create_thd()
 {
-  THD *thd= NULL;
-  saved_current_thd= current_thd;
+  THD *thd= current_thd;
 
-  if (!current_thd)
+  if (!thd)
   {
-    thd= new THD;
-    thd->thread_stack= (char*) &thd;
-    thd->store_globals();
-    thd->security_ctx->skip_grants();
+    thd= System_table_access::create_thd();
     thd->system_thread= SYSTEM_THREAD_INFO_REPOSITORY;
+    thd_created= true;
   }
-  else
-    thd= current_thd;
 
   return(thd);
 }
@@ -463,19 +339,16 @@ THD *Rpl_info_table_access::create_thd()
   system_thread information.
 
   @param[in] thd Thread requesting to be destroyed
-
-  @return
-    @retval FALSE No error
-    @retval TRUE  Failure
 */
-bool Rpl_info_table_access::drop_thd(THD *thd)
+void Rpl_info_table_access::drop_thd(THD *thd)
 {
   DBUG_ENTER("Rpl_info::drop_thd");
 
-  if (saved_current_thd != current_thd)
+  if (thd_created)
   {
-    delete thd;
+    System_table_access::drop_thd(thd);
+    thd_created= false;
   }
 
-  DBUG_RETURN(FALSE);
+  DBUG_VOID_RETURN;
 }

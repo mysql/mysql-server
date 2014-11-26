@@ -356,6 +356,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 Warnings:
 Note	1003	/* select#1 */ select `tt`.`a` AS `a` from (/* select#2 */ select `test`.`t2`.`a` AS `a` from `test`.`t2` where (`test`.`t2`.`a` > 1)) `tt`
 drop table t2;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 CREATE TABLE `t1` ( `itemid` int(11) NOT NULL default '0', `grpid` varchar(15) NOT NULL default '', `vendor` int(11) NOT NULL default '0', `date_` date NOT NULL default '0000-00-00', `price` decimal(12,2) NOT NULL default '0.00', PRIMARY KEY  (`itemid`,`grpid`,`vendor`,`date_`), KEY `itemid` (`itemid`,`vendor`), KEY `itemid_2` (`itemid`,`date_`));
 insert into t1 values (128, 'rozn', 2, curdate(), 10),
 (128, 'rozn', 1, curdate(), 10);
@@ -363,6 +364,7 @@ SELECT MIN(price) min, MAX(price) max, AVG(price) avg FROM (SELECT SUBSTRING( MA
 min	max	avg
 10.00	10.00	10
 DROP TABLE t1;
+SET sql_mode = default;
 create table t1 (a integer, b integer);
 insert into t1 values (1,4), (2,2),(2,2), (4,1),(4,1),(4,1),(4,1);
 select distinct sum(b) from t1 group by a;

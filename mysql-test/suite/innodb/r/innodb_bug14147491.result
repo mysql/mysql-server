@@ -2,17 +2,11 @@
 CREATE TABLE t1 (a INT AUTO_INCREMENT PRIMARY KEY, b TEXT) ENGINE=InnoDB;
 INSERT INTO t1 (b) VALUES ('corrupt me');
 INSERT INTO t1 (b) VALUES ('corrupt me');
-# Write file to make mysql-test-run.pl expect the "crash", but don't
-# start it until it's told to
-# We give 30 seconds to do a clean shutdown because we do not want
-# to redo apply the pages of t1.ibd at the time of recovery.
-# We want SQL to initiate the first access to t1.ibd.
-# Wait until disconnected.
 # Backup the t1.ibd before corrupting
 # Corrupt the table
 Munged a string.
 Munged a string.
-# Write file to make mysql-test-run.pl start up the server again
+# restart
 SET DEBUG = '+d,innodb_page_corruption_retries';
 # Write file to make mysql-test-run.pl expect the "crash", but don't
 # start it until it's told to
@@ -21,6 +15,6 @@ SET DEBUG = '+d,innodb_page_corruption_retries';
 SELECT * FROM t1;
 ERROR HY000: Lost connection to MySQL server during query
 # Restore the original t1.ibd
-# Write file to make mysql-test-run.pl start up the server again
+# restart
 # Cleanup
 DROP TABLE t1;

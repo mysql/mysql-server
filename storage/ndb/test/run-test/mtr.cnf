@@ -1,8 +1,5 @@
 [ndb_mgmd]
 
-[mysqld]
-loose-innodb
-
 [cluster_config.1]
 ndb_mgmd =
 ndbd = ,

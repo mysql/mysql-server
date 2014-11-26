@@ -55,8 +55,8 @@ int my_decimal::check_result(uint mask, int result) const
       break;
     case E_DEC_DIV_ZERO:
       // "Division by 0"
-      push_warning_printf(current_thd, Sql_condition::SL_WARNING,
-                          ER_DIVISION_BY_ZERO, ER(ER_DIVISION_BY_ZERO));
+      push_warning(current_thd, Sql_condition::SL_WARNING,
+                   ER_DIVISION_BY_ZERO, ER(ER_DIVISION_BY_ZERO));
       break;
     case E_DEC_BAD_NUM:
       // "Incorrect %-.32s value: \'%-.128s\' for column \'%.192s\' at row %ld"

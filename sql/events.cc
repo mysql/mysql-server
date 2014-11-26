@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -457,7 +457,7 @@ Events::update_event(THD *thd, Event_parse_data *parse_data,
     DBUG_RETURN(TRUE);
   }
 
-  if (new_dbname)                               /* It's a rename */
+  if (new_dbname != NULL)                               /* It's a rename */
   {
     /* Check that the new and the old names differ. */
     if ( !sortcmp_lex_string(parse_data->dbname, *new_dbname,
@@ -628,9 +628,9 @@ Events::drop_event(THD *thd, LEX_STRING dbname, LEX_STRING name, bool if_exists)
 */
 
 void
-Events::drop_schema_events(THD *thd, char *db)
+Events::drop_schema_events(THD *thd, const char *db)
 {
-  LEX_STRING const db_lex= { db, strlen(db) };
+  LEX_STRING db_lex= { const_cast<char*>(db), strlen(db) };
 
   DBUG_ENTER("Events::drop_schema_events");
   DBUG_PRINT("enter", ("dropping events from %s", db));

@@ -29,6 +29,8 @@ Created 2014-04-30 by Krunal Bauskar
 
 #include "univ.i"
 #include "dict0mem.h"
+#include "ut0new.h"
+
 #include <map>
 
 class dict_intrinsic_table_t {
@@ -57,7 +59,13 @@ public:
 };
 
 /** InnoDB private data that is cached in THD */
-typedef std::map<std::string, dict_intrinsic_table_t*>    table_cache_t;
+typedef std::map<
+	std::string,
+	dict_intrinsic_table_t*,
+	std::less<std::string>,
+	ut_allocator<std::pair<const std::string, dict_intrinsic_table_t*> > >
+	table_cache_t;
+
 class innodb_session_t {
 public:
 	/** Constructor */

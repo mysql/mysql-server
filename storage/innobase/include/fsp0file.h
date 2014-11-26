@@ -26,8 +26,9 @@ Created 2013-7-26 by Kevin Lewis
 #ifndef fsp0file_h
 #define fsp0file_h
 
-#include "univ.i"
+#include "ha_prototypes.h"
 #include "log0log.h"
+#include "mem0mem.h"
 #include "os0file.h"
 #include <vector>
 
@@ -59,7 +60,6 @@ public:
 		m_type(SRV_NOT_RAW),
 		m_space_id(),
 		m_flags(),
-		m_flushed_lsn(),
 		m_exists(),
 		m_is_valid(),
 		m_first_page_buf(),
@@ -71,7 +71,7 @@ public:
 
 	Datafile(const char* name, ulint size, ulint order)
 		:
-		m_name(::strdup(name)),
+		m_name(mem_strdup(name)),
 		m_filepath(),
 		m_filename(),
 		m_handle(OS_FILE_CLOSED),
@@ -81,7 +81,6 @@ public:
 		m_type(SRV_NOT_RAW),
 		m_space_id(),
 		m_flags(),
-		m_flushed_lsn(),
 		m_exists(),
 		m_is_valid(),
 		m_first_page_buf(),
@@ -102,19 +101,18 @@ public:
 		m_type(file.m_type),
 		m_space_id(file.m_space_id),
 		m_flags(file.m_flags),
-		m_flushed_lsn(file.m_flushed_lsn),
 		m_exists(file.m_exists),
 		m_is_valid(file.m_is_valid),
 		m_first_page_buf(),
 		m_first_page(),
 		m_last_os_error()
 	{
-		m_name = ::strdup(file.m_name);
+		m_name = mem_strdup(file.m_name);
 		ut_ad(m_name != NULL);
 
 		if (file.m_filepath != NULL) {
-			m_filepath = ::strdup(file.m_filepath);
-			ut_a(m_filepath);
+			m_filepath = mem_strdup(file.m_filepath);
+			ut_a(m_filepath != NULL);
 			set_filename();
 		} else {
 			m_filepath = NULL;
@@ -132,7 +130,7 @@ public:
 		ut_a(this != &file);
 
 		ut_ad(m_name == NULL);
-		m_name = ::strdup(file.m_name);
+		m_name = mem_strdup(file.m_name);
 		ut_a(m_name != NULL);
 
 		m_size = file.m_size;
@@ -147,17 +145,16 @@ public:
 		m_open_flags = file.m_open_flags;
 		m_space_id = file.m_space_id;
 		m_flags = file.m_flags;
-		m_flushed_lsn = file.m_flushed_lsn;
 		m_last_os_error = 0;
 
 		if (m_filepath != NULL) {
-			::free(m_filepath);
+			ut_free(m_filepath);
 			m_filepath = NULL;
 			m_filename = NULL;
 		}
 
 		if (file.m_filepath != NULL) {
-			m_filepath = ::strdup(file.m_filepath);
+			m_filepath = mem_strdup(file.m_filepath);
 			ut_a(m_filepath != NULL);
 			set_filename();
 		}
@@ -251,10 +248,12 @@ public:
 	tablespace is opened.  This occurs before the fil_space_t is created
 	so the Space ID found here must not already be open.
 	m_is_valid is set true on success, else false.
+	@param[out]	flush_lsn	contents of FIL_PAGE_FILE_FLUSH_LSN
+	(only valid for the first file of the system tablespace)
 	@retval DB_SUCCESS on if the datafile is valid
 	@retval DB_CORRUPTION if the datafile is not readable
 	@retval DB_TABLESPACE_EXISTS if there is a duplicate space_id */
-	dberr_t validate_first_page()
+	dberr_t validate_first_page(lsn_t* flush_lsn = 0)
 		__attribute__((warn_unused_result));
 
 	/** Get Datafile::m_name.
@@ -310,13 +309,6 @@ public:
 	ulint	flags()	const
 	{
 		return(m_flags);
-	}
-
-	/** Get Datafile::m_flushed_lsn.
-	@return m_flushed_lsn */
-	lsn_t	flushed_lsn()	const
-	{
-		return(m_flushed_lsn);
 	}
 
 	/**
@@ -439,9 +431,6 @@ private:
 	If this is a system tablespace, FSP_SPACE_FLAGS are only valid
 	in the first datafile. */
 	ulint			m_flags;
-
-	/** Flushed LSN value. */
-	lsn_t			m_flushed_lsn;
 
 	/** true if file already existed on startup */
 	bool			m_exists;

@@ -138,7 +138,8 @@ btr_search_check_free_space_in_heap(void)
 
 		rw_lock_x_lock(&btr_search_latch);
 
-		if (heap->free_block == NULL) {
+		if (btr_search_enabled
+		    && heap->free_block == NULL) {
 			heap->free_block = block;
 		} else {
 			buf_block_free(block);
@@ -160,13 +161,13 @@ btr_search_sys_create(
 	see above at the global variable definition */
 
 	btr_search_latch_temp = reinterpret_cast<rw_lock_t*>(
-		ut_malloc(sizeof(rw_lock_t)));
+		ut_malloc_nokey(sizeof(rw_lock_t)));
 
 	rw_lock_create(
 		btr_search_latch_key, &btr_search_latch, SYNC_SEARCH_SYS);
 
 	btr_search_sys = reinterpret_cast<btr_search_sys_t*>(
-		ut_malloc(sizeof(btr_search_sys_t)));
+		ut_malloc_nokey(sizeof(btr_search_sys_t)));
 
 	btr_search_sys->hash_index = ib_create(
 		hash_size, "hash_table_mutex", 0, MEM_HEAP_FOR_BTR_SEARCH);
@@ -174,6 +175,32 @@ btr_search_sys_create(
 #if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
 	btr_search_sys->hash_index->adaptive = TRUE;
 #endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
+}
+
+/** Resize hash index hash table.
+@param[in]	hash_size	hash index hash table size */
+
+void
+btr_search_sys_resize(
+	ulint	hash_size)
+{
+	rw_lock_x_lock(&btr_search_latch);
+
+	if (btr_search_enabled) {
+		rw_lock_x_unlock(&btr_search_latch);
+		ib::error() << "btr_search_sys_resize failed because"
+			" hash index hash table is not empty.";
+		ut_ad(0);
+		return;
+	}
+
+	mem_heap_free(btr_search_sys->hash_index->heap);
+	hash_table_free(btr_search_sys->hash_index);
+
+	btr_search_sys->hash_index = ib_create(
+		hash_size, "hash_table_mutex", 0, MEM_HEAP_FOR_BTR_SEARCH);
+
+	rw_lock_x_unlock(&btr_search_latch);
 }
 
 /*****************************************************************//**
@@ -226,6 +253,12 @@ btr_search_disable(void)
 	mutex_enter(&dict_sys->mutex);
 	rw_lock_x_lock(&btr_search_latch);
 
+	if (!btr_search_enabled) {
+		mutex_exit(&dict_sys->mutex);
+		rw_lock_x_unlock(&btr_search_latch);
+		return;
+	}
+
 	btr_search_enabled = FALSE;
 
 	/* Clear the index->search_info->ref_count of every index in
@@ -261,6 +294,13 @@ void
 btr_search_enable(void)
 /*====================*/
 {
+	buf_pool_mutex_enter_all();
+	if (srv_buf_pool_old_size != srv_buf_pool_size) {
+		buf_pool_mutex_exit_all();
+		return;
+	}
+	buf_pool_mutex_exit_all();
+
 	rw_lock_x_lock(&btr_search_latch);
 
 	btr_search_enabled = TRUE;
@@ -287,6 +327,7 @@ btr_search_info_create(
 
 	info->ref_count = 0;
 	info->root_guess = NULL;
+	info->withdraw_clock = 0;
 
 	info->hash_analysis = 0;
 	info->n_hash_potential = 0;
@@ -862,14 +903,15 @@ btr_search_guess_on_hash(
 	cursor->flag = BTR_CUR_HASH;
 
 	if (!has_search_latch) {
+		rw_lock_s_lock(&btr_search_latch);
 
 		if (!btr_search_enabled) {
+			rw_lock_s_unlock(&btr_search_latch);
+
 			btr_search_failure(info, cursor);
 
 			return(FALSE);
 		}
-
-		rw_lock_s_lock(&btr_search_latch);
 	}
 
 	ut_ad(rw_lock_get_writer(&btr_search_latch) != RW_LOCK_X);
@@ -1113,7 +1155,7 @@ retry:
 	/* Calculate and cache fold values into an array for fast deletion
 	from the hash index */
 
-	folds = (ulint*) ut_malloc(n_recs * sizeof(ulint));
+	folds = (ulint*) ut_malloc_nokey(n_recs * sizeof(ulint));
 
 	n_cached = 0;
 
@@ -1193,11 +1235,11 @@ cleanup:
 #if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
 	if (UNIV_UNLIKELY(block->n_pointers)) {
 		/* Corruption */
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Corruption of adaptive hash index."
-			" After dropping, the hash index to a page of %s,"
-			" still %lu hash nodes remain.",
-			index->name, (ulong) block->n_pointers);
+		ib::error() << "Corruption of adaptive hash index."
+			<< " After dropping, the hash index to a page of "
+			<< ut_get_name(NULL, FALSE, index->name)
+			<< ", still " << block->n_pointers
+			<< " hash nodes remain.";
 		rw_lock_x_unlock(&btr_search_latch);
 
 		ut_ad(btr_search_validate());
@@ -1332,8 +1374,8 @@ btr_search_build_page_hash_index(
 	/* Calculate and cache fold values and corresponding records into
 	an array for fast insertion to the hash index */
 
-	folds = (ulint*) ut_malloc(n_recs * sizeof(ulint));
-	recs = (rec_t**) ut_malloc(n_recs * sizeof(rec_t*));
+	folds = (ulint*) ut_malloc_nokey(n_recs * sizeof(ulint));
+	recs = (rec_t**) ut_malloc_nokey(n_recs * sizeof(rec_t*));
 
 	n_cached = 0;
 
@@ -1854,6 +1896,17 @@ btr_search_validate(void)
 			os_thread_yield();
 			rw_lock_x_lock(&btr_search_latch);
 			buf_pool_mutex_enter_all();
+
+			if (cell_count != hash_get_n_cells(
+				btr_search_sys->hash_index)) {
+
+				cell_count = hash_get_n_cells(
+					btr_search_sys->hash_index);
+
+				if (i >= cell_count) {
+					break;
+				}
+			}
 		}
 
 		node = (ha_node_t*)
@@ -1920,16 +1973,16 @@ btr_search_validate(void)
 
 				ok = FALSE;
 
-				ib_logf(IB_LOG_LEVEL_ERROR,
-					"Error in an adaptive hash"
-					" index pointer to page %lu,"
-					" ptr mem address %p, index id"
-					" " IB_ID_FMT ", node fold "
-					ULINTPF "," " rec fold " ULINTPF,
-					(ulong) page_get_page_no(page),
-					node->data,
-					page_index_id,
-					node->fold, fold);
+				ib::error() << "Error in an adaptive hash"
+					<< " index pointer to page "
+					<< page_id_t(page_get_space_id(page),
+						     page_get_page_no(page))
+					<< ", ptr mem address "
+					<< reinterpret_cast<const void*>(
+						node->data)
+					<< ", index id " << page_index_id
+					<< ", node fold " << node->fold
+					<< ", rec fold " << fold;
 
 				fputs("InnoDB: Record ", stderr);
 				rec_print_new(stderr, node->data, offsets);
@@ -1952,8 +2005,6 @@ btr_search_validate(void)
 	}
 
 	for (i = 0; i < cell_count; i += chunk_size) {
-		ulint end_index = ut_min(i + chunk_size - 1, cell_count - 1);
-
 		/* We release btr_search_latch every once in a while to
 		give other queries a chance to run. */
 		if (i != 0) {
@@ -1962,7 +2013,20 @@ btr_search_validate(void)
 			os_thread_yield();
 			rw_lock_x_lock(&btr_search_latch);
 			buf_pool_mutex_enter_all();
+
+			if (cell_count != hash_get_n_cells(
+				btr_search_sys->hash_index)) {
+
+				cell_count = hash_get_n_cells(
+					btr_search_sys->hash_index);
+
+				if (i >= cell_count) {
+					break;
+				}
+			}
 		}
+
+		ulint end_index = ut_min(i + chunk_size - 1, cell_count - 1);
 
 		if (!ha_validate(btr_search_sys->hash_index, i, end_index)) {
 			ok = FALSE;

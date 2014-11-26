@@ -6,6 +6,7 @@ Note	####	Storing MySQL user name or password information in the master info rep
 SET @old_log_bin_trust_function_creators= @@global.log_bin_trust_function_creators;
 create table t1 (a int) engine = innodb;
 SET GLOBAL log_bin_trust_function_creators = 1;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 create procedure p1()
 begin
 declare spv int default 0;
@@ -245,7 +246,7 @@ insert into t2 set b = bitvalue;
 end //
 create function sf_bug26199(b BIT(7)) returns int
 begin
-insert into t2 values(b);
+insert ignore into t2 values(b);
 return 0;
 end//
 call   sp_bug26199(b'1110');
@@ -280,6 +281,7 @@ drop table t2;
 drop procedure sp_bug26199;
 drop function sf_bug26199;
 SET @@global.log_bin_trust_function_creators= @old_log_bin_trust_function_creators;
+SET sql_mode = default;
 include/sync_slave_sql_with_master.inc
 end of the tests
 include/rpl_end.inc

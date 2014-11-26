@@ -28,12 +28,13 @@
 #include <myisam.h>
 #include "sql_array.h"                        /* Array */
 #include "records.h"                          /* READ_RECORD */
-#include "opt_range.h"                /* SQL_SELECT, QUICK_SELECT_I */
+#include "opt_range.h"                        /* QUICK_SELECT_I */
 #include "filesort.h"
 
 #include "mem_root_array.h"
 #include "sql_executor.h"
 #include "opt_explain_format.h" // for Extra_tag
+#include "sql_opt_exec_shared.h"
 
 #include <functional>
 /**
@@ -119,7 +120,7 @@ class Key_use {
 public:
   // We need the default constructor for unit testing.
   Key_use()
-    : table(NULL),
+    : table_ref(NULL),
       val(NULL),
       used_tables(0),
       key(0),
@@ -135,12 +136,12 @@ public:
       read_cost(0.0)
   {}
 
-  Key_use(TABLE *table_arg, Item *val_arg, table_map used_tables_arg,
+  Key_use(TABLE_LIST *table_ref_arg, Item *val_arg, table_map used_tables_arg,
           uint key_arg, uint keypart_arg, uint optimize_arg,
           key_part_map keypart_map_arg, ha_rows ref_table_rows_arg,
           bool null_rejecting_arg, bool *cond_guard_arg,
           uint sj_pred_no_arg) :
-  table(table_arg), val(val_arg), used_tables(used_tables_arg),
+  table_ref(table_ref_arg), val(val_arg), used_tables(used_tables_arg),
   key(key_arg), keypart(keypart_arg), optimize(optimize_arg),
   keypart_map(keypart_map_arg), ref_table_rows(ref_table_rows_arg),
   null_rejecting(null_rejecting_arg), cond_guard(cond_guard_arg),
@@ -148,7 +149,7 @@ public:
   read_cost(0.0)
   {}
 
-  TABLE *table;            ///< table owning the index
+  TABLE_LIST *table_ref;   ///< table owning the index
 
   /**
     Value used for lookup into @c key. It may be an Item_field, a
@@ -241,193 +242,10 @@ public:
 // Key_use has a trivial destructor, no need to run it from Mem_root_array.
 typedef Mem_root_array<Key_use, true> Key_use_array;
 
-class store_key;
-
-typedef struct st_table_ref : public Sql_alloc
-{
-  bool		key_err;
-  /** True if something was read into buffer in join_read_key.  */
-  bool          has_record;
-  uint          key_parts;                ///< num of ...
-  uint          key_length;               ///< length of key_buff
-  int           key;                      ///< key no
-  uchar         *key_buff;                ///< value to look for with key
-  uchar         *key_buff2;               ///< key_buff+key_length
-  /**
-     Used to store the value from each keypart field. These values are
-     used for ref access. If key_copy[key_part] == NULL it means that
-     the value is constant and does not need to be reevaluated
-  */
-  store_key     **key_copy;
-  Item          **items;                  ///< val()'s for each keypart
-  /*  
-    Array of pointers to trigger variables. Some/all of the pointers may be
-    NULL.  The ref access can be used iff
-    
-      for each used key part i, (!cond_guards[i] || *cond_guards[i]) 
-
-    This array is used by subquery code. The subquery code may inject
-    triggered conditions, i.e. conditions that can be 'switched off'. A ref 
-    access created from such condition is not valid when at least one of the 
-    underlying conditions is switched off (see subquery code for more details).
-    If a table in a subquery has this it means that the table access 
-    will switch from ref access to table scan when the outer query 
-    produces a NULL value to be checked for in the subquery. This will
-    be used by NOT IN subqueries and IN subqueries for which 
-    is_top_level_item() returns false.
-  */
-  bool          **cond_guards;
-  /**
-    (null_rejecting & (1<<i)) means the condition is '=' and no matching
-    rows will be produced if items[i] IS NULL (see add_not_null_conds())
-  */
-  key_part_map  null_rejecting;
-  table_map	depend_map;		  ///< Table depends on these tables.
-  /* null byte position in the key_buf. Used for REF_OR_NULL optimization */
-  uchar          *null_ref_key;
-  /*
-    The number of times the record associated with this key was used
-    in the join.
-  */
-  ha_rows       use_count;
-
-  /*
-    TRUE <=> disable the "cache" as doing lookup with the same key value may
-    produce different results (because of Index Condition Pushdown)
-  */
-  bool          disable_cache;
-
-  st_table_ref()
-    : key_err(TRUE),
-      has_record(FALSE),
-      key_parts(0),
-      key_length(0),
-      key(-1),
-      key_buff(NULL),
-      key_buff2(NULL),
-      key_copy(NULL),
-      items(NULL),
-      cond_guards(NULL),
-      null_rejecting(0),
-      depend_map(0),
-      null_ref_key(NULL),
-      use_count(0),
-      disable_cache(FALSE)
-  {
-  }
-
-  /**
-    @returns whether the reference contains NULL values which could never give
-    a match.
-  */
-  bool impossible_null_ref() const
-  {
-    if (null_rejecting != 0)
-    {
-      for (uint i= 0 ; i < key_parts ; i++)
-      {
-        if ((null_rejecting & 1 << i) && items[i]->is_null())
-          return TRUE;
-      }
-    }
-    return FALSE;
-  }
-
-
-  /**
-    Check if there are triggered/guarded conditions that might be
-    'switched off' by the subquery code when executing 'Full scan on
-    NULL key' subqueries.
-
-    @return true if there are guarded conditions, false otherwise
-  */
-
-  bool has_guarded_conds() const
-  {
-    DBUG_ASSERT(key_parts == 0 || cond_guards != NULL);
-
-    for (uint i = 0; i < key_parts; i++)
-    {
-      if (cond_guards[i])
-        return true;
-    }
-    return false;
-  }
-} TABLE_REF;
-
-
-/*
-  The structs which holds the join connections and join states
-*/
-enum join_type { /*
-                   Initial state. Access type has not yet been decided
-                   for the table
-                 */
-                 JT_UNKNOWN,
-                 /* Table has exactly one row */
-                 JT_SYSTEM,
-                 /*
-                   Table has at most one matching row. Values read
-                   from this row can be treated as constants. Example:
-                   "WHERE table.pk = 3"
-                  */
-                 JT_CONST,
-                 /*
-                   '=' operator is used on unique index. At most one
-                   row is read for each combination of rows from
-                   preceding tables
-                 */
-                 JT_EQ_REF,
-                 /*
-                   '=' operator is used on non-unique index
-                 */
-                 JT_REF,
-                 /*
-                   Full table scan.
-                 */
-                 JT_ALL,
-                 /*
-                   Range scan.
-                 */
-                 JT_RANGE,
-                 /*
-                   Like table scan, but scans index leaves instead of
-                   the table
-                 */
-                 JT_INDEX_SCAN,
-                 /* Fulltext index is used */
-                 JT_FT,
-                 /*
-                   Like ref, but with extra search for NULL values.
-                   E.g. used for "WHERE col = ... OR col IS NULL"
-                  */
-                 JT_REF_OR_NULL,
-                 /*
-                   Like eq_ref for subqueries: Replaces subquery with
-                   index lookup in unique index
-                  */
-                 JT_UNIQUE_SUBQUERY,
-                 /*
-                   Like unique_subquery but for non-unique index
-                 */
-                 JT_INDEX_SUBQUERY,
-                 /*
-                   Do multiple range scans over one table and combine
-                   the results into one. The merge can be used to
-                   produce unions and intersections
-                 */
-                 JT_INDEX_MERGE};
-
 /// @returns join type according to quick select type used
 join_type calc_join_type(int quick_type);
 
 class JOIN;
-
-/* Values for JOIN_TAB::packed_info */
-#define TAB_INFO_HAVE_VALUE 1
-#define TAB_INFO_USING_INDEX 2
-#define TAB_INFO_USING_WHERE 4
-#define TAB_INFO_FULL_SCAN_ON_NULL 8
 
 class JOIN_CACHE;
 class SJ_TMP_TABLE;
@@ -494,7 +312,8 @@ typedef struct st_position : public Sql_alloc
     constant conditions is included in the scan cost, and the number
     of rows produced by these scans is the estimated number of rows
     that pass the constant conditions. @see
-    Optimize_table_order::calculate_scan_cost()
+    Optimize_table_order::calculate_scan_cost() . But this is only during
+    planning; make_join_readinfo() simplifies it for EXPLAIN.
   */
   double rows_fetched;
 
@@ -708,9 +527,18 @@ struct st_cache_field;
 class QEP_operation;
 class Filesort;
 
+/**
+   Use this in a function which depends on best_ref listing tables in the
+   final join order. If 'tables==0', one is not expected to consult best_ref
+   cells, and best_ref may not even have been allocated.
+*/
+#define ASSERT_BEST_REF_IN_JOIN_ORDER(join) \
+  do { DBUG_ASSERT(join->tables == 0 ||                         \
+                   (join->best_ref && !join->join_tab)); } while(0)
+
 
 /**
-  Query plan node.
+  Query optimization plan node.
 
   Specifies:
 
@@ -719,39 +547,22 @@ class Filesort;
   - a join between the result of the set of previous plan nodes and
     this plan node.
 */
-typedef struct st_join_table : public Sql_alloc
+class JOIN_TAB : public Sql_alloc, public QEP_shared_owner
 {
-  st_join_table();
+public:
+  JOIN_TAB();
 
-  table_map prefix_tables() const { return prefix_tables_map; }
-
-  table_map added_tables() const { return added_tables_map; }
-
-  /**
-    Set available tables for a table in a join plan.
-
-    @param prefix_tables: Set of tables available for this plan
-    @param prev_tables: Set of tables available for previous table, used to
-                        calculate set of tables added for this table.
-  */
-  void set_prefix_tables(table_map prefix_tables, table_map prev_tables)
+  void set_table(TABLE *t)
   {
-    prefix_tables_map= prefix_tables;
-    added_tables_map= prefix_tables & ~prev_tables;
+    if (t)
+      t->reginfo.join_tab= this;
+    m_qs->set_table(t);
   }
-
-  /**
-    Add an available set of tables for a table in a join plan.
-
-    @param tables: Set of tables added for this table in plan.
-  */
-  void add_prefix_tables(table_map tables)
-  { prefix_tables_map|= tables; added_tables_map|= tables; }
 
   /// Sets the pointer to the join condition of TABLE_LIST
   void init_join_cond_ref(TABLE_LIST *tl)
   {
-    m_join_cond_ref= tl->optim_join_cond_ref();
+    m_join_cond_ref= tl->join_cond_optim_ref();
   }
 
   /// @returns join condition
@@ -769,55 +580,28 @@ typedef struct st_join_table : public Sql_alloc
     *m_join_cond_ref= cond;
   }
 
-  /// @returns the table condition for this table in the join order.
-  Item *condition() const
-  {
-    return m_condition;
-  }
   /// Set the combined condition for a table (may be performed several times)
-  void set_condition(Item *to, uint line)
+  void set_condition(Item *to)
   {
-    DBUG_PRINT("info", 
-               ("JOIN_TAB::m_condition changes %p -> %p at line %u tab %p",
-                m_condition, to, line, this));
-    m_condition= to;
-    quick_order_tested.clear_all();
+    if (condition() != to)
+    {
+      m_qs->set_condition(to);
+      // Condition changes, so some indexes may become usable or not:
+      quick_order_tested.clear_all();
+    }
   }
 
-  /// Set table condition, for JOIN_TAB as well as for SELECT object
-  Item *set_jt_and_sel_condition(Item *new_cond, uint line)
-  {
-    Item *tmp_cond= m_condition;
-    set_condition(new_cond, line);
-    if (select)
-      select->cond= new_cond;
-    return tmp_cond;
-  }
+  uint use_join_cache() const { return m_use_join_cache; }
+  void set_use_join_cache(uint u) { m_use_join_cache= u; }
+  Key_use *keyuse() const { return m_keyuse; }
+  void set_keyuse(Key_use *k) { m_keyuse= k; }
 
-  /// Return true if join_tab should perform a FirstMatch action
-  bool do_firstmatch() const { return firstmatch_return; }
+  TABLE_LIST    *table_ref;     /**< points to table reference               */
 
-  /// Return true if join_tab should perform a LooseScan action
-  bool do_loosescan() const { return loosescan_key_len; }
-
-  /// Return true if join_tab starts a Duplicate Weedout action
-  bool starts_weedout() const { return flush_weedout_table; }
-
-  /// Return true if join_tab finishes a Duplicate Weedout action
-  bool finishes_weedout() const { return check_weed_out_table; }
-
-  TABLE         *table;
-  POSITION      *position;      /**< points into best_positions array        */
-  Key_use       *keyuse;        /**< pointer to first used key               */
-  SQL_SELECT    *select;
-  QUICK_SELECT_I *quick;
 private:
-  /**
-    Table condition, ie condition to be evaluated for a row from this table.
-    Notice that the condition may refer to rows from previous tables in the
-    join prefix, as well as outer tables.
-  */
-  Item          *m_condition;
+
+  Key_use       *m_keyuse;        /**< pointer to first used key               */
+
   /**
      Pointer to the associated join condition:
      - if this is a table with position==NULL (e.g. internal sort/group
@@ -831,51 +615,12 @@ private:
   Item          **m_join_cond_ref;
 public:
   COND_EQUAL    *cond_equal;    /**< multiple equalities for the on expression*/
-  st_join_table *first_inner;   /**< first inner table for including outerjoin*/
-  bool           found;         /**< true after all matches or null complement*/
-  bool           not_null_compl;/**< true before null complement is added    */
-  /// For a materializable derived or SJ table: true if has been materialized
-  bool           materialized;
-  st_join_table *last_inner;    /**< last table table for embedding outer join*/
-  st_join_table *first_upper;  /**< first inner table for embedding outer join*/
-  st_join_table *first_unmatched; /**< used for optimization purposes only   */
-  
-  /* Special content for EXPLAIN 'Extra' column or NULL if none */
-  Extra_tag     info;
-  /* 
-    Bitmap of TAB_INFO_* bits that encodes special line for EXPLAIN 'Extra'
-    column, or 0 if there is no info.
-  */
-  uint          packed_info;
-
-  READ_RECORD::Setup_func materialize_table;
-  /**
-     Initialize table for reading and fetch the first row from the table. If
-     table is a materialized derived one, function must materialize it with
-     prepare_scan().
-  */
-  READ_RECORD::Setup_func read_first_record;
-  Next_select_func next_select;
-  READ_RECORD	read_record;
-  /* 
-    The following two fields are used for a [NOT] IN subquery if it is
-    executed by an alternative full table scan when the left operand of
-    the subquery predicate is evaluated to NULL.
-  */  
-  READ_RECORD::Setup_func save_read_first_record;/* to save read_first_record */
-  READ_RECORD::Read_func save_read_record;/* to save read_record.read_record */
-  /**
-    Struct needed for materialization of semi-join. Set for a materialized
-    temporary table, and NULL for all other join_tabs (except when
-    materialization is in progress, @see join_materialize_semijoin()).
-  */
-  Semijoin_mat_exec *sj_mat_exec;          
   double	worst_seeks;
   /** Keys with constant part. Subset of keys. */
   key_map	const_keys;
   key_map	checked_keys;			/**< Keys checked */
   key_map	needed_reg;
-  key_map       keys;                           /**< all keys with can be used */
+
   /**
     Used to avoid repeated range analysis for the same key in
     test_if_skip_sort_order(). This would otherwise happen if the best
@@ -886,8 +631,6 @@ public:
    */
   key_map       quick_order_tested;
 
-  /* Either #rows in the table or 1 for const table.  */
-  ha_rows	records;
   /*
     Number of records that will be scanned (yes scanned, not returned) by the
     best 'independent' access method, i.e. table scan or QUICK_*_SELECT)
@@ -908,44 +651,15 @@ public:
     The set of tables that are referenced by key from this table.
   */
   table_map     key_dependent;
-private:
-  /**
-    The set of all tables available in the join prefix for this table,
-    including the table handled by this JOIN_TAB.
-  */
-  table_map     prefix_tables_map;
-  /**
-    The set of tables added for this table, compared to the previous table
-    in the join prefix.
-  */
-  table_map     added_tables_map;
 public:
-  /// ID of index used for index scan or semijoin LooseScan
-  uint		index;
-  uint		used_fields,used_fieldlength,used_blobs;
-  uint          used_null_fields;
-  uint          used_rowid_fields;
-  uint          used_uneven_bit_fields;
+  uint		used_fieldlength;
   enum quick_type use_quick;
-  enum join_type type;
-  bool          not_used_in_distinct;
-  /**
-     Estimated number of rows read from the table per nested-loop iteration.
-  */
-  ha_rows       rowcount;
-  TABLE_REF	ref;
+
   /**
     Join buffering strategy.
     After optimization it contains chosen join buffering strategy (if any).
-   */
-  uint          use_join_cache;
-  QEP_operation *op;
-  /*
-    Index condition for BKA access join
   */
-  Item          *cache_idx_cond;
-  SQL_SELECT    *cache_select;
-  JOIN		*join;
+  uint          m_use_join_cache;
 
   /* SemiJoinDuplicateElimination variables: */
   /*
@@ -954,98 +668,8 @@ public:
   */
   TABLE_LIST    *emb_sj_nest;
 
-  /**
-    Boundaries of semijoin inner tables around this table. Valid only once
-    final QEP has been chosen. Depending on the strategy, they may define an
-    interval (all tables inside are inner of a semijoin) or
-    not. last_sj_inner_tab is not set for Duplicates Weedout.
-  */
-  struct st_join_table *first_sj_inner_tab;
-  struct st_join_table *last_sj_inner_tab;
-
-  /* Variables for semi-join duplicate elimination */
-  SJ_TMP_TABLE  *flush_weedout_table;
-  SJ_TMP_TABLE  *check_weed_out_table;
-  
-  /*
-    If set, means we should stop join enumeration after we've got the first
-    match and return to the specified join tab. May point to
-    join->join_tab[-1] which means stop join execution after the first
-    match.
-  */
-  struct st_join_table  *firstmatch_return;
- 
-  /*
-    Length of key tuple (depends on #keyparts used) to store in loosescan_buf.
-    If zero, means that loosescan is not used.
-  */
-  uint loosescan_key_len;
-
-  /* Buffer to save index tuple to be able to skip duplicates */
-  uchar *loosescan_buf;
-
-  /* 
-    If doing a LooseScan, this join tab is the first (i.e.  "driving") join
-    tab, and match_tab points to the last join tab handled by the strategy.
-    match_tab->found_match should be checked to see if the current value group
-    had a match.
-    If doing a FirstMatch, check this join tab to see if there is a match.
-    Unless the FirstMatch performs a "split jump", this is equal to the
-    current join_tab.
-  */
-  struct st_join_table *match_tab;
-  /*
-    Used by FirstMatch and LooseScan. TRUE <=> there is a matching
-    record combination
-  */
-  bool found_match;
-  
-  /*
-    Used by DuplicateElimination. tab->table->ref must have the rowid
-    whenever we have a current record. copy_current_rowid needed because
-    we cannot bind to the rowid buffer before the table has been opened.
-  */
-  int  keep_current_rowid;
-  st_cache_field *copy_current_rowid;
-
   /* NestedOuterJoins: Bitmap of nested joins this table is part of */
   nested_join_map embedding_map;
-
-  /* Tmp table info */
-  Temp_table_param *tmp_table_param;
-
-  /* Sorting related info */
-  Filesort *filesort;
-
-  /**
-    List of topmost expressions in the select list. The *next* JOIN TAB
-    in the plan should use it to obtain correct values. Same applicable to
-    all_fields. These lists are needed because after tmp tables functions
-    will be turned to fields. These variables are pointing to
-    tmp_fields_list[123]. Valid only for tmp tables and the last non-tmp
-    table in the query plan.
-    @see JOIN::make_tmp_tables_info()
-  */
-  List<Item> *fields;
-  /** List of all expressions in the select list */
-  List<Item> *all_fields;
-  /*
-    Pointer to the ref array slice which to switch to before sending
-    records. Valid only for tmp tables.
-  */
-  Ref_ptr_array *ref_array;
-
-  /** Number of records saved in tmp table */
-  ha_rows send_records;
-
-  /** HAVING condition for checking prior saving a record into tmp table*/
-  Item *having;
-
-  /** TRUE <=> remove duplicates on this table. */
-  bool distinct;
-
-  /** TRUE <=> only index is going to be read for this table */
-  bool use_keyread;
 
   /** Flags from SE's MRR implementation, to be used by JOIN_CACHE */
   uint join_cache_flags;
@@ -1053,205 +677,43 @@ public:
   /** TRUE <=> AM will scan backward */
   bool reversed_access;
 
-  /** FT function */
-  Item_func_match *ft_func;
-
   /** Clean up associated table after query execution, including resources */
   void cleanup();
 
-  bool is_using_loose_index_scan() const
-  {
-    /*
-      If JOIN_TAB::filesort is set, then the access method defined in
-      filesort will be used to read from the table and
-      JOIN_TAB::select reads from filesort using scan or ref access.
-    */
-    DBUG_ASSERT(!(select && select->quick && filesort));
-
-    const SQL_SELECT *sel= filesort ? filesort->select : select;
-    return (sel && sel->quick &&
-            (sel->quick->get_type() == QUICK_SELECT_I::QS_TYPE_GROUP_MIN_MAX));
-  }
-  bool is_using_agg_loose_index_scan() const
-  {
-    /*
-      If JOIN_TAB::filesort is set, then the access method defined in
-      filesort will be used to read from the table and
-      JOIN_TAB::select reads from filesort using scan or ref access.
-    */
-    DBUG_ASSERT(!(select && select->quick && filesort));
-
-    const SQL_SELECT *sel= filesort ? filesort->select : select;
-    return (sel && sel->quick &&
-            (sel->quick->get_type() ==
-             QUICK_SELECT_I::QS_TYPE_GROUP_MIN_MAX) &&
-            static_cast<QUICK_GROUP_MIN_MAX_SELECT*>(sel->quick)->
-                                                     is_agg_distinct());
-  }
-  /* SemiJoinDuplicateElimination: reserve space for rowid */
-  bool check_rowid_field()
-  {
-    if (keep_current_rowid && !used_rowid_fields)
-    {
-      used_rowid_fields= 1;
-      used_fieldlength+= table->file->ref_length;
-    }
-    return MY_TEST(used_rowid_fields);
-  }
-  bool is_inner_table_of_outer_join() const
-  {
-    return first_inner != NULL;
-  }
-  bool is_single_inner_of_semi_join() const
-  {
-    return first_sj_inner_tab == this && last_sj_inner_tab == this;
-  }
-  bool is_single_inner_of_outer_join() const
-  {
-    return first_inner == this && first_inner->last_inner == this;
-  }
-  bool is_first_inner_for_outer_join() const
-  {
-    return first_inner && first_inner == this;
-  }
-
   /// @returns semijoin strategy for this table.
-  uint get_sj_strategy() const
-  {
-    if (first_sj_inner_tab == NULL)
-      return SJ_OPT_NONE;
-    DBUG_ASSERT(first_sj_inner_tab->position->sj_strategy != SJ_OPT_NONE);
-    return first_sj_inner_tab->position->sj_strategy;
-  }
-  /**
-     @returns query block id for an inner table of materialized semi-join, and
-              0 for all other tables.
-  */
-  uint sjm_query_block_id() const;
+  uint get_sj_strategy() const;
 
-  bool and_with_condition(Item *tmp_cond, uint line);
-  bool and_with_jt_and_sel_condition(Item *tmp_cond, uint line);
-
-  /**
-    Check if there are triggered/guarded conditions that might be
-    'switched off' by the subquery code when executing 'Full scan on
-    NULL key' subqueries.
-
-    @return true if there are guarded conditions, false otherwise
-  */
-
-  bool has_guarded_conds() const
-  {
-    return ref.has_guarded_conds();
-  }
-  Item *unified_condition() const;
-  bool prepare_scan();
-  bool use_order() const; ///< Use ordering provided by chosen index?
-  bool sort_table();
-  bool remove_duplicates();
-  /**
-    A helper function that allocates appropriate join cache object and
-    sets next_select function of previous tab.
-  */
-  void init_join_cache();
-} JOIN_TAB;
+private:
+  JOIN_TAB(const JOIN_TAB&);            // not defined
+  JOIN_TAB& operator=(const JOIN_TAB&); // not defined
+};
 
 inline
-st_join_table::st_join_table()
-  : table(NULL),
-    position(NULL),
-    keyuse(NULL),
-    select(NULL),
-    quick(NULL),
-    m_condition(NULL),
+JOIN_TAB::JOIN_TAB() :
+    QEP_shared_owner(),
+    table_ref(NULL),
+    m_keyuse(NULL),
     m_join_cond_ref(NULL),
     cond_equal(NULL),
-    first_inner(NULL),
-    found(false),
-    not_null_compl(false),
-    materialized(false),
-    last_inner(NULL),
-    first_upper(NULL),
-    first_unmatched(NULL),
-    info(ET_none),
-    packed_info(0),
-    materialize_table(NULL),
-    read_first_record(NULL),
-    next_select(NULL),
-    read_record(),
-    save_read_first_record(NULL),
-    save_read_record(NULL),
-    sj_mat_exec(NULL),
     worst_seeks(0.0),
     const_keys(),
     checked_keys(),
     needed_reg(),
-    keys(),
     quick_order_tested(),
-
-    records(0),
     found_records(0),
     read_time(0),
-
     dependent(0),
     key_dependent(0),
-    prefix_tables_map(0),
-    added_tables_map(0),
-    index(0),
-    used_fields(0),
     used_fieldlength(0),
-    used_blobs(0),
-    used_null_fields(0),
-    used_rowid_fields(0),
-    used_uneven_bit_fields(0),
     use_quick(QS_NONE),
-    type(JT_UNKNOWN),
-    not_used_in_distinct(false),
-
-    rowcount(0),
-    ref(),
-    use_join_cache(0),
-    op(NULL),
-
-    cache_idx_cond(NULL),
-    cache_select(NULL),
-    join(NULL),
-
+    m_use_join_cache(0),
     emb_sj_nest(NULL),
-    first_sj_inner_tab(NULL),
-    last_sj_inner_tab(NULL),
-
-    flush_weedout_table(NULL),
-    check_weed_out_table(NULL),
-    firstmatch_return(NULL),
-    loosescan_key_len(0),
-    loosescan_buf(NULL),
-    match_tab(NULL),
-    found_match(FALSE),
-
-    keep_current_rowid(0),
-    copy_current_rowid(NULL),
     embedding_map(0),
-    tmp_table_param(NULL),
-    filesort(NULL),
-    fields(NULL),
-    all_fields(NULL),
-    ref_array(NULL),
-    send_records(0),
-    having(NULL),
-    distinct(false),
-    use_keyread(false),
     join_cache_flags(0),
-    reversed_access(false),
-    ft_func(NULL)
+    reversed_access(false)
 {
-  /**
-    @todo Add constructor to READ_RECORD.
-    All users do init_read_record(), which does memset(),
-    rather than invoking a constructor.
-  */
-  memset(&read_record, 0, sizeof(read_record));
 }
+
 
 /**
   "Less than" comparison function object used to compare two JOIN_TAB
@@ -1298,13 +760,13 @@ public:
     // Sorting distinct tables, so a table should not be compared with itself
     DBUG_ASSERT(jt1 != jt2);
 
-    if (jt1->dependent & jt2->table->map)
+    if (jt1->dependent & jt2->table_ref->map())
       return false;
-    if (jt2->dependent & jt1->table->map)
+    if (jt2->dependent & jt1->table_ref->map())
       return true;
 
-    const bool jt1_keydep_jt2= jt1->key_dependent & jt2->table->map;
-    const bool jt2_keydep_jt1= jt2->key_dependent & jt1->table->map;
+    const bool jt1_keydep_jt2= jt1->key_dependent & jt2->table_ref->map();
+    const bool jt2_keydep_jt1= jt2->key_dependent & jt1->table_ref->map();
 
     if (jt1_keydep_jt2 && !jt2_keydep_jt1)
       return false;
@@ -1344,9 +806,9 @@ public:
     DBUG_ASSERT(!jt1->emb_sj_nest);
     DBUG_ASSERT(!jt2->emb_sj_nest);
 
-    if (jt1->dependent & jt2->table->map)
+    if (jt1->dependent & jt2->table_ref->map())
       return false;
-    if (jt2->dependent & jt1->table->map)
+    if (jt2->dependent & jt1->table_ref->map())
       return true;
 
     return jt1 < jt2;
@@ -1558,13 +1020,38 @@ public:
 };
 
 
+/*
+  Class used for unique constraint implementation by subselect_hash_sj_engine.
+  It uses store_key_item implementation to do actual copying, but after
+  that, copy_inner calculates hash of each key part for unique constraint.
+*/
+
+class store_key_hash_item :public store_key_item
+{
+ protected:
+  Item *item;
+  ulonglong *hash;
+public:
+  store_key_hash_item(THD *thd, Field *to_field_arg, uchar *ptr,
+                 uchar *null_ptr_arg, uint length, Item *item_arg,
+                 ulonglong *hash_arg)
+    :store_key_item(thd, to_field_arg, ptr,
+	       null_ptr_arg, length, item_arg), hash(hash_arg)
+  {}
+  const char *name() const { return "func"; }
+
+ protected:  
+  enum store_key_result copy_inner();
+};
+
+
 class store_key_const_item :public store_key_item
 {
   bool inited;
 public:
   store_key_const_item(THD *thd, Field *to_field_arg, uchar *ptr,
-		       uchar *null_ptr_arg, uint length,
-		       Item *item_arg)
+                       uchar *null_ptr_arg, uint length,
+                       Item *item_arg)
     :store_key_item(thd, to_field_arg, ptr,
                     null_ptr_arg, length, item_arg), inited(0)
   {
@@ -1602,14 +1089,21 @@ bool mysql_select(THD *thd,
 void free_underlaid_joins(THD *thd, SELECT_LEX *select);
 
 
-void calc_used_field_length(THD *thd, JOIN_TAB *join_tab);
+void calc_used_field_length(THD *thd,
+                            TABLE *table,
+                            bool keep_current_rowid,
+                            uint *p_used_fields,
+                            uint *p_used_fieldlength,
+                            uint *p_used_blobs,
+                            bool *p_used_null_fields,
+                            bool *p_used_uneven_bit_fields);
 
 inline bool optimizer_flag(THD *thd, uint flag)
 { 
   return (thd->variables.optimizer_switch & flag);
 }
 
-uint get_index_for_order(ORDER *order, TABLE *table, SQL_SELECT *select,
+uint get_index_for_order(ORDER *order, QEP_TAB *tab,
                          ha_rows limit, bool *need_sort, bool *reverse);
 ORDER *simple_remove_const(ORDER *order, Item *where);
 bool const_expression_in_where(Item *cond, Item *comp_item,

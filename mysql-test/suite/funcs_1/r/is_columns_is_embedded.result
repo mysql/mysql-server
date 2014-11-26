@@ -1,3 +1,4 @@
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 SELECT * FROM information_schema.columns
 WHERE table_schema = 'information_schema'
 AND table_name <> 'profiling' AND table_name not like 'innodb_%' AND table_name not like 'ndb%'
@@ -736,3 +737,4 @@ NULL	information_schema	TRIGGERS	CREATED	datetime	NULL	NULL	NULL	NULL	datetime(2
 3.0000	information_schema	VIEWS	SECURITY_TYPE	varchar	7	21	utf8	utf8_general_ci	varchar(7)
 3.0000	information_schema	VIEWS	CHARACTER_SET_CLIENT	varchar	32	96	utf8	utf8_general_ci	varchar(32)
 3.0000	information_schema	VIEWS	COLLATION_CONNECTION	varchar	32	96	utf8	utf8_general_ci	varchar(32)
+SET sql_mode = default;

@@ -1,3 +1,4 @@
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 insert into mysql.help_category(help_category_id,name)values(10001,'impossible_category_1');
 Warnings:
 Warning	1364	Field 'url' doesn't have a default value
@@ -171,4 +172,5 @@ HELP no_such_topic;
 name	is_it_category
 UNLOCK TABLES;
 DROP TABLE t1;
+SET sql_mode = default;
 End of 5.1 tests.

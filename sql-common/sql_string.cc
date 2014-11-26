@@ -650,6 +650,23 @@ skip:
   return -1;
 }
 
+String String::substr(int offset, int count)
+{
+  int original_count = this->numchars();
+  if (offset > original_count)
+  {
+    offset= original_count;
+  }
+  if (offset + count > original_count)
+  {
+    count= original_count - offset;
+  }
+  size_t bytes_offset= this->charpos(offset);
+
+  return String(this->m_ptr + bytes_offset,
+    this->charpos(offset + count) - bytes_offset, this->m_charset);
+}
+
 /*
   Replace substring with string
   If wrong parameter or not enough memory, do nothing

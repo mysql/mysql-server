@@ -119,12 +119,12 @@ class sp_name : public Sql_alloc
 {
 public:
 
-  LEX_STRING m_db;
+  LEX_CSTRING m_db;
   LEX_STRING m_name;
   LEX_STRING m_qname;
   bool       m_explicit_name;                   /**< Prepend the db name? */
 
-  sp_name(LEX_STRING db, LEX_STRING name, bool use_explicit_name)
+  sp_name(const LEX_CSTRING &db, const LEX_STRING &name, bool use_explicit_name)
     : m_db(db), m_name(name), m_explicit_name(use_explicit_name)
   {
     m_qname.str= 0;
@@ -671,8 +671,8 @@ public:
     @return Error status.
   */
   bool execute_trigger(THD *thd,
-                       const LEX_STRING *db_name,
-                       const LEX_STRING *table_name,
+                       const LEX_CSTRING &db_name,
+                       const LEX_CSTRING &table_name,
                        GRANT_INFO *grant_info);
 
   /**
@@ -799,7 +799,7 @@ public:
     @return newly created and initialized Field-instance,
     or NULL in case of error.
   */
-  Field *create_result_field(uint field_max_length,
+  Field *create_result_field(size_t field_max_length,
                              const char *field_name,
                              TABLE *table);
 

@@ -329,7 +329,7 @@ bool mysql_create_frm(THD *thd, const char *file_name,
   if (part_info)
   {
     char auto_partitioned= part_info->is_auto_partitioned ? 1 : 0;
-    int4store(buff, part_info->part_info_len);
+    int4store(buff, static_cast<uint32>(part_info->part_info_len));
     if (mysql_file_write(file, (const uchar*)buff, 4, MYF_RW) ||
         mysql_file_write(file, (const uchar*)part_info->part_info_string,
                  part_info->part_info_len + 1, MYF_RW) ||
@@ -526,7 +526,8 @@ static uchar *pack_screens(List<Create_field> &create_fields,
 {
   uint i;
   uint row,start_row,end_row,fields_on_screen;
-  uint length,cols;
+  size_t length;
+  uint cols;
   uchar *info,*pos,*start_screen;
   uint fields=create_fields.elements;
   List_iterator<Create_field> it(create_fields);
@@ -539,7 +540,7 @@ static uchar *pack_screens(List<Create_field> &create_fields,
 
   Create_field *field;
   while ((field=it++))
-    length+=(uint) strlen(field->field_name)+1+TE_INFO_LENGTH+cols/2;
+    length+= strlen(field->field_name)+1+TE_INFO_LENGTH+cols/2;
 
   if (!(info=(uchar*) my_malloc(key_memory_frm,
                                 length,MYF(MY_WME))))
@@ -557,7 +558,7 @@ static uchar *pack_screens(List<Create_field> &create_fields,
       if (i)
       {
 	length=(uint) (pos-start_screen);
-	int2store(start_screen,length);
+	int2store(start_screen, static_cast<uint16>(length));
 	start_screen[2]=(uchar) (fields_on_screen+1);
 	start_screen[3]=(uchar) (fields_on_screen);
       }
@@ -570,7 +571,7 @@ static uchar *pack_screens(List<Create_field> &create_fields,
       strfill((char *) pos+3,(uint) (cols >> 1),' ');
       pos+=(cols >> 1)+4;
     }
-    length=(uint) strlen(cfield->field_name);
+    length= strlen(cfield->field_name);
     if (length > cols-3)
       length=cols-3;
 
@@ -586,7 +587,7 @@ static uchar *pack_screens(List<Create_field> &create_fields,
     cfield->sc_length= min<uint8>(cfield->length, cols - (length + 2));
   }
   length=(uint) (pos-start_screen);
-  int2store(start_screen,length);
+  int2store(start_screen, static_cast<uint16>(length));
   start_screen[2]=(uchar) (row-start_row+2);
   start_screen[3]=(uchar) (row-start_row+1);
 
@@ -686,9 +687,10 @@ static bool pack_header(uchar *forminfo, enum legacy_db_type table_type,
                         uint info_length, uint screens, uint table_options,
                         ulong data_offset, handler *file)
 {
-  uint length,int_count,int_length,no_empty, int_parts;
+  size_t length;
+  uint int_count, int_length, no_empty, int_parts;
   uint time_stamp_pos,null_fields;
-  ulong reclength, totlength, n_length, com_length;
+  size_t reclength, totlength, n_length, com_length;
   DBUG_ENTER("pack_header");
 
   if (create_fields.elements > MAX_FIELDS)
@@ -736,9 +738,9 @@ static bool pack_header(uchar *forminfo, enum legacy_db_type table_type,
     length=field->pack_length;
     /* Ensure we don't have any bugs when generating offsets */
     DBUG_ASSERT(reclength == field->offset + data_offset);
-    if ((uint) field->offset+ (uint) data_offset+ length > reclength)
-      reclength=(uint) (field->offset+ data_offset + length);
-    n_length+= (ulong) strlen(field->field_name)+1;
+    if (field->offset + data_offset + length > reclength)
+      reclength= field->offset + data_offset + length;
+    n_length+= strlen(field->field_name) + 1;
     field->interval_id=0;
     field->save_interval= 0;
     if (field->interval)
@@ -769,7 +771,7 @@ static bool pack_header(uchar *forminfo, enum legacy_db_type table_type,
         {
           char *dst;
           const char *src= field->save_interval->type_names[pos];
-          uint hex_length;
+          size_t hex_length;
           length= field->save_interval->type_lengths[pos];
           hex_length= length * 2;
           field->interval->type_lengths[pos]= hex_length;
@@ -811,7 +813,7 @@ static bool pack_header(uchar *forminfo, enum legacy_db_type table_type,
   memset(forminfo, 0, 288);
   length=(info_length+create_fields.elements*FCOMP+288+n_length+int_length+
 	  com_length);
-  int2store(forminfo,length);
+  int2store(forminfo, static_cast<uint16>(length));
   forminfo[256] = (uint8) screens;
   int2store(forminfo+258,create_fields.elements);
   int2store(forminfo+260,info_length);

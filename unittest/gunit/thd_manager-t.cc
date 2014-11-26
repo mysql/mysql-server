@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -65,7 +65,9 @@ TEST_F(ThreadManagerTest, AddRemoveTHDWithGuard)
 {
   THD thd1(false), thd2(false);
   thd1.server_id= 1;
+  thd1.set_new_thread_id();
   thd2.server_id= 2;
+  thd2.set_new_thread_id();
 
   EXPECT_EQ(0U, thd_manager->get_thd_count());
   thd_manager->add_thd(&thd1);
@@ -76,7 +78,6 @@ TEST_F(ThreadManagerTest, AddRemoveTHDWithGuard)
   EXPECT_EQ(1U, thd_manager->get_thd_count());
   thd_manager->remove_thd(&thd2);
   EXPECT_EQ(0U, thd_manager->get_thd_count());
-
 }
 
 TEST_F(ThreadManagerTest, IncDecThreadRunning)
@@ -123,7 +124,9 @@ TEST_F(ThreadManagerTest, TestTHDCopyDoFunc)
 {
   THD thd1(false), thd2(false);
   thd1.server_id= 1;
+  thd1.set_new_thread_id();
   thd2.server_id= 2;
+  thd2.set_new_thread_id();
   // Add two THD into thd list.
   thd_manager->add_thd(&thd1);
   thd_manager->add_thd(&thd2);
@@ -188,7 +191,9 @@ TEST_F(ThreadManagerTest, TestTHDFindFunc)
 {
   THD thd1(false), thd2(false);
   thd1.server_id= 1;
+  thd1.set_new_thread_id();
   thd2.server_id= 2;
+  thd2.set_new_thread_id();
   thd_manager->add_thd(&thd1);
   thd_manager->add_thd(&thd2);
   TestFunc2 testFunc2;
@@ -213,8 +218,11 @@ TEST_F(ThreadManagerTest, TestTHDCountFunc)
 {
   THD thd1(false), thd2(false), thd3(false);
   thd1.server_id= 1;
+  thd1.set_new_thread_id();
   thd2.server_id= 2;
+  thd2.set_new_thread_id();
   thd3.server_id= 3;
+  thd3.set_new_thread_id();
   thd_manager->add_thd(&thd1);
   thd_manager->add_thd(&thd2);
   thd_manager->add_thd(&thd3);
@@ -230,5 +238,63 @@ TEST_F(ThreadManagerTest, TestTHDCountFunc)
   thd_manager->remove_thd(&thd2);
   thd_manager->remove_thd(&thd3);
 }
+
+
+TEST_F(ThreadManagerTest, ThreadID)
+{
+  // Code assumes that the size of my_thread_id is 32 bit.
+  ASSERT_EQ(4U, sizeof(my_thread_id));
+
+  // Reset the thread ID counter
+  thd_manager->set_thread_id_counter(1);
+  EXPECT_EQ(1U, thd_manager->get_thread_id());
+
+  // The counter is incremented after ID is assigned.
+  EXPECT_EQ(1U, thd_manager->get_new_thread_id());
+  EXPECT_EQ(2U, thd_manager->get_thread_id());
+
+  // Two increments in a row
+  EXPECT_EQ(2U, thd_manager->get_new_thread_id());
+  EXPECT_EQ(3U, thd_manager->get_new_thread_id());
+  EXPECT_EQ(4U, thd_manager->get_thread_id());
+
+  // Force wrap of the counter
+  thd_manager->set_thread_id_counter(UINT_MAX32);
+  EXPECT_EQ(UINT_MAX32, thd_manager->get_new_thread_id());
+
+  // We should not use the value reserved for temporary THDs (0).
+  // The next available value should be 4.
+  EXPECT_EQ(4U, thd_manager->get_new_thread_id());
+  EXPECT_EQ(5U, thd_manager->get_thread_id());
+
+  // Release thread ID 3 and reset counter.
+  thd_manager->release_thread_id(3);
+  thd_manager->set_thread_id_counter(1U);
+  EXPECT_EQ(3U, thd_manager->get_new_thread_id());
+
+  // Releasing the reserved thread ID is allowed - multiple times.
+  thd_manager->release_thread_id(Global_THD_manager::reserved_thread_id);
+  thd_manager->release_thread_id(Global_THD_manager::reserved_thread_id);
+
+  // Cleanup
+  thd_manager->release_thread_id(1);
+  thd_manager->release_thread_id(2);
+  thd_manager->release_thread_id(3);
+  thd_manager->release_thread_id(4);
+  thd_manager->release_thread_id(UINT_MAX32);
+}
+
+
+#if !defined(DBUG_OFF)
+TEST_F(ThreadManagerTest, ThreadIDDeathTest)
+{
+  ::testing::FLAGS_gtest_death_test_style = "threadsafe";
+  my_thread_id thread_id= thd_manager->get_new_thread_id();
+  thd_manager->release_thread_id(thread_id);
+  // Releasing the same ID twice should assert.
+  EXPECT_DEATH_IF_SUPPORTED(thd_manager->release_thread_id(thread_id),
+                            ".*Assertion .*1 == num_erased.*");
+}
+#endif
 
 }  // namespace

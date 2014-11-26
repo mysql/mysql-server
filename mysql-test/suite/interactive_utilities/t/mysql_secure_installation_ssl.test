@@ -1,0 +1,96 @@
+--source include/have_ssl_communication.inc
+--source include/have_openssl.inc
+--source include/have_expect.inc
+--source include/not_windows.inc
+
+SET old_passwords=2;
+SELECT plugin into @plugin from mysql.user where user= 'root' and host='localhost';
+SELECT password_last_changed into @plc from mysql.user where user= 'root' and host='localhost';
+SELECT password into @pwd from mysql.user where user= 'root' and host='localhost';
+SELECT authentication_string into @auth_str from mysql.user where user= 'root' and host='localhost';
+update mysql.user set plugin= 'sha256_password', authentication_string= PASSWORD('123') where user='root' and host='localhost';
+FLUSH PRIVILEGES;
+call mtr.add_suppression("Dictionary file not specified");
+--perl
+
+# Checking if perl Expect module is installed on the system.
+# If not, the test will be skipped.
+die "Please install the Expect module ." unless(eval{require Expect});
+
+use strict;
+require Expect;
+
+my @texp;
+my $i;
+
+# Aggregating the commands which are executed post the password is input to 
+# mysql_secure_installation into a function with the values no. 
+sub after_commands()
+{
+   $texp[$i]->expect(5,' -re ',[ 'any other key for No' => sub {
+$texp[$i]->send("n\n");}]);
+   $texp[$i]->expect(5,' -re ',[ 'any other key for No' => sub {
+$texp[$i]->send("n\n");}]);
+   $texp[$i]->expect(5,' -re ',[ 'anonymous users' => sub {
+$texp[$i]->send("n\n");}]);
+   $texp[$i]->expect(5,' -re ',[ 'root login' => sub {
+$texp[$i]->send("n\n");}]);
+   $texp[$i]->expect(5,' -re ',[ 'test database' => sub {
+$texp[$i]->send("n\n");}]);
+   $texp[$i]->expect(5,' -re ',[ 'Reload' => sub { $texp[$i]->send("n\n");}]);
+   print "Execution number $i was successful\n";
+}
+
+# Defining a new Expect object and invoking mysql_secure_installation
+sub initial_commands()
+{
+   $texp[$i] = new Expect();
+   $texp[$i]->raw_pty(1);
+   $texp[$i]->spawn("$ENV{MYSQL_SECURE_INSTALLATION}  -S $ENV{MASTER_MYSOCK} --password='123' ");
+}
+
+# Aggregating the commands which are executed post the password is input to 
+# mysql_secure_installation into a function with the values yes.
+sub after_effects()
+{
+   $texp[$i]->expect(5,' -re ',[ 'any other key for No' => sub {
+$texp[$i]->send("y\n");}]);
+   $texp[$i]->expect(5,' -re ',[ 'MEDIUM and 2 = STRONG' => sub {
+$texp[$i]->send("2\n");}]);
+   $texp[$i]->expect(5,' -re ',[ 'any other key for No' => sub {
+$texp[$i]->send("y\n");}]);
+   $texp[$i]->expect(5,' -re ',[ 'password' => sub {
+$texp[$i]->send("Vamsi#1234#\n");}]);
+   $texp[$i]->expect(5,' -re ',[ 'password' => sub {
+$texp[$i]->send("Vamsi#1234#\n");}]);
+   $texp[$i]->expect(5,' -re ',[ 'any other key for No' => sub {
+$texp[$i]->send("y\n");}]);
+   $texp[$i]->expect(5,' -re ',[ 'anonymous users' => sub {
+$texp[$i]->send("y\n");}]);
+   $texp[$i]->expect(5,' -re ',[ 'root login' => sub {
+$texp[$i]->send("y\n");}]);
+   $texp[$i]->expect(5,' -re ',[ 'test database' => sub {
+$texp[$i]->send("y\n");}]);
+   $texp[$i]->expect(5,' -re ',[ 'Reload' => sub { $texp[$i]->send("y\n");}]);
+}
+
+$i = 1;
+initial_commands();
+after_commands();
+$i++;
+
+initial_commands();
+after_effects();
+$i++;
+
+EOF
+INSERT INTO mysql.user SELECT LOWER(@@hostname),'root','','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','','','','',0,0,0,0,'mysql_native_password','','N',@password,NULL;
+REPLACE INTO mysql.user VALUES ('localhost','root','','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','','','','',0,0,0,0,'mysql_native_password','','N',@password,NULL);
+REPLACE INTO mysql.user VALUES ('127.0.0.1','root','','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','','','','',0,0,0,0,'mysql_native_password','','N',@password,NULL);
+REPLACE INTO mysql.user VALUES ('::1','root','','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','','','','',0,0,0,0,'mysql_native_password','','N',@password,NULL);
+INSERT INTO mysql.db VALUES ('%','test','','Y','Y','Y','Y','Y','Y','N','Y','Y','Y','Y','Y','Y','Y','Y','N','N','Y','Y');
+INSERT INTO mysql.db VALUES ('%','test\_%','','Y','Y','Y','Y','Y','Y','N','Y','Y','Y','Y','Y','Y','Y','Y','N','N','Y','Y');
+UNINSTALL PLUGIN validate_password;
+UPDATE mysql.user SET password=@pwd, password_last_changed=@plc, authentication_string=@auth_str, plugin= @plugin;
+FLUSH PRIVILEGES;
+CREATE DATABASE test;

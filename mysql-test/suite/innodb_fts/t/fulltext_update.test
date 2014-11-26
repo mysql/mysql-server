@@ -8,6 +8,8 @@
 drop table if exists test;
 --enable_warnings
 
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
+
 let $default_engine = `select @@SESSION.default_storage_engine`;
 # --replace_result $default_engine <default_engine>
 CREATE TABLE test (
@@ -20,6 +22,8 @@ CREATE TABLE test (
   FULLTEXT(url,description,shortdesc,longdesc),
   PRIMARY KEY(gnr)
 ) ENGINE = InnoDB;
+
+SET sql_mode = default;
 
 insert into test (url,shortdesc,longdesc,description,name) VALUES 
 ("http:/test.at", "kurz", "lang","desc", "name");

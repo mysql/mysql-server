@@ -1148,7 +1148,7 @@ my_wildcmp_mb_bin_impl(const CHARSET_INFO *cs,
     }
     if (*wildstr == w_many)
     {						/* Found w_many */
-      uchar cmp;
+      int cmp;
       const char* mb = wildstr;
       int mb_len=0;
       

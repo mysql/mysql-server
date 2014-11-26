@@ -272,9 +272,11 @@ bool open_temporary_table(THD *thd, TABLE_LIST *tl);
 bool is_equal(const LEX_STRING *a, const LEX_STRING *b);
 
 /* Functions to work with system tables. */
-bool open_system_tables_for_read(THD *thd, TABLE_LIST *table_list,
+bool open_nontrans_system_tables_for_read(THD *thd, TABLE_LIST *table_list,
                                  Open_tables_backup *backup);
-void close_system_tables(THD *thd, Open_tables_backup *backup);
+bool open_trans_system_tables_for_read(THD *thd, TABLE_LIST *table_list);
+void close_nontrans_system_tables(THD *thd, Open_tables_backup *backup);
+void close_trans_system_tables(THD *thd);
 void close_mysql_tables(THD *thd);
 TABLE *open_system_table_for_update(THD *thd, TABLE_LIST *one_table);
 TABLE *open_log_table(THD *thd, TABLE_LIST *one_table, Open_tables_backup *backup);
@@ -312,13 +314,12 @@ extern HASH table_def_cache;
 
   @param table        TABLE structure pointer (which should be setup)
   @param table_list   TABLE_LIST structure pointer (owner of TABLE)
-  @param tablenr     table number
+  @param tableno      table number
 */
 
 
-inline void setup_table_map(TABLE *table, TABLE_LIST *table_list, uint tablenr)
+inline void setup_table_map(TABLE *table, TABLE_LIST *table_list, uint tableno)
 {
-  table->used_fields= 0;
   table->const_table= 0;
   table->null_row= 0;
   table->status= STATUS_GARBAGE | STATUS_NOT_FOUND;
@@ -329,8 +330,7 @@ inline void setup_table_map(TABLE *table, TABLE_LIST *table_list, uint tablenr)
     table->maybe_null= embedding->outer_join;
     embedding= embedding->embedding;
   }
-  table->tablenr= tablenr;
-  table->map= (table_map) 1 << tablenr;
+  table_list->set_tableno(tableno);
   table->force_index= table_list->force_index;
   table->force_index_order= table->force_index_group= 0;
   table->covering_keys= table->s->keys_for_keyread;
@@ -657,5 +657,6 @@ public:
                         const char* msg,
                         Sql_condition ** cond_hdl);
 };
+
 
 #endif /* SQL_BASE_INCLUDED */

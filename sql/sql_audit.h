@@ -1,7 +1,7 @@
 #ifndef SQL_AUDIT_INCLUDED
 #define SQL_AUDIT_INCLUDED
 
-/* Copyright (c) 2007, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2007, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -71,19 +71,30 @@ static inline size_t make_user_name(THD *thd, char *buf)
 */
  
 static inline
-void mysql_audit_general_log(THD *thd, time_t time,
-                             const char *user, size_t userlen,
-                             const char *cmd, size_t cmdlen,
-                             const char *query, size_t querylen)
+void mysql_audit_general_log(THD *thd, const char *cmd, size_t cmdlen)
 {
 #ifndef EMBEDDED_LIBRARY
   if (mysql_global_audit_mask[0] & MYSQL_AUDIT_GENERAL_CLASSMASK)
   {
     MYSQL_LEX_STRING sql_command, ip, host, external_user;
+    LEX_CSTRING query= EMPTY_CSTR;
     static MYSQL_LEX_STRING empty= { C_STRING_WITH_LEN("") };
+    char user_buff[MAX_USER_HOST_SIZE + 1];
+    const char *user= user_buff;
+    size_t userlen= make_user_name(thd, user_buff);
+    time_t time= (time_t) thd->start_time.tv_sec;
 
     if (thd)
     {
+      if (!thd->rewritten_query.length())
+        mysql_rewrite_query(thd);
+      if (thd->rewritten_query.length())
+      {
+        query.str= thd->rewritten_query.ptr();
+        query.length= thd->rewritten_query.length();
+      }
+      else
+        query= thd->query();
       ip.str= (char *) thd->security_ctx->get_ip()->ptr();
       ip.length= thd->security_ctx->get_ip()->length();
       host.str= (char *) thd->security_ctx->get_host()->ptr();
@@ -104,9 +115,9 @@ void mysql_audit_general_log(THD *thd, time_t time,
       : global_system_variables.character_set_client;
 
     mysql_audit_notify(thd, MYSQL_AUDIT_GENERAL_CLASS, MYSQL_AUDIT_GENERAL_LOG,
-                       0, time, user, userlen, cmd, cmdlen, query, querylen,
-                       clientcs, static_cast<ha_rows>(0),
-                       sql_command, host, external_user, ip);
+                       0, time, user, userlen, cmd, cmdlen, query.str,
+                       query.length, clientcs, 0, sql_command, host, external_user, ip);
+
   }
 #endif
 }
@@ -188,7 +199,7 @@ void mysql_audit_general(THD *thd, uint event_subtype,
 #define MYSQL_AUDIT_NOTIFY_CONNECTION_CONNECT(thd) mysql_audit_notify(\
   (thd), MYSQL_AUDIT_CONNECTION_CLASS, MYSQL_AUDIT_CONNECTION_CONNECT,\
   (thd)->get_stmt_da()->is_error() ? (thd)->get_stmt_da()->mysql_errno() : 0,\
-  (thd)->thread_id, (thd)->security_ctx->user,\
+  (thd)->thread_id(), (thd)->security_ctx->user,                        \
   (thd)->security_ctx->user ? strlen((thd)->security_ctx->user) : 0,\
   (thd)->security_ctx->priv_user, strlen((thd)->security_ctx->priv_user),\
   (thd)->security_ctx->get_external_user()->ptr(),\
@@ -198,17 +209,17 @@ void mysql_audit_general(THD *thd, uint event_subtype,
   (thd)->security_ctx->get_host()->length(),\
   (thd)->security_ctx->get_ip()->ptr(),\
   (thd)->security_ctx->get_ip()->length(),\
-  (thd)->db, (thd)->db ? strlen((thd)->db) : 0)
+  (thd)->db().str, (thd)->db().length)
 
 #define MYSQL_AUDIT_NOTIFY_CONNECTION_DISCONNECT(thd, errcode)\
   mysql_audit_notify(\
   (thd), MYSQL_AUDIT_CONNECTION_CLASS, MYSQL_AUDIT_CONNECTION_DISCONNECT,\
-  (errcode), (thd)->thread_id, "", 0, "", 0, "", 0, "", 0, "", 0, "", 0, "", 0)
+  (errcode), (thd)->thread_id(), "", 0, "", 0, "", 0, "", 0, "", 0, "", 0, "", 0)
 
 #define MYSQL_AUDIT_NOTIFY_CONNECTION_CHANGE_USER(thd) mysql_audit_notify(\
   (thd), MYSQL_AUDIT_CONNECTION_CLASS, MYSQL_AUDIT_CONNECTION_CHANGE_USER,\
   (thd)->get_stmt_da()->is_error() ? (thd)->get_stmt_da()->mysql_errno() : 0,\
-  (thd)->thread_id, (thd)->security_ctx->user,\
+  (thd)->thread_id(), (thd)->security_ctx->user,                        \
   (thd)->security_ctx->user ? strlen((thd)->security_ctx->user) : 0,\
   (thd)->security_ctx->priv_user, strlen((thd)->security_ctx->priv_user),\
   (thd)->security_ctx->get_external_user()->ptr(),\
@@ -218,6 +229,6 @@ void mysql_audit_general(THD *thd, uint event_subtype,
   (thd)->security_ctx->get_host()->length(),\
   (thd)->security_ctx->get_ip()->ptr(),\
   (thd)->security_ctx->get_ip()->length(),\
-  (thd)->db, (thd)->db ? strlen((thd)->db) : 0)
+  (thd)->db().str, (thd)->db().length)
 
 #endif /* SQL_AUDIT_INCLUDED */

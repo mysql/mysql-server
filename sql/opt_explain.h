@@ -51,7 +51,6 @@ SELECT_LEX), by calling explain_unit() for each of them.
 class JOIN;
 class select_result;
 class select_result_interceptor;
-class SQL_SELECT;
 struct TABLE;
 class THD;
 typedef class st_select_lex_unit SELECT_LEX_UNIT;
@@ -67,7 +66,7 @@ public:
   const enum_mod_type mod_type;///< Modification type - MT_INSERT/MT_UPDATE/etc
   TABLE *table;             ///< Table to modify
 
-  SQL_SELECT *select;       ///< QUICK access method + WHERE clause
+  QEP_TAB *tab;             ///< QUICK access method + WHERE clause
   uint key;                 ///< Key to use
   ha_rows limit;            ///< Limit
   bool need_tmp_table;      ///< Whether tmp table needs to be used
@@ -78,8 +77,7 @@ public:
   ha_rows examined_rows;    ///< # of rows expected to be examined in the table
 
   Modification_plan(THD *thd_arg,
-                    enum_mod_type mt, TABLE *table_arg,
-                    SQL_SELECT *select_arg,
+                    enum_mod_type mt, QEP_TAB *qep_tab,
                     uint key_arg, ha_rows limit_arg, bool need_tmp_table_arg,
                     bool need_sort_arg, bool used_key_is_modified_arg,
                     ha_rows rows);

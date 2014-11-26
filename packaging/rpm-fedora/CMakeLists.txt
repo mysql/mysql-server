@@ -1,4 +1,4 @@
-# Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2012, 2014, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -28,7 +28,7 @@ IF(UNIX)
 
   FOREACH(fedfile my.cnf my_config.h mysql_config.sh
           mysqld.service mysql-systemd-start mysql.conf
-          mysql-5.6.16-mysql-install.patch mysql-5.7-libmysqlclient-symbols.patch)
+          mysql-5.7-libmysqlclient-symbols.patch)
     CONFIGURE_FILE(${fedfile} ${CMAKE_CURRENT_BINARY_DIR}/${fedfile} COPYONLY)
   ENDFOREACH()
 ENDIF()

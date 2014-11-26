@@ -6094,6 +6094,12 @@ trace
                 "table": "`t1`"
               }
             ] /* refine_plan */
+          },
+          {
+            "sort_using_internal_table": {
+              "condition_for_sort": "(`moyenne` <> 0)",
+              "having_after_sort": null
+            } /* sort_using_internal_table */
           }
         ] /* steps */
       } /* join_optimization */

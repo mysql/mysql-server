@@ -1,3 +1,5 @@
+--source include/no_valgrind_without_big.inc
+
 SET @old_log_output=                @@global.log_output;
 SET @old_slow_query_log=            @@global.slow_query_log;
 SET @old_long_query_time=           @@session.long_query_time;

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -261,8 +261,8 @@ enum ContentType { HUH = 651 };
 enum SigType  { SHAwDSA = 517, MD2wRSA = 646, MD5wRSA = 648, SHAwRSA = 649,
                 SHA256wRSA = 655, SHA384wRSA = 656, SHA512wRSA = 657,
                 SHA256wDSA = 416 };
-enum HashType { MD2h = 646, MD5h = 649, SHAh = 88, SHA256h = 414,
-                SHA384h = 415, SHA512h = 416 };
+enum HashType { MD2h = 646, MD5h = 649, SHAh = 88, SHA256h = 414, SHA384h = 415,
+                SHA512h = 416 };
 enum KeyType  { DSAk = 515, RSAk = 645 };     // sums of algo OID
 
 

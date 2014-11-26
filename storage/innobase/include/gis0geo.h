@@ -53,6 +53,19 @@ enum wkbByteOrder
   wkbNDR = 1     /* Little Endian */
 };
 
+/** Get the wkb of default POINT value, which represents POINT(0 0)
+if it's of dimension 2, etc.
+@param[in]	n_dims		dimensions
+@param[out]	wkb		wkb buffer for default POINT
+@param[in]	len		length of wkb buffer
+@return non-0 indicate the length of wkb of the default POINT,
+0 if the buffer is too small */
+uint
+get_wkb_of_default_point(
+	uint	n_dims,
+	uchar*	wkb,
+	uint	len);
+
 /*************************************************************//**
 Calculate minimal bounding rectangle (mbr) of the spatial object
 stored in "well-known binary representation" (wkb) format.

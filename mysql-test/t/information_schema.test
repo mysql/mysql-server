@@ -1458,7 +1458,7 @@ CREATE TABLE ubig (a BIGINT, b BIGINT UNSIGNED);
 SELECT TABLE_NAME, COLUMN_NAME, NUMERIC_PRECISION 
   FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='ubig';
 
-INSERT INTO ubig VALUES (0xFFFFFFFFFFFFFFFF,0xFFFFFFFFFFFFFFFF);
+INSERT IGNORE INTO ubig VALUES (0xFFFFFFFFFFFFFFFF,0xFFFFFFFFFFFFFFFF);
 SELECT length(CAST(b AS CHAR)) FROM ubig;
 
 DROP TABLE ubig;
@@ -1878,3 +1878,18 @@ CREATE PROCEDURE information_schema.is() BEGIN END;
 
 # Wait till all disconnects are completed
 --source include/wait_until_count_sessions.inc
+
+--echo #
+--echo # Bug#19307777 ASSERTION `QEP_TAB->CONDITION() == QEP_TAB->CONDITION_OPTIM()' FAILED
+--echo #
+
+let $query=
+select * from
+information_schema . innodb_cmp as table1
+left outer join mysql . procs_priv as table2
+on ( table2 . routine_name = table1 . compress_time )
+where not table1 . compress_time <> '2006-09-03 10:11:37.046313'
+having  table2 . grantor <> '2008-02-28 22:17:05.025739' limit 9;
+
+eval EXPLAIN $query;
+eval $query;

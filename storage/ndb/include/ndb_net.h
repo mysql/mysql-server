@@ -19,6 +19,15 @@
 #ifndef NDBNET_H
 #define NDBNET_H
 
-#include <my_net.h>
+#include <my_global.h>
+#ifndef _WIN32
+#include <netinet/tcp.h>
+#endif
+#ifdef HAVE_POLL_H
+#include <poll.h>
+#endif
+#ifdef HAVE_ARPA_INET_H
+#include <arpa/inet.h>
+#endif
 
 #endif

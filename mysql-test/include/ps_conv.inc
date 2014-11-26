@@ -27,6 +27,7 @@
 #   of the value.
 #
 # The next tests should give an example for these properties.
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 --disable_warnings
 drop table if exists t5 ;
 --enable_warnings
@@ -1219,4 +1220,4 @@ execute stmt1 ;
 prepare stmt1 from "select 'true' as found from t9
 where c1= 20 and abs(c17 - ?) < 0.01" ;
 execute stmt1 using @arg00 ;
-
+SET sql_mode = default;

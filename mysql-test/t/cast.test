@@ -79,7 +79,7 @@ select
   cast(_latin1'a  ' AS char(2)) as c4,
   hex(cast(_latin1'a'   AS char(2))) as c5;
 select cast(1000 as CHAR(3));
-
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 create table t1 select
   cast(_latin1'ab'  AS char)    as c1,
   cast(_latin1'a '  AS char)    as c2,
@@ -115,7 +115,7 @@ select * from t1;
 --replace_result $DEFAULT_ENGINE ENGINE
 show create table t1;
 drop table t1;
-
+SET sql_mode = default;
 #
 # Bug 2202
 # CAST from BINARY to non-BINARY and from non-BINARY to BINARY
@@ -325,7 +325,7 @@ DROP TABLE t1;
 --echo #
 --echo # Bug#13581962 HIGH MEMORY USAGE ATTEMPT, THEN CRASH WITH LONGTEXT, UNION, USER VARIABLE
 --echo #
-
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 CREATE TABLE t1 AS SELECT CONCAT(CAST(REPEAT('9', 1000) AS SIGNED)),
                           CONCAT(CAST(REPEAT('9', 1000) AS UNSIGNED));
 
@@ -333,5 +333,5 @@ CREATE TABLE t1 AS SELECT CONCAT(CAST(REPEAT('9', 1000) AS SIGNED)),
 --replace_result $DEFAULT_ENGINE ENGINE
 SHOW CREATE TABLE t1;
 DROP TABLE t1;
-
+SET sql_mode = default;
 --echo End of 5.5 tests

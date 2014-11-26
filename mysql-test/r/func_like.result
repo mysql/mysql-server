@@ -177,7 +177,7 @@ End of 4.1 tests
 #
 CREATE TABLE t1(a SET('a') NOT NULL, UNIQUE KEY(a));
 CREATE TABLE t2(b INT PRIMARY KEY);
-INSERT INTO t1 VALUES ();
+INSERT IGNORE INTO t1 VALUES ();
 Warnings:
 Warning	1364	Field 'a' doesn't have a default value
 INSERT INTO t2 VALUES (1), (2), (3);

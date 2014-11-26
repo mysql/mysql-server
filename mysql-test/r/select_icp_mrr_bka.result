@@ -2397,7 +2397,7 @@ explain select * from t1 left join t2 on id1 = id2 left join t3 on id1 = id3
 left join t4 on id3 = id4 where id2 = 1 or id4 = 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t3	NULL	system	NULL	NULL	NULL	NULL	0	0.00	const row not found
-1	SIMPLE	t4	NULL	const	id4	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	t4	NULL	const	id4	NULL	NULL	NULL	1	100.00	Impossible ON condition
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
 Warnings:
@@ -2922,7 +2922,7 @@ i='1e+01'	i=1e+01	i in (1e+01,1e+01)	i in ('1e+01','1e+01')
 1	1	1	1
 DROP TABLE t1;
 create table t1(a bigint unsigned, b bigint);
-insert into t1 values (0xfffffffffffffffff, 0xfffffffffffffffff), 
+insert ignore into t1 values (0xfffffffffffffffff, 0xfffffffffffffffff), 
 (0x10000000000000000, 0x10000000000000000), 
 (0x8fffffffffffffff, 0x8fffffffffffffff);
 Warnings:
@@ -3372,6 +3372,8 @@ f1	f2
 3	2005-09-30
 4	2005-10-01
 5	2005-12-30
+Warnings:
+Warning	1292	Incorrect date value: '0000-00-00' for column 'f2' at row 1
 select * from t1 where f2 >= '2005-09-31' order by f2;
 f1	f2
 4	2005-10-01
@@ -3667,7 +3669,7 @@ SELECT * FROM t1 LEFT JOIN t2 ON t2.b=t1.a INNER JOIN t3 ON t3.d=t1.id
 WHERE t1.id=2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	const	PRIMARY	PRIMARY	4	const	1	100.00	NULL
-1	SIMPLE	t2	NULL	const	idx1	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	t2	NULL	const	idx1	NULL	NULL	NULL	1	100.00	Impossible ON condition
 1	SIMPLE	t3	NULL	ref	idx1	idx1	5	const	3	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select '2' AS `id`,NULL AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t3`.`d` AS `d`,`test`.`t3`.`e` AS `e` from `test`.`t1` left join `test`.`t2` on(multiple equal(NULL, `test`.`t2`.`b`)) join `test`.`t3` where (`test`.`t3`.`d` = 2)
@@ -4347,12 +4349,17 @@ str_to_date('2007-02-30 12:34','%Y-%m-%d %H:%i') = '2007-02-30 12:34'
 1
 select str_to_date('2007-10-00 12:34','%Y-%m-%d %H:%i') = '2007-10-00 12:34';
 str_to_date('2007-10-00 12:34','%Y-%m-%d %H:%i') = '2007-10-00 12:34'
-1
+NULL
+Warnings:
+Warning	1292	Truncated incorrect datetime value: '2007-10-00 12:34'
+Warning	1411	Incorrect datetime value: '2007-10-00 12:34' for function str_to_date
 select str_to_date('2007-10-00','%Y-%m-%d') between '2007/09/01 00:00:00'
                                                 and '2007/10/20 00:00:00';
 str_to_date('2007-10-00','%Y-%m-%d') between '2007/09/01 00:00:00'
                                                 and '2007/10/20 00:00:00'
-1
+NULL
+Warnings:
+Warning	1411	Incorrect datetime value: '2007-10-00' for function str_to_date
 set SQL_MODE=TRADITIONAL;
 select str_to_date('2007-10-00 12:34','%Y-%m-%d %H:%i') = '2007-10-00 12:34';
 str_to_date('2007-10-00 12:34','%Y-%m-%d %H:%i') = '2007-10-00 12:34'
@@ -4380,44 +4387,56 @@ Warning	1411	Incorrect datetime value: '2007-10-00' for function str_to_date
 set SQL_MODE=DEFAULT;
 select str_to_date('2007-10-00','%Y-%m-%d') between '' and '2007/10/20';
 str_to_date('2007-10-00','%Y-%m-%d') between '' and '2007/10/20'
-1
+NULL
 Warnings:
-Warning	1292	Truncated incorrect datetime value: ''
+Warning	1411	Incorrect datetime value: '2007-10-00' for function str_to_date
 select str_to_date('','%Y-%m-%d') between '2007/10/01' and '2007/10/20';
 str_to_date('','%Y-%m-%d') between '2007/10/01' and '2007/10/20'
-0
+NULL
+Warnings:
+Warning	1411	Incorrect datetime value: '' for function str_to_date
 select str_to_date('','%Y-%m-%d %H:%i') = '2007-10-01 12:34';
 str_to_date('','%Y-%m-%d %H:%i') = '2007-10-01 12:34'
-0
+NULL
+Warnings:
+Warning	1411	Incorrect datetime value: '' for function str_to_date
 select str_to_date(NULL,'%Y-%m-%d %H:%i') = '2007-10-01 12:34';
 str_to_date(NULL,'%Y-%m-%d %H:%i') = '2007-10-01 12:34'
 NULL
 select str_to_date('2007-10-00 12:34','%Y-%m-%d %H:%i') = '';
 str_to_date('2007-10-00 12:34','%Y-%m-%d %H:%i') = ''
-0
+NULL
 Warnings:
 Warning	1292	Truncated incorrect datetime value: ''
+Warning	1411	Incorrect datetime value: '2007-10-00 12:34' for function str_to_date
 select str_to_date('1','%Y-%m-%d') = '1';
 str_to_date('1','%Y-%m-%d') = '1'
-0
+NULL
 Warnings:
 Warning	1292	Truncated incorrect date value: '1'
+Warning	1411	Incorrect datetime value: '1' for function str_to_date
 select str_to_date('1','%Y-%m-%d') = '1';
 str_to_date('1','%Y-%m-%d') = '1'
-0
+NULL
 Warnings:
 Warning	1292	Truncated incorrect date value: '1'
+Warning	1411	Incorrect datetime value: '1' for function str_to_date
 select str_to_date('','%Y-%m-%d') = '';
 str_to_date('','%Y-%m-%d') = ''
-0
+NULL
 Warnings:
 Warning	1292	Truncated incorrect date value: ''
+Warning	1411	Incorrect datetime value: '' for function str_to_date
 select str_to_date('1000-01-01','%Y-%m-%d') between '0000-00-00' and NULL;
 str_to_date('1000-01-01','%Y-%m-%d') between '0000-00-00' and NULL
 0
+Warnings:
+Warning	1292	Truncated incorrect datetime value: '0000-00-00'
 select str_to_date('1000-01-01','%Y-%m-%d') between NULL and '2000-00-00';
 str_to_date('1000-01-01','%Y-%m-%d') between NULL and '2000-00-00'
-0
+NULL
+Warnings:
+Warning	1292	Truncated incorrect datetime value: '2000-00-00'
 select str_to_date('1000-01-01','%Y-%m-%d') between NULL and NULL;
 str_to_date('1000-01-01','%Y-%m-%d') between NULL and NULL
 0
@@ -4626,6 +4645,7 @@ DROP TABLE t1;
 # Bug #48458: simple query tries to allocate enormous amount of
 #   memory
 #
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 CREATE TABLE t1(a INT NOT NULL, b YEAR);
 INSERT INTO t1 VALUES ();
 Warnings:
@@ -4636,6 +4656,7 @@ SELECT 1 FROM t2 JOIN t1 ON 1=1
 WHERE a != '1' AND NOT a >= b OR NOT ROW(b,a )<> ROW(a,a);
 1
 DROP TABLE t1,t2;
+SET sql_mode = default;
 #
 # Bug #49199: Optimizer handles incorrectly: 
 # field='const1' AND field='const2' in some cases
@@ -4734,6 +4755,7 @@ DROP TABLE t1;
 #
 SET @old_sort_buffer_size= @@session.sort_buffer_size;
 SET @@sort_buffer_size= 40000;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 CREATE TABLE t1(a CHAR(0) NOT NULL);
 INSERT INTO t1 VALUES (0), (0), (0);
 INSERT INTO t1 SELECT t11.a FROM t1 t11, t1 t12;
@@ -4801,6 +4823,7 @@ a	b	c
 		0
 SET @@sort_buffer_size= @old_sort_buffer_size;
 DROP TABLE t1;
+SET sql_mode = default;
 End of 5.0 tests
 create table t1(a INT, KEY (a));
 INSERT INTO t1 VALUES (1),(2),(3),(4),(5);
@@ -4828,9 +4851,12 @@ date_key date NOT NULL,
 date_nokey date,
 varchar_key varchar(1)
 );
-INSERT INTO C VALUES 
+INSERT IGNORE INTO C VALUES 
 (1,1,1,'0000-00-00',NULL,NULL),
 (1,1,1,'0000-00-00',NULL,NULL);
+Warnings:
+Warning	1264	Out of range value for column 'date_key' at row 1
+Warning	1264	Out of range value for column 'date_key' at row 2
 SELECT 1 FROM C WHERE pk > ANY (SELECT 1 FROM C);
 1
 SELECT COUNT(DISTINCT 1) FROM C 
@@ -4910,7 +4936,7 @@ KEY `date_key` (`date_key`),
 KEY `time_key` (`time_key`),
 KEY `varchar_key` (`varchar_key`)
 );
-INSERT INTO `B` VALUES ('2003-07-28','2003-07-28','15:13:38','0000-00-00 00:00:00','f'),('0000-00-00','0000-00-00','00:05:48','2004-07-02 14:34:13','x');
+INSERT IGNORE INTO `B` VALUES ('2003-07-28','2003-07-28','15:13:38','0000-00-00 00:00:00','f'),('0000-00-00','0000-00-00','00:05:48','2004-07-02 14:34:13','x');
 CREATE TABLE `BB` (
 `pk` int(11) NOT NULL AUTO_INCREMENT,
 `int_nokey` int(11) NOT NULL,
@@ -4920,7 +4946,7 @@ CREATE TABLE `BB` (
 PRIMARY KEY (`pk`),
 KEY `date_key` (`date_key`)
 );
-INSERT INTO `BB` VALUES (10,8,'0000-00-00','i','0000-00-00'),(11,0,'2005-08-18','','2005-08-18');
+INSERT IGNORE INTO `BB` VALUES (10,8,'0000-00-00','i','0000-00-00'),(11,0,'2005-08-18','','2005-08-18');
 SELECT table1 . `pk` AS field1 
 FROM 
 (BB AS table1 INNER JOIN 
@@ -5084,7 +5110,7 @@ CREATE TABLE t1(a ENUM('') NOT NULL);
 INSERT INTO t1 VALUES (), (), ();
 EXPLAIN SELECT 1 FROM t1 ORDER BY a COLLATE latin1_german2_ci;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using filesort
 Warnings:
 Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` order by (`test`.`t1`.`a` collate latin1_german2_ci)
 SELECT 1 FROM t1 ORDER BY a COLLATE latin1_german2_ci;
@@ -5224,9 +5250,7 @@ UNION ALL
 SELECT coalesce((avg(distinct (geomfromtext("point(25379 -22010)")))))
 AS foo
 ;
-coalesce((avg(distinct (geomfromtext("point(25379 -22010)")))))
-0.0000
-0.0000
+ERROR HY000: Incorrect arguments to avg(distinct 
 CREATE table t1(a text);
 INSERT INTO t1 VALUES (''), ('');
 SELECT avg(distinct(t1.a)) FROM t1, t1 t2
