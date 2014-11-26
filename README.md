@@ -14,16 +14,16 @@ forks of [mysql][mysql] and [mariadb][mariadb].
 [mysql]: http://github.com/Tokutek/mysql
 [mariadb]: http://github.com/Tokutek/mariadb
 
-Downloading
------------
+Download
+--------
 
 * [MySQL 5.5 + TokuDB](http://www.tokutek.com/tokudb-for-mysql/download-community/)
 * [MariaDB 5.5 + TokuDB](http://www.tokutek.com/tokudb-for-mysql/download-community/)
 * [MariaDB 10.0 + TokuDB](https://downloads.mariadb.org/)
 * [Percona Server 5.6 + TokuDB](http://www.percona.com/downloads/)
 
-Building
---------
+Build
+-----
 
 The `scripts/` directory contains a script that can be used to build a
 working MySQL or MariaDB with Tokutek patches, and with the TokuDB storage
@@ -60,10 +60,10 @@ scripts/make.mysql.debug.env.bash
 ```
 
 
-Contributing
-------------
+Contribute
+----------
 
-Please report bugs in TokuDB here on github.
+Please report TokuDB bugs at https://tokutek.atlassian.net/browse/DB.
 
 We have two publicly accessible mailing lists:
 
@@ -72,7 +72,7 @@ We have two publicly accessible mailing lists:
  - tokudb-dev@googlegroups.com is for discussion of the development of
    TokuDB.
 
-We are also available on IRC on freenode.net, in the #tokutek channel.
+We are on IRC on freenode.net, in the #tokutek channel.
 
 
 License
