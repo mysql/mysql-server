@@ -17,10 +17,10 @@ forks of [mysql][mysql] and [mariadb][mariadb].
 Downloading
 -----------
 
-* [MySQL 5.5.40 + TokuDB](http://www.tokutek.com/tokudb-for-mysql/download-community/)
-* [MariaDB 5.5.40 + TokuDB](http://www.tokutek.com/tokudb-for-mysql/download-community/)
-* [MariaDB 10.0.15 + TokuDB](https://downloads.mariadb.org/mariadb/10.0.15/)
-* [Percona Server 5.6.21 + TokuDB](http://www.percona.com/downloads/)
+* [MySQL 5.5 + TokuDB](http://www.tokutek.com/tokudb-for-mysql/download-community/)
+* [MariaDB 5.5 + TokuDB](http://www.tokutek.com/tokudb-for-mysql/download-community/)
+* [MariaDB 10.0 + TokuDB](https://downloads.mariadb.org/)
+* [Percona Server 5.6 + TokuDB](http://www.percona.com/downloads/)
 
 Building
 --------
