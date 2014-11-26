@@ -20,6 +20,7 @@
 
 #include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
 #include "sql_const.h"
+#include "sql_lex.h"
 #include <mysql/plugin_audit.h>
 #include "rpl_tblmap.h"
 #include "mdl.h"
@@ -52,6 +53,7 @@
 
 #include "transaction_info.h"
 #include <list>
+#include <memory>
 
 /**
   The meat of thd_proc_info(THD*, char*), a macro that packs the last
@@ -93,8 +95,6 @@ typedef struct st_log_info LOG_INFO;
 
 struct st_thd_timer;
 
-enum enum_ha_read_modes { RFIRST, RNEXT, RPREV, RLAST, RKEY, RNEXT_SAME };
-
 enum enum_delay_key_write { DELAY_KEY_WRITE_NONE, DELAY_KEY_WRITE_ON,
 			    DELAY_KEY_WRITE_ALL };
 enum enum_rbr_exec_mode { RBR_EXEC_MODE_STRICT,
@@ -124,7 +124,6 @@ enum enum_binlog_format {
 
 enum enum_mark_columns
 { MARK_COLUMNS_NONE, MARK_COLUMNS_READ, MARK_COLUMNS_WRITE};
-enum enum_filetype { FILETYPE_CSV, FILETYPE_XML };
 
 /* Bits for different SQL modes modes (including ANSI mode) */
 #define MODE_REAL_AS_FLOAT              1
@@ -252,20 +251,19 @@ public:
 
 class Key :public Sql_alloc {
 public:
-  enum Keytype { PRIMARY, UNIQUE, MULTIPLE, FULLTEXT, SPATIAL, FOREIGN_KEY};
-  enum Keytype type;
+  keytype type;
   KEY_CREATE_INFO key_create_info;
   List<Key_part_spec> columns;
   LEX_STRING name;
   bool generated;
 
-  Key(enum Keytype type_par, const LEX_STRING &name_arg,
+  Key(keytype type_par, const LEX_STRING &name_arg,
       KEY_CREATE_INFO *key_info_arg,
       bool generated_arg, List<Key_part_spec> &cols)
     :type(type_par), key_create_info(*key_info_arg), columns(cols),
     name(name_arg), generated(generated_arg)
   {}
-  Key(enum Keytype type_par, const char *name_arg, size_t name_len_arg,
+  Key(keytype type_par, const char *name_arg, size_t name_len_arg,
       KEY_CREATE_INFO *key_info_arg, bool generated_arg,
       List<Key_part_spec> &cols)
     :type(type_par), key_create_info(*key_info_arg), columns(cols),
@@ -290,10 +288,6 @@ class Table_ident;
 
 class Foreign_key: public Key {
 public:
-  enum fk_match_opt { FK_MATCH_UNDEF, FK_MATCH_FULL,
-		      FK_MATCH_PARTIAL, FK_MATCH_SIMPLE};
-  enum fk_option { FK_OPTION_UNDEF, FK_OPTION_RESTRICT, FK_OPTION_CASCADE,
-		   FK_OPTION_SET_NULL, FK_OPTION_NO_ACTION, FK_OPTION_DEFAULT};
 
   LEX_CSTRING ref_db;
   LEX_CSTRING ref_table;
@@ -303,7 +297,7 @@ public:
 	      const LEX_CSTRING &ref_db_arg, const LEX_CSTRING &ref_table_arg,
               List<Key_part_spec> &ref_cols,
 	      uint delete_opt_arg, uint update_opt_arg, uint match_opt_arg)
-    :Key(FOREIGN_KEY, name_arg, &default_key_create_info, 0, cols),
+    :Key(KEYTYPE_FOREIGN, name_arg, &default_key_create_info, 0, cols),
     ref_db(ref_db_arg), ref_table(ref_table_arg), ref_columns(ref_cols),
     delete_opt(delete_opt_arg), update_opt(update_opt_arg),
     match_opt(match_opt_arg)
@@ -408,8 +402,6 @@ struct Query_cache_tls
 
   Query_cache_tls() :first_query_block(NULL) {}
 };
-
-#include "sql_lex.h"				/* Must be here */
 
 class select_result;
 class Time_zone;

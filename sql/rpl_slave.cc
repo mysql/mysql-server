@@ -7756,11 +7756,6 @@ int queue_event(Master_info* mi,const char* buf, ulong event_len)
 
   case PREVIOUS_GTIDS_LOG_EVENT:
   {
-    if (gtid_mode == 0)
-    {
-      error= ER_FOUND_GTID_EVENT_WHEN_GTID_MODE_IS_OFF;
-      goto err;
-    }
     /*
       This event does not have any meaning for the slave and
       was just sent to show the slave the master is making
@@ -7807,6 +7802,23 @@ int queue_event(Master_info* mi,const char* buf, ulong event_len)
     inc_pos= event_len;
   break;
   }
+
+  /*
+    Simulate an unknown ignorable log event by rewriting the write_rows log
+    event and previous_gtids log event before writing them in relay log.
+  */
+  DBUG_EXECUTE_IF("simulate_unknown_ignorable_log_event",
+    if (event_type == WRITE_ROWS_EVENT ||
+        event_type == PREVIOUS_GTIDS_LOG_EVENT)
+    {
+      char *event_buf= const_cast<char*>(buf);
+      /* Overwrite the log event type with an unknown type. */
+      event_buf[EVENT_TYPE_OFFSET]= ENUM_END_EVENT + 1;
+      /* Set LOG_EVENT_IGNORABLE_F for the log event. */
+      int2store(event_buf + FLAGS_OFFSET,
+                uint2korr(event_buf + FLAGS_OFFSET) | LOG_EVENT_IGNORABLE_F);
+    }
+  );
 
   /*
      If this event is originating from this server, don't queue it.

@@ -72,13 +72,11 @@ SELECT * FROM tab2 ORDER BY col_7;
 --exec $INNOCHECKSUM --write=InnoDB $MYSQLD_DATADIR/test/tab1.ibd
 --exec $INNOCHECKSUM --write=InnoDB $MYSQLD_DATADIR/test/tab2.ibd
 --exec $INNOCHECKSUM --write=InnoDB $MYSQLD_DATADIR/ibdata1
---exec $INNOCHECKSUM --no-check --write=InnoDB $MYSQLD_DATADIR/mysql/innodb_index_stats.ibd
---exec $INNOCHECKSUM --no-check --write=InnoDB $MYSQLD_DATADIR/mysql/innodb_table_stats.ibd
---exec $INNOCHECKSUM --no-check --write=InnoDB $MYSQLD_DATADIR/mysql/slave_master_info.ibd
---exec $INNOCHECKSUM --no-check --write=InnoDB $MYSQLD_DATADIR/mysql/slave_relay_log_info.ibd
---exec $INNOCHECKSUM --no-check --write=InnoDB $MYSQLD_DATADIR/mysql/slave_worker_info.ibd
---exec $INNOCHECKSUM --no-check --write=InnoDB $MYSQLD_DATADIR/mysql/server_cost.ibd
---exec $INNOCHECKSUM --no-check --write=InnoDB $MYSQLD_DATADIR/mysql/engine_cost.ibd
+perl;
+foreach (glob("$ENV{MYSQLD_DATADIR}/mysql/*.ibd")) {
+	system("$ENV{INNOCHECKSUM} --no-check --write=InnoDB $_")
+}
+EOF
 
 --echo : start the server with innodb_checksum_algorithm=strict_innodb
 --let restart_options= : --innodb_checksum_algorithm=strict_innodb --default_storage_engine=InnoDB

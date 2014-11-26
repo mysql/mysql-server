@@ -88,6 +88,9 @@ const char* rewrite_to_db= 0;
 
 #endif
 
+/* The number of event types need to be permuted. */
+static const uint EVENT_TYPE_PERMUTATION_NUM= 23;
+
 /**
   BINLOG_CHECKSUM variable.
 */
@@ -1634,7 +1637,6 @@ Log_event* Log_event::read_log_event(const char* buf, uint event_len,
 
   /* Check the integrity */
   if (event_len < EVENT_LEN_OFFSET ||
-      buf[EVENT_TYPE_OFFSET] >= ENUM_END_EVENT ||
       (uint) event_len != uint4korr(buf+EVENT_LEN_OFFSET))
   {
     DBUG_PRINT("error", ("event_len=%u EVENT_LEN_OFFSET=%d "
@@ -1698,9 +1700,11 @@ Log_event* Log_event::read_log_event(const char* buf, uint event_len,
       DBUG_PRINT("info", ("Corrupt the event at Log_event::read_log_event(char*,...): byte on position %d", debug_cor_pos));
       DBUG_SET("");
     }
-  );                                                 
+  );
   if (crc_check &&
-      event_checksum_test((uchar *) buf, event_len, alg))
+      event_checksum_test((uchar *) buf, event_len, alg) &&
+      /* Skip the crc check when simulating an unknown ignorable log event. */
+      !DBUG_EVALUATE_IF("simulate_unknown_ignorable_log_event", 1, 0))
   {
     *error= "Event crc check failed! Most likely there is event corruption.";
 #ifdef MYSQL_CLIENT
@@ -1714,7 +1718,12 @@ Log_event* Log_event::read_log_event(const char* buf, uint event_len,
   }
 
   if (event_type > description_event->number_of_event_types &&
-      event_type != FORMAT_DESCRIPTION_EVENT)
+      event_type != FORMAT_DESCRIPTION_EVENT &&
+      /*
+        Skip the event type check when simulating an
+        unknown ignorable log event.
+      */
+      !DBUG_EVALUATE_IF("simulate_unknown_ignorable_log_event", 1, 0))
   {
     /*
       It is unsafe to use the description_event if its post_header_len
@@ -1740,10 +1749,16 @@ Log_event* Log_event::read_log_event(const char* buf, uint event_len,
     */
     if (description_event->event_type_permutation)
     {
-      int new_event_type= description_event->event_type_permutation[event_type];
+      uint new_event_type;
+      if (event_type >= EVENT_TYPE_PERMUTATION_NUM)
+        /* Safe guard for read out of bounds of event_type_permutation. */
+        new_event_type= UNKNOWN_EVENT;
+      else
+        new_event_type= description_event->event_type_permutation[event_type];
+
       DBUG_PRINT("info", ("converting event type %d to %d (%s)",
-                   event_type, new_event_type,
-                   get_type_str((Log_event_type)new_event_type)));
+                 event_type, new_event_type,
+                 get_type_str((Log_event_type)new_event_type)));
       event_type= new_event_type;
     }
 
@@ -3213,9 +3228,9 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
       if (!(get_type_code() == INTVAR_EVENT ||
             get_type_code() == RAND_EVENT ||
             get_type_code() == USER_VAR_EVENT ||
-            get_type_code() == ROWS_QUERY_LOG_EVENT ||
             get_type_code() == BEGIN_LOAD_QUERY_EVENT ||
-            get_type_code() == APPEND_BLOCK_EVENT))
+            get_type_code() == APPEND_BLOCK_EVENT ||
+            is_ignorable_event()))
       {
         DBUG_ASSERT(!ret_worker);
 
@@ -5943,7 +5958,7 @@ Format_description_log_event(const char* buf,
       post_header_len= NULL;
       DBUG_VOID_RETURN;
     }
-    static const uint8 perm[23]=
+    static const uint8 perm[EVENT_TYPE_PERMUTATION_NUM]=
       {
         UNKNOWN_EVENT, START_EVENT_V3, QUERY_EVENT, STOP_EVENT, ROTATE_EVENT,
         INTVAR_EVENT, LOAD_EVENT, SLAVE_EVENT, CREATE_FILE_EVENT,
@@ -5964,10 +5979,10 @@ Format_description_log_event(const char* buf,
       Since we use (permuted) event id's to index the post_header_len
       array, we need to permute the post_header_len array too.
     */
-    uint8 post_header_len_temp[23];
-    for (int i= 1; i < 23; i++)
+    uint8 post_header_len_temp[EVENT_TYPE_PERMUTATION_NUM];
+    for (uint i= 1; i < EVENT_TYPE_PERMUTATION_NUM; i++)
       post_header_len_temp[perm[i] - 1]= post_header_len[i - 1];
-    for (int i= 0; i < 22; i++)
+    for (uint i= 0; i < EVENT_TYPE_PERMUTATION_NUM - 1; i++)
       post_header_len[i] = post_header_len_temp[i];
   }
   DBUG_VOID_RETURN;
@@ -7725,11 +7740,17 @@ err:
 
 int Xid_log_event::do_apply_event(Relay_log_info const *rli)
 {
+  DBUG_ENTER("Xid_log_event::do_apply_event");
   int error= 0;
   char saved_group_master_log_name[FN_REFLEN];
   char saved_group_relay_log_name[FN_REFLEN];
   volatile my_off_t saved_group_master_log_pos;
   volatile my_off_t saved_group_relay_log_pos;
+
+  char new_group_master_log_name[FN_REFLEN];
+  char new_group_relay_log_name[FN_REFLEN];
+  volatile my_off_t new_group_master_log_pos;
+  volatile my_off_t new_group_relay_log_pos;
 
   lex_start(thd);
   mysql_reset_thd_for_next_command(thd);
@@ -7742,8 +7763,9 @@ int Xid_log_event::do_apply_event(Relay_log_info const *rli)
   mysql_mutex_lock(&rli_ptr->data_lock);
 
   /*
-    Save the rli positions they need to be reset back in case of commit fails.
-  */
+    Save the rli positions. We need them to temporarily reset the positions
+    just before the commit.
+   */
   strmake(saved_group_master_log_name, rli_ptr->get_group_master_log_name(),
           FN_REFLEN - 1);
   saved_group_master_log_pos= rli_ptr->get_group_master_log_pos();
@@ -7774,17 +7796,25 @@ int Xid_log_event::do_apply_event(Relay_log_info const *rli)
 
   if (log_pos) // 3.23 binlogs don't have log_posx
     rli_ptr->set_group_master_log_pos(log_pos);
-  
-  if ((error= rli_ptr->flush_info(rli_ptr->is_transactional())))
-    goto err;
+
+  /*
+    rli repository being transactional means replication is crash safe.
+    Positions are written into transactional tables ahead of commit and the
+    changes are made permanent during commit.
+   */
+  if (rli_ptr->is_transactional())
+  {
+    if ((error= rli_ptr->flush_info(true)))
+      goto err;
+  }
 
   DBUG_PRINT("info", ("do_apply group master %s %llu  group relay %s %llu event %s %llu\n",
-    rli_ptr->get_group_master_log_name(),
-    rli_ptr->get_group_master_log_pos(),
-    rli_ptr->get_group_relay_log_name(),
-    rli_ptr->get_group_relay_log_pos(),
-    rli_ptr->get_event_relay_log_name(),
-    rli_ptr->get_event_relay_log_pos()));
+                      rli_ptr->get_group_master_log_name(),
+                      rli_ptr->get_group_master_log_pos(),
+                      rli_ptr->get_group_relay_log_name(),
+                      rli_ptr->get_group_relay_log_pos(),
+                      rli_ptr->get_event_relay_log_name(),
+                      rli_ptr->get_event_relay_log_pos()));
 
   DBUG_EXECUTE_IF("crash_after_update_pos_before_apply",
                   sql_print_information("Crashing crash_after_update_pos_before_apply.");
@@ -7801,33 +7831,68 @@ int Xid_log_event::do_apply_event(Relay_log_info const *rli)
                     thd->get_transaction()->xid_state()->set_state(
                         XID_STATE::XA_IDLE);
                   });
+
+  /*
+    Save the new rli positions. These positions will be set back to group*
+    positions on successful completion of the commit operation.
+   */
+  strmake(new_group_master_log_name, rli_ptr->get_group_master_log_name(),
+          FN_REFLEN - 1);
+  new_group_master_log_pos= rli_ptr->get_group_master_log_pos();
+  strmake(new_group_relay_log_name, rli_ptr->get_group_relay_log_name(),
+          FN_REFLEN - 1);
+  new_group_relay_log_pos= rli_ptr->get_group_relay_log_pos();
+  /*
+    Rollback positions in memory just before commit. Position values will be
+    reset to their new values only on successful commit operation.
+   */
+  rli_ptr->set_group_master_log_name(saved_group_master_log_name);
+  rli_ptr->notify_group_master_log_name_update();
+  rli_ptr->set_group_master_log_pos(saved_group_master_log_pos);
+  rli_ptr->set_group_relay_log_name(saved_group_relay_log_name);
+  rli_ptr->notify_group_relay_log_name_update();
+  rli_ptr->set_group_relay_log_pos(saved_group_relay_log_pos);
+
+  DBUG_PRINT("info", ("Rolling back to group master %s %llu  group relay %s"
+                      " %llu\n", rli_ptr->get_group_master_log_name(),
+                      rli_ptr->get_group_master_log_pos(),
+                      rli_ptr->get_group_relay_log_name(),
+                      rli_ptr->get_group_relay_log_pos()));
+  mysql_mutex_unlock(&rli_ptr->data_lock);
   error= do_commit(thd);
+  mysql_mutex_lock(&rli_ptr->data_lock);
   if (error)
   {
     rli->report(ERROR_LEVEL, thd->get_stmt_da()->mysql_errno(),
                 "Error in Xid_log_event: Commit could not be completed, '%s'",
                 thd->get_stmt_da()->message_text());
-
-    rli_ptr->set_group_master_log_name(saved_group_master_log_name);
+  }
+  else
+  {
+    DBUG_EXECUTE_IF("crash_after_commit_before_update_pos",
+                    sql_print_information("Crashing "
+                                          "crash_after_commit_before_update_pos.");
+                    DBUG_SUICIDE(););
+    /* Update positions on successful commit */
+    rli_ptr->set_group_master_log_name(new_group_master_log_name);
     rli_ptr->notify_group_master_log_name_update();
-    rli_ptr->set_group_master_log_pos(saved_group_master_log_pos);
-    rli_ptr->set_group_relay_log_name(saved_group_relay_log_name);
+    rli_ptr->set_group_master_log_pos(new_group_master_log_pos);
+    rli_ptr->set_group_relay_log_name(new_group_relay_log_name);
     rli_ptr->notify_group_relay_log_name_update();
-    rli_ptr->set_group_relay_log_pos(saved_group_relay_log_pos);
+    rli_ptr->set_group_relay_log_pos(new_group_relay_log_pos);
 
-    DBUG_PRINT("info", ("Rolling back to group master %s %llu  group relay %s"
-                        " %llu\n", rli_ptr->get_group_master_log_name(),
+    DBUG_PRINT("info", ("Updating positions on succesful commit to group master"
+                        " %s %llu  group relay %s %llu\n",
+                        rli_ptr->get_group_master_log_name(),
                         rli_ptr->get_group_master_log_pos(),
                         rli_ptr->get_group_relay_log_name(),
                         rli_ptr->get_group_relay_log_pos()));
 
     /*
-      If relay log repository is TABLE, we do not have to revert back to
-      original positions in TABLE, since the new position changes will not be
-      persisted in TABLE with failed commit; In case of FILE, we need to
-      revert back the new positions, hence we need to flush original positions
-      into FILE.
-    */
+      For transactional repository the positions are flushed ahead of commit.
+      Where as for non transactional rli repository the positions are flushed
+      only on succesful commit.
+     */
     if (!rli_ptr->is_transactional())
       rli_ptr->flush_info(false);
   }
@@ -7835,7 +7900,7 @@ err:
   mysql_cond_broadcast(&rli_ptr->data_cond);
   mysql_mutex_unlock(&rli_ptr->data_lock);
 
-  return error;
+  DBUG_RETURN(error);
 }
 
 Log_event::enum_skip_reason

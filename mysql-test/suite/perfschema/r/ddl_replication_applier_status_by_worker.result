@@ -1,0 +1,11 @@
+ALTER TABLE performance_schema.replication_applier_status_by_worker
+add column foo integer;
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_schema'
+TRUNCATE TABLE performance_schema.replication_applier_status_by_worker;
+ERROR HY000: Invalid performance_schema usage.
+ALTER TABLE performance_schema.replication_applier_status_by_worker
+ADD INDEX test_index(worker_id);
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_schema'
+CREATE UNIQUE INDEX test_index ON
+performance_schema.replication_applier_status_by_worker(worker_id);
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_schema'

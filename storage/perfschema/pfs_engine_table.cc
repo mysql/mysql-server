@@ -90,10 +90,10 @@
 #include "table_replication_connection_configuration.h"
 #include "table_replication_connection_nodes.h"
 #include "table_replication_connection_status.h"
-#include "table_replication_execute_configuration.h"
-#include "table_replication_execute_status.h"
-#include "table_replication_execute_status_by_coordinator.h"
-#include "table_replication_execute_status_by_worker.h"
+#include "table_replication_applier_configuration.h"
+#include "table_replication_applier_status.h"
+#include "table_replication_applier_status_by_coordinator.h"
+#include "table_replication_applier_status_by_worker.h"
 #include "table_replication_node_status.h"
 
 #include "table_prepared_stmt_instances.h"
@@ -202,10 +202,10 @@ static PFS_engine_table_share *all_shares[]=
   &table_replication_connection_configuration::m_share,
   &table_replication_connection_nodes::m_share,
   &table_replication_connection_status::m_share,
-  &table_replication_execute_configuration::m_share,
-  &table_replication_execute_status::m_share,
-  &table_replication_execute_status_by_coordinator::m_share,
-  &table_replication_execute_status_by_worker::m_share,
+  &table_replication_applier_configuration::m_share,
+  &table_replication_applier_status::m_share,
+  &table_replication_applier_status_by_coordinator::m_share,
+  &table_replication_applier_status_by_worker::m_share,
   &table_replication_node_status::m_share,
 
   &table_prepared_stmt_instances::m_share,

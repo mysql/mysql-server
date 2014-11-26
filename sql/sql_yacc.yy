@@ -381,7 +381,7 @@ static bool add_create_index_prepare (LEX *lex, Table_ident *table)
   return FALSE;
 }
 
-static bool add_create_index (LEX *lex, Key::Keytype type,
+static bool add_create_index (LEX *lex, keytype type,
                               const LEX_STRING &name,
                               KEY_CREATE_INFO *info= NULL, bool generated= 0)
 {
@@ -6206,7 +6206,7 @@ key_def:
             if (key == NULL)
               MYSQL_YYABORT;
             lex->alter_info.key_list.push_back(key);
-            if (add_create_index (lex, Key::MULTIPLE, $1.str ? $1 : $4,
+            if (add_create_index (lex, KEYTYPE_MULTIPLE, $1.str ? $1 : $4,
                                   &default_key_create_info, 1))
               MYSQL_YYABORT;
             /* Only used for ALTER TABLE. Ignored otherwise. */
@@ -7039,32 +7039,32 @@ ref_list:
 
 opt_match_clause:
           /* empty */
-          { Lex->fk_match_option= Foreign_key::FK_MATCH_UNDEF; }
+          { Lex->fk_match_option= FK_MATCH_UNDEF; }
         | MATCH FULL
-          { Lex->fk_match_option= Foreign_key::FK_MATCH_FULL; }
+          { Lex->fk_match_option= FK_MATCH_FULL; }
         | MATCH PARTIAL
-          { Lex->fk_match_option= Foreign_key::FK_MATCH_PARTIAL; }
+          { Lex->fk_match_option= FK_MATCH_PARTIAL; }
         | MATCH SIMPLE_SYM
-          { Lex->fk_match_option= Foreign_key::FK_MATCH_SIMPLE; }
+          { Lex->fk_match_option= FK_MATCH_SIMPLE; }
         ;
 
 opt_on_update_delete:
           /* empty */
           {
             LEX *lex= Lex;
-            lex->fk_update_opt= Foreign_key::FK_OPTION_UNDEF;
-            lex->fk_delete_opt= Foreign_key::FK_OPTION_UNDEF;
+            lex->fk_update_opt= FK_OPTION_UNDEF;
+            lex->fk_delete_opt= FK_OPTION_UNDEF;
           }
         | ON UPDATE_SYM delete_option
           {
             LEX *lex= Lex;
             lex->fk_update_opt= $3;
-            lex->fk_delete_opt= Foreign_key::FK_OPTION_UNDEF;
+            lex->fk_delete_opt= FK_OPTION_UNDEF;
           }
         | ON DELETE_SYM delete_option
           {
             LEX *lex= Lex;
-            lex->fk_update_opt= Foreign_key::FK_OPTION_UNDEF;
+            lex->fk_update_opt= FK_OPTION_UNDEF;
             lex->fk_delete_opt= $3;
           }
         | ON UPDATE_SYM delete_option
@@ -7084,20 +7084,20 @@ opt_on_update_delete:
         ;
 
 delete_option:
-          RESTRICT      { $$= Foreign_key::FK_OPTION_RESTRICT; }
-        | CASCADE       { $$= Foreign_key::FK_OPTION_CASCADE; }
-        | SET NULL_SYM  { $$= Foreign_key::FK_OPTION_SET_NULL; }
-        | NO_SYM ACTION { $$= Foreign_key::FK_OPTION_NO_ACTION; }
-        | SET DEFAULT   { $$= Foreign_key::FK_OPTION_DEFAULT;  }
+          RESTRICT      { $$= FK_OPTION_RESTRICT; }
+        | CASCADE       { $$= FK_OPTION_CASCADE; }
+        | SET NULL_SYM  { $$= FK_OPTION_SET_NULL; }
+        | NO_SYM ACTION { $$= FK_OPTION_NO_ACTION; }
+        | SET DEFAULT   { $$= FK_OPTION_DEFAULT;  }
         ;
 
 normal_key_type:
-          key_or_index { $$= Key::MULTIPLE; }
+          key_or_index { $$= KEYTYPE_MULTIPLE; }
         ;
 
 constraint_key_type:
-          PRIMARY_SYM KEY_SYM { $$= Key::PRIMARY; }
-        | UNIQUE_SYM opt_key_or_index { $$= Key::UNIQUE; }
+          PRIMARY_SYM KEY_SYM { $$= KEYTYPE_PRIMARY; }
+        | UNIQUE_SYM opt_key_or_index { $$= KEYTYPE_UNIQUE; }
         ;
 
 key_or_index:
@@ -7117,18 +7117,18 @@ keys_or_index:
         ;
 
 opt_unique:
-          /* empty */  { $$= Key::MULTIPLE; }
-        | UNIQUE_SYM   { $$= Key::UNIQUE; }
+          /* empty */  { $$= KEYTYPE_MULTIPLE; }
+        | UNIQUE_SYM   { $$= KEYTYPE_UNIQUE; }
         ;
 
 fulltext:
-          FULLTEXT_SYM { $$= Key::FULLTEXT;}
+          FULLTEXT_SYM { $$= KEYTYPE_FULLTEXT;}
         ;
 
 spatial:
           SPATIAL_SYM
           {
-            $$= Key::SPATIAL;
+            $$= KEYTYPE_SPATIAL;
           }
         ;
 

@@ -44,7 +44,7 @@ START SLAVE;
 # check that no channel SQL threads are running.
 #
 --let $assert_text= check that no channel SQL threads are running.
---let $assert_cond= [SELECT COUNT(*) FROM performance_schema.replication_execute_status_by_coordinator WHERE Service_State="ON"] = 0;
+--let $assert_cond= [SELECT COUNT(*) FROM performance_schema.replication_applier_status_by_coordinator WHERE Service_State="ON"] = 0;
 --source include/assert.inc
 
 --echo #
