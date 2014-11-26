@@ -1353,6 +1353,16 @@ static void register_used_fields(Sort_param *param)
       sort_field->item->walk(&Item::register_field_in_read_map, walk_subquery,
                              (uchar *) table);
     }
+    /* Register the base columns for writable stored generated fields */
+    /*
+      TODO: When stored GC is treated as the normal columns for opertions except
+      INSERT/UPDATE/REPLACE, the following part should be removed.
+    */
+    if (field && field->gcol_info && field->stored_in_db)
+    {
+      field->gcol_info->expr_item->walk(&Item::register_field_in_read_map,
+                                        walk_subquery, (uchar*) table);
+    }
   }
 
   if (param->using_addon_fields())

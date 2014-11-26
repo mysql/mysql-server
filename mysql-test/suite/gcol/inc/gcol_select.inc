@@ -146,6 +146,11 @@ if (!$myisam_engine)
   --echo # SELECT * FROM tbl_name WHERE <non-gcol expr> ORDER BY <non-indexed gcol>
   let $s = select * from t3 where a between 1 and 2 order by b;
   eval $s;
+  eval explain $s; 
+  --echo # bug#20022189: WL411:DEBUG ASSERT AT FIELD_LONG::VAL_INT IN SQL/FIELD.CC
+  --echo # SELECT * FROM tbl_name WHERE <non-gcol expr> ORDER BY <non-indexed stored gcol>
+  let $s = select * from t3 where a between 1 and 2 order by c;
+  eval $s;
   eval explain $s;
 }
 
