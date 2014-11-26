@@ -17408,7 +17408,7 @@ void Dbdih::execLCP_FRAG_REP(Signal* signal)
 {
   jamEntry();
 
-  LcpFragRep * const lcpReport = (LcpFragRep *)&signal->theData[0];
+  LcpFragRep * lcpReport = (LcpFragRep *)&signal->theData[0];
 
   /**
    * Proxying LCP_FRAG_REP
@@ -17451,6 +17451,24 @@ void Dbdih::execLCP_FRAG_REP(Signal* signal)
      */
   }
 
+  Uint32 nodeId = lcpReport->nodeId;
+  Uint32 tableId = lcpReport->tableId;
+  Uint32 fragId = lcpReport->fragId;
+
+  if (!checkNodeAlive(nodeId))
+  {
+    jam();
+    ndbrequire(signal->length() == LcpFragRep::SignalLengthTQ &&
+               lcpReport->fromTQ == Uint32(1));
+    /**
+     * Given that we can delay this signal during a table copy situation,
+     * we can actually receive this signal when the node is already dead. If
+     * the node is dead then we drop the signal as soon as possible, the node
+     * failure handling will ensure that the node is properly handled anyways.
+     */
+    return;
+  }
+
   ndbrequire(c_lcpState.lcpStatus != LCP_STATUS_IDLE);
   
 #if 0
@@ -17459,10 +17477,6 @@ void Dbdih::execLCP_FRAG_REP(Signal* signal)
 		    signal->length(), number());
 #endif  
 
-  Uint32 nodeId = lcpReport->nodeId;
-  Uint32 tableId = lcpReport->tableId;
-  Uint32 fragId = lcpReport->fragId;
-  
   jamEntry();
 
   if (ERROR_INSERTED(7178) && nodeId != getOwnNodeId())
@@ -17499,7 +17513,8 @@ void Dbdih::execLCP_FRAG_REP(Signal* signal)
   CRASH_INSERTION2(7016, !isMaster());
   CRASH_INSERTION2(7191, (!isMaster() && tableId));
 
-  bool fromTimeQueue = (signal->length()==LcpFragRep::SignalLengthTQ &&
+  bool fromTimeQueue = (signal->length() == LcpFragRep::SignalLengthTQ &&
+                        lcpReport->fromTQ == Uint32(1) &&
                         !broadcast_req);
   
   TabRecordPtr tabPtr;
@@ -17520,7 +17535,7 @@ void Dbdih::execLCP_FRAG_REP(Signal* signal)
       A cleaner/better way would be to check the time queue if it is full or
       not before sending this signal.
     */
-
+    lcpReport->fromTQ = Uint32(1);
     sendSignal(reference(), GSN_LCP_FRAG_REP, signal,
                LcpFragRep::SignalLengthTQ, JBB);
     /* Kept here for reference
@@ -18128,6 +18143,20 @@ void Dbdih::execLCP_COMPLETE_REP(Signal* signal)
   Uint32 nodeId = rep->nodeId;
   Uint32 blockNo = rep->blockNo;
 
+  if (!checkNodeAlive(nodeId))
+  {
+    jam();
+    ndbrequire(signal->length() == LcpCompleteRep::SignalLengthTQ &&
+               rep->fromTQ == Uint32(1));
+    /**
+     * Given that we can delay this signal during a master takeover situation,
+     * we can actually receive this signal when the node is already dead. If
+     * the node is dead then we drop the signal as soon as possible, the node
+     * failure handling will ensure that the node is properly handled anyways.
+     */
+    return;
+  }
+
   if(c_lcpMasterTakeOverState.state > LMTOS_WAIT_LCP_FRAG_REP)
   {
     jam();
@@ -18142,8 +18171,9 @@ void Dbdih::execLCP_COMPLETE_REP(Signal* signal)
      * a bit easier for a very small cost.
      */
     ndbrequire(isMaster());
+    rep->fromTQ = Uint32(1);
     sendSignalWithDelay(reference(), GSN_LCP_COMPLETE_REP, signal, 100,
-			signal->length());
+                        LcpCompleteRep::SignalLengthTQ);
     return;
   }
 

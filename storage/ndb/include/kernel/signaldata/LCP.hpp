@@ -148,7 +148,7 @@ struct LcpFragRep {
   Uint32 fragId;
   Uint32 maxGciCompleted;
   Uint32 maxGciStarted;
-  Uint32 fromTimeQueue;
+  Uint32 fromTQ;
 };
 
 class LcpCompleteRep {
@@ -166,11 +166,13 @@ class LcpCompleteRep {
   friend bool printLCP_COMPLETE_REP(FILE *, const Uint32 *, Uint32, Uint16);  
 public:
   STATIC_CONST( SignalLength = 3 );
+  STATIC_CONST( SignalLengthTQ = 4 );
   
 private:
   Uint32 nodeId;
   Uint32 blockNo;
   Uint32 lcpId;
+  Uint32 fromTQ;
 };
 
 struct LcpPrepareReq 
