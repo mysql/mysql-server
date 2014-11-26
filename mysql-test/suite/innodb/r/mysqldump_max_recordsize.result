@@ -1,4 +1,4 @@
-/work/wl5757/mysql/mysql-test/var/tmp/bootstrap.log
+MYSQL_TMP_DIR/bootstrap.log
 call mtr.add_suppression("ERROR 1118 \\(42000\\) at line 106: Row size too large \\(> 8126\\)");
 # Stop DB server which was created by MTR default
 # Run the bootstrap command with page size 32k
