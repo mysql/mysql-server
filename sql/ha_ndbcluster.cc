@@ -820,15 +820,11 @@ int ndb_to_mysql_error(const NdbError *ndberr)
     break;
   }
 
-  /*
-    If we don't abort directly on warnings push a warning
-    with the internal error information
-   */
-  if (!current_thd->is_strict_mode())
   {
     /*
       Push the NDB error message as warning
-      - Used to be able to use SHOW WARNINGS toget more info on what the error is
+      - Used to be able to use SHOW WARNINGS to get more info
+        on what the error is
       - Used by replication to see if the error was temporary
     */
     if (ndberr->status == NdbError::TemporaryError)
