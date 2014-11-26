@@ -6342,10 +6342,10 @@ parse_gcol_expr:
 generated_column_func:
           expr
           {
-            Lex->gcol_info= new generated_column_info();
+            Lex->gcol_info= new Generated_column();
             if (!Lex->gcol_info)
             {
-              mem_alloc_error(sizeof(generated_column_info));
+              mem_alloc_error(sizeof(Generated_column));
               MYSQL_YYABORT;
             }
             ITEMIZE($1, &$1);

@@ -9828,7 +9828,7 @@ void Create_field::init_for_tmp_table(enum_field_types sql_type_arg,
   @param fld_interval_list     Interval list (if any.)
   @param fld_charset           Column charset.
   @param fld_geom_type         Column geometry type (if any.)
-  @param fld_gcol_info         Virtual column data
+  @param fld_gcol_info         Generated column data
 
   @retval
     FALSE on success.
@@ -9843,7 +9843,7 @@ bool Create_field::init(THD *thd, const char *fld_name,
                         LEX_STRING *fld_comment, const char *fld_change,
                         List<String> *fld_interval_list,
                         const CHARSET_INFO *fld_charset, uint fld_geom_type,
-                        generated_column_info *fld_gcol_info)
+                        Generated_column *fld_gcol_info)
 {
   uint sign_len, allowed_type_modifier= 0;
   ulong max_field_charlength= MAX_FIELD_CHARLENGTH;
@@ -9920,7 +9920,7 @@ bool Create_field::init(THD *thd, const char *fld_name,
     stored_in_db= gcol_info->get_field_stored();
     /*
       Perform per item-type checks to determine if the expression is 
-      allowed for a virtual column.
+      allowed for a generated column.
       Note that validation of the specific function is done later in
       procedures open_table_from_share and fix_fields_gcol_func
     */
@@ -9956,7 +9956,7 @@ bool Create_field::init(THD *thd, const char *fld_name,
     }
     /*
       Make a field created for the real type.
-      Note that "real" and virtual fields differ from each other
+      Note that "real" and generated fields differ from each other
       only by Field::gcol_info, which is always 0 for normal columns.
       gcol_info is updated for fields later in procedure open_binary_frm.
     */

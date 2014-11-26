@@ -2390,7 +2390,7 @@ public:
   void init_search();
   bool check_gcol_func_processor(uchar *int_arg) 
   {
-    /* TODO: consider adding in support for the MATCH-based virtual columns */
+    /* TODO: consider adding in support for the MATCH-based generated columns */
     DBUG_ENTER("Item_func_match::check_gcol_func_processor");
     DBUG_PRINT("info",
       ("check_gcol_func_processor returns TRUE: unsupported function"));

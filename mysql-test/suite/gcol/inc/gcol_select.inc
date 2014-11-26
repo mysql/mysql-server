@@ -30,7 +30,7 @@ create table t2 like t1;
 insert into t2 (a) values (1);
 
 # Table t3 is used below to test
-#  - Join type of Eq_ref with a unique virtual column
+#  - Join type of Eq_ref with a unique generated column
 #  - Join type of Const
 create table t3 (a int primary key, 
                  b int generated always as (-a) virtual,

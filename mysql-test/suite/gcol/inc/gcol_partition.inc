@@ -20,7 +20,7 @@
 drop table if exists t1;
 --enable_warnings
 
---echo # Case 1. Partitioning by RANGE based on a non-stored virtual column.
+--echo # Case 1. Partitioning by RANGE based on a non-stored generated column.
 
 CREATE TABLE t1 (
     a DATE NOT NULL,
@@ -39,14 +39,14 @@ select * from t1;
 # Specifically for MyISAM, check that data is written into correct 
 # $MYSQLTEST_VARDIR/master-data/test/t1*p?.MYD files
 
---echo # Modify the expression of virtual column b
+--echo # Modify the expression of generated column b
 ALTER TABLE t1 modify b int generated always as (year(a)-1) virtual;
 
 select * from t1;
 
 drop table t1;
 
---echo # Case 2. Partitioning by LIST based on a stored virtual column.
+--echo # Case 2. Partitioning by LIST based on a stored generated column.
 
 CREATE TABLE t1 (a int, b int generated always as (a % 3 ) stored)
 PARTITION BY LIST (a+1)
@@ -59,7 +59,7 @@ select * from t1;
 # NOTE: The following tests are currently failing due to a
 #       [suspected] bug in the existing partition functionality.
 #       Here is what was observed when using mysqld compiled prior 
-#       to adding the virtual column functionality.
+#       to adding the generated column functionality.
 #         mysql> create table t1 (a int) partition by list (a) 
 #                (partition p1 values in (1), partition p2 values in (2));
 #         Query OK, 0 rows affected (0.00 sec)
@@ -106,7 +106,7 @@ select * from t1;
 
 drop table t1;
 
---echo # Case 3. Partitioning by HASH based on a non-stored virtual column.
+--echo # Case 3. Partitioning by HASH based on a non-stored generated column.
 
 CREATE TABLE t1 (
     a DATE NOT NULL,
@@ -118,7 +118,7 @@ insert into t1 values ('2005-01-01',default);
 insert into t1 values ('2006-01-01',default);
 select * from t1;
 
---echo # Modify the expression of virtual column b
+--echo # Modify the expression of generated column b
 ALTER TABLE t1 modify b int generated always as (year(a)-1) virtual;
 
 select * from t1;

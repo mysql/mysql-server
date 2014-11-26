@@ -625,7 +625,7 @@ struct TABLE_SHARE
   ulong   mysql_version;		/* 0 if .frm is created before 5.0 */
   ulong   reclength;			/* Recordlength */
   ulong   stored_rec_length;            /* Stored record length 
-                                           (no generated-only virtual fields) */
+                                           (no generated-only generated fields) */
 
   plugin_ref db_plugin;			/* storage engine plugin */
   inline handlerton *db_type() const	/* table_type for handler */
@@ -669,7 +669,7 @@ struct TABLE_SHARE
   uint error, open_errno, errarg;       /* error from open_table_def() */
   uint column_bitmap_size;
   uchar frm_version;
-  uint vfields;                         /* Number of virtual fields */
+  uint vfields;                         /* Number of generated fields */
   bool null_field_first;
   bool system;                          /* Set if system table (one record) */
   bool crypted;                         /* If .frm file is crypted */
@@ -1034,7 +1034,7 @@ public:
 
   Field *next_number_field;		/* Set if next_number is activated */
   Field *found_next_number_field;	/* Set on open */
-  Field **vfield;                       /* Pointer to virtual fields*/
+  Field **vfield;                       /* Pointer to generated fields*/
   Field *hash_field;                    /* Field used by unique constraint */
   /* Mask and bitmap are used along with hash_field */
   uchar *hash_field_mask;
