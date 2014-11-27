@@ -53,7 +53,7 @@
 #define TYPENAME typename
 #endif
 
-static int check_geometry_valid(Geometry *geom);
+static int check_geometry_valid(const Geometry *geom);
 namespace bg= boost::geometry;
 namespace bgm= boost::geometry::model;
 namespace bgcs= boost::geometry::cs;
@@ -8602,22 +8602,24 @@ longlong Item_func_isclosed::val_int()
   Checks the validity of a geometry collection, which is valid
   if and only if all its components are valid.
  */
-class GeomColl_validity_checker: public WKB_scanner_event_handler
+class Geomcoll_validity_checker: public WKB_scanner_event_handler
 {
-  bool isvalid;
+  bool m_isvalid;
+  Geometry::srid_t m_srid;
   std::stack<Geometry::wkbType> types;
 public:
-  explicit GeomColl_validity_checker() :isvalid(true)
+  explicit Geomcoll_validity_checker(Geometry::srid_t srid)
+    :m_isvalid(true), m_srid(srid)
   {
   }
 
-  bool is_valid() const { return isvalid; }
+  bool is_valid() const { return m_isvalid; }
 
   virtual void on_wkb_start(Geometry::wkbByteOrder bo,
                             Geometry::wkbType geotype,
                             const void *wkb, uint32 len, bool has_hdr)
   {
-    if (!isvalid)
+    if (!m_isvalid)
       return;
     Geometry::wkbType top= Geometry::wkb_invalid_type;
     if (types.size() > 0)
@@ -8633,18 +8635,25 @@ public:
     // influence the GC's validity.
     if (top != Geometry::wkb_geometrycollection)
       return;
-    DBUG_ASSERT(top != Geometry::wkb_invalid_type);
+
+    DBUG_ASSERT(top != Geometry::wkb_invalid_type && has_hdr);
+    DBUG_ASSERT(len > WKB_HEADER_SIZE);
+
     Geometry_buffer geobuf;
     Geometry *geo= NULL;
-    const char *pwkb= static_cast<const char *>(wkb) +
-      (has_hdr ? WKB_HEADER_SIZE : 0);
-    DBUG_ASSERT(len > WKB_HEADER_SIZE);
-    len-= (has_hdr ? WKB_HEADER_SIZE : 0);
-    geo= Geometry::construct(&geobuf, pwkb, len);
 
+    // Provide the WKB header starting address, wkb MUST have a WKB header
+    // right before it.
+    geo= Geometry::construct(&geobuf,
+                             static_cast<const char *>(wkb) - WKB_HEADER_SIZE,
+                             len, false/* has no srid */);
     if (geo == NULL)
-      isvalid= false;
-    isvalid= check_geometry_valid(geo);
+      m_isvalid= false;
+    else
+    {
+      geo->set_srid(m_srid);
+      m_isvalid= check_geometry_valid(geo);
+    }
   }
 
 
@@ -8660,7 +8669,7 @@ public:
   Call Boost Geometry algorithm to check whether a geometry is valid as
   defined by OGC.
  */
-static int check_geometry_valid(Geometry *geom)
+static int check_geometry_valid(const Geometry *geom)
 {
   int ret= 0;
 
@@ -8722,8 +8731,14 @@ static int check_geometry_valid(Geometry *geom)
   case Geometry::wkb_geometrycollection:
   {
     uint32 wkb_len= geom->get_data_size();
-    GeomColl_validity_checker validity_checker;
+    Geomcoll_validity_checker validity_checker(geom->get_srid());
 
+    /*
+      This case can only be reached when this function isn't recursively
+      called (indirectly by itself) but called by other functions, and
+      it's the WKB data doesn't have a WKB header before it. Otherwise in
+      Geomcoll_validity_checker it's required that the WKB data has a header.
+     */
     wkb_scanner(geom->get_cptr(), &wkb_len,
                 Geometry::wkb_geometrycollection, false,
                 &validity_checker);
