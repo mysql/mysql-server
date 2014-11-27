@@ -204,6 +204,8 @@ delete from t1 where b = 6 and c = 12;
 
 select * from t1 where b = 6 order by a;
 
+--disable_info
+
 drop table t1;
 
 #Bug 37153 Ndb cluster reports affected rows incorrectly
@@ -343,6 +345,8 @@ show warnings; # Workaround to bug#39663
 --source suite/ndb/include/ndb_execute_count.inc
 --enable_warnings # Workaround to bug#39663
 
+--disable_info
+
 drop table t1;
 
 # bug#58040
@@ -350,6 +354,8 @@ drop table t1;
 create table t1
 (a int not null primary key auto_increment, b int, c varchar(256))
 engine = ndb;
+# Show warning and count info
+--enable_info 
 
 # insert some rows...
 insert into t1(b,c) values (1,'this is a test'),
@@ -481,4 +487,5 @@ eval update t1 set c = 'kalle' where a in $list;
 
 --enable_query_log
 
+--disable_info
 drop table t1;
