@@ -96,6 +96,11 @@ while ($l)
 
 --enable_query_log
 
+# Change sql_mode to allow the reporting query below
+# which uses "DISTINCT with an ORDER BY on column which
+# is not in the select list"
+--source include/turn_off_only_full_group_by.inc
+
 select distinct 
        substring(rr.query from INSTR(rr.query, 'WHERE')) as 'WHERE', 
        count_rows, 
@@ -111,6 +116,8 @@ from record_in_range rr,
 where rr.query = p1.query
   and rr.query = p8.query
 order by rr.no;
+
+--source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
 
 DROP TABLE t1, record_in_range;
 
