@@ -540,8 +540,9 @@ create table t1(
   primary key(a)
 ) engine=ndb;
 
-insert into t1(a) values (1);
-insert into t1(a, text_nl) values (2, 'MySQL Cluster NDB');
+# NOTE! using IGNORE to force the two inserts despite of warnings
+insert ignore into t1(a) values (1);
+insert ignore into t1(a, text_nl) values (2, 'MySQL Cluster NDB');
 
 select a, length(blob_nn), length(text_nn), blob_nl, text_nl from t1 order by a;
 
