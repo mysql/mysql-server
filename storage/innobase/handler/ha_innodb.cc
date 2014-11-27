@@ -10080,13 +10080,22 @@ create_table_info_t::create_table_update_dict()
 	}
 
 	DBUG_ASSERT(innobase_table != 0);
-	DBUG_ASSERT(innobase_table->fts_doc_id_index == NULL);
 	if (innobase_table->fts != NULL) {
-		innobase_table->fts_doc_id_index
-			= dict_table_get_index_on_name(
-				innobase_table, FTS_DOC_ID_INDEX_NAME);
-		DBUG_ASSERT(innobase_table->fts_doc_id_index != NULL);
+		if (innobase_table->fts_doc_id_index == NULL) {
+			innobase_table->fts_doc_id_index
+				= dict_table_get_index_on_name(
+					innobase_table, FTS_DOC_ID_INDEX_NAME);
+			DBUG_ASSERT(innobase_table->fts_doc_id_index != NULL);
+		} else {
+			DBUG_ASSERT(innobase_table->fts_doc_id_index
+				    == dict_table_get_index_on_name(
+						innobase_table,
+						FTS_DOC_ID_INDEX_NAME));
+		}
 	}
+
+	DBUG_ASSERT((innobase_table->fts == NULL)
+		    == (innobase_table->fts_doc_id_index == NULL));
 
 	innobase_copy_frm_flags_from_create_info(innobase_table, m_create_info);
 

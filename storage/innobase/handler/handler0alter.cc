@@ -6058,7 +6058,8 @@ commit_cache_norebuild(
 		? dict_table_get_index_on_name(
 			ctx->new_table, FTS_DOC_ID_INDEX_NAME)
 		: NULL;
-	DBUG_ASSERT(!ctx->new_table->fts == !ctx->new_table->fts_doc_id_index);
+	DBUG_ASSERT((ctx->new_table->fts == NULL)
+		    == (ctx->new_table->fts_doc_id_index == NULL));
 
 	DBUG_RETURN(found);
 }
