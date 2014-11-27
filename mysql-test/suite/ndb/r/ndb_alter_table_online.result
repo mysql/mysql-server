@@ -275,16 +275,16 @@ ndb_show_tables completed.....
 select name from ndb_show_tables_results where id = @t1_id and name like '%t1%' and type like '%UserTable%';
 name
 't1'
-ALTER TABLE t1 ADD c TIMESTAMP DEFAULT 0;
+ALTER TABLE t1 ADD c TIMESTAMP DEFAULT '2014-11-27 22:45:17';
 INSERT INTO t1 values (2,2,'2007-09-19 18:46:02');
 SELECT * FROM t1 ORDER BY a;
 a	b	c
-1	1	0000-00-00 00:00:00
+1	1	2014-11-27 22:45:17
 2	2	2007-09-19 18:46:02
 UPDATE t1 SET c = '2007-10-22 16:35:06' where a = 2;
 SELECT * FROM t1 ORDER BY a;
 a	b	c
-1	1	0000-00-00 00:00:00
+1	1	2014-11-27 22:45:17
 2	2	2007-10-22 16:35:06
 DROP TABLE t1;
 *******************************
