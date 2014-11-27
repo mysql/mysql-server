@@ -709,6 +709,9 @@ select * from test.t1 order by k;
 
 --echo Now look at how row existence errors are handled
 --source suite/ndb_rpl/t/ndb_connect_to_primary.inc
+--echo PRIMARY
+#--source suite/ndb_rpl/t/ndb_conflict_info_epoch2.inc
+
 insert into test.t1 values (6, 60, "Cigars");
 insert into test.t1 values (7, 70, "Whisky");
 
@@ -719,10 +722,14 @@ insert into test.t1 values (7, 70, "Whisky");
 
 --echo Cause misalignment via 'secret' deletes.
 --source suite/ndb_rpl/t/ndb_connect_to_primary.inc
+--echo PRIMARY
+#--source suite/ndb_rpl/t/ndb_conflict_info_epoch2.inc
+
 set sql_log_bin=0;
 delete from test.t1 where k=7;
 set sql_log_bin=1;
 --source suite/ndb_rpl/t/ndb_connect_to_secondary.inc
+--echo SECONDARY
 set sql_log_bin=0;
 delete from test.t1 where k=6;
 set sql_log_bin=1;
@@ -737,6 +744,7 @@ set sql_log_bin=1;
 --echo Primary :
 --source suite/ndb_rpl/t/ndb_connect_to_primary.inc
 select * from test.t1 order by k;
+#--source suite/ndb_rpl/t/ndb_conflict_info_epoch2.inc
 
 --echo Secondary :
 --source suite/ndb_rpl/t/ndb_connect_to_secondary.inc
@@ -854,9 +862,9 @@ SELECT @ndb_max_replicated_epoch:=VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_
 # SELECT @ndb_last_conflict_epoch, @ndb_last_stable_epoch, @ndb_max_replicated_epoch;
 
 --echo Expect 1,0,1 - all is well.
-SELECT @ndb_last_conflict_epoch <= @ndb_max_replicated_epoch AS SECONDARY_IS_CURRENTLY_CONFLICT_FREE;
-SELECT @ndb_last_stable_epoch < @ndb_max_replicated_epoch AS STABLE_EPOCH_LAGS_MAX_REPLICATED_EPOCH;
-SELECT @ndb_last_stable_epoch = @ndb_max_replicated_epoch AS STABLE_EPOCH_IS_MAX_REPLICATED_EPOCH;
+SELECT (@ndb_last_conflict_epoch+0) <= (@ndb_max_replicated_epoch+0) AS SECONDARY_IS_CURRENTLY_CONFLICT_FREE;
+SELECT (@ndb_last_stable_epoch+0) < (@ndb_max_replicated_epoch+0) AS STABLE_EPOCH_LAGS_MAX_REPLICATED_EPOCH;
+SELECT (@ndb_last_stable_epoch+0) = (@ndb_max_replicated_epoch+0) AS STABLE_EPOCH_IS_MAX_REPLICATED_EPOCH;
 
 --source suite/ndb_rpl/t/ndb_sync_secondary_to_primary.inc
 --source suite/ndb_rpl/t/ndb_connect_to_primary.inc
@@ -890,9 +898,9 @@ SELECT @ndb_max_replicated_epoch:=VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_
 
 --echo Expect 0,1,0 - Conflict handling open, stable epoch is old, most recent
 --echo   replicated epochs are not yet stable.
-SELECT @ndb_last_conflict_epoch <= @ndb_max_replicated_epoch AS SECONDARY_IS_CURRENTLY_CONFLICT_FREE;
-SELECT @ndb_last_stable_epoch < @ndb_max_replicated_epoch AS STABLE_EPOCH_LAGS_MAX_REPLICATED_EPOCH;
-SELECT @ndb_last_stable_epoch = @ndb_max_replicated_epoch AS STABLE_EPOCH_IS_MAX_REPLICATED_EPOCH;
+SELECT (@ndb_last_conflict_epoch+0) <= (@ndb_max_replicated_epoch+0) AS SECONDARY_IS_CURRENTLY_CONFLICT_FREE;
+SELECT (@ndb_last_stable_epoch+0) < (@ndb_max_replicated_epoch+0) AS STABLE_EPOCH_LAGS_MAX_REPLICATED_EPOCH;
+SELECT (@ndb_last_stable_epoch+0) = (@ndb_max_replicated_epoch+0) AS STABLE_EPOCH_IS_MAX_REPLICATED_EPOCH;
 
 --echo Now make a SECONDARY change and allow it to flow
 --source suite/ndb_rpl/t/ndb_connect_to_primary.inc
@@ -918,9 +926,9 @@ SELECT @ndb_max_replicated_epoch:=VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_
 #SELECT @ndb_last_conflict_epoch, @ndb_last_stable_epoch, @ndb_max_replicated_epoch;
 
 --echo Expect 1,0,1 - stability has returned
-SELECT @ndb_last_conflict_epoch <= @ndb_max_replicated_epoch AS SECONDARY_IS_CURRENTLY_CONFLICT_FREE;
-SELECT @ndb_last_stable_epoch < @ndb_max_replicated_epoch AS STABLE_EPOCH_LAGS_MAX_REPLICATED_EPOCH;
-SELECT @ndb_last_stable_epoch = @ndb_max_replicated_epoch AS STABLE_EPOCH_IS_MAX_REPLICATED_EPOCH;
+SELECT (@ndb_last_conflict_epoch+0) <= (@ndb_max_replicated_epoch+0) AS SECONDARY_IS_CURRENTLY_CONFLICT_FREE;
+SELECT (@ndb_last_stable_epoch+0) < (@ndb_max_replicated_epoch+0) AS STABLE_EPOCH_LAGS_MAX_REPLICATED_EPOCH;
+SELECT (@ndb_last_stable_epoch+0) = (@ndb_max_replicated_epoch+0) AS STABLE_EPOCH_IS_MAX_REPLICATED_EPOCH;
 
 --echo Done.
 
