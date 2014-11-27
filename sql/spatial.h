@@ -685,10 +685,13 @@ public:
   }
 
   static Geometry *construct(Geometry_buffer *buffer,
-                             const char *data, uint32 data_len);
-  static Geometry *construct(Geometry_buffer *buffer, const String *str)
+                             const char *data, uint32 data_len,
+                             bool has_srid= true);
+  static Geometry *construct(Geometry_buffer *buffer, const String *str,
+                             bool has_srid= true)
   {
-    return construct(buffer, str->ptr(), static_cast<uint32>(str->length()));
+    return construct(buffer, str->ptr(),
+                     static_cast<uint32>(str->length()), has_srid);
   }
   static Geometry *create_from_wkt(Geometry_buffer *buffer,
 				   Gis_read_stream *trs, String *wkt,
