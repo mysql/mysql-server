@@ -255,12 +255,14 @@ uchar *sys_var::value_ptr(THD *thd, enum_var_type type, LEX_STRING *base)
 
 bool sys_var::set_default(THD *thd, set_var* var)
 {
+  DBUG_ENTER("sys_var::set_default");
   if (var->type == OPT_GLOBAL || scope() == GLOBAL)
     global_save_default(thd, var);
   else
     session_save_default(thd, var);
 
-  return check(thd, var) || update(thd, var);
+  bool ret= check(thd, var) || update(thd, var);
+  DBUG_RETURN(ret);
 }
 
 void sys_var::do_deprecated_warning(THD *thd)
@@ -630,33 +632,35 @@ set_var::set_var(enum_var_type type_arg, sys_var *var_arg,
 
 int set_var::check(THD *thd)
 {
+  DBUG_ENTER("set_var::check");
   var->do_deprecated_warning(thd);
   if (var->is_readonly())
   {
     my_error(ER_INCORRECT_GLOBAL_LOCAL_VAR, MYF(0), var->name.str, "read only");
-    return -1;
+    DBUG_RETURN(-1);
   }
   if (var->check_type(type))
   {
     int err= type == OPT_GLOBAL ? ER_LOCAL_VARIABLE : ER_GLOBAL_VARIABLE;
     my_error(err, MYF(0), var->name.str);
-    return -1;
+    DBUG_RETURN(-1);
   }
   if ((type == OPT_GLOBAL && check_global_access(thd, SUPER_ACL)))
-    return 1;
+    DBUG_RETURN(1);
   /* value is a NULL pointer if we are using SET ... = DEFAULT */
   if (!value)
-    return 0;
+    DBUG_RETURN(0);
 
   if ((!value->fixed &&
        value->fix_fields(thd, &value)) || value->check_cols(1))
-    return -1;
+    DBUG_RETURN(-1);
   if (var->check_update_type(value->result_type()))
   {
     my_error(ER_WRONG_TYPE_FOR_VAR, MYF(0), var->name.str);
-    return -1;
+    DBUG_RETURN(-1);
   }
-  return var->check(thd, this) ? -1 : 0;
+  int ret= var->check(thd, this) ? -1 : 0;
+  DBUG_RETURN(ret);
 }
 
 

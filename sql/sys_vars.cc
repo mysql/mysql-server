@@ -4759,16 +4759,32 @@ static Sys_var_charptr Sys_ignore_db_dirs(
        NO_CMD_LINE,
        IN_FS_CHARSET, DEFAULT(0));
 
+const Sys_var_multi_enum::ALIAS enforce_gtid_consistency_aliases[]=
+{
+  { "OFF", 0 },
+  { "ON", 1 },
+  { "WARN", 2 },
+  { "FALSE", 0 },
+  { "TRUE", 1 },
+  { NULL, 0 }
+};
 static Sys_var_enforce_gtid_consistency Sys_enforce_gtid_consistency(
        "enforce_gtid_consistency",
        "Prevents execution of statements that would be impossible to log "
        "in a transactionally safe manner. Currently, the disallowed "
        "statements include CREATE TEMPORARY TABLE inside transactions, "
        "all updates to non-transactional tables, and CREATE TABLE ... SELECT.",
-       GLOBAL_VAR(_gtid_consistency_mode), CMD_LINE(OPT_ARG),
-       gtid_consistency_mode_names,
-       DEFAULT(GTID_CONSISTENCY_MODE_OFF), NO_MUTEX_GUARD, NOT_IN_BINLOG,
+       GLOBAL_VAR(_gtid_consistency_mode),
+       CMD_LINE(OPT_ARG, OPT_ENFORCE_GTID_CONSISTENCY),
+       enforce_gtid_consistency_aliases, 3,
+       DEFAULT(3/*position of "FALSE" in enforce_gtid_consistency_aliases*/),
+       DEFAULT(GTID_CONSISTENCY_MODE_ON),
+       NO_MUTEX_GUARD, NOT_IN_BINLOG,
        ON_CHECK(check_super_outside_trx_outside_sf_outside_sp));
+const char *fixup_enforce_gtid_consistency_command_line(char *value_arg)
+{
+  return Sys_enforce_gtid_consistency.fixup_command_line(value_arg);
+}
 
 static Sys_var_mybool Sys_binlog_gtid_simple_recovery(
        "binlog_gtid_simple_recovery",

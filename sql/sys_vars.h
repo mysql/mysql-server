@@ -432,6 +432,264 @@ public:
   { var->save_result.ulonglong_value= option.def_value; }
 };
 
+
+/**
+  A variant of enum where:
+  - Each value may have multiple enum-like aliases.
+  - Instances of the class can specify different default values for
+    the cases:
+    - User specifies the command-line option without a value (i.e.,
+      --option, not --option=value).
+    - User does not specify a command-line option at all.
+
+  This exists mainly to allow extending a variable that once was
+  boolean in a GA version, into an enumeration type.  Booleans accept
+  multiple aliases (0=off=false, 1=on=true), but Sys_var_enum does
+  not, so we could not use Sys_var_enum without breaking backward
+  compatibility.  Moreover, booleans default to false if option is not
+  given, and true if option is given without value.
+
+  This is *incompatible* with boolean in the following sense:
+  'SELECT @@variable' returns 0 or 1 for a boolean, whereas this class
+  (similar to enum) returns the textual form. (Note that both boolean,
+  enum, and this class return the textual form in SHOW VARIABLES and
+  SELECT * FROM information_schema.variables).
+
+  See enforce_gtid_consistency for an example of how this can be used.
+*/
+class Sys_var_multi_enum : public sys_var
+{
+public:
+  struct ALIAS
+  {
+    const char *alias;
+    uint number;
+  };
+
+  /**
+    Class specific parameters:
+
+    @param aliases_arg Array of ALIASes, indicating which textual
+    values map to which number.  Should be terminated with an ALIAS
+    having member variable alias set to NULL.  The first
+    `value_count_arg' elements must map to 0, 1, etc; these will be
+    used when the value is displayed.  Remaining elements may appear
+    in arbitrary order.
+
+    @param value_count_arg The number of allowed integer values.
+
+    @param def_val The default value if no command line option is
+    given. This must be a valid index into the aliases_arg array, but
+    it does not have to be less than value_count.  The corresponding
+    alias will be used in mysqld --help to show the default value.
+
+    @param command_line_no_value The default value if a command line
+    option is given without a value ('--command-line-option' without
+    '=VALUE').  This must be less than value_count_arg.
+  */
+  Sys_var_multi_enum(const char *name_arg,
+          const char *comment, int flag_args, ptrdiff_t off, size_t size,
+          CMD_LINE getopt,
+          const ALIAS aliases_arg[], uint value_count_arg,
+          uint def_val, uint command_line_no_value_arg, PolyLock *lock=0,
+          enum binlog_status_enum binlog_status_arg=VARIABLE_NOT_IN_BINLOG,
+          on_check_function on_check_func=0,
+          on_update_function on_update_func=0,
+          const char *substitute=0,
+          int parse_flag= PARSE_NORMAL)
+    : sys_var(&all_sys_vars, name_arg, comment, flag_args, off, getopt.id,
+              getopt.arg_type, SHOW_CHAR, def_val, lock,
+              binlog_status_arg, on_check_func,
+              on_update_func, substitute, parse_flag),
+    value_count(value_count_arg),
+    aliases(aliases_arg),
+    command_line_no_value(command_line_no_value_arg)
+  {
+    for (alias_count= 0; aliases[alias_count].alias; alias_count++)
+      DBUG_ASSERT(aliases[alias_count].number < value_count);
+    DBUG_ASSERT(def_val < alias_count);
+
+    option.var_type= GET_STR;
+    option.value= &command_line_value;
+    option.def_value= (intptr)aliases[def_val].alias;
+
+    global_var(ulong)= aliases[def_val].number;
+
+    DBUG_ASSERT(getopt.arg_type == OPT_ARG || getopt.id == -1);
+    DBUG_ASSERT(size == sizeof(ulong));
+  }
+
+  /**
+    Return the numeric value for a given alias string, or -1 if the
+    string is not a valid alias.
+  */
+  int find_value(const char *text)
+  {
+    for (uint i= 0; aliases[i].alias != NULL; i++)
+      if (my_strcasecmp(system_charset_info, aliases[i].alias, text) == 0)
+        return aliases[i].number;
+    return -1;
+  }
+
+  /**
+    Because of limitations in the command-line parsing library, the
+    value given on the command-line cannot be automatically copied to
+    the global value.  Instead, inheritants of this class should call
+    this function from mysqld.cc:mysqld_get_one_option.
+
+    @param value_str Pointer to the value specified on the command
+    line (as in --option=VALUE).
+
+    @retval NULL Success.
+
+    @retval non-NULL Pointer to the invalid string that was used as
+    argument.
+  */
+  const char *fixup_command_line(const char *value_str)
+  {
+    DBUG_ENTER("Sys_var_multi_enum::fixup_command_line");
+    char *end= NULL;
+    long value;
+
+    // User passed --option (not --option=value).
+    if (value_str == NULL)
+    {
+      value= command_line_no_value;
+      goto end;
+    }
+
+    // Get textual value.
+    value= find_value(value_str);
+    if (value != -1)
+      goto end;
+
+    // Get numeric value.
+    value= strtol(value_str, &end, 10);
+    // found a number and nothing else?
+    if (end > value_str && *end == '\0')
+      // value is in range?
+      if (value >= 0 && (longlong)value < (longlong)value_count)
+        goto end;
+
+    // Not a valid value.
+    DBUG_RETURN(value_str);
+
+end:
+    global_var(ulong)= value;
+    DBUG_RETURN(NULL);
+  }
+
+  bool do_check(THD *thd, set_var *var)
+  {
+    DBUG_ENTER("Sys_var_multi_enum::do_check");
+    char buff[STRING_BUFFER_USUAL_SIZE];
+    String str(buff, sizeof(buff), system_charset_info), *res;
+    if (var->value->result_type() == STRING_RESULT)
+    {
+      res= var->value->val_str(&str);
+      if (!res)
+        DBUG_RETURN(true);
+      int value= find_value(res->ptr());
+      if (value == -1)
+        DBUG_RETURN(true);
+      var->save_result.ulonglong_value= (uint)value;
+    }
+    else
+    {
+      longlong value= var->value->val_int();
+      if (value < 0 || value >= (longlong)value_count)
+        DBUG_RETURN(true);
+      else
+        var->save_result.ulonglong_value= value;
+    }
+
+    DBUG_RETURN(false);
+  }
+  bool check_update_type(Item_result type)
+  { return type != INT_RESULT && type != STRING_RESULT; }
+  bool session_update(THD *thd, set_var *var)
+  {
+    DBUG_ENTER("Sys_var_multi_enum::session_update");
+    DBUG_ASSERT(0);
+    /*
+    Currently not used: uncomment if this class is used as a base for
+    a session variable.
+
+    session_var(thd, ulong)=
+      static_cast<ulong>(var->save_result.ulonglong_value);
+    */
+    DBUG_RETURN(false);
+  }
+  bool global_update(THD *thd, set_var *var)
+  {
+    DBUG_ENTER("Sys_var_multi_enum::global_update");
+    DBUG_ASSERT(0);
+    /*
+    Currently not used: uncomment if this some inheriting class does
+    not override..
+
+    ulong val=
+      static_cast<ulong>(var->save_result.ulonglong_value);
+    global_var(ulong)= val;
+    */
+    DBUG_RETURN(false);
+  }
+  void session_save_default(THD *thd, set_var *var)
+  {
+    DBUG_ENTER("Sys_var_multi_enum::session_save_default");
+    DBUG_ASSERT(0);
+    /*
+    Currently not used: uncomment if this class is used as a base for
+    a session variable.
+
+    int value= find_value((char *)option.def_value);
+    DBUG_ASSERT(value != -1);
+    var->save_result.ulonglong_value= value;
+    */
+    DBUG_VOID_RETURN;
+  }
+  void global_save_default(THD *thd, set_var *var)
+  {
+    DBUG_ENTER("Sys_var_multi_enum::global_save_default");
+    int value= find_value((char *)option.def_value);
+    DBUG_ASSERT(value != -1);
+    var->save_result.ulonglong_value= value;
+    DBUG_VOID_RETURN;
+  }
+
+  uchar *session_value_ptr(THD *thd, LEX_STRING *base)
+  {
+    DBUG_ENTER("Sys_var_multi_enum::session_value_ptr");
+    DBUG_ASSERT(0);
+    /*
+    Currently not used: uncomment if this class is used as a base for
+    a session variable.
+
+    DBUG_RETURN((uchar*)aliases[session_var(thd, ulong)].alias);
+    */
+    DBUG_RETURN(0);
+  }
+  uchar *global_value_ptr(THD *thd, LEX_STRING *base)
+  {
+    DBUG_ENTER("Sys_var_multi_enum::global_value_ptr");
+    DBUG_RETURN((uchar*)aliases[global_var(ulong)].alias);
+  }
+private:
+  /// The number of allowed numeric values.
+  const uint value_count;
+  /// Array of all textual aliases.
+  const ALIAS *aliases;
+  /// The number of elements of aliases (computed in the constructor).
+  uint alias_count;
+
+  /**
+    Pointer to the value set by the command line (set by the command
+    line parser, copied to the global value in fixup_command_line()).
+  */
+  const char *command_line_value;
+  uint command_line_no_value;
+};
+
 /**
   The class for string variables. The string can be in character_set_filesystem
   or in character_set_system. The string can be allocated with my_malloc()
@@ -2533,7 +2791,7 @@ err:
 #endif /* HAVE_REPLICATION */
 
 
-class Sys_var_enforce_gtid_consistency : public Sys_var_enum
+class Sys_var_enforce_gtid_consistency : public Sys_var_multi_enum
 {
 public:
   Sys_var_enforce_gtid_consistency(
@@ -2543,14 +2801,16 @@ public:
     ptrdiff_t off,
     size_t size,
     CMD_LINE getopt,
-    const char *values[],
+    const ALIAS aliases[],
+    const uint value_count,
     uint def_val,
+    uint command_line_no_value,
     PolyLock *lock=0,
     enum binlog_status_enum binlog_status_arg=VARIABLE_NOT_IN_BINLOG,
     on_check_function on_check_func=0) :
-  Sys_var_enum(name_arg, comment, flag_args, off, size,
-               getopt, values, def_val, lock, binlog_status_arg,
-               on_check_func)
+  Sys_var_multi_enum(name_arg, comment, flag_args, off, size, getopt,
+               aliases, value_count, def_val, command_line_no_value,
+               lock, binlog_status_arg, on_check_func)
   { }
 
   bool global_update(THD *thd, set_var *var)
@@ -2564,6 +2824,8 @@ public:
     */
     global_sid_lock->wrlock();
 
+    DBUG_PRINT("info", ("var->save_result.ulonglong_value=%llu",
+                        var->save_result.ulonglong_value));
     enum_gtid_consistency_mode new_mode=
       (enum_gtid_consistency_mode)var->save_result.ulonglong_value;
     enum_gtid_consistency_mode old_mode= get_gtid_consistency_mode();
