@@ -27,8 +27,6 @@
 #include "prealloced_array.h"
 #include <rapidjson/document.h>
 
-extern const long EARTH_SPHERICAL_RADIUS;
-
 
 /**
    We have to hold result buffers in functions that return a GEOMETRY string,
@@ -971,7 +969,7 @@ public:
 class Item_func_distance: public Item_real_func
 {
   // Default earch radius in meters.
-  const static double EARTH_SPHERICAL_RADIUS= 6370986.0;
+  static const double EARTH_SPHERICAL_RADIUS= 6370986.0;
   bool is_spherical;
   double earth_radius;
   String tmp_value1;
