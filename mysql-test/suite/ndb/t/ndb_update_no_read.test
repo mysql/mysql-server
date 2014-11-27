@@ -213,7 +213,14 @@ select * from t1 where b = 6 order by a;
 
 drop table t1;
 
-#Bug 37153 Ndb cluster reports affected rows incorrectly
+#
+# Bug 37153 Ndb cluster reports affected rows incorrectly
+#
+
+# NOTE! Test intentionally produce warnings which would
+# abort the query in STRICT sql_mode, turn it off
+--source suite/ndb/include/turn_off_strict_sql_mode.inc
+
 create table t1 (a int primary key,
                  b varchar(4))
 engine=ndb;
@@ -347,6 +354,8 @@ commit;
 --disable_info
 
 drop table t1;
+
+--source suite/ndb/include/restore_sql_mode_after_turn_off_strict.inc
 
 # bug#58040
 
