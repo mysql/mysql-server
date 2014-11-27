@@ -8817,12 +8817,20 @@ void Dbdih::failedNodeLcpHandling(Signal* signal, NodeRecordPtr failedNodePtr)
   if(c_lcpState.m_LCP_COMPLETE_REP_Counter_DIH.isWaitingFor(failedNodePtr.i))
   {
     jam();
+    /**
+     * Mark the signal as a special signal to distinguish it from a signal
+     * that arrives from time queue for a dead node that should not be
+     * handled. The marking here makes it known to the LCP_COMPLETE_REP
+     * that this is a special node failure handling signal which should
+     * be allowed to pass through although the node is dead.
+     */
     LcpCompleteRep * rep = (LcpCompleteRep*)signal->getDataPtrSend();
     rep->nodeId = failedNodePtr.i;
     rep->lcpId = SYSFILE->latestLCP_ID;
     rep->blockNo = DBDIH;
+    rep->fromTQ = 0;
     sendSignal(reference(), GSN_LCP_COMPLETE_REP, signal, 
-               LcpCompleteRep::SignalLength, JBB);
+               LcpCompleteRep::SignalLengthTQ, JBB);
   }
    
   bool lcp_complete_rep = false;
@@ -8843,8 +8851,9 @@ void Dbdih::failedNodeLcpHandling(Signal* signal, NodeRecordPtr failedNodePtr)
       rep->nodeId  = nodeId;
       rep->lcpId   = SYSFILE->latestLCP_ID;
       rep->blockNo = DBLQH;
+      rep->fromTQ = 0;
       sendSignal(reference(), GSN_LCP_COMPLETE_REP, signal, 
-                 LcpCompleteRep::SignalLength, JBB);
+                 LcpCompleteRep::SignalLengthTQ, JBB);
       
       if(c_lcpState.m_LAST_LCP_FRAG_ORD.isWaitingFor(nodeId)){
         jam();
@@ -18145,16 +18154,27 @@ void Dbdih::execLCP_COMPLETE_REP(Signal* signal)
 
   if (!checkNodeAlive(nodeId))
   {
-    jam();
-    ndbrequire(signal->length() == LcpCompleteRep::SignalLengthTQ &&
-               rep->fromTQ == Uint32(1));
-    /**
-     * Given that we can delay this signal during a master takeover situation,
-     * we can actually receive this signal when the node is already dead. If
-     * the node is dead then we drop the signal as soon as possible, the node
-     * failure handling will ensure that the node is properly handled anyways.
-     */
-    return;
+    ndbrequire(signal->length() == LcpCompleteRep::SignalLengthTQ);
+    if (rep->fromTQ == Uint32(1))
+    {
+      jam();
+      /**
+       * Given that we can delay this signal during a master takeover
+       * situation, we can actually receive this signal when the node is
+       * already dead. If the node is dead then we drop the signal as soon
+       * as possible, the node failure handling will ensure that the node
+       * is properly handled anyways.
+       */
+      return;
+    }
+    else
+    {
+      jam();
+      /**
+       * This signal is sent from the NODE_FAILREP signal as part of node
+       * failure handling, so this signal is intended to pass through.
+       */
+    }
   }
 
   if(c_lcpMasterTakeOverState.state > LMTOS_WAIT_LCP_FRAG_REP)
@@ -18170,6 +18190,7 @@ void Dbdih::execLCP_COMPLETE_REP(Signal* signal)
      * simplification. It is perfectly doable, but this makes the code
      * a bit easier for a very small cost.
      */
+    ndbrequire(checkNodeAlive(nodeId));
     ndbrequire(isMaster());
     rep->fromTQ = Uint32(1);
     sendSignalWithDelay(reference(), GSN_LCP_COMPLETE_REP, signal, 100,
