@@ -17464,6 +17464,21 @@ void Dbdih::execLCP_FRAG_REP(Signal* signal)
   Uint32 tableId = lcpReport->tableId;
   Uint32 fragId = lcpReport->fragId;
 
+  /**
+   * We can receive LCP_FRAG_REP in 2 different situations:
+   * 1) signal->length() == SignalLength
+   * A normal report of completion of a LCP on a specific fragment. This
+   * cannot arrive when the node is down, the sending must be in
+   * the m_participatingLQH set, in addition the node must be alive
+   * in the DIH sense which means that it has passed the state where it
+   * is included in all the LCP protocols and GCP protocols.
+   *
+   * 2) signal->length() == SignalLengthTQ && lcpReport->fromTQ == 1
+   * This signal is sent when the table is in copy state when a signal
+   * in 1) is received. In this case the node could die before we
+   * arrive here. We check this by simply checking if the node is still
+   * alive. If this happens we can simply drop the signal.
+   */
   if (!checkNodeAlive(nodeId))
   {
     jam();
@@ -18152,36 +18167,125 @@ void Dbdih::execLCP_COMPLETE_REP(Signal* signal)
   Uint32 nodeId = rep->nodeId;
   Uint32 blockNo = rep->blockNo;
 
-  if (unlikely(!checkNodeAlive(nodeId)))
+  /**
+   * We can arrive here in the following cases:
+   * 1) blockNo == DBLQH and signal->length() == SignalLength
+   *
+   * This is a normal message from a node in the m_participatingLQH
+   * bitmap. It indicates that the node has completed everything of
+   * its processing in DBLQH, both sending all LCP_FRAG_REP and
+   * handling the UNDO log. The sender must be in the set of
+   * c_lcpState.m_LCP_COMPLETE_REP_Counter_LQH waited for.
+   *
+   * We know in this case that the node is alive by assumption that
+   * we don't receive messages from dead nodes.
+   *
+   * This signal can be delayed by a master takeover.
+   *
+   * 2) blockNo == DBLQH and signal->length() == SignalLengthTQ and
+   *    rep->fromTQ == 0
+   *
+   * This signal is sent from NODE_FAILREP. It should be allowed to
+   * pass through although the node is already declared dead and
+   * no longer part of the m_participatingLQH set. It is a vital part
+   * of the node failure handling. It should also not be blocked by
+   * an early starting master takeover. It should however be dropped
+   * if it isn't part of the set waited for (can happen if 3) arrives
+   * after NODE_FAILREP but before this signal).
+   *
+   * This signal cannot be delayed by a master takeover. We know that
+   * the master takeover state should not be possible to go beyond
+   * LMTOS_INITIAL.
+   *
+   * 3) blockNo == DBLQH and signal->length() == SignalLengthTQ and
+   *    rep->fromTQ == 1
+   *
+   * This signal is sent as a delayed signal when signal 1) above is
+   * received in the middle of processing a master take over.
+   * If it is received when the node is already dead (removed from
+   * the m_participatingLQH set), then we should simply ignore it
+   * and drop the signal since the node failure handling already
+   * has handled it. We find this out by checking if the node is
+   * part of the c_lcpState.m_LCP_COMPLETE_REP_Counter_LQH set or
+   * not.
+   *
+   * This signal can be delayed by a master takeover if it is not
+   * to be dropped.
+   *
+   * 4) blockNo == DBDIH and signal->length() == SignalLength
+   *
+   * This is a normal signal sent from one of the nodes when it has
+   * received LCP_COMPLETE_REP from all participating LQHs. It is
+   * received from a node in the set of
+   * c_lcpState.m_LCP_COMPLETE_REP_DIH_Counter. This set ensures that we
+   * only receive one of these. We should never receive this signal if
+   * the node isn't in the above set. The duplication of this signal
+   * happens as part of executing NODE_FAILREP, but here we set
+   * signal->length() to SignalLengthTQ and fromTQ = 0, so only that
+   * signal can be arriving with the node not being part of this set.
+   * The sending node can both be an alive node and a starting node
+   * which hasn't been set to alive yet.
+   *
+   * This signal can be delayed by a master takeover.
+   *
+   * 5) blockNo == DBDIH and signal->length() == SignalLengthTQ and
+   *    rep->fromTQ == 0
+   *
+   * This is sent from node failure processing when the node has died.
+   * The same logic as in 6) applies, the signal can be dropped if the
+   * node isn't part of the c_lcpState.m_LCP_COMPLETE_REP_Counter_DIH set.
+   *
+   * This signal cannot be delayed by the master takeover.
+   *
+   * 6) blockNo == DBDIH and signal->length() == SignalLengthTQ and
+   *    rep->fromTQ == 1
+   *
+   * This is a signal sent as delayed after receiving 4) above in a master
+   * takeover situation, if it arrives when the node is no
+   * longer part of the c_lcpState.m_LCP_COMPLETE_REP_Counter_DIH set,
+   * then we know that the signal is a duplicate and has already been
+   * processed and we can safely ignore it.
+   *
+   * This signal can be delayed by a master takeover if it is not
+   * to be dropped.
+   *
+   * 7) blockNo == 0 and signal->length() == SignalLength
+   * This is a signal from the master indicating that the LCP is completely
+   * done. It should not be possible to receive it during a master takeover
+   * and thus should never be allowed to be delayed since if the master
+   * takeover is being processed, then this signal cannot arrive from the
+   * dead master and it is too early to receive it from the new master.
+   */
+
+  if (blockNo == DBLQH)
   {
-    ndbrequire(signal->length() == LcpCompleteRep::SignalLengthTQ);
-    if (rep->fromTQ == Uint32(1))
+    jam();
+    if (!c_lcpState.m_LCP_COMPLETE_REP_Counter_LQH.isWaitingFor(nodeId))
     {
-      jam();
-      /**
-       * Given that we can delay this signal during a master takeover
-       * situation, we can actually receive this signal when the node is
-       * already dead. If the node is dead then we drop the signal as soon
-       * as possible, the node failure handling will ensure that the node
-       * is properly handled anyways.
-       */
+      ndbrequire(signal->length() == LcpCompleteRep::SignalLengthTQ)
       return;
     }
-    else
+  }
+  else if (blockNo == DBDIH)
+  {
+    jam();
+    if (!c_lcpState.m_LCP_COMPLETE_REP_Counter_DIH.isWaitingFor(nodeId))
     {
-      jam();
-      /**
-       * This signal is sent from the NODE_FAILREP signal as part of node
-       * failure handling, so this signal is intended to pass through.
-       * It is sent before the master takeover code starts. This means
-       * that we can possibly have initialised the master takeover code
-       * and sent the MASTER_LCPREQ signals, but we should not yet have
-       * received any MASTER_LCPREQ in our node and we should not have
-       * received any MASTER_LCPCONF yet. We check this with the
-       * require below.
-       */
-      ndbrequire(c_lcpMasterTakeOverState.state <= LMTOS_INITIAL);
+      ndbrequire(signal->length() == LcpCompleteRep::SignalLengthTQ)
+      return;
     }
+  }
+  if (blockNo == 0 ||
+      (signal->length() == LcpCompleteRep::SignalLengthTQ &&
+       rep->fromTQ == 0))
+  {
+    jam();
+    /**
+     * Always allowed free pass through for signals from master that LCP is
+     * completed or any signal that is received from execNODE_FAILREP.
+     * These signals should not be blocked by master takeover.
+     */
+    ndbrequire(c_lcpMasterTakeOverState.state <= LMTOS_INITIAL);
   }
   else
   {
