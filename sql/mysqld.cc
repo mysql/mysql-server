@@ -7379,6 +7379,15 @@ pfs_error:
   case OPT_SHOW_OLD_TEMPORALS:
     push_deprecated_warn_no_replacement(NULL, "show_old_temporals");
     break;
+  case OPT_ENFORCE_GTID_CONSISTENCY:
+  {
+    const char *wrong_value=
+      fixup_enforce_gtid_consistency_command_line(argument);
+    if (wrong_value != NULL)
+      sql_print_warning("option 'enforce-gtid-consistency': value '%s' "
+                        "was not recognized. Setting enforce-gtid-consistency "
+                        "to OFF.", wrong_value);
+  }
   }
   return 0;
 }

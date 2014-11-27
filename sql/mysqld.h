@@ -94,6 +94,7 @@ int init_common_variables();
 void my_init_signals();
 bool gtid_server_init();
 void gtid_server_cleanup();
+const char *fixup_enforce_gtid_consistency_command_line(char *value_arg);
 
 extern "C" MYSQL_PLUGIN_IMPORT CHARSET_INFO *system_charset_info;
 extern MYSQL_PLUGIN_IMPORT CHARSET_INFO *files_charset_info ;
@@ -871,7 +872,8 @@ enum options_mysqld
   OPT_MDL_HASH_INSTANCES,
   OPT_SKIP_INNODB,
   OPT_AVOID_TEMPORAL_UPGRADE,
-  OPT_SHOW_OLD_TEMPORALS
+  OPT_SHOW_OLD_TEMPORALS,
+  OPT_ENFORCE_GTID_CONSISTENCY
 };
 
 
