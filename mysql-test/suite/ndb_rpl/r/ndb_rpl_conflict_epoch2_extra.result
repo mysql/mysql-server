@@ -2436,13 +2436,16 @@ conflict_handling_in_progess
 stable_epoch_is_older_than_max_replicated
 0
 Now look at how row existence errors are handled
+PRIMARY
 insert into test.t1 values (6, 60, "Cigars");
 insert into test.t1 values (7, 70, "Whisky");
 Synchronise
 Cause misalignment via 'secret' deletes.
+PRIMARY
 set sql_log_bin=0;
 delete from test.t1 where k=7;
 set sql_log_bin=1;
+SECONDARY
 set sql_log_bin=0;
 delete from test.t1 where k=6;
 set sql_log_bin=1;
@@ -2639,13 +2642,13 @@ insert into t1 values (1 + 10, 10, "Sequencing");
 Now look at Secondary values, should have
 Max_Replicated_Epoch == Last_Stable_Epoch
 Expect 1,0,1 - all is well.
-SELECT @ndb_last_conflict_epoch <= @ndb_max_replicated_epoch AS SECONDARY_IS_CURRENTLY_CONFLICT_FREE;
+SELECT (@ndb_last_conflict_epoch+0) <= (@ndb_max_replicated_epoch+0) AS SECONDARY_IS_CURRENTLY_CONFLICT_FREE;
 SECONDARY_IS_CURRENTLY_CONFLICT_FREE
 1
-SELECT @ndb_last_stable_epoch < @ndb_max_replicated_epoch AS STABLE_EPOCH_LAGS_MAX_REPLICATED_EPOCH;
+SELECT (@ndb_last_stable_epoch+0) < (@ndb_max_replicated_epoch+0) AS STABLE_EPOCH_LAGS_MAX_REPLICATED_EPOCH;
 STABLE_EPOCH_LAGS_MAX_REPLICATED_EPOCH
 0
-SELECT @ndb_last_stable_epoch = @ndb_max_replicated_epoch AS STABLE_EPOCH_IS_MAX_REPLICATED_EPOCH;
+SELECT (@ndb_last_stable_epoch+0) = (@ndb_max_replicated_epoch+0) AS STABLE_EPOCH_IS_MAX_REPLICATED_EPOCH;
 STABLE_EPOCH_IS_MAX_REPLICATED_EPOCH
 1
 Stop PRIMARY slave just to have control
@@ -2677,13 +2680,13 @@ START SLAVE;
 Now look at variables on the SECONDARY again
 Expect 0,1,0 - Conflict handling open, stable epoch is old, most recent
 replicated epochs are not yet stable.
-SELECT @ndb_last_conflict_epoch <= @ndb_max_replicated_epoch AS SECONDARY_IS_CURRENTLY_CONFLICT_FREE;
+SELECT (@ndb_last_conflict_epoch+0) <= (@ndb_max_replicated_epoch+0) AS SECONDARY_IS_CURRENTLY_CONFLICT_FREE;
 SECONDARY_IS_CURRENTLY_CONFLICT_FREE
 0
-SELECT @ndb_last_stable_epoch < @ndb_max_replicated_epoch AS STABLE_EPOCH_LAGS_MAX_REPLICATED_EPOCH;
+SELECT (@ndb_last_stable_epoch+0) < (@ndb_max_replicated_epoch+0) AS STABLE_EPOCH_LAGS_MAX_REPLICATED_EPOCH;
 STABLE_EPOCH_LAGS_MAX_REPLICATED_EPOCH
 1
-SELECT @ndb_last_stable_epoch = @ndb_max_replicated_epoch AS STABLE_EPOCH_IS_MAX_REPLICATED_EPOCH;
+SELECT (@ndb_last_stable_epoch+0) = (@ndb_max_replicated_epoch+0) AS STABLE_EPOCH_IS_MAX_REPLICATED_EPOCH;
 STABLE_EPOCH_IS_MAX_REPLICATED_EPOCH
 0
 Now make a SECONDARY change and allow it to flow
@@ -2691,13 +2694,13 @@ START SLAVE;
 delete from test.t1 where k >=10;
 Now look at variables on the SECONDARY for third time
 Expect 1,0,1 - stability has returned
-SELECT @ndb_last_conflict_epoch <= @ndb_max_replicated_epoch AS SECONDARY_IS_CURRENTLY_CONFLICT_FREE;
+SELECT (@ndb_last_conflict_epoch+0) <= (@ndb_max_replicated_epoch+0) AS SECONDARY_IS_CURRENTLY_CONFLICT_FREE;
 SECONDARY_IS_CURRENTLY_CONFLICT_FREE
 1
-SELECT @ndb_last_stable_epoch < @ndb_max_replicated_epoch AS STABLE_EPOCH_LAGS_MAX_REPLICATED_EPOCH;
+SELECT (@ndb_last_stable_epoch+0) < (@ndb_max_replicated_epoch+0) AS STABLE_EPOCH_LAGS_MAX_REPLICATED_EPOCH;
 STABLE_EPOCH_LAGS_MAX_REPLICATED_EPOCH
 0
-SELECT @ndb_last_stable_epoch = @ndb_max_replicated_epoch AS STABLE_EPOCH_IS_MAX_REPLICATED_EPOCH;
+SELECT (@ndb_last_stable_epoch+0) = (@ndb_max_replicated_epoch+0) AS STABLE_EPOCH_IS_MAX_REPLICATED_EPOCH;
 STABLE_EPOCH_IS_MAX_REPLICATED_EPOCH
 1
 Done.
