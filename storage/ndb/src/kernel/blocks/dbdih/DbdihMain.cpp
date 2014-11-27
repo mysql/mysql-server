@@ -18152,7 +18152,7 @@ void Dbdih::execLCP_COMPLETE_REP(Signal* signal)
   Uint32 nodeId = rep->nodeId;
   Uint32 blockNo = rep->blockNo;
 
-  if (!checkNodeAlive(nodeId))
+  if (unlikely(!checkNodeAlive(nodeId)))
   {
     ndbrequire(signal->length() == LcpCompleteRep::SignalLengthTQ);
     if (rep->fromTQ == Uint32(1))
@@ -18173,29 +18173,38 @@ void Dbdih::execLCP_COMPLETE_REP(Signal* signal)
       /**
        * This signal is sent from the NODE_FAILREP signal as part of node
        * failure handling, so this signal is intended to pass through.
+       * It is sent before the master takeover code starts. This means
+       * that we can possibly have initialised the master takeover code
+       * and sent the MASTER_LCPREQ signals, but we should not yet have
+       * received any MASTER_LCPREQ in our node and we should not have
+       * received any MASTER_LCPCONF yet. We check this with the
+       * require below.
        */
+      ndbrequire(c_lcpMasterTakeOverState.state <= LMTOS_INITIAL);
     }
   }
-
-  if(c_lcpMasterTakeOverState.state > LMTOS_WAIT_LCP_FRAG_REP)
+  else
   {
     jam();
-    /**
-     * Don't allow LCP_COMPLETE_REP to arrive during
-     * LCP master take over
-     *
-     * We keep this even when removing the need to use the EMPTY_LCP_REQ
-     * protocol. The reason is that we don't want to handle code to
-     * process LCP completion as part of master take over as a
-     * simplification. It is perfectly doable, but this makes the code
-     * a bit easier for a very small cost.
-     */
-    ndbrequire(checkNodeAlive(nodeId));
-    ndbrequire(isMaster());
-    rep->fromTQ = Uint32(1);
-    sendSignalWithDelay(reference(), GSN_LCP_COMPLETE_REP, signal, 100,
-                        LcpCompleteRep::SignalLengthTQ);
-    return;
+    if(c_lcpMasterTakeOverState.state > LMTOS_WAIT_LCP_FRAG_REP)
+    {
+      jam();
+      /**
+       * Don't allow LCP_COMPLETE_REP to arrive during
+       * LCP master take over
+       *
+       * We keep this even when removing the need to use the EMPTY_LCP_REQ
+       * protocol. The reason is that we don't want to handle code to
+       * process LCP completion as part of master take over as a
+       * simplification. It is perfectly doable, but this makes the code
+       * a bit easier for a very small cost.
+       */
+      ndbrequire(isMaster());
+      rep->fromTQ = Uint32(1);
+      sendSignalWithDelay(reference(), GSN_LCP_COMPLETE_REP, signal, 100,
+                          LcpCompleteRep::SignalLengthTQ);
+      return;
+    }
   }
 
   ndbrequire(c_lcpState.lcpStatus != LCP_STATUS_IDLE);
