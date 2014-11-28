@@ -2009,7 +2009,7 @@ class Rotate_log_event: public binary_log::Rotate_event, public Log_event
 public:
 #ifdef MYSQL_SERVER
   Rotate_log_event(const char* new_log_ident_arg,
-		   uint ident_len_arg,
+		   size_t ident_len_arg,
 		   ulonglong pos_arg, uint flags);
 #ifdef HAVE_REPLICATION
   int pack_info(Protocol* protocol);

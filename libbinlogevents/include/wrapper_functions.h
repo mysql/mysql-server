@@ -26,7 +26,7 @@
 #define WRAPPER_FUNCTIONS_INCLUDED
 
 #include "binlog_config.h"
-
+#include <cassert>
 #ifndef STANDALONE_BINLOG
 #define HAVE_MYSYS 1
 #endif
