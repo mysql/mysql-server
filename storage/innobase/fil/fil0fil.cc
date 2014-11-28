@@ -760,10 +760,13 @@ fil_node_open_file(
 		ut_free(buf2);
 
 		if (node->size == 0) {
-			if (size_bytes >= 1024 * 1024) {
-				/* Truncate the size to whole megabytes. */
-				size_bytes = ut_2pow_round(
-					size_bytes, 1024 * 1024);
+			ulint	extent_size;
+
+			extent_size = page_size.physical() * FSP_EXTENT_SIZE;
+			/* Truncate the size to a multiple of extent size. */
+			if (size_bytes >= extent_size) {
+				size_bytes = ut_2pow_round(size_bytes,
+							   extent_size);
 			}
 
 			node->size = (ulint)
