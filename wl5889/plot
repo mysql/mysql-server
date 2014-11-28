@@ -74,7 +74,7 @@ done < ${datafile}
 gnuplot_cmds="${gnuplot_cmds} \"${datafile}\" every ::1 using (\$2 >= ${prev_phase_beg_timestamp} ? \$2 : 1 / 0):5 title \"${prev_line_phase}\" noenhanced with filledcurves x1 linecolor rgb \"${colors[${prev_phase_i}]}\""
 
 gnuplot <<CMDS
-set title "$(head -1 ${datafile})"
+set title '$(head -1 ${datafile})' noenhanced
 set terminal svg size 1800,900 dynamic enhanced mouse standalone
 set format x "%.1f"
 set xlabel "time (seconds)"
