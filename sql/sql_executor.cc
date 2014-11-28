@@ -1930,7 +1930,7 @@ static int read_system(TABLE *table)
       empty_record(table);			// Make empty record
       return -1;
     }
-    if (table->vfield && update_generated_fields(table))
+    if (table->vfield && update_generated_read_fields(table))
       return report_handler_error(table, HA_ERR_INTERNAL_ERROR);
     store_record(table,record[1]);
   }
@@ -1987,7 +1987,7 @@ static int read_const(TABLE *table, TABLE_REF *ref)
       }
       DBUG_RETURN(-1);
     }
-    if (table->vfield && update_generated_fields(table))
+    if (table->vfield && update_generated_read_fields(table))
       return report_handler_error(table, HA_ERR_INTERNAL_ERROR);
     store_record(table,record[1]);
   }
@@ -2227,7 +2227,7 @@ join_read_always_key(QEP_TAB *tab)
       return report_handler_error(table, error);
     return -1; /* purecov: inspected */
   }
-  if (table->vfield && update_generated_fields(table))
+  if (table->vfield && update_generated_read_fields(table))
     return report_handler_error(table, HA_ERR_INTERNAL_ERROR);
   return 0;
 }
@@ -2260,7 +2260,7 @@ join_read_last_key(QEP_TAB *tab)
       return report_handler_error(table, error);
     return -1; /* purecov: inspected */
   }
-  if (table->vfield && update_generated_fields(table))
+  if (table->vfield && update_generated_read_fields(table))
     return report_handler_error(table, HA_ERR_INTERNAL_ERROR);
   return 0;
 }
@@ -2290,7 +2290,7 @@ join_read_next_same(READ_RECORD *info)
     table->status= STATUS_GARBAGE;
     return -1;
   }
-  if (table->vfield && update_generated_fields(table))
+  if (table->vfield && update_generated_read_fields(table))
     return report_handler_error(table, HA_ERR_INTERNAL_ERROR);
   return 0;
 }
@@ -2315,7 +2315,7 @@ join_read_prev_same(READ_RECORD *info)
 
   if ((error= table->file->ha_index_prev(table->record[0])))
     return report_handler_error(table, error);
-  if (table->vfield && update_generated_fields(table))
+  if (table->vfield && update_generated_read_fields(table))
     return report_handler_error(table, HA_ERR_INTERNAL_ERROR);
   if (key_cmp_if_same(table, tab->ref().key_buff, tab->ref().key,
                       tab->ref().key_length))
@@ -2605,7 +2605,7 @@ join_read_first(QEP_TAB *tab)
       report_handler_error(table, error);
     return -1;
   }
-  if (table->vfield && update_generated_fields(table))
+  if (table->vfield && update_generated_read_fields(table))
     return report_handler_error(table, HA_ERR_INTERNAL_ERROR);
   return 0;
 }
@@ -2617,7 +2617,7 @@ join_read_next(READ_RECORD *info)
   int error;
   if ((error= info->table->file->ha_index_next(info->record)))
     return report_handler_error(info->table, error);
-  if (info->table->vfield && update_generated_fields(info->table))
+  if (info->table->vfield && update_generated_write_fields(info->table))
     return report_handler_error(info->table, HA_ERR_INTERNAL_ERROR);
   return 0;
 }
@@ -2642,7 +2642,7 @@ join_read_last(QEP_TAB *tab)
   }
   if ((error= table->file->ha_index_last(table->record[0])))
     return report_handler_error(table, error);
-  if (table->vfield && update_generated_fields(table))
+  if (table->vfield && update_generated_read_fields(table))
     return report_handler_error(table, HA_ERR_INTERNAL_ERROR);
   return 0;
 }
@@ -2654,7 +2654,7 @@ join_read_prev(READ_RECORD *info)
   int error;
   if ((error= info->table->file->ha_index_prev(info->record)))
     return report_handler_error(info->table, error);
-  if (info->table->vfield && update_generated_fields(info->table))
+  if (info->table->vfield && update_generated_write_fields(info->table))
     return report_handler_error(info->table, HA_ERR_INTERNAL_ERROR);
   return 0;
 }
@@ -2676,7 +2676,7 @@ join_ft_read_first(QEP_TAB *tab)
 
   if ((error= table->file->ft_read(table->record[0])))
     return report_handler_error(table, error);
-  if (table->vfield && update_generated_fields(table))
+  if (table->vfield && update_generated_read_fields(table))
     return report_handler_error(table, HA_ERR_INTERNAL_ERROR);
   return 0;
 }
@@ -2687,7 +2687,7 @@ join_ft_read_next(READ_RECORD *info)
   int error;
   if ((error= info->table->file->ft_read(info->table->record[0])))
     return report_handler_error(info->table, error);
-  if (info->table->vfield && update_generated_fields(info->table))
+  if (info->table->vfield && update_generated_read_fields(info->table))
     return report_handler_error(info->table, HA_ERR_INTERNAL_ERROR);
   return 0;
 }

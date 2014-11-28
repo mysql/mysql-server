@@ -792,7 +792,7 @@ retry:
       goto ok;
     }
     /* Generate values for generated fields */
-    if (table->vfield && update_generated_fields(table))
+    if (table->vfield && update_generated_read_fields(table))
       goto err;
     if (cond && !cond->val_int())
     {

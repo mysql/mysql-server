@@ -9347,7 +9347,7 @@ copy_data_between_tables(PSI_stage_progress *psi,
     {
       copy_ptr->invoke_do_copy(copy_ptr);
     }
-    if (to->vfield && update_generated_fields(to))
+    if (to->vfield && update_generated_write_fields(to))
       goto err;
     if (thd->is_error())
     {
