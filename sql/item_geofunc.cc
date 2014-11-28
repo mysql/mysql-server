@@ -53,7 +53,101 @@
 #define TYPENAME typename
 #endif
 
-static int check_geometry_valid(const Geometry *geom);
+#define CATCH_ALL(funcname, expr) \
+  catch (const boost::geometry::centroid_exception &)\
+  {\
+    expr;\
+    my_error(ER_BOOST_GEOMETRY_CENTROID_EXCEPTION, MYF(0), (funcname));\
+  }\
+  catch (const boost::geometry::overlay_invalid_input_exception &)\
+  {\
+    expr;\
+    my_error(ER_BOOST_GEOMETRY_OVERLAY_INVALID_INPUT_EXCEPTION, MYF(0),\
+             (funcname));\
+  }\
+  catch (const boost::geometry::turn_info_exception &)\
+  {\
+    expr;\
+    my_error(ER_BOOST_GEOMETRY_TURN_INFO_EXCEPTION, MYF(0), (funcname));\
+  }\
+  catch (const boost::geometry::detail::self_get_turn_points::self_ip_exception &)\
+  {\
+    expr;\
+    my_error(ER_BOOST_GEOMETRY_SELF_INTERSECTION_POINT_EXCEPTION, MYF(0),\
+             (funcname));\
+  }\
+  catch (const boost::geometry::empty_input_exception &)\
+  {\
+    expr;\
+    my_error(ER_BOOST_GEOMETRY_EMPTY_INPUT_EXCEPTION, MYF(0), (funcname));\
+  }\
+  catch (const boost::geometry::exception &)\
+  {\
+    expr;\
+    my_error(ER_BOOST_GEOMETRY_UNKNOWN_EXCEPTION, MYF(0), (funcname));\
+  }\
+  catch (const std::bad_alloc &e)\
+  {\
+    expr;\
+    my_error(ER_STD_BAD_ALLOC_ERROR, MYF(0), e.what(), (funcname));\
+  }\
+  catch (const std::domain_error &e)\
+  {\
+    expr;\
+    my_error(ER_STD_DOMAIN_ERROR, MYF(0), e.what(), (funcname));\
+  }\
+  catch (const std::length_error &e)\
+  {\
+    expr;\
+    my_error(ER_STD_LENGTH_ERROR, MYF(0), e.what(), (funcname));\
+  }\
+  catch (const std::invalid_argument &e)\
+  {\
+    expr;\
+    my_error(ER_STD_INVALID_ARGUMENT, MYF(0), e.what(), (funcname));\
+  }\
+  catch (const std::out_of_range &e)\
+  {\
+    expr;\
+    my_error(ER_STD_OUT_OF_RANGE_ERROR, MYF(0), e.what(), (funcname));\
+  }\
+  catch (const std::overflow_error &e)\
+  {\
+    expr;\
+    my_error(ER_STD_OVERFLOW_ERROR, MYF(0), e.what(), (funcname));\
+  }\
+  catch (const std::range_error &e)\
+  {\
+    expr;\
+    my_error(ER_STD_RANGE_ERROR, MYF(0), e.what(), (funcname));\
+  }\
+  catch (const std::underflow_error &e)\
+  {\
+    expr;\
+    my_error(ER_STD_UNDERFLOW_ERROR, MYF(0), e.what(), (funcname));\
+  }\
+  catch (const std::logic_error &e)\
+  {\
+    expr;\
+    my_error(ER_STD_LOGIC_ERROR, MYF(0), e.what(), (funcname));\
+  }\
+  catch (const std::runtime_error &e)\
+  {\
+    expr;\
+    my_error(ER_STD_RUNTIME_ERROR, MYF(0), e.what(), (funcname));\
+  }\
+  catch (const std::exception &e)\
+  {\
+    expr;\
+    my_error(ER_STD_UNKNOWN_EXCEPTION, MYF(0), e.what(), (funcname));\
+  }\
+  catch (...)\
+  {\
+    expr;\
+    my_error(ER_GIS_UNKNOWN_EXCEPTION, MYF(0), (funcname));\
+  }
+
+
 namespace bg= boost::geometry;
 namespace bgm= boost::geometry::model;
 namespace bgcs= boost::geometry::cs;
@@ -121,6 +215,7 @@ public:
 
 template <typename Point_range>
 static bool is_colinear(const Point_range &ls);
+static int check_geometry_valid(const Geometry *geom);
 
 
 Item_geometry_func::Item_geometry_func(const POS &pos, PT_item_list *list)
@@ -1509,10 +1604,15 @@ String *Item_func_validate::val_str(String *str)
   if (!(geom= Geometry::construct(&buffer, swkb)))
     return error_str();
 
-  if (check_geometry_valid(geom))
-    return swkb;
-  else
-    return error_str();
+  int isvalid= 0;
+
+  try
+  {
+    isvalid= check_geometry_valid(geom);
+  }
+  CATCH_ALL("ST_Validate", null_value= true)
+
+  return isvalid ? swkb : error_str();
 }
 
 
@@ -1673,101 +1773,6 @@ String *Item_func_centroid::val_str(String *str)
     return error_str();
   return str;
 }
-
-
-#define CATCH_ALL(funcname, expr) \
-  catch (const boost::geometry::centroid_exception &)\
-  {\
-    expr;\
-    my_error(ER_BOOST_GEOMETRY_CENTROID_EXCEPTION, MYF(0), (funcname));\
-  }\
-  catch (const boost::geometry::overlay_invalid_input_exception &)\
-  {\
-    expr;\
-    my_error(ER_BOOST_GEOMETRY_OVERLAY_INVALID_INPUT_EXCEPTION, MYF(0),\
-             (funcname));\
-  }\
-  catch (const boost::geometry::turn_info_exception &)\
-  {\
-    expr;\
-    my_error(ER_BOOST_GEOMETRY_TURN_INFO_EXCEPTION, MYF(0), (funcname));\
-  }\
-  catch (const boost::geometry::detail::self_get_turn_points::self_ip_exception &)\
-  {\
-    expr;\
-    my_error(ER_BOOST_GEOMETRY_SELF_INTERSECTION_POINT_EXCEPTION, MYF(0),\
-             (funcname));\
-  }\
-  catch (const boost::geometry::empty_input_exception &)\
-  {\
-    expr;\
-    my_error(ER_BOOST_GEOMETRY_EMPTY_INPUT_EXCEPTION, MYF(0), (funcname));\
-  }\
-  catch (const boost::geometry::exception &)\
-  {\
-    expr;\
-    my_error(ER_BOOST_GEOMETRY_UNKNOWN_EXCEPTION, MYF(0), (funcname));\
-  }\
-  catch (const std::bad_alloc &e)\
-  {\
-    expr;\
-    my_error(ER_STD_BAD_ALLOC_ERROR, MYF(0), e.what(), (funcname));\
-  }\
-  catch (const std::domain_error &e)\
-  {\
-    expr;\
-    my_error(ER_STD_DOMAIN_ERROR, MYF(0), e.what(), (funcname));\
-  }\
-  catch (const std::length_error &e)\
-  {\
-    expr;\
-    my_error(ER_STD_LENGTH_ERROR, MYF(0), e.what(), (funcname));\
-  }\
-  catch (const std::invalid_argument &e)\
-  {\
-    expr;\
-    my_error(ER_STD_INVALID_ARGUMENT, MYF(0), e.what(), (funcname));\
-  }\
-  catch (const std::out_of_range &e)\
-  {\
-    expr;\
-    my_error(ER_STD_OUT_OF_RANGE_ERROR, MYF(0), e.what(), (funcname));\
-  }\
-  catch (const std::overflow_error &e)\
-  {\
-    expr;\
-    my_error(ER_STD_OVERFLOW_ERROR, MYF(0), e.what(), (funcname));\
-  }\
-  catch (const std::range_error &e)\
-  {\
-    expr;\
-    my_error(ER_STD_RANGE_ERROR, MYF(0), e.what(), (funcname));\
-  }\
-  catch (const std::underflow_error &e)\
-  {\
-    expr;\
-    my_error(ER_STD_UNDERFLOW_ERROR, MYF(0), e.what(), (funcname));\
-  }\
-  catch (const std::logic_error &e)\
-  {\
-    expr;\
-    my_error(ER_STD_LOGIC_ERROR, MYF(0), e.what(), (funcname));\
-  }\
-  catch (const std::runtime_error &e)\
-  {\
-    expr;\
-    my_error(ER_STD_RUNTIME_ERROR, MYF(0), e.what(), (funcname));\
-  }\
-  catch (const std::exception &e)\
-  {\
-    expr;\
-    my_error(ER_STD_UNKNOWN_EXCEPTION, MYF(0), e.what(), (funcname));\
-  }\
-  catch (...)\
-  {\
-    expr;\
-    my_error(ER_GIS_UNKNOWN_EXCEPTION, MYF(0), (funcname));\
-  }
 
 
 /**
@@ -8768,7 +8773,12 @@ longlong Item_func_isvalid::val_int()
   // It should return false if the argument isn't a valid GEOMETRY string.
   if (!(geom= Geometry::construct(&buffer, swkb)))
     return 0L;
-  int ret= check_geometry_valid(geom);
+  int ret= 0;
+  try
+  {
+    ret= check_geometry_valid(geom);
+  }
+  CATCH_ALL("ST_IsValid", null_value= true)
 
   return ret;
 }
