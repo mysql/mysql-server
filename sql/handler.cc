@@ -3811,8 +3811,8 @@ void handler::print_error(int error, myf errflag)
   case HA_ERR_TABLESPACE_MISSING:
   {
     char errbuf[MYSYS_STRERROR_SIZE];
-    snprintf(errbuf, MYSYS_STRERROR_SIZE, "`%s`.`%s`", table_share->db.str,
-             table_share->table_name.str);
+    my_snprintf(errbuf, MYSYS_STRERROR_SIZE, "`%s`.`%s`", table_share->db.str,
+                table_share->table_name.str);
     my_error(ER_TABLESPACE_MISSING, errflag, errbuf, error);
     DBUG_VOID_RETURN;
   }

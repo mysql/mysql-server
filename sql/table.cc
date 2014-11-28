@@ -2717,8 +2717,8 @@ void open_table_error(TABLE_SHARE *share, int error, int db_errno, int errarg)
       my_error(ER_NO_SUCH_TABLE, MYF(0), share->db.str, share->table_name.str);
       break;
     case HA_ERR_TABLESPACE_MISSING:
-      snprintf(errbuf, MYSYS_STRERROR_SIZE, "`%s`.`%s`", share->db.str,
-               share->table_name.str);
+      my_snprintf(errbuf, MYSYS_STRERROR_SIZE, "`%s`.`%s`", share->db.str,
+                  share->table_name.str);
       my_error(ER_TABLESPACE_MISSING, MYF(0), errbuf);
       break;
     default:
