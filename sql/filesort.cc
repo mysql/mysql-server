@@ -834,7 +834,7 @@ static ha_rows find_all_keys(Sort_param *param, QEP_TAB *qep_tab,
     {
       if ((error= qep_tab->quick()->get_next()))
         break;
-      if (sort_form->vfield && update_generated_fields(sort_form))
+      if (sort_form->vfield && update_generated_read_fields(sort_form))
         goto cleanup;
       file->position(sort_form->record[0]);
       DBUG_EXECUTE_IF("debug_filesort", dbug_print_record(sort_form, TRUE););
@@ -846,7 +846,7 @@ static ha_rows find_all_keys(Sort_param *param, QEP_TAB *qep_tab,
 	error= file->ha_rnd_next(sort_form->record[0]);
         if (!error)
         {
-         if (sort_form->vfield && update_generated_fields(sort_form))
+         if (sort_form->vfield && update_generated_read_fields(sort_form))
            goto cleanup;
         }
 	if (!flag)
@@ -1356,16 +1356,6 @@ static void register_used_fields(Sort_param *param)
     {						// Item
       sort_field->item->walk(&Item::register_field_in_read_map, walk_subquery,
                              (uchar *) table);
-    }
-    /* Register the base columns for writable stored generated fields */
-    /*
-      TODO: When stored GC is treated as the normal columns for opertions except
-      INSERT/UPDATE/REPLACE, the following part should be removed.
-    */
-    if (field && field->gcol_info && field->stored_in_db)
-    {
-      field->gcol_info->expr_item->walk(&Item::register_field_in_read_map,
-                                        walk_subquery, (uchar*) table);
     }
   }
 

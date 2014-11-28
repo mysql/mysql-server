@@ -6990,19 +6990,74 @@ bool is_simple_order(ORDER *order)
 }
 
 /**
-  @brief  update_generated_fields 
-    Calculate data for each virtual field marked for write in the
+  @brief  update_generated_read_fields
+    Calculate data for each virtual generated field marked for read in the
     corresponding column map.
+    In order to fill virtual generated field value, we need calculate its
+    expression once read a record from SE.
+    Note: stored generated fields don't need to evaluate its expression.
   @param table          The TABLE object
 
   @return
     FALSE  - Success
   @return
-    TRUE - Error occurred during the generation/calculation of a virtual field value
+    TRUE - Error occurred during the generation/calculation of a generated
+           field value
  */
-bool update_generated_fields(TABLE *table)
+bool update_generated_read_fields(TABLE *table)
 {
-  DBUG_ENTER("update_generated_fields");
+  DBUG_ENTER("update_generated_read_fields");
+  Field **vfield_ptr, *vfield;
+  int error= 0;
+  if (!table || !table->vfield)
+    DBUG_RETURN(FALSE);
+
+  /* Iterate over generated fields in the table */
+  for (vfield_ptr= table->vfield; *vfield_ptr; vfield_ptr++)
+  {
+    vfield= (*vfield_ptr);
+    DBUG_ASSERT(vfield->gcol_info && vfield->gcol_info->expr_item);
+    /**
+      Only update those virtual generated fields that are marked in the
+      read_set bitmap.
+     */
+    if (!vfield->stored_in_db &&
+        bitmap_is_set(table->read_set, vfield->field_index))
+    {
+      /* Generate the actual value of the generated fields */
+      error= vfield->gcol_info->expr_item->save_in_field(vfield, 0);
+      DBUG_PRINT("info", ("field '%s' - updated", vfield->field_name));
+      if (error && !table->in_use->is_error())
+        error= 0;
+    }
+    else
+    {
+      DBUG_PRINT("info", ("field '%s' - skipped", vfield->field_name));
+    }
+  }
+
+  if (error > 0)
+    DBUG_RETURN(TRUE);
+  DBUG_RETURN(FALSE);
+}
+
+/**
+  @brief  update_generated_write_fields
+    Calculate data for each generated field marked for write in the
+    corresponding column map.
+    Note: We need calculate data for both virtual and stored generated
+    fields.
+  @param table          The TABLE object
+
+  @return
+    FALSE  - Success
+  @return
+    TRUE - Error occurred during the generation/calculation of a generated
+          field value
+ */
+bool update_generated_write_fields(TABLE *table)
+{
+  DBUG_ENTER("update_generated_write_fields");
   Field **vfield_ptr, *vfield;
   int error= 0;
   if (!table || !table->vfield)
