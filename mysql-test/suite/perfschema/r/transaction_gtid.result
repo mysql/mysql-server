@@ -1,5 +1,6 @@
 include/rpl_init.inc [topology=none]
 ==== Configure ====
+SET GLOBAL ENFORCE_GTID_CONSISTENCY = ON;
 CREATE FUNCTION fix_gtid(str VARCHAR(100)) RETURNS VARCHAR (100)
 RETURN REPLACE(REPLACE(IFNULL(str, 'NULL'),
 @@GLOBAL.SERVER_UUID, 'SERVER_UUID'),
@@ -181,4 +182,5 @@ DROP TABLE t1;
 DROP FUNCTION fix_gtid;
 DROP FUNCTION show_gtid;
 include/rpl_set_gtid_mode.inc [OFF on servers 1]
+SET GLOBAL ENFORCE_GTID_CONSISTENCY = OFF;
 include/rpl_end.inc

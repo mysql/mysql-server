@@ -1,10 +1,29 @@
 # ==== Purpose ====
 #
-# Execute a command and check:
-#  - the exit status is as specified
-#  - the output (stdout) matches a given regex
-
+# Execute a command and verify the following:
+# - the exit status is as specified;
+# - the output (stdout) matches a given regex.
+#
 # ==== Usage ====
+#
+# --let $assert_command= COMMAND
+# --let $assert_regex= REGEX
+# --let $assert_status= EXIT_STATUS
+# [--let $assert_negated= 1]
+#
+# Parameters:
+#
+#   $assert_command
+#     The command line to use.
+#
+#   $assert_regex
+#     Assert that stdout from the command matches this Perl regex.
+#
+#   $assert_status
+#     Assert that the command returns this exit status.
+#
+#   $assert_negated
+#     Assert that stdout does *not* match $assert_regex.
 
 --let $include_filename= assert_command_output.inc
 --source include/begin_include_file.inc

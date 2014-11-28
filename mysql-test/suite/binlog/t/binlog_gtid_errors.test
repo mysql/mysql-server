@@ -44,9 +44,10 @@
 --let $idf= ffffffff-ffff-ffff-ffff-ffffffffffff
 --let $tab= `SELECT '\t'`
 
---echo ==== Conditions for gtid_execute ====
+--echo ==== Conditions for gtid_executed ====
 
 --echo # Readable.
+--replace_regex /[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}:[0-9-]*//
 SELECT @@GLOBAL.GTID_EXECUTED;
 SELECT @@SESSION.GTID_EXECUTED;
 --echo # Read-only.
@@ -58,6 +59,7 @@ eval SET @@SESSION.GTID_EXECUTED= '$ida:2';
 --echo ==== Conditions for gtid_purged ====
 
 --echo # Readable global variable
+--replace_regex /[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}:[0-9-]*//
 SELECT @@GLOBAL.GTID_PURGED;
 --echo # Not a session variable
 --error ER_INCORRECT_GLOBAL_LOCAL_VAR
@@ -228,6 +230,27 @@ eval SET @@SESSION.GTID_NEXT = '$ida:13';
 --error ER_CANT_SET_GTID_NEXT_WHEN_OWNING_GTID
 eval SET @@SESSION.GTID_NEXT = 'AUTOMATIC';
 ROLLBACK;
+
+--echo # Can't set while owning ANONYMOUS
+--let $rpl_gtid_mode= OFF
+--source include/rpl_set_gtid_mode.inc
+
+SET GTID_NEXT = 'ANONYMOUS';
+--error ER_CANT_SET_GTID_NEXT_WHEN_OWNING_GTID
+SET GTID_NEXT = 'ANONYMOUS';
+
+SET GTID_NEXT = 'ANONYMOUS';
+--error ER_CANT_SET_GTID_NEXT_WHEN_OWNING_GTID
+eval SET GTID_NEXT = '$ida:1';
+
+SET GTID_NEXT = 'ANONYMOUS';
+--error ER_CANT_SET_GTID_NEXT_WHEN_OWNING_GTID
+SET GTID_NEXT = 'AUTOMATIC';
+
+SET GTID_NEXT = 'AUTOMATIC';
+
+--let $rpl_gtid_mode= ON
+--source include/rpl_set_gtid_mode.inc
 
 eval SET @@SESSION.GTID_NEXT = '$ida:14';
 --echo # can't do implicit commit while gtid_next=SID:GNO

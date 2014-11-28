@@ -25,6 +25,8 @@ call mtr.add_suppression("Unsafe statement written to the binary log using state
 --connection slave
 SET @@global.innodb_flush_log_at_trx_commit= @old_innodb_flush_log_at_trx_commit;
 call mtr.add_suppression("Slave SQL.*Request to stop slave SQL Thread received while applying a group that has non-transactional changes; waiting for completion of the group");
+call mtr.add_suppression("Unsafe statement.*. Statement is unsafe because it accesses a non-transactional table after accessing a transactional table within the same transaction.*");
+call mtr.add_suppression("Unsafe statement.*. Statement is unsafe because it uses a system function that may return a different value on the slave.*");
 --connection master
 SET @@global.innodb_flush_log_at_trx_commit= @old_innodb_flush_log_at_trx_commit;
 --let $rpl_only_running_threads= 1
