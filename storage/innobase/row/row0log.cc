@@ -23,23 +23,31 @@ Modification log for online index creation and online table rebuild
 Created 2011-05-26 Marko Makela
 *******************************************************/
 
+#include "my_global.h"
+
+#include "mysql/psi/mysql_stage.h"
+#include "mysql/psi/psi.h"
+
 #include "row0log.h"
 
 #ifdef UNIV_NONINL
 #include "row0log.ic"
 #endif
 
-#include "row0row.h"
-#include "row0ins.h"
-#include "row0upd.h"
-#include "row0merge.h"
-#include "row0ext.h"
 #include "data0data.h"
-#include "que0que.h"
-#include "srv0mon.h"
 #include "handler0alter.h"
+#include "que0que.h"
+#include "row0ext.h"
+#include "row0ins.h"
+#include "row0merge.h"
+#include "row0row.h"
+#include "row0upd.h"
+#include "srv0mon.h"
+#include "srv0srv.h"
 #include "ut0new.h"
+#include "ut0stage.h"
 
+#include <algorithm>
 #include <map>
 
 /** Table row modification operations during online table rebuild.
@@ -2441,6 +2449,51 @@ row_log_table_apply_op(
 	return(next_mrec);
 }
 
+#ifdef HAVE_PSI_STAGE_INTERFACE
+/** Estimate how much an ALTER TABLE progress should be incremented per
+one block of log applied.
+For the other phases of ALTER TABLE we increment the progress with 1 per
+page processed.
+@return amount of abstract units to add to work_completed when one block
+of log is applied.
+*/
+inline
+ulint
+row_log_progress_inc_per_block()
+{
+	/* We must increment the progress once per page (as in
+	univ_page_size, usually 16KiB). One block here is srv_sort_buf_size
+	(usually 1MiB). */
+	const ulint	pages_per_block = std::max(
+		1UL, srv_sort_buf_size / univ_page_size.physical());
+
+	/* Multiply by an artificial factor of 6 to even the pace with
+	the rest of the ALTER TABLE phases, they process page_size amount
+	of data faster. */
+	return(pages_per_block * 6);
+}
+
+/** Estimate how much work is to be done by the log apply phase
+of an ALTER TABLE for this index.
+@param[in]	index	index whose log to assess
+@return work to be done by log-apply in abstract units
+*/
+ulint
+row_log_estimate_work(
+	const dict_index_t*	index)
+{
+	if (index == NULL || index->online_log == NULL) {
+		return(0);
+	}
+
+	const row_log_t*	l = index->online_log;
+	const ulint		bytes_left = l->tail.total - l->head.total;
+	const ulint		blocks_left = bytes_left / srv_sort_buf_size;
+
+	return(blocks_left * row_log_progress_inc_per_block());
+}
+#endif /* HAVE_PSI_STAGE_INTERFACE */
+
 /******************************************************//**
 Applies operations to a table was rebuilt.
 @return DB_SUCCESS, or error code on failure */
@@ -2449,8 +2502,12 @@ dberr_t
 row_log_table_apply_ops(
 /*====================*/
 	que_thr_t*	thr,	/*!< in: query graph */
-	row_merge_dup_t*dup)	/*!< in/out: for reporting duplicate key
+	row_merge_dup_t*dup	/*!< in/out: for reporting duplicate key
 				errors */
+#ifdef HAVE_PSI_STAGE_INTERFACE
+	, PSI_stage_progress*	progress
+#endif /* HAVE_PSI_STAGE_INTERFACE */
+)
 {
 	dberr_t		error;
 	const mrec_t*	mrec		= NULL;
@@ -2503,6 +2560,13 @@ next_block:
 	ut_ad(rw_lock_own(dict_index_get_lock(index), RW_LOCK_X));
 #endif /* UNIV_SYNC_DEBUG */
 	ut_ad(index->online_log->head.bytes == 0);
+
+#ifdef HAVE_PSI_STAGE_INTERFACE
+	/* Adjust the total estimate based on the length of the log. */
+	ut_stage_new_estimate(progress, row_log_estimate_work(index));
+
+	ut_stage_inc(progress, row_log_progress_inc_per_block());
+#endif /* HAVE_PSI_STAGE_INTERFACE */
 
 	if (trx_is_interrupted(trx)) {
 		goto interrupted;
@@ -2796,8 +2860,12 @@ row_log_table_apply(
 	que_thr_t*	thr,	/*!< in: query graph */
 	dict_table_t*	old_table,
 				/*!< in: old table */
-	struct TABLE*	table)	/*!< in/out: MySQL table
+	struct TABLE*	table	/*!< in/out: MySQL table
 				(for reporting duplicates) */
+#ifdef HAVE_PSI_STAGE_INTERFACE
+	, PSI_stage_progress**	progress
+#endif /* HAVE_PSI_STAGE_INTERFACE */
+)
 {
 	dberr_t		error;
 	dict_index_t*	clust_index;
@@ -2805,6 +2873,10 @@ row_log_table_apply(
 	thr_get_trx(thr)->error_key_num = 0;
 	DBUG_EXECUTE_IF("innodb_trx_duplicates",
 			thr_get_trx(thr)->duplicates = TRX_DUP_REPLACE;);
+
+#ifdef HAVE_PSI_STAGE_INTERFACE
+	ut_stage_change(progress, &srv_stage_alter_table_log);
+#endif /* HAVE_PSI_STAGE_INTERFACE */
 
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(!rw_lock_own(&dict_operation_lock, RW_LOCK_S));
@@ -2827,7 +2899,11 @@ row_log_table_apply(
 			clust_index->online_log->col_map, 0
 		};
 
-		error = row_log_table_apply_ops(thr, &dup);
+		error = row_log_table_apply_ops(thr, &dup
+#ifdef HAVE_PSI_STAGE_INTERFACE
+						, *progress
+#endif /* HAVE_PSI_STAGE_INTERFACE */
+		);
 
 		ut_ad(error != DB_SUCCESS
 		      || clust_index->online_log->head.total
@@ -2837,6 +2913,11 @@ row_log_table_apply(
 	rw_lock_x_unlock(dict_index_get_lock(clust_index));
 	DBUG_EXECUTE_IF("innodb_trx_duplicates",
 			thr_get_trx(thr)->duplicates = 0;);
+
+#ifdef HAVE_PSI_STAGE_INTERFACE
+	ut_stage_change(progress, &srv_stage_alter_table_end);
+#endif /* HAVE_PSI_STAGE_INTERFACE */
+
 	return(error);
 }
 

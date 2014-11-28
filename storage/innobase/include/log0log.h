@@ -218,6 +218,7 @@ log_make_checkpoint_at(
 	bool	write_always
 #ifdef HAVE_PSI_STAGE_INTERFACE
 	, PSI_stage_progress*	progress = NULL
+	, ulint			work_todo_during_log = 0
 #endif /* HAVE_PSI_STAGE_INTERFACE */
 );
 

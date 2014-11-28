@@ -26,6 +26,11 @@ Created 2011-05-26 Marko Makela
 #ifndef row0log_h
 #define row0log_h
 
+#include "my_global.h"
+
+#include "mysql/psi/mysql_stage.h"
+#include "mysql/psi/psi.h"
+
 #include "univ.i"
 #include "mtr0types.h"
 #include "row0types.h"
@@ -192,9 +197,12 @@ row_log_table_apply(
 	que_thr_t*	thr,	/*!< in: query graph */
 	dict_table_t*	old_table,
 				/*!< in: old table */
-	struct TABLE*	table)	/*!< in/out: MySQL table
+	struct TABLE*	table	/*!< in/out: MySQL table
 				(for reporting duplicates) */
-	__attribute__((nonnull, warn_unused_result));
+#ifdef HAVE_PSI_STAGE_INTERFACE
+	, PSI_stage_progress**	progress
+#endif /* HAVE_PSI_STAGE_INTERFACE */
+) __attribute__((warn_unused_result));
 
 /******************************************************//**
 Get the latest transaction ID that has invoked row_log_online_op()
@@ -218,6 +226,17 @@ row_log_apply(
 	struct TABLE*	table)	/*!< in/out: MySQL table
 				(for reporting duplicates) */
 	__attribute__((nonnull, warn_unused_result));
+
+#ifdef HAVE_PSI_STAGE_INTERFACE
+/** Estimate how much work is to be done by the log apply phase
+of an ALTER TABLE for this index.
+@param[in]	index	index whose log to assess
+@return work to be done by log-apply in abstract units
+*/
+ulint
+row_log_estimate_work(
+	const dict_index_t*	index);
+#endif /* HAVE_PSI_STAGE_INTERFACE */
 
 #ifndef UNIV_NONINL
 #include "row0log.ic"

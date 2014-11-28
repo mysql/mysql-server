@@ -1347,6 +1347,7 @@ log_preflush_pool_modified_pages(
 				at least to this lsn */
 #ifdef HAVE_PSI_STAGE_INTERFACE
 	, PSI_stage_progress*	progress = NULL
+	, ulint			work_todo_during_log = 0
 #endif /* HAVE_PSI_STAGE_INTERFACE */
 )
 {
@@ -1369,6 +1370,7 @@ log_preflush_pool_modified_pages(
 	success = buf_flush_lists(ULINT_MAX, new_oldest, &n_pages
 #ifdef HAVE_PSI_STAGE_INTERFACE
 				  , progress
+				  , work_todo_during_log
 #endif /* HAVE_PSI_STAGE_INTERFACE */
 	);
 
@@ -1798,6 +1800,7 @@ log_make_checkpoint_at(
 	bool			write_always
 #ifdef HAVE_PSI_STAGE_INTERFACE
 	, PSI_stage_progress*	progress
+	, ulint			work_todo_during_log
 #endif /* HAVE_PSI_STAGE_INTERFACE */
 )
 {
@@ -1806,6 +1809,7 @@ log_make_checkpoint_at(
 	while (!log_preflush_pool_modified_pages(lsn
 #ifdef HAVE_PSI_STAGE_INTERFACE
 						 , progress
+						 , work_todo_during_log
 #endif /* HAVE_PSI_STAGE_INTERFACE */
 	)) {
 		/* Flush as much as we can */
