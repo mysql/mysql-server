@@ -47,11 +47,11 @@ drop table t1;
 
 --echo # Added columns mixed with virtual GC and other columns  
 create table t1 (a int);
---error 1954 
+--error ER_UNSUPPORTED_ACTION_ON_GENERATED_COLUMN 
 alter table t1 add column (b int generated always as (a+1) virtual, c int);
---error 1954 
+--error ER_UNSUPPORTED_ACTION_ON_GENERATED_COLUMN 
 alter table t1 add column (b int, c int generated always as (a+1) virtual);
---error 1954 
+--error ER_UNSUPPORTED_ACTION_ON_GENERATED_COLUMN 
 alter table t1 add column (b int generated always as (a+1) virtual, c int as(5) stored);
 alter table t1 add column (b int generated always as (a+1) virtual, c int as(5) virtual);
 drop table t1;
@@ -73,23 +73,23 @@ alter table t1 add column b int generated always as (a+1) virtual AUTO_INCREMENT
 drop table t1;
 
 --echo # [PRIMARY] KEY
---error 1951
+--error ER_KEY_BASED_ON_GENERATED_COLUMN
 create table t1 (a int, b int generated always as (a+1) virtual key);
 create table t1 (a int, b int generated always as (a+1) stored key);
 insert into t1 (a) values (3),(1),(2);
 select * from t1;
 drop table t1;
---error 1951
+--error ER_KEY_BASED_ON_GENERATED_COLUMN
 create table t1 (a int, b int generated always as (a+1) virtual primary key);
 create table t1 (a int, b int generated always as (a+1) stored primary key);
 insert into t1 (a) values (3),(1),(2);
 select * from t1;
 drop table t1;
 create table t1 (a int);
---error 1951
+--error ER_KEY_BASED_ON_GENERATED_COLUMN
 alter table t1 add column b int generated always as (a+1) virtual key;
 alter table t1 add column b int generated always as (a+1) stored key;
---error 1951
+--error ER_KEY_BASED_ON_GENERATED_COLUMN
 alter table t1 add column c int generated always as (a+2) virtual primary key;
 show create table t1;
 --error 1068

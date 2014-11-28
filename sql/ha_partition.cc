@@ -4448,12 +4448,6 @@ int ha_partition::truncate_partition(Alter_info *alter_info, bool *binlog_stmt)
         error= m_file[i]->ha_truncate();
         if (error)
         {
-          /* reset part_state for the remaining partitions */
-          do
-          {
-            if (part_elem->part_state == PART_ADMIN)
-              part_elem->part_state= PART_NORMAL;
-          } while ((part_elem= part_it++));
           goto err;
         }
       }
@@ -4461,6 +4455,11 @@ int ha_partition::truncate_partition(Alter_info *alter_info, bool *binlog_stmt)
     }
   } while (!error && (++i < num_parts));
 err:
+  if (error)
+  {
+    /* Reset to PART_NORMAL. */
+    set_all_part_state(m_part_info, PART_NORMAL);
+  }
   DBUG_RETURN(error);
 }
 
@@ -8790,25 +8789,6 @@ void ha_partition::cancel_pushed_idx_cond()
 /****************************************************************************
                 MODULE auto increment
 ****************************************************************************/
-
-
-int ha_partition::reset_auto_increment(ulonglong value)
-{
-  handler **file= m_file;
-  int res;
-  DBUG_ENTER("ha_partition::reset_auto_increment");
-  lock_auto_increment();
-  part_share->auto_inc_initialized= false;
-  part_share->next_auto_inc_val= 0;
-  do
-  {
-    if ((res= (*file)->ha_reset_auto_increment(value)) != 0)
-      break;
-  } while (*(++file));
-  unlock_auto_increment();
-  DBUG_RETURN(res);
-}
-
 
 /**
   This method is called by update_auto_increment which in turn is called

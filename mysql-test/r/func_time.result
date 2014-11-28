@@ -1819,7 +1819,7 @@ DROP TABLE t1;
 #
 DO contains(1, if(0, coalesce(NULL), now()));
 Warnings:
-Error	1922	Invalid GIS data provided to function mbrcontains.
+Error	1923	Invalid GIS data provided to function mbrcontains.
 CREATE TABLE t1 AS SELECT IF(0, coalesce(NULL), now(0)) + 0;
 SHOW CREATE TABLE t1;
 Table	Create Table

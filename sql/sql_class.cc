@@ -442,7 +442,7 @@ bool Foreign_key::validate(List<Create_field> &table_fields)
       my_error(ER_KEY_COLUMN_DOES_NOT_EXITS, MYF(0), column->field_name.str);
       DBUG_RETURN(TRUE);
     }
-    if (type == Key::FOREIGN_KEY && sql_field->gcol_info)
+    if (type == KEYTYPE_FOREIGN && sql_field->gcol_info)
     {
       if (delete_opt == FK_OPTION_SET_NULL)
       {
@@ -777,16 +777,8 @@ ulong get_max_connections(void)
 
 extern "C" int mysql_tmpfile(const char *prefix)
 {
-  return mysql_tmpfile_path(mysql_tmpdir, prefix);
-}
-
-extern "C" int mysql_tmpfile_path(const char *path, const char *prefix)
-{
-  DBUG_ASSERT(path != NULL);
-  DBUG_ASSERT((strlen(path) + strlen(prefix)) <= FN_REFLEN);
-
   char filename[FN_REFLEN];
-  File fd = create_temp_file(filename, path, prefix,
+  File fd = create_temp_file(filename, mysql_tmpdir, prefix,
 #ifdef _WIN32
                              O_BINARY | O_TRUNC | O_SEQUENTIAL |
                              O_SHORT_LIVED |

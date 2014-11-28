@@ -2829,7 +2829,7 @@ err_exit:
 		ut_ad(strstr(table->name.m_name, "/FTS_") != NULL);
 	}
 
-	node = tab_create_graph_create(table, heap, commit);
+	node = tab_create_graph_create(table, heap);
 
 	thr = pars_complete_graph_for_exec(node, trx, heap);
 
@@ -3017,7 +3017,7 @@ row_create_index_for_mysql(
 
 		heap = mem_heap_create(512);
 
-		node = ind_create_graph_create(index, heap, true);
+		node = ind_create_graph_create(index, heap);
 
 		thr = pars_complete_graph_for_exec(node, trx, heap);
 
@@ -4518,7 +4518,7 @@ row_drop_table_for_mysql(
 	}
 
 	if (err != DB_SUCCESS && table != NULL) {
-		/* Drop table has failed with error but as drop table is not 
+		/* Drop table has failed with error but as drop table is not
 		transaction safe we should mark the table as corrupted to avoid
 		unwarranted follow-up action on this table that can result
 		in more serious issues. */

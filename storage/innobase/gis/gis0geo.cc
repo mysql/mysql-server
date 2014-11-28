@@ -430,7 +430,7 @@ pick_seeds(
 
 	*seed_a = node;
 	*seed_b = node + 1;
-	
+
 	for (cur1 = node; cur1 < lim1; ++cur1) {
 		for (cur2 = cur1 + 1; cur2 < lim2; ++cur2) {
 			d = mbr_join_square(cur1->coords, cur2->coords, n_dim) -
@@ -735,7 +735,7 @@ rtree_area_increase(
 		are ignored. For example: 3.2884281489988079e+284 - 100 =
 		3.2884281489988079e+284. This results some area difference
 		are not detected */
-		if (loc_ab_area == a_area) { 
+		if (loc_ab_area == a_area) {
 			if (bmin < amin || bmax > amax) {
 				data_round *= ((double)std::max(amax, bmax)
 					       - amax

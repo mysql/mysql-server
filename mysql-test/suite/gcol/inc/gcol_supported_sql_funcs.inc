@@ -26,13 +26,13 @@ if ($rows)
 }
 if ($rows)
 {
---error 0,1292,1905
+--error 0,1292,1906
   eval insert into t1 values ($values2);
   dec $rows;
 }
 if ($rows)
 {
---error 0,1905
+--error 0,1906
   eval insert into t1 values ($values3);
   dec $rows;
 }
