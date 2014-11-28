@@ -624,7 +624,7 @@ public:
   {
   }
 
-  int get_data_size()
+  size_t get_data_size()
   {
     return (table_name_len + db_len + 2 + fname_len
             + LOAD_HEADER_LEN
@@ -719,7 +719,7 @@ public:
   {
      bapi_free(const_cast<char*>(event_buf));
   }
-  int get_data_size()
+  size_t get_data_size()
   {
     return (fake_base ? Load_event::get_data_size() :
             Load_event::get_data_size() +

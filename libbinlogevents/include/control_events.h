@@ -93,7 +93,7 @@ class Rotate_event: public Binary_log_event
 {
 public:
   const char* new_log_ident;
-  unsigned int ident_len;
+  size_t ident_len;
   unsigned int flags;
   uint64_t pos;
 
@@ -112,7 +112,7 @@ public:
   /**
     This is the minimal constructor, it will set the type code as ROTATE_EVENT.
   */
-  Rotate_event(const char* new_log_ident_arg, unsigned int ident_len_arg,
+  Rotate_event(const char* new_log_ident_arg, size_t ident_len_arg,
                unsigned int flags_arg, uint64_t pos_arg)
     : Binary_log_event(ROTATE_EVENT),
       new_log_ident(new_log_ident_arg),

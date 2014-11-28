@@ -6265,7 +6265,7 @@ void Rotate_log_event::print(FILE* file, PRINT_EVENT_INFO* print_event_info)
 
 #ifndef MYSQL_CLIENT
 Rotate_log_event::Rotate_log_event(const char* new_log_ident_arg,
-                                   uint ident_len_arg, ulonglong pos_arg,
+                                   size_t ident_len_arg, ulonglong pos_arg,
                                    uint flags_arg)
 : binary_log::Rotate_event(new_log_ident_arg, ident_len_arg, flags_arg, pos_arg),
   Log_event(header(), footer(),
