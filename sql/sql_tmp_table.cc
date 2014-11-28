@@ -760,7 +760,6 @@ create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
     if (type == Item::SUM_FUNC_ITEM && !group && !save_sum_fields)
     {						/* Can't calc group yet */
       Item_sum *sum_item= (Item_sum *) item;
-      sum_item->result_field=0;
       for (i=0 ; i < sum_item->get_arg_count() ; i++)
       {
         Item *arg= sum_item->get_arg(i);
