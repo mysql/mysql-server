@@ -57,6 +57,8 @@
 
 --echo ==== Configure ====
 
+SET GLOBAL ENFORCE_GTID_CONSISTENCY = ON;
+
 --delimiter |
 # replace NULL by 'NULL', @@GLOBAL.SERVER_UUID by 'SERVER_UUID', and aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa by A
 CREATE FUNCTION fix_gtid(str VARCHAR(100)) RETURNS VARCHAR (100)
@@ -199,5 +201,6 @@ DROP FUNCTION show_gtid;
 
 --let $rpl_gtid_mode= OFF
 --source include/rpl_set_gtid_mode.inc
+SET GLOBAL ENFORCE_GTID_CONSISTENCY = OFF;
 
 --source include/rpl_end.inc
