@@ -434,7 +434,7 @@ page_create_zip(
 						where the page is created */
 	dict_index_t*		index,		/*!< in: the index of the
 						page, or NULL when applying
-						TRUNCATE log 
+						TRUNCATE log
 						record during recovery */
 	ulint			level,		/*!< in: the B-tree level
 						of the page */

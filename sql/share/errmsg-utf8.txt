@@ -7060,6 +7060,9 @@ ER_PLUGIN_CANNOT_BE_UNINSTALLED
 
 ER_GTID_UNSAFE_BINLOG_SPLITTABLE_STATEMENT_AND_GTID_GROUP
   eng "Cannot execute statement because it needs to be written to the binary log as multiple statements, and this is not allowed when @@SESSION.GTID_NEXT == 'UUID:NUMBER'."
+
+ER_SLAVE_HAS_MORE_GTIDS_THAN_MASTER
+  eng "Slave has more GTIDs than the master has, using the master's SERVER_UUID. This may indicate that the end of the binary log was truncated or that the last binary log file was lost, e.g., after a power or disk failure when sync_binlog != 1. The master may or may not have rolled back transactions that were already replicated to the slave. Suggest to replicate any transactions that master has rolled back from slave to master, and/or commit empty transactions on master to account for transactions that have been committed on master but are not included in GTID_EXECUTED."
 #
 #  End of 5.6 error messages.
 #
@@ -7261,27 +7264,6 @@ ER_UNSUPPORTED_BY_REPLICATION_THREAD
 ER_INCORRECT_TYPE
   eng "Incorrect type for argument %s in function %s."
 
-ER_GENERATED_COLUMN_FUNCTION_IS_NOT_ALLOWED
-  eng "Expression of generated column '%s' contains a disallowed function."
-
-ER_KEY_BASED_ON_GENERATED_COLUMN
-  eng "Key/Index cannot be defined on a virtual generated column."
-
-ER_WRONG_FK_OPTION_FOR_GENERATED_COLUMN
-  eng "Cannot define foreign key with %s clause on a generated column."
-
-ER_NON_DEFAULT_VALUE_FOR_GENERATED_COLUMN
-  eng "The value specified for generated column '%s' in table '%s' is not allowed."
-
-ER_UNSUPPORTED_ACTION_ON_GENERATED_COLUMN
-  eng "'%s' is not yet supported for generated columns."
-
-ER_GENERATED_COLUMN_NON_PRIOR
-  eng "Generated column can refer only to generated columns defined prior it."
-
-ER_DEPENDENT_BY_GENERATED_COLUMN
-  eng "Column '%s' has a generated column dependency."
-
 ER_FIELD_IN_ORDER_NOT_SELECT
   eng "Expression #%u of ORDER BY clause is not in SELECT list, references column '%-.192s' which is not in SELECT list; this is incompatible with %s"
 
@@ -7355,6 +7337,27 @@ ER_WRONG_FIELD_WITH_GROUP_V2
 # When using this error message, use the ER_MIX_OF_GROUP_FUNC_AND_FIELDS error code.
 ER_MIX_OF_GROUP_FUNC_AND_FIELDS_V2
   eng "In aggregated query without GROUP BY, expression #%u of %s contains nonaggregated column '%-.192s'; this is incompatible with sql_mode=only_full_group_by"
+
+ER_GENERATED_COLUMN_FUNCTION_IS_NOT_ALLOWED
+  eng "Expression of generated column '%s' contains a disallowed function."
+
+ER_KEY_BASED_ON_GENERATED_COLUMN
+  eng "Key/Index cannot be defined on a virtual generated column."
+
+ER_WRONG_FK_OPTION_FOR_GENERATED_COLUMN
+  eng "Cannot define foreign key with %s clause on a generated column."
+
+ER_NON_DEFAULT_VALUE_FOR_GENERATED_COLUMN
+  eng "The value specified for generated column '%s' in table '%s' is not allowed."
+
+ER_UNSUPPORTED_ACTION_ON_GENERATED_COLUMN
+  eng "'%s' is not yet supported for generated columns."
+
+ER_GENERATED_COLUMN_NON_PRIOR
+  eng "Generated column can refer only to generated columns defined prior it."
+
+ER_DEPENDENT_BY_GENERATED_COLUMN
+  eng "Column '%s' has a generated column dependency."
 
 #
 #  End of 5.7 error messages.

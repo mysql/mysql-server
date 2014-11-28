@@ -209,7 +209,7 @@ rtr_get_parent_node(
 	}
 
 	mutex_enter(&btr_cur->rtr_info->rtr_path_mutex);
-	
+
 	num = btr_cur->rtr_info->parent_path->size();
 
 	if (!num) {

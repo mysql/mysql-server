@@ -418,17 +418,13 @@ Creates the seek mutexes used in positioned reads and writes. */
 void
 os_io_init_simple(void);
 /*===================*/
-
-/** Create a temporary file. This function is like tmpfile(3), but
-the temporary file is created in the given parameter path. If the path
-is null then it will create the file in the mysql server configuration
-parameter (--tmpdir).
-@param[in]	path	location for creating temporary file
+/***********************************************************************//**
+Creates a temporary file.  This function is like tmpfile(3), but
+the temporary file is created in the MySQL temporary directory.
 @return temporary file handle, or NULL on error */
 FILE*
-os_file_create_tmpfile(
-	const char*	path);
-
+os_file_create_tmpfile(void);
+/*========================*/
 #endif /* !UNIV_HOTBACKUP */
 /***********************************************************************//**
 The os_file_opendir() function opens a directory stream corresponding to the
@@ -1223,14 +1219,13 @@ os_file_get_status(
 					checks are enforced. */
 
 #if !defined(UNIV_HOTBACKUP)
-/** Create a temporary file in the location specified by the parameter
-path. If the path is null, then it will be created in tmpdir.
+/*********************************************************************//**
+Creates a temporary file that will be deleted on close.
 This function is defined in ha_innodb.cc.
-@param[in]	path	location for creating temporary file
 @return temporary file descriptor, or < 0 on error */
 int
-innobase_mysql_tmpfile(
-	const char*	path);
+innobase_mysql_tmpfile(void);
+/*========================*/
 #endif /* !UNIV_HOTBACKUP */
 
 

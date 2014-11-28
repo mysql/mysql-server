@@ -60,7 +60,7 @@ ERROR HY000: Incorrect parameter or combination of parameters for START SLAVE UN
 START SLAVE;
 START SLAVE UNTIL MASTER_LOG_FILE='master-bin.000001', MASTER_LOG_POS=MASTER_LOG_POS;
 Warnings:
-Note	1968	Replication thread(s) for channel '' are already runnning.
+Note	1969	Replication thread(s) for channel '' are already runnning.
 include/stop_slave.inc
 RESET SLAVE;
 include/rpl_end.inc
