@@ -22,7 +22,6 @@
 #define HAVE_REPLICATION
 
 #include "my_global.h"
-#include "sql_priv.h"
 #include "table_replication_connection_status.h"
 #include "pfs_instr_class.h"
 #include "pfs_instr.h"

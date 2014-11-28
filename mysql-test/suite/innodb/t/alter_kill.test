@@ -61,9 +61,9 @@ INSERT INTO bug16720368_1 VALUES(1);
 
 -- echo # The table is unaccessible, because after a crash we will
 -- echo # validate the tablespace header.
---error ER_NO_SUCH_TABLE
+--error ER_TABLESPACE_MISSING
 SELECT COUNT(*) FROM bug16720368;
---error ER_NO_SUCH_TABLE
+--error ER_TABLESPACE_MISSING
 INSERT INTO bug16720368 VALUES(0,1);
 
 let $restart_parameters = restart: --innodb-force-recovery=3;

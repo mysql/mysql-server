@@ -49,7 +49,6 @@
   if this file.
 */
 
-#include "sql_priv.h"
 #include "sql_parse.h"                          // append_file_to_dir
 #include "binlog.h"                             // mysql_bin_log
 

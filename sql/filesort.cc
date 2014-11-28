@@ -21,7 +21,6 @@
   Sorts a database
 */
 
-#include "sql_priv.h"
 #include "filesort.h"
 #include <m_ctype.h>
 #include "sql_sort.h"

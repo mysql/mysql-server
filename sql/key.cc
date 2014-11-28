@@ -16,7 +16,6 @@
 
 /* Functions to handle keys and fields in forms */
 
-#include "sql_priv.h"
 #include "key.h"                                // key_rec_cmp
 #include "field.h"                              // Field
 

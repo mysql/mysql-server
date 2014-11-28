@@ -18,7 +18,6 @@
 /* Insert of records */
 
 #include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
-#include "sql_priv.h"
 #include "sql_insert.h"
 #include "sql_update.h"                         // compare_record
 #include "sql_base.h"                           // close_thread_tables
