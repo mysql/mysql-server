@@ -46,7 +46,6 @@
 /* Some general useful functions */
 
 #define MYSQL_LEX 1
-#include "sql_priv.h"
 #include "sql_partition.h"
 #include "key.h"                            // key_restore
 #include "sql_parse.h"                      // parse_sql

@@ -37,7 +37,6 @@
 #include <crtdbg.h>
 #endif
 
-#include "sql_priv.h"
 #include "sql_parse.h"    // test_if_data_home_dir
 #include "sql_cache.h"    // query_cache, query_cache_*
 #include "sql_locale.h"   // MY_LOCALES, my_locales, my_locale_by_name
@@ -8458,7 +8457,6 @@ PSI_memory_key key_memory_Security_context;
 PSI_memory_key key_memory_shared_memory_name;
 PSI_memory_key key_memory_bison_stack;
 PSI_memory_key key_memory_THD_handler_tables_hash;
-PSI_memory_key key_memory_mysql_manager;
 PSI_memory_key key_memory_hash_index_key_buffer;
 PSI_memory_key key_memory_dboptions_hash;
 PSI_memory_key key_memory_user_conn;
@@ -8604,7 +8602,6 @@ static PSI_memory_info all_server_memory[]=
   { &key_memory_shared_memory_name, "Shared_memory_name", 0},
   { &key_memory_bison_stack, "bison_stack", 0},
   { &key_memory_THD_handler_tables_hash, "THD::handler_tables_hash", 0},
-  { &key_memory_mysql_manager, "mysql_manager", 0},
   { &key_memory_hash_index_key_buffer, "hash_index_key_buffer", 0},
   { &key_memory_dboptions_hash, "dboptions_hash", 0},
   { &key_memory_user_conn, "user_conn", 0},

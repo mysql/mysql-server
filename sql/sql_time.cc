@@ -16,7 +16,6 @@
 
 /* Functions to handle date and time */
 
-#include "sql_priv.h"
 #include "sql_time.h"
 #include "tztime.h"                             // struct Time_zone
 #include "sql_class.h"  // THD, MODE_STRICT_ALL_TABLES, MODE_STRICT_TRANS_TABLES
