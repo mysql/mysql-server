@@ -1,0 +1,1 @@
+--tokudb-cache-size=1000000000 --innodb-buffer-pool-size=1000000000
