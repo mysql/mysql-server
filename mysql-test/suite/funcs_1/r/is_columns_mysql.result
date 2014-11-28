@@ -249,7 +249,7 @@ def	mysql	user	max_updates	38	0	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11) uns
 def	mysql	user	max_user_connections	40	0	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11) unsigned			select,insert,update,references	
 def	mysql	user	Password	3		NO	char	41	41	NULL	NULL	NULL	latin1	latin1_bin	char(41)			select,insert,update,references	
 def	mysql	user	password_expired	43	N	NO	enum	1	3	NULL	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			select,insert,update,references	
-def	mysql	user	plugin	41		YES	char	64	192	NULL	NULL	NULL	utf8	utf8_bin	char(64)			select,insert,update,references	
+def	mysql	user	plugin	41	mysql_native_password	YES	char	64	192	NULL	NULL	NULL	utf8	utf8_bin	char(64)			select,insert,update,references	
 def	mysql	user	Process_priv	12	N	NO	enum	1	3	NULL	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			select,insert,update,references	
 def	mysql	user	References_priv	15	N	NO	enum	1	3	NULL	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			select,insert,update,references	
 def	mysql	user	Reload_priv	10	N	NO	enum	1	3	NULL	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			select,insert,update,references	

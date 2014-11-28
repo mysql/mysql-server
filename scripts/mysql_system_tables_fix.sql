@@ -1,4 +1,4 @@
--- Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+-- Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
 --
 -- This program is free software; you can redistribute it and/or modify
 -- it under the terms of the GNU General Public License as published by
@@ -606,8 +606,10 @@ DROP PREPARE stmt;
 
 drop procedure mysql.die;
 
-ALTER TABLE user ADD plugin char(64) DEFAULT '',  ADD authentication_string TEXT;
-ALTER TABLE user MODIFY plugin char(64) DEFAULT '';
+ALTER TABLE user ADD plugin char(64) DEFAULT 'mysql_native_password',  ADD authentication_string TEXT;
+ALTER TABLE user MODIFY plugin char(64) DEFAULT 'mysql_native_password';
+UPDATE user SET plugin=IF((length(password) = 41) OR (length(password) = 0), 'mysql_native_password', '') WHERE plugin = '';
+UPDATE user SET plugin=IF(length(password) = 16, 'mysql_old_password', '') WHERE plugin = '';
 ALTER TABLE user MODIFY authentication_string TEXT;
 
 -- establish if the field is already there.
