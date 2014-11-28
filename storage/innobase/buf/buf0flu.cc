@@ -1962,6 +1962,7 @@ buf_flush_lists(
 					back to caller. Ignored if NULL */
 #ifdef HAVE_PSI_STAGE_INTERFACE
 	, PSI_stage_progress*	progress
+	, ulint			work_todo_during_log
 #endif /* HAVE_PSI_STAGE_INTERFACE */
 )
 {
@@ -1998,10 +1999,8 @@ buf_flush_lists(
 		/* We will not flush more than 'min_n' pages. */
 		pages_to_flush = std::min(min_n, pages_to_flush);
 
-		mysql_stage_set_work_estimated(
-			progress,
-			mysql_stage_get_work_completed(progress)
-			+ pages_to_flush);
+		ut_stage_new_estimate(progress,
+				      pages_to_flush + work_todo_during_log);
 	}
 #endif /* HAVE_PSI_STAGE_INTERFACE */
 

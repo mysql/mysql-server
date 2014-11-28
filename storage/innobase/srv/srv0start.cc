@@ -191,6 +191,7 @@ static PSI_stage_info*	srv_stages[] =
 	&srv_stage_alter_table_end,
 	&srv_stage_alter_table_flush,
 	&srv_stage_alter_table_insert,
+	&srv_stage_alter_table_log,
 	&srv_stage_alter_table_read_pk,
 	&srv_stage_alter_table_sort,
 	&srv_stage_buffer_pool_load,

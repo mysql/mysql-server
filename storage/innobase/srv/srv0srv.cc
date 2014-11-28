@@ -586,6 +586,11 @@ PSI_stage_info	srv_stage_alter_table_insert
 	= {0, "alter table (insert)", PSI_FLAG_STAGE_PROGRESS};
 
 /** Performance schema stage event for monitoring ALTER TABLE progress
+row_log_table_apply(). */
+PSI_stage_info	srv_stage_alter_table_log
+	= {0, "alter table (log)", PSI_FLAG_STAGE_PROGRESS};
+
+/** Performance schema stage event for monitoring ALTER TABLE progress
 row_merge_read_clustered_index(). */
 PSI_stage_info	srv_stage_alter_table_read_pk
 	= {0, "alter table (read PK)", PSI_FLAG_STAGE_PROGRESS};

@@ -4629,18 +4629,17 @@ ok_exit:
 #endif /* HAVE_PSI_STAGE_INTERFACE */
 		);
 
-#ifdef HAVE_PSI_STAGE_INTERFACE
-	ut_stage_change(&ha_alter_info->alter_info->progress,
-			&srv_stage_alter_table_end);
-#endif /* HAVE_PSI_STAGE_INTERFACE */
-
 #ifndef DBUG_OFF
 oom:
 #endif /* !DBUG_OFF */
 	if (error == DB_SUCCESS && ctx->online && ctx->need_rebuild()) {
 		DEBUG_SYNC_C("row_log_table_apply1_before");
 		error = row_log_table_apply(
-			ctx->thr, m_prebuilt->table, altered_table);
+			ctx->thr, m_prebuilt->table, altered_table
+#ifdef HAVE_PSI_STAGE_INTERFACE
+			, &ha_alter_info->alter_info->progress
+#endif /* HAVE_PSI_STAGE_INTERFACE */
+			);
 	}
 
 	DEBUG_SYNC_C("inplace_after_index_build");
@@ -4648,8 +4647,6 @@ oom:
 	DBUG_EXECUTE_IF("create_index_fail",
 			error = DB_DUPLICATE_KEY;
 			m_prebuilt->trx->error_key_num = ULINT_UNDEFINED;);
-
-	mysql_end_stage();
 
 	/* After an error, remove all those index definitions
 	from the dictionary which were defined. */
@@ -5717,7 +5714,11 @@ commit_try_rebuild(
 	if (ctx->online) {
 		DEBUG_SYNC_C("row_log_table_apply2_before");
 		error = row_log_table_apply(
-			ctx->thr, user_table, altered_table);
+			ctx->thr, user_table, altered_table
+#ifdef HAVE_PSI_STAGE_INTERFACE
+			, &ha_alter_info->alter_info->progress
+#endif /* HAVE_PSI_STAGE_INTERFACE */
+			);
 		ulint	err_key = thr_get_trx(ctx->thr)->error_key_num;
 
 		switch (error) {

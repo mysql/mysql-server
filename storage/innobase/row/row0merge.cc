@@ -4088,12 +4088,14 @@ row_merge_build_indexes(
 		= skip_pk_sort && new_table != old_table
 		? n_indexes - 1
 		: n_indexes;
+	const ulint	n_leaf_pk_pages
+		= dict_table_get_first_index(old_table)->stat_n_leaf_pages;
 #endif /* HAVE_PSI_STAGE_INTERFACE */
 
 	mysql_stage_set_work_estimated(
 		*progress,
 		row_merge_estimate_alter_table(
-			old_table->stat_clustered_index_size, n_sort_indexes));
+			n_leaf_pk_pages, n_sort_indexes));
 	mysql_stage_set_work_completed(*progress, 0);
 
 	/* Allocate memory for merge file data structure and initialize
@@ -4406,9 +4408,12 @@ func_exit:
 		ut_stage_change(progress, &srv_stage_alter_table_flush);
 #endif /* HAVE_PSI_STAGE_INTERFACE */
 
-		log_make_checkpoint_at(LSN_MAX, TRUE
+		log_make_checkpoint_at(
+			LSN_MAX, TRUE
 #ifdef HAVE_PSI_STAGE_INTERFACE
-				       , *progress
+			, *progress
+			, row_log_estimate_work(
+				dict_table_get_first_index(old_table))
 #endif /* HAVE_PSI_STAGE_INTERFACE */
 		);
 	}

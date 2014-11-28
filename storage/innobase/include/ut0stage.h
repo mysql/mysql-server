@@ -35,21 +35,22 @@ Created Nov 12, 2014 Vasil Dimov
 
 #ifdef HAVE_PSI_STAGE_INTERFACE
 
-/** Increment a stage progress.
+/** Increment a stage progress (work completed).
 This function will take care to increment also the total work estimated
 in case the work completed is going to become larger than it.
 @param[in,out]	progress	progress to increment
+@param[in]	inc_val		increment with this amount, default to 1
 */
 inline
 void
 ut_stage_inc(
-	PSI_stage_progress*	progress)
+	PSI_stage_progress*	progress,
+	ulint			inc_val = 1)
 {
 	if (progress == NULL) {
 		return;
 	}
 
-	const int	inc_val = 1;
 	const ulonglong	old_work_estimated
 		= mysql_stage_get_work_estimated(progress);
 
@@ -61,6 +62,22 @@ ut_stage_inc(
 	}
 
 	mysql_stage_inc_work_completed(progress, inc_val);
+}
+
+/** Set a stage's total estimate (work estimated) based on a new estimate of
+the remaining work.
+@param[in,out]	progress	progress whose estimate to set
+@param[in]	work_remaining	new estimate of work remaining
+*/
+inline
+void
+ut_stage_new_estimate(
+	PSI_stage_progress*	progress,
+	ulint			work_remaining)
+{
+	mysql_stage_set_work_estimated(
+		progress,
+		mysql_stage_get_work_completed(progress) + work_remaining);
 }
 
 /** Change the current stage to a new one and keep the "work completed"
