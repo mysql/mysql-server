@@ -1244,7 +1244,6 @@ bool Gis_line_string::init_from_wkt(Gis_read_stream *trs, String *wkb)
   uint32 n_points= 0;
   uint32 np_pos= wkb->length();
   Gis_point p(false);
-  char *firstpt= NULL, *lastpt= NULL;
 
   if (wkb->reserve(4, 512))
     return true;
@@ -1264,20 +1263,22 @@ bool Gis_line_string::init_from_wkt(Gis_read_stream *trs, String *wkb)
     return true;
   }
 
+  const char *firstpt= NULL, *lastpt= NULL;
   if (!is_polygon_ring())
     goto out;
 
   // Make sure all rings of a polygon are closed, close it if not so.
-  lastpt= wkb->c_ptr() + wkb->length() - POINT_DATA_SIZE;
-  firstpt= wkb->c_ptr() + np_pos + 4;
+  firstpt= wkb->ptr() + np_pos + 4;
+  lastpt= wkb->ptr() + wkb->length() - POINT_DATA_SIZE;
 
   // Not closed, append 1st pt to wkb.
   if (memcmp(lastpt, firstpt, POINT_DATA_SIZE))
   {
     wkb->reserve(POINT_DATA_SIZE, 32);
+    firstpt= wkb->ptr() + np_pos + 4;
     wkb->q_append(firstpt, POINT_DATA_SIZE);
     n_points++;
-    lastpt+= POINT_DATA_SIZE;
+    lastpt= wkb->ptr() + wkb->length() - POINT_DATA_SIZE;
   }
   DBUG_ASSERT(n_points == (lastpt - firstpt) / POINT_DATA_SIZE + 1);
 
