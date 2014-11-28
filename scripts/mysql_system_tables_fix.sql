@@ -27,23 +27,67 @@ set sql_mode='';
 set default_storage_engine=MyISAM;
 
 # MCP_BUG16226274 >
-# Handle distributed grant tables before upgrade
-# - remember which tables was moved so they can be moved back after upgrade
-# - move any dist priv tables from engine=NDB into default engine
-CREATE TEMPORARY TABLE was_distributed (table_name VARCHAR(255));
-INSERT INTO was_distributed
-  SELECT table_name FROM information_schema.tables
-    WHERE table_schema = 'mysql' AND
-          table_type = 'BASE TABLE' AND
-          engine = 'NDBCLUSTER' AND
-          table_name IN ('user', 'db', 'tables_priv', 'columns_priv',
-                         'procs_priv', 'proxies_priv', 'host');
-ALTER TABLE mysql.user ENGINE=MyISAM;
-ALTER TABLE mysql.db ENGINE=MyISAM;
-ALTER TABLE mysql.tables_priv ENGINE=MyISAM;
-ALTER TABLE mysql.columns_priv ENGINE=MyISAM;
-ALTER TABLE mysql.procs_priv ENGINE=MyISAM;
-ALTER TABLE mysql.proxies_priv ENGINE=MyISAM;
+# Move distributed grant tables to default engine during upgrade, remember
+# which tables was moved so they can be moved back after upgrade
+SET @had_distributed_user =
+  (SELECT COUNT(table_name) FROM information_schema.tables
+     WHERE table_schema = 'mysql' AND table_name = 'user' AND
+           table_type = 'BASE TABLE' AND engine = 'NDBCLUSTER');
+SET @cmd="ALTER TABLE mysql.user ENGINE=MyISAM";
+SET @str = IF(@had_distributed_user > 0, @cmd, "SET @dummy = 0");
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+SET @had_distributed_db =
+  (SELECT COUNT(table_name) FROM information_schema.tables
+     WHERE table_schema = 'mysql' AND table_name = 'db' AND
+           table_type = 'BASE TABLE' AND engine = 'NDBCLUSTER');
+SET @cmd="ALTER TABLE mysql.db ENGINE=MyISAM";
+SET @str = IF(@had_distributed_db > 0, @cmd, "SET @dummy = 0");
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+SET @had_distributed_tables_priv =
+  (SELECT COUNT(table_name) FROM information_schema.tables
+     WHERE table_schema = 'mysql' AND table_name = 'tables_priv' AND
+           table_type = 'BASE TABLE' AND engine = 'NDBCLUSTER');
+SET @cmd="ALTER TABLE mysql.tables_priv ENGINE=MyISAM";
+SET @str = IF(@had_distributed_tables_priv > 0, @cmd, "SET @dummy = 0");
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+SET @had_distributed_columns_priv =
+  (SELECT COUNT(table_name) FROM information_schema.tables
+     WHERE table_schema = 'mysql' AND table_name = 'columns_priv' AND
+           table_type = 'BASE TABLE' AND engine = 'NDBCLUSTER');
+SET @cmd="ALTER TABLE mysql.columns_priv ENGINE=MyISAM";
+SET @str = IF(@had_distributed_columns_priv > 0, @cmd, "SET @dummy = 0");
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+SET @had_distributed_procs_priv =
+  (SELECT COUNT(table_name) FROM information_schema.tables
+     WHERE table_schema = 'mysql' AND table_name = 'procs_priv' AND
+           table_type = 'BASE TABLE' AND engine = 'NDBCLUSTER');
+SET @cmd="ALTER TABLE mysql.procs_priv ENGINE=MyISAM";
+SET @str = IF(@had_distributed_procs_priv > 0, @cmd, "SET @dummy = 0");
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+SET @had_distributed_proxies_priv =
+  (SELECT COUNT(table_name) FROM information_schema.tables
+     WHERE table_schema = 'mysql' AND table_name = 'proxies_priv' AND
+           table_type = 'BASE TABLE' AND engine = 'NDBCLUSTER' );
+SET @cmd="ALTER TABLE mysql.proxies_priv ENGINE=MyISAM";
+SET @str = IF(@had_distributed_proxies_priv > 0, @cmd, "SET @dummy = 0");
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
 # MCP_BUG16226274 <
 
 ALTER TABLE user add File_priv enum('N','Y') COLLATE utf8_general_ci NOT NULL;
@@ -796,33 +840,40 @@ UPDATE user SET password_last_changed = CURRENT_TIMESTAMP WHERE plugin in ('mysq
 ALTER TABLE user ADD password_lifetime smallint unsigned NULL;
 
 # MCP_BUG16226274 >
-# Handle distributed grant tables after upgrade
-# - move any tables which was in engine=NDB back into NDB
-DROP PROCEDURE IF EXISTS mysql.dist_priv_after_upgrade;
-DELIMITER //
-CREATE PROCEDURE mysql.dist_priv_after_upgrade()
-BEGIN
-  DECLARE tbl_name varchar(255);
-  DECLARE done int DEFAULT 0;
-  DECLARE tables CURSOR FOR SELECT table_name FROM was_distributed;
-  DECLARE CONTINUE HANDLER FOR SQLSTATE '02000' SET done = 1;
+# Move any distributed grant tables back to NDB after upgrade
+SET @cmd="ALTER TABLE mysql.user ENGINE=NDB";
+SET @str = IF(@had_distributed_user > 0, @cmd, "SET @dummy = 0");
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
 
-  OPEN tables;
-  REPEAT
-    FETCH tables INTO tbl_name;
-    IF NOT done THEN
-      # Alter table back into NDB
-      SET @str =
-        CONCAT("ALTER TABLE mysql.", tbl_name, " ENGINE=NDB");
-      SELECT @str;
-      PREPARE stmt FROM @str;
-      EXECUTE stmt;
-    END IF;
-  UNTIL DONE END REPEAT;
-  CLOSE tables;
-END //
-DELIMITER ;
-CALL mysql.dist_priv_after_upgrade();
-DROP PROCEDURE mysql.dist_priv_after_upgrade;
-DROP TEMPORARY TABLE was_distributed;
+SET @cmd="ALTER TABLE mysql.db ENGINE=NDB";
+SET @str = IF(@had_distributed_db > 0, @cmd, "SET @dummy = 0");
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+SET @cmd="ALTER TABLE mysql.tables_priv ENGINE=NDB";
+SET @str = IF(@had_distributed_tables_priv > 0, @cmd, "SET @dummy = 0");
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+SET @cmd="ALTER TABLE mysql.columns_priv ENGINE=NDB";
+SET @str = IF(@had_distributed_columns_priv > 0, @cmd, "SET @dummy = 0");
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+SET @cmd="ALTER TABLE mysql.procs_priv ENGINE=NDB";
+SET @str = IF(@had_distributed_procs_priv > 0, @cmd, "SET @dummy = 0");
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+SET @cmd="ALTER TABLE mysql.proxies_priv ENGINE=NDB";
+SET @str = IF(@had_distributed_proxies_priv > 0, @cmd, "SET @dummy = 0");
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
 # MCP_BUG16226274 <
