@@ -46,7 +46,7 @@ typedef Bounds_checked_array<Item*> Ref_ptr_array;
 */
 #define COND_FILTER_ALLPASS 1.0f
 /// Filtering effect for equalities: col1 = col2
-#define COND_FILTER_EQUALITY 0.0050f
+#define COND_FILTER_EQUALITY 0.1f
 /// Filtering effect for inequalities: col1 > col2
 #define COND_FILTER_INEQUALITY 0.3333f
 /// Filtering effect for between: col1 BETWEEN a AND b
