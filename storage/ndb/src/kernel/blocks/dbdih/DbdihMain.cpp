@@ -18177,10 +18177,16 @@ void Dbdih::execLCP_COMPLETE_REP(Signal* signal)
    * handling the UNDO log. The sender must be in the set of
    * c_lcpState.m_LCP_COMPLETE_REP_Counter_LQH waited for.
    *
+   * There is an exception for this during master takeover, another node
+   * might send LCP_COMPLETE_REP after receiving MASTER_LCPREQ and finalising
+   * its part of the master takeover protocol. This signal might arrive
+   * before we have completed the master takeover protocol. In this case
+   * the signal must be delayed until the master takeover handling is
+   * completed. One reason for this is that we haven't finalised setting
+   * up the master bitmaps yet.
+   *
    * We know in this case that the node is alive by assumption that
    * we don't receive messages from dead nodes.
-   *
-   * This signal can be delayed by a master takeover.
    *
    * 2) blockNo == DBLQH and signal->length() == SignalLengthTQ and
    *    rep->fromTQ == 0
@@ -18226,7 +18232,10 @@ void Dbdih::execLCP_COMPLETE_REP(Signal* signal)
    * The sending node can both be an alive node and a starting node
    * which hasn't been set to alive yet.
    *
-   * This signal can be delayed by a master takeover.
+   * The same principle applies as in 1) here, the signal could arrive
+   * during master takeover when we haven't yet formed the correct
+   * c_lcpState.m_LCP_COMPLETE_REP_Counter_DIH set. In this case we need
+   * to delay the signal until the master takeover is completed.
    *
    * 5) blockNo == DBDIH and signal->length() == SignalLengthTQ and
    *    rep->fromTQ == 0
@@ -18234,6 +18243,7 @@ void Dbdih::execLCP_COMPLETE_REP(Signal* signal)
    * This is sent from node failure processing when the node has died.
    * The same logic as in 6) applies, the signal can be dropped if the
    * node isn't part of the c_lcpState.m_LCP_COMPLETE_REP_Counter_DIH set.
+   * Otherwise it should be allowed to pass through.
    *
    * This signal cannot be delayed by the master takeover.
    *
@@ -18257,56 +18267,94 @@ void Dbdih::execLCP_COMPLETE_REP(Signal* signal)
    * dead master and it is too early to receive it from the new master.
    */
 
-  if (blockNo == DBLQH)
+  if (blockNo == DBLQH &&
+      signal->length() == LcpCompleteRep::SignalLengthTQ &&
+      rep->fromTQ == Uint32(0))
   {
-    jam();
+    /* Handle case 2) above */
+    ndbrequire(c_lcpMasterTakeOverState.state <= LMTOS_INITIAL);
     if (!c_lcpState.m_LCP_COMPLETE_REP_Counter_LQH.isWaitingFor(nodeId))
     {
-      ndbrequire(signal->length() == LcpCompleteRep::SignalLengthTQ)
+      jam();
       return;
     }
-  }
-  else if (blockNo == DBDIH)
-  {
     jam();
+  }
+  else if (blockNo == DBDIH &&
+           signal->length() == LcpCompleteRep::SignalLengthTQ &&
+           rep->fromTQ == Uint32(0))
+  {
+    /* Handle case 5) above */
+    ndbrequire(c_lcpMasterTakeOverState.state <= LMTOS_INITIAL);
     if (!c_lcpState.m_LCP_COMPLETE_REP_Counter_DIH.isWaitingFor(nodeId))
     {
-      ndbrequire(signal->length() == LcpCompleteRep::SignalLengthTQ)
+      jam();
       return;
     }
-  }
-  if (blockNo == 0 ||
-      (signal->length() == LcpCompleteRep::SignalLengthTQ &&
-       rep->fromTQ == 0))
-  {
     jam();
+  }
+  else if (blockNo == 0)
+  {
+    /* Handle case 7) above) */
+    jam();
+    ndbrequire(signal->length() == LcpCompleteRep::SignalLength);
     /**
      * Always allowed free pass through for signals from master that LCP is
-     * completed or any signal that is received from execNODE_FAILREP.
-     * These signals should not be blocked by master takeover.
+     * completed.
+     * These signals should not be blocked by master takeover since the
+     * master is the last node to complete master takeover and the master
+     * is sending this signal.
      */
-    ndbrequire(c_lcpMasterTakeOverState.state <= LMTOS_INITIAL);
   }
   else
   {
+    /* Handle case 1), case 3), case 4) and case 6) above */
     jam();
+    ndbrequire(blockNo == DBDIH || blockNo == DBLQH);
     if(c_lcpMasterTakeOverState.state > LMTOS_WAIT_LCP_FRAG_REP)
     {
       jam();
       /**
        * Don't allow LCP_COMPLETE_REP to arrive during
-       * LCP master take over
+       * LCP master take over. We haven't yet formed the set of
+       * expected signals and we don't want the master state to go to
+       * completed while we are forming the state.
        *
        * We keep this even when removing the need to use the EMPTY_LCP_REQ
        * protocol. The reason is that we don't want to handle code to
        * process LCP completion as part of master take over as a
-       * simplification. It is perfectly doable, but this makes the code
-       * a bit easier for a very small cost.
+       * simplification. It is perfectly doable but we opted for keeping
+       * this variant.
        */
       ndbrequire(isMaster());
       rep->fromTQ = Uint32(1);
       sendSignalWithDelay(reference(), GSN_LCP_COMPLETE_REP, signal, 100,
                           LcpCompleteRep::SignalLengthTQ);
+      return;
+    }
+    /**
+     * We are not in a master takeover situation, so we should have the
+     * signal expected by the sets, however this could have been handled
+     * by the signal sent from NODE_FAILREP already. So we need to verify
+     * we really are in those sets. Not being in those states when a master
+     * takeover isn't ongoing should only happen for delayed signals.
+     */
+    if (blockNo == DBLQH &&
+        !c_lcpState.m_LCP_COMPLETE_REP_Counter_LQH.isWaitingFor(nodeId))
+    {
+      /* Can happen in case 3) above */
+      jam();
+      ndbrequire(signal->length() == LcpCompleteRep::SignalLengthTQ &&
+                 rep->fromTQ == Uint32(1));
+      return;
+    }
+    if (blockNo == DBDIH &&
+        !c_lcpState.m_LCP_COMPLETE_REP_Counter_DIH.isWaitingFor(nodeId))
+    {
+      /* Can happen in case 6) above */
+      jam();
+      ndbrequire(signal->length() == LcpCompleteRep::SignalLengthTQ &&
+                 rep->fromTQ == Uint32(1));
       return;
     }
   }
