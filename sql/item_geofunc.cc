@@ -1594,7 +1594,6 @@ String *Item_func_geometry_type::val_str_ascii(String *str)
 String *Item_func_validate::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
-  String arg_val;
   String *swkb= args[0]->val_str(&arg_val);
   Geometry_buffer buffer;
   Geometry *geom= NULL;

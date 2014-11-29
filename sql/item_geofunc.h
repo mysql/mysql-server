@@ -393,6 +393,7 @@ public:
 
 class Item_func_validate: public Item_geometry_func
 {
+  String arg_val;
 public:
   Item_func_validate(const POS &pos, Item *a): Item_geometry_func(pos, a) {}
   const char *func_name() const { return "st_validate"; }
