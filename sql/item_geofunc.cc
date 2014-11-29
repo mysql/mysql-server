@@ -215,7 +215,7 @@ public:
 
 template <typename Point_range>
 static bool is_colinear(const Point_range &ls);
-static int check_geometry_valid(const Geometry *geom);
+static int check_geometry_valid(Geometry *geom);
 
 
 Item_geometry_func::Item_geometry_func(const POS &pos, PT_item_list *list)
@@ -8674,14 +8674,14 @@ public:
   Call Boost Geometry algorithm to check whether a geometry is valid as
   defined by OGC.
  */
-static int check_geometry_valid(const Geometry *geom)
+static int check_geometry_valid(Geometry *geom)
 {
   int ret= 0;
 
   // Empty geometry collection is always valid. This is shortcut for
   // flat empty GCs, nested empty GC are also valid but will be computed below.
   if (is_empty_geocollection(geom))
-    return 1L;
+    return 1;
 
   switch (geom->get_type())
   {
@@ -8703,8 +8703,15 @@ static int check_geometry_valid(const Geometry *geom)
   }
   case Geometry::wkb_polygon:
   {
+    const void *ptr= geom->normalize_ring_order();
+    if (ptr == NULL)
+    {
+      ret= 0;
+      break;
+    }
+
     typename BG_models<double, bgcs::cartesian>::Polygon
-      bg(geom->get_data_ptr(), geom->get_data_size(),
+      bg(ptr, geom->get_data_size(),
          geom->get_flags(), geom->get_srid());
     ret= bg::is_valid(bg);
     break;
@@ -8727,8 +8734,15 @@ static int check_geometry_valid(const Geometry *geom)
   }
   case Geometry::wkb_multipolygon:
   {
+    const void *ptr= geom->normalize_ring_order();
+    if (ptr == NULL)
+    {
+      ret= 0;
+      break;
+    }
+
     typename BG_models<double, bgcs::cartesian>::Multipolygon
-      bg(geom->get_data_ptr(), geom->get_data_size(),
+      bg(ptr, geom->get_data_size(),
          geom->get_flags(), geom->get_srid());
     ret= bg::is_valid(bg);
     break;
