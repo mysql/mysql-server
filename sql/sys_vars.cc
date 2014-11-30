@@ -4761,8 +4761,8 @@ static Sys_var_mybool Sys_enforce_gtid_consistency(
        );
 #endif
 
-static Sys_var_mybool Sys_simplified_binlog_gtid_recovery(
-       "simplified_binlog_gtid_recovery",
+static Sys_var_mybool Sys_binlog_gtid_simple_recovery(
+       "binlog_gtid_simple_recovery",
        "If this option is enabled, the server does not scan more than one "
        "binary log for every iteration when initializing GTID sets on server "
        "restart. Enabling this option is very useful when restarting a server "
@@ -4771,9 +4771,8 @@ static Sys_var_mybool Sys_simplified_binlog_gtid_recovery(
        "GLOBAL.GTID_PURGED cannot be initialized correctly if binary log(s) "
        "with GTID events were generated before binary log(s) without GTID "
        "events, for example if gtid_mode is disabled when the server has "
-       "already generated binary log(s) with GTID events and not purged "
-       "them. ",
-       READ_ONLY GLOBAL_VAR(simplified_binlog_gtid_recovery),
+       "already generated binary log(s) with GTID events and not purged them.",
+       READ_ONLY GLOBAL_VAR(binlog_gtid_simple_recovery),
        CMD_LINE(OPT_ARG), DEFAULT(FALSE));
 
 static Sys_var_ulong Sys_sp_cache_size(
@@ -5111,13 +5110,13 @@ static Sys_var_enum Sys_gtid_mode(
 
 #endif // HAVE_REPLICATION
 
-static Sys_var_uint Sys_executed_gtids_compression_period(
-       "executed_gtids_compression_period", "When binlog is disabled, "
+static Sys_var_uint Sys_gtid_executed_compression_period(
+       "gtid_executed_compression_period", "When binlog is disabled, "
        "a background thread wakes up to compress the gtid_executed table "
-       "every executed_gtids_compression_period transactions, as a "
+       "every gtid_executed_compression_period transactions, as a "
        "special case, if variable is 0, the thread never wakes up "
        "to compress the gtid_executed table.",
-       GLOBAL_VAR(executed_gtids_compression_period),
+       GLOBAL_VAR(gtid_executed_compression_period),
        CMD_LINE(OPT_ARG), VALID_RANGE(0, UINT_MAX32), DEFAULT(1000),
        BLOCK_SIZE(1));
 
