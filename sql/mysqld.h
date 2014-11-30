@@ -216,7 +216,7 @@ extern const char *binlog_checksum_type_names[];
 extern my_bool opt_master_verify_checksum;
 extern my_bool opt_slave_sql_verify_checksum;
 extern my_bool enforce_gtid_consistency;
-extern my_bool simplified_binlog_gtid_recovery;
+extern my_bool binlog_gtid_simple_recovery;
 extern ulong binlog_error_action;
 enum enum_binlog_error_action
 {
@@ -617,6 +617,7 @@ enum options_mysqld
   OPT_BINLOG_IGNORE_DB,
   OPT_BIN_LOG,
   OPT_BINLOGGING_IMPOSSIBLE_MODE,
+  OPT_SIMPLIFIED_BINLOG_GTID_RECOVERY,
   OPT_BOOTSTRAP,
   OPT_CONSOLE,
   OPT_DEBUG_SYNC_TIMEOUT,

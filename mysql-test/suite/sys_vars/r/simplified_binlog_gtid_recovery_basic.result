@@ -1,6 +1,18 @@
 SELECT @@GLOBAL.simplified_binlog_gtid_recovery;
 @@GLOBAL.simplified_binlog_gtid_recovery
 0
+Warnings:
+Warning	1287	'@@simplified_binlog_gtid_recovery' is deprecated and will be removed in a future release. Please use '@@binlog_gtid_simple_recovery' instead
+SELECT COUNT(@@GLOBAL.simplified_binlog_gtid_recovery);
+COUNT(@@GLOBAL.simplified_binlog_gtid_recovery)
+1
+Warnings:
+Warning	1287	'@@simplified_binlog_gtid_recovery' is deprecated and will be removed in a future release. Please use '@@binlog_gtid_simple_recovery' instead
+SELECT COUNT(@@simplified_binlog_gtid_recovery);
+COUNT(@@simplified_binlog_gtid_recovery)
+1
+Warnings:
+Warning	1287	'@@simplified_binlog_gtid_recovery' is deprecated and will be removed in a future release. Please use '@@binlog_gtid_simple_recovery' instead
 SELECT @@SESSION.simplified_binlog_gtid_recovery;
 ERROR HY000: Variable 'simplified_binlog_gtid_recovery' is a GLOBAL variable
 SHOW GLOBAL VARIABLES LIKE 'simplified_binlog_gtid_recovery';
