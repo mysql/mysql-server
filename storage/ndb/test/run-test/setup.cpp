@@ -281,7 +281,11 @@ load_process(atrt_config& config, atrt_cluster& cluster,
      * Use path from libmysqlclient.so
      */
     char * dir = dirname(g_libmysqlclient_so_path);
+#if defined(__MACH__)
+    proc.m_proc.m_env.appfmt(" DYLD_LIBRARY_PATH=%s", dir);
+#else
     proc.m_proc.m_env.appfmt(" LD_LIBRARY_PATH=%s", dir);
+#endif
     free(dir);
   }
 

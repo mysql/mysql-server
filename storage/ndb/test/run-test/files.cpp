@@ -340,9 +340,14 @@ setup_files(atrt_config& config, int setup, int sshx)
            * Use path from libmysqlclient.so
            */
           char * dir = dirname(g_libmysqlclient_so_path);
+#if defined(__MACH__)
+          fprintf(fenv, "DYLD_LIBRARY_PATH=%s:$DYLD_LIBRARY_PATH\n", dir);
+          keys.push_back("DYLD_LIBRARY_PATH");
+#else
           fprintf(fenv, "LD_LIBRARY_PATH=%s:$LD_LIBRARY_PATH\n", dir);
-          free(dir);
           keys.push_back("LD_LIBRARY_PATH");
+#endif
+          free(dir);
         }
 
         for (unsigned k = 0; k<keys.size(); k++)
