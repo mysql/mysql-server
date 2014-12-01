@@ -3083,7 +3083,7 @@ Geometry *BG_geometry_collection::store(const Geometry *geo)
 
   DBUG_ASSERT(geo->get_type() != Geometry::wkb_geometrycollection);
   pres= m_geosdata.append_object();
-  if (pres == NULL || pres->reserve(GEOM_HEADER_SIZE + geosize))
+  if (pres == NULL || pres->reserve(GEOM_HEADER_SIZE + geosize, 256))
     return NULL;
   write_geometry_header(pres, geo->get_srid(), geo->get_type());
   pres->q_append(geo->get_cptr(), geosize);
