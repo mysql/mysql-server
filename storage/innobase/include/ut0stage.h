@@ -75,6 +75,10 @@ ut_stage_new_estimate(
 	PSI_stage_progress*	progress,
 	ulint			work_remaining)
 {
+	if (progress == NULL) {
+		return;
+	}
+
 	mysql_stage_set_work_estimated(
 		progress,
 		mysql_stage_get_work_completed(progress) + work_remaining);
