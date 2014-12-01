@@ -12,6 +12,9 @@ source include/not_embedded.inc;
 source include/have_innodb.inc;
 # Require Debug for SET DEBUG
 source include/have_debug.inc;
+# Test could open crash reporter on Windows 
+# if compiler set up
+source include/not_windows.inc;
 
 CALL mtr.add_suppression("InnoDB: Error: Unable to read tablespace .* page no .* into the buffer pool after 100 attempts");
 CALL mtr.add_suppression("InnoDB: Warning: database page corruption or a failed");
