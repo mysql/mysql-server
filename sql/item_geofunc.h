@@ -970,7 +970,6 @@ public:
 class Item_func_distance: public Item_real_func
 {
   // Default earch radius in meters.
-  static const double EARTH_SPHERICAL_RADIUS= 6370986.0;
   bool is_spherical;
   double earth_radius;
   String tmp_value1;
@@ -1015,7 +1014,7 @@ public:
       for a distance between them. 
     */
     maybe_null= true;
-    earth_radius= EARTH_SPHERICAL_RADIUS;
+    earth_radius= 6370986.0;                    /* Default earth radius. */
   }
 
   void fix_length_and_dec()
