@@ -8650,7 +8650,7 @@ public:
     // right before it.
     geo= Geometry::construct(&geobuf,
                              static_cast<const char *>(wkb) - WKB_HEADER_SIZE,
-                             len, false/* has no srid */);
+                             len + WKB_HEADER_SIZE, false/* has no srid */);
     if (geo == NULL)
       m_isvalid= false;
     else
