@@ -1491,7 +1491,7 @@ class Gis_wkb_vector_const_iterator
 protected:
   typedef Gis_wkb_vector_const_iterator<T> self;
   typedef Gis_wkb_vector<T> owner_t;
-  typedef int index_type;
+  typedef size_t index_type;
 public:
   ////////////////////////////////////////////////////////////////////
   //
@@ -1873,7 +1873,7 @@ protected:
   typedef Gis_wkb_vector_const_iterator<T> base;
   typedef Gis_wkb_vector<T> owner_t;
 public:
-  typedef int index_type;
+  typedef size_t index_type;
   typedef T value_type;
   typedef ptrdiff_t difference_type;
   typedef difference_type distance_type;
@@ -2182,7 +2182,7 @@ class Gis_wkb_vector : public Geometry
 {
 private:
   typedef Gis_wkb_vector<T> self;
-  typedef int index_type;
+  typedef size_t index_type;
   typedef Geometry base;
 public:
   typedef T value_type;
