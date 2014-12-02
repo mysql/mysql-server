@@ -400,6 +400,17 @@ public:
       NODE_ACTIVE = 24
     };
 
+    /**
+     * We need to ensure that we don't pause the node when the master node
+     * asks for it in case the node is already dead. We check this by
+     * by verifying that the node is in the state NODE_GETTING_PERMIT in
+     * in the non-master nodes. Since we do not yet maintain the
+     * nodeRecoveryStatus in all restart situations we temporarily
+     * put this into a separate variable that we maintain separately.
+     * TODO: We should use nodeRecoveryStatus when we maintain this
+     * state in all types of starts.
+     */
+    bool is_pausable;
     NodeRecoveryStatus nodeRecoveryStatus;
     NDB_TICKS nodeFailTime;
     NDB_TICKS nodeFailCompletedTime;
