@@ -828,39 +828,35 @@ buf_flush_init_for_writing(
 	case SRV_CHECKSUM_ALGORITHM_CRC32:
 	case SRV_CHECKSUM_ALGORITHM_STRICT_CRC32:
 		checksum = buf_calc_page_crc32(page);
+		mach_write_to_4(page + FIL_PAGE_SPACE_OR_CHKSUM, checksum);
 		break;
 	case SRV_CHECKSUM_ALGORITHM_INNODB:
 	case SRV_CHECKSUM_ALGORITHM_STRICT_INNODB:
 		checksum = (ib_uint32_t) buf_calc_page_new_checksum(page);
+		mach_write_to_4(page + FIL_PAGE_SPACE_OR_CHKSUM, checksum);
+		checksum = (ib_uint32_t) buf_calc_page_old_checksum(page);
 		break;
 	case SRV_CHECKSUM_ALGORITHM_NONE:
 	case SRV_CHECKSUM_ALGORITHM_STRICT_NONE:
 		checksum = BUF_NO_CHECKSUM_MAGIC;
+		mach_write_to_4(page + FIL_PAGE_SPACE_OR_CHKSUM, checksum);
 		break;
 	/* no default so the compiler will emit a warning if new enum
 	is added and not handled here */
 	}
 
-	mach_write_to_4(page + FIL_PAGE_SPACE_OR_CHKSUM, checksum);
+	/* With the InnoDB checksum, we overwrite the first 4 bytes of
+	the end lsn field to store the old formula checksum. Since it
+	depends also on the field FIL_PAGE_SPACE_OR_CHKSUM, it has to
+	be calculated after storing the new formula checksum.
 
-	/* We overwrite the first 4 bytes of the end lsn field to store
-	the old formula checksum. Since it depends also on the field
-	FIL_PAGE_SPACE_OR_CHKSUM, it has to be calculated after storing the
-	new formula checksum. */
-
-	if (srv_checksum_algorithm == SRV_CHECKSUM_ALGORITHM_STRICT_INNODB
-	    || srv_checksum_algorithm == SRV_CHECKSUM_ALGORITHM_INNODB) {
-
-		checksum = (ib_uint32_t) buf_calc_page_old_checksum(page);
-
-		/* In other cases we use the value assigned from above.
-		If CRC32 is used then it is faster to use that checksum
-		(calculated above) instead of calculating another one.
-		We can afford to store something other than
-		buf_calc_page_old_checksum() or BUF_NO_CHECKSUM_MAGIC in
-		this field because the file will not be readable by old
-		versions of MySQL/InnoDB anyway (older than MySQL 5.6.3) */
-	}
+	In other cases we write the same value to both fields.
+	If CRC32 is used then it is faster to use that checksum
+	(calculated above) instead of calculating another one.
+	We can afford to store something other than
+	buf_calc_page_old_checksum() or BUF_NO_CHECKSUM_MAGIC in
+	this field because the file will not be readable by old
+	versions of MySQL/InnoDB anyway (older than MySQL 5.6.3) */
 
 	mach_write_to_4(page + UNIV_PAGE_SIZE - FIL_PAGE_END_LSN_OLD_CHKSUM,
 			checksum);

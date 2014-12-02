@@ -23,7 +23,7 @@
   $ret = `dtrace -V 2>&1`;
   if ($? == 0)
   {
-    if ($ret =~ m/Sun D/)
+    if (($ret =~ m/Sun D/) || ($ret =~ m/Oracle D/))
     {
       $dyn_trace_tool_available = 1;
 
