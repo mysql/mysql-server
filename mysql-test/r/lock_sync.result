@@ -773,3 +773,54 @@ Warning	1356	View 'test.v1' references invalid table(s) or column(s) or function
 SET DEBUG_SYNC= 'RESET';
 DROP VIEW v1;
 DROP TABLE t1;
+#
+# Bug#19070633 - POSSIBLE ACCESS TO FREED MEMORY IN IS_FREE_LOCK() AND IS_USED_LOCK().
+#
+# Verifying issue for IS_FREE_LOCK() function.
+SELECT GET_LOCK("lock_19070633", 600);
+GET_LOCK("lock_19070633", 600)
+1
+connect  con1, localhost, root,,;
+# Waiting after getting user level lock info and releasing mutex.
+SET DEBUG_SYNC= 'after_getting_user_level_lock_info SIGNAL parked WAIT_FOR go';
+# Sending: SELECT IS_FREE_LOCK("lock_19070633");
+SELECT IS_FREE_LOCK("lock_19070633");
+connection default;
+SET DEBUG_SYNC= 'now WAIT_FOR parked';
+SELECT RELEASE_LOCK("lock_19070633");
+RELEASE_LOCK("lock_19070633")
+1
+# Signaling connection con1 after releasing the lock.
+# Without fix, accessing user level lock info in con1 would result in
+# crash or valgrind issue invalid read is reported.
+SET DEBUG_SYNC= 'now SIGNAL go';
+connection con1;
+# Reaping: SELECT IS_FREE_LOCK("lock_19070633");
+IS_FREE_LOCK("lock_19070633")
+0
+connection default;
+# Verifying issue for IS_USED_LOCK() function.
+SELECT GET_LOCK("lock_19070633", 600);
+GET_LOCK("lock_19070633", 600)
+1
+connection con1;
+# Waiting after getting user level lock info and releasing mutex.
+SET DEBUG_SYNC= 'after_getting_user_level_lock_info SIGNAL parked WAIT_FOR go';
+# Sending: SELECT IS_USED_LOCK("lock_19070633");
+SELECT IS_USED_LOCK("lock_19070633");
+connection default;
+SET DEBUG_SYNC= 'now WAIT_FOR parked';
+SELECT RELEASE_LOCK("lock_19070633");
+RELEASE_LOCK("lock_19070633")
+1
+# Signaling connection con1 after releasing the lock.
+# Without fix, accessing user level lock info in con1 would result in
+# crash or valgrind issue invalid read is reported.
+SET DEBUG_SYNC= 'now SIGNAL go';
+connection con1;
+# Reaping: SELECT IS_USED_LOCK("lock_19070633");
+IS_USED_LOCK("lock_19070633")
+#
+connection default;
+SET DEBUG_SYNC= 'RESET';
+disconnect con1;

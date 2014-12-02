@@ -1,0 +1,103 @@
+--source include/have_innodb.inc
+--source include/big_test.inc
+
+--echo #
+--echo # Bug #19306524 FAILING ASSERTION WITH TEMP TABLE FOR A PROCEDURE
+--echo # CALLED FROM A FUNCTION
+--echo #
+
+call mtr.add_suppression("MySQL is trying to drop table");
+
+DELIMITER $$;
+CREATE PROCEDURE cachedata(
+  IN obj_id BIGINT UNSIGNED,
+  IN start  DATETIME,
+  IN end    DATETIME
+)
+
+cachedata:BEGIN
+  DECLARE cache_count BIGINT;
+
+  SET @timestamp := NOW();
+
+  CREATE TEMPORARY TABLE IF NOT EXISTS cachedata (
+    timestamp    DATETIME,
+    object_id    BIGINT UNSIGNED NOT NULL,
+    start        DATETIME,
+    end          DATETIME,
+    seqno        BIGINT AUTO_INCREMENT,
+    value        FLOAT,
+    PRIMARY KEY (seqno),
+    INDEX (timestamp),
+    INDEX (object_id, start, end)
+  ) ENGINE=INNODB;
+
+  DELETE FROM cachedata WHERE
+    timestamp < DATE_SUB(@timestamp, INTERVAL 15 SECOND);
+
+  SELECT count(*) INTO cache_count FROM cachedata WHERE
+    object_id = obj_id
+    AND start = start
+    AND end = end;
+
+  IF cache_count > 0 THEN LEAVE cachedata;
+  END IF;
+
+  INSERT INTO cachedata (timestamp, object_id, start, end, value) VALUES
+    (@timestamp, obj_id, start, end, 1234),
+    (@timestamp, obj_id, start, end, 4567),
+    (@timestamp, obj_id, start, end, 8901),
+    (@timestamp, obj_id, start, end, 1234),
+    (@timestamp, obj_id, start, end, 4567),
+    (@timestamp, obj_id, start, end, 8901),
+    (@timestamp, obj_id, start, end, 1234),
+    (@timestamp, obj_id, start, end, 4567),
+    (@timestamp, obj_id, start, end, 8901),
+    (@timestamp, obj_id, start, end, 1234),
+    (@timestamp, obj_id, start, end, 4567),
+    (@timestamp, obj_id, start, end, 8901),
+    (@timestamp, obj_id, start, end, 2345),
+    (@timestamp, obj_id, start, end, 1234),
+    (@timestamp, obj_id, start, end, 4567),
+    (@timestamp, obj_id, start, end, 8901),
+    (@timestamp, obj_id, start, end, 2345),
+    (@timestamp, obj_id, start, end, 1234),
+    (@timestamp, obj_id, start, end, 4567),
+    (@timestamp, obj_id, start, end, 8901),
+    (@timestamp, obj_id, start, end, 2345);
+
+END$$
+
+
+CREATE FUNCTION get_cache(
+  obj_id   BIGINT UNSIGNED,
+  start    DATETIME,
+  end      DATETIME
+)
+  RETURNS FLOAT
+  READS SQL DATA
+BEGIN
+  DECLARE result FLOAT;
+
+  CALL cachedata(obj_id, start, end);
+
+  SELECT SUM(value) INTO result FROM cachedata WHERE
+    object_id = obj_id
+    AND start = start
+    AND end = end;
+
+  RETURN result;
+END$$
+
+DELIMITER ;$$
+
+let $i = 30;
+while ($i)
+{
+ SELECT get_cache(1, '2014-01-01', '2014-02-01');
+ select sleep(1);
+ dec $i;
+}
+
+DROP FUNCTION get_cache;
+DROP PROCEDURE cachedata;

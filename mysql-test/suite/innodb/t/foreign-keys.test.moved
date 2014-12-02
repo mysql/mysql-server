@@ -1,0 +1,26 @@
+--source include/have_innodb.inc
+--source include/have_debug.inc
+
+--echo #
+--echo # Bug #19471516 SERVER CRASHES WHEN EXECUTING ALTER TABLE
+--echo # ADD FOREIGN KEY
+--echo #
+
+CREATE TABLE `department` (`department_id` INT, `department_people_fk` INT,
+PRIMARY KEY (`department_id`)) engine=innodb;
+
+CREATE TABLE `title` (`title_id` INT, `title_manager_fk` INT,
+`title_reporter_fk` INT, PRIMARY KEY (`title_id`));
+
+CREATE TABLE `people` (`people_id` INT, PRIMARY KEY (`people_id`));
+
+ALTER TABLE `department` ADD FOREIGN KEY (`department_people_fk`) REFERENCES
+`people` (`people_id`);
+
+ALTER TABLE `title` ADD FOREIGN KEY (`title_manager_fk`) REFERENCES `people`
+(`people_id`);
+
+ALTER TABLE `title` ADD FOREIGN KEY (`title_reporter_fk`) REFERENCES `people`
+(`people_id`);
+
+drop table title, department, people;
