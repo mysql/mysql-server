@@ -18,9 +18,6 @@
 #include "myisamdef.h"
 #include "m_ctype.h"
 #include "sp_defs.h"
-#ifdef HAVE_IEEEFP_H
-#include <ieeefp.h>
-#endif
 
 #define FIX_LENGTH(cs, pos, length, char_length)                            \
             do {                                                            \
