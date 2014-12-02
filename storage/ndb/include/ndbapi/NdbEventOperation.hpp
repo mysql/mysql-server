@@ -65,7 +65,7 @@ class NdbEventOperationImpl;
  * - Event code does not check table schema version. Make sure to drop events
  * after table is dropped. Will be fixed in later
  * versions.
- * - If a node failure has occured not all events will be recieved
+ * - If a node failure has occured not all events will be received
  * anymore. Drop NdbEventOperation and Create again after nodes are up
  * again. Will be fixed in later versions.
  *

@@ -10,7 +10,7 @@ dojox.drawing.tools.custom.Vector = dojox.drawing.util.oo.declare(
 	//		Creates a Vector Stencil.
 	// description:
 	//		Generally the same as an arrow, except that the arrow
-	//		head is only at the end. There is additionaly functionality
+	//		head is only at the end. There is additionally functionality
 	//		to allow for a 'zero vector' - one with no length.
 	//
 	//
