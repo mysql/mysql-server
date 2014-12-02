@@ -109,12 +109,14 @@ SELECT @@global.innodb_commit_concurrency;
 #     Check if the value in GLOBAL Table matches value in variable      #
 #########################################################################
 
+--disable_warnings
 SELECT @@global.innodb_commit_concurrency =
  VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
   WHERE VARIABLE_NAME='innodb_commit_concurrency';
 SELECT @@global.innodb_commit_concurrency;
 SELECT VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
  WHERE VARIABLE_NAME='innodb_commit_concurrency';
+--enable_warnings
 
 --echo '#---------------------FN_DYNVARS_046_06-------------------------#'
 ################################################################### 

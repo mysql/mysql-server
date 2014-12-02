@@ -11,8 +11,10 @@ select @@global.gtid_mode;
 select @@session.gtid_mode;
 show global variables like 'gtid_mode';
 show session variables like 'gtid_mode';
+--disable_warnings
 select * from information_schema.global_variables where variable_name='gtid_mode';
 select * from information_schema.session_variables where variable_name='gtid_mode';
+--enable_warnings
 
 #
 # show that it isn't writable now.

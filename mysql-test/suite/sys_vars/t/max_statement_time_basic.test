@@ -165,15 +165,19 @@ SELECT @@session.max_statement_time;
 
 --echo # Check if the value in GLOBAL Table matches value in variable
 
+--disable_warnings
 SELECT @@global.max_statement_time = VARIABLE_VALUE
 FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
 WHERE VARIABLE_NAME='max_statement_time';
+--enable_warnings
 
 --echo # Check if the value in SESSION Table matches value in variable
 
+--disable_warnings
 SELECT @@session.max_statement_time = VARIABLE_VALUE
 FROM INFORMATION_SCHEMA.SESSION_VARIABLES
 WHERE VARIABLE_NAME='max_statement_time';
+--enable_warnings
 
 --echo # Check if TRUE and FALSE values can be used on variable
 SET @@global.max_statement_time = TRUE;

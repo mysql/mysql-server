@@ -9,10 +9,12 @@ select @@session.lc_messages_dir;
 show global variables like 'lc_messages_dir';
 --replace_result $MYSQL_SHAREDIR MYSQL_SHAREDIR
 show session variables like 'lc_messages_dir';
+--disable_warnings
 --replace_result $MYSQL_SHAREDIR MYSQL_SHAREDIR
 select * from information_schema.global_variables where variable_name='lc_messages_dir';
 --replace_result $MYSQL_SHAREDIR MYSQL_SHAREDIR
 select * from information_schema.session_variables where variable_name='lc_messages_dir';
+--enable_warnings
 
 #
 # show that it's read-only

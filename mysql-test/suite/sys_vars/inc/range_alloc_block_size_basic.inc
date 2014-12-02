@@ -129,19 +129,22 @@ SELECT @@session.range_alloc_block_size;
 #   Check if the value in GLOBAL Table matches value in variable   #
 ####################################################################
 
-
+--disable_warnings
 SELECT @@global.range_alloc_block_size = VARIABLE_VALUE 
 FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
 WHERE VARIABLE_NAME='range_alloc_block_size';
+--enable_warnings
 
 --echo '#------------------FN_DYNVARS_137_07-----------------------#'
 ####################################################################
 #  Check if the value in SESSION Table matches value in variable   #
 ####################################################################
 
+--disable_warnings
 SELECT @@session.range_alloc_block_size = VARIABLE_VALUE 
 FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
 WHERE VARIABLE_NAME='range_alloc_block_size';
+--enable_warnings
 
 
 --echo '#------------------FN_DYNVARS_137_08-----------------------#'

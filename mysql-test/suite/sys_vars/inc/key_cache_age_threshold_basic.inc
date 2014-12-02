@@ -111,6 +111,7 @@ SELECT @@session.key_cache_age_threshold;
 # Check if the value in GLOBAL & SESSION Tables matches values in variable   #
 ##############################################################################
 
+--disable_warnings
 SELECT @@global.key_cache_age_threshold = VARIABLE_VALUE 
 FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
 WHERE VARIABLE_NAME='key_cache_age_threshold';
@@ -118,6 +119,7 @@ WHERE VARIABLE_NAME='key_cache_age_threshold';
 SELECT @@key_cache_age_threshold = VARIABLE_VALUE 
 FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
 WHERE VARIABLE_NAME='key_cache_age_threshold';
+--enable_warnings
 
 
 --echo '#---------------------FN_DYNVARS_056_07----------------------#'

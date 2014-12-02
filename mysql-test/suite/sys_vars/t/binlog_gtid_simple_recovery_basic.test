@@ -6,8 +6,11 @@ SELECT @@GLOBAL.binlog_gtid_simple_recovery;
 SELECT @@SESSION.binlog_gtid_simple_recovery;
 SHOW GLOBAL VARIABLES LIKE 'binlog_gtid_simple_recovery';
 SHOW SESSION VARIABLES LIKE 'binlog_gtid_simple_recovery';
+
+--disable_warnings
 SELECT * FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME='binlog_gtid_simple_recovery';
 SELECT * FROM INFORMATION_SCHEMA.SESSION_VARIABLES WHERE VARIABLE_NAME='binlog_gtid_simple_recovery';
+--enable_warnings
 
 #
 # show that it's read-only

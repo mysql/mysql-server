@@ -2,8 +2,6 @@ create table t1 (test_name text);
 create table t2 (variable_name text);
 load data infile "MYSQLTEST_VARDIR/tmp/sys_vars.all_vars.txt" into table t1;
 insert into t2 select variable_name from information_schema.global_variables;
-Warnings:
-Warning	1287	'@@global.sql_log_bin' is deprecated and will be removed in a future release. Please use the constant 1 (since @@global.sql_log_bin is always equal to 1) instead
 insert into t2 select variable_name from information_schema.session_variables;
 update t2 set variable_name= replace(variable_name, "PERFORMANCE_SCHEMA_", "PFS_");
 update t2 set variable_name= replace(variable_name, "_HISTORY_LONG_", "_HL_");

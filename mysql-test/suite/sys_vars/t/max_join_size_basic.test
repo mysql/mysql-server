@@ -16,8 +16,10 @@ select @@global.max_join_size;
 select @@session.max_join_size;
 show global variables like 'max_join_size';
 show session variables like 'max_join_size';
+--disable_warnings
 select * from information_schema.global_variables where variable_name='max_join_size';
 select * from information_schema.session_variables where variable_name='max_join_size';
+--enable_warnings
 
 #
 # show that it's writable
@@ -28,8 +30,10 @@ select @@global.max_join_size;
 select @@session.max_join_size;
 show global variables like 'max_join_size';
 show session variables like 'max_join_size';
+--disable_warnings
 select * from information_schema.global_variables where variable_name='max_join_size';
 select * from information_schema.session_variables where variable_name='max_join_size';
+--enable_warnings
 
 #
 # display default value of max_join_size

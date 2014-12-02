@@ -52,17 +52,21 @@ SELECT COUNT(@@GLOBAL.innodb_use_native_aio);
 # Check if the value in GLOBAL Table matches value in variable  #
 #################################################################
 
+--disable_warnings
 SELECT IF(@@GLOBAL.innodb_use_native_aio, 'ON', 'OFF') = VARIABLE_VALUE
 FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
 WHERE VARIABLE_NAME='innodb_use_native_aio';
+--enable_warnings
 --echo 1 Expected
 
 SELECT COUNT(@@GLOBAL.innodb_use_native_aio);
 --echo 1 Expected
 
+--disable_warnings
 SELECT COUNT(VARIABLE_VALUE)
 FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
 WHERE VARIABLE_NAME='innodb_use_native_aio';
+--enable_warnings
 --echo 1 Expected
 
 

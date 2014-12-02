@@ -136,17 +136,21 @@ SELECT @@session.tx_read_only;
 --echo ####################################################################
 
 
+--disable_warnings
 SELECT IF(@@global.tx_read_only, "ON", "OFF") = VARIABLE_VALUE 
 FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
 WHERE VARIABLE_NAME='tx_read_only';
+--enable_warnings
 
 --echo ####################################################################
 --echo #  Check if the value in SESSION Table matches value in variable   #
 --echo ####################################################################
 
+--disable_warnings
 SELECT IF(@@session.tx_read_only, "ON", "OFF") = VARIABLE_VALUE 
 FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
 WHERE VARIABLE_NAME='tx_read_only';
+--enable_warnings
 
 
 --echo ###############################################################################

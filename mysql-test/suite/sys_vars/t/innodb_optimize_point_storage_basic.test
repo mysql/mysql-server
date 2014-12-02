@@ -18,37 +18,47 @@ SELECT @@session.innodb_optimize_point_storage ;
 
 SHOW GLOBAL VARIABLES LIKE 'innodb_optimize_point_storage';
 SHOW SESSION VARIABLES LIKE 'innodb_optimize_point_storage';
+--disable_warnings
 SELECT * FROM information_schema.global_variables WHERE variable_name = 'innodb_optimize_point_storage';
 SELECT * FROM information_schema.session_variables WHERE variable_name = 'innodb_optimize_point_storage';
+--enable_warnings
 
 --echo Verify it's writable
 SET GLOBAL innodb_optimize_point_storage = 'OFF';
 SET SESSION innodb_optimize_point_storage = 'OFF';
 SELECT @@global.innodb_optimize_point_storage;
 SELECT @@session.innodb_optimize_point_storage;
+--disable_warnings
 SELECT * FROM information_schema.global_variables WHERE variable_name = 'innodb_optimize_point_storage';
 SELECT * FROM information_schema.session_variables WHERE variable_name = 'innodb_optimize_point_storage';
+--enable_warnings
 
 SET GLOBAL innodb_optimize_point_storage = 'OFF';
 SET SESSION innodb_optimize_point_storage = 'OFF';
 SELECT @@global.innodb_optimize_point_storage;
 SELECT @@session.innodb_optimize_point_storage;
+--disable_warnings
 SELECT * FROM information_schema.global_variables WHERE variable_name = 'innodb_optimize_point_storage';
 SELECT * FROM information_schema.session_variables WHERE variable_name = 'innodb_optimize_point_storage';
+--enable_warnings
 
 SET GLOBAL innodb_optimize_point_storage = 0;
 SET SESSION innodb_optimize_point_storage = 0;
 SELECT @@global.innodb_optimize_point_storage;
 SELECT @@session.innodb_optimize_point_storage;
+--disable_warnings
 SELECT * FROM information_schema.global_variables WHERE variable_name = 'innodb_optimize_point_storage';
 SELECT * FROM information_schema.session_variables WHERE variable_name = 'innodb_optimize_point_storage';
+--enable_warnings
 
 SET GLOBAL innodb_optimize_point_storage = 'ON';
 SET SESSION innodb_optimize_point_storage = 'ON';
 SELECT @@global.innodb_optimize_point_storage;
 SELECT @@session.innodb_optimize_point_storage;
+--disable_warnings
 SELECT * FROM information_schema.global_variables WHERE variable_name = 'innodb_optimize_point_storage';
 SELECT * FROM information_schema.session_variables WHERE variable_name = 'innodb_optimize_point_storage';
+--enable_warnings
 
 --echo Verify incorrect values
 
@@ -74,9 +84,10 @@ SET GLOBAL innodb_optimize_point_storage=-3;
 SET SESSION innodb_optimize_point_storage=-3;
 SELECT @@global.innodb_optimize_point_storage;
 SELECT @@session.innodb_optimize_point_storage;
+--disable_warnings
 SELECT * FROM information_schema.global_variables WHERE variable_name = 'innodb_optimize_point_storage';
 SELECT * FROM information_schema.session_variables WHERE variable_name = 'innodb_optimize_point_storage';
-
+--enable_warnings
 
 #
 # Cleanup
