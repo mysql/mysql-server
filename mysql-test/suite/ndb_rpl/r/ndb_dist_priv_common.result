@@ -21,7 +21,7 @@ CREATE USER 'testuser1'@'localhost';
 SET PASSWORD = PASSWORD('cleartext password');
 OK
 
-SET PASSWORD = OLD_PASSWORD('cleartext password');
+SET PASSWORD = 'cleartext password';
 ERROR HY000: Password hash should be a 41-digit hexadecimal number
 OK
 
@@ -31,7 +31,7 @@ OK
 SET PASSWORD FOR testuser1@localhost= PASSWORD('pass_for_user1');
 OK
 
-SET PASSWORD FOR testuser1@localhost= OLD_PASSWORD('pass_for_user');
+SET PASSWORD FOR testuser1@localhost= 'pass_for_user';
 ERROR HY000: Password hash should be a 41-digit hexadecimal number
 OK
 
