@@ -68,26 +68,3 @@ call mtr.add_suppression("\\[Warning\\] InnoDB: Cannot calculate statistics for 
 select * from `x..d`;
 
 DROP TABLE `x..d`;
-
-#Create database and tablename with all special characters
-
-CREATE DATABASE `..................................................`;
-USE `..................................................`;
-CREATE TABLE `..................................................` (id int) engine=innodb;
-
---source include/shutdown_mysqld.inc
-
---remove_file $MYSQLTEST_VARDIR/mysqld.1/data/@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e/@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e.ibd
-
---source include/start_mysqld.inc
-
---disable_query_log
-call mtr.add_suppression("\\[ERROR\\] InnoDB: Failed to find tablespace for table `\.\.*`\.`\.\.*` in the cache.");
-call mtr.add_suppression("\\[Warning\\] InnoDB: Cannot calculate statistics for table `\.\.*`\.`\.\.*` because the .ibd file is missing.");
---enable_query_log
-
---error ER_TABLESPACE_MISSING
-select * from `..................................................`;
-DROP TABLE `..................................................`;
-DROP DATABASE `..................................................`;
-
