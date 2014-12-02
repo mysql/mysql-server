@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -31,6 +31,8 @@ Created 3/26/1996 Heikki Tuuri
 #include "trx0types.h"
 #include "mtr0mtr.h"
 #include "trx0sys.h"
+
+extern bool	trx_rollback_or_clean_is_active;
 
 /*******************************************************************//**
 Determines if this transaction is rolling back an incomplete transaction
