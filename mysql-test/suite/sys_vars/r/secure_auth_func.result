@@ -19,6 +19,7 @@ DROP USER 'testUser'@'localhost';
 CREATE USER 'testUser'@'localhost' identified with 'mysql_old_password';
 SET PASSWORD FOR 'testUser'@'localhost'= OLD_PASSWORD('newpass');
 Warnings:
+Warning	1287	'OLD_PASSWORD' is deprecated and will be removed in a future release. Please use PASSWORD instead
 Warning	1287	'pre-4.1 password hash' is deprecated and will be removed in a future release. Please use post-4.1 password hash instead
 ** Connecting con_user2 using testUser **
 ** Connection default**
@@ -35,6 +36,7 @@ host='localhost';
 FLUSH PRIVILEGES;
 SET PASSWORD FOR 'testUser'@'localhost' = OLD_PASSWORD('newpass');
 Warnings:
+Warning	1287	'OLD_PASSWORD' is deprecated and will be removed in a future release. Please use PASSWORD instead
 Warning	1287	'pre-4.1 password hash' is deprecated and will be removed in a future release. Please use post-4.1 password hash instead
 ** Connecting con_user4 using testUser **
 ERROR HY000: Server is running in --secure-auth mode, but 'testUser'@'localhost' has a password in the old format; please change the password to the new format

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License
@@ -1020,7 +1020,7 @@ FILE *in,*out;
   updated=retain=0;
   reset_buffer();
 
-  while ((error=fill_buffer_retaining(fileno(in),retain)) > 0)
+  while ((error=fill_buffer_retaining(my_fileno(in),retain)) > 0)
   {
     end_of_line=buffer ;
     buffer[bufbytes]=0;			/* Sentinel  */

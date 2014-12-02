@@ -1242,6 +1242,62 @@ SET DEBUG_SYNC= 'RESET';
 --disconnect con1
 
 
+--echo #
+--echo # Bug#19070633 - POSSIBLE ACCESS TO FREED MEMORY IN IS_FREE_LOCK() AND IS_USED_LOCK().
+--echo #
+
+--enable_connect_log
+
+--echo # Verifying issue for IS_FREE_LOCK() function.
+SELECT GET_LOCK("lock_19070633", 600);
+
+connect (con1, localhost, root,,);
+--echo # Waiting after getting user level lock info and releasing mutex.
+SET DEBUG_SYNC= 'after_getting_user_level_lock_info SIGNAL parked WAIT_FOR go';
+--echo # Sending: SELECT IS_FREE_LOCK("lock_19070633");
+send SELECT IS_FREE_LOCK("lock_19070633");
+
+connection default;
+SET DEBUG_SYNC= 'now WAIT_FOR parked';
+SELECT RELEASE_LOCK("lock_19070633");
+--echo # Signaling connection con1 after releasing the lock.
+--echo # Without fix, accessing user level lock info in con1 would result in
+--echo # crash or valgrind issue invalid read is reported.
+SET DEBUG_SYNC= 'now SIGNAL go';
+
+connection con1;
+--echo # Reaping: SELECT IS_FREE_LOCK("lock_19070633");
+--reap
+
+connection default;
+--echo # Verifying issue for IS_USED_LOCK() function.
+SELECT GET_LOCK("lock_19070633", 600);
+
+connection con1;
+--echo # Waiting after getting user level lock info and releasing mutex.
+SET DEBUG_SYNC= 'after_getting_user_level_lock_info SIGNAL parked WAIT_FOR go';
+--echo # Sending: SELECT IS_USED_LOCK("lock_19070633");
+send SELECT IS_USED_LOCK("lock_19070633");
+
+connection default;
+SET DEBUG_SYNC= 'now WAIT_FOR parked';
+SELECT RELEASE_LOCK("lock_19070633");
+--echo # Signaling connection con1 after releasing the lock.
+--echo # Without fix, accessing user level lock info in con1 would result in
+--echo # crash or valgrind issue invalid read is reported.
+SET DEBUG_SYNC= 'now SIGNAL go';
+
+connection con1;
+--echo # Reaping: SELECT IS_USED_LOCK("lock_19070633");
+--replace_column 1 #
+--reap
+
+connection default;
+SET DEBUG_SYNC= 'RESET';
+disconnect con1;
+
+--disable_connect_log
+
 # Check that all connections opened by test cases in this file are really
 # gone so execution of other tests won't be affected by their presence.
 --source include/wait_until_count_sessions.inc

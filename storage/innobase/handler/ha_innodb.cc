@@ -2828,7 +2828,8 @@ innobase_init(
 
 	innobase_hton->flush_logs = innobase_flush_logs;
 	innobase_hton->show_status = innobase_show_status;
-	innobase_hton->flags = HTON_SUPPORTS_EXTENDED_KEYS;
+	innobase_hton->flags =
+		HTON_SUPPORTS_EXTENDED_KEYS | HTON_SUPPORTS_FOREIGN_KEYS;
 
 	innobase_hton->release_temporary_latches =
 		innobase_release_temporary_latches;
@@ -11971,6 +11972,7 @@ ha_innobase::start_stmt(
 	thr_lock_type	lock_type)
 {
 	trx_t*		trx;
+	DBUG_ENTER("ha_innobase::start_stmt");
 
 	update_thd(thd);
 
@@ -11993,6 +11995,29 @@ ha_innobase::start_stmt(
 	prebuilt->sql_stat_start = TRUE;
 	prebuilt->hint_need_to_fetch_extra_cols = 0;
 	reset_template();
+
+	if (dict_table_is_temporary(prebuilt->table)
+	    && prebuilt->mysql_has_locked
+	    && prebuilt->select_lock_type == LOCK_NONE) {
+		dberr_t error;
+
+		switch (thd_sql_command(thd)) {
+		case SQLCOM_INSERT:
+		case SQLCOM_UPDATE:
+		case SQLCOM_DELETE:
+			init_table_handle_for_HANDLER();
+			prebuilt->select_lock_type = LOCK_X;
+			prebuilt->stored_select_lock_type = LOCK_X;
+			error = row_lock_table_for_mysql(prebuilt, NULL, 1);
+
+			if (error != DB_SUCCESS) {
+				int st = convert_error_code_to_mysql(
+					error, 0, thd);
+				DBUG_RETURN(st);
+			}
+			break;
+		}
+	}
 
 	if (!prebuilt->mysql_has_locked) {
 		/* This handle is for a temporary table created inside
@@ -12031,7 +12056,7 @@ ha_innobase::start_stmt(
 		++trx->will_lock;
 	}
 
-	return(0);
+	DBUG_RETURN(0);
 }
 
 /******************************************************************//**
@@ -17116,4 +17141,29 @@ innobase_convert_to_system_charset(
 
 	return(strconvert(
 		cs1, from, cs2, to, static_cast<uint>(len), errors));
+}
+
+/**********************************************************************
+Issue a warning that the row is too big. */
+void
+ib_warn_row_too_big(const dict_table_t*	table)
+{
+	/* If prefix is true then a 768-byte prefix is stored
+	locally for BLOB fields. Refer to dict_table_get_format() */
+	const bool prefix = (dict_tf_get_format(table->flags)
+			     == UNIV_FORMAT_A);
+
+	const ulint	free_space = page_get_free_space_of_empty(
+		table->flags & DICT_TF_COMPACT) / 2;
+
+	THD*	thd = current_thd;
+
+	push_warning_printf(
+		thd, Sql_condition::WARN_LEVEL_WARN, HA_ERR_TO_BIG_ROW,
+		"Row size too large (> %lu). Changing some columns to TEXT"
+		" or BLOB %smay help. In current row format, BLOB prefix of"
+		" %d bytes is stored inline.", free_space
+		, prefix ? "or using ROW_FORMAT=DYNAMIC or"
+		" ROW_FORMAT=COMPRESSED ": ""
+		, prefix ? DICT_MAX_FIXED_COL_LEN : 0);
 }

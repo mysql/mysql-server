@@ -190,6 +190,8 @@ cycle for a table. */
 struct fts_slot_t {
 	dict_table_t*	table;		/*!< Table to optimize */
 
+	table_id_t	table_id;	/*!< Table id */
+
 	fts_state_t	state;		/*!< State of this slot */
 
 	ulint		added;		/*!< Number of doc ids added since the
@@ -2575,6 +2577,8 @@ fts_optimize_add_table(
 		return;
 	}
 
+	ut_ad(table->cached && table->fts != NULL);
+
 	/* Make sure table with FTS index cannot be evicted */
 	if (table->can_be_evicted) {
 		dict_table_move_from_lru_to_non_lru(table);
@@ -2741,6 +2745,7 @@ fts_optimize_new_table(
 	memset(slot, 0x0, sizeof(*slot));
 
 	slot->table = table;
+	slot->table_id = table->id;
 	slot->state = FTS_STATE_LOADED;
 	slot->interval_time = FTS_OPTIMIZE_INTERVAL_IN_SECS;
 
@@ -2865,7 +2870,8 @@ fts_is_sync_needed(
 		slot = static_cast<const fts_slot_t*>(
 			ib_vector_get_const(tables, i));
 
-		if (slot->table && slot->table->fts) {
+		if (slot->state != FTS_STATE_EMPTY && slot->table
+		    && slot->table->fts) {
 			total_memory += slot->table->fts->cache->total_size;
 		}
 
@@ -2948,6 +2954,7 @@ fts_optimize_thread(
 	ib_wqueue_t*	wq = (ib_wqueue_t*) arg;
 
 	ut_ad(!srv_read_only_mode);
+	my_thread_init();
 
 	heap = mem_heap_create(sizeof(dict_table_t*) * 64);
 	heap_alloc = ib_heap_allocator_create(heap);
@@ -3076,9 +3083,11 @@ fts_optimize_thread(
 			if (slot->state != FTS_STATE_EMPTY) {
 				dict_table_t*	table = NULL;
 
-			        table = dict_table_open_on_name(
-					slot->table->name, FALSE, FALSE,
-					DICT_ERR_IGNORE_INDEX_ROOT);
+				/*slot->table may be freed, so we try to open
+				table by slot->table_id.*/
+				table = dict_table_open_on_id(
+					slot->table_id, FALSE,
+					DICT_TABLE_OP_NORMAL);
 
 				if (table) {
 
@@ -3101,6 +3110,7 @@ fts_optimize_thread(
 	ib_logf(IB_LOG_LEVEL_INFO, "FTS optimize thread exiting.");
 
 	os_event_set(exit_event);
+	my_thread_end();
 
 	/* We count the number of threads in os_thread_exit(). A created
 	thread should always use that to exit and not use return() to exit. */

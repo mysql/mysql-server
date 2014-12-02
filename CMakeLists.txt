@@ -27,10 +27,12 @@ ENDIF()
 
 # We use the LOCATION target property (CMP0026)
 # and get_target_property() for non-existent targets (CMP0045)
+# and INSTALL_NAME_DIR (CMP0042)
 IF(CMAKE_VERSION VERSION_EQUAL "3.0.0" OR
    CMAKE_VERSION VERSION_GREATER "3.0.0")
  CMAKE_POLICY(SET CMP0026 OLD)
  CMAKE_POLICY(SET CMP0045 OLD)
+ CMAKE_POLICY(SET CMP0042 OLD)
 ENDIF()
 
 MESSAGE(STATUS "Running cmake version ${CMAKE_VERSION}")
@@ -74,15 +76,8 @@ SET(BUILDTYPE_DOCSTRING
  "Choose the type of build, options are: None(CMAKE_CXX_FLAGS or
  CMAKE_C_FLAGS used) Debug Release RelWithDebInfo MinSizeRel")
 
-# Possibly temporary fix: Clang on 32 bit causes non-debug server to crash
-IF(CMAKE_OSX_ARCHITECTURES MATCHES "i386")
-  SET(CMAKE_CXX_COMPILER g++)
-ENDIF()
-
 IF(WITH_DEBUG)
   SET(CMAKE_BUILD_TYPE "Debug" CACHE STRING ${BUILDTYPE_DOCSTRING} FORCE)
-  SET(MYSQL_MAINTAINER_MODE ON CACHE BOOL
-      "MySQL maintainer-specific development environment")
   IF(UNIX AND NOT APPLE)
     # Compiling with PIC speeds up embedded build, on PIC sensitive systems 
     # Predefine it to ON, in case user chooses to build embedded. 
@@ -111,6 +106,15 @@ ELSE()
   MARK_AS_ADVANCED(MYSQL_PROJECT_NAME)
 ENDIF()
 PROJECT(${MYSQL_PROJECT_NAME})
+
+# Maintainer mode is default on only for Linux debug builds using GCC/G++
+IF(CMAKE_BUILD_TYPE MATCHES "Debug" OR WITH_DEBUG)
+  IF(CMAKE_SYSTEM_NAME MATCHES "Linux" AND
+     CMAKE_COMPILER_IS_GNUCC AND CMAKE_COMPILER_IS_GNUCXX)
+    SET(MYSQL_MAINTAINER_MODE ON CACHE BOOL
+        "MySQL maintainer-specific development environment")
+  ENDIF()
+ENDIF()
 
 OPTION(WITH_DEFAULT_COMPILER_OPTIONS
   "Use flags from cmake/build_configurations/compiler_options.cmake"
@@ -166,31 +170,6 @@ IF(WITH_DEFAULT_COMPILER_OPTIONS)
 ENDIF()
 IF(WITH_DEFAULT_FEATURE_SET)
   INCLUDE(${CMAKE_SOURCE_DIR}/cmake/build_configurations/feature_set.cmake)
-ENDIF()
-
-#
-# Control aspects of the development environment which are
-# specific to MySQL maintainers and developers.
-#
-INCLUDE(maintainer)
-
-OPTION(MYSQL_MAINTAINER_MODE
-       "MySQL maintainer-specific development environment" OFF)
-
-# Whether the maintainer mode compiler options should be enabled.
-IF(MYSQL_MAINTAINER_MODE)
-  IF(CMAKE_C_COMPILER_ID MATCHES "GNU")
-    SET_MYSQL_MAINTAINER_GNU_C_OPTIONS()
-  ENDIF()
-  IF(CMAKE_CXX_COMPILER_ID MATCHES "GNU")
-    SET_MYSQL_MAINTAINER_GNU_CXX_OPTIONS()
-  ENDIF()
-  IF(CMAKE_C_COMPILER_ID MATCHES "Intel")
-    SET_MYSQL_MAINTAINER_INTEL_C_OPTIONS()
-  ENDIF()
-  IF(CMAKE_CXX_COMPILER_ID MATCHES "Intel")
-    SET_MYSQL_MAINTAINER_INTEL_CXX_OPTIONS()
-  ENDIF()
 ENDIF()
 
 # Add macros
@@ -436,21 +415,10 @@ MYSQL_CHECK_LIBEVENT()
 # Why doesn't these flags affect the entire build?
 # Because things may already have been included with ADD_SUBDIRECTORY
 #
-IF(MYSQL_MAINTAINER_MODE)
-  # Set compiler flags required under maintainer mode.
-  MESSAGE(STATUS "C warning options: ${MY_MAINTAINER_C_WARNINGS}")
-  SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${MY_MAINTAINER_C_WARNINGS}")
-  MESSAGE(STATUS "C++ warning options: ${MY_MAINTAINER_CXX_WARNINGS}")
-  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${MY_MAINTAINER_CXX_WARNINGS}")
-ENDIF()
+OPTION(MYSQL_MAINTAINER_MODE
+       "MySQL maintainer-specific development environment" OFF)
 
-IF(CMAKE_COMPILER_IS_GNUCXX)
-  STRING(REGEX MATCH "-Werror"
-    BUILD_WITH_WERROR ${CMAKE_CXX_FLAGS})
-  IF(BUILD_WITH_WERROR)
-    SET("COMPILE_FLAG_WERROR" 1)
-  ENDIF()
-ENDIF()
+INCLUDE(maintainer)
 
 IF(WITH_UNIT_TESTS)
  ENABLE_TESTING()
@@ -523,6 +491,7 @@ IF(NOT WITHOUT_SERVER)
   ENDIF()
   ADD_SUBDIRECTORY(packaging/rpm-oel)
   ADD_SUBDIRECTORY(packaging/rpm-fedora)
+  ADD_SUBDIRECTORY(packaging/rpm-sles)
 ENDIF()
 
 INCLUDE(cmake/abi_check.cmake)
@@ -599,3 +568,37 @@ IF(NOT INSTALL_LAYOUT MATCHES "RPM")
 ENDIF()
 
 INCLUDE(CPack)
+
+# C compiler flags consist of:
+# CPPFLAGS        Taken from environment, see above.
+# ADD_DEFINITIONS In each individual CMakeLists.txt
+# CMAKE_C_FLAGS   From command line.
+#                 We extend these in maintainer.cmake
+# ENV{CFLAGS}     From environment, but environment is ignored if
+#                 CMAKE_C_FLAGS is also given on command line
+# CMAKE_C_FLAGS_${CMAKE_BUILD_TYPE}
+#                 We extend these in compiler_options.cmake
+#
+# Note that CMakeCache.txt contains cmake builtins for these variables,
+# *not* the values that will actually be used:
+
+IF(CMAKE_GENERATOR MATCHES "Makefiles")
+  MESSAGE(STATUS "CMAKE_BUILD_TYPE: ${CMAKE_BUILD_TYPE}")
+ENDIF()
+GET_PROPERTY(cwd_definitions DIRECTORY PROPERTY COMPILE_DEFINITIONS)
+MESSAGE(STATUS "COMPILE_DEFINITIONS: ${cwd_definitions}")
+MESSAGE(STATUS "CMAKE_C_FLAGS: ${CMAKE_C_FLAGS}")
+MESSAGE(STATUS "CMAKE_CXX_FLAGS: ${CMAKE_CXX_FLAGS}")
+IF(CMAKE_BUILD_TYPE AND CMAKE_GENERATOR MATCHES "Makefiles")
+  STRING(TOUPPER "${CMAKE_BUILD_TYPE}" CMAKEBT)
+  MESSAGE(STATUS "CMAKE_C_FLAGS_${CMAKEBT}: ${CMAKE_C_FLAGS_${CMAKEBT}}")
+  MESSAGE(STATUS "CMAKE_CXX_FLAGS_${CMAKEBT}: ${CMAKE_CXX_FLAGS_${CMAKEBT}}")
+ENDIF()
+IF(NOT CMAKE_GENERATOR MATCHES "Makefiles")
+  MESSAGE(STATUS "CMAKE_C_FLAGS_DEBUG: ${CMAKE_C_FLAGS_DEBUG}")
+  MESSAGE(STATUS "CMAKE_CXX_FLAGS_DEBUG: ${CMAKE_CXX_FLAGS_DEBUG}")
+  MESSAGE(STATUS
+    "CMAKE_C_FLAGS_RELWITHDEBINFO: ${CMAKE_C_FLAGS_RELWITHDEBINFO}")
+  MESSAGE(STATUS
+    "CMAKE_CXX_FLAGS_RELWITHDEBINFO: ${CMAKE_CXX_FLAGS_RELWITHDEBINFO}")
+ENDIF()
