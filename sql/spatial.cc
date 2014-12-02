@@ -22,11 +22,6 @@
 #include <set>
 #include <utility>
 
-// Our ifdef trickery for my_isfinite does not work with gcc/sparc unless we:
-#ifdef HAVE_IEEEFP_H
-#include <ieeefp.h>
-#endif
-
 /*
   exponential notation :
   1   sign
