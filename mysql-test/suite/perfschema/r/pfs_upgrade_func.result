@@ -80,27 +80,6 @@ mysql_upgrade: [ERROR] 1050: Table 'table_handles' already exists
 mysql_upgrade: [ERROR] 1050: Table 'metadata_locks' already exists
 mysql_upgrade: [ERROR] 1050: Table 'user_variables_by_thread' already exists
 mysql_upgrade: [ERROR] 1644: Unexpected content found in the performance_schema database.
-mysql_upgrade: [ERROR] 1064: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'DELIMITER //
-CREATE PROCEDURE mysql.dist_priv_after_upgrade()
-BEGIN
-  DECLARE tb' at line 1
-mysql_upgrade: [ERROR] 1064: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'DECLARE done int DEFAULT 0' at line 1
-mysql_upgrade: [ERROR] 1064: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'DECLARE tables CURSOR FOR SELECT table_name FROM was_distributed' at line 1
-mysql_upgrade: [ERROR] 1064: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'DECLARE CONTINUE HANDLER FOR SQLSTATE '02000' SET done = 1' at line 1
-mysql_upgrade: [ERROR] 1064: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'OPEN tables' at line 1
-mysql_upgrade: [ERROR] 1064: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'REPEAT
-    FETCH tables INTO tbl_name' at line 1
-mysql_upgrade: [ERROR] 1064: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'IF NOT done THEN
-      # Alter table back into NDB
-      SET @str =
-        CONC' at line 1
-mysql_upgrade: [ERROR] 1064: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'END IF' at line 1
-mysql_upgrade: [ERROR] 1064: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'UNTIL DONE END REPEAT' at line 1
-mysql_upgrade: [ERROR] 1064: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'CLOSE tables' at line 1
-mysql_upgrade: [ERROR] 1064: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'END //
-DELIMITER' at line 1
-mysql_upgrade: [ERROR] 1305: PROCEDURE mysql.dist_priv_after_upgrade does not exist
-mysql_upgrade: [ERROR] 1305: PROCEDURE mysql.dist_priv_after_upgrade does not exist
 select name from mysql.proc where db='performance_schema';
 name
 user_func
