@@ -74,3 +74,14 @@ time_stamp>@now
 1
 drop table t1;
 End of 4.1 tests
+create table t1 (
+a int primary key,
+b timestamp not null default '0000-00-00 00:00:00',
+c timestamp not null,
+d timestamp NULL
+) engine = NDB;
+insert into t1 (a,c) values (37, '0000-00-00 00:00:00');
+select b,c,d from t1;
+b	c	d
+0000-00-00 00:00:00	0000-00-00 00:00:00	NULL
+drop table t1;
