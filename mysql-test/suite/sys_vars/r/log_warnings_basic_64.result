@@ -104,10 +104,12 @@ SELECT @@global.log_warnings;
 Warnings:
 Warning	1287	'@@log_warnings' is deprecated and will be removed in a future release. Please use log_error_verbosity instead
 '#------------------FN_DYNVARS_067_05-----------------------#'
-SELECT @@global.log_warnings = VARIABLE_VALUE 
+SELECT VARIABLE_VALUE 
 FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
-WHERE VARIABLE_NAME='log_warnings';
-@@global.log_warnings = VARIABLE_VALUE
+WHERE VARIABLE_NAME='log_warnings'
+into @tmp;
+SELECT @@global.log_warnings = @tmp;
+@@global.log_warnings = @tmp
 1
 Warnings:
 Warning	1287	'@@log_warnings' is deprecated and will be removed in a future release. Please use log_error_verbosity instead

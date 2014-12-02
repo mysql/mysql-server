@@ -17,8 +17,10 @@ SELECT @@GLOBAL.gtid_executed_compression_period;
 
 SHOW GLOBAL VARIABLES LIKE 'gtid_executed_compression_period';
 
+--disable_warnings
 SELECT * FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE
   VARIABLE_NAME = 'gtid_executed_compression_period';
+--enable_warnings
 
 --echo #
 --echo # It is not a session variable
@@ -32,8 +34,10 @@ SHOW SESSION VARIABLES LIKE 'gtid_executed_compression_period';
 
 SHOW SESSION VARIABLES LIKE 'gtid_executed_compression_period';
 
+--disable_warnings
 SELECT * FROM INFORMATION_SCHEMA.SESSION_VARIABLES WHERE
   VARIABLE_NAME ='gtid_executed_compression_period';
+--enable_warnings
 
 --echo #
 --echo # Verify that it's writable

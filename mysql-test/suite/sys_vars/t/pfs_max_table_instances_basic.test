@@ -14,11 +14,13 @@ show global variables like 'performance_schema_max_table_instances';
 
 show session variables like 'performance_schema_max_table_instances';
 
+--disable_warnings
 select * from information_schema.global_variables
   where variable_name='performance_schema_max_table_instances';
 
 select * from information_schema.session_variables
   where variable_name='performance_schema_max_table_instances';
+--enable_warnings
 
 #
 # Read-only

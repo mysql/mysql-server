@@ -54,17 +54,21 @@ SELECT COUNT(@@SESSION.warning_count);
 # Check if the value in SESSION Table matches value in variable #
 #################################################################
 
+--disable_warnings
 SELECT @@SESSION.warning_count = VARIABLE_VALUE 
 FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
 WHERE VARIABLE_NAME='warning_count';
+--enable_warnings
 --echo 1 Expected
 
 SELECT COUNT(@@SESSION.warning_count);
 --echo 1 Expected
 
+--disable_warnings
 SELECT COUNT(VARIABLE_VALUE)
 FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
 WHERE VARIABLE_NAME='warning_count';
+--enable_warnings
 --echo 1 Expected
 
 

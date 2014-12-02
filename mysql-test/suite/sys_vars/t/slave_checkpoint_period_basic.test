@@ -13,10 +13,12 @@ select @@session.slave_checkpoint_period;
 show global variables like 'slave_checkpoint_period';
 --replace_regex /[0-9]+/period/
 show session variables like 'slave_checkpoint_period';
+--disable_warnings
 --replace_regex /[0-9]+/period/
 select * from information_schema.global_variables where variable_name='slave_checkpoint_period';
 --replace_regex /[0-9]+/period/
 select * from information_schema.session_variables where variable_name='slave_checkpoint_period';
+--enable_warnings
 
 #
 # show that it's writable

@@ -137,18 +137,22 @@ SET @@tx_isolation = 'ALL';
 #     Check if the value in session Table matches value in variable     #
 #########################################################################
 
+--disable_warnings
 SELECT @@session.tx_isolation = VARIABLE_VALUE 
 FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
 WHERE VARIABLE_NAME='tx_isolation';
+--enable_warnings
 
 --echo '#----------------------FN_DYNVARS_183_06------------------------#'
 ######################################################################### 
 #     Check if the value in GLOBAL Table matches value in variable      #
 #########################################################################
 
+--disable_warnings
 SELECT @@global.tx_isolation = VARIABLE_VALUE 
 FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
 WHERE VARIABLE_NAME='tx_isolation';
+--enable_warnings
 
 
 --echo '#---------------------FN_DYNVARS_183_07-------------------------#'

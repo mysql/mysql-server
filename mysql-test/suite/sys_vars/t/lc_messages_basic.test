@@ -13,8 +13,10 @@ select @@global.lc_messages;
 select @@session.lc_messages;
 show global variables like 'lc_messages';
 show session variables like 'lc_messages';
+--disable_warnings
 select * from information_schema.global_variables where variable_name='lc_messages';
 select * from information_schema.session_variables where variable_name='lc_messages';
+--enable_warnings
 
 #
 # show that it's writable
@@ -27,8 +29,10 @@ set global lc_messages="en_US";
 set session lc_messages="en_GB";
 select @@global.lc_messages;
 select @@session.lc_messages;
+--disable_warnings
 select * from information_schema.global_variables where variable_name='lc_messages';
 select * from information_schema.session_variables where variable_name='lc_messages';
+--enable_warnings
 
 #
 # incorrect types

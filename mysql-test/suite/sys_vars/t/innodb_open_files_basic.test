@@ -52,17 +52,21 @@ SELECT COUNT(@@GLOBAL.innodb_open_files);
 # Check if the value in GLOBAL Table matches value in variable  #
 #################################################################
 
+--disable_warnings
 SELECT @@GLOBAL.innodb_open_files = VARIABLE_VALUE
 FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
 WHERE VARIABLE_NAME='innodb_open_files';
+--enable_warnings
 --echo 1 Expected
 
 SELECT COUNT(@@GLOBAL.innodb_open_files);
 --echo 1 Expected
 
+--disable_warnings
 SELECT COUNT(VARIABLE_VALUE)
 FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
 WHERE VARIABLE_NAME='innodb_open_files';
+--enable_warnings
 --echo 1 Expected
 
 
