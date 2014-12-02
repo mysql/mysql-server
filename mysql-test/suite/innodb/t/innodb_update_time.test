@@ -34,7 +34,7 @@ WHERE table_name = '`test`.`t`';
 -- echo # INSERT lots of data in table 'big': begin
 -- disable_query_log
 BEGIN;
--- let $i = 5120
+-- let $i = 10240
 while ($i)
 {
 	INSERT INTO big VALUES (REPEAT('a', 1024));
