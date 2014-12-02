@@ -3181,12 +3181,19 @@ void Dbdih::pause_lcp(Signal *signal,
     NodeRecordPtr nodePtr;
     nodePtr.i = startNode;
     ptrCheckGuard(nodePtr, MAX_NDB_NODES, nodeRecord);
-    if (nodePtr.p->nodeRecoveryStatus != NodeRecord::NODE_GETTING_PERMIT)
+    if (!nodePtr.p->is_pausable)
     {
       jam();
       /* Ignore, node already died */
       return;
     }
+    /**
+     * Verify that the master isn't starting PAUSE protocol for old nodes
+     * that doesn't the PAUSE LCP protocol. We make it an assert mostly
+     * to find bugs early on, a proper handling would probably be to
+     * shoot down the master node.
+     */
+    ndbassert(getNodeInfo(startNode).m_version >= NDBD_SUPPORT_PAUSE_LCP);
   }
 
   c_pause_lcp_reference = sender_ref;
@@ -4886,6 +4893,7 @@ void Dbdih::initNodeRecoveryStatus()
   {
     ptrAss(nodePtr, nodeRecord);
     nodePtr.p->nodeRecoveryStatus = NodeRecord::NOT_DEFINED_IN_CLUSTER;
+    nodePtr.p->is_pausable = false;
     initNodeRecoveryTimers(nodePtr);
   }
 }
@@ -5123,6 +5131,26 @@ void Dbdih::setNodeRecoveryStatus(Uint32 nodeId,
   ptrCheckGuard(nodePtr, MAX_NDB_NODES, nodeRecord);
   jam();
   jamLine(nodePtr.p->nodeRecoveryStatus);
+
+  /**
+   * We maintain the state NODE_GETTING_PERMIT in the
+   * variable is_pausable independent of when it is
+   * received since it is needed to be able to handle
+   * PAUSE protocol properly. The node recovery status
+   * isn't sufficiently developed to handle this using
+   * the state variable alone yet since we cannot handle
+   * all restart types yet.
+   */
+  if (new_status == NodeRecord::NODE_GETTING_PERMIT)
+  {
+    jam();
+    nodePtr.p->is_pausable = true;
+  }
+  else
+  {
+    jam();
+    nodePtr.p->is_pausable = false;
+  }
 
   if (getNodeState().startLevel != NodeState::SL_STARTED)
   {
