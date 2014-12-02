@@ -50,6 +50,7 @@ Created 12/9/1995 Heikki Tuuri
 #include "srv0start.h"
 #include "trx0sys.h"
 #include "trx0trx.h"
+#include "trx0roll.h"
 #include "srv0mon.h"
 #include "sync0sync.h"
 
@@ -1979,6 +1980,12 @@ logs_empty_and_mark_files_at_shutdown(void)
 	const char*		thread_name;
 
 	ib::info() << "Starting shutdown...";
+
+	while (srv_fast_shutdown == 0 && trx_rollback_or_clean_is_active) {
+		/* we should wait until rollback after recovery end
+		for slow shutdown */
+		os_thread_sleep(100000);
+	}
 
 	/* Wait until the master thread and all other operations are idle: our
 	algorithm only works if the server is idle at shutdown */
