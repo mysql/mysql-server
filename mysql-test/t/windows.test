@@ -98,3 +98,19 @@ deallocate prepare abc;
 
 SELECT VARIABLE_NAME FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
   WHERE VARIABLE_NAME = 'socket';
+
+--echo #
+--echo # Bug#16581605: REPLACE.EXE UTILITY IS BROKEN IN 5.5
+--echo #
+
+# Creating a temporary text file.
+--write_file $MYSQL_TMP_DIR/bug16581605.txt
+abc
+def
+EOF
+
+#REPLACE.EXE UTILITY will work fine after the fix.
+--exec $REPLACE abc xyz < $MYSQL_TMP_DIR/bug16581605.txt
+
+#Cleanup
+remove_file $MYSQL_TMP_DIR/bug16581605.txt;

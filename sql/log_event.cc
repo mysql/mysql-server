@@ -1336,7 +1336,7 @@ Log_event* Log_event::read_log_event(const char* buf, uint event_len,
       ev = new Execute_load_log_event(buf, event_len, description_event);
       break;
     case START_EVENT_V3: /* this is sent only by MySQL <=4.x */
-      ev = new Start_log_event_v3(buf, description_event);
+      ev = new Start_log_event_v3(buf, event_len, description_event);
       break;
     case STOP_EVENT:
       ev = new Stop_log_event(buf, description_event);
@@ -2275,13 +2275,8 @@ void Log_event::print_timestamp(IO_CACHE* file, time_t* ts)
   DBUG_ENTER("Log_event::print_timestamp");
   if (!ts)
     ts = &when;
-#ifdef MYSQL_SERVER				// This is always false
   struct tm tm_tmp;
   localtime_r(ts,(res= &tm_tmp));
-#else
-  res=localtime(ts);
-#endif
-
   my_b_printf(file,"%02d%02d%02d %2d:%02d:%02d",
               res->tm_year % 100,
               res->tm_mon+1,
@@ -3951,11 +3946,17 @@ void Start_log_event_v3::print(FILE* file, PRINT_EVENT_INFO* print_event_info)
   Start_log_event_v3::Start_log_event_v3()
 */
 
-Start_log_event_v3::Start_log_event_v3(const char* buf,
+Start_log_event_v3::Start_log_event_v3(const char* buf, uint event_len,
                                        const Format_description_log_event
                                        *description_event)
-  :Log_event(buf, description_event)
+  :Log_event(buf, description_event), binlog_version(BINLOG_VERSION)
 {
+  if (event_len < (uint)description_event->common_header_len +
+      ST_COMMON_HEADER_LEN_OFFSET)
+  {
+    server_version[0]= 0;
+    return;
+  }
   buf+= description_event->common_header_len;
   binlog_version= uint2korr(buf+ST_BINLOG_VER_OFFSET);
   memcpy(server_version, buf+ST_SERVER_VER_OFFSET,
@@ -4259,9 +4260,12 @@ Format_description_log_event(const char* buf,
                              const
                              Format_description_log_event*
                              description_event)
-  :Start_log_event_v3(buf, description_event), event_type_permutation(0)
+  :Start_log_event_v3(buf, event_len, description_event),
+   common_header_len(0), post_header_len(NULL), event_type_permutation(0)
 {
   DBUG_ENTER("Format_description_log_event::Format_description_log_event(char*,...)");
+  if (!Start_log_event_v3::is_valid())
+    DBUG_VOID_RETURN; /* sanity check */
   buf+= LOG_EVENT_MINIMAL_HEADER_LEN;
   if ((common_header_len=buf[ST_COMMON_HEADER_LEN_OFFSET]) < OLD_HEADER_LEN)
     DBUG_VOID_RETURN; /* sanity check */

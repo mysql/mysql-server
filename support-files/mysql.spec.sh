@@ -1326,6 +1326,16 @@ echo "====="                                                       >> $STATUS_HI
 
 - Add Cluster files.
 
+* Wed Sep 14 2011 Joerg Bruehe <joerg.bruehe@oracle.com>
+
+- Let the RPM capabilities ("obsoletes" etc) ensure that an upgrade may replace
+  the RPMs of any configuration (of the current or the preceding release series)
+  by the new ones. This is done by not using the implicitly generated capabilities
+  (which include the configuration name) and relying on more generic ones which
+  just list the function ("server", "client", ...).
+  The implicit generation cannot be prevented, so all these capabilities must be
+  explicitly listed in "Obsoletes:"
+
 * Tue Sep 13 2011 Jonathan Perkin <jonathan.perkin@oracle.com>
 
 - Add support for Oracle Linux 6 and Red Hat Enterprise Linux 6.  Due to

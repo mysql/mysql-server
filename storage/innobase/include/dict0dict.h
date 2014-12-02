@@ -1367,6 +1367,14 @@ dict_table_init_referenced_rbt(
 /*===========================*/
 	dict_table_t*	table);	/*!< in: the table object whose
 				table->referenced_rbt will be initialized */
+/********************************************************************//**
+Check if it is a temporary table.
+@return        true if temporary table flag is set. */
+UNIV_INLINE
+ibool
+dict_table_is_temporary(
+/*====================*/
+	const dict_table_t*     table);  /*!< in: table to check */
 
 #ifndef UNIV_NONINL
 #include "dict0dict.ic"
