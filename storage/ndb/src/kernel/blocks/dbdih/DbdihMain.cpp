@@ -22715,25 +22715,31 @@ Dbdih::execDUMP_STATE_ORD(Signal* signal)
               c_pause_lcp_reference,
               c_lcp_paused,
               c_dequeue_lcp_rep_ongoing);
-    infoEvent("c_pause_lcp_requested: %u, c_old_node_waiting_for_lcp_end: %u"
-              " c_last_id_lcp_complete_rep: %u",
+    infoEvent("c_pause_lcp_requested: %u, c_old_node_waiting_for_lcp_end: %u",
               c_pause_lcp_requested,
-              c_old_node_waiting_for_lcp_end,
-              c_last_id_lcp_complete_rep);
-    infoEvent("c_pauseAction: %u, c_queued_lcp_complete_rep: %u"
+              c_old_node_waiting_for_lcp_end);
+    infoEvent("c_pauseAction: %u, c_queued_lcp_complete_rep: %u,"
               " c_lcp_id_paused: %u",
               Uint32(c_pauseAction),
               c_queued_lcp_complete_rep,
               c_lcp_id_paused);
-    infoEvent("c_lcp_id_while_copy_meta_data: %u, c_pause_lcp_start_node: %u"
-              " c_PAUSE_LCP_REQ_Counter: %s",
-              c_lcp_id_while_copy_meta_data,
-              c_pause_lcp_start_node,
-              c_PAUSE_LCP_REQ_Counter.getText());
-    infoEvent("c_FLUSH_LCP_REP_REQ_Counter: %s"
+    infoEvent("c_last_id_lcp_complete_rep: %u"
               " c_lcp_runs_with_pause_support: %u",
-              c_FLUSH_LCP_REP_REQ_Counter.getText(),
+              c_last_id_lcp_complete_rep,
               c_lcp_runs_with_pause_support);
+    infoEvent("c_lcp_id_while_copy_meta_data: %u, c_pause_lcp_start_node: %u",
+              c_lcp_id_while_copy_meta_data,
+              c_pause_lcp_start_node);
+    infoEvent(" c_PAUSE_LCP_REQ_Counter: %s",
+              c_PAUSE_LCP_REQ_Counter.getText());
+    infoEvent("c_FLUSH_LCP_REP_REQ_Counter: %s",
+              c_FLUSH_LCP_REP_REQ_Counter.getText());
+    if (isMaster())
+    {
+      char buf[100];
+      infoEvent("c_lcpState.m_participatingLQH: %s",
+                c_lcpState.m_participatingLQH.getText(buf));
+    }
   }
 
   DECLARE_DUMP0(DBDIH, 7213, "Set error 7213 with extra arg")
