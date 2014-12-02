@@ -1,0 +1,263 @@
+--source include/windows.inc
+--source include/not_embedded.inc
+--source include/have_innodb.inc
+--source include/have_debug.inc
+
+--echo # Bug #18285007	COPY OF TABLES WITH INNODB FTS
+--echo #	FROM WINDOWS TO LINUX CAUSES CRASH
+
+LET $regexp=/FTS_([0-9a-f_]+)([A-Z_]+)/FTS_AUX_\2/;
+
+--echo # Simulating old non-windows(< 5.6.16) data directory
+
+SET GLOBAL DEBUG='+d,innodb_test_wrong_fts_aux_table_name';
+SET GLOBAL DEBUG='+d,innodb_test_wrong_non_windows_fts_aux_table_name';
+CREATE TABLE t1(a TEXT, b TEXT, FULLTEXT(a, b))engine=innodb;
+INSERT INTO t1 VALUES('TEST1', 'TEST2');
+INSERT INTO t1 VALUES('TEXT1', 'TEXT2');
+SELECT * FROM t1 WHERE MATCH(a, b) AGAINST ('TEST2');
+--replace_regex $regexp
+SELECT SUBSTRING(name, LOCATE('_', name) - 3, 5) AS prefix, name
+FROM INFORMATION_SCHEMA.INNODB_SYS_TABLES
+WHERE name LIKE '%FTS_%' ORDER BY 1, 2;
+--source include/restart_mysqld.inc
+
+# Set flags2 for all the table.
+SELECT * FROM t1 WHERE MATCH(a, b) AGAINST ('TEST2');
+--replace_regex $regexp
+SELECT SUBSTRING(name, LOCATE('_', name) - 3, 5) AS prefix, name
+FROM INFORMATION_SCHEMA.INNODB_SYS_TABLES
+WHERE name LIKE '%FTS_%' ORDER BY 1, 2;
+DROP TABLE t1;
+
+--echo # Simulating old windows (< 5.6.16) data directory
+
+SET GLOBAL DEBUG='+d,innodb_test_wrong_fts_aux_table_name';
+CREATE TABLE t1(a TEXT, b TEXT, FULLTEXT(a, b))engine=innodb;
+INSERT INTO t1 VALUES('TEST1', 'TEST2');
+INSERT INTO t1 VALUES('TEXT1', 'TEXT2');
+SELECT * FROM t1 WHERE MATCH(a, b) AGAINST ('TEST2');
+--replace_regex $regexp
+SELECT SUBSTRING(name, LOCATE('_', name) - 3, 5) AS prefix, name
+FROM INFORMATION_SCHEMA.INNODB_SYS_TABLES
+WHERE name LIKE '%FTS_%' ORDER BY 1, 2;
+--source include/restart_mysqld.inc
+
+# Renaming the tables.
+SELECT * FROM t1 WHERE MATCH(a, b) AGAINST ('TEST2');
+--replace_regex $regexp
+SELECT SUBSTRING(name, LOCATE('_', name) - 3, 5) AS prefix, name
+FROM INFORMATION_SCHEMA.INNODB_SYS_TABLES
+WHERE name LIKE '%FTS_%' ORDER BY 1, 2;
+DROP TABLE t1;
+
+--echo # Simulation current windows data directory
+
+CREATE TABLE t1(a TEXT, b TEXT, FULLTEXT(a, b))engine=innodb;
+INSERT INTO t1 VALUES('TEST1', 'TEST2');
+INSERT INTO t1 VALUES('TEXT1', 'TEXT2');
+SELECT * FROM t1 WHERE MATCH(a, b) AGAINST ('TEST2');
+--replace_regex $regexp
+SELECT SUBSTRING(name, LOCATE('_', name) - 3, 5) AS prefix, name
+FROM INFORMATION_SCHEMA.INNODB_SYS_TABLES
+WHERE name LIKE '%FTS_%' ORDER BY 1, 2;
+--source include/restart_mysqld.inc
+
+SELECT * FROM t1 WHERE MATCH(a, b) AGAINST ('TEST2');
+--replace_regex $regexp
+SELECT SUBSTRING(name, LOCATE('_', name) - 3, 5) AS prefix, name
+FROM INFORMATION_SCHEMA.INNODB_SYS_TABLES
+WHERE name LIKE '%FTS_%' ORDER BY 1, 2;
+DROP TABLE t1;
+
+--echo # Non windows aux table flag failure and rebuild the corrupted index.
+
+call mtr.add_suppression("\\[Warning\\] InnoDB: Parent table of FTS auxiliary table .* not found.");
+call mtr.add_suppression("\\[ERROR] InnoDB: Flagged corruption of .* in table .* in DROP ORPHANED TABLE");
+call mtr.add_suppression("\\[Warning\\] InnoDB: Setting aux table .* to hex format failed.");
+
+SET GLOBAL DEBUG='+d,innodb_test_wrong_fts_aux_table_name';
+SET GLOBAL DEBUG='+d,innodb_test_wrong_non_windows_fts_aux_table_name';
+CREATE TABLE t1(a TEXT, b TEXT, c TEXT, FULLTEXT `AB` (a, b), FULLTEXT `C1`(c));
+INSERT INTO t1 VALUES('TEST1', 'TEST2', 'TEXT3');
+INSERT INTO t1 VALUES('TEXT1', 'TEXT2', 'TEXT5');
+SELECT * FROM t1 WHERE MATCH(a, b) AGAINST ('TEST2');
+SELECT * FROM t1 WHERE MATCH(c) AGAINST ('TEXT5');
+
+SET GLOBAL DEBUG='-d,innodb_test_wrong_fts_sys_table_name';
+
+# Write file to make mysql-test-run.pl wait for the server to stop
+-- exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+# Request shutdown
+-- send_shutdown
+# Call script that will poll the server waiting for it to disapear
+-- source include/wait_until_disconnected.inc
+
+# Write file to make mysql-test-run.pl start up the server again, ensure
+# that no background threads are started, so that we can check that it
+# shuts down properly.
+# Set the flag to force the aux table fail and restart the server
+
+--exec echo "restart:--debug=d,aux_table_flag_fail" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+--error ER_TABLE_HAS_NO_FT
+SELECT * FROM t1 WHERE MATCH(a, b) AGAINST ('TEST2');
+--error ER_TABLE_HAS_NO_FT
+SELECT * FROM t1 WHERE MATCH(c) AGAINST ('TEXT5');
+
+ALTER TABLE t1 ADD FULLTEXT(b);
+
+--echo # Restart the server
+-- source include/restart_mysqld.inc
+
+--error ER_TABLE_HAS_NO_FT
+SELECT * FROM t1 WHERE MATCH(a, b) AGAINST ('TEST2');
+--error ER_TABLE_HAS_NO_FT
+SELECT * FROM t1 WHERE MATCH(c) AGAINST ('TEXT5');
+
+--echo # Drop the corrupted index.
+ALTER TABLE t1 DROP INDEX `AB`;
+ALTER TABLE t1 DROP INDEX `C1`;
+
+-- echo # Rebuild the index.
+ALTER TABLE t1 ADD FULLTEXT(a, b);
+ALTER TABLE t1 ADD FULLTEXT(c);
+
+--echo # Read the record using fts index.
+SELECT * FROM t1 WHERE MATCH(a, b) AGAINST ('TEST2');
+SELECT * FROM t1 WHERE MATCH(c) AGAINST ('TEXT5');
+
+DROP TABLE t1;
+
+--echo # Non windows parent table flag failure.
+
+SET GLOBAL DEBUG='+d,innodb_test_wrong_fts_aux_table_name';
+SET GLOBAL DEBUG='+d,innodb_test_wrong_non_windows_fts_aux_table_name';
+CREATE TABLE t1(a TEXT, b TEXT, c TEXT, FULLTEXT(a, b), FULLTEXT(c));
+INSERT INTO t1 VALUES('TEST1', 'TEST2', 'TEXT3');
+INSERT INTO t1 VALUES('TEXT1', 'TEXT2', 'TEXT5');
+SELECT * FROM t1 WHERE MATCH(a, b) AGAINST ('TEST2');
+SELECT * FROM t1 WHERE MATCH(c) AGAINST ('TEXT5');
+
+SET GLOBAL DEBUG='-d,innodb_test_wrong_fts_sys_table_name';
+
+# Write file to make mysql-test-run.pl wait for the server to stop
+-- exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+# Request shutdown
+-- send_shutdown
+# Call script that will poll the server waiting for it to disapear
+-- source include/wait_until_disconnected.inc
+
+# Write file to make mysql-test-run.pl start up the server again, ensure
+# that no background threads are started, so that we can check that it
+# shuts down properly.
+# Set the flag to force the parent table fail and restart the server
+
+-- disable_query_log
+--error 1
+--exec $MYSQLD_CMD --debug="d,parent_table_flag_fail"
+-- enable_query_log
+
+# Restart the server
+--enable_reconnect
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--source include/wait_until_connected_again.inc
+--disable_reconnect
+
+SELECT * FROM t1 WHERE MATCH(a, b) AGAINST ('TEST2');
+SELECT * FROM t1 WHERE MATCH(c) AGAINST ('TEXT5');
+DROP TABLE t1;
+
+--echo # Drop FTS table and rename the common tables.
+
+# Remove the orphaned table
+-- source include/restart_mysqld.inc
+
+SET GLOBAL DEBUG='+d,innodb_test_wrong_fts_aux_table_name';
+CREATE TABLE t1(a TEXT, b TEXT, c TEXT, FULLTEXT f1(a, b));
+INSERT INTO t1 VALUES('TEST1', 'TEST2', 'TEXT3');
+INSERT INTO t1 VALUES('TEXT1', 'TEXT2', 'TEXT5');
+SELECT * FROM t1 WHERE MATCH(a, b) AGAINST ('TEST2');
+alter table t1 drop index f1;
+SET SESSION debug='-d,innodb_test_wrong_fts_sys_table_name';
+--replace_regex $regexp
+SELECT SUBSTRING(name, LOCATE('_', name) - 3, 5) AS prefix, name
+FROM INFORMATION_SCHEMA.INNODB_SYS_TABLES
+WHERE name LIKE '%FTS_%' ORDER BY 1, 2;
+
+--source include/restart_mysqld.inc
+# Renaming the common tables.
+--replace_regex $regexp
+SELECT SUBSTRING(name, LOCATE('_', name) - 3, 5) AS prefix, name
+FROM INFORMATION_SCHEMA.INNODB_SYS_TABLES
+WHERE name LIKE '%FTS_%' ORDER BY 1, 2;
+SELECT * FROM t1;
+DROP TABLE t1;
+
+--echo # Rename failure for old windows data directory and rebuild the
+--echo # corrupted index
+
+call mtr.add_suppression("\\[Warning\\] InnoDB: Failed to rename one aux table .* Will revert all successful rename operations.");
+
+call mtr.add_suppression("\\[Warning\\] InnoDB: Rollback operations on all aux tables of table .* All the fts index associated with the table are marked as corrupted. Please rebuild the index again.");
+
+call mtr.add_suppression("\\[ERROR\\] InnoDB: Flagged corruption of .* in table .* in DROP ORPHANED TABLE");
+
+SET GLOBAL DEBUG='+d,innodb_test_wrong_fts_aux_table_name';
+CREATE TABLE t1(a TEXT, b TEXT, c TEXT, FULLTEXT `AB`(a, b), FULLTEXT `C1`(c));
+INSERT INTO t1 VALUES('TEST1', 'TEST2', 'TEXT3');
+INSERT INTO t1 VALUES('TEXT1', 'TEXT2', 'TEXT5');
+SELECT * FROM t1 WHERE MATCH(a, b) AGAINST ('TEST2');
+SELECT * FROM t1 WHERE MATCH(c) AGAINST ('TEXT5');
+
+SET SESSION debug='-d,innodb_test_wrong_fts_sys_table_name';
+
+# Write file to make mysql-test-run.pl wait for the server to stop
+-- exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+# Request shutdown
+-- send_shutdown
+#Call script that will poll the server waiting for it to disapear
+-- source include/wait_until_disconnected.inc
+
+--echo # Restart server.
+
+# Write file to make mysql-test-run.pl start up the server again, ensure
+# that no background threads are started, so that we can check that it
+# shuts down properly.
+# Set the flag to force the rename fail and restart the server
+--exec echo "restart:--debug=d,rename_aux_table_fail" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+# Will fail to alter table
+--error ER_INNODB_FT_AUX_NOT_HEX_ID
+ALTER TABLE t1 ADD FULLTEXT(b);
+
+--error ER_TABLE_HAS_NO_FT
+SELECT * FROM t1 WHERE MATCH(a, b) AGAINST ('TEST2');
+
+--echo # Restart server.
+-- source include/restart_mysqld.inc
+
+--error ER_TABLE_HAS_NO_FT
+SELECT * FROM t1 WHERE MATCH(a, b) AGAINST ('TEST2');
+--error ER_TABLE_HAS_NO_FT
+SELECT * FROM t1 WHERE MATCH(c) AGAINST ('TEXT5');
+
+--echo # Drop the corrupted index.
+ALTER TABLE t1 DROP INDEX `AB`;
+ALTER TABLE t1 DROP INDEX `C1`;
+
+-- echo # Rebuild the index.
+ALTER TABLE t1 ADD FULLTEXT(a, b);
+ALTER TABLE t1 ADD FULLTEXT(c);
+
+--echo # Read the record using fts index.
+SELECT * FROM t1 WHERE MATCH(a, b) AGAINST ('TEST2');
+SELECT * FROM t1 WHERE MATCH(c) AGAINST ('TEXT5');
+
+TRUNCATE TABLE t1;
+DROP TABLE t1;
+-- source include/restart_mysqld.inc

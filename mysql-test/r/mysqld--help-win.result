@@ -56,6 +56,10 @@ The following options may be given as the first argument:
  --binlog-do-db=name Tells the master it should log updates for the specified
  database, and exclude all others not explicitly
  mentioned.
+ --binlog-error-action=name 
+ When statements cannot be written to the binary log due
+ to a fatal error, the server can either ignore the error
+ and let the master continue, or abort.
  --binlog-format=name 
  What form of binary logging the master will use: either
  ROW for row-based binary logging, STATEMENT for
@@ -106,7 +110,9 @@ The following options may be given as the first argument:
  --binlogging-impossible-mode=name 
  On a fatal error when statements cannot be binlogged the
  behaviour can be ignore the error and let the master
- continue or abort the server. 
+ continue or abort the server. This variable is deprecated
+ and will be removed in a future release. Please use
+ binlog_error_action instead.
  --block-encryption-mode=name 
  mode for AES_ENCRYPT/AES_DECRYPT
  --bootstrap         Used by mysql installation scripts.
@@ -1024,6 +1030,7 @@ bind-address *
 binlog-cache-size 32768
 binlog-checksum CRC32
 binlog-direct-non-transactional-updates FALSE
+binlog-error-action IGNORE_ERROR
 binlog-format STATEMENT
 binlog-max-flush-queue-time 0
 binlog-order-commits TRUE

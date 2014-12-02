@@ -1504,13 +1504,28 @@ static Sys_var_ulong Sys_rpl_stop_slave_timeout(
        "warning.",
        GLOBAL_VAR(rpl_stop_slave_timeout), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(2, LONG_TIMEOUT), DEFAULT(LONG_TIMEOUT), BLOCK_SIZE(1));
+/*
+  alias for binlogging_imposible_mode as per the appropriate naming
+  convention
+*/
+static Sys_var_enum Sys_binlog_error_action(
+       "binlog_error_action",
+       "When statements cannot be written to the binary log due to a fatal "
+       "error, the server can either ignore the error and let the master "
+       "continue, or abort.", GLOBAL_VAR(binlog_error_action),
+       CMD_LINE(REQUIRED_ARG), binlog_error_action_list, DEFAULT(IGNORE_ERROR));
 
 static Sys_var_enum Sys_binlogging_impossible_mode(
        "binlogging_impossible_mode",
        "On a fatal error when statements cannot be binlogged the behaviour can "
-       "be ignore the error and let the master continue or abort the server. ",
-       GLOBAL_VAR(binlogging_impossible_mode), CMD_LINE(REQUIRED_ARG),
-       binlogging_impossible_err, DEFAULT(IGNORE_ERROR));
+       "be ignore the error and let the master continue or abort the server. "
+       "This variable is deprecated and will be removed in a future release. "
+       "Please use binlog_error_action instead.",
+       GLOBAL_VAR(binlog_error_action),
+       CMD_LINE(REQUIRED_ARG, OPT_BINLOGGING_IMPOSSIBLE_MODE),
+       binlog_error_action_list, DEFAULT(IGNORE_ERROR),
+       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0), ON_UPDATE(0),
+       DEPRECATED("'@@binlog_error_action'"));
 
 static Sys_var_mybool Sys_trust_function_creators(
        "log_bin_trust_function_creators",
@@ -3271,13 +3286,13 @@ static Sys_var_bit Sys_log_off(
 static bool fix_sql_log_bin_after_update(sys_var *self, THD *thd,
                                          enum_var_type type)
 {
-  if (type == OPT_SESSION)
-  {
-    if (thd->variables.sql_log_bin)
-      thd->variables.option_bits |= OPTION_BIN_LOG;
-    else
-      thd->variables.option_bits &= ~OPTION_BIN_LOG;
-  }
+  DBUG_ASSERT(type == OPT_SESSION);
+
+  if (thd->variables.sql_log_bin)
+    thd->variables.option_bits |= OPTION_BIN_LOG;
+  else
+    thd->variables.option_bits &= ~OPTION_BIN_LOG;
+
   return FALSE;
 }
 
@@ -3299,7 +3314,7 @@ static bool check_sql_log_bin(sys_var *self, THD *thd, set_var *var)
     return TRUE;
 
   if (var->type == OPT_GLOBAL)
-    return FALSE;
+    return TRUE;
 
   /* If in a stored function/trigger, it's too late to change sql_log_bin. */
   if (thd->in_sub_stmt)
@@ -3318,9 +3333,9 @@ static bool check_sql_log_bin(sys_var *self, THD *thd, set_var *var)
 }
 
 static Sys_var_mybool Sys_log_binlog(
-       "sql_log_bin", "sql_log_bin",
-       SESSION_VAR(sql_log_bin), NO_CMD_LINE,
-       DEFAULT(TRUE), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_sql_log_bin),
+       "sql_log_bin", "Controls whether logging to the binary log is done",
+       SESSION_VAR(sql_log_bin), NO_CMD_LINE, DEFAULT(TRUE),
+       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_sql_log_bin),
        ON_UPDATE(fix_sql_log_bin_after_update));
 
 static Sys_var_bit Sys_transaction_allow_batching(

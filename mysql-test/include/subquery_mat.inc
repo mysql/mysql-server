@@ -1417,6 +1417,53 @@ eval $query;
 
 DROP TABLE t1,t2,t3;
 
+--echo #
+--echo # Bug#19297190 NOT IN DOESN'T RETURN EXPECTED RESULT
+--echo #
+
+CREATE TABLE t1 (a VARCHAR(500) CHARACTER SET UTF8) ENGINE=INNODB;
+
+# Fill the table with 32 distinct long rows (>32kB of data)
+SET @str= repeat("a",450);
+SET @num=1000;
+INSERT INTO t1 VALUES (CONCAT((@num:=@num+1), @str));
+INSERT INTO t1 SELECT CONCAT((@num:=@num+1), @str) FROM t1;
+INSERT INTO t1 SELECT CONCAT((@num:=@num+1), @str) FROM t1;
+INSERT INTO t1 SELECT CONCAT((@num:=@num+1), @str) FROM t1;
+INSERT INTO t1 SELECT CONCAT((@num:=@num+1), @str) FROM t1;
+INSERT INTO t1 SELECT CONCAT((@num:=@num+1), @str) FROM t1;
+SELECT COUNT(*) FROM t1;
+
+ANALYZE TABLE t1;
+
+let $query=
+SELECT COUNT(*)
+FROM t1
+WHERE t1.a NOT IN (
+  SELECT t2.a FROM t1 as t2
+);
+
+# If subq-mat is used, this will force MEMORY->MYISAM tmp table conversion:
+set @save_heap_size= @@max_heap_table_size;
+set @@max_heap_table_size= 16384;
+
+# Uses IN->EXISTS because field too long for subq-materialization:
+eval EXPLAIN $query;
+eval $query;
+
+# Make field just below the length limit:
+# Silence truncation warnings:
+--disable_warnings
+ALTER TABLE t1 MODIFY a VARCHAR(332) CHARACTER SET UTF8;
+--enable_warnings
+
+# Now subquery materialization can be used, and result is still correct:
+eval EXPLAIN $query;
+eval $query;
+
+DROP TABLE t1;
+set @@max_heap_table_size= @save_heap_size;
+
 --echo # End of 5.6 tests
 
 set @@optimizer_switch=@old_opt_switch;

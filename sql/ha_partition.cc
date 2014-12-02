@@ -97,6 +97,13 @@ static handler *partition_create_handler(handlerton *hton,
 static uint partition_flags();
 static uint alter_table_flags(uint flags);
 
+
+/****************************************************************************
+    Check whether the partition column order changes after alter
+****************************************************************************/
+static bool check_partition_column_order(List<Create_field> *create_list,
+                                         Field** field_arary);
+
 #ifdef HAVE_PSI_INTERFACE
 PSI_mutex_key key_partition_auto_inc_mutex;
 
@@ -219,6 +226,34 @@ static uint alter_table_flags(uint flags __attribute__((unused)))
 {
   return (HA_PARTITION_FUNCTION_SUPPORTED |
           HA_FAST_CHANGE_PARTITION);
+}
+
+static bool check_partition_column_order(List<Create_field> *create_list,
+                                         Field** field_arary)
+{
+
+  Field **f_ptr;
+  List_iterator_fast<Create_field> new_field_it;
+  Create_field *new_field;
+  new_field_it.init(*create_list);
+
+  for (f_ptr= field_arary ; *f_ptr; f_ptr++)
+  {
+    while ((new_field= new_field_it++))
+    {
+      if (new_field->field == *f_ptr)
+        break;
+    }
+    if (!new_field)
+      break;
+  }
+
+  if (!new_field)
+  {
+    /* Not same order, INPLACE cannot be allowed!*/
+    return false;
+  }
+  return true;
 }
 
 const uint32 ha_partition::NO_CURRENT_PART_ID= NOT_A_PARTITION_ID;
@@ -8047,6 +8082,26 @@ ha_partition::check_if_supported_inplace_alter(TABLE *altered_table,
   */
   if (ha_alter_info->alter_info->flags == Alter_info::ALTER_PARTITION)
     DBUG_RETURN(HA_ALTER_INPLACE_NO_LOCK);
+
+  /* We cannot allow INPLACE to change order of KEY partitioning fields! */
+  if (ha_alter_info->handler_flags & Alter_inplace_info::ALTER_COLUMN_ORDER)
+  {
+    /* If column partitioning is used then no need to check partition order */
+    if (m_part_info->list_of_part_fields && !m_part_info->column_list)
+    {
+      if(!check_partition_column_order(&ha_alter_info->alter_info->create_list,
+                                       table->part_info->part_field_array))
+        DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
+    }
+
+    /* Check subpartition ordering */
+    if (m_part_info->list_of_subpart_fields)
+    {
+      if(!check_partition_column_order(&ha_alter_info->alter_info->create_list,
+                                       table->part_info->subpart_field_array))
+        DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
+    }
+  }
 
   part_inplace_ctx=
     new (thd->mem_root) ha_partition_inplace_ctx(thd, m_tot_parts);
