@@ -9,6 +9,8 @@
 --source include/not_embedded.inc
 # DBUG_SUICIDE() hangs under valgrind
 --source include/not_valgrind.inc
+# No windows, need perl
+--source include/not_windows.inc
 
 # The flag innodb_change_buffering_debug is only available in debug builds.
 # It instructs InnoDB to try to evict pages from the buffer pool when
