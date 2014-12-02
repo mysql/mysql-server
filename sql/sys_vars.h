@@ -595,8 +595,10 @@ public:
 protected:
   virtual uchar *session_value_ptr(THD *thd, LEX_STRING *base)
   {
-    return thd->security_ctx->proxy_user[0] ?
-      (uchar *) &(thd->security_ctx->proxy_user[0]) : NULL;
+    String *external_user= thd->security_ctx->get_external_user();
+
+    return external_user && external_user->length() ?
+      (uchar *) external_user->c_ptr_quick() : NULL;
   }
 };
 
