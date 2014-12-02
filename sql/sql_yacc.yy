@@ -9983,6 +9983,7 @@ function_call_conflict:
           }
         | OLD_PASSWORD '(' expr ')'
           {
+            WARN_DEPRECATED(YYTHD, "OLD_PASSWORD", "PASSWORD");
             $$=  new (YYTHD->mem_root) Item_func_old_password($3);
             Lex->contains_plaintext_password= true;
             if ($$ == NULL)
@@ -15122,6 +15123,7 @@ text_or_password:
           }
         | OLD_PASSWORD '(' TEXT_STRING ')'
           {
+		    WARN_DEPRECATED(YYTHD, "OLD_PASSWORD", "PASSWORD");
             $$= $3.length ? Item_func_old_password::
               alloc(YYTHD, $3.str, $3.length) :
               $3.str;

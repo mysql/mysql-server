@@ -36,6 +36,7 @@ Full Text Search interface
 #include "dict0priv.h"
 #include "dict0stats.h"
 #include "btr0pcur.h"
+#include <vector>
 
 #include "ha_prototypes.h"
 
@@ -899,12 +900,14 @@ fts_drop_index(
 
 		index_cache = fts_find_index_cache(cache, index);
 
-		if (index_cache->words) {
-			fts_words_free(index_cache->words);
-			rbt_free(index_cache->words);
-		}
+		if (index_cache != NULL) {
+			if (index_cache->words) {
+				fts_words_free(index_cache->words);
+				rbt_free(index_cache->words);
+			}
 
-		ib_vector_remove(cache->indexes, *(void**) index_cache);
+			ib_vector_remove(cache->indexes, *(void**) index_cache);
+		}
 
 		if (cache->get_docs) {
 			fts_reset_get_doc(cache);
@@ -1255,7 +1258,8 @@ fts_tokenizer_word_get(
 #endif
 
 	/* If it is a stopword, do not index it */
-	if (rbt_search(cache->stopword_info.cached_stopword,
+	if (cache->stopword_info.cached_stopword != NULL
+	    && rbt_search(cache->stopword_info.cached_stopword,
 		       &parent, text) == 0) {
 
 		return(NULL);
@@ -3556,6 +3560,12 @@ fts_add_doc_by_id(
 				mtr_commit(&mtr);
 
 				rw_lock_x_lock(&table->fts->cache->lock);
+
+				if (table->fts->cache->stopword_info.status
+				    & STOPWORD_NOT_INIT) {
+					fts_load_stopword(table, NULL, NULL,
+							  NULL, TRUE, TRUE);
+				}
 
 				fts_cache_add_doc(
 					table->fts->cache,
@@ -6071,8 +6081,6 @@ fts_update_hex_format_flag(
 	return (err);
 }
 
-#ifdef _WIN32
-
 /*********************************************************************//**
 Rename an aux table to HEX format. It's called when "%016llu" is used
 to format an object id in table name, which only happens in Windows. */
@@ -6169,8 +6177,8 @@ This function should make sure that either all the parent table and aux tables
 are set DICT_TF2_FTS_AUX_HEX_NAME with flags2 or none of them are set */
 static __attribute__((nonnull, warn_unused_result))
 dberr_t
-fts_rename_aux_tables_to_hex_format(
-/*================================*/
+fts_rename_aux_tables_to_hex_format_low(
+/*====================================*/
 	trx_t*		trx,		/*!< in: transaction */
 	dict_table_t*	parent_table,	/*!< in: parent table */
 	ib_vector_t*	tables)		/*!< in: aux tables to rename. */
@@ -6294,12 +6302,14 @@ fts_rename_aux_tables_to_hex_format(
 					"table %s. Please revert manually.",
 					table->name);
 				fts_sql_rollback(trx_bg);
+				trx_free_for_background(trx_bg);
 				/* Continue to clear aux tables' flags2 */
 				not_rename = true;
 				continue;
 			}
 
 			fts_sql_commit(trx_bg);
+			trx_free_for_background(trx_bg);
 		}
 
 		DICT_TF2_FLAG_UNSET(parent_table, DICT_TF2_FTS_AUX_HEX_NAME);
@@ -6323,7 +6333,11 @@ fts_fake_hex_to_dec(
 
 	ret = sprintf(tmp_id, UINT64PFx, id);
 	ut_ad(ret == 16);
+#ifdef _WIN32
 	ret = sscanf(tmp_id, "%016llu", &dec_id);
+#else
+	ret = sscanf(tmp_id, "%016"PRIu64, &dec_id);
+#endif /* _WIN32 */
 	ut_ad(ret == 1);
 
 	return dec_id;
@@ -6345,7 +6359,293 @@ fts_check_aux_table_parent_id_cmp(
 	return static_cast<int>(fa1->parent_id - fa2->parent_id);
 }
 
-#endif /* _WIN32 */
+/** Mark all the fts index associated with the parent table as corrupted.
+@param[in]	trx		transaction
+@param[in, out] parent_table	fts index associated with this parent table
+				will be marked as corrupted. */
+static
+void
+fts_parent_all_index_set_corrupt(
+	trx_t*		trx,
+	dict_table_t*	parent_table)
+{
+	fts_t*	fts = parent_table->fts;
+
+	if (trx_get_dict_operation(trx) == TRX_DICT_OP_NONE) {
+		trx_set_dict_operation(trx, TRX_DICT_OP_INDEX);
+	}
+
+	for (ulint j = 0; j < ib_vector_size(fts->indexes); j++) {
+		dict_index_t*	index = static_cast<dict_index_t*>(
+			ib_vector_getp_const(fts->indexes, j));
+		dict_set_corrupted(index,
+				   trx, "DROP ORPHANED TABLE");
+	}
+}
+
+/** Mark the fts index which index id matches the id as corrupted.
+@param[in]	trx		transaction
+@param[in]	id		index id to search
+@param[in, out]	parent_table	parent table to check with all
+				the index. */
+static
+void
+fts_set_index_corrupt(
+	trx_t*		trx,
+	index_id_t	id,
+	dict_table_t*	table)
+{
+	fts_t*	fts = table->fts;
+
+	if (trx_get_dict_operation(trx) == TRX_DICT_OP_NONE) {
+		trx_set_dict_operation(trx, TRX_DICT_OP_INDEX);
+	}
+
+	for (ulint j = 0; j < ib_vector_size(fts->indexes); j++) {
+		dict_index_t*   index = static_cast<dict_index_t*>(
+			ib_vector_getp_const(fts->indexes, j));
+		if (index->id == id) {
+			dict_set_corrupted(index, trx,
+					   "DROP ORPHANED TABLE");
+			break;
+		}
+	}
+}
+
+/** Check the index for the aux table is corrupted.
+@param[in]	aux_table	auxiliary table
+@retval nonzero if index is corrupted, zero for valid index */
+static
+ulint
+fts_check_corrupt_index(
+	fts_aux_table_t*	aux_table)
+{
+	dict_table_t*	table;
+	dict_index_t*	index;
+	table = dict_table_open_on_id(
+		aux_table->parent_id, TRUE, DICT_TABLE_OP_NORMAL);
+
+	if (table == NULL) {
+		return(0);
+	}
+
+	for (index = UT_LIST_GET_FIRST(table->indexes);
+	     index;
+	     index = UT_LIST_GET_NEXT(indexes, index)) {
+		if (index->id == aux_table->index_id) {
+			ut_ad(index->type & DICT_FTS);
+			dict_table_close(table, true, false);
+			return(dict_index_is_corrupted(index));
+		}
+	}
+
+	dict_table_close(table, true, false);
+	return(0);
+}
+
+/** Check the validity of the parent table.
+@param[in]	aux_table	auxiliary table
+@return true if it is a valid table or false if it is not */
+static
+bool
+fts_valid_parent_table(
+	const fts_aux_table_t*	aux_table)
+{
+	dict_table_t*	parent_table;
+	bool		valid = false;
+
+	parent_table = dict_table_open_on_id(
+		aux_table->parent_id, TRUE, DICT_TABLE_OP_NORMAL);
+
+	if (parent_table != NULL && parent_table->fts != NULL) {
+		if (aux_table->index_id == 0) {
+			valid = true;
+		} else {
+			index_id_t	id = aux_table->index_id;
+			dict_index_t*	index;
+
+			/* Search for the FT index in the table's list. */
+			for (index = UT_LIST_GET_FIRST(parent_table->indexes);
+			     index;
+			     index = UT_LIST_GET_NEXT(indexes, index)) {
+				if (index->id == id) {
+					valid = true;
+					break;
+				}
+
+			}
+		}
+	}
+
+	if (parent_table) {
+		dict_table_close(parent_table, TRUE, FALSE);
+	}
+
+	return(valid);
+}
+
+/** Try to rename all aux tables of the specified parent table.
+@param[in]	aux_tables	aux_tables to be renamed
+@param[in]	parent_table	parent table of all aux
+				tables stored in tables. */
+static
+void
+fts_rename_aux_tables_to_hex_format(
+	ib_vector_t*	aux_tables,
+	dict_table_t*	parent_table)
+{
+	dberr_t err;
+	trx_t*	trx_rename = trx_allocate_for_background();
+	trx_rename->op_info = "Rename aux tables to hex format";
+	trx_rename->dict_operation_lock_mode = RW_X_LATCH;
+	trx_start_for_ddl(trx_rename, TRX_DICT_OP_TABLE);
+
+	err = fts_rename_aux_tables_to_hex_format_low(trx_rename,
+						      parent_table, aux_tables);
+
+	trx_rename->dict_operation_lock_mode = 0;
+
+	if (err != DB_SUCCESS) {
+
+		ib_logf(IB_LOG_LEVEL_WARN,
+			"Rollback operations on all aux tables of table %s. "
+			"All the fts index associated with the table are "
+			"marked as corrupted. Please rebuild the "
+			"index again.", parent_table->name);
+		fts_sql_rollback(trx_rename);
+
+		/* Corrupting the fts index related to parent table. */
+		trx_t*	trx_corrupt;
+		trx_corrupt = trx_allocate_for_background();
+		trx_corrupt->dict_operation_lock_mode = RW_X_LATCH;
+		trx_start_for_ddl(trx_corrupt, TRX_DICT_OP_TABLE);
+		fts_parent_all_index_set_corrupt(trx_corrupt, parent_table);
+		trx_corrupt->dict_operation_lock_mode = 0;
+		fts_sql_commit(trx_corrupt);
+		trx_free_for_background(trx_corrupt);
+	} else {
+		fts_sql_commit(trx_rename);
+	}
+
+	trx_free_for_background(trx_rename);
+	ib_vector_reset(aux_tables);
+}
+
+/** Set the hex format flag for the parent table.
+@param[in, out]	parent_table	parent table
+@param[in]	trx		transaction */
+static
+void
+fts_set_parent_hex_format_flag(
+	dict_table_t*	parent_table,
+	trx_t*		trx)
+{
+	if (!DICT_TF2_FLAG_IS_SET(parent_table,
+				  DICT_TF2_FTS_AUX_HEX_NAME)) {
+		DBUG_EXECUTE_IF("parent_table_flag_fail",
+			ib_logf(IB_LOG_LEVEL_FATAL,
+				"Setting parent table %s  to hex format "
+				"failed. Please try to restart the server "
+				"again, if it doesn't work, the system "
+				"tables might be corrupted.",
+				parent_table->name);
+			return;);
+
+		dberr_t	err = fts_update_hex_format_flag(
+				trx, parent_table->id, true);
+
+		if (err != DB_SUCCESS) {
+			ib_logf(IB_LOG_LEVEL_FATAL,
+				"Setting parent table %s  to hex format "
+				"failed. Please try to restart the server "
+				"again, if it doesn't work, the system "
+				"tables might be corrupted.",
+				parent_table->name);
+		} else {
+			DICT_TF2_FLAG_SET(
+				parent_table, DICT_TF2_FTS_AUX_HEX_NAME);
+		}
+	}
+}
+
+/** Drop the obsolete auxilary table.
+@param[in]	tables	tables to be dropped. */
+static
+void
+fts_drop_obsolete_aux_table_from_vector(
+	ib_vector_t*	tables)
+{
+	dberr_t		err;
+
+	for (ulint count = 0; count < ib_vector_size(tables);
+	     ++count) {
+
+		fts_aux_table_t*	aux_drop_table;
+		aux_drop_table = static_cast<fts_aux_table_t*>(
+			ib_vector_get(tables, count));
+		trx_t*	trx_drop = trx_allocate_for_background();
+		trx_drop->op_info = "Drop obsolete aux tables";
+		trx_drop->dict_operation_lock_mode = RW_X_LATCH;
+		trx_start_for_ddl(trx_drop, TRX_DICT_OP_TABLE);
+
+		err = row_drop_table_for_mysql(
+			aux_drop_table->name, trx_drop, false, true);
+
+		trx_drop->dict_operation_lock_mode = 0;
+
+		if (err != DB_SUCCESS) {
+			/* We don't need to worry about the
+			failure, since server would try to
+			drop it on next restart, even if
+			the table was broken. */
+			ib_logf(IB_LOG_LEVEL_WARN,
+				"Fail to drop obsolete aux table '%s', which "
+				"is harmless. will try to drop it on next "
+				"restart.", aux_drop_table->name);
+			fts_sql_rollback(trx_drop);
+		} else {
+			ib_logf(IB_LOG_LEVEL_INFO,
+				"Dropped obsolete aux table '%s'.",
+				aux_drop_table->name);
+
+			fts_sql_commit(trx_drop);
+		}
+
+		trx_free_for_background(trx_drop);
+	}
+}
+
+/** Drop all the auxiliary table present in the vector.
+@param[in]	trx	transaction
+@param[in]	tables	tables to be dropped */
+static
+void
+fts_drop_aux_table_from_vector(
+	trx_t*		trx,
+	ib_vector_t*	tables)
+{
+	for (ulint count = 0; count < ib_vector_size(tables);
+	    ++count) {
+		fts_aux_table_t*	aux_drop_table;
+		aux_drop_table = static_cast<fts_aux_table_t*>(
+				ib_vector_get(tables, count));
+
+		/* Check for the validity of the parent table */
+		if (!fts_valid_parent_table(aux_drop_table)) {
+			ib_logf(IB_LOG_LEVEL_WARN,
+				"Parent table of FTS auxiliary table %s not "
+				"found.", aux_drop_table->name);
+			dberr_t err = fts_drop_table(trx, aux_drop_table->name);
+			if (err == DB_FAIL) {
+				char*	path = fil_make_ibd_name(
+					aux_drop_table->name, false);
+				os_file_delete_if_exists(innodb_file_data_key,
+							 path);
+				mem_free(path);
+			}
+		}
+	}
+}
 
 /**********************************************************************//**
 Check and drop all orphaned FTS auxiliary tables, those that don't have
@@ -6358,9 +6658,12 @@ fts_check_and_drop_orphaned_tables(
 	trx_t*		trx,			/*!< in: transaction */
 	ib_vector_t*	tables)			/*!< in: tables to check */
 {
-#ifdef _WIN32
 	mem_heap_t*	heap;
 	ib_vector_t*	aux_tables_to_rename;
+	ib_vector_t*	invalid_aux_tables;
+	ib_vector_t*	valid_aux_tables;
+	ib_vector_t*	drop_aux_tables;
+	ib_vector_t*	obsolete_aux_tables;
 	ib_alloc_t*	heap_alloc;
 
 	heap = mem_heap_create(1024);
@@ -6371,38 +6674,99 @@ fts_check_and_drop_orphaned_tables(
 	aux_tables_to_rename = ib_vector_create(heap_alloc,
 						sizeof(fts_aux_table_t), 128);
 
+	/* We store all fake auxiliary table and orphaned table here. */
+	invalid_aux_tables = ib_vector_create(heap_alloc,
+					      sizeof(fts_aux_table_t), 128);
+
+	/* We store all valid aux tables. We use this to filter the
+	fake auxiliary table from invalid auxiliary tables. */
+	valid_aux_tables = ib_vector_create(heap_alloc,
+					    sizeof(fts_aux_table_t), 128);
+
+	/* We store all auxiliary tables to be dropped. */
+	drop_aux_tables = ib_vector_create(heap_alloc,
+					   sizeof(fts_aux_table_t), 128);
+
+	/* We store all obsolete auxiliary tables to be dropped. */
+	obsolete_aux_tables = ib_vector_create(heap_alloc,
+					       sizeof(fts_aux_table_t), 128);
+
 	/* Sort by parent_id first, in case rename will fail */
 	ib_vector_sort(tables, fts_check_aux_table_parent_id_cmp);
-#endif /* _WIN32 */
 
 	for (ulint i = 0; i < ib_vector_size(tables); ++i) {
 		dict_table_t*		parent_table;
 		fts_aux_table_t*	aux_table;
 		bool			drop = false;
-#ifdef _WIN32
 		dict_table_t*		table;
 		fts_aux_table_t*	next_aux_table = NULL;
 		ib_id_t			orig_parent_id = 0;
+		ib_id_t			orig_index_id = 0;
 		bool			rename = false;
-#endif /* _WIN32 */
 
 		aux_table = static_cast<fts_aux_table_t*>(
 			ib_vector_get(tables, i));
 
-#ifdef _WIN32
 		table = dict_table_open_on_id(
 			aux_table->id, TRUE, DICT_TABLE_OP_NORMAL);
 		orig_parent_id = aux_table->parent_id;
+		orig_index_id = aux_table->index_id;
 
 		if (table == NULL || strcmp(table->name, aux_table->name)) {
-			/* Skip these aux tables, which are common tables
-			with wrong table ids */
-			if (table) {
+
+			bool	fake_aux = false;
+
+			if (table != NULL) {
 				dict_table_close(table, TRUE, FALSE);
 			}
 
-			continue;
+			if (i + 1 < ib_vector_size(tables)) {
+				next_aux_table = static_cast<fts_aux_table_t*>(
+						ib_vector_get(tables, i + 1));
+			}
 
+			/* To know whether aux table is fake fts or
+			orphan fts table. */
+			for (ulint count = 0;
+			     count < ib_vector_size(valid_aux_tables);
+			     count++) {
+				fts_aux_table_t*	valid_aux;
+				valid_aux = static_cast<fts_aux_table_t*>(
+					ib_vector_get(valid_aux_tables, count));
+				if (strcmp(valid_aux->name,
+					   aux_table->name) == 0) {
+					fake_aux = true;
+					break;
+				}
+			}
+
+			/* All aux tables of parent table, whose id is
+			last_parent_id, have been checked, try to rename
+			them if necessary. */
+			if ((next_aux_table == NULL
+			     || orig_parent_id != next_aux_table->parent_id)
+			    && (!ib_vector_is_empty(aux_tables_to_rename))) {
+
+					ulint	parent_id = fts_fake_hex_to_dec(
+							aux_table->parent_id);
+
+					parent_table = dict_table_open_on_id(
+						parent_id, TRUE,
+						DICT_TABLE_OP_NORMAL);
+
+					fts_rename_aux_tables_to_hex_format(
+						aux_tables_to_rename, parent_table);
+
+					dict_table_close(parent_table, TRUE,
+							 FALSE);
+			}
+
+			/* If the aux table is fake aux table. Skip it. */
+			if (!fake_aux) {
+				ib_vector_push(invalid_aux_tables, aux_table);
+			}
+
+			continue;
 		} else if (!DICT_TF2_FLAG_IS_SET(table,
 						 DICT_TF2_FTS_AUX_HEX_NAME)) {
 
@@ -6415,65 +6779,99 @@ fts_check_and_drop_orphaned_tables(
 			}
 
 			ut_ad(aux_table->id > aux_table->parent_id);
-			rename = true;
+
+			/* Check whether parent table id and index id
+			are stored as decimal format. */
+			if (fts_valid_parent_table(aux_table)) {
+
+				parent_table = dict_table_open_on_id(
+					aux_table->parent_id, true,
+					DICT_TABLE_OP_NORMAL);
+
+				ut_ad(parent_table != NULL);
+				ut_ad(parent_table->fts != NULL);
+
+				if (!DICT_TF2_FLAG_IS_SET(
+					parent_table,
+					DICT_TF2_FTS_AUX_HEX_NAME)) {
+					rename = true;
+				}
+
+				dict_table_close(parent_table, TRUE, FALSE);
+			}
+
+			if (!rename) {
+				/* Reassign the original value of
+				aux table if it is not in decimal format */
+				aux_table->parent_id = orig_parent_id;
+				aux_table->index_id = orig_index_id;
+			}
 		}
 
-		if (table) {
-			dict_table_close(table, TRUE, FALSE);
+		if (table != NULL) {
+			dict_table_close(table, true, false);
 		}
-#endif /* _WIN32 */
+
+		if (!rename) {
+			/* Check the validity of the parent table. */
+			if (!fts_valid_parent_table(aux_table)) {
+				drop = true;
+			}
+		}
+
+		/* Filter out the fake aux table by comparing with the
+		current valid auxiliary table name . */
+		for (ulint count = 0;
+		     count < ib_vector_size(invalid_aux_tables); count++) {
+			fts_aux_table_t*	invalid_aux;
+			invalid_aux = static_cast<fts_aux_table_t*>(
+				ib_vector_get(invalid_aux_tables, count));
+			if (strcmp(invalid_aux->name, aux_table->name) == 0) {
+				ib_vector_remove(
+					invalid_aux_tables,
+					*reinterpret_cast<void**>(invalid_aux));
+				break;
+			}
+		}
+
+		ib_vector_push(valid_aux_tables, aux_table);
+
+		/* If the index associated with aux table is corrupted,
+		skip it. */
+		if (fts_check_corrupt_index(aux_table) > 0) {
+
+			if (i + 1 < ib_vector_size(tables)) {
+				next_aux_table = static_cast<fts_aux_table_t*>(
+						ib_vector_get(tables, i + 1));
+			}
+
+			if (next_aux_table == NULL
+			    || orig_parent_id != next_aux_table->parent_id) {
+
+				parent_table = dict_table_open_on_id(
+					aux_table->parent_id, TRUE,
+					DICT_TABLE_OP_NORMAL);
+
+				if (!ib_vector_is_empty(aux_tables_to_rename)) {
+					fts_rename_aux_tables_to_hex_format(
+						aux_tables_to_rename, parent_table);
+
+				} else {
+					fts_set_parent_hex_format_flag(
+						parent_table, trx);
+				}
+
+				dict_table_close(parent_table, TRUE, FALSE);
+			}
+
+			continue;
+		}
 
 		parent_table = dict_table_open_on_id(
 			aux_table->parent_id, TRUE, DICT_TABLE_OP_NORMAL);
 
-		if (parent_table == NULL || parent_table->fts == NULL) {
-
-			drop = true;
-
-		} else if (aux_table->index_id != 0) {
-			index_id_t	id;
-			fts_t*		fts;
-
-			drop = true;
-			fts = parent_table->fts;
-			id = aux_table->index_id;
-
-			/* Search for the FT index in the table's list. */
-			for (ulint j = 0;
-			     j < ib_vector_size(fts->indexes);
-			     ++j) {
-
-				const dict_index_t*     index;
-
-				index = static_cast<const dict_index_t*>(
-					ib_vector_getp_const(fts->indexes, j));
-
-				if (index->id == id) {
-					drop = false;
-					break;
-				}
-			}
-		}
-
 		if (drop) {
-
-			ib_logf(IB_LOG_LEVEL_WARN,
-				"Parent table of FTS auxiliary table %s not "
-				"found.", aux_table->name);
-
-			dberr_t err = fts_drop_table(trx, aux_table->name);
-
-			if (err == DB_FAIL) {
-				char*   path;
-
-				path = fil_make_ibd_name(
-					aux_table->name, false);
-
-				os_file_delete_if_exists(innodb_file_data_key,
-							 path);
-
-				mem_free(path);
-			}
+			 ib_vector_push(drop_aux_tables, aux_table);
 		} else {
 			if (FTS_IS_OBSOLETE_AUX_TABLE(aux_table->name)) {
 
@@ -6483,49 +6881,13 @@ fts_check_and_drop_orphaned_tables(
 				This could happen when we try to upgrade
 				from older server to later one, which doesn't
 				contain these obsolete tables. */
-				drop = true;
-
-				dberr_t	err;
-				trx_t*	trx_drop =
-					trx_allocate_for_background();
-
-				trx_drop->op_info = "Drop obsolete aux tables";
-				trx_drop->dict_operation_lock_mode = RW_X_LATCH;
-
-				trx_start_for_ddl(trx_drop, TRX_DICT_OP_TABLE);
-
-				err = row_drop_table_for_mysql(
-					aux_table->name, trx_drop, false, true);
-
-				trx_drop->dict_operation_lock_mode = 0;
-
-				if (err != DB_SUCCESS) {
-					/* We don't need to worry about the
-					failure, since server would try to
-					drop it on next restart, even if
-					the table was broken. */
-
-					ib_logf(IB_LOG_LEVEL_WARN,
-						"Fail to drop obsolete aux"
-						" table '%s', which is"
-						" harmless. will try to drop"
-						" it on next restart.",
-						aux_table->name);
-
-					fts_sql_rollback(trx_drop);
-				} else {
-					ib_logf(IB_LOG_LEVEL_INFO,
-						"Dropped obsolete aux"
-						" table '%s'.",
-						aux_table->name);
-
-					fts_sql_commit(trx_drop);
-				}
-
-				trx_free_for_background(trx_drop);
+				ib_vector_push(obsolete_aux_tables, aux_table);
+				continue;
 			}
 		}
-#ifdef _WIN32
+
+		/* If the aux table is in decimal format, we should
+		rename it, so push it to aux_tables_to_rename */
 		if (!drop && rename) {
 			ib_vector_push(aux_tables_to_rename, aux_table);
 		}
@@ -6543,38 +6905,16 @@ fts_check_and_drop_orphaned_tables(
 			them if necessary. We had better use a new background
 			trx to rename rather than the original trx, in case
 			any failure would cause a complete rollback. */
-			dberr_t	err;
-			trx_t*	trx_rename = trx_allocate_for_background();
-			trx_rename->op_info = "Rename aux tables to "
-					      "hex format";
-			trx_rename->dict_operation_lock_mode = RW_X_LATCH;
-			trx_start_for_ddl(trx_rename, TRX_DICT_OP_TABLE);
+			ut_ad(rename);
+			ut_ad(!DICT_TF2_FLAG_IS_SET(
+				parent_table, DICT_TF2_FTS_AUX_HEX_NAME));
 
-			err = fts_rename_aux_tables_to_hex_format(trx_rename,
-					parent_table, aux_tables_to_rename);
-
-			trx_rename->dict_operation_lock_mode = 0;
-
-			if (err != DB_SUCCESS) {
-				ib_logf(IB_LOG_LEVEL_WARN,
-					"Rollback operations on all "
-					"aux tables of table %s. "
-					"Please check why renaming aux tables "
-					"failed, and restart the server to "
-					"upgrade again to "
-					"get the table work.",
-					parent_table->name);
-
-				fts_sql_rollback(trx_rename);
-			} else {
-				fts_sql_commit(trx_rename);
-			}
-
-			trx_free_for_background(trx_rename);
-			ib_vector_reset(aux_tables_to_rename);
+			fts_rename_aux_tables_to_hex_format(
+				aux_tables_to_rename,parent_table);
 		}
-#else /* _WIN32 */
-		if (!drop) {
+
+		/* The IDs are already in correct hex format. */
+		if (!drop && !rename) {
 			dict_table_t*	table;
 
 			table = dict_table_open_on_id(
@@ -6589,6 +6929,16 @@ fts_check_and_drop_orphaned_tables(
 			    && !DICT_TF2_FLAG_IS_SET(
 						table,
 						DICT_TF2_FTS_AUX_HEX_NAME)) {
+
+				DBUG_EXECUTE_IF("aux_table_flag_fail",
+					ib_logf(IB_LOG_LEVEL_WARN,
+						"Setting aux table %s to hex "
+						"format failed.", table->name);
+					fts_set_index_corrupt(
+						trx, aux_table->index_id,
+						parent_table);
+						goto table_exit;);
+
 				dberr_t err = fts_update_hex_format_flag(
 						trx, table->id, true);
 
@@ -6596,49 +6946,44 @@ fts_check_and_drop_orphaned_tables(
 					ib_logf(IB_LOG_LEVEL_WARN,
 						"Setting aux table %s to hex "
 						"format failed.", table->name);
+
+					fts_set_index_corrupt(
+						trx, aux_table->index_id,
+						parent_table);
 				} else {
 					DICT_TF2_FLAG_SET(table,
 						DICT_TF2_FTS_AUX_HEX_NAME);
 				}
 			}
+#ifndef DBUG_OFF
+table_exit:
+#endif	/* !DBUG_OFF */
 
 			if (table != NULL) {
 				dict_table_close(table, TRUE, FALSE);
 			}
 
 			ut_ad(parent_table != NULL);
-			if (!DICT_TF2_FLAG_IS_SET(parent_table,
-						  DICT_TF2_FTS_AUX_HEX_NAME)) {
-				dberr_t err = fts_update_hex_format_flag(
-						trx, parent_table->id, true);
 
-				if (err != DB_SUCCESS) {
-					ib_logf(IB_LOG_LEVEL_WARN,
-						"Setting parent table %s of "
-						"FTS auxiliary %s to hex "
-						"format failed.",
-						parent_table->name,
-						aux_table->name);
-				} else {
-					DICT_TF2_FLAG_SET(parent_table,
-						DICT_TF2_FTS_AUX_HEX_NAME);
-				}
-			}
+			fts_set_parent_hex_format_flag(
+					parent_table, trx);
 		}
 
-#endif /* _WIN32 */
-
-		if (parent_table) {
+		if (parent_table != NULL) {
 			dict_table_close(parent_table, TRUE, FALSE);
 		}
 	}
 
-#ifdef _WIN32
+	fts_drop_aux_table_from_vector(trx, invalid_aux_tables);
+	fts_drop_aux_table_from_vector(trx, drop_aux_tables);
+	fts_sql_commit(trx);
+
+	fts_drop_obsolete_aux_table_from_vector(obsolete_aux_tables);
+
 	/* Free the memory allocated at the beginning */
 	if (heap != NULL) {
 		mem_heap_free(heap);
 	}
-#endif /* _WIN32 */
 }
 
 /**********************************************************************//**
@@ -6737,7 +7082,6 @@ fts_drop_orphaned_tables(void)
 
 		if (error == DB_SUCCESS) {
 			fts_check_and_drop_orphaned_tables(trx, tables);
-			fts_sql_commit(trx);
 			break;				/* Exit the loop. */
 		} else {
 			ib_vector_reset(tables);

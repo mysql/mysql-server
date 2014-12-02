@@ -266,13 +266,13 @@ sub addall {
   foreach $host (@hosts) {
     # user privileges: SELECT
     if (($todo == 2) || ($todo == 3)) {
-      $sth = $dbh->do("GRANT SELECT ON $db.* TO $user@\"$host\" IDENTIFIED BY \'$pass\'") || die $dbh->errstr;
+      $sth = $dbh->do("GRANT SELECT ON $db.* TO \'$user\'@\'$host\' IDENTIFIED BY \'$pass\'") || die $dbh->errstr;
     } elsif ($todo == 4) {
       # user privileges: SELECT,INSERT,UPDATE,DELETE
-      $sth = $dbh->do("GRANT SELECT,INSERT,UPDATE,DELETE ON $db.* TO $user@\"$host\" IDENTIFIED BY \'$pass\'") || die $dbh->errstr;
+      $sth = $dbh->do("GRANT SELECT,INSERT,UPDATE,DELETE ON $db.* TO \'$user\'@\'$host\' IDENTIFIED BY \'$pass\'") || die $dbh->errstr;
     } elsif ($todo == 5) {
       # user privileges: SELECT,INSERT,UPDATE,DELETE,CREATE,DROP,INDEX,LOCK TABLES,CREATE TEMPORARY TABLES
-      $sth = $dbh->do("GRANT SELECT,INSERT,UPDATE,DELETE,CREATE,DROP,INDEX,LOCK TABLES,CREATE TEMPORARY TABLES ON $db.* TO $user@\"$host\" IDENTIFIED BY \'$pass\'") || die $dbh->errstr;
+      $sth = $dbh->do("GRANT SELECT,INSERT,UPDATE,DELETE,CREATE,DROP,INDEX,LOCK TABLES,CREATE TEMPORARY TABLES ON $db.* TO \'$user\'@\'$host\' IDENTIFIED BY \'$pass\'") || die $dbh->errstr;
     } elsif ($todo == 6) {
        # all privileges
        $sth = $dbh->do("GRANT ALL ON $db.* TO \'$user\'\@\'$host\' IDENTIFIED BY \'$pass\'") || die $dbh->errstr;

@@ -141,18 +141,15 @@ mysql_string_handle mysql_string_to_lowercase(mysql_string_handle string_handle)
   String *str= (String *) string_handle;
   String *res= new String[1];
   const CHARSET_INFO *cs= str->charset();
-  res->set_charset(cs);
   if (cs->casedn_multiply == 1)
   {
-    uint len;
-    res= copy_if_not_alloced(res, str, str->length());
-    len= cs->cset->casedn_str(cs, (char*) res->ptr());
-    DBUG_ASSERT(len <= res->length());
-    res->length(len);
+    res->copy(*str);
+    my_casedn_str(cs, res->c_ptr_quick());
   }
   else
   {
     uint len= str->length() * cs->casedn_multiply;
+    res->set_charset(cs);
     res->alloc(len);
     len= cs->cset->casedn(cs, (char*) str->ptr(), str->length(), (char *) res->ptr(), len);
     res->length(len);

@@ -4889,8 +4889,15 @@ page_zip_verify_checksum(
 	stored = static_cast<ib_uint32_t>(mach_read_from_4(
 		static_cast<const unsigned char*>(data) + FIL_PAGE_SPACE_OR_CHKSUM));
 
-	/* declare empty pages non-corrupted */
-	if (stored == 0) {
+#if FIL_PAGE_LSN % 8
+#error "FIL_PAGE_LSN must be 64 bit aligned"
+#endif
+
+	/* Check if page is empty */
+	if (stored == 0
+	    && *reinterpret_cast<const ib_uint64_t*>(static_cast<const char*>(
+		data)
+		+ FIL_PAGE_LSN) == 0) {
 		/* make sure that the page is really empty */
 		ulint i;
 		for (i = 0; i < size; i++) {
@@ -4898,7 +4905,7 @@ page_zip_verify_checksum(
 				return(FALSE);
 			}
 		}
-
+		/* Empty page */
 		return(TRUE);
 	}
 

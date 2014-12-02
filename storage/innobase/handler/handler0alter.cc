@@ -3295,9 +3295,7 @@ ha_innobase::prepare_inplace_alter_table(
 	ulint		fts_doc_col_no		= ULINT_UNDEFINED;
 	bool		add_fts_doc_id		= false;
 	bool		add_fts_doc_id_idx	= false;
-#ifdef _WIN32
 	bool		add_fts_idx		= false;
-#endif /* _WIN32 */
 
 	DBUG_ENTER("prepare_inplace_alter_table");
 	DBUG_ASSERT(!ha_alter_info->handler_ctx);
@@ -3442,9 +3440,7 @@ check_if_ok_to_rename:
 				      & ~(HA_FULLTEXT
 					  | HA_PACK_KEY
 					  | HA_BINARY_PACK_KEY)));
-#ifdef _WIN32
 			add_fts_idx = true;
-#endif /* _WIN32 */
 			continue;
 		}
 
@@ -3455,19 +3451,16 @@ check_if_ok_to_rename:
 		}
 	}
 
-#ifdef _WIN32
 	/* We won't be allowed to add fts index to a table with
 	fts indexes already but without AUX_HEX_NAME set.
 	This means the aux tables of the table failed to
 	rename to hex format but new created aux tables
-	shall be in hex format, which is contradictory.
-	It's only for Windows. */
+	shall be in hex format, which is contradictory. */
 	if (!DICT_TF2_FLAG_IS_SET(indexed_table, DICT_TF2_FTS_AUX_HEX_NAME)
 	    && indexed_table->fts != NULL && add_fts_idx) {
 		my_error(ER_INNODB_FT_AUX_NOT_HEX_ID, MYF(0));
 		goto err_exit_no_heap;
 	}
-#endif /* _WIN32 */
 
 	/* Check existing index definitions for too-long column
 	prefixes as well, in case max_col_len shrunk. */

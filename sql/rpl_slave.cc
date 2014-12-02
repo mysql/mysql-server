@@ -414,12 +414,205 @@ err:
   DBUG_RETURN(error);
 }
 
+/**
+   Parse the given relay log and identify the rotate event from the master.
+   Ignore the Format description event, Previous_gtid log event and ignorable
+   events within the relay log. When a rotate event is found check if it is a
+   rotate that is originated from the master or not based on the server_id. If
+   the rotate is from slave or if it is a fake rotate event ignore the event.
+   If any other events are encountered apart from the above events generate an
+   error. From the rotate event extract the master's binary log name and
+   position.
+
+   @param filename
+          Relay log name which needs to be parsed.
+
+   @param[OUT] master_log_file
+          Set the master_log_file to the log file name that is extracted from
+          rotate event. The master_log_file should contain string of len
+          FN_REFLEN.
+
+   @param[OUT] master_log_pos
+          Set the master_log_pos to the log position extracted from rotate
+          event.
+
+   @retval FOUND_ROTATE: When rotate event is found in the relay log
+   @retval NOT_FOUND_ROTATE: When rotate event is not found in the relay log
+   @retval ERROR: On error
+ */
+enum enum_read_rotate_from_relay_log_status
+{ FOUND_ROTATE, NOT_FOUND_ROTATE, ERROR };
+
+static enum_read_rotate_from_relay_log_status
+read_rotate_from_relay_log(char *filename, char *master_log_file,
+                           my_off_t *master_log_pos)
+{
+  DBUG_ENTER("read_rotate_from_relay_log");
+  /*
+    Create a Format_description_log_event that is used to read the
+    first event of the log.
+   */
+  Format_description_log_event fd_ev(BINLOG_VERSION), *fd_ev_p= &fd_ev;
+  DBUG_ASSERT(fd_ev.is_valid());
+  IO_CACHE log;
+  const char *errmsg= NULL;
+  File file= open_binlog_file(&log, filename, &errmsg);
+  if (file < 0)
+  {
+    sql_print_error("Error during --relay-log-recovery: %s", errmsg);
+    DBUG_RETURN(ERROR);
+  }
+  my_b_seek(&log, BIN_LOG_HEADER_SIZE);
+  Log_event *ev= NULL;
+  bool done= false;
+  enum_read_rotate_from_relay_log_status ret= NOT_FOUND_ROTATE;
+  while (!done &&
+         (ev= Log_event::read_log_event(&log, 0, fd_ev_p, opt_slave_sql_verify_checksum)) !=
+         NULL)
+  {
+    DBUG_PRINT("info", ("Read event of type %s", ev->get_type_str()));
+    switch (ev->get_type_code())
+    {
+    case FORMAT_DESCRIPTION_EVENT:
+      if (fd_ev_p != &fd_ev)
+        delete fd_ev_p;
+      fd_ev_p= (Format_description_log_event *)ev;
+      break;
+    case ROTATE_EVENT:
+      /*
+        Check for rotate event from the master. Ignore the ROTATE event if it
+        is a fake rotate event with server_id=0.
+       */
+      if (ev->server_id && ev->server_id != ::server_id)
+      {
+        Rotate_log_event *rotate_ev= (Rotate_log_event *)ev;
+        DBUG_ASSERT(FN_REFLEN >= rotate_ev->ident_len + 1);
+        memcpy(master_log_file, rotate_ev->new_log_ident, rotate_ev->ident_len + 1);
+        *master_log_pos= rotate_ev->pos;
+        ret= FOUND_ROTATE;
+        done= true;
+      }
+      break;
+    case PREVIOUS_GTIDS_LOG_EVENT:
+      break;
+    case IGNORABLE_LOG_EVENT:
+      break;
+    default:
+      sql_print_error("Error during --relay-log-recovery: Could not locate "
+                      "rotate event from the master.");
+      ret= ERROR;
+      done= true;
+      break;
+    }
+    if (ev != fd_ev_p)
+      delete ev;
+  }
+  if (log.error < 0)
+  {
+    sql_print_error("Error during --relay-log-recovery: Error reading events from relay log: %d",
+                    log.error);
+    DBUG_RETURN(ERROR);
+  }
+
+  if (fd_ev_p != &fd_ev)
+  {
+    delete fd_ev_p;
+    fd_ev_p= &fd_ev;
+  }
+
+  if (mysql_file_close(file, MYF(MY_WME)))
+    DBUG_RETURN(ERROR);
+  if (end_io_cache(&log))
+  {
+    sql_print_error("Error during --relay-log-recovery: Error while freeing "
+                    "IO_CACHE object");
+    DBUG_RETURN(ERROR);
+  }
+  DBUG_RETURN(ret);
+}
+
+/**
+   Reads relay logs one by one starting from the first relay log. Looks for
+   the first rotate event from the master. If rotate is not found in the relay
+   log search continues to next relay log. If rotate event from master is
+   found then the extracted master_log_file and master_log_pos are used to set
+   rli->group_master_log_name and rli->group_master_log_pos. If an error has
+   occurred the error code is retuned back.
+
+   @param rli
+          Relay_log_info object to read relay log files and to set
+          group_master_log_name and group_master_log_pos.
+
+   @retval 0 On success
+   @retval 1 On failure
+ */
+static int
+find_first_relay_log_with_rotate_from_master(Relay_log_info* rli)
+{
+  DBUG_ENTER("find_first_relay_log_with_rotate_from_master");
+  int error= 0;
+  LOG_INFO linfo;
+  bool got_rotate_from_master= false;
+  int pos;
+  char master_log_file[FN_REFLEN];
+  my_off_t master_log_pos= 0;
+
+  for (pos= rli->relay_log.find_log_pos(&linfo, NULL, true);
+       !pos;
+       pos= rli->relay_log.find_next_log(&linfo, true))
+  {
+    switch (read_rotate_from_relay_log(linfo.log_file_name, master_log_file,
+                                       &master_log_pos))
+    {
+    case ERROR:
+      error= 1;
+      break;
+    case FOUND_ROTATE:
+      got_rotate_from_master= true;
+      break;
+    case NOT_FOUND_ROTATE:
+      break;
+    }
+    if (error || got_rotate_from_master)
+      break;
+  }
+  if (pos== LOG_INFO_IO)
+  {
+    error= 1;
+    sql_print_error("Error during --relay-log-recovery: Could not read "
+                    "relay log index file due to an IO error.");
+    goto err;
+  }
+  if (pos== LOG_INFO_EOF)
+  {
+    error= 1;
+    sql_print_error("Error during --relay-log-recovery: Could not locate "
+                    "rotate event from master in relay log file.");
+    goto err;
+  }
+  if (!error && got_rotate_from_master)
+  {
+    rli->set_group_master_log_name(master_log_file);
+    rli->set_group_master_log_pos(master_log_pos);
+  }
+err:
+  DBUG_RETURN(error);
+}
+
 /*
   Updates the master info based on the information stored in the
   relay info and ignores relay logs previously retrieved by the IO
   thread, which thus starts fetching again based on to the
   master_log_pos and master_log_name. Eventually, the old
   relay logs will be purged by the normal purge mechanism.
+
+  There can be a special case where rli->group_master_log_name and
+  rli->group_master_log_pos are not intialized, as the sql thread was never
+  started at all. In those cases all the existing relay logs are parsed
+  starting from the first one and the initial rotate event that was received
+  from the master is identified. From the rotate event master_log_name and
+  master_log_pos are extracted and they are set to rli->group_master_log_name
+  and rli->group_master_log_pos.
 
   In the feature, we should improve this routine in order to avoid throwing
   away logs that are safely stored in the disk. Note also that this recovery
@@ -475,8 +668,23 @@ int init_recovery(Master_info* mi, const char** errmsg)
   }
 
   group_master_log_name= const_cast<char *>(rli->get_group_master_log_name());
-  if (!error && group_master_log_name[0])
+  if (!error)
   {
+    if (!group_master_log_name[0])
+    {
+      if (rli->replicate_same_server_id)
+      {
+        error= 1;
+        sql_print_error("Error during --relay-log-recovery: "
+                        "replicate_same_server_id is in use and sql thread's "
+                        "positions are not initialized, hence relay log "
+                        "recovery cannot happen.");
+        DBUG_RETURN(error);
+      }
+      error= find_first_relay_log_with_rotate_from_master(rli);
+      if (error)
+        DBUG_RETURN(error);
+    }
     mi->set_master_log_pos(max<ulonglong>(BIN_LOG_HEADER_SIZE,
                                                rli->get_group_master_log_pos()));
     mi->set_master_log_name(rli->get_group_master_log_name());
@@ -1801,6 +2009,15 @@ static int get_master_version_and_clock(MYSQL* mysql, Master_info* mi)
     goto err;
   }
 
+  if (mi->get_mi_description_event()->binlog_version < 4 &&
+      opt_slave_sql_verify_checksum)
+  {
+    sql_print_warning("Found a master with MySQL server version older than "
+                      "5.0. With checksums enabled on the slave, replication "
+                      "might not work correctly. To ensure correct "
+                      "replication, restart the slave server with "
+                      "--slave_sql_verify_checksum=0.");
+  }
   /*
     FD_q's (A) is set initially from RL's (A): FD_q.(A) := RL.(A).
     It's necessary to adjust FD_q.(A) at this point because in the following
@@ -3972,18 +4189,18 @@ static int exec_relay_log_event(THD* thd, Relay_log_info* rli)
     }
 
     /*
-      GTID protocol will put a ROTATE_EVENT from the master after each
-      (re)connection if auto positioning is enabled.
+      GTID protocol will put a FORMAT_DESCRIPTION_EVENT from the master with
+      log_pos != 0 after each (re)connection if auto positioning is enabled.
       This means that the SQL thread might have already started to apply the
       current group but, as the IO thread had to reconnect, it left this
       group incomplete and will start it again from the beginning.
-      So, before applying this ROTATE_EVENT we must let the worker applying
-      the current group rollback and gracefully finish its work before
-      starting to applying the new (complete) copy of the group.
+      So, before applying this FORMAT_DESCRIPTION_EVENT, we must let the
+      worker roll back the current group and gracefully finish its work,
+      before starting to apply the new (complete) copy of the group.
     */
-    if (ev->get_type_code() == ROTATE_EVENT &&
-        ev->server_id != ::server_id && rli->is_parallel_exec() &&
-        rli->curr_group_seen_gtid)
+    if (ev->get_type_code() == FORMAT_DESCRIPTION_EVENT &&
+        ev->server_id != ::server_id && ev->log_pos != 0 &&
+        rli->is_parallel_exec() && rli->curr_group_seen_gtid)
     {
       if (coord_handle_partial_binlogged_transaction(rli, ev))
         /*
@@ -4568,6 +4785,10 @@ log space");
       );
       DBUG_EXECUTE_IF("stop_io_after_reading_user_var_log_event",
         if (event_buf[EVENT_TYPE_OFFSET] == USER_VAR_EVENT)
+          thd->killed= THD::KILLED_NO_VALUE;
+      );
+      DBUG_EXECUTE_IF("stop_io_after_reading_table_map_event",
+        if (event_buf[EVENT_TYPE_OFFSET] == TABLE_MAP_EVENT)
           thd->killed= THD::KILLED_NO_VALUE;
       );
       DBUG_EXECUTE_IF("stop_io_after_reading_xid_log_event",
