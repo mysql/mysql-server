@@ -281,7 +281,7 @@ ndb_binlog_close_shadow_table(NDB_SHARE *share)
 /*
   Open a shadow table for the table given in share.
   - The shadow table is (mainly) used when an event is
-    recieved from the data nodes which need to be written
+    received from the data nodes which need to be written
     to the binlog injector.
 */
 

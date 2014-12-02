@@ -45,7 +45,7 @@ dojox.date.relative.format = function(/*Date*/dateObject, /*dojox.date.relative.
 	//		is displayed
 	//
 	//		If the day portion of the date falls within the past week (or the
-	//		week preceeding relativeDate, if present), then the display will show
+	//		week preceding relativeDate, if present), then the display will show
 	//		day of week and time.  This functionality can be turned off by setting
 	//		weekCheck to false.
 	//

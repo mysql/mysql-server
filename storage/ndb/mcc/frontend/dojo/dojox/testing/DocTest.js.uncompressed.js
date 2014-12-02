@@ -94,7 +94,7 @@ dojo.declare(
 			for(var i=0; i<len+1; i++){
 				// Trim the line, so we don't have to worry about leading
 				// spaces or tabs, bla bla ...
-				var l = trim(lines[i] || ""); // The '|| ""' makes sure tests that have no preceeding \n are taken into account too.
+				var l = trim(lines[i] || ""); // The '|| ""' makes sure tests that have no preceding \n are taken into account too.
 				// TODO:
 				//		detect tests that dont match the condition: commands,
 				//		result, empty line. esp the empty line might be missing

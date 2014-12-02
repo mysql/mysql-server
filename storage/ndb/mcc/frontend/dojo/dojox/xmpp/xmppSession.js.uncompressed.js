@@ -730,7 +730,7 @@ dojo.extend(dojox.xmpp.xmppSession, {
 					}
 				}
 			}else if(msg.getAttribute('type')=="error"){
-				//console.log("xmppService::storeRoster()  Error recieved on roster get");
+				//console.log("xmppService::storeRoster()  Error received on roster get");
 			}
 
 			////console.log("Roster: ", this.roster);
