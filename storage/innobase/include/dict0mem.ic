@@ -71,7 +71,6 @@ dict_mem_fill_index_struct(
 	index->allow_duplicates = false;
 	index->nulls_equal = false;
 	index->disable_ahi = false;
-	index->auto_gen_clust_index = false;
 
 	new (&index->rec_cache) rec_cache_t();
 

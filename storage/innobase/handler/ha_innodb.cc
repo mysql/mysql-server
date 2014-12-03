@@ -9190,7 +9190,6 @@ create_clustered_index_when_no_primary(
 	index = dict_mem_index_create(table_name,
 				      innobase_index_reserve_name,
 				      0, DICT_CLUSTERED, 0);
-	index->auto_gen_clust_index = true;
 
 	innodb_session_t*& priv = thd_to_innodb_session(trx->mysql_thd);
 
