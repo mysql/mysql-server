@@ -10,6 +10,8 @@ if (`select count(*)=0 from information_schema.global_variables where variable_n
 # Don't test under valgrind, undo slots of the previous test might exist still
 # and cause unstable result.
 --source include/not_valgrind.inc
+# undo slots of the previous test might exist still
+--source include/not_windows.inc
 
 call mtr.add_suppression("InnoDB: Warning: cannot find a free slot for an undo log. Do you have too");
 
