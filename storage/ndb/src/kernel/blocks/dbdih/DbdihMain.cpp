@@ -2972,6 +2972,7 @@ void Dbdih::sendPAUSE_LCP_REQ(Signal *signal, bool pause)
     c_pause_lcp_start_node = c_nodeStartMaster.startNode;
     c_pauseAction = PauseLcpReq::Pause;
     req->pauseAction = PauseLcpReq::Pause;
+    c_lcpState.m_pause_participants = c_lcpState.m_participatingLQH;
     infoEvent("PAUSE LCP for starting node %u", c_nodeStartMaster.startNode);
   }
   else
@@ -3030,8 +3031,8 @@ void Dbdih::sendPAUSE_LCP_REQ(Signal *signal, bool pause)
     c_lcpState.m_LCP_COMPLETE_REP_Counter_DIH.setWaitingFor(
       c_nodeStartMaster.startNode);
   }
-  c_PAUSE_LCP_REQ_Counter.setWaitingFor(c_lcpState.m_participatingLQH);
-  NodeReceiverGroup rg(DBDIH, c_lcpState.m_participatingLQH);
+  c_PAUSE_LCP_REQ_Counter.setWaitingFor(c_lcpState.m_pause_participants);
+  NodeReceiverGroup rg(DBDIH, c_lcpState.m_pause_participants);
   sendSignal(rg, GSN_PAUSE_LCP_REQ, signal,
              PauseLcpReq::SignalLength, JBB);
   ndbassert(check_pause_state_sanity());
@@ -3357,6 +3358,7 @@ void Dbdih::end_pause(Signal *signal,
 
 void Dbdih::stop_pause(Signal *signal)
 {
+  c_lcpState.m_pause_participants.clear();
   c_pause_lcp_requested = false;
   c_pause_lcp_start_node = RNIL;
   c_pauseAction = PauseLcpReq::NoAction;
@@ -3374,7 +3376,7 @@ void Dbdih::stop_pause(Signal *signal)
  * to failures of any starting nodes while we are still in the starting
  * state.
  *
- * This means we need no code to handle unapusing at node failures.
+ * This means we need no code to handle unpausing at node failures.
  */
 void Dbdih::handle_node_failure_in_pause(Signal *signal)
 {
@@ -22758,7 +22760,7 @@ Dbdih::execDUMP_STATE_ORD(Signal* signal)
     infoEvent("c_lcp_id_while_copy_meta_data: %u, c_pause_lcp_start_node: %u",
               c_lcp_id_while_copy_meta_data,
               c_pause_lcp_start_node);
-    infoEvent(" c_PAUSE_LCP_REQ_Counter: %s",
+    infoEvent("c_PAUSE_LCP_REQ_Counter: %s",
               c_PAUSE_LCP_REQ_Counter.getText());
     infoEvent("c_FLUSH_LCP_REP_REQ_Counter: %s",
               c_FLUSH_LCP_REP_REQ_Counter.getText());
@@ -22767,6 +22769,8 @@ Dbdih::execDUMP_STATE_ORD(Signal* signal)
       char buf[100];
       infoEvent("c_lcpState.m_participatingLQH: %s",
                 c_lcpState.m_participatingLQH.getText(buf));
+      infoEvent("c_lcpState.m_pause_participants: %s",
+                c_lcpState.m_pause_participants.getText(buf));
     }
   }
 

@@ -1901,6 +1901,7 @@ private:
     SignalCounter m_LAST_LCP_FRAG_ORD;
     NdbNodeBitmask m_participatingLQH;
     NdbNodeBitmask m_participatingDIH;
+    NdbNodeBitmask m_pause_participants;
     
     Uint32 m_masterLcpDihRef;
     bool   m_MASTER_LCPREQ_Received;
