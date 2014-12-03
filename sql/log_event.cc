@@ -4247,7 +4247,7 @@ void Query_log_event::print_query_header(IO_CACHE* file,
   if (print_event_info->auto_increment_increment != auto_increment_increment ||
       print_event_info->auto_increment_offset != auto_increment_offset)
   {
-    my_b_printf(file,"SET @@session.auto_increment_increment=%u, @@session.auto_increment_offset=%u%s\n",
+    my_b_printf(file,"SET @@session.auto_increment_increment=%lu, @@session.auto_increment_offset=%lu%s\n",
                 auto_increment_increment,auto_increment_offset,
                 print_event_info->delimiter);
     print_event_info->auto_increment_increment= auto_increment_increment;
