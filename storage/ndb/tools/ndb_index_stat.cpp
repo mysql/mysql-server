@@ -356,9 +356,9 @@ checkobjs()
         const NdbDictionary::Dictionary::List::Element& e = list.elements[i];
         if (e.type == NdbDictionary::Object::OrderedIndex)
         {
+          g_indnames[g_indcount] = strdup(e.name);
+          CHK2(g_indnames[g_indcount] != 0, "out of memory");
           g_indcount++;
-          g_indnames[i] = strdup(e.name);
-          CHK2(g_indnames[i] != 0, "out of memory");
         }
       }
       CHK1(ret == 0);
