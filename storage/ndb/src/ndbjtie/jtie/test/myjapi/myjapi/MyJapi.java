@@ -118,20 +118,8 @@ public class MyJapi {
     // Default mappings of primitive result/parameter types
     // ----------------------------------------------------------------------
 
-    static public native boolean f011();
-    static public native byte f012();
-    static public native byte f013();
-    static public native byte f014();
-    static public native short f015();
-    static public native short f016();
-    static public native int f017();
-    static public native int f018();
     static public native int f019();
     static public native int f020();
-    static public native long f021();
-    static public native long f022();
-    static public native float f023();
-    static public native double f024();
     static public native double f025();
 
     static public native void f111(boolean p0);
