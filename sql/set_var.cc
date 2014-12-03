@@ -33,9 +33,7 @@
 #include "sql_select.h" // free_underlaid_joins
 #include "sql_show.h"   // make_default_log_name, append_identifier
 #include "sql_view.h"   // updatable_views_with_limit_typelib
-#include "lock.h"                               // lock_global_read_lock,
-                                                // make_global_read_lock_block_commit,
-                                                // unlock_global_read_lock
+#include "log.h"
 
 static HASH system_variable_hash;
 static PolyLock_mutex PLock_global_system_variables(&LOCK_global_system_variables);
@@ -214,6 +212,13 @@ uchar *sys_var::global_value_ptr(THD *thd, LEX_STRING *base)
 {
   return global_var_ptr();
 }
+
+uchar *sys_var::session_var_ptr(THD *thd)
+{ return ((uchar*)&(thd->variables)) + offset; }
+
+uchar *sys_var::global_var_ptr()
+{ return ((uchar*)&global_system_variables) + offset; }
+
 
 bool sys_var::check(THD *thd, set_var *var)
 {
@@ -589,6 +594,36 @@ err:
 /*****************************************************************************
   Functions to handle SET mysql_internal_variable=const_expr
 *****************************************************************************/
+
+set_var::set_var(enum_var_type type_arg, sys_var *var_arg,
+                 const LEX_STRING *base_name_arg, Item *value_arg)
+  :var(var_arg), type(type_arg), base(*base_name_arg)
+{
+  /*
+    If the set value is a field, change it to a string to allow things like
+    SET table_type=MYISAM;
+  */
+  if (value_arg && value_arg->type() == Item::FIELD_ITEM)
+  {
+    Item_field *item= (Item_field*) value_arg;
+    if (item->field_name)
+    {
+      if (!(value= new Item_string(item->field_name,
+                                   strlen(item->field_name),
+                                   system_charset_info))) // names are utf8
+        value= value_arg;			/* Give error message later */
+    }
+    else
+    {
+      /* Both Item_field and Item_insert_value will return the type as
+         Item::FIELD_ITEM. If the item->field_name is NULL, we assume the
+         object to be Item_insert_value. */
+      value= value_arg;
+    }
+  }
+  else
+    value= value_arg;
+}
 
 /**
   Verify that the supplied value is correct.

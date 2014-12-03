@@ -27,6 +27,7 @@
 #include "events.h"
 #include "sql_show.h"
 #include "lock.h"                               // MYSQL_LOCK_IGNORE_TIMEOUT
+#include "log.h"
 
 /**
   @addtogroup Event_Scheduler

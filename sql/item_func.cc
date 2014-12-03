@@ -21,13 +21,9 @@
 */
 
 #include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
-/*
-  It is necessary to include set_var.h instead of item.h because there
-  are dependencies on include order for set_var.h and item.h. This
-  will be resolved later.
-*/
-#include "sql_class.h"                          // set_var.h: THD
-#include "set_var.h"
+
+#include "sql_class.h"
+#include "item.h"
 #include "rpl_slave.h"				// for wait_for_master_pos
 #include "rpl_msr.h"
 #include "sql_show.h"                           // append_identifier
@@ -54,6 +50,7 @@
 #include "parse_tree_helpers.h"
 #include "sql_optimizer.h"                      // JOIN
 #include "sql_base.h"
+#include "binlog.h"
 
 using std::min;
 using std::max;

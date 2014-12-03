@@ -31,6 +31,7 @@
 #include "sp_cache.h"
 #include "datadict.h"   // dd_frm_type()
 #include "opt_trace.h"  // opt_trace_disable_etc
+#include "binlog.h"
 
 #define MD5_BUFF_LENGTH 33
 

@@ -39,6 +39,9 @@
 #include "table_cache.h"         // table_cache_manager
 #include "sql_view.h"
 #include "debug_sync.h"
+#include "log.h"
+#include "binlog.h"
+
 
 /* INFORMATION_SCHEMA name */
 LEX_STRING INFORMATION_SCHEMA_NAME= {C_STRING_WITH_LEN("information_schema")};

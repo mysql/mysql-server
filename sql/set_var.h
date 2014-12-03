@@ -21,6 +21,10 @@
 */
 
 #include <my_getopt.h>
+#include "m_string.h"
+#include "sql_plugin.h"
+#include "mysql_com.h"
+
 #include <vector>
 
 class sys_var;
@@ -28,10 +32,11 @@ class set_var;
 class sys_var_pluginvar;
 class PolyLock;
 class Item_func_set_user_var;
-
-// This include needs to be here since item.h requires enum_var_type :-P
-#include "item.h"                          /* Item */
-#include "sql_class.h"                     /* THD  */
+class String;
+class Time_zone;
+class THD;
+struct st_lex_user;
+typedef ulonglong sql_mode_t;
 
 extern TYPELIB bool_typelib;
 
@@ -43,6 +48,11 @@ struct sys_var_chain
 
 int mysql_add_sys_var_chain(sys_var *chain);
 int mysql_del_sys_var_chain(sys_var *chain);
+
+enum enum_var_type
+{
+  OPT_DEFAULT= 0, OPT_SESSION, OPT_GLOBAL
+};
 
 /**
   A class representing one system variable - that is something
@@ -171,15 +181,10 @@ protected:
     Typically it's the same as session_value_ptr(), but it's different,
     for example, for ENUM, that is printed as a string, but stored as a number.
   */
-  uchar *session_var_ptr(THD *thd)
-  { return ((uchar*)&(thd->variables)) + offset; }
+  uchar *session_var_ptr(THD *thd);
 
-  uchar *global_var_ptr()
-  { return ((uchar*)&global_system_variables) + offset; }
+  uchar *global_var_ptr();
 };
-
-#include "binlog.h"                           /* binlog_format_typelib */
-#include "sql_plugin.h"                    /* SHOW_HA_ROWS, SHOW_MY_BOOL */
 
 /****************************************************************************
   Classes for parsing of the SET command
@@ -225,34 +230,8 @@ public:
   LEX_STRING base; /**< for structured variables, like keycache_name.variable_name */
 
   set_var(enum_var_type type_arg, sys_var *var_arg,
-          const LEX_STRING *base_name_arg, Item *value_arg)
-    :var(var_arg), type(type_arg), base(*base_name_arg)
-  {
-    /*
-      If the set value is a field, change it to a string to allow things like
-      SET table_type=MYISAM;
-    */
-    if (value_arg && value_arg->type() == Item::FIELD_ITEM)
-    {
-      Item_field *item= (Item_field*) value_arg;
-      if (item->field_name)
-      {
-        if (!(value= new Item_string(item->field_name,
-                                     strlen(item->field_name),
-                                     system_charset_info))) // names are utf8
-	  value= value_arg;			/* Give error message later */
-      }
-      else
-      {
-        /* Both Item_field and Item_insert_value will return the type as
-        Item::FIELD_ITEM. If the item->field_name is NULL, we assume the
-        object to be Item_insert_value. */
-        value= value_arg;
-      }
-    }
-    else
-      value= value_arg;
-  }
+          const LEX_STRING *base_name_arg, Item *value_arg);
+
   int check(THD *thd);
   int update(THD *thd);
   int light_check(THD *thd);
@@ -285,10 +264,10 @@ public:
 
 class set_var_password: public set_var_base
 {
-  LEX_USER *user;
+  st_lex_user *user;
   char *password;
 public:
-  set_var_password(LEX_USER *user_arg,char *password_arg)
+  set_var_password(st_lex_user *user_arg,char *password_arg)
     :user(user_arg), password(password_arg)
   {}
   int check(THD *thd);

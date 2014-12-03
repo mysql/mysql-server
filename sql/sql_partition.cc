@@ -66,6 +66,7 @@
 #include "opt_range.h"                  // store_key_image_to_rec
 #include "sql_analyse.h"                // append_escaped
 #include "sql_alter.h"                  // Alter_table_ctx
+#include "log.h"
 
 #include <algorithm>
 using std::max;

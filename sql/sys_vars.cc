@@ -5009,6 +5009,51 @@ static bool check_gtid_purged(sys_var *self, THD *thd, set_var *var)
   DBUG_RETURN(false);
 }
 
+bool Sys_var_gtid_purged::global_update(THD *thd, set_var *var)
+{
+  DBUG_ENTER("Sys_var_gtid_purged::global_update");
+#ifdef HAVE_REPLICATION
+  bool error= false;
+  int rotate_res= 0;
+
+  global_sid_lock->wrlock();
+  char *previous_gtid_executed= gtid_state->get_executed_gtids()->to_string();
+  char *previous_gtid_lost= gtid_state->get_lost_gtids()->to_string();
+  enum_return_status ret= gtid_state->add_lost_gtids(var->save_result.string_value.str);
+  char *current_gtid_executed= gtid_state->get_executed_gtids()->to_string();
+  char *current_gtid_lost= gtid_state->get_lost_gtids()->to_string();
+  global_sid_lock->unlock();
+  if (RETURN_STATUS_OK != ret)
+  {
+    error= true;
+    goto end;
+  }
+
+  // Log messages saying that GTID_PURGED and GTID_EXECUTED were changed.
+  sql_print_information(ER(ER_GTID_PURGED_WAS_CHANGED),
+                        previous_gtid_lost, current_gtid_lost);
+  sql_print_information(ER(ER_GTID_EXECUTED_WAS_CHANGED),
+                        previous_gtid_executed, current_gtid_executed);
+
+  // Rotate logs to have Previous_gtid_event on last binlog.
+  rotate_res= mysql_bin_log.rotate_and_purge(true);
+  if (rotate_res)
+  {
+    error= true;
+    goto end;
+  }
+
+end:
+  my_free(previous_gtid_executed);
+  my_free(previous_gtid_lost);
+  my_free(current_gtid_executed);
+  my_free(current_gtid_lost);
+  DBUG_RETURN(error);
+#else
+  DBUG_RETURN(true);
+#endif /* HAVE_REPLICATION */
+}
+
 Gtid_set *gtid_purged;
 static Sys_var_gtid_purged Sys_gtid_purged(
        "gtid_purged",

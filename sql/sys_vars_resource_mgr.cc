@@ -13,7 +13,9 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include "sys_vars_resource_mgr.h"
 #include <set_var.h>
+#include "mysqld.h"
 
 /**
   Returns the member that contains the given key (address).
