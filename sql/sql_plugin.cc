@@ -37,6 +37,7 @@
 #include "debug_sync.h"
 #include "mutex_lock.h"
 #include "prealloced_array.h"
+#include "log.h"
 
 #include <algorithm>
 

@@ -22,6 +22,7 @@
 #include "sql_table.h"         // prepare_create_field
 #include "auth_common.h"       // *_ACL
 #include "log_event.h"         // append_query_string, Query_log_event
+#include "binlog.h"
 
 #include "sp_head.h"
 #include "sp_instr.h"

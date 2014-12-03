@@ -27,6 +27,7 @@
 #include "sql_prepare.h"  // reinit_stmt_before_use
 #include "transaction.h"  // trans_commit_stmt
 #include "prealloced_array.h"
+#include "binlog.h"
 
 #include <algorithm>
 #include <functional>

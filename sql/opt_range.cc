@@ -122,6 +122,7 @@
 #include "opt_costmodel.h"
 #include "opt_statistics.h"   // guess_rec_per_key
 #include "uniques.h"
+#include "log.h"
 
 using std::min;
 using std::max;

@@ -36,6 +36,7 @@
 #include "table_trigger_dispatcher.h"           // Table_trigger_dispatcher
 #include "debug_sync.h"                         // DEBUG_SYNC
 #include "uniques.h"
+#include "binlog.h"
 
 /**
   Implement DELETE SQL word.

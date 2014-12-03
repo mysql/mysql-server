@@ -55,6 +55,8 @@
 #include "table_cache.h"
 #include "sql_trigger.h"               // change_trigger_table_name
 #include <mysql/psi/mysql_table.h>
+#include "log.h"
+#include "binlog.h"
 
 #include <algorithm>
 using std::max;

@@ -52,6 +52,8 @@
 #include "sql_hset.h"   // Hash_set
 #include "sql_tmp_table.h" // free_tmp_table
 #include "table_cache.h" // Table_cache_manager, Table_cache
+#include "log.h"
+#include "binlog.h"
 
 
 bool
