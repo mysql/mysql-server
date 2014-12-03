@@ -1,4 +1,4 @@
-/* Copyright (c) 2008-2014 Oracle and/or its affiliates.  All rights reserved
+/* Copyright (c) 2008, 2014 Oracle and/or its affiliates.  All rights reserved
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +11,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA
+*/
 
 #include <NDBT.hpp>
 #include <NDBT_Test.hpp>
@@ -19,14 +20,14 @@
 
 #define CHECKNOTNULL(p) if ((p) == NULL) {          \
     ndbout << "Error at line " << __LINE__ << endl; \
-    NDB_ERR(trans->getNdbError());                      \
+    NDB_ERR(trans->getNdbError());                  \
     trans->close();                                 \
     return NDBT_FAILED; }
 
 #define CHECKEQUAL(v, e) if ((e) != (v)) {            \
     ndbout << "Error at line " << __LINE__ <<         \
       " expected " << v << endl;                      \
-    NDB_ERR(trans->getNdbError());                        \
+    NDB_ERR(trans->getNdbError());                    \
     trans->close();                                   \
     return NDBT_FAILED; }
 
@@ -114,8 +115,9 @@ int testSegmentedSectionPk(NDBT_Context* ctx, NDBT_Step* step){
     return NDBT_OK;
 
   const Uint32 maxRowBytes= NDB_MAX_TUPLE_SIZE_IN_WORDS * sizeof(Uint32);
-  const Uint32 srcBuffBytes= NDBT_Tables::MaxVarTypeKeyBytes;
+  const Uint32 maxKeyBytes= NDBT_Tables::MaxVarTypeKeyBytes;
   const Uint32 maxAttrBytes= NDBT_Tables::MaxKeyMaxVarTypeAttrBytes;
+  const Uint32 srcBuffBytes= MAX(maxKeyBytes,maxAttrBytes);
   char smallKey[50];
   char srcBuff[srcBuffBytes];
   char smallRowBuf[maxRowBytes];
@@ -154,7 +156,7 @@ int testSegmentedSectionPk(NDBT_Context* ctx, NDBT_Step* step){
                                             bigKeyRowBuf,
                                             0),
                  &srcBuff[0],
-                 srcBuffBytes);
+                 maxKeyBytes);
   NdbDictionary::setNull(record, bigKeyRowBuf, 0, false);
 
   setLongVarchar(NdbDictionary::getValuePtr(record,
