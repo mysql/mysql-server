@@ -1,5 +1,7 @@
 --source include/have_innodb.inc
 
+#Restarting not supported in embedded 
+--source include/not_embedded.inc
 #Windows has trouble creating files/directories with long names
 --source include/not_windows.inc
 
