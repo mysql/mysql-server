@@ -139,51 +139,6 @@ public class MyJapiTest {
         out.println("\ncalling MyJapiCtypes functions: fxx(0) ...");
 
         for (int i = 0; i < 2; i++) {
-            out.println("\ncalling f11()");
-            final boolean nf11 = MyJapiCtypes.f11(false);
-            assert (nf11 == false);
-            out.println("\ncalling f12()");
-            final byte nf12 = MyJapiCtypes.f12((byte)0);
-            assert (nf12 == (byte)0);
-            out.println("\ncalling f13()");
-            final byte nf13 = MyJapiCtypes.f13((byte)0);
-            assert (nf13 == (byte)0);
-            out.println("\ncalling f14()");
-            final byte nf14 = MyJapiCtypes.f14((byte)0);
-            assert (nf14 == (byte)0);
-            out.println("\ncalling f15()");
-            final short nf15 = MyJapiCtypes.f15((short)0);
-            assert (nf15 == (short)0);
-            out.println("\ncalling f16()");
-            final short nf16 = MyJapiCtypes.f16((short)0);
-            assert (nf16 == (short)0);
-            out.println("\ncalling f17()");
-            final int nf17 = MyJapiCtypes.f17((int)0);
-            assert (nf17 == (int)0);
-            out.println("\ncalling f18()");
-            final int nf18 = MyJapiCtypes.f18((int)0);
-            assert (nf18 == (int)0);
-            out.println("\ncalling f19()");
-            final int nf19 = MyJapiCtypes.f19((int)0);
-            assert (nf19 == (int)0);
-            out.println("\ncalling f20()");
-            final int nf20 = MyJapiCtypes.f20((int)0);
-            assert (nf20 == (int)0);
-            out.println("\ncalling f21()");
-            final long nf21 = MyJapiCtypes.f21((long)0);
-            assert (nf21 == (long)0);
-            out.println("\ncalling f22()");
-            final long nf22 = MyJapiCtypes.f22((long)0);
-            assert (nf22 == (long)0);
-            out.println("\ncalling f23()");
-            final float nf23 = MyJapiCtypes.f23((float)0);
-            assert (nf23 == (float)0);
-            out.println("\ncalling f24()");
-            final double nf24 = MyJapiCtypes.f24((double)0);
-            assert (nf24 == (double)0);
-            out.println("\ncalling f25()");
-            final double nf25 = MyJapiCtypes.f25((double)0);
-            assert (nf25 == (double)0);
 
             out.println("\ncalling f31()");
             final boolean nf31 = MyJapiCtypes.f31(false);
@@ -246,30 +201,6 @@ public class MyJapiTest {
         MyJapi.f0();
 
         for (int i = 0; i < 2; i++) {
-            out.println("\ncalling f111(f011())");
-            MyJapi.f111(MyJapi.f011());
-            out.println("\ncalling f112(f012())");
-            MyJapi.f112(MyJapi.f012());
-            out.println("\ncalling f113(f013())");
-            MyJapi.f113(MyJapi.f013());
-            out.println("\ncalling f114(f014())");
-            MyJapi.f114(MyJapi.f014());
-            out.println("\ncalling f115(f015())");
-            MyJapi.f115(MyJapi.f015());
-            out.println("\ncalling f116(f016())");
-            MyJapi.f116(MyJapi.f016());
-            out.println("\ncalling f117(f017())");
-            MyJapi.f117(MyJapi.f017());
-            out.println("\ncalling f118(f018())");
-            MyJapi.f118(MyJapi.f018());
-            out.println("\ncalling f121(f021())");
-            MyJapi.f121(MyJapi.f021());
-            out.println("\ncalling f122(f022())");
-            MyJapi.f122(MyJapi.f022());
-            out.println("\ncalling f123(f023())");
-            MyJapi.f123(MyJapi.f023());
-            out.println("\ncalling f124(f024())");
-            MyJapi.f124(MyJapi.f024());
 
             out.println("\ncalling f131(f031())");
             MyJapi.f131(MyJapi.f031());
