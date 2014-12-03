@@ -1234,9 +1234,8 @@ void Qmgr::execCM_REGCONF(Signal* signal)
   sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 4, JBB);
 
   for (nodePtr.i = 1; nodePtr.i < MAX_NDB_NODES; nodePtr.i++) {
-    jam();
     if (c_clusterNodes.get(nodePtr.i)){
-      jam();
+      jamLine(nodePtr.i);
       ptrAss(nodePtr, nodeRec);
 
       ndbrequire(nodePtr.p->phase == ZINIT);
@@ -2350,15 +2349,15 @@ Qmgr::joinedCluster(Signal* signal, NodeRecPtr nodePtr){
   enableComReq->m_senderRef = reference();
   enableComReq->m_senderData = ENABLE_COM_CM_COMMIT_NEW;
   NodeBitmask::clear(enableComReq->m_nodeIds);
+  jam();
   for (nodePtr.i = 1; nodePtr.i < MAX_NDB_NODES; nodePtr.i++) {
-    jam();
     ptrAss(nodePtr, nodeRec);
     if ((nodePtr.p->phase == ZRUNNING) && (nodePtr.i != getOwnNodeId())) {
       /*-------------------------------------------------------------------*/
       // Enable full communication to all other nodes. Not really necessary 
       // to open communication to ourself.
       /*-------------------------------------------------------------------*/
-      jam();
+      jamLine(nodePtr.i);
       NodeBitmask::set(enableComReq->m_nodeIds, nodePtr.i);
     }//if
   }//for
@@ -2523,9 +2522,9 @@ void Qmgr::findNeighbours(Signal* signal, Uint32 from)
   fnOwnNodePtr.i = getOwnNodeId();
   ptrCheckGuard(fnOwnNodePtr, MAX_NDB_NODES, nodeRec);
   for (fnNodePtr.i = 1; fnNodePtr.i < MAX_NDB_NODES; fnNodePtr.i++) {
-    jam();
     ptrAss(fnNodePtr, nodeRec);
     if (fnNodePtr.i != fnOwnNodePtr.i) {
+      jamLine(fnNodePtr.i);
       if (fnNodePtr.p->phase == ZRUNNING) {
         if (tfnMinFound > fnNodePtr.p->ndynamicId) {
           jam();
@@ -2921,6 +2920,7 @@ void Qmgr::apiHbHandlingLab(Signal* signal, NDB_TICKS now)
 {
   NodeRecPtr TnodePtr;
 
+  jam();
   for (TnodePtr.i = 1; TnodePtr.i < MAX_NODES; TnodePtr.i++) {
     const Uint32 nodeId = TnodePtr.i;
     ptrAss(TnodePtr, nodeRec);
@@ -2934,7 +2934,7 @@ void Qmgr::apiHbHandlingLab(Signal* signal, NDB_TICKS now)
 
     if (c_connectedNodes.get(nodeId))
     {
-      jam();
+      jamLine(nodeId);
       set_hb_count(TnodePtr.i)++;
 
       if (get_hb_count(TnodePtr.i) > 2)
@@ -2983,11 +2983,12 @@ void Qmgr::checkStartInterface(Signal* signal, NDB_TICKS now)
   // least three seconds before allowing new connects. We will also ensure 
   // that handling of the failure is completed before we allow new connections.
   /*------------------------------------------------------------------------*/
+  jam();
   for (nodePtr.i = 1; nodePtr.i < MAX_NODES; nodePtr.i++) {
     ptrAss(nodePtr, nodeRec);
     Uint32 type = getNodeInfo(nodePtr.i).m_type;
     if (nodePtr.p->phase == ZFAIL_CLOSING) {
-      jam();
+      jamLine(nodePtr.i);
       set_hb_count(nodePtr.i)++;
       if (c_connectedNodes.get(nodePtr.i)){
         jam();
@@ -3382,12 +3383,12 @@ void Qmgr::execNDB_FAILCONF(Signal* signal)
   nfComp->nodeId = getOwnNodeId();
   nfComp->failedNodeId = failedNodePtr.i;
   
+  jam();
   for (nodePtr.i = 1; nodePtr.i < MAX_NODES; nodePtr.i++) 
   {
-    jam();
     ptrAss(nodePtr, nodeRec);
     if (nodePtr.p->phase == ZAPI_ACTIVE){
-      jam();
+      jamLine(nodePtr.i);
       sendSignal(nodePtr.p->blockRef, GSN_NF_COMPLETEREP, signal, 
                  NFCompleteRep::SignalLength, JBB);
     }//if
@@ -3415,12 +3416,11 @@ Qmgr::execNF_COMPLETEREP(Signal* signal)
   NodeRecPtr nodePtr;
   for (nodePtr.i = 1; nodePtr.i < MAX_NODES; nodePtr.i++) 
   {
-    jam();
     ptrAss(nodePtr, nodeRec);
     if (nodePtr.p->phase == ZAPI_ACTIVE && 
         ndb_takeovertc(getNodeInfo(nodePtr.i).m_version))
     {
-      jam();
+      jamLine(nodePtr.i);
       sendSignal(nodePtr.p->blockRef, GSN_TAKE_OVERTCCONF, signal, 
                  NFCompleteRep::SignalLength, JBB);
     }//if
@@ -4229,10 +4229,9 @@ void Qmgr::failReportLab(Signal* signal, Uint16 aFailedNode,
         cfailureNr = cfailureNr + 1;
         for (nodePtr.i = 1;
              nodePtr.i < MAX_NDB_NODES; nodePtr.i++) {
-          jam();
           ptrAss(nodePtr, nodeRec);
           if (nodePtr.p->phase == ZRUNNING) {
-            jam();
+            jamLine(nodePtr.i);
             sendPrepFailReq(signal, nodePtr.i);
           }//if
         }//for
@@ -4502,11 +4501,10 @@ void Qmgr::execPREP_FAILCONF(Signal* signal)
   ptrCheckGuard(replyNodePtr, MAX_NDB_NODES, nodeRec);
   replyNodePtr.p->sendPrepFailReqStatus = Q_NOT_ACTIVE;
   for (nodePtr.i = 1; nodePtr.i < MAX_NDB_NODES; nodePtr.i++) {
-    jam();
     ptrAss(nodePtr, nodeRec);
     if (nodePtr.p->phase == ZRUNNING) {
       if (nodePtr.p->sendPrepFailReqStatus == Q_ACTIVE) {
-        jam();
+        jamLine(nodePtr.i);
         return;
       }//if
     }//if
@@ -4561,7 +4559,6 @@ Qmgr::sendCommitFailReq(Signal* signal)
    * THESE NODE FAILURES.
    *-------------------------------------------------------------------------*/
   for (nodePtr.i = 1; nodePtr.i < MAX_NDB_NODES; nodePtr.i++) {
-    jam();
     ptrAss(nodePtr, nodeRec);
 
 #ifdef ERROR_INSERT    
@@ -4576,7 +4573,7 @@ Qmgr::sendCommitFailReq(Signal* signal)
 #endif
 
     if (nodePtr.p->phase == ZRUNNING) {
-      jam();
+      jamLine(nodePtr.i);
       nodePtr.p->sendCommitFailReqStatus = Q_ACTIVE;
       signal->theData[0] = cpdistref;
       signal->theData[1] = cfailureNr;
@@ -4620,10 +4617,9 @@ void Qmgr::execPREP_FAILREF(Signal* signal)
 
   cfailureNr = cfailureNr + 1;
   for (nodePtr.i = 1; nodePtr.i < MAX_NDB_NODES; nodePtr.i++) {
-    jam();
     ptrAss(nodePtr, nodeRec);
     if (nodePtr.p->phase == ZRUNNING) {
-      jam();
+      jamLine(nodePtr.i);
       sendPrepFailReq(signal, nodePtr.i);
     }//if
   }//for
@@ -4693,7 +4689,7 @@ void Qmgr::execCOMMIT_FAILREQ(Signal* signal)
      *--------------------------------------------------------------------*/
     for (nodePtr.i = 1; nodePtr.i < MAX_NDB_NODES; nodePtr.i++) {
       if (ccommitFailedNodes.get(nodePtr.i)) {
-        jam();
+        jamLine(nodePtr.i);
         ptrCheckGuard(nodePtr, MAX_NDB_NODES, nodeRec);
         nodePtr.p->phase = ZFAIL_CLOSING;
         nodePtr.p->failState = WAITING_FOR_NDB_FAILCONF;
@@ -4706,10 +4702,9 @@ void Qmgr::execCOMMIT_FAILREQ(Signal* signal)
     /*       WE INFORM THE API'S WE HAVE CONNECTED ABOUT THE FAILED NODES.  */
     /*----------------------------------------------------------------------*/
     for (nodePtr.i = 1; nodePtr.i < MAX_NODES; nodePtr.i++) {
-      jam();
       ptrAss(nodePtr, nodeRec);
       if (nodePtr.p->phase == ZAPI_ACTIVE) {
-        jam();
+        jamLine(nodePtr.i);
 
 	NodeFailRep * const nodeFail = (NodeFailRep *)&signal->theData[0];
 
@@ -4754,11 +4749,10 @@ void Qmgr::execCOMMIT_FAILCONF(Signal* signal)
   ptrCheckGuard(replyNodePtr, MAX_NDB_NODES, nodeRec);
   replyNodePtr.p->sendCommitFailReqStatus = Q_NOT_ACTIVE;
   for (nodePtr.i = 1; nodePtr.i < MAX_NDB_NODES; nodePtr.i++) {
-    jam();
     ptrAss(nodePtr, nodeRec);
     if (nodePtr.p->phase == ZRUNNING) {
       if (nodePtr.p->sendCommitFailReqStatus == Q_ACTIVE) {
-        jam();
+        jamLine(nodePtr.i);
         return;
       }//if
     }//if
@@ -4775,10 +4769,9 @@ void Qmgr::execCOMMIT_FAILCONF(Signal* signal)
      *----------------------------------------------------------------------*/
     cfailureNr = cfailureNr + 1;
     for (nodePtr.i = 1; nodePtr.i < MAX_NDB_NODES; nodePtr.i++) {
-      jam();
       ptrAss(nodePtr, nodeRec);
       if (nodePtr.p->phase == ZRUNNING) {
-        jam();
+        jamLine(nodePtr.i);
         sendPrepFailReq(signal, nodePtr.i);
       }//if
     }//for
@@ -4807,10 +4800,9 @@ void Qmgr::execPRES_TOCONF(Signal* signal)
   ptrCheckGuard(replyNodePtr, MAX_NDB_NODES, nodeRec);
   replyNodePtr.p->sendPresToStatus = Q_NOT_ACTIVE;
   for (nodePtr.i = 1; nodePtr.i < MAX_NDB_NODES; nodePtr.i++) {
-    jam();
     ptrAss(nodePtr, nodeRec);
     if (nodePtr.p->sendPresToStatus == Q_ACTIVE) {
-      jam();
+      jamLine(nodePtr.i);
       return;
     }//if
   }//for
@@ -4820,10 +4812,9 @@ void Qmgr::execPRES_TOCONF(Signal* signal)
   if (ctoFailureNr > ccommitFailureNr) {
     jam();
     for (nodePtr.i = 1; nodePtr.i < MAX_NDB_NODES; nodePtr.i++) {
-      jam();
       ptrAss(nodePtr, nodeRec);
       if (nodePtr.p->phase == ZRUNNING) {
-        jam();
+        jamLine(nodePtr.i);
         nodePtr.p->sendCommitFailReqStatus = Q_ACTIVE;
         signal->theData[0] = cpdistref;
         signal->theData[1] = ctoFailureNr;
@@ -4838,10 +4829,9 @@ void Qmgr::execPRES_TOCONF(Signal* signal)
   ctoStatus = Q_NOT_ACTIVE;
   cfailureNr = cfailureNr + 1;
   for (nodePtr.i = 1; nodePtr.i < MAX_NDB_NODES; nodePtr.i++) {
-    jam();
     ptrAss(nodePtr, nodeRec);
     if (nodePtr.p->phase == ZRUNNING) {
-      jam();
+      jamLine(nodePtr.i);
       sendPrepFailReq(signal, nodePtr.i);
     }//if
   }//for
@@ -4993,10 +4983,9 @@ void Qmgr::failReport(Signal* signal,
 		   FailRep::SignalLength, JBA);
       }//if
       for (nodePtr.i = 1; nodePtr.i < MAX_NDB_NODES; nodePtr.i++) {
-        jam();
         ptrAss(nodePtr, nodeRec);
         if (nodePtr.p->phase == ZRUNNING) {
-          jam();
+          jamLine(nodePtr.i);
 	  FailRep * const failRep = (FailRep *)&signal->theData[0];
 	  failRep->failNodeId = failedNodePtr.i;
 	  failRep->failCause = aFailCause;
@@ -5027,9 +5016,9 @@ void Qmgr::failReport(Signal* signal,
        *---------------------------------------------------------------------*/
       tfrMinDynamicId = (UintR)-1;
       for (nodePtr.i = 1; nodePtr.i < MAX_NDB_NODES; nodePtr.i++) {
-        jam();
         ptrAss(nodePtr, nodeRec);
         if (nodePtr.p->phase == ZRUNNING) {
+          jamLine(nodePtr.i);
           if ((nodePtr.p->ndynamicId & 0xFFFF) < tfrMinDynamicId) {
             jam();
             tfrMinDynamicId = (nodePtr.p->ndynamicId & 0xFFFF);
@@ -5074,10 +5063,9 @@ void Qmgr::failReport(Signal* signal,
 	  /*-----------------------------------------------------------------*/
           for (nodePtr.i = 1; nodePtr.i < MAX_NDB_NODES; 
 	       nodePtr.i++) {
-            jam();
             ptrAss(nodePtr, nodeRec);
             if (nodePtr.p->phase == ZRUNNING) {
-              jam();
+              jamLine(nodePtr.i);
               nodePtr.p->sendCommitFailReqStatus = Q_ACTIVE;
               signal->theData[0] = cpdistref;
               signal->theData[1] = ccommitFailureNr;
