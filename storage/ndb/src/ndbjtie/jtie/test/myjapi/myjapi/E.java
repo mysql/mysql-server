@@ -27,6 +27,5 @@ public class E extends Wrapper {
     static public final int EE1 = 1;
     static public native int/*_EE_*/ deliver_EE1();
     static public native void take_EE1(int/*_EE_*/ e);
-    static public native int/*_const EE_*/ deliver_EE1c();
     static public native void take_EE1c(int/*_const EE_*/ e);
 }
