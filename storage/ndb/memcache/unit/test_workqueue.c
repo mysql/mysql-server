@@ -69,8 +69,8 @@ void express_nanosec(Uint64 nsec);
 int sleep_microseconds(int);
 
 int main() {
-  struct workqueue *queue; 
-  queue = (struct workqueue *) calloc(1, sizeof(struct workqueue));
+  struct workqueue *queue=
+      (struct workqueue *) calloc(1, sizeof(struct workqueue));
 
   struct threadinfo test0 = { queue, 32768, 1, 0, 0, 0, 10000000, 1000000 };
   struct threadinfo test1 = { queue, 32768, 2, 0, 0, 0, 10000000, 1000000 };
