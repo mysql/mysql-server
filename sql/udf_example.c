@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -295,9 +295,20 @@ char *metaphon(UDF_INIT *initid __attribute__((unused)),
 
   if (!word)					/* Null argument */
   {
+    /* The length is expected to be zero when the argument is NULL. */
+    assert(args->lengths[0] == 0);
     *is_null=1;
     return 0;
   }
+  else
+  {
+    /*
+      A check to confirm that argument length has the value it is
+      expected to have.
+    */
+    assert(strlen(word) == args->lengths[0]);
+  }
+
   w_end=word+args->lengths[0];
   org_result=result;
 
