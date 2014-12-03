@@ -489,7 +489,7 @@ protected:
   /* Required by the MySQL server class Log_event::Query_event */
   unsigned long data_len;
   /* Pointer to the end of the buffer shown below */
-  unsigned long query_data_written;
+  uint64_t query_data_written;
   /*
     Copies data into the buffer in the following fashion
     +--------+-----------+------+------+---------+----+-------+----+
@@ -530,7 +530,7 @@ public:
     we pass it with q_len, so we would not have to call strlen()
     otherwise, set it to 0, in which case, we compute it with strlen()
   */
-  uint32_t q_len;
+  size_t q_len;
 
   /* The members below represent the status variable block */
 
@@ -550,7 +550,7 @@ public:
   uint32_t flags2;
   /* In connections sql_mode is 32 bits now but will be 64 bits soon */
   uint64_t sql_mode;
-  uint16_t auto_increment_increment, auto_increment_offset;
+  unsigned long auto_increment_increment, auto_increment_offset;
   char charset[6];
   size_t time_zone_len; /* 0 means uninited */
   /*
@@ -663,7 +663,7 @@ template <class T> T available_buffer(const char* buf_start,
                                       const char* buf_current,
                                       T buf_len)
 {
-  return buf_len - (buf_current - buf_start);
+  return static_cast<T>(buf_len - (buf_current - buf_start));
 }
 
 

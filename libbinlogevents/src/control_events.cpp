@@ -38,7 +38,7 @@ Rotate_event::Rotate_event(const char* buf, unsigned int event_len,
 
   // This will ensure that the event_len is what we have at EVENT_LEN_OFFSET
   size_t header_size= description_event->common_header_len;
-  size_t post_header_len= description_event->post_header_len[ROTATE_EVENT - 1];
+  uint8_t post_header_len= description_event->post_header_len[ROTATE_EVENT - 1];
   unsigned int ident_offset;
 
   if (event_len < header_size)

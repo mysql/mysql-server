@@ -76,7 +76,7 @@ Query_event::Query_event(const char* query_arg, const char* catalog_arg,
 */
 static void copy_str_and_move(Log_event_header::Byte **dst,
                               const char** src,
-                              unsigned int len)
+                              size_t len)
 {
   memcpy(*dst, *src, len);
   *src= reinterpret_cast<const char*>(*dst);
@@ -226,9 +226,9 @@ Query_event::Query_event(const char* buf, unsigned int event_len,
     case Q_AUTO_INCREMENT:
       CHECK_SPACE(pos, end, 4);
       memcpy(&auto_increment_increment, pos, sizeof(auto_increment_increment));
-      auto_increment_increment= le16toh(auto_increment_increment);
+      auto_increment_increment= le16toh(static_cast<uint16_t>(auto_increment_increment));
       memcpy(&auto_increment_offset, pos + 2, sizeof(auto_increment_offset));
-      auto_increment_offset= le16toh(auto_increment_offset);
+      auto_increment_offset= le16toh(static_cast<uint16_t>(auto_increment_offset));
       pos+= 4;
       break;
     case Q_CHARSET_CODE:
@@ -274,7 +274,7 @@ Query_event::Query_event(const char* buf, unsigned int event_len,
     case Q_MASTER_DATA_WRITTEN_CODE:
       CHECK_SPACE(pos, end, 4);
       memcpy(&master_data_written, pos, sizeof(master_data_written));
-      master_data_written= le32toh(master_data_written);
+      master_data_written= le32toh(static_cast<uint32_t>(master_data_written));
       header()->data_written= master_data_written;
       pos+= 4;
       break;
@@ -542,7 +542,7 @@ User_var_event(const char* buf, unsigned int event_len,
       Old events will not have this extra byte, thence,
       we keep the flags set to UNDEF_F.
     */
-  unsigned int bytes_read= ((val + val_len) - start);
+  size_t bytes_read= ((val + val_len) - start);
 #ifndef DBUG_OFF
   bool old_pre_checksum_fd= description_event->is_version_before_checksum();
   bool checksum_verify= (old_pre_checksum_fd ||

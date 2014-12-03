@@ -426,7 +426,8 @@ inline uint32_t checksum_crc32(uint32_t crc, const unsigned char *pos,
                                size_t length)
 {
   BAPI_ASSERT(length <= UINT_MAX);
-  return static_cast<uint32_t>(crc32(crc, pos, static_cast<unsigned int>(length)));
+  return static_cast<uint32_t>(crc32(static_cast<unsigned int>(crc), pos,
+                                     static_cast<unsigned int>(length)));
 }
 
 
