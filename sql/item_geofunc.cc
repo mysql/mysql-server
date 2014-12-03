@@ -1658,11 +1658,22 @@ String *Item_func_make_envelope::val_str(String *str)
   Gis_point *gpt2= static_cast<Gis_point *>(geom2);
   double x1= gpt1->get<0>(), y1= gpt1->get<1>();
   double x2= gpt2->get<0>(), y2= gpt2->get<1>();
-  if (x1 > x2 || y1 > y2)
+
+  if (!my_isfinite(x1) || !my_isfinite(x2) ||
+      !my_isfinite(y1) || !my_isfinite(y2))
   {
-    my_error(ER_WRONG_ARGUMENTS, MYF(0), func_name());
+    my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
     return error_str();
   }
+
+  MBR mbr;
+  mbr.xmin= (x1 < x2 ? x1 : x2);
+  mbr.xmax= (x1 > x2 ? x1 : x2);
+  mbr.ymin= (y1 < y2 ? y1 : y2);
+  mbr.ymax= (y1 > y2 ? y1 : y2);
+
+  int dim= mbr.dimension();
+  DBUG_ASSERT(dim >= 0);
 
   /*
     Use default invalid SRID because we are computing the envelope on an
@@ -1679,19 +1690,43 @@ String *Item_func_make_envelope::val_str(String *str)
   if (str->reserve(GEOM_HEADER_SIZE + 4 + 4 + 5 * POINT_DATA_SIZE, 128))
     return error_str();
 
-  write_geometry_header(str, srid, Geometry::wkb_polygon, 1);
-  str->q_append((uint32) 5);
+  str->q_append(static_cast<uint32>(srid));
+  str->q_append(static_cast<char>(Geometry::wkb_ndr));
 
-  str->q_append(x1);
-  str->q_append(y1);
-  str->q_append(x2);
-  str->q_append(y1);
-  str->q_append(x2);
-  str->q_append(y2);
-  str->q_append(x1);
-  str->q_append(y2);
-  str->q_append(x1);
-  str->q_append(y1);
+  if (dim == 0)
+  {
+    str->q_append(static_cast<uint32>(Geometry::wkb_point));
+    str->q_append(mbr.xmin);
+    str->q_append(mbr.ymin);
+  }
+  else if (dim == 1)
+  {
+
+    str->q_append(static_cast<uint32>(Geometry::wkb_linestring));
+    str->q_append(static_cast<uint32>(2));
+    str->q_append(mbr.xmin);
+    str->q_append(mbr.ymin);
+    str->q_append(mbr.xmax);
+    str->q_append(mbr.ymax);
+  }
+  else
+  {
+    DBUG_ASSERT(dim == 2);
+    str->q_append(static_cast<uint32>(Geometry::wkb_polygon));
+    str->q_append(static_cast<uint32>(1));
+    str->q_append(static_cast<uint32>(5));
+    str->q_append(mbr.xmin);
+    str->q_append(mbr.ymin);
+    str->q_append(mbr.xmax);
+    str->q_append(mbr.ymin);
+    str->q_append(mbr.xmax);
+    str->q_append(mbr.ymax);
+    str->q_append(mbr.xmin);
+    str->q_append(mbr.ymax);
+    str->q_append(mbr.xmin);
+    str->q_append(mbr.ymin);
+  }
+
   return str;
 }
 
