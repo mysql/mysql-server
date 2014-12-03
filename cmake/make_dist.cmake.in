@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2012, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2009, 2014, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -14,7 +14,7 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA 
 
 # Make source distribution
-# If bzr is present, run bzr export.
+# If git is present, run git archive.
 # Otherwise, just run cpack with source configuration.
 
 SET(CMAKE_SOURCE_DIR "@CMAKE_SOURCE_DIR@")
@@ -22,7 +22,6 @@ SET(CMAKE_BINARY_DIR "@CMAKE_BINARY_DIR@")
 SET(CPACK_SOURCE_PACKAGE_FILE_NAME "@CPACK_SOURCE_PACKAGE_FILE_NAME@")
 SET(CMAKE_CPACK_COMMAND  "@CMAKE_CPACK_COMMAND@")
 SET(CMAKE_COMMAND  "@CMAKE_COMMAND@")
-SET(BZR_EXECUTABLE "@BZR_EXECUTABLE@")
 SET(GIT_EXECUTABLE "@GIT_EXECUTABLE@")
 SET(GTAR_EXECUTABLE "@GTAR_EXECUTABLE@")
 SET(TAR_EXECUTABLE "@TAR_EXECUTABLE@")
@@ -40,38 +39,8 @@ SET(PACKAGE_DIR  ${CMAKE_BINARY_DIR}/${CPACK_SOURCE_PACKAGE_FILE_NAME})
 FILE(REMOVE_RECURSE ${PACKAGE_DIR})
 FILE(REMOVE ${PACKAGE_DIR}.tar.gz )
 
-# Only allow bzr if source dir itself is a bzr repository
-IF(BZR_EXECUTABLE)
-  EXECUTE_PROCESS(
-    COMMAND "${BZR_EXECUTABLE}" root
-    OUTPUT_VARIABLE BZR_ROOT
-    ERROR_VARIABLE BZR_ROOT_ERROR
-    OUTPUT_STRIP_TRAILING_WHITESPACE
-    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-    RESULT_VARIABLE RESULT
-  )
-
-  IF(NOT RESULT EQUAL 0 OR NOT BZR_ROOT STREQUAL ${CMAKE_SOURCE_DIR})
-    MESSAGE(STATUS "This is not a bzr repository")
-    SET(BZR_EXECUTABLE)
-  ENDIF()
-ENDIF()
-
-IF(BZR_EXECUTABLE)
-  MESSAGE(STATUS "Running bzr export")
-  EXECUTE_PROCESS(
-    COMMAND "${BZR_EXECUTABLE}" export 
-    ${PACKAGE_DIR}
-    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-    RESULT_VARIABLE RESULT
-  )
-
-  IF(NOT RESULT EQUAL 0)
-    SET(BZR_EXECUTABLE)
-  ENDIF()
-ENDIF()
-
-IF(GIT_EXECUTABLE AND NOT BZR_EXECUTABLE)
+# Only allow git if source dir itself is a git repository
+IF(GIT_EXECUTABLE)
   EXECUTE_PROCESS(
     COMMAND "${GIT_EXECUTABLE}" rev-parse --show-toplevel
     OUTPUT_VARIABLE GIT_ROOT
@@ -87,7 +56,7 @@ IF(GIT_EXECUTABLE AND NOT BZR_EXECUTABLE)
   ENDIF()
 ENDIF()
 
-IF(GIT_EXECUTABLE AND NOT BZR_EXECUTABLE)
+IF(GIT_EXECUTABLE)
   MESSAGE(STATUS "Running git archive -o ${PACKAGE_DIR}.tar")
   EXECUTE_PROCESS(
     COMMAND "${GIT_EXECUTABLE}" archive --format=tar
@@ -116,8 +85,8 @@ IF(GIT_EXECUTABLE AND NOT BZR_EXECUTABLE)
   ENDIF()
 ENDIF()
 
-IF(NOT BZR_EXECUTABLE AND NOT GIT_EXECUTABLE)
-  MESSAGE(STATUS "bzr/git not found or source dir is not a repo, use CPack")
+IF(NOT GIT_EXECUTABLE)
+  MESSAGE(STATUS "git not found or source dir is not a repo, use CPack")
   
   IF(CMAKE_SOURCE_DIR STREQUAL CMAKE_BINARY_DIR)
     # In-source build is the worst option, we have to cleanup source tree.

@@ -39,9 +39,9 @@ SET(CMAKE_SYSTEM_PROCESSOR "@CMAKE_SYSTEM_PROCESSOR@")
  
  
 # Create an "INFO_SRC" file with information about the source (only).
-# We use "bzr version-info", if possible, and the "VERSION" contents.
+# We use "git log", if possible, and the "VERSION" contents.
 #
-# Outside development (BZR tree), the "INFO_SRC" file will not be modified
+# Outside development (git tree), the "INFO_SRC" file will not be modified
 # provided it exists (from "make dist" or a source tarball creation).
 
 MACRO(CREATE_INFO_SRC target_dir)
@@ -83,7 +83,7 @@ MACRO(CREATE_INFO_SRC target_dir)
     FILE(APPEND ${INFO_SRC}
       "MySQL source ${MAJOR_VERSION}.${MINOR_VERSION}.${PATCH_VERSION}\n")
   ELSEIF(EXISTS ${INFO_SRC})
-    # Outside a BZR tree, there is no need to change an existing "INFO_SRC",
+    # Outside a git tree, there is no need to change an existing "INFO_SRC",
     # it cannot be improved.
   ELSEIF(EXISTS ${CMAKE_SOURCE_DIR}/Docs/INFO_SRC)
     # If we are building from a source distribution, it also contains "INFO_SRC".
