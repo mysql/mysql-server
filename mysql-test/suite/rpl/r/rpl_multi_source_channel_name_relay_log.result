@@ -65,6 +65,11 @@ include/rpl_stop_slaves.inc
 Warnings:
 Note	1970	Replication thread(s) for channel 'channel1' are already stopped.
 RESET SLAVE ALL;
+#
+# We have to reset the --relay-log and --relay-log-index options,
+# so that in the  next test case if the server restarts there is no mismatch
+# with the current options and the default option (i.e relay-log=slave-relay-bin)
+#
 CHANGE MASTER TO MASTER_HOST="127.0.0.1", MASTER_PORT=MYPORT,
 MASTER_USER="root";
 include/start_slave.inc
