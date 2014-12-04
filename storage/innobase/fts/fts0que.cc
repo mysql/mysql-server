@@ -1514,7 +1514,8 @@ fts_merge_doc_ids(
 {
 	const ib_rbt_node_t*	node;
 
-	ut_a(!rbt_empty(doc_ids));
+	DBUG_ENTER("fts_merge_doc_ids");
+
 	ut_a(!query->intersection);
 
 	/* To process FTS_EXIST operation (intersection), we need
@@ -1539,7 +1540,7 @@ fts_merge_doc_ids(
 				query, ranking->doc_id, ranking->rank);
 
 		if (query->error != DB_SUCCESS) {
-			return(query->error);
+			DBUG_RETURN(query->error);
 		}
 
 		/* Merge words. Don't need to take operator into account. */
@@ -1558,7 +1559,7 @@ fts_merge_doc_ids(
 		query->intersection = NULL;
 	}
 
-	return(DB_SUCCESS);
+	DBUG_RETURN(DB_SUCCESS);
 }
 
 /*****************************************************************//**
@@ -2975,11 +2976,11 @@ fts_query_visitor(
 	fts_query_t*	query = static_cast<fts_query_t*>(arg);
 
 	ut_a(node);
+	DBUG_ENTER("fts_query_visitor");
+	DBUG_PRINT("fts", ("nodetype: %s", fts_ast_node_type_get(node->type)));
 
 	token.f_n_char = 0;
-
 	query->oper = oper;
-
 	query->cur_node = node;
 
 	switch (node->type) {
@@ -3055,7 +3056,7 @@ fts_query_visitor(
 		query->multi_exist = true;
 	}
 
-	return(query->error);
+	DBUG_RETURN(query->error);
 }
 
 /*****************************************************************//**
@@ -3077,6 +3078,8 @@ fts_ast_visit_sub_exp(
 	dberr_t			error = DB_SUCCESS;
 	bool			will_be_ignored = false;
 	bool			multi_exist;
+
+	DBUG_ENTER("fts_ast_visit_sub_exp");
 
 	ut_a(node->type == FTS_AST_SUBEXP_LIST);
 
@@ -3106,14 +3109,14 @@ fts_ast_visit_sub_exp(
 	/* Merge the sub-expression result with the parent result set. */
 	subexpr_doc_ids = query->doc_ids;
 	query->doc_ids = parent_doc_ids;
-	if (error == DB_SUCCESS && !rbt_empty(subexpr_doc_ids)) {
+	if (error == DB_SUCCESS) {
 		error = fts_merge_doc_ids(query, subexpr_doc_ids);
 	}
 
 	/* Free current result set. Result already merged into parent. */
 	fts_query_free_doc_ids(query, subexpr_doc_ids);
 
-	return(error);
+	DBUG_RETURN(error);
 }
 
 #if 0
@@ -3591,8 +3594,10 @@ fts_retrieve_ranking(
 	ib_rbt_bound_t		parent;
 	fts_ranking_t		new_ranking;
 
+	DBUG_ENTER("fts_retrieve_ranking");
+
 	if (!result || !result->rankings_by_id) {
-		return(0);
+		DBUG_RETURN(0);
 	}
 
 	new_ranking.doc_id = doc_id;
@@ -3603,10 +3608,10 @@ fts_retrieve_ranking(
 
 		ranking = rbt_value(fts_ranking_t, parent.last);
 
-		return(ranking->rank);
+		DBUG_RETURN(ranking->rank);
 	}
 
-	return(0);
+	DBUG_RETURN(0);
 }
 
 /*****************************************************************//**
@@ -3622,6 +3627,8 @@ fts_query_prepare_result(
 {
 	const ib_rbt_node_t*	node;
 	bool			result_is_null = false;
+
+	DBUG_ENTER("fts_query_prepare_result");
 
 	if (result == NULL) {
 		result = static_cast<fts_result_t*>(
@@ -3670,7 +3677,7 @@ fts_query_prepare_result(
 			if (query->total_size > fts_result_cache_limit) {
 				query->error = DB_FTS_EXCEED_RESULT_CACHE_LIMIT;
 				fts_query_free_result(result);
-				return(NULL);
+				DBUG_RETURN(NULL);
 			}
 		}
 
@@ -3693,7 +3700,7 @@ fts_query_prepare_result(
 				ranking->rank * word_freq->idf * word_freq->idf);
 		}
 
-		return(result);
+		DBUG_RETURN(result);
 	}
 
 	ut_a(rbt_size(query->doc_ids) > 0);
@@ -3720,7 +3727,7 @@ fts_query_prepare_result(
 			 if (query->total_size > fts_result_cache_limit) {
 				query->error = DB_FTS_EXCEED_RESULT_CACHE_LIMIT;
 				fts_query_free_result(result);
-				return(NULL);
+				DBUG_RETURN(NULL);
                         }
 		}
 	}
@@ -3732,7 +3739,7 @@ fts_query_prepare_result(
 		query->doc_ids = NULL;
 	}
 
-	return(result);
+	DBUG_RETURN(result);
 }
 
 /*****************************************************************//**
@@ -3744,6 +3751,8 @@ fts_query_get_result(
 	fts_query_t*		query,	/*!< in: query instance */
 	fts_result_t*		result)	/*!< in: result */
 {
+	DBUG_ENTER("fts_query_get_result");
+
 	if (rbt_size(query->doc_ids) > 0 || query->flags == FTS_OPT_RANKING) {
 		/* Copy the doc ids to the result. */
 		result = fts_query_prepare_result(query, result);
@@ -3753,7 +3762,7 @@ fts_query_get_result(
 			ut_zalloc_nokey(sizeof(*result)));
 	}
 
-	return(result);
+	DBUG_RETURN(result);
 }
 
 /*****************************************************************//**
@@ -3836,6 +3845,7 @@ fts_query_parse(
 	int		error;
 	fts_ast_state_t state;
 	bool		mode = query->boolean_mode;
+	DBUG_ENTER("fts_query_parse");
 
 	memset(&state, 0x0, sizeof(state));
 
@@ -3870,7 +3880,7 @@ fts_query_parse(
 		}
 	}
 
-	return(state.root);
+	DBUG_RETURN(state.root);
 }
 
 /*******************************************************************//**
