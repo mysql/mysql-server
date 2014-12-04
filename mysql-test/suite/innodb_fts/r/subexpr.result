@@ -1,0 +1,105 @@
+#
+# Bug #20028323 INNODB FULLTEXT BOOLEAN SEARCH INCORRECTLY HANDLES
+# PARENTHESES
+#
+CREATE TABLE t1 (
+f1 INT NOT NULL AUTO_INCREMENT,
+f2 TEXT NOT NULL,
+PRIMARY KEY (f1),
+FULLTEXT (f2)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+INSERT INTO t1 (f2) VALUES
+('Pumpkin soup with cheese bread'),
+('Yellow chicken curry'),
+('Fresh green vegetables with garlic');
+SELECT * FROM t1 WHERE MATCH(f2) AGAINST('+pumpkin' IN BOOLEAN MODE);
+f1	f2
+1	Pumpkin soup with cheese bread
+SELECT * FROM t1 WHERE MATCH(f2) AGAINST('+cheese' IN BOOLEAN MODE);
+f1	f2
+1	Pumpkin soup with cheese bread
+SELECT * FROM t1 WHERE MATCH(f2) AGAINST('+(pumpkin cheese)' IN BOOLEAN MODE);
+f1	f2
+1	Pumpkin soup with cheese bread
+SELECT * FROM t1 WHERE MATCH(f2)
+AGAINST('+pumpkin +(souffle)' IN BOOLEAN MODE);
+f1	f2
+SELECT * FROM t1 WHERE MATCH(f2)
+AGAINST('+pumpkin +(souffle tart)' IN BOOLEAN MODE);
+f1	f2
+SELECT * FROM t1 WHERE MATCH(f2)
+AGAINST('+pumpkin +(>souffle <tart)' IN BOOLEAN MODE);
+f1	f2
+SELECT * FROM t1 WHERE MATCH(f2)
+AGAINST('+pumpkin +(souffle tart)' IN BOOLEAN MODE);
+f1	f2
+INSERT INTO t1 (f2) VALUES
+('This row contains only souffle'),
+('This row contains only tart'),
+('This row contains only pumpkin'),
+('This row contains only cheese'),
+('This row contains pumpkin and souffle'),
+('This row contains pumpkin and tart'),
+('This row contains pumpkin and cheese'),
+('This row contains both souffle and tart'),
+('This row contains both souffle and cheese'),
+('This row contains both tart and cheese'),
+('This row contains all three souffle, pumpkin and  tart'),
+('This row contains all four cheese, souffle, pumpkin and  tart');
+SELECT * FROM t1 WHERE MATCH(f2) AGAINST('+pumpkin' IN BOOLEAN MODE);
+f1	f2
+1	Pumpkin soup with cheese bread
+6	This row contains only pumpkin
+8	This row contains pumpkin and souffle
+9	This row contains pumpkin and tart
+10	This row contains pumpkin and cheese
+14	This row contains all three souffle, pumpkin and  tart
+15	This row contains all four cheese, souffle, pumpkin and  tart
+SELECT * FROM t1 WHERE MATCH(f2) AGAINST('+cheese' IN BOOLEAN MODE);
+f1	f2
+1	Pumpkin soup with cheese bread
+7	This row contains only cheese
+10	This row contains pumpkin and cheese
+12	This row contains both souffle and cheese
+13	This row contains both tart and cheese
+15	This row contains all four cheese, souffle, pumpkin and  tart
+SELECT * FROM t1 WHERE MATCH(f2) AGAINST('+(pumpkin cheese)' IN BOOLEAN MODE);
+f1	f2
+1	Pumpkin soup with cheese bread
+10	This row contains pumpkin and cheese
+15	This row contains all four cheese, souffle, pumpkin and  tart
+7	This row contains only cheese
+12	This row contains both souffle and cheese
+13	This row contains both tart and cheese
+6	This row contains only pumpkin
+8	This row contains pumpkin and souffle
+9	This row contains pumpkin and tart
+14	This row contains all three souffle, pumpkin and  tart
+SELECT * FROM t1 WHERE MATCH(f2)
+AGAINST('+pumpkin +(souffle)' IN BOOLEAN MODE);
+f1	f2
+8	This row contains pumpkin and souffle
+14	This row contains all three souffle, pumpkin and  tart
+15	This row contains all four cheese, souffle, pumpkin and  tart
+SELECT * FROM t1 WHERE MATCH(f2)
+AGAINST('+pumpkin +(souffle tart)' IN BOOLEAN MODE);
+f1	f2
+14	This row contains all three souffle, pumpkin and  tart
+15	This row contains all four cheese, souffle, pumpkin and  tart
+8	This row contains pumpkin and souffle
+9	This row contains pumpkin and tart
+SELECT * FROM t1 WHERE MATCH(f2)
+AGAINST('+pumpkin +(>souffle <tart)' IN BOOLEAN MODE);
+f1	f2
+8	This row contains pumpkin and souffle
+14	This row contains all three souffle, pumpkin and  tart
+15	This row contains all four cheese, souffle, pumpkin and  tart
+9	This row contains pumpkin and tart
+SELECT * FROM t1 WHERE MATCH(f2)
+AGAINST('+pumpkin +(souffle tart)' IN BOOLEAN MODE);
+f1	f2
+14	This row contains all three souffle, pumpkin and  tart
+15	This row contains all four cheese, souffle, pumpkin and  tart
+8	This row contains pumpkin and souffle
+9	This row contains pumpkin and tart
+DROP TABLE t1;
