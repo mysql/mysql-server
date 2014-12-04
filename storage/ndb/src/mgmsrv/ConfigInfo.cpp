@@ -2074,6 +2074,19 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "1"                      /* Max */
   },
 
+  {
+    CFG_DB_PARALLEL_COPY_THREADS,
+    "MaxParallelCopyInstances",
+    DB_TOKEN,
+    "Number of parallel copies during node restarts, 0 means default",
+    ConfigInfo::CI_USED,
+    false,
+    ConfigInfo::CI_INT,
+    "0",
+    "0",                     /* Min */
+    "64"                      /* Max */
+  },
+
 
   {
     CFG_DB_2PASS_INR,

@@ -218,6 +218,7 @@
 
 /* <= 641 used */
 #define CFG_MIXOLOGY_LEVEL            642
+#define CFG_DB_PARALLEL_COPY_THREADS  643
 
 #define CFG_NODE_ARBIT_RANK           200
 #define CFG_NODE_ARBIT_DELAY          201
