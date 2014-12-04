@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -38,13 +38,14 @@ static char base64_table[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 /* *************************************************************
  * HugoCalculator
  *
- *  Comon class for the Hugo test suite, provides the functions 
+ *  Common class for the Hugo test suite, provides the functions 
  *  that is used for calculating values to load in to table and 
  *  also knows how to verify a row that's been read from db 
  *
  * ************************************************************/
-HugoCalculator::HugoCalculator(const NdbDictionary::Table& tab) : m_tab(tab) {
-
+HugoCalculator::HugoCalculator(const NdbDictionary::Table& tab)
+  : m_tab(tab), m_idCol(-1), m_updatesCol(-1)
+{
   // The "id" column of this table is found in the first integer column
   int i;
   for (i=0; i<m_tab.getNoOfColumns(); i++){ 
@@ -69,7 +70,9 @@ HugoCalculator::HugoCalculator(const NdbDictionary::Table& tab) : m_tab(tab) {
   ndbout << "updatesCol = " << m_updatesCol << endl;
 #endif
   // Check that idCol is not conflicting with updatesCol
-  require(m_idCol != m_updatesCol && m_idCol != -1 && m_updatesCol != -1);
+  require(m_idCol != -1);
+  require(m_updatesCol != -1);
+  require(m_idCol != m_updatesCol);
 }
 
 Int32
