@@ -130,7 +130,9 @@ create_random_table(Ndb* pNdb)
 {
   do {
     NdbDictionary::Table tab;
-    Uint32 cols = 1 + (rand() % (NDB_MAX_ATTRIBUTES_IN_TABLE - 1));
+
+    // Table need as minimum a PK and an 'Update count' column
+    Uint32 cols = 2 + (rand() % (NDB_MAX_ATTRIBUTES_IN_TABLE - 2));
     const Uint32 maxLength = 4090;
     Uint32 length = maxLength;
     Uint8  defbuf[(maxLength + 7)/8];
@@ -269,7 +271,8 @@ void rand(Uint32 dst[], Uint32 len)
 static
 int checkCopyField(const Uint32 totalTests)
 {
-  ndbout << "Testing : Checking Bitmaskimpl::copyField";
+  ndbout << "Testing : Checking Bitmaskimpl::copyField"
+         << endl;
 
   const Uint32 numWords= 95;
   const Uint32 maxBitsToCopy= (numWords * 32);
@@ -342,7 +345,8 @@ int checkNoTramplingGetSetField(const Uint32 totalTests)
   Uint32 sourceBuf[numWords];
   Uint32 targetBuf[numWords];
 
-  ndbout << "Testing : Bitmask NoTrampling\n";
+  ndbout << "Testing : Bitmask NoTrampling"
+         << endl;
 
   memset(sourceBuf, 0x00, (numWords*4));
 
@@ -427,7 +431,9 @@ int checkNoTramplingGetSetField(const Uint32 totalTests)
 static
 int simple(int pos, int size)
 {
-  ndbout << "Testing : Bitmask simple pos: " << pos << " size: " << size << "\n";
+  ndbout << "Testing : Bitmask simple pos: " << pos << " size: " << size
+         << endl;
+
   Vector<Uint32> _mask;
   Vector<Uint32> _src;
   Vector<Uint32> _dst;
