@@ -1650,7 +1650,8 @@ String *Item_func_make_envelope::val_str(String *str)
 
   if (geom1->get_srid() != geom2->get_srid())
   {
-    my_error(ER_GIS_DIFFERENT_SRIDS, MYF(0), func_name());
+    my_error(ER_GIS_DIFFERENT_SRIDS, MYF(0), func_name(),
+             geom1->get_srid(), geom2->get_srid());
     return error_str();
   }
   
