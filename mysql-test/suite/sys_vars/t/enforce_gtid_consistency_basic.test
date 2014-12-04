@@ -11,8 +11,10 @@ select @@global.enforce_gtid_consistency;
 select @@session.enforce_gtid_consistency;
 show global variables like 'enforce_gtid_consistency';
 show session variables like 'enforce_gtid_consistency';
+--disable_warnings
 select * from information_schema.global_variables where variable_name='enforce_gtid_consistency';
 select * from information_schema.session_variables where variable_name='enforce_gtid_consistency';
+--enable_warnings
 
 #
 # show that it isn't writable now

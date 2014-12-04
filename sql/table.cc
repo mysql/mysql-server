@@ -17,7 +17,6 @@
 /* Some general useful functions */
 
 #include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
-#include "sql_priv.h"
 #include "table.h"
 #include "key.h"                                // find_ref_key
 #include "sql_table.h"                          // build_table_filename,
@@ -40,6 +39,9 @@
 #include "table_cache.h"         // table_cache_manager
 #include "sql_view.h"
 #include "debug_sync.h"
+#include "log.h"
+#include "binlog.h"
+
 
 /* INFORMATION_SCHEMA name */
 LEX_STRING INFORMATION_SCHEMA_NAME= {C_STRING_WITH_LEN("information_schema")};
@@ -2794,6 +2796,14 @@ partititon_err:
 
       switch (ha_err)
       {
+	case HA_ERR_TABLESPACE_MISSING:
+          /*
+            In case of Innodb table space header may be corrupted or
+	    ibd file might be missing
+          */
+          error= 1;
+          DBUG_ASSERT(my_errno == HA_ERR_TABLESPACE_MISSING);
+          break;
         case HA_ERR_NO_SUCH_TABLE:
 	  /*
             The table did not exists in storage engine, use same error message
@@ -3112,10 +3122,16 @@ void open_table_error(TABLE_SHARE *share, int error, int db_errno, int errarg)
   switch (error) {
   case 7:
   case 1:
-    if (db_errno == ENOENT)
+    switch (db_errno) {
+    case ENOENT:
       my_error(ER_NO_SUCH_TABLE, MYF(0), share->db.str, share->table_name.str);
-    else
-    {
+      break;
+    case HA_ERR_TABLESPACE_MISSING:
+      my_snprintf(errbuf, MYSYS_STRERROR_SIZE, "`%s`.`%s`", share->db.str,
+                  share->table_name.str);
+      my_error(ER_TABLESPACE_MISSING, MYF(0), errbuf);
+      break;
+    default:
       strxmov(buff, share->normalized_path.str, reg_ext, NullS);
       my_error((db_errno == EMFILE) ? ER_CANT_OPEN_FILE : ER_FILE_NOT_FOUND,
                errortype, buff,
@@ -3126,7 +3142,7 @@ void open_table_error(TABLE_SHARE *share, int error, int db_errno, int errarg)
   {
     handler *file= 0;
     const char *datext= "";
-    
+
     if (share->db_type() != NULL)
     {
       if ((file= get_new_handler(share, current_thd->mem_root,

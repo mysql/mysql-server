@@ -23,7 +23,6 @@
   This file implements classes defined in field.h
 */
 
-#include "sql_priv.h"
 #include "sql_select.h"
 #include "rpl_rli.h"                            // Pull in Relay_log_info
 #include "rpl_slave.h"                          // Pull in rpl_master_has_bug()

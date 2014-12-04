@@ -14,7 +14,6 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include <my_global.h>
-#include "sql_priv.h"
 #include "rpl_slave.h"
 #include "rpl_info_factory.h"
 
@@ -345,7 +344,8 @@ bool Rpl_info_factory::reset_workers(Relay_log_info *rli)
     goto err;
 
   if (Rpl_info_table::do_reset_info(Slave_worker::get_number_worker_fields(),
-                                    MYSQL_SCHEMA_NAME.str, WORKER_INFO_NAME.str))
+                                    MYSQL_SCHEMA_NAME.str, WORKER_INFO_NAME.str,
+                                    rli->channel, Slave_worker::LINE_FOR_CHANNEL))
     goto err;
 
   error= false;
@@ -568,7 +568,7 @@ bool Rpl_info_factory::decide_repository(Rpl_info *info, uint option,
               (*handler_src) != (*handler_dest));
 
   return_check_src= check_src_repository(info, option, handler_src);
-  return_check_dst= (*handler_dest)->do_check_info(info->get_internal_id());
+  return_check_dst= (*handler_dest)->do_check_info(info->get_internal_id()); // approx via scan, not field_values!
 
   if (return_check_src == ERROR_CHECKING_REPOSITORY ||
       return_check_dst == ERROR_CHECKING_REPOSITORY)

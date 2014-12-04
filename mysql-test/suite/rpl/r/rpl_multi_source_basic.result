@@ -143,14 +143,17 @@ t33
 include/assert.inc [Slave should have 10 rows in dbcommon.t11]
 include/assert.inc [Slave should have 10 rows in dbcommon.t33]
 #
-# Stop slave (on server_2) for test case 3.
-#
-include/rpl_stop_slaves.inc
-#
 # Test case 3: 3.a) Update nonconflicting data on the same table
 #                 and see if they are replicated to the slave.
 [connection server_1]
 CREATE TABLE dbcommon.t101(a int, PRIMARY KEY (a));
+[connection server_1]
+include/sync_slave_sql_with_master.inc
+#
+# Stop slave (on server_2) for test case 3.
+#
+include/rpl_stop_slaves.inc
+[connection server_1]
 INSERT INTO dbcommon.t101 values (101*10);
 INSERT INTO dbcommon.t101 values (101*9);
 INSERT INTO dbcommon.t101 values (101*8);

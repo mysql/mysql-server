@@ -230,18 +230,22 @@ SELECT @@session.max_insert_delayed_threads;
 Warnings:
 Warning	1287	'@@max_insert_delayed_threads' is deprecated and will be removed in a future release.
 '#------------------FN_DYNVARS_075_06-----------------------#'
-SELECT @@global.max_insert_delayed_threads = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
-WHERE VARIABLE_NAME='max_insert_delayed_threads';
-@@global.max_insert_delayed_threads = VARIABLE_VALUE
+SELECT VARIABLE_VALUE 
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+WHERE VARIABLE_NAME='max_insert_delayed_threads'
+into @tmp;
+SELECT @@global.max_insert_delayed_threads = @tmp;
+@@global.max_insert_delayed_threads = @tmp
 1
 Warnings:
 Warning	1287	'@@max_insert_delayed_threads' is deprecated and will be removed in a future release.
 '#------------------FN_DYNVARS_075_07-----------------------#'
-SELECT @@session.max_insert_delayed_threads = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
-WHERE VARIABLE_NAME='max_insert_delayed_threads';
-@@session.max_insert_delayed_threads = VARIABLE_VALUE
+SELECT VARIABLE_VALUE 
+FROM INFORMATION_SCHEMA.SESSION_VARIABLES
+WHERE VARIABLE_NAME='max_insert_delayed_threads'
+into @tmp;
+SELECT @@session.max_insert_delayed_threads = @tmp;
+@@session.max_insert_delayed_threads = @tmp
 1
 Warnings:
 Warning	1287	'@@max_insert_delayed_threads' is deprecated and will be removed in a future release.

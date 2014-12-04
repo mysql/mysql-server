@@ -52,17 +52,21 @@ SELECT COUNT(@@GLOBAL.innodb_locks_unsafe_for_binlog);
 # Check if the value in GLOBAL Table matches value in variable  #
 #################################################################
 
+--disable_warnings
 SELECT IF(@@GLOBAL.innodb_locks_unsafe_for_binlog, "ON", "OFF") = VARIABLE_VALUE
 FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
 WHERE VARIABLE_NAME='innodb_locks_unsafe_for_binlog';
+--enable_warnings
 --echo 1 Expected
 
 SELECT COUNT(@@GLOBAL.innodb_locks_unsafe_for_binlog);
 --echo 1 Expected
 
+--disable_warnings
 SELECT COUNT(VARIABLE_VALUE)
 FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
 WHERE VARIABLE_NAME='innodb_locks_unsafe_for_binlog';
+--enable_warnings
 --echo 1 Expected
 
 

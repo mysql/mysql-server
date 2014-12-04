@@ -7,8 +7,10 @@ select @@global.report_host;
 select @@session.report_host;
 show global variables like 'report_host';
 show session variables like 'report_host';
+--disable_warnings
 select * from information_schema.global_variables where variable_name='report_host';
 select * from information_schema.session_variables where variable_name='report_host';
+--enable_warnings
 
 #
 # show that it's read-only

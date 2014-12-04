@@ -1490,6 +1490,25 @@ public:
     LEX *lex= thd->lex;
     set_var_password *var;
 
+    /*
+      In case of anonymous user, user->user is set to empty string with
+      length 0. But there might be case when user->user.str could be NULL.
+      For Ex: "set password for current_user() = password('xyz');".
+      In this case, set user information as of the current user.
+    */
+    if (!user->user.str)
+    {
+      DBUG_ASSERT(thd->security_ctx->priv_user);
+      user->user.str= thd->security_ctx->priv_user;
+      user->user.length= strlen(thd->security_ctx->priv_user);
+    }
+    if (!user->host.str)
+    {
+      DBUG_ASSERT(thd->security_ctx->priv_host);
+      user->host.str= (char *) thd->security_ctx->priv_host;
+      user->host.length= strlen(thd->security_ctx->priv_host);
+    }
+
     var= new set_var_password(user, const_cast<char *>(password));
     if (var == NULL)
       return true;

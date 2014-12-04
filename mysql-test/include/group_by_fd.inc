@@ -919,4 +919,80 @@ DROP TABLE t1;
 
 DROP VIEW v1;
 
+--echo #
+--echo # Bug #20031708 ASSERT ON GROUP_CHECK::IS_FD_ON_SOURCE
+--echo #
+
+CREATE TABLE t1 (
+  col_varchar_10_utf8 VARCHAR(10) CHARACTER SET utf8,
+  col_int_key INT,
+  pk INT PRIMARY KEY
+);
+
+CREATE TABLE t2 (
+  col_varchar_10_utf8 VARCHAR(10) CHARACTER SET utf8 DEFAULT NULL,
+  col_int_key INT DEFAULT NULL,
+  pk INT PRIMARY KEY
+);
+
+CREATE VIEW v2 AS SELECT * FROM t2;
+
+# The reporter's testcase:
+
+let $query=
+SELECT COUNT(*), t1.col_int_key
+FROM v2 LEFT OUTER JOIN t1
+     ON v2.col_varchar_10_utf8 = t1.col_varchar_10_utf8
+WHERE v2.pk = 4;
+
+--error ER_MIX_OF_GROUP_FUNC_AND_FIELDS
+eval $query;
+
+DROP VIEW v2;
+
+# A variant: one column is an expression:
+CREATE VIEW v2 AS SELECT
+ CONCAT(col_varchar_10_utf8,' ') AS col_varchar_10_utf8,
+ col_int_key,
+ pk
+FROM t2;
+
+--error ER_MIX_OF_GROUP_FUNC_AND_FIELDS
+eval $query;
+
+DROP VIEW v2;
+
+# Query used in the commit comment: view column involving two tables
+CREATE VIEW v2 AS
+ SELECT t1.pk, t2.col_int_key+1 as c, t1.pk+t2.col_int_key as p
+ FROM t1, t2;
+
+# FDs will be discovered in this order: {}->v2.pk, v2.pk->v2.c,
+# v2.c->v2.p
+SELECT COUNT(*), v2.p
+FROM v2
+WHERE v2.c=v2.p and v2.c=v2.pk AND v2.pk = 4;
+DROP VIEW v2;
+
+# Show that even if in a view a base table's pk is determined,
+# a function of this base table's columns may not be determined when
+# used in an outer query.
+# In this view's result, pk->coa:
+CREATE ALGORITHM=MERGE VIEW v2 AS
+ SELECT t2.pk, COALESCE(t2.pk, 3) AS coa
+ FROM t1 LEFT JOIN t2 ON 0;
+
+# But pk->coa does not hold in the result of this query using the
+# view, because the FD in the view is not NFFD; if there is
+# NULL-complementing in the LEFT JOIN below then (pk,coa) will be
+# (NULL,NULL) and if there is not it will be (NULL,3): v2.coa is not
+# determined by v2.pk.
+--error ER_WRONG_FIELD_WITH_GROUP
+SELECT v2.pk, v2.coa
+ FROM t1 LEFT JOIN v2 AS v2 ON 0
+ GROUP BY v2.pk;
+
+DROP VIEW v2;
+DROP TABLE t1,t2;
+
 DROP FUNCTION show_json_object;

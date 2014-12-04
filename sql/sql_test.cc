@@ -17,7 +17,6 @@
 /* Write some debug info */
 
 
-#include "sql_priv.h"
 #include "sql_test.h"
 #include "sql_base.h" // table_def_cache, table_cache_count, unused_tables
 #include "sql_show.h" // calc_sum_of_all_status

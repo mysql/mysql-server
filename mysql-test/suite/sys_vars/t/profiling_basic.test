@@ -15,8 +15,10 @@ select @@global.profiling;
 select @@session.profiling;
 show global variables like 'profiling';
 show session variables like 'profiling';
+--disable_warnings
 select * from information_schema.global_variables where variable_name='profiling';
 select * from information_schema.session_variables where variable_name='profiling';
+--enable_warnings
 
 #
 # show that it's writable
@@ -27,16 +29,20 @@ select @@global.profiling;
 select @@session.profiling;
 show global variables like 'profiling';
 show session variables like 'profiling';
+--disable_warnings
 select * from information_schema.global_variables where variable_name='profiling';
 select * from information_schema.session_variables where variable_name='profiling';
+--enable_warnings
 set global profiling=0;
 set session profiling=OFF;
 select @@global.profiling;
 select @@session.profiling;
 show global variables like 'profiling';
 show session variables like 'profiling';
+--disable_warnings
 select * from information_schema.global_variables where variable_name='profiling';
 select * from information_schema.session_variables where variable_name='profiling';
+--enable_warnings
 
 #
 # incorrect types

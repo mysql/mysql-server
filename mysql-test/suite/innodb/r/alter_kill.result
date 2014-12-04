@@ -20,9 +20,9 @@ INSERT INTO bug16720368_1 VALUES(1);
 # The table is unaccessible, because after a crash we will
 # validate the tablespace header.
 SELECT COUNT(*) FROM bug16720368;
-ERROR 42S02: Table 'test.bug16720368' doesn't exist
+ERROR HY000: Tablespace is missing for table `test`.`bug16720368`.
 INSERT INTO bug16720368 VALUES(0,1);
-ERROR 42S02: Table 'test.bug16720368' doesn't exist
+ERROR HY000: Tablespace is missing for table `test`.`bug16720368`.
 # Kill and restart: --innodb-force-recovery=3
 # The table is readable thanks to innodb-force-recovery.
 SELECT COUNT(*) FROM bug16720368;

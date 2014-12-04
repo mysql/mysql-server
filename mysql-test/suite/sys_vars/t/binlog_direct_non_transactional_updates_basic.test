@@ -45,18 +45,22 @@ SELECT @@SESSION.binlog_direct_non_transactional_updates;
 # Check if the value in GLOBAL Table matches value in variable  #
 #################################################################
 
+--disable_warnings
 SELECT
 IF(@@GLOBAL.binlog_direct_non_transactional_updates, "ON", "OFF") = VARIABLE_VALUE
 FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
 WHERE VARIABLE_NAME='binlog_direct_non_transactional_updates';
+--enable_warnings
 --echo 1 Expected
 
 SELECT COUNT(@@GLOBAL.binlog_direct_non_transactional_updates);
 --echo 1 Expected
 
+--disable_warnings
 SELECT COUNT(VARIABLE_VALUE)
 FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
 WHERE VARIABLE_NAME='binlog_direct_non_transactional_updates';
+--enable_warnings
 --echo 1 Expected
 
 
@@ -65,18 +69,22 @@ WHERE VARIABLE_NAME='binlog_direct_non_transactional_updates';
 # Check if the value in SESSION Table matches value in variable #
 #################################################################
 
+--disable_warnings
 SELECT
 IF(@@SESSION.binlog_direct_non_transactional_updates, "ON", "OFF") = VARIABLE_VALUE
 FROM INFORMATION_SCHEMA.SESSION_VARIABLES
 WHERE VARIABLE_NAME='binlog_direct_non_transactional_updates';
+--enable_warnings
 --echo 1 Expected
 
 SELECT COUNT(@@SESSION.binlog_direct_non_transactional_updates);
 --echo 1 Expected
 
+--disable_warnings
 SELECT COUNT(VARIABLE_VALUE)
 FROM INFORMATION_SCHEMA.SESSION_VARIABLES
 WHERE VARIABLE_NAME='binlog_direct_non_transactional_updates';
+--enable_warnings
 --echo 1 Expected
 
 

@@ -17,9 +17,9 @@
 #define SQL_SHOW_H
 
 #include "sql_list.h"                           /* List */
-#include "sql_priv.h"                           /* enum_var_type */
 #include "handler.h"                            /* enum_schema_tables */
 #include "table.h"                              /* enum_schema_table_state */
+#include "set_var.h"
 
 /* Forward declarations */
 class JOIN;

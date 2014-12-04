@@ -39,6 +39,7 @@
 #include "records.h"          // rr_sequential
 #include "opt_explain_format.h" // Explain_format_flags
 #include "debug_sync.h"
+#include "log.h"
 
 #include <algorithm>
 using std::max;
