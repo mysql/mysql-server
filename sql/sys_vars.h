@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2198,7 +2198,7 @@ public:
                           previous_gtid_logged, current_gtid_logged);
 
     // Rotate logs to have Previous_gtid_event on last binlog.
-    rotate_res= mysql_bin_log.rotate_and_purge(true);
+    rotate_res= mysql_bin_log.rotate_and_purge(thd, true);
     if (rotate_res)
     {
       error= true;
