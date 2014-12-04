@@ -44,8 +44,9 @@ void Dbdih::initData()
   for(i = 0; i<MAX_NDB_NODES; i++){
     new (&nodeRecord[i]) NodeRecord();
   }
-  
-  c_takeOverPool.setSize(MAX_NDB_NODES);
+  Uint32 max_takeover_threads = MAX(MAX_NDB_NODES,
+                                    ZMAX_TAKE_OVER_THREADS);
+  c_takeOverPool.setSize(max_takeover_threads);
   {
     Ptr<TakeOverRecord> ptr;
     while (c_activeTakeOverList.seizeFirst(ptr))
@@ -54,7 +55,7 @@ void Dbdih::initData()
     }
     while (c_activeTakeOverList.first(ptr))
     {
-      releaseTakeOver(ptr);
+      releaseTakeOver(ptr, true);
     }
   }
   
@@ -134,11 +135,20 @@ Dbdih::Dbdih(Block_context& ctx):
   SimulatedBlock(DBDIH, ctx),
   c_queued_lcp_frag_rep(c_replicaRecordPool),
   c_activeTakeOverList(c_takeOverPool),
+  c_queued_for_start_takeover_list(c_takeOverPool),
+  c_queued_for_commit_takeover_list(c_takeOverPool),
+  c_active_copy_threads_list(c_takeOverPool),
+  c_completed_copy_threads_list(c_takeOverPool),
   c_waitGCPProxyList(waitGCPProxyPool),
   c_waitGCPMasterList(waitGCPMasterPool),
   c_waitEpochMasterList(waitGCPMasterPool)
 {
   BLOCK_CONSTRUCTOR(Dbdih);
+
+  c_mainTakeOverPtr.i = RNIL;
+  c_mainTakeOverPtr.p = 0;
+  c_activeThreadTakeOverPtr.i = RNIL;
+  c_activeThreadTakeOverPtr.p = 0;
 
   /* Node Recovery Status Module signals */
   addRecSignal(GSN_ALLOC_NODEID_REP, &Dbdih::execALLOC_NODEID_REP);

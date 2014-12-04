@@ -307,6 +307,7 @@ public:
     Uint32 nextReplicaNode;
     Uint32 nodeCount;
     Uint32 activeTakeOver; // Which node...
+    Uint32 activeTakeOverCount;
     Uint32 m_next_log_part;
     Uint32 nodegroupIndex;
     Uint32 m_ref_count;
@@ -759,7 +760,10 @@ public:
       ,TO_START_LOGGING = 14        // Enabling logging on all fragments
       ,TO_SL_COPY_ACTIVE = 15       // Start logging: Copy active (local)
       ,TO_SL_UPDATE_FRAG_STATE = 16 // Start logging: Create Frag (dist)
-      ,TO_END_TO = 17               // Waiting for master (EBND_TOREQ)
+      ,TO_END_TO = 17               // Waiting for master (END_TOREQ)
+      ,TO_QUEUED_UPDATE_BEFORE_STORED = 18 //Queued
+      ,TO_QUEUED_UPDATE_BEFORE_COMMIT = 19  //Queued
+      ,TO_QUEUED_SL_UPDATE_FRAG_STATE = 20  //Queued
     };
 
     /**
@@ -775,7 +779,18 @@ public:
       ,TO_MUTEX_AFTER_SWITCH_REPLICA = 6
       ,TO_WAIT_LCP = 7             // No locks, waiting for LCP
     };
-    
+    /**
+     * For node restarts we use a number of parallel take over records
+     * such that we can copy fragments from several LDM instances in
+     * parallel. Each thread will take care of a subset of LDM
+     * instances provided by knowing the number of instances and
+     * our thread id. For each replica we will then check if
+     * replica_instance_id % m_number_of_copy_threads == m_copy_thread_id.
+     */
+    Uint32 m_copy_thread_id;
+    Uint32 m_number_of_copy_threads;
+    Uint32 m_copy_threads_completed;
+
     Uint32 m_flags;       // 
     Uint32 m_senderRef;   // Who requested START_COPYREQ
     Uint32 m_senderData;  // Data of sender
@@ -964,15 +979,9 @@ private:
   void lcpFragmentMutex_locked(Signal* signal, Uint32, Uint32);
   void master_lcp_fragmentMutex_locked(Signal* signal, Uint32, Uint32);
 
-  MutexHandle2<DIH_SWITCH_PRIMARY_MUTEX> c_switchPrimaryMutexHandle;
-  void switchPrimaryMutex_locked(Signal* signal, Uint32, Uint32);
-  void switchPrimaryMutex_unlocked(Signal* signal, Uint32, Uint32);
-  void check_force_lcp(Ptr<TakeOverRecord> takeOverPtr);
-
   void switch_primary_stop_node(Signal* signal, Uint32, Uint32);
 
-  void updateToReq_fragmentMutex_locked(Signal*, Uint32, Uint32);
-
+  MutexHandle2<DIH_SWITCH_PRIMARY_MUTEX> c_switchPrimaryMutexHandle;
   MutexHandle2<DIH_FRAGMENT_INFO> c_fragmentInfoMutex_lcp;
 
   /* LCP Pausing module start */
@@ -1191,16 +1200,9 @@ private:
   
   void sendCopyTable(Signal *, CopyTableNode* ctn,
                      BlockReference ref, Uint32 reqinfo);
-  void sendUpdateFragStateReq(Signal *,
-                              Uint32 startGci,
-                              Uint32 storedType,
-                              Uint32 takeOverPtr);
   void sendDihfragreq(Signal *,
                       TabRecordPtr regTabPtr,
                       Uint32 fragId);
-
-  void sendStartTo(Signal* signal, TakeOverRecordPtr);
-  void sendUpdateTo(Signal* signal, TakeOverRecordPtr);
 
   void sendStartFragreq(Signal *,
                         TabRecordPtr regTabPtr,
@@ -1482,7 +1484,6 @@ private:
                     Uint32 startGci,
                     Uint32 stopGci);
   void initFragstore(FragmentstorePtr regFragptr);
-  void insertBackup(FragmentstorePtr regFragptr, Uint32 nodeId);
   void insertfraginfo(FragmentstorePtr regFragptr,
                       Uint32 noOfBackups,
                       Uint32* nodeArray);
@@ -1537,39 +1538,9 @@ private:
   void initTable(TabRecordPtr regTabPtr);
   void initTableFile(TabRecordPtr regTabPtr);
   void releaseTable(TabRecordPtr tabPtr);
-  bool findTakeOver(Ptr<TakeOverRecord> & ptr, Uint32 failedNodeId);
+
   void handleTakeOverMaster(Signal *, Uint32 takeOverPtr);
   void handleTakeOverNewMaster(Signal *, Uint32 takeOverPtr);
-
-//------------------------------------
-// TakeOver Record specific methods
-//------------------------------------
-  void releaseTakeOver(TakeOverRecordPtr);
-  void abortTakeOver(Signal*, TakeOverRecordPtr);
-  bool anyActiveTakeOver();
-  void checkToCopy();
-  void checkToCopyCompleted(Signal *);
-  bool checkToInterrupted(TakeOverRecordPtr& regTakeOverptr);
-  Uint32 getStartNode(Uint32 takeOverPtr);
-
-//------------------------------------
-// Methods for take over functionality
-//------------------------------------
-  void changeNodeGroups(Uint32 startNode, Uint32 nodeTakenOver);
-  void endTakeOver(Uint32 takeOverPtr);
-  
-  void systemRestartTakeOverLab(Signal *);
-  void startTakeOver(Signal *,
-                     Uint32 startNode,
-                     Uint32 toNode,
-                     const struct StartCopyReq*);
-  void startNextCopyFragment(Signal *, Uint32 takeOverPtr);
-  void toCopyFragLab(Signal *, Uint32 takeOverPtr);
-  void toStartCopyFrag(Signal *, TakeOverRecordPtr);
-  void startHsAddFragConfLab(Signal *);
-  void prepareSendUpdateFragStateReq(Signal *, Uint32 takeOverPtr);
-  void toCopyCompletedLab(Signal *, TakeOverRecordPtr regTakeOverptr);
-  void takeOverCompleted(Uint32 aNodeId);
 
 //------------------------------------
 // Node Record specific methods
@@ -1592,11 +1563,6 @@ private:
   void setNodeCopyCompleted(Uint32 nodeId, bool newState);
   Uint32 getNodeGroup(Uint32 nodeId) const;
   bool checkNodeAlive(Uint32 nodeId);
-
-  void nr_start_fragments(Signal*, TakeOverRecordPtr);
-  void nr_start_fragment(Signal*, TakeOverRecordPtr, ReplicaRecordPtr);
-  void nr_run_redo(Signal*, TakeOverRecordPtr);
-  void nr_start_logging(Signal*, TakeOverRecordPtr);
 
   void getTabInfo(Signal*);
   void getTabInfo_send(Signal*, TabRecordPtr);
@@ -1647,8 +1613,257 @@ private:
   TabRecord *tabRecord;
   Uint32 ctabFileSize;
 
+  /**
+   * Methods and variables used to control the node restart phase where a
+   * node gets the data back from an alive node. This has two parts, one
+   * part in the master node which controls that certain critical data is
+   * only updated one at a time. The other part is in the starting node
+   * where there is one thread for each parallel fragment copy process.
+   *
+   * There is also a set of signals used for the take over processes.
+   *
+   * START_FRAGREQ
+   * Before performing the actual copy phase the starting node needs
+   * information about all fragments to start. This signal is sent from the
+   * from the starting nodes DBDIH to the starting nodes DBLQH and to the
+   * actual instance that will handle the fragment replica.
+   *
+   * START_RECREQ/CONF:
+   * This is sent from the starting node to all LDM instances to tell them
+   * that they have now received all START_FRAGREQ, no more will be sent. After
+   * receiving this signal the LDM instances can start reading the fragments
+   * from disk and applying the REDO log to get them as up to date as possible
+   * before we start the copy phase. One could also rebuild the ordered
+   * indexes here.
+   *
+   * START_TOREQ/CONF/REF:
+   * This is sent from the starting node to allocate a take over record in the
+   * master node. This is sent once at the start of the take over processing.
+   *
+   * UPDATE_TOREQ/CONF/REF:
+   * This is sent from a starting node to inform the master of a step forward
+   * in the copy process. In some of those phases it means acquiring the global
+   * cluster mutex on updating fragment state, in some phases it means
+   * releasing the same mutex. Also the global switch primary replica mutex
+   * can be acquired and released in certain phases.
+   * 
+   * This is sent once before UPDATE_FRAGSTATEREQ/CONF and once after for each
+   * fragment replica that the starting node will take over.
+   *
+   * UPDATE_FRAGSTATEREQ/CONF/REF:
+   * This signal is sent to all nodes from starting node informing them of a
+   * new replica entering a certain fragment. After the CONF has been received
+   * we're sure that all transactions will involve this new node when updating
+   * this fragment. We have a distribution key that can be used to verify if a
+   * particular transaction have included the node in its transaction.
+   *
+   * This is sent once per fragment replica the starting node is taking over.
+   *
+   * PREPARE_COPY_FRAGREQ/CONF/REF:
+   * This is sent from starting node to the LDM instance in starting node
+   * asking for the maxPage value. Once per fragment replica to take over.
+   *
+   * COPY_FRAGREQ/CONF/REF:
+   * This is sent to the copying node with the maxPage value. This will start
+   * a scan in the copying node and copying over all records that have a newer
+   * GCI than the one already restored from an LCP (the maxPage is also
+   * somehow involved in this decision).
+   * This signal relates to copying one fragment and is done after updating the
+   * fragment state to ensure that all future transactions will involve the
+   * node as well. There is another fragment state update performed after this
+   * copy is completed.
+   *
+   * Sent once per fragment replica the starting node is taking over.
+   *
+   * COPY_ACTIVEREQ/CONF/REF:
+   * This tells the starting node that the fragment replica is now copied over
+   * and is in an active state.
+   *
+   * Sent per fragment replica the starting node is taking over.
+   *
+   * END_TOREQ/CONF/REF:
+   * This is sent from the starting node to the master node. The response can
+   * take a long time since it involves waiting for the proper LCP to complete
+   * to ensure that the node is fully recoverable even on its own without other
+   * nodes to assist it. For this to happen the node requires a complete
+   * LCP to happen which started after we completed the copying of all
+   * fragments and where the new node was part of the LCP.
+   *
+   * This is sent only once at the end of the take over process.
+   * Multiple nodes can be in the take over process at the same time.
+   *
+   * CONTINUEB:
+   * This signal is used a lot to control execution in the local DIH block.
+   * It is used to start parallel threads and to ensure that we don't
+   * execute for too long without giving other threads a chance to execute
+   * or other signals to the DIH block.
+   *
+   * Variable descriptions
+   * ---------------------
+   *
+   * We have a pool of take over records used by the master for
+   * handling parallel node recoveries. We also use the same pool
+   * in starting nodes to keep one main take over record and then
+   * one record for each parallel thread that we can copy from in
+   * parallel.
+   *
+   * Then for each thread that takes over we keep one record.
+   * These records are always in one list.
+   *
+   * All threads are scanning fragments to find a fragment replica that needs
+   * take over. When they discover one they try to update the fragment replica
+   * state on the master (start takeover), which requires that they
+   * temporarily become the activeThread. If this succeeds they are placed in
+   * the activeThread variable. If it isn't successful they are placed into the
+   * c_queued_for_start_takeover_list. When the global fragment replica state
+   * update is completed, the list is checked to see if a queued thread should
+   * become the activeThread. Then COPY_FRAGREQ is sent and the thread is
+   * placed on the c_active_copy_instance_list. When start take over phase is
+   * completed one starts the next take over from the list and sends off
+   * COPY_FRAGREQ whereafter it is placed in the c_active_copy_thread_list.
+   *
+   * When the copy phase is completed the take over record is removed
+   * from the c_active_copy_thread_list and one tries to become
+   * the active thread. If it isn't successful the take over record
+   * is placed into the c_queued_for_end_takeover_list. When the
+   * active thread is done it gets a new record from either the
+   * c_queued_for_start_takeover_list or from
+   * c_queued_for_commit_takeover_list. c_queued_for_commit_takeover_list has
+   * higher priority. Finally when there is no more fragments to find
+   * for a certain thread after ending the takeover of a fragment
+   * the record is placed into the c_completed_copy_thread_list.
+   * When all threads are placed into this list then all threads are
+   * done with the copy phase.
+   *
+   * Finally we start up the phase where we activate the REDO log.
+   * During this phase the records are placed into the
+   * c_active_copy_thread_list. When a thread is completed with
+   * this phase the take over record is released. When all threads
+   * are completed we are done with this parallelisation phase and the
+   * node copying phase is completed whereafter we can also release the
+   * main take over record.
+   *
+   * c_takeOverPool:
+   * This is the pool of records used by both master and starting
+   * node.
+   * 
+   * c_mainTakeOverPtr:
+   * This is the main record used by the starting node.
+   *
+   * c_queued_for_start_takeover_list:
+   * A takeover thread is ready to copy a fragment, but has to wait until
+   * another thread is ready with its master communication before
+   * proceeding.
+   *
+   * c_queued_for_commit_takeover_list:
+   * A takeover thread is ready to complete the copy of a fragment, it has to
+   * wait a while since there is another thread currently communicating with
+   * the master node.
+   *
+   * These two are queues, so we implement them as a Single Linked List,
+   * FIFO queue, this means a SLFifoList.
+   *
+   * c_max_take_over_copy_threads:
+   * The is the limit on the number of threads to use. Effectively the
+   * parallelisation can never be higher than the number of LDM instances
+   * that are used in the cluster.
+   *
+   * c_active_copy_threads_list:
+   * Takeover threads are placed into this list while they are actively
+   * copying a fragment at this point in time. We need to take things out
+   * of this list in any order, so we need Double Linked List.
+   *
+   * c_activeTakeOverList:
+   * While scannning fragments to find a fragment that our thread is
+   * responsible for, we are placed into this list. This list handling
+   * is on the starting node.
+   * 
+   * This list is also used on the master node to keep track of node
+   * take overs.
+   *
+   * c_completed_copy_threads_list:
+   * This is a list where an thread is placed after completing the first
+   * phase of scanning for fragments to copy. Some threads will be done
+   * with this very quickly if we have more threads scanning than we have
+   * LDM instances in the cluster. After completing the second phase where
+   * we change state of ongoing transactions we release the thread.
+   *
+   * c_activeThreadTakeOverPtr:
+   * This is the pointer to the currently active thread using the master
+   * node to update the fragment state.
+   *
+   */
+#define ZTAKE_OVER_THREADS 16
+#define ZMAX_TAKE_OVER_THREADS 64
+  Uint32 c_max_takeover_copy_threads;
+
   ArrayPool<TakeOverRecord> c_takeOverPool;
   DLList<TakeOverRecord> c_activeTakeOverList;
+  SLFifoList<TakeOverRecord> c_queued_for_start_takeover_list;
+  SLFifoList<TakeOverRecord> c_queued_for_commit_takeover_list;
+  DLList<TakeOverRecord> c_active_copy_threads_list;
+  DLList<TakeOverRecord> c_completed_copy_threads_list;
+  TakeOverRecordPtr c_mainTakeOverPtr;
+  TakeOverRecordPtr c_activeThreadTakeOverPtr;
+
+
+//-----------------------------------------------------
+// TakeOver Record specific methods, starting node part
+//-----------------------------------------------------
+  void startTakeOver(Signal *,
+                     Uint32 startNode,
+                     Uint32 toNode,
+                     const struct StartCopyReq*);
+
+  void startNextCopyFragment(Signal *, Uint32 takeOverPtr);
+  void toCopyFragLab(Signal *, Uint32 takeOverPtr);
+  void toStartCopyFrag(Signal *, TakeOverRecordPtr);
+  void toCopyCompletedLab(Signal *, TakeOverRecordPtr regTakeOverptr);
+
+  void nr_start_fragments(Signal*, TakeOverRecordPtr);
+  void nr_start_fragment(Signal*, TakeOverRecordPtr, ReplicaRecordPtr);
+  void nr_run_redo(Signal*, TakeOverRecordPtr);
+  void nr_start_logging(Signal*, TakeOverRecordPtr);
+
+  bool check_takeover_thread(TakeOverRecordPtr takeOverPtr,
+                             FragmentstorePtr fragPtr,
+                             Uint32 fragmentReplicaInstanceKey);
+  void send_continueb_start_next_copy(Signal *signal,
+                                      TakeOverRecordPtr takeOverPtr);
+  void init_takeover_thread(TakeOverRecordPtr takeOverPtr,
+                            TakeOverRecordPtr mainTakeOverPtr,
+                            Uint32 number_of_threads,
+                            Uint32 thread_id);
+  void start_next_takeover_thread(Signal *signal);
+  void start_thread_takeover_logging(Signal *signal);
+  void send_continueb_nr_start_logging(Signal *signal,
+                                       TakeOverRecordPtr takeOverPtr);
+  bool thread_takeover_completed(Signal *signal,
+                                 TakeOverRecordPtr takeOverPtr);
+  bool thread_takeover_copy_completed(Signal *signal,
+                                      TakeOverRecordPtr takeOverPtr);
+  void release_take_over_threads(void);
+  void check_take_over_completed_correctly(void);
+
+  void sendStartTo(Signal* signal, TakeOverRecordPtr);
+  void sendUpdateTo(Signal* signal, TakeOverRecordPtr);
+  void sendUpdateFragStateReq(Signal *,
+                              Uint32 startGci,
+                              Uint32 storedType,
+                              TakeOverRecordPtr takeOverPtr);
+
+  void releaseTakeOver(TakeOverRecordPtr takeOverPtr, bool from_master);
+
+//-------------------------------------------------
+// Methods for take over functionality, master part
+//-------------------------------------------------
+  void switchPrimaryMutex_locked(Signal* signal, Uint32, Uint32);
+  void switchPrimaryMutex_unlocked(Signal* signal, Uint32, Uint32);
+  void check_force_lcp(Ptr<TakeOverRecord> takeOverPtr);
+  void abortTakeOver(Signal*, TakeOverRecordPtr);
+  void updateToReq_fragmentMutex_locked(Signal*, Uint32, Uint32);
+  bool findTakeOver(Ptr<TakeOverRecord> & ptr, Uint32 failedNodeId);
+  void insertBackup(FragmentstorePtr regFragptr, Uint32 nodeId);
 
   /*
     2.4  C O M M O N    S T O R E D    V A R I A B L E S
