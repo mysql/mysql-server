@@ -127,18 +127,22 @@ SET @@session.bulk_insert_buffer_size = 429496.10;
 #   Check if the value in GLOBAL Table matches value in variable   #
 ####################################################################
 
+--disable_warnings
 SELECT @@global.bulk_insert_buffer_size = VARIABLE_VALUE 
 FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
 WHERE VARIABLE_NAME='bulk_insert_buffer_size';
+--enable_warnings
 
 --echo '#------------------FN_DYNVARS_007_07-----------------------#'
 ####################################################################
 #  Check if the value in SESSION Table matches value in variable   #
 ####################################################################
 
+--disable_warnings
 SELECT @@session.bulk_insert_buffer_size = VARIABLE_VALUE 
 FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
 WHERE VARIABLE_NAME='bulk_insert_buffer_size';
+--enable_warnings
 
 
 --echo '#------------------FN_DYNVARS_007_08-----------------------#'

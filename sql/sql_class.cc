@@ -25,7 +25,6 @@
 
 #include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
 #include "binlog.h"
-#include "sql_priv.h"
 #include "sql_class.h"
 #include "sql_cache.h"                          // query_cache_abort
 #include "sql_base.h"                           // close_thread_tables
@@ -722,16 +721,8 @@ ulong get_max_connections(void)
 
 extern "C" int mysql_tmpfile(const char *prefix)
 {
-  return mysql_tmpfile_path(mysql_tmpdir, prefix);
-}
-
-extern "C" int mysql_tmpfile_path(const char *path, const char *prefix)
-{
-  DBUG_ASSERT(path != NULL);
-  DBUG_ASSERT((strlen(path) + strlen(prefix)) <= FN_REFLEN);
-
   char filename[FN_REFLEN];
-  File fd = create_temp_file(filename, path, prefix,
+  File fd = create_temp_file(filename, mysql_tmpdir, prefix,
 #ifdef _WIN32
                              O_BINARY | O_TRUNC | O_SEQUENTIAL |
                              O_SHORT_LIVED |

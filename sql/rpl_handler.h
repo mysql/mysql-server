@@ -16,7 +16,6 @@
 #ifndef RPL_HANDLER_H
 #define RPL_HANDLER_H
 
-#include "sql_priv.h"
 #include "rpl_gtid.h"
 #include "rpl_mi.h"
 #include "rpl_rli.h"

@@ -17,7 +17,6 @@
 /* Function with list databases, tables or fields */
 
 #include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
-#include "sql_priv.h"
 #include "sql_select.h"
 #include "sql_base.h"                       // close_tables_for_reopen
 #include "sql_show.h"
@@ -61,6 +60,7 @@
 #include "mutex_lock.h"
 #include "prealloced_array.h"
 #include "template_utils.h"
+#include "log.h"
 
 #include <algorithm>
 #include <functional>
@@ -7158,8 +7158,8 @@ TABLE *create_schema_table(THD *thd, TABLE_LIST *table_list)
   SELECT_LEX *select_lex= thd->lex->current_select();
   if (!(table= create_tmp_table(thd, tmp_table_param,
                                 field_list, (ORDER*) 0, 0, 0, 
-                                (select_lex->options | thd->variables.option_bits |
-                                 TMP_TABLE_ALL_COLUMNS),
+                                select_lex->active_options() |
+                                TMP_TABLE_ALL_COLUMNS,
                                 HA_POS_ERROR, table_list->alias)))
     DBUG_RETURN(0);
   my_bitmap_map* bitmaps=
@@ -7406,7 +7406,8 @@ int mysql_schema_table(THD *thd, LEX *lex, TABLE_LIST *table_list)
   table->pos_in_table_list= table_list;
   table->next= thd->derived_tables;
   thd->derived_tables= table;
-  table_list->select_lex->options |= OPTION_SCHEMA_TABLE;
+  if (table_list->select_lex->first_execution)
+    table_list->select_lex->add_base_options(OPTION_SCHEMA_TABLE);
   lex->safe_to_cache_query= 0;
 
   if (table_list->schema_table_reformed) // show command

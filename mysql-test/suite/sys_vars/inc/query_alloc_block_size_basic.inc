@@ -144,9 +144,11 @@ SELECT @@session.query_alloc_block_size;
 SET @@global.query_alloc_block_size = 1;
 SET @@session.query_alloc_block_size = 12;
 
+--disable_warnings
 SELECT @@global.query_alloc_block_size = 
 VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
 WHERE VARIABLE_NAME='query_alloc_block_size';
+--enable_warnings
 
 
 --echo '#------------------FN_DYNVARS_130_07-----------------------#'
@@ -154,9 +156,11 @@ WHERE VARIABLE_NAME='query_alloc_block_size';
 #  Check if the value in SESSION Table matches value in variable   #
 ####################################################################
 
+--disable_warnings
 SELECT @@session.query_alloc_block_size = VARIABLE_VALUE 
 FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
 WHERE VARIABLE_NAME='query_alloc_block_size';
+--enable_warnings
 
 
 --echo '#------------------FN_DYNVARS_130_08-----------------------#'

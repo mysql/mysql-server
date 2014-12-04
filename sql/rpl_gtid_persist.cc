@@ -317,8 +317,8 @@ end:
   if (error == 0)
   {
     m_count++;
-    if ((executed_gtids_compression_period != 0) &&
-        (m_count >= executed_gtids_compression_period ||
+    if ((gtid_executed_compression_period != 0) &&
+        (m_count >= gtid_executed_compression_period ||
          DBUG_EVALUATE_IF("compress_gtid_table", 1, 0)))
     {
       m_count= 0;

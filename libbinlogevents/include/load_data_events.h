@@ -627,7 +627,7 @@ public:
   size_t get_data_size()
   {
     return (table_name_len + db_len + 2 + fname_len
-            + 18//LOAD_HEADER_LEN
+            + static_cast<unsigned int>(LOAD_HEADER_LEN)
             + sql_ex_data.data_size() + field_block_len + num_fields);
   }
 #ifndef HAVE_MYSYS

@@ -233,19 +233,24 @@ SET @@global.character_set_server = ON;
 ###############################################################################
 #     Check if the value in GLOBAL Table matches value in variable            #
 ###############################################################################
+--disable_warnings
 SELECT @@global.character_set_server =
  (SELECT VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
   WHERE VARIABLE_NAME='character_set_server') AS res;
+--enable_warnings
 SET @@global.character_set_server = 1;
 SELECT @@global.character_set_server;
+--disable_warnings
 SELECT @@global.character_set_server =
  (SELECT VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
   WHERE VARIABLE_NAME='character_set_server') AS res;
+--enable_warnings
 
 --echo '#--------------------FN_DYNVARS_009_13-------------------------#'
 ###############################################################################
 #     Check if the value in SESSION Table matches value in variable           #
 ###############################################################################
+--disable_warnings
 SELECT @@character_set_server =
  (SELECT VARIABLE_VALUE FROM INFORMATION_SCHEMA.SESSION_VARIABLES
   WHERE VARIABLE_NAME='character_set_server') AS res;
@@ -255,6 +260,7 @@ SELECT @@local.character_set_server =
 SELECT @@session.character_set_server =
  (SELECT VARIABLE_VALUE FROM INFORMATION_SCHEMA.SESSION_VARIABLES
   WHERE VARIABLE_NAME='character_set_server') AS res;
+--enable_warnings
 
 ####################################
 #     Restore initial value        #

@@ -113,7 +113,7 @@ ulint	srv_n_file_io_threads = 0;
 
 /** TRUE if the server is being started, before rolling back any
 incomplete transactions */
-ibool	srv_startup_is_before_trx_rollback_phase = FALSE;
+bool	srv_startup_is_before_trx_rollback_phase = false;
 /** TRUE if the server is being started */
 bool	srv_is_being_started = false;
 /** TRUE if the server was successfully started */
@@ -646,10 +646,10 @@ srv_undo_tablespace_open(
 
 		os_offset_t	n_pages = size / UNIV_PAGE_SIZE;
 
-		/* On 64 bit Windows ulint can be 32 bit and os_offset_t
-		is 64 bit. It is OK to cast the n_pages to ulint because
-		the unit has been scaled to pages and they are always
-		32 bit. */
+		/* On 32-bit platforms, ulint is 32 bits and os_offset_t
+		is 64 bits. It is OK to cast the n_pages to ulint because
+		the unit has been scaled to pages and page number is always
+		32 bits. */
 		if (fil_node_create(name, (ulint) n_pages, space, false)) {
 			err = DB_SUCCESS;
 		}
@@ -734,6 +734,8 @@ srv_check_undo_redo_logs_exists()
 	return(DB_SUCCESS);
 }
 
+undo::undo_spaces_t	undo::Truncate::s_fix_up_spaces;
+
 /********************************************************************
 Opens the configured number of undo tablespaces.
 @return DB_SUCCESS or error code */
@@ -754,7 +756,6 @@ srv_undo_tablespaces_init(
 	ulint			prev_space_id = 0;
 	ulint			n_undo_tablespaces;
 	ulint			undo_tablespace_ids[TRX_SYS_N_RSEGS + 1];
-	undo::undo_spaces_t	fix_up_undo_spaces;
 
 	*n_opened = 0;
 
@@ -826,7 +827,7 @@ srv_undo_tablespaces_init(
 					return(err);
 				}
 
-				fix_up_undo_spaces.push_back(
+				undo::Truncate::s_fix_up_spaces.push_back(
 					undo_tablespace_ids[i]);
 			}
 		}
@@ -940,7 +941,7 @@ srv_undo_tablespaces_init(
 		mtr_commit(&mtr);
 	}
 
-	if (fix_up_undo_spaces.size() != 0) {
+	if (!undo::Truncate::s_fix_up_spaces.empty()) {
 
 		/* Step-1: Initialize the tablespace header and rsegs header. */
 		mtr_t		mtr;
@@ -956,8 +957,8 @@ srv_undo_tablespaces_init(
 		sys_header = trx_sysf_get(&mtr);
 
 		for (undo::undo_spaces_t::const_iterator it
-			= fix_up_undo_spaces.begin();
-		     it != fix_up_undo_spaces.end();
+			     = undo::Truncate::s_fix_up_spaces.begin();
+		     it != undo::Truncate::s_fix_up_spaces.end();
 		     ++it) {
 
 			undo::Truncate::add_space_to_trunc_list(*it);
@@ -985,8 +986,8 @@ srv_undo_tablespaces_init(
 
 		/* Step-2: Flush the dirty pages from the buffer pool. */
 		for (undo::undo_spaces_t::const_iterator it
-			= fix_up_undo_spaces.begin();
-		     it != fix_up_undo_spaces.end();
+			     = undo::Truncate::s_fix_up_spaces.begin();
+		     it != undo::Truncate::s_fix_up_spaces.end();
 		     ++it) {
 
 			trx_t		trx;
@@ -998,7 +999,7 @@ srv_undo_tablespaces_init(
 			buf_LRU_flush_or_remove_pages(
 				*it, BUF_REMOVE_FLUSH_WRITE, &trx);
 
-			/* Remove the DDL log file now. */
+			/* Remove the truncate redo log file. */
 			undo::Truncate	undo_trunc;
 			undo_trunc.done_logging(*it);
 		}
@@ -1378,7 +1379,6 @@ innobase_start_or_create_for_mysql(void)
 	srv_start_has_been_called = TRUE;
 
 	srv_is_being_started = true;
-	srv_startup_is_before_trx_rollback_phase = TRUE;
 
 #ifdef _WIN32
 	srv_use_native_aio = TRUE;
@@ -1552,7 +1552,7 @@ innobase_start_or_create_for_mysql(void)
 		} else {
 
 			srv_monitor_file_name = NULL;
-			srv_monitor_file = os_file_create_tmpfile(NULL);
+			srv_monitor_file = os_file_create_tmpfile();
 
 			if (!srv_monitor_file) {
 				return(srv_init_abort(DB_ERROR));
@@ -1561,7 +1561,7 @@ innobase_start_or_create_for_mysql(void)
 
 		mutex_create("srv_dict_tmpfile", &srv_dict_tmpfile_mutex);
 
-		srv_dict_tmpfile = os_file_create_tmpfile(NULL);
+		srv_dict_tmpfile = os_file_create_tmpfile();
 
 		if (!srv_dict_tmpfile) {
 			return(srv_init_abort(DB_ERROR));
@@ -1569,7 +1569,7 @@ innobase_start_or_create_for_mysql(void)
 
 		mutex_create("srv_misc_tmpfile", &srv_misc_tmpfile_mutex);
 
-		srv_misc_tmpfile = os_file_create_tmpfile(NULL);
+		srv_misc_tmpfile = os_file_create_tmpfile();
 
 		if (!srv_misc_tmpfile) {
 			return(srv_init_abort(DB_ERROR));
@@ -1732,6 +1732,8 @@ innobase_start_or_create_for_mysql(void)
 	if (err != DB_SUCCESS) {
 		return(srv_init_abort(DB_ERROR));
 	}
+
+	srv_startup_is_before_trx_rollback_phase = !create_new_db;
 
 	/* Check if undo tablespaces and redo log files exist before creating
 	a new system tablespace */
@@ -1981,8 +1983,6 @@ files_checked:
 			return(srv_init_abort(err));
 		}
 
-		srv_startup_is_before_trx_rollback_phase = FALSE;
-
 		buf_flush_sync_all_buf_pools();
 
 		flushed_lsn = log_get_lsn();
@@ -2203,8 +2203,6 @@ files_checked:
 				logfile0);
 		}
 
-		srv_startup_is_before_trx_rollback_phase = FALSE;
-
 		recv_recovery_rollback_active();
 
 		/* It is possible that file_format tag has never
@@ -2271,6 +2269,8 @@ files_checked:
 		ut_a(srv_read_only_mode);
 		srv_undo_logs = ULONG_UNDEFINED;
 	}
+
+	srv_startup_is_before_trx_rollback_phase = false;
 
 	if (!srv_read_only_mode) {
 		/* Create the thread which watches the timeouts

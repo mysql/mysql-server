@@ -328,7 +328,6 @@ TODO list:
 */
 
 #include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
-#include "sql_priv.h"
 #include "sql_cache.h"
 #include "sql_parse.h"                          // check_table_access
 #include "tztime.h"                             // struct Time_zone
@@ -3792,12 +3791,12 @@ Query_cache::is_cacheable(THD *thd, LEX *lex,
       lex->safe_to_cache_query &&
       !lex->describe &&
       (thd->variables.query_cache_type == 1 ||
-       (thd->variables.query_cache_type == 2 && (lex->select_lex->options &
-						 OPTION_TO_QUERY_CACHE))))
+       (thd->variables.query_cache_type == 2 &&
+        (lex->select_lex->active_options() & OPTION_TO_QUERY_CACHE))))
   {
     DBUG_PRINT("qcache", ("options: %lx  %lx  type: %u",
                           (long) OPTION_TO_QUERY_CACHE,
-                          (long) lex->select_lex->options,
+                          (long) lex->select_lex->active_options(),
                           (int) thd->variables.query_cache_type));
 
     if (!(table_count= process_and_count_tables(thd, tables_used,
@@ -3818,7 +3817,7 @@ Query_cache::is_cacheable(THD *thd, LEX *lex,
 	     ("not interesting query: %d or not cacheable, options %lx %lx  type: %u",
 	      (int) lex->sql_command,
 	      (long) OPTION_TO_QUERY_CACHE,
-	      (long) lex->select_lex->options,
+	      (long) lex->select_lex->active_options(),
 	      (int) thd->variables.query_cache_type));
   DBUG_RETURN(0);
 }

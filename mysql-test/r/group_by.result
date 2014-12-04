@@ -2929,9 +2929,9 @@ c
 1
 2
 # Query with HAVING,
-# Should succeed, but GROUP - HAVING - ORDER are resolved in wrong order
 SELECT 1 FROM t1 HAVING COUNT(*) > 1 ORDER BY COUNT(*);
-ERROR HY000: Expression #1 of ORDER BY contains aggregate function and applies to the result of a non-aggregated query
+1
+1
 # Subquery, ORDER BY contains outer reference
 SELECT (SELECT 1 AS foo ORDER BY a) AS x
 FROM t1;
@@ -2963,21 +2963,14 @@ SELECT SUM(a) FROM t1 ORDER BY (SELECT COUNT(t1.a) FROM t1 AS t2);
 SUM(a)
 3
 # Query with ORDER BY inside UNION
-# (Notice that ORDER BY is ignored for UNION component queries)
 (SELECT a FROM t1 ORDER BY COUNT(*))
 UNION
 SELECT a FROM t1;
-a
-1
-2
+ERROR HY000: Expression #1 of ORDER BY contains aggregate function and applies to the result of a non-aggregated query
 (SELECT a FROM t1 ORDER BY COUNT(*))
 UNION ALL
 SELECT a FROM t1;
-a
-1
-2
-1
-2
+ERROR HY000: Expression #1 of ORDER BY contains aggregate function and applies to the result of a non-aggregated query
 (SELECT a FROM t1 ORDER BY COUNT(*) LIMIT 1)
 UNION
 SELECT a FROM t1;
@@ -2989,17 +2982,11 @@ ERROR HY000: Expression #1 of ORDER BY contains aggregate function and applies t
 SELECT a FROM t1
 UNION
 (SELECT a FROM t1 ORDER BY COUNT(*));
-a
-1
-2
+ERROR HY000: Expression #1 of ORDER BY contains aggregate function and applies to the result of a non-aggregated query
 SELECT a FROM t1
 UNION ALL
 (SELECT a FROM t1 ORDER BY COUNT(*));
-a
-1
-2
-1
-2
+ERROR HY000: Expression #1 of ORDER BY contains aggregate function and applies to the result of a non-aggregated query
 SELECT a FROM t1
 UNION
 (SELECT a FROM t1 ORDER BY COUNT(*) LIMIT 1 OFFSET 1);
@@ -3011,17 +2998,11 @@ ERROR HY000: Expression #1 of ORDER BY contains aggregate function and applies t
 (SELECT a FROM t1 ORDER BY COUNT(*))
 UNION
 (SELECT a FROM t1 ORDER BY COUNT(*));
-a
-1
-2
+ERROR HY000: Expression #1 of ORDER BY contains aggregate function and applies to the result of a non-aggregated query
 (SELECT a FROM t1 ORDER BY COUNT(*))
 UNION ALL
 (SELECT a FROM t1 ORDER BY COUNT(*));
-a
-1
-2
-1
-2
+ERROR HY000: Expression #1 of ORDER BY contains aggregate function and applies to the result of a non-aggregated query
 (SELECT a FROM t1 ORDER BY COUNT(*) LIMIT 1)
 UNION
 (SELECT a FROM t1 ORDER BY COUNT(*) LIMIT 1 OFFSET 1);

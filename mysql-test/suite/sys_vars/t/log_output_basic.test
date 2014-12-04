@@ -143,9 +143,11 @@ SELECT @@session.log_output;
 #     Check if the value in GLOBAL Table matches value in variable     #
 ########################################################################
 
+--disable_warnings
 SELECT @@log_output = VARIABLE_VALUE 
 FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
 WHERE VARIABLE_NAME='log_output';
+--enable_warnings
 
 
 --echo '#---------------------FN_DYNVARS_065_07-------------------------#'

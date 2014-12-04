@@ -21,14 +21,9 @@
 */
 
 #include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
-#include "sql_priv.h"
-/*
-  It is necessary to include set_var.h instead of item.h because there
-  are dependencies on include order for set_var.h and item.h. This
-  will be resolved later.
-*/
-#include "sql_class.h"                          // set_var.h: THD
-#include "set_var.h"
+
+#include "sql_class.h"
+#include "item.h"
 #include "rpl_slave.h"				// for wait_for_master_pos
 #include "rpl_msr.h"
 #include "sql_show.h"                           // append_identifier
@@ -55,6 +50,7 @@
 #include "parse_tree_helpers.h"
 #include "sql_optimizer.h"                      // JOIN
 #include "sql_base.h"
+#include "binlog.h"
 
 using std::min;
 using std::max;
@@ -4246,8 +4242,12 @@ bool udf_handler::get_arguments()
 	{
 	  f_args.args[i]=    (char*) res->ptr();
 	  f_args.lengths[i]= res->length();
-	  break;
 	}
+	else
+	{
+	  f_args.lengths[i]= 0;
+	}
+	break;
       }
     case INT_RESULT:
       *((longlong*) to) = args[i]->val_int();
@@ -5589,27 +5589,22 @@ longlong Item_func_sleep::val_int()
   timeout= args[0]->val_real();
  
   /*
-    Prepare to report error or warning depends on the value of SQL_MODE.
+    Report error or warning depending on the value of SQL_MODE.
     If SQL is STRICT then report error, else report warning and continue
     execution.
   */
-  Strict_error_handler strict_handler;
-  if (!thd->lex->is_ignore() && thd->is_strict_mode())
-    thd->push_internal_handler(&strict_handler);
 
   if (args[0]->null_value || timeout < 0)
-    push_warning_printf(thd, Sql_condition::SL_WARNING, ER_WRONG_ARGUMENTS,
-                        ER(ER_WRONG_ARGUMENTS), "sleep.");
-
-  if (!thd->lex->is_ignore() && thd->is_strict_mode())
-    thd->pop_internal_handler();
-  /*
-    If conversion error occurred in the strict SQL_MODE
-    then leave method.
-  */
-  if (thd->is_error())
-    return 0;
- 
+  {
+    if (!thd->lex->is_ignore() && thd->is_strict_mode())
+    {
+      my_error(ER_WRONG_ARGUMENTS, MYF(0), "sleep.");
+      return 0;
+    }
+    else
+      push_warning_printf(thd, Sql_condition::SL_WARNING, ER_WRONG_ARGUMENTS,
+                          ER(ER_WRONG_ARGUMENTS), "sleep.");
+  }
   /*
     On 64-bit OSX mysql_cond_timedwait() waits forever
     if passed abstime time has already been exceeded by 

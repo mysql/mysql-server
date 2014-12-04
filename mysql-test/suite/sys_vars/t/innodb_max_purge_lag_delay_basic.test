@@ -13,9 +13,11 @@ SET @@GLOBAL.innodb_max_purge_lag_delay=1;
 SELECT COUNT(@@GLOBAL.innodb_max_purge_lag_delay);
 --echo 1 Expected
 
+--disable_warnings
 SELECT VARIABLE_VALUE
 FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
 WHERE VARIABLE_NAME='innodb_max_purge_lag_delay';
+--enable_warnings
 --echo 1 Expected
 
 SELECT @@innodb_max_purge_lag_delay = @@GLOBAL.innodb_max_purge_lag_delay;

@@ -116,9 +116,11 @@ SET @@global.server_id_bits = 1G;
 ####################################################################
 
 SET @@global.server_id_bits = 12;
+--disable_warnings
 SELECT @@global.server_id_bits = VARIABLE_VALUE 
 FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
 WHERE VARIABLE_NAME='server_id_bits';
+--enable_warnings
 
 
 --echo '#------------------FN_DYNVARS_144_07-----------------------#'
@@ -126,9 +128,11 @@ WHERE VARIABLE_NAME='server_id_bits';
 #  Check if the value is present in INFORMATION_SCHEMA.SESSION_VARIABLES  #
 ###########################################################################
 
+--disable_warnings
 SELECT count(VARIABLE_VALUE) 
 FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
 WHERE VARIABLE_NAME='server_id_bits';
+--enable_warnings
 
 
 --echo '#------------------FN_DYNVARS_144_08-----------------------#'

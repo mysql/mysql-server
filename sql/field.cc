@@ -23,7 +23,6 @@
   This file implements classes defined in field.h
 */
 
-#include "sql_priv.h"
 #include "sql_select.h"
 #include "rpl_rli.h"                            // Pull in Relay_log_info
 #include "rpl_slave.h"                          // Pull in rpl_master_has_bug()
@@ -8807,13 +8806,13 @@ String *Field_set::val_str(String *val_buffer,
   ulonglong tmp=(ulonglong) Field_enum::val_int();
   uint bitnr=0;
 
+  /*
+    Some callers expect *val_buffer to contain the result,
+    so we assign to it, rather than doing 'return &empty_set_string.
+  */
+  *val_buffer= empty_set_string;
   if (tmp == 0)
   {
-    /*
-      Some callers expect *val_buffer to contain the result,
-      so we assign to it, rather than doing 'return &empty_set_string.
-     */
-    *val_buffer= empty_set_string;
     return val_buffer;
   }
 

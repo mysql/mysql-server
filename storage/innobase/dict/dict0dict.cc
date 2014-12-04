@@ -977,7 +977,7 @@ dict_init(void)
 	rw_lock_create(dict_operation_lock_key,
 		       &dict_operation_lock, SYNC_DICT_OPERATION);
 
-	dict_foreign_err_file = os_file_create_tmpfile(NULL);
+	dict_foreign_err_file = os_file_create_tmpfile();
 	ut_a(dict_foreign_err_file);
 
 	mutex_create("dict_foreign_err", &dict_foreign_err_mutex);
@@ -2509,7 +2509,6 @@ dict_index_add_to_cache(
 	new_index->allow_duplicates = index->allow_duplicates;
 	new_index->nulls_equal = index->nulls_equal;
 	new_index->disable_ahi = index->disable_ahi;
-	new_index->auto_gen_clust_index = index->auto_gen_clust_index;
 
 	if (dict_index_too_big_for_tree(table, new_index, strict)) {
 

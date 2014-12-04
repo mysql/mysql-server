@@ -18,8 +18,6 @@
 /* Copy data from a textfile to table */
 /* 2006-12 Erik Wetterberg : LOAD XML added */
 
-#include "sql_priv.h"
-#include "sql_load.h"
 #include "sql_load.h"
 #include "sql_cache.h"                          // query_cache_*
 #include "sql_base.h"          // fill_record_n_invoke_before_triggers

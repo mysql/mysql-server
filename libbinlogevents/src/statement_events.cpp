@@ -440,23 +440,6 @@ int Query_event::fill_data_buf(Log_event_header::Byte* buf,
   return 1;
 }
 
-/*
-  Explicit instantiation to unsigned int of template available_buffer
-  function.
-*/
-/*template unsigned int available_buffer<unsigned int>(const char*,
-                                                     const char*,
-                                                     unsigned int);
-*/
-/*
-  Explicit instantiation to unsigned int of template valid_buffer_range
-  function.
-*/
-/*template bool valid_buffer_range<unsigned int>(unsigned int,
-                                               const char*,
-                                               const char*,
-                                               unsigned int);
-*/
 /**
   The constructor for User_var_event.
 */

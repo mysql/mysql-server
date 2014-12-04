@@ -160,6 +160,9 @@ const int64_t SEQ_UNINIT= 0;
 #define FN_REFLEN       512     /* Max length of full path-name */
 #endif
 
+/* The number of event types need to be permuted. */
+static const unsigned int EVENT_TYPE_PERMUTATION_NUM= 23;
+
 /**
    Splits server 'version' string into three numeric pieces stored
    into 'split_versions':

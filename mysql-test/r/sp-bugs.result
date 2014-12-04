@@ -228,3 +228,139 @@ testf_bug11763507
 DROP PROCEDURE testp_bug11763507;
 DROP FUNCTION testf_bug11763507;
 #END OF BUG#11763507 test.
+#
+# Bug#19418619 : SELECT QUERY WITH INVALID TIME WORKS FINE BUT SP FAILS UNDER STRICT MODE
+#
+SET sql_mode='NO_ENGINE_SUBSTITUTION';
+CREATE FUNCTION f1(arg TINYINT UNSIGNED) RETURNS TINYINT
+BEGIN
+RETURN abs('1abcd');
+END|
+SELECT f1(-25);
+f1(-25)
+1
+Warnings:
+Warning	1264	Out of range value for column 'arg' at row 1
+Warning	1292	Truncated incorrect DOUBLE value: '1abcd'
+SELECT f1(25);
+f1(25)
+1
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: '1abcd'
+SET sql_mode='STRICT_ALL_TABLES,STRICT_TRANS_TABLES';
+SELECT f1(-25);
+ERROR 22003: Out of range value for column 'arg' at row 1
+SELECT f1(10);
+f1(10)
+1
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: '1abcd'
+DROP FUNCTION f1;
+SET sql_mode='NO_ENGINE_SUBSTITUTION';
+CREATE PROCEDURE f1(IN arg TINYINT UNSIGNED)
+BEGIN
+DECLARE arg1 TINYINT;
+select abs('1abcd') into arg;
+END|
+CALL f1(-25);
+Warnings:
+Warning	1264	Out of range value for column 'arg' at row 1
+Warning	1292	Truncated incorrect DOUBLE value: '1abcd'
+CALL f1(25);
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: '1abcd'
+SET sql_mode='STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION';
+CALL f1(-25);
+ERROR 22003: Out of range value for column 'arg' at row 1
+CALL f1(10);
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: '1abcd'
+DROP PROCEDURE f1;
+SELECT SUBTIME('2006-07-16' , '05:05:02.040778');
+SUBTIME('2006-07-16' , '05:05:02.040778')
+-04:44:56.040778
+Warnings:
+Warning	1292	Truncated incorrect time value: '2006-07-16'
+SELECT abs('1bcd');
+abs('1bcd')
+1
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: '1bcd'
+CREATE PROCEDURE sp1()
+BEGIN
+SELECT SUBTIME('2006-07-16' , '05:05:02.040778');
+END|
+CREATE PROCEDURE sp2()
+BEGIN
+DECLARE v1 TINYINT DEFAULT 450000;
+END|
+CALL sp1();
+SUBTIME('2006-07-16' , '05:05:02.040778')
+-04:44:56.040778
+Warnings:
+Warning	1292	Truncated incorrect time value: '2006-07-16'
+CALL sp2();
+ERROR 22003: Out of range value for column 'v1' at row 1
+DROP PROCEDURE sp1;
+DROP PROCEDURE sp2;
+CREATE FUNCTION fn1(arg TINYINT UNSIGNED) RETURNS float deterministic RETURN abs('1abcd');
+CREATE FUNCTION fn2() RETURNS tinyint
+BEGIN
+DECLARE v1 TINYINT DEFAULT 450000;
+RETURN v1;
+END|
+SELECT fn1(25);
+ERROR 22007: Truncated incorrect DOUBLE value: '1abcd'
+SELECT fn1(-25);
+ERROR 22003: Out of range value for column 'arg' at row 1
+SELECT fn2();
+ERROR 22003: Out of range value for column 'v1' at row 1
+SET sql_mode='NO_ENGINE_SUBSTITUTION';
+SELECT fn1(-25);
+ERROR 22007: Truncated incorrect DOUBLE value: '1abcd'
+DROP FUNCTION fn1;
+DROP FUNCTION fn2;
+CREATE FUNCTION fn1() RETURNS float deterministic RETURN floor('1.1a');
+SET sql_mode='STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION';
+CREATE TABLE t1(a INT);
+CREATE FUNCTION fn2() RETURNS float deterministic RETURN floor('1.1a');
+CREATE TRIGGER tr1 BEFORE INSERT ON t1 FOR EACH ROW SET @a=fn2();
+INSERT INTO t1 VALUES(1);
+ERROR 22007: Truncated incorrect DOUBLE value: '1.1a'
+DROP TRIGGER tr1;
+CREATE TRIGGER tr1 BEFORE INSERT ON t1 FOR EACH ROW SET @a=fn1();
+INSERT INTO t1 VALUES(1);
+DROP FUNCTION fn1;
+DROP FUNCTION fn2;
+DROP TRIGGER tr1;
+DROP TABLE t1;
+SET sql_mode=traditional;
+SELECT 1/0;
+1/0
+NULL
+Warnings:
+Warning	1365	Division by 0
+SET sql_mode='';
+CREATE PROCEDURE proc_c()
+BEGIN
+DECLARE div_zero INTEGER;
+SET SQL_MODE='TRADITIONAL';
+SELECT 1/0;
+END|
+CALL proc_c();
+1/0
+NULL
+Warnings:
+Warning	1365	Division by 0
+DROP PROCEDURE proc_c;
+SET sql_mode=traditional;
+CREATE FUNCTION fn1() RETURNS TINYINT
+BEGIN
+SET  @x=floor('1a');
+RETURN 1;
+END|
+SELECT fn1();
+fn1()
+1
+DROP FUNCTION fn1;
+SET sql_mode= default;

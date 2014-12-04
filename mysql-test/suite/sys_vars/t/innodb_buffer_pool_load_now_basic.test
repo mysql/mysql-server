@@ -16,7 +16,9 @@ let $wait_condition =
   SELECT SUBSTR(variable_value, 1, 33) = 'Buffer pool(s) dump completed at '
   FROM information_schema.global_status
   WHERE LOWER(variable_name) = 'innodb_buffer_pool_dump_status';
+--disable_warnings
 -- source include/wait_condition.inc
+--enable_warnings
 
 # Confirm the file is really created
 -- let $file = `SELECT CONCAT(@@datadir, @@global.innodb_buffer_pool_filename)`
@@ -30,10 +32,15 @@ let $wait_condition =
   SELECT SUBSTR(variable_value, 1, 33) = 'Buffer pool(s) load completed at '
   FROM information_schema.global_status
   WHERE LOWER(variable_name) = 'innodb_buffer_pool_load_status';
+--disable_warnings
 -- source include/wait_condition.inc
+--enable_warnings
 
 # Show the status, interesting if the above timed out
+--disable_warnings
 -- replace_regex /[0-9]{6}[[:space:]]+[0-9]{1,2}:[0-9]{2}:[0-9]{2}/TIMESTAMP_NOW/
 SELECT variable_value
 FROM information_schema.global_status
 WHERE LOWER(variable_name) = 'innodb_buffer_pool_load_status';
+--enable_warnings
+

@@ -20,10 +20,12 @@ Warning	1287	'@@metadata_locks_hash_instances' is deprecated and will be removed
 #################################################################
 # Check if the value in GLOBAL Table matches value in variable  #
 #################################################################
-SELECT @@GLOBAL.metadata_locks_hash_instances = VARIABLE_VALUE
+SELECT VARIABLE_VALUE
 FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
-WHERE VARIABLE_NAME='metadata_locks_hash_instances';
-@@GLOBAL.metadata_locks_hash_instances = VARIABLE_VALUE
+WHERE VARIABLE_NAME='metadata_locks_hash_instances'
+into @tmp;
+SELECT @@GLOBAL.metadata_locks_hash_instances = @tmp;
+@@GLOBAL.metadata_locks_hash_instances = @tmp
 1
 Warnings:
 Warning	1287	'@@metadata_locks_hash_instances' is deprecated and will be removed in a future release.

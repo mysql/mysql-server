@@ -52,17 +52,21 @@ SELECT COUNT(@@GLOBAL.innodb_api_enable_mdl);
 # Check if the value in GLOBAL Table matches value in variable  #
 #################################################################
 
+--disable_warnings
 SELECT IF(@@GLOBAL.innodb_api_enable_mdl, 'ON', 'OFF') = VARIABLE_VALUE
 FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
 WHERE VARIABLE_NAME='innodb_api_enable_mdl';
+--enable_warnings
 --echo 1 Expected
 
 SELECT COUNT(@@GLOBAL.innodb_api_enable_mdl);
 --echo 1 Expected
 
+--disable_warnings
 SELECT COUNT(VARIABLE_VALUE)
 FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
 WHERE VARIABLE_NAME='innodb_api_enable_mdl';
+--enable_warnings
 --echo 1 Expected
 
 

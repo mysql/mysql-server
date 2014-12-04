@@ -16,7 +16,6 @@
 
 
 #include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
-#include "sql_priv.h"
 #include <mysql.h>
 #include <m_ctype.h>
 #include "my_dir.h"
@@ -4103,6 +4102,9 @@ bool Item_param::convert_str_value(THD *thd)
   bool rc= FALSE;
   if (state == STRING_VALUE || state == LONG_DATA_VALUE)
   {
+    if (value.cs_info.final_character_set_of_str_value == NULL ||
+        value.cs_info.character_set_of_placeholder == NULL)
+      return true;
     /*
       Check is so simple because all charsets were set up properly
       in setup_one_conversion_function, where typecode of
@@ -7180,7 +7182,7 @@ Item *Item_field::update_value_transformer(uchar *select_arg)
   if (field->table != select->context.table_list->table &&
       type() != Item::TRIGGER_FIELD_ITEM)
   {
-    List<Item> *all_fields= &select->join->all_fields;
+    List<Item> *all_fields= &select->all_fields;
     Ref_ptr_array &ref_pointer_array= select->ref_pointer_array;
     int el= all_fields->elements;
     Item_ref *ref;

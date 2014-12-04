@@ -1787,4 +1787,53 @@ SELECT a,b,c,d FROM t1 WHERE (a,b)=(c,d+1) GROUP BY a,b;
 ERROR 42000: Expression #4 of SELECT list is not in GROUP BY clause and contains nonaggregated column 'test.t1.d' which is not functionally dependent on columns in GROUP BY clause; this is incompatible with sql_mode=only_full_group_by
 DROP TABLE t1;
 DROP VIEW v1;
+#
+# Bug #20031708 ASSERT ON GROUP_CHECK::IS_FD_ON_SOURCE
+#
+CREATE TABLE t1 (
+col_varchar_10_utf8 VARCHAR(10) CHARACTER SET utf8,
+col_int_key INT,
+pk INT PRIMARY KEY
+);
+CREATE TABLE t2 (
+col_varchar_10_utf8 VARCHAR(10) CHARACTER SET utf8 DEFAULT NULL,
+col_int_key INT DEFAULT NULL,
+pk INT PRIMARY KEY
+);
+CREATE VIEW v2 AS SELECT * FROM t2;
+SELECT COUNT(*), t1.col_int_key
+FROM v2 LEFT OUTER JOIN t1
+ON v2.col_varchar_10_utf8 = t1.col_varchar_10_utf8
+WHERE v2.pk = 4;
+ERROR 42000: In aggregated query without GROUP BY, expression #2 of SELECT list contains nonaggregated column 'test.t1.col_int_key'; this is incompatible with sql_mode=only_full_group_by
+DROP VIEW v2;
+CREATE VIEW v2 AS SELECT
+CONCAT(col_varchar_10_utf8,' ') AS col_varchar_10_utf8,
+col_int_key,
+pk
+FROM t2;
+SELECT COUNT(*), t1.col_int_key
+FROM v2 LEFT OUTER JOIN t1
+ON v2.col_varchar_10_utf8 = t1.col_varchar_10_utf8
+WHERE v2.pk = 4;
+ERROR 42000: In aggregated query without GROUP BY, expression #2 of SELECT list contains nonaggregated column 'test.t1.col_int_key'; this is incompatible with sql_mode=only_full_group_by
+DROP VIEW v2;
+CREATE VIEW v2 AS
+SELECT t1.pk, t2.col_int_key+1 as c, t1.pk+t2.col_int_key as p
+FROM t1, t2;
+SELECT COUNT(*), v2.p
+FROM v2
+WHERE v2.c=v2.p and v2.c=v2.pk AND v2.pk = 4;
+COUNT(*)	p
+0	NULL
+DROP VIEW v2;
+CREATE ALGORITHM=MERGE VIEW v2 AS
+SELECT t2.pk, COALESCE(t2.pk, 3) AS coa
+FROM t1 LEFT JOIN t2 ON 0;
+SELECT v2.pk, v2.coa
+FROM t1 LEFT JOIN v2 AS v2 ON 0
+GROUP BY v2.pk;
+ERROR 42000: Expression #2 of SELECT list is not in GROUP BY clause and contains nonaggregated column 'v2.coa' which is not functionally dependent on columns in GROUP BY clause; this is incompatible with sql_mode=only_full_group_by
+DROP VIEW v2;
+DROP TABLE t1,t2;
 DROP FUNCTION show_json_object;

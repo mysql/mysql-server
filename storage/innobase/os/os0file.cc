@@ -676,18 +676,16 @@ os_io_init_simple(void)
 	}
 }
 
-/** Create a temporary file. This function is like tmpfile(3), but
-the temporary file is created in the given parameter path. If the path
-is null then it will create the file in the mysql server configuration
-parameter (--tmpdir).
-@param[in]	path	location for creating temporary file
+/***********************************************************************//**
+Creates a temporary file.  This function is like tmpfile(3), but
+the temporary file is created in the MySQL temporary directory.
 @return temporary file handle, or NULL on error */
 FILE*
-os_file_create_tmpfile(
-	const char*	path)
+os_file_create_tmpfile(void)
+/*========================*/
 {
 	FILE*	file	= NULL;
-	int	fd	= innobase_mysql_tmpfile(path);
+	int	fd	= innobase_mysql_tmpfile();
 
 	if (fd >= 0) {
 		file = fdopen(fd, "w+b");
@@ -3331,7 +3329,7 @@ os_aio_native_aio_supported(void)
 		return(false);
 	} else if (!srv_read_only_mode) {
 		/* Now check if tmpdir supports native aio ops. */
-		fd = innobase_mysql_tmpfile(NULL);
+		fd = innobase_mysql_tmpfile();
 
 		if (fd < 0) {
 			ib::warn() << "Unable to create temp file to check"

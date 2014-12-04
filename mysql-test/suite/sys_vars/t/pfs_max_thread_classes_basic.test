@@ -14,11 +14,13 @@ show global variables like 'performance_schema_max_thread_classes';
 
 show session variables like 'performance_schema_max_thread_classes';
 
+--disable_warnings
 select * from information_schema.global_variables
   where variable_name='performance_schema_max_thread_classes';
 
 select * from information_schema.session_variables
   where variable_name='performance_schema_max_thread_classes';
+--enable_warnings
 
 #
 # Read-only

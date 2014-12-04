@@ -18,20 +18,24 @@ SELECT @@global.innodb_stats_persistent_sample_pages;
 SELECT @@session.innodb_stats_persistent_sample_pages;
 SHOW global variables LIKE 'innodb_stats_persistent_sample_pages';
 SHOW session variables LIKE 'innodb_stats_persistent_sample_pages';
+--disable_warnings
 SELECT * FROM information_schema.global_variables 
 WHERE variable_name='innodb_stats_persistent_sample_pages';
 SELECT * FROM information_schema.session_variables 
 WHERE variable_name='innodb_stats_persistent_sample_pages';
+--enable_warnings
 
 #
 # SHOW that it's writable
 #
 SET global innodb_stats_persistent_sample_pages=10;
 SELECT @@global.innodb_stats_persistent_sample_pages;
+--disable_warnings
 SELECT * FROM information_schema.global_variables
 WHERE variable_name='innodb_stats_persistent_sample_pages';
 SELECT * FROM information_schema.session_variables 
 WHERE variable_name='innodb_stats_persistent_sample_pages';
+--enable_warnings
 --error ER_GLOBAL_VARIABLE
 SET session innodb_stats_persistent_sample_pages=1;
 
@@ -70,11 +74,10 @@ SET global innodb_stats_persistent_sample_pages=" ";
 SELECT @@global.innodb_stats_persistent_sample_pages;
 SET global innodb_stats_persistent_sample_pages=-7;
 SELECT @@global.innodb_stats_persistent_sample_pages;
+--disable_warnings
 SELECT * FROM information_schema.global_variables 
 WHERE variable_name='innodb_stats_persistent_sample_pages';
-
-
-
+--enable_warnings
 
 
 #

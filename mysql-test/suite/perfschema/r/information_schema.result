@@ -54,12 +54,12 @@ performance_schema	mutex_instances	def
 performance_schema	objects_summary_global_by_type	def
 performance_schema	performance_timers	def
 performance_schema	prepared_statements_instances	def
+performance_schema	replication_applier_configuration	def
+performance_schema	replication_applier_status	def
+performance_schema	replication_applier_status_by_coordinator	def
+performance_schema	replication_applier_status_by_worker	def
 performance_schema	replication_connection_configuration	def
 performance_schema	replication_connection_status	def
-performance_schema	replication_execute_configuration	def
-performance_schema	replication_execute_status	def
-performance_schema	replication_execute_status_by_coordinator	def
-performance_schema	replication_execute_status_by_worker	def
 performance_schema	rwlock_instances	def
 performance_schema	session_account_connect_attrs	def
 performance_schema	session_connect_attrs	def
@@ -134,12 +134,12 @@ mutex_instances	BASE TABLE	PERFORMANCE_SCHEMA
 objects_summary_global_by_type	BASE TABLE	PERFORMANCE_SCHEMA
 performance_timers	BASE TABLE	PERFORMANCE_SCHEMA
 prepared_statements_instances	BASE TABLE	PERFORMANCE_SCHEMA
+replication_applier_configuration	BASE TABLE	PERFORMANCE_SCHEMA
+replication_applier_status	BASE TABLE	PERFORMANCE_SCHEMA
+replication_applier_status_by_coordinator	BASE TABLE	PERFORMANCE_SCHEMA
+replication_applier_status_by_worker	BASE TABLE	PERFORMANCE_SCHEMA
 replication_connection_configuration	BASE TABLE	PERFORMANCE_SCHEMA
 replication_connection_status	BASE TABLE	PERFORMANCE_SCHEMA
-replication_execute_configuration	BASE TABLE	PERFORMANCE_SCHEMA
-replication_execute_status	BASE TABLE	PERFORMANCE_SCHEMA
-replication_execute_status_by_coordinator	BASE TABLE	PERFORMANCE_SCHEMA
-replication_execute_status_by_worker	BASE TABLE	PERFORMANCE_SCHEMA
 rwlock_instances	BASE TABLE	PERFORMANCE_SCHEMA
 session_account_connect_attrs	BASE TABLE	PERFORMANCE_SCHEMA
 session_connect_attrs	BASE TABLE	PERFORMANCE_SCHEMA
@@ -214,12 +214,12 @@ mutex_instances	10	Dynamic
 objects_summary_global_by_type	10	Dynamic
 performance_timers	10	Fixed
 prepared_statements_instances	10	Dynamic
+replication_applier_configuration	10	Fixed
+replication_applier_status	10	Fixed
+replication_applier_status_by_coordinator	10	Dynamic
+replication_applier_status_by_worker	10	Dynamic
 replication_connection_configuration	10	Dynamic
 replication_connection_status	10	Dynamic
-replication_execute_configuration	10	Fixed
-replication_execute_status	10	Fixed
-replication_execute_status_by_coordinator	10	Dynamic
-replication_execute_status_by_worker	10	Dynamic
 rwlock_instances	10	Dynamic
 session_account_connect_attrs	10	Dynamic
 session_connect_attrs	10	Dynamic
@@ -294,12 +294,12 @@ mutex_instances	5000	0
 objects_summary_global_by_type	5500	0
 performance_timers	5	0
 prepared_statements_instances	100	0
+replication_applier_configuration	256	0
+replication_applier_status	256	0
+replication_applier_status_by_coordinator	256	0
+replication_applier_status_by_worker	8192	0
 replication_connection_configuration	256	0
 replication_connection_status	256	0
-replication_execute_configuration	256	0
-replication_execute_status	256	0
-replication_execute_status_by_coordinator	256	0
-replication_execute_status_by_worker	8192	0
 rwlock_instances	5000	0
 session_account_connect_attrs	409600	0
 session_connect_attrs	409600	0
@@ -374,12 +374,12 @@ mutex_instances	0	0
 objects_summary_global_by_type	0	0
 performance_timers	0	0
 prepared_statements_instances	0	0
+replication_applier_configuration	0	0
+replication_applier_status	0	0
+replication_applier_status_by_coordinator	0	0
+replication_applier_status_by_worker	0	0
 replication_connection_configuration	0	0
 replication_connection_status	0	0
-replication_execute_configuration	0	0
-replication_execute_status	0	0
-replication_execute_status_by_coordinator	0	0
-replication_execute_status_by_worker	0	0
 rwlock_instances	0	0
 session_account_connect_attrs	0	0
 session_connect_attrs	0	0
@@ -454,12 +454,12 @@ mutex_instances	0	0	NULL
 objects_summary_global_by_type	0	0	NULL
 performance_timers	0	0	NULL
 prepared_statements_instances	0	0	NULL
+replication_applier_configuration	0	0	NULL
+replication_applier_status	0	0	NULL
+replication_applier_status_by_coordinator	0	0	NULL
+replication_applier_status_by_worker	0	0	NULL
 replication_connection_configuration	0	0	NULL
 replication_connection_status	0	0	NULL
-replication_execute_configuration	0	0	NULL
-replication_execute_status	0	0	NULL
-replication_execute_status_by_coordinator	0	0	NULL
-replication_execute_status_by_worker	0	0	NULL
 rwlock_instances	0	0	NULL
 session_account_connect_attrs	0	0	NULL
 session_connect_attrs	0	0	NULL
@@ -534,12 +534,12 @@ mutex_instances	NULL	NULL	NULL
 objects_summary_global_by_type	NULL	NULL	NULL
 performance_timers	NULL	NULL	NULL
 prepared_statements_instances	NULL	NULL	NULL
+replication_applier_configuration	NULL	NULL	NULL
+replication_applier_status	NULL	NULL	NULL
+replication_applier_status_by_coordinator	NULL	NULL	NULL
+replication_applier_status_by_worker	NULL	NULL	NULL
 replication_connection_configuration	NULL	NULL	NULL
 replication_connection_status	NULL	NULL	NULL
-replication_execute_configuration	NULL	NULL	NULL
-replication_execute_status	NULL	NULL	NULL
-replication_execute_status_by_coordinator	NULL	NULL	NULL
-replication_execute_status_by_worker	NULL	NULL	NULL
 rwlock_instances	NULL	NULL	NULL
 session_account_connect_attrs	NULL	NULL	NULL
 session_connect_attrs	NULL	NULL	NULL
@@ -614,12 +614,12 @@ mutex_instances	utf8_general_ci	NULL
 objects_summary_global_by_type	utf8_general_ci	NULL
 performance_timers	utf8_general_ci	NULL
 prepared_statements_instances	utf8_general_ci	NULL
+replication_applier_configuration	utf8_general_ci	NULL
+replication_applier_status	utf8_general_ci	NULL
+replication_applier_status_by_coordinator	utf8_general_ci	NULL
+replication_applier_status_by_worker	utf8_general_ci	NULL
 replication_connection_configuration	utf8_general_ci	NULL
 replication_connection_status	utf8_general_ci	NULL
-replication_execute_configuration	utf8_general_ci	NULL
-replication_execute_status	utf8_general_ci	NULL
-replication_execute_status_by_coordinator	utf8_general_ci	NULL
-replication_execute_status_by_worker	utf8_general_ci	NULL
 rwlock_instances	utf8_general_ci	NULL
 session_account_connect_attrs	utf8_bin	NULL
 session_connect_attrs	utf8_bin	NULL
@@ -694,12 +694,12 @@ mutex_instances
 objects_summary_global_by_type	
 performance_timers	
 prepared_statements_instances	
+replication_applier_configuration	
+replication_applier_status	
+replication_applier_status_by_coordinator	
+replication_applier_status_by_worker	
 replication_connection_configuration	
 replication_connection_status	
-replication_execute_configuration	
-replication_execute_status	
-replication_execute_status_by_coordinator	
-replication_execute_status_by_worker	
 rwlock_instances	
 session_account_connect_attrs	
 session_connect_attrs	

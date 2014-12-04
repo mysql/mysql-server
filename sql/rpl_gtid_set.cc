@@ -1124,6 +1124,49 @@ bool Gtid_set::is_interval_subset(Const_interval_iterator *sub,
   DBUG_RETURN(true);
 }
 
+bool Gtid_set::is_subset_for_sid(const Gtid_set *super,
+                                 rpl_sidno superset_sidno,
+                                 rpl_sidno subset_sidno) const
+{
+  DBUG_ENTER("Gtid_set::is_subset_for_sidno");
+  /*
+    The following assert code is to see that caller acquired
+    either write or read lock on global_sid_lock.
+    Note that if it is read lock, then it should also
+    acquire lock on sidno.
+    i.e., the caller must acquire lock either A1 way or A2 way.
+        A1. global_sid_lock.wrlock()
+        A2. global_sid_lock.rdlock(); gtid_state.lock_sidno(sidno)
+  */
+  if (sid_lock != NULL)
+    super->sid_lock->assert_some_lock();
+  if (super->sid_lock != NULL)
+    super->sid_lock->assert_some_lock();
+  /*
+    If subset(i.e, this object) does not have required sid in it, i.e.,
+    subset_sidno is zero, then it means it is subset of any given
+    super set. Hence return true.
+  */
+  if (subset_sidno == 0)
+    DBUG_RETURN(true);
+  /*
+    If superset (i.e., the passed gtid_set) does not have given sid in it,
+    i.e., superset_sidno is zero, then it means it cannot be superset
+    to any given subset. Hence return false.
+  */
+  if (superset_sidno == 0)
+    DBUG_RETURN(false);
+  /*
+    Once we have valid(non-zero) subset's and superset's sid numbers, call
+    is_interval_subset().
+  */
+  Const_interval_iterator subset_ivit(this, subset_sidno);
+  Const_interval_iterator superset_ivit(super, superset_sidno);
+  if (!is_interval_subset(&subset_ivit, &superset_ivit))
+    DBUG_RETURN(false);
+
+  DBUG_RETURN(true);
+}
 
 bool Gtid_set::is_subset(const Gtid_set *super) const
 {

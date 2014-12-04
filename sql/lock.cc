@@ -73,7 +73,6 @@
   we are forced to use mysql_lock_merge.
 */
 
-#include "sql_priv.h"
 #include "debug_sync.h"
 #include "lock.h"
 #include "sql_base.h"                       // close_tables_for_reopen

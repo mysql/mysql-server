@@ -12,20 +12,26 @@ select @@global.innodb_online_alter_log_max_size;
 select @@session.innodb_online_alter_log_max_size;
 show global variables like 'innodb_online_alter_log_max_size';
 show session variables like 'innodb_online_alter_log_max_size';
+--disable_warnings
 select * from information_schema.global_variables where variable_name='innodb_online_alter_log_max_size';
 select * from information_schema.session_variables where variable_name='innodb_online_alter_log_max_size';
+--enable_warnings
 
 #
 # show that it's writable
 #
 set global innodb_online_alter_log_max_size=1048576;
 select @@global.innodb_online_alter_log_max_size;
+--disable_warnings
 select * from information_schema.global_variables where variable_name='innodb_online_alter_log_max_size';
 select * from information_schema.session_variables where variable_name='innodb_online_alter_log_max_size';
+--enable_warnings
 set @@global.innodb_online_alter_log_max_size=524288;
 select @@global.innodb_online_alter_log_max_size;
+--disable_warnings
 select * from information_schema.global_variables where variable_name='innodb_online_alter_log_max_size';
 select * from information_schema.session_variables where variable_name='innodb_online_alter_log_max_size';
+--enable_warnings
 --error ER_GLOBAL_VARIABLE
 set session innodb_online_alter_log_max_size='some';
 --error ER_GLOBAL_VARIABLE
