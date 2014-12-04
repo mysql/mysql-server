@@ -167,17 +167,34 @@ SHOW TABLES;
 --source include/assert.inc
 
 --echo #
---echo # Stop slave (on server_2) for test case 3.
---echo #
---source include/rpl_stop_slaves.inc
-
---echo #
 --echo # Test case 3: 3.a) Update nonconflicting data on the same table
 --echo #                 and see if they are replicated to the slave.
 
 --let $rpl_connection_name= server_1
 --source include/rpl_connection.inc
 CREATE TABLE dbcommon.t101(a int, PRIMARY KEY (a));
+
+### Make sure that this is the first create table to reach
+### the slave.
+
+#sync the slave with server_1
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+
+--let $rpl_channel_name= channel_1
+--let $sync_slave_connection=server_2
+--source include/sync_slave_sql_with_master.inc
+--let $rpl_channel_name=
+
+--echo #
+--echo # Stop slave (on server_2) for test case 3.
+--echo #
+--source include/rpl_stop_slaves.inc
+
+#sync the slave with server_1
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+
 --let $i= 10
 while($i)
 {
@@ -269,7 +286,7 @@ call mtr.add_suppression("Slave SQL.*:.* Duplicate entry '1729' for key 'PRIMARY
 
 #check if the error is present in pfs table
 let $sss_value= query_get_value(SHOW SLAVE STATUS FOR CHANNEL "channel_3", Last_SQL_Errno, 1);
-let $ps_value= query_get_value(select Last_Error_Number from performance_schema.replication_execute_status_by_coordinator where channel_name = "channel_3", Last_Error_Number, 1);
+let $ps_value= query_get_value(select Last_Error_Number from performance_schema.replication_applier_status_by_coordinator where channel_name = "channel_3", Last_Error_Number, 1);
 let $assert_text= Value returned by SSS and PS table for Last_Error_Number should be same.;
 let $assert_cond= "$sss_value" = "$ps_value";
 --source include/assert.inc

@@ -13,11 +13,13 @@ show global variables like 'host_cache_size';
 
 show session variables like 'host_cache_size';
 
+--disable_warnings
 select * from information_schema.global_variables
   where variable_name='host_cache_size';
 
 select * from information_schema.session_variables
   where variable_name='host_cache_size';
+--enable_warnings
 
 #
 # Read-Write

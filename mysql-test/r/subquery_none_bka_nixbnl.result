@@ -5167,11 +5167,11 @@ ROW(1,2) = (SELECT    1,    2)	ROW(1,2) IN (SELECT    1,    2)
 CREATE TABLE t1 (a INT, b INT, c INT);
 INSERT INTO t1 VALUES (1,1,1), (1,1,1);
 EXPLAIN EXTENDED 
-SELECT c FROM 
+SELECT cc FROM 
 ( SELECT 
 (SELECT COUNT(a) FROM 
 (SELECT COUNT(b) FROM t1) AS x GROUP BY c
-) FROM t1 GROUP BY b
+) AS cc FROM t1 GROUP BY b
 ) AS y;
 ERROR 42000: Expression #1 of SELECT list is not in GROUP BY clause and contains nonaggregated column 'test.t1.c' which is not functionally dependent on columns in GROUP BY clause; this is incompatible with sql_mode=only_full_group_by
 SHOW WARNINGS;
@@ -5201,7 +5201,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 3	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 Warnings:
 Note	1276	Field or reference 'test.t2.b' of SELECT #3 was resolved in SELECT #2
-Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t1` where (not(exists(/* select#2 */ select 1 from `test`.`t2` where (1 = (/* select#3 */ select min(`test`.`t2`.`b`) from `test`.`t3`))))) order by count(0)
+Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t1` where (not(exists(/* select#2 */ select 1 from `test`.`t2` where (1 = (/* select#3 */ select min(`test`.`t2`.`b`) from `test`.`t3`)))))
 # should not crash the next statement
 SELECT COUNT(*) FROM t1
 WHERE NOT EXISTS (SELECT 1 FROM t2 WHERE 1 = (SELECT MIN(t2.b) FROM t3))
@@ -7833,5 +7833,25 @@ q
 q
 q
 DROP TABLE t1, t2;
+# Bug#19778967: Assert failed in JOIN::optimize
+CREATE TABLE t1(a INTEGER);
+CREATE VIEW v1 AS SELECT * FROM t1;
+INSERT INTO t1 VALUES(0), (1);
+EXPLAIN SELECT * FROM t1 WHERE a <ANY (SELECT a FROM v1);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
+2	SUBQUERY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where <nop>((`test`.`t1`.`a` < (/* select#2 */ select max(`test`.`t1`.`a`) from `test`.`t1`)))
+PREPARE s FROM "SELECT * FROM t1 WHERE a <ANY (SELECT a FROM v1)";
+EXECUTE s;
+a
+0
+EXECUTE s;
+a
+0
+DEALLOCATE PREPARE s;
+DROP VIEW v1;
+DROP TABLE t1;
 set optimizer_switch=default;
 set optimizer_switch=default;

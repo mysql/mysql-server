@@ -25,7 +25,9 @@ test.corrupt_bit_test_ā	check	Warning	InnoDB: The B-tree of index idxē is corr
 test.corrupt_bit_test_ā	check	error	Corrupt
 SET SESSION debug="-d,dict_set_index_corrupted";
 CREATE INDEX idx3 ON corrupt_bit_test_ā(b, c);
+ERROR 42000: Can't open table
 CREATE INDEX idx4 ON corrupt_bit_test_ā(b, z);
+ERROR 42000: Can't open table
 select c from corrupt_bit_test_ā;
 ERROR HY000: Index corrupt_bit_test_ā is corrupted
 select z from corrupt_bit_test_ā;
@@ -53,6 +55,13 @@ set names utf8;
 select z from corrupt_bit_test_ā;
 ERROR HY000: Index corrupt_bit_test_ā is corrupted
 drop index idxē on corrupt_bit_test_ā;
+CREATE INDEX idx3 ON corrupt_bit_test_ā(b, c);
+ERROR 42000: Can't open table
+CREATE INDEX idx4 ON corrupt_bit_test_ā(b, z);
+ERROR 42000: Can't open table
+drop index idx on corrupt_bit_test_ā;
+CREATE INDEX idx3 ON corrupt_bit_test_ā(b, c);
+CREATE INDEX idx4 ON corrupt_bit_test_ā(b, z);
 select z from corrupt_bit_test_ā limit 10;
 z
 20001

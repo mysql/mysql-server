@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -14,7 +14,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /*
-  Code for generell handling of priority Queues.
+  Code for handling of priority Queues.
   Implemention of queues from "Algoritms in C" by Robert Sedgewick.
   An optimisation of _downheap suggested in Exercise 7.51 in "Data
   Structures & Algorithms in C++" by Mark Allen Weiss, Second Edition
@@ -25,6 +25,8 @@
 #include "mysys_priv.h"
 #include "mysys_err.h"
 #include <queues.h>
+
+int resize_queue(QUEUE *queue, uint max_elements);
 
 /*
   Init queue
@@ -220,31 +222,6 @@ void queue_insert(QUEUE *queue, uchar *element)
   }
   queue->root[idx]= element;
 }
-
-/*
-  Does safe insert. If no more space left on the queue resize it.
-  Return codes:
-    0 - OK
-    1 - Cannot allocate more memory
-    2 - auto_extend is 0, the operation would
-  
-*/
-
-int queue_insert_safe(QUEUE *queue, uchar *element)
-{
-
-  if (queue->elements == queue->max_elements)
-  {
-    if (!queue->auto_extent)
-      return 2;
-    else if (resize_queue(queue, queue->max_elements + queue->auto_extent))
-      return 1;
-  }
-  
-  queue_insert(queue, element);
-  return 0;
-}
-
 
 	/* Remove item from queue */
 	/* Returns pointer to removed element */

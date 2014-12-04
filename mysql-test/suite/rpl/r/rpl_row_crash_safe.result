@@ -1587,6 +1587,474 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 include/rpl_reconnect.inc
 START SLAVE;
 include/wait_for_slave_to_start.inc
+
+
+
+STOP SLAVE SQL_THREAD;
+include/wait_for_slave_sql_to_stop.inc
+SET GLOBAL debug="d,crash_after_commit_before_update_pos";;
+FAILURE d,crash_after_commit_before_update_pos and OUTCOME O2
+rpl_mixing_engines.inc [commands=T]
+-b-b-b-b-b-b-b-b-b-b-b- >> T << -b-b-b-b-b-b-b-b-b-b-b-
+INSERT INTO tt_1(trans_id, stmt_id) VALUES (37, 1);
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+-e-e-e-e-e-e-e-e-e-e-e- >> T << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> T << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+-e-e-e-e-e-e-e-e-e-e-e- >> T << -e-e-e-e-e-e-e-e-e-e-e-
+
+include/rpl_reconnect.inc
+START SLAVE;
+include/wait_for_slave_to_start.inc
+
+
+
+STOP SLAVE SQL_THREAD;
+include/wait_for_slave_sql_to_stop.inc
+SET GLOBAL debug="d,crash_after_commit_before_update_pos";;
+FAILURE d,crash_after_commit_before_update_pos and OUTCOME O2
+rpl_mixing_engines.inc [commands=T-trig]
+-b-b-b-b-b-b-b-b-b-b-b- >> T-trig << -b-b-b-b-b-b-b-b-b-b-b-
+INSERT INTO tt_5(trans_id, stmt_id) VALUES (38, 1);
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+-e-e-e-e-e-e-e-e-e-e-e- >> T-trig << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> T-trig << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+-e-e-e-e-e-e-e-e-e-e-e- >> T-trig << -e-e-e-e-e-e-e-e-e-e-e-
+
+include/rpl_reconnect.inc
+START SLAVE;
+include/wait_for_slave_to_start.inc
+
+
+
+STOP SLAVE SQL_THREAD;
+include/wait_for_slave_sql_to_stop.inc
+SET GLOBAL debug="d,crash_after_commit_before_update_pos";;
+FAILURE d,crash_after_commit_before_update_pos and OUTCOME O2
+rpl_mixing_engines.inc [commands=T-func]
+-b-b-b-b-b-b-b-b-b-b-b- >> T-func << -b-b-b-b-b-b-b-b-b-b-b-
+SELECT fc_i_tt_5_suc (39, 1);
+fc_i_tt_5_suc (39, 1)
+fc_i_tt_5_suc
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+-e-e-e-e-e-e-e-e-e-e-e- >> T-func << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> T-func << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+-e-e-e-e-e-e-e-e-e-e-e- >> T-func << -e-e-e-e-e-e-e-e-e-e-e-
+
+include/rpl_reconnect.inc
+START SLAVE;
+include/wait_for_slave_to_start.inc
+
+
+
+STOP SLAVE SQL_THREAD;
+include/wait_for_slave_sql_to_stop.inc
+SET GLOBAL debug="d,crash_after_commit_before_update_pos";;
+FAILURE d,crash_after_commit_before_update_pos and OUTCOME O2
+rpl_mixing_engines.inc [commands=T-proc]
+-b-b-b-b-b-b-b-b-b-b-b- >> T-proc << -b-b-b-b-b-b-b-b-b-b-b-
+CALL pc_i_tt_5_suc (40, 1);
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+-e-e-e-e-e-e-e-e-e-e-e- >> T-proc << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> T-proc << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+-e-e-e-e-e-e-e-e-e-e-e- >> T-proc << -e-e-e-e-e-e-e-e-e-e-e-
+
+include/rpl_reconnect.inc
+START SLAVE;
+include/wait_for_slave_to_start.inc
+
+
+
+STOP SLAVE SQL_THREAD;
+include/wait_for_slave_sql_to_stop.inc
+SET GLOBAL debug="d,crash_after_commit_before_update_pos";;
+FAILURE d,crash_after_commit_before_update_pos and OUTCOME O2
+rpl_mixing_engines.inc [commands=B T T-trig C]
+-b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
+BEGIN;
+include/show_binlog_events.inc
+-e-e-e-e-e-e-e-e-e-e-e- >> B << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> T << -b-b-b-b-b-b-b-b-b-b-b-
+INSERT INTO tt_1(trans_id, stmt_id) VALUES (41, 2);
+include/show_binlog_events.inc
+-e-e-e-e-e-e-e-e-e-e-e- >> T << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> T-trig << -b-b-b-b-b-b-b-b-b-b-b-
+INSERT INTO tt_5(trans_id, stmt_id) VALUES (41, 4);
+include/show_binlog_events.inc
+-e-e-e-e-e-e-e-e-e-e-e- >> T-trig << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
+COMMIT;
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+-e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> B T T-trig C << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+-e-e-e-e-e-e-e-e-e-e-e- >> B T T-trig C << -e-e-e-e-e-e-e-e-e-e-e-
+
+include/rpl_reconnect.inc
+START SLAVE;
+include/wait_for_slave_to_start.inc
+
+
+
+STOP SLAVE SQL_THREAD;
+include/wait_for_slave_sql_to_stop.inc
+SET GLOBAL debug="d,crash_after_commit_before_update_pos";;
+FAILURE d,crash_after_commit_before_update_pos and OUTCOME O2
+rpl_mixing_engines.inc [commands=B T T-func C]
+-b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
+BEGIN;
+include/show_binlog_events.inc
+-e-e-e-e-e-e-e-e-e-e-e- >> B << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> T << -b-b-b-b-b-b-b-b-b-b-b-
+INSERT INTO tt_1(trans_id, stmt_id) VALUES (42, 2);
+include/show_binlog_events.inc
+-e-e-e-e-e-e-e-e-e-e-e- >> T << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> T-func << -b-b-b-b-b-b-b-b-b-b-b-
+SELECT fc_i_tt_5_suc (42, 4);
+fc_i_tt_5_suc (42, 4)
+fc_i_tt_5_suc
+include/show_binlog_events.inc
+-e-e-e-e-e-e-e-e-e-e-e- >> T-func << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
+COMMIT;
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+-e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> B T T-func C << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+-e-e-e-e-e-e-e-e-e-e-e- >> B T T-func C << -e-e-e-e-e-e-e-e-e-e-e-
+
+include/rpl_reconnect.inc
+START SLAVE;
+include/wait_for_slave_to_start.inc
+
+
+
+STOP SLAVE SQL_THREAD;
+include/wait_for_slave_sql_to_stop.inc
+SET GLOBAL debug="d,crash_after_commit_before_update_pos";;
+FAILURE d,crash_after_commit_before_update_pos and OUTCOME O2
+rpl_mixing_engines.inc [commands=B T T-proc C]
+-b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
+BEGIN;
+include/show_binlog_events.inc
+-e-e-e-e-e-e-e-e-e-e-e- >> B << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> T << -b-b-b-b-b-b-b-b-b-b-b-
+INSERT INTO tt_1(trans_id, stmt_id) VALUES (43, 2);
+include/show_binlog_events.inc
+-e-e-e-e-e-e-e-e-e-e-e- >> T << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> T-proc << -b-b-b-b-b-b-b-b-b-b-b-
+CALL pc_i_tt_5_suc (43, 4);
+include/show_binlog_events.inc
+-e-e-e-e-e-e-e-e-e-e-e- >> T-proc << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
+COMMIT;
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+-e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> B T T-proc C << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+-e-e-e-e-e-e-e-e-e-e-e- >> B T T-proc C << -e-e-e-e-e-e-e-e-e-e-e-
+
+include/rpl_reconnect.inc
+START SLAVE;
+include/wait_for_slave_to_start.inc
+
+
+
+STOP SLAVE SQL_THREAD;
+include/wait_for_slave_sql_to_stop.inc
+SET GLOBAL debug="d,crash_after_commit_before_update_pos";;
+FAILURE d,crash_after_commit_before_update_pos and OUTCOME O2
+rpl_mixing_engines.inc [commands=B T-trig T C]
+-b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
+BEGIN;
+include/show_binlog_events.inc
+-e-e-e-e-e-e-e-e-e-e-e- >> B << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> T-trig << -b-b-b-b-b-b-b-b-b-b-b-
+INSERT INTO tt_5(trans_id, stmt_id) VALUES (44, 2);
+include/show_binlog_events.inc
+-e-e-e-e-e-e-e-e-e-e-e- >> T-trig << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> T << -b-b-b-b-b-b-b-b-b-b-b-
+INSERT INTO tt_1(trans_id, stmt_id) VALUES (44, 4);
+include/show_binlog_events.inc
+-e-e-e-e-e-e-e-e-e-e-e- >> T << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
+COMMIT;
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+-e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> B T-trig T C << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+-e-e-e-e-e-e-e-e-e-e-e- >> B T-trig T C << -e-e-e-e-e-e-e-e-e-e-e-
+
+include/rpl_reconnect.inc
+START SLAVE;
+include/wait_for_slave_to_start.inc
+
+
+
+STOP SLAVE SQL_THREAD;
+include/wait_for_slave_sql_to_stop.inc
+SET GLOBAL debug="d,crash_after_commit_before_update_pos";;
+FAILURE d,crash_after_commit_before_update_pos and OUTCOME O2
+rpl_mixing_engines.inc [commands=B T-func T C]
+-b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
+BEGIN;
+include/show_binlog_events.inc
+-e-e-e-e-e-e-e-e-e-e-e- >> B << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> T-func << -b-b-b-b-b-b-b-b-b-b-b-
+SELECT fc_i_tt_5_suc (45, 2);
+fc_i_tt_5_suc (45, 2)
+fc_i_tt_5_suc
+include/show_binlog_events.inc
+-e-e-e-e-e-e-e-e-e-e-e- >> T-func << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> T << -b-b-b-b-b-b-b-b-b-b-b-
+INSERT INTO tt_1(trans_id, stmt_id) VALUES (45, 4);
+include/show_binlog_events.inc
+-e-e-e-e-e-e-e-e-e-e-e- >> T << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
+COMMIT;
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+-e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> B T-func T C << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+-e-e-e-e-e-e-e-e-e-e-e- >> B T-func T C << -e-e-e-e-e-e-e-e-e-e-e-
+
+include/rpl_reconnect.inc
+START SLAVE;
+include/wait_for_slave_to_start.inc
+
+
+
+STOP SLAVE SQL_THREAD;
+include/wait_for_slave_sql_to_stop.inc
+SET GLOBAL debug="d,crash_after_commit_before_update_pos";;
+FAILURE d,crash_after_commit_before_update_pos and OUTCOME O2
+rpl_mixing_engines.inc [commands=B T-proc T C]
+-b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
+BEGIN;
+include/show_binlog_events.inc
+-e-e-e-e-e-e-e-e-e-e-e- >> B << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> T-proc << -b-b-b-b-b-b-b-b-b-b-b-
+CALL pc_i_tt_5_suc (46, 2);
+include/show_binlog_events.inc
+-e-e-e-e-e-e-e-e-e-e-e- >> T-proc << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> T << -b-b-b-b-b-b-b-b-b-b-b-
+INSERT INTO tt_1(trans_id, stmt_id) VALUES (46, 4);
+include/show_binlog_events.inc
+-e-e-e-e-e-e-e-e-e-e-e- >> T << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
+COMMIT;
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+-e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> B T-proc T C << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+-e-e-e-e-e-e-e-e-e-e-e- >> B T-proc T C << -e-e-e-e-e-e-e-e-e-e-e-
+
+include/rpl_reconnect.inc
+START SLAVE;
+include/wait_for_slave_to_start.inc
 ###################################################################################
 #                      EXECUTE CASES CRASHING THE BEGIN/COMMIT
 ###################################################################################
@@ -1599,7 +2067,7 @@ SET GLOBAL debug="d,crash_after_commit_and_update_pos";;
 FAILURE d,crash_after_commit_and_update_pos and OUTCOME O2
 rpl_mixing_engines.inc [commands=N]
 -b-b-b-b-b-b-b-b-b-b-b- >> N << -b-b-b-b-b-b-b-b-b-b-b-
-INSERT INTO nt_1(trans_id, stmt_id) VALUES (37, 1);
+INSERT INTO nt_1(trans_id, stmt_id) VALUES (47, 1);
 include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
@@ -1628,7 +2096,7 @@ SET GLOBAL debug="d,crash_after_commit_and_update_pos";;
 FAILURE d,crash_after_commit_and_update_pos and OUTCOME O2
 rpl_mixing_engines.inc [commands=N-trig]
 -b-b-b-b-b-b-b-b-b-b-b- >> N-trig << -b-b-b-b-b-b-b-b-b-b-b-
-INSERT INTO nt_5(trans_id, stmt_id) VALUES (38, 1);
+INSERT INTO nt_5(trans_id, stmt_id) VALUES (48, 1);
 include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
@@ -1661,8 +2129,8 @@ SET GLOBAL debug="d,crash_after_commit_and_update_pos";;
 FAILURE d,crash_after_commit_and_update_pos and OUTCOME O2
 rpl_mixing_engines.inc [commands=N-func]
 -b-b-b-b-b-b-b-b-b-b-b- >> N-func << -b-b-b-b-b-b-b-b-b-b-b-
-SELECT fc_i_nt_5_suc (39, 1);
-fc_i_nt_5_suc (39, 1)
+SELECT fc_i_nt_5_suc (49, 1);
+fc_i_nt_5_suc (49, 1)
 fc_i_nt_5_suc
 include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info

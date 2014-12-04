@@ -7,8 +7,10 @@ select @@global.relay_log;
 select @@session.relay_log;
 show global variables like 'relay_log';
 show session variables like 'relay_log';
+--disable_warnings
 select * from information_schema.global_variables where variable_name='relay_log';
 select * from information_schema.session_variables where variable_name='relay_log';
+--enable_warnings
 
 #
 # show that it's read-only

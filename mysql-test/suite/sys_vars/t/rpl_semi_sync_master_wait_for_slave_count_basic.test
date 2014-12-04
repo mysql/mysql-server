@@ -24,8 +24,10 @@ SELECT @@GLOBAL.rpl_semi_sync_master_wait_for_slave_count;
 
 SHOW GLOBAL VARIABLES LIKE 'rpl_semi_sync_master_wait_for_slave_count';
 
+--disable_warnings
 SELECT * FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE
   VARIABLE_NAME = 'rpl_semi_sync_master_wait_for_slave_count';
+--enable_warnings
 
 --echo #
 --echo # Verify it is not a session variable
@@ -35,8 +37,10 @@ SELECT @@SESSION.rpl_semi_sync_master_wait_for_slave_count;
 
 SHOW SESSION VARIABLES LIKE 'rpl_semi_sync_master_wait_for_slave_count';
 
+--disable_warnings
 SELECT * FROM INFORMATION_SCHEMA.SESSION_VARIABLES WHERE
   VARIABLE_NAME ='rpl_semi_sync_master_wait_for_slave_count';
+--enable_warnings
 
 --echo #
 --echo # Verify it can be set correctly

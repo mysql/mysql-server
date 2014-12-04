@@ -1378,7 +1378,6 @@ mysql-test/var/*
 mysql-test/windows_sys_vars.inc
 mysql.kdevprj
 mysql.proj
-sql_priv.h
 mysqlbinlog/*.ds?
 mysqlbinlog/*.vcproj
 mysqlcheck/*.ds?

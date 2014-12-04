@@ -1,0 +1,38 @@
+--source include/have_innodb.inc
+
+#Restarting not supported in embedded 
+--source include/not_embedded.inc
+#Windows has trouble creating files/directories with long names
+--source include/not_windows.inc
+
+--echo #
+--echo # Bug#19419026 WHEN A TABLESPACE IS NOT FOUND, DO NOT REPORT "TABLE NOT FOUND"
+--echo #
+
+#Create database and tablename with all special characters
+
+CREATE DATABASE `..................................................`;
+USE `..................................................`;
+CREATE TABLE `..................................................` (id int) engine=innodb;
+
+--source include/shutdown_mysqld.inc
+
+--remove_file $MYSQLTEST_VARDIR/mysqld.1/data/@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e/@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e.ibd
+
+--source include/start_mysqld.inc
+
+--disable_query_log
+call mtr.add_suppression("\\[ERROR\\] InnoDB: Operating system error number 2 in a file operation."); 
+call mtr.add_suppression("\\[ERROR\\] InnoDB: The error means the system cannot find the path specified.");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: If you are installing InnoDB, remember that you must create directories yourself, InnoDB does not create them.");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: Failed to find tablespace for table `\.\.*`\.`\.\.*` in the cache.");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: Cannot open datafile for read-only");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: Could not find a valid tablespace file for");
+call mtr.add_suppression("\\[Warning\\] InnoDB: Ignoring tablespace .* because it could not be opened");
+call mtr.add_suppression("\\[Warning\\] InnoDB: Cannot calculate statistics for table `\.\.*`\.`\.\.*` because the \.ibd file is missing");
+--enable_query_log
+
+--error ER_TABLESPACE_MISSING
+select * from `..................................................`;
+DROP TABLE `..................................................`;
+DROP DATABASE `..................................................`;

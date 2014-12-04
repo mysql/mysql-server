@@ -13,8 +13,10 @@ select @@global.innodb_ft_cache_size;
 select @@session.innodb_ft_cache_size;
 show global variables like 'innodb_ft_cache_size';
 show session variables like 'innodb_ft_cache_size';
+--disable_warnings
 select * from information_schema.global_variables where variable_name='innodb_ft_cache_size';
 select * from information_schema.session_variables where variable_name='innodb_ft_cache_size';
+--enable_warnings
 
 #
 # show that it's read-only

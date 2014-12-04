@@ -14,11 +14,13 @@ show global variables like 'performance_schema_max_table_lock_stat';
 
 show session variables like 'performance_schema_max_table_lock_stat';
 
+--disable_warnings
 select * from information_schema.global_variables
   where variable_name='performance_schema_max_table_lock_stat';
 
 select * from information_schema.session_variables
   where variable_name='performance_schema_max_table_lock_stat';
+--enable_warnings
 
 #
 # Read-only

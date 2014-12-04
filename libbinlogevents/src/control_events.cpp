@@ -432,7 +432,7 @@ Format_description_event(const char* buf, unsigned int event_len,
       post_header_len.clear();
       return;
     }
-    static const uint8_t perm[23]=
+    static const uint8_t perm[EVENT_TYPE_PERMUTATION_NUM]=
       {
         UNKNOWN_EVENT, START_EVENT_V3, QUERY_EVENT, STOP_EVENT, ROTATE_EVENT,
         INTVAR_EVENT, LOAD_EVENT, SLAVE_EVENT, CREATE_FILE_EVENT,
@@ -453,10 +453,10 @@ Format_description_event(const char* buf, unsigned int event_len,
       Since we use (permuted) event id's to index the post_header_len
       array, we need to permute the post_header_len array too.
     */
-    uint8_t post_header_len_temp[23];
-    for (int i= 1; i < 23; i++)
+    uint8_t post_header_len_temp[EVENT_TYPE_PERMUTATION_NUM];
+    for (unsigned int i= 1; i < EVENT_TYPE_PERMUTATION_NUM; i++)
       post_header_len_temp[perm[i] - 1]= post_header_len[i - 1];
-    for (int i= 0; i < 22; i++)
+    for (unsigned int i= 0; i < EVENT_TYPE_PERMUTATION_NUM - 1; i++)
       post_header_len[i] = post_header_len_temp[i];
 
   }

@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -41,7 +41,6 @@ This file contains the implementation of error and warnings related
 
 ***********************************************************************/
 
-#include "sql_priv.h"
 #include "sql_error.h"
 #include "sp_rcontext.h"
 #include "log.h"          // sql_print_warning

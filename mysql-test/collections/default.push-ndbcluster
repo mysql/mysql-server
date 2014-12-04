@@ -1,0 +1,16 @@
+# Run the standard 'n_mix' tests to check that none of those are affected
+# by compiling MySQL Server with NDB. Including NDB adds two more storage engine,
+# a few new information_schema tables, the ndbinfo database and more tables
+# in the mysql database. This test run detects typical problems caused by these
+# additions.
+#
+# NOTE! The debug mysqld is not enabled in order to speed up the tests. This
+# causes some tests which require mysqld-debug to be skipped(those may later
+# fail in MySQL Cluster build and test cycle). In addition since this is the only
+# build which runs without debug mysqld enabled it will detect any test
+# which does not source the necessary include to skip itself when not in debug mode.
+#
+perl mysql-test-run.pl --timer --force --parallel=auto --comment=n_mix --vardir=var-n_mix --mysqld=--binlog-format=mixed --experimental=collections/default.experimental --skip-test-list=collections/disabled-per-push.list --unit-tests --skip-ndb
+
+# Run the ndbcluster suite only(separately for better report in the CI tool).
+perl mysql-test-run.pl --timer --force --parallel=auto --comment=ndbcluster --vardir=var-ndbcluster --experimental=collections/default.experimental --skip-test-list=collections/disabled-per-push.list --suite=ndbcluster

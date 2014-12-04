@@ -42,7 +42,7 @@ eval $query;
 
 SET debug= '+d,bug13820776_2';
 
---error ER_UNKNOWN_ERROR
+--error ER_QUERY_INTERRUPTED
 eval $query;
 SET debug= '-d,bug13820776_2';
 

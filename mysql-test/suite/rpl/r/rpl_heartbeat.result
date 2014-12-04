@@ -98,7 +98,7 @@ include/assert.inc [Slave_heartbeat_period should be 10.000]
 include/assert.inc [Slave_received_heartbeat should NOT be set to 0]
 include/stop_slave.inc
 Warnings:
-Note	1969	Replication thread(s) for channel '' are already stopped.
+Note	1970	Replication thread(s) for channel '' are already stopped.
 RESET SLAVE;
 include/start_slave.inc
 include/assert.inc [heartbeat period should still be 10.000 after RESET SLAVE.]

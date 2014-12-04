@@ -75,13 +75,17 @@ SELECT @@global.innodb_autoinc_lock_mode;
 #     Check if the value in GLOBAL Table matches value in variable      #
 #########################################################################
 
+--disable_warnings
 SELECT @@global.innodb_autoinc_lock_mode = VARIABLE_VALUE 
 FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
 WHERE VARIABLE_NAME='innodb_autoinc_lock_mode';
+--enable_warnings
 SELECT @@global.innodb_autoinc_lock_mode;
+--disable_warnings
 SELECT VARIABLE_VALUE 
 FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
 WHERE VARIABLE_NAME='innodb_autoinc_lock_mode';
+--enable_warnings
 
 
 ###############################################################

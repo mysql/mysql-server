@@ -599,23 +599,6 @@ void thd_mark_transaction_to_rollback(MYSQL_THD thd, int all);
 int mysql_tmpfile(const char *prefix);
 
 /**
-  Create a temporary file.
-
-  @details
-  The temporary file is created in a location specified by the parameter
-  path. if path is null, then it will be created on the location given
-  by the mysql server configuration (--tmpdir option).  The caller
-  does not need to delete the file, it will be deleted automatically.
-
-  @param path    location for creating temporary file
-  @param prefix  prefix for temporary file name
-  @retval -1    error
-  @retval >= 0  a file handle that can be passed to dup or my_close
-*/
-int mysql_tmpfile_path(const char *path, const char *prefix);
-
-
-/**
   Check the killed state of a connection
 
   @details

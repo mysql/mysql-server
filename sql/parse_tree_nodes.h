@@ -81,6 +81,7 @@ public:
       them.
     */
     pc->select->select_n_where_fields+= child->select_n_where_fields;
+    pc->select->select_n_having_items+= child->select_n_having_items;
     value= query_expression_body->value;
     return false;
   }
@@ -474,7 +475,10 @@ public:
 
     select->parsing_place= CTX_SELECT_LIST;
 
-    select->set_query_block_options(thd, opt_query_spec_options, 0);
+    if (select->validate_base_options(thd->lex, opt_query_spec_options))
+      return true;
+    select->set_base_options(opt_query_spec_options);
+    DBUG_ASSERT(!(opt_query_spec_options & SELECT_MAX_STATEMENT_TIME));
     if (opt_query_spec_options & SELECT_HIGH_PRIORITY)
     {
       Yacc_state *yyps= &thd->m_parser_state->m_yacc;
@@ -1485,6 +1489,25 @@ public:
     THD *thd= pc->thd;
     LEX *lex= thd->lex;
     set_var_password *var;
+
+    /*
+      In case of anonymous user, user->user is set to empty string with
+      length 0. But there might be case when user->user.str could be NULL.
+      For Ex: "set password for current_user() = password('xyz');".
+      In this case, set user information as of the current user.
+    */
+    if (!user->user.str)
+    {
+      DBUG_ASSERT(thd->security_ctx->priv_user);
+      user->user.str= thd->security_ctx->priv_user;
+      user->user.length= strlen(thd->security_ctx->priv_user);
+    }
+    if (!user->host.str)
+    {
+      DBUG_ASSERT(thd->security_ctx->priv_host);
+      user->host.str= (char *) thd->security_ctx->priv_host;
+      user->host.length= strlen(thd->security_ctx->priv_host);
+    }
 
     var= new set_var_password(user, const_cast<char *>(password));
     if (var == NULL)

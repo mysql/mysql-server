@@ -60,7 +60,9 @@ struct ib_rbt_t;
 /** Type flags of an index: OR'ing of the flags is allowed to define a
 combination of types */
 /* @{ */
-#define DICT_CLUSTERED	1	/*!< clustered index */
+#define DICT_CLUSTERED	1	/*!< clustered index; for other than
+				auto-generated clustered indexes,
+				also DICT_UNIQUE will be set */
 #define DICT_UNIQUE	2	/*!< unique index */
 #define	DICT_IBUF	8	/*!< insert buffer tree */
 #define	DICT_CORRUPT	16	/*!< bit to store the corrupted flag
@@ -702,9 +704,6 @@ struct dict_index_t{
 				entry uniquely */
 	unsigned	n_def:10;/*!< number of fields defined so far */
 	unsigned	n_fields:10;/*!< number of fields in the index */
-	unsigned	auto_gen_clust_index:1;
-				/*!< true if index is auto-generated clustered
-				index. */
 	unsigned	n_nullable:10;/*!< number of nullable fields */
 	unsigned	cached:1;/*!< TRUE if the index object is in the
 				dictionary cache */

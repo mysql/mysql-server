@@ -10,11 +10,13 @@ select @@session.report_port;
 show global variables like 'report_port';
 --replace_column 2 'DEFAULT_MASTER_PORT'
 show session variables like 'report_port';
+--disable_warnings
 --replace_column 2 'DEFAULT_MASTER_PORT'
 select * from information_schema.global_variables where variable_name='report_port';
 --replace_column 2 'DEFAULT_MASTER_PORT'
 select * from information_schema.session_variables where variable_name='report_port';
 --replace_column 2 'DEFAULT_MASTER_PORT'
+--enable_warnings
 
 #
 # show that it's read-only

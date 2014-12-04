@@ -121,20 +121,26 @@ SELECT @@global.pseudo_slave_mode;
 #     Check if the value in SESSION Table contains variable value        #
 #########################################################################
 
+--disable_warnings
 SELECT count(VARIABLE_VALUE) FROM INFORMATION_SCHEMA.SESSION_VARIABLES WHERE VARIABLE_NAME='pseudo_slave_mode';
+--enable_warnings
 
 --echo '#----------------------FN_DYNVARS_156_07------------------------#'
 ######################################################################### 
 #     Check if the value in SESSION Table matches value in variable      #
 #########################################################################
 
+--disable_warnings
 SELECT IF(@@session.pseudo_slave_mode, "ON", "OFF") = VARIABLE_VALUE 
 FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
 WHERE VARIABLE_NAME='pseudo_slave_mode';
+--enable_warnings
 SELECT @@session.pseudo_slave_mode;
+--disable_warnings
 SELECT VARIABLE_VALUE 
 FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
 WHERE VARIABLE_NAME='pseudo_slave_mode';
+--enable_warnings
 
 --echo '#---------------------FN_DYNVARS_156_08-------------------------#'
 ################################################################### 

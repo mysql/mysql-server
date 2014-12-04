@@ -178,7 +178,7 @@ namespace binary_log
     <td>Q_SQL_MODE_CODE == 1</td>
     <td>8 byte bitfield</td>
     <td>The @c sql_mode variable.  See the section "SQL Modes" in the
-    MySQL manual, and see sql_priv.h for a list of the possible
+    MySQL manual, and see sql_class.h for a list of the possible
     flags. Currently (2007-10-04), the following flags are available:
     <pre>
     MODE_REAL_AS_FLOAT==0x1
@@ -649,10 +649,9 @@ public:
 #endif
 };
 
-/**
-  Check if jump value is within buffer limits.
+/*
+  Check how many bytes are available on buffer.
 
-  @param jump         Number of positions we want to advance.
   @param buf_start    Pointer to buffer start.
   @param buf_current  Pointer to the current position on buffer.
   @param buf_len      Buffer length.

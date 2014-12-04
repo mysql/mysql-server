@@ -107,6 +107,13 @@ FLUSH RELAY LOGS FOR CHANNEL "channel1";
 --source include/rpl_stop_slaves.inc
 RESET SLAVE ALL;
 
+--echo #
+--echo # We have to reset the --relay-log and --relay-log-index options,
+--echo # so that in the  next test case if the server restarts there is no mismatch
+--echo # with the current options and the default option (i.e relay-log=slave-relay-bin)
+--echo #
+--source include/force_restart.inc
+
 --disable_warnings
 --replace_result $MASTER_MYPORT MYPORT
 eval CHANGE MASTER TO MASTER_HOST="127.0.0.1", MASTER_PORT=$MASTER_MYPORT,

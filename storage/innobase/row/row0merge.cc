@@ -1301,17 +1301,15 @@ row_merge_write_eof(
 }
 
 /** Create a temporary file if it has not been created already.
-@param[in,out]	tmpfd	temporary file handle
-@param[in]	path	location for creating temporary file
+@param[in,out] tmpfd	temporary file handle
 @return file descriptor, or -1 on failure */
 static __attribute__((warn_unused_result))
 int
 row_merge_tmpfile_if_needed(
-	int*		tmpfd,
-	const char*	path)
+	int*	tmpfd)
 {
 	if (*tmpfd < 0) {
-		*tmpfd = row_merge_file_create_low(path);
+		*tmpfd = row_merge_file_create_low();
 		if (*tmpfd >= 0) {
 			MONITOR_ATOMIC_INC(MONITOR_ALTER_TABLE_SORT_FILES);
 		}
@@ -1323,20 +1321,18 @@ row_merge_tmpfile_if_needed(
 /** Create a temporary file for merge sort if it was not created already.
 @param[in,out]	file	merge file structure
 @param[in]	nrec	number of records in the file
-@param[in]	path	location for creating temporary file
 @return file descriptor, or -1 on failure */
 static __attribute__((warn_unused_result))
 int
 row_merge_file_create_if_needed(
 	merge_file_t*	file,
 	int*		tmpfd,
-	ulint		nrec,
-	const char*	path)
+	ulint		nrec)
 {
 	ut_ad(file->fd < 0 || *tmpfd >=0);
-	if (file->fd < 0 && row_merge_file_create(file, path) >= 0) {
+	if (file->fd < 0 && row_merge_file_create(file) >= 0) {
 		MONITOR_ATOMIC_INC(MONITOR_ALTER_TABLE_SORT_FILES);
-		if (row_merge_tmpfile_if_needed(tmpfd, path) < 0) {
+		if (row_merge_tmpfile_if_needed(tmpfd) < 0) {
 			return(-1);
 		}
 
@@ -1481,7 +1477,6 @@ row_merge_read_clustered_index(
 	row_merge_dup_t	clust_dup = {index[0], table, col_map, 0};
 	dfield_t*	prev_fields;
 	const ulint	n_uniq = dict_index_get_n_unique(index[0]);
-	const char*	path = thd_innodb_tmpdir(trx->mysql_thd);
 
 	ut_ad(!skip_pk_sort || dict_index_is_clust(index[0]));
 	/* There is no previous tuple yet. */
@@ -2147,7 +2142,7 @@ write_buffers:
 				} else {
 					if (row_merge_file_create_if_needed(
 						file, tmpfd,
-						buf->n_tuples, path) < 0) {
+						buf->n_tuples) < 0) {
 						err = DB_OUT_OF_MEMORY;
 						trx->error_key_num = i;
 						goto func_exit;
@@ -3155,14 +3150,18 @@ row_merge_drop_indexes_dict(
 	trx->op_info = "dropping indexes";
 	error = que_eval_sql(info, sql, FALSE, trx);
 
-	if (error != DB_SUCCESS) {
+	switch (error) {
+	case DB_SUCCESS:
+		break;
+	default:
 		/* Even though we ensure that DDL transactions are WAIT
 		and DEADLOCK free, we could encounter other errors e.g.,
 		DB_TOO_MANY_CONCURRENT_TRXS. */
-		trx->error_state = DB_SUCCESS;
-
-		ib::error() << "row_merge_drop_indexes_dict failed with error"
+		ib::error() << "row_merge_drop_indexes_dict failed with error "
 			<< error;
+		/* fall through */
+	case DB_TOO_MANY_CONCURRENT_TRXS:
+		trx->error_state = DB_SUCCESS;
 	}
 
 	trx->op_info = "";
@@ -3417,13 +3416,13 @@ row_merge_drop_temp_indexes(void)
 	trx_free_for_background(trx);
 }
 
-/** Create temporary merge files in the given paramater path, and if
-UNIV_PFS_IO defined, register the file descriptor with Performance Schema.
-@param[in]	path	location for creating temporary merge files.
-@return File descriptor */
+/*********************************************************************//**
+Creates temporary merge files, and if UNIV_PFS_IO defined, register
+the file descriptor with Performance Schema.
+@return file descriptor, or -1 on failure */
 int
-row_merge_file_create_low(
-	const char*	path)
+row_merge_file_create_low(void)
+/*===========================*/
 {
 	int	fd;
 #ifdef UNIV_PFS_IO
@@ -3437,7 +3436,7 @@ row_merge_file_create_low(
 				     "Innodb Merge Temp File",
 				     __FILE__, __LINE__);
 #endif
-	fd = innobase_mysql_tmpfile(path);
+	fd = innobase_mysql_tmpfile();
 #ifdef UNIV_PFS_IO
 	register_pfs_file_open_end(locker, fd);
 #endif
@@ -3449,16 +3448,15 @@ row_merge_file_create_low(
 	return(fd);
 }
 
-/** Create a merge file in the given location.
-@param[out]	merge_file	merge file structure
-@param[in]	path		location for creating temporary file
+/*********************************************************************//**
+Create a merge file.
 @return file descriptor, or -1 on failure */
 int
 row_merge_file_create(
-	merge_file_t*	merge_file,
-	const char*	path)
+/*==================*/
+	merge_file_t*	merge_file)	/*!< out: merge file structure */
 {
-	merge_file->fd = row_merge_file_create_low(path);
+	merge_file->fd = row_merge_file_create_low();
 	merge_file->offset = 0;
 	merge_file->n_rec = 0;
 
@@ -3780,7 +3778,7 @@ row_merge_create_index_graph(
 	heap = mem_heap_create(512);
 
 	index->table = table;
-	node = ind_create_graph_create(index, heap, false);
+	node = ind_create_graph_create(index, heap);
 	thr = pars_complete_graph_for_exec(node, trx, heap);
 
 	ut_a(thr == que_fork_start_command(

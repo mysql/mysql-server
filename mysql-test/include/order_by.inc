@@ -1825,4 +1825,38 @@ let $query=SELECT DISTINCT a FROM t1 WHERE b=1 ORDER BY 1;
 eval EXPLAIN $query;
 eval $query;
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#18636076 DEBUG CRASH ON 
+--echo #              PLAN_CHANGE_WATCHDOG::~PLAN_CHANGE_WATCHDOG
+--echo #
+
+# Both tables must be created using MyISAM in order to reproduce assert
+CREATE TABLE t1 (
+  pk INTEGER NOT NULL,
+  PRIMARY KEY (pk)
+) ENGINE=MyISAM;
+
+INSERT INTO t1 VALUES (1), (2), (3);
+
+CREATE VIEW view_t1 AS SELECT * FROM t1;
+
+CREATE TABLE t2 (
+  i1 INTEGER NOT NULL
+) ENGINE=MyISAM;
+
+let query=
+SELECT DISTINCT t2.i1, view_t1.pk
+FROM view_t1 LEFT JOIN t2
+ON  view_t1.pk = t2.i1
+WHERE (view_t1.pk <= 204 AND t2.i1 != 3)
+  OR view_t1.pk BETWEEN 1 AND 7
+ORDER BY t2.i1;
+
+eval EXPLAIN $query;
+eval $query;
+
+DROP VIEW view_t1;
+DROP TABLE t1, t2;
+
 SET sql_mode = default;

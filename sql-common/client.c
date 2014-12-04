@@ -4903,8 +4903,8 @@ void STDCALL mysql_close(MYSQL *mysql)
     {
       free_old_query(mysql);
       mysql->status=MYSQL_STATUS_READY; /* Force command */
-      mysql->reconnect=0;
       simple_command(mysql,COM_QUIT,(uchar*) 0,0,1);
+      mysql->reconnect=0;
       end_server(mysql);			/* Sets mysql->net.vio= 0 */
     }
     mysql_close_free_options(mysql);

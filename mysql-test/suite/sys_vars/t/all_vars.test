@@ -49,8 +49,10 @@ create table t2 (variable_name text);
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 eval load data infile "$MYSQLTEST_VARDIR/tmp/sys_vars.all_vars.txt" into table t1;
 
+--disable_warnings
 insert into t2 select variable_name from information_schema.global_variables;
 insert into t2 select variable_name from information_schema.session_variables;
+--enable_warnings
 
 # Performance schema variables are too long for files named
 # 'mysql-test/suite/sys_vars/t/' ...

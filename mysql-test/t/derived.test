@@ -1407,3 +1407,131 @@ eval explain $query;
 eval $query;
 
 DROP TABLE t1, t2;
+
+--echo #
+--echo # Bug #18607971 : 5.5 TO 5.6 REGRESSION WITH A SUBQUERY IN THE FROM
+--echo #                 CLAUSE.
+--echo #
+
+CREATE TABLE t(id INT PRIMARY KEY,
+               c1 INT, c2 INT, key(c2)) engine=InnoDB;
+INSERT INTO t(id, c1, c2) VALUES(1, 2, 3), (2, 3, 4), (3, 3, 4), (4, 3, 4);
+
+ANALYZE TABLE t;
+
+EXPLAIN SELECT * FROM
+             (SELECT t1.c1
+              FROM t t1 INNER JOIN t t2 ON t1.c1= 3
+              GROUP BY t1.c1) a, t b
+             WHERE b.id BETWEEN 1 AND 10;
+
+EXPLAIN SELECT * FROM
+             (SELECT t1.id
+              FROM t t1 INNER JOIN t t2 ON t1.id=1 AND t1.c1=t2.id
+              GROUP BY t1.id, t2.c2) a, t b
+             WHERE b.id BETWEEN 1 AND 10;
+
+EXPLAIN SELECT * FROM
+             (SELECT t1.c1
+              FROM t t1 INNER JOIN t t2 ON t1.c1= 3 AND t2.c2= 3
+              GROUP BY t1.c1) a, t b
+             WHERE b.id BETWEEN 1 AND 10;
+
+EXPLAIN SELECT * FROM
+             (SELECT t1.c1
+              FROM t t1 INNER JOIN t t2 ON t1.c1= 3 AND t2.c2= 3
+              GROUP BY t1.c1, t2.c2) a, t b
+             WHERE b.id BETWEEN 1 AND 10;
+
+EXPLAIN SELECT * FROM
+             (SELECT t1.c1
+              FROM t t1 INNER JOIN t t2 ON t1.c1= 3 AND t2.c2= 3
+              GROUP BY t1.c1, t1.id) a, t b
+             WHERE b.id BETWEEN 1 AND 10;
+
+EXPLAIN SELECT * FROM
+             (SELECT t1.id
+              FROM t t1 INNER JOIN t t2 ON t1.id=1 AND t1.c1=t2.c1
+              GROUP BY t2.c1, t1.id) a, t b
+             WHERE b.id BETWEEN 1 AND 10;
+
+EXPLAIN SELECT * FROM
+             (SELECT t1.id
+              FROM t t1 INNER JOIN t t2 ON t1.id=1 AND t1.c1=t2.id
+              GROUP BY t2.c1, t1.id) a, t b
+             WHERE b.id BETWEEN 1 AND 10;
+
+EXPLAIN SELECT * FROM
+             (SELECT t1.id
+              FROM t t1 INNER JOIN t t2 ON t1.id=1 AND t1.c1=t2.id
+              GROUP BY t2.c2, t1.id) a, t b
+             WHERE b.id BETWEEN 1 AND 10;
+
+EXPLAIN SELECT * FROM
+             (SELECT t1.id
+              FROM t t1 INNER JOIN t t2 ON t1.id=1 AND t1.c1=t2.id
+              GROUP BY t1.id, t2.c2) a, t b
+             WHERE b.id BETWEEN 1 AND 10;
+
+EXPLAIN SELECT * FROM
+             (SELECT t1.id
+              FROM t t1 INNER JOIN t t2 INNER JOIN t t3 ON t1.id=1 AND t1.c1=t2.id AND t2.c1=t3.id
+              GROUP BY t1.id, t2.c2, t3.c2) a, t b
+             WHERE b.id BETWEEN 1 AND 10;
+
+#distinct
+EXPLAIN SELECT * FROM
+             (SELECT DISTINCT t1.id
+              FROM t t1
+              WHERE t1.id= 1) a, t b
+             WHERE b.id BETWEEN 1 AND 10;
+
+#group by with expression.
+EXPLAIN SELECT * FROM
+             (SELECT t1.id + 1
+              FROM t t1 INNER JOIN t t2 ON t1.id= 1
+              GROUP BY t1.id + 1) a, t b
+             WHERE b.id BETWEEN 1 AND 10;
+
+EXPLAIN SELECT * FROM
+             (SELECT t1.c1
+              FROM t t1 INNER JOIN t t2 ON t1.c1= 3
+              GROUP BY 1.5) a, t b
+             WHERE b.id BETWEEN 1 AND 10;
+
+EXPLAIN SELECT * FROM
+             (SELECT t1.id
+              FROM t t1 INNER JOIN t t2 ON mod(t1.id,1000)= 1
+              GROUP BY t1.id) a, t b
+             WHERE b.id BETWEEN 1 AND 10;
+
+EXPLAIN SELECT * FROM
+             (SELECT t1.id + 1
+              FROM t t1 INNER JOIN t t2 ON t1.id + 1= 2
+              GROUP BY t1.id + 1) a, t b
+             WHERE b.id BETWEEN 1 AND 10;
+
+#Test view ref in group by.
+CREATE VIEW v1 AS SELECT c1 a FROM t WHERE c1 = 3;
+CREATE VIEW v2 AS SELECT c2 b FROM t WHERE c2 > 3;
+EXPLAIN SELECT * FROM (SELECT v1.a
+               FROM v1 LEFT OUTER JOIN v2 ON v1.a = v2.b
+               GROUP BY v1.a) p, t q
+               WHERE q.id BETWEEN 1 AND 10;
+
+DROP VIEW v1;
+CREATE VIEW v1 AS SELECT c1 a FROM t;
+
+EXPLAIN SELECT * FROM (SELECT v1.a
+               FROM v1 LEFT OUTER JOIN v2 ON v1.a = v2.b AND v1.a = 10
+               GROUP BY v1.a) p, t q
+               WHERE q.id BETWEEN 1 AND 10;
+
+EXPLAIN SELECT * FROM (SELECT v1.a
+               FROM v1 LEFT OUTER JOIN v2 ON v1.a = v2.b
+               WHERE v1.a = 3
+               GROUP BY v1.a) p, t q
+               WHERE q.id BETWEEN 1 AND 10;
+
+DROP VIEW v1, v2;
+DROP TABLE t;

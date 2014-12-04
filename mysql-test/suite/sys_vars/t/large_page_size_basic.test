@@ -8,10 +8,12 @@ select @@session.large_page_size;
 show global variables like 'large_page_size';
 --replace_column 2 #
 show session variables like 'large_page_size';
+--disable_warnings
 --replace_column 2 #
 select * from information_schema.global_variables where variable_name='large_page_size';
 --replace_column 2 #
 select * from information_schema.session_variables where variable_name='large_page_size';
+--enable_warnings
 
 #
 # show that it's read-only

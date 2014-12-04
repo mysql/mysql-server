@@ -19,7 +19,6 @@
 #ifdef HAVE_REPLICATION
 
 #include <my_global.h>
-#include <sql_priv.h>
 
 #define DEFAULT_CONNECT_RETRY 60
 

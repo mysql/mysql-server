@@ -1257,8 +1257,8 @@ WHERE col_1_text = REPEAT("c", 4000) AND col_2_text = REPEAT("o", 4000);
 col_1_text = REPEAT("c", 4000)
 DROP INDEX prefix_idx ON worklog5743;
 CREATE INDEX prefix_idx ON worklog5743(col_1_text (4000));
-Warnings:
-Warning	1071	Specified key was too long; max key length is 3072 bytes
+ERROR 42000: Specified key was too long; max key length is 3072 bytes
+CREATE INDEX prefix_idx ON worklog5743(col_1_text (3072));
 INSERT INTO worklog5743 VALUES(REPEAT("a", 4000),REPEAT("o", 4000));
 SELECT col_1_text = REPEAT("a", 4000) FROM worklog5743;
 col_1_text = REPEAT("a", 4000)
@@ -1373,10 +1373,10 @@ PRIMARY KEY (col_1_varchar(767))
 ) engine = innodb;
 INSERT INTO worklog5743 VALUES(REPEAT('a',4000),REPEAT('b',4000));
 CREATE INDEX prefix_idx ON worklog5743(col_1_varchar (1000));
+ERROR 42000: Specified key was too long; max key length is 767 bytes
+CREATE INDEX prefix_idx ON worklog5743(col_1_varchar (767));
 affected rows: 0
-info: Records: 0  Duplicates: 0  Warnings: 1
-Warnings:
-Warning	1071	Specified key was too long; max key length is 767 bytes
+info: Records: 0  Duplicates: 0  Warnings: 0
 ALTER TABLE worklog5743 ROW_FORMAT=REDUNDANT;
 affected rows: 0
 info: Records: 0  Duplicates: 0  Warnings: 0

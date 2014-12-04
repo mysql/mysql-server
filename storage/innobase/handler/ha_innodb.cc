@@ -362,7 +362,10 @@ static PSI_rwlock_info all_innodb_rwlocks[] = {
 	PSI_RWLOCK_KEY(index_tree_rw_lock),
 	PSI_RWLOCK_KEY(index_online_log),
 	PSI_RWLOCK_KEY(dict_table_stats),
-	PSI_RWLOCK_KEY(hash_table_locks)
+	PSI_RWLOCK_KEY(hash_table_locks),
+#  ifdef UNIV_DEBUG
+	PSI_RWLOCK_KEY(buf_chunk_map_latch)
+#  endif /* UNIV_DEBUG */
 };
 # endif /* UNIV_PFS_RWLOCK */
 
@@ -555,11 +558,6 @@ static MYSQL_THDVAR_STR(ft_user_stopword_table,
 static MYSQL_THDVAR_BOOL(optimize_point_storage, PLUGIN_VAR_OPCMDARG,
   "Optimize POINT storage as fixed length, rather than variable length"
   " (disabled by default)", NULL, NULL, FALSE);
-
-static MYSQL_THDVAR_STR(tmpdir,
-  PLUGIN_VAR_OPCMDARG|PLUGIN_VAR_MEMALLOC,
-  "Directory for temporary files during DDL operations.",
-  NULL, NULL, "");
 
 static SHOW_VAR innodb_status_variables[]= {
   {"buffer_pool_dump_status",
@@ -938,12 +936,15 @@ innobase_start_trx_and_assign_read_view(
 					user for whom the transaction should
 					be committed */
 /** Flush InnoDB redo logs to the file system.
-@param[in]	hton	InnoDB handlerton
+@param[in]	hton			InnoDB handlerton
+@param[in]	binlog_group_flush	true if we got invoked by binlog
+group commit during flush stage, false in other cases.
 @return false */
 static
 bool
 innobase_flush_logs(
-	handlerton*	hton);
+	handlerton*	hton,
+	bool		binlog_group_flush);
 
 /************************************************************************//**
 Implements the SHOW ENGINE INNODB STATUS command. Sends the output of the
@@ -1308,6 +1309,28 @@ thd_is_select(
 	return(thd_sql_command(thd) == SQLCOM_SELECT);
 }
 
+/** Returns true if the thread is executing CREATE TABLE statement.
+@param[in]	thd	the current thread context
+@retval true if thread is executing CREATE TABLE. */
+static
+inline
+bool
+thd_is_create_table(const THD*	thd)
+{
+	return(thd_sql_command(thd) == SQLCOM_CREATE_TABLE);
+}
+
+/** Returns true if the thread is executing CREATE INDEX statement.
+@param[in]	thd	the current thread context
+@retval true if thread is executing CREATE INDEX. */
+static
+inline
+bool
+thd_is_create_index(const THD*	thd)
+{
+	return(thd_sql_command(thd) == SQLCOM_CREATE_INDEX);
+}
+
 /******************************************************************//**
 Returns true if the thread supports XA,
 global value of innodb_supports_xa if thd is NULL.
@@ -1357,24 +1380,6 @@ thd_create_intrinsic(
 	THD*	thd)
 {
 	return(THDVAR(thd, create_intrinsic));
-}
-
-/** Get the value of innodb_tmpdir.
-@param[in]	thd	thread handle, or NULL to query
-			the global innodb_tmpdir.
-@return value or NULL if innodb_tmpdir is set to default value "" */
-const char*
-thd_innodb_tmpdir(
-	THD*	thd)
-{
-	const char*	tmp_dir = THDVAR(thd, tmpdir);
-	btrsea_sync_check	check(false);
-	ut_ad(!sync_check_iterate(check));
-	if (tmp_dir != NULL && *tmp_dir == '\0') {
-		tmp_dir = NULL;
-	}
-
-	return(tmp_dir);
 }
 
 /** Obtain the private handler of InnoDB session specific data.
@@ -1627,7 +1632,7 @@ convert_error_code_to_mysql(
 		return(HA_ERR_NO_SUCH_TABLE);
 
 	case DB_TABLESPACE_NOT_FOUND:
-		return(HA_ERR_NO_SUCH_TABLE);
+		return(HA_ERR_TABLESPACE_MISSING);
 
 	case DB_TOO_BIG_RECORD: {
 		/* If prefix is true then a 768-byte prefix is stored
@@ -1946,13 +1951,12 @@ innobase_get_lower_case_table_names(void)
 	return(lower_case_table_names);
 }
 
-/** Create a temporary file in the location specified by the parameter
-path. If the path is null, then it will be created in tmpdir.
-@param[in]	path	location for creating temporary file
+/*********************************************************************//**
+Creates a temporary file.
 @return temporary file descriptor, or < 0 on error */
 int
-innobase_mysql_tmpfile(
-	const char*	path)
+innobase_mysql_tmpfile(void)
+/*========================*/
 {
 	int	fd2 = -1;
 	File	fd;
@@ -1962,11 +1966,7 @@ innobase_mysql_tmpfile(
 		return(-1);
 	);
 
-	if (path == NULL) {
-		fd = mysql_tmpfile("ib");
-	} else {
-		fd = mysql_tmpfile_path(path, "ib");
-	}
+	fd = mysql_tmpfile("ib");
 
 	if (fd >= 0) {
 		/* Copy the file descriptor, so that the additional resources
@@ -2818,7 +2818,7 @@ ha_innobase::reset_template(void)
 
 /*****************************************************************//**
 Call this when you have opened a new table handle in HANDLER, before you
-call index_read_idx() etc. Actually, we can let the cursor stay open even
+call index_read_map() etc. Actually, we can let the cursor stay open even
 over a transaction commit! Then you should call this before every operation,
 fetch next etc. This function inits the necessary things even after a
 transaction commit. */
@@ -3505,19 +3505,39 @@ innobase_end(
 }
 
 /** Flush InnoDB redo logs to the file system.
-@param[in]	hton	InnoDB handlerton
+@param[in]	hton			InnoDB handlerton
+@param[in]	binlog_group_flush	true if we got invoked by binlog
+group commit during flush stage, false in other cases.
 @return false */
 static
 bool
 innobase_flush_logs(
-	handlerton*	hton)
+	handlerton*	hton,
+	bool		binlog_group_flush)
 {
 	DBUG_ENTER("innobase_flush_logs");
 	DBUG_ASSERT(hton == innodb_hton_ptr);
 
-	if (!srv_read_only_mode) {
-		log_buffer_flush_to_disk();
+	if (srv_read_only_mode) {
+		DBUG_RETURN(false);
 	}
+
+	/* If !binlog_group_flush, we got invoked by FLUSH LOGS or similar.
+	Else, we got invoked by binlog group commit during flush stage. */
+
+	if (binlog_group_flush && srv_flush_log_at_trx_commit == 0) {
+		/* innodb_flush_log_at_trx_commit=0
+		(write and sync once per second).
+		Do not flush the redo log during binlog group commit. */
+		DBUG_RETURN(false);
+	}
+
+	/* Flush the redo log buffer to the redo log file.
+	Sync it to disc if we are in FLUSH LOGS, or if
+	innodb_flush_log_at_trx_commit=1
+	(write and sync at each commit). */
+	log_buffer_flush_to_disk(!binlog_group_flush
+				 || srv_flush_log_at_trx_commit == 1);
 
 	DBUG_RETURN(false);
 }
@@ -3782,7 +3802,9 @@ innobase_rollback(
 	we come here to roll back the latest SQL statement) we
 	release it now before a possibly lengthy rollback */
 
-	lock_unlock_table_autoinc(trx);
+	if (!trx_in_innodb.is_aborted()) {
+		lock_unlock_table_autoinc(trx);
+	}
 
 	/* This is a statement level variable. */
 
@@ -3847,8 +3869,9 @@ innobase_rollback_trx(
 	/* If we had reserved the auto-inc lock for some table (if
 	we come here to roll back the latest SQL statement) we
 	release it now before a possibly lengthy rollback */
-
-	lock_unlock_table_autoinc(trx);
+	if (!TrxInInnoDB::is_aborted(trx)) {
+		lock_unlock_table_autoinc(trx);
+	}
 
 	if (trx_is_rseg_updated(trx)) {
 		error = trx_rollback_for_mysql(trx);
@@ -5081,7 +5104,7 @@ table_opened:
 
 		dict_table_close(ib_table, FALSE, FALSE);
 
-		DBUG_RETURN(HA_ERR_NO_SUCH_TABLE);
+		DBUG_RETURN(HA_ERR_TABLESPACE_MISSING);
 	}
 
 	m_prebuilt = row_create_prebuilt(ib_table, table->s->reclength);
@@ -6490,29 +6513,6 @@ ha_innobase::innobase_lock_autoinc(void)
 }
 
 /********************************************************************//**
-Reset the autoinc value in the table.
-@return DB_SUCCESS if all went well else error code */
-
-dberr_t
-ha_innobase::innobase_reset_autoinc(
-/*================================*/
-	ulonglong	autoinc)	/*!< in: value to store */
-{
-	dberr_t		error;
-
-	error = innobase_lock_autoinc();
-
-	if (error == DB_SUCCESS) {
-
-		dict_table_autoinc_initialize(m_prebuilt->table, autoinc);
-
-		dict_table_autoinc_unlock(m_prebuilt->table);
-	}
-
-	return(error);
-}
-
-/********************************************************************//**
 Store the autoinc value in the table. The autoinc value is only set if
 it's greater than the existing autoinc value in the table.
 @return DB_SUCCESS if all went well else error code */
@@ -7717,13 +7717,14 @@ ha_innobase::index_read(
 		break;
 
 	case DB_TABLESPACE_NOT_FOUND:
+
 		ib_senderrf(
 			m_prebuilt->trx->mysql_thd, IB_LOG_LEVEL_ERROR,
 			ER_TABLESPACE_MISSING,
 			table->s->table_name.str);
 
 		table->status = STATUS_NOT_FOUND;
-		error = HA_ERR_NO_SUCH_TABLE;
+		error = HA_ERR_TABLESPACE_MISSING;
 		break;
 
 	default:
@@ -7925,32 +7926,6 @@ ha_innobase::change_active_index(
 	DBUG_RETURN(0);
 }
 
-/**********************************************************************//**
-Positions an index cursor to the index specified in keynr. Fetches the
-row if any.
-??? This is only used to read whole keys ???
-@return error number or 0 */
-
-int
-ha_innobase::index_read_idx(
-/*========================*/
-	uchar*		buf,		/*!< in/out: buffer for the returned
-					row */
-	uint		keynr,		/*!< in: use this index */
-	const uchar*	key,		/*!< in: key value; if this is NULL
-					we position the cursor at the
-					start or end of index */
-	uint		key_len,	/*!< in: key value length */
-	ha_rkey_function find_flag)/*!< in: search flags from my_base.h */
-{
-	if (change_active_index(keynr)) {
-
-		return(1);
-	}
-
-	return(index_read(buf, key, key_len, find_flag));
-}
-
 /***********************************************************************//**
 Reads the next or previous row from a cursor, which must have previously been
 positioned using index_read.
@@ -8022,13 +7997,14 @@ ha_innobase::general_fetch(
 		error = HA_ERR_NO_SUCH_TABLE;
 		break;
 	case DB_TABLESPACE_NOT_FOUND:
+
 		ib_senderrf(
 			trx->mysql_thd, IB_LOG_LEVEL_ERROR,
 			ER_TABLESPACE_MISSING,
 			table->s->table_name.str);
 
 		table->status = STATUS_NOT_FOUND;
-		error = HA_ERR_NO_SUCH_TABLE;
+		error = HA_ERR_TABLESPACE_MISSING;
 		break;
 	default:
 		error = convert_error_code_to_mysql(
@@ -8606,7 +8582,7 @@ next_record:
 				table->s->table_name.str);
 
 			table->status = STATUS_NOT_FOUND;
-			error = HA_ERR_NO_SUCH_TABLE;
+			error = HA_ERR_TABLESPACE_MISSING;
 			break;
 		default:
 			error = convert_error_code_to_mysql(
@@ -9214,7 +9190,6 @@ create_clustered_index_when_no_primary(
 	index = dict_mem_index_create(table_name,
 				      innobase_index_reserve_name,
 				      0, DICT_CLUSTERED, 0);
-	index->auto_gen_clust_index = true;
 
 	innodb_session_t*& priv = thd_to_innodb_session(trx->mysql_thd);
 
@@ -9789,9 +9764,14 @@ index_bad:
 	if (m_create_info->options & HA_LEX_CREATE_TMP_TABLE) {
 		m_flags2 |= DICT_TF2_TEMPORARY;
 
+		const bool	use_intrinsic
+			= THDVAR(m_thd, create_intrinsic)
+			&& (thd_is_create_table(m_thd)
+			    || thd_is_create_index(m_thd));
+
 		/* Intrinsic tables reside only in the shared
 		temporary tablespace. */
-		if ((THDVAR(m_thd, create_intrinsic)
+		if ((use_intrinsic
 		     || m_create_info->options
 			& HA_LEX_CREATE_INTERNAL_TMP_TABLE)
 		    && !m_file_per_table) {
@@ -10101,13 +10081,22 @@ create_table_info_t::create_table_update_dict()
 	}
 
 	DBUG_ASSERT(innobase_table != 0);
-	DBUG_ASSERT(innobase_table->fts_doc_id_index == NULL);
 	if (innobase_table->fts != NULL) {
-		innobase_table->fts_doc_id_index
-			= dict_table_get_index_on_name(
-				innobase_table, FTS_DOC_ID_INDEX_NAME);
-		DBUG_ASSERT(innobase_table->fts_doc_id_index != NULL);
+		if (innobase_table->fts_doc_id_index == NULL) {
+			innobase_table->fts_doc_id_index
+				= dict_table_get_index_on_name(
+					innobase_table, FTS_DOC_ID_INDEX_NAME);
+			DBUG_ASSERT(innobase_table->fts_doc_id_index != NULL);
+		} else {
+			DBUG_ASSERT(innobase_table->fts_doc_id_index
+				    == dict_table_get_index_on_name(
+						innobase_table,
+						FTS_DOC_ID_INDEX_NAME));
+		}
 	}
+
+	DBUG_ASSERT((innobase_table->fts == NULL)
+		    == (innobase_table->fts_doc_id_index == NULL));
 
 	innobase_copy_frm_flags_from_create_info(innobase_table, m_create_info);
 
@@ -10457,7 +10446,7 @@ ha_innobase::truncate()
 			ER_TABLESPACE_DISCARDED : ER_TABLESPACE_MISSING),
 			table->s->table_name.str);
 		table->status = STATUS_NOT_FOUND;
-		error = HA_ERR_NO_SUCH_TABLE;
+		error = HA_ERR_TABLESPACE_MISSING;
 		break;
 
 	default:
@@ -10917,7 +10906,7 @@ ha_innobase::records(
 			table->s->table_name.str);
 
 		*num_rows = HA_POS_ERROR;
-		DBUG_RETURN(HA_ERR_NO_SUCH_TABLE);
+		DBUG_RETURN(HA_ERR_TABLESPACE_MISSING);
 
 	} else if (m_prebuilt->table->corrupted) {
 		ib_errf(m_user_thd, IB_LOG_LEVEL_WARN,
@@ -11975,7 +11964,6 @@ ha_innobase::check(
 	ulint		n_rows_in_table	= ULINT_UNDEFINED;
 	bool		is_ok		= true;
 	ulint		old_isolation_level;
-	ibool		table_corrupted;
 	dberr_t		ret;
 
 	DBUG_ENTER("ha_innobase::check");
@@ -12014,6 +12002,34 @@ ha_innobase::check(
 
 	m_prebuilt->trx->op_info = "checking table";
 
+	if (m_prebuilt->table->corrupted) {
+		/* If some previous oeration has marked the table as
+		corrupted in memory, and has not propagated such to
+		clustered index, we will do so here */
+		index = dict_table_get_first_index(m_prebuilt->table);
+
+		if (!dict_index_is_corrupted(index)) {
+			dict_set_corrupted(
+				index, m_prebuilt->trx, "CHECK TABLE");
+		}
+
+		push_warning_printf(m_user_thd,
+				    Sql_condition::SL_WARNING,
+				    HA_ERR_INDEX_CORRUPT,
+				    "InnoDB: Index %s is marked as"
+				    " corrupted",
+				    index->name);
+
+		/* Now that the table is already marked as corrupted,
+		there is no need to check any index of this table */
+		m_prebuilt->trx->op_info = "";
+		if (thd_killed(m_user_thd)) {
+			thd_set_kill_status(m_user_thd);
+		}
+
+		DBUG_RETURN(HA_ADMIN_CORRUPT);
+	}
+
 	old_isolation_level = m_prebuilt->trx->isolation_level;
 
 	/* We must run the index record counts at an isolation level
@@ -12022,13 +12038,7 @@ ha_innobase::check(
 	REPEATABLE READ here */
 	m_prebuilt->trx->isolation_level = TRX_ISO_REPEATABLE_READ;
 
-	/* Check whether the table is already marked as corrupted
-	before running the check table */
-	table_corrupted = m_prebuilt->table->corrupted;
-
-	/* Reset table->corrupted bit so that check table can proceed to
-	do additional check */
-	m_prebuilt->table->corrupted = FALSE;
+	ut_ad(!m_prebuilt->table->corrupted);
 
 	for (index = dict_table_get_first_index(m_prebuilt->table);
 	     index != NULL;
@@ -12038,7 +12048,8 @@ ha_innobase::check(
 			continue;
 		}
 
-		if (!(check_opt->flags & T_QUICK)) {
+		if (!(check_opt->flags & T_QUICK)
+		    && !dict_index_is_corrupted(index)) {
 			/* Enlarge the fatal lock wait timeout during
 			CHECK TABLE. */
 			os_atomic_increment_ulint(
@@ -12158,19 +12169,6 @@ ha_innobase::check(
 				index, m_prebuilt->trx,
 				"CHECK TABLE; Wrong count");
 		}
-	}
-
-	if (table_corrupted) {
-		/* If some previous operation has marked the table as
-		corrupted in memory, and has not propagated such to
-		clustered index, we will do so here */
-		index = dict_table_get_first_index(m_prebuilt->table);
-
-		if (!dict_index_is_corrupted(index)) {
-			dict_set_corrupted(
-				index, m_prebuilt->trx, "CHECK TABLE");
-		}
-		m_prebuilt->table->corrupted = TRUE;
 	}
 
 	/* Restore the original isolation level */
@@ -12726,8 +12724,7 @@ ha_innobase::start_stmt(
 		stored_select_lock_type was decided in:
 		1) ::store_lock(),
 		2) ::external_lock(),
-		3) ::init_table_handle_for_HANDLER(), and
-		4) ::transactional_table_lock(). */
+		3) ::init_table_handle_for_HANDLER(). */
 
 		ut_a(m_prebuilt->stored_select_lock_type != LOCK_NONE_UNSET);
 
@@ -13016,7 +13013,7 @@ ha_innobase::external_lock(
 				trx_commit() will not be called. Reset
 				trx->is_dd_trx here */
 				ut_d(trx->is_dd_trx = false);
-			}		
+			}
 
 		} else if (trx->isolation_level <= TRX_ISO_READ_COMMITTED
 			   && MVCC::is_view_active(trx->read_view)) {
@@ -13035,99 +13032,6 @@ ha_innobase::external_lock(
 		|| m_prebuilt->stored_select_lock_type != LOCK_NONE)) {
 
 		++trx->will_lock;
-	}
-
-	DBUG_RETURN(0);
-}
-
-/******************************************************************//**
-With this function MySQL request a transactional lock to a table when
-user issued query LOCK TABLES..WHERE ENGINE = InnoDB.
-@return error code */
-
-int
-ha_innobase::transactional_table_lock(
-/*==================================*/
-	THD*	thd,		/*!< in: handle to the user thread */
-	int	lock_type)	/*!< in: lock type */
-{
-	DBUG_ENTER("ha_innobase::transactional_table_lock");
-	DBUG_PRINT("enter",("lock_type: %d", lock_type));
-
-	/* We do not know if MySQL can call this function before calling
-	external_lock(). To be safe, update the thd of the current table
-	handle. */
-
-	update_thd(thd);
-
-	if (!thd_tablespace_op(thd)) {
-
-		if (dict_table_is_discarded(m_prebuilt->table)) {
-
-			ib_senderrf(
-				thd, IB_LOG_LEVEL_ERROR,
-				ER_TABLESPACE_DISCARDED,
-				table->s->table_name.str);
-
-		} else if (m_prebuilt->table->ibd_file_missing) {
-
-			ib_senderrf(
-				thd, IB_LOG_LEVEL_ERROR,
-				ER_TABLESPACE_MISSING,
-				table->s->table_name.str);
-		}
-
-		DBUG_RETURN(HA_ERR_CRASHED);
-	}
-
-	trx_t*	trx = m_prebuilt->trx;
-
-	TrxInInnoDB	trx_in_innodb(trx);
-
-	m_prebuilt->sql_stat_start = TRUE;
-	m_prebuilt->hint_need_to_fetch_extra_cols = 0;
-
-	reset_template();
-
-	if (lock_type == F_WRLCK) {
-		m_prebuilt->select_lock_type = LOCK_X;
-		m_prebuilt->stored_select_lock_type = LOCK_X;
-	} else if (lock_type == F_RDLCK) {
-		m_prebuilt->select_lock_type = LOCK_S;
-		m_prebuilt->stored_select_lock_type = LOCK_S;
-	} else {
-		ib::error() << "MySQL is trying to set transactional table"
-			" lock with corrupted lock type to table "
-			<< table->s->table_name.str << ", lock type "
-			<< lock_type << " does not exist.";
-
-		DBUG_RETURN(HA_ERR_CRASHED);
-	}
-
-	/* MySQL is setting a new transactional table lock */
-
-	innobase_register_trx(ht, thd, trx);
-
-	if (THDVAR(thd, table_locks) && thd_in_lock_tables(thd)) {
-		dberr_t	error;
-
-		error = row_lock_table_for_mysql(m_prebuilt, NULL, 0);
-
-		if (error != DB_SUCCESS) {
-			DBUG_RETURN(
-				convert_error_code_to_mysql(
-					error, m_prebuilt->table->flags, thd));
-		}
-
-		if (thd_test_options(
-			thd, OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)) {
-
-			/* Store the current undo_no of the transaction
-			so that we know where to roll back if we have
-			to roll back the next SQL statement */
-
-			trx_mark_sql_stat_end(trx);
-		}
 	}
 
 	DBUG_RETURN(0);
@@ -13584,7 +13488,6 @@ ha_innobase::store_lock(
 		++trx->will_lock;
 	}
 
-	
 #ifdef UNIV_DEBUG
 	if(trx->is_dd_trx) {
 		ut_ad(trx->will_lock == 0
@@ -13788,39 +13691,6 @@ ha_innobase::get_auto_increment(
 }
 
 /*******************************************************************//**
-Reset the auto-increment counter to the given value, i.e. the next row
-inserted will get the given value. This is called e.g. after TRUNCATE
-is emulated by doing a 'DELETE FROM t'. HA_ERR_WRONG_COMMAND is
-returned by storage engines that don't support this operation.
-@return 0 or error code */
-
-int
-ha_innobase::reset_auto_increment(
-/*==============================*/
-	ulonglong	value)		/*!< in: new value for table autoinc */
-{
-	DBUG_ENTER("ha_innobase::reset_auto_increment");
-
-	update_thd(ha_thd());
-
-	dberr_t	error = row_lock_table_autoinc_for_mysql(m_prebuilt);
-
-	if (error != DB_SUCCESS) {
-		DBUG_RETURN(convert_error_code_to_mysql(
-				error, m_prebuilt->table->flags, m_user_thd));
-	}
-
-	/* The next value can never be 0. */
-	if (value == 0) {
-		value = 1;
-	}
-
-	innobase_reset_autoinc(value);
-
-	DBUG_RETURN(0);
-}
-
-/*******************************************************************//**
 See comment in handler.cc */
 
 bool
@@ -13946,10 +13816,8 @@ ha_innobase::cmp_ref(
 			len1 = innobase_read_from_2_little_endian(ref1);
 			len2 = innobase_read_from_2_little_endian(ref2);
 
-			ref1 += 2;
-			ref2 += 2;
 			result = ((Field_blob*) field)->cmp(
-				ref1, len1, ref2, len2);
+				ref1 + 2, len1, ref2 + 2, len2);
 		} else {
 			result = field->key_cmp(ref1, ref2);
 		}
@@ -17190,7 +17058,6 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(fil_make_page_dirty_debug),
   MYSQL_SYSVAR(saved_page_number_debug),
 #endif /* UNIV_DEBUG */
-  MYSQL_SYSVAR(tmpdir),
   NULL
 };
 
