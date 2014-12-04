@@ -1485,10 +1485,6 @@ fil_space_get_flags(
 
 	ut_ad(fil_system);
 
-	if (!id) {
-		return(0);
-	}
-
 	mutex_enter(&fil_system->mutex);
 
 	space = fil_space_get_space(id);
