@@ -648,6 +648,35 @@ dict_table_get_col_name(
 }
 
 #ifndef UNIV_HOTBACKUP
+/** Allocate and init the autoinc latch of a given table.
+This function must not be called concurrently on the same table object.
+@param[in,out]	table_void	table whose autoinc latch to create */
+static
+void
+dict_table_autoinc_alloc(
+	void*	table_void)
+{
+	dict_table_t*	table = static_cast<dict_table_t*>(table_void);
+	table->autoinc_mutex = UT_NEW_NOKEY(ib_mutex_t());
+	ut_a(table->autoinc_mutex != NULL);
+	mutex_create("autoinc", table->autoinc_mutex);
+}
+
+/** Allocate and init the zip_pad_mutex of a given index.
+This function must not be called concurrently on the same index object.
+@param[in,out]	index_void	index whose zip_pad_mutex to create */
+static
+void
+dict_index_zip_pad_alloc(
+	void*	index_void)
+{
+	dict_index_t*	index = static_cast<dict_index_t*>(index_void);
+	index->zip_pad.mutex = UT_NEW_NOKEY(SysMutex());
+	ut_a(index->zip_pad.mutex != NULL);
+	mutex_create("zip_pad_mutex", index->zip_pad.mutex);
+}
+
+
 /********************************************************************//**
 Acquire the autoinc lock. */
 void
@@ -655,8 +684,26 @@ dict_table_autoinc_lock(
 /*====================*/
 	dict_table_t*	table)	/*!< in/out: table */
 {
-	mutex_enter(&table->autoinc_mutex);
+	os_once::do_or_wait_for_done(
+		&table->autoinc_mutex_created,
+		dict_table_autoinc_alloc, table);
+
+	mutex_enter(table->autoinc_mutex);
 }
+
+/** Acquire the zip_pad_mutex latch.
+@param[in,out]	index	the index whose zip_pad_mutex to acquire.*/
+void
+dict_index_zip_pad_lock(
+	dict_index_t*	index)
+{
+	os_once::do_or_wait_for_done(
+		&index->zip_pad.mutex_created,
+		dict_index_zip_pad_alloc, index);
+
+	mutex_enter(index->zip_pad.mutex);
+}
+
 
 /********************************************************************//**
 Unconditionally set the autoinc counter. */
@@ -666,7 +713,7 @@ dict_table_autoinc_initialize(
 	dict_table_t*	table,	/*!< in/out: table */
 	ib_uint64_t	value)	/*!< in: next value to assign to a row */
 {
-	ut_ad(mutex_own(&table->autoinc_mutex));
+	ut_ad(dict_table_autoinc_own(table));
 
 	table->autoinc = value;
 }
@@ -705,7 +752,7 @@ dict_table_autoinc_read(
 /*====================*/
 	const dict_table_t*	table)	/*!< in: table */
 {
-	ut_ad(mutex_own(&table->autoinc_mutex));
+	ut_ad(dict_table_autoinc_own(table));
 
 	return(table->autoinc);
 }
@@ -720,7 +767,7 @@ dict_table_autoinc_update_if_greater(
 	dict_table_t*	table,	/*!< in/out: table */
 	ib_uint64_t	value)	/*!< in: value which was assigned to a row */
 {
-	ut_ad(mutex_own(&table->autoinc_mutex));
+	ut_ad(dict_table_autoinc_own(table));
 
 	if (value > table->autoinc) {
 
@@ -735,7 +782,7 @@ dict_table_autoinc_unlock(
 /*======================*/
 	dict_table_t*	table)	/*!< in/out: table */
 {
-	mutex_exit(&table->autoinc_mutex);
+	mutex_exit(table->autoinc_mutex);
 }
 #endif /* !UNIV_HOTBACKUP */
 
@@ -6523,10 +6570,10 @@ dict_index_zip_success(
 		return;
 	}
 
-	mutex_enter(&index->zip_pad.mutex);
+	dict_index_zip_pad_lock(index);
 	++index->zip_pad.success;
 	dict_index_zip_pad_update(&index->zip_pad, zip_threshold);
-	mutex_exit(&index->zip_pad.mutex);
+	dict_index_zip_pad_unlock(index);
 }
 
 /*********************************************************************//**
@@ -6545,10 +6592,10 @@ dict_index_zip_failure(
 		return;
 	}
 
-	mutex_enter(&index->zip_pad.mutex);
+	dict_index_zip_pad_lock(index);
 	++index->zip_pad.failure;
 	dict_index_zip_pad_update(&index->zip_pad, zip_threshold);
-	mutex_exit(&index->zip_pad.mutex);
+	dict_index_zip_pad_unlock(index);
 }
 
 
