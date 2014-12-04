@@ -32,7 +32,7 @@ drop table t2;
 CREATE TABLE `t2` (
 `views` int(11) NOT NULL default '0',
 `clicks` int(11) NOT NULL default '0',
-`day` date NOT NULL default '0000-00-00',
+`day` date NOT NULL,
 `hour` tinyint(4) NOT NULL default '0',
 `bannerid` smallint(6) NOT NULL default '0',
 `zoneid` smallint(6) NOT NULL default '0',
