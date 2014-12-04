@@ -17,7 +17,6 @@
 
 #include "sql_base.h"                           // setup_table_map
 #include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
-#include "sql_priv.h"
 #include "debug_sync.h"
 #include "lock.h"        // mysql_lock_remove,
                          // mysql_unlock_tables,

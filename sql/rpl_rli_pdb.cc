@@ -14,7 +14,6 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
-#include "sql_priv.h"
 #include "rpl_rli_pdb.h"
 #include "rpl_slave.h"
 #include "sql_string.h"

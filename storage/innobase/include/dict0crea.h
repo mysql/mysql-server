@@ -42,10 +42,7 @@ tab_create_graph_create(
 /*====================*/
 	dict_table_t*	table,		/*!< in: table to create, built as
 					a memory data structure */
-	mem_heap_t*	heap,		/*!< in: heap where created */
-	bool		commit);	/*!< in: true if the commit node
-					should be added to the query graph */
-
+	mem_heap_t*	heap);		/*!< in: heap where created */
 /*********************************************************************//**
 Creates an index create graph.
 @return own: index create node */
@@ -54,9 +51,7 @@ ind_create_graph_create(
 /*====================*/
 	dict_index_t*	index,		/*!< in: index to create, built
 					as a memory data structure */
-	mem_heap_t*	heap,		/*!< in: heap where created */
-	bool		commit);	/*!< in: true if the commit node
-					should be added to the query graph */
+	mem_heap_t*	heap);		/*!< in: heap where created */
 
 /***********************************************************//**
 Creates a table. This is a high-level function used in SQL execution graphs.
@@ -254,9 +249,6 @@ struct tab_node_t{
 					of the column definitions; the row to
 					be inserted is built by the parent
 					node  */
-	commit_node_t*	commit_node;	/*!< child node which performs a
-					commit after a successful table
-					creation */
 	/*----------------------*/
 	/* Local storage for this graph node */
 	ulint		state;		/*!< node execution state */
@@ -268,9 +260,8 @@ struct tab_node_t{
 /* Table create node states */
 #define	TABLE_BUILD_TABLE_DEF	1
 #define	TABLE_BUILD_COL_DEF	2
-#define	TABLE_COMMIT_WORK	3
-#define	TABLE_ADD_TO_CACHE	4
-#define	TABLE_COMPLETED		5
+#define	TABLE_ADD_TO_CACHE	3
+#define	TABLE_COMPLETED		4
 
 /* Index create node struct */
 
@@ -286,9 +277,6 @@ struct ind_node_t{
 					of the field definitions; the row to
 					be inserted is built by the parent
 					node  */
-	commit_node_t*	commit_node;	/*!< child node which performs a
-					commit after a successful index
-					creation */
 	/*----------------------*/
 	/* Local storage for this graph node */
 	ulint		state;		/*!< node execution state */
@@ -304,8 +292,7 @@ struct ind_node_t{
 #define	INDEX_BUILD_INDEX_DEF	1
 #define	INDEX_BUILD_FIELD_DEF	2
 #define	INDEX_CREATE_INDEX_TREE	3
-#define	INDEX_COMMIT_WORK	4
-#define	INDEX_ADD_TO_CACHE	5
+#define	INDEX_ADD_TO_CACHE	4
 
 #ifndef UNIV_NONINL
 #include "dict0crea.ic"

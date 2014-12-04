@@ -47,7 +47,6 @@
   (assuming a index for column d of table t2 is defined)
 */
 
-#include "sql_priv.h"
 #include "key.h"                                // key_cmp_if_same
 #include "sql_select.h"
 

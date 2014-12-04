@@ -15,7 +15,6 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include "sql_priv.h"
 #include "sql_select.h"
 #include "sql_optimizer.h"
 #include "abstract_query_plan.h"

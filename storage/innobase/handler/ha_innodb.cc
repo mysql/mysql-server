@@ -559,11 +559,6 @@ static MYSQL_THDVAR_BOOL(optimize_point_storage, PLUGIN_VAR_OPCMDARG,
   "Optimize POINT storage as fixed length, rather than variable length"
   " (disabled by default)", NULL, NULL, FALSE);
 
-static MYSQL_THDVAR_STR(tmpdir,
-  PLUGIN_VAR_OPCMDARG|PLUGIN_VAR_MEMALLOC,
-  "Directory for temporary files during DDL operations.",
-  NULL, NULL, "");
-
 static SHOW_VAR innodb_status_variables[]= {
   {"buffer_pool_dump_status",
   (char*) &export_vars.innodb_buffer_pool_dump_status,	  SHOW_CHAR},
@@ -1387,24 +1382,6 @@ thd_create_intrinsic(
 	return(THDVAR(thd, create_intrinsic));
 }
 
-/** Get the value of innodb_tmpdir.
-@param[in]	thd	thread handle, or NULL to query
-			the global innodb_tmpdir.
-@return value or NULL if innodb_tmpdir is set to default value "" */
-const char*
-thd_innodb_tmpdir(
-	THD*	thd)
-{
-	const char*	tmp_dir = THDVAR(thd, tmpdir);
-	btrsea_sync_check	check(false);
-	ut_ad(!sync_check_iterate(check));
-	if (tmp_dir != NULL && *tmp_dir == '\0') {
-		tmp_dir = NULL;
-	}
-
-	return(tmp_dir);
-}
-
 /** Obtain the private handler of InnoDB session specific data.
 @param[in,out]	thd	MySQL thread handler.
 @return reference to private handler */
@@ -1655,7 +1632,7 @@ convert_error_code_to_mysql(
 		return(HA_ERR_NO_SUCH_TABLE);
 
 	case DB_TABLESPACE_NOT_FOUND:
-		return(HA_ERR_NO_SUCH_TABLE);
+		return(HA_ERR_TABLESPACE_MISSING);
 
 	case DB_TOO_BIG_RECORD: {
 		/* If prefix is true then a 768-byte prefix is stored
@@ -1977,13 +1954,12 @@ innobase_get_lower_case_table_names(void)
 	return(lower_case_table_names);
 }
 
-/** Create a temporary file in the location specified by the parameter
-path. If the path is null, then it will be created in tmpdir.
-@param[in]	path	location for creating temporary file
+/*********************************************************************//**
+Creates a temporary file.
 @return temporary file descriptor, or < 0 on error */
 int
-innobase_mysql_tmpfile(
-	const char*	path)
+innobase_mysql_tmpfile(void)
+/*========================*/
 {
 	int	fd2 = -1;
 	File	fd;
@@ -1993,11 +1969,7 @@ innobase_mysql_tmpfile(
 		return(-1);
 	);
 
-	if (path == NULL) {
-		fd = mysql_tmpfile("ib");
-	} else {
-		fd = mysql_tmpfile_path(path, "ib");
-	}
+	fd = mysql_tmpfile("ib");
 
 	if (fd >= 0) {
 		/* Copy the file descriptor, so that the additional resources
@@ -3833,7 +3805,9 @@ innobase_rollback(
 	we come here to roll back the latest SQL statement) we
 	release it now before a possibly lengthy rollback */
 
-	lock_unlock_table_autoinc(trx);
+	if (!trx_in_innodb.is_aborted()) {
+		lock_unlock_table_autoinc(trx);
+	}
 
 	/* This is a statement level variable. */
 
@@ -3898,8 +3872,9 @@ innobase_rollback_trx(
 	/* If we had reserved the auto-inc lock for some table (if
 	we come here to roll back the latest SQL statement) we
 	release it now before a possibly lengthy rollback */
-
-	lock_unlock_table_autoinc(trx);
+	if (!TrxInInnoDB::is_aborted(trx)) {
+		lock_unlock_table_autoinc(trx);
+	}
 
 	if (trx_is_rseg_updated(trx)) {
 		error = trx_rollback_for_mysql(trx);
@@ -5132,7 +5107,7 @@ table_opened:
 
 		dict_table_close(ib_table, FALSE, FALSE);
 
-		DBUG_RETURN(HA_ERR_NO_SUCH_TABLE);
+		DBUG_RETURN(HA_ERR_TABLESPACE_MISSING);
 	}
 
 	m_prebuilt = row_create_prebuilt(ib_table, table->s->reclength);
@@ -7745,13 +7720,14 @@ ha_innobase::index_read(
 		break;
 
 	case DB_TABLESPACE_NOT_FOUND:
+
 		ib_senderrf(
 			m_prebuilt->trx->mysql_thd, IB_LOG_LEVEL_ERROR,
 			ER_TABLESPACE_MISSING,
 			table->s->table_name.str);
 
 		table->status = STATUS_NOT_FOUND;
-		error = HA_ERR_NO_SUCH_TABLE;
+		error = HA_ERR_TABLESPACE_MISSING;
 		break;
 
 	default:
@@ -8024,13 +8000,14 @@ ha_innobase::general_fetch(
 		error = HA_ERR_NO_SUCH_TABLE;
 		break;
 	case DB_TABLESPACE_NOT_FOUND:
+
 		ib_senderrf(
 			trx->mysql_thd, IB_LOG_LEVEL_ERROR,
 			ER_TABLESPACE_MISSING,
 			table->s->table_name.str);
 
 		table->status = STATUS_NOT_FOUND;
-		error = HA_ERR_NO_SUCH_TABLE;
+		error = HA_ERR_TABLESPACE_MISSING;
 		break;
 	default:
 		error = convert_error_code_to_mysql(
@@ -8608,7 +8585,7 @@ next_record:
 				table->s->table_name.str);
 
 			table->status = STATUS_NOT_FOUND;
-			error = HA_ERR_NO_SUCH_TABLE;
+			error = HA_ERR_TABLESPACE_MISSING;
 			break;
 		default:
 			error = convert_error_code_to_mysql(
@@ -10134,13 +10111,22 @@ create_table_info_t::create_table_update_dict()
 	}
 
 	DBUG_ASSERT(innobase_table != 0);
-	DBUG_ASSERT(innobase_table->fts_doc_id_index == NULL);
 	if (innobase_table->fts != NULL) {
-		innobase_table->fts_doc_id_index
-			= dict_table_get_index_on_name(
-				innobase_table, FTS_DOC_ID_INDEX_NAME);
-		DBUG_ASSERT(innobase_table->fts_doc_id_index != NULL);
+		if (innobase_table->fts_doc_id_index == NULL) {
+			innobase_table->fts_doc_id_index
+				= dict_table_get_index_on_name(
+					innobase_table, FTS_DOC_ID_INDEX_NAME);
+			DBUG_ASSERT(innobase_table->fts_doc_id_index != NULL);
+		} else {
+			DBUG_ASSERT(innobase_table->fts_doc_id_index
+				    == dict_table_get_index_on_name(
+						innobase_table,
+						FTS_DOC_ID_INDEX_NAME));
+		}
 	}
+
+	DBUG_ASSERT((innobase_table->fts == NULL)
+		    == (innobase_table->fts_doc_id_index == NULL));
 
 	innobase_copy_frm_flags_from_create_info(innobase_table, m_create_info);
 
@@ -10490,7 +10476,7 @@ ha_innobase::truncate()
 			ER_TABLESPACE_DISCARDED : ER_TABLESPACE_MISSING),
 			table->s->table_name.str);
 		table->status = STATUS_NOT_FOUND;
-		error = HA_ERR_NO_SUCH_TABLE;
+		error = HA_ERR_TABLESPACE_MISSING;
 		break;
 
 	default:
@@ -10950,7 +10936,7 @@ ha_innobase::records(
 			table->s->table_name.str);
 
 		*num_rows = HA_POS_ERROR;
-		DBUG_RETURN(HA_ERR_NO_SUCH_TABLE);
+		DBUG_RETURN(HA_ERR_TABLESPACE_MISSING);
 
 	} else if (m_prebuilt->table->corrupted) {
 		ib_errf(m_user_thd, IB_LOG_LEVEL_WARN,
@@ -17102,7 +17088,6 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(fil_make_page_dirty_debug),
   MYSQL_SYSVAR(saved_page_number_debug),
 #endif /* UNIV_DEBUG */
-  MYSQL_SYSVAR(tmpdir),
   NULL
 };
 
