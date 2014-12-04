@@ -651,7 +651,6 @@ fil_node_open_file(
 	if (node->size == 0
 	    || (space->purpose == FIL_TYPE_TABLESPACE
 		&& node == UT_LIST_GET_FIRST(space->chain)
-		&& space->id <= srv_undo_tablespaces_open
 		&& !undo::Truncate::was_tablespace_truncated(space->id)
 		&& srv_startup_is_before_trx_rollback_phase)) {
 		/* We do not know the size of the file yet. First we

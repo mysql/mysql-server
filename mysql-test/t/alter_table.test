@@ -1884,7 +1884,7 @@ HANDLER t1 CLOSE;
 connection con2;
 --echo # Reaping ALTER TABLE IMPORT
 --echo # It should fail as no tablespace was copied after DISCARD.
---error ER_NO_SUCH_TABLE
+--error ER_TABLESPACE_MISSING
 --reap
 
 connection default;
@@ -1962,7 +1962,7 @@ HANDLER t1 CLOSE;
 connection con2;
 --echo # Reaping ALTER TABLE IMPORT
 --echo # It should fail as no tablespace was copied after DISCARD.
---error ER_NO_SUCH_TABLE
+--error ER_TABLESPACE_MISSING
 --reap
 
 UNLOCK TABLES;

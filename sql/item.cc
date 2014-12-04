@@ -16,7 +16,6 @@
 
 
 #include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
-#include "sql_priv.h"
 #include <mysql.h>
 #include <m_ctype.h>
 #include "my_dir.h"
@@ -4103,6 +4102,9 @@ bool Item_param::convert_str_value(THD *thd)
   bool rc= FALSE;
   if (state == STRING_VALUE || state == LONG_DATA_VALUE)
   {
+    if (value.cs_info.final_character_set_of_str_value == NULL ||
+        value.cs_info.character_set_of_placeholder == NULL)
+      return true;
     /*
       Check is so simple because all charsets were set up properly
       in setup_one_conversion_function, where typecode of

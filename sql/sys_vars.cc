@@ -31,7 +31,6 @@
 */
 
 #include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
-#include "sql_priv.h"
 #include "sql_class.h"                          // set_var.h: THD
 #include "rpl_gtid.h"
 #include "sys_vars.h"
@@ -682,12 +681,14 @@ static Sys_var_charptr Sys_default_authentication_plugin(
        READ_ONLY GLOBAL_VAR(default_auth_plugin), CMD_LINE(REQUIRED_ARG),
        IN_FS_CHARSET, DEFAULT("mysql_native_password"));
 
+static PolyLock_mutex Plock_default_password_lifetime(
+                        &LOCK_default_password_lifetime);
 static Sys_var_uint Sys_default_password_lifetime(
        "default_password_lifetime", "The number of days after which the "
        "password will expire.",
        GLOBAL_VAR(default_password_lifetime), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(0, UINT_MAX16), DEFAULT(360), BLOCK_SIZE(1),
-       NO_MUTEX_GUARD);
+       &Plock_default_password_lifetime);
 
 #ifndef EMBEDDED_LIBRARY
 static Sys_var_charptr Sys_my_bind_addr(

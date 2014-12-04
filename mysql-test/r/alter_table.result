@@ -2467,7 +2467,7 @@ HANDLER t1 CLOSE;
 connection con2;
 # Reaping ALTER TABLE IMPORT
 # It should fail as no tablespace was copied after DISCARD.
-ERROR 42S02: Table 'test.t1' doesn't exist
+ERROR HY000: Tablespace is missing for table `test`.`t1`.
 connection default;
 DROP TABLE t1;
 #
@@ -2516,7 +2516,7 @@ HANDLER t1 CLOSE;
 connection con2;
 # Reaping ALTER TABLE IMPORT
 # It should fail as no tablespace was copied after DISCARD.
-ERROR 42S02: Table 'test.t1' doesn't exist
+ERROR HY000: Tablespace is missing for table `test`.`t1`.
 UNLOCK TABLES;
 connection default;
 DROP TABLE t1;

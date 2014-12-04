@@ -3601,6 +3601,18 @@ row_ins(
 			}
 		}
 
+		if (node->duplicate && dict_table_is_temporary(node->table)) {
+			ut_ad(thr_get_trx(thr)->error_state
+			      == DB_DUPLICATE_KEY);
+			/* For TEMPORARY TABLE, we won't lock anything,
+			so we can simply break here instead of requiring
+			GAP locks for other unique secondary indexes,
+			pretending we have consumed all indexes. */
+			node->index = NULL;
+			node->entry = NULL;
+			break;
+		}
+
 		node->index = dict_table_get_next_index(node->index);
 		node->entry = UT_LIST_GET_NEXT(tuple_list, node->entry);
 

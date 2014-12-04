@@ -51,7 +51,6 @@
   cursor points at the first record).
 */
 
-#include "sql_priv.h"
 #include "sql_handler.h"
 #include "sql_base.h"                           // close_thread_tables
 #include "lock.h"                               // mysql_unlock_tables

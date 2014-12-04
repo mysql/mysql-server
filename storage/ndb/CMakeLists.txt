@@ -257,6 +257,14 @@ ELSE()
     MESSAGE(STATUS "Default value for WITH_NDB_JAVA set to 0 since "
                    "bootstrapping was detected")
   ENDIF()
+  IF(NOT MYSQL_CLUSTER_VERSION)
+    # Don't build the Java parts of NDB by default in MySQL Server
+    # (this lowers the threshold for checking that things
+    #  work also with engine = NDB)
+    SET(WITH_NDB_JAVA_DEFAULT OFF)
+    MESSAGE(STATUS "Default value for WITH_NDB_JAVA set to 0 in "
+                   "MySQL Server version")
+  ENDIF()
 ENDIF()
 OPTION(WITH_NDB_JAVA
   "Include NDB Cluster Java components" ${WITH_NDB_JAVA_DEFAULT})

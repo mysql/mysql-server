@@ -312,14 +312,6 @@ bool
 thd_optimize_point_storage(
 	THD*	thd);
 
-/** Get status of innodb_tmpdir.
-@param[in]	thd	thread handle, or NULL to query
-			the global innodb_tmpdir.
-@return value or NULL if innodb_tmpdir is set to default value "" */
-const char*
-thd_innodb_tmpdir(
-	THD*	thd);
-
 /**********************************************************************//**
 Get the current setting of the table_cache_size global parameter. We do
 a dirty read because for one there is no synchronization object and

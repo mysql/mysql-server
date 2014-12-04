@@ -25,7 +25,7 @@ Smart ALTER TABLE
 #include "ha_prototypes.h"
 #include <debug_sync.h>
 #include <log.h>
-#include <sql_class.h>
+#include <sql_lex.h>
 #include <mysql/plugin.h>
 
 /* Include necessary InnoDB headers */
@@ -787,29 +787,29 @@ innobase_set_foreign_key_option(
 	ut_ad(!foreign->type);
 
 	switch (fk_key->delete_opt) {
-	case Foreign_key::FK_OPTION_NO_ACTION:
-	case Foreign_key::FK_OPTION_RESTRICT:
-	case Foreign_key::FK_OPTION_DEFAULT:
+	case FK_OPTION_NO_ACTION:
+	case FK_OPTION_RESTRICT:
+	case FK_OPTION_DEFAULT:
 		foreign->type = DICT_FOREIGN_ON_DELETE_NO_ACTION;
 		break;
-	case Foreign_key::FK_OPTION_CASCADE:
+	case FK_OPTION_CASCADE:
 		foreign->type = DICT_FOREIGN_ON_DELETE_CASCADE;
 		break;
-	case Foreign_key::FK_OPTION_SET_NULL:
+	case FK_OPTION_SET_NULL:
 		foreign->type = DICT_FOREIGN_ON_DELETE_SET_NULL;
 		break;
 	}
 
 	switch (fk_key->update_opt) {
-	case Foreign_key::FK_OPTION_NO_ACTION:
-	case Foreign_key::FK_OPTION_RESTRICT:
-	case Foreign_key::FK_OPTION_DEFAULT:
+	case FK_OPTION_NO_ACTION:
+	case FK_OPTION_RESTRICT:
+	case FK_OPTION_DEFAULT:
 		foreign->type |= DICT_FOREIGN_ON_UPDATE_NO_ACTION;
 		break;
-	case Foreign_key::FK_OPTION_CASCADE:
+	case FK_OPTION_CASCADE:
 		foreign->type |= DICT_FOREIGN_ON_UPDATE_CASCADE;
 		break;
-	case Foreign_key::FK_OPTION_SET_NULL:
+	case FK_OPTION_SET_NULL:
 		foreign->type |= DICT_FOREIGN_ON_UPDATE_SET_NULL;
 		break;
 	}
@@ -957,7 +957,7 @@ innobase_get_foreign_key_info(
 	List_iterator<Key> key_iterator(alter_info->key_list);
 
 	while ((key=key_iterator++)) {
-		if (key->type != Key::FOREIGN_KEY) {
+		if (key->type != KEYTYPE_FOREIGN) {
 			continue;
 		}
 
@@ -2993,9 +2993,6 @@ prepare_inplace_alter_table_dict(
 
 	ctx->num_to_add_index = ha_alter_info->index_add_count;
 
-	const char*	path = thd_innodb_tmpdir(
-		ctx->prebuilt->trx->mysql_thd);
-
 	index_defs = innobase_create_key_defs(
 		ctx->heap, ha_alter_info, altered_table, ctx->num_to_add_index,
 		num_fts_index,
@@ -3388,8 +3385,7 @@ prepare_inplace_alter_table_dict(
 					goto error_handling;);
 			rw_lock_x_lock(&ctx->add_index[a]->lock);
 			bool ok = row_log_allocate(ctx->add_index[a],
-						   NULL, true, NULL, NULL,
-						   path);
+						   NULL, true, NULL, NULL);
 			rw_lock_x_unlock(&ctx->add_index[a]->lock);
 
 			if (!ok) {
@@ -3420,7 +3416,7 @@ prepare_inplace_alter_table_dict(
 				clust_index, ctx->new_table,
 				!(ha_alter_info->handler_flags
 				  & Alter_inplace_info::ADD_PK_INDEX),
-				ctx->add_cols, ctx->col_map, path);
+				ctx->add_cols, ctx->col_map);
 			rw_lock_x_unlock(&clust_index->lock);
 
 			if (!ok) {
@@ -5057,11 +5053,15 @@ err_exit:
 rename_foreign:
 	trx->op_info = "renaming column in SYS_FOREIGN_COLS";
 
+	std::list<dict_foreign_t*>	fk_evict;
+	bool		foreign_modified;
+
 	for (dict_foreign_set::iterator it = user_table->foreign_set.begin();
 	     it != user_table->foreign_set.end();
 	     ++it) {
 
 		dict_foreign_t*	foreign = *it;
+		foreign_modified = false;
 
 		for (unsigned i = 0; i < foreign->n_fields; i++) {
 			if (strcmp(foreign->foreign_col_names[i], from)) {
@@ -5089,6 +5089,11 @@ rename_foreign:
 			if (error != DB_SUCCESS) {
 				goto err_exit;
 			}
+			foreign_modified = true;
+		}
+
+		if (foreign_modified) {
+			fk_evict.push_back(foreign);
 		}
 	}
 
@@ -5097,7 +5102,9 @@ rename_foreign:
 	     it != user_table->referenced_set.end();
 	     ++it) {
 
+		foreign_modified = false;
 		dict_foreign_t*	foreign = *it;
+
 		for (unsigned i = 0; i < foreign->n_fields; i++) {
 			if (strcmp(foreign->referenced_col_names[i], from)) {
 				continue;
@@ -5124,7 +5131,17 @@ rename_foreign:
 			if (error != DB_SUCCESS) {
 				goto err_exit;
 			}
+			foreign_modified = true;
 		}
+
+		if (foreign_modified) {
+			fk_evict.push_back(foreign);
+		}
+	}
+
+	if (new_clustered) {
+		std::for_each(fk_evict.begin(), fk_evict.end(),
+			      dict_foreign_remove_from_cache);
 	}
 
 	trx->op_info = "";
@@ -6044,7 +6061,8 @@ commit_cache_norebuild(
 		? dict_table_get_index_on_name(
 			ctx->new_table, FTS_DOC_ID_INDEX_NAME)
 		: NULL;
-	DBUG_ASSERT(!ctx->new_table->fts == !ctx->new_table->fts_doc_id_index);
+	DBUG_ASSERT((ctx->new_table->fts == NULL)
+		    == (ctx->new_table->fts_doc_id_index == NULL));
 
 	DBUG_RETURN(found);
 }

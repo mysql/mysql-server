@@ -20,7 +20,6 @@
 */
 
 #include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
-#include "sql_priv.h"
 #include "sql_update.h"
 #include "sql_cache.h"                          // query_cache_*
 #include "sql_base.h"                       // close_tables_for_reopen

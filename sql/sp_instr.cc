@@ -14,7 +14,6 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "my_global.h"    // NO_EMBEDDED_ACCESS_CHECKS
-#include "sql_priv.h"
 #include "sp_instr.h"
 #include "item.h"         // Item_splocal
 #include "opt_trace.h"    // opt_trace_disable_etc
