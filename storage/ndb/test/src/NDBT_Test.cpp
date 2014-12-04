@@ -560,7 +560,7 @@ void NDBT_TestCaseImpl1::startStepInThread(int stepNo, NDBT_Context* ctx){
   char buf[16];
   BaseString::snprintf(buf, sizeof(buf), "step_%d", stepNo);
   Uint32 stackSize = ctx->getProperty(NDBT_TestCase::getStepThreadStackSizePropName(), 
-                                      Uint32(0));
+                                      Uint32(512 * 1024));
 
   NdbThread* pThread = NdbThread_Create(runStep_C,
 					(void**)pStep,
