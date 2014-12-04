@@ -5036,7 +5036,7 @@ bool Sys_var_gtid_purged::global_update(THD *thd, set_var *var)
                         previous_gtid_executed, current_gtid_executed);
 
   // Rotate logs to have Previous_gtid_event on last binlog.
-  rotate_res= mysql_bin_log.rotate_and_purge(true);
+  rotate_res= mysql_bin_log.rotate_and_purge(thd, true);
   if (rotate_res)
   {
     error= true;
