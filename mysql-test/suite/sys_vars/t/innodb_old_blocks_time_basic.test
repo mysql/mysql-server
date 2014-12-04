@@ -18,16 +18,20 @@ select @@global.innodb_old_blocks_time;
 select @@session.innodb_old_blocks_time;
 show global variables like 'innodb_old_blocks_time';
 show session variables like 'innodb_old_blocks_time';
+--disable_warnings
 select * from information_schema.global_variables where variable_name='innodb_old_blocks_time';
 select * from information_schema.session_variables where variable_name='innodb_old_blocks_time';
+--enable_warnings
 
 #
 # show that it's writable
 #
 set global innodb_old_blocks_time=10;
 select @@global.innodb_old_blocks_time;
+--disable_warnings
 select * from information_schema.global_variables where variable_name='innodb_old_blocks_time';
 select * from information_schema.session_variables where variable_name='innodb_old_blocks_time';
+--enable_warnings
 --error ER_GLOBAL_VARIABLE
 set session innodb_old_blocks_time=1;
 
@@ -43,7 +47,9 @@ set global innodb_old_blocks_time="foo";
 
 set global innodb_old_blocks_time=-7;
 select @@global.innodb_old_blocks_time;
+--disable_warnings
 select * from information_schema.global_variables where variable_name='innodb_old_blocks_time';
+--enable_warnings
 
 #
 # cleanup

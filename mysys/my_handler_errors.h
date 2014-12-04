@@ -99,7 +99,8 @@ static const char *handler_error_messages[]=
   "Required Create option missing",
   "Out of memory in storage engine",
   "Table corrupted",
-  "Query interrupted"
+  "Query interrupted",
+  "Tablespace cannot be accessed"
 };
 
 extern void my_handler_error_register(void);

@@ -42,6 +42,10 @@ int mysql_multi_update_prepare(THD *thd);
 int mysql_multi_delete_prepare(THD *thd, uint *table_count);
 bool mysql_insert_select_prepare(THD *thd);
 
+#ifndef DBUG_OFF
+extern void turn_parser_debug_on();
+#endif
+
 bool parse_sql(THD *thd,
                Parser_state *parser_state,
                Object_creation_ctx *creation_ctx);

@@ -20,6 +20,7 @@
 #include "my_stacktrace.h"
 #include "connection_handler_manager.h"  // Connection_handler_manager
 #include "mysqld_thd_manager.h"          // Global_THD_manager
+#include "sql_class.h"
 
 #ifdef _WIN32
 #include <crtdbg.h>

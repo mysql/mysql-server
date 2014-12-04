@@ -18,6 +18,7 @@
 #include <sql_show.h>
 #include <hash.h>
 #include <session_tracker.h>
+#include "sql_class.h"
 
 
 /**

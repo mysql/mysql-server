@@ -97,17 +97,21 @@ ERROR HY000: Variable 'delayed_queue_size' is a GLOBAL variable and should be se
 SELECT @@session.delayed_queue_size;
 ERROR HY000: Variable 'delayed_queue_size' is a GLOBAL variable
 '#----------------------FN_DYNVARS_026_06------------------------#'
-SELECT @@global.delayed_queue_size = VARIABLE_VALUE 
+SELECT VARIABLE_VALUE 
 FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
-WHERE VARIABLE_NAME='delayed_queue_size';
-@@global.delayed_queue_size = VARIABLE_VALUE
+WHERE VARIABLE_NAME='delayed_queue_size'
+into @tmp;
+SELECT @@global.delayed_queue_size = @tmp;
+@@global.delayed_queue_size = @tmp
 1
 Warnings:
 Warning	1287	'@@delayed_queue_size' is deprecated and will be removed in a future release.
-SELECT @@delayed_queue_size = VARIABLE_VALUE 
+SELECT VARIABLE_VALUE 
 FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
-WHERE VARIABLE_NAME='delayed_queue_size';
-@@delayed_queue_size = VARIABLE_VALUE
+WHERE VARIABLE_NAME='delayed_queue_size'
+into @tmp;
+SELECT @@delayed_queue_size = @tmp;
+@@delayed_queue_size = @tmp
 1
 Warnings:
 Warning	1287	'@@delayed_queue_size' is deprecated and will be removed in a future release.

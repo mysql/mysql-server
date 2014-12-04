@@ -21,7 +21,6 @@
   This file defines all compare functions
 */
 
-#include "sql_priv.h"
 #include <m_ctype.h>
 #include "sql_select.h"
 #include "sql_optimizer.h"             // JOIN_TAB

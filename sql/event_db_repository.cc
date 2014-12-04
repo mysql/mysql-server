@@ -14,7 +14,6 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "sql_priv.h"
 #include "sql_base.h"                           // close_thread_tables
 #include "event_db_repository.h"
 #include "key.h"                                // key_copy
@@ -28,6 +27,7 @@
 #include "events.h"
 #include "sql_show.h"
 #include "lock.h"                               // MYSQL_LOCK_IGNORE_TIMEOUT
+#include "log.h"
 
 /**
   @addtogroup Event_Scheduler

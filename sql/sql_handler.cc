@@ -51,7 +51,6 @@
   cursor points at the first record).
 */
 
-#include "sql_priv.h"
 #include "sql_handler.h"
 #include "sql_base.h"                           // close_thread_tables
 #include "lock.h"                               // mysql_unlock_tables
@@ -60,6 +59,7 @@
 #include "sql_select.h"
 #include "transaction.h"
 #include "sql_parse.h"                          // check_table_access
+#include "log.h"
 
 #define HANDLER_TABLES_HASH_SIZE 120
 

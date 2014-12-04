@@ -30,7 +30,6 @@
   deletes in disk order.
 */
 
-#include "sql_priv.h"
 #include "sql_sort.h"
 #include "my_tree.h"                            // element_count
 #include "opt_costmodel.h"

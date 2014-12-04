@@ -16,7 +16,6 @@
 
 
 #define MYSQL_SERVER 1
-#include "sql_priv.h"
 #include "probes_mysql.h"
 #include "key.h"                                // key_copy
 #include "sql_plugin.h"

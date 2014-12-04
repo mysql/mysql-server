@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,7 +20,6 @@
   Text .frm files management routines
 */
 
-#include "sql_priv.h"
 #include "parse_file.h"
 #include "sql_table.h"                        // build_table_filename
 #include <errno.h>

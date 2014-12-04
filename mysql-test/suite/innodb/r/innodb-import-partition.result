@@ -1124,12 +1124,12 @@ ALTER TABLE t1 DISCARD PARTITION p1sp2 TABLESPACE;
 restore: t1#P#p1#SP#p1sp2 .ibd and .cfg files
 ALTER TABLE t1 DISCARD PARTITION all TABLESPACE;
 Warnings:
-Warning	1812	InnoDB: Tablespace 'test/t1#P#p0#SP#p0sp0' is missing
-Warning	1812	InnoDB: Tablespace 'test/t1#P#p0#SP#p0sp1' is missing
-Warning	1812	InnoDB: Tablespace 'test/t1#P#p0#SP#p0sp2' is missing
-Warning	1812	InnoDB: Tablespace 'test/t1#P#p1#SP#p1sp0' is missing
-Warning	1812	InnoDB: Tablespace 'test/t1#P#p1#SP#p1sp1' is missing
-Warning	1812	InnoDB: Tablespace 'test/t1#P#p1#SP#p1sp2' is missing
+Warning	1812	InnoDB: Tablespace is missing for table test/t1#P#p0#SP#p0sp0.
+Warning	1812	InnoDB: Tablespace is missing for table test/t1#P#p0#SP#p0sp1.
+Warning	1812	InnoDB: Tablespace is missing for table test/t1#P#p0#SP#p0sp2.
+Warning	1812	InnoDB: Tablespace is missing for table test/t1#P#p1#SP#p1sp0.
+Warning	1812	InnoDB: Tablespace is missing for table test/t1#P#p1#SP#p1sp1.
+Warning	1812	InnoDB: Tablespace is missing for table test/t1#P#p1#SP#p1sp2.
 restore: t1#P#p0#SP#p0sp0 .ibd and .cfg files
 restore: t1#P#p0#SP#p0sp1 .ibd and .cfg files
 restore: t1#P#p1#SP#p1sp0 .ibd and .cfg files
@@ -1144,9 +1144,9 @@ ERROR HY000: Tablespace 'test/t1#P#p0#SP#p0sp0' exists.
 ALTER TABLE t1 IMPORT PARTITION p0sp2 TABLESPACE;
 ALTER TABLE t1 DISCARD PARTITION all TABLESPACE;
 Warnings:
-Warning	1812	InnoDB: Tablespace 'test/t1#P#p1#SP#p1sp0' is missing
-Warning	1812	InnoDB: Tablespace 'test/t1#P#p1#SP#p1sp1' is missing
-Warning	1812	InnoDB: Tablespace 'test/t1#P#p1#SP#p1sp2' is missing
+Warning	1812	InnoDB: Tablespace is missing for table test/t1#P#p1#SP#p1sp0.
+Warning	1812	InnoDB: Tablespace is missing for table test/t1#P#p1#SP#p1sp1.
+Warning	1812	InnoDB: Tablespace is missing for table test/t1#P#p1#SP#p1sp2.
 restore: t1#P#p0#SP#p0sp0 .ibd and .cfg files
 restore: t1#P#p0#SP#p0sp1 .ibd and .cfg files
 restore: t1#P#p0#SP#p0sp2 .ibd and .cfg files
