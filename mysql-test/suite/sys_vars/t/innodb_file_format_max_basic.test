@@ -17,26 +17,32 @@ SELECT @@global.innodb_file_format_max;
 SELECT @@session.innodb_file_format_max;
 SHOW global variables LIKE 'innodb_file_format_max';
 SHOW session variables LIKE 'innodb_file_format_max';
+--disable_warnings
 SELECT * FROM information_schema.global_variables 
 WHERE variable_name='innodb_file_format_max';
 SELECT * FROM information_schema.session_variables
 WHERE variable_name='innodb_file_format_max';
+--enable_warnings
 
 #
 # show that it's writable
 #
 SET global innodb_file_format_max='Antelope';
 SELECT @@global.innodb_file_format_max;
+--disable_warnings
 SELECT * FROM information_schema.global_variables 
 WHERE variable_name='innodb_file_format_max';
 SELECT * FROM information_schema.session_variables 
 WHERE variable_name='innodb_file_format_max';
+--enable_warnings
 SET @@global.innodb_file_format_max='Barracuda';
 SELECT @@global.innodb_file_format_max;
+--disable_warnings
 SELECT * FROM information_schema.global_variables 
 WHERE variable_name='innodb_file_format_max';
 SELECT * FROM information_schema.session_variables 
 WHERE variable_name='innodb_file_format_max';
+--enable_warnings
 --error ER_GLOBAL_VARIABLE
 SET session innodb_file_format_max='Salmon';
 --error ER_GLOBAL_VARIABLE

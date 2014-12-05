@@ -1,3 +1,4 @@
+RESET MASTER;
 CREATE TABLE t1 (c1 INT) Engine=InnoDB;
 DROP TABLE t1;
 set session session_track_gtids='own_gtid';

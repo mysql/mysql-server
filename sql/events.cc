@@ -14,7 +14,6 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "sql_priv.h"
 #include "sql_parse.h"                          // check_access
 #include "sql_base.h"                           // close_mysql_tables
 #include "sql_show.h"                           // append_definer
@@ -31,6 +30,7 @@
 #include "sp_head.h" // for Stored_program_creation_ctx
 #include "set_var.h"
 #include "lock.h"   // lock_object_name
+#include "log.h"
 #include "mysql/psi/mysql_sp.h"
 
 /**

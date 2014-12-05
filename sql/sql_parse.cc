@@ -15,7 +15,6 @@
 
 #define MYSQL_LEX 1
 #include "my_global.h"
-#include "sql_priv.h"
 #include "sql_parse.h"        // sql_kill, *_precheck, *_prepare
 #include "lock.h"             // try_transactional_lock,
                               // check_transactional_lock,

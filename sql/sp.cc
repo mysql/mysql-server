@@ -15,7 +15,6 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include "sql_priv.h"
 #include "sql_base.h"                           // close_thread_tables
 #include "sql_parse.h"                          // parse_sql
 #include "key.h"                                // key_copy
@@ -30,6 +29,8 @@
 #include "lock.h"                               // lock_object_name
 #include "sp.h"
 #include "mysql/psi/mysql_sp.h"
+#include "log.h"
+#include "binlog.h"
 
 #include <my_user.h>
 

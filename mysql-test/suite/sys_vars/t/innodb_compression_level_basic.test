@@ -18,16 +18,20 @@ select @@global.innodb_compression_level;
 select @@session.innodb_compression_level;
 show global variables like 'innodb_compression_level';
 show session variables like 'innodb_compression_level';
+--disable_warnings
 select * from information_schema.global_variables where variable_name='innodb_compression_level';
 select * from information_schema.session_variables where variable_name='innodb_compression_level';
+--enable_warnings
 
 #
 # show that it's writable
 #
 set global innodb_compression_level=2;
 select @@global.innodb_compression_level;
+--disable_warnings
 select * from information_schema.global_variables where variable_name='innodb_compression_level';
 select * from information_schema.session_variables where variable_name='innodb_compression_level';
+--enable_warnings
 --error ER_GLOBAL_VARIABLE
 set session innodb_compression_level=4;
 
@@ -43,10 +47,14 @@ set global innodb_compression_level="foo";
 
 set global innodb_compression_level=10;
 select @@global.innodb_compression_level;
+--disable_warnings
 select * from information_schema.global_variables where variable_name='innodb_compression_level';
+--enable_warnings
 set global innodb_compression_level=-7;
 select @@global.innodb_compression_level;
+--disable_warnings
 select * from information_schema.global_variables where variable_name='innodb_compression_level';
+--enable_warnings
 
 #
 # min/max values

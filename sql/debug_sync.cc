@@ -328,14 +328,6 @@
 
 #if defined(ENABLED_DEBUG_SYNC)
 
-/*
-  Due to weaknesses in our include files, we need to include
-  sql_priv.h here. To have THD declared, we need to include
-  sql_class.h. This includes log_event.h, which in turn requires
-  declarations from sql_priv.h (e.g. OPTION_AUTO_IS_NULL).
-  sql_priv.h includes almost everything, so is sufficient here.
-*/
-#include "sql_priv.h"
 #include "sql_parse.h"
 #include "log.h"
 
@@ -426,7 +418,7 @@ C_MODE_END
 
     We cannot place a sync point directly in C files (like those in mysys or
     certain storage engines written mostly in C like MyISAM or Maria). Because
-    they are C code and do not include sql_priv.h. So they do not know the
+    they are C code and do not know the
     macro DEBUG_SYNC(thd, sync_point_name). The macro needs a 'thd' argument.
     Hence it cannot be used in files outside of the sql/ directory.
 

@@ -21,7 +21,6 @@
   Sorts a database
 */
 
-#include "sql_priv.h"
 #include "filesort.h"
 #include <m_ctype.h>
 #include "sql_sort.h"
@@ -36,6 +35,7 @@
 #include "sql_base.h"
 #include "opt_costmodel.h"
 #include "priority_queue.h"
+#include "log.h"
 
 #include <algorithm>
 #include <utility>

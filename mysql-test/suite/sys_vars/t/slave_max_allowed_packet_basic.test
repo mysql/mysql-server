@@ -115,6 +115,7 @@ SELECT @@session.slave_max_allowed_packet;
 # Check if the value in GLOBAL & SESSION Tables matches values in variable   #
 ##############################################################################
 
+--disable_warnings
 SELECT @@global.slave_max_allowed_packet = VARIABLE_VALUE 
 FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
 WHERE VARIABLE_NAME='slave_max_allowed_packet';
@@ -122,6 +123,7 @@ WHERE VARIABLE_NAME='slave_max_allowed_packet';
 SELECT @@slave_max_allowed_packet = VARIABLE_VALUE 
 FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
 WHERE VARIABLE_NAME='slave_max_allowed_packet';
+--enable_warnings
 
 
 --echo '#---------------------FN_DYNVARS_072_07----------------------#'

@@ -104,9 +104,11 @@ SET @@global.big_tables = 1-@@global.big_tables;
 # Check if the value in  SESSION Tables matches values in variable           #
 ##############################################################################
 
+--disable_warnings
 SELECT IF(@@big_tables, "ON", "OFF") = VARIABLE_VALUE 
 FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
 WHERE VARIABLE_NAME='big_tables';
+--enable_warnings
 
 
 --echo '#---------------------FN_DYNVARS_005_06----------------------#'

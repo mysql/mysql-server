@@ -14,7 +14,6 @@
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 
-#include "sql_priv.h"
 #include "transaction.h"
 #include "rpl_handler.h"
 #include "debug_sync.h"         // DEBUG_SYNC

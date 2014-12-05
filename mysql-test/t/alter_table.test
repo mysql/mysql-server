@@ -1884,7 +1884,7 @@ HANDLER t1 CLOSE;
 connection con2;
 --echo # Reaping ALTER TABLE IMPORT
 --echo # It should fail as no tablespace was copied after DISCARD.
---error ER_NO_SUCH_TABLE
+--error ER_TABLESPACE_MISSING
 --reap
 
 connection default;
@@ -1962,7 +1962,7 @@ HANDLER t1 CLOSE;
 connection con2;
 --echo # Reaping ALTER TABLE IMPORT
 --echo # It should fail as no tablespace was copied after DISCARD.
---error ER_NO_SUCH_TABLE
+--error ER_TABLESPACE_MISSING
 --reap
 
 UNLOCK TABLES;
@@ -2081,3 +2081,44 @@ SELECT T.NAME AS TABLE_NAME, I.NAME AS INDEX_NAME,
        WHERE T.NAME = 'test/t1';
 
 DROP TABLE t1;
+
+
+--echo #
+--echo # BUG#16886196 - ALTER TABLE FAILS TO CONVERT TO PREFIX INDEX IN
+--echo #                ALTER_COLUMN_EQUAL_PACK_LENGTH
+
+
+SET @orig_sql_mode = @@sql_mode;
+SET sql_mode= '';
+
+--echo # Test with '767' as index size limit.
+CREATE TABLE t1(fld1 VARCHAR(767), KEY a(fld1)) ENGINE= INNODB;
+INSERT INTO t1 VALUES('a');
+ALTER TABLE t1 CHANGE fld1 fld1 VARCHAR(768), ALGORITHM= INPLACE;
+
+--echo # Without patch, the below statement will assert in a debug build.
+SELECT COUNT(*) FROM t1 WHERE fld1= 'a';
+
+--echo # Cleanup.
+DROP TABLE t1;
+
+--echo # Test with innodb large prefix indexes(Upto 3072).
+SET @old_innodb_file_format= @@global.innodb_file_format;
+SET @old_innodb_large_prefix= @@global.innodb_large_prefix;
+
+SET GLOBAL innodb_file_format= 'Barracuda';
+SET GLOBAL innodb_large_prefix= 1;
+
+CREATE TABLE t1(fld1 VARCHAR(3072), KEY a(fld1)) ENGINE= INNODB
+ROW_FORMAT= DYNAMIC;
+INSERT INTO t1 VALUES('a');
+ALTER TABLE t1 CHANGE fld1 fld1 VARCHAR(3073), ALGORITHM= INPLACE;
+
+--echo # Without patch, the below statement will assert in a debug build.
+SELECT COUNT(*) FROM t1 WHERE fld1= 'a';
+
+--echo # Cleanup.
+DROP TABLE t1;
+SET GLOBAL innodb_file_format= @old_innodb_file_format;
+SET GLOBAL innodb_large_prefix= @old_innodb_large_prefix;
+SET sql_mode= @orig_sql_mode;

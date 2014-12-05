@@ -141,9 +141,11 @@ SELECT @@global.init_connect;
 #     Check if the value in GLOBAL Table matches value in variable           #
 ##############################################################################
 
+--disable_warnings
 SELECT @@global.init_connect = (SELECT VARIABLE_VALUE 
 FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
 WHERE VARIABLE_NAME='init_connect') AS res;
+--enable_warnings
 
 ####################################
 #     Restore initial value        #

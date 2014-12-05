@@ -25,7 +25,6 @@
 
 #define MYSQL_LEX 1
 
-#include "sql_priv.h"
 #include "procedure.h"
 #include "sql_analyse.h"
 #include "sql_class.h"

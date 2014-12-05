@@ -14,7 +14,6 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include <my_global.h>
-#include <sql_priv.h>
 #include <my_dir.h>
 #include "rpl_info_file.h"
 #include "mysqld.h"

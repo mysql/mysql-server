@@ -1,4 +1,4 @@
-/* Copyright (c) 2001, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2001, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,7 +16,6 @@
 
 /* Execute DO statement */
 
-#include "sql_priv.h"
 #include "transaction.h"
 #include "sql_do.h"
 #include "sql_base.h"                           // setup_fields

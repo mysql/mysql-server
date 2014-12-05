@@ -1,0 +1,4 @@
+--replicate-same-server-id
+--log-slave-updates=off
+--slave-parallel-workers=2
+--slave-transaction-retries=0

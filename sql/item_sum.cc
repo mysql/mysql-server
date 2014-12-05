@@ -21,7 +21,6 @@
   Sum functions (COUNT, MIN...)
 */
 
-#include "sql_priv.h"
 #include "sql_select.h"
 #include "sql_tmp_table.h"                 // create_tmp_table
 #include "sql_resolver.h"                  // setup_order, fix_inner_refs

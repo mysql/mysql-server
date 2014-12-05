@@ -750,3 +750,53 @@ fts_ast_string_print(
 
 	printf("\n");
 }
+
+#ifdef UNIV_DEBUG
+const char*
+fts_ast_oper_name_get(fts_ast_oper_t	oper)
+{
+	switch(oper) {
+	case FTS_NONE:
+		return("FTS_NONE");
+	case FTS_IGNORE:
+		return("FTS_IGNORE");
+	case FTS_EXIST:
+		return("FTS_EXIST");
+	case FTS_NEGATE:
+		return("FTS_NEGATE");
+	case FTS_INCR_RATING:
+		return("FTS_INCR_RATING");
+	case FTS_DECR_RATING:
+		return("FTS_DECR_RATING");
+	case FTS_DISTANCE:
+		return("FTS_DISTANCE");
+	case FTS_IGNORE_SKIP:
+		return("FTS_IGNORE_SKIP");
+	case FTS_EXIST_SKIP:
+		return("FTS_EXIST_SKIP");
+	}
+	ut_ad(0);
+}
+
+const char*
+fts_ast_node_type_get(fts_ast_type_t	type)
+{
+	switch (type) {
+	case FTS_AST_OPER:
+		return("FTS_AST_OPER");
+	case FTS_AST_NUMB:
+		return("FTS_AST_NUMB");
+	case FTS_AST_TERM:
+		return("FTS_AST_TERM");
+	case FTS_AST_TEXT:
+		return("FTS_AST_TEXT");
+	case FTS_AST_LIST:
+		return("FTS_AST_LIST");
+	case FTS_AST_SUBEXP_LIST:
+		return("FTS_AST_SUBEXP_LIST");
+	case FTS_AST_PARSER_PHRASE_LIST:
+		return("FTS_AST_PARSER_PHRASE_LIST");
+	}
+	ut_ad(0);
+}
+#endif /* UNIV_DEBUG */

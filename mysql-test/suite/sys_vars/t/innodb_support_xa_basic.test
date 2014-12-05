@@ -165,12 +165,16 @@ SELECT @@session.innodb_support_xa AS res_is_1;
 #     Check if the value in GLOBAL Table matches value in variable      #
 #########################################################################
 
+--disable_warnings
 SELECT IF(@@global.innodb_support_xa, "ON", "OFF") =
  VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
   WHERE VARIABLE_NAME='innodb_support_xa';
+--enable_warnings
 SELECT @@global.innodb_support_xa;
+--disable_warnings
 SELECT VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
  WHERE VARIABLE_NAME='innodb_support_xa';
+--enable_warnings
 
 
 --echo '#----------------------FN_DYNVARS_046_07------------------------#'
@@ -178,12 +182,16 @@ SELECT VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
 #     Check if the value in SESSION Table matches value in variable     #
 #########################################################################
 
+--disable_warnings
 SELECT IF(@@session.innodb_support_xa, "ON", "OFF") =
  VARIABLE_VALUE FROM INFORMATION_SCHEMA.SESSION_VARIABLES
   WHERE VARIABLE_NAME='innodb_support_xa';
+--enable_warnings
 SELECT @@session.innodb_support_xa;
+--disable_warnings
 SELECT VARIABLE_VALUE FROM INFORMATION_SCHEMA.SESSION_VARIABLES
  WHERE VARIABLE_NAME='innodb_support_xa';
+--enable_warnings
 
 
 --echo '#---------------------FN_DYNVARS_046_08-------------------------#'

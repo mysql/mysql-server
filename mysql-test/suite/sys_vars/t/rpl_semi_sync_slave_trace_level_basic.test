@@ -17,8 +17,10 @@ select @@global.rpl_semi_sync_slave_trace_level in (1,16,32,64);
 select @@session.rpl_semi_sync_slave_trace_level;
 show global variables like 'rpl_semi_sync_slave_trace_level';
 show session variables like 'rpl_semi_sync_slave_trace_level';
+--disable_warnings
 select * from information_schema.global_variables where variable_name='rpl_semi_sync_slave_trace_level';
 select * from information_schema.session_variables where variable_name='rpl_semi_sync_slave_trace_level';
+--enable_warnings
 
 #
 # show that it's writable
@@ -31,8 +33,10 @@ select @@global.rpl_semi_sync_slave_trace_level;
 select @@session.rpl_semi_sync_slave_trace_level;
 show global variables like 'rpl_semi_sync_slave_trace_level';
 show session variables like 'rpl_semi_sync_slave_trace_level';
+--disable_warnings
 select * from information_schema.global_variables where variable_name='rpl_semi_sync_slave_trace_level';
 select * from information_schema.session_variables where variable_name='rpl_semi_sync_slave_trace_level';
+--enable_warnings
 
 --echo NOTE: Value can also be set to values that are combinations of values
 set global rpl_semi_sync_slave_trace_level=42;
@@ -41,8 +45,10 @@ select @@global.rpl_semi_sync_slave_trace_level;
 select @@session.rpl_semi_sync_slave_trace_level;
 show global variables like 'rpl_semi_sync_slave_trace_level';
 show session variables like 'rpl_semi_sync_slave_trace_level';
+--disable_warnings
 select * from information_schema.global_variables where variable_name='rpl_semi_sync_slave_trace_level';
 select * from information_schema.session_variables where variable_name='rpl_semi_sync_slave_trace_level';
+--enable_warnings
 
 #
 # incorrect types

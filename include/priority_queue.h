@@ -183,6 +183,13 @@ public:
     build_heap();
   }
 
+  /// Constructs a heap based on input argument.
+  void assign(const container_type &container)
+  {
+    m_container= container;
+    build_heap();
+  }
+
   /**
     Constructs a heap based on container contents.
     Can also be used when many elements have changed.

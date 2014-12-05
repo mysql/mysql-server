@@ -1,3 +1,7 @@
+--disable_warnings
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
+--enable_warnings
+
 CREATE TABLE t1 (c1 TINYINT NOT NULL, c2 CHAR(5)) PARTITION BY RANGE ( c1 ) (
     PARTITION p0 VALUES LESS THAN (10),
     PARTITION p1 VALUES LESS THAN (20),
@@ -18,7 +22,6 @@ ALTER TABLE t1 REORGANIZE PARTITION p0 INTO (
     PARTITION s1 VALUES LESS THAN (10));
 SELECT * FROM t1 ORDER BY c1;
 SHOW TABLES; 
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`; 
 --replace_result $ENGINE ENGINE 
  SHOW CREATE TABLE t1;
 --error ER_DROP_PARTITION_NON_EXISTENT
@@ -26,7 +29,6 @@ ALTER TABLE t1 DROP PARTITION s2;
 ALTER TABLE t1 DROP PARTITION s1;
 SELECT * FROM t1 ORDER BY c1;
 SHOW TABLES; 
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`; 
 --replace_result $ENGINE ENGINE 
  SHOW CREATE TABLE t1; DROP TABLE t1; SHOW TABLES;
 CREATE TABLE t1 (c1 SMALLINT NOT NULL, c2 CHAR(5)) PARTITION BY RANGE ( c1 ) (
@@ -49,7 +51,6 @@ ALTER TABLE t1 REORGANIZE PARTITION p0 INTO (
     PARTITION s1 VALUES LESS THAN (10));
 SELECT * FROM t1 ORDER BY c1;
 SHOW TABLES; 
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`; 
 --replace_result $ENGINE ENGINE 
  SHOW CREATE TABLE t1;
 --error ER_DROP_PARTITION_NON_EXISTENT 
@@ -57,7 +58,6 @@ ALTER TABLE t1 DROP PARTITION s2;
 ALTER TABLE t1 DROP PARTITION s1;
 SELECT * FROM t1 ORDER BY c1;
 SHOW TABLES; 
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`; 
 --replace_result $ENGINE ENGINE 
  SHOW CREATE TABLE t1; DROP TABLE t1; SHOW TABLES;
 CREATE TABLE t1 (c1 MEDIUMINT NOT NULL, c2 CHAR(5)) PARTITION BY RANGE ( c1 ) (
@@ -80,7 +80,6 @@ ALTER TABLE t1 REORGANIZE PARTITION p0 INTO (
     PARTITION s1 VALUES LESS THAN (10));
 SELECT * FROM t1 ORDER BY c1;
 SHOW TABLES; 
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`; 
 --replace_result $ENGINE ENGINE 
  SHOW CREATE TABLE t1;
 --error ER_DROP_PARTITION_NON_EXISTENT
@@ -88,7 +87,6 @@ ALTER TABLE t1 DROP PARTITION s2;
 ALTER TABLE t1 DROP PARTITION s1;
 SELECT * FROM t1 ORDER BY c1;
 SHOW TABLES; 
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`; 
 --replace_result $ENGINE ENGINE 
  SHOW CREATE TABLE t1; DROP TABLE t1; SHOW TABLES;
 CREATE TABLE t1 (c1 INT NOT NULL, c2 CHAR(5)) PARTITION BY RANGE ( c1 ) (
@@ -111,7 +109,6 @@ ALTER TABLE t1 REORGANIZE PARTITION p0 INTO (
     PARTITION s1 VALUES LESS THAN (10));
 SELECT * FROM t1 ORDER BY c1;
 SHOW TABLES; 
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`; 
 --replace_result $ENGINE ENGINE 
  SHOW CREATE TABLE t1;
 --error ER_DROP_PARTITION_NON_EXISTENT
@@ -119,7 +116,6 @@ ALTER TABLE t1 DROP PARTITION s2;
 ALTER TABLE t1 DROP PARTITION s1;
 SELECT * FROM t1 ORDER BY c1;
 SHOW TABLES; 
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`; 
 --replace_result $ENGINE ENGINE 
  SHOW CREATE TABLE t1; DROP TABLE t1; SHOW TABLES;
 CREATE TABLE t1 (c1 INTEGER NOT NULL, c2 CHAR(5)) PARTITION BY RANGE ( c1 ) (
@@ -142,7 +138,6 @@ ALTER TABLE t1 REORGANIZE PARTITION p0 INTO (
     PARTITION s1 VALUES LESS THAN (10));
 SELECT * FROM t1 ORDER BY c1;
 SHOW TABLES; 
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`; 
 --replace_result $ENGINE ENGINE 
  SHOW CREATE TABLE t1;
 --error ER_DROP_PARTITION_NON_EXISTENT
@@ -150,7 +145,6 @@ ALTER TABLE t1 DROP PARTITION s2;
 ALTER TABLE t1 DROP PARTITION s1;
 SELECT * FROM t1 ORDER BY c1;
 SHOW TABLES; 
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`; 
 --replace_result $ENGINE ENGINE 
  SHOW CREATE TABLE t1; DROP TABLE t1; SHOW TABLES;
 CREATE TABLE t1 (c1 BIGINT NOT NULL, c2 CHAR(5)) PARTITION BY RANGE ( c1 ) (
@@ -173,7 +167,6 @@ ALTER TABLE t1 REORGANIZE PARTITION p0 INTO (
     PARTITION s1 VALUES LESS THAN (10));
 SELECT * FROM t1 ORDER BY c1;
 SHOW TABLES; 
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`; 
 --replace_result $ENGINE ENGINE 
  SHOW CREATE TABLE t1;
 --error ER_DROP_PARTITION_NON_EXISTENT
@@ -181,7 +174,6 @@ ALTER TABLE t1 DROP PARTITION s2;
 ALTER TABLE t1 DROP PARTITION s1;
 SELECT * FROM t1 ORDER BY c1;
 SHOW TABLES; 
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`; 
 --replace_result $ENGINE ENGINE 
  SHOW CREATE TABLE t1; DROP TABLE t1; SHOW TABLES;
 

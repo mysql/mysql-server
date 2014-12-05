@@ -106,10 +106,11 @@ SELECT @@session.table_definition_cache;
 # Check if the value in GLOBAL Tables matches values in variable   #
 ####################################################################
 
+--disable_warnings
 SELECT @@global.table_definition_cache = VARIABLE_VALUE 
 FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
 WHERE VARIABLE_NAME='table_definition_cache';
-
+--enable_warnings
 
 --echo '#---------------------FN_DYNVARS_019_07----------------------#'
 ################################################################### 

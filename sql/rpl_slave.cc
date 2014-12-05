@@ -25,7 +25,6 @@
 */
 
 #ifdef HAVE_REPLICATION
-#include "sql_priv.h"
 #include "my_global.h"
 #include "rpl_slave.h"
 #include "sql_parse.h"                         // execute_init_command

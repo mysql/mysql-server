@@ -18,7 +18,6 @@
 /* Insert of records */
 
 #include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
-#include "sql_priv.h"
 #include "sql_insert.h"
 #include "sql_update.h"                         // compare_record
 #include "sql_base.h"                           // close_thread_tables
@@ -45,6 +44,7 @@
 #include "sql_partition.h"
 #include "partition_info.h"            // partition_info
 #endif /* WITH_PARTITION_STORAGE_ENGINE */
+#include "binlog.h"
 
 #include "debug_sync.h"
 

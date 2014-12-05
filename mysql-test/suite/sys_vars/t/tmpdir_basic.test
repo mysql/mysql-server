@@ -50,17 +50,21 @@ SELECT COUNT(@@GLOBAL.tmpdir);
 # Check if the value in GLOBAL Table matches value in variable  #
 #################################################################
 
+--disable_warnings
 SELECT @@GLOBAL.tmpdir = VARIABLE_VALUE
 FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
 WHERE VARIABLE_NAME='tmpdir';
+--enable_warnings
 --echo 1 Expected
 
 SELECT COUNT(@@GLOBAL.tmpdir);
 --echo 1 Expected
 
+--disable_warnings
 SELECT COUNT(VARIABLE_VALUE)
 FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
 WHERE VARIABLE_NAME='tmpdir';
+--enable_warnings
 --echo 1 Expected
 
 
