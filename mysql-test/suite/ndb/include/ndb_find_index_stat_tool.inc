@@ -13,7 +13,10 @@ my $NDB_INDEX_STAT =  my_find_bin($bindir,
                            "ndb_index_stat");
 
 my $vardir = $ENV{MYSQLTEST_VARDIR} or die "Need MYSQLTEST_VARDIR" ;
-open ( OUTPUT, ">$vardir/tmp/temp.inc") ;
+open ( OUTPUT, ">$vardir/tmp/ndb_find_index_stat_tool_result.inc") ;
 print OUTPUT "let \$NDB_INDEX_STAT=$NDB_INDEX_STAT;\n";
 close (OUTPUT);
 EOF
+
+--source $MYSQLTEST_VARDIR/tmp/ndb_find_index_stat_tool_result.inc
+--remove_file $MYSQLTEST_VARDIR/tmp/ndb_find_index_stat_tool_result.inc
