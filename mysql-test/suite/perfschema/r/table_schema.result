@@ -906,7 +906,7 @@ def	performance_schema	replication_connection_status	TOTAL_BYTES_SENT	15	NULL	NO
 def	performance_schema	replication_connection_status	LAST_MESSAGE_TIMESTAMP	16	0000-00-00 00:00:00	NO	timestamp	NULL	NULL	NULL	NULL	0	NULL	NULL	timestamp			select,insert,update,references	
 def	performance_schema	replication_connection_status	MAX_MESSAGE_LENGTH	17	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(10) unsigned			select,insert,update,references	
 def	performance_schema	replication_connection_status	MIN_MESSAGE_LENGTH	18	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(10) unsigned			select,insert,update,references	
-def	performance_schema	replication_connection_status	VIEW_ID	19	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(10) unsigned			select,insert,update,references	
+def	performance_schema	replication_connection_status	VIEW_ID	19	NULL	NO	varchar	40	120	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(40)			select,insert,update,references	
 def	performance_schema	replication_connection_status	NUMBER_OF_NODES	20	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references	
 def	performance_schema	replication_node_status	GROUP_NAME	1	NULL	NO	varchar	36	108	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(36)			select,insert,update,references	
 def	performance_schema	replication_node_status	NODE_ID	2	NULL	NO	char	60	180	NULL	NULL	NULL	utf8	utf8_bin	char(60)			select,insert,update,references	

@@ -178,7 +178,7 @@ bool get_gcs_stats_info(RPL_GCS_STATS_INFO *info)
 
   if(view != NULL)
   {
-    info->view_id= view->get_view_id()->get_view_id();
+    info->view_id= view->get_view_id()->get_representation();
     info->number_of_nodes= view->get_members()->size();
   }
   else

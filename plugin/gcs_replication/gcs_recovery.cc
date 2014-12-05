@@ -50,7 +50,7 @@ Recovery_module(Applier_module_interface *applier,
                 Cluster_member_info *local_info,
                 Cluster_member_info_manager_interface *cluster_info_if)
   : gcs_control_interface(ctrl_if),gcs_communication_interface(comm_if),
-    local_node_information(local_info), applier_module(applier), view_id(0),
+    local_node_information(local_info), applier_module(applier),
     cluster_info(cluster_info_if), donor_connection_retry_count(0),
     recovery_running(false), donor_transfer_finished(false),
     connected_to_donor(false), needs_donor_relay_log_reset(false),
@@ -100,14 +100,16 @@ Recovery_module::~Recovery_module()
 
 int
 Recovery_module::start_recovery(const string& group_name,
-                                int rec_view_id)
+                                char* rec_view_id)
 {
   DBUG_ENTER("Recovery_module::initialize_recovery_thd");
 
   mysql_mutex_lock(&run_lock);
 
   this->group_name= group_name;
-  this->view_id= rec_view_id;
+
+  this->view_id.clear();
+  this->view_id.append(rec_view_id);
 
   if(check_recovery_thread_status())
   {
@@ -647,7 +649,7 @@ int Recovery_module::initialize_donor_connection(){
 
   if(!error)
   {
-    donor_connection_interface.initialize_view_id_until_condition(view_id);
+    donor_connection_interface.initialize_view_id_until_condition(view_id.c_str());
   }
 
   DBUG_RETURN(error);

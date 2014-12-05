@@ -2268,7 +2268,7 @@ SET @cmd="CREATE TABLE performance_schema.replication_connection_status("
   "LAST_MESSAGE_TIMESTAMP timestamp(0) not null,"
   "MAX_MESSAGE_LENGTH integer unsigned not null,"
   "MIN_MESSAGE_LENGTH integer unsigned not null,"
-  "VIEW_ID integer unsigned not null,"
+  "VIEW_ID varchar(40) not null,"
   "NUMBER_OF_NODES integer not null"
   ") ENGINE=PERFORMANCE_SCHEMA;";
 

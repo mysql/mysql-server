@@ -106,7 +106,7 @@ public:
   virtual void interrupt_applier_suspension_wait()= 0;
   virtual ulong get_message_queue_size()= 0;
   virtual void add_suspension_packet()= 0;
-  virtual void add_view_change_packet(ulonglong view_id)= 0;
+  virtual void add_view_change_packet(char* view_id)= 0;
   virtual int handle(uchar *data, uint len)= 0;
   virtual int handle_pipeline_action(PipelineAction *action)= 0;
 };
@@ -293,11 +293,11 @@ public:
 
     @note This will happen only after all the previous packets are processed.
   */
-  virtual void add_view_change_packet(ulonglong view_id)
+  virtual void add_view_change_packet(char* view_id)
   {
-    char buf[8];
-    int8store(buf, view_id);
-    Packet* packet= new Action_packet(VIEW_CHANGE_PACKET, (uchar*)buf, 8);
+    Packet* packet= new Action_packet(VIEW_CHANGE_PACKET,
+                                      (uchar*)view_id,
+                                      strlen(view_id) + 1);
     incoming->push(packet);
   }
 

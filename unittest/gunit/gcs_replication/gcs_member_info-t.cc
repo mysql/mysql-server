@@ -1,8 +1,26 @@
+/* Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
+
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; version 2 of the License.
+
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
+*/
+
 // First include (the generated) my_config.h, to get correct platform defines.
 #include "my_config.h"
 #include <gtest/gtest.h>
 
 #include "gcs_member_info.h"
+#include "gcs_corosync_view_identifier.h"
+#include "gcs_state_exchange.h"
 
 namespace gcs_member_info_unittest {
 
@@ -42,6 +60,44 @@ TEST_F(ClusterMemberInfoTest, EncodeDecodeIdempotencyTest)
   local_node->encode(encoded);
 
   Cluster_member_info decoded_local_node(&encoded->front(), encoded->size());
+
+  ASSERT_EQ(local_node->get_port(),
+            decoded_local_node.get_port());
+  ASSERT_EQ(*local_node->get_hostname(),
+            *decoded_local_node.get_hostname());
+  ASSERT_EQ(*local_node->get_uuid(),
+            *decoded_local_node.get_uuid());
+  ASSERT_EQ(*local_node->get_gcs_member_id()->get_member_id(),
+            *decoded_local_node.get_gcs_member_id()->get_member_id());
+  ASSERT_EQ(local_node->get_recovery_status(),
+            decoded_local_node.get_recovery_status());
+}
+
+TEST_F(ClusterMemberInfoTest, EncodeDecodeWithStatusTest)
+{
+  vector<uchar>* encoded= new vector<uchar>();
+  local_node->encode(encoded);
+
+  unsigned long int fixed_part= 9999;
+  int monotonic_part= 140;
+  Gcs_corosync_view_identifier v_id(fixed_part, monotonic_part);
+
+  Member_state ms(&v_id, encoded);
+
+  vector<uchar>* ms_encoded= new vector<uchar>();
+  ms.encode(ms_encoded);
+
+  Member_state ms_decoded(&ms_encoded->front(), ms_encoded->size());
+
+  ASSERT_EQ(fixed_part,
+            ms_decoded.get_view_id()->get_fixed_part());
+  ASSERT_EQ(monotonic_part,
+            ms_decoded.get_view_id()->get_monotonic_part());
+
+  vector<uchar>* ms_exchangeable_data= ms_decoded.get_data();
+
+  Cluster_member_info decoded_local_node(&ms_exchangeable_data->front(),
+                                         ms_exchangeable_data->size());
 
   ASSERT_EQ(local_node->get_port(),
             decoded_local_node.get_port());

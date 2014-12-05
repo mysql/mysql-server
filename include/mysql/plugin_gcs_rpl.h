@@ -46,7 +46,7 @@ typedef struct st_rpl_gcs_stats_info
 {
   char* group_name;
   bool node_state;
-  ulong view_id;
+  char* view_id;
   ulonglong total_messages_sent;
   ulonglong total_bytes_sent;
   ulonglong total_messages_received;

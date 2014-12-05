@@ -238,7 +238,16 @@ Gcs_corosync_control::view_changed
   //if the current node is leaving,
   if(leaving)
   {
-    install_view(current_view->get_view_id()->get_view_id()+1,
+    //Create the new view id here, based in the previous one plus 1
+    Gcs_corosync_view_identifier* old_view_id=
+                static_cast<Gcs_corosync_view_identifier*>
+                                   (current_view->get_view_id());
+
+    Gcs_corosync_view_identifier* new_view_id=
+                     new Gcs_corosync_view_identifier(*old_view_id);
+    new_view_id->increment_by_one();
+
+    install_view(new_view_id,
                  group_name,
                  state_exchange->get_total(),
                  state_exchange->get_left(),
@@ -258,11 +267,11 @@ Gcs_corosync_control::process_possible_control_message(Gcs_message *msg)
   if(is_state_message)
   {
     //Decode the member state and hand it out to State Exchange
-    Member_state ms(msg->get_payload(),
+    Member_state* ms = new Member_state(msg->get_payload(),
                     msg->get_payload_length());
 
     bool can_install_view= state_exchange
-                                   ->process_member_state(&ms,
+                                   ->process_member_state(ms,
                                                           *(msg->get_origin()));
 
     //Deliver Exchangeable data to listeners regardless of view being installed
@@ -271,14 +280,23 @@ Gcs_corosync_control::process_possible_control_message(Gcs_message *msg)
 
     while(callback_it != data_exchange_listeners.end())
     {
-      (*callback_it).second->on_data(ms.get_data());
+      (*callback_it).second->on_data(ms->get_data());
       ++callback_it;
     }
 
     //If State Exchange has finished
     if(can_install_view)
     {
-      install_view(state_exchange->get_new_view_id(),
+      //Make a copy of the state exchange provided view id
+      Gcs_corosync_view_identifier* provided_view_id=
+                                             state_exchange->get_new_view_id();
+
+      Gcs_corosync_view_identifier* new_view_id=
+         new Gcs_corosync_view_identifier
+                                   (*provided_view_id);
+      new_view_id->increment_by_one();
+
+      install_view(new_view_id,
                    state_exchange->get_group(),
                    state_exchange->get_total(),
                    state_exchange->get_left(),
@@ -290,7 +308,7 @@ Gcs_corosync_control::process_possible_control_message(Gcs_message *msg)
 }
 
 void
-Gcs_corosync_control::install_view(long new_view_id,
+Gcs_corosync_control::install_view(Gcs_corosync_view_identifier* new_view_id,
                                    string *group_name,
                                    set<Gcs_member_identifier*> *total,
                                    set<Gcs_member_identifier*> *left,
@@ -316,7 +334,7 @@ Gcs_corosync_control::install_view(long new_view_id,
   build_member_list(join, joined_members);
 
   //Build the new view id and the group id
-  Gcs_view_identifier *v_id= new Gcs_view_identifier(new_view_id);
+  Gcs_view_identifier *v_id= new_view_id;
 
   Gcs_group_identifier *group_id= new Gcs_group_identifier(*group_name);
 

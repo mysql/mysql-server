@@ -52,6 +52,8 @@ enum enum_rpl_connect_status_service_state {
   PS_RPL_CONNECT_SERVICE_STATE_CONNECTING
 };
 
+#define MAX_VIEW_ID_LENGTH 40
+
 /*
   A row in the table. The fields with string values have an additional
   length field denoted by <field_name>_length.
@@ -81,7 +83,8 @@ struct st_row_connect_status {
   ulonglong last_message_timestamp;
   ulong max_message_length;
   ulong min_message_length;
-  ulong view_id;
+  char view_id[MAX_VIEW_ID_LENGTH];
+  uint view_id_lenght;
   uint number_of_nodes;
 
   st_row_connect_status() : received_transaction_set(NULL) {}

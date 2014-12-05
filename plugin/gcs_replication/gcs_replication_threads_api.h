@@ -117,7 +117,7 @@ public:
 
     @param view_id  the expected view id
   */
-  void initialize_view_id_until_condition(ulonglong view_id);
+  void initialize_view_id_until_condition(const char* view_id);
 
   /**
     Start the SQL/IO threads according to the given thread mask option

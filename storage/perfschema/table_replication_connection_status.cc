@@ -132,7 +132,7 @@ static const TABLE_FIELD_TYPE field_types[]=
   },
   {
     {C_STRING_WITH_LEN("VIEW_ID")},
-    {C_STRING_WITH_LEN("int")},
+    {C_STRING_WITH_LEN("varchar(40)")},
     {NULL, 0}
   },
   {
@@ -293,6 +293,9 @@ void table_replication_connection_status::make_row(Master_info *mi,
        DBUG_VOID_RETURN;
     }
 
+    //Initialization procedures
+    gcs_info->view_id= NULL;
+
     bool stats_not_available= get_gcs_stats(gcs_info);
     if (stats_not_available)
     {
@@ -438,7 +441,11 @@ void table_replication_connection_status::make_row(Master_info *mi,
 
     m_row.min_message_length= gcs_info->min_message_length;
 
-    m_row.view_id= gcs_info->view_id;
+    if(gcs_info->view_id != NULL)
+    {
+      m_row.view_id_lenght= strlen(gcs_info->view_id);
+      memcpy(m_row.view_id, gcs_info->view_id, m_row.view_id_lenght);
+    }
 
     m_row.number_of_nodes= gcs_info->number_of_nodes;
 
@@ -574,7 +581,8 @@ int table_replication_connection_status::read_row_values(TABLE *table,
         break;
       case 18: /*view_id*/
         if (m_row.is_gcs_plugin_loaded)
-          set_field_ulong(f, m_row.view_id);
+          set_field_varchar_utf8(f, m_row.view_id,
+                                 m_row.view_id_lenght);
         else
           f->set_null();
         break;

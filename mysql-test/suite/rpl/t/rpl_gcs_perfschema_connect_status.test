@@ -69,8 +69,9 @@
 --let $assert_cond= "$max_msg_length" = "$min_msg_length"
 --source include/assert.inc
 
---let $view_id= query_get_value(SELECT View_Id from performance_schema.replication_connection_status, View_Id, 1)
---let $assert_text= The value of view_id should be ONE at GCS start
+--let $raw_view_id= query_get_value(SELECT View_Id from performance_schema.replication_connection_status, View_Id, 1)
+--let $view_id= `SELECT RIGHT('$raw_view_id', 1)`
+--let $assert_text= The value of view_id should be a number followed by ONE at GCS start
 --let $assert_cond= "$View_Id" = 1
 --source include/assert.inc
 

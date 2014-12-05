@@ -8,6 +8,7 @@
 # [--let $binlog_start= <POSITION> ]
 # [--let $binlog_limit= 1, 3 ]
 # [--let $keep_gtid_events= 1]
+# [--let $keep_view_change_events= 1]
 # --source include/show_binlog_events.inc
 #
 # Parameters:
@@ -32,6 +33,12 @@
 #     filtered out, so that the output is independent of whether GTIDs
 #     are enabled or not.  If this flag is set, events are kept but
 #     the actual GTID values are masked out.
+#
+#   $keep_view_change_events
+#     By default, View Change Events are filtered out, so that the output is
+#     independent of Group Replication being enabled. If this flag is set,
+#     events are kept.
+#
 
 --let $include_filename= show_binlog_events.inc
 --source include/begin_include_file.inc

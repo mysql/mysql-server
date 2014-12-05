@@ -123,9 +123,9 @@ INSERT INTO t1 VALUES (6);
 --connection server2
 --echo server2
 
---let $wait_condition= SELECT Transactions_in_queue = 2 from performance_schema.replication_node_status;
+--let $wait_condition= SELECT Transactions_in_queue = 3 from performance_schema.replication_node_status;
 --source include/wait_condition.inc
---echo [ The value of Transactions_in_queue should be 2 when the applier has not processed the transaction queue ]
+--echo [ The value of Transactions_in_queue should be 3 when the applier has not processed the transaction queue ]
 
 SET @@GLOBAL.DEBUG= @debug_save;
 SET DEBUG_SYNC= "now SIGNAL signal.recovery_continue";

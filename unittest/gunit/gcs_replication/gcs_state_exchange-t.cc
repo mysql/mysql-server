@@ -1,3 +1,19 @@
+/* Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
+
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; version 2 of the License.
+
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
+*/
+
 #include "my_config.h"
 
 #include <corosync/cpg.h>
@@ -174,9 +190,11 @@ TEST_F(CorosyncStateExchangeTest, StateExchangeProcessStatesPhase){
                                  NULL,
                                  mi);
 
+  Gcs_corosync_view_identifier* view_id
+                      = new Gcs_corosync_view_identifier(99999, 1);
 
-  Member_state *state1= new Member_state(1, &data_to_exchange);
-  Member_state *state2= new Member_state(1, &data_to_exchange);
+  Member_state *state1= new Member_state(view_id, &data_to_exchange);
+  Member_state *state2= new Member_state(view_id, &data_to_exchange);
 
   Gcs_member_identifier* member_id_1=
                      Gcs_corosync_utils::build_corosync_member_id(28,getpid());
@@ -196,6 +214,7 @@ TEST_F(CorosyncStateExchangeTest, StateExchangeProcessStatesPhase){
 
   delete member_id_1;
   delete member_id_2;
+  delete view_id;
   delete mi;
 }
 

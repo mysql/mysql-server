@@ -233,9 +233,10 @@ Applier_module::applier_thread_handle()
       //signals the injection of a view change event into the pipeline
       if (action == VIEW_CHANGE_PACKET)
       {
-        ulonglong view_id= uint8korr(((Action_packet*)packet)->payload);
         View_change_log_event* view_change_event
-                = new View_change_log_event(view_id);
+                       = new View_change_log_event
+                                     ((char*)((Action_packet*)packet)->payload);
+
         PipelineEvent* pevent= new PipelineEvent(view_change_event, fde_evt);
         error= inject_event_into_pipeline(pevent,cont);
         delete pevent;

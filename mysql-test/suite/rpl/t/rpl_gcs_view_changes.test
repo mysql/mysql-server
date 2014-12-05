@@ -229,8 +229,9 @@ while ($s_cnt)
 #
 #  a proof of view-id is monotonic
 #
---let $view_id_now=`select view_id from performance_schema.replication_connection_status`
-if ($view_id_now <= $view_id_server1)
+--let $view_id_now=`select RIGHT(view_id, 2) from performance_schema.replication_connection_status`
+--let $view_id_server1_number= `SELECT RIGHT('$view_id_server1', 2)`
+if ($view_id_now <= $view_id_server1_number)
 {
     --echo Unexpected non-increased view-id value.
     --source include/rpl_gcs_error_out.inc
@@ -244,7 +245,7 @@ if ($view_id_now <= $view_id_server1)
 while ($s_cnt)
 {
     --connection server$s_cnt
-    --let $view_id_now_s=`select view_id from performance_schema.replication_connection_status`
+    --let $view_id_now_s=`select RIGHT(view_id,2) from performance_schema.replication_connection_status`
     if ($view_id_now != $view_id_now_s)
     {
 	   --echo The 4th node view inconsistent with that of $s_cnt.

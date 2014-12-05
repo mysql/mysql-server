@@ -28,20 +28,10 @@
 class Gcs_view_identifier
 {
 public:
-  /**
-    Gcs_view_identifier constructor
-    @param[in] view_id the view identifier
-   */
-  Gcs_view_identifier(int view_id);
-  virtual ~Gcs_view_identifier();
 
-  /**
-    @return the view identifier
-   */
-  int get_view_id();
+  virtual ~Gcs_view_identifier(){}
 
-private:
-  int view_id;
+  virtual char* get_representation() = 0;
 };
 
 #endif // GCS_VIEW_IDENTIFIER_INCLUDED

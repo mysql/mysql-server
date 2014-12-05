@@ -79,6 +79,12 @@ let $script=
   s{DOLLARmysqltest_vardir}{MYSQLTEST_VARDIR}g;
 ||
 --let $pre_script= my DOLLARmysqltest_vardir = DOLLARENV{'MYSQLTEST_VARDIR'};
+
+if (!$keep_view_change_events)
+{
+  --let $script= $script DOLLAR_ = '' if (m{\t(?:View_change)\t});
+}
+
 if (!$keep_gtid_events)
 {
   --let $script= $script DOLLAR_ = '' if (m{\t(?:Gtid|Previous_gtids)\t});

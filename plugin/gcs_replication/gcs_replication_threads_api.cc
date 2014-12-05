@@ -172,10 +172,11 @@ Replication_thread_api::initialize_connection_parameters(const string* hostname,
 }
 
 void
-Replication_thread_api::initialize_view_id_until_condition(ulonglong view_id)
+Replication_thread_api::initialize_view_id_until_condition(const char* view_id)
 {
   mi->rli->until_condition= Relay_log_info::UNTIL_SQL_VIEW_ID;
-  mi->rli->until_view_id= view_id;
+  mi->rli->until_view_id.clear();
+  mi->rli->until_view_id.append(view_id);
 }
 
 int Replication_thread_api::start_replication_threads(int thread_mask,

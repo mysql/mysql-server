@@ -16,10 +16,19 @@
 #include "gcs_state_exchange.h"
 #include "gcs_corosync_communication_interface.h"
 
-Member_state::Member_state(int view_id_arg,
+#include <time.h>
+
+Member_state::Member_state(Gcs_corosync_view_identifier* view_id_arg,
                            vector<uchar> *exchangeable_data)
 {
-  this->view_id= view_id_arg;
+
+  this->view_id= NULL;
+  if(view_id_arg != NULL)
+  {
+    this->view_id= new Gcs_corosync_view_identifier
+                                            (view_id_arg->get_fixed_part(),
+                                             view_id_arg->get_monotonic_part());
+  }
 
   this->data= NULL;
   if(exchangeable_data != NULL)
@@ -30,12 +39,23 @@ Member_state::Member_state(int view_id_arg,
 
 Member_state::Member_state(const uchar* data, size_t len)
 {
+  this->view_id= NULL;
+
+  long fixed_view_id= 0;
+  int monotonic_view_id= 0;
+
   const uchar* slider= data;
 
-  memcpy(&view_id, slider, VIEW_ID_LENGTH);
+  memcpy(&fixed_view_id, slider, VARIABLE_VIEW_ID_LENGTH);
+  slider+= VARIABLE_VIEW_ID_LENGTH;
+
+  memcpy(&monotonic_view_id, slider, VIEW_ID_LENGTH);
   slider+= VIEW_ID_LENGTH;
 
-  size_t exchangeable_data_size= len - VIEW_ID_LENGTH;
+  this->view_id= new Gcs_corosync_view_identifier(fixed_view_id,
+                                                  monotonic_view_id);
+
+  size_t exchangeable_data_size= len - (VIEW_ID_LENGTH + VARIABLE_VIEW_ID_LENGTH);
 
   this->data= NULL;
   if(exchangeable_data_size != 0)
@@ -50,6 +70,8 @@ Member_state::Member_state(const uchar* data, size_t len)
 
 Member_state::~Member_state()
 {
+  delete this->view_id;
+
   if(this->data != NULL)
   {
     delete this->data;
@@ -58,8 +80,28 @@ Member_state::~Member_state()
 
 void Member_state::encode(vector<uchar>* buffer)
 {
+  long fixed_view_id= 0;
+  int  monotonic_view_id=0;
+
+  if(this->view_id != NULL)
+  {
+    fixed_view_id= this->view_id->get_fixed_part();
+    monotonic_view_id= this->view_id->get_monotonic_part();
+  }
+
+  uchar fixed_view_id_buffer[VARIABLE_VIEW_ID_LENGTH];
+  memcpy(&fixed_view_id_buffer,
+         &fixed_view_id,
+         VARIABLE_VIEW_ID_LENGTH);
+
+  buffer->insert(buffer->end(),
+                 fixed_view_id_buffer,
+                 fixed_view_id_buffer + VARIABLE_VIEW_ID_LENGTH);
+
   uchar view_id_buffer[VIEW_ID_LENGTH];
-  memcpy(&view_id_buffer, &(this->view_id), VIEW_ID_LENGTH);
+  memcpy(&view_id_buffer,
+         &monotonic_view_id,
+         VIEW_ID_LENGTH);
 
   buffer->insert(buffer->end(),
                  view_id_buffer,
@@ -78,7 +120,7 @@ const int Gcs_corosync_state_exchange::state_exchange_header_code= 9999;
 
 Gcs_corosync_state_exchange::Gcs_corosync_state_exchange
                                           (Gcs_communication_interface* comm)
-          : broadcaster(comm), last_view_id(0), max_view_id(0)
+          : broadcaster(comm), last_view_id(NULL), max_view_id(NULL)
 {
   group_name= new string();
 }
@@ -145,7 +187,6 @@ Gcs_corosync_state_exchange::state_exchange(const cpg_address *total,
                                             Gcs_view* current_view,
                                             Gcs_member_identifier* local_info)
 {
-
   /* Store member state for later broadcast */
   local_information= local_info;
   exchangeable_data= data;
@@ -153,9 +194,20 @@ Gcs_corosync_state_exchange::state_exchange(const cpg_address *total,
   group_name->clear();
   group_name->append(group->c_str());
 
-  if(current_view != NULL)
+  if(current_view != NULL) //I am a joiner and i am not the only one.
   {
-    last_view_id= current_view->get_view_id()->get_view_id();
+    last_view_id= static_cast<Gcs_corosync_view_identifier*>
+                                                  (current_view->get_view_id());
+  }
+  else if(current_view == NULL && total_entries == 1)
+  {
+    /*
+     This case means that i am the first one in a group.
+     I don't have a view and the list only has one member.
+     */
+    time_t current_time= time(0);
+    last_view_id= new Gcs_corosync_view_identifier(current_time,
+                                                   0);
   }
 
   fill_member_set(total, total_entries, ms_total);
@@ -200,7 +252,7 @@ Gcs_corosync_state_exchange::broadcast_state()
          &state_exchange_header_code,
          STATE_EXCHANGE_HEADER_CODE_LENGTH);
 
-  Member_state member_state(last_view_id+1,
+  Member_state member_state(last_view_id,
                             exchangeable_data);
 
   vector<uchar> encoded_state;
@@ -248,7 +300,10 @@ Gcs_corosync_state_exchange::process_member_state(Member_state *ms_info,
     Eventually at install_view() the max view-id setter is the last
     that showed a maximum value of view-id.
   */
-  if (max_view_id <= ms_info->get_view_id())
+
+  if (max_view_id == NULL ||
+      max_view_id->get_monotonic_part() <=
+                               ms_info->get_view_id()->get_monotonic_part())
   {
     /* and its view_id is higher than found so far so it's memorized. */
     max_view_id= ms_info->get_view_id();

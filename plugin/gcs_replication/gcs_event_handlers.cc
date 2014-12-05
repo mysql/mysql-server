@@ -224,6 +224,12 @@ void Gcs_plugin_events_handler::handle_joining_nodes(Gcs_view *new_view,
   {
     if (new_view->get_members()->size() == 1)
     {
+      /*
+       Adding initial view id event.
+       */
+      applier_module->add_view_change_packet(new_view->get_view_id()
+                                                   ->get_representation());
+
       log_message(MY_INFORMATION_LEVEL,
                   "[Recovery] Only one node alive. Declaring the node %s online.",
                   local_node_info->get_uuid()->c_str());
@@ -234,14 +240,21 @@ void Gcs_plugin_events_handler::handle_joining_nodes(Gcs_view *new_view,
     else //start recovery
     {
       log_message(MY_INFORMATION_LEVEL,
-                  "[Recovery:] Starting recovery with view_id %llu",
-                  new_view->get_view_id()->get_view_id());
+                  "[Recovery:] Starting recovery with view_id %s",
+                  new_view->get_view_id()->get_representation());
       /*
        During the view change, a suspension packet is sent to the applier module
        so all posterior transactions inbound are not applied, but queued, until
        the node finishes recovery.
       */
       applier_module->add_suspension_packet();
+
+      /*
+       Marking the view in the joiner since the incoming event from the donor
+       is discarded in the Recovery process.
+       */
+      applier_module->add_view_change_packet(new_view->get_view_id()
+                                                   ->get_representation());
 
       /*
        Launch the recovery thread so we can receive missing data and the
@@ -255,14 +268,15 @@ void Gcs_plugin_events_handler::handle_joining_nodes(Gcs_view *new_view,
        that comes next.
       */
       recovery_module->start_recovery(new_view->get_group_id()->get_group_id(),
-                                      new_view->get_view_id()->get_view_id());
+                                      new_view->get_view_id()
+                                                        ->get_representation());
     }
   }
   else
   {
     log_message(MY_INFORMATION_LEVEL,
-                "[Recovery:] Marking view change with view_id %d",
-                new_view->get_view_id()->get_view_id());
+                "[Recovery:] Marking view change with view_id %s",
+                new_view->get_view_id()->get_representation());
     /**
      If not a joining member, all nodes should record on their own binlogs a
      marking event that identifies the frontier between the data the joining
@@ -276,7 +290,7 @@ void Gcs_plugin_events_handler::handle_joining_nodes(Gcs_view *new_view,
      change. If selected as a donor, this info will also be sent to the joiner.
     */
     applier_module->add_view_change_packet(new_view->get_view_id()
-                                                   ->get_view_id());
+                                                   ->get_representation());
   }
 }
 

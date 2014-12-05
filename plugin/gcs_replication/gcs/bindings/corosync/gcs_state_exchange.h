@@ -24,11 +24,13 @@
 #include "gcs_corosync_utils.h"
 #include "gcs_message.h"
 #include "gcs_communication_interface.h"
+#include "gcs_corosync_view_identifier.h"
 #include "gcs_view.h"
 
 #include <corosync/cpg.h>
 #include <corosync/corotypes.h>
 
+#define VARIABLE_VIEW_ID_LENGTH 8
 #define VIEW_ID_LENGTH 4
 #define STATE_EXCHANGE_HEADER_CODE_LENGTH 4
 
@@ -51,7 +53,7 @@ public:
     @param[in] view_id_arg the view identifier from the node
     @param[in] exchangeable_data the generic data to be exchanged
    */
-  Member_state(int view_id_arg,
+  Member_state(Gcs_corosync_view_identifier* view_id_arg,
                vector<uchar> *exchangeable_data);
 
   /**
@@ -77,7 +79,7 @@ public:
   /**
     @return the view identifier
    */
-  int get_view_id()
+  Gcs_corosync_view_identifier* get_view_id()
   {
     return view_id;
   }
@@ -91,7 +93,7 @@ public:
   }
 
 private:
-  int view_id;
+  Gcs_corosync_view_identifier* view_id;
   vector<uchar>* data;
 };
 
@@ -170,7 +172,7 @@ public:
 
     @return the new view identifier
    */
-  virtual int get_new_view_id()= 0;
+  virtual Gcs_corosync_view_identifier* get_new_view_id()= 0;
 
   /**
     @return the members that joined in this State Exchange round
@@ -240,7 +242,7 @@ public:
     return &ms_total;
   }
 
-  int get_new_view_id()
+  Gcs_corosync_view_identifier* get_new_view_id()
   {
     return max_view_id;
   }
@@ -305,7 +307,7 @@ private:
   map<Gcs_member_identifier, uint> awaited_vector;
 
   /* view_id corresponding the last membership */
-  int last_view_id;
+  Gcs_corosync_view_identifier* last_view_id;
 
   /*
    Set of id:s in GCS native format as reported by View-change handler.
@@ -317,7 +319,7 @@ private:
   map<Gcs_member_identifier, Member_state*> member_states;
 
   /* View installation related: maximum view id out of State messages */
-  int max_view_id;
+  Gcs_corosync_view_identifier* max_view_id;
 
   //data to be exchanged
   vector<uchar> *exchangeable_data;

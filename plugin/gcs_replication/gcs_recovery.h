@@ -72,7 +72,7 @@ public:
       @retval !=0    Error
   */
   int start_recovery(const string& group_name,
-                     int rec_view_id);
+                     char* rec_view_id);
 
   /**
    Checks to see if the recovery IO/SQL thread is still running, probably caused
@@ -298,7 +298,7 @@ private:
   /* The group to which the recovering node belongs*/
   string group_name;
   /* The associated view id for the current recovery session */
-  int view_id;
+  string view_id;
 
   /* The selected donor node uuid*/
   string selected_donor_uuid;

@@ -396,7 +396,7 @@ public:
 
   char cached_charset[6];
 
-  ulonglong until_view_id;
+  std::string until_view_id;
   /*
     trans_retries varies between 0 to slave_transaction_retries and counts how
     many times the slave has retried the present transaction; gets reset to 0

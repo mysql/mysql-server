@@ -5481,18 +5481,19 @@ public:
 class View_change_log_event: public Log_event
 {
 private:
-  ulonglong view_id;
+  std::string view_id;
   rpl_gno seq_number;
   std::map<std::string, rpl_gno> cert_db;
 
-  // 8 bytes length.
+  // 40 bytes length.
   static const int ENCODED_VIEW_ID_OFFSET= 0;
   // 8 bytes length.
-  static const int ENCODED_SEQ_NUMBER_OFFSET= 8;
+  static const int ENCODED_SEQ_NUMBER_OFFSET= 40;
   // 4 bytes length.
-  static const int ENCODED_CERT_DB_SIZE_OFFSET= 16;
+  static const int ENCODED_CERT_DB_SIZE_OFFSET= 48;
 
   //Field sizes on serialization
+  static const int ENCODED_VIEW_ID_MAX_LEN= 40;
   static const int ENCODED_CERT_DB_KEY_SIZE_LEN= 2;
   static const int ENCODED_CERT_DB_VALUE_LEN= 8;
 
@@ -5512,10 +5513,10 @@ private:
 
 public:
 
-  // view id (8 bytes) + seq number (8 bytes) + map size (4 bytes)
-  static const int POST_HEADER_LENGTH= 20;
+  // view id (40 bytes) + seq number (8 bytes) + map size (4 bytes)
+  static const int POST_HEADER_LENGTH= 52;
 
-  View_change_log_event(ulonglong view_id);
+  View_change_log_event(char* view_id);
 
   View_change_log_event(const char *buffer,
                         uint event_len,
@@ -5527,7 +5528,7 @@ public:
 
   bool is_valid() const
   {
-    return view_id > 0;
+    return !view_id.empty();
   }
 
   size_t get_data_size();
@@ -5550,7 +5551,7 @@ public:
   /**
     Returns the view id.
   */
-  ulonglong get_view_id() { return view_id; }
+  std::string& get_view_id() { return view_id; }
 
   /**
     Sets the certification database

@@ -1,3 +1,19 @@
+/* Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
+
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; version 2 of the License.
+
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
+*/
+
 // First include (the generated) my_config.h, to get correct platform defines.
 #include "my_config.h"
 
@@ -102,8 +118,19 @@ namespace gcs_corosync_integratedtest
     ASSERT_TRUE(control_if->belongs_to_group());
 
     Gcs_view* join_view= control_if->get_current_view();
+
     ASSERT_TRUE(join_view != NULL);
-    ASSERT_EQ(1, join_view->get_view_id()->get_view_id());
+
+    Gcs_view_identifier* join_view_id = join_view->get_view_id();
+
+    ASSERT_EQ(typeid(Gcs_corosync_view_identifier),
+              typeid(*join_view_id));
+
+    Gcs_corosync_view_identifier* corosync_view_id
+                     = static_cast<Gcs_corosync_view_identifier*>
+                                                                 (join_view_id);
+
+    ASSERT_EQ(1, corosync_view_id->get_monotonic_part());
     ASSERT_EQ((size_t) 1, join_view->get_members()->size());
 
     Gcs_member_identifier* member_id= control_if->get_local_information();
@@ -135,7 +162,18 @@ namespace gcs_corosync_integratedtest
     sleep(2);
 
     ASSERT_TRUE(join_view != NULL);
-    ASSERT_EQ(2, join_view->get_view_id()->get_view_id());
+
+    join_view_id = join_view->get_view_id();
+
+    ASSERT_TRUE(join_view_id != NULL);
+
+    ASSERT_EQ(typeid(Gcs_corosync_view_identifier),
+              typeid(*join_view_id));
+
+    corosync_view_id = static_cast<Gcs_corosync_view_identifier*>
+                                                                 (join_view_id);
+
+    ASSERT_EQ(2, corosync_view_id->get_monotonic_part());
     ASSERT_EQ((size_t) 0, join_view->get_members()->size());
 
     control_if->remove_event_listener(ev_listener_ref);
@@ -145,5 +183,4 @@ namespace gcs_corosync_integratedtest
 
     ASSERT_FALSE(finalize_error);
   }
-
 }

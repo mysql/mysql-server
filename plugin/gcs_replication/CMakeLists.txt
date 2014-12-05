@@ -65,11 +65,12 @@ IF(CMAKE_SYSTEM_NAME MATCHES "Linux")
   ADD_LIBRARY(gcs_interface STATIC  gcs/interface/gcs_group_identifier.cc
                                     gcs/interface/gcs_member_identifier.cc
                                     gcs/interface/gcs_message.cc
-                                    gcs/interface/gcs_view.cc
-                                    gcs/interface/gcs_view_identifier.cc)
+                                    gcs/interface/gcs_view.cc)
 
 
-  ADD_LIBRARY(gcs_corosync STATIC gcs/bindings/corosync/gcs_state_exchange.cc
+  ADD_LIBRARY(gcs_corosync STATIC gcs/bindings/corosync/gcs_corosync_view_identifier.cc
+                                  gcs/bindings/corosync/gcs_corosync_view_identifier.h
+                                  gcs/bindings/corosync/gcs_state_exchange.cc
                                   gcs/bindings/corosync/gcs_state_exchange.h
                                   gcs/bindings/corosync/gcs_corosync_communication_interface.cc
                                   gcs/bindings/corosync/gcs_corosync_communication_interface.h

@@ -1498,7 +1498,8 @@ bool Relay_log_info::is_until_satisfied(THD *thd, Log_event *ev)
     if (ev != NULL && ev->get_type_code() == VIEW_CHANGE_EVENT)
     {
       View_change_log_event *view_event= (View_change_log_event *)ev;
-      if (until_view_id == view_event->get_view_id())
+
+      if (until_view_id.compare(view_event->get_view_id()) == 0)
       {
         set_retrieved_cert_info(view_event);
         DBUG_RETURN(true);

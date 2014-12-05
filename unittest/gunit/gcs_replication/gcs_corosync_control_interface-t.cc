@@ -1,3 +1,19 @@
+/* Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
+
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; version 2 of the License.
+
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
+*/
+
 // First include (the generated) my_config.h, to get correct platform defines.
 #include "my_config.h"
 
@@ -47,7 +63,7 @@ class mock_gcs_corosync_state_exchange_interface
   MOCK_METHOD1(is_state_exchange_message,
       bool(Gcs_message *to_verify));
   MOCK_METHOD0(get_new_view_id,
-      int());
+      Gcs_corosync_view_identifier*());
   MOCK_METHOD0(get_joined,
       set<Gcs_member_identifier*>*());
   MOCK_METHOD0(get_left,
@@ -182,7 +198,14 @@ Gcs_message* create_state_exchange_msg(int local_id,
          STATE_EXCHANGE_HEADER_CODE_LENGTH);
 
   vector<uchar> *dummy= new vector<uchar>();
-  Member_state member_state(1,
+  dummy->push_back((uchar)1);
+  dummy->push_back((uchar)1);
+  dummy->push_back((uchar)1);
+
+  Gcs_corosync_view_identifier* view_id
+           = new Gcs_corosync_view_identifier(999999,
+                                                         1);
+  Member_state member_state(view_id,
                             dummy);
 
   vector<uchar> encoded_state;
@@ -203,6 +226,7 @@ Gcs_message* create_state_exchange_msg(int local_id,
 
   delete dummy;
   delete member_id;
+  delete view_id;
 
   return msg;
 }
@@ -212,7 +236,8 @@ TEST_F(CorosyncControlTest, ViewChangedJoiningTest)
   //Common unit test data
   string group_name_str("a");
   int node1= 28, node2= 29;
-  long view_id= 27;
+  Gcs_corosync_view_identifier* view_id
+                   = new Gcs_corosync_view_identifier(999999, 27);
   int pid= getpid();
 
   Gcs_member_identifier* node1_member_id=
@@ -324,9 +349,21 @@ TEST_F(CorosyncControlTest, ViewChangedJoiningTest)
   ASSERT_TRUE(corosync_control_if->belongs_to_group());
   ASSERT_TRUE(corosync_control_if->get_current_view() != NULL);
 
-  ASSERT_EQ(view_id,
-            corosync_control_if->get_current_view()
-                               ->get_view_id()->get_view_id());
+  Gcs_view_identifier* current_view_id=
+                        corosync_control_if->get_current_view()->get_view_id();
+
+  ASSERT_EQ(typeid(Gcs_corosync_view_identifier),
+            typeid(*current_view_id));
+
+  Gcs_corosync_view_identifier* corosync_view_id
+                    = static_cast<Gcs_corosync_view_identifier*>
+                                                              (current_view_id);
+
+  ASSERT_EQ(view_id->get_fixed_part(),
+            corosync_view_id->get_fixed_part());
+
+  ASSERT_EQ(view_id->get_monotonic_part() + 1,
+            corosync_view_id->get_monotonic_part());
 
   ASSERT_EQ((size_t)2,
             corosync_control_if->get_current_view()->get_members()->size());
@@ -334,6 +371,8 @@ TEST_F(CorosyncControlTest, ViewChangedJoiningTest)
   ASSERT_EQ((size_t)1,
             corosync_control_if->get_current_view()
                                ->get_joined_members()->size());
+
+  delete view_id;
 }
 
 TEST_F(CorosyncControlTest, SetEventListenerTest)

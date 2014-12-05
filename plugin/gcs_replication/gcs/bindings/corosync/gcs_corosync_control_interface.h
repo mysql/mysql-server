@@ -192,7 +192,7 @@ private:
     @param[in] left members that left the last view
     @param[in] join members that joined from the last view
   */
-  void install_view(long new_view_id,
+  void install_view(Gcs_corosync_view_identifier* new_view_id,
                     string *group_name,
                     set<Gcs_member_identifier*> *total,
                     set<Gcs_member_identifier*> *left,
