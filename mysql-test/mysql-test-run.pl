@@ -2182,11 +2182,6 @@ sub environment_setup {
 		  ["storage/ndb/tools", "bin"],
 		  "ndb_select_all"));
 
-      $ENV{'NDB_PRINT_FILE'}=
-      native_path(my_find_bin($basedir,
-		  ["storage/ndb/src/kernel/blocks", "bin"],
-		  "ndb_print_file"));
-    
     $ENV{'NDB_DROP_TABLE'}=
       native_path(my_find_bin($basedir,
 		  ["storage/ndb/tools", "bin"],
