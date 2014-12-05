@@ -2623,7 +2623,7 @@ join_read_next(READ_RECORD *info)
   int error;
   if ((error= info->table->file->ha_index_next(info->record)))
     return report_handler_error(info->table, error);
-  if (info->table->vfield && update_generated_write_fields(info->table))
+  if (info->table->vfield && update_generated_read_fields(info->table))
     return report_handler_error(info->table, HA_ERR_INTERNAL_ERROR);
   return 0;
 }
@@ -2660,7 +2660,7 @@ join_read_prev(READ_RECORD *info)
   int error;
   if ((error= info->table->file->ha_index_prev(info->record)))
     return report_handler_error(info->table, error);
-  if (info->table->vfield && update_generated_write_fields(info->table))
+  if (info->table->vfield && update_generated_read_fields(info->table))
     return report_handler_error(info->table, HA_ERR_INTERNAL_ERROR);
   return 0;
 }
