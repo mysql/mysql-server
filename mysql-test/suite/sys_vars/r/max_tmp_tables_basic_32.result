@@ -238,18 +238,22 @@ SELECT @@session.max_tmp_tables;
 Warnings:
 Warning	1287	'@@max_tmp_tables' is deprecated and will be removed in a future release.
 '#------------------FN_DYNVARS_086_06-----------------------#'
-SELECT @@global.max_tmp_tables = VARIABLE_VALUE 
+SELECT VARIABLE_VALUE 
 FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
-WHERE VARIABLE_NAME='max_tmp_tables';
-@@global.max_tmp_tables = VARIABLE_VALUE
+WHERE VARIABLE_NAME='max_tmp_tables'
+into @tmp;
+SELECT @@global.max_tmp_tables = @tmp;
+@@global.max_tmp_tables = @tmp
 1
 Warnings:
 Warning	1287	'@@max_tmp_tables' is deprecated and will be removed in a future release.
 '#------------------FN_DYNVARS_086_07-----------------------#'
-SELECT @@session.max_tmp_tables = VARIABLE_VALUE 
+SELECT VARIABLE_VALUE 
 FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
-WHERE VARIABLE_NAME='max_tmp_tables';
-@@session.max_tmp_tables = VARIABLE_VALUE
+WHERE VARIABLE_NAME='max_tmp_tables'
+into @tmp;
+SELECT @@session.max_tmp_tables = @tmp;
+@@session.max_tmp_tables = @tmp
 1
 Warnings:
 Warning	1287	'@@max_tmp_tables' is deprecated and will be removed in a future release.

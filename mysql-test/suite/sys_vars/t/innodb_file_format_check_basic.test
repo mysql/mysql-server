@@ -19,10 +19,12 @@ SELECT @@global.innodb_file_format_check;
 SELECT @@session.innodb_file_format_check;
 SHOW global variables LIKE 'innodb_file_format_check';
 SHOW session variables LIKE 'innodb_file_format_check';
+--disable_warnings
 SELECT * FROM information_schema.global_variables 
 WHERE variable_name='innodb_file_format_check';
 SELECT * FROM information_schema.session_variables 
 WHERE variable_name='innodb_file_format_check';
+--enable_warnings
 
 #
 # show that it's read only
@@ -53,17 +55,21 @@ SET @@session.innodb_stats_on_metadata='ON';
 # Check if the value in GLOBAL Table matches value in variable 
 #
 
+--disable_warnings
 SELECT IF(@@GLOBAL.innodb_file_format_check, "ON", "OFF") = VARIABLE_VALUE
 FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
 WHERE VARIABLE_NAME='innodb_file_format_check';
+--enable_warnings
 --echo 1 Expected
 
 SELECT COUNT(@@GLOBAL.innodb_file_format_check);
 --echo 1 Expected
 
+--disable_warnings
 SELECT COUNT(VARIABLE_VALUE)
 FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
 WHERE VARIABLE_NAME='innodb_file_format_check';
+--enable_warnings
 --echo 1 Expected
 
 #

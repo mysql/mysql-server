@@ -490,7 +490,8 @@ is the global server default. */
 #define HA_ERR_SE_OUT_OF_MEMORY   194    /* Out of memory in storage engine */
 #define HA_ERR_TABLE_CORRUPT      195    /* Table/Clustered index is corrupted. */
 #define HA_ERR_QUERY_INTERRUPTED  196
-#define HA_ERR_LAST               196    /* Copy of last error nr */
+#define HA_ERR_TABLESPACE_MISSING 197    /* Missing Tablespace */
+#define HA_ERR_LAST               197    /* Copy of last error nr */
 
 /* Number of different errors */
 #define HA_ERR_ERRORS            (HA_ERR_LAST - HA_ERR_FIRST + 1)

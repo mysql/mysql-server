@@ -1,4 +1,8 @@
 --disable_warnings
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
+--enable_warnings
+
+--disable_warnings
 DROP TABLE IF EXISTS t1;
 --enable_warnings
 CREATE TABLE t1 (c1 TINYINT,name VARCHAR(30), purchased DATE)
@@ -24,7 +28,6 @@ INSERT INTO t1 VALUES(12,'abc','2005-01-01');
 INSERT INTO t1 VALUES(13,'abc','2006-01-01');
 SELECT * FROM t1 ORDER BY c1;
 SHOW TABLES; 
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`; 
 --replace_result $ENGINE ENGINE 
  SHOW CREATE TABLE t1; DROP TABLE t1; SHOW TABLES;
 CREATE TABLE t1 (c1 SMALLINT,name VARCHAR(30), purchased DATE)
@@ -50,7 +53,6 @@ INSERT INTO t1 VALUES(12,'abc','2005-01-01');
 INSERT INTO t1 VALUES(13,'abc','2006-01-01');
 SELECT * FROM t1 ORDER BY c1;
 SHOW TABLES; 
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`; 
 --replace_result $ENGINE ENGINE 
  SHOW CREATE TABLE t1; DROP TABLE t1; SHOW TABLES;
 CREATE TABLE t1 (c1 MEDIUMINT,name VARCHAR(30), purchased DATE)
@@ -76,7 +78,6 @@ INSERT INTO t1 VALUES(12,'abc','2005-01-01');
 INSERT INTO t1 VALUES(13,'abc','2006-01-01');
 SELECT * FROM t1 ORDER BY c1;
 SHOW TABLES; 
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`; 
 --replace_result $ENGINE ENGINE 
  SHOW CREATE TABLE t1; DROP TABLE t1; SHOW TABLES;
 CREATE TABLE t1 (c1 INT,name VARCHAR(30), purchased DATE)
@@ -102,7 +103,6 @@ INSERT INTO t1 VALUES(12,'abc','2005-01-01');
 INSERT INTO t1 VALUES(13,'abc','2006-01-01');
 SELECT * FROM t1 ORDER BY c1;
 SHOW TABLES; 
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`; 
 --replace_result $ENGINE ENGINE 
  SHOW CREATE TABLE t1; DROP TABLE t1; SHOW TABLES;
 CREATE TABLE t1 (c1 INTEGER,name VARCHAR(30), purchased DATE)
@@ -128,7 +128,6 @@ INSERT INTO t1 VALUES(12,'abc','2005-01-01');
 INSERT INTO t1 VALUES(13,'abc','2006-01-01');
 SELECT * FROM t1 ORDER BY c1;
 SHOW TABLES; 
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`; 
 --replace_result $ENGINE ENGINE 
  SHOW CREATE TABLE t1; DROP TABLE t1; SHOW TABLES;
 CREATE TABLE t1 (c1 BIGINT,name VARCHAR(30), purchased DATE)
@@ -154,7 +153,6 @@ INSERT INTO t1 VALUES(12,'abc','2005-01-01');
 INSERT INTO t1 VALUES(13,'abc','2006-01-01');
 SELECT * FROM t1 ORDER BY c1;
 SHOW TABLES; 
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`; 
 --replace_result $ENGINE ENGINE 
  SHOW CREATE TABLE t1; DROP TABLE t1; SHOW TABLES;
 

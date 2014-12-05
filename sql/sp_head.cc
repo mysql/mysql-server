@@ -15,7 +15,6 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "my_global.h"         // NO_EMBEDDED_ACCESS_CHECKS
-#include "sql_priv.h"
 #include "sql_cache.h"         // query_cache_*
 #include "probes_mysql.h"
 #include "sql_show.h"          // append_identifier
@@ -23,6 +22,7 @@
 #include "sql_table.h"         // prepare_create_field
 #include "auth_common.h"       // *_ACL
 #include "log_event.h"         // append_query_string, Query_log_event
+#include "binlog.h"
 
 #include "sp_head.h"
 #include "sp_instr.h"

@@ -368,6 +368,12 @@ public:
 
   virtual ~Slave_worker();
 
+  /*
+    index value of some outstanding slots of info_slave_worker_fields
+  */
+  enum {
+    LINE_FOR_CHANNEL= 12
+  };
   Slave_jobs_queue jobs;   // assignment queue containing events to execute
   mysql_mutex_t jobs_lock; // mutex for the jobs queue
   mysql_cond_t  jobs_cond; // condition variable for the jobs queue

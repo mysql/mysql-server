@@ -14,7 +14,6 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "my_global.h"    // NO_EMBEDDED_ACCESS_CHECKS
-#include "sql_priv.h"
 #include "sp_instr.h"
 #include "item.h"         // Item_splocal
 #include "opt_trace.h"    // opt_trace_disable_etc
@@ -28,6 +27,7 @@
 #include "sql_prepare.h"  // reinit_stmt_before_use
 #include "transaction.h"  // trans_commit_stmt
 #include "prealloced_array.h"
+#include "binlog.h"
 
 #include <algorithm>
 #include <functional>

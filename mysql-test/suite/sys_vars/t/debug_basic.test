@@ -10,8 +10,10 @@ select @@session.debug;    # here we know the value and can display it
 show global variables like 'debug';
 show session variables like 'debug';
 --replace_column 2 #
+--disable_warnings
 select * from information_schema.global_variables where variable_name="debug";
 select * from information_schema.session_variables where variable_name="debug";
+--enable_warnings
 
 --error ER_WRONG_TYPE_FOR_VAR
 set @@global.debug=1;

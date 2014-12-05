@@ -20,9 +20,11 @@ SELECT @orig;
 let $status_var = innodb_buffer_pool_dump_status;
 let $status_var_value = not started;
 -- source include/wait_for_status_var.inc
+--disable_warnings
 SELECT variable_value
 FROM information_schema.global_status
 WHERE LOWER(variable_name) = 'innodb_buffer_pool_dump_status';
+--enable_warnings
 
 # Try with a non-default filename
 
@@ -36,7 +38,9 @@ let $wait_condition =
   SELECT SUBSTR(variable_value, 1, 33) = 'Buffer pool(s) dump completed at '
   FROM information_schema.global_status
   WHERE LOWER(variable_name) = 'innodb_buffer_pool_dump_status';
+--disable_warnings
 -- source include/wait_condition.inc
+--enable_warnings
 
 -- file_exists $file
 

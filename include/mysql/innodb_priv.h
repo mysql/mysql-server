@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,8 +17,6 @@
 #define INNODB_PRIV_INCLUDED
 
 /** @file Declaring server-internal functions that are used by InnoDB. */
-
-#include <sql_priv.h>
 
 class THD;
 

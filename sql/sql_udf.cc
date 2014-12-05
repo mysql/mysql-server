@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -27,7 +27,6 @@
    dynamic functions, so this shouldn't be a real problem.
 */
 
-#include "sql_priv.h"
 #include "sql_base.h"                           // close_mysql_tables
 #include "sql_parse.h"                        // check_identifier_name
 #include "sql_table.h"                        // write_bin_log

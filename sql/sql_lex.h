@@ -32,6 +32,8 @@
 #include "xa.h"                       // XID, xa_option_words
 #include "prealloced_array.h"
 #include "sql_data_change.h"
+#include "set_var.h"
+#include "sql_priv.h"                 // OPTION_NO_CONST_TABLES
 
 /* YACC and LEX Definitions */
 
@@ -98,6 +100,11 @@ extern uint binlog_unsafe_map[256];
 */
 void binlog_unsafe_map_init();
 #endif
+
+enum enum_yes_no_unknown
+{
+  TVL_YES, TVL_NO, TVL_UNKNOWN
+};
 
 enum keytype {
   KEYTYPE_PRIMARY,
@@ -1270,7 +1277,6 @@ inline bool st_select_lex_unit::is_union () const
 #include "item_func.h"            /* Cast_target used in sql_yacc.h */
 #include "sql_signal.h"
 #include "sql_get_diagnostics.h"  /* Types used in sql_yacc.h */
-//#include "sql_yacc.h"
 
 
 struct Cast_type

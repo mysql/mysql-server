@@ -18,8 +18,10 @@ select @@global.rpl_semi_sync_master_wait_no_slave in (0,1);
 select @@session.rpl_semi_sync_master_wait_no_slave;
 show global variables like 'rpl_semi_sync_master_wait_no_slave';
 show session variables like 'rpl_semi_sync_master_wait_no_slave';
+--disable_warnings
 select * from information_schema.global_variables where variable_name='rpl_semi_sync_master_wait_no_slave';
 select * from information_schema.session_variables where variable_name='rpl_semi_sync_master_wait_no_slave';
+--enable_warnings
 
 #
 # show that it's writable
@@ -32,8 +34,10 @@ select @@global.rpl_semi_sync_master_wait_no_slave;
 select @@session.rpl_semi_sync_master_wait_no_slave;
 show global variables like 'rpl_semi_sync_master_wait_no_slave';
 show session variables like 'rpl_semi_sync_master_wait_no_slave';
+--disable_warnings
 select * from information_schema.global_variables where variable_name='rpl_semi_sync_master_wait_no_slave';
 select * from information_schema.session_variables where variable_name='rpl_semi_sync_master_wait_no_slave';
+--enable_warnings
 set global rpl_semi_sync_master_wait_no_slave=1;
 --error ER_GLOBAL_VARIABLE
 set session rpl_semi_sync_master_wait_no_slave=1;
@@ -42,8 +46,10 @@ select @@global.rpl_semi_sync_master_wait_no_slave;
 select @@session.rpl_semi_sync_master_wait_no_slave;
 show global variables like 'rpl_semi_sync_master_wait_no_slave';
 show session variables like 'rpl_semi_sync_master_wait_no_slave';
+--disable_warnings
 select * from information_schema.global_variables where variable_name='rpl_semi_sync_master_wait_no_slave';
 select * from information_schema.session_variables where variable_name='rpl_semi_sync_master_wait_no_slave';
+--enable_warnings
 
 #
 # incorrect types

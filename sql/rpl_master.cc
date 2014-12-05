@@ -15,7 +15,6 @@
 
 
 #ifdef HAVE_REPLICATION
-#include "sql_priv.h"
 #include "sql_parse.h"                          // check_access
 #include "auth_common.h"                        // SUPER_ACL
 #include "log_event.h"

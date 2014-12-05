@@ -18,28 +18,38 @@ select @@global.innodb_optimize_fulltext_only;
 select @@session.innodb_optimize_fulltext_only;
 show global variables like 'innodb_optimize_fulltext_only';
 show session variables like 'innodb_optimize_fulltext_only';
+--disable_warnings
 select * from information_schema.global_variables where variable_name='innodb_optimize_fulltext_only';
 select * from information_schema.session_variables where variable_name='innodb_optimize_fulltext_only';
+--enable_warnings
 
 #
 # show that it's writable
 #
 set global innodb_optimize_fulltext_only='ON';
 select @@global.innodb_optimize_fulltext_only;
+--disable_warnings
 select * from information_schema.global_variables where variable_name='innodb_optimize_fulltext_only';
 select * from information_schema.session_variables where variable_name='innodb_optimize_fulltext_only';
+--enable_warnings
 set @@global.innodb_optimize_fulltext_only=0;
 select @@global.innodb_optimize_fulltext_only;
+--disable_warnings
 select * from information_schema.global_variables where variable_name='innodb_optimize_fulltext_only';
 select * from information_schema.session_variables where variable_name='innodb_optimize_fulltext_only';
+--enable_warnings
 set global innodb_optimize_fulltext_only=1;
 select @@global.innodb_optimize_fulltext_only;
+--disable_warnings
 select * from information_schema.global_variables where variable_name='innodb_optimize_fulltext_only';
 select * from information_schema.session_variables where variable_name='innodb_optimize_fulltext_only';
+--enable_warnings
 set @@global.innodb_optimize_fulltext_only='OFF';
 select @@global.innodb_optimize_fulltext_only;
+--disable_warnings
 select * from information_schema.global_variables where variable_name='innodb_optimize_fulltext_only';
 select * from information_schema.session_variables where variable_name='innodb_optimize_fulltext_only';
+--enable_warnings
 --error ER_GLOBAL_VARIABLE
 set session innodb_optimize_fulltext_only='OFF';
 --error ER_GLOBAL_VARIABLE
@@ -57,8 +67,10 @@ set global innodb_optimize_fulltext_only=2;
 --echo NOTE: The following should fail with ER_WRONG_VALUE_FOR_VAR (BUG#50643)
 set global innodb_optimize_fulltext_only=-3;
 select @@global.innodb_optimize_fulltext_only;
+--disable_warnings
 select * from information_schema.global_variables where variable_name='innodb_optimize_fulltext_only';
 select * from information_schema.session_variables where variable_name='innodb_optimize_fulltext_only';
+--enable_warnings
 --error ER_WRONG_VALUE_FOR_VAR
 set global innodb_optimize_fulltext_only='AUTO';
 

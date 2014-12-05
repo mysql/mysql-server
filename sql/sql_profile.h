@@ -43,7 +43,6 @@ int make_profile_table_for_show(THD *thd, ST_SCHEMA_TABLE *schema_table);
 
 
 #if defined(ENABLED_PROFILING)
-#include "sql_priv.h"
 #include "m_string.h"  /* LEX_STRING */
 
 #ifdef HAVE_SYS_RESOURCE_H

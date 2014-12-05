@@ -1632,7 +1632,7 @@ convert_error_code_to_mysql(
 		return(HA_ERR_NO_SUCH_TABLE);
 
 	case DB_TABLESPACE_NOT_FOUND:
-		return(HA_ERR_NO_SUCH_TABLE);
+		return(HA_ERR_TABLESPACE_MISSING);
 
 	case DB_TOO_BIG_RECORD: {
 		/* If prefix is true then a 768-byte prefix is stored
@@ -5104,7 +5104,7 @@ table_opened:
 
 		dict_table_close(ib_table, FALSE, FALSE);
 
-		DBUG_RETURN(HA_ERR_NO_SUCH_TABLE);
+		DBUG_RETURN(HA_ERR_TABLESPACE_MISSING);
 	}
 
 	m_prebuilt = row_create_prebuilt(ib_table, table->s->reclength);
@@ -7717,13 +7717,14 @@ ha_innobase::index_read(
 		break;
 
 	case DB_TABLESPACE_NOT_FOUND:
+
 		ib_senderrf(
 			m_prebuilt->trx->mysql_thd, IB_LOG_LEVEL_ERROR,
 			ER_TABLESPACE_MISSING,
 			table->s->table_name.str);
 
 		table->status = STATUS_NOT_FOUND;
-		error = HA_ERR_NO_SUCH_TABLE;
+		error = HA_ERR_TABLESPACE_MISSING;
 		break;
 
 	default:
@@ -7996,13 +7997,14 @@ ha_innobase::general_fetch(
 		error = HA_ERR_NO_SUCH_TABLE;
 		break;
 	case DB_TABLESPACE_NOT_FOUND:
+
 		ib_senderrf(
 			trx->mysql_thd, IB_LOG_LEVEL_ERROR,
 			ER_TABLESPACE_MISSING,
 			table->s->table_name.str);
 
 		table->status = STATUS_NOT_FOUND;
-		error = HA_ERR_NO_SUCH_TABLE;
+		error = HA_ERR_TABLESPACE_MISSING;
 		break;
 	default:
 		error = convert_error_code_to_mysql(
@@ -8580,7 +8582,7 @@ next_record:
 				table->s->table_name.str);
 
 			table->status = STATUS_NOT_FOUND;
-			error = HA_ERR_NO_SUCH_TABLE;
+			error = HA_ERR_TABLESPACE_MISSING;
 			break;
 		default:
 			error = convert_error_code_to_mysql(
@@ -9188,7 +9190,6 @@ create_clustered_index_when_no_primary(
 	index = dict_mem_index_create(table_name,
 				      innobase_index_reserve_name,
 				      0, DICT_CLUSTERED, 0);
-	index->auto_gen_clust_index = true;
 
 	innodb_session_t*& priv = thd_to_innodb_session(trx->mysql_thd);
 
@@ -10080,13 +10081,22 @@ create_table_info_t::create_table_update_dict()
 	}
 
 	DBUG_ASSERT(innobase_table != 0);
-	DBUG_ASSERT(innobase_table->fts_doc_id_index == NULL);
 	if (innobase_table->fts != NULL) {
-		innobase_table->fts_doc_id_index
-			= dict_table_get_index_on_name(
-				innobase_table, FTS_DOC_ID_INDEX_NAME);
-		DBUG_ASSERT(innobase_table->fts_doc_id_index != NULL);
+		if (innobase_table->fts_doc_id_index == NULL) {
+			innobase_table->fts_doc_id_index
+				= dict_table_get_index_on_name(
+					innobase_table, FTS_DOC_ID_INDEX_NAME);
+			DBUG_ASSERT(innobase_table->fts_doc_id_index != NULL);
+		} else {
+			DBUG_ASSERT(innobase_table->fts_doc_id_index
+				    == dict_table_get_index_on_name(
+						innobase_table,
+						FTS_DOC_ID_INDEX_NAME));
+		}
 	}
+
+	DBUG_ASSERT((innobase_table->fts == NULL)
+		    == (innobase_table->fts_doc_id_index == NULL));
 
 	innobase_copy_frm_flags_from_create_info(innobase_table, m_create_info);
 
@@ -10436,7 +10446,7 @@ ha_innobase::truncate()
 			ER_TABLESPACE_DISCARDED : ER_TABLESPACE_MISSING),
 			table->s->table_name.str);
 		table->status = STATUS_NOT_FOUND;
-		error = HA_ERR_NO_SUCH_TABLE;
+		error = HA_ERR_TABLESPACE_MISSING;
 		break;
 
 	default:
@@ -10896,7 +10906,7 @@ ha_innobase::records(
 			table->s->table_name.str);
 
 		*num_rows = HA_POS_ERROR;
-		DBUG_RETURN(HA_ERR_NO_SUCH_TABLE);
+		DBUG_RETURN(HA_ERR_TABLESPACE_MISSING);
 
 	} else if (m_prebuilt->table->corrupted) {
 		ib_errf(m_user_thd, IB_LOG_LEVEL_WARN,
