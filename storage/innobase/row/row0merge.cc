@@ -1690,7 +1690,6 @@ row_merge_read_clustered_index(
 				}
 			}
 
-
 			if (dbug_run_purge
 			    || rw_lock_get_waiters(
 				    dict_index_get_lock(clust_index))) {
@@ -2043,20 +2042,6 @@ write_buffers:
 					if (row != NULL) {
 						bool	mtr_committed = false;
 
-						/* We are not at the end of
-						the scan yet. We must
-						mtr_commit() in order to be
-						able to call log_free_check()
-						in row_merge_insert_index_tuples().
-						Due to mtr_commit(), the
-						current row will be invalid, and
-						we must reread it on the next
-						loop iteration. */
-						btr_pcur_move_to_prev_on_page(
-							&pcur);
-						btr_pcur_store_position(
-							&pcur, &mtr);
-
 						/* We have to do insert the
 						cached spatial index rows, since
 						after the mtr_commit, the cluster
@@ -2076,7 +2061,21 @@ write_buffers:
 							}
 						}
 
+						/* We are not at the end of
+						the scan yet. We must
+						mtr_commit() in order to be
+						able to call log_free_check()
+						in row_merge_insert_index_tuples().
+						Due to mtr_commit(), the
+						current row will be invalid, and
+						we must reread it on the next
+						loop iteration. */
 						if (!mtr_committed) {
+							btr_pcur_move_to_prev_on_page(
+								&pcur);
+							btr_pcur_store_position(
+								&pcur, &mtr);
+
 							mtr_commit(&mtr);
 						}
 					}
