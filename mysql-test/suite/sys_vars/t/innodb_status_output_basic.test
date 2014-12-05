@@ -13,28 +13,38 @@ select @@global.innodb_status_output;
 select @@session.innodb_status_output;
 show global variables like 'innodb_status_output';
 show session variables like 'innodb_status_output';
+--disable_warnings
 select * from information_schema.global_variables where variable_name='innodb_status_output';
 select * from information_schema.session_variables where variable_name='innodb_status_output';
+--enable_warnings
 
 #
 # show that it's writable
 #
 set global innodb_status_output='OFF';
 select @@global.innodb_status_output;
+--disable_warnings
 select * from information_schema.global_variables where variable_name='innodb_status_output';
 select * from information_schema.session_variables where variable_name='innodb_status_output';
+--enable_warnings
 set @@global.innodb_status_output=1;
 select @@global.innodb_status_output;
+--disable_warnings
 select * from information_schema.global_variables where variable_name='innodb_status_output';
 select * from information_schema.session_variables where variable_name='innodb_status_output';
+--enable_warnings
 set global innodb_status_output=0;
 select @@global.innodb_status_output;
+--disable_warnings
 select * from information_schema.global_variables where variable_name='innodb_status_output';
 select * from information_schema.session_variables where variable_name='innodb_status_output';
+--enable_warnings
 set @@global.innodb_status_output='ON';
 select @@global.innodb_status_output;
+--disable_warnings
 select * from information_schema.global_variables where variable_name='innodb_status_output';
 select * from information_schema.session_variables where variable_name='innodb_status_output';
+--enable_warnings
 --error ER_GLOBAL_VARIABLE
 set session innodb_status_output='OFF';
 --error ER_GLOBAL_VARIABLE
@@ -52,12 +62,16 @@ set global innodb_status_output=2;
 --echo NOTE: The following should fail with ER_WRONG_VALUE_FOR_VAR (BUG#50643)
 set global innodb_status_output=-3;
 select @@global.innodb_status_output;
+--disable_warnings
 select * from information_schema.global_variables where variable_name='innodb_status_output';
 select * from information_schema.session_variables where variable_name='innodb_status_output';
+--enable_warnings
 set global innodb_status_output=DEFAULT;
 select @@global.innodb_status_output;
+--disable_warnings
 select * from information_schema.global_variables where variable_name='innodb_status_output';
 select * from information_schema.session_variables where variable_name='innodb_status_output';
+--enable_warnings
 --error ER_WRONG_VALUE_FOR_VAR
 set global innodb_status_output='AUTO';
 

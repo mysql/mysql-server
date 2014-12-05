@@ -1386,6 +1386,48 @@ row_mtuple_cmp(
 		       n_unique, n_unique, *current_mtuple, *prev_mtuple, dup));
 }
 
+/** Insert cached spatial index rows.
+@param[in]	trx		transaction
+@param[in]	sp_tuples	cached spatial rows
+@param[in]	num_spatial	number of spatial indexes
+@param[in]	row_heap	heap for insert
+@param[in]	sp_heap		heap for tuples
+@param[in]	pcur		cluster index cursor
+@param[in]	mtr		mini transaction
+@param[in,out]	mtr_committed	whether scan_mtr got committed
+@return DB_SUCCESS or error number */
+static
+dberr_t
+row_merge_spatial_rows(
+	trx_t*			trx,
+	index_tuple_info_t**	sp_tuples,
+	ulint			num_spatial,
+	mem_heap_t*		row_heap,
+	mem_heap_t*		sp_heap,
+	btr_pcur_t*		pcur,
+	mtr_t*			mtr,
+	bool*			mtr_committed)
+{
+	dberr_t			err = DB_SUCCESS;
+
+	ut_ad(sp_tuples != NULL);
+	ut_ad(sp_heap != NULL);
+
+	for (ulint j = 0; j < num_spatial; j++) {
+		err = sp_tuples[j]->insert(
+			trx, row_heap,
+			pcur, mtr, mtr_committed);
+
+		if (err != DB_SUCCESS) {
+			return(err);
+		}
+	}
+
+	mem_heap_empty(sp_heap);
+
+	return(err);
+}
+
 /********************************************************************//**
 Reads clustered index of the table and create temporary files
 containing the index entries for the indexes to be built.
@@ -1451,8 +1493,8 @@ row_merge_read_clustered_index(
 	os_event_t		fts_parallel_sort_event = NULL;
 	ibool			fts_pll_sort = FALSE;
 	int64_t			sig_count = 0;
-	index_tuple_info_t**	spatial_dtuple_info = NULL;
-	mem_heap_t*		spatial_heap = NULL;
+	index_tuple_info_t**	sp_tuples = NULL;
+	mem_heap_t*		sp_heap = NULL;
 	ulint			num_spatial = 0;
 	BtrBulk*		clust_btr_bulk = NULL;
 	bool			clust_temp_file = false;
@@ -1521,18 +1563,18 @@ row_merge_read_clustered_index(
 	if (num_spatial > 0) {
 		ulint	count = 0;
 
-		spatial_heap = mem_heap_create(100);
+		sp_heap = mem_heap_create(100);
 
-		spatial_dtuple_info = static_cast<index_tuple_info_t**>(
+		sp_tuples = static_cast<index_tuple_info_t**>(
 			ut_malloc_nokey(num_spatial
-					* sizeof(*spatial_dtuple_info)));
+					* sizeof(*sp_tuples)));
 
 		for (ulint i = 0; i < n_index; i++) {
 			if (dict_index_is_spatial(index[i])) {
-				spatial_dtuple_info[count]
+				sp_tuples[count]
 					= UT_NEW_NOKEY(
 						index_tuple_info_t(
-							spatial_heap,
+							sp_heap,
 							index[i]));
 				count++;
 			}
@@ -1630,20 +1672,18 @@ row_merge_read_clustered_index(
 				"ib_purge_on_create_index_page_switch",
 				dbug_run_purge = true;);
 
-			if (spatial_dtuple_info != NULL) {
+			/* Insert the cached spatial index rows. */
+			if (sp_tuples != NULL) {
 				bool	mtr_committed = false;
 
-				for (ulint j = 0; j < num_spatial; j++) {
-					err = spatial_dtuple_info[j]->insert(
-						trx, row_heap,
-						&pcur, &mtr, &mtr_committed);
+				err = row_merge_spatial_rows(
+					trx, sp_tuples, num_spatial,
+					row_heap, sp_heap, &pcur,
+					&mtr, &mtr_committed);
 
-					if (err != DB_SUCCESS) {
-						goto func_exit;
-					}
+				if (err != DB_SUCCESS) {
+					goto func_exit;
 				}
-
-				mem_heap_empty(spatial_heap);
 
 				if (mtr_committed) {
 					goto scan_next;
@@ -1904,10 +1944,10 @@ write_buffers:
 					continue;
 				}
 
-				ut_ad(spatial_dtuple_info[s_idx_cnt]->get_index()
+				ut_ad(sp_tuples[s_idx_cnt]->get_index()
 				      == buf->index);
 
-				spatial_dtuple_info[s_idx_cnt]->add(row, ext);
+				sp_tuples[s_idx_cnt]->add(row, ext);
 
 				s_idx_cnt++;
 
@@ -2000,6 +2040,27 @@ write_buffers:
 					/* Temporary File is not used.
 					so insert sorted block to the index */
 					if (row != NULL) {
+						bool	mtr_committed = false;
+
+						/* We have to do insert the
+						cached spatial index rows, since
+						after the mtr_commit, the cluster
+						index page could be updated, then
+						the data in cached rows become
+						invalid. */
+						if (sp_tuples != NULL) {
+							err = row_merge_spatial_rows(
+								trx, sp_tuples,
+								num_spatial,
+								row_heap, sp_heap,
+								&pcur, &mtr,
+								&mtr_committed);
+
+							if (err != DB_SUCCESS) {
+								goto func_exit;
+							}
+						}
+
 						/* We are not at the end of
 						the scan yet. We must
 						mtr_commit() in order to be
@@ -2009,11 +2070,14 @@ write_buffers:
 						current row will be invalid, and
 						we must reread it on the next
 						loop iteration. */
-						btr_pcur_move_to_prev_on_page(
-							&pcur);
-						btr_pcur_store_position(
-							&pcur, &mtr);
-						mtr_commit(&mtr);
+						if (!mtr_committed) {
+							btr_pcur_move_to_prev_on_page(
+								&pcur);
+							btr_pcur_store_position(
+								&pcur, &mtr);
+
+							mtr_commit(&mtr);
+						}
 					}
 
 					mem_heap_empty(mtuple_heap);
@@ -2299,14 +2363,14 @@ wait_again:
 
 	btr_pcur_close(&pcur);
 
-	if (spatial_dtuple_info != NULL) {
+	if (sp_tuples != NULL) {
 		for (ulint i = 0; i < num_spatial; i++) {
-			UT_DELETE(spatial_dtuple_info[i]);
+			UT_DELETE(sp_tuples[i]);
 		}
-		ut_free(spatial_dtuple_info);
+		ut_free(sp_tuples);
 
-		if (spatial_heap) {
-			mem_heap_free(spatial_heap);
+		if (sp_heap) {
+			mem_heap_free(sp_heap);
 		}
 	}
 

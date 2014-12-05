@@ -36,15 +36,35 @@ call mtr.add_suppression("\\[ERROR\\] InnoDB: The error means the system cannot 
 
 # The ER_NO_SUCH_TABLE is being thrown by ha_innobase::open().
 # The table does exist, only the tablespace does not exist.
---error ER_NO_SUCH_TABLE
+--error ER_TABLESPACE_MISSING
 SELECT * FROM t;
 
---error ER_NO_SUCH_TABLE
+--error ER_TABLESPACE_MISSING
 ALTER TABLE t ADD INDEX (a), ALGORITHM=INPLACE;
 SHOW WARNINGS;
+
 --error ER_NO_SUCH_TABLE
 ALTER TABLE t1 ADD INDEX (a), ALGORITHM=COPY;
 SHOW WARNINGS;
 
 ALTER TABLE t DISCARD TABLESPACE;
 DROP TABLE t;
+
+#Check with tables having special characters
+
+CREATE TABLE `x..d` (a INT PRIMARY KEY, b INT) ENGINE=InnoDB;
+INSERT INTO `x..d` (a) VALUES (1),(2),(3),(4),(5),(6),(7),(8);
+
+--source include/shutdown_mysqld.inc
+--remove_file $MYSQLTEST_VARDIR/mysqld.1/data/test/x@002e@002ed.ibd
+--source include/start_mysqld.inc
+
+--disable_query_log
+call mtr.add_suppression("\\[ERROR\\] InnoDB: Failed to find tablespace for table `test`\.`x\.\.d` in the cache");
+call mtr.add_suppression("\\[Warning\\] InnoDB: Cannot calculate statistics for table `test`\.`x\.\.d` because the .ibd file is missing.");
+--enable_query_log
+
+--error ER_TABLESPACE_MISSING
+select * from `x..d`;
+
+DROP TABLE `x..d`;

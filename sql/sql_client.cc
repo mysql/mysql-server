@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,7 +17,6 @@
   This files defines some MySQL C API functions that are server specific
 */
 
-#include "sql_priv.h"
 #include "sql_class.h"                          // system_variables
 
 #include <algorithm>

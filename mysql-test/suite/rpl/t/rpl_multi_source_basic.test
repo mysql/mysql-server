@@ -170,17 +170,34 @@ SHOW TABLES;
 --source include/assert.inc
 
 --echo #
---echo # Stop slave (on server_2) for test case 3.
---echo #
---source include/rpl_stop_slaves.inc
-
---echo #
 --echo # Test case 3: 3.a) Update nonconflicting data on the same table
 --echo #                 and see if they are replicated to the slave.
 
 --let $rpl_connection_name= server_1
 --source include/rpl_connection.inc
 CREATE TABLE dbcommon.t101(a int, PRIMARY KEY (a));
+
+### Make sure that this is the first create table to reach
+### the slave.
+
+#sync the slave with server_1
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+
+--let $rpl_channel_name= channel_1
+--let $sync_slave_connection=server_2
+--source include/sync_slave_sql_with_master.inc
+--let $rpl_channel_name=
+
+--echo #
+--echo # Stop slave (on server_2) for test case 3.
+--echo #
+--source include/rpl_stop_slaves.inc
+
+#sync the slave with server_1
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+
 --let $i= 10
 while($i)
 {

@@ -124,6 +124,7 @@ SELECT @@session.default_week_format;
 #   Check if the value in GLOBAL & SESSION Tables matches value in variable   #
 ###############################################################################
 
+--disable_warnings
 SELECT @@global.default_week_format = VARIABLE_VALUE 
 FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
 WHERE VARIABLE_NAME='default_week_format';
@@ -131,6 +132,7 @@ WHERE VARIABLE_NAME='default_week_format';
 SELECT @@session.default_week_format = VARIABLE_VALUE 
 FROM INFORMATION_SCHEMA.SESSION_VARIABLES
 WHERE VARIABLE_NAME='default_week_format';
+--enable_warnings
 
 
 --echo '#------------------FN_DYNVARS_022_07-----------------------#'

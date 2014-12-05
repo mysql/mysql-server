@@ -117,41 +117,6 @@
 
 #define SELECT_MAX_STATEMENT_TIME       (1ULL << 37) // SELECT, user
 
-/*
-  Check how many bytes are available on buffer.
-
-  @param buf_start    Pointer to buffer start.
-  @param buf_current  Pointer to the current position on buffer.
-  @param buf_len      Buffer length.
-
-  @return             Number of bytes available on event buffer.
-*/
-template <class T> T available_buffer(const char* buf_start,
-                                      const char* buf_current,
-                                      T buf_len)
-{
-  return static_cast<T>(buf_len - (buf_current - buf_start));
-}
-
-/*
-  Check if jump value is within buffer limits.
-
-  @param jump         Number of positions we want to advance.
-  @param buf_start    Pointer to buffer start
-  @param buf_current  Pointer to the current position on buffer.
-  @param buf_len      Buffer length.
-
-  @return      True   If jump value is within buffer limits.
-               False  Otherwise.
-*/
-template <class T> bool valid_buffer_range(T jump,
-                                           const char* buf_start,
-                                           const char* buf_current,
-                                           T buf_len)
-{
-  return (jump <= available_buffer(buf_start, buf_current, buf_len));
-}
-
 /* The rest of the file is included in the server only */
 #ifndef MYSQL_CLIENT
 
@@ -198,17 +163,6 @@ template <class T> bool valid_buffer_range(T jump,
                                   OPTIMIZER_SWITCH_SUBQ_MAT_COST_BASED | \
                                   OPTIMIZER_SWITCH_USE_INDEX_EXTENSIONS | \
                                   OPTIMIZER_SWITCH_COND_FANOUT_FILTER)
-/*
-  Replication uses 8 bytes to store SQL_MODE in the binary log. The day you
-  use strictly more than 64 bits by adding one more define above, you should
-  contact the replication team because the replication code should then be
-  updated (to store more bytes on disk).
-
-  NOTE: When adding new SQL_MODE types, make sure to also add them to
-  the scripts used for creating the MySQL system tables
-  in scripts/mysql_system_tables.sql and scripts/mysql_system_tables_fix.sql
-
-*/
 
 /*
   Flags below are set when we perform
@@ -245,103 +199,6 @@ template <class T> bool valid_buffer_range(T jump,
 #define UNCACHEABLE_UNITED      8
 #define UNCACHEABLE_CHECKOPTION 16
 
-/*
-  Some defines for exit codes for ::is_equal class functions.
-*/
-#define IS_EQUAL_NO 0
-#define IS_EQUAL_YES 1
-#define IS_EQUAL_PACK_LENGTH 2
-
-/**
-  Names for different query parse tree parts
-*/
-
-enum enum_parsing_context
-{
-  CTX_NONE= 0, ///< Empty value
-  CTX_MESSAGE, ///< "No tables used" messages etc.
-  CTX_TABLE, ///< for single-table UPDATE/DELETE/INSERT/REPLACE
-  CTX_SELECT_LIST, ///< SELECT (subquery), (subquery)...
-  CTX_UPDATE_VALUE_LIST, ///< UPDATE ... SET field=(subquery)...
-  CTX_JOIN,
-  CTX_QEP_TAB,
-  CTX_MATERIALIZATION,
-  CTX_DUPLICATES_WEEDOUT,
-  CTX_DERIVED, ///< "Derived" subquery
-  CTX_WHERE, ///< Subquery in WHERE clause item tree
-  CTX_ON,    ///< ON clause context
-  CTX_HAVING, ///< Subquery in HAVING clause item tree
-  CTX_ORDER_BY, ///< ORDER BY clause execution context
-  CTX_GROUP_BY, ///< GROUP BY clause execution context
-  CTX_SIMPLE_ORDER_BY, ///< ORDER BY clause execution context
-  CTX_SIMPLE_GROUP_BY, ///< GROUP BY clause execution context
-  CTX_DISTINCT, ///< DISTINCT clause execution context
-  CTX_SIMPLE_DISTINCT, ///< DISTINCT clause execution context
-  CTX_BUFFER_RESULT, ///< see SQL_BUFFER_RESULT in the manual
-  CTX_ORDER_BY_SQ, ///< Subquery in ORDER BY clause item tree
-  CTX_GROUP_BY_SQ, ///< Subquery in GROUP BY clause item tree
-  CTX_OPTIMIZED_AWAY_SUBQUERY, ///< Subquery executed once during optimization
-  CTX_UNION,
-  CTX_UNION_RESULT, ///< Pseudo-table context for UNION result
-  CTX_QUERY_SPEC ///< Inner SELECTs of UNION expression
-};
-
-
-enum enum_var_type
-{
-  OPT_DEFAULT= 0, OPT_SESSION, OPT_GLOBAL
-};
-
-class sys_var;
-
-enum enum_yes_no_unknown
-{
-  TVL_YES, TVL_NO, TVL_UNKNOWN
-};
-
-#ifdef MYSQL_SERVER
-
-#endif /* MYSQL_SERVER */
-
-#ifdef MYSQL_SERVER
-/*
-  External variables
-*/
-
-/* sql_yacc.cc */
-#ifndef DBUG_OFF
-extern void turn_parser_debug_on();
-
-#endif
-
-/**
-  convert a hex digit into number.
-*/
-
-inline int hexchar_to_int(char c)
-{
-  if (c <= '9' && c >= '0')
-    return c-'0';
-  c|=32;
-  if (c <= 'f' && c >= 'a')
-    return c-'a'+10;
-  return -1;
-}
-
-/* This must match the path length limit in the ER_NOT_RW_DIR error msg. */
-#define ER_NOT_RW_DIR_PATHSIZE 200
-
-#define IS_TABLESPACES_TABLESPACE_NAME    0
-#define IS_TABLESPACES_ENGINE             1
-#define IS_TABLESPACES_TABLESPACE_TYPE    2
-#define IS_TABLESPACES_LOGFILE_GROUP_NAME 3
-#define IS_TABLESPACES_EXTENT_SIZE        4
-#define IS_TABLESPACES_AUTOEXTEND_SIZE    5
-#define IS_TABLESPACES_MAXIMUM_SIZE       6
-#define IS_TABLESPACES_NODEGROUP_ID       7
-#define IS_TABLESPACES_TABLESPACE_COMMENT 8
-
-#endif /* MYSQL_SERVER */
 
 #endif /* MYSQL_CLIENT */
 

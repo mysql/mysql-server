@@ -6810,7 +6810,7 @@ ER_IO_WRITE_ERROR
   eng "IO Write error: (%lu, %s) %s"
 
 ER_TABLESPACE_MISSING
-  eng "Tablespace '%-.192s' is missing"
+  eng "Tablespace is missing for table %s."
 
 ER_TABLESPACE_EXISTS
   eng "Tablespace '%-.192s' exists."

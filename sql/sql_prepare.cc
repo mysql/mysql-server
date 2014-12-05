@@ -105,6 +105,7 @@ When one supplies long data for a placeholder:
 #include "sql_view.h"           // create_view_precheck
 #include "transaction.h"        // trans_rollback_implicit
 #include "mysql/psi/mysql_ps.h" // MYSQL_EXECUTE_PS
+#include "binlog.h"
 
 #ifdef EMBEDDED_LIBRARY
 /* include MYSQL_BIND headers */

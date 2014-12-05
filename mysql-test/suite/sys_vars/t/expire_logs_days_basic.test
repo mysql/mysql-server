@@ -115,6 +115,7 @@ SELECT @@expire_logs_days;
 # Check if the value in GLOBAL & SESSION Tables matches values in variable   #
 ##############################################################################
 
+--disable_warnings
 SELECT @@global.expire_logs_days = VARIABLE_VALUE 
 FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
 WHERE VARIABLE_NAME='expire_logs_days';
@@ -122,6 +123,7 @@ WHERE VARIABLE_NAME='expire_logs_days';
 SELECT @@expire_logs_days = VARIABLE_VALUE 
 FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
 WHERE VARIABLE_NAME='expire_logs_days';
+--enable_warnings
 
 
 

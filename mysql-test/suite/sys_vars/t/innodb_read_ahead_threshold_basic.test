@@ -18,16 +18,20 @@ select @@global.innodb_read_ahead_threshold;
 select @@session.innodb_read_ahead_threshold;
 show global variables like 'innodb_read_ahead_threshold';
 show session variables like 'innodb_read_ahead_threshold';
+--disable_warnings
 select * from information_schema.global_variables where variable_name='innodb_read_ahead_threshold';
 select * from information_schema.session_variables where variable_name='innodb_read_ahead_threshold';
+--enable_warnings
 
 #
 # show that it's writable
 #
 set global innodb_read_ahead_threshold=10;
 select @@global.innodb_read_ahead_threshold;
+--disable_warnings
 select * from information_schema.global_variables where variable_name='innodb_read_ahead_threshold';
 select * from information_schema.session_variables where variable_name='innodb_read_ahead_threshold';
+--enable_warnings
 --error ER_GLOBAL_VARIABLE
 set session innodb_read_ahead_threshold=1;
 #
@@ -54,10 +58,14 @@ select @@global.innodb_read_ahead_threshold;
 
 set global innodb_read_ahead_threshold=-7;
 select @@global.innodb_read_ahead_threshold;
+--disable_warnings
 select * from information_schema.global_variables where variable_name='innodb_read_ahead_threshold';
+--enable_warnings
 set global innodb_read_ahead_threshold=96;
 select @@global.innodb_read_ahead_threshold;
+--disable_warnings
 select * from information_schema.global_variables where variable_name='innodb_read_ahead_threshold';
+--enable_warnings
 
 #
 # min/max values

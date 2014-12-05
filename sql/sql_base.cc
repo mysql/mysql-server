@@ -17,7 +17,6 @@
 
 #include "sql_base.h"                           // setup_table_map
 #include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
-#include "sql_priv.h"
 #include "debug_sync.h"
 #include "lock.h"        // mysql_lock_remove,
                          // mysql_unlock_tables,
@@ -54,6 +53,8 @@
 #include "sql_hset.h"   // Hash_set
 #include "sql_tmp_table.h" // free_tmp_table
 #include "table_cache.h" // Table_cache_manager, Table_cache
+#include "log.h"
+#include "binlog.h"
 
 
 bool

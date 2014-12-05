@@ -220,19 +220,24 @@ SET @@global.character_set_filesystem = ON;
 ##############################################################################
 #     Check if the value in GLOBAL Table matches value in variable           #
 ##############################################################################
+--disable_warnings
 SELECT @@global.character_set_filesystem =
  (SELECT VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
   WHERE VARIABLE_NAME='character_set_filesystem') AS res;
+--enable_warnings
 SET @@global.character_set_filesystem = 1;
 SELECT @@global.character_set_filesystem;
+--disable_warnings
 SELECT @@global.character_set_filesystem =
  (SELECT VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
   WHERE VARIABLE_NAME='character_set_filesystem') AS res;
+--enable_warnings
 
 --echo '#--------------------FN_DYNVARS_008_13-------------------------#'
 #############################################################################
 #     Check if the value in SESSION Table matches value in variable         #
 #############################################################################
+--disable_warnings
 SELECT @@character_set_filesystem =
  (SELECT VARIABLE_VALUE FROM INFORMATION_SCHEMA.SESSION_VARIABLES
   WHERE VARIABLE_NAME='character_set_filesystem') AS res;
@@ -242,6 +247,7 @@ SELECT @@local.character_set_filesystem =
 SELECT @@session.character_set_filesystem =
  (SELECT VARIABLE_VALUE FROM INFORMATION_SCHEMA.SESSION_VARIABLES
   WHERE VARIABLE_NAME='character_set_filesystem') AS res;
+--enable_warnings
 
 ####################################
 #     Restore initial value        #

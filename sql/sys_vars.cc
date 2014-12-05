@@ -31,7 +31,6 @@
 */
 
 #include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
-#include "sql_priv.h"
 #include "sql_class.h"                          // set_var.h: THD
 #include "rpl_gtid.h"
 #include "sys_vars.h"
@@ -4762,8 +4761,8 @@ static Sys_var_mybool Sys_enforce_gtid_consistency(
        );
 #endif
 
-static Sys_var_mybool Sys_simplified_binlog_gtid_recovery(
-       "simplified_binlog_gtid_recovery",
+static Sys_var_mybool Sys_binlog_gtid_simple_recovery(
+       "binlog_gtid_simple_recovery",
        "If this option is enabled, the server does not scan more than one "
        "binary log for every iteration when initializing GTID sets on server "
        "restart. Enabling this option is very useful when restarting a server "
@@ -4772,9 +4771,8 @@ static Sys_var_mybool Sys_simplified_binlog_gtid_recovery(
        "GLOBAL.GTID_PURGED cannot be initialized correctly if binary log(s) "
        "with GTID events were generated before binary log(s) without GTID "
        "events, for example if gtid_mode is disabled when the server has "
-       "already generated binary log(s) with GTID events and not purged "
-       "them. ",
-       READ_ONLY GLOBAL_VAR(simplified_binlog_gtid_recovery),
+       "already generated binary log(s) with GTID events and not purged them.",
+       READ_ONLY GLOBAL_VAR(binlog_gtid_simple_recovery),
        CMD_LINE(OPT_ARG), DEFAULT(FALSE));
 
 static Sys_var_ulong Sys_sp_cache_size(
@@ -5011,6 +5009,51 @@ static bool check_gtid_purged(sys_var *self, THD *thd, set_var *var)
   DBUG_RETURN(false);
 }
 
+bool Sys_var_gtid_purged::global_update(THD *thd, set_var *var)
+{
+  DBUG_ENTER("Sys_var_gtid_purged::global_update");
+#ifdef HAVE_REPLICATION
+  bool error= false;
+  int rotate_res= 0;
+
+  global_sid_lock->wrlock();
+  char *previous_gtid_executed= gtid_state->get_executed_gtids()->to_string();
+  char *previous_gtid_lost= gtid_state->get_lost_gtids()->to_string();
+  enum_return_status ret= gtid_state->add_lost_gtids(var->save_result.string_value.str);
+  char *current_gtid_executed= gtid_state->get_executed_gtids()->to_string();
+  char *current_gtid_lost= gtid_state->get_lost_gtids()->to_string();
+  global_sid_lock->unlock();
+  if (RETURN_STATUS_OK != ret)
+  {
+    error= true;
+    goto end;
+  }
+
+  // Log messages saying that GTID_PURGED and GTID_EXECUTED were changed.
+  sql_print_information(ER(ER_GTID_PURGED_WAS_CHANGED),
+                        previous_gtid_lost, current_gtid_lost);
+  sql_print_information(ER(ER_GTID_EXECUTED_WAS_CHANGED),
+                        previous_gtid_executed, current_gtid_executed);
+
+  // Rotate logs to have Previous_gtid_event on last binlog.
+  rotate_res= mysql_bin_log.rotate_and_purge(true);
+  if (rotate_res)
+  {
+    error= true;
+    goto end;
+  }
+
+end:
+  my_free(previous_gtid_executed);
+  my_free(previous_gtid_lost);
+  my_free(current_gtid_executed);
+  my_free(current_gtid_lost);
+  DBUG_RETURN(error);
+#else
+  DBUG_RETURN(true);
+#endif /* HAVE_REPLICATION */
+}
+
 Gtid_set *gtid_purged;
 static Sys_var_gtid_purged Sys_gtid_purged(
        "gtid_purged",
@@ -5112,13 +5155,13 @@ static Sys_var_enum Sys_gtid_mode(
 
 #endif // HAVE_REPLICATION
 
-static Sys_var_uint Sys_executed_gtids_compression_period(
-       "executed_gtids_compression_period", "When binlog is disabled, "
+static Sys_var_uint Sys_gtid_executed_compression_period(
+       "gtid_executed_compression_period", "When binlog is disabled, "
        "a background thread wakes up to compress the gtid_executed table "
-       "every executed_gtids_compression_period transactions, as a "
+       "every gtid_executed_compression_period transactions, as a "
        "special case, if variable is 0, the thread never wakes up "
        "to compress the gtid_executed table.",
-       GLOBAL_VAR(executed_gtids_compression_period),
+       GLOBAL_VAR(gtid_executed_compression_period),
        CMD_LINE(OPT_ARG), VALID_RANGE(0, UINT_MAX32), DEFAULT(1000),
        BLOCK_SIZE(1));
 

@@ -20,7 +20,6 @@
 */
 
 #include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
-#include "sql_priv.h"
 #include "sql_update.h"
 #include "sql_cache.h"                          // query_cache_*
 #include "sql_base.h"                       // close_tables_for_reopen
@@ -44,8 +43,8 @@
 #include "opt_trace.h"   // Opt_trace_object
 #include "sql_tmp_table.h"                      // tmp tables
 #include "sql_optimizer.h"                      // remove_eq_conds
-#include "sql_resolver.h"                       // setup_order, fix_inner_refs
-
+#include "sql_resolver.h"                       // setup_order
+#include "binlog.h"
 
 /**
    True if the table's input and output record buffers are comparable using

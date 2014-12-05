@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,7 +15,6 @@
 
 /* drop and alter of tablespaces */
 
-#include "sql_priv.h"
 #include "sql_tablespace.h"
 #include "sql_table.h"                          // write_bin_log
 #include "sql_class.h"                          // THD

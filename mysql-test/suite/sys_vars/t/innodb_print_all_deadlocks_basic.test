@@ -17,38 +17,48 @@ SELECT @@global.innodb_print_all_deadlocks;
 SELECT @@session.innodb_print_all_deadlocks;
 SHOW global variables LIKE 'innodb_print_all_deadlocks';
 SHOW session variables LIKE 'innodb_print_all_deadlocks';
+--disable_warnings
 SELECT * FROM information_schema.global_variables 
 WHERE variable_name='innodb_print_all_deadlocks';
 SELECT * FROM information_schema.session_variables 
 WHERE variable_name='innodb_print_all_deadlocks';
+--enable_warnings
 
 #
 # SHOW that it's writable
 #
 SET global innodb_print_all_deadlocks='OFF';
 SELECT @@global.innodb_print_all_deadlocks;
+--disable_warnings
 SELECT * FROM information_schema.global_variables 
 WHERE variable_name='innodb_print_all_deadlocks';
 SELECT * FROM information_schema.session_variables 
 WHERE variable_name='innodb_print_all_deadlocks';
+--enable_warnings
 SET @@global.innodb_print_all_deadlocks=1;
 SELECT @@global.innodb_print_all_deadlocks;
+--disable_warnings
 SELECT * FROM information_schema.global_variables 
 WHERE variable_name='innodb_print_all_deadlocks';
 SELECT * FROM information_schema.session_variables 
 WHERE variable_name='innodb_print_all_deadlocks';
+--enable_warnings
 SET global innodb_print_all_deadlocks=0;
 SELECT @@global.innodb_print_all_deadlocks;
+--disable_warnings
 SELECT * FROM information_schema.global_variables 
 WHERE variable_name='innodb_print_all_deadlocks';
 SELECT * FROM information_schema.session_variables 
 WHERE variable_name='innodb_print_all_deadlocks';
+--enable_warnings
 SET @@global.innodb_print_all_deadlocks='ON';
 SELECT @@global.innodb_print_all_deadlocks;
+--disable_warnings
 SELECT * FROM information_schema.global_variables 
 WHERE variable_name='innodb_print_all_deadlocks';
 SELECT * FROM information_schema.session_variables 
 WHERE variable_name='innodb_print_all_deadlocks';
+--enable_warnings
 --error ER_GLOBAL_VARIABLE
 SET session innodb_print_all_deadlocks='OFF';
 --error ER_GLOBAL_VARIABLE
@@ -66,10 +76,12 @@ SET global innodb_print_all_deadlocks=2;
 --echo NOTE: The following should fail with ER_WRONG_VALUE_FOR_VAR (BUG#50643)
 SET global innodb_print_all_deadlocks=-3;
 SELECT @@global.innodb_print_all_deadlocks;
+--disable_warnings
 SELECT * FROM information_schema.global_variables 
 WHERE variable_name='innodb_print_all_deadlocks';
 SELECT * FROM information_schema.session_variables 
 WHERE variable_name='innodb_print_all_deadlocks';
+--enable_warnings
 --error ER_WRONG_VALUE_FOR_VAR
 SET global innodb_print_all_deadlocks='AUTO';
 

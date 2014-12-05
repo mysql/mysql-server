@@ -17,7 +17,6 @@
 
 /* drop and alter of tables */
 
-#include "sql_priv.h"
 #include "unireg.h"
 #include "debug_sync.h"
 #include "sql_table.h"
@@ -56,6 +55,8 @@
 #include "table_cache.h"
 #include "sql_trigger.h"               // change_trigger_table_name
 #include <mysql/psi/mysql_table.h>
+#include "log.h"
+#include "binlog.h"
 
 #include <algorithm>
 using std::max;
@@ -4188,12 +4189,15 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
 	else
 	  key_info->flags|= HA_PACK_KEY;
       }
-      /* 
+
+      /*
          Check if the key segment is partial, set the key flag
          accordingly. The key segment for a POINT column is NOT considered
          partial if key_length==MAX_LEN_GEOM_POINT_FIELD.
+         Note that fulltext indexes ignores prefixes.
       */
-      if (key_part_length != sql_field->key_length &&
+      if (key->type != KEYTYPE_FULLTEXT &&
+          key_part_length != sql_field->key_length &&
           !(sql_field->sql_type == MYSQL_TYPE_GEOMETRY &&
             sql_field->geom_type == Field::GEOM_POINT &&
             key_part_length == MAX_LEN_GEOM_POINT_FIELD))
@@ -5788,6 +5792,16 @@ static bool has_index_def_changed(Alter_info *alter_info,
       in general case.
     */
     if (key_part->length != new_part->length)
+      return true;
+
+    /*
+      Key definition has changed, if the key is converted from a
+      non-prefixed key to a prefixed key.
+      Ex: When the column length is increased but the key part
+      length remains the same.
+    */
+    if (!(key_part->key_part_flag & HA_PART_KEY_SEG) &&
+         (new_key->flags & HA_KEY_HAS_PART_KEY_SEG))
       return true;
 
     new_field= get_field_by_index(alter_info, new_part->fieldnr);

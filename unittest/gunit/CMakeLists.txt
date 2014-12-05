@@ -212,7 +212,7 @@ MY_CHECK_CXX_COMPILER_FLAG("-fno-builtin-memcmp" HAVE_NO_BUILTIN_MEMCMP)
 
 # main-wrapper libraries (with tap-compatible option).
 ADD_LIBRARY(gunit_small STATIC
-  gunit_test_main.cc skip_trailing.cc tap_event_listener.cc thread_utils.cc fake_costmodel.cc)
+  gunit_test_main.cc skip_trailing.cc strnxfrm.cc tap_event_listener.cc thread_utils.cc fake_costmodel.cc)
 ADD_LIBRARY(gunit_large STATIC
   gunit_test_main_server.cc test_utils.cc tap_event_listener.cc thread_utils.cc)
 ADD_DEPENDENCIES(gunit_small GenError)
@@ -269,6 +269,7 @@ SET(TESTS
   stdcxx
   stl_alloc
   strings_skip_trailing
+  strings_strnxfrm
   strtoll
   thread_utils
   my_timer

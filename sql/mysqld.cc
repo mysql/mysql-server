@@ -37,7 +37,6 @@
 #include <crtdbg.h>
 #endif
 
-#include "sql_priv.h"
 #include "sql_parse.h"    // test_if_data_home_dir
 #include "sql_cache.h"    // query_cache, query_cache_*
 #include "sql_locale.h"   // MY_LOCALES, my_locales, my_locale_by_name
@@ -382,11 +381,11 @@ my_bool opt_master_verify_checksum= 0;
 my_bool opt_slave_sql_verify_checksum= 1;
 const char *binlog_format_names[]= {"MIXED", "STATEMENT", "ROW", NullS};
 my_bool enforce_gtid_consistency;
-my_bool simplified_binlog_gtid_recovery;
+my_bool binlog_gtid_simple_recovery;
 ulong binlog_error_action;
 const char *binlog_error_action_list[]= {"IGNORE_ERROR", "ABORT_SERVER", NullS};
 ulong gtid_mode;
-uint executed_gtids_compression_period= 0;
+uint gtid_executed_compression_period= 0;
 const char *gtid_mode_names[]=
 {"OFF", "UPGRADE_STEP_1", "UPGRADE_STEP_2", "ON", NullS};
 TYPELIB gtid_mode_typelib=
@@ -8466,7 +8465,6 @@ PSI_memory_key key_memory_Security_context;
 PSI_memory_key key_memory_shared_memory_name;
 PSI_memory_key key_memory_bison_stack;
 PSI_memory_key key_memory_THD_handler_tables_hash;
-PSI_memory_key key_memory_mysql_manager;
 PSI_memory_key key_memory_hash_index_key_buffer;
 PSI_memory_key key_memory_dboptions_hash;
 PSI_memory_key key_memory_user_conn;
@@ -8612,7 +8610,6 @@ static PSI_memory_info all_server_memory[]=
   { &key_memory_shared_memory_name, "Shared_memory_name", 0},
   { &key_memory_bison_stack, "bison_stack", 0},
   { &key_memory_THD_handler_tables_hash, "THD::handler_tables_hash", 0},
-  { &key_memory_mysql_manager, "mysql_manager", 0},
   { &key_memory_hash_index_key_buffer, "hash_index_key_buffer", 0},
   { &key_memory_dboptions_hash, "dboptions_hash", 0},
   { &key_memory_user_conn, "user_conn", 0},

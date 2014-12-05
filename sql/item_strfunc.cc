@@ -31,8 +31,6 @@
 #include "sha2.h"
 #include "my_global.h"                          // HAVE_*
 
-
-#include "sql_priv.h"
 /*
   It is necessary to include set_var.h instead of item.h because there
   are dependencies on include order for set_var.h and item.h. This
@@ -52,6 +50,7 @@
 #include "my_aes.h"
 #include <zlib.h>
 #include "my_rnd.h"
+#include "strfunc.h"
 C_MODE_START
 #include "../mysys/my_static.h"			// For soundex_map
 C_MODE_END

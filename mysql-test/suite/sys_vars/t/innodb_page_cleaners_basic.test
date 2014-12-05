@@ -19,14 +19,18 @@ SET @@GLOBAL.innodb_page_cleaners=1;
 SELECT innodb_page_cleaners = @@SESSION.innodb_page_cleaners;
 --echo Expected error 'Read-only variable'
 
+--disable_warnings
 SELECT @@GLOBAL.innodb_page_cleaners = VARIABLE_VALUE
 FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
 WHERE VARIABLE_NAME='innodb_page_cleaners';
+--enable_warnings
 --echo 1 Expected
 
+--disable_warnings
 SELECT COUNT(VARIABLE_VALUE)
 FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
 WHERE VARIABLE_NAME='innodb_page_cleaners';
+--enable_warnings
 --echo 1 Expected
 
 SELECT @@innodb_page_cleaners = @@GLOBAL.innodb_page_cleaners;
@@ -41,7 +45,9 @@ SELECT COUNT(@@SESSION.innodb_page_cleaners);
 --echo Expected error 'Variable is a GLOBAL variable'
 
 # Check the default value
+--disable_warnings
 SELECT VARIABLE_NAME, VARIABLE_VALUE
 FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
 WHERE VARIABLE_NAME = 'innodb_page_cleaners';
+--enable_warnings
 

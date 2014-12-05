@@ -241,8 +241,8 @@ extern const char *binlog_checksum_type_names[];
 extern my_bool opt_master_verify_checksum;
 extern my_bool opt_slave_sql_verify_checksum;
 extern my_bool enforce_gtid_consistency;
-extern uint executed_gtids_compression_period;
-extern my_bool simplified_binlog_gtid_recovery;
+extern uint gtid_executed_compression_period;
+extern my_bool binlog_gtid_simple_recovery;
 extern ulong binlog_error_action;
 enum enum_binlog_error_action
 {
@@ -595,7 +595,6 @@ extern PSI_memory_key key_memory_hash_index_key_buffer;
 extern PSI_memory_key key_memory_THD_handler_tables_hash;
 extern PSI_memory_key key_memory_JOIN_CACHE;
 extern PSI_memory_key key_memory_READ_INFO;
-extern PSI_memory_key key_memory_mysql_manager;
 extern PSI_memory_key key_memory_partition_syntax_buffer;
 extern PSI_memory_key key_memory_global_system_variables;
 extern PSI_memory_key key_memory_THD_variables;
