@@ -1190,6 +1190,12 @@ runScanVariants(NDBT_Context* ctx, NDBT_Step* step)
 		 << endl;
 	  
 	  NdbConnection* pCon = pNdb->startTransaction();
+          if (pCon == NULL)
+          {
+            NDB_ERR(pNdb->getNdbError());
+            return NDBT_FAILED;
+          }
+
 	  NdbScanOperation* pOp = pCon->getNdbScanOperation(pTab->getName());
 	  if (pOp == NULL) {
 	    NDB_ERR(pCon->getNdbError());
@@ -1248,6 +1254,12 @@ runBug36124(NDBT_Context* ctx, NDBT_Step* step){
   const NdbDictionary::Table*  pTab = ctx->getTab();
 
   NdbTransaction* pCon = pNdb->startTransaction();
+  if (pCon == NULL)
+  {
+    NDB_ERR(pNdb->getNdbError());
+    return NDBT_FAILED;
+  }
+
   NdbScanOperation* pOp = pCon->getNdbScanOperation(pTab->getName());
   if (pOp == NULL) {
     NDB_ERR(pCon->getNdbError());
@@ -1337,6 +1349,12 @@ int runBug42545(NDBT_Context* ctx, NDBT_Step* step){
   {
     g_info << i << ": ";
     NdbTransaction* pTrans = pNdb->startTransaction();
+    if (pTrans == NULL)
+    {
+      NDB_ERR(pNdb->getNdbError());
+      return NDBT_FAILED;
+    }
+
     int nodeId = pTrans->getConnectedNodeId();
     
     {
@@ -1667,19 +1685,26 @@ runBug54945(NDBT_Context* ctx, NDBT_Step* step)
     for (int i = 0; i< 25; i++)
     {
       NdbTransaction* pCon = pNdb->startTransaction();
-      NdbScanOperation* pOp = pCon->getNdbScanOperation(pTab->getName());
-      if (pOp == NULL) {
-        NDB_ERR(pCon->getNdbError());
+      if (pCon == NULL)
+      {
+        NDB_ERR(pNdb->getNdbError());
         return NDBT_FAILED;
       }
-      
-      if( pOp->readTuples(NdbOperation::LM_Read) != 0) 
+
+      NdbScanOperation* pOp = pCon->getNdbScanOperation(pTab->getName());
+      if (pOp == NULL)
       {
         NDB_ERR(pCon->getNdbError());
         return NDBT_FAILED;
       }
       
-      if( pOp->getValue(NdbDictionary::Column::ROW_COUNT) == 0)
+      if (pOp->readTuples(NdbOperation::LM_Read) != 0) 
+      {
+        NDB_ERR(pCon->getNdbError());
+        return NDBT_FAILED;
+      }
+      
+      if (pOp->getValue(NdbDictionary::Column::ROW_COUNT) == 0)
       {
         NDB_ERR(pCon->getNdbError());
         return NDBT_FAILED;
@@ -1718,6 +1743,12 @@ runCloseRefresh(NDBT_Context* ctx, NDBT_Step* step)
 
   const NdbDictionary::Table*  pTab = ctx->getTab();
   NdbTransaction* pTrans = pNdb->startTransaction();
+  if (pTrans == NULL)
+  {
+    NDB_ERR(pNdb->getNdbError());
+    return NDBT_FAILED;
+  }
+
   NdbScanOperation* pOp = pTrans->getNdbScanOperation(pTab->getName());
   if (pOp == NULL)
   {
@@ -1956,6 +1987,11 @@ namespace TupErr
     const NdbRecord* const record = tab->getDefaultRecord();
 
     NdbTransaction* const trans = ndb->startTransaction();
+    if (trans == NULL)
+    {
+      NDB_ERR(ndb->getNdbError());
+      return NDBT_FAILED;
+    }
 
     for (int i = 0; i<totalRowCount; i++)
     {
@@ -1996,6 +2032,11 @@ namespace TupErr
 
   
     NdbTransaction* const trans = ndb->startTransaction();
+    if (trans == NULL)
+    {
+      NDB_ERR(ndb->getNdbError());
+      return NDBT_FAILED;
+    }
 
     NdbScanOperation* const scanOp = trans->scanTable(record);
     require(scanOp != NULL);
@@ -2059,6 +2100,11 @@ namespace TupErr
     const NdbRecord* const record = tab->getDefaultRecord();
 
     NdbTransaction* const trans = ndb->startTransaction();
+    if (trans == NULL)
+    {
+      NDB_ERR(ndb->getNdbError());
+      return NDBT_FAILED;
+    }
 
     NdbInterpretedCode code(tab);
 
