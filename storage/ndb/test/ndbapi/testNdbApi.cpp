@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -5857,7 +5857,7 @@ testNdbRecordSpecificationCompatibility(NDBT_Context* ctx, NDBT_Step* step)
   const NdbRecord* tabRec= pNdb->getDictionary()->createRecord(pTab,
                               (NdbDictionary::RecordSpecification*)rsArray,
                               numCols,
-                              sizeof(NdbDictionary::RecordSpecification));
+                              sizeof(NdbDictionary::RecordSpecification_v1));
   CHECK(tabRec != 0);
 
   char keyRowBuf[ NDB_MAX_TUPLE_SIZE_IN_WORDS << 2 ];
