@@ -9370,7 +9370,8 @@ int reset_slave(THD *thd)
   if (thd->lex->reset_slave_info.all)
   {
     /* First do reset_slave for default channel */
-    if (reset_slave(thd, msr_map.get_mi(msr_map.get_default_channel())))
+    mi= msr_map.get_mi(msr_map.get_default_channel());
+    if (mi && reset_slave(thd, mi))
       DBUG_RETURN(1);
     /* Do while iteration for rest of the channels */
     while (it!= msr_map.end())

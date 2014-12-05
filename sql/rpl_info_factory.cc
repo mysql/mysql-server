@@ -1063,6 +1063,8 @@ bool Rpl_info_factory::create_slave_info_objects(uint mi_option,
 
   /* At this point, the repository is invalid or unknown */
   uint rli_repository= INVALID_INFO_REPOSITORY;
+  bool channel_init_error= false;
+  uint idx;
 
   /*
     Initialize the repository metadata. This metadata is the
@@ -1118,20 +1120,18 @@ bool Rpl_info_factory::create_slave_info_objects(uint mi_option,
             rli_option == INFO_REPOSITORY_TABLE))
   {
     /* success case of case B) C) and D) above */
-    for (uint idx= 0; idx < channel_list.size(); idx++)
+    for (idx= 0; idx < channel_list.size(); idx++)
     {
       if (!(mi= create_slave_per_channel(mi_option, rli_option,
                                          (const char*)channel_list[idx],
                                          false, pmsr_map)))
       {
-        sql_print_error("Slave: Error in creating or recovering replication"
-                        " info repositories for channel '%s'", channel_list[idx]);
+        channel_init_error= true;
         goto err;
       }
       if (global_init_info(mi, false, thread_mask))
       {
-        sql_print_error("Slave: Failed to initialize the master info structure"
-                        " for channel '%s'", channel_list[idx]);
+        channel_init_error= true;
         goto err;
       }
     }
@@ -1164,7 +1164,14 @@ bool Rpl_info_factory::create_slave_info_objects(uint mi_option,
   error= FALSE;
 
 err:
-
+  if (channel_init_error)
+  {
+    sql_print_error("Slave: Failed to initialize the master info structure"
+                    " for channel '%s'; its record may still be present in"
+                    " 'mysql.slave_master_info' table, consider deleting it",
+                    channel_list[idx]);
+    pmsr_map->delete_mi((const char*) channel_list[idx]);
+  }
   /* Free channel list */
   for (uint i= 0; i<channel_list.size(); i++)
   {
