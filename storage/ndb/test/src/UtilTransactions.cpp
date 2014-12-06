@@ -1,6 +1,5 @@
 /*
-   Copyright (C) 2003-2008 MySQL AB, 2008, 2009 Sun Microsystems, Inc.
-    All rights reserved. Use is subject to license terms.
+   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1035,8 +1034,8 @@ UtilTransactions::verifyOrderedIndex(Ndb* pNdb,
   int                  retryAttempt = 0;
   const int            retryMax = 100;
   int                  check;
-  NdbScanOperation     *pOp;
-  NdbIndexScanOperation * iop = 0;
+  NdbScanOperation     *pOp = NULL;
+  NdbIndexScanOperation *iop = NULL;
 
   NDBT_ResultRow       scanRow(tab);
   NDBT_ResultRow       pkRow(tab);
@@ -1127,7 +1126,7 @@ UtilTransactions::verifyOrderedIndex(Ndb* pNdb,
       if(!null_found)
       {
 	if((iop= pTrans->getNdbIndexScanOperation(indexName, 
-                                                  tab.getName())) != 0)
+                                                  tab.getName())) != NULL)
 	{
 	  if(iop->readTuples(NdbScanOperation::LM_CommittedRead, 
 			     parallelism))
@@ -1157,7 +1156,6 @@ UtilTransactions::verifyOrderedIndex(Ndb* pNdb,
 
       if(!null_found)
       {
-	
 	if((res= iop->nextResult()) != 0){
 	  g_err << "Failed to find row using index: " << res << endl;
 	  NDB_ERR(pTrans->getNdbError());
@@ -1179,9 +1177,13 @@ UtilTransactions::verifyOrderedIndex(Ndb* pNdb,
 	  closeTransaction(pNdb);
 	  return NDBT_FAILED;
 	}
+        iop->close();
+        iop = NULL;
       }
-    }
+    } // while 'pOp->nextResult()'
     
+    pOp->close();
+    pOp = NULL;
     if (eof == -1 || check == -1) {
   error:
       const NdbError err = pTrans->getNdbError();
