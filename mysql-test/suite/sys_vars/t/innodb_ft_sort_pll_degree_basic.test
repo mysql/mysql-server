@@ -13,8 +13,10 @@ select @@global.innodb_ft_sort_pll_degree;
 select @@session.innodb_ft_sort_pll_degree;
 show global variables like 'innodb_ft_sort_pll_degree';
 show session variables like 'innodb_ft_sort_pll_degree';
+--disable_warnings
 select * from information_schema.global_variables where variable_name='innodb_ft_sort_pll_degree';
 select * from information_schema.session_variables where variable_name='innodb_ft_sort_pll_degree';
+--enable_warnings
 
 #
 # show that it's read-only

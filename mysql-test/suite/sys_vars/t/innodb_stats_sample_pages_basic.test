@@ -18,16 +18,20 @@ select @@global.innodb_stats_sample_pages;
 select @@session.innodb_stats_sample_pages;
 show global variables like 'innodb_stats_sample_pages';
 show session variables like 'innodb_stats_sample_pages';
+--disable_warnings
 select * from information_schema.global_variables where variable_name='innodb_stats_sample_pages';
 select * from information_schema.session_variables where variable_name='innodb_stats_sample_pages';
+--enable_warnings
 
 #
 # show that it's writable
 #
 set global innodb_stats_sample_pages=10;
 select @@global.innodb_stats_sample_pages;
+--disable_warnings
 select * from information_schema.global_variables where variable_name='innodb_stats_sample_pages';
 select * from information_schema.session_variables where variable_name='innodb_stats_sample_pages';
+--enable_warnings
 --error ER_GLOBAL_VARIABLE
 set session innodb_stats_sample_pages=1;
 
@@ -56,7 +60,9 @@ select @@global.innodb_stats_sample_pages;
 
 set global innodb_stats_sample_pages=-7;
 select @@global.innodb_stats_sample_pages;
+--disable_warnings
 select * from information_schema.global_variables where variable_name='innodb_stats_sample_pages';
+--enable_warnings
 
 
 #

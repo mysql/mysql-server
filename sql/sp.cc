@@ -29,6 +29,8 @@
 #include "lock.h"                               // lock_object_name
 #include "sp.h"
 #include "mysql/psi/mysql_sp.h"
+#include "log.h"
+#include "binlog.h"
 
 #include <my_user.h>
 

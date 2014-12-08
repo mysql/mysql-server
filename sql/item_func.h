@@ -19,13 +19,6 @@
 
 /* Function items used by mysql */
 
-#ifdef HAVE_IEEEFP_H
-extern "C"				/* Bug in BSDI include file */
-{
-#include <ieeefp.h>
-}
-#endif
-
 extern void reject_geometry_args(uint arg_count, Item **args,
                                  Item_result_field *me);
 

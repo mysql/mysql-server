@@ -50,17 +50,21 @@ SELECT COUNT(@@GLOBAL.have_rtree_keys);
 # Check if the value in GLOBAL Table matches value in variable  #
 #################################################################
 
+--disable_warnings
 SELECT @@GLOBAL.have_rtree_keys = VARIABLE_VALUE
 FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
 WHERE VARIABLE_NAME='have_rtree_keys';
+--enable_warnings
 --echo 1 Expected
 
 SELECT COUNT(@@GLOBAL.have_rtree_keys);
 --echo 1 Expected
 
+--disable_warnings
 SELECT COUNT(VARIABLE_VALUE)
 FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
 WHERE VARIABLE_NAME='have_rtree_keys';
+--enable_warnings
 --echo 1 Expected
 
 

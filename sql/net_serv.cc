@@ -73,7 +73,7 @@ PSI_memory_key key_memory_NET_compress_packet;
 #ifdef MYSQL_SERVER
 /*
   The following variables/functions should really not be declared
-  extern, but as it's hard to include sql_priv.h here, we have to
+  extern, but as it's hard to include sql_class.h here, we have to
   live with this for a while.
 */
 extern void query_cache_insert(const char *packet, ulong length,

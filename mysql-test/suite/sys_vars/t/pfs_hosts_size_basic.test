@@ -14,11 +14,13 @@ show global variables like 'performance_schema_hosts_size';
 
 show session variables like 'performance_schema_hosts_size';
 
+--disable_warnings
 select * from information_schema.global_variables
   where variable_name='performance_schema_hosts_size';
 
 select * from information_schema.session_variables
   where variable_name='performance_schema_hosts_size';
+--enable_warnings
 
 #
 # Read-only

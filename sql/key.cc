@@ -647,9 +647,8 @@ int key_cmp2(KEY_PART_INFO *key_part,
     @retval +1                  first_rec is greater than second_rec
 */
 
-int key_rec_cmp(void *key_p, uchar *first_rec, uchar *second_rec)
+int key_rec_cmp(KEY **key, uchar *first_rec, uchar *second_rec)
 {
-  KEY **key= (KEY**) key_p;
   KEY *key_info= *(key++);                     // Start with first key
   uint key_parts, key_part_num;
   KEY_PART_INFO *key_part= key_info->key_part;

@@ -117,20 +117,26 @@ SET @@global.foreign_key_checks = 1;
 #     Check if the value in GLOBAL Table contains variable value        #
 #########################################################################
 
+--disable_warnings
 SELECT count(VARIABLE_VALUE) FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME='foreign_key_checks';
+--enable_warnings
 
 --echo '#----------------------FN_DYNVARS_032_07------------------------#'
 ######################################################################### 
 #     Check if the value in GLOBAL Table matches value in variable     #
 #########################################################################
 
+--disable_warnings
 SELECT IF(@@session.foreign_key_checks, "ON", "OFF") = VARIABLE_VALUE 
 FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
 WHERE VARIABLE_NAME='foreign_key_checks';
+--enable_warnings
 SELECT @@session.foreign_key_checks;
+--disable_warnings
 SELECT VARIABLE_VALUE 
 FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
 WHERE VARIABLE_NAME='foreign_key_checks';
+--enable_warnings
 
 
 --echo '#---------------------FN_DYNVARS_032_08-------------------------#'

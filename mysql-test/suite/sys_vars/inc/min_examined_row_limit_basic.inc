@@ -142,20 +142,22 @@ SELECT @@session.min_examined_row_limit;
 #   Check if the value in GLOBAL Table matches value in variable   #
 ####################################################################
 
-
+--disable_warnings
 SELECT @@global.min_examined_row_limit = VARIABLE_VALUE 
 FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
 WHERE VARIABLE_NAME='min_examined_row_limit';
+--enable_warnings
 
 --echo '#------------------FN_DYNVARS_089_07-----------------------#'
 ####################################################################
 #  Check if the value in SESSION Table matches value in variable   #
 ####################################################################
 
+--disable_warnings
 SELECT @@session.min_examined_row_limit = VARIABLE_VALUE 
 FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
 WHERE VARIABLE_NAME='min_examined_row_limit';
-
+--enable_warnings
 
 --echo '#------------------FN_DYNVARS_089_08-----------------------#'
 ####################################################################

@@ -10,8 +10,10 @@ select @@global.innodb_doublewrite_batch_size;
 select @@session.innodb_doublewrite_batch_size;
 show global variables like 'innodb_doublewrite_batch_size';
 show session variables like 'innodb_doublewrite_batch_size';
+--disable_warnings
 select * from information_schema.global_variables where variable_name='innodb_doublewrite_batch_size';
 select * from information_schema.session_variables where variable_name='innodb_doublewrite_batch_size';
+--enable_warnings
 
 #
 # show that it's read-only

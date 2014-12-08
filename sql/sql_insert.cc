@@ -44,6 +44,7 @@
 #include "sql_partition.h"
 #include "partition_info.h"            // partition_info
 #endif /* WITH_PARTITION_STORAGE_ENGINE */
+#include "binlog.h"
 
 #include "debug_sync.h"
 

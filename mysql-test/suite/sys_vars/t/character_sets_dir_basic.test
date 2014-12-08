@@ -18,10 +18,12 @@ select @@session.character_sets_dir;
 show global variables like 'character_sets_dir';
 --replace_regex $regex_charsetdir
 show session variables like 'character_sets_dir';
+--disable_warnings
 --replace_regex $regex_charsetdir
 select * from information_schema.global_variables where variable_name='character_sets_dir';
 --replace_regex $regex_charsetdir
 select * from information_schema.session_variables where variable_name='character_sets_dir';
+--enable_warnings
 
 #
 # show that it's read-only

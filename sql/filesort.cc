@@ -35,6 +35,7 @@
 #include "sql_base.h"
 #include "opt_costmodel.h"
 #include "priority_queue.h"
+#include "log.h"
 
 #include <algorithm>
 #include <utility>

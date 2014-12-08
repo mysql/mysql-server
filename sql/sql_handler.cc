@@ -59,6 +59,7 @@
 #include "sql_select.h"
 #include "transaction.h"
 #include "sql_parse.h"                          // check_table_access
+#include "log.h"
 
 #define HANDLER_TABLES_HASH_SIZE 120
 

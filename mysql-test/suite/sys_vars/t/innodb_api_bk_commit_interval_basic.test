@@ -19,20 +19,24 @@ SELECT @@global.innodb_api_bk_commit_interval;
 SELECT @@session.innodb_api_bk_commit_interval;
 SHOW global variables LIKE 'innodb_api_bk_commit_interval';
 SHOW session variables LIKE 'innodb_api_bk_commit_interval';
+--disable_warnings
 SELECT * FROM information_schema.global_variables 
 WHERE variable_name='innodb_api_bk_commit_interval';
 SELECT * FROM information_schema.session_variables 
 WHERE variable_name='innodb_api_bk_commit_interval';
+--enable_warnings
 
 #
 # show that it's writable
 #
 SET global innodb_api_bk_commit_interval=100;
 SELECT @@global.innodb_api_bk_commit_interval;
+--disable_warnings
 SELECT * FROM information_schema.global_variables 
 WHERE variable_name='innodb_api_bk_commit_interval';
 SELECT * FROM information_schema.session_variables 
 WHERE variable_name='innodb_api_bk_commit_interval';
+--enable_warnings
 --error ER_GLOBAL_VARIABLE
 SET session innodb_api_bk_commit_interval=1;
 #
@@ -68,8 +72,10 @@ SET global innodb_api_bk_commit_interval=1e1;
 SET global innodb_api_bk_commit_interval="foo";
 SET global innodb_api_bk_commit_interval=-7;
 SELECT @@global.innodb_api_bk_commit_interval;
+--disable_warnings
 SELECT * FROM information_schema.global_variables 
 WHERE variable_name='innodb_api_bk_commit_interval';
+--enable_warnings
 
 #
 # cleanup

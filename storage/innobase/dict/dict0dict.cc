@@ -2509,7 +2509,6 @@ dict_index_add_to_cache(
 	new_index->allow_duplicates = index->allow_duplicates;
 	new_index->nulls_equal = index->nulls_equal;
 	new_index->disable_ahi = index->disable_ahi;
-	new_index->auto_gen_clust_index = index->auto_gen_clust_index;
 
 	if (dict_index_too_big_for_tree(table, new_index, strict)) {
 

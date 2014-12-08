@@ -138,9 +138,11 @@ SELECT @@global.init_slave;
 #     Check if the value in GLOBAL Table matches value in variable           #
 ##############################################################################
 
+--disable_warnings
 SELECT @@global.init_slave = (SELECT VARIABLE_VALUE 
 FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
 WHERE VARIABLE_NAME='init_slave') AS res;
+--enable_warnings
 
 ####################################
 #     Restore initial value        #
