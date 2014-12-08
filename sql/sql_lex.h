@@ -527,7 +527,6 @@ public:
       UNCACHEABLE_DEPENDENT
       UNCACHEABLE_RAND
       UNCACHEABLE_SIDEEFFECT
-      UNCACHEABLE_PREPARE
   */
   uint8 uncacheable;
 
@@ -809,7 +808,6 @@ public:
       UNCACHEABLE_DEPENDENT
       UNCACHEABLE_RAND
       UNCACHEABLE_SIDEEFFECT
-      UNCACHEABLE_PREPARE
   */
   uint8 uncacheable;
   enum sub_select_type linkage;
