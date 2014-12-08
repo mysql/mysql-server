@@ -17,13 +17,11 @@
 
 #ifdef MYSQL_CLIENT
 
-#include "sql_priv.h"
 #include "mysqld_error.h"
 
 #else
 
 #include "binlog.h"
-#include "sql_priv.h"
 #include "my_global.h" // REQUIRED by log_event.h > m_string.h > my_bitmap.h
 #include "log_event.h"
 #include "sql_base.h"                           // close_thread_tables
@@ -125,6 +123,41 @@ TYPELIB binlog_checksum_typelib=
   exponent digits + '\0'
 */
 #define FMT_G_BUFSIZE(PREC) (3 + (PREC) + 5 + 1)
+
+/*
+  Check how many bytes are available on buffer.
+
+  @param buf_start    Pointer to buffer start.
+  @param buf_current  Pointer to the current position on buffer.
+  @param buf_len      Buffer length.
+
+  @return             Number of bytes available on event buffer.
+*/
+template <class T> T available_buffer(const char* buf_start,
+                                      const char* buf_current,
+                                      T buf_len)
+{
+  return static_cast<T>(buf_len - (buf_current - buf_start));
+}
+
+/*
+  Check if jump value is within buffer limits.
+
+  @param jump         Number of positions we want to advance.
+  @param buf_start    Pointer to buffer start
+  @param buf_current  Pointer to the current position on buffer.
+  @param buf_len      Buffer length.
+
+  @return      True   If jump value is within buffer limits.
+               False  Otherwise.
+*/
+template <class T> bool valid_buffer_range(T jump,
+                                           const char* buf_start,
+                                           const char* buf_current,
+                                           T buf_len)
+{
+  return (jump <= available_buffer(buf_start, buf_current, buf_len));
+}
 
 /*
   Explicit instantiation to unsigned int of template available_buffer

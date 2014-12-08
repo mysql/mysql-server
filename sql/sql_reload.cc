@@ -14,7 +14,6 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "sql_reload.h"
-#include "sql_priv.h"
 #include "mysqld.h"      // select_errors
 #include "sql_class.h"   // THD
 #include "auth_common.h" // acl_reload, grant_reload
@@ -164,7 +163,7 @@ bool reload_acl_and_cache(THD *thd, unsigned long options,
       tmp_write_to_binlog= 0;
       if (mysql_bin_log.is_open())
       {
-        if (mysql_bin_log.rotate_and_purge(true))
+        if (mysql_bin_log.rotate_and_purge(thd, true))
           *write_to_binlog= -1;
       }
     }

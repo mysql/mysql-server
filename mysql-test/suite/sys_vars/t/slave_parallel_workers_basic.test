@@ -9,8 +9,10 @@ eval set @save.$var= @@global.$var;
 --error ER_INCORRECT_GLOBAL_LOCAL_VAR
 eval select @@session.$var;
 
+--disable_warnings
 select variable_name from information_schema.global_variables where variable_name='$var';
 select variable_name from information_schema.session_variables where variable_name='$var';
+--enable_warnings
 
 #
 # show that it's writable

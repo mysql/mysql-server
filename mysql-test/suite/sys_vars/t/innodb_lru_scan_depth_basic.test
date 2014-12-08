@@ -18,16 +18,20 @@ select @@global.innodb_lru_scan_depth;
 select @@session.innodb_lru_scan_depth;
 show global variables like 'innodb_lru_scan_depth';
 show session variables like 'innodb_lru_scan_depth';
+--disable_warnings
 select * from information_schema.global_variables where variable_name='innodb_lru_scan_depth';
 select * from information_schema.session_variables where variable_name='innodb_lru_scan_depth';
+--enable_warnings
 
 #
 # show that it's writable
 #
 set global innodb_lru_scan_depth=325;
 select @@global.innodb_lru_scan_depth;
+--disable_warnings
 select * from information_schema.global_variables where variable_name='innodb_lru_scan_depth';
 select * from information_schema.session_variables where variable_name='innodb_lru_scan_depth';
+--enable_warnings
 --error ER_GLOBAL_VARIABLE
 set session innodb_lru_scan_depth=444;
 
@@ -43,10 +47,14 @@ set global innodb_lru_scan_depth="foo";
 
 set global innodb_lru_scan_depth=7;
 select @@global.innodb_lru_scan_depth;
+--disable_warnings
 select * from information_schema.global_variables where variable_name='innodb_lru_scan_depth';
+--enable_warnings
 set global innodb_lru_scan_depth=-7;
 select @@global.innodb_lru_scan_depth;
+--disable_warnings
 select * from information_schema.global_variables where variable_name='innodb_lru_scan_depth';
+--enable_warnings
 
 #
 # min/max values

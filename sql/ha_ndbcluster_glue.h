@@ -24,9 +24,6 @@
 #define MYSQL_SERVER
 #endif
 
-#if MYSQL_VERSION_ID >= 50501
-/* Include files for sql/ was split in 5.5, and ha_ndb*  uses a few.. */
-#include "sql_priv.h"
 #include "sql_table.h"      // build_table_filename,
                             // tablename_to_filename,
                             // filename_to_tablename
@@ -39,9 +36,6 @@
 #include "key.h"            // key_restore
 #include "rpl_constants.h"  // Transid in Binlog
 #include "rpl_slave.h"      // Silent retry definition
-#else
-#include "mysql_priv.h"
-#endif
 
 #include "sql_show.h"       // init_fill_schema_files_row,
                             // schema_table_store_record

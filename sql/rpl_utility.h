@@ -20,7 +20,6 @@
 #error "Don't include this C++ header file from a non-C++ file!"
 #endif
 
-#include "sql_priv.h"
 #include "m_string.h"
 #ifdef MYSQL_SERVER
 #include "table.h"                              /* TABLE_LIST */

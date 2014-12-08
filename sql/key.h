@@ -39,6 +39,6 @@ int key_cmp(KEY_PART_INFO *key_part, const uchar *key, uint key_length);
 int key_cmp2(KEY_PART_INFO *key_part,
              const uchar *key1, uint key1_length,
              const uchar *key2, uint key2_length);
-extern "C" int key_rec_cmp(void *key_info, uchar *a, uchar *b);
+int key_rec_cmp(KEY **key_info, uchar *a, uchar *b);
 
 #endif /* KEY_INCLUDED */

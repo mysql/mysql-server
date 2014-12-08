@@ -184,3 +184,18 @@ disconnect con2;
 connection default;
 SET DEBUG_SYNC='RESET';
 DROP TABLE t1;
+
+# Test case for TEMPORARY TABLE, with several unique indexes
+START TRANSACTION;
+
+CREATE TEMPORARY TABLE t1 (a INT, b CHAR(10), d VARCHAR(100), c INT, UNIQUE INDEX(a), UNIQUE INDEX(b), UNIQUE INDEX(d)) ENGINE = InnoDB;
+
+INSERT INTO t1 VALUES(2, 'abcde', 'qwerty', 200);
+
+REPLACE INTO t1 VALUES(2, 'QWERTY', 'ZXCVBB', 300);
+
+SELECT * FROM t1;
+
+COMMIT;
+
+DROP TABLE t1;

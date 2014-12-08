@@ -105,13 +105,21 @@ SELECT @@Session.delayed_insert_limit;
 # Check if the value in GLOBAL & SESSION Tables matches values in variable   #
 ##############################################################################
 
-SELECT @@global.delayed_insert_limit =
- VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
-  WHERE VARIABLE_NAME='delayed_insert_limit';
+--disable_warnings
+SELECT VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+  WHERE VARIABLE_NAME='delayed_insert_limit'
+  into @tmp;
+--enable_warnings
 
-SELECT @@delayed_insert_limit =
- VARIABLE_VALUE FROM INFORMATION_SCHEMA.SESSION_VARIABLES
-  WHERE VARIABLE_NAME='delayed_insert_limit';
+SELECT @@global.delayed_insert_limit = @tmp;
+
+--disable_warnings
+SELECT VARIABLE_VALUE FROM INFORMATION_SCHEMA.SESSION_VARIABLES
+  WHERE VARIABLE_NAME='delayed_insert_limit'
+  into @tmp;
+--enable_warnings
+
+SELECT @@delayed_insert_limit = @tmp;
 
 
 --echo '#---------------------FN_DYNVARS_024_07----------------------#'

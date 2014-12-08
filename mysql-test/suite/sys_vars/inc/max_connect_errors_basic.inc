@@ -115,6 +115,7 @@ SELECT @@session.max_connect_errors;
 # Check if the value in GLOBAL & SESSION Tables matches values in variable   #
 ##############################################################################
 
+--disable_warnings
 SELECT @@global.max_connect_errors = VARIABLE_VALUE 
 FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
 WHERE VARIABLE_NAME='max_connect_errors';
@@ -122,6 +123,7 @@ WHERE VARIABLE_NAME='max_connect_errors';
 SELECT @@max_connect_errors = VARIABLE_VALUE 
 FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
 WHERE VARIABLE_NAME='max_connect_errors';
+--enable_warnings
 
 
 --echo '#---------------------FN_DYNVARS_073_07----------------------#'

@@ -118,7 +118,7 @@ Variable_name	Value
 Table_open_cache_hits	2
 SHOW STATUS like 'Opened_tables';
 Variable_name	Value
-Opened_tables	2
+Opened_tables	1
 resetconnection;
 SHOW STATUS like 'Table_open_cache_hits';
 Variable_name	Value

@@ -143,20 +143,28 @@ SELECT @@session.multi_range_count;
 #   Check if the value in GLOBAL Table matches value in variable   #
 ####################################################################
 
-
-SELECT @@global.multi_range_count = VARIABLE_VALUE 
+--disable_warnings
+SELECT VARIABLE_VALUE 
 FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
-WHERE VARIABLE_NAME='multi_range_count';
+WHERE VARIABLE_NAME='multi_range_count'
+into @tmp;
+--enable_warnings
+
+SELECT @@global.multi_range_count = @tmp;
 
 --echo '#------------------FN_DYNVARS_090_07-----------------------#'
 ####################################################################
 #  Check if the value in SESSION Table matches value in variable   #
 ####################################################################
 
-SELECT @@session.multi_range_count = VARIABLE_VALUE 
+--disable_warnings
+SELECT VARIABLE_VALUE 
 FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
-WHERE VARIABLE_NAME='multi_range_count';
+WHERE VARIABLE_NAME='multi_range_count'
+into @tmp;
+--enable_warnings
 
+SELECT @@session.multi_range_count = @tmp;
 
 --echo '#------------------FN_DYNVARS_090_08-----------------------#'
 ####################################################################

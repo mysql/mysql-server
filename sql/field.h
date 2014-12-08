@@ -150,6 +150,12 @@ enum type_conversion_status
   TYPE_ERR_OOM
 };
 
+/*
+  Some defines for exit codes for ::is_equal class functions.
+*/
+#define IS_EQUAL_NO 0
+#define IS_EQUAL_YES 1
+#define IS_EQUAL_PACK_LENGTH 2
 
 #define STORAGE_TYPE_MASK 7
 #define COLUMN_FORMAT_MASK 7

@@ -121,9 +121,11 @@ SELECT @@session.concurrent_insert = 1;
 # Check if the value in GLOBAL Tables matches values in variable   #
 ####################################################################
 
+--disable_warnings
 SELECT @@global.concurrent_insert = VARIABLE_VALUE 
 FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
 WHERE VARIABLE_NAME='concurrent_insert';
+--enable_warnings
 
 
 --echo '#---------------------FN_DYNVARS_018_07----------------------#'
