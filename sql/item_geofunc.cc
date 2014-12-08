@@ -8722,7 +8722,7 @@ static int check_geometry_valid(Geometry *geom)
   {
   case Geometry::wkb_point:
   {
-    TYPENAME BG_models<double, bgcs::cartesian>::Point
+    BG_models<double, bgcs::cartesian>::Point
       bg(geom->get_data_ptr(), geom->get_data_size(),
          geom->get_flags(), geom->get_srid());
     ret= bg::is_valid(bg);
@@ -8730,7 +8730,7 @@ static int check_geometry_valid(Geometry *geom)
   }
   case Geometry::wkb_linestring:
   {
-    TYPENAME BG_models<double, bgcs::cartesian>::Linestring
+    BG_models<double, bgcs::cartesian>::Linestring
       bg(geom->get_data_ptr(), geom->get_data_size(),
          geom->get_flags(), geom->get_srid());
     ret= bg::is_valid(bg);
@@ -8745,7 +8745,7 @@ static int check_geometry_valid(Geometry *geom)
       break;
     }
 
-    TYPENAME BG_models<double, bgcs::cartesian>::Polygon
+    BG_models<double, bgcs::cartesian>::Polygon
       bg(ptr, geom->get_data_size(),
          geom->get_flags(), geom->get_srid());
     ret= bg::is_valid(bg);
@@ -8753,7 +8753,7 @@ static int check_geometry_valid(Geometry *geom)
   }
   case Geometry::wkb_multipoint:
   {
-    TYPENAME BG_models<double, bgcs::cartesian>::Multipoint
+    BG_models<double, bgcs::cartesian>::Multipoint
       bg(geom->get_data_ptr(), geom->get_data_size(),
          geom->get_flags(), geom->get_srid());
     ret= bg::is_valid(bg);
@@ -8761,7 +8761,7 @@ static int check_geometry_valid(Geometry *geom)
   }
   case Geometry::wkb_multilinestring:
   {
-    TYPENAME BG_models<double, bgcs::cartesian>::Multilinestring
+    BG_models<double, bgcs::cartesian>::Multilinestring
       bg(geom->get_data_ptr(), geom->get_data_size(),
          geom->get_flags(), geom->get_srid());
     ret= bg::is_valid(bg);
@@ -8776,7 +8776,7 @@ static int check_geometry_valid(Geometry *geom)
       break;
     }
 
-    TYPENAME BG_models<double, bgcs::cartesian>::Multipolygon
+    BG_models<double, bgcs::cartesian>::Multipolygon
       bg(ptr, geom->get_data_size(),
          geom->get_flags(), geom->get_srid());
     ret= bg::is_valid(bg);
@@ -9572,7 +9572,7 @@ distance_point_geometry_spherical(const Geometry *g1, const Geometry *g2)
   bg::strategy::distance::haversine<double, double>
     dist_strategy(earth_radius);
 
-  TYPENAME BG_models<double, bgcssed>::Point
+  BG_models<double, bgcssed>::Point
     bg1(g1->get_data_ptr(), g1->get_data_size(),
         g1->get_flags(), g1->get_srid());
 
@@ -9580,7 +9580,7 @@ distance_point_geometry_spherical(const Geometry *g1, const Geometry *g2)
   {
   case Geometry::wkb_point:
     {
-      TYPENAME BG_models<double, bgcssed>::Point
+      BG_models<double, bgcssed>::Point
         bg2(g2->get_data_ptr(), g2->get_data_size(),
             g2->get_flags(), g2->get_srid());
       res= bg::distance(bg1, bg2, dist_strategy);
@@ -9588,11 +9588,11 @@ distance_point_geometry_spherical(const Geometry *g1, const Geometry *g2)
     break;
   case Geometry::wkb_multipoint:
     {
-      TYPENAME BG_models<double, bgcssed>::Multipoint
+      BG_models<double, bgcssed>::Multipoint
         bg2(g2->get_data_ptr(), g2->get_data_size(),
             g2->get_flags(), g2->get_srid());
 
-      TYPENAME BG_models<double, bgcssed>::Multipoint mpt1;
+      BG_models<double, bgcssed>::Multipoint mpt1;
       mpt1.push_back(bg1);
       res= bg::distance(mpt1, bg2, dist_strategy);
     }
@@ -9612,7 +9612,7 @@ distance_multipoint_geometry_spherical(const Geometry *g1, const Geometry *g2)
   bg::strategy::distance::haversine<double, double>
     dist_strategy(earth_radius);
 
-  TYPENAME BG_models<double, bgcssed>::Multipoint
+  BG_models<double, bgcssed>::Multipoint
     bg1(g1->get_data_ptr(), g1->get_data_size(),
         g1->get_flags(), g1->get_srid());
 
@@ -9623,7 +9623,7 @@ distance_multipoint_geometry_spherical(const Geometry *g1, const Geometry *g2)
     break;
   case Geometry::wkb_multipoint:
     {
-      TYPENAME BG_models<double, bgcssed>::Multipoint
+      BG_models<double, bgcssed>::Multipoint
         bg2(g2->get_data_ptr(), g2->get_data_size(),
             g2->get_flags(), g2->get_srid());
       res= bg::distance(bg1, bg2, dist_strategy);
