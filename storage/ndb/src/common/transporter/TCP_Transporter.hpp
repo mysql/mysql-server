@@ -70,7 +70,7 @@ private:
    * Retrieves the contents of the send buffers and writes it on
    * the external TCP/IP interface.
    */
-  int doSend();
+  bool doSend();
   
   /**
    * It reads the external TCP/IP interface once 
