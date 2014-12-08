@@ -86,6 +86,11 @@ void Dbtc::initRecords()
     new (p) TcFiredTriggerData();
   }
   while (triggers.releaseFirst());
+  /*
+    The code above temporarily allocates all TcFiredTriggerData records.
+    Therefore we need to reset freeMin now, to get meaningful values.
+  */
+  c_theFiredTriggerPool.resetFreeMin();
 
   /*
   // Init all index records

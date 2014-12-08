@@ -204,20 +204,15 @@ DLMHashTable<P, T, M>::setSize(Uint32 size)
   Uint32 i = 1;
   while (i < size) i *= 2;
 
-  if (mask == (i - 1))
+  if (hashValues != NULL)
   {
-    /**
-     * The size is already set to <b>size</b>
-     */
-    return true;
-  }
-
-  if (mask != 0)
-  {
-    /**
-     * The mask is already set
-     */
-    return false;
+    /*
+      If setSize() is called twice with different size values then this is 
+      most likely a bug.
+    */
+    assert(mask == i-1); 
+    // Return true if size already set to 'size', false otherwise.
+    return mask == i-1;
   }
 
   mask = (i - 1);

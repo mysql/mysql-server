@@ -1,0 +1,21 @@
+select sum(high) < sum(total) from ndbinfo.ndb$pools 
+where pool_name='Fired Trigger';
+sum(high) < sum(total)
+1
+create table num (n int);
+insert into num value (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+CREATE TABLE t1 (
+a int NOT NULL,
+b int NOT NULL,
+c int NOT NULL,
+d int NOT NULL,
+PRIMARY KEY (`b`,`a`),
+unique key(d)
+) ENGINE=ndbcluster;
+insert into t1 select x1.n+x2.n*10+x3.n*100, 1, 1, 1+x1.n+x2.n*10+x3.n*100 from num as x1, num as x2, num as x3;
+ERROR HY000: Got temporary error 221 'Too many concurrently fired triggers (increase MaxNoOfFiredTriggers)' from NDBCLUSTER
+select sum(used) from ndbinfo.ndb$pools where pool_name='Fired Trigger';
+sum(used)
+0
+drop table num;
+drop table t1;
