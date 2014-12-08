@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -56,6 +56,7 @@ NdbScanOperation::~NdbScanOperation()
     theNdb->releaseNdbScanRec(m_receivers[i]);
   }
   delete[] m_array;
+  assert(m_scan_buffer==NULL);
 }
 
 void
@@ -125,6 +126,7 @@ NdbScanOperation::init(const NdbTableImpl* tab, NdbTransaction* myConnection)
   m_current_api_receiver = 0;
   m_sent_receivers_count = 0;
   m_conf_receivers_count = 0;
+  assert(m_scan_buffer==NULL);
   return 0;
 }
 
@@ -3989,6 +3991,15 @@ NdbScanOperation::close_impl(bool forceSend, PollGuard *poll_guard)
    * object (old Api only)
    */
   freeInterpretedCodeOldApi();
+
+  /* Free buffer used to store scan result set.
+   * Result set lifetime ends when the cursor is closed.
+   */
+  if (m_scan_buffer)
+  {
+    delete[] m_scan_buffer;
+    m_scan_buffer= NULL;
+  }
 
   return 0;
 }
