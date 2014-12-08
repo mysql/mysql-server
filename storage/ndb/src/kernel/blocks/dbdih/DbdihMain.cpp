@@ -6419,48 +6419,28 @@ wait_label:
   jam();
   if (c_lcpState.lcpStallStart == 0)
   {
-    /* Output a log message every time we start stalling */
     jam();
-    c_lcpState.stall_node_waiting_for = node_waited_for;
-    c_lcpState.lastLogTime = now;
     c_lcpState.m_start_lcp_check_time = now;
-    infoEvent("Start stall LCP, LCP execution time = %u seconds,"
-              " node waited for = %u, its state is %s"
-              " max wait time is %u seconds",
-              Uint32(c_lcpState.m_lcp_time / 1000),
-              node_waited_for,
-              get_status_str(max_status),
-              Uint32(lcp_max_wait_time/1000));
   }
-  if (node_waited_for != c_lcpState.stall_node_waiting_for)
+  if (c_lcpState.lcpStallStart == 0 ||
+      node_waited_for != c_lcpState.stall_node_waiting_for ||
+      NdbTick_Elapsed(c_lcpState.lastLogTime, now).milliSec() >
+      Uint64(1200000))
   {
-    /* Output a log message every time we change node waited for */
+    /**
+     * Output a log message every time we start stalling
+     * and every time we change node waiting for and every
+     * time we have stalled for 2 mins.
+     */
     jam();
     c_lcpState.lastLogTime = now;
-    infoEvent("Stall LCP, wait for new node, LCP execution time = %u"
-              " seconds, node waited for = %u, its state is %s"
-              " current stall time is %u seconds,"
-              " max wait time is %u seconds",
+    infoEvent("Stall LCP, LCP time = %u secs,"
+              " wait for Node%u, state %s",
               Uint32(c_lcpState.m_lcp_time / 1000),
               node_waited_for,
-              get_status_str(max_status),
-              Uint32(lcp_stall_time/1000),
-              Uint32(lcp_max_wait_time/1000));
-    /* Log */
-  }
-  if (NdbTick_Elapsed(c_lcpState.lastLogTime, now).milliSec() >
-      Uint64(120000))
-  {
-    /* Output a log message about stall every 2 minutes of stall */
-    jam();
-    c_lcpState.lastLogTime = now;
-    infoEvent("Stall LCP, LCP execution time = %u"
-              " seconds, node waited for = %u, its state is %s"
-              " current stall time is %u seconds,"
-              " max wait time is %u seconds",
-              Uint32(c_lcpState.m_lcp_time / 1000),
-              node_waited_for,
-              get_status_str(max_status),
+              get_status_str(max_status));
+    infoEvent("Stall LCP: current stall time: %u secs,"
+              " max wait time:%u secs",
               Uint32(lcp_stall_time/1000),
               Uint32(lcp_max_wait_time/1000));
   }
