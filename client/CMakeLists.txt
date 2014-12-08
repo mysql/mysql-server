@@ -21,8 +21,6 @@ INCLUDE_DIRECTORIES(
   ${SSL_INCLUDE_DIRS}
   ${CMAKE_SOURCE_DIR}/libmysql
   ${CMAKE_SOURCE_DIR}/regex
-  ${CMAKE_SOURCE_DIR}/sql
-  ${CMAKE_SOURCE_DIR}/sql/auth
   ${CMAKE_SOURCE_DIR}/strings
   ${EDITLINE_INCLUDE_DIR}
   ${CMAKE_CURRENT_BINARY_DIR}
@@ -33,6 +31,8 @@ ADD_SUBDIRECTORY(base)
 
 ## We will need libeay32.dll and ssleay32.dll when running client executables.
 COPY_OPENSSL_DLLS(copy_openssl_client)
+
+INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/compile_flags.cmake)
 
 ADD_DEFINITIONS(${SSL_DEFINES})
 MYSQL_ADD_EXECUTABLE(mysql completion_hash.cc mysql.cc readline.cc ../sql-common/sql_string.cc)
@@ -73,7 +73,10 @@ MYSQL_ADD_EXECUTABLE(mysql_plugin mysql_plugin.c)
 TARGET_LINK_LIBRARIES(mysql_plugin mysqlclient)
 
 MYSQL_ADD_EXECUTABLE(mysqlbinlog mysqlbinlog.cc)
-SET_SOURCE_FILES_PROPERTIES(mysqlbinlog.cc PROPERTIES COMPILE_FLAGS "-DHAVE_REPLICATION")
+ADD_COMPILE_FLAGS(
+  mysqlbinlog.cc
+  COMPILE_FLAGS "-I${CMAKE_SOURCE_DIR}/sql" "-DHAVE_REPLICATION"
+)
 TARGET_LINK_LIBRARIES(mysqlbinlog mysqlclient)
 
 MYSQL_ADD_EXECUTABLE(mysqladmin mysqladmin.cc)
@@ -90,9 +93,14 @@ MYSQL_ADD_EXECUTABLE(mysql_secure_installation mysql_secure_installation.cc)
 TARGET_LINK_LIBRARIES(mysql_secure_installation mysqlclient)
 
 IF(UNIX)
-MYSQL_ADD_EXECUTABLE(mysql_install_db mysql_install_db.cc auth_utils.cc path.cc)
-TARGET_LINK_LIBRARIES(mysql_install_db mysqlclient)
-ADD_DEPENDENCIES(mysql_install_db GenBootstrapPriv)
+  MYSQL_ADD_EXECUTABLE(mysql_install_db
+    mysql_install_db.cc auth_utils.cc path.cc)
+  TARGET_LINK_LIBRARIES(mysql_install_db mysqlclient)
+  ADD_COMPILE_FLAGS(
+    auth_utils.cc mysql_install_db.cc
+    COMPILE_FLAGS "-I${CMAKE_SOURCE_DIR}/sql/auth"
+    )
+  ADD_DEPENDENCIES(mysql_install_db GenBootstrapPriv)
 ENDIF(UNIX)
 
 # "WIN32" also covers 64 bit. "echo" is used in some files below "mysql-test/".
