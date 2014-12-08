@@ -93,7 +93,6 @@ Log_event_header(const char* buf, uint16_t binlog_version)
   when.tv_sec= le32toh(tmp_sec);
   when.tv_usec= 0;
   type_code= static_cast<Log_event_type>(buf[EVENT_TYPE_OFFSET]);
-  BAPI_ASSERT(type_code < ENUM_END_EVENT);
   memcpy(&unmasked_server_id,
          buf + SERVER_ID_OFFSET, sizeof(unmasked_server_id));
 
@@ -196,6 +195,7 @@ Log_event_header(const char* buf, uint16_t binlog_version)
     }
   /* otherwise, go on with reading the header from buf (nothing now) */
   } //end switch (binlog_version)
+  BAPI_ASSERT(type_code < ENUM_END_EVENT || flags & LOG_EVENT_IGNORABLE_F);
 }
 
 
