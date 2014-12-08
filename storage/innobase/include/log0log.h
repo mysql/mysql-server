@@ -35,7 +35,6 @@ Created 12/9/1995 Heikki Tuuri
 
 #include "univ.i"
 #include "dyn0buf.h"
-#include "log0types.h"
 #ifndef UNIV_HOTBACKUP
 #include "sync0mutex.h"
 #include "sync0rw.h"

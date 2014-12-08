@@ -1245,6 +1245,7 @@ buf_flush_try_neighbors(
 				     page_id_t(page_id.space(), i),
 				     flush_type);
 			     i++) {
+				/* do nothing */
 			}
 			high = i;
 		}
