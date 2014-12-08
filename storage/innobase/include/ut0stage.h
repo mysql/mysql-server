@@ -310,6 +310,75 @@ private:
 #else /* HAVE_PSI_STAGE_INTERFACE */
 
 class ut_stage_alter_t {
+public:
+	explicit
+	ut_stage_alter_t(
+		const dict_index_t*	pk)
+	{
+	}
+
+	~ut_stage_alter_t()
+	{
+	}
+
+	void
+	begin(
+		ulint	n_sort_indexes)
+	{
+	}
+
+	void
+	n_pk_recs_inc()
+	{
+	}
+
+	void
+	set_n_flush_pages(
+		ulint	n_flush_pages)
+	{
+	}
+
+	void
+	read_pk_completed()
+	{
+	}
+
+	void
+	one_page_was_processed(
+		ulint	inc_val = 1)
+	{
+	}
+
+	void
+	one_rec_was_processed()
+	{
+	}
+
+	void
+	begin_phase_sort(
+		ulint	sort_multi_factor)
+	{
+	}
+
+	void
+	begin_phase_insert()
+	{
+	}
+
+	void
+	begin_phase_flush()
+	{
+	}
+
+	void
+	begin_phase_log()
+	{
+	}
+
+	void
+	begin_phase_end()
+	{
+	}
 };
 
 #endif /* HAVE_PSI_STAGE_INTERFACE */

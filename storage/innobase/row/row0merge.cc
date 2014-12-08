@@ -1652,15 +1652,11 @@ row_merge_read_clustered_index(
 
 		page_cur_move_to_next(cur);
 
-#ifdef HAVE_PSI_STAGE_INTERFACE
 		stage->one_rec_was_processed();
-#endif /* HAVE_PSI_STAGE_INTERFACE */
 
 		if (page_cur_is_after_last(cur)) {
 
-#ifdef HAVE_PSI_STAGE_INTERFACE
 			stage->one_page_was_processed();
-#endif /* HAVE_PSI_STAGE_INTERFACE */
 
 			if (UNIV_UNLIKELY(trx_is_interrupted(trx))) {
 				err = DB_INTERRUPTED;
@@ -2772,12 +2768,10 @@ row_merge_sort(
 	/* Record the number of merge runs we need to perform */
 	num_runs = file->offset;
 
-#ifdef HAVE_PSI_STAGE_INTERFACE
 	if (stage != NULL) {
 		stage->begin_phase_sort(static_cast<ulint>(
 				round(log2(num_runs))));
 	}
-#endif /* HAVE_PSI_STAGE_INTERFACE */
 
 	/* If num_runs are less than 1, nothing to merge */
 	if (num_runs <= 1) {
@@ -2935,11 +2929,9 @@ row_merge_insert_index_tuples(
 	ut_ad(!dict_index_is_spatial(index));
 	ut_ad(trx_id);
 
-#ifdef HAVE_PSI_STAGE_INTERFACE
 	if (stage != NULL) {
 		stage->begin_phase_insert();
 	}
-#endif /* HAVE_PSI_STAGE_INTERFACE */
 
 	tuple_heap = mem_heap_create(1000);
 
@@ -2984,11 +2976,9 @@ row_merge_insert_index_tuples(
 		ulint		n_ext;
 		mtr_t		mtr;
 
-#ifdef HAVE_PSI_STAGE_INTERFACE
 		if (stage != NULL) {
 			stage->one_rec_was_processed();
 		}
-#endif /* HAVE_PSI_STAGE_INTERFACE */
 
 		 if (row_buf != NULL) {
 			if (n_rows >= row_buf->n_tuples) {
@@ -4065,11 +4055,9 @@ row_merge_build_indexes(
 	ut_ad((old_table == new_table) == !col_map);
 	ut_ad(!add_cols || col_map);
 
-#ifdef HAVE_PSI_STAGE_INTERFACE
 	stage->begin(skip_pk_sort && new_table != old_table
 		     ? n_indexes - 1
 		     : n_indexes);
-#endif /* HAVE_PSI_STAGE_INTERFACE */
 
 	/* Allocate memory for merge file data structure and initialize
 	fields */
@@ -4138,9 +4126,7 @@ row_merge_build_indexes(
 		n_indexes, add_cols, col_map, add_autoinc, sequence,
 		block, skip_pk_sort, &tmpfd, stage);
 
-#ifdef HAVE_PSI_STAGE_INTERFACE
 	stage->read_pk_completed();
-#endif /* HAVE_PSI_STAGE_INTERFACE */
 
 	if (error != DB_SUCCESS) {
 
@@ -4342,9 +4328,7 @@ func_exit:
 	DBUG_EXECUTE_IF("ib_index_crash_after_bulk_load", DBUG_SUICIDE(););
 
 	if (error == DB_SUCCESS) {
-#ifdef HAVE_PSI_STAGE_INTERFACE
 		stage->begin_phase_flush();
-#endif /* HAVE_PSI_STAGE_INTERFACE */
 
 		log_make_checkpoint_at(LSN_MAX, TRUE, stage);
 	}
