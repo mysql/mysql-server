@@ -256,9 +256,7 @@ public:
   // WITHOUT VALIDATION was not given
   bool                          with_validation;
 
-#ifdef HAVE_PSI_STAGE_INTERFACE
-  PSI_stage_progress*           progress;
-#endif /* HAVE_PSI_STAGE_INTERFACE */
+  void                          *se_blob;
 
   Alter_info() :
     flags(0),
@@ -266,10 +264,8 @@ public:
     num_parts(0),
     requested_algorithm(ALTER_TABLE_ALGORITHM_DEFAULT),
     requested_lock(ALTER_TABLE_LOCK_DEFAULT),
-    with_validation(true)
-#ifdef HAVE_PSI_STAGE_INTERFACE
-    , progress(NULL)
-#endif /* HAVE_PSI_STAGE_INTERFACE */
+    with_validation(true),
+    se_blob(NULL)
   {}
 
   void reset()
@@ -286,9 +282,6 @@ public:
     requested_algorithm= ALTER_TABLE_ALGORITHM_DEFAULT;
     requested_lock= ALTER_TABLE_LOCK_DEFAULT;
     with_validation= true;
-#ifdef HAVE_PSI_STAGE_INTERFACE
-    progress= NULL;
-#endif /* HAVE_PSI_STAGE_INTERFACE */
   }
 
 

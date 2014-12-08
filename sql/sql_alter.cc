@@ -35,7 +35,7 @@ Alter_info::Alter_info(const Alter_info &rhs, MEM_ROOT *mem_root)
   requested_lock(rhs.requested_lock),
   with_validation(rhs.with_validation)
 #ifdef HAVE_PSI_STAGE_INTERFACE
-  , progress(rhs.progress)
+  , se_blob(rhs.se_blob)
 #endif /* HAVE_PSI_STAGE_INTERFACE */
 {
   /*

@@ -52,6 +52,7 @@ Created 12/9/1995 Heikki Tuuri
 #include "trx0trx.h"
 #include "srv0mon.h"
 #include "sync0sync.h"
+#include "ut0stage.h"
 
 /*
 General philosophy of InnoDB redo-logs:
@@ -1343,13 +1344,9 @@ static
 bool
 log_preflush_pool_modified_pages(
 /*=============================*/
-	lsn_t	new_oldest	/*!< in: try to advance oldest_modified_lsn
+	lsn_t	new_oldest,	/*!< in: try to advance oldest_modified_lsn
 				at least to this lsn */
-#ifdef HAVE_PSI_STAGE_INTERFACE
-	, PSI_stage_progress*	progress = NULL
-	, ulint			work_todo_during_log = 0
-#endif /* HAVE_PSI_STAGE_INTERFACE */
-)
+	ut_stage_alter_t*	stage = NULL)
 {
 	bool	success;
 	ulint	n_pages;
@@ -1367,12 +1364,7 @@ log_preflush_pool_modified_pages(
 		recv_apply_hashed_log_recs(TRUE);
 	}
 
-	success = buf_flush_lists(ULINT_MAX, new_oldest, &n_pages
-#ifdef HAVE_PSI_STAGE_INTERFACE
-				  , progress
-				  , work_todo_during_log
-#endif /* HAVE_PSI_STAGE_INTERFACE */
-	);
+	success = buf_flush_lists(ULINT_MAX, new_oldest, &n_pages, stage);
 
 	buf_flush_wait_batch_end(NULL, BUF_FLUSH_LIST);
 
@@ -1793,25 +1785,17 @@ log_checkpoint(
 @param[in]	lsn		the log sequence number, or LSN_MAX
 for the latest LSN
 @param[in]	write_always	force a write even if no log
-has been generated since the latest checkpoint */
+has been generated since the latest checkpoint
+@param[in,out]	stage		TODO */
 void
 log_make_checkpoint_at(
 	lsn_t			lsn,
-	bool			write_always
-#ifdef HAVE_PSI_STAGE_INTERFACE
-	, PSI_stage_progress*	progress
-	, ulint			work_todo_during_log
-#endif /* HAVE_PSI_STAGE_INTERFACE */
-)
+	bool			write_always,
+	ut_stage_alter_t*	stage /* = NULL */)
 {
 	/* Preflush pages synchronously */
 
-	while (!log_preflush_pool_modified_pages(lsn
-#ifdef HAVE_PSI_STAGE_INTERFACE
-						 , progress
-						 , work_todo_during_log
-#endif /* HAVE_PSI_STAGE_INTERFACE */
-	)) {
+	while (!log_preflush_pool_modified_pages(lsn, stage)) {
 		/* Flush as much as we can */
 	}
 

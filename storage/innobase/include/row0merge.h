@@ -38,6 +38,7 @@ Created 13/06/2005 Jan Lindstrom
 #include "row0mysql.h"
 #include "lock0types.h"
 #include "srv0srv.h"
+#include "ut0stage.h"
 
 // Forward declaration
 struct ib_sequence_t;
@@ -294,12 +295,10 @@ row_merge_build_indexes(
 					AUTO_INCREMENT column, or
 					ULINT_UNDEFINED if none is added */
 	ib_sequence_t&	sequence,	/*!< in/out: autoinc sequence */
-	bool		skip_pk_sort	/*!< in: whether the new PRIMARY KEY
+	bool		skip_pk_sort,	/*!< in: whether the new PRIMARY KEY
 					will follow existing order */
-#ifdef HAVE_PSI_STAGE_INTERFACE
-	, PSI_stage_progress**	progress
-#endif /* HAVE_PSI_STAGE_INTERFACE */
-) __attribute__((warn_unused_result));
+	ut_stage_alter_t*	stage)
+	__attribute__((warn_unused_result));
 
 /********************************************************************//**
 Write a buffer to a block. */
@@ -357,12 +356,8 @@ row_merge_sort(
 	merge_file_t*		file,	/*!< in/out: file containing
 					index entries */
 	row_merge_block_t*	block,	/*!< in/out: 3 buffers */
-	int*			tmpfd	/*!< in/out: temporary file handle */
-#ifdef HAVE_PSI_STAGE_INTERFACE
-	, PSI_stage_progress*	progress = NULL
-	, ulint			inc_every_nth_rec = 0
-#endif /* HAVE_PSI_STAGE_INTERFACE */
-);
+	int*			tmpfd,	/*!< in/out: temporary file handle */
+	ut_stage_alter_t*	stage = NULL);
 
 /*********************************************************************//**
 Allocate a sort buffer.
