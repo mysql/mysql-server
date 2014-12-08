@@ -26,11 +26,6 @@ Created 2011-05-26 Marko Makela
 #ifndef row0log_h
 #define row0log_h
 
-#include "my_global.h"
-
-#include "mysql/psi/mysql_stage.h"
-#include "mysql/psi/psi.h"
-
 #include "univ.i"
 #include "mtr0types.h"
 #include "row0types.h"
@@ -39,6 +34,8 @@ Created 2011-05-26 Marko Makela
 #include "dict0types.h"
 #include "trx0types.h"
 #include "que0types.h"
+
+class ut_stage_alter_t;
 
 /******************************************************//**
 Allocate the row log for an index and flag the index
@@ -197,12 +194,10 @@ row_log_table_apply(
 	que_thr_t*	thr,	/*!< in: query graph */
 	dict_table_t*	old_table,
 				/*!< in: old table */
-	struct TABLE*	table	/*!< in/out: MySQL table
+	struct TABLE*	table,	/*!< in/out: MySQL table
 				(for reporting duplicates) */
-#ifdef HAVE_PSI_STAGE_INTERFACE
-	, PSI_stage_progress**	progress
-#endif /* HAVE_PSI_STAGE_INTERFACE */
-) __attribute__((warn_unused_result));
+	ut_stage_alter_t*	stage)
+__attribute__((warn_unused_result));
 
 /******************************************************//**
 Get the latest transaction ID that has invoked row_log_online_op()

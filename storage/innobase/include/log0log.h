@@ -35,10 +35,13 @@ Created 12/9/1995 Heikki Tuuri
 
 #include "univ.i"
 #include "dyn0buf.h"
+#include "log0types.h"
 #ifndef UNIV_HOTBACKUP
 #include "sync0mutex.h"
 #include "sync0rw.h"
 #endif /* !UNIV_HOTBACKUP */
+
+class ut_stage_alter_t;
 
 /* Type used for all log sequence number storage and arithmetics */
 typedef	ib_uint64_t		lsn_t;
@@ -211,16 +214,13 @@ log_checkpoint(
 @param[in]	lsn		the log sequence number, or LSN_MAX
 for the latest LSN
 @param[in]	write_always	force a write even if no log
-has been generated since the latest checkpoint */
+has been generated since the latest checkpoint
+@param[in,out]	stage		TODO */
 void
 log_make_checkpoint_at(
-	lsn_t	lsn,
-	bool	write_always
-#ifdef HAVE_PSI_STAGE_INTERFACE
-	, PSI_stage_progress*	progress = NULL
-	, ulint			work_todo_during_log = 0
-#endif /* HAVE_PSI_STAGE_INTERFACE */
-);
+	lsn_t			lsn,
+	bool			write_always,
+	ut_stage_alter_t*	stage = NULL);
 
 /****************************************************************//**
 Makes a checkpoint at the latest lsn and writes it to first page of each

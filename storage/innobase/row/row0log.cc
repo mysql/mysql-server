@@ -23,11 +23,6 @@ Modification log for online index creation and online table rebuild
 Created 2011-05-26 Marko Makela
 *******************************************************/
 
-#include "my_global.h"
-
-#include "mysql/psi/mysql_stage.h"
-#include "mysql/psi/psi.h"
-
 #include "row0log.h"
 
 #ifdef UNIV_NONINL
@@ -2502,12 +2497,9 @@ dberr_t
 row_log_table_apply_ops(
 /*====================*/
 	que_thr_t*	thr,	/*!< in: query graph */
-	row_merge_dup_t*dup	/*!< in/out: for reporting duplicate key
+	row_merge_dup_t*dup,	/*!< in/out: for reporting duplicate key
 				errors */
-#ifdef HAVE_PSI_STAGE_INTERFACE
-	, PSI_stage_progress*	progress
-#endif /* HAVE_PSI_STAGE_INTERFACE */
-)
+	ut_stage_alter_t*	stage)
 {
 	dberr_t		error;
 	const mrec_t*	mrec		= NULL;
@@ -2562,10 +2554,7 @@ next_block:
 	ut_ad(index->online_log->head.bytes == 0);
 
 #ifdef HAVE_PSI_STAGE_INTERFACE
-	/* Adjust the total estimate based on the length of the log. */
-	ut_stage_new_estimate(progress, row_log_estimate_work(index));
-
-	ut_stage_inc(progress, row_log_progress_inc_per_block());
+	stage->one_page_was_processed(row_log_progress_inc_per_block());
 #endif /* HAVE_PSI_STAGE_INTERFACE */
 
 	if (trx_is_interrupted(trx)) {
@@ -2860,12 +2849,9 @@ row_log_table_apply(
 	que_thr_t*	thr,	/*!< in: query graph */
 	dict_table_t*	old_table,
 				/*!< in: old table */
-	struct TABLE*	table	/*!< in/out: MySQL table
+	struct TABLE*	table,	/*!< in/out: MySQL table
 				(for reporting duplicates) */
-#ifdef HAVE_PSI_STAGE_INTERFACE
-	, PSI_stage_progress**	progress
-#endif /* HAVE_PSI_STAGE_INTERFACE */
-)
+	ut_stage_alter_t*	stage)
 {
 	dberr_t		error;
 	dict_index_t*	clust_index;
@@ -2875,7 +2861,7 @@ row_log_table_apply(
 			thr_get_trx(thr)->duplicates = TRX_DUP_REPLACE;);
 
 #ifdef HAVE_PSI_STAGE_INTERFACE
-	ut_stage_change(progress, &srv_stage_alter_table_log);
+	stage->begin_phase_log();
 #endif /* HAVE_PSI_STAGE_INTERFACE */
 
 #ifdef UNIV_SYNC_DEBUG
@@ -2899,11 +2885,7 @@ row_log_table_apply(
 			clust_index->online_log->col_map, 0
 		};
 
-		error = row_log_table_apply_ops(thr, &dup
-#ifdef HAVE_PSI_STAGE_INTERFACE
-						, *progress
-#endif /* HAVE_PSI_STAGE_INTERFACE */
-		);
+		error = row_log_table_apply_ops(thr, &dup, stage);
 
 		ut_ad(error != DB_SUCCESS
 		      || clust_index->online_log->head.total
@@ -2915,7 +2897,7 @@ row_log_table_apply(
 			thr_get_trx(thr)->duplicates = 0;);
 
 #ifdef HAVE_PSI_STAGE_INTERFACE
-	ut_stage_change(progress, &srv_stage_alter_table_end);
+	stage->begin_phase_end();
 #endif /* HAVE_PSI_STAGE_INTERFACE */
 
 	return(error);

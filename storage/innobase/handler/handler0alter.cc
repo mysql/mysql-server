@@ -4607,6 +4607,15 @@ ok_exit:
 	DBUG_ASSERT(ctx->trx);
 	DBUG_ASSERT(ctx->prebuilt == m_prebuilt);
 
+#ifdef HAVE_PSI_STAGE_INTERFACE
+	ut_stage_alter_t*	stage = UT_NEW_NOKEY(ut_stage_alter_t(
+		dict_table_get_first_index(m_prebuilt->table)));
+
+	ha_alter_info->alter_info->se_blob = stage;
+#else /* HAVE_PSI_STAGE_INTERFACE */
+	ut_stage_alter_t*	stage = NULL;
+#endif /* HAVE_PSI_STAGE_INTERFACE */
+
 	if (m_prebuilt->table->ibd_file_missing
 	    || dict_table_is_discarded(m_prebuilt->table)) {
 		goto all_done;
@@ -4623,11 +4632,7 @@ ok_exit:
 		ctx->online,
 		ctx->add_index, ctx->add_key_numbers, ctx->num_to_add_index,
 		altered_table, ctx->add_cols, ctx->col_map,
-		ctx->add_autoinc, ctx->sequence, ctx->skip_pk_sort
-#ifdef HAVE_PSI_STAGE_INTERFACE
-		, &ha_alter_info->alter_info->progress
-#endif /* HAVE_PSI_STAGE_INTERFACE */
-		);
+		ctx->add_autoinc, ctx->sequence, ctx->skip_pk_sort, stage);
 
 #ifndef DBUG_OFF
 oom:
@@ -4635,11 +4640,7 @@ oom:
 	if (error == DB_SUCCESS && ctx->online && ctx->need_rebuild()) {
 		DEBUG_SYNC_C("row_log_table_apply1_before");
 		error = row_log_table_apply(
-			ctx->thr, m_prebuilt->table, altered_table
-#ifdef HAVE_PSI_STAGE_INTERFACE
-			, &ha_alter_info->alter_info->progress
-#endif /* HAVE_PSI_STAGE_INTERFACE */
-			);
+			ctx->thr, m_prebuilt->table, altered_table, stage);
 	}
 
 	DEBUG_SYNC_C("inplace_after_index_build");
@@ -5713,12 +5714,12 @@ commit_try_rebuild(
 
 	if (ctx->online) {
 		DEBUG_SYNC_C("row_log_table_apply2_before");
+
 		error = row_log_table_apply(
-			ctx->thr, user_table, altered_table
-#ifdef HAVE_PSI_STAGE_INTERFACE
-			, &ha_alter_info->alter_info->progress
-#endif /* HAVE_PSI_STAGE_INTERFACE */
-			);
+			ctx->thr, user_table, altered_table,
+			static_cast<ut_stage_alter_t*>(
+				ha_alter_info->alter_info->se_blob));
+
 		ulint	err_key = thr_get_trx(ctx->thr)->error_key_num;
 
 		switch (error) {
@@ -6284,10 +6285,10 @@ ha_innobase::commit_inplace_alter_table(
 	DEBUG_SYNC_C("innodb_commit_inplace_alter_table_wait");
 
 #ifdef HAVE_PSI_STAGE_INTERFACE
-	if (ha_alter_info->alter_info->progress != NULL) {
-		ut_stage_change(&ha_alter_info->alter_info->progress,
-				&srv_stage_alter_table_end);
-	}
+	ut_stage_alter_t*	stage = static_cast<ut_stage_alter_t*>(
+		ha_alter_info->alter_info->se_blob);
+
+	stage->begin_phase_end();
 #endif /* HAVE_PSI_STAGE_INTERFACE */
 
 	if (!commit) {
@@ -6297,7 +6298,8 @@ ha_innobase::commit_inplace_alter_table(
 		method if commit=true. */
 		const bool	ret = rollback_inplace_alter_table(
 			ha_alter_info, table, m_prebuilt);
-		mysql_end_stage();
+		delete stage;
+		ha_alter_info->alter_info->se_blob = NULL;
 		DBUG_RETURN(ret);
 	}
 
@@ -6305,7 +6307,8 @@ ha_innobase::commit_inplace_alter_table(
 		DBUG_ASSERT(!ctx0);
 		MONITOR_ATOMIC_DEC(MONITOR_PENDING_ALTER_TABLE);
 		ha_alter_info->group_commit_ctx = NULL;
-		mysql_end_stage();
+		delete stage;
+		ha_alter_info->alter_info->se_blob = NULL;
 		DBUG_RETURN(false);
 	}
 
@@ -6362,7 +6365,8 @@ ha_innobase::commit_inplace_alter_table(
 		if (error != DB_SUCCESS) {
 			my_error_innodb(
 				error, table_share->table_name.str, 0);
-			mysql_end_stage();
+			delete stage;
+			ha_alter_info->alter_info->se_blob = NULL;
 			DBUG_RETURN(true);
 		}
 	}
@@ -6709,7 +6713,8 @@ foreign_fail:
 
 		row_mysql_unlock_data_dictionary(trx);
 		trx_free_for_mysql(trx);
-		mysql_end_stage();
+		delete stage;
+		ha_alter_info->alter_info->se_blob = NULL;
 		DBUG_RETURN(true);
 	}
 
@@ -6883,7 +6888,8 @@ foreign_fail:
 #endif /* DBUG_OFF */
 
 	MONITOR_ATOMIC_DEC(MONITOR_PENDING_ALTER_TABLE);
-	mysql_end_stage();
+	delete stage;
+	ha_alter_info->alter_info->se_blob = NULL;
 	DBUG_RETURN(false);
 }
 
