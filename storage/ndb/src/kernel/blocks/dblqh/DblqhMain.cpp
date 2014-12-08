@@ -24887,7 +24887,12 @@ Dblqh::execDUMP_STATE_ORD(Signal* signal)
     Uint64 duration = 0;
     Uint64 rate = 0;
 
-    ndbassert(c_fragmentCopyStart > 0);
+    if (c_fragmentCopyStart == 0)
+    {
+      infoEvent("LDM instance %u: CopyFrag complete no fragments copied",
+                instance());
+      return;
+    }
     duration = NdbTick_CurrentMillisecond() - c_fragmentCopyStart;
     
     if (duration == 0)
