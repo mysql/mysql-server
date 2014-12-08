@@ -23,7 +23,6 @@
   @{
 */
 
-#include "sql_priv.h"
 #include "sql_select.h"
 #include "sql_table.h"                          // primary_key_name
 #include "sql_derived.h"

@@ -97,19 +97,19 @@ ERROR HY000: Variable 'delayed_insert_limit' is a GLOBAL variable and should be 
 SELECT @@Session.delayed_insert_limit;
 ERROR HY000: Variable 'delayed_insert_limit' is a GLOBAL variable
 '#----------------------FN_DYNVARS_024_06------------------------#'
-SELECT @@global.delayed_insert_limit =
-VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
-WHERE VARIABLE_NAME='delayed_insert_limit';
-@@global.delayed_insert_limit =
-VARIABLE_VALUE
+SELECT VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+WHERE VARIABLE_NAME='delayed_insert_limit'
+  into @tmp;
+SELECT @@global.delayed_insert_limit = @tmp;
+@@global.delayed_insert_limit = @tmp
 1
 Warnings:
 Warning	1287	'@@delayed_insert_limit' is deprecated and will be removed in a future release.
-SELECT @@delayed_insert_limit =
-VARIABLE_VALUE FROM INFORMATION_SCHEMA.SESSION_VARIABLES
-WHERE VARIABLE_NAME='delayed_insert_limit';
-@@delayed_insert_limit =
-VARIABLE_VALUE
+SELECT VARIABLE_VALUE FROM INFORMATION_SCHEMA.SESSION_VARIABLES
+WHERE VARIABLE_NAME='delayed_insert_limit'
+  into @tmp;
+SELECT @@delayed_insert_limit = @tmp;
+@@delayed_insert_limit = @tmp
 1
 Warnings:
 Warning	1287	'@@delayed_insert_limit' is deprecated and will be removed in a future release.

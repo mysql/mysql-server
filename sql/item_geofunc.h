@@ -53,6 +53,14 @@ public:
   }
 
 
+  void forget_buffer(void *buf)
+  {
+    if (bg_result_buf == buf)
+      bg_result_buf= NULL;
+    bg_results.erase_unique(buf);
+  }
+
+
   /* Free intermediate result buffers accumulated during GIS calculation. */
   void free_intermediate_result_buffers()
   {

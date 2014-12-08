@@ -14,7 +14,6 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "sql_priv.h"                         // SHOW_MY_BOOL
 #include "my_global.h"                       // REQUIRED by m_string.h
 #include "sql_class.h"                          // set_var.h: THD
 #include "sys_vars_shared.h"
@@ -38,6 +37,7 @@
 #include "debug_sync.h"
 #include "mutex_lock.h"
 #include "prealloced_array.h"
+#include "log.h"
 
 #include <algorithm>
 

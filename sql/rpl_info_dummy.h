@@ -17,7 +17,6 @@
 #define RPL_INFO_DUMMY_H
 
 #include <my_global.h>
-#include <sql_priv.h>
 #include "rpl_info_handler.h"
 
 /**

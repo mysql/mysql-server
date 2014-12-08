@@ -142,18 +142,22 @@ SELECT @@session.long_query_time;
 ####################################################################
 
 
+--disable_warnings
 SELECT @@global.long_query_time = VARIABLE_VALUE 
 FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
 WHERE VARIABLE_NAME='long_query_time';
+--enable_warnings
 
 --echo '#------------------FN_DYNVARS_068_07-----------------------#'
 ####################################################################
 #  Check if the value in SESSION Table matches value in variable   #
 ####################################################################
 
+--disable_warnings
 SELECT @@session.long_query_time = VARIABLE_VALUE 
 FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
 WHERE VARIABLE_NAME='long_query_time';
+--enable_warnings
 
 
 --echo '#------------------FN_DYNVARS_068_08-----------------------#'

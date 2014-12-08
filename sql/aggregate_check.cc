@@ -422,18 +422,17 @@ bool Group_check::is_fd_on_source(Item *item)
     if (select->where_cond())                   // WHERE
       find_fd_in_cond(select->where_cond(), 0, false);
 
-    table_map map_of_new_eq_fds= 0;
+    table_map map_of_new_fds= 0;
     for (; last_fd < fd.size(); ++last_fd)
-      map_of_new_eq_fds|= fd.at(last_fd)->used_tables();
+      map_of_new_fds|= fd.at(last_fd)->used_tables();
 
-    if (map_of_new_eq_fds != 0)     // something new, check again
+    if (map_of_new_fds != 0)     // something new, check again
     {
-      DBUG_ASSERT((map_of_new_eq_fds &
-                   (last_whole_tables_fd | PSEUDO_TABLE_BITS)) == 0);
+      DBUG_ASSERT((map_of_new_fds & PSEUDO_TABLE_BITS) == 0);
       if (is_in_fd(item))
         return true;
        // Recheck keys only in tables with something new:
-      tested_map_for_keys&= ~map_of_new_eq_fds;
+      tested_map_for_keys&= ~map_of_new_fds;
     }
     else
     {

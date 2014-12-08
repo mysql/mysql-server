@@ -23,7 +23,6 @@
   @{
 */
 
-#include "sql_priv.h"
 #include "sql_select.h"
 #include "key.h"
 #include "sql_optimizer.h"  // JOIN

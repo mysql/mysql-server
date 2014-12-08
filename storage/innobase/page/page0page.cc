@@ -2365,7 +2365,7 @@ page_validate(
 	ulint*			offsets		= NULL;
 	ulint*			old_offsets	= NULL;
 
-#ifdef UNIV_DEBUG
+#ifdef UNIV_GIS_DEBUG
 	if (dict_index_is_spatial(index)) {
 		fprintf(stderr, "Page no: %lu\n", page_get_page_no(page));
 	}

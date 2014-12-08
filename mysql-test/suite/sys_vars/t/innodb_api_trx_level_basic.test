@@ -19,20 +19,24 @@ SELECT @@global.innodb_api_trx_level;
 SELECT @@session.innodb_api_trx_level;
 SHOW global variables LIKE 'innodb_api_trx_level';
 SHOW session variables LIKE 'innodb_api_trx_level';
+--disable_warnings
 SELECT * FROM information_schema.global_variables 
 WHERE variable_name='innodb_api_trx_level';
 SELECT * FROM information_schema.session_variables 
 WHERE variable_name='innodb_api_trx_level';
+--enable_warnings
 
 #
 # show that it's writable
 #
 SET global innodb_api_trx_level=100;
 SELECT @@global.innodb_api_trx_level;
+--disable_warnings
 SELECT * FROM information_schema.global_variables 
 WHERE variable_name='innodb_api_trx_level';
 SELECT * FROM information_schema.session_variables 
 WHERE variable_name='innodb_api_trx_level';
+--enable_warnings
 --error ER_GLOBAL_VARIABLE
 SET session innodb_api_trx_level=1;
 
@@ -47,8 +51,10 @@ SET global innodb_api_trx_level=1e1;
 SET global innodb_api_trx_level="foo";
 SET global innodb_api_trx_level=-7;
 SELECT @@global.innodb_api_trx_level;
+--disable_warnings
 SELECT * FROM information_schema.global_variables 
 WHERE variable_name='innodb_api_trx_level';
+--enable_warnings
 
 #
 # cleanup

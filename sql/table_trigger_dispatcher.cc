@@ -17,7 +17,6 @@
 #define MYSQL_LEX 1
 
 #include "my_global.h"
-#include "sql_priv.h"
 #include "sp_head.h"                // sp_head
 #include "sql_parse.h"              // create_default_definer
 #include "sql_show.h"               // append_definer

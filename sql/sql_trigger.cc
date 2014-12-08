@@ -26,6 +26,8 @@
 #include "sql_parse.h"                // check_table_access()
 #include "trigger_loader.h"           // Trigger_loader
 #include "table_trigger_dispatcher.h" // Table_trigger_dispatcher
+#include "binlog.h"
+
 #include "mysql/psi/mysql_sp.h"
 
 ///////////////////////////////////////////////////////////////////////////

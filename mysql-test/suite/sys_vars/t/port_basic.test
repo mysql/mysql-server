@@ -9,10 +9,12 @@ select @@session.port;
 show global variables like 'port';
 --replace_result $MASTER_MYPORT MASTER_MYPORT
 show session variables like 'port';
+--disable_warnings
 --replace_result $MASTER_MYPORT MASTER_MYPORT
 select * from information_schema.global_variables where variable_name='port';
 --replace_result $MASTER_MYPORT MASTER_MYPORT
 select * from information_schema.session_variables where variable_name='port';
+--enable_warnings
 
 #
 # show that it's read-only

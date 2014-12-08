@@ -10,8 +10,10 @@ select @@global.innodb_page_hash_locks;
 select @@session.innodb_page_hash_locks;
 show global variables like 'innodb_page_hash_locks';
 show session variables like 'innodb_page_hash_locks';
+--disable_warnings
 select * from information_schema.global_variables where variable_name='innodb_page_hash_locks';
 select * from information_schema.session_variables where variable_name='innodb_page_hash_locks';
+--enable_warnings
 
 #
 # show that it's read-only

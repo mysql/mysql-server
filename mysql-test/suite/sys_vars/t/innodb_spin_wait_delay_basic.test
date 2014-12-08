@@ -18,16 +18,20 @@ select @@global.innodb_spin_wait_delay;
 select @@session.innodb_spin_wait_delay;
 show global variables like 'innodb_spin_wait_delay';
 show session variables like 'innodb_spin_wait_delay';
+--disable_warnings
 select * from information_schema.global_variables where variable_name='innodb_spin_wait_delay';
 select * from information_schema.session_variables where variable_name='innodb_spin_wait_delay';
+--enable_warnings
 
 #
 # show that it's writable
 #
 set global innodb_spin_wait_delay=10;
 select @@global.innodb_spin_wait_delay;
+--disable_warnings
 select * from information_schema.global_variables where variable_name='innodb_spin_wait_delay';
 select * from information_schema.session_variables where variable_name='innodb_spin_wait_delay';
+--enable_warnings
 --error ER_GLOBAL_VARIABLE
 set session innodb_spin_wait_delay=1;
 
@@ -66,7 +70,9 @@ set global innodb_spin_wait_delay=-7;
 select @@global.innodb_spin_wait_delay;
 set global innodb_spin_wait_delay=-1024;
 select @@global.innodb_spin_wait_delay;
+--disable_warnings
 select * from information_schema.global_variables where variable_name='innodb_spin_wait_delay';
+--enable_warnings
 
 #
 # Check for out of bounds

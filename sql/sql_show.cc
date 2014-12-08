@@ -17,7 +17,6 @@
 /* Function with list databases, tables or fields */
 
 #include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
-#include "sql_priv.h"
 #include "sql_select.h"
 #include "sql_base.h"                       // close_tables_for_reopen
 #include "sql_show.h"
@@ -61,6 +60,7 @@
 #include "mutex_lock.h"
 #include "prealloced_array.h"
 #include "template_utils.h"
+#include "log.h"
 
 #include <algorithm>
 #include <functional>
