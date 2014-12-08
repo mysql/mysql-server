@@ -31,7 +31,6 @@ Created 9/20/1997 Heikki Tuuri
 #include "buf0types.h"
 #include "hash0hash.h"
 #include "log0log.h"
-#include "log0types.h"
 #include "mtr0types.h"
 #include "ut0new.h"
 

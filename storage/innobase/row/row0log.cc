@@ -29,16 +29,15 @@ Created 2011-05-26 Marko Makela
 #include "row0log.ic"
 #endif
 
-#include "data0data.h"
-#include "handler0alter.h"
-#include "que0que.h"
-#include "row0ext.h"
-#include "row0ins.h"
-#include "row0merge.h"
 #include "row0row.h"
+#include "row0ins.h"
 #include "row0upd.h"
+#include "row0merge.h"
+#include "row0ext.h"
+#include "data0data.h"
+#include "que0que.h"
 #include "srv0mon.h"
-#include "srv0srv.h"
+#include "handler0alter.h"
 #include "ut0new.h"
 #include "ut0stage.h"
 

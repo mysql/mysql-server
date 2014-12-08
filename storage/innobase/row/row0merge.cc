@@ -26,11 +26,6 @@ Completed by Sunny Bains and Marko Makela
 
 #include <math.h>
 
-#include "my_global.h"
-
-#include "mysql/psi/mysql_stage.h"
-#include "mysql/psi/psi.h"
-
 #include "ha_prototypes.h"
 
 #include "row0merge.h"
@@ -2983,6 +2978,7 @@ row_merge_insert_index_tuples(
 		}
 	}
 
+
 	for (;;) {
 		const mrec_t*	mrec;
 		ulint		n_ext;
@@ -2994,7 +2990,7 @@ row_merge_insert_index_tuples(
 		}
 #endif /* HAVE_PSI_STAGE_INTERFACE */
 
-		if (row_buf != NULL) {
+		 if (row_buf != NULL) {
 			if (n_rows >= row_buf->n_tuples) {
 				break;
 			}
