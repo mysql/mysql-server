@@ -906,7 +906,7 @@ void Dblqh::startphase1Lab(Signal* signal, Uint32 _dummy, Uint32 ownNodeId)
 
   if (do_init)
   {
-    g_eventLogger->info("LDM instance %u: Starting REDO log initialisation",
+    g_eventLogger->info("LDM(%u): Starting REDO log initialisation",
                         instance());
   }
   ndbrequire(cnoLogFiles != 0);
@@ -978,9 +978,9 @@ void Dblqh::startphase1Lab(Signal* signal, Uint32 _dummy, Uint32 ownNodeId)
   if (!do_init)
   {
     jam();
-    g_eventLogger->info("LDM instance %u: Started LDM restart phase 1"
-                        " (read REDO log page headers for initialisation"
-                        " of REDO log data structures)",
+    g_eventLogger->info("LDM(%u): Started LDM restart phase 1"
+                        " (read REDO log page headers to init"
+                        " REDO log data)",
                         instance());
     sendNdbSttorryLab(signal);
   }
@@ -13193,7 +13193,7 @@ Dblqh::execPREPARE_COPY_FRAG_REQ(Signal* signal)
   if (c_fragmentCopyStart == 0)
   {
     c_fragmentCopyStart = NdbTick_CurrentMillisecond();
-    g_eventLogger->info("LDM instance %u: Starting to copy fragments.",
+    g_eventLogger->info("LDM(%u): Starting to copy fragments.",
                         instance());
   }
   c_fragmentsCopied++;
@@ -15237,8 +15237,8 @@ void Dblqh::sendLCP_COMPLETE_REP(Signal* signal, Uint32 lcpId)
   lcpPtr.i = 0;
   ptrAss(lcpPtr, lcpRecord);
 
-  infoEvent("LDM instance %u: Completed LCP, num fragments = %u"
-            " num records = %llu, num bytes = %llu",
+  infoEvent("LDM(%u): Completed LCP, #frags = %u"
+            " #records = %llu, #bytes = %llu",
             instance(),
             cnoOfFragsCheckpointed,
             lcpPtr.p->m_no_of_records,
@@ -16966,7 +16966,7 @@ void Dblqh::closingInitLab(Signal* signal)
 void Dblqh::checkInitCompletedLab(Signal* signal) 
 {
   logPartPtr.p->logPartState = LogPartRecord::SR_FIRST_PHASE_COMPLETED;
-  g_eventLogger->info("LDM instance %u: Completed REDO log initialisation of"
+  g_eventLogger->info("LDM(%u): Completed REDO log initialisation of"
                       " logPart = %u",
                       instance(),
                       logPartPtr.i);
@@ -17004,7 +17004,7 @@ void Dblqh::checkInitCompletedLab(Signal* signal)
 #ifdef VM_TRACE
   enable_global_variables();
 #endif
-  g_eventLogger->info("LDM instance %u: Completed REDO initialisation",
+  g_eventLogger->info("LDM(%u): Completed REDO initialisation",
                       instance());
   logfileInitCompleteReport(signal);
   sendNdbSttorryLab(signal);
@@ -17924,7 +17924,7 @@ void Dblqh::closingSrLab(Signal* signal)
   /* ------------------------------------------------------------------------
    *       THE FIRST PHASE HAVE BEEN COMPLETED.
    * ------------------------------------------------------------------------ */
-  g_eventLogger->info("LDM instance %u:"
+  g_eventLogger->info("LDM(%u):"
                       "Ready to start execute REDO log phase,"
                       " prepare REDO log phase completed",
                       instance());
@@ -18425,7 +18425,7 @@ void Dblqh::execSTART_RECCONF(Signal* signal)
   jam();
   csrExecUndoLogState = EULS_COMPLETED;
 
-  g_eventLogger->info("LDM instance %u: Completed DD Undo log application",
+  g_eventLogger->info("LDM(%u): Completed DD Undo log application",
                       instance());
 
   sendLOCAL_RECOVERY_COMPLETE_REP(signal,
@@ -18439,7 +18439,7 @@ void Dblqh::execSTART_RECCONF(Signal* signal)
     return;
   }
 
-  g_eventLogger->info("LDM instance %u: Starting REDO log execution"
+  g_eventLogger->info("LDM(%u): Starting REDO log execution"
                       " phase %u",
                       instance(), 
                       csrPhasesCompleted);
@@ -18493,7 +18493,7 @@ Dblqh::rebuildOrderedIndexes(Signal* signal, Uint32 tableId)
   if (tableId == 0)
   {
     jam();
-    g_eventLogger->info("LDM instance %u: Starting to rebuild ordered indexes",
+    g_eventLogger->info("LDM(%u): Starting to rebuild ordered indexes",
                         instance());
 
     sendLOCAL_RECOVERY_COMPLETE_REP(signal,
@@ -18538,7 +18538,7 @@ Dblqh::rebuildOrderedIndexes(Signal* signal, Uint32 tableId)
     sendSignal(cmasterDihBlockref, GSN_START_RECCONF, signal,
                StartRecConf::SignalLength, JBB);
 
-    g_eventLogger->info("LDM instance %u: We have completed restoring our"
+    g_eventLogger->info("LDM(%u): We have completed restoring our"
                         " fragments and executed REDO log and rebuilt"
                         " ordered indexes",
                         instance());
@@ -18591,7 +18591,7 @@ Dblqh::execBUILD_INDX_IMPL_CONF(Signal* signal)
   BuildIndxImplConf * conf = (BuildIndxImplConf*)signal->getDataPtr();
   Uint32 tableId = conf->senderData;
   rebuildOrderedIndexes(signal, tableId + 1);
-  g_eventLogger->info("LDM instance %u: index id %u rebuild done",
+  g_eventLogger->info("LDM(%u): index id %u rebuild done",
                       instance(),
                       tableId);
 }
@@ -18775,7 +18775,7 @@ void Dblqh::execEXEC_SRCONF(Signal* signal)
   jamEntry();
   Uint32 nodeId = signal->theData[0];
   arrGuard(nodeId, MAX_NDB_NODES);
-  g_eventLogger->info("LDM instance %u: Node %u completed LDM start"
+  g_eventLogger->info("LDM(%u): Node %u completed LDM restart"
                       " phase 3",
                       instance(),
                       nodeId);
@@ -18846,7 +18846,7 @@ void Dblqh::execSrCompletedLab(Signal* signal)
      * HAVE TO FIND THE ACTUAL PAGE NUMBER AND PAGE INDEX WHERE TO 
      * CONTINUE WRITING THE LOG AFTER THE SYSTEM RESTART.
      * --------------------------------------------------------------------- */
-    g_eventLogger->info("LDM instance %u: REDO log execution completed, now"
+    g_eventLogger->info("LDM(%u): REDO log execution completed, now"
                         " finding the new log head + tail",
                         instance());
 
@@ -18894,7 +18894,7 @@ void Dblqh::execSrCompletedLab(Signal* signal)
      *   WE MUST INITIALISE DATA FOR NEXT PHASE AND SEND START SIGNAL.
      * --------------------------------------------------------------------- */
     csrPhaseStarted = ZSR_PHASE1_COMPLETED; // Set correct state first...
-    g_eventLogger->info("LDM instance %u: Starting REDO log execution"
+    g_eventLogger->info("LDM(%u): Starting REDO log execution"
                         " phase %u",
                         instance(), 
                         csrPhasesCompleted);
@@ -18911,7 +18911,7 @@ void Dblqh::execEXEC_SRREQ(Signal* signal)
   jamEntry();
   Uint32 nodeId = signal->theData[0];
   ndbrequire(nodeId < MAX_NDB_NODES);
-  g_eventLogger->info("LDM instance %d: Node %u ready to execute REDO log",
+  g_eventLogger->info("LDM(%u): Node %u ready to execute REDO log",
                       instance(),
                       nodeId);
   m_sr_exec_sr_req.set(nodeId);
@@ -18927,7 +18927,7 @@ void Dblqh::execEXEC_SRREQ(Signal* signal)
    * ----------------------------------------------------------------------- */
   m_sr_exec_sr_req.clear();
 
-  g_eventLogger->info("LDM instance %u: All starting nodes ready"
+  g_eventLogger->info("LDM(%u): All starting nodes ready"
                       " to execute REDO log.  Phases completed = %u",
                       instance(),
                       csrPhasesCompleted);
@@ -18953,7 +18953,7 @@ void Dblqh::execEXEC_SRREQ(Signal* signal)
    *  COMPLETED. THIS HANDLING IS PERFORMED IN THE FILE SYSTEM MODULE
    * ----------------------------------------------------------------------- */
 
-  g_eventLogger->info("LDM instance %u:"
+  g_eventLogger->info("LDM(%u):"
                       "Ready to start execute REDO log phase,"
                       " collect REDO log execution info phase completed",
                       instance());
@@ -19101,7 +19101,7 @@ void Dblqh::srGciLimits(Signal* signal)
 
     logFilePtr.i = logPartPtr.p->lastLogfile;
     ptrCheckGuard(logFilePtr, clogFileFileSize, logFileRecord);
-    g_eventLogger->info("LDM instance %u: Log part %u will execute REDO log"
+    g_eventLogger->info("LDM(%u): Log part %u will execute REDO log"
                         " records from GCI %u -> %u and last log file is "
                         "number %u and last MByte in this file is %u",
                         instance(), 
@@ -19276,7 +19276,7 @@ void Dblqh::srLogLimits(Signal* signal)
     ptrCheckGuard(logFilePtr, clogFileFileSize, logFileRecord);
     logFilePtr.p->logFileStatus = LogFileRecord::OPEN_EXEC_SR_START;
     openFileRw(signal, logFilePtr);
-    g_eventLogger->info("LDM instance %u: Start executing REDO log for"
+    g_eventLogger->info("LDM(%u): Start executing REDO log for"
                         " part %u",
                         instance(),
                         logPartPtr.p->logPartNo);
@@ -19287,7 +19287,7 @@ void Dblqh::srLogLimits(Signal* signal)
   {
     jam();
 
-    g_eventLogger->info("LDM instance %u: Found log limits for REDO"
+    g_eventLogger->info("LDM(%u): Found log limits for REDO"
                         " post-restart for log part %u",
                         instance(),
                         logPartPtr.p->logPartNo);
@@ -20548,13 +20548,13 @@ void Dblqh::execLogComp(Signal* signal)
   ptrCheckGuard(tcConnectptr, ctcConnectrecFileSize, tcConnectionrec);
   logPartPtr.p->logTcConrec = RNIL;
   releaseTcrecLog(signal, tcConnectptr);
-  g_eventLogger->info("LDM instance %u: Completed REDO log execution on"
+  g_eventLogger->info("LDM(%u): Completed REDO log execution on"
                       " part %u, ops executed = %llu, bytes executed = %llu,",
                       instance(),
                       logPartPtr.p->logPartNo,
                       logPartPtr.p->m_redoWorkStats.m_opsExecuted,
                       logPartPtr.p->m_redoWorkStats.m_bytesExecuted);
-  g_eventLogger->info("LDM instance %u: Log part %u stats:"
+  g_eventLogger->info("LDM(%u): Log part %u stats:"
                       " ops skipped = %llu, ops prepared %llu,"
                       " pages read = %llu,"
                       " GCIs executed = %u",
@@ -20680,7 +20680,7 @@ void Dblqh::srPhase3Comp(Signal* signal)
 {
   jamEntry();
 
-  g_eventLogger->info("LDM instance %u: Completed LDM start phase 3",
+  g_eventLogger->info("LDM(%u): Completed LDM start phase 3",
                       instance());
 
   signal->theData[0] = cownNodeid;
@@ -20904,7 +20904,7 @@ void Dblqh::srFourthComp(Signal* signal)
   ptrCheckGuard(logPartPtr, clogPartFileSize, logPartRecord);
   logPartPtr.p->logPartState = LogPartRecord::SR_FOURTH_PHASE_COMPLETED;
 
-  g_eventLogger->info("LDM instance %u: Completed old Redo head invalidation"
+  g_eventLogger->info("LDM(%u): Completed old Redo head invalidation"
                       " on log part %u",
                       instance(),
                       logPartPtr.p->logPartNo);
@@ -20939,7 +20939,7 @@ void Dblqh::srFourthComp(Signal* signal)
     logPartPtr.p->logPartState = LogPartRecord::IDLE;
   }//for
 
-  g_eventLogger->info("LDM instance %u: All redo actions complete (apply,"
+  g_eventLogger->info("LDM(%u): All redo actions complete (apply,"
                       " invalidate)",
                       instance());
 
@@ -24889,7 +24889,7 @@ Dblqh::execDUMP_STATE_ORD(Signal* signal)
 
     if (c_fragmentCopyStart == 0)
     {
-      infoEvent("LDM instance %u: CopyFrag complete no fragments copied",
+      infoEvent("LDM(%u): CopyFrag complete no fragments copied",
                 instance());
       return;
     }
@@ -24900,7 +24900,7 @@ Dblqh::execDUMP_STATE_ORD(Signal* signal)
      
     rate = (c_totalBytesCopied * 1000) / duration;
 
-    infoEvent("LDM instance %u: CopyFrag complete. %u frags,"
+    infoEvent("LDM(%u): CopyFrag complete. %u frags,"
               " +%llu/-%llu rows, "
               "%llu bytes/%llu ms %llu bytes/s.",
               instance(),
@@ -26405,13 +26405,13 @@ Dblqh::mark_end_of_lcp_restore(Signal* signal)
   /* Todo : Summarise non-trans copy stats if relevant */
 
   /* Summarise our work */
-  g_eventLogger->info("LDM instance %u: Completed fuzzy restore %u fragments (%u from LCP,"
+  g_eventLogger->info("LDM(%u): Completed fuzzy restore %u fragments (%u from LCP,"
                       " %u by non-trans copy)",
                       instance(),
                       c_fragmentsStarted,
                       c_fragmentsStarted - c_fragmentsStartedWithCopy,
                       c_fragmentsStartedWithCopy);
-  g_eventLogger->info("LDM instance %u: Starting DD Undo log application",
+  g_eventLogger->info("LDM(%u): Starting DD Undo log application",
                       instance());
 
   sendLOCAL_RECOVERY_COMPLETE_REP(signal,
@@ -26443,7 +26443,7 @@ Dblqh::log_fragment_copied(Signal* signal)
                            : 0);
   
   /* Have already copied a fragment...report on it now */
-  g_eventLogger->info("LDM instance %u: Completed copy of fragment T%uF%u. "
+  g_eventLogger->info("LDM(%u): Completed copy of fragment T%uF%u. "
                       "Changed +%llu/-%llu rows, %llu bytes. "
                       "%llu pct churn to %llu rows.",
                       instance(),
