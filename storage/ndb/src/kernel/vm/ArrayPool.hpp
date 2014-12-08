@@ -83,6 +83,15 @@ public:
     return size - noOfFreeMin;
   }
 
+  /**
+    Set the low water mark equal to the current value, so that we can track
+    the lowest value seen after this call.
+   */
+  void resetFreeMin()
+  {
+    noOfFreeMin = noOfFree;
+  }
+
   inline void updateFreeMin(void) {
     if (noOfFree < noOfFreeMin)
       noOfFreeMin = noOfFree;
