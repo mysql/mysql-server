@@ -1335,18 +1335,18 @@ log_flush_margin(void)
 	}
 }
 
-/****************************************************************//**
-Advances the smallest lsn for which there are unflushed dirty blocks in the
-buffer pool. NOTE: this function may only be called if the calling thread owns
-no synchronization objects!
+/** Advances the smallest lsn for which there are unflushed dirty blocks in the
+buffer pool.
+NOTE: this function may only be called if the calling thread owns no
+synchronization objects!
+@param[in]	new_oldest	try to advance oldest_modified_lsn at least to
+this lsn
 @return false if there was a flush batch of the same type running,
 which means that we could not start this flush batch */
 static
 bool
 log_preflush_pool_modified_pages(
-/*=============================*/
-	lsn_t	new_oldest,	/*!< in: try to advance oldest_modified_lsn
-				at least to this lsn */
+	lsn_t			new_oldest,
 	ut_stage_alter_t*	stage = NULL)
 {
 	bool	success;

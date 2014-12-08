@@ -209,6 +209,7 @@ bool
 log_checkpoint(
 	bool	sync,
 	bool	write_always);
+
 /** Make a checkpoint at or after a specified LSN.
 @param[in]	lsn		the log sequence number, or LSN_MAX
 for the latest LSN

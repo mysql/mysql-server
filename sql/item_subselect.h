@@ -18,8 +18,6 @@
 
 /* subselect Item */
 
-#include "sql_priv.h" // UNCACHEABLE_DEPENDENT
-
 class st_select_lex;
 class st_select_lex_unit;
 class JOIN;
