@@ -550,7 +550,7 @@ public:
   uint32_t flags2;
   /* In connections sql_mode is 32 bits now but will be 64 bits soon */
   uint64_t sql_mode;
-  unsigned int auto_increment_increment, auto_increment_offset;
+  uint16_t auto_increment_increment, auto_increment_offset;
   char charset[6];
   size_t time_zone_len; /* 0 means uninited */
   /*

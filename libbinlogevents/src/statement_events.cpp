@@ -56,8 +56,8 @@ Query_event::Query_event(const char* query_arg, const char* catalog_arg,
   status_vars_len(0), q_len(query_length),
   flags2_inited(1), sql_mode_inited(1), charset_inited(1),
   sql_mode(sql_mode_arg),
-  auto_increment_increment(static_cast<unsigned int>(auto_increment_increment_arg)),
-  auto_increment_offset(static_cast<unsigned int>(auto_increment_offset_arg)),
+  auto_increment_increment(static_cast<uint16_t>(auto_increment_increment_arg)),
+  auto_increment_offset(static_cast<uint16_t>(auto_increment_offset_arg)),
   time_zone_len(0), lc_time_names_number(number),
   charset_database_number(0),
   table_map_for_update(table_map_for_update_arg),
@@ -226,9 +226,9 @@ Query_event::Query_event(const char* buf, unsigned int event_len,
     case Q_AUTO_INCREMENT:
       CHECK_SPACE(pos, end, 4);
       memcpy(&auto_increment_increment, pos, sizeof(auto_increment_increment));
-      auto_increment_increment= le16toh(static_cast<uint16_t>(auto_increment_increment));
+      auto_increment_increment= le16toh(auto_increment_increment);
       memcpy(&auto_increment_offset, pos + 2, sizeof(auto_increment_offset));
-      auto_increment_offset= le16toh(static_cast<uint16_t>(auto_increment_offset));
+      auto_increment_offset= le16toh(auto_increment_offset);
       pos+= 4;
       break;
     case Q_CHARSET_CODE:
