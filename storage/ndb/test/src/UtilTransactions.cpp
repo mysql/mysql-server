@@ -1177,7 +1177,7 @@ UtilTransactions::verifyOrderedIndex(Ndb* pNdb,
 	  closeTransaction(pNdb);
 	  return NDBT_FAILED;
 	}
-        iop->close();
+        iop->close(false,true);  // Close, and release 'iop'
         iop = NULL;
       }
     } // while 'pOp->nextResult()'
