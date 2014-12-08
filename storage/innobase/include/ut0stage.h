@@ -87,6 +87,11 @@ public:
 
 	~ut_stage_alter_t()
 	{
+		/* Set completed = estimated before we quit. */
+		mysql_stage_set_work_completed(
+			m_progress,
+			mysql_stage_get_work_estimated(m_progress));
+
 		mysql_end_stage();
 	}
 
