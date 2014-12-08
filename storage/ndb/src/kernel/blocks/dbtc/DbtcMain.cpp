@@ -2486,9 +2486,8 @@ void Dbtc::initApiConnectRec(Signal* signal,
   regApiPtr->singleUserMode = 0;
   regApiPtr->m_pre_commit_pass = 0;
   regApiPtr->cascading_scans_count = 0;
-  // Trigger data
-  ndbassert(regApiPtr->theFiredTriggers.isEmpty());
-  releaseFiredTriggerData(&regApiPtr->theFiredTriggers);
+  // FiredTriggers should have been released when previous transaction ended. 
+  ndbrequire(regApiPtr->theFiredTriggers.isEmpty());
   // Index data
   tc_clearbit(regApiPtr->m_flags,
               ApiConnectRecord::TF_INDEX_OP_RETURN);
@@ -15878,6 +15877,7 @@ void Dbtc::execFIRE_TRIG_ORD(Signal* signal)
   key.fireingOperation = opPtr.i;
   key.nodeId = refToNode(signal->getSendersBlockRef());
   FiredTriggerPtr trigPtr;
+  bool ok = transIdOk;
 
   if (likely(longsignal && transIdOk))
   {
@@ -15892,11 +15892,12 @@ void Dbtc::execFIRE_TRIG_ORD(Signal* signal)
     else
     {
       jam();
-      transIdOk = false;
+      ok = false;
     }
   }
 
-  if (likely((longsignal && transIdOk) ||
+  Uint32 errorCode = ZTOO_MANY_FIRED_TRIGGERS;
+  if (likely((longsignal && ok) ||
              c_firedTriggerHash.find(trigPtr, key)))
   {
     jam();
@@ -15919,7 +15920,6 @@ void Dbtc::execFIRE_TRIG_ORD(Signal* signal)
       trigPtr.p->triggerEvent = ptr.p->triggerEvent;
     }
     trigPtr.p->fragId= fireOrd->fragId;
-    bool ok = transIdOk;
     if (longsignal)
     {
       jam();
@@ -15976,6 +15976,7 @@ void Dbtc::execFIRE_TRIG_ORD(Signal* signal)
      *     : Release resources
      */
     jam();
+    errorCode = ZINCONSISTENT_TRIGGER_STATE;
     // Release trigger records
     AttributeBuffer::DataBufferPool & pool = c_theAttributeBufferPool;
     LocalDataBuffer<11> tmp1(pool, trigPtr.p->keyValues);
@@ -16000,7 +16001,7 @@ void Dbtc::execFIRE_TRIG_ORD(Signal* signal)
   if (transIdOk)
   {
     jam();
-    abortTransFromTrigger(signal, transPtr, ZGET_DATAREC_ERROR);
+    abortTransFromTrigger(signal, transPtr, errorCode);
   }
 
   return;
@@ -16527,10 +16528,10 @@ bool Dbtc::receivedAllINDXATTRINFO(TcIndexOperation* indexOp)
 extern bool ErrorImportActive;
 #endif
 
-bool  Dbtc::saveTRANSID_AI(Signal* signal,
-			   TcIndexOperation* indexOp, 
-                           const Uint32 *src,
-                           Uint32 len)
+Uint32 Dbtc::saveTRANSID_AI(Signal* signal,
+                            TcIndexOperation* indexOp, 
+                            const Uint32 *src,
+                            Uint32 len)
 {
   /* TransID_AI is received as a result of looking up a
    * unique index table
@@ -16657,7 +16658,7 @@ bool  Dbtc::saveTRANSID_AI(Signal* signal,
       releaseIndexOperation(apiConnectptr.p, indexOp);
       terrorCode = ZGET_DATAREC_ERROR;
       abortErrorLab(signal);
-      return false;
+      return ZGET_DATAREC_ERROR;
     }
 
     case ITAS_ALL_RECEIVED:
@@ -16673,16 +16674,16 @@ bool  Dbtc::saveTRANSID_AI(Signal* signal,
       apiConnectptr.i = indexOp->connectionIndex;
       ptrCheckGuard(apiConnectptr, capiConnectFilesize, apiConnectRecord);
       releaseIndexOperation(apiConnectptr.p, indexOp);
-      terrorCode = 4349;
+      terrorCode = ZINCONSISTENT_INDEX_USE;
       abortErrorLab(signal);
-      return false;
+      return ZINCONSISTENT_INDEX_USE;
     } // switch
   } // while
 
   if ((indexOp->pendingTransIdAI-= len) == 0)
     indexOp->transIdAIState = ITAS_ALL_RECEIVED;
   
-  return true;
+  return ZOK;
 }
 
 bool Dbtc::receivedAllTRANSID_AI(TcIndexOperation* indexOp)
@@ -16729,7 +16730,7 @@ void Dbtc::execTCKEYCONF(Signal* signal)
     tcIndxRef->connectPtr = indexOp->tcIndxReq.senderData;
     tcIndxRef->transId[0] = regApiPtr->transid[0];
     tcIndxRef->transId[1] = regApiPtr->transid[1];
-    tcIndxRef->errorCode = 4349;    
+    tcIndxRef->errorCode = ZINCONSISTENT_INDEX_USE;    
     tcIndxRef->errorData = 0;
     sendSignal(regApiPtr->ndbapiBlockref, GSN_TCINDXREF, signal, 
 	       TcKeyRef::SignalLength, JBB);
@@ -16749,7 +16750,7 @@ void Dbtc::execTCKEYCONF(Signal* signal)
     tcIndxRef->connectPtr = indexOp->tcIndxReq.senderData;
     tcIndxRef->transId[0] = regApiPtr->transid[0];
     tcIndxRef->transId[1] = regApiPtr->transid[1];
-    tcIndxRef->errorCode = 4349;    
+    tcIndxRef->errorCode = ZINCONSISTENT_INDEX_USE;    
     tcIndxRef->errorData = 0;
     sendSignal(regApiPtr->ndbapiBlockref, GSN_TCINDXREF, signal, 
 	       TcKeyRef::SignalLength, JBB);
@@ -16882,6 +16883,7 @@ void Dbtc::execTRANSID_AI(Signal* signal)
   // Acccumulate attribute data
   SectionHandle handle(this, signal);
   bool longSignal = (handle.m_cnt == 1);
+  Uint32 errorCode = ZOK;
   if (longSignal)
   {
     SegmentedSectionPtr dataPtr;
@@ -16892,8 +16894,9 @@ void Dbtc::execTRANSID_AI(Signal* signal)
     SectionSegment * ptrP = dataPtr.p;
     while (dataLen > NDB_SECTION_SEGMENT_SZ)
     {
-      if (!saveTRANSID_AI(signal, indexOp, &ptrP->theData[0],
-                          NDB_SECTION_SEGMENT_SZ))
+      errorCode = saveTRANSID_AI(signal, indexOp, &ptrP->theData[0],
+                                 NDB_SECTION_SEGMENT_SZ);
+      if (errorCode != ZOK)
       {
         releaseSections(handle);
         goto save_error;
@@ -16901,7 +16904,8 @@ void Dbtc::execTRANSID_AI(Signal* signal)
       dataLen -= NDB_SECTION_SEGMENT_SZ;
       ptrP = g_sectionSegmentPool.getPtr(ptrP->m_nextSegment);
     }
-    if (!saveTRANSID_AI(signal, indexOp, &ptrP->theData[0], dataLen))
+    errorCode = saveTRANSID_AI(signal, indexOp, &ptrP->theData[0], dataLen);
+    if (errorCode != ZOK)
     {
       releaseSections(handle);
       goto save_error;
@@ -16912,10 +16916,11 @@ void Dbtc::execTRANSID_AI(Signal* signal)
   else
   {
     /* Short TransId_AI signal */
-    if (!saveTRANSID_AI(signal,
-                        indexOp,
-                        transIdAI->getData(),
-                        signal->getLength() - TransIdAI::HeaderLength)) {
+    errorCode = saveTRANSID_AI(signal,
+                               indexOp,
+                               transIdAI->getData(),
+                               signal->getLength() - TransIdAI::HeaderLength);
+    if (errorCode != ZOK) {
     save_error:
       jam();
       // Failed to allocate space for TransIdAI
@@ -16926,7 +16931,7 @@ void Dbtc::execTRANSID_AI(Signal* signal)
       tcIndxRef->connectPtr = indexOp->tcIndxReq.senderData;
       tcIndxRef->transId[0] = regApiPtr->transid[0];
       tcIndxRef->transId[1] = regApiPtr->transid[1];
-      tcIndxRef->errorCode = ZGET_DATAREC_ERROR;
+      tcIndxRef->errorCode = errorCode;
       tcIndxRef->errorData = 0;
       sendSignal(regApiPtr->ndbapiBlockref, GSN_TCINDXREF, signal,
                  TcKeyRef::SignalLength, JBB);
@@ -16943,7 +16948,7 @@ void Dbtc::execTRANSID_AI(Signal* signal)
     tcIndxRef->connectPtr = indexOp->tcIndxReq.senderData;
     tcIndxRef->transId[0] = regApiPtr->transid[0];
     tcIndxRef->transId[1] = regApiPtr->transid[1];
-    tcIndxRef->errorCode = 4349;
+    tcIndxRef->errorCode = ZINCONSISTENT_INDEX_USE;
     tcIndxRef->errorData = 0;
     sendSignal(regApiPtr->ndbapiBlockref, GSN_TCINDXREF, signal, 
 	       TcKeyRef::SignalLength, JBB);
@@ -17163,7 +17168,7 @@ void Dbtc::executeIndexOperation(Signal* signal,
     tcIndxRef->connectPtr = indexOp->tcIndxReq.senderData;
     tcIndxRef->transId[0] = regApiPtr->transid[0];
     tcIndxRef->transId[1] = regApiPtr->transid[1];
-    tcIndxRef->errorCode = 4349;    
+    tcIndxRef->errorCode = ZINCONSISTENT_INDEX_USE;    
     tcIndxRef->errorData = 0;
     sendSignal(regApiPtr->ndbapiBlockref, GSN_TCINDXREF, signal, 
 	       TcKeyRef::SignalLength, JBB);
