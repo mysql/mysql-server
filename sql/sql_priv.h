@@ -199,54 +199,6 @@
 #define UNCACHEABLE_UNITED      8
 #define UNCACHEABLE_CHECKOPTION 16
 
-/**
-  Names for different query parse tree parts
-*/
-
-enum enum_parsing_context
-{
-  CTX_NONE= 0, ///< Empty value
-  CTX_MESSAGE, ///< "No tables used" messages etc.
-  CTX_TABLE, ///< for single-table UPDATE/DELETE/INSERT/REPLACE
-  CTX_SELECT_LIST, ///< SELECT (subquery), (subquery)...
-  CTX_UPDATE_VALUE_LIST, ///< UPDATE ... SET field=(subquery)...
-  CTX_JOIN,
-  CTX_QEP_TAB,
-  CTX_MATERIALIZATION,
-  CTX_DUPLICATES_WEEDOUT,
-  CTX_DERIVED, ///< "Derived" subquery
-  CTX_WHERE, ///< Subquery in WHERE clause item tree
-  CTX_ON,    ///< ON clause context
-  CTX_HAVING, ///< Subquery in HAVING clause item tree
-  CTX_ORDER_BY, ///< ORDER BY clause execution context
-  CTX_GROUP_BY, ///< GROUP BY clause execution context
-  CTX_SIMPLE_ORDER_BY, ///< ORDER BY clause execution context
-  CTX_SIMPLE_GROUP_BY, ///< GROUP BY clause execution context
-  CTX_DISTINCT, ///< DISTINCT clause execution context
-  CTX_SIMPLE_DISTINCT, ///< DISTINCT clause execution context
-  CTX_BUFFER_RESULT, ///< see SQL_BUFFER_RESULT in the manual
-  CTX_ORDER_BY_SQ, ///< Subquery in ORDER BY clause item tree
-  CTX_GROUP_BY_SQ, ///< Subquery in GROUP BY clause item tree
-  CTX_OPTIMIZED_AWAY_SUBQUERY, ///< Subquery executed once during optimization
-  CTX_UNION,
-  CTX_UNION_RESULT, ///< Pseudo-table context for UNION result
-  CTX_QUERY_SPEC ///< Inner SELECTs of UNION expression
-};
-
-
-enum enum_var_type
-{
-  OPT_DEFAULT= 0, OPT_SESSION, OPT_GLOBAL
-};
-
-enum enum_yes_no_unknown
-{
-  TVL_YES, TVL_NO, TVL_UNKNOWN
-};
-
-#ifndef DBUG_OFF
-extern void turn_parser_debug_on();
-#endif
 
 #endif /* MYSQL_CLIENT */
 

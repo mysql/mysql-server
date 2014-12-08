@@ -161,18 +161,22 @@ SELECT @@session.max_sort_length;
 ####################################################################
 
 
+--disable_warnings
 SELECT @@global.max_sort_length = VARIABLE_VALUE 
 FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
 WHERE VARIABLE_NAME='max_sort_length';
+--enable_warnings
 
 --echo '#------------------FN_DYNVARS_084_07-----------------------#'
 ####################################################################
 #  Check if the value in SESSION Table matches value in variable   #
 ####################################################################
 
+--disable_warnings
 SELECT @@session.max_sort_length = VARIABLE_VALUE 
 FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
 WHERE VARIABLE_NAME='max_sort_length';
+--enable_warnings
 
 
 --echo '#------------------FN_DYNVARS_084_08-----------------------#'

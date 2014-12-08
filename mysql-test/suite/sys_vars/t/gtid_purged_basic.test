@@ -12,8 +12,10 @@ select @@global.gtid_purged;
 select @@session.gtid_purged;
 show global variables like 'gtid_purged';
 show session variables like 'gtid_purged';
+--disable_warnings
 select * from information_schema.global_variables where variable_name='gtid_purged';
 select * from information_schema.session_variables where variable_name='gtid_purged';
+--enable_warnings
 
 #
 # Try to write when GTID_MODE= OFF.

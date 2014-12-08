@@ -41,17 +41,21 @@ SELECT COUNT(@@GLOBAL.innodb_undo_directory);
 # Check if the value in GLOBAL table matches value in variable                 #
 ################################################################################
 
+--disable_warnings
 SELECT VARIABLE_VALUE
 FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
 WHERE VARIABLE_NAME='innodb_undo_directory';
+--enable_warnings
 --echo . Expected
 
 SELECT COUNT(@@GLOBAL.innodb_undo_directory);
 --echo 1 Expected
 
+--disable_warnings
 SELECT COUNT(VARIABLE_VALUE)
 FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
 WHERE VARIABLE_NAME='innodb_undo_directory';
+--enable_warnings
 --echo 1 Expected
 
 

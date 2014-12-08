@@ -44,6 +44,7 @@
 #include "sql_tmp_table.h"                      // tmp tables
 #include "sql_optimizer.h"                      // remove_eq_conds
 #include "sql_resolver.h"                       // setup_order
+#include "binlog.h"
 
 /**
    True if the table's input and output record buffers are comparable using

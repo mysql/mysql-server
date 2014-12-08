@@ -1,4 +1,8 @@
 --disable_warnings
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
+--enable_warnings
+
+--disable_warnings
 DROP TABLE IF EXISTS t1;
 --enable_warnings
  CREATE TABLE t1 ( c1 INTEGER NOT NULL PRIMARY KEY, c2 CHAR(10)) PARTITION BY RANGE (c1) (
@@ -11,7 +15,6 @@ DROP TABLE IF EXISTS t1;
 SHOW TABLES; 
 INSERT INTO t1 VALUES(0,'abc'),(100,'abc'),(200,'abc'),(300,'abc'),(400,'abc');
 SELECT * FROM t1 ORDER BY c1;
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`; 
 --replace_result $ENGINE ENGINE 
 SHOW CREATE TABLE t1;
 --disable_result_log
@@ -19,7 +22,6 @@ SHOW CREATE TABLE t1;
 ALTER TABLE t1 OPTIMIZE PARTITION p1,p2;
 --enable_result_log
 SELECT * FROM t1 ORDER BY c1;
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`; 
 --replace_result $ENGINE ENGINE 
  SHOW CREATE TABLE t1;
  DROP TABLE t1; SHOW TABLES;

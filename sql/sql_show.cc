@@ -60,6 +60,7 @@
 #include "mutex_lock.h"
 #include "prealloced_array.h"
 #include "template_utils.h"
+#include "log.h"
 
 #include <algorithm>
 #include <functional>

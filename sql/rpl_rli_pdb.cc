@@ -408,7 +408,7 @@ bool Slave_worker::set_info_search_keys(Rpl_info_handler *to)
   DBUG_ENTER("Slave_worker::set_info_search_keys");
 
   /* primary keys are Id and channel_name */
-  if(to->set_info(0, (int)internal_id ) || to->set_info(12, channel))
+  if(to->set_info(0, (int)internal_id ) || to->set_info(LINE_FOR_CHANNEL, channel))
     DBUG_RETURN(TRUE);
 
   DBUG_RETURN(FALSE);

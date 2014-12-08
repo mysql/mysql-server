@@ -19,20 +19,24 @@ SELECT @@global.innodb_rollback_segments;
 SELECT @@session.innodb_rollback_segments;
 SHOW global variables LIKE 'innodb_rollback_segments';
 SHOW session variables LIKE 'innodb_rollback_segments';
+--disable_warnings
 SELECT * FROM information_schema.global_variables 
 WHERE variable_name='innodb_rollback_segments';
 SELECT * FROM information_schema.session_variables 
 WHERE variable_name='innodb_rollback_segments';
+--enable_warnings
 
 #
 # show that it's writable
 #
 SET global innodb_rollback_segments=100;
 SELECT @@global.innodb_rollback_segments;
+--disable_warnings
 SELECT * FROM information_schema.global_variables 
 WHERE variable_name='innodb_rollback_segments';
 SELECT * FROM information_schema.session_variables 
 WHERE variable_name='innodb_rollback_segments';
+--enable_warnings
 --error ER_GLOBAL_VARIABLE
 SET session innodb_rollback_segments=1;
 
@@ -47,8 +51,10 @@ SET global innodb_rollback_segments=1e1;
 SET global innodb_rollback_segments="foo";
 SET global innodb_rollback_segments=-7;
 SELECT @@global.innodb_rollback_segments;
+--disable_warnings
 SELECT * FROM information_schema.global_variables 
 WHERE variable_name='innodb_rollback_segments';
+--enable_warnings
 
 #
 # cleanup
