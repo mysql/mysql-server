@@ -619,7 +619,7 @@ static bool send_server_handshake_packet(MPVIO_EXT *mpvio,
         native_password_plugin will have to send it in a separate packet,
         adding one more round trip.
       */
-      create_random_string(mpvio->scramble, SCRAMBLE_LENGTH, mpvio->rand);
+      generate_user_salt(mpvio->scramble, SCRAMBLE_LENGTH + 1);
       data= mpvio->scramble;
     }
     data_len= SCRAMBLE_LENGTH;
@@ -2426,7 +2426,7 @@ static int native_password_authenticate(MYSQL_PLUGIN_VIO *vio,
 
   /* generate the scramble, or reuse the old one */
   if (mpvio->scramble[SCRAMBLE_LENGTH])
-    create_random_string(mpvio->scramble, SCRAMBLE_LENGTH, mpvio->rand);
+    generate_user_salt(mpvio->scramble, SCRAMBLE_LENGTH + 1);
 
   /* send it to the client */
   if (mpvio->write_packet(mpvio, (uchar*) mpvio->scramble, SCRAMBLE_LENGTH + 1))
@@ -2567,6 +2567,25 @@ int init_sha256_password_handler(MYSQL_PLUGIN plugin_ref)
   return 0;
 }
 
+/**
+
+ @param vio Virtual input-, output interface
+ @param scramble - Scramble to be saved
+
+ Save the scramble in mpvio for future re-use.
+ It is useful when we need to pass the scramble to another plugin.
+ Especially in case when old 5.1 client with no CLIENT_PLUGIN_AUTH capability
+ tries to connect to server with default-authentication-plugin set to
+ sha256_password
+
+*/
+
+void static inline auth_save_scramble(MYSQL_PLUGIN_VIO *vio, const char *scramble)
+{
+  MPVIO_EXT *mpvio= (MPVIO_EXT *) vio;
+  my_stpncpy(mpvio->scramble, scramble, SCRAMBLE_LENGTH+1);
+}
+
 
 /** 
  
@@ -2612,9 +2631,14 @@ http://dev.mysql.com/doc/internals/en/connection-phase-packets.html#packet-Proto
     This plugin must do the same to stay consistent with historical behavior
     if it is set to operate as a default plugin.
   */
-  scramble[SCRAMBLE_LENGTH] = '\0';
   if (vio->write_packet(vio, (unsigned char *) scramble, SCRAMBLE_LENGTH + 1))
     DBUG_RETURN(CR_ERROR);
+
+  /*
+    Save the scramble so it could be used by native plugin in case
+    the authentication on the server side needs to be restarted
+  */
+  auth_save_scramble(vio, scramble);
 
   /*
     After the call to read_packet() the user name will appear in
