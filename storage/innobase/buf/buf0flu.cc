@@ -1262,11 +1262,9 @@ buf_flush_try_neighbors(
 
 	for (ulint i = low; i < high; i++) {
 
-#ifdef HAVE_PSI_STAGE_INTERFACE
 		if (stage != NULL) {
 			stage->one_page_was_processed();
 		}
-#endif /* HAVE_PSI_STAGE_INTERFACE */
 
 		buf_page_t*	bpage;
 
@@ -1940,7 +1938,6 @@ buf_flush_lists(
 		*n_processed = 0;
 	}
 
-#ifdef HAVE_PSI_STAGE_INTERFACE
 	if (stage != NULL) {
 		ulint	pages_to_flush = 0;
 
@@ -1967,7 +1964,6 @@ buf_flush_lists(
 
 		stage->set_n_flush_pages(pages_to_flush);
 	}
-#endif /* HAVE_PSI_STAGE_INTERFACE */
 
 	if (min_n != ULINT_MAX) {
 		/* Ensure that flushing is spread evenly amongst the

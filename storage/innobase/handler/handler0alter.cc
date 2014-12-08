@@ -4607,14 +4607,14 @@ ok_exit:
 	DBUG_ASSERT(ctx->trx);
 	DBUG_ASSERT(ctx->prebuilt == m_prebuilt);
 
-#ifdef HAVE_PSI_STAGE_INTERFACE
-	ut_stage_alter_t*	stage = UT_NEW_NOKEY(ut_stage_alter_t(
-		dict_table_get_first_index(m_prebuilt->table)));
+	dict_index_t*		pk;
+	ut_stage_alter_t*	stage;
+
+	pk = dict_table_get_first_index(m_prebuilt->table);
+	ut_ad(pk != NULL);
+	stage = UT_NEW_NOKEY(ut_stage_alter_t(pk));
 
 	ha_alter_info->alter_info->se_blob = stage;
-#else /* HAVE_PSI_STAGE_INTERFACE */
-	ut_stage_alter_t*	stage = NULL;
-#endif /* HAVE_PSI_STAGE_INTERFACE */
 
 	if (m_prebuilt->table->ibd_file_missing
 	    || dict_table_is_discarded(m_prebuilt->table)) {
@@ -6284,12 +6284,10 @@ ha_innobase::commit_inplace_alter_table(
 
 	DEBUG_SYNC_C("innodb_commit_inplace_alter_table_wait");
 
-#ifdef HAVE_PSI_STAGE_INTERFACE
 	ut_stage_alter_t*	stage = static_cast<ut_stage_alter_t*>(
 		ha_alter_info->alter_info->se_blob);
 
 	stage->begin_phase_end();
-#endif /* HAVE_PSI_STAGE_INTERFACE */
 
 	if (!commit) {
 		/* A rollback is being requested. So far we may at

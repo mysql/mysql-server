@@ -614,7 +614,9 @@ buf_load()
 			end the current stage event. */
 			mysql_stage_set_work_estimated(pfs_stage_progress, i);
 			mysql_stage_set_work_completed(pfs_stage_progress, i);
+#ifdef HAVE_PSI_STAGE_INTERFACE
 			mysql_end_stage();
+#endif /* HAVE_PSI_STAGE_INTERFACE */
 			return;
 		}
 
@@ -636,7 +638,9 @@ buf_load()
 	/* Make sure that estimated = completed when we end. */
 	mysql_stage_set_work_completed(pfs_stage_progress, dump_n);
 	/* End the stage progress event. */
+#ifdef HAVE_PSI_STAGE_INTERFACE
 	mysql_end_stage();
+#endif /* HAVE_PSI_STAGE_INTERFACE */
 }
 
 /*****************************************************************//**

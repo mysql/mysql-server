@@ -2486,6 +2486,13 @@ row_log_estimate_work(
 
 	return(blocks_left * row_log_progress_inc_per_block());
 }
+#else /* HAVE_PSI_STAGE_INTERFACE */
+inline
+ulint
+row_log_progress_inc_per_block()
+{
+	return(0);
+}
 #endif /* HAVE_PSI_STAGE_INTERFACE */
 
 /******************************************************//**
@@ -2552,9 +2559,7 @@ next_block:
 #endif /* UNIV_SYNC_DEBUG */
 	ut_ad(index->online_log->head.bytes == 0);
 
-#ifdef HAVE_PSI_STAGE_INTERFACE
 	stage->one_page_was_processed(row_log_progress_inc_per_block());
-#endif /* HAVE_PSI_STAGE_INTERFACE */
 
 	if (trx_is_interrupted(trx)) {
 		goto interrupted;
@@ -2859,9 +2864,7 @@ row_log_table_apply(
 	DBUG_EXECUTE_IF("innodb_trx_duplicates",
 			thr_get_trx(thr)->duplicates = TRX_DUP_REPLACE;);
 
-#ifdef HAVE_PSI_STAGE_INTERFACE
 	stage->begin_phase_log();
-#endif /* HAVE_PSI_STAGE_INTERFACE */
 
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(!rw_lock_own(&dict_operation_lock, RW_LOCK_S));
@@ -2895,9 +2898,7 @@ row_log_table_apply(
 	DBUG_EXECUTE_IF("innodb_trx_duplicates",
 			thr_get_trx(thr)->duplicates = 0;);
 
-#ifdef HAVE_PSI_STAGE_INTERFACE
 	stage->begin_phase_end();
-#endif /* HAVE_PSI_STAGE_INTERFACE */
 
 	return(error);
 }
