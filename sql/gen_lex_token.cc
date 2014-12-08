@@ -286,6 +286,7 @@ void print_tokens()
 {
   int tok;
 
+  printf("#ifdef LEX_TOKEN_WITH_DEFINITION\n");
   printf("lex_token_string lex_token_array[]=\n");
   printf("{\n");
   printf("/* PART 1: character tokens. */\n");
@@ -313,6 +314,7 @@ void print_tokens()
 
   printf("/* DUMMY */ { \"\", 0, false, false}\n");
   printf("};\n");
+  printf("#endif /* LEX_TOKEN_WITH_DEFINITION */\n");
 
   printf("/* DIGEST specific tokens. */\n");
   printf("#define TOK_GENERIC_VALUE %d\n", tok_generic_value);
