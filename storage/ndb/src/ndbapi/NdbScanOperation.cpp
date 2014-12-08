@@ -2109,6 +2109,15 @@ void NdbScanOperation::close(bool forceSend, bool releaseOp)
     close_impl(forceSend, &poll_guard);
   }
 
+  /* Free buffer used to store scan result set.
+   * Result set lifetime ends when the cursor is closed.
+   */
+  if (m_scan_buffer)
+  {
+    delete[] m_scan_buffer;
+    m_scan_buffer= NULL;
+  }
+
   // Keep in local variables, as "this" might be destructed below
   NdbConnection* tCon = theNdbCon;
   NdbConnection* tTransCon = m_transConnection;
@@ -3983,15 +3992,6 @@ NdbScanOperation::close_impl(bool forceSend, PollGuard *poll_guard)
    * object (old Api only)
    */
   freeInterpretedCodeOldApi();
-
-  /* Free buffer used to store scan result set.
-   * Result set lifetime ends when the cursor is closed.
-   */
-  if (m_scan_buffer)
-  {
-    delete[] m_scan_buffer;
-    m_scan_buffer= NULL;
-  }
 
   return 0;
 }
