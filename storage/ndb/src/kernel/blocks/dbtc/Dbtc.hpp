@@ -96,6 +96,7 @@
 #define ZGET_ATTRBUF_ERROR 217 // Also Scan
 #define ZGET_DATAREC_ERROR 218
 #define ZMORE_AI_IN_TCKEYREQ_ERROR 220
+#define ZTOO_MANY_FIRED_TRIGGERS 221
 #define ZCOMMITINPROGRESS 230
 #define ZROLLBACKNOTALLOWED 232
 #define ZNO_FREE_TC_CONNECTION 233 // Also Scan
@@ -117,6 +118,7 @@
 #define ZNODE_SHUTDOWN_IN_PROGRESS 280
 #define ZCLUSTER_SHUTDOWN_IN_PROGRESS 281
 #define ZWRONG_STATE 282
+#define ZINCONSISTENT_TRIGGER_STATE 293
 #define ZCLUSTER_IN_SINGLEUSER_MODE 299
 
 #define ZDROP_TABLE_IN_PROGRESS 283
@@ -126,6 +128,7 @@
 #define ZINDEX_CORRUPT_ERROR 287
 #define ZSCAN_FRAGREC_ERROR 291
 #define ZMISSING_TRIGGER_DATA 240
+#define ZINCONSISTENT_INDEX_USE 4349
 
 // ----------------------------------------
 // Seize error
@@ -1716,10 +1719,10 @@ private:
                         const Uint32 *src, 
                         Uint32 len);
   bool receivedAllINDXATTRINFO(TcIndexOperation* indexOp);
-  bool  saveTRANSID_AI(Signal* signal,
-		       TcIndexOperation* indexOp, 
-                       const Uint32 *src,
-                       Uint32 len);
+  Uint32 saveTRANSID_AI(Signal* signal,
+                        TcIndexOperation* indexOp, 
+                        const Uint32 *src,
+                        Uint32 len);
   bool receivedAllTRANSID_AI(TcIndexOperation* indexOp);
   void readIndexTable(Signal* signal, 
 		      ApiConnectRecord* regApiPtr,
