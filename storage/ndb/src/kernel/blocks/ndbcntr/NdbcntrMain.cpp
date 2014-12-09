@@ -244,6 +244,15 @@ void Ndbcntr::execSYSTEM_ERROR(Signal* signal)
     }
 
     jamEntry();
+
+    if (ERROR_INSERTED(1004))
+    {
+      jam();
+      g_eventLogger->info("NDBCNTR not shutting down due to GCP stop");
+      return;
+    }
+    CRASH_INSERTION(1005);
+
     break;
   }
   case SystemError::CopyFragRefError:

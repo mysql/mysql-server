@@ -42,6 +42,7 @@
 #include <signaldata/NodePing.hpp>
 #include <signaldata/DihRestart.hpp>
 #include <signaldata/DumpStateOrd.hpp>
+#include <signaldata/IsolateOrd.hpp>
 #include <ndb_version.h>
 
 #include <TransporterRegistry.hpp> // Get connect address
@@ -3445,6 +3446,13 @@ void Qmgr::execDISCONNECT_REP(Signal* signal)
   if (nodeInfo.getType() == NodeInfo::DB)
   {
     c_readnodes_nodes.clear(nodeId);
+
+    if (ERROR_INSERTED(942))
+    {
+      g_eventLogger->info("DISCONNECT_REP received from data node %u - crash insertion",
+                          nodeId);
+      CRASH_INSERTION(942);
+    }
   }
   
   NodeRecPtr nodePtr;
@@ -4157,6 +4165,16 @@ void Qmgr::failReportLab(Signal* signal, Uint16 aFailedNode,
       break;
     case FailRep::ZCONNECT_CHECK_FAILURE:
       msg = "Connectivity check failure";
+      break;
+    case FailRep::ZFORCED_ISOLATION:
+      msg = "Forced isolation";
+      if (ERROR_INSERTED(942))
+      {
+        g_eventLogger->info("FAIL_REP FORCED_ISOLATION received from data node %u - ignoring.",
+                            sourceNode);
+        /* Let's wait for remote disconnection */
+        return;
+      }
       break;
     default:
       msg = "<UNKNOWN>";
@@ -7482,4 +7500,111 @@ Qmgr::execDBINFO_SCANREQ(Signal *signal)
     break;
   }
   ndbinfo_send_scan_conf(signal, req, rl);
+}
+
+
+void
+Qmgr::execISOLATE_ORD(Signal* signal)
+{
+  jamEntry();
+  
+  IsolateOrd* sig = (IsolateOrd*) signal->theData;
+  
+  ndbrequire(sig->senderRef != 0);
+  NdbNodeBitmask victims;
+  victims.assign(NdbNodeBitmask::Size, sig->nodesToIsolate);
+  ndbrequire(!victims.isclear());
+
+  switch (sig->isolateStep)
+  {
+  case IsolateOrd::IS_REQ:
+  {
+    jam();
+    /* Initial request, broadcast immediately */
+
+    /* Need to get the set of live nodes to broadcast to */
+    NdbNodeBitmask hitmen(c_clusterNodes);
+
+    unsigned nodeId = hitmen.find_first();
+    do
+    {
+      jam();
+      if (!ndbd_isolate_ord(getNodeInfo(nodeId).m_version))
+      {
+        jam();
+        /* Node not able to handle ISOLATE_ORD, skip */
+        hitmen.clear(nodeId);
+      }
+
+      nodeId = hitmen.find_next(nodeId + 1);
+    } while (nodeId != BitmaskImpl::NotFound);
+
+    ndbrequire(!hitmen.isclear()); /* At least me */
+
+    NodeReceiverGroup rg(QMGR, hitmen);
+
+    sig->isolateStep = IsolateOrd::IS_BROADCAST;
+    sendSignal(rg, GSN_ISOLATE_ORD, signal, IsolateOrd::SignalLength, JBA);
+    return;
+  }
+  case IsolateOrd::IS_BROADCAST:
+  {
+    jam();
+    /* Received reqest, delay */
+    sig->isolateStep = IsolateOrd::IS_DELAY;
+    
+    if (sig->delayMillis > 0)
+    {
+      /* Delay processing until delayMillis passes */
+      jam();
+      sendSignalWithDelay(reference(), 
+                          GSN_ISOLATE_ORD, 
+                          signal, 
+                          sig->delayMillis, 
+                          IsolateOrd::SignalLength);
+      return;
+    }
+    /* Fall through... */
+  }
+  case IsolateOrd::IS_DELAY:
+  {
+    jam();
+
+    if (ERROR_INSERTED(942))
+    {
+      jam();
+      g_eventLogger->info("QMGR discarding IsolateRequest");
+      return;
+    }
+
+    /* Map to FAIL_REP signal(s) */
+    Uint32 failSource = refToNode(sig->senderRef);
+
+    unsigned nodeId = victims.find_first();
+    do
+    {
+      jam();
+
+      /* TODO : Consider checking node state and skipping if
+       * failing already
+       * Consider logging that action is being taken here
+       */
+
+      FailRep* failRep = (FailRep*)&signal->theData[0];
+      failRep->failNodeId = nodeId;
+      failRep->failCause = FailRep::ZFORCED_ISOLATION;
+      failRep->failSourceNodeId = failSource;
+
+      sendSignal(reference(), GSN_FAIL_REP, signal, 3, JBA);
+      
+      nodeId = victims.find_next(nodeId + 1);
+    } while (nodeId != BitmaskImpl::NotFound);
+    
+    /* Fail rep signals are en-route... */
+    
+    return;
+  }
+  }
+
+  ndbrequire(false);
 }

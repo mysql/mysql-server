@@ -5480,10 +5480,28 @@ runTestScanFragWatchdog(NDBT_Context* ctx, NDBT_Step* step)
       g_err << "Error insert failed." << endl;
       break;
     }
-    if (restarter.insertErrorInNode(victim, 5075) != 0) /* Treat watchdog fail as test success */
+    if (ctx->getProperty("WatchdogKillFail",
+                         Uint32(0)))
     {
-      g_err << "Error insert failed." << endl;
-      break;
+      if (restarter.insertErrorInNode(victim, 5086) != 0) /* Disable watchdog kill */
+      {
+        g_err << "Error insert failed." << endl;
+        break;
+      }
+      if (restarter.insertErrorInNode(victim, 942) != 0) /* Disable self-kill via Isolation */
+      {
+        g_err << "Error insert failed." << endl;
+        break;
+      }
+      /* Can only be killed by others disconnecting me */
+    }
+    else
+    {
+      if (restarter.insertErrorInNode(victim, 5075) != 0) /* Treat watchdog fail as test success */
+      {
+        g_err << "Error insert failed." << endl;
+        break;
+      }
     }
     
     g_err << "Triggering LCP..." << endl;
@@ -6490,6 +6508,497 @@ runBug18044717(NDBT_Context* ctx, NDBT_Step* step)
   return result;
 }
 
+
+
+static int createEvent(Ndb *pNdb,
+                       const NdbDictionary::Table &tab,
+                       bool merge_events,
+                       bool report)
+{
+  char eventName[1024];
+  sprintf(eventName,"%s_EVENT",tab.getName());
+
+  NdbDictionary::Dictionary *myDict = pNdb->getDictionary();
+
+  if (!myDict) {
+    g_err << "Dictionary not found " 
+	  << pNdb->getNdbError().code << " "
+	  << pNdb->getNdbError().message << endl;
+    return NDBT_FAILED;
+  }
+  
+  myDict->dropEvent(eventName);
+
+  NdbDictionary::Event myEvent(eventName);
+  myEvent.setTable(tab.getName());
+  myEvent.addTableEvent(NdbDictionary::Event::TE_ALL); 
+  for(int a = 0; a < tab.getNoOfColumns(); a++){
+    myEvent.addEventColumn(a);
+  }
+  myEvent.mergeEvents(merge_events);
+
+  if (report)
+    myEvent.setReport(NdbDictionary::Event::ER_SUBSCRIBE);
+
+  int res = myDict->createEvent(myEvent); // Add event to database
+
+  if (res == 0)
+    myEvent.print();
+  else if (myDict->getNdbError().classification ==
+	   NdbError::SchemaObjectExists) 
+  {
+    g_info << "Event creation failed event exists\n";
+    res = myDict->dropEvent(eventName);
+    if (res) {
+      g_err << "Failed to drop event: " 
+	    << myDict->getNdbError().code << " : "
+	    << myDict->getNdbError().message << endl;
+      return NDBT_FAILED;
+    }
+    // try again
+    res = myDict->createEvent(myEvent); // Add event to database
+    if (res) {
+      g_err << "Failed to create event (1): " 
+	    << myDict->getNdbError().code << " : "
+	    << myDict->getNdbError().message << endl;
+      return NDBT_FAILED;
+    }
+  }
+  else 
+  {
+    g_err << "Failed to create event (2): " 
+	  << myDict->getNdbError().code << " : "
+	  << myDict->getNdbError().message << endl;
+    return NDBT_FAILED;
+  }
+
+  return NDBT_OK;
+}
+
+static int createEvent(Ndb *pNdb, 
+                       const NdbDictionary::Table &tab,
+                       NDBT_Context* ctx)
+{
+  bool merge_events = ctx->getProperty("MergeEvents");
+  bool report = ctx->getProperty("ReportSubscribe");
+
+  return createEvent(pNdb, tab, merge_events, report);
+}
+
+static int dropEvent(Ndb *pNdb, const NdbDictionary::Table &tab)
+{
+  char eventName[1024];
+  sprintf(eventName,"%s_EVENT",tab.getName());
+  NdbDictionary::Dictionary *myDict = pNdb->getDictionary();
+  if (!myDict) {
+    g_err << "Dictionary not found " 
+	  << pNdb->getNdbError().code << " "
+	  << pNdb->getNdbError().message << endl;
+    return NDBT_FAILED;
+  }
+  if (myDict->dropEvent(eventName)) {
+    g_err << "Failed to drop event: " 
+	  << myDict->getNdbError().code << " : "
+	  << myDict->getNdbError().message << endl;
+    return NDBT_FAILED;
+  }
+  return NDBT_OK;
+}
+ 
+static
+NdbEventOperation *createEventOperation(Ndb *ndb,
+                                        const NdbDictionary::Table &tab,
+                                        int do_report_error = 1)
+{
+  char buf[1024];
+  sprintf(buf, "%s_EVENT", tab.getName());
+  NdbEventOperation *pOp= ndb->createEventOperation(buf);
+  if (pOp == 0)
+  {
+    if (do_report_error)
+      g_err << "createEventOperation: "
+            << ndb->getNdbError().code << " "
+            << ndb->getNdbError().message << endl;
+    return 0;
+  }
+  int n_columns= tab.getNoOfColumns();
+  for (int j = 0; j < n_columns; j++)
+  {
+    pOp->getValue(tab.getColumn(j)->getName());
+    pOp->getPreValue(tab.getColumn(j)->getName());
+  }
+  if ( pOp->execute() )
+  {
+    if (do_report_error)
+      g_err << "pOp->execute(): "
+            << pOp->getNdbError().code << " "
+            << pOp->getNdbError().message << endl;
+    ndb->dropEventOperation(pOp);
+    return 0;
+  }
+  return pOp;
+}
+
+static int runCreateEvent(NDBT_Context* ctx, NDBT_Step* step)
+{
+  if (createEvent(GETNDB(step),* ctx->getTab(), ctx) != 0){
+    return NDBT_FAILED;
+  }
+  return NDBT_OK;
+}
+
+int runDropEvent(NDBT_Context* ctx, NDBT_Step* step)
+{
+  return dropEvent(GETNDB(step), * ctx->getTab());
+}
+
+struct GcpStopVariant
+{
+  int errorCode;
+  const char* description;
+  bool masterOnly;
+  bool gcpSaveOnly;
+};
+
+GcpStopVariant gcpStopVariants[]=
+{
+  {7238, "GCP_PREPARE @ participant", false, false},
+  {7239, "GCP_COMMIT @ participant", false, false},
+  {7244, "SUB_GCP_COMPLETE_REP @ participant", false, false},
+  {7237, "GCP_SAVEREQ @ participant", false, true},
+  {7241, "COPY_GCIREQ @ participant", false, true},
+  {7242, "GCP COMMIT IDLE @ master", true, false},
+  {7243, "GCP SAVE IDLE @ master", true, true},
+  {0, "", false, false}
+};
+
+
+int
+setupTestVariant(NdbRestarter& res,
+                 const GcpStopVariant& variant,
+                 Uint32 victimNode,
+                 bool requireIsolation)
+{
+  /**
+   * First use dump code to lower thresholds to something
+   * reasonable
+   * This is run on all nodes to include the master.
+   */
+  {
+    /* GCP Commit watchdog threshold */
+    int dumpCommand[3] = {DumpStateOrd::DihSetGcpStopVals, 0, 10000};
+    if (res.dumpStateAllNodes(&dumpCommand[0], 3) != 0)
+    {
+      g_err << "Error dumping state" << endl;
+      return NDBT_FAILED;
+    }
+  }
+  {
+    /* GCP Save watchdog threshold */
+    int dumpCommand[3] = {DumpStateOrd::DihSetGcpStopVals, 1, 15000};
+    if (res.dumpStateAllNodes(&dumpCommand[0], 3) != 0)
+    {
+      g_err << "Error dumping state" << endl;
+      return NDBT_FAILED;
+    }   
+  }
+  
+  if (res.insertErrorInAllNodes(0) != 0)
+  {
+    g_err << "Failed clearing errors" << endl;
+    return NDBT_FAILED;
+  }
+  
+  /**
+   * Cause GCP to stall in some way
+   */
+  if (requireIsolation)
+  {
+    /* Error insert flagging that we are testing the
+     * 'isolation required' scenario
+     */
+    g_err << "Causing GCP stall using error code "
+          << variant.errorCode 
+          << " 1"
+          << endl;
+    if (res.insertError2InNode(victimNode, variant.errorCode, 1) != 0)
+    {
+      g_err << "Error inserting error" << endl;
+      return NDBT_FAILED;
+    }
+  }
+  else
+  {
+    g_err << "Causing GCP stall using error code "
+          << variant.errorCode 
+          << endl;
+    if (res.insertErrorInNode(victimNode, variant.errorCode) != 0)
+    {
+      g_err << "Error inserting error" << endl;
+      return NDBT_FAILED;
+    }
+  }
+  
+  if (requireIsolation)
+  {
+    /**
+     * Now error inserts to stop the normal GCP stop
+     * mechanisms working so that we rely on 
+     * isolation
+     */
+    g_err << "Causing GCP self-stop to fail on node " << victimNode << endl;
+    /* NDBCNTR : Ignore GCP Stop in SYSTEM_ERROR */
+    if (res.insertErrorInNode(victimNode, 1004) != 0)
+    {
+      g_err << "Error inserting error" << endl;
+      return NDBT_FAILED;
+    }
+    
+    /* LQH : Ignore GCP Stop Kill in DUMP */
+    if (res.insertErrorInNode(victimNode, 5085) != 0)
+    {
+      g_err << "Error inserting error" << endl;
+      return NDBT_FAILED;
+    }
+    
+    /**
+     * QMGR : Node will not disconnect itself, 
+     * due to ISOLATE_REQ, others must do it.
+     * BUT DISCONNECT_REP is an ok way to die.
+     */
+    if (res.insertErrorInNode(victimNode, 942) != 0)
+    {
+      g_err << "Error inserting error" << endl;
+      return NDBT_FAILED;
+    }
+  }
+  else
+  {
+    /* Testing normal GCP stop kill method */
+    
+    /* LQH : GCP Stop Kill is ok way to die */
+    if (res.insertErrorInNode(victimNode, 5087) != 0)
+    {
+      g_err << "Error inserting error" << endl;
+      return NDBT_FAILED;
+    }
+    
+    /**
+     * NDBCNTR 'Normal' GCP stop kill in SYSTEM_ERROR
+     * is ok way to die
+     */
+    if (res.insertErrorInNode(victimNode, 1005) != 0)
+    {
+      g_err << "Error inserting error" << endl;
+      return NDBT_FAILED;
+    }
+  }
+
+  return NDBT_OK;
+};
+                 
+
+int
+runGcpStop(NDBT_Context* ctx, NDBT_Step* step)
+{
+  /* Intention here is to :
+   *   a) Use DUMP code to lower GCP stop detection threshold
+   *   b) Use ERROR INSERT to trigger GCP stop
+   *   c) (Optional : Use ERROR INSERT to cause 'kill-self' 
+   *       handling of GCP Stop to fail, so that isolation
+   *       is required)
+   *   d) Check that GCP is resumed
+   */
+  /* TODO : Survivable multiple participant failure */
+  int loops = ctx->getNumLoops();
+  NdbRestarter res;
+
+  Ndb* pNdb = GETNDB(step);
+
+  /**
+   * We use an event here just so that we get live 'cluster epoch'
+   * info in the API.
+   * There's no actual row events used or read.
+   */
+  NdbEventOperation * myEvent = createEventOperation(pNdb,
+                                                     *ctx->getTab());
+
+  if (myEvent == NULL)
+  {
+    g_err << "Failed to create Event operation" << endl;
+    return NDBT_FAILED;
+  }
+
+  /**
+   * requireIsolation == the normal GCP stop 'kill self' 
+   * mechanism is disabled via ERROR_INSERT, so that
+   * isolation of the node by other nodes is required
+   * to get it 'cut off' from the cluster
+   */
+  bool requireIsolation = (ctx->getProperty("GcpStopIsolation",
+                                            Uint32(0)) != 0);
+
+  int result = NDBT_FAILED;
+  while (loops--)
+  {
+    int variantIndex = 0;
+    bool done = false;
+    do
+    {
+      GcpStopVariant& variant = gcpStopVariants[variantIndex++];
+      g_err << "Testcase " 
+            << variant.description
+            << "  Save only? "
+            << variant.gcpSaveOnly
+            << "  Isolation : "
+            << requireIsolation
+            << endl;
+      
+      int victimNode = res.getNode(NdbRestarter::NS_RANDOM);
+      
+      if (variant.masterOnly)
+      {
+        victimNode = res.getNode(NdbRestarter::NS_MASTER);
+      }
+      
+      bool isMaster = (victimNode == res.getNode(NdbRestarter::NS_MASTER));
+      
+      g_err << "Victim will be " << victimNode 
+            << " "
+            << (isMaster ? "*" : "")
+            << endl;
+
+      if (setupTestVariant(res,
+                           variant,
+                           victimNode,
+                           requireIsolation) != NDBT_OK)
+      {
+        break;
+      }
+      
+      /** 
+       * Epoch / GCP should not be stopped
+       * Let's wait for it to start again
+       */
+      
+      /* GCP Commit stall visible within 2 s
+       * GCP Save stall requires longer
+       */
+      Uint32 minStallSeconds = (variant.gcpSaveOnly?
+                                10:
+                                2);
+      
+      g_err << "Waiting for "
+            << minStallSeconds
+            << " seconds of epoch stall"
+            << endl;
+
+      pNdb->pollEvents(1, 0);
+      Uint64 startEpoch = pNdb->getLatestGCI();
+
+      Uint32 stallSeconds = 0;
+      do
+      {
+        NdbSleep_MilliSleep(1000);
+        pNdb->pollEvents(1, 0);
+        
+        Uint64 currEpoch = pNdb->getLatestGCI();
+        bool same = false;
+        if (variant.gcpSaveOnly)
+        {
+          same = ((currEpoch >> 32) ==
+                  (startEpoch >> 32));
+        }
+        else
+        {
+          same = (currEpoch == startEpoch);
+        }
+
+        if (same)
+        {
+          g_err << "Epoch stalled @ "
+                << (currEpoch >> 32) 
+                << "/"
+                << (currEpoch & 0xffffffff)
+                << endl;
+          stallSeconds++;
+        }
+        else
+        {
+          g_err << "Epoch not stalled yet"
+                << endl;
+          /* Diff */
+          startEpoch = currEpoch;
+          stallSeconds = 0;
+        }
+      } while (stallSeconds < minStallSeconds);
+          
+      g_err << "Epoch definitely stalled" << endl;
+
+      /* GCP Commit stall stops any increase
+       * GCP Save stall stops only msw increase
+       */
+      Uint64 minNewEpoch = (variant.gcpSaveOnly?
+                            ((startEpoch >> 32) + 1) << 32 :
+                            (startEpoch + 1));
+      
+      Uint64 currEpoch = pNdb->getLatestGCI();
+      while (currEpoch < minNewEpoch)
+      {
+        g_err << "Waiting for epoch to advance from " 
+              << (currEpoch >> 32)
+              << "/"
+              << (currEpoch & 0xffffffff)
+              << " to at least "
+              << (minNewEpoch >> 32)
+              << "/"
+              << (minNewEpoch & 0xffffffff)
+              << endl;
+        NdbSleep_MilliSleep(1000);
+        currEpoch = pNdb->getLatestGCI();
+      }
+      
+      g_err << "Epoch is now " 
+            << (currEpoch >> 32)
+            << "/"
+            << (currEpoch & 0xffffffff)
+            << endl;
+      g_err << "Cluster recovered from GCP stop" << endl;
+      
+      g_err << "Now waiting for victim node to recover" << endl;
+      /**
+       * Now wait until all nodes are available
+       */
+      if (res.waitClusterStarted() != 0)
+      {
+        g_err << "Timed out waiting for cluster to fully start" << endl;
+        break;
+      }
+      
+      g_err << "Cluster recovered..." << endl;
+
+      done = (gcpStopVariants[variantIndex].errorCode == 0);
+    } while (!done);
+    
+    if (!done)
+    {
+      /* Error exit from inner loop */
+      break;
+    }
+    
+    if (loops == 0)
+    {
+      /* All loops done */
+      result = NDBT_OK;
+    }
+  }
+
+  pNdb->dropEventOperation(myEvent);
+
+  return result;
+}
+
+
 NDBT_TESTSUITE(testNodeRestart);
 TESTCASE("NoLoad", 
 	 "Test that one node at a time can be stopped and then restarted "\
@@ -7073,6 +7582,14 @@ TESTCASE("LCPScanFragWatchdogDisable",
 {
   STEP(runTestScanFragWatchdogDisable);
 }
+TESTCASE("LCPScanFragWatchdogIsolation", 
+         "Test LCP scan watchdog resulting in isolation")
+{
+  TC_PROPERTY("WatchdogKillFail", Uint32(1));
+  INITIALIZER(runLoadTable);
+  STEP(runPkUpdateUntilStopped);
+  STEP(runTestScanFragWatchdog);
+}
 TESTCASE("Bug16834416", "")
 {
   INITIALIZER(runBug16834416);
@@ -7119,6 +7636,23 @@ TESTCASE("DeleteRestart",
 {
   INITIALIZER(runDeleteRestart);
 }
+TESTCASE("GcpStop",
+         "Check various Gcp stop scenarios")
+{
+  INITIALIZER(runCreateEvent);
+  STEP(runGcpStop);
+  FINALIZER(runDropEvent);
+}
+TESTCASE("GcpStopIsolation",
+         "Check various Gcp stop scenarios where isolation is "
+         "required to recover.")
+{
+  TC_PROPERTY("GcpStopIsolation", Uint32(1));
+  INITIALIZER(runCreateEvent);
+  STEP(runGcpStop);
+  FINALIZER(runDropEvent);
+}
+
 NDBT_TESTSUITE_END(testNodeRestart);
 
 int main(int argc, const char** argv){

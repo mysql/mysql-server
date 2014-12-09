@@ -148,7 +148,7 @@ public:
 
   // Records
 
-  /*いいいいいいいいいいいいいいいいいいいいいいいいいいいいいいいいいいいい
+  /*鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申
    * THE API CONNECT RECORD IS THE SAME RECORD POINTER AS USED IN THE TC BLOCK
    *
    *  IT KEEPS TRACK OF ALL THE OPERATIONS CONNECTED TO THIS TRANSACTION.
@@ -161,7 +161,7 @@ public:
   typedef Ptr<ApiConnectRecord> ApiConnectRecordPtr;
 
   /*############## CONNECT_RECORD ##############*/
-  /*いいいいいいいいいいいいいいいいいいいいいいいいいいいいいいいいいいいい*/
+  /*鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申*/
   /* THE CONNECT RECORD IS CREATED WHEN A TRANSACTION HAS TO START. IT KEEPS 
      ALL INTERMEDIATE INFORMATION NECESSARY FOR THE TRANSACTION FROM THE 
      DISTRIBUTED MANAGER. THE RECORD KEEPS INFORMATION ABOUT THE
@@ -203,7 +203,7 @@ public:
   };
   typedef Ptr<ConnectRecord> ConnectRecordPtr;
 
-  /*いいいいいいいいいいいいいいいいいいいいいいいいいいいいいいいいいいいい*/
+  /*鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申*/
   /*       THESE RECORDS ARE USED WHEN CREATING REPLICAS DURING SYSTEM      */
   /*       RESTART. I NEED A COMPLEX DATA STRUCTURE DESCRIBING THE REPLICAS */
   /*       I WILL TRY TO CREATE FOR EACH FRAGMENT.                          */
@@ -211,7 +211,7 @@ public:
   /*       I STORE A REFERENCE TO THE FOUR POSSIBLE CREATE REPLICA RECORDS  */
   /*       IN A COMMON STORED VARIABLE. I ALLOW A MAXIMUM OF 4 REPLICAS TO  */
   /*       BE RESTARTED PER FRAGMENT.                                       */
-  /*いいいいいいいいいいいいいいいいいいいいいいいいいいいいいいいいいいいい*/
+  /*鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申*/
   struct CreateReplicaRecord {
     Uint32 logStartGci[MAX_LOG_EXEC];
     Uint32 logStopGci[MAX_LOG_EXEC];
@@ -225,10 +225,10 @@ public:
   };
   typedef Ptr<CreateReplicaRecord> CreateReplicaRecordPtr;
 
-  /*いいいいいいいいいいいいいいいいいいいいいいいいいいいいいいいいいいいい*/
+  /*鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申*/
   /*       THIS RECORD CONTAINS A FILE DESCRIPTION. THERE ARE TWO           */
   /*       FILES PER TABLE TO RAISE SECURITY LEVEL AGAINST DISK CRASHES.    */ 
-  /*いいいいいいいいいいいいいいいいいいいいいいいいいいいいいいいいいいいい*/
+  /*鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申*/
   struct FileRecord {
     enum FileStatus {
       CLOSED = 0,
@@ -270,16 +270,16 @@ public:
   };
   typedef Ptr<FileRecord> FileRecordPtr;
 
-  /*いいいいいいいいいいいいいいいいいいいいいいいいいいいいいいいいいいいい*/
+  /*鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申*/
   /* THIS RECORD KEEPS THE STORAGE AND DECISIONS INFORMATION OF A FRAGMENT  */
   /* AND ITS REPLICAS. IF FRAGMENT HAS MORE THAN ONE BACK UP                */
   /* REPLICA THEN A LIST OF MORE NODES IS ATTACHED TO THIS RECORD.          */
   /* EACH RECORD IN MORE LIST HAS INFORMATION ABOUT ONE BACKUP. THIS RECORD */
   /* ALSO HAVE THE STATUS OF THE FRAGMENT.                                  */
-  /*いいいいいいいいいいいいいいいいいいいいいいいいいいいいいいいいいいいい*/
+  /*鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申*/
   /*                                                                        */
   /*       FRAGMENTSTORE RECORD ALIGNED TO BE 64 BYTES                      */
-  /*いいいいいいいいいいいいいいいいいいいいいいいいいいいいいいいいいいいい*/
+  /*鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申*/
   struct Fragmentstore {
     Uint16 activeNodes[MAX_REPLICAS];
     Uint32 preferredPrimary;
@@ -299,9 +299,9 @@ public:
   typedef Ptr<Fragmentstore> FragmentstorePtr;
 
   /*########### PAGE RECORD ############*/
-  /*いいいいいいいいいいいいいいいいいいいいいいいいいいいいいいいいいい*/
+  /*鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申*/
   /*       THIS RECORD KEEPS INFORMATION ABOUT NODE GROUPS.             */
-  /*いいいいいいいいいいいいいいいいいいいいいいいいいいいいいいいいいい*/
+  /*鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申*/
   struct NodeGroupRecord {
     Uint32 nodesInGroup[MAX_REPLICAS + 1];
     Uint32 nextReplicaNode;
@@ -313,11 +313,11 @@ public:
     Uint32 m_ref_count;
   };
   typedef Ptr<NodeGroupRecord> NodeGroupRecordPtr;
-  /*いいいいいいいいいいいいいいいいいいいいいいいいいいいいいいいいいい*/
+  /*鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申*/
   /*       THIS RECORD KEEPS INFORMATION ABOUT NODES.                   */
-  /*いいいいいいいいいいいいいいいいいいいいいいいいいいいいいいいいいい*/
+  /*鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申*/
   /*       RECORD ALIGNED TO BE 64 BYTES.                               */
-  /*いいいいいいいいいいいいいいいいいいいいいいいいいいいいいいいいいい*/
+  /*鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申鐃緒申*/
   enum NodefailHandlingStep {
     NF_REMOVE_NODE_FROM_TABLE = 1,
     NF_GCP_TAKE_OVER = 2,
@@ -1372,7 +1372,7 @@ private:
   void tableUpdateLab(Signal *, TabRecordPtr regTabPtr);
   void checkLcpCompletedLab(Signal *);
   void initLcpLab(Signal *, Uint32 masterRef, Uint32 tableId);
-  void startGcpLab(Signal *, Uint32 aWaitTime);
+  void startGcpLab(Signal *);
   void checkGcpStopLab(Signal *);
   void MASTER_GCPhandling(Signal *, Uint32 failedNodeId);
   void MASTER_LCPhandling(Signal *, Uint32 failedNodeId);
@@ -2500,6 +2500,10 @@ private:
 
   /* Max LCP parallelism is node (version) specific */
   Uint8 getMaxStartedFragCheckpointsForNode(Uint32 nodeId) const;
+  
+  void isolateNodes(Signal* signal,
+                    Uint32 delayMillis,
+                    const NdbNodeBitmask& victims);
 };
 
 #if (DIH_CDATA_SIZE < _SYSFILE_SIZE32)

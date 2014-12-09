@@ -77,6 +77,7 @@
 #include <signaldata/DbinfoScan.hpp>
 #include <signaldata/SystemError.hpp>
 #include <signaldata/FireTrigOrd.hpp>
+#include <signaldata/IsolateOrd.hpp>
 #include <NdbEnv.h>
 #include <Checksum.hpp>
 
@@ -24250,6 +24251,13 @@ Dblqh::execDUMP_STATE_ORD(Signal* signal)
 
     if(arg== 2305)
     {
+      if (ERROR_INSERTED(5085))
+      {
+        g_eventLogger->info("LQH instance %u ignoring DUMP 2305 (GCP_STOP kill)",
+                            instance());
+        return;
+      }
+      CRASH_INSERTION(5087);
       progError(__LINE__, NDBD_EXIT_SYSTEM_ERROR, 
 		"Please report this as a bug. "
 		"Provide as much info as possible, expecially all the "
@@ -24792,6 +24800,13 @@ Dblqh::execDUMP_STATE_ORD(Signal* signal)
 
   if(arg == 2309)
   {
+    if (ERROR_INSERTED(5086))
+    {
+      g_eventLogger->info("LQH instance %u discards DUMP 2309",
+                          instance());
+      return;
+    }
+
     CRASH_INSERTION(5075);
 
     progError(__LINE__, NDBD_EXIT_LCP_SCAN_WATCHDOG_FAIL,
@@ -25626,9 +25641,36 @@ Dblqh::checkLcpFragWatchdog(Signal* signal)
         ds->args[0] = DumpStateOrd::LqhDumpLcpState;
         sendSignal(cownref, GSN_DUMP_STATE_ORD, signal, 1, JBA);
         
+        const Uint32 ShutdownDelayMillis = 5 * 1000;
         /* Delay self-execution to give time for dump output */
         ds->args[0] = 2309;
-        sendSignalWithDelay(cownref, GSN_DUMP_STATE_ORD, signal, 5*1000, 1);
+        sendSignalWithDelay(cownref, 
+                            GSN_DUMP_STATE_ORD, 
+                            signal, 
+                            ShutdownDelayMillis, 
+                            1);
+
+        /**
+         * Ask other nodes to isolate me in delay + 500 millis if I have
+         * not failed by then
+         */
+        {
+          IsolateOrd* ord = (IsolateOrd*) signal->theData;
+          ord->senderRef = reference();
+          ord->isolateStep = IsolateOrd::IS_REQ;
+          ord->delayMillis = ShutdownDelayMillis + 500;
+          
+          NdbNodeBitmask victims;
+          victims.set(cownNodeid);
+          victims.copyto(NdbNodeBitmask::Size, ord->nodesToIsolate);
+
+          /* QMGR handles this */
+          sendSignal(QMGR_REF,
+                     GSN_ISOLATE_ORD,
+                     signal,
+                     IsolateOrd::SignalLength,
+                     JBA);
+        }
       }
       
       return;

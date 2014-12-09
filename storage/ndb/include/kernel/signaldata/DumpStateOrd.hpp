@@ -189,6 +189,10 @@ public:
       *not* be described in end-user documentation.
     */
     DihAddFragFailCleanedUp = 7024,
+    /**
+     * Allows GCP stop thresholds to be set
+     */
+    DihSetGcpStopVals = 7026,
     DihDumpPageRecInfo = 7032,
     DihFragmentsPerNode = 7033,
     DihDisplayPauseState = 7034,
