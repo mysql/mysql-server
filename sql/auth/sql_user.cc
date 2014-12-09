@@ -140,14 +140,15 @@ int check_change_password(THD *thd, const char *host, const char *user,
     return(1);
   }
   if (!thd->slave_thread &&
-      (strcmp(thd->security_ctx->user, user) ||
+      (strcmp(thd->security_context()->user().str, user) ||
        my_strcasecmp(system_charset_info, host,
-                     thd->security_ctx->priv_host)))
+                     thd->security_context()->priv_host().str)))
   {
     if (check_access(thd, UPDATE_ACL, "mysql", NULL, NULL, 1, 0))
       return(1);
   }
-  if (!thd->slave_thread && !strcmp(thd->security_ctx->priv_user,""))
+  if (!thd->slave_thread &&
+      !strcmp(thd->security_context()->priv_user().str,""))
   {
     my_message(ER_PASSWORD_ANONYMOUS_USER, ER(ER_PASSWORD_ANONYMOUS_USER),
                MYF(0));
@@ -276,8 +277,8 @@ bool change_password(THD *thd, const char *host, const char *user,
         Since we're changing the password for the user we need to reset the
         expiration flag.
       */
-      if (!update_sctx_cache(thd->security_ctx, acl_user, false) &&
-          thd->security_ctx->password_expired)
+      if (!update_sctx_cache(thd->security_context(), acl_user, false) &&
+          thd->security_context()->password_expired())
       {
         /* the current user is not the same as the user we operate on */
         my_error(ER_MUST_CHANGE_PASSWORD, MYF(0));
@@ -302,8 +303,8 @@ bool change_password(THD *thd, const char *host, const char *user,
           Since we're changing the password for the user we need to reset the
           expiration flag.
         */
-        if (!update_sctx_cache(thd->security_ctx, acl_user, false) &&
-            thd->security_ctx->password_expired)
+        if (!update_sctx_cache(thd->security_context(), acl_user, false) &&
+            thd->security_context()->password_expired())
         {
           /* the current user is not the same as the user we operate on */
           my_error(ER_MUST_CHANGE_PASSWORD, MYF(0));
@@ -377,8 +378,8 @@ bool change_password(THD *thd, const char *host, const char *user,
       mysql_mutex_unlock(&acl_cache->lock);
       goto end;  
     }
-    if (!update_sctx_cache(thd->security_ctx, acl_user, false) &&
-        thd->security_ctx->password_expired)
+    if (!update_sctx_cache(thd->security_context(), acl_user, false) &&
+        thd->security_context()->password_expired())
     {
       /* the current user is not the same as the user we operate on */
       my_error(ER_MUST_CHANGE_PASSWORD, MYF(0));

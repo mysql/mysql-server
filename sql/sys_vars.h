@@ -580,8 +580,8 @@ public:
 protected:
   virtual uchar *session_value_ptr(THD *thd, LEX_STRING *base)
   {
-    return thd->security_ctx->proxy_user[0] ?
-      (uchar *) &(thd->security_ctx->proxy_user[0]) : NULL;
+    const char* proxy_user= thd->security_context()->proxy_user().str;
+    return proxy_user[0] ? (uchar *)proxy_user : NULL;
   }
 };
 
@@ -596,10 +596,9 @@ public:
 protected:
   virtual uchar *session_value_ptr(THD *thd, LEX_STRING *base)
   {
-    String *external_user= thd->security_ctx->get_external_user();
+    LEX_CSTRING external_user= thd->security_context()->external_user();
 
-    return external_user && external_user->length() ?
-      (uchar *) external_user->c_ptr_quick() : NULL;
+    return external_user.length ? (uchar *) external_user.str : NULL;
   }
 };
 

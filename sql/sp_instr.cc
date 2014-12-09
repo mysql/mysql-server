@@ -910,8 +910,8 @@ bool sp_instr_stmt::exec_core(THD *thd, uint *nextp)
   MYSQL_QUERY_EXEC_START(const_cast<char*>(thd->query().str),
                          thd->thread_id(),
                          (char *) (thd->db().str ? thd->db().str : ""),
-                         &thd->security_ctx->priv_user[0],
-                         (char *)thd->security_ctx->host_or_ip,
+                         (char *) thd->security_context()->priv_user().str,
+                         (char *) thd->security_context()->host_or_ip().str,
                          3);
 
   thd->lex->set_sp_current_parsing_ctx(get_parsing_ctx());
