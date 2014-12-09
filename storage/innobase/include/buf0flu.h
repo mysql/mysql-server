@@ -99,6 +99,9 @@ oldest_modification is smaller than this should be flushed (if their number
 does not exceed min_n), otherwise ignored
 @param[out]	n_processed	the number of pages which were processed is
 passed back to caller. Ignored if NULL
+@param[in,out]	stage		performance schema accounting object, used by
+ALTER TABLE. If not NULL, then stage->inc() will be called for each page
+flushed.
 @retval true	if a batch was queued successfully.
 @retval false	if another batch of same type was already running. */
 bool
@@ -120,6 +123,10 @@ oldest_modification is smaller than this should be flushed (if their number
 does not exceed min_n), otherwise ignored
 @param[out]	n_processed	the number of pages which were processed is
 passed back to caller. Ignored if NULL.
+@param[in,out]	stage		performance schema accounting object, used by
+ALTER TABLE. If not NULL, then stage->begin_phase_flush() will be called
+initially, specifying the number of pages to be flushed and subsequently,
+stage->inc() will be called for each page flushed.
 @return true if a batch was queued successfully for each buffer pool
 instance. false if another batch of same type was already running in
 at least one of the buffer pool instance */

@@ -1177,6 +1177,9 @@ buf_flush_check_neighbor(
 @param[in]	flush_type	BUF_FLUSH_LRU or BUF_FLUSH_LIST
 @param[in]	n_flushed	number of pages flushed so far in this batch
 @param[in]	n_to_flush	maximum number of pages we are allowed to flush
+@param[in,out]	stage		performance schema accounting object, used by
+ALTER TABLE. If not NULL, then stage->inc() will be called for each page
+flushed.
 @return number of pages flushed */
 static
 ulint
@@ -1354,6 +1357,9 @@ must be buf_page_in_file(bpage)
 @param[in]	flush_type	BUF_FLUSH_LRU or BUF_FLUSH_LIST
 @param[in]	n_to_flush	number of pages to flush
 @param[in,out]	count		number of pages flushed
+@param[in,out]	stage		performance schema accounting object, used by
+ALTER TABLE. If not NULL, then stage->inc() will be called for each page
+flushed.
 @return TRUE if buf_pool mutex was released during this function.
 This does not guarantee that some pages were written as well.
 Number of pages written are incremented to the count. */
@@ -1602,6 +1608,9 @@ The calling thread is not allowed to own any latches on pages!
 not guaranteed that the actual number is that big, though)
 @param[in]	lsn_limit	all blocks whose oldest_modification is smaller
 than this should be flushed (if their number does not exceed min_n)
+@param[in,out]	stage		performance schema accounting object, used by
+ALTER TABLE. If not NULL, then stage->inc() will be called for each page
+flushed.
 @return number of blocks for which the write request was queued;
 ULINT_UNDEFINED if there was a flush of the same type already
 running */
@@ -1694,6 +1703,9 @@ not guaranteed that the actual number is that big, though)
 @param[in]	lsn_limit	in the case of BUF_FLUSH_LIST all blocks whose
 oldest_modification is smaller than this should be flushed (if their number
 does not exceed min_n), otherwise ignored
+@param[in,out]	stage		performance schema accounting object, used by
+ALTER TABLE. If not NULL, then stage->inc() will be called for each page
+flushed.
 @return number of blocks for which the write request was queued */
 static
 ulint
@@ -1865,6 +1877,9 @@ oldest_modification is smaller than this should be flushed (if their number
 does not exceed min_n), otherwise ignored
 @param[out]	n_processed	the number of pages which were processed is
 passed back to caller. Ignored if NULL
+@param[in,out]	stage		performance schema accounting object, used by
+ALTER TABLE. If not NULL, then stage->inc() will be called for each page
+flushed.
 @retval true	if a batch was queued successfully.
 @retval false	if another batch of same type was already running. */
 bool
@@ -1908,6 +1923,10 @@ oldest_modification is smaller than this should be flushed (if their number
 does not exceed min_n), otherwise ignored
 @param[out]	n_processed	the number of pages which were processed is
 passed back to caller. Ignored if NULL.
+@param[in,out]	stage		performance schema accounting object, used by
+ALTER TABLE. If not NULL, then stage->begin_phase_flush() will be called
+initially, specifying the number of pages to be flushed and subsequently,
+stage->inc() will be called for each page flushed.
 @return true if a batch was queued successfully for each buffer pool
 instance. false if another batch of same type was already running in
 at least one of the buffer pool instance */

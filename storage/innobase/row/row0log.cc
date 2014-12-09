@@ -2498,6 +2498,9 @@ row_log_progress_inc_per_block()
 /** Applies operations to a table was rebuilt.
 @param[in]	thr	query graph
 @param[in,out]	dup	for reporting duplicate key errors
+@param[in,out]	stage	performance schema accounting object, used by
+ALTER TABLE. If not NULL, then stage->inc() will be called for each block
+of log that is applied.
 @return DB_SUCCESS, or error code on failure */
 static __attribute__((warn_unused_result))
 dberr_t
@@ -2847,6 +2850,9 @@ func_exit:
 @param[in]	thr		query graph
 @param[in]	old_table	old table
 @param[in,out]	table		MySQL table (for reporting duplicates)
+@param[in,out]	stage		performance schema accounting object, used by
+ALTER TABLE. stage->begin_phase_log() will be called initially and then
+stage->inc() will be called for each block of log that is applied.
 @return DB_SUCCESS, or error code on failure */
 dberr_t
 row_log_table_apply(
