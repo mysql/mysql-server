@@ -293,3 +293,23 @@ select * from t1;
 
 set sql_warnings = 0;
 drop table t1;
+
+--echo Bug#20170778: WL411:FAILING ASSERTION `!TABLE || (!TABLE->WRITE_SET ||
+--echo               BITMAP_IS_SET(TABLE->WR
+--echo #
+CREATE TABLE t1 (col1 INT, col2 INT, col3 INT, col4 INT, col5
+INT GENERATED ALWAYS AS (col3 * col2) VIRTUAL, col6 INT GENERATED ALWAYS AS
+(col4 * col1) STORED, col7 INT GENERATED ALWAYS AS (col6 + col6) VIRTUAL,
+col8 INT GENERATED ALWAYS AS (col6 / col5) STORED, col9 TEXT);
+
+SET @fill_amount = (@@innodb_page_size / 2 ) + 1;
+
+INSERT INTO t1 (col1,col2,col3,col4,col5,col6,col7,col8,col9) VALUES /* 3 */
+(3, 3 / 3, 3 + 3, 3 / 3, DEFAULT, DEFAULT, DEFAULT, DEFAULT ,REPEAT(CAST(3 AS
+CHAR(1)),@fill_amount)) , (3, 3 * 3, 3 + 3, 3 / 3, DEFAULT, DEFAULT, DEFAULT,
+DEFAULT ,REPEAT(CAST(3 AS CHAR(1)),@fill_amount));
+
+UPDATE t1 SET col1 = 2;
+
+DROP TABLE t1;
+

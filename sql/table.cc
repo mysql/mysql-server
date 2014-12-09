@@ -6226,8 +6226,13 @@ void TABLE::mark_generated_columns(bool is_update)
       DBUG_ASSERT(tmp_vfield->gcol_info && tmp_vfield->gcol_info->expr_item);
       tmp_vfield->gcol_info->expr_item->walk(&Item::register_field_in_read_map, 
                                              Item::WALK_PREFIX, (uchar *) 0);
-      //If the GC depends on any of the write-column, make it writable.
-      if (bitmap_is_overlapping(read_set, write_set))
+      /**
+        If the stored GC depends on any of the write-column, make it writable.
+        For virtual GC, mark it writable anyway because they are needed to be
+        filled when read the updatable record.
+      */
+      if (!tmp_vfield->stored_in_db ||
+          bitmap_is_overlapping(read_set, write_set))
       {
         //The GC should be update
         bitmap_set_bit(write_set, tmp_vfield->field_index);
