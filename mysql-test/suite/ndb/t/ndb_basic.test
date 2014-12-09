@@ -841,10 +841,82 @@ drop table t1;
 #
 #Bug #11753491 44940: MYSQLD CRASHES WHEN CREATING A CLUSTER TABLE WITH 64 CHARACTER TABLE NAME
 #
---error 1296
+--error ER_TOO_LONG_IDENT
 create table
 abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz123(id int
 primary key) engine=ndb;
 show warnings;
+
+#
+#Bug #19550973: CREATE/DROP DATABASE STATEMENT SEGFAULTS IF IDENTIFIER LENGTH IS >=64
+#
+
+--echo #
+--echo # Testing schema identifier with length 63
+--echo # NDB's identifier length limit is 63
+--echo #
+CREATE DATABASE
+abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz12;
+
+--echo #create and drop NDB tables to test the database
+CREATE TABLE 
+abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz12.t1
+(a int) 
+ENGINE=NDB;
+DROP TABLE abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz12.t1;
+DROP DATABASE abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz12;
+
+--echo #
+--echo # Testing schema identifier with length 64
+--echo # mysqld allows until 64, but ndb's limit is 63
+--echo #
+CREATE DATABASE
+abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz123;
+
+--echo #verify database existence
+USE abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz123;
+--echo #create normal table
+CREATE TABLE t1
+(a int);
+--echo #create ndb table and fail
+--error ER_TOO_LONG_IDENT
+CREATE TABLE t2
+(a int)
+ENGINE=NDB;
+show warnings;
+
+--echo #testing alter database
+ALTER DATABASE
+abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz123
+character set=utf8;
+
+--echo #test alter table with this database
+CREATE DATABASE db1;
+CREATE TABLE db1.t1
+(a int)
+ENGINE=NDB;
+--error ER_TOO_LONG_IDENT
+ALTER TABLE db1.t1
+RENAME abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz123.t3;
+show warnings;
+--error ER_TOO_LONG_IDENT
+ALTER TABLE db1.t1
+RENAME db1.abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz123;
+SHOW WARNINGS;
+DROP DATABASE db1;
+DROP DATABASE
+abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz123;
+
+--echo #checking database doesn't exists
+--error ER_BAD_DB_ERROR
+USE abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz123;
+
+--echo #
+--echo # Testing schema identifier with length 65
+--echo # mysqld rejects length of 65 and more
+--echo #
+--error ER_TOO_LONG_IDENT
+CREATE DATABASE
+abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz1234;
 
 --echo End of 5.1 tests

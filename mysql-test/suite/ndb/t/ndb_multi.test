@@ -283,3 +283,19 @@ connection server2;
 show create table mysql.dummy;
 drop table mysql.dummy;
 
+#
+#Bug #19550973: CREATE/DROP DATABASE STATEMENT SEGFAULTS IF IDENTIFIER LENGTH IS >=64
+#
+
+--echo #dbs with identifier length = 64 won't be replicated to other mysqlds 
+--echo #create such db in one mysqld and verify its not present in the other
+
+--connection server1
+CREATE DATABASE
+abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz123;
+--connection server2
+--error ER_BAD_DB_ERROR
+USE abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz123;
+--connection server1
+DROP DATABASE
+abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz123;
