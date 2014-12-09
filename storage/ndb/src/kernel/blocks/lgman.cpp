@@ -352,7 +352,7 @@ Lgman::execNODE_FAILREP(Signal* signal)
 
 void
 Lgman::execDUMP_STATE_ORD(Signal* signal){
-  jamEntry();
+  jamNoBlock();  /* Due to bug#20135976 */
   if (signal->theData[0] == 12001 || signal->theData[0] == 12002)
   {
     char tmp[1024];
