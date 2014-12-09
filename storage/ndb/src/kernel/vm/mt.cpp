@@ -1281,7 +1281,7 @@ private:
   NodeId check_and_lock_send_node(NodeId node);
 
   /* Perform the actual send to the node */
-  int perform_send(NodeId node, Uint32 instance_no);
+  bool perform_send(NodeId node, Uint32 instance_no);
 
   /* Have threads been started */
   Uint32 m_started_threads;
@@ -1556,16 +1556,15 @@ thr_send_threads::check_and_lock_send_node(NodeId node)
   return node;
 }
 
-int
+bool
 thr_send_threads::perform_send(NodeId node, Uint32 instance_no)
 {
-  int res;
   thr_repository::send_buffer * sb = g_thr_repository->m_send_buffers+node;
   sb->m_send_thread = num_threads + instance_no;
-  res = globalTransporterRegistry.performSend(node);
+  const bool more = globalTransporterRegistry.performSend(node);
   sb->m_send_thread = NO_SEND_THREAD;
   unlock(&sb->m_send_lock);
-  return res;
+  return more;
 }
 
 static void
@@ -1762,7 +1761,7 @@ thr_send_threads::run_send_thread(Uint32 instance_no)
        */
       node = check_and_lock_send_node(node);
 
-      int res = perform_send(node, instance_no);
+      const bool more = perform_send(node, instance_no);
       /* We return with no spin locks or mutexes held */
 
       /* Release chunk-wise to decrease pressure on spin lock */
@@ -1771,7 +1770,7 @@ thr_send_threads::run_send_thread(Uint32 instance_no)
         release_chunk(g_thr_repository->m_mm, RG_TRANSPORTER_BUFFERS);
 
       NdbMutex_Lock(send_thread_mutex);
-      if (res && !data_available(node))
+      if (more && !data_available(node))
         insert_node(node);
     }
 
@@ -3451,10 +3450,10 @@ do_send(struct thr_data* selfptr, bool must_send)
        * holds the send lock for this remote node.
        */
       sb->m_send_thread = selfptr->m_thr_no;
-      int res = globalTransporterRegistry.performSend(node);
+      const bool more = globalTransporterRegistry.performSend(node);
       sb->m_send_thread = NO_SEND_THREAD;
       unlock(&sb->m_send_lock);
-      if (res)
+      if (more)
       {
         register_pending_send(selfptr, node);
       }

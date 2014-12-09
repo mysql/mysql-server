@@ -296,14 +296,14 @@ TCP_Transporter::send_is_possible(NDB_SOCKET_TYPE fd,int timeout_millisec) const
                                  (!((sz == -1) && ((e == SOCKET_EAGAIN) || (e == SOCKET_EWOULDBLOCK) || (e == SOCKET_EINTR)))))
 
 
-int
+bool
 TCP_Transporter::doSend() {
   struct iovec iov[64];
   Uint32 cnt = fetch_send_iovec_data(iov, NDB_ARRAY_SIZE(iov));
 
   if (cnt == 0)
   {
-    return 0;
+    return false;
   }
 
   Uint32 sum = 0;
@@ -332,12 +332,14 @@ TCP_Transporter::doSend() {
     int nBytesSent = (int)my_socket_writev(theSocket, iov+pos, iovcnt);
     assert(nBytesSent <= (int)remain);
 
-    if (Uint32(nBytesSent) == remain)
+    if (Uint32(nBytesSent) == remain)  //Completed this send
     {
       sum_sent += nBytesSent;
-      goto ok;
+      assert(sum >= sum_sent);
+      remain = sum - sum_sent;
+      break;
     }
-    else if (nBytesSent > 0)
+    else if (nBytesSent > 0)           //Sent some, more pending
     {
       sum_sent += nBytesSent;
       remain -= nBytesSent;
@@ -353,28 +355,16 @@ TCP_Transporter::doSend() {
         cnt--;
       }
 
-      if (nBytesSent)
+      if (nBytesSent > 0)
       {
         assert(iov[pos].iov_len > Uint32(nBytesSent));
         iov[pos].iov_len -= nBytesSent;
         iov[pos].iov_base = ((char*)(iov[pos].iov_base))+nBytesSent;
       }
-      continue;
     }
-    else
+    else                               //Send failed, terminate
     {
-      int err = my_socket_errno();
-      if (!(DISCONNECT_ERRNO(err, nBytesSent)))
-      {
-        if (sum_sent)
-        {
-          goto ok;
-        }
-        else
-        {
-          return remain;
-        }
-      }
+      const int err = my_socket_errno();
 
 #if defined DEBUG_TRANSPORTER
       g_eventLogger->error("Send Failure(disconnect==%d) to node = %d "
@@ -384,14 +374,20 @@ TCP_Transporter::doSend() {
                            remoteNodeId, nBytesSent, my_socket_errno(),
                            (char*)ndbstrerror(err));
 #endif
-      do_disconnect(err);
-      return 0;
+
+      if ((DISCONNECT_ERRNO(err, nBytesSent)))
+      {
+        do_disconnect(err); //Initiate pending disconnect
+        remain = 0;
+      }
+      break;
     }
   }
 
-ok:
-  assert(sum >= sum_sent);
-  iovec_data_sent(sum_sent);
+  if (sum_sent > 0)
+  {
+    iovec_data_sent(sum_sent);
+  }
   sendCount += send_cnt;
   sendSize  += sum_sent;
   m_bytes_sent += sum_sent;
@@ -402,7 +398,7 @@ ok:
     sendSize  = 0;
   }
 
-  return sum - sum_sent; // 0 if every thing flushed else >0
+  return (remain>0); // false if nothing remains or disconnected, else true
 }
 
 int

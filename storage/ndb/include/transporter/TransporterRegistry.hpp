@@ -434,7 +434,7 @@ public:
    */
   void external_IO(Uint32 timeOutMillis);
 
-  int performSend(NodeId nodeId);
+  bool performSend(NodeId nodeId);
   void performSend();
 
   /**
