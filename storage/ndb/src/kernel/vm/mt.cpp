@@ -1629,7 +1629,6 @@ thr_send_threads::lock_send_node(NodeId node)
 bool
 thr_send_threads::perform_send(NodeId node, Uint32 instance_no)
 {
-  int res;
   thr_repository::send_buffer * sb = g_thr_repository->m_send_buffers+node;
 
   /**
@@ -1637,10 +1636,10 @@ thr_send_threads::perform_send(NodeId node, Uint32 instance_no)
    * holds the send lock for this remote node.
    */
   sb->m_send_thread = num_threads + instance_no;
-  res = globalTransporterRegistry.performSend(node);
+  const bool more = globalTransporterRegistry.performSend(node);
   sb->m_send_thread = NO_SEND_THREAD;
   unlock(&sb->m_send_lock);
-  return res;
+  return more;
 }
 
 static void
@@ -3614,10 +3613,10 @@ do_send(struct thr_data* selfptr, bool must_send)
        * holds the send lock for this remote node.
        */
       sb->m_send_thread = selfptr->m_thr_no;
-      int res = globalTransporterRegistry.performSend(node);
+      const bool more = globalTransporterRegistry.performSend(node);
       sb->m_send_thread = NO_SEND_THREAD;
       unlock(&sb->m_send_lock);
-      if (res)
+      if (more)
       {
         register_pending_send(selfptr, node);
       }

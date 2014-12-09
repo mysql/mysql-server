@@ -98,7 +98,7 @@ public:
                                                used >= m_slowdown_limit);
   }
 
-  virtual int doSend() = 0;
+  virtual bool doSend() = 0;
 
   bool has_data_to_send()
   {
