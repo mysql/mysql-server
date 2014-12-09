@@ -480,12 +480,14 @@ bool PT_option_value_no_option_type_password::contextualize(Parse_context *pc)
   if (!user)
     return true;
 
-  user->user.str=thd->security_ctx->user;
-  user->user.length= strlen(thd->security_ctx->user);
+  LEX_CSTRING sctx_user= thd->security_context()->user();
+  user->user.str= (char *) sctx_user.str;
+  user->user.length= sctx_user.length;
 
-  DBUG_ASSERT(thd->security_ctx->priv_host);
-  user->host.str= (char *) thd->security_ctx->priv_host;
-  user->host.length= strlen(thd->security_ctx->priv_host);
+  LEX_CSTRING sctx_priv_host= thd->security_context()->priv_host();
+  DBUG_ASSERT(sctx_priv_host.str);
+  user->host.str= (char *) sctx_priv_host.str;
+  user->host.length= sctx_priv_host.length;
 
   set_var_password *var= new set_var_password(user,
                                               const_cast<char *>(password));

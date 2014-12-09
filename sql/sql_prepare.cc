@@ -3558,7 +3558,7 @@ Prepared_statement::execute_loop(String *expanded_query,
   if (set_parameters(expanded_query, packet, packet_end))
     return TRUE;
 
-  if (unlikely(thd->security_ctx->password_expired && 
+  if (unlikely(thd->security_context()->password_expired() &&
                !lex->is_set_password_sql))
   {
     my_error(ER_MUST_CHANGE_PASSWORD, MYF(0));
@@ -3954,8 +3954,8 @@ bool Prepared_statement::execute(String *expanded_query, bool open_cursor)
                              thd->thread_id(),
                              (char *) (thd->db().str != NULL ?
                                        thd->db().str : ""),
-                             &thd->security_ctx->priv_user[0],
-                             (char *) thd->security_ctx->host_or_ip,
+                             (char *) thd->security_context()->priv_user().str,
+                             (char *) thd->security_context()->host_or_ip().str,
                              1);
       parent_locker= thd->m_statement_psi;
       thd->m_statement_psi= NULL;
