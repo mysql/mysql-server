@@ -1655,11 +1655,11 @@ row_merge_read_clustered_index(
 
 		page_cur_move_to_next(cur);
 
-		stage->one_rec_was_processed();
+		stage->n_pk_recs_inc();
 
 		if (page_cur_is_after_last(cur)) {
 
-			stage->one_page_was_processed();
+			stage->inc();
 
 			if (UNIV_UNLIKELY(trx_is_interrupted(trx))) {
 				err = DB_INTERRUPTED;
@@ -2434,7 +2434,7 @@ wait_again:
 #define ROW_MERGE_WRITE_GET_NEXT(N, INDEX, AT_END)			\
 	do {								\
 		if (stage != NULL) {					\
-			stage->one_rec_was_processed();			\
+			stage->inc();					\
 		}							\
 		ROW_MERGE_WRITE_GET_NEXT_LOW(N, INDEX, AT_END);		\
 	} while (0)
@@ -2985,7 +2985,7 @@ row_merge_insert_index_tuples(
 		mtr_t		mtr;
 
 		if (stage != NULL) {
-			stage->one_rec_was_processed();
+			stage->inc();
 		}
 
 		 if (row_buf != NULL) {
@@ -4066,9 +4066,9 @@ row_merge_build_indexes(
 	ut_ad((old_table == new_table) == !col_map);
 	ut_ad(!add_cols || col_map);
 
-	stage->begin(skip_pk_sort && new_table != old_table
-		     ? n_indexes - 1
-		     : n_indexes);
+	stage->begin_phase_read_pk(skip_pk_sort && new_table != old_table
+				   ? n_indexes - 1
+				   : n_indexes);
 
 	/* Allocate memory for merge file data structure and initialize
 	fields */
@@ -4137,7 +4137,7 @@ row_merge_build_indexes(
 		n_indexes, add_cols, col_map, add_autoinc, sequence,
 		block, skip_pk_sort, &tmpfd, stage);
 
-	stage->read_pk_completed();
+	stage->end_phase_read_pk();
 
 	if (error != DB_SUCCESS) {
 
@@ -4339,8 +4339,6 @@ func_exit:
 	DBUG_EXECUTE_IF("ib_index_crash_after_bulk_load", DBUG_SUICIDE(););
 
 	if (error == DB_SUCCESS) {
-		stage->begin_phase_flush();
-
 		log_make_checkpoint_at(LSN_MAX, TRUE, stage);
 	}
 
