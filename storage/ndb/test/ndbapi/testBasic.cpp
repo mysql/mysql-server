@@ -1,5 +1,5 @@
-/* Copyright (c) 2003-2007 MySQL AB
-
+/*
+   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -12,8 +12,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA */
-
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #include <NDBT_Test.hpp>
 #include <NDBT_ReturnCodes.h>
@@ -26,6 +26,21 @@
 #include <signaldata/DumpStateOrd.hpp>
 #include <NdbConfig.hpp>
 #include <BlockNumbers.h>
+
+#define CHK1(b) \
+  if (!(b)) { \
+    g_err << "ERR: " << #b << " failed at line " << __LINE__; \
+    result = NDBT_FAILED; \
+    break; \
+  }
+
+#define CHK2(b, e) \
+  if (!(b)) { \
+    g_err << "ERR: " << #b << " failed at line " << __LINE__ \
+          << ": " << e << endl; \
+    result = NDBT_FAILED; \
+    break; \
+  }
 
 /**
  * TODO 
@@ -3411,59 +3426,72 @@ int
 runBug16834333(NDBT_Context* ctx, NDBT_Step* step)
 {
   Ndb* pNdb = GETNDB(step);
+  NdbDictionary::Dictionary* pDic = pNdb->getDictionary();
+  const int records = ctx->getNumRecords();
   NdbRestarter restarter;
+  int result = NDBT_OK;
 
-  ndbout_c("restart initial");
-  restarter.restartAll(true, /* initial */
-                       true, /* nostart */
-                       true  /* abort */ );
-
-  ndbout_c("wait nostart");
-  restarter.waitClusterNoStart();
-  ndbout_c("startAll");
-  restarter.startAll();
-  ndbout_c("wait started");
-  restarter.waitClusterStarted();
-
-  int codes[] = { 5080, 5081 };
-  for (int i = 0, j = 0; i < restarter.getNumDbNodes(); i++, j++)
+  do
   {
-    int code = codes[j % NDB_ARRAY_SIZE(codes)];
-    int nodeId = restarter.getDbNodeId(i);
-    ndbout_c("error %d node: %d", code, nodeId);
-    restarter.insertErrorInNode(nodeId, code);
+    /*
+     * Drop the pre-created table before initial restart to avoid invalid
+     * dict cache.  One symptom would be running the test twice and getting
+     * abort() in final dict cache release due to non-existent version.
+     * Also use a copy of the pre-created table struct to avoid accessing
+     * invalid memory.
+     */
+    const NdbDictionary::Table tab(* ctx->getTab());
+    CHK2(pDic->dropTable(tab.getName()) == 0, pDic->getNdbError());
+
+    ndbout_c("restart initial");
+    restarter.restartAll(true, /* initial */
+                         true, /* nostart */
+                         true  /* abort */ );
+
+    ndbout_c("wait nostart");
+    restarter.waitClusterNoStart();
+    ndbout_c("startAll");
+    restarter.startAll();
+    ndbout_c("wait started");
+    restarter.waitClusterStarted();
+
+    ndbout_c("create tab");
+    CHK2(pDic->createTable(tab) == 0, pDic->getNdbError());
+    const NdbDictionary::Table* pTab = pDic->getTable(tab.getName());
+    CHK2(pTab != 0, pDic->getNdbError());
+
+    ndbout_c("load table");
+    HugoTransactions trans(* pTab);
+    CHK2(trans.loadTable(pNdb, records) == 0, trans.getNdbError());
+
+    int codes[] = { 5080, 5081 };
+    for (int i = 0, j = 0; i < restarter.getNumDbNodes(); i++, j++)
+    {
+      int code = codes[j % NDB_ARRAY_SIZE(codes)];
+      int nodeId = restarter.getDbNodeId(i);
+      ndbout_c("error %d node: %d", code, nodeId);
+      restarter.insertErrorInNode(nodeId, code);
+    }
+
+    ndbout_c("running big trans");
+    HugoOperations ops(* pTab);
+    CHK2(ops.startTransaction(pNdb) == 0, ops.getNdbError());
+    CHK2(ops.pkReadRecord(0, 16384) == 0, ops.getNdbError());
+    if (ops.execute_Commit(pNdb, AO_IgnoreError) != 0)
+    {
+      // XXX should this occur if AO_IgnoreError ?
+      CHK2(ops.getNdbError().code == 1223, ops.getNdbError());
+      g_info << ops.getNdbError() << endl;
+    }
+    ops.closeTransaction(pNdb);
   }
-
-  ndbout_c("create tab");
-  pNdb->getDictionary()->createTable(* ctx->getTab());
-
-  ndbout_c("running big trans");
-  HugoOperations ops(* ctx->getTab());
-  ops.startTransaction(pNdb);
-  ops.pkReadRecord(0, 16384);
-  ops.execute_Commit(pNdb, AO_IgnoreError);
-  ops.closeTransaction(pNdb);
+  while (0);
 
   restarter.insertErrorInAllNodes(0);
-  return NDBT_OK;
+  return result;
 }
 
 // bug#19031389
-
-#define CHK1(b) \
-  if (!(b)) { \
-    g_err << "ERR: " << #b << " failed at line " << __LINE__; \
-    result = NDBT_FAILED; \
-    break; \
-  }
-
-#define CHK2(b, e) \
-  if (!(b)) { \
-    g_err << "ERR: " << #b << " failed at line " << __LINE__ \
-          << ": " << e << endl; \
-    result = NDBT_FAILED; \
-    break; \
-  }
 
 int
 runAccCommitOrder(NDBT_Context* ctx, NDBT_Step* step)
