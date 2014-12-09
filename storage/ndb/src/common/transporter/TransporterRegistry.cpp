@@ -1621,7 +1621,7 @@ TransporterRegistry::performReceive(TransporterReceiveHandle& recvdata)
  * In multi-threaded cases, this must be protected by send lock (can use
  * different locks for each node).
  */
-int
+bool
 TransporterRegistry::performSend(NodeId nodeId)
 {
   Transporter *t = get_transporter(nodeId);
@@ -1630,7 +1630,7 @@ TransporterRegistry::performSend(NodeId nodeId)
     return t->doSend();
   }
 
-  return 0;
+  return false;
 }
 
 void
