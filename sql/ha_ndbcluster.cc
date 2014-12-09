@@ -9490,11 +9490,14 @@ int ha_ndbcluster::create(const char *name,
   if (strlen(m_dbname) > NDB_MAX_DDL_NAME_BYTESIZE ||
       strlen(m_tabname) > NDB_MAX_DDL_NAME_BYTESIZE)
   {
-    my_errno= ER_TOO_LONG_IDENT;
+    char *invalid_identifier=
+        (strlen(m_dbname) > NDB_MAX_DDL_NAME_BYTESIZE)?m_dbname:m_tabname;
     push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
                         ER_TOO_LONG_IDENT,
-                        "Ndb has an internal limit of %u bytes on the size of schema identifiers", NDB_MAX_DDL_NAME_BYTESIZE);
-    DBUG_RETURN(my_errno);
+                        "Ndb has an internal limit of %u bytes on the size of schema identifiers",
+                        NDB_MAX_DDL_NAME_BYTESIZE);
+    my_error(ER_TOO_LONG_IDENT, MYF(0), invalid_identifier);
+    DBUG_RETURN(HA_WRONG_CREATE_OPTION);
   }
 
   if ((my_errno= check_ndb_connection(thd)))
@@ -10455,6 +10458,20 @@ int ha_ndbcluster::rename_table(const char *from, const char *to)
   set_dbname(to, new_dbname);
   set_tabname(from);
   set_tabname(to, new_tabname);
+
+  /* now check if the new table name or new database name exceeds max limits */
+  if (strlen(new_dbname) > NDB_MAX_DDL_NAME_BYTESIZE ||
+       strlen(new_tabname) > NDB_MAX_DDL_NAME_BYTESIZE)
+  {
+    char *invalid_identifier=
+        (strlen(new_dbname) > NDB_MAX_DDL_NAME_BYTESIZE)?new_dbname:new_tabname;
+    push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
+                        ER_TOO_LONG_IDENT,
+                        "Ndb has an internal limit of %u bytes on the size of schema identifiers",
+                        NDB_MAX_DDL_NAME_BYTESIZE);
+    my_error(ER_TOO_LONG_IDENT, MYF(0), invalid_identifier);
+    DBUG_RETURN(HA_WRONG_CREATE_OPTION);
+  }
 
   if (check_ndb_connection(thd))
     DBUG_RETURN(my_errno= HA_ERR_NO_CONNECTION);

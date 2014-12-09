@@ -1747,6 +1747,20 @@ int ndbcluster_log_schema_op(THD *thd,
     DBUG_RETURN(0);
   }
 
+  /* Check that the database name will fit within limits */
+  if(strlen(db) > NDB_MAX_DDL_NAME_BYTESIZE)
+  {
+    // Catch unexpected commands with too long db length
+    DBUG_ASSERT(type == SOT_CREATE_DB ||
+                type == SOT_ALTER_DB ||
+                type == SOT_DROP_DB);
+    push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
+                        ER_TOO_LONG_IDENT,
+                        "Ndb has an internal limit of %u bytes on the size of schema identifiers",
+                        NDB_MAX_DDL_NAME_BYTESIZE);
+    DBUG_RETURN(ER_TOO_LONG_IDENT);
+  }
+
   char tmp_buf2[FN_REFLEN];
   char quoted_table1[2 + 2 * FN_REFLEN + 1];
   char quoted_db1[2 + 2 * FN_REFLEN + 1];
