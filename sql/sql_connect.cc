@@ -190,7 +190,7 @@ end:
   mysql_mutex_unlock(&LOCK_user_conn);
   if (error)
   {
-    inc_host_errors(thd->main_security_ctx.get_ip()->ptr(), &errors);
+    inc_host_errors(thd->m_main_security_ctx.ip().str, &errors);
   }
   DBUG_RETURN(error);
 }
@@ -501,10 +501,11 @@ static int check_connection(THD *thd)
 
   thd->set_active_vio(net->vio);
 
-  if (!thd->main_security_ctx.get_host()->length())     // If TCP/IP connection
+  if (!thd->m_main_security_ctx.host().length)     // If TCP/IP connection
   {
     my_bool peer_rc;
     char ip[NI_MAXHOST];
+    LEX_CSTRING main_sctx_ip;
 
     peer_rc= vio_peer_addr(net->vio, ip, &thd->peer_port, NI_MAXHOST);
 
@@ -581,9 +582,9 @@ static int check_connection(THD *thd)
       my_error(ER_BAD_HOST_ERROR, MYF(0));
       return 1;
     }
-    thd->main_security_ctx.set_ip(my_strdup(key_memory_Security_context,
-                                            ip, MYF(MY_WME)));
-    if (!(thd->main_security_ctx.get_ip()->length()))
+    thd->m_main_security_ctx.assign_ip(ip, strlen(ip));
+    main_sctx_ip= thd->m_main_security_ctx.ip();
+    if (!(main_sctx_ip.length))
     {
       /*
         No error accounting per IP in host_cache,
@@ -593,53 +594,64 @@ static int check_connection(THD *thd)
       connection_errors_internal++;
       return 1; /* The error is set by my_strdup(). */
     }
-    thd->main_security_ctx.host_or_ip= thd->main_security_ctx.get_ip()->ptr();
+    thd->m_main_security_ctx.set_host_or_ip_ptr(main_sctx_ip.str,
+                                                main_sctx_ip.length);
     if (!(specialflag & SPECIAL_NO_RESOLVE))
     {
       int rc;
-      char *host= (char *) thd->main_security_ctx.get_host()->ptr();
+      char *host;
+      LEX_CSTRING main_sctx_host;
 
       rc= ip_to_hostname(&net->vio->remote,
-                         thd->main_security_ctx.get_ip()->ptr(),
+                         main_sctx_ip.str,
                          &host, &connect_errors);
 
-      thd->main_security_ctx.set_host(host);
-      /* Cut very long hostnames to avoid possible overflows */
-      if (thd->main_security_ctx.get_host()->length())
+      thd->m_main_security_ctx.assign_host(host, host? strlen(host) : 0);
+      main_sctx_host= thd->m_main_security_ctx.host();
+      if (host && host != my_localhost)
       {
-        if (thd->main_security_ctx.get_host()->ptr() != my_localhost)
-          thd->main_security_ctx.set_host(thd->main_security_ctx.get_host()->ptr(),
-                       min<size_t>(thd->main_security_ctx.get_host()->length(),
-                       HOSTNAME_LENGTH));
-        thd->main_security_ctx.host_or_ip= thd->main_security_ctx.get_host()->ptr();
+        my_free(host);
+        host= (char *) main_sctx_host.str;
+      }
+
+      /* Cut very long hostnames to avoid possible overflows */
+      if (main_sctx_host.length)
+      {
+        if (main_sctx_host.str != my_localhost)
+          thd->m_main_security_ctx.set_host_ptr(
+            main_sctx_host.str,
+            min<size_t>(main_sctx_host.length, HOSTNAME_LENGTH));
+        thd->m_main_security_ctx.set_host_or_ip_ptr(main_sctx_host.str,
+                                                    main_sctx_host.length);
       }
 
       if (rc == RC_BLOCKED_HOST)
       {
         /* HOST_CACHE stats updated by ip_to_hostname(). */
-        my_error(ER_HOST_IS_BLOCKED, MYF(0), thd->main_security_ctx.host_or_ip);
+        my_error(ER_HOST_IS_BLOCKED, MYF(0),
+                 thd->m_main_security_ctx.host_or_ip().str);
         return 1;
       }
     }
     DBUG_PRINT("info",("Host: %s  ip: %s",
-           (thd->main_security_ctx.get_host()->length() ?
-                 thd->main_security_ctx.get_host()->ptr() : "unknown host"),
-           (thd->main_security_ctx.get_ip()->length() ?
-                 thd->main_security_ctx.get_ip()->ptr() : "unknown ip")));
-    if (acl_check_host(thd->main_security_ctx.get_host()->ptr(),
-                       thd->main_security_ctx.get_ip()->ptr()))
+           (thd->m_main_security_ctx.host().length ?
+              thd->m_main_security_ctx.host().str : "unknown host"),
+           (main_sctx_ip.length ? main_sctx_ip.str : "unknown ip")));
+    if (acl_check_host(thd->m_main_security_ctx.host().str, main_sctx_ip.str))
     {
       /* HOST_CACHE stats updated by acl_check_host(). */
       my_error(ER_HOST_NOT_PRIVILEGED, MYF(0),
-               thd->main_security_ctx.host_or_ip);
+               thd->m_main_security_ctx.host_or_ip().str);
       return 1;
     }
   }
   else /* Hostname given means that the connection was on a socket */
   {
-    DBUG_PRINT("info",("Host: %s", thd->main_security_ctx.get_host()->ptr()));
-    thd->main_security_ctx.host_or_ip= thd->main_security_ctx.get_host()->ptr();
-    thd->main_security_ctx.set_ip("");
+    LEX_CSTRING main_sctx_host= thd->m_main_security_ctx.host();
+    DBUG_PRINT("info",("Host: %s", main_sctx_host.str));
+    thd->m_main_security_ctx.set_host_or_ip_ptr(main_sctx_host.str,
+                                                main_sctx_host.length);
+    thd->m_main_security_ctx.set_ip_ptr(STRING_WITH_LEN(""));
     /* Reset sin_addr */
     memset(&net->vio->remote, 0, sizeof(net->vio->remote));
   }
@@ -670,7 +682,7 @@ static int check_connection(THD *thd)
       after some previous failures.
       Reset the connection error counter.
     */
-    reset_host_connect_errors(thd->main_security_ctx.get_ip()->ptr());
+    reset_host_connect_errors(thd->m_main_security_ctx.ip().str);
   }
 
   return auth_rc;
@@ -751,13 +763,13 @@ void end_connection(THD *thd)
   {
     if (!thd->killed)
     {
-      Security_context *sctx= thd->security_ctx;
-
+      Security_context *sctx= thd->security_context();
+      LEX_CSTRING sctx_user= sctx->user();
       sql_print_information(ER(ER_NEW_ABORTING_CONNECTION),
                             thd->thread_id(),
                             (thd->db().str ? thd->db().str : "unconnected"),
-                            sctx->user ? sctx->user : "unauthenticated",
-                            sctx->host_or_ip,
+                            sctx_user.str ? sctx_user.str : "unauthenticated",
+                            sctx->host_or_ip().str,
                             (thd->get_stmt_da()->is_error() ?
                              thd->get_stmt_da()->message_text() :
                              ER(ER_UNKNOWN_ERROR)));
@@ -772,7 +784,7 @@ void end_connection(THD *thd)
 
 static void prepare_new_connection_state(THD* thd)
 {
-  Security_context *sctx= thd->security_ctx;
+  Security_context *sctx= thd->security_context();
 
   if (thd->client_capabilities & CLIENT_COMPRESS)
     thd->net.compress=1;        // Use compression
@@ -790,7 +802,7 @@ static void prepare_new_connection_state(THD* thd)
   thd->set_time();
   thd->init_for_queries();
 
-  if (opt_init_connect.length && !(sctx->master_access & SUPER_ACL))
+  if (opt_init_connect.length && !(sctx->check_access(SUPER_ACL)))
   {
     execute_init_command(thd, &opt_init_connect, &LOCK_sys_init_connect);
     if (thd->is_error())
@@ -798,12 +810,13 @@ static void prepare_new_connection_state(THD* thd)
       Host_errors errors;
       ulong packet_length;
       NET *net= &thd->net;
+      LEX_CSTRING sctx_user= sctx->user();
 
       sql_print_warning(ER(ER_NEW_ABORTING_CONNECTION),
                         thd->thread_id(),
                         thd->db().str ? thd->db().str : "unconnected",
-                        sctx->user ? sctx->user : "unauthenticated",
-                        sctx->host_or_ip, "init_connect command failed");
+                        sctx_user.str ? sctx_user.str : "unauthenticated",
+                        sctx->host_or_ip().str, "init_connect command failed");
       sql_print_warning("%s", thd->get_stmt_da()->message_text());
 
       thd->lex->set_current_select(0);
@@ -819,14 +832,14 @@ static void prepare_new_connection_state(THD* thd)
         my_error(ER_NEW_ABORTING_CONNECTION, MYF(0),
                  thd->thread_id(),
                  thd->db().str ? thd->db().str : "unconnected",
-                 sctx->user ? sctx->user : "unauthenticated",
-                 sctx->host_or_ip, "init_connect command failed");
+                 sctx_user.str ? sctx_user.str : "unauthenticated",
+                 sctx->host_or_ip().str, "init_connect command failed");
 
       thd->server_status&= ~SERVER_STATUS_CLEAR_SET;
       thd->protocol->end_statement();
       thd->killed = THD::KILL_CONNECTION;
       errors.m_init_connect= 1;
-      inc_host_errors(thd->main_security_ctx.get_ip()->ptr(), &errors);
+      inc_host_errors(thd->m_main_security_ctx.ip().str, &errors);
       return;
     }
 
@@ -846,8 +859,9 @@ bool thd_prepare_connection(THD *thd)
   if (rc)
     return rc;
 
-  MYSQL_CONNECTION_START(thd->thread_id(), &thd->security_ctx->priv_user[0],
-                         (char *) thd->security_ctx->host_or_ip);
+  MYSQL_CONNECTION_START(thd->thread_id(),
+                         (char *) &thd->security_context()->priv_user().str[0],
+                         (char *) thd->security_context()->host_or_ip().str);
 
   prepare_new_connection_state(thd);
   return FALSE;

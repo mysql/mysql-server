@@ -149,7 +149,7 @@ Applier_module::set_applier_thread_context()
   applier_thd->slave_thread= true;
   //TODO: See of the creation of a new type is desirable.
   applier_thd->system_thread= SYSTEM_THREAD_SLAVE_IO;
-  applier_thd->security_ctx->skip_grants();
+  applier_thd->security_context()->skip_grants();
 
   Global_THD_manager::get_instance()->add_thd(applier_thd);
 

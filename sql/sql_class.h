@@ -55,6 +55,8 @@
 #include <list>
 #include <memory>
 
+#include "auth/sql_security_ctx.h"   // Security_context
+
 /**
   The meat of thd_proc_info(THD*, char*), a macro that packs the last
   three calling-info parameters.
@@ -831,71 +833,6 @@ private:
   Prepared_statement *m_last_found_statement;
 };
 
-/**
-  @class Security_context
-  @brief A set of THD members describing the current authenticated user.
-*/
-
-class Security_context {
-private:
-
-String host;
-String ip;
-String external_user;
-public:
-  Security_context() {}                       /* Remove gcc warning */
-  /*
-    host - host of the client
-    user - user of the client, set to NULL until the user has been read from
-    the connection
-    priv_user - The user privilege we are using. May be "" for anonymous user.
-    ip - client IP
-  */
-  char   *user;
-  char   priv_user[USERNAME_LENGTH];
-  char   proxy_user[USERNAME_LENGTH + MAX_HOSTNAME + 5];
-  /* The host privilege we are using */
-  char   priv_host[MAX_HOSTNAME];
-  /* points to host if host is available, otherwise points to ip */
-  const char *host_or_ip;
-  ulong master_access;                 /* Global privileges from mysql.user */
-  ulong db_access;                     /* Privileges for current db */
-  /*
-    This flag is set according to connecting user's context and not the
-    effective user.
-  */
-  bool password_expired;               /* password expiration flag */
-
-  void init();
-  void destroy();
-  void skip_grants();
-  inline char *priv_host_name()
-  {
-    return (*priv_host ? priv_host : (char *)"%");
-  }
-
-  bool set_user(char *user_arg);
-  String *get_host();
-  String *get_ip();
-  String *get_external_user();
-  void set_host(const char *p);
-  void set_ip(const char *p);
-  void set_external_user(const char *p);
-  void set_host(const char *str, size_t len);
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
-  bool
-  change_security_context(THD *thd,
-                          const LEX_CSTRING &definer_user,
-                          const LEX_CSTRING &definer_host,
-                          LEX_STRING *db,
-                          Security_context **backup);
-
-  void
-  restore_security_context(THD *thd, Security_context *backup);
-#endif
-  bool user_matches(Security_context *);
-};
-
 
 /**
   A registry for item tree transformations performed during
@@ -1648,8 +1585,11 @@ public:
     @see handle_slave_sql
   */
 
-  Security_context main_security_ctx;
-  Security_context *security_ctx;
+  Security_context m_main_security_ctx;
+  Security_context *m_security_ctx;
+
+  Security_context* security_context() const { return m_security_ctx; }
+  void set_security_context(Security_context *sctx) { m_security_ctx= sctx; }
 
   /*
     Points to info-string that we show in SHOW PROCESSLIST

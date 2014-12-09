@@ -1087,10 +1087,10 @@ public:
   {
     if (closing_thd->vio_ok())
     {
+      LEX_CSTRING main_sctx_user= closing_thd->m_main_security_ctx.user();
       sql_print_warning(ER_DEFAULT(ER_FORCING_CLOSE),my_progname,
                         closing_thd->thread_id(),
-                        (closing_thd->main_security_ctx.user ?
-                         closing_thd->main_security_ctx.user : ""));
+                        (main_sctx_user.length ? main_sctx_user.str : ""));
       close_connection(closing_thd);
     }
   }

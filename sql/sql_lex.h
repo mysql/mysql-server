@@ -527,7 +527,6 @@ public:
       UNCACHEABLE_DEPENDENT
       UNCACHEABLE_RAND
       UNCACHEABLE_SIDEEFFECT
-      UNCACHEABLE_PREPARE
   */
   uint8 uncacheable;
 
@@ -809,7 +808,6 @@ public:
       UNCACHEABLE_DEPENDENT
       UNCACHEABLE_RAND
       UNCACHEABLE_SIDEEFFECT
-      UNCACHEABLE_PREPARE
   */
   uint8 uncacheable;
   enum sub_select_type linkage;
@@ -2607,6 +2605,9 @@ public:
   LEX_YYSTYPE lookahead_yylval;
 
   void add_digest_token(uint token, LEX_YYSTYPE yylval);
+
+  void reduce_digest_token(uint token_left, uint token_right);
+
   const CHARSET_INFO *query_charset;
 
 private:
@@ -3361,6 +3362,9 @@ private:
 
 extern sql_digest_state *
 digest_add_token(sql_digest_state *state, uint token, LEX_YYSTYPE yylval);
+
+extern sql_digest_state *
+digest_reduce_token(sql_digest_state *state, uint token_left, uint token_right);
 
 struct st_lex_local: public LEX
 {

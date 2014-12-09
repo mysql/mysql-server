@@ -59,7 +59,7 @@ protected:
       without executing.
     */
     initializer.set_expected_error(ER_MUST_CHANGE_PASSWORD);
-    thd()->security_ctx->password_expired= true;
+    thd()->security_context()->set_password_expired(true);
 
     Mock_error_handler handler(thd(), expected_error_code);
     lex_start(thd());

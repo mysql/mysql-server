@@ -6015,11 +6015,18 @@ void MYSQL_BIN_LOG::purge()
   @retval
     nonzero - error in rotating routine.
 */
-int MYSQL_BIN_LOG::rotate_and_purge(bool force_rotate)
+int MYSQL_BIN_LOG::rotate_and_purge(THD* thd, bool force_rotate)
 {
   int error= 0;
   DBUG_ENTER("MYSQL_BIN_LOG::rotate_and_purge");
   bool check_purge= false;
+
+  /*
+    Wait for handlerton to insert any pending information into the binlog.
+    For e.g. ha_ndbcluster which updates the binlog asynchronously this is
+    needed so that the user see its own commands in the binlog.
+  */
+  ha_binlog_wait(thd);
 
   DBUG_ASSERT(!is_relay_log);
   mysql_mutex_lock(&LOCK_log);

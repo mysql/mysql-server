@@ -1670,7 +1670,7 @@ int ha_commit_trans(THD *thd, bool all, bool ignore_global_read_lock)
 
     if (rw_trans &&
         opt_readonly &&
-        !(thd->security_ctx->master_access & SUPER_ACL) &&
+        !(thd->security_context()->check_access(SUPER_ACL)) &&
         !thd->slave_thread)
     {
       my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--read-only");
