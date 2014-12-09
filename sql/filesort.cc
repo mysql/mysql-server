@@ -512,8 +512,8 @@ ha_rows filesort(THD *thd, QEP_TAB *qep_tab, Filesort *filesort,
       sql_print_information("%s, host: %s, user: %s, "
                             "thread: %u, error: %s, query: %-.4096s",
                             msg,
-                            thd->security_ctx->host_or_ip,
-                            &thd->security_ctx->priv_user[0],
+                            thd->security_context()->host_or_ip().str,
+                            thd->security_context()->priv_user().str,
                             thd->thread_id(),
                             cause,
                             thd->query().str);
