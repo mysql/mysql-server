@@ -300,14 +300,6 @@ char *metaphon(UDF_INIT *initid __attribute__((unused)),
     *is_null=1;
     return 0;
   }
-  else
-  {
-    /*
-      A check to confirm that argument length has the value it is
-      expected to have.
-    */
-    assert(strlen(word) == args->lengths[0]);
-  }
 
   w_end=word+args->lengths[0];
   org_result=result;
