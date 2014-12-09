@@ -55,6 +55,8 @@ public:
   SignalCounter& operator++(int);
   SignalCounter& operator+=(Uint32);
   Uint32 getCount() const;
+
+  const NdbNodeBitmask& getNodeBitmask() const { return m_nodes; }
 };
 
 inline

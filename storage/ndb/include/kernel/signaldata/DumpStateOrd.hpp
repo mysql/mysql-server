@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -181,6 +181,10 @@ public:
       *not* be described in end-user documentation.
     */
     DihAddFragFailCleanedUp = 7024,
+    /**
+     * Allows GCP stop thresholds to be set
+     */
+    DihSetGcpStopVals = 7026,
     DihDumpPageRecInfo = 7032,
     EnableUndoDelayDataWrite = 7080, // DIH+ACC+TUP
     DihSetTimeBetweenGcp = 7090,

@@ -587,6 +587,8 @@ private:
   Uint32& set_hb_count(Uint32 nodeId) {
     return globalData.set_hb_count(nodeId);
   }
+
+  void execISOLATE_ORD(Signal* signal);
 };
 
 
