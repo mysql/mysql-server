@@ -1498,15 +1498,17 @@ public:
     */
     if (!user->user.str)
     {
-      DBUG_ASSERT(thd->security_ctx->priv_user);
-      user->user.str= thd->security_ctx->priv_user;
-      user->user.length= strlen(thd->security_ctx->priv_user);
+      LEX_CSTRING sctx_priv_user= thd->security_context()->priv_user();
+      DBUG_ASSERT(sctx_priv_user.str);
+      user->user.str= sctx_priv_user.str;
+      user->user.length= sctx_priv_user.length;
     }
     if (!user->host.str)
     {
-      DBUG_ASSERT(thd->security_ctx->priv_host);
-      user->host.str= (char *) thd->security_ctx->priv_host;
-      user->host.length= strlen(thd->security_ctx->priv_host);
+      LEX_CSTRING sctx_priv_host= thd->security_context()->priv_host();
+      DBUG_ASSERT(sctx_priv_host.str);
+      user->host.str= (char *) sctx_priv_host.str;
+      user->host.length= sctx_priv_host.length;
     }
 
     var= new set_var_password(user, const_cast<char *>(password));

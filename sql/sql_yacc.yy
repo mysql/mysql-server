@@ -414,7 +414,7 @@ static bool add_create_index (LEX *lex, keytype type,
 bool match_authorized_user(Security_context *ctx, LEX_USER *user)
 {
   if(user->user.str && my_strcasecmp(system_charset_info,
-                                     ctx->priv_user,
+                                     ctx->priv_user().str,
                                      user->user.str) == 0)
   {
     /*
@@ -424,7 +424,7 @@ bool match_authorized_user(Security_context *ctx, LEX_USER *user)
     */
     if (user->host.str && my_strcasecmp(system_charset_info,
                                         user->host.str,
-                                        ctx->priv_host) == 0)
+                                        ctx->priv_host().str) == 0)
     {
       /* specified user exactly match the authorized user */
       return true;
