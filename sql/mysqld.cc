@@ -3649,7 +3649,6 @@ static int init_server_components()
 
   randominit(&sql_rand,(ulong) server_start_time,(ulong) server_start_time/2);
   setup_fpu();
-  init_thr_lock();
 #ifdef HAVE_REPLICATION
   init_slave_list();
 #endif
