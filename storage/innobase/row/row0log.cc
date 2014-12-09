@@ -2902,8 +2902,6 @@ row_log_table_apply(
 	DBUG_EXECUTE_IF("innodb_trx_duplicates",
 			thr_get_trx(thr)->duplicates = 0;);
 
-	stage->begin_phase_end();
-
 	return(error);
 }
 
