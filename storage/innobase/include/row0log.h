@@ -190,6 +190,9 @@ row_log_table_blob_alloc(
 @param[in]	thr		query graph
 @param[in]	old_table	old table
 @param[in,out]	table		MySQL table (for reporting duplicates)
+@param[in,out]	stage		performance schema accounting object, used by
+ALTER TABLE. stage->begin_phase_log() will be called initially and then
+stage->inc() will be called for each block of log that is applied.
 @return DB_SUCCESS, or error code on failure */
 dberr_t
 row_log_table_apply(

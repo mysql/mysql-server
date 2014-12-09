@@ -268,6 +268,9 @@ private:
 @param[in]	row_buf		row_buf the sorted data tuples,
 or NULL if fd, block will be used instead
 @param[in,out]	btr_bulk	btr bulk instance
+@param[in,out]	stage		performance schema accounting object, used by
+ALTER TABLE. If not NULL stage->begin_phase_insert() will be called initially
+and then stage->inc() will be called for each record that is processed.
 @return DB_SUCCESS or error number */
 static	__attribute__((warn_unused_result))
 dberr_t
@@ -1458,6 +1461,9 @@ ULINT_UNDEFINED if none is added
 @param[in]	skip_pk_sort	whether the new PRIMARY KEY will follow
 existing order
 @param[in,out]	tmpfd		temporary file handle
+@param[in,out]	stage		performance schema accounting object, used by
+ALTER TABLE. stage->n_pk_recs_inc() will be called for each record read and
+stage->inc() will be called for each page read.
 @return DB_SUCCESS or error */
 static __attribute__((warn_unused_result))
 dberr_t
@@ -2450,6 +2456,8 @@ wait_again:
 @param[in,out]	foffs0	offset of first source list in the file
 @param[in,out]	foffs1	offset of second source list in the file
 @param[in,out]	of	output file
+@param[in,out]	stage	performance schema accounting object, used by
+ALTER TABLE. If not NULL stage->inc() will be called for each record processed.
 @return DB_SUCCESS or error code */
 static __attribute__((warn_unused_result))
 dberr_t
@@ -2552,6 +2560,8 @@ done1:
 @param[in,out]	block	3 buffers
 @param[in,out]	foffs0	input file offset
 @param[in,out]	of	output file
+@param[in,out]	stage	performance schema accounting object, used by
+ALTER TABLE. If not NULL stage->inc() will be called for each record processed.
 @return TRUE on success, FALSE on failure */
 static __attribute__((warn_unused_result))
 ibool
@@ -2628,6 +2638,8 @@ done0:
 @param[in,out]	num_run		Number of runs that remain to be merged
 @param[in,out]	run_offset	Array that contains the first offset number
 for each merge run
+@param[in,out]	stage		performance schema accounting object, used by
+ALTER TABLE. If not NULL stage->inc() will be called for each record processed.
 @return DB_SUCCESS or error code */
 static
 dberr_t
@@ -2757,6 +2769,9 @@ row_merge(
 @param[in,out]	file	file containing index entries
 @param[in,out]	block	3 buffers
 @param[in,out]	tmpfd	temporary file handle
+@param[in,out]	stage	performance schema accounting object, used by
+ALTER TABLE. If not NULL, stage->begin_phase_sort() will be called initially
+and then stage->inc() will be called for each record processed.
 @return DB_SUCCESS or error code */
 dberr_t
 row_merge_sort(
@@ -2908,6 +2923,9 @@ row_merge_mtuple_to_dtuple(
 @param[in]	row_buf		row_buf the sorted data tuples,
 or NULL if fd, block will be used instead
 @param[in,out]	btr_bulk	btr bulk instance
+@param[in,out]	stage		performance schema accounting object, used by
+ALTER TABLE. If not NULL stage->begin_phase_insert() will be called initially
+and then stage->inc() will be called for each record that is processed.
 @return DB_SUCCESS or error number */
 static	__attribute__((warn_unused_result))
 dberr_t
@@ -4030,6 +4048,9 @@ ULINT_UNDEFINED if none is added
 @param[in,out]	sequence	autoinc sequence
 @param[in]	skip_pk_sort	whether the new PRIMARY KEY will follow
 existing order
+@param[in,out]	stage		performance schema accounting object, used by
+ALTER TABLE. stage->begin_phase_read_pk() will be called at the beginning of
+this function and it will be passed to other functions for further accounting.
 @return DB_SUCCESS or error code */
 dberr_t
 row_merge_build_indexes(

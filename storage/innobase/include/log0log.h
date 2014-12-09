@@ -215,7 +215,9 @@ log_checkpoint(
 for the latest LSN
 @param[in]	write_always	force a write even if no log
 has been generated since the latest checkpoint
-@param[in,out]	stage		TODO */
+@param[in,out]	stage		performance schema accounting object, used by
+ALTER TABLE. It is passed to log_preflush_pool_modified_pages() for
+accounting. */
 void
 log_make_checkpoint_at(
 	lsn_t			lsn,
