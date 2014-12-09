@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -786,5 +786,7 @@ const GsnName SignalNames [] = {
   ,{ GSN_LCP_STATUS_REQ, "LCP_STATUS_REQ" }
   ,{ GSN_LCP_STATUS_CONF, "LCP_STATUS_CONF" }
   ,{ GSN_LCP_STATUS_REF, "LCP_STATUS_REF" }
+
+  ,{ GSN_ISOLATE_ORD, "ISOLATE_ORD" }
 };
 const unsigned short NO_OF_SIGNAL_NAMES = sizeof(SignalNames)/sizeof(GsnName);

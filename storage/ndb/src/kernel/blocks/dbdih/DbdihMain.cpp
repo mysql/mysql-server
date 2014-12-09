@@ -80,6 +80,7 @@
 #include <signaldata/DihGetTabInfo.hpp>
 #include <SectionReader.hpp>
 #include <signaldata/DihRestart.hpp>
+#include <signaldata/IsolateOrd.hpp>
 
 #include <EventLogger.hpp>
 
@@ -527,7 +528,7 @@ void Dbdih::execCONTINUEB(Signal* signal)
   case DihContinueB::ZSTART_GCP:
     jam();
 #ifndef NO_GCP
-    startGcpLab(signal, signal->theData[1]);
+    startGcpLab(signal);
 #endif
     return;
     break;
@@ -707,6 +708,16 @@ void Dbdih::execCOPY_GCIREQ(Signal* signal)
 {
   CopyGCIReq * const copyGCI = (CopyGCIReq *)&signal->theData[0];
   jamEntry();
+  if (ERROR_INSERTED(7241))
+  {
+    jam();
+    g_eventLogger->info("Delayed COPY_GCIREQ 5s");
+    sendSignalWithDelay(reference(), GSN_COPY_GCIREQ,
+                        signal, 5000,
+                        signal->getLength());
+    return;
+  }
+
   CopyGCIReq::CopyReason reason = (CopyGCIReq::CopyReason)copyGCI->copyReason;
   const Uint32 tstart = copyGCI->startWord;
   
@@ -9804,8 +9815,17 @@ Dbdih::execUPGRADE_PROTOCOL_ORD(Signal* signal)
 }
 
 void
-Dbdih::startGcpLab(Signal* signal, Uint32 aWaitTime)
+Dbdih::startGcpLab(Signal* signal)
 {
+  if (ERROR_INSERTED(7242))
+  {
+    jam();
+    g_eventLogger->info("Delayed GCP_COMMIT start 5s");
+    signal->theData[0] = DihContinueB::ZSTART_GCP;
+    sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 5000, 1);
+    return;
+  }
+
   for (Uint32 i = 0; i < c_diverify_queue_cnt; i++)
   {
     if (c_diverify_queue[i].m_empty_done == 0)
@@ -9905,8 +9925,9 @@ Dbdih::startGcpLab(Signal* signal, Uint32 aWaitTime)
   const Uint32 delaySave = m_gcp_save.m_master.m_time_between_gcp;
   const NDB_TICKS start  = m_gcp_save.m_master.m_start_time;
   const bool need_gcp_save = 
-    !NdbTick_IsValid(start) ||                           //First or forced GCP
-    NdbTick_Elapsed(start, now).milliSec() >= delaySave; //Reached time limit
+    (!NdbTick_IsValid(start) ||                              //First or forced GCP
+     NdbTick_Elapsed(start, now).milliSec() >= delaySave) && //Reached time limit
+    (!ERROR_INSERTED(7243));  /* 7243 = no GCP_SAVE initiation */
 
   if ((m_micro_gcp.m_enabled == false) ||
       (need_gcp_save &&
@@ -10227,6 +10248,16 @@ Dbdih::execGCP_SAVEREQ(Signal* signal)
   jamEntry();
   GCPSaveReq * req = (GCPSaveReq*)&signal->theData[0];
 
+  if (ERROR_INSERTED(7237))
+  {
+    jam();
+    g_eventLogger->info("Delayed GCP_SAVEREQ 5s");
+    sendSignalWithDelay(reference(), GSN_GCP_SAVEREQ,
+                        signal, 5000,
+                        signal->getLength());
+    return;
+  }
+
   if (m_gcp_save.m_state == GcpSave::GCP_SAVE_REQ)
   {
     jam();
@@ -10362,6 +10393,10 @@ void Dbdih::execGCP_PREPARE(Signal* signal)
   if (ERROR_INSERTED(7030))
   {
     cgckptflag = true;
+  }
+  if (ERROR_INSERTED(7030) || 
+      ERROR_INSERTED(7238))
+  {
     g_eventLogger->info("Delayed GCP_PREPARE 5s");
     sendSignalWithDelay(reference(), GSN_GCP_PREPARE, signal, 5000,
 			signal->getLength());
@@ -10454,6 +10489,14 @@ void Dbdih::execGCP_COMMIT(Signal* signal)
 {
   jamEntry();
   CRASH_INSERTION(7006);
+
+  if (ERROR_INSERTED(7239))
+  {
+    g_eventLogger->info("Delayed GCP_COMMIT 5s");
+    sendSignalWithDelay(reference(), GSN_GCP_COMMIT, signal, 5000,
+                        signal->getLength());
+    return;
+  }
 
   GCPCommit * req = (GCPCommit*)signal->getDataPtr();
   Uint32 masterNodeId = req->nodeId;
@@ -10630,6 +10673,15 @@ Dbdih::execSUB_GCP_COMPLETE_REP(Signal* signal)
   jamEntry();
 
   CRASH_INSERTION(7228);
+
+  if (ERROR_INSERTED(7244))
+  {
+    g_eventLogger->info("Delayed SUB_GCP_COMPLETE_REP 5s");
+    sendSignalWithDelay(reference(), GSN_SUB_GCP_COMPLETE_REP, signal, 5000,
+                        signal->getLength());
+    return;
+  }
+
   SubGcpCompleteRep rep = * (SubGcpCompleteRep*)signal->getDataPtr();
   if (isMaster())
   {
@@ -14661,7 +14713,7 @@ void Dbdih::checkGcpStopLab(Signal* signal)
         lag0 >= m_gcp_monitor.m_gcp_save.m_max_lag_ms)
     {
       crashSystemAtGcpStop(signal, false);
-      return;
+      /* Continue monitoring */
     }
 
     /**
@@ -14702,7 +14754,7 @@ void Dbdih::checkGcpStopLab(Signal* signal)
     if (cmp && lag1 >= cmp)
     {
       crashSystemAtGcpStop(signal, false);
-      return;
+      /* Continue monitoring */
     }
 
     /**
@@ -14792,8 +14844,27 @@ Dbdih::dumpGcpStop()
 
 /**
  * GCP stop detected, 
- * send SYSTEM_ERROR to all other alive nodes
- */
+ * local == true means we must shutdown
+ * local == false means we (GCP Master) are deciding what to 
+ *  do - may involve requesting shut down of other nodes and/or 
+ *  ourself.
+ *
+ * The action to take is generally :
+ *   1.  Send 'Please log debug info + shutdown' signals to
+ *       stalled nodes
+ *   2,  Send ISOLATE_ORD with delay of X millis to *all*
+ *       nodes (including self)
+ *
+ * Part 1 should result in a clean shutdown with debug
+ * information and a clear cause
+ * Part 2 ensures that if part 1 fails (as it might if the
+ * nodes are 'ill'), the live nodes quickly exclude the
+ * ill node and get on with their lives.
+ *
+ * Part 1 is implemented by various DUMP_STATE_ORD signals
+ * and SYSTEM_ERROR
+ * Part 2 is implemented using ISOLATE_ORD.
+*/
 void Dbdih::crashSystemAtGcpStop(Signal* signal, bool local)
 {
   dumpGcpStop();
@@ -14801,6 +14872,8 @@ void Dbdih::crashSystemAtGcpStop(Signal* signal, bool local)
   const Uint32 micro_elapsed = m_gcp_monitor.m_micro_gcp.m_elapsed_ms;
   m_gcp_monitor.m_gcp_save.m_elapsed_ms = 0;
   m_gcp_monitor.m_micro_gcp.m_elapsed_ms = 0;
+
+  const Uint32 NodeIsolationTimeoutMillis = 100;
 
   if (local)
     goto dolocal;
@@ -14820,6 +14893,16 @@ void Dbdih::crashSystemAtGcpStop(Signal* signal, bool local)
     sysErr->data[2] = m_micro_gcp.m_master.m_state;
     sendSignal(calcNdbCntrBlockRef(c_nodeStartMaster.startNode), 
                GSN_SYSTEM_ERROR, signal, SystemError::SignalLength, JBA);
+
+    {
+      /* Isolate, just in case */
+      NdbNodeBitmask victims;
+      victims.set(c_nodeStartMaster.startNode);
+      
+      isolateNodes(signal,
+                   NodeIsolationTimeoutMillis,
+                   victims);
+    }
     return;
   }
 
@@ -14831,6 +14914,15 @@ void Dbdih::crashSystemAtGcpStop(Signal* signal, bool local)
       /**
        * No switch for looong time...and we're idle...it *our* fault
        */
+      /* Ask others to isolate me, just in case */
+      {
+        NdbNodeBitmask victims;
+        victims.set(cownNodeId);
+        
+        isolateNodes(signal,
+                     NodeIsolationTimeoutMillis,
+                     victims);
+      }
       local = true;
       break;
     }
@@ -14841,6 +14933,10 @@ void Dbdih::crashSystemAtGcpStop(Signal* signal, bool local)
       signal->theData[0] = 2305;
       sendSignal(rg, GSN_DUMP_STATE_ORD, signal, 1, JBB);
       
+      isolateNodes(signal,
+                   NodeIsolationTimeoutMillis,
+                   c_GCP_SAVEREQ_Counter.getNodeBitmask());
+
       warningEvent("Detected GCP stop(%d)...sending kill to %s", 
                 m_gcp_save.m_master.m_state, c_GCP_SAVEREQ_Counter.getText());
       ndbout_c("Detected GCP stop(%d)...sending kill to %s", 
@@ -14875,6 +14971,11 @@ void Dbdih::crashSystemAtGcpStop(Signal* signal, bool local)
         sendSignal(rg, GSN_SYSTEM_ERROR, signal, 
                    SystemError::SignalLength, JBA);
       }
+
+      isolateNodes(signal,
+                   NodeIsolationTimeoutMillis,
+                   c_COPY_GCIREQ_Counter.getNodeBitmask());
+
       ndbrequire(!c_COPY_GCIREQ_Counter.done());
       return;
     }
@@ -14895,6 +14996,15 @@ void Dbdih::crashSystemAtGcpStop(Signal* signal, bool local)
       /**
        * No switch for looong time...and we're idle...it *our* fault
        */
+      /* Ask others to isolate me, just in case */
+      {
+        NdbNodeBitmask victims;
+        victims.set(cownNodeId);
+        
+        isolateNodes(signal,
+                     NodeIsolationTimeoutMillis,
+                     victims);
+      }
       local = true;
       break;
     }
@@ -14925,6 +15035,11 @@ void Dbdih::crashSystemAtGcpStop(Signal* signal, bool local)
         sendSignal(rg, GSN_SYSTEM_ERROR, signal, 
                    SystemError::SignalLength, JBA);
       }
+
+      isolateNodes(signal,
+                   NodeIsolationTimeoutMillis,
+                   c_GCP_PREPARE_Counter.getNodeBitmask());
+
       ndbrequire(!c_GCP_PREPARE_Counter.done());
       return;
     }
@@ -14952,6 +15067,11 @@ void Dbdih::crashSystemAtGcpStop(Signal* signal, bool local)
         sendSignal(rg, GSN_SYSTEM_ERROR, signal, 
                    SystemError::SignalLength, JBA);
       }
+
+      isolateNodes(signal,
+                   NodeIsolationTimeoutMillis,
+                   c_GCP_COMMIT_Counter.getNodeBitmask());
+
       ndbrequire(!c_GCP_COMMIT_Counter.done());
       return;
     }
@@ -14984,6 +15104,11 @@ void Dbdih::crashSystemAtGcpStop(Signal* signal, bool local)
         sendSignal(rg, GSN_SYSTEM_ERROR, signal,
                    SystemError::SignalLength, JBA);
       }
+
+      isolateNodes(signal,
+                   NodeIsolationTimeoutMillis,
+                   c_SUB_GCP_COMPLETE_REP_Counter.getNodeBitmask());
+
       ndbrequire(!c_SUB_GCP_COMPLETE_REP_Counter.done());
       return;
     }
@@ -15009,6 +15134,26 @@ dolocal:
   signal->theData[0] = 404;
   signal->theData[1] = file1Ptr.p->fileRef;
   EXECUTE_DIRECT(NDBFS, GSN_DUMP_STATE_ORD, signal, 2);
+
+  /* Various GCP_STOP error insert codes */
+  if (ERROR_INSERTED(7238) ||
+      ERROR_INSERTED(7239) ||
+      ERROR_INSERTED(7244) ||
+      ERROR_INSERTED(7237) ||
+      ERROR_INSERTED(7241) ||
+      ERROR_INSERTED(7242) ||
+      ERROR_INSERTED(7243))
+  {
+    jam();
+    if (ERROR_INSERT_EXTRA == 1)
+    {
+      /* Testing GCP STOP handling via node isolation */
+      jam();
+      g_eventLogger->info("Not killing local due to GCP stop");
+      return;
+    }
+    /* Otherwise fall through to SYSTEM_ERROR  */
+  }
 
   jam();
   SystemError * const sysErr = (SystemError*)&signal->theData[0];
@@ -18508,6 +18653,32 @@ Dbdih::execDUMP_STATE_ORD(Signal* signal)
     SET_ERROR_INSERT_VALUE2(signal->theData[1],
                             signal->theData[2]);
   }
+
+  if (arg == DumpStateOrd::DihSetGcpStopVals)
+  {
+    jam();
+    if (signal->getLength() != 3)
+    {
+      jam();
+      return;
+    }
+    if (signal->theData[1] == 0)
+    {
+      g_eventLogger->info("Changing GCP_COMMIT max_lag_millis from %u to %u",
+                          m_gcp_monitor.m_micro_gcp.m_max_lag_ms,
+                          signal->theData[2]);
+      m_gcp_monitor.m_micro_gcp.m_max_lag_ms = signal->theData[2];
+    }
+    else
+    {
+      g_eventLogger->info("Changing GCP_SAVE max_lag_millis from %u to %u",
+                          m_gcp_monitor.m_gcp_save.m_max_lag_ms,
+                          signal->theData[2]);
+      m_gcp_monitor.m_gcp_save.m_max_lag_ms = signal->theData[2];
+    }
+  }
+      
+
 }//Dbdih::execDUMP_STATE_ORD()
 
 void
@@ -18613,7 +18784,16 @@ Dbdih::execNDB_TAMPER(Signal* signal)
     calculateKeepGciLab(signal, 0, 0);
     return;
   }//if
-  SET_ERROR_INSERT_VALUE(signal->theData[0]);
+  if (signal->getLength() == 1)
+  {
+    SET_ERROR_INSERT_VALUE2(signal->theData[0],
+                            0);
+  }
+  else
+  {
+    SET_ERROR_INSERT_VALUE2(signal->theData[0],
+                            signal->theData[1]);
+  }
   return;
 }//Dbdih::execNDB_TAMPER()
 
@@ -19903,4 +20083,37 @@ Dbdih::getMinVersion() const
   } while (specNodePtr.i != RNIL);
 
   return ver;
+}
+
+/**
+ * isolateNodes
+ *
+ * Get all live nodes to disconnect the set of victims
+ * in minDelayMillis.
+ *
+ * The signals are sent to live nodes immediately, and
+ * those nodes perform the delay, to reduce the chance
+ * of lag on this node causing problems
+ */
+void
+Dbdih::isolateNodes(Signal* signal,
+                    Uint32 delayMillis,
+                    const NdbNodeBitmask& victims)
+{
+  jam();
+  
+  IsolateOrd* ord = (IsolateOrd*) signal->theData;
+  
+  ord->senderRef          = reference();
+  ord->isolateStep        = IsolateOrd::IS_REQ;
+  ord->delayMillis        = delayMillis;
+
+  victims.copyto(NdbNodeBitmask::Size, ord->nodesToIsolate);
+  
+  /* QMGR handles this */
+  sendSignal(QMGR_REF,
+             GSN_ISOLATE_ORD,
+             signal,
+             IsolateOrd::SignalLength,
+             JBA);
 }
