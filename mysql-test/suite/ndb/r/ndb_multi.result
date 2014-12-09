@@ -231,3 +231,15 @@ dummy	CREATE TABLE `dummy` (
   PRIMARY KEY (`a`)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table mysql.dummy;
+#dbs with identifier length = 64 won't be replicated to other mysqlds 
+#create such db in one mysqld and verify its not present in the other
+CREATE DATABASE
+abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz123;
+Warnings:
+Warning	1059	Ndb has an internal limit of 63 bytes on the size of schema identifiers
+USE abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz123;
+ERROR 42000: Unknown database 'abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz123'
+DROP DATABASE
+abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz123;
+Warnings:
+Warning	1059	Ndb has an internal limit of 63 bytes on the size of schema identifiers
