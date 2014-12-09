@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -241,6 +241,15 @@ void Ndbcntr::execSYSTEM_ERROR(Signal* signal)
     }
 
     jamEntry();
+
+    if (ERROR_INSERTED(1004))
+    {
+      jam();
+      g_eventLogger->info("NDBCNTR not shutting down due to GCP stop");
+      return;
+    }
+    CRASH_INSERTION(1005);
+
     break;
   }
   case SystemError::CopyFragRefError:

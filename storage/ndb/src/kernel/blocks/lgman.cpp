@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License
@@ -355,7 +355,7 @@ Lgman::execNODE_FAILREP(Signal* signal)
 
 void
 Lgman::execDUMP_STATE_ORD(Signal* signal){
-  jamEntry();
+  jamNoBlock();  /* Due to bug#20135976 */
   if (signal->theData[0] == 12001 || signal->theData[0] == 12002)
   {
     char tmp[1024];

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -55,7 +55,8 @@ public:
     ZOTHERNODE_FAILED_DURING_START=6,
     ZMULTI_NODE_SHUTDOWN = 7,
     ZPARTITIONED_CLUSTER = 8,
-    ZCONNECT_CHECK_FAILURE = 9
+    ZCONNECT_CHECK_FAILURE = 9,
+    ZFORCED_ISOLATION = 10
   };
 
   Uint32 getFailSourceNodeId(Uint32 sigLen) const

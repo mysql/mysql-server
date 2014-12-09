@@ -1064,7 +1064,7 @@ private:
   void tableUpdateLab(Signal *, TabRecordPtr regTabPtr);
   void checkLcpCompletedLab(Signal *);
   void initLcpLab(Signal *, Uint32 masterRef, Uint32 tableId);
-  void startGcpLab(Signal *, Uint32 aWaitTime);
+  void startGcpLab(Signal *);
   void checkGcpStopLab(Signal *);
   void MASTER_GCPhandling(Signal *, Uint32 failedNodeId);
   void MASTER_LCPhandling(Signal *, Uint32 failedNodeId);
@@ -1957,6 +1957,10 @@ private:
   Uint32 getMinVersion() const;
 
   bool c_2pass_inr;
+
+  void isolateNodes(Signal* signal,
+                    Uint32 delayMillis,
+                    const NdbNodeBitmask& victims);
 };
 
 #if (DIH_CDATA_SIZE < _SYSFILE_SIZE32)
