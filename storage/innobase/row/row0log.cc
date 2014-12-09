@@ -2558,7 +2558,7 @@ next_block:
 #endif /* UNIV_SYNC_DEBUG */
 	ut_ad(index->online_log->head.bytes == 0);
 
-	stage->one_page_was_processed(row_log_progress_inc_per_block());
+	stage->inc(row_log_progress_inc_per_block());
 
 	if (trx_is_interrupted(trx)) {
 		goto interrupted;

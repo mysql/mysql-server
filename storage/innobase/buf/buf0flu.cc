@@ -1263,7 +1263,7 @@ buf_flush_try_neighbors(
 	for (ulint i = low; i < high; i++) {
 
 		if (stage != NULL) {
-			stage->one_page_was_processed();
+			stage->inc();
 		}
 
 		buf_page_t*	bpage;
@@ -1950,7 +1950,7 @@ buf_flush_lists(
 		/* We will not flush more than 'min_n' pages. */
 		pages_to_flush = std::min(min_n, pages_to_flush);
 
-		stage->set_n_flush_pages(pages_to_flush);
+		stage->begin_phase_flush(pages_to_flush);
 	}
 
 	if (min_n != ULINT_MAX) {
