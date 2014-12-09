@@ -310,7 +310,8 @@ MYSQL_LOCK *mysql_lock_tables(THD *thd, TABLE **tables, size_t count, uint flags
   rc= thr_lock_errno_to_mysql[(int) thr_multi_lock(sql_lock->locks +
                                                    sql_lock->lock_count,
                                                    sql_lock->lock_count,
-                                                   &thd->lock_info, timeout)];
+                                                   &thd->lock_info, timeout,
+                                                   thd->mysys_var)];
   if (rc)
   {
     if (sql_lock->table_count)

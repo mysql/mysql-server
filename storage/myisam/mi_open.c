@@ -523,12 +523,7 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
       mysql_rwlock_init(mi_key_rwlock_MYISAM_SHARE_key_root_lock,
                         &share->key_root_lock[i]);
     mysql_rwlock_init(mi_key_rwlock_MYISAM_SHARE_mmap_lock, &share->mmap_lock);
-    if (!thr_lock_inited)
-    {
-      /* Probably a single threaded program; Don't use concurrent inserts */
-      myisam_concurrent_insert=0;
-    }
-    else if (myisam_concurrent_insert)
+    if (myisam_concurrent_insert)
     {
       share->concurrent_insert=
 	((share->options & (HA_OPTION_READ_ONLY_DATA | HA_OPTION_TMP_TABLE |

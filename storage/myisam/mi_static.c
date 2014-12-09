@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -32,7 +32,8 @@ File	myisam_log_file= -1;
 uint	myisam_quick_table_bits=9;
 ulong	myisam_block_size= MI_KEY_BLOCK_LENGTH;		/* Best by test */
 my_bool myisam_flush=0, myisam_delay_key_write=0, myisam_single_user=0;
-ulong myisam_concurrent_insert= 2;
+/* Assume that we are in a single threaded program by default. */
+ulong myisam_concurrent_insert= 0;
 ulonglong myisam_max_temp_length= MAX_FILE_SIZE;
 ulong    myisam_data_pointer_size=4;
 ulonglong    myisam_mmap_size= SIZE_T_MAX, myisam_mmap_used= 0;
