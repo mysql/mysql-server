@@ -23,11 +23,6 @@
 #
 # create test bed.
 #
-let $big_tables = `select @@big_tables`;
-let $internal_se = `select @@internal_tmp_disk_storage_engine`;
-set global big_tables = 1;
-set global internal_tmp_disk_storage_engine = innodb;
-#
 ##--disable_query_log
 let $wl6737_auto_inc = auto_increment;
 --source suite/innodb/include/create_workload_itt.inc
@@ -48,7 +43,7 @@ let $wl6737_auto_inc = auto_increment;
 --shutdown_server 60
 --source include/wait_until_disconnected.inc
 --enable_reconnect
---exec echo "restart: --innodb-read-only " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--exec echo "restart: --innodb-read-only --big-tables=1" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --enable_reconnect
 --source include/wait_until_connected_again.inc
 --disable_reconnect
@@ -72,6 +67,4 @@ let $wl6737_auto_inc = auto_increment;
 # remove test bed.
 #
 --source suite/innodb/include/drop_workload_itt.inc
-eval set global big_tables = $big_tables;
-eval set global internal_tmp_disk_storage_engine = $internal_se;
 
