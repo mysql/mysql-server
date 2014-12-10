@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2485,7 +2485,11 @@ runTrigOverload(NDBT_Context* ctx, NDBT_Step* step)
 
   unsigned numScenarios = 3;
   unsigned errorInserts[3] = {8085, 8086, 0};
-  int results[3] = {218, 218, 0};
+  int results[3] = {
+    293, // Inconsistent trigger state in TC block
+    218, // Out of LongMessageBuffer
+    0
+  };
 
   unsigned iterations = 50;
 
