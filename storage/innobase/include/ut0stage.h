@@ -270,7 +270,7 @@ private:
 		read yet, use stat_n_leaf_pages (approximate), otherwise
 		use the exact number we gathered. */
 		const ulint	n_pk_pages
-			= m_n_pk_pages != 0
+			= m_cur_phase != READ_PK
 			? m_n_pk_pages
 			: m_pk->stat_n_leaf_pages;
 
