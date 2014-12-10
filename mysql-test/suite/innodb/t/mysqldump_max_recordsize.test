@@ -1,7 +1,7 @@
 # *********************************************************
 # page size 32K ----> page size 16K
 # start the DB with page size 32K
-# create tables with record length = 16k 
+# create tables with record length = 16k
 # take the dump wl5757.sql
 # case 1 : start the DB with page size 16K
 # load/import the dump file
@@ -14,7 +14,7 @@
 # *********************************************************
 --source include/not_valgrind.inc
 --source include/not_embedded.inc
-# can not run parallel > 1 
+# can not run parallel > 1
 #--source include/not_parallel.inc
 
 let $MYSQLD_BASEDIR= `select @@basedir`;
@@ -161,8 +161,7 @@ DROP DATABASE test;
 --source include/wait_until_disconnected.inc
 
 # Remove residue files and data folder of page size 32K
-let $data_folder = /datadir1/data ;
-../include/cleanup_folder.inc
+--source ../include/cleanup_folder.inc
 
 # Create datadir path,rathan than mtr defaults path
 --mkdir $MYSQL_TMP_DIR/datadir1/data
@@ -215,7 +214,7 @@ SELECT count(*) FROM tab2;
 --error ER_NO_SUCH_TABLE
 SELECT count(*) FROM tab3;
 
-# cleanup 
+# cleanup
 DROP DATABASE test;
 
 # Stop the server which was started with page size 16K
@@ -225,8 +224,7 @@ DROP DATABASE test;
 --source include/wait_until_disconnected.inc
 
 # Remove residue files and data folder of page size 16K
-let $data_folder = /datadir1/data ;
-../include/cleanup_folder.inc
+--source ../include/cleanup_folder.inc
 
 # Create datadir path,rathan than mtr defaults path
 --mkdir $MYSQL_TMP_DIR/datadir1/data

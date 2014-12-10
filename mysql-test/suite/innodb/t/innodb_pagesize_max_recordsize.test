@@ -201,14 +201,7 @@ SELECT @@innodb_page_size;
 --source include/wait_until_disconnected.inc
 
 # Remove residue files and data folder of page size 32K
-perl;
-use File::Path;
-my $tempdir= $ENV{'MYSQL_TMP_DIR'}."/datadir1/data";
-die "usage: $0 dir ..\n" unless $tempdir;
-    foreach $dir ($tempdir) {
-    rmtree($dir);
-}
-EOF
+--source ../include/cleanup_folder.inc
 
 # Create datadir path,rathan than mtr defaults path
 --mkdir $MYSQL_TMP_DIR/datadir1/data
