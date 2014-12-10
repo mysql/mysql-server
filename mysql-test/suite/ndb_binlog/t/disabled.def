@@ -9,5 +9,4 @@
 #  Do not use any TAB characters for whitespace.
 #
 ##############################################################################
-ndb_binlog_purge : Bug#16884594 30/5/13 FC Timeouts due to ha_flush_logs deadlocks
 
