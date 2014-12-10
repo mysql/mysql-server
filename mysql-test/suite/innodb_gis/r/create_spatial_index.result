@@ -333,17 +333,24 @@ EXPLAIN SELECT c1,Astext(c4) FROM tab WHERE MBREqual(tab.c4, @g1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tab	NULL	range	idx3	idx3	34	NULL	2	100.00	Using where
 Warnings:
+Warning	1287	'MBREQUAL' is deprecated and will be removed in a future release. Please use MBREQUALS instead
 Note	1003	/* select#1 */ select `test`.`tab`.`c1` AS `c1`,st_astext(`test`.`tab`.`c4`) AS `Astext(c4)` from `test`.`tab` where mbrequals(`test`.`tab`.`c4`,(@`g1`))
 SELECT c1,Astext(c4) FROM tab WHERE MBREqual(tab.c4, @g1);
 c1	Astext(c4)
 10	POLYGON((5010 5010,5020 5020,5030 5030,5040 5030,5020 5010,5010 5010))
+Warnings:
+Warning	1287	'MBREQUAL' is deprecated and will be removed in a future release. Please use MBREQUALS instead
 EXPLAIN UPDATE tab SET C2 = GeomFromText('POINT(0 0)') 
 WHERE MBREqual(tab.c4, @g1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	tab	NULL	range	idx3	idx3	34	const	2	100.00	Using where
+Warnings:
+Warning	1287	'MBREQUAL' is deprecated and will be removed in a future release. Please use MBREQUALS instead
 EXPLAIN DELETE FROM tab WHERE MBREqual(tab.c4, @g1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	DELETE	tab	NULL	range	idx3	idx3	34	const	2	100.00	Using where
+Warnings:
+Warning	1287	'MBREQUAL' is deprecated and will be removed in a future release. Please use MBREQUALS instead
 SET @g1 = GeomFromText( 'POLYGON((0 0,0 30,30 40,40 50,50 30,0 0))');
 EXPLAIN SELECT c1,Astext(c4) FROM tab WHERE MBRIntersects(tab.c4, @g1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -400,10 +407,10 @@ EXPLAIN SELECT c1,Astext(c4) FROM tab WHERE MBRTouches(tab.c4, @g1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tab	NULL	range	idx3	idx3	34	NULL	2	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`tab`.`c1` AS `c1`,st_astext(`test`.`tab`.`c4`) AS `Astext(c4)` from `test`.`tab` where st_touches(`test`.`tab`.`c4`,(@`g1`))
+Note	1003	/* select#1 */ select `test`.`tab`.`c1` AS `c1`,st_astext(`test`.`tab`.`c4`) AS `Astext(c4)` from `test`.`tab` where mbrtouches(`test`.`tab`.`c4`,(@`g1`))
 SELECT c1,Astext(c4) FROM tab WHERE MBRTouches(tab.c4, @g1);
 c1	Astext(c4)
-2	POLYGON((40 50,70 50,80 80,70 100,50 100,40 70,40 50))
+2	POLYGON((40 50,40 70,50 100,70 100,80 80,70 50,40 50))
 EXPLAIN UPDATE tab SET C2 = GeomFromText('POINT(0 0)') 
 WHERE MBRTouches(tab.c4, @g1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -797,17 +804,24 @@ EXPLAIN SELECT c1,Astext(c4) FROM tab WHERE MBREqual(tab.c4, @g1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tab	NULL	range	idx3	idx3	34	NULL	2	100.00	Using where
 Warnings:
+Warning	1287	'MBREQUAL' is deprecated and will be removed in a future release. Please use MBREQUALS instead
 Note	1003	/* select#1 */ select `test`.`tab`.`c1` AS `c1`,st_astext(`test`.`tab`.`c4`) AS `Astext(c4)` from `test`.`tab` where mbrequals(`test`.`tab`.`c4`,(@`g1`))
 SELECT c1,Astext(c4) FROM tab WHERE MBREqual(tab.c4, @g1);
 c1	Astext(c4)
 10	POLYGON((5010 5010,5020 5020,5030 5030,5040 5030,5020 5010,5010 5010))
+Warnings:
+Warning	1287	'MBREQUAL' is deprecated and will be removed in a future release. Please use MBREQUALS instead
 EXPLAIN UPDATE tab SET C2 = GeomFromText('POINT(0 0)') 
 WHERE MBREqual(tab.c4, @g1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	tab	NULL	range	idx3	idx3	34	const	2	100.00	Using where
+Warnings:
+Warning	1287	'MBREQUAL' is deprecated and will be removed in a future release. Please use MBREQUALS instead
 EXPLAIN DELETE FROM tab WHERE MBREqual(tab.c4, @g1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	DELETE	tab	NULL	range	idx3	idx3	34	const	2	100.00	Using where
+Warnings:
+Warning	1287	'MBREQUAL' is deprecated and will be removed in a future release. Please use MBREQUALS instead
 SET @g1 = GeomFromText( 'POLYGON((0 0,0 30,30 40,40 50,50 30,0 0))');
 EXPLAIN SELECT c1,Astext(c4) FROM tab WHERE MBRIntersects(tab.c4, @g1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -864,10 +878,10 @@ EXPLAIN SELECT c1,Astext(c4) FROM tab WHERE MBRTouches(tab.c4, @g1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tab	NULL	range	idx3	idx3	34	NULL	2	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`tab`.`c1` AS `c1`,st_astext(`test`.`tab`.`c4`) AS `Astext(c4)` from `test`.`tab` where st_touches(`test`.`tab`.`c4`,(@`g1`))
+Note	1003	/* select#1 */ select `test`.`tab`.`c1` AS `c1`,st_astext(`test`.`tab`.`c4`) AS `Astext(c4)` from `test`.`tab` where mbrtouches(`test`.`tab`.`c4`,(@`g1`))
 SELECT c1,Astext(c4) FROM tab WHERE MBRTouches(tab.c4, @g1);
 c1	Astext(c4)
-2	POLYGON((40 50,70 50,80 80,70 100,50 100,40 70,40 50))
+2	POLYGON((40 50,40 70,50 100,70 100,80 80,70 50,40 50))
 EXPLAIN UPDATE tab SET C2 = GeomFromText('POINT(0 0)') 
 WHERE MBRTouches(tab.c4, @g1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -883,6 +897,10 @@ EXPLAIN UPDATE tab SET C2 = GeomFromText('POINT(0 0)')
 WHERE MBREqual(tab.c4, @g1);
 EXPLAIN DELETE FROM tab WHERE MBREqual(tab.c4, @g1);
 END |
+Warnings:
+Warning	1287	'MBREQUAL' is deprecated and will be removed in a future release. Please use MBREQUALS instead
+Warning	1287	'MBREQUAL' is deprecated and will be removed in a future release. Please use MBREQUALS instead
+Warning	1287	'MBREQUAL' is deprecated and will be removed in a future release. Please use MBREQUALS instead
 CALL proc_wl6968();
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tab	NULL	range	idx3	idx3	34	NULL	2	100.00	Using where
@@ -1250,17 +1268,24 @@ EXPLAIN SELECT c1,Astext(c4) FROM tab WHERE MBREqual(tab.c4, @g1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tab	NULL	range	idx3	idx3	34	NULL	2	100.00	Using where
 Warnings:
+Warning	1287	'MBREQUAL' is deprecated and will be removed in a future release. Please use MBREQUALS instead
 Note	1003	/* select#1 */ select `test`.`tab`.`c1` AS `c1`,st_astext(`test`.`tab`.`c4`) AS `Astext(c4)` from `test`.`tab` where mbrequals(`test`.`tab`.`c4`,(@`g1`))
 SELECT c1,Astext(c4) FROM tab WHERE MBREqual(tab.c4, @g1);
 c1	Astext(c4)
 10	POLYGON((5010 5010,5020 5020,5030 5030,5040 5030,5020 5010,5010 5010))
+Warnings:
+Warning	1287	'MBREQUAL' is deprecated and will be removed in a future release. Please use MBREQUALS instead
 EXPLAIN UPDATE tab SET C2 = GeomFromText('POINT(0 0)') 
 WHERE MBREqual(tab.c4, @g1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	tab	NULL	range	idx3	idx3	34	const	2	100.00	Using where
+Warnings:
+Warning	1287	'MBREQUAL' is deprecated and will be removed in a future release. Please use MBREQUALS instead
 EXPLAIN DELETE FROM tab WHERE MBREqual(tab.c4, @g1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	DELETE	tab	NULL	range	idx3	idx3	34	const	2	100.00	Using where
+Warnings:
+Warning	1287	'MBREQUAL' is deprecated and will be removed in a future release. Please use MBREQUALS instead
 SET @g1 = GeomFromText( 'POLYGON((0 0,0 30,30 40,40 50,50 30,0 0))');
 EXPLAIN SELECT c1,Astext(c4) FROM tab WHERE MBRIntersects(tab.c4, @g1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -1317,10 +1342,10 @@ EXPLAIN SELECT c1,Astext(c4) FROM tab WHERE MBRTouches(tab.c4, @g1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tab	NULL	range	idx3	idx3	34	NULL	2	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`tab`.`c1` AS `c1`,st_astext(`test`.`tab`.`c4`) AS `Astext(c4)` from `test`.`tab` where st_touches(`test`.`tab`.`c4`,(@`g1`))
+Note	1003	/* select#1 */ select `test`.`tab`.`c1` AS `c1`,st_astext(`test`.`tab`.`c4`) AS `Astext(c4)` from `test`.`tab` where mbrtouches(`test`.`tab`.`c4`,(@`g1`))
 SELECT c1,Astext(c4) FROM tab WHERE MBRTouches(tab.c4, @g1);
 c1	Astext(c4)
-2	POLYGON((40 50,70 50,80 80,70 100,50 100,40 70,40 50))
+2	POLYGON((40 50,40 70,50 100,70 100,80 80,70 50,40 50))
 EXPLAIN UPDATE tab SET C2 = GeomFromText('POINT(0 0)') 
 WHERE MBRTouches(tab.c4, @g1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
