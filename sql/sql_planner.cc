@@ -367,6 +367,7 @@ Key_use* Optimize_table_order::find_best_ref(const JOIN_TAB *tab,
             }
             else
             {                              /* Prefer longer keys */
+              DBUG_ASSERT(table->s->max_key_length > 0);
               cur_fanout=
                 ((double) tab->records() / (double) distinct_keys_est *
                  (1.0 +
@@ -1806,7 +1807,8 @@ bool Optimize_table_order::choose_table_order()
 
   join->select_lex->reset_nj_counters();
 
-  const bool straight_join= MY_TEST(join->select_options & SELECT_STRAIGHT_JOIN);
+  const bool straight_join=
+    join->select_lex->active_options() & SELECT_STRAIGHT_JOIN;
   table_map join_tables;      ///< The tables involved in order selection
 
   if (emb_sjm_nest)

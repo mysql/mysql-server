@@ -76,7 +76,7 @@ trx_sys_get_nth_rseg(
 {
 	ut_ad(n < TRX_SYS_N_RSEGS);
 
-	/* If redo rseg is being requested and id falls in range of 
+	/* If redo rseg is being requested and id falls in range of
 	non-redo rseg that is from slot-1....slot-srv_tmp_undo_logs then
 	server is being upgraded from pre-5.7.2. In such case return
 	rseg from pending_purge_rseg_array array. */

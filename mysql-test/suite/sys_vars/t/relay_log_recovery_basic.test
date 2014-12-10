@@ -14,8 +14,10 @@ select @@global.relay_log_recovery;
 select @@session.relay_log_recovery;
 show global variables like 'relay_log_recovery';
 show session variables like 'relay_log_recovery';
+--disable_warnings
 select * from information_schema.global_variables where variable_name='relay_log_recovery';
 select * from information_schema.session_variables where variable_name='relay_log_recovery';
+--enable_warnings
 
 #
 # show that it's read-only
@@ -23,7 +25,9 @@ select * from information_schema.session_variables where variable_name='relay_lo
 --error ER_INCORRECT_GLOBAL_LOCAL_VAR
 set global relay_log_recovery=1;
 select @@global.relay_log_recovery;
+--disable_warnings
 select * from information_schema.global_variables where variable_name='relay_log_recovery';
 select * from information_schema.session_variables where variable_name='relay_log_recovery';
+--enable_warnings
 
 

@@ -890,9 +890,9 @@ count(*)
 EXPLAIN
 SELECT count(*) FROM t1 WHERE MATCH (title, text) AGAINST ('data*' IN BOOLEAN MODE) ORDER BY title LIMIT 3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	fulltext	ft_idx	ft_idx	0	const	1	100.00	Using where; Ft_hints: no_ranking
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
 Warnings:
-Note	1003	/* select#1 */ select count(0) AS `count(*)` from `test`.`t1` where (match `test`.`t1`.`title`,`test`.`t1`.`text` against ('data*' in boolean mode)) order by `test`.`t1`.`title` limit 3
+Note	1003	/* select#1 */ select count(0) AS `count(*)` from `test`.`t1` where (match `test`.`t1`.`title`,`test`.`t1`.`text` against ('data*' in boolean mode)) limit 3
 SELECT count(*) FROM t1 WHERE MATCH (title, text) AGAINST ('data*' IN BOOLEAN MODE) ORDER BY title LIMIT 3;
 count(*)
 6
@@ -1309,7 +1309,7 @@ LIMIT 3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	fulltext	ft_idx	ft_idx	0	const	1	100.00	Using where; Using index
 Warnings:
-Note	1003	/* select#1 */ select max(`test`.`t1`.`FTS_DOC_ID`) AS `MAX(FTS_DOC_ID)` from `test`.`t1` where (match `test`.`t1`.`title`,`test`.`t1`.`text` against ('fast database')) order by (match `test`.`t1`.`title`,`test`.`t1`.`text` against ('fast database')) desc limit 3
+Note	1003	/* select#1 */ select max(`test`.`t1`.`FTS_DOC_ID`) AS `MAX(FTS_DOC_ID)` from `test`.`t1` where (match `test`.`t1`.`title`,`test`.`t1`.`text` against ('fast database')) limit 3
 SELECT MAX(FTS_DOC_ID) FROM t1
 WHERE MATCH (title, text) AGAINST ('fast database' IN NATURAL LANGUAGE MODE)
 ORDER BY MATCH (title, text) AGAINST ('fast database' IN NATURAL LANGUAGE MODE) DESC

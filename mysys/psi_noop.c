@@ -379,7 +379,7 @@ static void end_cond_wait_noop(PSI_cond_locker* locker NNN, int rc NNN)
 }
 
 static struct PSI_table_locker*
-start_table_io_wait_noop(struct PSI_table_locker_state_v1 *state NNN,
+start_table_io_wait_noop(struct PSI_table_locker_state *state NNN,
                          struct PSI_table *table NNN,
                          enum PSI_table_io_operation op NNN,
                          uint index NNN,
@@ -395,7 +395,7 @@ static void end_table_io_wait_noop(PSI_table_locker* locker NNN,
 }
 
 static struct PSI_table_locker*
-start_table_lock_wait_noop(struct PSI_table_locker_state_v1 *state NNN,
+start_table_lock_wait_noop(struct PSI_table_locker_state *state NNN,
                            struct PSI_table *table NNN,
                            enum PSI_table_lock_operation op NNN,
                            ulong flags NNN,

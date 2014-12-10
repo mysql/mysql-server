@@ -230,18 +230,22 @@ SELECT @@session.multi_range_count;
 Warnings:
 Warning	1287	'@@multi_range_count' is deprecated and will be removed in a future release.
 '#------------------FN_DYNVARS_090_06-----------------------#'
-SELECT @@global.multi_range_count = VARIABLE_VALUE 
+SELECT VARIABLE_VALUE 
 FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
-WHERE VARIABLE_NAME='multi_range_count';
-@@global.multi_range_count = VARIABLE_VALUE
+WHERE VARIABLE_NAME='multi_range_count'
+into @tmp;
+SELECT @@global.multi_range_count = @tmp;
+@@global.multi_range_count = @tmp
 1
 Warnings:
 Warning	1287	'@@multi_range_count' is deprecated and will be removed in a future release.
 '#------------------FN_DYNVARS_090_07-----------------------#'
-SELECT @@session.multi_range_count = VARIABLE_VALUE 
+SELECT VARIABLE_VALUE 
 FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
-WHERE VARIABLE_NAME='multi_range_count';
-@@session.multi_range_count = VARIABLE_VALUE
+WHERE VARIABLE_NAME='multi_range_count'
+into @tmp;
+SELECT @@session.multi_range_count = @tmp;
+@@session.multi_range_count = @tmp
 1
 Warnings:
 Warning	1287	'@@multi_range_count' is deprecated and will be removed in a future release.

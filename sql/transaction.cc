@@ -14,7 +14,6 @@
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 
-#include "sql_priv.h"
 #include "transaction.h"
 #include "rpl_handler.h"
 #include "debug_sync.h"         // DEBUG_SYNC
@@ -116,7 +115,7 @@ bool trans_begin(THD *thd, uint flags)
       compatibility.
     */
     const bool user_is_super=
-      MY_TEST(thd->security_ctx->master_access & SUPER_ACL);
+      MY_TEST(thd->security_context()->check_access(SUPER_ACL));
     if (opt_readonly && !user_is_super)
     {
       my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--read-only");

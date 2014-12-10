@@ -544,34 +544,6 @@ on the counters */
 		}							\
 	}
 
-/** Increment a monitor counter under mutex protection.
-Use MONITOR_INC if appropriate mutex protection already exists.
-@param monitor monitor to be incremented by 1
-@param mutex mutex to acquire and relese */
-# define MONITOR_MUTEX_INC(mutex, monitor)				\
-	ut_ad(!mutex_own(mutex));					\
-	if (MONITOR_IS_ON(monitor)) {					\
-		mutex_enter(mutex);					\
-		if (++MONITOR_VALUE(monitor) > MONITOR_MAX_VALUE(monitor)) { \
-			MONITOR_MAX_VALUE(monitor) = MONITOR_VALUE(monitor); \
-		}							\
-		mutex_exit(mutex);					\
-	}
-/** Decrement a monitor counter under mutex protection.
-Use MONITOR_DEC if appropriate mutex protection already exists.
-@param monitor monitor to be decremented by 1
-@param mutex mutex to acquire and relese */
-# define MONITOR_MUTEX_DEC(mutex, monitor)				\
-	ut_ad(!mutex_own(mutex));					\
-	if (MONITOR_IS_ON(monitor)) {					\
-		mutex_enter(mutex);					\
-		if (--MONITOR_VALUE(monitor) < MONITOR_MIN_VALUE(monitor)) { \
-			MONITOR_MIN_VALUE(monitor) = MONITOR_VALUE(monitor); \
-		}							\
-		mutex_exit(mutex);					\
-	}
-
-#if defined HAVE_ATOMIC_BUILTINS_64
 /** Atomically increment a monitor counter.
 Use MONITOR_INC if appropriate mutex protection exists.
 @param monitor monitor to be incremented by 1 */
@@ -601,32 +573,6 @@ Use MONITOR_DEC if appropriate mutex protection exists.
 			MONITOR_MIN_VALUE(monitor) = value;		\
 		}							\
 	}
-# define srv_mon_create() ((void) 0)
-# define srv_mon_free() ((void) 0)
-#else /* HAVE_ATOMIC_BUILTINS_64 */
-/** Mutex protecting atomic operations on platforms that lack
-built-in operations for atomic memory access */
-extern ib_mutex_t	monitor_mutex;
-/****************************************************************//**
-Initialize the monitor subsystem. */
-void
-srv_mon_create(void);
-/*================*/
-/****************************************************************//**
-Close the monitor subsystem. */
-void
-srv_mon_free(void);
-/*==============*/
-
-/** Atomically increment a monitor counter.
-Use MONITOR_INC if appropriate mutex protection exists.
-@param monitor monitor to be incremented by 1 */
-# define MONITOR_ATOMIC_INC(monitor) MONITOR_MUTEX_INC(&monitor_mutex, monitor)
-/** Atomically decrement a monitor counter.
-Use MONITOR_DEC if appropriate mutex protection exists.
-@param monitor monitor to be decremented by 1 */
-# define MONITOR_ATOMIC_DEC(monitor) MONITOR_MUTEX_DEC(&monitor_mutex, monitor)
-#endif /* HAVE_ATOMIC_BUILTINS_64 */
 
 #define	MONITOR_DEC(monitor)						\
 	if (MONITOR_IS_ON(monitor)) {					\

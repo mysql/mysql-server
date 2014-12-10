@@ -150,21 +150,22 @@ SET @@session.new = test;
 #   Check if the value in GLOBAL Table matches value in variable   #
 ####################################################################
 
-
+--disable_warnings
 SELECT IF(@@global.new, "ON", "OFF") = VARIABLE_VALUE 
 FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
 WHERE VARIABLE_NAME='new';
+--enable_warnings
 
 --echo '#------------------FN_DYNVARS_113_07-----------------------#'
 ####################################################################
 #  Check if the value in SESSION Table matches value in variable   #
 ####################################################################
 
+--disable_warnings
 SELECT IF(@@session.new, "ON", "OFF") = VARIABLE_VALUE 
 FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
 WHERE VARIABLE_NAME='new';
-
-
+--enable_warnings
 
 --echo '#---------------------FN_DYNVARS_113_08----------------------#'
 ###############################################################################

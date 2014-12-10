@@ -16,7 +16,6 @@
 #ifndef RPL_RLI_H
 #define RPL_RLI_H
 
-#include "sql_priv.h"
 #include "rpl_info.h"
 #include "rpl_utility.h"
 #include "rpl_tblmap.h"

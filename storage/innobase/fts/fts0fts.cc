@@ -6663,14 +6663,7 @@ fts_set_parent_hex_format_flag(
 {
 	if (!DICT_TF2_FLAG_IS_SET(parent_table,
 				  DICT_TF2_FTS_AUX_HEX_NAME)) {
-		DBUG_EXECUTE_IF("parent_table_flag_fail",
-			ib::fatal() << "Setting parent table "
-				<< parent_table->name
-				<< "to hex format failed. Please try "
-				<< "to restart the server again, if it "
-				<< "doesn't work, the system tables "
-				<< "might be corrupted.";
-			return;);
+		DBUG_EXECUTE_IF("parent_table_flag_fail", DBUG_SUICIDE(););
 
 		dberr_t	err = fts_update_hex_format_flag(
 				trx, parent_table->id, true);
@@ -6876,7 +6869,7 @@ fts_check_and_drop_orphaned_tables(
 			     || orig_parent_id != next_aux_table->parent_id)
 			    && (!ib_vector_is_empty(aux_tables_to_rename))) {
 
-					ulint	parent_id = fts_fake_hex_to_dec(
+					ib_id_t	parent_id = fts_fake_hex_to_dec(
 							aux_table->parent_id);
 
 					parent_table = dict_table_open_on_id(

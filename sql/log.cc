@@ -25,7 +25,6 @@
 */
 
 #include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
-#include "sql_priv.h"
 #include "log.h"
 #include "sql_base.h"                           // open_log_table
 #include "sql_delete.h"                         // mysql_truncate
@@ -1244,14 +1243,16 @@ bool Query_logger::slow_log_write(THD *thd, const char *query,
 
   /* fill in user_host value: the format is "%s[%s] @ %s [%s]" */
   char user_host_buff[MAX_USER_HOST_SIZE + 1];
-  Security_context *sctx= thd->security_ctx;
+  Security_context *sctx= thd->security_context();
+  LEX_CSTRING sctx_user= sctx->user();
+  LEX_CSTRING sctx_host= sctx->host();
+  LEX_CSTRING sctx_ip= sctx->ip();
   size_t user_host_len= (strxnmov(user_host_buff, MAX_USER_HOST_SIZE,
-                                  sctx->priv_user, "[",
-                                  sctx->user ? sctx->user : "", "] @ ",
-                                  sctx->get_host()->length() ?
-                                  sctx->get_host()->ptr() : "", " [",
-                                  sctx->get_ip()->length() ? sctx->get_ip()->ptr() :
-                                  "", "]", NullS) - user_host_buff);
+                                  sctx->priv_user().str, "[",
+                                  sctx_user.length ? sctx_user.str : "", "] @ ",
+                                  sctx_host.length ? sctx_host.str : "", " [",
+                                  sctx_ip.length ? sctx_ip.str : "", "]",
+                                  NullS) - user_host_buff);
   ulonglong current_utime= thd->current_utime();
   ulonglong query_utime, lock_utime;
   if (thd->start_utime)
@@ -1309,7 +1310,7 @@ static bool log_command(THD *thd, enum_server_command command)
   {
     if ((thd->variables.option_bits & OPTION_LOG_OFF)
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
-         && (thd->security_ctx->master_access & SUPER_ACL)
+         && (thd->security_context()->check_access(SUPER_ACL))
 #endif
        )
     {
@@ -1615,9 +1616,7 @@ Slow_log_throttle::Slow_log_throttle(ulong *threshold, mysql_mutex_t *lock,
                                      const char *msg)
   : Log_throttle(window_usecs, msg), total_exec_time(0), total_lock_time(0),
     rate(threshold), log_summary(logger), LOCK_log_throttle(lock)
-{
-  aggregate_sctx.init();
-}
+{ }
 
 
 ulong Log_throttle::prepare_summary(ulong rate)
@@ -1649,7 +1648,7 @@ void Slow_log_throttle::print_summary(THD *thd, ulong suppressed,
   */
   ulonglong save_start_utime=      thd->start_utime;
   ulonglong save_utime_after_lock= thd->utime_after_lock;
-  Security_context *save_sctx=     thd->security_ctx;
+  Security_context *save_sctx=     thd->security_context();
 
   char buf[128];
 
@@ -1658,13 +1657,13 @@ void Slow_log_throttle::print_summary(THD *thd, ulong suppressed,
   mysql_mutex_lock(&thd->LOCK_thd_data);
   thd->start_utime=                thd->current_utime() - print_exec_time;
   thd->utime_after_lock=           thd->start_utime + print_lock_time;
-  thd->security_ctx=               (Security_context *) &aggregate_sctx;
+  thd->set_security_context((Security_context *) &aggregate_sctx);
   mysql_mutex_unlock(&thd->LOCK_thd_data);
 
   (*log_summary)(thd, buf, strlen(buf));
 
   mysql_mutex_lock(&thd->LOCK_thd_data);
-  thd->security_ctx    = save_sctx;
+  thd->set_security_context(save_sctx);
   thd->start_utime     = save_start_utime;
   thd->utime_after_lock= save_utime_after_lock;
   mysql_mutex_unlock(&thd->LOCK_thd_data);

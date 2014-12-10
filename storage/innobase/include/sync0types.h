@@ -30,19 +30,18 @@ Created 9/5/1995 Heikki Tuuri
 
 #include "ut0new.h"
 
-#ifdef HAVE_WINDOWS_ATOMICS
-typedef LONG	lock_word_t;	/*!< On Windows, InterlockedExchange operates
-				on LONG variable */
-#elif defined(HAVE_IB_LINUX_FUTEX)
-typedef int	lock_word_t;
-#else
-typedef ulint	lock_word_t;
-#endif /* HAVE_WINDOWS_ATOMICS */
-
 #ifdef _WIN32
+/** On Windows, InterlockedExchange operates on LONG variable */
+typedef LONG			lock_word_t;
 /** Native mutex */
 typedef CRITICAL_SECTION	sys_mutex_t;
 #else
+# ifdef HAVE_IB_LINUX_FUTEX
+typedef int	lock_word_t;
+# else
+typedef ulint	lock_word_t;
+# endif
+
 /** Native mutex */
 typedef pthread_mutex_t		sys_mutex_t;
 #endif /* _WIN32 */
@@ -54,7 +53,7 @@ is available on platforms that we support.
 */
 
 /** Mutex states. */
-enum mute_state_t {
+enum mutex_state_t {
 	/** Mutex is free */
 	MUTEX_STATE_UNLOCKED = 0,
 

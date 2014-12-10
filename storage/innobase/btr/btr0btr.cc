@@ -613,7 +613,7 @@ btr_page_free_low(
 		seg_header = root + PAGE_HEADER + PAGE_BTR_SEG_TOP;
 	}
 
-#ifdef UNIV_DEBUG
+#ifdef UNIV_GIS_DEBUG
 	if (dict_index_is_spatial(index)) {
 		fprintf(stderr, "GIS_DIAG: Freed  %ld\n",
 			(long) block->page.id.page_no());

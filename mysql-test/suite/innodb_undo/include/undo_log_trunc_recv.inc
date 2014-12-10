@@ -8,6 +8,7 @@ update t1 set c1 = 'mysql' where  keyc > 20000;
 update t1 set c2 = 'oracle' where  keyc > 20000;
 eval set global debug = $debug_point;
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+let $disconnect_timeout = 100;
 commit;
 --source include/wait_until_disconnected.inc
 --source include/search_pattern.inc

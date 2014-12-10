@@ -1,0 +1,22 @@
+# Tests for PERFORMANCE_SCHEMA
+
+# This test verifies the correct behaviour in case of invalid
+# usage of DDLs on the table replication_applier_status_by_worker.
+
+--source include/not_embedded.inc
+--source include/have_perfschema.inc
+
+-- error ER_DBACCESS_DENIED_ERROR
+ALTER TABLE performance_schema.replication_applier_status_by_worker
+  add column foo integer;
+
+-- error ER_WRONG_PERFSCHEMA_USAGE
+TRUNCATE TABLE performance_schema.replication_applier_status_by_worker;
+
+-- error ER_DBACCESS_DENIED_ERROR
+ALTER TABLE performance_schema.replication_applier_status_by_worker
+  ADD INDEX test_index(worker_id);
+
+-- error ER_DBACCESS_DENIED_ERROR
+CREATE UNIQUE INDEX test_index ON
+  performance_schema.replication_applier_status_by_worker(worker_id);

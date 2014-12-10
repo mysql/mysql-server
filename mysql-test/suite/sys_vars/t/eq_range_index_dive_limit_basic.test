@@ -9,6 +9,7 @@ select @@session.eq_range_index_dive_limit;
 show global variables like 'eq_range_index_dive_limit';
 show session variables like 'eq_range_index_dive_limit';
 
+--disable_warnings
 select * 
 from information_schema.global_variables 
 where variable_name='eq_range_index_dive_limit';
@@ -16,6 +17,7 @@ where variable_name='eq_range_index_dive_limit';
 select * 
 from information_schema.session_variables 
 where variable_name='eq_range_index_dive_limit';
+--enable_warnings
 
 #
 # show that it's writable

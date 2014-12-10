@@ -57,7 +57,7 @@ Win32
 RelWithDebInfo
 *~
 .*.swp
-./CMakeCache.txt
+CMakeCache.txt
 ./MySql.ncb
 ./MySql.sln
 ./MySql.suo
@@ -1378,7 +1378,6 @@ mysql-test/var/*
 mysql-test/windows_sys_vars.inc
 mysql.kdevprj
 mysql.proj
-sql_priv.h
 mysqlbinlog/*.ds?
 mysqlbinlog/*.vcproj
 mysqlcheck/*.ds?
@@ -1849,6 +1848,9 @@ scripts/mysqld_multi
 scripts/mysqld_safe
 scripts/mysqldumpslow
 scripts/safe_mysqld
+scripts/sql_commands_help_data.h
+scripts/sql_commands_system_data.h
+scripts/sql_commands_system_tables.h
 select_test
 server-tools/instance-manager/.deps/buffer.Po
 server-tools/instance-manager/.deps/command.Po
@@ -3142,3 +3144,5 @@ sql/gen_lex_token
 internal/plugin/thread_pool/src/thread_pool_config.h
 internal/tests/innorwlocktest
 packaging/solaris/postinstall-solaris
+client/mysql_install_db
+internal/tests/open_files_limit

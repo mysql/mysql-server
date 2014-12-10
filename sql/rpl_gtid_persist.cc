@@ -44,7 +44,7 @@ static void init_thd(THD **p_thd)
   THD *thd= *p_thd;
   thd->thread_stack= reinterpret_cast<char *>(p_thd);
   thd->set_command(COM_DAEMON);
-  thd->security_ctx->skip_grants();
+  thd->security_context()->skip_grants();
   thd->system_thread= SYSTEM_THREAD_COMPRESS_GTID_TABLE;
   thd->store_globals();
   thd->set_time();
@@ -317,8 +317,8 @@ end:
   if (error == 0)
   {
     m_count++;
-    if ((executed_gtids_compression_period != 0) &&
-        (m_count >= executed_gtids_compression_period ||
+    if ((gtid_executed_compression_period != 0) &&
+        (m_count >= gtid_executed_compression_period ||
          DBUG_EVALUATE_IF("compress_gtid_table", 1, 0)))
     {
       m_count= 0;

@@ -583,8 +583,6 @@ ndb_create_thd(char * stackptr)
     DBUG_RETURN(0);
   }
 
-  lex_start(thd);
-
   thd->init_for_queries();
   thd_set_command(thd, COM_DAEMON);
   thd->system_thread= SYSTEM_THREAD_NDBCLUSTER_BINLOG;
@@ -593,7 +591,7 @@ ndb_create_thd(char * stackptr)
 #endif
   thd->client_capabilities= 0;
   thd->lex->start_transaction_opt= 0;
-  thd->security_ctx->skip_grants();
+  thd->security_context()->skip_grants();
 
   CHARSET_INFO *charset_connection= get_charset_by_csname("utf8",
                                                           MY_CS_PRIMARY,
@@ -852,11 +850,18 @@ static void ndbcluster_reset_slave(THD *thd)
 /**
   Upon the sql command flush logs, we need to ensure that all outstanding
   ndb data to be logged has made it to the binary log to get a deterministic
-  behavior on the rotation of the log.
+  behavior on the rotation of the log. Do nothing if the ndbcluster_flush_logs
+  is caused by binlog group commit during flush stage.
+
+  @param hton NDB handlerton.
+  @param binlog_group_flush true if we got invoked by binlog group
+  commit during flush stage, false in other cases.
+  @return false Success always.
  */
-static bool ndbcluster_flush_logs(handlerton *hton)
+static bool ndbcluster_flush_logs(handlerton *hton, bool binlog_group_flush)
 {
-  ndbcluster_binlog_wait(current_thd);
+  if (!binlog_group_flush)
+    ndbcluster_binlog_wait(current_thd);
   return FALSE;
 }
 
@@ -6820,7 +6825,6 @@ Ndb_binlog_thread::do_run()
     native_cond_signal(&injector_cond);
     DBUG_VOID_RETURN;
   }
-  lex_start(thd);
 
   thd_set_command(thd, COM_DAEMON);
   thd->system_thread= SYSTEM_THREAD_NDBCLUSTER_BINLOG;
@@ -6828,7 +6832,7 @@ Ndb_binlog_thread::do_run()
   thd->version= refresh_version;
 #endif
   thd->client_capabilities= 0;
-  thd->security_ctx->skip_grants();
+  thd->security_context()->skip_grants();
   // Create thd->net vithout vio
   my_net_init(&thd->net, 0);
 

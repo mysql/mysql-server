@@ -16,8 +16,6 @@
 
 
 #include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
-#include "sql_priv.h"
-#include "unireg.h"                    // REQUIRED: for other includes
 #include <mysql.h>
 #include <m_ctype.h>
 #include "my_dir.h"
@@ -4104,6 +4102,9 @@ bool Item_param::convert_str_value(THD *thd)
   bool rc= FALSE;
   if (state == STRING_VALUE || state == LONG_DATA_VALUE)
   {
+    if (value.cs_info.final_character_set_of_str_value == NULL ||
+        value.cs_info.character_set_of_placeholder == NULL)
+      return true;
     /*
       Check is so simple because all charsets were set up properly
       in setup_one_conversion_function, where typecode of
@@ -5635,8 +5636,8 @@ bool Item_field::fix_fields(THD *thd, Item **reference)
                             VIEW_ANY_ACL)))
     {
       my_error(ER_COLUMNACCESS_DENIED_ERROR, MYF(0),
-               "ANY", thd->security_ctx->priv_user,
-               thd->security_ctx->host_or_ip, field_name, tab);
+               "ANY", thd->security_context()->priv_user().str,
+               thd->security_context()->host_or_ip().str, field_name, tab);
       goto error;
     }
   }
@@ -7181,7 +7182,7 @@ Item *Item_field::update_value_transformer(uchar *select_arg)
   if (field->table != select->context.table_list->table &&
       type() != Item::TRIGGER_FIELD_ITEM)
   {
-    List<Item> *all_fields= &select->join->all_fields;
+    List<Item> *all_fields= &select->all_fields;
     Ref_ptr_array &ref_pointer_array= select->ref_pointer_array;
     int el= all_fields->elements;
     Item_ref *ref;
@@ -8498,7 +8499,7 @@ bool Item_trigger_field::fix_fields(THD *thd, Item **items)
                              triggers->get_subject_table()->s->db.str,
                              triggers->get_subject_table()->s->table_name.str,
                              field_name,
-                             strlen(field_name), thd->security_ctx))
+                             strlen(field_name), thd->security_context()))
         return TRUE;
     }
 #endif // NO_EMBEDDED_ACCESS_CHECKS

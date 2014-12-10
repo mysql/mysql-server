@@ -396,26 +396,23 @@ EXPLAIN
             "cost_info": {
               "query_cost": "2.40"
             } /* cost_info */,
-            "ordering_operation": {
-              "using_filesort": false,
-              "table": {
-                "table_name": "t2",
-                "access_type": "ALL",
-                "rows_examined_per_scan": 2,
-                "rows_produced_per_join": 1,
-                "filtered": 50,
-                "cost_info": {
-                  "read_cost": "2.00",
-                  "eval_cost": "0.20",
-                  "prefix_cost": "2.40",
-                  "data_read_per_join": "8"
-                } /* cost_info */,
-                "used_columns": [
-                  "i"
-                ] /* used_columns */,
-                "attached_condition": "((`test`.`t1`.`i` = 10) and (<cache>(`test`.`t1`.`i`) = `test`.`t2`.`i`))"
-              } /* table */
-            } /* ordering_operation */
+            "table": {
+              "table_name": "t2",
+              "access_type": "ALL",
+              "rows_examined_per_scan": 2,
+              "rows_produced_per_join": 1,
+              "filtered": 50,
+              "cost_info": {
+                "read_cost": "2.00",
+                "eval_cost": "0.20",
+                "prefix_cost": "2.40",
+                "data_read_per_join": "8"
+              } /* cost_info */,
+              "used_columns": [
+                "i"
+              ] /* used_columns */,
+              "attached_condition": "((`test`.`t1`.`i` = 10) and (<cache>(`test`.`t1`.`i`) = `test`.`t2`.`i`))"
+            } /* table */
           } /* query_block */
         }
       ] /* attached_subqueries */

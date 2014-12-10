@@ -287,12 +287,11 @@ QUERY: UPDATE t1 left join t2  on t1.a=t2.a set t1.b=2, t2.b=2 where t1.b=1 and 
 STATUS:NOT_EQUAL
 SYNC_POINT:before_reset_query_plan
 Diff: EXPLAIN NORMAL vs OTHER
-@@ -36,3 +36,3 @@
+@@ -36,2 +36,3 @@
            "filtered": 75,
--          "using_join_buffer": "Block Nested Loop",
 +          "using_where": true,
            "cost_info": {
-@@ -46,4 +46,3 @@
+@@ -45,4 +46,3 @@
              "b"
 -          ],
 -          "attached_condition": "(<if>(found_match(t2), (((`test`.`t2`.`b` = 1) and (`test`.`t1`.`b` = 1)) or isnull(`test`.`t2`.`a`)), true) and <if>(is_not_null_compl(t2), (`test`.`t2`.`a` = `test`.`t1`.`a`), true))"
@@ -302,12 +301,11 @@ QUERY: UPDATE t1 LEFT JOIN t2 USING(id) SET s1 = 'b'
 STATUS:NOT_EQUAL
 SYNC_POINT:before_reset_query_plan
 Diff: EXPLAIN NORMAL vs OTHER
-@@ -40,3 +40,3 @@
+@@ -40,2 +40,3 @@
            "filtered": 100,
--          "using_join_buffer": "Block Nested Loop",
 +          "using_where": true,
            "cost_info": {
-@@ -50,4 +50,3 @@
+@@ -49,4 +50,3 @@
              "s1"
 -          ],
 -          "attached_condition": "<if>(is_not_null_compl(t2), (`test`.`t1`.`id` = `test`.`t2`.`id`), true)"
@@ -509,7 +507,7 @@ QUERY: DELETE FROM t1 WHERE topic IN (SELECT DISTINCT topic FROM t2 WHERE NOT EX
 STATUS:NOT_EQUAL
 SYNC_POINT:planned_single_delete
 Diff: EXPLAIN NORMAL vs OTHER
-@@ -10,75 +10,20 @@
+@@ -10,72 +10,20 @@
        "filtered": 100,
 -      "attached_condition": "<in_optimizer>(`test`.`t1`.`topic`,<exists>(<index_lookup>(<cache>(`test`.`t1`.`topic`) in t2 on topic where ((not(exists(/* select#3 */ select 1 from dual where ('1' = `test`.`t2`.`topic`)))) and (<cache>(`test`.`t1`.`topic`) = `test`.`t2`.`topic`)))))",
 +      "using_where": true,
@@ -524,67 +522,63 @@ Diff: EXPLAIN NORMAL vs OTHER
 -            "cost_info": {
 -              "query_cost": "1.42"
 -            },
--            "duplicates_removal": {
--              "using_filesort": false,
--              "table": {
--                "table_name": "t2",
--                "access_type": "index_subquery",
--                "possible_keys": [
--                  "topic"
--                ],
--                "key": "topic",
--                "used_key_parts": [
--                  "topic"
--                ],
--                "key_length": "3",
--                "ref": [
--                  "func"
--                ],
--                "rows_examined_per_scan": 2,
--                "rows_produced_per_join": 2,
--                "filtered": 100,
--                "using_index": true,
--                "cost_info": {
--                  "read_cost": "1.02",
--                  "eval_cost": "0.40",
--                  "prefix_cost": "1.42",
--                  "data_read_per_join": "160"
--                },
--                "used_columns": [
--                  "topic"
--                ],
--                "attached_condition": "((not(exists(/* select#3 */ select 1 from dual where ('1' = `test`.`t2`.`topic`)))) and (<cache>(`test`.`t1`.`topic`) = `test`.`t2`.`topic`))",
--                "attached_subqueries": [
--                  {
--                    "dependent": true,
--                    "cacheable": false,
--                    "query_block": {
--                      "select_id": 3,
+-            "table": {
+-              "table_name": "t2",
+-              "access_type": "index_subquery",
+-              "possible_keys": [
+-                "topic"
+-              ],
+-              "key": "topic",
+-              "used_key_parts": [
+-                "topic"
+-              ],
+-              "key_length": "3",
+-              "ref": [
+-                "func"
+-              ],
+-              "rows_examined_per_scan": 2,
+-              "rows_produced_per_join": 2,
+-              "filtered": 100,
+-              "using_index": true,
+-              "cost_info": {
+-                "read_cost": "1.02",
+-                "eval_cost": "0.40",
+-                "prefix_cost": "1.42",
+-                "data_read_per_join": "160"
+-              },
+-              "used_columns": [
+-                "topic"
+-              ],
+-              "attached_condition": "((not(exists(/* select#3 */ select 1 from dual where ('1' = `test`.`t2`.`topic`)))) and (<cache>(`test`.`t1`.`topic`) = `test`.`t2`.`topic`))",
+-              "attached_subqueries": [
+-                {
+-                  "dependent": true,
+-                  "cacheable": false,
+-                  "query_block": {
+-                    "select_id": 3,
+-                    "cost_info": {
+-                      "query_cost": "1.00"
+-                    },
+-                    "table": {
+-                      "table_name": "t3",
+-                      "access_type": "system",
+-                      "possible_keys": [
+-                        "PRIMARY"
+-                      ],
+-                      "rows_examined_per_scan": 1,
+-                      "rows_produced_per_join": 1,
+-                      "filtered": 100,
 -                      "cost_info": {
--                        "query_cost": "1.00"
+-                        "read_cost": "0.00",
+-                        "eval_cost": "0.20",
+-                        "prefix_cost": "0.00",
+-                        "data_read_per_join": "16"
 -                      },
--                      "table": {
--                        "table_name": "t3",
--                        "access_type": "system",
--                        "possible_keys": [
--                          "PRIMARY"
--                        ],
--                        "rows_examined_per_scan": 1,
--                        "rows_produced_per_join": 1,
--                        "filtered": 100,
--                        "cost_info": {
--                          "read_cost": "0.00",
--                          "eval_cost": "0.20",
--                          "prefix_cost": "0.00",
--                          "data_read_per_join": "16"
--                        },
--                        "used_columns": [
--                          "numeropost"
--                        ]
--                      }
+-                      "used_columns": [
+-                        "numeropost"
+-                      ]
 -                    }
 -                  }
--                ]
 +            "message": "Plan isn't ready yet",
 +            "attached_subqueries": [
 +              {
@@ -593,9 +587,10 @@ Diff: EXPLAIN NORMAL vs OTHER
 +                "query_block": {
 +                  "select_id": 3,
 +                  "message": "Plan isn't ready yet"
-+                }
-               }
+                 }
+-              ]
 -            }
++              }
 +            ]
            }
 QUERY: SELECT cns.id, cns.max_anno_dep, cns.max_anno_dep = (SELECT s.anno_dep FROM t1 AS s WHERE s.id_cns = cns.id ORDER BY s.anno_dep DESC LIMIT 1) AS PIPPO FROM t2 AS cns 

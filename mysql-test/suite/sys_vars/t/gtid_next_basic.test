@@ -11,8 +11,10 @@ select @@global.gtid_next;
 select @@session.gtid_next;
 show global variables like 'gtid_next';
 show session variables like 'gtid_next';
+--disable_warnings
 select * from information_schema.global_variables where variable_name='gtid_next';
 select * from information_schema.session_variables where variable_name='gtid_next';
+--enable_warnings
 
 #
 # show that it is writable

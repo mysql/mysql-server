@@ -264,7 +264,7 @@ SET GLOBAL debug=@old_debug;
 include/rpl_restart_server.inc [server_number=2]
 include/stop_slave_sql.inc
 Warnings:
-Note	1969	Replication thread(s) for channel '' are already stopped.
+Note	1970	Replication thread(s) for channel '' are already stopped.
 RESET SLAVE;
 RESET MASTER;
 include/rpl_end.inc

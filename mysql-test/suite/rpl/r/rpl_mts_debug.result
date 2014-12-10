@@ -72,7 +72,7 @@ set @@global.slave_parallel_workers= @save.slave_parallel_workers;
 call mtr.add_suppression("Could not delete from Slave Workers info repository.");
 include/stop_slave.inc
 Warnings:
-Note	1969	Replication thread(s) for channel '' are already stopped.
+Note	1970	Replication thread(s) for channel '' are already stopped.
 set @save.slave_parallel_workers= @@global.slave_parallel_workers;
 set @@global.slave_parallel_workers= 2;
 include/start_slave.inc

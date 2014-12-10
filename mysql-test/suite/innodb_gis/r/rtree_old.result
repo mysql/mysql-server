@@ -849,7 +849,7 @@ count(*)
 set @g2 = GeomFromText('POINT(2 2)');
 select count(*) from t1 where contains(t1.geometry, @g2);
 count(*)
-1
+0
 select count(*) from t1 where intersects(t1.geometry, @g2);
 count(*)
 1

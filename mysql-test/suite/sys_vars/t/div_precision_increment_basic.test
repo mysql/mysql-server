@@ -142,16 +142,20 @@ SELECT @@session.div_precision_increment;
 #   Check if the value in GLOBAL Table matches value in variable   #
 ####################################################################
 
+--disable_warnings
 SELECT @@global.div_precision_increment = VARIABLE_VALUE 
 FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
 WHERE VARIABLE_NAME='div_precision_increment';
+--enable_warnings
 
 --echo '#------------------FN_DYNVARS_027_07-----------------------#'
 ####################################################################
 #  Check if the value in SESSION Table matches value in variable   #
 ####################################################################
 
+--disable_warnings
 SELECT @@session.div_precision_increment = VARIABLE_VALUE FROM INFORMATION_SCHEMA.SESSION_VARIABLES WHERE VARIABLE_NAME='div_precision_increment';
+--enable_warnings
 
 
 # FN_DYNVARS_027_07 - Check if TRUE and FALSE values can be used on variable

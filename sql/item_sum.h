@@ -477,6 +477,8 @@ public:
   Item *get_arg(uint i) { return args[i]; }
   Item *set_arg(uint i, THD *thd, Item *new_val);
   uint get_arg_count() const { return arg_count; }
+  /// @todo delete this when we no longer support temporary transformations
+  Item **get_arg_ptr(uint i) { return &args[i]; }
 
   /* Initialization of distinct related members */
   void init_aggregator()

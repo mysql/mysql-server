@@ -16,32 +16,44 @@ select @@global.innodb_flush_neighbors;
 select @@session.innodb_flush_neighbors;
 show global variables like 'innodb_flush_neighbors';
 show session variables like 'innodb_flush_neighbors';
+--disable_warnings
 select * from information_schema.global_variables where variable_name='innodb_flush_neighbors';
 select * from information_schema.session_variables where variable_name='innodb_flush_neighbors';
+--enable_warnings
 
 #
 # show that it's writable
 #
 set global innodb_flush_neighbors=0;
 select @@global.innodb_flush_neighbors;
+--disable_warnings
 select * from information_schema.global_variables where variable_name='innodb_flush_neighbors';
 select * from information_schema.session_variables where variable_name='innodb_flush_neighbors';
+--enable_warnings
 set @@global.innodb_flush_neighbors=TRUE;
 select @@global.innodb_flush_neighbors;
+--disable_warnings
 select * from information_schema.global_variables where variable_name='innodb_flush_neighbors';
 select * from information_schema.session_variables where variable_name='innodb_flush_neighbors';
+--enable_warnings
 set global innodb_flush_neighbors=0;
 select @@global.innodb_flush_neighbors;
+--disable_warnings
 select * from information_schema.global_variables where variable_name='innodb_flush_neighbors';
 select * from information_schema.session_variables where variable_name='innodb_flush_neighbors';
+--enable_warnings
 set @@global.innodb_flush_neighbors=2;
 select @@global.innodb_flush_neighbors;
+--disable_warnings
 select * from information_schema.global_variables where variable_name='innodb_flush_neighbors';
 select * from information_schema.session_variables where variable_name='innodb_flush_neighbors';
+--enable_warnings
 set @@global.innodb_flush_neighbors=DEFAULT;
 select @@global.innodb_flush_neighbors;
+--disable_warnings
 select * from information_schema.global_variables where variable_name='innodb_flush_neighbors';
 select * from information_schema.session_variables where variable_name='innodb_flush_neighbors';
+--enable_warnings
 --error ER_GLOBAL_VARIABLE
 set session innodb_flush_neighbors=0;
 --error ER_GLOBAL_VARIABLE

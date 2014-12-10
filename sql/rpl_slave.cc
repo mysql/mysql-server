@@ -25,7 +25,6 @@
 */
 
 #ifdef HAVE_REPLICATION
-#include "sql_priv.h"
 #include "my_global.h"
 #include "rpl_slave.h"
 #include "sql_parse.h"                         // execute_init_command
@@ -3794,7 +3793,7 @@ static int init_slave_thread(THD* thd, SLAVE_THD_TYPE thd_type)
   thd->system_thread= (thd_type == SLAVE_THD_WORKER) ? 
     SYSTEM_THREAD_SLAVE_WORKER : (thd_type == SLAVE_THD_SQL) ?
     SYSTEM_THREAD_SLAVE_SQL : SYSTEM_THREAD_SLAVE_IO;
-  thd->security_ctx->skip_grants();
+  thd->security_context()->skip_grants();
   my_net_init(&thd->net, 0);
   thd->slave_thread = 1;
   thd->enable_slow_log= opt_log_slow_slave_statements;
@@ -4750,12 +4749,13 @@ static int exec_relay_log_event(THD* thd, Relay_log_info* rli)
       that are not replayed, so we keep falling behind).
 
       If it is an artificial event, or a relay log event (IO thread generated
-      event) or ev->when is set to 0, or a FD from master, we don't update the
-      last_master_timestamp.
+      event) or ev->when is set to 0, or a FD from master, or a heartbeat
+      event with server_id '0' then  we don't update the last_master_timestamp.
     */
     if (!(rli->is_parallel_exec() ||
           ev->is_artificial_event() || ev->is_relay_log_event() ||
-          (ev->when.tv_sec == 0) || ev->get_type_code() == FORMAT_DESCRIPTION_EVENT))
+          ev->when.tv_sec == 0 || ev->get_type_code() == FORMAT_DESCRIPTION_EVENT ||
+          ev->server_id == 0))
     {
       rli->last_master_timestamp= ev->when.tv_sec + (time_t) ev->exec_time;
       DBUG_ASSERT(rli->last_master_timestamp >= 0);
@@ -4805,18 +4805,18 @@ static int exec_relay_log_event(THD* thd, Relay_log_info* rli)
     }
 
     /*
-      GTID protocol will put a ROTATE_EVENT from the master after each
-      (re)connection if auto positioning is enabled.
+      GTID protocol will put a FORMAT_DESCRIPTION_EVENT from the master with
+      log_pos != 0 after each (re)connection if auto positioning is enabled.
       This means that the SQL thread might have already started to apply the
       current group but, as the IO thread had to reconnect, it left this
       group incomplete and will start it again from the beginning.
-      So, before applying this ROTATE_EVENT we must let the worker applying
-      the current group rollback and gracefully finish its work before
-      starting to applying the new (complete) copy of the group.
+      So, before applying this FORMAT_DESCRIPTION_EVENT, we must let the
+      worker roll back the current group and gracefully finish its work,
+      before starting to apply the new (complete) copy of the group.
     */
-    if (ev->get_type_code() == ROTATE_EVENT &&
-        ev->server_id != ::server_id && rli->is_parallel_exec() &&
-        rli->curr_group_seen_gtid)
+    if (ev->get_type_code() == FORMAT_DESCRIPTION_EVENT &&
+        ev->server_id != ::server_id && ev->log_pos != 0 &&
+        rli->is_parallel_exec() && rli->curr_group_seen_gtid)
     {
       if (coord_handle_partial_binlogged_transaction(rli, ev))
         /*
@@ -4842,6 +4842,15 @@ static int exec_relay_log_event(THD* thd, Relay_log_info* rli)
     {
       DBUG_ASSERT(*ptr_ev == ev); // event remains to belong to Coordinator
 
+      DBUG_EXECUTE_IF("dbug.calculate_sbm_after_previous_gtid_log_event",
+                    {
+                      if (ev->get_type_code() == PREVIOUS_GTIDS_LOG_EVENT)
+                      {
+                        const char act[]= "now signal signal.reached wait_for signal.done_sbm_calculation";
+                        DBUG_ASSERT(opt_debug_sync_timeout > 0);
+                        DBUG_ASSERT(!debug_sync_set_action(thd, STRING_WITH_LEN(act)));
+                      }
+                    };);
       /*
         Format_description_log_event should not be deleted because it will be
         used to read info about the relay log's format; it will be deleted when
@@ -5173,6 +5182,11 @@ connected:
                       DBUG_ASSERT(!debug_sync_set_action(thd, 
                                                          STRING_WITH_LEN(act)));
                     };);
+    DBUG_EXECUTE_IF("dbug.calculate_sbm_after_previous_gtid_log_event",
+                    {
+                      /* Fake that thread started 3 mints ago */
+                      thd->start_time.tv_sec-=180;
+                    };);
   mysql_mutex_lock(&mi->run_lock);
   mi->slave_running= MYSQL_SLAVE_RUN_CONNECT;
   mysql_mutex_unlock(&mi->run_lock);
@@ -5410,6 +5424,10 @@ ignore_log_space_limit=%d",
       );
       DBUG_EXECUTE_IF("stop_io_after_reading_user_var_log_event",
         if (event_buf[EVENT_TYPE_OFFSET] == USER_VAR_EVENT)
+          thd->killed= THD::KILLED_NO_VALUE;
+      );
+      DBUG_EXECUTE_IF("stop_io_after_reading_table_map_event",
+        if (event_buf[EVENT_TYPE_OFFSET] == TABLE_MAP_EVENT)
           thd->killed= THD::KILLED_NO_VALUE;
       );
       DBUG_EXECUTE_IF("stop_io_after_reading_xid_log_event",
@@ -7709,11 +7727,6 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
 
   case PREVIOUS_GTIDS_LOG_EVENT:
   {
-    if (gtid_mode == 0)
-    {
-      error= ER_FOUND_GTID_EVENT_WHEN_GTID_MODE_IS_OFF;
-      goto err;
-    }
     /*
       This event does not have any meaning for the slave and
       was just sent to show the slave the master is making
@@ -7760,6 +7773,23 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
     inc_pos= event_len;
   break;
   }
+
+  /*
+    Simulate an unknown ignorable log event by rewriting the write_rows log
+    event and previous_gtids log event before writing them in relay log.
+  */
+  DBUG_EXECUTE_IF("simulate_unknown_ignorable_log_event",
+    if (event_type == WRITE_ROWS_EVENT ||
+        event_type == PREVIOUS_GTIDS_LOG_EVENT)
+    {
+      char *event_buf= const_cast<char*>(buf);
+      /* Overwrite the log event type with an unknown type. */
+      event_buf[EVENT_TYPE_OFFSET]= ENUM_END_EVENT + 1;
+      /* Set LOG_EVENT_IGNORABLE_F for the log event. */
+      int2store(event_buf + FLAGS_OFFSET,
+                uint2korr(event_buf + FLAGS_OFFSET) | LOG_EVENT_IGNORABLE_F);
+    }
+  );
 
   /*
      If this event is originating from this server, don't queue it.
@@ -9340,7 +9370,8 @@ int reset_slave(THD *thd)
   if (thd->lex->reset_slave_info.all)
   {
     /* First do reset_slave for default channel */
-    if (reset_slave(thd, msr_map.get_mi(msr_map.get_default_channel())))
+    mi= msr_map.get_mi(msr_map.get_default_channel());
+    if (mi && reset_slave(thd, mi))
       DBUG_RETURN(1);
     /* Do while iteration for rest of the channels */
     while (it!= msr_map.end())

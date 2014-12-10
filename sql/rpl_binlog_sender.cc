@@ -237,23 +237,7 @@ void Binlog_sender::run()
 
 my_off_t Binlog_sender::send_binlog(IO_CACHE *log_cache, my_off_t start_pos)
 {
-  /*
-    If we are skipping the beginning of the binlog file based on the position
-    asked by the slave, we must clear the log_pos and the created flag of the
-    Format_description_log_event to be sent.
-  */
-  bool clear_log_pos= start_pos > BIN_LOG_HEADER_SIZE;
-  /*
-    As when using GTID protocol the slave don't ask for a position, we will
-    clear the log_pos and the created flag of the Format_description_log_event
-    just if we are skipping at least the first GTID of the binlog file.
-  */
-  if (m_using_gtid_protocol)
-  {
-    clear_log_pos= m_gtid_clear_fd_created_flag;
-  }
-
-  if (unlikely(send_format_description_event(log_cache, clear_log_pos)))
+  if (unlikely(send_format_description_event(log_cache, start_pos)))
     return 1;
 
   if (start_pos == BIN_LOG_HEADER_SIZE)
@@ -550,6 +534,68 @@ int Binlog_sender::check_start_file()
   }
   else if (m_using_gtid_protocol)
   {
+    /*
+      In normal scenarios, it is not possible that Slave will
+      contain more gtids than Master with resepctive to Master's
+      UUID. But it could be possible case if Master's binary log
+      is truncated(due to raid failure) or Master's binary log is
+      deleted but GTID_PURGED was not set properly. That scenario
+      needs to be validated, i.e., it should *always* be the case that
+      Slave's gtid executed set (+retrieved set) is a subset of
+      Master's gtid executed set with respective to Master's UUID.
+      If it happens, dump thread will be stopped during the handshake
+      with Slave (thus the Slave's I/O thread will be stopped with the
+      error. Otherwise, it can lead to data inconsistency between Master
+      and Slave.
+    */
+    Sid_map* slave_sid_map= m_exclude_gtid->get_sid_map();
+    DBUG_ASSERT(slave_sid_map);
+    global_sid_lock->wrlock();
+    const rpl_sid &server_sid= gtid_state->get_server_sid();
+    rpl_sidno subset_sidno= slave_sid_map->sid_to_sidno(server_sid);
+    if (!m_exclude_gtid->is_subset_for_sid(gtid_state->get_executed_gtids(),
+                                                gtid_state->get_server_sidno(),
+                                                subset_sidno))
+    {
+      errmsg= ER(ER_SLAVE_HAS_MORE_GTIDS_THAN_MASTER);
+      global_sid_lock->unlock();
+      set_fatal_error(errmsg);
+      return 1;
+    }
+    /*
+      Setting GTID_PURGED (when GTID_EXECUTED set is empty i.e., when
+      previous_gtids are also empty) will make binlog rotate. That
+      leaves first binary log with empty previous_gtids and second
+      binary log's previous_gtids with the value of gtid_purged.
+      In find_first_log_not_in_gtid_set() while we search for a binary
+      log whose previous_gtid_set is subset of slave_gtid_executed,
+      in this particular case, server will always find the first binary
+      log with empty previous_gtids which is subset of any given
+      slave_gtid_executed. Thus Master thinks that it found the first
+      binary log which is actually not correct and unable to catch
+      this error situation. Hence adding below extra if condition
+      to check the situation. Slave should know about Master's purged GTIDs.
+      If Slave's GTID executed + retrieved set does not contain Master's
+      complete purged GTID list, that means Slave is requesting(expecting)
+      GTIDs which were purged by Master. We should let Slave know about the
+      situation. i.e., throw error if slave's GTID executed set is not
+      a superset of Master's purged GTID set.
+      The other case, where user deleted binary logs manually
+      (without using 'PURGE BINARY LOGS' command) but gtid_purged
+      is not set by the user, the following if condition cannot catch it.
+      But that is not a problem because in find_first_log_not_in_gtid_set()
+      while checking for subset previous_gtids binary log, the logic
+      will not find one and an error ER_MASTER_HAS_PURGED_REQUIRED_GTIDS
+      is thrown from there.
+    */
+    if (!gtid_state->get_lost_gtids()->is_subset(m_exclude_gtid))
+    {
+      errmsg= ER(ER_MASTER_HAS_PURGED_REQUIRED_GTIDS);
+      global_sid_lock->unlock();
+      set_fatal_error(errmsg);
+      return 1;
+    }
+    global_sid_lock->unlock();
     Gtid first_gtid= {0, 0};
     if (mysql_bin_log.find_first_log_not_in_gtid_set(index_entry_name,
                                                      m_exclude_gtid,
@@ -723,7 +769,7 @@ inline int Binlog_sender::reset_transmit_packet(ushort flags, size_t event_len)
 }
 
 int Binlog_sender::send_format_description_event(IO_CACHE *log_cache,
-                                                 bool clear_log_pos)
+                                                 my_off_t start_pos)
 {
   DBUG_ENTER("Binlog_sender::send_format_description_event");
   uchar* event_ptr;
@@ -741,6 +787,8 @@ int Binlog_sender::send_format_description_event(IO_CACHE *log_cache,
     set_fatal_error("Could not find format_description_event in binlog file");
     DBUG_RETURN(1);
   }
+
+  DBUG_ASSERT(event_ptr[LOG_POS_OFFSET] > 0);
 
   m_event_checksum_alg= get_checksum_alg((const char *)event_ptr, event_len);
 
@@ -762,18 +810,42 @@ int Binlog_sender::send_format_description_event(IO_CACHE *log_cache,
 
   event_ptr[FLAGS_OFFSET] &= ~LOG_EVENT_BINLOG_IN_USE_F;
 
-  /*
-    Mark that this event with "log_pos=0", so the slave should not increment
-    master's binlog position (rli->group_master_log_pos).
-  */
-  if (clear_log_pos)
+  bool event_updated= false;
+  if (m_using_gtid_protocol)
   {
-    int4store(event_ptr + LOG_POS_OFFSET, 0);
-    int4store(event_ptr + LOG_EVENT_MINIMAL_HEADER_LEN + ST_CREATED_OFFSET, 0);
-    /* fix the checksum due to latest changes in header */
-    if (event_checksum_on())
-      calc_event_checksum(event_ptr, event_len);
+    if (m_gtid_clear_fd_created_flag)
+    {
+      /*
+        As we are skipping at least the first transaction of the binlog,
+        we must clear the "created" field of the FD event (set it to 0)
+        to avoid destroying temp tables on slave.
+      */
+      int4store(event_ptr + LOG_EVENT_MINIMAL_HEADER_LEN + ST_CREATED_OFFSET,
+                0);
+      event_updated= true;
+    }
   }
+  else if (start_pos > BIN_LOG_HEADER_SIZE)
+  {
+    /*
+      If we are skipping the beginning of the binlog file based on the position
+      asked by the slave, we must clear the log_pos and the created flag of the
+      Format_description_log_event to be sent. Mark that this event with
+      "log_pos=0", so the slave should not increment master's binlog position
+      (rli->group_master_log_pos)
+    */
+    int4store(event_ptr + LOG_POS_OFFSET, 0);
+    /*
+      Set the 'created' field to 0 to avoid destroying
+      temp tables on slave.
+    */
+    int4store(event_ptr + LOG_EVENT_MINIMAL_HEADER_LEN + ST_CREATED_OFFSET, 0);
+    event_updated= true;
+  }
+
+  /* fix the checksum due to latest changes in header */
+  if (event_checksum_on() && event_updated)
+    calc_event_checksum(event_ptr, event_len);
 
   DBUG_RETURN(send_packet());
 }

@@ -678,3 +678,15 @@ DROP PROCEDURE p1;
 --echo # Restore the orginal sql_mode
 SET sql_mode= @org_mode;
 
+--echo #
+--echo # Bug #19873291 : MYSQL_EXECUTE_COMMAND(THD*): ASSERTION
+--echo #                 `THD->IS_ERROR() || THD->KILLED' FAILED
+--echo #
+CREATE TABLE t1(a INT);
+SET @org_safe_updates= @@sql_safe_updates;
+SET SESSION sql_safe_updates=ON;
+#This statement used to trigger an assert in DEBUG build before WL#6614
+--error ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE
+DELETE IGNORE FROM t1 WHERE a=1;
+DROP TABLE t1;
+SET sql_safe_updates= @org_safe_updates;

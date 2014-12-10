@@ -120,18 +120,22 @@ SELECT @@session.join_buffer_size;
 ####################################################################
 
 
+--disable_warnings
 SELECT @@global.join_buffer_size = VARIABLE_VALUE 
 FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
 WHERE VARIABLE_NAME='join_buffer_size';
+--enable_warnings
 
 --echo '#------------------FN_DYNVARS_053_07-----------------------#'
 ####################################################################
 #  Check if the value in SESSION Table matches value in variable   #
 ####################################################################
 
+--disable_warnings
 SELECT @@session.join_buffer_size = VARIABLE_VALUE 
 FROM INFORMATION_SCHEMA.SESSION_VARIABLES
 WHERE VARIABLE_NAME='join_buffer_size';
+--enable_warnings
 
 
 --echo '#------------------FN_DYNVARS_053_08-----------------------#'

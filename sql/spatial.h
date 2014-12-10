@@ -138,48 +138,44 @@ struct MBR
       ymax= mbr->ymax;
   }
 
-  int equals(const MBR *mbr)
+  int equals(const MBR *mbr) const
   {
     /* The following should be safe, even if we compare doubles */
     return ((mbr->xmin == xmin) && (mbr->ymin == ymin) &&
 	    (mbr->xmax == xmax) && (mbr->ymax == ymax));
   }
 
-  int disjoint(const MBR *mbr)
+  int disjoint(const MBR *mbr) const
   {
     /* The following should be safe, even if we compare doubles */
     return ((mbr->xmin > xmax) || (mbr->ymin > ymax) ||
 	    (mbr->xmax < xmin) || (mbr->ymax < ymin));
   }
 
-  int intersects(const MBR *mbr)
+  int intersects(const MBR *mbr) const
   {
     return !disjoint(mbr);
   }
 
-  int touches(const MBR *mbr)
+  int touches(const MBR *mbr) const;
+
+  int within(const MBR *mbr) const;
+
+  int contains(const MBR *mbr) const
   {
-    /* The following should be safe, even if we compare doubles */
-    return ((mbr->xmin == xmax || mbr->xmax == xmin) &&
-            ((mbr->ymin >= ymin && mbr->ymin <= ymax) ||
-             (mbr->ymax >= ymin && mbr->ymax <= ymax))) ||
-           ((mbr->ymin == ymax || mbr->ymax == ymin) &&
-            ((mbr->xmin >= xmin && mbr->xmin <= xmax) ||
-             (mbr->xmax >= xmin && mbr->xmax <= xmax)));
+    return mbr->within(this);
   }
 
-  int within(const MBR *mbr)
+  int covered_by(const MBR *mbr) const
   {
     /* The following should be safe, even if we compare doubles */
     return ((mbr->xmin <= xmin) && (mbr->ymin <= ymin) &&
-	    (mbr->xmax >= xmax) && (mbr->ymax >= ymax));
+            (mbr->xmax >= xmax) && (mbr->ymax >= ymax));
   }
 
-  int contains(const MBR *mbr)
+  int covers(const MBR *mbr) const
   {
-    /* The following should be safe, even if we compare doubles */
-    return ((mbr->xmin >= xmin) && (mbr->ymin >= ymin) &&
-	    (mbr->xmax <= xmax) && (mbr->ymax <= ymax));
+    return mbr->covered_by(this);
   }
 
   bool inner_point(double x, double y) const
@@ -212,7 +208,7 @@ struct MBR
     return d;
   }
 
-  int overlaps(const MBR *mbr)
+  int overlaps(const MBR *mbr) const
   {
     /*
       overlaps() requires that some point inside *this is also inside
@@ -220,8 +216,9 @@ struct MBR
       same dimension.
     */
     int d= dimension();
+    DBUG_ASSERT(d >= 0 && d <= 2);
 
-    if (d != mbr->dimension() || d <= 0 || contains(mbr) || within(mbr))
+    if (d != mbr->dimension() || d == 0 || contains(mbr) || within(mbr))
       return 0;
 
     MBR intersection(std::max(xmin, mbr->xmin), std::max(ymin, mbr->ymin),

@@ -1,0 +1,8 @@
+--source include/have_innodb.inc
+create table t1 (a int,b varchar(100) ,d blob,primary key (a,d(10), b(10))) engine=innodb;
+insert into t1 values (1,'e','a'),(5,'f','5'), (3,'a','b');
+create table t2 (a int) engine=innodb;
+insert into t2() values(4),(5);
+delete t1 from t1, t2 where t1.a;
+show create table t1;
+drop table t1, t2;

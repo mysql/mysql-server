@@ -20,8 +20,6 @@
   The actual communction is handled by the net_xxx functions in net_serv.cc
 */
 
-#include "sql_priv.h"
-#include "unireg.h"                    // REQUIRED: for other includes
 #include "protocol.h"
 #include "sql_class.h"                          // THD
 #include <stdarg.h>

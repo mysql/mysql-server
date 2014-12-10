@@ -212,6 +212,8 @@ select DATABASE() from t1;
 DATABASE()
 select ENCRYPT("test") from t1;
 ENCRYPT("test")
+Warnings:
+Warning	1287	'ENCRYPT' is deprecated and will be removed in a future release. Please use AES_ENCRYPT instead
 select LAST_INSERT_ID() from t1;
 LAST_INSERT_ID()
 select RAND() from t1;
@@ -1887,4 +1889,8 @@ fld1
 200
 #cleanup
 DROP DATABASE `db-db`;
+#
+# Bug#19322795 - HEAP BUFFER OVERFLOW IN RPL TESTS
+#
+/*!*/;
 SET GLOBAL query_cache_size = @query_cache_size.saved;

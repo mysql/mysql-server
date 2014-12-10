@@ -150,20 +150,28 @@ SELECT @@session.max_tmp_tables;
 #   Check if the value in GLOBAL Table matches value in variable   #
 ####################################################################
 
-
-SELECT @@global.max_tmp_tables = VARIABLE_VALUE 
+--disable_warnings
+SELECT VARIABLE_VALUE 
 FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
-WHERE VARIABLE_NAME='max_tmp_tables';
+WHERE VARIABLE_NAME='max_tmp_tables'
+into @tmp;
+--enable_warnings
+
+SELECT @@global.max_tmp_tables = @tmp;
 
 --echo '#------------------FN_DYNVARS_086_07-----------------------#'
 ####################################################################
 #  Check if the value in SESSION Table matches value in variable   #
 ####################################################################
 
-SELECT @@session.max_tmp_tables = VARIABLE_VALUE 
+--disable_warnings
+SELECT VARIABLE_VALUE 
 FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
-WHERE VARIABLE_NAME='max_tmp_tables';
+WHERE VARIABLE_NAME='max_tmp_tables'
+into @tmp;
+--enable_warnings
 
+SELECT @@session.max_tmp_tables = @tmp;
 
 --echo '#------------------FN_DYNVARS_086_08-----------------------#'
 ####################################################################

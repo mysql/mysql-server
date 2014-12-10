@@ -1083,6 +1083,24 @@ public:
   enum_return_status ensure_sidno(rpl_sidno sidno);
   /// Returns true if this Gtid_set is a subset of the other Gtid_set.
   bool is_subset(const Gtid_set *super) const;
+
+  /**
+    Returns true if this Gtid_set is a subset of the given gtid_set
+    on the given superset_sidno and subset_sidno.
+
+    @param super          Gtid_set with which 'this'::gtid_set needs to be
+                           compared
+    @param superset_sidno The sidno that will be compared, relative to
+                           super->sid_map.
+    @param subset_sidno   The sidno that will be compared, relative to
+                           this->sid_map.
+    @return true          If 'this' Gtid_set is subset of given
+                           'super' Gtid_set.
+            false         If 'this' Gtid_set is *not* subset of given
+                           'super' Gtid_set.
+  */
+  bool is_subset_for_sid(const Gtid_set *super, rpl_sidno superset_sidno,
+                         rpl_sidno subset_sidno) const;
   /// Returns true if there is a least one element of this Gtid_set in
   /// the other Gtid_set.
   bool is_intersection_nonempty(const Gtid_set *other) const;
@@ -2356,6 +2374,11 @@ public:
   const Owned_gtids *get_owned_gtids() const { return &owned_gtids; }
   /// Return the server's SID's SIDNO
   rpl_sidno get_server_sidno() const { return server_sidno; }
+  /// Return the server's SID
+  const rpl_sid &get_server_sid() const
+  {
+    return global_sid_map->sidno_to_sid(server_sidno);
+  }
 #ifndef DBUG_OFF
   /**
     Debug only: Returns an upper bound on the length of the string

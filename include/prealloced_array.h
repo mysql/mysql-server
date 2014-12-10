@@ -62,7 +62,7 @@ class Prealloced_array
   */
   Element_type *cast_rawbuff()
   {
-    return static_cast<Element_type*>(static_cast<void*>(&m_buff[0]));
+    return static_cast<Element_type*>(static_cast<void*>(&m_buff.data[0]));
   }
 public:
 
@@ -465,8 +465,8 @@ public:
 private:
   size_t         m_size;
   size_t         m_capacity;
-  // This buffer must be properly aligned. Two size_t above should ensure it.
-  char           m_buff[Prealloc * sizeof(Element_type)];
+  // This buffer must be properly aligned.
+  my_aligned_storage<Prealloc * sizeof(Element_type), MY_ALIGNOF(double)>m_buff;
   Element_type  *m_array_ptr;
   PSI_memory_key m_psi_key;
 };

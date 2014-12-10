@@ -105,6 +105,7 @@ When one supplies long data for a placeholder:
 #include "sql_view.h"           // create_view_precheck
 #include "transaction.h"        // trans_rollback_implicit
 #include "mysql/psi/mysql_ps.h" // MYSQL_EXECUTE_PS
+#include "binlog.h"
 
 #ifdef EMBEDDED_LIBRARY
 /* include MYSQL_BIND headers */
@@ -1405,7 +1406,7 @@ static int mysql_test_select(Prepared_statement *stmt,
     It is not SELECT COMMAND for sure, so setup_tables will be called as
     usual, and we pass 0 as setup_tables_done_option
   */
-  if (unit->prepare(thd, 0, 0))
+  if (unit->prepare(thd, 0, 0, 0))
     goto error;
   if (!lex->describe && !stmt->is_sql_prepare())
   {
@@ -1584,7 +1585,7 @@ static bool select_like_stmt_test(Prepared_statement *stmt,
   thd->lex->used_tables= 0;                        // Updated by setup_fields
 
   /* Calls SELECT_LEX::prepare */
-  const bool ret= lex->unit->prepare(thd, 0, setup_tables_done_option);
+  const bool ret= lex->unit->prepare(thd, 0, setup_tables_done_option, 0);
   DBUG_RETURN(ret);
 }
 
@@ -3557,7 +3558,7 @@ Prepared_statement::execute_loop(String *expanded_query,
   if (set_parameters(expanded_query, packet, packet_end))
     return TRUE;
 
-  if (unlikely(thd->security_ctx->password_expired && 
+  if (unlikely(thd->security_context()->password_expired() &&
                !lex->is_set_password_sql))
   {
     my_error(ER_MUST_CHANGE_PASSWORD, MYF(0));
@@ -3953,8 +3954,8 @@ bool Prepared_statement::execute(String *expanded_query, bool open_cursor)
                              thd->thread_id(),
                              (char *) (thd->db().str != NULL ?
                                        thd->db().str : ""),
-                             &thd->security_ctx->priv_user[0],
-                             (char *) thd->security_ctx->host_or_ip,
+                             (char *) thd->security_context()->priv_user().str,
+                             (char *) thd->security_context()->host_or_ip().str,
                              1);
       parent_locker= thd->m_statement_psi;
       thd->m_statement_psi= NULL;

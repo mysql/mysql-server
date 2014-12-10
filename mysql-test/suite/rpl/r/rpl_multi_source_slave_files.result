@@ -23,10 +23,10 @@ START SLAVE SQL_THREAD;
 include/rpl_for_each_connection.inc [include/wait_for_slave_sql_to_start.inc]
 START SLAVE SQL_THREAD;
 Warnings:
-Note	1968	Replication thread(s) for channel 'channel_1' are already runnning.
-Note	1968	Replication thread(s) for channel 'channel_3' are already runnning.
-Note	1968	Replication thread(s) for channel 'channel_4' are already runnning.
-Note	1968	Replication thread(s) for channel 'channel_5' are already runnning.
+Note	1969	Replication thread(s) for channel 'channel_1' are already runnning.
+Note	1969	Replication thread(s) for channel 'channel_3' are already runnning.
+Note	1969	Replication thread(s) for channel 'channel_4' are already runnning.
+Note	1969	Replication thread(s) for channel 'channel_5' are already runnning.
 include/rpl_for_each_connection.inc [include/wait_for_slave_sql_to_start.inc]
 START SLAVE IO_THREAD;
 include/rpl_for_each_connection.inc [include/wait_for_slave_io_to_start.inc]

@@ -17,10 +17,7 @@
   @file
 
   @details
-  Mostly this file is used in the server. But a little part of it is used in
-  mysqlbinlog too (definition of SELECT_DISTINCT and others).
-  The consequence is that 90% of the file is wrapped in \#ifndef MYSQL_CLIENT,
-  except the part which must be in the server and in the client.
+  This file is used in the server, and the mysqlbinlog client.
 */
 
 #ifndef SQL_PRIV_INCLUDED
@@ -47,7 +44,7 @@
 
 #define SELECT_DISTINCT         (1ULL << 0)     // SELECT, user
 #define SELECT_STRAIGHT_JOIN    (1ULL << 1)     // SELECT, user
-#define SELECT_DESCRIBE         (1ULL << 2)     // SELECT, user
+// Free slot, used to be SELECT_DESCRIBE: (1ULL << 2)
 #define SELECT_SMALL_RESULT     (1ULL << 3)     // SELECT, user
 #define SELECT_BIG_RESULT       (1ULL << 4)     // SELECT, user
 #define OPTION_FOUND_ROWS       (1ULL << 5)     // SELECT, user
@@ -69,7 +66,7 @@
 #define OPTION_BEGIN            (1ULL << 20)    // THD, intern
 #define OPTION_TABLE_LOCK       (1ULL << 21)    // THD, intern
 #define OPTION_QUICK            (1ULL << 22)    // SELECT (for DELETE)
-/* 23rd bit is unused. It was occupied by OPTION_KEEP_LOG. */
+#define OPTION_NO_CONST_TABLES  (1ULL << 23)    // No const tables, intern
 
 /* The following is used to detect a conflict with DISTINCT */
 #define SELECT_ALL              (1ULL << 24)    // SELECT, user, parser
@@ -116,233 +113,5 @@
 #define OPTION_ALLOW_BATCH              (1ULL << 36) // THD, intern (slave)
 
 #define SELECT_MAX_STATEMENT_TIME       (1ULL << 37) // SELECT, user
-
-/*
-  Check how many bytes are available on buffer.
-
-  @param buf_start    Pointer to buffer start.
-  @param buf_current  Pointer to the current position on buffer.
-  @param buf_len      Buffer length.
-
-  @return             Number of bytes available on event buffer.
-*/
-template <class T> T available_buffer(const char* buf_start,
-                                      const char* buf_current,
-                                      T buf_len)
-{
-  return static_cast<T>(buf_len - (buf_current - buf_start));
-}
-
-/*
-  Check if jump value is within buffer limits.
-
-  @param jump         Number of positions we want to advance.
-  @param buf_start    Pointer to buffer start
-  @param buf_current  Pointer to the current position on buffer.
-  @param buf_len      Buffer length.
-
-  @return      True   If jump value is within buffer limits.
-               False  Otherwise.
-*/
-template <class T> bool valid_buffer_range(T jump,
-                                           const char* buf_start,
-                                           const char* buf_current,
-                                           T buf_len)
-{
-  return (jump <= available_buffer(buf_start, buf_current, buf_len));
-}
-
-/* The rest of the file is included in the server only */
-#ifndef MYSQL_CLIENT
-
-/* @@optimizer_switch flags. These must be in sync with optimizer_switch_typelib */
-#define OPTIMIZER_SWITCH_INDEX_MERGE               (1ULL << 0)
-#define OPTIMIZER_SWITCH_INDEX_MERGE_UNION         (1ULL << 1)
-#define OPTIMIZER_SWITCH_INDEX_MERGE_SORT_UNION    (1ULL << 2)
-#define OPTIMIZER_SWITCH_INDEX_MERGE_INTERSECT     (1ULL << 3)
-#define OPTIMIZER_SWITCH_ENGINE_CONDITION_PUSHDOWN (1ULL << 4)
-#define OPTIMIZER_SWITCH_INDEX_CONDITION_PUSHDOWN  (1ULL << 5)
-/** If this is off, MRR is never used. */
-#define OPTIMIZER_SWITCH_MRR                       (1ULL << 6)
-/**
-   If OPTIMIZER_SWITCH_MRR is on and this is on, MRR is used depending on a
-   cost-based choice ("automatic"). If OPTIMIZER_SWITCH_MRR is on and this is
-   off, MRR is "forced" (i.e. used as long as the storage engine is capable of
-   doing it).
-*/
-#define OPTIMIZER_SWITCH_MRR_COST_BASED            (1ULL << 7)
-#define OPTIMIZER_SWITCH_BNL                       (1ULL << 8)
-#define OPTIMIZER_SWITCH_BKA                       (1ULL << 9)
-#define OPTIMIZER_SWITCH_MATERIALIZATION           (1ULL << 10)
-#define OPTIMIZER_SWITCH_SEMIJOIN                  (1ULL << 11)
-#define OPTIMIZER_SWITCH_LOOSE_SCAN                (1ULL << 12)
-#define OPTIMIZER_SWITCH_FIRSTMATCH                (1ULL << 13)
-#define OPTIMIZER_SWITCH_SUBQ_MAT_COST_BASED       (1ULL << 14)
-#define OPTIMIZER_SWITCH_USE_INDEX_EXTENSIONS      (1ULL << 15)
-#define OPTIMIZER_SWITCH_COND_FANOUT_FILTER        (1ULL << 16)
-#define OPTIMIZER_SWITCH_LAST                      (1ULL << 17)
-
-#define OPTIMIZER_SWITCH_DEFAULT (OPTIMIZER_SWITCH_INDEX_MERGE | \
-                                  OPTIMIZER_SWITCH_INDEX_MERGE_UNION | \
-                                  OPTIMIZER_SWITCH_INDEX_MERGE_SORT_UNION | \
-                                  OPTIMIZER_SWITCH_INDEX_MERGE_INTERSECT | \
-                                  OPTIMIZER_SWITCH_ENGINE_CONDITION_PUSHDOWN |\
-                                  OPTIMIZER_SWITCH_INDEX_CONDITION_PUSHDOWN | \
-                                  OPTIMIZER_SWITCH_MRR | \
-                                  OPTIMIZER_SWITCH_MRR_COST_BASED | \
-                                  OPTIMIZER_SWITCH_BNL | \
-                                  OPTIMIZER_SWITCH_MATERIALIZATION | \
-                                  OPTIMIZER_SWITCH_SEMIJOIN | \
-                                  OPTIMIZER_SWITCH_LOOSE_SCAN | \
-                                  OPTIMIZER_SWITCH_FIRSTMATCH | \
-                                  OPTIMIZER_SWITCH_SUBQ_MAT_COST_BASED | \
-                                  OPTIMIZER_SWITCH_USE_INDEX_EXTENSIONS | \
-                                  OPTIMIZER_SWITCH_COND_FANOUT_FILTER)
-/*
-  Replication uses 8 bytes to store SQL_MODE in the binary log. The day you
-  use strictly more than 64 bits by adding one more define above, you should
-  contact the replication team because the replication code should then be
-  updated (to store more bytes on disk).
-
-  NOTE: When adding new SQL_MODE types, make sure to also add them to
-  the scripts used for creating the MySQL system tables
-  in scripts/mysql_system_tables.sql and scripts/mysql_system_tables_fix.sql
-
-*/
-
-/*
-  Flags below are set when we perform
-  context analysis of the statement and make
-  subqueries non-const. It prevents subquery
-  evaluation at context analysis stage.
-*/
-
-/*
-  Don't evaluate this subquery during statement prepare even if
-  it's a constant one. The flag is switched off in the end of
-  mysqld_stmt_prepare.
-*/ 
-#define CONTEXT_ANALYSIS_ONLY_PREPARE 1
-/*
-  Special SELECT_LEX::prepare mode: changing of query is prohibited.
-  When creating a view, we need to just check its syntax omitting
-  any optimizations: afterwards definition of the view will be
-  reconstructed by means of ::print() methods and written to
-  to an .frm file. We need this definition to stay untouched.
-*/ 
-#define CONTEXT_ANALYSIS_ONLY_VIEW    2
-/*
-  Don't evaluate this subquery during derived table prepare even if
-  it's a constant one.
-*/
-#define CONTEXT_ANALYSIS_ONLY_DERIVED 4
-
-// uncachable cause
-#define UNCACHEABLE_DEPENDENT   1
-#define UNCACHEABLE_RAND        2
-#define UNCACHEABLE_SIDEEFFECT	4
-/* For uncorrelated SELECT in an UNION with some correlated SELECTs */
-#define UNCACHEABLE_UNITED      8
-#define UNCACHEABLE_CHECKOPTION 16
-
-/*
-  Some defines for exit codes for ::is_equal class functions.
-*/
-#define IS_EQUAL_NO 0
-#define IS_EQUAL_YES 1
-#define IS_EQUAL_PACK_LENGTH 2
-
-/**
-  Names for different query parse tree parts
-*/
-
-enum enum_parsing_context
-{
-  CTX_NONE= 0, ///< Empty value
-  CTX_MESSAGE, ///< "No tables used" messages etc.
-  CTX_TABLE, ///< for single-table UPDATE/DELETE/INSERT/REPLACE
-  CTX_SELECT_LIST, ///< SELECT (subquery), (subquery)...
-  CTX_UPDATE_VALUE_LIST, ///< UPDATE ... SET field=(subquery)...
-  CTX_JOIN,
-  CTX_QEP_TAB,
-  CTX_MATERIALIZATION,
-  CTX_DUPLICATES_WEEDOUT,
-  CTX_DERIVED, ///< "Derived" subquery
-  CTX_WHERE, ///< Subquery in WHERE clause item tree
-  CTX_ON,    ///< ON clause context
-  CTX_HAVING, ///< Subquery in HAVING clause item tree
-  CTX_ORDER_BY, ///< ORDER BY clause execution context
-  CTX_GROUP_BY, ///< GROUP BY clause execution context
-  CTX_SIMPLE_ORDER_BY, ///< ORDER BY clause execution context
-  CTX_SIMPLE_GROUP_BY, ///< GROUP BY clause execution context
-  CTX_DISTINCT, ///< DISTINCT clause execution context
-  CTX_SIMPLE_DISTINCT, ///< DISTINCT clause execution context
-  CTX_BUFFER_RESULT, ///< see SQL_BUFFER_RESULT in the manual
-  CTX_ORDER_BY_SQ, ///< Subquery in ORDER BY clause item tree
-  CTX_GROUP_BY_SQ, ///< Subquery in GROUP BY clause item tree
-  CTX_OPTIMIZED_AWAY_SUBQUERY, ///< Subquery executed once during optimization
-  CTX_UNION,
-  CTX_UNION_RESULT, ///< Pseudo-table context for UNION result
-  CTX_QUERY_SPEC ///< Inner SELECTs of UNION expression
-};
-
-
-enum enum_var_type
-{
-  OPT_DEFAULT= 0, OPT_SESSION, OPT_GLOBAL
-};
-
-class sys_var;
-
-enum enum_yes_no_unknown
-{
-  TVL_YES, TVL_NO, TVL_UNKNOWN
-};
-
-#ifdef MYSQL_SERVER
-
-#endif /* MYSQL_SERVER */
-
-#ifdef MYSQL_SERVER
-/*
-  External variables
-*/
-
-/* sql_yacc.cc */
-#ifndef DBUG_OFF
-extern void turn_parser_debug_on();
-
-#endif
-
-/**
-  convert a hex digit into number.
-*/
-
-inline int hexchar_to_int(char c)
-{
-  if (c <= '9' && c >= '0')
-    return c-'0';
-  c|=32;
-  if (c <= 'f' && c >= 'a')
-    return c-'a'+10;
-  return -1;
-}
-
-/* This must match the path length limit in the ER_NOT_RW_DIR error msg. */
-#define ER_NOT_RW_DIR_PATHSIZE 200
-
-#define IS_TABLESPACES_TABLESPACE_NAME    0
-#define IS_TABLESPACES_ENGINE             1
-#define IS_TABLESPACES_TABLESPACE_TYPE    2
-#define IS_TABLESPACES_LOGFILE_GROUP_NAME 3
-#define IS_TABLESPACES_EXTENT_SIZE        4
-#define IS_TABLESPACES_AUTOEXTEND_SIZE    5
-#define IS_TABLESPACES_MAXIMUM_SIZE       6
-#define IS_TABLESPACES_NODEGROUP_ID       7
-#define IS_TABLESPACES_TABLESPACE_COMMENT 8
-
-#endif /* MYSQL_SERVER */
-
-#endif /* MYSQL_CLIENT */
 
 #endif /* SQL_PRIV_INCLUDED */
