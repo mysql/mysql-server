@@ -2013,7 +2013,7 @@ tz_load_from_open_tables(const String *tz_name, TABLE_LIST *tz_tables)
 
   /*
     At last we are doing the same thing for records in
-    mysql.time_zone_transition table. Here we additionaly need records
+    mysql.time_zone_transition table. Here we additionally need records
     in ascending order by index scan also satisfies us.
   */
   table= tz_tables->table; 
