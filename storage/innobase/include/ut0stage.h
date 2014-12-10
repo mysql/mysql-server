@@ -276,9 +276,9 @@ private:
 
 		/* If flush phase has not started yet and we do not know how
 		many pages are to be flushed, then use a wild guess - the
-		number of pages in the PK. */
+		number of pages in the PK / 2. */
 		if (m_n_flush_pages == 0) {
-			m_n_flush_pages = n_pk_pages;
+			m_n_flush_pages = n_pk_pages / 2;
 		}
 
 		ulonglong	estimate
