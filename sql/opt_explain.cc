@@ -2338,16 +2338,16 @@ void mysql_explain_other(THD *thd)
     2) has switched to another user
     then it's not super user.
   */
-  if (!(test_all_bits(thd->main_security_ctx.master_access, // (1)
-                      (GLOBAL_ACLS & ~GRANT_ACL))) ||
-      (0 != strcmp(thd->main_security_ctx.priv_user,        // (2)
-                   thd->security_ctx->priv_user) ||
+  if (!(thd->m_main_security_ctx.check_access(
+          GLOBAL_ACLS & ~GRANT_ACL)) || // (1)
+      (0 != strcmp(thd->m_main_security_ctx.priv_user().str,        // (2)
+                   thd->security_context()->priv_user().str) ||
        0 != my_strcasecmp(system_charset_info,
-                          thd->main_security_ctx.priv_host,
-                          thd->security_ctx->priv_host)))
+                          thd->m_main_security_ctx.priv_host().str,
+                          thd->security_context()->priv_host().str)))
   {
     // Can see only connections of this user
-    user= thd->security_ctx->priv_user;
+    user= (char *) thd->security_context()->priv_user().str;
   }
   else
   {
@@ -2383,13 +2383,13 @@ void mysql_explain_other(THD *thd)
         !qp->get_lex()->describe &&                                  // (2)
         qp->get_lex()->sphead == NULL)                               // (3)
     {
-      Security_context *tmp_sctx= query_thd->security_ctx;
-      DBUG_ASSERT(tmp_sctx->user);
-      if (user && strcmp(tmp_sctx->user, user))
+      Security_context *tmp_sctx= query_thd->security_context();
+      DBUG_ASSERT(tmp_sctx->user().str);
+      if (user && strcmp(tmp_sctx->user().str, user))
       {
         my_error(ER_ACCESS_DENIED_ERROR, MYF(0),
-                 thd->security_ctx->priv_user,
-                 thd->security_ctx->priv_host,
+                 thd->security_context()->priv_user().str,
+                 thd->security_context()->priv_host().str,
                  (thd->password ?
                   ER(ER_YES) :
                   ER(ER_NO)));

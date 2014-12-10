@@ -2277,8 +2277,9 @@ os_file_io(
 {
 	ssize_t bytes_returned = 0;
 	ssize_t n_bytes;
+	ulint i;
 
-	for (ulint i = 0; i < NUM_RETRIES_ON_PARTIAL_IO; ++i) {
+	for (i = 0; i < NUM_RETRIES_ON_PARTIAL_IO; ++i) {
 		if (type == OS_FILE_READ ) {
 			n_bytes = pread(file, buf, n, offset);
 		} else {
@@ -2309,13 +2310,34 @@ os_file_io(
 			bytes_returned += (ulint) n_bytes;
 
 		} else {
+			/* System call failure */
+			if (type == OS_FILE_READ) {
+				ib::error() << "Error in system call pread()."
+				" The operating system error number is"
+				" " << errno << ".";
+			} else {
+				ib::error() << "Error in system call pwrite()."
+				" The operating system error number is"
+				" " << errno << ".";
+			}
+
+			if (strerror(errno) != NULL) {
+				ib::error() << "Error number "
+				<< errno << " means '" <<
+				strerror(errno) << "'.";
+			}
+
+			ib::info() << OPERATING_SYSTEM_ERROR_MSG;
 			break;
 		}
 	}
 
-	ib::warn() << "Retry attempts for "
-		<< (type == OS_FILE_READ ? "reading" : "writing")
-		<< " partial data failed.";
+	if (i > 0) {
+		/* Print the warning only if retrying was attempted */
+		ib::warn() << "Retry attempts for "
+			<< (type == OS_FILE_READ ? "reading" : "writing")
+			<< " partial data failed.";
+	}
 
 	return(bytes_returned);
 }
@@ -2489,12 +2511,12 @@ try_again:
 	ret = os_file_pread(file, buf, n, offset);
 
 	if ((ulint) ret == n) {
-
 		return(true);
 	}
 
 	ib::error() << "Tried to read " << n << " bytes at offset " << offset
 		<< " was only able to read " << ret << ".";
+
 #endif /* _WIN32 */
 #ifdef _WIN32
 error_handling:
@@ -2613,6 +2635,7 @@ try_again:
 
 		return(true);
 	}
+
 #endif /* _WIN32 */
 #ifdef _WIN32
 error_handling:
@@ -2780,7 +2803,6 @@ retry:
 	ret = os_file_pwrite(file, buf, n, offset);
 
 	if ((ulint) ret == n) {
-
 		return(true);
 	}
 
@@ -2788,18 +2810,10 @@ retry:
 
 		ib::error() << "Write to file " << name << " failed at offset "
 			<< offset << ". " << n << " bytes should have been"
-			" written, only " << ret << " were written. Operating"
-			" system error number " << errno << ". Check that your"
-			" OS and file system support files of this size. Check"
-			" also that the disk is not full or a disk quota"
-			" exceeded.";
-
-		if (strerror(errno) != NULL) {
-			ib::error() << "Error number " << errno << " means '"
-				<< strerror(errno) << "'.";
-		}
-
-		ib::info() << OPERATING_SYSTEM_ERROR_MSG;
+			" written, only " << ret << " were written. Check that"
+			" your OS and file system support files of  this size."
+			" Check also that the disk is not full or a disk quota"
+			"  exceeded.";
 
 		os_has_said_disk_full = true;
 	}

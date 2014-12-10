@@ -47,13 +47,20 @@ extern void mysql_audit_release(THD *thd);
 #define MAX_USER_HOST_SIZE 512
 static inline size_t make_user_name(THD *thd, char *buf)
 {
-  Security_context *sctx= thd->security_ctx;
+  Security_context *sctx= thd->security_context();
+  LEX_CSTRING sctx_user= sctx->user();
+  LEX_CSTRING sctx_host= sctx->host();
+  LEX_CSTRING sctx_ip= sctx->ip();
+  LEX_CSTRING sctx_priv_user= sctx->priv_user();
   return static_cast<size_t>(strxnmov(buf, MAX_USER_HOST_SIZE,
-                                      sctx->priv_user[0] ? sctx->priv_user : "", "[",
-                                      sctx->user ? sctx->user : "", "] @ ",
-                                      sctx->get_host()->length() ? sctx->get_host()->ptr() :
-                                      "", " [", sctx->get_ip()->length() ? sctx->get_ip()->ptr() :
-                                      "", "]", NullS)
+                                      sctx_priv_user.str[0] ?
+                                        sctx_priv_user.str : "", "[",
+                                      sctx_user.length ? sctx_user.str :
+                                                         "", "] @ ",
+                                      sctx_host.length ? sctx_host.str :
+                                                         "", " [",
+                                      sctx_ip.length ? sctx_ip.str : "", "]",
+                                      NullS)
                              - buf);
 }
 
@@ -95,12 +102,16 @@ void mysql_audit_general_log(THD *thd, const char *cmd, size_t cmdlen)
       }
       else
         query= thd->query();
-      ip.str= (char *) thd->security_ctx->get_ip()->ptr();
-      ip.length= thd->security_ctx->get_ip()->length();
-      host.str= (char *) thd->security_ctx->get_host()->ptr();
-      host.length= thd->security_ctx->get_host()->length();
-      external_user.str= (char *) thd->security_ctx->get_external_user()->ptr();
-      external_user.length= thd->security_ctx->get_external_user()->length();
+      Security_context *sctx= thd->security_context();
+      LEX_CSTRING sctx_host= sctx->host();
+      LEX_CSTRING sctx_ip= sctx->ip();
+      LEX_CSTRING sctx_external_user= sctx->external_user();
+      ip.str= (char *) sctx_ip.str;
+      ip.length= sctx_ip.length;
+      host.str= (char *) sctx_host.str;
+      host.length= sctx_host.length;
+      external_user.str= (char *) sctx_external_user.str;
+      external_user.length= sctx_external_user.length;
       sql_command.str= (char *) sql_statement_names[thd->lex->sql_command].str;
       sql_command.length= sql_statement_names[thd->lex->sql_command].length;
     }
@@ -153,6 +164,8 @@ void mysql_audit_general(THD *thd, uint event_subtype,
     const CHARSET_INFO *query_charset= thd->charset();
     MYSQL_LEX_STRING ip, host, external_user, sql_command;
     ha_rows rows;
+    Security_context *sctx;
+    LEX_CSTRING sctx_host, sctx_ip, sctx_external_user;
     static MYSQL_LEX_STRING empty= { C_STRING_WITH_LEN("") };
 
     if (thd)
@@ -169,13 +182,17 @@ void mysql_audit_general(THD *thd, uint event_subtype,
         query= thd->query();
       user= user_buff;
       userlen= make_user_name(thd, user_buff);
+      sctx= thd->security_context();
       rows= thd->get_stmt_da()->current_row_for_condition();
-      ip.str= (char *) thd->security_ctx->get_ip()->ptr();
-      ip.length= thd->security_ctx->get_ip()->length();
-      host.str= (char *) thd->security_ctx->get_host()->ptr();
-      host.length= thd->security_ctx->get_host()->length();
-      external_user.str= (char *) thd->security_ctx->get_external_user()->ptr();
-      external_user.length= thd->security_ctx->get_external_user()->length();
+      sctx_ip= sctx->ip();
+      ip.str= (char *) sctx_ip.str;
+      ip.length= sctx_ip.length;
+      sctx_host= sctx->host();
+      host.str= (char *) sctx_host.str;
+      host.length= sctx_host.length;
+      sctx_external_user= sctx->external_user();
+      external_user.str= (char *) sctx_external_user.str;
+      external_user.length= sctx_external_user.length;
       sql_command.str= (char *) sql_statement_names[thd->lex->sql_command].str;
       sql_command.length= sql_statement_names[thd->lex->sql_command].length;
     }
@@ -201,16 +218,18 @@ void mysql_audit_general(THD *thd, uint event_subtype,
 #define MYSQL_AUDIT_NOTIFY_CONNECTION_CONNECT(thd) mysql_audit_notify(\
   (thd), MYSQL_AUDIT_CONNECTION_CLASS, MYSQL_AUDIT_CONNECTION_CONNECT,\
   (thd)->get_stmt_da()->is_error() ? (thd)->get_stmt_da()->mysql_errno() : 0,\
-  (thd)->thread_id(), (thd)->security_ctx->user,                        \
-  (thd)->security_ctx->user ? strlen((thd)->security_ctx->user) : 0,\
-  (thd)->security_ctx->priv_user, strlen((thd)->security_ctx->priv_user),\
-  (thd)->security_ctx->get_external_user()->ptr(),\
-  (thd)->security_ctx->get_external_user()->length(),\
-  (thd)->security_ctx->proxy_user, strlen((thd)->security_ctx->proxy_user),\
-  (thd)->security_ctx->get_host()->ptr(),\
-  (thd)->security_ctx->get_host()->length(),\
-  (thd)->security_ctx->get_ip()->ptr(),\
-  (thd)->security_ctx->get_ip()->length(),\
+  (thd)->thread_id(), (thd)->security_context()->user().str,\
+  (thd)->security_context()->user().length,\
+  (thd)->security_context()->priv_user().str,\
+  (thd)->security_context()->priv_user().length,\
+  (thd)->security_context()->external_user().str,\
+  (thd)->security_context()->external_user().length,\
+  (thd)->security_context()->proxy_user().str,\
+  (thd)->security_context()->proxy_user().length,\
+  (thd)->security_context()->host().str,\
+  (thd)->security_context()->host().length,\
+  (thd)->security_context()->ip().str,\
+  (thd)->security_context()->ip().length,\
   (thd)->db().str, (thd)->db().length)
 
 #define MYSQL_AUDIT_NOTIFY_CONNECTION_DISCONNECT(thd, errcode)\
@@ -221,16 +240,18 @@ void mysql_audit_general(THD *thd, uint event_subtype,
 #define MYSQL_AUDIT_NOTIFY_CONNECTION_CHANGE_USER(thd) mysql_audit_notify(\
   (thd), MYSQL_AUDIT_CONNECTION_CLASS, MYSQL_AUDIT_CONNECTION_CHANGE_USER,\
   (thd)->get_stmt_da()->is_error() ? (thd)->get_stmt_da()->mysql_errno() : 0,\
-  (thd)->thread_id(), (thd)->security_ctx->user,                        \
-  (thd)->security_ctx->user ? strlen((thd)->security_ctx->user) : 0,\
-  (thd)->security_ctx->priv_user, strlen((thd)->security_ctx->priv_user),\
-  (thd)->security_ctx->get_external_user()->ptr(),\
-  (thd)->security_ctx->get_external_user()->length(),\
-  (thd)->security_ctx->proxy_user, strlen((thd)->security_ctx->proxy_user),\
-  (thd)->security_ctx->get_host()->ptr(),\
-  (thd)->security_ctx->get_host()->length(),\
-  (thd)->security_ctx->get_ip()->ptr(),\
-  (thd)->security_ctx->get_ip()->length(),\
+  (thd)->thread_id(), (thd)->security_context()->user().str,\
+  (thd)->security_context()->user().length,\
+  (thd)->security_context()->priv_user().str,\
+  (thd)->security_context()->priv_user().length,\
+  (thd)->security_context()->external_user().str,\
+  (thd)->security_context()->external_user().length,\
+  (thd)->security_context()->proxy_user().str,\
+  (thd)->security_context()->proxy_user().length,\
+  (thd)->security_context()->host().str,\
+  (thd)->security_context()->host().length,\
+  (thd)->security_context()->ip().str,\
+  (thd)->security_context()->ip().length,\
   (thd)->db().str, (thd)->db().length)
 
 #endif /* SQL_AUDIT_INCLUDED */

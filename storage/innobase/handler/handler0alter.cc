@@ -5619,9 +5619,13 @@ innobase_update_foreign_cache(
 			fk_tables.front(), true, DICT_ERR_IGNORE_NONE);
 
 		if (table == NULL) {
+			table_name_t	table_name;
+			table_name.m_name = const_cast<char*>(
+						fk_tables.front());
+
 			err = DB_TABLE_NOT_FOUND;
 			ib::error()
-				<< "Failed to load table '" << table->name
+				<< "Failed to load table '" << table_name
 				<< "' which has a foreign key constraint with"
 				<< " table '" << user_table->name << "'.";
 			break;
