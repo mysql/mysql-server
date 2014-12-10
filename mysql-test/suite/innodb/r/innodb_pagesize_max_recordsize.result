@@ -109,8 +109,8 @@ col54 CHAR(255),col55 CHAR(255),col56 CHAR(255),col57 CHAR(255),col58  CHAR(255)
 col60 CHAR(255),col61 CHAR(255),col62 CHAR(255),col63 CHAR(255),col64  CHAR(255), col65  CHAR(255))
 ENGINE = innodb ROW_FORMAT=COMPRESSED;
 ERROR 42000: Row size too large (> 16318). Changing some columns to TEXT or BLOB may help. In current row format, BLOB prefix of 0 bytes is stored inline.
-# Stop DB server which was created by page size 32k
-# Start the DB server with page size 64k
+# Stop DB server with page size 32k
+# Check Server startup failure when page size 64K
 # Restart the DB server with datadir1 with same 32k page size 
 SELECT @@innodb_page_size;
 @@innodb_page_size
