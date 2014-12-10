@@ -198,6 +198,11 @@ public:
     return (bodies[TRG_EVENT_DELETE][TRG_ACTION_BEFORE] ||
             bodies[TRG_EVENT_DELETE][TRG_ACTION_AFTER]);
   }
+  bool has_update_triggers()
+  {
+    return (bodies[TRG_EVENT_UPDATE][TRG_ACTION_BEFORE] ||
+            bodies[TRG_EVENT_UPDATE][TRG_ACTION_AFTER]);
+  }
 
   void set_table(TABLE *new_table);
 
