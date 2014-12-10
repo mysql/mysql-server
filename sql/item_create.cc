@@ -3443,6 +3443,9 @@ Create_func_des_decrypt::create_native(THD *thd, LEX_STRING name,
   }
   }
 
+  if (!thd->is_error())
+    push_deprecated_warn(thd, "DES_DECRYPT", "AES_DECRYPT");
+
   return func;
 }
 
@@ -3479,6 +3482,9 @@ Create_func_des_encrypt::create_native(THD *thd, LEX_STRING name,
     break;
   }
   }
+
+  if (!thd->is_error())
+    push_deprecated_warn(thd, "DES_ENCRYPT", "AES_ENCRYPT");
 
   return func;
 }
@@ -3584,6 +3590,9 @@ Create_func_encrypt::create_native(THD *thd, LEX_STRING name,
     break;
   }
   }
+
+  if (!thd->is_error())
+    push_deprecated_warn(thd, "ENCRYPT", "AES_ENCRYPT");
 
   return func;
 }
