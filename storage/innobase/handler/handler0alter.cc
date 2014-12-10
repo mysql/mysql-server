@@ -6300,7 +6300,7 @@ ha_innobase::commit_inplace_alter_table(
 		method if commit=true. */
 		const bool	ret = rollback_inplace_alter_table(
 			ha_alter_info, table, m_prebuilt);
-		delete stage;
+		UT_DELETE(stage);
 		ha_alter_info->alter_info->se_blob = NULL;
 		DBUG_RETURN(ret);
 	}
@@ -6309,7 +6309,7 @@ ha_innobase::commit_inplace_alter_table(
 		DBUG_ASSERT(!ctx0);
 		MONITOR_ATOMIC_DEC(MONITOR_PENDING_ALTER_TABLE);
 		ha_alter_info->group_commit_ctx = NULL;
-		delete stage;
+		UT_DELETE(stage);
 		ha_alter_info->alter_info->se_blob = NULL;
 		DBUG_RETURN(false);
 	}
@@ -6367,7 +6367,7 @@ ha_innobase::commit_inplace_alter_table(
 		if (error != DB_SUCCESS) {
 			my_error_innodb(
 				error, table_share->table_name.str, 0);
-			delete stage;
+			UT_DELETE(stage);
 			ha_alter_info->alter_info->se_blob = NULL;
 			DBUG_RETURN(true);
 		}
@@ -6715,7 +6715,7 @@ foreign_fail:
 
 		row_mysql_unlock_data_dictionary(trx);
 		trx_free_for_mysql(trx);
-		delete stage;
+		UT_DELETE(stage);
 		ha_alter_info->alter_info->se_blob = NULL;
 		DBUG_RETURN(true);
 	}
@@ -6890,7 +6890,7 @@ foreign_fail:
 #endif /* DBUG_OFF */
 
 	MONITOR_ATOMIC_DEC(MONITOR_PENDING_ALTER_TABLE);
-	delete stage;
+	UT_DELETE(stage);
 	ha_alter_info->alter_info->se_blob = NULL;
 	DBUG_RETURN(false);
 }
