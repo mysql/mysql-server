@@ -14,7 +14,6 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "sql_priv.h"
 #include "sql_string.h"                         // String
 #include "my_global.h"                          // REQUIRED for HAVE_* below
 #include "gstream.h"                            // Gis_read_stream
@@ -27,6 +26,141 @@
 #ifdef HAVE_IEEEFP_H
 #include <ieeefp.h>
 #endif
+
+
+/***************************** MBR *******************************/
+
+
+/*
+  Returns 0/1 if this MBR doesn't/does touch mbr. Returns -1 if the MBRs
+  contain invalid data. This convention is true for all MBR relation test
+  functions.
+*/
+int MBR::touches(const MBR *mbr) const
+{
+  const MBR *mbr2= mbr;
+  const MBR *mbr1= this;
+  int ret= 0;
+  int dim1= dimension();
+  int dim2= mbr->dimension();
+
+  DBUG_ASSERT(dim1 >= 0 && dim1 <= 2 && dim2 >= 0 && dim2 <= 2);
+  if (dim1 == 0 && dim2 == 0)
+    return 0;
+  if (dim1 == 0 && dim2 == 1)
+    return ((mbr1->xmin == mbr2->xmin && mbr1->ymin == mbr2->ymin) ||
+            (mbr1->xmin == mbr2->xmax && mbr1->ymin == mbr2->ymax));
+  if (dim1 == 1 && dim2 == 0)
+    return mbr->touches(this);
+
+  DBUG_ASSERT(dim1 + dim2 >= 2);
+  ret=
+    ((mbr2->xmin == mbr1->xmax || mbr2->xmax == mbr1->xmin) &&
+     (mbr1->ymin <= mbr2->ymax && mbr1->ymax >= mbr2->ymin)) ||
+    ((mbr2->ymin == mbr1->ymax || mbr2->ymax == mbr1->ymin) &&
+     (mbr1->xmin <= mbr2->xmax && mbr1->xmax >= mbr2->xmin));
+
+  if (ret && dim1 == 1 && dim2 == 1)
+  {
+    // The two line segments may overlap, rather than touch.
+    int overlaps= ((mbr1->ymin == mbr1->ymax && mbr1->ymin == mbr2->ymax &&
+                    mbr2->ymin == mbr2->ymax &&
+                    mbr1->xmin < mbr2->xmax && mbr1->xmax > mbr2->xmin) ||
+                   (mbr1->xmin == mbr1->xmax && mbr2->xmin == mbr2->xmax &&
+                    mbr1->xmin == mbr2->xmin &&
+                    mbr1->ymin < mbr2->ymax && mbr1->ymax > mbr2->ymin));
+    if (overlaps)
+      ret= 0;
+  }
+
+  return ret;
+}
+
+
+int MBR::within(const MBR *mbr) const
+{
+  int dim1= dimension();
+  int dim2= mbr->dimension();
+
+  DBUG_ASSERT(dim1 >= 0 && dim1 <= 2 && dim2 >= 0 && dim2 <= 2);
+
+  /*
+    Either/both of the two operands can degrade to a point or a
+    horizontal/vertical line segment, and we have to treat such cases
+    separately.
+   */
+  switch (dim1)
+  {
+  case 0:
+    DBUG_ASSERT(xmin == xmax && ymin == ymax);
+    switch (dim2)
+    {
+    case 0:
+      DBUG_ASSERT(mbr->xmin == mbr->xmax && mbr->ymin == mbr->ymax);
+      return equals(mbr);
+      break;
+    case 1:
+      DBUG_ASSERT((mbr->xmin == mbr->xmax && mbr->ymin != mbr->ymax) ||
+                  (mbr->ymin == mbr->ymax && mbr->xmin != mbr->xmax));
+      return ((xmin > mbr->xmin && xmin < mbr->xmax && ymin == mbr->ymin) ||
+              (ymin > mbr->ymin && ymin < mbr->ymax && xmin == mbr->xmin));
+      break;
+    case 2:
+      DBUG_ASSERT(mbr->xmin != mbr->xmax && mbr->ymin != mbr->ymax);
+      return (xmin > mbr->xmin && xmax < mbr->xmax &&
+              ymin > mbr->ymin && ymax < mbr->ymax);
+      break;
+    }
+    break;
+  case 1:
+    DBUG_ASSERT((xmin == xmax && ymin != ymax) ||
+                (ymin == ymax && xmin != xmax));
+    switch (dim2)
+    {
+    case 0:
+      DBUG_ASSERT(mbr->xmin == mbr->xmax && mbr->ymin == mbr->ymax);
+      return 0;
+      break;
+    case 1:
+      DBUG_ASSERT((mbr->xmin == mbr->xmax && mbr->ymin != mbr->ymax) ||
+                  (mbr->ymin == mbr->ymax && mbr->xmin != mbr->xmax));
+      return ((xmin == xmax && mbr->xmin == mbr->xmax && mbr->xmin == xmin &&
+               mbr->ymin <= ymin && mbr->ymax >= ymax) ||
+              (ymin == ymax && mbr->ymin == mbr->ymax && mbr->ymin == ymin &&
+               mbr->xmin <= xmin && mbr->xmax >= xmax));
+      break;
+    case 2:
+      DBUG_ASSERT(mbr->xmin != mbr->xmax && mbr->ymin != mbr->ymax);
+      return ((xmin == xmax && xmin > mbr->xmin && xmax < mbr->xmax &&
+               ymin >= mbr->ymin && ymax <= mbr->ymax) ||
+              (ymin == ymax && ymin > mbr->ymin && ymax < mbr->ymax &&
+               xmin >= mbr->xmin && xmax <= mbr->xmax));
+      break;
+    }
+    break;
+  case 2:
+    DBUG_ASSERT(xmin != xmax && ymin != ymax);
+    switch (dim2)
+    {
+    case 0:
+    case 1:
+      return 0;
+      break;
+    case 2:
+      DBUG_ASSERT(mbr->xmin != mbr->xmax && mbr->ymin != mbr->ymax);
+      return ((mbr->xmin <= xmin) && (mbr->ymin <= ymin) &&
+              (mbr->xmax >= xmax) && (mbr->ymax >= ymax));
+      break;
+
+    }
+    break;
+  }
+
+  // Never reached.
+  DBUG_ASSERT(false);
+  return 0;
+}
+
 
 /*
   exponential notation :
@@ -319,7 +453,7 @@ bool Geometry::as_wkb(String *wkb, bool shallow_copy) const
     return false;
   }
 
-  if (wkb->reserve(WKB_HEADER_SIZE + this->get_nbytes()) ||
+  if (wkb->reserve(WKB_HEADER_SIZE + this->get_nbytes(), 512) ||
       get_data_ptr() == NULL)
     return true;
 
@@ -383,7 +517,7 @@ bool Geometry::as_geometry(String *buf, bool shallow_copy) const
     DBUG_ASSERT(buf->ptr() < get_cptr() - GEOM_HEADER_SIZE ||
                 buf->ptr() > get_cptr() + get_nbytes());
 
-  if (buf->reserve(SRID_SIZE + WKB_HEADER_SIZE + this->get_nbytes()) ||
+  if (buf->reserve(SRID_SIZE + WKB_HEADER_SIZE + this->get_nbytes(), 512) ||
       get_data_ptr() == NULL)
     return true;
 
@@ -633,7 +767,7 @@ bool Geometry::envelope(String *result) const
   wkb_parser wkb(get_cptr(), get_cptr() + get_nbytes());
 
   if (get_mbr(&mbr, &wkb) ||
-      result->reserve(1 + 4 * 3 + SIZEOF_STORED_DOUBLE * 10))
+      result->reserve(1 + 4 * 3 + SIZEOF_STORED_DOUBLE * 10, 512))
     return true;
 
   result->q_append((char) wkb_ndr);
@@ -667,7 +801,7 @@ bool Geometry::envelope(String *result) const
 bool Geometry::create_point(String *result, wkb_parser *wkb) const
 {
   if (wkb->no_data(POINT_DATA_SIZE) ||
-      result->reserve(WKB_HEADER_SIZE + POINT_DATA_SIZE))
+      result->reserve(WKB_HEADER_SIZE + POINT_DATA_SIZE, 32))
     return true;
   result->q_append((char) wkb_ndr);
   result->q_append((uint32) wkb_point);
@@ -688,7 +822,7 @@ bool Geometry::create_point(String *result, wkb_parser *wkb) const
 
 bool Geometry::create_point(String *result, point_xy p) const
 {
-  if (result->reserve(1 + 4 + POINT_DATA_SIZE))
+  if (result->reserve(1 + 4 + POINT_DATA_SIZE, 32))
     return true;
 
   result->q_append((char) wkb_ndr);
@@ -753,8 +887,12 @@ bool Geometry::get_mbr_for_points(MBR *mbr, wkb_parser *wkb,
   while (n_points--)
   {
     wkb->skip_unsafe(offset);
-    mbr->add_xy(wkb->data(), wkb->data() + SIZEOF_STORED_DOUBLE);
-    wkb->skip_unsafe(POINT_DATA_SIZE);
+
+    point_xy p;
+    wkb->scan_xy_unsafe(&p);
+    if (!my_isfinite(p.x) || !my_isfinite(p.y))
+      return true;
+    mbr->add_xy(p);
   }
   return false;
 }
@@ -1135,7 +1273,7 @@ bool Gis_point::init_from_wkt(Gis_read_stream *trs, String *wkb)
 {
   double x, y;
   if (trs->get_next_number(&x) || trs->get_next_number(&y) ||
-      wkb->reserve(POINT_DATA_SIZE))
+      wkb->reserve(POINT_DATA_SIZE, 256))
     return true;
   wkb->q_append(x);
   wkb->q_append(y);
@@ -1157,7 +1295,7 @@ uint Gis_point::init_from_wkb(const char *wkb, uint len,
                               wkbByteOrder bo, String *res)
 {
   double x, y;
-  if (len < POINT_DATA_SIZE || res->reserve(POINT_DATA_SIZE))
+  if (len < POINT_DATA_SIZE || res->reserve(POINT_DATA_SIZE, 256))
     return 0;
   x= wkb_get_double(wkb, bo);
   y= wkb_get_double(wkb + SIZEOF_STORED_DOUBLE, bo);
@@ -1178,6 +1316,8 @@ bool Gis_point::get_data_as_wkt(String *txt, wkb_parser *wkb) const
     p.x= 0;
   if (p.y == -0)
     p.y= 0;
+  if (!my_isfinite(p.x) || !my_isfinite(p.y))
+    return true;
   txt->qs_append(p.x);
   txt->qs_append(' ');
   txt->qs_append(p.y);
@@ -1189,6 +1329,8 @@ bool Gis_point::get_mbr(MBR *mbr, wkb_parser *wkb) const
 {
   point_xy p;
   if (wkb->scan_xy(&p))
+    return true;
+  if (!my_isfinite(p.x) || !my_isfinite(p.y))
     return true;
   mbr->add_xy(p);
   return false;
@@ -1248,7 +1390,6 @@ bool Gis_line_string::init_from_wkt(Gis_read_stream *trs, String *wkb)
   uint32 n_points= 0;
   uint32 np_pos= wkb->length();
   Gis_point p(false);
-  char *firstpt= NULL, *lastpt= NULL;
 
   if (wkb->reserve(4, 512))
     return true;
@@ -1268,20 +1409,22 @@ bool Gis_line_string::init_from_wkt(Gis_read_stream *trs, String *wkb)
     return true;
   }
 
+  const char *firstpt= NULL, *lastpt= NULL;
   if (!is_polygon_ring())
     goto out;
 
   // Make sure all rings of a polygon are closed, close it if not so.
-  lastpt= wkb->c_ptr() + wkb->length() - POINT_DATA_SIZE;
-  firstpt= wkb->c_ptr() + np_pos + 4;
+  firstpt= wkb->ptr() + np_pos + 4;
+  lastpt= wkb->ptr() + wkb->length() - POINT_DATA_SIZE;
 
   // Not closed, append 1st pt to wkb.
   if (memcmp(lastpt, firstpt, POINT_DATA_SIZE))
   {
-    wkb->reserve(POINT_DATA_SIZE, 32);
+    wkb->reserve(POINT_DATA_SIZE, 512);
+    firstpt= wkb->ptr() + np_pos + 4;
     wkb->q_append(firstpt, POINT_DATA_SIZE);
     n_points++;
-    lastpt+= POINT_DATA_SIZE;
+    lastpt= wkb->ptr() + wkb->length() - POINT_DATA_SIZE;
   }
   DBUG_ASSERT(n_points == (lastpt - firstpt) / POINT_DATA_SIZE + 1);
 
@@ -1318,7 +1461,7 @@ uint Gis_line_string::init_from_wkb(const char *wkb, uint len,
       n_points++;
     }
   }
-  if (res->reserve(proper_length))
+  if (res->reserve(proper_length, 512))
     return 0;
 
   res->q_append(n_points);
@@ -1352,6 +1495,8 @@ bool Gis_line_string::get_data_as_wkt(String *txt, wkb_parser *wkb) const
       p.x= 0;
     if (p.y == -0)
       p.y= 0;
+    if (!my_isfinite(p.x) || !my_isfinite(p.y))
+      return true;
     txt->qs_append(p.x);
     txt->qs_append(' ');
     txt->qs_append(p.y);
@@ -2128,7 +2273,7 @@ int Gis_polygon::exterior_ring(String *result) const
       wkb.scan_n_points_and_check_data(&n_points))
     return 1;
   length= n_points * POINT_DATA_SIZE;
-  if (result->reserve(1 + 4 + 4 + length))
+  if (result->reserve(1 + 4 + 4 + length, 512))
     return 1;
 
   result->q_append((char) wkb_ndr);
@@ -2170,7 +2315,7 @@ int Gis_polygon::interior_ring_n(uint32 num, String *result) const
   if (wkb.scan_n_points_and_check_data(&n_points))
     return 1;
   points_size= n_points * POINT_DATA_SIZE;
-  if (result->reserve(1 + 4 + 4 + points_size))
+  if (result->reserve(1 + 4 + 4 + points_size, 512))
     return 1;
 
   result->q_append((char) wkb_ndr);
@@ -2498,7 +2643,7 @@ uint Gis_multi_point::init_from_wkb(const char *wkb, uint len, wkbByteOrder bo,
     return 0;
   proper_size= 4 + n_points * (WKB_HEADER_SIZE + POINT_DATA_SIZE);
 
-  if (len < proper_size || res->reserve(proper_size))
+  if (len < proper_size || res->reserve(proper_size, 512))
     return 0;
 
   res->q_append(n_points);
@@ -2549,7 +2694,7 @@ int Gis_multi_point::geometry_n(uint32 num, String *result) const
   if (num < 1 ||
       wkb.scan_n_points_and_check_data(&n_points, WKB_HEADER_SIZE) ||
       num > n_points ||
-      result->reserve(WKB_HEADER_SIZE + POINT_DATA_SIZE))
+      result->reserve(WKB_HEADER_SIZE + POINT_DATA_SIZE, 32))
     return 1;
   wkb.skip_unsafe((num - 1) * (WKB_HEADER_SIZE + POINT_DATA_SIZE));
 
@@ -2961,7 +3106,7 @@ bool Gis_multi_polygon::get_data_as_wkt(String *txt, wkb_parser *wkb) const
     {
       uint32 n_points;
       if (wkb->scan_n_points_and_check_data(&n_points) ||
-          txt->reserve(2 + ((MAX_DIGITS_IN_DOUBLE + 1) * 2 + 1) * n_points, 512))
+          txt->reserve(2 + ((MAX_DIGITS_IN_DOUBLE + 1) * 2 + 1) * n_points))
 	return true;
       txt->qs_append('(');
       append_points(txt, n_points, wkb, 0);
@@ -3127,7 +3272,7 @@ bool Gis_geometry_collection::append_geometry(const Geometry *geo,
   DBUG_ASSERT(collection_len == 0 ||
               get_data_size() == collection_len - GEOM_HEADER_SIZE);
   if (gcbuf->reserve((collection_len == 0 ? GEOM_HEADER_SIZE + 4 : 0) +
-                     geo_len + WKB_HEADER_SIZE))
+                     geo_len + WKB_HEADER_SIZE, 512))
     return true;
 
   char *ptr= const_cast<char *>(gcbuf->ptr()), *start;
@@ -3178,7 +3323,7 @@ bool Gis_geometry_collection::append_geometry(srid_t srid, wkbType gtype,
   DBUG_ASSERT(collection_len == 0 ||
               get_data_size() == collection_len - GEOM_HEADER_SIZE);
   if (gcbuf->reserve((collection_len == 0 ? GEOM_HEADER_SIZE + 4 : 0) +
-                     geo_len + WKB_HEADER_SIZE))
+                     geo_len + WKB_HEADER_SIZE, 512))
     return true;
 
   char *ptr= const_cast<char *>(gcbuf->ptr()), *start;
@@ -3231,10 +3376,10 @@ Gis_geometry_collection::Gis_geometry_collection(srid_t srid, wkbType gtype,
 
   // Reserve 512 bytes extra space for geometries to be appended later,
   // to avoid some reallocations.
-  if (gcbuf->reserve(total_len + 512))
+  if (gcbuf->reserve(total_len + 512, 1024))
     my_error(ER_OUTOFMEMORY, total_len + 512);
 
-  char *ptr= gcbuf->c_ptr(), *start;
+  char *ptr= const_cast<char *>(gcbuf->ptr()), *start;
   start= ptr + GEOM_HEADER_SIZE;
 
   ptr= write_geometry_header(ptr, srid,
@@ -3271,10 +3416,10 @@ Gis_geometry_collection::Gis_geometry_collection(Geometry *geo, String *gcbuf)
 
   // Reserve 512 bytes extra space for geometries to be appended later,
   // to avoid some reallocations.
-  if (gcbuf->reserve(total_len + 512))
+  if (gcbuf->reserve(total_len + 512, 1024))
     my_error(ER_OUTOFMEMORY, total_len + 512);
 
-  char *ptr= gcbuf->c_ptr(), *start;
+  char *ptr= const_cast<char *>(gcbuf->ptr()), *start;
   start= ptr + GEOM_HEADER_SIZE;
 
   ptr= write_geometry_header(ptr, geo->get_srid(),
@@ -3460,7 +3605,7 @@ bool Gis_geometry_collection::get_mbr(MBR *mbr, wkb_parser *wkb) const
     {
       /*
         An empty collection should be simply skipped, it may contain a tree
-        of empty collections which is still empty. 
+        of empty collections which is still empty.
       */
       if (geom != NULL && geom->get_type() == wkb_geometrycollection)
         continue;
@@ -3520,7 +3665,7 @@ int Gis_geometry_collection::geometry_n(uint32 num, String *result) const
   } while (--num);
 
   /* Copy found object to result */
-  if (result->reserve(1 + 4 + length))
+  if (result->reserve(1 + 4 + length, 512))
     return 1;
   result->q_append((char) wkb_ndr);
   result->q_append((uint32) header.wkb_type);

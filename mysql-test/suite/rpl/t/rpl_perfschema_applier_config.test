@@ -1,0 +1,96 @@
+# ==== Purpose ====
+#
+# This test script serves as the functionality testing for the table
+# performance_schema.replication_applier_configuration. Test for ddl and dml
+# operations is a part of the perfschema suite. The ddl/dml tests are named:
+# 1) ddl_replication_applier_configuration.test and
+# 2) dml_replication_applier_configuration.test.
+#
+# The follwing scenarios are tested in this script:
+#
+#  - Verify that output is same as SSS on a fresh slave.
+#  - Verify that the value of this field is correct after STOP SLAVE.
+#  - Verify that, when desired delay is set, the value is shown corectly.
+#  - Verify that the value is preserved after STOP SLAVE.
+#  - Verify that, when desired delay is reset, the value is shown corectly.
+#
+#  ==== Related Worklog ====
+#
+#  WL#3656: PERFORMANCE SCHEMA table for SHOW SLAVE STATUS
+
+
+source include/master-slave.inc;
+source include/have_binlog_format_mixed.inc;
+
+let $assert_text= On master, the table should return an empty set.;
+let $assert_cond= [select count(*) from performance_schema.replication_applier_configuration] = 0;
+source include/assert.inc;
+
+--connection slave
+
+--echo
+--echo # Verify that SELECT works and produces an output similar to
+--echo # the corresponding field in SHOW SLAVE STATUS(SSS) in all scenarios.
+--echo
+
+--echo
+--echo # Verify that output is same as SSS on a fresh slave.
+--echo
+
+let $sss_value= query_get_value(SHOW SLAVE STATUS, SQL_Delay, 1);
+let $ps_value= query_get_value(select Desired_Delay from performance_schema.replication_applier_configuration, Desired_Delay, 1);
+let $assert_text= Value returned by SSS and PS table for Desired_Delay should be same.;
+let $assert_cond= "$sss_value" = "$ps_value";
+source include/assert.inc;
+
+--echo
+--echo # Verify that the value of this field is correct after STOP SLAVE.
+--echo
+
+source include/stop_slave.inc;
+
+let $sss_value= query_get_value(SHOW SLAVE STATUS, SQL_Delay, 1);
+let $ps_value= query_get_value(select Desired_Delay from performance_schema.replication_applier_configuration, Desired_Delay, 1);
+let $assert_text= Value returned by SSS and PS table for Desired_Delay should be same.;
+let $assert_cond= "$sss_value" = "$ps_value";
+source include/assert.inc;
+
+--echo
+--echo # Verify that, when desired delay is set, the value is shown corectly.
+--echo
+
+eval change master to master_delay= 2;
+source include/start_slave.inc;
+
+let $sss_value= query_get_value(SHOW SLAVE STATUS, SQL_Delay, 1);
+let $ps_value= query_get_value(select Desired_Delay from performance_schema.replication_applier_configuration, Desired_Delay, 1);
+let $assert_text= Value returned by SSS and PS table for Desired_Delay should be same.;
+let $assert_cond= "$sss_value" = "$ps_value";
+source include/assert.inc;
+
+--echo
+--echo # Verify that the value is preserved after STOP SLAVE.
+--echo
+
+source include/stop_slave.inc;
+
+let $ss_value= query_get_value(SHOW SLAVE STATUS, SQL_Delay, 1);
+let $ps_value= query_get_value(select Desired_Delay from performance_schema.replication_applier_configuration, Desired_Delay, 1);
+let $assert_text= Value returned by SSS and PS table for Desired_Delay should be same.;
+let $assert_cond= "$sss_value" = "$ps_value";
+source include/assert.inc;
+
+--echo
+--echo # Verify that, when desired delay is reset, the value is shown corectly.
+--echo
+
+eval change master to master_delay= 0;
+source include/start_slave.inc;
+
+let $sss_value= query_get_value(SHOW SLAVE STATUS, SQL_Delay, 1);
+let $ps_value= query_get_value(select Desired_Delay from performance_schema.replication_applier_configuration, Desired_Delay, 1);
+let $assert_text= Value returned by SSS and PS table for Desired_Delay should be same.;
+let $assert_cond= "$sss_value" = "$ps_value";
+source include/assert.inc;
+
+source include/rpl_end.inc;

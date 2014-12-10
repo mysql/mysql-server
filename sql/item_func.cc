@@ -21,14 +21,9 @@
 */
 
 #include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
-#include "sql_priv.h"
-/*
-  It is necessary to include set_var.h instead of item.h because there
-  are dependencies on include order for set_var.h and item.h. This
-  will be resolved later.
-*/
-#include "sql_class.h"                          // set_var.h: THD
-#include "set_var.h"
+
+#include "sql_class.h"
+#include "item.h"
 #include "rpl_slave.h"				// for wait_for_master_pos
 #include "rpl_msr.h"
 #include "sql_show.h"                           // append_identifier
@@ -55,6 +50,7 @@
 #include "parse_tree_helpers.h"
 #include "sql_optimizer.h"                      // JOIN
 #include "sql_base.h"
+#include "binlog.h"
 
 using std::min;
 using std::max;
@@ -217,10 +213,13 @@ Item_func::fix_fields(THD *thd, Item **ref)
   Item **arg,**arg_end;
   uchar buff[STACK_BUFF_ALLOC];			// Max argument in function
 
-  Switch_resolve_place SRP(thd->lex->current_select() ?
-                           &thd->lex->current_select()->resolve_place : NULL,
-                           st_select_lex::RESOLVE_NONE,
-                           thd->lex->current_select());
+  /*
+    Semi-join flattening should only be performed for top-level
+    predicates. Disable it for predicates that live under an
+    Item_func.
+  */
+  Disable_semijoin_flattening DSF(thd->lex->current_select(), true);
+
   used_tables_cache= get_initial_pseudo_tables();
   not_null_tables_cache= 0;
   const_item_cache=1;
@@ -2299,23 +2298,25 @@ bool Item_func_latlongfromgeohash::fix_fields(THD *thd, Item **ref)
 bool
 Item_func_latlongfromgeohash::check_geohash_argument_valid_type(Item *item)
 {
+  if (Item_func_geohash::is_item_null(item))
+    return true;
+
   /*
     If charset is not binary and field_type() is BLOB,
     we have a TEXT column (which is allowed).
   */
   bool is_binary_charset= (item->collation.collation == &my_charset_bin);
+  bool is_parameter_marker= (item->type() == PARAM_ITEM);
 
   switch (item->field_type())
   {
-  case MYSQL_TYPE_NULL:
-    return true;
   case MYSQL_TYPE_VARCHAR:
   case MYSQL_TYPE_VAR_STRING:
   case MYSQL_TYPE_BLOB:
   case MYSQL_TYPE_TINY_BLOB:
   case MYSQL_TYPE_MEDIUM_BLOB:
   case MYSQL_TYPE_LONG_BLOB:
-    return !is_binary_charset;
+    return (!is_binary_charset || is_parameter_marker);
   default:
     return false;
   }
@@ -2361,7 +2362,7 @@ Item_func_latlongfromgeohash::decode_geohash(String *geohash,
        i < input_length && latitiude_accuracy > 0.0 && longitude_accuracy > 0.0;
        i++)
   {
-    char input_character= my_tolower(geohash->charset(), (*geohash)[i]);
+    char input_character= my_tolower(&my_charset_latin1, (*geohash)[i]);
 
     /*
      The following part will convert from character value to a
@@ -4241,8 +4242,12 @@ bool udf_handler::get_arguments()
 	{
 	  f_args.args[i]=    (char*) res->ptr();
 	  f_args.lengths[i]= res->length();
-	  break;
 	}
+	else
+	{
+	  f_args.lengths[i]= 0;
+	}
+	break;
       }
     case INT_RESULT:
       *((longlong*) to) = args[i]->val_int();
@@ -5584,27 +5589,22 @@ longlong Item_func_sleep::val_int()
   timeout= args[0]->val_real();
  
   /*
-    Prepare to report error or warning depends on the value of SQL_MODE.
+    Report error or warning depending on the value of SQL_MODE.
     If SQL is STRICT then report error, else report warning and continue
     execution.
   */
-  Strict_error_handler strict_handler;
-  if (!thd->lex->is_ignore() && thd->is_strict_mode())
-    thd->push_internal_handler(&strict_handler);
 
   if (args[0]->null_value || timeout < 0)
-    push_warning_printf(thd, Sql_condition::SL_WARNING, ER_WRONG_ARGUMENTS,
-                        ER(ER_WRONG_ARGUMENTS), "sleep.");
-
-  if (!thd->lex->is_ignore() && thd->is_strict_mode())
-    thd->pop_internal_handler();
-  /*
-    If conversion error occurred in the strict SQL_MODE
-    then leave method.
-  */
-  if (thd->is_error())
-    return 0;
- 
+  {
+    if (!thd->lex->is_ignore() && thd->is_strict_mode())
+    {
+      my_error(ER_WRONG_ARGUMENTS, MYF(0), "sleep.");
+      return 0;
+    }
+    else
+      push_warning_printf(thd, Sql_condition::SL_WARNING, ER_WRONG_ARGUMENTS,
+                          ER(ER_WRONG_ARGUMENTS), "sleep.");
+  }
   /*
     On 64-bit OSX mysql_cond_timedwait() waits forever
     if passed abstime time has already been exceeded by 
@@ -7122,6 +7122,7 @@ String* Item_func_get_system_var::val_str(String* str)
   }
 
   str= &cached_strval;
+  null_value= FALSE;
   switch (var->show_type())
   {
     case SHOW_CHAR:
@@ -7167,7 +7168,7 @@ String* Item_func_get_system_var::val_str(String* str)
 
     default:
       my_error(ER_VAR_CANT_BE_READ, MYF(0), var->name.str);
-      str= NULL;
+      str= error_str();
       break;
   }
 
@@ -8111,7 +8112,7 @@ Item_func_sp::execute_impl(THD *thd)
   bool err_status= TRUE;
   Sub_statement_state statement_state;
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
-  Security_context *save_security_ctx= thd->security_ctx;
+  Security_context *save_security_ctx= thd->security_context();
 #endif
   enum enum_sp_data_access access=
     (m_sp->m_chistics->daccess == SP_DEFAULT_ACCESS) ?
@@ -8123,7 +8124,7 @@ Item_func_sp::execute_impl(THD *thd)
   if (context->security_ctx)
   {
     /* Set view definer security context */
-    thd->security_ctx= context->security_ctx;
+    thd->set_security_context(context->security_ctx);
   }
 #endif
   if (sp_check_access(thd))
@@ -8153,7 +8154,7 @@ Item_func_sp::execute_impl(THD *thd)
 
 error:
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
-  thd->security_ctx= save_security_ctx;
+  thd->set_security_context(save_security_ctx);
 #endif
 
   DBUG_RETURN(err_status);
@@ -8253,7 +8254,7 @@ Item_func_sp::fix_fields(THD *thd, Item **ref)
 {
   bool res;
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
-  Security_context *save_security_ctx= thd->security_ctx;
+  Security_context *save_security_ctx= thd->security_context();
 #endif
 
   DBUG_ENTER("Item_func_sp::fix_fields");
@@ -8270,7 +8271,7 @@ Item_func_sp::fix_fields(THD *thd, Item **ref)
     if (context->security_ctx)
     {
       /* Set view definer security context */
-      thd->security_ctx= context->security_ctx;
+      thd->set_security_context(context->security_ctx);
     }
 
     /*
@@ -8278,7 +8279,7 @@ Item_func_sp::fix_fields(THD *thd, Item **ref)
      */
     res= check_routine_access(thd, EXECUTE_ACL, m_name->m_db.str,
                               m_name->m_name.str, 0, FALSE);
-    thd->security_ctx= save_security_ctx;
+    thd->set_security_context(save_security_ctx);
 
     if (res)
     {

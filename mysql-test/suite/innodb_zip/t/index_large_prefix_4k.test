@@ -30,9 +30,10 @@ insert into worklog5743 values(repeat("a", 20000));
 update worklog5743 set a = (repeat("b", 16000));
 
 # Create a secondary index
+SET sql_mode= '';
 create index idx on worklog5743(a(900));
 show warnings;
-
+SET sql_mode= default;
 # Start a few sessions to do selections on table being updated in default
 # session, so it would rebuild the previous version from undo log.
 # 1) Default session:   Initiate an update on the externally stored column
@@ -140,7 +141,7 @@ create table worklog5743_4(a1 int, a2 TEXT not null) KEY_BLOCK_SIZE=4;
 
 # Test edge cases for indexes using key_block_size=1
 set global innodb_large_prefix=0;
--- error ER_TOO_BIG_ROWSIZE
+-- error ER_TOO_LONG_KEY
 create index idx1 on worklog5743_1(a2(4000));
 show warnings;
 -- error ER_TOO_BIG_ROWSIZE
@@ -158,6 +159,7 @@ show warnings;
 
 # Test edge cases for indexes using key_block_size=2
 set global innodb_large_prefix=1;
+SET sql_mode= '';
 create index idx1 on worklog5743_2(a2(4000));
 show warnings;
 show create table worklog5743_2;
@@ -170,7 +172,6 @@ create index idx5 on worklog5743_2(a1, a2(765));
 show warnings;
 create index idx6 on worklog5743_2(a1, a2(764));
 show warnings;
-
 # Test edge cases for indexes using key_block_size=4
 set global innodb_large_prefix=0;
 create index idx1 on worklog5743_4(a2(4000));
@@ -185,7 +186,7 @@ create index idx5 on worklog5743_4(a1, a2(765));
 show warnings;
 create index idx6 on worklog5743_4(a1, a2(764));
 show warnings;
-
+SET sql_mode= default;
 # Insert a large record into each of these tables.
 insert into worklog5743_1 values(9, repeat("a", 10000));
 insert into worklog5743_2 values(9, repeat("a", 10000));
@@ -374,8 +375,10 @@ create table worklog5743(a TEXT not null) ROW_FORMAT=DYNAMIC;
 # Length exceeds maximum supported key length
 # It will be auto-truncated to 3072 if the page size were not 4k.
 # With this page size, the prefix length is less.
+SET sql_mode= '';
 create index idx1 on worklog5743(a(769));
 show warnings;
+SET sql_mode= default;
 create index idx2 on worklog5743(a(768));
 show warnings;
 show create table worklog5743;

@@ -388,6 +388,11 @@ inline unsigned long long my_double2ulonglong(double d)
 #define SIZE_T_MAX      (~((size_t) 0))
 #endif
 
+// Our ifdef trickery for my_isfinite does not work with gcc/solaris unless we:
+#ifdef HAVE_IEEEFP_H
+#include <ieeefp.h>
+#endif
+
 #if (__cplusplus >= 201103L)
   /* For C++11 use the new std functions rather than C99 macros. */
   #include <cmath>

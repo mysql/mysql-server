@@ -70,10 +70,10 @@ mysql_upgrade: [ERROR] 1050: Table 'events_statements_summary_by_program' alread
 mysql_upgrade: [ERROR] 1050: Table 'prepared_statements_instances' already exists
 mysql_upgrade: [ERROR] 1050: Table 'replication_connection_configuration' already exists
 mysql_upgrade: [ERROR] 1050: Table 'replication_connection_status' already exists
-mysql_upgrade: [ERROR] 1050: Table 'replication_execute_configuration' already exists
-mysql_upgrade: [ERROR] 1050: Table 'replication_execute_status' already exists
-mysql_upgrade: [ERROR] 1050: Table 'replication_execute_status_by_coordinator' already exists
-mysql_upgrade: [ERROR] 1050: Table 'replication_execute_status_by_worker' already exists
+mysql_upgrade: [ERROR] 1050: Table 'replication_applier_configuration' already exists
+mysql_upgrade: [ERROR] 1050: Table 'replication_applier_status' already exists
+mysql_upgrade: [ERROR] 1050: Table 'replication_applier_status_by_coordinator' already exists
+mysql_upgrade: [ERROR] 1050: Table 'replication_applier_status_by_worker' already exists
 mysql_upgrade: [ERROR] 1050: Table 'session_connect_attrs' already exists
 mysql_upgrade: [ERROR] 1050: Table 'session_account_connect_attrs' already exists
 mysql_upgrade: [ERROR] 1050: Table 'table_handles' already exists

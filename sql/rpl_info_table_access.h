@@ -16,7 +16,6 @@
 #define RPL_INFO_TABLE_ACCESS_H
 
 #include "my_global.h"
-#include "sql_priv.h"
 #include <table.h>
 #include <key.h>
 #include "rpl_table_access.h"

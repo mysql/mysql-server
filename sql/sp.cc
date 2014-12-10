@@ -15,8 +15,6 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include "sql_priv.h"
-#include "unireg.h"
 #include "sql_base.h"                           // close_thread_tables
 #include "sql_parse.h"                          // parse_sql
 #include "key.h"                                // key_copy
@@ -31,6 +29,8 @@
 #include "lock.h"                               // lock_object_name
 #include "sp.h"
 #include "mysql/psi/mysql_sp.h"
+#include "log.h"
+#include "binlog.h"
 
 #include <my_user.h>
 
@@ -1193,7 +1193,7 @@ bool sp_create_routine(THD *thd, sp_head *sp)
 	  goto done;
 	}
       }
-      if (!(thd->security_ctx->master_access & SUPER_ACL))
+      if (!(thd->security_context()->check_access(SUPER_ACL)))
       {
         my_error(ER_BINLOG_CREATE_ROUTINE_NEED_SUPER,MYF(0));
 	goto done;
@@ -2708,6 +2708,8 @@ Item *sp_prepare_func_item(THD* thd, Item **it_addr)
 bool sp_eval_expr(THD *thd, Field *result_field, Item **expr_item_ptr)
 {
   Item *expr_item;
+  Strict_error_handler strict_handler(Strict_error_handler::
+                                      ENABLE_SET_SELECT_STRICT_ERROR_HANDLER);
   enum_check_fields save_count_cuted_fields= thd->count_cuted_fields;
   unsigned int stmt_unsafe_rollback_flags=
     thd->get_transaction()->get_unsafe_rollback_flags(Transaction_ctx::STMT);
@@ -2728,10 +2730,20 @@ bool sp_eval_expr(THD *thd, Field *result_field, Item **expr_item_ptr)
   thd->count_cuted_fields= CHECK_FIELD_ERROR_FOR_NULL;
   thd->get_transaction()->reset_unsafe_rollback_flags(Transaction_ctx::STMT);
 
-  /* Save the value in the field. Convert the value if needed. */
-
+  /*
+    Variables declared within SP/SF with DECLARE keyword like
+      DECLARE var INTEGER;
+    will follow the rules of assignment corresponding to the data type column
+    in a table. So, STRICT mode gives error if an invalid value is assigned
+    to the variable here.
+  */
+  if (thd->is_strict_mode() && !thd->lex->is_ignore())
+    thd->push_internal_handler(&strict_handler);
+  // Save the value in the field. Convert the value if needed.
   expr_item->save_in_field(result_field, false);
 
+  if (thd->is_strict_mode() && !thd->lex->is_ignore())
+    thd->pop_internal_handler();
   thd->count_cuted_fields= save_count_cuted_fields;
   thd->get_transaction()->set_unsafe_rollback_flags(Transaction_ctx::STMT,
                                                     stmt_unsafe_rollback_flags);

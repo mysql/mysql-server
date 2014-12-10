@@ -18,20 +18,26 @@ select @@global.innodb_file_format;
 select @@session.innodb_file_format;
 show global variables like 'innodb_file_format';
 show session variables like 'innodb_file_format';
+--disable_warnings
 select * from information_schema.global_variables where variable_name='innodb_file_format';
 select * from information_schema.session_variables where variable_name='innodb_file_format';
+--enable_warnings
 
 #
 # show that it's writable
 #
 set global innodb_file_format='Antelope';
 select @@global.innodb_file_format;
+--disable_warnings
 select * from information_schema.global_variables where variable_name='innodb_file_format';
 select * from information_schema.session_variables where variable_name='innodb_file_format';
+--enable_warnings
 set @@global.innodb_file_format='Barracuda';
 select @@global.innodb_file_format;
+--disable_warnings
 select * from information_schema.global_variables where variable_name='innodb_file_format';
 select * from information_schema.session_variables where variable_name='innodb_file_format';
+--enable_warnings
 --error ER_GLOBAL_VARIABLE
 set session innodb_file_format='Salmon';
 --error ER_GLOBAL_VARIABLE

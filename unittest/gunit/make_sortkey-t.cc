@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,7 +17,6 @@
 #include "my_config.h"
 #include <gtest/gtest.h>
 
-#include "sql_plugin.h"                         // SHOW_always_last
 #include "test_utils.h"
 
 #include "sys_vars.h"
@@ -49,7 +48,7 @@ protected:
     m_sort_fields[0].reverse= false;
     m_sort_fields[1].reverse= false;
     m_sort_param.local_sortorder=
-      Bounds_checked_array<SORT_FIELD>(m_sort_fields, 1);
+      Bounds_checked_array<st_sort_field>(m_sort_fields, 1);
     memset(m_buff, 'a', sizeof(m_buff));
     m_to= &m_buff[8];
   }
@@ -74,7 +73,7 @@ protected:
   Server_initializer initializer;
 
   Sort_param m_sort_param;
-  SORT_FIELD m_sort_fields[2]; // sortlength() adds an end marker !!
+  st_sort_field m_sort_fields[2]; // sortlength() adds an end marker !!
   bool m_multi_byte_charset;
   uchar m_ref_buff[4];         // unused, but needed for make_sortkey()
   uchar m_buff[100];

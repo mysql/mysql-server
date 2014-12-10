@@ -53,7 +53,119 @@ class JOIN :public Sql_alloc
 {
   JOIN(const JOIN &rhs);                        /**< not implemented */
   JOIN& operator=(const JOIN &rhs);             /**< not implemented */
+
 public:
+  JOIN(THD *thd_arg, SELECT_LEX *select)
+    : select_lex(select),
+      unit(select->master_unit()),
+      thd(thd_arg),
+      join_tab(NULL),
+      qep_tab(NULL),
+      best_ref(NULL),
+      map2table(NULL),
+      sort_by_table(NULL),
+      tables(0),
+      primary_tables(0),
+      const_tables(0),
+      tmp_tables(0),
+      send_group_parts(0),
+      sort_and_group(false),
+      first_record(false),
+      // @todo Can this be substituted with select->is_explicitly_grouped()?
+      grouped(select->is_explicitly_grouped()),
+      do_send_rows(true),
+      all_table_map(0),
+      const_table_map(0),
+      found_const_table_map(0),
+      send_records(0),
+      found_records(0),
+      examined_rows(0),
+      row_limit(0),
+      m_select_limit(0),
+      fetch_limit(HA_POS_ERROR),
+      best_positions(NULL),
+      positions(NULL),
+      first_select(sub_select),
+      best_read(0.0),
+      best_rowcount(0),
+      sort_cost(0.0),
+  // Needed in case optimizer short-cuts, set properly in make_tmp_tables_info()
+      fields(&select->item_list),
+      group_fields(),
+      group_fields_cache(),
+      sum_funcs(NULL),
+      sum_funcs_end(),
+      sum_funcs2(NULL),
+      sum_funcs_end2(),
+      tmp_table_param(),
+      lock(thd->lock),
+      rollup(),
+      // @todo Can this be substituted with select->is_implicitly_grouped()?
+      implicit_grouping(select->is_implicitly_grouped()),
+      select_distinct(select->is_distinct()),
+      group_optimized_away(false),
+      simple_order(false),
+      simple_group(false),
+      ordered_index_usage(ordered_index_void),
+      no_order(false),
+      skip_sort_order(false),
+      need_tmp(false),
+      keyuse_array(thd->mem_root),
+      all_fields(select->all_fields),
+      tmp_all_fields1(),
+      tmp_all_fields2(),
+      tmp_all_fields3(),
+      tmp_fields_list1(),
+      tmp_fields_list2(),
+      tmp_fields_list3(),
+      fields_list(select->fields_list),
+      error(0),
+      order(select->order_list.first, ESC_ORDER_BY),
+      group_list(select->group_list.first, ESC_GROUP_BY),
+      explain_flags(),
+      /*
+        Those four members are meaningless before JOIN::optimize(), so force a
+        crash if they are used before that.
+      */
+      where_cond((Item*)1),
+      having_cond((Item*)1),
+      having_for_explain((Item*)1),
+      tables_list((TABLE_LIST*)1),
+      cond_equal(NULL),
+      return_tab(0),
+      ref_ptrs(select->ref_ptr_array_slice(0)),
+      zero_result_cause(NULL),
+      child_subquery_can_materialize(false),
+      allow_outer_refs(false),
+      sj_tmp_tables(),
+      sjm_exec_list(),
+      set_group_rpa(false),
+      group_sent(false),
+      calc_found_rows(false),
+      optimized(false),
+      executed(false),
+      plan_state(NO_PLAN)
+  {
+    rollup.state= ROLLUP::STATE_NONE;
+    tmp_table_param.end_write_records= HA_POS_ERROR;
+    if (select->order_list.first)
+      explain_flags.set(ESC_ORDER_BY, ESP_EXISTS);
+    if (select->group_list.first)
+      explain_flags.set(ESC_GROUP_BY, ESP_EXISTS);
+    if (select->is_distinct())
+      explain_flags.set(ESC_DISTINCT, ESP_EXISTS);
+    // Calculate the number of groups
+    for (ORDER *group= group_list; group; group= group->next)
+      send_group_parts++;
+  }
+
+  /// Query block that is optimized and executed using this JOIN
+  SELECT_LEX *const select_lex;
+  /// Query expression referring this query block
+  SELECT_LEX_UNIT *const unit;
+  /// Thread handler
+  THD *const thd;
+
   /**
     Optimal query execution plan. Initialized with a tentative plan in
     JOIN::make_join_plan() and later replaced with the optimal plan in
@@ -112,8 +224,8 @@ public:
     @see make_group_fields, alloc_group_fields, JOIN::exec
   */
   bool     sort_and_group; 
-  bool     first_record, no_field_update;
-  bool     group;            ///< If query contains GROUP BY clause
+  bool     first_record;
+  bool     grouped;          ///< If query contains GROUP BY clause
   bool     do_send_rows;
   table_map all_table_map;   ///< Set of tables contained in query
   table_map const_table_map; ///< Set of tables found to be const
@@ -126,7 +238,9 @@ public:
   table_map found_const_table_map;
   /* Number of records produced after join + group operation */
   ha_rows  send_records;
-  ha_rows found_records,examined_rows,row_limit;
+  ha_rows found_records;
+  ha_rows examined_rows;
+  ha_rows row_limit;
   // m_select_limit is used to decide if we are likely to scan the whole table.
   ha_rows m_select_limit;
   /**
@@ -171,30 +285,15 @@ public:
   double   sort_cost;
   List<Item> *fields;
   List<Cached_item> group_fields, group_fields_cache;
-  THD	   *thd;
   Item_sum  **sum_funcs, ***sum_funcs_end;
   /** second copy of sumfuncs (for queries with 2 temporary tables */
   Item_sum  **sum_funcs2, ***sum_funcs_end2;
-  ulonglong  select_options;
-  select_result *result;
   Temp_table_param tmp_table_param;
   MYSQL_LOCK *lock;
-  /// unit structure (with global parameters) for this select
-  SELECT_LEX_UNIT *unit;
-  /// select that processed
-  SELECT_LEX *select_lex;
-  /** 
-    TRUE <=> optimizer must not mark any table as a constant table.
-    This is needed for subqueries in form "a IN (SELECT .. UNION SELECT ..):
-    when we optimize the select that reads the results of the union from a
-    temporary table, we must not mark the temp. table as constant because
-    the number of rows in it may vary from one subquery execution to another.
-  */
-  bool no_const_tables; 
   
-  ROLLUP rollup;				///< Used with rollup
-
-  bool select_distinct;				///< Set if SELECT DISTINCT
+  ROLLUP rollup;                  ///< Used with rollup
+  bool implicit_grouping;         ///< True if aggregated but no GROUP BY
+  bool select_distinct;           ///< Set if SELECT DISTINCT
   /**
     If we have the GROUP BY statement in the query,
     but the group_list was emptied by optimizer, this
@@ -234,18 +333,16 @@ public:
   bool          skip_sort_order;
 
   bool need_tmp;
-  int hidden_group_field_count;
 
   // Used and updated by JOIN::make_join_plan() and optimize_keyuse()
   Key_use_array keyuse_array;
 
-  List<Item> all_fields; ///< to store all expressions used in query
+  List<Item> &all_fields; ///< to store all expressions used in query
   ///Above list changed to use temporary table
   List<Item> tmp_all_fields1, tmp_all_fields2, tmp_all_fields3;
   ///Part, shared with list above, emulate following list
   List<Item> tmp_fields_list1, tmp_fields_list2, tmp_fields_list3;
-  List<Item> &fields_list; ///< hold field list passed to mysql_select
-  List<Item> procedure_fields_list;
+  List<Item> &fields_list; ///< hold field list
   int error; ///< set in optimize(), exec(), prepare_result()
 
   /**
@@ -398,16 +495,13 @@ public:
     |========|========|========|========|========|
      ref_ptrs items0   items1   items2   items3
    */
-  Ref_ptr_array ref_ptrs;
+  const Ref_ptr_array ref_ptrs;
   // Copy of the initial slice above, to be used with different lists
   Ref_ptr_array items0, items1, items2, items3;
   // Used by rollup, to restore ref_ptrs after overwriting it.
   Ref_ptr_array current_ref_ptrs;
 
   const char *zero_result_cause; ///< not 0 if exec must return zero result
-  
-  bool union_part; ///< this subselect is part of union 
-  bool optimized; ///< flag to avoid double optimization in EXPLAIN
 
   /**
      True if, at this stage of processing, subquery materialization is allowed
@@ -432,86 +526,8 @@ public:
   bool set_group_rpa;
   /** Exec time only: TRUE <=> current group has been sent */
   bool group_sent;
-
-  JOIN(THD *thd_arg, List<Item> &fields_arg, ulonglong select_options_arg,
-       select_result *result_arg)
-    : keyuse_array(thd_arg->mem_root),
-      fields_list(fields_arg)
-  {
-    init(thd_arg, fields_arg, select_options_arg, result_arg);
-  }
-
-  void init(THD *thd_arg, List<Item> &fields_arg, ulonglong select_options_arg,
-       select_result *result_arg)
-  {
-    best_ref= NULL;
-    join_tab= 0;
-    qep_tab= NULL;
-    map2table= NULL;
-    tables= 0;
-    primary_tables= 0;
-    const_tables= 0;
-    tmp_tables= 0;
-    const_table_map= 0;
-    implicit_grouping= FALSE;
-    sort_and_group= 0;
-    first_record= 0;
-    do_send_rows= 1;
-    send_records= 0;
-    found_records= 0;
-    fetch_limit= HA_POS_ERROR;
-    examined_rows= 0;
-    thd= thd_arg;
-    sum_funcs= sum_funcs2= 0;
-    /*
-      Those four members are meaningless before JOIN::optimize(), so force a
-      crash if they are used before that.
-    */
-    where_cond= having_cond= having_for_explain= (Item*)1;
-    tables_list= (TABLE_LIST*)1;
-
-    select_options= select_options_arg;
-    result= result_arg;
-    lock= thd_arg->lock;
-    select_lex= 0; //for safety
-    select_distinct= MY_TEST(select_options & SELECT_DISTINCT);
-    no_order= 0;
-    simple_order= 0;
-    simple_group= 0;
-    ordered_index_usage= ordered_index_void;
-    skip_sort_order= 0;
-    need_tmp= 0;
-    hidden_group_field_count= 0; /*safety*/
-    error= 0;
-    return_tab= 0;
-    ref_ptrs.reset();
-    items0.reset();
-    items1.reset();
-    items2.reset();
-    items3.reset();
-    zero_result_cause= 0;
-    optimized= child_subquery_can_materialize= false;
-    executed= false;
-    cond_equal= 0;
-    group_optimized_away= 0;
-
-    all_fields= fields_arg;
-    if (&fields_list != &fields_arg)      /* Avoid valgrind-warning */
-      fields_list= fields_arg;
-    keyuse_array.clear();
-    tmp_table_param= Temp_table_param();
-    tmp_table_param.end_write_records= HA_POS_ERROR;
-    rollup.state= ROLLUP::STATE_NONE;
-
-    no_const_tables= FALSE;
-    /* can help debugging (makes smaller test cases): */
-    DBUG_EXECUTE_IF("no_const_tables",no_const_tables= TRUE;);
-    first_select= sub_select;
-    set_group_rpa= false;
-    group_sent= 0;
-    plan_state= NO_PLAN;
-    sort_cost= 0.0;
-  }
+  /// If true, calculate found rows for this query block
+  bool calc_found_rows;
 
   /// True if plan is const, ie it will return zero or one rows.
   bool plan_is_const() const { return const_tables == primary_tables; }
@@ -532,16 +548,6 @@ public:
   bool make_sum_func_list(List<Item> &all_fields,
                           List<Item> &send_fields,
                           bool before_group_by, bool recompute= FALSE);
-
-  /// Initialzes a slice, see comments for ref_ptrs above.
-  Ref_ptr_array ref_ptr_array_slice(size_t slice_num)
-  {
-    size_t slice_sz= select_lex->ref_pointer_array.size() / 5U;
-    DBUG_ASSERT(select_lex->ref_pointer_array.size() % 5 == 0);
-    DBUG_ASSERT(slice_num < 5U);
-    return Ref_ptr_array(&select_lex->ref_pointer_array[slice_num * slice_sz],
-                         slice_sz);
-  }
 
   /**
      Overwrites one slice with the contents of another slice.
@@ -566,12 +572,12 @@ public:
   /// Initializes 'items0' and remembers that it is 'current'.
   void init_items_ref_array()
   {
-    items0= ref_ptr_array_slice(1);
+    items0= select_lex->ref_ptr_array_slice(1);
     copy_ref_ptr_array(items0, ref_ptrs);
     current_ref_ptrs= items0;
   }
 
-  bool rollup_init();
+  bool optimize_rollup();
   bool rollup_process_const_fields();
   bool rollup_make_fields(List<Item> &all_fields, List<Item> &fields,
 			  Item_sum ***func);
@@ -607,7 +613,7 @@ public:
 	    group_list == NULL && !group_optimized_away &&
             select_lex->having_value != Item::COND_FALSE);
   }
-  bool change_result(select_result *new_result, select_result *old_result);
+
   bool cache_const_exprs();
   bool generate_derived_keys();
   void drop_unused_derived_keys();
@@ -628,7 +634,11 @@ public:
   };
   /// See enum_plan_state
   enum_plan_state get_plan_state() const { return plan_state; }
+  bool is_optimized() const { return optimized; }
+  void set_optimized() { optimized= true; }
   bool is_executed() const { return executed; }
+  void set_executed() { executed= true; }
+  void reset_executed() { executed= false; }
 
   /**
     Retrieve the cost model object to be used for this join.
@@ -650,7 +660,8 @@ public:
   Next_select_func get_end_select_func();
 
 private:
-  bool executed;                          ///< Set by exec(), reset by reset()
+  bool optimized; ///< flag to avoid double optimization in EXPLAIN
+  bool executed;  ///< Set by exec(), reset by reset()
 
   /// Final execution plan state. Currently used only for EXPLAIN
   enum_plan_state plan_state;
@@ -715,12 +726,7 @@ private:
 #ifdef WITH_PARTITION_STORAGE_ENGINE
   bool prune_table_partitions();
 #endif
-public:
-  /**
-    TRUE if the query contains an aggregate function but has no GROUP
-    BY clause. 
-  */
-  bool implicit_grouping; 
+
 private:
   void set_prefix_tables();
   void cleanup_item_list(List<Item> &items) const;
@@ -806,10 +812,6 @@ private:
   ORDER *remove_const(ORDER *first_order, Item *cond,
                       bool change_list, bool *simple_order,
                       const char *clause_type);
-  /**
-    Recount temp table field types recursively.
-  */
-  void recount_field_types();
 
   /**
     Check whether this is a subquery that can be evaluated by index look-ups.

@@ -1,115 +1,34 @@
---source include/force_myisam_default.inc
---source include/not_embedded.inc
 --source include/have_geometry.inc
-
-#Confirming the storage engine
---echo #Confirming the storage engine
-SHOW VARIABLES LIKE '%engine%';
 
 SELECT MBRContains(ST_Union(GeomFromText('GEOMETRYCOLLECTION(POLYGON((1 7,4 5,7 -.1,7 2,5 4,2 2,4 +.7,-1.9 2,4 1,1 7)),MULTIPOINT(+.6 +.0,6 -1,6 -1032.34324,0 -2.9,6 0),MULTILINESTRING((7 3,-5.8 3,4 7,4 2.232432)))',10),GeomFromText('MULTIPOINT(7.0 5,2 -9.2,9 8,6 -0,3 5,1 7,3 7)',10)),ST_Union(GeomFromWKB(AsWKB(GeomFromText('POINT(0 2.232432)')),10),GeomFromText('POINT(4 +.5)',10)));
---source include/force_myisam_default.inc
---source include/not_embedded.inc
---source include/have_geometry.inc
-
-#Confirming the storage engine
---echo #Confirming the storage engine
-SHOW VARIABLES LIKE '%engine%';
 
 --error ER_GIS_INVALID_DATA
 SELECT ST_Intersects(ST_SymDifference(GeomFromText('MULTIPOINT(1 0,8.5 0,5 1,8.3 4,7 -5.0)'),GeomFromText('MULTIPOLYGON(((3 8,6 1,9.5 4,5 2,9 2,-1032.34324 -1032.34324,4 -4.6,4 2,3 8),(5 9,2 4,6 -.8,4 +.0,-0 1,8 9.6,5 9),(8 5,3 4,3 1,0 1,6 -.5,8 -7.0,8 5),(8 6,0 1,9 5,7 5,5 3,2.232432 0,8 6)),((5 1,7 7,-1032.34324 7,8 -1,5 0,5 1),(2 9,2.232432 +.6,2 8,4 -4.4,-1032.34324 9,9 +.6,8 1,-.0 1,1 2,7 2,6 -5,2 1,-2 9,2 9),(7 8,0 4,7 8)),((5 0,7 1,5 0)),((3 9,8 5,0 -1032.34324,7 +.9,3 9),(9 9,7 2,0.4 7,9 9),(1 4,4 0,0 2,6.9 6,2.232432 -.8,7 3,1 4)))')),ST_Union(GeomFromText('MULTILINESTRING((-.5 9,1 1,1 6,6 6),(6 -.5,6 -.2,6 9,2 4),(4 7),(8 7,5 5,9 3,8 -.3))'),GeomFromText('POINT()')));
---source include/force_myisam_default.inc
---source include/not_embedded.inc
---source include/have_geometry.inc
-
-#Confirming the storage engine
---echo #Confirming the storage engine
-SHOW VARIABLES LIKE '%engine%';
 
 SELECT ST_Touches(ST_Intersection(ST_GeomFromText('POLYGON((6 9,0 0,10.0002 -6,6 9),(5 7,2 7,9 6,9 9,2 0,3 7,+.7 1,2.232432 9,8 +.3,5 7),(0 6,5 9,-.0 0,7 4,2 -3,2 7,9 2,0 6))'),GeomFromText('POINT(7 8)',0)),ST_Difference(GeomFromWKB(MULTIPOINT(POINT(-3.4,2),POINT(9,5),POINT(8,9),POINT(-.0,-.7),POINT(8,1.8),POINT(-5.0,9),POINT(4,3),POINT(8,-9.9),POINT(1,9),POINT(+.7,3),POINT(1,1),POINT(1,0),POINT(+.3,.7),POINT(4,7),POINT(2,-.0))),GeomFromWKB(POINT(0,2))));
---source include/force_myisam_default.inc
---source include/not_embedded.inc
---source include/have_geometry.inc
-
-#Confirming the storage engine
---echo #Confirming the storage engine
-SHOW VARIABLES LIKE '%engine%';
 
 SELECT MBRContains(ST_Union(GeomFromText('GEOMETRYCOLLECTION(POLYGON((1 7,4 5,7 -.1,7 2,5 4,2 2,4 +.7,-1.9 2,4 1,1 7)),MULTIPOINT(+.6 +.0,6 -1,6 -1032.34324,0 -2.9,6 0),MULTILINESTRING((7 3,-5.8 3,4 7,4 2.232432)))',10),GeomFromText('MULTIPOINT(7.0 5,2 -9.2,9 8,6 -0,3 5,1 7,3 7)',10)),ST_Union(GeomFromWKB(AsWKB(GeomFromText('POINT(0 2.232432)')),10),GeomFromText('POINT(4 +.5)',10)));
---source include/force_myisam_default.inc
---source include/not_embedded.inc
---source include/have_geometry.inc
-
-#Confirming the storage engine
---echo #Confirming the storage engine
-SHOW VARIABLES LIKE '%engine%';
 
 SELECT ST_Contains(ST_Union(GeomFromWKB(GeometryCollection(POINT(1,6),MultiPolygon(Polygon(Linestring(POINT(6,3),POINT(3,0),POINT(2.7,2),POINT(2,8),POINT(1,5.8),POINT(6,3))),Polygon(Linestring(POINT(2,4),POINT(0,9),POINT(2,4)),Linestring(POINT(5,4),POINT(5,1),POINT(5,4)))),MultiPolygon(Polygon(Linestring(POINT(1,9),POINT(-.9,.3),POINT(1,9)),Linestring(POINT(1,9),POINT(1,1.6),POINT(8,5),POINT(7,2),POINT(6,9.9),POINT(1,2),POINT(0,0),POINT(7,3),POINT(2,6),POINT(8,3),POINT(4,-.8),POINT(1,9)),Linestring(POINT(1,8),POINT(3,3),POINT(+.5,9),POINT(-9.3,0),POINT(8,5),POINT(+.4,+.2),POINT(7,+.6),POINT(7,7),POINT(2,4),POINT(2,2),POINT(6,0),POINT(1,8)),Linestring(POINT(6,0),POINT(8,2),POINT(0,1),POINT(-.9,.9),POINT(6,0)),Linestring(POINT(0,8),POINT(1,9),POINT(2,3),POINT(3,2),POINT(4,-3.2),POINT(7,6),POINT(4,9),POINT(3,5),POINT(7,-.0),POINT(1,2),POINT(4,-.8),POINT(-2.3,7),POINT(9,4),POINT(0,8)),Linestring(POINT(3,6),POINT(5,7),POINT(2,2),POINT(3,2),POINT(7,1),POINT(2,2),POINT(3,9),POINT(5,7),POINT(8,2),POINT(5,6),POINT(3,6))),Polygon(Linestring(POINT(0,3),POINT(3,-.4),POINT(-.2,3),POINT(5,4.6),POINT(-2.7,8),POINT(0,3)))))),GeomFromText('POINT(-1032.34324 -.9)')),ST_Union(GeomFromWKB(AsWKB(GeomFromText('GEOMETRYCOLLECTION(MULTILINESTRING((5 5,6 3,+.8 -8,8 3),(2 2,1 3,8 4)),MULTIPOINT(2 3,9 3,9 7,+.2 0,1 2),MULTIPOLYGON(((2 1,2.232432 7.2,-0.7654 2,3 9,9 9,1 0,-0.7654 5,2 1),(8 2,2 1,8 2),(3 2,8.5 3,+.7 2,7 5,2 1,1 6,1 7,-9.4 6,3 2),(5 9,7 +.5,5 9),(6 8,-0.7654 1,6 8),(0 9,9 0,5 4,6 -0.7654,-5 1,0 9))))'))),GeomFromText('MULTIPOLYGON(((5 2,1 -0.7654,-6.3 9,6 3,2 6,7 6,4 -0.7654,2 +.2,-0.7654 9,5 2)))')));
---source include/force_myisam_default.inc
---source include/not_embedded.inc
---source include/have_geometry.inc
 
-#Confirming the storage engine
---echo #Confirming the storage engine
-SHOW VARIABLES LIKE '%engine%';
 --error ER_BOOST_GEOMETRY_OVERLAY_INVALID_INPUT_EXCEPTION
  SELECT MBROverlaps(ST_Intersection(GeomFromWKB(GeometryCollection(MULTILINESTRING(LineString(POINT(3,3)),LineString(POINT(3,5)),LineString(POINT(8,0),POINT(6,0),POINT(9,7),POINT(5,6),POINT(7,5),POINT(-5.6,4)),LineString(POINT(7,1),POINT(5,9),POINT(5,0),POINT(2,1),POINT(1,5),POINT(5,+.8),POINT(-.8,9),POINT(0,3),POINT(2.0,3)),LineString(POINT(2,8),POINT(0,2),POINT(.5,-.2),POINT(2,1)),LineString(POINT(9,8.8),POINT(-.3,.1),POINT(2,2),POINT(2,8))),Polygon(Linestring(POINT(6,8),POINT(4,1),POINT(6,8),POINT(-.2,2),POINT(6,6.3),POINT(3,7),POINT(4,7.1),POINT(6,8))),MULTILINESTRING(LineString(POINT(9,9))))),GeomFromWKB(AsWKB(GeomFromText('MULTIPOLYGON(((6 4,3 3,-8.4 6,-.0 4,6 4)))')))),ST_Difference(GeomFromText('LINESTRING(3.2 2)'),GeomFromText('LINESTRING(7 3,-2 10.0002,1 6,3 7)',10)));
 --error ER_BOOST_GEOMETRY_OVERLAY_INVALID_INPUT_EXCEPTION
 select astext(st_intersection(geomfromtext('polygon((6 8, 4 1, 6 8, -0.2 2,6 6.3, 3 7, 4 7.1, 6 8))'),
                               geomfromtext('MULTIPOLYGON(((6 4,3 3,-8.4 6,-.0 4,6 4)))')));
---source include/force_myisam_default.inc
---source include/not_embedded.inc
---source include/have_geometry.inc
-
-#Confirming the storage engine
---echo #Confirming the storage engine
-SHOW VARIABLES LIKE '%engine%';
 
 SELECT MBRWithin(ST_SymDifference(GeomFromWKB(POINT(3,8),10),GeomFromWKB(AsWKB(GeomFromText('MULTILINESTRING((10.0002 6,6 9,1 2,2 -6),(-2 -1032.34324,6 189.7654,6 -.6,-.0 -.6,5 0),(0.6 1,5 0,1 -6,6 1))')),10)),ST_Intersection(ST_GeomFromText('MULTIPOINT(+.8 4,5 -2,6 10.0002,4 9,1 3)'),GeomFromWKB(MULTIPOINT(POINT(8,5),POINT(9,4),POINT(-0.5,-.9)))));
---source include/force_myisam_default.inc
---source include/not_embedded.inc
---source include/have_geometry.inc
-
-#Confirming the storage engine
---echo #Confirming the storage engine
-SHOW VARIABLES LIKE '%engine%';
 
 --error ER_GIS_INVALID_DATA
 SELECT ST_Disjoint(GeomFromText('MULTIPOINT(189.7654 2)'),GeomFromWKB(GeometryCollection(MULTIPOINT(POINT(7,5),POINT(5,-.5),POINT(0,2),POINT(6.9,0)),Polygon(Linestring(POINT(4,0),POINT(5,8),POINT(6.3,7),POINT(5,-.4),POINT(4,0))),Polygon(Linestring(POINT(7,6),POINT(2,8),POINT(7,3),POINT(1,3),POINT(0,4),POINT(7,+.0),POINT(4,5),POINT(3,6),POINT(7,6)),Linestring(POINT(2,5),POINT(4,7),POINT(6,5),POINT(4,-1.0),POINT(9,0),POINT(-1.9,-.6),POINT(9,0),POINT(2,5))),MULTIPOINT(POINT(9,5),POINT(2,-0.7),POINT(6,1),POINT(1,1)),LINESTRING(POINT(-.3,4),POINT(4,9),POINT(0,+.9),POINT(6.8,3),POINT(4,3),POINT(1,0.3)),MultiPolygon(Polygon(Linestring(POINT(7,2),POINT(0,5),POINT(7,2))),Polygon(Linestring(POINT(9,5),POINT(2,0),POINT(9,5)),Linestring(POINT(8,9),POINT(0,-6.9),POINT(5,3),POINT(0,1),POINT(7,0.9),POINT(3,0),POINT(+.4,0),POINT(3,6),POINT(8,9))),Polygon(Linestring(POINT(0,2),POINT(7,3),POINT(5,0),POINT(0,1),POINT(1,0),POINT(7,3),POINT(6,3),POINT(2,5),POINT(0,2))),Polygon(Linestring(POINT(8,9),POINT(8,1),POINT(-.9,-.8),POINT(4,6),POINT(8,9)),Linestring(POINT(2,8),POINT(6,7),POINT(8,+.2),POINT(5,-6.1),POINT(4,5),POINT(4,-.2),POINT(1,5),POINT(-3.6,5),POINT(6,3),POINT(2,8),POINT(7,1.2),POINT(2,8)))))));
---source include/force_myisam_default.inc
---source include/not_embedded.inc
---source include/have_geometry.inc
 
-#Confirming the storage engine
---echo #Confirming the storage engine
-SHOW VARIABLES LIKE '%engine%';
 --error ER_BOOST_GEOMETRY_OVERLAY_INVALID_INPUT_EXCEPTION
 SELECT AsText(ST_Intersection(GeomFromWKB(GeometryCollection(POINT(7,7),Polygon(Linestring(POINT(4,9),POINT(5,6),POINT(9,-.9),POINT(8,8),POINT(1,1),POINT(5,5),POINT(8,-0.8),POINT(7,4),POINT(0,+.8),POINT(0,8),POINT(5,8),POINT(4,9))),Polygon(Linestring(POINT(2,2),POINT(3,9.5),POINT(2.2,1),POINT(-6.1,0),POINT(1,9),POINT(2,2)),Linestring(POINT(0,8),POINT(0,0),POINT(3,-8.6),POINT(0,7),POINT(2,-.9),POINT(0,9),POINT(8,0),POINT(7,0),POINT(0,8))),Polygon(Linestring(POINT(3,2),POINT(8,8),POINT(0,9),POINT(4,7.9),POINT(3,4),POINT(2,0),POINT(0,0),POINT(4,6.0),POINT(3,2))),LINESTRING(POINT(5,2),POINT(9,2),POINT(7,5),POINT(5,1)),MULTIPOINT(POINT(1,8),POINT(.6,8),POINT(.8,3)))),GeomFromText('POLYGON((3 6,2 3,2 8,3 -1.6,4 -0.7654,3 6))')));
---source include/force_myisam_default.inc
---source include/not_embedded.inc
---source include/have_geometry.inc
-
-#Confirming the storage engine
---echo #Confirming the storage engine
-SHOW VARIABLES LIKE '%engine%';
 
 SELECT MBREqual(ST_SymDifference(GeomFromText('POINT(5 0)'),GeomFromText('MULTIPOLYGON(((8 1,5 8,5 -5.7,9 8,5 9,8 1),(7 5,5 7.6,0 2,3 7,0 5,2 9,7 5)),((2 4,6 0,+.8 7,3 2,-4 8,2 -0,+.2 1,2 4)))')),ST_Union(GeomFromWKB(AsWKB(GeomFromText('POLYGON((7 3,2 7,7 3),(2 4,6 2,1 7,-2.7 5,0 4,-3.4 3,3 8,2 4),(8 0,189.7654 10.0002,9 1.1,1 0,6 -2.6,4 10.0002,1 8,8 0))'))),GeomFromText('LINESTRING(6 1)')));
---source include/force_myisam_default.inc
---source include/not_embedded.inc
---source include/have_geometry.inc
-
-#Confirming the storage engine
---echo #Confirming the storage engine
-SHOW VARIABLES LIKE '%engine%';
 
 --error ER_GIS_INVALID_DATA
 SELECT ST_Intersects(ST_SymDifference(GeomFromText('MULTIPOINT(1 0,8.5 0,5 1,8.3 4,7 -5.0)'),GeomFromText('MULTIPOLYGON(((3 8,6 1,9.5 4,5 2,9 2,-1032.34324 -1032.34324,4 -4.6,4 2,3 8),(5 9,2 4,6 -.8,4 +.0,-0 1,8 9.6,5 9),(8 5,3 4,3 1,0 1,6 -.5,8 -7.0,8 5),(8 6,0 1,9 5,7 5,5 3,2.232432 0,8 6)),((5 1,7 7,-1032.34324 7,8 -1,5 0,5 1),(2 9,2.232432 +.6,2 8,4 -4.4,-1032.34324 9,9 +.6,8 1,-.0 1,1 2,7 2,6 -5,2 1,-2 9,2 9),(7 8,0 4,7 8)),((5 0,7 1,5 0)),((3 9,8 5,0 -1032.34324,7 +.9,3 9),(9 9,7 2,0.4 7,9 9),(1 4,4 0,0 2,6.9 6,2.232432 -.8,7 3,1 4)))')),ST_Union(GeomFromText('MULTILINESTRING((-.5 9,1 1,1 6,6 6),(6 -.5,6 -.2,6 9,2 4),(4 7),(8 7,5 5,9 3,8 -.3))'),GeomFromText('POINT()')));
---source include/force_myisam_default.inc
---source include/not_embedded.inc
---source include/have_geometry.inc
-
-#Confirming the storage engine
---echo #Confirming the storage engine
-SHOW VARIABLES LIKE '%engine%';
 
 --error ER_GIS_INVALID_DATA
 SELECT ST_Intersects(GeomFromWKB(AsWKB(GeomFromText('MULTIPOLYGON(((4 4,9 10.0002,4 4),(5 0,2 6,5 0)))'))),GeomFromWKB(MULTIPOINT(POINT(8,9))));

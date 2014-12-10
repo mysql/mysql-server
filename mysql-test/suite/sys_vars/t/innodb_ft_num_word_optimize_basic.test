@@ -18,16 +18,20 @@ select @@global.innodb_ft_num_word_optimize;
 select @@session.innodb_ft_num_word_optimize;
 show global variables like 'innodb_ft_num_word_optimize';
 show session variables like 'innodb_ft_num_word_optimize';
+--disable_warnings
 select * from information_schema.global_variables where variable_name='innodb_ft_num_word_optimize';
 select * from information_schema.session_variables where variable_name='innodb_ft_num_word_optimize';
+--enable_warnings
 
 #
 # show that it's writable
 #
 set global innodb_ft_num_word_optimize=1000;
 select @@global.innodb_ft_num_word_optimize;
+--disable_warnings
 select * from information_schema.global_variables where variable_name='innodb_ft_num_word_optimize';
 select * from information_schema.session_variables where variable_name='innodb_ft_num_word_optimize';
+--enable_warnings
 --error ER_GLOBAL_VARIABLE
 set session innodb_ft_num_word_optimize=1000;
 
@@ -43,7 +47,9 @@ set global innodb_ft_num_word_optimize="foo";
 
 set global innodb_ft_num_word_optimize=-7;
 select @@global.innodb_ft_num_word_optimize;
+--disable_warnings
 select * from information_schema.global_variables where variable_name='innodb_ft_num_word_optimize';
+--enable_warnings
 
 #
 # cleanup

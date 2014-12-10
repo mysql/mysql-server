@@ -97,3 +97,4 @@ set debug='d,bug19656296';
 select * from t1 order by a;
 ERROR 40001: Deadlock found when trying to get lock; try restarting transaction
 drop table t1;
+SET debug= OFF;

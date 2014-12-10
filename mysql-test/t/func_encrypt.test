@@ -61,12 +61,18 @@ select des_decrypt(des_encrypt("hello"),'default_password');
 select des_decrypt(des_encrypt("hello",4),'password4');
 
 # Test use of invalid parameters
+--disable_ps_protocol
 select des_encrypt("hello",10);
+--enable_ps_protocol
 select des_encrypt(NULL);
 select des_encrypt(NULL, 10);
 select des_encrypt(NULL, NULL);
+--disable_ps_protocol
 select des_encrypt(10, NULL);
+--enable_ps_protocol
+--disable_ps_protocol
 select des_encrypt("hello", NULL);
+--enable_ps_protocol
 
 select des_decrypt("hello",10);
 select des_decrypt(NULL);
@@ -84,7 +90,9 @@ select @a = des_decrypt(des_encrypt("hello"));
 # Test usage of wrong password
 select hex("hello");
 select hex(des_decrypt(des_encrypt("hello",4),'password2'));
+--disable_ps_protocol
 select hex(des_decrypt(des_encrypt("hello","hidden")));
+--enable_ps_protocol
 
 explain extended select des_decrypt(des_encrypt("hello",4),'password2'), des_decrypt(des_encrypt("hello","hidden"));
 

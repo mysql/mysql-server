@@ -113,3 +113,4 @@ set debug='d,bug19656296';
 --error ER_LOCK_DEADLOCK
 select * from t1 order by a;
 drop table t1;
+SET debug= OFF;

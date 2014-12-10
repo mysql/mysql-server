@@ -10,8 +10,10 @@ select @@global.gtid_owned;
 select @@session.gtid_owned;
 show global variables like 'gtid_owned';
 show session variables like 'gtid_owned';
+--disable_warnings
 select * from information_schema.global_variables where variable_name='gtid_owned';
 select * from information_schema.session_variables where variable_name='gtid_owned';
+--enable_warnings
 
 #
 # It is not writable and in debug mode an attempt to write

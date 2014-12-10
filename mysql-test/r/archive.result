@@ -12878,6 +12878,7 @@ DROP TABLE t1;
 DROP TABLE IF EXISTS t1;
 CREATE TABLE t1 (c1 decimal(19,14) NOT NULL) ENGINE=ARCHIVE;
 CALL mtr.add_suppression("Found wrong key definition in #sql.* Please do \"ALTER TABLE `#sql.*` FORCE \" to fix it!");
+SET sql_mode='NO_ENGINE_SUBSTITUTION';
 CREATE INDEX i1 ON t1(c1);
 ERROR HY000: Got error -1 from storage engine
 SHOW WARNINGS;
@@ -12886,6 +12887,7 @@ Warning	1071	Specified key was too long; max key length is 8 bytes
 Warning	1194	Found wrong key definition in #sql-temporary; Please do "ALTER TABLE `#sql-temporary` FORCE" to fix it!
 Warning	1194	Found wrong key definition in #sql-temporary; Please do "ALTER TABLE `#sql-temporary` FORCE" to fix it!
 Error	1030	Got error -1 from storage engine
+SET sql_mode= default;
 DROP TABLE t1;
 #
 # BUG#11758979 - 51252: ARCHIVE TABLES STILL FAIL UNDER STRESS

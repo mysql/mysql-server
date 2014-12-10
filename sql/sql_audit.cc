@@ -13,7 +13,6 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "sql_priv.h"
 #include "sql_audit.h"
 #include "log.h"
 
@@ -121,8 +120,10 @@ static audit_handler_t audit_handlers[] =
   general_class_handler, connection_class_handler
 };
 
+#ifndef DBUG_OFF
 static const uint audit_handlers_count=
   (sizeof(audit_handlers) / sizeof(audit_handler_t));
+#endif
 
 
 /**

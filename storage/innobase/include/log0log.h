@@ -180,11 +180,12 @@ log_write_up_to(
 	bool	flush_to_disk);
 			/*!< in: true if we want the written log
 			also to be flushed to disk */
-/****************************************************************//**
-Does a syncronous flush of the log buffer to disk. */
+/** write to the log file up to the last log entry.
+@param[in]	sync	whether we want the written log
+also to be flushed to disk. */
 void
-log_buffer_flush_to_disk(void);
-/*==========================*/
+log_buffer_flush_to_disk(
+	bool sync = true);
 /****************************************************************//**
 This functions writes the log buffer to the log file and if 'flush'
 is set it forces a flush of the log file as well. This is meant to be
@@ -206,6 +207,7 @@ bool
 log_checkpoint(
 	bool	sync,
 	bool	write_always);
+
 /** Make a checkpoint at or after a specified LSN.
 @param[in]	lsn		the log sequence number, or LSN_MAX
 for the latest LSN
@@ -213,8 +215,9 @@ for the latest LSN
 has been generated since the latest checkpoint */
 void
 log_make_checkpoint_at(
-	lsn_t	lsn,
-	bool	write_always);
+	lsn_t			lsn,
+	bool			write_always);
+
 /****************************************************************//**
 Makes a checkpoint at the latest lsn and writes it to first page of each
 data file in the database, so that we know that the file spaces contain

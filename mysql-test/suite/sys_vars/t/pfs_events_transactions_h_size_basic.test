@@ -14,11 +14,13 @@ show global variables like 'performance_schema_events_transactions_history_size'
 
 show session variables like 'performance_schema_events_transactions_history_size';
 
+--disable_warnings
 select * from information_schema.global_variables
   where variable_name='performance_schema_events_transactions_history_size';
 
 select * from information_schema.session_variables
   where variable_name='performance_schema_events_transactions_history_size';
+--enable_warnings
 
 #
 # Read-only

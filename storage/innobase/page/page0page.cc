@@ -434,7 +434,7 @@ page_create_zip(
 						where the page is created */
 	dict_index_t*		index,		/*!< in: the index of the
 						page, or NULL when applying
-						TRUNCATE log 
+						TRUNCATE log
 						record during recovery */
 	ulint			level,		/*!< in: the B-tree level
 						of the page */
@@ -2365,7 +2365,7 @@ page_validate(
 	ulint*			offsets		= NULL;
 	ulint*			old_offsets	= NULL;
 
-#ifdef UNIV_DEBUG
+#ifdef UNIV_GIS_DEBUG
 	if (dict_index_is_spatial(index)) {
 		fprintf(stderr, "Page no: %lu\n", page_get_page_no(page));
 	}

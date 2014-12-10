@@ -17,7 +17,6 @@
 #define MYSQL_LEX 1
 
 #include "my_global.h"
-#include "sql_priv.h"
 #include "sp_head.h"                // sp_head
 #include "sql_parse.h"              // create_default_definer
 #include "sql_show.h"               // append_definer
@@ -220,10 +219,11 @@ bool Table_trigger_dispatcher::create_trigger(
   */
 
   if (lex->definer &&
-      (strcmp(lex->definer->user.str, thd->security_ctx->priv_user) ||
+      (strcmp(lex->definer->user.str,
+              thd->security_context()->priv_user().str) ||
        my_strcasecmp(system_charset_info,
                      lex->definer->host.str,
-                     thd->security_ctx->priv_host)))
+                     thd->security_context()->priv_host().str)))
   {
     if (check_global_access(thd, SUPER_ACL))
     {

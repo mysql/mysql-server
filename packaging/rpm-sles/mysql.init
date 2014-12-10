@@ -51,6 +51,11 @@ socket=$(get_option  mysqld socket "$datadir/mysql.sock")
 pidfile=$(get_option mysqld_safe pid-file "/var/run/mysql/mysqld.pid")
 logfile=$(get_option mysqld_safe log-error "/var/log/mysql/mysqld.log")
 
+case $socket in
+    /*) adminsocket="$socket" ;;
+    *) adminsocket="$datadir/$socket" ;;
+esac
+
 install_db () {
     # Note: something different than datadir=/var/lib/mysql requires 
     # SELinux policy changes (in enforcing mode)
@@ -84,7 +89,7 @@ pinger () {
     ret=0
     while [ $timer -gt 0 ]; do
         sleep 1
-        mysqladmin --no-defaults --socket="$socket" ping >/dev/null 2>&1 && break
+        mysqladmin --no-defaults --socket="$adminsocket" ping >/dev/null 2>&1 && break
 	timer=$(expr $timer - 1)
 
 	# Check if mysqld_safe is still alive, if not there is no hope
@@ -127,7 +132,7 @@ chk_running () {
 }
 
 start () {
-    if chk_running && mysqladmin --no-defaults --socket="$socket" ping >/dev/null 2>&1 ; then
+    if chk_running && mysqladmin --no-defaults --socket="$adminsocket" ping >/dev/null 2>&1 ; then
 	echo -n "Starting service MySQL:"
 	rc_reset ; rc_status -v ; rc_exit
     fi
@@ -193,7 +198,7 @@ restart () {
 
 reload () {
     ret=0
-    if chk_running && mysqladmin --no-defaults --socket="$socket" ping >/dev/null 2>&1 ; then
+    if chk_running && mysqladmin --no-defaults --socket="$adminsocket" ping >/dev/null 2>&1 ; then
 	pid=$(cat "$pidfile")
 	kill -HUP $pid >/dev/null 2>&1
 	echo -n "Reloading service MySQL:"
@@ -206,7 +211,7 @@ reload () {
 }
 
 condrestart () {
-    if chk_running && mysqladmin --no-defaults --socket="$socket" ping >/dev/null 2>&1 ; then
+    if chk_running && mysqladmin --no-defaults --socket="$adminsocket" ping >/dev/null 2>&1 ; then
 	restart
     fi
 }

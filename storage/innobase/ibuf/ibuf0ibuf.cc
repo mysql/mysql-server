@@ -476,15 +476,14 @@ static
 void
 ibuf_size_update(
 /*=============*/
-	const page_t*	root,	/*!< in: ibuf tree root */
-	mtr_t*		mtr)	/*!< in: mtr */
+	const page_t*	root)	/*!< in: ibuf tree root */
 {
 	ut_ad(mutex_own(&ibuf_mutex));
 
 	ibuf->free_list_len = flst_get_len(root + PAGE_HEADER
-					   + PAGE_BTR_IBUF_FREE_LIST, mtr);
+					   + PAGE_BTR_IBUF_FREE_LIST);
 
-	ibuf->height = 1 + btr_page_get_level(root, mtr);
+	ibuf->height = 1 + btr_page_get_level_low(root);
 
 	/* the '1 +' is the ibuf header page */
 	ibuf->size = ibuf->seg_size - (1 + ibuf->free_list_len);
@@ -546,7 +545,7 @@ ibuf_init_at_db_start(void)
 		root = buf_block_get_frame(block);
 	}
 
-	ibuf_size_update(root, &mtr);
+	ibuf_size_update(root);
 	mutex_exit(&ibuf_mutex);
 
 	ibuf->empty = page_is_empty(root);
@@ -1094,7 +1093,7 @@ ibuf_fixed_addr_page(
 }
 
 /** Checks if a page is a level 2 or 3 page in the ibuf hierarchy of pages.
-Must not be called when recv_no_ibuf_operations==TRUE.
+Must not be called when recv_no_ibuf_operations==true.
 @param[in]	page_id		page id
 @param[in]	page_size	page size
 @param[in]	x_latch		FALSE if relaxed check (avoid latching the
@@ -1424,16 +1423,8 @@ ibuf_add_ops(
 {
 	ulint	i;
 
-#ifndef HAVE_ATOMIC_BUILTINS
-	ut_ad(mutex_own(&ibuf_mutex));
-#endif /* !HAVE_ATOMIC_BUILTINS */
-
 	for (i = 0; i < IBUF_OP_COUNT; i++) {
-#ifdef HAVE_ATOMIC_BUILTINS
 		os_atomic_increment_ulint(&arr[i], ops[i]);
-#else /* HAVE_ATOMIC_BUILTINS */
-		arr[i] += ops[i];
-#endif /* HAVE_ATOMIC_BUILTINS */
 	}
 }
 
@@ -3631,7 +3622,7 @@ fail_exit:
 		}
 
 		mutex_exit(&ibuf_pessimistic_insert_mutex);
-		ibuf_size_update(root, &mtr);
+		ibuf_size_update(root);
 		mutex_exit(&ibuf_mutex);
 		ibuf->empty = page_is_empty(root);
 
@@ -3785,9 +3776,9 @@ check_watch:
 	buf_pool_watch_set(space, page_no). */
 
 	{
-		buf_page_t*	bpage;
 		buf_pool_t*	buf_pool = buf_pool_get(page_id);
-		bpage = buf_page_hash_get(buf_pool, page_id);
+		buf_page_t*	bpage
+			= buf_page_get_also_watch(buf_pool, page_id);
 
 		if (bpage != NULL) {
 			/* A buffer pool watch has been set or the
@@ -4402,7 +4393,7 @@ ibuf_delete_rec(
 #ifdef UNIV_IBUF_COUNT_DEBUG
 	ibuf_count_set(page_id, ibuf_count_get(page_id) - 1);
 #endif
-	ibuf_size_update(root, mtr);
+	ibuf_size_update(root);
 	mutex_exit(&ibuf_mutex);
 
 	ibuf->empty = page_is_empty(root);
@@ -4791,20 +4782,9 @@ reset_bit:
 	btr_pcur_close(&pcur);
 	mem_heap_free(heap);
 
-#ifdef HAVE_ATOMIC_BUILTINS
 	os_atomic_increment_ulint(&ibuf->n_merges, 1);
 	ibuf_add_ops(ibuf->n_merged_ops, mops);
 	ibuf_add_ops(ibuf->n_discarded_ops, dops);
-#else /* HAVE_ATOMIC_BUILTINS */
-	/* Protect our statistics keeping from race conditions */
-	mutex_enter(&ibuf_mutex);
-
-	ibuf->n_merges++;
-	ibuf_add_ops(ibuf->n_merged_ops, mops);
-	ibuf_add_ops(ibuf->n_discarded_ops, dops);
-
-	mutex_exit(&ibuf_mutex);
-#endif /* HAVE_ATOMIC_BUILTINS */
 
 	if (space != NULL) {
 		fil_space_release(space);
@@ -4895,14 +4875,7 @@ leave_loop:
 	ibuf_mtr_commit(&mtr);
 	btr_pcur_close(&pcur);
 
-#ifdef HAVE_ATOMIC_BUILTINS
 	ibuf_add_ops(ibuf->n_discarded_ops, dops);
-#else /* HAVE_ATOMIC_BUILTINS */
-	/* Protect our statistics keeping from race conditions */
-	mutex_enter(&ibuf_mutex);
-	ibuf_add_ops(ibuf->n_discarded_ops, dops);
-	mutex_exit(&ibuf_mutex);
-#endif /* HAVE_ATOMIC_BUILTINS */
 
 	mem_heap_free(heap);
 }

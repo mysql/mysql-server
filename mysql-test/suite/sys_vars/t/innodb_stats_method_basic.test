@@ -18,32 +18,40 @@ SELECT @@global.innodb_stats_method;
 SELECT @@session.innodb_stats_method;
 SHOW global variables LIKE 'innodb_stats_method';
 SHOW session variables LIKE 'innodb_stats_method';
+--disable_warnings
 SELECT * FROM information_schema.global_variables 
 WHERE variable_name='innodb_stats_method';
 SELECT * FROM information_schema.session_variables 
 WHERE variable_name='innodb_stats_method';
+--enable_warnings
 
 #
 # show that it's writable
 #
 SET global innodb_stats_method='nulls_equal';
 SELECT @@global.innodb_stats_method;
+--disable_warnings
 SELECT * FROM information_schema.global_variables 
 WHERE variable_name='innodb_stats_method';
 SELECT * FROM information_schema.session_variables 
 WHERE variable_name='innodb_stats_method';
+--enable_warnings
 SET @@global.innodb_stats_method='nulls_unequal';
 SELECT @@global.innodb_stats_method;
+--disable_warnings
 SELECT * FROM information_schema.global_variables 
 WHERE variable_name='innodb_stats_method';
 SELECT * FROM information_schema.session_variables 
 WHERE variable_name='innodb_stats_method';
+--enable_warnings
 SET global innodb_stats_method=2;
 SELECT @@global.innodb_stats_method;
+--disable_warnings
 SELECT * FROM information_schema.global_variables 
 WHERE variable_name='innodb_stats_method';
 SELECT * FROM information_schema.session_variables 
 WHERE variable_name='innodb_stats_method';
+--enable_warnings
 
 --error ER_GLOBAL_VARIABLE
 SET session innodb_stats_method='nulls_equal';

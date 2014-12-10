@@ -15,9 +15,7 @@
 
 #ifdef HAVE_REPLICATION
 #include <my_global.h>
-#include "sql_priv.h"
 #include <my_dir.h>
-#include "unireg.h"                             // REQUIRED by other includes
 #include "rpl_mi.h"
 #include "rpl_slave.h"                          // SLAVE_MAX_HEARTBEAT_PERIOD
 

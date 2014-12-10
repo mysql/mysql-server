@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2012, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2012, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -38,34 +38,24 @@ extern ulong	srv_force_recovery_crash;
 
 #ifndef UNIV_DEBUG
 
-# ifdef HAVE_ATOMIC_BUILTINS
-
-#  ifdef HAVE_IB_LINUX_FUTEX
+# ifdef HAVE_IB_LINUX_FUTEX
 typedef PolicyMutex<TTASFutexMutex<NoPolicy> >  FutexMutex;
-#  endif /* HAVE_IB_LINUX_FUTEX */
+# endif /* HAVE_IB_LINUX_FUTEX */
 
 typedef PolicyMutex<TTASMutex<NoPolicy> > SpinMutex;
 typedef PolicyMutex<TTASEventMutex<TrackPolicy> > SyncArrayMutex;
-# else
-typedef PolicyMutex<OSTrackMutex<TrackPolicy> > SyncArrayMutex;
-# endif /* HAVE_ATOMIC_BUILTINS */
 
 typedef PolicyMutex<OSTrackMutex<NoPolicy> > SysMutex;
 typedef PolicyMutex<OSBasicMutex<NoPolicy> > EventMutex;
 
 #else /* !UNIV_DEBUG */
 
-#ifdef HAVE_ATOMIC_BUILTINS
-
-#  ifdef HAVE_IB_LINUX_FUTEX
+# ifdef HAVE_IB_LINUX_FUTEX
 typedef PolicyMutex<TTASFutexMutex<DebugPolicy> > FutexMutex;
-#  endif /* HAVE_IB_LINUX_FUTEX */
+# endif /* HAVE_IB_LINUX_FUTEX */
 
 typedef PolicyMutex<TTASMutex<DebugPolicy> > SpinMutex;
 typedef PolicyMutex<TTASEventMutex<DebugPolicy> > SyncArrayMutex;
-# else
-typedef PolicyMutex<OSTrackMutex<DebugPolicy> > SyncArrayMutex;
-#endif /* HAVE_ATOMIC_BUILTINS */
 
 typedef PolicyMutex<OSTrackMutex<DebugPolicy> > SysMutex;
 typedef PolicyMutex<OSBasicMutex<DebugPolicy> > EventMutex;

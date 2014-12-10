@@ -290,11 +290,6 @@ time_t	os_last_printout;
 
 bool	os_has_said_disk_full	= false;
 
-#if !defined(HAVE_ATOMIC_BUILTINS)
-/** The mutex protecting the following counts of pending I/O operations */
-static SysMutex		os_file_count_mutex;
-#endif /* !UNIV_HOTBACKUP && !HAVE_ATOMIC_BUILTINS */
-
 /** Number of pending os_file_pread() operations */
 ulint	os_file_n_pending_preads  = 0;
 /** Number of pending os_file_pwrite() operations */
@@ -333,46 +328,6 @@ os_aio_validate_skip(void)
 }
 # endif /* !UNIV_HOTBACKUP */
 #endif /* UNIV_DEBUG */
-
-#ifdef _WIN32
-/***********************************************************************//**
-Gets the operating system version. Currently works only on Windows.
-@return OS_WIN95, OS_WIN31, OS_WINNT, OS_WIN2000, OS_WINXP, OS_WINVISTA,
-OS_WIN7. */
-ulint
-os_get_os_version(void)
-/*===================*/
-{
-	OSVERSIONINFO	os_info;
-
-	os_info.dwOSVersionInfoSize = sizeof(OSVERSIONINFO);
-
-	ut_a(GetVersionEx(&os_info));
-
-	if (os_info.dwPlatformId == VER_PLATFORM_WIN32s) {
-		return(OS_WIN31);
-	} else if (os_info.dwPlatformId == VER_PLATFORM_WIN32_WINDOWS) {
-		return(OS_WIN95);
-	} else if (os_info.dwPlatformId == VER_PLATFORM_WIN32_NT) {
-		switch (os_info.dwMajorVersion) {
-		case 3:
-		case 4:
-			return(OS_WINNT);
-		case 5:
-			return (os_info.dwMinorVersion == 0)
-				? OS_WIN2000 : OS_WINXP;
-		case 6:
-			return (os_info.dwMinorVersion == 0)
-				? OS_WINVISTA : OS_WIN7;
-		default:
-			return(OS_WIN7);
-		}
-	} else {
-		ut_error;
-		return(0);
-	}
-}
-#endif /* _WIN32 */
 
 /***********************************************************************//**
 Retrieves the last error number if an error occurs in a file io function.
@@ -715,10 +670,6 @@ void
 os_io_init_simple(void)
 /*===================*/
 {
-#ifndef HAVE_ATOMIC_BUILTINS
-	mutex_create("os_file_count_mutex", &os_file_count_mutex);
-#endif /* !HAVE_ATOMIC_BUILTINS */
-
 	for (ulint i = 0; i < OS_FILE_N_SEEK_MUTEXES; i++) {
 		os_file_seek_mutexes[i] = UT_NEW_NOKEY(SysMutex());
 		mutex_create("os_file_seek_mutex", os_file_seek_mutexes[i]);
@@ -2326,8 +2277,9 @@ os_file_io(
 {
 	ssize_t bytes_returned = 0;
 	ssize_t n_bytes;
+	ulint i;
 
-	for (ulint i = 0; i < NUM_RETRIES_ON_PARTIAL_IO; ++i) {
+	for (i = 0; i < NUM_RETRIES_ON_PARTIAL_IO; ++i) {
 		if (type == OS_FILE_READ ) {
 			n_bytes = pread(file, buf, n, offset);
 		} else {
@@ -2358,13 +2310,34 @@ os_file_io(
 			bytes_returned += (ulint) n_bytes;
 
 		} else {
+			/* System call failure */
+			if (type == OS_FILE_READ) {
+				ib::error() << "Error in system call pread()."
+				" The operating system error number is"
+				" " << errno << ".";
+			} else {
+				ib::error() << "Error in system call pwrite()."
+				" The operating system error number is"
+				" " << errno << ".";
+			}
+
+			if (strerror(errno) != NULL) {
+				ib::error() << "Error number "
+				<< errno << " means '" <<
+				strerror(errno) << "'.";
+			}
+
+			ib::info() << OPERATING_SYSTEM_ERROR_MSG;
 			break;
 		}
 	}
 
-	ib::warn() << "Retry attempts for "
-		<< (type == OS_FILE_READ ? "reading" : "writing")
-		<< " partial data failed.";
+	if (i > 0) {
+		/* Print the warning only if retrying was attempted */
+		ib::warn() << "Retry attempts for "
+			<< (type == OS_FILE_READ ? "reading" : "writing")
+			<< " partial data failed.";
+	}
 
 	return(bytes_returned);
 }
@@ -2396,31 +2369,15 @@ os_file_pread(
 
 	os_n_file_reads++;
 
-# if defined(HAVE_ATOMIC_BUILTINS)
 	(void) os_atomic_increment_ulint(&os_n_pending_reads, 1);
 	(void) os_atomic_increment_ulint(&os_file_n_pending_preads, 1);
 	MONITOR_ATOMIC_INC(MONITOR_OS_PENDING_READS);
-# else
-	mutex_enter(&os_file_count_mutex);
-	os_file_n_pending_preads++;
-	os_n_pending_reads++;
-	MONITOR_INC(MONITOR_OS_PENDING_READS);
-	mutex_exit(&os_file_count_mutex);
-# endif /* HAVE_ATOMIC_BUILTINS */
 
 	read_bytes = os_file_io(file, buf, n, offs, OS_FILE_READ);
 
-# ifdef HAVE_ATOMIC_BUILTINS
 	(void) os_atomic_decrement_ulint(&os_n_pending_reads, 1);
 	(void) os_atomic_decrement_ulint(&os_file_n_pending_preads, 1);
 	MONITOR_ATOMIC_DEC(MONITOR_OS_PENDING_READS);
-# else
-	mutex_enter(&os_file_count_mutex);
-	os_file_n_pending_preads--;
-	os_n_pending_reads--;
-	MONITOR_DEC(MONITOR_OS_PENDING_READS);
-	mutex_exit(&os_file_count_mutex);
-# endif /* HAVE_ATOMIC_BUILTINS */
 
 	return(read_bytes);
 }
@@ -2452,32 +2409,16 @@ os_file_pwrite(
 
 	os_n_file_writes++;
 
-#ifdef HAVE_ATOMIC_BUILTINS
 	(void) os_atomic_increment_ulint(&os_n_pending_writes, 1);
 	(void) os_atomic_increment_ulint(&os_file_n_pending_pwrites, 1);
 	MONITOR_ATOMIC_INC(MONITOR_OS_PENDING_WRITES);
-#else
-	mutex_enter(&os_file_count_mutex);
-	os_file_n_pending_pwrites++;
-	os_n_pending_writes++;
-	MONITOR_INC(MONITOR_OS_PENDING_WRITES);
-	mutex_exit(&os_file_count_mutex);
-#endif /* HAVE_ATOMIC_BUILTINS */
 
 	written_bytes = os_file_io(
 		file, (void*) buf, n, offs, OS_FILE_WRITE);
 
-#ifdef HAVE_ATOMIC_BUILTINS
 	(void) os_atomic_decrement_ulint(&os_n_pending_writes, 1);
 	(void) os_atomic_decrement_ulint(&os_file_n_pending_pwrites, 1);
 	MONITOR_ATOMIC_DEC(MONITOR_OS_PENDING_WRITES);
-#else
-	mutex_enter(&os_file_count_mutex);
-	os_file_n_pending_pwrites--;
-	os_n_pending_writes--;
-	MONITOR_DEC(MONITOR_OS_PENDING_WRITES);
-	mutex_exit(&os_file_count_mutex);
-#endif /* HAVE_ATOMIC_BUILTINS */
 
 	return(written_bytes);
 }
@@ -2523,15 +2464,8 @@ try_again:
 	low = (DWORD) offset & 0xFFFFFFFF;
 	high = (DWORD) (offset >> 32);
 
-#ifdef HAVE_ATOMIC_BUILTINS
 	(void) os_atomic_increment_ulint(&os_n_pending_reads, 1);
 	MONITOR_ATOMIC_INC(MONITOR_OS_PENDING_READS);
-#else
-	mutex_enter(&os_file_count_mutex);
-	os_n_pending_reads++;
-	MONITOR_INC(MONITOR_OS_PENDING_READS);
-	mutex_exit(&os_file_count_mutex);
-#endif /* HAVE_ATOMIC_BUILTINS */
 
 #ifndef UNIV_HOTBACKUP
 	/* Protect the seek / read operation with a mutex */
@@ -2549,15 +2483,8 @@ try_again:
 		mutex_exit(os_file_seek_mutexes[i]);
 #endif /* !UNIV_HOTBACKUP */
 
-#ifdef HAVE_ATOMIC_BUILTINS
 		(void) os_atomic_decrement_ulint(&os_n_pending_reads, 1);
 		MONITOR_ATOMIC_DEC(MONITOR_OS_PENDING_READS);
-#else
-		mutex_enter(&os_file_count_mutex);
-		os_n_pending_reads--;
-		MONITOR_DEC(MONITOR_OS_PENDING_READS);
-		mutex_exit(&os_file_count_mutex);
-#endif /* HAVE_ATOMIC_BUILTINS */
 
 		goto error_handling;
 	}
@@ -2568,15 +2495,8 @@ try_again:
 	mutex_exit(os_file_seek_mutexes[i]);
 #endif /* !UNIV_HOTBACKUP */
 
-#ifdef HAVE_ATOMIC_BUILTINS
 	(void) os_atomic_decrement_ulint(&os_n_pending_reads, 1);
 	MONITOR_ATOMIC_DEC(MONITOR_OS_PENDING_READS);
-#else
-	mutex_enter(&os_file_count_mutex);
-	os_n_pending_reads--;
-	MONITOR_DEC(MONITOR_OS_PENDING_READS);
-	mutex_exit(&os_file_count_mutex);
-#endif /* HAVE_ATOMIC_BUILTINS */
 
 	if (ret && len == n) {
 		return(true);
@@ -2591,12 +2511,12 @@ try_again:
 	ret = os_file_pread(file, buf, n, offset);
 
 	if ((ulint) ret == n) {
-
 		return(true);
 	}
 
 	ib::error() << "Tried to read " << n << " bytes at offset " << offset
 		<< " was only able to read " << ret << ".";
+
 #endif /* _WIN32 */
 #ifdef _WIN32
 error_handling:
@@ -2665,15 +2585,8 @@ try_again:
 	low = (DWORD) offset & 0xFFFFFFFF;
 	high = (DWORD) (offset >> 32);
 
-#ifdef HAVE_ATOMIC_BUILTINS
 	(void) os_atomic_increment_ulint(&os_n_pending_reads, 1);
 	MONITOR_ATOMIC_INC(MONITOR_OS_PENDING_READS);
-#else
-	mutex_enter(&os_file_count_mutex);
-	os_n_pending_reads++;
-	MONITOR_INC(MONITOR_OS_PENDING_READS);
-	mutex_exit(&os_file_count_mutex);
-#endif /* HAVE_ATOMIC_BUILTINS */
 
 #ifndef UNIV_HOTBACKUP
 	/* Protect the seek / read operation with a mutex */
@@ -2691,15 +2604,8 @@ try_again:
 		mutex_exit(os_file_seek_mutexes[i]);
 #endif /* !UNIV_HOTBACKUP */
 
-#ifdef HAVE_ATOMIC_BUILTINS
 		(void) os_atomic_decrement_ulint(&os_n_pending_reads, 1);
 		MONITOR_ATOMIC_DEC(MONITOR_OS_PENDING_READS);
-#else
-		mutex_enter(&os_file_count_mutex);
-		os_n_pending_reads--;
-		MONITOR_DEC(MONITOR_OS_PENDING_READS);
-		mutex_exit(&os_file_count_mutex);
-#endif /* HAVE_ATOMIC_BUILTINS */
 
 		goto error_handling;
 	}
@@ -2710,15 +2616,8 @@ try_again:
 	mutex_exit(os_file_seek_mutexes[i]);
 #endif /* !UNIV_HOTBACKUP */
 
-#ifdef HAVE_ATOMIC_BUILTINS
 	(void) os_atomic_decrement_ulint(&os_n_pending_reads, 1);
 	MONITOR_ATOMIC_DEC(MONITOR_OS_PENDING_READS);
-#else
-	mutex_enter(&os_file_count_mutex);
-	os_n_pending_reads--;
-	MONITOR_DEC(MONITOR_OS_PENDING_READS);
-	mutex_exit(&os_file_count_mutex);
-#endif /* HAVE_ATOMIC_BUILTINS */
 
 	if (ret && len == n) {
 		return(true);
@@ -2736,6 +2635,7 @@ try_again:
 
 		return(true);
 	}
+
 #endif /* _WIN32 */
 #ifdef _WIN32
 error_handling:
@@ -2818,15 +2718,8 @@ retry:
 	low = (DWORD) offset & 0xFFFFFFFF;
 	high = (DWORD) (offset >> 32);
 
-#ifdef HAVE_ATOMIC_BUILTINS
 	(void) os_atomic_increment_ulint(&os_n_pending_writes, 1);
 	MONITOR_ATOMIC_INC(MONITOR_OS_PENDING_WRITES);
-#else
-	mutex_enter(&os_file_count_mutex);
-	os_n_pending_writes++;
-	MONITOR_INC(MONITOR_OS_PENDING_WRITES);
-	mutex_exit(&os_file_count_mutex);
-#endif /* HAVE_ATOMIC_BUILTINS */
 
 #ifndef UNIV_HOTBACKUP
 	/* Protect the seek / write operation with a mutex */
@@ -2844,15 +2737,8 @@ retry:
 		mutex_exit(os_file_seek_mutexes[i]);
 #endif /* !UNIV_HOTBACKUP */
 
-#ifdef HAVE_ATOMIC_BUILTINS
 		(void) os_atomic_decrement_ulint(&os_n_pending_writes, 1);
 		MONITOR_ATOMIC_DEC(MONITOR_OS_PENDING_WRITES);
-#else
-		mutex_enter(&os_file_count_mutex);
-		os_n_pending_writes--;
-		MONITOR_DEC(MONITOR_OS_PENDING_WRITES);
-		mutex_exit(&os_file_count_mutex);
-#endif /* HAVE_ATOMIC_BUILTINS */
 
 		ib::error() << "File pointer positioning to file " << name
 			<< " failed at offset " << offset << ". Operating"
@@ -2867,15 +2753,8 @@ retry:
 	mutex_exit(os_file_seek_mutexes[i]);
 #endif /* !UNIV_HOTBACKUP */
 
-#ifdef HAVE_ATOMIC_BUILTINS
 	(void) os_atomic_decrement_ulint(&os_n_pending_writes, 1);
 	MONITOR_ATOMIC_DEC(MONITOR_OS_PENDING_WRITES);
-#else
-	mutex_enter(&os_file_count_mutex);
-	os_n_pending_writes--;
-	MONITOR_DEC(MONITOR_OS_PENDING_WRITES);
-	mutex_exit(&os_file_count_mutex);
-#endif /* HAVE_ATOMIC_BUILTINS */
 
 	if (ret && len == n) {
 
@@ -2924,7 +2803,6 @@ retry:
 	ret = os_file_pwrite(file, buf, n, offset);
 
 	if ((ulint) ret == n) {
-
 		return(true);
 	}
 
@@ -2932,18 +2810,10 @@ retry:
 
 		ib::error() << "Write to file " << name << " failed at offset "
 			<< offset << ". " << n << " bytes should have been"
-			" written, only " << ret << " were written. Operating"
-			" system error number " << errno << ". Check that your"
-			" OS and file system support files of this size. Check"
-			" also that the disk is not full or a disk quota"
-			" exceeded.";
-
-		if (strerror(errno) != NULL) {
-			ib::error() << "Error number " << errno << " means '"
-				<< strerror(errno) << "'.";
-		}
-
-		ib::info() << OPERATING_SYSTEM_ERROR_MSG;
+			" written, only " << ret << " were written. Check that"
+			" your OS and file system support files of  this size."
+			" Check also that the disk is not full or a disk quota"
+			"  exceeded.";
 
 		os_has_said_disk_full = true;
 	}
@@ -3851,10 +3721,6 @@ os_aio_free(void)
 	for (ulint i = 0; i < os_aio_n_segments; i++) {
 		os_event_destroy(os_aio_segment_wait_events[i]);
 	}
-
-#if !defined(HAVE_ATOMIC_BUILTINS)
-	mutex_free(&os_file_count_mutex);
-#endif /* !HAVE_ATOMIC_BUILTINS */
 
 	ut_free(os_aio_segment_wait_events);
 	os_aio_segment_wait_events = 0;

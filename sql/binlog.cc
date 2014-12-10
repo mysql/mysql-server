@@ -48,6 +48,8 @@ using std::list;
 
 #define FLAGSTR(V,F) ((V)&(F)?#F" ":"")
 
+#define LOG_PREFIX	"ML"
+
 /**
   @defgroup Binary_Log Binary Log
   @{
@@ -3486,13 +3488,13 @@ bool MYSQL_BIN_LOG::init_gtid_sets(Gtid_set *all_gtids, Gtid_set *lost_gtids,
         case NO_GTIDS:
         {
           /*
-            If the simplified_binlog_gtid_recovery is enabled, and the
+            If the binlog_gtid_simple_recovery is enabled, and the
             last binary log does not contain any GTID event, do not
             read any more binary logs, GLOBAL.GTID_EXECUTED and
             GLOBAL.GTID_PURGED should be empty in the case. Otherwise,
             initialize GTID_EXECUTED as usual.
           */
-          if (simplified_binlog_gtid_recovery && !is_relay_log)
+          if (binlog_gtid_simple_recovery && !is_relay_log)
           {
             DBUG_ASSERT(all_gtids->is_empty() && lost_gtids->is_empty());
             goto end;
@@ -3529,12 +3531,12 @@ bool MYSQL_BIN_LOG::init_gtid_sets(Gtid_set *all_gtids, Gtid_set *lost_gtids,
         case NO_GTIDS:
         {
           /*
-            If the simplified_binlog_gtid_recovery is enabled, and the
+            If the binlog_gtid_simple_recovery is enabled, and the
             first binary log does not contain any GTID event, do not
             read any more binary logs, GLOBAL.GTID_PURGED should be
             empty in the case.
           */
-          if (simplified_binlog_gtid_recovery && !is_relay_log)
+          if (binlog_gtid_simple_recovery && !is_relay_log)
           {
             DBUG_ASSERT(lost_gtids->is_empty());
             goto end;
@@ -3736,7 +3738,8 @@ bool MYSQL_BIN_LOG::open_binlog(const char *log_name,
       logged_gtids_binlog.remove_gtid_set(gtids_only_in_table);
     }
     Previous_gtids_log_event prev_gtids_ev(previous_logged_gtids);
-
+    if (is_relay_log)
+      prev_gtids_ev.set_relay_log_event();
     if (need_sid_lock)
       global_sid_lock->unlock();
     prev_gtids_ev.checksum_alg= s.checksum_alg;
@@ -5990,11 +5993,18 @@ void MYSQL_BIN_LOG::purge()
   @retval
     nonzero - error in rotating routine.
 */
-int MYSQL_BIN_LOG::rotate_and_purge(bool force_rotate)
+int MYSQL_BIN_LOG::rotate_and_purge(THD* thd, bool force_rotate)
 {
   int error= 0;
   DBUG_ENTER("MYSQL_BIN_LOG::rotate_and_purge");
   bool check_purge= false;
+
+  /*
+    Wait for handlerton to insert any pending information into the binlog.
+    For e.g. ha_ndbcluster which updates the binlog asynchronously this is
+    needed so that the user see its own commands in the binlog.
+  */
+  ha_binlog_wait(thd);
 
   DBUG_ASSERT(!is_relay_log);
   mysql_mutex_lock(&LOCK_log);
@@ -6951,6 +6961,25 @@ int MYSQL_BIN_LOG::prepare(THD *thd, bool all)
 {
   DBUG_ENTER("MYSQL_BIN_LOG::prepare");
 
+  DBUG_ASSERT(opt_bin_log);
+  /*
+    The applier thread explicitly overrides the value of sql_log_bin
+    with the value of log_slave_updates.
+  */
+  DBUG_ASSERT(thd->slave_thread ?
+              opt_log_slave_updates : thd->variables.sql_log_bin);
+
+  /*
+    Set HA_IGNORE_DURABILITY to not flush the prepared record of the
+    transaction to the log of storage engine (for example, InnoDB
+    redo log) during the prepare phase. So that we can flush prepared
+    records of transactions to the log of storage engine in a group
+    right before flushing them to binary log during binlog group
+    commit flush stage. Reset to HA_REGULAR_DURABILITY at the
+    beginning of parsing next command.
+  */
+  thd->durability_property= HA_IGNORE_DURABILITY;
+
   int error= ha_prepare_low(thd, all);
 
   DBUG_RETURN(error);
@@ -7219,53 +7248,31 @@ MYSQL_BIN_LOG::process_flush_stage_queue(my_off_t *total_bytes_var,
   int flush_error= 1;
   mysql_mutex_assert_owner(&LOCK_log);
 
-  const ulonglong max_udelay= my_atomic_load32(&opt_binlog_max_flush_queue_time);
-  const ulonglong start_utime= max_udelay > 0 ? my_micro_time() : 0;
-
   /*
-    First we read the queue until it either is empty or the difference
-    between the time we started and the current time is too large.
-
-    We remember the first thread we unqueued, because this will be the
-    beginning of the out queue.
-   */
-  bool has_more= true;
-  THD *first_seen= NULL;
-  while ((max_udelay == 0 || my_micro_time() < start_utime + max_udelay) && has_more)
+    Fetch the entire flush queue and empty it, so that the next batch
+    has a leader. We must do this before invoking ha_flush_logs(...)
+    for guaranteeing to flush prepared records of transactions before
+    flushing them to binary log, which is required by crash recovery.
+  */
+  THD *first_seen= stage_manager.fetch_queue_for(Stage_manager::FLUSH_STAGE);
+  DBUG_ASSERT(first_seen != NULL);
+  /*
+    We flush prepared records of transactions to the log of storage
+    engine (for example, InnoDB redo log) in a group right before
+    flushing them to binary log.
+  */
+  ha_flush_logs(NULL, true);
+  DBUG_EXECUTE_IF("crash_after_flush_engine_log", DBUG_SUICIDE(););
+  /* Flush thread caches to binary log. */
+  for (THD *head= first_seen ; head ; head = head->next_to_commit)
   {
-    std::pair<bool,THD*> current= stage_manager.pop_front(Stage_manager::FLUSH_STAGE);
-    std::pair<int,my_off_t> result= flush_thread_caches(current.second);
-    has_more= current.first;
+    std::pair<int,my_off_t> result= flush_thread_caches(head);
     total_bytes+= result.second;
     if (flush_error == 1)
       flush_error= result.first;
-    if (first_seen == NULL)
-      first_seen= current.second;
 #ifndef DBUG_OFF
     no_flushes++;
 #endif
-  }
-
-  /*
-    Either the queue is empty, or we ran out of time. If we ran out of
-    time, we have to fetch the entire queue (and flush it) since
-    otherwise the next batch will not have a leader.
-   */
-  if (has_more)
-  {
-    THD *queue= stage_manager.fetch_queue_for(Stage_manager::FLUSH_STAGE);
-    for (THD *head= queue ; head ; head = head->next_to_commit)
-    {
-      std::pair<int,my_off_t> result= flush_thread_caches(head);
-      total_bytes+= result.second;
-      if (flush_error == 1)
-        flush_error= result.first;
-#ifndef DBUG_OFF
-      no_flushes++;
-#endif
-    }
-    if (first_seen == NULL)
-      first_seen= queue;
   }
 
   *out_queue_var= first_seen;
@@ -7742,6 +7749,7 @@ int MYSQL_BIN_LOG::ordered_commit(THD *thd, bool all, bool skip_commit)
   my_off_t flush_end_pos= 0;
   if (flush_error == 0 && total_bytes > 0)
     flush_error= flush_cache_to_file(&flush_end_pos);
+  DBUG_EXECUTE_IF("crash_after_flush_binlog", DBUG_SUICIDE(););
 
   bool update_binlog_end_pos_after_sync= (get_sync_period() == 1);
 

@@ -29,7 +29,6 @@
 #include <algorithm>
 #include <stdexcept>
 
-#include "sql_priv.h"
 /*
   It is necessary to include set_var.h instead of item.h because there
   are dependencies on include order for set_var.h and item.h. This
@@ -466,7 +465,10 @@ String *Item_func_geomfromgeojson::val_str(String *buf)
     else
     {
       char option_string[MAX_BIGINT_WIDTH + 1];
-      llstr(dimension_argument, option_string);
+      if (args[1]->unsigned_flag)
+        ullstr(dimension_argument, option_string);
+      else
+        llstr(dimension_argument, option_string);
 
       my_error(ER_WRONG_VALUE_FOR_TYPE, MYF(0), "option", option_string,
                func_name());
@@ -488,7 +490,10 @@ String *Item_func_geomfromgeojson::val_str(String *buf)
     if (srid_argument < 0 || srid_argument > UINT_MAX32)
     {
       char srid_string[MAX_BIGINT_WIDTH + 1];
-      llstr(srid_argument, srid_string);
+      if (args[2]->unsigned_flag)
+        ullstr(srid_argument, srid_string);
+      else
+        llstr(srid_argument, srid_string);
 
       my_error(ER_WRONG_VALUE_FOR_TYPE, MYF(0), "SRID", srid_string,
                func_name());
@@ -1190,7 +1195,7 @@ Geometry::wkbType Item_func_geomfromgeojson::get_wkbtype(const char *typestring)
 
 
 /**
-  Takes a GeoJSON CRS object as input and parses it into a SRID. 
+  Takes a GeoJSON CRS object as input and parses it into a SRID.
 
   If user has supplied a SRID, the parsing will be ignored.
 
@@ -1239,7 +1244,7 @@ parse_crs_object(const rapidjson::Value *crs_object)
   {
     return true;
   }
-  
+
   // Check that this CRS is a named CRS, and not a linked CRS.
   if (native_strcasecmp(type_member->value.GetString(),
                         NAMED_CRS) != 0)
@@ -1794,6 +1799,7 @@ String *Item_func_centroid::val_str(String *str)
     return error_str();
   }
 
+  str->length(0);
   str->set_charset(&my_charset_bin);
 
   if (geom->get_geotype() != Geometry::wkb_geometrycollection &&
@@ -1891,8 +1897,8 @@ public:
   }
 
   /*
-    Group polygons and multipolygons into a geometry collection. 
-  */ 
+    Group polygons and multipolygons into a geometry collection.
+  */
   Geometry_grouper(Gis_geometry_collection *out, String *gcbuf)
     :m_group(NULL), m_collection(out), m_gcbuf(gcbuf)
   {
@@ -2144,6 +2150,10 @@ String *Item_func_convex_hull::val_str(String *str)
   null_value= bg_convex_hull<bgcs::cartesian>(geom, str);
   if (null_value)
     return error_str();
+
+  // By taking over, str owns swkt->ptr and the memory will be released when
+  // str points to another buffer in next call of this function
+  // (done in post_fix_result), or when str's owner Item_xxx node is destroyed.
   if (geom->get_type() == Geometry::wkb_point)
     str->takeover(*swkb);
 
@@ -2222,7 +2232,7 @@ bool Item_func_convex_hull::bg_convex_hull(const Geometry *geom,
       {
         /*
           A point's convex hull is the point itself, directly use the point's
-          WKB buffer, set its header info correctly. 
+          WKB buffer, set its header info correctly.
         */
         DBUG_ASSERT(geom->get_ownmem() == false &&
                     geom->has_geom_header_space());
@@ -2453,12 +2463,16 @@ bool Item_func_pointfromgeohash::fix_fields(THD *thd, Item **ref)
     Check for valid type in SRID argument.
 
     We will allow all integer types, and strings since some connectors will
-    covert integers to strings. Binary data is not allowed. Note that when
-    calling e.g ST_POINTFROMGEOHASH("bb", NULL), the second argument is reported
-    to have binary charset, and we thus have to check field_type().
+    covert integers to strings. Binary data is not allowed.
+
+    PARAM_ITEM and INT_ITEM checks are to allow prepared statements and usage of
+    user-defined variables respectively.
   */
+  if (Item_func_geohash::is_item_null(args[1]))
+    return false;
+
   if (args[1]->collation.collation == &my_charset_bin &&
-      args[1]->field_type() != MYSQL_TYPE_NULL)
+      args[1]->type() != PARAM_ITEM && args[1]->type() != INT_ITEM)
   {
     my_error(ER_INCORRECT_TYPE, MYF(0), "SRID", func_name());
     return true;
@@ -2466,7 +2480,6 @@ bool Item_func_pointfromgeohash::fix_fields(THD *thd, Item **ref)
 
   switch (args[1]->field_type())
   {
-  case MYSQL_TYPE_NULL:
   case MYSQL_TYPE_STRING:
   case MYSQL_TYPE_VARCHAR:
   case MYSQL_TYPE_VAR_STRING:
@@ -2507,7 +2520,7 @@ String *Item_func_pointfromgeohash::val_str(String *str)
 
   if (str->mem_realloc(GEOM_HEADER_SIZE + POINT_DATA_SIZE))
     return make_empty_result();
-  
+
   if (geohash->length() == 0)
   {
     my_error(ER_WRONG_VALUE_FOR_TYPE, MYF(0), "geohash", geohash->c_ptr(),
@@ -2734,6 +2747,10 @@ const char *Item_func_spatial_mbr_rel::func_name() const
       return "mbrcrosses";
     case SP_OVERLAPS_FUNC:
       return "mbroverlaps";
+    case SP_COVERS_FUNC:
+      return "mbrcovers";
+    case SP_COVEREDBY_FUNC:
+      return "mbrcoveredby";
     default:
       DBUG_ASSERT(0);  // Should never happened
       return "mbrsp_unknown";
@@ -2762,29 +2779,61 @@ longlong Item_func_spatial_mbr_rel::val_int()
   if ((null_value= (g1->get_mbr(&mbr1) || g2->get_mbr(&mbr2))))
     return 0;
 
+  // The two geometry operands must be in the same coordinate system.
+  if (g1->get_srid() != g2->get_srid())
+  {
+    my_error(ER_GIS_DIFFERENT_SRIDS, MYF(0), func_name(),
+             g1->get_srid(), g2->get_srid());
+    null_value= true;
+    return 0;
+  }
+
+  int ret= 0;
+
   switch (spatial_rel) {
     case SP_CONTAINS_FUNC:
-      return mbr1.contains(&mbr2);
+      ret= mbr1.contains(&mbr2);
+      break;
     case SP_WITHIN_FUNC:
-      return mbr1.within(&mbr2);
+      ret= mbr1.within(&mbr2);
+      break;
     case SP_EQUALS_FUNC:
-      return mbr1.equals(&mbr2);
+      ret= mbr1.equals(&mbr2);
+      break;
     case SP_DISJOINT_FUNC:
-      return mbr1.disjoint(&mbr2);
+      ret= mbr1.disjoint(&mbr2);
+      break;
     case SP_INTERSECTS_FUNC:
-      return mbr1.intersects(&mbr2);
+      ret= mbr1.intersects(&mbr2);
+      break;
     case SP_TOUCHES_FUNC:
-      return mbr1.touches(&mbr2);
+      ret= mbr1.touches(&mbr2);
+      break;
     case SP_OVERLAPS_FUNC:
-      return mbr1.overlaps(&mbr2);
+      ret= mbr1.overlaps(&mbr2);
+      break;
     case SP_CROSSES_FUNC:
-      return 0;
+      DBUG_ASSERT(false);
+      ret= 0;
+      null_value= true;
+      break;
+    case SP_COVERS_FUNC:
+      ret= mbr1.covers(&mbr2);
+      break;
+    case SP_COVEREDBY_FUNC:
+      ret= mbr1.covered_by(&mbr2);
+      break;
     default:
       break;
   }
 
-  null_value=1;
-  return 0;
+  if (ret == -1)
+  {
+    my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
+    return error_int();
+  }
+
+  return ret;
 }
 
 
@@ -3250,7 +3299,7 @@ Geometry *BG_geometry_collection::store(const Geometry *geo)
 
   DBUG_ASSERT(geo->get_type() != Geometry::wkb_geometrycollection);
   pres= m_geosdata.append_object();
-  if (pres == NULL || pres->reserve(GEOM_HEADER_SIZE + geosize))
+  if (pres == NULL || pres->reserve(GEOM_HEADER_SIZE + geosize, 256))
     return NULL;
   write_geometry_header(pres, geo->get_srid(), geo->get_type());
   pres->q_append(geo->get_cptr(), geosize);
@@ -5428,18 +5477,24 @@ bool post_fix_result(BG_result_buf_mgr *resbuf_mgr,
     return true;
   if (res)
   {
-    char *resptr= geout.get_cptr() - GEOM_HEADER_SIZE;
-    uint32 len= static_cast<uint32>(geout.get_nbytes());
+    const char *resptr= geout.get_cptr() - GEOM_HEADER_SIZE;
+    size_t len= geout.get_nbytes();
 
     /*
       The resptr buffer is now owned by resbuf_mgr and used by res, resptr
       will be released properly by resbuf_mgr.
      */
-    resbuf_mgr->add_buffer(resptr);
+    resbuf_mgr->add_buffer(const_cast<char *>(resptr));
+    /*
+      Pass resptr as const pointer so that the memory space won't be reused
+      by res object. Reuse is forbidden because the memory comes from BG
+      operations and will be freed upon next same val_str call.
+    */
     res->set(resptr, len + GEOM_HEADER_SIZE, &my_charset_bin);
 
     // Prefix the GEOMETRY header.
-    write_geometry_header(resptr, geout.get_srid(), geout.get_geotype());
+    write_geometry_header(const_cast<char *>(resptr), geout.get_srid(),
+                          geout.get_geotype());
 
     /*
       Give up ownership because the buffer may have to live longer than
@@ -7335,6 +7390,8 @@ String *Item_func_spatial_operation::val_str(String *str_value_arg)
 {
   DBUG_ENTER("Item_func_spatial_operation::val_str");
   DBUG_ASSERT(fixed == 1);
+  tmp_value1.length(0);
+  tmp_value2.length(0);
   String *res1= args[0]->val_str(&tmp_value1);
   String *res2= args[1]->val_str(&tmp_value2);
   Geometry_buffer buffer1, buffer2;
@@ -7398,6 +7455,18 @@ String *Item_func_spatial_operation::val_str(String *str_value_arg)
 
   try
   {
+    /*
+      The buffers in res1 and res2 either belong to argument Item_xxx objects
+      or simply belong to tmp_value1 or tmp_value2, they will be deleted
+      properly by their owners, not by our bg_resbuf_mgr, so here we must
+      forget them in order not to free the buffers before the Item_xxx
+      owner nodes are destroyed.
+    */
+    bg_resbuf_mgr.forget_buffer(const_cast<char *>(res1->ptr()));
+    bg_resbuf_mgr.forget_buffer(const_cast<char *>(res2->ptr()));
+    bg_resbuf_mgr.forget_buffer(const_cast<char *>(tmp_value1.ptr()));
+    bg_resbuf_mgr.forget_buffer(const_cast<char *>(tmp_value2.ptr()));
+
     /*
       Release intermediate geometry data buffers accumulated during execution
       of this set operation.
@@ -9404,7 +9473,7 @@ double Item_func_distance::val_real()
     }
 
     /*
-      If at least one of the collections is empty, we have NULL result. 
+      If at least one of the collections is empty, we have NULL result.
     */
     if (!initialized)
     {

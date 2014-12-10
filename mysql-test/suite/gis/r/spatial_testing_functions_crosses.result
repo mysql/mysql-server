@@ -1,9 +1,3 @@
-#Confirming the storage engine
-SHOW VARIABLES LIKE '%engine%';
-Variable_name	Value
-default_storage_engine	MyISAM
-default_tmp_storage_engine	MyISAM
-internal_tmp_disk_storage_engine	MYISAM
 #Creating the spatial Geometry object
 USE test;
 DROP TABLE IF EXISTS gis_geometrycollection;
@@ -83,76 +77,76 @@ SET @star_of_elems_3='MULTIPOLYGON(((65 0,75 25,85 0,75 5,65 0)),((85 0,60 15,90
 SET @star_collection_elems_3='GEOMETRYCOLLECTION(MULTIPOLYGON(((65 0,75 25,85 0,75 5,65 0)),((85 0,60 15,90 15,82 10,85 0))),POLYGON((65 0,67 10,60 15,70 15,75 25,80 15,90 15,82 10,85 0,75 5,65 0)),LINESTRING(75 25,75 10),MULTIPOINT(65 0,85 0),POINT(75 25))';
 #INSERT base star
 INSERT INTO gis_geometrycollection VALUES
-(100,GeomFromText(@star)),
-(101,GeomFromText(@star_elem_vertical)),
-(102,GeomFromText(@star_elem_horizontal)),
-(103,GeomFromText(@star_of_elems)),
-(104,GeomFromText(@star_top)),
-(105,GeomFromText(@star_center)),
-(106,GeomFromText(@star_bottom_left)),
-(107,GeomFromText(@star_bottom_right)),
-(108,GeomFromText(@star_bottom_points)),
-(109,GeomFromText(@star_all_points)),
-(110,GeomFromText(@star_line_horizontal)),
-(111,GeomFromText(@star_line_vertical)),
-(112,GeomFromText(@star_top_to_center)),
-(113,GeomFromText(@star_lines_near_horizontal)),
-(114,GeomFromText(@star_lines_near_vertical)),
-(115,GeomFromText(@star_collection_elems));
+(100,GEOMFROMTEXT(@star)),
+(101,GEOMFROMTEXT(@star_elem_vertical)),
+(102,GEOMFROMTEXT(@star_elem_horizontal)),
+(103,GEOMFROMTEXT(@star_of_elems)),
+(104,GEOMFROMTEXT(@star_top)),
+(105,GEOMFROMTEXT(@star_center)),
+(106,GEOMFROMTEXT(@star_bottom_left)),
+(107,GEOMFROMTEXT(@star_bottom_right)),
+(108,GEOMFROMTEXT(@star_bottom_points)),
+(109,GEOMFROMTEXT(@star_all_points)),
+(110,GEOMFROMTEXT(@star_line_horizontal)),
+(111,GEOMFROMTEXT(@star_line_vertical)),
+(112,GEOMFROMTEXT(@star_top_to_center)),
+(113,GEOMFROMTEXT(@star_lines_near_horizontal)),
+(114,GEOMFROMTEXT(@star_lines_near_vertical)),
+(115,GEOMFROMTEXT(@star_collection_elems));
 #INSERT identical (to base) star
 INSERT INTO gis_geometrycollection VALUES
-(200,GeomFromText(@star_1)),
-(201,GeomFromText(@star_elem_vertical_1)),
-(202,GeomFromText(@star_elem_horizontal_1)),
-(203,GeomFromText(@star_of_elems_1)),
-(204,GeomFromText(@star_top_1)),
-(205,GeomFromText(@star_center_1)),
-(206,GeomFromText(@star_bottom_left_1)),
-(207,GeomFromText(@star_bottom_right_1)),
-(208,GeomFromText(@star_bottom_points_1)),
-(209,GeomFromText(@star_all_points_1)),
-(210,GeomFromText(@star_line_horizontal_1)),
-(211,GeomFromText(@star_line_vertical_1)),
-(212,GeomFromText(@star_top_to_center_1)),
-(213,GeomFromText(@star_lines_near_horizontal_1)),
-(214,GeomFromText(@star_lines_near_vertical_1)),
-(215,GeomFromText(@star_collection_elems_1));
+(200,GEOMFROMTEXT(@star_1)),
+(201,GEOMFROMTEXT(@star_elem_vertical_1)),
+(202,GEOMFROMTEXT(@star_elem_horizontal_1)),
+(203,GEOMFROMTEXT(@star_of_elems_1)),
+(204,GEOMFROMTEXT(@star_top_1)),
+(205,GEOMFROMTEXT(@star_center_1)),
+(206,GEOMFROMTEXT(@star_bottom_left_1)),
+(207,GEOMFROMTEXT(@star_bottom_right_1)),
+(208,GEOMFROMTEXT(@star_bottom_points_1)),
+(209,GEOMFROMTEXT(@star_all_points_1)),
+(210,GEOMFROMTEXT(@star_line_horizontal_1)),
+(211,GEOMFROMTEXT(@star_line_vertical_1)),
+(212,GEOMFROMTEXT(@star_top_to_center_1)),
+(213,GEOMFROMTEXT(@star_lines_near_horizontal_1)),
+(214,GEOMFROMTEXT(@star_lines_near_vertical_1)),
+(215,GEOMFROMTEXT(@star_collection_elems_1));
 #INSERT overlapping star
 INSERT INTO gis_geometrycollection VALUES
-(300,GeomFromText(@star_2)),
-(301,GeomFromText(@star_elem_vertical_2)),
-(302,GeomFromText(@star_elem_horizontal_2)),
-(303,GeomFromText(@star_of_elems_2)),
-(304,GeomFromText(@star_top_2)),
-(305,GeomFromText(@star_center_2)),
-(306,GeomFromText(@star_bottom_left_2)),
-(307,GeomFromText(@star_bottom_right_2)),
-(308,GeomFromText(@star_bottom_points_2)),
-(309,GeomFromText(@star_all_points_2)),
-(310,GeomFromText(@star_line_horizontal_2)),
-(311,GeomFromText(@star_line_vertical_2)),
-(312,GeomFromText(@star_top_to_center_2)),
-(313,GeomFromText(@star_lines_near_horizontal_2)),
-(314,GeomFromText(@star_lines_near_vertical_2)),
-(315,GeomFromText(@star_collection_elems_2));
+(300,GEOMFROMTEXT(@star_2)),
+(301,GEOMFROMTEXT(@star_elem_vertical_2)),
+(302,GEOMFROMTEXT(@star_elem_horizontal_2)),
+(303,GEOMFROMTEXT(@star_of_elems_2)),
+(304,GEOMFROMTEXT(@star_top_2)),
+(305,GEOMFROMTEXT(@star_center_2)),
+(306,GEOMFROMTEXT(@star_bottom_left_2)),
+(307,GEOMFROMTEXT(@star_bottom_right_2)),
+(308,GEOMFROMTEXT(@star_bottom_points_2)),
+(309,GEOMFROMTEXT(@star_all_points_2)),
+(310,GEOMFROMTEXT(@star_line_horizontal_2)),
+(311,GEOMFROMTEXT(@star_line_vertical_2)),
+(312,GEOMFROMTEXT(@star_top_to_center_2)),
+(313,GEOMFROMTEXT(@star_lines_near_horizontal_2)),
+(314,GEOMFROMTEXT(@star_lines_near_vertical_2)),
+(315,GEOMFROMTEXT(@star_collection_elems_2));
 #INSERT seperate star
 INSERT INTO gis_geometrycollection VALUES
-(400,GeomFromText(@star_3)),
-(401,GeomFromText(@star_elem_vertical_3)),
-(402,GeomFromText(@star_elem_horizontal_3)),
-(403,GeomFromText(@star_of_elems_3)),
-(404,GeomFromText(@star_top_3)),
-(405,GeomFromText(@star_center_3)),
-(406,GeomFromText(@star_bottom_left_3)),
-(407,GeomFromText(@star_bottom_right_3)),
-(408,GeomFromText(@star_bottom_points_3)),
-(409,GeomFromText(@star_all_points_3)),
-(410,GeomFromText(@star_line_horizontal_3)),
-(411,GeomFromText(@star_line_vertical_3)),
-(412,GeomFromText(@star_top_to_center_3)),
-(413,GeomFromText(@star_lines_near_horizontal_3)),
-(414,GeomFromText(@star_lines_near_vertical_3)),
-(415,GeomFromText(@star_collection_elems_3));
+(400,GEOMFROMTEXT(@star_3)),
+(401,GEOMFROMTEXT(@star_elem_vertical_3)),
+(402,GEOMFROMTEXT(@star_elem_horizontal_3)),
+(403,GEOMFROMTEXT(@star_of_elems_3)),
+(404,GEOMFROMTEXT(@star_top_3)),
+(405,GEOMFROMTEXT(@star_center_3)),
+(406,GEOMFROMTEXT(@star_bottom_left_3)),
+(407,GEOMFROMTEXT(@star_bottom_right_3)),
+(408,GEOMFROMTEXT(@star_bottom_points_3)),
+(409,GEOMFROMTEXT(@star_all_points_3)),
+(410,GEOMFROMTEXT(@star_line_horizontal_3)),
+(411,GEOMFROMTEXT(@star_line_vertical_3)),
+(412,GEOMFROMTEXT(@star_top_to_center_3)),
+(413,GEOMFROMTEXT(@star_lines_near_horizontal_3)),
+(414,GEOMFROMTEXT(@star_lines_near_vertical_3)),
+(415,GEOMFROMTEXT(@star_collection_elems_3));
 DROP TABLE IF EXISTS gis_geometrycollection_2;
 CREATE TABLE gis_geometrycollection_2 SELECT fid as fid2,g as g2 FROM gis_geometrycollection;
 #Checking the integrity of the above create/insert statements 
@@ -165,1675 +159,1913 @@ SELECT count(astext(g2) != 'NULL') FROM gis_geometrycollection_2;
 count(astext(g2) != 'NULL')
 64
 #=======================================================================================
-# ST_Crosses(g1,g2)
+# ST_CROSSES(g1,g2)
 #=======================================================================================
 #-------------------------------------------------------------------------------------------
-#point,point
-SELECT ST_Crosses(GeomFromText(@star_center),GeomFromText(@star_center));
-ST_Crosses(GeomFromText(@star_center),GeomFromText(@star_center))
+# point,point
+SELECT ST_CROSSES(GEOMFROMTEXT(@star_center),GEOMFROMTEXT(@star_center));
+ST_CROSSES(GEOMFROMTEXT(@star_center),GEOMFROMTEXT(@star_center))
 0
-SELECT ST_Crosses(GeomFromText(@star_top),GeomFromText(@star_center));
-ST_Crosses(GeomFromText(@star_top),GeomFromText(@star_center))
+SELECT ST_CROSSES(GEOMFROMTEXT(@star_top),GEOMFROMTEXT(@star_center));
+ST_CROSSES(GEOMFROMTEXT(@star_top),GEOMFROMTEXT(@star_center))
 0
-SELECT ST_Crosses(g,GeomFromText(@star_center)) FROM gis_geometrycollection WHERE fid=105;
-ST_Crosses(g,GeomFromText(@star_center))
+SELECT ST_CROSSES(g,GEOMFROMTEXT(@star_center)) FROM gis_geometrycollection WHERE fid=105;
+ST_CROSSES(g,GEOMFROMTEXT(@star_center))
 0
-#point,multipoint
-SELECT ST_Crosses(GeomFromText(@star_bottom_left),GeomFromText(@star_bottom_points));
-ST_Crosses(GeomFromText(@star_bottom_left),GeomFromText(@star_bottom_points))
+SELECT ST_CROSSES(GEOMFROMTEXT('POINT(0 0)'),GEOMFROMTEXT('POINT(0 0)'));
+ST_CROSSES(GEOMFROMTEXT('POINT(0 0)'),GEOMFROMTEXT('POINT(0 0)'))
 0
-SELECT ST_Crosses(GeomFromText(@star_top),GeomFromText(@star_bottom_points));
-ST_Crosses(GeomFromText(@star_top),GeomFromText(@star_bottom_points))
-0
-SELECT ST_Crosses(g,GeomFromText(@star_bottom_points)) FROM gis_geometrycollection WHERE fid=106;
-ST_Crosses(g,GeomFromText(@star_bottom_points))
-0
-#point,linestring
-SELECT ST_Crosses(GeomFromText(@star_top),GeomFromText(@star_top_to_center));
-ST_Crosses(GeomFromText(@star_top),GeomFromText(@star_top_to_center))
-0
-SELECT ST_Crosses(GeomFromText(@star_top),GeomFromText(@star_line_horizontal));
-ST_Crosses(GeomFromText(@star_top),GeomFromText(@star_line_horizontal))
-0
-SELECT ST_Crosses(g,GeomFromText(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=104;
-ST_Crosses(g,GeomFromText(@star_top_to_center))
-0
-#point,multilinestring
-SELECT ST_Crosses(GeomFromText(@star_top),GeomFromText(@star_lines_near_vertical));
-ST_Crosses(GeomFromText(@star_top),GeomFromText(@star_lines_near_vertical))
-0
-SELECT ST_Crosses(GeomFromText(@star_top),GeomFromText(@star_lines_near_horizontal));
-ST_Crosses(GeomFromText(@star_top),GeomFromText(@star_lines_near_horizontal))
-0
-SELECT ST_Crosses(g,GeomFromText(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=104;
-ST_Crosses(g,GeomFromText(@star_lines_near_vertical))
-0
-#point,polygon
-SELECT ST_Crosses(GeomFromText(@star_top),GeomFromText(@star));
-ST_Crosses(GeomFromText(@star_top),GeomFromText(@star))
-0
-SELECT ST_Crosses(GeomFromText(@star_top),GeomFromText(@star_elem_horizontal));
-ST_Crosses(GeomFromText(@star_top),GeomFromText(@star_elem_horizontal))
-0
-SELECT ST_Crosses(GeomFromText(@star_top),GeomFromText(@star_elem_vertical));
-ST_Crosses(GeomFromText(@star_top),GeomFromText(@star_elem_vertical))
-0
-SELECT ST_Crosses(g,GeomFromText(@star)) FROM gis_geometrycollection WHERE fid=104;
-ST_Crosses(g,GeomFromText(@star))
-0
-#point,multipolygon
-SELECT ST_Crosses(GeomFromText(@star_top),GeomFromText(@star_of_elems));
-ST_Crosses(GeomFromText(@star_top),GeomFromText(@star_of_elems))
-0
-SELECT ST_Crosses(GeomFromText('POINT(-0.01 0)'),GeomFromText(@star_of_elems));
-ST_Crosses(GeomFromText('POINT(-0.01 0)'),GeomFromText(@star_of_elems))
-0
-SELECT ST_Crosses(g,GeomFromText(@star_of_elems)) FROM gis_geometrycollection WHERE fid=104;
-ST_Crosses(g,GeomFromText(@star_of_elems))
-0
-#point,geometrycollection
-SELECT ST_Crosses(GeomFromText(@star_top),GeomFromText(@star_collection_elems));
-ST_Crosses(GeomFromText(@star_top),GeomFromText(@star_collection_elems))
-0
-SELECT ST_Crosses(GeomFromText('POINT(-0.01 0)'),GeomFromText(@star_collection_elems));
-ST_Crosses(GeomFromText('POINT(-0.01 0)'),GeomFromText(@star_collection_elems))
-0
-SELECT ST_Crosses(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=104;
-ST_Crosses(g,GeomFromText(@star_collection_elems))
-0
-SELECT ST_Crosses(GeomFromText(@star_top),GeomFromText(@star_collection_multilinestr));
-ST_Crosses(GeomFromText(@star_top),GeomFromText(@star_collection_multilinestr))
+SELECT ST_CROSSES(GEOMFROMTEXT('POINT(0 0)'),GEOMFROMTEXT('POINT(10 0)'));
+ST_CROSSES(GEOMFROMTEXT('POINT(0 0)'),GEOMFROMTEXT('POINT(10 0)'))
 0
 #-------------------------------------------------------------------------------------------
-#multipoint,point
-SELECT ST_Crosses(GeomFromText(@star_all_points),GeomFromText(@star_top));
-ST_Crosses(GeomFromText(@star_all_points),GeomFromText(@star_top))
+# point,multipoint
+SELECT ST_CROSSES(GEOMFROMTEXT(@star_bottom_left),GEOMFROMTEXT(@star_bottom_points));
+ST_CROSSES(GEOMFROMTEXT(@star_bottom_left),GEOMFROMTEXT(@star_bottom_points))
 0
-SELECT ST_Crosses(GeomFromText(@star_bottom_points),GeomFromText(@star_center));
-ST_Crosses(GeomFromText(@star_bottom_points),GeomFromText(@star_center))
+SELECT ST_CROSSES(GEOMFROMTEXT(@star_top),GEOMFROMTEXT(@star_bottom_points));
+ST_CROSSES(GEOMFROMTEXT(@star_top),GEOMFROMTEXT(@star_bottom_points))
 0
-SELECT ST_Crosses(g,GeomFromText(@star_bottom_left)) FROM gis_geometrycollection WHERE fid=108;
-ST_Crosses(g,GeomFromText(@star_bottom_left))
+SELECT ST_CROSSES(g,GEOMFROMTEXT(@star_bottom_points)) FROM gis_geometrycollection WHERE fid=106;
+ST_CROSSES(g,GEOMFROMTEXT(@star_bottom_points))
 0
-#multipoint,multipoint
-SELECT ST_Crosses(GeomFromText(@star_all_points),GeomFromText(@star_bottom_points));
-ST_Crosses(GeomFromText(@star_all_points),GeomFromText(@star_bottom_points))
+SELECT ST_CROSSES(GEOMFROMTEXT('POINT(0 0)'),GEOMFROMTEXT('MULTIPOINT(0 0)'));
+ST_CROSSES(GEOMFROMTEXT('POINT(0 0)'),GEOMFROMTEXT('MULTIPOINT(0 0)'))
 0
-SELECT ST_Crosses(GeomFromText(@star_bottom_points),GeomFromText(@star_all_points));
-ST_Crosses(GeomFromText(@star_bottom_points),GeomFromText(@star_all_points))
+SELECT ST_CROSSES(GEOMFROMTEXT('POINT(0 0)'),GEOMFROMTEXT('MULTIPOINT(0 0,10 0)'));
+ST_CROSSES(GEOMFROMTEXT('POINT(0 0)'),GEOMFROMTEXT('MULTIPOINT(0 0,10 0)'))
 0
-SELECT ST_Crosses(g,GeomFromText(@star_all_points)) FROM gis_geometrycollection WHERE fid=208;
-ST_Crosses(g,GeomFromText(@star_all_points))
+SELECT ST_CROSSES(GEOMFROMTEXT('POINT(5 0)'),GEOMFROMTEXT('MULTIPOINT(0 0,5 0,10 0)'));
+ST_CROSSES(GEOMFROMTEXT('POINT(5 0)'),GEOMFROMTEXT('MULTIPOINT(0 0,5 0,10 0)'))
 0
-SELECT ST_Crosses(g,GeomFromText(@star_all_points)) FROM gis_geometrycollection WHERE fid=308;
-ST_Crosses(g,GeomFromText(@star_all_points))
+SELECT ST_CROSSES(GEOMFROMTEXT('POINT(10 0)'),GEOMFROMTEXT('MULTIPOINT(0 0,5 0,10 0)'));
+ST_CROSSES(GEOMFROMTEXT('POINT(10 0)'),GEOMFROMTEXT('MULTIPOINT(0 0,5 0,10 0)'))
 0
-#multipoint,linestring
-SELECT ST_Crosses(GeomFromText(@star_all_points),GeomFromText(@star_top_to_center));
-ST_Crosses(GeomFromText(@star_all_points),GeomFromText(@star_top_to_center))
+SELECT ST_CROSSES(GEOMFROMTEXT('POINT(20 0)'),GEOMFROMTEXT('MULTIPOINT(0 0,5 0,10 0)'));
+ST_CROSSES(GEOMFROMTEXT('POINT(20 0)'),GEOMFROMTEXT('MULTIPOINT(0 0,5 0,10 0)'))
 0
-SELECT ST_Crosses(g,GeomFromText(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=109;
-ST_Crosses(g,GeomFromText(@star_top_to_center))
+#-------------------------------------------------------------------------------------------
+# point,linestring
+SELECT ST_CROSSES(GEOMFROMTEXT(@star_top),GEOMFROMTEXT(@star_top_to_center));
+ST_CROSSES(GEOMFROMTEXT(@star_top),GEOMFROMTEXT(@star_top_to_center))
 0
-SELECT ST_Crosses(g,GeomFromText(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=209;
-ST_Crosses(g,GeomFromText(@star_top_to_center))
+SELECT ST_CROSSES(GEOMFROMTEXT(@star_top),GEOMFROMTEXT(@star_line_horizontal));
+ST_CROSSES(GEOMFROMTEXT(@star_top),GEOMFROMTEXT(@star_line_horizontal))
 0
-SELECT ST_Crosses(g,GeomFromText(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=309;
-ST_Crosses(g,GeomFromText(@star_top_to_center))
+SELECT ST_CROSSES(g,GEOMFROMTEXT(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=104;
+ST_CROSSES(g,GEOMFROMTEXT(@star_top_to_center))
 0
-#multipoint,multilinestring
-SELECT ST_Crosses(GeomFromText(@star_all_points),GeomFromText(@star_lines_near_vertical));
-ST_Crosses(GeomFromText(@star_all_points),GeomFromText(@star_lines_near_vertical))
+SELECT ST_CROSSES(GEOMFROMTEXT('POINT(0 0)'),GEOMFROMTEXT('LINESTRING(0 0,10 0)'));
+ST_CROSSES(GEOMFROMTEXT('POINT(0 0)'),GEOMFROMTEXT('LINESTRING(0 0,10 0)'))
 0
-SELECT ST_Crosses(GeomFromText(@star_all_points),GeomFromText(@star_lines_near_horizontal));
-ST_Crosses(GeomFromText(@star_all_points),GeomFromText(@star_lines_near_horizontal))
+SELECT ST_CROSSES(GEOMFROMTEXT('POINT(5 0)'),GEOMFROMTEXT('LINESTRING(0 0,10 0)'));
+ST_CROSSES(GEOMFROMTEXT('POINT(5 0)'),GEOMFROMTEXT('LINESTRING(0 0,10 0)'))
 0
-SELECT ST_Crosses(g,GeomFromText(@star_lines_near_horizontal)) FROM gis_geometrycollection WHERE fid=109;
-ST_Crosses(g,GeomFromText(@star_lines_near_horizontal))
+SELECT ST_CROSSES(GEOMFROMTEXT('POINT(20 0)'),GEOMFROMTEXT('LINESTRING(0 0,10 0,20 0)'));
+ST_CROSSES(GEOMFROMTEXT('POINT(20 0)'),GEOMFROMTEXT('LINESTRING(0 0,10 0,20 0)'))
 0
-#multipoint,polygon
-SELECT ST_Crosses(GeomFromText(@star_all_points),GeomFromText(@star_elem_vertical));
-ST_Crosses(GeomFromText(@star_all_points),GeomFromText(@star_elem_vertical))
+SELECT ST_CROSSES(GEOMFROMTEXT('POINT(20 0)'),GEOMFROMTEXT('LINESTRING(0 0,10 0)'));
+ST_CROSSES(GEOMFROMTEXT('POINT(20 0)'),GEOMFROMTEXT('LINESTRING(0 0,10 0)'))
 0
-SELECT ST_Crosses(GeomFromText(@star_all_points),GeomFromText(@star_elem_horizontal));
-ST_Crosses(GeomFromText(@star_all_points),GeomFromText(@star_elem_horizontal))
+#-------------------------------------------------------------------------------------------
+# point,multilinestring
+SELECT ST_CROSSES(GEOMFROMTEXT(@star_top),GEOMFROMTEXT(@star_lines_near_vertical));
+ST_CROSSES(GEOMFROMTEXT(@star_top),GEOMFROMTEXT(@star_lines_near_vertical))
+0
+SELECT ST_CROSSES(GEOMFROMTEXT(@star_top),GEOMFROMTEXT(@star_lines_near_horizontal));
+ST_CROSSES(GEOMFROMTEXT(@star_top),GEOMFROMTEXT(@star_lines_near_horizontal))
+0
+SELECT ST_CROSSES(g,GEOMFROMTEXT(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=104;
+ST_CROSSES(g,GEOMFROMTEXT(@star_lines_near_vertical))
+0
+SELECT ST_CROSSES(GEOMFROMTEXT('POINT(0 0)'),GEOMFROMTEXT('MULTILINESTRING((0 0,10 0))'));
+ST_CROSSES(GEOMFROMTEXT('POINT(0 0)'),GEOMFROMTEXT('MULTILINESTRING((0 0,10 0))'))
+0
+SELECT ST_CROSSES(GEOMFROMTEXT('POINT(10 0)'),GEOMFROMTEXT('MULTILINESTRING((0 0,5 0),(5 0,10 0))'));
+ST_CROSSES(GEOMFROMTEXT('POINT(10 0)'),GEOMFROMTEXT('MULTILINESTRING((0 0,5 0),(5 0,10 0))'))
+0
+SELECT ST_CROSSES(GEOMFROMTEXT('POINT(5 0)'),GEOMFROMTEXT('MULTILINESTRING((0 0,5 0,10 0))'));
+ST_CROSSES(GEOMFROMTEXT('POINT(5 0)'),GEOMFROMTEXT('MULTILINESTRING((0 0,5 0,10 0))'))
+0
+SELECT ST_CROSSES(GEOMFROMTEXT('POINT(20 0)'),GEOMFROMTEXT('MULTILINESTRING((0 0,5 0),(5 0,10 0))'));
+ST_CROSSES(GEOMFROMTEXT('POINT(20 0)'),GEOMFROMTEXT('MULTILINESTRING((0 0,5 0),(5 0,10 0))'))
+0
+#-------------------------------------------------------------------------------------------
+# point,polygon
+SELECT ST_CROSSES(GEOMFROMTEXT(@star_top),GEOMFROMTEXT(@star));
+ST_CROSSES(GEOMFROMTEXT(@star_top),GEOMFROMTEXT(@star))
+0
+SELECT ST_CROSSES(GEOMFROMTEXT(@star_top),GEOMFROMTEXT(@star_elem_horizontal));
+ST_CROSSES(GEOMFROMTEXT(@star_top),GEOMFROMTEXT(@star_elem_horizontal))
+0
+SELECT ST_CROSSES(GEOMFROMTEXT(@star_top),GEOMFROMTEXT(@star_elem_vertical));
+ST_CROSSES(GEOMFROMTEXT(@star_top),GEOMFROMTEXT(@star_elem_vertical))
+0
+SELECT ST_CROSSES(g,GEOMFROMTEXT(@star)) FROM gis_geometrycollection WHERE fid=104;
+ST_CROSSES(g,GEOMFROMTEXT(@star))
+0
+SELECT ST_CROSSES(GEOMFROMTEXT('POINT(0 0)'),GEOMFROMTEXT('POLYGON((0 0,10 0,10 10,0 10,0 0))'));
+ST_CROSSES(GEOMFROMTEXT('POINT(0 0)'),GEOMFROMTEXT('POLYGON((0 0,10 0,10 10,0 10,0 0))'))
+0
+SELECT ST_CROSSES(GEOMFROMTEXT('POINT(5 0)'),GEOMFROMTEXT('POLYGON((0 0,10 0,10 10,0 10,0 0))'));
+ST_CROSSES(GEOMFROMTEXT('POINT(5 0)'),GEOMFROMTEXT('POLYGON((0 0,10 0,10 10,0 10,0 0))'))
+0
+SELECT ST_CROSSES(GEOMFROMTEXT('POINT(5 5)'),GEOMFROMTEXT('POLYGON((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4,4 4))'));
+ST_CROSSES(GEOMFROMTEXT('POINT(5 5)'),GEOMFROMTEXT('POLYGON((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4,4 4))'))
+0
+SELECT ST_CROSSES(GEOMFROMTEXT('POINT(20 20)'),GEOMFROMTEXT('POLYGON((0 0,10 0,10 10,0 10,0 0))'));
+ST_CROSSES(GEOMFROMTEXT('POINT(20 20)'),GEOMFROMTEXT('POLYGON((0 0,10 0,10 10,0 10,0 0))'))
+0
+#-------------------------------------------------------------------------------------------
+# point,multipolygon
+SELECT ST_CROSSES(GEOMFROMTEXT(@star_top),GEOMFROMTEXT(@star_of_elems));
+ST_CROSSES(GEOMFROMTEXT(@star_top),GEOMFROMTEXT(@star_of_elems))
+0
+SELECT ST_CROSSES(GEOMFROMTEXT('POINT(-0.01 0)'),GEOMFROMTEXT(@star_of_elems));
+ST_CROSSES(GEOMFROMTEXT('POINT(-0.01 0)'),GEOMFROMTEXT(@star_of_elems))
+0
+SELECT ST_CROSSES(g,GEOMFROMTEXT(@star_of_elems)) FROM gis_geometrycollection WHERE fid=104;
+ST_CROSSES(g,GEOMFROMTEXT(@star_of_elems))
+0
+SELECT ST_CROSSES(GEOMFROMTEXT('POINT(0 0)'),GEOMFROMTEXT('MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0)))'));
+ST_CROSSES(GEOMFROMTEXT('POINT(0 0)'),GEOMFROMTEXT('MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0)))'))
+0
+SELECT ST_CROSSES(GEOMFROMTEXT('POINT(20 20)'),GEOMFROMTEXT('MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0)),((10 10,10 20,20 20,20 10,10 10)))'));
+ST_CROSSES(GEOMFROMTEXT('POINT(20 20)'),GEOMFROMTEXT('MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0)),((10 10,10 20,20 20,20 10,10 10)))'))
+0
+SELECT ST_CROSSES(GEOMFROMTEXT('POINT(5 5)'),GEOMFROMTEXT('MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4,4 4)))'));
+ST_CROSSES(GEOMFROMTEXT('POINT(5 5)'),GEOMFROMTEXT('MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4,4 4)))'))
+0
+SELECT ST_CROSSES(GEOMFROMTEXT('POINT(20 20)'),GEOMFROMTEXT('MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4,4 4)))'));
+ST_CROSSES(GEOMFROMTEXT('POINT(20 20)'),GEOMFROMTEXT('MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4,4 4)))'))
+0
+#-------------------------------------------------------------------------------------------
+# point,geometrycollection
+SELECT ST_CROSSES(GEOMFROMTEXT(@star_top),GEOMFROMTEXT(@star_collection_elems));
+ST_CROSSES(GEOMFROMTEXT(@star_top),GEOMFROMTEXT(@star_collection_elems))
+0
+SELECT ST_CROSSES(GEOMFROMTEXT('POINT(-0.01 0)'),GEOMFROMTEXT(@star_collection_elems));
+ST_CROSSES(GEOMFROMTEXT('POINT(-0.01 0)'),GEOMFROMTEXT(@star_collection_elems))
+0
+SELECT ST_CROSSES(g,GEOMFROMTEXT(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=104;
+ST_CROSSES(g,GEOMFROMTEXT(@star_collection_elems))
+0
+SELECT ST_CROSSES(GEOMFROMTEXT(@star_top),GEOMFROMTEXT(@star_collection_multilinestr));
+ST_CROSSES(GEOMFROMTEXT(@star_top),GEOMFROMTEXT(@star_collection_multilinestr))
+0
+SELECT ST_CROSSES(GEOMFROMTEXT('POINT(5 5)'),GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())'));
+ST_CROSSES(GEOMFROMTEXT('POINT(5 5)'),GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())'))
+NULL
+SELECT ST_CROSSES(GEOMFROMTEXT('POINT(5 5)'),GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(5 5))'));
+ST_CROSSES(GEOMFROMTEXT('POINT(5 5)'),GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(5 5))'))
+0
+SELECT ST_CROSSES(GEOMFROMTEXT('POINT(5 5)'),GEOMFROMTEXT('GEOMETRYCOLLECTION(MULTIPOINT(0 0,5 5,10 10),GEOMETRYCOLLECTION())'));
+ST_CROSSES(GEOMFROMTEXT('POINT(5 5)'),GEOMFROMTEXT('GEOMETRYCOLLECTION(MULTIPOINT(0 0,5 5,10 10),GEOMETRYCOLLECTION())'))
+NULL
+SELECT ST_CROSSES(GEOMFROMTEXT('POINT(0 0)'),GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POLYGON((0 0,10 0,10 10,0 10,0 0))))'));
+ST_CROSSES(GEOMFROMTEXT('POINT(0 0)'),GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POLYGON((0 0,10 0,10 10,0 10,0 0))))'))
+0
+SELECT ST_CROSSES(GEOMFROMTEXT('POINT(20 20)'),GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POLYGON((0 0,10 0,10 10,0 10,0 0))))'));
+ST_CROSSES(GEOMFROMTEXT('POINT(20 20)'),GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POLYGON((0 0,10 0,10 10,0 10,0 0))))'))
+0
+#-------------------------------------------------------------------------------------------
+# multipoint,point
+SELECT ST_CROSSES(GEOMFROMTEXT(@star_all_points),GEOMFROMTEXT(@star_top));
+ST_CROSSES(GEOMFROMTEXT(@star_all_points),GEOMFROMTEXT(@star_top))
+0
+SELECT ST_CROSSES(GEOMFROMTEXT(@star_bottom_points),GEOMFROMTEXT(@star_center));
+ST_CROSSES(GEOMFROMTEXT(@star_bottom_points),GEOMFROMTEXT(@star_center))
+0
+SELECT ST_CROSSES(g,GEOMFROMTEXT(@star_bottom_left)) FROM gis_geometrycollection WHERE fid=108;
+ST_CROSSES(g,GEOMFROMTEXT(@star_bottom_left))
+0
+#-------------------------------------------------------------------------------------------
+# multipoint,multipoint
+SELECT ST_CROSSES(GEOMFROMTEXT(@star_all_points),GEOMFROMTEXT(@star_bottom_points));
+ST_CROSSES(GEOMFROMTEXT(@star_all_points),GEOMFROMTEXT(@star_bottom_points))
+0
+SELECT ST_CROSSES(GEOMFROMTEXT(@star_bottom_points),GEOMFROMTEXT(@star_all_points));
+ST_CROSSES(GEOMFROMTEXT(@star_bottom_points),GEOMFROMTEXT(@star_all_points))
+0
+SELECT ST_CROSSES(g,GEOMFROMTEXT(@star_all_points)) FROM gis_geometrycollection WHERE fid=208;
+ST_CROSSES(g,GEOMFROMTEXT(@star_all_points))
+0
+SELECT ST_CROSSES(g,GEOMFROMTEXT(@star_all_points)) FROM gis_geometrycollection WHERE fid=308;
+ST_CROSSES(g,GEOMFROMTEXT(@star_all_points))
+0
+#-------------------------------------------------------------------------------------------
+# multipoint,linestring
+SELECT ST_CROSSES(GEOMFROMTEXT(@star_all_points),GEOMFROMTEXT(@star_top_to_center));
+ST_CROSSES(GEOMFROMTEXT(@star_all_points),GEOMFROMTEXT(@star_top_to_center))
+0
+SELECT ST_CROSSES(g,GEOMFROMTEXT(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=109;
+ST_CROSSES(g,GEOMFROMTEXT(@star_top_to_center))
+0
+SELECT ST_CROSSES(g,GEOMFROMTEXT(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=209;
+ST_CROSSES(g,GEOMFROMTEXT(@star_top_to_center))
+0
+SELECT ST_CROSSES(g,GEOMFROMTEXT(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=309;
+ST_CROSSES(g,GEOMFROMTEXT(@star_top_to_center))
+0
+#-------------------------------------------------------------------------------------------
+# multipoint,multilinestring
+SELECT ST_CROSSES(GEOMFROMTEXT(@star_all_points),GEOMFROMTEXT(@star_lines_near_vertical));
+ST_CROSSES(GEOMFROMTEXT(@star_all_points),GEOMFROMTEXT(@star_lines_near_vertical))
+0
+SELECT ST_CROSSES(GEOMFROMTEXT(@star_all_points),GEOMFROMTEXT(@star_lines_near_horizontal));
+ST_CROSSES(GEOMFROMTEXT(@star_all_points),GEOMFROMTEXT(@star_lines_near_horizontal))
+0
+SELECT ST_CROSSES(g,GEOMFROMTEXT(@star_lines_near_horizontal)) FROM gis_geometrycollection WHERE fid=109;
+ST_CROSSES(g,GEOMFROMTEXT(@star_lines_near_horizontal))
+0
+#-------------------------------------------------------------------------------------------
+# multipoint,polygon
+SELECT ST_CROSSES(GEOMFROMTEXT(@star_all_points),GEOMFROMTEXT(@star_elem_vertical));
+ST_CROSSES(GEOMFROMTEXT(@star_all_points),GEOMFROMTEXT(@star_elem_vertical))
+0
+SELECT ST_CROSSES(GEOMFROMTEXT(@star_all_points),GEOMFROMTEXT(@star_elem_horizontal));
+ST_CROSSES(GEOMFROMTEXT(@star_all_points),GEOMFROMTEXT(@star_elem_horizontal))
 1
-SELECT ST_Crosses(g,GeomFromText(@star_elem_horizontal)) FROM gis_geometrycollection WHERE fid=109;
-ST_Crosses(g,GeomFromText(@star_elem_horizontal))
+SELECT ST_CROSSES(g,GEOMFROMTEXT(@star_elem_horizontal)) FROM gis_geometrycollection WHERE fid=109;
+ST_CROSSES(g,GEOMFROMTEXT(@star_elem_horizontal))
 1
-SELECT ST_Crosses(g,GeomFromText(@star_elem_horizontal)) FROM gis_geometrycollection WHERE fid=209;
-ST_Crosses(g,GeomFromText(@star_elem_horizontal))
+SELECT ST_CROSSES(g,GEOMFROMTEXT(@star_elem_horizontal)) FROM gis_geometrycollection WHERE fid=209;
+ST_CROSSES(g,GEOMFROMTEXT(@star_elem_horizontal))
 1
-SELECT ST_Crosses(g,GeomFromText(@star_elem_horizontal)) FROM gis_geometrycollection WHERE fid=309;
-ST_Crosses(g,GeomFromText(@star_elem_horizontal))
+SELECT ST_CROSSES(g,GEOMFROMTEXT(@star_elem_horizontal)) FROM gis_geometrycollection WHERE fid=309;
+ST_CROSSES(g,GEOMFROMTEXT(@star_elem_horizontal))
 0
-#multipoint,multipolygon
-SELECT ST_Crosses(GeomFromText('MULTIPOINT(0 0,0 30,30 25)'),GeomFromText(@star_of_elems));
-ST_Crosses(GeomFromText('MULTIPOINT(0 0,0 30,30 25)'),GeomFromText(@star_of_elems))
+#-------------------------------------------------------------------------------------------
+# multipoint,multipolygon
+SELECT ST_CROSSES(GEOMFROMTEXT('MULTIPOINT(0 0,0 30,30 25)'),GEOMFROMTEXT(@star_of_elems));
+ST_CROSSES(GEOMFROMTEXT('MULTIPOINT(0 0,0 30,30 25)'),GEOMFROMTEXT(@star_of_elems))
 0
-SELECT ST_Crosses(GeomFromText(@star_all_points),GeomFromText(@star_of_elems));
-ST_Crosses(GeomFromText(@star_all_points),GeomFromText(@star_of_elems))
+SELECT ST_CROSSES(GEOMFROMTEXT(@star_all_points),GEOMFROMTEXT(@star_of_elems));
+ST_CROSSES(GEOMFROMTEXT(@star_all_points),GEOMFROMTEXT(@star_of_elems))
 0
-SELECT ST_Crosses(g,GeomFromText(@star_of_elems)) FROM gis_geometrycollection WHERE fid=109;
-ST_Crosses(g,GeomFromText(@star_of_elems))
+SELECT ST_CROSSES(g,GEOMFROMTEXT(@star_of_elems)) FROM gis_geometrycollection WHERE fid=109;
+ST_CROSSES(g,GEOMFROMTEXT(@star_of_elems))
 0
-SELECT ST_Crosses(g,GeomFromText(@star_of_elems)) FROM gis_geometrycollection WHERE fid=209;
-ST_Crosses(g,GeomFromText(@star_of_elems))
+SELECT ST_CROSSES(g,GEOMFROMTEXT(@star_of_elems)) FROM gis_geometrycollection WHERE fid=209;
+ST_CROSSES(g,GEOMFROMTEXT(@star_of_elems))
 0
-SELECT ST_Crosses(g,GeomFromText(@star_of_elems)) FROM gis_geometrycollection WHERE fid=309;
-ST_Crosses(g,GeomFromText(@star_of_elems))
+SELECT ST_CROSSES(g,GEOMFROMTEXT(@star_of_elems)) FROM gis_geometrycollection WHERE fid=309;
+ST_CROSSES(g,GEOMFROMTEXT(@star_of_elems))
 0
-#multipoint,geomertycollection
-SELECT ST_Crosses(GeomFromText('MULTIPOINT(0 0,0 30,30 25)'),GeomFromText(@star_collection_elems));
-ST_Crosses(GeomFromText('MULTIPOINT(0 0,0 30,30 25)'),GeomFromText(@star_collection_elems))
+#-------------------------------------------------------------------------------------------
+# multipoint,geomertycollection
+SELECT ST_CROSSES(GEOMFROMTEXT('MULTIPOINT(0 0,0 30,30 25)'),GEOMFROMTEXT(@star_collection_elems));
+ST_CROSSES(GEOMFROMTEXT('MULTIPOINT(0 0,0 30,30 25)'),GEOMFROMTEXT(@star_collection_elems))
 0
-SELECT ST_Crosses(GeomFromText(@star_all_points),GeomFromText(@star_collection_elems));
-ST_Crosses(GeomFromText(@star_all_points),GeomFromText(@star_collection_elems))
+SELECT ST_CROSSES(GEOMFROMTEXT(@star_all_points),GEOMFROMTEXT(@star_collection_elems));
+ST_CROSSES(GEOMFROMTEXT(@star_all_points),GEOMFROMTEXT(@star_collection_elems))
 1
-SELECT ST_Crosses(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=109;
-ST_Crosses(g,GeomFromText(@star_collection_elems))
+SELECT ST_CROSSES(g,GEOMFROMTEXT(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=109;
+ST_CROSSES(g,GEOMFROMTEXT(@star_collection_elems))
 1
-SELECT ST_Crosses(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=209;
-ST_Crosses(g,GeomFromText(@star_collection_elems))
+SELECT ST_CROSSES(g,GEOMFROMTEXT(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=209;
+ST_CROSSES(g,GEOMFROMTEXT(@star_collection_elems))
 1
-SELECT ST_Crosses(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=309;
-ST_Crosses(g,GeomFromText(@star_collection_elems))
+SELECT ST_CROSSES(g,GEOMFROMTEXT(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=309;
+ST_CROSSES(g,GEOMFROMTEXT(@star_collection_elems))
 0
-SELECT ST_Crosses(GeomFromText(@star_all_points),GeomFromText(@star_collection_multilinestr));
-ST_Crosses(GeomFromText(@star_all_points),GeomFromText(@star_collection_multilinestr))
+SELECT ST_CROSSES(GEOMFROMTEXT(@star_all_points),GEOMFROMTEXT(@star_collection_multilinestr));
+ST_CROSSES(GEOMFROMTEXT(@star_all_points),GEOMFROMTEXT(@star_collection_multilinestr))
 1
 #-------------------------------------------------------------------------------------------
-#linestring,point
-SELECT ST_Crosses(GeomFromText(@star_top_to_center),GeomFromText(@star_center));
-ST_Crosses(GeomFromText(@star_top_to_center),GeomFromText(@star_center))
+# linestring,point
+SELECT ST_CROSSES(GEOMFROMTEXT(@star_top_to_center),GEOMFROMTEXT(@star_center));
+ST_CROSSES(GEOMFROMTEXT(@star_top_to_center),GEOMFROMTEXT(@star_center))
 0
-SELECT ST_Crosses(GeomFromText(@star_top_to_center),GeomFromText(@star_bottom_left));
-ST_Crosses(GeomFromText(@star_top_to_center),GeomFromText(@star_bottom_left))
+SELECT ST_CROSSES(GEOMFROMTEXT(@star_top_to_center),GEOMFROMTEXT(@star_bottom_left));
+ST_CROSSES(GEOMFROMTEXT(@star_top_to_center),GEOMFROMTEXT(@star_bottom_left))
 0
-SELECT ST_Crosses(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2
+SELECT ST_CROSSES(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2
 WHERE fid=110 and fid2=105;
-ST_Crosses(g,g2)
+ST_CROSSES(g,g2)
 0
-#linestring,multipoint
-SELECT ST_Crosses(GeomFromText(@star_line_vertical),GeomFromText('MULTIPOINT(15 10,15 25)'));
-ST_Crosses(GeomFromText(@star_line_vertical),GeomFromText('MULTIPOINT(15 10,15 25)'))
+#-------------------------------------------------------------------------------------------
+# linestring,multipoint
+SELECT ST_CROSSES(GEOMFROMTEXT(@star_line_vertical),GEOMFROMTEXT('MULTIPOINT(15 10,15 25)'));
+ST_CROSSES(GEOMFROMTEXT(@star_line_vertical),GEOMFROMTEXT('MULTIPOINT(15 10,15 25)'))
 0
-SELECT ST_Crosses(GeomFromText(@star_line_vertical),GeomFromText(@star_all_points));
-ST_Crosses(GeomFromText(@star_line_vertical),GeomFromText(@star_all_points))
+SELECT ST_CROSSES(GEOMFROMTEXT(@star_line_vertical),GEOMFROMTEXT(@star_all_points));
+ST_CROSSES(GEOMFROMTEXT(@star_line_vertical),GEOMFROMTEXT(@star_all_points))
 0
-SELECT ST_Crosses(g,GeomFromText('MULTIPOINT(15 10,15 25)')) FROM gis_geometrycollection WHERE fid=111;
-ST_Crosses(g,GeomFromText('MULTIPOINT(15 10,15 25)'))
+SELECT ST_CROSSES(g,GEOMFROMTEXT('MULTIPOINT(15 10,15 25)')) FROM gis_geometrycollection WHERE fid=111;
+ST_CROSSES(g,GEOMFROMTEXT('MULTIPOINT(15 10,15 25)'))
 0
-SELECT ST_Crosses(g,GeomFromText('MULTIPOINT(15 10,15 25)')) FROM gis_geometrycollection WHERE fid=311;
-ST_Crosses(g,GeomFromText('MULTIPOINT(15 10,15 25)'))
+SELECT ST_CROSSES(g,GEOMFROMTEXT('MULTIPOINT(15 10,15 25)')) FROM gis_geometrycollection WHERE fid=311;
+ST_CROSSES(g,GEOMFROMTEXT('MULTIPOINT(15 10,15 25)'))
 0
-SELECT ST_Crosses(g,GeomFromText('MULTIPOINT(15 10,15 25)')) FROM gis_geometrycollection WHERE fid=411;
-ST_Crosses(g,GeomFromText('MULTIPOINT(15 10,15 25)'))
+SELECT ST_CROSSES(g,GEOMFROMTEXT('MULTIPOINT(15 10,15 25)')) FROM gis_geometrycollection WHERE fid=411;
+ST_CROSSES(g,GEOMFROMTEXT('MULTIPOINT(15 10,15 25)'))
 0
-#linestring,linestring
-SELECT ST_Crosses(GeomFromText(@star_line_vertical),GeomFromText(@star_top_to_center));
-ST_Crosses(GeomFromText(@star_line_vertical),GeomFromText(@star_top_to_center))
+#-------------------------------------------------------------------------------------------
+# linestring,linestring
+SELECT ST_CROSSES(GEOMFROMTEXT(@star_line_vertical),GEOMFROMTEXT(@star_top_to_center));
+ST_CROSSES(GEOMFROMTEXT(@star_line_vertical),GEOMFROMTEXT(@star_top_to_center))
 0
-SELECT ST_Crosses(GeomFromText(@star_top_to_center),GeomFromText(@star_line_vertical));
-ST_Crosses(GeomFromText(@star_top_to_center),GeomFromText(@star_line_vertical))
+SELECT ST_CROSSES(GEOMFROMTEXT(@star_top_to_center),GEOMFROMTEXT(@star_line_vertical));
+ST_CROSSES(GEOMFROMTEXT(@star_top_to_center),GEOMFROMTEXT(@star_line_vertical))
 0
-SELECT ST_Crosses(g,GeomFromText(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=111;
-ST_Crosses(g,GeomFromText(@star_top_to_center))
+SELECT ST_CROSSES(g,GEOMFROMTEXT(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=111;
+ST_CROSSES(g,GEOMFROMTEXT(@star_top_to_center))
 0
-SELECT ST_Crosses(g,GeomFromText(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=311;
-ST_Crosses(g,GeomFromText(@star_top_to_center))
+SELECT ST_CROSSES(g,GEOMFROMTEXT(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=311;
+ST_CROSSES(g,GEOMFROMTEXT(@star_top_to_center))
 0
-SELECT ST_Crosses(g,GeomFromText(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=411;
-ST_Crosses(g,GeomFromText(@star_top_to_center))
+SELECT ST_CROSSES(g,GEOMFROMTEXT(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=411;
+ST_CROSSES(g,GEOMFROMTEXT(@star_top_to_center))
 0
-#linestring,multilinestring
-SELECT ST_Crosses(GeomFromText(@star_line_horizontal),GeomFromText(@star_lines_near_horizontal));
-ST_Crosses(GeomFromText(@star_line_horizontal),GeomFromText(@star_lines_near_horizontal))
+#-------------------------------------------------------------------------------------------
+# linestring,multilinestring
+SELECT ST_CROSSES(GEOMFROMTEXT(@star_line_horizontal),GEOMFROMTEXT(@star_lines_near_horizontal));
+ST_CROSSES(GEOMFROMTEXT(@star_line_horizontal),GEOMFROMTEXT(@star_lines_near_horizontal))
 0
-SELECT ST_Crosses(GeomFromText(@star_line_horizontal),GeomFromText(@star_lines_near_vertical));
-ST_Crosses(GeomFromText(@star_line_horizontal),GeomFromText(@star_lines_near_vertical))
+SELECT ST_CROSSES(GEOMFROMTEXT(@star_line_horizontal),GEOMFROMTEXT(@star_lines_near_vertical));
+ST_CROSSES(GEOMFROMTEXT(@star_line_horizontal),GEOMFROMTEXT(@star_lines_near_vertical))
 0
-SELECT ST_Crosses(g,GeomFromText(@star_lines_near_horizontal)) FROM gis_geometrycollection WHERE fid=110;
-ST_Crosses(g,GeomFromText(@star_lines_near_horizontal))
+SELECT ST_CROSSES(g,GEOMFROMTEXT(@star_lines_near_horizontal)) FROM gis_geometrycollection WHERE fid=110;
+ST_CROSSES(g,GEOMFROMTEXT(@star_lines_near_horizontal))
 0
-#linestring,polygon
-SELECT ST_Crosses(GeomFromText(@star_line_horizontal),GeomFromText('POLYGON((11 15,19 15,19 10))'));
-ST_Crosses(GeomFromText(@star_line_horizontal),GeomFromText('POLYGON((11 15,19 15,19 10))'))
+#-------------------------------------------------------------------------------------------
+# linestring,polygon
+SELECT ST_CROSSES(GEOMFROMTEXT(@star_line_horizontal),GEOMFROMTEXT('POLYGON((11 15,19 15,19 10))'));
+ST_CROSSES(GEOMFROMTEXT(@star_line_horizontal),GEOMFROMTEXT('POLYGON((11 15,19 15,19 10))'))
 0
-SELECT ST_Crosses(GeomFromText(@star_line_horizontal),GeomFromText(@star_elem_horizontal));
-ST_Crosses(GeomFromText(@star_line_horizontal),GeomFromText(@star_elem_horizontal))
+SELECT ST_CROSSES(GEOMFROMTEXT(@star_line_horizontal),GEOMFROMTEXT(@star_elem_horizontal));
+ST_CROSSES(GEOMFROMTEXT(@star_line_horizontal),GEOMFROMTEXT(@star_elem_horizontal))
 0
-SELECT ST_Crosses(GeomFromText(@star_line_horizontal),GeomFromText(@star_elem_horizontal_2));
-ST_Crosses(GeomFromText(@star_line_horizontal),GeomFromText(@star_elem_horizontal_2))
+SELECT ST_CROSSES(GEOMFROMTEXT(@star_line_horizontal),GEOMFROMTEXT(@star_elem_horizontal_2));
+ST_CROSSES(GEOMFROMTEXT(@star_line_horizontal),GEOMFROMTEXT(@star_elem_horizontal_2))
 0
-SELECT ST_Crosses(GeomFromText(@star_line_horizontal),GeomFromText(@star_elem_horizontal_3));
-ST_Crosses(GeomFromText(@star_line_horizontal),GeomFromText(@star_elem_horizontal_3))
+SELECT ST_CROSSES(GEOMFROMTEXT(@star_line_horizontal),GEOMFROMTEXT(@star_elem_horizontal_3));
+ST_CROSSES(GEOMFROMTEXT(@star_line_horizontal),GEOMFROMTEXT(@star_elem_horizontal_3))
 0
-SELECT ST_Crosses(g,GeomFromText('POLYGON((11 15,19 15,11 15))')) FROM gis_geometrycollection WHERE fid=110;
-ST_Crosses(g,GeomFromText('POLYGON((11 15,19 15,11 15))'))
+SELECT ST_CROSSES(g,GEOMFROMTEXT('POLYGON((11 15,19 15,11 15))')) FROM gis_geometrycollection WHERE fid=110;
+ST_CROSSES(g,GEOMFROMTEXT('POLYGON((11 15,19 15,11 15))'))
 0
-#linestring,multipolygon
-SELECT ST_Crosses(GeomFromText(@star_line_horizontal),GeomFromText('MULTIPOLYGON(((11 15,19 15,11 15)),((25 0,0 15,25 0)))'));
-ST_Crosses(GeomFromText(@star_line_horizontal),GeomFromText('MULTIPOLYGON(((11 15,19 15,11 15)),((25 0,0 15,25 0)))'))
+#-------------------------------------------------------------------------------------------
+# linestring,multipolygon
+SELECT ST_CROSSES(GEOMFROMTEXT(@star_line_horizontal),GEOMFROMTEXT('MULTIPOLYGON(((11 15,19 15,11 15)),((25 0,0 15,25 0)))'));
+ST_CROSSES(GEOMFROMTEXT(@star_line_horizontal),GEOMFROMTEXT('MULTIPOLYGON(((11 15,19 15,11 15)),((25 0,0 15,25 0)))'))
 0
-SELECT ST_Crosses(GeomFromText(@star_line_horizontal),GeomFromText(@star_of_elems));
-ST_Crosses(GeomFromText(@star_line_horizontal),GeomFromText(@star_of_elems))
+SELECT ST_CROSSES(GEOMFROMTEXT(@star_line_horizontal),GEOMFROMTEXT(@star_of_elems));
+ST_CROSSES(GEOMFROMTEXT(@star_line_horizontal),GEOMFROMTEXT(@star_of_elems))
 1
-SELECT ST_Crosses(GeomFromText(@star_line_horizontal),GeomFromText(@star_of_elems_2));
-ST_Crosses(GeomFromText(@star_line_horizontal),GeomFromText(@star_of_elems_2))
+SELECT ST_CROSSES(GEOMFROMTEXT(@star_line_horizontal),GEOMFROMTEXT(@star_of_elems_2));
+ST_CROSSES(GEOMFROMTEXT(@star_line_horizontal),GEOMFROMTEXT(@star_of_elems_2))
 0
-SELECT ST_Crosses(GeomFromText(@star_line_horizontal),GeomFromText(@star_of_elems_3));
-ST_Crosses(GeomFromText(@star_line_horizontal),GeomFromText(@star_of_elems_3))
+SELECT ST_CROSSES(GEOMFROMTEXT(@star_line_horizontal),GEOMFROMTEXT(@star_of_elems_3));
+ST_CROSSES(GEOMFROMTEXT(@star_line_horizontal),GEOMFROMTEXT(@star_of_elems_3))
 0
-SELECT ST_Crosses(g,GeomFromText('MULTIPOLYGON(((11 15,19 15,11 15)),((25 0,0 15,25 0)))')) FROM gis_geometrycollection WHERE fid=110;
-ST_Crosses(g,GeomFromText('MULTIPOLYGON(((11 15,19 15,11 15)),((25 0,0 15,25 0)))'))
+SELECT ST_CROSSES(g,GEOMFROMTEXT('MULTIPOLYGON(((11 15,19 15,11 15)),((25 0,0 15,25 0)))')) FROM gis_geometrycollection WHERE fid=110;
+ST_CROSSES(g,GEOMFROMTEXT('MULTIPOLYGON(((11 15,19 15,11 15)),((25 0,0 15,25 0)))'))
 0
-#linestring,geometrycollection
-SELECT ST_Crosses(GeomFromText(@star_line_horizontal),GeomFromText(@star_collection_elems_3));
-ST_Crosses(GeomFromText(@star_line_horizontal),GeomFromText(@star_collection_elems_3))
+#-------------------------------------------------------------------------------------------
+# linestring,geometrycollection
+SELECT ST_CROSSES(GEOMFROMTEXT(@star_line_horizontal),GEOMFROMTEXT(@star_collection_elems_3));
+ST_CROSSES(GEOMFROMTEXT(@star_line_horizontal),GEOMFROMTEXT(@star_collection_elems_3))
 0
-SELECT ST_Crosses(GeomFromText(@star_line_horizontal),GeomFromText(@star_collection_elems));
-ST_Crosses(GeomFromText(@star_line_horizontal),GeomFromText(@star_collection_elems))
+SELECT ST_CROSSES(GEOMFROMTEXT(@star_line_horizontal),GEOMFROMTEXT(@star_collection_elems));
+ST_CROSSES(GEOMFROMTEXT(@star_line_horizontal),GEOMFROMTEXT(@star_collection_elems))
 1
-SELECT ST_Crosses(GeomFromText(@star_line_horizontal),GeomFromText(@star_collection_elems_2));
-ST_Crosses(GeomFromText(@star_line_horizontal),GeomFromText(@star_collection_elems_2))
+SELECT ST_CROSSES(GEOMFROMTEXT(@star_line_horizontal),GEOMFROMTEXT(@star_collection_elems_2));
+ST_CROSSES(GEOMFROMTEXT(@star_line_horizontal),GEOMFROMTEXT(@star_collection_elems_2))
 1
-SELECT ST_Crosses(GeomFromText(@star_line_horizontal),GeomFromText(@star_collection_elems_3));
-ST_Crosses(GeomFromText(@star_line_horizontal),GeomFromText(@star_collection_elems_3))
+SELECT ST_CROSSES(GEOMFROMTEXT(@star_line_horizontal),GEOMFROMTEXT(@star_collection_elems_3));
+ST_CROSSES(GEOMFROMTEXT(@star_line_horizontal),GEOMFROMTEXT(@star_collection_elems_3))
 0
-SELECT ST_Crosses(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=110;
-ST_Crosses(g,GeomFromText(@star_collection_elems))
+SELECT ST_CROSSES(g,GEOMFROMTEXT(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=110;
+ST_CROSSES(g,GEOMFROMTEXT(@star_collection_elems))
 1
-SELECT ST_Crosses(GeomFromText(@star_line_horizontal),GeomFromText(@star_collection_multilinestr));
-ST_Crosses(GeomFromText(@star_line_horizontal),GeomFromText(@star_collection_multilinestr))
+SELECT ST_CROSSES(GEOMFROMTEXT(@star_line_horizontal),GEOMFROMTEXT(@star_collection_multilinestr));
+ST_CROSSES(GEOMFROMTEXT(@star_line_horizontal),GEOMFROMTEXT(@star_collection_multilinestr))
 1
 #-------------------------------------------------------------------------------------------
-#multilinestring,point
-SELECT ST_Crosses(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_top));
-ST_Crosses(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_top))
+# multilinestring,point
+SELECT ST_CROSSES(GEOMFROMTEXT(@star_lines_near_vertical),GEOMFROMTEXT(@star_top));
+ST_CROSSES(GEOMFROMTEXT(@star_lines_near_vertical),GEOMFROMTEXT(@star_top))
 0
-SELECT ST_Crosses(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_center));
-ST_Crosses(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_center))
+SELECT ST_CROSSES(GEOMFROMTEXT(@star_lines_near_vertical),GEOMFROMTEXT(@star_center));
+ST_CROSSES(GEOMFROMTEXT(@star_lines_near_vertical),GEOMFROMTEXT(@star_center))
 0
-SELECT ST_Crosses(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_center_2));
-ST_Crosses(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_center_2))
+SELECT ST_CROSSES(GEOMFROMTEXT(@star_lines_near_vertical),GEOMFROMTEXT(@star_center_2));
+ST_CROSSES(GEOMFROMTEXT(@star_lines_near_vertical),GEOMFROMTEXT(@star_center_2))
 0
-SELECT ST_Crosses(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_center_3));
-ST_Crosses(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_center_3))
+SELECT ST_CROSSES(GEOMFROMTEXT(@star_lines_near_vertical),GEOMFROMTEXT(@star_center_3));
+ST_CROSSES(GEOMFROMTEXT(@star_lines_near_vertical),GEOMFROMTEXT(@star_center_3))
 0
-SELECT ST_Crosses(g,GeomFromText(@star_top)) FROM gis_geometrycollection WHERE fid=114;
-ST_Crosses(g,GeomFromText(@star_top))
+SELECT ST_CROSSES(g,GEOMFROMTEXT(@star_top)) FROM gis_geometrycollection WHERE fid=114;
+ST_CROSSES(g,GEOMFROMTEXT(@star_top))
 0
-#multilinestring,multipoint
-SELECT ST_Crosses(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_bottom_points));
-ST_Crosses(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_bottom_points))
+#-------------------------------------------------------------------------------------------
+# multilinestring,multipoint
+SELECT ST_CROSSES(GEOMFROMTEXT(@star_lines_near_vertical),GEOMFROMTEXT(@star_bottom_points));
+ST_CROSSES(GEOMFROMTEXT(@star_lines_near_vertical),GEOMFROMTEXT(@star_bottom_points))
 0
-SELECT ST_Crosses(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_all_points));
-ST_Crosses(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_all_points))
+SELECT ST_CROSSES(GEOMFROMTEXT(@star_lines_near_vertical),GEOMFROMTEXT(@star_all_points));
+ST_CROSSES(GEOMFROMTEXT(@star_lines_near_vertical),GEOMFROMTEXT(@star_all_points))
 0
-SELECT ST_Crosses(g,GeomFromText(@star_bottom_points)) FROM gis_geometrycollection WHERE fid=114;
-ST_Crosses(g,GeomFromText(@star_bottom_points))
+SELECT ST_CROSSES(g,GEOMFROMTEXT(@star_bottom_points)) FROM gis_geometrycollection WHERE fid=114;
+ST_CROSSES(g,GEOMFROMTEXT(@star_bottom_points))
 0
-SELECT ST_Crosses(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2
+SELECT ST_CROSSES(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2
 WHERE fid=114 and fid2=108;
-ST_Crosses(g,g2)
+ST_CROSSES(g,g2)
 0
-#multilinestring,linestring
-SELECT ST_Crosses(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_line_vertical));
-ST_Crosses(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_line_vertical))
+#-------------------------------------------------------------------------------------------
+# multilinestring,linestring
+SELECT ST_CROSSES(GEOMFROMTEXT(@star_lines_near_vertical),GEOMFROMTEXT(@star_line_vertical));
+ST_CROSSES(GEOMFROMTEXT(@star_lines_near_vertical),GEOMFROMTEXT(@star_line_vertical))
 0
-SELECT ST_Crosses(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_line_horizontal));
-ST_Crosses(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_line_horizontal))
+SELECT ST_CROSSES(GEOMFROMTEXT(@star_lines_near_vertical),GEOMFROMTEXT(@star_line_horizontal));
+ST_CROSSES(GEOMFROMTEXT(@star_lines_near_vertical),GEOMFROMTEXT(@star_line_horizontal))
 0
-SELECT ST_Crosses(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_line_horizontal_2));
-ST_Crosses(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_line_horizontal_2))
+SELECT ST_CROSSES(GEOMFROMTEXT(@star_lines_near_vertical),GEOMFROMTEXT(@star_line_horizontal_2));
+ST_CROSSES(GEOMFROMTEXT(@star_lines_near_vertical),GEOMFROMTEXT(@star_line_horizontal_2))
 0
-SELECT ST_Crosses(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_line_horizontal_3));
-ST_Crosses(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_line_horizontal_3))
+SELECT ST_CROSSES(GEOMFROMTEXT(@star_lines_near_vertical),GEOMFROMTEXT(@star_line_horizontal_3));
+ST_CROSSES(GEOMFROMTEXT(@star_lines_near_vertical),GEOMFROMTEXT(@star_line_horizontal_3))
 0
-SELECT ST_Crosses(g,GeomFromText(@star_line_vertical)) FROM gis_geometrycollection WHERE fid=114;
-ST_Crosses(g,GeomFromText(@star_line_vertical))
+SELECT ST_CROSSES(g,GEOMFROMTEXT(@star_line_vertical)) FROM gis_geometrycollection WHERE fid=114;
+ST_CROSSES(g,GEOMFROMTEXT(@star_line_vertical))
 0
-#multilinestring,multilinestring
-SELECT ST_Crosses(GeomFromText(@star_lines_near_vertical),GeomFromText('MULTILINESTRING((0 5,15 25,0 15))'));
-ST_Crosses(GeomFromText(@star_lines_near_vertical),GeomFromText('MULTILINESTRING((0 5,15 25,0 15))'))
+#-------------------------------------------------------------------------------------------
+# multilinestring,multilinestring
+SELECT ST_CROSSES(GEOMFROMTEXT(@star_lines_near_vertical),GEOMFROMTEXT('MULTILINESTRING((0 5,15 25,0 15))'));
+ST_CROSSES(GEOMFROMTEXT(@star_lines_near_vertical),GEOMFROMTEXT('MULTILINESTRING((0 5,15 25,0 15))'))
 1
-SELECT ST_Crosses(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_lines_near_horizontal));
-ST_Crosses(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_lines_near_horizontal))
+SELECT ST_CROSSES(GEOMFROMTEXT(@star_lines_near_vertical),GEOMFROMTEXT(@star_lines_near_horizontal));
+ST_CROSSES(GEOMFROMTEXT(@star_lines_near_vertical),GEOMFROMTEXT(@star_lines_near_horizontal))
 1
-SELECT ST_Crosses(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_lines_near_horizontal_3));
-ST_Crosses(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_lines_near_horizontal_3))
+SELECT ST_CROSSES(GEOMFROMTEXT(@star_lines_near_vertical),GEOMFROMTEXT(@star_lines_near_horizontal_3));
+ST_CROSSES(GEOMFROMTEXT(@star_lines_near_vertical),GEOMFROMTEXT(@star_lines_near_horizontal_3))
 0
-SELECT ST_Crosses(g,GeomFromText('MULTILINESTRING((0 5,15 25,0 15))')) FROM gis_geometrycollection WHERE fid=114;
-ST_Crosses(g,GeomFromText('MULTILINESTRING((0 5,15 25,0 15))'))
-1
-#multilinestring,polygon
-SELECT ST_Crosses(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_elem_vertical));
-ST_Crosses(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_elem_vertical))
-0
-SELECT ST_Crosses(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_elem_horizontal));
-ST_Crosses(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_elem_horizontal))
-1
-SELECT ST_Crosses(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_elem_horizontal_2));
-ST_Crosses(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_elem_horizontal_2))
-0
-SELECT ST_Crosses(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_elem_horizontal_3));
-ST_Crosses(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_elem_horizontal_3))
-0
-SELECT ST_Crosses(g,GeomFromText(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=114;
-ST_Crosses(g,GeomFromText(@star_elem_vertical))
-0
-#multilinestring,multipolygon
-SELECT ST_Crosses(GeomFromText('MULTILINESTRING((0 25,25 0,25 30))'),GeomFromText(@star_elem_vertical));
-ST_Crosses(GeomFromText('MULTILINESTRING((0 25,25 0,25 30))'),GeomFromText(@star_elem_vertical))
-1
-SELECT ST_Crosses(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_of_elems));
-ST_Crosses(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_of_elems))
-1
-SELECT ST_Crosses(g,GeomFromText(@star_of_elems)) FROM gis_geometrycollection WHERE fid=114;
-ST_Crosses(g,GeomFromText(@star_of_elems))
-1
-#multilinestring,geometrycollection
-SELECT ST_Crosses(GeomFromText('MULTILINESTRING((0 25,25 0,25 30))'),GeomFromText(@star_collection_elems));
-ST_Crosses(GeomFromText('MULTILINESTRING((0 25,25 0,25 30))'),GeomFromText(@star_collection_elems))
-1
-SELECT ST_Crosses(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_collection_elems));
-ST_Crosses(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_collection_elems))
-1
-SELECT ST_Crosses(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=114;
-ST_Crosses(g,GeomFromText(@star_collection_elems))
-1
-SELECT ST_Crosses(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_collection_multilinestr));
-ST_Crosses(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_collection_multilinestr))
+SELECT ST_CROSSES(g,GEOMFROMTEXT('MULTILINESTRING((0 5,15 25,0 15))')) FROM gis_geometrycollection WHERE fid=114;
+ST_CROSSES(g,GEOMFROMTEXT('MULTILINESTRING((0 5,15 25,0 15))'))
 1
 #-------------------------------------------------------------------------------------------
-#polygon,point
-SELECT ST_Crosses(GeomFromText(@star),GeomFromText(@star_center));
-ST_Crosses(GeomFromText(@star),GeomFromText(@star_center))
+# multilinestring,polygon
+SELECT ST_CROSSES(GEOMFROMTEXT(@star_lines_near_vertical),GEOMFROMTEXT(@star_elem_vertical));
+ST_CROSSES(GEOMFROMTEXT(@star_lines_near_vertical),GEOMFROMTEXT(@star_elem_vertical))
 0
-SELECT ST_Crosses(GeomFromText(@star_elem_vertical),GeomFromText('POINT(0 0)'));
-ST_Crosses(GeomFromText(@star_elem_vertical),GeomFromText('POINT(0 0)'))
+SELECT ST_CROSSES(GEOMFROMTEXT(@star_lines_near_vertical),GEOMFROMTEXT(@star_elem_horizontal));
+ST_CROSSES(GEOMFROMTEXT(@star_lines_near_vertical),GEOMFROMTEXT(@star_elem_horizontal))
+1
+SELECT ST_CROSSES(GEOMFROMTEXT(@star_lines_near_vertical),GEOMFROMTEXT(@star_elem_horizontal_2));
+ST_CROSSES(GEOMFROMTEXT(@star_lines_near_vertical),GEOMFROMTEXT(@star_elem_horizontal_2))
 0
-SELECT ST_Crosses(g,GeomFromText(@star_center)) FROM gis_geometrycollection WHERE fid=100;
-ST_Crosses(g,GeomFromText(@star_center))
+SELECT ST_CROSSES(GEOMFROMTEXT(@star_lines_near_vertical),GEOMFROMTEXT(@star_elem_horizontal_3));
+ST_CROSSES(GEOMFROMTEXT(@star_lines_near_vertical),GEOMFROMTEXT(@star_elem_horizontal_3))
 0
-SELECT ST_Crosses(g,GeomFromText(@star_center)) FROM gis_geometrycollection WHERE fid=200;
-ST_Crosses(g,GeomFromText(@star_center))
+SELECT ST_CROSSES(g,GEOMFROMTEXT(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=114;
+ST_CROSSES(g,GEOMFROMTEXT(@star_elem_vertical))
 0
-SELECT ST_Crosses(g,GeomFromText(@star_center)) FROM gis_geometrycollection WHERE fid=300;
-ST_Crosses(g,GeomFromText(@star_center))
+#-------------------------------------------------------------------------------------------
+# multilinestring,multipolygon
+SELECT ST_CROSSES(GEOMFROMTEXT('MULTILINESTRING((0 25,25 0,25 30))'),GEOMFROMTEXT(@star_elem_vertical));
+ST_CROSSES(GEOMFROMTEXT('MULTILINESTRING((0 25,25 0,25 30))'),GEOMFROMTEXT(@star_elem_vertical))
+1
+SELECT ST_CROSSES(GEOMFROMTEXT(@star_lines_near_vertical),GEOMFROMTEXT(@star_of_elems));
+ST_CROSSES(GEOMFROMTEXT(@star_lines_near_vertical),GEOMFROMTEXT(@star_of_elems))
+1
+SELECT ST_CROSSES(g,GEOMFROMTEXT(@star_of_elems)) FROM gis_geometrycollection WHERE fid=114;
+ST_CROSSES(g,GEOMFROMTEXT(@star_of_elems))
+1
+#-------------------------------------------------------------------------------------------
+# multilinestring,geometrycollection
+SELECT ST_CROSSES(GEOMFROMTEXT('MULTILINESTRING((0 25,25 0,25 30))'),GEOMFROMTEXT(@star_collection_elems));
+ST_CROSSES(GEOMFROMTEXT('MULTILINESTRING((0 25,25 0,25 30))'),GEOMFROMTEXT(@star_collection_elems))
+1
+SELECT ST_CROSSES(GEOMFROMTEXT(@star_lines_near_vertical),GEOMFROMTEXT(@star_collection_elems));
+ST_CROSSES(GEOMFROMTEXT(@star_lines_near_vertical),GEOMFROMTEXT(@star_collection_elems))
+1
+SELECT ST_CROSSES(g,GEOMFROMTEXT(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=114;
+ST_CROSSES(g,GEOMFROMTEXT(@star_collection_elems))
+1
+SELECT ST_CROSSES(GEOMFROMTEXT(@star_lines_near_vertical),GEOMFROMTEXT(@star_collection_multilinestr));
+ST_CROSSES(GEOMFROMTEXT(@star_lines_near_vertical),GEOMFROMTEXT(@star_collection_multilinestr))
+1
+#-------------------------------------------------------------------------------------------
+# polygon,point
+SELECT ST_CROSSES(GEOMFROMTEXT(@star),GEOMFROMTEXT(@star_center));
+ST_CROSSES(GEOMFROMTEXT(@star),GEOMFROMTEXT(@star_center))
 0
-SELECT ST_Crosses(g,GeomFromText(@star_center)) FROM gis_geometrycollection WHERE fid=400;
-ST_Crosses(g,GeomFromText(@star_center))
+SELECT ST_CROSSES(GEOMFROMTEXT(@star_elem_vertical),GEOMFROMTEXT('POINT(0 0)'));
+ST_CROSSES(GEOMFROMTEXT(@star_elem_vertical),GEOMFROMTEXT('POINT(0 0)'))
 0
-#polygon,multipoint
-SELECT ST_Crosses(GeomFromText(@star),GeomFromText(@star_all_points));
-ST_Crosses(GeomFromText(@star),GeomFromText(@star_all_points))
+SELECT ST_CROSSES(g,GEOMFROMTEXT(@star_center)) FROM gis_geometrycollection WHERE fid=100;
+ST_CROSSES(g,GEOMFROMTEXT(@star_center))
 0
-SELECT ST_Crosses(GeomFromText(@star_elem_vertical),GeomFromText('MULTIPOINT(0 0,30 25)'));
-ST_Crosses(GeomFromText(@star_elem_vertical),GeomFromText('MULTIPOINT(0 0,30 25)'))
+SELECT ST_CROSSES(g,GEOMFROMTEXT(@star_center)) FROM gis_geometrycollection WHERE fid=200;
+ST_CROSSES(g,GEOMFROMTEXT(@star_center))
 0
-SELECT ST_Crosses(g,GeomFromText(@star_all_points)) FROM gis_geometrycollection WHERE fid=100;
-ST_Crosses(g,GeomFromText(@star_all_points))
+SELECT ST_CROSSES(g,GEOMFROMTEXT(@star_center)) FROM gis_geometrycollection WHERE fid=300;
+ST_CROSSES(g,GEOMFROMTEXT(@star_center))
 0
-SELECT ST_Crosses(g,GeomFromText(@star_all_points)) FROM gis_geometrycollection WHERE fid=300;
-ST_Crosses(g,GeomFromText(@star_all_points))
+SELECT ST_CROSSES(g,GEOMFROMTEXT(@star_center)) FROM gis_geometrycollection WHERE fid=400;
+ST_CROSSES(g,GEOMFROMTEXT(@star_center))
 0
-SELECT ST_Crosses(g,GeomFromText(@star_all_points)) FROM gis_geometrycollection WHERE fid=400;
-ST_Crosses(g,GeomFromText(@star_all_points))
+#-------------------------------------------------------------------------------------------
+# polygon,multipoint
+SELECT ST_CROSSES(GEOMFROMTEXT(@star),GEOMFROMTEXT(@star_all_points));
+ST_CROSSES(GEOMFROMTEXT(@star),GEOMFROMTEXT(@star_all_points))
 0
-#polygon,linestring
-SELECT ST_Crosses(GeomFromText(@star),GeomFromText(@star_line_vertical));
-ST_Crosses(GeomFromText(@star),GeomFromText(@star_line_vertical))
+SELECT ST_CROSSES(GEOMFROMTEXT(@star_elem_vertical),GEOMFROMTEXT('MULTIPOINT(0 0,30 25)'));
+ST_CROSSES(GEOMFROMTEXT(@star_elem_vertical),GEOMFROMTEXT('MULTIPOINT(0 0,30 25)'))
 0
-SELECT ST_Crosses(GeomFromText(@star_elem_vertical),GeomFromText(@star_line_horizontal));
-ST_Crosses(GeomFromText(@star_elem_vertical),GeomFromText(@star_line_horizontal))
+SELECT ST_CROSSES(g,GEOMFROMTEXT(@star_all_points)) FROM gis_geometrycollection WHERE fid=100;
+ST_CROSSES(g,GEOMFROMTEXT(@star_all_points))
 0
-SELECT ST_Crosses(g,GeomFromText(@star_line_vertical)) FROM gis_geometrycollection WHERE fid=100;
-ST_Crosses(g,GeomFromText(@star_line_vertical))
+SELECT ST_CROSSES(g,GEOMFROMTEXT(@star_all_points)) FROM gis_geometrycollection WHERE fid=300;
+ST_CROSSES(g,GEOMFROMTEXT(@star_all_points))
 0
-SELECT ST_Crosses(g,GeomFromText(@star_line_vertical)) FROM gis_geometrycollection WHERE fid=300;
-ST_Crosses(g,GeomFromText(@star_line_vertical))
+SELECT ST_CROSSES(g,GEOMFROMTEXT(@star_all_points)) FROM gis_geometrycollection WHERE fid=400;
+ST_CROSSES(g,GEOMFROMTEXT(@star_all_points))
 0
-SELECT ST_Crosses(g,GeomFromText(@star_line_vertical)) FROM gis_geometrycollection WHERE fid=400;
-ST_Crosses(g,GeomFromText(@star_line_vertical))
+#-------------------------------------------------------------------------------------------
+# polygon,linestring
+SELECT ST_CROSSES(GEOMFROMTEXT(@star),GEOMFROMTEXT(@star_line_vertical));
+ST_CROSSES(GEOMFROMTEXT(@star),GEOMFROMTEXT(@star_line_vertical))
 0
-SELECT ST_Crosses(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2
+SELECT ST_CROSSES(GEOMFROMTEXT(@star_elem_vertical),GEOMFROMTEXT(@star_line_horizontal));
+ST_CROSSES(GEOMFROMTEXT(@star_elem_vertical),GEOMFROMTEXT(@star_line_horizontal))
+0
+SELECT ST_CROSSES(g,GEOMFROMTEXT(@star_line_vertical)) FROM gis_geometrycollection WHERE fid=100;
+ST_CROSSES(g,GEOMFROMTEXT(@star_line_vertical))
+0
+SELECT ST_CROSSES(g,GEOMFROMTEXT(@star_line_vertical)) FROM gis_geometrycollection WHERE fid=300;
+ST_CROSSES(g,GEOMFROMTEXT(@star_line_vertical))
+0
+SELECT ST_CROSSES(g,GEOMFROMTEXT(@star_line_vertical)) FROM gis_geometrycollection WHERE fid=400;
+ST_CROSSES(g,GEOMFROMTEXT(@star_line_vertical))
+0
+SELECT ST_CROSSES(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2
 WHERE fid=100 and fid2=111;
-ST_Crosses(g,g2)
+ST_CROSSES(g,g2)
 0
-#polygon,multilinestring
-SELECT ST_Crosses(GeomFromText(@star),GeomFromText(@star_lines_near_vertical));
-ST_Crosses(GeomFromText(@star),GeomFromText(@star_lines_near_vertical))
+#-------------------------------------------------------------------------------------------
+# polygon,multilinestring
+SELECT ST_CROSSES(GEOMFROMTEXT(@star),GEOMFROMTEXT(@star_lines_near_vertical));
+ST_CROSSES(GEOMFROMTEXT(@star),GEOMFROMTEXT(@star_lines_near_vertical))
 0
-SELECT ST_Crosses(GeomFromText(@star_elem_vertical),GeomFromText(@star_lines_near_horizontal));
-ST_Crosses(GeomFromText(@star_elem_vertical),GeomFromText(@star_lines_near_horizontal))
+SELECT ST_CROSSES(GEOMFROMTEXT(@star_elem_vertical),GEOMFROMTEXT(@star_lines_near_horizontal));
+ST_CROSSES(GEOMFROMTEXT(@star_elem_vertical),GEOMFROMTEXT(@star_lines_near_horizontal))
 0
-SELECT ST_Crosses(g,GeomFromText(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=100;
-ST_Crosses(g,GeomFromText(@star_lines_near_vertical))
+SELECT ST_CROSSES(g,GEOMFROMTEXT(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=100;
+ST_CROSSES(g,GEOMFROMTEXT(@star_lines_near_vertical))
 0
-SELECT ST_Crosses(g,GeomFromText(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=300;
-ST_Crosses(g,GeomFromText(@star_lines_near_vertical))
+SELECT ST_CROSSES(g,GEOMFROMTEXT(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=300;
+ST_CROSSES(g,GEOMFROMTEXT(@star_lines_near_vertical))
 0
-SELECT ST_Crosses(g,GeomFromText(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=400;
-ST_Crosses(g,GeomFromText(@star_lines_near_vertical))
+SELECT ST_CROSSES(g,GEOMFROMTEXT(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=400;
+ST_CROSSES(g,GEOMFROMTEXT(@star_lines_near_vertical))
 0
-#polygon,polygon
-SELECT ST_Crosses(GeomFromText(@star),GeomFromText(@star_elem_vertical));
-ST_Crosses(GeomFromText(@star),GeomFromText(@star_elem_vertical))
+#-------------------------------------------------------------------------------------------
+# polygon,polygon
+SELECT ST_CROSSES(GEOMFROMTEXT(@star),GEOMFROMTEXT(@star_elem_vertical));
+ST_CROSSES(GEOMFROMTEXT(@star),GEOMFROMTEXT(@star_elem_vertical))
 0
-SELECT ST_Crosses(GeomFromText(@star_elem_vertical),GeomFromText(@star));
-ST_Crosses(GeomFromText(@star_elem_vertical),GeomFromText(@star))
+SELECT ST_CROSSES(GEOMFROMTEXT(@star_elem_vertical),GEOMFROMTEXT(@star));
+ST_CROSSES(GEOMFROMTEXT(@star_elem_vertical),GEOMFROMTEXT(@star))
 0
-SELECT ST_Crosses(g,GeomFromText(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=100;
-ST_Crosses(g,GeomFromText(@star_elem_vertical))
+SELECT ST_CROSSES(g,GEOMFROMTEXT(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=100;
+ST_CROSSES(g,GEOMFROMTEXT(@star_elem_vertical))
 0
-SELECT ST_Crosses(g,GeomFromText(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=300;
-ST_Crosses(g,GeomFromText(@star_elem_vertical))
+SELECT ST_CROSSES(g,GEOMFROMTEXT(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=300;
+ST_CROSSES(g,GEOMFROMTEXT(@star_elem_vertical))
 0
-SELECT ST_Crosses(g,GeomFromText(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=400;
-ST_Crosses(g,GeomFromText(@star_elem_vertical))
+SELECT ST_CROSSES(g,GEOMFROMTEXT(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=400;
+ST_CROSSES(g,GEOMFROMTEXT(@star_elem_vertical))
 0
-#polygon,multipolygon
-SELECT ST_Crosses(GeomFromText(@star),GeomFromText(@star_of_elems));
-ST_Crosses(GeomFromText(@star),GeomFromText(@star_of_elems))
+#-------------------------------------------------------------------------------------------
+# polygon,multipolygon
+SELECT ST_CROSSES(GEOMFROMTEXT(@star),GEOMFROMTEXT(@star_of_elems));
+ST_CROSSES(GEOMFROMTEXT(@star),GEOMFROMTEXT(@star_of_elems))
 0
-SELECT ST_Crosses(GeomFromText(@star_elem_vertical),GeomFromText(@star_of_elems));
-ST_Crosses(GeomFromText(@star_elem_vertical),GeomFromText(@star_of_elems))
+SELECT ST_CROSSES(GEOMFROMTEXT(@star_elem_vertical),GEOMFROMTEXT(@star_of_elems));
+ST_CROSSES(GEOMFROMTEXT(@star_elem_vertical),GEOMFROMTEXT(@star_of_elems))
 0
-SELECT ST_Crosses(g,GeomFromText(@star_of_elems)) FROM gis_geometrycollection WHERE fid=100;
-ST_Crosses(g,GeomFromText(@star_of_elems))
+SELECT ST_CROSSES(g,GEOMFROMTEXT(@star_of_elems)) FROM gis_geometrycollection WHERE fid=100;
+ST_CROSSES(g,GEOMFROMTEXT(@star_of_elems))
 0
-SELECT ST_Crosses(g,GeomFromText(@star_of_elems)) FROM gis_geometrycollection WHERE fid=300;
-ST_Crosses(g,GeomFromText(@star_of_elems))
+SELECT ST_CROSSES(g,GEOMFROMTEXT(@star_of_elems)) FROM gis_geometrycollection WHERE fid=300;
+ST_CROSSES(g,GEOMFROMTEXT(@star_of_elems))
 0
-SELECT ST_Crosses(g,GeomFromText(@star_of_elems)) FROM gis_geometrycollection WHERE fid=400;
-ST_Crosses(g,GeomFromText(@star_of_elems))
+SELECT ST_CROSSES(g,GEOMFROMTEXT(@star_of_elems)) FROM gis_geometrycollection WHERE fid=400;
+ST_CROSSES(g,GEOMFROMTEXT(@star_of_elems))
 0
-#polygon,geometrycollection
-SELECT ST_Crosses(GeomFromText(@star),GeomFromText(@star_collection_elems));
-ST_Crosses(GeomFromText(@star),GeomFromText(@star_collection_elems))
+#-------------------------------------------------------------------------------------------
+# polygon,geometrycollection
+SELECT ST_CROSSES(GEOMFROMTEXT(@star),GEOMFROMTEXT(@star_collection_elems));
+ST_CROSSES(GEOMFROMTEXT(@star),GEOMFROMTEXT(@star_collection_elems))
 1
-SELECT ST_Crosses(GeomFromText(@star_elem_vertical),GeomFromText(@star_collection_elems));
-ST_Crosses(GeomFromText(@star_elem_vertical),GeomFromText(@star_collection_elems))
+SELECT ST_CROSSES(GEOMFROMTEXT(@star_elem_vertical),GEOMFROMTEXT(@star_collection_elems));
+ST_CROSSES(GEOMFROMTEXT(@star_elem_vertical),GEOMFROMTEXT(@star_collection_elems))
 1
-SELECT ST_Crosses(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=100;
-ST_Crosses(g,GeomFromText(@star_collection_elems))
+SELECT ST_CROSSES(g,GEOMFROMTEXT(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=100;
+ST_CROSSES(g,GEOMFROMTEXT(@star_collection_elems))
 1
-SELECT ST_Crosses(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=300;
-ST_Crosses(g,GeomFromText(@star_collection_elems))
+SELECT ST_CROSSES(g,GEOMFROMTEXT(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=300;
+ST_CROSSES(g,GEOMFROMTEXT(@star_collection_elems))
 1
-SELECT ST_Crosses(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=400;
-ST_Crosses(g,GeomFromText(@star_collection_elems))
+SELECT ST_CROSSES(g,GEOMFROMTEXT(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=400;
+ST_CROSSES(g,GEOMFROMTEXT(@star_collection_elems))
 0
-SELECT ST_Crosses(GeomFromText(@star),GeomFromText(@star_collection_multilinestr));
-ST_Crosses(GeomFromText(@star),GeomFromText(@star_collection_multilinestr))
+SELECT ST_CROSSES(GEOMFROMTEXT(@star),GEOMFROMTEXT(@star_collection_multilinestr));
+ST_CROSSES(GEOMFROMTEXT(@star),GEOMFROMTEXT(@star_collection_multilinestr))
 1
 #-------------------------------------------------------------------------------------------
-#multipolygon,point
-SELECT ST_Crosses(GeomFromText(@star_of_elems),GeomFromText(@star_top));
-ST_Crosses(GeomFromText(@star_of_elems),GeomFromText(@star_top))
+# multipolygon,point
+SELECT ST_CROSSES(GEOMFROMTEXT(@star_of_elems),GEOMFROMTEXT(@star_top));
+ST_CROSSES(GEOMFROMTEXT(@star_of_elems),GEOMFROMTEXT(@star_top))
 0
-SELECT ST_Crosses(GeomFromText(@star_of_elems),GeomFromText('POINT(30 30)'));
-ST_Crosses(GeomFromText(@star_of_elems),GeomFromText('POINT(30 30)'))
+SELECT ST_CROSSES(GEOMFROMTEXT(@star_of_elems),GEOMFROMTEXT('POINT(30 30)'));
+ST_CROSSES(GEOMFROMTEXT(@star_of_elems),GEOMFROMTEXT('POINT(30 30)'))
 0
-SELECT ST_Crosses(g,GeomFromText(@star_top)) FROM gis_geometrycollection WHERE fid=103;
-ST_Crosses(g,GeomFromText(@star_top))
+SELECT ST_CROSSES(g,GEOMFROMTEXT(@star_top)) FROM gis_geometrycollection WHERE fid=103;
+ST_CROSSES(g,GEOMFROMTEXT(@star_top))
 0
-SELECT ST_Crosses(g,GeomFromText(@star_top)) FROM gis_geometrycollection WHERE fid=403;
-ST_Crosses(g,GeomFromText(@star_top))
+SELECT ST_CROSSES(g,GEOMFROMTEXT(@star_top)) FROM gis_geometrycollection WHERE fid=403;
+ST_CROSSES(g,GEOMFROMTEXT(@star_top))
 0
-#multipolygon,multipoint
-SELECT ST_Crosses(GeomFromText(@star_of_elems),GeomFromText(@star_bottom_points));
-ST_Crosses(GeomFromText(@star_of_elems),GeomFromText(@star_bottom_points))
+#-------------------------------------------------------------------------------------------
+# multipolygon,multipoint
+SELECT ST_CROSSES(GEOMFROMTEXT(@star_of_elems),GEOMFROMTEXT(@star_bottom_points));
+ST_CROSSES(GEOMFROMTEXT(@star_of_elems),GEOMFROMTEXT(@star_bottom_points))
 0
-SELECT ST_Crosses(GeomFromText(@star_of_elems),GeomFromText('MULTIPOINT(30 30,0 35)'));
-ST_Crosses(GeomFromText(@star_of_elems),GeomFromText('MULTIPOINT(30 30,0 35)'))
+SELECT ST_CROSSES(GEOMFROMTEXT(@star_of_elems),GEOMFROMTEXT('MULTIPOINT(30 30,0 35)'));
+ST_CROSSES(GEOMFROMTEXT(@star_of_elems),GEOMFROMTEXT('MULTIPOINT(30 30,0 35)'))
 0
-SELECT ST_Crosses(g,GeomFromText(@star_bottom_points)) FROM gis_geometrycollection WHERE fid=103;
-ST_Crosses(g,GeomFromText(@star_bottom_points))
+SELECT ST_CROSSES(g,GEOMFROMTEXT(@star_bottom_points)) FROM gis_geometrycollection WHERE fid=103;
+ST_CROSSES(g,GEOMFROMTEXT(@star_bottom_points))
 0
-SELECT ST_Crosses(g,GeomFromText(@star_bottom_points)) FROM gis_geometrycollection WHERE fid=403;
-ST_Crosses(g,GeomFromText(@star_bottom_points))
+SELECT ST_CROSSES(g,GEOMFROMTEXT(@star_bottom_points)) FROM gis_geometrycollection WHERE fid=403;
+ST_CROSSES(g,GEOMFROMTEXT(@star_bottom_points))
 0
-#multipolygon,linestring
-SELECT ST_Crosses(GeomFromText(@star_of_elems),GeomFromText(@star_top_to_center));
-ST_Crosses(GeomFromText(@star_of_elems),GeomFromText(@star_top_to_center))
+#-------------------------------------------------------------------------------------------
+# multipolygon,linestring
+SELECT ST_CROSSES(GEOMFROMTEXT(@star_of_elems),GEOMFROMTEXT(@star_top_to_center));
+ST_CROSSES(GEOMFROMTEXT(@star_of_elems),GEOMFROMTEXT(@star_top_to_center))
 0
-SELECT ST_Crosses(GeomFromText(@star_of_elems),GeomFromText('LINESTRING(30 30,0 35)'));
-ST_Crosses(GeomFromText(@star_of_elems),GeomFromText('LINESTRING(30 30,0 35)'))
+SELECT ST_CROSSES(GEOMFROMTEXT(@star_of_elems),GEOMFROMTEXT('LINESTRING(30 30,0 35)'));
+ST_CROSSES(GEOMFROMTEXT(@star_of_elems),GEOMFROMTEXT('LINESTRING(30 30,0 35)'))
 0
-SELECT ST_Crosses(g,GeomFromText(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=103;
-ST_Crosses(g,GeomFromText(@star_top_to_center))
+SELECT ST_CROSSES(g,GEOMFROMTEXT(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=103;
+ST_CROSSES(g,GEOMFROMTEXT(@star_top_to_center))
 0
-SELECT ST_Crosses(g,GeomFromText(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=403;
-ST_Crosses(g,GeomFromText(@star_top_to_center))
+SELECT ST_CROSSES(g,GEOMFROMTEXT(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=403;
+ST_CROSSES(g,GEOMFROMTEXT(@star_top_to_center))
 0
-#multipolygon,multilinestring
-SELECT ST_Crosses(GeomFromText(@star_of_elems),GeomFromText(@star_lines_near_vertical));
-ST_Crosses(GeomFromText(@star_of_elems),GeomFromText(@star_lines_near_vertical))
+#-------------------------------------------------------------------------------------------
+# multipolygon,multilinestring
+SELECT ST_CROSSES(GEOMFROMTEXT(@star_of_elems),GEOMFROMTEXT(@star_lines_near_vertical));
+ST_CROSSES(GEOMFROMTEXT(@star_of_elems),GEOMFROMTEXT(@star_lines_near_vertical))
 0
-SELECT ST_Crosses(GeomFromText(@star_of_elems),GeomFromText('MULTILINESTRING((0 30,30 30,0 35))'));
-ST_Crosses(GeomFromText(@star_of_elems),GeomFromText('MULTILINESTRING((0 30,30 30,0 35))'))
+SELECT ST_CROSSES(GEOMFROMTEXT(@star_of_elems),GEOMFROMTEXT('MULTILINESTRING((0 30,30 30,0 35))'));
+ST_CROSSES(GEOMFROMTEXT(@star_of_elems),GEOMFROMTEXT('MULTILINESTRING((0 30,30 30,0 35))'))
 0
-SELECT ST_Crosses(g,GeomFromText(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=103;
-ST_Crosses(g,GeomFromText(@star_lines_near_vertical))
+SELECT ST_CROSSES(g,GEOMFROMTEXT(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=103;
+ST_CROSSES(g,GEOMFROMTEXT(@star_lines_near_vertical))
 0
-SELECT ST_Crosses(g,GeomFromText(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=403;
-ST_Crosses(g,GeomFromText(@star_lines_near_vertical))
+SELECT ST_CROSSES(g,GEOMFROMTEXT(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=403;
+ST_CROSSES(g,GEOMFROMTEXT(@star_lines_near_vertical))
 0
-#multipolygon,polygon
-SELECT ST_Crosses(GeomFromText(@star_of_elems),GeomFromText(@star_elem_vertical));
-ST_Crosses(GeomFromText(@star_of_elems),GeomFromText(@star_elem_vertical))
+#-------------------------------------------------------------------------------------------
+# multipolygon,polygon
+SELECT ST_CROSSES(GEOMFROMTEXT(@star_of_elems),GEOMFROMTEXT(@star_elem_vertical));
+ST_CROSSES(GEOMFROMTEXT(@star_of_elems),GEOMFROMTEXT(@star_elem_vertical))
 0
-SELECT ST_Crosses(GeomFromText(@star_of_elems),GeomFromText(@star));
-ST_Crosses(GeomFromText(@star_of_elems),GeomFromText(@star))
+SELECT ST_CROSSES(GEOMFROMTEXT(@star_of_elems),GEOMFROMTEXT(@star));
+ST_CROSSES(GEOMFROMTEXT(@star_of_elems),GEOMFROMTEXT(@star))
 0
-SELECT ST_Crosses(GeomFromText(@star_of_elems),GeomFromText('POLYGON((0 0,15 25,35 0,0 0))'));
-ST_Crosses(GeomFromText(@star_of_elems),GeomFromText('POLYGON((0 0,15 25,35 0,0 0))'))
+SELECT ST_CROSSES(GEOMFROMTEXT(@star_of_elems),GEOMFROMTEXT('POLYGON((0 0,15 25,35 0,0 0))'));
+ST_CROSSES(GEOMFROMTEXT(@star_of_elems),GEOMFROMTEXT('POLYGON((0 0,15 25,35 0,0 0))'))
 0
-SELECT ST_Crosses(g,GeomFromText(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=103;
-ST_Crosses(g,GeomFromText(@star_elem_vertical))
+SELECT ST_CROSSES(g,GEOMFROMTEXT(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=103;
+ST_CROSSES(g,GEOMFROMTEXT(@star_elem_vertical))
 0
-SELECT ST_Crosses(g,GeomFromText(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=303;
-ST_Crosses(g,GeomFromText(@star_elem_vertical))
+SELECT ST_CROSSES(g,GEOMFROMTEXT(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=303;
+ST_CROSSES(g,GEOMFROMTEXT(@star_elem_vertical))
 0
-SELECT ST_Crosses(g,GeomFromText(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=403;
-ST_Crosses(g,GeomFromText(@star_elem_vertical))
+SELECT ST_CROSSES(g,GEOMFROMTEXT(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=403;
+ST_CROSSES(g,GEOMFROMTEXT(@star_elem_vertical))
 0
-#multipolygon,multipolygon
-SELECT ST_Crosses(GeomFromText(@star_of_elems),GeomFromText(@star_of_elems));
-ST_Crosses(GeomFromText(@star_of_elems),GeomFromText(@star_of_elems))
+#-------------------------------------------------------------------------------------------
+# multipolygon,multipolygon
+SELECT ST_CROSSES(GEOMFROMTEXT(@star_of_elems),GEOMFROMTEXT(@star_of_elems));
+ST_CROSSES(GEOMFROMTEXT(@star_of_elems),GEOMFROMTEXT(@star_of_elems))
 0
-SELECT ST_Crosses(GeomFromText(@star_of_elems),GeomFromText('MULTIPOLYGON(((0 0,15 25,35 0,0 0),(5 0,15 25,25 0,15 5,5 0)))'));
-ST_Crosses(GeomFromText(@star_of_elems),GeomFromText('MULTIPOLYGON(((0 0,15 25,35 0,0 0),(5 0,15 25,25 0,15 5,5 0)))'))
+SELECT ST_CROSSES(GEOMFROMTEXT(@star_of_elems),GEOMFROMTEXT('MULTIPOLYGON(((0 0,15 25,35 0,0 0),(5 0,15 25,25 0,15 5,5 0)))'));
+ST_CROSSES(GEOMFROMTEXT(@star_of_elems),GEOMFROMTEXT('MULTIPOLYGON(((0 0,15 25,35 0,0 0),(5 0,15 25,25 0,15 5,5 0)))'))
 0
-SELECT ST_Crosses(g,GeomFromText(@star_of_elems)) FROM gis_geometrycollection WHERE fid=103;
-ST_Crosses(g,GeomFromText(@star_of_elems))
+SELECT ST_CROSSES(g,GEOMFROMTEXT(@star_of_elems)) FROM gis_geometrycollection WHERE fid=103;
+ST_CROSSES(g,GEOMFROMTEXT(@star_of_elems))
 0
-SELECT ST_Crosses(g,GeomFromText(@star_of_elems)) FROM gis_geometrycollection WHERE fid=303;
-ST_Crosses(g,GeomFromText(@star_of_elems))
+SELECT ST_CROSSES(g,GEOMFROMTEXT(@star_of_elems)) FROM gis_geometrycollection WHERE fid=303;
+ST_CROSSES(g,GEOMFROMTEXT(@star_of_elems))
 0
-SELECT ST_Crosses(g,GeomFromText(@star_of_elems)) FROM gis_geometrycollection WHERE fid=403;
-ST_Crosses(g,GeomFromText(@star_of_elems))
+SELECT ST_CROSSES(g,GEOMFROMTEXT(@star_of_elems)) FROM gis_geometrycollection WHERE fid=403;
+ST_CROSSES(g,GEOMFROMTEXT(@star_of_elems))
 0
-SELECT ST_Crosses(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2
+SELECT ST_CROSSES(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2
 WHERE fid=103 and fid2=103;
-ST_Crosses(g,g2)
+ST_CROSSES(g,g2)
 0
-#multipolygon,geometrycollection
-SELECT ST_Crosses(GeomFromText(@star_of_elems),GeomFromText(@star_collection_elems));
-ST_Crosses(GeomFromText(@star_of_elems),GeomFromText(@star_collection_elems))
+#-------------------------------------------------------------------------------------------
+# multipolygon,geometrycollection
+SELECT ST_CROSSES(GEOMFROMTEXT(@star_of_elems),GEOMFROMTEXT(@star_collection_elems));
+ST_CROSSES(GEOMFROMTEXT(@star_of_elems),GEOMFROMTEXT(@star_collection_elems))
 1
-SELECT ST_Crosses(GeomFromText(@star_of_elems),GeomFromText(@star_collection_elems_3));
-ST_Crosses(GeomFromText(@star_of_elems),GeomFromText(@star_collection_elems_3))
+SELECT ST_CROSSES(GEOMFROMTEXT(@star_of_elems),GEOMFROMTEXT(@star_collection_elems_3));
+ST_CROSSES(GEOMFROMTEXT(@star_of_elems),GEOMFROMTEXT(@star_collection_elems_3))
 0
-SELECT ST_Crosses(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=103;
-ST_Crosses(g,GeomFromText(@star_collection_elems))
+SELECT ST_CROSSES(g,GEOMFROMTEXT(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=103;
+ST_CROSSES(g,GEOMFROMTEXT(@star_collection_elems))
 1
-SELECT ST_Crosses(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=303;
-ST_Crosses(g,GeomFromText(@star_collection_elems))
+SELECT ST_CROSSES(g,GEOMFROMTEXT(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=303;
+ST_CROSSES(g,GEOMFROMTEXT(@star_collection_elems))
 1
-SELECT ST_Crosses(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=403;
-ST_Crosses(g,GeomFromText(@star_collection_elems))
+SELECT ST_CROSSES(g,GEOMFROMTEXT(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=403;
+ST_CROSSES(g,GEOMFROMTEXT(@star_collection_elems))
 0
-SELECT ST_Crosses(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2
+SELECT ST_CROSSES(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2
 WHERE fid=115 and fid2=103;
-ST_Crosses(g,g2)
+ST_CROSSES(g,g2)
 1
-SELECT ST_Crosses(GeomFromText(@star_of_elems),GeomFromText(@star_collection_multilinestr));
-ST_Crosses(GeomFromText(@star_of_elems),GeomFromText(@star_collection_multilinestr))
+SELECT ST_CROSSES(GEOMFROMTEXT(@star_of_elems),GEOMFROMTEXT(@star_collection_multilinestr));
+ST_CROSSES(GEOMFROMTEXT(@star_of_elems),GEOMFROMTEXT(@star_collection_multilinestr))
 1
 #-------------------------------------------------------------------------------------------
-#geometrycollection,point
-SELECT ST_Crosses(GeomFromText(@star_collection_elems),GeomFromText(@star_top));
-ST_Crosses(GeomFromText(@star_collection_elems),GeomFromText(@star_top))
+# geometrycollection,point
+SELECT ST_CROSSES(GEOMFROMTEXT(@star_collection_elems),GEOMFROMTEXT(@star_top));
+ST_CROSSES(GEOMFROMTEXT(@star_collection_elems),GEOMFROMTEXT(@star_top))
 0
-SELECT ST_Crosses(GeomFromText(@star_collection_elems),GeomFromText('POINT(30 30)'));
-ST_Crosses(GeomFromText(@star_collection_elems),GeomFromText('POINT(30 30)'))
+SELECT ST_CROSSES(GEOMFROMTEXT(@star_collection_elems),GEOMFROMTEXT('POINT(30 30)'));
+ST_CROSSES(GEOMFROMTEXT(@star_collection_elems),GEOMFROMTEXT('POINT(30 30)'))
 0
-SELECT ST_Crosses(g,GeomFromText(@star_top)) FROM gis_geometrycollection WHERE fid=115;
-ST_Crosses(g,GeomFromText(@star_top))
+SELECT ST_CROSSES(g,GEOMFROMTEXT(@star_top)) FROM gis_geometrycollection WHERE fid=115;
+ST_CROSSES(g,GEOMFROMTEXT(@star_top))
 0
-SELECT ST_Crosses(g,GeomFromText(@star_top)) FROM gis_geometrycollection WHERE fid=415;
-ST_Crosses(g,GeomFromText(@star_top))
+SELECT ST_CROSSES(g,GEOMFROMTEXT(@star_top)) FROM gis_geometrycollection WHERE fid=415;
+ST_CROSSES(g,GEOMFROMTEXT(@star_top))
 0
-#geometrycollection,multipoint
-SELECT ST_Crosses(GeomFromText(@star_collection_elems),GeomFromText(@star_bottom_points));
-ST_Crosses(GeomFromText(@star_collection_elems),GeomFromText(@star_bottom_points))
+#-------------------------------------------------------------------------------------------
+# geometrycollection,multipoint
+SELECT ST_CROSSES(GEOMFROMTEXT(@star_collection_elems),GEOMFROMTEXT(@star_bottom_points));
+ST_CROSSES(GEOMFROMTEXT(@star_collection_elems),GEOMFROMTEXT(@star_bottom_points))
 0
-SELECT ST_Crosses(GeomFromText(@star_collection_elems),GeomFromText('MULTIPOINT(30 30,0 35)'));
-ST_Crosses(GeomFromText(@star_collection_elems),GeomFromText('MULTIPOINT(30 30,0 35)'))
+SELECT ST_CROSSES(GEOMFROMTEXT(@star_collection_elems),GEOMFROMTEXT('MULTIPOINT(30 30,0 35)'));
+ST_CROSSES(GEOMFROMTEXT(@star_collection_elems),GEOMFROMTEXT('MULTIPOINT(30 30,0 35)'))
 0
-SELECT ST_Crosses(g,GeomFromText(@star_bottom_points)) FROM gis_geometrycollection WHERE fid=115;
-ST_Crosses(g,GeomFromText(@star_bottom_points))
+SELECT ST_CROSSES(g,GEOMFROMTEXT(@star_bottom_points)) FROM gis_geometrycollection WHERE fid=115;
+ST_CROSSES(g,GEOMFROMTEXT(@star_bottom_points))
 0
-SELECT ST_Crosses(g,GeomFromText(@star_bottom_points)) FROM gis_geometrycollection WHERE fid=415;
-ST_Crosses(g,GeomFromText(@star_bottom_points))
+SELECT ST_CROSSES(g,GEOMFROMTEXT(@star_bottom_points)) FROM gis_geometrycollection WHERE fid=415;
+ST_CROSSES(g,GEOMFROMTEXT(@star_bottom_points))
 0
-#geometrycollection,linestring
-SELECT ST_Crosses(GeomFromText(@star_collection_elems),GeomFromText(@star_top_to_center));
-ST_Crosses(GeomFromText(@star_collection_elems),GeomFromText(@star_top_to_center))
+#-------------------------------------------------------------------------------------------
+# geometrycollection,linestring
+SELECT ST_CROSSES(GEOMFROMTEXT(@star_collection_elems),GEOMFROMTEXT(@star_top_to_center));
+ST_CROSSES(GEOMFROMTEXT(@star_collection_elems),GEOMFROMTEXT(@star_top_to_center))
 1
-SELECT ST_Crosses(GeomFromText(@star_collection_elems),GeomFromText('LINESTRING(30 30,0 35)'));
-ST_Crosses(GeomFromText(@star_collection_elems),GeomFromText('LINESTRING(30 30,0 35)'))
+SELECT ST_CROSSES(GEOMFROMTEXT(@star_collection_elems),GEOMFROMTEXT('LINESTRING(30 30,0 35)'));
+ST_CROSSES(GEOMFROMTEXT(@star_collection_elems),GEOMFROMTEXT('LINESTRING(30 30,0 35)'))
 0
-SELECT ST_Crosses(g,GeomFromText(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=115;
-ST_Crosses(g,GeomFromText(@star_top_to_center))
+SELECT ST_CROSSES(g,GEOMFROMTEXT(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=115;
+ST_CROSSES(g,GEOMFROMTEXT(@star_top_to_center))
 1
-SELECT ST_Crosses(g,GeomFromText(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=415;
-ST_Crosses(g,GeomFromText(@star_top_to_center))
+SELECT ST_CROSSES(g,GEOMFROMTEXT(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=415;
+ST_CROSSES(g,GEOMFROMTEXT(@star_top_to_center))
 0
-#geometrycollection,multilinestring
-SELECT ST_Crosses(GeomFromText(@star_collection_elems),GeomFromText(@star_lines_near_vertical));
-ST_Crosses(GeomFromText(@star_collection_elems),GeomFromText(@star_lines_near_vertical))
+#-------------------------------------------------------------------------------------------
+# geometrycollection,multilinestring
+SELECT ST_CROSSES(GEOMFROMTEXT(@star_collection_elems),GEOMFROMTEXT(@star_lines_near_vertical));
+ST_CROSSES(GEOMFROMTEXT(@star_collection_elems),GEOMFROMTEXT(@star_lines_near_vertical))
 1
-SELECT ST_Crosses(GeomFromText(@star_collection_elems),GeomFromText('MULTILINESTRING((0 30,30 30,0 35))'));
-ST_Crosses(GeomFromText(@star_collection_elems),GeomFromText('MULTILINESTRING((0 30,30 30,0 35))'))
+SELECT ST_CROSSES(GEOMFROMTEXT(@star_collection_elems),GEOMFROMTEXT('MULTILINESTRING((0 30,30 30,0 35))'));
+ST_CROSSES(GEOMFROMTEXT(@star_collection_elems),GEOMFROMTEXT('MULTILINESTRING((0 30,30 30,0 35))'))
 0
-SELECT ST_Crosses(g,GeomFromText(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=115;
-ST_Crosses(g,GeomFromText(@star_lines_near_vertical))
+SELECT ST_CROSSES(g,GEOMFROMTEXT(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=115;
+ST_CROSSES(g,GEOMFROMTEXT(@star_lines_near_vertical))
 1
-SELECT ST_Crosses(g,GeomFromText(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=415;
-ST_Crosses(g,GeomFromText(@star_lines_near_vertical))
+SELECT ST_CROSSES(g,GEOMFROMTEXT(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=415;
+ST_CROSSES(g,GEOMFROMTEXT(@star_lines_near_vertical))
 0
-#geometrycollection,polygon
-SELECT ST_Crosses(GeomFromText(@star_collection_elems),GeomFromText(@star_elem_vertical));
-ST_Crosses(GeomFromText(@star_collection_elems),GeomFromText(@star_elem_vertical))
+#-------------------------------------------------------------------------------------------
+# geometrycollection,polygon
+SELECT ST_CROSSES(GEOMFROMTEXT(@star_collection_elems),GEOMFROMTEXT(@star_elem_vertical));
+ST_CROSSES(GEOMFROMTEXT(@star_collection_elems),GEOMFROMTEXT(@star_elem_vertical))
 1
-SELECT ST_Crosses(GeomFromText(@star_collection_elems),GeomFromText(@star));
-ST_Crosses(GeomFromText(@star_collection_elems),GeomFromText(@star))
+SELECT ST_CROSSES(GEOMFROMTEXT(@star_collection_elems),GEOMFROMTEXT(@star));
+ST_CROSSES(GEOMFROMTEXT(@star_collection_elems),GEOMFROMTEXT(@star))
 1
-SELECT ST_Crosses(GeomFromText(@star_collection_elems),GeomFromText('POLYGON((0 0,15 25,35 0,0 0))'));
-ST_Crosses(GeomFromText(@star_collection_elems),GeomFromText('POLYGON((0 0,15 25,35 0,0 0))'))
+SELECT ST_CROSSES(GEOMFROMTEXT(@star_collection_elems),GEOMFROMTEXT('POLYGON((0 0,15 25,35 0,0 0))'));
+ST_CROSSES(GEOMFROMTEXT(@star_collection_elems),GEOMFROMTEXT('POLYGON((0 0,15 25,35 0,0 0))'))
 1
-SELECT ST_Crosses(g,GeomFromText(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=115;
-ST_Crosses(g,GeomFromText(@star_elem_vertical))
+SELECT ST_CROSSES(g,GEOMFROMTEXT(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=115;
+ST_CROSSES(g,GEOMFROMTEXT(@star_elem_vertical))
 1
-SELECT ST_Crosses(g,GeomFromText(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=315;
-ST_Crosses(g,GeomFromText(@star_elem_vertical))
+SELECT ST_CROSSES(g,GEOMFROMTEXT(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=315;
+ST_CROSSES(g,GEOMFROMTEXT(@star_elem_vertical))
 1
-SELECT ST_Crosses(g,GeomFromText(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=415;
-ST_Crosses(g,GeomFromText(@star_elem_vertical))
+SELECT ST_CROSSES(g,GEOMFROMTEXT(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=415;
+ST_CROSSES(g,GEOMFROMTEXT(@star_elem_vertical))
 0
-#geometrycollection,multipolygon
-SELECT ST_Crosses(GeomFromText(@star_collection_elems),GeomFromText(@star_of_elems));
-ST_Crosses(GeomFromText(@star_collection_elems),GeomFromText(@star_of_elems))
+#-------------------------------------------------------------------------------------------
+# geometrycollection,multipolygon
+SELECT ST_CROSSES(GEOMFROMTEXT(@star_collection_elems),GEOMFROMTEXT(@star_of_elems));
+ST_CROSSES(GEOMFROMTEXT(@star_collection_elems),GEOMFROMTEXT(@star_of_elems))
 1
-SELECT ST_Crosses(GeomFromText(@star_collection_elems),GeomFromText('MULTIPOLYGON(((0 0,15 25,35 0,0 0),(5 0,15 25,25 0,15 5,5 0)))'));
-ST_Crosses(GeomFromText(@star_collection_elems),GeomFromText('MULTIPOLYGON(((0 0,15 25,35 0,0 0),(5 0,15 25,25 0,15 5,5 0)))'))
+SELECT ST_CROSSES(GEOMFROMTEXT(@star_collection_elems),GEOMFROMTEXT('MULTIPOLYGON(((0 0,15 25,35 0,0 0),(5 0,15 25,25 0,15 5,5 0)))'));
+ST_CROSSES(GEOMFROMTEXT(@star_collection_elems),GEOMFROMTEXT('MULTIPOLYGON(((0 0,15 25,35 0,0 0),(5 0,15 25,25 0,15 5,5 0)))'))
 1
-SELECT ST_Crosses(g,GeomFromText(@star_of_elems)) FROM gis_geometrycollection WHERE fid=115;
-ST_Crosses(g,GeomFromText(@star_of_elems))
+SELECT ST_CROSSES(g,GEOMFROMTEXT(@star_of_elems)) FROM gis_geometrycollection WHERE fid=115;
+ST_CROSSES(g,GEOMFROMTEXT(@star_of_elems))
 1
-SELECT ST_Crosses(g,GeomFromText(@star_of_elems)) FROM gis_geometrycollection WHERE fid=315;
-ST_Crosses(g,GeomFromText(@star_of_elems))
+SELECT ST_CROSSES(g,GEOMFROMTEXT(@star_of_elems)) FROM gis_geometrycollection WHERE fid=315;
+ST_CROSSES(g,GEOMFROMTEXT(@star_of_elems))
 1
-SELECT ST_Crosses(g,GeomFromText(@star_of_elems)) FROM gis_geometrycollection WHERE fid=415;
-ST_Crosses(g,GeomFromText(@star_of_elems))
+SELECT ST_CROSSES(g,GEOMFROMTEXT(@star_of_elems)) FROM gis_geometrycollection WHERE fid=415;
+ST_CROSSES(g,GEOMFROMTEXT(@star_of_elems))
 0
-SELECT ST_Crosses(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2
+SELECT ST_CROSSES(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2
 WHERE fid=103 and fid2=115;
-ST_Crosses(g,g2)
+ST_CROSSES(g,g2)
 1
-#geometrycollection,geometrycollection
-SELECT ST_Crosses(GeomFromText(@star_collection_elems),GeomFromText(@star_collection_elems));
-ST_Crosses(GeomFromText(@star_collection_elems),GeomFromText(@star_collection_elems))
+#-------------------------------------------------------------------------------------------
+# geometrycollection,geometrycollection
+SELECT ST_CROSSES(GEOMFROMTEXT(@star_collection_elems),GEOMFROMTEXT(@star_collection_elems));
+ST_CROSSES(GEOMFROMTEXT(@star_collection_elems),GEOMFROMTEXT(@star_collection_elems))
 1
-SELECT ST_Crosses(GeomFromText(@star_collection_elems),GeomFromText(@star_collection_elems_3));
-ST_Crosses(GeomFromText(@star_collection_elems),GeomFromText(@star_collection_elems_3))
+SELECT ST_CROSSES(GEOMFROMTEXT(@star_collection_elems),GEOMFROMTEXT(@star_collection_elems_3));
+ST_CROSSES(GEOMFROMTEXT(@star_collection_elems),GEOMFROMTEXT(@star_collection_elems_3))
 0
-SELECT ST_Crosses(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=115;
-ST_Crosses(g,GeomFromText(@star_collection_elems))
+SELECT ST_CROSSES(g,GEOMFROMTEXT(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=115;
+ST_CROSSES(g,GEOMFROMTEXT(@star_collection_elems))
 1
-SELECT ST_Crosses(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=315;
-ST_Crosses(g,GeomFromText(@star_collection_elems))
+SELECT ST_CROSSES(g,GEOMFROMTEXT(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=315;
+ST_CROSSES(g,GEOMFROMTEXT(@star_collection_elems))
 1
-SELECT ST_Crosses(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=415;
-ST_Crosses(g,GeomFromText(@star_collection_elems))
+SELECT ST_CROSSES(g,GEOMFROMTEXT(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=415;
+ST_CROSSES(g,GEOMFROMTEXT(@star_collection_elems))
 0
-SELECT ST_Crosses(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2
+SELECT ST_CROSSES(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2
 WHERE fid=115 and fid2=215;
-ST_Crosses(g,g2)
+ST_CROSSES(g,g2)
 1
-SELECT ST_Crosses(GeomFromText(@star_collection_elems),GeomFromText(@star_collection_multilinestr));
-ST_Crosses(GeomFromText(@star_collection_elems),GeomFromText(@star_collection_multilinestr))
+SELECT ST_CROSSES(GEOMFROMTEXT(@star_collection_elems),GEOMFROMTEXT(@star_collection_multilinestr));
+ST_CROSSES(GEOMFROMTEXT(@star_collection_elems),GEOMFROMTEXT(@star_collection_multilinestr))
 1
 #=======================================================================================
-# Crosses(g1,g2)
+# CROSSES(g1,g2)
 #=======================================================================================
 #-------------------------------------------------------------------------------------------
-#point,point
-SELECT Crosses(GeomFromText(@star_center),GeomFromText(@star_center));
-Crosses(GeomFromText(@star_center),GeomFromText(@star_center))
+# point,point
+SELECT CROSSES(GEOMFROMTEXT(@star_center),GEOMFROMTEXT(@star_center));
+CROSSES(GEOMFROMTEXT(@star_center),GEOMFROMTEXT(@star_center))
 0
-SELECT Crosses(GeomFromText(@star_top),GeomFromText(@star_center));
-Crosses(GeomFromText(@star_top),GeomFromText(@star_center))
+SELECT CROSSES(GEOMFROMTEXT(@star_top),GEOMFROMTEXT(@star_center));
+CROSSES(GEOMFROMTEXT(@star_top),GEOMFROMTEXT(@star_center))
 0
-SELECT Crosses(g,GeomFromText(@star_center)) FROM gis_geometrycollection WHERE fid=105;
-Crosses(g,GeomFromText(@star_center))
+SELECT CROSSES(g,GEOMFROMTEXT(@star_center)) FROM gis_geometrycollection WHERE fid=105;
+CROSSES(g,GEOMFROMTEXT(@star_center))
 0
-#point,multipoint
-SELECT Crosses(GeomFromText(@star_bottom_left),GeomFromText(@star_bottom_points));
-Crosses(GeomFromText(@star_bottom_left),GeomFromText(@star_bottom_points))
+SELECT CROSSES(GEOMFROMTEXT('POINT(0 0)'),GEOMFROMTEXT('POINT(0 0)'));
+CROSSES(GEOMFROMTEXT('POINT(0 0)'),GEOMFROMTEXT('POINT(0 0)'))
 0
-SELECT Crosses(GeomFromText(@star_top),GeomFromText(@star_bottom_points));
-Crosses(GeomFromText(@star_top),GeomFromText(@star_bottom_points))
-0
-SELECT Crosses(g,GeomFromText(@star_bottom_points)) FROM gis_geometrycollection WHERE fid=106;
-Crosses(g,GeomFromText(@star_bottom_points))
-0
-#point,linestring
-SELECT Crosses(GeomFromText(@star_top),GeomFromText(@star_top_to_center));
-Crosses(GeomFromText(@star_top),GeomFromText(@star_top_to_center))
-0
-SELECT Crosses(GeomFromText(@star_top),GeomFromText(@star_line_horizontal));
-Crosses(GeomFromText(@star_top),GeomFromText(@star_line_horizontal))
-0
-SELECT Crosses(g,GeomFromText(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=104;
-Crosses(g,GeomFromText(@star_top_to_center))
-0
-#point,multilinestring
-SELECT Crosses(GeomFromText(@star_top),GeomFromText(@star_lines_near_vertical));
-Crosses(GeomFromText(@star_top),GeomFromText(@star_lines_near_vertical))
-0
-SELECT Crosses(GeomFromText(@star_top),GeomFromText(@star_lines_near_horizontal));
-Crosses(GeomFromText(@star_top),GeomFromText(@star_lines_near_horizontal))
-0
-SELECT Crosses(g,GeomFromText(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=104;
-Crosses(g,GeomFromText(@star_lines_near_vertical))
-0
-#point,polygon
-SELECT Crosses(GeomFromText(@star_top),GeomFromText(@star));
-Crosses(GeomFromText(@star_top),GeomFromText(@star))
-0
-SELECT Crosses(GeomFromText(@star_top),GeomFromText(@star_elem_horizontal));
-Crosses(GeomFromText(@star_top),GeomFromText(@star_elem_horizontal))
-0
-SELECT Crosses(GeomFromText(@star_top),GeomFromText(@star_elem_vertical));
-Crosses(GeomFromText(@star_top),GeomFromText(@star_elem_vertical))
-0
-SELECT Crosses(g,GeomFromText(@star)) FROM gis_geometrycollection WHERE fid=104;
-Crosses(g,GeomFromText(@star))
-0
-#point,multipolygon
-SELECT Crosses(GeomFromText(@star_top),GeomFromText(@star_of_elems));
-Crosses(GeomFromText(@star_top),GeomFromText(@star_of_elems))
-0
-SELECT Crosses(GeomFromText('POINT(-0.01 0)'),GeomFromText(@star_of_elems));
-Crosses(GeomFromText('POINT(-0.01 0)'),GeomFromText(@star_of_elems))
-0
-SELECT Crosses(g,GeomFromText(@star_of_elems)) FROM gis_geometrycollection WHERE fid=104;
-Crosses(g,GeomFromText(@star_of_elems))
-0
-#point,geometrycollection
-SELECT Crosses(GeomFromText(@star_top),GeomFromText(@star_collection_elems));
-Crosses(GeomFromText(@star_top),GeomFromText(@star_collection_elems))
-0
-SELECT Crosses(GeomFromText('POINT(-0.01 0)'),GeomFromText(@star_collection_elems));
-Crosses(GeomFromText('POINT(-0.01 0)'),GeomFromText(@star_collection_elems))
-0
-SELECT Crosses(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=104;
-Crosses(g,GeomFromText(@star_collection_elems))
-0
-SELECT Crosses(GeomFromText(@star_top),GeomFromText(@star_collection_multilinestr));
-Crosses(GeomFromText(@star_top),GeomFromText(@star_collection_multilinestr))
+SELECT CROSSES(GEOMFROMTEXT('POINT(0 0)'),GEOMFROMTEXT('POINT(10 0)'));
+CROSSES(GEOMFROMTEXT('POINT(0 0)'),GEOMFROMTEXT('POINT(10 0)'))
 0
 #-------------------------------------------------------------------------------------------
-#multipoint,point
-SELECT Crosses(GeomFromText(@star_all_points),GeomFromText(@star_top));
-Crosses(GeomFromText(@star_all_points),GeomFromText(@star_top))
+# point,multipoint
+SELECT CROSSES(GEOMFROMTEXT(@star_bottom_left),GEOMFROMTEXT(@star_bottom_points));
+CROSSES(GEOMFROMTEXT(@star_bottom_left),GEOMFROMTEXT(@star_bottom_points))
 0
-SELECT Crosses(GeomFromText(@star_bottom_points),GeomFromText(@star_center));
-Crosses(GeomFromText(@star_bottom_points),GeomFromText(@star_center))
+SELECT CROSSES(GEOMFROMTEXT(@star_top),GEOMFROMTEXT(@star_bottom_points));
+CROSSES(GEOMFROMTEXT(@star_top),GEOMFROMTEXT(@star_bottom_points))
 0
-SELECT Crosses(g,GeomFromText(@star_bottom_left)) FROM gis_geometrycollection WHERE fid=108;
-Crosses(g,GeomFromText(@star_bottom_left))
+SELECT CROSSES(g,GEOMFROMTEXT(@star_bottom_points)) FROM gis_geometrycollection WHERE fid=106;
+CROSSES(g,GEOMFROMTEXT(@star_bottom_points))
 0
-#multipoint,multipoint
-SELECT Crosses(GeomFromText(@star_all_points),GeomFromText(@star_bottom_points));
-Crosses(GeomFromText(@star_all_points),GeomFromText(@star_bottom_points))
+SELECT CROSSES(GEOMFROMTEXT('POINT(0 0)'),GEOMFROMTEXT('MULTIPOINT(0 0)'));
+CROSSES(GEOMFROMTEXT('POINT(0 0)'),GEOMFROMTEXT('MULTIPOINT(0 0)'))
 0
-SELECT Crosses(GeomFromText(@star_bottom_points),GeomFromText(@star_all_points));
-Crosses(GeomFromText(@star_bottom_points),GeomFromText(@star_all_points))
+SELECT CROSSES(GEOMFROMTEXT('POINT(0 0)'),GEOMFROMTEXT('MULTIPOINT(0 0,10 0)'));
+CROSSES(GEOMFROMTEXT('POINT(0 0)'),GEOMFROMTEXT('MULTIPOINT(0 0,10 0)'))
 0
-SELECT Crosses(g,GeomFromText(@star_all_points)) FROM gis_geometrycollection WHERE fid=208;
-Crosses(g,GeomFromText(@star_all_points))
+SELECT CROSSES(GEOMFROMTEXT('POINT(5 0)'),GEOMFROMTEXT('MULTIPOINT(0 0,5 0,10 0)'));
+CROSSES(GEOMFROMTEXT('POINT(5 0)'),GEOMFROMTEXT('MULTIPOINT(0 0,5 0,10 0)'))
 0
-SELECT Crosses(g,GeomFromText(@star_all_points)) FROM gis_geometrycollection WHERE fid=308;
-Crosses(g,GeomFromText(@star_all_points))
+SELECT CROSSES(GEOMFROMTEXT('POINT(10 0)'),GEOMFROMTEXT('MULTIPOINT(0 0,5 0,10 0)'));
+CROSSES(GEOMFROMTEXT('POINT(10 0)'),GEOMFROMTEXT('MULTIPOINT(0 0,5 0,10 0)'))
 0
-#multipoint,linestring
-SELECT Crosses(GeomFromText(@star_all_points),GeomFromText(@star_top_to_center));
-Crosses(GeomFromText(@star_all_points),GeomFromText(@star_top_to_center))
+SELECT CROSSES(GEOMFROMTEXT('POINT(20 0)'),GEOMFROMTEXT('MULTIPOINT(0 0,5 0,10 0)'));
+CROSSES(GEOMFROMTEXT('POINT(20 0)'),GEOMFROMTEXT('MULTIPOINT(0 0,5 0,10 0)'))
 0
-SELECT Crosses(g,GeomFromText(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=109;
-Crosses(g,GeomFromText(@star_top_to_center))
+#-------------------------------------------------------------------------------------------
+# point,linestring
+SELECT CROSSES(GEOMFROMTEXT(@star_top),GEOMFROMTEXT(@star_top_to_center));
+CROSSES(GEOMFROMTEXT(@star_top),GEOMFROMTEXT(@star_top_to_center))
 0
-SELECT Crosses(g,GeomFromText(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=209;
-Crosses(g,GeomFromText(@star_top_to_center))
+SELECT CROSSES(GEOMFROMTEXT(@star_top),GEOMFROMTEXT(@star_line_horizontal));
+CROSSES(GEOMFROMTEXT(@star_top),GEOMFROMTEXT(@star_line_horizontal))
 0
-SELECT Crosses(g,GeomFromText(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=309;
-Crosses(g,GeomFromText(@star_top_to_center))
+SELECT CROSSES(g,GEOMFROMTEXT(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=104;
+CROSSES(g,GEOMFROMTEXT(@star_top_to_center))
 0
-#multipoint,multilinestring
-SELECT Crosses(GeomFromText(@star_all_points),GeomFromText(@star_lines_near_vertical));
-Crosses(GeomFromText(@star_all_points),GeomFromText(@star_lines_near_vertical))
+SELECT CROSSES(GEOMFROMTEXT('POINT(0 0)'),GEOMFROMTEXT('LINESTRING(0 0,10 0)'));
+CROSSES(GEOMFROMTEXT('POINT(0 0)'),GEOMFROMTEXT('LINESTRING(0 0,10 0)'))
 0
-SELECT Crosses(GeomFromText(@star_all_points),GeomFromText(@star_lines_near_horizontal));
-Crosses(GeomFromText(@star_all_points),GeomFromText(@star_lines_near_horizontal))
+SELECT CROSSES(GEOMFROMTEXT('POINT(5 0)'),GEOMFROMTEXT('LINESTRING(0 0,10 0)'));
+CROSSES(GEOMFROMTEXT('POINT(5 0)'),GEOMFROMTEXT('LINESTRING(0 0,10 0)'))
 0
-SELECT Crosses(g,GeomFromText(@star_lines_near_horizontal)) FROM gis_geometrycollection WHERE fid=109;
-Crosses(g,GeomFromText(@star_lines_near_horizontal))
+SELECT CROSSES(GEOMFROMTEXT('POINT(20 0)'),GEOMFROMTEXT('LINESTRING(0 0,10 0,20 0)'));
+CROSSES(GEOMFROMTEXT('POINT(20 0)'),GEOMFROMTEXT('LINESTRING(0 0,10 0,20 0)'))
 0
-#multipoint,polygon
-SELECT Crosses(GeomFromText(@star_all_points),GeomFromText(@star_elem_vertical));
-Crosses(GeomFromText(@star_all_points),GeomFromText(@star_elem_vertical))
+SELECT CROSSES(GEOMFROMTEXT('POINT(20 0)'),GEOMFROMTEXT('LINESTRING(0 0,10 0)'));
+CROSSES(GEOMFROMTEXT('POINT(20 0)'),GEOMFROMTEXT('LINESTRING(0 0,10 0)'))
 0
-SELECT Crosses(GeomFromText(@star_all_points),GeomFromText(@star_elem_horizontal));
-Crosses(GeomFromText(@star_all_points),GeomFromText(@star_elem_horizontal))
+#-------------------------------------------------------------------------------------------
+# point,multilinestring
+SELECT CROSSES(GEOMFROMTEXT(@star_top),GEOMFROMTEXT(@star_lines_near_vertical));
+CROSSES(GEOMFROMTEXT(@star_top),GEOMFROMTEXT(@star_lines_near_vertical))
+0
+SELECT CROSSES(GEOMFROMTEXT(@star_top),GEOMFROMTEXT(@star_lines_near_horizontal));
+CROSSES(GEOMFROMTEXT(@star_top),GEOMFROMTEXT(@star_lines_near_horizontal))
+0
+SELECT CROSSES(g,GEOMFROMTEXT(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=104;
+CROSSES(g,GEOMFROMTEXT(@star_lines_near_vertical))
+0
+SELECT CROSSES(GEOMFROMTEXT('POINT(0 0)'),GEOMFROMTEXT('MULTILINESTRING((0 0,10 0))'));
+CROSSES(GEOMFROMTEXT('POINT(0 0)'),GEOMFROMTEXT('MULTILINESTRING((0 0,10 0))'))
+0
+SELECT CROSSES(GEOMFROMTEXT('POINT(10 0)'),GEOMFROMTEXT('MULTILINESTRING((0 0,5 0),(5 0,10 0))'));
+CROSSES(GEOMFROMTEXT('POINT(10 0)'),GEOMFROMTEXT('MULTILINESTRING((0 0,5 0),(5 0,10 0))'))
+0
+SELECT CROSSES(GEOMFROMTEXT('POINT(5 0)'),GEOMFROMTEXT('MULTILINESTRING((0 0,5 0,10 0))'));
+CROSSES(GEOMFROMTEXT('POINT(5 0)'),GEOMFROMTEXT('MULTILINESTRING((0 0,5 0,10 0))'))
+0
+SELECT CROSSES(GEOMFROMTEXT('POINT(20 0)'),GEOMFROMTEXT('MULTILINESTRING((0 0,5 0),(5 0,10 0))'));
+CROSSES(GEOMFROMTEXT('POINT(20 0)'),GEOMFROMTEXT('MULTILINESTRING((0 0,5 0),(5 0,10 0))'))
+0
+#-------------------------------------------------------------------------------------------
+# point,polygon
+SELECT CROSSES(GEOMFROMTEXT(@star_top),GEOMFROMTEXT(@star));
+CROSSES(GEOMFROMTEXT(@star_top),GEOMFROMTEXT(@star))
+0
+SELECT CROSSES(GEOMFROMTEXT(@star_top),GEOMFROMTEXT(@star_elem_horizontal));
+CROSSES(GEOMFROMTEXT(@star_top),GEOMFROMTEXT(@star_elem_horizontal))
+0
+SELECT CROSSES(GEOMFROMTEXT(@star_top),GEOMFROMTEXT(@star_elem_vertical));
+CROSSES(GEOMFROMTEXT(@star_top),GEOMFROMTEXT(@star_elem_vertical))
+0
+SELECT CROSSES(g,GEOMFROMTEXT(@star)) FROM gis_geometrycollection WHERE fid=104;
+CROSSES(g,GEOMFROMTEXT(@star))
+0
+SELECT CROSSES(GEOMFROMTEXT('POINT(0 0)'),GEOMFROMTEXT('POLYGON((0 0,10 0,10 10,0 10,0 0))'));
+CROSSES(GEOMFROMTEXT('POINT(0 0)'),GEOMFROMTEXT('POLYGON((0 0,10 0,10 10,0 10,0 0))'))
+0
+SELECT CROSSES(GEOMFROMTEXT('POINT(5 0)'),GEOMFROMTEXT('POLYGON((0 0,10 0,10 10,0 10,0 0))'));
+CROSSES(GEOMFROMTEXT('POINT(5 0)'),GEOMFROMTEXT('POLYGON((0 0,10 0,10 10,0 10,0 0))'))
+0
+SELECT CROSSES(GEOMFROMTEXT('POINT(5 5)'),GEOMFROMTEXT('POLYGON((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4,4 4))'));
+CROSSES(GEOMFROMTEXT('POINT(5 5)'),GEOMFROMTEXT('POLYGON((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4,4 4))'))
+0
+SELECT CROSSES(GEOMFROMTEXT('POINT(20 20)'),GEOMFROMTEXT('POLYGON((0 0,10 0,10 10,0 10,0 0))'));
+CROSSES(GEOMFROMTEXT('POINT(20 20)'),GEOMFROMTEXT('POLYGON((0 0,10 0,10 10,0 10,0 0))'))
+0
+#-------------------------------------------------------------------------------------------
+# point,multipolygon
+SELECT CROSSES(GEOMFROMTEXT(@star_top),GEOMFROMTEXT(@star_of_elems));
+CROSSES(GEOMFROMTEXT(@star_top),GEOMFROMTEXT(@star_of_elems))
+0
+SELECT CROSSES(GEOMFROMTEXT('POINT(-0.01 0)'),GEOMFROMTEXT(@star_of_elems));
+CROSSES(GEOMFROMTEXT('POINT(-0.01 0)'),GEOMFROMTEXT(@star_of_elems))
+0
+SELECT CROSSES(g,GEOMFROMTEXT(@star_of_elems)) FROM gis_geometrycollection WHERE fid=104;
+CROSSES(g,GEOMFROMTEXT(@star_of_elems))
+0
+SELECT CROSSES(GEOMFROMTEXT('POINT(0 0)'),GEOMFROMTEXT('MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0)))'));
+CROSSES(GEOMFROMTEXT('POINT(0 0)'),GEOMFROMTEXT('MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0)))'))
+0
+SELECT CROSSES(GEOMFROMTEXT('POINT(20 20)'),GEOMFROMTEXT('MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0)),((10 10,10 20,20 20,20 10,10 10)))'));
+CROSSES(GEOMFROMTEXT('POINT(20 20)'),GEOMFROMTEXT('MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0)),((10 10,10 20,20 20,20 10,10 10)))'))
+0
+SELECT CROSSES(GEOMFROMTEXT('POINT(5 5)'),GEOMFROMTEXT('MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4,4 4)))'));
+CROSSES(GEOMFROMTEXT('POINT(5 5)'),GEOMFROMTEXT('MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4,4 4)))'))
+0
+SELECT CROSSES(GEOMFROMTEXT('POINT(20 20)'),GEOMFROMTEXT('MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4,4 4)))'));
+CROSSES(GEOMFROMTEXT('POINT(20 20)'),GEOMFROMTEXT('MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4,4 4)))'))
+0
+#-------------------------------------------------------------------------------------------
+# point,geometrycollection
+SELECT CROSSES(GEOMFROMTEXT(@star_top),GEOMFROMTEXT(@star_collection_elems));
+CROSSES(GEOMFROMTEXT(@star_top),GEOMFROMTEXT(@star_collection_elems))
+0
+SELECT CROSSES(GEOMFROMTEXT('POINT(-0.01 0)'),GEOMFROMTEXT(@star_collection_elems));
+CROSSES(GEOMFROMTEXT('POINT(-0.01 0)'),GEOMFROMTEXT(@star_collection_elems))
+0
+SELECT CROSSES(g,GEOMFROMTEXT(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=104;
+CROSSES(g,GEOMFROMTEXT(@star_collection_elems))
+0
+SELECT CROSSES(GEOMFROMTEXT(@star_top),GEOMFROMTEXT(@star_collection_multilinestr));
+CROSSES(GEOMFROMTEXT(@star_top),GEOMFROMTEXT(@star_collection_multilinestr))
+0
+SELECT CROSSES(GEOMFROMTEXT('POINT(5 5)'),GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())'));
+CROSSES(GEOMFROMTEXT('POINT(5 5)'),GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())'))
+NULL
+SELECT CROSSES(GEOMFROMTEXT('POINT(5 5)'),GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(5 5))'));
+CROSSES(GEOMFROMTEXT('POINT(5 5)'),GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(5 5))'))
+0
+SELECT CROSSES(GEOMFROMTEXT('POINT(5 5)'),GEOMFROMTEXT('GEOMETRYCOLLECTION(MULTIPOINT(0 0,5 5,10 10),GEOMETRYCOLLECTION())'));
+CROSSES(GEOMFROMTEXT('POINT(5 5)'),GEOMFROMTEXT('GEOMETRYCOLLECTION(MULTIPOINT(0 0,5 5,10 10),GEOMETRYCOLLECTION())'))
+NULL
+SELECT CROSSES(GEOMFROMTEXT('POINT(0 0)'),GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POLYGON((0 0,10 0,10 10,0 10,0 0))))'));
+CROSSES(GEOMFROMTEXT('POINT(0 0)'),GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POLYGON((0 0,10 0,10 10,0 10,0 0))))'))
+0
+SELECT CROSSES(GEOMFROMTEXT('POINT(20 20)'),GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POLYGON((0 0,10 0,10 10,0 10,0 0))))'));
+CROSSES(GEOMFROMTEXT('POINT(20 20)'),GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POLYGON((0 0,10 0,10 10,0 10,0 0))))'))
+0
+#-------------------------------------------------------------------------------------------
+# multipoint,point
+SELECT CROSSES(GEOMFROMTEXT(@star_all_points),GEOMFROMTEXT(@star_top));
+CROSSES(GEOMFROMTEXT(@star_all_points),GEOMFROMTEXT(@star_top))
+0
+SELECT CROSSES(GEOMFROMTEXT(@star_bottom_points),GEOMFROMTEXT(@star_center));
+CROSSES(GEOMFROMTEXT(@star_bottom_points),GEOMFROMTEXT(@star_center))
+0
+SELECT CROSSES(g,GEOMFROMTEXT(@star_bottom_left)) FROM gis_geometrycollection WHERE fid=108;
+CROSSES(g,GEOMFROMTEXT(@star_bottom_left))
+0
+#-------------------------------------------------------------------------------------------
+# multipoint,multipoint
+SELECT CROSSES(GEOMFROMTEXT(@star_all_points),GEOMFROMTEXT(@star_bottom_points));
+CROSSES(GEOMFROMTEXT(@star_all_points),GEOMFROMTEXT(@star_bottom_points))
+0
+SELECT CROSSES(GEOMFROMTEXT(@star_bottom_points),GEOMFROMTEXT(@star_all_points));
+CROSSES(GEOMFROMTEXT(@star_bottom_points),GEOMFROMTEXT(@star_all_points))
+0
+SELECT CROSSES(g,GEOMFROMTEXT(@star_all_points)) FROM gis_geometrycollection WHERE fid=208;
+CROSSES(g,GEOMFROMTEXT(@star_all_points))
+0
+SELECT CROSSES(g,GEOMFROMTEXT(@star_all_points)) FROM gis_geometrycollection WHERE fid=308;
+CROSSES(g,GEOMFROMTEXT(@star_all_points))
+0
+#-------------------------------------------------------------------------------------------
+# multipoint,linestring
+SELECT CROSSES(GEOMFROMTEXT(@star_all_points),GEOMFROMTEXT(@star_top_to_center));
+CROSSES(GEOMFROMTEXT(@star_all_points),GEOMFROMTEXT(@star_top_to_center))
+0
+SELECT CROSSES(g,GEOMFROMTEXT(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=109;
+CROSSES(g,GEOMFROMTEXT(@star_top_to_center))
+0
+SELECT CROSSES(g,GEOMFROMTEXT(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=209;
+CROSSES(g,GEOMFROMTEXT(@star_top_to_center))
+0
+SELECT CROSSES(g,GEOMFROMTEXT(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=309;
+CROSSES(g,GEOMFROMTEXT(@star_top_to_center))
+0
+#-------------------------------------------------------------------------------------------
+# multipoint,multilinestring
+SELECT CROSSES(GEOMFROMTEXT(@star_all_points),GEOMFROMTEXT(@star_lines_near_vertical));
+CROSSES(GEOMFROMTEXT(@star_all_points),GEOMFROMTEXT(@star_lines_near_vertical))
+0
+SELECT CROSSES(GEOMFROMTEXT(@star_all_points),GEOMFROMTEXT(@star_lines_near_horizontal));
+CROSSES(GEOMFROMTEXT(@star_all_points),GEOMFROMTEXT(@star_lines_near_horizontal))
+0
+SELECT CROSSES(g,GEOMFROMTEXT(@star_lines_near_horizontal)) FROM gis_geometrycollection WHERE fid=109;
+CROSSES(g,GEOMFROMTEXT(@star_lines_near_horizontal))
+0
+#-------------------------------------------------------------------------------------------
+# multipoint,polygon
+SELECT CROSSES(GEOMFROMTEXT(@star_all_points),GEOMFROMTEXT(@star_elem_vertical));
+CROSSES(GEOMFROMTEXT(@star_all_points),GEOMFROMTEXT(@star_elem_vertical))
+0
+SELECT CROSSES(GEOMFROMTEXT(@star_all_points),GEOMFROMTEXT(@star_elem_horizontal));
+CROSSES(GEOMFROMTEXT(@star_all_points),GEOMFROMTEXT(@star_elem_horizontal))
 1
-SELECT Crosses(g,GeomFromText(@star_elem_horizontal)) FROM gis_geometrycollection WHERE fid=109;
-Crosses(g,GeomFromText(@star_elem_horizontal))
+SELECT CROSSES(g,GEOMFROMTEXT(@star_elem_horizontal)) FROM gis_geometrycollection WHERE fid=109;
+CROSSES(g,GEOMFROMTEXT(@star_elem_horizontal))
 1
-SELECT Crosses(g,GeomFromText(@star_elem_horizontal)) FROM gis_geometrycollection WHERE fid=209;
-Crosses(g,GeomFromText(@star_elem_horizontal))
+SELECT CROSSES(g,GEOMFROMTEXT(@star_elem_horizontal)) FROM gis_geometrycollection WHERE fid=209;
+CROSSES(g,GEOMFROMTEXT(@star_elem_horizontal))
 1
-SELECT Crosses(g,GeomFromText(@star_elem_horizontal)) FROM gis_geometrycollection WHERE fid=309;
-Crosses(g,GeomFromText(@star_elem_horizontal))
+SELECT CROSSES(g,GEOMFROMTEXT(@star_elem_horizontal)) FROM gis_geometrycollection WHERE fid=309;
+CROSSES(g,GEOMFROMTEXT(@star_elem_horizontal))
 0
-#multipoint,multipolygon
-SELECT Crosses(GeomFromText('MULTIPOINT(0 0,0 30,30 25)'),GeomFromText(@star_of_elems));
-Crosses(GeomFromText('MULTIPOINT(0 0,0 30,30 25)'),GeomFromText(@star_of_elems))
+#-------------------------------------------------------------------------------------------
+# multipoint,multipolygon
+SELECT CROSSES(GEOMFROMTEXT('MULTIPOINT(0 0,0 30,30 25)'),GEOMFROMTEXT(@star_of_elems));
+CROSSES(GEOMFROMTEXT('MULTIPOINT(0 0,0 30,30 25)'),GEOMFROMTEXT(@star_of_elems))
 0
-SELECT Crosses(GeomFromText(@star_all_points),GeomFromText(@star_of_elems));
-Crosses(GeomFromText(@star_all_points),GeomFromText(@star_of_elems))
+SELECT CROSSES(GEOMFROMTEXT(@star_all_points),GEOMFROMTEXT(@star_of_elems));
+CROSSES(GEOMFROMTEXT(@star_all_points),GEOMFROMTEXT(@star_of_elems))
 0
-SELECT Crosses(g,GeomFromText(@star_of_elems)) FROM gis_geometrycollection WHERE fid=109;
-Crosses(g,GeomFromText(@star_of_elems))
+SELECT CROSSES(g,GEOMFROMTEXT(@star_of_elems)) FROM gis_geometrycollection WHERE fid=109;
+CROSSES(g,GEOMFROMTEXT(@star_of_elems))
 0
-SELECT Crosses(g,GeomFromText(@star_of_elems)) FROM gis_geometrycollection WHERE fid=209;
-Crosses(g,GeomFromText(@star_of_elems))
+SELECT CROSSES(g,GEOMFROMTEXT(@star_of_elems)) FROM gis_geometrycollection WHERE fid=209;
+CROSSES(g,GEOMFROMTEXT(@star_of_elems))
 0
-SELECT Crosses(g,GeomFromText(@star_of_elems)) FROM gis_geometrycollection WHERE fid=309;
-Crosses(g,GeomFromText(@star_of_elems))
+SELECT CROSSES(g,GEOMFROMTEXT(@star_of_elems)) FROM gis_geometrycollection WHERE fid=309;
+CROSSES(g,GEOMFROMTEXT(@star_of_elems))
 0
-#multipoint,geomertycollection
-SELECT Crosses(GeomFromText('MULTIPOINT(0 0,0 30,30 25)'),GeomFromText(@star_collection_elems));
-Crosses(GeomFromText('MULTIPOINT(0 0,0 30,30 25)'),GeomFromText(@star_collection_elems))
+#-------------------------------------------------------------------------------------------
+# multipoint,geomertycollection
+SELECT CROSSES(GEOMFROMTEXT('MULTIPOINT(0 0,0 30,30 25)'),GEOMFROMTEXT(@star_collection_elems));
+CROSSES(GEOMFROMTEXT('MULTIPOINT(0 0,0 30,30 25)'),GEOMFROMTEXT(@star_collection_elems))
 0
-SELECT Crosses(GeomFromText(@star_all_points),GeomFromText(@star_collection_elems));
-Crosses(GeomFromText(@star_all_points),GeomFromText(@star_collection_elems))
+SELECT CROSSES(GEOMFROMTEXT(@star_all_points),GEOMFROMTEXT(@star_collection_elems));
+CROSSES(GEOMFROMTEXT(@star_all_points),GEOMFROMTEXT(@star_collection_elems))
 1
-SELECT Crosses(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=109;
-Crosses(g,GeomFromText(@star_collection_elems))
+SELECT CROSSES(g,GEOMFROMTEXT(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=109;
+CROSSES(g,GEOMFROMTEXT(@star_collection_elems))
 1
-SELECT Crosses(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=209;
-Crosses(g,GeomFromText(@star_collection_elems))
+SELECT CROSSES(g,GEOMFROMTEXT(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=209;
+CROSSES(g,GEOMFROMTEXT(@star_collection_elems))
 1
-SELECT Crosses(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=309;
-Crosses(g,GeomFromText(@star_collection_elems))
+SELECT CROSSES(g,GEOMFROMTEXT(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=309;
+CROSSES(g,GEOMFROMTEXT(@star_collection_elems))
 0
-SELECT Crosses(GeomFromText(@star_all_points),GeomFromText(@star_collection_multilinestr));
-Crosses(GeomFromText(@star_all_points),GeomFromText(@star_collection_multilinestr))
+SELECT CROSSES(GEOMFROMTEXT(@star_all_points),GEOMFROMTEXT(@star_collection_multilinestr));
+CROSSES(GEOMFROMTEXT(@star_all_points),GEOMFROMTEXT(@star_collection_multilinestr))
 1
 #-------------------------------------------------------------------------------------------
-#linestring,point
-SELECT Crosses(GeomFromText(@star_top_to_center),GeomFromText(@star_center));
-Crosses(GeomFromText(@star_top_to_center),GeomFromText(@star_center))
+# linestring,point
+SELECT CROSSES(GEOMFROMTEXT(@star_top_to_center),GEOMFROMTEXT(@star_center));
+CROSSES(GEOMFROMTEXT(@star_top_to_center),GEOMFROMTEXT(@star_center))
 0
-SELECT Crosses(GeomFromText(@star_top_to_center),GeomFromText(@star_bottom_left));
-Crosses(GeomFromText(@star_top_to_center),GeomFromText(@star_bottom_left))
+SELECT CROSSES(GEOMFROMTEXT(@star_top_to_center),GEOMFROMTEXT(@star_bottom_left));
+CROSSES(GEOMFROMTEXT(@star_top_to_center),GEOMFROMTEXT(@star_bottom_left))
 0
-SELECT Crosses(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2
+SELECT CROSSES(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2
 WHERE fid=110 and fid2=105;
-Crosses(g,g2)
+CROSSES(g,g2)
 0
-#linestring,multipoint
-SELECT Crosses(GeomFromText(@star_line_vertical),GeomFromText('MULTIPOINT(15 10,15 25)'));
-Crosses(GeomFromText(@star_line_vertical),GeomFromText('MULTIPOINT(15 10,15 25)'))
+#-------------------------------------------------------------------------------------------
+# linestring,multipoint
+SELECT CROSSES(GEOMFROMTEXT(@star_line_vertical),GEOMFROMTEXT('MULTIPOINT(15 10,15 25)'));
+CROSSES(GEOMFROMTEXT(@star_line_vertical),GEOMFROMTEXT('MULTIPOINT(15 10,15 25)'))
 0
-SELECT Crosses(GeomFromText(@star_line_vertical),GeomFromText(@star_all_points));
-Crosses(GeomFromText(@star_line_vertical),GeomFromText(@star_all_points))
+SELECT CROSSES(GEOMFROMTEXT(@star_line_vertical),GEOMFROMTEXT(@star_all_points));
+CROSSES(GEOMFROMTEXT(@star_line_vertical),GEOMFROMTEXT(@star_all_points))
 0
-SELECT Crosses(g,GeomFromText('MULTIPOINT(15 10,15 25)')) FROM gis_geometrycollection WHERE fid=111;
-Crosses(g,GeomFromText('MULTIPOINT(15 10,15 25)'))
+SELECT CROSSES(g,GEOMFROMTEXT('MULTIPOINT(15 10,15 25)')) FROM gis_geometrycollection WHERE fid=111;
+CROSSES(g,GEOMFROMTEXT('MULTIPOINT(15 10,15 25)'))
 0
-SELECT Crosses(g,GeomFromText('MULTIPOINT(15 10,15 25)')) FROM gis_geometrycollection WHERE fid=311;
-Crosses(g,GeomFromText('MULTIPOINT(15 10,15 25)'))
+SELECT CROSSES(g,GEOMFROMTEXT('MULTIPOINT(15 10,15 25)')) FROM gis_geometrycollection WHERE fid=311;
+CROSSES(g,GEOMFROMTEXT('MULTIPOINT(15 10,15 25)'))
 0
-SELECT Crosses(g,GeomFromText('MULTIPOINT(15 10,15 25)')) FROM gis_geometrycollection WHERE fid=411;
-Crosses(g,GeomFromText('MULTIPOINT(15 10,15 25)'))
+SELECT CROSSES(g,GEOMFROMTEXT('MULTIPOINT(15 10,15 25)')) FROM gis_geometrycollection WHERE fid=411;
+CROSSES(g,GEOMFROMTEXT('MULTIPOINT(15 10,15 25)'))
 0
-#linestring,linestring
-SELECT Crosses(GeomFromText(@star_line_vertical),GeomFromText(@star_top_to_center));
-Crosses(GeomFromText(@star_line_vertical),GeomFromText(@star_top_to_center))
+#-------------------------------------------------------------------------------------------
+# linestring,linestring
+SELECT CROSSES(GEOMFROMTEXT(@star_line_vertical),GEOMFROMTEXT(@star_top_to_center));
+CROSSES(GEOMFROMTEXT(@star_line_vertical),GEOMFROMTEXT(@star_top_to_center))
 0
-SELECT Crosses(GeomFromText(@star_top_to_center),GeomFromText(@star_line_vertical));
-Crosses(GeomFromText(@star_top_to_center),GeomFromText(@star_line_vertical))
+SELECT CROSSES(GEOMFROMTEXT(@star_top_to_center),GEOMFROMTEXT(@star_line_vertical));
+CROSSES(GEOMFROMTEXT(@star_top_to_center),GEOMFROMTEXT(@star_line_vertical))
 0
-SELECT Crosses(g,GeomFromText(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=111;
-Crosses(g,GeomFromText(@star_top_to_center))
+SELECT CROSSES(g,GEOMFROMTEXT(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=111;
+CROSSES(g,GEOMFROMTEXT(@star_top_to_center))
 0
-SELECT Crosses(g,GeomFromText(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=311;
-Crosses(g,GeomFromText(@star_top_to_center))
+SELECT CROSSES(g,GEOMFROMTEXT(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=311;
+CROSSES(g,GEOMFROMTEXT(@star_top_to_center))
 0
-SELECT Crosses(g,GeomFromText(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=411;
-Crosses(g,GeomFromText(@star_top_to_center))
+SELECT CROSSES(g,GEOMFROMTEXT(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=411;
+CROSSES(g,GEOMFROMTEXT(@star_top_to_center))
 0
-#linestring,multilinestring
-SELECT Crosses(GeomFromText(@star_line_horizontal),GeomFromText(@star_lines_near_horizontal));
-Crosses(GeomFromText(@star_line_horizontal),GeomFromText(@star_lines_near_horizontal))
+#-------------------------------------------------------------------------------------------
+# linestring,multilinestring
+SELECT CROSSES(GEOMFROMTEXT(@star_line_horizontal),GEOMFROMTEXT(@star_lines_near_horizontal));
+CROSSES(GEOMFROMTEXT(@star_line_horizontal),GEOMFROMTEXT(@star_lines_near_horizontal))
 0
-SELECT Crosses(GeomFromText(@star_line_horizontal),GeomFromText(@star_lines_near_vertical));
-Crosses(GeomFromText(@star_line_horizontal),GeomFromText(@star_lines_near_vertical))
+SELECT CROSSES(GEOMFROMTEXT(@star_line_horizontal),GEOMFROMTEXT(@star_lines_near_vertical));
+CROSSES(GEOMFROMTEXT(@star_line_horizontal),GEOMFROMTEXT(@star_lines_near_vertical))
 0
-SELECT Crosses(g,GeomFromText(@star_lines_near_horizontal)) FROM gis_geometrycollection WHERE fid=110;
-Crosses(g,GeomFromText(@star_lines_near_horizontal))
+SELECT CROSSES(g,GEOMFROMTEXT(@star_lines_near_horizontal)) FROM gis_geometrycollection WHERE fid=110;
+CROSSES(g,GEOMFROMTEXT(@star_lines_near_horizontal))
 0
-#linestring,polygon
-SELECT Crosses(GeomFromText(@star_line_horizontal),GeomFromText('POLYGON((11 15,19 15,19 10))'));
-Crosses(GeomFromText(@star_line_horizontal),GeomFromText('POLYGON((11 15,19 15,19 10))'))
+#-------------------------------------------------------------------------------------------
+# linestring,polygon
+SELECT CROSSES(GEOMFROMTEXT(@star_line_horizontal),GEOMFROMTEXT('POLYGON((11 15,19 15,19 10))'));
+CROSSES(GEOMFROMTEXT(@star_line_horizontal),GEOMFROMTEXT('POLYGON((11 15,19 15,19 10))'))
 0
-SELECT Crosses(GeomFromText(@star_line_horizontal),GeomFromText(@star_elem_horizontal));
-Crosses(GeomFromText(@star_line_horizontal),GeomFromText(@star_elem_horizontal))
+SELECT CROSSES(GEOMFROMTEXT(@star_line_horizontal),GEOMFROMTEXT(@star_elem_horizontal));
+CROSSES(GEOMFROMTEXT(@star_line_horizontal),GEOMFROMTEXT(@star_elem_horizontal))
 0
-SELECT Crosses(GeomFromText(@star_line_horizontal),GeomFromText(@star_elem_horizontal_2));
-Crosses(GeomFromText(@star_line_horizontal),GeomFromText(@star_elem_horizontal_2))
+SELECT CROSSES(GEOMFROMTEXT(@star_line_horizontal),GEOMFROMTEXT(@star_elem_horizontal_2));
+CROSSES(GEOMFROMTEXT(@star_line_horizontal),GEOMFROMTEXT(@star_elem_horizontal_2))
 0
-SELECT Crosses(GeomFromText(@star_line_horizontal),GeomFromText(@star_elem_horizontal_3));
-Crosses(GeomFromText(@star_line_horizontal),GeomFromText(@star_elem_horizontal_3))
+SELECT CROSSES(GEOMFROMTEXT(@star_line_horizontal),GEOMFROMTEXT(@star_elem_horizontal_3));
+CROSSES(GEOMFROMTEXT(@star_line_horizontal),GEOMFROMTEXT(@star_elem_horizontal_3))
 0
-SELECT Crosses(g,GeomFromText('POLYGON((11 15,19 15,11 15))')) FROM gis_geometrycollection WHERE fid=110;
-Crosses(g,GeomFromText('POLYGON((11 15,19 15,11 15))'))
+SELECT CROSSES(g,GEOMFROMTEXT('POLYGON((11 15,19 15,11 15))')) FROM gis_geometrycollection WHERE fid=110;
+CROSSES(g,GEOMFROMTEXT('POLYGON((11 15,19 15,11 15))'))
 0
-#linestring,multipolygon
-SELECT Crosses(GeomFromText(@star_line_horizontal),GeomFromText('MULTIPOLYGON(((11 15,19 15,11 15)),((25 0,0 15,25 0)))'));
-Crosses(GeomFromText(@star_line_horizontal),GeomFromText('MULTIPOLYGON(((11 15,19 15,11 15)),((25 0,0 15,25 0)))'))
+#-------------------------------------------------------------------------------------------
+# linestring,multipolygon
+SELECT CROSSES(GEOMFROMTEXT(@star_line_horizontal),GEOMFROMTEXT('MULTIPOLYGON(((11 15,19 15,11 15)),((25 0,0 15,25 0)))'));
+CROSSES(GEOMFROMTEXT(@star_line_horizontal),GEOMFROMTEXT('MULTIPOLYGON(((11 15,19 15,11 15)),((25 0,0 15,25 0)))'))
 0
-SELECT Crosses(GeomFromText(@star_line_horizontal),GeomFromText(@star_of_elems));
-Crosses(GeomFromText(@star_line_horizontal),GeomFromText(@star_of_elems))
+SELECT CROSSES(GEOMFROMTEXT(@star_line_horizontal),GEOMFROMTEXT(@star_of_elems));
+CROSSES(GEOMFROMTEXT(@star_line_horizontal),GEOMFROMTEXT(@star_of_elems))
 1
-SELECT Crosses(GeomFromText(@star_line_horizontal),GeomFromText(@star_of_elems_2));
-Crosses(GeomFromText(@star_line_horizontal),GeomFromText(@star_of_elems_2))
+SELECT CROSSES(GEOMFROMTEXT(@star_line_horizontal),GEOMFROMTEXT(@star_of_elems_2));
+CROSSES(GEOMFROMTEXT(@star_line_horizontal),GEOMFROMTEXT(@star_of_elems_2))
 0
-SELECT Crosses(GeomFromText(@star_line_horizontal),GeomFromText(@star_of_elems_3));
-Crosses(GeomFromText(@star_line_horizontal),GeomFromText(@star_of_elems_3))
+SELECT CROSSES(GEOMFROMTEXT(@star_line_horizontal),GEOMFROMTEXT(@star_of_elems_3));
+CROSSES(GEOMFROMTEXT(@star_line_horizontal),GEOMFROMTEXT(@star_of_elems_3))
 0
-SELECT Crosses(g,GeomFromText('MULTIPOLYGON(((11 15,19 15,11 15)),((25 0,0 15,25 0)))')) FROM gis_geometrycollection WHERE fid=110;
-Crosses(g,GeomFromText('MULTIPOLYGON(((11 15,19 15,11 15)),((25 0,0 15,25 0)))'))
+SELECT CROSSES(g,GEOMFROMTEXT('MULTIPOLYGON(((11 15,19 15,11 15)),((25 0,0 15,25 0)))')) FROM gis_geometrycollection WHERE fid=110;
+CROSSES(g,GEOMFROMTEXT('MULTIPOLYGON(((11 15,19 15,11 15)),((25 0,0 15,25 0)))'))
 0
-#linestring,geometrycollection
-SELECT Crosses(GeomFromText(@star_line_horizontal),GeomFromText(@star_collection_elems_3));
-Crosses(GeomFromText(@star_line_horizontal),GeomFromText(@star_collection_elems_3))
+#-------------------------------------------------------------------------------------------
+# linestring,geometrycollection
+SELECT CROSSES(GEOMFROMTEXT(@star_line_horizontal),GEOMFROMTEXT(@star_collection_elems_3));
+CROSSES(GEOMFROMTEXT(@star_line_horizontal),GEOMFROMTEXT(@star_collection_elems_3))
 0
-SELECT Crosses(GeomFromText(@star_line_horizontal),GeomFromText(@star_collection_elems));
-Crosses(GeomFromText(@star_line_horizontal),GeomFromText(@star_collection_elems))
+SELECT CROSSES(GEOMFROMTEXT(@star_line_horizontal),GEOMFROMTEXT(@star_collection_elems));
+CROSSES(GEOMFROMTEXT(@star_line_horizontal),GEOMFROMTEXT(@star_collection_elems))
 1
-SELECT Crosses(GeomFromText(@star_line_horizontal),GeomFromText(@star_collection_elems_2));
-Crosses(GeomFromText(@star_line_horizontal),GeomFromText(@star_collection_elems_2))
+SELECT CROSSES(GEOMFROMTEXT(@star_line_horizontal),GEOMFROMTEXT(@star_collection_elems_2));
+CROSSES(GEOMFROMTEXT(@star_line_horizontal),GEOMFROMTEXT(@star_collection_elems_2))
 1
-SELECT Crosses(GeomFromText(@star_line_horizontal),GeomFromText(@star_collection_elems_3));
-Crosses(GeomFromText(@star_line_horizontal),GeomFromText(@star_collection_elems_3))
+SELECT CROSSES(GEOMFROMTEXT(@star_line_horizontal),GEOMFROMTEXT(@star_collection_elems_3));
+CROSSES(GEOMFROMTEXT(@star_line_horizontal),GEOMFROMTEXT(@star_collection_elems_3))
 0
-SELECT Crosses(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=110;
-Crosses(g,GeomFromText(@star_collection_elems))
+SELECT CROSSES(g,GEOMFROMTEXT(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=110;
+CROSSES(g,GEOMFROMTEXT(@star_collection_elems))
 1
-SELECT Crosses(GeomFromText(@star_line_horizontal),GeomFromText(@star_collection_multilinestr));
-Crosses(GeomFromText(@star_line_horizontal),GeomFromText(@star_collection_multilinestr))
+SELECT CROSSES(GEOMFROMTEXT(@star_line_horizontal),GEOMFROMTEXT(@star_collection_multilinestr));
+CROSSES(GEOMFROMTEXT(@star_line_horizontal),GEOMFROMTEXT(@star_collection_multilinestr))
 1
 #-------------------------------------------------------------------------------------------
-#multilinestring,point
-SELECT Crosses(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_top));
-Crosses(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_top))
+# multilinestring,point
+SELECT CROSSES(GEOMFROMTEXT(@star_lines_near_vertical),GEOMFROMTEXT(@star_top));
+CROSSES(GEOMFROMTEXT(@star_lines_near_vertical),GEOMFROMTEXT(@star_top))
 0
-SELECT Crosses(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_center));
-Crosses(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_center))
+SELECT CROSSES(GEOMFROMTEXT(@star_lines_near_vertical),GEOMFROMTEXT(@star_center));
+CROSSES(GEOMFROMTEXT(@star_lines_near_vertical),GEOMFROMTEXT(@star_center))
 0
-SELECT Crosses(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_center_2));
-Crosses(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_center_2))
+SELECT CROSSES(GEOMFROMTEXT(@star_lines_near_vertical),GEOMFROMTEXT(@star_center_2));
+CROSSES(GEOMFROMTEXT(@star_lines_near_vertical),GEOMFROMTEXT(@star_center_2))
 0
-SELECT Crosses(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_center_3));
-Crosses(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_center_3))
+SELECT CROSSES(GEOMFROMTEXT(@star_lines_near_vertical),GEOMFROMTEXT(@star_center_3));
+CROSSES(GEOMFROMTEXT(@star_lines_near_vertical),GEOMFROMTEXT(@star_center_3))
 0
-SELECT Crosses(g,GeomFromText(@star_top)) FROM gis_geometrycollection WHERE fid=114;
-Crosses(g,GeomFromText(@star_top))
+SELECT CROSSES(g,GEOMFROMTEXT(@star_top)) FROM gis_geometrycollection WHERE fid=114;
+CROSSES(g,GEOMFROMTEXT(@star_top))
 0
-#multilinestring,multipoint
-SELECT Crosses(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_bottom_points));
-Crosses(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_bottom_points))
+#-------------------------------------------------------------------------------------------
+# multilinestring,multipoint
+SELECT CROSSES(GEOMFROMTEXT(@star_lines_near_vertical),GEOMFROMTEXT(@star_bottom_points));
+CROSSES(GEOMFROMTEXT(@star_lines_near_vertical),GEOMFROMTEXT(@star_bottom_points))
 0
-SELECT Crosses(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_all_points));
-Crosses(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_all_points))
+SELECT CROSSES(GEOMFROMTEXT(@star_lines_near_vertical),GEOMFROMTEXT(@star_all_points));
+CROSSES(GEOMFROMTEXT(@star_lines_near_vertical),GEOMFROMTEXT(@star_all_points))
 0
-SELECT Crosses(g,GeomFromText(@star_bottom_points)) FROM gis_geometrycollection WHERE fid=114;
-Crosses(g,GeomFromText(@star_bottom_points))
+SELECT CROSSES(g,GEOMFROMTEXT(@star_bottom_points)) FROM gis_geometrycollection WHERE fid=114;
+CROSSES(g,GEOMFROMTEXT(@star_bottom_points))
 0
-SELECT Crosses(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2
+SELECT CROSSES(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2
 WHERE fid=114 and fid2=108;
-Crosses(g,g2)
+CROSSES(g,g2)
 0
-#multilinestring,linestring
-SELECT Crosses(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_line_vertical));
-Crosses(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_line_vertical))
+#-------------------------------------------------------------------------------------------
+# multilinestring,linestring
+SELECT CROSSES(GEOMFROMTEXT(@star_lines_near_vertical),GEOMFROMTEXT(@star_line_vertical));
+CROSSES(GEOMFROMTEXT(@star_lines_near_vertical),GEOMFROMTEXT(@star_line_vertical))
 0
-SELECT Crosses(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_line_horizontal));
-Crosses(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_line_horizontal))
+SELECT CROSSES(GEOMFROMTEXT(@star_lines_near_vertical),GEOMFROMTEXT(@star_line_horizontal));
+CROSSES(GEOMFROMTEXT(@star_lines_near_vertical),GEOMFROMTEXT(@star_line_horizontal))
 0
-SELECT Crosses(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_line_horizontal_2));
-Crosses(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_line_horizontal_2))
+SELECT CROSSES(GEOMFROMTEXT(@star_lines_near_vertical),GEOMFROMTEXT(@star_line_horizontal_2));
+CROSSES(GEOMFROMTEXT(@star_lines_near_vertical),GEOMFROMTEXT(@star_line_horizontal_2))
 0
-SELECT Crosses(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_line_horizontal_3));
-Crosses(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_line_horizontal_3))
+SELECT CROSSES(GEOMFROMTEXT(@star_lines_near_vertical),GEOMFROMTEXT(@star_line_horizontal_3));
+CROSSES(GEOMFROMTEXT(@star_lines_near_vertical),GEOMFROMTEXT(@star_line_horizontal_3))
 0
-SELECT Crosses(g,GeomFromText(@star_line_vertical)) FROM gis_geometrycollection WHERE fid=114;
-Crosses(g,GeomFromText(@star_line_vertical))
+SELECT CROSSES(g,GEOMFROMTEXT(@star_line_vertical)) FROM gis_geometrycollection WHERE fid=114;
+CROSSES(g,GEOMFROMTEXT(@star_line_vertical))
 0
-#multilinestring,multilinestring
-SELECT Crosses(GeomFromText(@star_lines_near_vertical),GeomFromText('MULTILINESTRING((0 5,15 25,0 15))'));
-Crosses(GeomFromText(@star_lines_near_vertical),GeomFromText('MULTILINESTRING((0 5,15 25,0 15))'))
+#-------------------------------------------------------------------------------------------
+# multilinestring,multilinestring
+SELECT CROSSES(GEOMFROMTEXT(@star_lines_near_vertical),GEOMFROMTEXT('MULTILINESTRING((0 5,15 25,0 15))'));
+CROSSES(GEOMFROMTEXT(@star_lines_near_vertical),GEOMFROMTEXT('MULTILINESTRING((0 5,15 25,0 15))'))
 1
-SELECT Crosses(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_lines_near_horizontal));
-Crosses(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_lines_near_horizontal))
+SELECT CROSSES(GEOMFROMTEXT(@star_lines_near_vertical),GEOMFROMTEXT(@star_lines_near_horizontal));
+CROSSES(GEOMFROMTEXT(@star_lines_near_vertical),GEOMFROMTEXT(@star_lines_near_horizontal))
 1
-SELECT Crosses(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_lines_near_horizontal_3));
-Crosses(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_lines_near_horizontal_3))
+SELECT CROSSES(GEOMFROMTEXT(@star_lines_near_vertical),GEOMFROMTEXT(@star_lines_near_horizontal_3));
+CROSSES(GEOMFROMTEXT(@star_lines_near_vertical),GEOMFROMTEXT(@star_lines_near_horizontal_3))
 0
-SELECT Crosses(g,GeomFromText('MULTILINESTRING((0 5,15 25,0 15))')) FROM gis_geometrycollection WHERE fid=114;
-Crosses(g,GeomFromText('MULTILINESTRING((0 5,15 25,0 15))'))
-1
-#multilinestring,polygon
-SELECT Crosses(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_elem_vertical));
-Crosses(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_elem_vertical))
-0
-SELECT Crosses(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_elem_horizontal));
-Crosses(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_elem_horizontal))
-1
-SELECT Crosses(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_elem_horizontal_2));
-Crosses(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_elem_horizontal_2))
-0
-SELECT Crosses(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_elem_horizontal_3));
-Crosses(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_elem_horizontal_3))
-0
-SELECT Crosses(g,GeomFromText(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=114;
-Crosses(g,GeomFromText(@star_elem_vertical))
-0
-#multilinestring,multipolygon
-SELECT Crosses(GeomFromText('MULTILINESTRING((0 25,25 0,25 30))'),GeomFromText(@star_elem_vertical));
-Crosses(GeomFromText('MULTILINESTRING((0 25,25 0,25 30))'),GeomFromText(@star_elem_vertical))
-1
-SELECT Crosses(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_of_elems));
-Crosses(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_of_elems))
-1
-SELECT Crosses(g,GeomFromText(@star_of_elems)) FROM gis_geometrycollection WHERE fid=114;
-Crosses(g,GeomFromText(@star_of_elems))
-1
-#multilinestring,geometrycollection
-SELECT Crosses(GeomFromText('MULTILINESTRING((0 25,25 0,25 30))'),GeomFromText(@star_collection_elems));
-Crosses(GeomFromText('MULTILINESTRING((0 25,25 0,25 30))'),GeomFromText(@star_collection_elems))
-1
-SELECT Crosses(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_collection_elems));
-Crosses(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_collection_elems))
-1
-SELECT Crosses(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=114;
-Crosses(g,GeomFromText(@star_collection_elems))
-1
-SELECT Crosses(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_collection_multilinestr));
-Crosses(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_collection_multilinestr))
+SELECT CROSSES(g,GEOMFROMTEXT('MULTILINESTRING((0 5,15 25,0 15))')) FROM gis_geometrycollection WHERE fid=114;
+CROSSES(g,GEOMFROMTEXT('MULTILINESTRING((0 5,15 25,0 15))'))
 1
 #-------------------------------------------------------------------------------------------
-#polygon,point
-SELECT Crosses(GeomFromText(@star),GeomFromText(@star_center));
-Crosses(GeomFromText(@star),GeomFromText(@star_center))
+# multilinestring,polygon
+SELECT CROSSES(GEOMFROMTEXT(@star_lines_near_vertical),GEOMFROMTEXT(@star_elem_vertical));
+CROSSES(GEOMFROMTEXT(@star_lines_near_vertical),GEOMFROMTEXT(@star_elem_vertical))
 0
-SELECT Crosses(GeomFromText(@star_elem_vertical),GeomFromText('POINT(0 0)'));
-Crosses(GeomFromText(@star_elem_vertical),GeomFromText('POINT(0 0)'))
+SELECT CROSSES(GEOMFROMTEXT(@star_lines_near_vertical),GEOMFROMTEXT(@star_elem_horizontal));
+CROSSES(GEOMFROMTEXT(@star_lines_near_vertical),GEOMFROMTEXT(@star_elem_horizontal))
+1
+SELECT CROSSES(GEOMFROMTEXT(@star_lines_near_vertical),GEOMFROMTEXT(@star_elem_horizontal_2));
+CROSSES(GEOMFROMTEXT(@star_lines_near_vertical),GEOMFROMTEXT(@star_elem_horizontal_2))
 0
-SELECT Crosses(g,GeomFromText(@star_center)) FROM gis_geometrycollection WHERE fid=100;
-Crosses(g,GeomFromText(@star_center))
+SELECT CROSSES(GEOMFROMTEXT(@star_lines_near_vertical),GEOMFROMTEXT(@star_elem_horizontal_3));
+CROSSES(GEOMFROMTEXT(@star_lines_near_vertical),GEOMFROMTEXT(@star_elem_horizontal_3))
 0
-SELECT Crosses(g,GeomFromText(@star_center)) FROM gis_geometrycollection WHERE fid=200;
-Crosses(g,GeomFromText(@star_center))
+SELECT CROSSES(g,GEOMFROMTEXT(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=114;
+CROSSES(g,GEOMFROMTEXT(@star_elem_vertical))
 0
-SELECT Crosses(g,GeomFromText(@star_center)) FROM gis_geometrycollection WHERE fid=300;
-Crosses(g,GeomFromText(@star_center))
+#-------------------------------------------------------------------------------------------
+# multilinestring,multipolygon
+SELECT CROSSES(GEOMFROMTEXT('MULTILINESTRING((0 25,25 0,25 30))'),GEOMFROMTEXT(@star_elem_vertical));
+CROSSES(GEOMFROMTEXT('MULTILINESTRING((0 25,25 0,25 30))'),GEOMFROMTEXT(@star_elem_vertical))
+1
+SELECT CROSSES(GEOMFROMTEXT(@star_lines_near_vertical),GEOMFROMTEXT(@star_of_elems));
+CROSSES(GEOMFROMTEXT(@star_lines_near_vertical),GEOMFROMTEXT(@star_of_elems))
+1
+SELECT CROSSES(g,GEOMFROMTEXT(@star_of_elems)) FROM gis_geometrycollection WHERE fid=114;
+CROSSES(g,GEOMFROMTEXT(@star_of_elems))
+1
+#-------------------------------------------------------------------------------------------
+# multilinestring,geometrycollection
+SELECT CROSSES(GEOMFROMTEXT('MULTILINESTRING((0 25,25 0,25 30))'),GEOMFROMTEXT(@star_collection_elems));
+CROSSES(GEOMFROMTEXT('MULTILINESTRING((0 25,25 0,25 30))'),GEOMFROMTEXT(@star_collection_elems))
+1
+SELECT CROSSES(GEOMFROMTEXT(@star_lines_near_vertical),GEOMFROMTEXT(@star_collection_elems));
+CROSSES(GEOMFROMTEXT(@star_lines_near_vertical),GEOMFROMTEXT(@star_collection_elems))
+1
+SELECT CROSSES(g,GEOMFROMTEXT(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=114;
+CROSSES(g,GEOMFROMTEXT(@star_collection_elems))
+1
+SELECT CROSSES(GEOMFROMTEXT(@star_lines_near_vertical),GEOMFROMTEXT(@star_collection_multilinestr));
+CROSSES(GEOMFROMTEXT(@star_lines_near_vertical),GEOMFROMTEXT(@star_collection_multilinestr))
+1
+#-------------------------------------------------------------------------------------------
+# polygon,point
+SELECT CROSSES(GEOMFROMTEXT(@star),GEOMFROMTEXT(@star_center));
+CROSSES(GEOMFROMTEXT(@star),GEOMFROMTEXT(@star_center))
 0
-SELECT Crosses(g,GeomFromText(@star_center)) FROM gis_geometrycollection WHERE fid=400;
-Crosses(g,GeomFromText(@star_center))
+SELECT CROSSES(GEOMFROMTEXT(@star_elem_vertical),GEOMFROMTEXT('POINT(0 0)'));
+CROSSES(GEOMFROMTEXT(@star_elem_vertical),GEOMFROMTEXT('POINT(0 0)'))
 0
-#polygon,multipoint
-SELECT Crosses(GeomFromText(@star),GeomFromText(@star_all_points));
-Crosses(GeomFromText(@star),GeomFromText(@star_all_points))
+SELECT CROSSES(g,GEOMFROMTEXT(@star_center)) FROM gis_geometrycollection WHERE fid=100;
+CROSSES(g,GEOMFROMTEXT(@star_center))
 0
-SELECT Crosses(GeomFromText(@star_elem_vertical),GeomFromText('MULTIPOINT(0 0,30 25)'));
-Crosses(GeomFromText(@star_elem_vertical),GeomFromText('MULTIPOINT(0 0,30 25)'))
+SELECT CROSSES(g,GEOMFROMTEXT(@star_center)) FROM gis_geometrycollection WHERE fid=200;
+CROSSES(g,GEOMFROMTEXT(@star_center))
 0
-SELECT Crosses(g,GeomFromText(@star_all_points)) FROM gis_geometrycollection WHERE fid=100;
-Crosses(g,GeomFromText(@star_all_points))
+SELECT CROSSES(g,GEOMFROMTEXT(@star_center)) FROM gis_geometrycollection WHERE fid=300;
+CROSSES(g,GEOMFROMTEXT(@star_center))
 0
-SELECT Crosses(g,GeomFromText(@star_all_points)) FROM gis_geometrycollection WHERE fid=300;
-Crosses(g,GeomFromText(@star_all_points))
+SELECT CROSSES(g,GEOMFROMTEXT(@star_center)) FROM gis_geometrycollection WHERE fid=400;
+CROSSES(g,GEOMFROMTEXT(@star_center))
 0
-SELECT Crosses(g,GeomFromText(@star_all_points)) FROM gis_geometrycollection WHERE fid=400;
-Crosses(g,GeomFromText(@star_all_points))
+#-------------------------------------------------------------------------------------------
+# polygon,multipoint
+SELECT CROSSES(GEOMFROMTEXT(@star),GEOMFROMTEXT(@star_all_points));
+CROSSES(GEOMFROMTEXT(@star),GEOMFROMTEXT(@star_all_points))
 0
-#polygon,linestring
-SELECT Crosses(GeomFromText(@star),GeomFromText(@star_line_vertical));
-Crosses(GeomFromText(@star),GeomFromText(@star_line_vertical))
+SELECT CROSSES(GEOMFROMTEXT(@star_elem_vertical),GEOMFROMTEXT('MULTIPOINT(0 0,30 25)'));
+CROSSES(GEOMFROMTEXT(@star_elem_vertical),GEOMFROMTEXT('MULTIPOINT(0 0,30 25)'))
 0
-SELECT Crosses(GeomFromText(@star_elem_vertical),GeomFromText(@star_line_horizontal));
-Crosses(GeomFromText(@star_elem_vertical),GeomFromText(@star_line_horizontal))
+SELECT CROSSES(g,GEOMFROMTEXT(@star_all_points)) FROM gis_geometrycollection WHERE fid=100;
+CROSSES(g,GEOMFROMTEXT(@star_all_points))
 0
-SELECT Crosses(g,GeomFromText(@star_line_vertical)) FROM gis_geometrycollection WHERE fid=100;
-Crosses(g,GeomFromText(@star_line_vertical))
+SELECT CROSSES(g,GEOMFROMTEXT(@star_all_points)) FROM gis_geometrycollection WHERE fid=300;
+CROSSES(g,GEOMFROMTEXT(@star_all_points))
 0
-SELECT Crosses(g,GeomFromText(@star_line_vertical)) FROM gis_geometrycollection WHERE fid=300;
-Crosses(g,GeomFromText(@star_line_vertical))
+SELECT CROSSES(g,GEOMFROMTEXT(@star_all_points)) FROM gis_geometrycollection WHERE fid=400;
+CROSSES(g,GEOMFROMTEXT(@star_all_points))
 0
-SELECT Crosses(g,GeomFromText(@star_line_vertical)) FROM gis_geometrycollection WHERE fid=400;
-Crosses(g,GeomFromText(@star_line_vertical))
+#-------------------------------------------------------------------------------------------
+# polygon,linestring
+SELECT CROSSES(GEOMFROMTEXT(@star),GEOMFROMTEXT(@star_line_vertical));
+CROSSES(GEOMFROMTEXT(@star),GEOMFROMTEXT(@star_line_vertical))
 0
-SELECT Crosses(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2
+SELECT CROSSES(GEOMFROMTEXT(@star_elem_vertical),GEOMFROMTEXT(@star_line_horizontal));
+CROSSES(GEOMFROMTEXT(@star_elem_vertical),GEOMFROMTEXT(@star_line_horizontal))
+0
+SELECT CROSSES(g,GEOMFROMTEXT(@star_line_vertical)) FROM gis_geometrycollection WHERE fid=100;
+CROSSES(g,GEOMFROMTEXT(@star_line_vertical))
+0
+SELECT CROSSES(g,GEOMFROMTEXT(@star_line_vertical)) FROM gis_geometrycollection WHERE fid=300;
+CROSSES(g,GEOMFROMTEXT(@star_line_vertical))
+0
+SELECT CROSSES(g,GEOMFROMTEXT(@star_line_vertical)) FROM gis_geometrycollection WHERE fid=400;
+CROSSES(g,GEOMFROMTEXT(@star_line_vertical))
+0
+SELECT CROSSES(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2
 WHERE fid=100 and fid2=111;
-Crosses(g,g2)
+CROSSES(g,g2)
 0
-#polygon,multilinestring
-SELECT Crosses(GeomFromText(@star),GeomFromText(@star_lines_near_vertical));
-Crosses(GeomFromText(@star),GeomFromText(@star_lines_near_vertical))
+#-------------------------------------------------------------------------------------------
+# polygon,multilinestring
+SELECT CROSSES(GEOMFROMTEXT(@star),GEOMFROMTEXT(@star_lines_near_vertical));
+CROSSES(GEOMFROMTEXT(@star),GEOMFROMTEXT(@star_lines_near_vertical))
 0
-SELECT Crosses(GeomFromText(@star_elem_vertical),GeomFromText(@star_lines_near_horizontal));
-Crosses(GeomFromText(@star_elem_vertical),GeomFromText(@star_lines_near_horizontal))
+SELECT CROSSES(GEOMFROMTEXT(@star_elem_vertical),GEOMFROMTEXT(@star_lines_near_horizontal));
+CROSSES(GEOMFROMTEXT(@star_elem_vertical),GEOMFROMTEXT(@star_lines_near_horizontal))
 0
-SELECT Crosses(g,GeomFromText(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=100;
-Crosses(g,GeomFromText(@star_lines_near_vertical))
+SELECT CROSSES(g,GEOMFROMTEXT(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=100;
+CROSSES(g,GEOMFROMTEXT(@star_lines_near_vertical))
 0
-SELECT Crosses(g,GeomFromText(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=300;
-Crosses(g,GeomFromText(@star_lines_near_vertical))
+SELECT CROSSES(g,GEOMFROMTEXT(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=300;
+CROSSES(g,GEOMFROMTEXT(@star_lines_near_vertical))
 0
-SELECT Crosses(g,GeomFromText(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=400;
-Crosses(g,GeomFromText(@star_lines_near_vertical))
+SELECT CROSSES(g,GEOMFROMTEXT(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=400;
+CROSSES(g,GEOMFROMTEXT(@star_lines_near_vertical))
 0
-#polygon,polygon
-SELECT Crosses(GeomFromText(@star),GeomFromText(@star_elem_vertical));
-Crosses(GeomFromText(@star),GeomFromText(@star_elem_vertical))
+#-------------------------------------------------------------------------------------------
+# polygon,polygon
+SELECT CROSSES(GEOMFROMTEXT(@star),GEOMFROMTEXT(@star_elem_vertical));
+CROSSES(GEOMFROMTEXT(@star),GEOMFROMTEXT(@star_elem_vertical))
 0
-SELECT Crosses(GeomFromText(@star_elem_vertical),GeomFromText(@star));
-Crosses(GeomFromText(@star_elem_vertical),GeomFromText(@star))
+SELECT CROSSES(GEOMFROMTEXT(@star_elem_vertical),GEOMFROMTEXT(@star));
+CROSSES(GEOMFROMTEXT(@star_elem_vertical),GEOMFROMTEXT(@star))
 0
-SELECT Crosses(g,GeomFromText(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=100;
-Crosses(g,GeomFromText(@star_elem_vertical))
+SELECT CROSSES(g,GEOMFROMTEXT(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=100;
+CROSSES(g,GEOMFROMTEXT(@star_elem_vertical))
 0
-SELECT Crosses(g,GeomFromText(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=300;
-Crosses(g,GeomFromText(@star_elem_vertical))
+SELECT CROSSES(g,GEOMFROMTEXT(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=300;
+CROSSES(g,GEOMFROMTEXT(@star_elem_vertical))
 0
-SELECT Crosses(g,GeomFromText(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=400;
-Crosses(g,GeomFromText(@star_elem_vertical))
+SELECT CROSSES(g,GEOMFROMTEXT(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=400;
+CROSSES(g,GEOMFROMTEXT(@star_elem_vertical))
 0
-#polygon,multipolygon
-SELECT Crosses(GeomFromText(@star),GeomFromText(@star_of_elems));
-Crosses(GeomFromText(@star),GeomFromText(@star_of_elems))
+#-------------------------------------------------------------------------------------------
+# polygon,multipolygon
+SELECT CROSSES(GEOMFROMTEXT(@star),GEOMFROMTEXT(@star_of_elems));
+CROSSES(GEOMFROMTEXT(@star),GEOMFROMTEXT(@star_of_elems))
 0
-SELECT Crosses(GeomFromText(@star_elem_vertical),GeomFromText(@star_of_elems));
-Crosses(GeomFromText(@star_elem_vertical),GeomFromText(@star_of_elems))
+SELECT CROSSES(GEOMFROMTEXT(@star_elem_vertical),GEOMFROMTEXT(@star_of_elems));
+CROSSES(GEOMFROMTEXT(@star_elem_vertical),GEOMFROMTEXT(@star_of_elems))
 0
-SELECT Crosses(g,GeomFromText(@star_of_elems)) FROM gis_geometrycollection WHERE fid=100;
-Crosses(g,GeomFromText(@star_of_elems))
+SELECT CROSSES(g,GEOMFROMTEXT(@star_of_elems)) FROM gis_geometrycollection WHERE fid=100;
+CROSSES(g,GEOMFROMTEXT(@star_of_elems))
 0
-SELECT Crosses(g,GeomFromText(@star_of_elems)) FROM gis_geometrycollection WHERE fid=300;
-Crosses(g,GeomFromText(@star_of_elems))
+SELECT CROSSES(g,GEOMFROMTEXT(@star_of_elems)) FROM gis_geometrycollection WHERE fid=300;
+CROSSES(g,GEOMFROMTEXT(@star_of_elems))
 0
-SELECT Crosses(g,GeomFromText(@star_of_elems)) FROM gis_geometrycollection WHERE fid=400;
-Crosses(g,GeomFromText(@star_of_elems))
+SELECT CROSSES(g,GEOMFROMTEXT(@star_of_elems)) FROM gis_geometrycollection WHERE fid=400;
+CROSSES(g,GEOMFROMTEXT(@star_of_elems))
 0
-#polygon,geometrycollection
-SELECT Crosses(GeomFromText(@star),GeomFromText(@star_collection_elems));
-Crosses(GeomFromText(@star),GeomFromText(@star_collection_elems))
+#-------------------------------------------------------------------------------------------
+# polygon,geometrycollection
+SELECT CROSSES(GEOMFROMTEXT(@star),GEOMFROMTEXT(@star_collection_elems));
+CROSSES(GEOMFROMTEXT(@star),GEOMFROMTEXT(@star_collection_elems))
 1
-SELECT Crosses(GeomFromText(@star_elem_vertical),GeomFromText(@star_collection_elems));
-Crosses(GeomFromText(@star_elem_vertical),GeomFromText(@star_collection_elems))
+SELECT CROSSES(GEOMFROMTEXT(@star_elem_vertical),GEOMFROMTEXT(@star_collection_elems));
+CROSSES(GEOMFROMTEXT(@star_elem_vertical),GEOMFROMTEXT(@star_collection_elems))
 1
-SELECT Crosses(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=100;
-Crosses(g,GeomFromText(@star_collection_elems))
+SELECT CROSSES(g,GEOMFROMTEXT(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=100;
+CROSSES(g,GEOMFROMTEXT(@star_collection_elems))
 1
-SELECT Crosses(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=300;
-Crosses(g,GeomFromText(@star_collection_elems))
+SELECT CROSSES(g,GEOMFROMTEXT(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=300;
+CROSSES(g,GEOMFROMTEXT(@star_collection_elems))
 1
-SELECT Crosses(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=400;
-Crosses(g,GeomFromText(@star_collection_elems))
+SELECT CROSSES(g,GEOMFROMTEXT(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=400;
+CROSSES(g,GEOMFROMTEXT(@star_collection_elems))
 0
-SELECT Crosses(GeomFromText(@star),GeomFromText(@star_collection_multilinestr));
-Crosses(GeomFromText(@star),GeomFromText(@star_collection_multilinestr))
+SELECT CROSSES(GEOMFROMTEXT(@star),GEOMFROMTEXT(@star_collection_multilinestr));
+CROSSES(GEOMFROMTEXT(@star),GEOMFROMTEXT(@star_collection_multilinestr))
 1
 #-------------------------------------------------------------------------------------------
-#multipolygon,point
-SELECT Crosses(GeomFromText(@star_of_elems),GeomFromText(@star_top));
-Crosses(GeomFromText(@star_of_elems),GeomFromText(@star_top))
+# multipolygon,point
+SELECT CROSSES(GEOMFROMTEXT(@star_of_elems),GEOMFROMTEXT(@star_top));
+CROSSES(GEOMFROMTEXT(@star_of_elems),GEOMFROMTEXT(@star_top))
 0
-SELECT Crosses(GeomFromText(@star_of_elems),GeomFromText('POINT(30 30)'));
-Crosses(GeomFromText(@star_of_elems),GeomFromText('POINT(30 30)'))
+SELECT CROSSES(GEOMFROMTEXT(@star_of_elems),GEOMFROMTEXT('POINT(30 30)'));
+CROSSES(GEOMFROMTEXT(@star_of_elems),GEOMFROMTEXT('POINT(30 30)'))
 0
-SELECT Crosses(g,GeomFromText(@star_top)) FROM gis_geometrycollection WHERE fid=103;
-Crosses(g,GeomFromText(@star_top))
+SELECT CROSSES(g,GEOMFROMTEXT(@star_top)) FROM gis_geometrycollection WHERE fid=103;
+CROSSES(g,GEOMFROMTEXT(@star_top))
 0
-SELECT Crosses(g,GeomFromText(@star_top)) FROM gis_geometrycollection WHERE fid=403;
-Crosses(g,GeomFromText(@star_top))
+SELECT CROSSES(g,GEOMFROMTEXT(@star_top)) FROM gis_geometrycollection WHERE fid=403;
+CROSSES(g,GEOMFROMTEXT(@star_top))
 0
-#multipolygon,multipoint
-SELECT Crosses(GeomFromText(@star_of_elems),GeomFromText(@star_bottom_points));
-Crosses(GeomFromText(@star_of_elems),GeomFromText(@star_bottom_points))
+#-------------------------------------------------------------------------------------------
+# multipolygon,multipoint
+SELECT CROSSES(GEOMFROMTEXT(@star_of_elems),GEOMFROMTEXT(@star_bottom_points));
+CROSSES(GEOMFROMTEXT(@star_of_elems),GEOMFROMTEXT(@star_bottom_points))
 0
-SELECT Crosses(GeomFromText(@star_of_elems),GeomFromText('MULTIPOINT(30 30,0 35)'));
-Crosses(GeomFromText(@star_of_elems),GeomFromText('MULTIPOINT(30 30,0 35)'))
+SELECT CROSSES(GEOMFROMTEXT(@star_of_elems),GEOMFROMTEXT('MULTIPOINT(30 30,0 35)'));
+CROSSES(GEOMFROMTEXT(@star_of_elems),GEOMFROMTEXT('MULTIPOINT(30 30,0 35)'))
 0
-SELECT Crosses(g,GeomFromText(@star_bottom_points)) FROM gis_geometrycollection WHERE fid=103;
-Crosses(g,GeomFromText(@star_bottom_points))
+SELECT CROSSES(g,GEOMFROMTEXT(@star_bottom_points)) FROM gis_geometrycollection WHERE fid=103;
+CROSSES(g,GEOMFROMTEXT(@star_bottom_points))
 0
-SELECT Crosses(g,GeomFromText(@star_bottom_points)) FROM gis_geometrycollection WHERE fid=403;
-Crosses(g,GeomFromText(@star_bottom_points))
+SELECT CROSSES(g,GEOMFROMTEXT(@star_bottom_points)) FROM gis_geometrycollection WHERE fid=403;
+CROSSES(g,GEOMFROMTEXT(@star_bottom_points))
 0
-#multipolygon,linestring
-SELECT Crosses(GeomFromText(@star_of_elems),GeomFromText(@star_top_to_center));
-Crosses(GeomFromText(@star_of_elems),GeomFromText(@star_top_to_center))
+#-------------------------------------------------------------------------------------------
+# multipolygon,linestring
+SELECT CROSSES(GEOMFROMTEXT(@star_of_elems),GEOMFROMTEXT(@star_top_to_center));
+CROSSES(GEOMFROMTEXT(@star_of_elems),GEOMFROMTEXT(@star_top_to_center))
 0
-SELECT Crosses(GeomFromText(@star_of_elems),GeomFromText('LINESTRING(30 30,0 35)'));
-Crosses(GeomFromText(@star_of_elems),GeomFromText('LINESTRING(30 30,0 35)'))
+SELECT CROSSES(GEOMFROMTEXT(@star_of_elems),GEOMFROMTEXT('LINESTRING(30 30,0 35)'));
+CROSSES(GEOMFROMTEXT(@star_of_elems),GEOMFROMTEXT('LINESTRING(30 30,0 35)'))
 0
-SELECT Crosses(g,GeomFromText(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=103;
-Crosses(g,GeomFromText(@star_top_to_center))
+SELECT CROSSES(g,GEOMFROMTEXT(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=103;
+CROSSES(g,GEOMFROMTEXT(@star_top_to_center))
 0
-SELECT Crosses(g,GeomFromText(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=403;
-Crosses(g,GeomFromText(@star_top_to_center))
+SELECT CROSSES(g,GEOMFROMTEXT(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=403;
+CROSSES(g,GEOMFROMTEXT(@star_top_to_center))
 0
-#multipolygon,multilinestring
-SELECT Crosses(GeomFromText(@star_of_elems),GeomFromText(@star_lines_near_vertical));
-Crosses(GeomFromText(@star_of_elems),GeomFromText(@star_lines_near_vertical))
+#-------------------------------------------------------------------------------------------
+# multipolygon,multilinestring
+SELECT CROSSES(GEOMFROMTEXT(@star_of_elems),GEOMFROMTEXT(@star_lines_near_vertical));
+CROSSES(GEOMFROMTEXT(@star_of_elems),GEOMFROMTEXT(@star_lines_near_vertical))
 0
-SELECT Crosses(GeomFromText(@star_of_elems),GeomFromText('MULTILINESTRING((0 30,30 30,0 35))'));
-Crosses(GeomFromText(@star_of_elems),GeomFromText('MULTILINESTRING((0 30,30 30,0 35))'))
+SELECT CROSSES(GEOMFROMTEXT(@star_of_elems),GEOMFROMTEXT('MULTILINESTRING((0 30,30 30,0 35))'));
+CROSSES(GEOMFROMTEXT(@star_of_elems),GEOMFROMTEXT('MULTILINESTRING((0 30,30 30,0 35))'))
 0
-SELECT Crosses(g,GeomFromText(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=103;
-Crosses(g,GeomFromText(@star_lines_near_vertical))
+SELECT CROSSES(g,GEOMFROMTEXT(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=103;
+CROSSES(g,GEOMFROMTEXT(@star_lines_near_vertical))
 0
-SELECT Crosses(g,GeomFromText(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=403;
-Crosses(g,GeomFromText(@star_lines_near_vertical))
+SELECT CROSSES(g,GEOMFROMTEXT(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=403;
+CROSSES(g,GEOMFROMTEXT(@star_lines_near_vertical))
 0
-#multipolygon,polygon
-SELECT Crosses(GeomFromText(@star_of_elems),GeomFromText(@star_elem_vertical));
-Crosses(GeomFromText(@star_of_elems),GeomFromText(@star_elem_vertical))
+#-------------------------------------------------------------------------------------------
+# multipolygon,polygon
+SELECT CROSSES(GEOMFROMTEXT(@star_of_elems),GEOMFROMTEXT(@star_elem_vertical));
+CROSSES(GEOMFROMTEXT(@star_of_elems),GEOMFROMTEXT(@star_elem_vertical))
 0
-SELECT Crosses(GeomFromText(@star_of_elems),GeomFromText(@star));
-Crosses(GeomFromText(@star_of_elems),GeomFromText(@star))
+SELECT CROSSES(GEOMFROMTEXT(@star_of_elems),GEOMFROMTEXT(@star));
+CROSSES(GEOMFROMTEXT(@star_of_elems),GEOMFROMTEXT(@star))
 0
-SELECT Crosses(GeomFromText(@star_of_elems),GeomFromText('POLYGON((0 0,15 25,35 0,0 0))'));
-Crosses(GeomFromText(@star_of_elems),GeomFromText('POLYGON((0 0,15 25,35 0,0 0))'))
+SELECT CROSSES(GEOMFROMTEXT(@star_of_elems),GEOMFROMTEXT('POLYGON((0 0,15 25,35 0,0 0))'));
+CROSSES(GEOMFROMTEXT(@star_of_elems),GEOMFROMTEXT('POLYGON((0 0,15 25,35 0,0 0))'))
 0
-SELECT Crosses(g,GeomFromText(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=103;
-Crosses(g,GeomFromText(@star_elem_vertical))
+SELECT CROSSES(g,GEOMFROMTEXT(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=103;
+CROSSES(g,GEOMFROMTEXT(@star_elem_vertical))
 0
-SELECT Crosses(g,GeomFromText(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=303;
-Crosses(g,GeomFromText(@star_elem_vertical))
+SELECT CROSSES(g,GEOMFROMTEXT(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=303;
+CROSSES(g,GEOMFROMTEXT(@star_elem_vertical))
 0
-SELECT Crosses(g,GeomFromText(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=403;
-Crosses(g,GeomFromText(@star_elem_vertical))
+SELECT CROSSES(g,GEOMFROMTEXT(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=403;
+CROSSES(g,GEOMFROMTEXT(@star_elem_vertical))
 0
-#multipolygon,multipolygon
-SELECT Crosses(GeomFromText(@star_of_elems),GeomFromText(@star_of_elems));
-Crosses(GeomFromText(@star_of_elems),GeomFromText(@star_of_elems))
+#-------------------------------------------------------------------------------------------
+# multipolygon,multipolygon
+SELECT CROSSES(GEOMFROMTEXT(@star_of_elems),GEOMFROMTEXT(@star_of_elems));
+CROSSES(GEOMFROMTEXT(@star_of_elems),GEOMFROMTEXT(@star_of_elems))
 0
-SELECT Crosses(GeomFromText(@star_of_elems),GeomFromText('MULTIPOLYGON(((0 0,15 25,35 0,0 0),(5 0,15 25,25 0,15 5,5 0)))'));
-Crosses(GeomFromText(@star_of_elems),GeomFromText('MULTIPOLYGON(((0 0,15 25,35 0,0 0),(5 0,15 25,25 0,15 5,5 0)))'))
+SELECT CROSSES(GEOMFROMTEXT(@star_of_elems),GEOMFROMTEXT('MULTIPOLYGON(((0 0,15 25,35 0,0 0),(5 0,15 25,25 0,15 5,5 0)))'));
+CROSSES(GEOMFROMTEXT(@star_of_elems),GEOMFROMTEXT('MULTIPOLYGON(((0 0,15 25,35 0,0 0),(5 0,15 25,25 0,15 5,5 0)))'))
 0
-SELECT Crosses(g,GeomFromText(@star_of_elems)) FROM gis_geometrycollection WHERE fid=103;
-Crosses(g,GeomFromText(@star_of_elems))
+SELECT CROSSES(g,GEOMFROMTEXT(@star_of_elems)) FROM gis_geometrycollection WHERE fid=103;
+CROSSES(g,GEOMFROMTEXT(@star_of_elems))
 0
-SELECT Crosses(g,GeomFromText(@star_of_elems)) FROM gis_geometrycollection WHERE fid=303;
-Crosses(g,GeomFromText(@star_of_elems))
+SELECT CROSSES(g,GEOMFROMTEXT(@star_of_elems)) FROM gis_geometrycollection WHERE fid=303;
+CROSSES(g,GEOMFROMTEXT(@star_of_elems))
 0
-SELECT Crosses(g,GeomFromText(@star_of_elems)) FROM gis_geometrycollection WHERE fid=403;
-Crosses(g,GeomFromText(@star_of_elems))
+SELECT CROSSES(g,GEOMFROMTEXT(@star_of_elems)) FROM gis_geometrycollection WHERE fid=403;
+CROSSES(g,GEOMFROMTEXT(@star_of_elems))
 0
-SELECT Crosses(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2
+SELECT CROSSES(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2
 WHERE fid=103 and fid2=103;
-Crosses(g,g2)
+CROSSES(g,g2)
 0
-#multipolygon,geometrycollection
-SELECT Crosses(GeomFromText(@star_of_elems),GeomFromText(@star_collection_elems));
-Crosses(GeomFromText(@star_of_elems),GeomFromText(@star_collection_elems))
+#-------------------------------------------------------------------------------------------
+# multipolygon,geometrycollection
+SELECT CROSSES(GEOMFROMTEXT(@star_of_elems),GEOMFROMTEXT(@star_collection_elems));
+CROSSES(GEOMFROMTEXT(@star_of_elems),GEOMFROMTEXT(@star_collection_elems))
 1
-SELECT Crosses(GeomFromText(@star_of_elems),GeomFromText(@star_collection_elems_3));
-Crosses(GeomFromText(@star_of_elems),GeomFromText(@star_collection_elems_3))
+SELECT CROSSES(GEOMFROMTEXT(@star_of_elems),GEOMFROMTEXT(@star_collection_elems_3));
+CROSSES(GEOMFROMTEXT(@star_of_elems),GEOMFROMTEXT(@star_collection_elems_3))
 0
-SELECT Crosses(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=103;
-Crosses(g,GeomFromText(@star_collection_elems))
+SELECT CROSSES(g,GEOMFROMTEXT(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=103;
+CROSSES(g,GEOMFROMTEXT(@star_collection_elems))
 1
-SELECT Crosses(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=303;
-Crosses(g,GeomFromText(@star_collection_elems))
+SELECT CROSSES(g,GEOMFROMTEXT(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=303;
+CROSSES(g,GEOMFROMTEXT(@star_collection_elems))
 1
-SELECT Crosses(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=403;
-Crosses(g,GeomFromText(@star_collection_elems))
+SELECT CROSSES(g,GEOMFROMTEXT(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=403;
+CROSSES(g,GEOMFROMTEXT(@star_collection_elems))
 0
-SELECT Crosses(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2
+SELECT CROSSES(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2
 WHERE fid=115 and fid2=103;
-Crosses(g,g2)
+CROSSES(g,g2)
 1
-SELECT Crosses(GeomFromText(@star_of_elems),GeomFromText(@star_collection_multilinestr));
-Crosses(GeomFromText(@star_of_elems),GeomFromText(@star_collection_multilinestr))
+SELECT CROSSES(GEOMFROMTEXT(@star_of_elems),GEOMFROMTEXT(@star_collection_multilinestr));
+CROSSES(GEOMFROMTEXT(@star_of_elems),GEOMFROMTEXT(@star_collection_multilinestr))
 1
 #-------------------------------------------------------------------------------------------
-#geometrycollection,point
-SELECT Crosses(GeomFromText(@star_collection_elems),GeomFromText(@star_top));
-Crosses(GeomFromText(@star_collection_elems),GeomFromText(@star_top))
+# geometrycollection,point
+SELECT CROSSES(GEOMFROMTEXT(@star_collection_elems),GEOMFROMTEXT(@star_top));
+CROSSES(GEOMFROMTEXT(@star_collection_elems),GEOMFROMTEXT(@star_top))
 0
-SELECT Crosses(GeomFromText(@star_collection_elems),GeomFromText('POINT(30 30)'));
-Crosses(GeomFromText(@star_collection_elems),GeomFromText('POINT(30 30)'))
+SELECT CROSSES(GEOMFROMTEXT(@star_collection_elems),GEOMFROMTEXT('POINT(30 30)'));
+CROSSES(GEOMFROMTEXT(@star_collection_elems),GEOMFROMTEXT('POINT(30 30)'))
 0
-SELECT Crosses(g,GeomFromText(@star_top)) FROM gis_geometrycollection WHERE fid=115;
-Crosses(g,GeomFromText(@star_top))
+SELECT CROSSES(g,GEOMFROMTEXT(@star_top)) FROM gis_geometrycollection WHERE fid=115;
+CROSSES(g,GEOMFROMTEXT(@star_top))
 0
-SELECT Crosses(g,GeomFromText(@star_top)) FROM gis_geometrycollection WHERE fid=415;
-Crosses(g,GeomFromText(@star_top))
+SELECT CROSSES(g,GEOMFROMTEXT(@star_top)) FROM gis_geometrycollection WHERE fid=415;
+CROSSES(g,GEOMFROMTEXT(@star_top))
 0
-#geometrycollection,multipoint
-SELECT Crosses(GeomFromText(@star_collection_elems),GeomFromText(@star_bottom_points));
-Crosses(GeomFromText(@star_collection_elems),GeomFromText(@star_bottom_points))
+#-------------------------------------------------------------------------------------------
+# geometrycollection,multipoint
+SELECT CROSSES(GEOMFROMTEXT(@star_collection_elems),GEOMFROMTEXT(@star_bottom_points));
+CROSSES(GEOMFROMTEXT(@star_collection_elems),GEOMFROMTEXT(@star_bottom_points))
 0
-SELECT Crosses(GeomFromText(@star_collection_elems),GeomFromText('MULTIPOINT(30 30,0 35)'));
-Crosses(GeomFromText(@star_collection_elems),GeomFromText('MULTIPOINT(30 30,0 35)'))
+SELECT CROSSES(GEOMFROMTEXT(@star_collection_elems),GEOMFROMTEXT('MULTIPOINT(30 30,0 35)'));
+CROSSES(GEOMFROMTEXT(@star_collection_elems),GEOMFROMTEXT('MULTIPOINT(30 30,0 35)'))
 0
-SELECT Crosses(g,GeomFromText(@star_bottom_points)) FROM gis_geometrycollection WHERE fid=115;
-Crosses(g,GeomFromText(@star_bottom_points))
+SELECT CROSSES(g,GEOMFROMTEXT(@star_bottom_points)) FROM gis_geometrycollection WHERE fid=115;
+CROSSES(g,GEOMFROMTEXT(@star_bottom_points))
 0
-SELECT Crosses(g,GeomFromText(@star_bottom_points)) FROM gis_geometrycollection WHERE fid=415;
-Crosses(g,GeomFromText(@star_bottom_points))
+SELECT CROSSES(g,GEOMFROMTEXT(@star_bottom_points)) FROM gis_geometrycollection WHERE fid=415;
+CROSSES(g,GEOMFROMTEXT(@star_bottom_points))
 0
-#geometrycollection,linestring
-SELECT Crosses(GeomFromText(@star_collection_elems),GeomFromText(@star_top_to_center));
-Crosses(GeomFromText(@star_collection_elems),GeomFromText(@star_top_to_center))
+#-------------------------------------------------------------------------------------------
+# geometrycollection,linestring
+SELECT CROSSES(GEOMFROMTEXT(@star_collection_elems),GEOMFROMTEXT(@star_top_to_center));
+CROSSES(GEOMFROMTEXT(@star_collection_elems),GEOMFROMTEXT(@star_top_to_center))
 1
-SELECT Crosses(GeomFromText(@star_collection_elems),GeomFromText('LINESTRING(30 30,0 35)'));
-Crosses(GeomFromText(@star_collection_elems),GeomFromText('LINESTRING(30 30,0 35)'))
+SELECT CROSSES(GEOMFROMTEXT(@star_collection_elems),GEOMFROMTEXT('LINESTRING(30 30,0 35)'));
+CROSSES(GEOMFROMTEXT(@star_collection_elems),GEOMFROMTEXT('LINESTRING(30 30,0 35)'))
 0
-SELECT Crosses(g,GeomFromText(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=115;
-Crosses(g,GeomFromText(@star_top_to_center))
+SELECT CROSSES(g,GEOMFROMTEXT(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=115;
+CROSSES(g,GEOMFROMTEXT(@star_top_to_center))
 1
-SELECT Crosses(g,GeomFromText(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=415;
-Crosses(g,GeomFromText(@star_top_to_center))
+SELECT CROSSES(g,GEOMFROMTEXT(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=415;
+CROSSES(g,GEOMFROMTEXT(@star_top_to_center))
 0
-#geometrycollection,multilinestring
-SELECT Crosses(GeomFromText(@star_collection_elems),GeomFromText(@star_lines_near_vertical));
-Crosses(GeomFromText(@star_collection_elems),GeomFromText(@star_lines_near_vertical))
+#-------------------------------------------------------------------------------------------
+# geometrycollection,multilinestring
+SELECT CROSSES(GEOMFROMTEXT(@star_collection_elems),GEOMFROMTEXT(@star_lines_near_vertical));
+CROSSES(GEOMFROMTEXT(@star_collection_elems),GEOMFROMTEXT(@star_lines_near_vertical))
 1
-SELECT Crosses(GeomFromText(@star_collection_elems),GeomFromText('MULTILINESTRING((0 30,30 30,0 35))'));
-Crosses(GeomFromText(@star_collection_elems),GeomFromText('MULTILINESTRING((0 30,30 30,0 35))'))
+SELECT CROSSES(GEOMFROMTEXT(@star_collection_elems),GEOMFROMTEXT('MULTILINESTRING((0 30,30 30,0 35))'));
+CROSSES(GEOMFROMTEXT(@star_collection_elems),GEOMFROMTEXT('MULTILINESTRING((0 30,30 30,0 35))'))
 0
-SELECT Crosses(g,GeomFromText(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=115;
-Crosses(g,GeomFromText(@star_lines_near_vertical))
+SELECT CROSSES(g,GEOMFROMTEXT(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=115;
+CROSSES(g,GEOMFROMTEXT(@star_lines_near_vertical))
 1
-SELECT Crosses(g,GeomFromText(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=415;
-Crosses(g,GeomFromText(@star_lines_near_vertical))
+SELECT CROSSES(g,GEOMFROMTEXT(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=415;
+CROSSES(g,GEOMFROMTEXT(@star_lines_near_vertical))
 0
-#geometrycollection,polygon
-SELECT Crosses(GeomFromText(@star_collection_elems),GeomFromText(@star_elem_vertical));
-Crosses(GeomFromText(@star_collection_elems),GeomFromText(@star_elem_vertical))
+#-------------------------------------------------------------------------------------------
+# geometrycollection,polygon
+SELECT CROSSES(GEOMFROMTEXT(@star_collection_elems),GEOMFROMTEXT(@star_elem_vertical));
+CROSSES(GEOMFROMTEXT(@star_collection_elems),GEOMFROMTEXT(@star_elem_vertical))
 1
-SELECT Crosses(GeomFromText(@star_collection_elems),GeomFromText(@star));
-Crosses(GeomFromText(@star_collection_elems),GeomFromText(@star))
+SELECT CROSSES(GEOMFROMTEXT(@star_collection_elems),GEOMFROMTEXT(@star));
+CROSSES(GEOMFROMTEXT(@star_collection_elems),GEOMFROMTEXT(@star))
 1
-SELECT Crosses(GeomFromText(@star_collection_elems),GeomFromText('POLYGON((0 0,15 25,35 0,0 0))'));
-Crosses(GeomFromText(@star_collection_elems),GeomFromText('POLYGON((0 0,15 25,35 0,0 0))'))
+SELECT CROSSES(GEOMFROMTEXT(@star_collection_elems),GEOMFROMTEXT('POLYGON((0 0,15 25,35 0,0 0))'));
+CROSSES(GEOMFROMTEXT(@star_collection_elems),GEOMFROMTEXT('POLYGON((0 0,15 25,35 0,0 0))'))
 1
-SELECT Crosses(g,GeomFromText(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=115;
-Crosses(g,GeomFromText(@star_elem_vertical))
+SELECT CROSSES(g,GEOMFROMTEXT(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=115;
+CROSSES(g,GEOMFROMTEXT(@star_elem_vertical))
 1
-SELECT Crosses(g,GeomFromText(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=315;
-Crosses(g,GeomFromText(@star_elem_vertical))
+SELECT CROSSES(g,GEOMFROMTEXT(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=315;
+CROSSES(g,GEOMFROMTEXT(@star_elem_vertical))
 1
-SELECT Crosses(g,GeomFromText(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=415;
-Crosses(g,GeomFromText(@star_elem_vertical))
+SELECT CROSSES(g,GEOMFROMTEXT(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=415;
+CROSSES(g,GEOMFROMTEXT(@star_elem_vertical))
 0
-#geometrycollection,multipolygon
-SELECT Crosses(GeomFromText(@star_collection_elems),GeomFromText(@star_of_elems));
-Crosses(GeomFromText(@star_collection_elems),GeomFromText(@star_of_elems))
+#-------------------------------------------------------------------------------------------
+# geometrycollection,multipolygon
+SELECT CROSSES(GEOMFROMTEXT(@star_collection_elems),GEOMFROMTEXT(@star_of_elems));
+CROSSES(GEOMFROMTEXT(@star_collection_elems),GEOMFROMTEXT(@star_of_elems))
 1
-SELECT Crosses(GeomFromText(@star_collection_elems),GeomFromText('MULTIPOLYGON(((0 0,15 25,35 0,0 0),(5 0,15 25,25 0,15 5,5 0)))'));
-Crosses(GeomFromText(@star_collection_elems),GeomFromText('MULTIPOLYGON(((0 0,15 25,35 0,0 0),(5 0,15 25,25 0,15 5,5 0)))'))
+SELECT CROSSES(GEOMFROMTEXT(@star_collection_elems),GEOMFROMTEXT('MULTIPOLYGON(((0 0,15 25,35 0,0 0),(5 0,15 25,25 0,15 5,5 0)))'));
+CROSSES(GEOMFROMTEXT(@star_collection_elems),GEOMFROMTEXT('MULTIPOLYGON(((0 0,15 25,35 0,0 0),(5 0,15 25,25 0,15 5,5 0)))'))
 1
-SELECT Crosses(g,GeomFromText(@star_of_elems)) FROM gis_geometrycollection WHERE fid=115;
-Crosses(g,GeomFromText(@star_of_elems))
+SELECT CROSSES(g,GEOMFROMTEXT(@star_of_elems)) FROM gis_geometrycollection WHERE fid=115;
+CROSSES(g,GEOMFROMTEXT(@star_of_elems))
 1
-SELECT Crosses(g,GeomFromText(@star_of_elems)) FROM gis_geometrycollection WHERE fid=315;
-Crosses(g,GeomFromText(@star_of_elems))
+SELECT CROSSES(g,GEOMFROMTEXT(@star_of_elems)) FROM gis_geometrycollection WHERE fid=315;
+CROSSES(g,GEOMFROMTEXT(@star_of_elems))
 1
-SELECT Crosses(g,GeomFromText(@star_of_elems)) FROM gis_geometrycollection WHERE fid=415;
-Crosses(g,GeomFromText(@star_of_elems))
+SELECT CROSSES(g,GEOMFROMTEXT(@star_of_elems)) FROM gis_geometrycollection WHERE fid=415;
+CROSSES(g,GEOMFROMTEXT(@star_of_elems))
 0
-SELECT Crosses(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2
+SELECT CROSSES(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2
 WHERE fid=103 and fid2=115;
-Crosses(g,g2)
+CROSSES(g,g2)
 1
-#geometrycollection,geometrycollection
-SELECT Crosses(GeomFromText(@star_collection_elems),GeomFromText(@star_collection_elems));
-Crosses(GeomFromText(@star_collection_elems),GeomFromText(@star_collection_elems))
+#-------------------------------------------------------------------------------------------
+# geometrycollection,geometrycollection
+SELECT CROSSES(GEOMFROMTEXT(@star_collection_elems),GEOMFROMTEXT(@star_collection_elems));
+CROSSES(GEOMFROMTEXT(@star_collection_elems),GEOMFROMTEXT(@star_collection_elems))
 1
-SELECT Crosses(GeomFromText(@star_collection_elems),GeomFromText(@star_collection_elems_3));
-Crosses(GeomFromText(@star_collection_elems),GeomFromText(@star_collection_elems_3))
+SELECT CROSSES(GEOMFROMTEXT(@star_collection_elems),GEOMFROMTEXT(@star_collection_elems_3));
+CROSSES(GEOMFROMTEXT(@star_collection_elems),GEOMFROMTEXT(@star_collection_elems_3))
 0
-SELECT Crosses(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=115;
-Crosses(g,GeomFromText(@star_collection_elems))
+SELECT CROSSES(g,GEOMFROMTEXT(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=115;
+CROSSES(g,GEOMFROMTEXT(@star_collection_elems))
 1
-SELECT Crosses(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=315;
-Crosses(g,GeomFromText(@star_collection_elems))
+SELECT CROSSES(g,GEOMFROMTEXT(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=315;
+CROSSES(g,GEOMFROMTEXT(@star_collection_elems))
 1
-SELECT Crosses(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=415;
-Crosses(g,GeomFromText(@star_collection_elems))
+SELECT CROSSES(g,GEOMFROMTEXT(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=415;
+CROSSES(g,GEOMFROMTEXT(@star_collection_elems))
 0
-SELECT Crosses(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2
+SELECT CROSSES(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2
 WHERE fid=115 and fid2=215;
-Crosses(g,g2)
+CROSSES(g,g2)
 1
-SELECT Crosses(GeomFromText(@star_collection_elems),GeomFromText(@star_collection_multilinestr));
-Crosses(GeomFromText(@star_collection_elems),GeomFromText(@star_collection_multilinestr))
+SELECT CROSSES(GEOMFROMTEXT(@star_collection_elems),GEOMFROMTEXT(@star_collection_multilinestr));
+CROSSES(GEOMFROMTEXT(@star_collection_elems),GEOMFROMTEXT(@star_collection_multilinestr))
 1
 #=======================================================================================
-# Testing Crosses() with 2 geometries of same SRID
+# Testing CROSSES() with 2 geometries of same SRID
 #=======================================================================================
 #-------------------------------------------------------------------------------------------
-#ST_Crosses(g1,g2)
-SELECT ST_Crosses(GeomFromText(@star_top,0),GeomFromText(@star_center,0));
-ST_Crosses(GeomFromText(@star_top,0),GeomFromText(@star_center,0))
+# ST_CROSSES(g1,g2)
+SELECT ST_CROSSES(GEOMFROMTEXT(@star_top,0),GEOMFROMTEXT(@star_center,0));
+ST_CROSSES(GEOMFROMTEXT(@star_top,0),GEOMFROMTEXT(@star_center,0))
 0
-SELECT ST_Crosses(GeomFromText(@star_top,100),GeomFromText(@star_center,100));
-ST_Crosses(GeomFromText(@star_top,100),GeomFromText(@star_center,100))
+SELECT ST_CROSSES(GEOMFROMTEXT(@star_top,100),GEOMFROMTEXT(@star_center,100));
+ST_CROSSES(GEOMFROMTEXT(@star_top,100),GEOMFROMTEXT(@star_center,100))
 0
-SELECT ST_Crosses(GeomFromText(@star_top,20000),GeomFromText(@star_center,20000));
-ST_Crosses(GeomFromText(@star_top,20000),GeomFromText(@star_center,20000))
+SELECT ST_CROSSES(GEOMFROMTEXT(@star_top,20000),GEOMFROMTEXT(@star_center,20000));
+ST_CROSSES(GEOMFROMTEXT(@star_top,20000),GEOMFROMTEXT(@star_center,20000))
 0
-SELECT ST_Crosses(GeomFromText(@star_top,123456),GeomFromText(@star_center,123456));
-ST_Crosses(GeomFromText(@star_top,123456),GeomFromText(@star_center,123456))
+SELECT ST_CROSSES(GEOMFROMTEXT(@star_top,123456),GEOMFROMTEXT(@star_center,123456));
+ST_CROSSES(GEOMFROMTEXT(@star_top,123456),GEOMFROMTEXT(@star_center,123456))
 0
-SELECT ST_Crosses(GeomFromText(@star_top,1048575),GeomFromText(@star_center,1048575));
-ST_Crosses(GeomFromText(@star_top,1048575),GeomFromText(@star_center,1048575))
+SELECT ST_CROSSES(GEOMFROMTEXT(@star_top,1048575),GEOMFROMTEXT(@star_center,1048575));
+ST_CROSSES(GEOMFROMTEXT(@star_top,1048575),GEOMFROMTEXT(@star_center,1048575))
 0
-SELECT ST_Crosses(GeomFromText(@star_top,4294967295),GeomFromText(@star_center,4294967295));
-ST_Crosses(GeomFromText(@star_top,4294967295),GeomFromText(@star_center,4294967295))
+SELECT ST_CROSSES(GEOMFROMTEXT(@star_top,4294967295),GEOMFROMTEXT(@star_center,4294967295));
+ST_CROSSES(GEOMFROMTEXT(@star_top,4294967295),GEOMFROMTEXT(@star_center,4294967295))
 0
-SELECT ST_Crosses(GeomFromText(@star_top,-1),GeomFromText(@star_center,-1));
-ST_Crosses(GeomFromText(@star_top,-1),GeomFromText(@star_center,-1))
+SELECT ST_CROSSES(GEOMFROMTEXT(@star_top,-1),GEOMFROMTEXT(@star_center,-1));
+ST_CROSSES(GEOMFROMTEXT(@star_top,-1),GEOMFROMTEXT(@star_center,-1))
 0
-SELECT ST_Crosses(GeomFromText(@star_top,-1024),GeomFromText(@star_center,-1024));
-ST_Crosses(GeomFromText(@star_top,-1024),GeomFromText(@star_center,-1024))
+SELECT ST_CROSSES(GEOMFROMTEXT(@star_top,-1024),GEOMFROMTEXT(@star_center,-1024));
+ST_CROSSES(GEOMFROMTEXT(@star_top,-1024),GEOMFROMTEXT(@star_center,-1024))
 0
-SELECT ST_Crosses(GeomFromText(@star_top,4294967295000),GeomFromText(@star_center,4294967295000));
-ST_Crosses(GeomFromText(@star_top,4294967295000),GeomFromText(@star_center,4294967295000))
+SELECT ST_CROSSES(GEOMFROMTEXT(@star_top,4294967295000),GEOMFROMTEXT(@star_center,4294967295000));
+ST_CROSSES(GEOMFROMTEXT(@star_top,4294967295000),GEOMFROMTEXT(@star_center,4294967295000))
 0
 #-------------------------------------------------------------------------------------------
-#Crosses(g1,g2)
-SELECT Crosses(GeomFromText(@star_top,0),GeomFromText(@star_center,0));
-Crosses(GeomFromText(@star_top,0),GeomFromText(@star_center,0))
+# CROSSES(g1,g2)
+SELECT CROSSES(GEOMFROMTEXT(@star_top,0),GEOMFROMTEXT(@star_center,0));
+CROSSES(GEOMFROMTEXT(@star_top,0),GEOMFROMTEXT(@star_center,0))
 0
-SELECT Crosses(GeomFromText(@star_top,100),GeomFromText(@star_center,100));
-Crosses(GeomFromText(@star_top,100),GeomFromText(@star_center,100))
+SELECT CROSSES(GEOMFROMTEXT(@star_top,100),GEOMFROMTEXT(@star_center,100));
+CROSSES(GEOMFROMTEXT(@star_top,100),GEOMFROMTEXT(@star_center,100))
 0
-SELECT Crosses(GeomFromText(@star_top,20000),GeomFromText(@star_center,20000));
-Crosses(GeomFromText(@star_top,20000),GeomFromText(@star_center,20000))
+SELECT CROSSES(GEOMFROMTEXT(@star_top,20000),GEOMFROMTEXT(@star_center,20000));
+CROSSES(GEOMFROMTEXT(@star_top,20000),GEOMFROMTEXT(@star_center,20000))
 0
-SELECT Crosses(GeomFromText(@star_top,123456),GeomFromText(@star_center,123456));
-Crosses(GeomFromText(@star_top,123456),GeomFromText(@star_center,123456))
+SELECT CROSSES(GEOMFROMTEXT(@star_top,123456),GEOMFROMTEXT(@star_center,123456));
+CROSSES(GEOMFROMTEXT(@star_top,123456),GEOMFROMTEXT(@star_center,123456))
 0
-SELECT Crosses(GeomFromText(@star_top,1048575),GeomFromText(@star_center,1048575));
-Crosses(GeomFromText(@star_top,1048575),GeomFromText(@star_center,1048575))
+SELECT CROSSES(GEOMFROMTEXT(@star_top,1048575),GEOMFROMTEXT(@star_center,1048575));
+CROSSES(GEOMFROMTEXT(@star_top,1048575),GEOMFROMTEXT(@star_center,1048575))
 0
-SELECT Crosses(GeomFromText(@star_top,4294967295),GeomFromText(@star_center,4294967295));
-Crosses(GeomFromText(@star_top,4294967295),GeomFromText(@star_center,4294967295))
+SELECT CROSSES(GEOMFROMTEXT(@star_top,4294967295),GEOMFROMTEXT(@star_center,4294967295));
+CROSSES(GEOMFROMTEXT(@star_top,4294967295),GEOMFROMTEXT(@star_center,4294967295))
 0
-SELECT Crosses(GeomFromText(@star_top,-1),GeomFromText(@star_center,-1));
-Crosses(GeomFromText(@star_top,-1),GeomFromText(@star_center,-1))
+SELECT CROSSES(GEOMFROMTEXT(@star_top,-1),GEOMFROMTEXT(@star_center,-1));
+CROSSES(GEOMFROMTEXT(@star_top,-1),GEOMFROMTEXT(@star_center,-1))
 0
-SELECT Crosses(GeomFromText(@star_top,-1024),GeomFromText(@star_center,-1024));
-Crosses(GeomFromText(@star_top,-1024),GeomFromText(@star_center,-1024))
+SELECT CROSSES(GEOMFROMTEXT(@star_top,-1024),GEOMFROMTEXT(@star_center,-1024));
+CROSSES(GEOMFROMTEXT(@star_top,-1024),GEOMFROMTEXT(@star_center,-1024))
 0
-SELECT Crosses(GeomFromText(@star_top,4294967295000),GeomFromText(@star_center,4294967295000));
-Crosses(GeomFromText(@star_top,4294967295000),GeomFromText(@star_center,4294967295000))
+SELECT CROSSES(GEOMFROMTEXT(@star_top,4294967295000),GEOMFROMTEXT(@star_center,4294967295000));
+CROSSES(GEOMFROMTEXT(@star_top,4294967295000),GEOMFROMTEXT(@star_center,4294967295000))
 0
 #=======================================================================================
 # Invalid function calls
 #=======================================================================================
-SELECT Crosses(GeomFromText(@star_top),GeomFromText(@star_center,4326));
+#-------------------------------------------------------------------------------------------
+# CROSSES(g1,g2)
+SELECT CROSSES(GEOMFROMTEXT(@star_top),GEOMFROMTEXT(@star_center,4326));
 ERROR HY000: Binary geometry function st_crosses given two geometries of different srids: 0 and 4326, which should have been identical.
-SELECT Crosses(GeomFromText(@star_top,1048576),GeomFromText(@star_center,4326));
+SELECT CROSSES(GEOMFROMTEXT(@star_top,1048576),GEOMFROMTEXT(@star_center,4326));
 ERROR HY000: Binary geometry function st_crosses given two geometries of different srids: 1048576 and 4326, which should have been identical.
-SELECT Crosses(GeomFromText(@star_top,1048576),GeomFromText(@star_center,1048576));
-Crosses(GeomFromText(@star_top,1048576),GeomFromText(@star_center,1048576))
-0
-SELECT Crosses(GeomFromText(@star_top,0),GeomFromText(@star_center,0));
-Crosses(GeomFromText(@star_top,0),GeomFromText(@star_center,0))
-0
-SELECT Crosses(GeomFromText(@star_top,-1),GeomFromText(@star_center,-1));
-Crosses(GeomFromText(@star_top,-1),GeomFromText(@star_center,-1))
-0
-SELECT Crosses(NULL,GeomFromText(@star_top));
-Crosses(NULL,GeomFromText(@star_top))
+SELECT CROSSES(NULL,GEOMFROMTEXT(@star_top));
+CROSSES(NULL,GEOMFROMTEXT(@star_top))
 NULL
-SELECT Crosses(GeomFromText(@star_of_elems),NULL);
-Crosses(GeomFromText(@star_of_elems),NULL)
+SELECT CROSSES(GEOMFROMTEXT(@star_of_elems),NULL);
+CROSSES(GEOMFROMTEXT(@star_of_elems),NULL)
 NULL
-SELECT Crosses(g,NULL) FROM gis_geometrycollection,gis_geometrycollection_2
+SELECT CROSSES(g,NULL) FROM gis_geometrycollection,gis_geometrycollection_2
 WHERE fid=103 and fid2=103;
-Crosses(g,NULL)
+CROSSES(g,NULL)
 NULL
-SELECT Crosses(NULL,NULL);
-Crosses(NULL,NULL)
+SELECT CROSSES(NULL,NULL);
+CROSSES(NULL,NULL)
 NULL
-SELECT Crosses(fid,NULL) FROM gis_geometrycollection,gis_geometrycollection_2
+SELECT CROSSES(fid,NULL) FROM gis_geometrycollection,gis_geometrycollection_2
 WHERE fid=103 and fid2=103;
-Crosses(fid,NULL)
+CROSSES(fid,NULL)
 NULL
-SELECT Crosses(fid,GeomFromText(@star_top)) FROM gis_geometrycollection,gis_geometrycollection_2
+SELECT CROSSES(fid,GEOMFROMTEXT(@star_top)) FROM gis_geometrycollection,gis_geometrycollection_2
 WHERE fid=103 and fid2=103;
 ERROR 22023: Invalid GIS data provided to function st_crosses.
-SELECT Crosses(GeomFromText(@star_of_elems),fid) FROM gis_geometrycollection,gis_geometrycollection_2
+SELECT CROSSES(GEOMFROMTEXT(@star_of_elems),fid) FROM gis_geometrycollection,gis_geometrycollection_2
 WHERE fid=103 and fid2=103;
 ERROR 22023: Invalid GIS data provided to function st_crosses.
-SELECT Crosses(GeomFromText('POINT(a 0)'),GeomFromText('LINESTRING(0 0,10 10)'));
+SELECT CROSSES(GEOMFROMTEXT('POINT(a 0)'),GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
 ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
-SELECT Crosses(GeomFromText('POINT(! 0)'),GeomFromText('LINESTRING(0 0,10 10)'));
+SELECT CROSSES(GEOMFROMTEXT('POINT(! 0)'),GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
 ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
-SELECT Crosses(GeomFromText('POINT('!' 0)'),GeomFromText('LINESTRING(0 0,10 10)'));
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0)'),GeomFromText('LINESTRING(0 0,10 10)'))' at line 1
-SELECT Crosses(GeomFromText('POINT(12,34 0)'),GeomFromText('LINESTRING(0 0,10 10)'));
+SELECT CROSSES(GEOMFROMTEXT('POINT('!' 0)'),GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0)'),GEOMFROMTEXT('LINESTRING(0 0,10 10)'))' at line 1
+SELECT CROSSES(GEOMFROMTEXT('POINT(12,34 0)'),GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
 ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
-SELECT Crosses(GeomFromText('LINESTRING(a 0,10 10)'),GeomFromText('LINESTRING(0 0,10 10)'));
+SELECT CROSSES(GEOMFROMTEXT('LINESTRING(a 0,10 10)'),GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
 ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
-SELECT Crosses(GeomFromText('LINESTRING(0 0,! 10)'),GeomFromText('LINESTRING(0 0,10 10)'));
+SELECT CROSSES(GEOMFROMTEXT('LINESTRING(0 0,! 10)'),GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
 ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
-SELECT Crosses(GeomFromText('LINESTRING('!' 0,10 10)'),GeomFromText('LINESTRING(0 0,10 10)'));
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0,10 10)'),GeomFromText('LINESTRING(0 0,10 10)'))' at line 1
-SELECT Crosses(GeomFromText('LINESTRING(12,34 0,10 10)'),GeomFromText('LINESTRING(0 0,10 10)'));
+SELECT CROSSES(GEOMFROMTEXT('LINESTRING('!' 0,10 10)'),GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0,10 10)'),GEOMFROMTEXT('LINESTRING(0 0,10 10)'))' at line 1
+SELECT CROSSES(GEOMFROMTEXT('LINESTRING(12,34 0,10 10)'),GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
 ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
-SELECT Crosses(GeomFromText('POLYGON((a 0,10 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'));
+SELECT CROSSES(GEOMFROMTEXT('POLYGON((a 0,10 10,10 0,0 0))'),GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
 ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
-SELECT ST_Crosses(GeomFromText('POLYGON((0 0,! 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'));
+SELECT ST_CROSSES(GEOMFROMTEXT('POLYGON((0 0,! 10,10 0,0 0))'),GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
 ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
-SELECT ST_Crosses(GeomFromText('POLYGON(('!' 0,10 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'));
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0,10 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'))' at line 1
-SELECT ST_Crosses(GeomFromText('POLYGON((12,34 0,10 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'));
+SELECT ST_CROSSES(GEOMFROMTEXT('POLYGON(('!' 0,10 10,10 0,0 0))'),GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0,10 10,10 0,0 0))'),GEOMFROMTEXT('LINESTRING(0 0,10 10)'))' at line 1
+SELECT ST_CROSSES(GEOMFROMTEXT('POLYGON((12,34 0,10 10,10 0,0 0))'),GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
 ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
-SELECT ST_Crosses(GeomFromText('POLYGON((12,34 0,10 10,10 0,0 0)'),GeomFromText('LINESTRING(0 0,10 10)'));
+SELECT ST_CROSSES(GEOMFROMTEXT('POLYGON((12,34 0,10 10,10 0,0 0)'),GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
 ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
-SELECT Crosses(,);
+SELECT CROSSES(,);
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ')' at line 1
-SELECT Crosses(GeomFromText(@star_of_elems),);
+SELECT CROSSES(GEOMFROMTEXT(@star_of_elems),);
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ')' at line 1
-SELECT Crosses(,GeomFromText(@star_top));
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'GeomFromText(@star_top))' at line 1
-SELECT ST_Crosses(GeomFromText(@star_top),GeomFromText(@star_center,4326));
+SELECT CROSSES(,GEOMFROMTEXT(@star_top));
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'GEOMFROMTEXT(@star_top))' at line 1
+#-------------------------------------------------------------------------------------------
+# ST_CROSSES(g1,g2)
+SELECT ST_CROSSES(GEOMFROMTEXT(@star_top),GEOMFROMTEXT(@star_center,4326));
 ERROR HY000: Binary geometry function st_crosses given two geometries of different srids: 0 and 4326, which should have been identical.
-SELECT ST_Crosses(GeomFromText(@star_top,1048576),GeomFromText(@star_center,4326));
+SELECT ST_CROSSES(GEOMFROMTEXT(@star_top,1048576),GEOMFROMTEXT(@star_center,4326));
 ERROR HY000: Binary geometry function st_crosses given two geometries of different srids: 1048576 and 4326, which should have been identical.
-SELECT ST_Crosses(GeomFromText(@star_top,1048576),GeomFromText(@star_center,1048576));
-ST_Crosses(GeomFromText(@star_top,1048576),GeomFromText(@star_center,1048576))
-0
-SELECT ST_Crosses(GeomFromText(@star_top,0),GeomFromText(@star_center,0));
-ST_Crosses(GeomFromText(@star_top,0),GeomFromText(@star_center,0))
-0
-SELECT ST_Crosses(GeomFromText(@star_top,-1),GeomFromText(@star_center,-1));
-ST_Crosses(GeomFromText(@star_top,-1),GeomFromText(@star_center,-1))
-0
-SELECT ST_Crosses(NULL,GeomFromText(@star_top));
-ST_Crosses(NULL,GeomFromText(@star_top))
+SELECT ST_CROSSES(NULL,GEOMFROMTEXT(@star_top));
+ST_CROSSES(NULL,GEOMFROMTEXT(@star_top))
 NULL
-SELECT ST_Crosses(GeomFromText(@star_of_elems),NULL);
-ST_Crosses(GeomFromText(@star_of_elems),NULL)
+SELECT ST_CROSSES(GEOMFROMTEXT(@star_of_elems),NULL);
+ST_CROSSES(GEOMFROMTEXT(@star_of_elems),NULL)
 NULL
-SELECT ST_Crosses(g,NULL) FROM gis_geometrycollection,gis_geometrycollection_2
+SELECT ST_CROSSES(g,NULL) FROM gis_geometrycollection,gis_geometrycollection_2
 WHERE fid=103 and fid2=103;
-ST_Crosses(g,NULL)
+ST_CROSSES(g,NULL)
 NULL
-SELECT ST_Crosses(NULL,NULL);
-ST_Crosses(NULL,NULL)
+SELECT ST_CROSSES(NULL,NULL);
+ST_CROSSES(NULL,NULL)
 NULL
-SELECT ST_Crosses(fid,NULL) FROM gis_geometrycollection,gis_geometrycollection_2
+SELECT ST_CROSSES(fid,NULL) FROM gis_geometrycollection,gis_geometrycollection_2
 WHERE fid=103 and fid2=103;
-ST_Crosses(fid,NULL)
+ST_CROSSES(fid,NULL)
 NULL
-SELECT ST_Crosses(fid,GeomFromText(@star_top)) FROM gis_geometrycollection,gis_geometrycollection_2
+SELECT ST_CROSSES(fid,GEOMFROMTEXT(@star_top)) FROM gis_geometrycollection,gis_geometrycollection_2
 WHERE fid=103 and fid2=103;
 ERROR 22023: Invalid GIS data provided to function st_crosses.
-SELECT ST_Crosses(GeomFromText(@star_of_elems),fid) FROM gis_geometrycollection,gis_geometrycollection_2
+SELECT ST_CROSSES(GEOMFROMTEXT(@star_of_elems),fid) FROM gis_geometrycollection,gis_geometrycollection_2
 WHERE fid=103 and fid2=103;
 ERROR 22023: Invalid GIS data provided to function st_crosses.
-SELECT ST_Crosses(GeomFromText('POINT(a 0)'),GeomFromText('LINESTRING(0 0,10 10)'));
+SELECT ST_CROSSES(GEOMFROMTEXT('POINT(a 0)'),GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
 ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
-SELECT ST_Crosses(GeomFromText('POINT(! 0)'),GeomFromText('LINESTRING(0 0,10 10)'));
+SELECT ST_CROSSES(GEOMFROMTEXT('POINT(! 0)'),GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
 ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
-SELECT ST_Crosses(GeomFromText('POINT('!' 0)'),GeomFromText('LINESTRING(0 0,10 10)'));
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0)'),GeomFromText('LINESTRING(0 0,10 10)'))' at line 1
-SELECT ST_Crosses(GeomFromText('POINT(12,34 0)'),GeomFromText('LINESTRING(0 0,10 10)'));
+SELECT ST_CROSSES(GEOMFROMTEXT('POINT('!' 0)'),GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0)'),GEOMFROMTEXT('LINESTRING(0 0,10 10)'))' at line 1
+SELECT ST_CROSSES(GEOMFROMTEXT('POINT(12,34 0)'),GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
 ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
-SELECT ST_Crosses(GeomFromText('LINESTRING(a 0,10 10)'),GeomFromText('LINESTRING(0 0,10 10)'));
+SELECT ST_CROSSES(GEOMFROMTEXT('LINESTRING(a 0,10 10)'),GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
 ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
-SELECT ST_Crosses(GeomFromText('LINESTRING(0 0,! 10)'),GeomFromText('LINESTRING(0 0,10 10)'));
+SELECT ST_CROSSES(GEOMFROMTEXT('LINESTRING(0 0,! 10)'),GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
 ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
-SELECT ST_Crosses(GeomFromText('LINESTRING('!' 0,10 10)'),GeomFromText('LINESTRING(0 0,10 10)'));
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0,10 10)'),GeomFromText('LINESTRING(0 0,10 10)'))' at line 1
-SELECT ST_Crosses(GeomFromText('LINESTRING(12,34 0,10 10)'),GeomFromText('LINESTRING(0 0,10 10)'));
+SELECT ST_CROSSES(GEOMFROMTEXT('LINESTRING('!' 0,10 10)'),GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0,10 10)'),GEOMFROMTEXT('LINESTRING(0 0,10 10)'))' at line 1
+SELECT ST_CROSSES(GEOMFROMTEXT('LINESTRING(12,34 0,10 10)'),GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
 ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
-SELECT ST_Crosses(GeomFromText('POLYGON((a 0,10 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'));
+SELECT ST_CROSSES(GEOMFROMTEXT('POLYGON((a 0,10 10,10 0,0 0))'),GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
 ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
-SELECT ST_Crosses(GeomFromText('POLYGON((0 0,! 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'));
+SELECT ST_CROSSES(GEOMFROMTEXT('POLYGON((0 0,! 10,10 0,0 0))'),GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
 ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
-SELECT ST_Crosses(GeomFromText('POLYGON(('!' 0,10 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'));
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0,10 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'))' at line 1
-SELECT ST_Crosses(GeomFromText('POLYGON((12,34 0,10 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'));
+SELECT ST_CROSSES(GEOMFROMTEXT('POLYGON(('!' 0,10 10,10 0,0 0))'),GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0,10 10,10 0,0 0))'),GEOMFROMTEXT('LINESTRING(0 0,10 10)'))' at line 1
+SELECT ST_CROSSES(GEOMFROMTEXT('POLYGON((12,34 0,10 10,10 0,0 0))'),GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
 ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
-SELECT ST_Crosses(GeomFromText('POLYGON((12,34 0,10 10,10 0,0 0)'),GeomFromText('LINESTRING(0 0,10 10)'));
+SELECT ST_CROSSES(GEOMFROMTEXT('POLYGON((12,34 0,10 10,10 0,0 0)'),GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
 ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
-SELECT ST_Crosses(,);
+SELECT ST_CROSSES(,);
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ')' at line 1
-SELECT ST_Crosses(GeomFromText(@star_of_elems),);
+SELECT ST_CROSSES(GEOMFROMTEXT(@star_of_elems),);
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ')' at line 1
-SELECT ST_Crosses(,GeomFromText(@star_top));
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'GeomFromText(@star_top))' at line 1
-#clean up
+SELECT ST_CROSSES(,GEOMFROMTEXT(@star_top));
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'GEOMFROMTEXT(@star_top))' at line 1
+# clean up
 DROP TABLE IF EXISTS gis_geometrycollection;
 DROP TABLE IF EXISTS gis_geometrycollection_2;

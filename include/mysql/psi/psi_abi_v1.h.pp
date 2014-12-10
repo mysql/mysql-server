@@ -72,6 +72,27 @@ struct PSI_stage_progress
   ulonglong m_work_estimated;
 };
 typedef struct PSI_stage_progress PSI_stage_progress;
+enum PSI_table_io_operation
+{
+  PSI_TABLE_FETCH_ROW= 0,
+  PSI_TABLE_WRITE_ROW= 1,
+  PSI_TABLE_UPDATE_ROW= 2,
+  PSI_TABLE_DELETE_ROW= 3
+};
+typedef enum PSI_table_io_operation PSI_table_io_operation;
+struct PSI_table_locker_state
+{
+  uint m_flags;
+  enum PSI_table_io_operation m_io_operation;
+  struct PSI_table *m_table;
+  struct PSI_table_share *m_table_share;
+  struct PSI_thread *m_thread;
+  ulonglong m_timer_start;
+  ulonglong (*m_timer)(void);
+  void *m_wait;
+  uint m_index;
+};
+typedef struct PSI_table_locker_state PSI_table_locker_state;
 struct PSI_bootstrap
 {
   void* (*get_interface)(int version);
@@ -136,14 +157,6 @@ enum PSI_file_operation
   PSI_FILE_SYNC= 16
 };
 typedef enum PSI_file_operation PSI_file_operation;
-enum PSI_table_io_operation
-{
-  PSI_TABLE_FETCH_ROW= 0,
-  PSI_TABLE_WRITE_ROW= 1,
-  PSI_TABLE_UPDATE_ROW= 2,
-  PSI_TABLE_DELETE_ROW= 3
-};
-typedef enum PSI_table_io_operation PSI_table_io_operation;
 enum PSI_table_lock_operation
 {
   PSI_TABLE_LOCK= 0,
@@ -296,19 +309,6 @@ struct PSI_file_locker_state_v1
   void *m_wait;
 };
 typedef struct PSI_file_locker_state_v1 PSI_file_locker_state_v1;
-struct PSI_table_locker_state_v1
-{
-  uint m_flags;
-  enum PSI_table_io_operation m_io_operation;
-  struct PSI_table *m_table;
-  struct PSI_table_share *m_table_share;
-  struct PSI_thread *m_thread;
-  ulonglong m_timer_start;
-  ulonglong (*m_timer)(void);
-  void *m_wait;
-  uint m_index;
-};
-typedef struct PSI_table_locker_state_v1 PSI_table_locker_state_v1;
 struct PSI_metadata_locker_state_v1
 {
   uint m_flags;
@@ -510,7 +510,7 @@ typedef struct PSI_cond_locker* (*start_cond_wait_v1_t)
 typedef void (*end_cond_wait_v1_t)
   (struct PSI_cond_locker *locker, int rc);
 typedef struct PSI_table_locker* (*start_table_io_wait_v1_t)
-  (struct PSI_table_locker_state_v1 *state,
+  (struct PSI_table_locker_state *state,
    struct PSI_table *table,
    enum PSI_table_io_operation op,
    uint index,
@@ -519,7 +519,7 @@ typedef void (*end_table_io_wait_v1_t)
   (struct PSI_table_locker *locker,
    ulonglong numrows);
 typedef struct PSI_table_locker* (*start_table_lock_wait_v1_t)
-  (struct PSI_table_locker_state_v1 *state,
+  (struct PSI_table_locker_state *state,
    struct PSI_table *table,
    enum PSI_table_lock_operation op,
    ulong flags,
@@ -828,7 +828,6 @@ typedef struct PSI_mutex_locker_state_v1 PSI_mutex_locker_state;
 typedef struct PSI_rwlock_locker_state_v1 PSI_rwlock_locker_state;
 typedef struct PSI_cond_locker_state_v1 PSI_cond_locker_state;
 typedef struct PSI_file_locker_state_v1 PSI_file_locker_state;
-typedef struct PSI_table_locker_state_v1 PSI_table_locker_state;
 typedef struct PSI_statement_locker_state_v1 PSI_statement_locker_state;
 typedef struct PSI_transaction_locker_state_v1 PSI_transaction_locker_state;
 typedef struct PSI_socket_locker_state_v1 PSI_socket_locker_state;

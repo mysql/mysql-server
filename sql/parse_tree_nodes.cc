@@ -54,7 +54,7 @@ bool PT_group::contextualize(Parse_context *pc)
                "global union parameters");
       return true;
     }
-    if (select->options & SELECT_DISTINCT)
+    if (select->is_distinct())
     {
       // DISTINCT+ROLLUP does not work
       my_error(ER_WRONG_USAGE, MYF(0), "WITH ROLLUP", "DISTINCT");
@@ -480,9 +480,14 @@ bool PT_option_value_no_option_type_password::contextualize(Parse_context *pc)
   if (!user)
     return true;
 
-  user->host= NULL_CSTR;
-  user->user.str=thd->security_ctx->user;
-  user->user.length= strlen(thd->security_ctx->user);
+  LEX_CSTRING sctx_user= thd->security_context()->user();
+  user->user.str= (char *) sctx_user.str;
+  user->user.length= sctx_user.length;
+
+  LEX_CSTRING sctx_priv_host= thd->security_context()->priv_host();
+  DBUG_ASSERT(sctx_priv_host.str);
+  user->host.str= (char *) sctx_priv_host.str;
+  user->host.length= sctx_priv_host.length;
 
   set_var_password *var= new set_var_password(user,
                                               const_cast<char *>(password));

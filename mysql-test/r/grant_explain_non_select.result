@@ -97,7 +97,7 @@ UPDATE t1 SET a = a + 1;
 EXPLAIN UPDATE t1, t2 SET t1.a = t1.a + 1 WHERE t1.a = t2.a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	x	x	NULL
-1	UPDATE	t1	NULL	ALL	NULL	NULL	NULL	NULL	x	x	Using where; Using join buffer (Block Nested Loop)
+1	UPDATE	t1	NULL	ALL	NULL	NULL	NULL	NULL	x	x	Using where
 UPDATE t1, t2 SET t1.a = t1.a + 1 WHERE t1.a = t2.a;
 REVOKE ALL PRIVILEGES ON privtest_db.t1 FROM 'privtest'@'localhost';
 EXPLAIN DELETE FROM t1 WHERE a = 10;
@@ -136,7 +136,7 @@ DELETE FROM t1 WHERE a = 10;
 EXPLAIN DELETE FROM t1 USING t1, t2 WHERE t1.a = t2.a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	x	x	NULL
-1	DELETE	t1	NULL	ALL	NULL	NULL	NULL	NULL	x	x	Using where; Using join buffer (Block Nested Loop)
+1	DELETE	t1	NULL	ALL	NULL	NULL	NULL	NULL	x	x	Using where
 DELETE FROM t1 USING t1, t2 WHERE t1.a = t2.a;
 REVOKE ALL PRIVILEGES ON privtest_db.t1 FROM 'privtest'@'localhost';
 CREATE VIEW privtest_db.v1 (a) AS SELECT a FROM privtest_db.t1;

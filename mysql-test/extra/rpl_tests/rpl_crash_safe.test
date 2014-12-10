@@ -2,16 +2,17 @@
 #  This test case aims at checking if a slave does not go out of sync after
 #  injecting crashes at specific points. The following scenarios are analyzed:
 #
-#     |------------+-----------------------+---------+---------+---------|
-#     | SCENARIO # | SCENARIO              | CRASH-1 | CRASH-2 | CRASH-3 |
-#     |------------+-----------------------+---------+---------+---------|
-#     |          1 | T                     | O1      | O1      | O2      |
-#     |          2 | T-*                   | O1      | O1      | O2      |
-#     |          3 | B T T-* C             | O1      | O1      | O2      |
-#     |          4 | B T-* T C             | O1      | O1      | O2      |
-#     |          5 | N                     | O3      | O3      | O2      |
-#     |          6 | N-*                   | O3      | O3      | O2      |
-#     |------------+-----------------------+---------+---------+---------|
+#  Following table represents the outcomes when Rli are on table.
+#     |------------+-----------------------+---------+---------+---------+---------|
+#     | SCENARIO # | SCENARIO              | CRASH-1 | CRASH-2 | CRASH-3 | CRASH-4 |
+#     |------------+-----------------------+---------+---------+---------+---------|
+#     |          1 | T                     | O1      | O1      | O2      | O2      |
+#     |          2 | T-*                   | O1      | O1      | O2      | O2      |
+#     |          3 | B T T-* C             | O1      | O1      | O2      | O2      |
+#     |          4 | B T-* T C             | O1      | O1      | O2      | O2      |
+#     |          5 | N                     | O3      | O3      | O2      | O3      |
+#     |          6 | N-*                   | O3      | O3      | O2      | O3      |
+#     |------------+-----------------------+---------+---------+---------+---------|
 #
 #  Legend:
 #
@@ -44,6 +45,9 @@
 #
 #  CRASH-3 - crash_after_commit_and_update_pos - after committing and updating
 #  the positions.
+#
+#  CRASH-4 - crash_after_commit_before_update_pos - after committing and
+#  updating positions in (FILE).
 #
 #  After injecting the faults, we expect the following outcomes:
 #
@@ -88,7 +92,7 @@ connection master;
 --echo #                         EXECUTE CASES CRASHING THE XID
 --echo ###################################################################################
 connection master;
---let $failures= d,crash_after_apply d,crash_before_update_pos d,crash_after_update_pos_before_apply
+--let $failures= d,crash_after_apply d,crash_before_update_pos d,crash_after_update_pos_before_apply d,crash_after_commit_before_update_pos
 #
 # Executes a set of tests while there are crash points in $failures.
 #

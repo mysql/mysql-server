@@ -102,11 +102,11 @@ SELECT @@global.max_write_lock_count;
 #   Check if the value in GLOBAL Table matches value in variable   #
 ####################################################################
 
-
+--disable_warnings
 SELECT @@global.max_write_lock_count = VARIABLE_VALUE 
 FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
 WHERE VARIABLE_NAME='max_write_lock_count';
-
+--enable_warnings
 
 --echo '#------------------FN_DYNVARS_088_06-----------------------#'
 ####################################################################

@@ -30,7 +30,6 @@ Created 12/18/1995 Heikki Tuuri
 
 #ifndef UNIV_INNOCHECKSUM
 
-#include "dict0dict.h"
 #include "fsp0space.h"
 #include "fut0lst.h"
 #include "mtr0mtr.h"
@@ -258,13 +257,7 @@ this can be smaller.
 ulint
 fsp_header_get_tablespace_size(void);
 /*================================*/
-/**********************************************************************//**
-Reads the file space size stored in the header page.
-@return tablespace size stored in the space header */
-ulint
-fsp_get_size_low(
-/*=============*/
-	page_t*	page);	/*!< in: header page (page 0 in the tablespace) */
+
 /**********************************************************************//**
 Reads the space id from the first page of a tablespace.
 @return space id, ULINT UNDEFINED if error */
@@ -272,13 +265,27 @@ ulint
 fsp_header_get_space_id(
 /*====================*/
 	const page_t*	page);	/*!< in: first page of a tablespace */
-/**********************************************************************//**
-Reads the space flags from the first page of a tablespace.
-@return flags */
+
+/** Read a tablespace header field.
+@param[in]	page	first page of a tablespace
+@param[in]	field	the header field
+@return the contents of the header field */
+inline
 ulint
-fsp_header_get_flags(
-/*=================*/
-	const page_t*	page);	/*!< in: first page of a tablespace */
+fsp_header_get_field(const page_t* page, ulint field)
+{
+	return(mach_read_from_4(FSP_HEADER_OFFSET + field + page));
+}
+
+/** Read the flags from the tablespace header page.
+@param[in]	page	first page of a tablespace
+@return the contents of FSP_SPACE_FLAGS */
+inline
+ulint
+fsp_header_get_flags(const page_t* page)
+{
+	return(fsp_header_get_field(page, FSP_SPACE_FLAGS));
+}
 
 /** Reads the page size from the first page of a tablespace.
 @param[in]	page	first page of a tablespace

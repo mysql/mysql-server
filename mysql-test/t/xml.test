@@ -678,3 +678,12 @@ SELECT ExtractValue('<a><a>aa</a><b>bb</b></a>','(a)/a|(a)/b');
 --echo #
 --echo # End of 5.5 tests
 --echo #
+
+--echo #
+--echo # Bug#13358486 WEIGHT_STRING = MY_STRNXFRM_UNICODE:
+--echo #              ASSERTION `SRC' FAILED
+--echo #
+set names utf8;
+do weight_string(extractvalue('','/*/a') level 1 reverse);
+do char((weight_string(extractvalue((''),('tX')) level 7 desc)) using cp852);
+set names default;

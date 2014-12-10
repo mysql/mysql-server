@@ -33,6 +33,7 @@
 #include "tztime.h"     // my_tz_find, my_tz_SYSTEM, struct Time_zone
 #include "rpl_gtid.h"
 #include <ctype.h>
+#include "sql_class.h"
 
 /*
   a set of mostly trivial (as in f(X)=X) defines below to make system variable
@@ -579,8 +580,8 @@ public:
 protected:
   virtual uchar *session_value_ptr(THD *thd, LEX_STRING *base)
   {
-    return thd->security_ctx->proxy_user[0] ?
-      (uchar *) &(thd->security_ctx->proxy_user[0]) : NULL;
+    const char* proxy_user= thd->security_context()->proxy_user().str;
+    return proxy_user[0] ? (uchar *)proxy_user : NULL;
   }
 };
 
@@ -595,8 +596,9 @@ public:
 protected:
   virtual uchar *session_value_ptr(THD *thd, LEX_STRING *base)
   {
-    return thd->security_ctx->proxy_user[0] ?
-      (uchar *) &(thd->security_ctx->proxy_user[0]) : NULL;
+    LEX_CSTRING external_user= thd->security_context()->external_user();
+
+    return external_user.length ? (uchar *) external_user.str : NULL;
   }
 };
 
@@ -2234,50 +2236,7 @@ public:
   void session_save_default(THD *thd, set_var *var)
   { DBUG_ASSERT(FALSE); }
 
-  bool global_update(THD *thd, set_var *var)
-  {
-    DBUG_ENTER("Sys_var_gtid_purged::global_update");
-#ifdef HAVE_REPLICATION
-    bool error= false;
-    int rotate_res= 0;
-
-    global_sid_lock->wrlock();
-    char *previous_gtid_executed= gtid_state->get_executed_gtids()->to_string();
-    char *previous_gtid_lost= gtid_state->get_lost_gtids()->to_string();
-    enum_return_status ret= gtid_state->add_lost_gtids(var->save_result.string_value.str);
-    char *current_gtid_executed= gtid_state->get_executed_gtids()->to_string();
-    char *current_gtid_lost= gtid_state->get_lost_gtids()->to_string();
-    global_sid_lock->unlock();
-    if (RETURN_STATUS_OK != ret)
-    {
-      error= true;
-      goto end;
-    }
-
-    // Log messages saying that GTID_PURGED and GTID_EXECUTED were changed.
-    sql_print_information(ER(ER_GTID_PURGED_WAS_CHANGED),
-                          previous_gtid_lost, current_gtid_lost);
-    sql_print_information(ER(ER_GTID_EXECUTED_WAS_CHANGED),
-                          previous_gtid_executed, current_gtid_executed);
-
-    // Rotate logs to have Previous_gtid_event on last binlog.
-    rotate_res= mysql_bin_log.rotate_and_purge(true);
-    if (rotate_res)
-    {
-      error= true;
-      goto end;
-    }
-
-end:
-    my_free(previous_gtid_executed);
-    my_free(previous_gtid_lost);
-    my_free(current_gtid_executed);
-    my_free(current_gtid_lost);
-    DBUG_RETURN(error);
-#else
-    DBUG_RETURN(true);
-#endif /* HAVE_REPLICATION */
-  }
+  bool global_update(THD *thd, set_var *var);
 
   void global_save_default(THD *thd, set_var *var)
   {

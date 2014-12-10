@@ -115,10 +115,15 @@ struct fil_space_t {
 	fil_type_t	purpose;/*!< purpose */
 	UT_LIST_BASE_NODE_T(fil_node_t) chain;
 				/*!< base node for the file chain */
-	ulint		size;	/*!< space size in pages; 0 if a single-table
-				tablespace whose size we do not know yet;
-				last incomplete megabytes in data files may be
-				ignored if space == 0 */
+	ulint		size;	/*!< tablespace file size in pages;
+				0 if not known yet */
+	ulint		size_in_header;
+				/* FSP_SIZE in the tablespace header;
+				0 if not known yet */
+	ulint		free_len;
+				/*!< length of the FSP_FREE list */
+	ulint		free_limit;
+				/*!< contents of FSP_FREE_LIMIT */
 	ulint		flags;	/*!< tablespace flags; see
 				fsp_flags_is_valid(),
 				page_size_t(ulint) (constructor) */
@@ -705,7 +710,7 @@ For general tablespaces, the 'dbname/' part may be missing.
 must be >= FIL_IBD_FILE_INITIAL_SIZE
 @return DB_SUCCESS or error code */
 dberr_t
-fil_create_ibd_tablespace(
+fil_ibd_create(
 	ulint		space_id,
 	const char*	name,
 	const char*	path,
@@ -743,7 +748,7 @@ statement to update the dictionary tables if they are incorrect.
 @param[in] path_in Tablespace filepath if found in SYS_DATAFILES
 @return DB_SUCCESS or error code */
 dberr_t
-fil_open_ibd_tablespace(
+fil_ibd_open(
 	bool		validate,
 	bool		fix_dict,
 	fil_type_t	purpose,
@@ -771,7 +776,7 @@ enum fil_load_status {
 @param[out]	space		the tablespace, or NULL on error
 @return status of the operation */
 enum fil_load_status
-fil_load_single_file_tablespace(
+fil_ibd_load(
 	ulint		space_id,
 	const char*	filename,
 	ulint		filename_len,
@@ -825,21 +830,14 @@ void
 fil_extend_tablespaces_to_stored_len(void);
 /*======================================*/
 #endif /* !UNIV_HOTBACKUP */
-/**********************************************************************//**
-Tries to extend a data file so that it would accommodate the number of pages
-given. The tablespace must be cached in the memory cache. If the space is big
-enough already, does nothing.
-@return true if success */
+/** Try to extend a tablespace if it is smaller than the specified size.
+@param[in,out]	space	tablespace
+@param[in]	size	desired size in pages
+@return whether the tablespace is at least as big as requested */
 bool
-fil_extend_space_to_desired_size(
-/*=============================*/
-	ulint*	actual_size,	/*!< out: size of the space after extension;
-				if we ran out of disk space this may be lower
-				than the desired size */
-	ulint	space_id,	/*!< in: space id */
-	ulint	size_after_extend);/*!< in: desired size in pages after the
-				extension; if the current space size is bigger
-				than this already, the function does nothing */
+fil_space_extend(
+	fil_space_t*	space,
+	ulint		size);
 /*******************************************************************//**
 Tries to reserve free extents in a file space.
 @return true if succeed */

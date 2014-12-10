@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,14 +20,16 @@
   Text .frm files management routines
 */
 
-#include "sql_priv.h"
 #include "parse_file.h"
-#include "unireg.h"                            // CREATE_MODE
 #include "sql_table.h"                        // build_table_filename
 #include <errno.h>
 #include <m_ctype.h>
 #include <my_sys.h>
 #include <my_dir.h>
+#include "mysqld.h"                           // reg_ext
+#include "mysqld_error.h"                     // ER_*
+#include "sql_const.h"                        // CREATE_MODE
+#include "sql_list.h"                         // List_iterator_fast
 
 /* from sql_db.cc */
 extern long mysql_rm_arc_files(THD *thd, MY_DIR *dirp, const char *org_path);

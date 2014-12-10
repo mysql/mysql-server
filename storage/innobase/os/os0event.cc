@@ -38,47 +38,8 @@ Created 2012-09-23 Sunny Bains
 static const ulint MICROSECS_IN_A_SECOND = 1000000;
 
 #ifdef _WIN32
-/** Native event (slow) */
-typedef HANDLE			os_win_event_t;
-
-/** For Windows native condition variables. We use runtime loading / function
-pointers, because they are not available on Windows Server 2003 and
-Windows XP/2000.
-
-We use condition for events on Windows if possible, even if os_event
-resembles Windows kernel event object well API-wise. The reason is
-performance, kernel objects are heavyweights and WaitForSingleObject() is a
-performance killer causing calling thread to context switch. Besides, InnoDB
-is preallocating large number (often millions) of os_events. With kernel event
-objects it takes a big chunk out of non-paged pool, which is better suited
-for tasks like IO than for storing idle event objects. */
-bool	srv_use_native_conditions;
-
 /** Native condition variable. */
 typedef CONDITION_VARIABLE	os_cond_t;
-
-/* Prototypes and function pointers for condition variable functions */
-typedef VOID (WINAPI* InitializeConditionVariableProc)
-	(PCONDITION_VARIABLE ConditionVariable);
-
-static InitializeConditionVariableProc initialize_condition_variable;
-
-typedef BOOL (WINAPI* SleepConditionVariableCSProc)
-	     (PCONDITION_VARIABLE ConditionVariable,
-	      PCRITICAL_SECTION CriticalSection,
-	      DWORD dwMilliseconds);
-
-static SleepConditionVariableCSProc sleep_condition_variable;
-
-typedef VOID (WINAPI* WakeAllConditionVariableProc)
-	     (PCONDITION_VARIABLE ConditionVariable);
-
-static WakeAllConditionVariableProc wake_all_condition_variable;
-
-typedef VOID (WINAPI* WakeConditionVariableProc)
-	     (PCONDITION_VARIABLE ConditionVariable);
-
-static WakeConditionVariableProc wake_condition_variable;
 #else
 /** Native condition variable */
 typedef pthread_cond_t		os_cond_t;
@@ -97,27 +58,15 @@ struct os_event {
 	Destroys a condition variable */
 	void destroy() UNIV_NOTHROW
 	{
-#ifdef _WIN32
-		/* Do nothing */
-#else
-		{
-			int	ret;
-
-			ret = pthread_cond_destroy(&cond_var);
-			ut_a(ret == 0);
-		}
-#endif /* _WIN32 */
+#ifndef _WIN32
+		int	ret = pthread_cond_destroy(&cond_var);
+		ut_a(ret == 0);
+#endif /* !_WIN32 */
 	}
 
 	/** Set the event */
 	void set() UNIV_NOTHROW
 	{
-#ifdef _WIN32
-		if (!srv_use_native_conditions) {
-			ut_a(SetEvent(handle));
-		}
-#endif /* _WIN32 */
-
 		mutex_enter(&mutex);
 
 		if (!m_set) {
@@ -129,12 +78,6 @@ struct os_event {
 
 	int64_t reset() UNIV_NOTHROW
 	{
-#ifdef _WIN32
-		if (!srv_use_native_conditions) {
-			ut_a(ResetEvent(handle));
-			return(0);
-		}
-#endif /* _WIN32 */
 		mutex_enter(&mutex);
 
 		if (m_set) {
@@ -191,8 +134,7 @@ private:
 	void init() UNIV_NOTHROW
 	{
 #ifdef _WIN32
-		ut_a(initialize_condition_variable != NULL);
-		initialize_condition_variable(&cond_var);
+		InitializeConditionVariable(&cond_var);
 #else
 		{
 			int	ret;
@@ -208,8 +150,9 @@ private:
 	void wait() UNIV_NOTHROW
 	{
 #ifdef _WIN32
-		ut_a(sleep_condition_variable != NULL);
-		ut_a(sleep_condition_variable(&cond_var, mutex, INFINITE));
+		if (!SleepConditionVariableCS(&cond_var, mutex, INFINITE)) {
+			ut_error;
+		}
 #else
 		{
 			int	ret;
@@ -228,8 +171,7 @@ private:
 		++signal_count;
 
 #ifdef _WIN32
-		ut_a(wake_all_condition_variable != NULL);
-		wake_all_condition_variable(&cond_var);
+		WakeAllConditionVariable(&cond_var);
 #else
 		{
 			int	ret;
@@ -245,8 +187,7 @@ private:
 	void signal() UNIV_NOTHROW
 	{
 #ifdef _WIN32
-		ut_a(wake_condition_variable != NULL);
-		wake_condition_variable(&cond_var);
+		WakeConditionVariable(&cond_var);
 #else
 		{
 			int	ret;
@@ -271,10 +212,6 @@ private:
 	);
 
 private:
-#ifdef _WIN32
-	os_win_event_t		handle;		/*!< kernel event object, slow,
-						used on older Windows */
-#endif /* _WIN32 */
 	EventMutex		mutex;		/*!< this mutex protects
 						the next fields */
 
@@ -300,42 +237,6 @@ protected:
 	os_event& operator=(const os_event&);
 };
 
-#ifdef _WIN32
-/**
-On Windows (Vista and later), load function pointers for condition variable
-handling. Those functions are not available in prior versions, so we have to
-use them via runtime loading, as long as we support XP. */
-static
-void
-os_win_init()
-/*=========*/
-{
-	if (!srv_use_native_conditions) {
-		return;
-	}
-
-	HMODULE		h_dll = GetModuleHandle("kernel32");
-
-	initialize_condition_variable = (InitializeConditionVariableProc)
-		GetProcAddress(h_dll, "InitializeConditionVariable");
-
-	sleep_condition_variable = (SleepConditionVariableCSProc)
-		GetProcAddress(h_dll, "SleepConditionVariableCS");
-
-	wake_all_condition_variable = (WakeAllConditionVariableProc)
-		GetProcAddress(h_dll, "WakeAllConditionVariable");
-
-	wake_condition_variable = (WakeConditionVariableProc)
-		GetProcAddress(h_dll, "WakeConditionVariable");
-
-	/* When using native condition variables, check function pointers */
-	ut_a(wake_condition_variable);
-	ut_a(sleep_condition_variable);
-	ut_a(wake_all_condition_variable);
-	ut_a(initialize_condition_variable);
-}
-#endif /* _WIN32 */
-
 /**
 Do a timed wait on condition variable.
 @param abstime - absolute time to wait
@@ -351,11 +252,9 @@ os_event::timed_wait(
 )
 {
 #ifdef _WIN32
-	ut_a(sleep_condition_variable != NULL);
-
 	BOOL		ret;
 
-	ret = sleep_condition_variable(&cond_var, mutex, time_in_ms);
+	ret = SleepConditionVariableCS(&cond_var, mutex, time_in_ms);
 
 	if (!ret) {
 		DWORD	err = GetLastError();
@@ -421,18 +320,6 @@ void
 os_event::wait_low(
 	int64_t		reset_sig_count) UNIV_NOTHROW
 {
-#ifdef _WIN32
-	if (!srv_use_native_conditions) {
-		DWORD	err;
-
-		/* Specify an infinite wait */
-		err = WaitForSingleObject(handle, INFINITE);
-		ut_a(err == WAIT_OBJECT_0);
-
-		return;
-	}
-#endif /* _WIN32 */
-
 	mutex_enter(&mutex);
 
 	if (!reset_sig_count) {
@@ -467,33 +354,10 @@ os_event::wait_time_low(
 #ifdef _WIN32
 	DWORD		time_in_ms;
 
-	if (!srv_use_native_conditions) {
-		DWORD	err;
-
-		if (time_in_usec != OS_SYNC_INFINITE_TIME) {
-			time_in_ms = DWORD(time_in_usec / 1000);
-			err = WaitForSingleObject(handle, time_in_ms);
-		} else {
-			err = WaitForSingleObject(handle, INFINITE);
-		}
-
-		if (err == WAIT_OBJECT_0) {
-			return(0);
-		} else if (err == WAIT_TIMEOUT || err == ERROR_TIMEOUT) {
-			return(OS_SYNC_TIME_EXCEEDED);
-		}
-
-		ut_error;
-		/* Dummy value to eliminate compiler warning. */
-		return(42);
+	if (time_in_usec != OS_SYNC_INFINITE_TIME) {
+		time_in_ms = DWORD(time_in_usec / 1000);
 	} else {
-		ut_a(sleep_condition_variable != NULL);
-
-		if (time_in_usec != OS_SYNC_INFINITE_TIME) {
-			time_in_ms = DWORD(time_in_usec / 1000);
-		} else {
-			time_in_ms = INFINITE;
-		}
+		time_in_ms = INFINITE;
 	}
 #else
 	struct timespec	abstime;
@@ -556,50 +420,29 @@ os_event::wait_time_low(
 /** Constructor */
 os_event::os_event(const char* name) UNIV_NOTHROW
 {
-#ifdef _WIN32
-	if (!srv_use_native_conditions) {
+	mutex_create("event_mutex", &mutex);
 
-		handle = CreateEvent(0, TRUE, FALSE, (LPCTSTR) name);
+	init();
 
-		if (!handle) {
-			ib::error() << "Could not create a Windows event"
-				" semaphore; Windows error " << GetLastError();
-		}
+	m_set = false;
 
-	} else /* Windows with condition variables */
-#endif /* _WIN32 */
-	{
-		mutex_create("event_mutex", &mutex);
+	/* We return this value in os_event_reset(),
+	which can then be be used to pass to the
+	os_event_wait_low(). The value of zero is
+	reserved in os_event_wait_low() for the case
+	when the caller does not want to pass any
+	signal_count value. To distinguish between
+	the two cases we initialize signal_count
+	to 1 here. */
 
-		init();
-
-		m_set = false;
-
-		/* We return this value in os_event_reset(),
-		which can then be be used to pass to the
-		os_event_wait_low(). The value of zero is
-		reserved in os_event_wait_low() for the case
-		when the caller does not want to pass any
-		signal_count value. To distinguish between
-		the two cases we initialize signal_count
-		to 1 here. */
-
-		signal_count = 1;
-	}
+	signal_count = 1;
 }
 
 /** Destructor */
 os_event::~os_event() UNIV_NOTHROW
 {
-#ifdef _WIN32
-	if (!srv_use_native_conditions){
-		ut_a(CloseHandle(handle));
-	} else /*Windows with condition variables */
-#endif /* _WIN32 */
-	{
-		destroy();
-		mutex_destroy(&mutex);
-	}
+	destroy();
+	mutex_destroy(&mutex);
 }
 
 /**
@@ -702,14 +545,4 @@ os_event_destroy(
 		UT_DELETE(event);
 		event = NULL;
 	}
-}
-
-/**
-Initialise the event sub-system. */
-void
-os_event_init()
-{
-#ifdef _WIN32
-	os_win_init();
-#endif /* _WIN32 */
 }

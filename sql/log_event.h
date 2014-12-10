@@ -170,6 +170,12 @@ typedef struct st_db_worker_hash_entry db_worker_hash_entry;
 #define LINE_START_EMPTY	0x8
 #define ESCAPED_EMPTY		0x10
 
+/*
+   Do not decrease the value of BIN_LOG_HEADER_SIZE.
+   Do not even increase it before checking code.
+*/
+#define BIN_LOG_HEADER_SIZE    4U
+
 /*****************************************************************************
 
   old_sql_ex struct
@@ -1450,13 +1456,7 @@ public:
   }
   Log_event(const char* buf, const Format_description_log_event
             *description_event);
-  virtual ~Log_event()
-  {
-    free_temp_buf();
-#if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
-    free_root(&m_event_mem_root, MYF(MY_KEEP_PREALLOC));
-#endif //!MYSQL_CLIENT && HAVE_REPLICATION
-  }
+  virtual ~Log_event() { free_temp_buf();}
   void register_temp_buf(char* buf) { temp_buf = buf; }
   void free_temp_buf()
   {
@@ -1573,12 +1573,54 @@ private:
                                                        bool mts_in_group,
                                                        bool is_dbname_type)
   {
-    if ((get_type_code() == FORMAT_DESCRIPTION_EVENT &&
+    /*
+      Slave workers are unable to handle Format_description_log_event,
+      Rotate_log_event and Previous_gtids_log_event correctly.
+      However, when a transaction spans multiple relay logs, these
+      events occur in the middle of a transaction. The way we handle
+      this is by marking the events as 'ASYNC', meaning that the
+      coordinator thread will handle the events without stopping the
+      worker threads.
+
+      @todo Refactor this: make Log_event::get_slave_worker handle
+      transaction boundaries in a more robust way, so that it is able
+      to process Format_description_log_event, Rotate_log_event, and
+      Previous_gtids_log_event.  Then, when these events occur in the
+      middle of a transaction, make them part of the transaction so
+      that the worker that handles the transaction handles these
+      events too. /Sven
+    */
+    if (
+        /*
+          When a Format_description_log_event occurs in the middle of
+          a transaction, it either has the slave's server_id, or has
+          end_log_pos==0.
+
+          @todo This does not work when master and slave have the same
+          server_id and replicate-same-server-id is enabled, since
+          events that are not in the middle of a transaction will be
+          executed in ASYNC mode in that case.
+        */
+        (get_type_code() == FORMAT_DESCRIPTION_EVENT &&
          ((server_id == (uint32) ::server_id) || (log_pos == 0))) ||
+        /*
+          All Previous_gtids_log_events in the relay log are generated
+          by the slave. They don't have any meaning to the applier, so
+          they can always be ignored by the applier. So we can process
+          them asynchronously by the coordinator. It is also important
+          to not feed them to workers because that confuses
+          get_slave_worker.
+        */
+        (get_type_code() == PREVIOUS_GTIDS_LOG_EVENT) ||
+        /*
+          Rotate_log_event can occur in the middle of a transaction.
+          When this happens, either it is a Rotate event generated on
+          the slave which has the slave's server_id, or it is a Rotate
+          event that originates from a master but has end_log_pos==0.
+        */
         (get_type_code() == ROTATE_EVENT &&
          ((server_id == (uint32) ::server_id) ||
-          (log_pos == 0    /* very first fake Rotate (R_f) */
-           && mts_in_group /* ignored event turned into R_f at slave stop */))))
+          (log_pos == 0 && mts_in_group))))
       return EVENT_EXEC_ASYNC;
     else if (is_mts_sequential_exec(is_dbname_type))
       return EVENT_EXEC_SYNC;
@@ -1728,13 +1770,6 @@ public:
   }
 
   virtual int do_apply_event_worker(Slave_worker *w);
-
-  /*
-    Mem root whose scope is equalent to event's scope.
-    This mem_root will be initialized in constructor
-    Log_event() and freed in destructor ~Log_event().
-   */
-  MEM_ROOT m_event_mem_root;
 
 protected:
 
@@ -1977,7 +2012,7 @@ protected:
     <td>Q_SQL_MODE_CODE == 1</td>
     <td>8 byte bitfield</td>
     <td>The @c sql_mode variable.  See the section "SQL Modes" in the
-    MySQL manual, and see sql_priv.h for a list of the possible
+    MySQL manual, and see sql_class.h for a list of the possible
     flags. Currently (2007-10-04), the following flags are available:
     <pre>
     MODE_REAL_AS_FLOAT==0x1
@@ -5330,6 +5365,18 @@ public:
                 const Gtid_set::String_format *string_format) const;
   /// Add all GTIDs from this event to the given Gtid_set.
   int add_to_set(Gtid_set *gtid_set) const;
+  /*
+    Previous Gtid Log events should always be skipped
+    there is nothing to apply there, whether it is
+    relay log's (generated on Slave) or it is binary log's
+    (generated on Master, copied to slave as relay log).
+    Also, we should not increment slave_skip_counter
+    for this event, hence return EVENT_SKIP_IGNORE.
+   */
+  enum_skip_reason do_shall_skip(Relay_log_info *rli)
+  {
+    return EVENT_SKIP_IGNORE;
+  }
 
 #if defined(MYSQL_SERVER) && defined(HAVE_REPLICATION)
   int do_apply_event(Relay_log_info const *rli) { return 0; }

@@ -16,7 +16,6 @@
 
 
 #define MYSQL_SERVER 1
-#include "sql_priv.h"
 #include "probes_mysql.h"
 #include "key.h"                                // key_copy
 #include "sql_plugin.h"
@@ -1752,11 +1751,6 @@ int ha_myisam::rnd_next(uchar *buf)
   table->status=error ? STATUS_NOT_FOUND: 0;
   MYSQL_READ_ROW_DONE(error);
   return error;
-}
-
-int ha_myisam::restart_rnd_next(uchar *buf, uchar *pos)
-{
-  return rnd_pos(buf,pos);
 }
 
 int ha_myisam::rnd_pos(uchar *buf, uchar *pos)

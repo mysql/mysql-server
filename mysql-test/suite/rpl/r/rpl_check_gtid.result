@@ -229,6 +229,7 @@ FLUSH LOGS;
 include/stop_slave.inc
 RESET SLAVE;
 RESET MASTER;
+RESET MASTER;
 include/start_slave.inc
 BEGIN;
 INSERT INTO t1 VALUES(1);
@@ -245,6 +246,7 @@ FLUSH LOGS;
 ---- i=2 ----
 include/stop_slave.inc
 RESET SLAVE;
+RESET MASTER;
 RESET MASTER;
 include/start_slave.inc
 BEGIN;
@@ -263,6 +265,7 @@ FLUSH LOGS;
 include/stop_slave.inc
 RESET SLAVE;
 RESET MASTER;
+RESET MASTER;
 include/start_slave.inc
 BEGIN;
 INSERT INTO t1 VALUES(1);
@@ -279,6 +282,7 @@ FLUSH LOGS;
 ---- i=4 ----
 include/stop_slave.inc
 RESET SLAVE;
+RESET MASTER;
 RESET MASTER;
 include/start_slave.inc
 BEGIN;
@@ -430,7 +434,7 @@ FLUSH LOGS;
 ==== Part 8 ====
 include/stop_slave.inc
 Warnings:
-Note	1969	Replication thread(s) for channel '' are already stopped.
+Note	1970	Replication thread(s) for channel '' are already stopped.
 RESET MASTER;
 RESET SLAVE;
 CHANGE MASTER TO MASTER_HOST= '127.0.0.1', MASTER_AUTO_POSITION= 0;

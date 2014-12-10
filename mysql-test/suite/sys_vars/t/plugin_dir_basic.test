@@ -14,10 +14,12 @@ select @@session.plugin_dir;
 show global variables like 'plugin_dir';
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR /mysql/ /
 show session variables like 'plugin_dir';
+--disable_warnings
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR /mysql/ /
 select * from information_schema.global_variables where variable_name='plugin_dir';
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR /mysql/ /
 select * from information_schema.session_variables where variable_name='plugin_dir';
+--enable_warnings
 
 #
 # show that it's read-only

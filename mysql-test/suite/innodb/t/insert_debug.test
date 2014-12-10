@@ -1,0 +1,16 @@
+--source include/have_innodb.inc
+--source include/have_debug.inc
+
+--echo #
+--echo # Bug#19904003 INNODB_LIMIT_OPTIMISTIC_INSERT_DEBUG=1
+--echo # CAUSES INFINITE PAGE SPLIT
+--echo #
+
+SET GLOBAL innodb_change_buffering_debug=1;
+SET GLOBAL innodb_limit_optimistic_insert_debug=1;
+CREATE TABLE t1(c1 INT PRIMARY KEY) ENGINE=InnoDB
+PARTITION BY HASH (c1) PARTITIONS 15;
+DROP TABLE t1;
+
+SET GLOBAL innodb_change_buffering_debug=0;
+SET GLOBAL innodb_limit_optimistic_insert_debug=0;

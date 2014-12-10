@@ -22,7 +22,7 @@ Full Text Search plugin support.
 
 Created 2013/06/04 Shaohua Wang
 ***********************************************************************/
- 
+
 #include "fts0ast.h"
 #include "fts0plugin.h"
 
@@ -323,7 +323,7 @@ fts_query_add_word_for_parser(
 
 		/* Set operator */
                 oper_node = fts_query_get_oper_node(info, state);
-		if (oper_node != NULL) {  
+		if (oper_node != NULL) {
 			node = fts_ast_create_node_list(state, oper_node);
 			fts_ast_add_node(cur_node, node);
 			node->go_up = true;
