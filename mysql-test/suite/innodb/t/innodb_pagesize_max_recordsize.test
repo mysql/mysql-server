@@ -17,10 +17,8 @@
 
 --source include/not_valgrind.inc
 --source include/not_embedded.inc
-# can not run parallel > 1 
---source include/not_parallel.inc
-# can not run windows
---source include/linux.inc
+# can not run parallel > 1
+#--source include/not_parallel.inc
 
 let $MYSQLD_BASEDIR= `select @@basedir`;
 
@@ -169,29 +167,26 @@ col54 CHAR(255),col55 CHAR(255),col56 CHAR(255),col57 CHAR(255),col58  CHAR(255)
 col60 CHAR(255),col61 CHAR(255),col62 CHAR(255),col63 CHAR(255),col64  CHAR(255), col65  CHAR(255))
 ENGINE = innodb ROW_FORMAT=COMPRESSED;
 
-# Stop the server which was created by page size 32k
+# Stop the server when the instance was created by page size 32k
 
---echo # Stop DB server which was created by page size 32k
+--echo # Stop DB server with page size 32k
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --shutdown_server 30
 --source include/wait_until_disconnected.inc
 
-# Check this [ERROR] InnoDB: Data file 'ibdata1' uses page size 32768, but the innodb_page_size start-up parameter is 65536
-
-# Try to start the Datadir with page size 64K and expect an error
+# Check Server startup failure when page sizes are mismatch
 let NEW_CMD = $MYSQLD_BASEDIR/bin/mysqld --no-defaults --lc-messages-dir=$MYSQLD_BASEDIR/share --innodb_page_size=64K --basedir=$MYSQLD_BASEDIR --datadir=$MYSQLD_DATADIR1 --skip-grant-tables</dev/null>>$MYSQLTEST_VARDIR/tmp/bootstrap.log 2>&1;
 
---echo # Start the DB server with page size 64k
+--echo # Check Server startup failure when page size 64K
 --error 1
 --exec $NEW_CMD
 
-# Search for perticular error and server start up fails
-# Check "error but the innodb_page_size start-up parameter is 65536"
-let SEARCH_FILE= $MYSQLTEST_VARDIR/tmp/bootstrap.log;
-let SEARCH_PATTERN= \[ERROR\] InnoDB: Data file 'ibdata1' uses page size 32768;
+# Search for perticular warning during server startup
+let SEARCH_FILE= $MYSQLTEST_VARDIR/log/mysqld.1.err;
+let SEARCH_PATTERN= \[Warning\] InnoDB: innodb-page-size has been changed from the default value 16384 to 32768;
 --source include/search_pattern_in_file.inc
 
-# Restart the datadir with same page size 32k and check , server should be started here
+# Restart the datadir with same page size 32k and check , server should be started
 --echo # Restart the DB server with datadir1 with same 32k page size 
 --exec echo "restart: --innodb_page_size=32K --datadir=$MYSQLD_DATADIR1 --skip-grant-tables" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --enable_reconnect

@@ -14,8 +14,8 @@
 # *********************************************************
 --source include/not_valgrind.inc
 --source include/not_embedded.inc
-# can not run parallel > 1
---source include/not_parallel.inc
+# can not run parallel > 1 
+#--source include/not_parallel.inc
 
 let $MYSQLD_BASEDIR= `select @@basedir`;
 
@@ -161,14 +161,8 @@ DROP DATABASE test;
 --source include/wait_until_disconnected.inc
 
 # Remove residue files and data folder of page size 32K
-perl;
-use File::Path;
-my $tempdir= $ENV{'MYSQL_TMP_DIR'}."/datadir1/data";
-die "usage: $0 dir ..\n" unless $tempdir;
-    foreach $dir ($tempdir) {
-    rmtree($dir);
-}
-EOF
+let $data_folder = /datadir1/data ;
+../include/cleanup_folder.inc
 
 # Create datadir path,rathan than mtr defaults path
 --mkdir $MYSQL_TMP_DIR/datadir1/data
@@ -231,14 +225,8 @@ DROP DATABASE test;
 --source include/wait_until_disconnected.inc
 
 # Remove residue files and data folder of page size 16K
-perl;
-use File::Path;
-my $tempdir= $ENV{'MYSQL_TMP_DIR'}."/datadir1/data";
-die "usage: $0 dir ..\n" unless $tempdir;
-    foreach $dir ($tempdir) {
-    rmtree($dir);
-}
-EOF
+let $data_folder = /datadir1/data ;
+../include/cleanup_folder.inc
 
 # Create datadir path,rathan than mtr defaults path
 --mkdir $MYSQL_TMP_DIR/datadir1/data
