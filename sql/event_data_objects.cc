@@ -1501,15 +1501,16 @@ end:
         Temporarily reset it to read-write.
       */
 
-      saved_master_access= thd->security_ctx->master_access;
-      thd->security_ctx->master_access |= SUPER_ACL;
+      saved_master_access= thd->security_context()->master_access();
+      thd->security_context()->set_master_access(saved_master_access |
+                                                 SUPER_ACL);
       bool save_tx_read_only= thd->tx_read_only;
       thd->tx_read_only= false;
 
       ret= Events::drop_event(thd, dbname, name, FALSE);
 
       thd->tx_read_only= save_tx_read_only;
-      thd->security_ctx->master_access= saved_master_access;
+      thd->security_context()->set_master_access(saved_master_access);
     }
   }
 #ifndef NO_EMBEDDED_ACCESS_CHECKS

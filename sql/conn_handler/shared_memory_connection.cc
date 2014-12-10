@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -87,8 +87,7 @@ public:
     THD* thd= Channel_info::create_thd();
 
     if (thd != NULL)
-      thd->security_ctx->set_host(my_strdup(key_memory_Security_context,
-                                            my_localhost, MYF(0)));
+      thd->security_context()->set_host_ptr(my_localhost, strlen(my_localhost));
     return thd;
   }
 
