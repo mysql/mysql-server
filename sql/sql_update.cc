@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -734,6 +734,7 @@ int mysql_update(THD *thd,
 
   if ((table->file->ha_table_flags() & HA_READ_BEFORE_WRITE_REMOVAL) &&
       !ignore && !using_limit &&
+      !(table->triggers && table->triggers->has_update_triggers()) &&
       select && select->quick && select->quick->index != MAX_KEY &&
       check_constant_expressions(values))
     read_removal= table->check_read_removal(select->quick->index);
