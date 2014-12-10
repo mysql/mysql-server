@@ -6291,7 +6291,9 @@ ha_innobase::commit_inplace_alter_table(
 	ut_stage_alter_t*	stage = static_cast<ut_stage_alter_t*>(
 		ha_alter_info->alter_info->se_blob);
 
-	stage->begin_phase_end();
+	if (stage != NULL) {
+		stage->begin_phase_end();
+	}
 
 	if (!commit) {
 		/* A rollback is being requested. So far we may at
