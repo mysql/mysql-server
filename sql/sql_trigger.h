@@ -2,7 +2,7 @@
 #define SQL_TRIGGER_INCLUDED
 
 /*
-   Copyright (c) 2004, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -197,6 +197,11 @@ public:
   {
     return (bodies[TRG_EVENT_DELETE][TRG_ACTION_BEFORE] ||
             bodies[TRG_EVENT_DELETE][TRG_ACTION_AFTER]);
+  }
+  bool has_update_triggers()
+  {
+    return (bodies[TRG_EVENT_UPDATE][TRG_ACTION_BEFORE] ||
+            bodies[TRG_EVENT_UPDATE][TRG_ACTION_AFTER]);
   }
 
   void set_table(TABLE *new_table);
