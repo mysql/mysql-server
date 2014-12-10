@@ -480,7 +480,9 @@ static void ndbcluster_binlog_wait(THD *thd)
   {
     DBUG_ENTER("ndbcluster_binlog_wait");
     DBUG_ASSERT(thd);
-
+    DBUG_ASSERT(thd_sql_command(thd) == SQLCOM_SHOW_BINLOG_EVENTS ||
+                thd_sql_command(thd) == SQLCOM_FLUSH ||
+                thd_sql_command(thd) == SQLCOM_RESET);
     /*
       Binlog Injector should not wait for itself
     */
@@ -539,6 +541,9 @@ static void ndbcluster_binlog_wait(THD *thd)
                         Uint32(start_handled_epoch & 0xffffffff),
                         Uint32((ndb_latest_handled_binlog_epoch >> 32) & 0xffffffff),
                         Uint32(ndb_latest_handled_binlog_epoch & 0xffffffff));
+
+      // Fail on wait/deadlock timeout in debug compile
+      DBUG_ASSERT(false);
     }
     
     thd->proc_info= save_info;
@@ -874,19 +879,6 @@ static void ndbcluster_reset_slave(THD *thd)
   Initialize the binlog part of the ndb handlerton
 */
 
-/**
-  Upon the sql command flush logs, we need to ensure that all outstanding
-  changes made to ndb by the current thread have entered the binary log
-  in order to get a deterministic behavior on the rotation of the log.
-  'current_thd' should not be NULL.
- */
-static bool ndbcluster_flush_logs(handlerton *hton)
-{
-  ndbcluster_binlog_wait(current_thd);
-  return FALSE;
-}
-
-
 static int ndbcluster_binlog_func(handlerton *hton, THD *thd, 
                                   enum_binlog_func fn, 
                                   void *arg)
@@ -916,7 +908,6 @@ static int ndbcluster_binlog_func(handlerton *hton, THD *thd,
 
 void ndbcluster_binlog_init(handlerton* h)
 {
-  h->flush_logs=       ndbcluster_flush_logs;
   h->binlog_func=      ndbcluster_binlog_func;
   h->binlog_log_query= ndbcluster_binlog_log_query;
 }
