@@ -21,6 +21,7 @@
 #include <TransporterRegistry.hpp>
 #include <TransporterCallback.hpp>
 #include <RefConvert.hpp>
+#include "BaseString.hpp"
 #include "EventLogger.hpp"
 #include "BlockNumbers.h"
 
@@ -54,7 +55,7 @@ TransporterRegistry::dump_and_report_bad_message(const char file[], unsigned lin
   {
     size_t offs = 0;
     ssize_t nb;
-    nb = snprintf(msg + offs, sz - offs, "%s: %u: ", file, line);
+    nb = BaseString::snprintf(msg + offs, sz - offs, "%s: %u: ", file, line);
     if (nb < 0) goto log_it;
     offs += nb;
 
@@ -72,10 +73,10 @@ TransporterRegistry::dump_and_report_bad_message(const char file[], unsigned lin
     offs += nb;
 
     const bool bad_data = recvHandle.m_bad_data_transporters.get(remoteNodeId);
-    nb = snprintf(msg + offs, sz - offs,
+    nb = BaseString::snprintf(msg + offs, sz - offs,
                   "\n"
                   "PerformState %u: IOState %u: bad_data %u\n"
-                  "ptr %p: size %zu bytes\n",
+                  "ptr %p: size %u bytes\n",
                   performStates[remoteNodeId], state, bad_data,
                   readPtr, sizeInWords * 4);
     if (nb < 0) goto log_it;
@@ -102,7 +103,7 @@ TransporterRegistry::dump_and_report_bad_message(const char file[], unsigned lin
       // at least 60 words will be printed for current message.
       if (nextMsgOffset > 60)
       {
-        nb = snprintf(msg + offs, sz - offs,
+        nb = BaseString::snprintf(msg + offs, sz - offs,
                   "Before next ptr %p\n",
                   readPtr + nextMsgOffset - 6);
         if (nb < 0) goto log_it;
@@ -111,7 +112,7 @@ TransporterRegistry::dump_and_report_bad_message(const char file[], unsigned lin
         offs += nb;
       }
       // Dump words for next message.
-      nb = snprintf(msg + offs, sz - offs,
+      nb = BaseString::snprintf(msg + offs, sz - offs,
                     "Next ptr %p\n",
                     readPtr + nextMsgOffset);
       if (nb < 0) goto log_it;
