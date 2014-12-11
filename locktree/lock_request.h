@@ -164,6 +164,8 @@ public:
     //         The rest remain pending.
     static void retry_all_lock_requests(locktree *lt);
 
+    void set_start_test_callback(void (*f)(void));
+    void set_retry_test_callback(void (*f)(void));
 private:
 
     enum state {
@@ -171,6 +173,7 @@ private:
         INITIALIZED,
         PENDING,
         COMPLETE,
+        DESTROYED,
     };
 
     // The keys for a lock request are stored "unowned" in m_left_key
@@ -235,6 +238,9 @@ private:
     void copy_keys(void);
 
     static int find_by_txnid(lock_request * const &request, const TXNID &txnid);
+
+    void (*m_start_test_callback)(void);
+    void (*m_retry_test_callback)(void);
 
     friend class lock_request_unit_test;
 };
