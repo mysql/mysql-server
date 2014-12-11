@@ -30,7 +30,6 @@
 #define STATEMENT_EVENT_INCLUDED
 
 #include "control_events.h"
-#include <cassert>
 
 namespace binary_log
 {

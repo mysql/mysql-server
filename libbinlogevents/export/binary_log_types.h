@@ -16,8 +16,8 @@
 /**
   @file binary_log_types.h
 
-  @brief Functions and types that are used to compute information
-  about date and time values.
+  @brief This file contains the field type.
+
 
   @note This file can be imported both from C and C++ code, so the
   definitions have to be constructed to support this.

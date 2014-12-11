@@ -19,7 +19,6 @@
 #include "wrapper_functions.h"
 
 #include <string.h>
-#include <cassert>
 #include <climits>
 #include <stdint.h>
 #include <cstring>
