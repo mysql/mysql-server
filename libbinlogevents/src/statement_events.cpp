@@ -94,7 +94,7 @@ static void copy_str_and_move(Log_event_header::Byte **dst,
 */
 #define CHECK_SPACE(PTR,END,CNT)                      \
   do {                                                \
-    assert((PTR) + (CNT) <= (END));              \
+    BAPI_ASSERT((PTR) + (CNT) <= (END));              \
     if ((PTR) + (CNT) > (END)) {                      \
       query= 0;                                       \
       return;                               \

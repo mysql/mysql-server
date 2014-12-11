@@ -18,7 +18,6 @@
 #include "statement_events.h"
 
 #include <algorithm>
-#include <cassert>
 #include <stdint.h>
 
 const unsigned char checksum_version_split[3]= {5, 6, 1};

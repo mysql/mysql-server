@@ -27,7 +27,6 @@ ADD_DEFINITIONS(-DEMBEDDED_LIBRARY -UMYSQL_CLIENT)
 MYSQL_ADD_EXECUTABLE(mysql_embedded ../../client/completion_hash.cc
                ../../client/mysql.cc ../../client/readline.cc)
 TARGET_LINK_LIBRARIES(mysql_embedded mysqlserver)
-
 IF(UNIX)
   TARGET_LINK_LIBRARIES(mysql_embedded ${EDITLINE_LIBRARY})
   SET_TARGET_PROPERTIES(mysql_embedded PROPERTIES ENABLE_EXPORTS TRUE)

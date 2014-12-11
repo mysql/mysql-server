@@ -139,7 +139,6 @@ ADD_CUSTOM_TARGET(GenYaccEmbeddedSource DEPENDS ${GEN_YACC_SOURCES})
 ADD_CONVENIENCE_LIBRARY(sql_embedded ${SQL_EMBEDDED_SOURCES})
 DTRACE_INSTRUMENT(sql_embedded)
 ADD_DEPENDENCIES(sql_embedded GenError GenServerSource GenYaccEmbeddedSource)
-TARGET_LINK_LIBRARIES(sql_embedded)
 
 # On Windows, static embedded server library is called mysqlserver.lib
 # On Unix, it is libmysqld.a
@@ -172,7 +171,6 @@ ENDFOREACH()
 
 MERGE_LIBRARIES(mysqlserver STATIC ${EMBEDDED_LIBS} 
   OUTPUT_NAME ${MYSQLSERVER_OUTPUT_NAME} COMPONENT Embedded)
-TARGET_LINK_LIBRARIES(mysqlserver)
 
 # Visual Studio users need debug  static library 
 IF(MSVC)

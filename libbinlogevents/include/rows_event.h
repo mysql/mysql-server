@@ -29,7 +29,6 @@
 
 #include "control_events.h"
 #include "table_id.h"
-#include <cassert>
 #include <vector>
 
 /**

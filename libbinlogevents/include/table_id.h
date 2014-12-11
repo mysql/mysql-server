@@ -21,7 +21,7 @@
 #ifndef TABLE_ID_INCLUDED
 #define TABLE_ID_INCLUDED
 #include <stdint.h>
-#include <cassert>
+#include "wrapper_functions.h"
 
 /**
   @class Table_id
@@ -59,7 +59,7 @@ public:
     /* m_id is reset to 0, when it exceeds the max value. */
     m_id = (m_id == TABLE_ID_MAX ? 0 : m_id + 1);
 
-    assert(m_id <= TABLE_ID_MAX );
+    BAPI_ASSERT(m_id <= TABLE_ID_MAX );
     return id;
   }
 };

@@ -26,7 +26,6 @@
 #define WRAPPER_FUNCTIONS_INCLUDED
 
 #include "binlog_config.h"
-#include <cassert>
 #ifndef STANDALONE_BINLOG
 #define HAVE_MYSYS 1
 #endif
@@ -35,6 +34,7 @@
 #include "my_sys.h"
 extern PSI_memory_key key_memory_log_event;
 #else
+#include <cassert>
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE
 #endif
