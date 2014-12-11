@@ -78,7 +78,7 @@ TransporterRegistry::dump_and_report_bad_message(const char file[], unsigned lin
                   "PerformState %u: IOState %u: bad_data %u\n"
                   "ptr %p: size %u bytes\n",
                   performStates[remoteNodeId], state, bad_data,
-                  readPtr, sizeInWords * 4);
+                  readPtr, (unsigned)(sizeInWords * 4));
     if (nb < 0) goto log_it;
     offs += nb;
     size_t reserve;
